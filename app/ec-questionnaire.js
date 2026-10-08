@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 10:37 — v1100 */
+/* Déployé le 08/10/2026 à 14:10 — v1105 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1797,6 +1797,52 @@ function reserveQueLaFenetreAffiche(nom, prec, rangDuJour){
 }
 
 
+/* ============================================================
+   D'OÙ PARTENT LES HEURES — LA MÊME QUESTION QU'À LA FICHE, v1105
+
+   David, le 8 octobre : « tu veux pas me le mettre dans le
+   questionnaire aussi, comme ça je modifie directement dans mes
+   prochains cours au besoin et pas obligé d'aller dans le dossier
+   élève ».
+
+   ⚠️ LA QUESTION NE SE POSE QUE QUAND ELLE A DEUX RÉPONSES. Tant
+   qu'aucune leçon n'a eu lieu depuis la charnière, « depuis elle »
+   et « depuis aujourd'hui » désignent le même instant : une
+   question à réponse unique est du bruit, et elle se cache.
+
+   ⚠️ ET ELLE S'OUVRE SUR CE QUI EST DÉJÀ ÉCRIT, comme à la fiche —
+   sinon on ne sait pas ce qu'on corrige, et on croit poser une
+   réponse alors qu'on en confirme une autre.
+
+   Elle rend le rang qu'on vient d'afficher, pour que l'appelant
+   n'ait pas à le recalculer.
+   ============================================================ */
+function poserLeDepartDesHeures(boite, nom){
+  const bloc = boite && boite.querySelector('#qBlocHeuresDepuis');
+  const sel  = boite && boite.querySelector('#qHeuresDepuis');
+  if(!bloc || !sel) return 0;
+
+  const c = (typeof charniereDeLEleve === 'function')
+    ? charniereDeLEleve(nom) : { quoi: 'eb', rang: 0 };
+  if(!c || !(c.rang >= 1)){ bloc.style.display = 'none'; return 0; }
+
+  const quoi = (typeof nomDeLaCharniere === 'function')
+    ? nomDeLaCharniere(c.quoi) : "l'examen blanc";
+  sel.options[0].textContent = 'Depuis ' + quoi +
+    ' (déjà entamées de ' + c.rang + ' leçon' + (c.rang > 1 ? 's' : '') + ')';
+
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const rep = (typeof repereDesHeures === 'function')
+    ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
+  const depuisLaCharniere =
+    (String(rep.quoi || 'eb') !== String(c.quoi || 'eb')) ||
+    (parseInt(rep.rang, 10) || 0) <= 0;
+
+  sel.value = depuisLaCharniere ? 'charniere' : 'now';
+  bloc.style.display = '';
+  return c.rang;
+}
+
 function direDOuVientLaReserve(zone, nom){
   if(!zone) return 0;
   zone.innerHTML = '';
@@ -3574,6 +3620,37 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<button type="button" id="qHeuresBouton" class="btn btn-secondary" ' +
           'style="width:auto;margin:0 0 6px;padding:9px 12px;font-size:13px;">' +
           '⏱️ Heures à préciser</button>' +
+        /* ============================================================
+           ⚠️ D'OÙ PARTENT CES HEURES — v1105, ici aussi.
+
+           David, le 8 octobre : « tu veux pas me le mettre dans le
+           questionnaire aussi, comme ça je modifie directement dans
+           mes prochains cours au besoin et pas obligé d'aller dans le
+           dossier élève ».
+
+           La v1104 a posé la question sur la fiche de route. Mais
+           c'est au cours qu'on s'aperçoit que le compte ne colle
+           pas, et faire un aller-retour par le dossier pour corriger
+           un repère, c'est le genre de détour qu'on ne fait pas —
+           donc un chiffre faux qui reste.
+
+           ⚠️ ET CE N'EST PAS UNE DEUXIÈME RÈGLE. Même question,
+           mêmes mots, même écriture que la fiche : c'est
+           « heuresDuJour » qui la porte jusqu'à la porte commune,
+           et elle existait déjà — elle se devinait seulement, d'après
+           le sélecteur de suite de l'examen blanc. Elle se demande
+           maintenant, et le sélecteur ne sert plus que de défaut
+           quand la question n'a qu'une réponse.
+           ============================================================ */
+        '<div id="qBlocHeuresDepuis" style="display:none;margin:0 0 10px;">' +
+          '<label for="qHeuresDepuis" style="font-size:11.5px;' +
+            'color:var(--muted);display:block;margin:0 0 3px;">' +
+            'Ces heures partent de quand ?</label>' +
+          '<select id="qHeuresDepuis" style="margin:0;">' +
+            '<option value="charniere">Depuis la charnière</option>' +
+            '<option value="now">À partir d\'aujourd\'hui</option>' +
+          '</select>' +
+        '</div>' +
         '<div style="font-size:11px;color:var(--muted);margin:2px 0 14px;' +
           'line-height:1.5;">La leçon de veille de l\'examen (3h) vient en ' +
           'plus. <strong>0</strong> veut dire « plus que la leçon de ' +
@@ -4797,6 +4874,10 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     direDOuVientLaReserve(boite.querySelector('#qHeuresDOu'),
                           ($('studentName') || {}).value);
 
+    /* ⚠️ ET D'OÙ IL PART — v1105, la question de la fiche de route,
+       posée ici aussi. Voir « poserLeDepartDesHeures ». */
+    poserLeDepartDesHeures(boite, ($('studentName') || {}).value);
+
     /* ⚠️ LA MÊME FENÊTRE QUE LE BUREAU, pas une deuxième qui lui
        ressemble. Elle n'écrit rien ici : elle rend le choix, et
        c'est la validation du bilan qui le porte au bureau, par la
@@ -5039,7 +5120,31 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            décompte. Sans cette distinction, un nombre donné à la
            6ᵉ leçon serait rangé comme s'il datait de la charnière,
            et les six leçons déjà faites l'entameraient d'un coup. */
+        /* ⚠️ ET SI ON A POSÉ LA QUESTION, C'EST LA RÉPONSE QUI VAUT
+           — v1105. Ce qui suit n'était qu'une DEVINETTE : « le
+           sélecteur de suite dit 3h ou leçons, donc ces heures
+           viennent de l'examen blanc ». Elle tombe juste le plus
+           souvent, et elle n'avait aucun moyen de se tromper
+           visiblement — un repère faux ne se voit nulle part, il
+           se lit juste en « 4h + 3h » un mois plus tard.
+
+           Elle reste le défaut quand la question ne se pose pas :
+           avant la première leçon depuis la charnière, les deux
+           réponses désignent le même instant. */
         heuresDuJour: (function(){
+          /* ⚠️ LES DEUX BLOCS, PAS UN. Le champ des heures est
+             prérempli même quand sa section est cachée — c'est lui
+             que la validation relit. Une question invisible ne
+             répond pas : sans ce second test, un cours où l'on n'a
+             rien dit des heures aurait resigné leur repère. */
+          const section = boite.querySelector('#qBlocHeuresPermis');
+          const bloc = boite.querySelector('#qBlocHeuresDepuis');
+          const sel  = boite.querySelector('#qHeuresDepuis');
+          if(section && bloc && sel &&
+             section.style.display !== 'none' &&
+             bloc.style.display !== 'none'){
+            return sel.value === 'now';
+          }
           const suite = selEB2 ? selEB2.value : '';
           return !(suite === '3h' || suite === 'lecons');
         })(),
