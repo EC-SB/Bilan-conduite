@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 14:19 — v1022 */
+/* Déployé le 08/10/2026 à 08:40 — v1097 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -318,7 +318,7 @@ async function deposerBrouillonServeur(extra){
   }catch(e){ /* pas de relevé lisible : le dépôt part sans */ }
 
   try{
-    await appelPrep(Object.assign({
+    await suivreLeDepot(appelPrep(Object.assign({
       action: 'brouillonSet',
       eleve: quiDepose,
       dateCours: ($('lessonDate') && $('lessonDate').value) || '',
@@ -327,7 +327,7 @@ async function deposerBrouillonServeur(extra){
       transcript: texte,
       note: ($('noteInterne') && $('noteInterne').value) || ''
     }, (fiche === undefined ? {} : { fiche: fiche }),
-       (gps === undefined ? {} : { gps: gps }), extra || {}));
+       (gps === undefined ? {} : { gps: gps }), extra || {})));
   }catch(e){
     /* Le dépôt n'est pas indispensable : la sauvegarde locale
        reste. On ne bloque pas la génération pour autant. */
@@ -543,12 +543,57 @@ function reprendreLesDepots(eleve){
   if(cle) delete coursTermines[cle];
 }
 
+/* ============================================================
+   ⚠️ ET LE DÉPÔT DÉJÀ PARTI, LUI, NE S'ARRÊTE PLUS — v1097
+
+   David, le 7 octobre, deux captures : le rendez-vous post-permis
+   de Yacouba est enregistré — la ligne est dans son dossier, bilan
+   généré à 18:55 — et « 💾 Cours interrompu retrouvé … interrompu à
+   18:56 » revient le lendemain matin. UNE MINUTE APRÈS.
+
+   L'interdit posé en v920 refuse les dépôts qu'on DÉCLENCHE après
+   la fin. Il ne peut rien contre celui qui est DÉJÀ EN VOL : parti
+   une seconde après la dernière frappe, il croise la suppression
+   quelque part sur le réseau, et le classeur le range après elle.
+   Le brouillon renaît, et il porte l'heure de son arrivée — d'où la
+   minute d'écart qui a mis la puce à l'oreille.
+
+   On ne court plus après : on ATTEND. Chaque dépôt laisse sa
+   promesse ici, et la suppression la laisse finir avant de partir.
+   Les deux ne peuvent plus se croiser, sans minuteur et sans
+   deuxième suppression « au cas où » — un garde-fou qui rejoue la
+   course n'est pas un garde-fou.
+   ============================================================ */
+let depotEnVol = null;
+
+/* ⚠️ ELLE N'ÉCHOUE JAMAIS. Un dépôt raté n'a pas à faire échouer la
+   suppression qui l'attend : ce qu'on veut d'elle, c'est qu'elle
+   soit FINIE, pas qu'elle ait réussi. */
+function suivreLeDepot(promesse){
+  if(!promesse || typeof promesse.then !== 'function') return promesse;
+  depotEnVol = Promise.resolve(promesse).catch(() => {});
+  return promesse;
+}
+
+async function attendreLesDepots(){
+  const p = depotEnVol;
+  if(!p) return;
+  try{ await p; }catch(e){}
+  /* Un dépôt parti PENDANT l'attente du précédent compte aussi :
+     on ne relâche que quand plus rien ne vole. */
+  if(depotEnVol !== p) return attendreLesDepots();
+  depotEnVol = null;
+}
+
 async function retirerBrouillonServeur(eleve){
   if(!eleve) return;
   /* L'interdit AVANT l'appel, pas après : entre les deux il y a un
      aller-retour réseau, et c'est précisément là que le dépôt en
      retard se glissait. */
   marquerCoursTermine(eleve);
+  /* Et on laisse arriver ce qui est déjà parti : sinon c'est lui
+     qui arrive en dernier. */
+  await attendreLesDepots();
   try{
     await appelPrep({ action: 'brouillonDelete', eleve: eleve });
   }catch(e){}
