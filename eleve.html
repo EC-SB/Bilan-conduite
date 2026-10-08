@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 16:00 — v1107 -->
+<!-- Déployé le 08/10/2026 à 17:10 — v1108 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -736,6 +736,12 @@
     width:40px; height:40px; border-radius:50%; font-size:21px; line-height:1;
   }
   .reacChoix button.on{ background:var(--orange-soft); }
+  /* 📋 n'est pas une réaction : un trait l'en sépare, toujours en
+     dernier — la main va aux émoticônes d'abord. */
+  .reacCopier{
+    border-left:1px solid var(--line) !important;
+    margin-left:3px !important; font-size:17px !important;
+  }
 
   /* Le panneau des émoticônes */
   .emoBoite{
@@ -3097,6 +3103,24 @@
       ev.stopPropagation();
       demarrerLeVocalEl();
     });
+
+    /* 📋 COLLER UNE IMAGE — v1108. Un texte se colle tout seul ; une
+       capture d'écran dans le presse-papiers n'avait aucun chemin
+       vers la conversation. */
+    var ch = $('chFilTexte');
+    if(ch) ch.addEventListener('paste', function(ev){
+      var d = ev.clipboardData;
+      if(!d) return;
+      var items = d.items || [];
+      for(var i = 0; i < items.length; i++){
+        if(String(items[i].type || '').indexOf('image/') !== 0) continue;
+        var f = items[i].getAsFile();
+        if(!f) continue;
+        ev.preventDefault();
+        envoyerUnePhotoEl(f);
+        return;
+      }
+    });
     majBoutonEnvoiEl();
     brancherLesReactionsEl();
     brancherLesPhotosEl();
@@ -3865,14 +3889,46 @@
     if(fermerReacEl){ fermerReacEl(); fermerReacEl = null; }
   }
 
+  /* 📋 COPIER LE TEXTE — v1108, la même chose qu'au bureau.
+
+     L'appui long ouvre les réactions et le clic droit est bloqué :
+     ce sont les deux gestes par lesquels on copie. Le copier rentre
+     donc par la porte qui l'avait chassé. */
+  function copierDuTexteEl(t){
+    var s = String(t || '');
+    if(!s) return Promise.resolve(false);
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(s).then(
+        function(){ return true; }, function(){ return vieuxCopierEl(s); });
+    }
+    return Promise.resolve(vieuxCopierEl(s));
+  }
+
+  function vieuxCopierEl(s){
+    try{
+      var z = document.createElement('textarea');
+      z.value = s;
+      z.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+      document.body.appendChild(z);
+      z.focus(); z.select();
+      var fait = document.execCommand('copy');
+      document.body.removeChild(z);
+      return !!fait;
+    }catch(e){ return false; }
+  }
+
   function ouvrirLeSelecteurEl(bulle, m){
     fermerLeSelecteurEl();
-    if(!filEl || !filEl.peutEcrire) return;
+
+    /* Copier ne demande pas le droit d'écrire. */
+    var texte = String((m && m.texte) || '').trim();
+    var peut = !!(filEl && filEl.peutEcrire);
+    if(!peut && !texte) return;
 
     var mien = groupeReacEl(m.reacs).filter(function(x){ return x.mien; })[0];
     var boite = document.createElement('div');
     boite.className = 'reacChoix' + (m.de === 'moi' ? ' moi' : '');
-    REACTIONS_EL.forEach(function(e){
+    if(peut) REACTIONS_EL.forEach(function(e){
       var b = document.createElement('button');
       b.type = 'button';
       b.textContent = e;
@@ -3884,6 +3940,21 @@
       });
       boite.appendChild(b);
     });
+    if(texte){
+      var c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'reacCopier';
+      c.textContent = '📋';
+      c.title = 'Copier le texte';
+      c.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        fermerLeSelecteurEl();
+        copierDuTexteEl(texte).then(function(fait){
+          direVocalEl(fait ? 'Texte copié ✅' : 'Copie impossible ici.');
+        });
+      });
+      boite.appendChild(c);
+    }
     bulle.parentNode.insertBefore(boite, bulle);
     bulle.classList.add('vise');
 
