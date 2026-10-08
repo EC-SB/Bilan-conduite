@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:20 — v1098 */
+/* Déployé le 08/10/2026 à 10:37 — v1100 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,31 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1100,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Le numéro de leçon se remet à jour tout seul, pour de bon',
+    quoi: [
+      { emoji: '🔢',
+        titre: 'Le rang écrit dans le dernier bilan fait enfin loi',
+        texte: 'Un cours créé par un rappel annonçait parfois un numéro très ' +
+               'en dessous de la réalité — « 3ème leçon » pour un élève qui en ' +
+               'est à sa 25ème. La cause : quand un bilan dit « 2ème leçon ' +
+               'après le post-permis (24ème au total) », le serveur lisait le 2 ' +
+               'et ne voyait jamais le 24. Il le lit maintenant, et la carte du ' +
+               'lendemain reprend bien celle de la veille. Rien à retaper : ' +
+               'les cartes se corrigent toutes seules au prochain chargement.' },
+      { emoji: '📈',
+        titre: 'Et un bilan abîmé ne fait plus reculer un élève',
+        texte: 'Un rang ne recule jamais : une leçon faite reste faite. Si un ' +
+               'bilan annonce un numéro plus bas qu’un bilan plus ancien — ça ' +
+               'arrive quand une note a été mal écrite — c’est le plus élevé ' +
+               'qui est retenu, au lieu du plus récent. ⚠️ Revers de la ' +
+               'médaille : un numéro tapé TROP HAUT par erreur ne se rattrape ' +
+               'plus tout seul. Il faut corriger ce bilan-là, ou taper le rang ' +
+               'à la main sur la carte — la main l’emporte toujours.' }
+    ]
+  },
   {
     version: 1098,
     date: 'Jeudi 8 octobre 2026',
