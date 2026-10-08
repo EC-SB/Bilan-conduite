@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 17:10 — v1108 */
+/* Déployé le 08/10/2026 à 18:40 — v1109 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -994,6 +994,13 @@ function bulleDuMessage(m, avant, apres){
     b.appendChild(vocal);
   }
 
+  /* 🎥 La vidéo, à la même place que la photo — v1109. */
+  const videoB = (typeof videoDuMessage === 'function') ? videoDuMessage(m) : null;
+  if(videoB){
+    b.classList.add('photo');
+    b.appendChild(videoB);
+  }
+
   /* ⚠️ LE TEXTE D'UN VOCAL EST DANS SA PROPRE ZONE — v1098. Posé
      comme un nœud de texte nu, il se collait au lecteur et se lisait
      comme une légende d'image. Il DOUBLE la parole : un cran plus
@@ -1081,6 +1088,24 @@ function zoneDEcritureDuFil(id){
       demarrerLeVocalEC(l);
     });
     l.appendChild(voc);
+  }
+
+  /* 🎥 La vidéo — v1109. À côté du micro : ce sont les deux gestes
+     qui remplacent la barre d'écriture, et on les cherche au même
+     endroit. Le bouton demande d'abord s'il faut filmer ou choisir :
+     deux boutons de plus auraient mangé la place du champ. */
+  if(typeof videoPossibleEC === 'function' && videoPossibleEC()){
+    const vid = document.createElement('button');
+    vid.type = 'button';
+    vid.id = 'msgElvVideo';
+    vid.className = 'msgOutil';
+    vid.textContent = '🎥';
+    vid.title = 'Envoyer une vidéo';
+    vid.addEventListener('click', ev => {
+      ev.stopPropagation();
+      choisirCommentFilmerEC(l);
+    });
+    l.appendChild(vid);
   }
 
   /* 📷 Envoyer une photo — v1088. Devant 🙂 : c'est le geste le moins
@@ -3170,7 +3195,7 @@ function adresseDeLaPiece(piece){
    les vocaux, parce que c'est là que vit ce qu'elle sait. */
 function imageDuMessage(m){
   const p = m && m.piece;
-  if(!p || pieceEstUnSon(p)) return null;
+  if(!p || pieceEstUnSon(p) || pieceEstUneVideo(p)) return null;
   if(!p.lien){
     const d = document.createElement('div');
     d.className = 'msgImgAbs';
@@ -3780,6 +3805,551 @@ function blobEnBase64EC(blob){
 function pieceEstUnSon(p){
   return !!p && String(p.type || '').indexOf('audio/') === 0;
 }
+
+function pieceEstUneVideo(p){
+  return !!p && String(p.type || '').indexOf('video/') === 0;
+}
+
+/* ============================================================
+   🎥 LES VIDÉOS — FILMER, CHOISIR, REGARDER — v1109
+
+   David, le 8 octobre : « il manque la possibilité de faire une
+   petite vidéo et d'envoyer des petites vidéos ». Ses arbitrages :
+   tout le monde, élèves compris · 30 secondes · le bouton propose
+   SOIT filmer SOIT choisir une vidéo · 5 par jour pour un élève.
+
+   ⚠️ CE BLOC DÉCALQUE CELUI DES VOCAUX, ET C'EST VOULU. Même
+   machine (MediaRecorder), même écran (⏸ ■ ✕ ➤), mêmes classes de
+   style, même découpe en base64, même porte d'écriture côté
+   serveur. Une seconde façon de faire la même chose serait une
+   seconde occasion de se tromper — et la messagerie porte déjà
+   trois pièces jointes qui ne diffèrent que par leur type.
+
+   ⚠️ ET LA CAMÉRA SE COUPE, TOUJOURS. Un micro oublié est une
+   pastille rouge dans la barre du navigateur ; une caméra oubliée
+   est une caméra qui filme une salle de cours. C'est la seule
+   chose de ce bloc qui doit marcher même quand tout le reste
+   échoue — d'où « couperLaCameraEC », appelée sur chaque sortie.
+
+   ⚠️ 640×480 ET 800 kb/s, CHOISIS POUR LA 4G D'UNE VOITURE-ÉCOLE.
+   Trente secondes font environ trois mégaoctets. Ce n'est pas une
+   qualité de cinéma : c'est une manœuvre qu'on montre, et elle doit
+   PARTIR depuis un bord de route.
+   ============================================================ */
+
+const VIDEO_SEC_MAX_EC = 30;
+const VIDEO_SEC_ALERTE_EC = 5;
+/* ⚠️ LE MÊME PLAFOND QUE LE WORKER, dit deux fois exprès : l'écran
+   refuse avant d'envoyer douze mégaoctets sur une mauvaise ligne,
+   le serveur refuse ce qui arrive quand même. */
+const VIDEO_MAX_OCTETS_EC = 12 * 1024 * 1024;
+
+let videoEC = null;          /* la prise en cours, ou rien */
+let envoiVideoEC = false;
+
+function videoPossibleEC(){
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+            typeof window.MediaRecorder === 'function');
+}
+
+/* On demande ce qu'on préfère et on accepte ce qu'on nous donne :
+   le Worker reconnaît les conteneurs aux premiers octets, pas au
+   type annoncé. */
+function formatDeLaVideoEC(){
+  const essais = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+  for(const t of essais){
+    try{ if(MediaRecorder.isTypeSupported(t)) return t; }catch(e){}
+  }
+  return '';
+}
+
+/* ------------------------------------------------------------
+   LE BOUTON : FILMER, OU CHOISIR
+
+   David : « le bouton propose soit filmer soit choisir une vidéo ».
+   Deux boutons dans la barre auraient coûté la place du champ ; une
+   question en coûte zéro, et elle se lit.
+   ------------------------------------------------------------ */
+async function choisirCommentFilmerEC(barre){
+  if(videoEC || envoiVideoEC) return;
+  if(typeof fenetre !== 'function'){ demarrerLaVideoEC(barre); return; }
+
+  const r = await fenetre(
+    'Trente secondes au maximum. Une vidéo déjà prise doit tenir ' +
+    'en 12 Mo — au-delà, le téléphone l’a filmée trop grande pour ' +
+    'partir d’un bord de route.',
+    [{ nom: 'Annuler', valeur: '' },
+     { nom: '📁 Choisir une vidéo', valeur: 'choisir' },
+     { nom: '🎥 Filmer', valeur: 'filmer', principal: true }],
+    'Envoyer une vidéo');
+
+  if(r === 'filmer') demarrerLaVideoEC(barre);
+  else if(r === 'choisir') choisirUneVideoEC();
+}
+
+function choisirUneVideoEC(){
+  const z = document.createElement('input');
+  z.type = 'file';
+  /* ⚠️ PAS DE « capture » : l'attribut force l'appareil photo et
+     retire l'accès à la galerie. Celui qui veut filmer a déjà
+     « Filmer maintenant ». */
+  z.accept = 'video/*';
+  z.style.display = 'none';
+  document.body.appendChild(z);
+  z.addEventListener('change', () => {
+    const f = z.files && z.files[0];
+    if(z.parentNode) document.body.removeChild(z);
+    if(f) envoyerUneVideoChoisieEC(f);
+  });
+  z.click();
+}
+
+/* La durée d'une vidéo choisie, lue par le navigateur. Elle sert à
+   écrire « 0:12 » sous la bulle avant le téléchargement ; elle ne
+   protège rien, c'est le poids qui protège. */
+function dureeDUnFichierVideoEC(fichier){
+  return new Promise(resolve => {
+    let url = '';
+    try{ url = URL.createObjectURL(fichier); }catch(e){ resolve(0); return; }
+    const v = document.createElement('video');
+    const fini = (n) => {
+      try{ URL.revokeObjectURL(url); }catch(e){}
+      resolve(Math.max(0, Math.round(n || 0)));
+    };
+    v.preload = 'metadata';
+    v.addEventListener('loadedmetadata', () => {
+      fini(isFinite(v.duration) ? v.duration : 0);
+    });
+    v.addEventListener('error', () => fini(0));
+    /* Un fichier que le navigateur ne sait pas lire ne doit pas
+       bloquer l'envoi : au bout de trois secondes, on part sans. */
+    setTimeout(() => fini(0), 3000);
+    v.src = url;
+  });
+}
+
+async function envoyerUneVideoChoisieEC(fichier){
+  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
+  if(envoiVideoEC) return;
+
+  if(fichier.size > VIDEO_MAX_OCTETS_EC){
+    showToast('Cette vidéo fait ' + Math.round(fichier.size / 1048576) +
+              ' Mo — 12 Mo au plus. Filme-la depuis l’application : ' +
+              'elle sera réglée pour partir.');
+    return;
+  }
+
+  envoiVideoEC = true;
+  const bouton = $('msgElvVideo');
+  if(bouton){ bouton.disabled = true; bouton.textContent = '⏳'; }
+
+  try{
+    const sec = await dureeDUnFichierVideoEC(fichier);
+    const data = await blobEnBase64EC(fichier);
+    const champ = $('msgElvTexte');
+    const texte = champ ? champ.value.trim() : '';
+
+    await appelPrep({ action: 'convVideo', id: filOuvertEC.conv.id,
+                      video: data, duree: sec, texte: texte });
+
+    if(champ){ champ.value = ''; delete brouillonsMessagerie[filOuvertEC.conv.id]; }
+    await rafraichirLeFil();
+  }catch(e){
+    showToast('La vidéo n’est pas partie : ' + ((e && e.message) || e));
+  }
+  envoiVideoEC = false;
+  if(bouton){ bouton.disabled = false; bouton.textContent = '🎥'; }
+}
+
+/* ------------------------------------------------------------
+   FILMER, À LA PLACE DE LA BARRE D'ÉCRITURE
+   ------------------------------------------------------------ */
+async function demarrerLaVideoEC(barre){
+  if(videoEC) return;
+  if(!videoPossibleEC()){
+    showToast('Cet appareil ne sait pas filmer depuis le navigateur.');
+    return;
+  }
+
+  let flux = null;
+  try{
+    flux = await navigator.mediaDevices.getUserMedia({
+      /* Le téléphone filme avec sa caméra arrière : c'est la
+         manœuvre qu'on montre, pas celui qui filme. */
+      video: { facingMode: 'environment', width: { ideal: 640 },
+               height: { ideal: 480 } },
+      audio: true
+    });
+  }catch(e){
+    showToast('La caméra n’est pas disponible : ' +
+              ((e && e.name === 'NotAllowedError')
+                ? 'tu l’as refusée pour ce site.' : 'aucune caméra trouvée.'));
+    return;
+  }
+
+  const type = formatDeLaVideoEC();
+  let enr = null;
+  try{
+    const reglages = { videoBitsPerSecond: 800000, audioBitsPerSecond: 64000 };
+    if(type) reglages.mimeType = type;
+    enr = new MediaRecorder(flux, reglages);
+  }catch(e){
+    flux.getTracks().forEach(p => p.stop());
+    showToast('Enregistrement vidéo impossible sur cet appareil.');
+    return;
+  }
+
+  const morceaux = [];
+  enr.addEventListener('dataavailable', ev => {
+    if(ev.data && ev.data.size) morceaux.push(ev.data);
+  });
+
+  videoEC = { enr: enr, flux: flux, morceaux: morceaux,
+              ecoule: 0, depuis: Date.now(), etat: 'enr',
+              barre: barre, minuteur: null,
+              fil: (filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id) || '',
+              fini: null };
+
+  const vue = ecranDeLaVideoEC();
+  barre.style.display = 'none';
+  barre.parentNode.insertBefore(vue, barre);
+  videoEC.vue = vue;
+
+  /* L'aperçu : ce que la caméra voit, maintenant. Muet — sinon le
+     micro se réentend dans le haut-parleur et siffle. */
+  const ap = vue.querySelector('.msgVidApercu');
+  /* ⚠️ « play() » NE REND PAS TOUJOURS UNE PROMESSE. Les navigateurs
+     récents si, le vieux Safari non — et « .catch » sur rien du tout
+     lève, juste après avoir ouvert la caméra. On n'aurait vu ça que
+     sur l'iPhone d'un moniteur, caméra allumée et écran bloqué.
+     C'est banc-videos qui l'a trouvé, pas moi. */
+  if(ap){
+    ap.srcObject = flux;
+    ap.muted = true;
+    try{ const j = ap.play(); if(j && j.catch) j.catch(() => {}); }catch(e){}
+  }
+
+  videoEC.fini = new Promise(resolve => enr.addEventListener('stop', resolve));
+  enr.start();
+
+  videoEC.minuteur = setInterval(() => battreLaVideoEC(), 200);
+  battreLaVideoEC();
+}
+
+function ecranDeLaVideoEC(){
+  const z = document.createElement('div');
+  z.className = 'msgVoc msgVid';
+
+  const haut = document.createElement('div');
+  haut.className = 'msgVocHaut';
+
+  const rond = document.createElement('span');
+  rond.className = 'msgVocRond';
+  haut.appendChild(rond);
+
+  const t = document.createElement('span');
+  t.className = 'msgVocTemps';
+  t.innerHTML = '<b>0:00</b> <i>/ ' + minutesEtSecondes(VIDEO_SEC_MAX_EC) + '</i>';
+  haut.appendChild(t);
+
+  const vide = document.createElement('span');
+  vide.className = 'msgVocOnde';
+  haut.appendChild(vide);
+
+  if(typeof MediaRecorder !== 'undefined' &&
+     MediaRecorder.prototype && MediaRecorder.prototype.pause){
+    const pse = document.createElement('button');
+    pse.type = 'button';
+    pse.className = 'msgVocX msgVocPause';
+    pse.textContent = '❚❚';
+    pse.title = 'Mettre en pause';
+    pse.addEventListener('click', () => basculerLaPauseVideoEC());
+    haut.appendChild(pse);
+  }
+
+  const fin = document.createElement('button');
+  fin.type = 'button';
+  fin.className = 'msgVocX msgVocFin';
+  fin.textContent = '■';
+  fin.title = 'Arrêter sans envoyer';
+  fin.addEventListener('click', () => terminerLaVideoEC());
+  haut.appendChild(fin);
+
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'msgVocX';
+  x.textContent = '✕';
+  x.title = 'Annuler';
+  x.addEventListener('click', () => arreterLaVideoEC(false));
+  haut.appendChild(x);
+
+  const env = document.createElement('button');
+  env.type = 'button';
+  env.className = 'msgEnv';
+  env.textContent = '➤';
+  env.title = 'Envoyer la vidéo';
+  env.addEventListener('click', () => arreterLaVideoEC(true));
+  haut.appendChild(env);
+
+  z.appendChild(haut);
+
+  const ap = document.createElement('video');
+  ap.className = 'msgVidApercu';
+  ap.playsInline = true;
+  ap.setAttribute('playsinline', '');
+  z.appendChild(ap);
+
+  return z;
+}
+
+function secondesDeLaVideoEC(v){
+  const e = v.ecoule + (v.depuis ? (Date.now() - v.depuis) : 0);
+  return Math.floor(e / 1000);
+}
+
+function basculerLaPauseVideoEC(){
+  const v = videoEC;
+  if(!v || v.arrete || v.etat === 'fini') return;
+  const b = v.vue && v.vue.querySelector('.msgVocPause');
+
+  if(v.etat === 'enr'){
+    try{ v.enr.pause(); }catch(e){ return; }
+    v.ecoule += (Date.now() - v.depuis);
+    v.depuis = null;
+    v.etat = 'pause';
+    if(b){ b.textContent = '▶'; b.title = 'Reprendre'; }
+    if(v.vue) v.vue.classList.add('enPause');
+  }else{
+    try{ v.enr.resume(); }catch(e){ return; }
+    v.depuis = Date.now();
+    v.etat = 'enr';
+    if(b){ b.textContent = '❚❚'; b.title = 'Mettre en pause'; }
+    if(v.vue) v.vue.classList.remove('enPause');
+  }
+  battreLaVideoEC();
+}
+
+/* ⚠️ COUPER LA CAMÉRA, UNE FOIS, ET QUOI QU'IL ARRIVE. Une caméra
+   laissée ouverte filme une salle de cours. */
+async function couperLaCameraEC(v){
+  if(v.coupe) return v.blob;
+  v.coupe = true;
+  try{ v.enr.stop(); }catch(e){}
+  try{ await v.fini; }catch(e){}
+  try{ v.flux.getTracks().forEach(p => p.stop()); }catch(e){}
+  if(v.vue){
+    const ap = v.vue.querySelector('.msgVidApercu');
+    if(ap) try{ ap.srcObject = null; }catch(e){}
+  }
+  v.blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'video/webm') });
+  return v.blob;
+}
+
+async function terminerLaVideoEC(parLeTemps){
+  const v = videoEC;
+  if(!v || v.arrete || v.etat === 'fini') return;
+
+  if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+  v.etat = 'fini';
+  clearInterval(v.minuteur);
+  v.minuteur = null;
+
+  const blob = await couperLaCameraEC(v);
+  const sec = Math.max(1, Math.round(v.ecoule / 1000));
+
+  if(!blob || blob.size < 2000){
+    rendreLaBarreVideoEC(v);
+    showToast('Vidéo trop courte — rien n’a été gardé.');
+    return;
+  }
+
+  v.vue.classList.add('fini');
+  v.vue.classList.remove('enPause');
+  const haut = v.vue.querySelector('.msgVocHaut');
+  ['.msgVocRond', '.msgVocOnde', '.msgVocPause', '.msgVocFin'].forEach(s => {
+    const n = haut && haut.querySelector(s);
+    if(n) n.parentNode.removeChild(n);
+  });
+  const t = haut && haut.querySelector('.msgVocTemps');
+  if(t) t.innerHTML = '<b>' + minutesEtSecondes(sec) + '</b>';
+
+  /* On se regarde avant d'envoyer : l'aperçu en direct laisse la
+     place à ce qui a été filmé, avec ses commandes. */
+  v.urlBlob = URL.createObjectURL(blob);
+  const ap = v.vue.querySelector('.msgVidApercu');
+  if(ap){
+    ap.srcObject = null;
+    ap.src = v.urlBlob;
+    ap.controls = true;
+    ap.muted = false;
+  }
+
+  if(parLeTemps){
+    showToast('Trente secondes : c’est arrêté. Regarde, puis envoie.');
+  }
+}
+
+function battreLaVideoEC(){
+  if(!videoEC || !videoEC.vue || videoEC.etat === 'fini') return;
+  const sec = secondesDeLaVideoEC(videoEC);
+
+  const t = videoEC.vue.querySelector('.msgVocTemps');
+  if(t){
+    const b = t.querySelector('b');
+    if(b) b.textContent = minutesEtSecondes(sec);
+    t.classList.toggle('fin', sec >= VIDEO_SEC_MAX_EC - VIDEO_SEC_ALERTE_EC);
+  }
+
+  if(sec >= VIDEO_SEC_MAX_EC) terminerLaVideoEC(true);
+}
+
+function rendreLaBarreVideoEC(v){
+  if(v.urlBlob){ try{ URL.revokeObjectURL(v.urlBlob); }catch(e){} }
+  if(v.vue && v.vue.parentNode) v.vue.parentNode.removeChild(v.vue);
+  if(v.barre) v.barre.style.display = '';
+  videoEC = null;
+}
+
+async function arreterLaVideoEC(envoyer){
+  const v = videoEC;
+  if(!v || v.arrete) return;
+  v.arrete = true;
+  clearInterval(v.minuteur);
+
+  if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+  const sec = Math.max(1, Math.round(v.ecoule / 1000));
+
+  const blob = await couperLaCameraEC(v);
+
+  if(!envoyer){ rendreLaBarreVideoEC(v); return; }
+
+  if(!blob || blob.size < 2000){
+    rendreLaBarreVideoEC(v);
+    showToast('Vidéo trop courte — rien n’a été envoyé.');
+    return;
+  }
+  if(blob.size > VIDEO_MAX_OCTETS_EC){
+    v.arrete = false;
+    showToast('Vidéo trop lourde (' + Math.round(blob.size / 1048576) +
+              ' Mo) — 12 Mo au plus.');
+    return;
+  }
+
+  const e = v.vue && v.vue.querySelector('.msgEnv');
+  if(e){ e.disabled = true; e.textContent = '…'; }
+
+  try{
+    const data = await blobEnBase64EC(blob);
+    const champ = $('msgElvTexte');
+    const texte = champ ? champ.value.trim() : '';
+    await appelPrep({ action: 'convVideo', id: v.fil, video: data,
+                      duree: sec, texte: texte });
+    if(champ){ champ.value = ''; delete brouillonsMessagerie[v.fil]; }
+    rendreLaBarreVideoEC(v);
+    await rafraichirLeFil();
+  }catch(err){
+    /* ⚠️ ON NE REND PAS LA BARRE SUR UN ÉCHEC : la vidéo n'existe
+       que dans cette page. La rendre, c'est la perdre. */
+    v.arrete = false;
+    const e2 = v.vue && v.vue.querySelector('.msgEnv');
+    if(e2){ e2.disabled = false; e2.textContent = '➤'; }
+    showToast('La vidéo n’est pas partie : ' + ((err && err.message) || err));
+  }
+}
+
+/* ------------------------------------------------------------
+   LA VIDÉO DANS LA BULLE
+   ------------------------------------------------------------ */
+function videoDuMessage(m){
+  const p = m && m.piece;
+  if(!pieceEstUneVideo(p)) return null;
+
+  if(!p.lien){
+    const d = document.createElement('div');
+    d.className = 'msgImgAbs';
+    d.textContent = '🎥 Vidéo indisponible';
+    return d;
+  }
+
+  const z = document.createElement('div');
+  z.className = 'msgVidB';
+
+  const v = document.createElement('video');
+  v.className = 'msgVid';
+  v.src = adresseDeLaPiece(p);
+  v.controls = true;
+  v.preload = 'metadata';
+  v.playsInline = true;
+  v.setAttribute('playsinline', '');
+  /* ⚠️ UN SEUL SON À LA FOIS, vidéos ET vocaux confondus : deux voix
+     en même temps dans une voiture, on ne comprend ni l'une ni
+     l'autre. */
+  v.addEventListener('play', () => {
+    document.querySelectorAll('audio, video').forEach(a => {
+      if(a !== v && !a.paused) a.pause();
+    });
+  });
+  z.appendChild(v);
+
+  if(Number(p.duree) > 0){
+    const d = document.createElement('span');
+    d.className = 'msgVidDuree';
+    d.textContent = minutesEtSecondes(p.duree);
+    z.appendChild(d);
+  }
+
+  /* ⚠️ EN GRAND PAR LE BOUTON, PAS PAR LE DOIGT SUR L'IMAGE. Un
+     appui sur la vidéo met en pause — c'est ce que tout le monde
+     attend — et ouvrir en grand à la place le rendrait
+     impossible. */
+  const g = document.createElement('button');
+  g.type = 'button';
+  g.className = 'msgVidGrand';
+  g.textContent = '⤢';
+  g.title = 'Voir en grand';
+  g.addEventListener('click', ev => {
+    ev.stopPropagation();
+    v.pause();
+    ouvrirLaVideoEnGrand(v.src);
+  });
+  z.appendChild(g);
+
+  return z;
+}
+
+/* La même couche que pour les photos : elle se ferme et ne laisse
+   rien dans l'historique d'une tablette partagée. */
+function ouvrirLaVideoEnGrand(src){
+  if(typeof fermerLaPhotoEnGrand === 'function') fermerLaPhotoEnGrand();
+  const voile = document.createElement('div');
+  voile.className = 'msgVoilePhoto';
+
+  const v = document.createElement('video');
+  v.src = src;
+  v.controls = true;
+  v.autoplay = true;
+  v.playsInline = true;
+  v.setAttribute('playsinline', '');
+  v.addEventListener('click', ev => ev.stopPropagation());
+  voile.appendChild(v);
+
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'msgVoileX';
+  x.textContent = '✕';
+  voile.appendChild(x);
+
+  const fermer = () => {
+    try{ v.pause(); }catch(e){}
+    if(voile.parentNode) voile.parentNode.removeChild(voile);
+    document.removeEventListener('keydown', echap);
+  };
+  const echap = (ev) => { if(ev.key === 'Escape') fermer(); };
+  voile.addEventListener('click', fermer);
+  document.addEventListener('keydown', echap);
+  document.body.appendChild(voile);
+}
+
 
 /* ------------------------------------------------------------
    LE LECTEUR, DANS LA BULLE
