@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 16:00 — v1107 */
+/* Déployé le 08/10/2026 à 17:10 — v1108 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1118,6 +1118,34 @@ function zoneDEcritureDuFil(id){
   t.rows = 1;
   t.placeholder = 'Écris ton message…';
   t.value = brouillonsMessagerie[id] || '';
+
+  /* ============================================================
+     📋 COLLER UNE IMAGE DANS LE CHAMP — v1108
+
+     David, le 8 octobre : « il manque le copier-coller ».
+
+     Un texte se colle tout seul — un champ de saisie sait le
+     faire depuis toujours. Une IMAGE, non : une capture d'écran
+     dans le presse-papiers n'avait aucun chemin vers la
+     conversation, il fallait l'enregistrer sur le disque puis la
+     rouvrir par 📷. Trois gestes pour un Ctrl+V.
+
+     ⚠️ ON NE LAISSE PAS LE NAVIGATEUR FAIRE SON COLLAGE PAR-DESSUS.
+     Sans « preventDefault », certains navigateurs collent le nom du
+     fichier dans le champ en même temps qu'on envoie l'image. */
+  t.addEventListener('paste', ev => {
+    const d = ev.clipboardData;
+    if(!d) return;
+    const items = d.items || [];
+    for(let i = 0; i < items.length; i++){
+      if(String(items[i].type || '').indexOf('image/') !== 0) continue;
+      const f = items[i].getAsFile();
+      if(!f) continue;
+      ev.preventDefault();
+      envoyerUnePhotoDansLeFil(f);
+      return;
+    }
+  });
   l.appendChild(t);
 
   const b = document.createElement('button');
@@ -3987,9 +4015,64 @@ function fermerLeSelecteurDeReaction(){
   if(reacOuverteEC){ reacOuverteEC(); reacOuverteEC = null; }
 }
 
+/* ============================================================
+   📋 COPIER LE TEXTE D'UN MESSAGE — v1108
+
+   David, le 8 octobre : « il manque le copier-coller ».
+
+   ⚠️ ET CE N'EST PAS UN OUBLI, C'EST UNE COLLISION. L'appui long
+   de la v1086 ouvre le sélecteur de réactions, et le clic droit
+   est « preventDefault » juste à côté : ce sont très exactement les
+   deux gestes par lesquels on sélectionne du texte. En ajoutant les
+   réactions, on a retiré le copier — sans que ça se voie, puisque
+   rien ne tombe en panne.
+
+   Le copier rentre donc par la même porte que ce qui l'avait
+   chassé : il est dans le menu, à côté des émoticônes. Un bilan
+   qu'un élève envoie dans la messagerie se récupère en deux gestes
+   au lieu d'être retapé.
+
+   ⚠️ « writeText » DEMANDE UN SITE SÛR ET UN GESTE. Les deux sont
+   réunis — HTTPS et un clic. Le vieux Safari n'a pas la fonction :
+   on retombe alors sur le champ caché et « execCommand », qui
+   marche partout et depuis toujours. */
+function copierDuTexteEC(t){
+  const s = String(t || '');
+  if(!s) return Promise.resolve(false);
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(s).then(() => true, () => vieuxCopierEC(s));
+  }
+  return Promise.resolve(vieuxCopierEC(s));
+}
+
+function vieuxCopierEC(s){
+  try{
+    const z = document.createElement('textarea');
+    z.value = s;
+    /* Hors écran, mais PAS « display:none » : un champ caché pour
+       de bon ne se sélectionne pas, et la copie rend false sans
+       rien dire. */
+    z.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+    document.body.appendChild(z);
+    z.focus();
+    z.select();
+    const fait = document.execCommand('copy');
+    document.body.removeChild(z);
+    return !!fait;
+  }catch(e){ return false; }
+}
+
 function ouvrirLeSelecteurDeReaction(bulle, m){
   fermerLeSelecteurDeReaction();
-  if(!filOuvertEC || !filOuvertEC.peutEcrire) return;
+
+  /* ⚠️ COPIER NE DEMANDE PAS LE DROIT D'ÉCRIRE. Le menu entier
+     était refusé dans un fil qu'on ne fait que surveiller — donc
+     le copier l'aurait été aussi, alors que lire et recopier est
+     justement tout ce qu'on y fait. */
+  const texte = String((m && m.texte) || '').trim();
+  const peut = !!(filOuvertEC && filOuvertEC.peutEcrire);
+  if(!peut && !texte) return;
 
   const ligne = bulle.parentNode;
   if(!ligne || !ligne.parentNode) return;
@@ -4000,7 +4083,7 @@ function ouvrirLeSelecteurDeReaction(bulle, m){
 
   const boite = document.createElement('div');
   boite.className = 'msgReacChoix';
-  REACTIONS_EC.forEach(e => {
+  if(peut) REACTIONS_EC.forEach(e => {
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = e;
@@ -4012,6 +4095,25 @@ function ouvrirLeSelecteurDeReaction(bulle, m){
     });
     boite.appendChild(b);
   });
+
+  /* 📋 Le texte d'un vocal est dans le même champ que celui d'un
+     message : la transcription se copie donc sans rien de plus. */
+  if(texte){
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'msgReacCopier';
+    c.textContent = '📋';
+    c.title = 'Copier le texte';
+    c.addEventListener('click', ev => {
+      ev.stopPropagation();
+      fermerLeSelecteurDeReaction();
+      copierDuTexteEC(texte).then(fait => {
+        showToast(fait ? 'Texte copié ✅' : 'Copie impossible depuis cet écran.');
+      });
+    });
+    boite.appendChild(c);
+  }
+
   rang.appendChild(boite);
   ligne.parentNode.insertBefore(rang, ligne);
   bulle.classList.add('vise');
