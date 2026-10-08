@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 14:05 — v1099 */
+/* Déployé le 08/10/2026 à 11:55 — v1102 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -432,6 +432,49 @@ function preparationPrecedenteDe(eleve, avantIso){
   if(!siennes.length) return null;
   siennes.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   return siennes[0];
+}
+
+/* ============================================================
+   ⚠️ COMBIEN DE SES COURS ATTENDENT ENCORE LEUR BILAN — v1102
+
+   David, le 8 octobre : « si aujourd'hui c'est la 16ème et la 1ère
+   après l'examen blanc, demain c'est la 17ème et la 2ème après
+   l'examen blanc pour Mackenzie ! »
+
+   Il a raison, et la v1100 n'y pouvait rien : elle a réparé la
+   LECTURE du classeur, et le classeur dit vrai. Le trou est
+   ailleurs, et il est bête.
+
+   Le compte des leçons d'un élève vient de ses BILANS. Tant qu'un
+   cours n'a pas été fait, il n'a pas de bilan : le classeur en
+   compte 15, et DEUX cours à venir demandent chacun « combien en
+   a-t-il fait ? ». Les deux reçoivent 15, les deux affichent 16.
+   Chez Mohammad ça ne se voyait pas — son cours du matin avait
+   déjà produit son bilan quand on a regardé celui du lendemain.
+
+   ⚠️ CE QUI REND LA CHOSE SÛRE : une préparation DISPARAÎT quand
+   son bilan est écrit (« brouillonDelete », voir ec-arriereplan).
+   Une préparation encore dans la liste est donc, par construction,
+   un cours sans bilan — on peut la compter sans risque de compter
+   deux fois.
+
+   ⚠️ ET DEUX COURS LE MÊME JOUR SE SUIVENT. La v1099 avait écrit le
+   contraire — « compter le second comme la suite du premier ferait
+   avancer le rang d'un cran de trop » — et c'était faux : deux
+   leçons dans la même journée sont deux leçons. C'est très
+   exactement le cas de Mackenzie, 13h puis 17h. Ce garde-fou-là
+   protégeait d'un doublon imaginaire et cassait un cas réel.
+   ============================================================ */
+function preparationsEnAttenteAvant(cours){
+  if(!cours || !cours.eleve || typeof coursPreparesDe !== 'function') return 0;
+  const id = String(cours.id || '');
+  let n = 0;
+  coursPreparesDe(cours.eleve).forEach(x => {
+    if(x === cours) return;
+    if(id && String(x.id || '') === id) return;
+    if(avantDansLaJournee(x, cours)) n++;
+  });
+  return n;
 }
 
 /* ============================================================
