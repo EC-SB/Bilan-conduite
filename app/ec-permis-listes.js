@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 11:30 — v1063 */
+/* Déployé le 08/10/2026 à 11:55 — v1102 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3829,6 +3829,65 @@ function mentionPostPermis(nom){
    « leconsDepuisLaReserve » savait déjà prendre un état : elle
    regarde « apresCharniere » avant d'aller le chercher elle-même.
    Il suffisait de le lui passer — et c'est l'appelant qui l'a. */
+/* ============================================================
+   ⚠️ LA FONCTION QUI CONSOMME LA RÉSERVE N'EXISTAIT PAS — v1102
+
+   David, le 8 octobre, sur Mohammad : « il a été évalué à 6 + 3,
+   donc si c'est la 3ème leçon après le post-permis il ne reste que
+   les 3h avant examen ». C'est mot pour mot ce qu'il disait déjà le
+   19 septembre — « puisque 3 après post-permis, il était prévu
+   6 + 3, donc 4 leçons » — et cette règle est écrite, en toutes
+   lettres, dans trois commentaires de ce dossier depuis la v1014.
+
+   Elle n'a jamais tourné. « leconsDepuisLaReserve » était appelée à
+   deux endroits, les DEUX derrière un garde-fou :
+
+       if(typeof leconsDepuisLaReserve !== 'function') return brut;
+
+   Ce garde-fou était écrit comme un repli prudent — « sans elle,
+   module non chargé, on rend le nombre brut, comme avant ». Il a
+   été le seul chemin depuis le premier jour, parce que la fonction
+   n'a jamais été écrite nulle part. Trois commentaires décrivaient
+   par le menu ce qu'elle refusait de faire et dans quels cas ; le
+   code, lui, rendait la réserve pleine tous les matins.
+
+   ⚠️ UN REPLI SILENCIEUX SUR UNE FONCTION ABSENTE NE SE VOIT PAS.
+   Rien ne lève, rien ne s'affiche en rouge : le chiffre est juste
+   vieux. C'est la même famille que « deux listes pour une action »,
+   en pire — là, au moins, le serveur répondait « action inconnue ».
+   Le banc de famille le refuse maintenant : un nom appelé derrière
+   un « typeof » doit exister quelque part.
+
+   CE QU'ELLE COMPTE : les leçons faites DEPUIS que la réserve a été
+   posée. La réserve a été décidée à un rang (« heuresRang », rendu
+   par repereDesHeures) ; on est aujourd'hui à un autre rang depuis
+   la même charnière. La différence est ce qui a été consommé.
+
+   ⚠️ ET ELLE REFUSE DE COMPTER QUAND LES DEUX COMPTEURS NE PARLENT
+   PAS DE LA MÊME CHARNIÈRE. Un repère posé après l'examen blanc et
+   un rang compté depuis le post-permis ne se soustraient pas : sans
+   savoir depuis quand, décompter c'est inventer. C'est la prudence
+   que les commentaires lui prêtaient déjà.
+   ============================================================ */
+function leconsDepuisLaReserve(nom, etatDuJour){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+
+  const ch = (etatDuJour && etatDuJour.apresCharniere) ||
+             ((typeof charniereDeLEleve === 'function')
+               ? charniereDeLEleve(nom) : null);
+  const rang = parseInt((ch && ch.rang), 10);
+  if(isNaN(rang) || rang <= 0) return 0;
+
+  const rep = (typeof repereDesHeures === 'function')
+    ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
+
+  /* Deux compteurs, deux charnières : on ne soustrait pas. */
+  if(String(rep.quoi || 'eb') !== String((ch && ch.quoi) || 'eb')) return 0;
+
+  const depuis = rang - (parseInt(rep.rang, 10) || 0);
+  return depuis > 0 ? depuis : 0;
+}
+
 function heuresQuiComptent(nom, etatDuJour){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
 
