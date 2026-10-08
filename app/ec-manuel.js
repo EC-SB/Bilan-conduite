@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 10:37 — v1100 */
+/* Déployé le 08/10/2026 à 12:30 — v1103 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1941,9 +1941,21 @@ function majBilanEliminatoires(){
 
   champsManuels[prefixeExamenBlanc + 'bilanElim'] = zone.value;
 
-  if(typeof sauvegarderBrouillonManuel === 'function'){
-    sauvegarderBrouillonManuel();
-  }
+  /* ⚠️ ON SAUVE TOUT DE SUITE, ET SOUS SON VRAI NOM — v1103.
+
+     Ces deux lignes appelaient « sauvegarderBrouillonManuel », une
+     fonction qui n'a jamais été écrite nulle part. Le garde-fou
+     « if(typeof … === 'function') » ne levait rien : le bilan des
+     éliminatoires que l'outil vient de composer tout seul attendait
+     simplement la sauvegarde suivante — au plus une seconde après
+     une frappe, et jamais du tout si le moniteur ne touchait plus
+     à rien. Un onglet fermé entre-temps l'emportait.
+
+     Un nom de plus pour une chose qui en avait déjà un, c'est la
+     faute de ce dossier depuis le début. On appelle donc la VRAIE
+     porte, « sauvegarderManuel », et il n'y a plus de synonyme à
+     tenir à jour. */
+  sauvegarderManuel();
 }
 
 
@@ -6294,8 +6306,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
             ? (reste ? phrase + '\n' + reste : phrase)
             : reste;
           champsManuels[ch.cle] = t.value;
-          if(typeof sauvegarderBrouillonManuel === 'function'){
-            sauvegarderBrouillonManuel();
+          /* ⚠️ LA VRAIE PORTE — v1103, voir plus haut : le nom
+             appelé ici n'existait nulle part. */
+          if(typeof sauvegarderManuel === 'function'){
+            sauvegarderManuel();
           }
         });
 
