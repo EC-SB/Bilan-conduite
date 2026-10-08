@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 18:10 — v1070 */
+/* Déployé le 08/10/2026 à 13:20 — v1104 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1331,27 +1331,71 @@ async function modifierHeuresRoute(nom, s){
      leçon n'a eu lieu depuis l'examen blanc, les deux réponses
      désignent le même instant : une question à réponse unique est
      du bruit, et on ne la pose pas. */
-  /* ⚠️ ET LA QUESTION NE SE POSE QUE POUR L'EXAMEN BLANC — v972.
+  /* ============================================================
+     ⚠️ LA QUESTION SE POSE POUR TOUTES LES CHARNIÈRES — v1104
 
-     « Depuis l'examen blanc » ou « à partir de la prochaine leçon »
-     n'a de sens que là : les heures se PRESCRIVENT à l'examen
-     blanc, donc elles peuvent dater de lui. Après un ajournement ou
-     un post-permis, personne ne prescrit d'heures à la charnière
-     elle-même : un nombre donné aujourd'hui vaut d'aujourd'hui, et
-     poser la question serait une question à réponse unique. */
+     David, le 8 octobre, sur Mohammad : « il a été évalué à 6 + 3,
+     donc si c'est la 3ème leçon après le post permis il ne reste
+     que les 3h ». L'outil affichait 4h + 3h.
+
+     La soustraction était juste ; c'est son POINT DE DÉPART qui
+     était faux, et il l'était par une phrase écrite ici en v972 :
+
+       « Après un ajournement ou un post-permis, personne ne
+         prescrit d'heures à la charnière elle-même. »
+
+     C'est faux pour le post-permis, et ça l'a toujours été : un
+     rendez-vous post-permis prescrit « 6h + la leçon de veille »,
+     c'est même sa raison d'être, et terminerRdvPost les enregistre
+     au rang 0 depuis la v1014. La question ne se posait donc pas,
+     et le rang du jour s'imposait en silence.
+
+     Chrystel a recopié le 08/10, depuis la fiche, ce que le
+     post-permis avait évalué. L'outil a retenu « il reste 6h à
+     compter de la 2ᵉ leçon » — donc les 3ᵉ, 4ᵉ et 5ᵉ — et a
+     annoncé 4h. David, lui, lisait la ligne comme « la règle vaut
+     à partir de la 2ᵉ », pas comme « le compte part de la 2ᵉ ».
+
+     ⚠️ ET LES DEUX LECTURES SONT VRAIES, CHACUNE À SON TOUR. Il a
+     tranché les deux cas le 8 octobre : des heures décidées À UNE
+     CHARNIÈRE se consomment depuis elle ; un chiffre corrigé EN
+     COURS DE ROUTE — « finalement il ne reste que 4h » — se
+     consomme depuis le jour où il est dit. Aucune donnée ne permet
+     de deviner lequel des deux on est en train de taper : c'est
+     une intention, et une intention se demande.
+
+     On la demande donc dès qu'elle a deux réponses possibles —
+     c'est-à-dire dès qu'une leçon a eu lieu depuis la charnière,
+     quelle que soit la charnière. Avant, les deux désignent le même
+     instant, et une question à réponse unique est du bruit.
+
+     Le DÉFAUT reste ce qui arrive le plus souvent : la charnière,
+     là où quelque chose a effectivement été prescrit. Et il se
+     préselectionne sur ce qui est DÉJÀ enregistré, pour qu'on
+     puisse rattraper un repère posé de travers en rouvrant la
+     ligne — c'est ce que David a demandé, et c'est deux clics.
+     ============================================================ */
   const c = (typeof charniereDeLEleve === 'function')
     ? charniereDeLEleve(nom) : { quoi:'eb', rang:0 };
-  const choixPossible = (c.quoi === 'eb') && c.rang >= 1;
+  const choixPossible = c.rang >= 1;
   const nomCharniere = (typeof nomDeLaCharniere === 'function')
     ? nomDeLaCharniere(c.quoi) : "l'examen blanc";
+
+  /* Ce qui est déjà écrit : on rouvre la ligne sur sa propre
+     réponse, pas sur un défaut qui la contredirait. */
+  const repEcrit = (typeof repereDesHeures === 'function')
+    ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
+  const dejaDepuisLaCharniere =
+    (String(repEcrit.quoi || 'eb') !== String(c.quoi || 'eb')) ||
+    (parseInt(repEcrit.rang, 10) || 0) <= 0;
 
   const champs = [{ cle:'h', nom:"Heures avant l'examen", type:'text',
                     exemple:'4', valeur: s.heuresRestantes || '' }];
   if(choixPossible){
     champs.push({ cle:'depuis', nom:'Ces heures partent de quand ?',
-      type:'choix', valeur:'eb', options:[
-        { cle:'eb',  nom:"Depuis l'examen blanc" },
-        { cle:'now', nom:"À partir de la prochaine leçon" }] });
+      type:'choix', valeur: dejaDepuisLaCharniere ? 'eb' : 'now', options:[
+        { cle:'eb',  nom:'Depuis ' + nomCharniere },
+        { cle:'now', nom:"À partir d'aujourd'hui" }] });
   }
 
   const r = await formulaireRoute("⏱️ Les heures de " + nom,
@@ -1360,13 +1404,11 @@ async function modifierHeuresRoute(nom, s){
     'Vide veut dire ' +
     "qu'on ne sait pas." +
     (choixPossible
-      ? "\n\nIl en est à sa " + c.rang + "ᵉ leçon depuis l'examen blanc : " +
-        "des heures prescrites à l'examen blanc sont déjà entamées, " +
-        "des heures posées aujourd'hui ne le sont pas."
-      : (c.rang >= 1
-        ? "\n\nIl en est à sa " + c.rang + "ᵉ leçon depuis " + nomCharniere +
-          " : ce nombre se décomptera tout seul au fil de ses leçons."
-        : '')),
+      ? "\n\nIl en est à sa " + c.rang + "ᵉ leçon depuis " + nomCharniere +
+        " : des heures décidées à ce moment-là sont déjà entamées de " +
+        c.rang + " leçon" + (c.rang > 1 ? 's' : '') +
+        ", des heures posées aujourd'hui ne le sont pas."
+      : ''),
     champs);
   if(!r) return;
 
@@ -1387,9 +1429,13 @@ async function modifierHeuresRoute(nom, s){
      décompté d'un coup toutes les leçons déjà faites — Natalia
      serait passée de 6h à « plus que les 3h » sans avoir conduit
      une minute. */
-  const depuis = (c.quoi === 'eb')
-    ? ((choixPossible && r.depuis === 'now') ? c.rang : '')
-    : c.rang;
+  /* ⚠️ LA RÉPONSE DÉCIDE, PLUS LA CHARNIÈRE — v1104. Cette ligne
+     disait « post-permis ou ajournement : toujours le rang du
+     jour », et c'est elle qui enfermait Mohammad à 4h sans qu'on
+     puisse en sortir. Quand la question n'a pas été posée — aucune
+     leçon depuis la charnière — les deux réponses désignent le même
+     instant, et zéro est le plus honnête des deux. */
+  const depuis = (choixPossible && r.depuis === 'now') ? c.rang : '';
 
   /* La porte commune : c'est elle qui note qui l'a dit, quand,
      depuis quel rang et dans quelle unité — et elle ne resigne pas
