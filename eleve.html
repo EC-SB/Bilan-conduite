@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 09/10/2026 à 21:00 — v1088 -->
+<!-- Déployé le 08/10/2026 à 11:10 — v1101 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -608,6 +608,20 @@
     padding:0; margin:0;
   }
   .msgVocX:hover{ background:var(--line); }
+  /* ⏸ et ⏹ — v1101. Un peu plus présents que ✕ : ce sont des
+     commandes de l'enregistrement, pas une sortie de secours. */
+  .msgVocPause, .msgVocFin{ color:var(--cream); font-size:14px; font-weight:800;
+                            letter-spacing:-1px; }
+  .msgVocFin{ color:var(--red); font-size:18px; letter-spacing:0; }
+  .msgVocOnde{ min-width:24px; }
+  /* En pause, tout s'immobilise : on doit VOIR que rien ne
+     s'enregistre, sans avoir à lire. */
+  .msgVoc.enPause .msgVocRond{ animation:none; background:var(--muted); }
+  .msgVoc.enPause .msgVocOnde b{ opacity:.3; }
+  .msgVoc.enPause .msgVocTemps b{ color:var(--muted); }
+  /* Terminé : le cadre se calme, il ne reste qu'à décider. */
+  .msgVoc.fini{ border-color:var(--line); }
+  .msgVoc.fini .msgLect{ flex:1; min-width:0; }
   /* Le texte reconnu, modifiable côté équipe : « Hery » revient en
      « Erri » une fois sur trois, et le corriger après coup
      demanderait de rouvrir le message. */
@@ -3296,9 +3310,19 @@
   /* ------------------------------------------------------------
      LA PHOTO DANS LA BULLE
      ------------------------------------------------------------ */
+  /* ⚠️ UNE PIÈCE JOINTE N'EST PAS FORCÉMENT UNE PHOTO — v1101. La
+     même faute qu'au bureau : « imageDuMessageEl » fabriquait une
+     <img> pour TOUTE pièce, donc une image cassée par-dessus chaque
+     vocal. Sans type, c'est une photo : les messages d'avant la
+     v1098 n'en portaient pas, et il n'y avait alors que des
+     photos. */
+  function pieceEstUnSonEl(p){
+    return !!p && String(p.type || '').indexOf('audio/') === 0;
+  }
+
   function imageDuMessageEl(m){
     var p = m && m.piece;
-    if(!p) return '';
+    if(!p || pieceEstUnSonEl(p)) return '';
     if(!p.lien){
       return '<span class="imgAbs">📷 Photo indisponible</span>';
     }
@@ -3405,7 +3429,10 @@
         if(ev.data && ev.data.size) morceaux.push(ev.data);
       });
 
-      vocalEl = { enr: enr, flux: flux, morceaux: morceaux, debut: Date.now(),
+      /* ⚠️ LE TEMPS SE COMPTE EN SEGMENTS PARLÉS — v1101, comme au
+         bureau. « Date.now() − début » compterait aussi la pause. */
+      vocalEl = { enr: enr, flux: flux, morceaux: morceaux,
+                  ecoule: 0, depuis: Date.now(), etat: 'enr',
                   mots: '', reco: null, minuteur: null,
                   fil: (filEl && filEl.conv && filEl.conv.id) || '', fini: null };
 
@@ -3423,6 +3450,9 @@
       var x = $('btVocX'), e = $('btVocEnv');
       if(x) x.addEventListener('click', function(){ arreterLeVocalEl(false); });
       if(e) e.addEventListener('click', function(){ arreterLeVocalEl(true); });
+      var pse = $('btVocPause'), fin = $('btVocFin');
+      if(pse) pse.addEventListener('click', basculerLaPauseEl);
+      if(fin) fin.addEventListener('click', function(){ terminerLeVocalEl(); });
 
       demarrerLaRecoEl();
       vocalEl.minuteur = setInterval(battreLeVocalEl, 200);
@@ -3471,6 +3501,18 @@
         '<span class="msgVocTemps" id="vocTemps"><b>0:00</b> <i>/ ' +
           mnSecEl(VOCAL_SEC_MAX_EL) + '</i></span>' +
         '<span class="msgVocOnde" id="vocOnde">' + barres + '</span>' +
+        /* ⏸ et ⏹ — v1101. David : « j'ai pas de bouton pour stoper ou
+           mettre en pause l'enregistrement, il faut envoyer pour
+           couper ! » Il n'y avait que deux sorties, jeter et
+           envoyer ; aucune pour s'arrêter et décider ensuite. ⏸ ne
+           se dessine pas là où MediaRecorder ne sait pas mettre en
+           pause : un bouton qui ne fait rien est pire qu'absent. */
+        ((typeof MediaRecorder === 'function' && MediaRecorder.prototype &&
+          MediaRecorder.prototype.pause)
+          ? '<button type="button" class="msgVocX msgVocPause" id="btVocPause" ' +
+            'title="Pause">❚❚</button>' : '') +
+        '<button type="button" class="msgVocX msgVocFin" id="btVocFin" ' +
+          'title="Arrêter sans envoyer">■</button>' +
         '<button type="button" class="msgVocX" id="btVocX" title="Annuler">✕</button>' +
         '<button type="button" class="msgEnv" id="btVocEnv" ' +
           'title="Envoyer">➤</button>' +
@@ -3492,9 +3534,123 @@
            (n > 1 ? 'ux' : '') + ' aujourd’hui.</div>';
   }
 
+  /* Les secondes réellement PARLÉES : l'accumulé, plus le segment
+     en cours s'il y en a un. */
+  function secondesDuVocalEl(v){
+    return Math.floor((v.ecoule + (v.depuis ? (Date.now() - v.depuis) : 0)) / 1000);
+  }
+
+  function basculerLaPauseEl(){
+    var v = vocalEl;
+    if(!v || v.arrete || v.etat === 'fini') return;
+    var b = $('btVocPause'), ec = document.querySelector('#zoneEcrireVocal .msgVoc');
+    if(v.etat === 'enr'){
+      try{ v.enr.pause(); }catch(e){ return; }
+      v.ecoule += (Date.now() - v.depuis);
+      v.depuis = null;
+      v.etat = 'pause';
+      if(v.reco){ try{ v.reco.stop(); }catch(e){} v.reco = null; }
+      if(b){ b.textContent = '▶'; b.title = 'Reprendre'; }
+      if(ec) ec.classList.add('enPause');
+    }else{
+      try{ v.enr.resume(); }catch(e){ return; }
+      v.depuis = Date.now();
+      v.etat = 'enr';
+      demarrerLaRecoEl();
+      if(b){ b.textContent = '❚❚'; b.title = 'Pause'; }
+      if(ec) ec.classList.remove('enPause');
+    }
+    battreLeVocalEl();
+  }
+
+  /* ⏹ — on coupe le micro et le vocal RESTE là, à écouter puis à
+     envoyer. C'est la sortie qui manquait. */
+  function terminerLeVocalEl(parLeTemps){
+    var v = vocalEl;
+    if(!v || v.arrete || v.etat === 'fini') return;
+    if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+    v.etat = 'fini';
+    clearInterval(v.minuteur);
+    v.minuteur = null;
+    if(v.reco){ try{ v.reco.stop(); }catch(e){} v.reco = null; }
+    try{ v.enr.stop(); }catch(e){}
+
+    Promise.resolve(v.fini).then(function(){
+      try{ v.flux.getTracks().forEach(function(p){ p.stop(); }); }catch(e){}
+      v.blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'audio/webm') });
+      var sec = Math.max(1, Math.round(v.ecoule / 1000));
+
+      if(v.blob.size < 1200){
+        rendreLaBarreEl();
+        direVocalEl('Trop court — rien n’a été gardé.');
+        return;
+      }
+      relectureEl(v, sec);
+      if(parLeTemps) direVocalEl('Une minute : c’est arrêté, il ne reste qu’à envoyer.');
+    });
+  }
+
+  function rendreLaBarreEl(){
+    var v = vocalEl;
+    if(v && v.urlBlob){ try{ URL.revokeObjectURL(v.urlBlob); }catch(e){} }
+    var zone = $('zoneEcrireVocal');
+    if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
+    var barre = document.querySelector('.zoneEcrire');
+    if(barre) barre.style.display = '';
+    vocalEl = null;
+  }
+
+  /* L'écran de relecture : le point rouge, l'onde, ⏸ et ⏹ laissent
+     la place au lecteur. ✕ et ➤ ne bougent pas — on ne déplace pas
+     sous le doigt le bouton qu'on allait toucher. */
+  function relectureEl(v, sec){
+    var ec = document.querySelector('#zoneEcrireVocal .msgVoc');
+    var haut = document.querySelector('#zoneEcrireVocal .msgVocHaut');
+    if(!haut) return;
+    if(ec){ ec.classList.add('fini'); ec.classList.remove('enPause'); }
+
+    ['.msgVocRond', '.msgVocOnde', '.msgVocPause', '.msgVocFin'].forEach(function(s){
+      var n = haut.querySelector(s);
+      if(n) n.parentNode.removeChild(n);
+    });
+    var t = $('vocTemps');
+    if(t) t.innerHTML = '<b>' + mnSecEl(sec) + '</b>';
+
+    v.urlBlob = URL.createObjectURL(v.blob);
+    var z = document.createElement('div');
+    z.className = 'msgLect';
+    z.innerHTML = '<button type="button" class="msgLectBtn">▶</button>' +
+                  '<span class="msgLectBarre"><i style="width:0%"></i></span>';
+    if(t && t.nextSibling) haut.insertBefore(z, t.nextSibling);
+    else haut.appendChild(z);
+
+    var son = new Audio();
+    son.preload = 'metadata';
+    son.src = v.urlBlob;
+    var b = z.querySelector('.msgLectBtn');
+    var plein = z.querySelector('.msgLectBarre i');
+    b.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      if(son.paused) son.play().catch(function(){ direVocalEl('Lecture impossible.'); });
+      else son.pause();
+    });
+    son.addEventListener('play', function(){ b.textContent = '⏸'; });
+    son.addEventListener('pause', function(){ b.textContent = '▶'; });
+    son.addEventListener('ended', function(){
+      b.textContent = '▶'; plein.style.width = '0%';
+    });
+    /* ⚠️ LA DURÉE D'UN BLOB EST SOUVENT « Infinity » : un webm écrit
+       au vol n'a pas d'entête de durée. On se sert de celle qu'on a
+       comptée nous-mêmes. */
+    son.addEventListener('timeupdate', function(){
+      var d = (isFinite(son.duration) && son.duration > 0) ? son.duration : sec;
+      plein.style.width = Math.min(100, (son.currentTime / d) * 100) + '%';
+    });
+  }
+
   function battreLeVocalEl(){
-    if(!vocalEl) return;
-    var sec = Math.floor((Date.now() - vocalEl.debut) / 1000);
+    if(!vocalEl || vocalEl.etat === 'fini') return;
+    var sec = secondesDuVocalEl(vocalEl);
     var t = $('vocTemps');
     if(t){
       var b = t.querySelector('b');
@@ -3505,37 +3661,39 @@
     if(onde){
       var bs = onde.querySelectorAll('b');
       for(var i = 0; i < bs.length; i++){
-        bs[i].style.height =
-          (6 + Math.round(20 * Math.abs(Math.sin((Date.now() / 220) + i * 0.7)))) + 'px';
+        /* En pause, l'onde se couche : une onde qui danse pendant
+           une pause dit le contraire de ce qui se passe. */
+        bs[i].style.height = (vocalEl.etat === 'pause' ? 6 :
+          6 + Math.round(20 * Math.abs(Math.sin((Date.now() / 220) + i * 0.7)))) + 'px';
       }
     }
-    if(sec >= VOCAL_SEC_MAX_EL) arreterLeVocalEl(true, true);
+    if(sec >= VOCAL_SEC_MAX_EL) terminerLeVocalEl(true);
   }
 
-  function arreterLeVocalEl(envoyer, parLeTemps){
+  function arreterLeVocalEl(envoyer){
     var v = vocalEl;
     if(!v || v.arrete) return;
     v.arrete = true;
     clearInterval(v.minuteur);
 
-    var sec = Math.max(1, Math.round((Date.now() - v.debut) / 1000));
+    /* ⚠️ LA DURÉE SE LIT SUR LES SEGMENTS, PAS SUR L'HORLOGE — v1101. */
+    if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+    var sec = Math.max(1, Math.round(v.ecoule / 1000));
     var mots = v.mots;
     if(v.reco){ try{ v.reco.stop(); }catch(e){} }
     try{ v.enr.stop(); }catch(e){}
 
-    var rendre = function(){
-      var zone = $('zoneEcrireVocal');
-      if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
-      var barre = document.querySelector('.zoneEcrire');
-      if(barre) barre.style.display = '';
-      vocalEl = null;
-    };
+    var rendre = rendreLaBarreEl;
 
     Promise.resolve(v.fini).then(function(){
-      v.flux.getTracks().forEach(function(p){ p.stop(); });
+      try{ v.flux.getTracks().forEach(function(p){ p.stop(); }); }catch(e){}
       if(!envoyer){ rendre(); return; }
 
-      var blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'audio/webm') });
+      /* ⚠️ PEUT-ÊTRE DÉJÀ CONSTRUIT : ⏹ puis ➤ est le chemin normal
+         depuis la v1101, et deux Blob sur les mêmes morceaux ne
+         donnent pas forcément le même fichier. */
+      var blob = v.blob || new Blob(v.morceaux,
+                                    { type: (v.enr.mimeType || 'audio/webm') });
       if(sec < 1 || blob.size < 1200){
         rendre();
         direVocalEl('Trop court — rien n’a été envoyé.');
@@ -3552,7 +3710,6 @@
           .then(function(r){
             if(r && typeof r.reste === 'number') resteVocauxEl = r.reste;
             rendre();
-            if(parLeTemps) direVocalEl('Une minute : le vocal est parti.');
             rafraichirLeFilEleve(true);
           })
           .catch(function(err){
@@ -3575,7 +3732,7 @@
      ------------------------------------------------------------ */
   function vocalDuMessageEl(m){
     var p = m && m.piece;
-    if(!p || String(p.type || '').indexOf('audio/') !== 0) return '';
+    if(!pieceEstUnSonEl(p)) return '';
     if(!p.lien) return '<span class="imgAbs">🎤 Vocal indisponible</span>';
     return '<div class="msgLect" data-son="' + echapper(RELAIS + p.lien) + '" ' +
              'data-duree="' + (Number(p.duree) || 0) + '">' +
