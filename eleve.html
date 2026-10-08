@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 11:10 — v1101 -->
+<!-- Déployé le 08/10/2026 à 16:00 — v1107 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2760,6 +2760,26 @@
      pas plus.
      ===================================================== */
   var nonLusMessages = 0;
+
+  /* 🔴 LA PASTILLE SUR L'ICÔNE — v1107, la même qu'au bureau.
+
+     Le service worker est partagé par les deux espaces : c'est lui
+     l'unique écrivain, et la page lui repose le vrai compte dès
+     qu'elle l'a. iPhone depuis iOS 16.4 (app sur l'écran d'accueil,
+     notifications autorisées) et ordinateurs ; sur Android l'API
+     n'existe pas et rien ne casse. */
+  function poserLaPastilleDeLAppliEl(combien){
+    var n = Math.max(0, Number(combien) || 0);
+    try{
+      var sw = navigator.serviceWorker;
+      if(sw && sw.controller){
+        sw.controller.postMessage({ quoi: 'pastille', combien: n });
+        return;
+      }
+      if(n > 0 && navigator.setAppBadge) navigator.setAppBadge(n);
+      else if(navigator.clearAppBadge) navigator.clearAppBadge();
+    }catch(e){}
+  }
   var conversationsEl = [];
   var filEl = null;
   var battementEl = null;
@@ -2813,6 +2833,7 @@
       .then(function(d){
         conversationsEl = (d && d.conversations) || [];
         nonLusMessages = (d && d.nonLusTotal) || 0;
+        poserLaPastilleDeLAppliEl(nonLusMessages);
         dessinerConversationsEleve();
         dessinerLesOnglets();
       })
