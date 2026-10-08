@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 23:10 — v1083 */
+/* Déployé le 08/10/2026 à 11:20 — v1098 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -983,7 +983,29 @@ function bulleDuMessage(m, avant, apres){
     b.appendChild(image);
   }
 
-  if(m.texte) b.appendChild(document.createTextNode(m.texte));
+  /* 🎤 Le vocal vient avant le texte, pour la même raison que la
+     photo — v1098. Sauf qu'ici le texte N'EST PAS un commentaire :
+     c'est ce qui a été dit. Il se lit donc comme la suite naturelle
+     du lecteur, et c'est lui qu'on parcourt des yeux quand on n'a
+     pas le temps d'écouter. */
+  const vocal = (typeof vocalDuMessage === 'function') ? vocalDuMessage(m) : null;
+  if(vocal){
+    b.classList.add('vocal');
+    b.appendChild(vocal);
+  }
+
+  /* ⚠️ LE TEXTE D'UN VOCAL EST DANS SA PROPRE ZONE — v1098. Posé
+     comme un nœud de texte nu, il se collait au lecteur et se lisait
+     comme une légende d'image. Il DOUBLE la parole : un cran plus
+     petit, et un peu de place au-dessus. */
+  if(m.texte && vocal){
+    const dit = document.createElement('div');
+    dit.className = 'msgLectMots';
+    dit.textContent = m.texte;
+    b.appendChild(dit);
+  }else if(m.texte){
+    b.appendChild(document.createTextNode(m.texte));
+  }
 
   /* ⚠️ L'HEURE EST POSÉE APRÈS LE TEXTE, et c'est ce qui la met au
      bout de la DERNIÈRE ligne. Un flottant rencontré après trois
@@ -1038,6 +1060,28 @@ function zoneDEcritureDuFil(id){
      bouton devant le champ, ce retrait décollait l'icône du bord et
      la barre semblait mal centrée. */
   l.className = 'msgBarre aOutils';
+
+  /* 🎤 Enregistrer un vocal — v1098. DEVANT les deux autres, réponse
+     de David du 8 octobre : c'est le geste qu'on cherche quand on
+     n'a pas les mains libres, et celui-là ne se tâtonne pas.
+
+     ⚠️ IL NE PARAÎT PAS S'IL NE PEUT PAS MARCHER. Un bouton micro
+     sur un navigateur sans MediaRecorder est un bouton qui répond
+     « impossible » après le clic — autant le dire avant, en ne le
+     mettant pas. */
+  if(typeof vocalPossibleEC === 'function' && vocalPossibleEC()){
+    const voc = document.createElement('button');
+    voc.type = 'button';
+    voc.id = 'msgElvVocal';
+    voc.className = 'msgOutil';
+    voc.textContent = '🎤';
+    voc.title = 'Enregistrer un vocal';
+    voc.addEventListener('click', ev => {
+      ev.stopPropagation();
+      demarrerLeVocalEC(l);
+    });
+    l.appendChild(voc);
+  }
 
   /* 📷 Envoyer une photo — v1088. Devant 🙂 : c'est le geste le moins
      fréquent des deux, mais le plus visible — on le cherche des yeux
@@ -3083,6 +3127,457 @@ function imageDuMessage(m){
   });
   return i;
 }
+
+/* ============================================================
+   🎤 LES VOCAUX — ENREGISTRER, RECONNAÎTRE, ÉCOUTER — v1098
+
+   David, le 8 octobre : « voir pour envoyer des vocaux dans la
+   messagerie ». Ses quatre arbitrages, puis les trois du schéma :
+   tout le monde · 2 minutes pour l'équipe, 1 pour un élève, avec le
+   compteur · 5 par jour pour un élève · le texte reconnu PENDANT
+   qu'on parle · le micro DEVANT 📷 et 🙂 · la vitesse ×2 sur le
+   lecteur · et le texte corrigeable avant l'envoi côté équipe, pas
+   côté élève.
+
+   ⚠️ DEUX MACHINES QUI TOURNENT EN MÊME TEMPS, ET ELLES NE SE
+   CONNAISSENT PAS. « MediaRecorder » enregistre le son ;
+   « SpeechRecognition » écoute le micro de son côté et rend du
+   texte. Aucune des deux ne dépend de l'autre : la reconnaissance
+   peut refuser de démarrer — c'est le cas sur iPhone — sans que
+   l'enregistrement en souffre. C'est voulu, et c'est ce qui permet
+   au vocal de partir sans texte là où le texte n'existe pas.
+
+   ⚠️ ET LE SON N'EST JAMAIS GARDÉ AILLEURS QUE DANS LA PAGE tant
+   qu'on n'a pas appuyé sur ➤. Annuler, changer de fil, recharger :
+   il n'en reste rien, nulle part. Un enregistrement qu'on croit
+   annulé et qui traîne sur un serveur, c'est la pire des surprises.
+   ============================================================ */
+
+const VOCAL_SEC_MAX_EC = 120;
+/* Les dix dernières secondes se voient : le chiffre passe en rouge,
+   et on sait qu'il faut conclure sans avoir à lire. */
+const VOCAL_SEC_ALERTE = 10;
+const VOCAL_BARRES_ONDE = 12;
+
+let vocalEC = null;          /* l'enregistrement en cours, ou rien */
+
+/* La vitesse d'écoute, gardée d'un vocal à l'autre : celui qui
+   écoute vite écoute vite tout le temps. Elle vit en mémoire — un
+   réglage de confort n'a pas à survivre à la fermeture de l'onglet. */
+let vitesseDesVocauxEC = 1;
+
+function vocalPossibleEC(){
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+            typeof window.MediaRecorder === 'function');
+}
+
+/* ⚠️ LE FORMAT N'EST PAS LE MÊME PARTOUT, ET ON NE CHOISIT PAS.
+   Chrome et Android rendent du webm/opus, Safari et l'iPhone du
+   mp4/aac. On demande ce qu'on préfère et on accepte ce qu'on nous
+   donne : le Worker reconnaît les trois conteneurs aux premiers
+   octets, pas au type annoncé. */
+function formatDuVocalEC(){
+  const essais = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+  for(const t of essais){
+    try{ if(MediaRecorder.isTypeSupported(t)) return t; }catch(e){}
+  }
+  return '';
+}
+
+function minutesEtSecondes(n){
+  const s = Math.max(0, Math.round(Number(n) || 0));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+/* ------------------------------------------------------------
+   L'ENREGISTREUR, À LA PLACE DE LA BARRE D'ÉCRITURE
+
+   ⚠️ À LA PLACE, PAS À CÔTÉ. On n'écrit pas et on ne parle pas en
+   même temps : deux zones de saisie côte à côte, c'est se demander
+   dans laquelle on est en train de taper.
+   ------------------------------------------------------------ */
+async function demarrerLeVocalEC(barre){
+  if(vocalEC) return;
+  if(!vocalPossibleEC()){
+    showToast('Cet appareil ne sait pas enregistrer depuis le navigateur.');
+    return;
+  }
+
+  let flux = null;
+  try{
+    flux = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }catch(e){
+    /* Refus du micro, ou pas de micro : on le dit une fois, sans
+       insister. Le reste de la messagerie continue de marcher. */
+    showToast('Le micro n’est pas disponible : ' +
+              ((e && e.name === 'NotAllowedError')
+                ? 'tu l’as refusé pour ce site.' : 'aucun micro trouvé.'));
+    return;
+  }
+
+  const type = formatDuVocalEC();
+  let enr = null;
+  try{
+    enr = type ? new MediaRecorder(flux, { mimeType: type })
+               : new MediaRecorder(flux);
+  }catch(e){
+    flux.getTracks().forEach(p => p.stop());
+    showToast('Enregistrement impossible sur cet appareil.');
+    return;
+  }
+
+  const morceaux = [];
+  enr.addEventListener('dataavailable', ev => {
+    if(ev.data && ev.data.size) morceaux.push(ev.data);
+  });
+
+  vocalEC = { enr: enr, flux: flux, morceaux: morceaux, debut: Date.now(),
+              barre: barre, mots: '', reco: null, minuteur: null,
+              fil: (filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id) || '',
+              fini: null };
+
+  const vue = ecranDeLEnregistrementEC();
+  barre.style.display = 'none';
+  barre.parentNode.insertBefore(vue, barre);
+  vocalEC.vue = vue;
+
+  /* ⚠️ LA PROMESSE DE FIN SE POSE AVANT « start », pas après : un
+     enregistrement de zéro seconde — un doigt qui ripe — rend
+     « stop » immédiat, et on attendrait un événement déjà passé. */
+  vocalEC.fini = new Promise(resolve => enr.addEventListener('stop', resolve));
+  enr.start();
+
+  demarrerLaReconnaissanceEC();
+  vocalEC.minuteur = setInterval(() => battreLeVocalEC(), 200);
+  battreLeVocalEC();
+}
+
+/* La reconnaissance, quand elle existe. Sur iPhone elle n'existe
+   pas : on le dit à l'écran plutôt que de laisser croire qu'elle a
+   échoué. */
+function demarrerLaReconnaissanceEC(){
+  const SRv = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SRv || !vocalEC) return;
+
+  let r = null;
+  try{ r = new SRv(); }catch(e){ return; }
+  r.lang = 'fr-FR';
+  r.continuous = true;
+  r.interimResults = true;
+
+  /* ⚠️ « final » ET « provisoire » SE RANGENT À PART. La
+     reconnaissance corrige ce qu'elle vient de dire tant qu'elle
+     n'a pas tranché : tout empiler donnerait trois fois la même
+     phrase à moitié écrite. */
+  let acquis = '';
+  r.addEventListener('result', ev => {
+    let encours = '';
+    for(let i = ev.resultIndex; i < ev.results.length; i++){
+      const t = ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) acquis += t;
+      else encours += t;
+    }
+    if(!vocalEC) return;
+    vocalEC.mots = (acquis + encours).replace(/\s+/g, ' ').trim();
+    posterLesMotsDuVocalEC();
+  });
+  /* Un silence coupe la reconnaissance ; l'enregistrement, lui,
+     continue. On la relance tant qu'on parle. */
+  r.addEventListener('end', () => {
+    if(!vocalEC || vocalEC.arrete) return;
+    try{ r.start(); }catch(e){}
+  });
+  r.addEventListener('error', () => { /* elle se taira, le son part */ });
+
+  try{ r.start(); vocalEC.reco = r; }catch(e){ vocalEC.reco = null; }
+}
+
+function posterLesMotsDuVocalEC(){
+  if(!vocalEC || !vocalEC.vue) return;
+  const z = vocalEC.vue.querySelector('.msgVocMots');
+  if(!z) return;
+  /* ⚠️ CE QUI A ÉTÉ CORRIGÉ À LA MAIN NE SE FAIT PAS ÉCRASER. Le
+     champ est modifiable côté équipe — décision de David — et la
+     reconnaissance continue d'écrire par-dessus tant qu'on n'y a
+     pas touché. Dès qu'on y touche, elle lâche la main. */
+  if(z.dataset.touche === '1') return;
+  z.value = vocalEC.mots;
+}
+
+function ecranDeLEnregistrementEC(){
+  const z = document.createElement('div');
+  z.className = 'msgVoc';
+
+  const haut = document.createElement('div');
+  haut.className = 'msgVocHaut';
+
+  const rond = document.createElement('span');
+  rond.className = 'msgVocRond';
+  haut.appendChild(rond);
+
+  const t = document.createElement('span');
+  t.className = 'msgVocTemps';
+  t.innerHTML = '<b>0:00</b> <i>/ ' + minutesEtSecondes(VOCAL_SEC_MAX_EC) + '</i>';
+  haut.appendChild(t);
+
+  const onde = document.createElement('span');
+  onde.className = 'msgVocOnde';
+  for(let i = 0; i < VOCAL_BARRES_ONDE; i++){
+    const b = document.createElement('b');
+    b.style.height = '6px';
+    onde.appendChild(b);
+  }
+  haut.appendChild(onde);
+
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'msgVocX';
+  x.textContent = '✕';
+  x.title = 'Annuler';
+  x.addEventListener('click', () => arreterLeVocalEC(false));
+  haut.appendChild(x);
+
+  const env = document.createElement('button');
+  env.type = 'button';
+  env.className = 'msgEnv';
+  env.textContent = '➤';
+  env.title = 'Envoyer le vocal';
+  env.addEventListener('click', () => arreterLeVocalEC(true));
+  haut.appendChild(env);
+
+  z.appendChild(haut);
+
+  /* Le texte reconnu, modifiable : « Hery » revient en « Erri » une
+     fois sur trois, et le corriger après coup demanderait de
+     rouvrir le message. Décision de David du 8 octobre : oui pour
+     l'équipe, non pour l'élève. */
+  const mots = document.createElement('textarea');
+  mots.className = 'msgVocMots';
+  mots.rows = 1;
+  mots.placeholder = (window.SpeechRecognition || window.webkitSpeechRecognition)
+    ? 'Ce que tu dis s’écrira ici…'
+    : 'Cet appareil n’écrit pas ce que tu dis. Le vocal partira, sans texte.';
+  if(!(window.SpeechRecognition || window.webkitSpeechRecognition)){
+    mots.classList.add('pas');
+    mots.readOnly = true;
+  }
+  mots.addEventListener('input', () => {
+    mots.dataset.touche = '1';
+    mots.style.height = 'auto';
+    mots.style.height = Math.max(19, Math.min(mots.scrollHeight, 90)) + 'px';
+  });
+  z.appendChild(mots);
+
+  return z;
+}
+
+/* Le battement : le compteur, l'onde, et l'arrêt automatique. */
+function battreLeVocalEC(){
+  if(!vocalEC || !vocalEC.vue) return;
+  const sec = Math.floor((Date.now() - vocalEC.debut) / 1000);
+
+  const t = vocalEC.vue.querySelector('.msgVocTemps');
+  if(t){
+    const b = t.querySelector('b');
+    if(b) b.textContent = minutesEtSecondes(sec);
+    t.classList.toggle('fin', sec >= VOCAL_SEC_MAX_EC - VOCAL_SEC_ALERTE);
+  }
+
+  /* ⚠️ L'ONDE NE MESURE RIEN, ET ELLE NE PRÉTEND PAS LE FAIRE. Lire
+     le niveau du micro demanderait un AudioContext de plus, qui
+     tourne pendant tout l'enregistrement sur une tablette posée au
+     soleil. Elle dit « ça tourne », comme le point rouge — et c'est
+     la seule chose qu'on lui demande. */
+  const barres = vocalEC.vue.querySelectorAll('.msgVocOnde b');
+  for(let i = 0; i < barres.length; i++){
+    const v = 6 + Math.round(20 * Math.abs(Math.sin((Date.now() / 220) + i * 0.7)));
+    barres[i].style.height = v + 'px';
+  }
+
+  /* ⚠️ À LA LIMITE, ON ARRÊTE SANS ENVOYER. Le vocal reste à
+     l'écran, prêt à partir : couper ET envoyer, ce serait décider à
+     la place de celui qui parlait encore. */
+  if(sec >= VOCAL_SEC_MAX_EC) arreterLeVocalEC(true, true);
+}
+
+/* ------------------------------------------------------------
+   ARRÊTER : ANNULER, OU ENVOYER
+   ------------------------------------------------------------ */
+async function arreterLeVocalEC(envoyer, parLeTemps){
+  const v = vocalEC;
+  if(!v || v.arrete) return;
+  v.arrete = true;
+  clearInterval(v.minuteur);
+
+  const sec = Math.max(1, Math.round((Date.now() - v.debut) / 1000));
+  const zoneMots = v.vue && v.vue.querySelector('.msgVocMots');
+  const mots = zoneMots ? String(zoneMots.value || '').trim() : '';
+
+  if(v.reco){ try{ v.reco.stop(); }catch(e){} }
+  try{ v.enr.stop(); }catch(e){}
+  try{ await v.fini; }catch(e){}
+  v.flux.getTracks().forEach(p => p.stop());
+
+  const rendreLaBarre = () => {
+    if(v.vue && v.vue.parentNode) v.vue.parentNode.removeChild(v.vue);
+    if(v.barre) v.barre.style.display = '';
+    vocalEC = null;
+  };
+
+  if(!envoyer){ rendreLaBarre(); return; }
+
+  /* ⚠️ MOINS D'UNE SECONDE, C'EST UN DOIGT QUI A RIPÉ. On ne poste
+     pas un vocal vide : on le dit, et on rend la barre. */
+  const blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'audio/webm') });
+  if(sec < 1 || blob.size < 1200){
+    rendreLaBarre();
+    showToast('Enregistrement trop court — rien n’a été envoyé.');
+    return;
+  }
+
+  if(v.vue){
+    const e = v.vue.querySelector('.msgEnv');
+    if(e){ e.disabled = true; e.textContent = '…'; }
+  }
+
+  try{
+    const son = await blobEnBase64EC(blob);
+    await appelPrep({ action: 'convVocal', id: v.fil, son: son,
+                      duree: sec, texte: mots });
+    rendreLaBarre();
+    if(parLeTemps) showToast('Deux minutes : le vocal est parti.');
+    await rafraichirLeFil();
+  }catch(e){
+    /* ⚠️ ON NE REND PAS LA BARRE SUR UN ÉCHEC. Le son n'existe que
+       dans cette page : la rendre, c'est le perdre. L'écran reste,
+       avec son bouton, et on réessaie. */
+    v.arrete = false;
+    if(v.vue){
+      const e2 = v.vue.querySelector('.msgEnv');
+      if(e2){ e2.disabled = false; e2.textContent = '➤'; }
+    }
+    showToast('Le vocal n’est pas parti : ' + ((e && e.message) || e));
+  }
+}
+
+function blobEnBase64EC(blob){
+  return new Promise((resolve, reject) => {
+    const l = new FileReader();
+    l.onload = () => resolve(String(l.result || ''));
+    l.onerror = () => reject(new Error('lecture impossible'));
+    l.readAsDataURL(blob);
+  });
+}
+
+/* ------------------------------------------------------------
+   LE LECTEUR, DANS LA BULLE
+
+   ⚠️ PAS LE LECTEUR DU NAVIGATEUR. « <audio controls> » mesure 300
+   pixels de large, impose ses couleurs et son menu « télécharger » —
+   sur un lien signé qui expire, ce menu promet ce qu'il ne tient
+   pas. Trois éléments à nous, et le son derrière.
+   ------------------------------------------------------------ */
+function vocalDuMessage(m){
+  const p = m && m.piece;
+  if(!p || String(p.type || '').indexOf('audio/') !== 0) return null;
+
+  if(!p.lien){
+    const d = document.createElement('div');
+    d.className = 'msgImgAbs';
+    d.textContent = '🎤 Vocal indisponible';
+    return d;
+  }
+
+  const z = document.createElement('div');
+  z.className = 'msgLect';
+
+  const son = document.createElement('audio');
+  son.preload = 'none';
+  son.src = adresseDeLaPiece(p);
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'msgLectBtn';
+  b.textContent = '▶';
+  b.title = 'Écouter';
+
+  const barre = document.createElement('span');
+  barre.className = 'msgLectBarre';
+  const plein = document.createElement('i');
+  plein.style.width = '0%';
+  barre.appendChild(plein);
+
+  const duree = document.createElement('span');
+  duree.className = 'msgLectDuree';
+  duree.textContent = minutesEtSecondes(p.duree || 0);
+
+  /* ×2 — demandé par David le 8 octobre. Elle se garde d'un vocal à
+     l'autre : celui qui écoute vite écoute vite tout le temps. */
+  const vit = document.createElement('button');
+  vit.type = 'button';
+  vit.className = 'msgLectVit';
+  vit.textContent = '×' + vitesseDesVocauxEC;
+  vit.title = 'Vitesse de lecture';
+  vit.addEventListener('click', ev => {
+    ev.stopPropagation();
+    vitesseDesVocauxEC = (vitesseDesVocauxEC === 1) ? 1.5
+                       : (vitesseDesVocauxEC === 1.5 ? 2 : 1);
+    vit.textContent = '×' + vitesseDesVocauxEC;
+    son.playbackRate = vitesseDesVocauxEC;
+    /* Les autres bulles suivront à leur prochaine lecture ; celles
+       qui sont à l'écran changent d'étiquette tout de suite. */
+    document.querySelectorAll('.msgLectVit').forEach(x => {
+      x.textContent = '×' + vitesseDesVocauxEC;
+    });
+  });
+
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    if(son.paused){
+      /* ⚠️ UN SEUL VOCAL À LA FOIS. Deux voix en même temps dans une
+         voiture, c'est deux voix qu'on ne comprend pas. */
+      document.querySelectorAll('audio').forEach(a => {
+        if(a !== son && !a.paused) a.pause();
+      });
+      son.playbackRate = vitesseDesVocauxEC;
+      son.play().catch(() => showToast('Le vocal n’a pas pu être lu.'));
+    }else{
+      son.pause();
+    }
+  });
+
+  son.addEventListener('play', () => { b.textContent = '⏸'; b.title = 'Pause'; });
+  son.addEventListener('pause', () => { b.textContent = '▶'; b.title = 'Écouter'; });
+  son.addEventListener('ended', () => {
+    b.textContent = '▶';
+    plein.style.width = '0%';
+    duree.textContent = minutesEtSecondes(p.duree || son.duration || 0);
+  });
+  son.addEventListener('timeupdate', () => {
+    const tot = son.duration || p.duree || 0;
+    if(tot > 0) plein.style.width = Math.min(100, (son.currentTime / tot) * 100) + '%';
+    duree.textContent = minutesEtSecondes(son.currentTime) + ' / ' +
+                        minutesEtSecondes(tot);
+  });
+
+  /* On peut se déplacer dans le vocal : réécouter la phrase du
+     milieu sans tout reprendre. */
+  barre.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const tot = son.duration || p.duree || 0;
+    if(!tot) return;
+    const r = barre.getBoundingClientRect();
+    son.currentTime = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * tot;
+  });
+
+  z.appendChild(b);
+  z.appendChild(barre);
+  z.appendChild(duree);
+  z.appendChild(vit);
+  z.appendChild(son);
+  return z;
+}
+
 
 /* ⚠️ EN GRAND, PAS DANS UN ONGLET. Un lien signé ouvert dans un
    onglet reste dans l'historique du navigateur et dans la barre
