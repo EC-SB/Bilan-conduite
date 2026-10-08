@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 18:40 — v1109 -->
+<!-- Déployé le 08/10/2026 à 20:15 — v1110 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -760,6 +760,12 @@
   .reacChoix button.on{ background:var(--orange-soft); }
   /* 📋 n'est pas une réaction : un trait l'en sépare, toujours en
      dernier — la main va aux émoticônes d'abord. */
+  .bulle.ote{
+    background:transparent !important; border:1px dashed var(--line) !important;
+    color:var(--muted) !important; font-style:italic;
+  }
+  .bulle.ote .oteMot{ font-size:12.5px; }
+  .bulle.ote .h{ font-style:normal; }
   .reacCopier{
     border-left:1px solid var(--line) !important;
     margin-left:3px !important; font-size:17px !important;
@@ -3171,6 +3177,18 @@
       return '<div class="bulle systeme">' + echapper(m.texte) + '</div>';
     }
     var mien = (m.de === 'moi');
+
+    /* 🗑️ UN MESSAGE RETIRÉ LAISSE SA LIGNE — v1110, même règle
+       qu'au bureau : un fil troué ne raconte plus rien, et les
+       réponses d'après deviendraient incompréhensibles. Le serveur
+       a déjà tout vidé — ni texte, ni pièce, ni réaction n'arrivent
+       jusqu'ici. */
+    if(Number(m.supprime || 0)){
+      return '<div class="bulle ' + (mien ? 'moi' : 'eux') + ' ote">' +
+        '<span class="oteMot">🚫 Message supprimé</span>' +
+        '<span class="h">' +
+        echapper(String(m.envoyeLe || '').slice(11)) + '</span></div>';
+    }
     /* ⚠️ LA BULLE PORTE SON IDENTIFIANT — v1086. Pour réagir à un
        message il faut savoir lequel ; et c'est aussi par là que
        l'appui long se branche après le dessin. */
