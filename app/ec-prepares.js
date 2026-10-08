@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 08:40 — v1097 */
+/* Déployé le 08/10/2026 à 14:05 — v1099 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -530,18 +530,44 @@ function etatDuCoursPrecedent(cours){
   return acquis;
 }
 
-/* Le rang qu'annonce une préparation : son contexte d'abord — une
-   main l'y a écrit — puis sa note. */
+/* ============================================================
+   LE RANG QU'ANNONCE UNE PRÉPARATION
+
+   ⚠️ UNE SEULE PORTE, ET CE N'ÉTAIT PAS CELLE-CI — v1099.
+
+   Elle lisait « contexte.lecon » EN PREMIER, sous le motif qu'« une
+   main l'y a écrit ». C'est faux, et c'est mot pour mot la faute
+   que la v1014 a corrigée dans « numeroLeconDuCours » : UN COURS NÉ
+   D'UN RAPPEL PORTE TOUJOURS UN RANG — celui du matin où le rappel
+   l'a calculé, parfois sans que le dossier ait eu le temps de
+   répondre. Le lire comme une décision de moniteur, c'est propager
+   un chiffre que personne n'a voulu.
+
+   David, le 8 octobre, deux captures : son élève en est à sa 24ᵉ
+   leçon aujourd'hui, et le rappel du lendemain en annonce 2. Le
+   cours d'aujourd'hui portait un vieux « lecon » dans son contexte ;
+   cette fonction l'a cru, l'a rendu tel quel, et le rappel a posé
+   « 1 + 1 » là où le classeur disait 24.
+
+   ⚠️ LA RÈGLE EST ÉCRITE UNE FOIS, DANS « numeroLeconDuCours » : un
+   rang écrit ne l'emporte que s'il a été TAPÉ À LA MAIN ou si le
+   cours est PASSÉ ; sinon c'est le classeur qui compte. Deux
+   lecteurs du même chiffre finissent toujours par ne pas dire la
+   même chose — ici il aura fallu trois semaines pour s'en
+   apercevoir.
+
+   Elle délègue donc, et ne garde que son propre recours : quand la
+   porte commune ne sait rien — hors ligne, dossier inconnu — ce qui
+   est écrit vaut mieux que rien.
+   ============================================================ */
 function rangDeLaPreparation(prep){
   if(!prep) return null;
-  const ctx = prep.contexte || {};
-  const dit = parseInt(ctx.lecon, 10);
-  if(!isNaN(dit) && dit > 0) return dit;
   if(typeof numeroLeconDuCours === 'function'){
     const n = numeroLeconDuCours(prep);
     if(n > 0) return n;
   }
-  return null;
+  const dit = parseInt((prep.contexte || {}).lecon, 10);
+  return (!isNaN(dit) && dit > 0) ? dit : null;
 }
 
 
