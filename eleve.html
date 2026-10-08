@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 17:10 — v1108 -->
+<!-- Déployé le 08/10/2026 à 18:40 — v1109 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -634,6 +634,28 @@
   }
   .msgVocMots.pas{ color:var(--muted); font-style:italic; }
   .msgVocReste{ font-size:11.5px; color:var(--muted); margin:6px 0 0 16px; }
+
+  /* --- 🎥 la vidéo — v1109 --- */
+  .msgVidApercu{
+    display:block; width:100%; max-height:190px; margin:8px 0 0;
+    border-radius:12px; background:#000; object-fit:cover;
+  }
+  .msgVoc.fini .msgVidApercu{ object-fit:contain; }
+  .msgVidDeux{ display:flex; gap:8px; margin:10px 0 0; }
+  .msgVidDeux .btn{ flex:1; margin:0; padding:11px 8px; font-size:13.5px; }
+  .msgVidB{ position:relative; display:block; margin:2px 0 4px; }
+  .msgVidB video.msgVid{
+    display:block; width:100%; max-width:240px; max-height:300px;
+    border-radius:12px; background:#000;
+  }
+  .msgVidDuree{
+    /* ⚠️ EN HAUT, PAS EN BAS. Les commandes du navigateur occupent
+       toute la bande du bas : la durée s'y posait par-dessus, et
+       débordait de la vidéo sur la bulle. */
+    position:absolute; left:7px; top:7px; padding:1px 6px;
+    border-radius:999px; background:rgba(0,0,0,.62); color:#fff;
+    font-size:11px; font-weight:700; pointer-events:none;
+  }
 
   /* --- le lecteur, dans la bulle --- */
   /* ⚠️ PAS « <audio controls> ». Il mesure 300 pixels de large,
@@ -2975,6 +2997,7 @@
      serait une limite que pour ceux qui ne rechargent pas. */
   function noterLeResteVocaux(r){
     if(r && typeof r.resteVocaux === 'number') resteVocauxEl = r.resteVocaux;
+    if(r && typeof r.resteVideos === 'number') resteVideosEl = r.resteVideos;
   }
 
   function ouvrirFilEleve(id){
@@ -3047,6 +3070,12 @@
           ? '<button type="button" class="emoOutil" id="btFilVocal" ' +
               'title="Enregistrer un vocal">🎤</button>'
           : '') +
+        /* 🎥 La vidéo — v1109, à côté du micro : ce sont les deux
+           gestes qui remplacent la barre d'écriture. */
+        (videoPossibleEl()
+          ? '<button type="button" class="emoOutil" id="btFilVideo" ' +
+              'title="Envoyer une vidéo">🎥</button>'
+          : '') +
         '<button type="button" class="emoOutil" id="btFilPhoto" ' +
           'title="Envoyer une photo">📷</button>' +
         '<button type="button" class="emoOutil" id="btFilEmo" ' +
@@ -3102,6 +3131,11 @@
     if(vo) vo.addEventListener('click', function(ev){
       ev.stopPropagation();
       demarrerLeVocalEl();
+    });
+    var vi = $('btFilVideo');
+    if(vi) vi.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      choisirCommentFilmerEl();
     });
 
     /* 📋 COLLER UNE IMAGE — v1108. Un texte se colle tout seul ; une
@@ -3169,6 +3203,8 @@
        texte n'est pas un commentaire de la pièce : c'est ce qui a
        été dit, et c'est lui qu'on lit quand on ne peut pas
        écouter. */
+    /* 🎥 La vidéo, à la même place que la photo — v1109. */
+    h += videoDuMessageEl(m);
     var leVocal = vocalDuMessageEl(m);
     h += leVocal;
     if(m.texte){
@@ -3365,9 +3401,13 @@
     return !!p && String(p.type || '').indexOf('audio/') === 0;
   }
 
+  function pieceEstUneVideoEl(p){
+    return !!p && String(p.type || '').indexOf('video/') === 0;
+  }
+
   function imageDuMessageEl(m){
     var p = m && m.piece;
-    if(!p || pieceEstUnSonEl(p)) return '';
+    if(!p || pieceEstUnSonEl(p) || pieceEstUneVideoEl(p)) return '';
     if(!p.lien){
       return '<span class="imgAbs">📷 Photo indisponible</span>';
     }
@@ -3406,6 +3446,392 @@
     document.body.appendChild(v);
     voilePhotoEl = v;
   }
+
+    /* ============================================================
+     🎥 LES VIDÉOS, CÔTÉ ÉLÈVE — v1109
+
+     David, le 8 octobre : tout le monde, élèves compris. Trente
+     secondes, cinq par jour — son propre compte, séparé de celui
+     des vocaux.
+
+     ⚠️ MÊME MACHINE ET MÊME ÉCRAN QUE LE BUREAU, décalqués exprès :
+     une seconde façon de faire la même chose serait une seconde
+     occasion de se tromper.
+
+     ⚠️ ET LA CAMÉRA SE COUPE, TOUJOURS. Un micro oublié est une
+     pastille rouge ; une caméra oubliée filme la salle.
+     ============================================================ */
+  var VIDEO_SEC_MAX_EL = 30;
+  var VIDEO_SEC_ALERTE_EL = 5;
+  var VIDEO_MAX_OCTETS_EL = 12 * 1024 * 1024;
+
+  var videoEl = null;
+  var envoiVideoEl = false;
+  var resteVideosEl = null;     /* ce que le serveur a compté */
+
+  function videoPossibleEl(){
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+              typeof window.MediaRecorder === 'function');
+  }
+
+  function formatDeLaVideoEl(){
+    var essais = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+    for(var i = 0; i < essais.length; i++){
+      try{ if(MediaRecorder.isTypeSupported(essais[i])) return essais[i]; }catch(e){}
+    }
+    return '';
+  }
+
+  /* Le bouton demande d'abord : filmer, ou choisir. */
+  function choisirCommentFilmerEl(){
+    if(videoEl || envoiVideoEl) return;
+    if(resteVideosEl !== null && resteVideosEl <= 0){
+      direVocalEl('Tu as envoyé tes 5 vidéos du jour. Réessaie demain.');
+      return;
+    }
+    var z = $('zoneEcrireVocal');
+    if(!z) return;
+    z.innerHTML =
+      '<div class="msgVoc msgVidChoix">' +
+        '<div class="msgVocHaut">' +
+          '<span class="msgVocTemps" style="flex:1"><b>Une vidéo ?</b></span>' +
+          '<button type="button" class="msgVocX" id="btVidAnnul" ' +
+            'title="Annuler">✕</button>' +
+        '</div>' +
+        '<div class="msgVidDeux">' +
+          '<button type="button" class="btn btn-secondary" id="btVidGalerie">' +
+            '📁 Choisir une vidéo</button>' +
+          '<button type="button" class="btn btn-primary" id="btVidFilmer">' +
+            '🎥 Filmer</button>' +
+        '</div>' +
+        '<div class="msgVocReste">30 secondes au maximum. Une vidéo déjà ' +
+          'prise doit tenir en 12 Mo.</div>' +
+      '</div>';
+    z.style.display = 'block';
+    var barre = document.querySelector('.zoneEcrire');
+    if(barre) barre.style.display = 'none';
+
+    var rendre = function(){
+      z.innerHTML = ''; z.style.display = 'none';
+      if(barre) barre.style.display = '';
+    };
+    var a = $('btVidAnnul');
+    if(a) a.addEventListener('click', rendre);
+    var g = $('btVidGalerie');
+    if(g) g.addEventListener('click', function(){ rendre(); choisirUneVideoEl(); });
+    var f = $('btVidFilmer');
+    if(f) f.addEventListener('click', function(){ rendre(); demarrerLaVideoEl(); });
+  }
+
+  function choisirUneVideoEl(){
+    var z = document.createElement('input');
+    z.type = 'file';
+    z.accept = 'video/*';
+    z.style.display = 'none';
+    document.body.appendChild(z);
+    z.addEventListener('change', function(){
+      var f = z.files && z.files[0];
+      if(z.parentNode) document.body.removeChild(z);
+      if(f) envoyerUneVideoChoisieEl(f);
+    });
+    z.click();
+  }
+
+  function dureeDUnFichierVideoEl(fichier){
+    return new Promise(function(resolve){
+      var url = '';
+      try{ url = URL.createObjectURL(fichier); }catch(e){ resolve(0); return; }
+      var v = document.createElement('video');
+      var fini = function(n){
+        try{ URL.revokeObjectURL(url); }catch(e){}
+        resolve(Math.max(0, Math.round(n || 0)));
+      };
+      v.preload = 'metadata';
+      v.addEventListener('loadedmetadata', function(){
+        fini(isFinite(v.duration) ? v.duration : 0);
+      });
+      v.addEventListener('error', function(){ fini(0); });
+      setTimeout(function(){ fini(0); }, 3000);
+      v.src = url;
+    });
+  }
+
+  function envoyerUneVideoChoisieEl(fichier){
+    if(envoiVideoEl || !filEl || !filEl.conv) return;
+    if(fichier.size > VIDEO_MAX_OCTETS_EL){
+      direVocalEl('Cette vidéo fait ' + Math.round(fichier.size / 1048576) +
+                  ' Mo — 12 Mo au plus. Filme-la depuis l’application.');
+      return;
+    }
+    envoiVideoEl = true;
+    var b = $('btFilVideo');
+    if(b){ b.disabled = true; b.textContent = '⏳'; }
+
+    dureeDUnFichierVideoEl(fichier).then(function(sec){
+      return lireEnBase64El(fichier).then(function(data){
+        return appeler({ action: 'eleveVideo', eleve: moi.nom, code: moi.code,
+                         id: filEl.conv.id, video: data, duree: sec, texte: '' });
+      });
+    }).then(function(r){
+      if(r && typeof r.reste === 'number') resteVideosEl = r.reste;
+      return rafraichirLeFilEleve(true);
+    }).catch(function(e){
+      direVocalEl('La vidéo n’est pas partie : ' + ((e && e.message) || e));
+    }).then(function(){
+      envoiVideoEl = false;
+      var x = $('btFilVideo');
+      if(x){ x.disabled = false; x.textContent = '🎥'; }
+    });
+  }
+
+  function lireEnBase64El(blob){
+    return new Promise(function(resolve, reject){
+      var l = new FileReader();
+      l.onload = function(){ resolve(String(l.result || '')); };
+      l.onerror = function(){ reject(new Error('lecture impossible')); };
+      l.readAsDataURL(blob);
+    });
+  }
+
+  /* ---- filmer ---- */
+  function demarrerLaVideoEl(){
+    if(videoEl || !videoPossibleEl()) return;
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 },
+               height: { ideal: 480 } },
+      audio: true
+    }).then(function(flux){
+      var type = formatDeLaVideoEl();
+      var enr;
+      try{
+        var reglages = { videoBitsPerSecond: 800000, audioBitsPerSecond: 64000 };
+        if(type) reglages.mimeType = type;
+        enr = new MediaRecorder(flux, reglages);
+      }catch(e){
+        flux.getTracks().forEach(function(p){ p.stop(); });
+        direVocalEl('Ton appareil ne sait pas filmer.');
+        return;
+      }
+      var morceaux = [];
+      enr.addEventListener('dataavailable', function(ev){
+        if(ev.data && ev.data.size) morceaux.push(ev.data);
+      });
+
+      videoEl = { enr: enr, flux: flux, morceaux: morceaux,
+                  ecoule: 0, depuis: Date.now(), etat: 'enr', minuteur: null,
+                  fil: (filEl && filEl.conv && filEl.conv.id) || '', fini: null };
+
+      var zone = $('zoneEcrireVocal');
+      if(zone){ zone.innerHTML = ecranVideoEl(); zone.style.display = 'block'; }
+      var barre = document.querySelector('.zoneEcrire');
+      if(barre) barre.style.display = 'none';
+
+      var ap = $('vidApercu');
+      /* ⚠️ « play() » ne rend pas toujours une promesse — le vieux
+         Safari non, et « .catch » sur rien du tout lève juste après
+         l'ouverture de la caméra. */
+      if(ap){
+        ap.srcObject = flux;
+        ap.muted = true;
+        try{ var j = ap.play(); if(j && j.catch) j.catch(function(){}); }catch(e){}
+      }
+
+      videoEl.fini = new Promise(function(r){ enr.addEventListener('stop', r); });
+      enr.start();
+
+      var x = $('btVidX'), e = $('btVidEnv');
+      if(x) x.addEventListener('click', function(){ arreterLaVideoEl(false); });
+      if(e) e.addEventListener('click', function(){ arreterLaVideoEl(true); });
+      var pse = $('btVidPause'), fin = $('btVidFin');
+      if(pse) pse.addEventListener('click', basculerLaPauseVideoEl);
+      if(fin) fin.addEventListener('click', function(){ terminerLaVideoEl(); });
+
+      videoEl.minuteur = setInterval(battreLaVideoEl, 200);
+      battreLaVideoEl();
+    }).catch(function(e){
+      direVocalEl((e && e.name === 'NotAllowedError')
+        ? 'Tu as refusé la caméra pour ce site.'
+        : 'Aucune caméra trouvée sur cet appareil.');
+    });
+  }
+
+  function ecranVideoEl(){
+    return '<div class="msgVoc msgVid">' +
+      '<div class="msgVocHaut">' +
+        '<span class="msgVocRond"></span>' +
+        '<span class="msgVocTemps" id="vidTemps"><b>0:00</b> <i>/ ' +
+          mnSecEl(VIDEO_SEC_MAX_EL) + '</i></span>' +
+        '<span class="msgVocOnde"></span>' +
+        ((typeof MediaRecorder === 'function' && MediaRecorder.prototype &&
+          MediaRecorder.prototype.pause)
+          ? '<button type="button" class="msgVocX msgVocPause" id="btVidPause" ' +
+            'title="Pause">❚❚</button>' : '') +
+        '<button type="button" class="msgVocX msgVocFin" id="btVidFin" ' +
+          'title="Arrêter sans envoyer">■</button>' +
+        '<button type="button" class="msgVocX" id="btVidX" title="Annuler">✕</button>' +
+        '<button type="button" class="msgEnv" id="btVidEnv" title="Envoyer">➤</button>' +
+      '</div>' +
+      '<video class="msgVidApercu" id="vidApercu" playsinline></video>' +
+    '</div>' + phraseResteVideosEl();
+  }
+
+  /* Comme pour les vocaux : le compte ne s'affiche qu'à partir du
+     troisième. Écrit dès le premier, il transforme un geste libre
+     en quota. */
+  function phraseResteVideosEl(){
+    if(resteVideosEl === null || resteVideosEl > 3) return '';
+    var n = Math.max(0, resteVideosEl - 1);
+    return '<div class="msgVocReste">Il te restera ' + n + ' vidéo' +
+           (n > 1 ? 's' : '') + ' aujourd’hui.</div>';
+  }
+
+  function secondesDeLaVideoEl(v){
+    return Math.floor((v.ecoule + (v.depuis ? (Date.now() - v.depuis) : 0)) / 1000);
+  }
+
+  function basculerLaPauseVideoEl(){
+    var v = videoEl;
+    if(!v || v.arrete || v.etat === 'fini') return;
+    var b = $('btVidPause'), ec = document.querySelector('#zoneEcrireVocal .msgVoc');
+    if(v.etat === 'enr'){
+      try{ v.enr.pause(); }catch(e){ return; }
+      v.ecoule += (Date.now() - v.depuis);
+      v.depuis = null;
+      v.etat = 'pause';
+      if(b){ b.textContent = '▶'; b.title = 'Reprendre'; }
+      if(ec) ec.classList.add('enPause');
+    }else{
+      try{ v.enr.resume(); }catch(e){ return; }
+      v.depuis = Date.now();
+      v.etat = 'enr';
+      if(b){ b.textContent = '❚❚'; b.title = 'Pause'; }
+      if(ec) ec.classList.remove('enPause');
+    }
+    battreLaVideoEl();
+  }
+
+  function couperLaCameraEl(v){
+    if(v.coupe) return Promise.resolve(v.blob);
+    v.coupe = true;
+    try{ v.enr.stop(); }catch(e){}
+    return Promise.resolve(v.fini).then(function(){
+      try{ v.flux.getTracks().forEach(function(p){ p.stop(); }); }catch(e){}
+      var ap = $('vidApercu');
+      if(ap) try{ ap.srcObject = null; }catch(e){}
+      v.blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'video/webm') });
+      return v.blob;
+    });
+  }
+
+  function rendreLaBarreVideoEl(){
+    var v = videoEl;
+    if(v && v.urlBlob){ try{ URL.revokeObjectURL(v.urlBlob); }catch(e){} }
+    var zone = $('zoneEcrireVocal');
+    if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
+    var barre = document.querySelector('.zoneEcrire');
+    if(barre) barre.style.display = '';
+    videoEl = null;
+  }
+
+  function terminerLaVideoEl(parLeTemps){
+    var v = videoEl;
+    if(!v || v.arrete || v.etat === 'fini') return;
+    if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+    v.etat = 'fini';
+    clearInterval(v.minuteur);
+    v.minuteur = null;
+
+    couperLaCameraEl(v).then(function(blob){
+      var sec = Math.max(1, Math.round(v.ecoule / 1000));
+      if(!blob || blob.size < 2000){
+        rendreLaBarreVideoEl();
+        direVocalEl('Trop court — rien n’a été gardé.');
+        return;
+      }
+      var ec = document.querySelector('#zoneEcrireVocal .msgVoc');
+      if(ec){ ec.classList.add('fini'); ec.classList.remove('enPause'); }
+      var haut = document.querySelector('#zoneEcrireVocal .msgVocHaut');
+      ['.msgVocRond', '.msgVocOnde', '.msgVocPause', '.msgVocFin'].forEach(function(s){
+        var n = haut && haut.querySelector(s);
+        if(n) n.parentNode.removeChild(n);
+      });
+      var t = $('vidTemps');
+      if(t) t.innerHTML = '<b>' + mnSecEl(sec) + '</b>';
+
+      v.urlBlob = URL.createObjectURL(blob);
+      var ap = $('vidApercu');
+      if(ap){ ap.srcObject = null; ap.src = v.urlBlob; ap.controls = true;
+              ap.muted = false; }
+      if(parLeTemps) direVocalEl('Trente secondes : regarde, puis envoie.');
+    });
+  }
+
+  function battreLaVideoEl(){
+    if(!videoEl || videoEl.etat === 'fini') return;
+    var sec = secondesDeLaVideoEl(videoEl);
+    var t = $('vidTemps');
+    if(t){
+      var b = t.querySelector('b');
+      if(b) b.textContent = mnSecEl(sec);
+      if(sec >= VIDEO_SEC_MAX_EL - VIDEO_SEC_ALERTE_EL) t.className = 'msgVocTemps fin';
+    }
+    if(sec >= VIDEO_SEC_MAX_EL) terminerLaVideoEl(true);
+  }
+
+  function arreterLaVideoEl(envoyer){
+    var v = videoEl;
+    if(!v || v.arrete) return;
+    v.arrete = true;
+    clearInterval(v.minuteur);
+    if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+    var sec = Math.max(1, Math.round(v.ecoule / 1000));
+
+    couperLaCameraEl(v).then(function(blob){
+      if(!envoyer){ rendreLaBarreVideoEl(); return; }
+      if(!blob || blob.size < 2000){
+        rendreLaBarreVideoEl();
+        direVocalEl('Trop court — rien n’a été envoyé.');
+        return;
+      }
+      if(blob.size > VIDEO_MAX_OCTETS_EL){
+        v.arrete = false;
+        direVocalEl('Vidéo trop lourde — 12 Mo au plus.');
+        return;
+      }
+      var e = $('btVidEnv');
+      if(e){ e.disabled = true; e.textContent = '…'; }
+
+      return lireEnBase64El(blob).then(function(data){
+        return appeler({ action: 'eleveVideo', eleve: moi.nom, code: moi.code,
+                         id: v.fil, video: data, duree: sec, texte: '' });
+      }).then(function(r){
+        if(r && typeof r.reste === 'number') resteVideosEl = r.reste;
+        rendreLaBarreVideoEl();
+        rafraichirLeFilEleve(true);
+      }).catch(function(err){
+        /* ⚠️ ON NE REND PAS LA BARRE SUR UN ÉCHEC : la vidéo n'existe
+           que dans cette page. */
+        v.arrete = false;
+        var e2 = $('btVidEnv');
+        if(e2){ e2.disabled = false; e2.textContent = '➤'; }
+        direVocalEl('La vidéo n’est pas partie : ' + ((err && err.message) || err));
+      });
+    });
+  }
+
+  /* ---- la vidéo dans la bulle ---- */
+  function videoDuMessageEl(m){
+    var p = m && m.piece;
+    if(!pieceEstUneVideoEl(p)) return '';
+    if(!p.lien) return '<span class="imgAbs">🎥 Vidéo indisponible</span>';
+    return '<div class="msgVidB">' +
+      '<video class="msgVid" controls playsinline preload="metadata" src="' +
+        echapper(RELAIS + p.lien) + '"></video>' +
+      (Number(p.duree) > 0
+        ? '<span class="msgVidDuree">' + mnSecEl(p.duree) + '</span>' : '') +
+    '</div>';
+  }
+
 
   /* ============================================================
      🎤 LES VOCAUX, CÔTÉ ÉLÈVE — v1098
