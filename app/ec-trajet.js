@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 21:30 — v1068 */
+/* Déployé le 08/10/2026 à 12:30 — v1103 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -755,8 +755,11 @@ function poserRepere(type, nom){
     marquerDansLaDictee(trajetReperes.length);
   }
 
-  if(typeof vibrer === 'function') vibrer();
-  else if(navigator && navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
+  /* ⚠️ PAR LA PORTE, PLUS PAR UN REPLI EN CLAIR — v1103. Le repli
+     écrit ici était le SEUL chemin : « vibrer » n'était écrite
+     nulle part. Il marchait — et c'est bien pour ça qu'on ne voyait
+     pas que l'autre appel, lui, ne faisait rien. */
+  vibrer('ok');
 
   oublierLaCarteDuTrajet();
   return trajetReperes.length;
