@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 12:30 — v1103 */
+/* Déployé le 08/10/2026 à 13:20 — v1104 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,31 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1104,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Tu peux dire d’où partent les heures avant l’examen',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'Les heures d’un post-permis se décomptent depuis le post-permis',
+        texte: 'Quand tu posais un nombre d’heures sur la fiche d’un élève qui ' +
+               'a eu un rendez-vous post-permis (ou un ajournement), l’outil ' +
+               'retenait toujours « il reste ça À PARTIR D’AUJOURD’HUI » — sans ' +
+               'jamais demander. Si tu recopiais ce que le rendez-vous avait ' +
+               'évalué, les leçons déjà faites depuis n’étaient pas déduites : ' +
+               'Mohammad restait à 4h + 3h alors qu’il ne lui restait que les ' +
+               '3h. La question se pose maintenant pour toutes les charnières, ' +
+               'pas seulement pour l’examen blanc.' },
+      { emoji: '✏️',
+        titre: 'Et tu peux le corriger après coup',
+        texte: 'Clique sur la ligne des heures dans la fiche : la fenêtre ' +
+               's’ouvre sur ce qui est ENREGISTRÉ — « depuis le post-permis » ' +
+               'ou « à partir d’aujourd’hui » — et tu changes. Deux clics pour ' +
+               'rattraper un repère posé de travers, au lieu de tout retaper. ' +
+               'La fiche écrit le repère en toutes lettres, pour que le ' +
+               'chiffre affiché reste vérifiable d’un coup d’œil.' }
+    ]
+  },
   {
     version: 1103,
     date: 'Jeudi 8 octobre 2026',
