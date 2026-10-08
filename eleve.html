@@ -558,6 +558,104 @@
   .bulle.photo .sig{ margin:4px 0 4px 8px; }
   .bulle.photo .hh{ margin:4px 8px 0 0; }
   .bulle.photo .motAvec{ display:block; padding:6px 8px 2px; }
+
+  /* ============================================================
+     🎤 LES VOCAUX — v1098
+
+     David, le 8 octobre : « voir pour envoyer des vocaux dans la
+     messagerie », puis ses arbitrages — tout le monde, 2 min pour
+     l'équipe et 1 pour un élève avec le compteur, 5 par jour pour
+     un élève, le texte reconnu pendant qu'on parle, le micro devant
+     les deux autres outils, et la vitesse ×2 sur le lecteur.
+     ============================================================ */
+
+  /* --- l'enregistreur, À LA PLACE de la barre d'écriture --- */
+  /* ⚠️ À LA PLACE, PAS À CÔTÉ. On n'écrit pas et on ne parle pas en
+     même temps : deux zones de saisie côte à côte, c'est se demander
+     dans laquelle on tape. Elle reprend donc exactement la forme de
+     la barre — même arrondi, même hauteur de bouton — pour qu'on
+     voie une transformation et pas un écran de plus. */
+  .msgVoc{
+    border:1px solid var(--orange); background:var(--navy);
+    border-radius:22px; padding:7px 7px 9px 13px;
+  }
+  .msgVocHaut{ display:flex; gap:8px; align-items:center; }
+  .msgVocRond{
+    flex:0 0 auto; width:11px; height:11px; border-radius:50%;
+    background:var(--red); animation:msgVocBat 1.1s ease-in-out infinite;
+  }
+  /* Un battement doux : à .25 le point paraissait éteint sur une
+     capture — donc sur une tablette posée de travers aussi. */
+  @keyframes msgVocBat{ 0%,100%{opacity:1} 50%{opacity:.6} }
+  @media (prefers-reduced-motion: reduce){ .msgVocRond{ animation:none; } }
+  .msgVocTemps{
+    flex:0 0 auto; font-size:14.5px; font-weight:800; color:var(--cream);
+    font-variant-numeric:tabular-nums;
+  }
+  .msgVocTemps i{
+    font-style:normal; font-weight:600; color:var(--muted); font-size:12.5px;
+  }
+  /* Les dix dernières secondes se voient sans qu'on lise le chiffre. */
+  .msgVocTemps.fin b{ color:var(--red); }
+  .msgVocOnde{
+    flex:1; min-width:0; display:flex; align-items:center; gap:2px;
+    height:28px; overflow:hidden;
+  }
+  .msgVocOnde b{ flex:0 0 3px; border-radius:2px; background:var(--orange); opacity:.75; }
+  .msgVocX{
+    flex:0 0 auto; width:34px; height:34px; border-radius:50%; border:none;
+    background:transparent; color:var(--muted); font-size:15px; cursor:pointer;
+    padding:0; margin:0;
+  }
+  .msgVocX:hover{ background:var(--line); }
+  /* Le texte reconnu, modifiable côté équipe : « Hery » revient en
+     « Erri » une fois sur trois, et le corriger après coup
+     demanderait de rouvrir le message. */
+  .msgVocMots{
+    display:block; width:100%; box-sizing:border-box;
+    border:none; background:transparent; outline:none; resize:none;
+    font-family:inherit; font-size:13px; line-height:1.45; color:var(--soft);
+    margin:7px 0 0; padding:0 4px 0 2px; min-height:19px; max-height:90px;
+    overflow-y:auto;
+  }
+  .msgVocMots.pas{ color:var(--muted); font-style:italic; }
+  .msgVocReste{ font-size:11.5px; color:var(--muted); margin:6px 0 0 16px; }
+
+  /* --- le lecteur, dans la bulle --- */
+  /* ⚠️ PAS « <audio controls> ». Il mesure 300 pixels de large,
+     impose ses couleurs, et son menu propose « télécharger » — sur
+     un lien signé qui expire, ce menu promet ce qu'il ne tient
+     pas. */
+  .msgB.vocal, .bulle.vocal{ padding-bottom:7px; }
+  .msgLect{ display:flex; align-items:center; gap:9px; margin:2px 0 1px; }
+  .msgLectBtn{
+    flex:0 0 auto; width:32px; height:32px; border-radius:50%; border:none;
+    cursor:pointer; font-size:13px; padding:0; margin:0;
+    background:var(--orange); color:var(--on-accent);
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .msgLectBarre{
+    flex:1; min-width:60px; height:4px; border-radius:999px;
+    background:var(--line); position:relative; overflow:hidden; cursor:pointer;
+  }
+  .msgB.moi .msgLectBarre, .bulle.moi .msgLectBarre{ background:rgba(0,0,0,.18); }
+  .msgLectBarre i{ display:block; height:100%; background:var(--orange); }
+  .msgB.moi .msgLectBarre i, .bulle.moi .msgLectBarre i{
+    background:var(--on-accent); opacity:.55;
+  }
+  .msgLectDuree{
+    flex:0 0 auto; font-size:11.5px; opacity:.7; font-variant-numeric:tabular-nums;
+  }
+  .msgLectVit{
+    flex:0 0 auto; border:1px solid var(--line); background:transparent;
+    color:inherit; opacity:.75; border-radius:999px; cursor:pointer;
+    font-size:11px; font-weight:800; padding:1px 7px; margin:0;
+    font-variant-numeric:tabular-nums;
+  }
+  /* ⚠️ LE TEXTE RECONNU EST PLUS PETIT QUE LA PAROLE, parce qu'il la
+     DOUBLE — il ne la remplace pas. Au même corps que le reste, on
+     ne saurait plus lequel des deux est le message. */
+  .msgLectMots{ font-size:13px; line-height:1.45; margin-top:5px; opacity:.92; }
   .imgFil{
     display:block; width:100%; height:auto; max-height:340px;
     object-fit:cover; border-radius:11px; background:var(--line);
@@ -2831,12 +2929,20 @@
 
   /* ---------- Un fil ---------- */
 
+  /* ⚠️ LE COMPTE VIENT DU SERVEUR, JAMAIS DU TÉLÉPHONE. Compté ici,
+     il repartirait à zéro à chaque rechargement — et la limite ne
+     serait une limite que pour ceux qui ne rechargent pas. */
+  function noterLeResteVocaux(r){
+    if(r && typeof r.resteVocaux === 'number') resteVocauxEl = r.resteVocaux;
+  }
+
   function ouvrirFilEleve(id){
     ouvrirPleinEcran('<div class="card"><div class="empty">Ouverture…</div></div>');
 
     appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
       .then(function(d){
         filEl = d || null;
+        noterLeResteVocaux(d);
         dessinerFilEleve();
         veillerLeFil();
         /* Après le premier dessin : le direct accélère ce qui vient
@@ -2892,7 +2998,14 @@
     h += '</div>';
 
     if(filEl.peutEcrire){
+      /* 🎤 La zone de l'enregistreur, vide et masquée : elle prend la
+         place de la barre d'écriture pendant qu'on parle. */
+      h += '<div id="zoneEcrireVocal" style="display:none"></div>';
       h += '<div class="zoneEcrire">' +
+        (vocalPossibleEl()
+          ? '<button type="button" class="emoOutil" id="btFilVocal" ' +
+              'title="Enregistrer un vocal">🎤</button>'
+          : '') +
         '<button type="button" class="emoOutil" id="btFilPhoto" ' +
           'title="Envoyer une photo">📷</button>' +
         '<button type="button" class="emoOutil" id="btFilEmo" ' +
@@ -2944,9 +3057,15 @@
       ev.stopPropagation();
       choisirUnePhotoEl();
     });
+    var vo = $('btFilVocal');
+    if(vo) vo.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      demarrerLeVocalEl();
+    });
     majBoutonEnvoiEl();
     brancherLesReactionsEl();
     brancherLesPhotosEl();
+    brancherLesVocauxEl();
     var p = $('btPlusVieux');
     if(p) p.addEventListener('click', function(){ chargerPlusVieux(p); });
 
@@ -2963,7 +3082,10 @@
        message il faut savoir lequel ; et c'est aussi par là que
        l'appui long se branche après le dessin. */
     var aReac = (m.reacs || []).length ? ' aReac' : '';
-    var aPhoto = (m.piece ? ' photo' : '');
+    /* Une photo creuse la bulle par le bas, un vocal non : deux
+       pièces, deux habillages. */
+    var sonore = !!(m.piece && String(m.piece.type || '').indexOf('audio/') === 0);
+    var aPhoto = (m.piece && !sonore) ? ' photo' : (sonore ? ' vocal' : '');
     var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + aReac + aPhoto +
             '" data-msg="' + echapper(m.id || '') + '">';
     if(!mien && m.auteur){
@@ -2984,10 +3106,18 @@
     /* 📷 La photo vient avant le texte — v1088 : le mot joint commente
        l'image, c'est l'ordre dans lequel on les a écrits. */
     h += imageDuMessageEl(m);
+    /* 🎤 Le vocal, et son texte juste en dessous — v1098. Ici le
+       texte n'est pas un commentaire de la pièce : c'est ce qui a
+       été dit, et c'est lui qu'on lit quand on ne peut pas
+       écouter. */
+    var leVocal = vocalDuMessageEl(m);
+    h += leVocal;
     if(m.texte){
-      h += m.piece
-        ? '<span class="motAvec">' + echapper(m.texte) + '</span>'
-        : echapper(m.texte);
+      h += leVocal
+        ? '<div class="msgLectMots">' + echapper(m.texte) + '</div>'
+        : (m.piece
+            ? '<span class="motAvec">' + echapper(m.texte) + '</span>'
+            : echapper(m.texte));
     }
     h += '<span class="hh">' +
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
@@ -3207,6 +3337,295 @@
     document.body.appendChild(v);
     voilePhotoEl = v;
   }
+
+  /* ============================================================
+     🎤 LES VOCAUX, CÔTÉ ÉLÈVE — v1098
+
+     David, le 8 octobre : ouverts à tout le monde, élèves compris.
+     Une minute, cinq par jour, et le compteur affiché.
+
+     ⚠️ ET LE TEXTE N'EST PAS MODIFIABLE ICI — décision de David. Un
+     champ de plus à relire avant d'envoyer, sur un téléphone, et
+     l'élève n'envoie plus rien. Ce que la reconnaissance a compris
+     part tel quel ; le moniteur le corrigera avec lui au
+     rendez-vous, comme il corrige déjà son bilan.
+     ============================================================ */
+
+  var VOCAL_SEC_MAX_EL = 60;
+  var VOCAL_SEC_ALERTE_EL = 10;
+  var vocalEl = null;
+  var resteVocauxEl = null;     /* ce que le serveur a compté */
+
+  /* Les messages passent par la même zone que ceux de la photo et
+     du pouce : un deuxième endroit où parler, c'est un endroit où
+     l'on ne regarde pas. */
+  function direVocalEl(t){ dire('msgFil', t, 'erreur'); }
+
+  function vocalPossibleEl(){
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+              typeof window.MediaRecorder === 'function');
+  }
+
+  function formatDuVocalEl(){
+    var essais = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+    for(var i = 0; i < essais.length; i++){
+      try{ if(MediaRecorder.isTypeSupported(essais[i])) return essais[i]; }catch(e){}
+    }
+    return '';
+  }
+
+  function mnSecEl(n){
+    var s = Math.max(0, Math.round(Number(n) || 0));
+    return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+  }
+
+  function recoDispoEl(){
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
+
+  function demarrerLeVocalEl(){
+    if(vocalEl || !vocalPossibleEl()) return;
+    if(resteVocauxEl !== null && resteVocauxEl <= 0){
+      direVocalEl('Tu as envoyé tes 5 vocaux du jour. Écris-moi, ou réessaie demain.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(flux){
+      var type = formatDuVocalEl();
+      var enr;
+      try{
+        enr = type ? new MediaRecorder(flux, { mimeType: type })
+                   : new MediaRecorder(flux);
+      }catch(e){
+        flux.getTracks().forEach(function(p){ p.stop(); });
+        direVocalEl('Ton appareil ne sait pas enregistrer.');
+        return;
+      }
+      var morceaux = [];
+      enr.addEventListener('dataavailable', function(ev){
+        if(ev.data && ev.data.size) morceaux.push(ev.data);
+      });
+
+      vocalEl = { enr: enr, flux: flux, morceaux: morceaux, debut: Date.now(),
+                  mots: '', reco: null, minuteur: null,
+                  fil: (filEl && filEl.conv && filEl.conv.id) || '', fini: null };
+
+      var zone = $('zoneEcrireVocal');
+      if(zone){
+        zone.innerHTML = ecranVocalEl();
+        zone.style.display = 'block';
+      }
+      var barre = document.querySelector('.zoneEcrire');
+      if(barre) barre.style.display = 'none';
+
+      vocalEl.fini = new Promise(function(r){ enr.addEventListener('stop', r); });
+      enr.start();
+
+      var x = $('btVocX'), e = $('btVocEnv');
+      if(x) x.addEventListener('click', function(){ arreterLeVocalEl(false); });
+      if(e) e.addEventListener('click', function(){ arreterLeVocalEl(true); });
+
+      demarrerLaRecoEl();
+      vocalEl.minuteur = setInterval(battreLeVocalEl, 200);
+      battreLeVocalEl();
+    }).catch(function(e){
+      direVocalEl((e && e.name === 'NotAllowedError')
+        ? 'Tu as refusé le micro pour ce site.'
+        : 'Aucun micro trouvé sur cet appareil.');
+    });
+  }
+
+  function demarrerLaRecoEl(){
+    var SRv = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SRv || !vocalEl) return;
+    var r;
+    try{ r = new SRv(); }catch(e){ return; }
+    r.lang = 'fr-FR';
+    r.continuous = true;
+    r.interimResults = true;
+    var acquis = '';
+    r.addEventListener('result', function(ev){
+      var encours = '';
+      for(var i = ev.resultIndex; i < ev.results.length; i++){
+        if(ev.results[i].isFinal) acquis += ev.results[i][0].transcript;
+        else encours += ev.results[i][0].transcript;
+      }
+      if(!vocalEl) return;
+      vocalEl.mots = (acquis + encours).replace(/\s+/g, ' ').trim();
+      var z = $('vocMots');
+      if(z) z.textContent = vocalEl.mots;
+    });
+    r.addEventListener('end', function(){
+      if(!vocalEl || vocalEl.arrete) return;
+      try{ r.start(); }catch(e){}
+    });
+    r.addEventListener('error', function(){});
+    try{ r.start(); vocalEl.reco = r; }catch(e){ vocalEl.reco = null; }
+  }
+
+  function ecranVocalEl(){
+    var barres = '';
+    for(var i = 0; i < 12; i++) barres += '<b style="height:6px"></b>';
+    return '<div class="msgVoc">' +
+      '<div class="msgVocHaut">' +
+        '<span class="msgVocRond"></span>' +
+        '<span class="msgVocTemps" id="vocTemps"><b>0:00</b> <i>/ ' +
+          mnSecEl(VOCAL_SEC_MAX_EL) + '</i></span>' +
+        '<span class="msgVocOnde" id="vocOnde">' + barres + '</span>' +
+        '<button type="button" class="msgVocX" id="btVocX" title="Annuler">✕</button>' +
+        '<button type="button" class="msgEnv" id="btVocEnv" ' +
+          'title="Envoyer">➤</button>' +
+      '</div>' +
+      '<div class="msgVocMots' + (recoDispoEl() ? '' : ' pas') + '" id="vocMots">' +
+        (recoDispoEl() ? '' :
+          'Ton téléphone n’écrit pas ce que tu dis. Le vocal partira, sans texte.') +
+      '</div>' +
+    '</div>' + phraseResteVocauxEl();
+  }
+
+  /* ⚠️ LE COMPTE NE S'AFFICHE QU'À PARTIR DU TROISIÈME. Écrit dès le
+     premier, il donne une consigne là où il n'y avait pas de
+     problème — et transforme un geste libre en quota. */
+  function phraseResteVocauxEl(){
+    if(resteVocauxEl === null || resteVocauxEl > 3) return '';
+    var n = Math.max(0, resteVocauxEl - 1);
+    return '<div class="msgVocReste">Il te restera ' + n + ' vocal' +
+           (n > 1 ? 'ux' : '') + ' aujourd’hui.</div>';
+  }
+
+  function battreLeVocalEl(){
+    if(!vocalEl) return;
+    var sec = Math.floor((Date.now() - vocalEl.debut) / 1000);
+    var t = $('vocTemps');
+    if(t){
+      var b = t.querySelector('b');
+      if(b) b.textContent = mnSecEl(sec);
+      if(sec >= VOCAL_SEC_MAX_EL - VOCAL_SEC_ALERTE_EL) t.className = 'msgVocTemps fin';
+    }
+    var onde = $('vocOnde');
+    if(onde){
+      var bs = onde.querySelectorAll('b');
+      for(var i = 0; i < bs.length; i++){
+        bs[i].style.height =
+          (6 + Math.round(20 * Math.abs(Math.sin((Date.now() / 220) + i * 0.7)))) + 'px';
+      }
+    }
+    if(sec >= VOCAL_SEC_MAX_EL) arreterLeVocalEl(true, true);
+  }
+
+  function arreterLeVocalEl(envoyer, parLeTemps){
+    var v = vocalEl;
+    if(!v || v.arrete) return;
+    v.arrete = true;
+    clearInterval(v.minuteur);
+
+    var sec = Math.max(1, Math.round((Date.now() - v.debut) / 1000));
+    var mots = v.mots;
+    if(v.reco){ try{ v.reco.stop(); }catch(e){} }
+    try{ v.enr.stop(); }catch(e){}
+
+    var rendre = function(){
+      var zone = $('zoneEcrireVocal');
+      if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
+      var barre = document.querySelector('.zoneEcrire');
+      if(barre) barre.style.display = '';
+      vocalEl = null;
+    };
+
+    Promise.resolve(v.fini).then(function(){
+      v.flux.getTracks().forEach(function(p){ p.stop(); });
+      if(!envoyer){ rendre(); return; }
+
+      var blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'audio/webm') });
+      if(sec < 1 || blob.size < 1200){
+        rendre();
+        direVocalEl('Trop court — rien n’a été envoyé.');
+        return;
+      }
+      var e = $('btVocEnv');
+      if(e){ e.disabled = true; e.textContent = '…'; }
+
+      var l = new FileReader();
+      l.onload = function(){
+        appeler({ action: 'eleveVocal', eleve: moi.nom, code: moi.code,
+                  id: v.fil, son: String(l.result || ''),
+                  duree: sec, texte: mots })
+          .then(function(r){
+            if(r && typeof r.reste === 'number') resteVocauxEl = r.reste;
+            rendre();
+            if(parLeTemps) direVocalEl('Une minute : le vocal est parti.');
+            rafraichirLeFilEleve(true);
+          })
+          .catch(function(err){
+            /* ⚠️ ON NE REND PAS LA BARRE SUR UN ÉCHEC : le son
+               n'existe que dans cette page, la rendre c'est le
+               perdre. L'écran reste, et on réessaie. */
+            v.arrete = false;
+            var e2 = $('btVocEnv');
+            if(e2){ e2.disabled = false; e2.textContent = '➤'; }
+            direVocalEl('Le vocal n’est pas parti : ' + ((err && err.message) || err));
+          });
+      };
+      l.onerror = function(){ rendre(); direVocalEl('Enregistrement illisible.'); };
+      l.readAsDataURL(blob);
+    });
+  }
+
+  /* ------------------------------------------------------------
+     LE LECTEUR DANS LA BULLE
+     ------------------------------------------------------------ */
+  function vocalDuMessageEl(m){
+    var p = m && m.piece;
+    if(!p || String(p.type || '').indexOf('audio/') !== 0) return '';
+    if(!p.lien) return '<span class="imgAbs">🎤 Vocal indisponible</span>';
+    return '<div class="msgLect" data-son="' + echapper(RELAIS + p.lien) + '" ' +
+             'data-duree="' + (Number(p.duree) || 0) + '">' +
+      '<button type="button" class="msgLectBtn">▶</button>' +
+      '<span class="msgLectBarre"><i style="width:0%"></i></span>' +
+      '<span class="msgLectDuree">' + mnSecEl(p.duree || 0) + '</span>' +
+    '</div>';
+  }
+
+  function brancherLesVocauxEl(){
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#leFilEleve .msgLect'), function(z){
+        if(z.dataset.pret === '1') return;
+        z.dataset.pret = '1';
+        var son = new Audio();
+        son.preload = 'none';
+        son.src = z.getAttribute('data-son');
+        var duree = Number(z.getAttribute('data-duree')) || 0;
+        var b = z.querySelector('.msgLectBtn');
+        var plein = z.querySelector('.msgLectBarre i');
+        var vu = z.querySelector('.msgLectDuree');
+
+        b.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          if(son.paused){
+            /* Un seul vocal à la fois : deux voix en même temps,
+               c'est deux voix qu'on ne comprend pas. */
+            Array.prototype.forEach.call(
+              document.querySelectorAll('#leFilEleve .msgLect'), function(a){
+                if(a !== z && a._son && !a._son.paused) a._son.pause();
+              });
+            son.play().catch(function(){ direVocalEl('Le vocal n’a pas pu être lu.'); });
+          }else son.pause();
+        });
+        son.addEventListener('play', function(){ b.textContent = '⏸'; });
+        son.addEventListener('pause', function(){ b.textContent = '▶'; });
+        son.addEventListener('ended', function(){
+          b.textContent = '▶';
+          plein.style.width = '0%';
+          vu.textContent = mnSecEl(duree || son.duration || 0);
+        });
+        son.addEventListener('timeupdate', function(){
+          var tot = son.duration || duree || 0;
+          if(tot > 0) plein.style.width = Math.min(100, (son.currentTime / tot) * 100) + '%';
+          vu.textContent = mnSecEl(son.currentTime) + ' / ' + mnSecEl(tot);
+        });
+        z._son = son;
+      });
+  }
+
 
   function brancherLesPhotosEl(){
     Array.prototype.forEach.call(
@@ -3932,6 +4351,7 @@
         if(liste.length !== avant || neuf !== dernier ||
            empreinteReacEl(d) !== empreinteAvant){
           filEl = d;
+          noterLeResteVocaux(d);
           dessinerFilEleve();
         }
       })
