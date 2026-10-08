@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 13:20 — v1104 */
+/* Déployé le 08/10/2026 à 14:10 — v1105 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,23 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1105,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Le départ des heures se corrige aussi depuis le questionnaire',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'La question est maintenant dans tes prochains cours',
+        texte: 'Sous « Heures restantes avant l’examen », le questionnaire ' +
+               'demande à son tour « Ces heures partent de quand ? » — depuis ' +
+               'la charnière, ou à partir d’aujourd’hui. Plus besoin d’ouvrir ' +
+               'le dossier de l’élève : c’est pendant le cours qu’on s’aperçoit ' +
+               'que le compte ne colle pas, et un aller-retour par le dossier, ' +
+               'c’est un détour qu’on ne fait pas — donc un chiffre faux qui ' +
+               'reste. Elle ne s’affiche que si elle a deux réponses, et elle ' +
+               'dit de combien la réserve serait déjà entamée.' }
+    ]
+  },
   {
     version: 1104,
     date: 'Jeudi 8 octobre 2026',
