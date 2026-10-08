@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 10:37 — v1100 */
+/* Déployé le 08/10/2026 à 11:55 — v1102 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2666,7 +2666,23 @@ function numeroLeconDuCours(cours, dossier){
       ? (cestLePremierCours((cours.contexte || {}).premierCours) ||
          cestLePremierCours(cours.note))
       : false;
-    const r = rangConnu(d.lecons, cours.modele, premier, cours.eleve, d);
+
+    /* ⚠️ ET LES COURS QUI ATTENDENT ENCORE LEUR BILAN COMPTENT —
+       v1102.
+
+       Le classeur ne connaît que les leçons FAITES. Deux cours à
+       venir pour le même élève lui posaient donc la même question
+       et recevaient la même réponse : Mackenzie annonçait 16 à 13h
+       et 16 à 17h. Chaque préparation antérieure à celle-ci est une
+       leçon de plus devant elle — et elle n'existe plus dès que son
+       bilan est écrit, donc on ne la compte jamais deux fois. Voir
+       « preparationsEnAttenteAvant ». */
+    const devant = (typeof preparationsEnAttenteAvant === 'function')
+      ? preparationsEnAttenteAvant(cours) : 0;
+    const faites = (d.lecons === null || d.lecons === undefined)
+      ? d.lecons : (d.lecons + devant);
+
+    const r = rangConnu(faites, cours.modele, premier, cours.eleve, d);
     if(r) return r;
   }
 
