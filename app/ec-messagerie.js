@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 18:40 — v1109 */
+/* Déployé le 08/10/2026 à 20:15 — v1110 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -542,7 +542,88 @@ function barreDesGenresMessagerie(){
     bouton('supervision', '🔒 Supervision', null);
   }
 
+  /* ============================================================
+     🗑️ VIDER LES FILS FERMÉS — v1110
+
+     David, le 8 octobre : « idem pour les conversations fermées,
+     une touche pour supprimer les conversations et que ça vide la
+     base de données ».
+
+     ⚠️ IL NE S'AFFICHE QUE SUR L'ONGLET « FERMÉES », et seulement
+     pour un administrateur. Un bouton qui détruit tout ne se
+     trouve pas sous la main par hasard : il est là où l'on est
+     déjà venu pour regarder ce qu'on va jeter.
+
+     ⚠️ ET IL COMPTE AVANT DE DÉTRUIRE. C'est la règle de la v950
+     pour la réparation en masse des rangs — « une réécriture en
+     masse se regarde avant de se lancer » — et elle vaut d'autant
+     plus ici que rien ne se rattrape. Le serveur rend les chiffres
+     au premier appel, et n'efface qu'au second.
+     ============================================================ */
+  if(filtreMessagerie === 'clos' &&
+     (typeof ACCES === 'undefined' || ACCES.role === 'admin')){
+    const vid = document.createElement('button');
+    vid.className = 'btn btn-secondary';
+    vid.style.cssText = 'width:auto;margin:0 0 0 auto;padding:4px 10px;' +
+      'font-size:12px;border-radius:999px;color:var(--red);' +
+      'border-color:var(--red);';
+    vid.textContent = '🗑️ Tout supprimer';
+    vid.title = 'Supprimer définitivement les conversations fermées';
+    vid.addEventListener('click', () => viderLesFilsFermes(vid));
+    b.appendChild(vid);
+  }
+
   return b;
+}
+
+/* ⚠️ DEUX APPELS, ET C'EST VOULU. Le premier ne fait que compter —
+   le serveur ne touche à rien tant qu'on ne lui a pas dit
+   « confirme ». Entre les deux, on montre à l'écran ce qui va
+   disparaître : des conversations, des messages, des fichiers. Un
+   chiffre qu'on a lu, ce n'est plus la même suppression. */
+async function viderLesFilsFermes(bouton){
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+  let vu = null;
+  try{
+    vu = await appelPrep({ action: 'convsSupprimer' });
+  }catch(e){
+    showToast('Impossible de compter : ' + ((e && e.message) || e));
+  }
+  if(bouton){ bouton.disabled = false; bouton.textContent = '🗑️ Tout supprimer'; }
+  if(!vu) return;
+
+  if(!vu.conversations){
+    showToast('Aucune conversation fermée à supprimer.');
+    return;
+  }
+
+  const quoi = vu.conversations + ' conversation' + (vu.conversations > 1 ? 's' : '') +
+    ', ' + vu.messages + ' message' + (vu.messages > 1 ? 's' : '') +
+    (vu.fichiers ? ', ' + vu.fichiers + ' fichier' + (vu.fichiers > 1 ? 's' : '') +
+                   ' (photos, vocaux, vidéos)' : '');
+
+  const noms = (vu.noms || []).slice(0, 12);
+  const liste = noms.length
+    ? '\n\n' + noms.map(n => '· ' + n).join('\n') +
+      (vu.conversations > noms.length
+        ? '\n· … et ' + (vu.conversations - noms.length) + ' autre(s)' : '')
+    : '';
+
+  if(typeof confirmer === 'function' &&
+     !await confirmer('Vont être effacés définitivement :\n\n' + quoi + liste +
+                      '\n\nRien ne pourra être retrouvé — ni les messages, ' +
+                      'ni les fichiers joints.',
+                      'Vider les conversations fermées', true)) return;
+
+  if(bouton){ bouton.disabled = true; bouton.textContent = 'Suppression…'; }
+  try{
+    const r = await appelPrep({ action: 'convsSupprimer', confirme: 'oui' });
+    showToast((r.conversations || 0) + ' conversation(s) supprimée(s) ✅');
+    await afficherMessagerie(true);
+  }catch(e){
+    showToast('Suppression impossible : ' + ((e && e.message) || e));
+    if(bouton){ bouton.disabled = false; bouton.textContent = '🗑️ Tout supprimer'; }
+  }
 }
 
 /* ------------------------------------------------------------
@@ -956,6 +1037,36 @@ function bulleDuMessage(m, avant, apres){
   const b = document.createElement('div');
   b.className = 'msgB' + (sienne ? ' moi' : ' lui') +
                 (suite ? ' suite' : '') + (encore ? '' : ' pointe');
+
+  /* ============================================================
+     🗑️ UN MESSAGE SUPPRIMÉ LAISSE SA LIGNE — v1110
+
+     David, le 8 octobre : « il faut la possibilité de supprimer un
+     envoi envoyé ». Son choix : une ligne « Message supprimé »
+     plutôt que rien.
+
+     ⚠️ ET C'EST LE BON CHOIX, pour une raison qui ne se voit
+     qu'après : les réponses d'après restent lisibles. Un fil troué
+     ne raconte plus rien — c'est écrit en toutes lettres dans la
+     porte de suppression RGPD, et ça vaut ici aussi. On voit en
+     plus QU'IL Y A EU une suppression, ce qu'un trou ne dit pas.
+
+     Le serveur a déjà tout vidé : ni texte, ni pièce, ni réaction
+     n'arrivent jusqu'ici. Cette ligne ne montre donc rien d'autre
+     que le fait. */
+  if(Number(m.supprime || 0)){
+    b.classList.add('ote');
+    const o = document.createElement('span');
+    o.className = 'msgOteMot';
+    o.textContent = '🚫 Message supprimé';
+    b.appendChild(o);
+    const h = document.createElement('span');
+    h.className = 'h';
+    h.textContent = String(m.envoyeLe || '').slice(11) || m.envoyeLe || '';
+    b.appendChild(h);
+    ligne.appendChild(b);
+    return ligne;
+  }
 
   /* La signature ne se répète pas dans une suite, et jamais sur ses
      propres bulles : il sait qui il est, et la répéter vole une
@@ -4633,6 +4744,16 @@ function vieuxCopierEC(s){
   }catch(e){ return false; }
 }
 
+/* ⚠️ « C'EST MOI QUI L'AI ÉCRIT » SE DEMANDE À UN SEUL ENDROIT.
+   La bulle le sait déjà pour se ranger à droite ; le menu le
+   redemandait, et deux façons de répondre à la même question
+   finissent par ne plus dire pareil. */
+function estDeMoiEC(m){
+  if(!m || m.auteurGenre !== 'user') return false;
+  const moi = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+  return normaliserMessagerie(m.auteur) === normaliserMessagerie(moi);
+}
+
 function ouvrirLeSelecteurDeReaction(bulle, m){
   fermerLeSelecteurDeReaction();
 
@@ -4665,6 +4786,45 @@ function ouvrirLeSelecteurDeReaction(bulle, m){
     });
     boite.appendChild(b);
   });
+
+  /* ============================================================
+     🗑️ SUPPRIMER, DANS LE MÊME MENU — v1110
+
+     David : « il faut la possibilité de supprimer un envoi
+     envoyé ». Le menu de l'appui long est déjà l'endroit où l'on
+     agit SUR un message — y ajouter la suppression évite un
+     troisième geste à apprendre.
+
+     ⚠️ ET IL NE S'AFFICHE QUE SUR LES SIENS. Un bouton qu'on voit
+     et qui répond « on ne retire que ses propres messages » est un
+     bouton qui apprend à se méfier des boutons. Le serveur refuse
+     de toute façon : ceci n'est qu'une politesse, et elle ne
+     protège rien. */
+  const aMoi = !!(m && m.auteurGenre === 'user' && estDeMoiEC(m));
+  if(aMoi && peut){
+    const sup = document.createElement('button');
+    sup.type = 'button';
+    sup.className = 'msgReacSuppr';
+    sup.textContent = '🗑️';
+    sup.title = 'Supprimer ce message';
+    sup.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      fermerLeSelecteurDeReaction();
+      if(typeof confirmer === 'function' &&
+         !await confirmer('Ce message sera retiré de la conversation. ' +
+                          'Il restera une ligne « Message supprimé », et ' +
+                          'la photo ou le vocal joints seront effacés.\n\n' +
+                          'C’est définitif.',
+                          'Supprimer ce message', true)) return;
+      try{
+        await appelPrep({ action: 'msgSupprimer', id: m.id });
+        await rafraichirLeFil();
+      }catch(e){
+        showToast('Suppression impossible : ' + ((e && e.message) || e));
+      }
+    });
+    boite.appendChild(sup);
+  }
 
   /* 📋 Le texte d'un vocal est dans le même champ que celui d'un
      message : la transcription se copie donc sans rien de plus. */
