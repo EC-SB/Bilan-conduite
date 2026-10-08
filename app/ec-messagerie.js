@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:20 — v1098 */
+/* Déployé le 08/10/2026 à 11:10 — v1101 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -3098,9 +3098,12 @@ function adresseDeLaPiece(piece){
   return base + piece.lien;
 }
 
+/* ⚠️ UNE PIÈCE JOINTE N'EST PAS FORCÉMENT UNE PHOTO. Le type
+   décide, et c'est « pieceEstUnSon » qui le dit — déclarée avec
+   les vocaux, parce que c'est là que vit ce qu'elle sait. */
 function imageDuMessage(m){
   const p = m && m.piece;
-  if(!p) return null;
+  if(!p || pieceEstUnSon(p)) return null;
   if(!p.lien){
     const d = document.createElement('div');
     d.className = 'msgImgAbs';
@@ -3231,7 +3234,15 @@ async function demarrerLeVocalEC(barre){
     if(ev.data && ev.data.size) morceaux.push(ev.data);
   });
 
-  vocalEC = { enr: enr, flux: flux, morceaux: morceaux, debut: Date.now(),
+  /* ⚠️ LE TEMPS NE SE LIT PLUS SUR L'HORLOGE — v1101. « Date.now() −
+     début » compte aussi le temps passé en pause : une pause de
+     trente secondes faisait sauter le compteur de trente secondes
+     et déclenchait la limite sur un vocal de dix. On accumule donc
+     les SEGMENTS parlés : « ecoule » est ce qui est déjà dit,
+     « depuis » le début du segment en cours — nul quand on ne parle
+     pas. */
+  vocalEC = { enr: enr, flux: flux, morceaux: morceaux,
+              ecoule: 0, depuis: Date.now(), etat: 'enr',
               barre: barre, mots: '', reco: null, minuteur: null,
               fil: (filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id) || '',
               fini: null };
@@ -3329,6 +3340,44 @@ function ecranDeLEnregistrementEC(){
   }
   haut.appendChild(onde);
 
+  /* ============================================================
+     ⏸ ET ⏹ — v1101
+
+     David, le 8 octobre : « j'ai pas de bouton pour stoper ou
+     mettre en pause l'enregistrement, il faut envoyer pour
+     couper ! » Il avait raison, et c'était un choix, pas un oubli :
+     il n'y avait que deux sorties, jeter et envoyer. Aucune pour
+     s'arrêter, se relire, et DÉCIDER ensuite.
+
+     ⏸ met en pause et reprend : le téléphone sonne au milieu d'une
+     phrase, on ne recommence pas tout.
+     ⏹ termine l'enregistrement SANS l'envoyer : le micro se coupe,
+     le vocal s'écoute sur place, le texte se corrige, et ✕ / ➤
+     restent. C'est la sortie qui manquait.
+
+     ⚠️ LA PAUSE N'EXISTE PAS PARTOUT. « MediaRecorder.pause » manque
+     sur quelques navigateurs anciens : le bouton ne se dessine
+     alors pas du tout, plutôt que de se dessiner et ne rien faire.
+     ============================================================ */
+  if(typeof MediaRecorder !== 'undefined' &&
+     MediaRecorder.prototype && MediaRecorder.prototype.pause){
+    const pse = document.createElement('button');
+    pse.type = 'button';
+    pse.className = 'msgVocX msgVocPause';
+    pse.textContent = '❚❚';
+    pse.title = 'Mettre en pause';
+    pse.addEventListener('click', () => basculerLaPauseEC());
+    haut.appendChild(pse);
+  }
+
+  const fin = document.createElement('button');
+  fin.type = 'button';
+  fin.className = 'msgVocX msgVocFin';
+  fin.textContent = '■';
+  fin.title = 'Arrêter sans envoyer';
+  fin.addEventListener('click', () => terminerLEnregistrementEC());
+  haut.appendChild(fin);
+
   const x = document.createElement('button');
   x.type = 'button';
   x.className = 'msgVocX';
@@ -3371,10 +3420,165 @@ function ecranDeLEnregistrementEC(){
   return z;
 }
 
+/* Les secondes réellement PARLÉES : ce qui est accumulé, plus le
+   segment en cours s'il y en a un. */
+function secondesDuVocalEC(v){
+  const e = v.ecoule + (v.depuis ? (Date.now() - v.depuis) : 0);
+  return Math.floor(e / 1000);
+}
+
+/* ⏸ / ▶ — la pause ferme le segment en cours, la reprise en ouvre
+   un autre. La reconnaissance s'arrête avec : elle écrit ce qu'elle
+   entend, et pendant une pause on ne veut pas qu'elle entende. */
+function basculerLaPauseEC(){
+  const v = vocalEC;
+  if(!v || v.arrete || v.etat === 'fini') return;
+  const b = v.vue && v.vue.querySelector('.msgVocPause');
+
+  if(v.etat === 'enr'){
+    try{ v.enr.pause(); }catch(e){ return; }
+    v.ecoule += (Date.now() - v.depuis);
+    v.depuis = null;
+    v.etat = 'pause';
+    if(v.reco){ try{ v.reco.stop(); }catch(e){} v.reco = null; }
+    if(b){ b.textContent = '▶'; b.title = 'Reprendre'; }
+    if(v.vue) v.vue.classList.add('enPause');
+  }else{
+    try{ v.enr.resume(); }catch(e){ return; }
+    v.depuis = Date.now();
+    v.etat = 'enr';
+    demarrerLaReconnaissanceEC();
+    if(b){ b.textContent = '❚❚'; b.title = 'Mettre en pause'; }
+    if(v.vue) v.vue.classList.remove('enPause');
+  }
+  battreLeVocalEC();
+}
+
+/* ⏹ — on coupe le micro, et le vocal RESTE là, prêt à être écouté
+   puis envoyé. C'est la sortie que David réclamait. */
+async function terminerLEnregistrementEC(parLeTemps){
+  const v = vocalEC;
+  if(!v || v.arrete || v.etat === 'fini') return;
+
+  if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+  v.etat = 'fini';
+  clearInterval(v.minuteur);
+  v.minuteur = null;
+
+  const blob = await couperLeMicroEC(v);
+  const sec = Math.max(1, Math.round(v.ecoule / 1000));
+
+  /* Un doigt qui ripe : rien à relire, on rend la barre. */
+  if(!blob || blob.size < 1200){
+    if(v.vue && v.vue.parentNode) v.vue.parentNode.removeChild(v.vue);
+    if(v.barre) v.barre.style.display = '';
+    vocalEC = null;
+    showToast('Enregistrement trop court — rien n’a été gardé.');
+    return;
+  }
+
+  passerEnRelectureEC(v, blob, sec);
+  if(parLeTemps){
+    showToast('Deux minutes : l’enregistrement s’est arrêté. Il est prêt à partir.');
+  }
+}
+
+/* ⚠️ COUPER LES DEUX MACHINES, UNE SEULE FOIS. « stop » appelé deux
+   fois lève ; la promesse de fin, elle, est déjà tenue au second
+   passage. On garde le résultat pour que ⏹ puis ➤ ne reconstruisent
+   pas deux blobs différents. */
+async function couperLeMicroEC(v){
+  if(v.coupe) return v.blob;
+  v.coupe = true;
+  if(v.reco){ try{ v.reco.stop(); }catch(e){} v.reco = null; }
+  try{ v.enr.stop(); }catch(e){}
+  try{ await v.fini; }catch(e){}
+  try{ v.flux.getTracks().forEach(p => p.stop()); }catch(e){}
+  v.blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'audio/webm') });
+  return v.blob;
+}
+
+/* L'écran de relecture : le point rouge et l'onde laissent la place
+   au lecteur. ✕ et ➤ ne bougent pas — on ne déplace pas sous le
+   doigt le bouton que l'on s'apprêtait à toucher. */
+function passerEnRelectureEC(v, blob, sec){
+  if(!v.vue) return;
+  v.vue.classList.add('fini');
+  v.vue.classList.remove('enPause');
+
+  const haut = v.vue.querySelector('.msgVocHaut');
+  if(!haut) return;
+
+  ['.msgVocRond', '.msgVocOnde', '.msgVocPause', '.msgVocFin'].forEach(s => {
+    const n = haut.querySelector(s);
+    if(n) n.parentNode.removeChild(n);
+  });
+
+  const t = haut.querySelector('.msgVocTemps');
+  if(t) t.innerHTML = '<b>' + minutesEtSecondes(sec) + '</b>';
+
+  v.urlBlob = URL.createObjectURL(blob);
+  const lect = lecteurDUnBlobEC(v.urlBlob, sec);
+  if(t && t.nextSibling) haut.insertBefore(lect, t.nextSibling);
+  else haut.appendChild(lect);
+}
+
+/* Le même lecteur que dans la bulle, sur un fichier qui n'est pas
+   encore parti : mêmes classes, donc exactement la même allure. */
+function lecteurDUnBlobEC(url, sec){
+  const z = document.createElement('span');
+  z.className = 'msgLect';
+
+  const son = document.createElement('audio');
+  son.preload = 'metadata';
+  son.src = url;
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'msgLectBtn';
+  b.textContent = '▶';
+  b.title = 'Écouter avant d’envoyer';
+
+  const barre = document.createElement('span');
+  barre.className = 'msgLectBarre';
+  const plein = document.createElement('i');
+  plein.style.width = '0%';
+  barre.appendChild(plein);
+
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    if(son.paused){
+      document.querySelectorAll('audio').forEach(a => { if(a !== son) a.pause(); });
+      son.play().catch(() => showToast('Le vocal n’a pas pu être lu.'));
+    }else son.pause();
+  });
+  son.addEventListener('play',  () => { b.textContent = '❚❚'; });
+  son.addEventListener('pause', () => { b.textContent = '▶'; });
+  son.addEventListener('ended', () => { b.textContent = '▶'; plein.style.width = '0%'; });
+  son.addEventListener('timeupdate', () => {
+    /* ⚠️ LA DURÉE DU BLOB EST SOUVENT « Infinity ». Un webm écrit au
+       vol n'a pas d'entête de durée : on se sert de celle qu'on a
+       comptée nous-mêmes. */
+    const d = (isFinite(son.duration) && son.duration > 0) ? son.duration : sec;
+    plein.style.width = Math.min(100, (son.currentTime / d) * 100) + '%';
+  });
+  barre.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const r = barre.getBoundingClientRect();
+    const d = (isFinite(son.duration) && son.duration > 0) ? son.duration : sec;
+    son.currentTime = Math.max(0, Math.min(d, ((ev.clientX - r.left) / r.width) * d));
+  });
+
+  z.appendChild(b);
+  z.appendChild(barre);
+  z.appendChild(son);
+  return z;
+}
+
 /* Le battement : le compteur, l'onde, et l'arrêt automatique. */
 function battreLeVocalEC(){
-  if(!vocalEC || !vocalEC.vue) return;
-  const sec = Math.floor((Date.now() - vocalEC.debut) / 1000);
+  if(!vocalEC || !vocalEC.vue || vocalEC.etat === 'fini') return;
+  const sec = secondesDuVocalEC(vocalEC);
 
   const t = vocalEC.vue.querySelector('.msgVocTemps');
   if(t){
@@ -3388,37 +3592,47 @@ function battreLeVocalEC(){
      tourne pendant tout l'enregistrement sur une tablette posée au
      soleil. Elle dit « ça tourne », comme le point rouge — et c'est
      la seule chose qu'on lui demande. */
+  /* ⚠️ EN PAUSE, L'ONDE S'IMMOBILISE. Une onde qui continue de
+     danser pendant une pause dit le contraire de ce qui se passe. */
   const barres = vocalEC.vue.querySelectorAll('.msgVocOnde b');
   for(let i = 0; i < barres.length; i++){
-    const v = 6 + Math.round(20 * Math.abs(Math.sin((Date.now() / 220) + i * 0.7)));
+    const v = (vocalEC.etat === 'pause')
+      ? 6
+      : 6 + Math.round(20 * Math.abs(Math.sin((Date.now() / 220) + i * 0.7)));
     barres[i].style.height = v + 'px';
   }
 
-  /* ⚠️ À LA LIMITE, ON ARRÊTE SANS ENVOYER. Le vocal reste à
-     l'écran, prêt à partir : couper ET envoyer, ce serait décider à
-     la place de celui qui parlait encore. */
-  if(sec >= VOCAL_SEC_MAX_EC) arreterLeVocalEC(true, true);
+  /* ⚠️ À LA LIMITE, ON ARRÊTE SANS ENVOYER — et depuis la v1101
+     c'est enfin ce que fait le code. Le commentaire disait « le
+     vocal reste à l'écran, prêt à partir » pendant que la ligne du
+     dessous appelait l'envoi : il n'y avait pas d'autre sortie. Il y
+     en a une maintenant. */
+  if(sec >= VOCAL_SEC_MAX_EC) terminerLEnregistrementEC(true);
 }
 
 /* ------------------------------------------------------------
    ARRÊTER : ANNULER, OU ENVOYER
    ------------------------------------------------------------ */
-async function arreterLeVocalEC(envoyer, parLeTemps){
+async function arreterLeVocalEC(envoyer){
   const v = vocalEC;
   if(!v || v.arrete) return;
   v.arrete = true;
   clearInterval(v.minuteur);
 
-  const sec = Math.max(1, Math.round((Date.now() - v.debut) / 1000));
+  /* ⚠️ LA DURÉE SE LIT SUR LES SEGMENTS, PAS SUR L'HORLOGE — v1101.
+     Avec la pause, « Date.now() − début » compterait le silence. */
+  if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
+  const sec = Math.max(1, Math.round(v.ecoule / 1000));
   const zoneMots = v.vue && v.vue.querySelector('.msgVocMots');
   const mots = zoneMots ? String(zoneMots.value || '').trim() : '';
 
-  if(v.reco){ try{ v.reco.stop(); }catch(e){} }
-  try{ v.enr.stop(); }catch(e){}
-  try{ await v.fini; }catch(e){}
-  v.flux.getTracks().forEach(p => p.stop());
+  /* ⚠️ PEUT-ÊTRE DÉJÀ COUPÉ : ⏹ puis ➤ est le chemin normal depuis
+     la v1101. « couperLeMicroEC » ne coupe qu'une fois et rend le
+     même blob. */
+  const blob = await couperLeMicroEC(v);
 
   const rendreLaBarre = () => {
+    if(v.urlBlob){ try{ URL.revokeObjectURL(v.urlBlob); }catch(e){} }
     if(v.vue && v.vue.parentNode) v.vue.parentNode.removeChild(v.vue);
     if(v.barre) v.barre.style.display = '';
     vocalEC = null;
@@ -3428,7 +3642,6 @@ async function arreterLeVocalEC(envoyer, parLeTemps){
 
   /* ⚠️ MOINS D'UNE SECONDE, C'EST UN DOIGT QUI A RIPÉ. On ne poste
      pas un vocal vide : on le dit, et on rend la barre. */
-  const blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'audio/webm') });
   if(sec < 1 || blob.size < 1200){
     rendreLaBarre();
     showToast('Enregistrement trop court — rien n’a été envoyé.');
@@ -3445,7 +3658,6 @@ async function arreterLeVocalEC(envoyer, parLeTemps){
     await appelPrep({ action: 'convVocal', id: v.fil, son: son,
                       duree: sec, texte: mots });
     rendreLaBarre();
-    if(parLeTemps) showToast('Deux minutes : le vocal est parti.');
     await rafraichirLeFil();
   }catch(e){
     /* ⚠️ ON NE REND PAS LA BARRE SUR UN ÉCHEC. Le son n'existe que
@@ -3469,6 +3681,39 @@ function blobEnBase64EC(blob){
   });
 }
 
+/* ============================================================
+   CE QU'EST LA PIÈCE JOINTE — UNE SEULE PORTE, v1101
+
+   David, le 8 octobre, capture à l'appui : « j'ai un truc photo
+   bizarre qui est censé représenter le vocal », et le bandeau rouge
+   « Erreur au chargement » par-dessus.
+
+   ⚠️ UNE PORTE D'ÉCRITURE PARTAGÉE DEMANDE UNE PORTE DE LECTURE
+   PARTAGÉE. La v1098 a fusionné l'écriture — « ecrireMessagePhoto »
+   est devenue « ecrireMessageAvecPiece », un seul chemin, le type
+   décide l'aperçu. La LECTURE, elle, est restée en deux morceaux
+   dont un seul avait appris le type : « vocalDuMessage » refusait
+   poliment ce qui n'est pas du son, « imageDuMessage » fabriquait
+   une <img> pour TOUTE pièce.
+
+   Un vocal arrivait donc dans la bulle sous deux formes : le
+   lecteur, et une image cassée pointant sur le fichier .webm, avec
+   son texte de remplacement « Photo ». Et cette image cassée lève
+   un évènement « error » que le rapporteur d'erreur d'index.html
+   attrape en phase de capture — sans message, sans ligne, d'où le
+   « • erreur — ligne ? » en rouge sur toute la largeur.
+
+   Une seule faute, deux symptômes, et le plus visible des deux
+   n'était pas celui qu'il fallait corriger.
+
+   ⚠️ SANS TYPE, C'EST UNE PHOTO. Les messages d'avant la v1098 ont
+   une pièce sans colonne de type : à l'époque il n'y avait que des
+   photos. Un ancien message doit continuer de s'afficher.
+   ============================================================ */
+function pieceEstUnSon(p){
+  return !!p && String(p.type || '').indexOf('audio/') === 0;
+}
+
 /* ------------------------------------------------------------
    LE LECTEUR, DANS LA BULLE
 
@@ -3479,7 +3724,7 @@ function blobEnBase64EC(blob){
    ------------------------------------------------------------ */
 function vocalDuMessage(m){
   const p = m && m.piece;
-  if(!p || String(p.type || '').indexOf('audio/') !== 0) return null;
+  if(!pieceEstUnSon(p)) return null;
 
   if(!p.lien){
     const d = document.createElement('div');
