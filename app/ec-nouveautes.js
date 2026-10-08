@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 14:10 — v1105 */
+/* Déployé le 08/10/2026 à 15:05 — v1106 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1106,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Le départ des heures s’enregistre vraiment depuis le questionnaire',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'La réponse atteint enfin le suivi',
+        texte: 'La question « Ces heures partent de quand ? » était bien posée ' +
+               'dans le questionnaire, mais depuis une préparation personne ne ' +
+               'portait ta réponse jusqu’à la fiche de l’élève : elle restait ' +
+               'dans le cours. Ça marchait depuis le dossier, pas depuis « mes ' +
+               'prochains cours ». C’est réglé — par le crayon d’un cours ' +
+               'préparé comme à la création.' },
+      { emoji: '🔒',
+        titre: 'Et ton nombre d’heures ne bouge pas',
+        texte: '⚠️ Important : le questionnaire affiche ce qu’il RESTE, la ' +
+               'fiche affiche ce qui a été DÉCIDÉ. Quand tu réponds « depuis ' +
+               'la charnière » depuis le questionnaire, seul le point de ' +
+               'départ est corrigé — le nombre décidé reste intact. Sinon 6h ' +
+               'devenues 4h seraient décomptées une seconde fois.' }
+    ]
+  },
   {
     version: 1105,
     date: 'Jeudi 8 octobre 2026',
