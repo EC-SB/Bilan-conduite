@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1093 */
+/* Déployé le 08/10/2026 à 11:20 — v1098 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,43 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1098,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Les messages vocaux, avec ce qui est dit écrit en dessous',
+    quoi: [
+      { emoji: '🎤',
+        titre: 'Les vocaux dans la messagerie',
+        texte: 'Le micro, à gauche du champ : on appuie, on parle, on envoie. ' +
+               'Deux minutes au maximum, avec le compte à rebours sous les ' +
+               'yeux — il passe en rouge dans les dix dernières secondes, et à ' +
+               'deux minutes pile l’enregistrement s’arrête tout seul sans ' +
+               'rien perdre. ✕ annule, ➤ envoie.' },
+      { emoji: '📝',
+        titre: 'Et ce que tu dis s’écrit pendant que tu parles',
+        texte: 'Le texte apparaît sous le compteur au fur et à mesure, et tu ' +
+               'peux le corriger avant d’envoyer — la reconnaissance écrit ' +
+               '« Hery » en « Erri » une fois sur trois. Il part AVEC le vocal : ' +
+               'dans la bulle, dans l’aperçu de la liste, et surtout dans la ' +
+               'recherche. C’est tout l’intérêt : dans trois mois, on retrouve ' +
+               'un vocal en cherchant un mot, sans réécouter quarante ' +
+               'messages. ⚠️ Sur iPhone, Safari ne sait pas le faire : le ' +
+               'vocal part sans texte, et la bulle le dit.' },
+      { emoji: '▶️',
+        titre: 'Les écouter, et plus vite si besoin',
+        texte: 'Un bouton, une barre où l’on peut se déplacer pour réécouter ' +
+               'une phrase, et ×1 / ×1,5 / ×2 à droite — la vitesse se garde ' +
+               'd’un vocal à l’autre. Un seul se lit à la fois : deux voix en ' +
+               'même temps dans une voiture, on ne comprend ni l’une ni ' +
+               'l’autre.' },
+      { emoji: '🎓',
+        titre: 'Les élèves aussi, une minute et cinq par jour',
+        texte: 'Même bouton dans leur espace, avec leur propre compte à ' +
+               'rebours. Cinq vocaux par jour : au-delà, le micro s’éteint ' +
+               'jusqu’au lendemain et le lui dit. Leurs 10 photos par jour ' +
+               'restent de leur côté, les deux comptes sont séparés.' }
+    ]
+  },
   {
     version: 1090,
     date: 'Mercredi 7 octobre 2026',
