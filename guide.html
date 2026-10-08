@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 911
+     GUIDE-VERSION: 1110
      ============================================================ -->
 
 <style>
@@ -412,8 +412,8 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v911</strong><br>
-    Mis à jour le 10 septembre 2026 · Évolution Conduites</p>
+  <p class="sous">Guide d'utilisation · <strong>v1110</strong><br>
+    Mis à jour le 8 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
     <div class="titre">Filtrer par rôle</div>
@@ -441,7 +441,7 @@ html{scroll-behavior:smooth}
         <ol>
           <li><a href="#connexion">La connexion</a></li>
           <li><a href="#bandeau">Le bandeau du haut</a></li>
-          <li><a href="#onglets">Les six onglets</a></li>
+          <li><a href="#onglets">Les sept onglets</a></li>
           <li><a href="#roles">Rôles et droits</a></li>
           <li><a href="#panne">Coupure, reprise, hors ligne</a></li>
         </ol>
@@ -520,11 +520,25 @@ html{scroll-behavior:smooth}
           <li><a href="#acces">Administration des accès</a></li>
         </ol>
       </li>
-      <li><a data-n="8" href="#ch7">Pièges et dépannage</a></li>
+      <li><a data-n="8" href="#ch8">La messagerie</a>
+        <ol>
+          <li><a href="#msg-liste">La liste des conversations</a></li>
+          <li><a href="#msg-ecrire">Écrire un message</a></li>
+          <li><a href="#msg-pieces">Photo, vocal, vidéo</a></li>
+          <li><a href="#msg-agir">Réagir et copier</a></li>
+          <li><a href="#msg-supprimer">Supprimer un message</a></li>
+          <li><a href="#msg-objets">Les objets oubliés</a></li>
+          <li><a href="#msg-qui">Qui voit quoi</a></li>
+          <li><a href="#msg-fermer">Fermer, vider</a></li>
+          <li><a href="#msg-notifs">Notifications et pastille</a></li>
+          <li><a href="#msg-eleve">Ce que voit l'élève</a></li>
+        </ol>
+      </li>
+      <li><a data-n="9" href="#ch7">Pièges et dépannage</a></li>
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v911</strong>, relu le 10 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1110</strong>, relu le 8 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -534,7 +548,7 @@ html{scroll-behavior:smooth}
   <h1>Le guide de Bilan&nbsp;de&nbsp;conduite</h1>
   <p class="chapo">Tout ce que fait l'application, écran par écran et <strong>bouton par bouton</strong>. Écrit pour quelqu'un qui ne connaît ni l'outil, ni l'auto-école, ni le métier&nbsp;: chaque mot de jargon est expliqué la première fois qu'il apparaît.</p>
   <div class="reperes">
-    <div class="repere"><div class="k">6</div><div class="v">onglets</div></div>
+    <div class="repere"><div class="k">7</div><div class="v">onglets</div></div>
     <div class="repere"><div class="k">3</div><div class="v">rôles</div></div>
     <div class="repere"><div class="k">17</div><div class="v">types de bilan</div></div>
     <div class="repere"><div class="k">43</div><div class="v">droits réglables</div></div>
@@ -722,6 +736,14 @@ html{scroll-behavior:smooth}
     <p>Après un rendez-vous post-permis, seule la suite <span class="b">➕ 3h avant repassage</span> déclenche cette ligne. <span class="b">🚗 Une leçon de 2h</span> ne demande pas de date, elle demande une leçon&nbsp;: <a href="#postpermis" class="aller">l'écran post-permis</a> la porte déjà.</p>
     <p>Tout le monde la voit — elle n'a pas de droit à elle, contrairement aux trois autres alertes.</p>
 
+    <h5>🆕 Du nouveau dans l'outil</h5>
+    <p>Quand une version apporte quelque chose qui se voit à l'usage, une ligne s'installe dans le bandeau&nbsp;:</p>
+    <div class="ecran">🆕 Du nouveau dans l'outil — 2 changements
+   Supprimer un message, et vider les conversations fermées    Lire</div>
+    <p><span class="b">Lire</span> ouvre une fiche&nbsp;: la date en toutes lettres, puis chaque changement avec son emoji, son titre et ce qu'il fait. En bas, un volet replié <span class="b">📜 Les versions précédentes</span> garde les notes déjà lues — quelqu'un qui revient de congés rattrape tout d'un coup.</p>
+    <div class="note astuce"><span class="tag">Elle disparaît dès qu'elle est lue</span><p>Et elle ne revient pas. C'est la même règle que tout le bandeau&nbsp;: une ligne qui reste après lecture devient un décor, et c'est le bandeau entier qu'on cesse de lire. Pour relire&nbsp;: le volet <span class="b">📜 Les versions précédentes</span>.</p><p>La lecture est retenue <strong>dans le navigateur de l'appareil</strong>, pas dans le classeur&nbsp;: lire la note sur le téléphone ne l'éteint pas sur l'ordinateur du bureau, et la navigation privée la remontrera à chaque fois.</p></div>
+    <div class="note piege"><span class="tag">Toutes les versions n'ont pas de note</span><p>On livre parfois trois fois dans la journée. Seules les versions qui <strong>changent quelque chose pour un moniteur</strong> écrivent une note&nbsp;: une correction invisible n'en écrit pas. Ne cherchez donc pas une note pour chaque numéro de version vu dans le bandeau du haut.</p></div>
+
     <h5>📌 Les messages épinglés</h5>
     <p>Un message attaché à <strong>une personne</strong>, qui s'affiche dans son bandeau jusqu'à ce qu'elle le barre. À ne pas confondre avec <a href="#messages" class="aller">📨 Messages aux moniteurs</a>, qui est attaché à <strong>un élève</strong> et remonte dans la note de son prochain cours.</p>
     <p>C'est la seule ligne du bandeau qui vienne du classeur&nbsp;: <strong>sans réseau, elle se tait</strong>.</p>
@@ -738,9 +760,10 @@ html{scroll-behavior:smooth}
   </section>
 
   <section id="onglets">
-    <h3>Les six onglets</h3>
+    <h3>Les sept onglets</h3>
     <p>La barre de navigation est fixée en bas de l'écran&nbsp;:</p>
-    <p><span class="b">🎙️ Cours</span> · <span class="b">🔍 Élèves</span> · <span class="b">📓 Suivi</span> · <span class="b">🚗 Permis</span> · <span class="b">🔨 Outils</span> · <span class="b">⚙️ Gestion</span></p>
+    <p><span class="b">🎙️ Cours</span> · <span class="b">🔍 Élèves</span> · <span class="b">📓 Suivi</span> · <span class="b">🚗 Permis</span> · <span class="b">💬 Messagerie</span> · <span class="b">🔨 Outils</span> · <span class="b">⚙️ Gestion</span></p>
+    <div class="note astuce"><span class="tag">Pourquoi la messagerie a un onglet à elle</span><p>Elle était d'abord une vue de l'onglet Élèves. Les vues d'Élèves se consultent <strong>élève par élève, quand on cherche quelqu'un</strong>&nbsp;; la messagerie s'ouvre quand <strong>quelqu'un nous parle</strong>. Ce n'est pas la même façon d'arriver, donc ce n'est pas le même onglet. Elle est placée <strong>juste avant Outils</strong>. Tout le chapitre&nbsp;: <a href="#ch8" class="aller">La messagerie</a>.</p></div>
     <p>Une pastille verte glisse sous l'onglet actif. Sous la carte, une seconde rangée de boutons — <strong>la barre de vues</strong> — découpe l'onglet en écrans&nbsp;: par exemple <span class="b">📚 Historique des leçons</span>, <span class="b">🔔 Rappels de cours</span>, <span class="b">👥 Répertoire</span>… dans l'onglet Élèves.</p>
 
     <div class="note piege"><span class="tag">Trois pièges de navigation</span>
@@ -757,7 +780,8 @@ html{scroll-behavior:smooth}
     <p>Un petit rond orange peut apparaître&nbsp;:</p>
     <ul>
       <li>sur l'onglet <span class="b">📓 Suivi</span> — le nombre d'élèves « à prévoir » (examen blanc, simulateur, ou date de permis)&nbsp;;</li>
-      <li>sur l'onglet <span class="b">🔍 Élèves</span> et sur son bouton <span class="b">📥 Procédures</span> — le nombre de procédures à corriger.</li>
+      <li>sur l'onglet <span class="b">🔍 Élèves</span> et sur son bouton <span class="b">📥 Procédures</span> — le nombre de procédures à corriger&nbsp;;</li>
+      <li>sur l'onglet <span class="b">💬 Messagerie</span> — le nombre de messages <strong>non lus</strong>, rafraîchi tout seul toutes les 90&nbsp;secondes. Celle-là n'a pas de droit à elle&nbsp;: qui a la messagerie a le compte.</li>
     </ul>
     <div class="note piege"><span class="tag">Piège</span><p>La pastille de <span class="b">📓 Suivi</span> compte aussi <strong>les dates de permis à prévoir</strong>, qui se traitent dans l'onglet <span class="b">🚗 Permis</span>. Un « 12 » sur Suivi peut donc renvoyer à du travail dans l'autre onglet.</p></div>
     <p>Un compte sans les droits de pastille ne voit jamais de chiffre, même s'il y a du travail. Et les alertes masquées depuis <span class="b">🔔 Alertes</span> ne comptent plus.</p>
@@ -971,6 +995,7 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">Conclusion de l'examen blanc</span></td><td><span class="ch">✅ Plus que les 3h avant examen</span> / <span class="ch">⏳ Encore des leçons avant examen</span> / <span class="ch">⛔ Pas le niveau</span>. <strong>N'apparaît que sur le modèle Examen blanc, et seulement en fin de cours.</strong> C'est cette phrase que le bureau relit dans ses listes.</td></tr>
         <tr><td><span class="b">Examen du permis</span></td><td><span class="ch">— pas de date —</span> / <span class="ch">Date à prévoir</span> / <span class="ch">Prévu le…</span> / <span class="ch">Annulé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable</span>, et <span class="b">Quel passage ?</span> <strong>Le moniteur ne saisit plus la date</strong> — elle s'affiche en lecture seule&nbsp;: <span class="ch">🎓 Examen prévu le mercredi 16 septembre 2026 · Posée par le bureau d'après sa place d'examen. Elle ne se change pas ici.</span> Voir <em>« Un moniteur n'écrit pas une date d'examen »</em> juste dessous.</td></tr>
         <tr><td><span class="b">Combien de leçons avant l'examen</span></td><td><strong>Il se décompte tout seul d'un cours au suivant.</strong> « Encore 2 leçons », dit à la 10<sup>e</sup>, vaut 1 à la 11<sup>e</sup> et 0 à la 12<sup>e</sup> — c'est-à-dire <em>plus que les 3h</em>. Il ne descend jamais sous zéro, et il se corrige à la main à tout moment.</td></tr>
+        <tr><td><span class="b">Heures restantes avant l'examen</span></td><td>Un bouton qui <strong>affiche la valeur actuelle</strong> — <span class="ch">⏱️ 4 + 3h</span> — ou <span class="ch">⏱️ Heures à préciser</span> quand elle manque. Au-dessus de lui, en vert, <strong>d'où vient ce nombre</strong>&nbsp;: ce qui a été dit à l'examen blanc ou au post-permis. On lit la décision avant de décider, pas après. Dessous, <span class="b">Ces heures partent de quand&nbsp;?</span> — <a href="#heures-depart" class="aller">voir D'où partent les heures</a>&nbsp;; la question ne s'affiche que si elle a deux réponses possibles, et <strong>se corrige donc d'un cours au suivant sans passer par le dossier</strong>.</td></tr>
         <tr><td><span class="b">Rendez-vous post-permis</span></td><td>Sous l'examen officiel, sa date se répond ici aussi&nbsp;: on l'a sous les yeux au moment où l'on parle de l'examen. <strong>Les deux cases se mettent à jour ensemble</strong> — il n'y a qu'une date, elle ne peut pas dire deux choses.</td></tr>
         <tr><td><span class="b">Pas d'écoutes pédagogiques</span></td><td>Une case. Elle inscrit l'élève dans la liste que suit le bureau, et ajoute un rappel en fin de bilan. <strong>La décocher l'en retire.</strong></td></tr>
         <tr><td><span class="b">Simulateur nuit et risques</span></td><td><span class="ch">À prévoir</span> / <span class="ch">Déjà prévu</span> / <span class="ch">Fait ✅</span>.</td></tr>
@@ -1148,7 +1173,7 @@ html{scroll-behavior:smooth}
         <tr><td>Niveau permis</td><td><span class="b">✅ Oui</span> <span class="b">🤔 Pourrait</span> <span class="b">❌ Pas le niveau</span> <span class="b">—</span></td><td><strong>Ce champ commande tous ceux qui suivent</strong>&nbsp;: tant qu'aucun niveau n'est choisi (ou si c'est « Pourrait »), les heures avant permis et les frises restent cachées.</td></tr>
         <tr><td>Évaluation en trois états</td><td><span class="b">✅</span> <span class="b">🍊</span> <span class="b">❌</span> <span class="b">—</span> + une zone <em>« Ce qu'il y a à corriger — une ligne par point »</em>.</td><td>Non touchée, la rubrique ressort <span class="ch">✅ ❌ 🍊</span> dans le bilan — c'est voulu, comme sur la fiche papier.</td></tr>
         <tr><td>Note sur 3</td><td><span class="b">0</span> <span class="b">1</span> <span class="b">2</span> <span class="b">3</span> + <span class="ch">/ 3</span></td><td><strong>Un second appui efface.</strong> La note se reporte automatiquement sur le CEPC.</td></tr>
-        <tr><td>Heures</td><td><span class="b">2</span> <span class="b">4</span> <span class="b">6</span> <span class="b">8</span> <span class="b">10</span> + un champ <span class="b">autre</span></td><td><em>« Les 3h avant examen viennent en plus&nbsp;: “4” signifie 4 + 3. »</em></td></tr>
+        <tr><td>Heures</td><td><span class="b">2</span> <span class="b">4</span> <span class="b">6</span> <span class="b">8</span> <span class="b">10</span> + un champ <span class="b">autre</span></td><td><em>« Les 3h avant examen viennent en plus&nbsp;: “4” signifie 4 + 3. »</em> Sous le nombre, <span class="b">Ces heures partent de quand&nbsp;?</span> — <a href="#heures-depart" class="aller">voir D'où partent les heures</a>.</td></tr>
         <tr><td>Repassage</td><td>Un champ pré-rempli à <strong>4</strong>, suivi de <span class="ch">+ 3 heures</span>.</td><td><em>« 4 + 3 = deux leçons de 2h, puis les 3h avant examen. »</em></td></tr>
         <tr><td>En-tête</td><td>Le début du bilan tel que l'élève le lira, avec les quatre cases cochées d'avance et les vérifications.</td><td>Identique au panneau du mode vocal.</td></tr>
         <tr><td>Rubriques d'erreurs</td><td>Les 9 rubriques, une zone de texte chacune, avec son 🎙️&nbsp;: manipulation des commandes, trajectoire, giratoires, VA/VD, PAD, allures, contrôles, divers, manœuvres.</td><td>Dans le <strong>RVP</strong> et la <strong>formation accompagnateur</strong>&nbsp;: <em>une rubrique laissée vide sort avec son titre seul, comme sur la fiche.</em></td></tr>
@@ -1413,6 +1438,31 @@ Est-ce que ça coûte un point ?
     <div class="note danger"><span class="tag">⚠️ La date d'examen ne se tape pas ici</span><p><em>« Cette information ne provient que de session examen, c'est le seul endroit où on est sûr qu'un élève a un examen officiel de prévu. »</em></p><p>Une date d'examen n'est pas qu'une date&nbsp;: <strong>elle occupe une place</strong>. Tapée à la main sans place, c'est un élève qui a l'air prêt et qui n'est sur aucune liste — et une place prise sans qu'on le sache, c'est un élève de moins qui pourra passer.</p></div>
     <div class="note astuce"><span class="tag">Un élève sans suivi</span><p>La fiche le dit&nbsp;: <span class="ch">🆕 Cet élève n'a pas encore de suivi. Il s'en créera un au premier bilan — ou dès que tu poses une de ces lignes.</span> Elle ne fabrique pas sa ligne en silence&nbsp;: une ligne créée par un simple regard est une ligne dont personne ne sait d'où elle vient.</p></div>
     <div class="note astuce"><span class="tag">L'auteur des heures</span><p>La ligne <span class="b">⏱️</span> dit <strong>qui a annoncé le nombre et quand</strong>. Sans lui, on retape le chiffre par méfiance et on empile les corrections. C'est aussi ce qui nourrit l'alerte ⏱️ du bandeau.</p></div>
+
+    <h4 id="heures-depart">D'où partent les heures</h4>
+    <p>Un nombre d'heures tout seul ne dit pas <strong>à partir de quand</strong> il se consomme, et les deux lectures existent vraiment&nbsp;:</p>
+    <ul>
+      <li>des heures décidées <strong>à une charnière</strong> — l'examen blanc, un ajournement, un rendez-vous post-permis — datent de cette charnière&nbsp;: les leçons faites depuis les ont déjà entamées&nbsp;;</li>
+      <li>un chiffre corrigé <strong>en cours de route</strong> — <em>« finalement il ne lui reste que 4h »</em> — part du jour où il est dit&nbsp;: rien n'est encore entamé.</li>
+    </ul>
+    <p>Aucune donnée ne permet de deviner lequel des deux on tape&nbsp;: c'est une intention, donc elle se demande. Le crayon <span class="b">⏱️</span> ajoute une question sous le nombre&nbsp;:</p>
+    <div class="ecran">⏱️ Les heures de Mohammad Hadi Sahar
+
+Ce qu'il lui reste à conduire avant l'examen, en heures.
+0 veut dire « plus que les 3h avant examen » — il est prêt.
+Vide veut dire qu'on ne sait pas.
+
+Il en est à sa 2ᵉ leçon depuis le rendez-vous post-permis :
+des heures décidées à ce moment-là sont déjà entamées de
+2 leçons, des heures posées aujourd'hui ne le sont pas.
+
+Heures avant l'examen          [ 4 ]
+Ces heures partent de quand ?
+   ◉ Depuis le rendez-vous post-permis
+   ○ À partir d'aujourd'hui</div>
+    <div class="note astuce"><span class="tag">Elle n'apparaît que si elle a deux réponses</span><p>Tant qu'<strong>aucune leçon n'a eu lieu depuis la charnière</strong>, les deux choix désignent le même instant&nbsp;: la question ne se pose pas et ne s'affiche pas. Une question à réponse unique est du bruit.</p><p>Le défaut est <strong>la charnière</strong>, parce que c'est le cas le plus fréquent — c'est là que quelque chose a été prescrit. Rouvrir la ligne repart de <strong>ce qui est déjà enregistré</strong>&nbsp;: un repère posé de travers se rattrape en deux clics, sans retaper le nombre.</p></div>
+    <div class="note piege"><span class="tag">C'est ce choix qui fait « il ne reste que les 3h »</span><p>Un élève évalué à <strong>6h + 3h</strong> au post-permis, et qui en est à sa <strong>3ᵉ leçon depuis</strong>, a consommé ses 6h&nbsp;: l'application doit afficher <span class="ch">plus que les 3h avant examen</span>. Elle ne le fait que si les 6h sont comptées <strong>depuis le post-permis</strong>. Répondre « à partir d'aujourd'hui » sur ce même élève lui rend 6h qu'il a déjà faites.</p><p>Le symptôme à reconnaître&nbsp;: <strong>un reste qui ne descend pas d'une leçon à l'autre</strong>, ou un reste trop grand par rapport à ce qui a été conduit. C'est presque toujours ce choix-là qu'il faut rouvrir.</p></div>
+    <p>La même question est posée <strong>dans le questionnaire du cours</strong>, juste sous les heures restantes&nbsp;: <a href="#questionnaire" class="aller">on corrige donc au fil des cours</a>, sans passer par le dossier.</p>
 
     <h4>Les neuf onglets</h4>
     <table>
@@ -2966,9 +3016,184 @@ Cet écran ne fait que le relire.</div>
 </article>
 
 <!-- ================= CHAPITRE 7 ================= -->
-<article class="chapitre" id="ch7" data-role="tout">
+<!-- ================= CHAPITRE 8 — LA MESSAGERIE ================= -->
+<article class="chapitre" id="ch8" data-role="tout">
   <div class="entete-chap">
     <span class="num-chap">Chapitre 8</span>
+    <h2>La messagerie</h2>
+    <p class="intro-chap">Un lieu unique pour tout ce qui se dit dans l'école — entre moniteurs, avec le bureau, et avec les élèves. Elle ne remplace pas Messenger&nbsp;: le bilan continue d'y partir. Elle remplace les SMS privés, les notes sur un coin de table et les « je te l'avais dit ».</p>
+  </div>
+
+  <div class="qui"><span class="lab">Ce chapitre s'adresse à</span> <span class="role moniteur">Moniteur</span><span class="role bureau">Bureau</span><span class="role admin">Admin</span></div>
+
+  <p>La messagerie vit dans son propre onglet, <span class="b">💬 Messagerie</span>. Elle est arrivée en plusieurs fois à partir du 7 octobre 2026&nbsp;; ce chapitre décrit l'état de la <strong>v1110</strong>.</p>
+
+  <div class="note"><span class="tag">💡 Pourquoi un outil de plus</span><p>Trois choses se perdaient&nbsp;: ce qu'un élève annonce (un retard, une annulation, un objet oublié), ce qu'un moniteur demande au bureau, et ce que le bureau répond. Chacune arrivait par un canal différent — SMS personnel, Messenger de l'école, oral — et aucune ne laissait de trace consultable le jour d'un désaccord.</p><p>Ici, <strong>une conversation EST sa propre trace</strong>&nbsp;: horodatée, signée, et lisible par ceux qui y ont droit. C'est pour cette raison qu'un message ne s'efface jamais vraiment (voir <a href="#msg-supprimer" class="aller">Supprimer un message</a>).</p></div>
+
+  <section id="msg-liste">
+    <h3>La liste des conversations</h3>
+    <p>L'onglet s'ouvre sur la liste de <strong>vos</strong> conversations — celles dont vous êtes membre, ou dont une de vos boîtes l'est. Les plus récentes d'abord, et celles qui ont du non-lu remontent en tête.</p>
+
+    <div class="tab"><table>
+      <thead><tr><th>Sur la ligne</th><th>Ce que ça dit</th></tr></thead>
+      <tbody>
+        <tr><td>Le titre</td><td>Le nom de l'élève pour un fil personnel, le nom donné au groupe sinon.</td></tr>
+        <tr><td>L'aperçu</td><td>Le début du dernier message, et qui l'a écrit.</td></tr>
+        <tr><td>La pastille verte</td><td>Le nombre de messages que <strong>vous</strong> n'avez pas lus. Dans une boîte partagée, chacun a son propre compteur&nbsp;: Erika qui ouvre un fil ne l'éteint pas pour Chrystel.</td></tr>
+      </tbody>
+    </table></div>
+
+    <p>Au-dessus, une rangée de filtres&nbsp;:</p>
+    <div class="tab"><table>
+      <thead><tr><th>Filtre</th><th>Ce qu'il montre</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">Tout</span></td><td>Toutes vos conversations ouvertes. Le chiffre à côté est leur nombre.</td></tr>
+        <tr><td>Les ronds de genre</td><td>Un rond par type de fil présent — élève, groupe, objet oublié… Ils ne font que trier ce qui est déjà à l'écran.</td></tr>
+        <tr><td><span class="b">🗄️ Fermées</span></td><td>Les conversations closes. Celles-là sont <strong>relues au serveur</strong>&nbsp;: elles ne sont pas chargées tant qu'on ne clique pas.</td></tr>
+        <tr><td><span class="b">🔒 Supervision</span></td><td><span class="role admin">Admin</span> Les fils dont vous n'êtes <strong>pas</strong> membre, mais que votre droit vous autorise à lire. Voir <a href="#msg-qui" class="aller">Qui lit quoi</a>.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="msg-ecrire">
+    <h3>Écrire dans un fil</h3>
+    <p>La barre du bas porte, de gauche à droite&nbsp;:</p>
+    <div class="tab"><table>
+      <thead><tr><th>Bouton</th><th>Ce qu'il fait</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">🎤</span></td><td>Enregistrer un message vocal. Voir <a href="#msg-pieces" class="aller">plus bas</a>.</td></tr>
+        <tr><td><span class="b">🎥</span></td><td>Filmer une vidéo, ou en choisir une.</td></tr>
+        <tr><td><span class="b">📷</span></td><td>Joindre une photo depuis l'appareil ou la galerie.</td></tr>
+        <tr><td><span class="b">🙂</span></td><td>Le panneau des émoticônes.</td></tr>
+        <tr><td><span class="b">➤</span> / <span class="b">👍</span></td><td>Le même bouton&nbsp;: il envoie le texte tapé, et <strong>tant que le champ est vide il devient un pouce</strong> — un accusé de lecture en un geste, comme sur Messenger.</td></tr>
+      </tbody>
+    </table></div>
+
+    <p><strong>Ctrl + Entrée</strong> envoie depuis un ordinateur. Ce qui est tapé sans être envoyé est gardé comme brouillon&nbsp;: changer de fil et revenir ne le perd pas.</p>
+
+    <div class="note astuce"><span class="tag">📋 Coller une capture d'écran — v1108</span><p>Une image copiée dans le presse-papiers (<strong>Ctrl + V</strong>, ou « Coller » sur téléphone) part <strong>directement comme photo</strong>. Plus besoin de l'enregistrer sur le disque pour la rouvrir ensuite par 📷. Le texte, lui, se collait déjà tout seul.</p></div>
+  </section>
+
+  <section id="msg-pieces">
+    <h3>Photos, vocaux et vidéos</h3>
+
+    <h5>📷 La photo</h5>
+    <p>Elle est <strong>réduite par le navigateur avant de partir</strong>&nbsp;: une photo de téléphone de 8 Mo arrive à quelques centaines de kilo-octets. Un appui sur l'image l'ouvre en grand&nbsp;; la couche se referme et ne laisse rien dans l'historique d'une tablette partagée.</p>
+
+    <h5>🎤 Le vocal</h5>
+    <div class="tab"><table>
+      <thead><tr><th></th><th>Équipe</th><th>Élève</th></tr></thead>
+      <tbody>
+        <tr><td>Durée</td><td>2 minutes</td><td>1 minute</td></tr>
+        <tr><td>Par jour</td><td>sans limite</td><td>5</td></tr>
+        <tr><td>Texte corrigeable avant l'envoi</td><td>oui</td><td>non</td></tr>
+      </tbody>
+    </table></div>
+    <p>Pendant qu'on parle, <strong>ce qui est dit s'écrit en dessous</strong>. Ce texte part <em>avec</em> le vocal&nbsp;: il s'affiche sous la bulle, dans l'aperçu de la liste, et surtout <strong>dans la recherche</strong> — c'est tout l'intérêt&nbsp;: dans trois mois, on retrouve un vocal en cherchant un mot, sans en réécouter quarante.</p>
+    <div class="note piege"><span class="tag">⚠️ Sur iPhone, Safari n'écrit pas ce qui est dit</span><p>La reconnaissance vocale du navigateur n'existe pas sur iPhone. Le vocal part quand même, <strong>sans texte</strong>, et la bulle le dit. Ce n'est pas une panne&nbsp;: aucun site web ne peut le faire sur iPhone.</p></div>
+    <p>Pendant l'enregistrement&nbsp;: <span class="b">❚❚</span> met en pause — le compteur s'arrête vraiment — <span class="b">■</span> arrête sans envoyer (on s'écoute, puis on décide), <span class="b">✕</span> jette, <span class="b">➤</span> envoie. À la limite de durée, <strong>ça s'arrête tout seul sans envoyer</strong>.</p>
+    <p>Pour écouter&nbsp;: un bouton, une barre où l'on se déplace, et à droite un bouton de vitesse qui <strong>tourne à chaque appui</strong> — <span class="b">×1</span> → <span class="b">×1.5</span> → <span class="b">×2</span> → <span class="b">×1</span>. La vitesse choisie <strong>se garde d'un vocal à l'autre</strong>, et s'applique aussi à celui qu'on est en train d'écouter. <strong>Un seul son à la fois</strong>&nbsp;: deux voix en même temps dans une voiture, on ne comprend ni l'une ni l'autre.</p>
+
+    <h5>🎥 La vidéo — v1109</h5>
+    <p>Le bouton demande d'abord&nbsp;: <span class="b">🎥 Filmer</span> ou <span class="b">📁 Choisir une vidéo</span>.</p>
+    <ul>
+      <li><strong>30 secondes</strong> au maximum, pour tout le monde&nbsp;; <strong>5 par jour</strong> pour un élève, compte séparé de ses vocaux.</li>
+      <li>On filme avec la <strong>caméra arrière</strong>, en 640×480 et à débit bridé&nbsp;: trente secondes font environ 3 Mo, et ça part en 4G de voiture-école.</li>
+      <li>Mêmes commandes que le vocal&nbsp;: ❚❚ ■ ✕ ➤, et l'aperçu passe sur ce qui vient d'être filmé pour qu'on se regarde avant d'envoyer.</li>
+      <li>Une vidéo <strong>choisie dans la galerie</strong> est refusée au-delà de <strong>12 Mo</strong> — le téléphone l'a filmée trop grande, il faut la refaire depuis l'application.</li>
+    </ul>
+    <p>Dans la bulle, la vidéo se lit sur place avec sa durée en haut à gauche&nbsp;; <span class="b">⤢</span> en haut à droite l'ouvre en grand. Le doigt sur l'image met en pause, comme partout ailleurs.</p>
+  </section>
+
+  <section id="msg-agir">
+    <h3>Agir sur un message</h3>
+    <p>Un <strong>appui long</strong> sur une bulle — ou un clic droit sur ordinateur — ouvre un petit menu au-dessus d'elle.</p>
+    <div class="tab"><table>
+      <thead><tr><th>Dans le menu</th><th>Ce que ça fait</th></tr></thead>
+      <tbody>
+        <tr><td>Six émoticônes</td><td>Poser ou retirer sa réaction. Une seule par personne et par message&nbsp;; la même deux fois la retire.</td></tr>
+        <tr><td><span class="b">📋</span></td><td>Copier le texte du message. Marche aussi sur la <strong>transcription d'un vocal</strong>, et dans un fil qu'on ne fait que surveiller.</td></tr>
+        <tr><td><span class="b">🗑️</span></td><td>Supprimer — <strong>uniquement sur ses propres messages</strong>. Voir juste en dessous.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note piege"><span class="tag">⚠️ C'est ce menu qui empêchait de copier — corrigé en v1108</span><p>L'appui long et le clic droit sont exactement les deux gestes par lesquels on sélectionne du texte. En y mettant les réactions, on avait retiré le copier — sans que rien ne tombe en panne, donc sans que ça se voie. Le 📋 est entré par la porte qui l'avait chassé.</p></div>
+  </section>
+
+  <section id="msg-supprimer">
+    <h3>Supprimer un message — v1110</h3>
+    <ol class="etapes">
+      <li>Appui long sur <strong>votre</strong> bulle, puis <span class="b">🗑️</span>.</li>
+      <li>La confirmation dit exactement ce qui va se passer&nbsp;: <span class="ch">Ce message sera retiré de la conversation. Il restera une ligne « Message supprimé », et la photo ou le vocal joints seront effacés. C'est définitif.</span></li>
+      <li>Le texte part, la photo, le vocal ou la vidéo joints sont <strong>effacés du stockage</strong>, le message sort de la recherche et ses réactions partent avec.</li>
+    </ol>
+    <p>Il reste une ligne <span class="ch">🚫 Message supprimé</span>.</p>
+    <div class="note"><span class="tag">Pourquoi une ligne reste</span><p>Un fil troué ne raconte plus rien&nbsp;: les réponses qui suivaient deviendraient incompréhensibles. Et une conversation dont on peut faire disparaître une ligne sans trace n'est plus une preuve de rien — alors que c'est à ça qu'elle servira le jour d'un désaccord avec une famille.</p></div>
+    <div class="note danger"><span class="tag">⚠️ Qui peut, et qui ne peut pas</span><p><strong>Chacun ne retire que les siens</strong>, et seulement dans un fil dont il est encore membre. <strong>Un élève ne peut rien supprimer</strong>&nbsp;: ce qu'un élève écrit est souvent précisément ce qui compte plus tard. Il n'y a <strong>pas de délai</strong> — un message d'il y a six mois se retire aussi.</p></div>
+  </section>
+
+  <section id="msg-objets">
+    <h3>🧤 Les objets oubliés</h3>
+    <p>Un élève signale depuis son espace qu'il a oublié quelque chose dans une voiture. Cela ouvre un fil 🧤 <strong>et</strong> une ligne dans la liste des objets, côté bureau — avec l'objet, le véhicule et le jour.</p>
+    <p>L'objet a un <strong>état</strong> qui vit des semaines&nbsp;: <span class="ch">🧤 Signalé</span> (personne n'a encore regardé) → <span class="ch">✅ Retrouvé</span> (à récupérer au bureau) → <span class="ch">🤝 Rendu</span> (c'est réglé), ou <span class="ch">🙈 Introuvable</span> (cherché, pas retrouvé). Le changer prévient l'élève dans son fil, sans rien retaper. C'est la raison pour laquelle l'objet a sa propre liste et n'est pas qu'un message&nbsp;: un message s'écrit une fois, un état change.</p>
+    <div class="note astuce"><span class="tag">Le bouton de l'état courant n'est jamais proposé</span><p>Depuis « Signalé » on ne voit que <span class="b">Retrouvé</span> et <span class="b">Introuvable</span>&nbsp;; depuis « Rendu », seul <span class="b">Retrouvé</span> permet de revenir en arrière. Un bouton qui ne fait rien use la confiance dans tous les autres.</p></div>
+  </section>
+
+  <section id="msg-qui">
+    <h3>Qui lit quoi&nbsp;: participants, boîtes, supervision</h3>
+    <p>Trois sortes de membres peuvent être dans une conversation&nbsp;:</p>
+    <div class="tab"><table>
+      <thead><tr><th>Membre</th><th>Ce que ça veut dire</th></tr></thead>
+      <tbody>
+        <tr><td>Une <strong>personne</strong></td><td>Elle lit et écrit. Son compteur de non-lus est le sien.</td></tr>
+        <tr><td>Une <strong>boîte</strong> (ex. « bureau »)</td><td>Toute personne qui est <em>actuellement</em> dans cette boîte y a accès. Retirée de la boîte, elle perd les fils&nbsp;: l'accès se calcule sur l'appartenance d'aujourd'hui, pas sur une trace de passage.</td></tr>
+        <tr><td>Un <strong>élève</strong></td><td>Il ne voit que son propre fil, depuis son espace, et jamais les noms des autres élèves d'un groupe.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note danger"><span class="tag">🔒 La supervision laisse une trace</span><p>Un administrateur peut être autorisé à lire des fils dont il n'est pas membre. L'écran le <strong>prévient avant d'ouvrir</strong>, parce que <strong>la lecture s'inscrit au journal</strong>&nbsp;: qui a lu, quel fil, quand.</p><p>Et un superviseur non membre <strong>lit, mais n'écrit pas</strong>. Écrire dans un fil dont on n'est pas membre, ce serait y entrer sans que personne le voie&nbsp;: pour répondre, il faut s'ajouter — et son arrivée s'inscrit dans le fil.</p></div>
+  </section>
+
+  <section id="msg-fermer">
+    <h3>Fermer, puis supprimer des conversations</h3>
+    <p><strong>Fermer</strong> un fil le range&nbsp;: il quitte la liste courante, passe dans <span class="b">🗄️ Fermées</span>, et plus personne n'y écrit. Rien n'est perdu&nbsp;: on le relit quand on veut.</p>
+    <p><strong>Supprimer</strong>, c'est autre chose — et c'est définitif.</p>
+    <div class="qui mini"><span class="lab">Réservé à</span> <span class="role admin">Admin</span></div>
+    <ol class="etapes">
+      <li>Aller sur le filtre <span class="b">🗄️ Fermées</span>. Le bouton <span class="b">🗑️ Tout supprimer</span> n'apparaît que là.</li>
+      <li>Il <strong>compte d'abord</strong>&nbsp;: combien de conversations, combien de messages, combien de fichiers — et il les nomme.</li>
+      <li>Après confirmation, tout part&nbsp;: les messages, les lectures, les participants, les objets oubliés, la conversation elle-même, <strong>et les photos, vocaux et vidéos du stockage</strong>.</li>
+    </ol>
+    <div class="note danger"><span class="tag">⚠️ Rien ne se retrouve après</span><p>Ce geste ne se rattrape pas, et il porte sur <strong>toutes</strong> les conversations fermées à la fois. C'est pour ça qu'il compte avant d'agir&nbsp;: un chiffre qu'on a lu, ce n'est plus la même suppression. Il est tracé au journal avec ses chiffres.</p></div>
+  </section>
+
+  <section id="msg-notifs">
+    <h3>Les notifications et la pastille</h3>
+    <p>L'application peut prévenir sur le téléphone quand elle est fermée. Il faut l'<strong>autoriser une fois</strong>, depuis l'application — un refus se change ensuite dans les réglages du navigateur, pas ici.</p>
+    <div class="note"><span class="tag">🔕 Une notification dit QUI, jamais QUOI</span><p>Elle porte le nom de qui écrit et le type de message — « 📷 Photo », « 🎤 Message vocal », « 🎥 Vidéo » — et rien du contenu. Un message d'élève peut parler de son dossier, de son argent, d'une difficulté&nbsp;: il n'a pas à s'afficher sur un écran verrouillé posé sur une table. <strong>On ouvre l'application pour lire.</strong></p></div>
+
+    <h5>La pastille sur l'icône — v1107</h5>
+    <p>L'icône de l'application sur l'écran d'accueil porte le nombre de messages non lus. Il monte à chaque notification reçue application fermée, et se remet au bon chiffre dès qu'on ouvre — même si on a lu les messages ailleurs entre-temps.</p>
+    <div class="tab"><table>
+      <thead><tr><th>Appareil</th><th>Ce qu'on obtient</th></tr></thead>
+      <tbody>
+        <tr><td><strong>iPhone / iPad</strong>, application <strong>ajoutée à l'écran d'accueil</strong></td><td>Le compteur, à partir d'iOS 16.4, avec les notifications autorisées.</td></tr>
+        <tr><td><strong>Ordinateur</strong> (Chrome, Edge)</td><td>Le compteur.</td></tr>
+        <tr><td><strong>Android</strong></td><td><strong>Rien.</strong> Android met un point tout seul sur l'icône tant qu'une notification n'est pas lue dans le volet, et il part dès qu'on la balaie. Aucun compteur persistant n'est possible — ce n'est pas un défaut de l'outil, aucun navigateur Android ne le propose.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note piege"><span class="tag">⚠️ Sur iPhone, ouverte dans Safari ne suffit pas</span><p>Les notifications et la pastille ne marchent que si l'application a été <strong>ajoutée à l'écran d'accueil</strong> — pas simplement ouverte dans un onglet Safari.</p></div>
+  </section>
+
+  <section id="msg-eleve">
+    <h3>Ce que voit l'élève</h3>
+    <p>L'élève ouvre son espace avec son code et retrouve ses conversations. Il peut&nbsp;: écrire, envoyer une photo, un vocal (1 minute, 5 par jour), une vidéo (30 secondes, 5 par jour), réagir, copier un texte, et coller une capture d'écran.</p>
+    <p>Il ne peut pas&nbsp;: supprimer un message, voir les noms des autres élèves d'un groupe, ni répondre dans un fil en <strong>mode annonce</strong> — une information de l'école qui ne se discute pas.</p>
+    <p>Le compte de ses vocaux et de ses vidéos ne s'affiche <strong>que lorsqu'il en reste trois ou moins</strong> — <span class="ch">Il te restera 2 vocaux aujourd'hui.</span> Écrit dès le premier, il donnerait une consigne là où il n'y avait pas de problème, et transformerait un geste libre en quota.</p>
+  </section>
+</article>
+
+<article class="chapitre" id="ch7" data-role="tout">
+  <div class="entete-chap">
+    <span class="num-chap">Chapitre 9</span>
     <h2>Pièges et dépannage</h2>
     <p class="intro-chap">Les comportements qu'il vaut mieux ne pas découvrir en production, rassemblés en une page. Beaucoup sont voulus&nbsp;; quelques-uns sont des défauts connus.</p>
   </div>
@@ -3012,6 +3237,11 @@ Cet écran ne fait que le relire.</div>
       <tr><td>Tarifs</td><td>Quitter la vue sans <span class="b">💾</span> perd toutes les modifications, sans avertissement.</td></tr>
       <tr><td>Paie</td><td>Le carburant n'apparaît pas dans le message pour la paie, alors qu'il figure partout ailleurs.</td></tr>
       <tr><td>Partout</td><td><strong>Rien n'est jamais envoyé automatiquement à un élève</strong>, sauf le SMS d'absence en écoute — et uniquement si on coche la case.</td></tr>
+      <tr><td>Messagerie</td><td>La pastille du téléphone <strong>n'existe pas sur Android</strong>&nbsp;: le système y refuse de poser un chiffre sur l'icône d'une application web. La notification arrive bien, et Android pose son propre point sur l'icône&nbsp;; le chiffre, non. Détail&nbsp;: <a href="#msg-notifs" class="aller">Notifications et pastille</a>.</td></tr>
+      <tr><td>Messagerie</td><td>Sur iPhone, un vocal est <strong>envoyé sans transcription</strong>&nbsp;: iOS ne sait pas enregistrer dans le format que lit la transcription. Le son part et s'écoute normalement — c'est seulement le texte sous la bulle qui manque.</td></tr>
+      <tr><td>Messagerie</td><td>Une vidéo <strong>choisie dans la galerie</strong> est refusée au-delà de 12 Mo&nbsp;: le téléphone l'a filmée trop grande. Il faut la refaire <strong>depuis l'application</strong>, qui filme en 640×480 — trente secondes font alors environ 3 Mo.</td></tr>
+      <tr><td>Messagerie</td><td>Un élève <strong>ne peut pas supprimer ce qu'il a écrit</strong>&nbsp;: c'est souvent ce qui compte le jour d'un désaccord avec une famille. Chacun ne retire que les siens, et <span class="b">🗑️ Tout supprimer</span> est réservé aux administrateurs.</td></tr>
+      <tr><td>Heures avant examen</td><td>Un reste qui <strong>ne descend pas d'une leçon à l'autre</strong>, ou trop grand par rapport à ce qui a été conduit&nbsp;: c'est le choix <span class="b">Ces heures partent de quand&nbsp;?</span> qu'il faut rouvrir. Voir <a href="#heures-depart" class="aller">D'où partent les heures</a>.</td></tr>
     </tbody>
   </table></div>
 
@@ -3026,6 +3256,8 @@ Cet écran ne fait que le relire.</div>
       <tr><td>Alertes</td><td>Le texte d'aide renvoie encore à « Outils → ⚙️ Accès ».</td><td>C'est dans <strong>Gestion</strong>.</td></tr>
       <tr><td>Rappels de cours</td><td>Le mode planning crée les cours pour <strong>demain</strong>, pas pour la date lue.</td><td>Corriger les dates ensuite avec le bouton 📅 de chaque carte.</td></tr>
       <tr><td>Connexion</td><td>Le bouton s'appelle « Se connecter » puis « Déverrouiller » après un échec.</td><td>Rien&nbsp;: c'est le même bouton.</td></tr>
+      <tr><td>Messagerie</td><td><span class="b">🗑️ Tout supprimer</span> est <strong>sans retour</strong>&nbsp;: messages, lectures, participants, objets oubliés, photos, vocaux et vidéos partent pour de bon.</td><td>Lire le décompte que la fenêtre affiche <strong>avant</strong> de confirmer&nbsp;: il nomme les conversations concernées.</td></tr>
+      <tr><td>Messagerie</td><td>Un message supprimé <strong>laisse une ligne</strong> <span class="ch">🚫 Message supprimé</span>.</td><td>C'est voulu&nbsp;: sans elle, les réponses d'après ne voudraient plus rien dire.</td></tr>
     </tbody>
   </table></div>
 
@@ -3044,6 +3276,9 @@ Cet écran ne fait que le relire.</div>
     <div><dt>… les rappels sont partis mais aucun cours n'a été créé</dt><dd>Le moniteur n'était pas désigné. Utilisez <span class="b">🔁 Rattraper les cours depuis ces rappels</span> dans l'historique des envois&nbsp;: il relit le journal SMS, y lit l'heure, et recrée les cours.</dd></div>
     <div><dt>… un élève n'apparaît dans aucune liste du bureau</dt><dd>Vérifiez d'abord sa fiche de suivi&nbsp;: elle a peut-être été supprimée par une clôture. Sinon, cherchez-le dans le bandeau <span class="ch">ℹ️ N élève(s) masqué(s)</span> des « Élèves prêts au permis » — un drapeau « retiré » ou « dans RDV PERMIS » le cache.</dd></div>
     <div><dt>… une correction de l'IA ne tient pas compte de la procédure</dt><dd>La procédure de référence n'a pas été retrouvée par son nom. Vérifiez qu'un texte du même nom existe bien dans <a href="#proc-ref" class="aller">🚦 Procédures</a>.</dd></div>
+    <div><dt>… je reçois les notifications de la messagerie mais l'icône de l'application n'a pas de chiffre</dt><dd>Sur <strong>Android</strong>, c'est normal et définitif&nbsp;: le système n'y pose pas de chiffre sur l'icône d'une application web, seulement son propre point. Sur <strong>iPhone</strong>, il faut l'application <strong>ajoutée à l'écran d'accueil</strong> (pas ouverte dans Safari), iOS 16.4 ou plus, et les notifications autorisées. Le détail&nbsp;: <a href="#msg-notifs" class="aller">Notifications et pastille</a>.</dd></div>
+    <div><dt>… l'appui long sur un message ne me laisse pas sélectionner le texte</dt><dd>C'est le menu des réactions qui prend ce geste. Le <span class="b">📋</span> tout au bout de ce menu <strong>copie le texte du message</strong> — y compris la transcription d'un vocal, et dans un fil qu'on ne fait que surveiller.</dd></div>
+    <div><dt>… un élève annonce 6h + 3h au post-permis et l'application en affiche encore 4</dt><dd>Les heures sont comptées <strong>à partir d'aujourd'hui</strong> alors qu'elles ont été décidées <strong>au post-permis</strong>. Rouvrez le crayon <span class="b">⏱️</span> de sa fiche de route — ou le bouton des heures dans le questionnaire — et choisissez <span class="ch">Depuis le rendez-vous post-permis</span>&nbsp;: les leçons déjà faites se décomptent alors toutes seules. Voir <a href="#heures-depart" class="aller">D'où partent les heures</a>.</dd></div>
     <div><dt>… une modification faite par un collègue n'apparaît pas</dt><dd>Les textes types sont gardés 5 minutes en mémoire, le bureau 30 secondes. Le bouton <span class="b">🔄 Actualiser</span> force la relecture.</dd></div>
   </dl>
 </article>
