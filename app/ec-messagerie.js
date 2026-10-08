@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:10 — v1101 */
+/* Déployé le 08/10/2026 à 16:00 — v1107 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -2679,6 +2679,45 @@ function poserLesComptesMessagerie(total){
   const n = Number(total || 0);
   if(typeof poserCompteVue === 'function') poserCompteVue('messagerie', n);
   poserPastilleMessagerie(n);
+  poserLaPastilleDeLAppli(n);
+}
+
+/* ============================================================
+   🔴 LA PASTILLE SUR L'ICÔNE DE L'APPLICATION — v1107
+
+   David, le 8 octobre : « j'ai bien les notifications de messages
+   sur l'appli, par contre il n'y a pas de pastille qui se met sur
+   l'icône de l'application mise sur le téléphone ».
+
+   ⚠️ UN SEUL ÉCRIVAIN : LE SERVICE WORKER. Il la monte d'un à
+   chaque notification reçue application fermée ; la page, elle,
+   REPOSE le vrai compte — celui du serveur — dès qu'elle l'a. Deux
+   écrivains pour un même chiffre, c'est la faute que ce dossier
+   répare partout ailleurs ; ici l'un approxime quand l'autre dort,
+   et l'autre corrige dès qu'il se réveille.
+
+   ⚠️ ET ELLE N'EXISTE PAS PARTOUT. iPhone et iPad depuis iOS 16.4
+   — application ajoutée à l'écran d'accueil, notifications
+   autorisées — et les ordinateurs depuis Chrome 81. Sur Android
+   l'API n'existe pas : le système met un point tant qu'une
+   notification n'est pas lue, et c'est tout ce qu'on peut avoir.
+   Rien ne casse là où elle manque, et on ne prévient de rien : une
+   pastille est un confort, jamais une information à elle seule.
+   ============================================================ */
+function poserLaPastilleDeLAppli(combien){
+  const n = Math.max(0, Number(combien) || 0);
+  try{
+    const sw = navigator.serviceWorker;
+    if(sw && sw.controller){
+      sw.controller.postMessage({ quoi: 'pastille', combien: n });
+      return;
+    }
+    /* Pas encore de service worker aux commandes — premier
+       chargement, ou navigateur qui n'en veut pas : on la pose
+       nous-mêmes plutôt que de ne rien faire. */
+    if(n > 0 && navigator.setAppBadge) navigator.setAppBadge(n);
+    else if(navigator.clearAppBadge) navigator.clearAppBadge();
+  }catch(e){ /* refusée, non installée : ce n'est pas une panne */ }
 }
 
 /* ⚠️ LA SUPERVISION NE COMPTE PAS, ICI NON PLUS. C'est la règle de
