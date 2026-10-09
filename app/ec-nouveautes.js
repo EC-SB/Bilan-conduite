@@ -51,6 +51,32 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1128,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Dossier élève : chaque tuile du haut parle d’un seul moment',
+    quoi: [
+      { emoji: '🔢',
+        titre: '« Où il en est » dit ce qu’il a fait',
+        texte: 'Elle affichait le rang du cours préparé — demain. Elle dit ' +
+               'maintenant ce qu’il a fait (« 16ᵉ · 1ʳᵉ après l’examen ' +
+               'blanc »), et dessous ce qui vient : « Prochaine : sam. 10 oct. — ' +
+               'sa 17ᵉ, 2ᵉ après l’examen blanc ». Quand un cours est préparé, ' +
+               'un appui sur la tuile corrige ses deux cases, comme sur la carte.' },
+      { emoji: '🎓',
+        titre: '« Où en est son permis » dit ce qui a été décidé',
+        texte: 'Sous la date d’examen : « ✅ A le niveau — 4h + la leçon de ' +
+               'veille ». Elle affichait le décompte, « plus que les 3h », qui se ' +
+               'lisait comme si l’examen blanc n’avait demandé que 3h.' },
+      { emoji: '⏱️',
+        titre: '« Avant l’examen » dit ce qui reste',
+        texte: 'Elle montrait le nombre tel qu’il avait été dit, jamais ' +
+               'décompté. Elle dit maintenant ce qui reste — « 2 h + la leçon de ' +
+               'veille » — avec les mêmes chiffres que les listes du bureau, et ' +
+               'précise « en comptant son cours du … » quand le cours préparé est ' +
+               'déjà compté.' }
+    ]
+  },
+  {
     version: 1127,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Les types de séance des rappels se rangent par famille, dans ton ordre',
