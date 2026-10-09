@@ -336,6 +336,42 @@ function rangApresDansLaNote(note){
   return (v > 0) ? v : null;
 }
 
+/* ============================================================
+   LES DEUX CASES D'UN COURS PRÉPARÉ, LUES À UN SEUL ENDROIT — v1128
+
+   « 17 ème leçon · et la 2 ème après exam blanc ». La carte de Mes
+   prochains cours les affiche ; la tuile « Où il en est » du
+   dossier les affiche moins une — ce qu'il a fait. Une seule
+   lecture pour les deux, sinon la tuile et la carte finiraient par
+   ne pas dire la même chose.
+
+   total  : le rang du cours, celui de la première case ;
+   apres  : son rang depuis la charnière, celui de la seconde — ou
+            null s'il n'y a pas de charnière, ou rien d'écrit ;
+   charn  : la charnière elle-même (cle, nom, court), ou null.
+   ============================================================ */
+function rangsDuCoursPrepare(cours){
+  if(!cours) return { total: null, apres: null, charn: null };
+  const total = (typeof numeroLeconDuCours === 'function')
+    ? numeroLeconDuCours(cours) : null;
+  /* La charnière se demande aux sources qui font foi : un post-permis
+     vit dans le suivi, pas dans le contexte du cours. */
+  const ctx = Object.assign(
+    {}, contexteEnObjet(cours.contexte),
+    (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(cours.eleve) : {});
+  const charn = (typeof charniereDuCours === 'function')
+    ? charniereDuCours(ctx, cours.note) : null;
+  let apres = null;
+  if(charn && typeof rangDepuisLaCharniere === 'function'){
+    /* Ce que la carte annonce déjà, à défaut de réponse enregistrée :
+       la case ne doit pas rester vide sous une ligne qui dit « 4ème
+       leçon après l'examen blanc ». */
+    const dit = rangDepuisLaCharniere(ctx, total, charn.cle);
+    apres = (dit !== null && dit !== undefined) ? dit : rangApresDansLaNote(cours.note);
+  }
+  return { total: total || null, apres: apres, charn: charn };
+}
+
 /* CE QU'IL Y AVAIT AVANT LA CHARNIÈRE, ÉCRIT SUR LE COURS.
 
    Le même chemin que le rang : on refait la note plutôt que de la
@@ -1555,19 +1591,20 @@ async function afficherPrepares(recharger, silencieux){
          pas dans le contexte du cours. Sans elle, la case disait
          « après exam blanc » à un élève qui a passé son
          post-permis — la charnière d'avant, donc la mauvaise. */
-      const ctxCours = Object.assign(
-        {}, contexteEnObjet(cours.contexte),
-        (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(cours.eleve) : {});
-
       /* LA MÊME FONCTION QUE LE QUESTIONNAIRE.
 
          Cette carte avait sa propre table de charnières. Elle
          ignorait donc l'ajournement, ajouté ailleurs : la carte
          d'Amadou annonçait « REPRISE APRÈS LE DERNIER AJOURNEMENT »
          et proposait, juste en dessous, « et la 1ère après exam
-         blanc ». Deux endroits pour une même règle, deux réponses. */
-      const charn = (typeof charniereDuCours === 'function')
-        ? charniereDuCours(ctxCours, cours.note) : null;
+         blanc ». Deux endroits pour une même règle, deux réponses.
+
+         ⚠️ v1128 — ET LA LECTURE DES DEUX CASES EST SORTIE D'ICI,
+         dans rangsDuCoursPrepare : la tuile « Où il en est » du
+         dossier affiche ces mêmes deux cases moins une. Deux
+         lectures, ce serait deux chiffres. */
+      const rangsCarte = rangsDuCoursPrepare(cours);
+      const charn = rangsCarte.charn;
 
       if(charn && typeof rangDepuisLaCharniere === 'function'){
         /* « ème leçon », puis « et la … ème après » : ce sont deux
@@ -1586,9 +1623,7 @@ async function afficherPrepares(recharger, silencieux){
         /* Ce que la carte annonce déjà, à défaut de réponse
            enregistrée : la case ne doit pas rester vide sous une
            ligne qui dit « 4ème leçon après l'examen blanc ». */
-        const dejaDit = rangDepuisLaCharniere(ctxCours, rangEcrit, charn.cle);
-        const depEcrit = (dejaDit !== null && dejaDit !== undefined)
-          ? dejaDit : rangApresDansLaNote(cours.note);
+        const depEcrit = rangsCarte.apres;
         bDep.value = (depEcrit !== null) ? String(depEcrit) : '';
         bDep.style.cssText = boite.style.cssText;
 
