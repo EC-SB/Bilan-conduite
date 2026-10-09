@@ -51,8 +51,37 @@ function pageVoisine(nom){
 }
 
 CONFIG.LIEN_COURS = pageVoisine('cours.html');
-CONFIG.LIEN_ELEVE = pageVoisine('eleve.html');
 CONFIG.LIEN_ECRAN = pageVoisine('ecran.html');
+
+/* ============================================================
+   ⚠️ LE COIN RÉVISIONS A SA PROPRE ADRESSE — v1122, 9 octobre.
+
+   Il se déduisait comme les deux autres : la page voisine de
+   l'application. Ce n'est plus vrai, et c'est voulu.
+
+   Depuis aujourd'hui il vit sur « eleve.evolutionconduites.fr »,
+   un domaine à lui, servi par un second dépôt que le premier
+   alimente tout seul. Un élève n'a plus à taper l'adresse de
+   l'application du bureau suivie d'un nom de fichier.
+
+   ⚠️ DONC IL NE SE DÉDUIT PLUS, ET IL NE PEUT PAS. « pageVoisine »
+   part de l'adresse de CETTE page : elle ne sait rien d'un autre
+   domaine. Ce qui suit est une adresse écrite, et il n'y a pas
+   d'alternative honnête — mais elle est ÉCRITE UNE FOIS, ici,
+   nommée, et les trois écrans qui donnent le lien la lisent :
+   le message d'accès (ec-fenetres), les procédures à réciter
+   (ec-proccorriger) et le rappel vocal (ec-vocal).
+
+   ⚠️ ET L'ANCIENNE ADRESSE RÉPOND TOUJOURS. On ne la retire pas :
+   les élèves qui ont déjà l'icône sur leur écran d'accueil
+   pointent dessus, et le Worker accepte les deux origines. Ce
+   qu'on change ici, c'est l'adresse qu'on DONNE, pas celles qui
+   marchent.
+
+   La copie d'Apps Script reste la sienne — elle tourne chez
+   Google, elle n'occupe aucune page, elle ne peut rien lire
+   d'ici. Elle est nommée là-bas de la même façon. */
+CONFIG.LIEN_ELEVE = 'https://eleve.evolutionconduites.fr/';
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
