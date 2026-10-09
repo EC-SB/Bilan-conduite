@@ -979,74 +979,8 @@ async function afficherRappelManuel(){
 
   zone.innerHTML = '';
 
-  /* Choix de l'élève */
-  const lab = document.createElement('label');
-  lab.textContent = "Élève — les adresses viennent de sa fiche";
-  zone.appendChild(lab);
-
-  /* Saisie libre avec suggestions : plus rapide que de dérouler
-     une liste de plusieurs centaines d'élèves. */
-  const sel = document.createElement('input');
-  sel.type = 'text';
-  sel.id = 'rappelEleve';
-  sel.setAttribute('list', 'listeRappelEleves');
-  sel.autocomplete = 'off';
-  sel.placeholder = 'Tape les premières lettres, ou laisse vide';
-  zone.appendChild(sel);
-
-  const dl = document.createElement('datalist');
-  dl.id = 'listeRappelEleves';
-  const noms = (fichesEleves || []).map(f => f.eleve);
-  (elevesConnus || []).forEach(n => {
-    if(!noms.some(x => normaliserMot(x) === normaliserMot(n))) noms.push(n);
-  });
-  noms.sort((a, b) => a.localeCompare(b, 'fr')).forEach(n => {
-    const o = document.createElement('option');
-    const f = ficheDe(n);
-    o.value = n;
-    /* L'adresse, pas le numéro : c'est par mail que part le rappel,
-       et c'est donc elle qui manque quand il ne peut pas partir. */
-    o.textContent = (f && f.email) ? f.email : 'sans adresse mail';
-    dl.appendChild(o);
-  });
-  zone.appendChild(dl);
-
-  const etatEleve = document.createElement('div');
-  etatEleve.id = 'rappelEleveEtat';
-  etatEleve.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
-  zone.appendChild(etatEleve);
-
-  /* Un élève absent du répertoire, ou une adresse ponctuelle.
-     Laissées vides, ce sont celles de la fiche qui servent — et
-     c'est le cas courant : on ne saisit ici que l'exception. */
-  const lt = document.createElement('label');
-  lt.textContent = "Adresse de l'élève — laisse vide pour prendre celle de sa fiche";
-  zone.appendChild(lt);
-
-  const ml = document.createElement('input');
-  ml.type = 'email';
-  ml.id = 'rapMail';
-  ml.inputMode = 'email';
-  ml.autocomplete = 'off';
-  ml.placeholder = 'prenom.nom@exemple.fr';
-  ml.style.width = '100%';
-  zone.appendChild(ml);
-
-  const lp = document.createElement('label');
-  lp.textContent = 'Adresse du financeur — laisse vide pour prendre celle de sa fiche';
-  zone.appendChild(lp);
-
-  const mp = document.createElement('input');
-  mp.type = 'email';
-  mp.id = 'rapMailPresc';
-  mp.inputMode = 'email';
-  mp.autocomplete = 'off';
-  mp.placeholder = 'mission.locale@exemple.fr — facultatif';
-  mp.style.width = '100%';
-  zone.appendChild(mp);
-
-  /* Les réglages du message */
-  /* Sans modèle enregistré, l'outil ne peut rien composer */
+  /* Sans modèle enregistré, l'outil ne peut rien composer : on le
+     dit tout de suite, avant de dessiner quatre étapes inutiles. */
   if(!typesDisponibles().length){
     const v = document.createElement('div');
     v.className = 'empty';
@@ -1060,96 +994,85 @@ async function afficherRappelManuel(){
     return;
   }
 
-  const grille = document.createElement('div');
-  grille.className = 'duo';
-  grille.innerHTML =
-    '<div><label for="rapType">Type de séance</label><select id="rapType">' +
-      typesDisponibles().map(t => '<option value="' + t.cle + '">' +
-        String(t.titre).normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô'’-]/g, '') +
-        '</option>').join('') +
-    '</select></div>' +
+  /* ============================================================
+     ⚠️ v1125 — QUATRE ÉTAPES, DANS L'ORDRE D'UNE SÉRIE
+
+     Planche « Les rappels de cours », validée par David le
+     9 octobre. Le code savait depuis longtemps qu'on prépare une
+     SÉRIE — après chaque envoi il garde le moniteur, le jour et le
+     véhicule, et fait avancer l'heure — mais l'écran rangeait ses
+     champs comme pour un rappel unique : l'élève en premier, le
+     jour en cinquième, l'heure en neuvième.
+
+     Les mêmes champs, les mêmes identifiants, les mêmes écouteurs :
+     seul l'ordre change, et deux choses que l'écran savait sans
+     les montrer apparaissent — la journée du moniteur (étape 2) et
+     les deux mails tels qu'ils partiront (étape 4).
+
+     Aucun tiroir : les quatre étapes sont toujours dépliées.
+     ============================================================ */
+  const colonnes = document.createElement('div');
+  colonnes.className = 'rapColonnes';
+  const gauche = document.createElement('div');
+  gauche.className = 'rapGauche';
+  const droite = document.createElement('div');
+  droite.className = 'rapDroite';
+  colonnes.appendChild(gauche);
+  colonnes.appendChild(droite);
+  zone.appendChild(colonnes);
+
+  /* ── 1 · LA SÉRIE ──────────────────────────────────────────
+     Ce qui ne change pas d'un élève à l'autre. */
+  gauche.appendChild(titreEtapeRappel('1 · La série',
+    "posée une fois, elle reste d'un élève à l'autre"));
+
+  const serie = document.createElement('div');
+  serie.className = 'rapTrois';
+  serie.innerHTML =
     '<div><label for="rapJour">Quand</label><select id="rapJour">' +
       JOURS_RAPPEL.map(j => '<option value="' + j + '">' +
-        j.normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô']/g, '') + '</option>').join('') +
-    '</select></div>';
-  zone.appendChild(grille);
-
-  const grille2 = document.createElement('div');
-  grille2.className = 'duo';
-  grille2.innerHTML =
+        libelleJourRappel(j) + '</option>').join('') +
+    '</select></div>' +
+    '<div id="rapCaseMoniteur"><label for="rapMoniteur">👤 Moniteur</label>' +
+      '<select id="rapMoniteur"><option value="">— ne pas créer le cours —</option></select>' +
+    '</div>' +
     '<div><label for="rapVehicule">Véhicule</label>' +
       '<select id="rapVehicule"><option value="">— chargement —</option></select>' +
       '<input type="text" id="rapVehLibre" placeholder="Lequel ?" ' +
         'style="display:none;margin-top:6px;">' +
       '<input type="hidden" id="rapVoiture">' +
       '<input type="hidden" id="rapMod">' +
-    '</div>' +
-    '<div><label for="rapEmpl">Où est la voiture</label>' +
-      '<select id="rapEmpl"><option value="">Ne pas préciser</option></select></div>';
-  zone.appendChild(grille2);
+    '</div>';
+  gauche.appendChild(serie);
 
-  /* La liste des emplacements, la même que dans l'affichage */
-  const selEmpl = zone.querySelector('#rapEmpl');
-  remplirListeLieux(selEmpl, (choixRappel && choixRappel.emplacement) || '', true);
-  selEmpl.addEventListener('change', () => {
-    /* Un « change » ne part jamais d'une écriture par le code :
-       c'est donc bien le bureau qui vient de choisir. On cesse de
-       déduire jusqu'au prochain élève. */
-    lieuChoisiALaMain = true;
-    majMentionLieuAuto(false);
-    apercuRappel();
-  });
+  const selMon = serie.querySelector('#rapMoniteur');
 
-  const selVeh = zone.querySelector('#rapVehicule');
-  if(selVeh){
-    selVeh.addEventListener('change', () => {
-      if(selVeh.value === 'autre'){
-        setTimeout(() => { const l = $('rapVehLibre'); if(l) l.focus(); }, 60);
-      }
-      majChampsVehicule();
-      apercuRappel();
-    });
-    const libre = zone.querySelector('#rapVehLibre');
-    if(libre) libre.addEventListener('input', () => {
-      majChampsVehicule();
-      apercuRappel();
-    });
-    remplirChoixVehicule();
-  }
-
-  /* Le moniteur qui fera le cours : c'est le bureau qui envoie les
-     rappels, le cours doit donc arriver dans SES prochains cours,
-     pas dans ceux de la personne qui a appuyé sur le bouton. */
-  const lMon = document.createElement('label');
-  lMon.setAttribute('for', 'rapMoniteur');
-  lMon.textContent = '👤 Moniteur qui fera le cours';
-  zone.appendChild(lMon);
-
-  const selMon = document.createElement('select');
-  selMon.id = 'rapMoniteur';
-  selMon.innerHTML = '<option value="">— ne pas créer le cours —</option>';
-  zone.appendChild(selMon);
-
+  /* L'aide du moniteur sous la rangée, pas dans sa case : elle est
+     longue, et elle dit aussi pourquoi un rappel partirait sans
+     créer de cours — ce qui concerne toute la série. */
   const aideMon = document.createElement('div');
-  aideMon.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
+  aideMon.className = 'rapAide';
   aideMon.textContent = "Le cours apparaîtra dans « Mes prochains cours » du moniteur choisi. " +
     'Sans moniteur, le rappel part sans créer de cours.';
-  zone.appendChild(aideMon);
+  gauche.appendChild(aideMon);
 
-  /* L'heure seule : le véhicule et l'emplacement sont déjà saisis
-     plus haut, les redemander ici obligeait à taper deux fois. */
-  const lH = document.createElement('label');
-  lH.setAttribute('for', 'rapHeure');
-  lH.textContent = '🕐 Heure du cours';
-  zone.appendChild(lH);
+  /* ── 2 · LES CRÉNEAUX ──────────────────────────────────────
+     La journée du moniteur. L'écran la chargeait déjà pour deviner
+     où est la voiture (planningDuJourRappels) ; il la montre. */
+  gauche.appendChild(titreEtapeRappel('2 · Les créneaux', '', 'rapCreneauxTitre'));
 
-  /* Les créneaux courants dans une liste, plutôt qu'un champ à
-     remplir chiffre par chiffre sur un téléphone. Le dernier choix
-     ouvre la saisie libre pour les cas particuliers. */
+  const creneaux = document.createElement('div');
+  creneaux.id = 'rapCreneaux';
+  creneaux.className = 'rapCreneaux';
+  gauche.appendChild(creneaux);
+
+  /* ⚠️ LE MENU DES HEURES RESTE, CACHÉ. Tout le reste du module le
+     lit et l'écrit — la remise à zéro après un envoi, la mémoire
+     des réglages, la déduction du lieu. Les pastilles le pilotent
+     au lieu de le remplacer : une seule source pour l'heure. */
   const listeH = document.createElement('select');
   listeH.id = 'rapHeureChoix';
-  /* Les créneaux d'une journée type en tête, le reste en dessous :
-     ce sont ceux-là qu'on cherche neuf fois sur dix. */
+  listeH.style.display = 'none';
   listeH.innerHTML = '<option value="">— choisis l\'heure —</option>' +
     '<optgroup label="⭐ Journée type">' +
       HEURES_JOURNEE.map(h => '<option value="' + h + '">' +
@@ -1161,14 +1084,14 @@ async function afficherRappelManuel(){
                   h.replace(':', 'h') + '</option>').join('') +
     '</optgroup>' +
     '<option value="autre">⌨️ Autre heure…</option>';
-  zone.appendChild(listeH);
+  gauche.appendChild(listeH);
 
   const chH = document.createElement('input');
   chH.type = 'time';
   chH.id = 'rapHeure';
-  chH.style.cssText = 'display:none;margin-top:6px;';
-  chH.addEventListener('change', apercuRappel);
-  zone.appendChild(chH);
+  chH.style.cssText = 'display:none;margin-top:8px;max-width:180px;';
+  chH.addEventListener('change', () => { apercuRappel(); peindreCreneauxRappel(); });
+  gauche.appendChild(chH);
 
   /* Rien de choisi : on part sur le premier créneau du matin */
   if(!listeH.value && !chH.value){
@@ -1185,13 +1108,101 @@ async function afficherRappelManuel(){
       chH.value = listeH.value;
     }
     apercuRappel();
+    peindreCreneauxRappel();
   });
 
   const aideH = document.createElement('div');
-  aideH.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
-  aideH.innerHTML = "Reprise dans le SMS avec la variable <strong>{heure}</strong>, " +
-    "dans « Mes prochains cours » et sur l'écran de l'accueil.";
-  zone.appendChild(aideH);
+  aideH.className = 'rapAide';
+  aideH.textContent = '✓ = le cours existe déjà dans le planning de la journée. ' +
+    "Un appui choisit l'heure ; après un envoi, le créneau suivant s'allume tout seul.";
+  gauche.appendChild(aideH);
+
+  /* ── 3 · CE COURS ──────────────────────────────────────────
+     Ce qui change à chaque élève. */
+  gauche.appendChild(titreEtapeRappel('3 · Ce cours', '', 'rapCoursTitre'));
+
+  const lab = document.createElement('label');
+  lab.setAttribute('for', 'rappelEleve');
+  lab.textContent = 'Élève';
+  gauche.appendChild(lab);
+
+  /* Saisie libre avec suggestions : plus rapide que de dérouler
+     une liste de plusieurs centaines d'élèves. */
+  const sel = document.createElement('input');
+  sel.type = 'text';
+  sel.id = 'rappelEleve';
+  sel.setAttribute('list', 'listeRappelEleves');
+  sel.autocomplete = 'off';
+  sel.placeholder = 'Tape les premières lettres';
+  sel.style.marginBottom = '0';
+  gauche.appendChild(sel);
+
+  const dl = document.createElement('datalist');
+  dl.id = 'listeRappelEleves';
+  const noms = (fichesEleves || []).map(f => f.eleve);
+  (elevesConnus || []).forEach(n => {
+    if(!noms.some(x => normaliserMot(x) === normaliserMot(n))) noms.push(n);
+  });
+  noms.sort((a, b) => a.localeCompare(b, 'fr')).forEach(n => {
+    const o = document.createElement('option');
+    const f = ficheDe(n);
+    o.value = n;
+    /* L'adresse, pas le numéro : c'est par mail que part le rappel,
+       et c'est donc elle qui manque quand il ne peut pas partir. */
+    o.textContent = (f && f.email) ? f.email : 'sans adresse mail';
+    dl.appendChild(o);
+  });
+  gauche.appendChild(dl);
+
+  const etatEleve = document.createElement('div');
+  etatEleve.id = 'rappelEleveEtat';
+  etatEleve.style.cssText = 'font-size:12px;color:var(--muted);margin:6px 0 12px;line-height:1.4;';
+  gauche.appendChild(etatEleve);
+
+  /* Un nouvel élève apporte SES adresses. Voir remplirAdressesRappel. */
+  sel.addEventListener('input', remplirAdressesRappel);
+  sel.addEventListener('change', remplirAdressesRappel);
+
+  const grille = document.createElement('div');
+  grille.className = 'rapDeux';
+  grille.innerHTML =
+    '<div><label for="rapType">Type de séance</label><select id="rapType">' +
+      typesDisponibles().map(t => '<option value="' + t.cle + '">' +
+        String(t.titre).normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô'’-]/g, '') +
+        '</option>').join('') +
+    '</select></div>' +
+    '<div><label for="rapEmpl">Où est la voiture</label>' +
+      '<select id="rapEmpl"><option value="">Ne pas préciser</option></select></div>';
+  gauche.appendChild(grille);
+
+  /* La liste des emplacements, la même que dans l'affichage */
+  const selEmpl = grille.querySelector('#rapEmpl');
+  remplirListeLieux(selEmpl, (choixRappel && choixRappel.emplacement) || '', true);
+  selEmpl.addEventListener('change', () => {
+    /* Un « change » ne part jamais d'une écriture par le code :
+       c'est donc bien le bureau qui vient de choisir. On cesse de
+       déduire jusqu'au prochain élève. */
+    lieuChoisiALaMain = true;
+    majMentionLieuAuto(false);
+    apercuRappel();
+  });
+
+  const selVeh = serie.querySelector('#rapVehicule');
+  if(selVeh){
+    selVeh.addEventListener('change', () => {
+      if(selVeh.value === 'autre'){
+        setTimeout(() => { const l = $('rapVehLibre'); if(l) l.focus(); }, 60);
+      }
+      majChampsVehicule();
+      apercuRappel();
+    });
+    const libre = serie.querySelector('#rapVehLibre');
+    if(libre) libre.addEventListener('input', () => {
+      majChampsVehicule();
+      apercuRappel();
+    });
+    remplirChoixVehicule();
+  }
 
   /* La liste des moniteurs.
 
@@ -1221,6 +1232,7 @@ async function afficherRappelManuel(){
       aideMon.style.color = 'var(--muted)';
       aideMon.textContent = "Le cours apparaîtra dans « Mes prochains cours » du " +
         'moniteur choisi. Sans moniteur, le rappel part sans créer de cours.';
+      peindreCreneauxRappel();
     }catch(e){
       aideMon.style.color = 'var(--warn-text)';
       aideMon.innerHTML = '⚠️ La liste des moniteurs n\'a pas pu être lue. ' +
@@ -1236,15 +1248,21 @@ async function afficherRappelManuel(){
   };
   remplirMoniteurs();
 
-  /* Les mentions à ajouter */
+  /* Les mentions à ajouter.
+
+     ⚠️ v1125 — PLUS DE « +248 » À CÔTÉ. C'était le poids de la
+     mention en caractères, du temps où le rappel partait par SMS
+     et se payait au segment. Il part par mail : ce chiffre ne
+     décidait plus de rien. */
   const t = document.createElement('label');
   t.textContent = 'Mentions à ajouter';
-  zone.appendChild(t);
+  t.style.marginTop = '12px';
+  gauche.appendChild(t);
 
   OPTIONS_RAPPEL.forEach(o => {
     const l = document.createElement('label');
     l.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
-      'font-size:14px;color:var(--cream);margin:0 0 8px;font-weight:400;';
+      'font-size:14px;color:var(--cream);margin:0 0 8px;font-weight:400;letter-spacing:0;';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = o.cle;
@@ -1253,24 +1271,19 @@ async function afficherRappelManuel(){
     cb.addEventListener('change', apercuRappel);
     l.appendChild(cb);
 
-    const t = document.createElement('span');
-    t.style.cssText = 'flex:1;min-width:0;';
-    t.textContent = o.nom;
-    l.appendChild(t);
+    const tx = document.createElement('span');
+    tx.style.cssText = 'flex:1;min-width:0;';
+    tx.textContent = o.nom;
+    l.appendChild(tx);
 
-    /* Le coût en caractères, pour décider en connaissance de cause */
-    const poids = document.createElement('span');
-    poids.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-    poids.textContent = '+' + (o.texte.length + 2);
-    l.appendChild(poids);
-
-    zone.appendChild(l);
+    gauche.appendChild(l);
   });
 
   const lLibre = document.createElement('label');
+  lLibre.setAttribute('for', 'rapLibre');
   lLibre.textContent = 'À ajouter pour cet élève (facultatif)';
   lLibre.style.marginTop = '8px';
-  zone.appendChild(lLibre);
+  gauche.appendChild(lLibre);
   const libre = document.createElement('textarea');
   libre.id = 'rapLibre';
   libre.rows = 2;
@@ -1278,32 +1291,56 @@ async function afficherRappelManuel(){
   libre.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
     'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:15px;' +
     'line-height:1.5;font-family:inherit;resize:vertical;margin-bottom:12px;';
-  zone.appendChild(libre);
+  gauche.appendChild(libre);
 
-  /* Aperçu, toujours visible : on envoie ce qu'on a relu */
-  const compteur = document.createElement('div');
-  compteur.id = 'rappelCompteur';
-  compteur.style.cssText = 'font-size:12px;text-align:right;margin-bottom:4px;min-height:16px;';
-  zone.appendChild(compteur);
+  /* ── 4 · CE QUI PART ───────────────────────────────────────
+     Les deux mails tels qu'ils seront reçus. Voir majApercuMails. */
+  droite.appendChild(titreEtapeRappel('4 · Ce qui part',
+    'exactement ce que chacun recevra'));
 
+  /* Le mail de l'élève. L'adresse se change dans sa ligne « À »,
+     pour ce cours seulement : ce champ est l'ancien « Adresse de
+     l'élève — laisse vide pour prendre celle de sa fiche », même
+     identifiant, même règle dans destinatairesRappel. */
+  const mailEl = document.createElement('div');
+  mailEl.className = 'rapMail';
+  mailEl.innerHTML =
+    '<div class="tete">' +
+      '<div class="qui" id="rapQuiEleve">✉️ L\'élève reçoit</div>' +
+      '<div class="l"><span>À</span>' +
+        '<input type="email" id="rapMail" inputmode="email" autocomplete="off" ' +
+        'placeholder="adresse de l\'élève"></div>' +
+      '<div class="pourCeCours" id="rapMailNote" style="display:none;"></div>' +
+      '<div class="l"><span>Objet</span><span id="rapObjetEleve"></span></div>' +
+    '</div>';
   /* L'aperçu est modifiable : une précision de dernière minute ne
      doit pas obliger à passer par les modèles. */
   const ap = document.createElement('textarea');
   ap.id = 'rappelApercu';
-  ap.rows = 14;
-  ap.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-    'border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55;' +
-    'color:var(--cream);font-family:inherit;resize:vertical;margin-bottom:6px;';
-  zone.appendChild(ap);
+  ap.rows = 12;
+  mailEl.appendChild(ap);
+  const ajout = document.createElement('div');
+  ajout.className = 'ajoute';
+  ajout.id = 'rapAjoutEleve';
+  mailEl.appendChild(ajout);
+  /* Le bouton du mail, dessiné comme le dessine mailEnHtml : c'est
+     le même libellé, et c'est lui que l'élève touchera. */
+  const bm = document.createElement('div');
+  bm.className = 'boutonMail';
+  bm.textContent = '✋  Je serai présent';
+  mailEl.appendChild(bm);
+  const sb = document.createElement('div');
+  sb.className = 'sousBouton';
+  sb.textContent = 'Le bouton confirme sa présence. Il porte un lien créé au moment de l\'envoi.';
+  mailEl.appendChild(sb);
+  droite.appendChild(mailEl);
 
   const barreAp = document.createElement('div');
-  barreAp.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:12px;';
-
+  barreAp.style.cssText = 'display:flex;gap:8px;align-items:center;margin:-4px 0 12px;';
   const etatAp = document.createElement('span');
   etatAp.id = 'rappelEtatApercu';
   etatAp.style.cssText = 'flex:1;min-width:0;font-size:11px;color:var(--muted);';
   barreAp.appendChild(etatAp);
-
   const bRaz = document.createElement('button');
   bRaz.id = 'rappelRaz';
   bRaz.className = 'btn btn-secondary';
@@ -1314,7 +1351,7 @@ async function afficherRappelManuel(){
     apercuRappel();
   });
   barreAp.appendChild(bRaz);
-  zone.appendChild(barreAp);
+  droite.appendChild(barreAp);
 
   /* Dès qu'on écrit dedans, le texte cesse d'être recalculé */
   ap.addEventListener('input', () => {
@@ -1322,13 +1359,44 @@ async function afficherRappelManuel(){
     majCompteurRappel(ap.value);
     majEtatApercu();
     majBoutonEnvoi();
+    majApercuMails();
   });
+
+  /* Le mail du financeur : jamais montré jusqu'ici, alors que c'est
+     lui qui sert de justificatif. Il se lit, il ne s'écrit pas — il
+     vient de son propre modèle. Son « À » est l'ancien champ
+     « Adresse du financeur », même identifiant. */
+  const mailFin = document.createElement('div');
+  mailFin.className = 'rapMail';
+  mailFin.innerHTML =
+    '<div class="tete">' +
+      '<div class="qui">💶 Son financeur reçoit</div>' +
+      '<div class="l"><span>À</span>' +
+        '<input type="email" id="rapMailPresc" inputmode="email" autocomplete="off" ' +
+        'placeholder="pas de financeur sur sa fiche"></div>' +
+      '<div class="pourCeCours" id="rapMailPrescNote" style="display:none;"></div>' +
+      '<div class="l"><span>Objet</span><span id="rapObjetFin"></span></div>' +
+    '</div>' +
+    '<div class="corps" id="rapCorpsFin"></div>';
+  droite.appendChild(mailFin);
+
+  ['rapMail', 'rapMailPresc'].forEach(id => {
+    const e = $(id);
+    if(e) e.addEventListener('input', majApercuMails);
+  });
+
+  /* Ce qui empêche de partir — et seulement ça. Le compte de
+     caractères n'avait de sens que pour un SMS. */
+  const compteur = document.createElement('div');
+  compteur.id = 'rappelCompteur';
+  compteur.style.cssText = 'font-size:12px;margin-bottom:6px;min-height:0;';
+  droite.appendChild(compteur);
 
   const etatEnvoi = document.createElement('div');
   etatEnvoi.id = 'rappelEtatEnvoi';
   etatEnvoi.style.cssText = 'font-size:13px;line-height:1.5;margin-bottom:10px;' +
     'min-height:18px;';
-  zone.appendChild(etatEnvoi);
+  droite.appendChild(etatEnvoi);
 
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:8px;';
@@ -1337,7 +1405,7 @@ async function afficherRappelManuel(){
   bEnv.id = 'rappelEnvoi';
   bEnv.className = 'btn btn-primary';
   bEnv.style.cssText = 'flex:1;padding:13px;font-size:14px;margin:0;';
-  bEnv.textContent = '💬 Envoyer par SMS';
+  bEnv.textContent = '✉️ Choisis un élève';
   bEnv.addEventListener('click', envoyerRappelManuel);
   r.appendChild(bEnv);
 
@@ -1352,7 +1420,13 @@ async function afficherRappelManuel(){
       () => showToast('Copie impossible'));
   });
   r.appendChild(bCop);
-  zone.appendChild(r);
+  droite.appendChild(r);
+
+  /* La journée du moniteur suit le jour et le moniteur choisis. */
+  ['rapJour', 'rapMoniteur'].forEach(id => {
+    const e = $(id);
+    if(e) e.addEventListener('change', () => peindreCreneauxRappel());
+  });
 
   ['rapType', 'rapJour', 'rapVoiture', 'rapEmpl', 'rapLibre', 'rappelEleve',
    'rapMail', 'rapMailPresc']
@@ -1390,6 +1464,295 @@ async function afficherRappelManuel(){
 
   apercuRappel();
   majLieuAuto();
+  peindreCreneauxRappel();
+}
+
+
+/* ============================================================
+   LES PIÈCES DE L'ÉCRAN EN QUATRE ÉTAPES — v1125
+   ============================================================ */
+
+/* Le titre d'une étape : son numéro et son nom à gauche, ce qu'elle
+   dit déjà à droite. Toujours déplié — ce n'est pas un tiroir. */
+function titreEtapeRappel(texte, aDroite, id){
+  const d = document.createElement('div');
+  d.className = 'rapEtape';
+  if(id) d.id = id;
+  const b = document.createElement('b');
+  b.textContent = texte;
+  const em = document.createElement('em');
+  em.textContent = aDroite || '';
+  d.appendChild(b);
+  d.appendChild(em);
+  return d;
+}
+
+/* « DEMAIN · sam. 10 oct. » : le mot du menu, et le jour qu'il
+   désigne. On choisissait « LUNDI » sans voir de quel lundi il
+   s'agissait. La date est calculée par dateDuChoix, la même que
+   celle que le mail écrira. */
+function libelleJourRappel(j){
+  const mot = String(j).normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô']/g, '');
+  const d = dateDuChoix(j);
+  if(!d) return mot;
+  /* Sans le jour de la semaine : « LUNDI · lun. 12 oct. » le dirait
+     deux fois, et la case est étroite à trois par ligne. */
+  return mot + ' · ' + d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+}
+
+/* ------------------------------------------------------------
+   UN NOUVEL ÉLÈVE APPORTE SES ADRESSES
+
+   Les deux lignes « À » sont les anciens champs « laisse vide pour
+   prendre celle de sa fiche » — mêmes identifiants, même règle dans
+   destinatairesRappel. Ils montrent maintenant l'adresse de la
+   fiche au lieu d'un blanc qui la cachait.
+
+   ⚠️ ELLES SE RECHARGENT À CHAQUE CHANGEMENT D'ÉLÈVE, SANS
+   EXCEPTION. Une adresse tapée pour Léa ne doit jamais survivre au
+   passage à Tom : ce serait le mail de Tom envoyé chez Léa. Le nom
+   retenu évite seulement de les réécrire quand l'élève n'a pas
+   changé — le « change » d'un champ part aussi à la sortie.
+   ------------------------------------------------------------ */
+let adressesPourEleve = null;
+
+function remplirAdressesRappel(){
+  const nom = ($('rappelEleve') ? $('rappelEleve').value : '').trim();
+  if(nom === adressesPourEleve) return;
+  adressesPourEleve = nom;
+  const f = (nom && typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  if($('rapMail')) $('rapMail').value = (f && f.email) ? String(f.email).trim() : '';
+  if($('rapMailPresc')) $('rapMailPresc').value =
+    (f && f.mailPrescripteur) ? String(f.mailPrescripteur).trim() : '';
+  apercuRappel();
+}
+
+/* « Pour ce cours seulement » sous une adresse qui n'est pas celle
+   de la fiche : la fiche ne change pas, et on doit le savoir. */
+function noterAdresseDuCours(idChamp, idNote, deLaFiche){
+  const c = $(idChamp), n = $(idNote);
+  if(!c || !n) return;
+  const tape = String(c.value || '').trim();
+  const fiche = String(deLaFiche || '').trim();
+  let dit = '';
+  if(tape && fiche && tape.toLowerCase() !== fiche.toLowerCase()){
+    dit = 'Pour ce cours seulement — sa fiche garde ' + fiche + '.';
+  }else if(tape && !fiche){
+    dit = "Pour ce cours seulement — sa fiche n'a pas d'adresse.";
+  }
+  n.textContent = dit;
+  n.style.display = dit ? 'block' : 'none';
+}
+
+/* ------------------------------------------------------------
+   LES OBJETS DES DEUX MAILS — UNE SEULE ÉCRITURE
+
+   Ils étaient composés à l'envoi, dans envoyerRappelEtSuivre, et
+   nulle part ailleurs : personne ne les voyait. L'aperçu et l'envoi
+   les demandent maintenant ici, pour qu'ils ne puissent pas dire
+   deux choses différentes.
+   ------------------------------------------------------------ */
+function sujetsDuRappel(nom, r){
+  const quand = dateEnLettres(dateDuChoix(r && r.jour));
+  const heure = String((r && r.heure) || '').replace(':', 'h');
+  return {
+    eleve: 'Ton cours de conduite ' + (quand ? 'du ' + quand : '') +
+           (heure ? ' à ' + heure : ''),
+    financeur: 'Séance de conduite — ' + (nom || '') +
+               (quand ? ' — ' + quand : '') + (heure ? ' à ' + heure : '')
+  };
+}
+
+/* ------------------------------------------------------------
+   CE QUI PART — LES DEUX MAILS, TELS QU'ILS SERONT REÇUS
+
+   Constats n° 5 et 6 de la planche du 9 octobre : l'aperçu ne
+   montrait ni la règle des 48 heures, ni le bouton, ni l'objet,
+   que l'envoi ajoute ; et le mail du financeur n'était jamais
+   montré du tout.
+
+   ⚠️ RIEN N'EST RECOMPOSÉ ICI. Le texte de l'élève est celui de la
+   zone, la règle des 48 heures sort d'avecMention48h, l'objet de
+   sujetsDuRappel, le mail du financeur de composerRappelFinanceur
+   et d'avecLien — exactement les appels que fait l'envoi. Une
+   seconde composition « pour l'aperçu » serait le jour où les deux
+   divergent sans que personne le voie.
+   ------------------------------------------------------------ */
+function majApercuMails(){
+  const ap = $('rappelApercu');
+  if(!ap) return;
+
+  const nom = ($('rappelEleve') ? $('rappelEleve').value : '').trim();
+  const r = lireChoixRappel();
+  const moniteur = $('rapMoniteur') ? $('rapMoniteur').value : '';
+  const dest = destinatairesRappel(nom);
+  const sujets = sujetsDuRappel(nom, r);
+  const prenom = nom.split(' ')[0];
+
+  const qui = $('rapQuiEleve');
+  if(qui) qui.textContent = '✉️ ' + (prenom ? prenom + ' reçoit' : "L'élève reçoit");
+
+  /* La zone prend la hauteur de son texte : un mail coupé par sa
+     propre barre de défilement, c'est un mail qu'on ne relit pas en
+     entier — et c'est pour le relire qu'il est là. */
+  ap.rows = Math.max(8, String(ap.value || '').split('\n').length + 1);
+  const obj = $('rapObjetEleve');
+  if(obj) obj.textContent = sujets.eleve;
+
+  /* Ce que l'envoi ajoute au texte de la zone, et seulement ça :
+     la différence entre le texte et ce qu'avecMention48h en fait. */
+  const ajout = $('rapAjoutEleve');
+  if(ajout){
+    const base = String(ap.value || '').replace(/\s*$/, '');
+    const complet = avecMention48h(ap.value);
+    const ajoute = complet.length > base.length
+      ? complet.slice(base.length).trim() : '';
+    ajout.innerHTML = '';
+    if(ajoute){
+      const i = document.createElement('i');
+      i.textContent = "ajouté à l'envoi, toujours";
+      ajout.appendChild(i);
+      ajout.appendChild(document.createTextNode(ajoute));
+    }
+    ajout.style.display = ajoute ? 'block' : 'none';
+  }
+
+  const f = (nom && typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  noterAdresseDuCours('rapMail', 'rapMailNote', f && f.email);
+  noterAdresseDuCours('rapMailPresc', 'rapMailPrescNote', f && f.mailPrescripteur);
+
+  const corps = $('rapCorpsFin');
+  const objFin = $('rapObjetFin');
+  if(corps){
+    if(dest.financeur){
+      corps.classList.remove('vide');
+      corps.textContent = avecLien(composerRappelFinanceur(
+        Object.assign({}, r, { eleve: nom }), moniteur), '');
+      if(objFin) objFin.textContent = sujets.financeur;
+    }else{
+      corps.classList.add('vide');
+      corps.textContent = nom
+        ? "Pas de financeur sur sa fiche : rien ne part de ce côté. " +
+          'Tape une adresse dans « À » pour lui envoyer ce cours.'
+        : 'Choisis un élève.';
+      if(objFin) objFin.textContent = '';
+    }
+  }
+}
+
+/* ------------------------------------------------------------
+   LES CRÉNEAUX DU MONITEUR
+
+   Constat n° 1 : l'écran chargeait déjà la journée du moniteur
+   (planningDuJourRappels) pour deviner où serait la voiture, et ne
+   la montrait pas. On la montre : les heures de la journée type,
+   plus celles où il a déjà un cours, plus celle choisie.
+
+   ⚠️ LES PASTILLES PILOTENT LE MENU CACHÉ, ELLES NE LE REMPLACENT
+   PAS. Un appui pose la valeur dans « rapHeureChoix » et y lance un
+   « change » : c'est ce même écouteur qui écrit l'heure, relance
+   l'aperçu et la déduction du lieu. Une seule source pour l'heure.
+   ------------------------------------------------------------ */
+let peintureCreneaux = 0;
+
+function heureEnHHMM(h){
+  const m = minutesDeHeureRappel(h);
+  if(m === null) return '';
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' +
+         String(m % 60).padStart(2, '0');
+}
+
+async function peindreCreneauxRappel(){
+  const zone = $('rapCreneaux');
+  if(!zone) return;
+
+  const jour = $('rapJour') ? $('rapJour').value : '';
+  const moniteur = $('rapMoniteur') ? $('rapMoniteur').value : '';
+  const quand = dateEnLettres(dateDuChoix(jour));
+
+  const titre = $('rapCreneauxTitre');
+  if(titre){
+    const elide = /^[aeiouyhéèêàâîïôû]/i.test(moniteur) ? "d'" : 'de ';
+    titre.querySelector('b').textContent = moniteur
+      ? '2 · Les créneaux ' + elide + moniteur : '2 · Les créneaux';
+    titre.querySelector('em').textContent = moniteur
+      ? quand : 'choisis le moniteur pour voir sa journée';
+  }
+
+  const ticket = ++peintureCreneaux;
+  dessinerCreneauxRappel(zone, []);
+  if(!moniteur) return;
+
+  const lignes = await planningDuJourRappels(dateDuRappel(jour));
+  /* Un autre jour ou un autre moniteur a pu être choisi pendant la
+     lecture : on ne peint pas une journée qui n'est plus la bonne. */
+  if(ticket !== peintureCreneaux) return;
+  dessinerCreneauxRappel(zone, lignes || []);
+}
+
+function dessinerCreneauxRappel(zone, lignes){
+  const moniteur = normaliserMot($('rapMoniteur') ? $('rapMoniteur').value : '');
+  const choisie = heureEnHHMM($('rapHeure') ? $('rapHeure').value : '');
+
+  /* Qui a déjà cours, et à quelle heure, chez CE moniteur */
+  const occupe = {};
+  (lignes || []).forEach(l => {
+    if(moniteur && normaliserMot(l.moniteur || '') !== moniteur) return;
+    const h = heureEnHHMM(l.heure);
+    if(!h) return;
+    const qui = String(l.eleveComplet || l.eleve || '').trim();
+    occupe[h] = occupe[h] ? occupe[h] + ', ' + qui : (qui || 'cours prévu');
+  });
+
+  const heures = HEURES_JOURNEE.slice();
+  Object.keys(occupe).concat(choisie ? [choisie] : []).forEach(h => {
+    if(h && heures.indexOf(h) === -1) heures.push(h);
+  });
+  heures.sort();
+
+  zone.innerHTML = '';
+  heures.forEach(h => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rapCr' + (h === choisie ? ' actif' : '') +
+                  (occupe[h] ? ' fait' : '');
+    b.textContent = h.replace(':', 'h');
+    const sm = document.createElement('small');
+    sm.textContent = occupe[h] ? '✓ ' + occupe[h]
+                   : (h === choisie ? 'ce cours' : 'libre');
+    b.appendChild(sm);
+    b.addEventListener('click', () => choisirCreneauRappel(h));
+    zone.appendChild(b);
+  });
+
+  const autre = document.createElement('button');
+  autre.type = 'button';
+  autre.className = 'rapCr';
+  autre.textContent = '⌨️ Autre';
+  const sm = document.createElement('small');
+  sm.textContent = 'heure';
+  autre.appendChild(sm);
+  autre.addEventListener('click', () => choisirCreneauRappel('autre'));
+  zone.appendChild(autre);
+
+  const t = $('rapCoursTitre');
+  if(t) t.querySelector('em').textContent = choisie ? choisie.replace(':', 'h') : '';
+}
+
+function choisirCreneauRappel(h){
+  const lh = $('rapHeureChoix');
+  if(!lh) return;
+  if(h === 'autre'){
+    lh.value = 'autre';
+  }else{
+    const existe = Array.prototype.some.call(lh.options, o => o.value === h);
+    /* Une heure hors des créneaux du menu (un cours à 14h15 dans le
+       planning) passe par « Autre » : le menu ne peut pas afficher
+       une valeur qu'il ne contient pas. */
+    lh.value = existe ? h : 'autre';
+    if(!existe && $('rapHeure')) $('rapHeure').value = h;
+  }
+  lh.dispatchEvent(new Event('change'));
 }
 
 /* LE TYPE DE SÉANCE, DEMANDÉ À L'ÉCRAN.
@@ -1537,15 +1900,16 @@ function majCompteurRappel(texte){
   const d = (typeof destinatairesRappel === 'function')
               ? destinatairesRappel(nom) : { eleve:'', financeur:'' };
 
-  const qui = [];
-  if(d.eleve)     qui.push('✅ ' + d.eleve);
-  if(d.financeur) qui.push('💶 ' + d.financeur);
-
-  cp.style.color = qui.length ? 'var(--muted)' : 'var(--warn-text)';
-  cp.textContent = String(texte || '').length + ' caractères — ' +
-    (qui.length ? 'part à ' + qui.join('  ·  ')
-                : (nom ? "aucune adresse mail sur la fiche de " + nom
-                       : 'choisis un élève'));
+  /* ⚠️ v1125 — PLUS DE « 389 CARACTÈRES ». Le compte servait au
+     SMS, payé au segment ; le rappel part par mail. Et les
+     destinataires se lisent maintenant dans les lignes « À » des
+     deux mails : les redire ici, c'était les écrire deux fois. Il
+     ne reste que ce qui EMPÊCHE de partir. */
+  cp.style.color = 'var(--warn-text)';
+  cp.textContent = (nom && !d.eleve)
+    ? "⚠️ Aucune adresse mail pour " + nom +
+      " — tape-la dans « À », ou ajoute-la dans sa fiche."
+    : '';
 }
 
 function majEtatApercu(){
@@ -1591,8 +1955,9 @@ function majBoutonEnvoi(){
 
   if(d.eleve){
     bEnv.disabled = false;
-    bEnv.textContent = '✉️ Envoyer le rappel' +
-      (d.financeur ? ' (élève + financeur)' : ' à ' + (nom || d.eleve));
+    /* Il dit à QUI, avec les mots de l'étape 4 juste au-dessus. */
+    bEnv.textContent = '✉️ Envoyer à ' + (nom.split(' ')[0] || d.eleve) +
+      (d.financeur ? ' et à son financeur' : '');
   }else{
     bEnv.disabled = true;
     bEnv.textContent = nom
@@ -1611,6 +1976,7 @@ function apercuRappel(){
   majCompteurRappel(ap.value);
   majEtatApercu();
   majBoutonEnvoi();
+  majApercuMails();
 }
 
 /* ============================================================
@@ -1652,12 +2018,29 @@ const MODELE_FINANCEUR_DEFAUT =
 /* Le texte destiné au financeur. Il reprend les mêmes réglages que
    celui de l'élève — même date, même lieu — mais sur le ton d'un
    courrier, et avec le nom complet plutôt que le prénom. */
+function typeDeSeancePourCourrier(titre){
+  let t = String(titre || '');
+  if(typeof lettresSimples === 'function') t = lettresSimples(t);
+  t = t.normalize('NFC').replace(/\s+/g, ' ').trim();
+  /* « COURS DE CONDUITE » s'écrit « Cours de conduite » dans une
+     lettre ; un titre déjà en casse normale n'est pas touché. */
+  if(t && t === t.toUpperCase() && /[A-Z]/.test(t)){
+    t = t.charAt(0) + t.slice(1).toLowerCase();
+  }
+  return t;
+}
+
 function composerRappelFinanceur(r, moniteur){
   const modeles = (typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [];
   const m = modeles.find(x => x.usage === 'rappel_financeur');
 
   const quand = dateDuChoix(r.jour);
-  const empl = { texte: texteDuLieu(r.emplacement) };
+  /* ⚠️ v1125 — LE LIEU POUR LE FINANCEUR, PAS CELUI DE L'ÉLÈVE.
+     texteDuLieu rendait « 𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿… ! » :
+     la phrase tutoyée en gras, dans un courrier qui sert de
+     justificatif. Voir texteDuLieuFinanceur (ec-etat.js). */
+  const empl = { texte: (typeof texteDuLieuFinanceur === 'function')
+                          ? texteDuLieuFinanceur(r.emplacement) : '' };
 
   return appliquerModele((m && m.contenu) || MODELE_FINANCEUR_DEFAUT, {
     eleve: r.eleve || '',
@@ -1668,7 +2051,10 @@ function composerRappelFinanceur(r, moniteur){
     heure: (r.heure || '').replace(':', 'h'),
     voiture: r.voiture || '',
     emplacement: (empl && empl.texte) || '',
-    typeseance: titreDuType(r.type) || 'Leçon de conduite',
+    /* Le titre du modèle est souvent en gras Unicode et en
+       capitales : le menu le ramène déjà en lettres simples pour
+       l'afficher, le courrier le fait aussi. */
+    typeseance: typeDeSeancePourCourrier(titreDuType(r.type)) || 'Leçon de conduite',
     moniteur: moniteur || '',
     moniteurligne: moniteur ? 'Enseignant : ' + moniteur + '\n' : '',
     note: (r.libre || '').trim(),
@@ -1903,8 +2289,6 @@ async function envoyerRappelParMail(nom, r, moniteur){
 
 async function envoyerRappelEtSuivre(nom, r, moniteur){
   const dest = destinatairesRappel(nom);
-  const quand = dateEnLettres(dateDuChoix(r.jour));
-  const heure = (r.heure || '').replace(':', 'h');
   const resultats = [];
 
   /* Ce que l'élève doit apporter, repris tel quel sur la page */
@@ -1922,8 +2306,7 @@ async function envoyerRappelEtSuivre(nom, r, moniteur){
     const texte = avecLien(avecMention48h(texteRappel()), lien);
     try{
       await appelPrep({ action: 'mailBilan', to: [dest.eleve],
-        sujet: 'Ton cours de conduite ' + (quand ? 'du ' + quand : '') +
-               (heure ? ' à ' + heure : ''),
+        sujet: sujetsDuRappel(nom, r).eleve,
         texte: texte, html: mailEnHtml(texte, lien) });
       resultats.push({ qui: 'élève', adresse: dest.eleve, ok: true });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.eleve,
@@ -1942,8 +2325,7 @@ async function envoyerRappelEtSuivre(nom, r, moniteur){
       /* Le financeur n'a pas à confirmer la présence à la place de
          l'élève : il reçoit le même message, sans le bouton. */
       await appelPrep({ action: 'mailBilan', to: [dest.financeur],
-        sujet: 'Séance de conduite — ' + nom +
-               (quand ? ' — ' + quand : '') + (heure ? ' à ' + heure : ''),
+        sujet: sujetsDuRappel(nom, r).financeur,
         texte: texte, html: mailEnHtml(texte, '') });
       resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: true });
       /* Pas de jeton sur cette ligne : le mail du financeur ne porte
@@ -2259,7 +2641,8 @@ async function envoyerRappelManuel(){
       noterCoursDuJour(dateDuRappel($('rapJour') ? $('rapJour').value : ''),
                        $('rapMoniteur') ? $('rapMoniteur').value : '',
                        hEnvoyee,
-                       $('rapVoiture') ? $('rapVoiture').value : '');
+                       $('rapVoiture') ? $('rapVoiture').value : '',
+                       nom);
 
       /* L'élève suivant repart d'une déduction neuve : le lieu
          choisi à la main valait pour celui qu'on vient d'envoyer. */
@@ -2267,8 +2650,15 @@ async function envoyerRappelManuel(){
       majMentionLieuAuto(false);
       majLieuAuto();
 
+      /* Ses adresses partent avec lui : le prochain nom recharge
+         les siennes, même s'il s'écrit pareil. */
+      adressesPourEleve = null;
+
       texteModifie = false;
       apercuRappel();
+      /* La pastille qu'on vient de prévenir passe au ✓, et la
+         suivante s'allume : c'est là qu'on voit où on en est. */
+      peindreCreneauxRappel();
     }, 900);
   }catch(e){
     /* Un toast disparaît en deux secondes : l'erreur doit rester
@@ -2834,10 +3224,13 @@ async function planningDuJourRappels(jourIso){
 }
 
 /* Le rappel qu'on vient d'envoyer compte pour le suivant */
-function noterCoursDuJour(jourIso, moniteur, heure, vehicule){
+function noterCoursDuJour(jourIso, moniteur, heure, vehicule, eleve){
   if(!jourIso || planningRappels.jour !== jourIso || !planningRappels.lignes) return;
+  /* L'élève aussi depuis la v1125 : c'est son nom que porte la
+     pastille du créneau qu'on vient de prévenir. */
   planningRappels.lignes.push({
-    moniteur: moniteur || '', heure: heure || '', vehicule: vehicule || ''
+    moniteur: moniteur || '', heure: heure || '', vehicule: vehicule || '',
+    eleve: eleve || ''
   });
 }
 
