@@ -51,6 +51,28 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1120,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Le numéro de version ne peut plus mentir, et le coin révisions a son adresse',
+    quoi: [
+      { emoji: '🔢',
+        titre: 'Le badge de version dit la vérité',
+        texte: 'Le numéro à côté du titre lisait un morceau de la page ' +
+               'd\u2019accueil. Mettre la page en ligne sans le dossier des ' +
+               'modules affichait donc la version neuve au-dessus de ' +
+               'l\u2019ancienne application, sans un mot — on croyait être à ' +
+               'jour et on ne l\u2019était pas. Les modules portent maintenant ' +
+               'leur propre numéro : s\u2019ils ne concordent pas, le badge ' +
+               'passe en rouge et dit lequel est en retard.' },
+      { emoji: '🔑',
+        titre: 'Le coin révisions sur sa propre adresse',
+        texte: 'eleve.evolutionconduites.fr. L\u2019ancienne adresse continue ' +
+               'de fonctionner aussi longtemps qu\u2019on veut : un élève qui a ' +
+               'déjà l\u2019icône sur son écran d\u2019accueil n\u2019a rien à faire. ' +
+               'Ceux qui passent à la nouvelle se reconnectent une fois.' }
+    ]
+  },
+  {
     version: 1119,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Le dossier élève se lit en français, et les onglets ne défilent plus',
