@@ -5271,6 +5271,28 @@
      rien. */
   function swPretEl(){
     return navigator.serviceWorker.register('sw.js')
+      .then(function(reg){
+        /* ⚠️ ON LUI DIT OÙ ON VIT — v1122.
+
+           Le coin révisions a deux adresses : « eleve.html » à côté
+           de l'application, et la racine de son propre domaine. La
+           notification porte un seul nom de page pour les deux, et
+           le service worker le résout par rapport à sa portée : sur
+           le nouveau domaine, ça désignait un fichier qui n'existe
+           pas, et un clic ouvrait une 404.
+
+           Le service worker ne peut pas le deviner et on ne veut
+           pas y écrire un nom de domaine — un service worker
+           installé est ce qu'il y a de plus difficile à mettre à
+           jour. La page, elle, sait toujours où elle est. Elle le
+           dit à chaque démarrage : si le rangement a échoué une
+           fois, la prochaine ouverture répare. */
+        try{
+          var a = reg && (reg.active || navigator.serviceWorker.controller);
+          if(a) a.postMessage({ quoi:'maPage', url: location.href });
+        }catch(e){}
+        return reg;
+      })
       .catch(function(){ return null; });
   }
 
