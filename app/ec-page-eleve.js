@@ -782,6 +782,195 @@ function desaccordsSuivi(s, etat, ebDateSure){
    serait rouvrir le défaut qu'on vient de fermer. Elle montre
    alors son prochain cours — l'autre chose qu'on cherche des yeux.
    ============================================================ */
+/* ============================================================
+   OÙ IL EN EST : CE QU'IL A FAIT, ET CE QUI VIENT — v1128
+
+   David, le 9 octobre, sur Martin Le Gall : « dans la tuile où il
+   en est, on parle de ce qu'il a fait ou de ce que sera sa
+   prochaine leçon ? J'aimerais que ce soit ce qu'il a fait […]
+   comme les deux cases dans mes prochains cours ». Puis : « on peut
+   rajouter une petite ligne en dessous : sa prochaine sera la 17ème
+   et sa 2ème après l'examen blanc ».
+
+   Ses deux arbitrages, mot pour mot :
+     · avec un cours préparé, « les cases de la carte moins une » —
+       ce qu'il a fait est ce que la carte annonce, moins ce cours ;
+     · sans cours préparé, son dernier bilan dit ce qu'il a fait.
+
+   ⚠️ LE COURS PRÉPARÉ, C'EST LE PROCHAIN — pas le plus récent.
+   preparationDe rend le plus récent, ce qui est juste pour dire
+   « son cours préparé » mais faux ici : avec deux cours préparés
+   (Mackenzie, 13h puis 17h), « ce qu'il a fait » est le premier
+   moins un, pas le second.
+
+   ⚠️ ET UN COURS PASSÉ SANS BILAN EST UN COURS FAIT. Une
+   préparation disparaît quand son bilan est écrit : celle d'hier
+   encore dans la liste est une leçon faite dont le bilan attend.
+   Elle passe devant le dernier bilan, qui est plus ancien qu'elle.
+   ============================================================ */
+function rangCourt(n){
+  const v = parseInt(n, 10);
+  return (v === 1) ? '1ʳᵉ' : v + 'ᵉ';
+}
+
+function coursPreparesDeLEleve(nom){
+  const liste = (typeof prepares !== 'undefined' && Array.isArray(prepares)) ? prepares : [];
+  const qui = normaliserMot(nom);
+  return liste.filter(x => normaliserMot(x.eleve || '') === qui &&
+                           String(x.note || '').trim() && x.date);
+}
+
+function positionDeLEleve(nom, e){
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+  const siens = coursPreparesDeLEleve(nom).slice()
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) ||
+                    String(a.heure || '').localeCompare(String(b.heure || '')));
+  const prochain = siens.find(x => String(x.date) >= auj) || null;
+  const passes = siens.filter(x => String(x.date) < auj);
+  const dernierPasse = passes.length ? passes[passes.length - 1] : null;
+
+  const rangs = c => (typeof rangsDuCoursPrepare === 'function')
+    ? rangsDuCoursPrepare(c) : { total: null, apres: null, charn: null };
+  const moinsUn = r => ({
+    total: r.total ? r.total - 1 : null,
+    apres: (r.apres !== null && r.apres !== undefined) ? r.apres - 1 : null
+  });
+  const plusUn = r => ({
+    total: r.total ? r.total + 1 : null,
+    apres: (r.apres !== null && r.apres !== undefined) ? r.apres + 1 : null
+  });
+
+  /* 1. Un cours préparé à venir : ses deux cases, moins une. */
+  if(prochain){
+    const r = rangs(prochain);
+    if(r.total){
+      return { prep: prochain, charn: r.charn,
+               fait: moinsUn(r), prochaine: { total: r.total, apres: r.apres },
+               source: 'prep' };
+    }
+  }
+
+  /* 2. Un cours passé dont le bilan attend : c'est la dernière leçon
+     faite, plus récente que le dernier bilan. */
+  if(dernierPasse){
+    const r = rangs(dernierPasse);
+    if(r.total){
+      const fait = { total: r.total, apres: r.apres };
+      return { prep: null, charn: r.charn, fait: fait, prochaine: plusUn(fait),
+               source: 'passe' };
+    }
+  }
+
+  /* 3. Son dernier bilan : le rang qu'il ÉCRIT, celui du cours qu'il
+     raconte. Pas numeroLeconDuCours, qui sait aussi DÉDUIRE le rang
+     du cours suivant — ce serait relire « demain » sous « fait ». */
+  if(e && e.note){
+    const total = (typeof rangDansLaNote === 'function') ? rangDansLaNote(e.note) : null;
+    if(total){
+      const etat = Object.assign({}, e.etat || {},
+        (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(nom) : {});
+      const charn = (typeof charniereDuCours === 'function')
+        ? charniereDuCours(etat, e.note) : null;
+      const apres = (charn && typeof rangApresDansLaNote === 'function')
+        ? rangApresDansLaNote(e.note) : null;
+      const fait = { total: total, apres: apres };
+      return { prep: null, charn: charn, fait: fait, prochaine: plusUn(fait),
+               source: 'bilan' };
+    }
+  }
+
+  /* 4. Le compte des bilans : il se trompe pour les élèves venus de
+     l'ancien fonctionnement, alors on le dit. */
+  const combien = Number(e && e.lecons) || 0;
+  if(combien){
+    return { prep: null, charn: null,
+             fait: { total: combien, apres: null, approx: true },
+             prochaine: null, source: 'compte' };
+  }
+  return { prep: null, charn: null, fait: null, prochaine: null, source: '' };
+}
+
+/* ------------------------------------------------------------
+   CORRIGER OÙ IL EN EST, DEPUIS LA TUILE — v1128
+
+   On demande ce qu'il a FAIT — c'est ce que la tuile affiche — et
+   on écrit, sur son prochain cours préparé, ce que la carte de Mes
+   prochains cours y écrirait : ses deux cases, plus une. Mêmes
+   portes (ecrireRangDuCours, ecrireAvantCharniere), donc le même
+   calage de l'élève, et le cours d'après suit tout seul.
+
+   ⚠️ SANS COURS PRÉPARÉ, LA TUILE NE SE TOUCHE PAS ENCORE. David a
+   accepté qu'une correction du bureau l'emporte alors sur le
+   dernier bilan. Mais ce compte-là est calculé à trois endroits —
+   le dossier complet, le résumé du bureau, et le classeur lui-même
+   (« ecartRang ») — et aujourd'hui c'est le plus grand rang écrit
+   dans un bilan qui fait loi partout. Une correction qui ne
+   changerait que la tuile serait un chiffre de plus, pas une
+   correction. C'est l'étape suivante, à part.
+   ------------------------------------------------------------ */
+async function corrigerPositionDepuisLaTuile(nom, p){
+  if(!p || !p.prep || !p.prochaine || !p.prochaine.total) return;
+  if(typeof ecrireRangDuCours !== 'function'){
+    showToast("Impossible de corriger depuis cet écran.");
+    return;
+  }
+
+  const champs = [{ cle:'total', nom:'Leçons faites', type:'text', exemple:'16',
+                    valeur: String(p.fait.total) }];
+  if(p.charn){
+    champs.push({ cle:'apres', nom:'Dont après ' + p.charn.nom, type:'text', exemple:'1',
+                  valeur: (p.fait.apres !== null && p.fait.apres !== undefined)
+                    ? String(p.fait.apres) : '' });
+  }
+
+  const r = await formulaireRoute('🔢 Où en est ' + nom,
+    'Ce qu’il a fait jusqu’ici. Son cours du ' +
+    jourBref(p.prep.date, true) + ' prendra le rang suivant, comme si tu ' +
+    'corrigeais ses deux cases dans Mes prochains cours.', champs);
+  if(!r) return;
+
+  const total = parseInt(String(r.total || '').replace(/\D/g, ''), 10);
+  const apres = (r.apres === undefined) ? null
+              : parseInt(String(r.apres || '').replace(/\D/g, ''), 10);
+  if(isNaN(total) || total < 0){
+    showToast('Le nombre de leçons faites doit être un nombre.');
+    return;
+  }
+  if(apres !== null && (isNaN(apres) || apres < 0 || apres > total)){
+    showToast('Impossible : ' + r.apres + ' après ' + p.charn.nom + ', pour ' +
+              total + ' leçons en tout.');
+    return;
+  }
+
+  try{
+    const prochainTotal = total + 1;
+    if(prochainTotal !== p.prochaine.total){
+      await ecrireRangDuCours(p.prep, prochainTotal);
+    }
+    /* ⚠️ LE NOMBRE AVANT LA CHARNIÈRE SE RECALCULE DÈS QUE L'UN DES
+       DEUX CHANGE. C'est lui qu'on enregistre — total moins rang
+       depuis la charnière. Ne l'écrire que lorsque la seconde case
+       change, c'était laisser « 15 avant l'examen blanc » sous un
+       total passé de 17 à 16 : le rang depuis l'examen blanc
+       glissait d'un cran sans que personne l'ait demandé. Le banc
+       l'a vu. */
+    if(p.charn && apres !== null &&
+       typeof avantLaCharniere === 'function' &&
+       typeof ecrireAvantCharniere === 'function'){
+      const avant = avantLaCharniere(prochainTotal, apres + 1);
+      const ecrit = String((contexteEnObjet(p.prep.contexte) || {})[p.charn.cle] || '');
+      if(avant !== '' && avant !== ecrit){
+        await ecrireAvantCharniere(p.prep, p.charn.cle, avant);
+      }
+    }
+    showToast('Enregistré ✅');
+    rafraichirPageEleve();
+    if(typeof redessinerBureau === 'function') redessinerBureau();
+  }catch(e){
+    showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
+  }
+}
+
 function tuilesDuDossier(nom){
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
   const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
@@ -792,18 +981,51 @@ function tuilesDuDossier(nom){
   grille.style.cssText = 'display:grid;gap:9px;margin-bottom:12px;' +
     'grid-template-columns:repeat(auto-fit,minmax(188px,1fr));';
 
-  /* ── 1 · OÙ IL EN EST ────────────────────────────────────── */
+  /* ── 1 · OÙ IL EN EST : CE QU'IL A FAIT ──────────────────
+
+     ⚠️ v1128. David, le 9 octobre, sur Martin Le Gall : la tuile
+     disait « 17ᵉ » — le rang du cours préparé pour le lendemain —
+     pendant que la tuile 3 parlait de ce qu'il restait AVANT ce
+     cours. « Ici j'aimerais que ce soit ce qu'il a fait. »
+
+     Elle dit donc ce qu'il a fait, et en dessous ce qui vient :
+     « Prochaine : sam. 10 oct. — sa 17ᵉ, 2ᵉ après l'examen blanc ».
+     Voir positionDeLEleve pour d'où viennent les deux. */
   {
-    const n = (typeof numeroLeconEleve === 'function')
-      ? (numeroLeconEleve(nom, e) || {}) : {};
+    const p = positionDeLEleve(nom, e);
     const frise = (typeof friseUtilisable === 'function')
       ? friseUtilisable(f.frise) : (f.frise || '');
+    const lignes = [];
+    if(p.fait && p.fait.total){
+      lignes.push({ txt: 'leçon' + (p.charn && p.fait.apres !== null
+        ? ' · ' + (p.fait.apres > 0
+            ? rangCourt(p.fait.apres) + ' après ' + p.charn.nom
+            : 'aucune depuis ' + p.charn.nom)
+        : '') + (p.fait.approx ? ' (compte des bilans)' : '') });
+    }
+    if(p.prochaine && p.prochaine.total){
+      lignes.push({ ton:'fort', txt: 'Prochaine : ' +
+        (p.prep ? jourBref(p.prep.date, true) + ' — ' : '') +
+        'sa ' + rangCourt(p.prochaine.total) +
+        (p.charn && p.prochaine.apres
+          ? ', ' + rangCourt(p.prochaine.apres) + ' après ' + p.charn.nom : '') +
+        (p.prep ? '' : ' — pas encore préparée') });
+    }
+    lignes.push({ txt: frise || (p.fait && p.fait.total ? '' : 'ni leçon ni frise connues') });
+
+    /* Corriger d'ici — v1128, accepté par David : « oui ça me va ».
+       Avec un cours préparé, on écrit ses deux cases, exactement
+       comme la carte de Mes prochains cours. Sans cours préparé, la
+       tuile ne se touche pas encore : voir le ⚠️ de
+       corrigerPositionDepuisLaTuile. */
+    const corrigeable = !!(p.prep && p.prochaine && p.prochaine.total);
     grille.appendChild(tuileDossier({
       lab:'Où il en est',
-      gros: n.valeur ? (n.valeur + (n.valeur === 1 ? 'ʳᵉ' : 'ᵉ')) : '—',
-      petit: !n.valeur,
-      lignes: [ n.valeur ? { txt:'leçon' + (frise ? ' · ' + frise : '') }
-                         : { txt: frise || 'ni leçon ni frise connues' } ]
+      gros: (p.fait && p.fait.total) ? rangCourt(p.fait.total) : '—',
+      petit: !(p.fait && p.fait.total),
+      lignes: lignes,
+      action: corrigeable ? () => corrigerPositionDepuisLaTuile(nom, p) : null,
+      titre: corrigeable ? 'Corriger où il en est' : ''
     }));
   }
 
@@ -814,27 +1036,47 @@ function tuilesDuDossier(nom){
     grille.appendChild(dessinerTuilePermis(nom, () => dessinerPageEleve()));
   }
 
-  /* ── 3 · AVANT L'EXAMEN, OU SON PROCHAIN COURS ───────────── */
-  {
-    /* Les états de la tuile du permis qui PARLENT DÉJÀ des heures.
-       La liste est écrite, pas devinée : elle vient des clés de
-       etatDuPermis, et un banc la tient d'accord avec elles. */
-    const dejaDit = ['post3h', 'solde', 'reserve'];
-    const h = String(s.heuresRestantes || '').trim();
+  /* ── 3 · AVANT L'EXAMEN : CE QUI RESTE ─────────────────────
 
-    if(h !== '' && (!permis || dejaDit.indexOf(permis.cle) === -1)){
-      const qui = [s.heuresPar, jourBref(s.heuresLe, false)]
-        .filter(Boolean).join(' le ');
+     ⚠️ v1128. Elle affichait le nombre TEL QU'IL AVAIT ÉTÉ DIT —
+     « 4 h, dit par David le 9 oct. » — jamais décompté, à côté d'une
+     tuile 2 qui, elle, décomptait jusqu'après le cours préparé. Deux
+     chiffres pour une question. Elle dit maintenant ce qui reste,
+     par la même porte que les listes du bureau (heuresQuiComptent) ;
+     la décision, elle, est passée dans la tuile 2.
+
+     Et quand le décompte compte déjà le cours préparé, elle le dit :
+     sans ça, elle ne collerait pas avec la tuile 1, qui dit ce qu'il
+     a FAIT. */
+  {
+    const r = (typeof heuresQuiComptent === 'function') ? (heuresQuiComptent(nom) || {}) : {};
+    const v = String(r.valeur === undefined || r.valeur === null ? '' : r.valeur).trim();
+    const pasLeNiveau = (typeof estPasLeNiveau === 'function') && estPasLeNiveau(v);
+
+    if(v !== '' && !pasLeNiveau){
+      const p = positionDeLEleve(nom, e);
+      const c = (typeof charniereDeLEleve === 'function') ? charniereDeLEleve(nom) : null;
+      /* Le décompte compte le cours préparé quand le rang qu'il lit
+         est celui de ce cours-là, pas celui de la dernière leçon. */
+      const compteLePrepare = !!(p.prep && p.prochaine && p.prochaine.apres &&
+                                 c && c.rang === p.prochaine.apres);
+      const quand = jourBref(s.heuresLe, false);
+      const dit = s.heuresPar
+        ? 'sur ce que ' + s.heuresPar + ' a dit' + (quand ? ' le ' + quand : '')
+        : (quand ? 'sur ce qui a été dit le ' + quand : '');
       grille.appendChild(tuileDossier({
         lab:"Avant l'examen",
-        gros: (h === '0')
+        gros: (v === '0')
           ? ((typeof motDuZeroEnTete === 'function') ? motDuZeroEnTete()
                                                      : 'Plus que les 3h')
-          : (h + ' h'),
-        petit: (h === '0'),
-        lignes: [ h === '0' ? { txt:'il est prêt', ton:'fort' }
-                            : { txt:'+ la leçon de veille', ton:'fort' },
-                  qui ? { txt:'dit par ' + qui } : null ]
+          : (v + ' h'),
+        petit: (v === '0'),
+        lignes: [ v === '0' ? null : { txt:'+ la leçon de veille', ton:'fort' },
+                  compteLePrepare
+                    ? { txt:'en comptant son cours du ' + jourBref(p.prep.date, true) }
+                    : null,
+                  r.depasse ? { txt:'réserve dépassée', ton:'fort' } : null,
+                  dit ? { txt: dit } : null ]
       }));
     }else{
       const prep = (typeof preparationDe === 'function')
@@ -861,11 +1103,18 @@ function tuileDossier(t){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
     'padding:11px 13px;min-width:0;';
+  /* v1128 — une tuile peut se toucher : « Où il en est » se corrige
+     d'ici. Le crayon dit qu'elle se touche ; sans action, rien. */
+  if(typeof t.action === 'function'){
+    d.style.cursor = 'pointer';
+    d.title = t.titre || '';
+    d.addEventListener('click', t.action);
+  }
 
   const lab = document.createElement('div');
   lab.style.cssText = 'font-size:10.5px;letter-spacing:.08em;' +
     'text-transform:uppercase;color:var(--muted);margin-bottom:4px;';
-  lab.textContent = t.lab;
+  lab.textContent = t.lab + (typeof t.action === 'function' ? '  ✏️' : '');
   d.appendChild(lab);
 
   const gros = document.createElement('div');
@@ -3436,6 +3685,46 @@ function lignesCsDossier(nom){
      la date, en rouge, tant que la conclusion n'a pas changé.
    ③ Un AAC n'a pas d'examen blanc prévu : ce sont ses rendez-vous
      qu'on montre, jusqu'à ce qu'il en ait passé un. */
+/* ============================================================
+   CE QUI A ÉTÉ DÉCIDÉ, PAS CE QUI RESTE — v1128
+
+   David, le 9 octobre, sur Martin Le Gall : sous sa date d'examen,
+   la tuile disait « ✅ plus que les 3h avant examen ». C'était le
+   DÉCOMPTE — 4h décidées, moins ses leçons, cours préparé compris.
+   « C'est trompeur : je le comprends comme si on avait dit qu'il ne
+   fallait que 3h avant examen. »
+
+   La tuile du permis dit donc la DÉCISION — « ✅ A le niveau — 4h +
+   la leçon de veille » — et la tuile « Avant l'examen » dit ce qui
+   reste. Une tuile, un moment.
+
+   ⚠️ LA DÉCISION EST CELLE QUE LE DÉCOMPTE UTILISE. On demande à
+   heuresQuiComptent de quelle source il part (le post-permis, le
+   moniteur après lui, l'examen blanc) et on lit le nombre DE CETTE
+   SOURCE, tel qu'il a été dit. Choisir la décision ailleurs, ce
+   serait afficher une décision et décompter une autre.
+   ============================================================ */
+function decisionDeLaReserve(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const r = (typeof heuresQuiComptent === 'function') ? (heuresQuiComptent(nom) || {}) : {};
+  const dites = h => (String(h) === '0')
+    ? ((typeof motDuZeroEnTete === 'function') ? motDuZeroEnTete() : 'Plus que les 3h')
+    : h + 'h + la leçon de veille';
+
+  if(r.source === 'post-permis'){
+    const h = String(s.heuresRepassage || '').trim();
+    return h ? { h: h, txt: '🤝 Post-permis : ' + dites(h) } : null;
+  }
+  if(r.source === 'examen blanc' || r.source === 'moniteur'){
+    const h = String(s.heuresRestantes || '').trim();
+    if(!h) return null;
+    const niveau = (r.source === 'examen blanc' && typeof libelleNiveauRoute === 'function')
+      ? libelleNiveauRoute(s.ebNiveau) : '';
+    return { h: h, txt: (niveau ? niveau + ' — ' : '⏱️ ') + dites(h) };
+  }
+  return null;
+}
+
 function etatDuPermis(nom){
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
   const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
@@ -3509,11 +3798,16 @@ function etatDuPermis(nom){
 
     /* 02 — la date, et la suite prévue EN DESSOUS (arbitrage ①),
        puis l'avertissement du niveau s'il y en a un (arbitrage ②). */
+    /* v1128 — sous la date, la DÉCISION. Le décompte est dans la
+       tuile « Avant l'examen ». Sans décision connue, on garde la
+       phrase d'avant. */
+    const decision = decisionDeLaReserve(nom);
     return { cle:'date', ton:'vedette', titre:'Où en est son permis',
       gros:tete, petit:false,
       lignes: lignes(ou ? { txt: ou, ton:'fort' } : null,
                      (eb && eb.cle !== 'pasleniveau' && eb.cle !== 'peut')
-                       ? { txt: eb.emoji + ' ' + eb.texte } : null,
+                       ? { txt: decision ? decision.txt : eb.emoji + ' ' + eb.texte }
+                       : null,
                      avertissementDuNiveau()) };
   }
 
@@ -3593,9 +3887,12 @@ function etatDuPermis(nom){
        resultatExamenBlanc, qui sait déjà que le post-permis passe
        devant l'examen blanc et décompte depuis lui. */
     if(eb){
+      /* v1128 — la décision du post-permis, pas son décompte. */
+      const decision = decisionDeLaReserve(nom);
       return { cle:'post3h', ton: eb.cle === '3h' ? 'ok' : '',
         titre:'Où en est son permis',
-        gros: eb.cle === '3h' ? '✅ Plus que les 3h' : eb.texte,
+        gros: decision ? decision.txt
+                       : (eb.cle === '3h' ? '✅ Plus que les 3h' : eb.texte),
         petit: true,
         lignes: lignes({ txt:'après le post-permis', ton:'fort' },
                        { txt:'date à reprendre' }) };
@@ -3630,7 +3927,21 @@ function etatDuPermis(nom){
   }
 
   if(eb && eb.cle === '3h'){
-    /* 12 — celui qui appelle une date tout de suite. */
+    /* 12 — celui qui appelle une date tout de suite.
+
+       ⚠️ v1128 — quand l'examen blanc avait décidé des heures et que
+       ses leçons les ont épuisées, « Plus que les 3h » en titre se
+       lisait comme la décision. Le titre dit alors ce qu'il faut
+       faire — prendre une date — et la décision se lit dessous. Si
+       la décision était déjà « plus que les 3h », rien ne change. */
+    const decision = decisionDeLaReserve(nom);
+    if(decision && decision.h !== '0'){
+      return { cle:'solde', ton:'ok', titre:'Où en est son permis',
+        gros:'✅ Date à prendre', petit:true,
+        lignes: lignes({ txt:'il est prêt', ton:'fort' },
+                       { txt: decision.txt },
+                       quandEb ? { txt:'examen blanc réussi le ' + quandEb } : null) };
+    }
     return { cle:'solde', ton:'ok', titre:'Où en est son permis',
       gros:'✅ ' + ((typeof motDuZeroEnTete === 'function')
                      ? motDuZeroEnTete() : 'Plus que les 3h'), petit:true,
@@ -3646,8 +3957,11 @@ function etatDuPermis(nom){
         « dit par X le Y » avec ces deux-là. */
     const dit = [s.heuresPar, court(s.heuresLe)]
       .filter(Boolean).join(' le ');
+    /* v1128 — la décision en titre ; ce qui reste est dans la tuile
+       « Avant l'examen ». */
+    const decision = decisionDeLaReserve(nom);
     return { cle:'reserve', ton:'', titre:'Où en est son permis',
-      gros: eb.texte, petit:true,
+      gros: decision ? decision.txt : eb.texte, petit:true,
       lignes: lignes({ txt:"depuis l'examen blanc", ton:'fort' },
                      dit ? { txt:'dit par ' + dit } : null) };
   }
