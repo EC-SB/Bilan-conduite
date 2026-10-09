@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 16:35 — v1111 -->
+<!-- Déployé le 08/10/2026 à 20:48 — v1113 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -74,7 +74,16 @@
     color: var(--cream);
     font-size:15px; line-height:1.5;
     min-height:100vh;
+    /* ⚠️ LA PLACE DE LA BARRE DU BAS EST RÉSERVÉE ICI — v1113.
+       Elle est en position:fixed : sans cette réserve, le dernier
+       bouton de chaque écran passe dessous et devient inatteignable
+       sur un iPhone, ce qui ne se voit jamais en largeur d'écran de
+       bureau. La barre ne pèse que quand elle existe : la classe
+       « avecbarre » est posée sur <body> par la page. */
     padding-bottom:calc(28px + env(safe-area-inset-bottom));
+  }
+  body.avecbarre{
+    padding-bottom:calc(86px + env(safe-area-inset-bottom));
   }
   .boite{ max-width:600px; margin:0 auto; }
 
@@ -416,28 +425,89 @@
      les uns sous les autres au besoin. Un élève sur un vieux
      téléphone ne doit pas avoir à faire glisser une barre pour
      trouver « Réviser ». */
-  .onglets{
-    display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;
+  /* ============================================================
+     LA BARRE DES ONGLETS, EN BAS ET FIXE — v1113
+
+     David, le 8 octobre, capture à l'appui : le quatrième onglet
+     retombait à la ligne et s'étirait sur toute la largeur, au
+     point de ressembler à un gros bouton d'action vert. Ce n'était
+     pas un défaut mais le résultat exact de « flex-wrap » avec
+     « min-width:104px » : trois onglets tiennent sur 390 px, le
+     quatrième passe dessous et « flex:1 1 auto » le fait occuper
+     toute la ligne.
+
+     ⚠️ ON NE CORRIGE PAS LA LARGEUR, ON CHANGE DE PLACE. Réduire
+     min-width aurait tenu jusqu'au cinquième onglet, puis serré
+     les mots jusqu'à les couper. En bas, le nombre de places est
+     FIXE : chacune prend 1/n de l'écran, le retour à la ligne
+     n'existe plus, et le pouce y arrive sans traverser l'écran.
+     C'est aussi là que l'application de l'équipe met la sienne.
+     ============================================================ */
+  .barbas{
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    /* Centrée comme le reste de la page sur un écran large, pleine
+       largeur sur un téléphone — c'est la même règle que .boite. */
+    max-width:600px; margin:0 auto;
+    display:flex; background:var(--navy-deep);
+    border-top:1px solid var(--line);
+    padding:6px 4px calc(9px + env(safe-area-inset-bottom));
   }
-  .onglets button{
-    flex:1 1 auto; min-width:104px; margin:0;
-    padding:11px 12px; border-radius:11px;
-    border:1px solid var(--line); background:transparent;
-    color:var(--muted); font-family:inherit; font-size:13.5px;
-    font-weight:700; cursor:pointer;
+  .barbas button{
+    flex:1 1 0; min-width:0; margin:0; border:0; background:transparent;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:5px 2px 3px; font-family:inherit; color:var(--muted);
+    font-size:10.5px; font-weight:700; cursor:pointer; position:relative;
   }
-  .onglets button.ici{
-    background:var(--orange); color:var(--on-accent);
-    border-color:var(--orange);
+  .barbas .ic{ font-size:21px; line-height:1; }
+  .barbas button.ici{ color:var(--accent-text); }
+  .barbas button.ici .ic{
+    background:var(--orange-soft); border-radius:999px; padding:4px 13px;
   }
   /* La pastille de ce qui attend : elle ne dit pas « regarde-moi »,
      elle dit COMBIEN. */
-  .onglets .pastille{
-    display:inline-block; min-width:18px; padding:0 5px; margin-left:6px;
-    border-radius:9px; background:var(--red); color:#fff;
-    font-size:11px; line-height:18px; text-align:center;
+  .barbas .pastille{
+    position:absolute; top:1px; right:50%; margin-right:-23px;
+    min-width:17px; height:17px; padding:0 4px; border-radius:9px;
+    background:var(--red); color:#fff; font-size:10px; line-height:17px;
+    text-align:center; font-weight:700;
   }
-  .onglets button.ici .pastille{ background:var(--on-accent); color:var(--orange); }
+
+  /* 🔆 ⏻ — les deux ronds de l'en-tête */
+  .boutentete{ margin-left:auto; display:flex; gap:7px; flex-shrink:0; }
+  .rondentete{
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    border:1px solid var(--line); background:transparent;
+    font-size:16px; cursor:pointer; padding:0; color:inherit;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ⚠️ « SE SOUVENIR DE MOI », DIT À VOIX HAUTE — v1113.
+     Le code était déjà gardé sur l'appareil depuis toujours, mais
+     rien ne le disait et rien ne permettait de s'y opposer. Sur un
+     téléphone prêté, une mémoire qu'on ne voit pas est une mémoire
+     qu'on ne peut pas refuser. */
+  .bascule{
+    display:flex; align-items:center; gap:11px; padding:11px 12px;
+    border:1px solid var(--line); border-radius:11px; margin:0 0 14px;
+    background:var(--navy); cursor:pointer; user-select:none;
+  }
+  .bascule .txt{ flex:1; min-width:0; }
+  .bascule .txt b{ display:block; font-size:13.5px; font-weight:700; }
+  .bascule .txt span{
+    display:block; font-size:11px; color:var(--muted); margin-top:2px;
+    line-height:1.45; text-transform:none; letter-spacing:0;
+  }
+  .inter{
+    flex-shrink:0; width:44px; height:26px; border-radius:999px;
+    background:var(--orange); position:relative; transition:background .15s;
+  }
+  .inter::after{
+    content:''; position:absolute; top:3px; left:21px; width:20px; height:20px;
+    border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25);
+    transition:left .15s;
+  }
+  .inter.off{ background:var(--line); }
+  .inter.off::after{ left:3px; }
 
   /* Les sous-onglets des groupes — v1039. Mêmes règles que la barre
      du haut : ils se plient, ils ne défilent pas. */
@@ -482,9 +552,16 @@
      variables qui existent déjà — une messagerie n'a pas besoin
      d'une palette à elle.
      ===================================================== */
-  .motifs{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:4px; }
+  /* ⚠️ UN MOTIF PAR LIGNE — v1113. Ils étaient à deux par rangée
+     (« flex:1 1 calc(50% - 4px) ») : sur un iPhone, « Je serai en
+     retard » tenait sur trois lignes et sa phrase d'explication sur
+     quatre. Ce sont les trois boutons qu'on cherche en étant pressé,
+     au bord d'une route — ils doivent se lire d'un coup d'œil, pas
+     se déchiffrer. La pleine largeur donne aussi une cible qu'on ne
+     rate pas. */
+  .motifs{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
   .motifs button{
-    flex:1 1 calc(50% - 4px); min-width:150px; margin:0;
+    width:100%; margin:0;
     display:flex; flex-direction:column; align-items:flex-start; gap:2px;
     padding:13px 14px; border-radius:12px;
     border:1px solid var(--line); background:transparent; color:var(--cream);
@@ -801,9 +878,79 @@
   }
   .emoOutil.on{ background:var(--orange-soft); border-color:var(--orange); }
 
-  .zoneEcrire{ display:flex; gap:8px; align-items:flex-end; }
-  .zoneEcrire textarea{ margin:0; }
-  .zoneEcrire button{ width:auto; flex:0 0 auto; margin:0; padding:12px 15px; }
+  /* ============================================================
+     LA BARRE D'ÉCRITURE, EN DEUX LIGNES — v1113
+
+     David, le 8 octobre : « côté élève on ne peut pas écrire ». Sa
+     capture montre le champ réduit à une quarantaine de pixels,
+     avec le mot « Écrire » imprimé à la verticale, une lettre par
+     ligne.
+
+     ⚠️ CE N'ÉTAIT PAS UN BOGUE, C'ÉTAIT UNE ADDITION. Six éléments
+     sur une ligne : 🎤 🎥 📷 🙂 à 42 px chacun, les écarts, et le
+     bouton d'envoi. Sur les 390 px d'un iPhone il restait moins de
+     80 px au texte, et le navigateur a fait ce qu'on lui
+     demandait. Chaque fonction ajoutée depuis la v1088 a pris
+     quelques pixels au champ sans que personne ne l'ait décidé.
+
+     ⚠️ ET C'EST POURQUOI LE CHAMP PASSE AU-DESSUS, SEUL. Tant que
+     les outils partagent sa ligne, le prochain outil ajouté le
+     rétrécira encore. Là, on peut en mettre six : c'est la rangée
+     du dessous qui se serre, et elle a de la place.
+     ============================================================ */
+  .zoneEcrire{
+    border:1px solid var(--line); border-radius:15px; padding:9px;
+    background:var(--navy);
+  }
+  .zoneEcrire textarea{
+    margin:0 0 8px; border:0; background:transparent; padding:3px 4px;
+    min-height:44px; resize:none;
+  }
+  .zoneEcrire textarea:focus{ outline:none; }
+  .zoneOutils{ display:flex; gap:7px; align-items:center; }
+  .zoneEcrire .emoOutil{ width:38px; height:38px; font-size:17px; }
+  .zoneEcrire button.btn{
+    margin-left:auto; width:auto; flex:0 0 auto; margin-bottom:0;
+    padding:0 18px; height:38px; border-radius:999px; font-size:15px;
+  }
+
+  /* 🧤 L'ENCART DES OBJETS OUBLIÉS — v1113.
+     Un objet a un ÉTAT qui vit des semaines ; un message s'écrit
+     une fois. C'est toute la raison de l'encart : savoir si son
+     écharpe est au bureau sans ouvrir une conversation. */
+  .objligne{
+    display:flex; gap:11px; align-items:center; padding:10px 11px;
+    border:1px solid var(--line); border-radius:12px; margin-bottom:8px;
+  }
+  .objligne:last-child{ margin-bottom:0; }
+  .objligne .em{ font-size:21px; flex-shrink:0; }
+  .objligne .mi{ flex:1; min-width:0; }
+  .objligne .mi b{ display:block; font-size:13.5px; }
+  .objligne .mi span{
+    display:block; font-size:11.5px; color:var(--muted); margin-top:1px;
+  }
+  .objetat{
+    flex-shrink:0; font-size:11px; font-weight:700; padding:3px 9px;
+    border-radius:999px; white-space:nowrap;
+  }
+  .objetat.attente{ background:var(--warn-bg); color:var(--warn-text); }
+  .objetat.bonne{ background:var(--orange-soft); color:var(--accent-text); }
+  .objetat.finie{ background:var(--line); color:var(--muted); }
+
+  /* La question posée dans la page, jamais par confirm() */
+  .overlayEl{
+    position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.55);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .boiteEl{
+    background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:16px; padding:20px; max-width:340px; width:100%;
+  }
+  .titreEl{ font-size:16px; font-weight:800; margin-bottom:7px; }
+  .texteEl{ font-size:13.5px; color:var(--muted); line-height:1.55;
+            margin-bottom:16px; }
+  .boutsEl{ display:flex; gap:9px; }
+  .boutsEl .btn{ flex:1 1 0; margin:0; padding:12px 10px; font-size:14px; }
 
   /* Une conversation dans la liste */
   .convo{
@@ -849,19 +996,52 @@
         <h1>Mon coin révisions</h1>
         <div class="sous">Évolution Conduites</div>
       </div>
-      <button class="theme" id="btTheme1" title="Changer de thème">🌙</button>
+      <div class="boutentete">
+        <button class="rondentete" id="btTheme1" title="Changer de thème">🌙</button>
+      </div>
     </div>
 
     <div class="card">
-      <label for="chNom">Ton prénom et ton nom</label>
-      <input type="text" id="chNom" autocomplete="name">
+      <!-- ============================================================
+           ⚠️ UN VRAI <form>, ET C'EST TOUT LE SUJET — v1113
 
-      <label for="chCode">Ton code</label>
-      <input type="password" id="chCode" inputmode="numeric" maxlength="6"
-             autocomplete="off"
-             style="text-align:center;letter-spacing:.4em;font-size:22px;">
+           David, le 8 octobre : « il faut aussi que l'élève puisse
+           sauvegarder son identifiant et son mot de passe ».
 
-      <button class="btn btn-primary" id="btConnexion">Entrer</button>
+           Le code était DÉJÀ gardé sur l'appareil, et la page se
+           reconnectait seule. Ce qui manquait n'était donc pas la
+           mémoire : c'était que le TROUSSEAU du téléphone ne
+           proposait jamais d'enregistrer. Safari et Chrome
+           n'offrent « Enregistrer le mot de passe ? » que devant un
+           formulaire qui se soumet, avec un champ marqué
+           « username » et un champ « current-password ». Trois
+           attributs manquaient, et chaque élève retapait son code.
+
+           ⚠️ « autocomplete=off » SUR LE CODE ÉTAIT L'ERREUR
+           EXACTE : il disait au navigateur de ne rien retenir.
+           ============================================================ -->
+      <form id="formConnexion" autocomplete="on">
+        <label for="chNom">Ton prénom et ton nom</label>
+        <input type="text" id="chNom" name="username" autocomplete="username"
+               autocapitalize="words" enterkeyhint="next">
+
+        <label for="chCode">Ton code</label>
+        <input type="password" id="chCode" name="password" inputmode="numeric"
+               maxlength="6" autocomplete="current-password" enterkeyhint="go"
+               style="text-align:center;letter-spacing:.4em;font-size:22px;">
+
+        <div class="bascule" id="btSouvenir" role="switch" aria-checked="true"
+             tabindex="0">
+          <div class="txt">
+            <b>Se souvenir de moi</b>
+            <span>Sur cet appareil seulement. À décocher sur un téléphone
+                  prêté.</span>
+          </div>
+          <div class="inter" id="interSouvenir"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btConnexion">Entrer</button>
+      </form>
       <div id="msgConnexion"></div>
       <div style="font-size:12px;color:var(--muted);line-height:1.5;">
         Ton code t'est donné par le bureau. Écris ton nom comme il figure
@@ -876,12 +1056,18 @@
       <div class="logo">EC</div>
       <div>
         <h1 id="bonjour">Bonjour</h1>
-        <div class="sous">Choisis une procédure, puis récite-la ou écris-la.</div>
+        <div class="sous" id="sousTitreEl">Choisis une procédure, puis récite-la ou écris-la.</div>
       </div>
-      <button class="theme" id="btTheme2" title="Changer de thème">🌙</button>
+      <!-- ⏻ PARTOUT, ET AVEC UNE CONFIRMATION — David, le 8 octobre.
+           Partout, parce qu'un élève ne doit pas avoir à retrouver
+           l'accueil pour sortir ; avec une confirmation, parce que
+           c'est un rond de 38 px à côté du pouce et qu'un appui par
+           erreur lui ferait retaper son code. -->
+      <div class="boutentete">
+        <button class="rondentete" id="btTheme2" title="Changer de thème">🌙</button>
+        <button class="rondentete" id="btSortir" title="Se déconnecter">⏻</button>
+      </div>
     </div>
-
-    <div class="onglets" id="lesOnglets"></div>
 
     <div id="ongletAccueil">
     <!-- 📣 Les annonces — v1038, étape 6. En TÊTE de l'accueil :
@@ -1011,6 +1197,18 @@
           </div>
         </div>
 
+        <!-- 🧤 SES OBJETS OUBLIÉS, AVEC LEUR ÉTAT — v1113.
+             David : « il garde un encart avec son état ». Il est
+             AU-DESSUS des conversations parce qu'il répond sans
+             qu'on ouvre quoi que ce soit : « est-ce qu'on a
+             retrouvé mon écharpe » est exactement la question pour
+             laquelle on rouvre l'application. La carte disparaît
+             entièrement quand il n'a rien oublié. -->
+        <div class="card" id="carteObjetsEl" style="display:none;">
+          <div class="section-title">🧤 Ce que j'ai oublié</div>
+          <div id="mesObjetsEl"></div>
+        </div>
+
         <div class="card">
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
             <strong style="flex:1;min-width:0;font-size:15px;">💬 Mes conversations</strong>
@@ -1050,8 +1248,17 @@
       <div id="zoneMonBilan"></div>
     </div><!-- /ongletBilan -->
 
-    <button class="btn btn-secondary" id="btSortir">Se déconnecter</button>
+    <!-- ⚠️ LE « SE DÉCONNECTER » DU BAS A DISPARU — v1113. Il se
+         répétait sous CHAQUE onglet, donc sous un fil de
+         conversation, sous le questionnaire, sous la liste des
+         leçons : six occurrences d'un bouton qu'on utilise une fois
+         par mois, et toujours à l'endroit où le pouce descend. Il
+         est maintenant le ⏻ de l'en-tête, avec sa confirmation. -->
   </div>
+
+  <!-- La barre des onglets : elle se remplit toute seule, et elle
+       n'existe pas tant qu'il n'y a pas au moins deux onglets. -->
+  <div class="barbas" id="lesOnglets" style="display:none;"></div>
 
 </div>
 
@@ -1385,6 +1592,45 @@
 
   /* ===== CONNEXION ===== */
 
+  /* ============================================================
+     « SE SOUVENIR DE MOI » — v1113
+
+     Allumé d'avance : c'est l'arbitrage de David, et c'est le bon
+     pour l'usage. Un élève qui doit retaper six chiffres à chaque
+     révision révise moins ; c'était déjà le comportement, il
+     devient seulement visible et refusable.
+
+     ⚠️ LE CHOIX SE GARDE AUSSI, ET SÉPARÉMENT. Décocher sur un
+     téléphone prêté ne vaudrait rien si la case se recochait à la
+     visite suivante : l'élève penserait avoir refusé, et le code
+     serait là. On garde donc le refus lui-même, dans sa propre clé
+     — et c'est la seule chose qu'on garde quand il refuse.
+     ============================================================ */
+  var CLE_SOUVENIR = 'ec_eleve_souvenir';
+  var souvenirActif = true;
+
+  function lireLeSouvenir(){
+    try{ souvenirActif = (localStorage.getItem(CLE_SOUVENIR) !== 'non'); }
+    catch(e){ souvenirActif = true; }
+    peindreLeSouvenir();
+  }
+
+  function peindreLeSouvenir(){
+    var i = $('interSouvenir'), b = $('btSouvenir');
+    if(i) i.className = 'inter' + (souvenirActif ? '' : ' off');
+    if(b) b.setAttribute('aria-checked', souvenirActif ? 'true' : 'false');
+  }
+
+  function basculerLeSouvenir(){
+    souvenirActif = !souvenirActif;
+    try{ localStorage.setItem(CLE_SOUVENIR, souvenirActif ? 'oui' : 'non'); }
+    catch(e){}
+    /* Refuser maintenant efface ce qui avait été gardé avant :
+       sinon le refus ne vaudrait que pour les prochaines fois. */
+    if(!souvenirActif){ try{ localStorage.removeItem('ec_eleve'); }catch(e){} }
+    peindreLeSouvenir();
+  }
+
   function connecter(){
     var nom = $('chNom').value.trim();
     var code = $('chCode').value.trim();
@@ -1407,11 +1653,16 @@
         boiteFigee = !!d.boiteFigee;
         lireModules(d);
 
-        /* Le code reste sur l'appareil : le retaper à chaque fois
-           découragerait de s'entraîner. */
+        /* Le code reste sur l'appareil — si l'élève l'a bien voulu.
+           Le retaper à chaque fois découragerait de s'entraîner ;
+           le garder sans le dire serait pire. */
         try{
-          localStorage.setItem('ec_eleve',
-            JSON.stringify({ nom: moi.nom, code: code }));
+          if(souvenirActif){
+            localStorage.setItem('ec_eleve',
+              JSON.stringify({ nom: moi.nom, code: code }));
+          }else{
+            localStorage.removeItem('ec_eleve');
+          }
         }catch(e){}
 
         entrer();
@@ -1520,15 +1771,18 @@
      rien.
      ===================================================== */
   var ONGLETS = [
-    { cle:'accueil', nom:'🏠 Accueil', zone:'ongletAccueil',
+    { cle:'accueil', nom:'🏠 Accueil', emoji:'🏠', court:'Accueil',
+      zone:'ongletAccueil',
       /* Son prochain cours, ce qu'on lui demande, ses leçons, son
          code : tout ce qui se lit sans rien faire. */
       quand: function(){ return ouvert('rappel') || ouvert('historique') ||
                                 ouvert('code') || demandes.length > 0 ||
                                 mesAnnonces.length > 0; } },
-    { cle:'reviser', nom:'🎬 Réviser', zone:'ongletReviser',
+    { cle:'reviser', nom:'🎬 Réviser', emoji:'🎬', court:'Réviser',
+      zone:'ongletReviser',
       quand: function(){ return ouvert('parcours'); } },
-    { cle:'reciter', nom:'📋 Réciter', zone:'ongletReciter',
+    { cle:'reciter', nom:'📋 Réciter', emoji:'📋', court:'Réciter',
+      zone:'ongletReciter',
       quand: function(){ return ouvert('proccorriger'); } },
     /* ⚠️ LA PASTILLE NE COMPTE QUE LES RÉPONSES NON LUES — v1071.
 
@@ -1536,7 +1790,8 @@
        redescend jamais à zéro cesse d'être lu au bout de deux
        jours. Le serveur le calcule en excluant ce qu'il a écrit
        lui-même. */
-    { cle:'messages', nom:'💬 Écrire', zone:'ongletMessages',
+    { cle:'messages', nom:'💬 Écrire', emoji:'💬', court:'Écrire',
+      zone:'ongletMessages',
       quand: function(){ return ouvert('messages'); } },
     /* ⚠️ CELUI-CI NE DÉPEND D'AUCUNE CASE À COCHER — étape 1d.
 
@@ -1549,7 +1804,8 @@
        case n'a pas été cochée, ce serait lui reprocher un oubli du
        bureau. C'est donc la DONNÉE qui décide : il a été ajourné, et
        son bilan n'est pas encore validé. */
-    { cle:'bilan', nom:'📝 Mon bilan', zone:'ongletBilan',
+    { cle:'bilan', nom:'📝 Mon bilan', emoji:'📝', court:'Bilan',
+      zone:'ongletBilan',
       quand: function(){ return bilanAttendu(); } }
   ];
   var ongletIci = '';
@@ -1585,7 +1841,11 @@
 
     barre.innerHTML = '';
     if(vus.length < 2){
-      /* Un seul onglet : pas de barre, et sa zone reste ouverte. */
+      /* Un seul onglet : pas de barre, et sa zone reste ouverte. La
+         place réservée en bas de page part avec elle, sinon on
+         laisserait un trou de 86 px sous le dernier bouton. */
+      barre.style.display = 'none';
+      document.body.classList.remove('avecbarre');
       ONGLETS.forEach(function(o){
         montrer(o.zone, !!vus.length && o.cle === vus[0].cle);
         var z = $(o.zone);
@@ -1594,6 +1854,8 @@
       ongletIci = vus.length ? vus[0].cle : '';
       return;
     }
+    barre.style.display = '';
+    document.body.classList.add('avecbarre');
 
     /* L'onglet courant doit rester valable : un module refermé entre
        deux visites ne doit pas laisser la page sur une zone vide. */
@@ -1601,18 +1863,27 @@
       ongletIci = vus[0].cle;
     }
 
+    poserLeSousTitreEl();
+
     vus.forEach(function(o){
       var b = document.createElement('button');
       b.type = 'button';
-      b.textContent = o.nom;
       if(o.cle === ongletIci) b.className = 'ici';
+
+      var ic = document.createElement('span');
+      ic.className = 'ic';
+      ic.textContent = o.emoji;
+      b.appendChild(ic);
+      b.appendChild(document.createTextNode(o.court));
+
       var n = restant[o.cle] || 0;
       if(n){
         var pa = document.createElement('span');
         pa.className = 'pastille';
-        pa.textContent = n;
+        pa.textContent = n > 99 ? '99+' : n;
         b.appendChild(pa);
       }
+      b.setAttribute('aria-label', o.nom + (n ? ' — ' + n + ' en attente' : ''));
       b.addEventListener('click', function(){ allerAOnglet(o.cle); });
       barre.appendChild(b);
     });
@@ -1621,6 +1892,36 @@
       var z = $(o.zone);
       if(z) z.className = (o.cle === ongletIci) ? '' : 'cache';
     });
+  }
+
+  /* ⚠️ LA LIGNE SOUS « BONJOUR » DISAIT TOUJOURS LA MÊME CHOSE —
+     v1113. « Choisis une procédure, puis récite-la ou écris-la »
+     s'affichait aussi sur l'accueil, sur le parcours et au-dessus
+     d'une conversation. Une phrase d'aide qui ne correspond pas à
+     l'écran qu'on regarde apprend à ne plus lire les phrases
+     d'aide. */
+  var SOUS_TITRES_EL = {
+    accueil:  '',
+    reviser:  'Regarde les étapes dans l’ordre, à ton rythme.',
+    reciter:  'Choisis une procédure, puis récite-la ou écris-la.',
+    messages: 'Réponse sous 48 heures ouvrées.',
+    bilan:    'Raconte ton examen : c’est ce qui ouvre ton rendez-vous.'
+  };
+
+  function poserLeSousTitreEl(){
+    var z = $('sousTitreEl');
+    if(!z) return;
+    /* Sur l'accueil, la date du jour : elle vaut mieux qu'une
+       consigne là où il n'y a rien à faire. */
+    var t = SOUS_TITRES_EL[ongletIci];
+    if(t === '' || t === undefined){
+      try{
+        t = new Date().toLocaleDateString('fr-FR',
+          { weekday:'long', day:'numeric', month:'long' });
+        t = t.charAt(0).toUpperCase() + t.slice(1);
+      }catch(e){ t = 'Évolution Conduites'; }
+    }
+    z.textContent = t;
   }
 
   function allerAOnglet(cle){
@@ -2506,10 +2807,53 @@
     });
   }
 
+  /* ⚠️ LE ⏻ DEMANDE AVANT DE SORTIR — v1113. David : « tu le mets
+     partout avec une confirmation ». Partout, c'est un rond de
+     38 px dans l'en-tête de chaque écran, à portée du pouce qui
+     fait défiler ; sans la question, un appui de travers renverrait
+     l'élève à l'écran du code au milieu d'une révision.
+
+     ⚠️ ET ON NE SE SERT PAS DE confirm(). Elle bloque la page et,
+     sur une application posée sur l'écran d'accueil, elle
+     s'affiche sans dire d'où elle vient. On pose la question dans
+     la page, avec les mêmes boutons que partout ailleurs. */
+  function demanderASortir(){
+    if(demandeSortie) return;
+    demandeSortie = true;
+
+    var fond = document.createElement('div');
+    fond.className = 'overlayEl';
+    fond.innerHTML =
+      '<div class="boiteEl">' +
+        '<div class="titreEl">Se déconnecter ?</div>' +
+        '<div class="texteEl">Tu devras retaper ton nom et ton code pour ' +
+          'revenir.</div>' +
+        '<div class="boutsEl">' +
+          '<button type="button" class="btn btn-secondary" id="btPasSortir">' +
+            'Rester</button>' +
+          '<button type="button" class="btn btn-primary" id="btOuiSortir">' +
+            'Se déconnecter</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(fond);
+
+    var fermer = function(){
+      demandeSortie = false;
+      if(fond.parentNode) fond.parentNode.removeChild(fond);
+    };
+    $('btPasSortir').addEventListener('click', fermer);
+    fond.addEventListener('click', function(e){ if(e.target === fond) fermer(); });
+    $('btOuiSortir').addEventListener('click', function(){ fermer(); sortir(); });
+  }
+  var demandeSortie = false;
+
   function sortir(){
     try{ localStorage.removeItem('ec_eleve'); }catch(e){}
     moi = { nom: '', code: '' };
     $('chCode').value = '';
+    document.body.classList.remove('avecbarre');
+    var bb = $('lesOnglets');
+    if(bb) bb.style.display = 'none';
     $('vueEleve').classList.add('cache');
     $('vueConnexion').classList.remove('cache');
     dire('msgConnexion', '');
@@ -2763,13 +3107,28 @@
 
   /* ===== DÉPART ===== */
 
-  $('btConnexion').addEventListener('click', connecter);
-  $('chCode').addEventListener('keydown', function(e){
-    if(e.key === 'Enter'){ connecter(); }
+  /* ⚠️ C'EST LA SOUMISSION DU FORMULAIRE QUI DÉCLENCHE LE
+     TROUSSEAU, pas le clic sur le bouton. Un bouton qui appelle
+     connecter() sans passer par « submit » laisse le navigateur
+     croire qu'il n'y a pas eu de connexion — et il ne propose
+     jamais d'enregistrer. C'est précisément ce qui manquait. */
+  $('formConnexion').addEventListener('submit', function(e){
+    e.preventDefault();
+    connecter();
   });
   $('chNom').addEventListener('keydown', function(e){
     if(e.key === 'Enter'){ e.preventDefault(); $('chCode').focus(); }
   });
+
+  /* L'interrupteur se touche n'importe où sur sa ligne, et se
+     manœuvre aussi au clavier : c'est un bouton, pas une image. */
+  $('btSouvenir').addEventListener('click', basculerLeSouvenir);
+  $('btSouvenir').addEventListener('keydown', function(e){
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault(); basculerLeSouvenir();
+    }
+  });
+  lireLeSouvenir();
 
   $('btMicro').addEventListener('click', function(){
     if(enEcoute){ arreterMicro(); } else { demarrerMicro(); }
@@ -2866,8 +3225,10 @@
     return appeler({ action: 'eleveMessagerie', eleve: moi.nom, code: moi.code })
       .then(function(d){
         conversationsEl = (d && d.conversations) || [];
+        mesObjetsEl = (d && d.objets) || [];
         nonLusMessages = (d && d.nonLusTotal) || 0;
         poserLaPastilleDeLAppliEl(nonLusMessages);
+        dessinerMesObjetsEl();
         dessinerConversationsEleve();
         dessinerLesOnglets();
       })
@@ -2879,6 +3240,74 @@
 
   var RONDS_FIL = { bureau:'🏢', moniteur:'👤', groupe:'👥', interne:'🏠',
                     retard:'⏰', annul:'🚫', oubli:'🧤' };
+
+/* ============================================================
+   🧤 L'ENCART DES OBJETS OUBLIÉS — v1113
+
+   David, le 8 octobre : « oui il garde un encart avec son état ».
+
+   ⚠️ LES QUATRE ÉTATS SONT CEUX DU SERVEUR, ET SEUL LE MOT-CLÉ
+   VOYAGE. Les phrases sont ici, comme elles le sont déjà dans
+   l'écran du bureau : si le Worker les envoyait, il y aurait deux
+   listes de libellés à tenir d'accord — celle du bureau et celle
+   de l'élève — et elles finiraient par dire deux choses d'un même
+   objet, chacune à une personne qui parle à l'autre.
+
+   ⚠️ ET LES MOTS NE SONT PAS CEUX DU BUREAU. Le bureau lit
+   « Signalé · personne n'a encore regardé » ; l'élève lit « On
+   cherche ». C'est le même état, ce n'est pas la même phrase : la
+   première décrit un travail à faire, la seconde répond à quelqu'un
+   qui attend.
+   ============================================================ */
+  var ETATS_OBJET_EL = {
+    signale:     { em:'🔎', mot:'On cherche',  sorte:'attente',
+                   sous:"Le bureau n'a pas encore regardé." },
+    retrouve:    { em:'✅', mot:'Retrouvé',    sorte:'bonne',
+                   sous:'À récupérer au bureau.' },
+    rendu:       { em:'🤝', mot:'Rendu',       sorte:'finie',
+                   sous:"C'est réglé." },
+    introuvable: { em:'🙈', mot:'Introuvable', sorte:'finie',
+                   sous:"Cherché, pas retrouvé. Écris-nous si tu as un doute." }
+  };
+
+  var mesObjetsEl = [];
+
+  function dessinerMesObjetsEl(){
+    var z = $('mesObjetsEl');
+    if(!z) return;
+
+    /* Rien d'oublié : la carte n'existe pas. Une carte vide qui dit
+       « aucun objet » occupe la place sans rien apprendre, et elle
+       la prend tous les jours à ceux qui n'oublient rien. */
+    montrer('carteObjetsEl', mesObjetsEl.length > 0);
+    if(!mesObjetsEl.length){ z.innerHTML = ''; return; }
+
+    z.innerHTML = mesObjetsEl.map(function(o){
+      var e = ETATS_OBJET_EL[String(o.etat || 'signale')] ||
+              ETATS_OBJET_EL.signale;
+      var ou = [];
+      if(o.vehicule) ou.push(echapper(o.vehicule));
+      if(o.jour) ou.push(jourEnClair(o.jour));
+      return '<div class="objligne" data-fil="' + echapper(o.conversation || '') + '">' +
+        '<span class="em">' + e.em + '</span>' +
+        '<span class="mi">' +
+          '<b>' + echapper(o.quoi || 'Un objet') + '</b>' +
+          '<span>' + (ou.length ? echapper(ou.join(' · ')) + ' — ' : '') +
+            echapper(e.sous) + '</span>' +
+        '</span>' +
+        '<span class="objetat ' + e.sorte + '">' + echapper(e.mot) + '</span>' +
+      '</div>';
+    }).join('');
+
+    /* Chaque ligne emmène dans sa conversation : c'est là qu'on
+       répond, et l'état seul ne permet pas de poser une question. */
+    Array.prototype.forEach.call(z.querySelectorAll('.objligne'), function(l){
+      var fil = l.getAttribute('data-fil');
+      if(!fil) return;
+      l.style.cursor = 'pointer';
+      l.addEventListener('click', function(){ ouvrirFilEleve(fil); });
+    });
+  }
 
   function dessinerConversationsEleve(){
     var z = $('mesConversations');
@@ -3099,24 +3528,34 @@
       /* 🎤 La zone de l'enregistreur, vide et masquée : elle prend la
          place de la barre d'écriture pendant qu'on parle. */
       h += '<div id="zoneEcrireVocal" style="display:none"></div>';
+      /* ⚠️ LE CHAMP AU-DESSUS, LES OUTILS DESSOUS — v1113. Les
+         quatre outils et l'envoi partageaient sa ligne : sur un
+         iPhone il restait moins de 80 px au texte, et « Écris ton
+         message » s'imprimait à la verticale, une lettre par
+         ligne. L'ordre des éléments ne change pas, seulement leur
+         disposition — et la rangée du bas peut encaisser un
+         cinquième outil sans reprendre un pixel au champ. */
       h += '<div class="zoneEcrire">' +
-        (vocalPossibleEl()
-          ? '<button type="button" class="emoOutil" id="btFilVocal" ' +
-              'title="Enregistrer un vocal">🎤</button>'
-          : '') +
-        /* 🎥 La vidéo — v1109, à côté du micro : ce sont les deux
-           gestes qui remplacent la barre d'écriture. */
-        (videoPossibleEl()
-          ? '<button type="button" class="emoOutil" id="btFilVideo" ' +
-              'title="Envoyer une vidéo">🎥</button>'
-          : '') +
-        '<button type="button" class="emoOutil" id="btFilPhoto" ' +
-          'title="Envoyer une photo">📷</button>' +
-        '<button type="button" class="emoOutil" id="btFilEmo" ' +
-          'title="Émoticônes">🙂</button>' +
         '<textarea id="chFilTexte" rows="2" placeholder="Écris ton message…">' +
           echapper(brouillonsEl[id] || '') + '</textarea>' +
-        '<button type="button" class="btn btn-primary" id="btFilEnvoyer">📨</button>' +
+        '<div class="zoneOutils">' +
+          (vocalPossibleEl()
+            ? '<button type="button" class="emoOutil" id="btFilVocal" ' +
+                'title="Enregistrer un vocal">🎤</button>'
+            : '') +
+          /* 🎥 La vidéo — v1109, à côté du micro : ce sont les deux
+             gestes qui remplacent la barre d'écriture. */
+          (videoPossibleEl()
+            ? '<button type="button" class="emoOutil" id="btFilVideo" ' +
+                'title="Envoyer une vidéo">🎥</button>'
+            : '') +
+          '<button type="button" class="emoOutil" id="btFilPhoto" ' +
+            'title="Envoyer une photo">📷</button>' +
+          '<button type="button" class="emoOutil" id="btFilEmo" ' +
+            'title="Émoticônes">🙂</button>' +
+          '<button type="button" class="btn btn-primary" id="btFilEnvoyer">' +
+            '📨</button>' +
+        '</div>' +
       '</div><div id="msgFil"></div>';
     }else{
       h += '<div class="empty">' +
@@ -5281,7 +5720,7 @@
   }
 
 
-  $('btSortir').addEventListener('click', sortir);
+  $('btSortir').addEventListener('click', demanderASortir);
 
   /* 💬 Écrire à l'école — v1071 */
   Array.prototype.forEach.call(
