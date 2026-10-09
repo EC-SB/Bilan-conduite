@@ -3565,6 +3565,10 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     const restantes = totalManoeuvres - manoeuvresAvant.length;
     boite.innerHTML =
       '<h3>' + (titre || 'Avant de démarrer') + '</h3>' +
+      /* ⚠️ v1126 — LE RAIL. Peint par majRailQuestionnaire, une fois
+         l'écran monté : il ne montre que les sujets visibles pour ce
+         profil, et porte un ⚠️ sur celui qui a un trou. */
+      '<div class="qRail" id="qRail"></div>' +
       /* L'état de l'élève AVANT les questions : on vient ici pour
          savoir ce qui manque, pas pour relire quinze champs. */
       recapEnHtml(recapDuCours(prec, eleve, modeleCle, ficheEleve)) +
@@ -3573,14 +3577,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         (profil === 'complet'
           ? '🦉 Manœuvres de la fiche véhicule : ' + manoeuvresAvant.length + ' sur ' + totalManoeuvres +
             ' validées' + (restantes ? ' — il en reste ' + restantes : ' — fiche terminée ✅') +
+            /* ⚠️ v1126 — PLUS DE TIROIR. « ▸ Voir les manœuvres
+               restantes » était un <details> : la planche du 9 octobre
+               l'a nommé, David ne veut pas de tiroirs. Les restantes
+               se disent sur la ligne ; quand elles sont nombreuses,
+               la fiche véhicule plus bas les montre toutes, dépliée. */
             (restantes
-              ? '<details style="margin-top:8px;">' +
-                  '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;">' +
-                  'Voir les ' + restantes + ' manœuvres restantes</summary>' +
-                  '<div id="qListeRestantes" style="margin-top:8px;padding:10px 12px;' +
-                  'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-                  'font-size:14px;line-height:1.9;color:var(--cream);"></div>' +
-                '</details>'
+              ? '<div id="qListeRestantes" style="margin-top:4px;' +
+                'color:var(--cream);line-height:1.5;"></div>'
               : '')
           /* ⚠️ CHAQUE PROFIL DIT SON NOM, ET LE DERNIER N'EST PAS UN
              FOURRE-TOUT. « handicap » tombait dans la branche par
@@ -3610,6 +3614,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
          Elle vient du répertoire et y retourne : une seule version
          de l'information, pas deux. */
+      titreSectionQuest('eleve', "🧍 L'élève") +
       '<label for="qFormation">🎓 Formation</label>' +
       '<select id="qFormation" style="margin-bottom:6px;">' +
         toutesLesFormations()
@@ -3694,6 +3699,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          dans ce bloc : un seul masquage suffit. */
       '<div id="qBlocSauf">' +
 
+      titreSectionQuest('parcours', "📏 Son parcours") +
       '<label>Frise de formation</label>' +
 
       '<div id="qFriseClassique" style="background:var(--navy);border:1px solid var(--line);' +
@@ -3758,6 +3764,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       /* Tout l'examen blanc dans un seul bloc : une passerelle n'en
          a pas, et il doit pouvoir disparaître d'un coup. */
+      titreSectionQuest('eb', "🅱️ L'examen blanc") +
       '<div id="qBlocExamBlanc">' +
       '<label>Examen blanc</label>' +
       '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
@@ -3776,6 +3783,9 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         }).join('') +
       '</div>' +
 
+      /* Lequel et quand, côte à côte : deux réponses courtes à la
+         même question. Chacune garde son bloc et son masquage. */
+      '<div class="qDuo">' +
       '<div id="qBlocEbRang" style="display:none;">' +
         '<label for="qExamBlancRang">Quel examen blanc ?</label>' +
         '<select id="qExamBlancRang">' +
@@ -3786,6 +3796,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qBlocEbDate" style="display:none;">' +
         '<label for="qExamBlancDate">Date de l\'examen blanc</label>' +
         '<input type="date" id="qExamBlancDate">' +
+      '</div>' +
       '</div>' +
 
       '<input type="text" id="qExamBlancN" inputmode="numeric" placeholder="Dans combien de leçons ?" style="display:none;">' +
@@ -3844,6 +3855,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       /* Tout l'examen officiel dans un seul bloc : une passerelle
          n'y mène pas, et il doit pouvoir disparaître d'un coup. */
+      titreSectionQuest('permis', "🎓 L'examen du permis") +
       '<div id="qBlocExamPermis">' +
       '<label for="qExamPermis">Examen du permis</label>' +
       '<select id="qExamPermis">' +
@@ -3996,6 +4008,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          décide depuis quoi on compte les leçons dès qu'il est
          fait. Le moniteur voyait la deuxième case changer de nom
          sans savoir pourquoi. */
+      titreSectionQuest('rdv', "📆 Les rendez-vous") +
       '<div id="qBlocRdvPost">' +
         '<label for="qRdvPost">Rendez-vous post-permis</label>' +
         '<select id="qRdvPost">' +
@@ -4066,18 +4079,25 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          de frise ni d'examen à renseigner, mais elle a tout à
          apprendre des manœuvres déjà faites ailleurs. Laissée
          dedans, elle disparaissait avec le reste. */
+      titreSectionQuest('fiche', "🦉 La fiche véhicule") +
       '<div id="qBlocFiche" style="display:none;">' +
-        '<label>🦉 Fiche véhicule — coche ce qui est acquis</label>' +
+        /* Le titre de section dit déjà « 🦉 La fiche véhicule ». */
+        '<label>Coche ce qui est acquis</label>' +
         '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;">' +
           'Les manœuvres déjà validées sont cochées. Celles que tu ajoutes seront ' +
           'signées de ton émoji.</div>' +
+        /* ⚠️ v1126 — PLUS DE CADRE QUI DÉFILE. Il avait 240 px de haut
+           dans une fenêtre qui défile déjà : sur téléphone, le doigt
+           attrapait l'un ou l'autre au hasard. La liste se déplie dans
+           la page ; les manœuvres déjà validées s'y serrent sur des
+           lignes grises (voir remplirFicheQuestionnaire). */
         '<div id="qFiche" style="background:var(--navy);border:1px solid var(--line);' +
-          'border-radius:10px;padding:10px 12px;max-height:240px;overflow-y:auto;' +
-          'margin-bottom:14px;"></div>' +
+          'border-radius:10px;padding:10px 12px;margin-bottom:14px;"></div>' +
       '</div>' +
 
       /* Hors du bloc masqué : les deux questions que la fiche
          d'évaluation conserve. */
+      titreSectionQuest('notes', "📝 Tes notes") +
       '<div id="qBlocPrefecture" style="display:none;">' +
         '<label for="qProblematique">Problématique</label>' +
         '<textarea id="qProblematique" rows="3" maxlength="400" ' +
@@ -4115,6 +4135,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     boite.appendChild(rangee);
     fond.appendChild(boite);
     document.body.appendChild(fond);
+
+    /* Le rail se peint quand tout le reste a fini de se poser : les
+       masquages par profil, majEB, la fiche véhicule. Tout cela est
+       synchrone et vient juste en dessous ; le tour suivant les voit
+       tous. */
+    boite.dataset.eleve = eleve || '';
+    setTimeout(() => brancherRailQuestionnaire(boite), 0);
 
     /* Pré-remplissage */
     const chAvant = boite.querySelector('#qFriseAvant');
@@ -4783,7 +4810,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const dejaFaites = manoeuvresAvant.map(normaliserMot);
       const restantesListe = BLOC.ficheListeConduite
         .filter(m => dejaFaites.indexOf(normaliserMot(m)) === -1);
-      zoneRestantes.textContent = restantesListe.join(' · ');
+      /* Peu nombreuses, elles se nomment sur la ligne — « il en
+         reste 1 : Créneau ». Nombreuses, on renvoie à la fiche plus
+         bas, où elles sont toutes dépliées : vingt noms sur une
+         ligne d'en-tête ne se lisent pas. */
+      zoneRestantes.textContent = (restantesListe.length <= 4)
+        ? restantesListe.join(' · ')
+        : 'Elles sont toutes dans 🦉 La fiche véhicule, plus bas.';
     }
 
     /* Champs conditionnels — l'examen blanc se choisit par cases */
@@ -7832,6 +7865,252 @@ async function chargerHistoriqueEleve(){
    donc à avoir deux façons de dire la même chose, le temps que
    l'une des deux se trompe.
    ------------------------------------------------------------ */
+/* ============================================================
+   « MODIFIER LA PRÉPARATION » : SEPT TITRES ET UN RAIL — v1126
+
+   Planche « Le questionnaire de préparation », forme 1 — « Le fil,
+   avec des titres et un rail » — choisie par David le 9 octobre,
+   après avoir refusé les tiroirs : « ça ne me plait pas des
+   tiroirs ».
+
+   Un seul défilement, comme avant. Ce qui change :
+     · sept vrais titres au lieu de vingt libellés gris du même
+       poids, chacun portant à droite ce que dit déjà sa section —
+       on lit l'écran en lisant les titres ;
+     · un rail collé en haut : où l'on est, un ⚠️ sur le sujet qui
+       a un trou, et un appui pour y aller.
+
+   ⚠️ AUCUN CHAMP N'A CHANGÉ D'IDENTIFIANT, aucune question n'est
+   ajoutée ni retirée, et les règles d'affichage restent celles de
+   majEB, montrerDateExamen et des masquages par profil : le rail
+   et les titres SUIVENT ce qui est visible, ils ne décident pas
+   une seconde fois de ce qui s'affiche.
+
+   Les rendez-vous restent des sélecteurs ouverts : « je les change
+   souvent », a répondu David.
+   ============================================================ */
+
+/* Les sept sujets, dans l'ordre de l'écran. « champs » dit ce qui
+   rend une section visible : si aucun n'est à l'écran pour ce
+   profil, son titre et sa pastille disparaissent avec eux. */
+const SECTIONS_QUEST = [
+  { cle:'eleve',    court:'Élève',
+    champs:['qFormation', 'qHandicap', 'qCoussin', 'qBlocModele', 'qBlocCoord'] },
+  { cle:'parcours', court:'Parcours',
+    champs:['qFriseClassique', 'qFriseFixe', 'qEtapesRN', 'qLecon'] },
+  { cle:'eb',       court:'Examen blanc', champs:['qBlocExamBlanc'] },
+  { cle:'permis',   court:'Permis',       champs:['qExamPermis', 'qBlocHeuresPermis'] },
+  { cle:'rdv',      court:'Rendez-vous',
+    champs:['qRdvPost', 'qPasEcoute', 'qSimuNuit', 'qBlocAacCs'] },
+  { cle:'fiche',    court:'Fiche',        champs:['qBlocFiche'] },
+  { cle:'notes',    court:'Notes',        champs:['qLibre', 'qBlocPrefecture'] }
+];
+
+function titreSectionQuest(cle, nom){
+  return '<div class="qTitre" data-section="' + cle + '"><b>' + nom +
+         '</b><em data-resume="' + cle + '"></em></div>';
+}
+
+/* Visible = ni lui ni un de ses parents n'est masqué. Les masquages
+   de cet écran passent tous par style.display : c'est la seule
+   chose à regarder, et elle se lit sans mise en page. */
+function estVisibleQuest(el, boite){
+  for(let n = el; n && n !== boite; n = n.parentElement){
+    if(n.hidden) return false;
+    if(n.style && n.style.display === 'none') return false;
+  }
+  return !!el;
+}
+
+function texteChoisiQuest(sel){
+  return (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex])
+    ? sel.options[sel.selectedIndex].text : '';
+}
+
+/* Ce que chaque section dit déjà, en une ligne — lu sur les champs
+   tels qu'ils sont affichés, avec leurs propres mots. Aucune règle
+   nouvelle : un titre ne sait que ce que sa section montre. */
+function resumeSectionQuest(cle, boite){
+  const q = id => boite.querySelector('#' + id);
+  const vis = id => estVisibleQuest(q(id), boite);
+  const court = v => dateEcrite(v, { weekday:'short', day:'numeric', month:'short' });
+
+  if(cle === 'eleve'){
+    const f = q('qFormation');
+    if(f && vis('qFormation') && !f.value){
+      return { texte:'⚠️ formation à choisir', averti:true };
+    }
+    return { texte: boite.dataset.eleve || '' };
+  }
+
+  if(cle === 'parcours'){
+    if(vis('qFriseClassique')){
+      const a = q('qFriseAvant'), b = q('qFriseApres');
+      if(a && b && !a.value.trim() && !b.value.trim()){
+        return { texte:'⚠️ frise non posée', averti:true };
+      }
+    }
+    const effet = q('qLeconEffet');
+    const t = (effet && vis('qLeconEffet')) ? effet.textContent.trim() : '';
+    return { texte: t.length > 60 ? '' : t };
+  }
+
+  if(cle === 'eb'){
+    const coche = boite.querySelector('input[name="qExamBlancChoix"]:checked');
+    /* Un trou seulement s'il est passé : sur le cours de l'examen
+       blanc lui-même, le résultat est montré AVANT l'épreuve (il se
+       donne à la fin) — vide, il n'y manque rien encore. */
+    if(coche && coche.value === 'passe' && vis('qBlocEbSuite') &&
+       q('qEBPasse') && !q('qEBPasse').value){
+      return { texte:'⚠️ résultat à renseigner', averti:true };
+    }
+    const lab = coche && coche.parentElement
+      ? coche.parentElement.textContent.trim() : '';
+    if(!coche || !coche.value) return { texte: lab };
+    const bouts = [lab.toLowerCase()];
+    if(vis('qBlocEbDate') && q('qExamBlancDate') && q('qExamBlancDate').value){
+      bouts[0] += ' le ' + court(q('qExamBlancDate').value);
+    }
+    if(vis('qBlocEbRang') && q('qExamBlancRang') && q('qExamBlancRang').value){
+      bouts.push(texteChoisiQuest(q('qExamBlancRang')));
+    }
+    if(vis('qBlocEbSuite') && q('qEBPasse') && q('qEBPasse').value){
+      bouts.push(texteChoisiQuest(q('qEBPasse')));
+    }
+    return { texte: bouts.filter(Boolean).join(' · ') };
+  }
+
+  if(cle === 'permis'){
+    const bouts = [];
+    const d = q('qExamDate');
+    if(d && d.value) bouts.push(court(d.value));
+    else bouts.push(texteChoisiQuest(q('qExamPermis')).toLowerCase());
+    if(vis('qBlocPassage') && q('qExamPassage') && q('qExamPassage').value){
+      bouts.push(texteChoisiQuest(q('qExamPassage')));
+    }
+    return { texte: bouts.filter(Boolean).join(' · ') };
+  }
+
+  if(cle === 'rdv'){
+    const bouts = [];
+    if(vis('qSimuNuit')) bouts.push('simu ' + texteChoisiQuest(q('qSimuNuit')).toLowerCase());
+    if(vis('qRdvPost')) bouts.push('post-permis ' + texteChoisiQuest(q('qRdvPost')).toLowerCase());
+    if(q('qPasEcoute') && q('qPasEcoute').checked) bouts.push("pas d'écoutes");
+    return { texte: bouts.join(' · ').replace(/— | —/g, '') };
+  }
+
+  if(cle === 'fiche'){
+    const cases = [...boite.querySelectorAll('.qManoeuvre')];
+    if(!cases.length) return { texte:'' };
+    return { texte: cases.filter(x => x.checked).length + ' / ' + cases.length + ' cochées' };
+  }
+
+  if(cle === 'notes'){
+    const l = q('qLibre');
+    return { texte: (l && l.value.trim()) ? 'écrites' : 'vide' };
+  }
+  return { texte:'' };
+}
+
+function majRailQuestionnaire(boite){
+  const rail = boite.querySelector('#qRail');
+  if(!rail) return;
+  const pastilles = [];
+
+  SECTIONS_QUEST.forEach(s => {
+    const titre = boite.querySelector('.qTitre[data-section="' + s.cle + '"]');
+    if(!titre) return;
+    const visible = s.champs.some(id => estVisibleQuest(boite.querySelector('#' + id), boite));
+    /* ⚠️ ON N'ÉCRIT QUE CE QUI CHANGE. Le rail est repeint à chaque
+       mutation de la fenêtre (voir brancherRailQuestionnaire) : s'il
+       réécrivait à l'identique, il déclencherait sa propre
+       observation, sans fin. */
+    const disp = visible ? '' : 'none';
+    if(titre.style.display !== disp) titre.style.display = disp;
+    if(!visible) return;
+
+    const r = resumeSectionQuest(s.cle, boite);
+    const em = titre.querySelector('em');
+    if(em){
+      if(em.textContent !== (r.texte || '')) em.textContent = r.texte || '';
+      if(em.classList.contains('averti') !== !!r.averti) em.classList.toggle('averti', !!r.averti);
+    }
+    pastilles.push({ s: s, titre: titre, averti: !!r.averti });
+  });
+
+  const signature = pastilles.map(p => p.s.cle + (p.averti ? '!' : '')).join(',');
+  if(rail.dataset.signature === signature){
+    suivreRailQuestionnaire(boite);
+    return;
+  }
+  rail.dataset.signature = signature;
+  rail.innerHTML = '';
+  pastilles.forEach(p => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.section = p.s.cle;
+    b.textContent = p.s.court + (p.averti ? ' ⚠️' : '');
+    if(p.averti) b.classList.add('averti');
+    b.addEventListener('click', () => {
+      p.titre.scrollIntoView({ block:'start', behavior:'smooth' });
+    });
+    rail.appendChild(b);
+  });
+  const dr = pastilles.length > 1 ? '' : 'none';
+  if(rail.style.display !== dr) rail.style.display = dr;
+  suivreRailQuestionnaire(boite);
+}
+
+/* La pastille allumée est celle de la dernière section dont le
+   titre est passé sous le rail. */
+function suivreRailQuestionnaire(boite){
+  const rail = boite.querySelector('#qRail');
+  if(!rail) return;
+  const haut = boite.getBoundingClientRect().top + rail.offsetHeight + 12;
+  let actif = '';
+  boite.querySelectorAll('.qTitre').forEach(t => {
+    if(t.style.display === 'none') return;
+    if(!actif) actif = t.dataset.section;
+    if(t.getBoundingClientRect().top <= haut) actif = t.dataset.section;
+  });
+  rail.querySelectorAll('button').forEach(b => {
+    b.classList.toggle('actif', b.dataset.section === actif);
+  });
+}
+
+function brancherRailQuestionnaire(boite){
+  if(!boite || !boite.querySelector('#qRail')) return;
+  const maj = () => majRailQuestionnaire(boite);
+  boite.addEventListener('change', maj);
+  boite.addEventListener('input', maj);
+  /* Un clic peut afficher un bloc sans « change » (un bouton) : on
+     relit au tour suivant, une fois le bloc posé. */
+  boite.addEventListener('click', () => setTimeout(maj, 0));
+  boite.addEventListener('scroll', () => suivreRailQuestionnaire(boite),
+                         { passive:true });
+
+  /* ⚠️ ET TOUT CE QUI S'AFFICHE SANS ÉVÉNEMENT. majEB, le choix de la
+     formation, la date posée par le bureau montrent et cachent des
+     blocs par le code, sans « change ». Le rail suivait donc l'écran
+     d'un temps de retard : « déjà passé » sans sa date, pas de ⚠️ sur
+     un résultat vide. Il observe maintenant la fenêtre elle-même, et
+     se repeint au tour suivant de chaque changement. */
+  let prevu = 0;
+  const bientot = () => {
+    if(prevu) return;
+    prevu = setTimeout(() => { prevu = 0; maj(); }, 30);
+  };
+  if(typeof MutationObserver === 'function'){
+    new MutationObserver(bientot).observe(boite, {
+      subtree:true, childList:true, attributes:true,
+      attributeFilter:['style', 'hidden', 'class'] });
+  }
+  maj();
+  /* Les valeurs posées par le code (une date, un rang) ne laissent
+     aucune trace observable : une dernière relecture les rattrape. */
+  setTimeout(maj, 250);
+}
+
 function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs,
                                    venuDAilleurs){
   const zone = $('qFiche');
@@ -7909,6 +8188,23 @@ function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs,
   const cochees = (dejaCochees || []).map(x => normaliserMot(x));
   const ailleurs = (dejaAilleurs || []).map(x => normaliserMot(x));
 
+  /* ⚠️ v1126 — CE QUI RESTE EN LIGNES, CE QUI EST ACQUIS SERRÉ.
+
+     Planche du 9 octobre, forme 1 : la fiche véhicule ne défile plus
+     dans un cadre. Dépliée, elle ferait dix-neuf lignes pour un
+     élève qui en a dix-huit de validées — on chercherait la seule
+     qui reste. Les manœuvres à faire gardent leur ligne, en tête ;
+     les validées se serrent dessous en lignes grises, toutes
+     visibles, toutes encore des cases. Aucune n'est cachée, aucune
+     ne se replie.
+
+     L'ordre dans la page ne compte pour personne : les lecteurs
+     (manoeuvresAjouteesQuestionnaire, manoeuvresAilleursQuestionnaire)
+     parcourent toutes les cases, où qu'elles soient. */
+  const aFaire = document.createElement('div');
+  const acquises = document.createElement('div');
+  acquises.className = 'qAcquises';
+
   (BLOC.ficheListeConduite || []).forEach(libelle => {
     const cle = normaliserMot(libelle);
     const deja = marques[cle] || '';
@@ -7965,8 +8261,25 @@ function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs,
     cba.hidden = true;
     ligne.appendChild(cba);
 
-    zone.appendChild(ligne);
+    if(deja){
+      ligne.style.cssText = 'display:inline-flex;align-items:center;';
+      acquises.appendChild(ligne);
+    }else{
+      aFaire.appendChild(ligne);
+    }
   });
+
+  zone.appendChild(aFaire);
+  if(acquises.children.length){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:11px;color:var(--muted);margin:' +
+      (aFaire.children.length ? '10px' : '2px') + ' 0 0;padding-top:' +
+      (aFaire.children.length ? '8px' : '0') + ';' +
+      (aFaire.children.length ? 'border-top:1px solid var(--line);' : '');
+    t.textContent = 'Déjà validées (' + acquises.children.length + ')';
+    zone.appendChild(t);
+    zone.appendChild(acquises);
+  }
 
   /* La case du haut dit l'état qu'elle commande : rouvrir le
      questionnaire sur un élève déjà marqué doit la montrer cochée,
