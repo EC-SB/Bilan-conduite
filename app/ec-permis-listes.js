@@ -4229,7 +4229,10 @@ async function rattraperExamensBlancs(){
     /* Le niveau, quand le suivi ne le porte pas encore. Un
        « à venir » se laisse tranquille : l examen n a pas eu lieu. */
     if(!String(s.ebNiveau || '').trim() && t.ebSuite){
-      majs.ebNiveau = (t.ebSuite === 'pasleniveau') ? 'non' : 'oui';
+      /* ⚠️ v1117 — LA MÊME PORTE QUE LE QUESTIONNAIRE. C'était ici
+         la seconde copie de « pasleniveau ? non : oui ». Voir le
+         dossier de « niveauDepuisLaSuite » (ec-questionnaire.js). */
+      majs.ebNiveau = niveauDepuisLaSuite(t.ebSuite);
     }
 
     if(!String(s.ebDate || '').trim() && t.ebDate){
@@ -4456,9 +4459,15 @@ function mentionExamenBlanc(x){
   /* Ce que le bureau a noté à la main prime sur les notes des
      bilans : il sait ce qu'il a saisi. */
   if(String(s.ebNiveau || '').trim()){
-    const nom = { oui:'✅ A le niveau', non:'⛔ Pas le niveau',
-                  peut:'🤔 Pourrait avoir le niveau',
-                  avenir:'📅 Examen blanc à venir' }[s.ebNiveau] || s.ebNiveau;
+    /* ⚠️ v1118 — LES MOTS VIENNENT DE LA TABLE, PLUS D'ICI.
+
+       Ces quatre libellés étaient écrits là, et nulle part
+       ailleurs : le dossier élève, qui relit la même colonne,
+       affichait donc « non » tout court. Ils ont rejoint
+       reponsesQuest (ec-questionnaire), la table que lisent tous
+       ceux qui relisent une valeur. */
+    const nom = ((typeof libelleReponse === 'function')
+      ? libelleReponse('ebNiveau', s.ebNiveau) : '') || s.ebNiveau;
 
     /* « À venir » se lit « le 12/09/2026 », pas « (12/09/2026) ».
        Sans date saisie au passage, celle qui était prévue fait
@@ -4499,6 +4508,10 @@ function mentionExamenBlanc(x){
 
   const suite = {
     'pasleniveau': '⛔ Pas le niveau',
+    /* 🤔 v1117 — sans cette entrée, « peut » tombait sur le
+       « Examen blanc passé » du repli : la liste du bureau
+       affichait l'ignorance à la place de la réponse. */
+    'peut': '🤔 Pourrait avoir le niveau',
     '3h': '✅ A le niveau',
     'niveauok': '✅ A le niveau — heures à préciser',
     'lecons': '⏳ Encore ' + (e.ebLecons || '?') + ' leçon(s)'
