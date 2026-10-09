@@ -51,6 +51,27 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1127,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Les types de séance des rappels se rangent par famille, dans ton ordre',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'Cinq familles, un emoji devant chaque type',
+        texte: 'Voiture 🚗, moto 🏍️, remorque 🚛, voiturette 🚙, scooter 🛵. Le menu ' +
+               '« Type de séance » des rappels les groupe, et chaque ligne porte ' +
+               'l’emoji de sa famille — même menu fermé, on voit ce qui est choisi.' },
+      { emoji: '⚙️',
+        titre: 'Un bouton « Ranger » à côté du menu',
+        texte: 'Il ouvre la liste de tous tes types : un menu pour la famille de ' +
+               'chacun, deux flèches pour l’ordre. Un type pas encore classé ' +
+               'arrive avec une famille proposée d’après son titre, marquée ' +
+               '« proposé » — rien n’est gardé avant « Enregistrer ».' },
+      { emoji: '🔤',
+        titre: 'Les accents reviennent dans le menu',
+        texte: '« Cours Loudéac » s’affichait « Cours Loudeac ».' }
+    ]
+  },
+  {
     version: 1126,
     date: 'Vendredi 9 octobre 2026',
     resume: '« Modifier la préparation » : des titres, un rail, et plus aucun tiroir',
