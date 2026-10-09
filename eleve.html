@@ -1400,6 +1400,11 @@
       { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
+  /* Ce que la connexion a rapporté au-delà de l'identité : le
+     dossier, le bilan et les récitations, qui lui coûtaient trois
+     réveils du classeur de plus. Voir « entrer ». */
+  var duDemarrage = null;
+
   function appeler(corps){
     return fetch(RELAIS + '/eleve', {
       method: 'POST',
@@ -1454,7 +1459,14 @@
 
   function chargerMonBilan(){
     return appeler({ action: 'eleveBilan', eleve: moi.nom, code: moi.code })
-      .then(function(d){
+      .then(appliquerMonBilan)
+      .catch(function(){ monBilan = null; });
+  }
+
+  /* ⚠️ SÉPARÉE DE L'APPEL — v1123, même raison que le dossier : la
+     réponse arrive maintenant soit avec la connexion, soit toute
+     seule au rafraîchissement, et le dessin doit être le même. */
+  function appliquerMonBilan(d){
         monBilan = d || null;
         mesReponses = [];
         /* ⚠️ « IL COMPLÈTE, IL NE RECOMMENCE PAS ». Ce qu'il avait
@@ -1480,8 +1492,6 @@
         });
         dessinerLesOnglets();
         dessinerMonBilan();
-      })
-      .catch(function(){ monBilan = null; });
   }
 
   function cequilManque(){
@@ -1733,6 +1743,8 @@
         maBoite = d.boite || '';
         boiteFigee = !!d.boiteFigee;
         lireModules(d);
+        /* Ce que la connexion a rapporté en plus — voir « entrer ». */
+        duDemarrage = d;
 
         /* Le code reste sur l'appareil — si l'élève l'a bien voulu.
            Le retaper à chaque fois découragerait de s'entraîner ;
@@ -1778,13 +1790,45 @@
     montrerLangue();
     montrerDemandes();
     dessinerLesOnglets();
-    if(ouvert('proccorriger')) chargerEnvois();
+
+    /* ============================================================
+       ⚠️ UNE SEULE VAGUE VERS LE CLASSEUR — v1123
+
+       David, le 9 octobre : « le coin révisions est très long à
+       l'ouverture ». Mesuré : trois allers-retours vers le
+       classeur pour afficher une page — la connexion d'abord, puis
+       le dossier, le bilan et les récitations.
+
+       Or le code le disait déjà depuis la v1039, dans le
+       commentaire du parcours : « chaque appel réveille ce
+       classeur, et le réveil coûte à lui seul une dizaine de
+       secondes ». La correction avait été faite d'un étage, pas de
+       celui-ci.
+
+       La connexion rapporte maintenant les trois réponses avec
+       elle (apps-script, « dossierDeLEleve »). On s'en sert.
+
+       ⚠️ ET ON GARDE LES APPELS SÉPARÉS COMME REPLI. Si le classeur
+       déployé est plus ancien que cette page, les champs sont
+       absents : on redemande, exactement comme avant. Une
+       optimisation qui casse quand les deux moitiés ne sont pas
+       déployées ensemble n'est pas une optimisation, c'est un
+       piège — et l'ordre de déploiement met le classeur en premier
+       précisément pour ça.
+       ============================================================ */
+    var dem = duDemarrage || {};
+
+    if(ouvert('proccorriger')){
+      if(dem.recitations) appliquerEnvois(dem.recitations, dem.demandes);
+      else chargerEnvois();
+    }
     if(ouvert('messages')) demarrerMessages();
-    /* ⚠️ APPELÉ POUR TOUT LE MONDE, et c'est la réponse qui tranche.
-       Un élève qui a son permis reçoit « attendu: false » et ne voit
-       jamais l'onglet ; l'appel coûte une lecture de sa ligne. */
-    chargerMonBilan();
-    chargerDossier();
+
+    /* ⚠️ POUR TOUT LE MONDE, et c'est la réponse qui tranche. Un
+       élève qui a son permis reçoit « attendu: false » et ne voit
+       jamais l'onglet. */
+    if(dem.bilan) appliquerMonBilan(dem.bilan); else chargerMonBilan();
+    if(dem.dossier) appliquerDossier(dem.dossier); else chargerDossier();
 
     /* Rien d'ouvert : il ne doit pas rester devant une page nue
        sans savoir pourquoi. */
@@ -2648,6 +2692,22 @@
 
   /* ===== SON PROCHAIN COURS ET SES LEÇONS ===== */
 
+  /* ⚠️ L'APPLICATION ET L'APPEL SONT SÉPARÉS — v1123.
+
+     Parce que la réponse arrive désormais par DEUX chemins : avec
+     la connexion, où elle voyage gratuitement, ou toute seule
+     quand on rafraîchit. Le dessin doit être le même dans les deux
+     cas — deux copies du dessin, ce serait deux pages qui finissent
+     par ne plus se ressembler. */
+  function appliquerDossier(d){
+    mesAnnonces = (d && d.annonces) || [];
+    dessinerAnnonces();
+    dessinerLesOnglets();
+    if(ouvert('parcours')) poserLeParcours(d && d.parcours);
+    if(ouvert('rappel')) dessinerProchain(d && d.prochain);
+    if(ouvert('historique')) dessinerLecons((d && d.lecons) || []);
+  }
+
   function chargerDossier(){
     /* ⚠️ ON DEMANDE TOUJOURS — v1038. Cette porte rapporte aussi les
        annonces, qui ne dépendent d'aucun interrupteur : s'en passer
@@ -2655,14 +2715,7 @@
        c'était priver de « bureau fermé samedi » précisément ceux à
        qui l'on n'a ouvert que les procédures. */
     appeler({ action: 'eleveDossier', eleve: moi.nom, code: moi.code })
-      .then(function(d){
-        mesAnnonces = (d && d.annonces) || [];
-        dessinerAnnonces();
-        dessinerLesOnglets();
-        if(ouvert('parcours')) poserLeParcours(d.parcours);
-        if(ouvert('rappel')) dessinerProchain(d.prochain);
-        if(ouvert('historique')) dessinerLecons(d.lecons || []);
-      })
+      .then(appliquerDossier)
       .catch(function(){
         /* Le reste de la page marche : on ne la bloque pas pour
            deux cartes de plus. */
@@ -3062,14 +3115,25 @@
 
     appeler({ action: 'eleveRecitations', eleve: moi.nom, code: moi.code })
       .then(function(d){
-        if(d.demandes){
-          demandes = d.demandes;
+        appliquerEnvois(d.recitations || [], d.demandes);
+      })
+      .catch(function(){
+        z.innerHTML = '<div class="empty">Liste indisponible.</div>';
+      });
+  }
+
+  /* ⚠️ SÉPARÉE DE L'APPEL — v1123, comme le dossier et le bilan. */
+  function appliquerEnvois(liste, lesDemandes){
+    var z = $('mesEnvois');
+    if(!z) return;
+        if(lesDemandes){
+          demandes = lesDemandes;
           montrerDemandes();
           /* Une demande soldée retire sa pastille : la barre le dit
              tout de suite, pas au prochain chargement. */
           dessinerLesOnglets();
         }
-        var liste = d.recitations || [];
+        liste = liste || [];
         if(!liste.length){
           z.innerHTML = '<div class="empty">Rien d\'envoyé pour l\'instant.<br>' +
             'Ta première procédure t\'attend au-dessus.</div>';
@@ -3088,11 +3152,6 @@
                 '⏳ En attente de correction par un moniteur.</div>') +
           '</div>';
         }).join('');
-      })
-      .catch(function(e){
-        z.innerHTML = '<div class="message erreur">' +
-          echapper(e.message || 'Lecture impossible.') + '</div>';
-      });
   }
 
 
