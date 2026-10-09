@@ -1073,21 +1073,37 @@ function cadreFicheDeRoute(nom, s, e){
      le simulateur nuit et risque. » En LIGNE, pas en tuile — « 5 et
      6 comme des lignes ok ».
 
-     Il se lit, il ne se corrige pas ici : il se renseigne dans le
-     questionnaire du cours, là où le moniteur le constate. Une
-     seconde porte d'écriture, ce serait la faute que cette page
-     répare partout. La ligne emmène donc au cours. */
+     ⚠️ v1124 — ET LA DATE SE POSE ICI. « Il faut que je puisse
+     renseigner la date directement ».
+
+     J'avais écrit que la ligne ne devait pas écrire, « une seconde
+     porte d'écriture, ce serait la faute que cette page répare
+     partout », et elle emmenait donc… au répertoire :
+     afficherVue('eleves','recherche'). C'était la mauvaise
+     conclusion tirée de la bonne règle.
+
+     La règle dit UNE porte, pas ZÉRO. Et cette porte existe :
+     fixerDateSimu (ec-listes.js) écrit la colonne PUIS envoie la
+     consigne, dans cet ordre, et son propre en-tête dit « écrite
+     ICI et nulle part ailleurs : le bureau et la page élève passent
+     par cette fonction ». L'onglet Permis s'en sert déjà avec son
+     bouton « 📅 Fixer la date ». La ligne de route s'en sert
+     maintenant aussi : même porte, mêmes mots, même écriture.
+
+     Le « fait » reste au questionnaire du cours : c'est là qu'on
+     le constate. Ici on pose une date — et jourDejaPasse décide
+     seul si elle se lit « prévu le » ou « fait le ». */
   {
     const a = (e && e.etat) || {};
-    const etat = String(a.simuNuit || '');
-    const dit = { fait:'Fait ✅', prevu:'Déjà prévu',
-                  aprevoir:'À prévoir' }[etat] || '';
-    ligneFicheRoute(z0, '🌙',
-      dit ? 'Simulateur nuit et risques — ' + dit.toLowerCase()
-          : 'Simulateur nuit et risques — rien de noté',
-      !!dit,
-      'Se renseigne dans le questionnaire du cours',
-      () => { if(typeof afficherVue === 'function') afficherVue('eleves', 'recherche'); },
+    const vu = etatSimuNuit(s, a);
+    ligneFicheRoute(z0, '🌙', texteSimuRoute(s, a), vu.rempli,
+      s.simuDate ? 'Touche pour changer la date'
+                 : 'Touche pour poser la date de son simulateur',
+      /* ⚠️ PAS L'ICÔNE 📅 : sur cette page elle veut dire « on part
+         ailleurs » — c'est celle de la date d'examen, qui se prend
+         sur une session. Le simulateur se corrige ici, donc il
+         porte le chevron des lignes qui se corrigent. */
+      () => fixerDateSimuRoute(nom, s),
       undefined, 'simulateur nuit et risques');
   }
 
@@ -1667,7 +1683,7 @@ async function modifierHeuresRoute(nom, s){
      au rang 0 depuis la v1014. La question ne se posait donc pas,
      et le rang du jour s'imposait en silence.
 
-     Chrystel a recopié le 08/10, depuis la fiche, ce que le
+     David a recopié le 08/10, depuis la fiche, ce que le
      post-permis avait évalué. L'outil a retenu « il reste 6h à
      compter de la 2ᵉ leçon » — donc les 3ᵉ, 4ᵉ et 5ᵉ — et a
      annoncé 4h. David, lui, lisait la ligne comme « la règle vaut
@@ -1761,6 +1777,98 @@ async function modifierHeuresRoute(nom, s){
     (typeof champsHeuresRestantes === 'function')
       ? champsHeuresRestantes(nom, propre, null, depuis, c.quoi)
       : { heuresRestantes: propre });
+}
+
+
+/* ------------------------------------------------------------
+   🌙 LE SIMULATEUR NUIT ET RISQUES — UNE SEULE PHRASE
+
+   ⚠️ v1124. David, le 9 octobre : « j'ai aussi voulu mettre son
+   simulateur nuit et risque en cliquant directement mais ça
+   m'amène je ne sais où ».
+
+   En allant voir, la ligne ne se contentait pas de mal emmener :
+   ELLE AFFICHAIT FAUX. Sur sa capture, le bandeau orange annonçait
+   « la fiche de suivi porte un simulateur le vendredi 30 octobre
+   2026 » et la ligne, trois lignes plus bas, « à prévoir ». Elle
+   ne lisait que « a.simuNuit », l'état deviné dans la note, et
+   ignorait « s.simuDate », la colonne qui fait foi — pendant que
+   desaccordsSuivi, lui, lisait bien les deux. C'est la forme
+   exacte de la faute BEA/BV.
+
+   L'onglet Permis, lui, avait la bonne phrase depuis la v785. Elle
+   est sortie ici pour que les deux écrans la lisent au même
+   endroit, au lieu de l'écrire chacun à sa façon.
+
+   Trois sources, dans cet ordre, et on dit toujours laquelle on
+   lit : la COLONNE, puis la date devinée dans un bilan, puis le
+   simple état. Une devinette qui se présente comme un fait est
+   pire qu'un blanc.
+   ------------------------------------------------------------ */
+function etatSimuNuit(s, a){
+  s = s || {}; a = a || {};
+
+  if(s.simuDate){
+    /* Une date passée ne se lit pas « prévu » : jourDejaPasse
+       tranche, et c'est déjà lui qui tranche dans la liste des
+       étapes croisées. */
+    const passe = (typeof jourDejaPasse === 'function')
+      ? jourDejaPasse(s.simuDate) : null;
+    return { txt: (passe === false ? 'Prévu le ' : 'Fait le ') + jourFr(s.simuDate),
+             rempli: true, couleur: 'var(--accent-text)' };
+  }
+  if(a.simuDate){
+    return { txt: 'Prévu le ' + jourFr(a.simuDate) +
+                  ' — annoncé dans un bilan, pas encore enregistré',
+             rempli: true, couleur: 'var(--accent-text)' };
+  }
+  if(a.simuNuit === 'fait'){
+    return { txt: "Fait — date non enregistrée, d'après le dernier bilan",
+             rempli: true, couleur: 'var(--accent-text)' };
+  }
+  if(a.simuNuit === 'prevu'){
+    return { txt: 'Prévu — date non enregistrée',
+             rempli: true, couleur: 'var(--accent-text)' };
+  }
+  if(a.simuNuit === 'aprevoir'){
+    return { txt: 'À prévoir', rempli: false, couleur: 'var(--warn-text)' };
+  }
+  return { txt: 'Rien de noté', rempli: false, couleur: 'var(--warn-text)' };
+}
+
+/* La même phrase, en bas de casse, pour une ligne qui la fait
+   suivre d'un tiret. Ce n'est pas une deuxième règle : c'est la
+   première, écrite autrement par celui qui l'affiche. */
+function texteSimuRoute(s, a){
+  const t = etatSimuNuit(s, a).txt;
+  return 'Simulateur nuit et risques — ' +
+         t.charAt(0).toLowerCase() + t.slice(1);
+}
+
+/* ⚠️ CETTE FONCTION N'ÉCRIT RIEN ELLE-MÊME. Elle demande la date
+   et la tend à fixerDateSimu, exactement comme le bouton de
+   l'onglet Permis. Si elle écrivait la colonne de son côté, on
+   aurait deux écritures pour une date — et la consigne partirait
+   d'un côté seulement, ce qui est la panne qu'on répare ici. */
+async function fixerDateSimuRoute(nom, s){
+  if(typeof choisirDate !== 'function' || typeof fixerDateSimu !== 'function'){
+    showToast("Impossible de poser la date depuis cet écran.");
+    return;
+  }
+  const iso = await choisirDate('🌙 Simulateur nuit et risques de ' + nom,
+                                isoDeRoute(s && s.simuDate));
+  if(!iso) return;
+  try{
+    await fixerDateSimu(nom, iso);
+    showToast('Date enregistrée ✅');
+    rafraichirPageEleve();
+    if(typeof redessinerBureau === 'function') redessinerBureau();
+  }catch(e){
+    /* ⚠️ PAS DE ✅ SUR UN REFUS — la même règle qu'enregistrerRoute :
+       c'est elle qui avait fait afficher « enregistré » sur une
+       ligne jamais écrite. */
+    showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
+  }
 }
 
 
@@ -3589,17 +3697,53 @@ function etatDuPermis(nom){
     }
   }
 
-  /* ── 16 · L'EXAMEN BLANC EST DEVANT ── */
-  if(String(a.examBlanc || '') === 'aprevoir'){
-    const prevu = (typeof datePrevueExamenBlanc === 'function')
-      ? court(datePrevueExamenBlanc(nom)) : '';
+  /* ── 16 · L'EXAMEN BLANC EST DEVANT ──
+
+     ⚠️ v1124 — LA COLONNE D'ABORD, ET « RÉSERVÉ » EST UN ÉTAT.
+
+     David, le 9 octobre, capture à l'appui : « je viens de placer
+     son examen blanc en cliquant directement sur examen blanc, les
+     tuiles ne sont pas mises à jour ». La ligne de la fiche de
+     route affichait « prévu le ven. 6 nov. » et la tuile, quinze
+     centimètres plus haut, « ❔ Rien de noté ».
+
+     Deux manques, et c'est le même qu'ailleurs — on lisait la note
+     là où une colonne fait foi :
+
+      · « ebDatePrevue », la colonne que la ligne de route écrit ET
+        relit, n'était jamais regardée. datePrevueExamenBlanc la lit
+        depuis toujours, mais elle n'était appelée qu'À L'INTÉRIEUR
+        de cette branche — donc jamais, puisque c'est elle qui
+        décidait d'y entrer.
+
+      · et côté note, seul « aprevoir » entrait. Or la phrase posée
+        par le bureau est « Examen blanc fixé au … », qu'analyserNote
+        traduit en « reserve ». Aucun état n'accueillait ce mot : un
+        examen blanc réservé tombait en 17, « rien de noté ».
+        La ligne écrivait pourtant déjà « réservé le … » : le test
+        avait oublié le mot que son propre texte annonçait.
+
+     ⚠️ ET LES MOTS SONT CEUX DE LA LIGNE DE ROUTE. Elle dit « prévu
+     le », le formulaire demande « Prévu le » : la tuile disait
+     « réservé le ». Trois façons de nommer une date pour une seule
+     question, c'est le jour où l'une des trois bouge seule. */
+  {
+    /* L'ordre des sources est celui de toute cette page : la
+       colonne, puis ce qu'on a su lire dans une note. */
+    const prevu = court(
+      ((typeof datePrevueExamenBlanc === 'function')
+        ? datePrevueExamenBlanc(nom) : '') || a.examBlancDate || '');
+    const annonce = String(a.examBlanc || '');
     const dans = (a.examBlancN !== null && a.examBlancN !== undefined &&
                   a.examBlancN !== '')
       ? 'dans ' + a.examBlancN + ' leçon(s)' : '';
-    return { cle:'ebprevu', ton:'', titre:'Où en est son permis',
-      gros:'📅 Examen blanc', petit:true,
-      lignes: lignes({ txt: prevu ? 'réservé le ' + prevu
-                                  : (dans || 'à prévoir'), ton:'fort' }) };
+
+    if(prevu || annonce === 'reserve' || annonce === 'aprevoir'){
+      return { cle:'ebprevu', ton:'', titre:'Où en est son permis',
+        gros:'📅 Examen blanc', petit:true,
+        lignes: lignes({ txt: prevu ? 'prévu le ' + prevu
+                                    : (dans || 'à prévoir'), ton:'fort' }) };
+    }
   }
 
   /* ── 17 · RIEN DE NOTÉ ──
@@ -3721,31 +3865,20 @@ function ongletPermis(corps, nom){
 
   /* LE SIMULATEUR. La colonne fait foi ; à défaut, ce que dit la
      note — et on précise lequel des deux on lit, parce qu'une date
-     devinée dans une phrase n'est pas une date. */
-  /* Trois sources, dans cet ordre, et on dit toujours laquelle on
-     lit : la COLONNE (v785, la vraie), puis la date devinée dans la
-     note, puis le simple état. Une devinette qui se présente comme
-     un fait est pire qu'un blanc. */
-  const simuFait = (a.simuNuit === 'fait');
-  const lSimu = ligneDossier(
-    '🌙 Simulateur nuit et risques',
-    s.simuDate ? 'Prévu le ' + jourFr(s.simuDate)
-      : (a.simuDate ? 'Prévu le ' + jourFr(a.simuDate) +
-                      ' — annoncé dans un bilan, pas encore enregistré'
-        : (simuFait ? "Fait — date non enregistrée, d'après le dernier bilan"
-          : (a.simuNuit === 'prevu' ? 'Prévu — date non enregistrée'
-            : 'À prévoir'))),
-    (s.simuDate || a.simuDate || simuFait) ? 'var(--accent-text)'
-      : 'var(--warn-text)');
+     devinée dans une phrase n'est pas une date.
+
+     ⚠️ v1124 — LA PHRASE EST SORTIE D'ICI. Elle était écrite là, et
+     la ligne 🌙 de la fiche de route en écrivait une autre, qui ne
+     lisait même pas la colonne : « à prévoir » s'affichait pendant
+     que le bandeau d'au-dessus annonçait la date du suivi. Les deux
+     écrans lisent maintenant etatSimuNuit, et la date se pose aussi
+     depuis la fiche de route — par la même fixerDateSimu. */
+  const vuSimu = etatSimuNuit(s, a);
+  const lSimu = ligneDossier('🌙 Simulateur nuit et risques',
+                             vuSimu.txt, vuSimu.couleur);
 
   actionDossier(lSimu, s.simuDate ? '📅 Changer' : '📅 Fixer la date',
-    async () => {
-      const iso = await choisirDate('Date du simulateur nuit et risques');
-      if(!iso) return;
-      await fixerDateSimu(nom, iso);
-      showToast('Date enregistrée ✅');
-      refaire();
-    });
+    () => fixerDateSimuRoute(nom, s));
   corps.appendChild(lSimu);
 
   /* La case « prévenu », celle du bureau, telle quelle. */
