@@ -45,10 +45,29 @@
    la rendre appelable sans supposer que son module est chargé — une
    deuxième règle de date serait exactement la faute qu'on répare
    partout ailleurs. */
+/* ============================================================
+   LA DATE DU DOSSIER — v1121
+
+   L'audit, troisième constat : « 2026-08-25, 2026-10-03. Ailleurs
+   dans l'outil tu écris "vendredi 3 octobre". Ici non. »
+
+   Cette fonction est la seule porte par laquelle le dossier écrit
+   une date : dix-huit endroits l'appellent. La corriger ICI les
+   corrige tous — et c'est précisément pour ça qu'elle existe.
+   Repasser sur les dix-huit appels aurait été dix-huit occasions
+   d'en oublier un, et le premier oublié aurait eu l'air d'un
+   choix.
+
+   Forme brève avec le jour de semaine — « sam. 3 oct. » — parce
+   qu'une ligne de dossier en porte souvent deux et que « samedi
+   3 octobre 2026 » deux fois dans la même phrase ne se lit plus.
+   L'année ne paraît que si ce n'est pas l'année en cours.
+   ============================================================ */
 function jourFr(v){
   const t = String(v || '').trim();
   if(!t) return '';
-  return (typeof dateCourte === 'function') ? dateCourte(t) : t;
+  return (typeof jourBref === 'function') ? (jourBref(t, true) || t)
+       : ((typeof dateCourte === 'function') ? dateCourte(t) : t);
 }
 
 /* ============================================================
@@ -108,6 +127,19 @@ function jourBref(v, avecLeJourDeSemaine){
    d'écriture depuis ici serait exactement la faute que cette page
    répare. Il montre ce qui a été répondu et dit où le changer. */
 const ONGLETS_ELEVE = [
+  /* ⚠️ « SA ROUTE » EN PREMIER — v1121.
+
+     David, devant la planche d'audit : « SA route comme premier
+     onglet d'accord ». C'est l'onglet qu'on vient voir : où il en
+     est, et ce qui se corrige. La fiche du répertoire — son
+     numéro, son mail — passe en second, parce qu'on l'ouvre pour
+     la modifier, pas pour la lire.
+
+     ⚠️ ET C'EST LUI QUI PORTE LA FICHE DE ROUTE. Elle s'affichait
+     au-dessus des onglets, en plus du résumé d'état, et les deux
+     disaient les mêmes phrases à dix centimètres d'écart — le
+     premier constat de l'audit. Elle n'est plus qu'ici. */
+  { cle:'route',    emoji:'🧭', titre:'Sa route',    section:'eleves' },
   { cle:'fiche',    emoji:'📇', titre:'Fiche',       section:'eleves' },
   { cle:'cours',    emoji:'📚', titre:'Cours',       section:'recherche' },
   { cle:'permis',   emoji:'🎓', titre:'Permis',      section:'permis' },
@@ -722,132 +754,224 @@ function desaccordsSuivi(s, etat, ebDateSure){
   return dits;
 }
 
-function blocResumeEleve(nom){
-  const e = eleveDuBureau(nom);
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+/* ============================================================
+   🧭 LE HAUT DU DOSSIER — TROIS TUILES, PLUS UN RÉSUMÉ EN LISTE
 
+   v1121. L'audit du 9 octobre, premier constat : « la même chose
+   est écrite deux fois, à dix centimètres ». Le résumé d'état et
+   la fiche de route lisaient les mêmes sources et disaient les
+   mêmes phrases, l'un en lecture, l'autre en écriture.
+
+   Le résumé disparaît donc comme bloc. Ce qu'on vient SAVOIR
+   monte en trois tuiles ; ce qu'on vient CORRIGER descend dans
+   l'onglet « Sa route », en une seule liste. Plus de doublon
+   possible, parce qu'il n'y a plus qu'un endroit pour chaque fait.
+
+   Les trois questions qu'on se pose en ouvrant un dossier :
+     1. où il en est — son rang de leçon, sa frise ;
+     2. où en est son permis — la tuile dynamique, dix-sept états,
+        validée sur planche le 9 octobre. C'est elle qui répond à
+        « ce qui l'attend » : David la voulait dynamique justement
+        pour qu'elle ne montre que ce qui compte à cet instant ;
+     3. ce qui lui reste avant l'examen — les heures, et QUI les a
+        dites.
+
+   ⚠️ ET LA TROISIÈME SE TAIT QUAND LA DEUXIÈME L'A DÉJÀ DIT.
+   Quand la tuile du permis parle elle-même des heures (réserve,
+   post-permis, « plus que les 3h »), répéter le nombre à côté
+   serait rouvrir le défaut qu'on vient de fermer. Elle montre
+   alors son prochain cours — l'autre chose qu'on cherche des yeux.
+   ============================================================ */
+function tuilesDuDossier(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const f = (typeof ficheDe === 'function') ? (ficheDe(nom) || {}) : {};
+
+  const grille = document.createElement('div');
+  grille.id = 'tuilesDossier';
+  grille.style.cssText = 'display:grid;gap:9px;margin-bottom:12px;' +
+    'grid-template-columns:repeat(auto-fit,minmax(188px,1fr));';
+
+  /* ── 1 · OÙ IL EN EST ────────────────────────────────────── */
+  {
+    const n = (typeof numeroLeconEleve === 'function')
+      ? (numeroLeconEleve(nom, e) || {}) : {};
+    const frise = (typeof friseUtilisable === 'function')
+      ? friseUtilisable(f.frise) : (f.frise || '');
+    grille.appendChild(tuileDossier({
+      lab:'Où il en est',
+      gros: n.valeur ? (n.valeur + (n.valeur === 1 ? 'ʳᵉ' : 'ᵉ')) : '—',
+      petit: !n.valeur,
+      lignes: [ n.valeur ? { txt:'leçon' + (frise ? ' · ' + frise : '') }
+                         : { txt: frise || 'ni leçon ni frise connues' } ]
+    }));
+  }
+
+  /* ── 2 · OÙ EN EST SON PERMIS ────────────────────────────── */
+  const permis = (typeof etatDuPermis === 'function')
+    ? etatDuPermis(nom) : null;
+  if(typeof dessinerTuilePermis === 'function'){
+    grille.appendChild(dessinerTuilePermis(nom, () => dessinerPageEleve()));
+  }
+
+  /* ── 3 · AVANT L'EXAMEN, OU SON PROCHAIN COURS ───────────── */
+  {
+    /* Les états de la tuile du permis qui PARLENT DÉJÀ des heures.
+       La liste est écrite, pas devinée : elle vient des clés de
+       etatDuPermis, et un banc la tient d'accord avec elles. */
+    const dejaDit = ['post3h', 'solde', 'reserve'];
+    const h = String(s.heuresRestantes || '').trim();
+
+    if(h !== '' && (!permis || dejaDit.indexOf(permis.cle) === -1)){
+      const qui = [s.heuresPar, jourBref(s.heuresLe, false)]
+        .filter(Boolean).join(' le ');
+      grille.appendChild(tuileDossier({
+        lab:"Avant l'examen",
+        gros: (h === '0')
+          ? ((typeof motDuZeroEnTete === 'function') ? motDuZeroEnTete()
+                                                     : 'Plus que les 3h')
+          : (h + ' h'),
+        petit: (h === '0'),
+        lignes: [ h === '0' ? { txt:'il est prêt', ton:'fort' }
+                            : { txt:'+ la leçon de veille', ton:'fort' },
+                  qui ? { txt:'dit par ' + qui } : null ]
+      }));
+    }else{
+      const prep = (typeof preparationDe === 'function')
+        ? preparationDe(nom) : null;
+      grille.appendChild(tuileDossier({
+        lab:'Son prochain cours',
+        gros: prep ? (jourBref(prep.date, true) || 'prévu') : 'Rien de prévu',
+        petit: !prep,
+        faible: !prep,
+        lignes: [ prep
+          ? { txt:[prep.heure, prep.moniteur].filter(Boolean).join(' · ') }
+          : { txt:'aucun cours préparé' } ]
+      }));
+    }
+  }
+
+  return grille;
+}
+
+/* Une tuile du haut du dossier. Même grammaire que celle du
+   permis — mêmes tailles, mêmes tons — pour qu'une rangée de
+   trois se lise comme une rangée, pas comme trois cadres. */
+function tuileDossier(t){
   const d = document.createElement('div');
-  d.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
-    'border-radius:10px;padding:12px;margin-bottom:12px;font-size:14px;' +
-    'line-height:1.8;';
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:11px 13px;min-width:0;';
 
-  const t = document.createElement('div');
-  t.style.cssText = 'font-weight:700;margin-bottom:6px;';
-  t.textContent = '🧭 La fiche de route de ' + nom;
-  d.appendChild(t);
+  const lab = document.createElement('div');
+  lab.style.cssText = 'font-size:10.5px;letter-spacing:.08em;' +
+    'text-transform:uppercase;color:var(--muted);margin-bottom:4px;';
+  lab.textContent = t.lab;
+  d.appendChild(lab);
 
-  /* Le cours préparé, s'il y en a un : c'est la dernière chose
-     qu'on ait dite de cet élève. */
-  assurerPreparations();
-  const prep = preparationDe(nom);
+  const gros = document.createElement('div');
+  gros.style.cssText = 'font-size:' + (t.petit ? '16px' : '21px') +
+    ';font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums;' +
+    (t.faible ? 'color:var(--muted);' : '');
+  gros.textContent = t.gros;
+  d.appendChild(gros);
 
-  /* Bilan, puis cours préparé, puis consignes du bureau : de la
-     plus ancienne annonce à la plus récente. La consigne reste en
-     dernier — elle prime, c'est la règle depuis toujours.
-
-     Ce texte-là ne sert plus qu'à NOURRIR l'analyse : le résumé se
-     construit ensuite en croisant ce qu'il en tire avec la fiche
-     de suivi. */
-  const dit = [(e && e.note) || '', (prep && prep.note) || '']
-    .filter(x => String(x).trim()).join(' · ');
-
-  /* L'état lu dans le texte, remis dans l'élève : etapesCroiseesEleve
-     s'en sert, et il doit tenir compte du cours préparé. */
-  if(e && typeof analyserNote === 'function'){
-    const aJour = analyserNote(dit + ' · ' +
-      ((e.enAttente || []).map(x => x.texte).join(' · ')));
-    Object.keys(aJour).forEach(k => {
-      if(aJour[k] !== null && aJour[k] !== false) e.etat[k] = aJour[k];
-    });
-  }
-
-  if(!e){
-    const v = document.createElement('div');
-    v.style.cssText = 'color:var(--muted);font-size:13px;line-height:1.5;';
-    /* « Rien à dire » et « pas encore chargé » ne se ressemblent
-       pas : l'un est une réponse, l'autre une absence. */
-    v.textContent = "Son parcours n'est pas encore chargé sur cet appareil.";
-    d.appendChild(v);
-  }else{
-    /* Les deux sources croisées, et les trois étapes clés toujours
-       affichées — même quand personne ne sait. */
-    etapesCroiseesEleve(nom).forEach(x => {
-      const l = document.createElement('div');
-      l.style.color = x.flou ? 'var(--muted)'
-                    : ((x.ok === true) ? 'var(--accent-text)'
-                      : (x.ok === false ? 'var(--warn-text)' : 'var(--cream)'));
-      if(x.flou) l.style.fontSize = '13px';
-      l.textContent = (x.emoji || '📌') + ' ' + x.txt;
-      d.appendChild(l);
-    });
-  }
-
-  /* D'OÙ VIENT CE QU'ON MONTRE.
-
-     Sans cette ligne, on ne peut pas savoir si le résumé parle du
-     cours de la semaine prochaine ou du bilan d'il y a deux mois —
-     et c'est exactement ce qui a rendu l'erreur invisible. */
-  if(prep){
-    const src = document.createElement('div');
-    src.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:7px;';
-    /* En français, comme partout ailleurs : « 2026-09-02 » est une
-       date de machine. Et les DEUX dates de la ligne s'écrivent
-       pareil — l'une en toutes lettres et l'autre en ISO, on
-       comparait deux choses qui ne se lisaient pas de la même
-       façon. */
-    src.textContent = '🗓️ Son cours préparé' +
-      (prep.date ? ' du ' + jourFr(prep.date) : '') +
-      ((e && e.date) ? ' · son bilan du ' + jourFr(e.date) : '') +
-      ' · sa fiche de suivi';
-    d.appendChild(src);
-  }else if(e && e.date){
-    const src = document.createElement('div');
-    src.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:7px;';
-    /* On nomme les DEUX sources lues, toujours. Dire « d'après son
-       bilan » quand la moitié des lignes vient de la fiche de suivi
-       serait faux — et c'est ce qui m'a fait chercher au mauvais
-       endroit deux fois de suite. */
-    src.textContent = '🗓️ Son bilan du ' + jourFr(e.date) +
-      ' · sa fiche de suivi — aucun cours préparé.';
-    d.appendChild(src);
-  }
-
-  desaccordsSuivi(s, e && e.etat,
-                  (typeof dateExamenBlancDuSuivi === 'function')
-                    ? dateExamenBlancDuSuivi(nom, e && e.etat) : '')
-    .forEach(phrase => {
-    const l = document.createElement('div');
-    l.style.cssText = 'color:var(--warn-text);font-size:12.5px;line-height:1.5;' +
-      'margin-top:7px;padding-top:7px;border-top:1px solid var(--line);';
-    l.textContent = '⚠️ ' + phrase;
-    d.appendChild(l);
+  (t.lignes || []).filter(Boolean).forEach(l => {
+    const p = document.createElement('div');
+    p.style.cssText = 'font-size:12.5px;line-height:1.4;margin-top:3px;' +
+      (l.ton === 'fort' ? 'color:var(--cream);font-weight:600;'
+                        : 'color:var(--muted);');
+    p.textContent = l.txt;
+    d.appendChild(p);
   });
-
-  /* ⚠️ CE QUI SE CORRIGE ICI, ET PLUS AILLEURS — v908.
-
-     David, le 10 septembre 2026 : « pour le moment je dois attendre
-     de faire un rappel pour que ça aille dans mes prochains cours
-     pour mettre à jour, et je n'arrive pas à tout mettre à jour
-     correctement ».
-
-     Le seul écran qui savait écrire ces choses était le
-     questionnaire du cours — et il ne s'ouvre que depuis un cours.
-     Pour corriger un dossier, il fallait d'abord inventer un cours.
-
-     ⚠️ ET CHAQUE LIGNE ÉCRIT DANS SA SEULE CHAMBRE.
-
-     La règle que David a posée : « tout se met à jour tout seul avec
-     la dernière information, peu importe où elle a été renseignée ».
-     Elle ne tient que si une information n'est vraie QU'À UN
-     ENDROIT — alors trois portes, une seule chambre, et la dernière
-     gagne parce qu'il n'y en a qu'une. Rien n'est recopié ici :
-     la formation et la frise vont au répertoire, les examens et le
-     post-permis au suivi, le programme aux consignes. */
-  d.appendChild(cadreFicheDeRoute(nom, s, e));
 
   return d;
 }
 
+
+/* ============================================================
+   L'ÉTAT RELU DANS LES NOTES
+
+   Extrait du bloc résumé en v1121, quand celui-ci a disparu. Il
+   croise le dernier bilan, le cours préparé et les consignes du
+   bureau, et repose le résultat dans « e.etat » — ce que lisent
+   ensuite les tuiles, la fiche de route et la tuile du permis.
+   ============================================================ */
+function rafraichirEtatDepuisNotes(nom){
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  if(!e || typeof analyserNote !== 'function') return;
+
+  if(typeof assurerPreparations === 'function') assurerPreparations();
+  const prep = (typeof preparationDe === 'function') ? preparationDe(nom) : null;
+
+  const dit = [(e && e.note) || '', (prep && prep.note) || '']
+    .filter(x => String(x).trim()).join(' · ');
+
+  const aJour = analyserNote(dit + ' · ' +
+    ((e.enAttente || []).map(x => x.texte).join(' · ')));
+  Object.keys(aJour).forEach(k => {
+    if(aJour[k] !== null && aJour[k] !== false) e.etat[k] = aJour[k];
+  });
+}
+
+
+function ongletRoute(corps, nom){
+  corps.innerHTML = '';
+
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+
+  if(typeof assurerPreparations === 'function') assurerPreparations();
+  const prep = (typeof preparationDe === 'function') ? preparationDe(nom) : null;
+
+  if(!e){
+    /* « Rien à dire » et « pas encore chargé » ne se ressemblent
+       pas : l'un est une réponse, l'autre une absence. */
+    corps.appendChild(vidDossier(
+      "Son parcours n'est pas encore chargé sur cet appareil."));
+  }
+
+  /* D'OÙ VIENT CE QU'ON MONTRE.
+
+     Sans cette ligne, on ne peut pas savoir si ce qui suit parle
+     du cours de la semaine prochaine ou du bilan d'il y a deux
+     mois — et c'est exactement ce qui a rendu l'erreur invisible.
+
+     ⚠️ ON NOMME LES DEUX SOURCES LUES, TOUJOURS. Dire « d'après
+     son bilan » quand la moitié des lignes vient de la fiche de
+     suivi serait faux, et c'est ce qui m'a fait chercher au
+     mauvais endroit deux fois de suite. */
+  if(prep || (e && e.date)){
+    const src = document.createElement('div');
+    src.style.cssText = 'font-size:11.5px;color:var(--muted);' +
+      'margin-bottom:9px;line-height:1.5;';
+    src.textContent = prep
+      ? '🗓️ Son cours préparé' +
+        (prep.date ? ' du ' + jourBref(prep.date, true) : '') +
+        ((e && e.date) ? ' · son bilan du ' + jourBref(e.date, true) : '') +
+        ' · sa fiche de suivi'
+      : '🗓️ Son bilan du ' + jourBref(e.date, true) +
+        ' · sa fiche de suivi — aucun cours préparé.';
+    corps.appendChild(src);
+  }
+
+  /* Les désaccords entre les deux sources : ils passent AVANT les
+     lignes, parce qu'ils disent qu'une des lignes ment. */
+  if(typeof desaccordsSuivi === 'function'){
+    desaccordsSuivi(s, e && e.etat,
+      (typeof dateExamenBlancDuSuivi === 'function')
+        ? dateExamenBlancDuSuivi(nom, e && e.etat) : '')
+      .forEach(phrase => {
+        const l = document.createElement('div');
+        l.style.cssText = 'color:var(--warn-text);font-size:12.5px;' +
+          'line-height:1.5;margin-bottom:8px;padding:8px 11px;' +
+          'border:1px solid var(--warn-text);border-radius:10px;';
+        l.textContent = '⚠️ ' + phrase;
+        corps.appendChild(l);
+      });
+  }
+
+  corps.appendChild(cadreFicheDeRoute(nom, s, e));
+}
 
 /* ============================================================
    LA FICHE DE ROUTE — CE QUI SE CORRIGE SANS OUVRIR UN COURS
@@ -879,21 +1003,33 @@ function cadreFicheDeRoute(nom, s, e){
 
   const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
 
-  ligneFicheRoute(z, '🚗', (f && f.formation) || 'Formation non précisée',
+  /* ⚠️ v1121 — LES LIGNES SONT D'ABORD RAMASSÉES, PUIS POSÉES.
+
+     L'audit, cinquième constat : « le vide prend autant de place
+     que l'information — quatre lignes sur sept disent "rien de
+     noté", et elles occupent la moitié du cadre ». On ne peut pas
+     replier ce qu'on a déjà écrit à l'écran : il faut les tenir
+     toutes avant d'en poser une seule. « ligneFicheRoute » les
+     empile donc dans une liste, et « poserLesLignesDeRoute »
+     décide ensuite ce qui se montre et ce qui se replie. */
+  const lignes = [];
+  const z0 = lignes;
+
+  ligneFicheRoute(z0, '🚗', (f && f.formation) || 'Formation non précisée',
     !!(f && f.formation),
     "Sa formation décide de la boîte, du modèle de bilan et de sa frise",
-    () => { if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(nom); });
+    () => { if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(nom); }, undefined, 'formation');
 
-  ligneFicheRoute(z, '🧭', (f && f.frise) || 'Frise non posée',
+  ligneFicheRoute(z0, '🧭', (f && f.frise) || 'Frise non posée',
     !!(f && f.frise),
     'La frise se pose sur la fiche du répertoire, comme la formation',
-    () => { if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(nom); });
+    () => { if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(nom); }, undefined, 'frise');
 
-  ligneFicheRoute(z, '📝', texteExamenBlancRoute(nom, s, e),
+  ligneFicheRoute(z0, '📝', texteExamenBlancRoute(nom, s, e),
     !!(s && (s.ebDatePrevue || s.ebNiveau || s.heuresRestantes)) ||
       !!datePasseeExamenBlancRoute(nom, e),
     "Prévu, passé, son résultat",
-    () => modifierExamenBlancRoute(nom, s, e));
+    () => modifierExamenBlancRoute(nom, s, e), undefined, 'examen blanc');
 
   /* ⚠️ L'EXAMEN OFFICIEL NE SE TAPE PAS ICI — David, le 10
      septembre : « cette information ne provient que de session
@@ -905,19 +1041,19 @@ function cadreFicheDeRoute(nom, s, e){
      PLACE. Tapée à la main sans place, c'est un élève qui a l'air
      prêt et qui n'est sur aucune liste — et une place prise sans
      qu'on le sache, c'est un élève de moins qui pourra passer. */
-  ligneFicheRoute(z, '🎓', texteExamenRoute(s), !!(s && s.datePermis),
+  ligneFicheRoute(z0, '🎓', texteExamenRoute(s), !!(s && s.datePermis),
     "La date d'examen se pose sur une session — c'est la place qui " +
     'la prouve, pas la saisie',
-    () => ouvrirSessionsDepuisRoute(), '📅');
+    () => ouvrirSessionsDepuisRoute(), '📅', 'date d\'examen');
 
-  ligneFicheRoute(z, '🔁', texteAjournementsRoute(s),
+  ligneFicheRoute(z0, '🔁', texteAjournementsRoute(s),
     !!(s && s.nbAjournements),
     "Combien de fois il l'a passé, et quand pour la dernière",
-    () => modifierAjournementsRoute(nom, s));
+    () => modifierAjournementsRoute(nom, s), undefined, 'ajournements');
 
-  ligneFicheRoute(z, '🤝', texteRdvPostRoute(s), !!(s && s.rdvPostDate),
+  ligneFicheRoute(z0, '🤝', texteRdvPostRoute(s), !!(s && s.rdvPostDate),
     'Fait le, avec qui, et la suite décidée',
-    () => modifierRdvPostRoute(nom, s));
+    () => modifierRdvPostRoute(nom, s), undefined, 'post-permis');
 
   /* ⚠️ LES HEURES, ET SURTOUT QUI LES A DITES — v908.
 
@@ -926,40 +1062,183 @@ function cadreFicheDeRoute(nom, s, e){
      son auteur : sans lui, on retape le nombre par méfiance et on
      empile les corrections. Modifiable, parce que c'est justement
      ce qu'on vient corriger. */
-  ligneFicheRoute(z, '⏱️', texteHeuresRoute(s),
+  ligneFicheRoute(z0, '⏱️', texteHeuresRoute(s),
     String((s && s.heuresRestantes) || '').trim() !== '',
     "Ce qu'il lui reste à conduire avant l'examen, et qui l'a dit",
-    () => modifierHeuresRoute(nom, s));
+    () => modifierHeuresRoute(nom, s), undefined, 'heures avant examen');
 
+  /* ── 🌙 LE SIMULATEUR NUIT ET RISQUES ──────────────────────
+
+     David, devant la planche : « Il me faut aussi un endroit pour
+     le simulateur nuit et risque. » En LIGNE, pas en tuile — « 5 et
+     6 comme des lignes ok ».
+
+     Il se lit, il ne se corrige pas ici : il se renseigne dans le
+     questionnaire du cours, là où le moniteur le constate. Une
+     seconde porte d'écriture, ce serait la faute que cette page
+     répare partout. La ligne emmène donc au cours. */
+  {
+    const a = (e && e.etat) || {};
+    const etat = String(a.simuNuit || '');
+    const dit = { fait:'Fait ✅', prevu:'Déjà prévu',
+                  aprevoir:'À prévoir' }[etat] || '';
+    ligneFicheRoute(z0, '🌙',
+      dit ? 'Simulateur nuit et risques — ' + dit.toLowerCase()
+          : 'Simulateur nuit et risques — rien de noté',
+      !!dit,
+      'Se renseigne dans le questionnaire du cours',
+      () => { if(typeof afficherVue === 'function') afficherVue('eleves', 'recherche'); },
+      undefined, 'simulateur nuit et risques');
+  }
+
+  /* ── 🤝 LES RENDEZ-VOUS DE L'AAC ───────────────────────────
+
+     « Et pour les AAC une tuile avec tous les rendez-vous et leur
+     statut » — en ligne elle aussi, et seulement pour ceux que ça
+     concerne : afficher « sans objet » à deux cents élèves en
+     conduite classique, c'est du vide qui coûte une ligne à tout
+     le monde.
+
+     Les états viennent de dossierAac (ec-aac-cs), ceux-là mêmes
+     que la liste 🎓 AAC du bureau : une donnée, deux écrans, une
+     seule lecture. */
+  if(typeof typeAccompagnement === 'function' && typeAccompagnement(nom) &&
+     typeof dossierAac === 'function'){
+    const d = dossierAac(nom) || {};
+    const r = d.rdv || {};
+    const ordre = [['Rendez-vous préalable', r.prealable],
+                   ['Rendez-vous pédagogique n° 1', r.rvp1],
+                   ['Rendez-vous pédagogique n° 2', r.rvp2],
+                   ['Rendez-vous de fin', r.rvt]];
+    ordre.forEach(([titre, x]) => {
+      if(!x || x.cle === 'sansobjet') return;
+      ligneFicheRoute(z0, x.retard ? '🔴' : (x.cle === 'fait' ? '✅' : '🤝'),
+        titre + ' — ' + x.txt,
+        x.cle === 'fait' || x.cle === 'ailleurs' || x.cle === 'prevu',
+        x.retard ? 'En retard' : 'Se pose dans 🎓 AAC et conduite supervisée',
+        () => { if(typeof afficherVue === 'function') afficherVue('eleves', 'aaccs'); },
+        undefined, titre.toLowerCase());
+    });
+  }
+
+  poserLesLignesDeRoute(z, lignes);
   z.appendChild(cadreProgrammeRoute(nom, e));
   return z;
+}
+
+
+/* ============================================================
+   CE QUI EST RENSEIGNÉ SE MONTRE, CE QUI MANQUE SE COMPTE
+
+   v1121, cinquième constat de l'audit. Les lignes vides ne
+   disparaissent pas — un manque doit se voir, c'est souvent lui
+   qu'on vient combler — mais elles tiennent sur UNE ligne au lieu
+   de quatre, et elles s'ouvrent d'un geste.
+
+   ⚠️ ET ELLES NE SE REPLIENT QUE S'IL Y EN A PLUS DE DEUX. Sous
+   ce seuil, le repli coûte un clic pour gagner une ligne : il
+   cache sans rien ranger.
+   ============================================================ */
+function poserLesLignesDeRoute(zone, lignes){
+  const pleines = lignes.filter(l => l.rempli);
+  const vides   = lignes.filter(l => !l.rempli);
+
+  pleines.forEach(l => zone.appendChild(l.el));
+
+  if(vides.length <= 2){
+    vides.forEach(l => zone.appendChild(l.el));
+    return;
+  }
+
+  const det = document.createElement('details');
+  det.style.cssText = 'margin-top:4px;';
+
+  const res = document.createElement('summary');
+  res.style.cssText = 'cursor:pointer;font-size:12.5px;color:var(--muted);' +
+    'padding:7px 10px;border:1px dashed var(--line);border-radius:10px;' +
+    'line-height:1.4;';
+  /* On NOMME ce qui manque. « 4 choses non renseignées » oblige à
+     ouvrir pour savoir si ça nous concerne ; avec les noms, on
+     n'ouvre que si c'est le cas. */
+  res.textContent = vides.length + ' choses non renseignées — ' +
+    vides.map(l => l.quoi).join(', ');
+  det.appendChild(res);
+
+  const dedans = document.createElement('div');
+  dedans.style.cssText = 'margin-top:5px;';
+  vides.forEach(l => dedans.appendChild(l.el));
+  det.appendChild(dedans);
+
+  zone.appendChild(det);
 }
 
 
 /* Une ligne de la fiche de route : ce qu'on sait, et de quoi le
    corriger. Le texte reste gris tant que la case est vide — ce
    n'est pas une valeur, c'est un manque. */
-function ligneFicheRoute(zone, emoji, texte, rempli, aide, action, icone){
-  const l = document.createElement('div');
-  l.style.cssText = 'display:flex;gap:8px;align-items:center;' +
-    'font-size:13px;line-height:1.5;padding:3px 0;';
+/* ============================================================
+   UNE LIGNE DE LA FICHE DE ROUTE
 
-  const t = document.createElement('div');
-  t.style.cssText = 'flex:1;min-width:0;' +
-    (rempli ? '' : 'color:var(--muted);font-style:italic;');
-  t.textContent = emoji + ' ' + texte;
+   ⚠️ v1121 — LE CRAYON DISPARAÎT, LA LIGNE ENTIÈRE DEVIENT LA
+   CIBLE.
+
+   L'audit, quatrième constat : « sept crayons identiques en
+   colonne. Ils ne font pourtant pas la même chose : l'un ouvre la
+   fiche du répertoire, l'autre la fiche de suivi, le troisième
+   emmène dans Suivi permis. Un bouton identique qui fait sept
+   choses différentes n'apprend rien, et il ajoute une cible de
+   plus à viser alors que la ligne entière est libre. »
+
+   Reste un chevron discret, qui dit que ça s'ouvre sans prétendre
+   dire quoi. Et l'aide — « Prévu, passé, son résultat » — n'est
+   plus une infobulle qu'il faut survoler pour trouver : elle est
+   écrite sous la ligne. Une infobulle n'existe pas sur une
+   tablette.
+
+   ⚠️ ET LA LIGNE N'EST PLUS POSÉE, ELLE EST RENDUE. Les lignes
+   vides se replient ensemble (voir poserLesLignesDeRoute), ce qui
+   n'est possible qu'en les tenant toutes avant d'en afficher une.
+   ============================================================ */
+function ligneFicheRoute(liste, emoji, texte, rempli, aide, action, icone, quoi){
+  const l = document.createElement('button');
+  l.type = 'button';
+  l.style.cssText = 'display:flex;gap:9px;align-items:center;width:100%;' +
+    'text-align:left;font:inherit;font-size:13px;line-height:1.4;' +
+    'background:transparent;border:1px solid var(--line);border-radius:10px;' +
+    'padding:8px 11px;margin:0 0 5px;cursor:pointer;color:inherit;';
+
+  const em = document.createElement('span');
+  em.style.cssText = 'flex:0 0 auto;font-size:15px;';
+  em.textContent = emoji;
+  l.appendChild(em);
+
+  const t = document.createElement('span');
+  t.style.cssText = 'flex:1;min-width:0;';
+  const h = document.createElement('span');
+  h.style.cssText = 'display:block;' +
+    (rempli ? 'font-weight:600;' : 'color:var(--muted);font-style:italic;');
+  h.textContent = texte;
+  t.appendChild(h);
+  if(aide){
+    const sous = document.createElement('span');
+    sous.style.cssText = 'display:block;color:var(--muted);font-size:11.5px;' +
+      'margin-top:1px;font-style:normal;';
+    sous.textContent = aide;
+    t.appendChild(sous);
+  }
   l.appendChild(t);
 
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'width:auto;padding:3px 8px;font-size:12px;margin:0;' +
-    'flex-shrink:0;';
-  b.textContent = icone || '✏️';
-  b.title = aide;
-  b.addEventListener('click', action);
-  l.appendChild(b);
+  const fl = document.createElement('span');
+  fl.style.cssText = 'flex:0 0 auto;color:var(--muted);font-size:14px;';
+  /* Une icône particulière garde son sens — le calendrier de la
+     date d'examen dit qu'on part ailleurs, pas qu'on corrige ici. */
+  fl.textContent = (icone && icone !== '✏️') ? icone : '›';
+  l.appendChild(fl);
 
-  zone.appendChild(l);
+  l.addEventListener('click', action);
+
+  liste.push({ el: l, rempli: !!rempli,
+               quoi: quoi || String(texte).toLowerCase().slice(0, 28) });
 }
 
 
@@ -1564,17 +1843,32 @@ function programmeCourantRoute(e){
   return '';
 }
 
+/* ⚠️ LE PROGRAMME RESTE À PART, ET EN BAS.
+
+   C'est la seule ligne qui ne décrit pas un ÉTAT mais une
+   INTENTION — ce qu'on fera au prochain cours. Elle ne se replie
+   donc pas avec les lignes vides : « prochaine leçon non
+   préparée » est une invitation, pas un manque à combler plus
+   tard. Elle a son filet et sa place, après tout le reste.
+
+   (Elle a sa propre liste : en v1121 une passe de renommage lui
+   avait donné « z0 », la liste de la fiche de route, qui n'existe
+   pas dans cette fonction. Le harnais l'a vu à l'écran — une
+   variable d'une fonction voisine ne fait pas d'erreur à la
+   lecture.) */
 function cadreProgrammeRoute(nom, e){
   const z = document.createElement('div');
   z.style.cssText = 'margin-top:8px;padding-top:8px;' +
     'border-top:1px dashed var(--line);';
 
   const courant = programmeCourantRoute(e);
-  ligneFicheRoute(z, '🎯', courant || 'Prochaine leçon non préparée',
+  const sienne = [];
+  ligneFicheRoute(sienne, '🎯', courant || 'Prochaine leçon non préparée',
     !!courant,
     'Ce qui sera annoncé dans le prochain rappel et repris dans la ' +
     'note du cours',
-    () => modifierProgrammeRoute(nom, courant));
+    () => modifierProgrammeRoute(nom, courant), undefined, 'prochaine leçon');
+  sienne.forEach(l => z.appendChild(l.el));
 
   return z;
 }
@@ -1765,8 +2059,18 @@ function dessinerPageEleve(){
   }
 
   zone.innerHTML = '';
+
+  /* ⚠️ L'ÉTAT SE RAFRAÎCHIT AVANT TOUT CE QUI LE LIT — v1121.
+
+     Cette lecture des notes vivait au milieu du bloc résumé, qui a
+     disparu. Tout ce qui suit s'en sert : les tuiles, la fiche de
+     route, la tuile du permis. La sortir en tête, c'est la rendre
+     visible — enfouie dans un bloc d'affichage, elle serait partie
+     avec lui sans que rien ne le dise. */
+  rafraichirEtatDepuisNotes(nom);
+
   zone.appendChild(enteteEleve(nom));
-  zone.appendChild(blocResumeEleve(nom));
+  zone.appendChild(tuilesDuDossier(nom));
 
   const onglets = ongletsEleveVisibles();
   if(!onglets.length){
@@ -1778,12 +2082,18 @@ function dessinerPageEleve(){
   }
 
   ongletPageEleve = ongletEleveDeDepart();
-  zone.appendChild(barreOngletsEleve(onglets));
+
+  /* Le rail et le corps dans un même cadre : c'est lui qui passe
+     en deux colonnes au-delà de 1280 px (voir « .dossierRail »
+     dans index.html). */
+  const cadre = document.createElement('div');
+  cadre.className = 'dossierRail';
+  cadre.appendChild(barreOngletsEleve(onglets));
 
   const corps = document.createElement('div');
   corps.id = 'pageEleveCorps';
-  corps.style.marginTop = '12px';
-  zone.appendChild(corps);
+  cadre.appendChild(corps);
+  zone.appendChild(cadre);
 
   remplirOngletEleve(corps, nom, ongletPageEleve);
 }
@@ -1836,7 +2146,55 @@ function enteteEleve(nom){
     d.appendChild(p);
   }
 
+  /* ⚠️ TROIS ACTIONS À PORTÉE — v1121, sixième constat de l'audit.
+
+     « On ouvre un dossier élève pour FAIRE quelque chose :
+     l'appeler, lui écrire, regarder son prochain cours. Rien de
+     tout ça n'est à portée depuis l'en-tête. »
+
+     Elles ne s'affichent que si elles mènent quelque part : un
+     bouton d'appel sans numéro est une promesse que l'écran ne
+     tient pas. */
+  d.appendChild(actionsRapidesEleve(nom, f));
+
   return d;
+}
+
+
+function actionsRapidesEleve(nom, f){
+  const z = document.createElement('div');
+  z.style.cssText = 'display:flex;gap:6px;flex:0 0 auto;';
+
+  const rond = (contenu, titre, faire, lien) => {
+    const b = document.createElement(lien ? 'a' : 'button');
+    if(lien){ b.href = lien; }else{ b.type = 'button'; }
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:34px;height:34px;padding:0;margin:0;' +
+      'border-radius:50%;font-size:15px;display:inline-flex;' +
+      'align-items:center;justify-content:center;flex:0 0 auto;' +
+      'text-decoration:none;';
+    b.textContent = contenu;
+    b.title = titre;
+    if(faire) b.addEventListener('click', faire);
+    z.appendChild(b);
+  };
+
+  const tel = (f && f.telephone) || '';
+  if(tel && typeof telPourLien === 'function'){
+    rond('📞', 'Appeler ' + nom, null, 'tel:' + telPourLien(tel));
+    rond('💬', 'Envoyer un SMS à ' + nom, null, 'sms:' + telPourLien(tel));
+  }
+
+  /* Son prochain cours : on n'ouvre l'accès que s'il y en a un. */
+  const prep = (typeof preparationDe === 'function') ? preparationDe(nom) : null;
+  if(prep){
+    rond('📅', 'Son prochain cours — ' +
+      (jourBref(prep.date, true) || '') +
+      (prep.heure ? ' à ' + prep.heure : ''),
+      () => { if(typeof afficherVue === 'function') afficherVue('eleves', 'recherche'); });
+  }
+
+  return z;
 }
 
 
@@ -1924,6 +2282,20 @@ function barreOngletsEleve(onglets){
 
      Elle passe donc à la ligne. Deux rangs de cinq sur téléphone,
      un seul sur tablette, et tout est visible d'un coup. */
+  /* ⚠️ v1121 — RAIL VERTICAL AU-DELÀ DE 1280 px.
+
+     C'est ce que la planche d'audit a arrêté : « les onglets
+     passent en rail vertical au-delà de 1280 px ; en dessous ils
+     se replient sur deux lignes. Jamais de défilement
+     horizontal. »
+
+     Le rail n'est pas un caprice de grand écran : onze onglets en
+     pastilles mangent deux rangs de haut sur une page qu'on
+     parcourt déjà, et la liste verticale se lit d'un coup d'œil
+     comme un sommaire. En dessous de 1280, il n'y a pas la
+     largeur : on retombe sur les pastilles, qui passent à la
+     ligne. */
+  b.dataset.railOnglets = '1';
   b.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;';
 
   onglets.forEach(o => {
@@ -1950,6 +2322,7 @@ function choisirOngletEleve(cle){
 }
 
 function remplirOngletEleve(corps, nom, cle){
+  if(cle === 'route')       return ongletRoute(corps, nom);
   if(cle === 'fiche')       return ongletFiche(corps, nom);
   if(cle === 'cours')       return ongletCours(corps, nom);
   if(cle === 'permis')      return ongletPermis(corps, nom);
@@ -2140,6 +2513,29 @@ const DATES_REPONSES_QUEST = ['examBlancDate', 'examDate', 'nouvelleDate',
 
    Sortie ici, elle s'appelle, donc elle s'éprouve pour de bon.
    ============================================================ */
+/* Une réponse relue : son nom à gauche, ce qui a été répondu à
+   droite. Le filet n'est pas sur la première — un trait en haut
+   d'une liste la sépare de son titre au lieu de séparer ses
+   lignes entre elles. */
+function ligneReponseQuest(nom, valeur, premiere){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:12px;justify-content:space-between;' +
+    'align-items:baseline;padding:8px 2px;font-size:13.5px;line-height:1.45;' +
+    (premiere ? '' : 'border-top:1px solid var(--line);');
+
+  const g = document.createElement('span');
+  g.style.cssText = 'color:var(--muted);flex:1 1 auto;min-width:0;';
+  g.textContent = nom;
+
+  const d = document.createElement('span');
+  d.style.cssText = 'text-align:right;min-width:0;font-weight:600;' +
+    'word-break:break-word;flex:0 1 auto;';
+  d.textContent = valeur;
+
+  l.appendChild(g); l.appendChild(d);
+  return l;
+}
+
 function direLaReponse(cle, valeur){
   if(Array.isArray(valeur)) return valeur.join(' · ');
 
@@ -2247,9 +2643,15 @@ function ongletQuestionnaire(corps, nom){
         'margin:12px 0 5px;';
       t.textContent = titre;
       corps.appendChild(t);
-      liste.forEach(k => corps.appendChild(
-        ligneDossier(NOMS_REPONSES_QUEST[k] || k,
-                     direLaReponse(k, ctx[k]))));
+      /* ⚠️ DES LIGNES, PAS DES CADRES — v1121, planche du
+         9 octobre. « ligneDossier » encadre chaque réponse : une
+         liste de quinze réponses devenait quinze cartes, et on
+         perdait le fait que ce sont des lignes d'un même tableau.
+         La planche montre un libellé à gauche, sa valeur à droite,
+         un filet entre les deux. C'est ça qu'on code. */
+      liste.forEach((k, i) => corps.appendChild(
+        ligneReponseQuest(NOMS_REPONSES_QUEST[k] || k,
+                          direLaReponse(k, ctx[k]), i === 0)));
     });
   }else{
     corps.appendChild(vidDossier('Aucune réponse gardée sur ce cours.'));
@@ -2434,6 +2836,23 @@ function ongletFiche(corps, nom){
           (dessous ? 'display:block;margin-top:2px;' : 'text-align:right;');
         b.textContent = v;
         l.appendChild(a); l.appendChild(b);
+
+        /* ⚠️ LE NUMÉRO SE COMPOSE DEPUIS SA LIGNE — v1121, planche
+           du 9 octobre. Un numéro affiché qu'il faut recopier dans
+           le téléphone est un numéro à moitié affiché. Les deux
+           gestes sont là où on le lit, pas en haut de l'écran. */
+        if(k.indexOf('Téléphone') !== -1 && typeof telPourLien === 'function'){
+          [['💬', 'sms:', 'Envoyer un SMS'],
+           ['📞', 'tel:', 'Appeler']].forEach(([em, proto, titre]) => {
+            const g = document.createElement('a');
+            g.href = proto + telPourLien(f.telephone);
+            g.title = titre + ' ' + nom;
+            g.style.cssText = 'margin-left:9px;text-decoration:none;' +
+              'font-size:14px;flex:0 0 auto;';
+            g.textContent = em;
+            b.appendChild(g);
+          });
+        }
         t.appendChild(l);
       });
       corps.appendChild(t);
