@@ -1865,25 +1865,123 @@ function poserLeDepartDesHeures(boite, nom){
   const sel  = boite && boite.querySelector('#qHeuresDepuis');
   if(!bloc || !sel) return 0;
 
+  const ch = choixDuDepartDesHeures(nom);
+  if(!ch){ bloc.style.display = 'none'; return 0; }
+
+  sel.innerHTML = ch.options.map(o =>
+    '<option value="' + o.r + '">' + o.nom.replace(/</g, '&lt;') + '</option>').join('');
+  sel.value = String(ch.r);
+  const mot = boite.querySelector('#qHeuresDepuisMot');
+  if(mot) mot.textContent = questionDuDepartDesHeures(ch.quoi);
+  boite._departHeures = { rangJour: ch.c.rang, quoi: ch.c.quoi };
+  bloc.style.display = '';
+  return ch.c.rang;
+}
+
+/* ============================================================
+   ⚠️ CES HEURES PARTENT DE QUELLE LEÇON — v1129
+
+   David, le 9 octobre, sur Martin Le Gall : « dans ces heures
+   partent de quand du questionnaire je n'ai que 2 choix — depuis
+   l'examen blanc, ou depuis aujourd'hui. C'est décidé une leçon
+   après l'examen blanc : il me faut, quand il y a eu des leçons
+   après l'examen, choisir quelle leçon ». Faute de mieux, il avait
+   choisi « aujourd'hui » et menti sur le rang pour que la phrase
+   tombe juste.
+
+   Les deux choix d'avant étaient les deux bouts d'une liste : la
+   1ʳᵉ leçon après la charnière (« depuis l'examen blanc ») et la
+   leçon d'après aujourd'hui (« à partir d'aujourd'hui »). Entre les
+   deux, rien. La liste est maintenant complète — une option par
+   leçon — et chacune se dit en clair : « À partir de la 2ᵉ leçon
+   après l'examen blanc ».
+
+   ⚠️ CE QUE L'OPTION ENREGISTRE N'A PAS CHANGÉ : le repère r, « le
+   nombre de leçons depuis la charnière qui ne comptent pas ». La
+   Nᵉ leçon est la première qui consomme les heures : r = N − 1.
+   L'ancien « depuis l'examen blanc » est r = 0, l'ancien « à partir
+   d'aujourd'hui » est r = le rang du jour. Les repères déjà écrits
+   se relisent donc tels quels.
+
+   ⚠️ ET LE MOT « À PARTIR DE » EST CELUI DE DAVID. Le 8 octobre il
+   avait lu « il reste 6h à compter de la 2ᵉ leçon » comme « la règle
+   vaut à partir de la 2ᵉ ». Ici l'option nomme la leçon qui COMMENCE
+   à consommer les heures, et le bouton au-dessus montre aussitôt ce
+   qui en reste : on voit l'effet en choisissant.
+   ============================================================ */
+function choixDuDepartDesHeures(nom){
   const c = (typeof charniereDeLEleve === 'function')
     ? charniereDeLEleve(nom) : { quoi: 'eb', rang: 0 };
-  if(!c || !(c.rang >= 1)){ bloc.style.display = 'none'; return 0; }
+  if(!c || !(c.rang >= 1)) return null;
 
   const quoi = (typeof nomDeLaCharniere === 'function')
     ? nomDeLaCharniere(c.quoi) : "l'examen blanc";
-  sel.options[0].textContent = 'Depuis ' + quoi +
-    ' (déjà entamées de ' + c.rang + ' leçon' + (c.rang > 1 ? 's' : '') + ')';
 
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
   const rep = (typeof repereDesHeures === 'function')
     ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
-  const depuisLaCharniere =
-    (String(rep.quoi || 'eb') !== String(c.quoi || 'eb')) ||
-    (parseInt(rep.rang, 10) || 0) <= 0;
+  /* Ce qui est déjà écrit : on rouvre sur sa propre réponse. Un
+     repère posé sur une autre charnière ne parle pas de celle-ci. */
+  const memeCharniere = String(rep.quoi || 'eb') === String(c.quoi || 'eb');
+  const r = memeCharniere ? Math.max(0, parseInt(rep.rang, 10) || 0) : 0;
 
-  sel.value = depuisLaCharniere ? 'charniere' : 'now';
-  bloc.style.display = '';
-  return c.rang;
+  const dernier = Math.max(c.rang, r);
+  const options = [];
+  for(let k = 0; k <= dernier; k++){
+    options.push({ r: k, nom: libelleDepartDesHeures(k, quoi, c.rang) });
+  }
+  return { c: c, r: r, options: options, quoi: quoi };
+}
+
+/* ⚠️ COURT, PARCE QUE ÇA SE LIT SUR UN TÉLÉPHONE. « À partir de la
+   2ᵉ leçon après l'examen blanc » ne tenait pas dans le menu à
+   400 px : la fin — celle qui dit tout — était coupée. La charnière
+   passe donc dans la QUESTION, et l'option ne garde que la leçon. */
+function questionDuDepartDesHeures(quoi){
+  return 'Ces heures partent de quelle leçon après ' + quoi + ' ?';
+}
+
+function libelleDepartDesHeures(r, quoi, rangJour){
+  const n = r + 1;
+  const court = String(quoi || '').replace('le rendez-vous post-permis', 'le post-permis')
+                                  .replace('le dernier ajournement', "l'ajournement");
+  return ((n === 1) ? '1ʳᵉ' : n + 'ᵉ') + ' leçon' +
+    ((r === 0) ? ' — dès ' + court
+     : (r >= rangJour) ? ' — après celle-ci' : '');
+}
+
+/* Ce qu'il RESTE après la leçon du jour, si les heures décidées
+   partent de la leçon r + 1. Même règle que le décompte : deux
+   heures par leçon, jamais en dessous de zéro. Vide quand on ne
+   connaît pas la décision. */
+function restantPourLeDepart(nom, r, rangJour){
+  const base = (typeof nombreDecideDeLaReserve === 'function')
+    ? nombreDecideDeLaReserve(nom) : '';
+  const b = parseFloat(String(base).replace(',', '.'));
+  if(isNaN(b)) return '';
+  const consomme = (typeof heuresPourLecons === 'function')
+    ? (heuresPourLecons(Math.max(0, rangJour - r)) || 0) : 0;
+  const reste = b - consomme;
+  return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
+}
+
+/* Et l'inverse, au moment d'écrire : le bouton montre ce qui RESTE
+   après la leçon du jour ; le suivi garde ce qui a été DÉCIDÉ, et
+   son repère. Si le bouton dit exactement ce que la décision donne
+   pour ce départ, la décision ne bouge pas — on n'a changé que le
+   départ. Sinon, c'est un nouveau nombre dit pour aujourd'hui, et la
+   décision est ce reste plus ce que les leçons comptées ont pris. */
+function nombreDecidePourLeDepart(nom, restantAffiche, r, rangJour){
+  const brut = String(restantAffiche === undefined || restantAffiche === null
+                      ? '' : restantAffiche).trim().replace(',', '.');
+  const rest = parseFloat(brut);
+  if(brut === '' || isNaN(rest)) return brut;
+  const base = (typeof nombreDecideDeLaReserve === 'function')
+    ? nombreDecideDeLaReserve(nom) : '';
+  if(base !== '' && restantPourLeDepart(nom, r, rangJour) === String(rest)) return base;
+  const consomme = (typeof heuresPourLecons === 'function')
+    ? (heuresPourLecons(Math.max(0, rangJour - r)) || 0) : 0;
+  return String(Math.round((rest + consomme) * 10) / 10);
 }
 
 /* ============================================================
@@ -1925,7 +2023,16 @@ async function reancrerLaReserve(eleve, rep, note){
   let depuis = '';
   let valeur = String(s.heuresRestantes || '').trim();
 
-  if(rep.heuresDuJour){
+  /* ⚠️ v1129 — LA LEÇON CHOISIE, QUAND ON L'A CHOISIE. Le repère est
+     ce rang-là ; le nombre écrit est la décision, recalculée depuis
+     ce que le bouton montre (voir nombreDecidePourLeDepart). */
+  if(typeof rep.heuresDepuisRang === 'number' && !isNaN(rep.heuresDepuisRang)){
+    const r0 = (typeof repereDuJour === 'function') ? repereDuJour(eleve, note) : null;
+    const rangJour = (typeof rep.heuresRangJour === 'number')
+      ? rep.heuresRangJour : ((r0 && r0.rang) || c.rang);
+    depuis = rep.heuresDepuisRang;
+    valeur = nombreDecidePourLeDepart(eleve, rep.heuresRemontees, depuis, rangJour);
+  }else if(rep.heuresDuJour){
     const r = (typeof repereDuJour === 'function')
       ? repereDuJour(eleve, note) : null;
     depuis = r ? r.rang : c.rang;
@@ -2626,6 +2733,9 @@ function reponsesQuest(){
     examPassage:   [['', '— non précisé —'], ['1', '1er passage'],
                     ['2', '2e passage'], ['3', '3e passage'],
                     ['4', '4e passage'], ['5', '5e passage ou plus']],
+    /* v1129 — les vraies options se posent à l'ouverture, une par
+       leçon depuis la charnière : voir choixDuDepartDesHeures. Ces
+       deux-là ne servent plus qu'à relire un ancien contexte. */
     heuresDepuis:  [['charniere', 'Depuis la charnière'],
                     ['now', "À partir d'aujourd'hui"]],
     rdvPost:       [['', '— non évoqué —'], ['aprevoir', 'À prévoir'],
@@ -3980,7 +4090,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            quand la question n'a qu'une réponse.
            ============================================================ */
         '<div id="qBlocHeuresDepuis" style="display:none;margin:0 0 10px;">' +
-          '<label for="qHeuresDepuis" style="font-size:11.5px;' +
+          '<label id="qHeuresDepuisMot" for="qHeuresDepuis" style="font-size:11.5px;' +
             'color:var(--muted);display:block;margin:0 0 3px;">' +
             'Ces heures partent de quand ?</label>' +
           '<select id="qHeuresDepuis" style="margin:0;">' +
@@ -5305,6 +5415,23 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
        posée ici aussi. Voir « poserLeDepartDesHeures ». */
     poserLeDepartDesHeures(boite, ($('studentName') || {}).value);
 
+    /* ⚠️ v1129 — CHOISIR LA LEÇON MONTRE AUSSITÔT CE QUI RESTE. Le
+       bouton au-dessus repasse au reste que donne la décision pour
+       ce départ : on voit l'effet en choisissant, au lieu de le
+       découvrir un mois plus tard dans une tuile. */
+    {
+      const selDep = boite.querySelector('#qHeuresDepuis');
+      if(selDep){
+        selDep.addEventListener('change', () => {
+          const d = boite._departHeures || {};
+          const v = restantPourLeDepart(($('studentName') || {}).value,
+                                        parseInt(selDep.value, 10) || 0,
+                                        d.rangJour || 0);
+          if(v !== '') direLaReserve(v);
+        });
+      }
+    }
+
     /* ⚠️ LA MÊME FENÊTRE QUE LE BUREAU, pas une deuxième qui lui
        ressemble. Elle n'écrit rien ici : elle rend le choix, et
        c'est la validation du bilan qui le porte au bureau, par la
@@ -5585,10 +5712,33 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           if(section && bloc && sel &&
              section.style.display !== 'none' &&
              bloc.style.display !== 'none'){
-            return sel.value === 'now';
+            /* v1129 — l'option vaut un rang : « aujourd'hui », c'est
+               la dernière, celle d'après la leçon du jour. */
+            const d = boite._departHeures || {};
+            return (parseInt(sel.value, 10) || 0) >= (d.rangJour || 1);
           }
           const suite = selEB2 ? selEB2.value : '';
           return !(suite === '3h' || suite === 'lecons');
+        })(),
+        /* ⚠️ v1129 — LA LEÇON CHOISIE, EN CLAIR. « heuresDuJour » ne
+           sait dire que les deux bouts ; ce rang-ci dit laquelle.
+           null quand la question n'était pas à l'écran : une
+           question invisible ne répond pas. */
+        heuresDepuisRang: (function(){
+          const section = boite.querySelector('#qBlocHeuresPermis');
+          const bloc = boite.querySelector('#qBlocHeuresDepuis');
+          const sel  = boite.querySelector('#qHeuresDepuis');
+          if(!(section && bloc && sel && section.style.display !== 'none' &&
+               bloc.style.display !== 'none')) return null;
+          const v = parseInt(sel.value, 10);
+          return isNaN(v) ? null : v;
+        })(),
+        /* Et le rang du jour sur lequel le bouton a fait son compte :
+           l'enregistrement repart du MÊME, sinon le reste affiché et
+           la décision réécrite ne parleraient pas de la même leçon. */
+        heuresRangJour: (function(){
+          const d = boite._departHeures || {};
+          return (typeof d.rangJour === 'number') ? d.rangJour : null;
         })(),
         /* ⚠️ « examPermisN » NE S'ÉCRIT PLUS — v1041. C'était le
            second nombre, en LEÇONS, que le questionnaire tenait à
