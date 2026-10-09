@@ -51,6 +51,52 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1121,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Le dossier élève refait : trois tuiles, « Sa route », et plus de crayons',
+    quoi: [
+      { emoji: '🧭',
+        titre: 'Un onglet « Sa route », en premier',
+        texte: 'La fiche de route n\u2019est plus au-dessus des onglets : elle ' +
+               'a le sien, et c\u2019est celui qui s\u2019ouvre. Le résumé d\u2019état qui ' +
+               'la doublait a disparu — les deux disaient les mêmes phrases ' +
+               'à dix centimètres d\u2019écart, l\u2019un en lecture, l\u2019autre en ' +
+               'écriture. Un fait n\u2019est plus écrit qu\u2019à un seul endroit.' },
+      { emoji: '🎯',
+        titre: 'Trois tuiles en haut du dossier',
+        texte: 'Où il en est, où en est son permis, ce qui lui reste avant ' +
+               'l\u2019examen. La tuile du milieu est celle du permis, qui change ' +
+               'selon la situation. Et celle de droite se tait quand la ' +
+               'précédente a déjà dit les heures : elle montre alors son ' +
+               'prochain cours.' },
+      { emoji: '👆',
+        titre: 'Plus de colonne de crayons',
+        texte: 'Sept crayons identiques qui faisaient sept choses ' +
+               'différentes. La ligne entière est maintenant la cible, avec ' +
+               'un chevron discret, et l\u2019explication est écrite sous elle au ' +
+               'lieu d\u2019être une infobulle — qui n\u2019existe pas sur tablette.' },
+      { emoji: '📂',
+        titre: 'Ce qui manque se compte au lieu de s\u2019étaler',
+        texte: 'Les lignes non renseignées se replient en une seule ligne ' +
+               'qui les NOMME : « 4 choses non renseignées — date d\u2019examen, ' +
+               'ajournements, post-permis, simulateur ». On n\u2019ouvre que si ' +
+               'ça nous concerne. En dessous de trois, rien ne se replie.' },
+      { emoji: '🗂️',
+        titre: 'Les onglets en rail, et trois actions à portée',
+        texte: 'Au-delà de 1280 px les onglets passent en colonne à gauche, ' +
+               'comme un sommaire ; en dessous ils se replient sur plusieurs ' +
+               'lignes. Et l\u2019en-tête porte enfin de quoi appeler, écrire, et ' +
+               'voir son prochain cours — avec le numéro cliquable depuis sa ' +
+               'propre ligne dans la fiche.' },
+      { emoji: '📅',
+        titre: 'Toutes les dates du dossier en français',
+        texte: '« sam. 3 oct. » au lieu de « 03/10/2026 », et l\u2019année ' +
+               'seulement quand ce n\u2019est pas l\u2019année en cours. Dix-huit ' +
+               'endroits en profitent : ils passaient déjà tous par la même ' +
+               'porte, il suffisait de la corriger.' }
+    ]
+  },
+  {
     version: 1120,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Le numéro de version ne peut plus mentir, et le coin révisions a son adresse',
