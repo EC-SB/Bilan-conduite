@@ -51,6 +51,37 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1125,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Les rappels de cours en quatre étapes, et les deux mails sous les yeux',
+    quoi: [
+      { emoji: '💶',
+        titre: 'Le financeur reçoit un vrai courrier',
+        texte: 'Sans modèle « financeur » à soi, le mail des missions locales ' +
+               'disait « Lieu de rendez-vous : Ta voiture sera dans la cour… ! », ' +
+               'en gras et en tutoyant — la phrase écrite pour l’élève. Il dit ' +
+               'maintenant « cour intérieure de l’auto-école », et le type de ' +
+               'séance s’écrit en lettres normales.' },
+      { emoji: '🔔',
+        titre: 'Quatre étapes, dans l’ordre d’une série',
+        texte: 'La série (jour, moniteur, véhicule), posée une fois ; les ' +
+               'créneaux du moniteur ; ce cours ; ce qui part. Les mêmes champs ' +
+               'qu’avant, rangés comme on fait les rappels d’une journée.' },
+      { emoji: '🕐',
+        titre: 'La journée du moniteur en pastilles',
+        texte: '08h ✓ Tom, 10h ce cours, 13h libre… Un appui choisit l’heure. ' +
+               'Après un envoi, le créneau prévenu prend son ✓ et le suivant ' +
+               's’allume : on voit où on en est sans passer par l’historique.' },
+      { emoji: '✉️',
+        titre: 'On relit exactement ce qui part',
+        texte: 'Les deux mails sont montrés, avec leur objet, la règle des ' +
+               '48 heures et le bouton « Je serai présent ». L’adresse se ' +
+               'change dans la ligne « À », pour ce cours seulement — et elle ' +
+               'se recharge à chaque nouvel élève. Les « +248 caractères » du ' +
+               'temps du SMS ont disparu.' }
+    ]
+  },
+  {
     version: 1124,
     date: 'Vendredi 9 octobre 2026',
     resume: 'La tuile du permis voit enfin l’examen blanc qu’on vient de poser',
