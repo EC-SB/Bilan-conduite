@@ -73,6 +73,19 @@ function analyserNote(note){
     r.ebSuite = 'pasleniveau';
     r.ebDate = m[1].trim();
   }
+  /* 🤔 « POURRAIT AVOIR LE NIVEAU » — v1117. Écrite par
+     SUITE_PEUT_LE_NIVEAU (ec-questionnaire.js).
+
+     ⚠️ SANS CETTE BRANCHE, LA PHRASE NE SE PERDAIT PAS : ELLE SE
+     RELISAIT FAUX. Le dernier recours, tout en bas, attrape
+     « Examen blanc passé le … » sans conclusion — l'élève
+     ressortait donc « passé, on ne sait pas », c'est-à-dire
+     exactement l'état d'avant la question. */
+  else if((m = t.match(/Examen blanc passé le ([^—·]+)— pourrait avoir le niveau/i))){
+    r.examBlanc = 'passe';
+    r.ebSuite = 'peut';
+    r.ebDate = m[1].trim();
+  }
   /* ⚠️ AVANT « plus que les 3h » : la phrase dit « a le niveau »,
      et une expression trop large les confondrait. Écrite par
      SUITE_NIVEAU_OK (ec-questionnaire.js) — v1005. */
