@@ -656,7 +656,9 @@ $('finishBtn').addEventListener('click', async () => {
       const noteDuJour = noteDepuisQuestionnaire(maj);
       await remonterHeuresAuBureau($('studentName').value.trim(),
                                    maj.heuresRemontees,
-                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui',
+                                   /* v1117 : la même porte que partout —
+                                      voir niveauDepuisLaSuite. */
+                                   niveauDepuisLaSuite(maj.ebPasse),
                                    false, maj.heuresDuJour, noteDuJour);
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
