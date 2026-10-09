@@ -789,11 +789,54 @@ function noteEnClair(note){
    même information sert au bureau, au suivi et à la note. Chaque
    leçon annoncée vaut deux heures. Écrite ici une seule fois, elle
    ne peut pas dire deux choses différentes selon l'écran. */
+/* ============================================================
+   🤔 LA CONCLUSION DE L'EXAMEN BLANC → LE NIVEAU DE LA FICHE
+
+   UNE SEULE FOIS POUR TOUTE L'APPLICATION — v1117.
+
+   David, le 9 octobre : « Dans résultat de l'examen blanc il
+   manque pourrait avoir le niveau qui n'est pas non plus dans le
+   questionnaire il faut le mettre ».
+
+   ⚠️ LA RÈGLE ÉTAIT ÉCRITE DEUX FOIS, et les deux ne connaissaient
+   que deux réponses :
+
+       ebNiveau = (ebSuite === 'pasleniveau') ? 'non' : 'oui'
+
+   — ici (conclusionExamenBlanc) et dans ec-permis-listes, là où le
+   bureau reprend ce que la note dit. Ajouter « pourrait » dans une
+   seule des deux, c'était fabriquer un élève dont le niveau change
+   selon l'écran qui l'a enregistré : la faute « deux listes pour
+   une action », dans sa forme la plus pure.
+
+   ⚠️ ET LE RESTE DE L'APPLICATION ATTENDAIT DÉJÀ 'peut'. La fiche
+   de suivi sait le stocker, le bilan manuel a ses trois boutons,
+   la saisie du bureau a son « 🤔 Pourrait », la liste des élèves
+   prêts sait l'afficher (« 🤔 Pourrait avoir le niveau (12/09) »).
+   Tout était prêt sauf l'écriture : rien ne pouvait JAMAIS valoir
+   'peut' en venant du questionnaire, parce que la ligne ci-dessus
+   écrasait tout en 'oui'.
+
+   Les deux copies passent donc par cette porte, et le troisième
+   état entre par elle.
+   ============================================================ */
+function niveauDepuisLaSuite(ebSuite){
+  const s = String(ebSuite || '').trim();
+  if(!s) return '';
+  if(s === 'pasleniveau') return 'non';
+  if(s === 'peut') return 'peut';
+  /* niveauok, 3h, lecons : l'examen blanc est concluant. Une
+     valeur inconnue vaut « oui » comme avant — c'est le choix
+     d'origine, et le changer ici ferait disparaître des élèves
+     des listes du bureau sans que personne l'ait demandé. */
+  return 'oui';
+}
+
 function conclusionExamenBlanc(a){
   const d = {};
   if(!a || !a.ebSuite) return d;
 
-  d.ebNiveau = (a.ebSuite === 'pasleniveau') ? 'non' : 'oui';
+  d.ebNiveau = niveauDepuisLaSuite(a.ebSuite);
   if(a.ebSuite === '3h') d.heuresRestantes = '0';
   else if(a.ebSuite === 'lecons' && a.ebLecons){
     d.heuresRestantes = String(heuresPourLecons(a.ebLecons));
@@ -2245,6 +2288,63 @@ const PARCOURS_FORMATION = [
                'rdvPostMoniteur'] }
 ];
 
+/* ============================================================
+   ⚙️ LA BOÎTE DU COURS — UNE SEULE SOURCE, v1117
+
+   David, le 9 octobre, capture à l'appui : sur la préparation de
+   Houcine, la carte du haut disait « Boîte : BEA » et le sélecteur
+   du bas « BV — boîte manuelle ». Le même écran, le même élève, au
+   même instant, deux réponses.
+
+   Pourquoi : la carte DÉDUISAIT la boîte de la formation
+   (boiteDeLaFormation), le sélecteur la déduisait du TYPE DE
+   BILAN — « /auto/i.test(modeleCle) ? 'bea' : 'bv' ». Sept des
+   dix-sept types de bilan ne portent pas de boîte dans leur nom
+   (examen blanc, examen officiel, RDV post-permis, RVP de l'AAC,
+   formation accompagnateur, handicap, préfecture) : tout élève
+   BEA qui préparait l'un de ces sept cours était marqué BV, en
+   silence.
+
+   ⚠️ ET CE N'ÉTAIT PAS QU'UN AFFICHAGE. La valeur part dans le
+   contexte du cours, de là dans le bilan (colonne I), et
+   « boiteConnueDe » (ec-bureau) la fait passer DEVANT le libellé
+   du cours. La boîte des places d'examen (ec-sessions) la lit
+   aussi. Une faute d'affichage qui finissait sur une session.
+
+   ⚠️ IL Y AVAIT MÊME UN RATTRAPAGE, ET IL NE SERVAIT PAS.
+   « suivreLaBoite » savait remettre le sélecteur d'accord avec la
+   formation — mais son propre commentaire disait « on ne le fait
+   qu'au changement, jamais à l'ouverture ». Personne ne touchant à
+   la formation, rien ne se corrigeait jamais.
+
+   David, le 9 octobre, à la question « existe-t-il un cas où la
+   boîte du cours est légitimement différente de celle de la
+   formation ? » : « Non ».
+
+   Le sélecteur disparaît donc. La boîte se LIT, elle ne se choisit
+   plus : elle vient de la formation, par la porte qui existait
+   déjà, et on la change en changeant la formation. Une seule
+   source — la faute ne peut plus revenir.
+   ============================================================ */
+const NOMS_BOITE_COURS = {
+  bea: '⚙️ Boîte automatique BEA',
+  bv:  '🕹️ Boîte manuelle BV'
+};
+
+/* Rend 'bea', 'bv', ou '' quand la formation n'en impose pas.
+
+   ⚠️ '' EST UNE BONNE RÉPONSE, PAS UN TROU. Une formation que la
+   table ne connaît pas — une « autre formation » tapée à la main —
+   n'a pas de boîte, et le dire laisse parler les sources qui la
+   savent vraiment : ec-modeles retombe sur la formation,
+   boiteConnueDe sur le libellé du cours. Deviner ici, c'était
+   justement recouvrir leur réponse par la nôtre. */
+function boiteDuCours(formation){
+  const b = (typeof boiteDeLaFormation === 'function')
+    ? String(boiteDeLaFormation(formation) || '').toUpperCase() : '';
+  return b === 'BEA' ? 'bea' : (b === 'BV' ? 'bv' : '');
+}
+
 function parcoursDeLaFormation(formation){
   const t = normaliserMot(String(formation || ''));
   if(!t) return null;
@@ -2461,6 +2561,142 @@ function profilQuestionnaire(modeleCle){
    porte qui traduit cette table en sélecteurs — « selecteursDesReponses »
    — le laisse dehors. */
 const SANS_CHAMP = null;
+
+/* ============================================================
+   📋 LE VOCABULAIRE DES RÉPONSES — UNE SEULE TABLE, v1118
+
+   David, le 9 octobre, capture à l'appui : l'onglet Questionnaire
+   d'un dossier affichait « Examen blanc : passe », « ebNiveau :
+   non », « Date de l'examen blanc : 2025-08-06 ». Les valeurs
+   techniques, telles quelles.
+
+   ⚠️ ET LE RÉFLEXE ÉTAIT DE RECOPIER LES LIBELLÉS. Une table de
+   traduction dans l'onglet, à côté de celle du questionnaire :
+   deux listes pour une action, la faute que cet outil répare
+   partout. Le jour où « Déjà passé » devient « Passé », l'un des
+   deux écrans ment, et c'est le silencieux qui gagne.
+
+   Les options du questionnaire ET les libellés du dossier
+   viennent donc d'ICI. Le gabarit du formulaire appelle
+   « optionsDe », l'onglet du dossier appelle « libelleReponse ».
+   Une seule liste, deux lecteurs.
+
+   ⚠️ C'EST UNE FONCTION, PAS UNE CONSTANTE. Un libellé en dépend
+   d'un autre — « ✅ plus que les 3h avant examen » vient de
+   motDuZeroEnTete(), sa seule maison depuis la v1053. Figer la
+   table au chargement, ce serait en reprendre une copie.
+   ============================================================ */
+function reponsesQuest(){
+  const zero = (typeof motDuZeroEnTete === 'function')
+    ? motDuZeroEnTete() : 'Plus que les 3h avant examen';
+  return {
+    ants:          [['', '— non renseigné —'], ['eleve', "Fait par l'élève"],
+                    ['nous', 'Fait par nous']],
+    /* L'examen blanc se pose en boutons radio, pas en liste : le
+       choix décide de tout le bloc, et il doit se voir en entier.
+       Mêmes valeurs, même table. */
+    examBlanc:     [['', '— non évoqué —'], ['aprevoir', 'À prévoir'],
+                    ['reserve', 'Réservé'], ['passe', 'Déjà passé'],
+                    ['impossible', 'Non planifiable pour le moment']],
+    examBlancRang: [['', '— non précisé —'], ['1', '1er'], ['2', '2e'],
+                    ['3', '3e'], ['4', '4e'], ['5', '5e']],
+    ebPasse:       [['', '— à renseigner —'],
+                    ['niveauok', '✅ A le niveau — heures à préciser'],
+                    ['3h', '✅ ' + zero],
+                    ['lecons', '⏳ Encore des leçons avant examen'],
+                    /* 🤔 v1117 — demandé par David le 9 octobre.
+                       Placé AVANT « pas le niveau » : l'ordre va du
+                       plus favorable au moins favorable, et c'est
+                       déjà celui du bilan manuel et de la saisie du
+                       bureau. */
+                    ['peut', '🤔 Pourrait avoir le niveau'],
+                    ['pasleniveau', '⛔ Pas le niveau']],
+    examPermis:    [['', '— pas de date —'], ['aprevoir', 'Date à prévoir'],
+                    ['prevu', 'Prévu le…'], ['annule', 'Annulé'],
+                    /* L'ÉLÈVE QUI REVIENT. David : « j'ai le cas
+                       d'un élève qui reprend sa conduite après un
+                       examen de décembre 2025 ». Aucun des choix ne
+                       le disait : « Prévu le 12/12/2025 » écrivait
+                       EXAMEN PRÉVU sur une date passée et le
+                       remettait dans les permis à venir ; « à
+                       prévoir » effaçait le fait qu'il en avait
+                       déjà passé un. */
+                    ['passe', 'Déjà passé — ajourné'],
+                    ['nonplanifiable', 'Non planifiable']],
+    examPassage:   [['', '— non précisé —'], ['1', '1er passage'],
+                    ['2', '2e passage'], ['3', '3e passage'],
+                    ['4', '4e passage'], ['5', '5e passage ou plus']],
+    heuresDepuis:  [['charniere', 'Depuis la charnière'],
+                    ['now', "À partir d'aujourd'hui"]],
+    rdvPost:       [['', '— non évoqué —'], ['aprevoir', 'À prévoir'],
+                    ['prevu', 'Prévu le…'], ['fait', 'Fait ✅']],
+    simuNuit:      [['', '— non évoqué —'], ['aprevoir', 'À prévoir'],
+                    ['prevu', 'Déjà prévu'], ['fait', 'Fait ✅']],
+    formAccomp:    [['', '— non évoquée —'], ['aprevoir', 'À prévoir'],
+                    ['prevue', 'Déjà prévue'], ['faite', 'Déjà faite']],
+    rvPrealable:   [['', '— non évoqué —'], ['aprevoir', 'À prévoir'],
+                    ['prevu', 'Déjà prévu'], ['fait', 'Déjà fait']],
+    rvp1:          [['', '— non évoqué —'], ['aprevoir', 'À prévoir'],
+                    ['prevu', 'Déjà prévu'], ['fait', 'Déjà fait']],
+    rvp2:          [['', '— non évoqué —'], ['aprevoir', 'À prévoir'],
+                    ['prevu', 'Déjà prévu'], ['fait', 'Déjà fait']],
+
+    /* ⚠️ LE NIVEAU N'EST PAS UNE QUESTION DU QUESTIONNAIRE, ET IL
+       EST QUAND MÊME ICI — v1118.
+
+       « ebNiveau » est ce que la FICHE DE SUIVI retient de la
+       conclusion ; le questionnaire, lui, pose « ebPasse ». Deux
+       clés, un seul fait, et niveauDepuisLaSuite traduit l'une en
+       l'autre. Ses quatre libellés étaient écrits dans
+       ec-permis-listes, pour les listes du bureau — et nulle part
+       ailleurs, si bien que le dossier affichait « non ».
+
+       Les ranger ici plutôt que d'en faire une copie : c'est la
+       table que lisent tous ceux qui RELISENT une valeur, et
+       ec-permis-listes y vient aussi (voir mentionDuNiveau). */
+    ebNiveau:      [['', '— rien de noté —'], ['oui', '✅ A le niveau'],
+                    ['peut', '🤔 Pourrait avoir le niveau'],
+                    ['non', '⛔ Pas le niveau'],
+                    ['avenir', '📅 Examen blanc à venir']],
+
+    /* Les cases à cocher. Elles ne s'enregistrent qu'en « oui »,
+       et « oui » tout court sous un libellé français se lit mal :
+       « Coussin vert · oui » n'apprend rien que le libellé ne
+       disait. On écrit ce que la case VEUT DIRE. */
+    coussin:       [['', 'Non'], ['oui', 'Oui — à monter dans la voiture']],
+    handicap:      [['', 'Non'], ['oui', 'Oui — conduite aménagée']],
+    pasEcoute:     [['', 'Non'], ['oui', "Oui — pas d'écoutes pédagogiques"],
+                    [true, "Oui — pas d'écoutes pédagogiques"]],
+    sansBilan:     [['', 'Non'], ['oui', 'Oui — aucun bilan au classeur']],
+    premierCours:  [['', 'Non'], ['oui', 'Oui — c\'est son premier cours']],
+    rdvPostFait:   [['', '— non évoqué —'], ['oui', 'Fait ✅']],
+    rdvPostAPrevoir:[['', 'Non'], ['oui', 'Oui — à prévoir']]
+  };
+}
+
+/* Les <option> d'un sélecteur du questionnaire. */
+function optionsDe(cle){
+  return (reponsesQuest()[cle] || [])
+    .map(function(p){
+      return '<option value="' + p[0] + '">' + p[1] + '</option>';
+    }).join('');
+}
+
+/* Le libellé d'une valeur, pour les écrans qui la RELISENT.
+
+   Rend '' quand la clé n'a pas de vocabulaire — un nombre, une
+   date, un texte libre : ceux-là s'affichent tels quels, et c'est
+   à l'appelant de le savoir. */
+function libelleReponse(cle, valeur){
+  const liste = reponsesQuest()[cle];
+  if(!liste) return '';
+  const t = String(valeur === undefined || valeur === null ? '' : valeur);
+  /* Des deux côtés en chaîne : un « oui » coché arrive parfois en
+     booléen, un rang de passage parfois en nombre. Comparer les
+     types bruts ferait rater le libellé sans rien dire. */
+  const trouve = liste.find(function(p){ return String(p[0]) === t; });
+  return trouve ? trouve[1] : '';
+}
 
 const CHAMP_DE_LA_REPONSE = {
   formation:     '#qFormation',
@@ -2837,6 +3073,17 @@ const SUITE_NIVEAU_OK = ' — a le niveau, heures avant examen à préciser';
 const SUITE_PAS_LE_NIVEAU = ' — pas le niveau — ' +
   grasNote(CONSIGNE_PAS_LE_NIVEAU);
 
+/* ⚠️ « POURRAIT AVOIR LE NIVEAU » — v1117. Mêmes précautions que
+   ses deux voisines : écrite ici, relue par ec-bureau.js, et les
+   deux orthographes doivent coïncider au caractère près sinon la
+   note cesse de se relire.
+
+   ⚠️ ET ELLE NE DOIT PAS CONTENIR « pas le niveau ». Le lecteur du
+   bureau essaie ce motif-là EN PREMIER ; une phrase qui le
+   contiendrait se relirait en « pas le niveau », c'est-à-dire en
+   son contraire. Un test l'interdit. */
+const SUITE_PEUT_LE_NIVEAU = ' — pourrait avoir le niveau, à confirmer';
+
 const ETAT_SIMU         = grasNote('SIMULATEUR NUIT ET RISQUES');
 const ETAT_RDV_POST     = grasNote('RDV POST-PERMIS');
 const ETAT_REPASSAGE    = grasNote('REPASSAGE');
@@ -3043,7 +3290,9 @@ function fermerQuestionnaireOuvert(){
    ici, dans la seule fonction qui s'en sert. */
 function blocsDuSujetManquant(quoi){
   const T = {
-    'la formation':        ['#qFormation', '#qFormationEffet'],
+    /* v1117 : la boîte se lit sous la formation, et elle en fait
+       partie — c'est elle qui la décide. */
+    'la formation':        ['#qFormation', '#qFormationEffet', '#qBoiteVue'],
     'la frise':            ['#qFriseClassique', '#qFriseFixe', '#qEtapesRN'],
     'le numéro de leçon':  ['#qLecon', '#qLeconDepuis'],
     /* La régularisation de permis réclame son poste de conduite :
@@ -3371,11 +3620,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qFormationEffet" style="font-size:12px;color:var(--muted);' +
       'margin:-2px 0 14px;line-height:1.4;"></div>' +
 
-      '<label for="qBoite">Boîte</label>' +
-      '<select id="qBoite">' +
-        '<option value="bea">BEA — boîte automatique</option>' +
-        '<option value="bv">BV — boîte manuelle</option>' +
-      '</select>' +
+      /* La boîte se lit, elle ne se choisit plus — v1117, voir le
+         dossier de « boiteDuCours ». La ligne est peinte par
+         « peindreLaBoite », à l'ouverture ET à chaque changement
+         de formation. */
+      '<label>Boîte</label>' +
+      '<div id="qBoiteVue" style="border:1px solid var(--line);' +
+      'border-radius:10px;padding:10px 12px;margin-bottom:14px;' +
+      'font-size:14px;line-height:1.45;"></div>' +
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
         'color:var(--cream);margin-bottom:10px;">' +
@@ -3426,9 +3678,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<div id="qBlocAnts" style="display:none;">' +
           '<label for="qAnts">📇 Dossier ANTS</label>' +
           '<select id="qAnts">' +
-            '<option value="">— non renseigné —</option>' +
-            '<option value="eleve">Fait par l\'élève</option>' +
-            '<option value="nous">Fait par nous</option>' +
+          optionsDe('ants') +
           '</select>' +
         '</div>' +
 
@@ -3512,9 +3762,12 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<label>Examen blanc</label>' +
       '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
         'margin-bottom:10px;">' +
-        ['', 'aprevoir', 'reserve', 'passe', 'impossible'].map(function(v, i){
-          const nom = ['— non évoqué —', 'À prévoir', 'Réservé', 'Déjà passé',
-                       'Non planifiable pour le moment'][i];
+        /* v1118 : mêmes valeurs et mêmes mots que partout — voir
+           reponsesQuest(). En boutons parce que le choix décide de
+           tout le bloc et doit se voir en entier, mais pas avec un
+           vocabulaire à lui. */
+        reponsesQuest().examBlanc.map(function(p){
+          const v = p[0], nom = p[1];
           return '<label style="display:flex;align-items:center;gap:9px;padding:4px 0;' +
             'text-transform:none;font-size:15px;color:var(--cream);margin:0;font-weight:400;">' +
             '<input type="radio" name="qExamBlancChoix" value="' + v + '"' +
@@ -3526,12 +3779,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qBlocEbRang" style="display:none;">' +
         '<label for="qExamBlancRang">Quel examen blanc ?</label>' +
         '<select id="qExamBlancRang">' +
-          '<option value="">— non précisé —</option>' +
-          '<option value="1">1er</option>' +
-          '<option value="2">2e</option>' +
-          '<option value="3">3e</option>' +
-          '<option value="4">4e</option>' +
-          '<option value="5">5e</option>' +
+          optionsDe('examBlancRang') +
         '</select>' +
       '</div>' +
 
@@ -3566,14 +3814,31 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qBlocEbSuite" style="display:none;">' +
         '<label for="qEBPasse">Résultat de l\'examen blanc</label>' +
         '<select id="qEBPasse">' +
-          '<option value="">— à renseigner —</option>' +
-          '<option value="niveauok">✅ A le niveau — heures à préciser</option>' +
-          '<option value="3h">✅ ' + motDuZeroEnTete() + '</option>' +
-          '<option value="lecons">⏳ Encore des leçons avant examen</option>' +
-          '<option value="pasleniveau">⛔ Pas le niveau</option>' +
+          optionsDe('ebPasse') +
         '</select>' +
         '<input type="text" id="qEBLecons" inputmode="numeric" ' +
         'placeholder="Combien de leçons avant l\'examen ?" style="display:none;">' +
+        /* ⚠️ v1118 — CE QUE LE BUREAU A DÉJÀ NOTÉ, DIT ICI.
+
+           David, le 9 octobre, capture à l'appui : sur la
+           préparation de Houcine, la carte du haut affichait
+           « pas le niveau — FAIRE LE POINT À CHAQUE LEÇON » et ce
+           sélecteur, dix lignes plus bas, « — à renseigner — ».
+
+           Ce ne sont pas deux sources en désaccord comme l'était
+           la boîte : la carte lit la FICHE DE SUIVI, le sélecteur
+           lit le CONTEXTE DU COURS. Les deux ont raison. Mais un
+           champ vide à côté d'une carte qui affiche la réponse,
+           ça ressemble à un oubli, et on le remplit à la main —
+           ou pire, on ne le remplit pas.
+
+           ⚠️ ET ON NE LE PRÉ-REMPLIT PAS POUR AUTANT. Une réponse
+           posée sans que personne l'ait donnée est exactement la
+           faute réparée en v1005 (« de base il se met sur une
+           valeur alors qu'on en sait rien »). On DIT ce que le
+           bureau sait, et on offre de le reprendre d'un geste. */
+        '<div id="qEbDejaSu" style="display:none;font-size:12px;' +
+        'color:var(--muted);line-height:1.45;margin:-6px 0 12px;"></div>' +
       '</div>' +
       '</div>' +
 
@@ -3582,20 +3847,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qBlocExamPermis">' +
       '<label for="qExamPermis">Examen du permis</label>' +
       '<select id="qExamPermis">' +
-        '<option value="">— pas de date —</option>' +
-        '<option value="aprevoir">Date à prévoir</option>' +
-        '<option value="prevu">Prévu le…</option>' +
-        '<option value="annule">Annulé</option>' +
-        /* L'ÉLÈVE QUI REVIENT.
-
-           David : « j'ai le cas d'un élève qui reprend sa
-           conduite après un examen de décembre 2025 ». Aucun des
-           choix ne le disait : « Prévu le 12/12/2025 » écrivait
-           EXAMEN PRÉVU sur une date passée et le remettait dans les
-           permis à venir ; « à prévoir » effaçait le fait qu'il en
-           avait déjà passé un. */
-        '<option value="passe">Déjà passé — ajourné</option>' +
-        '<option value="nonplanifiable">Non planifiable</option>' +
+        optionsDe('examPermis') +
       '</select>' +
       '<input type="text" id="qExamMotif" style="display:none;" ' +
       'placeholder="Pourquoi ? (facultatif — ANTS, dossier, médical…)">' +
@@ -3620,12 +3872,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qBlocPassage" style="display:none;">' +
         '<label for="qExamPassage">Quel passage ?</label>' +
         '<select id="qExamPassage">' +
-          '<option value="">— non précisé —</option>' +
-          '<option value="1">1er passage</option>' +
-          '<option value="2">2e passage</option>' +
-          '<option value="3">3e passage</option>' +
-          '<option value="4">4e passage</option>' +
-          '<option value="5">5e passage ou plus</option>' +
+          optionsDe('examPassage') +
         '</select>' +
       '</div>' +
       /* ------------------------------------------------------------
@@ -3725,8 +3972,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
             'color:var(--muted);display:block;margin:0 0 3px;">' +
             'Ces heures partent de quand ?</label>' +
           '<select id="qHeuresDepuis" style="margin:0;">' +
-            '<option value="charniere">Depuis la charnière</option>' +
-            '<option value="now">À partir d\'aujourd\'hui</option>' +
+          optionsDe('heuresDepuis') +
           '</select>' +
         '</div>' +
         '<div style="font-size:11px;color:var(--muted);margin:2px 0 14px;' +
@@ -3753,10 +3999,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qBlocRdvPost">' +
         '<label for="qRdvPost">Rendez-vous post-permis</label>' +
         '<select id="qRdvPost">' +
-          '<option value="">— non évoqué —</option>' +
-          '<option value="aprevoir">À prévoir</option>' +
-          '<option value="prevu">Prévu le…</option>' +
-          '<option value="fait">Fait ✅</option>' +
+          optionsDe('rdvPost') +
         '</select>' +
         '<input type="date" id="qRdvPostDate" style="display:none;">' +
       '</div>' +
@@ -3768,27 +4011,18 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       '<label for="qSimuNuit">Simulateur nuit et risques</label>' +
       '<select id="qSimuNuit">' +
-        '<option value="">— non évoqué —</option>' +
-        '<option value="aprevoir">À prévoir</option>' +
-        '<option value="prevu">Déjà prévu</option>' +
-        '<option value="fait">Fait ✅</option>' +
+          optionsDe('simuNuit') +
       '</select>' +
 
       
       '<div id="qBlocAacCs" style="display:none;">' +
         '<label for="qFormAccomp">Formation accompagnateur</label>' +
         '<select id="qFormAccomp">' +
-          '<option value="">— non évoquée —</option>' +
-          '<option value="aprevoir">À prévoir</option>' +
-          '<option value="prevue">Déjà prévue</option>' +
-          '<option value="faite">Déjà faite</option>' +
+          optionsDe('formAccomp') +
         '</select>' +
         '<label for="qRvPrealable">Rendez-vous préalable</label>' +
         '<select id="qRvPrealable">' +
-          '<option value="">— non évoqué —</option>' +
-          '<option value="aprevoir">À prévoir</option>' +
-          '<option value="prevu">Déjà prévu</option>' +
-          '<option value="fait">Déjà fait</option>' +
+          optionsDe('rvPrealable') +
         '</select>' +
 
         /* Les deux rendez-vous pédagogiques n'existent qu'en AAC :
@@ -3806,19 +4040,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           '<span style="text-transform:none;font-weight:400;color:var(--muted);">' +
           ' — environ 6 mois après le préalable</span></label>' +
           '<select id="qRvp1">' +
-            '<option value="">— non évoqué —</option>' +
-            '<option value="aprevoir">À prévoir</option>' +
-            '<option value="prevu">Déjà prévu</option>' +
-            '<option value="fait">Déjà fait</option>' +
+            optionsDe('rvp1') +
           '</select>' +
           '<label for="qRvp2">Rendez-vous pédagogique n°2' +
           '<span style="text-transform:none;font-weight:400;color:var(--muted);">' +
           ' — environ 10 mois après, ou 2 mois avant ses 17 ans</span></label>' +
           '<select id="qRvp2">' +
-            '<option value="">— non évoqué —</option>' +
-            '<option value="aprevoir">À prévoir</option>' +
-            '<option value="prevu">Déjà prévu</option>' +
-            '<option value="fait">Déjà fait</option>' +
+            optionsDe('rvp2') +
           '</select>' +
           '<div style="font-size:12px;color:var(--muted);margin:-6px 0 14px;' +
           'line-height:1.4;">L\'examen blanc se passe pendant le rendez-vous ' +
@@ -4289,10 +4517,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       }
       selForm.addEventListener('change', () => {
         majParcours();
-        suivreLaBoite();
+        peindreLaBoite();
         suivreLeModele();
       });
     }
+    /* ⚠️ ET À L'OUVERTURE. C'est la moitié qui manquait : sans
+       elle, l'écran ouvrait sur la boîte d'un autre calcul. */
+    peindreLaBoite();
     majParcours();
 
     /* Le type de bilan suit la formation — mais seulement pour les
@@ -4306,13 +4537,25 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
        rien dit. */
     /* La boîte suit la formation : « AAC BV » se conduit en
        manuelle, et la passerelle aussi — malgré le « BEA » de son
-       nom. C'est la table qui le sait, pas le libellé. */
-    function suivreLaBoite(){
-      const p = parcoursDeLaFormation(formationChoisie());
-      const champ = boite.querySelector('#qBoite');
-      if(!p || !p.boite || !champ) return;
-      const v = (p.boite === 'BEA') ? 'bea' : (p.boite === 'BV') ? 'bv' : '';
-      if(v && [...champ.options].some(o => o.value === v)) champ.value = v;
+       nom. C'est la table qui le sait, pas le libellé.
+
+       ⚠️ v1117 — ELLE NE SE CHOISIT PLUS, ELLE SE LIT. Et donc
+       elle se peint À L'OUVERTURE AUSSI : c'était tout le défaut
+       d'avant, un rattrapage qui n'attrapait rien parce qu'il
+       n'était branché qu'au changement. Voir « boiteDuCours ». */
+    function peindreLaBoite(){
+      const vue = boite.querySelector('#qBoiteVue');
+      if(!vue) return;
+      const v = boiteDuCours(formationChoisie());
+      if(v){
+        vue.innerHTML = '<strong>' + NOMS_BOITE_COURS[v] + '</strong>' +
+          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">' +
+          'D\'après sa formation. Pour la changer, change la formation.</div>';
+      }else{
+        /* Pas de boîte imposée : on le dit, on n'en invente pas. */
+        vue.innerHTML = '<span style="color:var(--muted);">' +
+          'Sa formation n\'impose pas de boîte.</span>';
+      }
     }
 
     function suivreLeModele(){
@@ -4466,12 +4709,19 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       champsMasques = champsMasques.concat(allegerQuestionnaireFin(boite, prec) || []);
     }
 
-    /* Boîte déduite du type de bilan, ANTS repris s'il est connu.
-       Chaque champ est vérifié : certains profils de questionnaire
-       n'en affichent qu'une partie, et un accès à un champ absent
-       interrompait toute la suite de la construction. */
-    const chBoite = boite.querySelector('#qBoite');
-    if(chBoite) chBoite.value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
+    /* ⚠️ v1117 — LA BOÎTE N'EST PLUS DÉDUITE DU TYPE DE BILAN.
+
+       C'était ici, et c'était la faute : « prec.boite ||
+       (/auto/i.test(modeleCle) ? 'bea' : 'bv') ». Le type de bilan
+       ne dit pas la boîte de l'élève — sept des dix-sept n'en
+       portent pas dans leur nom, et tous les sept rendaient 'bv'.
+       Elle vient de sa formation, et de nulle part ailleurs : voir
+       « boiteDuCours » et « peindreLaBoite ».
+
+       ANTS repris s'il est connu. Le champ est vérifié : certains
+       profils de questionnaire n'en affichent qu'une partie, et un
+       accès à un champ absent interrompait toute la suite de la
+       construction. */
     const chAnts = boite.querySelector('#qAnts');
     if(chAnts) chAnts.value = prec.ants || '';
 
@@ -4658,6 +4908,72 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         blocSuite.style.display =
           (finDExamenBlanc || v === 'passe' || dejaRepondu) ? 'block' : 'none';
       }
+      peindreCeQueLeBureauSait();
+    }
+
+    /* v1118 — voir le ⚠️ du gabarit, sur « qEbDejaSu ». */
+    function peindreCeQueLeBureauSait(){
+      const zone = boite.querySelector('#qEbDejaSu');
+      const champ = boite.querySelector('#qEBPasse');
+      if(!zone || !champ) return;
+
+      /* Rien à dire si la question n'est pas posée, ou si le
+         moniteur y a déjà répondu : sa réponse fait foi. */
+      if(champ.value){ zone.style.display = 'none'; return; }
+
+      /* ⚠️ « eleve » N'EST PAS DANS CETTE PORTÉE. Il en existe un
+         plus haut dans le fichier, dans une AUTRE fonction : s'en
+         servir ici n'aurait rien signalé à la lecture et aurait
+         levé une ReferenceError à l'ouverture du questionnaire.
+         On prend le nom comme le reste de ce constructeur le
+         prend (voir mentionFairePoint, un peu plus haut). */
+      const qui = ($('studentName') && $('studentName').value.trim()) || '';
+      const su = (typeof suiviDe === 'function') ? (suiviDe(qui) || {}) : {};
+      const niveau = String(su.ebNiveau || '').trim();
+      /* « à venir » n'est pas une conclusion : l'examen n'a pas
+         eu lieu, il n'y a rien à reprendre. */
+      if(!niveau || niveau === 'avenir'){ zone.style.display = 'none'; return; }
+
+      /* Les mots viennent de la table commune — pas d'une copie. */
+      const dit = (typeof libelleReponse === 'function')
+        ? libelleReponse('ebNiveau', niveau) : niveau;
+      const quand = su.ebDate
+        ? ' le ' + ((typeof dateEnToutesLettres === 'function')
+            ? (dateEnToutesLettres(su.ebDate) || su.ebDate) : su.ebDate)
+        : '';
+
+      zone.style.display = 'block';
+      zone.textContent = '';
+      const t = document.createElement('span');
+      t.innerHTML = 'Le bureau a noté <strong>' +
+        String(dit).replace(/</g, '&lt;') + '</strong>' +
+        quand.replace(/</g, '&lt;') + '. ';
+      zone.appendChild(t);
+
+      /* ⚠️ ET LE NIVEAU DE LA FICHE N'EST PAS LA RÉPONSE DU
+         QUESTIONNAIRE : « non » devient « pasleniveau », « peut »
+         devient « peut ». La traduction inverse de
+         niveauDepuisLaSuite, et elle ne vaut que dans ce sens-là —
+         « oui » ne dit pas COMBIEN d'heures il reste, donc on ne
+         peut pas en déduire 3h, lecons ou niveauok. On n'offre la
+         reprise que quand elle est sans ambiguïté. */
+      const versLeChamp = { non:'pasleniveau', peut:'peut' }[niveau] || '';
+      if(!versLeChamp || ![...champ.options].some(o => o.value === versLeChamp)){
+        return;
+      }
+
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;margin:4px 0 0;padding:4px 10px;' +
+        'font-size:12px;border-radius:999px;';
+      b.textContent = 'Reprendre cette réponse';
+      b.addEventListener('click', () => {
+        champ.value = versLeChamp;
+        champ.dispatchEvent(new Event('change', { bubbles: true }));
+        peindreCeQueLeBureauSait();
+      });
+      zone.appendChild(b);
     }
 
     /* Un objet qui se comporte comme l'ancien menu, pour le reste du code */
@@ -5262,7 +5578,9 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         rvPrealable: boite.querySelector('#qRvPrealable').value,
         rvp1: ((boite.querySelector('#qRvp1') || {}).value || ''),
         rvp2: ((boite.querySelector('#qRvp2') || {}).value || ''),
-        boite: boite.querySelector('#qBoite').value,
+        /* v1117 : la boîte se calcule, elle ne se relit pas dans un
+           champ. Même porte que la ligne affichée au-dessus. */
+        boite: boiteDuCours(formationChoisie()),
         handicap: boite.querySelector('#qHandicap').checked ? 'oui' : '',
         coussin: boite.querySelector('#qCoussin').checked ? 'oui' : '',
         amenagements: Array.prototype.slice
@@ -6409,6 +6727,12 @@ function ajouterSuite(etats, permis, mots, q){
                  ' leçon' + (parseInt(k, 10) > 1 ? 's' : '') + ' avant examen');
     }else if(q.ebPasse === 'pasleniveau'){
       etats.push(tete + SUITE_PAS_LE_NIVEAU);
+    }else if(q.ebPasse === 'peut'){
+      /* 🤔 v1117 — l'hésitation est une réponse, et elle s'écrit.
+         Sans cette branche, « pourrait » tombait dans le « else »
+         du bas : la date sans la conclusion, c'est-à-dire la même
+         ignorance qu'avant d'avoir posé la question. */
+      etats.push(tete + SUITE_PEUT_LE_NIVEAU);
     }else if(q.ebPasse === 'niveauok'){
       /* ⚠️ A LE NIVEAU, HEURES NON PRÉCISÉES — v1005. Voir le ⚠️ de
          ec-manuel.js : vide ne veut pas dire zéro. La phrase est
@@ -6743,7 +7067,16 @@ function choisirDate(titre, valeur){
 
 
 /* Date ISO -> texte lisible en français */
-function dateEnToutesLettres(valeur){
+/* ⚠️ LA LECTURE D'UNE DATE, SÉPARÉE DE SON ÉCRITURE — v1118.
+
+   Les deux moitiés vivaient ensemble, et c'est pour ça que toute
+   autre façon d'écrire une date devait recopier la lecture. Il y a
+   déjà trois découpeurs d'ISO dans l'application (dateCourte,
+   jourCourtMessagerie, jourCourtIso) qui existent uniquement parce
+   que celui-ci n'était pas réutilisable.
+
+   Rend la date au format ISO, ou '' quand ce n'en est pas une. */
+function jourLu(valeur){
   const t = String(valeur || '').trim();
   if(!t) return '';
 
@@ -6755,15 +7088,28 @@ function dateEnToutesLettres(valeur){
   if(fr){
     iso = fr[3] + '-' + ('0' + fr[2]).slice(-2) + '-' + ('0' + fr[1]).slice(-2);
   }else if(!/^\d{4}-\d{2}-\d{2}/.test(iso)){
-    return t;                       /* forme inconnue : on rend tel quel */
+    return '';                      /* forme inconnue */
   }
 
   const d = new Date(iso.slice(0, 10) + 'T12:00:00');
-  if(isNaN(d.getTime())) return t;
+  return isNaN(d.getTime()) ? '' : iso.slice(0, 10);
+}
 
-  return d.toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-  });
+/* Écrit une date lue, dans la forme demandée. Les NOMS viennent de
+   toLocaleDateString, jamais d'une table à nous : « déc. » et
+   « sept. » ne s'abrègent pas de la même façon, et une troncature
+   à quatre lettres écrivait « déce. » et « octo. ». */
+function dateEcrite(valeur, forme){
+  const iso = jourLu(valeur);
+  if(!iso) return String(valeur || '').trim();
+  return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', forme);
+}
+
+function dateEnToutesLettres(valeur){
+  const t = String(valeur || '').trim();
+  if(!t) return '';
+  return dateEcrite(t, { weekday: 'long', day: 'numeric',
+                         month: 'long', year: 'numeric' });
 }
 
 
