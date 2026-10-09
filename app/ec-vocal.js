@@ -659,7 +659,8 @@ $('finishBtn').addEventListener('click', async () => {
                                    /* v1117 : la même porte que partout —
                                       voir niveauDepuisLaSuite. */
                                    niveauDepuisLaSuite(maj.ebPasse),
-                                   false, maj.heuresDuJour, noteDuJour);
+                                   false, maj.heuresDuJour, noteDuJour,
+                                   maj.heuresDepuisRang, maj.heuresRangJour);
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
