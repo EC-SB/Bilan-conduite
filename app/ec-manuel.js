@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 12:30 — v1103 */
+/* Déployé le 09/10/2026 à 09:33 — v1115 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -4623,6 +4623,14 @@ function reprendreBrouillon(b){
 
   const ban = $('repriseBanner');
   if(ban) ban.style.display = 'none';
+
+  /* ⚠️ LA MÊME PORTE QUE LA REPRISE D'UNE DICTÉE — v1115.
+     #manuelView n'a qu'un « data-onglet », donc « hors-vue » ne
+     l'atteint pas aujourd'hui ; mais le jour où on lui donne une
+     vue, il redeviendrait invisible exactement comme #recordView
+     l'était. On passe par la porte commune maintenant, pas le jour
+     où ça cassera. */
+  if(typeof montrerLEcranDuCours === 'function') montrerLEcranDuCours();
 
   /* La fiche se dessine, puis on y repose les saisies */
   ouvrirBilanManuel().then(() => {
