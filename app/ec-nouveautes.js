@@ -51,6 +51,30 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1124,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'La tuile du permis voit enfin l’examen blanc qu’on vient de poser',
+    quoi: [
+      { emoji: '📅',
+        titre: 'Un examen blanc posé depuis la fiche de route se voit en haut',
+        texte: 'On posait « prévu le 6 novembre » sur la ligne 📝 de Sa route, ' +
+               'et la tuile du haut continuait d’afficher « rien de noté ». ' +
+               'Elle ne regardait pas la colonne que cette ligne venait ' +
+               'd’écrire, et elle ne connaissait pas le mot « réservé » que ' +
+               'pose le bureau. Les deux lisent maintenant la même chose, et ' +
+               'avec les mêmes mots : « prévu le… ».' },
+      { emoji: '🌙',
+        titre: 'La date du simulateur se pose depuis Sa route',
+        texte: 'La ligne 🌙 renvoyait au répertoire sans rien dire, et elle ' +
+               'affichait « à prévoir » alors que l’avertissement juste ' +
+               'au-dessus annonçait la date enregistrée. Elle lit maintenant ' +
+               'la fiche de suivi d’abord, et un appui ouvre le calendrier ' +
+               'sur place — la même porte que le bouton de l’onglet Permis, ' +
+               'pas une seconde. Une date passée se lit « fait le », une date ' +
+               'à venir « prévu le ».' }
+    ]
+  },
+  {
     version: 1123,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Le coin révisions s\u2019ouvre en un seul aller-retour au lieu de trois',
