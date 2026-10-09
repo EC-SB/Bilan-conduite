@@ -51,6 +51,30 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1129,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Les heures avant l’examen partent de la leçon que tu choisis',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'Une option par leçon',
+        texte: '« Ces heures partent de quand ? » n’offrait que deux choix : ' +
+               'dès l’examen blanc, ou aujourd’hui. La question devient « Ces ' +
+               'heures partent de quelle leçon après l’examen blanc ? » et propose ' +
+               'chaque leçon : 1ʳᵉ, 2ᵉ, 3ᵉ… Pareil dans le questionnaire et dans ' +
+               '« Sa route » du dossier, et pour le post-permis.' },
+      { emoji: '👀',
+        titre: 'Le bouton suit ton choix',
+        texte: 'Dans le questionnaire, choisir la leçon met aussitôt à jour ce ' +
+               'qui reste (« 2 + 3h »). Le nombre décidé ne change pas : seul son ' +
+               'point de départ bouge.' },
+      { emoji: '📝',
+        titre: '« Sa route » dit la bonne leçon',
+        texte: 'La ligne des heures écrivait « à partir de la 1ʳᵉ leçon » quand ' +
+               'les heures commençaient à la 2ᵉ. Elle dit maintenant la même leçon ' +
+               'que le menu.' }
+    ]
+  },
+  {
     version: 1128,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Dossier élève : chaque tuile du haut parle d’un seul moment',
