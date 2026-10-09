@@ -51,6 +51,33 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1122,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Le coin révisions a sa propre adresse : eleve.evolutionconduites.fr',
+    quoi: [
+      { emoji: '🔑',
+        titre: 'Une adresse à lui',
+        texte: 'Les élèves n\u2019ont plus à taper l\u2019adresse de l\u2019application ' +
+               'du bureau suivie d\u2019un nom de fichier : c\u2019est ' +
+               'eleve.evolutionconduites.fr, et rien d\u2019autre. Le lien part ' +
+               'déjà sous cette forme dans le message d\u2019accès, dans les ' +
+               'procédures à réciter, dans le rappel vocal et dans le mail de ' +
+               'correction envoyé par le classeur.' },
+      { emoji: '🔔',
+        titre: 'Les notifications ouvrent la bonne page',
+        texte: 'Sur la nouvelle adresse, la page du coin révisions s\u2019appelle ' +
+               'autrement : un clic sur une notification serait tombé sur une ' +
+               'page introuvable. La page dit maintenant où elle vit à son ' +
+               'démarrage, et la notification s\u2019y rend. Rien à faire côté ' +
+               'élève — la première ouverture répare.' },
+      { emoji: '🏠',
+        titre: 'L\u2019ancienne adresse marche toujours',
+        texte: 'Aucun élève n\u2019est coupé. Ceux qui ont déjà l\u2019icône du coin ' +
+               'révisions sur leur écran d\u2019accueil continuent comme avant ; ' +
+               'ceux qui passent à la nouvelle se reconnectent une fois.' }
+    ]
+  },
+  {
     version: 1121,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Le dossier élève refait : trois tuiles, « Sa route », et plus de crayons',
