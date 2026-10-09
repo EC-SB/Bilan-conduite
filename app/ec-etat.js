@@ -34,7 +34,7 @@
    banc le tient aligné sur le « ?v= » d'index.html à chaque
    livraison : les deux ne peuvent plus diverger en silence.
    ============================================================ */
-var VERSION_MODULES = 1124;
+var VERSION_MODULES = 1125;
 
 /* Raccourci d'accès au DOM, défini dès le premier module.
    S'il n'était déclaré que dans ec-noyau.js, une panne dans ce
@@ -107,34 +107,44 @@ window.EC_MODULES['ec-etat.js'] = true;
    ============================================================ */
 var EMPLACEMENTS_BASE = [
   { cle:'devant', emoji:'🛣️', nom:'Devant, le long du trottoir',
+    financeur:"devant l'auto-école",
     sms:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
 
   { cle:'cour', emoji:'🅿️', nom:'Cour intérieure',
+    financeur:"cour intérieure de l'auto-école",
     sms:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿 𝗶𝗻𝘁𝗲́𝗿𝗶𝗲𝘂𝗿𝗲 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
 
   { cle:'moto', emoji:'🏍️', nom:'Moto',
+    financeur:"à l'auto-école",
     sms:"𝗧𝗮 𝗺𝗼𝘁𝗼 𝘁'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
 
   { cle:'scooter', emoji:'🛵', nom:'Scooter',
+    financeur:"à l'auto-école",
     sms:"𝗧𝗼𝗻 𝘀𝗰𝗼𝗼𝘁𝗲𝗿 𝘁'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
 
   { cle:'bureau', emoji:'🏢', nom:'Bureau', sansVehicule:true,
+    financeur:"bureau de l'auto-école",
     sms:"𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗮𝘂 𝗯𝘂𝗿𝗲𝗮𝘂 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
 
   { cle:'tablettes', emoji:'📱', nom:'Salle des tablettes', sansVehicule:true,
+    financeur:"salle des tablettes de l'auto-école",
     sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲𝘀 𝘁𝗮𝗯𝗹𝗲𝘁𝘁𝗲𝘀 !' },
 
   { cle:'cours', emoji:'📚', nom:'Salle de cours', sansVehicule:true,
+    financeur:"salle de cours de l'auto-école",
     sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲 𝗰𝗼𝘂𝗿𝘀 !' },
 
   { cle:'simulateur', emoji:'🖥️', nom:'Simulateur', sansVehicule:true,
+    financeur:"simulateur de l'auto-école",
     sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗲𝘃𝗮𝗻𝘁 𝗹𝗲 𝘀𝗶𝗺𝘂𝗹𝗮𝘁𝗲𝘂𝗿 !' },
 
   { cle:'voiturette', emoji:'🚙', nom:'Voiturette',
+    financeur:"à l'auto-école",
     sms:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲𝘁𝘁𝗲 𝘁'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
 
   /* Rien à venir chercher : le rendez-vous est à distance. */
   { cle:'visio', emoji:'💻', nom:'En visio', sansVehicule:true,
+    financeur:"en visio",
     sms:'𝗢𝗻 𝘀𝗲 𝗿𝗲𝘁𝗿𝗼𝘂𝘃𝗲 𝗲𝗻 𝘃𝗶𝘀𝗶𝗼 !' }
 ];
 
@@ -210,4 +220,36 @@ function lieuSansVehicule(cle){
 function texteDuLieu(cle){
   var l = lieuPar(cle);
   return (l && l.sms) || '';
+}
+
+/* ============================================================
+   LE LIEU, DIT AU FINANCEUR — v1125
+
+   Le mail du financeur prenait « texteDuLieu », c'est-à-dire la
+   phrase écrite pour l'ÉLÈVE : une mission locale recevait, dans
+   un courrier qui lui sert de justificatif, « Lieu de rendez-vous :
+   𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿… ! » — en gras Unicode, tutoyée,
+   avec son point d'exclamation. Constat n° 6 de la planche du
+   9 octobre ; David n'a pas de modèle financeur à lui, c'était donc
+   ce qui partait.
+
+   Chaque lieu porte maintenant sa phrase pour le financeur, dans
+   la MÊME liste que celle de l'élève : c'est le seul endroit à
+   modifier pour ajouter un lieu, et il le reste.
+
+   ⚠️ UN LIEU GARDÉ SUR CE POSTE PEUT ÊTRE PLUS ANCIEN QUE CE CHAMP.
+   On retombe alors sur la liste de base pour la même clé, puis sur
+   le nom du lieu ramené en lettres simples. Jamais sur « sms ». */
+function texteDuLieuFinanceur(cle){
+  if(!cle) return '';
+  var l = lieuPar(cle);
+  if(l && l.financeur) return l.financeur;
+  for(var i = 0; i < EMPLACEMENTS_BASE.length; i++){
+    if(EMPLACEMENTS_BASE[i].cle === cle && EMPLACEMENTS_BASE[i].financeur){
+      return EMPLACEMENTS_BASE[i].financeur;
+    }
+  }
+  var nom = (l && l.nom) || '';
+  if(typeof lettresSimples === 'function') nom = lettresSimples(nom);
+  return String(nom).normalize('NFC').toLowerCase();
 }
