@@ -120,6 +120,24 @@ function resultatExamenBlanc(nom, a){
              texte:'pas le niveau — ' + consigne,
              couleur:'var(--red)', gras:true };
   }
+  /* 🤔 « POURRAIT AVOIR LE NIVEAU » — v1117, demandé par David le
+     9 octobre.
+
+     Elle vient APRÈS « pas le niveau » et AVANT tout le reste :
+     c'est une conclusion, pas une absence de conclusion, et elle
+     doit passer devant le calcul de réserve qui suit. Sans ce
+     retour anticipé, « peut » n'entrait dans aucune des deux
+     branches qui posent une réserve (« lecons » et « oui ») :
+     reserve restait nulle, la fonction rendait null, et l'élève
+     retrouvait l'écran d'un examen blanc sans résultat.
+
+     Pas d'heures ici, et c'est le sens même de la réponse : si le
+     moniteur savait combien il en reste, il n'hésiterait pas. */
+  if(note.ebSuite === 'peut' || niveau === 'peut'){
+    return { cle:'peut', emoji:'🤔',
+             texte:'pourrait avoir le niveau — à confirmer au prochain cours',
+             couleur:'var(--warn-text)' };
+  }
   if(note.ebSuite === '3h' || (niveau === 'oui' && heures === '0')){
     /* Les mots du zéro viennent de leur porte — v1053. */
     return { cle:'3h', emoji:'✅', texte:CONCLUSION_RESERVE_SOLDEE,
