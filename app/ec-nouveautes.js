@@ -51,6 +51,28 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1123,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Le coin révisions s\u2019ouvre en un seul aller-retour au lieu de trois',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Trois réveils du classeur ramenés à un',
+        texte: 'En ouvrant son coin révisions, l\u2019élève déclenchait trois ' +
+               'allers-retours vers le classeur : sa connexion, puis son ' +
+               'dossier, son bilan et ses récitations. Or le réveil du ' +
+               'classeur coûte à lui seul une dizaine de secondes, et les ' +
+               'trois portes refaisaient en plus la même lecture de la ' +
+               'feuille des accès. Tout part maintenant avec la connexion : ' +
+               'une vague, une lecture. Rien à faire côté élève.' },
+      { emoji: '🛟',
+        titre: 'Et ça tient même si le classeur est en retard',
+        texte: 'Si le script Apps Script déployé est plus ancien que la page, ' +
+               'celle-ci redemande ce qui manque, exactement comme avant. ' +
+               'Une accélération qui casse quand les deux moitiés ne sont pas ' +
+               'déployées ensemble n\u2019en est pas une.' }
+    ]
+  },
+  {
     version: 1122,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Le coin révisions a sa propre adresse : eleve.evolutionconduites.fr',
