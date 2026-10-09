@@ -95,10 +95,58 @@ async function poserLaPastille(n) {
   } catch (err) { /* refusée, non installée : ce n'est pas une panne */ }
 }
 
+/* ============================================================
+   OÙ VIT LE COIN RÉVISIONS — v1122
+
+   ⚠️ CE SERVICE WORKER NE SAIT PAS QUELLE PAGE L'A INSTALLÉ, ET
+   DEPUIS AUJOURD'HUI ÇA COMPTE.
+
+   Le coin révisions a deux adresses : « eleve.html » à côté de
+   l'application, et la racine de son propre domaine. La
+   notification, elle, porte un seul nom de page pour les deux —
+   « eleve.html » — et il est résolu par rapport à la portée du
+   service worker. Sur le nouveau domaine, ça désigne un fichier
+   qui n'existe pas : un clic sur la notification ouvrait une 404.
+
+   ⚠️ ET ON N'ÉCRIT AUCUN NOM DE DOMAINE ICI. Ce serait une
+   troisième copie de l'adresse, dans le fichier le plus difficile
+   à mettre à jour de tous — un service worker installé reste
+   installé. La seule chose qui sache où vit la page, c'est LA
+   PAGE. Elle le dit à son démarrage, on le range dans la boîte
+   qu'on a déjà, et on s'en sert au clic.
+
+   Le repli reste l'ancien comportement : tant que la page n'a
+   rien dit, « eleve.html » relatif à la portée — ce qui est juste
+   partout où ça l'était avant.
+   ============================================================ */
+const BOITE_PAGE = "adresse-coin-revisions";
+const CLE_PAGE = "/adresse";
+
+async function rangerLAdresseDeLaPage(url) {
+  try {
+    const b = await caches.open(BOITE_PAGE);
+    await b.put(CLE_PAGE, new Response(String(url || "")));
+  } catch (err) { /* stockage refusé : on retombera sur le repli */ }
+}
+
+async function adresseDeLaPage() {
+  try {
+    const b = await caches.open(BOITE_PAGE);
+    const r = await b.match(CLE_PAGE);
+    if (!r) return "";
+    const t = (await r.text()).trim();
+    /* ⚠️ ET ELLE DOIT ÊTRE DE CHEZ NOUS. Une adresse rangée par
+       autre chose que notre propre page n'ouvrirait pas le coin
+       révisions : on ne suit que ce qui est dans notre portée. */
+    return t.indexOf(self.registration.scope) === 0 ? t : "";
+  } catch (err) { return ""; }
+}
+
 /* La page a le vrai compte : elle le repose, et c'est elle qui fait
    foi. Un seul écrivain pour la pastille — celui-ci. */
 self.addEventListener("message", function (e) {
   const d = e.data || {};
+  if (d.quoi === "maPage") { e.waitUntil(rangerLAdresseDeLaPage(d.url)); return; }
   if (d.quoi !== "pastille") return;
   e.waitUntil(poserLaPastille(d.combien));
 });
@@ -165,22 +213,32 @@ self.addEventListener("notificationclick", function (e) {
   const d = e.notification.data || {};
   const page = d.page || "index.html";
   const fil = d.fil || "";
-  const cible = new URL(page + (fil ? "?fil=" + encodeURIComponent(fil) : ""),
-                        self.registration.scope).href;
+  const suite = fil ? "?fil=" + encodeURIComponent(fil) : "";
 
-  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true })
-    .then(function (fenetres) {
-      for (let i = 0; i < fenetres.length; i++) {
-        const f = fenetres[i];
-        /* La même page, quel que soit ce qu'il y a après le « ? ». */
-        if (f.url.split("?")[0].split("#")[0] === cible.split("?")[0]) {
-          /* On lui dit quel fil ouvrir : elle est peut-être sur un
-             tout autre écran. */
-          try { f.postMessage({ quoi: "ouvrirFil", fil: fil }); } catch (err) {}
-          return f.focus();
-        }
-      }
-      return self.clients.openWindow(cible);
+  e.waitUntil(Promise.resolve()
+    /* Pour l'élève, l'adresse que SA page nous a donnée ; pour le
+       bureau, et à défaut, l'ancien calcul. Voir le dossier de
+       « adresseDeLaPage ». */
+    .then(function () {
+      return (page === "eleve.html") ? adresseDeLaPage() : "";
+    })
+    .then(function (sienne) {
+      const cible = sienne ? (sienne.split("?")[0].split("#")[0] + suite)
+                           : new URL(page + suite, self.registration.scope).href;
+      return self.clients.matchAll({ type: "window", includeUncontrolled: true })
+        .then(function (fenetres) {
+          for (let i = 0; i < fenetres.length; i++) {
+            const f = fenetres[i];
+            /* La même page, quel que soit ce qu'il y a après le « ? ». */
+            if (f.url.split("?")[0].split("#")[0] === cible.split("?")[0]) {
+              /* On lui dit quel fil ouvrir : elle est peut-être sur
+                 un tout autre écran. */
+              try { f.postMessage({ quoi: "ouvrirFil", fil: fil }); } catch (err) {}
+              return f.focus();
+            }
+          }
+          return self.clients.openWindow(cible);
+        });
     }));
 });
 
