@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:55 — v1102 */
+/* Déployé le 09/10/2026 à 09:33 — v1115 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -973,8 +973,18 @@ async function corrigerAncienBilan(item){
   if(typeof majBoutonsHandicap === 'function') majBoutonsHandicap();
 
   /* Le bilan appartient à l'onglet Cours : depuis la recherche, il
-     restait masqué par la classe « hors-onglet ». */
-  if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+     restait masqué par la classe « hors-onglet ».
+
+     ⚠️ UNE SEULE PORTE DEPUIS LA v1115. Ces deux lignes-ci — le
+     changement d'onglet et le retrait des classes plus bas —
+     existait ici et nulle part ailleurs. La reprise d'un cours
+     interrompu, elle, ne l'avait pas : le cours revenait dans un
+     écran que « hors-vue » tenait en display:none !important, et
+     le moniteur ne voyait rien. Les deux chemins passent
+     maintenant par montrerLEcranDuCours(), qui bascule aussi la
+     VUE — ce qui manquait aux deux. */
+  if(typeof montrerLEcranDuCours === 'function') montrerLEcranDuCours();
+  else if(typeof afficherOnglet === 'function') afficherOnglet('cours');
 
   $('recordView').style.display = 'none';
   $('generatingView').style.display = 'none';
@@ -986,7 +996,6 @@ async function corrigerAncienBilan(item){
      moments. Une porte oubliée, et le tiroir du cours d'avant
      resterait ouvert sur le bilan d'un autre élève. */
   if(typeof montrerLeTrajetDansLeBilan === 'function') montrerLeTrajetDansLeBilan();
-  $('resultView').classList.remove('hors-onglet', 'hors-vue');
   majBoutonCorrection();
   /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt que
      de laisser le moniteur le chercher. */
