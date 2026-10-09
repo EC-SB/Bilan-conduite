@@ -51,6 +51,44 @@ function jourFr(v){
   return (typeof dateCourte === 'function') ? dateCourte(t) : t;
 }
 
+/* ============================================================
+   UNE DATE BRÈVE, LISIBLE D'UN COUP D'ŒIL — v1118
+
+   « 2026-12-18 » est une date de machine, et « 18/12/2026 » est
+   une date d'imprimé : ni l'une ni l'autre ne se lit au vol sur
+   une tuile. Ce qu'on cherche des yeux, c'est « jeu. 18 déc. ».
+
+   ⚠️ ET ELLE NE PORTE PAS SA PROPRE TABLE DE MOIS. L'application
+   en a déjà trois qui font presque la même chose — dateCourte
+   (ec-permis-listes), jourCourtMessagerie, jourCourtIso — et en
+   ajouter une quatrième avec ses noms de mois à elle, c'est
+   prendre rendez-vous avec le jour où l'une dira « décembre » et
+   l'autre « Décembre ». Celle-ci part de
+   « dateEnToutesLettres » — la porte qui sait déjà lire l'ISO ET
+   le format français du classeur, et qui tient le vocabulaire —
+   et se contente d'abréger ce qu'elle rend.
+
+   L'année ne s'écrit que si ce n'est pas l'année en cours : sur
+   une tuile, « 2026 » répété partout est du bruit, et son absence
+   dit déjà « cette année ».
+   ============================================================ */
+function jourBref(v, avecLeJourDeSemaine){
+  if(typeof jourLu !== 'function' || typeof dateEcrite !== 'function'){
+    return String(v || '').trim();
+  }
+  const iso = jourLu(v);
+  if(!iso) return String(v || '').trim();
+
+  const anneeEnCours = ((typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString()).slice(0, 4);
+
+  const forme = { day: 'numeric', month: 'short' };
+  if(avecLeJourDeSemaine) forme.weekday = 'short';
+  if(iso.slice(0, 4) !== anneeEnCours) forme.year = 'numeric';
+
+  return dateEcrite(iso, forme);
+}
+
 /* Les onglets, dans l'ordre où ils s'affichent. Chacun porte sa
    section : un compte sans le droit ne voit pas l'onglet — il ne le
    voit pas grisé, il ne le voit pas. C'est sectionVisible() qui
@@ -1875,7 +1913,18 @@ function boutonRenommerEleve(nom){
 
 function barreOngletsEleve(onglets){
   const b = document.createElement('div');
-  b.style.cssText = 'display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;';
+  /* ⚠️ v1118 — UNE RANGÉE DE BOUTONS NE DÉFILE PAS.
+
+     C'est la règle que David a posée, et cette rangée-ci la violait
+     depuis qu'elle porte dix onglets : « overflow-x:auto » avec
+     « flex:0 0 auto » sur chacun. Sur téléphone, RGPD et Handicap
+     étaient hors de l'écran — et rien ne le disait : une barre de
+     défilement horizontale ne se montre pas tant qu'on ne la touche
+     pas. On ne cherche pas un onglet qu'on ne sait pas là.
+
+     Elle passe donc à la ligne. Deux rangs de cinq sur téléphone,
+     un seul sur tablette, et tout est visible d'un coup. */
+  b.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;';
 
   onglets.forEach(o => {
     const actif = (o.cle === ongletPageEleve);
@@ -1967,8 +2016,151 @@ const NOMS_REPONSES_QUEST = {
   avantExamRate: 'Avant examen manqué',
   handicap: 'Handicap', amenagements: 'Aménagements',
   coussin: 'Coussin vert', sansBilan: 'Aucun bilan au classeur',
-  modele: 'Modèle de bilan', premierCours: 'Premier cours'
+  modele: 'Modèle de bilan', premierCours: 'Premier cours',
+  /* ⚠️ v1118 — LES QUATRE QUI SORTAIENT EN ANGLAIS TECHNIQUE.
+
+     David, le 9 octobre, capture à l'appui : son dossier affichait
+     « ebNiveau · non ». Les deux sources qui remplissent cet
+     onglet savent poser quatre clés que cette table ne nommait
+     pas — ebNiveau, examPermisNRang, et les deux rendez-vous
+     pédagogiques de l'AAC. Le commentaire en tête disait pourtant
+     que les clés inconnues sont « montrées telles quelles plutôt
+     que masquées » : la prudence était juste, elle n'était pas une
+     excuse pour en laisser quatre.
+
+     ⚠️ ET UN BANC LES COMPTE DÉSORMAIS. Les nommer aujourd'hui ne
+     ferme rien : la prochaine question ajoutée au questionnaire
+     rouvrirait le même trou. banc-questionnaire-dossier énumère
+     toutes les clés que les deux sources savent poser et échoue
+     si l'une n'est pas ici. */
+  ebNiveau: "Résultat de l'examen blanc",
+  examPermisNRang: 'Leçon où le compte a été posé',
+  rvp1: 'Rendez-vous pédagogique n° 1',
+  rvp2: 'Rendez-vous pédagogique n° 2',
+  /* ⚠️ ET LE BANC EN A TROUVÉ DIX-HUIT AUTRES.
+
+     J'en avais relevé quatre à l'œil. En énumérant pour de bon ce
+     que les deux sources savent poser, le banc en a sorti
+     vingt-deux. C'est toute la différence entre vérifier et
+     compter : un défaut qu'on cherche à l'œil, on en trouve ce
+     qu'on en voit.
+
+     Les mots viennent du libellé ou du texte d'invite du champ
+     correspondant dans le questionnaire, pas d'une invention. */
+  ants: 'Dossier ANTS', boite: 'Boîte',
+  email: 'Mail', messenger: 'Messenger',
+  prefecture: 'Leçons avant présentation à la préfecture',
+  problematique: 'Problématique',
+  libre: 'Vos autres notes',
+  ebLecons: "Leçons avant l'examen",
+  examMotif: "Pourquoi (ANTS, dossier, médical…)",
+  ebImpossibleLe: 'Examen blanc non planifiable depuis le',
+  pasEcoute: "Pas d'écoutes pédagogiques",
+  manoeuvresAjoutees: 'Manœuvres cochées sur ce cours',
+  manoeuvresAilleurs: 'Manœuvres validées ailleurs',
+  leconsFaites: 'Leçons déjà faites',
+  heuresDuJour: 'Heures décidées ce jour',
+  heuresRestantesDuJour: "Heures restantes avant l'examen"
 };
+
+/* ============================================================
+   CE QUI N'EST PAS UNE RÉPONSE, ET NE S'AFFICHE PAS
+
+   Le contexte d'un cours ne porte pas que des réponses : il porte
+   aussi la plomberie qui les transporte. Un booléen qui dit « la
+   question était-elle visible ? » n'est pas une réponse du
+   moniteur, et l'afficher sous un libellé français serait pire
+   que de montrer sa clé — ça lui donnerait l'air d'un fait.
+
+   La liste est EXPLICITE et porte ses raisons : sans elle, le
+   banc qui exige un nom pour chaque clé obligerait à inventer un
+   libellé à de la plomberie. Avec elle, le choix de ne pas
+   montrer est écrit, daté, et vérifié comme le reste.
+   ============================================================ */
+const PLOMBERIE_REPONSES_QUEST = {
+  /* Un booléen : la section des heures était-elle dépliée. Il sert
+     à ne pas réancrer une réserve sur une question invisible. */
+  heuresDepuisRepondu: 'état d\'affichage, pas une réponse',
+  /* Le même nombre que « heuresRestantes », sur son chemin vers le
+     bureau. L'afficher ferait deux lignes pour une décision. */
+  heuresRemontees: 'copie de route de heuresRestantes'
+};
+
+/* ============================================================
+   DANS QUEL ORDRE ON LES LIT
+
+   Le tri était alphabétique sur le libellé. Sur la capture de
+   David ça tombait bien — ses quatre lignes parlaient toutes de
+   l'examen blanc — mais sur un dossier complet « Date d'examen »
+   se retrouve entre « Coussin vert » et « Formation », et on lit
+   un dictionnaire au lieu d'un parcours.
+
+   On les range donc par SUJET, dans l'ordre où l'élève les
+   traverse. Une clé absente de cette table va dans « Le reste » :
+   elle ne disparaît jamais.
+   ============================================================ */
+const GROUPES_REPONSES_QUEST = [
+  { titre: '🎓 Sa formation',
+    cles: ['formation', 'frise', 'modele', 'premierCours', 'lecon',
+           'leconMain', 'leconsParBoite', 'manoeuvresFaites',
+           'totalManoeuvres', 'sansBilan'] },
+  { titre: "🅱️ L'examen blanc",
+    cles: ['examBlanc', 'examBlancN', 'examBlancDate', 'ebPasse', 'ebNiveau',
+           'ebSuite', 'avantEB', 'leconsDepuisEB'] },
+  { titre: "🎓 L'examen du permis",
+    cles: ['examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+           'examPassage', 'heuresRestantes', 'repassages', 'dateAjournement',
+           'nouvelleDate', 'avantExamRate'] },
+  { titre: '🤝 Les rendez-vous',
+    cles: ['simuNuit', 'rvPrealable', 'formAccomp', 'rvp1', 'rvp2',
+           'rdvPostFait', 'rdvPostDate', 'rdvPostMoniteur', 'rdvPostAPrevoir',
+           'avantRdvPost', 'leconsDepuisRdvPost', 'heuresRepassage'] },
+  { titre: '🪑 Le poste de conduite',
+    cles: ['handicap', 'amenagements', 'coussin'] }
+];
+
+/* Les clés qui portent une DATE : elles s'écrivent en français,
+   pas en « 2025-08-06 ». La liste est explicite — deviner « c'est
+   une date parce que ça ressemble à une date » ferait un jour
+   d'un numéro de dossier une date. */
+const DATES_REPONSES_QUEST = ['examBlancDate', 'examDate', 'nouvelleDate',
+  'dateAjournement', 'rdvPostDate'];
+
+/* ============================================================
+   COMMENT S'ÉCRIT UNE RÉPONSE RELUE
+
+   ⚠️ NOMMÉE, ET PAS ENFERMÉE DANS L'ONGLET — v1118.
+
+   C'était une petite fonction locale. Un banc ne pouvait donc pas
+   l'exécuter : il ne pouvait que chercher son nom dans le
+   fichier. Et une mutation l'a prouvé — en débranchant la
+   traduction tout en laissant le nom écrit, le banc restait vert.
+   Une assertion qui lit du texte éprouve le texte, pas le
+   comportement.
+
+   Sortie ici, elle s'appelle, donc elle s'éprouve pour de bon.
+   ============================================================ */
+function direLaReponse(cle, valeur){
+  if(Array.isArray(valeur)) return valeur.join(' · ');
+
+  /* Une date s'écrit en français. La liste des clés-dates est
+     explicite : deviner « c'est une date parce que ça y
+     ressemble » ferait un jour d'un numéro de dossier une date. */
+  if(DATES_REPONSES_QUEST.indexOf(cle) !== -1){
+    return (typeof dateEnToutesLettres === 'function')
+      ? (dateEnToutesLettres(valeur) || String(valeur)) : String(valeur);
+  }
+
+  /* Les mots viennent de la table du questionnaire — LA MÊME que
+     ses sélecteurs. Pas une copie : le jour où « Déjà passé »
+     devient autre chose, cet onglet suit sans qu'on y touche. */
+  const mot = (typeof libelleReponse === 'function')
+    ? libelleReponse(cle, valeur) : '';
+
+  /* Pas de vocabulaire pour cette clé — un nombre, un nom, du
+     texte libre : on rend ce qui est écrit. */
+  return mot || String(valeur);
+}
 
 function ongletQuestionnaire(corps, nom){
   corps.innerHTML = '';
@@ -2008,19 +2200,56 @@ function ongletQuestionnaire(corps, nom){
       const v = ctx[k];
       if(v === '' || v === null || v === undefined) return false;
       if(Array.isArray(v) && !v.length) return false;
+      /* v1118 : la plomberie du contexte n'est pas une réponse —
+         voir PLOMBERIE_REPONSES_QUEST et ses raisons. */
+      if(PLOMBERIE_REPONSES_QUEST[k]) return false;
       return true;
     })
-    .sort((a, b) => String(NOMS_REPONSES_QUEST[a] || a)
-      .localeCompare(String(NOMS_REPONSES_QUEST[b] || b), 'fr'));
+    /* ⚠️ PLUS DE TRI ALPHABÉTIQUE — v1118. Ce sont les groupes
+       qui ordonnent maintenant ; à l'intérieur d'un groupe,
+       l'ordre est celui de sa liste, c'est-à-dire celui du
+       parcours. Trier ici recasserait ça. */;
 
   if(cles.length){
+    /* ── CE QU'ON MONTRE, ET COMMENT ON L'ÉCRIT — v1118 ──
+
+       Trois défauts tenaient dans une seule ligne : le libellé
+       manquant sortait la clé technique, la valeur n'était jamais
+       traduite (String(v), tel quel), et la date restait en ISO.
+
+       Les mots des valeurs viennent de « libelleReponse »
+       (ec-questionnaire) : LA MÊME table que les sélecteurs du
+       formulaire. Pas une copie — le jour où « Déjà passé »
+       devient autre chose, cet onglet suit sans qu'on y touche. */
+    /* Rangées par sujet, dans l'ordre du parcours. Ce qu'aucun
+       groupe ne réclame tombe dans « Le reste » : une réponse ne
+       disparaît pas parce qu'on a oublié de la classer. */
+    const restantes = cles.slice();
+    const sortis = [];
+    GROUPES_REPONSES_QUEST.forEach(g => {
+      const miennes = g.cles.filter(k => restantes.indexOf(k) !== -1);
+      if(!miennes.length) return;
+      miennes.forEach(k => restantes.splice(restantes.indexOf(k), 1));
+      sortis.push([g.titre, miennes]);
+    });
+    if(restantes.length) sortis.push(['📝 Le reste', restantes]);
+
+    /* L'en-tête dit toujours d'où ça vient. Sur un seul groupe, le
+       sous-titre du groupe suffirait — mais « relu dans la note »
+       n'est pas un sujet, c'est une PROVENANCE, et elle doit se
+       lire même quand il n'y a qu'un groupe. */
     corps.appendChild(sousTitreDossier(prep ? 'Réponses gardées'
                                             : 'Relu dans la note'));
-    cles.forEach(k => {
-      const v = ctx[k];
-      corps.appendChild(ligneDossier(
-        NOMS_REPONSES_QUEST[k] || k,
-        Array.isArray(v) ? v.join(' · ') : String(v)));
+    sortis.forEach(([titre, liste]) => {
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:11px;letter-spacing:.06em;' +
+        'text-transform:uppercase;color:var(--accent-text);font-weight:700;' +
+        'margin:12px 0 5px;';
+      t.textContent = titre;
+      corps.appendChild(t);
+      liste.forEach(k => corps.appendChild(
+        ligneDossier(NOMS_REPONSES_QUEST[k] || k,
+                     direLaReponse(k, ctx[k]))));
     });
   }else{
     corps.appendChild(vidDossier('Aucune réponse gardée sur ce cours.'));
@@ -2154,6 +2383,21 @@ function ongletFiche(corps, nom){
     corps.appendChild(vidDossier(
       "Aucune fiche au répertoire pour cet élève."));
   }else{
+    /* ⚠️ v1118 — UNE VALEUR LONGUE NE TIENT PAS À DROITE D'UN
+       LIBELLÉ.
+
+       David, le 9 octobre, capture à l'appui : la frise de Clarisse
+       — « 3 leçons de 2h + exam blanc + 2 leçons de 2h (4h) + 3h
+       avant examen », soixante-dix caractères — écrasait son
+       libellé contre le bord gauche et se cassait n'importe où.
+       Toutes les lignes étaient en « libellé à gauche, valeur à
+       droite », ce qui va très bien pour un numéro et pas du tout
+       pour une phrase.
+
+       Le troisième terme dit si la valeur va EN DESSOUS. Il est
+       posé ici, par champ, et pas calculé sur la longueur : une
+       frise courte reste une frise, et son emplacement ne doit pas
+       changer d'un élève à l'autre. */
     const champs = [
       ['📱 Téléphone', f.telephone
         ? ((typeof telLisible === 'function') ? telLisible(f.telephone) : f.telephone)
@@ -2163,8 +2407,8 @@ function ongletFiche(corps, nom){
       ['💬 Messenger', f.messenger],
       ['📇 Dossier ANTS', f.ants === 'nous' ? 'Fait par nous'
         : (f.ants === 'eleve' ? "Fait par l'élève" : '')],
-      ['🧭 Frise', f.frise],
-      ['📝 Remarques', f.remarques]
+      ['🧭 Frise', f.frise, true],
+      ['📝 Remarques', f.remarques, true]
     ].filter(x => String(x[1] || '').trim());
 
     if(!champs.length){
@@ -2174,16 +2418,20 @@ function ongletFiche(corps, nom){
       const t = document.createElement('div');
       t.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
         'padding:4px 12px;';
-      champs.forEach(([k, v], i) => {
+      champs.forEach(([k, v, dessous], i) => {
         const l = document.createElement('div');
-        l.style.cssText = 'display:flex;gap:12px;justify-content:space-between;' +
+        l.style.cssText = (dessous ? 'display:block;'
+                                   : 'display:flex;gap:12px;' +
+                                     'justify-content:space-between;') +
           'padding:9px 0;font-size:13.5px;line-height:1.5;' +
           (i ? 'border-top:1px solid var(--line);' : '');
         const a = document.createElement('span');
-        a.style.cssText = 'color:var(--muted);flex-shrink:0;';
+        a.style.cssText = 'color:var(--muted);flex-shrink:0;' +
+          (dessous ? 'display:block;' : '');
         a.textContent = k;
         const b = document.createElement('span');
-        b.style.cssText = 'text-align:right;min-width:0;word-break:break-word;';
+        b.style.cssText = 'min-width:0;word-break:break-word;' +
+          (dessous ? 'display:block;margin-top:2px;' : 'text-align:right;');
         b.textContent = v;
         l.appendChild(a); l.appendChild(b);
         t.appendChild(l);
@@ -2200,18 +2448,33 @@ function ongletFiche(corps, nom){
      seule fois, ici comme ailleurs. */
   if(typeof pastillesPosteDeConduite === 'function'){
     const p = document.createElement('div');
-    p.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+    p.style.cssText = 'display:flex;flex-direction:column;gap:7px;' +
       'margin-top:12px;padding:10px 12px;border:1px solid var(--line);' +
       'border-radius:10px;';
 
+    /* ⚠️ v1118 — L'ENCART DIT SON ÉTAT, PAS SON SUJET.
+
+       « Conduite aménagée, coussin — ce qu'il faut monter dans la
+       voiture » s'affichait que les cases soient cochées ou non :
+       on ne savait pas si c'était une consigne ou un constat. Quand
+       rien n'est posé, on le DIT — c'est l'information utile avant
+       de monter dans la voiture. */
+    const poste = (typeof posteDeConduite === 'function')
+      ? (posteDeConduite(nom) || {}) : {};
+    const rien = !poste.amenagee && !poste.coussin;
+
     const l = document.createElement('div');
-    l.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.45;';
-    l.innerHTML = '🪑 <strong>Poste de conduite</strong>' +
-      '<div style="font-size:11.5px;color:var(--muted);">' +
-      'Conduite aménagée, coussin — ce qu\'il faut monter dans la ' +
-      'voiture.</div>';
+    l.style.cssText = 'min-width:0;font-size:13px;line-height:1.45;';
+    l.innerHTML = '🪑 <strong>Poste de conduite</strong>';
     p.appendChild(l);
     p.appendChild(pastillesPosteDeConduite(nom, () => dessinerPageEleve()));
+
+    const dit = document.createElement('div');
+    dit.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.4;';
+    dit.textContent = rien
+      ? 'Rien de coché : rien de particulier à monter dans la voiture.'
+      : 'À monter dans la voiture avant le cours.';
+    p.appendChild(dit);
     corps.appendChild(p);
   }
 
@@ -2604,6 +2867,396 @@ function lignesCsDossier(nom){
 }
 
 
+/* ============================================================
+   🎓 LA TUILE DU PERMIS — UN SEUL ENCART QUI CHANGE DE SENS
+
+   David, le 8 octobre : « La tuile 4 je pensais à une tuile mais
+   qui change en fonction de là où en est l'élève, une tuile
+   dynamique. Si un élève est ajourné par exemple, j'ai plus besoin
+   de savoir ce qu'il a fait à son examen blanc, j'ai juste besoin
+   de savoir son post-permis. Si pour un élève on dit examen blanc
+   pas le niveau, je sais que je ne prévois pas de permis. »
+
+   C'est la règle entière : à chaque instant il n'y a QU'UNE chose
+   à savoir, et ce n'est pas la même selon l'élève. Un encart qui
+   montrerait les cinq à la fois demanderait au lecteur de faire le
+   tri que l'outil refuse de faire.
+
+   On descend donc la liste et on s'arrête au premier état qui
+   correspond. Dix-sept états, validés un par un sur planche le
+   9 octobre.
+
+   ⚠️ CETTE FONCTION NE CALCULE RIEN QU'UN AUTRE SAIT DÉJÀ. Les
+   dates et l'ajournement viennent d'examenOfficielDe (ec-aac-cs),
+   la place tenue de marquePlaceExamen (ec-bureau), la conclusion
+   de l'examen blanc ET le décompte des heures de
+   resultatExamenBlanc (ec-avant-cours), les rendez-vous de
+   dossierAac. Recalculer l'un d'eux ici, ce serait un deuxième
+   chiffre pour une seule question — la faute que cette page répare
+   partout ailleurs.
+
+   ⚠️ ET ELLE NE REND QUE DES DONNÉES. Le dessin est à côté
+   (dessinerTuilePermis). Un banc peut donc éprouver les dix-sept
+   états sans navigateur.
+   ============================================================ */
+
+/* Trois arbitrages de David, le 9 octobre, écrits ici pour qu'on
+   n'ait pas à les redeviner en relisant le code :
+
+   ① Une date prise passe devant tout, et la suite prévue se lit
+     EN DESSOUS d'elle — pas à sa place.
+   ② Un « pas le niveau » (ou un « pourrait ») reste affiché sous
+     la date, en rouge, tant que la conclusion n'a pas changé.
+   ③ Un AAC n'a pas d'examen blanc prévu : ce sont ses rendez-vous
+     qu'on montre, jusqu'à ce qu'il en ait passé un. */
+function etatDuPermis(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const a = (e && e.etat) || {};
+
+  const exam = (typeof examenOfficielDe === 'function')
+    ? (examenOfficielDe(nom) || {}) : {};
+  const devant = exam.devant || {};
+  const marque = (typeof marquePlaceExamen === 'function')
+    ? marquePlaceExamen(nom) : null;
+  const eb = (typeof resultatExamenBlanc === 'function')
+    ? resultatExamenBlanc(nom, a) : null;
+
+  /* Deux formes, et deux seulement : la date en vedette porte son
+     jour de semaine — c'est elle qu'on cherche des yeux — les
+     autres non. Toutes deux passent par jourBref. */
+  const vedette = v => jourBref(v, true) || String(v || '').trim();
+  const court = v => jourBref(v, false) || String(v || '').trim();
+  const passage = n => (n === 1 ? '1er' : n + 'e') + ' passage';
+
+  /* La sous-ligne rouge de l'arbitrage ② : elle n'apparaît QUE
+     sous une date, et QUE si la conclusion du dernier examen blanc
+     est défavorable ou hésitante. Un élève qui a une date et un
+     examen blanc réussi n'a pas de ligne en trop. */
+  const avertissementDuNiveau = () => {
+    if(!eb) return null;
+    if(eb.cle === 'pasleniveau'){
+      return { txt: '⛔ Examen blanc : ' + eb.texte, ton: 'rouge' };
+    }
+    if(eb.cle === 'peut'){
+      return { txt: '🤔 Examen blanc : ' + eb.texte, ton: 'rouge' };
+    }
+    return null;
+  };
+
+  const lignes = (...xs) => xs.filter(Boolean);
+
+  /* ── 01 · IL A SON PERMIS. Plus rien d'autre n'a d'importance. ── */
+  if(devant.cle === 'obtenu'){
+    return { cle:'obtenu', ton:'ok', titre:'Où en est son permis',
+      gros:'🎓 Permis obtenu', petit:true,
+      lignes: lignes(exam.ajourne
+        ? { txt: passage(exam.ajourne.passage) }
+        : null) };
+  }
+
+  /* ── 02 / 03 · UNE DATE EST PRISE ──
+
+     Les deux états se distinguent par la MARQUE sur la place, pas
+     par l'ordre où on les essaie : écrits comme deux conditions
+     exclusives, aucun des deux ne peut masquer l'autre. La planche
+     les numérotait 02 puis 03 avec « premier qui correspond » —
+     ainsi écrit, 03 n'aurait jamais pu s'afficher. */
+  if(devant.cle === 'prevu'){
+    const d = (typeof dateFrVersIso === 'function' &&
+               !/^\d{4}-/.test(String(s.datePermis || a.permisDate || '')))
+      ? (s.datePermis || a.permisDate || '') : (s.datePermis || a.permisDate || '');
+    const tete = vedette(d) || 'Date prise';
+    const ou = [s.centre, exam.ajourne ? passage(exam.ajourne.passage) : '']
+      .filter(Boolean).join(' · ');
+
+    /* 03 — la place existe mais elle n'est pas tenue pour lui.
+       Les mots viennent de marquePlaceExamen, ceux de la carte du
+       cours : deux écrans, une seule phrase. */
+    if(marque){
+      return { cle:'place', ton:'tiede', titre:'Où en est son permis',
+        gros:tete, petit:false,
+        lignes: lignes(ou ? { txt: ou } : null,
+                       { txt: marque.emoji + ' ' + marque.texte, ton:'rouge' }) };
+    }
+
+    /* 02 — la date, et la suite prévue EN DESSOUS (arbitrage ①),
+       puis l'avertissement du niveau s'il y en a un (arbitrage ②). */
+    return { cle:'date', ton:'vedette', titre:'Où en est son permis',
+      gros:tete, petit:false,
+      lignes: lignes(ou ? { txt: ou, ton:'fort' } : null,
+                     (eb && eb.cle !== 'pasleniveau' && eb.cle !== 'peut')
+                       ? { txt: eb.emoji + ' ' + eb.texte } : null,
+                     avertissementDuNiveau()) };
+  }
+
+  /* ── 04 · DATE ANNULÉE. On dit laquelle, et quand. ── */
+  if(devant.cle === 'annule'){
+    /* Les deux dates de l'annulation portent des noms précis :
+        « permisAnnuleDate » est la place qui saute, « permisAnnuleLe »
+        le jour où on l'a annulée. Le lecteur de notes les pose
+        toutes les deux (ec-bureau) et vide « permisDate » — la
+        chercher ici ne rendrait jamais rien. */
+    const quoi = [
+      a.permisAnnuleDate ? 'la place du ' + court(a.permisAnnuleDate) : '',
+      a.permisAnnuleLe ? 'annulée le ' + court(a.permisAnnuleLe) : ''
+    ].filter(Boolean).join(', ');
+    return { cle:'annule', ton:'chaud', titre:'Où en est son permis',
+      gros:'Examen annulé', petit:true,
+      lignes: lignes(quoi ? { txt: quoi + ' · à reprendre' }
+                          : { txt: 'à reprendre' }) };
+  }
+
+  /* ── 05 à 09 · APRÈS UN AJOURNEMENT, C'EST LE POST-PERMIS QUI
+     PARLE. « J'ai plus besoin de savoir ce qu'il a fait à son
+     examen blanc » — mot pour mot. ── */
+  const aPost = String(s.rdvPostFait || '') === 'oui';
+
+  if(exam.ajourne && !aPost && !s.rdvPostDate){
+    /* 05 — le geste qui manque, et c'est le bureau qui le pose. */
+    return { cle:'ajourne', ton:'chaud', titre:'Où en est son permis',
+      gros:'🔁 ' + (exam.ajourne.nb === 1 ? '1er' : exam.ajourne.nb + 'e') +
+           ' repassage', petit:true,
+      lignes: lignes({ txt: (exam.ajourne.quand
+        ? 'Ajourné le ' + court(exam.ajourne.quand) : 'Ajourné') +
+        ' · post-permis à prévoir', ton:'rouge' }) };
+  }
+
+  if(s.rdvPostDate && !aPost){
+    /* 06 — il est posé, il n'a pas eu lieu. */
+    return { cle:'postprevu', ton:'tiede', titre:'Où en est son permis',
+      gros:'🤝 Post-permis', petit:true,
+      /* ⚠️ UNE SEULE FORME DE DATE PAR TUILE. La phrase toute
+         faite d'examenOfficielDe écrit ses dates avec jourFrCs
+         (« 02/08/2026 ») : à côté d'un « 13 oct. », ça fait deux
+         calendriers dans trois centimètres. On reprend donc ses
+         DONNÉES — le passage, le jour — et pas sa prose. */
+      lignes: lignes({ txt: vedette(s.rdvPostDate) +
+                         (s.rdvPostMoniteur ? ' avec ' + s.rdvPostMoniteur : ''),
+                       ton:'fort' },
+                     exam.ajourne
+                       ? { txt: passage(exam.ajourne.passage) +
+                           (exam.ajourne.quand
+                             ? ' — ajourné le ' + court(exam.ajourne.quand) : '') }
+                       : null) };
+  }
+
+  if(aPost){
+    const suite = String(s.suite || '');
+
+    /* 09 — pas de repassage pour le moment. */
+    if(suite === 'impossible'){
+      return { cle:'postnon', ton:'chaud', titre:'Où en est son permis',
+        gros:'⛔ Pas de repassage', petit:true,
+        lignes: lignes({ txt:'pour le moment' +
+          (s.rdvPostDate ? ' — décidé au post-permis du ' +
+                           court(s.rdvPostDate) : ''), ton:'rouge' }) };
+    }
+
+    /* 08 — une leçon à poser, pas une date à prendre. */
+    if(suite === '2h'){
+      return { cle:'post2h', ton:'tiede', titre:'Où en est son permis',
+        gros:'🚗 Une leçon de 2h', petit:true,
+        lignes: lignes({ txt:'pour refaire le point' +
+          (s.rdvPostDate ? ', décidé au post-permis du ' +
+                           court(s.rdvPostDate) : '') }) };
+    }
+
+    /* 07 — des heures avant le repassage. Le reste se demande à
+       resultatExamenBlanc, qui sait déjà que le post-permis passe
+       devant l'examen blanc et décompte depuis lui. */
+    if(eb){
+      return { cle:'post3h', ton: eb.cle === '3h' ? 'ok' : '',
+        titre:'Où en est son permis',
+        gros: eb.cle === '3h' ? '✅ Plus que les 3h' : eb.texte,
+        petit: true,
+        lignes: lignes({ txt:'après le post-permis', ton:'fort' },
+                       { txt:'date à reprendre' }) };
+    }
+  }
+
+  /* ── 10 à 14 · L'EXAMEN BLANC. Les mots et le décompte viennent
+     de resultatExamenBlanc : c'est la phrase que la carte du cours
+     affiche déjà au moniteur. ── */
+  const quandEb = court(s.ebDate || a.ebDate || a.examBlancDate);
+
+  if(eb && eb.cle === 'pasleniveau'){
+    /* 10 — et ça RESTE affiché jusqu'à ce que la conclusion change
+       (arbitrage ②), pas jusqu'au prochain examen blanc. La
+       consigne en majuscules vient de sa porte, jamais recopiée. */
+    return { cle:'pasleniveau', ton:'chaud', titre:'Où en est son permis',
+      gros:'⛔ Pas le niveau', petit:true,
+      lignes: lignes(
+        { txt:(typeof CONSIGNE_PAS_LE_NIVEAU !== 'undefined')
+                ? CONSIGNE_PAS_LE_NIVEAU : 'FAIRE LE POINT À CHAQUE LEÇON',
+          ton:'rouge' },
+        { txt:(quandEb ? 'examen blanc du ' + quandEb + ' · ' : '') +
+              'pas de date à prendre' }) };
+  }
+
+  if(eb && eb.cle === 'peut'){
+    /* 11 — l'hésitation est une réponse (v1117). */
+    return { cle:'peut', ton:'tiede', titre:'Où en est son permis',
+      gros:'🤔 Pourrait avoir le niveau', petit:true,
+      lignes: lignes({ txt:(quandEb ? 'examen blanc du ' + quandEb + ' · ' : '') +
+        'à revoir avant de prendre une date' }) };
+  }
+
+  if(eb && eb.cle === '3h'){
+    /* 12 — celui qui appelle une date tout de suite. */
+    return { cle:'solde', ton:'ok', titre:'Où en est son permis',
+      gros:'✅ ' + ((typeof motDuZeroEnTete === 'function')
+                     ? motDuZeroEnTete() : 'Plus que les 3h'), petit:true,
+      lignes: lignes({ txt:'date à prendre — il est prêt', ton:'fort' },
+                     quandEb ? { txt:'examen blanc réussi le ' + quandEb } : null) };
+  }
+
+  if(eb && eb.cle === 'lecons'){
+    /* 13 — le stock, son auteur et sa date, comme dans la fiche de
+       route : un solde sans son auteur ne se discute pas. */
+    /* « heuresPar » et « heuresLe » : les noms posés par
+        champsHeuresRestantes (ec-bureau). Le bandeau dit déjà
+        « dit par X le Y » avec ces deux-là. */
+    const dit = [s.heuresPar, court(s.heuresLe)]
+      .filter(Boolean).join(' le ');
+    return { cle:'reserve', ton:'', titre:'Où en est son permis',
+      gros: eb.texte, petit:true,
+      lignes: lignes({ txt:"depuis l'examen blanc", ton:'fort' },
+                     dit ? { txt:'dit par ' + dit } : null) };
+  }
+
+  if(String(a.examBlanc || '') === 'passe'){
+    /* 14 — le seul état qui demande un geste au bureau et pas à
+       l'élève : l'examen a eu lieu, personne n'a dit ce qu'il
+       valait. Sans cet état, l'élève disparaissait entre deux
+       listes. */
+    return { cle:'ebsansresultat', ton:'tiede', titre:'Où en est son permis',
+      gros:'📝 Examen blanc passé', petit:true,
+      lignes: lignes({ txt:(quandEb ? 'le ' + quandEb + ' — ' : '') +
+        'résultat à renseigner', ton:'rouge' }) };
+  }
+
+  /* ── 15 · AAC OU CONDUITE SUPERVISÉE, AVANT TOUT EXAMEN BLANC ──
+
+     Arbitrage ③. Un AAC n'a pas d'examen blanc prévu ; ce sont ses
+     rendez-vous pédagogiques qui rythment sa formation. Dès qu'il
+     en a passé un, les états 10 à 14 au-dessus ont déjà repris la
+     main — c'est pour ça que celui-ci est ici et pas plus haut. */
+  const accomp = (typeof typeAccompagnement === 'function')
+    ? typeAccompagnement(nom) : '';
+  if(accomp && typeof dossierAac === 'function'){
+    const d = dossierAac(nom) || {};
+    const r = d.rdv || {};
+    /* Le PROCHAIN : le premier qui n'est ni fait ni sans objet. */
+    const ordre = [['Rendez-vous préalable', r.prealable],
+                   ['Rendez-vous n° 1', r.rvp1],
+                   ['Rendez-vous n° 2', r.rvp2],
+                   ['Rendez-vous de fin', r.rvt]];
+    const prochain = ordre.find(([, x]) => x && x.cle !== 'fait' &&
+                                 x.cle !== 'ailleurs' && x.cle !== 'sansobjet');
+    if(prochain){
+      const fait = ordre.filter(([, x]) => x && (x.cle === 'fait' ||
+                                                 x.cle === 'ailleurs'));
+      const dernier = fait.length ? fait[fait.length - 1] : null;
+      return { cle:'aac', ton: prochain[1].retard ? 'tiede' : '',
+        titre:'Où en est sa formation',
+        gros:'🤝 ' + prochain[0], petit:true,
+        lignes: lignes(
+          { txt: prochain[1].txt +
+                 (dernier ? ' — le précédent ' + dernier[1].txt : ''),
+            ton: prochain[1].retard ? 'rouge' : 'fort' },
+          { txt: accomp === 'AAC' ? 'conduite accompagnée'
+                                  : 'conduite supervisée' }) };
+    }
+  }
+
+  /* ── 16 · L'EXAMEN BLANC EST DEVANT ── */
+  if(String(a.examBlanc || '') === 'aprevoir'){
+    const prevu = (typeof datePrevueExamenBlanc === 'function')
+      ? court(datePrevueExamenBlanc(nom)) : '';
+    const dans = (a.examBlancN !== null && a.examBlancN !== undefined &&
+                  a.examBlancN !== '')
+      ? 'dans ' + a.examBlancN + ' leçon(s)' : '';
+    return { cle:'ebprevu', ton:'', titre:'Où en est son permis',
+      gros:'📅 Examen blanc', petit:true,
+      lignes: lignes({ txt: prevu ? 'réservé le ' + prevu
+                                  : (dans || 'à prévoir'), ton:'fort' }) };
+  }
+
+  /* ── 17 · RIEN DE NOTÉ ──
+
+     Elle ne se tait pas et elle ne ment pas : elle dit qu'on ne
+     sait pas, et elle ouvre la saisie. Une tuile vide laisserait
+     croire qu'il n'y a rien à faire. */
+  return { cle:'rien', ton:'', titre:'Où en est son permis',
+    gros:'❔ Rien de noté', petit:true, faible:true,
+    lignes: lignes({ txt:"toucher pour renseigner l'examen blanc" }),
+    action:'eb' };
+}
+
+
+/* Le dessin, à part — voir l'en-tête : la règle ci-dessus doit
+   pouvoir s'éprouver sans navigateur. */
+function dessinerTuilePermis(nom, apres){
+  const t = etatDuPermis(nom);
+
+  /* ⚠️ QUE DES VARIABLES QUI EXISTENT. La palette de l'outil n'a
+     ni « --accent » ni « --accent-weak » ni « --red-weak » : une
+     couleur inventée ne fait pas d'erreur, elle rend simplement un
+     bord invisible — et ça ne se voit qu'à l'écran. Les quatre
+     tons se distinguent avec ce qui est déclaré dans index.html. */
+  const TONS = {
+    ok:     { bord:'var(--accent-text)', fond:'transparent' },
+    vedette:{ bord:'var(--orange)',      fond:'transparent', epais:true },
+    tiede:  { bord:'var(--ambre)',       fond:'transparent' },
+    chaud:  { bord:'var(--red)',         fond:'var(--warn-bg)' }
+  };
+  const ton = TONS[t.ton] || { bord:'var(--line)', fond:'transparent' };
+
+  const d = document.createElement('div');
+  d.dataset.tuilePermis = t.cle;
+  d.style.cssText = 'border:' + (ton.epais ? '2px' : '1px') + ' solid ' +
+    ton.bord + ';background:' + ton.fond + ';border-radius:12px;' +
+    'padding:11px 13px;margin-bottom:12px;' +
+    (t.action ? 'cursor:pointer;' : '');
+
+  const lab = document.createElement('div');
+  lab.style.cssText = 'font-size:10.5px;letter-spacing:.08em;' +
+    'text-transform:uppercase;color:var(--muted);margin-bottom:4px;';
+  lab.textContent = t.titre;
+  d.appendChild(lab);
+
+  const gros = document.createElement('div');
+  gros.style.cssText = 'font-size:' + (t.petit ? '16px' : '21px') +
+    ';font-weight:800;line-height:1.15;' +
+    (t.faible ? 'color:var(--muted);' : '');
+  gros.textContent = t.gros;
+  d.appendChild(gros);
+
+  (t.lignes || []).forEach(l => {
+    const p = document.createElement('div');
+    p.style.cssText = 'font-size:12.5px;line-height:1.4;margin-top:3px;' +
+      (l.ton === 'rouge' ? 'color:var(--red);font-weight:700;'
+       : l.ton === 'fort' ? 'color:var(--cream);font-weight:600;'
+       : 'color:var(--muted);');
+    p.textContent = l.txt;
+    d.appendChild(p);
+  });
+
+  /* L'état « rien de noté » ouvre la saisie : une tuile qui dit
+     qu'il manque quelque chose doit mener à l'endroit où on le
+     met. */
+  if(t.action === 'eb' && typeof saisirExamenBlanc === 'function'){
+    d.addEventListener('click', async () => {
+      await saisirExamenBlanc(nom);
+      if(typeof apres === 'function') apres();
+    });
+  }
+
+  return d;
+}
+
+
 function ongletPermis(corps, nom){
   if(typeof suiviDe !== 'function' || typeof majSuivi !== 'function'){
     corps.appendChild(vidDossier(
@@ -2623,6 +3276,13 @@ function ongletPermis(corps, nom){
   }
 
   const refaire = () => dessinerPageEleve();
+
+  /* ── LA TUILE, EN TOUT PREMIER ──
+
+     Elle répond à la seule question qu'on se pose en ouvrant cet
+     onglet : où en est-il. Tout ce qui suit est le détail, et le
+     détail se lit après la réponse, jamais avant. */
+  corps.appendChild(dessinerTuilePermis(nom, refaire));
 
   /* ── L'ACCOMPAGNEMENT, QUAND IL Y EN A UN ──
 
