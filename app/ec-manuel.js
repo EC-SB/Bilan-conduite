@@ -4050,6 +4050,20 @@ async function genererBilanManuel(){
   if(modeleCle === 'examen-blanc'){
     if(champsManuels.niveau === 'non'){
       repris.ebPasse = 'pasleniveau';
+    }else if(champsManuels.niveau === 'peut'){
+      /* 🤔 v1117 — LE TROISIÈME BOUTON EXISTAIT ET NE FAISAIT RIEN.
+
+         Le bilan manuel propose « ✅ Oui / 🤔 Pourrait / ⛔ Pas le
+         niveau » depuis longtemps (voir la rangée de boutons, plus
+         bas dans ce fichier). Mais ici, « peut » ne correspondait
+         ni au « non » ni au « oui » : il traversait les deux
+         branches sans rien écrire, et « ebPasse » gardait la
+         valeur d'avant — le plus souvent vide. Le moniteur
+         appuyait sur un bouton qui ne conclut rien.
+
+         Pas d'heures avec : si on savait combien il en reste, on
+         n'hésiterait pas. C'est le sens même de la réponse. */
+      repris.ebPasse = 'peut';
     }else if(champsManuels.niveau === 'oui'){
       /* ⚠️ « VIDE » ET « ZÉRO » NE SONT PAS LA MÊME CHOSE — v1005.
 
@@ -4118,7 +4132,9 @@ async function genererBilanManuel(){
       const noteDuJour = noteDepuisQuestionnaire(maj);
       await remonterHeuresAuBureau($('studentName').value.trim(),
                                    maj.heuresRemontees,
-                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui',
+                                   /* v1117 : la même porte que partout —
+                                      voir niveauDepuisLaSuite. */
+                                   niveauDepuisLaSuite(maj.ebPasse),
                                    false,           /* cours ordinaire */
                                    maj.heuresDuJour, noteDuJour);
     }
