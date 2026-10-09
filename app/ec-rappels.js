@@ -699,9 +699,100 @@ const OPTIONS_RAPPEL = [
 function typesDisponibles(){
   const perso = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
     .filter(m => m.usage === 'rappel_cours')
-    .map(m => ({ cle: 'perso:' + m.id, titre: m.titre || m.nom,
-                 contenu: m.contenu, perso: true }));
+    .map((m, i) => ({ cle: 'perso:' + m.id, titre: m.titre || m.nom,
+                      contenu: m.contenu, perso: true,
+                      /* v1127 — rangés par David. Voir FAMILLES_RAPPEL. */
+                      famille: familleRappel(m.famille).cle,
+                      rang: parseInt(m.rang, 10) > 0 ? parseInt(m.rang, 10) : 0,
+                      pos: i }));
+  /* La famille d'abord, dans l'ordre de FAMILLES_RAPPEL, « à classer »
+     en dernier ; puis le rang choisi ; puis l'ordre du classeur, pour
+     que deux types sans rang ne se mettent pas à changer de place. */
+  perso.sort((a, b) =>
+    (ordreFamilleRappel(a.famille) - ordreFamilleRappel(b.famille)) ||
+    ((a.rang || 1e6) - (b.rang || 1e6)) ||
+    (a.pos - b.pos));
   return TYPES_RAPPEL.concat(perso);
+}
+
+/* ============================================================
+   LES FAMILLES DES TYPES DE SÉANCE — v1127
+
+   David, devant le menu « Type de séance » : « fais en sorte que je
+   puisse choisir l'ordre dans lequel ils sont et faire des
+   catégories voiture moto remorque voiturette scooter avec un
+   emoji devant, que ce soit visible, car là je cherche ».
+
+   La liste est écrite ici, une fois ; le Worker et Apps Script ne
+   connaissent que les clés, pour refuser ce qui n'en est pas une.
+   Un type sans famille est « à classer » : on ne devine rien, c'est
+   la fenêtre « ⚙️ Ranger » qui propose, et David qui décide.
+   ============================================================ */
+const FAMILLES_RAPPEL = [
+  { cle:'voiture',    emoji:'🚗',  nom:'Voiture' },
+  { cle:'moto',       emoji:'🏍️', nom:'Moto' },
+  { cle:'remorque',   emoji:'🚛',  nom:'Remorque' },
+  { cle:'voiturette', emoji:'🚙',  nom:'Voiturette' },
+  { cle:'scooter',    emoji:'🛵',  nom:'Scooter' }
+];
+const FAMILLE_A_CLASSER = { cle:'', emoji:'📋', nom:'À classer' };
+
+function familleRappel(cle){
+  return FAMILLES_RAPPEL.find(f => f.cle === String(cle || '')) || FAMILLE_A_CLASSER;
+}
+function ordreFamilleRappel(cle){
+  const i = FAMILLES_RAPPEL.findIndex(f => f.cle === cle);
+  return i === -1 ? FAMILLES_RAPPEL.length : i;
+}
+
+/* Le titre tel que le menu l'a toujours montré : le gras Unicode
+   ramené aux lettres simples. Écrit une fois, pour le menu et pour
+   la fenêtre de rangement. */
+function titreAfficheRappel(titre){
+  /* ⚠️ v1127 — LES ACCENTS RESTENT. Le menu passait le titre par
+     NFKD puis gardait l'ASCII : le gras Unicode redevenait des
+     lettres, mais « Loudéac » devenait « Loudeac » au passage — le
+     é décomposé perdait son accent. lettresSimples ramène le gras
+     sans rien décomposer ; on ne retire ensuite que ce qui n'est ni
+     une lettre, ni un chiffre, ni une ponctuation, ni une espace. */
+  const t = (typeof lettresSimples === 'function') ? lettresSimples(String(titre || ''))
+                                                   : String(titre || '');
+  return t.normalize('NFC').replace(/[^\p{L}\p{N}\p{P}\p{Zs}]/gu, '')
+          .replace(/\s+/g, ' ').trim();
+}
+
+/* Les options du menu, groupées par famille. L'emoji est sur le
+   GROUPE et sur CHAQUE ligne : un menu fermé ne montre que la ligne
+   choisie, et c'est elle qui doit dire de quelle famille elle est. */
+function optionsTypesRappel(){
+  const ech = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  let h = '', courante = null;
+  typesDisponibles().forEach(t => {
+    const f = familleRappel(t.famille);
+    if(f.cle !== courante){
+      if(courante !== null) h += '</optgroup>';
+      h += '<optgroup label="' + ech(f.emoji + ' ' + f.nom) + '">';
+      courante = f.cle;
+    }
+    h += '<option value="' + ech(t.cle) + '">' +
+         ech(f.emoji + ' ' + titreAfficheRappel(t.titre)) + '</option>';
+  });
+  if(courante !== null) h += '</optgroup>';
+  return h;
+}
+
+/* Une famille proposée d'après le titre, pour un type encore à
+   classer — affichée comme une PROPOSITION dans la fenêtre, jamais
+   appliquée en silence. « AM » se lit voiturette s'il en parle,
+   scooter sinon. */
+function familleProposeeRappel(titre){
+  const t = normaliserMot(lettresSimples(String(titre || '')));
+  if(/remorque|\bbe\b|\bb96\b/.test(t)) return 'remorque';
+  if(/voiturette|\bvsp\b|sans permis/.test(t)) return 'voiturette';
+  if(/scooter|cyclo|\bam\b/.test(t)) return 'scooter';
+  if(/moto|\ba1\b|\ba2\b|plateau|125/.test(t)) return 'moto';
+  return 'voiture';
 }
 
 /* ============================================================
@@ -1165,15 +1256,26 @@ async function afficherRappelManuel(){
 
   const grille = document.createElement('div');
   grille.className = 'rapDeux';
+  /* ⚠️ v1127 — RANGÉS PAR FAMILLE, ET UN BOUTON POUR LES RANGER.
+     Le bouton n'apparaît qu'à qui a le droit de toucher aux textes
+     de l'application : le Worker refuserait de toute façon, autant
+     ne pas proposer un geste qui échouera. */
+  const peutRanger = (typeof peutToucherAuxTextesDeLAppli === 'function')
+    ? peutToucherAuxTextesDeLAppli() : true;
   grille.innerHTML =
-    '<div><label for="rapType">Type de séance</label><select id="rapType">' +
-      typesDisponibles().map(t => '<option value="' + t.cle + '">' +
-        String(t.titre).normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô'’-]/g, '') +
-        '</option>').join('') +
-    '</select></div>' +
+    '<div><div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">' +
+      '<label for="rapType">Type de séance</label>' +
+      (peutRanger
+        ? '<button type="button" id="rapRanger" class="btn btn-secondary" ' +
+          'style="width:auto;padding:3px 9px;font-size:11.5px;margin:0 0 6px;">⚙️ Ranger</button>'
+        : '') +
+    '</div><select id="rapType">' + optionsTypesRappel() + '</select></div>' +
     '<div><label for="rapEmpl">Où est la voiture</label>' +
       '<select id="rapEmpl"><option value="">Ne pas préciser</option></select></div>';
   gauche.appendChild(grille);
+
+  const bRanger = grille.querySelector('#rapRanger');
+  if(bRanger) bRanger.addEventListener('click', () => ouvrirRangementTypesRappel());
 
   /* La liste des emplacements, la même que dans l'affichage */
   const selEmpl = grille.querySelector('#rapEmpl');
@@ -1737,6 +1839,236 @@ function dessinerCreneauxRappel(zone, lignes){
 
   const t = $('rapCoursTitre');
   if(t) t.querySelector('em').textContent = choisie ? choisie.replace(':', 'h') : '';
+}
+
+/* ============================================================
+   ⚙️ RANGER LES TYPES DE SÉANCE — v1127
+
+   La fenêtre choisie par David le 9 octobre : tous les types,
+   groupés par famille ; pour chacun un menu de famille et deux
+   flèches pour l'ordre. On range tout d'un coup, à côté du menu où
+   l'on cherchait.
+
+   Rien n'est écrit avant « Enregistrer ». Un type encore à classer
+   arrive avec une famille PROPOSÉE d'après son titre, marquée comme
+   telle : c'est en enregistrant que David la fait sienne.
+
+   L'écriture ne touche que la famille et le rang (modelesRanger) :
+   jamais le texte des modèles.
+   ============================================================ */
+async function ouvrirRangementTypesRappel(){
+  if(typeof chargerModelesTexte === 'function') await chargerModelesTexte(true);
+  const modeles = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .filter(m => m.usage === 'rappel_cours');
+
+  /* ⚠️ UN WORKER PAS ENCORE MIS À JOUR NE RELIT PAS LA FAMILLE.
+     La liste arrive alors sans le champ du tout — pas vide : absent.
+     Ranger quand même, ce serait un rangement accepté puis perdu à
+     la lecture suivante, sans un mot. On le dit, et on n'enregistre
+     pas. */
+  const tropAncien = modeles.length > 0 && modeles.every(m => m.famille === undefined);
+
+  const items = modeles.map((m, i) => {
+    const connue = FAMILLES_RAPPEL.some(f => f.cle === m.famille);
+    return { id: m.id, titre: m.titre || m.nom, pos: i,
+             famille: connue ? m.famille : familleProposeeRappel(m.titre || m.nom),
+             propose: !connue,
+             rang: parseInt(m.rang, 10) > 0 ? parseInt(m.rang, 10) : 0 };
+  });
+  items.sort((a, b) =>
+    (ordreFamilleRappel(a.famille) - ordreFamilleRappel(b.famille)) ||
+    ((a.rang || 1e6) - (b.rang || 1e6)) || (a.pos - b.pos));
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:88vh;overflow-y:auto;';
+  fond.appendChild(boite);
+
+  const fermer = () => { if(fond.parentNode) fond.parentNode.removeChild(fond); };
+
+  function dessiner(){
+    boite.innerHTML = '';
+    const h = document.createElement('h3');
+    h.textContent = '⚙️ Ranger les types de séance';
+    boite.appendChild(h);
+
+    const aide = document.createElement('div');
+    aide.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.5;margin:-6px 0 12px;';
+    aide.textContent = 'La famille met son emoji devant chaque type, dans le menu des rappels. ' +
+      "Les flèches changent l'ordre à l'intérieur d'une famille.";
+    boite.appendChild(aide);
+
+    if(tropAncien){
+      const w = document.createElement('div');
+      w.style.cssText = 'font-size:13px;line-height:1.5;color:var(--warn-text);' +
+        'border:1px solid var(--warn-text);border-radius:10px;padding:9px 11px;margin-bottom:12px;';
+      w.textContent = "⚠️ Le Worker Cloudflare et le script du classeur doivent d'abord " +
+        'être mis à jour (v238) : sans eux, ce rangement ne serait pas gardé.';
+      boite.appendChild(w);
+    }
+
+    if(!items.length){
+      const v = document.createElement('div');
+      v.className = 'empty';
+      v.textContent = 'Aucun type de séance : ils se créent dans 📄 Modèles messages.';
+      boite.appendChild(v);
+    }
+
+    const familles = FAMILLES_RAPPEL.slice();
+    /* « À classer » n'apparaît que s'il y a quelque chose dedans —
+       ce qui n'arrive qu'à un type dont le titre ne dit rien et qu'on
+       aurait remis là à la main. */
+    if(items.some(x => !x.famille)) familles.push(FAMILLE_A_CLASSER);
+
+    familles.forEach(f => {
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:11.5px;font-weight:700;letter-spacing:.06em;' +
+        'text-transform:uppercase;color:var(--accent-text);margin:14px 0 6px;' +
+        'padding-bottom:4px;border-bottom:1px solid var(--line);';
+      t.textContent = f.emoji + ' ' + f.nom;
+      boite.appendChild(t);
+
+      const miens = items.filter(x => x.famille === f.cle);
+      if(!miens.length){
+        const v = document.createElement('div');
+        v.style.cssText = 'font-size:12px;color:var(--muted);font-style:italic;padding:2px 0;';
+        v.textContent = '— aucun type —';
+        boite.appendChild(v);
+        return;
+      }
+
+      miens.forEach((x, k) => {
+        const l = document.createElement('div');
+        l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0;';
+
+        const n = document.createElement('div');
+        n.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.3;word-break:break-word;';
+        n.textContent = titreAfficheRappel(x.titre);
+        if(x.propose){
+          const p = document.createElement('span');
+          p.style.cssText = 'display:inline-block;margin-left:6px;font-size:10.5px;' +
+            'color:var(--warn-text);border:1px solid var(--warn-text);border-radius:999px;' +
+            'padding:0 6px;vertical-align:middle;';
+          p.textContent = 'proposé';
+          p.title = "Famille devinée d'après le titre : vérifie-la avant d'enregistrer.";
+          n.appendChild(p);
+        }
+        l.appendChild(n);
+
+        const sel = document.createElement('select');
+        sel.style.cssText = 'width:auto;max-width:150px;margin:0;padding:6px 8px;font-size:13px;';
+        sel.innerHTML = FAMILLES_RAPPEL.map(o => '<option value="' + o.cle + '">' +
+          o.emoji + ' ' + o.nom + '</option>').join('') +
+          '<option value="">' + FAMILLE_A_CLASSER.emoji + ' ' + FAMILLE_A_CLASSER.nom + '</option>';
+        sel.value = x.famille;
+        sel.addEventListener('change', () => {
+          /* Changé de famille : il arrive en dernier dans la nouvelle,
+             là où on le cherchera. */
+          x.famille = sel.value;
+          x.propose = false;
+          items.splice(items.indexOf(x), 1);
+          const dernier = items.map(y => y.famille).lastIndexOf(x.famille);
+          const avant = items.findIndex(y => ordreFamilleRappel(y.famille) > ordreFamilleRappel(x.famille));
+          items.splice(dernier !== -1 ? dernier + 1 : (avant === -1 ? items.length : avant), 0, x);
+          dessiner();
+        });
+        l.appendChild(sel);
+
+        const fleche = (txt, titre, actif, sens) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn btn-secondary';
+          b.style.cssText = 'width:34px;padding:6px 0;font-size:14px;margin:0;' +
+            (actif ? '' : 'opacity:.3;');
+          b.textContent = txt;
+          b.title = titre;
+          b.disabled = !actif;
+          b.addEventListener('click', () => {
+            const voisin = miens[k + sens];
+            const i = items.indexOf(x), j = items.indexOf(voisin);
+            items[i] = voisin; items[j] = x;
+            dessiner();
+          });
+          return b;
+        };
+        l.appendChild(fleche('↑', 'Monter', k > 0, -1));
+        l.appendChild(fleche('↓', 'Descendre', k < miens.length - 1, 1));
+        boite.appendChild(l);
+      });
+    });
+
+    const etat = document.createElement('div');
+    etat.id = 'rangerEtat';
+    etat.style.cssText = 'font-size:13px;line-height:1.5;margin:12px 0 0;min-height:18px;';
+    boite.appendChild(etat);
+
+    const r = document.createElement('div');
+    r.className = 'btn-row';
+    r.style.marginTop = '10px';
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.textContent = 'Annuler';
+    bA.addEventListener('click', fermer);
+    const bE = document.createElement('button');
+    bE.className = 'btn btn-primary';
+    bE.textContent = 'Enregistrer';
+    bE.disabled = tropAncien || !items.length;
+    bE.addEventListener('click', () => enregistrer(bE, etat));
+    r.appendChild(bA);
+    r.appendChild(bE);
+    boite.appendChild(r);
+  }
+
+  async function enregistrer(bouton, etat){
+    /* Le rang se compte DANS la famille : 1, 2, 3… C'est l'ordre
+       affiché, tel quel — ce qu'on voit est ce qui s'écrit. */
+    const compte = {};
+    const rangement = items.map(x => {
+      compte[x.famille] = (compte[x.famille] || 0) + 1;
+      return { id: x.id, famille: x.famille, rang: compte[x.famille] };
+    });
+    bouton.disabled = true;
+    bouton.textContent = 'Enregistrement…';
+    try{
+      const d = await appelPrep({ action: 'modelesRanger', rangement: rangement });
+      if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+
+      /* On relit, et on vérifie que c'est bien gardé — le seul moyen
+         de savoir qu'un maillon de la chaîne n'a pas été oublié. */
+      if(typeof perimerModeles === 'function') perimerModeles();
+      if(typeof chargerModelesTexte === 'function') await chargerModelesTexte(true);
+      const relus = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || []);
+      const perdus = rangement.filter(x => {
+        const m = relus.find(y => y.id === x.id);
+        return !m || String(m.famille || '') !== x.famille;
+      });
+      if(perdus.length) throw new Error(perdus.length + ' type(s) relu(s) sans leur famille');
+
+      repeindreMenuTypesRappel();
+      if(typeof showToast === 'function') showToast('Types de séance rangés ✅');
+      fermer();
+    }catch(e){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = '⚠️ Rangement non gardé : ' + (e && e.message ? e.message : e);
+      bouton.disabled = false;
+      bouton.textContent = 'Enregistrer';
+    }
+  }
+
+  dessiner();
+  document.body.appendChild(fond);
+}
+
+/* Le menu des rappels, repeint sans perdre le type choisi. */
+function repeindreMenuTypesRappel(){
+  const sel = $('rapType');
+  if(!sel) return;
+  const avant = sel.value;
+  sel.innerHTML = optionsTypesRappel();
+  if(Array.prototype.some.call(sel.options, o => o.value === avant)) sel.value = avant;
+  if(typeof apercuRappel === 'function') apercuRappel();
 }
 
 function choisirCreneauRappel(h){
