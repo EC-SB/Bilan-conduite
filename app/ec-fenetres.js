@@ -926,7 +926,7 @@ function corrigerNomEleve(ancien){
    ============================================================ */
 function pastillesPosteDeConduite(nom, apres){
   const zone = document.createElement('div');
-  zone.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+  zone.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
 
   [['amenagee', '♿', 'Conduite aménagée'],
    ['coussin', '🟩', 'Coussin vert']].forEach(([champ, emoji, titre]) => {
@@ -935,10 +935,24 @@ function pastillesPosteDeConduite(nom, apres){
     b.title = titre + ' — cliquer pour changer';
     const peindre = () => {
       const actif = posteDeConduite(nom)[champ];
-      b.style.cssText = 'width:auto;padding:7px 9px;font-size:14px;margin:0;' +
-        'flex-shrink:0;opacity:' + (actif ? '1' : '.32') + ';' +
-        (actif ? 'border-color:var(--accent-text);' : '');
-      b.textContent = emoji;
+      /* ⚠️ v1118 — LE LIBELLÉ EST ÉCRIT, PAS DEVINÉ.
+
+         David, le 9 octobre, capture à l'appui : la fiche montrait
+         deux petits carrés gris sans un mot. Il fallait savoir que
+         le premier était le handicap et le second le coussin — et
+         éteints, ils ne ressemblaient même pas à des boutons.
+
+         Un bouton dont l'état se lit « plus clair / moins clair »
+         ne se lit pas : à 32 % d'opacité on ne distingue pas « pas
+         coché » de « désactivé ». On écrit donc ce que c'est, et
+         on dit lequel est posé. */
+      b.style.cssText = 'width:auto;padding:5px 11px;font-size:12.5px;' +
+        'margin:0;border-radius:999px;white-space:nowrap;' +
+        (actif ? 'border-color:var(--accent-text);font-weight:700;'
+               : 'opacity:.6;');
+      /* Coché / pas coché doit se lire sans comparer deux pastilles
+         entre elles : une coche devant, pas seulement une opacité. */
+      b.textContent = (actif ? '✓ ' : '') + emoji + ' ' + titre;
     };
     peindre();
     b.addEventListener('click', async () => {
@@ -969,16 +983,43 @@ function pastillesPosteDeConduite(nom, apres){
   return zone;
 }
 
-/* Un numéro français, mis en forme pour l'affichage et les liens */
+/* ============================================================
+   UN NUMÉRO FRANÇAIS, MIS EN FORME POUR L'AFFICHAGE ET LES LIENS
+
+   ⚠️ v1117 — ET LA PORTE EXISTAIT DÉJÀ, À QUATRE CENTS LIGNES D'ICI.
+
+   David, le 9 octobre, capture à l'appui : la fiche de Clarisse
+   affiche « 749045808 ». Neuf chiffres : le zéro de tête a sauté
+   en passant par le classeur, qui lit un numéro comme un nombre.
+
+   Les deux fonctions ci-dessous ne reconnaissaient qu'un numéro
+   DÉJÀ propre — /^0\d{9}$/ — et rendaient tout le reste tel quel.
+   Donc : pas d'espaces à l'affichage, et surtout « sms:749045808 »
+   sur le bouton 💬, un numéro qui n'existe pas. Le lien avait
+   l'air d'un lien.
+
+   ⚠️ ET LE RATTRAPAGE DU ZÉRO ÉTAIT DÉJÀ ÉCRIT. « normaliserTel »
+   (plus bas dans ce fichier) fait exactement ça depuis
+   l'importation CSV : +33, 0033, et les neuf chiffres sans zéro.
+   Elle n'était appelée que par l'import. Deux des trois chemins
+   qui touchent un numéro ne passaient pas par elle — c'est la
+   même faute que partout ailleurs : un droit sans sa porte.
+
+   On ne recopie donc rien : les deux fonctions passent par elle,
+   et l'enregistrement de la fiche aussi (voir le bouton de la
+   fenêtre du répertoire). Une seule idée de ce qu'est un numéro.
+   ============================================================ */
 function telLisible(t){
-  const n = String(t || '').replace(/[^\d+]/g, '');
+  const n = normaliserTel(t);
   if(/^0\d{9}$/.test(n)) return n.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
   return String(t || '').trim();
 }
 function telPourLien(t){
-  let n = String(t || '').replace(/[^\d+]/g, '');
-  if(/^0\d{9}$/.test(n)) n = '+33' + n.slice(1);
-  return n;
+  const n = normaliserTel(t);
+  if(/^0\d{9}$/.test(n)) return '+33' + n.slice(1);
+  /* Pas un numéro français reconnaissable : on rend les chiffres
+     et le + d'un éventuel numéro étranger, comme avant. */
+  return String(t || '').replace(/[^\d+]/g, '');
 }
 
 /* Défait un rattrapage : vide les formations posées automatiquement */
@@ -2306,7 +2347,11 @@ function ouvrirFicheEleve(nom, f){
   bAnn.addEventListener('click', () => fermerFond(fond));
 
   bOk.addEventListener('click', async () => {
-    const tel = g('fiTel').value.trim();
+    /* ⚠️ v1117 — LE NUMÉRO EST RANGÉ PAR LA MÊME PORTE QUE L'IMPORT.
+       Sans ça, un numéro tapé « 06.49.04.58.08 » ou collé depuis un
+       mail en « +33649045808 » partait au classeur dans sa forme du
+       jour, et chaque forme se relisait différemment. */
+    const tel = normaliserTel(g('fiTel').value.trim());
     if(tel && !/^[+\d\s().-]{8,}$/.test(tel)){
       msg.style.color = 'var(--warn-text)';
       msg.textContent = 'Ce numéro ne semble pas valable.';
