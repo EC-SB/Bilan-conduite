@@ -1,0 +1,77 @@
+# ============================================================
+#  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
+#
+#  À déposer dans le dépôt PRINCIPAL, sous :
+#      .github/workflows/coin-revisions.yml
+#
+#  Pourquoi : GitHub Pages n'accepte qu'un seul domaine par
+#  dépôt, et celui-ci est pris par « app.evolutionconduites.fr ».
+#  La page élève a donc besoin d'un second dépôt — mais PAS d'une
+#  seconde copie entretenue à la main. C'est cette action qui
+#  recopie, à chaque poussée, les cinq fichiers dont la page a
+#  besoin. Une seule source, une copie faite par la machine.
+#
+#  ⚠️ ELLE NE SE DÉCLENCHE QUE SUR CES CINQ FICHIERS. Pousser
+#  l'application du bureau ne republie rien côté élève : ce sont
+#  deux rythmes différents, et republier pour rien ferait croire
+#  à un changement qui n'en est pas un.
+# ============================================================
+name: Publier le coin révisions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'eleve.html'
+      - 'sw.js'
+      - 'manifest-eleve.webmanifest'
+      - 'icone-192.png'
+      - 'icone-512.png'
+  workflow_dispatch:        # et à la demande, depuis l'onglet Actions
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Préparer les fichiers
+        run: |
+          set -e
+          mkdir -p sortie
+          # La page devient « index.html » : l'élève tape
+          # eleve.evolutionconduites.fr, sans rien derrière.
+          cp eleve.html sortie/index.html
+          cp sw.js manifest-eleve.webmanifest sortie/
+          cp icone-192.png icone-512.png sortie/
+
+          # ⚠️ ET SON POINT DE DÉPART CHANGE AVEC ELLE.
+          # Le manifeste du dépôt principal dit « eleve.html »,
+          # ce qui est juste là-bas. Ici la page est à la racine :
+          # laisser « eleve.html » ferait ouvrir une page 404 à
+          # tous ceux qui ont mis l'icône sur leur écran d'accueil.
+          sed -i 's#"start_url": *"eleve.html"#"start_url": "./"#' \
+            sortie/manifest-eleve.webmanifest
+          grep -q '"start_url": "./"' sortie/manifest-eleve.webmanifest \
+            || { echo "::error::start_url non corrigé dans le manifeste"; exit 1; }
+          python3 -c "import json,sys; json.load(open('sortie/manifest-eleve.webmanifest'))" \
+            || { echo "::error::manifeste illisible après correction"; exit 1; }
+
+          echo 'eleve.evolutionconduites.fr' > sortie/CNAME
+          touch sortie/.nojekyll
+
+      - name: Pousser vers le dépôt du coin révisions
+        env:
+          JETON: ${{ secrets.JETON_COIN_REVISIONS }}
+        run: |
+          set -e
+          cd sortie
+          git init -b main -q
+          git config user.name  "Publication automatique"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -q -m "Coin révisions — depuis ${GITHUB_SHA::7}"
+          # Historique d'un seul commit : ce dépôt est une COPIE,
+          # pas une source. Son passé est celui du dépôt principal.
+          git push -q --force \
+            "https://x-access-token:${JETON}@github.com/ec-sb/coin-revisions.git" main
