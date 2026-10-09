@@ -4161,6 +4161,26 @@ function mentionHeuresRestantes(nom){
    existent depuis toujours, ils n'étaient montrés nulle part
    ensemble.
    ============================================================ */
+/* ============================================================
+   LE NOMBRE DÉCIDÉ, CELUI QUE LE DÉCOMPTE UTILISE — v1129
+
+   heuresQuiComptent dit ce qui RESTE, et de quelle source il part.
+   Plusieurs écrans ont besoin du nombre DE CETTE SOURCE, tel qu'il a
+   été dit : la tuile du permis (la décision), et la question « ces
+   heures partent de quand ? » (qui déplace le départ sans toucher à
+   la décision). On le lit ici, une fois — choisir la source ailleurs,
+   ce serait afficher une décision et en décompter une autre.
+   ============================================================ */
+function nombreDecideDeLaReserve(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const r = heuresQuiComptent(nom) || {};
+  if(r.source === 'post-permis') return String(s.heuresRepassage || '').trim();
+  if(r.source === 'examen blanc' || r.source === 'moniteur'){
+    return String(s.heuresRestantes || '').trim();
+  }
+  return '';
+}
+
 function prescriptionsDeLaReserve(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
   const out = [];
