@@ -1887,10 +1887,18 @@ function texteHeuresRoute(s){
   const depuisQuoi = (typeof nomDeLaCharniere === 'function')
     ? nomDeLaCharniere(rep.quoi) : "l'examen blanc";
 
+  /* ⚠️ LA LEÇON QUI COMMENCE À COMPTER, PAS CELLES QUI NE COMPTENT
+     PAS — v1129. Le repère r dit combien de leçons après la charnière
+     n'entament pas la réserve : la première qui l'entame est la
+     (r + 1)ᵉ. Cette ligne écrivait « à partir de la rᵉ » — une leçon
+     trop tôt — et c'est exactement la phrase que David avait lue de
+     travers le 8 octobre. Elle dit maintenant la même leçon que le
+     menu où on la choisit (choixDuDepartDesHeures). */
   if(h !== '0'){
+    const n = rep.rang + 1;
     t += (rep.rang <= 0)
       ? ' — depuis ' + depuisQuoi
-      : ' — à partir de la ' + rep.rang + 'ᵉ leçon après ' + depuisQuoi;
+      : ' — à partir de la ' + n + 'ᵉ leçon après ' + depuisQuoi;
   }
 
   const par = String((s && s.heuresPar) || '').trim();
@@ -1957,27 +1965,27 @@ async function modifierHeuresRoute(nom, s){
      puisse rattraper un repère posé de travers en rouvrant la
      ligne — c'est ce que David a demandé, et c'est deux clics.
      ============================================================ */
-  const c = (typeof charniereDeLEleve === 'function')
-    ? charniereDeLEleve(nom) : { quoi:'eb', rang:0 };
-  const choixPossible = c.rang >= 1;
-  const nomCharniere = (typeof nomDeLaCharniere === 'function')
-    ? nomDeLaCharniere(c.quoi) : "l'examen blanc";
+  /* ⚠️ v1129 — UNE OPTION PAR LEÇON, plus deux bouts de liste.
+     David, sur Martin : « c'est décidé une leçon après l'examen
+     blanc ; il me faut choisir quelle leçon ». Mêmes options, mêmes
+     mots que le questionnaire : choixDuDepartDesHeures. */
+  const ch = (typeof choixDuDepartDesHeures === 'function')
+    ? choixDuDepartDesHeures(nom) : null;
+  const c = ch ? ch.c : ((typeof charniereDeLEleve === 'function')
+    ? charniereDeLEleve(nom) : { quoi:'eb', rang:0 });
+  const choixPossible = !!ch;
+  const nomCharniere = ch ? ch.quoi : ((typeof nomDeLaCharniere === 'function')
+    ? nomDeLaCharniere(c.quoi) : "l'examen blanc");
 
-  /* Ce qui est déjà écrit : on rouvre la ligne sur sa propre
-     réponse, pas sur un défaut qui la contredirait. */
-  const repEcrit = (typeof repereDesHeures === 'function')
-    ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
-  const dejaDepuisLaCharniere =
-    (String(repEcrit.quoi || 'eb') !== String(c.quoi || 'eb')) ||
-    (parseInt(repEcrit.rang, 10) || 0) <= 0;
-
-  const champs = [{ cle:'h', nom:"Heures avant l'examen", type:'text',
+  const champs = [{ cle:'h', nom:"Heures décidées avant l'examen", type:'text',
                     exemple:'4', valeur: s.heuresRestantes || '' }];
   if(choixPossible){
-    champs.push({ cle:'depuis', nom:'Ces heures partent de quand ?',
-      type:'choix', valeur: dejaDepuisLaCharniere ? 'eb' : 'now', options:[
-        { cle:'eb',  nom:'Depuis ' + nomCharniere },
-        { cle:'now', nom:"À partir d'aujourd'hui" }] });
+    champs.push({ cle:'depuis', nom: (typeof questionDuDepartDesHeures === 'function')
+        ? questionDuDepartDesHeures(nomCharniere) : 'Ces heures partent de quand ?',
+      type:'choix', valeur: String(ch.r),
+      options: ch.options.map(o => ({ cle: String(o.r),
+        /* Hors d'un cours, « celle-ci » ne désigne rien : on la nomme. */
+        nom: o.nom.replace(' — après celle-ci', ' — après la dernière') })) });
   }
 
   const r = await formulaireRoute("⏱️ Les heures de " + nom,
@@ -1986,10 +1994,9 @@ async function modifierHeuresRoute(nom, s){
     'Vide veut dire ' +
     "qu'on ne sait pas." +
     (choixPossible
-      ? "\n\nIl en est à sa " + c.rang + "ᵉ leçon depuis " + nomCharniere +
-        " : des heures décidées à ce moment-là sont déjà entamées de " +
-        c.rang + " leçon" + (c.rang > 1 ? 's' : '') +
-        ", des heures posées aujourd'hui ne le sont pas."
+      ? "\n\nLe décompte en est à sa " + c.rang + "ᵉ leçon après " + nomCharniere +
+        ". Choisis la leçon où ces heures COMMENCENT : celles d'avant ne " +
+        "les entament pas, celle-ci et les suivantes oui."
       : ''),
     champs);
   if(!r) return;
@@ -2017,7 +2024,7 @@ async function modifierHeuresRoute(nom, s){
      puisse en sortir. Quand la question n'a pas été posée — aucune
      leçon depuis la charnière — les deux réponses désignent le même
      instant, et zéro est le plus honnête des deux. */
-  const depuis = (choixPossible && r.depuis === 'now') ? c.rang : '';
+  const depuis = choixPossible ? (parseInt(r.depuis, 10) || 0) : '';
 
   /* La porte commune : c'est elle qui note qui l'a dit, quand,
      depuis quel rang et dans quelle unité — et elle ne resigne pas
@@ -2811,6 +2818,11 @@ const PLOMBERIE_REPONSES_QUEST = {
   /* Un booléen : la section des heures était-elle dépliée. Il sert
      à ne pas réancrer une réserve sur une question invisible. */
   heuresDepuisRepondu: 'état d\'affichage, pas une réponse',
+  /* v1129 — le rang de départ choisi, sur son chemin vers le repère
+     du suivi. Il se lit dans la ligne des heures de « Sa route ». */
+  heuresDepuisRang: 'repère des heures, relu dans Sa route',
+  /* Le rang du jour sur lequel le questionnaire a compté le reste. */
+  heuresRangJour: 'plomberie du décompte, pas une réponse',
   /* Le même nombre que « heuresRestantes », sur son chemin vers le
      bureau. L'afficher ferait deux lignes pour une décision. */
   heuresRemontees: 'copie de route de heuresRestantes'
@@ -3711,12 +3723,13 @@ function decisionDeLaReserve(nom){
     ? ((typeof motDuZeroEnTete === 'function') ? motDuZeroEnTete() : 'Plus que les 3h')
     : h + 'h + la leçon de veille';
 
+  /* Le nombre, par sa porte (v1129) : nombreDecideDeLaReserve. */
+  const h = (typeof nombreDecideDeLaReserve === 'function')
+    ? nombreDecideDeLaReserve(nom) : '';
   if(r.source === 'post-permis'){
-    const h = String(s.heuresRepassage || '').trim();
     return h ? { h: h, txt: '🤝 Post-permis : ' + dites(h) } : null;
   }
   if(r.source === 'examen blanc' || r.source === 'moniteur'){
-    const h = String(s.heuresRestantes || '').trim();
     if(!h) return null;
     const niveau = (r.source === 'examen blanc' && typeof libelleNiveauRoute === 'function')
       ? libelleNiveauRoute(s.ebNiveau) : '';
