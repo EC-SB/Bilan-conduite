@@ -51,6 +51,102 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1119,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Le dossier élève se lit en français, et les onglets ne défilent plus',
+    quoi: [
+      { emoji: '📋',
+        titre: 'L\u2019onglet Questionnaire écrit en français',
+        texte: 'Il affichait « Examen blanc · passe », « ebNiveau · non », ' +
+               '« 2025-08-06 ». Les réponses sont maintenant nommées, ' +
+               'traduites et datées en français, et rangées par sujet — ' +
+               'l\u2019examen blanc, l\u2019examen du permis, les rendez-vous, le ' +
+               'poste de conduite — au lieu d\u2019être triées par ordre ' +
+               'alphabétique. Les mots viennent du questionnaire lui-même : ' +
+               'les deux écrans ne peuvent plus se contredire.' },
+      { emoji: '🗂️',
+        titre: 'Les dix onglets d\u2019un dossier tiennent à l\u2019écran',
+        texte: 'La rangée défilait horizontalement : sur téléphone, Handicap ' +
+               'et RGPD étaient hors de l\u2019écran et rien ne le disait. Elle ' +
+               'passe à la ligne, tout est visible d\u2019un coup.' },
+      { emoji: '🧭',
+        titre: 'La frise ne s\u2019écrase plus contre son libellé',
+        texte: 'Dans la fiche, la frise et les remarques se lisent maintenant ' +
+               'sous leur titre, sur toute la largeur. Et les deux cases du ' +
+               'poste de conduite portent leur nom au lieu d\u2019être deux ' +
+               'carrés gris : on lit ce qui est coché sans avoir à deviner.' },
+      { emoji: '🅱️',
+        titre: 'Le résultat d\u2019examen blanc que le bureau connaît déjà',
+        texte: 'Quand tu prépares un cours et que le bureau a noté « pas le ' +
+               'niveau » ou « pourrait », le questionnaire te le dit sous le ' +
+               'sélecteur, avec un bouton pour reprendre la réponse. Il ne ' +
+               'la remplit pas tout seul : une réponse que personne n\u2019a ' +
+               'donnée n\u2019est pas une réponse.' }
+    ]
+  },
+  {
+    version: 1118,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Une tuile en tête du dossier qui dit où en est l\u2019élève',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Où en est son permis, en un coup d\u2019œil',
+        texte: 'En tête de l\u2019onglet Permis d\u2019un dossier élève, un encart ' +
+               'qui change de sens selon l\u2019élève. Dix-sept situations : permis ' +
+               'obtenu, date prise, place à remplacer, examen annulé, ajourné sans ' +
+               'rendez-vous post-permis, post-permis prévu puis fait avec sa suite, ' +
+               'les cinq états de l\u2019examen blanc, les rendez-vous d\u2019un AAC, et ' +
+               '« rien de noté » qui ouvre la saisie. On ne voit que celle qui ' +
+               'compte : un élève ajourné n\u2019affiche plus son examen blanc, c\u2019est ' +
+               'son post-permis qui parle.' },
+      { emoji: '⛔',
+        titre: 'Une date prise ne cache plus un « pas le niveau »',
+        texte: 'Quand un élève a une date d\u2019examen ET un examen blanc conclu ' +
+               '« pas le niveau » ou « pourrait », la date reste en vedette mais ' +
+               'l\u2019avertissement se lit en rouge juste dessous. Il disparaît de ' +
+               'lui-même dès que la conclusion change.' },
+      { emoji: '📅',
+        titre: 'Des dates qui se lisent',
+        texte: 'Les dates de la tuile s\u2019écrivent « ven. 18 déc. » au lieu de ' +
+               '« 2026-12-18 », et l\u2019année ne s\u2019affiche que si ce n\u2019est pas ' +
+               'l\u2019année en cours. Les noms de mois viennent du système, donc ' +
+               '« déc. » et « sept. » s\u2019abrègent correctement.' }
+    ]
+  },
+  {
+    version: 1117,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Les numéros réparés, la boîte qui ne se contredit plus, et « pourrait »',
+    quoi: [
+      { emoji: '📱',
+        titre: 'Les numéros qui avaient perdu leur zéro',
+        texte: 'Certains numéros s’affichaient « 749045808 » : le zéro de ' +
+               'tête saute en passant par le classeur, qui lit un numéro ' +
+               'comme un nombre. Pire, le bouton 💬 pointait alors sur un ' +
+               'numéro qui n’existe pas. L’outil rend son zéro tout seul, ' +
+               'à l’affichage comme au SMS, et range les numéros sous une ' +
+               'seule forme quand on enregistre une fiche. Rien à ' +
+               'retoucher : les fiches déjà saisies se réparent d’elles-mêmes.' },
+      { emoji: '⚙️',
+        titre: 'La boîte ne se choisit plus, elle se lit',
+        texte: 'Dans un cours préparé, la carte du haut disait « BEA » et ' +
+               'le sélecteur du bas « BV — boîte manuelle », pour le même ' +
+               'élève. Le sélecteur devinait la boîte d’après le TYPE DE ' +
+               'BILAN : sept types sur dix-sept n’en portent pas dans leur ' +
+               'nom, et tous les sept répondaient « manuelle ». La boîte ' +
+               'vient maintenant de la formation, et de nulle part ailleurs. ' +
+               'Pour la changer, on change la formation.' },
+      { emoji: '🤔',
+        titre: 'Pourrait avoir le niveau',
+        texte: 'Troisième réponse au résultat de l’examen blanc, entre ' +
+               '« a le niveau » et « pas le niveau ». Elle s’écrit dans la ' +
+               'note, se relit au cours suivant, et l’élève reste dans ' +
+               '« 🤔 Élèves prêts au permis » avec sa mention. Le bouton ' +
+               '« 🤔 Pourrait » du bilan écrit à la main existait déjà mais ' +
+               'ne concluait rien : il conclut.' }
+    ]
+  },
+  {
     version: 1110,
     date: 'Jeudi 8 octobre 2026',
     resume: 'Supprimer un message, et vider les conversations fermées',
