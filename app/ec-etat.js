@@ -6,6 +6,36 @@
    soit l'ordre de chargement des autres fichiers.
    ============================================================ */
 
+/* ============================================================
+   ⚠️ LA VERSION DES MODULES, DITE PAR LES MODULES EUX-MÊMES
+
+   v1120. David, le 9 octobre : « je suis en 1119 et rien à
+   changer dans mon dossier élève ».
+
+   Le badge de l'en-tête lisait le « ?v= » du PREMIER <script>
+   d'index.html — c'est-à-dire un morceau d'index.html. Il
+   prouvait donc qu'index.html était à jour, et RIEN D'AUTRE.
+   Pousser la page sans le dossier « app/ » affichait « v1119 »
+   au-dessus d'une application entièrement en v1116, sans un mot.
+
+   Le commentaire du badge disait pourtant déjà la bonne règle —
+   « l'écran annonçait alors une version qu'il n'avait pas ». Il
+   avait réparé le numéro recopié à la main ; il n'avait pas vu
+   qu'il restait un second recopiage, entre la page et ses
+   modules.
+
+   Ce nombre-ci vit DANS le dossier app/. S'il ne correspond pas
+   à ce que la page réclame, c'est que les deux n'ont pas été
+   poussés ensemble, et le badge le dit en toutes lettres.
+
+   ⚠️ IL NE PROUVE PAS QUE LES 71 MODULES SONT À JOUR — il prouve
+   que ce fichier-ci l'est. C'est la panne courante (tout ou rien)
+   qu'il attrape, pas une poussée partielle module par module. Un
+   banc le tient aligné sur le « ?v= » d'index.html à chaque
+   livraison : les deux ne peuvent plus diverger en silence.
+   ============================================================ */
+var VERSION_MODULES = 1120;
+
 /* Raccourci d'accès au DOM, défini dès le premier module.
    S'il n'était déclaré que dans ec-noyau.js, une panne dans ce
    fichier rendrait toute l'application inutilisable. */
