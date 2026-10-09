@@ -51,6 +51,33 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1126,
+    date: 'Vendredi 9 octobre 2026',
+    resume: '« Modifier la préparation » : des titres, un rail, et plus aucun tiroir',
+    quoi: [
+      { emoji: '🧭',
+        titre: 'Un rail en haut, qui dit où l’on est',
+        texte: 'Élève · Parcours · Examen blanc · Permis · Rendez-vous · Fiche · ' +
+               'Notes. Il reste collé en haut quand on descend, la pastille du ' +
+               'sujet en cours s’allume, et un appui y amène. Un ⚠️ marque le ' +
+               'sujet qui a un trou — un examen blanc passé sans résultat, une ' +
+               'frise ou une formation manquante.' },
+      { emoji: '📑',
+        titre: 'Sept vrais titres qui se lisent',
+        texte: 'À la place de vingt petits libellés gris du même poids, chaque ' +
+               'sujet a son titre, et à droite ce qu’il dit déjà : « ven. 30 oct. ' +
+               '· 1er passage », « 18 / 19 cochées ». On lit l’écran en lisant ' +
+               'les titres. Les questions, elles, n’ont pas changé.' },
+      { emoji: '🦉',
+        titre: 'La fiche véhicule ne défile plus dans la page',
+        texte: 'Son cadre de 240 px qui défilait à l’intérieur de la fenêtre a ' +
+               'disparu : la liste se déplie. Les manœuvres qui restent ont leur ' +
+               'ligne en tête ; celles déjà validées se serrent dessous, toujours ' +
+               'visibles. Le « ▸ Voir les manœuvres restantes » du haut est parti ' +
+               'aussi : les restantes sont nommées sur la ligne.' }
+    ]
+  },
+  {
     version: 1125,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Les rappels de cours en quatre étapes, et les deux mails sous les yeux',
