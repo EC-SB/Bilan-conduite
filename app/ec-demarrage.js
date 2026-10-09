@@ -1,4 +1,4 @@
-/* Déployé le 09/10/2026 à 09:33 — v1115 */
+/* Déployé le 09/10/2026 à 09:43 — v1116 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -109,16 +109,13 @@ function proposerReprise(){
     setTimeout(() => chercherBrouillonsServeur(), 1500);
   }
 
-  /* ⚠️ LA SÉANCE À PLUSIEURS N'EST PLUS PROPOSÉE ICI — v1115.
-
-     « postesEnCours » n'est déclarée nulle part : le typeof
-     rendait la condition toujours fausse, et proposerRepriseSeance
-     n'a jamais pu s'afficher. Ce n'est pas une fonction qu'on
-     retire, c'est une fonction qui n'a jamais tourné — et qui
-     faisait croire, en se lisant, que les séances à plusieurs
-     étaient couvertes par la reprise. Le jour où elles le seront,
-     la porte se rouvrira avec sa fonction, pas sans.
-  */
+  /* Une séance à plusieurs interrompue : elle prime, c'est
+     plusieurs bilans qui attendent. Elle vit dans ec-postes.js. */
+  const sp = (typeof postesEnCours === 'function') ? postesEnCours() : null;
+  if(sp && (!postes || !postes.length)){
+    proposerRepriseSeance(sp, banniere);
+    return;
+  }
 
   /* Un bilan manuel commencé compte autant qu'une dictée : c'est
      du travail perdu de la même façon. */
@@ -395,18 +392,27 @@ function allerVoirLEcranDuCours(id){
 }
 
 function reprendreCours(){
-  /* ⚠️ LA BRANCHE DES SÉANCES À PLUSIEURS EST PARTIE — v1115.
+  /* ⚠️ ON AMÈNE L'ÉCRAN AVANT TOUT, et pour les TROIS reprises.
 
-     Elle appelait « reprendrePostes(sp) », qui n'est déclarée
-     nulle part. Elle ne s'est jamais exécutée parce que
-     « postesEnCours » n'existe pas davantage et que le typeof la
-     protégeait : sp valait toujours null. Du code qui ne peut que
-     lever une erreur le jour où sa garde tomberait, gardé en
-     place par une garde qui le rend inatteignable — c'est le
-     repli silencieux sur une fonction absente, et on ne le laisse
-     pas dormir dans un chemin de récupération de données. */
-
+     Une séance à plusieurs, un bilan manuel, une dictée : les
+     trois écrivent dans des cartes de l'onglet Cours, et les trois
+     étaient également invisibles depuis « Mes prochains cours ».
+     Mettre l'appel ici plutôt que dans chaque branche, c'est la
+     garantie qu'une quatrième sorte de reprise ne repartira pas
+     sans. */
   montrerLEcranDuCours();
+
+  /* Un bilan de séance à plusieurs se rouvre sur son poste. */
+  const b0 = $('repriseOui');
+  if(b0 && b0.dataset.seance === 'oui'){
+    delete b0.dataset.seance;
+    const sp = (typeof postesEnCours === 'function') ? postesEnCours() : null;
+    if(sp && typeof reprendrePostes === 'function') reprendrePostes(sp);
+    const ban = $('repriseBanner');
+    if(ban) ban.style.display = 'none';
+    allerVoirLEcranDuCours('recordView');
+    return;
+  }
 
   const b = $('repriseOui');
   if(b && b.dataset.manuel === 'oui'){
