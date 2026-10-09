@@ -2122,7 +2122,7 @@ function repereDuJour(eleve, note){
 
 
 async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc,
-                                      duJour, note){
+                                      duJour, note, departChoisi, rangAffiche){
   if(!eleve) return;
 
   const h = String(heures || '').trim();
@@ -2205,12 +2205,32 @@ async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc,
       const repere = (!estExamenBlanc && duJour)
         ? repereDuJour(eleve, note) : null;
 
-      const majs = (typeof champsHeuresRestantes !== 'function')
-        ? { heuresRestantes: valeur }
-        : (repere
-            ? champsHeuresRestantes(eleve, valeur, null,
-                                    repere.rang, repere.quoi)
-            : champsHeuresRestantes(eleve, valeur));
+      /* ⚠️ v1129 — LA LEÇON CHOISIE DANS « CES HEURES PARTENT DE
+         QUAND ? ». Elle fixe le repère ; le nombre écrit est la
+         décision, retrouvée depuis le reste que montrait le bouton
+         (nombreDecidePourLeDepart, ec-questionnaire) — la même
+         porte que pour une préparation. */
+      const choisi = (!estExamenBlanc && typeof departChoisi === 'number' &&
+                      !isNaN(departChoisi) &&
+                      typeof nombreDecidePourLeDepart === 'function');
+      let majs;
+      if(choisi && typeof champsHeuresRestantes === 'function'){
+        const rj = repereDuJour(eleve, note) ||
+          ((typeof charniereDeLEleve === 'function') ? charniereDeLEleve(eleve) : null);
+        const quoi = (rj && rj.quoi) || 'eb';
+        majs = champsHeuresRestantes(eleve,
+          nombreDecidePourLeDepart(eleve, valeur, departChoisi,
+            /* le rang sur lequel le bouton a compté, s'il l'a dit */
+            (typeof rangAffiche === 'number') ? rangAffiche : ((rj && rj.rang) || 0)),
+          null, departChoisi, quoi);
+      }else{
+        majs = (typeof champsHeuresRestantes !== 'function')
+          ? { heuresRestantes: valeur }
+          : (repere
+              ? champsHeuresRestantes(eleve, valeur, null,
+                                      repere.rang, repere.quoi)
+              : champsHeuresRestantes(eleve, valeur));
+      }
 
       /* LA DATE N'APPARTIENT QU'À L'EXAMEN BLANC.
 
@@ -4136,7 +4156,8 @@ async function genererBilanManuel(){
                                       voir niveauDepuisLaSuite. */
                                    niveauDepuisLaSuite(maj.ebPasse),
                                    false,           /* cours ordinaire */
-                                   maj.heuresDuJour, noteDuJour);
+                                   maj.heuresDuJour, noteDuJour,
+                                   maj.heuresDepuisRang, maj.heuresRangJour);
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
