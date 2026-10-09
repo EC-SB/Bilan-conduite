@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 16:35 — v1111 */
+/* Déployé le 08/10/2026 à 20:48 — v1113 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -95,6 +95,28 @@ let brouillonsMessagerie = {};   /* ce qu'on a tapé sans envoyer, par fil */
    L'ÉCRAN
    ------------------------------------------------------------ */
 
+/* ============================================================
+   CE QUE CHAQUE FILTRE DEMANDE AU SERVEUR
+
+   🗄️ Fermées veut SEULEMENT les fermées. La supervision les veut
+   TOUTES, ouvertes comprises — on y va pour chercher quelque
+   chose, pas pour suivre le courant du jour. Les autres filtres
+   ne trient que ce qu'on a déjà.
+
+   ⚠️ UNE SEULE FONCTION, PARCE QU'ELLE SERT DEUX FOIS : à poser
+   la demande, et à décider s'il FAUT en poser une. Recopiée aux
+   deux endroits, elle finirait par dire « relis » là où elle ne
+   relit pas — et on resterait sur une liste partielle sans que
+   rien ne le dise. C'est exactement ce qui vient d'arriver :
+   l'onglet Fermées renvoyait tout, donc personne ne s'est aperçu
+   que la liste gardée en mémoire ne valait que pour un filtre.
+   ============================================================ */
+function quellesFermeesPour(filtre){
+  if(filtre === 'clos') return 'seules';
+  if(filtre === 'supervision') return 'avec';
+  return '';
+}
+
 async function afficherMessagerie(silencieux){
   const zone = zoneDeLaMessagerie();
   if(!zone) return;
@@ -109,7 +131,7 @@ async function afficherMessagerie(silencieux){
     /* La supervision montre tout, ouvert comme fermé : on y va pour
        chercher quelque chose, pas pour suivre le courant du jour. */
     const d = await appelPrep({ action: 'convList',
-      fermees: (filtreMessagerie === 'clos' || filtreMessagerie === 'supervision') });
+      fermees: quellesFermeesPour(filtreMessagerie) });
     conversationsEC = (d && d.conversations) || [];
     /* ⚠️ LES DEUX, PAS UN SEUL — v1085. Celui-ci ne posait que le
        compte de l'onglet. En refermant un fil qu'on vient de lire, on
@@ -588,17 +610,29 @@ function barreDesGenresMessagerie(){
             'color:#0B0B0B;font-weight:700;' : '');
     x.textContent = libelle + (combien === null ? '' : ' ' + combien);
     x.addEventListener('click', () => {
+      const avant = quellesFermeesPour(filtreMessagerie);
       filtreMessagerie = on ? '' : cle;
-      /* Ces deux-là changent ce que le SERVEUR doit rendre : il faut
-         relire. Les autres ne font que trier ce qu'on a déjà. */
-      if(filtreMessagerie === 'clos' || filtreMessagerie === 'supervision' || on){
+      /* ⚠️ ON RELIT QUAND LA DEMANDE CHANGE, PAS QUAND LE FILTRE
+         CHANGE. Quitter 🗄️ Fermées pour « Tout » ne touchait pas à
+         cette condition : on redessinait une liste qui, depuis que
+         « seules » veut dire seules, ne contient plus que les
+         fermées. L'écran aurait montré trois conversations closes
+         sous un bouton « Tout ». */
+      if(quellesFermeesPour(filtreMessagerie) !== avant){
         afficherMessagerie(true);
       }else dessinerLaListeMessagerie();
     });
     b.appendChild(x);
   };
 
-  bouton('', 'Tout', aMoi.length);
+  /* ⚠️ « TOUT 3 » NE DOIT PAS COMPTER CE QUI EST DEVANT, MAIS CE
+     QU'IL Y A. Sur 🗄️ Fermées ou en supervision, la liste chargée
+     n'est plus la liste ordinaire : afficher son nombre sur le
+     bouton « Tout » ferait dire au bouton « tu as trois
+     conversations » à quelqu'un qui en a trente. Sans chiffre, il
+     ne promet rien — et le sous-titre dit déjà combien de lignes
+     sont affichées. */
+  bouton('', 'Tout', quellesFermeesPour(filtreMessagerie) ? null : aMoi.length);
   Object.keys(GENRES_MESSAGERIE).forEach(cle => {
     if(comptes[cle]) bouton(cle, GENRES_MESSAGERIE[cle].rond, comptes[cle]);
   });
@@ -2752,7 +2786,10 @@ async function ongletMessagesEleve(corps, nom){
 
   let liste = [];
   try{
-    const d = await appelPrep({ action: 'convList', eleve: nom, fermees: true });
+    /* Le dossier d'un élève montre tout son historique : une
+       conversation fermée reste une chose qu'on a échangée avec
+       lui, et c'est souvent elle qu'on vient relire. */
+    const d = await appelPrep({ action: 'convList', eleve: nom, fermees: 'avec' });
     liste = (d && d.conversations) || [];
   }catch(e){
     corps.innerHTML = '';
