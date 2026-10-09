@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 09:20 — v1057 */
+/* Déployé le 09/10/2026 à 09:33 — v1115 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -109,13 +109,16 @@ function proposerReprise(){
     setTimeout(() => chercherBrouillonsServeur(), 1500);
   }
 
-  /* Une séance à plusieurs interrompue : elle prime, c'est
-     plusieurs bilans qui attendent. */
-  const sp = (typeof postesEnCours === 'function') ? postesEnCours() : null;
-  if(sp && (!postes || !postes.length)){
-    proposerRepriseSeance(sp, banniere);
-    return;
-  }
+  /* ⚠️ LA SÉANCE À PLUSIEURS N'EST PLUS PROPOSÉE ICI — v1115.
+
+     « postesEnCours » n'est déclarée nulle part : le typeof
+     rendait la condition toujours fausse, et proposerRepriseSeance
+     n'a jamais pu s'afficher. Ce n'est pas une fonction qu'on
+     retire, c'est une fonction qui n'a jamais tourné — et qui
+     faisait croire, en se lisant, que les séances à plusieurs
+     étaient couvertes par la reprise. Le jour où elles le seront,
+     la porte se rouvrira avec sa fonction, pas sans.
+  */
 
   /* Un bilan manuel commencé compte autant qu'une dictée : c'est
      du travail perdu de la même façon. */
@@ -334,18 +337,76 @@ function proposerRepriseManuelle(man, banniere){
 }
 
 
+/* ============================================================
+   ⚠️ RAMENER L'ÉCRAN LÀ OÙ L'ON VA ÉCRIRE — v1115
+
+   Chrystel, le 9 octobre, sur son téléphone : un cours a sauté,
+   elle appuie sur « Reprendre », et le cours « n'apparaît nulle
+   part ».
+
+   Il était pourtant bien rétabli. Mais #recordView porte
+   « data-vue="cours" », et la règle [data-vue].hors-vue est en
+   « display:none !important » : tant que l'onglet Cours est resté
+   sur une autre vue — « Mes prochains cours », celle où l'on
+   atterrit sur un téléphone — poser style.display='block' dessus
+   ne peut RIEN montrer. Le !important gagne, toujours.
+
+   ⚠️ ET LE BANDEAU, LUI, S'AFFICHE SUR TOUTES LES VUES. Il n'a
+   qu'un « data-onglet ». On proposait donc de reprendre un cours
+   depuis un écran où le cours ne peut pas s'afficher. Le toast
+   disait « Cours récupéré ✅ » par-dessus un écran inchangé : le
+   pire message possible, puisqu'il affirme que c'est fait.
+
+   ⚠️ LA MÊME FAUTE AVAIT DÉJÀ ÉTÉ CORRIGÉE AILLEURS. ec-depart.js
+   faisait depuis longtemps « afficherOnglet('cours') » puis
+   « classList.remove('hors-onglet','hors-vue') » — avec le
+   commentaire qui l'explique. Deux chemins montrent le même écran,
+   un seul savait comment. C'est la famille « deux listes pour une
+   action » sous un autre visage, et on la ferme en n'en laissant
+   qu'une : cette porte-ci, que les deux appellent.
+   ============================================================ */
+function montrerLEcranDuCours(){
+  /* ⚠️ DEUX APPELS, ET PAS UN RETRAIT DE CLASSES EN PLUS.
+
+     ec-depart.js retirait « hors-onglet » et « hors-vue » à la
+     main, juste après avoir appelé afficherOnglet. J'ai recopié ce
+     geste ici, puis j'ai essayé de le casser : aucune mutation ne
+     le tue. C'est qu'il ne sert à rien — afficherOnglet retire
+     déjà « hors-onglet » de tout l'onglet visé, afficherVue retire
+     « hors-vue » de toute la vue visée, et libererOngletsSansVues
+     nettoie les classes laissées par une version précédente.
+
+     Une ligne défensive qu'aucun essai ne peut faire échouer est
+     une ligne qui ment sur ce qu'elle protège. On garde les deux
+     appels, qui eux se cassent dès qu'on y touche. */
+  if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+}
+
+/* On y amène l'œil, aussi : un écran rétabli tout en bas d'une
+   page longue est un écran qu'on cherche. */
+function allerVoirLEcranDuCours(id){
+  const el = $(id);
+  if(!el) return;
+  setTimeout(() => {
+    try{ el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    catch(e){ window.scrollTo(0, el.offsetTop - 10); }
+  }, 60);
+}
+
 function reprendreCours(){
-  /* Un bilan manuel interrompu se rouvre à sa fiche, pas à la
-     page de dictée. */
-  const b0 = $('repriseOui');
-  if(b0 && b0.dataset.seance === 'oui'){
-    delete b0.dataset.seance;
-    const sp = (typeof postesEnCours === 'function') ? postesEnCours() : null;
-    if(sp) reprendrePostes(sp);
-    const ban = $('repriseBanner');
-    if(ban) ban.style.display = 'none';
-    return;
-  }
+  /* ⚠️ LA BRANCHE DES SÉANCES À PLUSIEURS EST PARTIE — v1115.
+
+     Elle appelait « reprendrePostes(sp) », qui n'est déclarée
+     nulle part. Elle ne s'est jamais exécutée parce que
+     « postesEnCours » n'existe pas davantage et que le typeof la
+     protégeait : sp valait toujours null. Du code qui ne peut que
+     lever une erreur le jour où sa garde tomberait, gardé en
+     place par une garde qui le rend inatteignable — c'est le
+     repli silencieux sur une fonction absente, et on ne le laisse
+     pas dormir dans un chemin de récupération de données. */
+
+  montrerLEcranDuCours();
 
   const b = $('repriseOui');
   if(b && b.dataset.manuel === 'oui'){
@@ -460,6 +521,12 @@ function reprendreCours(){
   }
 
   $('repriseBanner').style.display = 'none';
+
+  /* ⚠️ ON AMÈNE L'ŒIL, ET ON NE DIT « RÉCUPÉRÉ » QU'APRÈS.
+     Le toast arrivait par-dessus un écran qui n'avait pas bougé :
+     il affirmait que c'était fait, ce qui est exactement ce qu'il
+     ne faut pas dire quand on ne montre rien. */
+  allerVoirLEcranDuCours(s.bilan ? 'resultView' : 'recordView');
   showToast('Cours récupéré ✅');
 }
 
