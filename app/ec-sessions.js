@@ -188,6 +188,13 @@ async function chargerSessionsPermis(){
     return String(a.heureDebut || '').localeCompare(String(b.heureDebut || ''));
   });
 
+  /* 🎓 Les groupes de la messagerie suivent leur session — v1135.
+     Une session vient d'être relue : si elle a changé, son groupe
+     suit. Sans attendre, et sans jamais bloquer cet écran. */
+  if(typeof suivreLesGroupesPermis === 'function'){
+    try{ suivreLesGroupesPermis(sessionsPermis).catch(() => {}); }catch(e){}
+  }
+
   return sessionsPermis;
 }
 
