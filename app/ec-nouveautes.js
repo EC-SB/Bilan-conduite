@@ -51,6 +51,30 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1131,
+    date: 'Samedi 10 octobre 2026',
+    resume: 'La fiche véhicule de l’AAC porte enfin l’émoji du moniteur',
+    quoi: [
+      { emoji: '🦉',
+        titre: 'AAC : la même fiche que la conduite',
+        texte: 'Les manœuvres dites ou cochées pendant un cours AAC prennent ' +
+               'ton émoji, à côté de ceux des cours d’avant, et le commentaire ' +
+               'reste au bout de la ligne : « MALD 🦋 — Reste débrayée… ». ' +
+               'Avant, le bilan AAC ignorait les cases cochées.' },
+      { emoji: '📜',
+        titre: 'Les anciens bilans AAC comptent',
+        texte: 'Une manœuvre commentée dans un ancien bilan AAC compte comme ' +
+               'travaillée, avec l’émoji du moniteur de ce bilan. La fiche ' +
+               'se reconstitue dès le prochain cours.' },
+      { emoji: '🚗',
+        titre: 'Boîte automatique : la fiche ne repart plus de zéro',
+        texte: 'En dictée, un cours en boîte automatique ne relisait plus les ' +
+               'bilans d’avant : les marques des cours précédents disparaissaient, ' +
+               'et la dictée n’était plus remise au propre. Les marques perdues ' +
+               'reviennent au prochain bilan.' }
+    ]
+  },
+  {
     version: 1130,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Dossier élève : rendez-vous AAC et « Où il en est » se corrigent sur place',
