@@ -337,6 +337,69 @@ function rangApresDansLaNote(note){
 }
 
 /* ============================================================
+   RÉÉCRIRE LE RANG QU'UNE NOTE PORTE — v1130
+
+   L'inverse exact des deux lecteurs du dessus. Le dossier corrige
+   « Où il en est » sans cours préparé en réécrivant le rang DANS SON
+   DERNIER BILAN : c'est la ligne que relisent le dossier complet, le
+   résumé du bureau et le classeur (« ecartRang »). Un chiffre écrit
+   ailleurs serait un chiffre de plus ; écrit là, les trois suivent.
+
+   On ne touche qu'aux nombres, jamais aux mots : « 1ère leçon après
+   l'examen blanc (16ème au total) » devient « 2ème leçon après
+   l'examen blanc (15ème au total) ». La casse de la note est gardée
+   — certaines sont tout en capitales.
+
+   Rend null quand la note ne porte pas l'endroit où écrire, ou quand
+   le résultat ne se relit pas comme demandé : mieux vaut refuser
+   qu'écrire une note qui dirait autre chose que ce qu'on a tapé.
+   ============================================================ */
+function noteAvecSonRang(note, total, apres){
+  const t0 = String(note || '');
+  const rang = (n) => (typeof rangLecon === 'function')
+    ? rangLecon(n) : ((n === 1) ? '1ère' : n + 'ème');
+  const casse = (modele, txt) =>
+    (modele && modele === modele.toUpperCase() && /[a-zà-ÿ]/i.test(modele))
+      ? txt.toUpperCase() : txt;
+  const SUF = '(ère|ere|ème|eme|e|ÈRE|ERE|ÈME|EME|E)';
+  let t = t0;
+  const avecApres = (apres !== null && apres !== undefined);
+
+  if(avecApres){
+    const re = new RegExp('(\\d+)\\s*' + SUF + '(\\s+le[çcÇC][oO][nN][sS]?\\s+apr[èeÈE]s\\s)', 'i');
+    if(!re.test(t)) return null;
+    t = t.replace(re, (m, n, suf, reste) => casse(suf, rang(apres)) + reste);
+  }
+
+  const reT = new RegExp('(\\d+)\\s*' + SUF + '(\\s+au total)', 'i');
+  if(reT.test(t)){
+    t = t.replace(reT, (m, n, suf, reste) => casse(suf, rang(total)) + reste);
+  }else if(avecApres){
+    /* Le total n'était pas écrit : on le pose dans la parenthèse de
+       la ligne, ou on en ouvre une juste après la charnière. */
+    const reC = /(le[çc]ons?\s+apr[èe]s\s+(?:l'examen blanc|le post-?permis|le dernier ajournement|l'examen ajourné))(\s*\(([^)\n]*)\))?/i;
+    const m = t.match(reC);
+    if(!m) return null;
+    if(total !== apres){
+      const mot = (m[1] === m[1].toUpperCase())
+        ? (rang(total) + ' au total').toUpperCase() : rang(total) + ' au total';
+      t = t.replace(reC, (tout, a, par, dedans) =>
+        a + (par ? ' (' + dedans + ', ' + mot + ')' : ' (' + mot + ')'));
+    }
+  }else{
+    const reN = new RegExp('(\\d+)\\s*' + SUF + '(\\s*le[çcÇC][oO][nN](?![sS]))', 'i');
+    if(!reN.test(t)) return null;
+    t = t.replace(reN, (m, n, suf, reste) => casse(suf, rang(total)) + reste);
+  }
+
+  /* Ce qu'on vient d'écrire doit se relire comme on l'a voulu. */
+  const lu = (typeof rangDansLaNote === 'function') ? rangDansLaNote(t) : total;
+  if(lu !== total) return null;
+  if(avecApres && rangApresDansLaNote(t) !== apres) return null;
+  return t;
+}
+
+/* ============================================================
    LES DEUX CASES D'UN COURS PRÉPARÉ, LUES À UN SEUL ENDROIT — v1128
 
    « 17 ème leçon · et la 2 ème après exam blanc ». La carte de Mes
