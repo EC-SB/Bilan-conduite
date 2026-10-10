@@ -51,6 +51,30 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1135,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'Le groupe du jour du permis se crée dans la messagerie, depuis Préparation',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Un groupe par session, en un appui',
+        texte: 'Dans Permis › 📣 Préparation, compose les messages d’une session, ' +
+               'retouche-les si besoin, puis « 💬 Créer le groupe ». Il réunit les élèves, ' +
+               'le moniteur et la boîte du bureau, reçoit les messages tels qu’écrits, ' +
+               'puis la vidéo. Son nom : « Permis jeudi 15 octobre - Chloé, Alice, ' +
+               'Bruno - 1 BEA 2 BV - Hery ». La case « 💬 Groupe fait » se coche toute seule.' },
+      { emoji: '🔄',
+        titre: 'Il suit la session',
+        texte: 'Un élève ajouté ou retiré dans 🎓 Suivi permis entre ou sort du groupe, ' +
+               'et le nom suit, comme le moniteur. Si les horaires changent, le groupe ' +
+               'reçoit « 🕐 Horaires modifiés » avec le nouveau planning.' },
+      { emoji: '🎬',
+        titre: 'La vidéo du jour du permis, déposée une fois',
+        texte: 'En haut de Préparation. Chaque groupe la reçoit en dernier message, sans ' +
+               'la recopier. Pour Messenger, « 📋 Copier le lien de la vidéo » donne un ' +
+               'lien qui marche jusqu’au lendemain de l’examen au soir.' }
+    ]
+  },
+  {
     version: 1134,
     date: 'Lundi 12 octobre 2026',
     resume: 'Un petit bonhomme à côté du nom ouvre le dossier de l’élève',
