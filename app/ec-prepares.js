@@ -1906,6 +1906,9 @@ async function afficherPrepares(recharger, silencieux){
        qu'une note muette.
        ------------------------------------------------------------ */
     reste = sansAnnoncePerimee(reste, cours.eleve);
+    /* v1132 — et les heures qui restent se recalculent : voir
+       avecLaReserveDuJour. */
+    reste = avecLaReserveDuJour(reste, cours);
     reste = sansRedites(reste);
     /* Le 📌 aussi : c'est là que les heures recopiées s'étaient
        accumulées. */
@@ -4245,6 +4248,73 @@ function sansAnnoncePerimee(texte, eleve){
   return t.split('\n').map(ligne =>
     ligne.split(' · ').filter(s => !estUneAnnonce(s.trim())).join(' · ')
   ).filter(Boolean).join('\n');
+}
+
+/* ============================================================
+   LES HEURES QUI RESTENT, RECALCULÉES À L'AFFICHAGE — v1132
+
+   David, le 10 octobre : la ligne rouge de la carte — « EXAMEN
+   OFFICIEL PRÉVU LE … — encore 4h + 3h avant examen » — ne
+   diminuait jamais. Le chiffre est écrit DANS LA NOTE, une fois,
+   quand le questionnaire l'enregistre ; ensuite rien ne le relit.
+   Pendant ce temps, les tuiles du dossier et les listes du bureau
+   recalculent : Martin Le Gall lisait « plus que les 3h » sur sa
+   tuile et « encore 4h + 3h » sur sa carte.
+
+   Son choix : recalculer à l'affichage, avec le même calcul que les
+   tuiles, sans réécrire aucune note. Donc :
+
+     · le nombre vient de heuresQuiComptent — la porte des tuiles et
+       des listes — avec le rang de CE cours depuis la charnière : le
+       décompte dit ce qui restera après lui, comme le questionnaire ;
+     · la phrase vient de mentionDeLaReserve — celle qui l'écrit dans
+       la note : mêmes mots, au caractère près ;
+     · seule la ligne d'examen prévu est touchée, et seulement sa
+       mention d'heures. Quand rien n'est connu, la note garde ce
+       qu'elle dit : une photo vaut mieux qu'un vide.
+   ============================================================ */
+const RE_MENTION_RESERVE = new RegExp(
+  ' — (?:encore [\\d.,]+\\s*h \\+ 3h avant examen' +
+  '|encore \\d+ leçons? \\+ 3h avant examen' +
+  '|plus que les 3h avant examen' +
+  '|plus que la le[çc]on de veille[^·\\n—]*' +
+  '|⛔ PAS LE NIVEAU POUR CET EXAMEN — élève à changer)');
+
+function avecLaReserveDuJour(texte, cours){
+  const t = String(texte || '');
+  if(!t || !cours || !cours.eleve) return t;
+  /* En gras (la note telle qu'elle s'écrit) ou en clair (déjà
+     passée par noteEnClair, ou écrite à la main). */
+  const estExamenPrevu = (x) =>
+    ((typeof EXAMEN_PREVU !== 'undefined') && x.indexOf(EXAMEN_PREVU) !== -1) ||
+    /EXAMEN OFFICIEL PRÉVU LE|Examen prévu le/i.test(x);
+  if(!estExamenPrevu(t)) return t;
+  if(typeof heuresQuiComptent !== 'function' ||
+     typeof mentionDeLaReserve !== 'function') return t;
+
+  /* Le rang de ce cours depuis sa charnière : c'est lui qui compte. */
+  let etat = null;
+  try{
+    const r = rangsDuCoursPrepare(cours);
+    const QUOI = { avantEB: 'eb', avantRdvPost: 'postpermis', avantExamRate: 'ajournement' };
+    if(r && r.charn && r.apres) etat = { apresCharniere: { rang: r.apres, quoi: QUOI[r.charn.cle] || 'eb' } };
+  }catch(e){ etat = null; }
+
+  let v = '';
+  try{
+    const q = heuresQuiComptent(cours.eleve, etat) || {};
+    v = String(q.valeur === undefined || q.valeur === null ? '' : q.valeur).trim();
+  }catch(e){ return t; }
+  if(v === '') return t;
+  const neuve = mentionDeLaReserve(v);
+  if(!neuve) return t;
+
+  return t.split('\n').map(ligne => ligne.split(' · ').map(seg => {
+    if(!estExamenPrevu(seg)) return seg;
+    return RE_MENTION_RESERVE.test(seg)
+      ? seg.replace(RE_MENTION_RESERVE, neuve)
+      : seg + neuve;
+  }).join(' · ')).join('\n');
 }
 
 /* ⚠️ LE TIROIR S'OUVRE QUAND IL PORTE QUELQUE CHOSE — v930.
