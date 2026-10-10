@@ -1951,6 +1951,17 @@ function phraseExamenBlancRoute(r){
              (typeof SUITE_PAS_LE_NIVEAU !== 'undefined'
                 ? SUITE_PAS_LE_NIVEAU : ' — pas le niveau');
     }
+    /* 🤔 « POURRAIT » S'ÉCRIT AUSSI — v1138. Sans cette branche, la
+       phrase partait « … passé le 8 septembre (bureau) » : la date
+       sans la conclusion. Le bilan suivant recopiait donc l'ancienne
+       — « pas le niveau » pour Louis Dreano — pendant que sa fiche
+       disait « pourrait ». Les mots viennent de leur porte, relue
+       par analyserNote (ec-bureau.js). */
+    if(r.niveau === 'peut'){
+      return 'Examen blanc passé le ' + jourPasse +
+             (typeof SUITE_PEUT_LE_NIVEAU !== 'undefined'
+                ? SUITE_PEUT_LE_NIVEAU : ' — pourrait avoir le niveau, à confirmer');
+    }
     const h = parseInt(String(r.heures || '').trim(), 10);
     if(String(r.heures || '').trim() !== '' && !isNaN(h)){
       if(h <= 0){
