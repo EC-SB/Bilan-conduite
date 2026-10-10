@@ -6925,8 +6925,27 @@ function ajouterSuite(etats, permis, mots, q){
     ? ' le ' + (dateEnToutesLettres(q.examBlancDate) || q.examBlancDate)
     : '';
 
+  /* ⚠️ UNE CONCLUSION RECOPIÉE NE BAT PAS LA FICHE — v1138.
+
+     « ebPasse » est la réponse du jour de l'examen blanc, et elle
+     voyage ensuite de cours en cours dans le contexte. Un mois plus
+     tard, elle réécrivait donc « pas le niveau » dans chaque bilan,
+     même quand le bureau avait réglé « pourrait » dans Sa route —
+     Louis Dreano, le 10 octobre. Choix de David : la fiche gagne.
+
+     Seulement pour un examen blanc d'un AUTRE jour : le jour même,
+     la réponse du moniteur est la conclusion, et elle prime. Et
+     seulement « non » et « peut », les deux valeurs de la fiche qui
+     ne s'écrivent que sur une vraie conclusion. */
+  const jourDuCours = ($('lessonDate') && $('lessonDate').value) || todayLocal();
+  const ebDUnAutreJour = !!(q.examBlancDate && q.examBlancDate < jourDuCours);
+  const niveauFiche = String(q.ebNiveau || '');
+  const suiteEB = (q.ebPasse && ebDUnAutreJour && niveauFiche === 'peut') ? 'peut'
+                : (q.ebPasse && ebDUnAutreJour && niveauFiche === 'non') ? 'pasleniveau'
+                : q.ebPasse;
+
   /* L'examen blanc vient d'avoir lieu : sa conclusion prime */
-  if(q.ebPasse){
+  if(suiteEB){
     /* ⚠️ LA DATE DE L'EXAMEN, PAS CELLE DU COURS.
 
        La conclusion se saisissait toujours le jour même, et cette
@@ -6941,22 +6960,22 @@ function ajouterSuite(etats, permis, mots, q){
       ? (dateEnToutesLettres(q.examBlancDate) || q.examBlancDate)
       : dateEnToutesLettres($('lessonDate').value || todayLocal());
     const tete = '🅱️ ' + numero + ETAT_EB_PASSE + ' le ' + jour;
-    if(q.ebPasse === '3h'){
+    if(suiteEB === '3h'){
       /* Les mots du zéro viennent de leur porte — v1053. */
       etats.push(tete + suiteReserveSoldee());
-    }else if(q.ebPasse === 'lecons'){
+    }else if(suiteEB === 'lecons'){
       const k = q.ebLecons;
       etats.push(tete + ' — encore ' + (k || '❓') +
                  ' leçon' + (parseInt(k, 10) > 1 ? 's' : '') + ' avant examen');
-    }else if(q.ebPasse === 'pasleniveau'){
+    }else if(suiteEB === 'pasleniveau'){
       etats.push(tete + SUITE_PAS_LE_NIVEAU);
-    }else if(q.ebPasse === 'peut'){
+    }else if(suiteEB === 'peut'){
       /* 🤔 v1117 — l'hésitation est une réponse, et elle s'écrit.
          Sans cette branche, « pourrait » tombait dans le « else »
          du bas : la date sans la conclusion, c'est-à-dire la même
          ignorance qu'avant d'avoir posé la question. */
       etats.push(tete + SUITE_PEUT_LE_NIVEAU);
-    }else if(q.ebPasse === 'niveauok'){
+    }else if(suiteEB === 'niveauok'){
       /* ⚠️ A LE NIVEAU, HEURES NON PRÉCISÉES — v1005. Voir le ⚠️ de
          ec-manuel.js : vide ne veut pas dire zéro. La phrase est
          relue telle quelle par le lecteur de notes (ec-bureau.js) :
