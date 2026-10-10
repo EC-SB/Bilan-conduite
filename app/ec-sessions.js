@@ -695,12 +695,19 @@ async function afficherSessionsPermis(){
 function dessinerSessions(zone){
 zone.innerHTML = '';
 
+  /* 🎨 LES TROIS BOUTONS SUR UNE LIGNE — v1137 (schéma validé par
+     David). « Nouvelle session » reste le grand ; les deux autres,
+     plus rares, se rangent à côté. Sur téléphone, ils passent
+     dessous, côte à côte — jamais de défilement de côté. */
+  const barre = document.createElement('div');
+  barre.className = 'ses-barre';
+  zone.appendChild(barre);
+
   const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
+  b.className = 'btn btn-primary ses-b1';
   b.textContent = "➕ Nouvelle session d'examen";
   b.addEventListener('click', () => ouvrirEditeurSession(null));
-  zone.appendChild(b);
+  barre.appendChild(b);
 
   /* L'échange en cours, rappelé en haut pour qu'on n'oublie pas */
   if(echangeEnCours){
@@ -726,9 +733,8 @@ zone.innerHTML = '';
      Le bouton reste ensuite disponible si de nouvelles dates ont
      été posées ailleurs. */
   const bRep = document.createElement('button');
-  bRep.className = 'btn btn-secondary';
-  bRep.style.cssText = 'margin-bottom:14px;padding:11px;font-size:13px;';
-  bRep.textContent = '📥 Reprendre les dates déjà enregistrées';
+  bRep.className = 'btn btn-secondary ses-b2';
+  bRep.textContent = '📥 Reprendre les dates';
   bRep.title = 'Crée les sessions à partir des dates du suivi';
   bRep.addEventListener('click', async () => {
     if(!await confirmer('Créer les sessions à partir des dates déjà ' +
@@ -743,10 +749,10 @@ zone.innerHTML = '';
     }catch(e){
       showToast('Reprise impossible : ' + e.message);
       bRep.disabled = false;
-      bRep.textContent = '📥 Reprendre les dates déjà enregistrées';
+      bRep.textContent = '📥 Reprendre les dates';
     }
   });
-  zone.appendChild(bRep);
+  barre.appendChild(bRep);
 
   /* ⚠️ RETROUVER QUI ÉTAIT SUR UNE PLACE VIDÉE.
 
@@ -760,12 +766,11 @@ zone.innerHTML = '';
      retirée par erreur — et savoir qui y était se cherchera
      toujours de la même façon. */
   const bPer = document.createElement('button');
-  bPer.className = 'btn btn-secondary';
-  bPer.style.cssText = 'margin-bottom:14px;padding:11px;font-size:13px;';
-  bPer.textContent = '🔎 Retrouver les places vidées';
+  bPer.className = 'btn btn-secondary ses-b2';
+  bPer.textContent = '🔎 Places vidées';
   bPer.title = 'Qui était sur les places devenues libres, et par quelle preuve';
   bPer.addEventListener('click', () => ouvrirPlacesPerdues());
-  zone.appendChild(bPer);
+  barre.appendChild(bPer);
 
   if(!sessionsPermis.length){
     const v = document.createElement('div');
@@ -799,10 +804,6 @@ zone.innerHTML = '';
     });
   });
 
-  if(aRemplacer.length || pretenoms.length || libres.length){
-    zone.appendChild(blocAIntervenir(aRemplacer, pretenoms, libres));
-  }
-
   const auj = todayLocal();
 
   /* Les sessions passées quittent la liste : elles l'encombraient
@@ -811,8 +812,6 @@ zone.innerHTML = '';
   const passees = sessionsPermis.filter(s => s.date && s.date < auj);
   const aVenir = sessionsPermis.filter(s => !s.date || s.date >= auj);
 
-  const compte = document.createElement('div');
-  compte.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
   const total = aVenir.reduce((n, s) => n + s.eleves.filter(x => x.eleve).length, 0);
   /* « fantôme » disait deux choses ; ce compteur comptait des cases
      vides et les appelait des fantômes. Les deux se comptent
@@ -821,10 +820,22 @@ zone.innerHTML = '';
   const tenues = aVenir.reduce((n, s) => n + s.eleves.filter(x =>
     x.eleve && typeof suiviDe === 'function' &&
     suiviDe(x.eleve).fantome === 'oui').length, 0);
-  compte.textContent = aVenir.length + ' session(s) à venir · ' + total + ' élève(s)' +
-    (vides ? ' · ⬜ ' + vides + ' place(s) libre(s)' : '') +
-    (tenues ? ' · 👻 ' + tenues + ' prête-nom(s)' : '');
+  /* En étiquettes — v1137 */
+  const pluriel = (n, un, plusieurs) => n + ' ' + (n > 1 ? plusieurs : un);
+  const compte = document.createElement('div');
+  compte.className = 'plc-puces';
+  compte.innerHTML = [
+    '📅 <strong>' + aVenir.length + '</strong> ' + (aVenir.length > 1 ? 'sessions à venir' : 'session à venir'),
+    '🧑‍🎓 <strong>' + total + '</strong> ' + (total > 1 ? 'élèves' : 'élève'),
+    vides ? '⬜ <strong>' + vides + '</strong> ' + (vides > 1 ? 'places libres' : 'place libre') : '',
+    tenues ? '👻 <strong>' + tenues + '</strong> ' + (tenues > 1 ? 'prête-noms' : 'prête-nom') : ''
+  ].filter(Boolean).map(x => '<span class="plc-puce">' + x + '</span>').join('');
   zone.appendChild(compte);
+
+  /* « ⚠️ À traiter » sous les étiquettes — l'ordre du schéma */
+  if(aRemplacer.length || pretenoms.length || libres.length){
+    zone.appendChild(blocAIntervenir(aRemplacer, pretenoms, libres));
+  }
 
   /* Deux sessions le même jour : on les numérote, sinon rien ne les
      distingue dans la liste et on ne sait pas laquelle on ouvre. */
@@ -843,7 +854,33 @@ zone.innerHTML = '';
     }
   });
 
-  aVenir.forEach(s => zone.appendChild(blocSession(s, auj)));
+  /* 🎨 RANGÉES PAR SEMAINE, EN CARTES — v1137.
+
+     Les mêmes semaines que les cases « Jours ouverts » juste
+     au-dessus : on lit d'un bloc ce que la préfecture a ouvert et
+     ce qu'on y a mis. Une session sans date se range à part, à la
+     fin. */
+  const semaines = [];
+  aVenir.forEach(s => {
+    const w = semaineDeLaSession(s.date);
+    let g = semaines.find(x => x.cle === w.cle);
+    if(!g){ g = Object.assign({ sessions: [] }, w); semaines.push(g); }
+    g.sessions.push(s);
+  });
+  semaines.sort((x, y) => (x.cle === '' ? 1 : 0) - (y.cle === '' ? 1 : 0) || x.cle.localeCompare(y.cle));
+  semaines.forEach(g => {
+    const z = document.createElement('div');
+    z.className = 'ses-sem';
+    const n = g.sessions.reduce((k, s) => k + s.eleves.filter(x => x.eleve).length, 0);
+    z.innerHTML = '<div class="ses-semt">' + g.titre +
+      '<span class="plc-doux"> · ' + pluriel(g.sessions.length, 'session', 'sessions') +
+      ' · ' + pluriel(n, 'élève', 'élèves') + '</span></div>';
+    const grille = document.createElement('div');
+    grille.className = 'ses-grille';
+    g.sessions.forEach(s => grille.appendChild(blocSession(s, auj)));
+    z.appendChild(grille);
+    zone.appendChild(z);
+  });
 
   /* Les passées, repliées en bas : on y revient pour saisir un
      résultat ou vérifier ce qui s'est dit. */
@@ -856,6 +893,7 @@ zone.innerHTML = '';
       ' session(s) passée(s)</summary>';
 
     const z = document.createElement('div');
+    z.className = 'ses-grille';
     z.style.marginTop = '10px';
     /* Les plus récentes d'abord : c'est là qu'on revient */
     passees.slice().reverse()
@@ -863,6 +901,27 @@ zone.innerHTML = '';
     d.appendChild(z);
     zone.appendChild(d);
   }
+}
+
+
+/* La semaine d'une session : « S42 12–16 oct », du lundi au vendredi.
+   Sans date, une clé vide — rangée à la fin. */
+function semaineDeLaSession(iso){
+  if(!iso) return { cle: '', titre: '<strong>Date à définir</strong>' };
+  const d = new Date(iso + 'T12:00:00');
+  if(isNaN(d)) return { cle: '', titre: '<strong>Date à définir</strong>' };
+  const lundi = new Date(d);
+  lundi.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const vendredi = new Date(lundi);
+  vendredi.setDate(lundi.getDate() + 4);
+  const p2 = n => String(n).padStart(2, '0');
+  const cle = lundi.getFullYear() + '-' + p2(lundi.getMonth() + 1) + '-' + p2(lundi.getDate());
+  const mois = x => x.toLocaleDateString('fr-FR', { month:'short' }).replace('.', '');
+  const dates = lundi.getMonth() === vendredi.getMonth()
+    ? lundi.getDate() + '–' + vendredi.getDate() + ' ' + mois(vendredi)
+    : lundi.getDate() + ' ' + mois(lundi) + ' – ' + vendredi.getDate() + ' ' + mois(vendredi);
+  const n = (typeof numeroSemaine === 'function') ? numeroSemaine(iso) : 0;
+  return { cle: cle, titre: (n ? '<strong>S' + n + '</strong> ' : '') + dates };
 }
 
 
@@ -914,14 +973,21 @@ function blocAIntervenir(aRemplacer, pretenoms, libres){
 }
 
 
-/* Une session : son en-tête et ses places */
+/* Une session : son en-tête et ses places.
+
+   🎨 EN CARTE — v1137 (schéma validé par David). Fermée, la carte
+   montre déjà qui passe, à quelle heure et où il en est : l'état
+   (✅ 🟠 🔴 🔄 👻 ⬜), le nom dans sa couleur, la boîte. Un appui
+   l'ouvre en pleine largeur, avec exactement les lignes d'avant —
+   📣, 🔄, la poignée, ➕ Une place, ✏️, 🗑️ : rien ne change dedans. */
 function blocSession(sess, auj){
   const passe = sess.date && sess.date < auj;
   const cejour = sess.date === auj;
+  const ech = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
-  const prets = sess.eleves.filter(x => {
-    return etatPlace(x, eleveDuBureau(x.eleve)).cle === 'ok';
-  }).length;
+  /* Les états une seule fois : le compte et la carte fermée les lisent */
+  const etats = sess.eleves.map(x => etatPlace(x, eleveDuBureau(x.eleve)));
+  const prets = etats.filter(e => e.cle === 'ok').length;
 
   /* Combien de chaque boîte : c'est ce qui décide du véhicule à
      sortir, et une session mixte se repère tout de suite. */
@@ -936,51 +1002,48 @@ function blocSession(sess, auj){
     .filter(Boolean).join(' · ');
 
   const bloc = document.createElement('div');
-  bloc.style.cssText = 'border:1px solid ' +
-    (cejour ? 'var(--orange)' : 'var(--line)') +
-    ';border-radius:12px;margin-bottom:10px;overflow:hidden;';
+  bloc.className = 'ses-carte' + (cejour ? ' ses-auj' : '');
 
   const tete = document.createElement('div');
-  tete.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 14px;' +
-    'cursor:pointer;background:' + (cejour ? 'rgba(182,255,14,.08)' : 'transparent') + ';';
+  tete.className = 'ses-tete';
+
+  /* « Mar. 13 oct. » : la semaine est déjà écrite au-dessus */
+  let jour = 'Date à définir';
+  if(sess.date){
+    const t = new Date(sess.date + 'T12:00:00')
+      .toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+    jour = t.charAt(0).toUpperCase() + t.slice(1);
+  }
 
   const g = document.createElement('div');
-  g.style.cssText = 'flex:1;min-width:0;';
+  g.className = 'ses-g';
   g.innerHTML =
-    '<div style="font-size:15px;font-weight:700;text-transform:capitalize;color:' +
+    '<div class="ses-jour" style="color:' +
       (cejour ? 'var(--accent-text)' : passe ? 'var(--muted)' : 'var(--cream)') + ';">' +
-      (sess.date ? libelleDate(sess.date) : 'Date à définir') +
-      (sess.heureDebut ? ' · ' + sess.heureDebut : '') +
-      (sess._rangJour ? ' <span style="font-size:11px;color:var(--orange);">' +
-        'session ' + sess._rangJour + '/' + sess._totalJour + '</span>' : '') +
-      (passe ? ' <span style="font-size:11px;">passée</span>' : '') +
+      '<span>' + jour + (sess.heureDebut ? ' <span class="ses-h">· ' + ech(sess.heureDebut) + '</span>' : '') + '</span>' +
+      (sess._rangJour ? ' <span class="ses-rang">session ' + sess._rangJour + '/' + sess._totalJour + '</span>' : '') +
+      (passe ? ' <span class="ses-rang" style="color:var(--muted);">passée</span>' : '') +
     '</div>' +
-    '<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">' +
-      (sess.centre ? '🏁 ' + sess.centre.replace(/</g, '&lt;') : '🏁 centre à définir') +
-      (sess.moniteur ? ' · 👤 ' + sess.moniteur.replace(/</g, '&lt;') : '') +
-      (detailBoite ? ' · 🚗 ' + detailBoite : '') +
-      (sess.groupeFait ? '<br><span style="color:var(--accent-text);">' +
-        '💬 Groupe Messenger fait</span>' : '') +
+    '<div class="ses-sous">' +
+      '<span>🏁 ' + (sess.centre ? ech(sess.centre) : 'centre à définir') + '</span>' +
+      (sess.moniteur ? ' <span>· 👤 ' + ech(sess.moniteur) + '</span>' : '') +
+      (detailBoite ? ' <span>· 🚗 ' + detailBoite + '</span>' : '') +
     '</div>';
   tete.appendChild(g);
 
   /* Le compte qui dit tout : combien de prêts sur combien de places */
   const n = document.createElement('div');
   const complet = (prets === sess.eleves.length && sess.eleves.length > 0);
-  n.style.cssText = 'flex-shrink:0;border-radius:9px;padding:6px 11px;' +
-    'font-size:14px;font-weight:800;background:' +
-    (complet ? 'var(--orange)' : 'var(--navy)') + ';color:' +
-    (complet ? '#0B0B0B' : 'var(--accent-text)') + ';';
+  n.className = 'ses-compte' + (complet ? ' ses-complet' : '');
   n.textContent = prets + '/' + sess.eleves.length;
   n.title = prets + ' prêt(s) sur ' + sess.eleves.length + ' place(s)';
   tete.appendChild(n);
 
-  /* Le groupe Messenger : grisé tant qu'il n'est pas créé, en
-     couleur une fois fait. Un appui bascule, sans ouvrir la
-     session. */
+  /* Le groupe : grisé tant qu'il n'est pas créé, en couleur une fois
+     fait. Un appui bascule, sans ouvrir la session. */
   const bMess = document.createElement('button');
   bMess.className = 'btn btn-secondary';
-  bMess.style.cssText = 'width:auto;padding:5px 9px;font-size:15px;margin:0;' +
+  bMess.style.cssText = 'width:auto;padding:5px 6px;font-size:15px;margin:0;' +
     'flex-shrink:0;border:none;background:none;' +
     'filter:' + (sess.groupeFait ? 'none' : 'grayscale(1)') + ';' +
     'opacity:' + (sess.groupeFait ? '1' : '.45') + ';';
@@ -1008,24 +1071,45 @@ function blocSession(sess, auj){
   tete.appendChild(bMess);
 
   const fl = document.createElement('div');
-  fl.style.cssText = 'flex-shrink:0;font-size:13px;color:var(--muted);transition:transform .2s;';
+  fl.style.cssText = 'flex-shrink:0;font-size:12px;color:var(--muted);transition:transform .2s;';
   fl.textContent = '▼';
   tete.appendChild(fl);
 
   bloc.appendChild(tete);
 
+  /* Fermée : la liste courte de ceux qui passent */
+  const apercu = document.createElement('div');
+  apercu.className = 'ses-places';
+  apercu.innerHTML = sess.eleves.map((x, i) => {
+    const e = etats[i];
+    const h = '<span class="ses-ph">' + ech(x.heure || '—') + '</span>';
+    if(!x.eleve){
+      return '<div class="ses-pl ses-vide">' + h + '<span class="ses-pe">⬜</span>' +
+        '<span class="ses-pn">Place libre</span></div>';
+    }
+    return '<div class="ses-pl" title="' + ech(e.texte) + '">' + h +
+      '<span class="ses-pe">' + e.emoji + '</span>' +
+      '<span class="ses-pn" style="color:' + e.couleur + ';">' + ech(x.eleve) + '</span>' +
+      etiquetteBoite(boiteDe(x.eleve)) + '</div>';
+  }).join('');
+  bloc.appendChild(apercu);
+
   const detail = document.createElement('div');
-  detail.style.cssText = 'display:none;border-top:1px solid var(--line);';
+  detail.className = 'ses-detail';
+  detail.style.display = 'none';
   bloc.appendChild(detail);
 
   const ouvrir = oui => {
     detail.style.display = oui ? 'block' : 'none';
+    apercu.style.display = oui ? 'none' : '';
+    bloc.classList.toggle('ses-ouverte', oui);
     fl.style.transform = oui ? 'rotate(180deg)' : 'none';
     sessionsOuvertes[sess.id] = oui;
     if(oui) remplirPlaces(detail, sess);
   };
 
   tete.addEventListener('click', () => ouvrir(detail.style.display === 'none'));
+  apercu.addEventListener('click', () => ouvrir(true));
   if(sessionsOuvertes[sess.id]) ouvrir(true);
 
   return bloc;
