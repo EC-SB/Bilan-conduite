@@ -101,7 +101,23 @@ function resultatExamenBlanc(nom, a){
   const niveau = String(s.ebNiveau || '').toLowerCase();
   const heures = String(s.heuresRestantes || '').trim();
 
-  if(note.ebSuite === 'pasleniveau' || niveau === 'non'){
+  /* ⚠️ LA FICHE DE SUIVI GAGNE — v1138. David, le 10 octobre, sur
+     Louis Dreano : la tuile disait « pas le niveau », la ligne de Sa
+     route « pourrait ». Il avait réglé « pourrait » dans Sa route le
+     9 ; le bilan du 10 recopiait encore « pas le niveau » du bilan
+     d'avant, et cette fonction donnait la priorité au premier des
+     deux qui disait « pas le niveau ». Choix de David : quand la
+     fiche porte une conclusion, c'est elle qui parle.
+
+     Seuls « non » et « peut » comptent comme conclusion de la fiche :
+     ils ne s'écrivent que lorsque quelqu'un a conclu sur un examen
+     blanc. « oui » s'est écrit tout seul pendant des mois à la fin
+     de n'importe quel cours (voir etatQuiFaitFoi) — il ne fait pas
+     taire un « pas le niveau » écrit dans un bilan. */
+  const ficheConclut = (niveau === 'non' || niveau === 'peut');
+  const suiteDuBilan = ficheConclut ? '' : note.ebSuite;
+
+  if(suiteDuBilan === 'pasleniveau' || niveau === 'non'){
     /* David, le 4 septembre : « quand un examen blanc n'a pas le
        niveau, il faut bien écrire PAS LE NIVEAU et ajouter en
        majuscules FAIRE LE POINT À CHAQUE LEÇON ».
@@ -133,7 +149,7 @@ function resultatExamenBlanc(nom, a){
 
      Pas d'heures ici, et c'est le sens même de la réponse : si le
      moniteur savait combien il en reste, il n'hésiterait pas. */
-  if(note.ebSuite === 'peut' || niveau === 'peut'){
+  if(suiteDuBilan === 'peut' || niveau === 'peut'){
     return { cle:'peut', emoji:'🤔',
              texte:'pourrait avoir le niveau — à confirmer au prochain cours',
              couleur:'var(--warn-text)' };
