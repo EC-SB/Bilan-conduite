@@ -662,6 +662,11 @@ async function afficherMessengerPermis(){
         (sv.toutOk === 'oui' ? ' ✅' : ' ⚠️');
       n.title = sv.toutOk === 'oui' ? 'Dossier prêt' : 'Il manque quelque chose';
       l.appendChild(n);
+      /* 👤 Son dossier — v1134. */
+      if(typeof boutonDossierEleve === 'function'){
+        const bd = boutonDossierEleve(e.nom);
+        if(bd) n.appendChild(bd);
+      }
 
       /* Monter dans l'ordre */
       if(i > 0){
