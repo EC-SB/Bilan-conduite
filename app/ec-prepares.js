@@ -1389,6 +1389,12 @@ async function afficherPrepares(recharger, silencieux){
 
        Le clic ouvre le fil et n'ouvre PAS le cours : d'où le
        stopPropagation. */
+    /* 👤 Son dossier, juste après le nom — v1134. Caché dans la
+       colonne de gauche (index.html) : là, toucher choisit le cours. */
+    if(typeof poserDossierApresLeNom === 'function'){
+      poserDossierApresLeNom(nom.querySelector('.qui'), cours.eleve);
+    }
+
     if(retard){
       const zoneRetard = nom.querySelector('[data-filretard]');
       if(zoneRetard) zoneRetard.addEventListener('click', ev => {
