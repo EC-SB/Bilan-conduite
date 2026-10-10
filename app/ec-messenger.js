@@ -241,11 +241,35 @@ const RAPPELS_AVANT_EXAMEN =
 /* Toutes les versions des rappels avant examen : une par centre,
    par parcours, ou ce que vous voudrez. S'il n'y en a aucune
    d'enregistrée, le texte d'origine sert de départ. */
+/* ⚠️ LE TEXTE D'ORIGINE N'EST PLUS ÉCRASÉ PAR LE PREMIER MODÈLE — v1136.
+
+   David, le 13 octobre : « il me manque rappels avant examen - Saint
+   Brieuc ». Ce texte n'existe que dans le code : il ne s'affichait que
+   s'il n'y avait AUCUN modèle « rappels avant examen ». Deux modèles
+   « Permis solo › … » portent cet usage dans « Modèles messages » : ils
+   l'ont fait disparaître, et se sont glissés dans les messages du
+   groupe à sa place.
+
+   Donc : les modèles « Permis solo » restent au permis solo (ils ont
+   leur propre zone, plus bas) ; et le texte d'origine, celui de
+   Saint-Brieuc, est toujours là — sauf si un modèle de Saint-Brieuc
+   existe déjà. */
 function versionsRappels(){
   const tous = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
-    .filter(m => m.usage === 'permis_rappels');
-  if(tous.length) return tous;
-  return [{ titre: "Rappels avant examen", contenu: RAPPELS_AVANT_EXAMEN }];
+    .filter(m => m.usage === 'permis_rappels' &&
+                 sansEspacesNiTirets(m.categorie) !== sansEspacesNiTirets('Permis solo'));
+  const deSaintBrieuc = tous.some(m =>
+    sansEspacesNiTirets(m.titre || m.nom).indexOf('saintbrieuc') !== -1);
+  return deSaintBrieuc ? tous
+    : [{ titre: 'Rappels avant examen — Saint-Brieuc', contenu: RAPPELS_AVANT_EXAMEN }]
+        .concat(tous);
+}
+
+/* « Saint-Brieuc », « saint brieuc », « St Brieuc » ne se comparent
+   qu'une fois débarrassés de ce qui les sépare. */
+function sansEspacesNiTirets(t){
+  return normaliserMot(String(t || '')).replace(/[^a-z0-9]+/g, '')
+    .replace(/stbrieuc/g, 'saintbrieuc');
 }
 
 /* Les dates d'examen à venir, d'après les fiches de suivi */
@@ -435,7 +459,13 @@ function signatureHorairesSession(sess){
     elevesDeLaSession(sess).map(n => normaliserMot(n)).join(',');
 }
 
-function prenomDe(nom){
+/* ⚠️ PAS « prenomDe » — v1136. Ce nom existe déjà dans ec-paie.js
+   (fiches salariés saisies NOM Prénom : il prend le dernier mot).
+   Les modules partagent une seule portée : ec-messenger, chargé
+   après, remplaçait celle de la paie, et le message à la direction
+   sortait les noms de famille. Les élèves, eux, s'écrivent
+   Prénom Nom : le prénom est le premier mot. */
+function prenomEleveDe(nom){
   return String(nom || '').trim().split(/\s+/)[0] || '';
 }
 
@@ -451,7 +481,7 @@ function titreGroupePermis(sess){
   const boites = [bea ? bea + ' BEA' : '', bv ? bv + ' BV' : ''].filter(Boolean).join(' ');
   const jour = (sess && sess.date)
     ? String(dateEnToutesLettres(sess.date) || sess.date).replace(/\s+\d{4}\s*$/, '') : '';
-  return ['Permis ' + jour, noms.map(prenomDe).filter(Boolean).join(', '),
+  return ['Permis ' + jour, noms.map(prenomEleveDe).filter(Boolean).join(', '),
           boites, String((sess && sess.moniteur) || '').trim()]
     .map(x => String(x).trim()).filter(x => x && x !== 'Permis').join(' - ');
 }
@@ -655,6 +685,34 @@ function blocLienVideoPermis(jourIso){
   return d;
 }
 
+/* ☑️ CE QUI EST COCHÉ AU DÉPART — v1136.
+
+   · le message du groupe : oui, c'est le planning de la journée ;
+   · un texte qui nomme un centre (« — Loudéac », « — Saint-Brieuc ») :
+     oui s'il nomme celui de la session, non sinon ;
+   · les autres rappels avant examen : oui ;
+   · les plannings des 2 h de veille : non — il y en a deux versions
+     (« ils planifient eux-mêmes », « nous planifions leurs 2h »), et
+     c'est à toi de choisir la bonne pour ce groupe.
+   Tout se décoche ou se coche à la main. */
+const CENTRES_CONNUS = ['Saint-Brieuc', 'Loudéac'];
+
+function cocheeParDefaut(titre, sess){
+  const t = String(titre || '');
+  /* Le message du groupe d'abord : son titre porte le centre de la
+     session (« Message — 13h15 · Saint-Brieuc · Hery »). */
+  if(/^Message\b/.test(t)) return true;
+  const net = sansEspacesNiTirets(t);
+  const ici = sansEspacesNiTirets((sess && sess.centre) || '');
+  const centres = CENTRES_CONNUS.concat(
+    ((typeof sessionsPermis !== 'undefined' ? sessionsPermis : []) || []).map(x => x.centre || ''))
+    .map(sansEspacesNiTirets).filter(Boolean);
+  const nommes = centres.filter(c => net.indexOf(c) !== -1);
+  if(nommes.length) return !!ici && nommes.indexOf(ici) !== -1;
+  if(/^🧠/.test(t)) return true;
+  return false;
+}
+
 /* ---------- 💬 L'encadré du groupe, en bas de chaque session ---------- */
 function dessinerGroupeMessagerie(z, g, jour, zMsg){
   z.innerHTML = '';
@@ -706,20 +764,69 @@ function dessinerGroupeMessagerie(z, g, jour, zMsg){
       'qu’ils sont écrits, et tu peux les retoucher avant.';
     return;
   }
+
+  /* ☑️ CE QUI PART, CASE PAR CASE — v1136. David : « il me faut des
+     cases à cocher pour voir ce qu'on envoie, car ça dépend de chaque
+     groupe ». Le choix vit sur la case du message elle-même : il ne
+     se perd pas quand l'encadré se redessine. Voir cocheeParDefaut. */
+  textes.forEach(x => {
+    if(x.zone.dataset.envoyer === undefined) {
+      x.zone.dataset.envoyer = cocheeParDefaut(x.titre, sess) ? '1' : '0';
+    }
+  });
+  if(g.envoyerVideo === undefined) g.envoyerVideo = true;
+
   const titre = titreGroupePermis(sess);
   const noms = elevesDeLaSession(sess);
   info.innerHTML = '« ' + ech(titre) + ' » — discussion<br>' +
     '👥 ' + ech(noms.join(', ')) +
     (sess.moniteur ? ' · 👤 ' + ech(sess.moniteur) : '') + ' · 🏢 la boîte du bureau<br>' +
-    'Partiront dans cet ordre, tels qu’ils sont écrits au-dessus :<br>' +
-    textes.map((x, i) => (i + 1) + '. ' + ech(x.titre)).join('<br>') +
-    (videoPermis ? '<br>' + (textes.length + 1) + '. 🎬 La vidéo du jour du permis'
-                 : '<br><em>Pas de vidéo déposée : le groupe partira sans.</em>');
-  const n = textes.length + (videoPermis ? 1 : 0);
+    'Coche ce qui part. Les messages partent dans cet ordre, tels qu’ils sont écrits au-dessus :';
+
+  const liste = document.createElement('div');
+  liste.style.cssText = 'display:grid;gap:2px;margin:0 0 10px;';
+  z.appendChild(liste);
   const b = document.createElement('button');
+  const ligneACocher = (texte, coche, change) => {
+    const l = document.createElement('label');
+    l.className = 'grpChoix';
+    l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:5px 2px;margin:0;' +
+      'font-size:13px;text-transform:none;font-weight:400;cursor:pointer;line-height:1.35;';
+    const c = document.createElement('input');
+    c.type = 'checkbox';
+    c.checked = !!coche;
+    c.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    c.addEventListener('change', () => { change(c.checked); majBouton(); });
+    const t = document.createElement('span');
+    t.textContent = texte;
+    l.appendChild(c);
+    l.appendChild(t);
+    liste.appendChild(l);
+  };
+  textes.forEach(x => ligneACocher(x.titre, x.zone.dataset.envoyer === '1',
+    v => { x.zone.dataset.envoyer = v ? '1' : '0'; }));
+  if(videoPermis){
+    ligneACocher('🎬 La vidéo du jour du permis', g.envoyerVideo,
+      v => { g.envoyerVideo = v; });
+  }else{
+    const sans = document.createElement('div');
+    sans.style.cssText = 'font-size:12.5px;color:var(--muted);font-style:italic;padding:3px 2px;';
+    sans.textContent = 'Pas de vidéo déposée : le groupe partira sans.';
+    liste.appendChild(sans);
+  }
+
+  const choisis = () => textes.filter(x => x.zone.dataset.envoyer === '1');
+  const nombre = () => choisis().length + ((videoPermis && g.envoyerVideo) ? 1 : 0);
+  const libelle = () => {
+    const n = nombre();
+    return n ? '💬 Créer le groupe et envoyer ' + (n === 1 ? 'le message' : 'les ' + n + ' messages')
+             : '💬 Créer le groupe, sans message';
+  };
+  function majBouton(){ b.textContent = libelle(); }
+
   b.className = 'btn btn-primary';
   b.style.cssText = 'padding:13px;font-size:14px;';
-  b.textContent = '💬 Créer le groupe et envoyer les ' + n + ' messages';
+  b.textContent = libelle();
   z.appendChild(b);
 
   b.addEventListener('click', async () => {
@@ -728,7 +835,8 @@ function dessinerGroupeMessagerie(z, g, jour, zMsg){
     const corps = {
       action: 'permisGroupeCreer', session: sess.id, titre: titre,
       eleves: noms, moniteur: String(sess.moniteur || '').trim(),
-      messages: textes.map(x => x.zone.value),
+      messages: choisis().map(x => x.zone.value),
+      video: !!(videoPermis && g.envoyerVideo),
       horaires: signatureHorairesSession(sess),
       reglages: { conduite: g.conduite, pauseDuree: g.pauseDuree,
                   avantPause: g.avantPause, note: g.note || '' }
@@ -738,7 +846,7 @@ function dessinerGroupeMessagerie(z, g, jour, zMsg){
     catch(e){
       showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
       b.disabled = false;
-      b.textContent = '💬 Créer le groupe et envoyer les ' + n + ' messages';
+      b.textContent = libelle();
       return;
     }
     liensGroupesPermis[sess.id] = { session: sess.id, conv: r.conv, titre: titre,
