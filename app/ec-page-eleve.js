@@ -232,6 +232,64 @@ function ouvrirPageEleve(nom){
   }
 }
 
+/* ============================================================
+   👤 LE PETIT BONHOMME À CÔTÉ DU NOM — v1134
+
+   David, le 12 octobre : « mets-moi juste un petit logo comme ça à
+   côté, c'est le même que Drivup, on sait ce qu'il veut dire ». Une
+   silhouette noire, sans cadre, juste après le nom : un appui ouvre
+   son dossier, par la seule porte d'entrée (ouvrirPageEleve).
+
+   ⚠️ UN BOUTON À CÔTÉ, PAS LE NOM LUI-MÊME. Le nom fait déjà autre
+   chose par endroits — une poignée qu'on glisse, une ligne qui
+   ouvre une place ou choisit un cours. Le bouton arrête le clic
+   (stopPropagation) pour ne déclencher que lui.
+
+   ⚠️ SEULEMENT POUR QUI VOIT LE DOSSIER ÉLÈVE. Sans le droit, il
+   mènerait à un écran fermé : on ne le dessine pas.
+
+   Fabriqué ICI, une fois : chaque écran ne fait que le poser.
+   ============================================================ */
+const SILHOUETTE_DOSSIER =
+  '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" ' +
+  'style="display:block;"><circle cx="12" cy="7.2" r="4.6" fill="currentColor"/>' +
+  '<path d="M2.8 21.5c0-4.9 4.1-8.3 9.2-8.3s9.2 3.4 9.2 8.3z" fill="currentColor"/></svg>';
+
+function boutonDossierEleve(nom){
+  const propre = String(nom || '').trim();
+  if(!propre || typeof ouvrirPageEleve !== 'function') return null;
+  if(typeof aDroit === 'function' && !aDroit('eleves')) return null;
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btnDossierEleve';
+  b.innerHTML = SILHOUETTE_DOSSIER;
+  b.title = 'Ouvrir le dossier de ' + propre;
+  b.setAttribute('aria-label', 'Ouvrir le dossier de ' + propre);
+  b.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;' +
+    'width:auto;min-width:0;height:auto;margin:0 0 0 7px;padding:3px;border:none;' +
+    'background:none;box-shadow:none;color:var(--cream);opacity:.8;cursor:pointer;' +
+    'vertical-align:-2px;line-height:1;flex-shrink:0;';
+  /* Ni glisser, ni ouvrir la ligne : seulement le dossier. */
+  b.addEventListener('pointerdown', ev => ev.stopPropagation());
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    ouvrirPageEleve(propre);
+  });
+  return b;
+}
+
+/* Le pose juste après le premier enfant d'un élément — le nom. */
+function poserDossierApresLeNom(conteneur, nom, apres){
+  const b = boutonDossierEleve(nom);
+  if(!b || !conteneur) return null;
+  const ref = apres || conteneur.firstChild;
+  if(ref && ref.parentNode === conteneur) conteneur.insertBefore(b, ref.nextSibling);
+  else conteneur.appendChild(b);
+  return b;
+}
+
 /* Les onglets que CE compte peut voir. Un onglet marqué « admin »
    ne se donne pas par une section : il tient au rôle, comme le
    🗑️ du répertoire l'a toujours fait. */
