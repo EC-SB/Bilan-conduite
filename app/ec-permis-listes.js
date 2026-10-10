@@ -403,6 +403,8 @@ function tableauAPlacer(liste){
     nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve +
       (sansMoniteur ? ' · moniteur à définir' : '');
     l.appendChild(nom);
+    /* 👤 Son dossier — v1134. */
+    if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(nom, e.eleve);
 
     /* La mention post-permis reste : elle dit qu'il n'est pas encore
        plaçable, et c'est justement au moment de placer qu'on la lit. */
