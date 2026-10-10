@@ -51,6 +51,23 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1133,
+    date: 'Samedi 10 octobre 2026',
+    resume: 'Message groupe Messenger : les groupes sont les sessions de Suivi permis',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Une session = un groupe',
+        texte: '« 📣 Message groupe Messenger » reprenait un ancien découpage qui ne ' +
+               'bougeait plus. Il prend maintenant les sessions de 🎓 Suivi permis : ' +
+               'un groupe par session, nommé « 13h15 · Saint-Brieuc · Hery », avec ' +
+               'son ordre de passage et son heure en premier examen.' },
+      { emoji: '⚠️',
+        titre: '« Sans session »',
+        texte: 'Un élève qui a la date mais n’est dans aucune session apparaît dans ' +
+               'un groupe à part, pour qu’on le place dans Suivi permis.' }
+    ]
+  },
+  {
     version: 1132,
     date: 'Samedi 10 octobre 2026',
     resume: 'Mes prochains cours : la ligne de l’examen dit les heures qui restent vraiment',
