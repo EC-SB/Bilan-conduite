@@ -3847,18 +3847,57 @@ const ETATS_RDV_AAC = [
 
 async function marquerAilleurs(x){ return corrigerRendezVous(x); }
 
-async function corrigerRendezVous(x){
+/* Passée ou du jour : fait. À venir : prévu. */
+function etatDuRdvParSaDate(iso){
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  return (String(iso || '') > auj) ? 'prevu' : 'fait';
+}
+
+/* ============================================================
+   ⚠️ UN SEUL RENDEZ-VOUS, DEPUIS LE DOSSIER — v1130
+
+   David, le 9 octobre : « dans le dossier élève, Sa route, pour les
+   AAC il faut que je puisse indiquer les dates de rendez-vous
+   directement — là ça renvoie dans le vide ». Les lignes 🤝 de « Sa
+   route » appelaient afficherVue('eleves','aaccs') : on quittait le
+   dossier pour une liste où il fallait retrouver l'élève.
+
+   Même faute que la ligne 🌙 réparée en v1124, même réparation : pas
+   une seconde fenêtre, CELLE-CI, réduite au rendez-vous touché
+   (opts.seul). Même enregistrement, mêmes champs, même garde sur le
+   préalable.
+
+   ⚠️ ET LA DATE SUFFIT. Taper une date sur un rendez-vous « pas
+   encore fait » l'effaçait à l'enregistrement — l'état vide efface
+   la date, c'est sa règle. On pose donc l'état avec la date : passée
+   ou du jour, « fait » ; à venir, « prévu ». On peut toujours le
+   changer à la main, et on ne touche jamais un état déjà choisi.
+
+   Et le lieu, pour les trois qui en ont un : c'était le seul endroit
+   où l'on pouvait le poser — le bouton « ✅ … fait », qui disparaît
+   une fois la date notée. Facultatif, comme là-bas.
+   ============================================================ */
+async function corrigerRendezVous(x, opts){
+  opts = opts || {};
   const nom = x.eleve;
   const s = x.suivi || {};
 
   /* Le préalable pour tout le monde ; les trois autres seulement là
      où ils existent. Montrer « RVP 1 » à une conduite supervisée,
      c'est inviter à le remplir. */
-  const lignes = [{ cle:'rvp', titre:'① Rendez-vous préalable' }];
+  let lignes = [{ cle:'rvp', titre:'① Rendez-vous préalable' }];
   if(x.parcours && x.parcours.rdvAttendus){
-    lignes.push({ cle:'rvp1', titre:'② RVP 1' },
-                { cle:'rvp2', titre:'③ RVP 2' },
-                { cle:'rvt',  titre:'🗣️ Rendez-vous théorique' });
+    lignes.push({ cle:'rvp1', titre:'② RVP 1', lieu:true },
+                { cle:'rvp2', titre:'③ RVP 2', lieu:true },
+                { cle:'rvt',  titre:'🗣️ Rendez-vous théorique', lieu:true });
+  }
+  if(opts.seul){
+    lignes = lignes.filter(l => l.cle === opts.seul);
+    if(!lignes.length) return;
+  }
+  if(lignes.some(l => l.lieu) && typeof assurerLieuxRdv === 'function'){
+    try{ await assurerLieuxRdv(); }catch(e){ /* sans la liste, le menu est vide */ }
   }
 
   const fond = document.createElement('div');
@@ -3872,12 +3911,18 @@ async function corrigerRendezVous(x){
     .replace(/"/g, '&quot;');
 
   boite.insertAdjacentHTML('beforeend',
-    '<h3>✏️ Corriger ses rendez-vous</h3>' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
-      'line-height:1.5;">' + ech(nom) + '. Une date tapée à côté, un ' +
-      'rendez-vous noté sur le mauvais élève&nbsp;: tout se reprend ici. ' +
-      '<strong>« Pas encore fait » efface la date</strong> et le remet dans ' +
-      'la liste de ce qui est attendu.</div>' +
+    (opts.seul
+      ? '<h3>📅 ' + ech(lignes[0].titre.replace(/^\S+\s/, '')) + '</h3>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
+          'line-height:1.5;">' + ech(nom) + '. Une date passée le note ' +
+          '<strong>fait</strong>, une date à venir <strong>prévu</strong>. ' +
+          '« Pas encore fait » efface la date.</div>'
+      : '<h3>✏️ Corriger ses rendez-vous</h3>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
+          'line-height:1.5;">' + ech(nom) + '. Une date tapée à côté, un ' +
+          'rendez-vous noté sur le mauvais élève&nbsp;: tout se reprend ici. ' +
+          '<strong>« Pas encore fait » efface la date</strong> et le remet dans ' +
+          'la liste de ce qui est attendu.</div>') +
     lignes.map(l =>
       '<div style="border:1px solid var(--line);border-radius:11px;' +
         'padding:11px 12px;margin-bottom:10px;">' +
@@ -3892,6 +3937,9 @@ async function corrigerRendezVous(x){
           '<input type="date" id="cr_' + l.cle + '_date" ' +
             'style="flex:1;min-width:150px;margin:0;">' +
         '</div>' +
+        (l.lieu ? '<div id="cr_' + l.cle + '_ou" style="display:flex;' +
+          'gap:7px;align-items:center;margin-top:7px;font-size:12px;' +
+          'color:var(--muted);">📍 Lieu (facultatif)</div>' : '') +
       '</div>').join('') +
     '<div id="crEtat" style="font-size:13px;line-height:1.5;' +
       'margin-bottom:10px;"></div>' +
@@ -3905,9 +3953,27 @@ async function corrigerRendezVous(x){
   const g = id => boite.querySelector('#' + id);
 
   lignes.forEach(l => {
-    g('cr_' + l.cle + '_etat').value = String(s[l.cle + 'Etat'] || '');
-    g('cr_' + l.cle + '_date').value = String(s[l.cle + 'Date'] || '');
+    const selE = g('cr_' + l.cle + '_etat');
+    const inD = g('cr_' + l.cle + '_date');
+    selE.value = String(s[l.cle + 'Etat'] || '');
+    inD.value = String(s[l.cle + 'Date'] || '');
+    /* La date pose l'état quand il n'y en a pas — voir plus haut. */
+    inD.addEventListener('change', () => {
+      if(selE.value || !inD.value) return;
+      selE.value = (typeof etatDuRdvParSaDate === 'function')
+        ? etatDuRdvParSaDate(inD.value) : 'fait';
+    });
+    if(l.lieu && typeof menuLieuRdv === 'function'){
+      const m = menuLieuRdv(String(s[l.cle + 'Lieu'] || ''));
+      m.id = 'cr_' + l.cle + '_lieu';
+      m.style.flex = '1';
+      g('cr_' + l.cle + '_ou').appendChild(m);
+    }
   });
+  if(opts.seul){
+    const inD = g('cr_' + opts.seul + '_date');
+    try{ inD.focus(); }catch(e){}
+  }
 
   const fermer = () => { try{ fermerFond(fond); }catch(e){} };
   g('crAnnuler').addEventListener('click', fermer);
@@ -3922,6 +3988,13 @@ async function corrigerRendezVous(x){
          date derrière, c'est la date qui finirait par ressortir. */
       maj[l.cle + 'Etat'] = etat;
       maj[l.cle + 'Date'] = etat ? date : '';
+      /* Le lieu ne s'écrit que s'il change : rouvrir la fenêtre pour
+         une date ne doit pas resigner un lieu qu'on n'a pas touché. */
+      const m = g('cr_' + l.cle + '_lieu');
+      if(m){
+        const ou = etat ? m.value : '';
+        if(ou !== String(s[l.cle + 'Lieu'] || '')) maj[l.cle + 'Lieu'] = ou;
+      }
     });
 
     /* ⚠️ EFFACER LE PRÉALABLE, C'EST TOUT EFFACER.
@@ -3929,7 +4002,9 @@ async function corrigerRendezVous(x){
        Le compteur, les échéances des deux RVP, la date d'examen
        possible : tout se compte à partir de lui. On le dit avant,
        pas après. */
-    if(!maj.rvpEtat && s.rvpEtat){
+    /* (Seulement quand le préalable est DANS la fenêtre : réduite à
+       un autre rendez-vous, elle ne l'a pas touché.) */
+    if(('rvpEtat' in maj) && !maj.rvpEtat && s.rvpEtat){
       if(!await confirmer(
           'Sans rendez-vous préalable, plus rien ne se compte pour ' +
           nom + '\u00A0: ni depuis combien de temps il est parti, ni ' +
