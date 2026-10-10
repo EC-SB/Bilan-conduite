@@ -51,8 +51,26 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1136,
+    date: 'Samedi 10 octobre 2026',
+    resume: 'Le groupe du permis : tu coches ce qui part',
+    quoi: [
+      { emoji: '☑️',
+        titre: 'Une case par message',
+        texte: 'Dans l’encadré « 💬 Le groupe dans la messagerie », chaque message composé ' +
+               'et la vidéo ont leur case. Au départ : le message du groupe, les rappels ' +
+               'du centre de la session et la vidéo sont cochés ; les plannings des 2 h de ' +
+               'veille ne le sont pas, à toi de cocher la bonne version. Le bouton dit ' +
+               'combien de messages partent.' },
+      { emoji: '🧠',
+        titre: 'Les rappels avant examen — Saint-Brieuc sont revenus',
+        texte: 'Ils sont toujours proposés, à côté de ceux de Loudéac. Les messages ' +
+               '« Permis solo » n’entrent plus dans les messages du groupe.' }
+    ]
+  },
+  {
     version: 1135,
-    date: 'Lundi 12 octobre 2026',
+    date: 'Samedi 10 octobre 2026',
     resume: 'Le groupe du jour du permis se crée dans la messagerie, depuis Préparation',
     quoi: [
       { emoji: '💬',
@@ -76,7 +94,7 @@ const NOUVEAUTES = [
   },
   {
     version: 1134,
-    date: 'Lundi 12 octobre 2026',
+    date: 'Samedi 10 octobre 2026',
     resume: 'Un petit bonhomme à côté du nom ouvre le dossier de l’élève',
     quoi: [
       { emoji: '👤',
