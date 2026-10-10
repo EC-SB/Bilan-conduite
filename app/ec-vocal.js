@@ -735,31 +735,48 @@ $('confirmGen').addEventListener('click', async () => {
     let marquesAvant = null;
     let coursCorrige = finalTranscript;
 
-    if(modele.schema === 'conduiteResume'){
+    /* ⚠️ v1131 — LES DEUX BOÎTES, ET L'AAC. Ce test ne connaissait que
+       « conduiteResume », le schéma de la boîte MANUELLE. Depuis que la
+       boîte automatique a le sien (« conduiteResumeAuto », pour que ses
+       consignes puissent différer), un cours dicté en BEA ne relisait
+       plus ses bilans d'avant — sa fiche repartait de zéro à chaque
+       bilan — et sa transcription n'était plus remise au propre.
+       L'AAC, elle, n'avait jamais relu les siens. */
+    const avecTranscription = (modele.schema === 'conduiteResume' ||
+                               modele.schema === 'conduiteResumeAuto');
+    const avecFiche = avecTranscription || !!(modele.opts && modele.opts.fiche);
+
+    if(avecFiche){
       /* Les bilans précédents se lisent pendant la correction,
          pas avant : les deux n'ont rien à s'attendre. */
       const promesseHistorique = bilansAnterieurs(studentName);
+      const promesseEmojis = (typeof chargerEmojisEquipe === 'function')
+        ? chargerEmojisEquipe() : Promise.resolve();
 
-      /* Remise au propre du cours, par tranches */
-      coursCorrige = await corrigerCours(finalTranscript, (n, total, essai) => {
-        let msg = total > 1
-          ? 'Correction du cours — ' + n + ' partie(s) sur ' + total + '…'
-          : 'Correction du cours…';
-        if(essai && essai > 1) msg += ' (nouvelle tentative)';
-        $('progressionGen').textContent = msg;
-      });
+      if(avecTranscription){
+        /* Remise au propre du cours, par tranches */
+        coursCorrige = await corrigerCours(finalTranscript, (n, total, essai) => {
+          let msg = total > 1
+            ? 'Correction du cours — ' + n + ' partie(s) sur ' + total + '…'
+            : 'Correction du cours…';
+          if(essai && essai > 1) msg += ' (nouvelle tentative)';
+          $('progressionGen').textContent = msg;
+        });
+      }
       $('progressionGen').textContent = 'Rédaction du résumé…';
 
       const historique = await promesseHistorique;
+      await promesseEmojis;
+      marquesAvant = marquesDeLHistorique(historique);
       historique.forEach(item => {
         manoeuvresDejaFaites(item.bilan).forEach(m => {
           if(manoeuvresAvant.indexOf(m) === -1) manoeuvresAvant.push(m);
         });
       });
-      marquesAvant = {};
-      historique.slice().reverse().forEach(item => {
-        const mk = marquesDejaPosees(item.bilan);
-        Object.keys(mk).forEach(k => { marquesAvant[k] = mk[k]; });
+      BLOC.ficheListeConduite.forEach(m => {
+        if(marquesAvant[normaliserMot(m)] && manoeuvresAvant.indexOf(m) === -1){
+          manoeuvresAvant.push(m);
+        }
       });
     }
 
