@@ -148,10 +148,17 @@ async function chargerDossierEleve(nomEleve){
 
     /* Les marques de la fiche véhicule, cumulées du plus ancien
        au plus récent : elles servent à pré-cocher le questionnaire. */
-    const marques = {};
-    res.slice().reverse().forEach(item => {
-      const m = marquesDejaPosees(item.bilan);
-      Object.keys(m).forEach(k => { marques[k] = m[k]; });
+    /* ⚠️ v1131 — PAR LA PORTE COMMUNE, ET FUSIONNÉES. La plus récente
+       remplaçait les autres ; et les anciens bilans AAC, qui
+       commentaient sans signer, ne comptaient pas. Voir
+       marquesDeLHistorique. */
+    if(typeof chargerEmojisEquipe === 'function'){
+      try{ await chargerEmojisEquipe(); }catch(e){}
+    }
+    const marques = (typeof marquesDeLHistorique === 'function')
+      ? marquesDeLHistorique(res) : {};
+    BLOC.ficheListeConduite.forEach(m => {
+      if(marques[normaliserMot(m)] && manoeuvres.indexOf(m) === -1) manoeuvres.push(m);
     });
 
     /* Les cours plus anciens que ceux relus comptent aussi : ce sont
