@@ -51,6 +51,25 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1130,
+    date: 'Vendredi 9 octobre 2026',
+    resume: 'Dossier élève : rendez-vous AAC et « Où il en est » se corrigent sur place',
+    quoi: [
+      { emoji: '🤝',
+        titre: 'Les rendez-vous AAC se posent depuis « Sa route »',
+        texte: 'Toucher une ligne de rendez-vous ouvre une petite fenêtre pour ce ' +
+               'rendez-vous-là : la date, et le lieu pour les RVP et le théorique. ' +
+               'Une date passée le note « fait », une date à venir « prévu ». ' +
+               'Avant, la ligne emmenait vers la liste AAC.' },
+      { emoji: '🔢',
+        titre: '« Où il en est » se corrige même sans cours préparé',
+        texte: 'La correction s’écrit dans son dernier bilan (seul le chiffre ' +
+               'change), ou sur son dernier cours s’il attend encore son bilan. ' +
+               'Toutes les listes suivent. Si un bilan plus ancien annonce déjà ' +
+               'plus de leçons, l’outil le dit avec sa date au lieu d’écrire pour rien.' }
+    ]
+  },
+  {
     version: 1129,
     date: 'Vendredi 9 octobre 2026',
     resume: 'Les heures avant l’examen partent de la leçon que tu choisis',
