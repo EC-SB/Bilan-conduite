@@ -51,6 +51,20 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1134,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'Un petit bonhomme à côté du nom ouvre le dossier de l’élève',
+    quoi: [
+      { emoji: '👤',
+        titre: 'Le dossier en un appui',
+        texte: 'Juste après le nom d’un élève, une petite silhouette — la même que ' +
+               'sur Drivup — ouvre son dossier. Dans Mes prochains cours (la carte de ' +
+               'droite), toutes les listes du bureau, la liste RDV permis, les places ' +
+               'de Suivi permis, le message de groupe Messenger, l’AAC et la conduite ' +
+               'supervisée. Elle n’apparaît que pour ceux qui ont accès au dossier élève.' }
+    ]
+  },
+  {
     version: 1133,
     date: 'Samedi 10 octobre 2026',
     resume: 'Message groupe Messenger : les groupes sont les sessions de Suivi permis',
