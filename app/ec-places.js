@@ -12,7 +12,7 @@
    mois précédent pour la 1ʳᵉ quinzaine, 2ᵉ mardi pour la 2ᵉ. Elle
    suffit onze mois sur douze.
 
-   Chrystel, le 3 septembre : « il y a eu un bug à la préfecture, on
+   David, le 3 septembre : « il y a eu un bug à la préfecture, on
    pourra prendre les places de la première quinzaine d'octobre
    mardi prochain et celles de la deuxième quinzaine mardi
    15 septembre. » La règle ne sait pas dire ça — elle connaît le
@@ -42,7 +42,7 @@ function moisVide(iso){
 /* ------------------------------------------------------------
    LES DEUX CATÉGORIES, DÉCRITES UNE SEULE FOIS
 
-   Chrystel, le 4 septembre : « on duplique pour le A sur le même
+   David, le 4 septembre : « on duplique pour le A sur le même
    principe », et « les ETP A sont différents des ETP B ».
 
    « Le même principe » ne veut pas dire « le même fichier recopié ».
@@ -79,7 +79,7 @@ function categoriesPlaces(){
 /* ------------------------------------------------------------
    LE CALCUL DE LA PRÉFECTURE — « s1 », « s2 », « etp »
 
-   Chrystel, le 4 septembre. Le mail de la préfecture donne des
+   David, le 4 septembre. Le mail de la préfecture donne des
    SEUILS CUMULÉS, en deux temps :
 
      « Pour la catégorie B, le seuil est désormais fixé à 5 avec
@@ -117,7 +117,7 @@ function texteFr(n){
   return String(Math.round(n * 1e6) / 1e6).replace('.', ',');
 }
 
-/* L'arrondi retenu par Chrystel : au plus proche, la moitié vers
+/* L'arrondi retenu par David : au plus proche, la moitié vers
    le haut. « 8,51 = 9, 8,49 = 8 » — et donc 8,5 = 9.
 
    ⚠️ Le passage par 1e6 n'est pas de la coquetterie : en virgule
@@ -184,7 +184,7 @@ function placesAdeLaQuinzaine(isoMois, quinzaine){
 
 /* Les jours moto d'une semaine : HC (plateau) et CIR (circulation).
 
-   ⚠️ PAS DE DISTINCTION DE CENTRE, et c'est un choix de Chrystel
+   ⚠️ PAS DE DISTINCTION DE CENTRE, et c'est un choix de David
    confirmé le 4 septembre — contrairement aux jours voiture, qui
    se comptent séparément à Saint-Brieuc et à Loudéac. */
 function joursMotoDeLaSemaine(w){
@@ -350,6 +350,22 @@ function libelleSemaine(w){
   return 'du ' + fmt(w.du, false) + ' au ' + fmt(w.au, true) + num;
 }
 
+/* « S42 12–16 oct » : le titre court d'une case semaine — v1137.
+   La phrase longue (« du lundi 12 au vendredi 16 octobre ») reste
+   en infobulle. */
+function titreSemainePlaces(w){
+  const ech = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  if(!w.du && !w.au) return '<strong>Semaine à définir</strong>';
+  const d1 = new Date((w.du || w.au) + 'T12:00:00');
+  const d2 = new Date((w.au || w.du) + 'T12:00:00');
+  const mois = d => d.toLocaleDateString('fr-FR', { month:'short' }).replace('.', '');
+  const n = numeroSemaine(w.du || w.au);
+  const dates = d1.getMonth() === d2.getMonth()
+    ? d1.getDate() + '–' + d2.getDate() + ' ' + mois(d2)
+    : d1.getDate() + ' ' + mois(d1) + ' – ' + d2.getDate() + ' ' + mois(d2);
+  return (n ? '<strong>S' + n + '</strong> ' : '') + '<span class="plc-doux">' + ech(dates) + '</span>';
+}
+
 /* Semaines de travail (lundi→vendredi) d'un mois donné */
 function semainesDuMois(isoMois){
   if(!isoMois) return [];
@@ -400,49 +416,78 @@ function afficherPlaces(stats){
     zone.appendChild(v);
   }
 
+  /* 🎨 LES MOIS EN CARTES CÔTE À CÔTE — v1137.
+
+     David, le 10 octobre : refonte graphique, proposition « B »
+     retenue sur schéma, fond « blanc + ombre ». Les mêmes chiffres
+     qu'avant, rangés autrement :
+     · ce qu'il reste à prévoir en grand, la jauge prévus/places
+       dessous, le reste en étiquettes ;
+     · une petite case par semaine, son nombre d'examens à droite ;
+     · les nombres à la française partout — la semaine écrivait
+       « 3.25 » pendant que le total écrivait « 12,75 ».
+     Sur ordinateur, les mois se rangent côte à côte ; sur
+     téléphone, l'un sous l'autre. */
+  const grille = document.createElement('div');
+  grille.className = 'plc-grille';
+  const ech = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const pl = (n, mot, mots) => n + ' ' + (n > 1 ? (mots || mot + 's') : mot);
+
   placesConfig.mois.forEach(m => {
     const st = stats.parMois[m.mois] ||
                { prevus:0, remplacements:0, fantomes:0, aDonner:0, centres:{} };
-    const restant = nb(m.total) - st.prevus;
+    const total = nb(m.total);
+    const restant = total - st.prevus;
 
     const r = document.createElement('div');
-    r.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-      'padding:12px;margin-bottom:10px;font-size:14px;line-height:1.7;';
+    r.className = 'plc-carte';
+
+    /* Le chiffre qui compte : ce qu'il reste à placer — ou ce qu'il
+       y a en trop. Sans nombre de places réglé, on n'invente pas de
+       reste : on dit combien sont prévus. */
+    let hero;
+    if(m.total){
+      hero = '<div class="plc-hero"><div class="plc-hero-n' + (restant < 0 ? ' plc-trop' : '') + '">' +
+          Math.abs(restant) + '</div>' +
+        '<div class="plc-hero-l">' +
+          (restant < 0 ? 'en trop' : (restant > 1 ? 'élèves à prévoir' : 'élève à prévoir')) +
+          '<br><span class="plc-doux">' + pl(st.prevus, 'prévu') + ' sur ' + ech(m.total) + ' places</span></div></div>' +
+        '<div class="plc-jauge" title="' + st.prevus + ' sur ' + ech(m.total) + '"><span style="width:' +
+          Math.min(100, total ? st.prevus / total * 100 : 0) + '%' +
+          (restant < 0 ? ';background:var(--red)' : '') + '"></span></div>';
+    }else{
+      hero = '<div class="plc-hero"><div class="plc-hero-n">' + st.prevus + '</div>' +
+        '<div class="plc-hero-l">' + (st.prevus > 1 ? 'candidats prévus' : 'candidat prévu') +
+          '<br><span class="plc-doux">nombre de places à régler</span></div></div>';
+    }
+
+    const puces = [];
+    if(m.q1 || m.q2){
+      puces.push('🚗 ' + ech(m.q1 || '?') + ' · ' + ech(m.q2 || '?') + ' par quinzaine');
+    }
+    /* Les places A s'AFFICHENT, elles ne se comparent pas à un
+       comptage : « je fais à la main, je n'en ai pas beaucoup »
+       (David, 4 septembre). Annoncer « X candidats prévus sur
+       Y » sans savoir qui est placé sur quelle date moto, ce
+       serait afficher un chiffre faux avec l'aplomb d'un vrai. */
+    if(m.aQ1 || m.aQ2 || m.aTotal){
+      puces.push('🏍️ ' + (m.aTotal ? ech(m.aTotal) + ' places ' : '') +
+        '(' + ech(m.aQ1 || '?') + ' · ' + ech(m.aQ2 || '?') + ')');
+    }
+    puces.push('🔄 ' + st.remplacements + ' remplac.');
+    puces.push('👻 ' + pl(st.fantomes, 'fantôme'));
+    if(st.aDonner) puces.push('🏫 ' + st.aDonner + ' à donner à une autre AE');
+    /* La répartition par centre d'examen, le plus gros d'abord */
+    const centres = Object.keys(st.centres || {})
+      .sort((x, y) => (st.centres[y] - st.centres[x]) || x.localeCompare(y));
+    if(centres.length){
+      puces.push('🏁 ' + centres.map(x => ech(x) + ' <strong>' + st.centres[x] + '</strong>').join(' · '));
+    }
+
     r.innerHTML =
-      '<div style="font-size:15px;font-weight:700;margin-bottom:6px;text-transform:capitalize;">' +
-        '📊 ' + libMois(m.mois) + '</div>' +
-      '<div><strong>' + st.prevus + '</strong> candidat(s) prévu(s) sur <strong>' +
-        (m.total || '?') + '</strong> place(s)' +
-        (m.total ? ' — <span style="color:' + (restant < 0 ? 'var(--red)' : 'var(--accent-text)') +
-          ';font-weight:700;">' +
-          (restant >= 0 ? restant + ' élève(s) à prévoir' : Math.abs(restant) + ' en trop') +
-          '</span>' : '') + '</div>' +
-      ((m.q1 || m.q2)
-        ? '<div style="color:var(--muted);font-size:13px;">🚗 1ʳᵉ quinzaine : ' + (m.q1 || '?') +
-          ' · 2ᵉ quinzaine : ' + (m.q2 || '?') + '</div>'
-        : '') +
-      /* Les places A s'AFFICHENT, elles ne se comparent pas à un
-         comptage : « je fais à la main, je n'en ai pas beaucoup »
-         (Chrystel, 4 septembre). Annoncer « X candidats prévus sur
-         Y » sans savoir qui est placé sur quelle date moto, ce
-         serait afficher un chiffre faux avec l'aplomb d'un vrai. */
-      ((m.aQ1 || m.aQ2 || m.aTotal)
-        ? '<div style="color:var(--muted);font-size:13px;">🏍️ ' +
-          (m.aTotal ? '<strong>' + m.aTotal + '</strong> place(s) · ' : '') +
-          '1ʳᵉ quinzaine : ' + (m.aQ1 || '?') +
-          ' · 2ᵉ quinzaine : ' + (m.aQ2 || '?') + '</div>'
-        : '') +
-      '<div>🔄 <strong>' + st.remplacements + '</strong> remplacement(s) · ' +
-        '👻 <strong>' + st.fantomes + '</strong> place(s) fantôme(s)' +
-        (st.aDonner ? ' · 🏫 <strong>' + st.aDonner + '</strong> à donner à une autre AE' : '') +
-      '</div>' +
-      /* La répartition par centre d'examen */
-      (Object.keys(st.centres || {}).length
-        ? '<div style="color:var(--muted);font-size:13px;">🏁 ' +
-          Object.keys(st.centres).sort().map(function(x){
-            return x + ' : <strong style="color:var(--cream);">' + st.centres[x] + '</strong>';
-          }).join(' · ') + '</div>'
-        : '');
+      '<div class="plc-mois">📊 ' + libMois(m.mois) + '</div>' +
+      hero +
+      '<div class="plc-puces">' + puces.map(x => '<span class="plc-puce">' + x + '</span>').join('') + '</div>';
 
     if((m.semaines || []).length){
       let tsb = 0, tlo = 0, thc = 0, tcir = 0;
@@ -452,32 +497,29 @@ function afficherPlaces(stats){
         thc += jm.hc; tcir += jm.cir;
       });
       const s = document.createElement('div');
-      s.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--line);' +
-        'font-size:13px;line-height:1.8;';
-      s.innerHTML = '<div style="font-weight:700;margin-bottom:2px;">Jours ouverts à la prise de date</div>' +
+      s.innerHTML = '<div class="plc-st">Jours ouverts à la prise de date</div>' +
         m.semaines.map(w => {
           const n = (stats.parSemaine && stats.parSemaine[w.du + '>' + w.au]) || 0;
           const jm = joursMotoDeLaSemaine(w);
-          return '• ' + libelleSemaine(w) + '<br>' +
-            '&nbsp;&nbsp;🚗 <strong>' + (w.sb || 0) +
-            '</strong> j Saint-Brieuc · <strong>' + (w.lo || 0) + '</strong> j Loudéac' +
-            ' · <span style="color:' + (n ? 'var(--accent-text)' : 'var(--muted)') + ';">' +
-            n + ' examen' + (n > 1 ? 's' : '') + ' prévu' + (n > 1 ? 's' : '') + '</span>' +
-            /* Une semaine sans jour moto ne se tait pas : elle le
-               dit. Un blanc se lit « je n'ai pas regardé », un
-               « 0 j » se lit « il n'y en a pas ». */
-            '<br>&nbsp;&nbsp;🏍️ <strong>' + nbFrPlaces(jm.hc) + '</strong> j HC · ' +
-            '<strong>' + nbFrPlaces(jm.cir) + '</strong> j CIR';
-        }).join('<br>') +
-        '<div style="margin-top:4px;color:var(--muted);">Total : 🚗 ' + nbFrPlaces(tsb) +
-        ' j Saint-Brieuc · ' + nbFrPlaces(tlo) + ' j Loudéac — 🏍️ ' + nbFrPlaces(thc) +
-        ' j HC · ' + nbFrPlaces(tcir) + ' j CIR</div>';
+          /* Une semaine sans jour moto ne se tait pas : elle le
+             dit. Un blanc se lit « je n'ai pas regardé », un
+             « 0 » se lit « il n'y en a pas ». */
+          return '<div class="plc-sem" title="' + ech(libelleSemaine(w).replace(/\s+/g, ' ')) + '">' +
+            '<div class="plc-sem-t">' + titreSemainePlaces(w) +
+              '<span class="plc-ex' + (n ? '' : ' plc-ex0') + '">' + pl(n, 'examen') + '</span></div>' +
+            '<div class="plc-sem-l">🚗 St-Brieuc <strong>' + nbFrPlaces(nb(w.sb)) + '</strong> · Loudéac <strong>' +
+              nbFrPlaces(nb(w.lo)) + '</strong><span class="plc-sep"></span><span class="plc-moto">🏍️ HC <strong>' +
+              nbFrPlaces(jm.hc) + '</strong> · CIR <strong>' + nbFrPlaces(jm.cir) + '</strong></span></div>' +
+          '</div>';
+        }).join('') +
+        '<div class="plc-total">Total · 🚗 ' + nbFrPlaces(tsb) + ' j St-Brieuc · ' + nbFrPlaces(tlo) +
+        ' j Loudéac — 🏍️ ' + nbFrPlaces(thc) + ' j HC · ' + nbFrPlaces(tcir) + ' j CIR</div>';
       r.appendChild(s);
     }
 
-    /* Candidats sans mois reconnu */
-    zone.appendChild(r);
+    grille.appendChild(r);
   });
+  if(placesConfig.mois.length) zone.appendChild(grille);
 
   if(stats.horsMois){
     const h = document.createElement('div');
@@ -502,7 +544,7 @@ function afficherPlaces(stats){
 
     /* ---- Les ETP de l'école : deux cases, tout en haut ----
        Un seul ETP par catégorie pour Saint-Brieuc et Loudéac
-       (Chrystel, 4 septembre), relevé sur le site rendez-vous permis,
+       (David, 4 septembre), relevé sur le site rendez-vous permis,
        changé tous les deux ou trois mois. Et « les ETP A sont
        différents des ETP B » : deux cases, jamais une.
 
@@ -570,7 +612,7 @@ function afficherPlaces(stats){
       /* ------------------------------------------------------------
          UN BLOC PAR CATÉGORIE — ÉCRIT UNE FOIS, DESSINÉ DEUX FOIS
 
-         « On duplique pour le A sur le même principe » (Chrystel,
+         « On duplique pour le A sur le même principe » (David,
          4 septembre). Dupliquer l'ÉCRAN, pas le CODE : ce bloc ne
          sait pas s'il dessine une voiture ou une moto, il lit la
          table des catégories. Le jour où la préfecture change sa
@@ -625,7 +667,7 @@ function afficherPlaces(stats){
 
         /* ---- Les nombres retenus ---- */
         /* « calculé : 9 ↩︎ » sous une case tapée à la main : la valeur
-           de Chrystel reste, et le calcul se voit à côté sans jamais
+           de David reste, et le calcul se voit à côté sans jamais
            la remplacer. Une seule source pour tout le reste de
            l'application — « m.q1 » — et une trace de sa provenance.
 
@@ -845,7 +887,7 @@ function afficherPlaces(stats){
 
              ⚠️ PAS DE CENTRE ICI : les jours voiture se comptent à
              Saint-Brieuc et à Loudéac, les jours moto non. C'est un
-             choix de Chrystel, confirmé le 4 septembre. */
+             choix de David, confirmé le 4 septembre. */
           '<div style="border-top:1px solid var(--line);margin:10px 0 7px;"></div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<span style="font-size:13px;color:var(--muted);white-space:nowrap;">Jours 🏍️</span>' +
