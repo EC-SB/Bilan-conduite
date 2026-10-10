@@ -1800,6 +1800,13 @@ async function afficherEspaceEleve(nom, zone){
        bouton. */
     cb.dataset.module = m.cle;
     cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    /* 💬 ÉCRIRE AU BUREAU EST OUVERT À TOUS — v1139 (David, le
+       10 octobre). La case reste visible pour qu'on sache ce que
+       l'élève trouve dans son espace, mais elle ne se décoche pas :
+       le serveur l'ouvre de toute façon (modulesResolus /
+       modulesOuverts). Son moniteur reste une case comme les autres. */
+    const pourTous = (m.cle === 'messages');
+    if(pourTous){ cb.checked = true; cb.disabled = true; }
     cb.addEventListener('change', async () => {
       const liste = MODULES_ELEVE
         .filter(x => {
@@ -1823,6 +1830,15 @@ async function afficherEspaceEleve(nom, zone){
     t.style.cssText = 'flex:1;min-width:0;';
     t.textContent = m.nom;
     l.appendChild(t);
+
+    if(pourTous){
+      const tag = document.createElement('span');
+      tag.style.cssText = 'font-size:11px;font-weight:700;color:var(--accent-text);' +
+        'border:1px solid var(--accent-text);border-radius:999px;padding:1px 8px;' +
+        'white-space:nowrap;flex-shrink:0;';
+      tag.textContent = 'ouvert à tous';
+      l.appendChild(tag);
+    }
 
     zm.appendChild(l);
   });
