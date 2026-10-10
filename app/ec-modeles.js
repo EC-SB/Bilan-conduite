@@ -2087,7 +2087,11 @@ function marquesDejaPosees(texteBilanPrecedent){
 
   reperes.forEach((r, i) => {
     const suivant = reperes[i + 1] ? reperes[i + 1].pos : bloc.length;
-    const bout = bloc.slice(r.fin, suivant);
+    /* ⚠️ v1131 — LA MARQUE S'ARRÊTE AU COMMENTAIRE. La fiche AAC porte
+       « MALD 🦄 — Reste débrayée… » : ce qui suit le tiret est le mot
+       de l'IA, pas une marque. Un émoji glissé dans ce commentaire
+       serait devenu la signature d'un moniteur. */
+    const bout = bloc.slice(r.fin, suivant).split(/\s[—–]\s/)[0];
     if(estUneMarque(bout)){
       const m = marquePropre(bout);
       if(m) marques[normaliserMot(r.libelle)] = m;
@@ -2101,6 +2105,215 @@ function marquesDejaPosees(texteBilanPrecedent){
 function manoeuvresDejaFaites(texteBilanPrecedent){
   const marques = marquesDejaPosees(texteBilanPrecedent);
   return BLOC.ficheListeConduite.filter(x => marques[normaliserMot(x)]);
+}
+
+
+/* ============================================================
+   LES ÉMOJIS DE L'ÉQUIPE — v1131
+
+   David, le 10 octobre, sur le bilan AAC d'Anna-Rose Moison : « il
+   manque l'émoticône du moniteur ». Et ses bilans AAC d'avant n'en
+   portent aucun : seulement les commentaires de l'IA. Pour les
+   reprendre, il faut savoir quel émoji signe quel moniteur — le nom
+   est écrit sur chaque bilan, l'émoji vit dans les comptes.
+
+   Le Worker rend la liste nom → émoji (« emojisEquipe »), sans aucun
+   code d'accès. Lue une fois par session.
+   ============================================================ */
+let emojisEquipe = null;
+let emojisEquipeEnCours = null;
+
+async function chargerEmojisEquipe(){
+  if(emojisEquipe) return emojisEquipe;
+  if(emojisEquipeEnCours) return emojisEquipeEnCours;
+  emojisEquipeEnCours = (async () => {
+    const out = {};
+    try{
+      if(typeof appelPrep === 'function'){
+        const r = await appelPrep({ action: 'emojisEquipe' });
+        ((r && r.equipe) || []).forEach(x => {
+          const k = normaliserMot(String(x.nom || '').trim());
+          if(k && x.emoji) out[k] = String(x.emoji).trim();
+        });
+      }
+    }catch(e){ /* sans la liste, on retombe sur ✅ */ }
+    emojisEquipe = out;
+    emojisEquipeEnCours = null;
+    return out;
+  })();
+  return emojisEquipeEnCours;
+}
+
+function emojiDuMoniteur(nom){
+  const n = normaliserMot(String(nom || '').trim());
+  if(!n) return '';
+  if(typeof ACCES !== 'undefined' && ACCES && ACCES.emoji &&
+     normaliserMot(String(ACCES.moniteur || '')) === n) return ACCES.emoji;
+  const t = emojisEquipe || {};
+  if(t[n]) return t[n];
+  /* « Jean Jacques » écrit « Jean-Jacques », ou le prénom seul */
+  const net = x => x.replace(/[^a-z0-9]+/g, ' ').trim();
+  const cle = Object.keys(t).find(k => net(k) === net(n) ||
+    net(k).split(' ')[0] === net(n) || net(n).split(' ')[0] === net(k));
+  return cle ? t[cle] : '';
+}
+
+/* Le libellé de la fiche Conduite qui désigne la même manœuvre :
+   « CD » et « CD Créneau droit », « MAR (angle de rue) » et « MAR
+   (marche arrière en angle de rue) », « 1/2 tour en bouche » et
+   « 1/2 tour ». C'est sous ces clés que les marques se rangent. */
+function libelleConduiteDe(nom){
+  const n = normaliserMot(String(nom || '').trim());
+  if(!n) return '';
+  const liste = BLOC.ficheListeConduite;
+  let l = liste.find(x => normaliserMot(x) === n);
+  if(l) return l;
+  const code = (String(nom).trim().match(/^([A-Z0-9\/]{2,5})(?:\s|$)/) || [])[1] || '';
+  if(code){
+    l = liste.find(x => codeManoeuvre(x) === code);
+    if(l) return l;
+  }
+  l = liste.find(x => { const k = normaliserMot(x); return k.indexOf(n) === 0 || n.indexOf(k) === 0; });
+  return l || '';
+}
+
+/* Fusionne une marque dans une autre, sans doublon, dans l'ordre */
+function ajouterMarque(avant, ajout){
+  const a = String(avant || '').split(/\s+/).filter(Boolean);
+  String(ajout || '').split(/\s+/).filter(Boolean).forEach(x => {
+    if(a.indexOf(x) === -1) a.push(x);
+  });
+  return a.join(' ');
+}
+
+/* ============================================================
+   LES MARQUES DE TOUT SON HISTORIQUE — v1131
+
+   Deux lectures, une seule porte :
+   · les marques écrites (✅, 🦄…), comme avant — mais FUSIONNÉES : la
+     plus récente remplaçait les autres, et une marque perdue en route
+     ne revenait jamais ;
+   · les lignes commentées des anciens bilans AAC (« Epi — Sortie de
+     place… »), qui disaient qu'une manœuvre avait été travaillée
+     sans la signer : elles prennent l'émoji du moniteur du bilan.
+
+   res : les bilans, du plus récent au plus ancien ({ bilan, moniteur }).
+   ============================================================ */
+function marquesDeLHistorique(res){
+  const acc = {};
+  (res || []).slice().reverse().forEach(item => {
+    const texte = item && item.bilan;
+    const m = marquesDejaPosees(texte);
+    Object.keys(m).forEach(k => { acc[k] = ajouterMarque(acc[k], m[k]); });
+
+    const bloc = blocFicheDuBilan(texte);
+    if(!bloc) return;
+    bloc.split('\n').slice(1).forEach(ligne => {
+      const p = ligne.split(/\s[—–]\s/);
+      if(p.length < 2 || !p.slice(1).join(' ').trim()) return;
+      const lib = libelleConduiteDe(p[0].trim());
+      if(!lib) return;
+      const k = normaliserMot(lib);
+      if(m[k]) return;   /* déjà signée dans ce bilan */
+      acc[k] = ajouterMarque(acc[k], emojiDuMoniteur(item.moniteur) || MARQUE_FAITE);
+    });
+  });
+  return acc;
+}
+
+/* Ce qui a été fait AUJOURD'HUI, de toutes les sources : ce que l'IA
+   a entendu, ce que le moniteur a coché à la préparation, au
+   questionnaire, et pendant le cours. Commun à la Conduite et à
+   l'AAC — v1131 : l'AAC n'en lisait aucune. */
+function manoeuvresDuJour(entendues){
+  const duJour = (entendues || []).slice();
+  const sources = [];
+  if(typeof contexteDepart !== 'undefined' && contexteDepart){
+    sources.push(contexteDepart.manoeuvresAjoutees);
+  }
+  if(typeof prepareEnCours !== 'undefined' && prepareEnCours &&
+     prepareEnCours.contexte){
+    sources.push(prepareEnCours.contexte.manoeuvresAjoutees);
+  }
+  if(typeof manoeuvresCocheesEnCours === 'function'){
+    sources.push(manoeuvresCocheesEnCours());
+  }
+  sources.forEach(liste => {
+    (liste || []).forEach(m => { if(duJour.indexOf(m) === -1) duJour.push(m); });
+  });
+  return duJour;
+}
+
+function manoeuvresAilleursDuJour(){
+  const ailleurs = [];
+  const sources = [];
+  if(typeof contexteDepart !== 'undefined' && contexteDepart){
+    sources.push(contexteDepart.manoeuvresAilleurs);
+  }
+  if(typeof prepareEnCours !== 'undefined' && prepareEnCours &&
+     prepareEnCours.contexte){
+    sources.push(prepareEnCours.contexte.manoeuvresAilleurs);
+  }
+  if(typeof manoeuvresAilleursEnCours === 'function'){
+    sources.push(manoeuvresAilleursEnCours());
+  }
+  sources.forEach(liste => {
+    (liste || []).forEach(m => { if(ailleurs.indexOf(m) === -1) ailleurs.push(m); });
+  });
+  return ailleurs;
+}
+
+/* ============================================================
+   LA FICHE VÉHICULE DE L'AAC — v1131
+
+   La même que la Conduite — marques accumulées, émoji du moniteur
+   du jour, 🚗 des autres auto-écoles — avec ses libellés à elle, et
+   le commentaire de l'IA gardé au bout de la ligne (« Émoji +
+   commentaire », choisi par David) :
+
+     MALD 🦄 — Reste débrayée avec le frein pour avancer tout doucement
+   ============================================================ */
+function blocFicheAac(items, liste, ctx){
+  ctx = ctx || {};
+  const retours = {};
+  const entendues = [];
+  (items || []).forEach(it => {
+    if(!it || !it.nom) return;
+    const lib = libelleConduiteDe(it.nom);
+    if(!lib) return;
+    const k = normaliserMot(lib);
+    if(txt(it.retour)) retours[k] = txt(it.retour);
+    entendues.push(lib);
+  });
+
+  const enCle = (l) => {
+    const o = {};
+    (l || []).forEach(x => { const lib = libelleConduiteDe(x); if(lib) o[normaliserMot(lib)] = true; });
+    return o;
+  };
+  const aujourdhui = enCle(manoeuvresDuJour(entendues));
+  const ailleurs = enCle(manoeuvresAilleursDuJour());
+  const oteés = enCle((typeof manoeuvresRetireesEnCours === 'function')
+    ? manoeuvresRetireesEnCours() : []);
+  const avant = enCle(ctx.manoeuvresAvant);
+  const marques = ctx.marquesAvant || {};
+  const emoji = (typeof ACCES !== 'undefined' && ACCES.emoji) ? ACCES.emoji : '';
+
+  const lignes = ['🦉𝔽𝕀ℂℍ𝔼 𝕍𝔼ℍ𝕀ℂ𝕌𝕃𝔼 : '];
+  (liste || BLOC.ficheListe).forEach(nom => {
+    const lib = libelleConduiteDe(nom);
+    const k = lib ? normaliserMot(lib) : '';
+    let suite = (k && marques[k]) || ((k && avant[k]) ? MARQUE_FAITE : '');
+    if(k && oteés[k]){
+      suite = suite.split(/\s+/).filter(x => x && x !== MARQUE_AILLEURS).join(' ');
+    }
+    if(k && ailleurs[k] && suite.indexOf(MARQUE_AILLEURS) === -1){
+      suite = suite ? MARQUE_AILLEURS + ' ' + suite : MARQUE_AILLEURS;
+    }
+    if(k && aujourdhui[k]) suite = ajouterMarque(suite, emoji || MARQUE_FAITE);
+    lignes.push(nom + (suite ? ' ' + suite : '') + ((k && retours[k]) ? ' — ' + retours[k] : ''));
+  });
+  return lignes.join('\n');
 }
 
 
@@ -2135,53 +2348,17 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   /* Les manœuvres cochées au questionnaire comptent comme faites
      aujourd'hui : elles reçoivent l'émoji du moniteur, comme les
      autres. Sans ça, cocher une case n'aurait aucun effet. */
-  const duJour = (ai.manoeuvres || []).slice();
-
   /* Trois sources, réunies : ce que l'IA a entendu, ce que le moniteur
      a coché en fin de cours, et ce qu'il avait coché à la préparation.
      Une seule source suffisait à tout perdre si le questionnaire était
-     rouvert entre-temps. */
-  const sources = [];
-  if(typeof contexteDepart !== 'undefined' && contexteDepart){
-    sources.push(contexteDepart.manoeuvresAjoutees);
-  }
-  if(typeof prepareEnCours !== 'undefined' && prepareEnCours &&
-     prepareEnCours.contexte){
-    sources.push(prepareEnCours.contexte.manoeuvresAjoutees);
-  }
-  /* Et ce que le moniteur a coché pendant le cours lui-même */
-  if(typeof manoeuvresCocheesEnCours === 'function'){
-    sources.push(manoeuvresCocheesEnCours());
-  }
-
-  sources.forEach(liste => {
-    (liste || []).forEach(m => {
-      if(duJour.indexOf(m) === -1) duJour.push(m);
-    });
-  });
+     rouvert entre-temps. Voir manoeuvresDuJour (v1131 : commune à
+     l'AAC). */
+  const duJour = manoeuvresDuJour(ai.manoeuvres);
 
   /* Les manœuvres faites dans une autre auto-école : elles ne
      passent PAS par duJour, sinon elles porteraient l'émoji du
      moniteur du jour, qui ne les a pas fait travailler. */
-  const ailleurs = [];
-  const sourcesAilleurs = [];
-  if(typeof contexteDepart !== 'undefined' && contexteDepart){
-    sourcesAilleurs.push(contexteDepart.manoeuvresAilleurs);
-  }
-  if(typeof prepareEnCours !== 'undefined' && prepareEnCours &&
-     prepareEnCours.contexte){
-    sourcesAilleurs.push(prepareEnCours.contexte.manoeuvresAilleurs);
-  }
-  /* Et celles cochées 🚗 pendant le cours lui-même : c'est là
-     qu'on s'aperçoit qu'un élève arrive d'ailleurs. */
-  if(typeof manoeuvresAilleursEnCours === 'function'){
-    sourcesAilleurs.push(manoeuvresAilleursEnCours());
-  }
-  sourcesAilleurs.forEach(liste => {
-    (liste || []).forEach(m => {
-      if(ailleurs.indexOf(m) === -1) ailleurs.push(m);
-    });
-  });
+  const ailleurs = manoeuvresAilleursDuJour();
 
   /* Ce qu'on retire : une 🚗 décochée. */
   const retirees = (typeof manoeuvresRetireesEnCours === 'function')
@@ -2229,24 +2406,24 @@ const MODELES = {
   'aac-manuelle': {
     label: 'AAC — Boîte manuelle', groupe: 'Conduite accompagnée', schema: 'conduite',
     opts: { verifs:false, fiche:true },
-    build: ai => [
+    build: (ai, ctx) => [
       BLOC.entete, '',
       BLOC.carteSD(ai.carteSD), '',
       BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
       blocRubriques(ai.rubriques),
-      blocFiche(ai.ficheVehicule, BLOC.ficheListe), '',
+      blocFicheAac(ai.ficheVehicule, BLOC.ficheListe, ctx), '',
       rappelAac('4 leçons de 2 heures + simu nuit et risques + 2 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable.')
     ].join('\n')
   },
   'aac-auto': {
     label: 'AAC — Boîte automatique', groupe: 'Conduite accompagnée', schema: 'conduite',
     opts: { verifs:false, fiche:true },
-    build: ai => [
+    build: (ai, ctx) => [
       BLOC.entete, '',
       '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿 ✅  donnée ce jour \nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). ', '',
       BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
       blocRubriques(ai.rubriques),
-      blocFiche(ai.ficheVehicule, BLOC.ficheListeAacAuto), '',
+      blocFicheAac(ai.ficheVehicule, BLOC.ficheListeAacAuto, ctx), '',
       rappelAac('3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable.')
     ].join('\n')
   },
