@@ -394,6 +394,379 @@ function blocCopiable(titre, texte){
 }
 
 /* ============================================================
+   🎓 LE GROUPE DU JOUR DU PERMIS, DANS LA MESSAGERIE — v1135
+
+   David, le 12 octobre : les groupes de la messagerie interne se
+   créent ICI, « car c'est ici que sont tous les messages prédéfinis
+   et qu'on peut modifier les messages au besoin avant d'envoyer ».
+   Ses choix :
+
+     · un groupe par session : les élèves, le moniteur de la
+       session, la boîte du bureau — en discussion ;
+     · son nom : « Permis jeudi 15 octobre - Chloé, Alice, Bruno -
+       1 BEA 2 BV - Hery » — sans BEA, on n'écrit que les BV, et
+       l'inverse ;
+     · les messages partent tels qu'ils sont écrits dans les cases,
+       dans l'ordre de l'écran, et la vidéo du jour du permis en
+       dernier — déposée UNE fois, jamais recopiée ;
+     · la case « 💬 Groupe fait » de la session se coche toute seule ;
+     · le groupe SUIT la session : élèves ajoutés ou retirés, nom,
+       moniteur — et des horaires qui changent envoient un nouveau
+       message, recalculé comme le message du groupe.
+   ============================================================ */
+let liensGroupesPermis = {};       /* session → son groupe */
+let groupesPermisLisibles = false; /* le droit de les voir */
+let videoPermis = null;            /* { cle, nom, taille, par, le } */
+let lienVideoPermis = '';          /* signé, une heure, pour l'aperçu */
+let suiviGroupesEnCours = null;
+
+/* Les élèves d'une session, dans SON ordre de passage. C'est sur cet
+   ordre-là — et pas sur celui retouché à l'écran — que se mesure un
+   changement d'horaires : sinon un ↑ fait avant de créer le groupe
+   enverrait des « horaires modifiés » au premier passage. */
+function elevesDeLaSession(sess){
+  return ((sess && sess.eleves) || []).filter(p => p && p.eleve).slice()
+    .sort((a, b) => (Number(a.rang) || 99) - (Number(b.rang) || 99))
+    .map(p => String(p.eleve).trim());
+}
+
+function signatureHorairesSession(sess){
+  return heureExamenDe((sess && sess.heureDebut) || '') + '|' +
+    elevesDeLaSession(sess).map(n => normaliserMot(n)).join(',');
+}
+
+function prenomDe(nom){
+  return String(nom || '').trim().split(/\s+/)[0] || '';
+}
+
+/* « Permis jeudi 15 octobre - Chloé, Alice, Bruno - 1 BEA 2 BV - Hery » */
+function titreGroupePermis(sess){
+  const noms = elevesDeLaSession(sess);
+  let bea = 0, bv = 0;
+  noms.forEach(n => {
+    const b = (typeof boiteVisible === 'function') ? String(boiteVisible(n) || '') : '';
+    if(b === 'bea') bea++;
+    else if(b === 'bv') bv++;
+  });
+  const boites = [bea ? bea + ' BEA' : '', bv ? bv + ' BV' : ''].filter(Boolean).join(' ');
+  const jour = (sess && sess.date)
+    ? String(dateEnToutesLettres(sess.date) || sess.date).replace(/\s+\d{4}\s*$/, '') : '';
+  return ['Permis ' + jour, noms.map(prenomDe).filter(Boolean).join(', '),
+          boites, String((sess && sess.moniteur) || '').trim()]
+    .map(x => String(x).trim()).filter(x => x && x !== 'Permis').join(' - ');
+}
+
+/* Le message des horaires modifiés : le message du groupe, recalculé
+   avec les réglages choisis à la création. */
+function texteHorairesSession(sess, reglages){
+  const noms = elevesDeLaSession(sess);
+  if(!noms.length || !sess.date) return '';
+  const heure = heureExamenDe(sess.heureDebut) || '13h15';
+  const r = Object.assign(nouveauGroupe(''), reglages || {}, { heure: heure });
+  r.avantPause = Math.max(0, Math.min(Number(r.avantPause) || 0, noms.length - 1));
+  const eleves = noms.map(n => ({ nom: n, centre: sess.centre || '' }));
+  const plan = planningJournee(heure, eleves.length, r);
+  if(!plan) return '';
+  return '🕐 HORAIRES MODIFIÉS\n\n' +
+    messageGroupePermis(sess.date, sess.centre || '', eleves, plan, r.note || '');
+}
+
+/* Lit les groupes des sessions à venir, et fait suivre ceux dont la
+   session a changé. Appelé à chaque lecture des sessions : le geste
+   qui change une session (Suivi permis) n'a donc rien à savoir. */
+function suivreLesGroupesPermis(sessions){
+  if(suiviGroupesEnCours) return suiviGroupesEnCours;
+  suiviGroupesEnCours = (async () => {
+    try{
+      const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+      const aVenir = (sessions || []).filter(x => x && x.id && (!x.date || x.date >= auj));
+      if(!aVenir.length) return liensGroupesPermis;
+      let d = null;
+      try{
+        d = await appelPrep({ action: 'permisGroupes', sessions: aVenir.map(x => x.id) });
+        groupesPermisLisibles = true;
+      }catch(e){ groupesPermisLisibles = false; return liensGroupesPermis; }
+      const vus = {};
+      ((d && d.groupes) || []).forEach(g => { vus[g.session] = g; });
+      liensGroupesPermis = vus;
+
+      for(const sess of aVenir){
+        const lien = vus[sess.id];
+        if(!lien) continue;
+        const titre = titreGroupePermis(sess);
+        const sig = signatureHorairesSession(sess);
+        const mon = String(sess.moniteur || '').trim();
+        if(titre === lien.titre && sig === lien.horaires && mon === String(lien.moniteur || '')) continue;
+        const corps = { action: 'permisGroupeSync', session: sess.id, titre: titre,
+                        eleves: elevesDeLaSession(sess), moniteur: mon, horaires: sig };
+        if(sig !== lien.horaires) corps.texteHoraires = texteHorairesSession(sess, lien.reglages);
+        try{
+          await appelPrep(corps);
+          lien.titre = titre; lien.horaires = sig; lien.moniteur = mon;
+        }catch(e){ /* sans le droit de la boîte du bureau, le bureau le fera */ }
+      }
+    }finally{
+      suiviGroupesEnCours = null;
+    }
+    return liensGroupesPermis;
+  })();
+  return suiviGroupesEnCours;
+}
+
+/* ---------- 🎬 La vidéo du jour du permis ---------- */
+async function lireVideoPermis(){
+  try{
+    const d = await appelPrep({ action: 'permisVideoLire' });
+    videoPermis = (d && d.video) || null;
+    lienVideoPermis = (d && d.lien) ? CONFIG.WORKER_URL + d.lien : '';
+    return true;
+  }catch(e){ videoPermis = null; return false; }
+}
+
+function dessinerVideoPermis(z){
+  z.innerHTML = '';
+  z.style.cssText = 'border:2px solid var(--line);border-radius:12px;' +
+    'padding:12px 14px;margin:0 0 14px;';
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:8px;';
+  t.textContent = '🎬 Vidéo du jour du permis';
+  z.appendChild(t);
+
+  const ligne = document.createElement('div');
+  ligne.style.cssText = 'display:flex;gap:12px;align-items:center;flex-wrap:wrap;';
+  z.appendChild(ligne);
+
+  if(videoPermis){
+    const v = document.createElement('video');
+    v.controls = true;
+    v.preload = 'metadata';
+    v.playsInline = true;
+    if(lienVideoPermis) v.src = lienVideoPermis;
+    v.style.cssText = 'width:220px;max-width:100%;border-radius:8px;background:#000;';
+    ligne.appendChild(v);
+  }
+  const info = document.createElement('div');
+  info.style.cssText = 'flex:1;min-width:180px;font-size:13px;line-height:1.5;';
+  info.innerHTML = videoPermis
+    ? '<strong>' + String(videoPermis.nom || 'Vidéo').replace(/</g, '&lt;') + '</strong><br>' +
+      '<span style="color:var(--muted);">' +
+      (typeof poidsLisible === 'function' ? poidsLisible(videoPermis.taille) + ' · ' : '') +
+      'déposée le ' + String(videoPermis.le || '').replace(/</g, '&lt;') +
+      (videoPermis.par ? ' par ' + String(videoPermis.par).replace(/</g, '&lt;') : '') +
+      '<br>Envoyée en dernier message dans chaque groupe créé ici.</span>'
+    : '<span style="color:var(--muted);">Aucune vidéo pour l’instant. Déposée une fois, ' +
+      'elle part en dernier message dans chaque groupe créé ici.</span>';
+  ligne.appendChild(info);
+
+  const bs = document.createElement('div');
+  bs.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;';
+  z.appendChild(bs);
+
+  const choix = document.createElement('input');
+  choix.type = 'file';
+  choix.accept = 'video/mp4';
+  choix.style.display = 'none';
+  z.appendChild(choix);
+
+  const bDep = document.createElement('button');
+  bDep.className = 'btn btn-secondary';
+  bDep.style.cssText = 'width:auto;padding:8px 12px;font-size:13px;margin:0;';
+  bDep.textContent = videoPermis ? '🔄 Remplacer' : '⬆️ Déposer la vidéo';
+  bDep.addEventListener('click', () => choix.click());
+  bs.appendChild(bDep);
+
+  choix.addEventListener('change', async () => {
+    const f = choix.files && choix.files[0];
+    if(!f) return;
+    if(typeof deposerUnFichier !== 'function'){ showToast('Dépôt indisponible.'); return; }
+    bDep.disabled = true;
+    try{
+      const cle = await deposerUnFichier('video', f, pct => { bDep.textContent = '⬆️ ' + pct + ' %'; });
+      const r = await appelPrep({ action: 'permisVideoPoser', cle: cle, nom: f.name });
+      videoPermis = r.video || null;
+      lienVideoPermis = (r && r.lien) ? CONFIG.WORKER_URL + r.lien : '';
+      showToast('Vidéo enregistrée ✅');
+    }catch(e){
+      showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
+    }
+    dessinerVideoPermis(z);
+  });
+
+  if(videoPermis){
+    const bRet = document.createElement('button');
+    bRet.className = 'btn btn-secondary';
+    bRet.style.cssText = 'width:auto;padding:8px 12px;font-size:13px;margin:0;' +
+      'color:var(--red);border-color:var(--red);';
+    bRet.textContent = '🗑️ Retirer';
+    bRet.addEventListener('click', async () => {
+      if(typeof confirmer === 'function' && !await confirmer(
+          'Retirer la vidéo ? Les prochains groupes partiront sans elle. ' +
+          'Ceux déjà créés la gardent.', 'Retirer')) return;
+      try{
+        await appelPrep({ action: 'permisVideoRetirer' });
+        videoPermis = null; lienVideoPermis = '';
+      }catch(e){ showToast('Impossible : ' + e.message); }
+      dessinerVideoPermis(z);
+    });
+    bs.appendChild(bRet);
+  }
+}
+
+/* Le lien de la vidéo pour Messenger : il s'éteint le lendemain de
+   l'examen. Demandé en composant, pour que le bouton copie sans
+   attendre (un navigateur refuse de copier après une attente). */
+function blocLienVideoPermis(jourIso){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px 14px;margin-top:12px;';
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:8px;';
+  t.textContent = '🎬 Le lien de la vidéo, pour Messenger';
+  d.appendChild(t);
+  const champ = document.createElement('input');
+  champ.type = 'text';
+  champ.readOnly = true;
+  champ.value = 'Préparation du lien…';
+  champ.style.cssText = 'width:100%;margin:0 0 8px;font-size:12px;';
+  d.appendChild(champ);
+  const sous = document.createElement('div');
+  sous.style.cssText = 'font-size:11.5px;color:var(--muted);margin:-2px 0 8px;';
+  d.appendChild(sous);
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'padding:12px;font-size:14px;';
+  b.textContent = '📋 Copier le lien de la vidéo';
+  b.disabled = true;
+  b.addEventListener('click', () => {
+    champ.select();
+    navigator.clipboard.writeText(champ.value).then(
+      () => { b.textContent = '✅ Copié'; setTimeout(() => { b.textContent = '📋 Copier le lien de la vidéo'; }, 1500); },
+      () => { try{ document.execCommand('copy'); showToast('Copié ✅'); }catch(e){ showToast('Copie impossible : sélectionne le lien.'); } });
+  });
+  d.appendChild(b);
+  appelPrep({ action: 'permisVideoLien', date: jourIso }).then(r => {
+    champ.value = CONFIG.WORKER_URL + r.lien;
+    const fin = new Date((Number(r.jusqua) || 0) * 1000);
+    sous.textContent = 'Il marche jusqu’au ' +
+      fin.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) +
+      ' au soir, puis s’éteint tout seul.';
+    b.disabled = false;
+  }).catch(e => { champ.value = 'Lien indisponible : ' + e.message; });
+  return d;
+}
+
+/* ---------- 💬 L'encadré du groupe, en bas de chaque session ---------- */
+function dessinerGroupeMessagerie(z, g, jour, zMsg){
+  z.innerHTML = '';
+  if(g.sansSession || !g.sessionId || !groupesPermisLisibles){
+    z.style.display = 'none';
+    return;
+  }
+  z.style.cssText = 'border:2px solid var(--accent-text);border-radius:12px;' +
+    'padding:12px 14px;margin-top:14px;';
+  const sess = (typeof sessionsPermis !== 'undefined' ? sessionsPermis : [])
+    .find(x => x.id === g.sessionId);
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:6px;';
+  t.textContent = '💬 Le groupe dans la messagerie';
+  z.appendChild(t);
+  const info = document.createElement('div');
+  info.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:10px;';
+  z.appendChild(info);
+  const ech = x => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  const lien = liensGroupesPermis[g.sessionId];
+  if(lien){
+    info.innerHTML = '« ' + ech(lien.titre) + ' »<br>' +
+      '<strong style="color:var(--accent-text);">✅ Groupe créé le ' + ech(lien.creeLe) +
+      (lien.creePar ? ' par ' + ech(lien.creePar) : '') + '</strong><br>' +
+      'Il suit la session : élèves ajoutés ou retirés, nom, moniteur, et un message ' +
+      'si les horaires changent.';
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'padding:11px;font-size:14px;';
+    b.textContent = 'Ouvrir le groupe';
+    b.addEventListener('click', () => {
+      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      if(typeof ouvrirLeFil === 'function') ouvrirLeFil(lien.conv);
+    });
+    z.appendChild(b);
+    return;
+  }
+
+  const textes = zMsg ? [...zMsg.querySelectorAll('textarea')]
+    .map(x => ({ titre: (x.previousSibling && x.previousSibling.textContent) || 'Message',
+                 zone: x })) : [];
+  if(!sess){
+    info.textContent = 'Cette session n’est plus dans 🎓 Suivi permis.';
+    return;
+  }
+  if(!textes.length){
+    info.textContent = 'Compose d’abord les messages (✍️ au-dessus) : ils partiront tels ' +
+      'qu’ils sont écrits, et tu peux les retoucher avant.';
+    return;
+  }
+  const titre = titreGroupePermis(sess);
+  const noms = elevesDeLaSession(sess);
+  info.innerHTML = '« ' + ech(titre) + ' » — discussion<br>' +
+    '👥 ' + ech(noms.join(', ')) +
+    (sess.moniteur ? ' · 👤 ' + ech(sess.moniteur) : '') + ' · 🏢 la boîte du bureau<br>' +
+    'Partiront dans cet ordre, tels qu’ils sont écrits au-dessus :<br>' +
+    textes.map((x, i) => (i + 1) + '. ' + ech(x.titre)).join('<br>') +
+    (videoPermis ? '<br>' + (textes.length + 1) + '. 🎬 La vidéo du jour du permis'
+                 : '<br><em>Pas de vidéo déposée : le groupe partira sans.</em>');
+  const n = textes.length + (videoPermis ? 1 : 0);
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'padding:13px;font-size:14px;';
+  b.textContent = '💬 Créer le groupe et envoyer les ' + n + ' messages';
+  z.appendChild(b);
+
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    b.textContent = 'Création du groupe…';
+    const corps = {
+      action: 'permisGroupeCreer', session: sess.id, titre: titre,
+      eleves: noms, moniteur: String(sess.moniteur || '').trim(),
+      messages: textes.map(x => x.zone.value),
+      horaires: signatureHorairesSession(sess),
+      reglages: { conduite: g.conduite, pauseDuree: g.pauseDuree,
+                  avantPause: g.avantPause, note: g.note || '' }
+    };
+    let r;
+    try{ r = await appelPrep(corps); }
+    catch(e){
+      showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
+      b.disabled = false;
+      b.textContent = '💬 Créer le groupe et envoyer les ' + n + ' messages';
+      return;
+    }
+    liensGroupesPermis[sess.id] = { session: sess.id, conv: r.conv, titre: titre,
+      moniteur: corps.moniteur, horaires: corps.horaires, reglages: corps.reglages,
+      creeLe: r.creeLe, creePar: r.creePar };
+    /* La case « 💬 Groupe fait » de Suivi permis : elle vaut pour
+       Messenger et pour le groupe interne — choix de David. */
+    if(!sess.groupeFait){
+      try{
+        await appelPrep({ action: 'sessionGroupe', id: sess.id, groupeFait: 'oui' });
+        sess.groupeFait = true;
+      }catch(e){ /* le groupe existe ; la case se cochera à la main */ }
+    }
+    showToast('Groupe créé ✅');
+    dessinerGroupeMessagerie(z, g, jour, zMsg);
+    if(r.sansEspace && r.sansEspace.length){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:12.5px;color:var(--warn-text);margin-top:8px;line-height:1.5;';
+      a.textContent = '⚠️ ' + r.sansEspace.join(', ') +
+        (r.sansEspace.length > 1 ? ' n’ont' : ' n’a') + ' pas d’espace élève ouvert au 💬 : ' +
+        (r.sansEspace.length > 1 ? 'ils ne verront' : 'il ne verra') +
+        ' pas le groupe tant que l’accès n’est pas ouvert (fiche, onglet 🔑).';
+      z.appendChild(a);
+    }
+  });
+}
+
+/* ============================================================
    ÉCRAN DU MESSAGE DE GROUPE
 
    Une même journée peut compter plusieurs groupes : deux
@@ -500,6 +873,10 @@ async function afficherMessengerPermis(){
         return String(a.heureDebut || '').localeCompare(String(b.heureDebut || ''));
       });
     }
+    /* 🎓 Les groupes de la messagerie et la vidéo — v1135. Sans le
+       droit, l'écran reste celui d'avant. */
+    await Promise.all([suivreLesGroupesPermis(sessionsPermis), lireVideoPermis()
+      .then(ok => { zone.__videoLisible = ok; })]);
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -537,6 +914,14 @@ async function afficherMessengerPermis(){
     afficherMessengerPermis();
   });
   zone.appendChild(bMaj);
+
+  /* 🎬 La vidéo du jour du permis — déposée une fois, ici. */
+  if(zone.__videoLisible){
+    const zVid = document.createElement('div');
+    zVid.className = 'zoneVideoPermis';
+    zone.appendChild(zVid);
+    dessinerVideoPermis(zVid);
+  }
 
   const zGroupes = document.createElement('div');
   zone.appendChild(zGroupes);
@@ -728,6 +1113,12 @@ async function afficherMessengerPermis(){
     const zMsg = document.createElement('div');
     d.appendChild(zMsg);
 
+    /* 💬 Le groupe dans la messagerie — v1135 */
+    const zGrp = document.createElement('div');
+    zGrp.className = 'zoneGroupeMessagerie';
+    d.appendChild(zGrp);
+    dessinerGroupeMessagerie(zGrp, g, jour, null);
+
     function apercu(){
       lire();
       if(!g.eleves.length){ ap.innerHTML = '<em>Groupe vide</em>'; return; }
@@ -782,6 +1173,10 @@ async function afficherMessengerPermis(){
           '« 🚨 Planning formation avant permis ».';
         zMsg.appendChild(a);
       }
+
+      /* 🎬 Le lien de la vidéo pour Messenger — v1135 */
+      if(videoPermis) zMsg.appendChild(blocLienVideoPermis(jour.iso));
+      dessinerGroupeMessagerie(zGrp, g, jour, zMsg);
     });
 
     return d;
