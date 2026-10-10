@@ -1317,6 +1317,11 @@ function lignePlace(p, sess){
         'margin-top:2px;line-height:1.4;">📝 ' +
         su.autre.replace(/</g, '&lt;') + '</div>' : '');
   nom.addEventListener('click', () => ouvrirPlace(p, sess));
+  /* 👤 Son dossier, juste après son nom — v1134. Le bouton arrête le
+     clic : la place ne s'ouvre pas en même temps. */
+  if(!vide && typeof poserDossierApresLeNom === 'function'){
+    poserDossierApresLeNom(nom, p.eleve, nom.querySelector('strong'));
+  }
   /* Où en est son examen blanc : c'est ce qui décide s'il est
      prêt à passer. Le bureau doit le voir en donnant les dates. */
   if(!vide && typeof mentionExamenBlanc === 'function'){
