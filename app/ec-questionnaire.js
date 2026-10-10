@@ -5851,6 +5851,39 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 }
 
 /* Le rang, à la française : « 1ère », puis « 2ème ». */
+/* ============================================================
+   LA MENTION DES HEURES QUI RESTENT, EN FIN DE LIGNE D'EXAMEN
+
+   Sortie de la note (v1132) pour servir deux fois, à l'identique :
+   à l'ÉCRITURE de la note, et à l'AFFICHAGE de la carte, qui la
+   recalcule — voir avecLaReserveDuJour (ec-prepares).
+   ============================================================ */
+function mentionDeLaReserve(np, examPermisN){
+  const pl = k => (parseInt(k, 10) > 1 ? 's' : '');
+  const s = String(np === undefined || np === null ? '' : np).trim();
+
+  /* ⚠️ UN CONTEXTE D'AVANT N'A PAS D'HEURES — et absent n'est pas
+     vide. Une note relue d'un ancien bilan porte son nombre en
+     LEÇONS, dans examPermisN. La réécrire sans sa mention, ce
+     serait effacer en la relisant ce qu'un moniteur avait dit. On
+     garde alors ses mots à lui, tels qu'il les a écrits. */
+  if(!s){
+    const vieux = String(examPermisN === undefined ||
+                         examPermisN === null ? '' : examPermisN).trim();
+    if(!vieux) return '';
+    return (parseInt(vieux, 10) === 0)
+      ? ' — ' + MOTS_ANCIENS_3H
+      : ' — encore ' + vieux + ' leçon' + pl(vieux) + ' + 3h avant examen';
+  }
+
+  if(typeof estPasLeNiveau === 'function' && estPasLeNiveau(s)){
+    return ' — ⛔ PAS LE NIVEAU POUR CET EXAMEN — élève à changer';
+  }
+  return (parseFloat(s.replace(',', '.')) === 0)
+    ? suiteReserveSoldee()
+    : ' — encore ' + s + 'h + 3h avant examen';
+}
+
 function rangLecon(n){
   return (n === 1) ? '1ère' : n + 'ème';
 }
@@ -7072,30 +7105,7 @@ function ajouterSuite(etats, permis, mots, q){
      n'aura pas le niveau pour sa date doit se lire d'un coup d'œil
      dans la note, en capitales — c'est la seule ligne qui demande à
      quelqu'un de faire quelque chose aujourd'hui. */
-  const mentionAvantExamen = (np) => {
-    const s = String(np === undefined || np === null ? '' : np).trim();
-
-    /* ⚠️ UN CONTEXTE D'AVANT N'A PAS D'HEURES — et absent n'est pas
-       vide. Une note relue d'un ancien bilan porte son nombre en
-       LEÇONS, dans examPermisN. La réécrire sans sa mention, ce
-       serait effacer en la relisant ce qu'un moniteur avait dit. On
-       garde alors ses mots à lui, tels qu'il les a écrits. */
-    if(!s){
-      const vieux = String(q.examPermisN === undefined ||
-                           q.examPermisN === null ? '' : q.examPermisN).trim();
-      if(!vieux) return '';
-      return (parseInt(vieux, 10) === 0)
-        ? ' — ' + MOTS_ANCIENS_3H
-        : ' — encore ' + vieux + ' leçon' + pl(vieux) + ' + 3h avant examen';
-    }
-
-    if(typeof estPasLeNiveau === 'function' && estPasLeNiveau(s)){
-      return ' — ⛔ PAS LE NIVEAU POUR CET EXAMEN — élève à changer';
-    }
-    return (parseFloat(s.replace(',', '.')) === 0)
-      ? suiteReserveSoldee()
-      : ' — encore ' + s + 'h + 3h avant examen';
-  };
+  const mentionAvantExamen = (np) => mentionDeLaReserve(np, q.examPermisN);
 
   if(q.examPermis === 'prevu' && q.examDate && !examPasse){
     permis.push(EXAMEN_PREVU + ' ' +
