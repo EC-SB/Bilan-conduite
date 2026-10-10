@@ -856,8 +856,8 @@ function positionDeLEleve(nom, e){
     const r = rangs(dernierPasse);
     if(r.total){
       const fait = { total: r.total, apres: r.apres };
-      return { prep: null, charn: r.charn, fait: fait, prochaine: plusUn(fait),
-               source: 'passe' };
+      return { prep: null, passe: dernierPasse, charn: r.charn, fait: fait,
+               prochaine: plusUn(fait), source: 'passe' };
     }
   }
 
@@ -875,7 +875,7 @@ function positionDeLEleve(nom, e){
         ? rangApresDansLaNote(e.note) : null;
       const fait = { total: total, apres: apres };
       return { prep: null, charn: charn, fait: fait, prochaine: plusUn(fait),
-               source: 'bilan' };
+               source: 'bilan', note: e.note, date: e.date || '' };
     }
   }
 
@@ -899,18 +899,33 @@ function positionDeLEleve(nom, e){
    portes (ecrireRangDuCours, ecrireAvantCharniere), donc le même
    calage de l'élève, et le cours d'après suit tout seul.
 
-   ⚠️ SANS COURS PRÉPARÉ, LA TUILE NE SE TOUCHE PAS ENCORE. David a
-   accepté qu'une correction du bureau l'emporte alors sur le
-   dernier bilan. Mais ce compte-là est calculé à trois endroits —
-   le dossier complet, le résumé du bureau, et le classeur lui-même
-   (« ecartRang ») — et aujourd'hui c'est le plus grand rang écrit
-   dans un bilan qui fait loi partout. Une correction qui ne
-   changerait que la tuile serait un chiffre de plus, pas une
-   correction. C'est l'étape suivante, à part.
+   ⚠️ ET SANS COURS PRÉPARÉ — v1130. David : « je te laisse faire
+   corriger ». Ce compte-là est calculé à trois endroits — le
+   dossier complet, le résumé du bureau, et le classeur lui-même
+   (« ecartRang ») — et tous trois relisent LA MÊME CHOSE : le rang
+   écrit dans les bilans. On corrige donc là, et nulle part
+   ailleurs :
+
+     · la tuile lit un cours passé dont le bilan attend → on écrit
+       ses deux cases sur ce cours, comme la carte (sans « + 1 » :
+       c'est lui, la leçon faite) ;
+     · elle lit son dernier bilan → on réécrit le rang que ce bilan
+       porte, dans sa note (bilanMaj, la porte de l'historique).
+       Les trois compteurs suivent d'eux-mêmes.
+
+   ⚠️ UN RANG NE RECULE PAS SOUS UN BILAN PLUS ANCIEN. Les compteurs
+   gardent le plus haut plancher (v1100) : si un bilan d'avant dit
+   déjà plus, baisser le dernier ne changerait rien à l'écran. On le
+   dit, avec la date du bilan à corriger, au lieu d'écrire une
+   correction qui n'aurait aucun effet.
    ------------------------------------------------------------ */
 async function corrigerPositionDepuisLaTuile(nom, p){
-  if(!p || !p.prep || !p.prochaine || !p.prochaine.total) return;
-  if(typeof ecrireRangDuCours !== 'function'){
+  if(!p || !p.fait || !p.fait.total) return;
+  const mode = p.prep ? 'prep' : (p.source === 'passe' && p.passe) ? 'passe'
+             : (p.source === 'bilan') ? 'bilan' : '';
+  if(!mode) return;
+  if(mode === 'prep' && !(p.prochaine && p.prochaine.total)) return;
+  if(mode !== 'bilan' && typeof ecrireRangDuCours !== 'function'){
     showToast("Impossible de corriger depuis cet écran.");
     return;
   }
@@ -924,9 +939,19 @@ async function corrigerPositionDepuisLaTuile(nom, p){
   }
 
   const r = await formulaireRoute('🔢 Où en est ' + nom,
-    'Ce qu’il a fait jusqu’ici. Son cours du ' +
-    jourBref(p.prep.date, true) + ' prendra le rang suivant, comme si tu ' +
-    'corrigeais ses deux cases dans Mes prochains cours.', champs);
+    (mode === 'prep')
+      ? 'Ce qu’il a fait jusqu’ici. Son cours du ' +
+        jourBref(p.prep.date, true) + ' prendra le rang suivant, comme si tu ' +
+        'corrigeais ses deux cases dans Mes prochains cours.'
+    : (mode === 'passe')
+      ? 'Ce qu’il a fait jusqu’ici, son cours du ' + jourBref(p.passe.date, true) +
+        ' compris. La correction s’écrit sur ce cours, comme dans Mes prochains cours.'
+      : 'Ce qu’il a fait jusqu’ici, son dernier bilan' +
+        (p.date ? ' (' + ((/^\d{4}-\d{2}-\d{2}/.test(p.date) && typeof jourBref === 'function')
+                       ? jourBref(p.date.slice(0, 10), true) : p.date) + ')' : '') +
+        ' compris. La correction ' +
+        's’écrit dans ce bilan : c’est lui que tout le reste relit.',
+    champs);
   if(!r) return;
 
   const total = parseInt(String(r.total || '').replace(/\D/g, ''), 10);
@@ -939,6 +964,32 @@ async function corrigerPositionDepuisLaTuile(nom, p){
   if(apres !== null && (isNaN(apres) || apres < 0 || apres > total)){
     showToast('Impossible : ' + r.apres + ' après ' + p.charn.nom + ', pour ' +
               total + ' leçons en tout.');
+    return;
+  }
+
+  /* Sans cours préparé, on corrige une leçon FAITE : elle a un rang,
+     et elle est après la charnière dès que la tuile en nomme une —
+     « aucune après l'examen blanc » ne s'écrit pas dans un bilan qui
+     dit « 1ère leçon après l'examen blanc ». Celui-là se corrige dans
+     l'historique. */
+  if(mode !== 'prep' && (total < 1 || (p.charn && apres !== null && apres < 1))){
+    showToast((total < 1)
+      ? 'Il a au moins fait la leçon de ce bilan : 1 au minimum.'
+      : 'Son dernier bilan est après ' + p.charn.nom + ' : 1 au minimum. ' +
+        'S’il est d’avant, corrige ce bilan depuis l’historique.');
+    return;
+  }
+
+  if(mode !== 'prep'){
+    try{
+      if(mode === 'passe') await corrigerLeCoursPasse(p, total, apres);
+      else await corrigerLeDernierBilan(nom, p, total, apres);
+      showToast('Enregistré ✅');
+      rafraichirPageEleve();
+      if(typeof redessinerBureau === 'function') redessinerBureau();
+    }catch(e){
+      showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
+    }
     return;
   }
 
@@ -968,6 +1019,66 @@ async function corrigerPositionDepuisLaTuile(nom, p){
     if(typeof redessinerBureau === 'function') redessinerBureau();
   }catch(e){
     showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
+  }
+}
+
+/* Le cours passé dont le bilan attend : c'est LUI la leçon faite,
+   ses cases prennent donc les nombres tels quels. */
+async function corrigerLeCoursPasse(p, total, apres){
+  const c = p.passe;
+  if(total !== p.fait.total) await ecrireRangDuCours(c, total);
+  if(p.charn && apres !== null &&
+     typeof avantLaCharniere === 'function' &&
+     typeof ecrireAvantCharniere === 'function'){
+    const avant = avantLaCharniere(total, apres);
+    const ecrit = String((contexteEnObjet(c.contexte) || {})[p.charn.cle] || '');
+    if(avant !== '' && avant !== ecrit) await ecrireAvantCharniere(c, p.charn.cle, avant);
+  }
+}
+
+/* Son dernier bilan : on retrouve SA ligne, on vérifie que c'est
+   bien celle que la tuile a lue, et on réécrit le rang de sa note. */
+async function corrigerLeDernierBilan(nom, p, total, apres){
+  if(typeof noteAvecSonRang !== 'function' || typeof appelPrep !== 'function'){
+    throw new Error('indisponible depuis cet écran');
+  }
+  const r = await appelPrep({ action: 'search', eleve: nom, exact: true, maxi: 40 });
+  const res = (r && r.resultats) || [];
+  const estLecon = (t) => (typeof estUneLecon === 'function') ? estUneLecon(t) : true;
+  const i = res.findIndex(x => estLecon(x.type));
+  if(i < 0 || String(res[i].note || '').trim() !== String(p.note || '').trim()){
+    throw new Error('son dernier bilan a changé depuis l’ouverture du dossier. Rouvre-le.');
+  }
+  if(!res[i].ligne) throw new Error('la place de son bilan est inconnue.');
+
+  const neuve = noteAvecSonRang(res[i].note, total, p.charn ? apres : null);
+  if(neuve === null){
+    throw new Error('son dernier bilan ne dit pas son rang à un endroit que je sais ' +
+                    'réécrire. Corrige-le depuis l’historique.');
+  }
+  if(neuve === String(res[i].note)) return;
+
+  /* Le plus haut plancher des bilans PLUS ANCIENS : rang écrit +
+     leçons qui l'ont suivi jusqu'à celui qu'on corrige compris. */
+  let plusRecentes = 0;
+  for(let k = i + 1; k < res.length; k++){
+    if(!estLecon(res[k].type)) continue;
+    plusRecentes++;
+    const dit = (typeof rangDansLaNote === 'function') ? rangDansLaNote(res[k].note) : null;
+    if(dit > 0 && dit + plusRecentes > total){
+      throw new Error('son bilan du ' + (res[k].date || '?') + ' dit déjà la ' +
+        rangCourt(dit) + ' : il en aurait fait au moins ' + (dit + plusRecentes) +
+        '. Corrige d’abord ce bilan-là depuis l’historique.');
+    }
+  }
+
+  const rep = await appelPrep({ action: 'bilanMaj', ligne: res[i].ligne,
+                                eleve: nom, noteInterne: neuve });
+  if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+
+  if(typeof viderCaches === 'function') viderCaches(nom);
+  if(typeof chargerBureau === 'function'){
+    try{ await chargerBureau(true); }catch(e){ /* l'écriture est faite */ }
   }
 }
 
@@ -1015,10 +1126,13 @@ function tuilesDuDossier(nom){
 
     /* Corriger d'ici — v1128, accepté par David : « oui ça me va ».
        Avec un cours préparé, on écrit ses deux cases, exactement
-       comme la carte de Mes prochains cours. Sans cours préparé, la
-       tuile ne se touche pas encore : voir le ⚠️ de
-       corrigerPositionDepuisLaTuile. */
-    const corrigeable = !!(p.prep && p.prochaine && p.prochaine.total);
+       comme la carte de Mes prochains cours. Sans cours préparé
+       (v1130), sur le cours passé ou dans le dernier bilan : voir
+       corrigerPositionDepuisLaTuile. Le « compte des bilans » seul ne
+       dit d'aucune ligne où il est écrit : rien à corriger. */
+    const corrigeable = !!(p.fait && p.fait.total &&
+      ((p.prep && p.prochaine && p.prochaine.total) ||
+       (p.source === 'passe' && p.passe) || p.source === 'bilan'));
     grille.appendChild(tuileDossier({
       lab:'Où il en est',
       gros: (p.fait && p.fait.total) ? rangCourt(p.fait.total) : '—',
@@ -1371,17 +1485,31 @@ function cadreFicheDeRoute(nom, s, e){
      typeof dossierAac === 'function'){
     const d = dossierAac(nom) || {};
     const r = d.rdv || {};
-    const ordre = [['Rendez-vous préalable', r.prealable],
-                   ['Rendez-vous pédagogique n° 1', r.rvp1],
-                   ['Rendez-vous pédagogique n° 2', r.rvp2],
-                   ['Rendez-vous de fin', r.rvt]];
-    ordre.forEach(([titre, x]) => {
+    /* ⚠️ v1130 — ET LA DATE SE POSE ICI. David : « il faut que je
+       puisse indiquer les dates de rendez-vous directement — là ça
+       renvoie dans le vide ». La ligne emmenait à la liste 🎓 AAC,
+       où il fallait retrouver l'élève. Elle ouvre maintenant LA
+       fenêtre de cette liste — corrigerRendezVous, la seule qui
+       écrit ces colonnes — réduite au rendez-vous touché. Même
+       réparation que la ligne 🌙 en v1124. */
+    const ordre = [['Rendez-vous préalable', r.prealable, 'rvp'],
+                   ['Rendez-vous pédagogique n° 1', r.rvp1, 'rvp1'],
+                   ['Rendez-vous pédagogique n° 2', r.rvp2, 'rvp2'],
+                   ['Rendez-vous de fin', r.rvt, 'rvt']];
+    ordre.forEach(([titre, x, cle]) => {
       if(!x || x.cle === 'sansobjet') return;
+      const pose = x.cle === 'fait' || x.cle === 'ailleurs' || x.cle === 'prevu';
       ligneFicheRoute(z0, x.retard ? '🔴' : (x.cle === 'fait' ? '✅' : '🤝'),
-        titre + ' — ' + x.txt,
-        x.cle === 'fait' || x.cle === 'ailleurs' || x.cle === 'prevu',
-        x.retard ? 'En retard' : 'Se pose dans 🎓 AAC et conduite supervisée',
-        () => { if(typeof afficherVue === 'function') afficherVue('eleves', 'aaccs'); },
+        titre + ' — ' + x.txt, pose,
+        (x.retard ? 'En retard — ' : '') +
+          (pose ? 'Touche pour changer la date' : 'Touche pour poser la date'),
+        () => {
+          if(typeof corrigerRendezVous !== 'function'){
+            showToast('Impossible de poser la date depuis cet écran.');
+            return;
+          }
+          corrigerRendezVous(dossierAac(nom), { seul: cle });
+        },
         undefined, titre.toLowerCase());
     });
   }
