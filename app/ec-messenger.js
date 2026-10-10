@@ -267,9 +267,12 @@ function datesPermisAVenir(){
       nom: nom,
       centre: (s && s.centre) || '',
       moniteur: (s && s.moniteurDate) || '',
-      /* Le groupe défini dans « Permis prévus » : on le reprend
-         tel quel plutôt que de refaire le découpage ici. */
-      groupe: (s && s.groupePermis) || '',
+      /* ⚠️ v1133 — PLUS « groupePermis ». C'était le groupe de
+         l'ancienne liste « Permis prévus » : il ne bougeait plus
+         depuis que les groupes se font en sessions, dans 🎓 Suivi
+         permis. Le groupe d'un élève, c'est sa session — posée
+         plus bas. */
+      session: '',
       repassage: !!(s && s.nbAjournements),
       heure: ''
     });
@@ -306,12 +309,16 @@ function datesPermisAVenir(){
       if(dans){
         dans.heure = p.heure || dans.heure;
         dans.rang = p.rang;
+        dans.session = sess.id;
       }
     });
   });
 
   return Object.keys(parDate).sort().map(iso => ({
     iso: iso,
+    /* Les sessions de ce jour : ce sont elles, les groupes. */
+    sessions: (typeof sessionsPermis !== 'undefined' ? sessionsPermis : [])
+      .filter(x => x.date === iso),
     /* L'ordre de la session s'il existe, l'alphabet sinon */
     eleves: parDate[iso].sort((a, b) => {
       if(a.rang && b.rang) return a.rang - b.rang;
@@ -402,32 +409,67 @@ function nouveauGroupe(nom){
            pauseDuree: 60, avantPause: 1, eleves: [] };
 }
 
-/* Reconstruit les groupes quand on change de date.
-   Les groupes définis dans « Permis prévus » sont repris : le
-   bureau les a déjà organisés, inutile de recommencer ici. */
+/* ============================================================
+   UNE SESSION, UN GROUPE — v1133
+
+   David, le 10 octobre : « dans Permis préparation les groupes ne se
+   mettent pas à jour ; il faut absolument que ça reprenne les groupes
+   qui sont dans Suivi permis, ceux-là sont bons ».
+
+   Cet écran relisait « groupePermis », le champ de l'ancienne liste
+   « Permis prévus ». Les groupes se font maintenant en SESSIONS, dans
+   🎓 Suivi permis — date, heure, centre, moniteur, ordre de passage —
+   et ce champ-là ne bougeait plus. Deux découpages pour une journée,
+   et c'est l'ancien qui composait les messages.
+
+   Désormais : une session = un groupe, ses élèves dans SON ordre de
+   passage, son heure en premier examen. Rien ne se redécoupe ici —
+   choix de David : tout se règle dans Suivi permis. Ceux qui ont la
+   date sans être dans aucune session forment « Sans session », pour
+   qu'on les voie au lieu de les perdre.
+   ============================================================ */
+function nomDeSession(sess){
+  return [sess.heureDebut ? heureExamenDe(sess.heureDebut) : '',
+          sess.centre || '', sess.moniteur || '']
+    .map(x => String(x).trim()).filter(Boolean).join(' · ') || 'Session';
+}
+
+/* L'heure d'une session, au format des créneaux du centre (« 13h15 »). */
+function heureExamenDe(h){
+  const m = enMinutes(h);
+  return (m === null) ? '' : enHeure(m);
+}
+
 function preparerGroupes(jour){
   dateGroupes = jour ? jour.iso : '';
   groupesPermis = [];
   if(!jour){ groupesPermis = [nouveauGroupe('Groupe 1')]; return; }
 
-  const parNom = {};
-  const ordre = [];
-  jour.eleves.forEach(e => {
-    const n = (e.groupe || '').trim() || 'Sans groupe';
-    if(!parNom[n]){ parNom[n] = []; ordre.push(n); }
-    parNom[n].push(e);
-  });
+  const sessions = (jour.sessions || []).slice().sort((a, b) =>
+    String(heureExamenDe(a.heureDebut) || '99h99')
+      .localeCompare(String(heureExamenDe(b.heureDebut) || '99h99')));
 
-  ordre.sort((a, b) => {
-    if(a === 'Sans groupe') return 1;
-    if(b === 'Sans groupe') return -1;
-    return a.localeCompare(b, 'fr');
-  }).forEach((n, i) => {
-    const g = nouveauGroupe(n === 'Sans groupe' ? 'Groupe ' + (i + 1) : n);
-    g.eleves = parNom[n];
+  sessions.forEach(sess => {
+    const eleves = jour.eleves.filter(e => e.session === sess.id);
+    if(!eleves.length) return;
+    const g = nouveauGroupe(nomDeSession(sess));
+    g.sessionId = sess.id;
+    const h = heureExamenDe(sess.heureDebut);
+    if(h) g.heure = h;
+    g.eleves = eleves;
     g.avantPause = Math.max(0, Math.min(g.avantPause, g.eleves.length - 1));
     groupesPermis.push(g);
   });
+
+  const connues = sessions.map(x => x.id);
+  const sans = jour.eleves.filter(e => !e.session || connues.indexOf(e.session) === -1);
+  if(sans.length){
+    const g = nouveauGroupe('Sans session');
+    g.sansSession = true;
+    g.eleves = sans;
+    g.avantPause = Math.max(0, Math.min(g.avantPause, g.eleves.length - 1));
+    groupesPermis.push(g);
+  }
 
   if(!groupesPermis.length) groupesPermis = [nouveauGroupe('Groupe 1')];
 }
@@ -518,16 +560,8 @@ async function afficherMessengerPermis(){
     t.innerHTML = '<strong style="flex:1;min-width:0;font-size:14px;color:var(--accent-text);">' +
       groupesPermis.length + ' groupe(s) pour cette date</strong>';
 
-    const bPlus = document.createElement('button');
-    bPlus.className = 'btn btn-secondary';
-    bPlus.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;margin:0;';
-    bPlus.textContent = '➕ Nouveau groupe';
-    bPlus.title = 'Deux inspecteurs, ou une session matin et une après-midi';
-    bPlus.addEventListener('click', () => {
-      groupesPermis.push(nouveauGroupe('Groupe ' + (groupesPermis.length + 1)));
-      dessinerGroupes();
-    });
-    t.appendChild(bPlus);
+    /* Plus de « ➕ Nouveau groupe » ni de déplacement : les groupes
+       sont les sessions de 🎓 Suivi permis — v1133. */
     zGroupes.appendChild(t);
 
     groupesPermis.forEach((g, ig) => zGroupes.appendChild(blocGroupe(g, ig, jour)));
@@ -542,38 +576,29 @@ async function afficherMessengerPermis(){
     const h = document.createElement('div');
     h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;';
 
-    const nom = document.createElement('input');
-    nom.type = 'text';
-    nom.value = g.nom;
-    nom.placeholder = 'Nom du groupe';
-    nom.style.cssText = 'flex:1;min-width:0;margin:0;font-weight:700;';
-    nom.addEventListener('input', () => { g.nom = nom.value; });
+    /* Le nom de la session, tel qu'elle est dans Suivi permis : il
+       ne se retape pas ici — v1133. */
+    const nom = document.createElement('div');
+    nom.className = 'grNom';
+    nom.textContent = (g.sansSession ? '⚠️ ' : '🎓 ') + g.nom;
+    nom.style.cssText = 'flex:1;min-width:0;font-weight:700;font-size:15px;' +
+      'color:' + (g.sansSession ? 'var(--warn-text)' : 'var(--cream)') + ';';
     h.appendChild(nom);
-
-    if(groupesPermis.length > 1){
-      const bSup = document.createElement('button');
-      bSup.className = 'btn btn-secondary';
-      bSup.style.cssText = 'width:auto;padding:8px 10px;font-size:12px;margin:0;' +
-        'color:var(--red);border-color:var(--red);';
-      bSup.textContent = '✕';
-      bSup.title = 'Supprimer ce groupe — ses élèves reviennent au premier';
-      bSup.addEventListener('click', () => {
-        /* Les élèves ne disparaissent pas avec le groupe */
-        const restants = groupesPermis.filter((x, i) => i !== ig);
-        g.eleves.forEach(e => restants[0].eleves.push(e));
-        groupesPermis = restants;
-        dessinerGroupes();
-      });
-      h.appendChild(bSup);
-    }
     d.appendChild(h);
+    if(g.sansSession){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:12px;color:var(--muted);margin:-4px 0 10px;line-height:1.5;';
+      a.textContent = 'Ces élèves ont cette date mais ne sont dans aucune session : ' +
+        'place-les dans 🎓 Suivi permis pour qu’ils rejoignent leur groupe.';
+      d.appendChild(a);
+    }
 
     /* Réglages propres au groupe */
     const g1 = document.createElement('div');
     g1.className = 'duo';
     g1.innerHTML =
       '<div><label>Premier examen</label><select class="grHeure">' +
-        HEURES_EXAMEN.map(x => '<option value="' + x + '"' +
+        (HEURES_EXAMEN.indexOf(g.heure) === -1 ? [g.heure] : []).concat(HEURES_EXAMEN).map(x => '<option value="' + x + '"' +
           (x === g.heure ? ' selected' : '') + '>' + x + '</option>').join('') +
       '</select></div>' +
       '<div><label>Conduite par candidat</label><select class="grConduite">' +
@@ -605,7 +630,8 @@ async function afficherMessengerPermis(){
       g.pauseDuree = parseInt(d.querySelector('.grPause').value, 10);
     };
 
-    /* Ordre de passage et déplacement d'un groupe à l'autre */
+    /* L'ordre de passage — celui de la session, qu'on peut encore
+       ajuster pour le message. */
     const lt = document.createElement('div');
     lt.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
       'margin:12px 0 6px;';
@@ -616,7 +642,7 @@ async function afficherMessengerPermis(){
       const v = document.createElement('div');
       v.className = 'empty';
       v.style.cssText = 'padding:10px;font-size:12px;';
-      v.textContent = 'Aucun élève. Déplace-en depuis un autre groupe.';
+      v.textContent = 'Aucun élève.';
       d.appendChild(v);
     }
 
@@ -653,26 +679,6 @@ async function afficherMessengerPermis(){
         l.appendChild(bH);
       }
 
-      /* Déplacer vers un autre groupe */
-      if(groupesPermis.length > 1){
-        const sel = document.createElement('select');
-        sel.style.cssText = 'width:auto;margin:0;padding:5px 8px;font-size:12px;';
-        sel.innerHTML = '<option value="">↔️</option>' +
-          groupesPermis.map((x, j) => j === ig ? '' :
-            '<option value="' + j + '">→ ' + (x.nom || 'Groupe ' + (j + 1)) +
-            '</option>').join('');
-        sel.title = 'Déplacer vers un autre groupe';
-        sel.addEventListener('change', () => {
-          const j = parseInt(sel.value, 10);
-          if(isNaN(j)) return;
-          groupesPermis[j].eleves.push(e);
-          g.eleves.splice(i, 1);
-          /* Une pause qui pointait au-delà du dernier candidat n'a plus de sens */
-          if(g.avantPause >= g.eleves.length) g.avantPause = Math.max(0, g.eleves.length - 1);
-          dessinerGroupes();
-        });
-        l.appendChild(sel);
-      }
 
       d.appendChild(l);
     });
