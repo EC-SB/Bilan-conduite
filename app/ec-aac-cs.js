@@ -967,6 +967,8 @@ function ligneCs(x){
   const age = (f && typeof ageDe === 'function') ? ageDe(f.naissance) : null;
   nom.textContent = x.eleve + (age === null ? '' : ' · ' + age + ' ans');
   meta.appendChild(nom);
+  /* 👤 Son dossier — v1134. */
+  if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(nom, x.eleve);
 
   /* LE COMPTEUR, ou son absence dite en toutes lettres. Sans date de
      préalable il n'y a rien à compter — et c'est justement ce qu'il
@@ -3622,6 +3624,8 @@ function ligneAac(x){
     ' · ' + x.parcours.court;
   if(x.age === null) nom.style.color = 'var(--warn-text)';
   meta.appendChild(nom);
+  /* 👤 Son dossier — v1134. */
+  if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(nom, x.eleve);
 
   /* LA LIGNE QUI GOUVERNE TOUT : quand l'examen devient possible, et
      LAQUELLE des deux conditions commande. Une date sans sa raison
