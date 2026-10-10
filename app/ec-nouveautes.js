@@ -51,6 +51,19 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1132,
+    date: 'Samedi 10 octobre 2026',
+    resume: 'Mes prochains cours : la ligne de l’examen dit les heures qui restent vraiment',
+    quoi: [
+      { emoji: '⏱️',
+        titre: '« encore 4h + 3h » se met à jour',
+        texte: 'Sur la carte d’un cours, la ligne « Examen officiel prévu le … » ' +
+               'gardait le nombre d’heures du jour où le cours avait été préparé. ' +
+               'Elle le recalcule maintenant à chaque affichage, avec le même calcul ' +
+               'que les tuiles du dossier : ce qui restera après ce cours-là.' }
+    ]
+  },
+  {
     version: 1131,
     date: 'Samedi 10 octobre 2026',
     resume: 'La fiche véhicule de l’AAC porte enfin l’émoji du moniteur',
