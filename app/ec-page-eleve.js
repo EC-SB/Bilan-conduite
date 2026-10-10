@@ -171,6 +171,11 @@ const ONGLETS_ELEVE = [
      côté de ses leçons, et cherchables. */
   { cle:'messages', emoji:'💬', titre:'Messages',     section:'messagerie' },
   { cle:'acces',    emoji:'🔑', titre:'Coin révisions', section:'acces_eleves' },
+  /* 📝 JUSTE SOUS COIN RÉVISIONS — v1139. David : « ajoute un sous-
+     onglet sous Coin révisions, Notes internes ». Il suit le droit du
+     dossier : toute l'équipe qui ouvre un dossier lit et écrit ses
+     notes (choix de David). Voir ec-notes-dossier.js. */
+  { cle:'notes',    emoji:'📝', titre:'Notes internes', section:'eleves' },
   { cle:'proc',     emoji:'📄', titre:'Procédures',  section:'proccorriger' },
   /* En lecture seule — voir la note ci-dessus. Il suit le droit du
      cours : qui peut lire un bilan peut lire ce qui l'a produit. */
@@ -2889,6 +2894,11 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'permis')      return ongletPermis(corps, nom);
   if(cle === 'messages')    return ongletMessagesEleve(corps, nom);
   if(cle === 'acces')       return ongletAcces(corps, nom);
+  if(cle === 'notes'){
+    if(typeof ongletNotesDossier === 'function') return ongletNotesDossier(corps, nom);
+    corps.appendChild(vidDossier("Les notes internes ne sont pas disponibles sur cet écran."));
+    return;
+  }
   if(cle === 'proc')        return ongletProcedures(corps, nom);
   if(cle === 'quest')       return ongletQuestionnaire(corps, nom);
   if(cle === 'financement') return ongletFinancement(corps, nom);
