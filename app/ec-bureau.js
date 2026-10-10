@@ -1134,6 +1134,9 @@ function ligneBureau(e, options){
   meta.className = 'meta';
   const nom = document.createElement('strong');
   nom.textContent = e.eleve;
+  /* 👤 Son dossier — v1134. Posé ici, il vaut pour toutes les listes
+     du bureau d'un coup. */
+  if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(nom, e.eleve);
 
   /* La barre de la boîte, seulement dans les listes qui la
      demandent — « Élèves prêts au permis » aujourd'hui. Posée ici
