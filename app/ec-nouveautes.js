@@ -51,6 +51,23 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1139,
+    date: 'Samedi 10 octobre 2026',
+    resume: 'Notes internes dans le dossier élève, et 💬 ouvert à tous les élèves',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Notes internes',
+        texte: 'Un nouvel onglet du dossier élève, sous Coin révisions. On y écrit des notes ' +
+               'classées Administratif, Pédagogique ou Sensible, datées et signées, avec un ' +
+               'filtre par catégorie. Toute l’équipe les lit ; seul leur auteur ou un ' +
+               'administrateur les modifie ou les supprime. L’élève ne les voit jamais.' },
+      { emoji: '💬',
+        titre: 'Écrire au bureau, pour tous les élèves',
+        texte: 'Tout élève qui a un accès au coin révisions peut écrire au bureau, sans case ' +
+               'à cocher. Écrire à son moniteur reste au cas par cas.' }
+    ]
+  },
+  {
     version: 1138,
     date: 'Samedi 10 octobre 2026',
     resume: 'Le résultat de l’examen blanc dit la même chose partout',
