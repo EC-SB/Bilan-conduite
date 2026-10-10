@@ -51,6 +51,22 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1137,
+    date: 'Samedi 10 octobre 2026',
+    resume: 'Places et sessions d’examen : un nouvel écran, en cartes',
+    quoi: [
+      { emoji: '📊',
+        titre: 'Les mois côte à côte',
+        texte: 'Dans 🎓 Suivi permis, chaque mois est une carte : ce qu’il reste à prévoir ' +
+               'en grand, une jauge des places prises, puis une case par semaine avec ses ' +
+               'jours ouverts et son nombre d’examens.' },
+      { emoji: '🎓',
+        titre: 'Les sessions rangées par semaine',
+        texte: 'Une carte par session, qui montre déjà qui passe, à quelle heure et où il en ' +
+               'est. Un appui l’ouvre en grand, avec les mêmes boutons qu’avant.' }
+    ]
+  },
+  {
     version: 1136,
     date: 'Samedi 10 octobre 2026',
     resume: 'Le groupe du permis : tu coches ce qui part',
