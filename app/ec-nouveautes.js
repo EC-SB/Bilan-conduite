@@ -51,6 +51,20 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1138,
+    date: 'Samedi 10 octobre 2026',
+    resume: 'Le résultat de l’examen blanc dit la même chose partout',
+    quoi: [
+      { emoji: '🅱️',
+        titre: 'La fiche de suivi gagne',
+        texte: 'Quand le résultat réglé dans Sa route (« pourrait », « pas le niveau ») ' +
+               'ne dit pas la même chose que le dernier bilan, c’est la fiche qui s’affiche, ' +
+               'dans la tuile comme dans Sa route. « Pourrait avoir le niveau » s’écrit aussi ' +
+               'dans le message au moniteur, et les bilans suivants ne recopient plus ' +
+               'l’ancienne conclusion.' }
+    ]
+  },
+  {
     version: 1137,
     date: 'Samedi 10 octobre 2026',
     resume: 'Places et sessions d’examen : un nouvel écran, en cartes',
