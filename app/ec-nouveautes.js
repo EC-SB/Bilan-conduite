@@ -51,6 +51,19 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1154,
+    date: 'Lundi 12 octobre 2026',
+    resume: '📄 Un mot dans la messagerie quand le bilan part',
+    quoi: [
+      { emoji: '📄',
+        titre: 'Le bilan est parti : l’élève le sait aussi dans sa messagerie',
+        texte: 'Quand tu envoies le bilan par mail en fin de cours, le bureau lui écrit dans son ' +
+               'fil « Le bureau » : « 📄 Ton bilan du cours du … vient de partir par mail. Tu le ' +
+               'retrouves aussi ici, dans ton espace : 🏠 Accueil › 📖 Mes leçons. » Ça se règle ' +
+               'pour toute l’école dans ⚙️ de la messagerie (administrateurs).' }
+    ]
+  },
+  {
     version: 1150,
     date: 'Lundi 12 octobre 2026',
     resume: '✏️ Écrire en deux gestes · 💾 la carte SD oubliée',
