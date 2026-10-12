@@ -2637,7 +2637,7 @@ async function envoyerRappelEtSuivre(nom, r, moniteur){
   if(dest.eleve){
     const texte = avecLien(avecMention48h(texteRappel()), lien);
     try{
-      await appelPrep({ action: 'mailBilan', to: [dest.eleve],
+      await appelPrep({ action: 'mailBilan', to: [dest.eleve], genre: 'rappel', eleve: nom,
         sujet: sujetsDuRappel(nom, r).eleve,
         texte: texte, html: mailEnHtml(texte, lien) });
       resultats.push({ qui: 'élève', adresse: dest.eleve, ok: true });
@@ -2656,7 +2656,7 @@ async function envoyerRappelEtSuivre(nom, r, moniteur){
     try{
       /* Le financeur n'a pas à confirmer la présence à la place de
          l'élève : il reçoit le même message, sans le bouton. */
-      await appelPrep({ action: 'mailBilan', to: [dest.financeur],
+      await appelPrep({ action: 'mailBilan', to: [dest.financeur], genre: 'rappel', eleve: nom,
         sujet: sujetsDuRappel(nom, r).financeur,
         texte: texte, html: mailEnHtml(texte, '') });
       resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: true });
