@@ -2763,8 +2763,10 @@ function confirmerFinDeCours(){
     bMail.disabled = true;
     bMail.textContent = 'Envoi…';
     try{
+      /* 📄 v1154 — et le mot dans sa messagerie, si l'école l'a activé */
+      const suite = { finDeCours: true };
       const combien = await envoyerBilanParMail(eleve, $('lessonDate').value,
-                                                $('resultText').value);
+                                                $('resultText').value, suite);
       if(!combien){
         /* Annulé à la fenêtre d'adresse : ce n'est pas un échec, et
            ça ne doit pas ressembler à un envoi. */
@@ -2773,6 +2775,10 @@ function confirmerFinDeCours(){
         return;
       }
       bMail.textContent = '✅ Envoyé à ' + combien + ' adresse(s)';
+      if(suite.annonce && suite.annonce.envoye){
+        d2.textContent = (d2.textContent ? d2.textContent + ' · ' : '') +
+          '💬 Le bureau le lui a aussi dit dans sa messagerie.';
+      }
     }catch(e){
       bMail.textContent = '⚠️ Échec';
       bMail.disabled = false;
