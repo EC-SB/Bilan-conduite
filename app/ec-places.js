@@ -366,6 +366,41 @@ function titreSemainePlaces(w){
   return (n ? '<strong>S' + n + '</strong> ' : '') + '<span class="plc-doux">' + ech(dates) + '</span>';
 }
 
+/* Les dates d'une semaine désignée par son NUMÉRO — v1140.
+
+   David, le 12 octobre : « on reçoit un tableau avec uniquement les
+   numéros de semaine, je dois donc aller chercher quel numéro
+   commence à quelle date ». On tape donc le numéro, et les dates
+   se déduisent : du lundi au vendredi, rognées au mois réglé (la
+   S40 en octobre 2026 = jeudi 1 et vendredi 2 seulement, ses trois
+   premiers jours sont en septembre).
+
+   L'année se déduit du mois : en décembre, la S1 est celle de
+   l'année suivante ; en janvier, la S52 ou S53 est celle d'avant.
+   Rend null si ce numéro n'a aucun jour ouvré dans ce mois. */
+function datesSemaineDuMois(isoMois, numero){
+  const n = parseInt(String(numero == null ? '' : numero).trim(), 10);
+  if(!isoMois || !(n >= 1 && n <= 53)) return null;
+  const [an, mo] = String(isoMois).split('-').map(Number);
+  if(!an || !mo) return null;
+  const iso = t => new Date(t).toISOString().slice(0, 10);
+  const debutMois = Date.UTC(an, mo - 1, 1);
+  const finMois   = Date.UTC(an, mo, 0);
+  for(const a of [an, an + 1, an - 1]){
+    /* Le 4 janvier est toujours dans la semaine 1 */
+    const j4 = Date.UTC(a, 0, 4);
+    const jour = new Date(j4).getUTCDay() || 7;
+    const lundi = j4 + ((1 - jour) + (n - 1) * 7) * 86400000;
+    /* Une année n'a pas toujours de semaine 53 */
+    if(numeroSemaine(iso(lundi)) !== n) continue;
+    const vendredi = lundi + 4 * 86400000;
+    const du = Math.max(lundi, debutMois);
+    const au = Math.min(vendredi, finMois);
+    if(du <= au) return { du: iso(du), au: iso(au) };
+  }
+  return null;
+}
+
 /* Semaines de travail (lundi→vendredi) d'un mois donné */
 function semainesDuMois(isoMois){
   if(!isoMois) return [];
@@ -861,12 +896,17 @@ function afficherPlaces(stats){
       (m.semaines || []).forEach((w, iw) => {
         const l = document.createElement('div');
         l.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
+        l.dataset.sem = im + '-' + iw;
         l.innerHTML =
           '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">' + libelleSemaine(w) + '</div>' +
-          '<div style="display:flex;gap:6px;margin-bottom:6px;">' +
-            '<input type="date" class="wDu" value="' + (w.du || '') + '" style="flex:1;margin:0;">' +
-            '<input type="date" class="wAu" value="' + (w.au || '') + '" style="flex:1;margin:0;">' +
+          /* Le numéro de semaine, comme dans le tableau reçu —
+             les dates s'en déduisent (v1140, demande de David). */
+          '<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">' +
+            '<span style="font-size:13px;color:var(--muted);white-space:nowrap;">Semaine n°</span>' +
+            '<input type="text" class="wNum" inputmode="numeric" maxlength="2" placeholder="ex. 42" value="' +
+              (w.du ? numeroSemaine(w.du) : '') + '" style="width:90px;flex:none;margin:0;text-align:center;font-weight:700;">' +
           '</div>' +
+          '<div class="wErr" style="font-size:12px;color:var(--red);min-height:0;margin-bottom:6px;"></div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<span style="font-size:13px;color:var(--muted);white-space:nowrap;">Jours 🚗</span>' +
             '<input type="text" class="wSB" inputmode="decimal" value="' + (w.sb || '') +
@@ -900,8 +940,24 @@ function afficherPlaces(stats){
             '<span style="flex:1;text-align:center;">HC — Plateau</span>' +
             '<span style="flex:1;text-align:center;">CIR — Circulation</span>' +
           '</div>';
-        l.querySelector('.wDu').addEventListener('change', e => { w.du = e.target.value; dessinerTout(); });
-        l.querySelector('.wAu').addEventListener('change', e => { w.au = e.target.value; dessinerTout(); });
+        /* « input » et non « change » : on tape le numéro puis on
+           appuie sur 💾 — le numéro doit déjà être pris en compte.
+           On ne redessine pas tout l'écran (le champ perdrait la
+           main) : seuls le titre et la ligne d'erreur changent. */
+        l.querySelector('.wNum').addEventListener('input', e => {
+          const brut = e.target.value.replace(/\D/g, '');
+          if(brut !== e.target.value) e.target.value = brut;
+          const err = l.querySelector('.wErr');
+          const r = datesSemaineDuMois(m.mois, brut);
+          if(r){ w.du = r.du; w.au = r.au; err.textContent = ''; }
+          else{
+            w.du = ''; w.au = '';
+            err.textContent = !brut ? ''
+              : !m.mois ? 'Choisis d’abord le mois en haut du bloc.'
+              : 'La semaine ' + brut + ' n’a aucun jour du lundi au vendredi en ' + libMois(m.mois) + '.';
+          }
+          l.firstElementChild.textContent = libelleSemaine(w);
+        });
         l.querySelector('.wSB').addEventListener('input', e => { w.sb = e.target.value.trim(); });
         l.querySelector('.wLO').addEventListener('input', e => { w.lo = e.target.value.trim(); });
         l.querySelector('.wHC').addEventListener('input', e => { w.hc = e.target.value.trim(); });
@@ -924,6 +980,9 @@ function afficherPlaces(stats){
         m.semaines = m.semaines || [];
         m.semaines.push({ du:'', au:'', sb:'', lo:'', hc:'', cir:'' });
         dessinerTout();
+        /* Le curseur va directement dans le numéro de la nouvelle semaine */
+        const champ = corps.querySelector('[data-sem="' + im + '-' + (m.semaines.length - 1) + '"] .wNum');
+        if(champ) champ.focus();
       });
       bloc.appendChild(bAddW);
 
