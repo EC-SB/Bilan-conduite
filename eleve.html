@@ -1218,6 +1218,13 @@
         Ton code t'est donné par le bureau. Écris ton nom comme il figure
         sur ton dossier.
       </div>
+      <!-- 🔒 v1147 — dit AVANT d'entrer, comme le demande la CNIL :
+           ce qui est noté, qui le voit, combien de temps. -->
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px;">
+        🔒 Ce que tu fais dans ton espace (connexions, bilans ouverts,
+        messages envoyés) est noté pour le suivi de ta formation. Seule
+        l’école le voit, et c’est effacé au bout de 12 mois.
+      </div>
     </div>
   </div>
 
@@ -2910,7 +2917,7 @@
     }
 
     z.innerHTML = liste.map(function(l){
-      return '<details class="lecon">' +
+      return '<details class="lecon" data-jour="' + echapper(l.date || '') + '">' +
         '<summary>' +
           '<span class="jour">' + echapper(l.date || '') + '</span>' +
           '<span class="qui">' + echapper(l.moniteur || '') +
@@ -2919,6 +2926,19 @@
         '<div class="texte">' + echapper(l.bilan || '') + '</div>' +
       '</details>';
     }).join('');
+
+    /* 🎓 v1147 — « a ouvert son bilan du … » : l'école le voit dans
+       son suivi. Une fois par bilan et par visite ; rien à attendre
+       de la réponse, et un échec ne gêne en rien la lecture. */
+    Array.prototype.forEach.call(z.querySelectorAll('details.lecon'), function(d){
+      d.addEventListener('toggle', function(){
+        if(!d.open || d._signale) return;
+        d._signale = true;
+        appeler({ action: 'eleveTrace', eleve: moi.nom, code: moi.code,
+                  geste: 'bilan', detail: d.getAttribute('data-jour') || '' })
+          .catch(function(){});
+      });
+    });
   }
 
 
