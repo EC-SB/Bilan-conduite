@@ -969,6 +969,96 @@
   .objligne .mi span{
     display:block; font-size:11.5px; color:var(--muted); margin-top:1px;
   }
+
+  /* ============================================================
+     🧭 ÉCRIRE À L'ÉCOLE EN COCKPIT — v1141
+
+     Le schéma « Messagerie — Cockpit » validé par David le
+     12 octobre, côté téléphone de l'élève : l'en-tête « Écrire à
+     l'école », les trois demandes en une rangée (⏰ 🚫 🧤), les
+     conversations en cartes, la carte du créneau « ✓ Ça me va ».
+     Les couleurs suivent le thème (🌙 / ☀️) ; elles ne vivent que
+     sous « .ckp ».
+     ============================================================ */
+  .ckp{
+    --kp1:#0E1216; --kp2:#141A20; --kl:#1F2A33; --kt:#E9F1F5; --kd:#7E8C97;
+    --kn:#B6FF0E; --knt:#B6FF0E; --ksurN:#081000; --kn2:#5CE1E6; --kr:#FF5C33; --ko:#FFB020;
+    --kglow:rgba(182,255,14,.35); --kmoi:linear-gradient(135deg,rgba(182,255,14,.22),rgba(92,225,230,.14));
+    --kmoiB:rgba(182,255,14,.45); --kmoiS:#BFE3A0;
+    --kcarte2:rgba(92,225,230,.06); --kcarte2B:rgba(92,225,230,.45);
+  }
+  body.clair .ckp{
+    --kp1:#FFFFFF; --kp2:#F7F7F2; --kl:#DCDCD3; --kt:#14161B; --kd:#64655F;
+    --kn:#B6FF0E; --knt:#3B6900; --ksurN:#0B0B0B; --kn2:#0E7C86; --kr:#C33A12; --ko:#A86A00;
+    --kglow:rgba(130,190,0,.25); --kmoi:linear-gradient(135deg,#E6FFB0,#D8F7F4); --kmoiB:#B6E35A; --kmoiS:#4F7A00;
+    --kcarte2:#EEFBFB; --kcarte2B:#7FCFD3;
+  }
+  @keyframes ckLueur{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  .ckPulse{ animation:ckLueur 1.6s infinite; }
+  .ckDot{ width:7px; height:7px; border-radius:50%; background:var(--kn); box-shadow:0 0 8px var(--kn);
+          display:inline-block; margin-right:6px; vertical-align:1px; }
+  .ckTop{ display:flex; align-items:center; gap:11px; margin-bottom:12px; }
+  .ckTop .av{ width:40px; height:40px; border-radius:12px; background:var(--kp2); border:1px solid var(--kn);
+              box-shadow:0 0 14px var(--kglow); display:flex; align-items:center; justify-content:center;
+              flex-shrink:0; font-weight:900; color:var(--knt); font-size:14px; }
+  .ckTop .tt{ flex:1; min-width:0; }
+  .ckTop .t{ font-weight:800; font-size:16px; line-height:1.2; color:var(--kt);
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckTop .s{ font-size:11.5px; color:var(--kd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckTop .rond{ width:36px; height:36px; border-radius:12px; border:1px solid var(--kl); background:var(--kp2);
+                color:var(--kt); display:flex; align-items:center; justify-content:center; cursor:pointer;
+                flex-shrink:0; font-size:15px; margin:0; padding:0; font-family:inherit; }
+  /* Les trois demandes : une rangée qui tient sur un téléphone, et
+     qui passe à la ligne si elle ne tient plus — jamais de défilement. */
+  .ckp .ckOrbit{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px; }
+  .ckp .ckOrbit button{ flex:1 1 90px; text-align:center; font-family:inherit; font-size:13px; font-weight:800;
+             border:1px solid var(--kl); border-radius:14px; padding:12px 6px; background:var(--kp1);
+             color:var(--kt); cursor:pointer; margin:0; width:auto; }
+  .ckp .ckOrbit button.urg{ border-color:color-mix(in srgb,var(--kr) 60%,transparent); color:var(--kr); }
+  .ckp .convo.ckLc{ display:flex; gap:11px; align-items:center; padding:11px 12px; margin:0 0 8px;
+             border-radius:16px; border:1px solid var(--kl); background:var(--kp1); cursor:pointer; }
+  .ckLc .rond{ width:40px; height:40px; border-radius:12px; background:var(--kp2); border:1px solid var(--kl);
+               display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:17px; }
+  .ckLc.nonlu .rond{ border-color:var(--kn); box-shadow:0 0 12px var(--kglow); }
+  .ckLc .mi{ flex:1; min-width:0; }
+  .ckLc .qui{ display:flex; gap:8px; align-items:baseline; }
+  .ckLc .qui .q{ flex:1; min-width:0; font-weight:800; font-size:13.5px; color:var(--kt);
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckLc .qui .h{ font-size:10.5px; color:var(--kd); flex-shrink:0; }
+  .ckLc .ap{ font-size:12px; color:var(--kd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckLc.nonlu .ap{ color:var(--kt); font-weight:600; }
+  .ckLc .etatObj{ font-size:10.5px; font-weight:700; color:var(--knt); }
+  .ckLc .cpt{ min-width:20px; height:20px; border-radius:10px; background:var(--kn); color:var(--ksurN);
+              font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:0 5px; }
+  /* Le fil */
+  .ckp .fil{ background:transparent; border:none; padding:6px 2px; }
+  .ckp .jourFil{ text-align:center; }
+  .ckp .jourFil span{ display:inline-block; font-size:10px; letter-spacing:.18em; color:var(--kd);
+               padding:3px 10px; border:1px solid var(--kl); border-radius:999px; font-weight:600;
+               font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckp .bulle{ font-size:13.5px; border-radius:16px; }
+  .ckp .bulle.eux{ background:var(--kp2); border:1px solid var(--kl); color:var(--kt); border-top-left-radius:4px; }
+  .ckp .bulle.moi{ background:var(--kmoi); border:1px solid var(--kmoiB); color:var(--kt); border-top-right-radius:4px; }
+  .ckp .bulle.moi .sig, .ckp .bulle.moi .hh{ color:var(--kmoiS); opacity:1; }
+  .ckp .bulle .hh{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:10px; }
+  .ckp .bulle.systeme{ border:none; color:var(--knt); background:transparent; font-size:11.5px; }
+  /* La carte du créneau proposé */
+  .ckCarte{ border:1px solid var(--kcarte2B); border-radius:16px; padding:12px; background:var(--kcarte2);
+            margin:0 0 10px; }
+  .ckCarte .lab{ font-size:10px; letter-spacing:.14em; color:var(--kn2); font-weight:700;
+                 font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckCarte .v{ font-weight:800; margin-top:3px; color:var(--kt); font-size:15px; }
+  .ckCarte .avec{ font-size:12px; color:var(--kd); }
+  .ckCarte .row{ display:flex; gap:8px; margin-top:10px; }
+  .ckCarte .row button{ flex:1; text-align:center; font-family:inherit; font-size:13px; font-weight:800;
+             border-radius:10px; padding:10px; background:var(--kn); color:var(--ksurN); border:1px solid var(--kn);
+             cursor:pointer; margin:0; width:auto; }
+  .ckCarte .row button + button{ background:transparent; color:var(--kt); border-color:var(--kl); }
+  .ckCarte .fait{ margin-top:8px; font-weight:800; color:var(--kd); }
+  .ckCarte .fait.oui{ color:var(--knt); }
+  .ckp .zoneEcrire{ border-color:var(--kl); background:var(--kp1); border-radius:20px; }
+  .ckp .zoneEcrire button.btn{ background:var(--kn); color:var(--ksurN); box-shadow:0 0 16px var(--kglow); }
+  .ckRegle{ text-align:center; font-size:13px; color:var(--kd); padding:10px 0 4px; }
   .objetat{
     flex-shrink:0; font-size:11px; font-weight:700; padding:3px 9px;
     border-radius:999px; white-space:nowrap;
@@ -1253,24 +1343,30 @@
          disputent la même place, sur un téléphone, n'en font aucun.
          ===================================================== -->
     <div id="ongletMessages" class="cache">
-      <div id="zoneEcrireEcole"></div>
+      <!-- 🧭 « ckp » sur les deux zones et pas sur l'onglet : la barre
+           des onglets réécrit la classe de celui-ci à chaque bascule. -->
+      <div id="zoneEcrireEcole" class="ckp"></div>
 
-      <div id="cartesEcrireEcole">
+      <div id="cartesEcrireEcole" class="ckp">
+        <!-- 🧭 v1141 — le schéma Cockpit : « Écrire à l'école », et
+             les trois demandes en une rangée. Leurs formulaires ne
+             changent pas : chaque bouton ouvre le même écran
+             qu'avant (ecranMotif). -->
         <div class="card">
-          <div class="section-title">⚡ En deux clics</div>
-          <div class="motifs">
-            <button type="button" class="urg" data-motif="retard">
-              <span class="gros">⏰ Je serai en retard</span>
-              <span class="fin">Ton moniteur et le bureau le voient tout de suite</span>
-            </button>
-            <button type="button" class="urg" data-motif="annul">
-              <span class="gros">🚫 Je dois annuler ou décaler</span>
-              <span class="fin">Le bureau te rappelle</span>
-            </button>
-            <button type="button" data-motif="oubli">
-              <span class="gros">🧤 J'ai oublié quelque chose</span>
-              <span class="fin">Dans la voiture — on regarde et on te dit</span>
-            </button>
+          <div class="ckTop">
+            <div class="av">EC</div>
+            <div class="tt">
+              <div class="t">Écrire à l’école</div>
+              <div class="s"><span class="ckDot ckPulse"></span>réponse sous 48 heures ouvrées</div>
+            </div>
+          </div>
+          <div class="ckOrbit">
+            <button type="button" class="urg" data-motif="retard"
+              title="Ton moniteur et le bureau le voient tout de suite">⏰ Retard</button>
+            <button type="button" data-motif="annul"
+              title="Annuler ou décaler : le bureau te rappelle">🚫 Annuler</button>
+            <button type="button" data-motif="oubli"
+              title="Dans la voiture — on regarde et on te dit">🧤 Objet</button>
           </div>
           <div class="presmot">
             Pour une urgence dans l'heure, appelle le bureau : ici, personne
@@ -3459,8 +3555,13 @@
       return;
     }
 
+    /* 🧭 v1141 : des cartes, et pour un objet oublié, son état sous
+       le titre — la question pour laquelle il rouvre l'appli. */
+    var etatDe = {};
+    (mesObjetsEl || []).forEach(function(o){ if(o.conversation) etatDe[o.conversation] = o.etat; });
     z.innerHTML = conversationsEl.map(function(c){
-      return '<div class="convo' + (c.nonLus ? ' nonlu' : '') +
+      var eo = etatDe[c.id] ? (ETATS_OBJET_EL[etatDe[c.id]] || null) : null;
+      return '<div class="convo' + (c.nonLus ? ' nonlu' : '') + ' ckLc' +
           '" data-fil="' + echapper(c.id) + '">' +
         '<div class="rond">' + (RONDS_FIL[c.genre] || '💬') + '</div>' +
         '<div class="mi">' +
@@ -3473,6 +3574,7 @@
                 echapper(c.dernierApercu)
               : 'Pas encore de message.') +
           '</div>' +
+          (eo ? '<div class="etatObj">' + eo.em + ' ' + echapper(eo.mot) + '</div>' : '') +
         '</div>' +
         (c.nonLus ? '<span class="cpt">' + c.nonLus + '</span>' : '') +
       '</div>';
@@ -3560,6 +3662,25 @@
       '</div></div>';
   }
 
+  /* 🧭 L'EN-TÊTE DU FIL — v1141. Le rond du genre, le nom, et en
+     dessous ce que l'élève veut savoir : « ✓✓ lu par le bureau », ou
+     « envoyé · réponse sous 48 h ouvrées ». Le bouton ← garde son
+     identifiant : brancherRetour le cherche. */
+  function enteteFilEl(c){
+    var msgs = (filEl && filEl.messages) || [];
+    var dernierMien = 0;
+    msgs.forEach(function(m){ if(m.de === 'moi') dernierMien = Math.max(dernierMien, Number(m.rang || 0)); });
+    var lu = dernierMien && Number((filEl && filEl.luEcole) || 0) >= dernierMien;
+    var sous = Number(c.fermee || 0) ? 'demande réglée'
+      : (lu ? '✓✓ lu par ' + (c.genre === 'moniteur' ? echapper(c.qui || 'ton moniteur') : 'le bureau')
+            : (dernierMien ? 'envoyé · réponse sous 48 heures ouvrées' : 'réponse sous 48 heures ouvrées'));
+    return '<div class="ckTop">' +
+      '<button type="button" class="rond" id="btRetourEcole" aria-label="Revenir">←</button>' +
+      '<div class="av" style="font-size:17px;">' + (RONDS_FIL[c.genre] || '💬') + '</div>' +
+      '<div class="tt"><div class="t">' + echapper(c.qui || 'Conversation') + '</div>' +
+      '<div class="s">' + sous + '</div></div></div>';
+  }
+
   function brancherRetour(){
     var b = $('btRetourEcole');
     if(b) b.addEventListener('click', fermerPleinEcran);
@@ -3629,10 +3750,7 @@
     var c = filEl.conv;
     var id = c.id;
 
-    var h = '<div class="card">' +
-      enteteRetour(c.qui || 'Conversation',
-        c.genre === 'bureau' || c.genre === 'moniteur'
-          ? 'Réponse sous 48 heures ouvrées' : '');
+    var h = '<div class="card">' + enteteFilEl(c);
 
     h += '<div class="fil" id="leFilEleve">';
     if(filEl.encore){
@@ -3646,7 +3764,7 @@
       var jour = String(m.envoyeLe || '').slice(0, 10);
       if(jour && jour !== jourPose){
         jourPose = jour;
-        h += '<div class="jourFil">' + echapper(jourClairEl(jour)) + '</div>';
+        h += '<div class="jourFil"><span>' + echapper(jourClairEl(jour)) + '</span></div>';
       }
       h += bulleEleve(m);
     });
@@ -3698,10 +3816,10 @@
         '</div>' +
       '</div><div id="msgFil"></div>';
     }else{
-      h += '<div class="empty">' +
-        (c.mode === 'annonce'
-          ? "C'est une annonce de l'école : on n'y répond pas. Écris au bureau si tu as une question."
-          : 'Cette conversation est fermée. Elle reste lisible.') + '</div>';
+      h += (c.mode === 'annonce')
+        ? '<div class="empty">C\'est une annonce de l\'école : on n\'y répond pas. ' +
+          'Écris au bureau si tu as une question.</div>'
+        : '<div class="ckRegle">Cette demande est réglée ✓</div>';
     }
 
     h += '</div>';
@@ -3769,6 +3887,7 @@
       }
     });
     majBoutonEnvoiEl();
+    brancherLesCreneauxEl();
     brancherLesReactionsEl();
     brancherLesPhotosEl();
     brancherLesVocauxEl();
@@ -3781,7 +3900,15 @@
 
   function bulleEleve(m){
     if(m.de === 'systeme'){
-      return '<div class="bulle systeme">' + echapper(m.texte) + '</div>';
+      /* « — conversation fermée » est écrit pour le bureau ; l'élève
+         lit « ✓ Réglé par David », et la ligne du bas dit le reste. */
+      return '<div class="bulle systeme">' +
+        echapper(String(m.texte || '').replace(/ — conversation fermée$/, '')) + '</div>';
+    }
+    /* 📅 La carte d'un créneau proposé — v1141. Elle ne change pas :
+       sa réponse est un message à part, qu'on retrouve ici. */
+    if(m.motif === 'creneau' && !Number(m.supprime || 0)){
+      return carteCreneauEl(m);
     }
     var mien = (m.de === 'moi');
 
@@ -3843,6 +3970,51 @@
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
     h += pastillesEl(m);
     return h + '</div>';
+  }
+
+  function reponseAuCreneauEl(m){
+    var r = ((filEl && filEl.messages) || []).filter(function(x){
+      return (x.motif === 'creneauOui' || x.motif === 'creneauNon') &&
+             x.donnees && x.donnees.message === m.id;
+    })[0];
+    return r ? (r.motif === 'creneauOui' ? 'oui' : 'non') : '';
+  }
+
+  function carteCreneauEl(m){
+    var d = m.donnees || {};
+    var rep = reponseAuCreneauEl(m);
+    var ouvert = !rep && filEl && filEl.peutEcrire;
+    return '<div class="ckCarte" data-carte="' + echapper(m.id || '') + '">' +
+      '<div class="lab">NOUVEAU CRÉNEAU</div>' +
+      '<div class="v">' + echapper(d.libelle || String(m.texte || '').replace(/^📅 Créneau proposé : /, '')) + '</div>' +
+      ((d.avec || d.lieu) ? '<div class="avec">' + echapper([d.avec ? 'avec ' + d.avec : '', d.lieu || '']
+        .filter(Boolean).join(' · ')) + '</div>' : '') +
+      (ouvert
+        ? '<div class="row"><button type="button" data-cren="1">✓ Ça me va</button>' +
+          '<button type="button" data-cren="0">Autre</button></div>'
+        : (rep ? '<div class="fait' + (rep === 'oui' ? ' oui' : '') + '">' +
+                 (rep === 'oui' ? '✓ Accepté' : '↺ Tu as demandé autre chose') + '</div>' : '')) +
+      '</div>';
+  }
+
+  /* Les deux boutons de la carte. La réponse part au serveur, qui
+     écrit le message et prévient le bureau ; on relit le fil. */
+  function brancherLesCreneauxEl(){
+    Array.prototype.forEach.call(document.querySelectorAll('#zoneEcrireEcole [data-cren]'), function(b){
+      b.addEventListener('click', function(){
+        var carte = b.closest('[data-carte]');
+        if(!carte || !filEl || !filEl.conv) return;
+        Array.prototype.forEach.call(carte.querySelectorAll('button'), function(x){ x.disabled = true; });
+        appeler({ action: 'eleveCreneau', eleve: moi.nom, code: moi.code,
+                  id: filEl.conv.id, message: carte.getAttribute('data-carte'),
+                  oui: b.getAttribute('data-cren') })
+          .then(function(){ rafraichirLeFilEleve(false); })
+          .catch(function(e){
+            Array.prototype.forEach.call(carte.querySelectorAll('button'), function(x){ x.disabled = false; });
+            dire('msgFil', (e && e.message) || "Ta réponse n'est pas partie.", 'erreur');
+          });
+      });
+    });
   }
 
   /* ============================================================
@@ -5709,8 +5881,11 @@
            doit PAS déclencher un redessin — sinon l'image se
            recharge toutes les quatre secondes et clignote. C'est
            pour ça que l'empreinte ne regarde que les réactions. */
+        /* ✓✓ Et quand le bureau vient de lire — v1141 : l'en-tête
+           passe de « envoyé » à « lu par le bureau ». */
         if(liste.length !== avant || neuf !== dernier ||
-           empreinteReacEl(d) !== empreinteAvant){
+           empreinteReacEl(d) !== empreinteAvant ||
+           Number((d && d.luEcole) || 0) !== Number((filEl && filEl.luEcole) || 0)){
           filEl = d;
           noterLeResteVocaux(d);
           dessinerFilEleve();
