@@ -431,3 +431,7 @@ if(typeof window !== 'undefined'){
     }
   });
 }
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-direct.js'] = true;
