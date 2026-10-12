@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:55 — v1102 */
+/* Déployé le 12/10/2026 à 15:22 — v1156 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3871,23 +3871,117 @@ function mentionPostPermis(nom){
    savoir depuis quand, décompter c'est inventer. C'est la prudence
    que les commentaires lui prêtaient déjà.
    ============================================================ */
+/* ============================================================
+   ⚠️ LE RANG DU DERNIER BILAN N'EST PAS LA SEULE SOURCE — v1156
+
+   David, le 12 octobre, deux dossiers le même jour :
+
+   · Yaya Ouattara, examen le 14 : « c'est sa leçon de veille
+     aujourd'hui et la dernière tuile n'est pas à jour ». Le
+     post-permis a prescrit 2 h ; sa 1ʳᵉ leçon d'après (le 9) a eu
+     lieu, mais son bilan n'est pas encore écrit — et elle n'a
+     AUCUN bilan dans ce classeur. Le rang « après le post-permis »
+     ne se lisait que dans le dernier bilan : 0, rien à décompter,
+     « 2 h » pour toujours.
+
+   · Capucine Foulfoin, examen le 13 : ses bilans AAC écrivent
+     « 9ÈME LEÇON — FICHE VÉHICULE… », jamais « Xᵉ après l'examen
+     blanc ». Même 0, même « 4 h » figé, alors que les 4 h et la
+     leçon de veille sont faites.
+
+   Deux sources de plus, et on garde la plus avancée — un rang ne
+   recule jamais, c'est la règle du plancher (v1100) :
+
+   1. Les COURS PRÉPARÉS, passés et à venir : ce que la tuile « Où il
+      en est » montre déjà (positionDeLEleve). Un cours passé dont le
+      bilan attend est une leçon faite.
+   2. Les DATES des bilans de leçon (« datesLecons », rendu par le
+      Worker) : quand aucun rang n'est écrit, on compte les leçons
+      datées APRÈS le jour où la réserve a été posée — le jour où les
+      heures ont été dites s'il est connu, sinon celui de la
+      charnière (examen blanc, post-permis, ajournement). Seulement
+      quand aucun repère de rang n'a été posé : un repère dit déjà
+      d'où l'on compte, et une date ne le contredit pas.
+
+   ⚠️ L'ÉCRAN DU COURS NE CHANGE PAS : quand il donne son propre rang
+   (etatDuJour), c'est celui du cours qu'on ouvre, et il fait foi.
+   ============================================================ */
+/* ⚠️ TOUT TIENT DANS LA FONCTION — ses aides comprises : plusieurs
+   bancs la relisent seule, par son texte. */
 function leconsDepuisLaReserve(nom, etatDuJour){
+  const quoiDeLaCharniereDuCours = (cle) =>
+    cle === 'avantRdvPost' ? 'postpermis'
+    : cle === 'avantExamRate' ? 'ajournement'
+    : cle === 'avantEB' ? 'eb' : '';
+  const jourDeLaReserve = (s, quoi) => {
+    const iso = v => {
+      const t = String(v || '').trim();
+      if(!t) return '';
+      if(/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+      return (typeof dateFrVersIso === 'function') ? (dateFrVersIso(t) || '') : '';
+    };
+    const dit = iso(s.heuresLe);
+    if(dit) return dit;
+    if(quoi === 'postpermis') return iso(s.rdvPostDate);
+    if(quoi === 'ajournement') return iso(s.dateAjournement);
+    return iso(s.ebDate);
+  };
+
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
-
-  const ch = (etatDuJour && etatDuJour.apresCharniere) ||
-             ((typeof charniereDeLEleve === 'function')
-               ? charniereDeLEleve(nom) : null);
-  const rang = parseInt((ch && ch.rang), 10);
-  if(isNaN(rang) || rang <= 0) return 0;
-
   const rep = (typeof repereDesHeures === 'function')
     ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
+  const repQuoi = String(rep.quoi || 'eb');
 
-  /* Deux compteurs, deux charnières : on ne soustrait pas. */
-  if(String(rep.quoi || 'eb') !== String((ch && ch.quoi) || 'eb')) return 0;
+  /* L'écran du cours : son rang à lui, comme avant. */
+  if(etatDuJour && etatDuJour.apresCharniere){
+    const ch = etatDuJour.apresCharniere;
+    const rang = parseInt(ch.rang, 10);
+    if(isNaN(rang) || rang <= 0) return 0;
+    if(repQuoi !== String(ch.quoi || 'eb')) return 0;
+    const depuis = rang - (parseInt(rep.rang, 10) || 0);
+    return depuis > 0 ? depuis : 0;
+  }
 
-  const depuis = rang - (parseInt(rep.rang, 10) || 0);
-  return depuis > 0 ? depuis : 0;
+  let meilleur = 0;
+  const ch = (typeof charniereDeLEleve === 'function') ? charniereDeLEleve(nom) : null;
+  const quoi = String((ch && ch.quoi) || 'eb');
+
+  /* 0 · le rang du dernier bilan — la source d'avant */
+  {
+    const rang = parseInt((ch && ch.rang), 10);
+    if(!isNaN(rang) && rang > 0 && repQuoi === quoi){
+      meilleur = Math.max(meilleur, rang - (parseInt(rep.rang, 10) || 0));
+    }
+  }
+
+  /* 1 · les cours préparés */
+  /* Le garde-fou contre un appel qui reviendrait ici par
+     positionDeLEleve : porté par la fonction elle-même. */
+  if(!leconsDepuisLaReserve.enCours && typeof positionDeLEleve === 'function'){
+    leconsDepuisLaReserve.enCours = true;
+    try{
+      const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+      const p = positionDeLEleve(nom, e) || {};
+      const fait = p.fait && p.fait.apres;
+      const q = quoiDeLaCharniereDuCours(p.charn && p.charn.cle);
+      if(fait !== null && fait !== undefined && fait >= 0 && q && q === repQuoi &&
+         p.source !== 'compte'){
+        meilleur = Math.max(meilleur, fait - (parseInt(rep.rang, 10) || 0));
+      }
+    }catch(x){ /* on garde ce qu'on a */ }
+    leconsDepuisLaReserve.enCours = false;
+  }
+
+  /* 2 · les dates des bilans, quand aucun repère de rang n'est posé */
+  if(!(parseInt(rep.rang, 10) > 0) || String(s.heuresLe || '').trim()){
+    const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+    const dates = (e && Array.isArray(e.datesLecons)) ? e.datesLecons : [];
+    const depuisLe = jourDeLaReserve(s, repQuoi);
+    if(dates.length && depuisLe){
+      meilleur = Math.max(meilleur, dates.filter(d => String(d) > depuisLe).length);
+    }
+  }
+  return meilleur > 0 ? meilleur : 0;
 }
 
 function heuresQuiComptent(nom, etatDuJour){
@@ -3927,13 +4021,17 @@ function heuresQuiComptent(nom, etatDuJour){
      tout ce qui le lit continue de le lire — et le dépassement part
      à côté, pour qui sait quoi en faire. */
   let depasse = false;
+  /* 📅 v1156 — de combien on est au-delà, en heures : UNE leçon
+     au-delà de la réserve, c'est la leçon de veille ; plus, c'est un
+     vrai dépassement. La tuile du dossier les distingue. */
+  let auDela = 0;
   const moinsLesLecons = (brut) => {
     const h = parseFloat(String(brut).replace(',', '.'));
     if(isNaN(h) || typeof leconsDepuisLaReserve !== 'function' ||
        typeof heuresPourLecons !== 'function') return String(brut).trim();
     const reste = h - heuresPourLecons(
       leconsDepuisLaReserve(nom, etatDuJour || null));
-    if(reste < 0) depasse = true;
+    if(reste < 0){ depasse = true; auDela = -reste; }
     /* Zéro n'est pas vide : « plus que les 3h » est une réponse, et
        c'est la plus utile des deux. Voir mentionHeuresRestantes. */
     return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
@@ -3986,10 +4084,10 @@ function heuresQuiComptent(nom, etatDuJour){
       const lePost = String(s.rdvPostDate || '').trim();
       if(hDit !== '' && leDit && lePost && leDit >= lePost){
         const v1 = moinsLesLecons(hDit);
-        return { valeur: v1, source: 'moniteur', depasse: depasse };
+        return { valeur: v1, source: 'moniteur', depasse: depasse, auDela: auDela };
       }
       const v2 = moinsLesLecons(h);
-      return { valeur: v2, source: 'post-permis', depasse: depasse };
+      return { valeur: v2, source: 'post-permis', depasse: depasse, auDela: auDela };
     }
   }
 
@@ -4064,7 +4162,7 @@ function heuresQuiComptent(nom, etatDuJour){
     }
 
     const v3 = moinsLesLecons(h2);
-    return { valeur: v3, source: 'examen blanc', depasse: depasse };
+    return { valeur: v3, source: 'examen blanc', depasse: depasse, auDela: auDela };
   }
 
   /* … et si rien n'est prescrit, la note reste la dernière chose
