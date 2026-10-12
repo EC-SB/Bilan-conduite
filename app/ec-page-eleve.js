@@ -2754,6 +2754,15 @@ function actionsRapidesEleve(nom, f){
   const tel = (f && f.telephone) || '';
   if(tel && typeof telPourLien === 'function'){
     rond('📞', 'Appeler ' + nom, null, 'tel:' + telPourLien(tel));
+  }
+  /* 💬 v1153 — David : « il faut qu'elle ouvre la messagerie
+     directement vers l'élève ». Le SMS ne reste que pour qui n'a pas
+     la messagerie. */
+  const messagerie = (typeof ecrireAEleveDansLaMessagerie === 'function') &&
+    (typeof peutOuvrirUneConversation !== 'function' || peutOuvrirUneConversation());
+  if(messagerie){
+    rond('💬', 'Écrire à ' + nom + ' dans la messagerie', () => ecrireAEleveDansLaMessagerie(nom));
+  }else if(tel && typeof telPourLien === 'function'){
     rond('💬', 'Envoyer un SMS à ' + nom, null, 'sms:' + telPourLien(tel));
   }
 
