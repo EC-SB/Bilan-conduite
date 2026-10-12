@@ -131,6 +131,7 @@ function quellesFermeesPour(filtre){
    s'il était ouvert (le fil s'ouvre en grand).
    ============================================================ */
 function allerALaMessagerie(vue){
+  if(signalOuvertEC){ signalOuvertEC = null; ckEcranAPart = false; }   /* 📞 v1155 */
   if(reglagesMsgOuvertEC){ reglagesMsgOuvertEC = false; ckEcranAPart = false; }   /* ⚙️ v1154 */
   if(dansLeTiroir() && typeof fermerTiroirMessagerie === 'function') fermerTiroirMessagerie();
   if(typeof afficherOnglet === 'function') afficherOnglet('messagerie');
@@ -191,8 +192,8 @@ async function afficherMessagerie(silencieux){
   /* ✏️ v1153 — un fil neuf ouvert depuis le dossier : la liste ne
      se repeint pas par-dessus (sur téléphone, c'est la même zone). */
   if(typeof filNeufEC !== 'undefined' && filNeufEC) return;
-  /* ⚙️ v1154 — idem pour l'écran des réglages */
-  if(reglagesMsgOuvertEC) return;
+  /* ⚙️ v1154 — idem pour l'écran des réglages, 📞 v1155 et le signalement */
+  if(reglagesMsgOuvertEC || signalOuvertEC) return;
 
   dessinerLaListeMessagerie();
   if(typeof poursuivreEcrireA === 'function') poursuivreEcrireA();
@@ -272,6 +273,23 @@ function dessinerLaListeMessagerie(){
     bt.style.cssText = 'width:100%;margin:0;padding:9px 14px;font-size:13px;border-radius:12px;';
     bt.textContent = '＋ Ouvrir un oubli';
     bt.addEventListener('click', () => ecranOuvrirUnOubli(zoneFilMsg()));
+    ob.appendChild(bt);
+    sc.appendChild(ob);
+  }
+  /* 📞 v1155 — même principe pour ⏰ et 🚫 : l'élève a appelé */
+  if((filtreMessagerie === 'retard' || filtreMessagerie === 'annul') && !modeChoixMessagerie &&
+     typeof ckPeutGerer === 'function' && ckPeutGerer()){
+    const ob = document.createElement('div');
+    ob.style.cssText = 'padding:2px 8px 8px;';
+    const bt = document.createElement('button');
+    bt.type = 'button';
+    bt.className = 'btn btn-primary';
+    bt.id = 'ckpSignaler';
+    bt.style.cssText = 'width:100%;margin:0;padding:9px 14px;font-size:13px;border-radius:12px;';
+    const m = filtreMessagerie;
+    bt.textContent = m === 'retard' ? '＋ Signaler un retard' : '＋ Signaler une annulation';
+    bt.title = 'L’élève a prévenu au téléphone';
+    bt.addEventListener('click', () => ecranSignaler(m));
     ob.appendChild(bt);
     sc.appendChild(ob);
   }
@@ -937,6 +955,7 @@ async function viderLesFilsFermes(bouton, ids){
 
 async function ouvrirLeFil(id, viser){
   reglagesMsgOuvertEC = false;   /* ⚙️ v1154 */
+  signalOuvertEC = null;         /* 📞 v1155 */
   const large = ckLarge();
   const zone = zoneFilMsg();
   if(!zone) return;
@@ -1861,6 +1880,19 @@ function barreDesActionsDuFil(f){
     petit('👥 Participants',
           'Voir qui est dedans, ajouter, retirer',
           () => ecranMembresDuFil(f));
+  }
+
+  /* 👤 v1155 — David : « quand une conversation est déjà ouverte entre
+     un élève, un membre du bureau et le bureau, je ne peux pas rouvrir
+     de conversation directe avec l'élève sans le bureau ». Son choix :
+     une petite option, ici, dans le ⋯. Elle ouvre ta conversation à
+     deux avec lui, ou la prépare — elle ne naît qu'au premier message,
+     comme partout (v1111). */
+  const cv = f.conv || {};
+  if(cv.eleve && ['bureau', 'retard', 'annul', 'oubli'].indexOf(cv.genre) !== -1 &&
+     peutOuvrirUneConversation() && typeof ecrireSeulA === 'function'){
+    petit('👤 Lui écrire seul', 'Ta conversation à deux avec ' + cv.eleve + ', sans le bureau',
+          () => ecrireSeulA(cv.eleve));
   }
 
   petit('📤 Exporter', 'Le fil entier en texte, à copier', () => exporterLeFil(f));
@@ -3564,6 +3596,7 @@ async function ecranOuvrirUnOubli(dansLaZone){
   oubliOuvert.dansLeFil = dansLeFil;
   if(dansLeFil){
     reglagesMsgOuvertEC = false;   /* ⚙️ v1154 */
+    signalOuvertEC = null;         /* 📞 v1155 */
     if(typeof arreterLaVeilleDuFil === 'function') arreterLaVeilleDuFil();
     if(typeof couperLeDirect === 'function') couperLeDirect();
     filOuvertEC = null;
@@ -6227,6 +6260,228 @@ if(document.readyState === 'loading'){
 }
 
 /* ============================================================
+   📞 UN RETARD OU UNE ANNULATION REÇUS AU TÉLÉPHONE — v1155
+
+   David, le 12 octobre : « sur le même principe que les oublis de
+   notre côté, il faut faire pour les retards, qu'on puisse ouvrir de
+   notre côté si un élève nous prévient au téléphone ». Ses choix :
+   l'élève, le bureau et le moniteur du cours dans la conversation ;
+   et la même chose pour une annulation.
+
+   Le formulaire reprend celui de « ＋ Ouvrir un oubli », trait pour
+   trait : la colonne du fil, la liste à côté, le message préparé
+   qu'on peut retoucher. Le cours se cherche CHEZ LE WORKER, avec la
+   même règle que quand l'élève prévient lui-même : ce qu'on annonce
+   ici (« Maryne sera prévenue ») est ce qui se passera.
+   ============================================================ */
+let signalOuvertEC = null;   /* { motif, minutes, ecrit, cours, jeton } */
+
+function phraseDuJourDuCours(dateBrute){
+  const t = String(dateBrute || '').trim();
+  let fr = t;
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso) fr = iso[3] + '/' + iso[2] + '/' + iso[1];
+  if(!t) return '';
+  const lisible = jourLisibleMessagerie(fr);
+  if(lisible === "Aujourd'hui") return "d’aujourd’hui";
+  if(lisible === 'Hier') return 'd’hier';
+  return 'du ' + lisible;
+}
+
+function heureDuSignalement(h){ return String(h || '').replace(':', 'h'); }
+
+function messageDuSignalement(){
+  const o = signalOuvertEC || {};
+  const saisi = (($('sigEleve') || {}).value || '').trim();
+  const eleve = eleveConnuPour(saisi) || saisi;
+  const prenom = eleve.split(/\s+/)[0] || '';
+  const bonjour = '📞 Bonjour' + (prenom ? ' ' + prenom : '') + ', c’est noté';
+  const mon = (o.cours && o.cours.moniteur) || '';
+  const fin = mon ? ' On prévient ' + mon + '.' : '';
+  if(o.motif === 'retard'){
+    return o.minutes && o.minutes !== '?'
+      ? bonjour + ' : tu seras en retard d’environ ' + o.minutes + ' minutes.' + fin
+      : bonjour + ', tu seras en retard.' + fin;
+  }
+  const jour = o.cours ? o.cours.date : (($('sigJour') || {}).value || '');
+  const quand = phraseDuJourDuCours(jour);
+  return bonjour + ' pour l’annulation de ton cours' + (quand ? ' ' + quand : '') +
+    (o.cours && o.cours.heure ? ' à ' + heureDuSignalement(o.cours.heure) : '') + '.' + fin;
+}
+
+function eleveConnuPour(saisie){
+  const connus = (typeof tousLesElevesConnus === 'function') ? tousLesElevesConnus() : [];
+  return connus.find(n => normaliserMessagerie(n) === normaliserMessagerie(saisie)) || '';
+}
+
+async function ecranSignaler(motif){
+  const zone = zoneFilMsg();
+  if(!zone) return;
+  if(typeof arreterLaVeilleDuFil === 'function') arreterLaVeilleDuFil();
+  if(typeof couperLeDirect === 'function') couperLeDirect();
+  filOuvertEC = null;
+  if(typeof filNeufEC !== 'undefined') filNeufEC = null;
+  reglagesMsgOuvertEC = false;
+  ckEcranAPart = true;
+  signalOuvertEC = { motif: motif === 'annul' ? 'annul' : 'retard', minutes: '',
+                     ecrit: false, cours: null, cherche: false, jeton: 0 };
+  if(ckLarge() && typeof ckDessinerLaFiche === 'function') ckDessinerLaFiche(null);
+  try{ if(typeof preparerLesListesDuSelecteur === 'function') await preparerLesListesDuSelecteur(); }
+  catch(e){ /* la liste des élèves attendra */ }
+  if(!signalOuvertEC || zoneFilMsg() !== zone) return;
+  dessinerSignaler(zone);
+}
+
+function dessinerSignaler(zone){
+  const o = signalOuvertEC;
+  const retard = o.motif === 'retard';
+  const pastille = (on) => on
+    ? 'width:auto;margin:0;padding:9px 14px;font-size:13px;border-radius:999px;font-weight:700;' +
+      'font-family:inherit;cursor:pointer;background:var(--orange-soft);border:1px solid var(--orange);' +
+      'color:var(--on-accent);'
+    : 'width:auto;margin:0;padding:9px 14px;font-size:13px;border-radius:999px;';
+  const aujourdhui = (typeof todayLocal === 'function') ? todayLocal() : '';
+
+  zone.innerHTML = '<div style="padding:14px 18px;overflow:auto;">' +
+    '<div style="display:flex;gap:10px;align-items:center;padding-bottom:10px;' +
+      'border-bottom:1px solid var(--line);margin-bottom:14px;">' +
+      '<button class="btn btn-secondary" id="sigRetour" style="width:auto;margin:0;' +
+        'padding:8px 12px;font-size:14px;">←</button>' +
+      '<div style="flex:1;min-width:0;font-size:15px;font-weight:800;">' +
+        (retard ? '⏰ Retard reçu au téléphone' : '🚫 Annulation reçue au téléphone') + '</div></div>' +
+    '<label for="sigEleve">L’élève</label>' +
+    '<input type="text" id="sigEleve" list="listeEleves" autocomplete="off" placeholder="Tape son nom…">' +
+    (retard
+      ? '<label>De combien, à peu près ?</label>' +
+        '<div id="sigMinutes" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;"></div>'
+      : '<label for="sigJour">Le jour du cours</label>' +
+        '<input type="date" id="sigJour" value="' + echapper(aujourdhui) + '">') +
+    '<div id="sigCours" style="font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:10px;' +
+      'margin:0 0 14px;background:rgba(0,0,0,.04);color:var(--muted);"></div>' +
+    '<label for="sigTexte" id="sigTexteLab">Le message à l’élève</label>' +
+    '<textarea id="sigTexte" rows="3" style="width:100%;box-sizing:border-box;background:var(--navy);' +
+      'border:1px solid var(--line);color:var(--cream);padding:11px 12px;border-radius:10px;font-size:15px;' +
+      'font-family:inherit;line-height:1.45;margin-bottom:10px;"></textarea>' +
+    '<div id="sigAvis" style="font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:10px;' +
+      'margin:4px 0 14px;background:rgba(0,0,0,.04);color:var(--muted);"></div>' +
+    '<button class="btn btn-primary" id="sigEnvoyer">💬 Envoyer</button></div>';
+
+  const majTout = () => {
+    if(!signalOuvertEC) return;
+    const eleve = eleveConnuPour(($('sigEleve').value || '').trim());
+    const prenom = (eleve || ($('sigEleve').value || '').trim()).split(/\s+/)[0] || '';
+    if(retard){
+      const zm = $('sigMinutes');
+      zm.innerHTML = '';
+      ['5', '10', '15', '20', '30', '?'].forEach(m => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('data-min', m);
+        b.className = (o.minutes === m) ? '' : 'btn btn-secondary';
+        b.style.cssText = pastille(o.minutes === m);
+        b.textContent = m === '?' ? 'Je ne sais pas' : m + ' min';
+        b.addEventListener('click', () => { o.minutes = m; majTout(); });
+        zm.appendChild(b);
+      });
+    }
+    const zc = $('sigCours');
+    const mon = (o.cours && o.cours.moniteur) || '';
+    if(!eleve){
+      zc.textContent = 'Choisis l’élève : on cherche son cours ' +
+        (retard ? 'd’aujourd’hui.' : 'du jour choisi.');
+    }else if(o.cherche){
+      zc.textContent = '🔎 On cherche son cours…';
+    }else if(o.cours){
+      zc.innerHTML = '';
+      const b = document.createElement('b');
+      b.textContent = 'Cours ' + phraseDuJourDuCours(o.cours.date) +
+        (o.cours.heure ? ' à ' + heureDuSignalement(o.cours.heure) : '') +
+        (mon ? ' avec ' + mon : '') + (o.cours.site ? ' · ' + o.cours.site : '');
+      zc.appendChild(document.createTextNode('📅 '));
+      zc.appendChild(b);
+      zc.appendChild(document.createTextNode(mon
+        ? ' — ' + mon + ' entre dans la conversation et le reçoit sur son téléphone.'
+        : ' — aucun moniteur sur ce cours.'));
+    }else{
+      zc.textContent = '⚠️ Pas de cours préparé ' + (retard ? 'aujourd’hui' : 'ce jour-là') +
+        ' : personne n’est prévenu pour l’instant. Dans la conversation, « 🔔 Prévenir un ' +
+        'moniteur » le fera.';
+    }
+    $('sigTexteLab').textContent = 'Le message à ' + (prenom || 'l’élève');
+    if(!o.ecrit) $('sigTexte').value = messageDuSignalement();
+    $('sigAvis').textContent = (prenom || 'L’élève') + (mon ? ', ' + mon : '') +
+      ' et le bureau sont dans la conversation. Elle se range dans ' +
+      (retard ? '⏰ Retards' : '🚫 Annulations') + ' comme si l’élève l’avait signalé.';
+    $('sigEnvoyer').textContent = '💬 Envoyer à ' + (prenom || 'l’élève');
+  };
+
+  /* Le cours, demandé au Worker quand l'élève (ou le jour) change.
+     Le jeton écarte une réponse arrivée après une autre saisie. */
+  let derniere = '';
+  const chercher = async () => {
+    if(!signalOuvertEC) return;
+    const eleve = eleveConnuPour(($('sigEleve').value || '').trim());
+    const jour = retard ? '' : (($('sigJour') || {}).value || '');
+    const cle = eleve + '|' + jour;
+    if(cle === derniere) return majTout();
+    derniere = cle;
+    o.cours = null;
+    if(!eleve){ o.cherche = false; return majTout(); }
+    const jeton = ++o.jeton;
+    o.cherche = true;
+    majTout();
+    let d = null;
+    try{ d = await appelPrep({ action: 'signalCours', eleve: eleve, jour: jour }); }
+    catch(e){ d = null; }
+    if(signalOuvertEC !== o || jeton !== o.jeton) return;
+    o.cherche = false;
+    o.cours = (d && d.cours) || null;
+    majTout();
+  };
+
+  $('sigRetour').addEventListener('click', () => {
+    signalOuvertEC = null; ckEcranAPart = false; afficherMessagerie(true);
+  });
+  $('sigEleve').addEventListener('input', chercher);
+  $('sigEleve').addEventListener('change', chercher);
+  if($('sigJour')) $('sigJour').addEventListener('change', chercher);
+  $('sigTexte').addEventListener('input', () => { o.ecrit = true; });
+  $('sigEnvoyer').addEventListener('click', () => envoyerLeSignalement($('sigEnvoyer')));
+  majTout();
+}
+
+async function envoyerLeSignalement(bouton){
+  const o = signalOuvertEC;
+  if(!o) return;
+  const eleve = eleveConnuPour(($('sigEleve').value || '').trim());
+  const dire = t => { if(typeof showToast === 'function') showToast(t); };
+  if(!eleve) return dire('Choisis l’élève dans la liste.');
+  if(o.motif === 'retard' && !o.minutes) return dire('Dis de combien, même à peu près.');
+  if(o.cherche) return dire('Un instant : on cherche encore son cours.');
+  const texte = ($('sigTexte').value || '').trim();
+  if(!texte) return dire('Écris le message à l’élève.');
+  bouton.disabled = true;
+  bouton.textContent = 'Envoi…';
+  try{
+    const d = await appelPrep({ action: 'signalOuvrir', motif: o.motif, eleve: eleve,
+                                jour: o.motif === 'annul' ? (($('sigJour') || {}).value || '') : '',
+                                minutes: o.minutes || '', texte: texte });
+    if(d && d.status === 'error') throw new Error(d.message || 'refusé');
+    conversationsEC = [];
+    signalOuvertEC = null;
+    ckEcranAPart = false;
+    dire('💬 Envoyé à ' + eleve.split(/\s+/)[0] +
+         (d && d.cours && d.cours.moniteur ? ' · 🔔 ' + d.cours.moniteur : ''));
+    if(d && d.id){ await ouvrirLeFil(d.id); afficherMessagerie(true); }
+    else afficherMessagerie(true);
+  }catch(e){
+    bouton.disabled = false;
+    bouton.textContent = '💬 Envoyer';
+    dire('Ce n’est pas parti : ' + ((e && e.message) || e));
+  }
+}
+
+/* ============================================================
    ⚙️ LES RÉGLAGES DE LA MESSAGERIE — v1154
 
    David, le 12 octobre : « une option activable ou non dans la
@@ -6262,6 +6517,7 @@ async function ecranReglagesMessagerie(){
   if(typeof filNeufEC !== 'undefined') filNeufEC = null;
   ckEcranAPart = true;
   reglagesMsgOuvertEC = true;
+  signalOuvertEC = null;
   if(ckLarge() && typeof ckDessinerLaFiche === 'function') ckDessinerLaFiche(null);
   if(ckLarge()) dessinerLaListeMessagerie();
 
