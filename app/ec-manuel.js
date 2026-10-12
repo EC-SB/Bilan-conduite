@@ -19,6 +19,94 @@ const PHRASE_VOITURE_APPORTEE =
   "Tu as oublié de dire c'est moi qui aie emmener la voiture, " +
   "j'ai déjà fais mes réglages";
 
+/* ------------------------------------------------------------
+   🚗 L'ALERTE DE SURVITESSE — v1144
+
+   David, le 12 octobre : « si tu conduis avec le Q3 n°10, l'A3
+   n°2, l'A3 BV de Loudéac ou l'A3 BEA de Loudéac, tu as oublié
+   d'enlever l'alerte de survitesse », et une case « pense à
+   enlever l'alerte de survitesse ». Ses réponses : la liste des
+   voitures est une CONDITION — les deux cases n'apparaissent que
+   sur ces voitures-là — et la voiture se lit sur l'écran
+   d'accueil, là où le bureau la pose. Examen blanc ET officiel.
+   ------------------------------------------------------------ */
+const PHRASE_SURVITESSE_OUBLIEE = "Tu as oublié d'enlever l'alerte de survitesse.";
+const PHRASE_SURVITESSE_PENSE   = "Pense à enlever l'alerte de survitesse.";
+
+/* Les quatre voitures, reconnues sur le nom que la flotte leur
+   donne : « Q3 10 », « Q3 n°10 », « A3 2 », « A3 BV Loudéac »,
+   « Audi A3 BEA Loudeac »… Un chiffre se compare EN ENTIER : l'A3
+   12 n'est pas l'A3 2. */
+function voitureAvecAlerteSurvitesse(nom){
+  const mots = String(nom || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/n\s*°/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim().split(' ');
+  const a = mots.indexOf('a3') !== -1;
+  const q = mots.indexOf('q3') !== -1;
+  const loudeac = mots.indexOf('loudeac') !== -1;
+  return (q && mots.indexOf('10') !== -1) ||
+         (a && mots.indexOf('2') !== -1) ||
+         (a && loudeac && mots.indexOf('bv') !== -1) ||
+         (a && loudeac && mots.indexOf('bea') !== -1);
+}
+
+/* La voiture du cours ouvert, une fois par élève et par jour */
+let voitureDuCoursManuel = { cle: '', promesse: null };
+function lireLaVoitureDuCours(){
+  const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+  const jour = ($('lessonDate') && $('lessonDate').value) || '';
+  const moniteur = ($('monitorName') && $('monitorName').value) || '';
+  if(!eleve || typeof appelPrep !== 'function') return Promise.resolve('');
+  const cle = eleve + '|' + jour;
+  if(voitureDuCoursManuel.cle !== cle || !voitureDuCoursManuel.promesse){
+    voitureDuCoursManuel = {
+      cle: cle,
+      promesse: appelPrep({ action: 'vehiculeDuCours', eleve: eleve, jour: jour,
+                            moniteur: moniteur })
+        .then(r => String((r && r.vehicule) || ''))
+        .catch(() => { voitureDuCoursManuel.promesse = null; return ''; })
+    };
+  }
+  return voitureDuCoursManuel.promesse;
+}
+
+/* Montre les cases de la survitesse quand la voiture en a une — et
+   toujours celle dont la phrase est déjà dans le cadre (une fiche
+   reprise doit pouvoir la décocher). */
+async function majCasesSurvitesse(){
+  const zone = $('manuelChamps');
+  if(!zone) return;
+  const cases = zone.querySelectorAll('label[data-survitesse]');
+  if(!cases.length) return;
+  let voiture = '';
+  try{ voiture = await lireLaVoitureDuCours(); }catch(e){ voiture = ''; }
+  const oui = voitureAvecAlerteSurvitesse(voiture);
+  Array.prototype.forEach.call(cases, lab => {
+    const cb = lab.querySelector('input');
+    /* L'état se relit dans le cadre : une reprise y remet le texte
+       sans prévenir la case. */
+    const t = lab.parentNode ? lab.parentNode.querySelector('textarea') : null;
+    if(cb && t) cb.checked = String(t.value).indexOf(lab.getAttribute('data-phrase') || '') !== -1;
+    lab.style.display = (oui || (cb && cb.checked)) ? 'flex' : 'none';
+  });
+}
+
+/* Les champs dont la fiche garde la trace, PAR LEUR RANG.
+
+   ⚠️ LES CASES DE LA SURVITESSE N'EN SONT PAS (data-hors-saisie).
+   Une fiche commencée avant leur arrivée se replace par le rang de
+   ses champs : deux cases de plus au milieu, et tout ce qui suit
+   tomberait une case plus bas, dans le mauvais cadre. Elles n'ont
+   d'ailleurs rien à garder : leur état se relit dans le texte. */
+function champsDeSaisieManuelle(zone){
+  return Array.prototype.filter.call(
+    zone.querySelectorAll('input, textarea, select'),
+    el => !el.hasAttribute('data-hors-saisie'));
+}
+
 /* La phrase des vérifications — v1142. David, le 12 octobre : « ajoute
    une case à cocher : tu n'as pas bossé tes vérifications, ça rapporte
    3 points le jour de l'examen, donc bosse-les à fond — et que ça note
@@ -191,7 +279,7 @@ const CHAMPS_MANUELS = {
          plutôt que dix-huit mots à retaper dans la voiture. Elle
          se pose EN PREMIER dans le cadre et repart si on décoche,
          sans toucher au reste de ce qui est écrit. */
-      phraseCoche:PHRASE_VOITURE_APPORTEE },
+      phraseCoche:PHRASE_VOITURE_APPORTEE, survitesse:true },
 
     /* Le même repère qu'à l'examen officiel : les numéros 2-1,
        2-2 séparaient déjà, mais pas assez pour un écran de
@@ -370,7 +458,7 @@ const CHAMPS_MANUELS = {
          trajet vers le centre que l'oubli se produit le plus
          souvent : l'élève monte dans une voiture déjà réglée sans
          penser à le dire. */
-      phraseCoche:PHRASE_VOITURE_APPORTEE },
+      phraseCoche:PHRASE_VOITURE_APPORTEE, survitesse:true },
 
     /* Le bouton vient après ce qu'il envoie : le moniteur remplit
        d'abord, puis expédie. */
@@ -405,7 +493,7 @@ const CHAMPS_MANUELS = {
          retaper à bout de bras : personne ne les retape, et
          l'explication disparaît. Une seule phrase, écrite à un seul
          endroit (PHRASE_VOITURE_APPORTEE), pour les trois cases. */
-      phraseCoche:PHRASE_VOITURE_APPORTEE },
+      phraseCoche:PHRASE_VOITURE_APPORTEE, survitesse:true },
     { cle:'__sVerif', type:'sousTitre', nom:'🧰 Vérification' },
     { cle:'examen.verifQuestion', type:'court',
       nom:'N° de la question de vérification' },
@@ -3233,7 +3321,7 @@ function brouillonManuelActuel(){
      interprétation : chaque type de rubrique se redessine
      différemment, mais tous ont une valeur ou une case cochée. */
   const saisies = [];
-  zone.querySelectorAll('input, textarea, select').forEach((el, i) => {
+  champsDeSaisieManuelle(zone).forEach((el, i) => {
     saisies.push({
       i: i,
       cle: el.getAttribute('data-cle') || el.getAttribute('data-comp') || '',
@@ -3394,7 +3482,7 @@ function replacerSaisiesManuelles(saisies){
   const zone = $('manuelChamps');
   if(!zone || !saisies || !saisies.length) return 0;
 
-  const champs = zone.querySelectorAll('input, textarea, select');
+  const champs = champsDeSaisieManuelle(zone);
   let remis = 0;
 
   saisies.forEach(s => {
@@ -4836,6 +4924,7 @@ function reprendreBrouillon(b){
         /* L'aperçu d'une évaluation : retouché, il garde la version
            du moniteur et le redit ; sinon il se recalcule. */
         try{ majApercuEval(); }catch(e){ console.warn('Aperçu :', e); }
+        try{ majCasesSurvitesse(); }catch(e){}
       }, 0);
       n += Object.keys(b.champs).filter(k => b.champs[k] !== '' &&
                                              b.champs[k] !== undefined).length;
@@ -6604,8 +6693,16 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
          serait une deuxième vérité — celle qui se retrouve un
          jour cochée sur un cadre vide.
          ------------------------------------------------------ */
-      if(ch.phraseCoche){
-        const phrase = String(ch.phraseCoche);
+      const cochables = [];
+      if(ch.phraseCoche) cochables.push({ phrase: String(ch.phraseCoche) });
+      /* v1144 — les deux cases de l'alerte de survitesse, cachées
+         tant qu'on ne sait pas que la voiture en a une. */
+      if(ch.survitesse){
+        cochables.push({ phrase: PHRASE_SURVITESSE_OUBLIEE, survitesse: true });
+        cochables.push({ phrase: PHRASE_SURVITESSE_PENSE,   survitesse: true });
+      }
+      cochables.forEach(coche => {
+        const phrase = coche.phrase;
 
         const lab = document.createElement('label');
         lab.style.cssText = 'display:flex;align-items:flex-start;gap:9px;' +
@@ -6649,7 +6746,18 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
           cb.checked = (String(t.value).indexOf(phrase) !== -1);
         }, 0);
 
+        if(coche.survitesse){
+          lab.setAttribute('data-survitesse', '1');
+          lab.setAttribute('data-phrase', phrase);
+          cb.setAttribute('data-hors-saisie', '1');
+          lab.style.display = 'none';
+        }
         bloc.appendChild(lab);
+      });
+      if(ch.survitesse){
+        /* Après la reprise éventuelle : la case cochée d'une fiche
+           rouverte reste visible même sans réseau. */
+        setTimeout(() => { majCasesSurvitesse(); }, 0);
       }
 
       /* Le texte pré-rempli : le moniteur n'a plus qu'à effacer
