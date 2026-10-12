@@ -51,6 +51,26 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1145,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'L’équipe et l’Argent passent dans Outils · heures des messages épinglés',
+    quoi: [
+      { emoji: '🔨',
+        titre: 'Outils se range autrement',
+        texte: 'Dans l’ordre : Mesurer · L’équipe (Messages internes, SMS, Tâches, Alertes) · ' +
+               'Argent (Caisse, Coûts IA, Paie, Tarifs) · Demandes · Ce qu’on écrit. Gestion ' +
+               'garde le parc et l’outil. Les droits ne changent pas.' },
+      { emoji: '⏰',
+        titre: 'Une heure de début et de fin pour les messages épinglés',
+        texte: 'Dans 📨 Messages internes, « À partir du » et « Jusqu’au » prennent une heure : ' +
+               'le message apparaît et disparaît à l’heure dite, sans recharger.' },
+      { emoji: '📋',
+        titre: 'Évaluations : plus de lignes Messenger / Drivup',
+        texte: 'Le bilan d’évaluation ne demande plus « Envoyé par Messenger ? » ni « Envoyé ' +
+               'par Drivup ? » : tout part par mail.' }
+    ]
+  },
+  {
     version: 1144,
     date: 'Lundi 12 octobre 2026',
     resume: 'Examens : deux cases pour l’alerte de survitesse',
