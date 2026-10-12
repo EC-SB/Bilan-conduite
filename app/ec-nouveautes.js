@@ -51,6 +51,37 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1141,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'Nouvelle messagerie : 📌 épingler, ⏰ rappeler demain, retards et créneaux',
+    quoi: [
+      { emoji: '🧭',
+        titre: 'Une nouvelle messagerie',
+        texte: 'Sur ordinateur : les familles à gauche, les conversations, le fil, et à droite ' +
+               'la fiche de l’élève (sa leçon, son prochain cours, son permis, ses notes internes). ' +
+               'Sur téléphone et dans la bulle 💬 : la liste, puis le fil, et ⓘ pour la fiche. ' +
+               'Les couleurs suivent le thème de l’appli.' },
+      { emoji: '📌',
+        titre: 'Épingler, et ⏰ « me la rappeler demain »',
+        texte: 'Au survol d’une conversation ou en haut du fil. C’est à toi seul : ce que tu ' +
+               'épingles ou remets à demain ne bouge que dans ta liste. Une conversation remise ' +
+               'revient d’elle-même à 9 h — ou plus tôt si l’élève réécrit.' },
+      { emoji: '⏰',
+        titre: 'Les retards',
+        texte: 'Le fil d’un retard montre le cours, le moniteur prévenu, et si l’alerte a été ' +
+               'vue. « Relancer » la renvoie sur son téléphone ; quand le cours n’a pas été ' +
+               'trouvé, « Prévenir un moniteur » fait entrer celui que tu choisis.' },
+      { emoji: '📅',
+        titre: 'Proposer un créneau',
+        texte: '« 📅 Décaler » envoie à l’élève une carte « ✓ Ça me va / Autre ». Sa réponse ' +
+               's’écrit dans le fil : c’est toi qui reportes le cours dans le planning.' },
+      { emoji: '✓',
+        titre: 'Réglé',
+        texte: '« ✓ Réglé » ferme la conversation et l’écrit dans le fil ; elle part dans 🗄️ ' +
+               'Fermées. Les objets oubliés se règlent dans leur bandeau 🧤.' }
+    ]
+  },
+  {
     version: 1139,
     date: 'Samedi 10 octobre 2026',
     resume: 'Notes internes dans le dossier élève, et 💬 ouvert à tous les élèves',
