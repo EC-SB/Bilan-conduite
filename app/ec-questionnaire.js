@@ -3689,7 +3689,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       /* L'état de l'élève AVANT les questions : on vient ici pour
          savoir ce qui manque, pas pour relire quinze champs. */
       recapEnHtml(recapDuCours(prec, eleve, modeleCle, ficheEleve)) +
-      '<div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;">' +
+      '<div class="qIntro" style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;">' +
         (eleve ? '<strong style="color:var(--cream);font-size:15px;">' + eleve + '</strong><br>' : '') +
         (profil === 'complet'
           ? '🦉 Manœuvres de la fiche véhicule : ' + manoeuvresAvant.length + ' sur ' + totalManoeuvres +
@@ -3709,7 +3709,10 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
              de handicap s'annonçait « Examen officiel ». Un écran
              qui se trompe de nom fait douter de tout le reste. */
           : (profil === 'simulateur' ? 'Séance sur simulateur — seule la frise est demandée ici.'
-            : profil === 'evaluation' ? 'Évaluation de départ — la frise se définit en fin de séance.'
+            : profil === 'evaluation'
+              ? (questionnaireDeFinDEvaluation(profil, titre)
+                  ? 'Évaluation — seules tes notes sont demandées.'
+                  : 'Évaluation de départ — la frise se définit en fin de séance.')
             : profil === 'handicap' ? 'Fiche d’évaluation — combien de leçons avant la préfecture.'
             : profil === 'examen' ? 'Examen officiel — note interne uniquement.'
             : '')) +
@@ -4851,6 +4854,23 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
        disparaissaient en fin de cours. */
     if(/après ce cours/i.test(titre || '')){
       champsMasques = champsMasques.concat(allegerQuestionnaireFin(boite, prec) || []);
+    }
+
+    /* ⚠️ LA FIN D'UNE ÉVALUATION NE DEMANDE QUE LES NOTES — v1143.
+
+       David, le 12 octobre : « dans le questionnaire de fin
+       d'évaluation il n'y a pas besoin de parler de l'examen blanc,
+       des rendez-vous, il faut juste le cadre de vos autres notes ».
+
+       TOUT ce que la table des réponses connaît est déclaré non
+       demandé : à la validation, conserverLeNonDemande remet ce que
+       le dossier savait déjà — la formation, l'examen blanc, les
+       rendez-vous — au lieu de l'effacer. Le mail et l'ANTS, eux,
+       ne sont pas dans la table : leurs cases restent remplies de
+       ce qu'on savait (prec), et repartent telles quelles. */
+    if(questionnaireDeFinDEvaluation(profil, titre)){
+      champsMasques = champsMasques.concat(selecteursDesReponses());
+      garderLesNotesSeules(boite);
     }
 
     /* ⚠️ v1117 — LA BOÎTE N'EST PLUS DÉDUITE DU TYPE DE BILAN.
@@ -8552,6 +8572,35 @@ async function chargerHistoriquePrep(){
     zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">' +
       'Dossier indisponible : ' + e.message.replace(/</g, '&lt;') + '</div>';
   }
+}
+
+/* Le questionnaire « Après ce cours » d'une évaluation — v1143.
+   Le même, que le bilan ait été dicté ou rempli à la main. */
+function questionnaireDeFinDEvaluation(profil, titre){
+  return profil === 'evaluation' && /après ce cours/i.test(String(titre || ''));
+}
+
+/* Ne laisse voir que le titre, l'élève (et un message du bureau
+   s'il y en a un), « Tes notes » et les boutons.
+
+   ⚠️ PAR UNE CLASSE, PAS PAR DES « display:none » posés un à un :
+   la suite de la construction RE-MONTRE des blocs (les
+   coordonnées manquantes, la préfecture, l'examen blanc…). Une
+   règle de feuille de style ne se fait pas défaire par eux. Voir
+   « .modal.qNotesSeules » dans index.html. */
+function garderLesNotesSeules(boite){
+  if(!boite) return;
+  const garder = el => { if(el && el.parentNode === boite) el.setAttribute('data-garde', '1'); };
+  garder(boite.querySelector('.qIntro'));
+  const libre = boite.querySelector('#qLibre');
+  garder(libre);
+  const lab = boite.querySelector('label[for="qLibre"]');
+  garder(lab);
+  /* Le titre « 📝 Tes notes » : le plus proche au-dessus */
+  let x = lab ? lab.previousElementSibling : null;
+  while(x && !(x.classList && x.classList.contains('qTitre'))) x = x.previousElementSibling;
+  garder(x);
+  boite.classList.add('qNotesSeules');
 }
 
 /* ============================================================
