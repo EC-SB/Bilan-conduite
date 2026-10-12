@@ -51,6 +51,19 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1146,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'Outils › Mesurer : ✉️ tous les mails envoyés',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Les mails envoyés',
+        texte: 'Dans Outils › Mesurer (administrateurs) : chaque mail parti de l’appli — bilan, ' +
+               'rappel, correction, évaluation… — avec l’élève, le destinataire, qui l’a envoyé ' +
+               'et s’il est bien parti. Les échecs ressortent en rouge avec leur motif. On touche ' +
+               'une ligne pour relire le texte (gardé 3 mois ; la ligne reste 12 mois).' }
+    ]
+  },
+  {
     version: 1145,
     date: 'Lundi 12 octobre 2026',
     resume: 'L’équipe et l’Argent passent dans Outils · heures des messages épinglés',
