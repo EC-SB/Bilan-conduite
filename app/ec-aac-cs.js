@@ -602,7 +602,10 @@ function examenOfficielDe(nom, auJour){
   } : null;
 
   /* ── CE QUI EST DEVANT ── */
-  const dateBrute = s.datePermis || a.permisDate || '';
+  /* ⚠️ La date d'un bilan ne vaut que si l'état dit « prévu » — v1151.
+     Un examen annulé n'a plus de date, même si un vieux bilan en
+     annonçait une (Yuliia Morozova, le 12 octobre). */
+  const dateBrute = s.datePermis || (a.permis === 'prevu' ? a.permisDate : '') || '';
   const d = iso(dateBrute);
   const source = s.datePermis ? '' : ' (annoncé dans un bilan)';
 
