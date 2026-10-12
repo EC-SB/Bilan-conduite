@@ -117,6 +117,32 @@ function quellesFermeesPour(filtre){
   return '';
 }
 
+/* ============================================================
+   ALLER À LA MESSAGERIE — v1153
+
+   David, le 12 octobre, depuis le dossier d'un élève : « les boutons
+   Ouvrir ne renvoient pas vers la messagerie, rien ne se passe ».
+
+   ⚠️ UNE VUE N'EST PAS UN ONGLET. Depuis la v1074 la messagerie a
+   son propre onglet ; neuf endroits faisaient encore
+   « afficherVue('messagerie', …) » — ce qui règle la vue d'un onglet
+   qu'on ne montre pas. Le fil s'ouvrait bel et bien… dans un écran
+   caché. Ici, une fois : l'onglet, puis la vue, et le tiroir refermé
+   s'il était ouvert (le fil s'ouvre en grand).
+   ============================================================ */
+function allerALaMessagerie(vue){
+  if(dansLeTiroir() && typeof fermerTiroirMessagerie === 'function') fermerTiroirMessagerie();
+  if(typeof afficherOnglet === 'function') afficherOnglet('messagerie');
+  if(typeof afficherVue === 'function') afficherVue('messagerie', vue || 'messagerie');
+}
+
+/* Ouvrir un fil d'où que l'on soit : l'onglet d'abord s'il le faut */
+function ouvrirLeFilPartout(id, rang){
+  const ici = (typeof ongletActif !== 'undefined' && ongletActif === 'messagerie') || dansLeTiroir();
+  if(!ici) allerALaMessagerie('messagerie');
+  return ouvrirLeFil(id, rang);
+}
+
 async function afficherMessagerie(silencieux){
   const zone = zoneDeLaMessagerie();
   if(!zone) return;
@@ -155,13 +181,18 @@ async function afficherMessagerie(silencieux){
     dessinerLaListeMessagerie();
     if(filOuvertEC) dessinerLeFil();
     else if(!ckEcranAPart) ckFilVide();
+    if(typeof poursuivreEcrireA === 'function') poursuivreEcrireA();
     return;
   }
 
   /* Un fil ouvert reste ouvert : la liste se redessine derrière. */
   if(filOuvertEC){ dessinerLeFil(); return; }
+  /* ✏️ v1153 — un fil neuf ouvert depuis le dossier : la liste ne
+     se repeint pas par-dessus (sur téléphone, c'est la même zone). */
+  if(typeof filNeufEC !== 'undefined' && filNeufEC) return;
 
   dessinerLaListeMessagerie();
+  if(typeof poursuivreEcrireA === 'function') poursuivreEcrireA();
 }
 
 function dessinerLaListeMessagerie(){
@@ -688,7 +719,8 @@ function ligneTrouveeMessagerie(x, mots){
   g.appendChild(s);
 
   d.appendChild(g);
-  d.addEventListener('click', () => ouvrirLeFil(x.conversation, x.rang));
+  /* v1153 — depuis le dossier aussi : l'onglet d'abord */
+  d.addEventListener('click', () => ouvrirLeFilPartout(x.conversation, x.rang));
   return d;
 }
 
@@ -2910,8 +2942,7 @@ async function ongletMessagesEleve(corps, nom){
         /* Le fil s'ouvre dans l'écran complet : un fil de discussion
            dans un onglet de dossier, c'est deux écrans qui se
            disputent la même place. */
-        if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
-        ouvrirLeFil(c.id);
+        ouvrirLeFilPartout(c.id);
       });
       l.appendChild(b);
       corps.appendChild(l);
@@ -2954,7 +2985,7 @@ async function compterLaMessagerie(){
     if(filDemande){
       /* La page s'ouvre POUR une notification : on va droit au fil,
          sans passer par la liste. */
-      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      allerALaMessagerie('messagerie');
       ouvrirLeFil(filDemande);
     }
   }
@@ -3261,6 +3292,21 @@ function boutonDeLEtat(o, etat){
   return e.bouton || (e.emoji + ' ' + e.nom);
 }
 
+/* ⚠️ LA PASTILLE NE COMPTE QUE CE QUE PERSONNE N'A REGARDÉ — v1153.
+
+   David, le 12 octobre : « j'ai un 1 sur la messagerie alors que
+   tout est vu ». Le 1 était la carte SD d'Ousmane, qu'il venait
+   lui-même de poser « au bureau » : elle attend que l'élève passe,
+   pas que quelqu'un la lise. Le compte de l'onglet additionne les
+   non-lus ET ce chiffre — il criait donc pour une chose déjà faite.
+
+   La liste 🧤 garde tout ce qui n'est pas rendu ; la pastille, elle,
+   ne compte que le « Signalé » : la demande que personne n'a encore
+   regardée. */
+function objetsQuiAttendentUnRegard(objets){
+  return (objets || []).filter(o => String(o.etat || 'signale') === 'signale').length;
+}
+
 let objetsEC = [];
 let objetsToutEC = false;        /* false : seulement ce qui n'est pas fini */
 
@@ -3280,7 +3326,7 @@ async function afficherObjetsOublies(silencieux){
     const d = await appelPrep({ action: 'objetList', tout: objetsToutEC ? '1' : '' });
     objetsEC = (d && d.objets) || [];
     if(typeof poserCompteVue === 'function'){
-      poserCompteVue('oublis', (d && d.aTraiter) || 0);
+      poserCompteVue('oublis', objetsQuiAttendentUnRegard((d && d.objets) || []));
     }
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
@@ -3421,7 +3467,7 @@ function carteObjet(o){
     b.style.cssText = 'width:auto;margin:0;padding:7px 12px;font-size:12.5px;';
     b.textContent = '💬 Son message';
     b.addEventListener('click', () => {
-      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      allerALaMessagerie('messagerie');
       if(typeof ouvrirLeFil === 'function') ouvrirLeFil(o.conversation);
     });
     l.appendChild(b);
@@ -3677,7 +3723,7 @@ async function compterLesObjets(){
     const d = await appelPrep({ action: 'objetList', tout: objetsToutEC ? '1' : '' });
     objetsEC = (d && d.objets) || [];
     if(typeof poserCompteVue === 'function'){
-      poserCompteVue('oublis', (d && d.aTraiter) || 0);
+      poserCompteVue('oublis', objetsQuiAttendentUnRegard((d && d.objets) || []));
     }
   }catch(e){ /* la liste attendra le prochain passage */ }
 }
@@ -5873,7 +5919,7 @@ function ecouterLeServiceWorker(){
     const d = ev && ev.data;
     if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
     try{
-      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      allerALaMessagerie('messagerie');
       ouvrirLeFil(d.fil);
     }catch(e){}
   });
@@ -6104,7 +6150,7 @@ function basculerTiroirMessagerie(){
 function ouvrirLaMessagerieEnGrand(){
   const garde = filOuvertEC;
   fermerTiroirMessagerie();
-  if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+  allerALaMessagerie('messagerie');
   if(garde && garde.conv) ouvrirLeFil(garde.conv.id);
   else afficherMessagerie(true);
 }
