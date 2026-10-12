@@ -2480,6 +2480,13 @@ async function editerDossierEleve(nom, bouton){
     const d = await appelPrep({ action: 'dossierEleve', eleve: nom });
     if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Dossier illisible.');
 
+    /* ⚠️ v1147 — CE QUI N'EST PAS AU CLASSEUR FAIT AUSSI PARTIE DE
+       « TOUT CE QU'ON DÉTIENT À SON NOM » : ses gestes dans son espace
+       et les mails qu'on lui a envoyés vivent dans la base de
+       Cloudflare. Un export qui les oublierait serait un export
+       incomplet présenté comme complet. */
+    await ajouterLaBaseAuDossier(d, nom);
+
     const page = pageDossier(d);
     if(onglet){
       onglet.document.open();
@@ -2497,6 +2504,40 @@ async function editerDossierEleve(nom, bouton){
   }finally{
     if(bouton){ bouton.disabled = false; bouton.textContent = libelle; }
   }
+}
+
+async function ajouterLaBaseAuDossier(d, nom){
+  d.parties = d.parties || [];
+  const cible = (typeof normaliserMot === 'function') ? normaliserMot(nom) : String(nom).toLowerCase();
+  try{
+    const a = await appelPrep({ action: 'activiteExport', eleve: nom });
+    const lignes = ((a && a.lignes) || []).map(l => ({
+      'Jour': String(l.jour || '').split('-').reverse().join('/'),
+      'Heure': l.heure || '',
+      'Geste': (typeof gesteAffiche === 'function')
+        ? gesteAffiche(l.geste)[2](l.detail || '') : l.geste,
+      'Détail': (l.geste === 'bilan' || l.geste === 'recitation' || l.geste === 'video') ? '' : (l.detail || '')
+    }));
+    d.parties.push({ titre: 'Son activité dans son espace élève', lignes: lignes,
+      note: 'Connexions, bilans ouverts, messages envoyés… — le geste, jamais le contenu. Gardé 12 mois.' });
+    d.total = (d.total || 0) + lignes.length;
+  }catch(e){
+    d.parties.push({ titre: 'Son activité dans son espace élève', lignes: [],
+      note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+  }
+  try{
+    const m = await appelPrep({ action: 'mailsList', jours: 366 });
+    const lignes = ((m && m.lignes) || [])
+      .filter(l => (typeof normaliserMot === 'function' ? normaliserMot(l.eleve || '') : String(l.eleve || '').toLowerCase()) === cible)
+      .map(l => ({
+        'Jour': String(l.jour || '').split('-').reverse().join('/'),
+        'Heure': l.heure || '', 'Sujet': l.sujet || '', 'Destinataire': l.destinataire || '',
+        'Envoyé par': l.par || '', 'État': l.statut === 'echec' ? 'non parti — ' + (l.motif || '') : 'parti'
+      }));
+    d.parties.push({ titre: 'Les mails qui lui ont été envoyés', lignes: lignes,
+      note: 'La liste des 12 derniers mois ; le texte de chaque mail est gardé 3 mois.' });
+    d.total = (d.total || 0) + lignes.length;
+  }catch(e){ /* l'export du classeur reste complet de son côté */ }
 }
 
 /* La page elle-même. Volontairement sobre : elle finira en PDF. */
