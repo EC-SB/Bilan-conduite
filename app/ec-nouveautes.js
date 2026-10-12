@@ -51,6 +51,19 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1144,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'Examens : deux cases pour l’alerte de survitesse',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'L’alerte de survitesse',
+        texte: 'Sur le Q3 n°10, l’A3 n°2 et les deux A3 de Loudéac, deux cases de plus sous ' +
+               'l’installation (examen blanc et examen officiel) : « Tu as oublié d’enlever ' +
+               'l’alerte de survitesse. » et « Pense à enlever l’alerte de survitesse. ». La ' +
+               'voiture est celle que le bureau a posée sur l’écran d’accueil.' }
+    ]
+  },
+  {
     version: 1143,
     date: 'Lundi 12 octobre 2026',
     resume: 'Évaluations : micros, cadre « Autre », leçons et aperçu du bilan',
