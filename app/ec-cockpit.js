@@ -397,6 +397,10 @@ function ckPeutGerer(){
 function ckSousTitre(f){
   const c = (f && f.conv) || {};
   if(f && f.enSupervision) return '🔒 en supervision';
+  /* 💾 v1150 — la carte SD dit qui est dans le groupe */
+  if(c.genre === 'oubli' && f.objet && f.objet.sorte === 'sd'){
+    return '💾 Carte SD · avec ' + (f.objet.moniteur ? f.objet.moniteur + ' et ' : '') + 'le bureau';
+  }
   const g = GENRES_CK[c.genre] || { rond: '💬', nom: 'Conversation' };
   let plus = '';
   if(c.genre === 'bureau') plus = 'au nom du bureau';
@@ -734,15 +738,19 @@ function ckPanneauObjet(f, petit){
   const o = f.objet || ((typeof objetDuFil === 'function') ? objetDuFil(f) : null);
   if(!o) return null;
   const etat = String(o.etat || 'signale');
-  const e = ETATS_OBJET_EC[etat] || ETATS_OBJET_EC.signale;
+  /* 💾 v1150 — la carte SD a ses mots et ses suites */
+  const sd = (typeof estCarteSD === 'function') && estCarteSD(o);
+  const etats = (typeof etatsDeLObjet === 'function') ? etatsDeLObjet(o) : ETATS_OBJET_EC;
+  const e = etats[etat] || etats.signale;
   const p = document.createElement('div');
   p.className = 'ckPanneau';
 
   const l1 = document.createElement('div');
   l1.className = 'l1';
-  l1.innerHTML = '🧤 <b></b><span class="doux"></span>';
+  l1.innerHTML = (sd ? '💾' : '🧤') + ' <b></b><span class="doux"></span>';
   l1.querySelector('b').textContent = o.quoi || 'Un objet';
-  l1.querySelector('.doux').textContent = [o.vehicule, o.jour ? 'cours du ' + ckJourCourt(o.jour) : '']
+  l1.querySelector('.doux').textContent = [o.vehicule, o.jour ? 'cours du ' + ckJourCourt(o.jour) : '',
+                                          o.moniteur ? 'avec ' + o.moniteur : '']
     .filter(Boolean).map(x => '· ' + x).join(' ');
   p.appendChild(l1);
 
@@ -760,13 +768,20 @@ function ckPanneauObjet(f, petit){
   pills.appendChild(b);
   p.appendChild(pills);
 
-  if(ckPeutGerer() && f.estMembre){
+  /* 💾 v1150 — le moniteur du groupe aussi, arbitrage de David : c'est
+     lui qui regarde dans la voiture. Le serveur vérifie la même chose. */
+  const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  const personneDuFil = (f.membres || []).some(m => m.genre === 'user' &&
+    normaliserMessagerie(m.qui) === moi);
+  if(f.estMembre && (ckPeutGerer() || personneDuFil)){
     const acts = document.createElement('div');
     acts.className = 'acts';
-    (SUITES_OBJET[etat] || []).forEach(suite => {
-      const se = ETATS_OBJET_EC[suite];
+    const suites = (typeof suitesDeLObjet === 'function') ? suitesDeLObjet(o) : SUITES_OBJET;
+    (suites[etat] || []).forEach(suite => {
       const fort = suite === 'retrouve' || (suite === 'rendu' && etat === 'retrouve');
-      acts.appendChild(ckBouton(se.emoji + ' ' + se.nom, 'L’élève reçoit la réponse ici même', async () => {
+      const libelle = (typeof boutonDeLEtat === 'function') ? boutonDeLEtat(o, suite)
+        : (ETATS_OBJET_EC[suite].emoji + ' ' + ETATS_OBJET_EC[suite].nom);
+      acts.appendChild(ckBouton(libelle, 'L’élève reçoit la réponse ici même', async () => {
         await appelPrep({ action: 'objetEtat', conversation: f.conv.id, etat: suite });
         if(typeof compterLesObjets === 'function') await compterLesObjets();
         await ouvrirLeFil(f.conv.id);
@@ -778,7 +793,8 @@ function ckPanneauObjet(f, petit){
       const n = document.createElement('div');
       n.className = 'ckNote';
       n.textContent = 'Chaque bouton écrit la réponse à ' + ckPrenom(f.conv.eleve || o.eleve) +
-        ' dans ce fil · le même suivi que l’écran 🧤 Objets';
+        ' dans ce fil' + (o.moniteur ? ' — ' + o.moniteur + ' la lit aussi' : '') +
+        ' · le même suivi que l’écran 🧤 Objets';
       p.appendChild(n);
     }
   }
