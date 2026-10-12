@@ -51,6 +51,23 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1147,
+    date: 'Lundi 12 octobre 2026',
+    resume: '📊 Le journal en direct · 🎓 l’activité des élèves',
+    quoi: [
+      { emoji: '📊',
+        titre: 'Le journal, en direct',
+        texte: 'Outils › Journal (administrateurs) : 🟢 qui est en ligne et sur quel écran, ' +
+               'puis chaque action au fil de l’eau — bilans, dossiers ouverts, cours, mails, ' +
+               'SMS, paie, flotte… La liste se met à jour toute seule ; gardée 6 mois.' },
+      { emoji: '🎓',
+        titre: 'Ce que font les élèves dans leur espace',
+        texte: 'Outils › Activité des élèves : connexions, bilans ouverts, messages, créneaux, ' +
+               'notifications — le geste, jamais le contenu. Et dans le dossier de chacun, ' +
+               'onglet 🔑 Accès, sa dernière venue. Gardé 12 mois.' }
+    ]
+  },
+  {
     version: 1146,
     date: 'Lundi 12 octobre 2026',
     resume: 'Outils › Mesurer : ✉️ tous les mails envoyés',
