@@ -587,6 +587,9 @@ function appliquerDroits(){
   /* 🎓 L'activité des élèves — v1147 : la même règle */
   const ac = $('activiteCard');
   if(ac) ac.style.display = (ACCES.role === 'admin') ? '' : 'none';
+  /* 🗺️ Les voitures en direct — v1148 : la même règle */
+  const dc = $('directCard');
+  if(dc) dc.style.display = (ACCES.role === 'admin') ? '' : 'none';
 
   if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
