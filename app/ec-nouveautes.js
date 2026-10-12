@@ -51,6 +51,34 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1143,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'Évaluations : micros, cadre « Autre », leçons et aperçu du bilan',
+    quoi: [
+      { emoji: '🎙️',
+        titre: 'Un micro sur chaque rubrique',
+        texte: 'De « Manipulation commandes » à « Contrôles », chaque cadre a son 🎙️ au bout ' +
+               'de la ligne.' },
+      { emoji: '✏️',
+        titre: 'Un cadre « Autre »',
+        texte: 'Juste après Contrôles, pour ce qui ne rentre dans aucune rubrique. Rempli, il ' +
+               's’écrit dans le bilan ; vide, il n’écrit rien.' },
+      { emoji: '🕙',
+        titre: 'Les heures et les leçons remplissent le bilan',
+        texte: 'Heures de simulateur, leçons avant et après examen blanc : les ❓ du bilan se ' +
+               'remplissent tout seuls, en leçons et en heures (« 8 séances de 2 heures (16h) »), ' +
+               'avec le TOTAL. En BV, la ligne « Si passage en BEA » se calcule aussi.' },
+      { emoji: '👁️',
+        titre: 'Un aperçu à retoucher avant de composer',
+        texte: 'De l’estimation à la fin du contrat : ce que tu y retouches part tel quel dans ' +
+               'le bilan. « ↺ Recalculer » le remet d’après les cases.' },
+      { emoji: '📝',
+        titre: 'Fin d’évaluation : tes notes, rien d’autre',
+        texte: 'Le questionnaire « Après ce cours » d’une évaluation ne demande plus que tes ' +
+               'notes. Ce que le dossier savait déjà reste en place.' }
+    ]
+  },
+  {
     version: 1142,
     date: 'Lundi 12 octobre 2026',
     resume: 'Examens : case « vérifications », cadre Manœuvre/Autonomie, micro au curseur',
