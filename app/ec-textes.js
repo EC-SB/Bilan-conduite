@@ -1231,7 +1231,7 @@ async function envoyerFicheParMail(m){
   if(sujet === null) return;
 
   try{
-    await appelPrep({ action: 'mailBilan', to: [qui.adresse],
+    await appelPrep({ action: 'mailBilan', to: [qui.adresse], genre: 'modele', eleve: nom || '',
                       sujet: sujet || (m.titre || m.nom), texte: texte });
     showToast('Envoyé à ' + qui.adresse + ' ✅');
   }catch(e){
