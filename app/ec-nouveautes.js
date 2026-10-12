@@ -51,6 +51,24 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1148,
+    date: 'Lundi 12 octobre 2026',
+    resume: '🗺️ Les voitures en direct',
+    quoi: [
+      { emoji: '📡',
+        titre: 'Ta position pendant le cours',
+        texte: 'Si tu as le relevé du trajet, la position de ta voiture part au bureau toutes ' +
+               'les 30 s pendant le cours, page ouverte — la ligne du trajet affiche ' +
+               '« 📡 position partagée ». Seule la dernière position est gardée, en mémoire, ' +
+               'et elle s’efface 2 min après : rien n’est enregistré, aucune vitesse.' },
+      { emoji: '🗺️',
+        titre: 'La carte des voitures',
+        texte: 'Gestion › Le parc › En direct (administrateurs) : les voitures en cours sur le ' +
+               'Plan IGN, avec le moniteur et le dernier signal. « 📍 Centrer » amène la carte ' +
+               'sur l’une d’elles.' }
+    ]
+  },
+  {
     version: 1147,
     date: 'Lundi 12 octobre 2026',
     resume: '📊 Le journal en direct · 🎓 l’activité des élèves',
