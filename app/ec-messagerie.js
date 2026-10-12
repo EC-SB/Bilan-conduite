@@ -224,6 +224,24 @@ function dessinerLaListeMessagerie(){
   sc.className = 'ckpScroll';
   zone.appendChild(sc);
 
+  /* 🧤 v1152 — David : « dans objet oublié j'ai pas le bouton ». Le
+     filtre 🧤 du rail est l'endroit où l'on cherche les oublis : on
+     peut en ouvrir un d'ici, sans passer par l'écran 🧤 Objets. */
+  if(filtreMessagerie === 'oubli' && !modeChoixMessagerie && typeof ckPeutGerer === 'function' &&
+     ckPeutGerer() && typeof ecranOuvrirUnOubli === 'function'){
+    const ob = document.createElement('div');
+    ob.style.cssText = 'padding:2px 8px 8px;';
+    const bt = document.createElement('button');
+    bt.type = 'button';
+    bt.className = 'btn btn-primary';
+    bt.id = 'ckpOuvrirOubli';
+    bt.style.cssText = 'width:100%;margin:0;padding:9px 14px;font-size:13px;border-radius:12px;';
+    bt.textContent = '＋ Ouvrir un oubli';
+    bt.addEventListener('click', () => ecranOuvrirUnOubli(zoneFilMsg()));
+    ob.appendChild(bt);
+    sc.appendChild(ob);
+  }
+
   if(!liste.length){
     const v = document.createElement('div');
     v.className = 'empty';
@@ -2381,10 +2399,16 @@ async function ecranNouvelleConversation(sorte){
      un groupe qu'on ne verra jamais se remplir. */
   ajouterAuChoix(choixUsers, (typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
 
+  /* ⚠️ LE GROUPE SEUL — v1152. David : « quand on crée un groupe,
+     enlève à quelqu'un en mon nom et à un élève au nom du bureau ».
+     Ces deux-là passent désormais par « À qui ? » ; ici, on vient
+     faire un groupe et rien d'autre. */
+  const groupeSeul = (sorteChoisie === 'groupe' && sorte === 'groupe');
   await dessinerEcranParticipants({
-    titre: '👥 Nouvelle conversation',
+    titre: groupeSeul ? '👥 Nouveau groupe' : '👥 Nouvelle conversation',
     avecSorte: true,
-    bouton: '👥 Ouvrir la conversation',
+    groupeSeul: groupeSeul,
+    bouton: groupeSeul ? '👥 Ouvrir le groupe' : '👥 Ouvrir la conversation',
     faire: creerUnGroupe
   });
 }
@@ -2494,8 +2518,9 @@ async function dessinerEcranParticipants(opt){
   if(opt.avecSorte){
     const h = document.createElement('div');
     h.innerHTML =
-      '<label>Tu veux écrire…</label>' +
-      '<div id="msgElvSortes" style="margin-bottom:14px;"></div>' +
+      (opt.groupeSeul ? ''
+        : '<label>Tu veux écrire…</label>' +
+          '<div id="msgElvSortes" style="margin-bottom:14px;"></div>') +
       '<div id="msgElvZoneTitre">' +
         '<label for="msgElvTitre">Nom du groupe</label>' +
         '<input type="text" id="msgElvTitre" placeholder="Ex : Permis du 14 octobre">' +
@@ -3436,7 +3461,7 @@ async function changerEtatObjet(o, etat, bouton){
    (l'élève, le moniteur choisi, la boîte du bureau), l'état posé
    tout de suite, et un message déjà écrit qu'on peut changer.
    ============================================================ */
-const oubliOuvert = { sd: true, etat: 'retrouve', ecrit: false };
+const oubliOuvert = { sd: true, etat: 'retrouve', ecrit: false, dansLeFil: false };
 
 function elisionVoiture(v){
   const n = String(v || '').trim();
@@ -3465,9 +3490,21 @@ function messageDeLOubli(){
       '. On te tient au courant ici.';
 }
 
-async function ecranOuvrirUnOubli(){
-  const zone = zoneDesObjets();
+async function ecranOuvrirUnOubli(dansLaZone){
+  /* v1152 — depuis l'écran 🧤 Objets, ou depuis le filtre 🧤 de la
+     messagerie : dans ce cas il prend la colonne du fil, comme
+     « À qui ? », et la liste reste à côté. */
+  const dansLeFil = !!dansLaZone;
+  const zone = dansLaZone || zoneDesObjets();
   if(!zone) return;
+  oubliOuvert.dansLeFil = dansLeFil;
+  if(dansLeFil){
+    if(typeof arreterLaVeilleDuFil === 'function') arreterLaVeilleDuFil();
+    if(typeof couperLeDirect === 'function') couperLeDirect();
+    filOuvertEC = null;
+    ckEcranAPart = true;
+    if(typeof ckLarge === 'function' && ckLarge() && typeof ckDessinerLaFiche === 'function') ckDessinerLaFiche(null);
+  }
   oubliOuvert.sd = true;
   oubliOuvert.etat = 'retrouve';
   oubliOuvert.ecrit = false;
@@ -3505,7 +3542,7 @@ async function ecranOuvrirUnOubli(){
   const choixMoniteur = '<select id="oubOuvMoniteur"><option value="">Personne</option>' +
     moniteurs.map(n => '<option>' + echapper(n) + '</option>').join('') + '</select>';
 
-  zone.innerHTML =
+  zone.innerHTML = (dansLeFil ? '<div style="padding:14px 18px;overflow:auto;">' : '<div>') +
     '<div style="display:flex;gap:10px;align-items:center;padding-bottom:10px;' +
       'border-bottom:1px solid var(--line);margin-bottom:14px;">' +
       '<button class="btn btn-secondary" id="oubOuvRetour" style="width:auto;margin:0;' +
@@ -3527,7 +3564,7 @@ async function ecranOuvrirUnOubli(){
       'font-family:inherit;line-height:1.45;margin-bottom:10px;"></textarea>' +
     '<div id="oubOuvAvis" style="font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:10px;' +
       'margin:4px 0 14px;background:rgba(0,0,0,.04);color:var(--muted);"></div>' +
-    '<button class="btn btn-primary" id="oubOuvEnvoyer">💬 Envoyer</button>';
+    '<button class="btn btn-primary" id="oubOuvEnvoyer">💬 Envoyer</button></div>';
 
   const majTout = () => {
     const eleve = ($('oubOuvEleve').value || '').trim();
@@ -3567,7 +3604,10 @@ async function ecranOuvrirUnOubli(){
     $('oubOuvEnvoyer').textContent = '💬 Envoyer à ' + (prenom || 'l’élève');
   };
 
-  $('oubOuvRetour').addEventListener('click', () => { objetsEC = []; afficherObjetsOublies(); });
+  $('oubOuvRetour').addEventListener('click', () => {
+    if(oubliOuvert.dansLeFil){ ckEcranAPart = false; afficherMessagerie(true); return; }
+    objetsEC = []; afficherObjetsOublies();
+  });
   ['oubOuvEleve', 'oubOuvQuoi', 'oubOuvVoiture', 'oubOuvMoniteur'].forEach(id => {
     const el = $(id);
     if(el){ el.addEventListener('input', majTout); el.addEventListener('change', majTout); }
@@ -3608,8 +3648,10 @@ async function envoyerLOubliOuvert(bouton){
     conversationsEC = [];
     if(typeof showToast === 'function') showToast('💬 Envoyé à ' + propre.split(/\s+/)[0]);
     if(d && d.id && typeof afficherVue === 'function' && typeof ouvrirLeFil === 'function'){
-      afficherVue('messagerie', 'messagerie');
-      ouvrirLeFil(d.id);
+      ckEcranAPart = false;
+      if(!oubliOuvert.dansLeFil) afficherVue('messagerie', 'messagerie');
+      await ouvrirLeFil(d.id);
+      if(oubliOuvert.dansLeFil) afficherMessagerie(true);
     }else afficherObjetsOublies();
   }catch(e){
     bouton.disabled = false;
