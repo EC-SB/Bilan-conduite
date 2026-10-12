@@ -185,7 +185,7 @@ async function afficherEcoutes(){
       if(caseSms.checked){
         bAbs.textContent = 'Envoi du mail…';
         await appelPrep({
-          action: 'mailBilan',
+          action: 'mailBilan', genre: 'ecoute', eleve: nom,
           to: [adresse],
           sujet: 'Ton écoute pédagogique — Évolution Conduites',
           texte: champTexte.value.trim()
