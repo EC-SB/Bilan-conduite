@@ -130,9 +130,29 @@ const CHAMPS_MANUELS = {
     { cle:'rubriques.allures',      type:'eval3', nom:'Allures' },
     { cle:'rubriques.controles',    type:'eval3', nom:'Contrôles' },
 
-    { cle:'simuHeures',  type:'court', nom:'Heures de simulateur' },
-    { cle:'leconsAvant', type:'court', nom:'Leçons avant examen blanc' },
-    { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
+    /* v1143 — David : « un cadre autre avant là où on renseigne
+       les heures ». Il porte « data-cle » (marque) : une fiche
+       commencée avant cette version se replace par le rang de ses
+       champs, et ce cadre neuf ne doit pas hériter de ce qui était
+       tapé dans l'ancienne case des heures. */
+    { cle:'autre', type:'texte', lignes:2, nom:'Autre', marque:true,
+      indication:'Ce qui ne rentre dans aucune rubrique — une ligne par point' },
+
+    /* v1143 — des cases chiffrées : des HEURES pour le simulateur,
+       des LEÇONS avant et après examen blanc (« côté moniteur on
+       remet en nombre de leçons »). Le bilan écrit leçons ET heures. */
+    { cle:'simuHeures',  type:'nombreEval', nom:'Heures de simulateur',
+      unite:'h', entete:'🕙 Estimation' },
+    { cle:'leconsAvant', type:'nombreEval', nom:'Leçons avant examen blanc',
+      unite:'leçons', enHeures:true },
+    { cle:'leconsApres', type:'nombreEval', nom:'Leçons après examen blanc',
+      unite:'leçons', enHeures:true },
+
+    /* L'aperçu modifiable, juste au-dessus de « Composer le bilan » :
+       de « ESTIMATION DU NOMBRE D'HEURES » à la fin du contrat. */
+    { cle:'estimationTexte', type:'apercuEval',
+      nom:'👁️ Aperçu de l’estimation — modifiable',
+      aide:'Se remplit tout seul avec les cases ci-dessus. Tu peux le retoucher : c’est ce texte-là qui part dans le bilan.' }
   ],
   examenblanc: [
     { cle:'__t1', type:'titre', nom:"𝟭 - 𝗔𝗩𝗔𝗡𝗧 𝗟'𝗘𝗫𝗔𝗠𝗘𝗡" },
@@ -3571,7 +3591,7 @@ function ficheManuelleEnTexte(quelleZone){
 
   champs.forEach(ch => {
     if(ch.type === 'envoiAvant' || ch.type === 'rappelFrise' ||
-       ch.type === 'photo') return;
+       ch.type === 'photo' || ch.type === 'apercuEval') return;
 
     if(ch.type === 'titre'){
       lignes.push('');
@@ -4813,6 +4833,9 @@ function reprendreBrouillon(b){
          minuteur : sinon elles repeindraient par-dessus. */
       setTimeout(() => {
         try{ repeindreBoutonsManuels(); }catch(e){ console.warn('Boutons :', e); }
+        /* L'aperçu d'une évaluation : retouché, il garde la version
+           du moniteur et le redit ; sinon il se recalcule. */
+        try{ majApercuEval(); }catch(e){ console.warn('Aperçu :', e); }
       }, 0);
       n += Object.keys(b.champs).filter(k => b.champs[k] !== '' &&
                                              b.champs[k] !== undefined).length;
@@ -4995,6 +5018,167 @@ function rafraichirApercuNiveau(){
   t.dataset.propose = propose;
   t.dataset.intact = 'oui';
   champsManuels[(prefixeExamenBlanc || '') + 'niveauTexte'] = propose;
+}
+
+/* ============================================================
+   L'ESTIMATION D'UNE ÉVALUATION — v1143
+
+   David, le 12 octobre : « transformer ce que renseignent les
+   moniteurs […] en heures à remplir, par contre il faut bien que
+   ça garde la conversion en leçons dans le bilan », puis « côté
+   moniteur on remet en nombre de leçons ». Et en dessous, « avant
+   de générer le bilan, une prévisualisation modifiable ».
+
+   Trois cases chiffrées, puis l'aperçu. L'aperçu se recalcule à
+   chaque frappe TANT QUE le moniteur n'y a pas touché ; retouché,
+   il garde sa version (« estimationMain ») et « ↺ Recalculer » le
+   remet d'après les cases — la règle du bilan des éliminatoires
+   de l'examen blanc. Le texte vient de basDuBilanEval
+   (ec-modeles.js), la même fonction que le bilan : on relit ce
+   qui partira.
+   ============================================================ */
+function evalAvecLigneBea(){
+  /* La ligne « Si passage en BEA » n'existe que sur une évaluation BV */
+  return !!($('modele') && $('modele').value === 'eval-manuelle');
+}
+
+function dessinerNombreEval(ch, bloc){
+  bloc.style.cssText = 'margin-bottom:' + (ch.enHeures ? '4px' : '12px') + ';';
+
+  if(ch.entete){
+    const tete = document.createElement('label');
+    tete.textContent = ch.entete;
+    bloc.appendChild(tete);
+  }
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;align-items:center;gap:10px;';
+  const l = document.createElement('label');
+  l.textContent = ch.nom;
+  l.htmlFor = idChamp(ch.cle);
+  l.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;' +
+    'text-transform:none;color:var(--cream);line-height:1.35;letter-spacing:0;';
+  r.appendChild(l);
+
+  const i = document.createElement('input');
+  i.type = 'number';
+  i.min = '0';
+  i.step = '1';
+  i.inputMode = 'decimal';
+  i.id = idChamp(ch.cle);
+  i.setAttribute('data-cle', ch.cle);
+  i.style.cssText = 'width:74px;flex-shrink:0;background:var(--navy);' +
+    'border:1px solid var(--line);color:var(--cream);padding:10px;' +
+    'border-radius:10px;font-size:17px;text-align:center;margin:0;font-family:inherit;';
+  r.appendChild(i);
+
+  const u = document.createElement('span');
+  u.textContent = ch.unite || '';
+  u.style.cssText = 'font-size:14px;color:var(--muted);width:50px;flex-shrink:0;';
+  r.appendChild(u);
+  bloc.appendChild(r);
+
+  const conv = document.createElement('div');
+  conv.style.cssText = 'font-size:12px;color:var(--accent-text);text-align:right;' +
+    'padding-right:60px;margin-top:6px;min-height:14px;';
+  if(ch.enHeures) bloc.appendChild(conv);
+
+  const maj = () => {
+    champsManuels[ch.cle] = i.value;
+    if(ch.enHeures){
+      const n = nombreDeLEval(i.value);
+      conv.textContent = (n === null) ? '' : '= ' + chiffreDeLEval(n * 2) + ' h';
+    }
+  };
+  i.addEventListener('input', () => { maj(); majApercuEval(); });
+  /* Une fiche reprise retrouve sa valeur sans événement : la
+     conversion se relit au premier dessin de l'aperçu. */
+  i._majConversion = maj;
+}
+
+function dessinerApercuEval(ch, bloc){
+  const l = document.createElement('label');
+  l.textContent = ch.nom;
+  bloc.appendChild(l);
+  if(ch.aide){
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;';
+    a.textContent = ch.aide;
+    bloc.appendChild(a);
+  }
+
+  const t = document.createElement('textarea');
+  t.id = idChamp(ch.cle);
+  t.className = 'apercuEval';
+  t.setAttribute('data-cle', ch.cle);
+  t.rows = 24;
+  t.style.cssText = 'width:100%;box-sizing:border-box;background:var(--navy);' +
+    'border:1px solid var(--line);color:var(--cream);padding:11px 12px;' +
+    'border-radius:10px;font-size:14px;line-height:1.55;font-family:inherit;' +
+    'resize:vertical;margin:0;';
+  bloc.appendChild(t);
+
+  const etat = document.createElement('div');
+  etat.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;' +
+    'margin-top:8px;font-size:12.5px;color:var(--muted);';
+  const dit = document.createElement('span');
+  dit.className = 'apercuEvalEtat';
+  const re = document.createElement('button');
+  re.type = 'button';
+  re.className = 'btn btn-secondary apercuEvalRecalcul';
+  re.style.cssText = 'width:auto;padding:7px 11px;font-size:13px;margin:0;';
+  re.textContent = '↺ Recalculer';
+  etat.appendChild(dit);
+  etat.appendChild(re);
+  bloc.appendChild(etat);
+
+  t.addEventListener('input', () => {
+    champsManuels.estimationMain = '1';
+    champsManuels[ch.cle] = t.value;
+    majApercuEval();
+  });
+  re.addEventListener('click', () => {
+    champsManuels.estimationMain = '';
+    majApercuEval();
+    if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
+  });
+
+  /* Après les valeurs par défaut et une éventuelle reprise */
+  setTimeout(() => { try{ majApercuEval(); }catch(e){} }, 0);
+}
+
+function majApercuEval(){
+  const t = document.getElementById(idChamp('estimationTexte'));
+  if(!t) return;
+
+  const lire = cle => {
+    const el = document.getElementById(idChamp(cle));
+    if(el && el._majConversion) el._majConversion();
+    return el ? el.value : champsManuels[cle];
+  };
+  const ai = { simuHeures: lire('simuHeures'), leconsAvant: lire('leconsAvant'),
+               leconsApres: lire('leconsApres') };
+
+  const aLaMain = !!champsManuels.estimationMain;
+  if(!aLaMain){
+    t.value = basDuBilanEval(ai, evalAvecLigneBea());
+    champsManuels.estimationTexte = t.value;
+  }
+
+  /* Tout le texte d'un coup d'œil : le cadre prend sa hauteur
+     (écran caché au dessin : il garde ses 24 lignes). */
+  if(t.scrollHeight){
+    t.style.height = 'auto';
+    t.style.height = (t.scrollHeight + 4) + 'px';
+  }
+
+  const bloc = t.parentNode;
+  const dit = bloc && bloc.querySelector('.apercuEvalEtat');
+  const re = bloc && bloc.querySelector('.apercuEvalRecalcul');
+  if(dit) dit.textContent = aLaMain
+    ? '✋ Retouché à la main — les cases ne le changent plus'
+    : 'Calculé d’après les cases';
+  if(re) re.style.display = aLaMain ? '' : 'none';
 }
 
 function dessinerChampsManuels(champs, zone, modele, dossier){
@@ -5462,10 +5646,34 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       t.id = 'manEval_' + ch.cle.split('.').join('_');
       t.rows = 2;
       t.placeholder = 'Ce qu\'il y a à corriger — une ligne par point';
-      t.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+      t.style.cssText = 'flex:1;min-width:0;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:9px 10px;border-radius:10px;font-size:15px;' +
         'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
-      bloc.appendChild(t);
+
+      /* 🎙️ AU BOUT DE LA LIGNE — v1143. David : « mettre des micros
+         sur toutes les cases en bout de ligne pour pouvoir faire des
+         vocaux ». Le même bouton que les cadres de texte libre, et la
+         même dictée — celle qui écrit là où est le curseur. */
+      const rangee = document.createElement('div');
+      rangee.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+      rangee.appendChild(t);
+      if(dicteePossible()){
+        const mic = document.createElement('button');
+        mic.type = 'button';
+        mic.className = 'btn btn-secondary';
+        mic.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
+        mic.textContent = '🎙️';
+        mic.title = 'Dicter dans ' + ch.nom;
+        mic.addEventListener('click', () => dicterDans(t, mic));
+        rangee.appendChild(mic);
+      }
+      bloc.appendChild(rangee);
+
+    }else if(ch.type === 'nombreEval'){
+      dessinerNombreEval(ch, bloc);
+
+    }else if(ch.type === 'apercuEval'){
+      dessinerApercuEval(ch, bloc);
 
     }else if(ch.type === 'ok'){
       /* Passager et voyants décident de la note d'installation */
@@ -6385,6 +6593,8 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       const t = document.createElement('textarea');
       t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
       t.id = idChamp(ch.cle);
+      if(ch.indication) t.placeholder = ch.indication;
+      if(ch.marque) t.setAttribute('data-cle', ch.cle);
 
       /* ------------------------------------------------------
          UNE PHRASE TOUTE PRÊTE, POSÉE PAR UNE CASE
