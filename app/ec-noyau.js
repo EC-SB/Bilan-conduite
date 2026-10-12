@@ -581,6 +581,9 @@ function appliquerDroits(){
   /* Le journal d'activité n'est visible que des administrateurs */
   const jc = $('journalCard');
   if(jc) jc.style.display = (ACCES.role === 'admin') ? '' : 'none';
+  /* ✉️ Les mails envoyés — v1146 : la même règle */
+  const mc = $('mailsCard');
+  if(mc) mc.style.display = (ACCES.role === 'admin') ? '' : 'none';
 
   if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
@@ -1498,7 +1501,7 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
   const jour = (typeof dateEnToutesLettres === 'function')
     ? (dateEnToutesLettres(dateCours) || dateCours) : dateCours;
 
-  const corps = { action: 'mailBilan', to: mails,
+  const corps = { action: 'mailBilan', to: mails, genre: 'bilan', eleve: nom,
                   sujet: 'Ton bilan de conduite du ' + (jour || ''),
                   texte: texte };
 
