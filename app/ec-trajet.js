@@ -520,7 +520,13 @@ function tenirLEcranPourLeTrajet(){
 function poserLaVeilleDuTrajet(){
   try{
     trajetVeille = navigator.geolocation.watchPosition(
-      (pos) => { retenirPoint(pos); dessinerEtatDuTrajet(); },
+      (pos) => {
+        retenirPoint(pos);
+        /* 🗺️ v1148 — la carte du bureau reçoit la dernière position
+           (ec-direct.js). Sans vitesse, et rien n'est gardé. */
+        if(typeof noterLaPositionPourLeDirect === 'function') noterLaPositionPourLeDirect(pos);
+        dessinerEtatDuTrajet();
+      },
       (err) => {
         /* ⚠️ UN REFUS SE DIT, IL NE SE TAIT PAS. Sans ça, le
            moniteur croit son trajet enregistré pendant deux heures
@@ -642,6 +648,8 @@ function surveillerLaVeilleDuTrajet(){
 
 function arreterTrajet(){
   clearInterval(trajetBattement);
+  /* 🗺️ v1148 — la voiture quitte la carte du bureau avec le cours */
+  if(typeof finirLePartageDePosition === 'function') finirLePartageDePosition();
   trajetBattement = null;
   if(trajetVeille !== null){
     try{ navigator.geolocation.clearWatch(trajetVeille); }catch(e){}
@@ -2392,6 +2400,14 @@ function dessinerEtatDuTrajet(){
   chiffres.textContent = '· ' + String(r.km).replace('.', ',') + ' km · ' +
     r.reperes + ' repère' + (r.reperes > 1 ? 's' : '');
   z.appendChild(chiffres);
+
+  /* 🗺️ v1148 — le moniteur sait que sa position part au bureau */
+  if(typeof positionPartagee === 'function' && positionPartagee()){
+    const p = document.createElement('span');
+    p.className = 'gris partageDirect';
+    p.textContent = '· 📡 position partagée';
+    z.appendChild(p);
+  }
 }
 
 /* Le gros bouton se remplit une seconde et demie, puis redevient
