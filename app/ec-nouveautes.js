@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 20:15 — v1110 */
+/* Déployé le 12/10/2026 à 15:22 — v1156 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,20 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1156,
+    date: 'Lundi 12 octobre 2026',
+    resume: '🎓 Le dossier suit la veille de l’examen',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'La veille de l’examen, dans le dossier',
+        texte: 'Un examen préparé n’est plus compté comme une leçon : « Prochaine : mar. 13 oct. — ' +
+               '🎓 examen officiel à 14h15 · Loudéac ». Et « Avant l’examen » se décompte aussi pour ' +
+               'les élèves dont les bilans n’écrivent pas « Xᵉ après l’examen blanc » (AAC) ou dont ' +
+               'la leçon attend encore son bilan : « Plus que les 3h », puis « ✅ Tout est fait » ' +
+               'une fois la leçon de veille passée.' }
+    ]
+  },
   {
     version: 1155,
     date: 'Lundi 12 octobre 2026',
