@@ -51,6 +51,26 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1150,
+    date: 'Lundi 12 octobre 2026',
+    resume: '✏️ Écrire en deux gestes · 💾 la carte SD oubliée',
+    quoi: [
+      { emoji: '✏️',
+        titre: 'Écrire à quelqu’un, en deux gestes',
+        texte: 'Le ＋ de la messagerie demande seulement « À qui ? » : tes récents et tes élèves ' +
+               'du jour sont déjà là. Tu touches un nom et le fil s’ouvre, prêt à écrire — ou la ' +
+               'conversation qui existe déjà. « Signé : 🏢 Le bureau · 👤 Moi seul » se règle ' +
+               'au-dessus de la barre. Et dans « Rechercher partout », la première ligne est ' +
+               '« ✏️ Écrire à … ».' },
+      { emoji: '💾',
+        titre: 'La carte SD oubliée',
+        texte: 'L’élève dit dans quelle voiture et avec quel moniteur : un groupe s’ouvre avec ' +
+               'le moniteur et le bureau. Trois raccourcis : « 💾 Elle est au bureau », « 🚗 Pas ' +
+               'dans la voiture », « 🤝 Elle est rendue » — le moniteur du groupe peut les toucher ' +
+               'lui-même. Et dans 🧤 Objets, « ＋ Ouvrir un oubli » quand c’est nous qui la trouvons.' }
+    ]
+  },
+  {
     version: 1148,
     date: 'Lundi 12 octobre 2026',
     resume: '🗺️ Les voitures en direct',
