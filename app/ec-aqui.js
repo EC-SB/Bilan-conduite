@@ -188,6 +188,7 @@ async function ecranAQui(){
   aQuiMots = '';
   filNeufEC = null;
   if(typeof reglagesMsgOuvertEC !== 'undefined') reglagesMsgOuvertEC = false;   /* ⚙️ v1154 */
+  if(typeof signalOuvertEC !== 'undefined') signalOuvertEC = null;              /* 📞 v1155 */
   ckEcranAPart = true;
   if(typeof ckLarge === 'function' && ckLarge() && typeof ckDessinerLaFiche === 'function') ckDessinerLaFiche(null);
   if(typeof arreterLaVeilleDuFil === 'function') arreterLaVeilleDuFil();
@@ -512,6 +513,18 @@ function ecrireAEleveDansLaMessagerie(nom){
   filNeufEC = null;
   if(typeof allerALaMessagerie === 'function') allerALaMessagerie('messagerie');
   if(typeof afficherMessagerie === 'function') afficherMessagerie(true);
+}
+
+/* 👤 v1155 — « Lui écrire seul », depuis le ⋯ d'un fil où le bureau
+   est : la signature « Moi seul » d'office, et la conversation à deux
+   si elle existe déjà. Rien n'est créé avant le premier message. */
+function ecrireSeulA(nom){
+  if(!nom) return;
+  const cible = { genre: 'eleve', nom: nom };
+  if(typeof ckFicheOuverte !== 'undefined') ckFicheOuverte = false;
+  const deja = filExistantPour(cible, 'moi');
+  if(deja){ ckEcranAPart = false; filNeufEC = null; return ouvrirLeFil(deja.id); }
+  ouvrirLeFilNeuf(cible, 'moi');
 }
 
 function poursuivreEcrireA(){
