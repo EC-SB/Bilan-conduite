@@ -1399,7 +1399,8 @@ async function afficherPrepares(recharger, silencieux){
       const zoneRetard = nom.querySelector('[data-filretard]');
       if(zoneRetard) zoneRetard.addEventListener('click', ev => {
         ev.stopPropagation();
-        if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+        if(typeof allerALaMessagerie === 'function') allerALaMessagerie('messagerie');
+          else if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
         if(typeof ouvrirLeFil === 'function') ouvrirLeFil(retard.fil);
       });
     }
