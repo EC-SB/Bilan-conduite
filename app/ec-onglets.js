@@ -47,8 +47,17 @@ const SECTIONS_ONGLET = {
   messagerie: ['messagerie'],
   /* « historique » a été retiré le 1er septembre : voir la barre
      de vues plus bas. */
+  /* ⚠️ v1145 — L'ÉQUIPE ET L'ARGENT ONT QUITTÉ GESTION POUR OUTILS.
+     David : « La partie Argent et Équipe de gestion passe-les dans
+     outils, ça me paraît plus logique », dans l'ordre Mesurer ·
+     L'équipe · Argent · Demandes · Ce qu'on écrit. Leurs droits
+     suivent ICI : c'est cette table qui ouvre l'onglet, et un
+     droit resté dans « gestion » ouvrirait un onglet où son bouton
+     n'est plus. */
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans',
-            'stats', 'journal'],
+            'stats', 'journal',
+            'bureau_messages', 'sms', 'taches', 'notifs',
+            'caisse', 'coutsia', 'paie', 'tarifs'],
   /* « tarifs » manquait ici, et il est pourtant accordable dans
      ⚙️ Accès : un compte à qui l'on n'accordait QUE les tarifs
      n'obtenait pas l'onglet Gestion, et n'atteignait donc jamais
@@ -58,9 +67,7 @@ const SECTIONS_ONGLET = {
      « normalement c'est dans flotte qu'il doit être ». C'est elle
      qui ouvre l'onglet Gestion à un moniteur, et elle seule : il y
      trouvera cette carte et rien d'autre. */
-  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'carrosserie', 'paie',
-            'caisse', 'coutsia',
-            'bureau_messages', 'sms', 'encours', 'incidents', 'tarifs',
+  gestion: ['ecran', 'flotte', 'carrosserie', 'encours', 'incidents',
             'menage', 'admin']
 };
 
@@ -287,15 +294,35 @@ const VUES = {
   /* Ce qui sert au quotidien pédagogique */
   /* Trois familles : ce qu'on MESURE, ce qu'on ÉCRIT une fois pour
      toutes, et ce qu'on DEMANDE au-dehors. */
+  /* v1145 — l'ordre de David : Mesurer · L'équipe · Argent ·
+     Demandes · Ce qu'on écrit. L'équipe et l'Argent viennent de
+     Gestion, boutons, logos et droits inchangés. */
   outils: [['stats',      '📈 Réussite',               ['stats', 'stats_perso'], 'Mesurer'],
            ['journal',    '📊 Journal',                'journal',     'Mesurer'],
+
+           ['messages',   '📨 Messages internes',      'bureau_messages', 'L’équipe'],
+           /* ⚠️ 📱 ET NON 💬 — v1074. David : « je préfère celui-là
+              pour la messagerie et mets un autre pour le SMS ». Deux
+              💬 dans la même application, c'est deux boutons qu'on ne
+              distingue plus une fois le rail replié — exactement la
+              raison qui avait fait passer « Permis obtenu » de 🎓 à
+              🪪. Et 📱 dit mieux ce que c'est : un texto sur un
+              téléphone. */
+           ['sms',        '📱 SMS',                     'sms',         'L’équipe'],
+           ['taches',     '✅ Tâches',                  'taches',      'L’équipe'],
+           ['notifs',     '🔔 Alertes',                 'notifs',      'L’équipe'],
+
+           ['caisse',     '🏦 Caisse',                  'caisse',      'Argent'],
+           ['coutsia',    '💸 Coûts IA',                'coutsia',     'Argent'],
+           ['paie',       '💶 Paie',                    'paie',        'Argent'],
+           ['tarifs',     '💰 Tarifs',                 'tarifs',       'Argent'],
+
+           ['placesbe',   '🚚 Places BE',              'placesbe',    'Demandes'],
 
            ['textes',     '📄 Modèles messages',           'textes',      'Ce qu’on écrit'],
            ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
            ['procedures', '🚦 Procédures',             'procedures',  'Ce qu’on écrit'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
-
-           ['placesbe',   '🚚 Places BE',              'placesbe',    'Demandes'],
            /* « 📚 Historique des cours » a été retiré.
 
               Ce bouton ne chargeait RIEN : sa vue n'était branchée
@@ -320,14 +347,10 @@ const VUES = {
               qui décide ensuite de ce qu'il contient. */],
 
   /* Ce qui relève de la gestion de l'entreprise */
-  /* Quatorze boutons, quatre métiers. L'argent, le parc, l'équipe,
-     l'outil : on ne cherche pas « quel écran », on sait de quoi on
-     s'occupe en ouvrant l'onglet. */
-  gestion: [['caisse',    '🏦 Caisse',                  'caisse',      'Argent'],
-           ['coutsia',    '💸 Coûts IA',                'coutsia',     'Argent'],
-           ['paie',       '💶 Paie',                    'paie',        'Argent'],
-           ['tarifs',     '💰 Tarifs',                 'tarifs',       'Argent'],
-
+  /* Deux métiers : le parc et l'outil. On ne cherche pas « quel
+     écran », on sait de quoi on s'occupe en ouvrant l'onglet.
+     v1145 — l'Argent et L'équipe sont partis dans Outils. */
+  gestion: [
            /* ⚠️ DEUX DROITS OUVRENT CE BOUTON. La flotte pour ceux
               qui suivent le parc, la carrosserie pour ceux qui n'y
               déclarent qu'une rayure. Chacun n'y voit que sa carte —
@@ -337,18 +360,6 @@ const VUES = {
               pire qu'un droit refusé. */
            ['flotte',     '🚗 Flotte',                  ['flotte', 'carrosserie'], 'Le parc'],
            ['incidents',  '🚨 Signalements',            'incidents',   'Le parc'],
-
-           ['messages',   '📨 Messages internes',      'bureau_messages', 'L’équipe'],
-           /* ⚠️ 📱 ET NON 💬 — v1074. David : « je préfère celui-là
-              pour la messagerie et mets un autre pour le SMS ». Deux
-              💬 dans la même application, c'est deux boutons qu'on ne
-              distingue plus une fois le rail replié — exactement la
-              raison qui avait fait passer « Permis obtenu » de 🎓 à
-              🪪. Et 📱 dit mieux ce que c'est : un texto sur un
-              téléphone. */
-           ['sms',        '📱 SMS',                     'sms',         'L’équipe'],
-           ['taches',     '✅ Tâches',                  'taches',      'L’équipe'],
-           ['notifs',     '🔔 Alertes',                 'notifs',      'L’équipe'],
 
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
