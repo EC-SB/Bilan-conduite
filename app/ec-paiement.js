@@ -277,7 +277,7 @@ async function envoyerPaiementMail(montant, options){
 
   try{
     await appelPrep({
-      action: 'mailBilan',
+      action: 'mailBilan', genre: 'paiement', eleve: nom,
       to: [adresse],
       sujet: 'Régler en plusieurs fois — Évolution Conduites',
       texte: messagePaiement(montant, options)
