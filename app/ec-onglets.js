@@ -367,6 +367,8 @@ const VUES = {
               pire qu'un droit refusé. */
            ['flotte',     '🚗 Flotte',                  ['flotte', 'carrosserie'], 'Le parc'],
            ['incidents',  '🚨 Signalements',            'incidents',   'Le parc'],
+           /* 🗺️ v1148 — administrateurs seuls, comme le Journal */
+           ['direct',     '🗺️ En direct',               'flotte',      'Le parc'],
 
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
@@ -1503,6 +1505,7 @@ function construireBarresVues(){
       if(cle === 'journal') return ACCES.role === 'admin';
       if(cle === 'mails')   return ACCES.role === 'admin';      /* v1146 */
       if(cle === 'activite') return ACCES.role === 'admin';     /* v1147 */
+      if(cle === 'direct')  return ACCES.role === 'admin';      /* v1148 */
       if(cle === 'admin')   return ACCES.role === 'admin';
 
       /* CAISSE · COÛTS IA · COURS NON TERMINÉS · SIGNALEMENTS
@@ -1809,6 +1812,7 @@ function reveillerVue(cle){
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
     mails:      () => ACCES.role === 'admin' && typeof afficherMails === 'function' && afficherMails(true),
     activite:   () => ACCES.role === 'admin' && typeof afficherActiviteEleves === 'function' && afficherActiviteEleves(true),
+    direct:     () => ACCES.role === 'admin' && typeof afficherVoituresEnDirect === 'function' && afficherVoituresEnDirect(),
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
     /* Le dossier se redessine seul quand on y revient : le nom
