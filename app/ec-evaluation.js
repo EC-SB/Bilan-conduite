@@ -416,7 +416,7 @@ async function ouvrirTexteAac(heures, auto, supervisee, mail){
       bMail.disabled = true;
       bMail.textContent = 'Envoi…';
       try{
-        await appelPrep({ action: 'mailBilan', to: [adresse],
+        await appelPrep({ action: 'mailBilan', to: [adresse], genre: 'evaluation', eleve: nom,
           sujet: 'Ton évaluation de départ - Évolution Conduites',
           texte: z.value });
         bMail.textContent = '✅ Envoyé';
@@ -687,7 +687,7 @@ async function ouvrirTexteEvaluation(quoi, r){
       bMail.disabled = true;
       bMail.textContent = 'Envoi…';
       try{
-        await appelPrep({ action: 'mailBilan', to: [adresse],
+        await appelPrep({ action: 'mailBilan', to: [adresse], genre: 'evaluation', eleve: nom,
                           sujet: sujet, texte: z.value });
         bMail.textContent = '✅ Envoyé';
         showToast('Envoyé à ' + adresse + ' ✅');
