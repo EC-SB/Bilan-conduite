@@ -558,9 +558,9 @@ function basDuBilanEval(ai, avecBea){
     ]));
     parts.push('');
   }
-  parts.push('Envoyé par Messenger ? ✅❌ ');
-  parts.push('Envoyé par Drivup ? ✅❌  ');
-  parts.push('');
+  /* v1145 — les lignes « Envoyé par Messenger / Drivup ? ✅❌ »
+     sont parties. David : « on n'envoie plus par Messenger […] tout
+     s'envoie par mail, on se garde les Copier en cas de soucis ». */
   parts.push(EVAL_CONTRAT);
   return parts.join('\n');
 }
