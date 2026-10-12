@@ -313,7 +313,8 @@ function lignesMessagesEleves(){
            ligne s'en va quand on a LU le fil — pas quand on a
            décidé de ne plus la voir. */
         action: () => {
-          if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+          if(typeof allerALaMessagerie === 'function') allerALaMessagerie('messagerie');
+          else if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
           if(typeof ouvrirLeFil === 'function') ouvrirLeFil(c.id);
         },
         actionTexte: 'Lire'
@@ -355,7 +356,8 @@ function lignesObjetsOublies(){
                  : e.sous].filter(Boolean).join(' · '),
         urgente: false,
         action: () => {
-          if(typeof afficherVue === 'function') afficherVue('messagerie', 'oublis');
+          if(typeof allerALaMessagerie === 'function') allerALaMessagerie('oublis');
+          else if(typeof afficherVue === 'function') afficherVue('messagerie', 'oublis');
         },
         actionTexte: 'Traiter'
       };
