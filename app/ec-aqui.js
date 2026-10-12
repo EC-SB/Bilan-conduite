@@ -492,6 +492,34 @@ function majEcrireAPendantLaFrappe(mots){
   if(bloc) sc.insertBefore(bloc, sc.firstChild);
 }
 
+/* ---------- depuis le dossier : la bulle 💬 — v1153 ----------
+
+   David, le 12 octobre : « la bulle en haut à côté du téléphone veut
+   envoyer un SMS, il faut qu'elle ouvre la messagerie directement
+   vers l'élève ». Le même geste que « À qui ? » quand on touche son
+   nom : sa conversation si elle existe, sinon un fil neuf.
+
+   ⚠️ ON ATTEND LA LISTE. Sans elle, on ne saurait pas qu'une
+   conversation existe déjà, et on en ouvrirait une deuxième. La
+   demande est posée ici, et c'est « afficherMessagerie » qui la
+   reprend une fois la liste lue (poursuivreEcrireA). */
+let ecrireAEnAttente = null;
+
+function ecrireAEleveDansLaMessagerie(nom){
+  if(!nom) return;
+  ecrireAEnAttente = { genre: 'eleve', nom: nom };
+  filNeufEC = null;
+  if(typeof allerALaMessagerie === 'function') allerALaMessagerie('messagerie');
+  if(typeof afficherMessagerie === 'function') afficherMessagerie(true);
+}
+
+function poursuivreEcrireA(){
+  if(!ecrireAEnAttente) return;
+  const c = ecrireAEnAttente;
+  ecrireAEnAttente = null;
+  ecrireA(c);
+}
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-aqui.js'] = true;
