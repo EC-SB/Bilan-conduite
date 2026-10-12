@@ -745,7 +745,8 @@ function dessinerGroupeMessagerie(z, g, jour, zMsg){
     b.style.cssText = 'padding:11px;font-size:14px;';
     b.textContent = 'Ouvrir le groupe';
     b.addEventListener('click', () => {
-      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      if(typeof allerALaMessagerie === 'function') allerALaMessagerie('messagerie');
+          else if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
       if(typeof ouvrirLeFil === 'function') ouvrirLeFil(lien.conv);
     });
     z.appendChild(b);
