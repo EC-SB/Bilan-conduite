@@ -51,6 +51,23 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1155,
+    date: 'Lundi 12 octobre 2026',
+    resume: '📞 Retard ou annulation reçus au téléphone · 👤 écrire seul à un élève',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Un élève prévient au téléphone',
+        texte: 'Dans la messagerie, filtre ⏰ « ＋ Signaler un retard » ou filtre 🚫 « ＋ Signaler une ' +
+               'annulation ». On choisit l’élève (et les minutes, ou le jour) : son cours est retrouvé, ' +
+               'son moniteur entre dans la conversation et le reçoit sur son téléphone, comme si ' +
+               'l’élève l’avait signalé lui-même.' },
+      { emoji: '👤',
+        titre: 'Écrire seul à un élève',
+        texte: 'Dans une conversation où le bureau est avec l’élève, le ⋯ propose « 👤 Lui écrire ' +
+               'seul » : ta conversation à deux avec lui, sans le bureau.' }
+    ]
+  },
+  {
     version: 1154,
     date: 'Lundi 12 octobre 2026',
     resume: '📄 Un mot dans la messagerie quand le bilan part',
