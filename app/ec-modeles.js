@@ -441,10 +441,10 @@ const EVAL_HEURES =
 '🕙 𝗔𝗖𝗖𝗘̀𝗦 𝗔̀ 𝗡𝗢𝗦 𝗥𝗘𝗦𝗦𝗢𝗨𝗥𝗖𝗘𝗦 𝗦𝗨𝗥 𝗙𝗔𝗖𝗘𝗕𝗢𝗢𝗞 : en illimité\n' +
 '🕙 𝗘́𝗖𝗢𝗨𝗧𝗘𝗦 𝗣𝗘́𝗗𝗔𝗚𝗢𝗚𝗜𝗤𝗨𝗘𝗦 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 : en illimité\n' +
 '🕙 𝗦𝗜𝗠𝗨𝗟𝗔𝗧𝗘𝗨𝗥 𝗔𝗩𝗘𝗖 𝗠𝗢𝗡𝗜𝗧𝗘𝗨𝗥 : ❓ heures modulables selon ton niveau\n' +
-'🕙 𝗟𝗘𝗖̧𝗢𝗡𝗦 𝗗𝗘 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : ❓ séances de 2 heures modulables selon ton niveau\n' +
+'🕙 𝗟𝗘𝗖̧𝗢𝗡𝗦 𝗗𝗘 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : ❓ séances de 2 heures (❓h) modulables selon ton niveau\n' +
 '🕙 𝗦𝗜𝗠𝗨𝗟𝗔𝗧𝗘𝗨𝗥 𝗡𝗨𝗜𝗧 (sauf annulation)  : 1 heure 𝗘𝗧 𝗥𝗜𝗦𝗤𝗨𝗘 : 1 heure \n' +
 '🕙 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖  : 1 heure 30\n' +
-'🕙 𝗟𝗘𝗖̧𝗢𝗡𝗦 𝗗𝗘 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗔𝗣𝗥𝗘́𝗦 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖  : ❓ heures modulables selon ton niveau (ré-évaluation lors de ton examen blanc)\n' +
+'🕙 𝗟𝗘𝗖̧𝗢𝗡𝗦 𝗗𝗘 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗔𝗣𝗥𝗘́𝗦 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖  : ❓ séances de 2 heures (❓h) modulables selon ton niveau (ré-évaluation lors de ton examen blanc)\n' +
 '🕙 𝗛𝗘𝗨𝗥𝗘𝗦 𝗣𝗥𝗘́𝗣𝗔𝗥𝗔𝗧𝗢𝗜𝗥𝗘𝗦 𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 : 3 heures (2h le jour d\'avant + 1h jour même)\n' +
 '🕙 𝗧𝗢𝗧𝗔𝗟 :  ❓';
 
@@ -457,7 +457,7 @@ const EVAL_CONTRAT =
 '📝 Tu vas recevoir un contrat numérique par mail à signer basé sur cette évaluation \n' +
 '𝙑𝙊𝙄𝘾𝙄 𝘾𝙀 𝙌𝙐𝙀 𝙏𝙐 𝘼𝘾𝘾𝙀𝙋𝙏𝙀𝙎 𝙎𝙄 𝙏𝙐 𝙎𝙄𝙂𝙉𝙀𝙎 𝙇𝙀 𝘾𝙊𝙉𝙏𝙍𝘼𝙏 𝘼𝙑𝙀𝘾 𝙉𝙊𝙐𝙎 :\n' +
 '"𝙇\'𝙚́𝙡𝙚̀𝙫𝙚 𝙖𝙘𝙘𝙚𝙥𝙩𝙚 𝙡𝙖 𝙢𝙖𝙣𝙞𝙚̀𝙧𝙚 𝙚𝙩 𝙡𝙚 𝙛𝙤𝙣𝙘𝙩𝙞𝙤𝙣𝙣𝙚𝙢𝙚𝙣𝙩 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 𝙙𝙪 𝙘𝙚𝙣𝙩𝙧𝙚 𝙙𝙚 𝙛𝙤𝙧𝙢𝙖𝙩𝙞𝙤𝙣. 𝙄𝙡 𝙡𝙪𝙞 𝙖 𝙗𝙞𝙚𝙣 𝙚́𝙩𝙚́ 𝙞𝙣𝙙𝙞𝙦𝙪𝙚́ 𝙦𝙪𝙚 𝙨𝙞 𝙘𝙚𝙡𝙖 𝙣𝙚 𝙡𝙪𝙞 𝙘𝙤𝙣𝙫𝙚𝙣𝙖𝙞𝙩 𝙥𝙖𝙨, 𝙞𝙡 𝙚𝙭𝙞𝙨𝙩𝙚 𝙙\'𝙖𝙪𝙩𝙧𝙚𝙨 𝙢𝙚́𝙩𝙝𝙤𝙙𝙤𝙡𝙤𝙜𝙞𝙚𝙨 𝙙𝙖𝙣𝙨 𝙙\'𝙖𝙪𝙩𝙧𝙚𝙨 𝙚́𝙩𝙖𝙗𝙡𝙞𝙨𝙨𝙚𝙢𝙚𝙣𝙩𝙨.\n\n' +
-'📚 M\'engage à accepter la manière de travailler du centre de formation Évolution Conduites expliquée dans la vidéo de présentation que vous avez regardé à l\'accueil.\n\n' +
+'📚 M\'engage à accepter la manière de travailler du centre de formation Évolution Conduites expliquée dans la vidéo de présentation que vous avez regardé à l\'accueil. En résumé, il faut vraiment que tu travailles en dehors sur les groupes de travail et que tu fasses beaucoup d\'écoutes  pédagogiques aussi pour gagner du temps et de l\'argent.\n\n' +
 '🤝 Comprend que l\'accès aux écoutes pédagogiques et aux groupes de travail, sont un réel complément aux heures de conduites, qu\'ils seront ouverts et accessibles UNIQUEMENT pendant ma présence en formation, avec un réel investissement de ma part.\n' +
 'M\'engage à me donner à fond dans ma formation (travail à domicile, réservations des cours en autonomie, pas d\'absence ni de retard etc...)\n' +
 'Comprends qu\'Évolution Conduites me présentera à l\'épreuve pratique du permis de conduire, SEULEMENT si le centre de formation m\'estime apte à obtenir mon examen pratique du permis de conduire, selon le nombre d\'heures données à effectuer d\'après le résultat de mon examen blanc (selon progression).\n\n' +
@@ -475,6 +475,95 @@ const EVAL_RUBRIQUES = [
   ['allures',      '𝗔𝗹𝗹𝘂𝗿𝗲𝘀 :  '],
   ['controles',    '𝗖𝗼𝗻𝘁𝗿𝗼̂𝗹𝗲𝘀 :  ']
 ];
+
+/* ------------------------------------------------------------
+   v1143 — CE QUE LE MONITEUR RENSEIGNE REMPLIT LES ❓
+
+   David, le 12 octobre : les heures de simulateur et les leçons
+   avant / après examen blanc se tapaient dans la fiche… et
+   n'allaient nulle part : le bilan sortait avec ses ❓, à
+   remplacer à la main.
+
+   Le moniteur saisit des LEÇONS (avant et après examen blanc) et
+   des HEURES (simulateur) ; le bilan écrit les deux, « 8 séances
+   de 2 heures (16h) », pareil avant et après. Un ❓ qu'on ne sait
+   pas remplir reste un ❓ — et ne décale pas les suivants.
+
+   ⚠️ UNE SEULE FONCTION POUR L'APERÇU ET POUR LE BILAN. L'aperçu
+   modifiable de la fiche (voir le type « apercuEval » dans
+   ec-manuel.js) appelle celle-ci : ce que le moniteur relit est,
+   au caractère près, ce qui partira.
+   ------------------------------------------------------------ */
+const EVAL_LIGNE_BEA = 'Si passage en BEA :  ❓leçons sur simulateur avec moniteur ❓  leçons de 2 heures + simu nuit et risques + exam blanc + ❓ leçons de 2 heures (❓h) + 3h avant examen ';
+
+/* « 8 », « 8,5 », «  » → 8, 8.5, null */
+function nombreDeLEval(v){
+  const s = String(v === undefined || v === null ? '' : v).trim().replace(',', '.');
+  if(!s) return null;
+  const x = parseFloat(s);
+  return (isFinite(x) && x >= 0) ? x : null;
+}
+function chiffreDeLEval(x){
+  return String(Math.round(x * 10) / 10).replace('.', ',');
+}
+/* 34.5 → « 34 heures 30 », comme « 1 heure 30 » dans le contrat */
+function heuresDeLEval(h){
+  const e = Math.floor(h), m = Math.round((h - e) * 60);
+  return e + (e > 1 ? ' heures' : ' heure') + (m ? ' ' + String(m).padStart(2, '0') : '');
+}
+/* Chaque ❓ prend SA valeur, dans l'ordre ; null le laisse ❓ */
+function remplirLesQuestionsDeLEval(texte, valeurs){
+  let k = 0;
+  return String(texte).replace(/❓/g, () => {
+    const v = valeurs[k++];
+    return (v === null || v === undefined) ? '❓' : String(v);
+  });
+}
+
+/* Les règles de David pour la ligne « Si passage en BEA » d'une
+   évaluation BV :
+     · simulateur : BV 3 → BEA 2, BV 2 → BEA 1 (une de moins) ;
+     · avant examen blanc : les heures BV × 13 ÷ 20, en leçons de
+       2 heures — 8 leçons (16 h) → 10,4 h → 5 leçons ;
+     · après examen blanc : comme en BV. */
+function simulateurSiBea(heuresBv){
+  return Math.max(heuresBv - 1, 0);
+}
+function leconsAvantSiBea(leconsBv){
+  return Math.round(leconsBv * 2 * 13 / 20 / 2);
+}
+
+/* De « ESTIMATION DU NOMBRE D'HEURES » à la fin du contrat */
+function basDuBilanEval(ai, avecBea){
+  const s  = nombreDeLEval(ai && ai.simuHeures);
+  const av = nombreDeLEval(ai && ai.leconsAvant);
+  const ap = nombreDeLEval(ai && ai.leconsApres);
+  const c  = x => (x === null) ? null : chiffreDeLEval(x);
+  const total = (s === null || av === null || ap === null) ? null
+    : 3 + s + av * 2 + 1 + 1 + 1.5 + ap * 2 + 3;
+
+  const parts = [
+    remplirLesQuestionsDeLEval(EVAL_HEURES, [
+      c(s), c(av), av === null ? null : c(av * 2),
+      c(ap), ap === null ? null : c(ap * 2),
+      total === null ? null : heuresDeLEval(total)
+    ]),
+    ''
+  ];
+  if(avecBea){
+    parts.push(remplirLesQuestionsDeLEval(EVAL_LIGNE_BEA, [
+      s === null ? null : chiffreDeLEval(simulateurSiBea(s)) + ' ',
+      av === null ? null : chiffreDeLEval(leconsAvantSiBea(av)),
+      c(ap), ap === null ? null : c(ap * 2)
+    ]));
+    parts.push('');
+  }
+  parts.push('Envoyé par Messenger ? ✅❌ ');
+  parts.push('Envoyé par Drivup ? ✅❌  ');
+  parts.push('');
+  parts.push(EVAL_CONTRAT);
+  return parts.join('\n');
+}
 
 function buildEval(ai, avecBea){
   const r = (ai && ai.rubriques) || {};
@@ -497,16 +586,22 @@ function buildEval(ai, avecBea){
     if(c) parts.push(c);
     parts.push('');
   });
-  parts.push(EVAL_HEURES);
-  parts.push('');
-  if(avecBea){
-    parts.push('Si passage en BEA :  ❓leçons sur simulateur avec moniteur ❓  leçons de 2 heures + simu nuit et risques + exam blanc + ❓ leçons de 2 heures (❓h) + 3h avant examen ');
+
+  /* « Autre » (v1143) : ce qui ne rentre dans aucune rubrique.
+     Vide, il n'écrit rien — le bilan reste celui d'avant. */
+  const autre = txt(ai && ai.autre);
+  if(autre){
+    parts.push('𝗔𝘂𝘁𝗿𝗲 :');
+    parts.push(autre);
     parts.push('');
   }
-  parts.push('Envoyé par Messenger ? ✅❌ ');
-  parts.push('Envoyé par Drivup ? ✅❌  ');
-  parts.push('');
-  parts.push(EVAL_CONTRAT);
+
+  /* Le moniteur a retouché l'aperçu : c'est SA version qui part.
+     Sinon on recompose d'après les cases — la même fonction que
+     l'aperçu, donc le même texte. */
+  const retouche = ai && ai.estimationMain && String(ai.estimationTexte || '').trim();
+  parts.push(retouche ? String(ai.estimationTexte).replace(/\s+$/, '')
+                      : basDuBilanEval(ai, avecBea));
   return parts.join('\n');
 }
 
