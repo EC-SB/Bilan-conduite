@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1140
+     VERSION APPLICATION : v1141
      VERSION APPS SCRIPT REQUISE : v239
      Mis à jour le : 12/10/2026
 
@@ -2898,6 +2898,292 @@
   .msgEtroit .msgMenuBoite{ display:block; }
 
   /* ============================================================
+     🧭 LA MESSAGERIE EN COCKPIT — v1141
+
+     Le schéma « Messagerie — Cockpit » validé par David le
+     12 octobre : rail · liste · fil · fiche éclair sur grand écran,
+     liste puis fil sur téléphone et dans le tiroir.
+
+     ⚠️ LES COULEURS SUIVENT LE THÈME DE L'APPLI — son arbitrage. Le
+     sombre est celui du schéma ; le clair aussi. Elles ne vivent que
+     sous « .ckp » : le reste de l'outil ne voit aucune de ces
+     variables, et aucune règle d'ici ne déborde sur un autre écran.
+     ============================================================ */
+  .ckp{
+    --kbg:#07090B; --kp1:#0E1216; --kp2:#141A20; --kl:#1F2A33; --kt:#E9F1F5; --kd:#7E8C97;
+    --kn:#B6FF0E; --knt:#B6FF0E; --ksurN:#081000; --kn2:#5CE1E6; --kr:#FF5C33; --ko:#FFB020;
+    --kglow:rgba(182,255,14,.35); --kmoi:linear-gradient(135deg,rgba(182,255,14,.22),rgba(92,225,230,.14));
+    --kmoiB:rgba(182,255,14,.45); --kmoiS:#BFE3A0;
+    --kfond:radial-gradient(1200px 500px at 70% -10%,rgba(92,225,230,.10),transparent 60%),radial-gradient(800px 400px at 0% 110%,rgba(182,255,14,.08),transparent 60%),#07090B;
+    --kcarte2:rgba(92,225,230,.06); --kcarte2B:rgba(92,225,230,.45); --kwarn:rgba(255,92,51,.12);
+    color:var(--kt); font-size:14px;
+  }
+  body.clair .ckp{
+    --kbg:#F2F2EC; --kp1:#FFFFFF; --kp2:#F7F7F2; --kl:#DCDCD3; --kt:#14161B; --kd:#64655F;
+    --kn:#B6FF0E; --knt:#3B6900; --ksurN:#0B0B0B; --kn2:#0E7C86; --kr:#C33A12; --ko:#A86A00;
+    --kglow:rgba(130,190,0,.25); --kmoi:linear-gradient(135deg,#E6FFB0,#D8F7F4); --kmoiB:#B6E35A; --kmoiS:#4F7A00;
+    --kfond:radial-gradient(1200px 500px at 70% -10%,rgba(92,225,230,.12),transparent 60%),radial-gradient(800px 400px at 0% 110%,rgba(182,255,14,.18),transparent 60%),#F2F2EC;
+    --kcarte2:#EEFBFB; --kcarte2B:#7FCFD3; --kwarn:rgba(195,58,18,.08);
+  }
+  .ckp .mono{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckp .empty{ color:var(--kd); }
+
+  /* La carte de la messagerie prend toute la largeur sur ordinateur :
+     quatre colonnes ne tiennent pas dans une moitié d'écran. */
+  @media (min-width: 1100px){
+    #appView > [data-vue="messagerie"]{ grid-column:1 / -1; }
+  }
+
+  /* --- les quatre colonnes --- */
+  .ckp.ckpLarge{
+    display:grid; grid-template-columns:64px 320px minmax(0,1fr) 270px;
+    background:var(--kfond); border:1px solid var(--kl); border-radius:18px; overflow:hidden;
+    min-height:540px;
+  }
+  .ckp.ckpLarge.sansFiche{ grid-template-columns:64px 290px minmax(0,1fr); }
+  .ckp.ckpLarge.sansFiche .ckpCtx{ display:none; }
+  .ckpLarge > div{ min-width:0; min-height:0; }
+
+  /* rail */
+  .ckpRail{ border-right:1px solid var(--kl); display:flex; flex-direction:column;
+            align-items:center; gap:5px; padding:14px 0; overflow-y:auto; }
+  .ckpLogo{ font-weight:900; font-size:13px; color:var(--ksurN); background:var(--kn);
+            width:36px; height:36px; border-radius:10px; display:flex; align-items:center;
+            justify-content:center; margin-bottom:8px; box-shadow:0 0 22px var(--kglow); flex-shrink:0; }
+  .ckpIc{ width:42px; height:42px; border-radius:12px; display:flex; align-items:center;
+          justify-content:center; font-size:18px; position:relative; cursor:pointer;
+          color:var(--kd); border:none; background:transparent; margin:0; padding:0; flex-shrink:0; }
+  .ckpIc:hover{ background:var(--kp2); }
+  .ckpIc.on{ background:rgba(182,255,14,.12); box-shadow:inset 0 0 0 1px var(--kmoiB),0 0 18px var(--kglow); }
+  .ckpIc b{ position:absolute; top:1px; right:0; font-size:9.5px; min-width:16px; height:16px;
+            border-radius:8px; background:var(--kn); color:var(--ksurN); display:flex;
+            align-items:center; justify-content:center; padding:0 4px; font-weight:800; }
+  .ckpRailBas{ margin-top:auto; display:flex; flex-direction:column; gap:5px; }
+
+  /* liste */
+  .ckpListe{ border-right:1px solid var(--kl); display:flex; flex-direction:column;
+             background:color-mix(in srgb,var(--kp1) 55%,transparent); }
+  .ckpLarge .ckpScroll{ flex:1; overflow-y:auto; scrollbar-width:thin; padding-bottom:10px; }
+  .ckpLh{ display:flex; gap:8px; padding:14px 14px 8px; align-items:center; }
+  .ckpEtroit .ckpLh{ padding:0 0 10px; }
+  .ckpCherche{ flex:1; min-width:0; height:40px; border-radius:12px; border:1px solid var(--kl);
+               background:var(--kp2); display:flex; align-items:center; gap:8px; padding:0 8px 0 12px;
+               color:var(--kd); margin:0; cursor:text; }
+  .ckp .ckpCherche input{ flex:1; min-width:0; background:transparent; border:none; outline:none;
+                     color:var(--kt); font:inherit; font-size:13px; margin:0; padding:0; height:auto;
+                     box-shadow:none; }
+  .ckp .ckpCherche input::placeholder{ color:var(--kd); }
+  .ckpEff{ border:none; background:transparent; color:var(--kd); cursor:pointer; font-size:13px; margin:0; padding:4px; }
+  .ckp .ckBt{ height:40px; min-width:40px; border-radius:12px; border:1px solid var(--kl);
+              background:var(--kp2); color:var(--kt); display:inline-flex; align-items:center;
+              justify-content:center; cursor:pointer; font-size:13px; font-weight:700; padding:0 10px;
+              gap:6px; white-space:nowrap; margin:0; font-family:inherit; text-decoration:none;
+              flex-shrink:0; line-height:1.2; }
+  .ckp .ckBt:hover{ border-color:var(--kmoiB); }
+  .ckp .ckBt.p{ background:var(--kn); color:var(--ksurN); border-color:var(--kn); }
+  .ckp .ckBt.on{ box-shadow:inset 0 0 0 1px var(--knt); color:var(--knt); }
+  .ckp .ckBt.rouge{ color:var(--kr); border-color:color-mix(in srgb,var(--kr) 50%,transparent); }
+  .ckp .ckBt[disabled]{ opacity:.55; cursor:default; }
+  .ckpSect{ font-size:10.5px; letter-spacing:.14em; color:var(--kd); padding:10px 18px 4px;
+            text-transform:uppercase; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckpEtroit .ckpSect{ padding:10px 6px 5px; }
+  .ckpAvis{ font-size:11.5px; color:var(--kd); line-height:1.5; margin:10px 16px; }
+  .ckpAvis.chaud{ color:var(--kr); margin:10px 18px 0; }
+  .ckpPoussee:empty{ display:none; }
+  .ckpPoussee{ padding:0 14px 6px; }
+  .ckpEtroit .ckpPoussee{ padding:0 0 6px; }
+
+  /* une ligne */
+  .ckIt{ display:flex; gap:11px; padding:11px 12px; margin:0 8px 4px; border-radius:14px;
+         position:relative; cursor:pointer; align-items:flex-start; }
+  .ckpEtroit .ckIt{ margin:0 0 7px; border:1px solid var(--kl); background:var(--kp1); border-radius:16px; }
+  .ckIt:hover{ background:var(--kp2); }
+  .ckIt.on{ background:linear-gradient(90deg,rgba(182,255,14,.12),rgba(182,255,14,.02));
+            box-shadow:inset 0 0 0 1px var(--kmoiB); }
+  .ckIt.coche{ background:var(--kwarn); }
+  .ckAv{ width:40px; height:40px; border-radius:12px; display:flex; align-items:center;
+         justify-content:center; font-weight:800; font-size:13px; flex-shrink:0; background:var(--kp2);
+         border:1px solid var(--kl); color:var(--kt); }
+  .ckAv.nl{ border-color:var(--kn); box-shadow:0 0 14px var(--kglow); color:var(--knt); }
+  .ckAv.rouge{ border-color:var(--kr); color:var(--kr); box-shadow:0 0 14px rgba(255,92,51,.3); }
+  .ckIt .m{ flex:1; min-width:0; }
+  .ckIt .h{ display:flex; gap:8px; align-items:baseline; }
+  .ckIt .h strong{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13.5px; }
+  .ckIt .h span{ font-size:10.5px; color:var(--kd); flex-shrink:0; }
+  .ckTag{ font-size:9.5px; letter-spacing:.1em; font-weight:800; padding:1px 5px; border-radius:5px;
+          border:1px solid currentColor; margin-right:6px; }
+  .ckIt .ap{ font-size:12px; color:var(--kd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px; }
+  .ckIt.nlu .ap{ color:var(--kt); font-weight:600; }
+  .ckSla{ height:3px; border-radius:2px; background:var(--kl); margin-top:7px; overflow:hidden; }
+  .ckSla i{ display:block; height:100%; background:linear-gradient(90deg,var(--kn),var(--kn2)); }
+  .ckMarque{ font-size:10.5px; font-weight:700; color:var(--kn2); margin-top:4px; }
+  .ckSup{ font-size:11px; color:var(--kd); font-style:italic; margin-top:3px; }
+  .ckCpt{ min-width:20px; height:20px; border-radius:10px; background:var(--kn); color:var(--ksurN);
+          font-size:11px; display:none; align-items:center; justify-content:center; flex-shrink:0;
+          padding:0 5px; align-self:center; }
+  .ckpEtroit .ckCpt{ display:flex; }
+  .ckOuverte{ flex-shrink:0; align-self:center; font-size:10.5px; padding:2px 7px; border-radius:999px;
+              border:1px solid var(--kmoiB); color:var(--knt); font-weight:700; }
+  .ckCase{ flex-shrink:0; width:22px; height:22px; border-radius:6px; margin-top:9px; display:flex;
+           align-items:center; justify-content:center; font-size:14px; font-weight:700;
+           border:2px solid var(--kl); color:transparent; }
+  .ckCase.pris{ border-color:var(--kr); background:var(--kr); color:#fff; }
+  .ckVite2{ position:absolute; right:10px; top:9px; display:none; gap:4px; }
+  .ckpLarge .ckIt:hover .ckVite2{ display:flex; }
+  .ckpLarge .ckIt:hover .h span{ visibility:hidden; }
+  .ckVite2 button{ width:28px; height:28px; border-radius:9px; background:var(--kp1); border:1px solid var(--kl);
+                   display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer;
+                   margin:0; padding:0; }
+  .ckVite2 button:hover{ border-color:var(--knt); }
+
+  /* pastilles (étroit) — elles passent à la ligne, jamais de défilement */
+  .ckpChips{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
+  .ckpChips button{ font:inherit; font-size:12px; border:1px solid var(--kl); border-radius:999px;
+                    padding:5px 10px; background:var(--kp1); color:var(--kt); cursor:pointer; margin:0; }
+  .ckpChips button.on{ background:var(--kn); color:var(--ksurN); border-color:var(--kn); font-weight:800; }
+
+  /* --- le fil --- */
+  .ckpFil{ display:flex; flex-direction:column; }
+  .ckpVide{ margin:auto; text-align:center; color:var(--kd); font-size:14px; line-height:2; }
+  .ckFh{ min-height:66px; border-bottom:1px solid var(--kl); display:flex; align-items:center;
+         gap:10px; padding:10px 18px; flex-shrink:0; }
+  .ckFh .tt{ flex:1; min-width:0; }
+  .ckFh .t{ font-weight:800; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckFh .s{ font-size:11.5px; color:var(--kd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckFh .b{ margin-left:auto; display:flex; gap:6px; flex-shrink:0; align-items:center; }
+  .ckFh .b .ckBt{ height:34px; font-size:12px; border-radius:10px; }
+  .ckFh.etroit{ flex-wrap:wrap; row-gap:8px; padding:0 0 10px; margin-bottom:8px; }
+  .ckFh.etroit .b{ flex-basis:100%; justify-content:flex-end; }
+  .ckp .ckBt.rond{ width:36px; min-width:36px; height:36px; padding:0; font-size:14px; border-radius:12px; }
+  .ckDot{ width:8px; height:8px; border-radius:50%; background:var(--kn); box-shadow:0 0 10px var(--kn);
+          display:inline-block; margin-right:6px; vertical-align:1px; }
+  @keyframes ckLueur{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  .ckPulse{ animation:ckLueur 1.6s infinite; }
+
+  /* les bandeaux ⏰ 🧤 */
+  .ckPanneau{ margin:12px 18px 0; border-radius:14px; border:1px solid var(--kl); background:var(--kp1);
+              padding:11px 13px; flex-shrink:0; }
+  .ckpEtroit .ckPanneau{ margin:0 0 8px; padding:10px 12px; font-size:12.5px; }
+  .ckPanneau.chaud{ border-color:color-mix(in srgb,var(--kr) 55%,transparent); background:var(--kwarn); }
+  .ckPanneau .l1{ display:flex; gap:10px; align-items:center; font-size:13px; flex-wrap:wrap; }
+  .ckPanneau .l1 b{ font-weight:800; }
+  .ckPanneau .doux{ color:var(--kd); }
+  .ckPanneau .pills{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .ckPill{ font-size:11px; font-weight:700; border-radius:8px; padding:3px 8px; background:var(--kp2);
+           border:1px solid var(--kl); color:var(--kd); }
+  .ckPill.ok{ color:var(--knt); border-color:var(--kmoiB); }
+  .ckPill.ko{ color:var(--kr); border-color:color-mix(in srgb,var(--kr) 50%,transparent); }
+  .ckPill.or{ color:var(--ko); }
+  .ckPanneau .acts{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .ckPanneau .acts .ckBt{ height:32px; font-size:12px; border-radius:10px; }
+  .ckpEtroit .ckPanneau .acts .ckBt{ height:auto; min-height:30px; font-size:11.5px; padding:5px 9px; white-space:normal; }
+  .ckAnneau{ margin-left:auto; flex-shrink:0; line-height:0; }
+  .ckReste{ margin-left:auto; font-weight:800; color:var(--kr); }
+  .ckChoixMon{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .ckChoixMon .ckBt{ height:32px; font-size:12px; }
+  .ckNote{ font-size:11px; color:var(--kd); margin-top:7px; line-height:1.45; }
+
+  /* les messages */
+  .ckp .msgFil{ max-height:none; padding:16px 22px 8px; }
+  .ckpLarge .msgFil{ flex:1; overflow-y:auto; scrollbar-width:thin; }
+  .ckpEtroit .msgFil{ max-height:56vh; padding:10px 2px 6px; }
+  .ckp .msgJour span{ background:transparent; border:1px solid var(--kl); color:var(--kd);
+    letter-spacing:.18em; font-weight:600; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckp .msgB{ font-size:13.5px; border-radius:16px; }
+  .ckp .msgB.lui{ background:var(--kp2); border:1px solid var(--kl); color:var(--kt); }
+  .ckp .msgB.moi{ background:var(--kmoi); border:1px solid var(--kmoiB); color:var(--kt); }
+  .ckp .msgB.lui.pointe{ border-bottom-left-radius:16px; border-top-left-radius:4px; }
+  .ckp .msgB.moi.pointe{ border-bottom-right-radius:16px; border-top-right-radius:4px; }
+  .ckp .msgB .sig{ color:var(--kd); }
+  .ckp .msgB.moi .sig, .ckp .msgB.moi .motif{ color:var(--kmoiS); opacity:1; }
+  .ckp .msgB.lui .motif{ color:var(--ko); }
+  .ckp .msgB .h{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:10px; }
+  .ckp .msgSys span{ background:transparent; color:var(--knt); border:1px solid var(--kmoiB); }
+  .ckp .msgLu{ margin:-4px 0 6px; color:var(--kd); font-size:10.5px; }
+  .ckp .msgReac{ background:var(--kp1); border-color:var(--kl); color:var(--kt); }
+  .ckp .msgReac.mien{ border-color:var(--kn); background:var(--kmoi); color:var(--kt); }
+  .ckp .msgReacChoix, .ckp .msgEmo{ background:var(--kp1); border-color:var(--kl); }
+
+  /* la carte du créneau */
+  .ckCarteC{ max-width:64%; border:1px solid var(--kcarte2B); border-radius:16px; padding:12px; background:var(--kcarte2); }
+  .ckpEtroit .ckCarteC{ max-width:86%; }
+  .ckCarteC .lab{ font-size:10px; letter-spacing:.14em; color:var(--kn2);
+                  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckCarteC .v{ font-weight:800; margin-top:3px; }
+  .ckCarteC .e{ font-size:11.5px; margin-top:6px; color:var(--kd); }
+
+  /* le formulaire du créneau */
+  .ckCren{ margin:0 18px 10px; border:1px solid var(--kcarte2B); background:var(--kcarte2);
+           border-radius:14px; padding:11px 13px; flex-shrink:0; }
+  .ckpEtroit .ckCren{ margin:0 0 10px; }
+  .ckCren .lab{ font-size:10px; letter-spacing:.14em; color:var(--kn2); font-weight:700;
+                font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckCren .ligne{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .ckCren label{ flex:1 1 120px; min-width:0; font-size:11px; color:var(--kd); display:flex;
+                 flex-direction:column; gap:3px; margin:0; text-transform:none; letter-spacing:0; }
+  .ckCren input, .ckCren select{ margin:0; height:36px; padding:0 9px; font-size:13px; border-radius:10px;
+                 background:var(--kp1); color:var(--kt); border:1px solid var(--kl); width:100%; }
+  .ckCren .acts{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .ckCren .acts .ckBt{ height:34px; font-size:12px; }
+
+  /* réponses rapides et barre d'écriture */
+  .ckVites{ display:flex; gap:7px; padding:0 22px 9px; flex-wrap:wrap; flex-shrink:0; }
+  .ckpEtroit .ckVites{ padding:4px 0 8px; gap:6px; }
+  .ckVite{ font:inherit; font-size:12px; border:1px dashed var(--kmoiB); color:var(--knt);
+           border-radius:999px; padding:5px 11px; cursor:pointer; background:transparent; margin:0; }
+  .ckVite:hover{ background:rgba(182,255,14,.10); }
+  .ckp .msgBarre{ margin:0 18px 16px; min-height:54px; border-radius:16px; border:1px solid var(--kl);
+                  background:var(--kp2); align-items:center; padding:5px 8px 5px 8px; flex-shrink:0; }
+  .ckpEtroit .msgBarre{ margin:0 0 6px; border-radius:26px; }
+  .ckp .msgBarre:focus-within{ border-color:var(--kmoiB); }
+  .ckp .msgBarre textarea{ color:var(--kt); font-size:13.5px; }
+  .ckp .msgBarre textarea::placeholder{ color:var(--kd); }
+  .ckp .msgOutil{ color:var(--kd); }
+  .ckp .msgOutil:hover{ background:var(--kp1); }
+  .ckp .msgEnv{ width:40px; height:40px; border-radius:12px; background:var(--kn); color:var(--ksurN);
+                box-shadow:0 0 18px var(--kglow); font-size:17px; }
+  .ckpEtroit .msgEnv{ border-radius:20px; }
+  .ckp .msgEnv.pouce{ background:var(--kmoi); color:var(--kt); box-shadow:none; border:1px solid var(--kmoiB); }
+  .ckFerme{ margin:6px 18px 16px; padding:12px 14px; border-radius:14px; border:1px dashed var(--kl);
+            text-align:center; color:var(--kd); font-size:13px; display:flex; align-items:center;
+            justify-content:center; gap:8px; flex-wrap:wrap; flex-shrink:0; }
+  .ckpEtroit .ckFerme{ margin:6px 0 10px; }
+  .ckFerme .ckBt{ height:30px; font-size:12px; }
+
+  /* le menu ⋯ : toujours là, sur toutes les largeurs */
+  .ckp .msgMenuBoite{ display:block; }
+  .ckp .msgActions{ display:none !important; }
+  .ckp .msgMenu{ background:var(--kp1); border-color:var(--kl); box-shadow:0 20px 50px rgba(0,0,0,.35); }
+  .ckp .msgMenu button{ color:var(--kt); }
+  .ckp .msgMenu button:hover{ background:var(--kp2); }
+
+  /* --- la fiche éclair --- */
+  .ckpCtx{ border-left:1px solid var(--kl); padding:16px; overflow-y:auto;
+           background:color-mix(in srgb,var(--kp1) 55%,transparent); }
+  .ckFiche{ display:flex; flex-direction:column; gap:10px; }
+  .ckCad{ border:1px solid var(--kl); border-radius:14px; padding:11px 12px; background:var(--kp1); }
+  .ckCad .lab{ font-size:10px; letter-spacing:.14em; color:var(--kd); margin-bottom:5px;
+               font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .ckCad .v{ font-weight:800; font-size:14px; }
+  .ckCad .v2{ font-size:12px; color:var(--kd); margin-top:2px; line-height:1.4; }
+  .ckCad .v2.fort{ color:var(--kt); margin-top:4px; }
+  .ckJauge{ height:6px; background:var(--kl); border-radius:3px; margin-top:8px; overflow:hidden; }
+  .ckJauge i{ display:block; height:100%; background:linear-gradient(90deg,var(--kn),var(--kn2)); }
+  .ckFicheActs{ display:flex; flex-direction:column; gap:7px; }
+  .ckFicheActs .ckBt{ width:100%; }
+
+  /* la feuille ⓘ (étroit) */
+  /* Au-dessus de la barre d’onglets (80) et du tiroir (1000) : la feuille s’ouvre aussi depuis lui. */
+  .ckVoile{ position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1005; }
+  .ckFeuille{ position:fixed; left:0; right:auto; width:100%; bottom:0; max-height:78vh; overflow-y:auto;
+              border-radius:24px 24px 0 0; padding:16px 16px 26px; z-index:1006; background:var(--kp1);
+              border-top:1px solid var(--kl); box-shadow:0 -10px 40px rgba(0,0,0,.35);
+              display:flex; flex-direction:column; gap:10px; color:var(--kt); }
+  .ckFeuille .t{ font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px; }
+  .ckFeuille .t .ckBt{ margin-left:auto; }
+  .ckFeuille .ckCad{ background:var(--kp2); }
+
+  /* ============================================================
      UN SEUL ÉCRAN À LA FOIS — v1013
 
      David : « les moniteurs confondent avec les prochains cours la
@@ -3414,7 +3700,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1140" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1141" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -5432,86 +5718,87 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1140"></script>
-<script src="app/ec-modeles.js?v=1140"></script>
-<script src="app/ec-consignes.js?v=1140"></script>
-<script src="app/ec-noyau.js?v=1140"></script>
-<script src="app/ec-vocal.js?v=1140"></script>
+  <script src="app/ec-etat.js?v=1141"></script>
+<script src="app/ec-modeles.js?v=1141"></script>
+<script src="app/ec-consignes.js?v=1141"></script>
+<script src="app/ec-noyau.js?v=1141"></script>
+<script src="app/ec-vocal.js?v=1141"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1140"></script>
-<script src="app/ec-reseau.js?v=1140"></script>
-<script src="app/ec-manuel.js?v=1140"></script>
-<script src="app/ec-fenetres.js?v=1140"></script>
-<script src="app/ec-parcours.js?v=1140"></script>
-<script src="app/ec-questionnaire.js?v=1140"></script>
-<script src="app/ec-permis.js?v=1140"></script>
-<script src="app/ec-prepares.js?v=1140"></script>
-<script src="app/ec-avant-cours.js?v=1140"></script>
-<script src="app/ec-bureau.js?v=1140"></script>
-<script src="app/ec-places.js?v=1140"></script>
-<script src="app/ec-listes.js?v=1140"></script>
-<script src="app/ec-permis-listes.js?v=1140"></script>
-<script src="app/ec-postpermis.js?v=1140"></script>
-<script src="app/ec-textes.js?v=1140"></script>
-<script src="app/ec-correction.js?v=1140"></script>
-<script src="app/ec-bilans.js?v=1140"></script>
-<script src="app/ec-ecran.js?v=1140"></script>
-<script src="app/ec-version.js?v=1140"></script>
-<script src="app/ec-paie.js?v=1140"></script>
-<script src="app/ec-flotte.js?v=1140"></script>
-<script src="app/ec-carrosserie.js?v=1140"></script>
-<script src="app/ec-solo.js?v=1140"></script>
-<script src="app/ec-handicap-pdf.js?v=1140"></script>
-<script src="app/ec-moto.js?v=1140"></script>
-<script src="app/ec-remorque.js?v=1140"></script>
-<script src="app/ec-arriereplan.js?v=1140"></script>
-<script src="app/ec-placesbe.js?v=1140"></script>
-<script src="app/ec-codeamenage.js?v=1140"></script>
-<script src="app/ec-financements.js?v=1140"></script>
-<script src="app/ec-eval-aac.js?v=1140"></script>
-<script src="app/ec-postes.js?v=1140"></script>
-<script src="app/ec-tarifs.js?v=1140"></script>
-<script src="app/ec-caisse.js?v=1140"></script>
-<script src="app/ec-menage.js?v=1140"></script>
-<script src="app/ec-page-eleve.js?v=1140"></script>
-<script src="app/ec-notes-dossier.js?v=1140"></script>
-<script src="app/ec-messagerie.js?v=1140"></script>
-<script src="app/ec-cbgasoil.js?v=1140"></script>
-<script src="app/ec-loupe.js?v=1140"></script>
-<script src="app/ec-coutsia.js?v=1140"></script>
-<script src="app/ec-evaluation.js?v=1140"></script>
-<script src="app/ec-paiement.js?v=1140"></script>
-<script src="app/ec-handicap.js?v=1140"></script>
-<script src="app/ec-code.js?v=1140"></script>
-<script src="app/ec-proccorriger.js?v=1140"></script>
-<script src="app/ec-sessions.js?v=1140"></script>
-<script src="app/ec-aac-cs.js?v=1140"></script>
-<script src="app/ec-notifs.js?v=1140"></script>
-<script src="app/ec-ecoutes.js?v=1140"></script>
-<script src="app/ec-taches.js?v=1140"></script>
-<script src="app/ec-memoire.js?v=1140"></script>
-<script src="app/ec-historique.js?v=1140"></script>
-<script src="app/ec-rappels.js?v=1140"></script>
-<script src="app/ec-segments.js?v=1140"></script>
-<script src="app/ec-sms.js?v=1140"></script>
-<script src="app/ec-encours.js?v=1140"></script>
-<script src="app/ec-incidents.js?v=1140"></script>
+<script src="app/ec-trajet.js?v=1141"></script>
+<script src="app/ec-reseau.js?v=1141"></script>
+<script src="app/ec-manuel.js?v=1141"></script>
+<script src="app/ec-fenetres.js?v=1141"></script>
+<script src="app/ec-parcours.js?v=1141"></script>
+<script src="app/ec-questionnaire.js?v=1141"></script>
+<script src="app/ec-permis.js?v=1141"></script>
+<script src="app/ec-prepares.js?v=1141"></script>
+<script src="app/ec-avant-cours.js?v=1141"></script>
+<script src="app/ec-bureau.js?v=1141"></script>
+<script src="app/ec-places.js?v=1141"></script>
+<script src="app/ec-listes.js?v=1141"></script>
+<script src="app/ec-permis-listes.js?v=1141"></script>
+<script src="app/ec-postpermis.js?v=1141"></script>
+<script src="app/ec-textes.js?v=1141"></script>
+<script src="app/ec-correction.js?v=1141"></script>
+<script src="app/ec-bilans.js?v=1141"></script>
+<script src="app/ec-ecran.js?v=1141"></script>
+<script src="app/ec-version.js?v=1141"></script>
+<script src="app/ec-paie.js?v=1141"></script>
+<script src="app/ec-flotte.js?v=1141"></script>
+<script src="app/ec-carrosserie.js?v=1141"></script>
+<script src="app/ec-solo.js?v=1141"></script>
+<script src="app/ec-handicap-pdf.js?v=1141"></script>
+<script src="app/ec-moto.js?v=1141"></script>
+<script src="app/ec-remorque.js?v=1141"></script>
+<script src="app/ec-arriereplan.js?v=1141"></script>
+<script src="app/ec-placesbe.js?v=1141"></script>
+<script src="app/ec-codeamenage.js?v=1141"></script>
+<script src="app/ec-financements.js?v=1141"></script>
+<script src="app/ec-eval-aac.js?v=1141"></script>
+<script src="app/ec-postes.js?v=1141"></script>
+<script src="app/ec-tarifs.js?v=1141"></script>
+<script src="app/ec-caisse.js?v=1141"></script>
+<script src="app/ec-menage.js?v=1141"></script>
+<script src="app/ec-page-eleve.js?v=1141"></script>
+<script src="app/ec-notes-dossier.js?v=1141"></script>
+<script src="app/ec-messagerie.js?v=1141"></script>
+<script src="app/ec-cockpit.js?v=1141"></script>
+<script src="app/ec-cbgasoil.js?v=1141"></script>
+<script src="app/ec-loupe.js?v=1141"></script>
+<script src="app/ec-coutsia.js?v=1141"></script>
+<script src="app/ec-evaluation.js?v=1141"></script>
+<script src="app/ec-paiement.js?v=1141"></script>
+<script src="app/ec-handicap.js?v=1141"></script>
+<script src="app/ec-code.js?v=1141"></script>
+<script src="app/ec-proccorriger.js?v=1141"></script>
+<script src="app/ec-sessions.js?v=1141"></script>
+<script src="app/ec-aac-cs.js?v=1141"></script>
+<script src="app/ec-notifs.js?v=1141"></script>
+<script src="app/ec-ecoutes.js?v=1141"></script>
+<script src="app/ec-taches.js?v=1141"></script>
+<script src="app/ec-memoire.js?v=1141"></script>
+<script src="app/ec-historique.js?v=1141"></script>
+<script src="app/ec-rappels.js?v=1141"></script>
+<script src="app/ec-segments.js?v=1141"></script>
+<script src="app/ec-sms.js?v=1141"></script>
+<script src="app/ec-encours.js?v=1141"></script>
+<script src="app/ec-incidents.js?v=1141"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1140"></script>
+<script src="app/ec-messages-perso.js?v=1141"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1140"></script>
-<script src="app/ec-bandeau.js?v=1140"></script>
-<script src="app/ec-stats.js?v=1140"></script>
-<script src="app/ec-messenger.js?v=1140"></script>
-<script src="app/ec-journal.js?v=1140"></script>
-<script src="app/ec-depart.js?v=1140"></script>
-<script src="app/ec-onglets.js?v=1140"></script>
-<script src="app/ec-demarrage.js?v=1140"></script>
+<script src="app/ec-nouveautes.js?v=1141"></script>
+<script src="app/ec-bandeau.js?v=1141"></script>
+<script src="app/ec-stats.js?v=1141"></script>
+<script src="app/ec-messenger.js?v=1141"></script>
+<script src="app/ec-journal.js?v=1141"></script>
+<script src="app/ec-depart.js?v=1141"></script>
+<script src="app/ec-onglets.js?v=1141"></script>
+<script src="app/ec-demarrage.js?v=1141"></script>
 
 <script>
 /* ============================================================
