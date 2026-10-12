@@ -303,6 +303,9 @@ const VUES = {
               droit écrit ici est le sien, et construireBarresVues le
               réserve au rôle. */
            ['mails',      '✉️ Mails envoyés',          'journal',     'Mesurer'],
+           /* 🎓 v1147 — ce que font les élèves dans leur espace.
+              Administrateurs seuls, comme les deux du dessus. */
+           ['activite',   '🎓 Activité des élèves',     'journal',     'Mesurer'],
 
            ['messages',   '📨 Messages internes',      'bureau_messages', 'L’équipe'],
            /* ⚠️ 📱 ET NON 💬 — v1074. David : « je préfère celui-là
@@ -1499,6 +1502,7 @@ function construireBarresVues(){
     const dispo = VUES[onglet].filter(([cle, , section]) => {
       if(cle === 'journal') return ACCES.role === 'admin';
       if(cle === 'mails')   return ACCES.role === 'admin';      /* v1146 */
+      if(cle === 'activite') return ACCES.role === 'admin';     /* v1147 */
       if(cle === 'admin')   return ACCES.role === 'admin';
 
       /* CAISSE · COÛTS IA · COURS NON TERMINÉS · SIGNALEMENTS
@@ -1804,6 +1808,7 @@ function reveillerVue(cle){
     stats:      () => afficherStats(),
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
     mails:      () => ACCES.role === 'admin' && typeof afficherMails === 'function' && afficherMails(true),
+    activite:   () => ACCES.role === 'admin' && typeof afficherActiviteEleves === 'function' && afficherActiviteEleves(true),
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
     /* Le dossier se redessine seul quand on y revient : le nom
