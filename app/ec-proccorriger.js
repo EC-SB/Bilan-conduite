@@ -1683,7 +1683,7 @@ async function ouvrirCodesEleves(){
             if(!adresse){ bMail.disabled = false; return; }
 
             await appelPrep({
-              action: 'mailBilan',
+              action: 'mailBilan', genre: 'acces', eleve: a.eleve,
               to: [adresse],
               sujet: 'Ton coin révisions — Évolution Conduites',
               texte: await messageAcces()
