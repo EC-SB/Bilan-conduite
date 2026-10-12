@@ -1064,7 +1064,10 @@
     border-radius:999px; white-space:nowrap;
   }
   .objetat.attente{ background:var(--warn-bg); color:var(--warn-text); }
-  .objetat.bonne{ background:var(--orange-soft); color:var(--accent-text); }
+  /* ⚠️ SUR LE CITRON PÂLE, ON ÉCRIT EN --on-accent — v1150. En
+     sombre, --accent-text EST le citron : « Retrouvé » (et « Au
+     bureau ») devenait du citron sur du citron, illisible. */
+  .objetat.bonne{ background:var(--orange-soft); color:var(--on-accent); }
   .objetat.finie{ background:var(--line); color:var(--muted); }
 
   /* La question posée dans la page, jamais par confirm() */
@@ -3526,6 +3529,32 @@
                    sous:"Cherché, pas retrouvé. Écris-nous si tu as un doute." }
   };
 
+  /* 💾 LA CARTE SD — v1150. Les phrases de David, côté élève :
+     « Au bureau — passe la chercher quand tu veux », « Pas dans la
+     voiture » (la demande reste ouverte : il peut répondre),
+     « Rendue ». */
+  var ETATS_OBJET_SD_EL = {
+    signale:     { em:'🔎', mot:'On la cherche', sorte:'attente',
+                   sous:"Ton moniteur et le bureau regardent." },
+    retrouve:    { em:'💾', mot:'Au bureau', sorte:'bonne',
+                   sous:'Passe la chercher au bureau quand tu veux.' },
+    rendu:       { em:'🤝', mot:'Rendue', sorte:'finie',
+                   sous:"C'est réglé." },
+    introuvable: { em:'🚗', mot:'Pas dans la voiture', sorte:'attente',
+                   sous:"Elle n'est pas dans la voiture. Écris-nous si tu as une idée." }
+  };
+  function etatsObjetEl(o){
+    return (o && o.sorte === 'sd') ? ETATS_OBJET_SD_EL : ETATS_OBJET_EL;
+  }
+  /* Le rond d'un fil : 💾 pour une carte SD, le genre sinon */
+  function rondDuFilEl(c){
+    if(c && c.genre === 'oubli'){
+      var o = (mesObjetsEl || []).filter(function(x){ return x.conversation === c.id; })[0];
+      if(o && o.sorte === 'sd') return '💾';
+    }
+    return RONDS_FIL[(c && c.genre) || ''] || '💬';
+  }
+
   var mesObjetsEl = [];
 
   function dessinerMesObjetsEl(){
@@ -3539,8 +3568,8 @@
     if(!mesObjetsEl.length){ z.innerHTML = ''; return; }
 
     z.innerHTML = mesObjetsEl.map(function(o){
-      var e = ETATS_OBJET_EL[String(o.etat || 'signale')] ||
-              ETATS_OBJET_EL.signale;
+      var etats = etatsObjetEl(o);
+      var e = etats[String(o.etat || 'signale')] || etats.signale;
       var ou = [];
       if(o.vehicule) ou.push(echapper(o.vehicule));
       if(o.jour) ou.push(jourEnClair(o.jour));
@@ -3577,13 +3606,14 @@
 
     /* 🧭 v1141 : des cartes, et pour un objet oublié, son état sous
        le titre — la question pour laquelle il rouvre l'appli. */
-    var etatDe = {};
-    (mesObjetsEl || []).forEach(function(o){ if(o.conversation) etatDe[o.conversation] = o.etat; });
+    var objetDe = {};
+    (mesObjetsEl || []).forEach(function(o){ if(o.conversation) objetDe[o.conversation] = o; });
     z.innerHTML = conversationsEl.map(function(c){
-      var eo = etatDe[c.id] ? (ETATS_OBJET_EL[etatDe[c.id]] || null) : null;
+      var ob = objetDe[c.id];
+      var eo = ob ? (etatsObjetEl(ob)[ob.etat] || null) : null;
       return '<div class="convo' + (c.nonLus ? ' nonlu' : '') + ' ckLc' +
           '" data-fil="' + echapper(c.id) + '">' +
-        '<div class="rond">' + (RONDS_FIL[c.genre] || '💬') + '</div>' +
+        '<div class="rond">' + rondDuFilEl(c) + '</div>' +
         '<div class="mi">' +
           '<div class="qui"><span class="q">' + echapper(c.qui) + '</span>' +
             '<span class="h">' + echapper(heureCourteEl(c.dernierLe)) + '</span></div>' +
@@ -3696,7 +3726,7 @@
             : (dernierMien ? 'envoyé · réponse sous 48 heures ouvrées' : 'réponse sous 48 heures ouvrées'));
     return '<div class="ckTop">' +
       '<button type="button" class="rond" id="btRetourEcole" aria-label="Revenir">←</button>' +
-      '<div class="av" style="font-size:17px;">' + (RONDS_FIL[c.genre] || '💬') + '</div>' +
+      '<div class="av" style="font-size:17px;">' + rondDuFilEl(c) + '</div>' +
       '<div class="tt"><div class="t">' + echapper(c.qui || 'Conversation') + '</div>' +
       '<div class="s">' + sous + '</div></div></div>';
   }
@@ -5968,19 +5998,34 @@
         '<div id="msgMotif"></div></div>';
 
     }else{
-      var c = contexteEl && contexteEl.cours;
+      /* 💾 v1150 — « Ma carte SD » ou « Autre chose ». La carte SD se
+         dit en touchant la voiture et le moniteur : pas de texte à
+         taper. « Autre chose » garde le formulaire d'avant. */
       h = '<div class="card">' + enteteRetour('🧤 J\'ai oublié quelque chose') +
-        '<label for="chQuoi">Qu\'est-ce que tu as oublié ?</label>' +
-        '<input type="text" id="chQuoi" placeholder="Une écharpe grise, mes lunettes…">' +
-        '<label for="chVehicule">Dans quelle voiture (si tu sais)</label>' +
-        '<input type="text" id="chVehicule" placeholder="208, Clio…">' +
+        '<label>Qu\'est-ce que tu as oublié ?</label>' +
+        '<div class="minutes" id="lesSortesOubli">' +
+          '<button type="button" data-sorte="sd" class="ici">💾 Ma carte SD</button>' +
+          '<button type="button" data-sorte="autre">🧤 Autre chose</button>' +
+        '</div>' +
+        '<div id="zoneOubliSD">' +
+          '<label>Dans quelle voiture ?</label>' +
+          '<div class="minutes" id="lesVoituresOubli"><button type="button" disabled>…</button></div>' +
+          '<label>Avec quel moniteur ?</label>' +
+          '<div class="minutes" id="lesMoniteursOubli"><button type="button" disabled>…</button></div>' +
+        '</div>' +
+        '<div id="zoneOubliAutre" style="display:none;">' +
+          '<label for="chQuoi">Qu\'est-ce que c\'est ?</label>' +
+          '<input type="text" id="chQuoi" placeholder="Une écharpe grise, mes lunettes…">' +
+          '<label for="chVehicule">Dans quelle voiture (si tu sais)</label>' +
+          '<input type="text" id="chVehicule" placeholder="208, Clio…">' +
+        '</div>' +
         '<label for="chJour">Quel jour de cours</label>' +
         '<input type="date" id="chJour">' +
         '<label for="chMotif">Autre chose à dire ?</label>' +
         '<textarea id="chMotif" rows="2" placeholder="Facultatif"></textarea>' +
-        '<button type="button" class="btn btn-primary" id="btMotif">📨 Signaler l\'oubli</button>' +
-        '<div class="presmot">On regarde dans la voiture et on te répond ici. ' +
-        'Tu verras l\'état changer sans avoir à redemander.</div>' +
+        '<button type="button" class="btn btn-primary" id="btMotif">📨 Prévenir le bureau</button>' +
+        '<div class="presmot" id="presmotOubli">Ton moniteur regarde dans la voiture, le bureau te ' +
+        'répond ici. Tu verras l\'état changer sans avoir à redemander.</div>' +
         '<div id="msgMotif"></div></div>';
     }
 
@@ -6000,9 +6045,88 @@
       });
     }
 
+    if(motif === 'oubli') brancherLOubli();
+
     $('btMotif').addEventListener('click', function(){
       envoyerActionRapide(motif, choisi, this);
     });
+  }
+
+  /* ============================================================
+     💾 LA CARTE SD — v1150
+
+     David : « qu'il puisse indiquer dans quelle voiture et avec quel
+     moniteur pour faire un groupe avec le moniteur et le bureau ».
+     Les voitures et les moniteurs viennent du serveur ; ce qu'on sait
+     de son cours du jour est déjà touché.
+     ============================================================ */
+  var oubliEl = { sorte:'sd', voiture:'', moniteur:'', listes:null };
+
+  function brancherLOubli(){
+    oubliEl = { sorte:'sd', voiture:'', moniteur:'', listes:null };
+    Array.prototype.forEach.call(document.querySelectorAll('#lesSortesOubli [data-sorte]'), function(b){
+      b.addEventListener('click', function(){
+        oubliEl.sorte = b.getAttribute('data-sorte');
+        majLOubli();
+      });
+    });
+    majLOubli();
+    appeler({ action: 'eleveOubliChoix', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        oubliEl.listes = d || {};
+        var c = d && d.cours;
+        if(c){
+          var vs = d.voitures || [], ms = d.moniteurs || [];
+          if(c.vehicule && vs.indexOf(c.vehicule) !== -1) oubliEl.voiture = c.vehicule;
+          if(c.moniteur && ms.indexOf(c.moniteur) !== -1) oubliEl.moniteur = c.moniteur;
+          if(c.jour && $('chJour') && !$('chJour').value) $('chJour').value = c.jour;
+        }
+        majLOubli();
+      })
+      .catch(function(){
+        /* Sans les listes, il reste « Je ne sais pas » : la demande
+           part quand même, le bureau demandera. */
+        oubliEl.listes = { voitures: [], moniteurs: [] };
+        majLOubli();
+      });
+  }
+
+  function pastillesOubli(zoneId, noms, choisi, poser){
+    var z = $(zoneId);
+    if(!z) return;
+    var tous = (noms || []).concat(['']);
+    z.innerHTML = tous.map(function(n){
+      return '<button type="button" data-v="' + echapper(n) + '"' +
+        ((n === choisi) ? ' class="ici"' : '') + '>' +
+        (n ? echapper(n) : 'Je ne sais pas') + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(z.querySelectorAll('[data-v]'), function(b){
+      b.addEventListener('click', function(){ poser(b.getAttribute('data-v')); majLOubli(); });
+    });
+  }
+
+  function majLOubli(){
+    var sd = (oubliEl.sorte === 'sd');
+    Array.prototype.forEach.call(document.querySelectorAll('#lesSortesOubli [data-sorte]'), function(b){
+      b.className = (b.getAttribute('data-sorte') === oubliEl.sorte) ? 'ici' : '';
+    });
+    montrer('zoneOubliSD', sd);
+    montrer('zoneOubliAutre', !sd);
+    if(sd && oubliEl.listes){
+      pastillesOubli('lesVoituresOubli', oubliEl.listes.voitures, oubliEl.voiture,
+                     function(v){ oubliEl.voiture = v; });
+      pastillesOubli('lesMoniteursOubli', oubliEl.listes.moniteurs, oubliEl.moniteur,
+                     function(v){ oubliEl.moniteur = v; });
+    }
+    var b = $('btMotif');
+    if(b) b.textContent = (sd && oubliEl.moniteur)
+      ? '📨 Prévenir le bureau et ' + oubliEl.moniteur : '📨 Prévenir le bureau';
+    var p = $('presmotOubli');
+    if(p) p.textContent = sd
+      ? (oubliEl.moniteur ? oubliEl.moniteur : 'Ton moniteur') + ' regarde dans la voiture, le ' +
+        'bureau te répond ici. Tu verras l\'état changer sans avoir à redemander.'
+      : 'On regarde dans la voiture et on te répond ici. Tu verras l\'état changer sans ' +
+        'avoir à redemander.';
   }
 
   function envoyerActionRapide(motif, minutes, bouton){
@@ -6020,7 +6144,12 @@
     if(motif === 'annul' || motif === 'oubli'){
       corps.jour = $('chJour') ? $('chJour').value : '';
     }
-    if(motif === 'oubli'){
+    if(motif === 'oubli' && oubliEl.sorte === 'sd'){
+      corps.sd = '1';
+      corps.quoi = 'Carte SD';
+      corps.vehicule = oubliEl.voiture || '';
+      corps.moniteur = oubliEl.moniteur || '';
+    }else if(motif === 'oubli'){
       corps.quoi = $('chQuoi') ? $('chQuoi').value.trim() : '';
       corps.vehicule = $('chVehicule') ? $('chVehicule').value.trim() : '';
       if(!corps.quoi){
