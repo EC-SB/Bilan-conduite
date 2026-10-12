@@ -1968,7 +1968,7 @@ async function afficherEspaceEleve(nom, zone){
     bMail.textContent = 'Envoi…';
     try{
       await appelPrep({
-        action: 'mailBilan',
+        action: 'mailBilan', genre: 'acces', eleve: nom,
         to: [adresse],
         sujet: 'Ton coin révisions — Évolution Conduites',
         texte: await messageDeLAcces(nom)
