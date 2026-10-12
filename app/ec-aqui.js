@@ -187,6 +187,7 @@ async function ecranAQui(){
   if(!zone) return;
   aQuiMots = '';
   filNeufEC = null;
+  if(typeof reglagesMsgOuvertEC !== 'undefined') reglagesMsgOuvertEC = false;   /* ⚙️ v1154 */
   ckEcranAPart = true;
   if(typeof ckLarge === 'function' && ckLarge() && typeof ckDessinerLaFiche === 'function') ckDessinerLaFiche(null);
   if(typeof arreterLaVeilleDuFil === 'function') arreterLaVeilleDuFil();
