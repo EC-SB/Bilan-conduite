@@ -299,6 +299,10 @@ const VUES = {
      Gestion, boutons, logos et droits inchangés. */
   outils: [['stats',      '📈 Réussite',               ['stats', 'stats_perso'], 'Mesurer'],
            ['journal',    '📊 Journal',                'journal',     'Mesurer'],
+           /* ✉️ v1146 — administrateurs seuls, comme le Journal : le
+              droit écrit ici est le sien, et construireBarresVues le
+              réserve au rôle. */
+           ['mails',      '✉️ Mails envoyés',          'journal',     'Mesurer'],
 
            ['messages',   '📨 Messages internes',      'bureau_messages', 'L’équipe'],
            /* ⚠️ 📱 ET NON 💬 — v1074. David : « je préfère celui-là
@@ -1494,6 +1498,7 @@ function construireBarresVues(){
     barre.innerHTML = '';
     const dispo = VUES[onglet].filter(([cle, , section]) => {
       if(cle === 'journal') return ACCES.role === 'admin';
+      if(cle === 'mails')   return ACCES.role === 'admin';      /* v1146 */
       if(cle === 'admin')   return ACCES.role === 'admin';
 
       /* CAISSE · COÛTS IA · COURS NON TERMINÉS · SIGNALEMENTS
@@ -1798,6 +1803,7 @@ function reveillerVue(cle){
     bilans:     () => afficherTextesBilan(),
     stats:      () => afficherStats(),
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
+    mails:      () => ACCES.role === 'admin' && typeof afficherMails === 'function' && afficherMails(true),
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
     /* Le dossier se redessine seul quand on y revient : le nom
