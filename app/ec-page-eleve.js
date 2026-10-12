@@ -215,6 +215,12 @@ function ouvrirPageEleve(nom){
 
   elevePageOuverte = propre;
 
+  /* 📊 v1147 — « a ouvert le dossier », au journal en direct. Rien
+     à attendre : le Worker note, et dédoublonne les réouvertures. */
+  if(typeof appelPrep === 'function'){
+    appelPrep({ action: 'dossierOuvert', eleve: propre }).catch(() => {});
+  }
+
   if(typeof afficherOnglet === 'function') afficherOnglet('eleves');
   if(typeof afficherVue === 'function') afficherVue('eleves', 'dossier');
 
@@ -3566,6 +3572,10 @@ function ongletAcces(corps, nom){
      pas, on le dit dans son cadre et le reste de l'onglet continue
      de servir. */
   posterLeParcoursDuDossier(corps, nom);
+
+  /* 🕓 v1147 — et ce qu'il fait dans son espace, juste en dessous
+     (administrateurs seuls, voir ec-activite.js) */
+  if(typeof posterActiviteDuDossier === 'function') posterActiviteDuDossier(corps, nom);
 }
 
 async function posterLeParcoursDuDossier(corps, nom){
