@@ -1914,7 +1914,7 @@ async function envoyerMailsRvt(envois, creneaux, limite, variante){
     const lien = lienRvt() + '?r=' + env.jeton;
     const texte = texteMailRvt(env.eleve, creneaux, lien, limite, change);
     try{
-      await appelPrep({ action: 'mailBilan', to: dest,
+      await appelPrep({ action: 'mailBilan', to: dest, genre: 'rvp', eleve: env.eleve,
         /* Le mot est dans l'OBJET aussi : c'est la seule ligne que
            la famille voit dans sa boîte, et c'est là qu'elle décide
            si ce mail est bien celui qu'elle attendait. */
@@ -2149,7 +2149,7 @@ async function envoyerMailsCloture(retenus, laisses, info, jetons){
           ? texteMailRvtAnnule(nom, info.date, info.heure)
           : texteMailRvtReporte(nom));
     try{
-      await appelPrep({ action: 'mailBilan', to: dest,
+      await appelPrep({ action: 'mailBilan', to: dest, genre: 'rvp', eleve: nom,
         sujet: variante === 'fixe'
           ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
             'c\'est le ' + (jourFrCs(info.date) || info.date)
