@@ -25,6 +25,66 @@
 
 let messagesPerso = null;
 
+/* ------------------------------------------------------------
+   ⏰ L'HEURE DE DÉBUT ET L'HEURE DE FIN — v1145
+
+   David : « dans messages internes, mets l'heure d'affichage dans
+   “à partir” et “jusqu'au”, afin que je mette des messages pendant
+   une durée ».
+
+   Le serveur rend les messages du JOUR ; c'est ici, à chaque
+   dessin, que l'heure décide. Il ne pouvait pas le faire seul : le
+   bandeau ne relit ses messages qu'au retour sur l'appli, et un
+   message de 14 h à 16 h serait resté affiché jusqu'au prochain
+   retour. Voir planifierLesMessages (ec-bandeau.js), qui redessine
+   le bandeau à l'heure dite.
+
+   Une heure sans date vaut pour sa date ; sans heure, la journée
+   entière, comme avant.
+   ------------------------------------------------------------ */
+function minutesDeLHeureMsg(h){
+  const m = String(h || '').match(/^(\d{1,2})\s*[:h]\s*(\d{2})/);
+  return m ? (Number(m[1]) * 60 + Number(m[2])) : null;
+}
+
+/* Le début et la fin d'un message, en millisecondes (heure locale) */
+function bornesDuMessage(m){
+  const borne = (iso, h, fin) => {
+    if(!iso) return null;
+    const p = String(iso).split('-').map(Number);
+    if(p.length !== 3 || p.some(isNaN)) return null;
+    const mn = minutesDeLHeureMsg(h);
+    const d = new Date(p[0], p[1] - 1, p[2], 0, 0, 0, 0);
+    if(mn !== null) d.setMinutes(mn);
+    else if(fin) d.setDate(d.getDate() + 1);     /* la journée entière */
+    return d.getTime();
+  };
+  return { debut: borne(m && m.du, m && m.heureDu, false),
+           fin:   borne(m && m.au, m && m.heureAu, true) };
+}
+
+function messageEpingleEnCours(m, maintenant){
+  const t = maintenant || Date.now();
+  const b = bornesDuMessage(m);
+  if(b.debut !== null && t < b.debut) return false;
+  if(b.fin !== null && t >= b.fin) return false;
+  return true;
+}
+
+/* Le prochain moment où un message apparaît ou disparaît, dans les
+   prochaines 24 h — null s'il n'y en a pas. */
+function prochainChangementDesMessages(liste, maintenant){
+  const t = maintenant || Date.now();
+  let p = null;
+  (liste || []).forEach(m => {
+    const b = bornesDuMessage(m);
+    [b.debut, b.fin].forEach(x => {
+      if(x !== null && x > t && x - t < 86400000 && (p === null || x < p)) p = x;
+    });
+  });
+  return p;
+}
+
 /* Ce qui m'est adressé, aujourd'hui. Le tri par destinataire et par
    date se fait DANS le classeur : une liste filtrée côté navigateur
    est une liste que tout le monde a reçue. */
@@ -104,8 +164,12 @@ async function afficherMessagesPerso(recharger){
 
 function ligneMessagePerso(m, auj){
   const d = document.createElement('div');
-  const fini = m.au && m.au < auj;
-  const pasCommence = m.du && m.du > auj;
+  /* À la minute près depuis la v1145 : un message de 14 h à 16 h
+     est « terminé » à 16 h, pas le lendemain. */
+  const maintenant = Date.now();
+  const bornes = bornesDuMessage(m);
+  const fini = bornes.fin !== null && maintenant >= bornes.fin;
+  const pasCommence = bornes.debut !== null && maintenant < bornes.debut;
 
   d.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
     'padding:10px 12px;margin-top:8px;font-size:13px;line-height:1.6;' +
@@ -126,15 +190,17 @@ function ligneMessagePerso(m, auj){
       (m.par ? ' · écrit par ' + echapper(m.par) : '') +
       (m.important ? '<br>⚠️ en gros cadre, refermable seulement par ' +
                      '« ✅ J’ai bien vu »' : '') +
-      (m.du ? '<br>à partir du ' + echapper(jour(m.du)) : '') +
-      (m.au ? (m.du ? ' · ' : '<br>') + "jusqu'au " + echapper(jour(m.au)) : '') +
+      (m.du ? '<br>à partir du ' + echapper(jour(m.du)) +
+              (m.heureDu ? ' à ' + echapper(m.heureDu) : '') : '') +
+      (m.au ? (m.du ? ' · ' : '<br>') + "jusqu'au " + echapper(jour(m.au)) +
+              (m.heureAu ? ' à ' + echapper(m.heureAu) : '') : '') +
       (m.relance ? '<br>🔁 relancé le ' + echapper(m.relance) : '') +
       (fini ? '<br>⏳ terminé' : pasCommence ? '<br>⏳ pas encore affiché' : '') +
     '</div>';
 
   /* ── QUI L'A VU, ET QUI RESTE ──
 
-     Chrystel, le 4 septembre : le message disparaît chez celui qui
+     David, le 4 septembre : le message disparaît chez celui qui
      dit l'avoir vu, « oui SI de notre côté on voit qui a mis j'ai
      vu ». C'est la contrepartie exacte de sa disparition — sans
      cette ligne, un message poussé s'évanouirait sans qu'on sache
@@ -205,7 +271,7 @@ function ligneMessagePerso(m, auj){
 /* ============================================================
    LES DESTINATAIRES D'UN MESSAGE, ET CEUX QUI N'ONT PAS RÉPONDU
 
-   ⚠️ « TOUT LE MONDE », C'EST TOUS LES COMPTES — Chrystel, le
+   ⚠️ « TOUT LE MONDE », C'EST TOUS LES COMPTES — David, le
    4 septembre. Pas seulement ceux qui donnent des cours : le
    relais rend les deux listes, et c'est la plus large qu'on prend
    ici. Une personne du bureau qui ne conduit pas doit quand même
@@ -295,7 +361,7 @@ function formulaireMessagePerso(){
   s.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;' +
     'line-height:1.45;';
   s.textContent = "S'affichera en tête de son bandeau, sur tous les écrans, " +
-    "jusqu'à la date de fin ou jusqu'à ce que tu le retires.";
+    "jusqu'à la date et l'heure de fin, ou jusqu'à ce que tu le retires.";
   f.appendChild(s);
 
   /* Les destinataires */
@@ -367,7 +433,7 @@ function formulaireMessagePerso(){
 
   /* ── ⚠️ IMPORTANT : LE GROS CADRE ──
 
-     Chrystel : « deux niveaux, avec la case ». Un message ordinaire
+     David : « deux niveaux, avec la case ». Un message ordinaire
      reste une ligne du bandeau ; un message important prend le
      cadre du rappel de prise des places, et ne se referme QUE par
      « ✅ J'ai bien vu ». Si tout était important, plus rien ne le
@@ -391,15 +457,32 @@ function formulaireMessagePerso(){
   peindreImp();
   f.appendChild(bImp);
 
-  /* Les dates, facultatives */
+  /* Les dates et les heures, facultatives — v1145. Une rangée par
+     borne : la date et l'heure côte à côte, et sur un téléphone les
+     deux tiennent sur la ligne. */
   const dl = document.createElement('div');
-  dl.style.cssText = 'display:flex;gap:8px;';
+  const rangeeBorne = (titre, cDate, cHeure) =>
+    '<label>' + titre + '</label>' +
+    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">' +
+      '<input type="date" class="' + cDate + '" style="margin:0;flex:1.4;min-width:0;">' +
+      '<span style="font-size:13px;color:var(--muted);flex-shrink:0;">à</span>' +
+      '<input type="time" class="' + cHeure + '" style="margin:0;flex:1;min-width:0;">' +
+    '</div>';
   dl.innerHTML =
-    '<div style="flex:1;"><label>À partir du (facultatif)</label>' +
-      '<input type="date" class="mpDu" style="margin:0;"></div>' +
-    '<div style="flex:1;"><label>Jusqu\'au (facultatif)</label>' +
-      '<input type="date" class="mpAu" style="margin:0;"></div>';
+    rangeeBorne('À partir du (facultatif)', 'mpDu', 'mpHeureDu') +
+    rangeeBorne('Jusqu\'au (facultatif)', 'mpAu', 'mpHeureAu');
   f.appendChild(dl);
+
+  /* Une heure posée sans sa date vaut pour aujourd'hui : sinon elle
+     ne voudrait rien dire, et partirait en silence. */
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  [['mpHeureDu', 'mpDu'], ['mpHeureAu', 'mpAu']].forEach(([h, d]) => {
+    dl.querySelector('.' + h).addEventListener('change', e => {
+      const champ = dl.querySelector('.' + d);
+      if(e.target.value && !champ.value) champ.value = auj;
+    });
+  });
 
   const etat = document.createElement('div');
   etat.style.cssText = 'font-size:12px;min-height:16px;margin-top:6px;';
@@ -416,6 +499,15 @@ function formulaireMessagePerso(){
       etat.textContent = 'Écris le message.';
       return;
     }
+    const lu = c => dl.querySelector('.' + c).value;
+    const essai = { du: lu('mpDu'), heureDu: lu('mpHeureDu'),
+                    au: lu('mpAu'), heureAu: lu('mpHeureAu') };
+    const bb = bornesDuMessage(essai);
+    if(bb.debut !== null && bb.fin !== null && bb.fin <= bb.debut){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'La fin doit venir après le début.';
+      return;
+    }
     b.disabled = true;
     b.textContent = 'Envoi…';
     try{
@@ -424,8 +516,10 @@ function formulaireMessagePerso(){
         destinataires: pourTous ? 'tous' : Object.keys(choisis).join('|'),
         texte: texte,
         important: important ? 'oui' : '',
-        du: dl.querySelector('.mpDu').value,
-        au: dl.querySelector('.mpAu').value,
+        du: essai.du,
+        au: essai.au,
+        heureDu: essai.du ? essai.heureDu : '',
+        heureAu: essai.au ? essai.heureAu : '',
         par: ACCES.moniteur || ''
       });
       if(r && r.status === 'error') throw new Error(r.message);
