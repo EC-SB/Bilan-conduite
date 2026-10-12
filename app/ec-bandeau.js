@@ -241,8 +241,16 @@ function mettreEnSourdine(id){
    La croix « pour la journée » a disparu des messages : elle ne
    remontait à personne, et se taire pour la journée n'est pas
    répondre. */
+/* Seuls les messages dont l'heure est venue — et pas encore passée
+   (v1145, voir messageEpingleEnCours dans ec-messages-perso.js). */
+function messagesEpinglesEnCours(){
+  const enCours = (typeof messageEpingleEnCours === 'function')
+    ? messageEpingleEnCours : () => true;
+  return (messagesEpingles || []).filter(m => enCours(m));
+}
+
 function lignesMessages(){
-  return (messagesEpingles || [])
+  return messagesEpinglesEnCours()
     .filter(m => !m.important)
     .map(m => ({
       id: 'msg:' + m.id,
@@ -359,7 +367,7 @@ function lignesObjetsOublies(){
    mais en rouge : celui-ci n'est pas une échéance qui approche,
    c'est quelqu'un qui parle. */
 function cartesMessagesImportants(){
-  return (messagesEpingles || []).filter(m => m.important).map(m => {
+  return messagesEpinglesEnCours().filter(m => m.important).map(m => {
     const carte = document.createElement('div');
     carte.style.cssText = 'background:var(--red);color:var(--navy-deep);' +
       'border-radius:12px;padding:14px 16px;margin-bottom:10px;';
@@ -1292,12 +1300,28 @@ function barreGroupesBandeau(lignes){
    LE DESSIN
    ============================================================ */
 
+/* ⏰ LE BANDEAU SE REDESSINE À L'HEURE DITE — v1145. Un message
+   de 14 h apparaît à 14 h, et celui qui finit à 16 h s'en va à
+   16 h, sans attendre que le moniteur revienne sur l'appli. Un seul
+   minuteur à la fois, reposé à chaque dessin. */
+let minuteurMessagesEpingles = null;
+function planifierLesMessages(){
+  clearTimeout(minuteurMessagesEpingles);
+  if(typeof prochainChangementDesMessages !== 'function') return;
+  const p = prochainChangementDesMessages(messagesEpingles);
+  if(p === null) return;
+  minuteurMessagesEpingles = setTimeout(() => {
+    try{ dessinerBandeau(); }catch(e){}
+  }, Math.max(1000, p - Date.now() + 500));
+}
+
 function dessinerBandeau(){
   const zone = document.getElementById('bandeauJour');
   if(!zone) return;
   zone.innerHTML = '';
 
   if(!bandeauPret) return;
+  planifierLesMessages();
 
   const lignes = lignesDuBandeau();
 
