@@ -131,6 +131,7 @@ function quellesFermeesPour(filtre){
    s'il était ouvert (le fil s'ouvre en grand).
    ============================================================ */
 function allerALaMessagerie(vue){
+  if(reglagesMsgOuvertEC){ reglagesMsgOuvertEC = false; ckEcranAPart = false; }   /* ⚙️ v1154 */
   if(dansLeTiroir() && typeof fermerTiroirMessagerie === 'function') fermerTiroirMessagerie();
   if(typeof afficherOnglet === 'function') afficherOnglet('messagerie');
   if(typeof afficherVue === 'function') afficherVue('messagerie', vue || 'messagerie');
@@ -190,6 +191,8 @@ async function afficherMessagerie(silencieux){
   /* ✏️ v1153 — un fil neuf ouvert depuis le dossier : la liste ne
      se repeint pas par-dessus (sur téléphone, c'est la même zone). */
   if(typeof filNeufEC !== 'undefined' && filNeufEC) return;
+  /* ⚙️ v1154 — idem pour l'écran des réglages */
+  if(reglagesMsgOuvertEC) return;
 
   dessinerLaListeMessagerie();
   if(typeof poursuivreEcrireA === 'function') poursuivreEcrireA();
@@ -590,6 +593,18 @@ function barreDeRechercheMessagerie(){
     l.appendChild(n);
   }
 
+  /* ⚙️ v1154 — les réglages de l'école : administrateurs seuls */
+  if(peutReglerLaMessagerie()){
+    const g = document.createElement('button');
+    g.type = 'button';
+    g.className = 'ckBt' + (reglagesMsgOuvertEC ? ' on' : '');
+    g.textContent = '⚙️';
+    g.title = 'Réglages de la messagerie';
+    g.setAttribute('aria-label', g.title);
+    g.addEventListener('click', () => ecranReglagesMessagerie());
+    l.appendChild(g);
+  }
+
   /* ⚠️ « CHOISIR » EST PARTOUT, « TOUT SUPPRIMER » RESTE SUR
      FERMÉES — v1111. Un bouton qui détruit tout ne se trouve pas
      sous la main par hasard : il est là où l'on est déjà venu pour
@@ -921,6 +936,7 @@ async function viderLesFilsFermes(bouton, ids){
    ------------------------------------------------------------ */
 
 async function ouvrirLeFil(id, viser){
+  reglagesMsgOuvertEC = false;   /* ⚙️ v1154 */
   const large = ckLarge();
   const zone = zoneFilMsg();
   if(!zone) return;
@@ -1364,7 +1380,9 @@ function bulleDuMessage(m, avant, apres){
   if(!sienne && !suite){
     const sig = document.createElement('span');
     sig.className = 'sig';
-    sig.textContent = (m.auteur || '') + (m.auteurGenre === 'eleve' ? ' · élève' : '');
+    sig.textContent = (m.auteur || '') + (m.auteurGenre === 'eleve' ? ' · élève' : '') +
+      /* 📄 v1154 — personne ne l'a tapé : on le dit */
+      (m.motif === 'bilanMail' ? ' · envoi automatique' : '');
     b.appendChild(sig);
   }
   if(m.motif && GENRES_MESSAGERIE[m.motif]){
@@ -3545,6 +3563,7 @@ async function ecranOuvrirUnOubli(dansLaZone){
   if(!zone) return;
   oubliOuvert.dansLeFil = dansLeFil;
   if(dansLeFil){
+    reglagesMsgOuvertEC = false;   /* ⚙️ v1154 */
     if(typeof arreterLaVeilleDuFil === 'function') arreterLaVeilleDuFil();
     if(typeof couperLeDirect === 'function') couperLeDirect();
     filOuvertEC = null;
@@ -6205,6 +6224,143 @@ if(document.readyState === 'loading'){
   document.addEventListener('DOMContentLoaded', brancherLeTiroirMessagerie);
 }else{
   brancherLeTiroirMessagerie();
+}
+
+/* ============================================================
+   ⚙️ LES RÉGLAGES DE LA MESSAGERIE — v1154
+
+   David, le 12 octobre : « une option activable ou non dans la
+   messagerie pour qu'à la fin d'un cours ça envoie un message
+   directement ». Ses arbitrages : signé « le bureau », dans le fil
+   « Le bureau » de l'élève ; UN réglage pour toute l'école, tenu
+   par les administrateurs ; le texte court.
+
+   L'écran prend la colonne du fil, comme « À qui ? » et « Ouvrir un
+   oubli » : la liste reste à côté. Le texte montré est CELUI QUE LE
+   WORKER ÉCRIT — il vient de lui, pas d'une copie tenue ici qui
+   finirait par dire autre chose que ce que l'élève reçoit.
+   ============================================================ */
+let reglagesMsgOuvertEC = false;
+
+function peutReglerLaMessagerie(){
+  return typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin';
+}
+
+function fermerReglagesMessagerie(){
+  reglagesMsgOuvertEC = false;
+  ckEcranAPart = false;
+  afficherMessagerie(true);
+}
+
+async function ecranReglagesMessagerie(){
+  if(!peutReglerLaMessagerie()) return;
+  const zone = zoneFilMsg();
+  if(!zone) return;
+  if(typeof arreterLaVeilleDuFil === 'function') arreterLaVeilleDuFil();
+  if(typeof couperLeDirect === 'function') couperLeDirect();
+  filOuvertEC = null;
+  if(typeof filNeufEC !== 'undefined') filNeufEC = null;
+  ckEcranAPart = true;
+  reglagesMsgOuvertEC = true;
+  if(ckLarge() && typeof ckDessinerLaFiche === 'function') ckDessinerLaFiche(null);
+  if(ckLarge()) dessinerLaListeMessagerie();
+
+  zone.innerHTML = (typeof htmlAttente === 'function')
+    ? htmlAttente('Lecture des réglages…') : '<div class="empty">Lecture des réglages…</div>';
+  let d = null;
+  try{ d = await appelPrep({ action: 'msgReglages' }); }
+  catch(e){
+    zone.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
+    return;
+  }
+  if(!reglagesMsgOuvertEC || zoneFilMsg() !== zone) return;
+  dessinerReglagesMessagerie(zone, (d && d.reglages) || {}, (d && d.exemple) || '');
+}
+
+function dessinerReglagesMessagerie(zone, r, exemple){
+  zone.innerHTML = '';
+  const tete = document.createElement('div');
+  tete.className = 'ckFh' + (ckLarge() ? '' : ' etroit');
+  tete.innerHTML = '<div class="tt"><div class="t">⚙️ Réglages de la messagerie</div>' +
+    '<div class="s">pour toute l’école · administrateurs</div></div><div class="b"></div>';
+  tete.querySelector('.b').appendChild(ckBouton('✕', 'Fermer', fermerReglagesMessagerie,
+                                                ckLarge() ? '' : 'rond'));
+  zone.appendChild(tete);
+
+  const corps = document.createElement('div');
+  corps.id = 'msgReglagesCorps';
+  corps.style.cssText = 'padding:14px 18px;overflow:auto;';
+  zone.appendChild(corps);
+
+  const on = !!r.motFinDeCours;
+  const carte = document.createElement('div');
+  carte.id = 'regMotFin';
+  carte.style.cssText = 'border:1px solid ' + (on ? 'var(--orange)' : 'var(--line)') + ';' +
+    'border-radius:12px;padding:12px;margin-bottom:12px;';
+
+  const haut = document.createElement('div');
+  haut.style.cssText = 'display:flex;gap:12px;align-items:center;';
+  const txt = document.createElement('div');
+  txt.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.5;';
+  txt.innerHTML = '<strong>📄 Message après le bilan</strong>' +
+    '<div class="regEtat" style="font-size:12px;margin-top:3px;color:' +
+      (on ? 'var(--accent-text)' : 'var(--muted)') + ';">' +
+      (on ? '● Activé' : '○ Désactivé') + '</div>' +
+    '<div style="font-size:12px;color:var(--soft);margin-top:4px;">' +
+      (on ? 'Quand le bilan d’un cours part par mail depuis l’écran de fin de cours, ' +
+            'l’élève reçoit aussi ce message du bureau dans sa messagerie.'
+          : 'Aucun message n’est envoyé à la fin des cours. Le bilan part par mail, ' +
+            'comme d’habitude.') + '</div>';
+  haut.appendChild(txt);
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.id = 'regMotFinBouton';
+  b.setAttribute('role', 'switch');
+  b.setAttribute('aria-checked', on ? 'true' : 'false');
+  b.setAttribute('aria-label', 'Message après le bilan');
+  b.title = on ? 'Désactiver' : 'Activer';
+  b.style.cssText = 'width:56px;height:32px;flex-shrink:0;padding:0;margin:0;' +
+    'border-radius:16px;cursor:pointer;position:relative;' +
+    'border:1px solid ' + (on ? 'var(--orange)' : 'var(--line)') + ';' +
+    'background:' + (on ? 'var(--orange)' : 'transparent') + ';';
+  const bille = document.createElement('span');
+  bille.style.cssText = 'position:absolute;top:3px;width:24px;height:24px;border-radius:50%;' +
+    'left:' + (on ? '28px' : '3px') + ';background:' + (on ? 'var(--navy-deep)' : 'var(--muted)') + ';';
+  b.appendChild(bille);
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try{
+      const rep = await appelPrep({ action: 'msgReglageSet', cle: 'motFinDeCours', valeur: on ? '0' : '1' });
+      if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+      if(typeof showToast === 'function') showToast(on ? 'Désactivé ✅' : 'Activé ✅');
+      if(reglagesMsgOuvertEC) dessinerReglagesMessagerie(zone, (rep && rep.reglages) || { motFinDeCours: !on }, exemple);
+    }catch(e){
+      b.disabled = false;
+      if(typeof showToast === 'function') showToast('Impossible : ' + ((e && e.message) || e));
+    }
+  });
+  haut.appendChild(b);
+  carte.appendChild(haut);
+
+  /* Le message tel que l'élève le lira, dans une bulle de sa couleur */
+  const apercu = document.createElement('div');
+  apercu.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);';
+  apercu.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' +
+      'Ce que l’élève lit, dans son fil « Le bureau » :</div>' +
+    '<div class="regApercu" style="display:inline-block;max-width:100%;box-sizing:border-box;' +
+      'padding:9px 12px;border-radius:16px 16px 16px 4px;background:var(--navy-deep);' +
+      'border:1px solid var(--line);font-size:13.5px;line-height:1.45;">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:2px;">Le bureau</div>' +
+      echapper(exemple || '') + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">' +
+      'Le jour est celui du cours. Seulement pour les élèves qui ont leur espace avec la ' +
+      'messagerie, une seule fois par cours. Un bilan renvoyé depuis l’historique ne le ' +
+      'renvoie pas. Il n’allume pas la pastille du bureau.</div>' +
+    (r.motFinDeCoursMaj ? '<div style="font-size:11px;color:var(--muted);margin-top:4px;">' +
+      'Dernier changement : ' + echapper(r.motFinDeCoursMaj) + '</div>' : '');
+  carte.appendChild(apercu);
+  corps.appendChild(carte);
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
