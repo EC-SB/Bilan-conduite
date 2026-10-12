@@ -446,6 +446,27 @@ async function chargerBureau(forcer){
       Object.keys(ajout).forEach(k => {
         if(ajout[k] !== null && ajout[k] !== false) a[k] = ajout[k];
       });
+      /* ⚠️ LA DATE SUIT L'ÉTAT QUI L'ANNONCE — v1151.
+
+         David, le 12 octobre, sur Yuliia Morozova : « sa date a été
+         annulée mais elle est toujours inscrite ». Son dernier bilan
+         (16/09) annonçait le 28 octobre ; la consigne du bureau
+         disait « Examen du permis du mercredi 14 octobre 2026 annulé
+         le jeudi 1 octobre 2026 ». La fusion ci-dessus ne recopie que
+         ce que la consigne DIT — et une annulation, justement, dit
+         « plus de date » par un null. L'état passait donc à
+         « annulé » tandis que la date du bilan restait, et tous ceux
+         qui lisent « permisDate » (la tuile, les listes, la fiche de
+         route) voyaient toujours le 28 octobre.
+
+         Quand la consigne en attente parle de l'examen, c'est elle
+         qui décide de TOUT ce qui s'y rapporte : l'état, la date, et
+         les deux dates de l'annulation — rien ne reste du bilan. */
+      if(ajout.permis){
+        ['permisDate', 'permisAnnuleDate', 'permisAnnuleLe'].forEach(k => {
+          a[k] = (ajout[k] === undefined) ? null : ajout[k];
+        });
+      }
     }
     const urg = consignes.find(cs =>
       normaliserMot(cs.eleve) === normaliserMot(e.eleve) && cs.type === 'urgence');
