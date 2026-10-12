@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 13:20 — v1104 */
+/* Déployé le 12/10/2026 à 15:22 — v1156 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -889,12 +889,38 @@ function coursPreparesDeLEleve(nom){
                            String(x.note || '').trim() && x.date);
 }
 
+/* ⚠️ UN EXAMEN PRÉPARÉ N'EST PAS UNE LEÇON — v1156.
+
+   David, le 12 octobre, sur Capucine Foulfoin : « demain ne sera
+   pas sa 9ᵉ mais l'examen officiel ». Son cours préparé du 13 est
+   un « Examen officiel » ; on lui calculait un rang de leçon, et la
+   tuile annonçait « Prochaine : mar. 13 oct. — sa 9ᵉ ». Il est mis
+   à part : la tuile le dit pour ce qu'il est, et le rang se lit
+   ailleurs (cours préparé suivant, cours passé, dernier bilan). */
+function estUnExamenPrepare(c){
+  const m = String((c && (c.modele || (contexteDuPrepare(c).modele))) || '');
+  if(typeof laSeanceEstLExamen === 'function') return laSeanceEstLExamen(m);
+  return m === 'examen-officiel';
+}
+function contexteDuPrepare(c){
+  const x = c && c.contexte;
+  if(x && typeof x === 'object') return x;
+  try{ return JSON.parse(String(x || '{}')) || {}; }catch(e){ return {}; }
+}
+
 function positionDeLEleve(nom, e){
   const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
-  const siens = coursPreparesDeLEleve(nom).slice()
+  const tous = coursPreparesDeLEleve(nom).slice()
     .sort((a, b) => String(a.date).localeCompare(String(b.date)) ||
                     String(a.heure || '').localeCompare(String(b.heure || '')));
+  const examen = tous.find(x => estUnExamenPrepare(x) && String(x.date) >= auj) || null;
+  const siens = tous.filter(x => !estUnExamenPrepare(x));
   const prochain = siens.find(x => String(x.date) >= auj) || null;
+  const avecExamen = (r) => Object.assign(r, { examen: examen });
+  return avecExamen(positionDesLecons(nom, e, auj, siens, prochain));
+}
+
+function positionDesLecons(nom, e, auj, siens, prochain){
   const passes = siens.filter(x => String(x.date) < auj);
   const dernierPasse = passes.length ? passes[passes.length - 1] : null;
 
@@ -1183,7 +1209,15 @@ function tuilesDuDossier(nom){
             : 'aucune depuis ' + p.charn.nom)
         : '') + (p.fait.approx ? ' (compte des bilans)' : '') });
     }
-    if(p.prochaine && p.prochaine.total){
+    /* 🎓 v1156 — l'examen préparé passe avant une leçon qui n'a pas
+       encore de cours : c'est lui, le prochain rendez-vous. */
+    const examAvant = !!(p.examen && (!p.prep || String(p.examen.date) <= String(p.prep.date)));
+    if(examAvant){
+      const iso = String(p.examen.date || '').slice(0, 10);
+      const h = heureDeLExamenDe(nom, iso);
+      lignes.push({ ton:'fort', txt: 'Prochaine : ' + jourBref(p.examen.date, true) +
+        ' — 🎓 examen officiel' + (h ? ' à ' + h : '') + (s.centre ? ' · ' + s.centre : '') });
+    }else if(p.prochaine && p.prochaine.total){
       lignes.push({ ton:'fort', txt: 'Prochaine : ' +
         (p.prep ? jourBref(p.prep.date, true) + ' — ' : '') +
         'sa ' + rangCourt(p.prochaine.total) +
@@ -1247,6 +1281,29 @@ function tuilesDuDossier(nom){
       const dit = s.heuresPar
         ? 'sur ce que ' + s.heuresPar + ' a dit' + (quand ? ' le ' + quand : '')
         : (quand ? 'sur ce qui a été dit le ' + quand : '');
+
+      /* ✅ v1156 — UNE leçon au-delà de la réserve, c'est la leçon de
+         veille : elle est faite, il n'y a plus rien avant l'examen.
+         Au-delà d'une, c'est un vrai dépassement, et on le dit comme
+         avant. (Capucine Foulfoin, le 12 octobre : 4 h + la veille,
+         trois leçons depuis l'examen blanc, examen le lendemain.) */
+      const parLecon = (typeof HEURES_PAR_LECON === 'number') ? HEURES_PAR_LECON : 2;
+      const veilleFaite = v === '0' && r.depasse && Number(r.auDela) > 0 &&
+                          Number(r.auDela) <= parLecon;
+      const exam = examenDitCourt(nom, s);
+      if(veilleFaite){
+        grille.appendChild(tuileDossier({
+          lab:"Avant l'examen",
+          gros: '✅ Tout est fait',
+          lignes: [ { txt:'la leçon de veille est faite', ton:'fort' },
+                    exam ? { txt: exam } : null ]
+        }));
+        return grille;
+      }
+      /* La leçon de veille est le prochain cours : on le nomme. */
+      const veilleCours = (v === '0' && !r.depasse && p.prep && !compteLePrepare)
+        ? { txt:'la leçon de veille : son cours du ' + jourBref(p.prep.date, true), ton:'fort' }
+        : null;
       grille.appendChild(tuileDossier({
         lab:"Avant l'examen",
         gros: (v === '0')
@@ -1258,7 +1315,9 @@ function tuilesDuDossier(nom){
                   compteLePrepare
                     ? { txt:'en comptant son cours du ' + jourBref(p.prep.date, true) }
                     : null,
+                  veilleCours,
                   r.depasse ? { txt:'réserve dépassée', ton:'fort' } : null,
+                  (v === '0' && exam) ? { txt: exam } : null,
                   dit ? { txt: dit } : null ]
       }));
     }else{
@@ -1277,6 +1336,45 @@ function tuilesDuDossier(nom){
   }
 
   return grille;
+}
+
+/* 🎓 v1156 — l'heure de l'examen n'a pas de case : elle est dans la
+   consigne du bureau, « Examen du permis fixé au mardi 13 octobre
+   2026 à Loudéac à 14:15 ». On prend la plus récente qui parle de CE
+   jour-là ; sinon rien — une heure devinée serait pire que pas
+   d'heure. */
+function heureDeLExamenDe(nom, iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  if(isNaN(d)) return '';
+  const mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août',
+                'septembre', 'octobre', 'novembre', 'décembre'][d.getMonth()];
+  const jour = new RegExp('\\b' + d.getDate() + '\\s+' + mois + '\\s+' + d.getFullYear(), 'i');
+  const qui = normaliserMot(nom);
+  const cs = ((typeof etatBureau !== 'undefined' && etatBureau && etatBureau.consignes) || [])
+    .filter(c => normaliserMot(c.eleve || '') === qui &&
+                 /Examen du permis fixé au/i.test(String(c.texte || '')) &&
+                 jour.test(String(c.texte || '')));
+  for(let i = cs.length - 1; i >= 0; i--){
+    const m = String(cs[i].texte).match(/(?:^|\s)à\s+(\d{1,2})[:h](\d{2})(?!\d)/);
+    if(m) return m[1].padStart(2, '0') + 'h' + m[2];
+  }
+  return '';
+}
+
+/* L'examen, dit court : « demain · Loudéac », « aujourd'hui », ou
+   le jour. */
+function examenDitCourt(nom, s){
+  const iso = String((s && s.datePermis) || '').slice(0, 10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+  if(auj && iso < auj) return '';
+  const dem = new Date(auj + 'T12:00:00'); dem.setDate(dem.getDate() + 1);
+  const demain = dem.getFullYear() + '-' + String(dem.getMonth() + 1).padStart(2, '0') + '-' +
+                 String(dem.getDate()).padStart(2, '0');
+  const quand = iso === auj ? 'aujourd’hui' : iso === demain ? 'demain' : 'le ' + jourBref(iso, true);
+  const h = heureDeLExamenDe(nom, iso);
+  return '🎓 examen ' + quand + (h ? ' à ' + h : '') + (s.centre ? ' · ' + s.centre : '');
 }
 
 /* Une tuile du haut du dossier. Même grammaire que celle du
