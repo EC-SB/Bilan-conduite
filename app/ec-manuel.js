@@ -19,6 +19,17 @@ const PHRASE_VOITURE_APPORTEE =
   "Tu as oublié de dire c'est moi qui aie emmener la voiture, " +
   "j'ai déjà fais mes réglages";
 
+/* La phrase des vérifications — v1142. David, le 12 octobre : « ajoute
+   une case à cocher : tu n'as pas bossé tes vérifications, ça rapporte
+   3 points le jour de l'examen, donc bosse-les à fond — et que ça note
+   cette phrase dans le cadre de remarque ». Version corrigée retenue.
+   Même mécanique, même règle que PHRASE_VOITURE_APPORTEE : écrite une
+   fois, ici, pour la case qui la pose et le code qui la retire — à
+   l'examen blanc ET à l'examen officiel (son choix). */
+const PHRASE_VERIFS_A_BOSSER =
+  "Tu n'as pas bossé tes vérifications : ça rapporte 3 points le jour " +
+  "de l'examen, donc bosse-les à fond !";
+
 /* « Pas de repassage pour le moment » — v912.
 
    Une valeur, pas un nombre : c'est ce qui distingue « aucun » de
@@ -176,7 +187,8 @@ const CHAMPS_MANUELS = {
        trace dans le bilan. */
     { cle:'examen.verifRemarque', type:'texte', lignes:3,
       nom:'2-2 · Remarque sur les vérifications',
-      aide:'Facultatif : ce qu\'il a su, ce qui a manqué.' },
+      aide:'Facultatif : ce qu\'il a su, ce qui a manqué.',
+      phraseCoche:PHRASE_VERIFS_A_BOSSER },
 
     /* ⚠️ LA MANŒUVRE ET L'AUTONOMIE, SOUS LES VÉRIFICATIONS — v966.
 
@@ -190,14 +202,14 @@ const CHAMPS_MANUELS = {
        Ce qui change, c'est la mention « Manœuvre » qui les précède
        dans le bilan, « pour qu'on voie que l'erreur est survenue
        pendant la manœuvre ». */
-    { cle:'__sManoeuvre', type:'sousTitre', nom:'🅿️ MANŒUVRE' },
+    { cle:'__sManoeuvre', type:'sousTitre', nom:'🅿️ MANŒUVRE', fond:'ardoise' },
     { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
-      lignes:2, mention:'Manœuvre',
+      lignes:2, mention:'Manœuvre', fond:'ardoise',
       nom:'Ce qui s\'est passé pendant la manœuvre' },
 
-    { cle:'__sAutonomie', type:'sousTitre', nom:'🧭 AUTONOMIE' },
+    { cle:'__sAutonomie', type:'sousTitre', nom:'🧭 AUTONOMIE', fond:'ardoise' },
     { cle:'examen.autonomie', type:'autonomie', ligne:'Conduite autonome',
-      nom:'Conduite autonome',
+      nom:'Conduite autonome', fond:'ardoise',
       aide:'Ce qui a manqué en conduite autonome.' },
 
     /* Vingt paires, comme pour l'examen officiel : la remarque de
@@ -379,7 +391,9 @@ const CHAMPS_MANUELS = {
       nom:'N° de la question de vérification' },
     { cle:'examen.vi',           type:'ok', nom:'Vérification', defaut:'' },
     { cle:'examen.viTexte',      type:'texte', lignes:3,
-      nom:'Explication ou correction — vérification' },
+      nom:'Explication ou correction — vérification',
+      /* La même case qu'à l'examen blanc — v1142, choix de David. */
+      phraseCoche:PHRASE_VERIFS_A_BOSSER },
     { cle:'__sQser', type:'sousTitre', nom:'🚦 Question sécurité routière' },
     { cle:'examen.qser',         type:'ok', nom:'Question sécurité routière', defaut:'' },
     { cle:'examen.qserTexte',    type:'texte', lignes:3,
@@ -412,14 +426,14 @@ const CHAMPS_MANUELS = {
        examen officiel tu le mets juste avant OBSERVATIONS DE
        L'INSPECTEUR ». Il n'y a pas de repère « 2-3 » ici — c'est
        ce titre-là qui sert de repère. */
-    { cle:'__sManoeuvreOff', type:'sousTitre', nom:'🅿️ MANŒUVRE' },
+    { cle:'__sManoeuvreOff', type:'sousTitre', nom:'🅿️ MANŒUVRE', fond:'ardoise' },
     { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
-      lignes:2, mention:'Manœuvre',
+      lignes:2, mention:'Manœuvre', fond:'ardoise',
       nom:'Ce qui s\'est passé pendant la manœuvre' },
 
-    { cle:'__sAutonomieOff', type:'sousTitre', nom:'🧭 AUTONOMIE' },
+    { cle:'__sAutonomieOff', type:'sousTitre', nom:'🧭 AUTONOMIE', fond:'ardoise' },
     { cle:'examen.autonomie', type:'autonomie', ligne:'Conduite autonome',
-      nom:'Conduite autonome',
+      nom:'Conduite autonome', fond:'ardoise',
       aide:'Ce qui a manqué en conduite autonome.' },
 
     { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' },
@@ -610,10 +624,44 @@ function dicterDans(champ, bouton){
     return;
   }
 
+  /* ============================================================
+     🎙️ ON ÉCRIT LÀ OÙ EST LE MONITEUR — v1142
+
+     David, le 12 octobre : « le micro du bilan des erreurs écrit les
+     phrases à la toute fin au lieu d'écrire là où est le moniteur ».
+     Dans « 3 · Bilan des erreurs », il clique après « ce que je te
+     PROPOSE : » d'une compétence — et sa phrase tombait sous la
+     dernière.
+
+     Le texte se coupe donc en deux au curseur : « depart » (avant) et
+     « suite » (après). La dictée s'écrit entre les deux, la suite ne
+     bouge pas. Un champ où l'on n'a pas cliqué a son curseur à la
+     fin — c'est la règle du navigateur quand une valeur est posée
+     par le code : rien ne change alors par rapport à avant.
+
+     ⚠️ LE CURSEUR SE GARDE D'UNE DICTÉE À L'AUTRE. Réécrire « value »
+     renvoie le curseur du navigateur à la fin : sans ce repère, la
+     deuxième phrase dictée au même endroit serait repartie en bas.
+     Un clic ou une frappe dans le champ l'efface — le moniteur a
+     choisi un autre endroit.
+     ============================================================ */
+  if(!champ._suiviCurseur){
+    champ._suiviCurseur = true;
+    ['click', 'keyup', 'select', 'input'].forEach(ev =>
+      champ.addEventListener(ev, e => { if(e.isTrusted) champ._posDictee = null; }));
+  }
+  const valeurDepart = champ.value;
+  let pos = (champ._posDictee !== null && champ._posDictee !== undefined &&
+             champ._valeurDictee === valeurDepart)
+    ? champ._posDictee
+    : (typeof champ.selectionStart === 'number' ? champ.selectionStart : valeurDepart.length);
+  pos = Math.max(0, Math.min(valeurDepart.length, pos));
+
   /* Le texte acquis. Il se fige à la fin de chaque session : la
      boîte fait autorité, et le moniteur peut corriger entre deux
      phrases sans que la dictée suivante ramène ce qu'il a effacé. */
-  let depart = champ.value;
+  let depart = valeurDepart.slice(0, pos);
+  let suite = valeurDepart.slice(pos);
 
   /* Chaque session porte un jeton. Une instance abandonnée qui
      livre un résultat en retard n'écrit plus rien : c'est ce qui
@@ -625,9 +673,22 @@ function dicterDans(champ, bouton){
   let vides = 0;
 
   const ecrire = (texteSession) => {
-    const base = depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '';
-    champ.value = base + terminerPhrase(texteSession);
-    champ.scrollTop = champ.scrollHeight;
+    const dit = terminerPhrase(texteSession);
+    /* Rien d'entendu : on n'ajoute rien, pas même un blanc — sur
+       Android une session vide se relance toutes les quelques
+       secondes, et chacune aurait poussé une espace de plus. */
+    const base = (depart && dit) ? depart + (/\s$/.test(depart) ? '' : ' ') : depart;
+    /* Collé à la suite sans blanc, le mot dicté et le mot suivant ne
+       feraient plus qu'un. */
+    const joint = (dit && suite && !/^\s/.test(suite)) ? ' ' : '';
+    champ.value = base + dit + joint + suite;
+    const fin = (base + dit).length;
+    champ._posDictee = fin;
+    champ._valeurDictee = champ.value;
+    if(!suite) champ.scrollTop = champ.scrollHeight;
+    if(document.activeElement === champ){
+      try{ champ.setSelectionRange(fin, fin); }catch(e){}
+    }
 
     /* ⚠️ ET ON PRÉVIENT CE QUI ÉCOUTE LE CHAMP — v1066.
 
@@ -723,8 +784,16 @@ function dicterDans(champ, bouton){
       /* Ce qui vient d'être dit rejoint l'acquis. Les espaces de
          fin sont retirés, sinon chaque relance en ajoutait un. */
       ecrire(session);
-      depart = champ.value.replace(/[ \t]+$/, '');
-      champ.value = depart;
+      /* Ce qui vient d'être dit rejoint « depart » ; « suite » reste
+         la suite. Sans suite, on retire les blancs de fin comme avant. */
+      const fin = (typeof champ._posDictee === 'number') ? champ._posDictee : champ.value.length;
+      depart = champ.value.slice(0, fin);
+      if(!suite){
+        depart = depart.replace(/[ \t]+$/, '');
+        champ.value = depart;
+      }
+      champ._posDictee = depart.length;
+      champ._valeurDictee = champ.value;
 
       if(bouton.dataset.stop === 'oui'){ arreter(); return; }
 
@@ -6443,6 +6512,26 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       bloc.appendChild(r);
     }
 
+    /* ⚠️ UN FOND POUR CE QUI VA ENSEMBLE — v1142. David : « met un
+       fond différent sous la partie manœuvre et autonomie, car les
+       moniteurs ne se repèrent pas bien ». Les champs marqués d'un
+       même « fond » qui se suivent entrent dans UN cadre teinté, du
+       titre MANŒUVRE à la ligne « Conduite autonome » : on voit où
+       la partie commence et où reprend la suite. Teinte : ardoise,
+       son choix sur le schéma. */
+    if(ch.fond){
+      const der = zone.lastElementChild;
+      let cadre = (der && der.classList.contains('cadreFond') &&
+                   der.dataset.fond === ch.fond) ? der : null;
+      if(!cadre){
+        cadre = document.createElement('div');
+        cadre.className = 'cadreFond ' + ch.fond;
+        cadre.dataset.fond = ch.fond;
+        zone.appendChild(cadre);
+      }
+      cadre.appendChild(bloc);
+      return;
+    }
     zone.appendChild(bloc);
   });
 }
