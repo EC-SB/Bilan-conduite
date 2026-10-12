@@ -638,7 +638,7 @@ async function envoyerPlacesBE(){
 
   try{
     await appelPrep({
-      action: 'mailBilan',
+      action: 'mailBilan', genre: 'placesbe',
       to: [propre],
       sujet: "Demande d'unités PL et BE — " + titre + ' — ' +
              BE_ETABLISSEMENT + ' ' + BE_AGREMENT,
