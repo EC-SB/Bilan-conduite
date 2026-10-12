@@ -51,6 +51,27 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1142,
+    date: 'Lundi 12 octobre 2026',
+    resume: 'Examens : case « vérifications », cadre Manœuvre/Autonomie, micro au curseur',
+    quoi: [
+      { emoji: '🧰',
+        titre: 'Une case pour les vérifications',
+        texte: 'Sous la remarque des vérifications (examen blanc et examen officiel) : ' +
+               '« Tu n’as pas bossé tes vérifications : ça rapporte 3 points le jour de ' +
+               'l’examen, donc bosse-les à fond ! ». Cochée, la phrase s’écrit dans le cadre.' },
+      { emoji: '🅿️',
+        titre: 'Manœuvre et Autonomie dans un cadre',
+        texte: 'Les deux parties sont réunies sur un fond gris bleuté : on voit où elles ' +
+               'commencent et où reprend la suite.' },
+      { emoji: '🎙️',
+        titre: 'Le micro écrit là où tu as cliqué',
+        texte: 'Dans le bilan à la main, la dictée s’écrit à l’endroit du curseur — après ' +
+               '« ce que je te PROPOSE : » par exemple — et plus à la fin du cadre. Sans clic ' +
+               'dans le cadre, elle va à la fin, comme avant.' }
+    ]
+  },
+  {
     version: 1141,
     date: 'Lundi 12 octobre 2026',
     resume: 'Nouvelle messagerie : 📌 épingler, ⏰ rappeler demain, retards et créneaux',
