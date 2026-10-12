@@ -258,7 +258,7 @@ const SECTIONS = [
   { cle:'ecoutes',          nom:'👂 Écoutes pédagogiques', onglet:'suivi' },
   { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen', onglet:'permis' },
   { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)', onglet:'permis' },
-  { cle:'bureau_messages',  nom:'📨 Messages internes', onglet:'gestion' },
+  { cle:'bureau_messages',  nom:'📨 Messages internes', onglet:'outils' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis', onglet:'eleves' },
   { cle:'textes',           nom:'📄 Mes modèles de message', onglet:'outils' },
   /* ⚠️ DEUX DROITS POUR UN SEUL ÉCRAN — v959.
@@ -339,7 +339,7 @@ const SECTIONS = [
   { cle:'paiement',         nom:'💳 Paiement en plusieurs fois', onglet:'eleves' },
   { cle:'placesbe',         nom:'🚚 Demande de places BE', onglet:'outils' },
   { cle:'evaluation',       nom:'📊 Évaluation de départ', onglet:'eleves' },
-  { cle:'tarifs',           nom:'💰 Prestations et tarifs', onglet:'gestion' },
+  { cle:'tarifs',           nom:'💰 Prestations et tarifs', onglet:'outils' },
   /* Le parcours d'apprentissage : composer les groupes et leurs
      guides. C'est ce qui remplace les groupes Facebook privés. */
   /* ⚠️ DANS SUIVI DEPUIS LA v1037 : le droit ouvre DEUX écrans —
@@ -351,15 +351,15 @@ const SECTIONS = [
   { cle:'rappels',          nom:'🔔 Rappels de cours par mail', onglet:'eleves' },
   /* L'envoi de SMS est facturé au segment : il se donne à part,
      et sciemment, plutôt que de suivre le droit aux rappels. */
-  { cle:'sms',              nom:'💬 Envoi de SMS (facturé)', onglet:'gestion' },
-  { cle:'paie',             nom:'💶 Éléments de paie', onglet:'gestion' },
+  { cle:'sms',              nom:'💬 Envoi de SMS (facturé)', onglet:'outils' },
+  { cle:'paie',             nom:'💶 Éléments de paie', onglet:'outils' },
   { cle:'flotte',           nom:'🚗 Suivi de la flotte', onglet:'gestion' },
   { cle:'ecran',            nom:'📺 Affichage dynamique', onglet:'gestion' },
-  { cle:'notifs',           nom:'🔔 Alertes du bureau', onglet:'gestion' },
-  { cle:'notif_examblanc',  nom:'🔔 Pastille examens blancs', onglet:'gestion' },
-  { cle:'notif_simu',       nom:'🔔 Pastille simulateurs', onglet:'gestion' },
-  { cle:'notif_permis',     nom:'🔔 Pastille dates de permis', onglet:'gestion' },
-  { cle:'taches',           nom:'✅ Tâches du bureau', onglet:'gestion' },
+  { cle:'notifs',           nom:'🔔 Alertes du bureau', onglet:'outils' },
+  { cle:'notif_examblanc',  nom:'🔔 Pastille examens blancs', onglet:'outils' },
+  { cle:'notif_simu',       nom:'🔔 Pastille simulateurs', onglet:'outils' },
+  { cle:'notif_permis',     nom:'🔔 Pastille dates de permis', onglet:'outils' },
+  { cle:'taches',           nom:'✅ Tâches du bureau', onglet:'outils' },
   { cle:'memoire',          nom:"🧠 Mémoire de l'IA", onglet:'outils' },
   { cle:'bilans',           nom:'📋 Modèles de bilan', onglet:'outils' },
   { cle:'procedures',       nom:'🚦 Procédures de conduite', onglet:'outils' },
@@ -373,8 +373,8 @@ const SECTIONS = [
      refusé. Le piège est traité à la racine côté Worker
      (VERSION_SECTIONS) : ils redeviennent des sections ordinaires,
      et le contournement n'a plus lieu d'être. */
-  { cle:'caisse',           nom:'🏦 Caisse et remises en banque', onglet:'gestion' },
-  { cle:'coutsia',          nom:"💸 Ce que coûte l'IA", onglet:'gestion' },
+  { cle:'caisse',           nom:'🏦 Caisse et remises en banque', onglet:'outils' },
+  { cle:'coutsia',          nom:"💸 Ce que coûte l'IA", onglet:'outils' },
   /* La carrosserie est à part de la flotte : tout le monde y
      déclare une rayure, personne n'y voit les coûts du parc. */
   { cle:'carrosserie',      nom:'🩹 Carrosserie des véhicules', onglet:'gestion' },
