@@ -401,7 +401,7 @@ function ligneMasquee(x){
 function poserPastilleNotifs(nombre){
   if(typeof poserCompteVue === 'function'){ poserCompteVue('notifs', nombre); return; }
   /* Filet, si le module des onglets n'est pas là */
-  if(typeof poserAlerte === 'function') poserAlerte('gestion', nombre);
+  if(typeof poserAlerte === 'function') poserAlerte('outils', nombre);   /* v1145 */
 }
 
 /* Recalcule la pastille après un masquage ou une remise */
