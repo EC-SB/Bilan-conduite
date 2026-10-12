@@ -72,7 +72,7 @@ function blocAlertes(alertes){
     b.textContent = '🔍 Voir ce jour-là';
     b.addEventListener('click', () => {
       if($('journalQui')) $('journalQui').value = a.qui;
-      if($('journalPeriode')) $('journalPeriode').value = 'tout';
+      if($('journalPeriode')) $('journalPeriode').value = '183';
       afficherJournal(a.jour);
     });
     l.appendChild(b);
@@ -100,12 +100,17 @@ function exporterJournal(lignes){
     return /[";\n]/.test(t) ? '"' + t.split('"').join('""') + '"' : t;
   };
 
+  /* Deux formes de ligne : celle du journal en direct (v1147 —
+     « jour », « heure », « libelle ») et celle de l'ancien journal
+     du classeur (« quand », « action »). */
   const rangs = lignes.map(l => {
     const quand = String(l.quand || '');
+    const jour = l.heure !== undefined && l.jour
+      ? String(l.jour).split('-').reverse().join('/') : quand.slice(0, 10);
+    const heure = l.heure !== undefined ? String(l.heure) : quand.slice(-5);
     return [
-      quand.slice(0, 10),
-      quand.slice(-5),
-      l.qui, l.role, l.action, l.eleve, l.detail
+      jour, heure,
+      l.qui, l.role, l.libelle || l.action, l.eleve, l.detail
     ].map(cellule).join(';');
   });
 
@@ -129,9 +134,284 @@ function exporterJournal(lignes){
   showToast(lignes.length + ' ligne(s) exportée(s) ✅');
 }
 
+/* ============================================================
+   📊 LE JOURNAL, EN DIRECT — v1147
+
+   David : « dans notre journal j'aimerais avoir un vrai tracker avec
+   ce que fait chaque utilisateur en direct ». Ses arbitrages : les
+   actions, et qui est en ligne sur quel écran — rien de plus fin.
+
+   Le même écran, la même ligne qu'avant. Ce qui change : 🟢 En ligne
+   maintenant en tête, des pastilles par type, l'heure à la seconde,
+   et plus de bouton « Actualiser » — la liste se relit toute seule
+   toutes les 15 secondes, tant que l'écran est sous les yeux.
+
+   Le registre est dans la base de Cloudflare (journal_direct), noté
+   par l'enveloppe du Worker après chaque action réussie. L'ancien
+   journal du classeur reste lisible : un lien en bas du résumé.
+   ============================================================ */
+const FAMILLES_JOURNAL = [
+  ['bilans',       '📝 Bilans'],
+  ['dossiers',     '🔍 Dossiers'],
+  ['cours',        '📅 Cours'],
+  ['mails',        '✉️ Mails'],
+  ['sms',          '📱 SMS'],
+  ['autres',       '• Autres'],
+  ['suppressions', '✕ Suppressions']
+];
+const etatJournal = { data: null, famille: 'tous', lu: 0, minuteur: null,
+                      horloge: null, signature: '', classeur: false, jour: '' };
+
+function journalSousLesYeux(){
+  const c = $('journalCard');
+  return !!(c && c.offsetParent !== null && document.visibilityState === 'visible' &&
+            typeof ongletActif !== 'undefined' && ongletActif === 'outils' &&
+            typeof vueActive !== 'undefined' && vueActive.outils === 'journal');
+}
+
 async function afficherJournal(jourPrecis){
   const zone = $('journalListe');
   if(!zone) return;
+  if(typeof ACCES === 'undefined' || ACCES.role !== 'admin') return;
+
+  etatJournal.classeur = false;
+  etatJournal.jour = jourPrecis || '';
+  if(!etatJournal.data) zone.innerHTML = '<div class="empty">Lecture du journal…</div>';
+  await relireLeJournal(true);
+
+  /* La relecture tient tant que l'écran est sous les yeux */
+  clearInterval(etatJournal.minuteur);
+  etatJournal.minuteur = setInterval(() => {
+    if(etatJournal.classeur) return;
+    if(!journalSousLesYeux()) return;
+    relireLeJournal(false);
+  }, 15000);
+  clearInterval(etatJournal.horloge);
+  etatJournal.horloge = setInterval(majHorlogeDuJournal, 1000);
+}
+
+async function relireLeJournal(forcer){
+  const qui = ($('journalQui') && $('journalQui').value.trim()) || '';
+  const eleve = ($('journalEleve') && $('journalEleve').value.trim()) || '';
+  const jours = parseInt(($('journalPeriode') && $('journalPeriode').value) || '2', 10) || 2;
+  let data;
+  try{
+    data = await appelPrep({ action: 'journalDirect', qui: qui, eleve: eleve, jours: jours });
+  }catch(e){
+    if(forcer){
+      const zone = $('journalListe');
+      if(zone) zone.innerHTML = '<div class="empty">⚠️ ' +
+        String((e && e.message) || e).replace(/</g, '&lt;') + '</div>';
+    }
+    return;
+  }
+  etatJournal.lu = Date.now();
+  const sig = JSON.stringify([(data.lignes || []).length, (data.lignes || [])[0] && data.lignes[0].id,
+                              data.enLigne, qui, eleve, jours, etatJournal.famille, etatJournal.jour]);
+  if(!forcer && sig === etatJournal.signature) return;
+  etatJournal.signature = sig;
+  etatJournal.data = data;
+  dessinerLeJournal();
+}
+
+function majHorlogeDuJournal(){
+  const h = document.querySelector('#journalListe .horlogeJournal');
+  if(!h || !etatJournal.lu) return;
+  const s = Math.max(0, Math.round((Date.now() - etatJournal.lu) / 1000));
+  h.textContent = 'mis à jour il y a ' + (s < 60 ? s + ' s' : Math.floor(s / 60) + ' min');
+}
+
+/* 🟢 Qui est là, et sur quel écran */
+function dessinerEnLigne(liste){
+  const z = $('journalEnLigne');
+  if(!z) return;
+  z.innerHTML = '';
+  const b = document.createElement('div');
+  b.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;';
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;margin-bottom:6px;';
+  t.textContent = '🟢 En ligne maintenant · ' + (liste || []).length;
+  b.appendChild(t);
+  if(!(liste || []).length){
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:13px;color:var(--muted);';
+    v.textContent = 'Personne d’autre que toi pour le moment.';
+    b.appendChild(v);
+  }
+  (liste || []).forEach(p => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:13px;line-height:1.9;flex-wrap:wrap;';
+    l.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0;"></span>' +
+      '<strong>' + echapper(p.qui) + '</strong>' +
+      '<span style="min-width:0;overflow-wrap:anywhere;">' + echapper(p.ecran || '') + '</span>' +
+      '<span style="color:var(--muted);margin-left:auto;">depuis ' + echapper(p.depuis || '') + '</span>';
+    b.appendChild(l);
+  });
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;';
+  n.textContent = 'Absent depuis plus de 2 minutes : la personne quitte la liste.';
+  b.appendChild(n);
+  z.appendChild(b);
+}
+
+function dessinerLeJournal(){
+  const zone = $('journalListe');
+  const data = etatJournal.data;
+  if(!zone || !data) return;
+  dessinerEnLigne(data.enLigne);
+  zone.innerHTML = '';
+
+  let toutes = data.lignes || [];
+  if(etatJournal.jour) toutes = toutes.filter(l => l.jour === etatJournal.jour);
+
+  /* Les pastilles : chacune porte son compte, et une pastille à
+     zéro ne s'affiche pas — la règle de « Pas prêts ». */
+  const parFam = {};
+  toutes.forEach(l => { parFam[l.famille || 'autres'] = (parFam[l.famille || 'autres'] || 0) + 1; });
+  if(etatJournal.famille !== 'tous' && !parFam[etatJournal.famille]) etatJournal.famille = 'tous';
+  const f = document.createElement('div');
+  f.className = 'filtres-vue';
+  f.style.cssText = 'margin:4px 0 12px;';
+  const pastille = (cle, titre, n, rouge) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (etatJournal.famille === cle ? 'btn-primary' : 'btn-secondary');
+    b.appendChild(document.createTextNode(titre));
+    const s = document.createElement('span');
+    s.className = 'n';
+    s.textContent = String(n);
+    if(rouge) s.style.color = 'var(--red)';
+    b.appendChild(s);
+    b.addEventListener('click', () => { etatJournal.famille = cle; dessinerLeJournal(); });
+    f.appendChild(b);
+  };
+  pastille('tous', 'Tout', toutes.length, false);
+  FAMILLES_JOURNAL.forEach(([cle, titre]) => {
+    if(parFam[cle]) pastille(cle, titre, parFam[cle], cle === 'suppressions');
+  });
+  zone.appendChild(f);
+
+  const lignes = etatJournal.famille === 'tous' ? toutes
+    : toutes.filter(l => (l.famille || 'autres') === etatJournal.famille);
+
+  zone.appendChild(blocAlertes(data.alertes || []));
+
+  const parPersonne = {};
+  lignes.forEach(l => { parPersonne[l.qui] = (parPersonne[l.qui] || 0) + 1; });
+  const tete = document.createElement('div');
+  tete.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;' +
+    'padding:8px 10px;background:var(--navy);border:1px solid var(--line);' +
+    'border-radius:8px;margin-bottom:10px;';
+  tete.innerHTML =
+    '<strong style="color:var(--cream);">' + lignes.length + ' action(s)</strong>' +
+    (data.complet === false ? ' (les 600 plus récentes — affine les filtres)' : '') +
+    '<br>' + Object.keys(parPersonne).sort((a, b) => parPersonne[b] - parPersonne[a])
+      .map(n => echapper(n) + ' (' + parPersonne[n] + ')').join(' · ') +
+    '<br><span style="opacity:.8;">Journal : ' + (data.total || 0) + ' ligne(s), conservées 6 mois' +
+    (data.depuisLe ? ' — depuis le ' + jourDuJournal(data.depuisLe) : '') + '.</span>';
+  if(data.depuisLe){
+    const a = document.createElement('div');
+    a.style.cssText = 'margin-top:4px;';
+    const lien = document.createElement('button');
+    lien.type = 'button';
+    lien.className = 'btn btn-secondary';
+    lien.style.cssText = 'width:auto;margin:0;padding:5px 10px;font-size:12px;';
+    lien.textContent = '📜 Avant le ' + jourDuJournal(data.depuisLe) + ' : l’ancien journal';
+    lien.addEventListener('click', () => afficherJournalDuClasseur());
+    a.appendChild(lien);
+    tete.appendChild(a);
+  }
+  zone.appendChild(tete);
+
+  if(lignes.length){
+    const bExp = document.createElement('button');
+    bExp.className = 'btn btn-secondary';
+    bExp.style.cssText = 'padding:9px;font-size:13px;margin-bottom:10px;';
+    bExp.textContent = '📥 Exporter en tableur (' + lignes.length + ' lignes)';
+    bExp.addEventListener('click', () => exporterJournal(lignes));
+    zone.appendChild(bExp);
+  }
+
+  const vif = document.createElement('div');
+  vif.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:0 0 6px;';
+  vif.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:var(--red);"></span>' +
+    '<strong style="color:var(--cream);">En direct</strong> · <span class="horlogeJournal">mis à jour à l’instant</span>';
+  zone.appendChild(vif);
+
+  if(!lignes.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = 'Aucune activité sur cette période.';
+    zone.appendChild(v);
+    return;
+  }
+
+  let jourCourant = '';
+  lignes.forEach(l => {
+    if(l.jour !== jourCourant){
+      jourCourant = l.jour;
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:12px 0 4px;';
+      t.textContent = l.jour ? dateEnToutesLettres(l.jour) : '';
+      zone.appendChild(t);
+    }
+    zone.appendChild(ligneDuJournalDirect(l));
+  });
+}
+
+function ligneDuJournalDirect(l){
+  const d = document.createElement('div');
+  d.className = 'ligneJournal';
+  const sensible = (l.famille === 'suppressions');
+  d.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:7px 8px;' +
+    'border-bottom:1px solid var(--line);font-size:13px;line-height:1.5;' +
+    (sensible ? 'background:rgba(228,87,46,.07);border-radius:6px;' : '');
+
+  const ic = document.createElement('span');
+  ic.style.cssText = 'flex-shrink:0;font-size:15px;';
+  ic.textContent = l.icone || '•';
+  d.appendChild(ic);
+
+  const txt = document.createElement('div');
+  txt.style.cssText = 'flex:1;min-width:0;';
+  txt.innerHTML =
+    '<span style="color:var(--muted);">' + echapper(l.heure || '') + '</span> · ' +
+    '<strong>' + echapper(l.qui || '') + '</strong>' +
+    (l.role && l.role !== 'moniteur' ? ' <span style="color:var(--muted);">(' + echapper(l.role) + ')</span>' : '') +
+    ' — ' + echapper(l.libelle || '') +
+    (l.eleve ? ' · <strong>' + echapper(l.eleve) + '</strong>' : '') +
+    (l.detail ? '<br><span style="color:var(--muted);font-size:12px;">' + echapper(l.detail) + '</span>' : '');
+  d.appendChild(txt);
+
+  /* Un résultat noté par erreur se défait d'ici, comme avant */
+  const bAnnul = boutonAnnulerResultat({ action: l.libelle || '', eleve: l.eleve || '', detail: l.detail || '' });
+  if(bAnnul) d.appendChild(bAnnul);
+  return d;
+}
+
+/* Les filtres relisent : on tape, on attend un souffle, on relit */
+let minuteurFiltresJournal = null;
+function brancherLesFiltresDuJournal(){
+  const relire = () => {
+    clearTimeout(minuteurFiltresJournal);
+    minuteurFiltresJournal = setTimeout(() => { etatJournal.jour = ''; relireLeJournal(true); }, 400);
+  };
+  if($('journalQui')) $('journalQui').addEventListener('input', relire);
+  if($('journalEleve')) $('journalEleve').addEventListener('input', relire);
+  if($('journalPeriode')) $('journalPeriode').addEventListener('change', relire);
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', brancherLesFiltresDuJournal);
+}else{
+  brancherLesFiltresDuJournal();
+}
+
+/* 📜 L'ANCIEN JOURNAL, celui du classeur (90 jours) — lisible tel
+   qu'il était, le temps que le journal en direct ait son histoire. */
+async function afficherJournalDuClasseur(jourPrecis){
+  const zone = $('journalListe');
+  if(!zone) return;
+  etatJournal.classeur = true;      /* le direct se tait pendant ce temps */
 
   const qui = ($('journalQui') && $('journalQui').value.trim()) || '';
   const eleve = ($('journalEleve') && $('journalEleve').value.trim()) || '';
@@ -164,6 +444,15 @@ async function afficherJournal(jourPrecis){
   /* Venu d'une alerte : on ne garde que la journée concernée */
   if(jourPrecis) lignes = lignes.filter(l => l.jour === jourPrecis);
   zone.innerHTML = '';
+
+  /* v1147 — on revient au direct d'un geste */
+  etatJournal.classeur = true;
+  const retour = document.createElement('button');
+  retour.className = 'btn btn-secondary';
+  retour.style.cssText = 'padding:9px;font-size:13px;margin-bottom:10px;';
+  retour.textContent = '← Revenir au journal en direct';
+  retour.addEventListener('click', () => { etatJournal.signature = ''; afficherJournal(); });
+  zone.appendChild(retour);
 
   /* Les points à regarder, avant le détail */
   zone.appendChild(blocAlertes((data && data.alertes) || []));
