@@ -1484,7 +1484,12 @@ function adressesDuBilan(nom){
 
 /* Rend le nombre d'adresses servies, ou 0. Lève si l'envoi rate :
    c'est à l'appelant de le dire à sa façon, près de son bouton. */
-async function envoyerBilanParMail(eleve, dateCours, texte){
+/* 📄 v1154 — « suite » (facultatif) : { finDeCours:true } depuis l'écran
+   de fin de cours. Le Worker y écrit alors le mot du bureau dans la
+   messagerie de l'élève, si l'école l'a activé, et « suite.annonce »
+   revient avec ce qui s'est passé. Un renvoi depuis l'historique ne
+   le passe pas : ce n'est pas un cours qui se termine. */
+async function envoyerBilanParMail(eleve, dateCours, texte, suite){
   const nom = String(eleve || '').trim();
   if(!String(texte || '').trim()){
     throw new Error('Ce bilan est vide : il n\'y a rien à envoyer.');
@@ -1510,6 +1515,10 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
   const corps = { action: 'mailBilan', to: mails, genre: 'bilan', eleve: nom,
                   sujet: 'Ton bilan de conduite du ' + (jour || ''),
                   texte: texte };
+  if(suite && suite.finDeCours){
+    corps.finDeCours = true;
+    corps.dateCours = String(dateCours || '');
+  }
 
   /* ⚠️ LA CARTE DU TRAJET NE TIENT PAS LE BILAN — v988.
 
@@ -1579,7 +1588,8 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
     console.warn('Carte du trajet non jointe :', e);
   }
 
-  await appelPrep(corps);
+  const rep = await appelPrep(corps);
+  if(suite) suite.annonce = (rep && rep.annonce) || null;
   return mails.length;
 }
 
