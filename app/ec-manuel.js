@@ -4627,7 +4627,8 @@ function ouvrirEnvoiAvant(eleve, message){
     bMail.textContent = 'Envoi…';
     try{
       await appelPrep({
-        action: 'mailBilan', to: [adresse],
+        action: 'mailBilan', to: [adresse], genre: 'examen',
+        eleve: ($('studentName') && $('studentName').value.trim()) || '',
         sujet: 'Avant ton examen — Évolution Conduites',
         texte: z.value
       });
