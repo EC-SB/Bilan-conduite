@@ -508,6 +508,10 @@ function barreDeRechercheMessagerie(){
   ch.addEventListener('keydown', ev => {
     if(ev.key === 'Enter'){ ev.preventDefault(); lancerLaRecherche(ch.value); }
   });
+  /* ✏️ v1150 — « ✏️ Écrire à … » se pose en tête pendant la frappe */
+  ch.addEventListener('input', () => {
+    if(typeof majEcrireAPendantLaFrappe === 'function') majEcrireAPendantLaFrappe(ch.value);
+  });
   boite.appendChild(ch);
   if(chercheMessagerie){
     const x = document.createElement('button');
@@ -531,7 +535,9 @@ function barreDeRechercheMessagerie(){
     n.textContent = '＋';
     n.title = 'Nouvelle conversation';
     n.setAttribute('aria-label', 'Nouvelle conversation');
-    n.addEventListener('click', () => ecranNouvelleConversation());
+    /* ✏️ v1150 — « À qui ? » (ec-aqui.js) : un nom, et le fil s'ouvre */
+    n.addEventListener('click', () => (typeof ecranAQui === 'function')
+      ? ecranAQui() : ecranNouvelleConversation());
     l.appendChild(n);
   }
 
@@ -620,10 +626,25 @@ async function lancerLaRecherche(mots, deja){
 let ckDerniersTrouves = null;
 
 function poserLesTrouves(sc, propre, trouves){
-  sc.appendChild(sousTitreMessagerie(
-    trouves.length
-      ? 'Trouvé pour « ' + propre + ' » · ' + trouves.length
-      : 'Rien trouvé pour « ' + propre + ' »'));
+  /* ✏️ v1150 — chercher, c'est aussi écrire : la personne d'abord,
+     les messages ensuite. */
+  const ecrire = (typeof blocEcrireA === 'function' && peutOuvrirUneConversation())
+    ? blocEcrireA(propre) : null;
+  if(ecrire){
+    sc.appendChild(ecrire);
+    sc.appendChild(sousTitreMessagerie('Dans les messages · ' + trouves.length));
+    if(!trouves.length){
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:12.5px;color:var(--muted);padding:6px 14px;';
+      v.textContent = 'Rien trouvé pour « ' + propre + ' » dans les messages.';
+      sc.appendChild(v);
+    }
+  }else{
+    sc.appendChild(sousTitreMessagerie(
+      trouves.length
+        ? 'Trouvé pour « ' + propre + ' » · ' + trouves.length
+        : 'Rien trouvé pour « ' + propre + ' »'));
+  }
   trouves.forEach(x => sc.appendChild(ligneTrouveeMessagerie(x, propre)));
 }
 
@@ -2343,13 +2364,17 @@ let filEnModification = null;
    repeint pas par-dessus ce qui est arrivé après nous. */
 let tourDesParticipants = 0;
 
-async function ecranNouvelleConversation(){
+async function ecranNouvelleConversation(sorte){
   filEnModification = null;
   choixUsers = [];
   choixEleves = [];
   /* La première sorte permise : pour un moniteur c'est la seule, et
-     pour le bureau c'est celle qu'on fait le plus souvent. */
-  sorteChoisie = (sortesPermises()[0] || {}).cle || 'direct';
+     pour le bureau c'est celle qu'on fait le plus souvent.
+     ✏️ v1150 — « 👥 Plusieurs personnes » arrive ici réglé sur le
+     groupe : c'est désormais le seul usage de cet écran. */
+  const permises = sortesPermises();
+  sorteChoisie = (sorte && permises.some(s => s.cle === sorte)) ? sorte
+    : ((permises[0] || {}).cle || 'direct');
   modeChoisi = 'discussion';
 
   /* Celui qui ouvre est dedans : un groupe créé et pas rejoint est
@@ -3175,6 +3200,42 @@ const SUITES_OBJET = {
   introuvable: ['retrouve', 'rendu']
 };
 
+/* ============================================================
+   💾 LA CARTE SD — v1150
+
+   David, le 12 octobre : ses trois raccourcis, « elle est au bureau,
+   passe la chercher quand tu veux », « elle n'est pas dans la
+   voiture », « elle est rendue ». Les mêmes états que les autres
+   objets (le serveur n'en connaît pas d'autres) ; les mots et les
+   suites changent. « Pas dans la voiture » ne referme rien : son
+   arbitrage, l'élève doit pouvoir répondre.
+   ============================================================ */
+const ETATS_OBJET_SD = {
+  signale:     { emoji: '💾', nom: 'Signalée', bouton: '🔎 On la cherche',
+                 sous: 'personne n’a encore regardé', couleur: 'var(--warn-text)' },
+  retrouve:    { emoji: '💾', nom: 'Au bureau', bouton: '💾 Elle est au bureau',
+                 sous: 'à récupérer au bureau', couleur: 'var(--accent-text)' },
+  introuvable: { emoji: '🚗', nom: 'Pas dans la voiture', bouton: '🚗 Pas dans la voiture',
+                 sous: 'pas trouvée dans la voiture', couleur: 'var(--warn-text)' },
+  rendu:       { emoji: '🤝', nom: 'Rendue', bouton: '🤝 Elle est rendue',
+                 sous: 'c’est réglé', couleur: 'var(--muted)' }
+};
+const SUITES_OBJET_SD = {
+  signale:     ['retrouve', 'introuvable', 'rendu'],
+  retrouve:    ['rendu', 'introuvable'],
+  introuvable: ['retrouve', 'rendu'],
+  rendu:       ['retrouve']
+};
+function estCarteSD(o){ return !!o && o.sorte === 'sd'; }
+function etatsDeLObjet(o){ return estCarteSD(o) ? ETATS_OBJET_SD : ETATS_OBJET_EC; }
+function suitesDeLObjet(o){ return estCarteSD(o) ? SUITES_OBJET_SD : SUITES_OBJET; }
+/* Le libellé d'un bouton : la phrase de David pour la carte SD,
+   l'émoji et le nom de l'état pour le reste. */
+function boutonDeLEtat(o, etat){
+  const e = etatsDeLObjet(o)[etat];
+  return e.bouton || (e.emoji + ' ' + e.nom);
+}
+
 let objetsEC = [];
 let objetsToutEC = false;        /* false : seulement ce qui n'est pas fini */
 
@@ -3230,6 +3291,15 @@ function dessinerLaListeObjets(){
     });
     barre.appendChild(b);
   });
+  /* 💾 v1150 — « de notre côté aussi » : quand c'est nous qui la
+     trouvons, ou que l'élève appelle au lieu d'écrire. */
+  const ouvrir = document.createElement('button');
+  ouvrir.className = 'btn btn-primary';
+  ouvrir.style.cssText = 'width:auto;margin:0 0 0 auto;padding:7px 14px;font-size:12.5px;' +
+    'border-radius:999px;';
+  ouvrir.textContent = '＋ Ouvrir un oubli';
+  ouvrir.addEventListener('click', () => ecranOuvrirUnOubli());
+  barre.appendChild(ouvrir);
   zone.appendChild(barre);
 
   if(!objetsEC.length){
@@ -3245,8 +3315,12 @@ function dessinerLaListeObjets(){
 
   /* Ce qui attend un geste d'abord. Un objet rendu en mars n'a rien
      à faire au-dessus d'une écharpe signalée hier. */
-  const vifs = objetsEC.filter(o => o.etat === 'signale' || o.etat === 'retrouve');
-  const finis = objetsEC.filter(o => o.etat === 'rendu' || o.etat === 'introuvable');
+  /* 💾 Une carte SD « pas dans la voiture » attend encore : la
+     demande reste ouverte (v1150). */
+  const vif = o => o.etat === 'signale' || o.etat === 'retrouve' ||
+                   (estCarteSD(o) && o.etat === 'introuvable');
+  const vifs = objetsEC.filter(vif);
+  const finis = objetsEC.filter(o => !vif(o));
 
   if(vifs.length){
     zone.appendChild(sousTitreMessagerie(
@@ -3260,7 +3334,8 @@ function dessinerLaListeObjets(){
 }
 
 function carteObjet(o){
-  const e = ETATS_OBJET_EC[o.etat] || ETATS_OBJET_EC.signale;
+  const etats = etatsDeLObjet(o);
+  const e = etats[o.etat] || etats.signale;
 
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
@@ -3272,7 +3347,8 @@ function carteObjet(o){
   const t = document.createElement('div');
   t.style.cssText = 'flex:1;min-width:0;font-size:15px;font-weight:800;' +
     'line-height:1.3;word-break:break-word;';
-  t.textContent = (o.quoi || 'Un objet') + (o.vehicule ? ' — ' + o.vehicule : '');
+  t.textContent = (estCarteSD(o) ? '💾 ' : '') +
+    (o.quoi || 'Un objet') + (o.vehicule ? ' — ' + o.vehicule : '');
   h.appendChild(t);
 
   const p = document.createElement('span');
@@ -3290,6 +3366,7 @@ function carteObjet(o){
   s.style.cssText = 'font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;';
   s.textContent = [
     o.eleve || '',
+    o.moniteur ? 'avec ' + o.moniteur : '',
     o.jour ? 'cours du ' + jourCourtMessagerie(o.jour) : '',
     o.signaleLe ? 'signalé le ' + o.signaleLe : '',
     (o.etat !== 'signale' && o.majPar)
@@ -3301,12 +3378,11 @@ function carteObjet(o){
   const l = document.createElement('div');
   l.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;';
 
-  (SUITES_OBJET[o.etat] || []).forEach(suite => {
-    const se = ETATS_OBJET_EC[suite];
+  (suitesDeLObjet(o)[o.etat] || []).forEach(suite => {
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
     b.style.cssText = 'width:auto;margin:0;padding:7px 12px;font-size:12.5px;';
-    b.textContent = se.emoji + ' ' + se.nom;
+    b.textContent = boutonDeLEtat(o, suite);
     b.title = 'L’élève reçoit la réponse dans son fil';
     b.addEventListener('click', () => changerEtatObjet(o, suite, b));
     l.appendChild(b);
@@ -3331,7 +3407,7 @@ function carteObjet(o){
 }
 
 async function changerEtatObjet(o, etat, bouton){
-  const se = ETATS_OBJET_EC[etat];
+  const se = etatsDeLObjet(o)[etat];
   if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
   try{
     await appelPrep({ action: 'objetEtat', id: o.id, etat: etat });
@@ -3348,7 +3424,197 @@ async function changerEtatObjet(o, etat, bouton){
     if(typeof compterLaMessagerie === 'function') compterLaMessagerie();
   }catch(e){
     if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e));
-    if(bouton){ bouton.disabled = false; bouton.textContent = se.emoji + ' ' + se.nom; }
+    if(bouton){ bouton.disabled = false; bouton.textContent = boutonDeLEtat(o, etat); }
+  }
+}
+
+/* ============================================================
+   💾 « ＋ OUVRIR UN OUBLI » — v1150, de notre côté
+
+   David : « il faut que l'on puisse faire ça de notre côté aussi
+   dans les oubliés ». Le même groupe que si l'élève l'avait signalé
+   (l'élève, le moniteur choisi, la boîte du bureau), l'état posé
+   tout de suite, et un message déjà écrit qu'on peut changer.
+   ============================================================ */
+const oubliOuvert = { sd: true, etat: 'retrouve', ecrit: false };
+
+function elisionVoiture(v){
+  const n = String(v || '').trim();
+  if(!n) return '';
+  return /^[aeiouyéèêh]/i.test(n) ? 'dans l’' + n : 'dans la ' + n;
+}
+
+function messageDeLOubli(){
+  const eleve = (($('oubOuvEleve') || {}).value || '').trim();
+  const prenom = eleve.split(/\s+/)[0] || '';
+  const voit = elisionVoiture((($('oubOuvVoiture') || {}).value || '').trim());
+  const quoi = (($('oubOuvQuoi') || {}).value || '').trim();
+  const bonjour = 'Bonjour' + (prenom ? ' ' + prenom : '') + ', ';
+  if(oubliOuvert.sd){
+    return oubliOuvert.etat === 'retrouve'
+      ? bonjour + 'on a retrouvé ta carte SD' + (voit ? ' ' + voit : '') +
+        '. Elle est au bureau, passe la chercher quand tu veux.'
+      : bonjour + 'on regarde pour ta carte SD' + (voit ? ' ' + voit : '') +
+        '. On te tient au courant ici.';
+  }
+  const chose = quoi ? '« ' + quoi + ' »' : 'ton objet';
+  return oubliOuvert.etat === 'retrouve'
+    ? bonjour + 'on a retrouvé ' + chose + (voit ? ' ' + voit : '') +
+      '. Tu peux passer le récupérer au bureau quand tu veux.'
+    : bonjour + 'on regarde pour ' + chose + (voit ? ' ' + voit : '') +
+      '. On te tient au courant ici.';
+}
+
+async function ecranOuvrirUnOubli(){
+  const zone = zoneDesObjets();
+  if(!zone) return;
+  oubliOuvert.sd = true;
+  oubliOuvert.etat = 'retrouve';
+  oubliOuvert.ecrit = false;
+
+  /* Les listes d'abord : une liste déroulante qui se remplit après
+     coup fait choisir dans le vide. */
+  zone.innerHTML = (typeof htmlAttente === 'function')
+    ? htmlAttente('Lecture des listes…') : '<div class="empty">Lecture des listes…</div>';
+  try{
+    if((typeof moniteursActifs === 'undefined' || !moniteursActifs.length) &&
+       typeof chargerMoniteurs === 'function') await chargerMoniteurs();
+  }catch(e){ /* le choix restera « Je ne sais pas » */ }
+  try{
+    if((typeof flotte === 'undefined' || !flotte.length) &&
+       (typeof aDroit !== 'function' || aDroit('flotte'))){
+      const d = await appelPrep({ action: 'flotteList' });
+      if(typeof flotte !== 'undefined') flotte = (d && d.vehicules) || [];
+    }
+  }catch(e){ /* sans la flotte, la voiture s'écrit à la main */ }
+
+  const voitures = ((typeof flotte !== 'undefined' && flotte) || [])
+    .filter(v => v && v.nom && (v.categorie || 'voiture') === 'voiture' && v.etat !== 'vendu')
+    .map(v => v.nom).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  const moniteurs = ((typeof moniteursActifs !== 'undefined' && moniteursActifs) || []).slice();
+
+  const pastille = (on) => on
+    ? 'width:auto;margin:0;padding:9px 14px;font-size:13px;border-radius:999px;font-weight:700;' +
+      'font-family:inherit;cursor:pointer;background:var(--orange-soft);border:1px solid var(--orange);' +
+      'color:var(--on-accent);'
+    : 'width:auto;margin:0;padding:9px 14px;font-size:13px;border-radius:999px;';
+  const choixVoiture = voitures.length
+    ? '<select id="oubOuvVoiture"><option value="">Je ne sais pas</option>' +
+      voitures.map(v => '<option>' + echapper(v) + '</option>').join('') + '</select>'
+    : '<input type="text" id="oubOuvVoiture" placeholder="A3 2, Q3 10…">';
+  const choixMoniteur = '<select id="oubOuvMoniteur"><option value="">Personne</option>' +
+    moniteurs.map(n => '<option>' + echapper(n) + '</option>').join('') + '</select>';
+
+  zone.innerHTML =
+    '<div style="display:flex;gap:10px;align-items:center;padding-bottom:10px;' +
+      'border-bottom:1px solid var(--line);margin-bottom:14px;">' +
+      '<button class="btn btn-secondary" id="oubOuvRetour" style="width:auto;margin:0;' +
+        'padding:8px 12px;font-size:14px;">←</button>' +
+      '<div style="flex:1;min-width:0;font-size:15px;font-weight:800;">🧤 Ouvrir un oubli</div></div>' +
+    '<label for="oubOuvEleve">L’élève</label>' +
+    '<input type="text" id="oubOuvEleve" list="listeEleves" autocomplete="off" placeholder="Tape son nom…">' +
+    '<label>Ce qui a été oublié</label>' +
+    '<div id="oubOuvSorte" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;"></div>' +
+    '<div id="oubOuvZoneQuoi" style="display:none;"><label for="oubOuvQuoi">Quoi</label>' +
+      '<input type="text" id="oubOuvQuoi" placeholder="Une écharpe grise, des lunettes…"></div>' +
+    '<div class="duo"><div><label for="oubOuvVoiture">Dans quelle voiture</label>' + choixVoiture + '</div>' +
+      '<div><label for="oubOuvMoniteur">Avec quel moniteur</label>' + choixMoniteur + '</div></div>' +
+    '<label>Où ' + '<span id="oubOuvOu">elle en est</span></label>' +
+    '<div id="oubOuvEtat" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;"></div>' +
+    '<label for="oubOuvTexte" id="oubOuvTexteLab">Le message à l’élève</label>' +
+    '<textarea id="oubOuvTexte" rows="3" style="width:100%;box-sizing:border-box;background:var(--navy);' +
+      'border:1px solid var(--line);color:var(--cream);padding:11px 12px;border-radius:10px;font-size:15px;' +
+      'font-family:inherit;line-height:1.45;margin-bottom:10px;"></textarea>' +
+    '<div id="oubOuvAvis" style="font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:10px;' +
+      'margin:4px 0 14px;background:rgba(0,0,0,.04);color:var(--muted);"></div>' +
+    '<button class="btn btn-primary" id="oubOuvEnvoyer">💬 Envoyer</button>';
+
+  const majTout = () => {
+    const eleve = ($('oubOuvEleve').value || '').trim();
+    const prenom = eleve.split(/\s+/)[0] || '';
+    const mon = ($('oubOuvMoniteur').value || '').trim();
+    $('oubOuvZoneQuoi').style.display = oubliOuvert.sd ? 'none' : '';
+    $('oubOuvOu').textContent = oubliOuvert.sd ? 'elle en est' : 'ça en est';
+    const zs = $('oubOuvSorte');
+    zs.innerHTML = '';
+    [[true, '💾 Sa carte SD'], [false, '🧤 Autre chose']].forEach(([v, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = (oubliOuvert.sd === v) ? '' : 'btn btn-secondary';
+      b.style.cssText = pastille(oubliOuvert.sd === v);
+      b.textContent = t;
+      b.addEventListener('click', () => { oubliOuvert.sd = v; majTout(); });
+      zs.appendChild(b);
+    });
+    const ze = $('oubOuvEtat');
+    ze.innerHTML = '';
+    [['signale', oubliOuvert.sd ? '🔎 On la cherche' : '🔎 On cherche'],
+     ['retrouve', oubliOuvert.sd ? '💾 Elle est au bureau' : '✅ Retrouvé, au bureau']].forEach(([v, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = (oubliOuvert.etat === v) ? '' : 'btn btn-secondary';
+      b.style.cssText = pastille(oubliOuvert.etat === v);
+      b.textContent = t;
+      b.addEventListener('click', () => { oubliOuvert.etat = v; majTout(); });
+      ze.appendChild(b);
+    });
+    $('oubOuvTexteLab').textContent = 'Le message à ' + (prenom || 'l’élève');
+    /* Le message suit les choix tant qu'on ne l'a pas retouché */
+    if(!oubliOuvert.ecrit) $('oubOuvTexte').value = messageDeLOubli();
+    $('oubOuvAvis').textContent = (prenom || 'L’élève') + (mon ? ', ' + mon : '') +
+      ' et le bureau sont dans la conversation. Elle se range dans 🧤 Objets comme une ' +
+      'demande de l’élève.';
+    $('oubOuvEnvoyer').textContent = '💬 Envoyer à ' + (prenom || 'l’élève');
+  };
+
+  $('oubOuvRetour').addEventListener('click', () => { objetsEC = []; afficherObjetsOublies(); });
+  ['oubOuvEleve', 'oubOuvQuoi', 'oubOuvVoiture', 'oubOuvMoniteur'].forEach(id => {
+    const el = $(id);
+    if(el){ el.addEventListener('input', majTout); el.addEventListener('change', majTout); }
+  });
+  $('oubOuvTexte').addEventListener('input', () => { oubliOuvert.ecrit = true; });
+  $('oubOuvEnvoyer').addEventListener('click', () => envoyerLOubliOuvert($('oubOuvEnvoyer')));
+  majTout();
+}
+
+async function envoyerLOubliOuvert(bouton){
+  const eleve = ($('oubOuvEleve').value || '').trim();
+  const connus = (typeof tousLesElevesConnus === 'function') ? tousLesElevesConnus() : [];
+  const propre = connus.find(n => normaliserMessagerie(n) === normaliserMessagerie(eleve)) || '';
+  if(!propre){
+    if(typeof showToast === 'function') showToast('Choisis l’élève dans la liste.');
+    return;
+  }
+  const quoi = ($('oubOuvQuoi').value || '').trim();
+  if(!oubliOuvert.sd && !quoi){
+    if(typeof showToast === 'function') showToast('Dis ce qui a été oublié.');
+    return;
+  }
+  const texte = ($('oubOuvTexte').value || '').trim();
+  if(!texte){
+    if(typeof showToast === 'function') showToast('Écris le message à l’élève.');
+    return;
+  }
+  bouton.disabled = true;
+  bouton.textContent = 'Envoi…';
+  try{
+    const d = await appelPrep({
+      action: 'objetOuvrir', eleve: propre, sd: oubliOuvert.sd ? '1' : '',
+      quoi: quoi, vehicule: ($('oubOuvVoiture').value || '').trim(),
+      moniteur: ($('oubOuvMoniteur').value || '').trim(),
+      etat: oubliOuvert.etat, texte: texte
+    });
+    objetsEC = [];
+    conversationsEC = [];
+    if(typeof showToast === 'function') showToast('💬 Envoyé à ' + propre.split(/\s+/)[0]);
+    if(d && d.id && typeof afficherVue === 'function' && typeof ouvrirLeFil === 'function'){
+      afficherVue('messagerie', 'messagerie');
+      ouvrirLeFil(d.id);
+    }else afficherObjetsOublies();
+  }catch(e){
+    bouton.disabled = false;
+    bouton.textContent = '💬 Envoyer';
+    if(typeof showToast === 'function') showToast('Ce n’est pas parti : ' + (e.message || e));
   }
 }
 
@@ -5824,7 +6090,8 @@ function brancherLeTiroirMessagerie(){
      porter l'accent — les deux autres referment ou déplacent ce
      qu'on regarde, celui-ci fait quelque chose de neuf. */
   const n = $('msgElvNeuf');
-  if(n) n.addEventListener('click', () => ecranNouvelleConversation());
+  if(n) n.addEventListener('click', () => (typeof ecranAQui === 'function')
+    ? ecranAQui() : ecranNouvelleConversation());
 
   /* Posé tout de suite dans son état d'avant connexion — il
      réapparaîtra au premier comptage, une fois les droits connus. */
