@@ -121,8 +121,11 @@ async function afficherMessagerie(silencieux){
   const zone = zoneDeLaMessagerie();
   if(!zone) return;
 
+  /* 🧭 v1141 : sur grand écran, l'attente se dit dans la colonne de
+     la liste — le fil ouvert à côté ne disparaît pas pour autant. */
   if(!silencieux && !conversationsEC.length){
-    zone.innerHTML = (typeof htmlAttente === 'function')
+    const z = zoneListeMsg() || zone;
+    z.innerHTML = (typeof htmlAttente === 'function')
       ? htmlAttente('Lecture des conversations…')
       : '<div class="empty">Lecture des conversations…</div>';
   }
@@ -139,7 +142,19 @@ async function afficherMessagerie(silencieux){
        d'avant la lecture. */
     poserLesComptesMessagerie((d && d.nonLusTotal) || 0);
   }catch(e){
-    zone.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
+    const z = zoneListeMsg() || zone;
+    z.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
+    return;
+  }
+
+  /* 🧭 LE COCKPIT DESSINE LES DEUX À LA FOIS — v1141. La liste à
+     gauche, le fil à droite ; et rien dans la colonne du fil quand
+     on y a ouvert l'écran des participants : le repeindre ici, c'est
+     effacer une sélection en cours. */
+  if(ckLarge()){
+    dessinerLaListeMessagerie();
+    if(filOuvertEC) dessinerLeFil();
+    else if(!ckEcranAPart) ckFilVide();
     return;
   }
 
@@ -150,7 +165,8 @@ async function afficherMessagerie(silencieux){
 }
 
 function dessinerLaListeMessagerie(){
-  const zone = zoneDeLaMessagerie();
+  const large = ckLarge();
+  const zone = zoneListeMsg();
   if(!zone) return;
   zone.innerHTML = '';
 
@@ -158,35 +174,33 @@ function dessinerLaListeMessagerie(){
      « qu'ils soient invisibles quand on clique en haut sur la
      bulle ». Le tiroir s'ouvre pour répondre vite à ce qui nous est
      adressé ; y mêler les conversations des autres, c'est le rendre
-     inutilisable le jour où il y en a quarante. Le filtre y est
-     donc forcé, et la barre des genres n'y est de toute façon pas
-     dessinée. */
+     inutilisable le jour où il y en a quarante. */
   if(dansLeTiroir() && filtreMessagerie === 'supervision') filtreMessagerie = '';
 
-  /* Dans le tiroir : la liste, et rien d'autre. Chercher et créer
-     sont des gestes qu'on fait assis, pas entre deux cours. */
-  if(!dansLeTiroir()){
-    zone.appendChild(barreDeRechercheMessagerie());
-    zone.appendChild(barreDesGenresMessagerie());
-    if(chercheMessagerie){ return; }   /* la recherche a pris la place */
+  /* 🧭 v1141 : le rail à gauche sur grand écran, des pastilles qui
+     passent à la ligne ailleurs. La recherche, ＋ et ☑ tiennent sur
+     une ligne au-dessus — pas dans le tiroir, qui a ses propres
+     boutons dans son en-tête. */
+  if(large) ckDessinerLeRail();
+  if(!dansLeTiroir()) zone.appendChild(barreDeRechercheMessagerie());
+  if(!large) zone.appendChild(barreDesGenresMessagerie());
+  if(chercheMessagerie){ lancerLaRecherche(chercheMessagerie, true); return; }
 
+  if(!dansLeTiroir()){
     /* 🔔 Le réglage des notifications de CET appareil — étape 3. La
        zone est posée vide : elle se remplit toute seule quand on
        sait si le serveur a des clés, et reste invisible sinon. */
     const zp = document.createElement('div');
     zp.id = 'msgPoussee';
+    zp.className = 'ckpPoussee';
     zone.appendChild(zp);
     dessinerLaPoussee();
     preparerLaPoussee();
   }
 
-  /* ⚠️ LA SUPERVISION N'EST DANS AUCUNE AUTRE VUE — v1082.
-
-     David : « uniquement visible dans le sous onglet messagerie
-     après celui fermées ». Ce n'est pas un filtre de plus à côté des
-     autres : c'est une liste À PART. Un fil qu'on supervise
-     n'apparaît ni dans « Tout », ni dans « 🏢 », ni dans
-     « Fermées » — seulement là, et seulement quand on va le
+  /* ⚠️ LA SUPERVISION N'EST DANS AUCUNE AUTRE VUE — v1082. Un fil
+     qu'on supervise n'apparaît ni dans « Tout », ni dans « 🏢 », ni
+     dans « Fermées » — seulement là, et seulement quand on va le
      chercher. */
   const liste = (filtreMessagerie === 'supervision')
     ? conversationsEC.filter(c => c.enSupervision)
@@ -206,64 +220,58 @@ function dessinerLaListeMessagerie(){
     if(!dansLeTiroir()) zone.appendChild(barreDuChoixMessagerie(liste));
   }
 
+  const sc = document.createElement('div');
+  sc.className = 'ckpScroll';
+  zone.appendChild(sc);
+
   if(!liste.length){
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = conversationsEC.length
-      ? 'Rien dans cette famille.'
+      ? 'Rien ici.'
       : "Aucune conversation pour l'instant.<br>" +
-        "Ouvre-en une avec « 👥 Nouvelle conversation ».";
-    zone.appendChild(v);
-  }else{
-    /* Ce qui attend une réponse d'abord : une liste triée par date
-       seule enterre une question de mardi sous trois accusés de
-       lecture de vendredi. */
-    const chauds = liste.filter(c => c.nonLus > 0);
-    const froids = liste.filter(c => !c.nonLus);
-
-    /* Dans la supervision, « pas encore lu » n'a pas de sens : ce ne
-       sont pas des messages qui t'attendent. Un seul titre, qui dit
-       ce qu'on regarde et ce que ça engage. */
-    if(filtreMessagerie === 'supervision'){
-      zone.appendChild(sousTitreMessagerie(
-        '🔒 Supervision · ' + liste.length, 'var(--muted)'));
-      liste.forEach(c => zone.appendChild(ligneConversation(c)));
-      const d = document.createElement('div');
-      d.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.5;' +
-        'margin-top:10px;';
-      d.textContent = 'Les conversations auxquelles tu n’appartiens pas. ' +
-        'Chaque ouverture est inscrite au journal — c’est ce qui distingue ' +
-        'un droit de supervision d’un droit d’espionnage.';
-      zone.appendChild(d);
-      return;
-    }
-
-    if(chauds.length){
-      zone.appendChild(sousTitreMessagerie('Pas encore lu · ' + chauds.length,
-                                           'var(--warn-text)'));
-      chauds.forEach(c => zone.appendChild(ligneConversation(c)));
-    }
-    if(froids.length){
-      zone.appendChild(sousTitreMessagerie(chauds.length
-        ? 'Suivies · ' + froids.length : froids.length + ' conversation(s)'));
-      froids.forEach(c => zone.appendChild(ligneConversation(c)));
-    }
+        "Ouvre-en une avec ＋.";
+    sc.appendChild(v);
+    return;
   }
 
-  if(!dansLeTiroir() && peutOuvrirUneConversation()){
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'margin-top:12px;padding:10px;font-size:13px;';
-    b.textContent = '👥 Nouvelle conversation';
-    b.addEventListener('click', () => ecranNouvelleConversation());
-    zone.appendChild(b);
+  const bloc = (titre, l) => {
+    if(!l.length) return;
+    sc.appendChild(sousTitreMessagerie(titre + ' · ' + l.length));
+    l.forEach(c => sc.appendChild(ligneConversation(c)));
+  };
+
+  /* Dans la supervision, « pas encore lu » n'a pas de sens : ce ne
+     sont pas des messages qui t'attendent. Un seul titre, qui dit
+     ce qu'on regarde et ce que ça engage. */
+  if(filtreMessagerie === 'supervision'){
+    bloc('🔒 EN SUPERVISION', liste);
+    const d = document.createElement('div');
+    d.className = 'ckpAvis';
+    d.textContent = 'Les conversations auxquelles tu n’appartiens pas. ' +
+      'Chaque ouverture est inscrite au journal — c’est ce qui distingue ' +
+      'un droit de supervision d’un droit d’espionnage.';
+    sc.appendChild(d);
+    return;
   }
+  if(filtreMessagerie === 'clos'){ bloc('🗄️ FERMÉES', liste); return; }
+
+  /* 🧭 LES QUATRE RUBRIQUES DU SCHÉMA — v1141. Ce qu'on a épinglé
+     d'abord, puis ce qui attend une réponse (les non-lus et les
+     rappels revenus), puis le reste, et tout en bas ce qui dort
+     jusqu'à demain. Une liste triée par date seule enterre une
+     question de mardi sous trois accusés de lecture de vendredi. */
+  const r = ckRangees(liste);
+  bloc('📌 ÉPINGLÉES', r.epinglees);
+  bloc('À TRAITER', r.traiter);
+  bloc('SUIVIES', r.suivies);
+  bloc('⏰ À ME RAPPELER', r.rappels);
 }
 
 function sousTitreMessagerie(texte, couleur){
   const d = document.createElement('div');
-  d.style.cssText = 'font-size:11px;letter-spacing:.08em;text-transform:uppercase;' +
-    'color:' + (couleur || 'var(--muted)') + ';margin:14px 0 7px;';
+  d.className = 'ckpSect';
+  if(couleur) d.style.color = couleur;
   d.textContent = texte;
   return d;
 }
@@ -274,8 +282,9 @@ function sousTitreMessagerie(texte, couleur){
 
 function ligneConversation(c){
   const d = document.createElement('div');
-  d.style.cssText = 'display:flex;gap:11px;align-items:flex-start;padding:11px 4px;' +
-    'border-bottom:1px solid var(--line);cursor:pointer;';
+  const ouvert = !!(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c.id);
+  d.className = 'ckIt' + (ouvert ? ' on' : '') + (Number(c.nonLus || 0) ? ' nlu' : '');
+  d.dataset.conv = c.id;
   d.title = 'Ouvrir la conversation';
 
   /* ============================================================
@@ -294,16 +303,11 @@ function ligneConversation(c){
   if(modeChoixMessagerie){
     const ca = document.createElement('div');
     const pris = choixMessagerie.has(c.id);
-    ca.style.cssText = 'flex-shrink:0;width:22px;height:22px;border-radius:6px;' +
-      'margin-top:8px;display:flex;align-items:center;justify-content:center;' +
-      'font-size:14px;font-weight:700;border:2px solid ' +
-      (pris ? 'var(--red);background:var(--red);color:#fff;'
-            : 'var(--line);color:transparent;');
+    ca.className = 'ckCase' + (pris ? ' pris' : '');
     ca.textContent = '✓';
     d.appendChild(ca);
-    d.style.cursor = 'pointer';
     d.title = pris ? 'Retirer de la sélection' : 'Ajouter à la sélection';
-    if(pris) d.style.background = 'var(--warn-bg)';
+    if(pris) d.classList.add('coche');
     d.addEventListener('click', () => {
       if(choixMessagerie.has(c.id)) choixMessagerie.delete(c.id);
       else choixMessagerie.add(c.id);
@@ -321,60 +325,84 @@ function ligneConversation(c){
 }
 
 function ligneConversationCorps(c, d, enChoix){
-  const rond = document.createElement('div');
-  const g = GENRES_MESSAGERIE[c.genre] || { rond: '💬' };
-  rond.style.cssText = 'flex-shrink:0;width:38px;height:38px;border-radius:50%;' +
-    'display:flex;align-items:center;justify-content:center;font-size:17px;' +
-    (c.nonLus
-      ? 'background:var(--orange);color:var(--on-accent);'
-      : 'background:var(--line);color:var(--muted);');
-  rond.textContent = g.rond;
-  d.appendChild(rond);
+  const g = GENRES_CK[c.genre] || { mot: 'FIL', coul: 'var(--kd)', rond: '💬' };
+  const n = Number(c.nonLus || 0);
+  const rouge = (c.genre === 'retard' && n > 0);
+
+  const av = document.createElement('div');
+  av.className = 'ckAv' + (rouge ? ' rouge' : n ? ' nl' : '');
+  av.textContent = ckInitiales(c);
+  d.appendChild(av);
 
   const mi = document.createElement('div');
-  mi.style.cssText = 'flex:1;min-width:0;';
+  mi.className = 'm';
 
   const tete = document.createElement('div');
-  tete.style.cssText = 'display:flex;gap:8px;align-items:baseline;font-size:14px;' +
-    'font-weight:700;';
-  const q = document.createElement('span');
-  q.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;' +
-    'white-space:nowrap;';
-  q.textContent = titreDuFil(c);
+  tete.className = 'h';
+  const q = document.createElement('strong');
+  q.textContent = (Number(c.epingle || 0) ? '📌 ' : '') + ckTitreListe(c);
   const h = document.createElement('span');
-  h.style.cssText = 'font-size:11px;color:var(--muted);font-weight:400;flex-shrink:0;';
+  h.className = 'mono';
   h.textContent = heureCourteMessagerie(c.dernierLe);
   tete.appendChild(q); tete.appendChild(h);
   mi.appendChild(tete);
 
   const ap = document.createElement('div');
-  ap.style.cssText = 'font-size:12.5px;line-height:1.45;margin-top:2px;' +
-    'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
-    (c.nonLus ? 'color:var(--cream);font-weight:700;' : 'color:var(--muted);');
-  ap.textContent = c.dernierApercu
-    ? (c.dernierPar ? c.dernierPar + ' : ' : '') + c.dernierApercu
-    : 'Pas encore de message.';
+  ap.className = 'ap';
+  const tag = document.createElement('span');
+  tag.className = 'ckTag mono';
+  tag.style.color = g.coul;
+  tag.textContent = g.mot;
+  ap.appendChild(tag);
+  /* L'auteur n'est utile que là où plusieurs parlent : dans un fil
+     d'élève, on sait qui écrit. */
+  const parQui = (c.genre === 'groupe' || c.genre === 'interne') && c.dernierPar
+    ? String(c.dernierPar).split(' ')[0] + ' : ' : '';
+  ap.appendChild(document.createTextNode(c.dernierApercu
+    ? parQui + c.dernierApercu : 'Pas encore de message.'));
   mi.appendChild(ap);
+
+  if(ckRappelActif(c)){
+    const m = document.createElement('div');
+    m.className = 'ckMarque mono';
+    m.textContent = '⏰ revient ' + ckQuandRevient(c.rappelLe);
+    mi.appendChild(m);
+  }else if(ckRevenu(c)){
+    const m = document.createElement('div');
+    m.className = 'ckMarque mono';
+    m.textContent = '⏰ ton rappel';
+    mi.appendChild(m);
+  }
 
   /* ⚠️ LE SUPERVISEUR EST AVERTI AVANT D'OUVRIR, PAS APRÈS. Une
      trace qu'on découvre dans le journal après coup est une trace
      qui se vit comme un piège ; annoncée, c'est une règle. */
   if(c.enSupervision){
     const s = document.createElement('div');
-    s.style.cssText = 'font-size:11.5px;color:var(--muted);font-style:italic;' +
-      'margin-top:3px;';
+    s.className = 'ckSup';
     s.textContent = '🔒 Tu n’es pas dedans — l’ouvrir laissera une trace';
     mi.appendChild(s);
   }
 
+  /* Le temps écoulé sur les 48 heures promises, tant qu'il reste
+     quelque chose à lire. */
+  if(n && !c.enSupervision){
+    const sla = document.createElement('div');
+    sla.className = 'ckSla';
+    sla.title = 'Temps écoulé sur les 48 h promises';
+    const i = document.createElement('i');
+    i.style.width = ckPartDes48h(c) + '%';
+    if(rouge) i.style.background = 'var(--kr)';
+    sla.appendChild(i);
+    mi.appendChild(sla);
+  }
+
   d.appendChild(mi);
 
-  if(c.nonLus){
-    const cpt = document.createElement('span');
-    cpt.style.cssText = 'flex-shrink:0;min-width:20px;padding:0 6px;border-radius:10px;' +
-      'background:var(--red);color:#fff;font-size:11px;line-height:20px;' +
-      'text-align:center;font-weight:700;';
-    cpt.textContent = c.nonLus > 99 ? '99+' : String(c.nonLus);
+  if(n){
+    const cpt = document.createElement('b');
+    cpt.className = 'ckCpt';
+    cpt.textContent = n > 99 ? '99+' : String(n);
     d.appendChild(cpt);
   }
 
@@ -382,11 +410,28 @@ function ligneConversationCorps(c, d, enChoix){
      désormais en supprimer qui ne le sont pas. */
   if(enChoix && !Number(c.fermee || 0)){
     const o = document.createElement('span');
-    o.style.cssText = 'flex-shrink:0;align-self:center;font-size:10.5px;' +
-      'padding:2px 7px;border-radius:999px;background:var(--orange-soft);' +
-      'color:var(--accent-text);font-weight:700;';
+    o.className = 'ckOuverte';
     o.textContent = 'ouverte';
     d.appendChild(o);
+  }
+
+  /* 📌 ⏰ au survol — v1141, repris du 2. Pas en mode choix (le clic
+     coche), pas en supervision (on n'est pas dedans). */
+  if(!enChoix && !c.enSupervision){
+    const v = document.createElement('div');
+    v.className = 'ckVite2';
+    const pt = (sym, titre, quoi) => {
+      const s = document.createElement('button');
+      s.type = 'button';
+      s.textContent = sym;
+      s.title = titre;
+      s.setAttribute('aria-label', titre);
+      s.addEventListener('click', ev => { ev.stopPropagation(); ckMarquer(c.id, quoi); });
+      v.appendChild(s);
+    };
+    pt('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', 'epingle');
+    pt('⏰', ckRappelActif(c) ? 'Retirer le rappel' : 'Me la rappeler demain 9h', 'rappel');
+    d.appendChild(v);
   }
 }
 
@@ -450,49 +495,112 @@ function heureCourteMessagerie(quand){
 
 function barreDeRechercheMessagerie(){
   const l = document.createElement('div');
-  l.style.cssText = 'display:flex;gap:7px;align-items:center;margin-bottom:12px;';
+  l.className = 'ckpLh';
 
+  const boite = document.createElement('label');
+  boite.className = 'ckpCherche';
+  boite.innerHTML = '<span aria-hidden="true">⌕</span>';
   const ch = document.createElement('input');
   ch.type = 'text';
   ch.id = 'msgElvCherche';
-  ch.placeholder = '🔍 Chercher dans toutes les conversations…';
+  ch.placeholder = 'Rechercher partout';
   ch.value = chercheMessagerie;
-  ch.style.cssText = 'flex:1;min-width:0;margin:0;';
   ch.addEventListener('keydown', ev => {
     if(ev.key === 'Enter'){ ev.preventDefault(); lancerLaRecherche(ch.value); }
   });
-  l.appendChild(ch);
+  boite.appendChild(ch);
+  if(chercheMessagerie){
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'ckpEff';
+    x.textContent = '✕';
+    x.title = 'Effacer la recherche';
+    x.addEventListener('click', ev => {
+      ev.preventDefault();
+      chercheMessagerie = '';
+      dessinerLaListeMessagerie();
+    });
+    boite.appendChild(x);
+  }
+  l.appendChild(boite);
 
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:11px 14px;font-size:13px;';
-  b.textContent = chercheMessagerie ? '✕' : '🔍';
-  b.title = chercheMessagerie ? 'Effacer la recherche' : 'Chercher';
-  b.addEventListener('click', () => {
-    if(chercheMessagerie){ chercheMessagerie = ''; dessinerLaListeMessagerie(); }
-    else lancerLaRecherche(ch.value);
-  });
-  l.appendChild(b);
+  if(peutOuvrirUneConversation()){
+    const n = document.createElement('button');
+    n.type = 'button';
+    n.className = 'ckBt p';
+    n.textContent = '＋';
+    n.title = 'Nouvelle conversation';
+    n.setAttribute('aria-label', 'Nouvelle conversation');
+    n.addEventListener('click', () => ecranNouvelleConversation());
+    l.appendChild(n);
+  }
 
+  /* ⚠️ « CHOISIR » EST PARTOUT, « TOUT SUPPRIMER » RESTE SUR
+     FERMÉES — v1111. Un bouton qui détruit tout ne se trouve pas
+     sous la main par hasard : il est là où l'on est déjà venu pour
+     regarder ce qu'on va jeter. Administrateurs seuls. */
+  if(peutSupprimerDesConversations()){
+    const chx = document.createElement('button');
+    chx.type = 'button';
+    chx.className = 'ckBt' + (modeChoixMessagerie ? ' on' : '');
+    chx.textContent = modeChoixMessagerie ? '✕' : '☑';
+    chx.title = modeChoixMessagerie ? 'Annuler le choix' : 'Cocher des conversations pour les supprimer';
+    chx.setAttribute('aria-label', chx.title);
+    chx.addEventListener('click', () => {
+      modeChoixMessagerie = !modeChoixMessagerie;
+      choixMessagerie.clear();
+      dessinerLaListeMessagerie();
+    });
+    l.appendChild(chx);
+
+    if(filtreMessagerie === 'clos' && !modeChoixMessagerie){
+      const vid = document.createElement('button');
+      vid.type = 'button';
+      vid.className = 'ckBt rouge';
+      vid.textContent = '🗑️';
+      vid.title = 'Supprimer définitivement les conversations fermées';
+      vid.setAttribute('aria-label', 'Tout supprimer');
+      vid.addEventListener('click', () => viderLesFilsFermes(vid, null));
+      l.appendChild(vid);
+    }
+  }
   return l;
 }
 
-async function lancerLaRecherche(mots){
+async function lancerLaRecherche(mots, deja){
   const propre = String(mots || '').trim();
   if(propre.length < 2){
     if(typeof showToast === 'function') showToast('Deux lettres au moins.');
     return;
   }
   chercheMessagerie = propre;
-  const zone = zoneDeLaMessagerie();
+  const zone = zoneListeMsg();
   if(!zone) return;
 
-  zone.innerHTML = '';
-  zone.appendChild(barreDeRechercheMessagerie());
+  /* Les résultats prennent la place de la liste, sous la même barre :
+     le rail reste à gauche, et ✕ ramène la liste. */
+  const poser = () => {
+    zone.innerHTML = '';
+    if(!dansLeTiroir()) zone.appendChild(barreDeRechercheMessagerie());
+    if(!ckLarge()) zone.appendChild(barreDesGenresMessagerie());
+    const sc = document.createElement('div');
+    sc.className = 'ckpScroll';
+    zone.appendChild(sc);
+    return sc;
+  };
+  let sc;
+  /* Un redessin de la liste (le battement, une épingle posée) ne
+     relance pas la recherche : il remet les résultats qu'on a. */
+  if(deja && ckDerniersTrouves && ckDerniersTrouves.mots === propre){
+    sc = poser();
+    poserLesTrouves(sc, propre, ckDerniersTrouves.trouves);
+    return;
+  }
+  sc = poser();
   const att = document.createElement('div');
   att.className = 'empty';
   att.textContent = 'Recherche…';
-  zone.appendChild(att);
+  sc.appendChild(att);
 
   let trouves = [];
   try{
@@ -502,15 +610,21 @@ async function lancerLaRecherche(mots){
     att.innerHTML = '⚠️ ' + echapper(e.message || e);
     return;
   }
+  if(chercheMessagerie !== propre) return;
+  ckDerniersTrouves = { mots: propre, trouves: trouves };
 
-  zone.innerHTML = '';
-  zone.appendChild(barreDeRechercheMessagerie());
-  zone.appendChild(sousTitreMessagerie(
+  sc = poser();
+  poserLesTrouves(sc, propre, trouves);
+}
+
+let ckDerniersTrouves = null;
+
+function poserLesTrouves(sc, propre, trouves){
+  sc.appendChild(sousTitreMessagerie(
     trouves.length
-      ? 'Trouvé pour « ' + propre + ' » · ' + trouves.length + ' message(s)'
+      ? 'Trouvé pour « ' + propre + ' » · ' + trouves.length
       : 'Rien trouvé pour « ' + propre + ' »'));
-
-  trouves.forEach(x => zone.appendChild(ligneTrouveeMessagerie(x, propre)));
+  trouves.forEach(x => sc.appendChild(ligneTrouveeMessagerie(x, propre)));
 }
 
 function ligneTrouveeMessagerie(x, mots){
@@ -590,121 +704,10 @@ function souligner(texte, mots){
    ------------------------------------------------------------ */
 
 function barreDesGenresMessagerie(){
-  const b = document.createElement('div');
-  b.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;';
-
-  /* ⚠️ « TOUT 14 » NE DOIT PAS COMPTER CE QU'ON SUPERVISE : le
-     chiffre du bouton et le nombre de lignes en dessous doivent
-     dire la même chose, sinon on cherche les quatre qui manquent. */
-  const aMoi = conversationsEC.filter(c => !c.enSupervision);
-  const comptes = {};
-  aMoi.forEach(c => { comptes[c.genre] = (comptes[c.genre] || 0) + 1; });
-
-  const bouton = (cle, libelle, combien) => {
-    const x = document.createElement('button');
-    const on = (filtreMessagerie === cle);
-    x.className = 'btn btn-secondary';
-    x.style.cssText = 'width:auto;margin:0;padding:4px 10px;font-size:12px;' +
-      'border-radius:999px;' +
-      (on ? 'background:var(--orange);border-color:var(--orange);' +
-            'color:#0B0B0B;font-weight:700;' : '');
-    x.textContent = libelle + (combien === null ? '' : ' ' + combien);
-    x.addEventListener('click', () => {
-      const avant = quellesFermeesPour(filtreMessagerie);
-      filtreMessagerie = on ? '' : cle;
-      /* ⚠️ ON RELIT QUAND LA DEMANDE CHANGE, PAS QUAND LE FILTRE
-         CHANGE. Quitter 🗄️ Fermées pour « Tout » ne touchait pas à
-         cette condition : on redessinait une liste qui, depuis que
-         « seules » veut dire seules, ne contient plus que les
-         fermées. L'écran aurait montré trois conversations closes
-         sous un bouton « Tout ». */
-      if(quellesFermeesPour(filtreMessagerie) !== avant){
-        afficherMessagerie(true);
-      }else dessinerLaListeMessagerie();
-    });
-    b.appendChild(x);
-  };
-
-  /* ⚠️ « TOUT 3 » NE DOIT PAS COMPTER CE QUI EST DEVANT, MAIS CE
-     QU'IL Y A. Sur 🗄️ Fermées ou en supervision, la liste chargée
-     n'est plus la liste ordinaire : afficher son nombre sur le
-     bouton « Tout » ferait dire au bouton « tu as trois
-     conversations » à quelqu'un qui en a trente. Sans chiffre, il
-     ne promet rien — et le sous-titre dit déjà combien de lignes
-     sont affichées. */
-  bouton('', 'Tout', quellesFermeesPour(filtreMessagerie) ? null : aMoi.length);
-  Object.keys(GENRES_MESSAGERIE).forEach(cle => {
-    if(comptes[cle]) bouton(cle, GENRES_MESSAGERIE[cle].rond, comptes[cle]);
-  });
-  bouton('clos', '🗄️ Fermées', null);
-
-  /* ⚠️ APRÈS « FERMÉES », ET SEULEMENT POUR QUI SUPERVISE — v1082.
-     C'est la place que David a demandée, et elle est juste : les
-     trois premiers boutons trient ce qui est à moi, les deux
-     derniers ouvrent autre chose. */
-  if(typeof aDroit !== 'function' || aDroit('messagerie_admin')){
-    bouton('supervision', '🔒 Supervision', null);
-  }
-
-  /* ============================================================
-     🗑️ VIDER LES FILS FERMÉS — v1110
-
-     David, le 8 octobre : « idem pour les conversations fermées,
-     une touche pour supprimer les conversations et que ça vide la
-     base de données ».
-
-     ⚠️ IL NE S'AFFICHE QUE SUR L'ONGLET « FERMÉES », et seulement
-     pour un administrateur. Un bouton qui détruit tout ne se
-     trouve pas sous la main par hasard : il est là où l'on est
-     déjà venu pour regarder ce qu'on va jeter.
-
-     ⚠️ ET IL COMPTE AVANT DE DÉTRUIRE. C'est la règle de la v950
-     pour la réparation en masse des rangs — « une réécriture en
-     masse se regarde avant de se lancer » — et elle vaut d'autant
-     plus ici que rien ne se rattrape. Le serveur rend les chiffres
-     au premier appel, et n'efface qu'au second.
-     ============================================================ */
-  if(peutSupprimerDesConversations()){
-    /* ⚠️ « CHOISIR » EST PARTOUT, « TOUT SUPPRIMER » RESTE SUR
-       FERMÉES — v1111.
-
-       David voulait pouvoir supprimer « une par une ou toute ou une
-       sélection », et il a tranché la portée : partout, y compris
-       les conversations ouvertes, mais une ouverte est signalée
-       dans la confirmation. Le bouton de MASSE, lui, ne bouge pas
-       de l'onglet Fermées : « tout » n'a de sens que là où l'on est
-       venu regarder ce qu'on jette, et « tout » depuis « Tout »
-       voudrait dire l'école entière. */
-    const chx = document.createElement('button');
-    chx.className = 'btn btn-secondary';
-    chx.style.cssText = 'width:auto;margin:0 0 0 auto;padding:4px 10px;' +
-      'font-size:12px;border-radius:999px;' +
-      (modeChoixMessagerie
-        ? 'background:var(--orange);border-color:var(--orange);' +
-          'color:#0B0B0B;font-weight:700;' : '');
-    chx.textContent = modeChoixMessagerie ? '✕ Annuler' : '☑️ Choisir';
-    chx.title = 'Cocher des conversations pour les supprimer';
-    chx.addEventListener('click', () => {
-      modeChoixMessagerie = !modeChoixMessagerie;
-      choixMessagerie.clear();
-      dessinerLaListeMessagerie();
-    });
-    b.appendChild(chx);
-
-    if(filtreMessagerie === 'clos' && !modeChoixMessagerie){
-      const vid = document.createElement('button');
-      vid.className = 'btn btn-secondary';
-      vid.style.cssText = 'width:auto;margin:0;padding:4px 10px;' +
-        'font-size:12px;border-radius:999px;color:var(--red);' +
-        'border-color:var(--red);';
-      vid.textContent = '🗑️ Tout supprimer';
-      vid.title = 'Supprimer définitivement les conversations fermées';
-      vid.addEventListener('click', () => viderLesFilsFermes(vid, null));
-      b.appendChild(vid);
-    }
-  }
-
-  return b;
+  /* 🧭 v1141 : les familles sont devenues le rail (grand écran) ou
+     des pastilles qui passent à la ligne (étroit). « ☑ Choisir » et
+     « 🗑️ Tout supprimer » ont rejoint la barre de recherche. */
+  return ckPastilles();
 }
 
 /* Un seul endroit décide. Deux conditions recopiées — une pour le
@@ -847,12 +850,27 @@ async function viderLesFilsFermes(bouton, ids){
    ------------------------------------------------------------ */
 
 async function ouvrirLeFil(id, viser){
-  const zone = zoneDeLaMessagerie();
+  const large = ckLarge();
+  const zone = zoneFilMsg();
   if(!zone) return;
 
-  zone.innerHTML = (typeof htmlAttente === 'function')
-    ? htmlAttente('Ouverture du fil…')
-    : '<div class="empty">Ouverture du fil…</div>';
+  /* 🧭 Un AUTRE fil repart propre : sa fiche refermée, pas de choix
+     de moniteur déplié, pas de créneau à moitié tapé. Le MÊME fil
+     (rechargé après un geste) garde ce qui était ouvert. */
+  const autre = !(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === id);
+  if(autre){
+    ckFicheOuverte = false;
+    ckChoixMoniteur = false;
+    ckCreneauOuvert = false;
+    ckCreneauBrouillon = null;
+  }
+  ckEcranAPart = false;
+
+  if(autre || !filOuvertEC){
+    zone.innerHTML = (typeof htmlAttente === 'function')
+      ? htmlAttente('Ouverture du fil…')
+      : '<div class="empty">Ouverture du fil…</div>';
+  }
 
   try{
     const d = await appelPrep({ action: 'convFil', id: id });
@@ -866,6 +884,8 @@ async function ouvrirLeFil(id, viser){
 
   rangLuEC = 0;
   dessinerLeFil();
+  /* La ligne ouverte s'allume dans la liste d'à côté. */
+  if(large && conversationsEC.length) dessinerLaListeMessagerie();
   marquerLuLeFil();
   veillerLeFil();
   /* Le direct se branche APRÈS le premier dessin : il accélère ce
@@ -882,16 +902,20 @@ function fermerLeFil(){
   fermerLaPhotoEnGrand();
   empreinteReacEC = '';
   filOuvertEC = null;
+  ckFicheOuverte = false;
+  ckCreneauOuvert = false;
   arreterLaVeilleDuFil();
   if(typeof couperLeDirect === 'function') couperLeDirect();
   afficherMessagerie(true);
 }
 
 function dessinerLeFil(){
-  const zone = zoneDeLaMessagerie();
+  const large = ckLarge();
+  const zone = zoneFilMsg();
   if(!zone || !filOuvertEC) return;
   const f = filOuvertEC;
   const c = f.conv || {};
+  ckEcranAPart = false;
 
   /* ⚠️ CE QUI FLOTTE MEURT AVEC LE DESSIN — v1086. Le sélecteur de
      réaction et le panneau des émoticônes vivent DANS cette zone :
@@ -900,68 +924,29 @@ function dessinerLeFil(){
      ouvert alors qu'il n'est plus nulle part. */
   fermerLeSelecteurDeReaction();
   fermerLePanneauEmoji();
+  if(typeof fermerMenuDuFil === 'function' && fermerMenuDuFil) fermerMenuDuFil();
 
   zone.innerHTML = '';
   /* ⚠️ C'EST LE CODE QUI DIT « ÉTROIT », PAS LA FEUILLE DE STYLE.
      Le tiroir fait 400 px sur un écran de 1 400 : une requête de
-     média sur la fenêtre y afficherait la rangée d'actions qui n'y
-     tient pas. */
-  zone.classList.toggle('msgEtroit', dansLeTiroir());
+     média sur la fenêtre s'y tromperait. */
+  zone.classList.toggle('msgEtroit', !large);
 
-  /* --- l'en-tête --- */
-  const tete = document.createElement('div');
-  tete.className = 'msgTete';
-
-  const retour = document.createElement('button');
-  retour.className = 'btn btn-secondary';
-  retour.style.cssText = 'width:auto;margin:0;padding:8px 12px;font-size:14px;';
-  retour.textContent = '←';
-  retour.title = 'Revenir à la liste';
-  retour.addEventListener('click', fermerLeFil);
-  tete.appendChild(retour);
-
-  const rond = rondDuFil(f);
-  const r = document.createElement('div');
-  r.className = 'msgRond' + (rond.gris ? ' gris' : '');
-  r.textContent = rond.texte;
-  tete.appendChild(r);
-
-  const noms = document.createElement('div');
-  noms.className = 'msgNoms';
-  const na = document.createElement('div');
-  na.className = 'a';
-  na.textContent = titreDuFilCourt(f);
-  const nb = document.createElement('div');
-  nb.className = 'b';
-  nb.textContent = sousTitreDuFil(f);
-  noms.appendChild(na);
-  noms.appendChild(nb);
-  tete.appendChild(noms);
-
-  /* Le ⋯ et son menu : les mêmes actions que la rangée, construites
-     une seule fois par barreDesActionsDuFil. */
-  const boite = document.createElement('div');
-  boite.className = 'msgMenuBoite';
-  const pts = document.createElement('button');
-  pts.className = 'msgPts';
-  pts.type = 'button';
-  pts.textContent = '⋯';
-  pts.title = 'Participants, exporter, fermer';
-  pts.addEventListener('click', ev => { ev.stopPropagation(); basculerLeMenuDuFil(boite, f); });
-  boite.appendChild(pts);
-  tete.appendChild(boite);
-
-  zone.appendChild(tete);
+  /* --- 🧭 l'en-tête du cockpit : titre, 📌 ⏰ 📅 ✓ ⓘ ⋯ --- */
+  zone.appendChild(ckEnteteDuFil(f, large));
 
   if(f.enSupervision){
     const s = document.createElement('div');
-    s.className = 'hint';
-    s.style.cssText = 'font-size:12px;color:var(--warn-text);line-height:1.5;margin:10px 0 0;';
+    s.className = 'ckpAvis chaud';
     s.textContent = '🔒 Tu lis en supervision : tu n’es pas dans cette ' +
       'conversation, et cette lecture est inscrite au journal. Pour y répondre, ' +
       'ajoute-toi — ton arrivée s’écrira dans le fil.';
     zone.appendChild(s);
   }
+
+  /* --- ⏰ 🧤 le bandeau du retard ou de l'objet --- */
+  const pan = ckPanneauDuFil(f, !large);
+  if(pan) zone.appendChild(pan);
 
   /* --- le fil --- */
   const fil = document.createElement('div');
@@ -970,9 +955,8 @@ function dessinerLeFil(){
 
   if(f.encore){
     const plus = document.createElement('button');
-    plus.className = 'btn btn-secondary';
-    plus.style.cssText = 'width:auto;margin:0 auto 10px;display:block;padding:6px 12px;' +
-      'font-size:12px;border-radius:999px;';
+    plus.className = 'ckBt';
+    plus.style.cssText = 'margin:0 auto 10px;display:flex;';
     plus.textContent = '↑ Messages plus anciens';
     plus.addEventListener('click', () => chargerPlusDuFil(plus));
     fil.appendChild(plus);
@@ -980,8 +964,7 @@ function dessinerLeFil(){
 
   /* ⚠️ LE GROUPEMENT SE DÉCIDE SUR TROIS MESSAGES À LA FOIS : le
      précédent dit s'il faut répéter la signature, le suivant dit
-     s'il faut poser la pointe et l'heure. Trois messages d'affilée
-     ne font plus trois pavés identiques. */
+     s'il faut poser la pointe et l'heure. */
   const msgs = (f.messages || []);
   let jourPose = '';
   msgs.forEach((m, i) => {
@@ -1002,13 +985,7 @@ function dessinerLeFil(){
     if(Number(m.rang || 0) > rangLuEC) rangLuEC = Number(m.rang || 0);
   });
 
-  /* ⚠️ L'EMPREINTE SE NOTE OÙ L'ON DESSINE, comme « rangLuEC » juste
-     au-dessus — v1086. Notée seulement dans le battement, elle
-     restait vide après l'ouverture du fil : le premier battement
-     redessinait donc TOUJOURS, quatre secondes après l'ouverture,
-     en pleine frappe. Et quand on pose soi-même une réaction, le
-     dessin anticipé note ce qu'il a peint : si le serveur confirme
-     exactement ça, on ne redessine pas une deuxième fois. */
+  /* ⚠️ L'EMPREINTE SE NOTE OÙ L'ON DESSINE — v1086. */
   empreinteReacEC = empreinteDesReactions(f);
 
   if(!msgs.length){
@@ -1018,32 +995,51 @@ function dessinerLeFil(){
     fil.appendChild(v);
   }
 
-  zone.appendChild(fil);
-
   /* --- qui a lu --- */
   const lus = (f.lectures || []).filter(x =>
     Number(x.luJusqua || 0) >= rangLuEC && x.qui &&
     normaliserMessagerie(x.qui) !== normaliserMessagerie(ACCES.moniteur || ''));
-  if(lus.length){
+  if(lus.length && msgs.length){
     const l = document.createElement('div');
     l.className = 'msgLu';
-    l.textContent = '✅ Lu par ' + lus.map(x => x.qui).join(', ');
-    zone.appendChild(l);
+    l.textContent = '✓✓ Lu par ' + lus.map(x => x.qui).join(', ');
+    fil.appendChild(l);
   }
 
+  zone.appendChild(fil);
+
+  /* --- 📅 le créneau en cours de rédaction --- */
+  if(ckCreneauOuvert && f.peutEcrire && c.eleve) zone.appendChild(ckFormCreneau(f));
+
   /* --- écrire --- */
-  if(f.peutEcrire) zone.appendChild(zoneDEcritureDuFil(c.id));
-  else{
+  if(f.peutEcrire){
+    zone.appendChild(ckReponsesRapides(f, !large));
+    zone.appendChild(zoneDEcritureDuFil(c.id));
+  }else{
     const g = document.createElement('div');
-    g.className = 'empty';
-    g.style.cssText = 'font-size:12.5px;padding:10px 0;';
-    g.textContent = Number(c.fermee || 0)
-      ? 'Conversation fermée : elle reste lisible, on n’y écrit plus.'
-      : 'Tu ne peux pas écrire dans cette conversation.';
+    g.className = 'ckFerme';
+    if(f.enSupervision){
+      g.textContent = '🔒 Tu lis sans être dedans. Pour répondre : ⋯ → 👥 Participants, ' +
+        'et ton arrivée s’inscrit dans le fil.';
+    }else if(Number(c.fermee || 0)){
+      g.appendChild(document.createTextNode('🗄️ Conversation fermée · '));
+      if(ckPeutGerer() && f.estMembre){
+        g.appendChild(ckBouton('↺ Rouvrir', 'La conversation redevient active', async () => {
+          await appelPrep({ action: 'convFermer', id: c.id, fermee: '0' });
+          await ouvrirLeFil(c.id);
+          afficherMessagerie(true);
+        }));
+      }else g.appendChild(document.createTextNode('elle reste lisible, on n’y écrit plus.'));
+    }else g.textContent = 'Tu ne peux pas écrire dans cette conversation.';
     zone.appendChild(g);
   }
 
-  zone.appendChild(barreDesActionsDuFil(f));
+  /* --- la fiche éclair : à droite, ou en feuille --- */
+  if(large && ckAvecFiche()) ckDessinerLaFiche(f);
+  else{
+    if(large) ckDessinerLaFiche(null);
+    if(ckFicheOuverte) zone.appendChild(ckFeuilleFiche(f, zone));
+  }
 
   /* Le fil s'ouvre en bas, là où est le dernier message — et sur le
      message visé quand on arrive par la recherche. */
@@ -1224,6 +1220,13 @@ function bulleDuMessage(m, avant, apres){
      conversation raconte ce qui s'est passé, et personne ne le
      saisit deux fois. Qu'elle ressemble à un message rendrait les
      deux douteux. */
+  /* 📅 La carte d'un créneau proposé — v1141. Elle n'est pas une
+     bulle : elle porte un jour, une heure, et l'état de la réponse. */
+  if(m.motif === 'creneau' && m.auteurGenre !== 'systeme' && !Number(m.supprime || 0) &&
+     typeof ckCarteCreneau === 'function'){
+    return ckCarteCreneau(m);
+  }
+
   if(m.auteurGenre === 'systeme'){
     const s = document.createElement('div');
     s.className = 'msgSys';
@@ -1711,20 +1714,21 @@ async function marquerLuLeFil(){
 
   /* ⚠️ LA PASTILLE TOMBE ICI — v1085. C'est le seul endroit où l'on
      SAIT qu'un fil vient d'être lu, et c'est l'instant où l'autre
-     voit apparaître « Lu par ». Attendre un battement pour le dire
-     de son côté, c'est afficher pendant vingt-cinq secondes un
-     message non lu que l'expéditeur voit déjà comme lu.
+     voit apparaître « Lu par ».
 
      ⚠️ ET ON NE DEVINE PAS LE NOUVEAU TOTAL : on retire CE fil-là de
      l'addition. Poser zéro serait effacer les autres conversations
      qui attendent vraiment. */
   const c = conversationsEC.find(x => x && x.id === id);
-  /* Un fil ouvert depuis le bandeau ou une notification, sans que la
-     liste ait jamais été lue : on ne touche à rien plutôt que de
-     compter à partir d'une liste vide. */
-  if(!c || !Number(c.nonLus || 0)) return;
+  if(!c) return;
+  /* Un rappel échu tombe à la lecture, côté serveur : on fait pareil
+     ici, sans relire la liste. */
+  if(ckRevenu(c)) c.rappelLe = 0;
+  const avait = Number(c.nonLus || 0);
   c.nonLus = 0;
-  poserLesComptesMessagerie(compterLesNonLusEC());
+  if(avait) poserLesComptesMessagerie(compterLesNonLusEC());
+  /* 🧭 Et la ligne s'éteint dans la liste d'à côté — v1141. */
+  if(ckLarge()) dessinerLaListeMessagerie();
 }
 
 /* ------------------------------------------------------------
@@ -1732,12 +1736,13 @@ async function marquerLuLeFil(){
    ------------------------------------------------------------ */
 
 function barreDesActionsDuFil(f){
-  /* ⚠️ LA CLASSE, PAS UN STYLE EN LIGNE — v1079. C'est elle qui
-     décide « rangée sur écran large, cachée ailleurs », et c'est
-     aussi elle que le banc lit pour vérifier que le menu ⋯ porte
-     exactement les mêmes actions. Un style en ligne aurait gagné
-     contre la requête de média et la rangée serait restée visible
-     dans le tiroir de 400 px. */
+  /* ⚠️ LA CLASSE, PAS UN STYLE EN LIGNE — v1079. C'est elle que le
+     menu ⋯ reprend, bouton par bouton : une seule liste décide de ce
+     qui existe et de qui y a droit.
+
+     🧭 v1141 : « 🗄️ Fermer » est devenu « ✓ Réglé », en haut du fil ;
+     les états d'un objet sont dans le bandeau 🧤. Restent ici les
+     gestes qu'on fait moins souvent. */
   const l = document.createElement('div');
   l.className = 'msgActions';
 
@@ -1760,33 +1765,9 @@ function barreDesActionsDuFil(f){
   const peutGerer = typeof aDroit !== 'function' ||
                     aDroit('messagerie_bureau') || aDroit('messagerie_admin');
 
-  /* ⚠️ L'ÉTAT DE L'OBJET SE CHANGE OÙ ON LIT LA DEMANDE. Le bureau
-     ouvre le fil 🧤 pour savoir de quoi il s'agit : l'envoyer dans
-     un autre écran pour cliquer « Retrouvé » est un aller-retour
-     qu'on ne fait pas, et donc un objet qui reste « signalé »
-     pendant trois semaines. La liste 🧤 reste la vue d'ensemble ;
-     ici, c'est le geste. */
-  if(peutGerer && (f.conv || {}).genre === 'oubli'){
-    const o = (typeof objetDuFil === 'function') ? objetDuFil(f) : null;
-    const etat = (o && o.etat) || 'signale';
-    ((typeof SUITES_OBJET !== 'undefined' && SUITES_OBJET[etat]) || [])
-      .forEach(suite => {
-        const se = ETATS_OBJET_EC[suite];
-        petit(se.emoji + ' ' + se.nom, 'L’élève reçoit la réponse ici même',
-          async () => {
-            await appelPrep({ action: 'objetEtat', conversation: f.conv.id,
-                              etat: suite });
-            if(typeof compterLesObjets === 'function') await compterLesObjets();
-            await ouvrirLeFil(f.conv.id);
-          });
-      });
-  }
-
   /* ⚠️ « PARTICIPANTS », PAS « AJOUTER ». David, le 8 octobre :
      « il faut que l'on puisse le rajouter et enlever à la main dans
-     des groupes ». Le bouton d'avant ne savait qu'ajouter, et il
-     demandait le nom au clavier — il ouvre maintenant le sélecteur,
-     où l'on voit qui est dedans et où l'on retire d'une croix. */
+     des groupes ». */
   if(peutGerer){
     petit('👥 Participants',
           'Voir qui est dedans, ajouter, retirer',
@@ -1795,16 +1776,23 @@ function barreDesActionsDuFil(f){
 
   petit('📤 Exporter', 'Le fil entier en texte, à copier', () => exporterLeFil(f));
 
-  if(peutGerer){
-    const clos = Number((f.conv || {}).fermee || 0);
-    petit(clos ? '↩️ Rouvrir' : '🗄️ Fermer',
-          clos ? 'La conversation redevient active'
-               : 'Elle reste lisible, on n’y écrit plus',
-          async () => {
-            await appelPrep({ action: 'convFermer', id: f.conv.id,
-                              fermee: clos ? '0' : '1' });
-            await ouvrirLeFil(f.conv.id);
-          });
+  if(peutGerer && Number((f.conv || {}).fermee || 0)){
+    petit('↺ Rouvrir', 'La conversation redevient active', async () => {
+      await appelPrep({ action: 'convFermer', id: f.conv.id, fermee: '0' });
+      await ouvrirLeFil(f.conv.id);
+      afficherMessagerie(true);
+    });
+  }
+
+  /* 🗑️ La même porte que le mode choix, pour CE fil : elle compte
+     avant de détruire, et dit si la conversation est encore ouverte. */
+  if(peutSupprimerDesConversations()){
+    petit('🗑️ Supprimer…', 'Supprimer définitivement cette conversation', async () => {
+      const id = f.conv.id;
+      await viderLesFilsFermes(null, [id]);
+      if(!conversationsEC.some(c => c.id === id) && filOuvertEC &&
+         filOuvertEC.conv && filOuvertEC.conv.id === id) fermerLeFil();
+    });
   }
 
   return l;
@@ -2408,8 +2396,13 @@ async function ecranMembresDuFil(f){
 }
 
 async function dessinerEcranParticipants(opt){
-  const zone = zoneDeLaMessagerie();
+  /* 🧭 v1141 : sur grand écran, il prend la colonne du fil — la liste
+     reste à gauche, et « afficherMessagerie » ne repeint pas par-dessus
+     (voir ckEcranAPart). */
+  const zone = zoneFilMsg();
   if(!zone) return;
+  ckEcranAPart = true;
+  if(ckLarge()) ckDessinerLaFiche(null);
 
   /* Le fil au moment du dessin : le bouton ← doit revenir là d'où
      l'on vient, même si la variable change entre-temps. */
@@ -2441,7 +2434,7 @@ async function dessinerEcranParticipants(opt){
 
   /* L'écran a pu changer pendant l'attente (il a refermé le tiroir,
      ouvert un fil) : on ne repeint pas par-dessus. */
-  if(tour !== tourDesParticipants || zoneDeLaMessagerie() !== zone) return;
+  if(tour !== tourDesParticipants || zoneFilMsg() !== zone) return;
 
   zone.innerHTML = '';
 
@@ -2462,6 +2455,7 @@ async function dessinerEcranParticipants(opt){
        l'écran des participants en place : le ← ne faisait rien.
        Revenir en arrière, c'est sortir de la recherche aussi. */
     chercheMessagerie = '';
+    ckEcranAPart = false;
     afficherMessagerie(true);
   });
   tete.appendChild(retour);
@@ -2923,9 +2917,25 @@ async function compterLaMessagerie(){
 
   try{
     const d = await appelPrep({ action: 'convList' });
-    conversationsEC = (d && d.conversations) || [];
+    const liste = (d && d.conversations) || [];
+    /* ⚠️ ON NE REMPLACE LA LISTE QUE SI ELLE EST LA MÊME DEMANDE —
+       v1141. Ce comptage lit les conversations OUVERTES ; posées sur
+       l'écran « 🗄️ Fermées » ou « 🔒 Supervision », elles l'auraient
+       vidé de ce qu'on y était venu chercher. */
+    const memeDemande = !quellesFermeesPour(filtreMessagerie);
+    const avant = (typeof ckEmpreinteListe === 'function') ? ckEmpreinteListe(conversationsEC) : '';
+    if(memeDemande) conversationsEC = liste;
     const n = (d && d.nonLusTotal) || 0;
     poserLesComptesMessagerie(n);
+    /* 🧭 Sur grand écran, la liste est À CÔTÉ du fil : un message qui
+       arrive ailleurs doit s'y voir sans qu'on clique. On ne redessine
+       QUE la liste — le fil et ce qu'on y tape ne bougent pas. */
+    if(memeDemande && typeof ckLarge === 'function' && ckLarge() &&
+       !chercheMessagerie && !modeChoixMessagerie &&
+       ($('messagerieZone') || {}).offsetParent !== null &&
+       ckEmpreinteListe(conversationsEC) !== avant){
+      dessinerLaListeMessagerie();
+    }
   }catch(e){ /* la pastille attendra le prochain passage */ }
 }
 
