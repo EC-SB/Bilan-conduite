@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:59 — v1160 */
+/* Déployé le 13/10/2026 à 10:57 — v1163 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1091,6 +1091,8 @@ document.addEventListener('visibilitychange', () => {
 async function afficherPrepares(recharger, silencieux){
   const zone = $('listePrepares');
   if(!zone) return;
+  /* 🖼️ v1163 — les photos des élèves, une fois ; un redessin si elles arrivent */
+  if(typeof photosPuisRedessin === 'function') photosPuisRedessin();
 
   if(recharger !== false){
     if(!silencieux) zone.innerHTML = '<div class="empty">Chargement…</div>';
@@ -1393,6 +1395,14 @@ async function afficherPrepares(recharger, silencieux){
        colonne de gauche (index.html) : là, toucher choisit le cours. */
     if(typeof poserDossierApresLeNom === 'function'){
       poserDossierApresLeNom(nom.querySelector('.qui'), cours.eleve);
+    }
+    /* 🖼️ v1163 — sa photo devant son nom, s'il en a mis une (David :
+       « aussi sur Mes prochains cours »). Sans photo, rien : des
+       initiales ici n'apprendraient rien que le nom ne dise déjà. */
+    if(typeof lienPhotoProfil === 'function' && cours.eleve){
+      const cleP = clePhotoProfil('eleve', cours.eleve);
+      const qui = nom.querySelector('.qui');
+      if(qui && lienPhotoProfil(cleP)) qui.insertBefore(rondPhoto(cleP, cours.eleve, 28, 'quiPhoto'), qui.firstChild);
     }
 
     if(retard){
