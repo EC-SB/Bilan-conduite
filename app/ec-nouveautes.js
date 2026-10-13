@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 10:13 — v1162 */
+/* Déployé le 13/10/2026 à 10:57 — v1163 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,27 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1163,
+    date: 'Mardi 13 octobre 2026',
+    resume: '🖼️ Les photos à la place des initiales',
+    quoi: [
+      { emoji: '🖼️',
+        titre: 'Ta photo, en rond',
+        texte: 'Dans la messagerie, « Moi » en haut (sur le téléphone : la pastille « Moi » devant ' +
+               '« Tout ») : prends une photo ou choisis-en une, elle remplace tes initiales pour toute ' +
+               'l’équipe. Sans photo, les initiales restent, en rond elles aussi.' },
+      { emoji: '💬',
+        titre: 'Partout où l’on voit quelqu’un',
+        texte: 'Dans la liste, en haut du fil, sur la fiche à droite, et devant les bulles comme sur ' +
+               'Messenger. La photo de l’élève est aussi en tête de son dossier et sur sa carte dans Mes ' +
+               'prochains cours. Les élèves choisissent la leur dans leur espace.' },
+      { emoji: '🔑',
+        titre: 'Qui change quoi',
+        texte: 'Chacun la sienne ; le bureau la photo d’un groupe (⋯ ou la fiche du groupe) ; les ' +
+               'administrateurs toutes les photos, et celle du bureau dans ⚙️ Réglages de la messagerie.' }
+    ]
+  },
   {
     version: 1162,
     date: 'Mardi 13 octobre 2026',
