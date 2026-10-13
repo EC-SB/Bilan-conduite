@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 14:14 — v1168 */
+/* Déployé le 13/10/2026 à 14:31 — v1169 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -292,7 +292,14 @@
   async function lireFiche() {
     const v = id => propre((document.getElementById(id) || {}).value);
     const id = (new URLSearchParams(location.search).get('eleve') || '').replace(/\D/g, '');
-    const avatar = [...document.querySelectorAll('img')].find(i => /avatar/i.test(i.alt || '') || PHOTO_DRIVUP.test(i.getAttribute('src') || ''));
+    /* ⚠️ LA PHOTO DE L'ÉLÈVE, PAS CELLE DE LA PERSONNE CONNECTÉE — v1169.
+       David : « ça reprend ma photo à moi et pas celle de l'élève ».
+       La barre du haut de Drivup montre l'avatar de qui est connecté,
+       avec le même genre d'adresse, et AVANT celui de l'élève dans la
+       page : la première image « avatar » était donc la sienne. On ne
+       prend que celle du menu de l'élève (#menu_eleve #avatar). */
+    const avatar = document.querySelector('#menu_eleve #avatar') ||
+                   document.querySelector('#menu_eleve .avatar-container img');
     dire('Lecture de ses notes internes…');
     const notes = id ? await notesDeLaFiche(id) : [];
     return { genre: 'fiche', eleve: {
