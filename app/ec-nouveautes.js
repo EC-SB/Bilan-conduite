@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 13:19 — v1167 */
+/* Déployé le 13/10/2026 à 14:14 — v1168 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,30 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1168,
+    date: 'Mardi 13 octobre 2026',
+    resume: '📥 Drivup : les bonnes heures, la formation, la photo et les notes',
+    quoi: [
+      { emoji: '🕐',
+        titre: 'Les heures exactes',
+        texte: 'Les cours lus dans Drivup arrivaient deux heures trop tard (8 h devenait 10 h). Ils arrivent ' +
+               'maintenant à l’heure affichée dans Drivup.' },
+      { emoji: '⏳',
+        titre: 'La lecture se voit tout de suite',
+        texte: 'L’onglet de l’appli montre la lecture en cours (cours lus / total), un peu plus rapide. La ' +
+               'fenêtre tient dans l’écran : on fait défiler, et « Enregistrer » reste en bas.' },
+      { emoji: '🎓',
+        titre: 'La formation reprise',
+        texte: 'La catégorie Drivup devient notre formation : B → BV, B (BEA) → BEA, CA → AAC BV, ' +
+               'CS → CS BV, BEA -> B → Passerelle… Une case déjà remplie chez nous ne change pas.' },
+      { emoji: '📷',
+        titre: 'La photo et les notes internes',
+        texte: 'La photo Drivup arrive pour un élève qui n’en a pas (fiche et planning). Sur la fiche d’un ' +
+               'élève, ses notes internes Drivup passent dans 📝 Notes internes de son dossier, en ' +
+               'Administratif, avec leur auteur et leur date — sans jamais en doubler une.' }
+    ]
+  },
   {
     version: 1167,
     date: 'Mardi 13 octobre 2026',
