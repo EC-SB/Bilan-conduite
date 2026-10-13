@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 11:32 — v1164 */
+/* Déployé le 13/10/2026 à 13:01 — v1166 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -100,7 +100,9 @@ const ACTIONS_LOURDES = { elevesImport: 90000,
    tous d'un coup. */
 const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                       'smsLog', 'eleveRetirer', 'eleveRenommer',
-                      'consigneEffacerEleve', 'mailBilan'];
+                      'consigneEffacerEleve', 'mailBilan',
+                      /* 📥 v1166 — ajouter des lignes deux fois ferait deux fiches */
+                      'drivupFiches'];
 
 /* ⚠️ NE PAS EMPILER UN RAFRAÎCHISSEMENT SUR UN CLASSEUR QUI RÉPOND
    DÉJÀ — v949.
