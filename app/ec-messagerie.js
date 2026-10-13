@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 09:51 — v1161 */
+/* Déployé le 13/10/2026 à 10:57 — v1163 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -169,6 +169,8 @@ async function afficherMessagerie(silencieux){
        passe par ici : le rond de l'en-tête gardait donc son chiffre
        d'avant la lecture. */
     poserLesComptesMessagerie((d && d.nonLusTotal) || 0);
+    /* 🖼️ v1163 — les photos, une fois ; un redessin si elles arrivent */
+    if(typeof photosPuisRedessin === 'function') photosPuisRedessin();
   }catch(e){
     const z = zoneListeMsg() || zone;
     z.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
@@ -401,7 +403,9 @@ function ligneConversationCorps(c, d, enChoix){
 
   const av = document.createElement('div');
   av.className = 'ckAv' + (rouge ? ' rouge' : n ? ' nl' : '');
-  av.textContent = ckInitiales(c);
+  /* 🖼️ v1163 — la photo de la personne en face, sinon les initiales */
+  if(typeof poserPhotoDans === 'function') poserPhotoDans(av, clePhotoDuFil(c), ckInitiales(c));
+  else av.textContent = ckInitiales(c);
   d.appendChild(av);
 
   const mi = document.createElement('div');
@@ -1362,6 +1366,15 @@ function bulleDuMessage(m, avant, apres){
   ligne.className = 'msgRang' + (sienne ? ' moi' : '') + (encore ? '' : ' fin');
   ligne.setAttribute('data-rang', String(m.rang || 0));
 
+  /* 🖼️ v1163 — comme Messenger : le rond de l'autre devant SA DERNIÈRE
+     bulle d'une suite ; les autres gardent la place, pour s'aligner. */
+  if(!sienne && typeof rondPhoto === 'function'){
+    const slot = document.createElement('span');
+    slot.className = 'msgAvSlot';
+    if(!encore) slot.appendChild(rondPhoto(clePhotoDuMessage(m), m.auteur, 28, 'msgAv'));
+    ligne.appendChild(slot);
+  }
+
   const b = document.createElement('div');
   b.className = 'msgB' + (sienne ? ' moi' : ' lui') +
                 (suite ? ' suite' : '') + (encore ? '' : ' pointe');
@@ -1910,6 +1923,12 @@ function barreDesActionsDuFil(f){
      peutOuvrirUneConversation() && typeof ecrireSeulA === 'function'){
     petit('👤 Lui écrire seul', 'Ta conversation à deux avec ' + cv.eleve + ', sans le bureau',
           () => ecrireSeulA(cv.eleve));
+  }
+
+  /* 🖼️ v1163 — la photo d'un groupe : le bureau décide, et les admins */
+  if(cv.genre === 'groupe' && typeof peutChangerPhotoGroupe === 'function' && peutChangerPhotoGroupe()){
+    petit('🖼️ Photo du groupe', 'Choisir l’image du groupe',
+          () => ouvrirFenetrePhotoProfil({ cible: 'groupe', id: cv.id, titre: 'La photo du groupe' }));
   }
 
   petit('📤 Exporter', 'Le fil entier en texte, à copier', () => exporterLeFil(f));
@@ -6994,6 +7013,26 @@ function dessinerReglagesMessagerie(zone, r, exemple){
       'Dernier changement : ' + echapper(r.motFinDeCoursMaj) + '</div>' : '');
   carte.appendChild(apercu);
   corps.appendChild(carte);
+
+  /* 🏢 v1163 — la photo du bureau, que les élèves voient devant leur
+     fil « Le bureau ». Les administrateurs la choisissent ici. */
+  if(typeof rondPhoto === 'function'){
+    const cb = document.createElement('div');
+    cb.className = carte.className;
+    cb.style.cssText = carte.style.cssText + ';margin-top:14px;display:flex;align-items:center;gap:14px;';
+    const r = rondPhoto('bureau', '', 56);
+    if(!r.querySelector('img')) r.textContent = '🏢';
+    cb.appendChild(r);
+    const t = document.createElement('div');
+    t.style.cssText = 'flex:1;min-width:0;line-height:1.45;';
+    t.innerHTML = '<div style="font-weight:800;">🏢 La photo du bureau</div>' +
+      '<div style="font-size:12px;color:var(--muted);">Les élèves la voient devant leur fil « Le bureau ». ' +
+      'Sans photo : 🏢.</div>';
+    cb.appendChild(t);
+    cb.appendChild(ckBouton('🖼️ Changer', 'Choisir la photo du bureau',
+      () => ouvrirFenetrePhotoProfil({ cible: 'bureau', titre: 'La photo du bureau' })));
+    corps.appendChild(cb);
+  }
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
