@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 13/10/2026 à 10:13 — v1162 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1002,7 +1002,11 @@ function blocSession(sess, auj){
     .filter(Boolean).join(' · ');
 
   const bloc = document.createElement('div');
-  bloc.className = 'ses-carte' + (cejour ? ' ses-auj' : '');
+  /* 🟪 v1162 — hors Saint-Brieuc, un cadre violet très clair (David :
+     « pour montrer la différence »). */
+  bloc.className = 'ses-carte' + (cejour ? ' ses-auj' : '') +
+                   (horsSaintBrieuc(sess.centre) ? ' ses-ailleurs' : '') +
+                   (sess.__enCours ? ' ses-encours' : '');
 
   const tete = document.createElement('div');
   tete.className = 'ses-tete';
@@ -1023,6 +1027,7 @@ function blocSession(sess, auj){
       '<span>' + jour + (sess.heureDebut ? ' <span class="ses-h">· ' + ech(sess.heureDebut) + '</span>' : '') + '</span>' +
       (sess._rangJour ? ' <span class="ses-rang">session ' + sess._rangJour + '/' + sess._totalJour + '</span>' : '') +
       (passe ? ' <span class="ses-rang" style="color:var(--muted);">passée</span>' : '') +
+      (sess.__enCours ? ' <span class="ses-rang ses-attente">⏳ enregistrement…</span>' : '') +
     '</div>' +
     '<div class="ses-sous">' +
       '<span>🏁 ' + (sess.centre ? ech(sess.centre) : 'centre à définir') + '</span>' +
@@ -1164,6 +1169,7 @@ function remplirPlaces(zone, sess){
   bMod.style.cssText = 'width:auto;padding:7px 11px;font-size:12px;margin:0;';
   bMod.textContent = '✏️ La session';
   bMod.addEventListener('click', () => ouvrirEditeurSession(sess));
+  if(sess.__enCours) bMod.disabled = true;
   r.appendChild(bMod);
 
   const bSup = document.createElement('button');
@@ -2265,7 +2271,67 @@ function heureDuCreneau(debut, duree, n){
 }
 
 
-function ouvrirEditeurSession(sess){
+/* 🟪 v1162 — tout centre qui n'est pas Saint-Brieuc. Un centre vide
+   n'est « ailleurs » nulle part : on ne colore pas une question. */
+function horsSaintBrieuc(centre){
+  const c = normaliserMot(String(centre || ''));
+  return !!c && c.indexOf('brieuc') === -1;
+}
+
+/* Une rangée de pastilles qui pilote un champ — v1162. Le champ reste
+   la seule source : tout le reste du formulaire le lit, rien d'autre
+   à changer. « autre » le montre pour une valeur libre. */
+function pucesDuChamp(champ, choix, valeurAutre){
+  const r = document.createElement('div');
+  r.className = 'sesPuces';
+  const peindre = () => {
+    const v = String(champ.value || '').trim();
+    const connu = choix.some(c => normaliserMot(c[0]) === normaliserMot(v));
+    [...r.children].forEach(b => {
+      const on = b.dataset.v === 'autre'
+        ? (champ.dataset.autre === 'oui' || (!connu && v !== ''))
+        : (champ.dataset.autre !== 'oui' && normaliserMot(b.dataset.v) === normaliserMot(v));
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    champ.style.display = (champ.dataset.autre === 'oui' || (!connu && v !== '')) ? '' : 'none';
+  };
+  choix.concat([['autre', '⌨️ Autre']]).forEach(([v, texte]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sesPuce';
+    b.dataset.v = v;
+    b.textContent = texte;
+    b.addEventListener('click', () => {
+      if(v === 'autre'){
+        champ.dataset.autre = 'oui';
+        /* Une valeur des pastilles laissée dans le champ ferait croire
+           qu'« Autre » n'a rien changé : on propose la suivante. */
+        const dejaChoix = choix.some(c => normaliserMot(c[0]) === normaliserMot(champ.value));
+        if(!champ.value || dejaChoix) champ.value = valeurAutre || '';
+        peindre();
+        setTimeout(() => { try{ champ.focus(); champ.select(); }catch(e){} }, 30);
+      }else{
+        champ.dataset.autre = '';
+        champ.value = v;
+        peindre();
+      }
+      champ.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    r.appendChild(b);
+  });
+  champ.addEventListener('input', peindre);
+  r.peindre = peindre;
+  return r;
+}
+
+function ouvrirEditeurSession(sess, brouillon){
+  /* Une session qui part encore vers le classeur ne se rouvre pas :
+     on modifierait ce qui n'est pas encore écrit. */
+  if(sess && sess.__enCours){
+    showToast('⏳ Cette session s’enregistre encore — un instant.');
+    return;
+  }
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
@@ -2290,17 +2356,21 @@ function ouvrirEditeurSession(sess){
         '<input type="time" id="seHeure" style="display:none;margin-top:6px;">' +
       '</div>' +
     '</div>' +
+    /* 🔢 v1162 — en pastilles, 3 d'avance (David). Le champ reste,
+       caché, pour « Autre ». ⚠️ SUR TOUTE LA LARGEUR : dans la moitié
+       d'une rangée, « Autre » passait à la ligne sur l'ordinateur. */
+    '<label for="sePlaces">Nombre de places</label>' +
+    '<div id="sePlacesPuces"></div>' +
+    '<input type="number" id="sePlaces" min="1" max="20" value="3">' +
     '<div class="duo">' +
-      '<div><label for="sePlaces">Nombre de places</label>' +
-        '<input type="number" id="sePlaces" min="1" max="20" value="4"></div>' +
       '<div><label for="seDuree">Minutes par passage</label>' +
         '<input type="number" id="seDuree" min="15" max="60" step="5" value="30"></div>' +
+      '<div></div>' +
     '</div>' +
+    /* 🏁 v1162 — les deux centres en pastilles, « Autre » pour le reste */
     '<label for="seCentre">Centre d\'examen</label>' +
-    '<input type="text" id="seCentre" list="listeCentres" placeholder="Ex : Saint-Brieuc">' +
-    '<datalist id="listeCentres">' +
-      '<option value="Saint-Brieuc"></option><option value="Loudéac"></option>' +
-    '</datalist>' +
+    '<div id="seCentrePuces"></div>' +
+    '<input type="text" id="seCentre" placeholder="Le nom du centre">' +
     '<div class="duo">' +
       '<div><label for="seMon">Moniteur</label><select id="seMon">' +
         '<option value="">— à définir —</option>' +
@@ -2362,12 +2432,61 @@ function ouvrirEditeurSession(sess){
     }else if(sess.heureDebut){
       boite.querySelector('#seHeureChoix').value = sess.heureDebut;
     }
-    boite.querySelector('#sePlaces').value = sess.eleves.length || 4;
+    boite.querySelector('#sePlaces').value = sess.eleves.length || 3;
+    /* La durée de CETTE session, pas 30 d'office : sinon une simple
+       modification du moniteur recalculait ses créneaux à 30 min. */
+    boite.querySelector('#seDuree').value = dureeSession(sess);
     boite.querySelector('#seCentre').value = sess.centre || '';
     boite.querySelector('#seMon').value = sess.moniteur || '';
     boite.querySelector('#seBoite').value = sess.boite || '';
     boite.querySelector('#seInsp').value = sess.inspecteur || '';
   }
+
+  /* ⚠️ RETOUR D'UN REFUS — v1162. La fenêtre se ferme dès l'appui ;
+     si le classeur refuse, elle revient avec ce qui avait été tapé,
+     pas avec l'ancienne session. */
+  if(brouillon){
+    boite.querySelector('#seDate').value = brouillon.date || '';
+    boite.querySelector('#seHeure').value = brouillon.heureDebut || '';
+    if(brouillon.heureDebut && CRENEAUX_SESSION.indexOf(brouillon.heureDebut) === -1){
+      listeH.value = 'autre'; champH.style.display = 'block';
+    }else if(brouillon.heureDebut){
+      listeH.value = brouillon.heureDebut;
+    }
+    boite.querySelector('#sePlaces').value = brouillon.places || 3;
+    boite.querySelector('#seDuree').value = brouillon.duree || 30;
+    boite.querySelector('#seCentre').value = brouillon.centre || '';
+    boite.querySelector('#seMon').value = brouillon.moniteur || '';
+    boite.querySelector('#seBoite').value = brouillon.boite || '';
+    boite.querySelector('#seInsp').value = brouillon.inspecteur || '';
+  }
+
+  /* Les pastilles, une fois les valeurs posées */
+  const champPlaces = boite.querySelector('#sePlaces');
+  const champCentre = boite.querySelector('#seCentre');
+  const pucesPlaces = pucesDuChamp(champPlaces,
+    [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], '5');
+  boite.querySelector('#sePlacesPuces').appendChild(pucesPlaces);
+  const pucesCentre = pucesDuChamp(champCentre,
+    [['Saint-Brieuc', 'Saint-Brieuc'], ['Loudéac', 'Loudéac']], '');
+  boite.querySelector('#seCentrePuces').appendChild(pucesCentre);
+  pucesPlaces.peindre();
+  pucesCentre.peindre();
+
+  /* 🟪 Le violet suit le centre, dès qu'on le change. */
+  const titre = boite.querySelector('h3');
+  const pastilleCentre = document.createElement('span');
+  pastilleCentre.className = 'sesCentrePastille';
+  titre.appendChild(pastilleCentre);
+  const majViolet = () => {
+    const c = champCentre.value.trim();
+    const ailleurs = horsSaintBrieuc(c);
+    boite.classList.toggle('ses-ailleurs', ailleurs);
+    pastilleCentre.textContent = ailleurs ? '📍 ' + c : '';
+    pastilleCentre.style.display = ailleurs ? '' : 'none';
+  };
+  champCentre.addEventListener('input', majViolet);
+  majViolet();
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 12px;line-height:1.5;';
@@ -2424,6 +2543,7 @@ function ouvrirEditeurSession(sess){
       e.style.cssText = 'flex:1;min-width:0;margin:0;padding:9px 10px;font-size:15px;';
       /* Ce qui était déjà saisi ne se perd pas */
       if(avant[i] !== undefined) e.value = avant[i];
+      else if(brouillon && brouillon.noms) e.value = brouillon.noms[i] || '';
       else if(sess && sess.eleves[i]) e.value = sess.eleves[i].eleve || '';
       l.appendChild(e);
 
@@ -2543,120 +2663,40 @@ function ouvrirEditeurSession(sess){
   const bOk = document.createElement('button');
   bOk.className = 'btn btn-primary';
   bOk.textContent = sess ? '💾 Enregistrer' : '➕ Créer la session';
-  bOk.addEventListener('click', async () => {
+  /* La durée touchée se retient : elle n'est écrite nulle part, on ne
+     saurait pas sinon qu'elle a changé. */
+  let dureeTouchee = false;
+  champDuree.addEventListener('input', () => { dureeTouchee = true; });
+
+  bOk.addEventListener('click', () => {
     const date = boite.querySelector('#seDate').value;
     if(!date){ showToast('Indique la date de la session.'); return; }
 
-    bOk.disabled = true;
-    bOk.textContent = 'Enregistrement…';
-    try{
-      /* La réponse porte l'identifiant de la session : sans lui, on
-         ne sait pas où poser les élèves. */
-      const avantPlaces = sess ? sess.eleves.length : 0;
+    const v = {
+      date: date,
+      heureDebut: boite.querySelector('#seHeure').value,
+      places: Math.max(1, Math.min(20, parseInt(champPlaces.value, 10) || 1)),
+      duree: +champDuree.value || 30,
+      centre: champCentre.value.trim(),
+      moniteur: boite.querySelector('#seMon').value,
+      boite: boite.querySelector('#seBoite').value,
+      inspecteur: boite.querySelector('#seInsp').value.trim(),
+      noms: [...zEleves.querySelectorAll('.seEleve')].map(x => x.value.trim()),
+      dureeTouchee: dureeTouchee
+    };
 
-      const r = await appelPrep({
-        action: 'sessionSet',
-        id: sess ? sess.id : '',
-        date: date,
-        heureDebut: boite.querySelector('#seHeure').value,
-        places: boite.querySelector('#sePlaces').value,
-        duree: boite.querySelector('#seDuree').value,
-        centre: boite.querySelector('#seCentre').value.trim(),
-        moniteur: boite.querySelector('#seMon').value,
-        boite: boite.querySelector('#seBoite').value,
-        inspecteur: boite.querySelector('#seInsp').value.trim(),
-        par: ACCES.moniteur || ''
-      });
-      /* Les élèves saisis, posés place par place. Le serveur vient
-         de créer les places : on les remplit dans la foulée. */
-      const noms = [...zEleves.querySelectorAll('.seEleve')].map(x => x.value.trim());
-      const idS = (r && r.id) || (sess && sess.id);
-
-      if(idS && noms.some(Boolean)){
-        bOk.textContent = 'Inscription des élèves…';
-        /* ⚠️ CE « catch » AVALAIT TOUT, ET C'EST LE PIRE ENDROIT.
-
-           Il rendait « null » sur n'importe quel échec : une panne
-           de réseau comme un refus du classeur. L'élève n'était pas
-           placé, la boucle d'en dessous lui écrivait quand même sa
-           date d'examen — et il se retrouvait avec une date et
-           AUCUNE place. C'est exactement l'état de Romain Kikela le
-           4 septembre : écarté de RDV Permis parce qu'il « avait
-           une date », et réclamé par personne.
-
-           On ne peut pas s'arrêter au premier raté — les autres
-           élèves resteraient en plan. On retient donc qui n'est pas
-           passé, et on le DIT. */
-        const rates = [];
-        await Promise.all(noms.map((nom, i) => {
-          if(!nom) return Promise.resolve();
-          return ecrireSurLaPlace({ idSession: idS, rang: i + 1, eleve: nom })
-            .catch(() => { rates.push(nom); });
-        }));
-
-        /* Leur date d'examen suit : c'est elle que lisent le bureau
-           et le message Messenger. ⚠️ Seulement pour ceux qui ont
-           VRAIMENT leur place : une date sans place est une fiche
-           qui ment. */
-        const poses = noms.filter(n => n && rates.indexOf(n) < 0);
-        if(typeof majSuivi === 'function'){
-          await Promise.all(poses.map(nom =>
-            majSuivi(nom, { datePermis: date,
-                            centre: boite.querySelector('#seCentre').value.trim() })
-              .catch(() => null)));
-        }
-
-        if(rates.length){
-          showToast('⚠️ Pas inscrit(s) : ' + rates.join(', ') +
-                    ' — à replacer à la main.');
-        }
-      }
-
-      /* ⚠️ DÉPLACER UNE SESSION DÉPLACE SES ÉLÈVES.
-
-         Cette fenêtre ne réécrivait la date que des noms TAPÉS dans
-         ses champs. Un élève déjà installé sur la session — mis là
-         depuis la liste, ou repris d'une autre date — n'était pas
-         dans cette boucle : la session partait au 3 septembre et sa
-         fiche restait au 2, ou n'avait plus de date du tout.
-
-         Il tombait alors entre deux listes : « dejaPlace » voyait
-         sa place et l'écartait de RDV Permis, tandis que les examens
-         passés, qui lisaient sa fiche, ne lui réclamaient rien.
-         C'est ce qui est arrivé à Romain Kikela le 3 septembre.
-
-         Ceux qu'on vient d'écrire ci-dessus sont sautés : on ne
-         récrit pas deux fois la même chose dans le même geste. */
-      if(idS && sess && typeof majSuivi === 'function'){
-        const dejaEcrits = noms.filter(Boolean).map(x => normaliserMot(x));
-        const aSuivre = (sess.eleves || [])
-          .map(p => String(p.eleve || '').trim())
-          .filter(nom => nom && dejaEcrits.indexOf(normaliserMot(nom)) === -1);
-        if(aSuivre.length){
-          await Promise.all(aSuivre.map(nom =>
-            majSuivi(nom, { datePermis: date,
-                            centre: boite.querySelector('#seCentre').value.trim() })
-              .catch(() => null)));
-        }
-      }
-
+    /* Rien de changé : rien à attendre. */
+    if(sess && !sessionAChange(sess, v)){
       fermerFond(fond);
-
-      /* Le serveur a pu refuser d'enlever des places occupées : on
-         relit plutôt que d'afficher ce qu'on croyait obtenir. */
-      const apresPlaces = parseInt(boite.querySelector('#sePlaces').value, 10) || 0;
-      if(sess && apresPlaces < avantPlaces){
-        showToast('Session modifiée ✅ — les places occupées sont conservées');
-      }else{
-        showToast(sess ? 'Session modifiée ✅' : 'Session créée ✅');
-      }
-
-      afficherSessionsPermis();
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      bOk.disabled = false;
-      bOk.textContent = sess ? '💾 Enregistrer' : '➕ Créer la session';
+      showToast('Rien n’a changé');
+      return;
     }
+
+    /* ⚡ DIRECT — v1162. La fenêtre se ferme à l'appui, la carte
+       montre déjà la session telle qu'on vient de l'écrire ; le
+       classeur confirme derrière. */
+    fermerFond(fond);
+    enregistrerSessionDirect(sess || null, v);
   });
   r.appendChild(bOk);
 
@@ -2664,6 +2704,147 @@ function ouvrirEditeurSession(sess){
   fond.appendChild(boite);
   document.body.appendChild(fond);
   setTimeout(() => boite.querySelector('#seDate').focus(), 100);
+}
+
+
+/* ============================================================
+   ⚡ ENREGISTRER UNE SESSION, EN UN APPEL ET SANS ATTENDRE — v1162
+
+   David, le 13 octobre : « quand on enregistre, c'est très long à
+   la création et à la modification ». L'écran attendait le classeur
+   quatre fois de suite — la session, chaque élève sur sa place, la
+   fiche de chacun, la relecture — et réécrivait tous les élèves
+   même pour un changement de moniteur. Il a choisi « un seul appel
+   pour tout » : « sessionEnregistrer » (Apps Script v241) fait la
+   session, ses places, ses élèves et leurs dates, en ne touchant
+   qu'à ce qui change.
+
+   ⚠️ ET L'ÉCRAN N'ATTEND PLUS. La carte montre tout de suite la
+   session telle qu'elle vient d'être écrite, avec « ⏳
+   enregistrement… ». Un refus la remet comme avant, le dit, et
+   rouvre la fenêtre avec ce qui avait été tapé : rien ne se perd.
+   ============================================================ */
+function sessionAChange(sess, v){
+  const n = normaliserMot;
+  if(String(sess.date || '') !== v.date) return true;
+  if(String(sess.heureDebut || '') !== String(v.heureDebut || '')) return true;
+  if(n(sess.centre || '') !== n(v.centre)) return true;
+  if(String(sess.moniteur || '') !== String(v.moniteur || '')) return true;
+  if(String(sess.boite || '') !== String(v.boite || '')) return true;
+  if(String(sess.inspecteur || '') !== String(v.inspecteur || '')) return true;
+  if((sess.eleves || []).length !== v.places) return true;
+  if(v.dureeTouchee && dureeSession(sess) !== v.duree) return true;
+  return (sess.eleves || []).some((p, i) => n(p.eleve || '') !== n(v.noms[i] || ''));
+}
+
+/* La session telle qu'elle sera, pour la dessiner sans attendre. Une
+   place qui garde son élève garde aussi ce qu'on savait d'elle
+   (prévenu, dossier, remarque). */
+function sessionProvisoire(sess, v){
+  const avant = (sess && sess.eleves) || [];
+  const eleves = [];
+  for(let i = 0; i < v.places; i++){
+    const nom = v.noms[i] || '';
+    const p = avant[i];
+    const meme = p && normaliserMot(p.eleve || '') === normaliserMot(nom);
+    eleves.push(Object.assign({}, meme ? p : {}, {
+      rang: i + 1, eleve: nom,
+      heure: heureDuCreneau(v.heureDebut, v.duree, i) || (p && p.heure) || ''
+    }));
+  }
+  return Object.assign({}, sess || {}, {
+    id: (sess && sess.id) || ('provisoire' + Date.now()),
+    date: v.date, centre: v.centre, heureDebut: v.heureDebut,
+    moniteur: v.moniteur, boite: v.boite, inspecteur: v.inspecteur,
+    eleves: eleves, __enCours: true
+  });
+}
+
+function remplacerSessionEnMemoire(ancienne, nouvelle){
+  const i = ancienne ? sessionsPermis.findIndex(x => x.id === ancienne.id) : -1;
+  if(i !== -1){
+    if(nouvelle) sessionsPermis[i] = nouvelle;
+    else sessionsPermis.splice(i, 1);
+  }else if(nouvelle){
+    sessionsPermis.push(nouvelle);
+  }
+  sessionsPermis.sort((a, b) => {
+    const j = String(a.date || '').localeCompare(String(b.date || ''));
+    return j !== 0 ? j : String(a.heureDebut || '').localeCompare(String(b.heureDebut || ''));
+  });
+}
+
+async function enregistrerSessionDirect(sess, v){
+  const provisoire = sessionProvisoire(sess, v);
+  remplacerSessionEnMemoire(sess, provisoire);
+  redessinerSessions();
+
+  let r = null;
+  try{
+    r = await appelPrep({
+      action: 'sessionEnregistrer',
+      id: sess ? sess.id : '',
+      date: v.date, heureDebut: v.heureDebut, places: v.places, duree: v.duree,
+      centre: v.centre, moniteur: v.moniteur, boite: v.boite,
+      inspecteur: v.inspecteur,
+      eleves: JSON.stringify(v.noms),
+      par: ACCES.moniteur || ''
+    });
+    if(!r || r.status !== 'ok'){
+      const m = (r && (r.message || r.error)) || 'le classeur n’a pas répondu';
+      /* Un script pas encore redéployé ne connaît pas cette porte :
+         on le dit avec ses mots, pas « Action inconnue ». */
+      throw new Error(/inconnu/i.test(m)
+        ? 'le script Google n’est pas encore à jour (v241 attendue)' : m);
+    }
+  }catch(e){
+    remplacerSessionEnMemoire(provisoire, sess);
+    redessinerSessions();
+    showToast('⚠️ Session pas enregistrée : ' + ((e && e.message) || e));
+    ouvrirEditeurSession(sess, v);
+    return;
+  }
+
+  /* La mémoire du suivi suit, sans rien redemander : ceux qui
+     arrivent — et tous, si la session a changé de jour ou de centre —
+     ont leur date et ne sont plus « à planifier ». */
+  const bouge = sess && (String(sess.date || '') !== v.date ||
+                         normaliserMot(sess.centre || '') !== normaliserMot(v.centre));
+  const aDater = (r.entrants || []).concat(bouge ? v.noms.filter(Boolean) : []);
+  if(typeof etatBureau !== 'undefined' && etatBureau && etatBureau.suivi &&
+     typeof trouverParNom === 'function'){
+    aDater.forEach(nom => {
+      const s = trouverParNom(etatBureau.suivi, nom);
+      if(!s) return;
+      s.datePermis = v.date;
+      s.aPlanifier = '';
+      if(v.centre) s.centre = v.centre;
+    });
+  }
+
+  const moins = sess && v.places < (sess.eleves || []).length;
+  showToast(!sess ? 'Session créée ✅'
+    : (moins ? 'Session modifiée ✅ — les places occupées sont conservées'
+             : 'Session modifiée ✅'));
+
+  /* Ceux qui quittent la session — remplacés ou effacés — repassent
+     par la porte unique : consignes soldées, fiche rendue à RDV
+     Permis, annonce de l'annulation. */
+  for(const nom of (r.sortants || [])){
+    await retirerDeLaSession(nom, { date: (sess && sess.date) || v.date });
+  }
+
+  /* La vraie session, relue — par le Worker, sans attendre le
+     classeur. Sans le « Lecture… » d'afficherSessionsPermis : la
+     carte est déjà là, elle se met juste à jour. */
+  try{
+    await chargerSessionsPermis();
+  }catch(e){
+    /* Pas relue : on garde la provisoire, sans la marque d'attente. */
+    const i = sessionsPermis.findIndex(x => x.id === provisoire.id);
+    if(i !== -1) sessionsPermis[i] = Object.assign({}, provisoire, { id: r.id || provisoire.id, __enCours: false });
+  }
+  redessinerSessions();
 }
 
 
