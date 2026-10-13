@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 13/10/2026 à 08:18 — v1158 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -666,7 +666,12 @@ function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
      là pour les élèves dont l'examen n'est pas demain : il ne perd
      rien, il cesse seulement d'avoir le dernier mot le seul jour où
      il se trompe. */
-  let cEstLaVeille = cEstLaVeilleDeLExamen(jourDuCours, dateExam);
+  /* 📲 v1158 — « la veille », c'est le dernier cours préparé dans les
+     3 jours avant l'examen (choix de David, le 13 octobre) ; sans la
+     liste des cours, la veille exacte, comme avant. */
+  let cEstLaVeille = (typeof estLaLeconDeVeille === 'function')
+    ? estLaLeconDeVeille(nom, jourDuCours, dateExam)
+    : cEstLaVeilleDeLExamen(jourDuCours, dateExam);
 
   if(typeof heuresQuiComptent === 'function'){
     /* ⚠️ ON LUI DONNE L'ÉTAT DU JOUR — v1052. « a » porte
