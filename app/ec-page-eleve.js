@@ -1,4 +1,4 @@
-/* Déployé le 12/10/2026 à 15:22 — v1156 */
+/* Déployé le 13/10/2026 à 10:57 — v1163 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2783,6 +2783,20 @@ function enteteEleve(nom){
   const d = document.createElement('div');
   d.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' +
     'margin-bottom:12px;';
+
+  /* 🖼️ v1163 — sa photo en tête de son dossier, sinon ses initiales.
+     Un administrateur la change d'un appui ; les autres la voient. */
+  if(typeof rondPhoto === 'function'){
+    if(typeof photosPuisRedessin === 'function') photosPuisRedessin();
+    const r = rondPhoto(clePhotoProfil('eleve', nom), nom, 52, 'dossierPhoto');
+    if(estAdminDesPhotosEC()){
+      r.classList.add('changeable');
+      r.title = 'Changer sa photo';
+      r.setAttribute('role', 'button');
+      r.addEventListener('click', () => ouvrirFenetrePhotoProfil({ cible: 'eleve', nom: nom }));
+    }
+    d.appendChild(r);
+  }
 
   const t = document.createElement('div');
   t.style.cssText = 'font-size:19px;font-weight:800;flex:1;min-width:0;' +
