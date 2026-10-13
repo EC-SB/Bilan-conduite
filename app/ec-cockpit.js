@@ -1,4 +1,4 @@
-/* Déployé le 12/10/2026 à 16:02 — v1157 */
+/* Déployé le 13/10/2026 à 10:57 — v1163 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -338,6 +338,22 @@ function ckDessinerLeRail(){
     x.addEventListener('click', () => ckChoisirFiltre(cle));
     return x;
   };
+  /* 🖼️ v1163 — « Moi » en tête : sa propre photo, pour la changer */
+  if(typeof rondPhoto === 'function'){
+    const moi = document.createElement('button');
+    moi.type = 'button';
+    moi.className = 'ckpIc ckpMoi';
+    moi.title = 'Ma photo';
+    moi.setAttribute('aria-label', 'Ma photo');
+    const nomMoi = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+    moi.appendChild(rondPhoto(clePhotoProfil('user', nomMoi), nomMoi, 32, 'ckpMoiRond'));
+    const mot = document.createElement('span');
+    mot.className = 'ckpIcMot';
+    mot.textContent = 'Moi';
+    moi.appendChild(mot);
+    moi.addEventListener('click', () => ouvrirFenetrePhotoProfil({ cible: 'moi' }));
+    r.appendChild(moi);
+  }
   ckFamillesVisibles().forEach(x => r.appendChild(icone(x[0], x[1], x[2])));
 
   const bas = document.createElement('div');
@@ -362,6 +378,18 @@ function ckPastilles(){
     x.addEventListener('click', () => ckChoisirFiltre(cle));
     b.appendChild(x);
   };
+  /* 🖼️ v1163 — « Moi » en tête de la rangée, sur le téléphone aussi */
+  if(typeof rondPhoto === 'function'){
+    const moi = document.createElement('button');
+    moi.type = 'button';
+    moi.className = 'ckpChipMoi';
+    moi.title = 'Ma photo';
+    const nomMoi = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+    moi.appendChild(rondPhoto(clePhotoProfil('user', nomMoi), nomMoi, 26));
+    moi.appendChild(document.createTextNode('Moi'));
+    moi.addEventListener('click', () => ouvrirFenetrePhotoProfil({ cible: 'moi' }));
+    b.appendChild(moi);
+  }
   ckFamillesVisibles().forEach(x => chip(x[0], x[0] ? x[1] : x[1] + ' Tout'));
   chip('clos', '🗄️');
   /* ⚠️ LE TIROIR NE MONTRE JAMAIS LA SUPERVISION — v1082. */
@@ -451,6 +479,14 @@ function ckEnteteDuFil(f, large){
   if(!large){
     const r = ckBouton('←', 'Revenir à la liste', () => fermerLeFil(), 'rond');
     tete.appendChild(r);
+  }
+
+  /* 🖼️ v1163 — la photo devant le nom, en haut du fil */
+  if(typeof rondPhoto === 'function'){
+    const cleP = clePhotoDuFil(c, f.membres || []);
+    const av = rondPhoto(cleP, c.genre === 'groupe' ? '' : ckTitreListe(Object.assign({}, c, { membres: f.membres || [] })), 38, 'ckFhAv');
+    if(!av.querySelector('img') && !av.textContent) av.textContent = c.genre === 'groupe' ? '👥' : '💬';
+    tete.appendChild(av);
   }
 
   const tt = document.createElement('div');
@@ -1089,6 +1125,43 @@ function ckFicheEclair(f){
   frag.className = 'ckFiche';
   const membres = (f && f.membres) || [];
 
+  /* 🖼️ v1163 — la photo en grand, et qui peut la changer : un
+     administrateur pour un élève ou un collègue, le bureau pour un
+     groupe. */
+  if(typeof rondPhoto === 'function'){
+    const cleP = clePhotoDuFil(c, membres);
+    if(cleP){
+      const z = document.createElement('div');
+      z.className = 'ckFichePhoto';
+      const nomP = c.genre === 'groupe' ? '' : (c.eleve || ckTitreListe(Object.assign({}, c, { membres: membres })));
+      const r = rondPhoto(cleP, nomP, 84);
+      if(!r.querySelector('img') && !r.textContent) r.textContent = '👥';
+      z.appendChild(r);
+      frag.appendChild(z);
+    }
+  }
+  const boutonPhoto = () => {
+    if(typeof ouvrirFenetrePhotoProfil !== 'function') return null;
+    if(c.genre === 'groupe'){
+      return peutChangerPhotoGroupe()
+        ? ckBouton('🖼️ Photo du groupe', 'Choisir l’image du groupe',
+            () => ouvrirFenetrePhotoProfil({ cible: 'groupe', id: c.id, titre: 'La photo du groupe' }))
+        : null;
+    }
+    if(!estAdminDesPhotosEC()) return null;
+    if(c.eleve){
+      return ckBouton('🖼️ Changer sa photo', 'La photo de ' + c.eleve,
+        () => ouvrirFenetrePhotoProfil({ cible: 'eleve', nom: c.eleve }));
+    }
+    const moi = normaliserPourPhoto((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+    const autres = membres.filter(m => m.genre === 'user' && normaliserPourPhoto(m.qui) !== moi);
+    if(autres.length === 1){
+      return ckBouton('🖼️ Changer sa photo', 'La photo de ' + autres[0].qui,
+        () => ouvrirFenetrePhotoProfil({ cible: 'user', nom: autres[0].qui }));
+    }
+    return null;
+  };
+
   if(f.enSupervision){
     frag.appendChild(ckCadre('SUPERVISION', '🔒 Tu n’es pas dedans',
       'Ton passage est noté au journal. Pour répondre, ajoute-toi par ⋯ → 👥 Participants.'));
@@ -1103,6 +1176,8 @@ function ckFicheEclair(f){
       acts.appendChild(ckBouton('👤 Ouvrir son dossier', 'Le dossier complet de l’élève',
         () => ouvrirPageEleve(c.eleve)));
     }
+    const bp = boutonPhoto();
+    if(bp) acts.appendChild(bp);
     frag.appendChild(acts);
     return frag;
   }
@@ -1116,6 +1191,13 @@ function ckFicheEclair(f){
       g.appendChild(d);
     });
     frag.appendChild(g);
+    const bp = boutonPhoto();
+    if(bp){
+      const acts = document.createElement('div');
+      acts.className = 'ckFicheActs';
+      acts.appendChild(bp);
+      frag.appendChild(acts);
+    }
     return frag;
   }
   if(!f.enSupervision){
@@ -1124,6 +1206,13 @@ function ckFicheEclair(f){
                           .map(m => m.qui);
     frag.appendChild(ckCadre('ÉQUIPE', autres.join(', ') || 'Toi seul',
       membres.some(m => m.genre === 'boite') ? 'avec la boîte du bureau' : 'conversation entre vous'));
+    const bp = boutonPhoto();
+    if(bp){
+      const acts = document.createElement('div');
+      acts.className = 'ckFicheActs';
+      acts.appendChild(bp);
+      frag.appendChild(acts);
+    }
   }
   return frag;
 }
