@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 15:05 — v1106 */
+/* Déployé le 13/10/2026 à 08:18 — v1158 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1495,6 +1495,12 @@ async function afficherPrepares(recharger, silencieux){
         'color:var(--accent-text);flex:1 1 100%;min-width:0;';
       p.textContent = pos;
       ligneRang.appendChild(p);
+    }
+    /* 📲 v1158 — la phrase de la leçon de veille d'un élève en AAC,
+       juste sous la ligne qui dit que c'est la veille. */
+    if(typeof encadreVeilleAac === 'function'){
+      const va = encadreVeilleAac(cours);
+      if(va) ligneRang.appendChild(va);
     }
 
     /* LA CASE DU NUMÉRO DE LEÇON
