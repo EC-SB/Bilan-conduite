@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 13/10/2026 à 08:34 — v1159 */
 /* ============================================================
    ec-cbgasoil.js
    La CB Gasoil : où elle est, qui l'a, et les pleins faits avec.
@@ -1164,61 +1164,382 @@ function dessinerCbFlotte(){
   plus.addEventListener('click', ajouterCarteCb);
   dedans.appendChild(plus);
 
-  /* Les pleins du mois */
-  const auj = (typeof todayLocal === 'function')
-    ? todayLocal() : new Date().toISOString().slice(0, 10);
-  const mois = auj.slice(5, 7) + '/' + auj.slice(0, 4);
-  const l = pleinsCb('', mois);
+  /* ⛽ v1159 — l'historique de tous les mois, avec ses filtres. Il se
+     dessine dans sa propre zone, pour que les filtres se redessinent
+     sans refermer le volet. */
+  const histo = document.createElement('div');
+  histo.id = 'cbHistoZone';
+  dedans.appendChild(histo);
+
+  d.appendChild(dedans);
+  /* Le volet reste ouvert quand on le redessine (après une correction) */
+  d.open = cbFlotteOuvert;
+  d.addEventListener('toggle', () => {
+    cbFlotteOuvert = d.open;
+    if(d.open) chargerCbHistorique(false);
+  });
+  z.appendChild(d);
+  dessinerHistoriqueCb();
+  if(cbFlotteOuvert) chargerCbHistorique(false);
+}
+
+
+/* ============================================================
+   ⛽ L'HISTORIQUE DES PLEINS — v1159
+
+   David, le 13 octobre : « il me manque l'historique des pleins de
+   tous les mois avec des filtres de recherche par date, par véhicule
+   et par moniteur, et la possibilité de tout modifier au besoin ».
+   Ses choix : les mois en pastilles + une période libre ; tout se
+   modifie, et un plein se supprime.
+
+   L'histoire entière se lit par « cbHistorique », une fois à
+   l'ouverture du volet (et après chaque correction) : « cbList »,
+   lui, ne porte que quatre-vingt-dix jours, et c'est lui que le
+   bouton 💳 relit toutes les vingt secondes. En attendant la réponse,
+   ou si elle ne vient pas, on montre ce qu'on a déjà.
+   ============================================================ */
+let cbHistorique = null;          /* tous les pleins, ou null tant qu'on ne les a pas */
+let cbHistoriqueEnCours = false;
+let cbFlotteOuvert = false;
+const filtreCbHisto = { mois: null, du: '', au: '', vehicule: '', qui: '' };
+
+async function chargerCbHistorique(force){
+  if(cbHistoriqueEnCours) return;
+  if(cbHistorique && !force) return;
+  cbHistoriqueEnCours = true;
+  try{
+    const d = await appelPrep({ action: 'cbHistorique' });
+    if(d && Array.isArray(d.pleins)) cbHistorique = d.pleins;
+  }catch(e){ /* on garde les 90 jours de cbList */ }
+  cbHistoriqueEnCours = false;
+  dessinerHistoriqueCb();
+}
+
+/* « 13/10/2026 10:17 » → « 2026-10-13 10:17 », pour trier et comparer */
+function cleTriCb(quand){
+  const m = String(quand || '').match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if(!m) return '';
+  return m[3] + '-' + m[2] + '-' + m[1] + ' ' + (m[4] ? m[4].padStart(2, '0') + ':' + m[5] : '00:00');
+}
+
+function tousLesPleinsCb(){
+  const base = cbHistorique || (cbEvents || []).filter(e => e && e.type === 'plein');
+  return base.slice().sort((a, b) => cleTriCb(b.quand).localeCompare(cleTriCb(a.quand)));
+}
+
+function moisDeCb(quand){
+  const k = cleTriCb(quand);
+  return k ? k.slice(0, 7) : '';
+}
+
+function nomDuMoisCb(cle){
+  const m = /^(\d{4})-(\d{2})$/.exec(cle || '');
+  if(!m) return 'Date illisible';
+  const noms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août',
+                'septembre', 'octobre', 'novembre', 'décembre'];
+  const t = noms[+m[2] - 1] + ' ' + m[1];
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function moisCourtCb(cle){
+  const m = /^(\d{4})-(\d{2})$/.exec(cle || '');
+  if(!m) return '?';
+  return ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.',
+          'nov.', 'déc.'][+m[2] - 1] + ' ' + m[1];
+}
+
+function litresCb(v){
+  const n = Number(String(v || '').replace(',', '.').replace(/[^\d.]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function nombreFrCb(n){ return n.toFixed(2).replace('.', ','); }
+
+/* Ce que les filtres laissent passer */
+function pleinsFiltresCb(){
+  const f = filtreCbHisto;
+  return tousLesPleinsCb().filter(e => {
+    const k = cleTriCb(e.quand).slice(0, 10);
+    if(f.du || f.au){
+      if(f.du && (!k || k < f.du)) return false;
+      if(f.au && (!k || k > f.au)) return false;
+    }else if(f.mois && f.mois !== 'tous' && moisDeCb(e.quand) !== f.mois){
+      return false;
+    }
+    if(f.vehicule && normaliserMot(e.vehicule || '') !== normaliserMot(f.vehicule)) return false;
+    if(f.qui && normaliserMot(e.qui || '') !== normaliserMot(f.qui)) return false;
+    return true;
+  });
+}
+
+function valeursDistinctesCb(cle){
+  const vu = {};
+  const out = [];
+  tousLesPleinsCb().forEach(e => {
+    const v = String(e[cle] || '').trim();
+    const k = normaliserMot(v);
+    if(!v || vu[k]) return;
+    vu[k] = true; out.push(v);
+  });
+  return out.sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+}
+
+function dessinerHistoriqueCb(){
+  const z = $('cbHistoZone');
+  if(!z) return;
+  z.innerHTML = '';
+  const f = filtreCbHisto;
+  if(f.mois === null){
+    const auj = (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10);
+    f.mois = auj.slice(0, 7);
+  }
 
   const t = document.createElement('div');
   t.style.cssText = 'font-size:11px;letter-spacing:.06em;text-transform:uppercase;' +
-    'color:var(--muted);margin:4px 0 6px;';
-  t.textContent = 'Les pleins — ' + mois;
-  dedans.appendChild(t);
+    'color:var(--muted);margin:4px 0 8px;';
+  t.textContent = 'Les pleins' + (cbHistorique ? '' : (cbHistoriqueEnCours ? ' — lecture de tout l’historique…' : ''));
+  z.appendChild(t);
 
-  if(!l.length){
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.textContent = 'Aucun plein noté ce mois-ci.';
-    dedans.appendChild(v);
-  }else{
-    let total = 0;
-    l.forEach(e => {
-      total += euroCb(e.montant);
-      const li = document.createElement('div');
-      li.style.cssText = 'display:flex;gap:9px;align-items:center;' +
-        'font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);';
-      li.innerHTML = '<span style="flex:1;min-width:0;">' +
-        String(e.quand || '').replace(/</g, '&lt;') + ' · ' +
-        String(e.qui || '').replace(/</g, '&lt;') + ' · ' +
-        /* Un « sans fiche » se dit par son nom de catégorie, pas par
-           sa clé — et sans le 🚗 d'une voiture qu'il n'est pas. */
-        (estSansFicheCb(e.vehicule) ? '' : '🚗 ') +
-        libelleVehiculeCb(e.vehicule).replace(/</g, '&lt;') + '</span>' +
-        '<span style="flex-shrink:0;font-weight:700;">' +
-        (e.montant ? String(e.montant).replace(/</g, '&lt;') + ' €' : '—') +
-        '</span>';
+  /* ── les mois, en pastilles qui passent à la ligne ── */
+  const mois = [];
+  tousLesPleinsCb().forEach(e => { const m = moisDeCb(e.quand); if(m && mois.indexOf(m) === -1) mois.push(m); });
+  if(f.mois && f.mois !== 'tous' && mois.indexOf(f.mois) === -1) mois.unshift(f.mois);
+  mois.sort().reverse();
+  const pastilles = document.createElement('div');
+  pastilles.id = 'cbHistoMois';
+  pastilles.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;';
+  const pastille = (cle, texte) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const on = !f.du && !f.au && f.mois === cle;
+    b.className = on ? '' : 'btn btn-secondary';
+    b.dataset.mois = cle;
+    b.style.cssText = 'width:auto;margin:0;padding:6px 11px;font-size:12.5px;border-radius:999px;' +
+      (on ? 'font-weight:700;font-family:inherit;cursor:pointer;background:var(--orange-soft);' +
+            'border:1px solid var(--orange);color:var(--on-accent);' : '');
+    b.textContent = texte;
+    b.addEventListener('click', () => { f.mois = cle; f.du = ''; f.au = ''; dessinerHistoriqueCb(); });
+    pastilles.appendChild(b);
+  };
+  mois.forEach(m => pastille(m, moisCourtCb(m)));
+  pastille('tous', 'Tous les mois');
+  z.appendChild(pastilles);
 
-      const mod = document.createElement('button');
-      mod.className = 'btn btn-secondary';
-      mod.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;' +
-        'flex-shrink:0;';
-      mod.textContent = '✏️';
-      mod.title = 'Corriger ce plein';
-      mod.addEventListener('click', () => corrigerPleinCb(e));
-      li.appendChild(mod);
-
-      dedans.appendChild(li);
-    });
-
-    const tot = document.createElement('div');
-    tot.style.cssText = 'font-size:13px;font-weight:700;margin-top:8px;';
-    tot.textContent = 'Total du mois — ' + total.toFixed(2).replace('.', ',') + ' €';
-    dedans.appendChild(tot);
+  /* ── la période, le véhicule, le moniteur ── */
+  const filtres = document.createElement('div');
+  filtres.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;';
+  const champ = (lib, el) => {
+    const w = document.createElement('label');
+    w.style.cssText = 'display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);' +
+      'margin:0;flex:1 1 130px;min-width:0;';
+    w.appendChild(document.createTextNode(lib));
+    el.style.margin = '0';
+    el.style.width = '100%';
+    w.appendChild(el);
+    filtres.appendChild(w);
+  };
+  const du = document.createElement('input'); du.type = 'date'; du.id = 'cbHistoDu'; du.value = f.du;
+  const au = document.createElement('input'); au.type = 'date'; au.id = 'cbHistoAu'; au.value = f.au;
+  const periode = () => { f.du = du.value; f.au = au.value; dessinerHistoriqueCb(); };
+  du.addEventListener('change', periode); au.addEventListener('change', periode);
+  champ('Du', du); champ('Au', au);
+  const menu = (id, lib, tous, valeurs, choisi, quand) => {
+    const s = document.createElement('select');
+    s.id = id;
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = tous; s.appendChild(o0);
+    valeurs.forEach(v => { const o = document.createElement('option'); o.value = v;
+      o.textContent = (id === 'cbHistoVeh') ? libelleVehiculeCb(v) : v; s.appendChild(o); });
+    s.value = choisi;
+    s.addEventListener('change', () => { quand(s.value); dessinerHistoriqueCb(); });
+    champ(lib, s);
+  };
+  menu('cbHistoVeh', 'Véhicule', 'Tous les véhicules', valeursDistinctesCb('vehicule'), f.vehicule, v => { f.vehicule = v; });
+  menu('cbHistoQui', 'Moniteur', 'Tous les moniteurs', valeursDistinctesCb('qui'), f.qui, v => { f.qui = v; });
+  if(f.du || f.au || f.vehicule || f.qui){
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'btn btn-secondary';
+    x.id = 'cbHistoEffacer';
+    x.style.cssText = 'width:auto;margin:0;padding:8px 11px;font-size:12.5px;flex:0 0 auto;';
+    x.textContent = '✕ Effacer les filtres';
+    x.addEventListener('click', () => { f.du = ''; f.au = ''; f.vehicule = ''; f.qui = ''; dessinerHistoriqueCb(); });
+    filtres.appendChild(x);
   }
+  z.appendChild(filtres);
 
-  d.appendChild(dedans);
-  z.appendChild(d);
+  /* ── la liste, mois par mois ── */
+  const l = pleinsFiltresCb();
+  let total = 0, litres = 0;
+  l.forEach(e => { total += euroCb(e.montant); litres += litresCb(e.litres); });
+  const res = document.createElement('div');
+  res.id = 'cbHistoResume';
+  res.style.cssText = 'font-size:13px;font-weight:700;margin:0 0 8px;';
+  res.textContent = l.length
+    ? l.length + ' plein' + (l.length > 1 ? 's' : '') + ' — ' + nombreFrCb(total) + ' €' +
+      (litres ? ' · ' + nombreFrCb(litres) + ' L' : '')
+    : 'Aucun plein pour ces filtres.';
+  z.appendChild(res);
+
+  let moisCourant = null, sousTotal = null;
+  const parMois = {};
+  l.forEach(e => { const m = moisDeCb(e.quand) || '?'; parMois[m] = (parMois[m] || 0) + euroCb(e.montant); });
+  l.forEach(e => {
+    const m = moisDeCb(e.quand) || '?';
+    if(m !== moisCourant){
+      moisCourant = m;
+      sousTotal = document.createElement('div');
+      sousTotal.className = 'cbHistoMoisTitre';
+      sousTotal.style.cssText = 'display:flex;gap:8px;justify-content:space-between;font-size:12px;' +
+        'font-weight:800;color:var(--accent-text);margin:12px 0 2px;padding-bottom:4px;' +
+        'border-bottom:2px solid var(--line);';
+      sousTotal.innerHTML = '<span></span><span></span>';
+      sousTotal.firstChild.textContent = nomDuMoisCb(m);
+      sousTotal.lastChild.textContent = nombreFrCb(parMois[m]) + ' €';
+      z.appendChild(sousTotal);
+    }
+    const li = document.createElement('div');
+    li.className = 'cbHistoLigne';
+    li.dataset.id = e.id;
+    li.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:12.5px;padding:6px 0;' +
+      'border-bottom:1px solid var(--line);';
+    const txt = document.createElement('span');
+    txt.style.cssText = 'flex:1;min-width:0;line-height:1.45;';
+    const extra = [e.litres ? e.litres + ' L' : '', e.km ? e.km + ' km' : '',
+                   e.carte ? sigleCb(e.carte) : ''].filter(Boolean).join(' · ');
+    txt.textContent = String(e.quand || '') + ' · ' + String(e.qui || '?') + ' · ' +
+      (estSansFicheCb(e.vehicule) ? '' : '🚗 ') + libelleVehiculeCb(e.vehicule) +
+      (extra ? ' · ' + extra : '') + (e.remarque ? ' — ' + e.remarque : '');
+    li.appendChild(txt);
+    const m2 = document.createElement('span');
+    m2.style.cssText = 'flex-shrink:0;font-weight:700;';
+    m2.textContent = e.montant ? String(e.montant) + ' €' : '—';
+    li.appendChild(m2);
+    const mod = document.createElement('button');
+    mod.className = 'btn btn-secondary';
+    mod.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;flex-shrink:0;';
+    mod.textContent = '✏️';
+    mod.title = 'Modifier ce plein';
+    mod.addEventListener('click', () => modifierPleinCb(e));
+    li.appendChild(mod);
+    z.appendChild(li);
+  });
+}
+
+/* ✏️ TOUT SE MODIFIE — la date et l'heure, le moniteur, la carte, le
+   véhicule, le montant, les litres, les km, la remarque — et 🗑️ le
+   supprime. Rien ne part avant « Enregistrer ». */
+function modifierPleinCb(e){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.id = 'cbPleinFenetre';
+  boite.style.maxWidth = 'min(480px, 94vw)';
+  const h = document.createElement('h3');
+  h.textContent = '⛽ Modifier le plein';
+  boite.appendChild(h);
+
+  const k = cleTriCb(e.quand);
+  const lab = (t, el) => {
+    const l = document.createElement('label'); l.textContent = t; boite.appendChild(l);
+    el.style.width = '100%'; el.style.margin = '0 0 10px'; boite.appendChild(el); return el;
+  };
+  const duo = document.createElement('div');
+  duo.className = 'duo';
+  const dJ = document.createElement('input'); dJ.type = 'date'; dJ.id = 'cbmJour'; dJ.value = k ? k.slice(0, 10) : '';
+  const dH = document.createElement('input'); dH.type = 'time'; dH.id = 'cbmHeure'; dH.value = k ? k.slice(11, 16) : '';
+  [['Le jour', dJ], ['L’heure', dH]].forEach(([t, el]) => {
+    const w = document.createElement('div');
+    const l = document.createElement('label'); l.textContent = t; w.appendChild(l);
+    el.style.width = '100%'; w.appendChild(el); duo.appendChild(w);
+  });
+  boite.appendChild(duo);
+
+  const qui = document.createElement('select'); qui.id = 'cbmQui';
+  const equipe = [];
+  ((typeof moniteursActifs !== 'undefined' && moniteursActifs) || []).forEach(n => { if(n && equipe.indexOf(n) === -1) equipe.push(n); });
+  ((typeof comptesActifs !== 'undefined' && comptesActifs) || []).forEach(c => { const n = c && (c.nom || c); if(n && equipe.indexOf(n) === -1) equipe.push(n); });
+  if(e.qui && !equipe.some(n => normaliserMot(n) === normaliserMot(e.qui))) equipe.unshift(e.qui);
+  equipe.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; qui.appendChild(o); });
+  qui.value = equipe.find(n => normaliserMot(n) === normaliserMot(e.qui)) || equipe[0] || '';
+  lab('Le moniteur', qui);
+
+  const carte = document.createElement('select'); carte.id = 'cbmCarte';
+  const cartes = listeCbCartes().slice();
+  if(e.carte && !cartes.some(c => c && c.cle === e.carte)) cartes.push({ cle: e.carte, nom: e.carte });
+  cartes.forEach(c => { const o = document.createElement('option'); o.value = c.cle; o.textContent = c.nom || c.cle; carte.appendChild(o); });
+  carte.value = e.carte || (cartes[0] && cartes[0].cle) || '';
+  lab('La carte', carte);
+
+  const veh = menuVehiculeCb(e.vehicule || '');
+  veh.id = 'cbmVehicule';
+  lab('Le véhicule', veh);
+
+  const trio = document.createElement('div');
+  trio.style.cssText = 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;';
+  const champs = {};
+  [['montant', 'Montant (€)', e.montant], ['litres', 'Litres', e.litres], ['km', 'Km', e.km]].forEach(([c, t, v]) => {
+    const w = document.createElement('div');
+    const l = document.createElement('label'); l.textContent = t; w.appendChild(l);
+    const i = document.createElement('input'); i.type = 'text'; i.inputMode = 'decimal'; i.id = 'cbm' + c;
+    i.value = v || ''; i.style.width = '100%'; w.appendChild(i); trio.appendChild(w);
+    champs[c] = i;
+  });
+  boite.appendChild(trio);
+  const rem = document.createElement('input'); rem.type = 'text'; rem.id = 'cbmRemarque'; rem.value = e.remarque || '';
+  lab('Remarque', rem);
+
+  const err = document.createElement('div');
+  err.style.cssText = 'font-size:12.5px;color:var(--warn-text);min-height:0;margin-bottom:6px;';
+  boite.appendChild(err);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bS = document.createElement('button'); bS.className = 'btn btn-secondary'; bS.id = 'cbmSupprimer';
+  bS.style.cssText = 'color:var(--red);border-color:var(--red);'; bS.textContent = '🗑️ Supprimer';
+  const bA = document.createElement('button'); bA.className = 'btn btn-secondary'; bA.textContent = 'Annuler';
+  const bV = document.createElement('button'); bV.className = 'btn btn-primary'; bV.id = 'cbmEnregistrer'; bV.textContent = '💾 Enregistrer';
+  rangee.appendChild(bS); rangee.appendChild(bA); rangee.appendChild(bV);
+  boite.appendChild(rangee);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const fermer = () => { try{ fermerFond(fond); }catch(x){ fond.remove(); } };
+  bA.addEventListener('click', fermer);
+  const apres = async (texte) => {
+    fermer();
+    showToast(texte);
+    try{ await chargerCbGasoil(true); }catch(x){}
+    await chargerCbHistorique(true);
+    dessinerCbFlotte();
+  };
+  bV.addEventListener('click', async () => {
+    err.textContent = '';
+    if(!dJ.value){ err.textContent = 'Le jour manque.'; return; }
+    if(!veh.value){ err.textContent = 'Choisis le véhicule.'; return; }
+    const p = dJ.value.split('-');
+    const quand = p[2] + '/' + p[1] + '/' + p[0] + ' ' + (dH.value || '00:00');
+    bV.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'cbPleinMaj', id: e.id, quand: quand, qui: qui.value,
+        carte: carte.value, vehicule: veh.value, montant: champs.montant.value.trim(),
+        litres: champs.litres.value.trim(), km: champs.km.value.trim(), remarque: rem.value.trim() });
+      if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+      await apres('Plein modifié ✅');
+    }catch(x){ bV.disabled = false; err.textContent = 'Impossible : ' + (x.message || x); }
+  });
+  bS.addEventListener('click', async () => {
+    if(!await confirmer('Supprimer ce plein ?\n\n' + (e.quand || '') + ' · ' + (e.qui || '') + ' · ' +
+        libelleVehiculeCb(e.vehicule) + (e.montant ? ' · ' + e.montant + ' €' : '') +
+        '\n\nIl sort des totaux du mois et de la fiche du véhicule.', 'Supprimer')) return;
+    bS.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'cbPleinDelete', id: e.id });
+      if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+      await apres('Plein supprimé ✅');
+    }catch(x){ bS.disabled = false; err.textContent = 'Impossible : ' + (x.message || x); }
+  });
 }
 
 
@@ -1299,6 +1620,7 @@ async function corrigerPleinCb(e){
     await appelPrep({ action:'cbPleinSet', id:e.id,
                       vehicule:veh.vehicule, montant:veh.montant });
     await chargerCbGasoil(true);
+    cbHistorique = null;          /* ⛽ v1159 — l'historique se relit */
     dessinerCbFlotte();
     showToast('Corrigé ✅');
   }catch(err){ showToast('Impossible : ' + err.message); }
