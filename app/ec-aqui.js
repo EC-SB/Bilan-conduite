@@ -1,4 +1,4 @@
-/* Déployé le 12/10/2026 — v1150 */
+/* Déployé le 13/10/2026 à 09:51 — v1161 */
 /* ============================================================
    ec-aqui.js
    ✏️ Écrire plus vite — « À qui ? » et « ✏️ Écrire à … »
@@ -373,15 +373,26 @@ function ouvrirLeFilNeuf(cible, signature){
   /* La VRAIE barre d'écriture : mêmes outils, même place. Ses gestes
      sont rattrapés ici tant que le fil n'existe pas. */
   const barre = zoneDEcritureDuFil('');
-  barre.addEventListener('click', ev => {
+  /* ⚠️ SUR LA ZONE, PLUS SUR LA BARRE — v1161. Les gestes photo,
+     vidéo et fichier vivent dans le panneau du ＋, posé AU-DESSUS de
+     la barre : un écouteur sur la barre ne les voyait plus passer,
+     et le premier fichier d'un fil neuf serait parti nulle part. Le
+     ＋ lui-même n'est pas rattrapé : ouvrir le panneau ne crée rien. */
+  /* ⚠️ UNE SEULE FOIS PAR ZONE : elle survit aux dessins (« innerHTML
+     = '' » ne retire pas ses écouteurs), et deux écouteurs créeraient
+     deux conversations pour un seul appui. */
+  if(!zone.dataset.ecouteFilNeuf) zone.addEventListener('click', ev => {
     const cibleClic = ev.target && ev.target.closest && ev.target.closest('button');
     if(!cibleClic || !filNeufEC) return;
     const id = cibleClic.id;
-    if(['msgElvEnvoyer', 'msgElvVocal', 'msgElvVideo', 'msgElvPhoto'].indexOf(id) === -1) return;
+    if(['msgElvEnvoyer', 'msgElvVocal', 'msgPlusPhoto', 'msgPlusGalerie',
+        'msgPlusFilmer', 'msgPlusVideo', 'msgPlusFichier'].indexOf(id) === -1) return;
     ev.stopPropagation();
     ev.preventDefault();
+    if(typeof fermerLePanneauPlus === 'function') fermerLePanneauPlus();
     envoyerDansLeFilNeuf(id);
   }, true);
+  zone.dataset.ecouteFilNeuf = '1';
   barre.addEventListener('keydown', ev => {
     if(filNeufEC && ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){
       ev.stopPropagation();
@@ -444,8 +455,14 @@ async function envoyerDansLeFilNeuf(quoi){
   /* L'outil demandé, maintenant que le fil existe : sur la plupart
      des téléphones il s'ouvre tout seul ; sinon un second toucher. */
   if(quoi !== 'msgElvEnvoyer'){
-    const b = $(quoi);
-    if(b) b.click();
+    /* Les gestes du ＋ n'ont plus de bouton à l'écran une fois le
+       panneau refermé : on les fait directement. */
+    if(quoi.indexOf('msgPlus') === 0 && typeof faireLeGesteDuPlus === 'function'){
+      faireLeGesteDuPlus(quoi);
+    }else{
+      const b = $(quoi);
+      if(b) b.click();
+    }
   }
 }
 
