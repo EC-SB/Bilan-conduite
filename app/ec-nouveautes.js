@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:34 — v1159 */
+/* Déployé le 13/10/2026 à 08:59 — v1160 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1160,
+    date: 'Mardi 13 octobre 2026',
+    resume: '🎓 Les fiches d’examen se retrouvent toutes seules',
+    quoi: [
+      { emoji: '↩️',
+        titre: 'La carte reprend la fiche commencée',
+        texte: 'Dans Mes prochains cours, la carte d’un élève dont la fiche d’examen est commencée le ' +
+               'dit (« 📤 Avant examen envoyé à 09h40 — sa fiche t’attend ») et son bouton devient ' +
+               '« ↩️ Reprendre sa fiche d’examen » : la fiche revient avec tout ce qui était rempli, ' +
+               'au lieu d’une fiche vide. Après « Fermer », la liste revient tout de suite, sans recharger.' },
+      { emoji: '🎓',
+        titre: 'Mes examens, en haut de la fiche',
+        texte: 'En haut d’une fiche d’examen officiel, les élèves du même bloc (même session du Suivi ' +
+               'permis, ou à défaut même jour et même centre), dans l’ordre des passages : 📤 avant ' +
+               'examen envoyé, 📝 commencée, ⏳ pas encore ouverte, ✍️ celle qu’on a sous les yeux. Un ' +
+               'appui passe d’une fiche à l’autre en gardant la première. Un moniteur qui a deux blocs ' +
+               'dans la journée ne voit que celui de l’élève.' }
+    ]
+  },
   {
     version: 1159,
     date: 'Mardi 13 octobre 2026',
