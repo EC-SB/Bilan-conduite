@@ -1,4 +1,4 @@
-/* Déployé le 12/10/2026 à 15:22 — v1156 */
+/* Déployé le 13/10/2026 à 08:18 — v1158 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,20 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1158,
+    date: 'Mardi 13 octobre 2026',
+    resume: '📲 La leçon de veille AAC : Drivup, le livret, l’inspecteur',
+    quoi: [
+      { emoji: '📲',
+        titre: 'La leçon de veille d’un élève en AAC',
+        texte: 'Sur son dernier cours avant l’examen (dans les 3 jours), la carte de Mes prochains ' +
+               'cours rappelle de vérifier son application Drivup : l’accès à son livret, et ce qu’il ' +
+               'doit présenter à l’inspecteur. Le moniteur du cours le voit aussi en message important ' +
+               'dans son bandeau, de l’heure du cours à 2 h après. La phrase et ses deux ' +
+               'interrupteurs se règlent dans 🎓 Suivi AAC.' }
+    ]
+  },
   {
     version: 1156,
     date: 'Lundi 12 octobre 2026',
