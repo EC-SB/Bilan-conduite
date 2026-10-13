@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 09:51 — v1161 */
+/* Déployé le 13/10/2026 à 10:13 — v1162 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1162,
+    date: 'Mardi 13 octobre 2026',
+    resume: '🎓 Les sessions d’examen s’enregistrent tout de suite',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Créer ou modifier une session, sans attendre',
+        texte: 'La fenêtre se ferme dès l’appui et la session est déjà dans la liste, marquée « ⏳ ' +
+               'enregistrement… » le temps que le classeur confirme. Tout part en un seul envoi — la ' +
+               'session, ses places, ses élèves et leurs dates — et seul ce qui change est réécrit : ' +
+               'changer le moniteur ne touche plus aux élèves. Un élève remplacé ou effacé repart dans ' +
+               'RDV Permis. En cas de refus, la fenêtre revient avec ce que tu avais tapé.' },
+      { emoji: '🔢',
+        titre: 'Les places et le centre en pastilles',
+        texte: 'Nombre de places : 1 · 2 · 3 · 4 · ⌨️ Autre, 3 d’avance. Centre : Saint-Brieuc · ' +
+               'Loudéac · ⌨️ Autre.' },
+      { emoji: '🟪',
+        titre: 'Loudéac (ou ailleurs) en violet',
+        texte: 'Une session hors Saint-Brieuc a un cadre violet très clair dans 🎓 Suivi permis, et sa ' +
+               'fenêtre aussi, avec le centre en pastille à côté du titre.' }
+    ]
+  },
   {
     version: 1161,
     date: 'Mardi 13 octobre 2026',
