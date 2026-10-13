@@ -1,3 +1,4 @@
+/* Déployé le 12/10/2026 à 16:02 — v1157 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -297,14 +298,21 @@ function ckPeutSuperviser(){
   return typeof aDroit !== 'function' || aDroit('messagerie_admin');
 }
 
+/* Le mot sous chaque icône du rail : court, pour tenir dans la
+   colonne. Le nom complet reste dans l'infobulle. */
+const MOTS_DU_RAIL = {
+  '': 'Tout', bureau: 'Bureau', retard: 'Retards', annul: 'Annulations',
+  oubli: 'Oublis', groupe: 'Groupes', interne: 'Équipe', moniteur: 'Moniteurs',
+  clos: 'Fermées', supervision: 'Supervision'
+};
+
 function ckDessinerLeRail(){
   const r = $('ckpRail');
   if(!r) return;
   r.innerHTML = '';
-  const logo = document.createElement('div');
-  logo.className = 'ckpLogo';
-  logo.textContent = 'EC';
-  r.appendChild(logo);
+  /* 🏷️ v1157 — David : « enlève le logo en haut, il ne sert à rien,
+     et mets un mot en dessous de chaque logo pour savoir ce que
+     c'est ». Le « EC » est parti ; chaque icône porte son mot. */
 
   const icone = (cle, sym, nom) => {
     const x = document.createElement('button');
@@ -313,7 +321,14 @@ function ckDessinerLeRail(){
     x.title = nom;
     x.setAttribute('aria-label', nom);
     x.dataset.filtre = cle;
-    x.textContent = sym;
+    const ic = document.createElement('span');
+    ic.className = 'ckpIcSym';
+    ic.textContent = sym;
+    x.appendChild(ic);
+    const mot = document.createElement('span');
+    mot.className = 'ckpIcMot';
+    mot.textContent = MOTS_DU_RAIL[cle] || nom;
+    x.appendChild(mot);
     const n = (cle === 'clos' || cle === 'supervision') ? 0 : ckCompteGenre(cle);
     if(n){
       const b = document.createElement('b');
