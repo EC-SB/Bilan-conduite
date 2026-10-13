@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:59 — v1160 */
+/* Déployé le 13/10/2026 à 09:51 — v1161 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1161,
+    date: 'Mardi 13 octobre 2026',
+    resume: '📎 Les pièces jointes, et la barre façon Messenger',
+    quoi: [
+      { emoji: '＋',
+        titre: 'La barre d’écriture : 🎤, ＋, 🙂',
+        texte: 'Le micro reste seul en premier. Le ＋ ouvre cinq gestes directs : prendre une ' +
+               'photo, choisir une photo, filmer, choisir une vidéo, joindre un fichier. Sur un ' +
+               'ordinateur, « Prendre une photo » utilise la webcam. Les icônes sont dessinées dans ' +
+               'la couleur de l’appli, et le pouce n’a plus de pastille : il devient l’avion dès ' +
+               'qu’on écrit. L’espace élève a la même barre.' },
+      { emoji: '📎',
+        titre: 'Envoyer un PDF, un Word ou un Excel',
+        texte: 'Jusqu’à 10 Mo, dans les deux sens : les élèves aussi (10 fichiers par jour). La ' +
+               'bulle montre le type, le nom et le poids ; un PDF s’ouvre dans un onglet, un Word ' +
+               'ou un Excel se télécharge. Un fichier à macros est refusé, en le disant.' }
+    ]
+  },
   {
     version: 1160,
     date: 'Mardi 13 octobre 2026',
