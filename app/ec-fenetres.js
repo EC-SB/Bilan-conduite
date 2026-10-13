@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1071 */
+/* Déployé le 13/10/2026 à 11:43 — v1165 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1170,7 +1170,16 @@ function ligneEleveTrouve(nom, quandOnClique){
 
   const rond = document.createElement('span');
   rond.className = 'ligneEleveRond';
-  rond.textContent = initialesEleve(nom);
+  /* 🖼️ v1165 — SA PHOTO, QUAND IL EN A UNE. David : « mets les
+     photos dans la recherche en haut et dans la recherche du dossier
+     élève ». Les deux passent par cette ligne : une seule écriture.
+     Sans photo — ou si elle ne charge pas — les initiales, comme
+     avant (poserPhotoDans, ec-photos-profil.js). */
+  if(typeof poserPhotoDans === 'function' && typeof clePhotoProfil === 'function'){
+    poserPhotoDans(rond, clePhotoProfil('eleve', nom), initialesEleve(nom));
+  }else{
+    rond.textContent = initialesEleve(nom);
+  }
   b.appendChild(rond);
 
   /* textContent, pas innerHTML : un nom saisi à la main peut
