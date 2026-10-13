@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 13:01 — v1166 */
+/* Déployé le 13/10/2026 à 13:19 — v1167 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1167,
+    date: 'Mardi 13 octobre 2026',
+    resume: '🔗 Plus de doublons dans les élèves prêts au permis',
+    quoi: [
+      { emoji: '🔗',
+        titre: 'Un nom presque pareil est le même élève',
+        texte: 'Un nom mal écrit dans un bilan ou un message (un tiret bas, une lettre oubliée, les mots dans ' +
+               'l’autre ordre) est rattaché à la fiche de l’élève, quand une seule fiche lui ressemble. ' +
+               'Il ne fait plus de doublon, et l’élève retrouve sa place sur sa session d’examen.' },
+      { emoji: '✏️',
+        titre: 'Le corriger pour de bon',
+        texte: 'La ligne dit « Aussi écrit … » : le bouton « 🔗 C’est le même élève : corriger » réécrit ' +
+               'le mauvais nom dans le classeur.' }
+    ]
+  },
   {
     version: 1166,
     date: 'Mardi 13 octobre 2026',
