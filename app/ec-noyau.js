@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 12:30 — v1103 */
+/* Déployé le 13/10/2026 à 11:32 — v1164 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1513,7 +1513,8 @@ async function envoyerBilanParMail(eleve, dateCours, texte, suite){
     ? (dateEnToutesLettres(dateCours) || dateCours) : dateCours;
 
   const corps = { action: 'mailBilan', to: mails, genre: 'bilan', eleve: nom,
-                  sujet: 'Ton bilan de conduite du ' + (jour || ''),
+                  /* ✉️ v1164 — un rendez-vous post-permis porte son propre objet */
+                  sujet: (suite && suite.sujet) || ('Ton bilan de conduite du ' + (jour || '')),
                   texte: texte };
   if(suite && suite.finDeCours){
     corps.finDeCours = true;
