@@ -1,4 +1,4 @@
-/* Déployé le 10/10/2026 à 09:30 — v1090 */
+/* Déployé le 13/10/2026 à 08:18 — v1158 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -1334,7 +1334,10 @@ function dessinerBandeau(){
 
   /* Les messages importants passent devant tout, rappel compris :
      c'est quelqu'un qui parle, et il attend une réponse. */
-  const importants = cartesMessagesImportants();
+  const importants = cartesMessagesImportants()
+    /* 📲 v1158 — la leçon de veille AAC, chez le moniteur du cours,
+       de l'heure du cours à 2 h après. */
+    .concat((typeof cartesVeilleAac === 'function') ? cartesVeilleAac() : []);
 
   /* RIEN À DIRE : IL DISPARAÎT. Pas de « ✅ rien aujourd'hui » — un
      bandeau qui est là tous les jours devient un décor, et on cesse
