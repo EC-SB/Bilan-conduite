@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:18 — v1158 */
+/* Déployé le 13/10/2026 à 08:59 — v1160 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1502,6 +1502,17 @@ async function afficherPrepares(recharger, silencieux){
       const va = encadreVeilleAac(cours);
       if(va) ligneRang.appendChild(va);
     }
+    /* 🎓 v1160 — sa fiche commencée l'attend : on le dit sur la carte
+       (et son bouton la reprend — voir ouvrirBilanManuel). */
+    const ficheAttend = (typeof etatFicheSurLaCarte === 'function') ? etatFicheSurLaCarte(cours) : null;
+    if(ficheAttend){
+      const fa = document.createElement('div');
+      fa.className = 'ficheAttend';
+      const l1 = document.createElement('div'); l1.className = 'feLong'; l1.textContent = ficheAttend.texte;
+      const l2 = document.createElement('div'); l2.className = 'feCourt'; l2.textContent = ficheAttend.court;
+      fa.appendChild(l1); fa.appendChild(l2);
+      ligneRang.appendChild(fa);
+    }
 
     /* LA CASE DU NUMÉRO DE LEÇON
 
@@ -2428,6 +2439,14 @@ async function afficherPrepares(recharger, silencieux){
           ? '📋 Ouvrir le rendez-vous post-permis'
           : '✍️ Bilan à remplir à la main';
         bMain.dataset.rdv = rdv ? '1' : '';
+        /* 🎓 v1160 — une fiche commencée de ce type : on la reprend */
+        const fiche = (!rdv && typeof ficheCommenceeDe === 'function')
+          ? ficheCommenceeDe(cours.eleve, selType.value) : null;
+        bMain.classList.toggle('reprendre', !!fiche);
+        if(fiche){
+          bMain.textContent = (selType.value === 'examen-officiel')
+            ? '↩️ Reprendre sa fiche d’examen' : '↩️ Reprendre sa fiche';
+        }
       };
       selType.addEventListener('change', majDepart);
       selType.addEventListener('click', e => e.stopPropagation());
