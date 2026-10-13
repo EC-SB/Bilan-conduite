@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 11:32 — v1164 */
+/* Déployé le 13/10/2026 à 11:43 — v1165 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1165,
+    date: 'Mardi 13 octobre 2026',
+    resume: '🖼️ Les photos dans la recherche d’élèves',
+    quoi: [
+      { emoji: '🔍',
+        titre: 'Tu le reconnais avant de lire son nom',
+        texte: 'Dans la loupe en haut et dans la recherche du dossier élève, la photo de l’élève ' +
+               'remplace ses initiales quand il en a une. Sans photo, les initiales restent.' }
+    ]
+  },
   {
     version: 1164,
     date: 'Mardi 13 octobre 2026',
