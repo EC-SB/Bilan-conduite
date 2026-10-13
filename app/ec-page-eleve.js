@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 10:57 — v1163 */
+/* Déployé le 13/10/2026 à 11:43 — v1165 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2615,6 +2615,15 @@ function poserRechercheEleve(zone){
   bloc.appendChild(trouves);
 
   champ.addEventListener('input', () => dessinerTrouvesEleve());
+  /* 🖼️ v1165 — les photos des élèves dans les résultats : on les
+     demande dès qu'on vient chercher, et la liste se redessine si
+     elles arrivent pendant qu'on tape. */
+  champ.addEventListener('focus', () => {
+    if(typeof chargerPhotosProfil !== 'function') return;
+    chargerPhotosProfil(false)
+      .then(change => { if(change && champ.value.trim()) dessinerTrouvesEleve(); })
+      .catch(() => {});
+  });
   /* Entrée sur un seul résultat : on ne fait pas cliquer pour rien.
      Sur plusieurs, on ne devine pas. */
   champ.addEventListener('keydown', e => {
