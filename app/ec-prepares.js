@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 10:57 — v1163 */
+/* Déployé le 13/10/2026 à 11:32 — v1164 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3986,6 +3986,9 @@ async function ouvrirRdvPost(cours){
 
   $('recordView').style.display = 'none';
   $('resultView').style.display = 'none';
+  /* ✉️ v1164 — l'écran repart propre : pas l'encart de fin du
+     rendez-vous d'avant, et les boutons du formulaire revenus. */
+  if(typeof remettreRdvPostAZero === 'function') remettreRdvPostAZero();
   $('rdvPostView').style.display = 'block';
   /* ⚠️ ON VISE CE QU'ON VIENT D'OUVRIR — v929. C'était « scrollTo(0,
      0) », donc le haut de la page : le moniteur retombait sur la
@@ -4626,6 +4629,93 @@ function compteRenduDuRdvPost(c){
   ].filter(x => x).join('\n\n');
 }
 
+/* ✉️ v1164 — l'encart de fin d'un rendez-vous post-permis */
+function remettreRdvPostAZero(){
+  const f = $('rdvPostFin');
+  if(f && f.parentNode) f.parentNode.removeChild(f);
+  ['rdvPostEnr', 'rdvPostAnnul'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });
+}
+
+function afficherFinDuRdvPost(eleve, dateRdv, texteMail){
+  remettreRdvPostAZero();
+  /* Le formulaire est fait : ses deux boutons se retirent, un second
+     appui réécrirait une décision déjà prise. */
+  ['rdvPostEnr', 'rdvPostAnnul'].forEach(id => { const b = $(id); if(b) b.style.display = 'none'; });
+
+  const z = document.createElement('div');
+  z.id = 'rdvPostFin';
+  z.style.cssText = 'margin-top:12px;padding-top:12px;border-top:1px solid var(--line);';
+
+  const mails = (typeof adressesDuBilan === 'function') ? adressesDuBilan(eleve) : [];
+  const bMail = document.createElement('button');
+  bMail.className = 'btn btn-primary';
+  bMail.id = 'rdvPostMail';
+  bMail.style.cssText = 'padding:13px;font-size:14px;';
+  bMail.textContent = mails.length ? '✉️ Envoyer le bilan par mail (' + mails.length + ')'
+                                   : '✉️ Envoyer le bilan par mail…';
+  bMail.title = mails.length ? mails.join(' · ') : 'On te demandera son adresse';
+  const d = document.createElement('div');
+  d.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4;';
+  d.textContent = (mails.length ? mails.join(' · ')
+    : 'Aucune adresse sur sa fiche : on te la demandera, et elle y sera rangée pour la prochaine fois.') +
+    ' — le commentaire pour le bureau ne part pas.';
+
+  bMail.addEventListener('click', async () => {
+    const libelle = bMail.textContent;
+    bMail.disabled = true;
+    bMail.textContent = 'Envoi…';
+    try{
+      const suite = { finDeCours: true,
+                      sujet: 'Ton rendez-vous post-permis du ' +
+                        ((typeof dateEnToutesLettres === 'function' && dateEnToutesLettres(dateRdv)) || dateRdv) };
+      const combien = await envoyerBilanParMail(eleve, dateRdv, texteMail, suite);
+      if(!combien){ bMail.disabled = false; bMail.textContent = libelle; return; }
+      bMail.textContent = '✅ Envoyé à ' + combien + ' adresse(s)';
+      if(suite.annonce && suite.annonce.envoye){
+        d.textContent += ' · 💬 Le bureau le lui a aussi dit dans sa messagerie.';
+      }
+    }catch(e){
+      bMail.disabled = false;
+      bMail.textContent = '⚠️ Échec — réessayer';
+      d.textContent = e.message || String(e);
+      d.style.color = 'var(--warn-text)';
+    }
+  });
+  z.appendChild(bMail);
+  z.appendChild(d);
+
+  const bFin = document.createElement('button');
+  bFin.className = 'btn btn-secondary';
+  bFin.id = 'rdvPostFermer';
+  bFin.style.cssText = 'margin-top:12px;';
+  bFin.textContent = '← Revenir à mes cours';
+  bFin.addEventListener('click', () => fermerRdvPostTermine());
+  z.appendChild(bFin);
+
+  const msg = $('rdvPostMsg');
+  if(msg && msg.parentNode) msg.parentNode.insertBefore(z, msg.nextSibling);
+  else $('rdvPostView').appendChild(z);
+}
+
+async function fermerRdvPostTermine(){
+  remettreRdvPostAZero();
+  rdvPostEnCours = null;
+  $('rdvPostView').style.display = 'none';
+
+  /* ⚠️ UN RENDEZ-VOUS TERMINÉ EST UN COURS TERMINÉ — v1043.
+
+     C'est « terminerCours » qui termine un cours, et c'est la même
+     porte pour tous : elle arrête le chrono, efface la dictée, le
+     bilan, le trajet et le nom, et rend l'écran au suivant. */
+  if(typeof terminerCours === 'function'){
+    try{ await terminerCours(); }
+    catch(e){ $('recordView').style.display = 'block'; }
+  }else{
+    $('recordView').style.display = 'block';
+  }
+  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+}
+
 async function terminerRdvPost(){
   if(!rdvPostEnCours) return;
   const suite = $('rdvPostSuite').value;
@@ -4833,32 +4923,28 @@ async function terminerRdvPost(){
        elle ne doit pas revenir hanter le prochain rendez-vous. */
     oublierRdvPost();
 
-    setTimeout(async () => {
-      rdvPostEnCours = null;
-      $('rdvPostView').style.display = 'none';
+    /* ============================================================
+       ✉️ ET LE BILAN PART PAR MAIL — v1164
 
-      /* ⚠️ UN RENDEZ-VOUS TERMINÉ EST UN COURS TERMINÉ — v1043.
+       David, le 13 octobre : « à la fin d'un post-permis, on n'a pas
+       le bouton pour envoyer par mail le bilan ». L'écran se
+       refermait seul au bout d'une seconde et demie : il n'y avait
+       nulle part où le poser. Il reste maintenant ouvert sur un
+       encart de fin — le même bouton que l'écran de fin de cours,
+       par la même porte (envoyerBilanParMail), qui demande l'adresse
+       si la fiche n'en a pas — et un bouton pour revenir aux cours.
 
-         Ces trois lignes ne faisaient que DÉCOUVRIR l'écran de
-         cours : « recordView » redevenait visible avec ce qu'il y
-         avait dessous — le nom de l'élève, sa dictée, son bandeau
-         « cours en cours ». Le rendez-vous était enregistré et
-         l'application continuait d'annoncer un cours ouvert, et de
-         demander d'y revenir à chaque changement d'écran.
-
-         C'est « terminerCours » qui termine un cours, et c'est la
-         même porte pour tous : elle arrête le chrono, efface la
-         dictée, le bilan, le trajet et le nom, et rend l'écran au
-         suivant. Recopier sa dernière ligne — « recordView à
-         block » — c'était en prendre la façade sans le travail. */
-      if(typeof terminerCours === 'function'){
-        try{ await terminerCours(); }
-        catch(e){ $('recordView').style.display = 'block'; }
-      }else{
-        $('recordView').style.display = 'block';
-      }
-      if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
-    }, 1400);
+       ⚠️ LE COMMENTAIRE POUR LE BUREAU NE PART PAS. Il est écrit
+       pour l'équipe : l'élève reçoit la conclusion, le bilan
+       d'examen, son bilan corrigé et les remarques du moniteur.
+       ============================================================ */
+    const texteMail = compteRenduDuRdvPost({
+      conclusion: conclusion,
+      bilanExamen: majs.bilanExamen,
+      bilanEleve: majs.bilanEleve,
+      texteMoniteur: majs.texteMoniteur
+    });
+    afficherFinDuRdvPost(eleve, rdvPostEnCours.date || todayLocal(), texteMail);
   }catch(e){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Erreur : ' + e.message;
