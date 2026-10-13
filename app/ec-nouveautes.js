@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 10:57 — v1163 */
+/* Déployé le 13/10/2026 à 11:32 — v1164 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,18 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1164,
+    date: 'Mardi 13 octobre 2026',
+    resume: '✉️ Le bilan du rendez-vous post-permis part par mail',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'À la fin d’un post-permis',
+        texte: 'Après « Terminer », l’écran reste ouvert : « ✉️ Envoyer le bilan par mail » envoie à ' +
+               'l’élève la conclusion, le bilan de son examen, le sien et tes remarques. Le commentaire ' +
+               'pour le bureau ne part pas. « ← Revenir à mes cours » referme l’écran.' }
+    ]
+  },
   {
     version: 1163,
     date: 'Mardi 13 octobre 2026',
