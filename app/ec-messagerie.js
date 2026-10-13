@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 20:48 — v1113 */
+/* Déployé le 13/10/2026 à 09:51 — v1161 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1002,6 +1002,8 @@ async function ouvrirLeFil(id, viser){
 function fermerLeFil(){
   fermerLeSelecteurDeReaction();
   fermerLePanneauEmoji();
+  fermerLePanneauPlus();
+  arreterLaPhotoCamEC();
   /* ⚠️ ET LA PHOTO EN GRAND, qui vit dans le <body> et non dans la
      zone : « innerHTML = '' » ne l'emporte pas. Sans ça, revenir à la
      liste laisse une image plein écran par-dessus tout. */
@@ -1030,6 +1032,7 @@ function dessinerLeFil(){
      ouvert alors qu'il n'est plus nulle part. */
   fermerLeSelecteurDeReaction();
   fermerLePanneauEmoji();
+  fermerLePanneauPlus();
   if(typeof fermerMenuDuFil === 'function' && fermerMenuDuFil) fermerMenuDuFil();
 
   zone.innerHTML = '';
@@ -1439,6 +1442,13 @@ function bulleDuMessage(m, avant, apres){
     b.appendChild(videoB);
   }
 
+  /* 📎 La pièce jointe, à la même place — v1161. */
+  const docB = (typeof documentDuMessage === 'function') ? documentDuMessage(m) : null;
+  if(docB){
+    b.classList.add('doc');
+    b.appendChild(docB);
+  }
+
   /* ⚠️ LE TEXTE D'UN VOCAL EST DANS SA PROPRE ZONE — v1098. Posé
      comme un nœud de texte nu, il se collait au lecteur et se lisait
      comme une légende d'image. Il DOUBLE la parole : un cran plus
@@ -1506,9 +1516,25 @@ function zoneDEcritureDuFil(id){
      la barre semblait mal centrée. */
   l.className = 'msgBarre aOutils';
 
-  /* 🎤 Enregistrer un vocal — v1098. DEVANT les deux autres, réponse
-     de David du 8 octobre : c'est le geste qu'on cherche quand on
-     n'a pas les mains libres, et celui-là ne se tâtonne pas.
+  /* ============================================================
+     🎤 · ＋ · 🙂 — v1161
+
+     David, le 13 octobre : « mets le micro tout seul, ensuite un ＋
+     qui ouvre la possibilité d'envoyer une vidéo ou de filmer, pareil
+     pour l'appareil photo, ou d'envoyer une PJ », et « des icônes à
+     la Messenger ». Le 🎥 et le 📷 passent dans le panneau du ＋ :
+     cinq gestes directs, sans la question « Filmer ou choisir ? »
+     d'après coup.
+
+     ⚠️ LES ICÔNES SONT DESSINÉES ICI, PAS EMPRUNTÉES. Pleines,
+     arrondies, dans la couleur de l'appli : le style de Messenger,
+     pas ses images. Elles prennent « currentColor » — la feuille de
+     style décide de la couleur, clair et sombre compris.
+     ============================================================ */
+
+  /* 🎤 Enregistrer un vocal — v1098. Seul en tête, réponse de David
+     du 8 octobre confirmée le 13 : c'est le geste qu'on cherche quand
+     on n'a pas les mains libres, et celui-là ne se tâtonne pas.
 
      ⚠️ IL NE PARAÎT PAS S'IL NE PEUT PAS MARCHER. Un bouton micro
      sur un navigateur sans MediaRecorder est un bouton qui répond
@@ -1519,8 +1545,9 @@ function zoneDEcritureDuFil(id){
     voc.type = 'button';
     voc.id = 'msgElvVocal';
     voc.className = 'msgOutil';
-    voc.textContent = '🎤';
+    voc.innerHTML = ICONES_BARRE_EC.micro;
     voc.title = 'Enregistrer un vocal';
+    voc.setAttribute('aria-label', 'Enregistrer un vocal');
     voc.addEventListener('click', ev => {
       ev.stopPropagation();
       demarrerLeVocalEC(l);
@@ -1528,46 +1555,30 @@ function zoneDEcritureDuFil(id){
     l.appendChild(voc);
   }
 
-  /* 🎥 La vidéo — v1109. À côté du micro : ce sont les deux gestes
-     qui remplacent la barre d'écriture, et on les cherche au même
-     endroit. Le bouton demande d'abord s'il faut filmer ou choisir :
-     deux boutons de plus auraient mangé la place du champ. */
-  if(typeof videoPossibleEC === 'function' && videoPossibleEC()){
-    const vid = document.createElement('button');
-    vid.type = 'button';
-    vid.id = 'msgElvVideo';
-    vid.className = 'msgOutil';
-    vid.textContent = '🎥';
-    vid.title = 'Envoyer une vidéo';
-    vid.addEventListener('click', ev => {
-      ev.stopPropagation();
-      choisirCommentFilmerEC(l);
-    });
-    l.appendChild(vid);
-  }
-
-  /* 📷 Envoyer une photo — v1088. Devant 🙂 : c'est le geste le moins
-     fréquent des deux, mais le plus visible — on le cherche des yeux
-     quand on a quelque chose à montrer. */
-  const pho = document.createElement('button');
-  pho.type = 'button';
-  pho.id = 'msgElvPhoto';
-  pho.className = 'msgOutil';
-  pho.textContent = '📷';
-  pho.title = 'Envoyer une photo';
-  pho.addEventListener('click', ev => {
+  /* ＋ Photo, vidéo, fichier — v1161. */
+  const plus = document.createElement('button');
+  plus.type = 'button';
+  plus.id = 'msgElvPlus';
+  plus.className = 'msgOutil msgPlus';
+  plus.innerHTML = ICONES_BARRE_EC.plus;
+  plus.title = 'Photo, vidéo, fichier';
+  plus.setAttribute('aria-label', 'Photo, vidéo, fichier');
+  plus.setAttribute('aria-expanded', 'false');
+  plus.addEventListener('click', ev => {
     ev.stopPropagation();
-    choisirUnePhoto();
+    basculerLePanneauPlus(l);
   });
-  l.appendChild(pho);
+  l.appendChild(plus);
 
-  /* 🙂 Le panneau des émoticônes — v1086. */
+  /* 🙂 Le panneau des émoticônes — v1086. Après le ＋ : David l'a
+     voulu là, et pas dans le champ comme Messenger. */
   const emo = document.createElement('button');
   emo.type = 'button';
   emo.id = 'msgElvEmo';
   emo.className = 'msgOutil';
-  emo.textContent = '🙂';
+  emo.innerHTML = ICONES_BARRE_EC.emo;
   emo.title = 'Émoticônes';
+  emo.setAttribute('aria-label', 'Émoticônes');
   emo.addEventListener('click', ev => {
     /* Sans ça, le clic remonte jusqu'au document et referme le
        panneau dans la foulée de son ouverture. */
@@ -1615,7 +1626,7 @@ function zoneDEcritureDuFil(id){
   b.type = 'button';
   b.id = 'msgElvEnvoyer';
   b.className = 'msgEnv';
-  b.textContent = '➤';
+  b.innerHTML = ICONES_BARRE_EC.avion;
   b.title = 'Envoyer (Ctrl + Entrée)';
   /* 👍 LE POUCE — v1086. David : « une action rapide type pouce comme
      messenger ». Ce n'est pas un bouton de plus : c'est celui-ci qui
@@ -1652,7 +1663,13 @@ function zoneDEcritureDuFil(id){
     const vide = !t.value.trim();
     b.classList.remove('eteint');
     b.classList.toggle('pouce', vide);
-    b.textContent = vide ? '👍' : '➤';
+    /* 👍 puis l'avion — dessinés, comme le reste de la barre (v1161).
+       On ne redessine que si ça change : à chaque frappe, sinon. */
+    const icone = vide ? 'pouce' : 'avion';
+    if(b.dataset.icone !== icone){
+      b.innerHTML = ICONES_BARRE_EC[icone];
+      b.dataset.icone = icone;
+    }
     b.title = vide ? 'Envoyer un pouce' : 'Envoyer (Ctrl + Entrée)';
   };
 
@@ -3900,8 +3917,8 @@ async function envoyerUnePhotoDansLeFil(fichier){
   envoiPhotoEC = true;
 
   const id = filOuvertEC.conv.id;
-  const bouton = $('msgElvPhoto');
-  if(bouton){ bouton.disabled = true; bouton.textContent = '⏳'; }
+  /* ⏳ Sur le ＋ — v1161 : c'est lui qui a ouvert l'envoi. */
+  plusOccupe(true);
 
   try{
     const p = await reduireLaPhoto(fichier);
@@ -3921,7 +3938,7 @@ async function envoyerUnePhotoDansLeFil(fichier){
     }
   }
   envoiPhotoEC = false;
-  if(bouton){ bouton.disabled = false; bouton.textContent = '📷'; }
+  plusOccupe(false);
 }
 
 /* ------------------------------------------------------------
@@ -3942,6 +3959,9 @@ function adresseDeLaPiece(piece){
 function imageDuMessage(m){
   const p = m && m.piece;
   if(!p || pieceEstUnSon(p) || pieceEstUneVideo(p)) return null;
+  /* 📎 v1161 — un PDF n'est pas une image : sans cette ligne, il
+     serait dessiné comme une photo cassée. */
+  if(typeof pieceEstUnDocument === 'function' && pieceEstUnDocument(p)) return null;
   if(!p.lien){
     const d = document.createElement('div');
     d.className = 'msgImgAbs';
@@ -4610,29 +4630,12 @@ function formatDeLaVideoEC(){
 }
 
 /* ------------------------------------------------------------
-   LE BOUTON : FILMER, OU CHOISIR
+   FILMER, OU CHOISIR — deux tuiles du ＋ depuis la v1161
 
-   David : « le bouton propose soit filmer soit choisir une vidéo ».
-   Deux boutons dans la barre auraient coûté la place du champ ; une
-   question en coûte zéro, et elle se lit.
+   La question « Filmer ou choisir ? » d'après le bouton 🎥 a
+   disparu : David voulait les gestes directs, et le panneau du ＋
+   les pose côte à côte (« Filmer », « Choisir une vidéo »).
    ------------------------------------------------------------ */
-async function choisirCommentFilmerEC(barre){
-  if(videoEC || envoiVideoEC) return;
-  if(typeof fenetre !== 'function'){ demarrerLaVideoEC(barre); return; }
-
-  const r = await fenetre(
-    'Trente secondes au maximum. Une vidéo déjà prise doit tenir ' +
-    'en 12 Mo — au-delà, le téléphone l’a filmée trop grande pour ' +
-    'partir d’un bord de route.',
-    [{ nom: 'Annuler', valeur: '' },
-     { nom: '📁 Choisir une vidéo', valeur: 'choisir' },
-     { nom: '🎥 Filmer', valeur: 'filmer', principal: true }],
-    'Envoyer une vidéo');
-
-  if(r === 'filmer') demarrerLaVideoEC(barre);
-  else if(r === 'choisir') choisirUneVideoEC();
-}
-
 function choisirUneVideoEC(){
   const z = document.createElement('input');
   z.type = 'file';
@@ -4686,8 +4689,7 @@ async function envoyerUneVideoChoisieEC(fichier){
   }
 
   envoiVideoEC = true;
-  const bouton = $('msgElvVideo');
-  if(bouton){ bouton.disabled = true; bouton.textContent = '⏳'; }
+  plusOccupe(true);
 
   try{
     const sec = await dureeDUnFichierVideoEC(fichier);
@@ -4704,7 +4706,7 @@ async function envoyerUneVideoChoisieEC(fichier){
     showToast('La vidéo n’est pas partie : ' + ((e && e.message) || e));
   }
   envoiVideoEC = false;
-  if(bouton){ bouton.disabled = false; bouton.textContent = '🎥'; }
+  plusOccupe(false);
 }
 
 /* ------------------------------------------------------------
@@ -5597,6 +5599,379 @@ const FAMILLES_EMOJI = [
      '💰 💶 💳 🧾 🏢 🏫 👨‍🏫 👩‍🏫 🎓 📚 📖 ✏️ 🖊️ 🔍 🔔 🔕 💬 💡 🚩 🧤').split(' ') }
 ];
 
+/* ============================================================
+   ＋ LE PANNEAU DU PLUS, ET 📎 LES PIÈCES JOINTES — v1161
+
+   David, le 13 octobre : « mets le micro tout seul, ensuite tu mets
+   un ＋ qui, quand on appuie dessus, ouvre la possibilité d'envoyer
+   une vidéo ou de filmer, pareil pour l'appareil photo, ou d'envoyer
+   une PJ (chose qu'on ne peut pas pour le moment) ». Puis : PDF,
+   Word et Excel, 10 Mo au plus.
+
+   ⚠️ LE PANNEAU S'OUVRE OÙ S'OUVRE CELUI DES ÉMOTICÔNES. Au-dessus
+   de la barre, dans le même cadre : un seul endroit où regarder, et
+   jamais les deux ouverts en même temps.
+   ============================================================ */
+
+/* Les icônes de la barre, dessinées une fois. « trou » (un aplat) et
+   « trouT » (un trait) sont les découpes : elles prennent la couleur
+   du fond, « --msgTrou », posée par la feuille de style — clair et
+   sombre sans rien recalculer. Deux classes, parce qu'un « fill »
+   posé en CSS écrase l'attribut : un trait rempli deviendrait une
+   tache. */
+const ICONES_BARRE_EC = (() => {
+  const svg = (corps, t) => '<svg class="msgIc" width="' + (t || 24) + '" height="' +
+    (t || 24) + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + corps + '</svg>';
+  return {
+    micro: svg('<rect x="8.5" y="2" width="7" height="12.5" rx="3.5" fill="currentColor"/>' +
+      '<path d="M5 11.2a7 7 0 0 0 14 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>' +
+      '<path d="M12 18.4V21.5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>'),
+    plus: svg('<circle cx="12" cy="12" r="10.5" fill="currentColor"/>' +
+      '<path class="trouT" d="M12 7v10M7 12h10" stroke-width="2.4" stroke-linecap="round"/>'),
+    emo: svg('<circle cx="12" cy="12" r="10.5" fill="currentColor"/>' +
+      '<circle class="trou" cx="8.6" cy="9.8" r="1.5"/><circle class="trou" cx="15.4" cy="9.8" r="1.5"/>' +
+      '<path class="trouT" d="M7.4 13.8a5 5 0 0 0 9.2 0" stroke-width="2" stroke-linecap="round"/>'),
+    pouce: svg('<rect x="2" y="10" width="4.4" height="11" rx="1.4" fill="currentColor"/>' +
+      '<path d="M8.2 20.9V10.6l4.5-7.1c.5-.8 1.6-1 2.3-.4.6.5.9 1.3.7 2.1L14.9 9.6h4.6a2.2 2.2 0 0 1 2.2 2.6l-1.4 7a2.2 2.2 0 0 1-2.2 1.8z" fill="currentColor"/>', 28),
+    avion: svg('<path d="M3.4 20.6 21.5 12 3.4 3.4l2.4 7.2L14 12l-8.2 1.4z" fill="currentColor"/>', 26),
+    photo: svg('<path d="M4 7h3l1.6-2.3c.3-.4.8-.7 1.3-.7h4.2c.5 0 1 .3 1.3.7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" fill="currentColor"/>' +
+      '<circle class="trou" cx="12" cy="13.2" r="3.7"/><circle cx="12" cy="13.2" r="2" fill="currentColor"/>'),
+    galerie: svg('<rect x="2.5" y="4" width="19" height="16" rx="3" fill="currentColor"/>' +
+      '<path class="trou" d="M5.5 17.5l4.3-5.3 3 3.4 2.2-2.6 3.5 4.5z"/><circle class="trou" cx="16" cy="8.6" r="1.7"/>'),
+    filmer: svg('<rect x="1.8" y="6" width="13.5" height="12" rx="3" fill="currentColor"/>' +
+      '<path d="M16.6 10.4 22.2 7v10l-5.6-3.4z" fill="currentColor"/><circle class="trou" cx="6" cy="10" r="1.4"/>'),
+    video: svg('<rect x="2.5" y="4" width="19" height="16" rx="3" fill="currentColor"/>' +
+      '<path class="trou" d="M10 8.4v7.2l6-3.6z"/>'),
+    fichier: svg('<path d="M20.5 11.2 12.3 19.4a5 5 0 0 1-7.1-7.1l8.4-8.4a3.4 3.4 0 0 1 4.8 4.8l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>')
+  };
+})();
+
+let panneauPlusEC = null;
+
+function fermerLePanneauPlus(){
+  if(panneauPlusEC && panneauPlusEC.parentNode){
+    panneauPlusEC.parentNode.removeChild(panneauPlusEC);
+  }
+  panneauPlusEC = null;
+  const b = $('msgElvPlus');
+  if(b){ b.classList.remove('ouvert'); b.setAttribute('aria-expanded', 'false'); }
+}
+
+/* ⏳ Un envoi en cours se voit sur le ＋, qui l'a ouvert. */
+function plusOccupe(oui){
+  const b = $('msgElvPlus');
+  if(!b) return;
+  b.disabled = !!oui;
+  b.classList.toggle('occupe', !!oui);
+  b.innerHTML = oui ? '<span class="msgPlusAttente">⏳</span>' : ICONES_BARRE_EC.plus;
+}
+
+/* Les cinq gestes, dans l'ordre du schéma validé le 13 octobre. Ils
+   portent un id : le fil qui n'existe pas encore (ec-aqui.js) les
+   rattrape pour créer la conversation d'abord. */
+function gestesDuPlus(){
+  const g = [
+    { id: 'msgPlusPhoto',   icone: 'photo',   nom: 'Prendre<br>une photo', faire: prendreUnePhotoEC },
+    { id: 'msgPlusGalerie', icone: 'galerie', nom: 'Choisir<br>une photo', faire: choisirUnePhoto }
+  ];
+  if(typeof videoPossibleEC === 'function' && videoPossibleEC()){
+    g.push({ id: 'msgPlusFilmer', icone: 'filmer', nom: 'Filmer',
+             faire: (barre) => demarrerLaVideoEC(barre) });
+  }
+  g.push({ id: 'msgPlusVideo',   icone: 'video',   nom: 'Choisir<br>une vidéo', faire: choisirUneVideoEC });
+  g.push({ id: 'msgPlusFichier', icone: 'fichier', nom: 'Joindre<br>un fichier', faire: choisirUnFichierEC });
+  return g;
+}
+
+/* Le geste d'un id, sans passer par le panneau — pour le fil neuf,
+   qui le relance une fois la conversation créée. */
+function faireLeGesteDuPlus(id, barre){
+  const g = gestesDuPlus().filter(x => x.id === id)[0];
+  if(g) g.faire(barre || document.querySelector('.msgBarre'));
+}
+
+function basculerLePanneauPlus(barre){
+  if(panneauPlusEC){ fermerLePanneauPlus(); return; }
+  if(typeof fermerLePanneauEmoji === 'function') fermerLePanneauEmoji();
+  if(envoiPhotoEC || envoiVideoEC || envoiFichierEC) return;
+
+  const b = $('msgElvPlus');
+  if(b){ b.classList.add('ouvert'); b.setAttribute('aria-expanded', 'true'); }
+
+  const z = document.createElement('div');
+  z.className = 'msgEmo msgPlusPanneau';
+  z.id = 'msgPlusPanneau';
+  const gestes = gestesDuPlus();
+  /* ⚠️ UNE SEULE RANGÉE, MÊME À 390 PX. Les colonnes se comptent sur
+     les gestes présents (quatre si l'appareil ne sait pas filmer) :
+     une grille « auto-fit » en mettait quatre et renvoyait le
+     cinquième seul sur une deuxième ligne. */
+  z.style.gridTemplateColumns = 'repeat(' + gestes.length + ', minmax(0, 1fr))';
+  gestes.forEach(g => {
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.id = g.id;
+    t.className = 'msgPlusTuile';
+    t.innerHTML = '<span class="msgPlusRond">' + ICONES_BARRE_EC[g.icone] + '</span>' +
+                  '<span class="msgPlusNom">' + g.nom + '</span>';
+    t.addEventListener('click', ev => {
+      ev.stopPropagation();
+      fermerLePanneauPlus();
+      g.faire(barre);
+    });
+    z.appendChild(t);
+  });
+  barre.parentNode.insertBefore(z, barre);
+  panneauPlusEC = z;
+}
+
+/* Un appui ailleurs referme le panneau, comme celui des émoticônes. */
+if(typeof document !== 'undefined' && document.addEventListener){
+  document.addEventListener('click', ev => {
+    if(!panneauPlusEC) return;
+    const c = ev.target;
+    if(c && c.closest && (c.closest('#msgPlusPanneau') || c.closest('#msgElvPlus'))) return;
+    fermerLePanneauPlus();
+  });
+}
+
+/* ------------------------------------------------------------
+   📷 PRENDRE UNE PHOTO
+
+   Sur un téléphone, l'appareil photo s'ouvre directement :
+   « capture » le force, et c'est ce qu'on veut ici — la galerie a
+   sa propre tuile. Sur un ordinateur, l'attribut est ignoré : on
+   prend la webcam s'il y en a une, et on retombe sur le choix d'un
+   fichier sinon.
+   ------------------------------------------------------------ */
+function prendreUnePhotoEC(barre){
+  if(envoiPhotoEC) return;
+  const tactile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  if(!tactile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    photoALaWebcamEC(barre || document.querySelector('.msgBarre'));
+    return;
+  }
+  ouvrirLeSelecteurDePhotoEC(true);
+}
+
+function ouvrirLeSelecteurDePhotoEC(appareil){
+  const z = document.createElement('input');
+  z.type = 'file';
+  z.accept = 'image/*';
+  if(appareil) z.setAttribute('capture', 'environment');
+  z.style.display = 'none';
+  document.body.appendChild(z);
+  z.addEventListener('change', () => {
+    const f = z.files && z.files[0];
+    if(z.parentNode) document.body.removeChild(z);
+    if(f) envoyerUnePhotoDansLeFil(f);
+  });
+  z.click();
+}
+
+/* ⚠️ LA CAMÉRA S'ÉTEINT À CHAQUE SORTIE — prise, annulée, fil
+   refermé, erreur. Même règle que la vidéo : une webcam oubliée
+   allumée filme une salle de cours. */
+let photoCamEC = null;
+
+function arreterLaPhotoCamEC(){
+  const c = photoCamEC;
+  photoCamEC = null;
+  if(!c) return;
+  try{ c.flux.getTracks().forEach(p => p.stop()); }catch(e){}
+  if(c.vue && c.vue.parentNode) c.vue.parentNode.removeChild(c.vue);
+  if(c.barre) c.barre.style.display = '';
+}
+
+async function photoALaWebcamEC(barre){
+  if(photoCamEC || !barre) return;
+  let flux = null;
+  try{
+    flux = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  }catch(e){
+    /* Pas de webcam, ou refusée : on choisit un fichier, sans bruit. */
+    ouvrirLeSelecteurDePhotoEC(false);
+    return;
+  }
+
+  const vue = document.createElement('div');
+  vue.className = 'msgVoc msgVid msgPhotoCam';
+  const haut = document.createElement('div');
+  haut.className = 'msgVocHaut';
+  const mot = document.createElement('span');
+  mot.className = 'msgVocTemps';
+  mot.innerHTML = '<b>📷 Photo</b>';
+  haut.appendChild(mot);
+  const vide = document.createElement('span');
+  vide.className = 'msgVocOnde';
+  haut.appendChild(vide);
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'msgVocX';
+  x.textContent = '✕';
+  x.title = 'Annuler';
+  x.addEventListener('click', () => arreterLaPhotoCamEC());
+  haut.appendChild(x);
+  const prendre = document.createElement('button');
+  prendre.type = 'button';
+  prendre.className = 'msgEnv';
+  prendre.innerHTML = ICONES_BARRE_EC.photo;
+  prendre.title = 'Prendre la photo et l’envoyer';
+  haut.appendChild(prendre);
+  vue.appendChild(haut);
+
+  const ap = document.createElement('video');
+  ap.className = 'msgVidApercu';
+  ap.playsInline = true;
+  ap.setAttribute('playsinline', '');
+  ap.muted = true;
+  vue.appendChild(ap);
+
+  photoCamEC = { flux: flux, vue: vue, barre: barre };
+  barre.style.display = 'none';
+  barre.parentNode.insertBefore(vue, barre);
+  ap.srcObject = flux;
+  try{ const j = ap.play(); if(j && j.catch) j.catch(() => {}); }catch(e){}
+
+  prendre.addEventListener('click', () => {
+    const l = ap.videoWidth, h = ap.videoHeight;
+    if(!l || !h){ showToast('La caméra n’est pas encore prête.'); return; }
+    const toile = document.createElement('canvas');
+    toile.width = l; toile.height = h;
+    toile.getContext('2d').drawImage(ap, 0, 0, l, h);
+    arreterLaPhotoCamEC();
+    toile.toBlob(blob => {
+      if(blob) envoyerUnePhotoDansLeFil(blob);
+      else showToast('La photo n’a pas pu être prise.');
+    }, 'image/jpeg', 0.9);
+  });
+}
+
+/* ------------------------------------------------------------
+   📎 JOINDRE UN FICHIER
+
+   ⚠️ LE TRI D'ICI EST UNE POLITESSE, PAS UNE GARDE. Il évite
+   d'envoyer dix mégaoctets pour se les voir refuser ; c'est le
+   Worker qui regarde les octets et qui décide.
+   ------------------------------------------------------------ */
+const FICHIER_MAX_OCTETS_EC = 10 * 1024 * 1024;
+const FICHIERS_ACCEPTES_EC = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+const FICHIERS_ACCEPT_EC = '.pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,' +
+  'application/vnd.ms-excel,' +
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document,' +
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+let envoiFichierEC = false;
+
+function choisirUnFichierEC(){
+  if(envoiFichierEC) return;
+  const z = document.createElement('input');
+  z.type = 'file';
+  z.accept = FICHIERS_ACCEPT_EC;
+  z.style.display = 'none';
+  document.body.appendChild(z);
+  z.addEventListener('change', () => {
+    const f = z.files && z.files[0];
+    if(z.parentNode) document.body.removeChild(z);
+    if(f) envoyerUnFichierDansLeFilEC(f);
+  });
+  z.click();
+}
+
+/* Rend un message d'erreur, ou '' si le fichier peut partir. */
+function refusDuFichierEC(f){
+  const ext = String((f && f.name) || '').split('.').pop().toLowerCase();
+  if(FICHIERS_ACCEPTES_EC.indexOf(ext) === -1){
+    return 'On envoie des PDF, des Word et des Excel — pas ce fichier-là.';
+  }
+  if(f.size > FICHIER_MAX_OCTETS_EC){
+    return 'Ce fichier fait ' + poidsLisibleEC(f.size) + ' — 10 Mo au plus.';
+  }
+  if(!f.size) return 'Ce fichier est vide.';
+  return '';
+}
+
+async function envoyerUnFichierDansLeFilEC(fichier){
+  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
+  if(envoiFichierEC) return;
+  const refus = refusDuFichierEC(fichier);
+  if(refus){ showToast(refus); return; }
+
+  envoiFichierEC = true;
+  plusOccupe(true);
+  const id = filOuvertEC.conv.id;
+  try{
+    const data = await blobEnBase64EC(fichier);
+    /* Le mot tapé part avec le fichier, comme avec une photo. */
+    const champ = $('msgElvTexte');
+    const texte = champ ? champ.value.trim() : '';
+    await appelPrep({ action: 'convFichier', id: id, fichier: data,
+                      nom: fichier.name || '', texte: texte });
+    if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
+    await rafraichirLeFil();
+  }catch(e){
+    showToast('Le fichier n’est pas parti : ' + ((e && e.message) || e));
+  }
+  envoiFichierEC = false;
+  plusOccupe(false);
+}
+
+/* « 182 Ko », « 1,4 Mo » */
+function poidsLisibleEC(n){
+  n = Number(n || 0);
+  if(n < 1024 * 1024) return Math.max(1, Math.round(n / 1024)) + ' Ko';
+  return String(Math.round(n / 104857.6) / 10).replace('.', ',') + ' Mo';
+}
+
+/* ------------------------------------------------------------
+   📎 LA PIÈCE JOINTE DANS LA BULLE
+   ------------------------------------------------------------ */
+const SORTES_DE_DOCUMENT_EC = {
+  'application/pdf': ['PDF', 'pdf'],
+  'application/msword': ['WORD', 'word'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['WORD', 'word'],
+  'application/vnd.ms-excel': ['EXCEL', 'excel'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['EXCEL', 'excel']
+};
+
+function pieceEstUnDocument(p){
+  return !!p && Object.prototype.hasOwnProperty.call(SORTES_DE_DOCUMENT_EC, String(p.type || ''));
+}
+
+function documentDuMessage(m){
+  const p = m && m.piece;
+  if(!pieceEstUnDocument(p)) return null;
+  const sorte = SORTES_DE_DOCUMENT_EC[p.type];
+
+  const z = document.createElement(p.lien ? 'a' : 'div');
+  z.className = 'msgDoc';
+  if(p.lien){
+    z.href = adresseDeLaPiece(p);
+    z.target = '_blank';
+    z.rel = 'noopener';
+    z.title = sorte[0] === 'PDF' ? 'Ouvrir le PDF' : 'Télécharger le fichier';
+    /* L'appui long d'une bulle (réagir, copier) ne doit pas ouvrir. */
+    z.addEventListener('click', ev => ev.stopPropagation());
+  }
+  const t = document.createElement('span');
+  t.className = 'msgDocType ' + sorte[1];
+  t.textContent = sorte[0];
+  z.appendChild(t);
+  const c = document.createElement('span');
+  c.className = 'msgDocCorps';
+  const n = document.createElement('b');
+  n.textContent = p.nom || 'Fichier';
+  c.appendChild(n);
+  const i = document.createElement('span');
+  i.className = 'msgDocInfo';
+  i.textContent = p.lien
+    ? sorte[0] + (p.taille ? ' · ' + poidsLisibleEC(p.taille) : '') +
+      ' · ' + (sorte[0] === 'PDF' ? 'appuie pour ouvrir' : 'appuie pour télécharger')
+    : '📎 Fichier indisponible';
+  c.appendChild(i);
+  z.appendChild(c);
+  return z;
+}
+
 let familleEmojiEC = 0;
 let panneauEmojiEC = null;
 
@@ -5611,6 +5986,8 @@ function fermerLePanneauEmoji(){
 
 function basculerLePanneauEmoji(barre){
   if(panneauEmojiEC){ fermerLePanneauEmoji(); return; }
+  /* Un panneau à la fois au-dessus de la barre — v1161. */
+  if(typeof fermerLePanneauPlus === 'function') fermerLePanneauPlus();
   const b = $('msgElvEmo');
   if(b) b.classList.add('on');
 
