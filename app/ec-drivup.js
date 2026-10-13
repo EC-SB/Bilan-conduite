@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 14:14 — v1168 */
+/* Déployé le 13/10/2026 à 14:31 — v1169 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -692,7 +692,9 @@ async function fenetrePlanningDrivup(p){
    qu'il n'y en a pas déjà une : ce tri-ci ne sert qu'à ne pas lui
    demander pour rien.
    ------------------------------------------------------------ */
-async function reprendreLesPhotosDrivup(liste){
+/* « forcer » : la fiche d'un élève, lue une à une. Le Worker décide
+   alors seul — il remplace une photo qui venait de Drivup (v1169). */
+async function reprendreLesPhotosDrivup(liste, forcer){
   const res = { posees: 0, ratees: 0 };
   try{ if(typeof chargerPhotosProfil === 'function') await chargerPhotosProfil(true); }catch(e){}
   const vus = {};
@@ -701,7 +703,7 @@ async function reprendreLesPhotosDrivup(liste){
     const k = sansAccentDrivup(x.eleve);
     if(vus[k]) return false;
     vus[k] = true;
-    return !(typeof lienPhotoProfil === 'function' && typeof clePhotoProfil === 'function' &&
+    return forcer || !(typeof lienPhotoProfil === 'function' && typeof clePhotoProfil === 'function' &&
              lienPhotoProfil(clePhotoProfil('eleve', x.eleve)));
   });
   for(let i = 0; i < aFaire.length; i += 10){
@@ -919,7 +921,8 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
                   lienPhotoProfil(clePhotoProfil('eleve', nomP));
     const v = document.createElement('div');
     v.className = 'dvPli';
-    v.textContent = aDeja ? '📷 Il a déjà une photo chez nous : on la garde.'
+    v.textContent = aDeja ? '📷 Sa photo Drivup sera reprise si celle qu’il a chez nous venait de Drivup ; ' +
+                            'une photo posée à la main chez nous est gardée.'
                           : '📷 Sa photo Drivup sera reprise (il n’en a pas chez nous).';
     f.boite.appendChild(v);
   }
@@ -954,7 +957,7 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
     let ph = { posees: 0 };
     if(photoFiche){
       const nomPhoto = (ficheDeLEleveDrivup(premier) || {}).eleve || nomDeLEleveDrivup(premier);
-      ph = await reprendreLesPhotosDrivup([{ eleve: nomPhoto, url: premier.photo }]);
+      ph = await reprendreLesPhotosDrivup([{ eleve: nomPhoto, url: premier.photo }], true);
     }
     if(typeof afficherRepertoire === 'function' && $('repertoireListe')) afficherRepertoire().catch(() => {});
     ok.style.display = 'none';
