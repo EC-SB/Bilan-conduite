@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:18 — v1158 */
+/* Déployé le 13/10/2026 à 08:34 — v1159 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1159,
+    date: 'Mardi 13 octobre 2026',
+    resume: '⛽ L’historique des pleins, avec ses filtres',
+    quoi: [
+      { emoji: '⛽',
+        titre: 'Tous les pleins, de tous les mois',
+        texte: 'Dans 🚗 Suivi de la flotte › ⛽ Les CB Gasoil : les mois en pastilles (ou « Tous les ' +
+               'mois »), une période du … au …, et les filtres par véhicule et par moniteur, avec le ' +
+               'total de chaque mois et de la sélection. ✏️ modifie tout un plein — date et heure, ' +
+               'moniteur, carte, véhicule, montant, litres, km, remarque — et 🗑️ le supprime.' }
+    ]
+  },
   {
     version: 1158,
     date: 'Mardi 13 octobre 2026',
