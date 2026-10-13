@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 12:44 — v1018 */
+/* Déployé le 13/10/2026 à 11:43 — v1165 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -366,6 +366,15 @@ function ouvrirLoupe(){
   });
 
   dessiner();
+
+  /* 🖼️ v1165 — les photos. Déjà en mémoire, elles sont dans le
+     premier dessin ; sinon on les demande, et on redessine une fois
+     si elles ont changé — pendant ce temps, les initiales. */
+  if(typeof chargerPhotosProfil === 'function'){
+    chargerPhotosProfil(false)
+      .then(change => { if(change && fond.parentNode) dessiner(); })
+      .catch(() => {});
+  }
 
   /* ⚠️ SYNCHRONE, PAS DANS UN setTimeout. Le clavier d'iPhone ne
      monte que si le focus part encore du geste qui a ouvert la
