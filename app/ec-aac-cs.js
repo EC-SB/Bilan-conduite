@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:34 — v960 */
+/* Déployé le 13/10/2026 à 08:18 — v1158 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -747,6 +747,8 @@ async function afficherAacCs(){
 
   dessinerReglageCs();
   if(zA) dessinerLieuxRdv();
+  /* 📲 v1158 — la phrase de la leçon de veille, sous les lieux */
+  if(zA) dessinerPhraseVeilleAac();
   if(zC) dessinerListeCs(zC);
   if(zA) dessinerListeAac(zA);
 }
@@ -3103,6 +3105,355 @@ async function rappelerTousRvt(p){
 
 
 /* Signale que ce module est bien chargé */
+/* ============================================================
+   📲 LA LEÇON DE VEILLE AAC — v1158
+
+   David, le 13 octobre : « quand un élève est en AAC, il faut ajouter
+   une phrase dans Mes prochains cours pour la leçon de veille, et sur
+   le bandeau uniquement pour le moniteur — vérifier avec l'élève son
+   application Drivup, qu'il ait bien accès à son livret, et lui
+   montrer ce qu'il doit montrer à l'inspecteur — à un endroit que je
+   puisse modifier sans passer par toi ». Puis, sur le schéma :
+     · la phrase reformulée lui va ;
+     · le bandeau au format IMPORTANT, du début du cours à 2 h après ;
+     · le moniteur du cours seul — ni le bureau, ni lui-même si ce
+       n'est pas son cours ;
+     · la leçon de veille = le dernier cours préparé dans les 3 jours
+       avant l'examen ;
+     · la phrase se modifie avec le droit 🎓 Suivi AAC en écriture ;
+     · « en AAC » = la formation de sa fiche contient « AAC ».
+   Et en cours de route : deux interrupteurs à côté de la phrase, un
+   pour la carte, un pour le bandeau.
+
+   ⚠️ LA PHRASE ET LES INTERRUPTEURS VIVENT DANS LES RÉGLAGES PARTAGÉS
+   (feuille Reglages), comme les lieux de rendez-vous : la même chose
+   sur tous les postes, changée à un seul endroit.
+   ============================================================ */
+const PHRASE_VEILLE_AAC_DEFAUT = "📲 Vérifie avec l'élève son application Drivup : " +
+  "qu'il ait bien accès à son livret, et montre-lui ce qu'il doit présenter à l'inspecteur.";
+const CLES_VEILLE_AAC = { phrase: 'phraseVeilleAac', maj: 'phraseVeilleAacMaj',
+                          carte: 'veilleAacCarte', bandeau: 'veilleAacBandeau' };
+/* La fenêtre du bandeau : du début du cours à deux heures après. */
+const MINUTES_BANDEAU_VEILLE_AAC = 120;
+/* « La veille » : le dernier cours préparé dans les 3 jours avant. */
+const JOURS_MAX_LECON_DE_VEILLE = 3;
+
+let reglagesVeilleDemandes = false;
+
+/* Ce qui est réglé, ou les valeurs de départ. Le premier appel lance
+   la lecture des réglages ; quand elle revient avec autre chose que
+   le départ, la carte et le bandeau se redessinent. */
+function reglagesVeilleAac(){
+  const r = (typeof reglagesDejaLus === 'function') ? reglagesDejaLus() : null;
+  if(!r && !reglagesVeilleDemandes && typeof chargerReglagesPartages === 'function'){
+    reglagesVeilleDemandes = true;
+    chargerReglagesPartages().then(rr => {
+      const x = rr || {};
+      if(x[CLES_VEILLE_AAC.phrase] || x[CLES_VEILLE_AAC.carte] || x[CLES_VEILLE_AAC.bandeau]){
+        try{ if(typeof afficherPrepares === 'function') afficherPrepares(false, true); }catch(e){}
+        try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){}
+      }
+    }).catch(() => {});
+  }
+  const v = r || {};
+  const phrase = String(v[CLES_VEILLE_AAC.phrase] || '').trim();
+  return {
+    phrase: phrase || PHRASE_VEILLE_AAC_DEFAUT,
+    maj: String(v[CLES_VEILLE_AAC.maj] || ''),
+    carte: String(v[CLES_VEILLE_AAC.carte] || 'oui') !== 'non',
+    bandeau: String(v[CLES_VEILLE_AAC.bandeau] || 'oui') !== 'non'
+  };
+}
+
+function estEnAac(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  return /\bAAC\b/i.test(String((f && f.formation) || ''));
+}
+
+function isoVeille(v){
+  const t = String(v || '').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+  return (typeof dateFrVersIso === 'function') ? (dateFrVersIso(t) || '') : '';
+}
+
+/* La date de son examen, telle que le dossier la tient. */
+function dateExamenVeille(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const e = (typeof etatQuiFaitFoi === 'function') ? (etatQuiFaitFoi(nom) || {}) : {};
+  return isoVeille(s.datePermis) || isoVeille(e.examDate) || '';
+}
+
+function joursEntreVeille(a, b){
+  const x = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(a || ''));
+  const y = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(b || ''));
+  if(!x || !y) return null;
+  return Math.round((Date.UTC(+y[1], +y[2] - 1, +y[3]) - Date.UTC(+x[1], +x[2] - 1, +x[3])) / 86400000);
+}
+
+/* ⚠️ LA LEÇON DE VEILLE N'EST PLUS SEULEMENT « LA VEILLE EXACTE » —
+   v1158, choix de David. C'est le dernier cours préparé avant
+   l'examen, s'il tombe dans les 3 jours qui le précèdent : un examen
+   le lundi a sa leçon de veille le samedi. Sans la liste des cours
+   préparés, on garde l'ancienne règle — la veille exacte. */
+function estLaLeconDeVeille(nom, jourDuCours, dateExam){
+  const jour = isoVeille(jourDuCours), exam = isoVeille(dateExam);
+  const ecart = joursEntreVeille(jour, exam);
+  if(ecart === null || ecart < 1 || ecart > JOURS_MAX_LECON_DE_VEILLE) return false;
+  const liste = (typeof coursPreparesDeLEleve === 'function') ? coursPreparesDeLEleve(nom) : null;
+  if(!liste || !liste.length) return ecart === 1;
+  const examen = (typeof estUnExamenPrepare === 'function') ? estUnExamenPrepare : (() => false);
+  /* Un autre cours entre celui-ci et l'examen : ce n'est pas lui. */
+  return !liste.some(c => !examen(c) && String(c.date) > jour && String(c.date) < exam);
+}
+
+/* Ce cours est-il la leçon de veille d'un élève en AAC ? Rend la date
+   de l'examen, ou ''. */
+function examenSiVeilleAac(cours){
+  if(!cours || !cours.eleve || !cours.date) return '';
+  if(typeof estUnExamenPrepare === 'function' && estUnExamenPrepare(cours)) return '';
+  if(!estEnAac(cours.eleve)) return '';
+  const exam = dateExamenVeille(cours.eleve);
+  if(!exam) return '';
+  return estLaLeconDeVeille(cours.eleve, cours.date, exam) ? exam : '';
+}
+
+/* ── 1 · la carte de 📅 Mes prochains cours ──
+   L'encadré porte ses deux formes : la longue sur la carte ouverte,
+   la courte dans la colonne de gauche ou une carte repliée. La feuille
+   de style choisit (.vaCourt / .vaLong). */
+function encadreVeilleAac(cours){
+  const r = reglagesVeilleAac();
+  if(!r.carte || !examenSiVeilleAac(cours)) return null;
+  const d = document.createElement('div');
+  d.className = 'veilleAac';
+  const long = document.createElement('div');
+  long.className = 'vaLong';
+  const t = document.createElement('div');
+  t.className = 'vaTitre';
+  t.textContent = 'Leçon de veille AAC';
+  long.appendChild(t);
+  long.appendChild(document.createTextNode(r.phrase));
+  d.appendChild(long);
+  const court = document.createElement('div');
+  court.className = 'vaCourt';
+  court.textContent = '📲 Drivup : livret et inspecteur';
+  d.appendChild(court);
+  return d;
+}
+
+/* ── 2 · le bandeau, au format important ── */
+let minuteurVeilleAac = null;
+
+function minutesDeLHeureVeille(hhmm){
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm || ''));
+  return m ? (+m[1]) * 60 + (+m[2]) : null;
+}
+
+/* Les leçons de veille AAC de CE moniteur, aujourd'hui, dont la
+   fenêtre est ouverte maintenant — et l'heure du prochain changement,
+   pour que le bandeau se redessine seul à l'ouverture et à la fin. */
+function veillesAacDuMoment(maintenant){
+  const r = reglagesVeilleAac();
+  const out = { cours: [], prochain: null };
+  if(!r.bandeau) return out;
+  const moi = normaliserMot((typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || '');
+  if(!moi) return out;
+  const liste = (typeof prepares !== 'undefined' && Array.isArray(prepares)) ? prepares : [];
+  const n = maintenant || new Date();
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : n.toISOString().slice(0, 10);
+  const mn = n.getHours() * 60 + n.getMinutes();
+  liste.forEach(c => {
+    if(!c || c.date !== auj) return;
+    if(normaliserMot(c.moniteur || '') !== moi) return;
+    const h = minutesDeLHeureVeille((typeof heureDeLaPreparation === 'function') ? heureDeLaPreparation(c) : '');
+    if(h === null) return;
+    if(!examenSiVeilleAac(c)) return;
+    const fin = h + MINUTES_BANDEAU_VEILLE_AAC;
+    if(mn >= h && mn < fin) out.cours.push(c);
+    const bord = (mn < h) ? h : (mn < fin ? fin : null);
+    if(bord !== null && (out.prochain === null || bord < out.prochain)) out.prochain = bord;
+  });
+  return out;
+}
+
+function cartesVeilleAac(){
+  clearTimeout(minuteurVeilleAac);
+  const n = new Date();
+  const v = veillesAacDuMoment(n);
+  if(v.prochain !== null){
+    const dans = (v.prochain - (n.getHours() * 60 + n.getMinutes())) * 60000 - n.getSeconds() * 1000 + 1500;
+    minuteurVeilleAac = setTimeout(() => { try{ dessinerBandeau(); }catch(e){} }, Math.max(1500, dans));
+  }
+  const r = reglagesVeilleAac();
+  return v.cours.filter(c => !(typeof ligneEnSourdine === 'function' && ligneEnSourdine('veilleaac:' + c.id)))
+    .map(c => {
+      const carte = document.createElement('div');
+      carte.className = 'carteVeilleAac';
+      /* La même grammaire que « Message important » : le gros cadre
+         rouge, le texte en grand, et un seul geste pour le refermer. */
+      carte.style.cssText = 'background:var(--red);color:var(--navy-deep);' +
+        'border-radius:12px;padding:14px 16px;margin-bottom:10px;';
+      const h = document.createElement('div');
+      h.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:.08em;' +
+        'text-transform:uppercase;opacity:.8;';
+      const heure = (typeof heureDeLaPreparation === 'function') ? heureDeLaPreparation(c) : '';
+      h.textContent = 'Leçon de veille AAC — ' + c.eleve + (heure ? ' · ' + heure.replace(':', 'h') : '');
+      carte.appendChild(h);
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:20px;font-weight:800;line-height:1.25;' +
+        'margin:4px 0 10px;white-space:pre-wrap;word-break:break-word;';
+      t.textContent = r.phrase;
+      carte.appendChild(t);
+      const b = document.createElement('button');
+      b.style.cssText = 'width:auto;margin:0;padding:8px 16px;font-size:14px;' +
+        'background:var(--navy-deep);color:var(--red);border:none;' +
+        'border-radius:9px;cursor:pointer;font-weight:800;';
+      b.textContent = '✅ C’est fait';
+      b.addEventListener('click', () => {
+        if(typeof mettreEnSourdine === 'function') mettreEnSourdine('veilleaac:' + c.id);
+        try{ dessinerBandeau(); }catch(e){}
+      });
+      carte.appendChild(b);
+      return carte;
+    });
+}
+
+/* ── 3 · le volet du Suivi AAC : la phrase et ses deux interrupteurs ── */
+function peutReglerVeilleAac(){
+  return typeof peutModifier !== 'function' || peutModifier('suivi_aac_cs');
+}
+
+let voletVeilleOuvert = false;
+
+async function dessinerPhraseVeilleAac(){
+  const z = $('phraseVeilleAac');
+  if(!z) return;
+  if(typeof chargerReglagesPartages === 'function'){
+    try{ await chargerReglagesPartages(); }catch(e){}
+  }
+  const r = reglagesVeilleAac();
+  z.innerHTML = '';
+  const d = document.createElement('details');
+  d.className = 'volet-liste';
+  d.style.marginBottom = '12px';
+  d.open = voletVeilleOuvert;
+  d.addEventListener('toggle', () => { voletVeilleOuvert = d.open; });
+  const s = document.createElement('summary');
+  s.textContent = '📲 La phrase de la leçon de veille';
+  d.appendChild(s);
+
+  const dedans = document.createElement('div');
+  dedans.style.cssText = 'padding-top:8px;';
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;';
+  aide.textContent = 'Pour un élève en AAC, sur son dernier cours préparé avant l’examen ' +
+    '(dans les 3 jours) : sur la carte de 📅 Mes prochains cours, et en message important ' +
+    'dans le bandeau du moniteur de ce cours, de l’heure du cours à 2 h après.';
+  dedans.appendChild(aide);
+
+  const ph = document.createElement('div');
+  ph.id = 'phraseVeilleTexte';
+  ph.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+    'font-size:13.5px;line-height:1.5;margin-bottom:6px;white-space:pre-wrap;word-break:break-word;';
+  ph.textContent = r.phrase;
+  dedans.appendChild(ph);
+  if(r.maj){
+    const m = document.createElement('div');
+    m.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;';
+    m.textContent = 'Modifiée par ' + r.maj;
+    dedans.appendChild(m);
+  }
+
+  const peut = peutReglerVeilleAac();
+  if(peut){
+    const bt = document.createElement('button');
+    bt.className = 'btn btn-secondary';
+    bt.id = 'phraseVeilleModifier';
+    bt.style.cssText = 'width:auto;padding:9px 13px;font-size:13px;margin:0 0 12px;';
+    bt.textContent = '✏️ Modifier la phrase';
+    bt.addEventListener('click', changerPhraseVeilleAac);
+    dedans.appendChild(bt);
+  }
+
+  /* Les deux interrupteurs : le même dessin que ceux des réglages des
+     procédures (« interrupteur »), mais ils écrivent ici leur clé à
+     eux et redessinent ce volet. */
+  [[CLES_VEILLE_AAC.carte, '📅 Sur la carte de la leçon de veille', r.carte,
+    'La phrase s’affiche sur la carte, dans Mes prochains cours.',
+    'Rien sur la carte de Mes prochains cours.'],
+   [CLES_VEILLE_AAC.bandeau, '🔴 En message important dans le bandeau', r.bandeau,
+    'Le moniteur du cours la voit en gros, de l’heure du cours à 2 h après.',
+    'Pas de message dans le bandeau.']].forEach(([cle, titre, on, siOui, siNon]) => {
+    const l = document.createElement('div');
+    l.className = 'interVeille';
+    l.dataset.cle = cle;
+    l.style.cssText = 'border:1px solid ' + (on ? 'var(--orange)' : 'var(--line)') + ';border-radius:12px;' +
+      'padding:10px 12px;margin-bottom:8px;display:flex;gap:12px;align-items:center;';
+    const txt = document.createElement('div');
+    txt.style.cssText = 'flex:1;min-width:0;font-size:13.5px;line-height:1.45;';
+    txt.innerHTML = '<strong></strong><div style="font-size:12px;margin-top:2px;color:' +
+      (on ? 'var(--accent-text)' : 'var(--muted)') + ';">' + (on ? '● Activé' : '○ Désactivé') +
+      '</div><div style="font-size:11px;color:var(--muted);margin-top:2px;"></div>';
+    txt.querySelector('strong').textContent = titre;
+    txt.lastElementChild.textContent = on ? siOui : siNon;
+    l.appendChild(txt);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'switch');
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.setAttribute('aria-label', titre);
+    b.title = on ? 'Désactiver' : 'Activer';
+    b.disabled = !peut;
+    b.style.cssText = 'width:56px;height:32px;flex-shrink:0;padding:0;margin:0;border-radius:16px;' +
+      'cursor:' + (peut ? 'pointer' : 'default') + ';position:relative;opacity:' + (peut ? '1' : '.55') + ';' +
+      'border:1px solid ' + (on ? 'var(--orange)' : 'var(--line)') + ';' +
+      'background:' + (on ? 'var(--orange)' : 'transparent') + ';';
+    const bille = document.createElement('span');
+    bille.style.cssText = 'position:absolute;top:3px;width:24px;height:24px;border-radius:50%;' +
+      'left:' + (on ? '28px' : '3px') + ';background:' + (on ? 'var(--navy-deep)' : 'var(--muted)') + ';';
+    b.appendChild(bille);
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try{
+        await ecrireReglagePartage(cle, on ? 'non' : 'oui');
+        showToast(on ? 'Désactivé ✅' : 'Activé ✅');
+        voletVeilleOuvert = true;
+        dessinerPhraseVeilleAac();
+        try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){}
+      }catch(e){
+        b.disabled = false;
+        showToast('Impossible : ' + e.message);
+      }
+    });
+    l.appendChild(b);
+    dedans.appendChild(l);
+  });
+
+  d.appendChild(dedans);
+  z.appendChild(d);
+}
+
+async function changerPhraseVeilleAac(){
+  const r = reglagesVeilleAac();
+  const v = await demander('La phrase que le moniteur lit sur la leçon de veille d’un élève en AAC.',
+                           r.phrase, '📲 La phrase de la leçon de veille');
+  if(v === null) return;
+  const propre = String(v).trim();
+  if(!propre){ showToast('La phrase ne peut pas être vide.'); return; }
+  if(propre === r.phrase) return;
+  try{
+    await ecrireReglagePartage(CLES_VEILLE_AAC.phrase, propre);
+    const quand = new Date();
+    const p2 = n => String(n).padStart(2, '0');
+    await ecrireReglagePartage(CLES_VEILLE_AAC.maj, ((ACCES && ACCES.moniteur) || '?') + ' le ' +
+      p2(quand.getDate()) + '/' + p2(quand.getMonth() + 1) + '/' + quand.getFullYear());
+    showToast('Phrase enregistrée ✅');
+    voletVeilleOuvert = true;
+    dessinerPhraseVeilleAac();
+    try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){}
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-aac-cs.js'] = true;
 
