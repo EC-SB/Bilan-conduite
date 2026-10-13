@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 11:43 — v1165 */
+/* Déployé le 13/10/2026 à 13:01 — v1166 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1166,
+    date: 'Mardi 13 octobre 2026',
+    resume: '📥 Le planning et les fiches élèves arrivent de Drivup',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Le favori « Bilan de conduite »',
+        texte: 'Dans ➕ Ajouter des élèves, glisse le bouton « 📥 Bilan de conduite » dans ta barre de favoris ' +
+               'Chrome. Clique-le ensuite sur une page Drivup (planning d’une agence ou d’un moniteur, liste ' +
+               'des élèves, fiche d’un élève) : l’appli montre ce qui change et attend que tu valides. Rien ' +
+               'n’est écrit dans Drivup. Réservé aux administrateurs et au bureau.' },
+      { emoji: '🔔',
+        titre: 'Les rappels déjà remplis',
+        texte: 'Une fois le planning lu, les créneaux des rappels montrent l’élève et la séance de chaque cours ' +
+               'Drivup, « 📥 à envoyer » ou « ✉️ envoyé ». Un appui remplit l’élève, l’heure et le type ; ' +
+               'après un envoi, le cours suivant se choisit tout seul.' },
+      { emoji: '🪪',
+        titre: 'Les fiches se complètent',
+        texte: 'Un élève nouveau dans Drivup reçoit sa fiche. Pour les autres, seules les cases vides chez nous ' +
+               'se remplissent (mobile, mail, formation, date de naissance, NEPH) : rien n’est jamais remplacé.' }
+    ]
+  },
   {
     version: 1165,
     date: 'Mardi 13 octobre 2026',
