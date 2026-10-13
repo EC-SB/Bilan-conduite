@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 13/10/2026 à 09:51 — v1161 -->
+<!-- Déployé le 13/10/2026 à 10:57 — v1163 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1006,6 +1006,31 @@
   .docCorps{ min-width:0; line-height:1.35; }
   .docCorps b{ display:block; overflow-wrap:anywhere; }
   .docInfo{ font-size:11.5px; opacity:.75; }
+
+
+  /* 🖼️ v1163 — les photos rondes, comme dans l'outil de l'équipe */
+  .phRondEl{ width:40px; height:40px; border-radius:50%; overflow:hidden; flex-shrink:0;
+    display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;
+    line-height:1; background:var(--kp2, var(--navy-deep)); border:1px solid var(--kl, var(--line));
+    color:var(--kt, var(--cream)); box-sizing:border-box; }
+  .phRondEl img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .ckLc .rond.aPhoto, .convo .rond.aPhoto{ padding:0; overflow:hidden; border-radius:50%; background:none; }
+  .ckLc .rond{ border-radius:50%; }
+  .ckLc .rond .phRondEl{ border:none; }
+  .rangEux{ display:flex; align-items:flex-end; gap:6px; }
+  .rangEux .bulle{ margin-right:auto; }
+  .avSlotEl{ width:28px; flex-shrink:0; display:flex; margin-bottom:9px; }
+  .maPhotoEl{ all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px;
+    font-size:10.5px; font-weight:700; color:var(--kd, var(--muted)); flex-shrink:0; }
+  .maPhotoCadre{ position:relative; display:block; }
+  .maPhotoCadre .phRondEl{ border:2px solid var(--kn, var(--orange)); }
+  .maPhotoCrayon{ position:absolute; right:-4px; bottom:-2px; width:20px; height:20px; border-radius:50%;
+    background:var(--kn, var(--orange)); color:#0B0B0B; font-size:11px; display:flex; align-items:center; justify-content:center; }
+  .maPhotoEl:focus-visible{ outline:2px solid var(--orange); outline-offset:3px; border-radius:12px; }
+  .phApercuEl{ display:flex; justify-content:center; }
+  .phApercuEl .phGrandEl{ border:3px solid var(--orange); }
+  .phDeuxEl{ display:flex; gap:8px; flex-wrap:wrap; }
+  .phDeuxEl .btn{ flex:1 1 140px; margin:0; }
 
   /* 🧤 L'ENCART DES OBJETS OUBLIÉS — v1113.
      Un objet a un ÉTAT qui vit des semaines ; un message s'écrit
@@ -3538,6 +3563,9 @@
       .then(function(d){
         conversationsEl = (d && d.conversations) || [];
         mesObjetsEl = (d && d.objets) || [];
+        /* 🖼️ v1163 — les photos qu'il a le droit de voir */
+        if(d && d.photos) photosEl = d.photos;
+        dessinerMaPhotoEl();
         nonLusMessages = (d && d.nonLusTotal) || 0;
         poserLaPastilleDeLAppliEl(nonLusMessages);
         dessinerMesObjetsEl();
@@ -3666,7 +3694,10 @@
       var eo = ob ? (etatsObjetEl(ob)[ob.etat] || null) : null;
       return '<div class="convo' + (c.nonLus ? ' nonlu' : '') + ' ckLc' +
           '" data-fil="' + echapper(c.id) + '">' +
-        '<div class="rond">' + rondDuFilEl(c) + '</div>' +
+        /* 🖼️ v1163 — la photo du groupe, de son moniteur ou du
+           bureau ; sinon l'emoji d'avant */
+        '<div class="rond' + (lienPhotoEl(c.avatar) ? ' aPhoto' : '') + '">' +
+          (lienPhotoEl(c.avatar) ? rondPhotoEl(c.avatar, rondDuFilEl(c), 40) : rondDuFilEl(c)) + '</div>' +
         '<div class="mi">' +
           '<div class="qui"><span class="q">' + echapper(c.qui) + '</span>' +
             '<span class="h">' + echapper(heureCourteEl(c.dernierLe)) + '</span></div>' +
@@ -3688,6 +3719,7 @@
         ouvrirFilEleve(el.getAttribute('data-fil'));
       });
     });
+    brancherLesPhotosEl(z);
   }
 
   function prenomDe(nom){
@@ -3780,7 +3812,14 @@
             : (dernierMien ? 'envoyé · réponse sous 48 heures ouvrées' : 'réponse sous 48 heures ouvrées'));
     return '<div class="ckTop">' +
       '<button type="button" class="rond" id="btRetourEcole" aria-label="Revenir">←</button>' +
-      '<div class="av" style="font-size:17px;">' + rondDuFilEl(c) + '</div>' +
+      /* 🖼️ v1163 — la photo du fil (groupe, moniteur, bureau) si elle existe */
+      (function(){
+        var l = conversationsEl.filter(function(x){ return x.id === c.id; })[0];
+        var cle = l && l.avatar;
+        return lienPhotoEl(cle)
+          ? '<div class="av aPhoto" style="padding:0;overflow:hidden;border-radius:50%;">' + rondPhotoEl(cle, rondDuFilEl(c), 40) + '</div>'
+          : '<div class="av" style="font-size:17px;">' + rondDuFilEl(c) + '</div>';
+      })() +
       '<div class="tt"><div class="t">' + echapper(c.qui || 'Conversation') + '</div>' +
       '<div class="s">' + sous + '</div></div></div>';
   }
@@ -3866,13 +3905,17 @@
     }
 
     var jourPose = '';
-    (filEl.messages || []).forEach(function(m){
+    (filEl.messages || []).forEach(function(m, i, tous){
       var jour = String(m.envoyeLe || '').slice(0, 10);
       if(jour && jour !== jourPose){
         jourPose = jour;
         h += '<div class="jourFil"><span>' + echapper(jourClairEl(jour)) + '</span></div>';
       }
-      h += bulleEleve(m);
+      /* 🖼️ v1163 — le rond de l'école devant sa dernière bulle d'une
+         suite, comme Messenger. Un changement de jour coupe la suite. */
+      var suivant = tous[i + 1];
+      if(suivant && String(suivant.envoyeLe || '').slice(0, 10) !== jour) suivant = null;
+      h += enveloppeEuxEl(m, suivant, bulleEleve(m));
     });
 
     if(!(filEl.messages || []).length){
@@ -3929,6 +3972,7 @@
 
     h += '</div>';
     $('zoneEcrireEcole').innerHTML = h;
+    brancherLesPhotosEl($('zoneEcrireEcole'));
     brancherRetour();
 
     var t = $('chFilTexte');
@@ -5626,6 +5670,181 @@
     return p.lien
       ? '<a class="docPJ" href="' + echapper(RELAIS + p.lien) + '" target="_blank" rel="noopener">' + corps + '</a>'
       : '<span class="docPJ">' + corps + '</span>';
+  }
+
+  /* ============================================================
+     🖼️ LES PHOTOS À LA PLACE DES INITIALES — v1163
+
+     David, le 13 octobre : « que l'élève peut changer s'il veut ».
+     Il voit sa photo, celles de l'équipe, celle du bureau et celles
+     de ses groupes — jamais celles des autres élèves : c'est le
+     Worker qui trie (photosPourLEleve). Même carte, même rond,
+     mêmes initiales que dans l'outil de l'équipe.
+     ============================================================ */
+  var photosEl = {};
+
+  function normaliserPhotoEl(v){
+    return String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function clePhotoEl(genre, v){
+    if(genre === 'bureau') return 'bureau';
+    if(genre === 'groupe') return 'groupe:' + String(v || '');
+    var n = normaliserPhotoEl(v);
+    return n ? genre + ':' + n : '';
+  }
+  function lienPhotoEl(cle){
+    return (cle && photosEl[cle]) ? RELAIS + photosEl[cle] : '';
+  }
+  function initialesPhotoEl(nom){
+    var mots = String(nom || '').replace(/[^\p{L}\s'-]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+    if(!mots.length) return '';
+    return (mots[0].charAt(0) + (mots.length > 1 ? mots[mots.length - 1].charAt(0) : '')).toUpperCase();
+  }
+  /* Un rond en HTML : la photo, sinon ce qu'on lui donne (initiales
+     ou emoji). Une photo qui ne charge pas rend le repli. */
+  function rondPhotoEl(cle, repli, taille, classe){
+    var lien = lienPhotoEl(cle);
+    var st = taille ? ' style="width:' + taille + 'px;height:' + taille + 'px;font-size:' +
+                      Math.max(10, Math.round(taille * 0.34)) + 'px;"' : '';
+    return '<span class="phRondEl' + (lien ? ' aPhoto' : '') + (classe ? ' ' + classe : '') +
+      '" data-repli="' + echapper(repli || '') + '"' + st + '>' +
+      (lien ? '<img alt="" loading="lazy" src="' + echapper(lien) + '">' : echapper(repli || '')) +
+      '</span>';
+  }
+  /* Les images cassées rendent leur repli — branché après chaque dessin. */
+  function brancherLesPhotosEl(zone){
+    Array.prototype.forEach.call((zone || document).querySelectorAll('.phRondEl img'), function(i){
+      if(i.dataset.branche) return;
+      i.dataset.branche = '1';
+      i.addEventListener('error', function(){
+        var r = i.parentNode;
+        if(!r) return;
+        r.classList.remove('aPhoto');
+        r.textContent = r.getAttribute('data-repli') || '';
+      });
+    });
+  }
+
+  /* Le rond devant une bulle de l'école : sur la DERNIÈRE d'une suite. */
+  function enveloppeEuxEl(m, suivant, html){
+    if(!m || m.de === 'moi' || m.de === 'systeme' || (m.motif === 'creneau' && !Number(m.supprime || 0))) return html;
+    var meme = suivant && suivant.de === m.de && suivant.de !== 'systeme' &&
+               normaliserPhotoEl(suivant.auteur) === normaliserPhotoEl(m.auteur);
+    var rond = meme ? '' : rondPhotoEl(clePhotoEl('user', m.auteur), initialesPhotoEl(m.auteur), 28);
+    return '<div class="rangEux"><span class="avSlotEl">' + rond + '</span>' + html + '</div>';
+  }
+
+  /* ---- la réduire : un carré au centre, 256 px, sans EXIF ---- */
+  function reduirePhotoProfilEl(fichier){
+    return new Promise(function(bon, mauvais){
+      if(!fichier || !/^image\//.test(fichier.type || '')){ mauvais(new Error('Ce fichier n’est pas une image.')); return; }
+      var dessiner = function(img, l0, h0){
+        var cote = Math.min(l0, h0);
+        var t = document.createElement('canvas');
+        t.width = t.height = 256;
+        var c = t.getContext('2d');
+        c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, 256, 256);
+        c.drawImage(img, (l0 - cote) / 2, (h0 - cote) / 2, cote, cote, 0, 0, 256, 256);
+        bon(t.toDataURL('image/jpeg', 0.86));
+      };
+      if(typeof createImageBitmap === 'function'){
+        createImageBitmap(fichier, { imageOrientation: 'from-image' })
+          .then(function(b){ dessiner(b, b.width, b.height); })
+          .catch(function(){ viaImage(); });
+      }else viaImage();
+      function viaImage(){
+        var u = URL.createObjectURL(fichier);
+        var i = new Image();
+        i.onload = function(){ URL.revokeObjectURL(u); dessiner(i, i.naturalWidth, i.naturalHeight); };
+        i.onerror = function(){ URL.revokeObjectURL(u); mauvais(new Error('Image illisible.')); };
+        i.src = u;
+      }
+    });
+  }
+
+  /* ---- la fenêtre « Ta photo » ---- */
+  function ouvrirMaPhotoEl(){
+    var cle = clePhotoEl('eleve', moi.nom);
+    var fond = document.createElement('div');
+    fond.className = 'overlay show';
+    fond.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);' +
+      'display:flex;align-items:center;justify-content:center;padding:16px;';
+    var m = document.createElement('div');
+    m.className = 'card phFenetreEl';
+    m.style.cssText = 'max-width:380px;width:100%;text-align:center;margin:0;';
+    m.innerHTML = '<div style="font-weight:800;font-size:17px;margin-bottom:10px;">Ta photo</div>' +
+      '<div class="phApercuEl">' + rondPhotoEl(cle, initialesPhotoEl(moi.nom), 120, 'phGrandEl') + '</div>' +
+      '<div style="font-size:12px;color:var(--muted);margin:10px 0 14px;line-height:1.5;">' +
+        'Elle remplace tes initiales dans la messagerie de l’école. Tu peux la changer ou la retirer quand tu veux.</div>' +
+      '<div class="phDeuxEl">' +
+        '<button type="button" class="btn btn-secondary" id="phElPrendre">📷 Prendre une photo</button>' +
+        '<button type="button" class="btn btn-secondary" id="phElChoisir">🖼️ Choisir une photo</button></div>' +
+      (lienPhotoEl(cle) ? '<button type="button" class="btn btn-secondary" id="phElRetirer" ' +
+        'style="color:var(--red);border-color:var(--red);margin-top:8px;">🗑️ Retirer — revenir aux initiales</button>' : '') +
+      '<div id="phElErr" style="color:var(--red);font-size:12.5px;margin-top:8px;"></div>' +
+      '<button type="button" class="btn btn-secondary" id="phElFermer" style="margin-top:8px;">Fermer</button>';
+    fond.appendChild(m);
+    document.body.appendChild(fond);
+    brancherLesPhotosEl(m);
+    var fermer = function(){ if(fond.parentNode) fond.parentNode.removeChild(fond); };
+    fond.addEventListener('click', function(ev){ if(ev.target === fond) fermer(); });
+    m.querySelector('#phElFermer').addEventListener('click', fermer);
+
+    var envoyer = function(corps, ok){
+      m.style.opacity = '.6'; m.style.pointerEvents = 'none';
+      return appeler(Object.assign({ action: 'elevePhotoProfil', eleve: moi.nom, code: moi.code }, corps))
+        .then(function(){
+          fermer();
+          dire('msgFil', ok, 'ok');
+          return chargerConversationsEleve();
+        })
+        .then(function(){ dessinerMaPhotoEl(); })
+        .catch(function(e){
+          m.style.opacity = ''; m.style.pointerEvents = '';
+          m.querySelector('#phElErr').textContent = 'Pas enregistrée : ' + ((e && e.message) || e);
+        });
+    };
+    var choisir = function(appareil){
+      var z = document.createElement('input');
+      z.type = 'file';
+      z.accept = 'image/*';
+      if(appareil) z.setAttribute('capture', 'user');
+      z.style.display = 'none';
+      document.body.appendChild(z);
+      z.addEventListener('change', function(){
+        var f = z.files && z.files[0];
+        if(z.parentNode) z.parentNode.removeChild(z);
+        if(!f) return;
+        reduirePhotoProfilEl(f).then(function(data){ return envoyer({ photo: data }, 'Photo enregistrée ✅'); })
+          .catch(function(e){ m.querySelector('#phElErr').textContent = (e && e.message) || String(e); });
+      });
+      z.click();
+    };
+    m.querySelector('#phElPrendre').addEventListener('click', function(){ choisir(true); });
+    m.querySelector('#phElChoisir').addEventListener('click', function(){ choisir(false); });
+    var r = m.querySelector('#phElRetirer');
+    if(r) r.addEventListener('click', function(){ envoyer({ retirer: '1' }, 'Photo retirée ✅'); });
+  }
+
+  /* « Ta photo », en haut de « Écrire à l'école ». */
+  function dessinerMaPhotoEl(){
+    var top = document.querySelector('#cartesEcrireEcole .ckTop');
+    if(!top) return;
+    var b = $('btMaPhoto');
+    if(!b){
+      b = document.createElement('button');
+      b.type = 'button';
+      b.id = 'btMaPhoto';
+      b.className = 'maPhotoEl';
+      b.title = 'Ta photo';
+      b.addEventListener('click', ouvrirMaPhotoEl);
+      top.appendChild(b);
+    }
+    b.innerHTML = '<span class="maPhotoCadre">' +
+      rondPhotoEl(clePhotoEl('eleve', moi.nom), initialesPhotoEl(moi.nom), 44) +
+      '<span class="maPhotoCrayon">✏️</span></span><span class="maPhotoMot">Ta photo</span>';
+    brancherLesPhotosEl(b);
   }
 
   var familleEl = 0;
