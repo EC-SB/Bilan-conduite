@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 21:10 — v1094 */
+/* Déployé le 13/10/2026 à 13:31 — v1167 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -395,6 +395,106 @@ function libelleUrgence(v){
   return u || URGENCES[0];
 }
 
+/* ------------------------------------------------------------
+   🔗 LES NOMS PRESQUE PAREILS — v1167 (voir chargerBureau)
+   ------------------------------------------------------------ */
+function clePonctuationBureau(n){
+  return normaliserMot(n || '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function distanceUneLettre(a, b){
+  if(a === b) return 0;
+  if(Math.abs(a.length - b.length) > 1) return 2;
+  let i = 0, j = 0, ecarts = 0;
+  while(i < a.length && j < b.length){
+    if(a[i] === b[j]){ i++; j++; continue; }
+    if(++ecarts > 1) return 2;
+    if(a.length > b.length) i++;
+    else if(b.length > a.length) j++;
+    else { i++; j++; }
+  }
+  return ecarts + (a.length - i) + (b.length - j);
+}
+/* { « houcine admaia » : « Houcine Admaiai », … } — un nom qui n'a
+   pas de fiche, vers LA fiche dont il est presque l'orthographe. */
+function aliasDuRepertoire(noms){
+  const fiches = (typeof fichesEleves !== 'undefined' && fichesEleves) || [];
+  const out = {};
+  if(!fiches.length) return out;
+  const exacts = {};
+  fiches.forEach(f => { if(f && f.eleve) exacts[normaliserMot(f.eleve)] = true; });
+  const parties = fiches.filter(f => f && f.eleve).map(f => {
+    const k = clePonctuationBureau(f.eleve);
+    return { nom: f.eleve, k: k, lettres: k.replace(/ /g, ''), mots: k.split(' ').sort().join(' ') };
+  });
+  (noms || []).forEach(n => {
+    const nk = normaliserMot(n || '');
+    if(!nk || exacts[nk] || out[nk]) return;
+    const k = clePonctuationBureau(n);
+    if(!k) return;
+    const lettres = k.replace(/ /g, '');
+    const mots = k.split(' ').sort().join(' ');
+    const proches = parties.filter(f => f.k === k || f.mots === mots ||
+      (lettres.length >= 8 && f.lettres.length >= 8 && distanceUneLettre(lettres, f.lettres) <= 1));
+    const uniques = [...new Set(proches.map(f => f.nom))];
+    if(uniques.length === 1) out[nk] = uniques[0];
+  });
+  return out;
+}
+/* Les lignes au nom presque pareil prennent celui de la fiche ; deux
+   lignes du même élève n'en font plus qu'une — la plus récente, qui
+   dit où il en est. */
+function instantBureau(d){
+  const t = String(d || '');
+  let m = t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2})[:h](\d{2}))?/);
+  if(m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) + ' ' + ('0' + (m[4] || '0')).slice(-2) + ':' + (m[5] || '00');
+  m = t.match(/(\d{4})-(\d{2})-(\d{2})(?:\D+(\d{1,2}):(\d{2}))?/);
+  if(m) return m[1] + '-' + m[2] + '-' + m[3] + ' ' + ('0' + (m[4] || '0')).slice(-2) + ':' + (m[5] || '00');
+  return '';
+}
+function rattacherAuRepertoire(eleves, alias){
+  if(!Object.keys(alias).length) return;
+  eleves.forEach(x => {
+    const vrai = alias[normaliserMot(x.eleve || '')];
+    if(!vrai) return;
+    x.nomsEcrits = (x.nomsEcrits || []).concat([x.eleve]);
+    x.eleve = vrai;
+  });
+  const garde = {};
+  for(let i = 0; i < eleves.length; i++){
+    const k = normaliserMot(eleves[i].eleve);
+    if(!(k in garde)){ garde[k] = i; continue; }
+    const a = eleves[garde[k]], b = eleves[i];
+    const recent = instantBureau(b.date) > instantBureau(a.date) ? b : a;
+    const autre = recent === a ? b : a;
+    recent.nomsEcrits = [...new Set((recent.nomsEcrits || []).concat(autre.nomsEcrits || []))];
+    eleves[garde[k]] = recent;
+    eleves.splice(i, 1);
+    i--;
+  }
+}
+
+/* Corriger dans le classeur le nom mal écrit : la même porte que
+   « ✏️ Corriger le nom » de la fiche. Le classeur accepte de réécrire
+   vers un nom qui a déjà sa fiche quand l'ancien n'en a pas — c'est
+   une reprise, pas une fusion de deux dossiers. */
+async function corrigerUnNomEcrit(ecrit, vrai, bouton){
+  if(!await confirmer('Corriger « ' + ecrit + ' » en « ' + vrai + ' » partout dans le classeur ?\n\n' +
+                      'Bilans, consignes et suivi écrits sous l’ancien nom passeront au nom de sa fiche.',
+                      'Corriger')) return;
+  if(bouton){ bouton.disabled = true; bouton.textContent = 'Correction…'; }
+  try{
+    const r = await appelPrep({ action: 'eleveRenommer', ancien: ecrit, nouveau: vrai, eleve: vrai });
+    if(r && r.status === 'error') throw new Error(r.message);
+    if(typeof viderCaches === 'function') viderCaches();
+    showToast('« ' + ecrit + ' » corrigé en « ' + vrai + ' » ✅');
+    await chargerBureau(true);
+    if(typeof redessinerBureau === 'function') redessinerBureau();
+  }catch(e){
+    if(bouton){ bouton.disabled = false; bouton.textContent = '🔗 C’est le même élève : corriger'; }
+    showToast('Erreur : ' + ((e && e.message) || e));
+  }
+}
+
 async function chargerBureau(forcer){
   let data;
   if(!forcer && cacheBureau && Date.now() - cacheBureau.ts < 30000){
@@ -423,20 +523,48 @@ async function chargerBureau(forcer){
   if(nettoyerPeriodesEchues()){
     try{ await enregistrerPlaces(); }catch(e){}
   }
+  /* 🔗 UN NOM PRESQUE PAREIL EST LE MÊME ÉLÈVE — v1167.
+
+     David, le 13 octobre : « dans la liste élèves prêts au permis
+     j'ai des doublons et des élèves qui sont déjà sur une session
+     d'examen ». Vérifié sur sa liste : « Zoe Vistola_ » (un tiret bas
+     tapé dans un message du bureau) faisait une seconde Zoe, et
+     « Houcine Admaia » (un i oublié dans un bilan) ne retrouvait pas
+     sa place du 30 octobre, prise au nom de sa fiche, « Houcine
+     Admaiai ». Les listes du bureau regroupent par le nom EXACT.
+
+     On rattache donc à sa fiche un nom qui n'en a pas et qui n'en
+     diffère que par la ponctuation, l'ordre des mots ou UNE lettre —
+     et seulement si UNE seule fiche est aussi proche : deux frères
+     « Léo » et « Léa » ont chacun la leur, et ne se mélangent pas.
+     Le nom mal écrit reste visible sur la ligne, avec de quoi le
+     corriger dans le classeur (voir ligneBureau). */
+  /* Le répertoire, une fois par page : une lecture rapide du Worker,
+     et seulement s'il n'est pas déjà là. */
+  if(typeof fichesEleves !== 'undefined' && !fichesEleves.length && typeof chargerFiches === 'function' &&
+     !chargerBureau.repertoireLu){
+    chargerBureau.repertoireLu = true;
+    try{ await chargerFiches(); }catch(e){ /* sans répertoire, on ne rattache rien */ }
+  }
+  const alias = aliasDuRepertoire(eleves.map(x => x.eleve).concat(consignes.map(c => c.eleve)));
+  const nomResolu = n => alias[normaliserMot(n || '')] || n;
+  rattacherAuRepertoire(eleves, alias);
+
   /* Un élève peut n'exister que par une consigne du bureau */
   const connus = eleves.map(x => normaliserMot(x.eleve));
   consignes.forEach(cs => {
     if(cs.traite === 'oui' || cs.type === 'urgence') return;
-    const k = normaliserMot(cs.eleve);
+    const k = normaliserMot(nomResolu(cs.eleve));
     if(!k || connus.indexOf(k) !== -1) return;
     connus.push(k);
-    eleves.push({ eleve: cs.eleve, note: '', date: cs.creeLe || '', type: '',
+    eleves.push({ eleve: nomResolu(cs.eleve), note: '', date: cs.creeLe || '', type: '',
+                  nomsEcrits: nomResolu(cs.eleve) !== cs.eleve ? [cs.eleve] : undefined,
                   horodatage: '', moniteur: '', boite: '', ants: '', lecons: 0 });
   });
 
   etatBureau.eleves = eleves.map(e => {
     const enAttente = consignes.filter(cs =>
-      normaliserMot(cs.eleve) === normaliserMot(e.eleve) &&
+      normaliserMot(nomResolu(cs.eleve)) === normaliserMot(e.eleve) &&
       cs.traite !== 'oui' && cs.type !== 'urgence');
 
     /* Une consigne du bureau non traitée prime sur la note du moniteur */
@@ -1184,6 +1312,27 @@ function ligneBureau(e, options){
   sous.textContent = 'Dernier cours le ' + (e.date || '?') +
                      (e.moniteur ? ' avec ' + e.moniteur : '');
   meta.appendChild(sous);
+
+  /* 🔗 v1167 — un nom mal écrit rattaché à sa fiche : on le montre,
+     et on propose de le corriger dans le classeur */
+  if((e.nomsEcrits || []).length){
+    const ecr = document.createElement('span');
+    ecr.className = 'nomEcrit';
+    ecr.style.cssText = 'color:var(--warn-text);font-size:12px;line-height:1.5;';
+    ecr.textContent = '✏️ Aussi écrit ' + e.nomsEcrits.map(n => '« ' + n + ' »').join(', ') +
+                      ' dans un bilan ou un message ';
+    e.nomsEcrits.forEach(n => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'display:inline-block;width:auto;margin:4px 0 0;padding:4px 10px;font-size:12px;';
+      b.textContent = '🔗 C’est le même élève : corriger';
+      b.title = 'Réécrire « ' + n + ' » en « ' + e.eleve + ' » dans le classeur';
+      b.addEventListener('click', ev => { ev.stopPropagation(); corrigerUnNomEcrit(n, e.eleve, b); });
+      ecr.appendChild(b);
+    });
+    meta.appendChild(ecr);
+  }
 
   /* Une fiche peut venir du répertoire, sans consigne attachée */
   if((e.enAttente || []).length){
