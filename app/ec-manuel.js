@@ -1,4 +1,4 @@
-/* Déployé le 09/10/2026 à 09:33 — v1115 */
+/* Déployé le 13/10/2026 à 08:59 — v1160 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1236,6 +1236,26 @@ async function ouvrirBilanManuel(){
   const manque = cequiManqueAuDepart();
   if(manque){ refuserLeDepart($('manuelBtn'), manque); return; }
 
+  /* ⚠️ UNE FICHE COMMENCÉE SE REPREND, ELLE NE SE RECOMMENCE PAS —
+     v1160.
+
+     David, le 13 octobre : « avec la refonte, les moniteurs ne
+     retrouvent pas les cours des bilans examen quand ils ont
+     plusieurs élèves ». En le reproduisant : la carte de 📅 Mes
+     prochains cours ouvrait une fiche VIDE pour un élève dont la
+     partie avant examen était déjà remplie et envoyée — et la
+     sauvegarde automatique, quelques secondes plus tard, REMPLAÇAIT
+     la fiche de l'élève par cette fiche vide.
+
+     Tout bouton qui ouvre la fiche d'un élève passe par ici : s'il a
+     une fiche commencée du même type (moins de 48 h), c'est elle qui
+     revient. La reprise elle-même repasse par ici — le drapeau évite
+     qu'elle se reprenne à l'infini. */
+  if(!ouvertureParReprise){
+    const deja = ficheCommenceeDe($('studentName').value.trim(), $('modele').value);
+    if(deja){ reprendreBrouillon(deja); return; }
+  }
+
   /* Modifiables : l'examen officiel peut basculer d'une boîte à
      l'autre quand la question est posée au moniteur. */
   let modeleCle = $('modele').value;
@@ -1434,6 +1454,9 @@ async function ouvrirBilanManuel(){
   if(typeof demarrerTrajet === 'function' && demarrerTrajet(eleve)){
     if(typeof montrerLeTrajet === 'function') montrerLeTrajet(true);
   }
+
+  /* 🎓 v1160 — les examens du même bloc, en haut de la fiche */
+  dessinerMesExamens();
 
   window.scrollTo(0, 0);
 }
@@ -4561,6 +4584,10 @@ async function envoyerAvantExamen(){
      sauvegarde. */
   avantExamenEnvoye = true;
   sauvegarderManuel();
+  /* 🎓 v1160 — direct : la carte et la rangée « Mes examens » le
+     disent tout de suite, sans recharger. */
+  try{ dessinerMesExamens(); }catch(e){}
+  if(typeof afficherPrepares === 'function'){ try{ afficherPrepares(false, true); }catch(e){} }
   /* Et on dépose sans attendre : la partie avant examen vient de
      partir à l'élève, c'est le moment le plus coûteux à refaire. */
   try{ deposerFicheManuelle(true); }catch(e){}
@@ -4731,11 +4758,17 @@ function examensAEnchainer(eleveActuel){
       if(b && b.eleve && b.avantEnvoye) dejaEnvoye[normaliserMot(b.eleve)] = true;
     });
 
+  /* 🎓 v1160 — LE MÊME BLOC, PAS LA MÊME JOURNÉE. Un moniteur peut
+     présenter un bloc le matin à Saint-Brieuc et un autre l'après-midi
+     à Loudéac : on n'enchaîne qu'avec les élèves de SA session. */
+  const bloc = blocDExamenDe(eleveActuel, jour, moi);
+
   return prepares
     .filter(c => {
       if(String(c.date || '') !== jour) return false;
       if(String(c.modele || '') !== 'examen-officiel') return false;
       if(!c.eleve || normaliserMot(c.eleve) === sansMoi) return false;
+      if(bloc && !bloc.noms[normaliserMot(c.eleve)]) return false;
       /* Le cours d'un autre ne s'ouvre pas d'ici : chargerPrepare
          le refuserait, autant ne pas le proposer. */
       if(c.moniteur && normaliserMot(c.moniteur) !== normaliserMot(moi)) return false;
@@ -4809,6 +4842,167 @@ function ligneEnchainement(cours, fond){
 }
 
 
+/* ============================================================
+   🎓 RETROUVER SES FICHES D'EXAMEN — v1160
+
+   David, le 13 octobre : « avec la refonte, les moniteurs ne
+   retrouvent pas les cours des bilans examen quand ils ont plusieurs
+   élèves — ils remplissent d'abord la partie avant examen, ensuite
+   c'est un autre élève, voire encore un autre, et ensuite ils ont
+   leur examen ». Son choix sur le schéma : A + C.
+     A · la carte de 📅 Mes prochains cours dit que la fiche attend,
+         et son bouton la REPREND (voir ouvrirBilanManuel) ;
+     C · en haut de la fiche ouverte, « 🎓 Mes examens » : les élèves
+         du même bloc, un appui pour passer de l'un à l'autre.
+   Et : « il faut que ce soit direct » (sans recharger), et « faire
+   attention si un moniteur a plusieurs blocs d'examen par jour —
+   bien comparer avec les groupes de suivi examen ».
+   ============================================================ */
+let ouvertureParReprise = false;
+
+/* La fiche commencée de cet élève, pour ce type de bilan — ou null.
+   Sans type, n'importe laquelle des siennes. */
+function ficheCommenceeDe(eleve, modele){
+  const qui = normaliserMot(eleve || '');
+  if(!qui) return null;
+  return tousLesBrouillons().find(b => b && normaliserMot(b.eleve || '') === qui &&
+    (!modele || !b.modele || b.modele === modele)) || null;
+}
+
+function heureDeLaFiche(b){
+  const d = new Date((b && b.ts) || Date.now());
+  return String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0');
+}
+
+/* LE BLOC D'EXAMEN DE CET ÉLÈVE, CE JOUR-LÀ.
+
+   ⚠️ C'EST LA SESSION DU 🎓 SUIVI PERMIS QUI LE DIT : un bloc, c'est
+   un centre, une heure, les élèves qu'on y a placés. Deux blocs le
+   même jour pour le même moniteur ne se mélangent donc pas. Sans
+   session connue (suivi pas encore lu, élève hors session), on
+   retombe sur les examens préparés du même jour, du même moniteur et
+   du même centre. Rend { noms:{clé:true}, liste:[noms dans l'ordre],
+   centre, heure } ou null. */
+function blocDExamenDe(eleve, jour, moniteur){
+  const qui = normaliserMot(eleve || '');
+  if(!qui || !jour) return null;
+  const sessions = (typeof sessionsPermis !== 'undefined' && Array.isArray(sessionsPermis)) ? sessionsPermis : [];
+  const s = sessions.find(x => x && String(x.date || '') === jour &&
+    (x.eleves || []).some(p => normaliserMot(p.eleve || '') === qui));
+  if(s){
+    const places = (s.eleves || []).filter(p => p && p.eleve)
+      .slice().sort((a, b) => String(a.heure || '').localeCompare(String(b.heure || '')) || (a.rang || 0) - (b.rang || 0));
+    const noms = {};
+    places.forEach(p => { noms[normaliserMot(p.eleve)] = true; });
+    return { noms: noms, liste: places.map(p => p.eleve), heures: places.map(p => p.heure || ''),
+             centre: s.centre || '', heure: s.heureDebut || '', session: s.id || '' };
+  }
+  const liste = (typeof prepares !== 'undefined' && Array.isArray(prepares)) ? prepares : [];
+  const moi = normaliserMot(moniteur || '');
+  const sien = liste.find(c => String(c.date || '') === jour && normaliserMot(c.eleve || '') === qui &&
+                               String(c.modele || '') === 'examen-officiel');
+  const lot = liste.filter(c => String(c.date || '') === jour && String(c.modele || '') === 'examen-officiel' &&
+    (!moi || !c.moniteur || normaliserMot(c.moniteur) === moi) &&
+    (!sien || !sien.site || !c.site || normaliserMot(c.site) === normaliserMot(sien.site)));
+  if(!lot.some(c => normaliserMot(c.eleve || '') === qui)) return null;
+  const heure = c => (typeof heureDeLaPreparation === 'function') ? (heureDeLaPreparation(c) || '') : '';
+  lot.sort((a, b) => heure(a).localeCompare(heure(b)));
+  const noms = {};
+  lot.forEach(c => { noms[normaliserMot(c.eleve)] = true; });
+  return { noms: noms, liste: lot.map(c => c.eleve), heures: lot.map(heure),
+           centre: (sien && sien.site) || '', heure: '', session: '' };
+}
+
+/* Où en est chaque élève du bloc : 📤 avant examen envoyé, 📝 fiche
+   commencée, ⏳ à ouvrir (cours préparé), ✅ bilan enregistré
+   aujourd'hui, ou rien d'ouvrable. */
+function etatDansLeBloc(nom, jour){
+  const b = ficheCommenceeDe(nom, 'examen-officiel');
+  if(b) return { cle: b.avantEnvoye ? 'envoye' : 'commence', rond: b.avantEnvoye ? '📤' : '📝', fiche: b,
+                 dit: b.avantEnvoye ? 'avant examen envoyé à ' + heureDeLaFiche(b) : 'fiche commencée à ' + heureDeLaFiche(b) };
+  const cours = ((typeof prepares !== 'undefined' && prepares) || []).find(c =>
+    String(c.date || '') === jour && String(c.modele || '') === 'examen-officiel' &&
+    normaliserMot(c.eleve || '') === normaliserMot(nom));
+  if(cours) return { cle: 'aouvrir', rond: '⏳', cours: cours, dit: 'pas encore commencée' };
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const p = String(jour || '').split('-');
+  const jourFr = p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '';
+  if(e && String(e.date || '').slice(0, 10) === jourFr && /examen/i.test(String(e.type || ''))){
+    return { cle: 'fait', rond: '✅', dit: 'bilan enregistré' };
+  }
+  return { cle: 'rien', rond: '·', dit: 'pas de cours préparé pour lui' };
+}
+
+/* ── C · la rangée « 🎓 Mes examens », en haut de la fiche ── */
+function dessinerMesExamens(){
+  const z = $('mesExamensBloc');
+  if(!z) return;
+  z.innerHTML = '';
+  z.style.display = 'none';
+  if($('modele').value !== 'examen-officiel') return;
+  const eleve = $('studentName').value.trim();
+  const jour = ($('lessonDate') && $('lessonDate').value) || (typeof todayLocal === 'function' ? todayLocal() : '');
+  const moi = ($('monitorName') && $('monitorName').value.trim()) ||
+              (typeof ACCES !== 'undefined' ? (ACCES.moniteur || '') : '');
+  const bloc = blocDExamenDe(eleve, jour, moi);
+  if(!bloc || bloc.liste.length < 2) return;
+
+  z.style.display = 'flex';
+  const t = document.createElement('span');
+  t.className = 'mesExamensTitre';
+  t.textContent = '🎓 Mes examens' + (bloc.centre ? ' · ' + bloc.centre : '') +
+                  (bloc.heure ? ' ' + bloc.heure.replace(':', 'h') : '');
+  z.appendChild(t);
+  bloc.liste.forEach(nom => {
+    const ici = normaliserMot(nom) === normaliserMot(eleve);
+    const et = ici ? { cle: 'ici', rond: '✍️', dit: 'fiche ouverte' } : etatDansLeBloc(nom, jour);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mesExamensPuce' + (ici ? ' ici' : '') + ' ' + et.cle;
+    b.dataset.eleve = nom;
+    b.title = nom + ' — ' + et.dit;
+    b.textContent = et.rond + ' ' + String(nom).split(/\s+/)[0];
+    const ouvrable = !ici && (et.fiche || et.cours);
+    if(!ici && !ouvrable) b.disabled = true;
+    if(ouvrable) b.addEventListener('click', () => passerALExamenDe(nom, et));
+    z.appendChild(b);
+  });
+}
+
+/* Enregistrer la fiche ouverte, puis ouvrir celle de l'autre élève —
+   sa fiche commencée si elle existe, sinon son cours préparé. */
+async function passerALExamenDe(nom, et){
+  /* ⚠️ ON REFERME AVANT D'OUVRIR — la même règle que l'enchaînement :
+     fermerBilanManuel enregistre et dépose la fiche qu'on quitte. */
+  fermerBilanManuel();
+  if(et.fiche){
+    reprendreBrouillon(et.fiche);
+    return;
+  }
+  if(et.cours && typeof chargerPrepare === 'function'){
+    try{
+      await chargerPrepare(et.cours);
+      if(typeof prepareEnCours !== 'undefined' && prepareEnCours === et.cours) await ouvrirBilanManuel();
+      showToast('👤 ' + nom);
+    }catch(e){ showToast('Impossible : ' + (e.message || e)); }
+  }
+}
+
+/* ── A · ce que la carte de 📅 Mes prochains cours en dit ── */
+function etatFicheSurLaCarte(cours){
+  if(!cours || !cours.eleve) return null;
+  const b = ficheCommenceeDe(cours.eleve, cours.modele || '');
+  if(!b) return null;
+  const examen = (b.modele || cours.modele) === 'examen-officiel';
+  return {
+    fiche: b,
+    texte: (b.avantEnvoye ? '📤 Avant examen envoyé à ' : '📝 Fiche commencée à ') + heureDeLaFiche(b) +
+           ' — sa fiche t’attend',
+    court: (b.avantEnvoye ? '📤 avant examen envoyé ' : '📝 fiche commencée ') + heureDeLaFiche(b),
+    bouton: examen ? '↩️ Reprendre sa fiche d’examen' : '↩️ Reprendre sa fiche'
+  };
+}
+
 function reprendreBilanManuel(){
   reprendreBrouillon(brouillonManuel());
 }
@@ -4848,7 +5042,10 @@ function reprendreBrouillon(b){
   if(typeof montrerLEcranDuCours === 'function') montrerLEcranDuCours();
 
   /* La fiche se dessine, puis on y repose les saisies */
-  ouvrirBilanManuel().then(() => {
+  ouvertureParReprise = true;
+  const ouverture = ouvrirBilanManuel();
+  ouvertureParReprise = false;
+  ouverture.then(() => {
     /* ⚠️ LES OBSERVATIONS D'ABORD, ET C'EST UNE QUESTION D'ORDRE.
 
        « Si ça saute, ça disparaît, on ne le retrouve pas. »
@@ -4919,8 +5116,18 @@ function reprendreBrouillon(b){
       Object.keys(b.champs).forEach(k => { champsManuels[k] = b.champs[k]; });
 
       /* Après les valeurs par défaut, qui se posent sur un
-         minuteur : sinon elles repeindraient par-dessus. */
+         minuteur : sinon elles repeindraient par-dessus.
+
+         ⚠️ ET ON REPOSE LES VALEURS UNE SECONDE FOIS, ICI — v1160.
+         Chaque rangée ✅ ❌ — « appuie » sur son « — » par défaut
+         dans un minuteur posé AU DESSIN de la fiche, donc avant
+         celui-ci : il passait juste après la ligne du dessus, et
+         remettait « » partout. Le repeint lisait ensuite ce vide et
+         rallumait « — ». Les ✅ de l'avant-examen ne revenaient donc
+         jamais (trouvé en reproduisant le cas de David, le 13
+         octobre). On les repose après les défauts, puis on repeint. */
       setTimeout(() => {
+        Object.keys(b.champs).forEach(k => { champsManuels[k] = b.champs[k]; });
         try{ repeindreBoutonsManuels(); }catch(e){ console.warn('Boutons :', e); }
         /* L'aperçu d'une évaluation : retouché, il garde la version
            du moniteur et le redit ; sinon il se recalcule. */
@@ -4958,8 +5165,33 @@ function fermerBilanManuel(){
   modeManuel = false;
   $('manuelView').style.display = 'none';
   $('recordView').style.display = 'block';
-  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+  /* 🎓 v1160 — LA FICHE RANGÉE REND LA JOURNÉE, TOUT DE SUITE.
+
+     David : « la monitrice doit rafraîchir pour qu'elle puisse
+     reprendre, c'est bizarre comme fonctionnement, il faut que ce
+     soit direct ». Deux verrous gardaient « Mes prochains cours »
+     caché après « Fermer », et le rechargement levait les deux :
+
+       · « afficherVue('cours','cours') » posait « hors-vue » sur la
+         liste. L'onglet Cours n'a pas de vues : seul afficherOnglet
+         l'en libère — et personne ne l'appelait ;
+       · le nom de l'élève restait dans le champ. coursEnRoute() y
+         voyait toujours un cours, et « body.cours-ouvert » masquait
+         la journée derrière un formulaire vide.
+
+     La fiche est à l'abri — sauvegardée et déposée juste au-dessus.
+     Le cours n'est donc plus en route : on vide le nom et on arrête
+     le chrono, la porte de « Terminer », qui redessine d'un coup le
+     bandeau, l'écran et les cartes. La carte de l'élève dit alors
+     aussitôt « sa fiche t'attend », avec le bouton pour la reprendre. */
+  if($('studentName')) $('studentName').value = '';
+  if(typeof arreterChronoDuCours === 'function') arreterChronoDuCours();
+  else if(typeof afficherPrepares === 'function'){
+    try{ afficherPrepares(false, true); }catch(e){}
+  }
+  if(typeof afficherOnglet === 'function') afficherOnglet('cours');
   if(typeof proposerReprise === 'function') proposerReprise();
+  window.scrollTo(0, 0);
 }
 
 
