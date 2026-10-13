@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:15 — v1050 */
+/* Déployé le 13/10/2026 à 13:01 — v1166 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1567,6 +1567,8 @@ async function afficherRappelManuel(){
   apercuRappel();
   majLieuAuto();
   peindreCreneauxRappel();
+  /* 📥 v1166 — quand le planning Drivup a été lu */
+  if(typeof poserBandeauDrivupRappels === 'function') poserBandeauDrivupRappels(zone).catch(() => {});
 }
 
 
@@ -1786,15 +1788,97 @@ async function peindreCreneauxRappel(){
   if(!moniteur) return;
 
   const lignes = await planningDuJourRappels(dateDuRappel(jour));
+  /* 📥 v1166 — et les cours lus dans Drivup pour ce jour-là */
+  const dv = (typeof drivupDuJourRappels === 'function')
+    ? await drivupDuJourRappels(dateDuRappel(jour)) : null;
   /* Un autre jour ou un autre moniteur a pu être choisi pendant la
      lecture : on ne peint pas une journée qui n'est plus la bonne. */
   if(ticket !== peintureCreneaux) return;
-  dessinerCreneauxRappel(zone, lignes || []);
+  dessinerCreneauxRappel(zone, lignes || [], (dv && dv.cours) || []);
 }
 
-function dessinerCreneauxRappel(zone, lignes){
+/* ============================================================
+   📥 LES COURS DRIVUP DANS LES CRÉNEAUX — v1166
+
+   David : « avoir le planning des élèves pour faire les rappels ».
+   Le planning lu dans Drivup (favori du bureau, ec-drivup.js) remplit
+   l'étape 2 : chaque créneau montre l'élève et la séance, « 📥 à
+   envoyer » ou « ✉️ envoyé ». Un appui remplit l'élève, l'heure et
+   le type ; après un envoi, on passe au cours Drivup suivant.
+
+   « Envoyé » se lit dans le planning de la journée (ecranPlanning),
+   que chaque rappel envoyé complète déjà : pas de seconde mémoire.
+   ============================================================ */
+let creneauxDrivupRappel = {};
+
+function coursDrivupEnvoye(c, lignes){
+  const h = heureEnHHMM(c.debut);
+  const nom = normaliserMot(c.eleve || '');
+  const prenom = nom.split(' ')[0];
+  return (lignes || []).some(l => {
+    if(heureEnHHMM(l.heure) !== h) return false;
+    const complet = normaliserMot(l.eleveComplet || '');
+    const court = normaliserMot(l.eleve || '');
+    return (complet && complet === nom) || (court && (court === nom || court === prenom));
+  });
+}
+
+function remplirDepuisDrivupRappel(h){
+  const moniteur = normaliserMot($('rapMoniteur') ? $('rapMoniteur').value : '');
+  const liste = (creneauxDrivupRappel[h] || []).filter(c => normaliserMot(c.moniteur || '') === moniteur);
+  const lignes = (planningRappels && planningRappels.lignes) || [];
+  const c = liste.find(x => !coursDrivupEnvoye(x, lignes));
+  if(!c) return;
+  const el = $('rappelEleve');
+  if(el){
+    el.value = c.eleve;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  /* Le type de séance, quand Drivup le dit clairement : un examen,
+     un examen blanc. Sinon on laisse celui qui est choisi. */
+  const sel = $('rapType');
+  if(sel){
+    const lib = normaliserMot(c.libelle || '');
+    const cherche = c.examen || /examen du permis/.test(lib) ? (t => /examen/.test(t) && !/blanc/.test(t))
+                  : /examen blanc/.test(lib) ? (t => /blanc/.test(t))
+                  : null;
+    if(cherche){
+      const o = [...sel.options].find(o => cherche(normaliserMot(o.textContent)));
+      if(o && sel.value !== o.value){
+        sel.value = o.value;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+  }
+}
+
+/* Après un envoi : le prochain cours Drivup encore à prévenir */
+function avancerAuCoursDrivupRappel(hEnvoyee){
+  const lignes = (planningRappels && planningRappels.lignes) || [];
+  const heures = Object.keys(creneauxDrivupRappel).sort();
+  const reste = h => (creneauxDrivupRappel[h] || []).some(c => !coursDrivupEnvoye(c, lignes));
+  const suivante = heures.find(h => h > (hEnvoyee || '') && reste(h)) || heures.find(reste);
+  if(suivante) choisirCreneauRappel(suivante);
+  return !!suivante;
+}
+
+function dessinerCreneauxRappel(zone, lignes, drivup){
   const moniteur = normaliserMot($('rapMoniteur') ? $('rapMoniteur').value : '');
   const choisie = heureEnHHMM($('rapHeure') ? $('rapHeure').value : '');
+
+  /* 📥 v1166 — les cours Drivup de CE moniteur, par heure.
+     ⚠️ Le premier dessin, avant la lecture, n'en apporte pas
+     (drivup absent) : il ne doit pas effacer ceux qu'on a déjà —
+     c'est lui qui part quand on touche un créneau, juste avant que
+     le créneau remplisse l'élève. */
+  if(drivup !== undefined) creneauxDrivupRappel = {};
+  (drivup || []).forEach(c => {
+    if(!moniteur || normaliserMot(c.moniteur || '') !== moniteur) return;
+    const h = heureEnHHMM(c.debut);
+    if(!h) return;
+    (creneauxDrivupRappel[h] = creneauxDrivupRappel[h] || []).push(c);
+  });
 
   /* Qui a déjà cours, et à quelle heure, chez CE moniteur */
   const occupe = {};
@@ -1807,7 +1891,8 @@ function dessinerCreneauxRappel(zone, lignes){
   });
 
   const heures = HEURES_JOURNEE.slice();
-  Object.keys(occupe).concat(choisie ? [choisie] : []).forEach(h => {
+  Object.keys(occupe).concat(Object.keys(creneauxDrivupRappel))
+    .concat(choisie ? [choisie] : []).forEach(h => {
     if(h && heures.indexOf(h) === -1) heures.push(h);
   });
   heures.sort();
@@ -1816,13 +1901,27 @@ function dessinerCreneauxRappel(zone, lignes){
   heures.forEach(h => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'rapCr' + (h === choisie ? ' actif' : '') +
-                  (occupe[h] ? ' fait' : '');
-    b.textContent = h.replace(':', 'h');
-    const sm = document.createElement('small');
-    sm.textContent = occupe[h] ? '✓ ' + occupe[h]
-                   : (h === choisie ? 'ce cours' : 'libre');
-    b.appendChild(sm);
+    const dv = creneauxDrivupRappel[h];
+    if(dv && dv.length){
+      /* 📥 Un cours Drivup : qui, quelle séance, prévenu ou non */
+      const tous = dv.every(c => coursDrivupEnvoye(c, lignes));
+      b.className = 'rapCr fait dv' + (h === choisie ? ' actif' : '') + (tous ? ' dvEnvoye' : '');
+      b.textContent = h.replace(':', 'h');
+      const qui = document.createElement('small');
+      qui.textContent = dv.map(c => c.eleve).join(', ') + ' · ' +
+        ((typeof libelleCourtDrivup === 'function') ? libelleCourtDrivup(dv[0]) : '');
+      const et = document.createElement('small');
+      et.textContent = tous ? '✉️ envoyé' : '📥 à envoyer';
+      b.append(qui, et);
+    }else{
+      b.className = 'rapCr' + (h === choisie ? ' actif' : '') +
+                    (occupe[h] ? ' fait' : '');
+      b.textContent = h.replace(':', 'h');
+      const sm = document.createElement('small');
+      sm.textContent = occupe[h] ? '✓ ' + occupe[h]
+                     : (h === choisie ? 'ce cours' : 'libre');
+      b.appendChild(sm);
+    }
     b.addEventListener('click', () => choisirCreneauRappel(h));
     zone.appendChild(b);
   });
@@ -2085,6 +2184,8 @@ function choisirCreneauRappel(h){
     if(!existe && $('rapHeure')) $('rapHeure').value = h;
   }
   lh.dispatchEvent(new Event('change'));
+  /* 📥 v1166 — un créneau Drivup apporte son élève */
+  if(h !== 'autre') remplirDepuisDrivupRappel(h);
 }
 
 /* LE TYPE DE SÉANCE, DEMANDÉ À L'ÉCRAN.
@@ -2988,6 +3089,9 @@ async function envoyerRappelManuel(){
 
       texteModifie = false;
       apercuRappel();
+      /* 📥 v1166 — s'il reste des cours Drivup à prévenir, le suivant
+         se choisit tout seul, avec son élève. */
+      if(typeof avancerAuCoursDrivupRappel === 'function') avancerAuCoursDrivupRappel(heureEnHHMM(hEnvoyee));
       /* La pastille qu'on vient de prévenir passe au ✓, et la
          suivante s'allume : c'est là qu'on voit où on en est. */
       peindreCreneauxRappel();
