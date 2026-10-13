@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 13:01 — v1166 */
+/* Déployé le 13/10/2026 à 14:14 — v1168 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -86,6 +86,26 @@ function moniteurDeLAppliDrivup(titre){
     }
   }
   return '';
+}
+
+/* ------------------------------------------------------------
+   LA FORMATION — la catégorie Drivup dite avec nos mots (v1168)
+
+   David, le 13 octobre : « il manque la formation » ; « CA sur
+   Drivup = AAC BV ». La table est la sienne. Une catégorie qu'elle
+   ne connaît pas (C, D…) laisse la formation « à préciser » : on
+   ne devine pas.
+   ------------------------------------------------------------ */
+const FORMATIONS_DRIVUP = {
+  'b': 'BV', 'b (bea)': 'BEA', 'b (pmr)': 'Conduite aménagée BEA', 'bea -> b': 'Passerelle BEA→BV',
+  'ca': 'AAC BV', 'ca (bea)': 'AAC BEA', 'cs': 'CS BV', 'cs (bea)': 'CS BEA',
+  'a passerelle': 'Moto A', 'a1': 'A1 permis', 'a1 equivalence': 'A1 passerelle', 'a2': 'A2',
+  'am': 'AM 2 roues', 'am quadricycle': 'AM voiturette', 'be': 'Permis BE'
+};
+function formationDeDrivup(code){
+  const k = String(code || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').replace(/\s*->\s*/, ' -> ').trim();
+  return FORMATIONS_DRIVUP[k] || '';
 }
 
 /* Ce qu'on ne reprend pas, quel que soit le moniteur */
@@ -256,7 +276,14 @@ function ecouterLeFavoriDrivup(){
   if(!/[?&]drivup=1\b/.test(location.search)) return;
   let recu = false;
   window.addEventListener('message', ev => {
-    if(ev.origin !== DRIVUP_ORIGINE || !ev.data || ev.data.type !== 'drivup-donnees') return;
+    if(ev.origin !== DRIVUP_ORIGINE || !ev.data) return;
+    /* La lecture avance, dans Drivup : on le montre tout de suite —
+       v1168, l'onglet restait vide une demi-minute. */
+    if(ev.data.type === 'drivup-progression'){
+      if(!recu) montrerLaLectureDrivup(ev.data.fait, ev.data.total);
+      return;
+    }
+    if(ev.data.type !== 'drivup-donnees') return;
     try{ ev.source.postMessage({ type: 'drivup-recu' }, DRIVUP_ORIGINE); }catch(e){}
     if(recu) return;
     recu = true;
@@ -270,6 +297,28 @@ function ecouterLeFavoriDrivup(){
     try{ window.opener.postMessage({ type: 'drivup-pret' }, DRIVUP_ORIGINE); }catch(e){}
   }, 600);
 }
+
+function montrerLaLectureDrivup(fait, total){
+  let f = $('drivupLecture');
+  if(!f){
+    const c = cadreDrivup('📥 Lecture dans Drivup…', 'Le planning se lit dans l’onglet Drivup : la fenêtre s’ouvre ici dès que c’est fini.');
+    c.fond.id = 'drivupLecture';
+    const b = document.createElement('div');
+    b.className = 'dvBarre';
+    b.innerHTML = '<span></span>';
+    const t = document.createElement('div');
+    t.className = 'dvNote';
+    t.id = 'drivupLectureTexte';
+    c.boite.append(b, t);
+    f = c.fond;
+  }
+  const n = Math.max(0, Number(fait) || 0), tt = Math.max(1, Number(total) || 1);
+  const barre = f.querySelector('.dvBarre span');
+  if(barre) barre.style.width = Math.min(100, Math.round(n * 100 / tt)) + '%';
+  const t = $('drivupLectureTexte');
+  if(t) t.textContent = n + ' / ' + tt + ' cours lus';
+}
+function fermerLaLectureDrivup(){ const f = $('drivupLecture'); if(f) f.remove(); }
 
 function attendreLaSessionPourDrivup(){
   let n = 0;
@@ -294,6 +343,7 @@ function attendreLaSessionPourDrivup(){
 }
 
 function ouvrirLaFenetreDrivup(p){
+  fermerLaLectureDrivup();
   if(!p || typeof p !== 'object') return;
   if(p.genre === 'planning' && Array.isArray(p.cours)) return fenetrePlanningDrivup(p);
   if(p.genre === 'eleves' && Array.isArray(p.eleves)) return fenetreElevesDrivup(p.eleves.slice(0, 300), 'liste');
@@ -592,7 +642,7 @@ async function fenetrePlanningDrivup(p){
          inventée à partir de lui. */
       if(x.complet && !x.nom) return;
       fiches.push({ eleve: l.eleve, idDrivup: id, telephone: propreDrivup(x.mobile, 30),
-                    formation: propreDrivup(x.formation, 40) });
+                    formation: formationDeDrivup(x.formation) });
     });
     if(fiches.length){
       for(let i = 0; i < fiches.length; i += 200){
@@ -607,13 +657,16 @@ async function fenetrePlanningDrivup(p){
         libelle: l.libelle, examen: l.examen }))
     });
     oublierDrivupRappels();
-    if(fiches.length && typeof chargerFiches === 'function') chargerFiches().catch(() => {});
+    if(fiches.length && typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
+    /* 3 · les photos de ceux qui n'en ont pas — v1168 */
+    const ph = await reprendreLesPhotosDrivup(lignes.map(l => ({ eleve: l.eleve, url: (l._x || {}).photo })));
     ok.style.display = 'none';
     non.disabled = false;
     non.textContent = 'Fermer';
     etat.style.color = '';
     etat.textContent = '✅ Enregistré : ' + ((r && r.nb) || lignes.length) + ' cours' +
-      (fiches.length ? ' · ' + fiches.length + ' fiche(s) créée(s) ou complétée(s)' : '') + '.';
+      (fiches.length ? ' · ' + fiches.length + ' fiche(s) créée(s) ou complétée(s)' : '') +
+      (ph.posees ? ' · ' + ph.posees + ' photo(s) reprise(s)' : '') + '.';
     const aller = document.createElement('button');
     aller.className = 'btn btn-primary';
     aller.style.marginTop = '10px';
@@ -630,6 +683,58 @@ async function fenetrePlanningDrivup(p){
   note.textContent = 'Rien n’est écrit dans Drivup. Les cours vont dans 🔔 Rappels de cours ; ils arrivent dans ' +
     'Mes prochains cours du moniteur quand le rappel part, comme aujourd’hui.';
   f.boite.appendChild(note);
+}
+
+/* ------------------------------------------------------------
+   📷 LES PHOTOS — seulement pour qui n'en a pas (v1168)
+
+   Le Worker va chercher l'image chez Drivup et vérifie de nouveau
+   qu'il n'y en a pas déjà une : ce tri-ci ne sert qu'à ne pas lui
+   demander pour rien.
+   ------------------------------------------------------------ */
+async function reprendreLesPhotosDrivup(liste){
+  const res = { posees: 0, ratees: 0 };
+  try{ if(typeof chargerPhotosProfil === 'function') await chargerPhotosProfil(true); }catch(e){}
+  const vus = {};
+  const aFaire = (liste || []).filter(x => {
+    if(!x || !x.eleve || !x.url) return false;
+    const k = sansAccentDrivup(x.eleve);
+    if(vus[k]) return false;
+    vus[k] = true;
+    return !(typeof lienPhotoProfil === 'function' && typeof clePhotoProfil === 'function' &&
+             lienPhotoProfil(clePhotoProfil('eleve', x.eleve)));
+  });
+  for(let i = 0; i < aFaire.length; i += 10){
+    try{
+      const r = await appelPrep({ action: 'drivupPhotos', photos: aFaire.slice(i, i + 10) });
+      res.posees += (r && r.posees) || 0;
+      res.ratees += (r && r.ratees) || 0;
+    }catch(e){ res.ratees += Math.min(10, aFaire.length - i); }
+  }
+  if(res.posees && typeof chargerPhotosProfil === 'function'){
+    try{ await chargerPhotosProfil(true); if(typeof repeindreLesPhotos === 'function') repeindreLesPhotos(); }catch(e){}
+  }
+  return res;
+}
+
+/* ------------------------------------------------------------
+   📝 LES NOTES INTERNES — depuis la fiche (v1168)
+
+   David : « dans nos notes internes de chez nous », catégorie
+   Administratif. Chacune garde son auteur et sa date Drivup en
+   tête ; une note déjà reprise ne revient pas.
+   ------------------------------------------------------------ */
+function texteDeLaNoteDrivup(n){
+  return '📥 Note Drivup — ' + propreDrivup(n.titre, 120) + '\n' + String(n.texte || '').trim();
+}
+function jourDeLaNoteDrivup(n){
+  const m = String(n.titre || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
+}
+function noteDejaRepriseDrivup(n, notes){
+  const corps = sansAccentDrivup(n.texte);
+  if(!corps) return true;
+  return (notes || []).some(x => sansAccentDrivup(x.texte).indexOf(corps) !== -1);
 }
 
 /* ------------------------------------------------------------
@@ -650,7 +755,10 @@ function memeValeurDrivup(champ, a, b){
   return sansAccentDrivup(a) === sansAccentDrivup(b);
 }
 
-function fenetreElevesDrivup(eleves, sorte){
+async function fenetreElevesDrivup(elevesBruts, sorte){
+  /* La catégorie Drivup devient notre formation, avant toute
+     comparaison : « CA » et « AAC BV » sont la même chose. */
+  const eleves = (elevesBruts || []).map(x => Object.assign({}, x, { formation: formationDeDrivup(x.formation) }));
   const lu = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const titre = sorte === 'fiche' ? '📥 Reçu de Drivup — une fiche' : '📥 Reçu de Drivup — les élèves';
   const premier = eleves[0] || {};
@@ -766,14 +874,68 @@ function fenetreElevesDrivup(eleves, sorte){
     f.boite.appendChild(v);
   }
 
+  /* 📝 Les notes internes de la fiche — v1168 */
+  const casesNotes = [];
+  if(sorte === 'fiche' && Array.isArray(premier.notes) && premier.notes.length){
+    const nomNotes = (ficheDeLEleveDrivup(premier) || {}).eleve || nomDeLEleveDrivup(premier);
+    let deja = [];
+    try{
+      const d = await appelPrep({ action: 'notesDossierList', eleve: nomNotes });
+      deja = (d && d.notes) || [];
+    }catch(e){}
+    const nouvelles = premier.notes.filter(n => !noteDejaRepriseDrivup(n, deja));
+    const j = document.createElement('div');
+    j.className = 'dvJour';
+    j.textContent = '📝 Ses notes internes Drivup → 🗂️ Administratif, dans son dossier';
+    f.boite.appendChild(j);
+    nouvelles.forEach(n => {
+      const l = document.createElement('label');
+      l.className = 'dvL';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = true;
+      const qui = document.createElement('span');
+      qui.className = 'dvQui';
+      const b = document.createElement('b');
+      b.textContent = propreDrivup(n.titre, 120);
+      const sp = document.createElement('span');
+      sp.textContent = String(n.texte || '').trim().slice(0, 220) + (String(n.texte || '').length > 220 ? '…' : '');
+      qui.append(b, sp);
+      l.append(cb, qui);
+      f.boite.appendChild(l);
+      casesNotes.push({ cb, n, nom: nomNotes });
+    });
+    if(premier.notes.length > nouvelles.length){
+      const v = document.createElement('div');
+      v.className = 'dvPli';
+      v.textContent = (premier.notes.length - nouvelles.length) + ' note(s) déjà reprise(s)';
+      f.boite.appendChild(v);
+    }
+  }
+
+  /* 📷 Dire, avant de valider, si sa photo va être reprise */
+  if(sorte === 'fiche' && premier.photo){
+    const nomP = (ficheDeLEleveDrivup(premier) || {}).eleve || nomDeLEleveDrivup(premier);
+    const aDeja = typeof lienPhotoProfil === 'function' && typeof clePhotoProfil === 'function' &&
+                  lienPhotoProfil(clePhotoProfil('eleve', nomP));
+    const v = document.createElement('div');
+    v.className = 'dvPli';
+    v.textContent = aDeja ? '📷 Il a déjà une photo chez nous : on la garde.'
+                          : '📷 Sa photo Drivup sera reprise (il n’en a pas chez nous).';
+    f.boite.appendChild(v);
+  }
+
   const nbN = nouveaux.length, nbC = aCompleter.length;
   const libelle = sorte === 'fiche'
     ? (nbN ? '✅ Créer sa fiche' : '✅ Compléter sa fiche')
     : '✅ ' + [nbN ? 'Créer ' + nbN + ' fiche' + (nbN > 1 ? 's' : '') : '',
                nbC + pliees.length ? 'compléter ' + (nbC + pliees.length) : ''].filter(Boolean).join(' · ');
-  const r = boutonsDrivup(f.boite, (nbN || nbC || pliees.length) ? libelle : '✅ Fermer', async (etat, ok, non) => {
+  const aFaire = nbN || nbC || pliees.length || casesNotes.length || (sorte === 'fiche' && premier.photo);
+  const libelleFinal = (sorte === 'fiche' && !nbN && !nbC && !pliees.length && aFaire) ? '✅ Reprendre' : libelle;
+  const r = boutonsDrivup(f.boite, aFaire ? libelleFinal : '✅ Fermer', async (etat, ok, non) => {
     const fiches = cases.filter(c => c.cb.checked).map(c => c.fiche).concat(pliees);
-    if(!fiches.length){ f.fermer(); return; }
+    const notes = casesNotes.filter(c => c.cb.checked);
+    const photoFiche = sorte === 'fiche' && premier.photo;
+    if(!fiches.length && !notes.length && !photoFiche){ f.fermer(); return; }
     let crees = 0, completees = 0;
     for(let i = 0; i < fiches.length; i += 200){
       const rep = await appelPrep({ action: 'drivupFiches', fiches: fiches.slice(i, i + 200) });
@@ -781,14 +943,29 @@ function fenetreElevesDrivup(eleves, sorte){
       completees += (rep && rep.completees) || 0;
     }
     if(typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
+    /* 📝 les notes, une par une, comme on les écrirait à la main */
+    let notesEcrites = 0;
+    for(const c of notes){
+      const rep = await appelPrep({ action: 'notesDossierSet', eleve: c.nom, categorie: 'adm',
+                                    texte: texteDeLaNoteDrivup(c.n), jour: jourDeLaNoteDrivup(c.n) });
+      if(rep && rep.status !== 'error') notesEcrites++;
+    }
+    /* 📷 la photo, s'il n'en a pas */
+    let ph = { posees: 0 };
+    if(photoFiche){
+      const nomPhoto = (ficheDeLEleveDrivup(premier) || {}).eleve || nomDeLEleveDrivup(premier);
+      ph = await reprendreLesPhotosDrivup([{ eleve: nomPhoto, url: premier.photo }]);
+    }
     if(typeof afficherRepertoire === 'function' && $('repertoireListe')) afficherRepertoire().catch(() => {});
     ok.style.display = 'none';
     non.disabled = false;
     non.textContent = 'Fermer';
     etat.style.color = '';
-    etat.textContent = '✅ ' + crees + ' fiche(s) créée(s) · ' + completees + ' complétée(s).';
+    etat.textContent = '✅ ' + crees + ' fiche(s) créée(s) · ' + completees + ' complétée(s)' +
+      (notesEcrites ? ' · ' + notesEcrites + ' note(s) interne(s) reprise(s)' : '') +
+      (ph.posees ? ' · photo reprise' : '') + '.';
   }, f.fermer);
-  if(!(nbN || nbC || pliees.length)) r.non.style.display = 'none';
+  if(!aFaire) r.non.style.display = 'none';
   const note = document.createElement('div');
   note.className = 'dvNote';
   note.textContent = sorte === 'fiche'
