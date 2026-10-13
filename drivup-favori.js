@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 13:01 — v1166 */
+/* Déployé le 13/10/2026 à 14:14 — v1168 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -64,9 +64,25 @@
   }
 
   const propre = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
-  const deux = n => (n < 10 ? '0' : '') + n;
-  const jourDe = d => d.getFullYear() + '-' + deux(d.getMonth() + 1) + '-' + deux(d.getDate());
-  const heureDe = d => deux(d.getHours()) + ':' + deux(d.getMinutes());
+  /* ⚠️ L'HEURE SE LIT DANS LE TEXTE DU COURS, PAS DANS SA DATE — v1168.
+
+     David, le 13 octobre : « des erreurs d'heure… ça décale tout ».
+     Le calendrier de Drivup range ses heures « en UTC déguisé » : la
+     date d'un cours de 8 h vaut 8 h en temps universel, et lue à
+     l'heure de Paris elle devenait 10 h. Tout était décalé de deux
+     heures (une en hiver). Le texte du cours, lui, dit l'heure
+     affichée — « 2026-10-15T08:00:00+02:00 » : on lit celle-là. */
+  const jourDuTexte = t => (String(t || '').match(/^(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+  const heureDuTexte = t => (String(t || '').match(/T(\d{2}:\d{2})/) || [])[1] || '';
+  const PHOTO_DRIVUP = /\/avatar\/\d+-\d+-avatar\.(jpe?g|png|webp)$/i;
+  const photoDe = img => {
+    if (!img || !img.getAttribute('src')) return '';
+    try {
+      const u = new URL(img.getAttribute('src'), location.href);
+      return (u.protocol === 'https:' && /(^|\.)drivup\.fr$/.test(u.hostname) && PHOTO_DRIVUP.test(u.pathname)) ? u.href : '';
+    } catch (e) { return ''; }
+  };
+  const envoyerAuFil = m => { try { if (fen && !fen.closed) fen.postMessage(m, APP); } catch (e) {} };
 
   /* ---------- Le détail d'un cours : qui, exactement ---------- */
   function elevesDuDetail(doc) {
@@ -91,7 +107,8 @@
         nom: propre(st && st.textContent),
         prenom: propre(sp && sp.textContent),
         formation: propre(cat.textContent),
-        mobile: propre(tel ? (tel.textContent || tel.getAttribute('href').slice(4)) : '')
+        mobile: propre(tel ? (tel.textContent || tel.getAttribute('href').slice(4)) : ''),
+        photo: photoDe(c.querySelector('img.zooming') || c.querySelector('img'))
       });
     });
     const td = doc.querySelector('td');
@@ -138,11 +155,13 @@
   /* ---------- Le planning ---------- */
   async function lirePlanning() {
     const cal = window.__FC_CAL;
-    const vue = cal.view;
-    const du = jourDe(vue.activeStart);
-    let au = jourDe(new Date(vue.activeEnd.getTime() - 1));
-    const tous = cal.getEvents();
-    tous.forEach(e => { if (e.start) { const j = jourDe(e.start); if (j > au) au = j; } });
+    const tous = cal.getEvents().filter(e => jourDuTexte(e.startStr) && heureDuTexte(e.startStr));
+    const jours = tous.map(e => jourDuTexte(e.startStr)).sort();
+    const duUrl = new URLSearchParams(location.search).get('date') || '';
+    const du = /^\d{4}-\d{2}-\d{2}$/.test(duUrl) ? duUrl : (jours[0] || '');
+    let au = jours.length ? jours[jours.length - 1] : du;
+    if (au < du) au = du;
+    if (!du) throw new Error('aucun cours dans ce planning');
 
     let porteeGenre = 'agence', porteeValeur = '';
     if (/moniteur\.php/.test(location.pathname)) {
@@ -156,7 +175,7 @@
 
     const avecEleves = tous.filter(e => {
       const p = e.extendedProps || {};
-      return e.start && (Number(p.nbrEleve) > 0 || p.clientName || (p.examen && p.examen !== '0'));
+      return Number(p.nbrEleve) > 0 || p.clientName || (p.examen && p.examen !== '0');
     });
     const ignores = tous.length - avecEleves.length;
 
@@ -175,9 +194,9 @@
         }
         cours.push({
           id: String(e.id),
-          jour: jourDe(e.start),
-          debut: heureDe(e.start),
-          fin: e.end ? heureDe(e.end) : '',
+          jour: jourDuTexte(e.startStr),
+          debut: heureDuTexte(e.startStr),
+          fin: heureDuTexte(e.endStr),
           agence: propre(p.address),
           moniteurDrivup: res[0] || '',
           titre: propre(e.title).slice(0, 140),
@@ -187,12 +206,16 @@
         });
         fait++;
         dire('Lecture du planning… ' + fait + ' / ' + avecEleves.length + ' cours');
-        /* Doucement : quatre à la fois, et une pause, comme une
-           personne qui clique vite — pas une rafale. */
-        await new Promise(r => setTimeout(r, 120));
+        /* L'onglet de l'application suit la lecture — v1168 : David
+           voyait un onglet vide pendant trente secondes. */
+        if (fait % 3 === 0 || fait === avecEleves.length) {
+          envoyerAuFil({ type: 'drivup-progression', fait: fait, total: avecEleves.length });
+        }
+        /* Six à la fois, une courte pause : vite, sans rafale. */
+        await new Promise(r => setTimeout(r, 40));
       }
     }
-    await Promise.all([ouvrier(), ouvrier(), ouvrier(), ouvrier()]);
+    await Promise.all([ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier()]);
     cours.sort((a, b) => (a.jour + a.debut).localeCompare(b.jour + b.debut));
     return { genre: 'planning', porteeGenre, porteeValeur, du, au, cours, ignores, detailsRates: rates };
   }
@@ -212,12 +235,70 @@
   }
 
   /* ---------- La fiche d'un élève ---------- */
-  function lireFiche() {
+  /* La catégorie de permis : la pastille au-dessus de la photo
+     (« CA », « B (BEA) »…). L'application la traduit en formation. */
+  const CODES_PERMIS = /^(B|B \(BEA\)|B \(PMR\)|BEA -> B|CA|CA \(BEA\)|CS|CS \(BEA\)|A|A1|A1 Equivalence|A2|A Passerelle|AM|AM Quadricycle|BE|C|D)$/i;
+  function formationDeLaFiche() {
+    /* La pastille du menu de l'élève (relevée le 13 octobre). Jamais
+       les menus de la page : la fenêtre « Ajouter un élève », cachée,
+       en contient la liste entière. */
+    const p = document.querySelector('#menu_eleve .permisEleve');
+    if (p && CODES_PERMIS.test(propre(p.textContent))) return propre(p.textContent);
+    const menu = document.getElementById('menu_eleve');
+    if (!menu) return '';
+    const f = [...menu.querySelectorAll('*')]
+      .filter(n => !n.childElementCount && n.tagName !== 'OPTION' && !n.closest('select'))
+      .find(n => CODES_PERMIS.test(propre(n.textContent)));
+    return f ? propre(f.textContent) : '';
+  }
+
+  /* Les notes internes : leur page se remplit après coup (Drivup les
+     charge par son propre script). On l'ouvre donc, invisible, et on
+     attend qu'elles y soient. */
+  function notesDeLaFiche(id) {
+    return new Promise(res => {
+      const f = document.createElement('iframe');
+      f.style.cssText = 'position:absolute;left:-9999px;top:0;width:10px;height:10px;border:0;';
+      let fini = false;
+      const finir = v => { if (fini) return; fini = true; f.remove(); res(v); };
+      /* Le texte d'une note est un cran plus haut que son titre : on
+         remonte jusqu'au premier bloc qui le contient — sans dépasser
+         la liste, qui contient celui de toutes les notes. */
+      const lire = d => {
+        const liste = d.getElementById('notesContainer');
+        return [...liste.querySelectorAll('.titreNote')].map(t => {
+          let b = t.parentElement;
+          while (b && b !== liste && !b.querySelector('.contenuNote')) b = b.parentElement;
+          const c = (b && b !== liste) ? b.querySelector('.contenuNote') : null;
+          const texte = c ? (String(c.innerText || '').trim() || propre(c.textContent)) : '';
+          return { titre: propre(t.textContent).slice(0, 120), texte: texte.slice(0, 3800) };
+        }).filter(x => x.texte);
+      };
+      f.onload = () => {
+        let n = 0;
+        const t = setInterval(() => {
+          let d = null;
+          try { d = f.contentDocument; } catch (e) {}
+          const c = d && d.getElementById('notesContainer');
+          if ((c && c.querySelector('.titreNote')) || n++ > 16) { clearInterval(t); finir(d ? lire(d) : []); }
+        }, 250);
+      };
+      f.src = '/eleves/notes_internes.php?eleve=' + encodeURIComponent(id);
+      document.body.appendChild(f);
+      setTimeout(() => finir([]), 10000);
+    });
+  }
+
+  async function lireFiche() {
     const v = id => propre((document.getElementById(id) || {}).value);
     const id = (new URLSearchParams(location.search).get('eleve') || '').replace(/\D/g, '');
+    const avatar = [...document.querySelectorAll('img')].find(i => /avatar/i.test(i.alt || '') || PHOTO_DRIVUP.test(i.getAttribute('src') || ''));
+    dire('Lecture de ses notes internes…');
+    const notes = id ? await notesDeLaFiche(id) : [];
     return { genre: 'fiche', eleve: {
       id: id, nom: v('nom'), prenom: v('prenom'), email: v('email'), mailPrescripteur: v('mailPrescripteur'),
-      neph: v('neph').replace(/\D/g, ''), mobile: v('fakeMobile'), naissance: v('dateNaissance')
+      neph: v('neph').replace(/\D/g, ''), mobile: v('fakeMobile'), naissance: v('dateNaissance'),
+      formation: formationDeLaFiche(), photo: photoDe(avatar), notes: notes
     } };
   }
 
@@ -261,7 +342,7 @@
         dire(p.cours.length + ' cours lus.');
         envoyer(p);
       } else if (/\/eleves\/profil\.php/.test(location.pathname) && document.getElementById('nom')) {
-        const p = lireFiche();
+        const p = await lireFiche();
         if (!p.eleve.id) return finir('Je ne trouve pas le numéro de cet élève.');
         dire('Fiche lue.');
         envoyer(p);
