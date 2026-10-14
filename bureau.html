@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 13/10/2026 à 16:08 — v1170 -->
+<!-- Déployé le 14/10/2026 à 09:54 — v1171 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -30,9 +30,15 @@
        rendez-vous est ouverte pour ce bureau ;
      · « ?annuler=… », le lien du mail : on montre le rendez-vous, et
        c'est un appui qui l'annule (jamais l'ouverture du lien).
+     · 💬 v1171 — « Écrire au bureau » : une discussion en direct avec
+       le bureau, sans compte. Prénom, téléphone et mail obligatoires ;
+       du texte seul. « ?discussion=… », le lien du mail de réponse, la
+       rouvre.
 
      « Vous » : des parents et des inconnus la lisent.
-     Aucune donnée n'est gardée sur l'appareil, sauf le thème.
+     Rien n'est gardé sur l'appareil, sauf le thème et, s'il écrit au
+     bureau, le jeton de SA discussion (« ec_vitrine_<bureau> ») : sans
+     lui, il ne la retrouverait pas en revenant sur la page.
      ============================================================ -->
 <style>
   :root{
@@ -119,6 +125,64 @@
   .rvSem .rvPuce{ padding:6px 10px; font-size:12.5px; }
   .piege{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
   @media (max-width:380px){ .rvCreneaux{ grid-template-columns:repeat(3,1fr); } .rvMotifs{ grid-template-columns:1fr; } }
+
+  /* 💬 v1171 — la discussion : la messagerie de l'espace élève,
+     mêmes couleurs, mêmes bulles (eleve.html, « .ckp »). */
+  .ckp{
+    --kp1:#0E1216; --kp2:#141A20; --kl:#1F2A33; --kt:#E9F1F5; --kd:#7E8C97;
+    --kn:#B6FF0E; --knt:#B6FF0E; --ksurN:#081000; --kr:#FF5C33;
+    --kglow:rgba(182,255,14,.35); --kmoi:linear-gradient(135deg,rgba(182,255,14,.22),rgba(92,225,230,.14));
+    --kmoiB:rgba(182,255,14,.45); --kmoiS:#BFE3A0;
+  }
+  body.clair .ckp{
+    --kp1:#FFFFFF; --kp2:#F7F7F2; --kl:#DCDCD3; --kt:#14161B; --kd:#64655F;
+    --kn:#B6FF0E; --knt:#3B6900; --ksurN:#0B0B0B; --kr:#C33A12;
+    --kglow:rgba(130,190,0,.25); --kmoi:linear-gradient(135deg,#E6FFB0,#D8F7F4); --kmoiB:#B6E35A; --kmoiS:#4F7A00;
+  }
+  .ckp.card{ background:var(--kp1); border-color:var(--kl); color:var(--kt); }
+  .ckTop{ display:flex; align-items:center; gap:11px; margin-bottom:12px; }
+  .ckTop .av{ width:40px; height:40px; border-radius:12px; background:var(--kp2); border:1px solid var(--kn);
+              box-shadow:0 0 14px var(--kglow); display:flex; align-items:center; justify-content:center;
+              flex-shrink:0; font-size:18px; }
+  .ckTop .tt{ flex:1; min-width:0; }
+  .ckTop .t{ font-weight:800; font-size:16px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckTop .s{ font-size:11.5px; color:var(--kd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ckTop .rond{ width:36px; height:36px; border-radius:12px; border:1px solid var(--kl); background:var(--kp2);
+                color:var(--kt); display:flex; align-items:center; justify-content:center; cursor:pointer;
+                flex-shrink:0; font-size:15px; margin:0; padding:0; font-family:inherit; }
+  .ckDot{ width:7px; height:7px; border-radius:50%; background:var(--kn); box-shadow:0 0 8px var(--kn);
+          display:inline-block; margin-right:6px; vertical-align:1px; }
+  .fil{ padding:6px 2px; margin-bottom:12px; max-height:58vh; overflow-y:auto; overflow-x:hidden; }
+  .jourFil{ text-align:center; margin:6px 0 10px; }
+  .jourFil span{ display:inline-block; font-size:10px; letter-spacing:.18em; color:var(--kd); text-transform:uppercase;
+                 padding:3px 10px; border:1px solid var(--kl); border-radius:999px; font-weight:600;
+                 font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .bulle{ max-width:82%; border-radius:16px; padding:9px 12px; margin-bottom:9px; font-size:13.5px; line-height:1.55;
+          white-space:pre-wrap; word-break:break-word; }
+  .bulle .sig{ display:block; font-size:10.5px; color:var(--kd); margin-bottom:3px; font-weight:700; }
+  .bulle .hh{ display:block; font-size:10px; color:var(--kd); margin-top:4px; text-align:right;
+              font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .bulle.eux{ background:var(--kp2); border:1px solid var(--kl); border-top-left-radius:4px; margin-right:auto; }
+  .bulle.moi{ background:var(--kmoi); border:1px solid var(--kmoiB); border-top-right-radius:4px; margin-left:auto; }
+  .bulle.moi .hh{ color:var(--kmoiS); }
+  .bulle.systeme{ max-width:100%; border:none; color:var(--knt); background:transparent; font-size:11.5px; text-align:center; }
+  .bulle img{ display:block; max-width:100%; max-height:300px; border-radius:10px; margin-top:4px; }
+  .bulle audio, .bulle video{ display:block; max-width:100%; margin-top:4px; }
+  .bulle a{ color:inherit; font-weight:700; }
+  .rangEux{ display:flex; align-items:flex-end; gap:6px; }
+  .rangEux .avSlot{ width:28px; height:28px; flex-shrink:0; margin-bottom:9px; border-radius:50%; display:flex;
+                    align-items:center; justify-content:center; font-size:11px; font-weight:800; }
+  .rangEux .avSlot.plein{ background:var(--kp2); border:1px solid var(--kl); }
+  .zoneEcrire{ border:1px solid var(--kl); border-radius:20px; padding:9px; background:var(--kp1); }
+  .zoneEcrire textarea{ margin:0 0 8px; border:0; background:var(--kp2); padding:8px 10px; border-radius:12px;
+                        min-height:52px; resize:none; color:var(--kt); }
+  .zoneEcrire textarea:focus{ outline:none; }
+  .zoneOutils{ display:flex; gap:8px; align-items:center; }
+  .zoneOutils .rvNote{ margin:0; flex:1; min-width:0; }
+  .zoneEcrire button.btn{ margin:0 0 0 auto; width:auto; flex:0 0 auto; padding:0 18px; height:38px; border-radius:999px;
+                          font-size:15px; background:var(--kn); color:var(--ksurN); box-shadow:0 0 16px var(--kglow); }
+  .vtFin{ text-align:center; font-size:13.5px; padding:10px 4px 4px; color:var(--kd); }
+  .vtFin b{ display:block; color:var(--kt); font-size:15px; margin-bottom:4px; }
 </style>
 </head>
 <body class="clair">
@@ -159,6 +223,25 @@
   }
   var jetonAnnuler = adresse.searchParams.get('annuler') || '';
 
+  /* 💬 Le jeton de SA discussion. Celui du mail (« ?discussion= »)
+     est gardé puis retiré de l'adresse : une adresse se partage, se
+     copie, reste dans l'historique. */
+  var CLE_JETON = 'ec_vitrine_' + bureau;
+  function lireJeton(){ try{ return localStorage.getItem(CLE_JETON) || ''; }catch(e){ return ''; } }
+  function poserJeton(j){ try{ localStorage.setItem(CLE_JETON, j); }catch(e){} jetonEnMemoire = j; }
+  function oublierJeton(){ try{ localStorage.removeItem(CLE_JETON); }catch(e){} jetonEnMemoire = ''; }
+  var jetonEnMemoire = lireJeton();
+  function jeton(){ return lireJeton() || jetonEnMemoire; }
+  var ouvrirLaDiscussion = false;
+  (function(){
+    var d = adresse.searchParams.get('discussion') || '';
+    if(/^[A-Za-z0-9]{32}$/.test(d)){ poserJeton(d); ouvrirLaDiscussion = true; }
+    if(adresse.searchParams.has('discussion')){
+      adresse.searchParams.delete('discussion');
+      try{ history.replaceState(null, '', adresse.pathname + (adresse.search || '')); }catch(e){}
+    }
+  })();
+
   /* ---------- petites aides ---------- */
   function el(tag, classe, texte){
     var e = document.createElement(tag);
@@ -187,7 +270,7 @@
   var choix = { jour: '', heure: '', motif: '' };
   var semaine = 0;
 
-  function ecran(){ var e = $('ecran'); e.innerHTML = ''; return e; }
+  function ecran(){ arreterLeDirect(); var e = $('ecran'); e.innerHTML = ''; return e; }
   function erreur(texte){
     var e = ecran();
     var c = el('div', 'card');
@@ -222,6 +305,7 @@
     $('titre').textContent = b.titre || 'Bureau';
     document.title = (b.titre || 'Bureau') + ' — Évolution Conduites';
     if(jetonAnnuler) return ecranAnnuler();
+    if(ouvrirLaDiscussion && jeton()){ ouvrirLaDiscussion = false; return ecranDiscussion(); }
     if(!donnees.actif) return ecranCoupe();
     accueil();
   }
@@ -260,6 +344,8 @@
     z.firstChild.style.borderTop = '0';
     c.appendChild(z);
     e.appendChild(c);
+    /* Une discussion déjà commencée continue, page coupée ou non */
+    if(jeton()) boutonDiscussion(e);
   }
 
   /* ---------- l'accueil : ouvert ou fermé, les horaires ---------- */
@@ -301,6 +387,7 @@
       bt.addEventListener('click', function(){ choix = { jour: libres[0] || '', heure: '', motif: '' }; ecranChoix(); });
       e.appendChild(bt);
     }
+    if(d.discussion || jeton()) boutonDiscussion(e);
 
     var s = el('div', 'card');
     s.appendChild(el('div', 'section-title', semaine === 0 ? '🕐 Les horaires de cette semaine'
@@ -560,6 +647,336 @@
     }
     e.appendChild(c);
   }
+
+  /* ============================================================
+     💬 ÉCRIRE AU BUREAU — v1171
+     ============================================================ */
+  function boutonDiscussion(e){
+    var deja = !!jeton();
+    var b = el('button', 'btn btn-secondary', deja ? '💬 Reprendre la discussion avec le bureau' : '💬 Écrire au bureau');
+    b.style.cssText = 'margin:0 0 6px;padding:14px;font-size:15px;';
+    b.addEventListener('click', function(){ if(jeton()) ecranDiscussion(); else ecranEcrire(); });
+    e.appendChild(b);
+    var n = el('div', 'rvNote', deja ? 'Vos messages et les réponses du bureau sont gardés ici.'
+                                     : 'Une question ? Le bureau vous répondra dès que possible.');
+    n.style.cssText = 'margin:0 4px 16px;';
+    e.appendChild(n);
+  }
+
+  /* ---------- le premier message ---------- */
+  var saisieV = { prenom: '', tel: '', mail: '', texte: '' };
+  function ecranEcrire(message){
+    var e = ecran();
+    var c = el('div', 'card');
+    c.appendChild(el('div', 'section-title', '💬 Écrire au bureau'));
+    var et = el('div', 'rvEtat');
+    et.style.marginBottom = '14px';
+    var ic = el('span', '', '💬');
+    ic.style.cssText = 'font-size:22px;flex-shrink:0;';
+    et.appendChild(ic);
+    var t = el('div');
+    t.appendChild(el('b', '', 'Le bureau vous répondra dès que possible'));
+    t.lastChild.style.fontSize = '15px';
+    t.appendChild(el('span', '', 'Ici, en direct si la page est ouverte, et par mail sinon.'));
+    et.appendChild(t);
+    c.appendChild(et);
+    if(message) c.appendChild(el('div', 'message erreur', message));
+    var champ = function(lib, type, cle, auto, max){
+      var l = el('label', '', lib);
+      var i = document.createElement('input');
+      i.type = type; i.value = saisieV[cle] || ''; i.autocomplete = auto; i.maxLength = max;
+      i.addEventListener('input', function(){ saisieV[cle] = i.value; });
+      l.htmlFor = i.id = 'vt-' + cle;
+      c.append(l, i);
+    };
+    champ('Votre prénom', 'text', 'prenom', 'given-name', 40);
+    champ('Votre téléphone', 'tel', 'tel', 'tel', 30);
+    champ('Votre mail — la réponse vous arrive aussi par mail si vous fermez la page', 'email', 'mail', 'email', 120);
+    var lm = el('label', '', 'Votre message');
+    var ta = document.createElement('textarea');
+    ta.rows = 3; ta.maxLength = 1000; ta.value = saisieV.texte; ta.id = lm.htmlFor = 'vt-texte';
+    ta.addEventListener('input', function(){ saisieV.texte = ta.value; });
+    c.append(lm, ta);
+    var pg = el('div', 'piege');
+    var pi = document.createElement('input');
+    pi.type = 'text'; pi.tabIndex = -1; pi.autocomplete = 'off'; pi.name = 'site'; pi.id = 'vt-site';
+    pg.appendChild(pi);
+    c.appendChild(pg);
+    var ok = el('button', 'btn btn-primary', '📨 Envoyer au bureau');
+    ok.style.marginTop = '4px';
+    ok.addEventListener('click', async function(){
+      if(String(saisieV.prenom).trim().length < 2) return ecranEcrire('Indiquez votre prénom.');
+      if(String(saisieV.tel).replace(/\D/g, '').length < 9) return ecranEcrire('Indiquez votre numéro de téléphone.');
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(saisieV.mail).trim())) return ecranEcrire('Indiquez votre adresse mail.');
+      if(!String(saisieV.texte).trim()) return ecranEcrire('Écrivez votre message.');
+      ok.disabled = true;
+      ok.textContent = 'Envoi…';
+      var r;
+      try{
+        r = await ecrire({ quoi: 'ecrire', b: bureau, prenom: saisieV.prenom, tel: saisieV.tel, mail: saisieV.mail,
+                           texte: saisieV.texte, site: pi.value });
+      }catch(err){ r = { status: 'error', message: 'La page ne répond pas. Vérifiez votre connexion, puis réessayez.' }; }
+      if(r && r.status === 'ok' && r.jeton){
+        poserJeton(r.jeton);
+        saisieV.texte = '';
+        return ecranDiscussion();
+      }
+      if(r && r.status === 'ok') return accueil();
+      ecranEcrire((r && r.message) || 'Le message n’a pas pu partir.');
+    });
+    c.appendChild(ok);
+    var ret = el('button', 'btn btn-secondary', '‹ Retour aux horaires');
+    ret.addEventListener('click', retourAccueil);
+    c.appendChild(ret);
+    c.appendChild(el('div', 'rvNote', '🔒 Votre prénom, votre téléphone, votre mail et vos messages ne servent qu’à vous répondre. ' +
+                                      'La discussion est effacée un mois après le dernier message.'));
+    e.appendChild(c);
+  }
+
+  function retourAccueil(){
+    if(donnees && donnees.actif) accueil(); else if(donnees) ecranCoupe(); else charger();
+  }
+
+  /* ---------- la discussion ---------- */
+  var fil = null, brouillon = '', direct = null;
+
+  function jourDuMessage(envoyeLe){
+    var m = String(envoyeLe || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
+  }
+  function libelleDuJour(iso){
+    var auj = (donnees && donnees.aujourdhui) || '';
+    if(!auj){
+      var n = new Date();
+      auj = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+    }
+    if(iso === auj) return 'Aujourd’hui';
+    if(iso === plus(auj, -1)) return 'Hier';
+    return jourLong(iso);
+  }
+
+  function bulle(m){
+    var b = el('div', 'bulle ' + m.de);
+    if(m.de === 'eux' && m.auteur) b.appendChild(el('span', 'sig', m.auteur));
+    if(m.texte) b.appendChild(document.createTextNode(m.texte));
+    var p = m.piece;
+    if(p && p.lien){
+      var type = String(p.type || '');
+      if(/^image\//.test(type)){
+        var im = document.createElement('img'); im.src = p.lien; im.alt = 'Photo envoyée par le bureau'; im.loading = 'lazy';
+        b.appendChild(im);
+      }else if(/^audio\//.test(type)){
+        var au = document.createElement('audio'); au.controls = true; au.preload = 'none'; au.src = p.lien; b.appendChild(au);
+      }else if(/^video\//.test(type)){
+        var vi = document.createElement('video'); vi.controls = true; vi.preload = 'metadata'; vi.playsInline = true; vi.src = p.lien;
+        b.appendChild(vi);
+      }else{
+        var a = el('a', '', '📎 ' + (p.nom || 'Ouvrir le fichier'));
+        a.href = p.lien; a.target = '_blank'; a.rel = 'noopener';
+        b.appendChild(a);
+      }
+    }
+    if(m.de !== 'systeme') b.appendChild(el('span', 'hh', String(m.envoyeLe || '').slice(11, 16)));
+    return b;
+  }
+
+  function dessinerLeFil(garderLaPlace){
+    var f = fil || {};
+    var b = (donnees && donnees.bureau) || f.bureau || {};
+    var zoneAvant = $('vtFil');
+    var enBas = !zoneAvant || (zoneAvant.scrollHeight - zoneAvant.scrollTop - zoneAvant.clientHeight < 40);
+    var ta0 = $('vtTexte');
+    var avaitLeFocus = ta0 && document.activeElement === ta0;
+    var e = $('ecran'); e.innerHTML = '';
+    var c = el('div', 'card ckp');
+
+    var tete = el('div', 'ckTop');
+    var ret = el('button', 'rond', '←');
+    ret.title = 'Revenir aux horaires'; ret.setAttribute('aria-label', 'Revenir aux horaires');
+    ret.addEventListener('click', function(){ arreterLeDirect(); retourAccueil(); });
+    tete.appendChild(ret);
+    tete.appendChild(el('div', 'av', '🏢'));
+    var tt = el('div', 'tt');
+    tt.appendChild(el('div', 't', b.titre || 'Bureau'));
+    var s = el('div', 's');
+    var msgs = f.messages || [];
+    var miens = msgs.filter(function(m){ return m.de === 'moi'; });
+    var dernier = miens.length ? miens[miens.length - 1].rang : 0;
+    if(f.etat === 'ouverte'){
+      var dot = el('span', 'ckDot'); s.appendChild(dot);
+      s.appendChild(document.createTextNode(dernier && f.luBureau >= dernier ? '✓✓ lu par le bureau'
+                                                                             : 'Le bureau vous répondra dès que possible'));
+    }else s.textContent = 'Évolution Conduites';
+    tt.appendChild(s);
+    tete.appendChild(tt);
+    c.appendChild(tete);
+
+    if(f.etat === 'ouverte' || f.etat === 'close'){
+      var z = el('div', 'fil'); z.id = 'vtFil';
+      var jourAvant = '';
+      msgs.forEach(function(m, i){
+        var j = jourDuMessage(m.envoyeLe);
+        if(j && j !== jourAvant){
+          var jf = el('div', 'jourFil'); jf.appendChild(el('span', '', libelleDuJour(j))); z.appendChild(jf);
+          jourAvant = j;
+        }
+        if(m.de !== 'eux'){ z.appendChild(bulle(m)); return; }
+        var suiv = msgs[i + 1];
+        var dernierDuGroupe = !suiv || suiv.de !== 'eux' || suiv.auteur !== m.auteur || jourDuMessage(suiv.envoyeLe) !== j;
+        var r = el('div', 'rangEux');
+        r.appendChild(el('span', 'avSlot' + (dernierDuGroupe ? ' plein' : ''), dernierDuGroupe ? String(m.auteur || 'B').charAt(0).toUpperCase() : ''));
+        r.appendChild(bulle(m));
+        z.appendChild(r);
+      });
+      if(!msgs.length) z.appendChild(el('div', 'vtFin', 'Pas encore de message.'));
+      c.appendChild(z);
+    }
+
+    if(f.etat === 'ouverte'){
+      var ze = el('div', 'zoneEcrire');
+      var ta = document.createElement('textarea');
+      ta.id = 'vtTexte'; ta.rows = 2; ta.maxLength = 1000; ta.placeholder = 'Votre message…'; ta.value = brouillon;
+      ta.setAttribute('aria-label', 'Votre message');
+      var envoyer = el('button', 'btn', 'Envoyer ➤');
+      envoyer.id = 'vtEnvoyer';
+      envoyer.disabled = !brouillon.trim();
+      ta.addEventListener('input', function(){ brouillon = ta.value; envoyer.disabled = !brouillon.trim(); });
+      ta.addEventListener('keydown', function(ev){ if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) envoyer.click(); });
+      envoyer.addEventListener('click', async function(){
+        var texte = brouillon.trim();
+        if(!texte) return;
+        envoyer.disabled = true; ta.disabled = true;
+        var r;
+        try{ r = await ecrire({ quoi: 'ecrire', d: jeton(), texte: texte }); }
+        catch(err){ r = { status: 'error', message: 'La page ne répond pas. Vérifiez votre connexion, puis réessayez.' }; }
+        ta.disabled = false;
+        if(r && r.status === 'ok'){ brouillon = ''; await relire(true); var t2 = $('vtTexte'); if(t2) t2.focus(); return; }
+        envoyer.disabled = false;
+        if(r && r.etat){ await relire(true); return; }
+        var er = el('div', 'message erreur', (r && r.message) || 'Le message n’est pas parti.');
+        er.style.margin = '10px 0 0';
+        ze.appendChild(er);
+      });
+      ze.appendChild(ta);
+      var ou = el('div', 'zoneOutils');
+      ou.appendChild(el('div', 'rvNote', 'Le bureau vous répondra dès que possible.'));
+      ou.appendChild(envoyer);
+      ze.appendChild(ou);
+      c.appendChild(ze);
+    }else{
+      var fin = el('div', 'vtFin');
+      var nouvelle = false;
+      if(f.etat === 'close'){
+        fin.appendChild(el('b', '', '✓ Le bureau a clos cette discussion'));
+        fin.appendChild(document.createTextNode('Une autre question ? Commencez une nouvelle discussion.'));
+        nouvelle = true;
+      }else if(f.etat === 'rattachee'){
+        fin.appendChild(el('b', '', '🔗 Cette discussion continue dans votre espace élève'));
+        fin.appendChild(document.createTextNode('Le bureau l’a rangée dans votre dossier : retrouvez-la dans « 💬 Messages ».'));
+        var lien = el('a', 'btn btn-primary', '🎓 Ouvrir mon espace élève');
+        lien.href = 'https://eleve.evolutionconduites.fr/';
+        lien.style.marginTop = '14px';
+        fin.appendChild(lien);
+      }else if(f.etat === 'bloquee'){
+        fin.appendChild(el('b', '', 'Le bureau ne reçoit plus vos messages ici'));
+        fin.appendChild(document.createTextNode('Pour nous joindre, appelez le ' + (b.tel || 'bureau') + '.'));
+      }else{
+        fin.appendChild(el('b', '', 'Cette discussion n’est plus disponible'));
+        fin.appendChild(document.createTextNode('Une discussion est effacée un mois après son dernier message.'));
+        nouvelle = true;
+      }
+      c.appendChild(fin);
+      if(nouvelle && donnees && donnees.actif && donnees.discussion){
+        var nb = el('button', 'btn btn-primary', '💬 Nouvelle discussion');
+        nb.style.marginTop = '14px';
+        nb.addEventListener('click', function(){ oublierJeton(); fil = null; ecranEcrire(); });
+        c.appendChild(nb);
+      }
+    }
+    e.appendChild(c);
+    var zf = $('vtFil');
+    if(zf && (enBas || !garderLaPlace)) zf.scrollTop = zf.scrollHeight;
+    if(avaitLeFocus && $('vtTexte')) $('vtTexte').focus();
+  }
+
+  var relectureEnCours = false;
+  async function relire(force){
+    if(relectureEnCours && !force) return;
+    relectureEnCours = true;
+    var r = null;
+    try{ r = await ecrire({ quoi: 'fil', d: jeton() }); }catch(e){ r = null; }
+    relectureEnCours = false;
+    if(!r || r.status !== 'ok') return null;
+    var avant = JSON.stringify(fil || {});
+    fil = r;
+    if(r.etat === 'inconnue') oublierJeton();
+    if(!$('vtFil') && !$('vtTexte') && direct === null) return r;   /* on a quitté l'écran */
+    if(JSON.stringify(fil) !== avant || force) dessinerLeFil(true);
+    if(r.etat !== 'ouverte') arreterLeDirect();
+    return r;
+  }
+
+  async function ecranDiscussion(){
+    var e = ecran();
+    var c = el('div', 'card ckp');
+    c.appendChild(el('div', 'empty', 'Chargement de la discussion…'));
+    e.appendChild(c);
+    direct = { ws: null, minuteur: null, ping: null, fini: false };
+    var d = direct;
+    var r = await relire(true);
+    if(d.fini) return;
+    if(!r){
+      arreterLeDirect();
+      c.innerHTML = '';
+      c.appendChild(el('div', 'message erreur', 'La discussion ne se charge pas. Vérifiez votre connexion, puis réessayez.'));
+      var re = el('button', 'btn btn-primary', 'Réessayer');
+      re.addEventListener('click', ecranDiscussion);
+      var rt = el('button', 'btn btn-secondary', '‹ Retour aux horaires');
+      rt.addEventListener('click', retourAccueil);
+      c.append(re, rt);
+      return;
+    }
+    if(r.etat === 'ouverte') brancherLeDirect(d);
+  }
+
+  /* Le direct : la même liaison que la messagerie. Sans elle, ou si
+     elle tombe, on relit toutes les cinq secondes. */
+  function brancherLeDirect(d){
+    var sonder = function(ms){
+      clearInterval(d.minuteur);
+      d.minuteur = setInterval(function(){ if(!document.hidden) relire(false); }, ms);
+    };
+    sonder(5000);
+    ecrire({ quoi: 'direct', d: jeton() }).then(function(r){
+      if(d.fini || !r || r.status !== 'ok' || !r.billet || typeof WebSocket !== 'function') return;
+      var ws;
+      try{ ws = new WebSocket(RELAIS.replace(/^http/, 'ws') + '/ws?b=' + encodeURIComponent(r.billet)); }catch(e){ return; }
+      d.ws = ws;
+      ws.onopen = function(){
+        sonder(30000);
+        d.ping = setInterval(function(){ try{ ws.send('ping'); }catch(e){} }, 45000);
+      };
+      ws.onmessage = function(ev){ if(String(ev.data) !== 'pong') relire(false); };
+      ws.onclose = function(){
+        clearInterval(d.ping);
+        if(d.fini) return;
+        sonder(5000);
+        /* On retente le direct un peu plus tard : un téléphone qui
+           sort de veille a perdu sa connexion. */
+        setTimeout(function(){ if(!d.fini && d.ws === ws) brancherLeDirect(d); }, 15000);
+      };
+    }).catch(function(){});
+  }
+
+  function arreterLeDirect(){
+    var d = direct;
+    direct = null;
+    if(!d) return;
+    d.fini = true;
+    clearInterval(d.minuteur); clearInterval(d.ping);
+    if(d.ws){ try{ d.ws.close(); }catch(e){} }
+  }
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden && direct) relire(false); });
 
   charger();
 })();
