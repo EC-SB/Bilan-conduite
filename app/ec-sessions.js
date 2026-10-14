@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 10:13 — v1162 */
+/* Déployé le 14/10/2026 à 10:52 — v1173 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -511,7 +511,41 @@ async function ecrireSurLaPlace(champs){
   if(rep && rep.status === 'error'){
     throw new Error(rep.message || 'Le classeur a refusé cette place.');
   }
+  programmerRelectureSessions();
   return rep;
+}
+
+/* ============================================================
+   🔄 L'ÉCRAN SE RELIT TOUT SEUL APRÈS UNE PLACE — v1173
+
+   David, le 14 octobre : « quand je mets un élève sur une place
+   libre dans les sessions examens, je dois recharger la page pour
+   que ça apparaisse ». Plusieurs portes donnent une place — la
+   fenêtre de la place, le 📅 du dossier ou de la liste RDV Permis,
+   le glisser-déposer — et toutes ne redessinaient pas 🎓 Suivi
+   permis : le dossier, ouvert PAR-DESSUS, se refermait sur l'écran
+   d'avant.
+
+   ⚠️ LA PORTE COMMUNE EST L'ÉCRITURE, ALORS C'EST ELLE QUI RELIT.
+   Une seconde et demie après la dernière place écrite, si l'écran
+   est affiché, on relit le classeur et on redessine — sans le
+   « Lecture des sessions… » qui ferait clignoter la page. Une
+   fenêtre est ouverte par-dessus (le dossier, une place) : on
+   attend qu'elle se ferme. L'écran caché, lui, se relit déjà à la
+   prochaine visite.
+   ============================================================ */
+let minuteurRelectureSessions = null;
+function programmerRelectureSessions(delai){
+  clearTimeout(minuteurRelectureSessions);
+  minuteurRelectureSessions = setTimeout(relireSessionsAffichees, delai || 1500);
+}
+async function relireSessionsAffichees(){
+  const zone = $('sessionsPermis');
+  if(!zone || !zone.offsetParent) return;
+  if(document.querySelector('.overlay.show')){ programmerRelectureSessions(1000); return; }
+  try{ await chargerSessionsPermis(); }catch(e){ return; }
+  if(document.querySelector('.overlay.show')){ programmerRelectureSessions(1000); return; }
+  redessinerSessions();
 }
 
 
