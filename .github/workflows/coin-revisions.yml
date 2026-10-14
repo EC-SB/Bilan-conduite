@@ -1,3 +1,4 @@
+# Déployé le 13/10/2026 à 16:08 — v1170
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -9,9 +10,10 @@
 #  La page élève a donc besoin d'un second dépôt — mais PAS d'une
 #  seconde copie entretenue à la main. C'est cette action qui
 #  recopie, à chaque poussée, les cinq fichiers dont la page a
-#  besoin. Une seule source, une copie faite par la machine.
+#  besoin — et, depuis la v1170, la page des bureaux (bureau.html),
+#  publiée sous /loudeac/ et /saint-brieuc/. Une seule source, une copie faite par la machine.
 #
-#  ⚠️ ELLE NE SE DÉCLENCHE QUE SUR CES CINQ FICHIERS. Pousser
+#  ⚠️ ELLE NE SE DÉCLENCHE QUE SUR CES FICHIERS-LÀ. Pousser
 #  l'application du bureau ne republie rien côté élève : ce sont
 #  deux rythmes différents, et republier pour rien ferait croire
 #  à un changement qui n'en est pas un.
@@ -27,6 +29,7 @@ on:
       - 'manifest-eleve.webmanifest'
       - 'icone-192.png'
       - 'icone-512.png'
+      - 'bureau.html'
   workflow_dispatch:        # et à la demande, depuis l'onglet Actions
 
 jobs:
@@ -44,6 +47,14 @@ jobs:
           cp eleve.html sortie/index.html
           cp sw.js manifest-eleve.webmanifest sortie/
           cp icone-192.png icone-512.png sortie/
+
+          # 📍 v1170 — la page des bureaux, derrière le QR code de la
+          # vitrine : une adresse par bureau, le même fichier. La page
+          # lit le bureau dans son adresse.
+          for b in loudeac saint-brieuc; do
+            mkdir -p "sortie/$b"
+            cp bureau.html "sortie/$b/index.html"
+          done
 
           # ⚠️ ET SON POINT DE DÉPART CHANGE AVEC ELLE.
           # Le manifeste du dépôt principal dit « eleve.html »,
