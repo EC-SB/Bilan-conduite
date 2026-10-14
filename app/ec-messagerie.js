@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 11:21 — v1174 */
+/* Déployé le 14/10/2026 à 12:39 — v1175 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1419,7 +1419,9 @@ function bulleDuMessage(m, avant, apres){
     sig.className = 'sig';
     sig.textContent = (m.auteur || '') + (m.auteurGenre === 'eleve' ? ' · élève' : '') +
       /* 📄 v1154 — personne ne l'a tapé : on le dit */
-      (m.motif === 'bilanMail' ? ' · envoi automatique' : '');
+      (m.motif === 'bilanMail' ? ' · envoi automatique' : '') +
+      /* 📋 v1175 — la demande de renseignements (📨 ou relance) */
+      (m.motif === 'renseignements' ? ' · 📋 demande de renseignements' : '');
     b.appendChild(sig);
   }
   if(m.motif && GENRES_MESSAGERIE[m.motif]){
