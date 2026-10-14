@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 10:57 — v1163 */
+/* Déployé le 14/10/2026 à 09:54 — v1171 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -426,7 +426,9 @@ function ligneConversationCorps(c, d, enChoix){
   const tag = document.createElement('span');
   tag.className = 'ckTag mono';
   tag.style.color = g.coul;
-  tag.textContent = g.mot;
+  tag.textContent = g.mot +
+    /* 👋 v1171 — « VITRINE · LOUDÉAC » : de quel bureau vient le visiteur */
+    (c.genre === 'vitrine' && c.vitrine && c.vitrine.nomBureau ? ' · ' + String(c.vitrine.nomBureau).toUpperCase() : '');
   ap.appendChild(tag);
   /* L'auteur n'est utile que là où plusieurs parlent : dans un fil
      d'élève, on sait qui écrit. */
