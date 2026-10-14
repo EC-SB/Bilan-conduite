@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 14:31 — v1169 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -621,9 +621,15 @@ async function fenetrePlanningDrivup(p){
     f.boite.appendChild(w);
   }
 
+  /* 📍 v1170 — les horaires des bureaux, lus en même temps */
+  let bureauxLus = [];
+  if(typeof blocDesBureauxDrivup === 'function' && (p.bureaux || p.bureauxErreur)){
+    try{ bureauxLus = await blocDesBureauxDrivup(p, f.boite); }catch(e){ bureauxLus = []; }
+  }
+
   const aEcrire = changes.filter(c => c._etat !== 'pareil').length;
-  const libelle = aEcrire ? '✅ Enregistrer ' + (aEcrire > 1 ? 'les ' + aEcrire + ' changements' : 'le changement')
-                          : '✅ Noter la lecture';
+  const libelle = (aEcrire ? '✅ Enregistrer ' + (aEcrire > 1 ? 'les ' + aEcrire + ' changements' : 'le changement')
+                           : '✅ Noter la lecture') + (bureauxLus.length ? ' et les horaires' : '');
   boutonsDrivup(f.boite, libelle, async (etat, ok, non) => {
     /* 1 · les fiches d'abord : un cours doit pointer vers quelqu'un */
     const fiches = [];
@@ -660,13 +666,17 @@ async function fenetrePlanningDrivup(p){
     if(fiches.length && typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
     /* 3 · les photos de ceux qui n'en ont pas — v1168 */
     const ph = await reprendreLesPhotosDrivup(lignes.map(l => ({ eleve: l.eleve, url: (l._x || {}).photo })));
+    /* 4 · 📍 v1170 — les horaires des bureaux */
+    const hb = bureauxLus.length && typeof poserLesBureauxDrivup === 'function'
+      ? await poserLesBureauxDrivup(bureauxLus) : [];
     ok.style.display = 'none';
     non.disabled = false;
     non.textContent = 'Fermer';
     etat.style.color = '';
     etat.textContent = '✅ Enregistré : ' + ((r && r.nb) || lignes.length) + ' cours' +
       (fiches.length ? ' · ' + fiches.length + ' fiche(s) créée(s) ou complétée(s)' : '') +
-      (ph.posees ? ' · ' + ph.posees + ' photo(s) reprise(s)' : '') + '.';
+      (ph.posees ? ' · ' + ph.posees + ' photo(s) reprise(s)' : '') +
+      (hb.length ? ' · horaires du bureau de ' + hb.join(' et de ') + ' repris' : '') + '.';
     const aller = document.createElement('button');
     aller.className = 'btn btn-primary';
     aller.style.marginTop = '10px';
