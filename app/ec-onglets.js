@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 15:20 — v1078 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -67,8 +67,10 @@ const SECTIONS_ONGLET = {
      « normalement c'est dans flotte qu'il doit être ». C'est elle
      qui ouvre l'onglet Gestion à un moniteur, et elle seule : il y
      trouvera cette carte et rien d'autre. */
+  /* 📍 v1170 — « bureaux » : les horaires et rendez-vous des
+     bureaux, dans Gestion › L'accueil. */
   gestion: ['ecran', 'flotte', 'carrosserie', 'encours', 'incidents',
-            'menage', 'admin']
+            'menage', 'bureaux', 'admin']
 };
 
 let ongletActif = '';
@@ -369,6 +371,10 @@ const VUES = {
            ['incidents',  '🚨 Signalements',            'incidents',   'Le parc'],
            /* 🗺️ v1148 — administrateurs seuls, comme le Journal */
            ['direct',     '🗺️ En direct',               'flotte',      'Le parc'],
+           /* 📍 v1170 — les bureaux : horaires et rendez-vous. « Saint-
+              Brieuc » en entier ne tient pas dans le rail : St-Brieuc. */
+           ['loudeac',    '📍 Loudéac Horaires et RDV',   'bureaux',     'L’accueil'],
+           ['stbrieuc',   '📍 St-Brieuc Horaires et RDV', 'bureaux',     'L’accueil'],
 
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
@@ -1867,6 +1873,8 @@ function reveillerVue(cle){
       }
     },
     ecran:      () => afficherEcran(),
+    loudeac:    () => (typeof afficherUnBureau === 'function') && afficherUnBureau('loudeac'),
+    stbrieuc:   () => (typeof afficherUnBureau === 'function') && afficherUnBureau('saint-brieuc'),
     proccorriger: () => afficherProcCorriger(),
     code:       () => afficherCode(),
     handicap:   () => afficherHandicap(),
