@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 17:25 — v1178 */
+/* Déployé le 14/10/2026 à 17:46 — v1179 */
 /* ============================================================
    ec-tarifs-fiches.js — 💰 LES TARIFS ET LEURS FICHES (v1178)
 
@@ -465,7 +465,11 @@ function tfFenetre(classe){
   m.className = 'modal ' + (classe || 'tfFenetre');
   fond.appendChild(m);
   document.body.appendChild(fond);
-  return { fond, m, fermer: () => (typeof fermerFond === 'function' ? fermerFond(fond) : fond.remove()) };
+  const fermer = () => { document.removeEventListener('keydown', echap); (typeof fermerFond === 'function' ? fermerFond(fond) : fond.remove()); };
+  /* v1179 — Échap ferme (un appui à côté, non : on perdrait une fiche en cours) */
+  const echap = e => { if(e.key === 'Escape' && fond.parentNode && fond === [...document.querySelectorAll('.overlay.show')].pop()) fermer(); };
+  document.addEventListener('keydown', echap);
+  return { fond, m, fermer };
 }
 
 function tfFenetreChangements(){
@@ -1048,26 +1052,42 @@ function tfOngletVite(z){
   }
 }
 
+/* ⚠️ v1179 — David : « le pop up n'est pas visible entièrement et je
+   ne peux pas le fermer ». Six boutons × vingt-neuf cases à cocher
+   faisaient une fenêtre trois fois plus haute que l'écran, et la
+   fenêtre ne défilait pas : Annuler et Valider étaient dessous.
+   Désormais : un ✕ en haut, la fenêtre défile, ses boutons du bas
+   restent collés au bas, et les cases d'un bouton ne s'ouvrent que
+   quand on choisit ses fiches. */
 function tfFenetreRapides(){
   const d = tfBrouillon;
   const rapides = tfCopie(d.rapides || []);
   const { m, fermer } = tfFenetre('tfFenetre tfLarge');
+  let ouvert = -1;
   const dessiner = () => {
-    m.innerHTML = '<h3>✏️ Les boutons « Imprimer vite »</h3>' +
+    m.innerHTML = '<div class="tfFenTete"><h3>✏️ Les boutons « Imprimer vite »</h3>' +
+      '<button type="button" class="tfX" id="tfRapFerme" title="Fermer sans garder">✕</button></div>' +
       rapides.map((r, i) => '<div class="tfRap" data-i="' + i + '"><div class="tfRapTete">' +
         '<input type="text" class="tfRapE" value="' + tfEch(r.emoji) + '" maxlength="4" title="Emoji">' +
         '<input type="text" class="tfRapN" value="' + tfEch(r.nom) + '" maxlength="60" placeholder="Nom du bouton">' +
         '<button type="button" class="tfMini2" data-act="haut" title="Monter">↑</button>' +
         '<button type="button" class="tfMini2" data-act="suppr" title="Retirer">🗑️</button></div>' +
-        '<div class="tfRapF">' + d.fiches.map(f => '<label><input type="checkbox" value="' + tfEch(f.id) + '"' +
-          (r.fiches.indexOf(f.id) !== -1 ? ' checked' : '') + '> ' + tfEch(tfTitre1(f)) + '</label>').join('') + '</div></div>').join('') +
+        '<div class="tfRapQui">' + (r.fiches.length ? r.fiches.map(id => tfFiche(d, id)).filter(Boolean).map(f => '<i>' + tfEch(tfTitre1(f)) + '</i>').join('')
+          : 'Aucune fiche') + '<button type="button" class="tfLienBtn" data-act="choisir">' + (ouvert === i ? '▲ Refermer' : '📄 Choisir les fiches') + '</button></div>' +
+        (ouvert === i ? '<div class="tfRapF">' + d.fiches.map(f => '<label><input type="checkbox" value="' + tfEch(f.id) + '"' +
+          (r.fiches.indexOf(f.id) !== -1 ? ' checked' : '') + '> ' + tfEch(tfTitre1(f)) + '</label>').join('') + '</div>' : '') + '</div>').join('') +
       '<button type="button" class="tfLienBtn" id="tfRapAjout">➕ Un bouton</button>' +
       '<div class="tfFenBas"><button type="button" class="btn btn-secondary" id="tfRapX">Annuler</button>' +
       '<button type="button" class="btn btn-primary" id="tfRapOk">✅ Valider</button></div>';
+    m.querySelector('#tfRapFerme').addEventListener('click', fermer);
     m.querySelectorAll('.tfRap').forEach(el => {
       const r = rapides[+el.dataset.i];
       el.querySelector('.tfRapE').addEventListener('input', e => { r.emoji = e.target.value; });
       el.querySelector('.tfRapN').addEventListener('input', e => { r.nom = e.target.value; });
+      el.querySelector('[data-act=choisir]').addEventListener('click', () => {
+        ouvert = (ouvert === +el.dataset.i) ? -1 : +el.dataset.i;
+        const y = m.scrollTop; dessiner(); m.scrollTop = y;
+      });
       el.querySelectorAll('.tfRapF input').forEach(c => c.addEventListener('change', () => {
         r.fiches = [...el.querySelectorAll('.tfRapF input:checked')].map(x => x.value);
       }));
@@ -1075,7 +1095,13 @@ function tfFenetreRapides(){
         const i = +el.dataset.i; if(i > 0){ [rapides[i - 1], rapides[i]] = [rapides[i], rapides[i - 1]]; dessiner(); } });
       el.querySelector('[data-act=suppr]').addEventListener('click', () => { rapides.splice(+el.dataset.i, 1); dessiner(); });
     });
-    m.querySelector('#tfRapAjout').addEventListener('click', () => { rapides.push({ emoji: '🖨️', nom: 'Nouveau bouton', fiches: [] }); dessiner(); });
+    m.querySelector('#tfRapAjout').addEventListener('click', () => {
+      rapides.push({ emoji: '🖨️', nom: 'Nouveau bouton', fiches: [] });
+      ouvert = rapides.length - 1;
+      dessiner();
+      const n = m.querySelectorAll('.tfRap')[ouvert];
+      if(n) n.scrollIntoView({ block: 'nearest' });
+    });
     m.querySelector('#tfRapX').addEventListener('click', fermer);
     m.querySelector('#tfRapOk').addEventListener('click', () => {
       d.rapides = rapides.filter(r => String(r.nom).trim());
