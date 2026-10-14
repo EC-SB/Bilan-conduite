@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:59 — v1160 */
+/* Déployé le 14/10/2026 à 15:11 — v1176 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1704,6 +1704,10 @@ function ajouterObservationManuelle(zone, valeurs){
     d.dataset.categorie = cat;
     poserLeLienDuPoint(d, idPoint, 'elim', cat);
     majMortEtCepc();
+
+    /* 📝 v1176 — puis la remarque, dans la ligne bleue. Fermer sans
+       choisir laisse la ligne du CEPC marquée : rien n'est défait. */
+    await remarqueDansLaLigne(insp, cat, '☠️');
   });
 
   /* Le CEPC se met à jour à chaque changement : le moniteur voit
@@ -1804,6 +1808,11 @@ function ajouterObservationManuelle(zone, valeurs){
     const cat = await choisirCategorieCepc(true, 'grave');
     if(!cat){ oublierSonPoint(idPoint); return; }
 
+    /* 📝 v1176 — la remarque de cette ligne, entre la compétence et
+       le point. « ✍️ Écrire directement » continue vers le point, et
+       le curseur attend dans la ligne quand on revient. */
+    const texteRem = await choisirRemarqueCepc(cat, '⚠️');
+
     /* Puis, et seulement alors, la question du point. Annuler ici
        ne pose rien : on ne marque pas une erreur à moitié parce que
        quelqu'un a hésité sur le point. */
@@ -1816,6 +1825,10 @@ function ajouterObservationManuelle(zone, valeurs){
     majGrave();
     retirerPointsCepc();
     if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
+    /* La remarque s'écrit quand l'erreur est vraiment posée : fermer la
+       question du point n'écrit rien. */
+    if(texteRem === ECRIRE_DIRECTEMENT) curseurDansLaLigne(insp);
+    else if(texteRem) ecrireLaRemarqueCepc(insp, texteRem);
   });
   r.appendChild(bGrave);
 
@@ -5505,6 +5518,12 @@ function majApercuEval(){
 
 function dessinerChampsManuels(champs, zone, modele, dossier){
   champsDessinesCourants = champs;
+  /* 📝 v1176 — la liste des remarques du CEPC part dès l'ouverture
+     d'une fiche qui a des ☠️ : elle sera sur le téléphone avant la
+     première, réseau ou pas. */
+  if(champs.some(ch => ch && ch.type === 'observations') && typeof chargerRemarquesCepc === 'function'){
+    chargerRemarquesCepc();
+  }
   veillerSurLApercuNiveau(zone);
   champs.forEach(ch => {
     const bloc = document.createElement('div');
@@ -7189,4 +7208,312 @@ function examenBlancDuCours(){
   }
   if(Object.keys(eb).length) out.examenBlanc = eb;
   return out;
+}
+
+
+/* ============================================================
+   📝 LES REMARQUES DU CEPC — v1176
+
+   David, le 14 octobre : « dans examen blanc et examen officiel,
+   quand on appuie sur la tête de mort ça sort la liste du CEPC ; une
+   fois qu'on a choisi la ligne du CEPC, il faut une liste de
+   remarques qui s'insère directement dans la ligne remarque […] il
+   faut qu'on puisse ajouter des remarques au besoin. Attention, il
+   faut que ça reste simple : si le moniteur ne veut rien mettre
+   depuis cette liste il doit pouvoir retourner vite. Il doit aussi
+   pouvoir compléter sur la ligne directement, et modifier au besoin
+   dans son bilan. » Ses arbitrages (schéma du même jour) :
+   · la remarque s'écrit dans « Remarque de l'inspecteur » ;
+   · un appui l'écrit ET ferme — pas de cases, pas de « Valider » ;
+   · ☠️ et ⚠️ proposent tous les deux la liste de leur ligne ;
+   · le bouton du haut est « ✍️ Écrire directement » (« il n'y a pas
+     rien à écrire ») : la fenêtre se ferme, le curseur est dans la
+     ligne ;
+   · tout le monde ajoute, corrige, retire ;
+   · les plus utilisées en haut.
+
+   ⚠️ LA LISTE EST CELLE DE TOUTE L'ÉQUIPE, ET ELLE VIT AUSSI SUR LE
+   TÉLÉPHONE. La fiche d'examen se remplit en voiture, souvent sans
+   réseau : la liste s'ouvre depuis la copie du téléphone, et ce qui
+   n'a pas pu partir (une remarque créée, un appui compté) attend
+   dans « ec_remarques_cepc_attente » le prochain réseau.
+   ============================================================ */
+const CLE_REMARQUES_CEPC = 'ec_remarques_cepc';
+const CLE_REMARQUES_CEPC_ATTENTE = 'ec_remarques_cepc_attente';
+let remarquesCepc = null;
+let remarquesCepcLues = 0;
+
+function remarquesCepcEnMemoire(){
+  if(remarquesCepc) return remarquesCepc;
+  try{ remarquesCepc = JSON.parse(localStorage.getItem(CLE_REMARQUES_CEPC) || 'null'); }catch(e){ remarquesCepc = null; }
+  if(!remarquesCepc || typeof remarquesCepc !== 'object') remarquesCepc = {};
+  return remarquesCepc;
+}
+
+function garderRemarquesCepc(){
+  try{ localStorage.setItem(CLE_REMARQUES_CEPC, JSON.stringify(remarquesCepc || {})); }catch(e){}
+}
+
+/* Ce qui n'a pas pu partir, dans l'ordre */
+function attenteRemarquesCepc(){
+  try{ return JSON.parse(localStorage.getItem(CLE_REMARQUES_CEPC_ATTENTE) || '[]') || []; }catch(e){ return []; }
+}
+function envoyerRemarqueCepc(corps){
+  const l = attenteRemarquesCepc();
+  l.push(corps);
+  try{ localStorage.setItem(CLE_REMARQUES_CEPC_ATTENTE, JSON.stringify(l.slice(-200))); }catch(e){}
+  return viderAttenteRemarquesCepc();
+}
+let attenteRemarquesEnCours = null;
+function viderAttenteRemarquesCepc(){
+  if(attenteRemarquesEnCours) return attenteRemarquesEnCours;
+  attenteRemarquesEnCours = (async () => {
+    /* ⚠️ UN TEMPS D'ABORD : sans lui, une file vide finissait la
+       fonction AVANT que la promesse soit rangée ici — le « null » du
+       finally passait en premier, et la promesse restait pour
+       toujours : plus rien ne partait. */
+    await null;
+    try{
+      let l = attenteRemarquesCepc();
+      while(l.length){
+        try{ await appelPrep(l[0]); }
+        catch(e){
+          /* Pas de réseau, ou un serveur qui ne répond pas : on garde
+             tout, on réessaiera. Un REFUS (ligne inconnue, remarque
+             déjà retirée par quelqu'un d'autre) ne passera jamais :
+             on le laisse tomber pour ne pas bloquer la suite. */
+          if(/Connexion impossible|Pas de réponse|HTTP 5|indisponible/i.test(String((e && e.message) || ''))) break;
+          console.warn('Remarque du CEPC refusée :', e && e.message);
+        }
+        l = attenteRemarquesCepc().slice(1);
+        try{ localStorage.setItem(CLE_REMARQUES_CEPC_ATTENTE, JSON.stringify(l)); }catch(e){}
+      }
+    }catch(e){ /* le stockage du téléphone : rien à faire */ }
+    finally{ attenteRemarquesEnCours = null; }
+  })();
+  return attenteRemarquesEnCours;
+}
+
+/* La liste de l'équipe. D'abord ce qui attendait, pour que la liste
+   relue le contienne déjà. */
+async function chargerRemarquesCepc(){
+  try{
+    await viderAttenteRemarquesCepc();
+    const d = await appelPrep({ action: 'cepcRemarques' });
+    if(d && d.remarques && typeof d.remarques === 'object'){
+      remarquesCepc = d.remarques;
+      remarquesCepcLues = Date.now();
+      garderRemarquesCepc();
+    }
+  }catch(e){ /* hors réseau : celle du téléphone */ }
+  return remarquesCepcEnMemoire();
+}
+
+/* Une remarque : { texte, n } (n = combien de fois choisie) */
+function remarquesDeLaLigne(categorie){
+  return ((remarquesCepcEnMemoire()[categorie]) || [])
+    .map(x => typeof x === 'string' ? { texte: x, n: 0 } : x)
+    .filter(x => x && String(x.texte || '').trim())
+    .sort((a, b) => ((b.n || 0) - (a.n || 0)) ||
+      String(a.texte).localeCompare(String(b.texte), 'fr', { sensitivity: 'base' }));
+}
+
+function memeRemarque(a, b){
+  return normaliserMot(String(a || '').trim()) === normaliserMot(String(b || '').trim());
+}
+
+/* Écrite dans la ligne bleue : à la suite de ce qui y est déjà, et
+   comme si le moniteur l'avait tapée (le bilan et la sauvegarde
+   écoutent la frappe). */
+function ecrireLaRemarqueCepc(champ, texte){
+  const avant = String(champ.value || '').trim();
+  champ.value = avant ? avant + ' · ' + texte : texte;
+  champ.dispatchEvent(new Event('input', { bubbles: true }));
+  champ.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+/* ✍️ — le curseur au bout de la ligne, prêt à taper */
+function curseurDansLaLigne(champ){
+  try{
+    champ.scrollIntoView({ block: 'center' });
+    champ.focus();
+    const n = String(champ.value || '').length;
+    champ.setSelectionRange(n, n);
+  }catch(e){}
+}
+
+/* Le geste commun du ☠️ et du ⚠️ */
+async function remarqueDansLaLigne(champ, categorie, marque){
+  const texte = await choisirRemarqueCepc(categorie, marque);
+  if(texte === ECRIRE_DIRECTEMENT) curseurDansLaLigne(champ);
+  else if(texte) ecrireLaRemarqueCepc(champ, texte);
+}
+
+const ECRIRE_DIRECTEMENT = '\u0000ecrire';
+
+/* La fenêtre. Rend le texte choisi, ECRIRE_DIRECTEMENT, ou '' —
+   et '' ne défait rien : la ligne du CEPC reste marquée. */
+function choisirRemarqueCepc(categorie, marque){
+  /* La copie du téléphone s'ouvre tout de suite ; une relecture part
+     derrière si elle a plus de dix minutes. */
+  if(Date.now() - remarquesCepcLues > 600000) chargerRemarquesCepc();
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal remCepc';
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    let fini = false;
+    const fermer = v => { if(fini) return; fini = true; fermerFond(fond); resolve(v || ''); };
+    fond.addEventListener('click', ev => { if(ev.target === fond) fermer(''); });
+    let edition = false;
+
+    const dessiner = () => {
+      const liste = remarquesDeLaLigne(categorie);
+      boite.innerHTML = '';
+      const t = document.createElement('h3');
+      t.className = 'remCepcTitre';
+      t.textContent = (marque || '☠️') + ' ' + categorie;
+      boite.appendChild(t);
+
+      if(!edition){
+        const direct = document.createElement('button');
+        direct.type = 'button';
+        direct.className = 'btn btn-secondary remCepcDirect';
+        direct.textContent = '✍️ Écrire directement';
+        direct.addEventListener('click', () => fermer(ECRIRE_DIRECTEMENT));
+        boite.appendChild(direct);
+        const aide = document.createElement('div');
+        aide.className = 'remCepcAide';
+        aide.textContent = 'Un appui sur une remarque l’écrit dans « Remarque de l’inspecteur ». ' +
+          'Tu la complètes ou la changes ensuite sur la ligne.';
+        boite.appendChild(aide);
+      }
+
+      const zone = document.createElement('div');
+      zone.className = 'remCepcListe';
+      if(!liste.length){
+        const v = document.createElement('div');
+        v.className = 'empty';
+        v.style.cssText = 'padding:10px 2px;font-size:12.5px;';
+        v.textContent = 'Aucune remarque pour cette ligne pour l’instant : écris la première ci-dessous.';
+        zone.appendChild(v);
+      }
+      liste.forEach(x => {
+        if(edition){
+          const l = document.createElement('div');
+          l.className = 'remCepcEd';
+          const s = document.createElement('span');
+          s.textContent = x.texte;
+          const m = document.createElement('button');
+          m.type = 'button'; m.className = 'rgPetit'; m.textContent = '✏️'; m.title = 'Corriger';
+          m.addEventListener('click', async () => {
+            const n = await demander('Corriger la remarque :', x.texte, '✏️ ' + categorie);
+            const propre = String(n || '').replace(/\s+/g, ' ').trim();
+            if(!propre || propre === x.texte) return;
+            changerRemarqueCepc(categorie, x.texte, propre);
+            dessiner();
+          });
+          const del = document.createElement('button');
+          del.type = 'button'; del.className = 'rgPetit'; del.textContent = '🗑️'; del.title = 'Retirer de la liste';
+          del.addEventListener('click', async () => {
+            if(!await confirmer('Retirer « ' + x.texte + ' » de la liste de l’équipe ? Les bilans déjà écrits ne changent pas.',
+                                'Retirer', true)) return;
+            changerRemarqueCepc(categorie, x.texte, '');
+            dessiner();
+          });
+          l.append(s, m, del);
+          zone.appendChild(l);
+          return;
+        }
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary remCepcBt';
+        b.textContent = x.texte;
+        b.addEventListener('click', () => { compterRemarqueCepc(categorie, x.texte); fermer(x.texte); });
+        zone.appendChild(b);
+      });
+      boite.appendChild(zone);
+
+      /* Une remarque de plus : écrite dans la ligne ET dans la liste de
+         toute l'équipe. */
+      const neuve = document.createElement('div');
+      neuve.className = 'remCepcNeuve';
+      const ch = document.createElement('input');
+      ch.type = 'text';
+      ch.maxLength = 200;
+      ch.placeholder = 'Une nouvelle remarque…';
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'btn btn-primary';
+      c.textContent = edition ? '➕ Ajouter' : '➕ Créer et écrire';
+      const creer = () => {
+        const texte = ch.value.replace(/\s+/g, ' ').trim();
+        if(texte.length < 2){ ch.focus(); return; }
+        ajouterRemarqueCepc(categorie, texte);
+        if(edition){ dessiner(); return; }
+        fermer(texte);
+      };
+      c.addEventListener('click', creer);
+      ch.addEventListener('keydown', ev => { if(ev.key === 'Enter') creer(); });
+      neuve.append(ch, c);
+      boite.appendChild(neuve);
+
+      const bas = document.createElement('div');
+      bas.className = 'remCepcBas';
+      const e = document.createElement('button');
+      e.type = 'button';
+      e.className = 'rrLien';
+      e.textContent = edition ? '✓ Terminé' : '✏️ Modifier la liste';
+      e.addEventListener('click', () => { edition = !edition; dessiner(); });
+      bas.appendChild(e);
+      if(!edition){
+        const a = document.createElement('button');
+        a.type = 'button';
+        a.className = 'btn btn-secondary';
+        a.textContent = 'Fermer';
+        a.addEventListener('click', () => fermer(''));
+        bas.appendChild(a);
+      }
+      boite.appendChild(bas);
+    };
+    dessiner();
+  });
+}
+
+/* Chaque geste est fait ici tout de suite (la liste du téléphone),
+   puis envoyé — ou mis de côté jusqu'au prochain réseau. */
+function ajouterRemarqueCepc(categorie, texte){
+  const r = remarquesCepcEnMemoire();
+  const l = (r[categorie] || []).map(x => typeof x === 'string' ? { texte: x, n: 0 } : x);
+  const deja = l.find(x => memeRemarque(x.texte, texte));
+  if(deja) deja.n = (deja.n || 0) + 1;
+  else l.push({ texte: texte, n: 1 });
+  r[categorie] = l;
+  garderRemarquesCepc();
+  envoyerRemarqueCepc({ action: 'cepcRemarqueAjouter', categorie: categorie, texte: texte });
+}
+
+function compterRemarqueCepc(categorie, texte){
+  const r = remarquesCepcEnMemoire();
+  const x = (r[categorie] || []).find(y => y && typeof y === 'object' && memeRemarque(y.texte, texte));
+  if(x) x.n = (x.n || 0) + 1;
+  garderRemarquesCepc();
+  envoyerRemarqueCepc({ action: 'cepcRemarqueUtilisee', categorie: categorie, texte: texte });
+}
+
+function changerRemarqueCepc(categorie, avant, apres){
+  const r = remarquesCepcEnMemoire();
+  const l = (r[categorie] || []).map(x => typeof x === 'string' ? { texte: x, n: 0 } : x);
+  const vieille = l.find(x => memeRemarque(x.texte, avant));
+  const reste = l.filter(x => x !== vieille);
+  if(apres){
+    const meme = reste.find(x => memeRemarque(x.texte, apres));
+    if(meme) meme.n = (meme.n || 0) + ((vieille && vieille.n) || 0);
+    else reste.push({ texte: apres, n: (vieille && vieille.n) || 0 });
+  }
+  r[categorie] = reste;
+  garderRemarquesCepc();
+  envoyerRemarqueCepc({ action: 'cepcRemarqueChanger', categorie: categorie, avant: avant, apres: apres || '' });
 }
