@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 10:37 — v1172 */
+/* Déployé le 14/10/2026 à 10:52 — v1173 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,24 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1173,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '🔄 Plus besoin de recharger : sessions et horaires des bureaux se mettent à jour seuls',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Suivi permis se relit tout seul',
+        texte: 'Un élève posé sur une place (depuis la place, son dossier ou la liste RDV Permis) apparaît dans ' +
+               '🎓 Suivi permis sans recharger la page.' },
+      { emoji: '📍',
+        titre: 'Les horaires repris de Drivup apparaissent tout de suite',
+        texte: 'Après le favori, l’écran Loudéac / St-Brieuc Horaires et RDV montre les nouvelles ouvertures sans recharger.' },
+      { emoji: '🔴',
+        titre: 'La vitrine : « le bureau vous a répondu »',
+        texte: 'Sur la page du QR code, « Reprendre la discussion » porte le nombre de réponses du bureau pas encore lues, ' +
+               'et la page le dit.' }
+    ]
+  },
   {
     version: 1172,
     date: 'Mercredi 14 octobre 2026',
