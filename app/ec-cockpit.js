@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 10:57 — v1163 */
+/* Déployé le 14/10/2026 à 09:54 — v1171 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -35,6 +35,8 @@
    sa couleur. Les noms sont ceux du rail. */
 const GENRES_CK = {
   bureau:   { rond: '🏢', mot: 'BUREAU',   coul: 'var(--knt)', nom: 'Bureau' },
+  /* 👋 v1171 — un visiteur qui a écrit depuis le QR code de la vitrine */
+  vitrine:  { rond: '👋', mot: 'VITRINE',  coul: 'var(--ko)',  nom: 'Vitrine' },
   retard:   { rond: '⏰', mot: 'RETARD',   coul: 'var(--kr)',  nom: 'Retards' },
   annul:    { rond: '🚫', mot: 'ANNUL.',   coul: 'var(--ko)',  nom: 'Annulations' },
   oubli:    { rond: '🧤', mot: 'OBJET',    coul: 'var(--ko)',  nom: 'Objets oubliés' },
@@ -46,7 +48,7 @@ const GENRES_CK = {
 /* Le rail, dans l'ordre du schéma. « moniteur » n'y paraît que s'il
    y a de quoi : c'est une famille que le bureau voit rarement. */
 const RAIL_CK = [
-  ['', '⌂', 'Tout'], ['bureau', '🏢', 'Bureau'], ['retard', '⏰', 'Retards'],
+  ['', '⌂', 'Tout'], ['bureau', '🏢', 'Bureau'], ['vitrine', '👋', 'Vitrine'], ['retard', '⏰', 'Retards'],
   ['annul', '🚫', 'Annulations'], ['oubli', '🧤', 'Objets oubliés'],
   ['groupe', '👥', 'Groupes'], ['interne', '🏠', 'Entre nous'],
   ['moniteur', '👤', 'Élève ↔ moniteur']
@@ -61,6 +63,19 @@ const VITES_CK = [
     msg: 'Je regarde ça et je reviens vers toi dans la journée.' },
   { k: 'appel', t: '📞 Appelle le bureau',
     msg: 'Peux-tu appeler le bureau quand tu as un moment ? 📞' }
+];
+
+/* 👋 v1171 — à un visiteur de la vitrine, on dit « vous », et on ne
+   propose pas de créneau de conduite : il n'est pas encore élève. */
+const VITES_VITRINE_CK = [
+  { k: 'rdv',   t: '📅 Prenez rendez-vous ici',
+    msg: 'Le plus simple : prenez un rendez-vous de 30 minutes au bureau, directement depuis cette page (bouton « 📅 Prendre rendez-vous au bureau »). À bientôt !' },
+  { k: 'regar', t: '⏳ Je regarde et je reviens vers vous',
+    msg: 'Je regarde ça et je reviens vers vous dès que possible.' },
+  { k: 'appel', t: '📞 Appelez le bureau',
+    msg: 'Le plus simple est de nous appeler au bureau : 09 83 55 56 87 📞' },
+  { k: 'tarif', t: '💶 Les tarifs',
+    msg: 'Nos tarifs dépendent de la formation choisie : le plus simple est d’en parler ensemble au bureau, on vous fait un devis.' }
 ];
 
 /* La largeur à partir de laquelle on dessine les quatre colonnes, et
@@ -290,8 +305,11 @@ function ckChoisirFiltre(cle){
 }
 
 function ckFamillesVisibles(){
-  return RAIL_CK.filter(x => x[0] !== 'moniteur' ||
-    (conversationsEC || []).some(c => c.genre === 'moniteur' && !c.enSupervision));
+  return RAIL_CK.filter(x => (x[0] !== 'moniteur' ||
+    (conversationsEC || []).some(c => c.genre === 'moniteur' && !c.enSupervision)) &&
+    /* 👋 la vitrine : pour ceux qui tiennent la boîte du bureau */
+    (x[0] !== 'vitrine' || ckPeutGerer() ||
+     (conversationsEC || []).some(c => c.genre === 'vitrine' && !c.enSupervision)));
 }
 
 function ckPeutSuperviser(){
@@ -301,7 +319,7 @@ function ckPeutSuperviser(){
 /* Le mot sous chaque icône du rail : court, pour tenir dans la
    colonne. Le nom complet reste dans l'infobulle. */
 const MOTS_DU_RAIL = {
-  '': 'Tout', bureau: 'Bureau', retard: 'Retards', annul: 'Annulations',
+  '': 'Tout', bureau: 'Bureau', vitrine: 'Vitrine', retard: 'Retards', annul: 'Annulations',
   oubli: 'Oublis', groupe: 'Groupes', interne: 'Équipe', moniteur: 'Moniteurs',
   clos: 'Fermées', supervision: 'Supervision'
 };
@@ -413,6 +431,7 @@ function ckTitreListe(c){
 function ckInitiales(c){
   const g = GENRES_CK[c && c.genre] || {};
   if(c && c.genre === 'groupe') return '👥';
+  if(c && c.genre === 'vitrine') return '👋';
   const nom = (c && c.eleve) || ckTitreListe(c) || '';
   const mots = String(nom).replace(/[^\p{L}\s'-]/gu, ' ').trim().split(/\s+/).filter(Boolean);
   if(!mots.length) return g.rond || '💬';
@@ -443,6 +462,12 @@ function ckSousTitre(f){
   /* 💾 v1150 — la carte SD dit qui est dans le groupe */
   if(c.genre === 'oubli' && f.objet && f.objet.sorte === 'sd'){
     return '💾 Carte SD · avec ' + (f.objet.moniteur ? f.objet.moniteur + ' et ' : '') + 'le bureau';
+  }
+  /* 👋 v1171 — d'où vient le visiteur */
+  if(c.genre === 'vitrine'){
+    const v = c.vitrine || {};
+    if(v.etat === 'bloquee') return '👋 Vitrine' + (v.nomBureau ? ' de ' + v.nomBureau : '') + ' · 🚫 bloqué';
+    return '👋 Vitrine' + (v.nomBureau ? ' de ' + v.nomBureau : '') + ' · au nom du bureau';
   }
   const g = GENRES_CK[c.genre] || { rond: '💬', nom: 'Conversation' };
   let plus = '';
@@ -484,8 +509,9 @@ function ckEnteteDuFil(f, large){
   /* 🖼️ v1163 — la photo devant le nom, en haut du fil */
   if(typeof rondPhoto === 'function'){
     const cleP = clePhotoDuFil(c, f.membres || []);
-    const av = rondPhoto(cleP, c.genre === 'groupe' ? '' : ckTitreListe(Object.assign({}, c, { membres: f.membres || [] })), 38, 'ckFhAv');
-    if(!av.querySelector('img') && !av.textContent) av.textContent = c.genre === 'groupe' ? '👥' : '💬';
+    const sansNom = c.genre === 'groupe' || c.genre === 'vitrine';
+    const av = rondPhoto(cleP, sansNom ? '' : ckTitreListe(Object.assign({}, c, { membres: f.membres || [] })), 38, 'ckFhAv');
+    if(!av.querySelector('img') && !av.textContent) av.textContent = c.genre === 'groupe' ? '👥' : c.genre === 'vitrine' ? '👋' : '💬';
     tete.appendChild(av);
   }
 
@@ -497,7 +523,7 @@ function ckEnteteDuFil(f, large){
     ckTitreListe(Object.assign({}, c, { membres: f.membres || [] }));
   const s = document.createElement('div');
   s.className = 's';
-  if(c.eleve && !f.enSupervision && !Number(c.fermee || 0)){
+  if((c.eleve || c.genre === 'vitrine') && !f.enSupervision && !Number(c.fermee || 0)){
     const d = document.createElement('span');
     d.className = 'ckDot ckPulse';
     s.appendChild(d);
@@ -966,7 +992,8 @@ function ckReponsesRapides(f, petit){
   const c = f.conv || {};
   const v = document.createElement('div');
   v.className = 'ckVites';
-  let liste = VITES_CK.filter(x => x.k !== 'cren' || (c.eleve && c.genre !== 'groupe'));
+  let liste = c.genre === 'vitrine' ? VITES_VITRINE_CK.slice()
+            : VITES_CK.filter(x => x.k !== 'cren' || (c.eleve && c.genre !== 'groupe'));
   if(petit) liste = liste.slice(0, 3);
   liste.forEach(x => {
     const b = document.createElement('button');
@@ -1162,6 +1189,10 @@ function ckFicheEclair(f){
     return null;
   };
 
+  /* 👋 v1171 — un visiteur de la vitrine : qui, comment le joindre,
+     et ce qu'on peut en faire. */
+  if(c.genre === 'vitrine') return ckFicheVitrine(f, frag);
+
   if(f.enSupervision){
     frag.appendChild(ckCadre('SUPERVISION', '🔒 Tu n’es pas dedans',
       'Ton passage est noté au journal. Pour répondre, ajoute-toi par ⋯ → 👥 Participants.'));
@@ -1215,6 +1246,127 @@ function ckFicheEclair(f){
     }
   }
   return frag;
+}
+
+/* ------------------------------------------------------------
+   👋 LA FICHE D'UN VISITEUR DE LA VITRINE — v1171
+
+   ⚠️ ON NE SAIT PAS QUI IL EST. Rien du dossier d'un élève ne
+   s'affiche ici, même si le prénom correspond : c'est le bureau qui
+   rattache, à la main, après avoir reconnu la personne.
+   ------------------------------------------------------------ */
+function ckJourHeureCourt(quand){
+  const m = String(quand || '').match(/^(\d{2})\/(\d{2})\/\d{4}\s+(\d{2}):(\d{2})/);
+  return m ? 'le ' + m[1] + '/' + m[2] + ' à ' + m[3] + ':' + m[4] : '';
+}
+
+function ckFicheVitrine(f, frag){
+  const c = f.conv || {};
+  const v = c.vitrine || {};
+  const prenom = v.prenom || c.titre || 'Visiteur';
+  const nb = v.nomBureau || '';
+  if(f.enSupervision){
+    frag.appendChild(ckCadre('SUPERVISION', '🔒 Tu n’es pas dedans',
+      'Ton passage est noté au journal. Pour répondre, ajoute-toi par ⋯ → 👥 Participants.'));
+  }
+  frag.appendChild(ckCadre('VISITEUR · VITRINE' + (nb ? ' DE ' + nb.toUpperCase() : ''), prenom,
+    ['par le QR code', ckJourHeureCourt(v.creeLe)].filter(Boolean).join(' ') +
+    (v.etat === 'bloquee' ? ' · 🚫 bloqué' : ' · pas encore élève')));
+  frag.appendChild(ckCadre('POUR LUI RÉPONDRE', v.tel || '—',
+    v.mail ? v.mail + ' — la réponse lui part aussi par mail quand sa page est fermée' : ''));
+
+  const acts = document.createElement('div');
+  acts.className = 'ckFicheActs';
+  const tel = String(v.tel || '').replace(/[^\d+]/g, '');
+  if(tel){
+    const a = document.createElement('a');
+    a.className = 'ckBt';
+    a.href = 'tel:' + tel;
+    a.textContent = '📞 Appeler ' + ckPrenom(prenom);
+    acts.appendChild(a);
+  }
+  if(ckPeutGerer() && v.etat !== 'bloquee'){
+    acts.appendChild(ckBouton('➕ Créer sa fiche élève', 'Il vient s’inscrire : sa fiche est créée avec son téléphone et son mail, et la discussion rejoint son dossier',
+      () => ckCreerFicheDuVisiteur(f)));
+    acts.appendChild(ckBouton('🔗 C’est un élève : rattacher', 'La discussion rejoint son dossier et devient son fil « Le bureau »',
+      () => ckRattacherLeVisiteur(f)));
+  }
+  if(!Number(c.fermee || 0) && !f.enSupervision && f.estMembre && ckPeutGerer()){
+    acts.appendChild(ckBouton('🔒 Clore la discussion', 'La discussion part dans 🗄️ Fermées ; le visiteur peut en ouvrir une nouvelle',
+      () => ckRegler(f)));
+  }
+  if(ckPeutGerer() && v.etat !== 'bloquee'){
+    acts.appendChild(ckBouton('🚫 Bloquer', 'Ses messages n’arrivent plus, et il ne peut plus en ouvrir depuis la vitrine',
+      () => ckBloquerLeVisiteur(f), 'rouge'));
+  }
+  if(acts.children.length) frag.appendChild(acts);
+  return frag;
+}
+
+/* Après un rattachement, on rouvre le fil d'arrivée : celui de la
+   vitrine a pu fondre dans le fil « Le bureau » de l'élève. */
+async function ckApresLeVisiteur(rep, id){
+  const cible = (rep && rep.conversation) || id;
+  afficherMessagerie(true);
+  await ouvrirLeFil(cible);
+}
+
+async function ckRattacherLeVisiteur(f){
+  const c = f.conv || {};
+  const v = c.vitrine || {};
+  const nom = await choisirEleveConnu('🔗 Rattacher à un élève',
+    'La discussion rejoint son dossier et devient son fil « Le bureau » de l’espace élève. ' +
+    'Vérifie que c’est bien lui : quelqu’un peut écrire sous le nom d’un autre.', '');
+  if(!nom) return;
+  const connu = (elevesConnus || []).some(n => normaliserMessagerie(n) === normaliserMessagerie(nom));
+  if(!connu){
+    if(typeof showToast === 'function') showToast('« ' + nom + ' » n’est pas un élève connu : utilise ➕ Créer sa fiche élève.');
+    return;
+  }
+  if(!await confirmer('La discussion de ' + (v.prenom || c.titre || 'ce visiteur') + ' rejoint le dossier de ' + nom +
+      ' et devient son fil « Le bureau ».\n\nSes messages s’afficheront à son nom, dans son espace élève.',
+      '🔗 Rattacher')) return;
+  const rep = await appelPrep({ action: 'visiteurRattacher', id: c.id, eleve: nom });
+  if(typeof showToast === 'function') showToast('🔗 Rattachée au dossier de ' + nom);
+  await ckApresLeVisiteur(rep, c.id);
+}
+
+async function ckCreerFicheDuVisiteur(f){
+  const c = f.conv || {};
+  const v = c.vitrine || {};
+  const nom = await choisirEleveConnu('➕ Créer sa fiche élève',
+    'Son prénom et son nom. Son téléphone et son mail sont repris de la discussion, ' +
+    'qui rejoint ensuite son dossier.', v.prenom || '');
+  if(!nom) return;
+  const connu = (elevesConnus || []).some(n => normaliserMessagerie(n) === normaliserMessagerie(nom));
+  if(connu && !await confirmer('« ' + nom + ' » a déjà un dossier.\n\nY rattacher la discussion, sans toucher à sa fiche ?',
+      '🔗 Rattacher')) return;
+  const remarques = 'Premier contact : discussion de la vitrine' + (v.nomBureau ? ' de ' + v.nomBureau : '') +
+    (v.creeLe ? ', le ' + String(v.creeLe).slice(0, 10) : '') + '.';
+  const fiche = { telephone: typeof normaliserTel === 'function' ? normaliserTel(v.tel || '') : String(v.tel || ''),
+                  email: v.mail || '', remarques: remarques };
+  if(!connu){
+    await appelPrep(Object.assign({ action: 'ficheSet', eleve: nom }, fiche));
+    if(Array.isArray(elevesConnus) && elevesConnus.indexOf(nom) === -1) elevesConnus.push(nom);
+  }
+  const rep = await appelPrep({ action: 'visiteurRattacher', id: c.id, eleve: nom });
+  if(typeof showToast === 'function') showToast(connu ? '🔗 Rattachée au dossier de ' + nom : '➕ Fiche créée pour ' + nom);
+  await ckApresLeVisiteur(rep, c.id);
+  if(!connu && typeof ouvrirFicheEleve === 'function'){
+    const deja = (typeof ficheDe === 'function' && ficheDe(nom)) || {};
+    ouvrirFicheEleve(nom, Object.assign({}, deja, fiche));
+  }
+}
+
+async function ckBloquerLeVisiteur(f){
+  const c = f.conv || {};
+  const v = c.vitrine || {};
+  if(!await confirmer('Bloquer ' + (v.prenom || c.titre || 'ce visiteur') + ' ?\n\n' +
+      'La discussion se ferme, et ses nouveaux messages n’arrivent plus : ni depuis cette page, ' +
+      'ni avec le même téléphone, le même mail ou le même appareil.', '🚫 Bloquer', true)) return;
+  await appelPrep({ action: 'visiteurBloquer', id: c.id });
+  if(typeof showToast === 'function') showToast('🚫 Visiteur bloqué');
+  await ckApresLeVisiteur(null, c.id);
 }
 
 function ckDessinerLaFiche(f){
