@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 11:21 — v1174 */
+/* Déployé le 14/10/2026 à 12:39 — v1175 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1175,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '📋 Les renseignements et disponibilités des élèves remplacent le Google Form',
+    quoi: [
+      { emoji: '📋',
+        titre: 'Dans l’espace élève',
+        texte: 'Le questionnaire « Mes renseignements et disponibilités » s’ouvre tout seul tant qu’il n’est pas rempli ' +
+               '(« Plus tard » le remet au lendemain). Les réponses arrivent dans 📇 Fiche, sous 🪑 Poste de conduite.' },
+      { emoji: '👥',
+        titre: '👥 Élèves › 📋 Renseignements',
+        texte: 'Qui n’a pas répondu, demandé quand, relancé combien de fois. 📨 le lui demande dans sa messagerie ; ' +
+               'une relance part toute seule (3 jours après sa première visite, puis tous les 7 jours, 3 fois au plus).' },
+      { emoji: '✏️',
+        titre: 'Remplir avec lui',
+        texte: 'Depuis sa fiche, au bureau ou au téléphone : le même questionnaire, avec ses réponses.' },
+      { emoji: '🛠️',
+        titre: 'Le questionnaire se modifie (administrateurs)',
+        texte: 'Catégories, questions, textes de la carte et relances. Une question obligatoire ajoutée est redemandée ' +
+               'à ceux qui avaient tout rempli. 📥 reprend les réponses du Google Form (fichier CSV).' }
+    ]
+  },
   {
     version: 1174,
     date: 'Mercredi 14 octobre 2026',
