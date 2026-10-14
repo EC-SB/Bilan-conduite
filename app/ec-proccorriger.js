@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 09:53 — v1028 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -609,6 +609,23 @@ function interrupteur(o){
       return;
     }
     if(!o.ouvert && o.confirmation && !await confirmer(o.confirmation)) return;
+
+    /* 📍 v1170 — un interrupteur qui n'est pas un réglage du classeur
+       (ceux des bureaux vivent dans D1) : l'appelant dit quoi faire,
+       le dessin reste le même. Une fenêtre refermée sans rien choisir
+       n'est pas une erreur : rien n'a changé, on ne dit rien. */
+    if(typeof o.basculer === 'function'){
+      b.disabled = true;
+      try{
+        await o.basculer(!o.ouvert);
+        showToast(o.ouvert ? 'Désactivé ✅' : 'Activé ✅');
+        apres();
+      }catch(e){
+        if(!/rien n’a changé/.test(String(e && e.message))) showToast('Impossible : ' + e.message);
+        b.disabled = false;
+      }
+      return;
+    }
 
     b.disabled = true;
     try{
