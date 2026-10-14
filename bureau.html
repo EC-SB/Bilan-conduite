@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 14/10/2026 à 09:54 — v1171 -->
+<!-- Déployé le 14/10/2026 à 10:52 — v1173 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -183,6 +183,10 @@
                           font-size:15px; background:var(--kn); color:var(--ksurN); box-shadow:0 0 16px var(--kglow); }
   .vtFin{ text-align:center; font-size:13.5px; padding:10px 4px 4px; color:var(--kd); }
   .vtFin b{ display:block; color:var(--kt); font-size:15px; margin-bottom:4px; }
+  /* 🔴 v1173 — le compteur des réponses du bureau */
+  .vtBadge{ display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px;
+            border-radius:11px; background:var(--red); color:#fff; font-size:12.5px; font-weight:800; line-height:1; }
+  .vtRepondu{ color:var(--red) !important; font-weight:700; }
 </style>
 </head>
 <body class="clair">
@@ -270,7 +274,7 @@
   var choix = { jour: '', heure: '', motif: '' };
   var semaine = 0;
 
-  function ecran(){ arreterLeDirect(); var e = $('ecran'); e.innerHTML = ''; return e; }
+  function ecran(){ arreterLeDirect(); arreterLeCompteur(); var e = $('ecran'); e.innerHTML = ''; return e; }
   function erreur(texte){
     var e = ecran();
     var c = el('div', 'card');
@@ -654,14 +658,64 @@
   function boutonDiscussion(e){
     var deja = !!jeton();
     var b = el('button', 'btn btn-secondary', deja ? '💬 Reprendre la discussion avec le bureau' : '💬 Écrire au bureau');
+    b.id = 'vtReprendre';
     b.style.cssText = 'margin:0 0 6px;padding:14px;font-size:15px;';
     b.addEventListener('click', function(){ if(jeton()) ecranDiscussion(); else ecranEcrire(); });
     e.appendChild(b);
     var n = el('div', 'rvNote', deja ? 'Vos messages et les réponses du bureau sont gardés ici.'
                                      : 'Une question ? Le bureau vous répondra dès que possible.');
+    n.id = 'vtReprendreNote';
     n.style.cssText = 'margin:0 4px 16px;';
     e.appendChild(n);
+    if(deja) lancerLeCompteur();
   }
+
+  /* ---------- 🔴 v1173 — « le bureau vous a répondu » ----------
+     David : « un compteur sur Reprendre la discussion, pour qu'il
+     voie qu'on a répondu ». Lu à l'arrivée, puis toutes les
+     30 secondes tant que la page est sous les yeux ; le compte ne
+     marque rien comme lu. */
+  var minuteurCompteur = null;
+  var titreDeLaPage = '';
+  function arreterLeCompteur(){
+    clearInterval(minuteurCompteur); minuteurCompteur = null;
+    if(titreDeLaPage) document.title = titreDeLaPage;
+  }
+  function lancerLeCompteur(){
+    clearInterval(minuteurCompteur);
+    titreDeLaPage = titreDeLaPage || document.title.replace(/^\(\d+\)\s*/, '');
+    compter();
+    minuteurCompteur = setInterval(function(){ if(!document.hidden) compter(); }, 30000);
+  }
+  async function compter(){
+    var r = null;
+    try{ r = await ecrire({ quoi: 'nonlus', d: jeton() }); }catch(err){ return; }
+    var b = $('vtReprendre'), n = $('vtReprendreNote');
+    if(!b || !r || r.status !== 'ok') return;
+    if(r.etat === 'inconnue'){
+      oublierJeton();
+      arreterLeCompteur();
+      if(donnees && donnees.actif && donnees.discussion){
+        b.textContent = '💬 Écrire au bureau';
+        if(n){ n.className = 'rvNote'; n.textContent = 'Une question ? Le bureau vous répondra dès que possible.'; }
+      }else{ b.remove(); if(n) n.remove(); }
+      return;
+    }
+    var k = Number(r.nonLus || 0);
+    b.textContent = '💬 Reprendre la discussion avec le bureau';
+    if(k){
+      b.appendChild(document.createTextNode(' '));
+      b.appendChild(el('span', 'vtBadge', String(k > 9 ? '9+' : k)));
+    }
+    if(n){
+      n.className = 'rvNote' + (k ? ' vtRepondu' : '');
+      n.textContent = k ? (k > 1 ? '🔴 Le bureau vous a répondu (' + k + ' messages).' : '🔴 Le bureau vous a répondu.')
+                        : r.etat === 'close' ? 'Le bureau a clos cette discussion : vous pouvez la relire, ou en commencer une nouvelle.'
+                        : 'Vos messages et les réponses du bureau sont gardés ici.';
+    }
+    document.title = (k ? '(' + k + ') ' : '') + titreDeLaPage;
+  }
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden && minuteurCompteur) compter(); });
 
   /* ---------- le premier message ---------- */
   var saisieV = { prenom: '', tel: '', mail: '', texte: '' };
