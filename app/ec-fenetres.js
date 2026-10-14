@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 11:43 — v1165 */
+/* Déployé le 14/10/2026 à 12:39 — v1175 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2532,6 +2532,18 @@ async function ajouterLaBaseAuDossier(d, nom){
     d.total = (d.total || 0) + lignes.length;
   }catch(e){
     d.parties.push({ titre: 'Son activité dans son espace élève', lignes: [],
+      note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+  }
+  /* 📋 v1175 — ses renseignements et disponibilités, dans la base */
+  try{
+    const r = await appelPrep({ action: 'renseignementsExport', eleve: nom });
+    const lignes = ((r && r.lignes) || []).map(l => ({ 'Question': l.question || '', 'Réponse': l.reponse || '' }));
+    d.parties.push({ titre: 'Ses renseignements et disponibilités', lignes: lignes,
+      note: lignes.length ? 'Envoyés le ' + (r.envoyeLe || '') + (r.majLe && r.majLe !== r.envoyeLe ? ', modifiés le ' + r.majLe : '') + '.'
+                          : 'Pas de questionnaire rempli.' });
+    d.total = (d.total || 0) + lignes.length;
+  }catch(e){
+    d.parties.push({ titre: 'Ses renseignements et disponibilités', lignes: [],
       note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
   }
   try{
