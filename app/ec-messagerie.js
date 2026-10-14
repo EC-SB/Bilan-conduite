@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 09:54 — v1171 */
+/* Déployé le 14/10/2026 à 11:21 — v1174 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -7035,6 +7035,9 @@ function dessinerReglagesMessagerie(zone, r, exemple){
       () => ouvrirFenetrePhotoProfil({ cible: 'bureau', titre: 'La photo du bureau' })));
     corps.appendChild(cb);
   }
+
+  /* ⚡ v1174 — les réponses rapides, pour toute l'équipe */
+  if(typeof carteReponsesRapides === 'function') corps.appendChild(carteReponsesRapides());
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
