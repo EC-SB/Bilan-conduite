@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 14:14 — v1168 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,31 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1170,
+    date: 'Mardi 13 octobre 2026',
+    resume: '📍 Les bureaux : horaires et rendez-vous en ligne, avec un QR code en vitrine',
+    quoi: [
+      { emoji: '📍',
+        titre: 'Gestion › Loudéac / St-Brieuc Horaires et RDV',
+        texte: 'Les ouvertures de chaque bureau, qui le tient, les rendez-vous à venir, et l’affiche de la ' +
+               'vitrine à imprimer : un QR code qui mène à la page du bureau (ouvert ou fermé maintenant, ' +
+               'les horaires, et un rendez-vous de 30 minutes).' },
+      { emoji: '📥',
+        titre: 'Les horaires viennent de Drivup',
+        texte: 'Le favori, cliqué sur le planning d’une agence, reprend les créneaux « Bureau Loudéac » des ' +
+               'quatre semaines à venir. ✏️ un jour, ➕ ouvrir un autre jour ou 🔒 fermer aujourd’hui : ce qui ' +
+               'est changé à la main l’emporte sur Drivup, jusqu’à ↩️.' },
+      { emoji: '📅',
+        titre: 'Les rendez-vous',
+        texte: 'Confirmation et rappel la veille par mail pour le visiteur ; notification et mail pour le bureau, ' +
+               'les administrateurs et la personne du jour. Un jour qui ferme avec des rendez-vous : tu choisis, ' +
+               'un par un, annuler et prévenir ou t’en occuper.' },
+      { emoji: '✉️',
+        titre: 'Ton adresse mail dans ⚙️ Accès',
+        texte: 'Chaque compte a maintenant une case ✉️ : c’est là qu’arrivent les rendez-vous pris au bureau.' }
+    ]
+  },
   {
     version: 1168,
     date: 'Mardi 13 octobre 2026',
