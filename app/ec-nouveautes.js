@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 14/10/2026 à 09:54 — v1171 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,27 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1171,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '👋 La vitrine : les passants écrivent au bureau depuis le QR code',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Écrire au bureau, depuis la page du QR code',
+        texte: 'Un bouton « 💬 Écrire au bureau » sur la page de la vitrine : prénom, téléphone, mail et message. ' +
+               'La discussion arrive dans 💬 Messagerie › 👋 Vitrine, avec l’étiquette « VITRINE · LOUDÉAC ». ' +
+               'Tu réponds au nom du bureau : en direct si sa page est ouverte, par mail sinon.' },
+      { emoji: '🔗',
+        titre: 'Rattacher, créer sa fiche, bloquer',
+        texte: 'Dans la fiche ⓘ : 📞 l’appeler, ➕ créer sa fiche élève, 🔗 rattacher la discussion au dossier d’un ' +
+               'élève (elle devient son fil « Le bureau »), 🔒 clore ou 🚫 bloquer. Tant qu’elle n’est pas rattachée, ' +
+               'rien du dossier n’est dit : n’importe qui peut écrire sous le nom d’un autre.' },
+      { emoji: '🔘',
+        titre: 'Un quatrième interrupteur par bureau',
+        texte: 'Gestion › Loudéac / St-Brieuc Horaires et RDV › « 💬 Discussion en direct ». Coupé au départ : ' +
+               'à toi de l’allumer. Les discussions sont effacées un mois après le dernier message.' }
+    ]
+  },
   {
     version: 1170,
     date: 'Mardi 13 octobre 2026',
