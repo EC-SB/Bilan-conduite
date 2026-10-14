@@ -1,7 +1,8 @@
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    🔔 LE SERVICE WORKER — étape 3 de la messagerie
 
-   Déployé le 08/10/2026 à 16:00 — v1107
+   Né le 08/10/2026 — v1107 (la version déployée est en première ligne)
 
    David, le 7 octobre : « je veux un vrai systeme de messagerie
    instantané comme messenger ». Ce fichier est la dernière brique :
@@ -193,9 +194,10 @@ self.addEventListener("push", function (e) {
        d'affilée empilent dix lignes qu'il faut balayer une à une ;
        avec lui, la dernière remplace la précédente. C'est le fil
        qu'on suit, pas chaque phrase. */
-    tag: "fil-" + (a.fil || "x"),
+    tag: a.tag || ("fil-" + (a.fil || "x")),
     renotify: true,
-    data: { fil: a.fil || "", page: a.page || "index.html" }
+    /* 📍 v1170 — un rendez-vous au bureau ouvre son écran, pas un fil */
+    data: { fil: a.fil || "", page: a.page || "index.html", vue: a.vue || "" }
     })
   ]));
 });
@@ -213,7 +215,8 @@ self.addEventListener("notificationclick", function (e) {
   const d = e.notification.data || {};
   const page = d.page || "index.html";
   const fil = d.fil || "";
-  const suite = fil ? "?fil=" + encodeURIComponent(fil) : "";
+  const vue = d.vue || "";
+  const suite = fil ? "?fil=" + encodeURIComponent(fil) : (vue ? "?vue=" + encodeURIComponent(vue) : "");
 
   e.waitUntil(Promise.resolve()
     /* Pour l'élève, l'adresse que SA page nous a donnée ; pour le
@@ -233,7 +236,7 @@ self.addEventListener("notificationclick", function (e) {
             if (f.url.split("?")[0].split("#")[0] === cible.split("?")[0]) {
               /* On lui dit quel fil ouvrir : elle est peut-être sur
                  un tout autre écran. */
-              try { f.postMessage({ quoi: "ouvrirFil", fil: fil }); } catch (err) {}
+              try { f.postMessage(vue && !fil ? { quoi: "ouvrirVue", vue: vue } : { quoi: "ouvrirFil", fil: fil }); } catch (err) {}
               return f.focus();
             }
           }
