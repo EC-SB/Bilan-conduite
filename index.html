@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1174
+     VERSION APPLICATION : v1175
      VERSION APPS SCRIPT REQUISE : v241
      Mis à jour le : 12/10/2026
 
@@ -3991,6 +3991,148 @@
   .rrMot{ font-family:ui-monospace, Menlo, monospace; font-size:12px; padding:3px 8px; border-radius:7px; border:1px solid var(--line);
           background:transparent; color:var(--cream); cursor:pointer; margin:0; width:auto; }
   .rrModeles .ckModeles{ margin:0 0 10px; }
+  /* 📋 v1175 — renseignements et disponibilités (📇 Fiche, 👥 Élèves › 📋 Renseignements) */
+  .rgApp{ margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:10px; font-size:13px; }
+  .rgAppManque{ border-color:var(--red); }
+  .rgAppTete{ display:flex; gap:6px 10px; align-items:baseline; flex-wrap:wrap; margin-bottom:9px; }
+  .rgAppTete > span:first-child{ flex:1 1 240px; min-width:0; font-size:13.5px; }
+  .rgAppQuand{ font-size:11.5px; color:var(--muted); }
+  .rgAppNb{ font-size:11.5px; font-weight:700; color:var(--warn-text); }
+  .rgAppAlerte{ background:var(--warn-bg); color:var(--warn-text); border-radius:8px; padding:9px 11px;
+    font-size:12.5px; line-height:1.5; margin-bottom:9px; }
+  .rgAppTable{ border:1px solid var(--line); border-radius:8px; padding:2px 11px; }
+  .rgAppL{ display:flex; gap:12px; justify-content:space-between; padding:8px 0; line-height:1.5; }
+  .rgAppL + .rgAppL{ border-top:1px solid var(--line); }
+  .rgAppL .k{ color:var(--muted); flex-shrink:0; max-width:55%; }
+  .rgAppL .v{ min-width:0; text-align:right; overflow-wrap:anywhere; white-space:pre-wrap; }
+  .rgAppL.dessous{ display:block; }
+  .rgAppL.dessous .k{ display:block; max-width:none; }
+  .rgAppL.dessous .v{ display:block; text-align:left; margin-top:2px; }
+  .rgAppL a{ text-decoration:none; cursor:pointer; margin-left:7px; }
+  .rgAppL a.rgAppMail{ margin-left:0; color:inherit; text-decoration:underline; text-decoration-color:var(--line); }
+  .rgAppTel{ font-weight:700; }
+  .rgAppST{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:13px 0 7px; }
+  .rgAppPuces{ display:flex; flex-wrap:wrap; gap:6px; }
+  .rgAppPuce{ border:1px solid var(--line); border-radius:999px; padding:4px 10px; font-size:12px; color:var(--muted); }
+  .rgAppPuce b{ color:var(--cream); }
+  .rgAppPuce.alerte{ border-color:var(--red); background:var(--warn-bg); color:var(--warn-text); }
+  .rgAppPuce.alerte b{ color:var(--warn-text); }
+  .rgAppGrilleZone{ overflow-x:auto; }
+  .rgAppGrille{ width:100%; border-collapse:separate; border-spacing:3px; table-layout:fixed; font-size:12px; }
+  .rgAppGrille th{ font-weight:600; color:var(--muted); font-size:11px; text-align:center; padding:2px 0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rgAppGrille tbody th{ text-align:left; width:40px; color:var(--cream); font-size:12px; }
+  .rgAppGrille td{ height:24px; border-radius:6px; background:var(--navy); border:1px solid var(--line); text-align:center; color:var(--muted); }
+  .rgAppGrille td.oui{ background:var(--orange); border-color:var(--orange); color:var(--on-accent); font-weight:800; }
+  .rgAppGrille tr.pas td{ background:transparent; border-style:dashed; font-style:italic; font-size:11.5px; }
+  .rgAppBouts{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .rgAppBouts .btn{ flex:1 1 auto; width:auto; margin:0; padding:9px 12px; font-size:12.5px; }
+
+  /* La liste */
+  .rgListeIntro{ font-size:12.5px; color:var(--muted); line-height:1.6; margin-bottom:10px; }
+  .rgListeHaut{ display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; justify-content:space-between; }
+  .rgListeAdmin{ display:flex; flex-wrap:wrap; gap:8px; }
+  .rgListeAdmin .btn{ width:auto; margin:0; padding:8px 12px; font-size:12.5px; }
+  .rgTous{ width:auto; margin:4px 0 6px; padding:8px 12px; font-size:12.5px; }
+  .rgListe{ margin-top:6px; }
+  .rgListeL{ display:flex; gap:10px; align-items:center; padding:9px 0; border-top:1px solid var(--line); }
+  .rgRond{ flex-shrink:0; width:30px; text-align:center; font-size:16px; }
+  .rgListeNom{ flex:1; min-width:0; background:none; border:0; padding:0; margin:0; text-align:left; cursor:pointer;
+    color:inherit; font:inherit; width:auto; display:flex; flex-direction:column; gap:2px; }
+  .rgListeNom b{ font-size:14px; }
+  .rgListeNom span{ font-size:12px; color:var(--muted); line-height:1.45; }
+  .rgListeL.incomplet .rgListeNom span{ color:var(--warn-text); }
+  .rgListeBt{ width:auto; flex-shrink:0; margin:0; padding:8px 11px; font-size:15px; }
+
+  /* Le gestionnaire */
+  .rgGTete{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-start; margin-bottom:12px; }
+  .rgGTete > .btn{ width:auto; margin:0; padding:8px 12px; font-size:12.5px; flex-shrink:0; }
+  .rgGTitre{ flex:1 1 300px; min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .rgGTitre b{ font-size:15px; }
+  .rgGTitre span{ font-size:12.5px; color:var(--muted); line-height:1.55; }
+  .rgGBloc{ border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; }
+  .rgGBloc textarea, .rgFenetre textarea{ width:100%; box-sizing:border-box; font-family:inherit; font-size:14px; line-height:1.5;
+    padding:10px 12px; border-radius:10px; }
+  .rgGBlocT{ font-weight:800; font-size:14px; margin-bottom:10px; }
+  .rgGCat{ border:1px solid var(--line); border-radius:12px; padding:8px 12px 10px; margin-bottom:12px; background:var(--navy-deep); }
+  .rgGCatTete{ display:flex; gap:8px; align-items:center; padding:4px 0 8px; }
+  .rgGCatNom{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .rgGCatNom b{ font-size:14.5px; }
+  .rgGCatNom span{ font-size:12px; color:var(--muted); }
+  .rgGCatNom .rgGNb{ font-size:11px; }
+  .rgGQs{ border-top:1px solid var(--line); }
+  .rgGQ{ display:flex; gap:8px; align-items:flex-start; padding:9px 0; border-bottom:1px solid var(--line); }
+  .rgGQMi{ flex:1; min-width:0; }
+  .rgGQLib{ font-size:13.5px; font-weight:600; line-height:1.4; overflow-wrap:anywhere; }
+  .rgGQChoix{ display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+  .rgGQChoix span{ font-size:11.5px; padding:2px 8px; border-radius:999px; background:var(--navy); border:1px solid var(--line); }
+  .rgGTags{ display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+  .rgGTag{ font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .rgGTag.oblig{ color:var(--cream); }
+  .rgGTag.alerte{ color:var(--warn-text); border-color:var(--warn-text); }
+  .rgGTag.lien{ color:var(--accent-text); border-color:var(--accent-text); }
+  .rgGPlus{ margin-top:9px; }
+  .rgGPlusCat{ width:auto; margin:0 0 14px; padding:9px 14px; font-size:13px; }
+  .rgPetit{ flex-shrink:0; width:32px; height:32px; border-radius:9px; border:1px solid var(--line); background:transparent;
+    color:var(--cream); cursor:pointer; font-size:13px; margin:0; padding:0; font-family:inherit; }
+  .rgPetit:disabled{ opacity:.3; cursor:default; }
+  .rgFleches{ display:flex; flex-direction:column; gap:3px; flex-shrink:0; }
+  .rgFleches .rgPetit{ height:22px; width:28px; font-size:11px; border-radius:7px; }
+  .rgGCase{ display:flex !important; gap:8px; align-items:center; text-transform:none !important; letter-spacing:0 !important;
+    font-size:13.5px !important; color:var(--cream) !important; margin:4px 0 12px !important; cursor:pointer; }
+  .rgGCase input{ width:18px; height:18px; margin:0; flex-shrink:0; }
+  .rgGNombres{ display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:6px; }
+  .rgGNombres label{ display:flex; flex-direction:column; gap:4px; }
+  .rgGNombres label span{ display:flex; align-items:center; gap:6px; text-transform:none; letter-spacing:0; font-size:13px; color:var(--cream); }
+  .rgGNombres input{ width:64px; margin:0; padding:7px 8px; }
+  .rgGAide{ font-size:12px; color:var(--muted); line-height:1.5; margin-top:-6px; }
+  .rgGBas{ position:sticky; bottom:0; z-index:3; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;
+    padding:10px 0; background:var(--navy-deep); border-top:1px solid var(--line); }
+  .rgGBas .btn{ width:auto; margin:0; padding:10px 14px; font-size:13px; }
+  .rgGEtat{ flex:1 1 140px; font-size:12px; color:var(--muted); }
+  .rgGEtat.mod{ color:var(--warn-text); font-weight:700; }
+
+  /* Les fenêtres */
+  .rgFenetre{ max-width:min(560px, 94vw) !important; }
+  .rgFenetre.large{ max-width:min(720px, 94vw) !important; }
+  .rgFenetre input[type="file"]{ margin-bottom:10px; }
+  .rgFenetre textarea{ width:100%; box-sizing:border-box; font-family:inherit; }
+  .rgDeux{ display:flex; gap:10px; }
+  .rgDeux > div{ flex:1; min-width:0; }
+  .rgFenBas{ display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:6px; }
+  .rgFenBas .btn{ width:auto; margin:0; padding:10px 14px; }
+  .rgFenBas .rgSuppr{ margin-right:auto; color:var(--red); border-color:var(--red); }
+  .rgChoixEd{ display:flex; flex-direction:column; gap:6px; }
+  .rgChoixL{ display:flex; gap:6px; align-items:center; }
+  .rgChoixL input{ margin:0; padding:8px 10px; }
+  .rgChoixEd .rrLien{ align-self:flex-start; margin-top:2px; }
+  .rgApercuQ{ border:1px dashed var(--line); border-radius:12px; padding:10px 12px; margin:10px 0; }
+  .rgpQ{ font-size:13.5px; font-weight:700; margin-bottom:6px; }
+  .rgpQf{ flex:1; min-width:0; margin:0; font-weight:600; }
+  .rgpEt{ color:var(--red); margin-left:3px; }
+  .rgpAide{ font-size:12px; color:var(--muted); margin:-2px 0 7px; }
+  .rgpLigne{ display:flex; gap:10px; align-items:center; }
+  .rgpPuces{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:4px; }
+  .rgpPuce{ border:1px solid var(--line); border-radius:999px; padding:5px 11px; font-size:12px; font-weight:700; }
+  .rgpChamp{ border:1px solid var(--line); border-radius:9px; padding:9px 11px; font-size:13px; color:var(--muted); min-height:18px; margin-bottom:6px; }
+  .rgpChamp.long{ min-height:52px; }
+  .rgpJour{ margin-bottom:6px; }
+  .rgpJour b{ font-size:12.5px; display:block; margin-bottom:4px; }
+  .rgImpRes{ display:flex; flex-direction:column; gap:8px; margin:6px 0 10px; max-height:260px; overflow:auto; }
+  .rgImpG{ border:1px solid var(--line); border-radius:10px; padding:8px 11px; font-size:12.5px; line-height:1.6; }
+  .rgImpG span{ color:var(--muted); }
+  .rgImpG.ok{ border-color:var(--accent-text); }
+  .rgImpG.non{ color:var(--muted); }
+
+  /* La page élève dans un cadre */
+  .rgModalCadre{ max-width:min(720px, 96vw) !important; width:100%; padding:0 !important; overflow:hidden; display:flex;
+    flex-direction:column; height:min(860px, 92vh); }
+  .rgModalCadre.tel{ max-width:min(420px, 96vw) !important; }
+  .rgCadreTete{ display:flex; gap:10px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); }
+  .rgCadreTete b{ flex:1; min-width:0; font-size:14px; }
+  .rgCadreTete span{ font-size:11.5px; color:var(--muted); }
+  .rgCadreX{ width:auto !important; margin:0 !important; padding:6px 11px !important; }
+  .rgCadre{ flex:1; width:100%; border:0; background:var(--navy); }
 </style>
 </head>
 <body>
@@ -4118,7 +4260,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1174" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1175" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -5337,6 +5479,12 @@
 
     </div>
   </div>
+  <div class="card" data-section="eleves" data-vue="renseignements" data-onglet="eleves">
+    <h2 class="section-title">📋 Renseignements et disponibilités</h2>
+    <div class="contenu-tiroir">
+      <div id="rgZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
   <div class="card" data-section="rappels" data-vue="rappels" data-onglet="eleves">
     <h2 class="section-title">🔔 Rappels de cours</h2>
     <div class="contenu-tiroir">
@@ -6243,94 +6391,95 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1174"></script>
-<script src="app/ec-modeles.js?v=1174"></script>
-<script src="app/ec-consignes.js?v=1174"></script>
-<script src="app/ec-noyau.js?v=1174"></script>
-<script src="app/ec-vocal.js?v=1174"></script>
+  <script src="app/ec-etat.js?v=1175"></script>
+<script src="app/ec-modeles.js?v=1175"></script>
+<script src="app/ec-consignes.js?v=1175"></script>
+<script src="app/ec-noyau.js?v=1175"></script>
+<script src="app/ec-vocal.js?v=1175"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1174"></script>
-<script src="app/ec-reseau.js?v=1174"></script>
-<script src="app/ec-manuel.js?v=1174"></script>
-<script src="app/ec-fenetres.js?v=1174"></script>
-<script src="app/ec-parcours.js?v=1174"></script>
-<script src="app/ec-questionnaire.js?v=1174"></script>
-<script src="app/ec-permis.js?v=1174"></script>
-<script src="app/ec-prepares.js?v=1174"></script>
-<script src="app/ec-avant-cours.js?v=1174"></script>
-<script src="app/ec-bureau.js?v=1174"></script>
-<script src="app/ec-places.js?v=1174"></script>
-<script src="app/ec-listes.js?v=1174"></script>
-<script src="app/ec-permis-listes.js?v=1174"></script>
-<script src="app/ec-postpermis.js?v=1174"></script>
-<script src="app/ec-textes.js?v=1174"></script>
-<script src="app/ec-correction.js?v=1174"></script>
-<script src="app/ec-bilans.js?v=1174"></script>
-<script src="app/ec-ecran.js?v=1174"></script>
-<script src="app/ec-version.js?v=1174"></script>
-<script src="app/ec-paie.js?v=1174"></script>
-<script src="app/ec-flotte.js?v=1174"></script>
-<script src="app/ec-carrosserie.js?v=1174"></script>
-<script src="app/ec-solo.js?v=1174"></script>
-<script src="app/ec-handicap-pdf.js?v=1174"></script>
-<script src="app/ec-moto.js?v=1174"></script>
-<script src="app/ec-remorque.js?v=1174"></script>
-<script src="app/ec-arriereplan.js?v=1174"></script>
-<script src="app/ec-placesbe.js?v=1174"></script>
-<script src="app/ec-codeamenage.js?v=1174"></script>
-<script src="app/ec-financements.js?v=1174"></script>
-<script src="app/ec-eval-aac.js?v=1174"></script>
-<script src="app/ec-postes.js?v=1174"></script>
-<script src="app/ec-tarifs.js?v=1174"></script>
-<script src="app/ec-caisse.js?v=1174"></script>
-<script src="app/ec-menage.js?v=1174"></script>
-<script src="app/ec-page-eleve.js?v=1174"></script>
-<script src="app/ec-notes-dossier.js?v=1174"></script>
-<script src="app/ec-messagerie.js?v=1174"></script>
-<script src="app/ec-cockpit.js?v=1174"></script>
-<script src="app/ec-aqui.js?v=1174"></script>
-<script src="app/ec-photos-profil.js?v=1174"></script>
-<script src="app/ec-drivup.js?v=1174"></script>
-<script src="app/ec-bureaux.js?v=1174"></script>
-<script src="app/ec-cbgasoil.js?v=1174"></script>
-<script src="app/ec-loupe.js?v=1174"></script>
-<script src="app/ec-coutsia.js?v=1174"></script>
-<script src="app/ec-evaluation.js?v=1174"></script>
-<script src="app/ec-paiement.js?v=1174"></script>
-<script src="app/ec-handicap.js?v=1174"></script>
-<script src="app/ec-code.js?v=1174"></script>
-<script src="app/ec-proccorriger.js?v=1174"></script>
-<script src="app/ec-sessions.js?v=1174"></script>
-<script src="app/ec-aac-cs.js?v=1174"></script>
-<script src="app/ec-notifs.js?v=1174"></script>
-<script src="app/ec-ecoutes.js?v=1174"></script>
-<script src="app/ec-taches.js?v=1174"></script>
-<script src="app/ec-memoire.js?v=1174"></script>
-<script src="app/ec-historique.js?v=1174"></script>
-<script src="app/ec-rappels.js?v=1174"></script>
-<script src="app/ec-segments.js?v=1174"></script>
-<script src="app/ec-sms.js?v=1174"></script>
-<script src="app/ec-encours.js?v=1174"></script>
-<script src="app/ec-incidents.js?v=1174"></script>
+<script src="app/ec-trajet.js?v=1175"></script>
+<script src="app/ec-reseau.js?v=1175"></script>
+<script src="app/ec-manuel.js?v=1175"></script>
+<script src="app/ec-fenetres.js?v=1175"></script>
+<script src="app/ec-parcours.js?v=1175"></script>
+<script src="app/ec-questionnaire.js?v=1175"></script>
+<script src="app/ec-permis.js?v=1175"></script>
+<script src="app/ec-prepares.js?v=1175"></script>
+<script src="app/ec-avant-cours.js?v=1175"></script>
+<script src="app/ec-bureau.js?v=1175"></script>
+<script src="app/ec-places.js?v=1175"></script>
+<script src="app/ec-listes.js?v=1175"></script>
+<script src="app/ec-permis-listes.js?v=1175"></script>
+<script src="app/ec-postpermis.js?v=1175"></script>
+<script src="app/ec-textes.js?v=1175"></script>
+<script src="app/ec-correction.js?v=1175"></script>
+<script src="app/ec-bilans.js?v=1175"></script>
+<script src="app/ec-ecran.js?v=1175"></script>
+<script src="app/ec-version.js?v=1175"></script>
+<script src="app/ec-paie.js?v=1175"></script>
+<script src="app/ec-flotte.js?v=1175"></script>
+<script src="app/ec-carrosserie.js?v=1175"></script>
+<script src="app/ec-solo.js?v=1175"></script>
+<script src="app/ec-handicap-pdf.js?v=1175"></script>
+<script src="app/ec-moto.js?v=1175"></script>
+<script src="app/ec-remorque.js?v=1175"></script>
+<script src="app/ec-arriereplan.js?v=1175"></script>
+<script src="app/ec-placesbe.js?v=1175"></script>
+<script src="app/ec-codeamenage.js?v=1175"></script>
+<script src="app/ec-financements.js?v=1175"></script>
+<script src="app/ec-eval-aac.js?v=1175"></script>
+<script src="app/ec-postes.js?v=1175"></script>
+<script src="app/ec-tarifs.js?v=1175"></script>
+<script src="app/ec-caisse.js?v=1175"></script>
+<script src="app/ec-menage.js?v=1175"></script>
+<script src="app/ec-page-eleve.js?v=1175"></script>
+<script src="app/ec-notes-dossier.js?v=1175"></script>
+<script src="app/ec-renseignements.js?v=1175"></script>
+<script src="app/ec-messagerie.js?v=1175"></script>
+<script src="app/ec-cockpit.js?v=1175"></script>
+<script src="app/ec-aqui.js?v=1175"></script>
+<script src="app/ec-photos-profil.js?v=1175"></script>
+<script src="app/ec-drivup.js?v=1175"></script>
+<script src="app/ec-bureaux.js?v=1175"></script>
+<script src="app/ec-cbgasoil.js?v=1175"></script>
+<script src="app/ec-loupe.js?v=1175"></script>
+<script src="app/ec-coutsia.js?v=1175"></script>
+<script src="app/ec-evaluation.js?v=1175"></script>
+<script src="app/ec-paiement.js?v=1175"></script>
+<script src="app/ec-handicap.js?v=1175"></script>
+<script src="app/ec-code.js?v=1175"></script>
+<script src="app/ec-proccorriger.js?v=1175"></script>
+<script src="app/ec-sessions.js?v=1175"></script>
+<script src="app/ec-aac-cs.js?v=1175"></script>
+<script src="app/ec-notifs.js?v=1175"></script>
+<script src="app/ec-ecoutes.js?v=1175"></script>
+<script src="app/ec-taches.js?v=1175"></script>
+<script src="app/ec-memoire.js?v=1175"></script>
+<script src="app/ec-historique.js?v=1175"></script>
+<script src="app/ec-rappels.js?v=1175"></script>
+<script src="app/ec-segments.js?v=1175"></script>
+<script src="app/ec-sms.js?v=1175"></script>
+<script src="app/ec-encours.js?v=1175"></script>
+<script src="app/ec-incidents.js?v=1175"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1174"></script>
+<script src="app/ec-messages-perso.js?v=1175"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1174"></script>
-<script src="app/ec-bandeau.js?v=1174"></script>
-<script src="app/ec-stats.js?v=1174"></script>
-<script src="app/ec-messenger.js?v=1174"></script>
-<script src="app/ec-journal.js?v=1174"></script>
-<script src="app/ec-mails.js?v=1174"></script>
-<script src="app/ec-activite.js?v=1174"></script>
-<script src="app/ec-direct.js?v=1174"></script>
-<script src="app/ec-depart.js?v=1174"></script>
-<script src="app/ec-onglets.js?v=1174"></script>
-<script src="app/ec-demarrage.js?v=1174"></script>
+<script src="app/ec-nouveautes.js?v=1175"></script>
+<script src="app/ec-bandeau.js?v=1175"></script>
+<script src="app/ec-stats.js?v=1175"></script>
+<script src="app/ec-messenger.js?v=1175"></script>
+<script src="app/ec-journal.js?v=1175"></script>
+<script src="app/ec-mails.js?v=1175"></script>
+<script src="app/ec-activite.js?v=1175"></script>
+<script src="app/ec-direct.js?v=1175"></script>
+<script src="app/ec-depart.js?v=1175"></script>
+<script src="app/ec-onglets.js?v=1175"></script>
+<script src="app/ec-demarrage.js?v=1175"></script>
 
 <script>
 /* ============================================================
