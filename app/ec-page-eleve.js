@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 11:43 — v1165 */
+/* Déployé le 14/10/2026 à 12:39 — v1175 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -3608,6 +3608,11 @@ function ongletFiche(corps, nom){
     p.appendChild(dit);
     corps.appendChild(p);
   }
+
+  /* 📋 v1175 — ce que l'élève a rempli dans son espace (ou ce qui
+     lui manque), juste sous le poste de conduite : la demande de
+     David. Voir ec-renseignements.js. */
+  if(typeof cadreRenseignements === 'function') cadreRenseignements(corps, nom);
 
   const rangee = document.createElement('div');
   rangee.style.cssText = 'display:flex;gap:8px;margin-top:12px;';
