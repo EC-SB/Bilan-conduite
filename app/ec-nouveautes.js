@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 12:39 — v1175 */
+/* Déployé le 14/10/2026 à 15:11 — v1176 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,24 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1176,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '☠️ Les remarques du CEPC s’écrivent d’un appui à l’examen',
+    quoi: [
+      { emoji: '☠️',
+        titre: 'Après la ligne du CEPC, la remarque',
+        texte: 'Examen blanc et examen officiel : après ☠️ ou ⚠️ et le choix de la ligne, la liste des remarques de cette ligne ' +
+               's’ouvre. Un appui l’écrit dans « Remarque de l’inspecteur » ; tu la complètes ensuite sur la ligne ou dans le bilan.' },
+      { emoji: '✍️',
+        titre: 'Écrire directement',
+        texte: 'Le premier bouton ferme la liste et met le curseur dans la ligne.' },
+      { emoji: '➕',
+        titre: 'La liste de toute l’équipe',
+        texte: 'Une remarque qui manque se crée d’un geste et rejoint la liste de tous. « ✏️ Modifier la liste » pour corriger ' +
+               'ou retirer. Les plus utilisées remontent en haut. La liste marche aussi sans réseau.' }
+    ]
+  },
   {
     version: 1175,
     date: 'Mercredi 14 octobre 2026',
