@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 13/10/2026 à 10:57 — v1163 -->
+<!-- Déployé le 14/10/2026 à 12:39 — v1175 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -213,6 +213,84 @@
   .demande .nom{ font-weight:700; font-size:14px; }
   .demande .quand{ font-size:11px; color:var(--muted); margin-top:2px; }
   .demande .fleche{ color:var(--accent-text); font-size:17px; flex-shrink:0; }
+
+
+  /* ===== 📋 Mes renseignements et disponibilités — v1175 =====
+     Le questionnaire qui remplace le Google Form. Ses questions
+     viennent du bureau (une donnée, pas du code) : voir
+     ouvrirRenseignements. */
+  .rgCarte{ border-color:var(--orange); }
+  .rgCarte .rgHaut{ display:flex; gap:11px; align-items:flex-start; }
+  .rgCarte .rgIc{ font-size:24px; line-height:1; flex-shrink:0; }
+  .rgCarte .rgQuoi{ flex:1; min-width:0; }
+  .rgCarte .rgTitre{ font-weight:800; font-size:15px; }
+  .rgCarte .rgPourquoi{ font-size:12.5px; color:var(--soft); line-height:1.55; margin-top:4px; white-space:pre-wrap; }
+  .rgCarte .btn{ margin:12px 0 0; }
+  .rgFait{ border-color:var(--line); padding:13px 16px; }
+  .rgFait .rgLigne{ display:flex; gap:10px; align-items:center; font-size:13.5px; }
+  .rgFait .rgLigne .rgQuoi{ flex:1; min-width:0; }
+  .rgFait .rgQuand{ font-size:11.5px; color:var(--muted); margin-top:1px; }
+  .rgFait .rgMod{ flex-shrink:0; width:auto; margin:0; padding:8px 12px; font-size:12.5px; }
+
+  .rgEcran{
+    position:fixed; inset:0; z-index:70; background:var(--navy);
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:calc(14px + var(--dessus)) calc(14px + var(--adroite))
+            0 calc(14px + var(--agauche));
+  }
+  .rgBoite{ max-width:600px; margin:0 auto; }
+  .rgTete{ display:flex; gap:10px; align-items:center; margin-bottom:6px; }
+  .rgTete h2{ flex:1; min-width:0; font-size:17px; margin:0; line-height:1.3; }
+  .rgTete .rgX{ flex-shrink:0; width:38px; height:38px; border-radius:10px;
+    border:1px solid var(--line); background:transparent; color:var(--cream);
+    font-size:16px; cursor:pointer; }
+  .rgIntro{ font-size:13px; color:var(--soft); line-height:1.6; margin:0 0 12px; white-space:pre-wrap; }
+  .rgQui{ font-size:13px; color:var(--muted); margin:0 0 14px; }
+  .rgQui b{ color:var(--cream); }
+  .rgSection{ background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:16px; padding:16px; margin-bottom:12px; }
+  .rgST{ font-size:14.5px; font-weight:800; }
+  .rgPhrase{ font-size:12.5px; color:var(--muted); line-height:1.5; margin-top:3px; }
+  .rgSection > .rgST + *{ margin-top:12px; }
+  .rgSection > .rgPhrase + *{ margin-top:12px; }
+  .rgBloc{ padding:11px 0 0; }
+  .rgBloc + .rgBloc{ border-top:1px solid var(--line); margin-top:11px; }
+  .rgBloc input, .rgBloc textarea{ margin-bottom:4px; }
+  .rgQ{ font-size:13.5px; font-weight:700; margin-bottom:7px; line-height:1.4; }
+  .rgQ .rgEt{ color:var(--red); margin-left:3px; }
+  .rgQ .rgNeuf{ display:inline-block; margin-left:6px; font-size:10.5px; font-weight:800; padding:1px 7px;
+    border-radius:999px; background:var(--orange); color:var(--on-accent); vertical-align:1px; }
+  .rgAide{ font-size:12px; color:var(--muted); line-height:1.5; margin:-3px 0 8px; }
+  .rgON{ display:flex; gap:10px; align-items:center; }
+  .rgON .rgQ{ flex:1; min-width:0; margin:0; font-weight:600; }
+  .rgON .rgAide{ margin:3px 0 0; }
+  .rgPuces{ display:flex; gap:6px; flex-wrap:wrap; }
+  .rgPuce{ border:1px solid var(--line); background:transparent; color:var(--cream);
+    border-radius:999px; padding:8px 13px; font-size:13px; font-weight:700;
+    font-family:inherit; cursor:pointer; min-width:52px; }
+  .rgPuce.on{ background:var(--orange); border-color:var(--orange); color:var(--on-accent); }
+  .rgPuce.non.on{ background:var(--line); border-color:var(--muted); color:var(--cream); }
+  .rgAutre{ margin-top:8px; }
+  .rgJour{ padding:10px 0; border-top:1px solid var(--line); }
+  .rgJour:first-of-type{ border-top:0; padding-top:2px; }
+  .rgJour .rgQ{ margin-bottom:8px; font-weight:600; }
+  .rgJour .rgPuce{ padding:7px 10px; font-size:12.5px; min-width:0; }
+  .rgManque{ border-color:var(--red) !important; }
+  .rgBloc.rgManque{ border:1px solid var(--red) !important; border-radius:12px; padding:10px; margin-top:8px; }
+  .rgManque .rgQ{ color:var(--warn-text); }
+  .rgFaux{ font-size:12px; color:var(--warn-text); margin-top:4px; }
+  .rgErreur{ background:var(--warn-bg); color:var(--warn-text); border-radius:10px;
+    padding:11px 13px; font-size:13px; line-height:1.55; margin-bottom:12px; }
+  .rgErreur .btn{ margin:10px 0 0; }
+  .rgBas{ position:sticky; bottom:0; background:var(--navy); margin:0 -14px;
+    padding:12px 14px calc(14px + var(--dessous)); border-top:1px solid var(--line); }
+  .rgBas .rgBoite{ display:flex; gap:9px; }
+  .rgBas .btn{ margin:0; }
+  .rgBas .rgPlusTard{ flex:0 0 auto; width:auto; padding:13px 16px; }
+  .btRgFil{ display:block; width:100%; margin:9px 0 2px; padding:10px 12px; border-radius:12px;
+    border:0; background:var(--orange); color:var(--on-accent); font:inherit; font-size:13.5px;
+    font-weight:800; cursor:pointer; text-align:center; }
+  .rgApercuMot{ font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
 
   .envoi{
     border:1px solid var(--line); border-radius:12px;
@@ -1332,6 +1410,8 @@
     <!-- 📣 Les annonces — v1038, étape 6. En TÊTE de l'accueil :
          « le bureau sera fermé samedi » est exactement ce qu'on veut
          voir en ouvrant l'application, pas au bas d'un défilement. -->
+    <div class="card rgCarte" id="carteRenseignements" style="display:none;"></div>
+
     <div class="card" id="carteAnnonces" style="display:none;">
       <div id="mesAnnonces"></div>
     </div>
@@ -1925,6 +2005,7 @@
         maLangue = d.langue || '';
         languesDispo = d.langues || [];
         maBoite = d.boite || '';
+        lireRenseignements(d);
         boiteFigee = !!d.boiteFigee;
         lireModules(d);
         /* Ce que la connexion a rapporté en plus — voir « entrer ». */
@@ -1973,7 +2054,9 @@
     montrerBoite();
     montrerLangue();
     montrerDemandes();
+    montrerRenseignements();
     dessinerLesOnglets();
+    ouvrirRenseignementsSiBesoin();
 
     /* ============================================================
        ⚠️ UNE SEULE VAGUE VERS LE CLASSEUR — v1123
@@ -2084,7 +2167,7 @@
       zone:'ongletAccueil',
       /* Son prochain cours, ce qu'on lui demande, ses leçons, son
          code : tout ce qui se lit sans rien faire. */
-      quand: function(){ return ouvert('rappel') || ouvert('historique') ||
+      quand: function(){ return !!modeleRg || ouvert('rappel') || ouvert('historique') ||
                                 ouvert('code') || demandes.length > 0 ||
                                 mesAnnonces.length > 0; } },
     { cle:'reviser', nom:'🎬 Réviser', emoji:'🎬', court:'Réviser',
@@ -2118,6 +2201,455 @@
       quand: function(){ return bilanAttendu(); } }
   ];
   var ongletIci = '';
+
+  /* ============================================================
+     📋 MES RENSEIGNEMENTS ET DISPONIBILITÉS — v1175
+
+     David, le 14 octobre : remplacer le Google Form « Renseignements
+     et disponibilités », « que tous les élèves ne remplissent pas,
+     et c'est un problème pour moi ».
+
+     ⚠️ LES QUESTIONS VIENNENT DU BUREAU. David les modifie dans
+     l'application (👥 Élèves › 📋 Renseignements), catégories
+     comprises : la connexion rapporte le questionnaire du moment
+     avec les réponses déjà données. Rien n'est écrit en dur ici,
+     sauf la façon de dessiner chaque type de question.
+
+     ⚠️ TANT QUE CE N'EST PAS REMPLI, IL S'OUVRE TOUT SEUL — une fois
+     par jour au plus (« Plus tard »). La carte reste en tête de
+     l'accueil, et le bureau relance dans la messagerie.
+
+     ⚠️ CETTE MÊME PAGE SERT À L'APPLICATION. « 👁️ Voir comme
+     l'élève » et « ✏️ Remplir avec lui » l'ouvrent dans un cadre
+     (?formulaire=apercu|remplir) : un seul dessin du formulaire,
+     jamais deux qui divergent.
+     ============================================================ */
+  var MODE_FORM_RG = (location.search.match(/[?&]formulaire=(apercu|remplir)/) || [])[1] || '';
+  var modeleRg = null;          /* le questionnaire du moment */
+  var mesRenseignements = null; /* { reponses, envoyeLe, majLe } ou null */
+
+  function echA(t){
+    return echapper(t).replace(/"/g, '&quot;');
+  }
+
+  function lireRenseignements(d){
+    modeleRg = (d && d.renseignementsModele) || null;
+    mesRenseignements = (d && d.renseignements) || null;
+  }
+
+  function questionsDuModeleRg(){
+    var out = [];
+    ((modeleRg && modeleRg.categories) || []).forEach(function(c){
+      (c.questions || []).forEach(function(q){ out.push(q); });
+    });
+    return out;
+  }
+
+  function reponseDonneeRg(q, v){
+    if(v === undefined || v === null) return false;
+    if(q.type === 'ouinon') return v === true || v === false;
+    if(q.type === 'pastilles') return Object.prototype.toString.call(v) === '[object Array]' &&
+      v.some(function(x){ return String(x).replace(/^Autre\s*:\s*/, '').trim(); });
+    if(q.type === 'dispo'){
+      var jours = q.jours || [];
+      return !!v && typeof v === 'object' && jours.length > 0 &&
+        jours.every(function(j){ return v[j] && v[j].length; });
+    }
+    return String(v).trim() !== '';
+  }
+
+  function manquantesRg(reponses){
+    var r = reponses || {};
+    return questionsDuModeleRg().filter(function(q){
+      return q.obligatoire && !reponseDonneeRg(q, r[q.id]);
+    });
+  }
+
+  /* 'vide' | 'incomplet' | 'complet' */
+  function etatRgEl(){
+    if(!mesRenseignements || !mesRenseignements.reponses) return 'vide';
+    return manquantesRg(mesRenseignements.reponses).length ? 'incomplet' : 'complet';
+  }
+
+  function montrerRenseignements(){
+    var c = $('carteRenseignements');
+    if(!c) return;
+    if(!modeleRg || !questionsDuModeleRg().length){ c.style.display = 'none'; return; }
+    var carte = modeleRg.carte || {};
+    var etat = etatRgEl();
+    var acc = $('ongletAccueil');
+    if(etat === 'complet'){
+      var r = mesRenseignements;
+      c.className = 'card rgCarte rgFait';
+      c.innerHTML =
+        '<div class="rgLigne"><span style="font-size:18px;">✅</span><div class="rgQuoi">' +
+          '<div style="font-weight:700;">' + echapper(carte.titre || 'Mes renseignements') + '</div>' +
+          '<div class="rgQuand">Envoyés le ' + echapper(r.envoyeLe || '') +
+            (r.majLe && r.majLe !== r.envoyeLe ? ' · modifiés le ' + echapper(r.majLe) : '') + '</div>' +
+        '</div><button type="button" class="btn btn-secondary rgMod" id="btRenseignements">✏️ Modifier</button></div>';
+      var dv = $('carteDrivup');
+      if(dv && dv.parentNode) dv.parentNode.insertBefore(c, dv);
+    }else{
+      var n = etat === 'incomplet' ? manquantesRg(mesRenseignements.reponses).length : 0;
+      c.className = 'card rgCarte';
+      c.innerHTML =
+        '<div class="rgHaut"><span class="rgIc">' + (n ? '🆕' : '📋') + '</span><div class="rgQuoi">' +
+          '<div class="rgTitre">' + echapper(n ? (n > 1 ? n + ' nouvelles questions' : '1 nouvelle question')
+                                                : (carte.titre || 'Mes renseignements')) + '</div>' +
+          '<div class="rgPourquoi">' + echapper(n
+            ? 'L’auto-école a ajouté ' + (n > 1 ? 'des questions' : 'une question') + ' à « ' +
+              (carte.titre || 'Mes renseignements') + ' ». Tes autres réponses sont gardées.'
+            : (carte.texte || '')) + '</div>' +
+        '</div></div>' +
+        '<button type="button" class="btn btn-primary" id="btRenseignements">' +
+          (n ? '📋 Répondre' : '📋 Remplir maintenant') + '</button>';
+      if(acc && acc.firstElementChild !== c) acc.insertBefore(c, acc.firstElementChild);
+    }
+    c.style.display = 'block';
+    $('btRenseignements').addEventListener('click', function(){ ouvrirRenseignements(); });
+  }
+
+  /* Tant que ce n'est pas rempli : il s'ouvre à l'arrivée, une fois
+     par jour au plus. Le lien de la relance (#renseignements) l'ouvre
+     toujours. */
+  function cleDuJourRg(){
+    var d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+  function ouvrirRenseignementsSiBesoin(){
+    if(MODE_FORM_RG || !modeleRg || !questionsDuModeleRg().length) return;
+    var demande = /renseignements/.test(location.hash || '');
+    if(demande){ try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){} }
+    if(etatRgEl() === 'complet' && !demande) return;
+    var plusTard = '';
+    try{ plusTard = localStorage.getItem('ec_rg_plustard') || ''; }catch(e){}
+    if(!demande && plusTard === normaliserRg(moi.nom) + '|' + cleDuJourRg()) return;
+    setTimeout(function(){ if(!$('rgEcran')) ouvrirRenseignements(); }, 500);
+  }
+
+  function normaliserRg(t){
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  /* Le brouillon : ce qu'il a tapé reste sur l'appareil s'il ferme
+     (« Plus tard », un appel, la batterie). */
+  function cleBrouillonRg(){ return 'ec_rg_brouillon_' + normaliserRg(moi.nom); }
+
+  function ouvrirRenseignements(){
+    if(!modeleRg) return;
+    var base = (mesRenseignements && mesRenseignements.reponses) || {};
+    var r = JSON.parse(JSON.stringify(base));
+    if(!MODE_FORM_RG){
+      try{
+        var b = JSON.parse(localStorage.getItem(cleBrouillonRg()) || 'null');
+        if(b && typeof b === 'object') Object.keys(b).forEach(function(k){ r[k] = b[k]; });
+      }catch(e){}
+    }
+    var neuves = {};
+    if(etatRgEl() === 'incomplet'){
+      manquantesRg(base).forEach(function(q){ neuves[q.id] = 1; });
+    }
+    var carte = modeleRg.carte || {};
+
+    var e = document.createElement('div');
+    e.className = 'rgEcran';
+    e.id = 'rgEcran';
+
+    var et = function(q){ return q.obligatoire ? '<span class="rgEt">*</span>' : ''; };
+    var neuf = function(q){ return neuves[q.id] ? '<span class="rgNeuf">NOUVEAU</span>' : ''; };
+    var aide = function(q){ return q.aide ? '<div class="rgAide">' + echapper(q.aide) + '</div>' : ''; };
+
+    var dessinerQ = function(q){
+      var v = r[q.id];
+      var h = '<div class="rgBloc" data-q="' + echA(q.id) + '" data-type="' + echA(q.type) + '">';
+      if(q.type === 'ouinon'){
+        h += '<div class="rgON"><div class="rgQ">' + echapper(q.libelle) + et(q) + neuf(q) + aide(q) + '</div>' +
+          '<div class="rgPuces"><button type="button" class="rgPuce' + (v === true ? ' on' : '') + '" data-v="1">Oui</button>' +
+          '<button type="button" class="rgPuce non' + (v === false ? ' on' : '') + '" data-v="0">Non</button></div></div>';
+      }else if(q.type === 'pastilles'){
+        var vals = (v && v.length) ? v : [];
+        var autre = '';
+        vals.forEach(function(x){ var m = String(x).match(/^Autre\s*:\s*(.*)$/); if(m) autre = m[1]; });
+        var autreOn = vals.some(function(x){ return /^Autre(\s*:|$)/.test(String(x)); });
+        h += '<div class="rgQ">' + echapper(q.libelle) + et(q) + neuf(q) + '</div>' + aide(q) +
+          '<div class="rgPuces" data-plusieurs="' + (q.plusieurs ? '1' : '0') + '">' +
+          (q.choix || []).map(function(c){
+            return '<button type="button" class="rgPuce' + (vals.indexOf(c) !== -1 ? ' on' : '') + '" data-v="' + echA(c) + '">' + echapper(c) + '</button>';
+          }).join('') +
+          (q.autre ? '<button type="button" class="rgPuce' + (autreOn ? ' on' : '') + '" data-v="__autre">Autre</button>' : '') +
+          '</div>' +
+          (q.autre ? '<input class="rgAutre" type="text" maxlength="200" placeholder="Précise…" value="' + echA(autre) + '"' +
+            (autreOn ? '' : ' style="display:none;"') + '>' : '');
+      }else if(q.type === 'dispo'){
+        var dv = (v && typeof v === 'object') ? v : {};
+        h += '<div class="rgQ">' + echapper(q.libelle) + et(q) + neuf(q) + '</div>' + aide(q) +
+          (q.jours || []).map(function(j){
+            var w = dv[j] || [];
+            return '<div class="rgJour" data-jour="' + echA(j) + '"><div class="rgQ">' + echapper(j) + '</div><div class="rgPuces">' +
+              (q.creneaux || []).map(function(c){
+                return '<button type="button" class="rgPuce' + (w.indexOf(c) !== -1 ? ' on' : '') + '" data-v="' + echA(c) + '">' + echapper(c) + '</button>';
+              }).join('') +
+              '<button type="button" class="rgPuce non' + (w.indexOf('pas') !== -1 ? ' on' : '') + '" data-v="pas">' +
+                echapper(q.pasDispo || 'Pas dispo') + '</button>' +
+            '</div></div>';
+          }).join('');
+      }else{
+        var type = q.type === 'tel' ? 'tel' : (q.type === 'mail' ? 'email' : (q.type === 'date' ? 'date' : 'text'));
+        var ph = q.type === 'tel' ? '06 12 34 56 78' : (q.type === 'mail' ? 'prenom.nom@exemple.fr' : '');
+        h += '<div class="rgQ">' + echapper(q.libelle) + et(q) + neuf(q) + '</div>' + aide(q) +
+          (q.type === 'texte' && q.long
+            ? '<textarea rows="3" maxlength="2000">' + echapper(v || '') + '</textarea>'
+            : '<input type="' + type + '" maxlength="300" value="' + echA(v || '') + '"' + (ph ? ' placeholder="' + echA(ph) + '"' : '') +
+              (q.type === 'tel' ? ' inputmode="tel" autocomplete="off"' : '') + '>') +
+          (q.type === 'texte' && q.pret ? '<div class="rgPuces"><button type="button" class="rgPuce' +
+            (String(v || '') === q.pret ? ' on' : '') + '" data-pret="1">' + echapper(q.pret) + '</button></div>' : '');
+      }
+      return h + '</div>';
+    };
+
+    var h = '<div class="rgBoite">' +
+      '<div class="rgTete"><h2>📋 ' + echapper(carte.titre || 'Mes renseignements') + '</h2>' +
+        '<button type="button" class="rgX" id="rgFermer" title="Fermer">✕</button></div>' +
+      (carte.intro ? '<p class="rgIntro">' + echapper(carte.intro) + '</p>' : '') +
+      '<p class="rgQui">Élève : <b>' + echapper(moi.nom || '') + '</b> · les cases marquées ' +
+        '<b style="color:var(--red)">*</b> sont obligatoires.</p>' +
+      '<div id="rgErreurs"></div>' +
+      (modeleRg.categories || []).filter(function(c){ return (c.questions || []).length; }).map(function(c){
+        return '<div class="rgSection"><div class="rgST">' + echapper((c.emoji ? c.emoji + ' ' : '') + c.titre) + '</div>' +
+          (c.phrase ? '<div class="rgPhrase">' + echapper(c.phrase) + '</div>' : '') +
+          '<div>' + c.questions.map(dessinerQ).join('') + '</div></div>';
+      }).join('') +
+    '</div>' +
+    '<div class="rgBas"><div class="rgBoite">' +
+      '<button type="button" class="btn btn-secondary rgPlusTard" id="rgPlusTard">' +
+        (MODE_FORM_RG === 'remplir' ? 'Annuler' : (MODE_FORM_RG === 'apercu' ? 'Fermer' : 'Plus tard')) + '</button>' +
+      '<button type="button" class="btn btn-primary" id="rgEnvoyer">' +
+        (MODE_FORM_RG === 'remplir' ? '✅ Enregistrer' : '✅ Envoyer mes réponses') + '</button>' +
+    '</div>' + (MODE_FORM_RG === 'apercu' ? '<div class="rgApercuMot">Aperçu de l’application : rien n’est envoyé.</div>' : '') +
+    '</div>';
+    e.innerHTML = h;
+    document.body.appendChild(e);
+    document.body.style.overflow = 'hidden';
+
+    var fermer = function(plusTard){
+      garderBrouillon();
+      if(e.parentNode) e.parentNode.removeChild(e);
+      document.body.style.overflow = '';
+      if(MODE_FORM_RG){ parent.postMessage({ rgFermer: 1 }, location.origin); return; }
+      if(plusTard && etatRgEl() !== 'complet'){
+        try{ localStorage.setItem('ec_rg_plustard', normaliserRg(moi.nom) + '|' + cleDuJourRg()); }catch(err){}
+      }
+    };
+    $('rgFermer').addEventListener('click', function(){ fermer(true); });
+    $('rgPlusTard').addEventListener('click', function(){ fermer(true); });
+
+    /* Les gestes des pastilles */
+    [].forEach.call(e.querySelectorAll('.rgBloc'), function(bl){
+      var type = bl.getAttribute('data-type');
+      var puces = function(z){ return [].slice.call(z.querySelectorAll('.rgPuce')); };
+      if(type === 'ouinon'){
+        puces(bl).forEach(function(b){
+          b.addEventListener('click', function(){
+            puces(bl).forEach(function(x){ x.classList.toggle('on', x === b); });
+            bl.classList.remove('rgManque'); garderBrouillon();
+          });
+        });
+      }else if(type === 'pastilles'){
+        var zone = bl.querySelector('.rgPuces');
+        var plusieurs = zone.getAttribute('data-plusieurs') === '1';
+        var champ = bl.querySelector('.rgAutre');
+        puces(zone).forEach(function(b){
+          b.addEventListener('click', function(){
+            var on = !b.classList.contains('on');
+            if(!plusieurs) puces(zone).forEach(function(x){ x.classList.remove('on'); });
+            b.classList.toggle('on', on);
+            if(champ){
+              var autreOn = !!zone.querySelector('[data-v="__autre"].on');
+              champ.style.display = autreOn ? '' : 'none';
+              if(autreOn && b.getAttribute('data-v') === '__autre') champ.focus();
+            }
+            bl.classList.remove('rgManque'); garderBrouillon();
+          });
+        });
+      }else if(type === 'dispo'){
+        [].forEach.call(bl.querySelectorAll('.rgJour'), function(l){
+          puces(l).forEach(function(b){
+            b.addEventListener('click', function(){
+              var pas = b.getAttribute('data-v') === 'pas';
+              b.classList.toggle('on');
+              /* « Pas dispo » et un créneau ne vont pas ensemble */
+              if(b.classList.contains('on')){
+                puces(l).forEach(function(x){
+                  if(x !== b && (pas || x.getAttribute('data-v') === 'pas')) x.classList.remove('on');
+                });
+              }
+              l.classList.remove('rgManque'); garderBrouillon();
+            });
+          });
+        });
+      }else{
+        var pret = bl.querySelector('[data-pret]');
+        var ch = bl.querySelector('input, textarea');
+        if(pret){
+          pret.addEventListener('click', function(){
+            var on = !pret.classList.contains('on');
+            pret.classList.toggle('on', on);
+            var q = questionDeRg(bl.getAttribute('data-q'));
+            ch.value = on ? q.pret : '';
+            bl.classList.remove('rgManque'); garderBrouillon();
+          });
+        }
+        ch.addEventListener('input', function(){
+          if(pret) pret.classList.toggle('on', ch.value === questionDeRg(bl.getAttribute('data-q')).pret);
+          bl.classList.remove('rgManque');
+          var f = bl.querySelector('.rgFaux'); if(f) f.parentNode.removeChild(f);
+          garderBrouillon();
+        });
+      }
+    });
+
+    function lireTout(){
+      var n = {};
+      [].forEach.call(e.querySelectorAll('.rgBloc'), function(bl){
+        var id = bl.getAttribute('data-q');
+        var type = bl.getAttribute('data-type');
+        if(type === 'ouinon'){
+          var b = bl.querySelector('.rgPuce.on');
+          if(b) n[id] = b.getAttribute('data-v') === '1';
+        }else if(type === 'pastilles'){
+          var vals = [].map.call(bl.querySelectorAll('.rgPuces .rgPuce.on'), function(x){ return x.getAttribute('data-v'); });
+          var champ = bl.querySelector('.rgAutre');
+          n[id] = vals.map(function(x){
+            return x === '__autre' ? 'Autre : ' + String((champ && champ.value) || '').trim() : x;
+          });
+        }else if(type === 'dispo'){
+          var d = {};
+          [].forEach.call(bl.querySelectorAll('.rgJour'), function(l){
+            d[l.getAttribute('data-jour')] = [].map.call(l.querySelectorAll('.rgPuce.on'), function(x){ return x.getAttribute('data-v'); });
+          });
+          n[id] = d;
+        }else{
+          n[id] = String(bl.querySelector('input, textarea').value || '').trim();
+        }
+      });
+      /* Les réponses aux questions retirées depuis restent : le
+         serveur garde l'historique, la page ne l'efface pas. */
+      Object.keys(base).forEach(function(k){ if(!(k in n)) n[k] = base[k]; });
+      return n;
+    }
+
+    function garderBrouillon(){
+      if(MODE_FORM_RG) return;
+      try{ localStorage.setItem(cleBrouillonRg(), JSON.stringify(lireTout())); }catch(err){}
+    }
+
+    function verifier(n){
+      var manque = [];
+      [].forEach.call(e.querySelectorAll('.rgManque'), function(x){ x.classList.remove('rgManque'); });
+      [].forEach.call(e.querySelectorAll('.rgFaux'), function(x){ x.parentNode.removeChild(x); });
+      questionsDuModeleRg().forEach(function(q){
+        var bl = e.querySelector('.rgBloc[data-q="' + q.id.replace(/"/g, '') + '"]');
+        if(!bl) return;
+        var v = n[q.id];
+        var faux = '';
+        if(q.type === 'tel' && v && String(v).replace(/\D/g, '').length < 10) faux = 'Ce numéro paraît incomplet.';
+        if(q.type === 'mail' && v && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)) faux = 'Cette adresse mail paraît incomplète.';
+        if(q.type === 'pastilles' && v && v.some(function(x){ return /^Autre : $/.test(x); })) faux = 'Précise « Autre ».';
+        if(faux){
+          bl.classList.add('rgManque');
+          bl.insertAdjacentHTML('beforeend', '<div class="rgFaux">' + echapper(faux) + '</div>');
+          manque.push(q.court || q.libelle);
+          return;
+        }
+        if(q.obligatoire && !reponseDonneeRg(q, v)){
+          bl.classList.add('rgManque');
+          if(q.type === 'dispo'){
+            var jours = (q.jours || []).filter(function(j){ return !(v && v[j] && v[j].length); });
+            jours.forEach(function(j){
+              var l = bl.querySelector('.rgJour[data-jour="' + j.replace(/"/g, '') + '"]');
+              if(l) l.classList.add('rgManque');
+            });
+            manque.push((q.court || q.libelle) + ' : ' + jours.map(function(j){ return j.toLowerCase(); }).join(', '));
+          }else{
+            manque.push(q.court || q.libelle);
+          }
+        }
+      });
+      return manque;
+    }
+
+    $('rgEnvoyer').addEventListener('click', function(){
+      var bt = this;
+      var n = lireTout();
+      var manque = verifier(n);
+      if(manque.length){
+        $('rgErreurs').innerHTML = '<div class="rgErreur"><b>Il manque encore :</b><br>• ' +
+          manque.map(echapper).join('<br>• ') +
+          (MODE_FORM_RG === 'remplir' ? '<br><button type="button" class="btn btn-secondary" id="rgQuandMeme">Enregistrer quand même</button>' : '') +
+          '</div>';
+        if($('rgQuandMeme')) $('rgQuandMeme').addEventListener('click', function(){
+          parent.postMessage({ rgEnregistrer: n }, location.origin);
+        });
+        e.scrollTop = 0;
+        return;
+      }
+      if(MODE_FORM_RG === 'apercu'){
+        $('rgErreurs').innerHTML = '<div class="rgErreur" style="background:var(--orange-soft);color:var(--on-accent);">' +
+          '✅ Tout est rempli. C’est un aperçu : rien n’est envoyé.</div>';
+        e.scrollTop = 0;
+        return;
+      }
+      if(MODE_FORM_RG === 'remplir'){
+        parent.postMessage({ rgEnregistrer: n }, location.origin);
+        return;
+      }
+      bt.disabled = true;
+      bt.textContent = 'Envoi…';
+      appeler({ action: 'eleveRenseignements', eleve: moi.nom, code: moi.code, reponses: n })
+        .then(function(d){
+          mesRenseignements = (d && d.renseignements) || { reponses: n };
+          try{ localStorage.removeItem(cleBrouillonRg()); }catch(err){}
+          if(e.parentNode) e.parentNode.removeChild(e);
+          document.body.style.overflow = '';
+          montrerRenseignements();
+        })
+        .catch(function(err){
+          bt.disabled = false;
+          bt.textContent = '✅ Envoyer mes réponses';
+          $('rgErreurs').innerHTML = '<div class="rgErreur">' + echapper(err.message || String(err)) + '</div>';
+          e.scrollTop = 0;
+        });
+    });
+  }
+
+  document.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-rg-ouvrir]');
+    if(b && !$('rgEcran')) ouvrirRenseignements();
+  });
+
+  function questionDeRg(id){
+    return questionsDuModeleRg().filter(function(q){ return q.id === id; })[0] || {};
+  }
+
+  /* L'application nous ouvre dans un cadre : on lui dit qu'on est
+     prête, elle répond avec le questionnaire et les réponses. Même
+     origine, vérifiée à l'aller comme au retour. */
+  function demarrerFormulaireRg(){
+    $('vueConnexion').classList.add('cache');
+    window.addEventListener('message', function(ev){
+      if(ev.origin !== location.origin || ev.source !== parent) return;
+      var m = ev.data || {};
+      if(!m.rgModele) return;
+      modeleRg = m.rgModele;
+      mesRenseignements = m.rgReponses ? { reponses: m.rgReponses } : null;
+      moi.nom = m.rgNom || '';
+      if(typeof m.rgClair === 'boolean') appliquerTheme(m.rgClair);
+      var vieux = $('rgEcran');
+      if(vieux) vieux.parentNode.removeChild(vieux);
+      ouvrirRenseignements();
+    });
+    if(parent && parent !== window) parent.postMessage({ rgPret: 1 }, location.origin);
+  }
 
   function ongletsVisibles(){
     return ONGLETS.filter(function(o){ return o.quand(); });
@@ -3429,6 +3961,7 @@
       var b = $(id);
       if(b){ b.textContent = clair ? '☀️' : '🌙'; }
     });
+    if(/[?&]formulaire=/.test(location.search)) return;
     try{ localStorage.setItem('ec_theme_eleve', clair ? 'clair' : 'sombre'); }catch(e){}
   }
 
@@ -4114,6 +4647,11 @@
         : (m.piece
             ? '<span class="motAvec">' + echapper(m.texte) + '</span>'
             : echapper(m.texte));
+    }
+    /* 📋 v1175 — la demande de renseignements ouvre le questionnaire */
+    if(m.motif === 'renseignements' && modeleRg){
+      h += '<button type="button" class="btRgFil" data-rg-ouvrir="1">📋 ' +
+           echapper((modeleRg.carte && modeleRg.carte.titre) || 'Mes renseignements') + '</button>';
     }
     h += '<span class="hh">' +
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
@@ -6730,8 +7268,12 @@
     }
   });
 
+  /* 📋 v1175 — ouverte par l'application, dans un cadre : ni
+     connexion, ni reprise. Voir demarrerFormulaireRg. */
+  if(MODE_FORM_RG) demarrerFormulaireRg();
+
   /* Déjà venu sur cet appareil : on reprend sans rien redemander */
-  try{
+  else try{
     var garde = JSON.parse(localStorage.getItem('ec_eleve') || 'null');
     if(garde && garde.nom && garde.code){
       moi.nom = garde.nom;
@@ -6743,6 +7285,7 @@
           maLangue = d.langue || '';
           languesDispo = d.langues || [];
           maBoite = d.boite || '';
+          lireRenseignements(d);
           boiteFigee = !!d.boiteFigee;
           lireModules(d);
           entrer();
