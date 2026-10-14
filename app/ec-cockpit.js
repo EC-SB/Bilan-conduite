@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 09:54 — v1171 */
+/* Déployé le 14/10/2026 à 11:21 — v1174 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -992,24 +992,654 @@ function ckReponsesRapides(f, petit){
   const c = f.conv || {};
   const v = document.createElement('div');
   v.className = 'ckVites';
-  let liste = c.genre === 'vitrine' ? VITES_VITRINE_CK.slice()
-            : VITES_CK.filter(x => x.k !== 'cren' || (c.eleve && c.genre !== 'groupe'));
-  if(petit) liste = liste.slice(0, 3);
+  if(!reponsesRapidesLues) chargerReponsesRapides().then(change => { if(change && filOuvertEC) dessinerLeFil(); });
+  /* 📱 v1174 — David : « tous, ils passent à la ligne ». Plus de
+     coupe à trois sur le téléphone. */
+  const liste = reponsesRapidesDuFil(c);
   liste.forEach(x => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'ckVite';
-    b.textContent = x.t;
+    b.textContent = x.bouton;
     b.addEventListener('click', async () => {
-      if(x.k === 'cren'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
+      if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
       b.disabled = true;
-      try{ await ckEcrire(f, x.msg); }
+      try{ await ckEcrire(f, remplirLesMotsRapides(x.message, c)); }
       catch(e){ if(typeof showToast === 'function') showToast('Le message n’est pas parti : ' + (e.message || e)); }
       b.disabled = false;
     });
     v.appendChild(b);
   });
+  /* 📄 Le carnet « Modèles messages », en cascade : catégorie, puis
+     fiche ; son texte va dans la zone d'écriture, pas plus loin. */
+  const bm = document.createElement('button');
+  bm.type = 'button';
+  bm.className = 'ckVite ckViteModeles' + (ckModelesOuvert ? ' on' : '');
+  bm.textContent = '📄 Modèles messages';
+  bm.title = 'Reprendre le texte d’une fiche de Modèles messages';
+  bm.addEventListener('click', () => { ckModelesOuvert = !ckModelesOuvert; ckModelesCategorie = ''; dessinerLeFil(); });
+  v.appendChild(bm);
+  if(ckModelesOuvert){
+    const p = panneauDesModeles(texte => {
+      ckModelesOuvert = false;
+      mettreDansLaZoneDEcriture(c.id, remplirLesMotsRapides(texte, c));
+    }, () => { ckModelesOuvert = false; dessinerLeFil(); });
+    const cadre = document.createElement('div');
+    cadre.className = 'ckModelesCadre';
+    cadre.appendChild(p);
+    const tout = document.createElement('div');
+    tout.appendChild(v);
+    tout.appendChild(cadre);
+    return tout;
+  }
   return v;
+}
+
+/* ============================================================
+   🔤 LES MOTS QUI SE REMPLACENT — v1174
+
+   David : « oui il faut ajouter » — « Bonjour {prénom} » devient
+   « Bonjour Camille » ou « Bonjour Léa ». Les mêmes que ceux des
+   Modèles messages ({prenom}, {eleve}), écrits avec ou sans accent.
+   Hors d'un fil d'élève ou de vitrine, {prénom} n'a personne à
+   nommer : il disparaît, et la phrase reste lisible.
+   ============================================================ */
+const MOTS_RAPIDES = [
+  { mot: '{prénom}',         dit: 'le prénom de l’élève ou du visiteur', exemple: 'Camille' },
+  { mot: '{nom}',            dit: 'son prénom et son nom',               exemple: 'Camille Le Bihan' },
+  { mot: '{moi}',            dit: 'ton prénom',                          exemple: 'David' },
+  { mot: '{bureau}',         dit: 'le bureau de la vitrine (Loudéac, Saint-Brieuc)', exemple: 'Loudéac' },
+  /* David : « tu peux ajouter moniteur, prochain cours, frise,
+     résultat examen blanc, date d'examen » — lus dans son dossier,
+     comme la fiche éclair les montre. */
+  { mot: '{moniteur}',       dit: 'son moniteur (celui du prochain cours, sinon du dernier bilan)', exemple: 'Maryne' },
+  { mot: '{prochain cours}', dit: 'son prochain cours préparé : le jour et l’heure', exemple: 'jeudi 16 octobre à 14h00' },
+  { mot: '{frise}',          dit: 'sa frise de formation', exemple: '20 leçons : 12 avant l’examen blanc, 8 après' },
+  { mot: '{examen blanc}',   dit: 'où en est son examen blanc', exemple: 'examen blanc réussi (12/09/2026)' },
+  { mot: '{date d’examen}',  dit: 'sa date d’examen du permis', exemple: 'mercredi 28 octobre 2026' }
+];
+
+/* La clé d'un mot : sans accent, sans espace ni apostrophe —
+   « {Date d'examen} », « {date d’examen} » et « {datedexamen} » sont
+   le même mot. */
+function cleDuMotRapide(m){
+  return String(m || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+}
+function exemplesDesMotsRapides(){
+  const o = {};
+  MOTS_RAPIDES.forEach(w => { o[cleDuMotRapide(w.mot)] = w.exemple; });
+  return o;
+}
+
+function dateDExamenLisible(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  const iso = /^\d{4}-\d{2}-\d{2}/.test(t) ? t.slice(0, 10)
+            : (typeof dateFrVersIso === 'function' ? dateFrVersIso(t) : '');
+  return (iso && typeof dateEnToutesLettres === 'function') ? (dateEnToutesLettres(iso) || t) : t;
+}
+
+/* Les valeurs d'un fil. Chaque lecture du dossier est gardée : une
+   donnée qui manque laisse le mot vide, jamais l'écran en erreur. */
+function valeursDesMotsRapides(c){
+  const v = (c && c.vitrine) || {};
+  const nomEleve = String((c && c.eleve) || '').trim();
+  const nom = nomEleve || String(v.prenom || (c && c.genre === 'vitrine' ? c.titre : '') || '').trim();
+  const o = {
+    prenom: nom.split(/\s+/)[0] || '',
+    nom: nom, eleve: nom,
+    moi: String((typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || '').trim().split(/\s+/)[0] || '',
+    bureau: v.nomBureau || 'le bureau',
+    moniteur: '', prochaincours: '', frise: '', examenblanc: '', datedexamen: ''
+  };
+  if(!nomEleve) return o;
+  const essai = f => { try{ return f() || ''; }catch(e){ return ''; } };
+  const e = essai(() => (typeof eleveDuBureau === 'function') ? eleveDuBureau(nomEleve) : null) || null;
+  const p = essai(() => (typeof positionDeLEleve === 'function') ? positionDeLEleve(nomEleve, e) : null) || {};
+  const prep = p.prep || null;
+  o.moniteur = String((prep && prep.moniteur) || (e && e.moniteur) || '').trim();
+  /* « vendredi 16 octobre à 14h00 » : en toutes lettres, c'est un
+     message à un élève, pas une ligne de tableau. */
+  const jourEnLettres = d => (typeof dateEnToutesLettres === 'function' && /^\d{4}-\d{2}-\d{2}/.test(String(d)))
+    ? String(dateEnToutesLettres(String(d).slice(0, 10)) || d).replace(/\s\d{4}$/, '')
+    : (typeof jourBref === 'function' ? jourBref(d, true) : d);
+  o.prochaincours = prep ? essai(() => [jourEnLettres(prep.date),
+                                        prep.heure ? 'à ' + String(prep.heure).replace(':', 'h') : '']
+                                       .filter(Boolean).join(' ')) : '';
+  const fi = essai(() => (typeof ficheDe === 'function') ? ficheDe(nomEleve) : null) || {};
+  o.frise = essai(() => (typeof friseUtilisable === 'function') ? friseUtilisable(fi.frise) : fi.frise);
+  o.examenblanc = essai(() => (typeof mentionExamenBlanc === 'function')
+    ? mentionExamenBlanc({ eleve: nomEleve, etat: (typeof etatDe === 'function') ? etatDe(nomEleve) : {} }).replace(/^ · /, '') : '');
+  const s = essai(() => (typeof suiviDe === 'function') ? suiviDe(nomEleve) : null) || {};
+  o.datedexamen = dateDExamenLisible(s.datePermis);
+  return o;
+}
+/* Les synonymes : {prenom}, {eleve} (Modèles messages), {date permis} */
+const SYNONYMES_MOTS_RAPIDES = { eleve: 'nom', datepermis: 'datedexamen', dateexamen: 'datedexamen',
+                                 datedepermis: 'datedexamen', examen: 'datedexamen', prochaincour: 'prochaincours' };
+
+/* Un mot connu se remplace (par du vide s'il n'a pas de valeur) ;
+   un mot inconnu reste tel quel, pour qu'on le voie avant d'envoyer. */
+function remplirLesMotsRapides(texte, c, valeurs){
+  let x = null;
+  return String(texte || '').replace(/\{([^{}\n]{1,30})\}/g, (tout, mot) => {
+    let k = cleDuMotRapide(mot);
+    if(SYNONYMES_MOTS_RAPIDES[k]) k = SYNONYMES_MOTS_RAPIDES[k];
+    if(!x) x = valeurs || valeursDesMotsRapides(c);
+    return Object.prototype.hasOwnProperty.call(x, k) ? String(x[k] || '') : tout;
+  }).replace(/[ \t]+([,.])/g, '$1').replace(/[ \t]{2,}/g, ' ');
+}
+
+/* Le texte va dans la zone d'écriture du fil : on le relit avant
+   d'envoyer, rien ne part tout seul. */
+function mettreDansLaZoneDEcriture(id, texte){
+  if(typeof brouillonsMessagerie !== 'undefined') brouillonsMessagerie[id] = texte;
+  dessinerLeFil();
+  setTimeout(() => {
+    const t = document.getElementById('msgElvTexte');
+    if(!t) return;
+    t.value = texte;
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+    t.focus();
+    try{ t.setSelectionRange(t.value.length, t.value.length); }catch(e){}
+  }, 0);
+}
+
+/* ============================================================
+   📄 LE CARNET « MODÈLES MESSAGES », EN CASCADE — v1174
+
+   David : « un bouton en plus qui ouvre en cascade Modèles messages ›
+   Catégorie › Titre de la note, qui permet de reprendre le texte
+   directement de la note plutôt que d'aller chercher et de faire un
+   copier-coller ». Les catégories et les fiches sont celles qu'on
+   voit dans 📄 Modèles messages — privées et carnets fermés compris
+   dans la même règle (fichesVisibles, jeVoisLaCategorie).
+   ============================================================ */
+let ckModelesOuvert = false;
+let ckModelesCategorie = '';
+const SANS_CATEGORIE_MODELES = '— Sans catégorie';
+
+function categoriesDesModeles(){
+  const fiches = (typeof fichesVisibles === 'function') ? fichesVisibles() : (modelesTexte || []);
+  const cats = (typeof toutesLesEtiquettes === 'function') ? toutesLesEtiquettes() : [];
+  const out = cats.filter(cat => (typeof jeVoisLaCategorie !== 'function' || jeVoisLaCategorie(cat)) &&
+    fiches.some(m => categoriesDe(m).indexOf(cat) !== -1))
+    .map(cat => ({ cat, n: fiches.filter(m => categoriesDe(m).indexOf(cat) !== -1).length }));
+  const sans = fiches.filter(m => !categoriesDe(m).length).length;
+  if(sans) out.push({ cat: SANS_CATEGORIE_MODELES, n: sans });
+  return out;
+}
+function fichesDeLaCategorie(cat){
+  const fiches = (typeof fichesVisibles === 'function') ? fichesVisibles() : (modelesTexte || []);
+  return fiches.filter(m => cat === SANS_CATEGORIE_MODELES ? !categoriesDe(m).length : categoriesDe(m).indexOf(cat) !== -1)
+    .sort((a, b) => String(a.titre || a.nom).localeCompare(String(b.titre || b.nom), 'fr'));
+}
+
+function panneauDesModeles(choisir, fermer){
+  const p = document.createElement('div');
+  p.className = 'ckModeles';
+  const dessiner = () => {
+    p.innerHTML = '';
+    const h = document.createElement('div');
+    h.className = 'ckModelesTete';
+    const t = document.createElement('div');
+    t.className = 'ckModelesChemin';
+    t.textContent = '📄 Modèles messages' + (ckModelesCategorie ? ' › ' + ckModelesCategorie : '');
+    if(ckModelesCategorie){
+      h.appendChild(ckBouton('‹', 'Revenir aux catégories', () => { ckModelesCategorie = ''; dessiner(); }, 'rond'));
+    }
+    h.appendChild(t);
+    h.appendChild(ckBouton('✕', 'Fermer', fermer, 'rond'));
+    p.appendChild(h);
+    const l = document.createElement('div');
+    l.className = 'ckModelesListe';
+    if(!modelesTexte || !modelesTexte.length){
+      l.innerHTML = '<div class="empty" style="padding:10px;font-size:12.5px;">Lecture des modèles…</div>';
+      p.appendChild(l);
+      chargerModelesTexte().then(() => { if(typeof chargerAccesCategories === 'function') return chargerAccesCategories(); })
+        .then(() => { if(modelesTexte && modelesTexte.length) dessiner();
+                      else l.innerHTML = '<div class="empty" style="padding:10px;font-size:12.5px;">Aucune fiche dans 📄 Modèles messages.</div>'; });
+      return;
+    }
+    if(!ckModelesCategorie){
+      categoriesDesModeles().forEach(x => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ckModelesLigne';
+        b.innerHTML = '<span class="n"></span><span class="c"></span><span class="f">›</span>';
+        b.querySelector('.n').textContent = x.cat;
+        b.querySelector('.c').textContent = x.n;
+        b.addEventListener('click', () => { ckModelesCategorie = x.cat; dessiner(); });
+        l.appendChild(b);
+      });
+    }else{
+      fichesDeLaCategorie(ckModelesCategorie).forEach(m => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ckModelesLigne fiche';
+        b.innerHTML = '<span class="n"></span><span class="a"></span>';
+        b.querySelector('.n').textContent = m.titre || m.nom;
+        b.querySelector('.a').textContent = String(m.contenu || '').replace(/\s+/g, ' ').slice(0, 110);
+        b.addEventListener('click', () => choisir(String(m.contenu || ''), m));
+        l.appendChild(b);
+      });
+    }
+    p.appendChild(l);
+  };
+  dessiner();
+  return p;
+}
+
+/* ============================================================
+   ⚡ LE GESTIONNAIRE DES RÉPONSES RAPIDES — v1174
+
+   David, le 14 octobre : « il me faut dans la messagerie un endroit
+   où changer le texte de tous les boutons rapides … un vrai
+   gestionnaire de boutons rapides, avec la possibilité d'en créer
+   d'autres et de les attribuer à des types de conversation : bureau,
+   vitrine, retard, etc. » Ses réponses : les administrateurs les
+   changent, pour toute l'équipe ; dans le ⚙️ de la messagerie.
+
+   Une réponse rapide : ce que dit le bouton, le message qu'il
+   envoie, et les types de conversation où il apparaît, dans l'ordre
+   de la liste. « 📅 Proposer un créneau » est à part : il n'envoie
+   rien, il ouvre le formulaire — on change son texte et ses types,
+   pas ce qu'il fait.
+
+   ⚠️ TANT QUE PERSONNE N'A RIEN CHANGÉ, CE SONT LES BOUTONS D'AVANT,
+   écrits ici (VITES_CK, VITES_VITRINE_CK). Le Worker ne garde que la
+   liste qu'un administrateur a enregistrée.
+   ============================================================ */
+const GENRES_RAPIDES = ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe', 'interne', 'moniteur'];
+let reponsesRapidesEC = null;        /* null : celles d'origine */
+let reponsesRapidesLues = false;
+
+function reponsesRapidesDOrigine(){
+  const sansVitrine = GENRES_RAPIDES.filter(g => g !== 'vitrine');
+  return VITES_CK.map(x => ({
+    id: x.k, bouton: x.t, message: x.msg || '', sorte: x.k === 'cren' ? 'creneau' : 'message',
+    /* le créneau n'avait de sens que dans un fil d'élève */
+    genres: x.k === 'cren' ? ['bureau', 'retard', 'annul', 'oubli', 'moniteur'] : sansVitrine.slice()
+  })).concat(VITES_VITRINE_CK.map(x => ({ id: 'v' + x.k, bouton: x.t, message: x.msg, sorte: 'message', genres: ['vitrine'] })));
+}
+function reponsesRapides(){ return reponsesRapidesEC || reponsesRapidesDOrigine(); }
+
+/* Celles d'un fil : cochées pour son type, dans l'ordre de la liste.
+   Le créneau demande un élève (on ne le propose pas à un groupe). */
+function reponsesRapidesDuFil(c){
+  return reponsesRapides().filter(x => (x.genres || []).indexOf(c.genre) !== -1 &&
+    (x.sorte !== 'creneau' || (c.eleve && c.genre !== 'groupe')));
+}
+
+async function chargerReponsesRapides(){
+  reponsesRapidesLues = true;
+  try{
+    const d = await appelPrep({ action: 'msgRapides' });
+    const avant = JSON.stringify(reponsesRapidesEC);
+    reponsesRapidesEC = (d && Array.isArray(d.reponses)) ? d.reponses : null;
+    return JSON.stringify(reponsesRapidesEC) !== avant;
+  }catch(e){ return false; }
+}
+
+async function enregistrerReponsesRapides(liste){
+  const rep = await appelPrep({ action: 'msgRapidesPoser', reponses: liste });
+  if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+  reponsesRapidesEC = (rep && Array.isArray(rep.reponses)) ? rep.reponses : null;
+  return rep;
+}
+
+function rrEtiquettes(genres){
+  const d = document.createElement('div');
+  d.className = 'rrTypes';
+  GENRES_RAPIDES.filter(g => (genres || []).indexOf(g) !== -1).forEach(g => {
+    const t = document.createElement('span');
+    t.className = 'rrType';
+    t.textContent = (GENRES_CK[g] || {}).rond + ' ' + (MOTS_DU_RAIL[g] || (GENRES_CK[g] || {}).nom || g);
+    d.appendChild(t);
+  });
+  if(!d.children.length){
+    const t = document.createElement('span');
+    t.className = 'rrType vide';
+    t.textContent = 'aucune conversation : le bouton n’apparaît nulle part';
+    d.appendChild(t);
+  }
+  return d;
+}
+
+/* La carte du ⚙️ — administrateurs seuls, comme tout l'écran */
+let rrFiltre = '';
+function carteReponsesRapides(){
+  const carte = document.createElement('div');
+  carte.id = 'regRapides';
+  carte.className = 'rrCarte';
+  const dessiner = () => {
+    carte.innerHTML = '';
+    const h = document.createElement('div');
+    h.innerHTML = '<div style="font-weight:800;font-size:14px;">⚡ Réponses rapides</div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">Les boutons au-dessus de la zone ' +
+      'd’écriture. Un bouton n’apparaît que dans les conversations cochées, dans l’ordre de la liste : ' +
+      'glisse ⠿ ou utilise ↑ ↓ pour le changer.' + (reponsesRapidesEC ? '' : ' Ce sont encore les réponses d’origine.') + '</div>';
+    carte.appendChild(h);
+
+    /* Voir la liste telle qu'un type de conversation la montre */
+    const filtres = document.createElement('div');
+    filtres.className = 'rrFiltres';
+    [['', 'Toutes']].concat(GENRES_RAPIDES.map(g => [g, (GENRES_CK[g] || {}).rond + ' ' + (MOTS_DU_RAIL[g] || g)])).forEach(([g, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'rrFiltre' + (rrFiltre === g ? ' on' : '');
+      b.textContent = t;
+      b.addEventListener('click', () => { rrFiltre = g; dessiner(); });
+      filtres.appendChild(b);
+    });
+    carte.appendChild(filtres);
+
+    const liste = reponsesRapides();
+    const vues = liste.map((x, i) => ({ x, i })).filter(o => !rrFiltre || (o.x.genres || []).indexOf(rrFiltre) !== -1);
+    if(!vues.length){
+      const v = document.createElement('div');
+      v.className = 'empty';
+      v.style.cssText = 'padding:12px;font-size:12.5px;';
+      v.textContent = 'Aucune réponse rapide pour ces conversations.';
+      carte.appendChild(v);
+    }
+    vues.forEach(({ x, i }, k) => {
+      const l = document.createElement('div');
+      l.className = 'rrLigne';
+      l.dataset.i = String(i);
+      /* ⠿ David : « plus un cliqué-glissé pour l'ordre ». La poignée
+         seule déclenche le glissement : un appui ailleurs sur la
+         ligne garde ses gestes (✏️, ↑ ↓). */
+      const poignee = document.createElement('span');
+      poignee.className = 'rrPoignee';
+      poignee.textContent = '⠿';
+      poignee.title = 'Glisser pour changer l’ordre';
+      poignee.addEventListener('pointerdown', ev => glisserLaReponse(ev, l, carte, liste, sauver));
+      l.appendChild(poignee);
+      const fl = document.createElement('div');
+      fl.className = 'rrOrdre';
+      const fleche = (sym, titre, vers, actif) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ckBt rond';
+        b.textContent = sym;
+        b.title = titre;
+        b.disabled = !actif;
+        b.addEventListener('click', async () => {
+          const n = liste.slice();
+          const j = vues[k + vers].i;
+          [n[i], n[j]] = [n[j], n[i]];
+          await sauver(n);
+        });
+        return b;
+      };
+      fl.appendChild(fleche('↑', 'Plus haut', -1, k > 0));
+      fl.appendChild(fleche('↓', 'Plus bas', 1, k < vues.length - 1));
+      l.appendChild(fl);
+      const m = document.createElement('div');
+      m.className = 'rrMilieu';
+      const puce = document.createElement('span');
+      puce.className = 'ckVite rrPuce';
+      puce.textContent = x.bouton;
+      m.appendChild(puce);
+      const msg = document.createElement('div');
+      msg.className = 'rrMessage';
+      msg.textContent = x.sorte === 'creneau' ? '📅 ouvre le formulaire du créneau (n’envoie rien tout seul)' : '« ' + x.message + ' »';
+      m.appendChild(msg);
+      m.appendChild(rrEtiquettes(x.genres));
+      l.appendChild(m);
+      l.appendChild(ckBouton('✏️', 'Modifier cette réponse', () => fenetreReponseRapide(x, liste, sauver), 'rond'));
+      carte.appendChild(l);
+    });
+
+    const bas = document.createElement('div');
+    bas.className = 'rrBas';
+    bas.appendChild(ckBouton('➕ Nouvelle réponse rapide', '', () => fenetreReponseRapide(null, liste, sauver), 'p'));
+    if(reponsesRapidesEC){
+      bas.appendChild(ckBouton('↩️ Remettre celles d’origine', 'Revenir aux boutons de départ', async () => {
+        if(!await confirmer('Remettre les réponses rapides d’origine ?\n\nTes textes, tes nouvelles réponses et ' +
+            'tes réglages de conversations seront perdus.', '↩️ Réponses d’origine', true)) return;
+        await sauver(null);
+      }));
+    }
+    carte.appendChild(bas);
+  };
+  /* Ouvert avant tout fil : on lit d'abord ce qui est enregistré */
+  const aLire = !reponsesRapidesLues;
+  if(aLire){
+    carte.innerHTML = '<div class="empty" style="padding:12px;">Lecture des réponses rapides…</div>';
+    chargerReponsesRapides().then(() => dessiner());
+  }
+  const sauver = async (liste) => {
+    try{
+      await enregistrerReponsesRapides(liste);
+      if(typeof showToast === 'function') showToast('⚡ Réponses rapides enregistrées ✅');
+    }catch(e){
+      if(typeof showToast === 'function') showToast('Impossible : ' + ((e && e.message) || e));
+    }
+    dessiner();
+  };
+  if(!aLire) dessiner();
+  return carte;
+}
+
+/* Le glisser-déposer : la ligne suit le doigt, les autres s'écartent,
+   et l'ordre s'enregistre au lâcher. */
+function glisserLaReponse(ev, ligne, carte, liste, sauver){
+  ev.preventDefault();
+  const lignes = [...carte.querySelectorAll('.rrLigne')];
+  const depart = lignes.indexOf(ligne);
+  const y0 = ev.clientY;
+  let vers = depart;
+  ligne.classList.add('rrGlisse');
+  try{ ev.target.setPointerCapture(ev.pointerId); }catch(e){}
+  const bouger = e => {
+    const dy = e.clientY - y0;
+    ligne.style.transform = 'translateY(' + dy + 'px)';
+    /* La place se lit sous le doigt : passé le milieu d'une ligne, on
+       prend sa place. */
+    const milieu = e.clientY;
+    /* Une longue liste défile toute seule près des bords */
+    const zone = carte.closest('#msgReglagesCorps') || document.scrollingElement;
+    const zr = zone === document.scrollingElement ? { top: 0, bottom: window.innerHeight } : zone.getBoundingClientRect();
+    if(e.clientY < zr.top + 50) zone.scrollTop -= 14;
+    else if(e.clientY > zr.bottom - 50) zone.scrollTop += 14;
+    vers = depart;
+    lignes.forEach((x, k) => {
+      if(x === ligne) return;
+      const r = x.getBoundingClientRect();
+      const c = r.top + r.height / 2;
+      if(k < depart && milieu < c) vers = Math.min(vers, k);
+      if(k > depart && milieu > c) vers = Math.max(vers, k);
+    });
+    lignes.forEach((x, k) => {
+      x.classList.toggle('rrPlace', x !== ligne && k === vers);
+    });
+  };
+  const lacher = async () => {
+    document.removeEventListener('pointermove', bouger);
+    document.removeEventListener('pointerup', lacher);
+    ligne.classList.remove('rrGlisse');
+    ligne.style.transform = '';
+    lignes.forEach(x => x.classList.remove('rrPlace'));
+    if(vers === depart) return;
+    const ordre = lignes.map(x => Number(x.dataset.i));
+    const [pris] = ordre.splice(depart, 1);
+    ordre.splice(vers, 0, pris);
+    /* Les lignes filtrées reprennent leurs places dans la liste entière */
+    const n = liste.slice();
+    const places = lignes.map(x => Number(x.dataset.i)).sort((a, b) => a - b);
+    places.forEach((p, k) => { n[p] = liste[ordre[k]]; });
+    await sauver(n);
+  };
+  document.addEventListener('pointermove', bouger);
+  document.addEventListener('pointerup', lacher);
+}
+
+/* La fenêtre d'une réponse : son bouton, son message, ses conversations */
+function fenetreReponseRapide(x, liste, sauver){
+  const neuve = !x;
+  const r = x ? JSON.parse(JSON.stringify(x)) : { id: '', bouton: '', message: '', sorte: 'message',
+                                                  genres: rrFiltre ? [rrFiltre] : ['bureau'] };
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal rrFenetre';
+  boite.style.maxWidth = 'min(520px, 94vw)';
+  fond.appendChild(boite);
+  const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); };
+
+  boite.insertAdjacentHTML('beforeend', '<h3>' + (neuve ? '➕ Nouvelle réponse rapide' : '✏️ Réponse rapide') + '</h3>');
+  const champ = (lib, el) => { const l = document.createElement('label'); l.textContent = lib; boite.append(l, el); return el; };
+  const bouton = document.createElement('input');
+  bouton.type = 'text'; bouton.maxLength = 60; bouton.value = r.bouton; bouton.id = 'rrBouton';
+  bouton.placeholder = 'Ex : 💶 Les tarifs';
+  champ('Le bouton — ce qu’on voit', bouton);
+  const message = document.createElement('textarea');
+  message.rows = 4; message.maxLength = 1000; message.value = r.message; message.id = 'rrTexte';
+  if(r.sorte === 'creneau'){
+    const n = document.createElement('div');
+    n.className = 'rrNote';
+    n.textContent = '📅 Ce bouton ouvre le formulaire « Proposer un créneau » : il n’envoie pas de texte tout seul. ' +
+      'Tu changes son nom et les conversations où il apparaît (un fil d’élève seulement).';
+    boite.appendChild(n);
+  }else{
+    const lm = document.createElement('div');
+    lm.className = 'rrLabelLigne';
+    const lab = document.createElement('label');
+    lab.textContent = 'Le message envoyé';
+    lm.appendChild(lab);
+    const prendre = document.createElement('button');
+    prendre.type = 'button';
+    prendre.className = 'rrLien';
+    prendre.textContent = '📄 Reprendre un modèle';
+    prendre.addEventListener('click', () => {
+      const cadre = boite.querySelector('.rrModeles');
+      if(cadre){ cadre.remove(); return; }
+      ckModelesCategorie = '';
+      const c2 = document.createElement('div');
+      c2.className = 'rrModeles';
+      c2.appendChild(panneauDesModeles(t => { message.value = t; c2.remove(); apercu(); }, () => c2.remove()));
+      lm.after(c2);
+    });
+    lm.appendChild(prendre);
+    boite.appendChild(lm);
+    boite.appendChild(message);
+    /* 🔤 Les mots qui se remplacent : un appui les pose au curseur */
+    const mots = document.createElement('div');
+    mots.className = 'rrMots';
+    mots.appendChild(document.createTextNode('Mots qui se remplacent :'));
+    MOTS_RAPIDES.forEach(w => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'rrMot';
+      b.textContent = w.mot;
+      b.title = w.dit;
+      b.addEventListener('click', () => {
+        const a = message.selectionStart || message.value.length, z = message.selectionEnd || a;
+        message.value = message.value.slice(0, a) + w.mot + message.value.slice(z);
+        message.focus();
+        message.setSelectionRange(a + w.mot.length, a + w.mot.length);
+        apercu();
+      });
+      mots.appendChild(b);
+    });
+    boite.appendChild(mots);
+  }
+
+  const lt = document.createElement('label');
+  lt.textContent = 'Dans quelles conversations';
+  boite.appendChild(lt);
+  const types = document.createElement('div');
+  types.className = 'rrChoix';
+  GENRES_RAPIDES.forEach(g => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const maj = () => { b.className = 'rrFiltre' + (r.genres.indexOf(g) !== -1 ? ' on' : ''); b.setAttribute('aria-pressed', r.genres.indexOf(g) !== -1 ? 'true' : 'false'); };
+    b.textContent = (GENRES_CK[g] || {}).rond + ' ' + ((GENRES_CK[g] || {}).nom || g);
+    b.dataset.genre = g;
+    b.addEventListener('click', () => {
+      const i = r.genres.indexOf(g);
+      if(i === -1) r.genres.push(g); else r.genres.splice(i, 1);
+      maj(); apercu();
+    });
+    maj();
+    types.appendChild(b);
+  });
+  boite.appendChild(types);
+
+  /* L'aperçu : le bouton, et la bulle qui part */
+  const ap = document.createElement('div');
+  ap.className = 'rrApercu';
+  boite.appendChild(ap);
+  const apercu = () => {
+    ap.innerHTML = '<div class="rrApT">Aperçu</div>';
+    const p = document.createElement('span');
+    p.className = 'ckVite rrPuce';
+    p.textContent = bouton.value.trim() || 'Le bouton';
+    ap.appendChild(p);
+    if(r.sorte !== 'creneau'){
+      const bu = document.createElement('div');
+      bu.className = 'rrBulle';
+      const ex = exemplesDesMotsRapides();
+      bu.textContent = remplirLesMotsRapides(message.value.trim(), null, Object.assign({ eleve: ex.nom }, ex)) || 'Le message envoyé';
+      ap.appendChild(bu);
+      if(/\{/.test(message.value)){
+        const n = document.createElement('div');
+        n.className = 'rrApT';
+        n.style.marginTop = '6px';
+        n.textContent = 'Exemple : Camille Le Bihan, élève de Maryne, à la vitrine de Loudéac, et toi (' + ex.moi + ')';
+        ap.appendChild(n);
+      }
+    }
+  };
+  bouton.addEventListener('input', apercu);
+  message.addEventListener('input', apercu);
+  apercu();
+
+  const err = document.createElement('div');
+  err.className = 'rrErreur';
+  boite.appendChild(err);
+
+  const rang = document.createElement('div');
+  rang.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', fermer);
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.id = 'rrEnregistrer';
+  bOk.textContent = '💾 Enregistrer';
+  bOk.addEventListener('click', async () => {
+    r.bouton = bouton.value.trim();
+    if(r.sorte !== 'creneau') r.message = message.value.trim();
+    if(!r.bouton){ err.textContent = 'Écris ce que dit le bouton.'; return; }
+    if(r.sorte !== 'creneau' && !r.message){ err.textContent = 'Écris le message qu’il envoie.'; return; }
+    if(!r.genres.length){ err.textContent = 'Coche au moins une conversation : sinon le bouton n’apparaît nulle part.'; return; }
+    bOk.disabled = true;
+    const n = liste.slice();
+    if(neuve){ r.id = 'r' + Date.now().toString(36); n.push(r); }
+    else n[n.findIndex(y => y.id === x.id)] = r;
+    fermer();
+    await sauver(n);
+  });
+  rang.append(bAnn, bOk);
+  boite.appendChild(rang);
+  if(!neuve){
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'color:var(--red);border-color:var(--red);margin-top:8px;';
+    bSup.textContent = '🗑️ Supprimer cette réponse';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer « ' + x.bouton + ' » ?', '🗑️ Supprimer', true)) return;
+      fermer();
+      await sauver(liste.filter(y => y.id !== x.id));
+    });
+    boite.appendChild(bSup);
+  }
+  document.body.appendChild(fond);
+  setTimeout(() => bouton.focus(), 60);
 }
 
 /* ------------------------------------------------------------
