@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 14/10/2026 à 09:54 — v1171 */
 /* ============================================================
    ec-bureaux.js — 📍 LES BUREAUX : HORAIRES ET RENDEZ-VOUS — v1170
 
@@ -473,6 +473,15 @@ function reglagesDuBureauEcran(id, e, modif){
     quandFerme: reg.page ? 'La page montre seulement les horaires d’ouverture et de fermeture, sans bouton de rendez-vous.'
                          : 'Sans effet tant que la page publique est coupée.',
     basculer: basculer('rdv'), apres: () => afficherUnBureau(id)
+  }));
+  /* 💬 v1171 — la discussion de la vitrine */
+  z.appendChild(interrupteur({
+    cle: 'bureauDiscussion', titre: '💬 Discussion en direct', ouvert: !!reg.discussion,
+    quandOuvert: reg.page
+      ? 'Le bouton « Écrire au bureau » est sur la page : les messages arrivent dans 💬 Messagerie › 👋 Vitrine, au nom du bureau.'
+      : 'Sans effet tant que la page publique est coupée.',
+    quandFerme: 'Pas de bouton « Écrire au bureau ». Les discussions déjà ouvertes restent dans la messagerie.',
+    basculer: basculer('discussion'), apres: () => afficherUnBureau(id)
   }));
   return z;
 }
