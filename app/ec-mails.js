@@ -1,4 +1,4 @@
-/* Déployé le 12/10/2026 — v1146 */
+/* Déployé le 14/10/2026 à 17:25 — v1178 */
 /* ============================================================
    ec-mails.js
    ✉️ Les mails envoyés — Outils › Mesurer
@@ -33,6 +33,7 @@ const GENRES_MAIL = [
   ['modele',     '📄', 'Messages (modèles)',       'message',     'messages'],
   ['paiement',   '💳', 'Paiement',                 'paiement',    'paiements'],
   ['placesbe',   '🚚', 'Places BE',                'places BE',   'places BE'],
+  ['tarifs',     '💰', 'Tarifs',                   'envoi',       'envois'],
   ['handicap',   '♿', 'Fiches d’évaluation',      'fiche',       'fiches'],
   ['autre',      '✉️', 'Autres',                   'autre',       'autres']
 ];
