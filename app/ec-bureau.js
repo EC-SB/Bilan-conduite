@@ -1,2115 +1,996 @@
-/* Déployé le 13/10/2026 à 13:31 — v1167 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
-   ec-bureau.js
-   Lecture des notes, état du suivi, ligne d'élève, actualisation.
+   ec-bureaux.js — 📍 LES BUREAUX : HORAIRES ET RENDEZ-VOUS — v1170
+
+   David, le 13 octobre : « on a un bureau à Loudéac, il n'est pas
+   tout le temps ouvert […] il me faudrait quelque chose sur ma
+   vitrine pour que les gens voient les heures d'ouverture et
+   puissent prendre un rendez-vous quand ils veulent passer au
+   bureau ». Schéma validé le même jour.
+
+   Gestion › L'accueil › 📍 Loudéac Horaires et RDV
+                         📍 St-Brieuc Horaires et RDV
+   (« Saint-Brieuc » en entier ne tient pas dans le rail.)
+
+   · les ouvertures : celles de Drivup (créneaux « Bureau … », lus
+     par le favori), et ce qu'on règle à la main, qui l'emporte —
+     « on prend Drivup et si je veux changer je change » ;
+   · ✏️ un jour, ➕ ouvrir un autre jour, 🔒 fermer aujourd'hui,
+     ↩️ revenir à Drivup ;
+   · les rendez-vous à venir, et ceux « à traiter » — tombés sur un
+     jour qui a fermé sans qu'on ait dit quoi en faire ;
+   · l'affiche de la vitrine (QR code et une phrase) ;
+   · trois interrupteurs : reprise Drivup, page publique et QR code,
+     prise de rendez-vous.
+
+   ⚠️ UN RENDEZ-VOUS TOUCHÉ N'EST JAMAIS ANNULÉ SANS QU'ON L'AIT DIT.
+   Fermer un jour, couper la page ou les rendez-vous : l'écran
+   demande, un par un, « annuler et prévenir par mail » ou « je m'en
+   occupe ». Sans réponse, il passe « à traiter ».
+
+   Droit : « 📍 Horaires et rendez-vous des bureaux » (bureaux) —
+   l'admin et le bureau l'ont par leur rôle.
+
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* ============================================================
-   ec-bureau.js
-   Suivi bureau : listes, places d'examen, repassages
-   Application Bilan de conduite — Évolution Conduites
-   ============================================================ */
+const BUREAUX_APPLI = {
+  'loudeac':      { id: 'loudeac', vue: 'loudeac', nom: 'Loudéac', titre: 'Bureau de Loudéac',
+                    page: 'https://eleve.evolutionconduites.fr/loudeac/' },
+  'saint-brieuc': { id: 'saint-brieuc', vue: 'stbrieuc', nom: 'Saint-Brieuc', titre: 'Bureau de Saint-Brieuc',
+                    page: 'https://eleve.evolutionconduites.fr/saint-brieuc/' }
+};
+const BUREAU_DE_LA_VUE = { loudeac: 'loudeac', stbrieuc: 'saint-brieuc' };
+const etatDesBureaux = {};
 
-/* ============================================================
-   LISTES BUREAU
-   Lecture de l'état de tous les élèves, et consignes du bureau
-   qui remontent au moniteur lors de la prochaine leçon.
-   ============================================================ */
-/* etatBureau : déclaré dans ec-etat.js */
+/* Les deux QR codes, faits une fois (les adresses ne changent pas) :
+   pas de bibliothèque à charger pour dessiner un carré noir et blanc. */
+const QR_BUREAUX = {
+  "loudeac": "<svg viewBox=\"0 0 33 33\" class=\"segno\"><path class=\"qrline\" stroke=\"#0b0b0b\" d=\"M0 0.5h7m1 0h3m2 0h4m1 0h2m1 0h4m1 0h7m-33 1h1m5 0h1m2 0h1m1 0h1m1 0h1m1 0h3m2 0h2m1 0h2m1 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m1 0h1m3 0h2m1 0h1m1 0h2m3 0h2m2 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h1m3 0h1m1 0h1m2 0h1m4 0h2m2 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m3 0h2m3 0h1m1 0h5m1 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m1 0h2m1 0h1m3 0h1m1 0h3m2 0h1m1 0h1m1 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-25 1h2m2 0h1m1 0h9m1 0h1m-24 1h1m1 0h1m1 0h6m1 0h1m1 0h1m1 0h1m2 0h1m1 0h1m2 0h4m1 0h2m1 0h1m-32 1h4m4 0h1m1 0h2m1 0h1m1 0h1m3 0h1m3 0h4m3 0h2m-32 1h1m3 0h4m1 0h2m1 0h1m1 0h1m1 0h1m1 0h4m1 0h1m1 0h3m1 0h1m1 0h1m-33 1h3m5 0h3m3 0h4m1 0h1m1 0h4m1 0h1m1 0h2m-30 1h1m2 0h5m1 0h3m3 0h2m3 0h2m2 0h3m2 0h1m1 0h1m-30 1h1m4 0h3m3 0h3m1 0h1m1 0h1m1 0h1m3 0h2m1 0h1m1 0h3m-33 1h2m1 0h4m4 0h2m1 0h1m2 0h1m2 0h1m2 0h4m1 0h2m1 0h1m-32 1h1m2 0h3m1 0h2m2 0h1m2 0h1m3 0h1m2 0h2m3 0h1m4 0h1m-32 1h1m1 0h1m1 0h1m1 0h1m5 0h2m2 0h4m1 0h2m3 0h1m1 0h1m2 0h1m-29 1h2m2 0h2m1 0h1m2 0h1m1 0h3m3 0h5m1 0h1m1 0h1m1 0h1m-29 1h2m1 0h1m3 0h3m2 0h4m7 0h1m3 0h3m-33 1h1m1 0h1m1 0h2m2 0h1m1 0h2m3 0h1m4 0h2m1 0h5m3 0h2m-32 1h1m1 0h1m2 0h1m7 0h2m2 0h1m2 0h1m1 0h1m3 0h1m-25 1h1m1 0h1m2 0h1m1 0h3m1 0h2m1 0h1m2 0h2m2 0h3m4 0h2m-33 1h4m1 0h3m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h2m2 0h1m1 0h1m-32 1h1m1 0h1m1 0h1m1 0h1m3 0h2m2 0h2m2 0h3m1 0h2m1 0h4m1 0h2m-33 1h1m5 0h2m1 0h5m3 0h2m2 0h1m2 0h6m1 0h1m-24 1h4m1 0h5m1 0h6m3 0h2m2 0h1m-33 1h7m1 0h5m1 0h1m1 0h1m1 0h1m5 0h1m1 0h1m1 0h4m-32 1h1m5 0h1m1 0h3m2 0h1m2 0h1m2 0h3m2 0h1m3 0h1m2 0h2m-33 1h1m1 0h3m1 0h1m3 0h1m2 0h1m2 0h3m1 0h3m1 0h6m-30 1h1m1 0h3m1 0h1m1 0h6m2 0h1m9 0h1m1 0h2m1 0h1m-32 1h1m1 0h3m1 0h1m3 0h1m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m4 0h3m1 0h1m-33 1h1m5 0h1m1 0h1m2 0h3m6 0h2m1 0h4m-27 1h7m3 0h2m1 0h4m1 0h1m2 0h1m2 0h1m1 0h1m1 0h2m1 0h1\"/></svg>",
+  "saint-brieuc": "<svg viewBox=\"0 0 33 33\" class=\"segno\"><path class=\"qrline\" stroke=\"#0b0b0b\" d=\"M0 0.5h7m1 0h2m1 0h1m1 0h2m1 0h5m2 0h2m1 0h7m-33 1h1m5 0h1m1 0h1m1 0h4m2 0h1m1 0h1m4 0h2m1 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m4 0h2m3 0h2m1 0h1m4 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h1m5 0h2m2 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m6 0h2m2 0h5m4 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-25 1h1m1 0h1m1 0h1m1 0h1m2 0h2m1 0h1m-21 1h1m1 0h2m1 0h3m6 0h1m1 0h4m1 0h1m4 0h1m2 0h1m1 0h2m-32 1h5m2 0h5m3 0h1m1 0h4m1 0h1m2 0h2m1 0h2m1 0h1m-32 1h1m1 0h1m2 0h4m1 0h2m1 0h1m1 0h2m2 0h1m1 0h2m3 0h3m1 0h2m-32 1h4m2 0h1m1 0h2m2 0h2m3 0h3m2 0h2m2 0h1m1 0h1m1 0h2m-33 1h2m1 0h1m2 0h1m1 0h5m2 0h1m2 0h1m3 0h1m2 0h1m1 0h3m1 0h2m-32 1h1m1 0h3m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m3 0h1m1 0h1m2 0h1m3 0h1m-32 1h1m1 0h1m1 0h3m3 0h1m1 0h1m2 0h4m7 0h3m1 0h1m-31 1h1m1 0h4m1 0h2m1 0h1m1 0h3m1 0h1m1 0h10m1 0h2m-30 1h2m2 0h2m2 0h2m1 0h2m1 0h2m1 0h2m1 0h6m1 0h1m1 0h1m-28 1h1m1 0h1m4 0h1m3 0h2m1 0h1m2 0h1m2 0h4m1 0h2m1 0h2m-33 1h2m2 0h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m2 0h3m2 0h4m1 0h1m-31 1h1m1 0h2m1 0h1m4 0h1m2 0h2m1 0h1m5 0h3m3 0h1m2 0h1m-31 1h2m3 0h4m1 0h4m3 0h2m1 0h1m7 0h3m-32 1h4m1 0h1m4 0h1m2 0h3m2 0h1m2 0h1m1 0h1m1 0h2m3 0h1m1 0h1m-28 1h3m1 0h1m1 0h2m3 0h1m3 0h13m-32 1h3m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m3 0h1m-29 1h1m2 0h4m3 0h3m1 0h2m1 0h1m2 0h1m1 0h7m-21 1h3m1 0h6m1 0h1m3 0h2m3 0h2m1 0h1m-32 1h7m1 0h3m1 0h3m1 0h1m2 0h1m1 0h4m1 0h1m1 0h1m-29 1h1m5 0h1m1 0h3m3 0h1m1 0h1m3 0h5m3 0h4m-32 1h1m1 0h3m1 0h1m2 0h1m4 0h2m1 0h1m1 0h3m1 0h6m1 0h3m-33 1h1m1 0h3m1 0h1m1 0h5m4 0h3m1 0h2m4 0h1m1 0h2m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h4m1 0h1m3 0h1m2 0h1m1 0h2m2 0h2m1 0h1m-30 1h1m5 0h1m6 0h7m2 0h7m3 0h1m-33 1h7m1 0h1m2 0h2m1 0h5m2 0h1m3 0h1m2 0h3\"/></svg>"
+};
 
-/* Décode les phrases produites par le questionnaire */
-function analyserNote(note){
-  /* ⚠️ CE QUI EST EN GRAS SE LIT ICI, ET PLUS CHEZ L'APPELANT — v913.
 
-     David, le 10 septembre 2026, capture à l'appui : « suite au cours
-     de ce jour ça a été indiqué examen blanc ne pas prévoir, et ça
-     n'a pas mis à jour au-dessus ».
-
-     Le bilan écrit ses états en GRAS UNICODE : « NE PAS PRÉVOIR
-     D'EXAMEN BLANC » n'est pas fait des lettres N, E, P… mais de
-     leurs jumelles mathématiques. Cette fonction cherchait les
-     lettres ordinaires. Elle ne trouvait donc RIEN — ni « ne pas
-     prévoir », ni « examen blanc passé », ni « simulateur nuit et
-     risques ». TOUS les états mis en gras étaient invisibles.
-
-     ⚠️ ET C'ÉTAIT ÉCRIT NOIR SUR BLANC AU-DESSUS DE grasNote :
-     « ce qui a été mis en gras doit pouvoir être RELU ; sans
-     sansGras(), mettre un état en gras revenait à le rendre
-     invisible à tout le reste de l'application ». La parade avait
-     bien été posée — mais CHEZ TROIS APPELANTS SUR DOUZE. Les neuf
-     autres, dont l'état du bureau et le dossier élève, lisaient le
-     gras tel quel.
-
-     Une parade posée chez l'appelant est une parade qu'on oublie.
-     Elle est donc ici, à l'entrée, une seule fois : tous les
-     appelants en profitent, et ceux qui dégraissaient déjà ne
-     risquent rien — sansGras sur du texte clair ne change rien.
-
-     ⚠️ ET L'ACCENT AVEC. La mise en gras décompose « É » en « E »
-     suivi d'un accent flottant ; « PRÉVOIR » ainsi écrit n'est pas
-     le « prévoir » du motif, même en ignorant la casse. sansGras
-     recompose en NFC — c'est la seconde moitié de la réparation, et
-     elle est indissociable de la première. */
-  const clair = (typeof sansGras === 'function')
-    ? sansGras(String(note || '')) : String(note || '');
-
-  /* Les téléphones remplacent l'apostrophe droite par une typographique :
-     sans cette normalisation, les repères du bilan ne sont plus reconnus. */
-  const t = clair
-    .replace(/[\u2018\u2019\u02BC]/g, "'")
-    .replace(/[\u00A0\u202F\u2007]/g, ' ');
-  const r = { repassages:null, dateAjournement:null,
-              ebSuite:null, ebDate:null, ebLecons:null,
-              examBlanc:null, examBlancN:null, examBlancDate:null,
-              simuNuit:null, simuDate:null, permis:null,
-              /* « permisHeures » : des HEURES, jamais des leçons — v1048 */
-              permisDate:null, permisHeures:null, lecon:null, leconTotal:null,
-              friseDepassee:false, pasEcoute:false, apresCharniere:null };
-  let m;
-
-  if((m = t.match(/Examen blanc passé le ([^—·]+)— pas le niveau/i))){
-    r.examBlanc = 'passe';
-    r.ebSuite = 'pasleniveau';
-    r.ebDate = m[1].trim();
-  }
-  /* 🤔 « POURRAIT AVOIR LE NIVEAU » — v1117. Écrite par
-     SUITE_PEUT_LE_NIVEAU (ec-questionnaire.js).
-
-     ⚠️ SANS CETTE BRANCHE, LA PHRASE NE SE PERDAIT PAS : ELLE SE
-     RELISAIT FAUX. Le dernier recours, tout en bas, attrape
-     « Examen blanc passé le … » sans conclusion — l'élève
-     ressortait donc « passé, on ne sait pas », c'est-à-dire
-     exactement l'état d'avant la question. */
-  else if((m = t.match(/Examen blanc passé le ([^—·]+)— pourrait avoir le niveau/i))){
-    r.examBlanc = 'passe';
-    r.ebSuite = 'peut';
-    r.ebDate = m[1].trim();
-  }
-  /* ⚠️ AVANT « plus que les 3h » : la phrase dit « a le niveau »,
-     et une expression trop large les confondrait. Écrite par
-     SUITE_NIVEAU_OK (ec-questionnaire.js) — v1005. */
-  else if((m = t.match(/Examen blanc passé le ([^—·]+)— a le niveau, heures/i))){
-    r.examBlanc = 'passe';
-    r.ebSuite = 'niveauok';
-    r.ebDate = m[1].trim();
-  }
-  /* ⚠️ Les deux formulations — v1041. */
-  else if((m = t.match(
-      /Examen blanc passé le ([^—·]+)— plus que (?:les 3h|la le[çc]on de veille)/i))){
-    r.examBlanc = 'passe';
-    r.ebSuite = '3h';
-    r.ebDate = m[1].trim();
-  }
-  else if((m = t.match(/Examen blanc passé le ([^—·]+)— encore (\d+) leçon/i))){
-    r.examBlanc = 'passe';
-    r.ebSuite = 'lecons';
-    r.ebDate = m[1].trim();
-    r.ebLecons = +m[2];
-  }
-  else if(/Ne pas prévoir d'examen blanc/i.test(t)) r.examBlanc = 'impossible';
-  else if((m = t.match(/Examen blanc passé le ([^—·(]+)/i))){
-    r.examBlanc = 'passe';
-    r.ebDate = m[1].trim();
-  }
-  else if(/Examen blanc passé/i.test(t)) r.examBlanc = 'passe';
-  /* « déplacé au » vient du bouton qui change la date : sans
-     cette règle, la nouvelle date n'était jamais relue et
-     l'ancienne restait affichée partout. */
-  else if((m = t.match(/Examen blanc (?:fixé|déplacé|replacé) (?:au|le) ([^—·(]+)/i))){
-    r.examBlanc = 'reserve';
-    r.examBlancDate = m[1].trim();
-  }
-  /* Le questionnaire de préparation écrit « réservé le … » ;
-     le bureau écrit « fixé au … ». Les deux portent une date. */
-  else if((m = t.match(/Examen blanc réservé le ([^—·(]+)/i))){
-    r.examBlanc = 'reserve';
-    r.examBlancDate = m[1].trim();
-  }
-  else if((m = t.match(/Examen blanc réservé dans (\d+)/i))){ r.examBlanc='reserve'; r.examBlancN=+m[1]; }
-  else if(/La prochaine leçon, c'est l'examen blanc/i.test(t)){ r.examBlanc='reserve'; r.examBlancN=0; }
-  else if(/Examen blanc réservé/i.test(t)) r.examBlanc = 'reserve';
-  else if((m = t.match(/Examen blanc à prévoir dans (\d+)/i))){ r.examBlanc='aprevoir'; r.examBlancN=+m[1]; }
-  else if(/Examen blanc à prévoir dès la prochaine/i.test(t)){ r.examBlanc='aprevoir'; r.examBlancN=0; }
-  else if(/Examen blanc à prévoir/i.test(t)) r.examBlanc = 'aprevoir';
-
-  if((m = t.match(/Simulateur nuit et risques fixé au ([^—·(]+)/i))){
-    r.simuNuit = 'prevu';
-    r.simuDate = m[1].trim();
-  }
-  else if(/Simulateur nuit et risques fait/i.test(t)) r.simuNuit = 'fait';
-  else if(/Simulateur nuit et risques déjà prévu/i.test(t)) r.simuNuit = 'prevu';
-  else if(/Simulateur nuit et risques à prévoir/i.test(t)) r.simuNuit = 'aprevoir';
-
-  /* Examen blanc réussi : la date de permis est à prendre */
-  if(r.ebSuite === '3h' && !/Examen (du permis )?(prévu|fixé)/i.test(t)) r.permis = 'aprevoir';
-
-  /* Les annonces s'accumulent au fil des cours et des messages du
-     bureau : c'est la DERNIÈRE qui fait foi, pas la première.
-     On les repère toutes, et on garde celle qui vient en dernier. */
-  const annonces = [];
-  const noter = (regex, etat, avecDate) => {
-    let x;
-    const g = new RegExp(regex.source, 'gi');
-    while((x = g.exec(t)) !== null){
-      annonces.push({ pos: x.index, etat: etat,
-                      date: avecDate && x[1] ? x[1].trim() : null });
-    }
-  };
-
-  /* ============================================================
-     ⚠️ « EXAMEN OFFICIEL PRÉVU LE » — LA PHRASE QU'ON ÉCRIT — v1049
-
-     Trouvé en reproduisant le cas d'Ambre Guillebon. Le
-     questionnaire écrit « EXAMEN OFFICIEL PRÉVU LE MERCREDI 30
-     SEPTEMBRE 2026 » — c'est EXAMEN_PREVU_CLAIR, ec-questionnaire —
-     et ces motifs-ci cherchaient « Examen prévu le ». Le mot
-     « officiel » au milieu suffisait à ce qu'ils ne se rencontrent
-     jamais : ni l'état « examen prévu », ni le compte à rebours qui
-     le suit n'étaient relus dans les notes d'aujourd'hui.
-
-     Ce qui l'a caché si longtemps : les tests — les miens compris —
-     écrivaient « Examen prévu le », une phrase que l'application
-     n'écrit nulle part. Un test qui invente son entrée ne teste que
-     lui-même, et il reste vert pendant que l'écran se tait.
-
-     « officiel » est donc facultatif : l'ancienne forme vit encore
-     dans des centaines de notes, et on continue de la reconnaître.
-     ============================================================ */
-  noter(/Examen du permis fixé au ([^—·(]+)/, 'prevu', true);
-  noter(/Examen(?: officiel)? prévu le ([^—·]+)/, 'prevu', true);
-  noter(/(?:date d'examen|examen(?: du permis)?)\s*(?:est\s*)?à pr[ée]voir/, 'aprevoir', false);
-  noter(/[Ee]xamen (?:du permis )?(?:du [^—·]+ )?annulé/, 'annule', false);
-
-  if(annonces.length){
-    annonces.sort((a, b) => a.pos - b.pos);
-    const derniere = annonces[annonces.length - 1];
-    r.permis = derniere.etat;
-    r.permisDate = derniere.date;
-  }
-
-  /* ⚠️ ANNULÉ N'EST PAS « PRÉVU », MAIS CE N'EST PAS RIEN — v932.
-
-     « permisDate » veut dire « la date à laquelle il passe » : un
-     examen annulé n'en a plus, et la vider est juste. Mais les deux
-     dates de l'annulation — celle qui saute, et le jour où on
-     l'annule — sont ce que le bureau doit lire. Elles étaient
-     simplement perdues, et la fiche de route affichait « Examen du
-     permis annulé » tout court.
-
-     Elles vivent donc à part, sous leur nom : personne ne les
-     confondra avec une date d'examen à venir. Voir
-     « phraseExamenAnnule », qui les écrit — ec-sessions.js. */
-  if(r.permis === 'annule'){
-    r.permisDate = null;
-    /* ⚠️ « permis » N'EST PAS UNE DATE. Le « du permis » est
-       facultatif dans la phrase : sans cette garde, « Examen du
-       permis annulé » se lisait comme « Examen · du · [permis] ·
-       annulé », et la date valait « permis ». */
-    const quelle = t.match(/[Ee]xamen (?:du permis )?du ((?!permis\b)[^—·]+?) annul[ée]/);
-    if(quelle) r.permisAnnuleDate = quelle[1].trim();
-    /* Les notes écrites avant la v932 disent la même chose
-       autrement — « annulé (était le …) ». On les relit : ce sont
-       des élèves bien réels, dont la date ne doit pas se perdre
-       parce qu'on a changé de phrase. */
-    if(!r.permisAnnuleDate){
-      const vieux = t.match(/annul[ée]\s*\(était le ([^)]+)\)/i);
-      if(vieux) r.permisAnnuleDate = vieux[1].trim();
-    }
-    const quand = t.match(/annul[ée] le ([^—·]+?)(?=\s*[—·]|$)/);
-    if(quand) r.permisAnnuleLe = quand[1].trim();
-  }
-
-  /* Le nombre de leçons restantes suit la dernière date annoncée.
-
-     ⚠️ ET IL NE SE COLLE PAS À LA DATE. La note écrit « Examen
-     prévu le lundi 14 septembre 2026 — 1ER PASSAGE — encore 2
-     leçons + 3h avant examen » : le passage s'intercale entre les
-     deux. Avec un motif qui s'arrêtait au premier tiret, le nombre
-     n'était JAMAIS relu — il était pourtant écrit noir sur blanc
-     sur la carte de Raphael Pape.
-
-     On traverse donc les tirets, mais PAS les séparateurs de
-     segment : « · » et le retour à la ligne. Sans cette limite, on
-     irait chercher le « encore 6 leçons » de la ligne de l'examen
-     blanc juste à côté, et on annoncerait six leçons avant le
-     permis là où il y en a deux. */
-  /* ⚠️ ET « PLUS QUE LES 3H » VAUT ZÉRO — v882.
-
-     David, le 7 septembre, sur le cours de 17h de Nolwenn
-     Chafotec : « c'est la dernière leçon, il ne reste que les 3h
-     avant examen ; à 8h je suis d'accord, mais à 17h il ne reste
-     que les 3h ».
-
-     Le questionnaire écrit deux phrases pour la même chose :
-     « — encore 2 leçons + 3h avant examen » tant qu'il en reste, et
-     « — plus que les 3h avant examen » à zéro. Seule la PREMIÈRE
-     était relue. Le nombre restait donc inconnu au dernier cours —
-     celui où il est le plus utile — et la carte retombait sur sa
-     ligne de parcours, « 3ème leçon après l'examen blanc », qui ne
-     dit pas ce qu'on veut savoir.
-
-     Zéro n'est pas « on ne sait pas » : c'est une réponse, et c'est
-     la plus importante des deux. */
-  /* ⚠️ ET UN AJOURNÉ QUI REPREND A LUI AUSSI DES LEÇONS DEVANT LUI —
-     v1014.
-
-     David, le 17 septembre : « pour les élèves qui sont en CS et qui
-     ont eu un post-permis car déjà passé le permis ». Leur ligne ne
-     dit pas « Examen prévu le » — ils n'ont plus de date — elle dit
-     « dernier examen le …, ajourné — reprend la conduite ». Le motif
-     ne s'accrochait qu'à la première : le nombre qu'on tapait sous
-     la date d'examen n'était donc jamais relu pour eux, et il ne
-     pouvait pas décompter.
-
-     Les deux ancres, la même queue : c'est la queue — « + 3h avant
-     examen » — qui distingue cette ligne de celle de l'examen
-     blanc, à un segment de là. */
-  /* ⚠️ Les deux formulations — v1041 : ce motif dit où en est CHAQUE
-     élève déjà suivi. Le restreindre aux mots neufs les remettrait
-     tous à zéro du jour au lendemain. */
-  /* ⚠️ « officiel » ICI AUSSI — v1049, même cause qu'au-dessus : la
-     note dit « EXAMEN OFFICIEL PRÉVU LE », ce motif attendait
-     « Examen prévu le », et le compte à rebours restait donc
-     introuvable dans toutes les notes écrites par le questionnaire. */
-  const gN = /(?:Examen(?: officiel)? prévu le|dernier examen le|ajourné le)[^·\n\r]*?— (?:encore (\d+) leçon|encore (\d+)h|plus que (?:les 3h|la le[çc]on de veille))/gi;
-  let mn, dernierN = null;
-  while((mn = gN.exec(t)) !== null){
-    /* ⚠️ DEUX GROUPES, PAS UN — v1041. Le motif a gagné une branche
-       pour la phrase en heures (« encore 4h + 3h »), et cette ligne
-       ne lisait que la première : « encore 4h » se relisait comme
-       zéro, c'est-à-dire « il est prêt ». Un moniteur posait quatre
-       heures et, au cours suivant, l'élève était annoncé prêt au
-       permis. Ajouter une branche à un motif sans regarder qui lit
-       ses groupes, c'est poser une moitié. */
-    /* ============================================================
-       ⚠️ ET LES DEUX BRANCHES NE PARLENT PAS LA MÊME LANGUE — v1048
-
-       David, le 19 septembre, devant la carte d'Ambre Guillebon :
-       elle annonçait « Reste encore 2 leçons + 3h » alors que sa
-       note disait « encore 2h + 3h ». Deux heures, c'est UNE leçon.
-       Le nombre affiché était le DOUBLE du vrai, pour tous les
-       élèves suivis depuis la v1041 — c'est-à-dire tous ceux dont
-       les heures sont écrites en heures.
-
-       La cause : « encore 4 leçons » et « encore 4h » tombaient
-       dans la même variable, et quatre écrans la relisaient en
-       écrivant « leçon(s) ». La v1041 avait corrigé QUI lisait les
-       groupes du motif, pas dans QUELLE UNITÉ. Une moitié posée,
-       l'autre oubliée — deux fois sur le même motif.
-
-       Une variable, une unité : ce sont des HEURES, et le nom le
-       dit maintenant. Les anciennes notes en leçons se convertissent
-       ici, à l'entrée, par la règle commune — reconnaître l'ancien
-       vocabulaire, ce n'est pas le garder, c'est le traduire.
-       ============================================================ */
-    dernierN = (mn[1] !== undefined)
-      ? ((typeof heuresPourLecons === 'function')
-          ? heuresPourLecons(+mn[1]) : (+mn[1]) * 2)
-      : (mn[2] !== undefined) ? +mn[2] : 0;
-  }
-  if(dernierN !== null) r.permisHeures = dernierN;
-
-  /* ⚠️ LE RANG SE LIT AVEC LA RÈGLE COMMUNE, PAS AVEC UN MOTIF À
-     SOI. Celui d'ici ignorait la charnière (« 1ère leçon APRÈS
-     l'examen blanc … 5ème au total » rendait 1) et refusait
-     l'espace (« 12 ème leçon » ne rendait rien du tout, et le
-     résumé retombait sur le nombre de bilans enregistrés). Deux
-     lectures d'une même phrase, et c'est la mauvaise qui
-     s'affichait dans la fiche. */
-  r.lecon = (typeof rangDansLaNote === 'function')
-    ? rangDansLaNote(t) : null;
-
-  /* ------------------------------------------------------------
-     COMBIEN DE LEÇONS DEPUIS L'EXAMEN BLANC
-
-     David, le 10 septembre 2026 : « c'était la 3ème leçon après
-     l'examen blanc, donc il ne peut pas rester 3 leçons avant
-     l'examen puisqu'à l'examen blanc il y avait 6h de prévues ».
-
-     Les heures prescrites à l'examen blanc sont une RÉSERVE, et une
-     réserve se consomme. Personne ne la décomptait : « encore 3
-     leçon(s) » s'affichait encore après la troisième. C'est la même
-     faute que pour l'examen officiel, réparée là-bas par un repère
-     (« examPermisNRang ») et la règle écrite à côté : sans savoir
-     depuis quand, décompter c'est inventer.
-
-     Ce nombre-là EST le depuis-quand, et il est déjà écrit dans la
-     note. On le lit ici, à l'entrée, comme tout le reste.
-
-     ⚠️ IL NE LISAIT QUE L'EXAMEN BLANC — élargi en v972.
-
-     Par prudence : la note écrit aussi « 2ème leçon après le
-     post-permis » et « après le dernier ajournement », et
-     décompter avec un compteur qui parle d'autre chose, c'est
-     inventer.
-
-     La prudence était juste, mais elle laissait un trou. Chez un
-     élève dont la charnière a avancé — Natalia, le 12 septembre,
-     « 6ᵉ leçon après le dernier ajournement » — la réserve restait
-     figée, et David : « il faut que ça se mette à jour tout seul au
-     fur et à mesure de ses cours après l'information ».
-
-     On lit donc le compteur ET CE QU'IL COMPTE. La prudence n'est
-     pas abandonnée, elle est déplacée là où elle est vérifiable :
-     c'est « leconsDepuisLaReserve » qui refuse de décompter quand la
-     charnière posée AVEC les heures n'est pas celle d'aujourd'hui.
-     Un compteur et son unité, jamais l'un sans l'autre.
-
-     « l'examen ajourné » est la formulation d'avant qu'on ne
-     reprenne les mots de David : une note déjà écrite doit
-     continuer de se relire. */
-  if((m = t.match(new RegExp(
-      '(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+le[çc]ons?\\s+apr[èe]s\\s+' +
-      '(l[\'\u2019]examen\\s+blanc|le\\s+post-?permis|' +
-      'le\\s+dernier\\s+ajournement|l[\'\u2019]examen\\s+ajourn[ée])', 'i')))){
-    const v = parseInt(m[1], 10);
-    const quoi = /post/i.test(m[2]) ? 'postpermis'
-               : /ajourn/i.test(m[2]) ? 'ajournement' : 'eb';
-    if(v > 0) r.apresCharniere = { rang: v, quoi: quoi };
-  }
-
-  /* Le total sur lequel la frise est posée : « 3ème leçon sur 5 ».
-     Il ne se déduit pas du rang, il est écrit à côté. */
-  if((m = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)\s+le[çc]on\s+sur\s+(\d+)/i))){
-    r.leconTotal = +m[2];
-  }
-  if(/frise dépassée/i.test(t)) r.friseDepassee = true;
-  if((m = t.match(/(\d+)(?:er|e) repassage/i))) r.repassages = +m[1];
-  if((m = t.match(/[Aa]journé le ([^—·(]+)/))) r.dateAjournement = m[1].trim();
-  if(/Pas d'écoutes? pédagogiques?/i.test(t)) r.pasEcoute = true;
-  return r;
+/* ---------- petites aides ---------- */
+function elBureau(tag, classe, texte){
+  const e = document.createElement(tag);
+  if(classe) e.className = classe;
+  if(texte != null) e.textContent = texte;
+  return e;
 }
-
-const URGENCES = [
-  { v:'', l:'— normal —', c:'var(--muted)' },
-  { v:'1', l:'🟢 Peut attendre', c:'var(--muted)' },
-  { v:'2', l:'🟡 À planifier', c:'var(--accent-text)' },
-  { v:'3', l:'🟠 Assez pressé', c:'#E8A33D' },
-  { v:'4', l:'🔴 Urgent', c:'var(--red)' },
-  { v:'5', l:'🚨 Prioritaire absolu', c:'var(--red)' }
-];
-
-function libelleUrgence(v){
-  const u = URGENCES.find(x => x.v === String(v || ''));
-  return u || URGENCES[0];
+function jourPlusBureau(iso, n){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + n)).toISOString().slice(0, 10) : '';
+}
+function rangJourBureau(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getUTCDay() + 6) % 7 : 0;
+}
+function joursEntreBureau(a, b){
+  const x = Date.parse(a + 'T12:00:00Z'), y = Date.parse(b + 'T12:00:00Z');
+  return Math.round((y - x) / 86400000);
+}
+/* « Mer. 14 oct. » */
+function jourCourtBureau(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return String(iso || '');
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12));
+  const j = d.toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'short' }).replace('.', '');
+  const mo = d.toLocaleDateString('fr-FR', { timeZone: 'UTC', month: 'short' });
+  return j.charAt(0).toUpperCase() + j.slice(1) + '. ' + (+m[3]) + ' ' + mo;
+}
+/* « jeudi 22 octobre » */
+function jourLongBureau(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return String(iso || '');
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12))
+    .toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' });
+}
+/* « Jeu. 22 octobre » */
+function jourMoyenBureau(iso){
+  const long = jourLongBureau(iso).split(' ');
+  return jourCourtBureau(iso).split(' ')[0] + ' ' + long.slice(1).join(' ');
+}
+function heureBureauLisible(h){ return String(h || '').replace(/^0(\d)/, '$1').replace(':', 'h'); }
+function minBureau(h){
+  const m = String(h || '').match(/^(\d{2}):(\d{2})$/);
+  return m ? (+m[1]) * 60 + (+m[2]) : -1;
+}
+function plagesLisibles(pl){
+  return (pl || []).map(p => heureBureauLisible(p[0]) + ' – ' + heureBureauLisible(p[1])).join(' · ');
+}
+/* Deux créneaux qui se recouvrent n'en font qu'un — comme le Worker */
+function fusionnerPlagesBureau(l){
+  const brut = (l || []).map(p => [minBureau(p[0]), minBureau(p[1])])
+    .filter(p => p[0] >= 0 && p[1] > p[0]).sort((a, b) => a[0] - b[0]);
+  const out = [];
+  brut.forEach(p => {
+    const d = out[out.length - 1];
+    if(d && p[0] <= d[1]) d[1] = Math.max(d[1], p[1]); else out.push([p[0], p[1]]);
+  });
+  const h = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  return out.map(p => [h(p[0]), h(p[1])]);
+}
+/* Le nom Drivup d'une colonne (« ChrystelAnQn ») devient celui de
+   l'application (« Chrystel ») ; un nom qu'on ne reconnaît pas reste
+   tel quel. Personne : c'est le bureau. */
+function tenuDeDrivup(liste){
+  const noms = [];
+  (liste || []).forEach(t => {
+    const n = (typeof moniteurDeLAppliDrivup === 'function' && moniteurDeLAppliDrivup(t)) || String(t || '').trim();
+    if(n && noms.indexOf(n) === -1) noms.push(n);
+  });
+  return noms.join(', ');
+}
+function tenuLisible(t){ return String(t || '').trim() || 'le bureau'; }
+function peutChangerBureau(){
+  return !!(ACCES && ACCES.code) &&
+         (ACCES.role === 'admin' || (typeof peutModifier === 'function' && peutModifier('bureaux')));
 }
 
 /* ------------------------------------------------------------
-   🔗 LES NOMS PRESQUE PAREILS — v1167 (voir chargerBureau)
+   L'ÉCRAN
    ------------------------------------------------------------ */
-function clePonctuationBureau(n){
-  return normaliserMot(n || '').replace(/[^a-z0-9]+/g, ' ').trim();
-}
-function distanceUneLettre(a, b){
-  if(a === b) return 0;
-  if(Math.abs(a.length - b.length) > 1) return 2;
-  let i = 0, j = 0, ecarts = 0;
-  while(i < a.length && j < b.length){
-    if(a[i] === b[j]){ i++; j++; continue; }
-    if(++ecarts > 1) return 2;
-    if(a.length > b.length) i++;
-    else if(b.length > a.length) j++;
-    else { i++; j++; }
+async function afficherUnBureau(id){
+  const b = BUREAUX_APPLI[id];
+  const zone = $('bureauZone-' + id);
+  if(!b || !zone) return;
+  if(!etatDesBureaux[id]) zone.innerHTML = '<div class="empty">Chargement…</div>';
+  try{
+    const e = await appelPrep({ action: 'bureauEtat', bureau: id });
+    etatDesBureaux[id] = e;
+    dessinerBureau(id, e);
+  }catch(err){
+    zone.innerHTML = '';
+    zone.appendChild(elBureau('div', 'empty', '⚠️ Lecture impossible : ' + ((err && err.message) || err)));
   }
-  return ecarts + (a.length - i) + (b.length - j);
 }
-/* { « houcine admaia » : « Houcine Admaiai », … } — un nom qui n'a
-   pas de fiche, vers LA fiche dont il est presque l'orthographe. */
-function aliasDuRepertoire(noms){
-  const fiches = (typeof fichesEleves !== 'undefined' && fichesEleves) || [];
-  const out = {};
-  if(!fiches.length) return out;
-  const exacts = {};
-  fiches.forEach(f => { if(f && f.eleve) exacts[normaliserMot(f.eleve)] = true; });
-  const parties = fiches.filter(f => f && f.eleve).map(f => {
-    const k = clePonctuationBureau(f.eleve);
-    return { nom: f.eleve, k: k, lettres: k.replace(/ /g, ''), mots: k.split(' ').sort().join(' ') };
+
+function etatMaintenantBureau(e){
+  const auj = (e.jours || []).find(j => j.jour === e.aujourdhui);
+  let ouvert = false, jusqua = '', tenu = '';
+  if(auj && auj.ouvert){
+    auj.plages.forEach(p => {
+      if(e.minutes >= minBureau(p[0]) && e.minutes < minBureau(p[1])){ ouvert = true; jusqua = p[1]; tenu = auj.tenu; }
+    });
+  }
+  let prochaine = null;
+  for(const j of (e.jours || [])){
+    if(j.jour < e.aujourdhui || !j.ouvert) continue;
+    const p = j.plages.find(x => j.jour > e.aujourdhui || minBureau(x[0]) > e.minutes);
+    if(p){ prochaine = { jour: j.jour, heure: p[0], tenu: j.tenu }; break; }
+  }
+  return { ouvert, jusqua, tenu, prochaine };
+}
+
+function dessinerBureau(id, e){
+  const b = BUREAUX_APPLI[id];
+  const zone = $('bureauZone-' + id);
+  if(!zone) return;
+  zone.innerHTML = '';
+  const reg = e.reglages || {};
+  const modif = peutChangerBureau();
+  const rien = !reg.drivup && !reg.page && !reg.rdv;
+
+  if(rien){
+    const v = elBureau('div', 'dvBandeau vide');
+    v.append(elBureau('span', '', '💤'));
+    v.firstChild.style.fontSize = '20px';
+    const t = elBureau('span');
+    t.append(elBureau('b', '', 'Rien n’est publié pour ' + b.nom),
+             elBureau('small', '', 'Le favori ne lit pas ses créneaux dans Drivup, et son QR code mène à une page qui dit ' +
+                                    'seulement qu’elle n’est pas active. Rallume un interrupteur pour retrouver les horaires ' +
+                                    'et les rendez-vous ici.'));
+    v.appendChild(t);
+    zone.appendChild(v);
+    zone.appendChild(elBureau('div', 'lvT', 'Les réglages de ce bureau'));
+    zone.appendChild(reglagesDuBureauEcran(id, e, modif));
+    return;
+  }
+
+  /* Ouvert ou fermé, maintenant */
+  const m = etatMaintenantBureau(e);
+  const rdvAVenir = (e.rdv || []).filter(r => !r.aTraiter);
+  const et = elBureau('div', 'lvEtat');
+  const pas = elBureau('span', 'p');
+  if(m.ouvert) pas.style.background = '#2E9B2E';
+  et.append(pas, elBureau('b', '', m.ouvert ? 'Ouvert en ce moment' : 'Fermé en ce moment'));
+  const det = elBureau('span', 'lvEtatDet');
+  if(m.ouvert) det.textContent = '· jusqu’à ' + heureBureauLisible(m.jusqua) + ', tenu par ' + tenuLisible(m.tenu);
+  else if(m.prochaine){
+    const demain = m.prochaine.jour === jourPlusBureau(e.aujourdhui, 1);
+    det.textContent = '· prochaine ouverture ' + (m.prochaine.jour === e.aujourdhui ? 'aujourd’hui, '
+                      : demain ? 'demain, ' : '') + jourLongBureau(m.prochaine.jour) + ' à ' +
+                      heureBureauLisible(m.prochaine.heure) + ', tenu par ' + tenuLisible(m.prochaine.tenu);
+  }else det.textContent = '· aucune ouverture connue';
+  const nb = elBureau('span', 'lvEtatNb', '📅 ' + (e.rdv || []).length + ' rendez-vous à venir');
+  et.append(det, nb);
+  zone.appendChild(et);
+
+  /* D'où viennent les horaires */
+  zone.appendChild(bandeauDesHorairesBureau(e));
+
+  /* ⚠️ À traiter */
+  const aTraiter = (e.rdv || []).filter(r => r.aTraiter);
+  if(aTraiter.length){
+    zone.appendChild(elBureau('div', 'lvT', '⚠️ À traiter'));
+    aTraiter.forEach(r => zone.appendChild(carteRdvBureau(id, r, true, modif)));
+  }
+
+  /* Les ouvertures */
+  zone.appendChild(elBureau('div', 'lvT', 'Les ouvertures'));
+  if(modif){
+    const act = elBureau('div', 'lvAct');
+    const auj = (e.jours || []).find(j => j.jour === e.aujourdhui);
+    if(auj && auj.ouvert){
+      const f = elBureau('button', 'btn btn-secondary', '🔒 Fermer aujourd’hui');
+      f.addEventListener('click', () => fermerAujourdhuiBureau(id));
+      act.appendChild(f);
+    }
+    const o = elBureau('button', 'btn btn-secondary', '➕ Ouvrir un autre jour');
+    o.addEventListener('click', () => modifierUnJourBureau(id, ''));
+    act.appendChild(o);
+    zone.appendChild(act);
+  }
+  zone.appendChild(listeDesOuverturesBureau(id, e, modif));
+
+  /* Les rendez-vous à venir */
+  if(reg.rdv || rdvAVenir.length){
+    zone.appendChild(elBureau('div', 'lvT', 'Les rendez-vous à venir'));
+    if(!rdvAVenir.length) zone.appendChild(elBureau('div', 'empty', 'Aucun rendez-vous pour le moment.'));
+    const MAX = 6;
+    rdvAVenir.slice(0, MAX).forEach(r => zone.appendChild(carteRdvBureau(id, r, false, modif)));
+    if(rdvAVenir.length > MAX){
+      const pli = elBureau('details', 'dvPli');
+      pli.appendChild(elBureau('summary', '', (rdvAVenir.length - MAX) + ' autre(s) rendez-vous'));
+      rdvAVenir.slice(MAX).forEach(r => pli.appendChild(carteRdvBureau(id, r, false, modif)));
+      zone.appendChild(pli);
+    }
+  }
+
+  /* L'affiche de la vitrine */
+  if(reg.page){
+    zone.appendChild(elBureau('div', 'lvT', 'L’affiche de la vitrine'));
+    const aff = elBureau('div', 'lvAff');
+    const qr = elBureau('div', 'lvQr');
+    qr.innerHTML = QR_BUREAUX[id] || '';
+    const bt = elBureau('div', 'lvAffBt');
+    const imp = elBureau('button', 'btn btn-primary', '🖨️ Imprimer l’affiche (A4)');
+    imp.addEventListener('click', () => imprimerAfficheBureau(id));
+    const cp = elBureau('button', 'btn btn-secondary', '🔗 Copier le lien de la page');
+    cp.addEventListener('click', async () => {
+      try{ await navigator.clipboard.writeText(b.page); showToast('🔗 Lien copié : ' + b.page); }
+      catch(err){ showToast(b.page); }
+    });
+    bt.append(imp, cp);
+    aff.append(qr, bt, elBureau('div', 'lvReg',
+      'Le QR code mène toujours à la même page : on ne réimprime jamais l’affiche quand les horaires changent.'));
+    zone.appendChild(aff);
+  }
+
+  zone.appendChild(elBureau('div', 'lvT', 'Les réglages de ce bureau'));
+  zone.appendChild(reglagesDuBureauEcran(id, e, modif));
+}
+
+function bandeauDesHorairesBureau(e){
+  const reg = e.reglages || {};
+  const lect = e.lecture;
+  const bd = elBureau('div', 'dvBandeau');
+  const ic = elBureau('span');
+  ic.style.fontSize = '20px';
+  const t = elBureau('span');
+  if(!reg.drivup){
+    bd.classList.add('vide');
+    ic.textContent = '✋';
+    t.append(elBureau('b', '', 'Horaires réglés à la main'),
+             elBureau('small', '', 'La reprise Drivup est coupée pour ce bureau : ouvre les jours avec « ➕ Ouvrir un autre jour ».'));
+  }else if(!lect || !lect.au){
+    bd.classList.add('vide');
+    ic.textContent = '📥';
+    t.append(elBureau('b', '', 'Les horaires n’ont pas encore été lus dans Drivup'),
+             elBureau('small', '', 'Clique le favori « 📥 Bilan de conduite » sur le planning d’une agence dans Drivup : ' +
+                                    'les créneaux « ' + ((e.bureau && e.bureau.drivup) || 'Bureau …') + ' » des quatre semaines à venir seront repris.'));
+  }else{
+    const reste = joursEntreBureau(e.aujourdhui, lect.au);
+    const fin = jourLongBureau(lect.au);
+    if(reste < 14){
+      bd.classList.add('lvVieux');
+      ic.textContent = '⏳';
+      const f = elBureau('b', '', 'Plus que ' + Math.max(0, reste + 1) + ' jour' + (reste ? 's' : '') + ' d’horaires connus');
+      t.append(f, document.createTextNode(' — jusqu’au ' + fin + ', lus le ' + lect.luLe + (lect.luPar ? ' par ' + lect.luPar : '')),
+               elBureau('small', '', 'Après le ' + fin + ', la page ne propose plus de rendez-vous. ' +
+                                      'Ouvre un planning d’agence dans Drivup et clique sur le favori.'));
+    }else{
+      ic.textContent = '📥';
+      t.append(elBureau('b', '', 'Horaires lus dans Drivup le ' + lect.luLe),
+               document.createTextNode((lect.luPar ? ' par ' + lect.luPar : '') + ' — connus jusqu’au ' + fin),
+               elBureau('small', '', 'Drivup donne la base ; ce que tu changes ici à la main l’emporte, même si Drivup dit l’inverse.'));
+    }
+  }
+  bd.append(ic, t);
+  return bd;
+}
+
+/* Les jours ouverts (et ceux changés à la main), semaine par semaine.
+   Les trois premières semaines dépliées, la suite dans un pli. */
+function listeDesOuverturesBureau(id, e, modif){
+  const out = elBureau('div');
+  const jours = (e.jours || []).filter(j => j.jour >= e.aujourdhui && (j.ouvert || j.source === 'main'));
+  if(!jours.length){
+    out.appendChild(elBureau('div', 'empty', 'Aucune ouverture connue pour le moment.'));
+    return out;
+  }
+  const lundiAuj = jourPlusBureau(e.aujourdhui, -rangJourBureau(e.aujourdhui));
+  const semaines = {};
+  jours.forEach(j => {
+    const l = jourPlusBureau(j.jour, -rangJourBureau(j.jour));
+    (semaines[l] = semaines[l] || []).push(j);
   });
-  (noms || []).forEach(n => {
-    const nk = normaliserMot(n || '');
-    if(!nk || exacts[nk] || out[nk]) return;
-    const k = clePonctuationBureau(n);
-    if(!k) return;
-    const lettres = k.replace(/ /g, '');
-    const mots = k.split(' ').sort().join(' ');
-    const proches = parties.filter(f => f.k === k || f.mots === mots ||
-      (lettres.length >= 8 && f.lettres.length >= 8 && distanceUneLettre(lettres, f.lettres) <= 1));
-    const uniques = [...new Set(proches.map(f => f.nom))];
-    if(uniques.length === 1) out[nk] = uniques[0];
+  Object.keys(semaines).sort().forEach((l, i) => {
+    const titre = l === lundiAuj ? 'Cette semaine' : 'Semaine du ' + jourLongBureau(l).replace(/^\S+\s/, '');
+    let ou = out;
+    if(i >= 3){
+      const pli = elBureau('details', 'dvPli');
+      const n = semaines[l].filter(j => j.ouvert).length;
+      pli.appendChild(elBureau('summary', '', titre + ' : ' + n + ' jour' + (n > 1 ? 's' : '') + ' ouvert' + (n > 1 ? 's' : '')));
+      out.appendChild(pli);
+      ou = pli;
+    }else ou.appendChild(elBureau('div', 'lvSemT', titre));
+    semaines[l].forEach(j => ou.appendChild(ligneOuvertureBureau(id, e, j, modif)));
   });
   return out;
 }
-/* Les lignes au nom presque pareil prennent celui de la fiche ; deux
-   lignes du même élève n'en font plus qu'une — la plus récente, qui
-   dit où il en est. */
-function instantBureau(d){
-  const t = String(d || '');
-  let m = t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2})[:h](\d{2}))?/);
-  if(m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) + ' ' + ('0' + (m[4] || '0')).slice(-2) + ':' + (m[5] || '00');
-  m = t.match(/(\d{4})-(\d{2})-(\d{2})(?:\D+(\d{1,2}):(\d{2}))?/);
-  if(m) return m[1] + '-' + m[2] + '-' + m[3] + ' ' + ('0' + (m[4] || '0')).slice(-2) + ':' + (m[5] || '00');
-  return '';
-}
-function rattacherAuRepertoire(eleves, alias){
-  if(!Object.keys(alias).length) return;
-  eleves.forEach(x => {
-    const vrai = alias[normaliserMot(x.eleve || '')];
-    if(!vrai) return;
-    x.nomsEcrits = (x.nomsEcrits || []).concat([x.eleve]);
-    x.eleve = vrai;
-  });
-  const garde = {};
-  for(let i = 0; i < eleves.length; i++){
-    const k = normaliserMot(eleves[i].eleve);
-    if(!(k in garde)){ garde[k] = i; continue; }
-    const a = eleves[garde[k]], b = eleves[i];
-    const recent = instantBureau(b.date) > instantBureau(a.date) ? b : a;
-    const autre = recent === a ? b : a;
-    recent.nomsEcrits = [...new Set((recent.nomsEcrits || []).concat(autre.nomsEcrits || []))];
-    eleves[garde[k]] = recent;
-    eleves.splice(i, 1);
-    i--;
-  }
-}
 
-/* Corriger dans le classeur le nom mal écrit : la même porte que
-   « ✏️ Corriger le nom » de la fiche. Le classeur accepte de réécrire
-   vers un nom qui a déjà sa fiche quand l'ancien n'en a pas — c'est
-   une reprise, pas une fusion de deux dossiers. */
-async function corrigerUnNomEcrit(ecrit, vrai, bouton){
-  if(!await confirmer('Corriger « ' + ecrit + ' » en « ' + vrai + ' » partout dans le classeur ?\n\n' +
-                      'Bilans, consignes et suivi écrits sous l’ancien nom passeront au nom de sa fiche.',
-                      'Corriger')) return;
-  if(bouton){ bouton.disabled = true; bouton.textContent = 'Correction…'; }
-  try{
-    const r = await appelPrep({ action: 'eleveRenommer', ancien: ecrit, nouveau: vrai, eleve: vrai });
-    if(r && r.status === 'error') throw new Error(r.message);
-    if(typeof viderCaches === 'function') viderCaches();
-    showToast('« ' + ecrit + ' » corrigé en « ' + vrai + ' » ✅');
-    await chargerBureau(true);
-    if(typeof redessinerBureau === 'function') redessinerBureau();
-  }catch(e){
-    if(bouton){ bouton.disabled = false; bouton.textContent = '🔗 C’est le même élève : corriger'; }
-    showToast('Erreur : ' + ((e && e.message) || e));
+function ligneOuvertureBureau(id, e, j, modif){
+  const reg = e.reglages || {};
+  const main = j.source === 'main';
+  const l = elBureau('div', 'lvO' + (main ? ' main' : '') + (!j.ouvert ? ' ferme' : ''));
+  l.appendChild(elBureau('span', 'j', jourCourtBureau(j.jour)));
+  const h = elBureau('span', 'h');
+  if(j.ouvert) h.textContent = plagesLisibles(j.plages);
+  else{
+    if(j.base && j.base.ouvert){ const s = elBureau('s', '', plagesLisibles(j.base.plages)); h.append(s, document.createTextNode(' fermé')); }
+    else h.textContent = 'fermé';
   }
+  if(main){
+    const dit = !reg.drivup ? '' : (j.base && j.base.connu)
+      ? (j.base.ouvert ? 'Drivup : ' + plagesLisibles(j.base.plages) : 'Drivup : fermé')
+      : 'Drivup : pas encore lu';
+    const tag = elBureau('small', '', (j.ouvert ? '✋ ouvert à la main' : '✋ fermé à la main') + (dit ? ' · ' + dit : ''));
+    h.appendChild(tag);
+  }
+  l.appendChild(h);
+  l.appendChild(elBureau('span', 'q', j.ouvert ? '👤 ' + tenuLisible(j.tenu) : ''));
+  const n = (e.rdv || []).filter(r => r.jour === j.jour).length;
+  l.appendChild(elBureau('span', 'r', n ? '📅 ' + n + ' RDV' : ''));
+  const a = elBureau('span', 'a');
+  if(modif){
+    const ed = elBureau('button', 'lvIc', '✏️');
+    ed.title = 'Modifier ce jour';
+    ed.addEventListener('click', () => modifierUnJourBureau(id, j.jour));
+    a.appendChild(ed);
+    if(main && reg.drivup){
+      const re = elBureau('button', 'lvIc', '↩️');
+      re.title = 'Revenir à Drivup';
+      re.addEventListener('click', () => revenirADrivupBureau(id, j.jour));
+      a.appendChild(re);
+    }
+  }
+  l.appendChild(a);
+  return l;
 }
 
-async function chargerBureau(forcer){
-  let data;
-  if(!forcer && cacheBureau && Date.now() - cacheBureau.ts < 30000){
-    data = cacheBureau.data;
-  }else{
-    data = await appelPrep({ action: 'bureauEtat' });
-    cacheBureau = { ts: Date.now(), data: data };
+function carteRdvBureau(id, r, alerte, modif){
+  const c = elBureau('div', 'lvRdv' + (alerte ? ' alerte' : ''));
+  const l1 = elBureau('div', 'l1');
+  l1.append(elBureau('b', '', jourMoyenBureau(r.jour) + ' · ' + heureBureauLisible(r.heure)),
+            elBureau('span', 'm', r.motifLibelle || r.motif),
+            elBureau('span', 'n', r.nom));
+  c.appendChild(l1);
+  const d = elBureau('div', 'd');
+  const bouts = [];
+  if(alerte) bouts.push('🔒 Le bureau n’est plus ouvert à cette heure-là');
+  if(r.garde) bouts.push('👌 gardé hors des horaires');
+  bouts.push(r.tel, r.mail);
+  if(r.precision) bouts.push('« ' + r.precision + ' »');
+  if(!alerte) bouts.push('tenu par ' + tenuLisible(r.tenu));
+  bouts.push('pris le ' + r.creeLe);
+  d.textContent = bouts.filter(Boolean).join(' · ');
+  c.appendChild(d);
+  const row = elBureau('div', 'btn-row');
+  const ap = elBureau('a', 'btn btn-secondary', '📞 Appeler');
+  ap.href = 'tel:' + String(r.tel || '').replace(/[^\d+]/g, '');
+  row.appendChild(ap);
+  if(!alerte){
+    const ec = elBureau('a', 'btn btn-secondary', '✉️ Écrire');
+    ec.href = 'mailto:' + encodeURIComponent(r.mail || '');
+    row.appendChild(ec);
   }
-  const eleves = (data && data.eleves) || [];
-  const consignes = (data && data.consignes) || [];
-
-  etatBureau.consignes = consignes;
-  /* Une réponse sans suivi ne doit pas effacer celui qu'on a déjà :
-     un appel partiel ou une erreur silencieuse vidait toutes les
-     fiches de préparation. */
-  if(data && Array.isArray(data.suivi)){
-    etatBureau.suivi = data.suivi;
-  }else if(!etatBureau.suivi){
-    etatBureau.suivi = [];
-  }
-  chargerPlaces(data && data.places);
-  /* Les réglages du bureau arrivent par le même appel : les seuils de
-     la liste CS n'ont pas besoin d'un aller-retour à eux. */
-  if(typeof chargerReglages === 'function') chargerReglages(data && data.reglages);
-  /* Les périodes terminées sortent d'elles-mêmes */
-  if(nettoyerPeriodesEchues()){
-    try{ await enregistrerPlaces(); }catch(e){}
-  }
-  /* 🔗 UN NOM PRESQUE PAREIL EST LE MÊME ÉLÈVE — v1167.
-
-     David, le 13 octobre : « dans la liste élèves prêts au permis
-     j'ai des doublons et des élèves qui sont déjà sur une session
-     d'examen ». Vérifié sur sa liste : « Zoe Vistola_ » (un tiret bas
-     tapé dans un message du bureau) faisait une seconde Zoe, et
-     « Houcine Admaia » (un i oublié dans un bilan) ne retrouvait pas
-     sa place du 30 octobre, prise au nom de sa fiche, « Houcine
-     Admaiai ». Les listes du bureau regroupent par le nom EXACT.
-
-     On rattache donc à sa fiche un nom qui n'en a pas et qui n'en
-     diffère que par la ponctuation, l'ordre des mots ou UNE lettre —
-     et seulement si UNE seule fiche est aussi proche : deux frères
-     « Léo » et « Léa » ont chacun la leur, et ne se mélangent pas.
-     Le nom mal écrit reste visible sur la ligne, avec de quoi le
-     corriger dans le classeur (voir ligneBureau). */
-  /* Le répertoire, une fois par page : une lecture rapide du Worker,
-     et seulement s'il n'est pas déjà là. */
-  if(typeof fichesEleves !== 'undefined' && !fichesEleves.length && typeof chargerFiches === 'function' &&
-     !chargerBureau.repertoireLu){
-    chargerBureau.repertoireLu = true;
-    try{ await chargerFiches(); }catch(e){ /* sans répertoire, on ne rattache rien */ }
-  }
-  const alias = aliasDuRepertoire(eleves.map(x => x.eleve).concat(consignes.map(c => c.eleve)));
-  const nomResolu = n => alias[normaliserMot(n || '')] || n;
-  rattacherAuRepertoire(eleves, alias);
-
-  /* Un élève peut n'exister que par une consigne du bureau */
-  const connus = eleves.map(x => normaliserMot(x.eleve));
-  consignes.forEach(cs => {
-    if(cs.traite === 'oui' || cs.type === 'urgence') return;
-    const k = normaliserMot(nomResolu(cs.eleve));
-    if(!k || connus.indexOf(k) !== -1) return;
-    connus.push(k);
-    eleves.push({ eleve: nomResolu(cs.eleve), note: '', date: cs.creeLe || '', type: '',
-                  nomsEcrits: nomResolu(cs.eleve) !== cs.eleve ? [cs.eleve] : undefined,
-                  horodatage: '', moniteur: '', boite: '', ants: '', lecons: 0 });
-  });
-
-  etatBureau.eleves = eleves.map(e => {
-    const enAttente = consignes.filter(cs =>
-      normaliserMot(nomResolu(cs.eleve)) === normaliserMot(e.eleve) &&
-      cs.traite !== 'oui' && cs.type !== 'urgence');
-
-    /* Une consigne du bureau non traitée prime sur la note du moniteur */
-    const a = analyserNote(e.note);
-    if(enAttente.length){
-      const ajout = analyserNote(enAttente.map(x => x.texte).join(' · '));
-      Object.keys(ajout).forEach(k => {
-        if(ajout[k] !== null && ajout[k] !== false) a[k] = ajout[k];
+  if(modif){
+    const an = elBureau('button', 'btn btn-secondary', alerte ? '✖️ Annuler et prévenir par mail' : '✖️ Annuler (prévenu par mail)');
+    an.addEventListener('click', async () => {
+      if(!await confirmer('Annuler le rendez-vous de ' + r.nom + ', ' + jourLongBureau(r.jour) + ' à ' +
+                          heureBureauLisible(r.heure) + ' ?\n\nUn mail le prévient et lui propose d’en reprendre un.',
+                          'Annuler le rendez-vous', true)) return;
+      an.disabled = true;
+      try{
+        await appelPrep({ action: 'bureauRdvAnnuler', id: r.id, prevenir: true });
+        showToast('✖️ Rendez-vous annulé — ' + r.nom + ' est prévenu par mail.');
+        afficherUnBureau(id);
+      }catch(err){ an.disabled = false; showToast('Impossible : ' + err.message); }
+    });
+    row.appendChild(an);
+    if(alerte){
+      const ga = elBureau('button', 'btn btn-secondary', '👌 Je m’en occupe');
+      ga.addEventListener('click', async () => {
+        ga.disabled = true;
+        try{
+          await appelPrep({ action: 'bureauRdvGarder', id: r.id });
+          afficherUnBureau(id);
+        }catch(err){ ga.disabled = false; showToast('Impossible : ' + err.message); }
       });
-      /* ⚠️ LA DATE SUIT L'ÉTAT QUI L'ANNONCE — v1151.
-
-         David, le 12 octobre, sur Yuliia Morozova : « sa date a été
-         annulée mais elle est toujours inscrite ». Son dernier bilan
-         (16/09) annonçait le 28 octobre ; la consigne du bureau
-         disait « Examen du permis du mercredi 14 octobre 2026 annulé
-         le jeudi 1 octobre 2026 ». La fusion ci-dessus ne recopie que
-         ce que la consigne DIT — et une annulation, justement, dit
-         « plus de date » par un null. L'état passait donc à
-         « annulé » tandis que la date du bilan restait, et tous ceux
-         qui lisent « permisDate » (la tuile, les listes, la fiche de
-         route) voyaient toujours le 28 octobre.
-
-         Quand la consigne en attente parle de l'examen, c'est elle
-         qui décide de TOUT ce qui s'y rapporte : l'état, la date, et
-         les deux dates de l'annulation — rien ne reste du bilan. */
-      if(ajout.permis){
-        ['permisDate', 'permisAnnuleDate', 'permisAnnuleLe'].forEach(k => {
-          a[k] = (ajout[k] === undefined) ? null : ajout[k];
-        });
-      }
-    }
-    const urg = consignes.find(cs =>
-      normaliserMot(cs.eleve) === normaliserMot(e.eleve) && cs.type === 'urgence');
-    return Object.assign({}, e, {
-      etat: a,
-      enAttente: enAttente,
-      urgence: urg ? urg.valeur : ''
-    });
-  });
-  return etatBureau;
-}
-
-/* ============================================================
-   UNE CONSIGNE D'ÉTAT REMPLACE LA PRÉCÉDENTE
-
-   David, le 4 septembre, capture à l'appui : « ce sont des gens
-   qui avaient une date, à qui j'ai enlevé la date d'examen — donc
-   ça ne doit plus apparaître quand ils repartent dans élèves prêts
-   au permis ». Sur sa liste, on lisait à la suite :
-
-     « Examen du permis fixé au mercredi 2 septembre 2026 avant
-       (bureau) · Examen du permis fixé au mercredi 2 septembre 2026
-       avant (bureau) · Date d'examen à prévoir (bureau) »
-
-   Trois annonces pour une seule question, dont deux fausses.
-
-   ⚠️ CE N'EST PAS QU'UN PROBLÈME D'AFFICHAGE. Les consignes en
-   attente sont TOUTES versées dans la note du prochain cours : le
-   moniteur aurait lu la date annulée à côté de son annulation, et
-   « analyserNote » n'aurait tranché que par l'ordre des mots.
-
-   Une consigne qui décrit un ÉTAT — la date d'examen, l'examen
-   blanc, le simulateur — n'a qu'une valeur à la fois : la dernière.
-   Les précédentes du même type sont donc soldées à l'écriture. Un
-   MESSAGE, lui, s'empile : deux mots du bureau sont deux mots, et
-   le second ne remplace pas le premier.
-
-   Écrit ici, au seul endroit par où toutes les consignes passent :
-   les six écrans qui fixent une date d'examen n'ont rien à savoir
-   de cette règle.
-   ============================================================ */
-/* ⚠️ CES CONSIGNES-LÀ SE REMPLACENT, ELLES NE S'EMPILENT PAS.
-
-   Une consigne ordinaire est un mot qu'on ajoute. Celles-ci disent
-   un ÉTAT — la date d'examen, l'examen blanc, le simulateur — et un
-   état n'a qu'une valeur courante : la dernière annoncée solde les
-   précédentes, sinon la note du prochain cours porterait deux dates
-   et le moniteur choisirait au hasard.
-
-   « programme » les rejoint le 10 septembre 2026. David voulait
-   pouvoir dire ce que sera la prochaine leçon : « une seule ligne
-   courante ». Un programme qu'on empile est un programme qu'on ne
-   lit plus. */
-const TYPES_CONSIGNE_ETAT = ['permis', 'examblanc', 'simu', 'programme'];
-
-async function solderConsignesDuMemeType(eleve, type){
-  if(TYPES_CONSIGNE_ETAT.indexOf(String(type || '')) === -1) return;
-  if(typeof etatBureau === 'undefined') return;
-
-  /* On lit ce qu'on a en mémoire : relire le classeur avant chaque
-     consigne coûterait un aller-retour pour zéro ou une ligne. Ce
-     qui manquerait ici sera soldé au prochain passage. */
-  const dedans = (etatBureau.consignes || []).filter(cs =>
-    cs && cs.id &&
-    normaliserMot(cs.eleve || '') === normaliserMot(eleve || '') &&
-    String(cs.type || '') === String(type) &&
-    cs.traite !== 'oui');
-
-  for(const cs of dedans){
-    try{
-      await appelPrep({ action: 'consigneDone', id: cs.id });
-      cs.traite = 'oui';   /* la mémoire suit, sans relire */
-    }catch(e){
-      /* Une consigne qui résiste ne doit pas empêcher la nouvelle
-         de partir : mieux vaut une annonce de trop que pas
-         d'annonce du tout. */
+      row.appendChild(ga);
     }
   }
+  c.appendChild(row);
+  return c;
 }
 
-/* Enregistre une consigne : elle sera injectée dans la note du prochain cours */
-async function envoyerConsigne(eleve, type, texte, valeur){
-  cacheBureau = null;
-  await solderConsignesDuMemeType(eleve, type);
-  await appelPrep({
-    action: 'consigneAdd',
-    eleve: eleve, type: type, texte: texte, valeur: valeur || '',
-    par: ACCES.moniteur || ''
-  });
-}
-
-
-
-
-/* Fiche de suivi d'un élève, ou objet vide */
-/* ============================================================
-   TOUT SE REMET À JOUR APRÈS UN BILAN — v918
-
-   David, le 12 septembre 2026 : « la partie fiche de route, je dois
-   rafraîchir après un cours pour qu'elle se mette à jour ».
-
-   ⚠️ ET J'AVAIS RÉPARÉ LE MAUVAIS ÉCRAN. La v916 relisait le
-   classeur et redessinait le bandeau du jour — ce qui était utile,
-   mais ce n'est pas ce qu'il demandait. La fiche de route, elle,
-   lit « etatBureau.suivi » et la note de l'élève par « suiviDe » et
-   « eleveDuBureau » : les deux venaient d'être relues, et personne
-   ne le lui disait.
-
-   Trois écrans lisent cet état et se dessinent à des moments
-   différents : le bandeau du jour, le dossier élève, et les cartes
-   des prochains cours — qui portent la note, donc ce que le cours
-   vient d'écrire. Les trois se redessinent ici, ensemble, une fois.
-
-   ⚠️ « forcer », SINON ELLE NE SERT À RIEN. chargerBureau garde sa
-   réponse trente secondes : sans forcer, on relirait exactement ce
-   qu'on avait avant d'enregistrer.
-
-   ⚠️ EN FOND, ET SANS BLOQUER. Le moniteur vient de terminer son
-   cours : il ne doit pas attendre un aller-retour réseau pour
-   revenir à son écran. Si la relecture échoue, on ne dit rien —
-   l'écran d'avant reste, et il n'est pas faux, il est vieux.
-
-   ⚠️ ET CHAQUE ÉCRAN DÉCIDE S'IL EST CONCERNÉ. « rafraichirPageEleve »
-   ne fait rien si aucun dossier n'est ouvert, « dessinerBandeau »
-   rien si le bandeau n'est pas prêt. On ne demande pas ici qui est
-   à l'écran : c'est à chacun de le savoir, et c'est ce qui permet
-   d'ajouter un quatrième lecteur sans revenir ici.
-   ============================================================ */
-function rafraichirApresBilan(){
-  if(typeof chargerBureau !== 'function') return;
-  Promise.resolve()
-    .then(() => chargerBureau(true))
-    .then(() => {
-      if(typeof bandeauPret !== 'undefined') bandeauPret = true;
-      if(typeof dessinerBandeau === 'function') dessinerBandeau();
-      /* La fiche de route et tout le dossier élève */
-      if(typeof rafraichirPageEleve === 'function') rafraichirPageEleve();
-      /* Les cartes des prochains cours portent la note, donc ce que
-         le bilan vient d'écrire. « false » : on redessine avec ce
-         qu'on vient de relire, on ne relit pas une deuxième fois. */
-      if(typeof afficherPrepares === 'function') afficherPrepares(false);
-    })
-    .catch(() => { /* un écran vieux n'est pas une panne */ });
-}
-
-function suiviDe(eleve){
-  return trouverParNom(etatBureau.suivi, eleve) || {};
-}
-
-
-/* ⚠️ POSER LES FICHES QUE LE SERVEUR VIENT D'ÉCRIRE.
-
-   David : « je dois rafraîchir la page pour que ça apparaisse sur
-   les noms », en retenant une date de rendez-vous théorique.
-
-   Ce n'était pas un cache. L'écriture passe par Apps Script ; la
-   relecture de l'état du bureau passe par le Worker, qui lit la
-   feuille directement. Deux portes sur le même classeur, et rien
-   qui fasse attendre la seconde que la première ait fini de poser :
-   l'écran redemandait quelques centièmes de seconde après le
-   « c'est fait », et la feuille répondait avec ce qu'elle avait.
-
-   Une pause avant de relire aurait marché presque toujours — donc
-   raté un jour, sans prévenir. La bonne réponse est celle de celui
-   qui vient d'écrire : il relit SA feuille, il voit forcément son
-   écriture, et il la rend avec son accusé de réception. Ici on ne
-   fait que la poser.
-
-   C'est la MÊME forme de ligne que celle du Worker — c'est tout
-   l'objet de test-suivi-deux-lecteurs : les deux lecteurs rendent
-   le même objet, sinon poser l'un par-dessus l'autre effacerait
-   des colonnes au passage. */
-function poserSuiviLocal(fiches){
-  if(!Array.isArray(fiches) || !fiches.length) return 0;
-  if(!Array.isArray(etatBureau.suivi)) etatBureau.suivi = [];
-
-  let n = 0;
-  fiches.forEach(f => {
-    if(!f || !f.eleve) return;
-    const cible = normaliserMot(f.eleve);
-    const i = etatBureau.suivi.findIndex(s =>
-      s && normaliserMot(s.eleve) === cible);
-    if(i >= 0) etatBureau.suivi[i] = f;
-    else etatBureau.suivi.push(f);
-    n++;
-  });
-  return n;
-}
-
-/* ============================================================
-   PRÊTE-NOM ET PLACE À REMPLACER : LA MÊME PHRASE PARTOUT
-
-   Deux cases de la fiche de suivi, et deux situations où l'élève
-   qui monte en voiture n'est pas celui qu'on croit :
-
-     · 👻 prête-nom   — il tient une place d'examen, il n'a JAMAIS
-                        été prévenu ;
-     · 🔄 à remplacer — il a été prévenu, mais sa place doit être
-                        donnée à quelqu'un d'autre.
-
-   Elles ne se lisaient que dans 🎓 Suivi permis, l'écran du
-   bureau. Le moniteur, lui, ouvrait sa journée sans rien en
-   savoir.
-
-   David, le 4 septembre : « dans Mes prochains cours, quand il
-   y a un examen officiel de prévu, est-ce qu'au bout tu peux
-   mettre si l'élève est coché comme à remplacer ou en prête-nom,
-   pour que le moniteur soit au courant » — puis « idem dans les
-   notes du dossier ».
-
-   Trois écrans, une seule phrase. Recopiée, elle finirait par ne
-   plus dire la même chose ici et là — c'est la faute que ce
-   dossier passe ses journées à réparer.
-
-   Rend null quand il n'y a rien à signaler.
-   ============================================================ */
-function marquePlaceExamen(nom){
-  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
-
-  /* « À remplacer » passe avant : c'est celle qui appelle un geste
-     tout de suite. Le même ordre que dans 🎓 Suivi permis. */
-  if(String(s.aRemplacer || '') === 'oui'){
-    return {
-      cle: 'remplacer', emoji: '🔄', couleur: 'var(--red)',
-      /* « PLACE » en toutes lettres, et pas « À REMPLACER » tout
-         court : David, devant la carte du 4 septembre — « on a
-         l'impression qu'il faut remplacer son cours ». C'est la
-         place d'examen qui est à redonner, jamais la leçon. */
-      court: 'PLACE D\'EXAMEN À REMPLACER',
-      texte: 'À REMPLACER — place à donner',
-      long: 'Place à remplacer : elle doit être redonnée à un autre élève.'
-    };
+/* ------------------------------------------------------------
+   LES TROIS INTERRUPTEURS — le même composant que les réglages des
+   procédures et de l'affichage (interrupteur, ec-proccorriger.js)
+   ------------------------------------------------------------ */
+function reglagesDuBureauEcran(id, e, modif){
+  const b = BUREAUX_APPLI[id];
+  const reg = e.reglages || {};
+  const z = elBureau('div', 'lvReglages');
+  if(typeof interrupteur !== 'function'){
+    z.appendChild(elBureau('div', 'empty', 'Réglages indisponibles : le module des procédures n’est pas chargé.'));
+    return z;
   }
-
-  if(String(s.fantome || '') === 'oui'){
-    return {
-      cle: 'pretenom', emoji: '👻', couleur: '#E8A33D',
-      court: 'PRÊTE-NOM SUR LA PLACE D\'EXAMEN',
-      texte: 'PRÊTE-NOM — pas prévenu',
-      long: 'Prête-nom : il tient la place d\'examen, il n\'a jamais été prévenu.'
-    };
-  }
-
-  return null;
-}
-
-/* Met à jour quelques champs sans écraser le reste */
-async function majSuivi(eleve, champs){
-  const s = suiviDe(eleve);
-
-  const rep = await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
-    eleve: eleve, par: ACCES.moniteur || ''
-  }));
-
-  /* ⚠️ UN REFUS DU CLASSEUR N'EST PAS UNE RÉUSSITE.
-
-     « enregistrerSuivi » peut refuser — une date d'examen sans
-     place libre ce jour-là — et il le dit par « status: 'error' »
-     dans une réponse par ailleurs normale. appelPrep, lui, ne lève
-     que sur une panne HTTP : le refus passait donc sans bruit, la
-     mémoire posait quand même la valeur, et l'écran affichait
-     « Enregistré ✅ » sur une ligne que le classeur n'avait pas
-     écrite. C'est ce qui est arrivé le 2 septembre à Axel Hinault
-     — la ligne 🎫 dans 🚨 Signalements était le SEUL endroit où
-     ça se voyait.
-
-     Une erreur ici remonte donc à l'appelant, qui sait quoi en
-     dire, et la mémoire ne bouge pas : mieux vaut un écran qui
-     réclame qu'un écran qui ment. */
-  if(rep && rep.status === 'error'){
-    throw new Error(rep.message || 'Le classeur a refusé cet enregistrement.');
-  }
-
-  /* La mémoire suit tout de suite : sans ça, l'écran redessiné
-     relisait l'ancienne valeur, et il fallait appuyer plusieurs
-     fois avant que le changement paraisse tenir. */
-  const dans = trouverParNom(etatBureau.suivi, eleve);
-  if(dans){
-    Object.assign(dans, champs);
-  }else{
-    etatBureau.suivi.push(Object.assign({ eleve: eleve }, s, champs));
-  }
-
-  /* ⚠️ ON NE JETTE PLUS LE CACHE DU BUREAU.
-
-     « Quand on met les dates, c'est long. » Une partie du temps
-     venait d'ici : « cacheBureau = null » obligeait le PROCHAIN
-     écran à relire tout l'état du bureau — tous les élèves, tous
-     les bilans, toutes les consignes — pour une seule case de
-     suivi qu'on venait d'écrire.
-
-     Or le cache n'est pas devenu faux : chargerBureau pose
-     « etatBureau.suivi = data.suivi », donc le cache et la mémoire
-     partagent LE MÊME TABLEAU. Les trois lignes au-dessus viennent
-     de le mettre à jour — le cache l'est aussi, par la même
-     écriture. Le jeter, c'était recharger pour retrouver ce qu'on
-     avait déjà.
-
-     Et si le classeur avait reformaté quelque chose, la relecture
-     automatique des 90 secondes le rattrape. */
-}
-
-
-/* ============================================================
-   LE NOMBRE D'HEURES AVANT EXAMEN — UNE SEULE PORTE
-
-   David, le 10 septembre 2026 : « quand un moniteur indique un
-   nombre d'heures pour un passage d'examen — après un examen blanc,
-   après un post-permis, ou pendant un cours — qu'on ait une
-   notification, car là on doit aller chercher l'information et si
-   on n'y pense pas ça tombe aux oubliettes ».
-
-   ⚠️ ET C'EST L'AUTEUR QUI REND L'ALERTE CROYABLE.
-
-   « heuresRestantes » s'écrivait depuis quatre endroits, sans que
-   personne ne note QUI l'avait dit ni QUAND. L'alerte n'aurait donc
-   pu nommer que le moniteur du dernier bilan — juste la plupart du
-   temps, faux dès que le nombre vient du bureau ou d'un rendez-vous
-   post-permis. Et une alerte qui se trompe de nom, on cesse de la
-   croire ; à ce moment-là elle ne protège plus rien.
-
-   Cette fonction est donc la SEULE par où le nombre passe. Les
-   quatre écrans qui l'écrivaient n'ont rien à savoir de l'auteur :
-   il se pose ici, une fois. C'est la règle de solderConsignesDuMemeType,
-   appliquée à un autre champ.
-
-   ⚠️ ET LE MÊME NOMBRE NE SE RESIGNE PAS. Réécrire « 4 » sur un « 4 »
-   qui était déjà là ne change rien à l'information : lui remettre la
-   date du jour ferait revenir une alerte que quelqu'un venait
-   d'écarter, tous les jours, jusqu'à ce qu'on cesse de la lire.
-   ============================================================ */
-function champsHeuresRestantes(eleve, valeur, champs, depuis, charniere){
-  const majs = Object.assign({}, champs || {});
-  const propre = String(valeur === undefined || valeur === null ? '' : valeur).trim();
-  majs.heuresRestantes = propre;
-
-  const s = suiviDe(eleve) || {};
-  /* ⚠️ « LE MÊME NOMBRE » N'EST LE MÊME QUE SUR LA MÊME CHARNIÈRE —
-     v1014.
-
-     La garde ne comparait que le nombre. Or « 4 heures depuis
-     l'examen blanc » et « 4 heures depuis le rendez-vous
-     post-permis » ne sont pas la même réserve : la seconde est
-     pleine, la première est peut-être déjà consommée. En les
-     confondant, on gardait le vieux repère — et la réserve neuve
-     naissait entamée de toutes les leçons faites depuis.
-
-     Le couple entier fait donc foi, comme partout ailleurs dans ce
-     dossier : un rang sans son unité ne désigne rien. */
-  /* ============================================================
-     ⚠️ … NI QUE SUR LE MÊME RANG — v1054
-
-     David, le 19 septembre, sur Henedi Ahmed : « dans le suivi elle
-     devait faire un point sur la leçon d'hier, je veux mettre 4 + 3
-     en appuyant sur le bouton mais il remet à 0 et écrit plus que la
-     leçon de veille — et c'est bien écrit dans son dossier élève que
-     j'ai mis 4 + 3 hier ».
-
-     Il avait mis 4 le 18 septembre, DEPUIS L'EXAMEN BLANC, c'est-à-
-     dire au rang zéro. Sept leçons plus tard, cette réserve-là est
-     évidemment consommée — et c'est bien ce que le bouton annonçait.
-     Seulement David ne LISAIT pas le bouton : il s'en SERVAIT pour
-     dire, aujourd'hui, qu'il reste 4 + 3. Le nombre étant le même et
-     la charnière aussi, la garde sortait ici, sans écrire le repère.
-     La réserve neuve gardait donc l'ancre de l'examen blanc, les
-     sept leçons se retiraient d'elle, et l'écran revenait à zéro.
-     Un geste sans effet se lit comme un geste perdu, et on le refait
-     — c'est exactement ce que David a fait, trois fois.
-
-     La v1014 avait déjà corrigé cette garde, pour la charnière, en
-     écrivant « le couple entier fait donc foi ». Il ne l'était pas :
-     le RANG en fait partie, et il était resté dehors. Une moitié
-     posée, l'autre oubliée, sur la ligne même qui annonçait le
-     contraire.
-
-     ⚠️ ET LA RÈGLE DE LA v908 TIENT TOUJOURS. « Le même nombre ne se
-     resigne pas » protège l'alerte ⏱️ : la redater chaque jour la
-     ferait revenir après qu'on l'a écartée. Mais un nombre reposé
-     AILLEURS DANS LE PARCOURS n'est pas le même fait — c'est une
-     réserve neuve qui vaut à partir d'ici. Ce qui ne se resigne pas,
-     c'est le fait entier : le nombre, sa charnière ET son rang.
-     ============================================================ */
-  const repereActuel = (typeof repereDesHeures === 'function')
-    ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
-  const memeCharniere = (String(charniere || 'eb') || 'eb') === repereActuel.quoi;
-  const rangNeuf = parseInt(depuis, 10);
-  const memeRang = (isNaN(rangNeuf) ? 0 : rangNeuf) === repereActuel.rang;
-  if(String(s.heuresRestantes || '').trim() === propre &&
-     memeCharniere && memeRang) return majs;
-
-  /* Effacer n'est pas dire : un nombre retiré n'a plus d'auteur. */
-  if(propre === ''){
-    majs.heuresPar = '';
-    majs.heuresLe  = '';
-    majs.heuresRang = '';
-    return majs;
-  }
-
-  /* ⚠️ LE REPÈRE, ET POURQUOI SON ABSENCE VEUT DIRE QUELQUE CHOSE.
-
-     Une réserve d'heures n'est pas un nombre : c'est un nombre ET le
-     rang où il était plein. Sans repère, on ne peut pas la
-     décompter — et c'est exactement ce qui manquait.
-
-     « heuresRang » se compte dans la même unité que la note :
-     combien de leçons après la charnière au moment où la réserve
-     était pleine. Zéro — donc vide — veut dire « depuis la
-     charnière elle-même », qui est le cas normal de l'examen
-     blanc : les heures s'y prescrivent, c'est à ça qu'il sert.
-     L'autre cas, « à partir de la prochaine leçon », se dit en
-     passant le compteur du jour.
-
-     ⚠️ ET LE REPÈRE NE VEUT RIEN DIRE SANS SON UNITÉ — v972.
-
-     La note ne compte pas toujours depuis l'examen blanc : elle
-     compte aussi depuis le rendez-vous post-permis et depuis le
-     dernier ajournement, et ces compteurs-là repartent de un. « 6 »
-     ne dit donc rien tout seul — il faut savoir 6 de quoi. La
-     charnière s'écrit donc À CÔTÉ du repère, dans la même écriture,
-     et c'est leur couple qui permet de décompter. Vide veut dire
-     « examen blanc » : c'était le seul compteur lu avant cette
-     version, et les réserves déjà posées n'en connaissaient pas
-     d'autre.
-
-     ⚠️ ET LA DATE NE PEUT PAS TENIR CE RÔLE. « heuresLe » dit quand
-     le nombre a été posé, pas ce qui a été consommé depuis : ce
-     sont des LEÇONS qui consomment les heures, pas des jours. Deux
-     leçons peuvent tomber le même jour, trois semaines passer sans
-     aucune. Décompter sur la date donnerait un chiffre faux avec
-     l'air d'être juste. */
-  const rang = (depuis === undefined || depuis === null ||
-                String(depuis).trim() === '' || String(depuis) === '0')
-    ? '' : String(parseInt(depuis, 10) || '');
-
-  /* ⚠️ LE REPÈRE ET SON UNITÉ TIENNENT DANS LA MÊME CASE — v972.
-
-     « 6 » tout seul veut dire « 6ᵉ leçon après l'examen blanc » :
-     c'était le seul compteur du jour où cette case est née, et
-     c'est ce que valent les repères déjà écrits. Les deux autres
-     charnières s'écrivent « 6:ajournement », « 0:postpermis ».
-
-     Une SECONDE case aurait été une colonne de plus au classeur —
-     donc une version d'Apps Script à redéployer — pour une moitié
-     d'information qui ne veut rien dire sans l'autre. Un rang sans
-     son unité ne se décompte pas, et une unité sans rang ne
-     désigne rien : c'est un seul fait, il tient dans une seule
-     case. */
-  const quoi = String(charniere || '').trim();
-  majs.heuresRang = (quoi && quoi !== 'eb')
-    ? ((rang || '0') + ':' + quoi)
-    : rang;
-
-  majs.heuresPar = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
-  majs.heuresLe  = (typeof todayLocal === 'function')
-    ? todayLocal() : new Date().toISOString().slice(0, 10);
-  return majs;
-}
-
-/* Écrit le nombre d'heures, son auteur et sa date — et ce que
-   l'appelant veut poser en même temps, dans la même écriture. */
-async function majHeuresRestantes(eleve, valeur, champs, depuis, charniere){
-  if(typeof majSuivi !== 'function') return;
-  await majSuivi(eleve,
-    champsHeuresRestantes(eleve, valeur, champs, depuis, charniere));
-}
-
-
-/* ============================================================
-   OÙ EN EST SON COMPTEUR, ET DEPUIS QUOI — v972
-
-   Les quatre écrans qui posent des heures ont tous la même
-   question à se poser : dans quelle unité écrire le repère ? La
-   réponse est la même pour tous — celle de sa note — et elle
-   s'écrit donc ici, une fois.
-
-   Rend toujours un couple lisible : à défaut de note, l'examen
-   blanc au rang zéro, qui est ce que valait le silence avant cette
-   version.
-   ============================================================ */
-/* Le repère écrit dans le suivi, rendu en clair : « 6:ajournement »
-   devient { rang:6, quoi:'ajournement' }, « 6 » devient
-   { rang:6, quoi:'eb' }, et le vide { rang:0, quoi:'eb' }.
-
-   C'est la SEULE façon de lire cette case : deux lectures, et la
-   moins attentive finirait par prendre « 6:ajournement » pour un
-   rang de six leçons après l'examen blanc. */
-function repereDesHeures(s){
-  const brut = String((s && s.heuresRang) || '').trim();
-
-  /* ============================================================
-     ⚠️ UN REPÈRE ABSENT N'EST PAS UN REPÈRE « EXAMEN BLANC » — v1051
-
-     David, le 19 septembre, devant la carte d'Ambre Guillebon :
-     « c'est la 3ème après son post-permis, donc il ne reste plus
-     6 + 3 avant examen ».
-
-     Son rendez-vous post-permis date du 11 août : il a prescrit
-     6 + 3, mais il est ANTÉRIEUR à la case « heuresRang », qui
-     n'existait pas encore. Sa colonne est donc vide — et vide se
-     lisait « examen blanc ». Le décompte comparait alors ce repère
-     à la charnière du jour, « post-permis », voyait deux compteurs
-     différents, et refusait de compter : la réserve restait pleine
-     à 6 pendant qu'Ambre en avait consommé trois leçons.
-
-     Or on SAIT d'où datent ces heures-là quand c'est le rendez-vous
-     qui les a prescrites : de lui, au rang zéro. C'est la règle que
-     « terminerRdvPost » écrit depuis la v1014 — « les heures sont
-     prescrites PAR ce rendez-vous : elles datent de la charnière
-     elle-même ». On la relit ici pour les dossiers d'avant, au lieu
-     de retomber sur un défaut qui, lui, n'a jamais rien su.
-
-     ⚠️ ET SEULEMENT QUAND LE REPÈRE MANQUE. Dès qu'il est écrit, il
-     fait foi : c'est lui qui porte la vérité d'une réserve posée
-     depuis, au cours d'une leçon ordinaire.
-     ============================================================ */
-  if(!brut && s && s.rdvPostFait === 'oui' &&
-     String(s.heuresRepassage || '').trim()){
-    return { rang: 0, quoi: 'postpermis' };
-  }
-
-  const bout = brut.split(':');
-  const rang = parseInt(bout[0], 10);
-  const quoi = String(bout[1] || '').trim() || 'eb';
-  return { rang: isNaN(rang) ? 0 : rang, quoi: quoi };
-}
-
-
-function charniereDeLEleve(nom){
-  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
-  const c = e && e.etat && e.etat.apresCharniere;
-  const rang = parseInt(c && c.rang, 10);
-  return { quoi: (c && c.quoi) || 'eb',
-           rang: isNaN(rang) ? 0 : rang };
-}
-
-/* Le nom de la charnière, tel qu'on l'écrit à l'élève et au
-   moniteur. Les mots sont ceux de la note — « après l'examen
-   blanc » — pour qu'on reconnaisse de quel compteur on parle. */
-function nomDeLaCharniere(quoi){
-  return (quoi === 'postpermis') ? 'le rendez-vous post-permis'
-       : (quoi === 'ajournement') ? 'le dernier ajournement'
-       : "l'examen blanc";
-}
-
-
-/* ============================================================
-   DES HEURES DITES AUJOURD'HUI DATENT D'AUJOURD'HUI — v972
-
-   Trois écrans posent un nombre d'heures en cours de route : le
-   bouton « ⏱️ Heures à préciser » des listes du bureau, la fenêtre
-   des sessions, et la fiche de route. Aucun ne posait de repère :
-   le nombre était donc rangé comme s'il datait de la charnière, et
-   toutes les leçons déjà faites depuis l'entamaient d'un coup.
-
-   Invisible tant que le compteur ne savait lire que l'examen
-   blanc — chez un élève au-delà, il ne décomptait rien du tout.
-   Dès que le compteur lit les trois charnières, l'oubli devient
-   une réserve qui fond sans que personne ait roulé. C'est la
-   faute jumelle de celle que « examPermisNRang » a réparée pour
-   l'examen officiel, et elle se répare pareil : le rang du jour.
-
-   Une seule fonction pour les trois : trois copies de ce calcul,
-   ce serait trois occasions d'en oublier un.
-   ============================================================ */
-function champsHeuresDitesMaintenant(eleve, valeur, champs){
-  const c = charniereDeLEleve(eleve);
-  return champsHeuresRestantes(eleve, valeur, champs, c.rang, c.quoi);
-}
-
-
-/* ============================================================
-   LA BOÎTE DE VITESSES D'UN ÉLÈVE, LUE À UN SEUL ENDROIT — v1023
-
-   David, le 17/09 : « dans la liste des élèves prêts au permis,
-   mets la barre verte à côté du nom quand ils sont en BV et la
-   violette quand ils sont en BEA ».
-
-   ⚠️ LA RÈGLE ÉTAIT DÉJÀ ÉCRITE DEUX FOIS, dans ec-permis-listes.js
-   — une fois pour remplir le menu « Type d'examen », une fois pour
-   grouper les places d'examen. Deux copies, donc deux occasions de
-   corriger l'une en oubliant l'autre. En ajouter une troisième pour
-   la barre aurait été la faute qu'on se répète depuis des mois.
-
-   ⚠️ ET ELLE REND « » QUAND ON NE SAIT PAS. Les deux copies
-   retombaient sur « bv » dès que le libellé ne contenait pas
-   « automatique » : un examen blanc, un rendez-vous post-permis,
-   une fiche handicap devenaient tous des boîtes manuelles. Pour
-   grouper des places ça passait ; pour PEINDRE UNE BARRE À CÔTÉ
-   D'UN NOM, non — une barre verte qui se trompe est pire qu'une
-   barre absente. Les appelants qui ont besoin d'une valeur par
-   défaut la posent eux-mêmes, en clair, avec « || 'bv' ».
-
-   Trois sources, de la plus sûre à la plus faible :
-     1. le type d'examen posé par le bureau (il a tranché) ;
-     2. la boîte écrite sur ses bilans (colonne I) ;
-     3. le libellé du dernier cours — « Conduite — Boîte manuelle ».
-   « handicap » n'est ni BV ni BEA : il ressort « », donc sans
-   barre.
-   ============================================================ */
-function boiteConnueDe(e){
-  if(!e) return '';
-  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : null;
-  const pistes = [
-    s && s.typeExamen,
-    e.boite,
-    (typeof boiteDuType === 'function') ? boiteDuType(e.type) : ''
-  ];
-  for(let i = 0; i < pistes.length; i++){
-    const b = String(pistes[i] || '').trim().toLowerCase();
-    if(b === 'bv' || b === 'bea') return b;
-  }
-  return '';
-}
-
-const BARRE_BOITE = {
-  bv:  { cle: 'BV',  quoi: 'BV — boîte manuelle' },
-  bea: { cle: 'BEA', quoi: 'BEA — boîte automatique' }
-};
-
-/* ⚠️ LES COULEURS SONT CELLES DES PROCHAINS COURS, PAS LES MIENNES.
-
-   David, le 17/09 : « je voulais dire les mêmes couleurs que dans
-   mes prochains cours ». J'avais inventé un vert et un violet à
-   moi, et posé deux variables de thème pour les porter. Deux jeux
-   de couleurs pour une même information — la boîte de vitesses —
-   c'est une information qui change de sens d'un écran à l'autre.
-
-   On lit donc la table qui peint déjà les traits des cartes de
-   « Mes prochains cours » : TRAIT_PAIRES.ordinaire, dans
-   ec-modeles.js. Le jour où il change son magenta, la barre change
-   avec, sans que personne n'y pense. RECOPIER LES DEUX CODES
-   HEXADÉCIMAUX ICI AURAIT MARCHÉ AUJOURD'HUI ET MENTI DEMAIN.
-
-   Une leçon de conduite, donc la paire « ordinaire » : c'est de la
-   boîte de l'ÉLÈVE qu'on parle ici, pas du type d'une séance. */
-function tonDeLaBoite(cle){
-  if(typeof TRAIT_PAIRES === 'undefined') return '';
-  const paire = TRAIT_PAIRES.ordinaire || {};
-  return paire[cle] || '';
-}
-
-/* La barre elle-même, ou rien. « Rien » est une réponse : voir la
-   note ci-dessus. */
-function barreDeLaBoite(e){
-  const c = BARRE_BOITE[boiteConnueDe(e)];
-  if(!c) return null;
-  const ton = tonDeLaBoite(c.cle);
-  /* Sans couleur, pas de barre : une barre grise dirait « on ne
-     sait pas » alors qu'on sait. */
-  if(!ton) return null;
-  const b = document.createElement('span');
-  b.className = 'barreBoite';
-  b.style.background = ton;
-  /* La couleur ne dit jamais seule : au survol et pour un lecteur
-     d'écran, elle s'écrit en toutes lettres. */
-  b.title = c.quoi;
-  b.setAttribute('aria-label', c.quoi);
-  return b;
-}
-
-
-/* Fiche de préparation administrative d'un passage au permis */
-function ligneBureau(e, options){
-  const row = document.createElement('div');
-  row.className = 'history-item';
-
-  /* ⚠️ LA LIGNE PORTE LE NOM DE LA PERSONNE — v960. C'est ce qui
-     permet d'être emmené SUR elle depuis « Choses à voir
-     aujourd'hui », et pas seulement sur son écran. Posé ici, dans
-     la ligne commune, il vaut pour les quinze listes du bureau à la
-     fois : posé dans chacune, il en manquerait à trois. */
-  row.dataset.eleve = e.eleve || '';
-
-  /* Un repassage se repère d'un coup d'œil */
-  const sv = suiviDe(e.eleve);
-  if(sv.nbAjournements){
-    row.classList.add('repassage');
-  }
-  row.style.flexDirection = 'column';
-  row.style.alignItems = 'stretch';
-
-  const haut = document.createElement('div');
-  haut.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:8px;';
-
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  const nom = document.createElement('strong');
-  nom.textContent = e.eleve;
-  /* 👤 Son dossier — v1134. Posé ici, il vaut pour toutes les listes
-     du bureau d'un coup. */
-  if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(nom, e.eleve);
-
-  /* La barre de la boîte, seulement dans les listes qui la
-     demandent — « Élèves prêts au permis » aujourd'hui. Posée ici
-     pour les quinze listes d'un coup le jour où tu en veux
-     ailleurs ; pas allumée partout sans qu'on l'ait décidé. */
-  const barre = options.barreBoite ? barreDeLaBoite(e) : null;
-  if(barre){
-    const titre = document.createElement('div');
-    titre.className = 'ligneAvecBoite';
-    titre.appendChild(barre);
-    titre.appendChild(nom);
-    meta.appendChild(titre);
-  }else{
-    meta.appendChild(nom);
-  }
-
-  const info = document.createElement('span');
-  info.textContent = options.info(e);
-  /* Une note sur une seconde ligne doit rester lisible */
-  info.style.whiteSpace = 'pre-wrap';
-  meta.appendChild(info);
-
-  const sous = document.createElement('span');
-  sous.textContent = 'Dernier cours le ' + (e.date || '?') +
-                     (e.moniteur ? ' avec ' + e.moniteur : '');
-  meta.appendChild(sous);
-
-  /* 🔗 v1167 — un nom mal écrit rattaché à sa fiche : on le montre,
-     et on propose de le corriger dans le classeur */
-  if((e.nomsEcrits || []).length){
-    const ecr = document.createElement('span');
-    ecr.className = 'nomEcrit';
-    ecr.style.cssText = 'color:var(--warn-text);font-size:12px;line-height:1.5;';
-    ecr.textContent = '✏️ Aussi écrit ' + e.nomsEcrits.map(n => '« ' + n + ' »').join(', ') +
-                      ' dans un bilan ou un message ';
-    e.nomsEcrits.forEach(n => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'display:inline-block;width:auto;margin:4px 0 0;padding:4px 10px;font-size:12px;';
-      b.textContent = '🔗 C’est le même élève : corriger';
-      b.title = 'Réécrire « ' + n + ' » en « ' + e.eleve + ' » dans le classeur';
-      b.addEventListener('click', ev => { ev.stopPropagation(); corrigerUnNomEcrit(n, e.eleve, b); });
-      ecr.appendChild(b);
-    });
-    meta.appendChild(ecr);
-  }
-
-  /* Une fiche peut venir du répertoire, sans consigne attachée */
-  if((e.enAttente || []).length){
-    const att = document.createElement('span');
-    att.style.color = 'var(--accent-text)';
-    att.textContent = '📨 ' + (e.enAttente || []).map(x => x.texte).join(' · ') +
-                      ' (transmis au prochain cours)';
-    meta.appendChild(att);
-  }
-  haut.appendChild(meta);
-
-  row.appendChild(haut);
-
-  /* ⚠️ LA RAISON S'ÉCRIT. ELLE ÉTAIT DANS UNE INFOBULLE — v943.
-
-     Ces lignes affichaient un « ⚠️ » de 22 px et rangeaient la
-     raison dans son attribut « title ». Sur un ordinateur, il faut
-     poser la souris dessus et attendre ; SUR UN TÉLÉPHONE, IL N'Y
-     A PAS DE SURVOL — la raison n'était donc lisible nulle part
-     pour un moniteur, et à peine au bureau.
-
-     Or c'est la première chose qu'on vient chercher dans ces
-     listes : pourquoi cet élève est-il bloqué. Un écran qui le
-     sait et ne le dit pas oblige à rouvrir la fiche pour
-     l'apprendre. Elle se lit maintenant en toutes lettres, sous le
-     nom — et la couleur du bord ne dit jamais seule.
-
-     ⚠️ ET ELLE NE SE RÉPÈTE PAS. Plusieurs listes écrivent déjà la
-     même phrase dans « info » ; la redire dessous ferait une ligne
-     en double. On ne l'ajoute que si elle apporte autre chose. */
-  /* ============================================================
-     ⚠️ UNE LIGNE QUI PEUT SE REDIRE SANS QU'ON REDESSINE TOUT — v1094
-
-     Ces trois phrases — ce que la ligne annonce, ce qu'elle résume,
-     ce qu'elle alerte — étaient écrites une fois pour toutes au
-     moment du dessin. Quand la donnée changeait sous elles, le seul
-     moyen de les remettre d'accord était de redessiner la liste
-     entière… ce qui REFERME les fiches ouvertes. Le bureau qui a un
-     bloc déplié sous les yeux le voyait se refermer tout seul.
-
-     Les trois zones existent donc toujours — vides et masquées quand
-     il n'y a rien à dire — et « rafraichirLigne » les redemande à
-     celui qui sait. Rien d'autre ne bouge à l'écran.
-     ============================================================ */
-  const zoneAlerte = document.createElement('div');
-  zoneAlerte.className = 'raison';
-  if(options.alerte) row.appendChild(zoneAlerte);
-
-  const zoneResume = document.createElement('span');
-  zoneResume.style.cssText = 'display:block;font-size:12px;color:var(--muted);' +
-    'line-height:1.5;margin-top:4px;';
-  if(options.resume) meta.appendChild(zoneResume);
-
-  function redireLaLigne(){
-    info.textContent = options.info(e);
-
-    if(options.resume){
-      const r = String(options.resume(e) || '');
-      zoneResume.textContent = r;
-      zoneResume.style.display = r ? 'block' : 'none';
-    }
-
-    /* ⚠️ ET ELLE NE SE RÉPÈTE PAS. Plusieurs listes écrivent déjà la
-       même phrase dans « info » ; la redire dessous ferait une ligne
-       en double. On ne la montre que si elle apporte autre chose. */
-    if(options.alerte){
-      const texte = String(options.alerte(e) || '').trim();
-      const deja = String((options.info && options.info(e)) || '');
-      const montrer = !!texte && deja.indexOf(texte) === -1;
-      zoneAlerte.textContent = montrer ? '⚠️ ' + texte : '';
-      zoneAlerte.style.display = montrer ? '' : 'none';
-    }
-  }
-
-  redireLaLigne();
-  row.rafraichirLigne = redireLaLigne;
-
-  const actions = document.createElement('div');
-  actions.style.cssText = 'margin-top:10px;';
-  options.actions(e, actions);
-
-  /* Les listes longues se replient : l'essentiel reste visible,
-     les actions ne s'ouvrent qu'à la demande. */
-  /* Changer de liste plutôt que tout détruire : la fiche garde
-     sa date, ses heures, son examen blanc et ses paiements.
-
-     L'ancien bouton effaçait la ligne entière, et il fallait la
-     reconstruire à la main. */
-  if(options.menage !== false && aDroit('bureau_permis') &&
-     typeof boutonEnvoyerVers === 'function'){
-    actions.appendChild(boutonEnvoyerVers(e.eleve));
-  }
-
-  if(options.replier){
-    const det = document.createElement('details');
-    det.style.cssText = 'margin-top:6px;';
-    const som = document.createElement('summary');
-    som.style.cssText = 'cursor:pointer;font-size:13px;font-weight:600;' +
-      'color:var(--accent-text);padding:4px 0;list-style:none;';
-    som.textContent = '▸ Ouvrir la fiche';
-    det.appendChild(som);
-    det.appendChild(actions);
-    det.addEventListener('toggle', () => {
-      som.textContent = det.open ? '▾ Refermer' : '▸ Ouvrir la fiche';
-    });
-    row.appendChild(det);
-  }else{
-    row.appendChild(actions);
-  }
-
-  return row;
-}
-
-/* Bouton + calendrier pour fixer une date depuis le bureau */
-function boutonDate(libelle, onChoisi){
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-  b.textContent = libelle;
-  b.addEventListener('click', async () => {
-    const iso = await choisirDate(libelle);
-    if(!iso) return;
-    b.disabled = true;
-    b.textContent = 'Enregistrement…';
-    try{
-      await onChoisi(iso);
-    }finally{
-      b.disabled = false;
-      b.textContent = libelle;
-    }
-  });
-  return b;
-}
-
-/* ============================================================
-   AFFICHAGE DU SUIVI BUREAU
-   Chaque liste a sa fonction : on peut en modifier une sans
-   toucher aux autres.
-   ============================================================ */
-async function afficherBureau(silencieux){
-  const zEB = $('listeExamBlanc');
-  const zSim = $('listeSimu');
-  const zPer = $('listePermis');
-  if(!zEB) return;
-
-  /* Les deux tiroirs ont leur bouton : on les anime tous les deux,
-     sinon on croit que celui du permis ne répond pas. */
-  const boutons = [$('bureauBtn'), $('permisBureauBtn')].filter(Boolean);
-  const majBoutons = (t, off) => boutons.forEach(b => {
-    b.textContent = t;
-    b.disabled = !!off;
-  });
-
-  if(silencieux){
-    majBoutons('🔄 Actualisation…', false);
-  }else{
-    majBoutons('🔄 Chargement…', true);
-    const attente = '<div class="empty">Chargement du suivi…<br>' +
-      '<span style="font-size:12px;">Le premier chargement prend quelques secondes.</span></div>';
-    /* Le message s'affiche dans le tiroir réellement ouvert */
-    if(tiroirOuvert('permisbureau')) zPer.innerHTML = attente;
-    else zSim.innerHTML = attente;
-    if(!tiroirOuvert('permisbureau')) zEB.innerHTML = '';
-  }
-
-  try{
-    await chargerBureau(!silencieux);
-    bureauDejaCharge = true;
-  }catch(e){
-    majBoutons('🔄 Actualiser les listes', false);
-    if(!silencieux){
-      afficherErreurBureau(tiroirOuvert('permisbureau') ? zPer : zSim, e);
-    }
-    return;
-  }
-  majBoutons('🔄 Actualiser les listes', false);
-
-  redessinerBureau();
-}
-
-
-/* ============================================================
-   REDESSINER SANS RECHARGER
-
-   La mémoire est déjà à jour après une saisie : refaire le tour
-   du serveur coûtait plusieurs secondes pour rien.
-   ============================================================ */
-
-async function redessinerBureau(){
-  /* LE DOSSIER ÉLÈVE APPELLE LES MÊMES FONCTIONS QUE LE BUREAU.
-
-     Elles finissent toutes ici. Quand c'est la page élève qui les a
-     appelées, c'est elle qu'il faut remettre à jour — sinon la
-     modification part bien au serveur mais l'écran garde l'ancienne
-     valeur, et on appuie trois fois en croyant que ça n'a pas
-     marché. C'est un rafraîchissement, pas une deuxième écriture. */
-  if(typeof rafraichirPageEleve === 'function') rafraichirPageEleve();
-
-  if(!$('listeExamBlanc')) return;
-
-  const tous = etatBureau.eleves;
-
-  /* Chaque liste se construit à part */
-  afficherExamensBlancs(tous);
-
-  /* Les examens blancs préparés vivent dans les cours à venir.
-     Si personne n'a ouvert l'onglet Cours, la liste est encore
-     vide : on la charge avant d'afficher. */
-  if(typeof afficherEBPrevus === 'function'){
-    if(typeof prepares !== 'undefined' && !prepares.length &&
-       typeof chargerPrepares === 'function'){
-      chargerPrepares()
-        .then(() => afficherEBPrevus(tous))
-        .catch(() => afficherEBPrevus(tous));
-    }else{
-      afficherEBPrevus(tous);
-    }
-  }
-  afficherSimulateurs(tous);
-
-  /* ⚠️ LES SESSIONS AVANT LA LISTE RDV PERMIS.
-
-     David : « il faut que tu penses à faire le tri sur la liste
-     rendez-vous permis avec ceux qui ont une session examen, que
-     je n'aie pas à le faire à la main ».
-
-     Le tri lit les places tenues sur les sessions ouvertes. Sans
-     ce chargement, la liste s'affiche avant de savoir qui est
-     déjà placé — et le tri ne se ferait qu'au deuxième passage,
-     c'est-à-dire jamais du point de vue de celui qui regarde.
-
-     Même geste que pour les examens blancs préparés juste
-     au-dessus : on dessine tout de suite avec ce qu'on a, et on
-     redessine quand les sessions arrivent.
-
-     ⚠️ ET « REDESSINER », C'EST LES TROIS LISTES, PAS UNE — v989.
-
-     Seule « RDV Permis » était redessinée. Or les examens passés
-     lisent les sessions EUX AUSSI, et pour deux choses : le
-     candidat qui n'existe que par sa place, et la date de l'examen
-     dont on réclame le résultat. Ils étaient dessinés une fois,
-     avec une liste de sessions encore vide, et plus jamais après.
-
-     C'est le défaut que le paragraphe ci-dessus décrit en toutes
-     lettres — « le tri ne se ferait qu'au deuxième passage,
-     c'est-à-dire jamais » — appliqué à une seule des listes qui en
-     souffraient. Les trois passent maintenant par la même porte. */
-  const dessinerCeQuiDependDesSessions = async () => {
-    afficherRdvPermis(tous);
-    const prevus = afficherPermisPrevus(tous);
-    await afficherPostExamenDepuisPrevus(tous, prevus);
+  const page = b.page.replace(/^https:\/\//, '').replace(/\/$/, '');
+  const basculer = cle => async (vers) => {
+    if(!modif) throw new Error('Il faut le droit « Horaires et rendez-vous des bureaux » en modification.');
+    await changerUnReglageBureau(id, cle, vers ? 1 : 0);
   };
+  z.appendChild(interrupteur({
+    cle: 'bureauDrivup', titre: '📥 Horaires repris de Drivup', ouvert: !!reg.drivup,
+    quandOuvert: 'Le favori lit les créneaux « ' + ((e.bureau && e.bureau.drivup) || 'Bureau ' + b.nom) +
+                 ' » des quatre semaines à venir. Ce que tu changes à la main l’emporte.',
+    quandFerme: 'Le favori ne lit pas ce bureau dans Drivup. Les horaires se règlent ici, à la main.',
+    basculer: basculer('drivup'), apres: () => afficherUnBureau(id)
+  }));
+  z.appendChild(interrupteur({
+    cle: 'bureauPage', titre: '🌐 Page publique et QR code', ouvert: !!reg.page,
+    quandOuvert: page + ' est en ligne : ouvert ou fermé maintenant, les horaires, l’adresse et le téléphone.',
+    quandFerme: 'QR code coupé : ' + page + ' dit seulement que la page n’est pas active, avec l’adresse et le téléphone.',
+    basculer: basculer('page'), apres: () => afficherUnBureau(id)
+  }));
+  z.appendChild(interrupteur({
+    cle: 'bureauRdv', titre: '📅 Prise de rendez-vous en ligne', ouvert: !!reg.rdv,
+    quandOuvert: 'Le bouton « Prendre rendez-vous au bureau » est sur la page : 30 minutes, un par créneau, ' +
+                 'pendant les heures d’ouverture.',
+    quandFerme: reg.page ? 'La page montre seulement les horaires d’ouverture et de fermeture, sans bouton de rendez-vous.'
+                         : 'Sans effet tant que la page publique est coupée.',
+    basculer: basculer('rdv'), apres: () => afficherUnBureau(id)
+  }));
+  return z;
+}
 
-  await dessinerCeQuiDependDesSessions();
+async function changerUnReglageBureau(id, cle, valeur){
+  let decisions = {};
+  /* Couper la page ou les rendez-vous : ceux déjà pris, un par un */
+  if(!valeur && (cle === 'page' || cle === 'rdv')){
+    const reg = {}; reg[cle] = 0;
+    const imp = await appelPrep({ action: 'bureauImpact', bureau: id, hypo: { reglages: reg } });
+    if(imp.touches && imp.touches.length){
+      decisions = await deciderPourLesRdvBureau(imp.touches,
+        cle === 'page' ? '🌐 Couper la page publique ?' : '📅 Couper la prise de rendez-vous ?',
+        'Les nouveaux rendez-vous seront bloqués. Pour ceux déjà pris :',
+        cle === 'page' ? '🌐 Couper la page' : '📅 Couper les rendez-vous');
+      if(decisions === null) throw new Error('rien n’a changé');
+    }
+  }
+  await appelPrep({ action: 'bureauReglage', bureau: id, cle: cle, valeur: valeur, decisions: decisions });
+}
 
-  if(typeof sessionsPermis !== 'undefined' && !sessionsPermis.length &&
-     typeof chargerSessionsPermis === 'function'){
-    chargerSessionsPermis()
-      .then(() => dessinerCeQuiDependDesSessions())
-      .catch(() => {});
+/* ------------------------------------------------------------
+   « QUE FAIRE DE CES RENDEZ-VOUS ? » — un par un
+   Rend { id: 'annuler' | 'garder' } (ce qui n'est pas choisi passe
+   « à traiter »), ou null si on renonce.
+   ------------------------------------------------------------ */
+function fenetreBureau(titre){
+  const fond = elBureau('div', 'overlay show');
+  const boite = elBureau('div', 'modal lvModale');
+  boite.appendChild(elBureau('h3', '', titre));
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  return { fond, boite, fermer: () => { if(fond.parentNode) fond.remove(); } };
+}
+
+function choixDesRdvBureau(touches, ou, dans){
+  const choix = dans || {};
+  touches.forEach(r => {
+    const f = elBureau('div', 'lvFr');
+    f.append(elBureau('b', '', jourCourtBureau(r.jour) + ' · ' + heureBureauLisible(r.heure) + ' · ' + r.nom),
+             document.createTextNode(' '), elBureau('span', '', r.motifLibelle || r.motif));
+    const chx = elBureau('div', 'lvChx');
+    [['annuler', '✖️ Annuler et prévenir par mail'], ['garder', '👌 Je m’en occupe']].forEach(([v, t]) => {
+      const lab = elBureau('label');
+      const inp = document.createElement('input');
+      inp.type = 'radio';
+      inp.name = 'rdv-' + r.id;
+      inp.value = v;
+      inp.addEventListener('change', () => { if(inp.checked) choix[r.id] = v; });
+      lab.append(inp, document.createTextNode(' ' + t));
+      chx.appendChild(lab);
+    });
+    f.appendChild(chx);
+    ou.appendChild(f);
+  });
+  return choix;
+}
+
+function deciderPourLesRdvBureau(touches, titre, intro, libelle){
+  return new Promise(resolve => {
+    const f = fenetreBureau(titre);
+    f.boite.appendChild(elBureau('div', 'lvMs', intro));
+    f.boite.appendChild(elBureau('div', 'lvT', touches.length + ' rendez-vous ' + (touches.length > 1 ? 'sont pris' : 'est pris')));
+    const choix = choixDesRdvBureau(touches, f.boite);
+    f.boite.appendChild(elBureau('div', 'lvMs', 'Sans choix, le rendez-vous reste et passe « ⚠️ À traiter ».'));
+    const row = elBureau('div', 'btn-row');
+    const ok = elBureau('button', 'btn btn-primary', libelle);
+    ok.style.flex = '2';
+    const non = elBureau('button', 'btn btn-secondary', 'Annuler');
+    non.style.flex = '1';
+    ok.addEventListener('click', () => { f.fermer(); resolve(choix); });
+    non.addEventListener('click', () => { f.fermer(); resolve(null); });
+    row.append(ok, non);
+    f.boite.appendChild(row);
+  });
+}
+
+/* ------------------------------------------------------------
+   ✏️ UN JOUR — et ➕ OUVRIR UN AUTRE JOUR (jour vide)
+   ------------------------------------------------------------ */
+function selectHeureBureau(v){
+  const s = document.createElement('select');
+  for(let m = 7 * 60; m <= 21 * 60; m += 30){
+    const h = String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    const o = document.createElement('option');
+    o.value = h;
+    o.textContent = heureBureauLisible(h);
+    if(h === v) o.selected = true;
+    s.appendChild(o);
+  }
+  return s;
+}
+
+function equipeDuBureau(){
+  const l = [];
+  ((typeof moniteursActifs !== 'undefined' && moniteursActifs) || []).forEach(n => { if(n && l.indexOf(n) === -1) l.push(n); });
+  if(ACCES && ACCES.moniteur && l.indexOf(ACCES.moniteur) === -1) l.push(ACCES.moniteur);
+  return l.sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+async function modifierUnJourBureau(id, jour){
+  const e = etatDesBureaux[id];
+  if(!e) return;
+  if(typeof chargerMoniteurs === 'function' && !((typeof moniteursActifs !== 'undefined') && moniteursActifs.length)){
+    try{ await chargerMoniteurs(); }catch(err){}
+  }
+  const j = (e.jours || []).find(x => x.jour === jour) || null;
+  const f = fenetreBureau(jour ? '✏️ ' + jourLongBureau(jour).replace(/^./, c => c.toUpperCase()) : '➕ Ouvrir un autre jour');
+
+  let date = null;
+  if(!jour){
+    f.boite.appendChild(elBureau('label', '', 'Le jour'));
+    date = document.createElement('input');
+    date.type = 'date';
+    date.min = e.aujourdhui;
+    date.max = jourPlusBureau(e.aujourdhui, 120);
+    f.boite.appendChild(date);
+  }
+  const dit = elBureau('div', 'lvMs');
+  const direDrivup = x => {
+    dit.textContent = '';
+    if(!(e.reglages || {}).drivup){ dit.textContent = 'La reprise Drivup est coupée pour ce bureau.'; return; }
+    if(!x || !x.base || !x.base.connu){ dit.textContent = 'Drivup : pas encore lu pour ce jour.'; return; }
+    dit.append(document.createTextNode('Drivup : '),
+               elBureau('b', '', x.base.ouvert ? plagesLisibles(x.base.plages) : 'fermé'),
+               document.createTextNode(x.base.ouvert ? ', tenu par ' + tenuLisible(x.base.tenu)
+                                                     : ' (aucun créneau « ' + ((e.bureau && e.bureau.drivup) || 'Bureau') + ' »)'));
+  };
+  direDrivup(j);
+  f.boite.appendChild(dit);
+
+  const chx = elBureau('div', 'lvChx');
+  const radios = {};
+  [['1', '🔓 Ouvert'], ['0', '🔒 Fermé']].forEach(([v, t]) => {
+    const lab = elBureau('label');
+    const inp = document.createElement('input');
+    inp.type = 'radio';
+    inp.name = 'ouvertBureau';
+    inp.value = v;
+    radios[v] = inp;
+    lab.append(inp, document.createTextNode(' ' + t));
+    chx.appendChild(lab);
+  });
+  f.boite.appendChild(chx);
+
+  const zH = elBureau('div', 'lvHoraires');
+  zH.appendChild(elBureau('label', '', 'Horaires'));
+  const lignes = elBureau('div');
+  zH.appendChild(lignes);
+  const ajouterPlage = (a, b) => {
+    const l = elBureau('div', 'lvPl');
+    const s1 = selectHeureBureau(a), s2 = selectHeureBureau(b);
+    const x = elBureau('button', 'lvPetit', '✕');
+    x.title = 'Retirer cette plage';
+    x.addEventListener('click', () => { if(lignes.children.length > 1) l.remove(); });
+    l.append(s1, document.createTextNode(' à '), s2, x);
+    lignes.appendChild(l);
+  };
+  const plus = elBureau('button', 'lvPetit', '+ une plage');
+  plus.addEventListener('click', () => { if(lignes.children.length < 3) ajouterPlage('14:00', '17:00'); });
+  zH.appendChild(plus);
+  zH.appendChild(elBureau('label', '', 'Tenu par'));
+  const tenu = document.createElement('select');
+  const oB = document.createElement('option');
+  oB.value = ''; oB.textContent = 'le bureau';
+  tenu.appendChild(oB);
+  equipeDuBureau().forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; tenu.appendChild(o); });
+  zH.appendChild(tenu);
+  f.boite.appendChild(zH);
+
+  const poser = x => {
+    const ouvert = x ? x.ouvert : true;
+    radios[ouvert ? '1' : '0'].checked = true;
+    lignes.innerHTML = '';
+    const pl = x && x.ouvert ? x.plages : (x && x.base && x.base.ouvert ? x.base.plages : [['09:00', '12:00']]);
+    pl.forEach(p => ajouterPlage(p[0], p[1]));
+    const t = String((x && (x.tenu || (x.base && x.base.tenu))) || '').split(',')[0].trim();
+    if(t && !Array.from(tenu.options).some(o => o.value === t)){
+      const o = document.createElement('option'); o.value = t; o.textContent = t; tenu.appendChild(o);
+    }
+    tenu.value = t;
+    zH.style.display = ouvert ? '' : 'none';
+  };
+  poser(j);
+  radios['1'].addEventListener('change', () => { zH.style.display = ''; });
+  radios['0'].addEventListener('change', () => { zH.style.display = 'none'; });
+  if(date){
+    date.addEventListener('change', () => {
+      const x = (e.jours || []).find(y => y.jour === date.value) || null;
+      direDrivup(x);
+      poser(x && x.ouvert ? x : { ouvert: true, plages: [['09:00', '12:00']], tenu: '', base: x && x.base });
+    });
   }
 
-  afficherExamensPermis(tous);
-
-  /* Le compte de ce qui attend une décision du bureau */
-  majAlerteSuivi(tous);
-}
-
-/* Le décompte revient au module des alertes : il connaît les
-   masquages et les droits par type de pastille. */
-/* ⚠️ DEUXIÈME ENDROIT QUI POSAIT LA PASTILLE — et il la posait sur
-   SUIVI, comme l'autre, alors que l'écran des alertes vit dans
-   GESTION. Deux fonctions pour un même compteur : elles ne peuvent
-   se contredire que si chacune décide de l'onglet toute seule. Le
-   choix est donc fait à UN endroit — poserPastilleNotifs — et
-   celle-ci ne fait plus que compter. */
-function majAlerteSuivi(eleves){
-  if(typeof poserPastilleNotifs !== 'function') return;
-  if(typeof notifsEnAttente !== 'function'){ poserPastilleNotifs(0); return; }
-  poserPastilleNotifs(notifsEnAttente(eleves).length);
-}
-
-/* Message d'erreur, avec la possibilité de réessayer */
-function afficherErreurBureau(zone, e){
-  zone.innerHTML = '';
-  const err = document.createElement('div');
-  err.className = 'empty';
-  err.innerHTML = '⚠️ ' + e.message.replace(/</g, '&lt;') + '<br>';
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'margin-top:10px;width:auto;padding:10px 16px;';
-  b.textContent = '🔄 Réessayer';
-  b.addEventListener('click', () => afficherBureau());
-  err.appendChild(b);
-  zone.appendChild(err);
-}
-
-
-/* Examens blancs à prévoir */
-async function envoyerMessageBureau(){
-  const eleve = $('msgEleve').value.trim();
-  const texte = $('msgTexte').value.trim();
-  const etat = $('msgEtat');
-
-  if(eleve.length < 2){ etat.style.color='var(--warn-text)'; etat.textContent="Saisis le nom de l'élève."; return; }
-  if(!texte){ etat.style.color='var(--warn-text)'; etat.textContent='Saisis un message.'; return; }
-
-  const btn = $('msgBtn');
-  btn.disabled = true;
-  btn.textContent = 'Envoi…';
-  try{
-    await envoyerConsigne(eleve, 'message', texte);
-    etat.style.color = 'var(--accent-text)';
-    etat.textContent = '✅ Message enregistré pour ' + eleve +
-                       ' — il le verra au prochain cours.';
-    $('msgTexte').value = '';
-    await afficherConsignesEnAttente();
-  }catch(e){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Erreur : ' + e.message;
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '📨 Envoyer au moniteur';
+  f.boite.appendChild(elBureau('div', 'lvMs', '✋ Ce jour reste comme tu le règles ici, même si une prochaine lecture de Drivup dit autre chose.'));
+  const etat = elBureau('div', 'dvNote');
+  const row = elBureau('div', 'btn-row');
+  const ok = elBureau('button', 'btn btn-primary', '✅ Enregistrer');
+  ok.style.flex = '2';
+  const non = elBureau('button', 'btn btn-secondary', 'Annuler');
+  non.style.flex = '1';
+  non.addEventListener('click', f.fermer);
+  row.append(ok, non);
+  if(j && j.source === 'main' && (e.reglages || {}).drivup){
+    const re = elBureau('button', 'btn btn-secondary', '↩️ Revenir à Drivup');
+    re.addEventListener('click', () => { f.fermer(); revenirADrivupBureau(id, jour); });
+    row.appendChild(re);
   }
-}
+  f.boite.append(row, etat);
 
-/* Messages déjà envoyés mais pas encore lus par un moniteur */
-async function afficherConsignesEnAttente(){
-  const zone = $('listeConsignes');
-  if(!zone) return;
-  try{
-    const data = await appelPrep({ action: 'consigneList' });
-    const liste = ((data && data.consignes) || [])
-      .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
-
-    if($('nbConsignes')) $('nbConsignes').textContent = '(' + liste.length + ')';
-    majCompteur('cptMessages', liste.length);
-    if(!liste.length){
-      zone.innerHTML = '<div class="empty">Aucun message en attente.</div>';
+  ok.addEventListener('click', async () => {
+    const leJour = jour || (date && date.value) || '';
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(leJour)){ etat.textContent = '⚠️ Choisis le jour.'; return; }
+    const ouvert = radios['1'].checked;
+    const plages = Array.from(lignes.querySelectorAll('.lvPl')).map(l => {
+      const s = l.querySelectorAll('select');
+      return [s[0].value, s[1].value];
+    });
+    if(ouvert && plages.some(p => minBureau(p[1]) <= minBureau(p[0]))){
+      etat.textContent = '⚠️ Une plage finit avant de commencer.';
       return;
     }
-
-    zone.innerHTML = '';
-
-    /* Au-delà d'une poignée de messages, la liste devient illisible :
-       on filtre et on trie plutôt que de tout empiler. */
-    const barre = document.createElement('div');
-    barre.style.cssText = 'margin-bottom:12px;';
-
-    const rech = document.createElement('input');
-    rech.type = 'text';
-    rech.id = 'consFiltre';
-    rech.placeholder = '🔍 Filtrer par élève, texte ou auteur';
-    rech.style.marginBottom = '8px';
-    barre.appendChild(rech);
-
-    const duo = document.createElement('div');
-    duo.className = 'duo';
-    duo.innerHTML =
-      '<div><label for="consTri">Trier par</label><select id="consTri">' +
-        '<option value="recent">Plus récents d\'abord</option>' +
-        '<option value="ancien">Plus anciens d\'abord</option>' +
-        '<option value="eleve">Nom de l\'élève</option>' +
-        '<option value="auteur">Auteur du message</option>' +
-      '</select></div>' +
-      '<div><label for="consAuteur">Auteur</label><select id="consAuteur"></select></div>';
-    barre.appendChild(duo);
-    zone.appendChild(barre);
-
-    const compte = document.createElement('div');
-    compte.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;';
-    zone.appendChild(compte);
-
-    const lst = document.createElement('div');
-    zone.appendChild(lst);
-
-    /* Les auteurs présents, pour filtrer sans taper */
-    const auteurs = [];
-    liste.forEach(x => {
-      const a = (x.par || '').trim();
-      if(a && auteurs.indexOf(a) === -1) auteurs.push(a);
-    });
-    auteurs.sort((a, b) => a.localeCompare(b, 'fr'));
-    $('consAuteur').innerHTML = '<option value="">Tous</option>' +
-      auteurs.map(a => '<option value="' + a.replace(/"/g, '&quot;') + '">' + a + '</option>').join('');
-
-    function quand(x){
-      const iso = dateFrVersIso(x.creeLe) || '';
-      return iso + ' ' + String(x.creeLe || '');
-    }
-
-    function dessiner(){
-      const q = normaliserMot(rech.value);
-      const tri = $('consTri').value;
-      const aut = $('consAuteur').value;
-
-      let vus = liste.filter(x =>
-        (!aut || (x.par || '').trim() === aut) &&
-        (!q || normaliserMot(x.eleve || '').indexOf(q) !== -1 ||
-               normaliserMot(x.texte || '').indexOf(q) !== -1 ||
-               normaliserMot(x.par || '').indexOf(q) !== -1));
-
-      if(tri === 'eleve') vus.sort((a, b) => (a.eleve || '').localeCompare(b.eleve || '', 'fr'));
-      else if(tri === 'auteur') vus.sort((a, b) => (a.par || '').localeCompare(b.par || '', 'fr'));
-      else if(tri === 'ancien') vus.sort((a, b) => quand(a).localeCompare(quand(b)));
-      else vus.sort((a, b) => quand(b).localeCompare(quand(a)));
-
-      compte.textContent = vus.length + ' message(s) affiché(s)' +
-        (vus.length !== liste.length ? ' sur ' + liste.length : '');
-
-      lst.innerHTML = '';
-      if(!vus.length){
-        lst.innerHTML = '<div class="empty">Aucun message ne correspond.</div>';
-        return;
-      }
-      vus.forEach(dessinerConsigne);
-    }
-
-    [rech, $('consTri'), $('consAuteur')].forEach(e => {
-      if(!e) return;
-      e.addEventListener('input', dessiner);
-      e.addEventListener('change', dessiner);
-    });
-
-    function dessinerConsigne(cs){
-      const row = document.createElement('div');
-      row.className = 'history-item';
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      const nom = document.createElement('strong');
-      nom.textContent = cs.eleve;
-      const t = document.createElement('span');
-      t.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
-      t.textContent = '📨 ' + cs.texte;
-      const d = document.createElement('span');
-      d.textContent = 'Envoyé le ' + cs.creeLe + (cs.par ? ' par ' + cs.par : '');
-      meta.appendChild(nom); meta.appendChild(t); meta.appendChild(d);
-      row.appendChild(meta);
-
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;color:var(--red);border-color:var(--red);flex-shrink:0;';
-      b.textContent = '✕';
-      b.title = 'Annuler ce message';
-      b.addEventListener('click', async () => {
-        if(!await confirmer('Annuler ce message ?')) return;
-        b.disabled = true;
-        try{
-          await appelPrep({ action: 'consigneDone', id: cs.id });
-          afficherConsignesEnAttente();
-        }catch(e){ showToast('Erreur : ' + e.message); b.disabled = false; }
-      });
-      row.appendChild(b);
-      lst.appendChild(row);
-    }
-
-    dessiner();
-  }catch(e){
-    zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
-  }
-}
-
-
-/* ============================================================
-   ⚠️ « ajouterDateBureau » N'EST PLUS ICI — v1017
-
-   Elle y était, ET dans ec-permis-listes.js. Deux fonctions du même
-   nom, à la même portée : il n'y a pas de modules dans cette
-   application, et index.html charge ec-permis-listes.js APRÈS
-   ec-bureau.js. La seconde écrasait donc la première au chargement,
-   et celle d'ici n'a jamais été exécutée une seule fois.
-
-   Elles avaient déjà divergé, et pas au détriment de la vivante :
-   celle d'ici ne vidait pas la note, ne posait pas
-   « eleveAjouteRecemment », et rafraîchissait par afficherBureau()
-   au lieu de afficherBureau(true) — donc en vidant les listes.
-
-   ⚠️ CE QUE ÇA COÛTE, ET QUI EST PIRE QUE LE CODE MORT : on corrige
-   l'écran ici, on recharge, rien ne change, et on ne comprend pas
-   pourquoi. C'est une demi-journée perdue à chercher un bug qui
-   n'existe pas.
-
-   La vivante reste dans ec-permis-listes.js, avec le formulaire
-   qu'elle sert. test-une-seule-fonction-par-nom.js refuse désormais
-   que deux fichiers de app/ déclarent la même fonction globale.
-   ============================================================ */
-
-/* ============================================================
-   ACTUALISATION AUTOMATIQUE
-   Le suivi bureau et les cours préparés changent sans qu'on le
-   sache : d'autres personnes les modifient. On rafraîchit seul.
-   ============================================================ */
-
-/* ⚠️ UN ENVOI TIENT LE CLASSEUR — v944.
-
-   Le rafraîchissement automatique se tait quand quelqu'un tape
-   dans un champ ou qu'une fenêtre est ouverte. Mais dès qu'on
-   appuie sur « Envoyer », la fenêtre de confirmation se ferme, le
-   curseur quitte le champ — et les quatre-vingt-dix secondes
-   peuvent tomber en plein milieu de l'envoi.
-
-   Le classeur ne traite qu'une chose à la fois : le lien du rappel
-   attendait alors derrière une relecture complète du bureau, et
-   dépassait son délai. Le mail partait sans son bouton de
-   confirmation, et David l'a vu plusieurs fois.
-
-   Un envoi n'est pas moins « occupé » qu'une saisie : il l'est
-   davantage — une saisie ne fait rien pendant qu'on la tape.
-
-   ⚠️ UN COMPTEUR, PAS UN BOOLÉEN. Deux envois peuvent se
-   chevaucher (l'élève et son financeur, un renvoi lancé sans
-   attendre) : un booléen remis à faux par le premier libérerait le
-   second, qui se ferait alors couper. */
-let envoisEnCours = 0;
-
-function debutEnvoi(){ envoisEnCours++; }
-function finEnvoi(){ envoisEnCours = Math.max(0, envoisEnCours - 1); }
-
-/* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
-function bureauOccupe(){
-  if(envoisEnCours > 0) return true;
-
-  /* ⚠️ ET LE CLASSEUR EST OCCUPÉ DÈS QU'IL NOUS RÉPOND — v949.
-
-     « envoisEnCours » ne connaît que les envois qui ont pensé à se
-     déclarer. Le compteur d'appelPrep, lui, voit passer TOUT ce qui
-     parle au classeur — les écritures comme les lectures — sans que
-     personne ait à y penser. Empiler un rafraîchissement sur un
-     classeur qui répond déjà, c'est faire attendre celui qui
-     attendait. Voir appelEnCours() dans ec-prepares.js. */
-  if(typeof appelEnCours === 'function' && appelEnCours()) return true;
-  const a = document.activeElement;
-  if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName || '')) return true;
-  if(document.querySelector('.overlay.show')) return true;
-  const ouverts = document.querySelectorAll('.card details[open]');
-  for(let i = 0; i < ouverts.length; i++){
-    if(ouverts[i].querySelector('input, textarea, select')) return true;
-  }
-  return false;
-}
-
-/* Un module est « ouvert » s'il est dans l'onglet affiché et
-   qu'aucune autre vue ne le masque. */
-function tiroirOuvert(cle){
-  const correspond = { bureau: 'suivi', permisbureau: 'permis' };
-  const onglet = correspond[cle];
-  if(onglet) return (typeof ongletActif !== 'undefined') && ongletActif === onglet;
-
-  const el = document.querySelector('[data-vue="' + cle + '"]');
-  if(!el) return false;
-  return !el.classList.contains('hors-vue') &&
-         !el.classList.contains('hors-onglet') &&
-         el.style.display !== 'none';
-}
-
-/* ============================================================
-   SE TAIRE APRÈS UN REFUS
-
-   Un 403 ou un 429 veut dire « pas maintenant ». Continuer à
-   demander toutes les 90 secondes ne fait qu'entretenir le
-   blocage.
-   ============================================================ */
-
-let reseauRefuseJusqua = 0;
-
-function noterRefusReseau(secondes){
-  reseauRefuseJusqua = Date.now() + (secondes || 120) * 1000;
-}
-
-function reseauEnPause(){
-  return Date.now() < reseauRefuseJusqua;
-}
-
-
-function lancerActualisationAuto(){
-  clearInterval(minuteurBureau);
-  minuteurBureau = setInterval(() => {
-    if(!ACCES.code) return;
-    if(bureauOccupe()) return;
-
-    /* L'onglet en arrière-plan n'a personne devant : rafraîchir
-       coûte des appels sans que rien ne soit lu. */
-    if(document.hidden) return;
-
-    /* Après un refus du serveur, on se tait : réessayer toutes
-       les 90 secondes prolongeait le blocage au lieu de le
-       laisser expirer. */
-    if(reseauEnPause()) return;
-
-    /* Les cours préparés : d'autres moniteurs en ajoutent */
-    if(tiroirOuvert('prepares') && aDroit('cours')) afficherPrepares(true, true);
-
-    /* Les deux tiroirs de suivi se rafraîchissent d'eux-mêmes */
-    if((tiroirOuvert('bureau') || tiroirOuvert('permisbureau')) && bureauDejaCharge){
-      afficherBureau(true);
-    }
-
-    if(tiroirOuvert('messages')) afficherConsignesEnAttente();
-
-    /* Les réponses des familles au rendez-vous théorique : elles
-       arrivent une par une dans la journée, et le bureau les
-       attendait en rechargeant la page entière. */
-    if(tiroirOuvert('suiviaac') &&
-       typeof rafraichirToursRvtAuto === 'function'){
-      rafraichirToursRvtAuto();
-    }
-
-    /* ⚠️ LA CB SE RELIT SANS QU'ON OUVRE RIEN.
-
-       Elle est la seule chose de cette liste qui se lise sur le
-       BANDEAU, en permanence, sans tiroir ouvert : quatre moniteurs
-       à Saint-Brieuc pour une carte, et celui qui regarde son bouton
-       n'a rien ouvert du tout. C'est justement à lui qu'il faut dire
-       qu'elle vient de partir. */
-    if(typeof rafraichirCbAuto === 'function') rafraichirCbAuto();
-
-    /* ⚠️ LA MESSAGERIE SE COMPTE ICI, ET PAS DANS SON PROPRE
-       BATTEMENT — v1070.
-
-       Une messagerie fermée doit coûter ZÉRO appel de plus : c'est
-       la condition qu'on s'est fixée en sortant du classeur. Le
-       chiffre de la pastille voyage donc sur ce battement-là, qui
-       existe depuis toujours et qui sait déjà se taire quand
-       personne ne regarde. Le fil OUVERT, lui, a son propre
-       battement de quatre secondes — et seulement tant qu'il est
-       ouvert. Voir compterLaMessagerie. */
-    if(typeof compterLaMessagerie === 'function' &&
-       !(typeof unFilEstOuvert === 'function' && unFilEstOuvert())){
-      compterLaMessagerie();
-    }
-    /* ⚠️ LES OBJETS RESTENT ICI, ET PAS SUR LE BATTEMENT COURT DE
-       LA MESSAGERIE — v1079. Une écharpe oubliée ne change pas
-       d'état trois fois par minute ; le compteur des messages, lui,
-       est passé à 25 secondes parce que David attendait deux
-       minutes sa notification. Les mettre ensemble, c'était doubler
-       un appel pour une liste qui ne bouge pas. */
-    if(typeof compterLesObjets === 'function') compterLesObjets();
-  }, 90000);   /* toutes les 90 secondes */
-}
-
-/* Au retour du réseau, on relance ce qui avait échoué */
-let reseauEcoute = false;
-function ecouterReseau(){
-  if(reseauEcoute) return;
-  reseauEcoute = true;
-  window.addEventListener('online', () => {
-    showToast('Connexion rétablie');
-    viderCaches();
-    if(aDroit('cours')) afficherPrepares(true, true);
-    /* Les deux tiroirs de suivi se rafraîchissent d'eux-mêmes */
-    if((tiroirOuvert('bureau') || tiroirOuvert('permisbureau')) && bureauDejaCharge){
-      afficherBureau(true);
-    }
-    chargerEleves();
-  });
-}
-
-/* Une fois la date fixée, on attribue l'examen blanc à un moniteur
-   et on lui prépare sa fiche automatiquement. */
-
-/* Compteur affiché dans le titre d'un volet de liste.
-   Vide s'il n'y a rien : un « 0 » n'apprend rien. */
-function majVolet(id, nombre, alerte){
-  const el = $(id);
-  if(!el) return;
-  el.textContent = nombre ? String(nombre) : '';
-  el.classList.toggle('alerte', !!alerte);
-  /* ⚠️ « ZÉRO » ET « PAS ENCORE LU » S'ÉCRIVAIENT PAREIL — v946.
-
-     Un compteur vide veut dire zéro… ou bien que sa liste n'a
-     jamais été dessinée. Tant que personne ne lisait ces compteurs
-     ailleurs, la confusion ne coûtait rien.
-
-     Les tuiles « En un coup d'œil » les lisent : sans cette
-     marque, une porte d'entrée annoncerait « rien qui attende »
-     sur des listes qu'elle n'a pas encore lues — et mentirait
-     exactement au moment où on lui fait confiance.
-
-     Une marque posée à la première écriture suffit à distinguer
-     les deux. */
-  el.dataset.pose = '1';
-}
-
-/* Retire complètement un élève depuis n'importe quelle liste du bureau.
-   Sert quand un dossier de test ou abandonné traîne dans les listes. */
-function boutonMenage(eleve, zoneParente){
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'margin-top:8px;padding:8px;font-size:12px;' +
-    'color:var(--red);border-color:var(--red);';
-  b.textContent = '🗑️ Retirer ' + eleve + ' de toutes les listes';
-  b.title = "Efface ses messages, sa fiche de suivi et ses cours à venir. " +
-            'Ses bilans sont conservés.';
-
-  b.addEventListener('click', async () => {
-    if(!await confirmer('Retirer ' + eleve + ' de toutes les listes du bureau ?\n\n' +
-        '• ses messages au bureau\n• sa fiche de suivi et ses examens\n' +
-        '• ses cours à venir\n\n' +
-        'Ses bilans sont conservés. Pour tout effacer, passe par le répertoire.')) return;
-
-    b.disabled = true;
-    b.textContent = 'Nettoyage…';
-    const faits = [];
-    /* ------------------------------------------------------------
-       CE QUI A RATÉ SE DIT.
-
-       Les trois écritures étaient enveloppées d'un catch vide. Si
-       les trois échouaient, l'écran annonçait
-       « ✅ retiré — rien à retirer » : le succès et l'échec total
-       donnaient exactement le même message, et l'élève restait
-       dans toutes les listes sans que personne ne le sache.
-       ------------------------------------------------------------ */
-    const rates = [];
+    const regle = { ouvert: ouvert ? 1 : 0, plages: ouvert ? fusionnerPlagesBureau(plages) : [], tenu: ouvert ? tenu.value : '' };
+    ok.disabled = true;
     try{
-      try{
-        const r = await appelPrep({ action: 'consigneEffacerEleve', eleve: eleve });
-        if(r && r.effacees) faits.push(r.effacees + ' message(s)');
-      }catch(e){ rates.push('ses messages au bureau'); }
-
-      try{
-        const d = await appelPrep({ action: 'prepList' });
-        const siens = ((d && d.preparations) || [])
-          .filter(x => normaliserMot(x.eleve || '') === normaliserMot(eleve));
-        /* ⚠️ PAS « supprimerPreparation » ICI, ET C'EST VOULU — v1045.
-           Cette porte-là libère un rendez-vous post-permis annulé en
-           vidant sa date dans la fiche de suivi. Ici on efface
-           l'élève ENTIER : « suiviDelete » suit juste en dessous et
-           emporte la fiche. */
-        for(const pr of siens){
-          try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }catch(e){}
-        }
-        if(siens.length) faits.push(siens.length + ' cours préparé(s)');
-      }catch(e){ rates.push('ses cours à venir'); }
-
-      try{
-        await appelPrep({ action: 'suiviDelete', eleve: eleve });
-        faits.push('fiche de suivi');
-      }catch(e){ rates.push('sa fiche de suivi'); }
-
-      viderCaches(eleve);
-
-      if(rates.length){
-        await informer(eleve + " n'a pas été entièrement retiré.\n\n" +
-          'Ce qui a échoué :\n· ' + rates.join('\n· ') +
-          (faits.length ? '\n\nCe qui est passé :\n· ' + faits.join('\n· ') : '') +
-          '\n\nRéessaie : ce qui est déjà retiré ne se retire pas deux fois.');
-      }else{
-        showToast('✅ ' + eleve + ' retiré — ' +
-                  (faits.join(' · ') || 'rien à retirer'));
+      const hypo = { main: {} };
+      hypo.main[leJour] = regle;
+      const imp = await appelPrep({ action: 'bureauImpact', bureau: id, hypo: hypo });
+      let decisions = {};
+      if(imp.touches && imp.touches.length){
+        f.fond.style.display = 'none';
+        decisions = await deciderPourLesRdvBureau(imp.touches, '📅 Des rendez-vous tombent hors des horaires',
+          jourLongBureau(leJour).replace(/^./, c => c.toUpperCase()) + ' : ' +
+          (ouvert ? plagesLisibles(regle.plages) : 'fermé') + '.', '✅ Enregistrer');
+        if(decisions === null){ f.fond.style.display = ''; ok.disabled = false; return; }
       }
-      afficherBureau();
-    }catch(e){
-      showToast('Erreur : ' + e.message);
-      b.disabled = false;
-      b.textContent = '🗑️ Retirer ' + eleve + ' de toutes les listes';
+      await appelPrep(Object.assign({ action: 'bureauJour', bureau: id, jour: leJour, decisions: decisions }, regle));
+      f.fermer();
+      showToast(ouvert ? '🔓 ' + jourCourtBureau(leJour) + ' ouvert : ' + plagesLisibles(regle.plages)
+                       : '🔒 ' + jourCourtBureau(leJour) + ' fermé');
+      afficherUnBureau(id);
+    }catch(err){
+      f.fond.style.display = '';
+      ok.disabled = false;
+      etat.textContent = '⚠️ ' + ((err && err.message) || err);
     }
   });
-
-  return b;
 }
 
-/* La pastille doit apparaître SANS ouvrir l'onglet : on lit les
-   élèves une fois à la connexion, en tâche de fond. Sans ça,
-   personne ne verrait l'alerte avant d'aller la chercher. */
-async function verifierAPrevoirEnFond(){
-  if(typeof aDroit !== 'function') return;
-  if(!aDroit('notif_examblanc') && !aDroit('notif_simu') && !aDroit('notif_permis')) return;
-
+async function revenirADrivupBureau(id, jour){
   try{
-    /* Les masquages d'abord : sinon la pastille compte des alertes
-       que quelqu'un a déjà écartées. */
-    if(typeof chargerNotifsMasquees === 'function') await chargerNotifsMasquees();
-    await chargerBureau(false);
-    majAlerteSuivi(etatBureau.eleves);
-  }catch(e){ /* hors ligne : pas d'alerte, pas de message d'erreur */ }
+    const hypo = { main: {} };
+    hypo.main[jour] = null;
+    const imp = await appelPrep({ action: 'bureauImpact', bureau: id, hypo: hypo });
+    let decisions = {};
+    if(imp.touches && imp.touches.length){
+      decisions = await deciderPourLesRdvBureau(imp.touches, '↩️ Revenir à Drivup ?',
+        'Avec les horaires de Drivup, ces rendez-vous tombent hors des heures d’ouverture.', '↩️ Revenir à Drivup');
+      if(decisions === null) return;
+    }else if(!await confirmer(jourLongBureau(jour).replace(/^./, c => c.toUpperCase()) +
+                              ' reprendra les horaires de Drivup.', '↩️ Revenir à Drivup')) return;
+    await appelPrep({ action: 'bureauJour', bureau: id, jour: jour, retour: true, decisions: decisions });
+    showToast('↩️ ' + jourCourtBureau(jour) + ' : horaires de Drivup');
+    afficherUnBureau(id);
+  }catch(err){ showToast('Impossible : ' + err.message); }
 }
 
-/* Signale que ce module est bien chargé */
+/* 🔒 Fermer aujourd'hui — les rendez-vous du jour, un par un */
+async function fermerAujourdhuiBureau(id){
+  const e = etatDesBureaux[id];
+  if(!e) return;
+  const auj = e.aujourdhui;
+  const j = (e.jours || []).find(x => x.jour === auj);
+  let touches = [];
+  try{
+    const hypo = { main: {} };
+    hypo.main[auj] = { ouvert: 0, plages: [], tenu: '' };
+    const imp = await appelPrep({ action: 'bureauImpact', bureau: id, hypo: hypo });
+    touches = imp.touches || [];
+  }catch(err){ showToast('Impossible : ' + err.message); return; }
+
+  const f = fenetreBureau('🔒 Fermer aujourd’hui ?');
+  f.boite.appendChild(elBureau('div', 'lvMs',
+    jourLongBureau(auj).replace(/^./, c => c.toUpperCase()) +
+    (j && j.ouvert ? ' — ' + (j.source === 'main' ? 'ouvert à la main : ' : 'Drivup : ') + plagesLisibles(j.plages) +
+                     ', tenu par ' + tenuLisible(j.tenu) + '.' : '.') +
+    ' La page affichera « fermé exceptionnellement » et ne proposera plus ce jour.'));
+  let choix = {};
+  if(touches.length){
+    f.boite.appendChild(elBureau('div', 'lvT', touches.length + ' rendez-vous ' + (touches.length > 1 ? 'sont pris' : 'est pris')));
+    choix = choixDesRdvBureau(touches, f.boite);
+  }
+  const etat = elBureau('div', 'dvNote');
+  const row = elBureau('div', 'btn-row');
+  const ok = elBureau('button', 'btn btn-secondary', '🔒 Fermer aujourd’hui');
+  ok.style.cssText = 'flex:2;color:var(--red);border-color:var(--red);';
+  const non = elBureau('button', 'btn btn-secondary', 'Annuler');
+  non.style.flex = '1';
+  non.addEventListener('click', f.fermer);
+  row.append(ok, non);
+  f.boite.append(row, etat);
+  ok.addEventListener('click', async () => {
+    ok.disabled = true;
+    try{
+      await appelPrep({ action: 'bureauJour', bureau: id, jour: auj, ouvert: 0, plages: [], tenu: '', decisions: choix });
+      f.fermer();
+      showToast('🔒 Bureau de ' + BUREAUX_APPLI[id].nom + ' fermé aujourd’hui');
+      afficherUnBureau(id);
+    }catch(err){ ok.disabled = false; etat.textContent = '⚠️ ' + ((err && err.message) || err); }
+  });
+}
+
+/* ------------------------------------------------------------
+   🖨️ L'AFFICHE — le QR code et la phrase, rien d'autre (David :
+   « mets-moi juste le QR code avec la phrase pour connaître nos
+   heures d'ouverture »)
+   ------------------------------------------------------------ */
+function imprimerAfficheBureau(id){
+  const w = window.open('', '_blank');
+  if(!w){ showToast('⚠️ Autorise les fenêtres pour imprimer l’affiche.'); return; }
+  const qr = String(QR_BUREAUX[id] || '').replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+  w.document.open();
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Affiche — ' +
+    BUREAUX_APPLI[id].titre + '</title><style>' +
+    '@page{size:A4;margin:0}html,body{margin:0;background:#fff;color:#0B0B0B;' +
+    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}' +
+    '.a4{width:210mm;height:296mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}' +
+    '.qr{width:118mm;height:118mm;border:3.2mm solid #0B0B0B;border-radius:8mm;padding:3.2mm;box-sizing:border-box;}' +
+    '.qr svg{width:100%;height:100%;display:block}' +
+    '.appel{font-size:11.6mm;font-weight:900;line-height:1.15;margin:11.6mm 16mm 0;max-width:170mm;}' +
+    '</style></head><body><div class="a4"><div class="qr">' + qr + '</div>' +
+    '<div class="appel">📱 Scannez pour connaître nos heures d’ouverture</div></div>' +
+    '<script>setTimeout(function(){window.print();},300);<\/script></body></html>');
+  w.document.close();
+}
+
+/* ------------------------------------------------------------
+   OUVRIR L'ÉCRAN DEPUIS UNE NOTIFICATION — « ?vue=loudeac »
+   ------------------------------------------------------------ */
+function allerAuBureau(vue){
+  if(!BUREAU_DE_LA_VUE[vue]) return;
+  const essayer = n => {
+    if(!(ACCES && ACCES.code)){ if(n < 120) setTimeout(() => essayer(n + 1), 500); return; }
+    try{
+      afficherOnglet('gestion');
+      afficherVue('gestion', vue);
+    }catch(err){}
+  };
+  essayer(0);
+}
+(function(){
+  try{
+    const u = new URL(location.href);
+    const v = u.searchParams.get('vue');
+    if(v && BUREAU_DE_LA_VUE[v]){
+      u.searchParams.delete('vue');
+      history.replaceState(null, '', u.pathname + u.search + u.hash);
+      allerAuBureau(v);
+    }
+  }catch(err){}
+  if(navigator.serviceWorker){
+    navigator.serviceWorker.addEventListener('message', ev => {
+      const d = ev && ev.data;
+      if(d && d.quoi === 'ouvrirVue') allerAuBureau(d.vue);
+    });
+  }
+})();
+
+/* ------------------------------------------------------------
+   📥 DANS LA FENÊTRE DU FAVORI — les horaires lus dans Drivup
+
+   Le favori a lu, en plus des cours, les créneaux « Bureau … » des
+   quatre semaines à venir pour les bureaux dont la reprise est
+   activée. On montre CE QUI CHANGE : jours ouverts, horaires changés,
+   jours fermés — et, pour un jour qui ferme avec des rendez-vous, le
+   choix un par un. Un jour réglé à la main est « ✋ gardé » : on dit
+   seulement ce que Drivup en pense.
+   ------------------------------------------------------------ */
+function ligneBureauDrivup(jour, fort, detail, etat, libelle){
+  const l = elBureau('div', 'dvL ' + etat);
+  const h = elBureau('span', 'dvH');
+  const court = jourCourtBureau(jour).split(' ');
+  h.append(document.createTextNode(court[0].toLowerCase() + ' ' + court[1]), document.createElement('br'));
+  const mo = elBureau('span', '', court.slice(2).join(' '));
+  mo.style.cssText = 'font-weight:400;color:var(--muted);font-size:11.5px;';
+  h.appendChild(mo);
+  const q = elBureau('span', 'dvQui');
+  const b = elBureau(etat === 'annule' ? 's' : 'b', '', fort);
+  if(etat === 'annule'){ b.style.cssText = 'display:block;font-size:14.5px;font-weight:700;'; }
+  q.append(b, elBureau('span', '', detail));
+  l.append(h, q, elBureau('span', 'dvEt ' + etat, libelle));
+  return l;
+}
+
+async function blocDesBureauxDrivup(p, boite, avant){
+  const lus = [];
+  const ou = elBureau('div', 'dvLou');
+  const poser = x => { if(avant && avant.parentNode === boite) boite.insertBefore(x, avant); else boite.appendChild(x); };
+  if(p.bureauxErreur){
+    const w = elBureau('div', 'dvNote', '⚠️ ' + p.bureauxErreur);
+    w.style.color = 'var(--warn-text)';
+    ou.appendChild(w);
+  }
+  for(const lu of (Array.isArray(p.bureaux) ? p.bureaux : [])){
+    const b = BUREAUX_APPLI[lu && lu.bureau];
+    if(!b || !/^\d{4}-\d{2}-\d{2}$/.test(String(lu.du)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(lu.au))) continue;
+    let e;
+    try{ e = await appelPrep({ action: 'bureauEtat', bureau: b.id }); }
+    catch(err){ ou.appendChild(elBureau('div', 'dvNote', '⚠️ ' + b.titre + ' : ' + ((err && err.message) || err))); continue; }
+    if(!(e.reglages || {}).drivup) continue;
+
+    const jours = (lu.jours || []).filter(j => j && /^\d{4}-\d{2}-\d{2}$/.test(String(j.jour)) && j.jour >= lu.du && j.jour <= lu.au)
+      .map(j => ({ jour: j.jour, plages: fusionnerPlagesBureau(j.plages), tenu: tenuDeDrivup(j.tenu) }))
+      .filter(j => j.plages.length);
+    const neuf = {};
+    jours.forEach(j => { neuf[j.jour] = j; });
+    const avantJ = {};
+    (e.jours || []).forEach(j => { avantJ[j.jour] = j; });
+
+    let touches = [];
+    try{
+      const imp = await appelPrep({ action: 'bureauImpact', bureau: b.id, hypo: { drivup: { du: lu.du, au: lu.au, jours: jours } } });
+      touches = imp.touches || [];
+    }catch(err){ touches = []; }
+    const touchesDuJour = {};
+    touches.forEach(r => { (touchesDuJour[r.jour] = touchesDuJour[r.jour] || []).push(r); });
+
+    const n = { ouverts: 0, neufs: 0, changes: 0, fermes: 0, gardes: 0, pareils: 0 };
+    const lignes = [];
+    for(let d = lu.du; d && d <= lu.au; d = jourPlusBureau(d, 1)){
+      const a = avantJ[d];
+      const x = neuf[d];
+      const ancien = a && a.base && a.base.connu ? a.base : null;
+      if(a && a.source === 'main'){
+        if(a.ouvert) n.ouverts++;
+        const pareil = a.ouvert ? (x && plagesLisibles(x.plages) === plagesLisibles(a.plages)) : !x;
+        if(pareil){ n.pareils++; continue; }
+        n.gardes++;
+        lignes.push({ jour: d, el: ligneBureauDrivup(d, a.ouvert ? plagesLisibles(a.plages) : 'fermé',
+          (a.ouvert ? '👤 ' + tenuLisible(a.tenu) + ' — ouvert à la main ; ' : 'fermé à la main ; ') +
+          'Drivup dit ' + (x ? plagesLisibles(x.plages) + (x.tenu ? ' avec ' + x.tenu : '') : 'fermé'), 'main', '✋ Gardé') });
+        continue;
+      }
+      if(x) n.ouverts++;
+      if(!ancien || !ancien.ouvert){
+        if(!x){ continue; }
+        n.neufs++;
+        lignes.push({ jour: d, el: ligneBureauDrivup(d, plagesLisibles(x.plages), '👤 ' + tenuLisible(x.tenu), 'neuf', '🆕 Ouvert') });
+        continue;
+      }
+      if(!x){
+        n.fermes++;
+        lignes.push({ jour: d, el: ligneBureauDrivup(d, plagesLisibles(ancien.plages),
+          '👤 ' + tenuLisible(ancien.tenu) + ' — plus de créneau dans Drivup', 'annule', '🔒 Fermé') });
+        continue;
+      }
+      if(plagesLisibles(x.plages) !== plagesLisibles(ancien.plages) || (x.tenu || '') !== (ancien.tenu || '')){
+        n.changes++;
+        lignes.push({ jour: d, el: ligneBureauDrivup(d, plagesLisibles(x.plages),
+          '👤 ' + tenuLisible(x.tenu) + ' — était ' + plagesLisibles(ancien.plages) +
+          ((ancien.tenu || '') !== (x.tenu || '') ? ' avec ' + tenuLisible(ancien.tenu) : ''), 'bouge', '🕐 Changé') });
+        continue;
+      }
+      n.pareils++;
+    }
+
+    const bloc = elBureau('div');
+    bloc.appendChild(elBureau('h4', '', '📍 ' + b.titre + ' — les ouvertures'));
+    bloc.appendChild(elBureau('div', 'dvSous', 'Les créneaux « ' + ((e.bureau && e.bureau.drivup) || 'Bureau ' + b.nom) +
+      ' » de Drivup, lus du ' + jourLongBureau(lu.du) + ' au ' + jourLongBureau(lu.au) + ', quel que soit le jour affiché.'));
+    const puces = elBureau('div', 'dvPuces');
+    puces.append(puceDrivup('', n.ouverts, n.ouverts > 1 ? '📅 jours ouverts' : '📅 jour ouvert'));
+    if(n.neufs) puces.append(puceDrivup('neuf', n.neufs, n.neufs > 1 ? '🆕 nouveaux' : '🆕 nouveau'));
+    if(n.changes) puces.append(puceDrivup('bouge', n.changes, n.changes > 1 ? '🕐 changés' : '🕐 changé'));
+    if(n.fermes) puces.append(puceDrivup('annule', n.fermes, n.fermes > 1 ? '🔒 fermés' : '🔒 fermé'));
+    if(n.gardes) puces.append(puceDrivup('bouge', n.gardes, n.gardes > 1 ? '✋ gardés à la main' : '✋ gardé à la main'));
+    bloc.appendChild(puces);
+
+    const choix = {};
+    const vusRdv = {};
+    lignes.forEach(l => {
+      bloc.appendChild(l.el);
+      const t = touchesDuJour[l.jour];
+      if(t && t.length){
+        const z = elBureau('div', 'dvChoix');
+        choixDesRdvBureau(t, z, choix);
+        t.forEach(r => { vusRdv[r.id] = true; });
+        bloc.appendChild(z);
+      }
+    });
+    /* Un rendez-vous touché sur un jour sans ligne (rare : un jour
+       identique mais un rendez-vous déjà hors des horaires) */
+    const reste = touches.filter(r => !vusRdv[r.id]);
+    if(reste.length){
+      const z = elBureau('div', 'dvChoix');
+      z.appendChild(elBureau('div', 'lvMs', 'Hors des horaires de Drivup :'));
+      choixDesRdvBureau(reste, z, choix);
+      bloc.appendChild(z);
+    }
+    if(!lignes.length) bloc.appendChild(elBureau('div', 'dvPli', '✅ Rien de neuf : ' + n.pareils + ' jours déjà à jour.'));
+    else if(n.pareils) bloc.appendChild(elBureau('div', 'dvPli', '▸ ' + n.pareils + ' jour' + (n.pareils > 1 ? 's' : '') +
+                                                ' identique' + (n.pareils > 1 ? 's' : '') + ' (rien à faire)'));
+    ou.appendChild(bloc);
+    lus.push({ bureau: b.id, nom: b.nom, du: lu.du, au: lu.au, jours: jours, choix: choix });
+  }
+  if(ou.children.length) poser(ou);
+  return lus;
+}
+
+async function poserLesBureauxDrivup(lus){
+  const faits = [];
+  for(const x of (lus || [])){
+    await appelPrep({ action: 'bureauDrivupPoser', bureau: x.bureau, du: x.du, au: x.au, jours: x.jours, decisions: x.choix });
+    faits.push(x.nom);
+    delete etatDesBureaux[x.bureau];
+  }
+  return faits;
+}
+
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-bureau.js'] = true;
+window.EC_MODULES['ec-bureaux.js'] = true;
