@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:13 — v959 */
+/* Déployé le 14/10/2026 à 10:37 — v1172 */
 /* ============================================================
    ec-messenger.js
    Générateur du message pour le groupe Messenger « jour du permis ».
@@ -454,9 +454,26 @@ function elevesDeLaSession(sess){
     .map(p => String(p.eleve).trim());
 }
 
-function signatureHorairesSession(sess){
+/* ✋ v1172 — les heures tapées à la main font partie des horaires :
+   les changer envoie « 🕐 Horaires modifiés » au groupe (David, le
+   14 octobre : « oui, tu mets horaires modifiés avec les nouveaux
+   horaires »). Sans heures à la main, la signature reste celle
+   d'avant : les groupes déjà créés ne reçoivent rien de plus. */
+function signatureHorairesSession(sess, main){
   return heureExamenDe((sess && sess.heureDebut) || '') + '|' +
-    elevesDeLaSession(sess).map(n => normaliserMot(n)).join(',');
+    elevesDeLaSession(sess).map(n => normaliserMot(n)).join(',') +
+    signatureDesHeuresALaMain(main);
+}
+function signatureDesHeuresALaMain(main){
+  const m = main || {};
+  const el = m.eleves || {};
+  const bouts = Object.keys(el).sort().map(k => {
+    const x = el[k] || {};
+    const v = ['conduiteDe', 'conduiteA', 'examenDe', 'examenA'].map(c => x[c] || '').join('-');
+    return v.replace(/-/g, '') ? k + ':' + v : '';
+  }).filter(Boolean);
+  if(!m.rendezVous && !bouts.length) return '';
+  return '|main:' + (m.rendezVous || '') + ';' + bouts.join(';');
 }
 
 /* ⚠️ PAS « prenomDe » — v1136. Ce nom existe déjà dans ec-paie.js
@@ -488,14 +505,19 @@ function titreGroupePermis(sess){
 
 /* Le message des horaires modifiés : le message du groupe, recalculé
    avec les réglages choisis à la création. */
-function texteHorairesSession(sess, reglages){
+function texteHorairesSession(sess, reglages, main, coursDrivup){
   const noms = elevesDeLaSession(sess);
   if(!noms.length || !sess.date) return '';
   const heure = heureExamenDe(sess.heureDebut) || '13h15';
   const r = Object.assign(nouveauGroupe(''), reglages || {}, { heure: heure });
   r.avantPause = Math.max(0, Math.min(Number(r.avantPause) || 0, noms.length - 1));
   const eleves = noms.map(n => ({ nom: n, centre: sess.centre || '' }));
-  const plan = planningJournee(heure, eleves.length, r);
+  /* ✋ v1172 — les heures du groupe telles que l'écran les montre :
+     la main, puis Drivup, puis le calcul. */
+  r.eleves = eleves;
+  r.main = main || null;
+  r.coursDrivup = (coursDrivup || []).filter(c => c.jour === sess.date);
+  const plan = planDuGroupe(r);
   if(!plan) return '';
   return '🕐 HORAIRES MODIFIÉS\n\n' +
     messageGroupePermis(sess.date, sess.centre || '', eleves, plan, r.note || '');
@@ -520,16 +542,34 @@ function suivreLesGroupesPermis(sessions){
       ((d && d.groupes) || []).forEach(g => { vus[g.session] = g; });
       liensGroupesPermis = vus;
 
+      /* ✋ v1172 — les heures à la main entrent dans la signature. Si on
+         ne peut pas les lire, on ne touche pas aux horaires : une
+         signature sans elles ferait partir les heures calculées. */
+      let heuresMain = null, coursDrivup = [];
+      if(aVenir.some(x => vus[x.id])){
+        const fin = aVenir.map(x => x.date || '').sort().pop() || auj;
+        const [hm, dv] = await Promise.all([
+          appelPrep({ action: 'permisHeuresLire', du: auj, au: fin }).catch(() => null),
+          appelPrep({ action: 'drivupPlanning', du: auj, au: fin }).catch(() => null)
+        ]);
+        if(hm){
+          heuresMain = {};
+          (hm.heures || []).forEach(x => { heuresMain[x.session] = x.main; });
+        }
+        coursDrivup = (dv && dv.cours) || [];
+      }
+
       for(const sess of aVenir){
         const lien = vus[sess.id];
         if(!lien) continue;
         const titre = titreGroupePermis(sess);
-        const sig = signatureHorairesSession(sess);
+        const main = heuresMain ? heuresMain[sess.id] : null;
+        const sig = heuresMain ? signatureHorairesSession(sess, main) : lien.horaires;
         const mon = String(sess.moniteur || '').trim();
         if(titre === lien.titre && sig === lien.horaires && mon === String(lien.moniteur || '')) continue;
         const corps = { action: 'permisGroupeSync', session: sess.id, titre: titre,
                         eleves: elevesDeLaSession(sess), moniteur: mon, horaires: sig };
-        if(sig !== lien.horaires) corps.texteHoraires = texteHorairesSession(sess, lien.reglages);
+        if(sig !== lien.horaires) corps.texteHoraires = texteHorairesSession(sess, lien.reglages, main, coursDrivup);
         try{
           await appelPrep(corps);
           lien.titre = titre; lien.horaires = sig; lien.moniteur = mon;
@@ -838,7 +878,7 @@ function dessinerGroupeMessagerie(z, g, jour, zMsg){
       eleves: noms, moniteur: String(sess.moniteur || '').trim(),
       messages: choisis().map(x => x.zone.value),
       video: !!(videoPermis && g.envoyerVideo),
-      horaires: signatureHorairesSession(sess),
+      horaires: signatureHorairesSession(sess, g.main),
       reglages: { conduite: g.conduite, pauseDuree: g.pauseDuree,
                   avantPause: g.avantPause, note: g.note || '' }
     };
@@ -943,17 +983,239 @@ function preparerGroupes(jour){
     groupesPermis.push(g);
   });
 
-  const connues = sessions.map(x => x.id);
-  const sans = jour.eleves.filter(e => !e.session || connues.indexOf(e.session) === -1);
-  if(sans.length){
-    const g = nouveauGroupe('Sans session');
-    g.sansSession = true;
-    g.eleves = sans;
-    g.avantPause = Math.max(0, Math.min(g.avantPause, g.eleves.length - 1));
-    groupesPermis.push(g);
+  /* ⚠️ PLUS DE « SANS SESSION » — v1172. David, le 14 octobre : « si
+     un élève n'est plus sur la session pas besoin de l'avoir ici ».
+     Un élève qui a la date sans être dans une session ne reçoit pas
+     de message de groupe : il se règle dans 🎓 Suivi permis. */
+}
+
+/* Les dates de l'écran : celles qui ont au moins une session avec
+   des élèves, et le compte de CES élèves-là. */
+function datesDesGroupesPermis(){
+  return datesPermisAVenir().map(j => {
+    const ids = (j.sessions || []).map(x => x.id);
+    const dedans = j.eleves.filter(e => e.session && ids.indexOf(e.session) !== -1);
+    return Object.assign({}, j, { eleves: dedans });
+  }).filter(j => j.eleves.length);
+}
+
+/* ============================================================
+   ✋ LES HEURES À LA MAIN — v1172
+
+   David, le 14 octobre, sur la session de 14 h 45 : « je voudrais
+   pouvoir changer les heures à la main car là ça ne correspond pas
+   pour l'heure de début, il faut que tu me laisses la main ». Ses
+   réponses : tout, ligne par ligne (le rendez-vous, chaque conduite,
+   chaque examen) ; les conduites reprises de Drivup quand le favori a
+   lu le planning ; et gardées avec la session.
+
+   ⚠️ CHAQUE HEURE A SA SOURCE, ET LA PLUS FORTE GAGNE : ✋ la main,
+   puis 📥 Drivup, puis le calcul. Une heure tapée ne bouge plus quand
+   on change « Premier examen » ; celles qu'on n'a pas touchées, si.
+
+   ⚠️ LES ÉCOUTES ET LA PAUSE NE SE TAPENT PAS. L'écoute d'un
+   candidat, ce sont les conduites des autres ; la pause, c'est le
+   trou entre la conduite du n° choisi et la suivante. Les taper en
+   plus, ce serait deux vérités à tenir d'accord.
+   ============================================================ */
+const RANG_SOURCE_HEURE = { calcul: 0, drivup: 1, main: 2 };
+
+function versChampHeure(h){
+  const m = enMinutes(h);
+  return m === null ? '' : enHeure(m).replace('h', ':');
+}
+function depuisChampHeure(v){
+  const m = enMinutes(String(v || '').replace(':', 'h'));
+  return m === null ? '' : enHeure(m);
+}
+/* ⚠️ LA MÊME CLÉ QUE LE WORKER (« normaliser ») : « Jean-Pierre »
+   devient « jean pierre » des deux côtés, sinon ses heures tapées ne
+   se retrouveraient pas en revenant. */
+function cleHeuresEleve(nom){
+  return String(nom || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function cleDrivupEleve(nom){
+  return (typeof cleNomDrivup === 'function') ? cleNomDrivup(nom)
+    : normaliserMot(nom || '').split(' ').sort().join(' ');
+}
+
+/* La conduite d'un élève dans le planning Drivup du jour : son cours
+   (pas un examen, pas du simulateur) qui commence avant le premier
+   examen du groupe — le plus tard s'il y en a deux. */
+function conduiteDrivupDe(g, nom){
+  const cle = cleDrivupEleve(nom);
+  const premier = enMinutes(g.heure);
+  const hors = (typeof DRIVUP_HORS_CONDUITE !== 'undefined') ? DRIVUP_HORS_CONDUITE : /simulateur/;
+  const siens = (g.coursDrivup || []).filter(c => !Number(c.examen || 0) && c.debut && c.fin &&
+    cleDrivupEleve(c.eleve) === cle &&
+    !hors.test(String(c.libelle || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()))
+    .sort((a, b) => String(a.debut).localeCompare(String(b.debut)));
+  if(!siens.length) return null;
+  const avant = siens.filter(c => premier === null || enMinutes(c.debut) < premier);
+  const c = avant.length ? avant[avant.length - 1] : siens[0];
+  return { conduiteDe: depuisChampHeure(c.debut), conduiteA: depuisChampHeure(c.fin) };
+}
+
+/* Le déroulé du groupe : le calcul, puis Drivup, puis la main.
+   Même forme que planningJournee, plus « sources » et « ajuste ». */
+function planDuGroupe(g){
+  const n = g.eleves.length;
+  const base = planningJournee(g.heure, n, g);
+  if(!base) return null;
+  const main = g.main || {};
+  const mainEl = main.eleves || {};
+  const duree = g.conduite || DUREE_CONDUITE;
+  let ajuste = false;
+
+  const lignes = g.eleves.map((e, i) => {
+    const c = base.creneaux[i];
+    const m = mainEl[cleHeuresEleve(e.nom)] || {};
+    const d = conduiteDrivupDe(g, e.nom) || {};
+    const prendre = (champ, calcule) => m[champ] ? { v: m[champ], s: 'main' }
+                                      : d[champ] ? { v: d[champ], s: 'drivup' }
+                                      : { v: calcule, s: 'calcul' };
+    const cDe = prendre('conduiteDe', c.conduiteDe);
+    let cA = prendre('conduiteA', c.conduiteA);
+    /* Le début tapé (ou lu) emporte la fin qui ne l'est pas */
+    if(RANG_SOURCE_HEURE[cA.s] < RANG_SOURCE_HEURE[cDe.s]) cA = { v: enHeure(enMinutes(cDe.v) + duree), s: 'calcul' };
+    const xDe = m.examenDe ? { v: m.examenDe, s: 'main' } : { v: c.examenDe, s: 'calcul' };
+    const xA = m.examenA ? { v: m.examenA, s: 'main' }
+             : { v: m.examenDe ? enHeure(enMinutes(m.examenDe) + DUREE_EXAMEN) : c.examenA, s: 'calcul' };
+    if(cDe.s !== 'calcul' || cA.s !== 'calcul' || xDe.s !== 'calcul' || xA.s !== 'calcul') ajuste = true;
+    return { cDe, cA, xDe, xA };
+  });
+  if(main.rendezVous) ajuste = true;
+  if(!ajuste){
+    base.sources = lignes.map(() => ({ conduiteDe: 'calcul', conduiteA: 'calcul', examenDe: 'calcul', examenA: 'calcul' }));
+    base.sourceRendezVous = 'calcul';
+    base.ajuste = false;
+    return base;
   }
 
-  if(!groupesPermis.length) groupesPermis = [nouveauGroupe('Groupe 1')];
+  const conduites = lignes.map(l => ({ de: enMinutes(l.cDe.v), a: enMinutes(l.cA.v) }));
+  const creneaux = lignes.map((l, i) => {
+    const ec = conduites.filter((x, j) => j !== i).sort((a, b) => a.de - b.de)
+      .map(x => ({ de: enHeure(x.de), a: enHeure(x.a) }));
+    return { conduiteDe: l.cDe.v, conduiteA: l.cA.v, ecoutes: ec,
+             ecouteDe: (ec[0] || {}).de || '', ecouteA: (ec[0] || {}).a || '',
+             examenDe: l.xDe.v, examenA: l.xA.v };
+  });
+  const k = g.pauseDuree ? (g.avantPause || 0) : 0;
+  let pauseDe = '', pauseA = '', apresPause = -1;
+  if(k > 0 && k < n && conduites[k].de > conduites[k - 1].a){
+    pauseDe = enHeure(conduites[k - 1].a);
+    pauseA = enHeure(conduites[k].de);
+    apresPause = k;
+  }
+  const premiere = Math.min.apply(null, conduites.map(x => x.de));
+  return {
+    rendezVous: main.rendezVous || enHeure(premiere - AVANCE_ARRIVEE),
+    sourceRendezVous: main.rendezVous ? 'main' : 'calcul',
+    pauseDe: pauseDe, pauseA: pauseA, apresPause: apresPause,
+    creneaux: creneaux,
+    sources: lignes.map(l => ({ conduiteDe: l.cDe.s, conduiteA: l.cA.s, examenDe: l.xDe.s, examenA: l.xA.s })),
+    ajuste: true
+  };
+}
+
+/* ---------- ce qu'on garde, avec la session ---------- */
+let heuresPermisLisibles = true;
+
+async function chargerHeuresDuJour(jour){
+  const groupes = groupesPermis.filter(g => g.sessionId);
+  if(!jour || !groupes.length) return;
+  const [h, dv] = await Promise.all([
+    appelPrep({ action: 'permisHeuresLire', jour: jour.iso }).catch(() => null),
+    appelPrep({ action: 'drivupPlanning', du: jour.iso, au: jour.iso }).catch(() => null)
+  ]);
+  heuresPermisLisibles = !!h;
+  const parSession = {};
+  ((h && h.heures) || []).forEach(x => { parSession[x.session] = x; });
+  const lectures = (dv && dv.lectures) || [];
+  groupes.forEach(g => {
+    const x = parSession[g.sessionId];
+    g.main = (x && x.main) || { rendezVous: '', eleves: {} };
+    g.mainPar = x ? [x.majPar, x.majLe].filter(Boolean).join(' le ') : '';
+    g.coursDrivup = (dv && dv.cours) || [];
+    g.drivupLu = lectures.length ? lectures[0].luLe : '';
+  });
+}
+
+function mainVide(g){
+  const m = g.main || {};
+  return !m.rendezVous && !Object.keys(m.eleves || {}).some(k =>
+    Object.keys(m.eleves[k] || {}).some(c => m.eleves[k][c]));
+}
+
+const minuteursHeuresPermis = {};
+function enregistrerHeuresDuGroupe(g, jourIso, quand){
+  if(!g.sessionId) return;
+  clearTimeout(minuteursHeuresPermis[g.sessionId]);
+  minuteursHeuresPermis[g.sessionId] = setTimeout(async () => {
+    try{
+      await appelPrep({ action: 'permisHeuresPoser', session: g.sessionId, jour: jourIso,
+                        main: mainVide(g) ? null : g.main });
+      if(quand) quand('✓ enregistré');
+    }catch(e){
+      if(quand) quand('⚠️ pas enregistré : ' + ((e && e.message) || e));
+    }
+  }, 500);
+}
+
+/* ---------- 🕐 « Horaires modifiés », dans le groupe 💬 ----------
+   ⚠️ PAS UN MESSAGE PAR CASE. Changer trois heures, c'est trois
+   « change » : on attend que ça se calme (20 s sans toucher), puis
+   un seul message part, avec toutes les nouvelles heures. On le voit
+   venir, et on peut l'envoyer tout de suite. La signature fait le
+   reste : revenir aux mêmes heures n'envoie rien. */
+const ATTENTE_HORAIRES_MODIFIES = 20000;
+const minuteursHorairesModifies = {};
+
+function programmerHorairesModifies(g, jour, dire){
+  const lien = g.sessionId && liensGroupesPermis[g.sessionId];
+  if(!lien) return;
+  clearTimeout(minuteursHorairesModifies[g.sessionId]);
+  dire('attente');
+  minuteursHorairesModifies[g.sessionId] = setTimeout(() => envoyerHorairesModifies(g, jour, dire),
+                                                      ATTENTE_HORAIRES_MODIFIES);
+}
+
+async function envoyerHorairesModifies(g, jour, dire){
+  clearTimeout(minuteursHorairesModifies[g.sessionId]);
+  delete minuteursHorairesModifies[g.sessionId];
+  const lien = liensGroupesPermis[g.sessionId];
+  const sess = (typeof sessionsPermis !== 'undefined' ? sessionsPermis : []).find(x => x.id === g.sessionId);
+  if(!lien || !sess){ dire(''); return; }
+  const sig = signatureHorairesSession(sess, g.main);
+  if(sig === lien.horaires){ dire(''); return; }
+  const plan = planDuGroupe(g);
+  if(!plan){ dire(''); return; }
+  const texte = '🕐 HORAIRES MODIFIÉS\n\n' +
+    messageGroupePermis(jour.iso, (g.eleves[0] && g.eleves[0].centre) || sess.centre || '', g.eleves, plan, g.note || '');
+  dire('envoi');
+  try{
+    const titre = titreGroupePermis(sess);
+    const mon = String(sess.moniteur || '').trim();
+    await appelPrep({ action: 'permisGroupeSync', session: sess.id, titre: titre,
+                      eleves: elevesDeLaSession(sess), moniteur: mon, horaires: sig, texteHoraires: texte });
+    lien.horaires = sig; lien.titre = titre; lien.moniteur = mon;
+    dire('parti');
+  }catch(e){
+    dire('erreur', (e && e.message) || String(e));
+  }
+}
+
+/* La case d'une heure : remplie, et marquée selon sa source */
+function champHeurePermis(valeur, source, titre, changer){
+  const i = document.createElement('input');
+  i.type = 'time';
+  i.className = 'hPermis' + (source === 'main' ? ' main' : source === 'drivup' ? ' drivup' : '');
+  i.value = versChampHeure(valeur);
+  i.title = titre + (source === 'main' ? ' — tapée à la main' : source === 'drivup' ? ' — reprise de Drivup' : ' — calculée');
+  i.setAttribute('aria-label', titre);
+  i.addEventListener('change', () => changer(i.value ? depuisChampHeure(i.value) : ''));
+  return i;
 }
 
 async function afficherMessengerPermis(){
@@ -991,12 +1253,12 @@ async function afficherMessengerPermis(){
     return;
   }
 
-  const jours = datesPermisAVenir();
+  const jours = datesDesGroupesPermis();
   zone.innerHTML = '';
 
   if(!jours.length){
-    zone.innerHTML = '<div class="empty">Aucune date de permis à venir.<br>' +
-      '<span style="font-size:12px;">Les dates viennent des fiches de suivi et des bilans.</span></div>';
+    zone.innerHTML = '<div class="empty">Aucune session de permis à venir.<br>' +
+      '<span style="font-size:12px;">Les groupes sont les sessions de 🎓 Suivi permis.</span></div>';
     return;
   }
 
@@ -1039,8 +1301,10 @@ async function afficherMessengerPermis(){
     return jours.find(x => x.iso === selDate.value) || jours[0];
   }
 
-  selDate.addEventListener('change', () => {
+  selDate.addEventListener('change', async () => {
     preparerGroupes(jourChoisi());
+    dessinerGroupes();
+    await chargerHeuresDuJour(jourChoisi());
     dessinerGroupes();
   });
 
@@ -1228,25 +1492,136 @@ async function afficherMessengerPermis(){
     d.appendChild(zGrp);
     dessinerGroupeMessagerie(zGrp, g, jour, null);
 
+    const etat = document.createElement('div');
+    etat.className = 'hPermisEtat';
+    const ecrire = t => { etat.textContent = t; };
+
+    /* 💬 Ce qui va partir dans le groupe de la messagerie */
+    const annonce = document.createElement('div');
+    annonce.className = 'hPermisAnnonce';
+    const dire = (quoi, detail) => {
+      annonce.innerHTML = '';
+      if(!quoi) return;
+      const t = document.createElement('span');
+      t.textContent = quoi === 'attente' ? '💬 « 🕐 Horaires modifiés » part dans le groupe dans 20 s, avec les nouvelles heures.'
+                    : quoi === 'envoi' ? '💬 Envoi de « 🕐 Horaires modifiés » au groupe…'
+                    : quoi === 'parti' ? '✅ « 🕐 Horaires modifiés » est parti dans le groupe.'
+                    : '⚠️ « Horaires modifiés » n’est pas parti : ' + (detail || 'refusé');
+      annonce.appendChild(t);
+      if(quoi === 'attente'){
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary hPermisRetour';
+        b.textContent = 'Envoyer maintenant';
+        b.addEventListener('click', () => envoyerHorairesModifies(g, jour, dire));
+        annonce.appendChild(b);
+      }
+    };
+    const apresUnChangement = () => {
+      enregistrerHeuresDuGroupe(g, jour.iso, ecrire);
+      programmerHorairesModifies(g, jour, dire);
+    };
+
+    function changerHeure(e, champ, v){
+      g.main = g.main || { rendezVous: '', eleves: {} };
+      g.main.eleves = g.main.eleves || {};
+      const k = cleHeuresEleve(e.nom);
+      g.main.eleves[k] = Object.assign({}, g.main.eleves[k] || {});
+      if(v) g.main.eleves[k][champ] = v; else delete g.main.eleves[k][champ];
+      apresUnChangement();
+      apercu();
+    }
+
     function apercu(){
       lire();
+      ap.innerHTML = '';
       if(!g.eleves.length){ ap.innerHTML = '<em>Groupe vide</em>'; return; }
-      const plan = planningJournee(g.heure, g.eleves.length, g);
+      const plan = planDuGroupe(g);
       if(!plan){ ap.innerHTML = '<em>Planning impossible</em>'; return; }
-      ap.innerHTML = '🕐 <strong>Rendez-vous à ' + plan.rendezVous + '</strong>' +
-        (plan.pauseDe ? '  ·  🥙 pause ' + plan.pauseDe + '–' + plan.pauseA : '') + '<br>' +
-        g.eleves.map((e, i) => {
-          const c = plan.creneaux[i];
-          /* Les mêmes repères que dans « Permis prévus » : on voit
-             tout de suite qui doit encore payer ou planifier. */
-          const s = (typeof suiviDe === 'function') ? suiviDe(e.nom) : {};
-          const rep = (typeof emojisPermis === 'function') ? emojisPermis(s) : '';
-          const boite = (s.typeExamen === 'bea') ? '🅰'
-                      : (s.typeExamen === 'handicap') ? '♿' : '🅑';
-          return (i + 1) + '- ' + boite + (rep ? ' ' + rep : '') + ' ' + e.nom +
-                 ' — conduite ' + c.conduiteDe + '/' + c.conduiteA +
-                 ' · examen ' + c.examenDe + '/' + c.examenA;
-        }).join('<br>');
+
+      /* La durée de la pause, quand les heures ne sont plus calculées,
+         c'est le trou entre deux conduites : le menu le dit. */
+      const sp = d.querySelector('.grPause');
+      if(plan.ajuste){
+        const trou = plan.pauseDe ? enMinutes(plan.pauseA) - enMinutes(plan.pauseDe) : 0;
+        sp.innerHTML = '<option>' + (trou ? trou + ' min, entre les deux conduites' : 'aucun trou entre ces conduites') + '</option>';
+        sp.disabled = true;
+      }else if(sp.disabled){
+        sp.disabled = false;
+        sp.innerHTML = [[60, '1 heure'], [45, '45 minutes'], [75, '1 h 15'], [90, '1 h 30']].map(x =>
+          '<option value="' + x[0] + '"' + (x[0] === g.pauseDuree ? ' selected' : '') + '>' + x[1] + '</option>').join('');
+      }
+
+      const haut = document.createElement('div');
+      haut.className = 'hPermisLigne';
+      haut.appendChild(document.createTextNode('🕐 '));
+      const b = document.createElement('strong');
+      b.textContent = 'Rendez-vous à';
+      haut.appendChild(b);
+      haut.appendChild(champHeurePermis(plan.rendezVous, plan.sourceRendezVous, 'Heure du rendez-vous', v => {
+        g.main = g.main || { rendezVous: '', eleves: {} };
+        g.main.rendezVous = v;
+        apresUnChangement();
+        apercu();
+      }));
+      if(plan.pauseDe){
+        const pz = document.createElement('span');
+        pz.className = 'hPermisBout';
+        pz.textContent = '🥙 pause ' + plan.pauseDe + '–' + plan.pauseA;
+        haut.appendChild(pz);
+      }
+      ap.appendChild(haut);
+
+      g.eleves.forEach((e, i) => {
+        const c = plan.creneaux[i], so = plan.sources[i];
+        const s = (typeof suiviDe === 'function') ? suiviDe(e.nom) : {};
+        const rep = (typeof emojisPermis === 'function') ? emojisPermis(s) : '';
+        const boite = (s.typeExamen === 'bea') ? '🅰' : (s.typeExamen === 'handicap') ? '♿' : '🅑';
+        const l = document.createElement('div');
+        l.className = 'hPermisLigne';
+        const qui = document.createElement('span');
+        qui.className = 'hPermisQui';
+        qui.textContent = (i + 1) + '- ' + boite + (rep ? ' ' + rep : '') + ' ' + e.nom;
+        l.appendChild(qui);
+        const bout = (texte) => { const x = document.createElement('span'); x.className = 'hPermisBout'; x.textContent = texte; return x; };
+        const conduite = bout('conduite ');
+        conduite.appendChild(champHeurePermis(c.conduiteDe, so.conduiteDe, 'Début de la conduite de ' + e.nom, v => changerHeure(e, 'conduiteDe', v)));
+        conduite.appendChild(document.createTextNode(' à '));
+        conduite.appendChild(champHeurePermis(c.conduiteA, so.conduiteA, 'Fin de la conduite de ' + e.nom, v => changerHeure(e, 'conduiteA', v)));
+        if(so.conduiteDe === 'drivup' || so.conduiteA === 'drivup') conduite.appendChild(document.createTextNode(' 📥'));
+        l.appendChild(conduite);
+        const examen = bout('examen ');
+        examen.appendChild(champHeurePermis(c.examenDe, so.examenDe, 'Début de l’examen de ' + e.nom, v => changerHeure(e, 'examenDe', v)));
+        examen.appendChild(document.createTextNode(' à '));
+        examen.appendChild(champHeurePermis(c.examenA, so.examenA, 'Fin de l’examen de ' + e.nom, v => changerHeure(e, 'examenA', v)));
+        l.appendChild(examen);
+        ap.appendChild(l);
+      });
+
+      /* D'où viennent les heures, et le retour au calcul */
+      const pied = document.createElement('div');
+      pied.className = 'hPermisPied';
+      const dv = plan.sources.some(x => x.conduiteDe === 'drivup' || x.conduiteA === 'drivup');
+      const mn = !mainVide(g);
+      pied.appendChild(document.createTextNode(
+        (dv ? '📥 conduites reprises de Drivup' + (g.drivupLu ? ' (lu le ' + g.drivupLu + ')' : '') + ' · ' : '') +
+        (mn ? '✋ en vert : tapé à la main' + (g.mainPar ? ' (' + g.mainPar + ')' : '') + ' · ' : '') +
+        (plan.ajuste ? 'le reste est calculé.' : 'Heures calculées depuis le premier examen : touche une heure pour la changer.')));
+      if(mn){
+        const re = document.createElement('button');
+        re.type = 'button';
+        re.className = 'btn btn-secondary hPermisRetour';
+        re.textContent = '↩️ Effacer mes heures à la main';
+        re.addEventListener('click', () => {
+          g.main = { rendezVous: '', eleves: {} };
+          apresUnChangement();
+          apercu();
+        });
+        pied.appendChild(re);
+      }
+      pied.appendChild(etat);
+      ap.appendChild(pied);
+      ap.appendChild(annonce);
     }
 
     d.querySelectorAll('select').forEach(s => s.addEventListener('change', apercu));
@@ -1255,7 +1630,7 @@ async function afficherMessengerPermis(){
     bMsg.addEventListener('click', () => {
       lire();
       if(!g.eleves.length){ showToast('Ce groupe n\'a aucun élève.'); return; }
-      const plan = planningJournee(g.heure, g.eleves.length, g);
+      const plan = planDuGroupe(g);
       zMsg.innerHTML = '';
       zMsg.appendChild(blocCopiable(
         'Message — ' + (g.nom || 'groupe'),
@@ -1292,6 +1667,8 @@ async function afficherMessengerPermis(){
   }
 
   preparerGroupes(jourChoisi());
+  dessinerGroupes();
+  await chargerHeuresDuJour(jourChoisi());
   dessinerGroupes();
 }
 
