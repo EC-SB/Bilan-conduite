@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 14:31 — v1169 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -15,7 +15,11 @@
      chacun l'élève exact (le détail que Drivup ouvre quand on clique
      sur un cours) ;
    · la liste des élèves — les lignes affichées ;
-   · la fiche d'un élève — ce que la liste n'a pas (mail, naissance).
+   · la fiche d'un élève — ce que la liste n'a pas (mail, naissance) ;
+   · 📍 v1170 — depuis le planning d'une agence, les créneaux
+     « Bureau Loudéac » / « Bureau Saint Brieuc » des quatre semaines
+     à venir : les horaires d'ouverture des bureaux, pour les seuls
+     bureaux dont la reprise Drivup est activée dans l'application.
 
    Il ne fait que LIRE : aucun bouton n'est touché, rien n'est écrit
    dans Drivup, aucun mot de passe n'est lu. Ce qu'il a lu part
@@ -220,6 +224,107 @@
     return { genre: 'planning', porteeGenre, porteeValeur, du, au, cours, ignores, detailsRates: rates };
   }
 
+  /* ---------- 📍 Les horaires des bureaux — v1170 ----------
+
+     David, le 13 octobre : « sur le planning on peut voir bureau
+     Loudéac […] les ouvertures et fermetures se font automatiquement
+     quand on est sur le planning avec le bouton ».
+
+     ⚠️ QUATRE SEMAINES, QUEL QUE SOIT LE JOUR AFFICHÉ. Le planning ne
+     tient en mémoire que la semaine à l'écran ; on redemande donc à
+     Drivup, comme il le fait lui-même en changeant de semaine, le
+     flux des quatre semaines à venir (une semaine par demande).
+     Lecture seule, la même adresse que la page.
+
+     ⚠️ ON RECONNAÎT UN CRÉNEAU DE BUREAU À SON TYPE, PAS À SON TITRE.
+     Vu depuis l'autre agence, Drivup masque le titre (« RDV sur autre
+     agence ») ; le type, lui, reste. Le titre sert quand le type n'est
+     pas donné.
+
+     ⚠️ ET ON NE LIT QUE LES BUREAUX QUI L'ONT DEMANDÉ : l'application
+     dit lesquels ont leur interrupteur « 📥 Horaires repris de
+     Drivup » activé. Un bureau coupé n'est même pas demandé. */
+  const RELAIS = 'https://bilan-proxy.evolutionconduites.workers.dev';
+  const jourPlus = (iso, n) => {
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + n)).toISOString().slice(0, 10) : '';
+  };
+  const sansAccent = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  async function lireLesBureaux() {
+    if (!/\/planning\/agence\.php/.test(location.pathname)) return null;
+    let quels = [];
+    try {
+      const r = await fetch(RELAIS + '/bureau?quoi=drivup', { credentials: 'omit', cache: 'no-store' });
+      const j = await r.json();
+      quels = (j && Array.isArray(j.bureaux)) ? j.bureaux : [];
+    } catch (e) {
+      return { erreur: 'Les réglages des bureaux n’ont pas pu être lus : les horaires des bureaux ne sont pas repris cette fois.' };
+    }
+    if (!quels.length) return [];
+    const flux = performance.getEntriesByType('resource').map(e => e.name)
+      .filter(n => /\/planning\/data\/FCIO_agence_events\.php/.test(n)).pop();
+    if (!flux) return { erreur: 'Le flux du planning est introuvable : recharge la page Drivup, puis reclique sur le favori.' };
+
+    const cal = window.__FC_CAL;
+    const noms = {};
+    (cal && cal.getResources ? cal.getResources() : []).forEach(r => { noms[String(r.id)] = propre(r.title); });
+
+    const du = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+    const au = jourPlus(du, 27);
+    const parBureau = {};
+    quels.forEach(b => { parBureau[b.id] = {}; });
+    const inconnus = {};
+    const lus = [];
+    for (let k = 0; k < 4; k++) {
+      const u = new URL(flux);
+      u.searchParams.set('date', jourPlus(du, 7 * k));
+      u.searchParams.set('_', String(Date.now()));
+      const r = await fetch(u.href, { credentials: 'include' });
+      const l = await r.json();
+      (Array.isArray(l) ? l : ((l && l.events) || [])).forEach(e => {
+        const type = String(e.typeRdv != null ? e.typeRdv : ((e.extendedProps || {}).typeRdv || ''));
+        const t = sansAccent(e.title);
+        const b = quels.find(x => (type && type === String(x.typeRdv)) || (t && t === sansAccent(x.titre)));
+        if (!b) return;
+        const jour = jourDuTexte(e.start), deb = heureDuTexte(e.start), fin = heureDuTexte(e.end);
+        if (!jour || jour < du || jour > au || !deb || !fin || fin <= deb) return;
+        lus.push({ b: b.id, jour, deb, fin, res: String(e.resourceId || '') });
+        if (e.resourceId && !noms[String(e.resourceId)]) inconnus[String(e.resourceId)] = true;
+      });
+      await new Promise(r => setTimeout(r, 60));
+    }
+
+    /* Celui qui tient le bureau n'est pas forcément une colonne de
+       la page affichée (Maryne tient Loudéac, sa colonne est sur le
+       planning de Saint-Brieuc) : on demande son nom à Drivup. */
+    const ids = Object.keys(inconnus);
+    if (ids.length) {
+      try {
+        const res = performance.getEntriesByType('resource').map(e => e.name)
+          .filter(n => /\/planning\/data\/FCIO_semaine_resources\.php/.test(n)).pop();
+        if (res) {
+          const u = new URL(res);
+          u.searchParams.set('monitors', ids.join(','));
+          u.searchParams.set('_', String(Date.now()));
+          const l = await (await fetch(u.href, { credentials: 'include' })).json();
+          (Array.isArray(l) ? l : []).forEach(x => { if (x && x.id != null) noms[String(x.id)] = propre(x.title); });
+        }
+      } catch (e) { /* le nom manquera, l'heure reste */ }
+    }
+
+    lus.forEach(x => {
+      const j = parBureau[x.b][x.jour] || (parBureau[x.b][x.jour] = { jour: x.jour, plages: [], tenu: [] });
+      j.plages.push([x.deb, x.fin]);
+      const n = noms[x.res];
+      if (n && j.tenu.indexOf(n) === -1) j.tenu.push(n);
+    });
+    return quels.map(b => ({
+      bureau: b.id, titre: b.titre, du: du, au: au,
+      jours: Object.keys(parBureau[b.id]).sort().map(j => parBureau[b.id][j])
+    }));
+  }
+
   /* ---------- La liste des élèves ---------- */
   function lireListe() {
     const t = document.querySelector('#myTable');
@@ -347,6 +452,14 @@
         dire('Lecture du planning…');
         const p = await lirePlanning();
         dire(p.cours.length + ' cours lus.');
+        /* 📍 v1170 — les horaires des bureaux, en plus */
+        try {
+          const b = await lireLesBureaux();
+          if (Array.isArray(b)) p.bureaux = b;
+          else if (b && b.erreur) p.bureauxErreur = b.erreur;
+        } catch (e) {
+          p.bureauxErreur = 'Les horaires des bureaux n’ont pas pu être lus : ' + (e && e.message ? e.message : e);
+        }
         envoyer(p);
       } else if (/\/eleves\/profil\.php/.test(location.pathname) && document.getElementById('nom')) {
         const p = await lireFiche();
