@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 14/10/2026 à 12:39 — v1175 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -265,6 +265,9 @@ const VUES = {
      Elle était ici, juste après le dossier. Voir la clé
      « messagerie » plus bas, et ONGLETS_DROITS. */
   eleves: [['dossier',    '👤 Dossier élève',         'eleves',      'Au quotidien'],
+           /* 📋 v1175 — qui n'a pas rempli ses renseignements, et le
+              questionnaire lui-même (administrateurs). */
+           ['renseignements', '📋 Renseignements',   'eleves',      'Au quotidien'],
            ['recherche',  '📚 Historique des leçons', 'recherche',   'Au quotidien'],
            ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
@@ -1826,6 +1829,7 @@ function reveillerVue(cle){
        branchée nulle part reste sur « Chargement… » pour toujours —
        c'est ce qui est arrivé à « Historique des cours ». */
     dossier:    () => (typeof dessinerPageEleve === 'function') && dessinerPageEleve(),
+    renseignements: () => (typeof afficherRenseignements === 'function') && afficherRenseignements(),
     /* ⚠️ ELLE SE REDESSINE EN ARRIVANT, ET SANS « true ». Un fil
        ouvert qu'on retrouve en revenant doit montrer ce qui est
        arrivé pendant l'absence : afficherMessagerie relit, et
