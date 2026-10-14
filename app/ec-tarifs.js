@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 12:28 — v1017 */
+/* Déployé le 14/10/2026 à 17:25 — v1178 */
 /* ============================================================
    ec-tarifs.js
    Les prestations et leurs tarifs.
@@ -64,6 +64,63 @@ const TARIFS_DEFAUT = [
 
 let tarifsPrestations = null;
 
+/* ============================================================
+   🔗 LE DEVIS PREND SES PRIX DANS « 💶 LES PRIX » — v1178
+
+   David, le 14 octobre : un prix ne doit s'écrire qu'une fois. Les
+   lignes du devis qui existent dans le catalogue des tarifs (l'heure
+   de conduite, le simulateur, la théorie, le livret…) y sont reliées :
+   leur prix BV et leur prix BEA en viennent, et suivent quand on les
+   change. « t:voiture*2 » = deux heures de conduite ; « p:p17 » = la
+   prestation p17. Un 🔗 qu'on décroche (dans le tableau ci-dessous)
+   rend la ligne à la main.
+   ============================================================ */
+const LIENS_DEVIS = {
+  'Cours théorie de la conduite 1h': 't:theorie',
+  'Simulateur avec moniteur 1h': 't:simu',
+  'Conduite en Audi A3 Sportback 2h': 't:voiture*2',
+  'Conduite en Audi A3 Sportback 1h': 't:voiture',
+  'Simulateur prévention des risques 1h': 't:simu',
+  'Simulateur conduite de nuit 1h': 't:simu',
+  'Vérifications': 'p:p17',
+  'Examen blanc pratique 1h30': 't:voiture*1.5',
+  "Accompagnement à l'examen du permis de conduire voiture": 't:voiture',
+  'Disque magnétique rétro-réfléchissant A': 'p:p19',
+  'Abonnement OBLIGATOIRE 1 an mail post permis': 'p:p20',
+  "Livret d'apprentissage OBLIGATOIRE": 'p:p10',
+  '1 accès OBLIGATOIRE compte en ligne formule pratique': 'p:p11',
+  'Carte SD': 'p:p7'
+};
+let zoneDevisTarifs = null;
+
+/* Le prix d'une ligne reliée, pour un type (BV ou BEA), ou null */
+function prixDuLienDevis(d, src, g){
+  const m = String(src || '').match(/^([tp]):([A-Za-z0-9_-]+)(?:\*([0-9.]+))?$/);
+  if(!m || !d || typeof tfTaux !== 'function') return null;
+  const k = m[3] ? Number(m[3]) : 1;
+  if(m[1] === 't'){
+    if(!d.taux.some(t => t.id === m[2])) return null;
+    return Math.round(tfTaux(d, m[2], g) * k * 100) / 100;
+  }
+  if(!tfPrestation(d, m[2])) return null;
+  return Math.round(tfPrix(d, m[2], g) * k * 100) / 100;
+}
+
+async function appliquerLesPrixDuCatalogue(liste){
+  if(!Array.isArray(liste) || typeof tarifsDuCatalogue !== 'function') return liste;
+  const d = await tarifsDuCatalogue();
+  if(!d) return liste;
+  liste.forEach(l => {
+    if(l.src === undefined && LIENS_DEVIS[l.nom]) l.src = LIENS_DEVIS[l.nom];
+    if(!l.src) return;
+    const bv = prixDuLienDevis(d, l.src, 'BV'), bea = prixDuLienDevis(d, l.src, 'BEA');
+    if(bv === null || bea === null){ l.lienPerdu = true; return; }
+    delete l.lienPerdu;
+    l.pu = bv; l.puA = bea;
+  });
+  return liste;
+}
+
 
 /* ============================================================
    ⚠️ UNE LISTE ENREGISTRÉE AVANT LES DEUX BOÎTES — v1017
@@ -121,12 +178,17 @@ async function chargerTarifs(){
     /* Une copie : la liste d'origine ne doit pas être modifiée */
     tarifsPrestations = TARIFS_DEFAUT.map(x => Object.assign({}, x));
   }
+  /* 🔗 v1178 — les lignes reliées prennent les prix du jour */
+  try{ await appliquerLesPrixDuCatalogue(tarifsPrestations); }catch(e){ /* on garde les prix enregistrés */ }
   return tarifsPrestations;
 }
 
 
-async function afficherTarifs(){
-  const zone = $('tarifsZone');
+async function afficherTarifs(zoneDemandee){
+  /* 🔗 v1178 — l'onglet « 🧾 Devis d'évaluation » de 💰 Tarifs lui
+     prête sa zone ; ses redessins y restent. */
+  if(zoneDemandee && zoneDemandee.nodeType) zoneDevisTarifs = zoneDemandee;
+  const zone = (zoneDevisTarifs && document.body.contains(zoneDevisTarifs)) ? zoneDevisTarifs : $('tarifsZone');
   if(!zone) return;
 
   zone.innerHTML = htmlAttente('Lecture des tarifs…');
@@ -245,6 +307,13 @@ async function afficherTarifs(){
         tarifsPrestations[i][champ] = Number(ip.value) || 0;
         majApercuTarifs();
       });
+      /* 🔗 v1178 — une ligne reliée suit « 💶 Les prix » : pas de
+         case à écrire, et le 🔗 la rend à la main. */
+      if(l.src && !l.lienPerdu){
+        ip.readOnly = true;
+        ip.title = 'Suit 💶 Les prix (' + (champ === 'pu' ? 'BV' : 'BEA') + ')';
+        ip.style.opacity = '.75';
+      }
       td.appendChild(ip);
       return td;
     };
@@ -253,7 +322,22 @@ async function afficherTarifs(){
 
     /* Retirer une prestation ajoutée à la main */
     const tdS = document.createElement('td');
-    tdS.style.cssText = 'padding:6px 2px;text-align:center;';
+    tdS.style.cssText = 'padding:6px 2px;text-align:center;white-space:nowrap;';
+    if(l.src || LIENS_DEVIS[l.nom]){
+      const bl = document.createElement('button');
+      bl.type = 'button';
+      bl.className = 'btn btn-secondary';
+      bl.style.cssText = 'width:auto;padding:4px 6px;font-size:12px;margin:0;border-color:transparent;background:transparent;';
+      const lie = !!l.src && !l.lienPerdu;
+      bl.textContent = lie ? '🔗' : '✋';
+      bl.title = lie ? 'Suit 💶 Les prix — appuie pour l’écrire à la main' : 'Écrit à la main — appuie pour suivre 💶 Les prix';
+      bl.addEventListener('click', async () => {
+        tarifsPrestations[i].src = lie ? '' : (LIENS_DEVIS[l.nom] || l.src || '');
+        if(!lie) await appliquerLesPrixDuCatalogue(tarifsPrestations);
+        afficherTarifs(zoneDevisTarifs);
+      });
+      tdS.appendChild(bl);
+    }
     if(!auto){
       const bs = document.createElement('button');
       bs.className = 'btn btn-secondary';
@@ -265,7 +349,7 @@ async function afficherTarifs(){
         if(!await confirmer('Retirer « ' + l.nom + ' » ?\n\n' +
             'Rien n\'est enregistré tant que tu n\'appuies pas sur 💾.')) return;
         tarifsPrestations.splice(i, 1);
-        afficherTarifs();
+        afficherTarifs(zoneDevisTarifs);
       });
       tdS.appendChild(bs);
     }
@@ -288,7 +372,7 @@ async function afficherTarifs(){
     if(!nom || !nom.trim()) return;
     tarifsPrestations.push({ nom: nom.trim(), q: 1, pu: 0,
                              nomA: nom.trim(), puA: 0 });
-    afficherTarifs();
+    afficherTarifs(zoneDevisTarifs);
     showToast('Ajoutée — n\'oublie pas d\'enregistrer');
   });
   zone.appendChild(bAdd);
@@ -327,7 +411,8 @@ async function afficherTarifs(){
     if(!await confirmer('Revenir aux tarifs d\'origine ?\n\n' +
         'Rien n\'est enregistré tant que tu n\'appuies pas sur 💾.')) return;
     tarifsPrestations = TARIFS_DEFAUT.map(x => Object.assign({}, x));
-    afficherTarifs();
+    try{ await appliquerLesPrixDuCatalogue(tarifsPrestations); }catch(e){}
+    afficherTarifs(zoneDevisTarifs);
   });
   r.appendChild(bR);
 
