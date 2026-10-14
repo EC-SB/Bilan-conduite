@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<!-- Déployé le 13/10/2026 à 16:08 — v1170 -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#B6FF0E">
+<meta name="robots" content="noindex">
+<title>Bureau — Évolution Conduites</title>
+<link rel="icon" href="/icone-192.png">
+<!-- ============================================================
+     bureau.html — 📍 LA PAGE D'UN BUREAU (QR code de la vitrine)
+
+     David, le 13 octobre : « il me faudrait quelque chose sur ma
+     vitrine pour que les gens voient les heures d'ouverture et
+     puissent prendre un rendez-vous quand ils veulent passer au
+     bureau ».
+
+     Publiée deux fois par l'action « coin-revisions » :
+       eleve.evolutionconduites.fr/loudeac/
+       eleve.evolutionconduites.fr/saint-brieuc/
+     Le bureau se lit dans l'adresse ; « ?b=loudeac » sert à
+     l'essayer ailleurs.
+
+     · ouvert ou fermé maintenant, la prochaine ouverture, l'adresse
+       et le téléphone ;
+     · les horaires, semaine par semaine (trois semaines) ;
+     · le rendez-vous en trois temps : le jour, l'heure (30 minutes,
+       un par créneau), la personne et son motif — si la prise de
+       rendez-vous est ouverte pour ce bureau ;
+     · « ?annuler=… », le lien du mail : on montre le rendez-vous, et
+       c'est un appui qui l'annule (jamais l'ouverture du lien).
+
+     « Vous » : des parents et des inconnus la lisent.
+     Aucune donnée n'est gardée sur l'appareil, sauf le thème.
+     ============================================================ -->
+<style>
+  :root{
+    --dessus: env(safe-area-inset-top, 0px);
+    --dessous: env(safe-area-inset-bottom, 0px);
+    --agauche: env(safe-area-inset-left, 0px);
+    --adroite: env(safe-area-inset-right, 0px);
+    --navy: #000000; --navy-deep: #0B0B0B; --orange: #B6FF0E; --accent-text: #B6FF0E;
+    --on-accent: #0B0B0B; --orange-soft: #E4FFA8; --cream: #F4F4F4; --soft: #E0E0E0;
+    --muted: #B5B5B5; --red: #FF5C33; --warn-text: #FFC9BB; --warn-bg: rgba(255,92,51,.12); --line: #262626;
+  }
+  body.clair{
+    --navy: #F2F2EC; --navy-deep: #FFFFFF; --orange: #B6FF0E; --accent-text: #3B6900; --on-accent: #0B0B0B;
+    --orange-soft: #EEFFC7; --cream: #14161B; --soft: #2C2F36; --muted: #64655F; --red: #C33A12;
+    --warn-text: #8F2E0E; --warn-bg: rgba(195,58,18,.10); --line: #DCDCD3;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{
+    margin:0; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background:var(--navy); color:var(--cream); font-size:15px; line-height:1.5; min-height:100vh;
+    padding:calc(18px + var(--dessus)) calc(18px + var(--adroite)) calc(28px + var(--dessous)) calc(18px + var(--agauche));
+  }
+  .boite{ max-width:600px; margin:0 auto; }
+  .entete{ display:flex; align-items:center; gap:11px; margin-bottom:20px; }
+  .logo{ width:38px; height:38px; border-radius:9px; flex-shrink:0; background:var(--orange); color:var(--on-accent);
+         display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; letter-spacing:.02em; }
+  h1{ font-size:19px; margin:0; font-weight:700; }
+  .sous{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .boutentete{ margin-left:auto; display:flex; gap:7px; flex-shrink:0; }
+  .rondentete{ width:38px; height:38px; border-radius:50%; flex-shrink:0; border:1px solid var(--line); background:transparent;
+               font-size:16px; cursor:pointer; padding:0; color:inherit; display:flex; align-items:center; justify-content:center; }
+  .card{ background:var(--navy-deep); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; }
+  .section-title{ font-size:15px; font-weight:700; margin:0 0 14px; }
+  label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
+  input, select, textarea{ width:100%; background:var(--navy); border:1px solid var(--line); color:var(--cream);
+    padding:11px 12px; border-radius:10px; font-size:16px; font-family:inherit; margin-bottom:14px; }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--orange); outline-offset:1px; }
+  textarea{ resize:vertical; line-height:1.6; }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:13px 18px; border-radius:10px; border:none;
+        font-size:14px; font-weight:700; cursor:pointer; width:100%; font-family:inherit; margin-bottom:10px; text-decoration:none; }
+  .btn-primary{ background:var(--orange); color:var(--on-accent); }
+  .btn-secondary{ background:transparent; border:1px solid var(--line); color:var(--cream); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .message{ font-size:13px; padding:11px 13px; border-radius:10px; margin-bottom:14px; line-height:1.55; }
+  .message.erreur{ background:var(--warn-bg); color:var(--warn-text); }
+  .empty{ font-size:13px; color:var(--muted); line-height:1.5; }
+
+  .rvEtat{ display:flex; align-items:center; gap:12px; }
+  .rvPastille{ width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+  .rvPastille.ferme{ background:var(--red); box-shadow:0 0 0 4px rgba(195,58,18,.15); }
+  .rvPastille.ouvert{ background:#2E9B2E; box-shadow:0 0 0 4px rgba(46,155,46,.18); }
+  .rvEtat b{ font-size:18px; display:block; }
+  .rvEtat span{ font-size:13.5px; color:var(--muted); }
+  .rvAdr{ font-size:13.5px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); display:flex; gap:8px;
+          align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .rvAdr.suite{ border-top:0; margin-top:0; padding-top:6px; }
+  .rvAdr a{ color:var(--accent-text); font-weight:700; text-decoration:none; }
+  .rvJours{ display:flex; flex-direction:column; gap:2px; }
+  .rvJ{ display:flex; justify-content:space-between; gap:10px; padding:9px 10px; border-radius:10px; font-size:14.5px; }
+  .rvJ.auj{ background:var(--orange-soft); color:#0B0B0B; font-weight:700; }
+  .rvJ .h{ text-align:right; }
+  .rvJ .ferme{ color:var(--muted); }
+  .rvJ.auj .ferme{ color:#0B0B0B; }
+  .rvJ .excep{ color:var(--red); font-weight:700; }
+  .rvNote{ font-size:12.5px; color:var(--muted); line-height:1.5; margin-top:10px; }
+  .rvPuces{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .rvPuce{ border:1px solid var(--line); background:var(--navy); border-radius:12px; padding:9px 12px; font-size:14px;
+           font-weight:700; text-align:center; line-height:1.25; cursor:pointer; color:inherit; font-family:inherit; }
+  .rvPuce small{ display:block; font-weight:400; font-size:11.5px; color:var(--muted); }
+  .rvPuce.on{ background:var(--orange); border-color:var(--orange); color:var(--on-accent); }
+  .rvPuce.on small{ color:var(--on-accent); opacity:.8; }
+  .rvPuce.pris{ opacity:.45; text-decoration:line-through; cursor:default; }
+  .rvCreneaux{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .rvEtape{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; font-weight:700; margin:4px 0 10px; }
+  .rvRecap{ background:var(--orange-soft); color:#0B0B0B; border-radius:12px; padding:10px 12px; font-size:14px; margin-bottom:14px;
+            display:flex; justify-content:space-between; gap:10px; align-items:center; }
+  .rvRecap button{ background:none; border:0; color:#0B0B0B; font-weight:700; text-decoration:underline; cursor:pointer;
+                   font-family:inherit; font-size:14px; padding:0; }
+  .rvOk{ text-align:center; }
+  .rvOk .gros{ font-size:44px; line-height:1; margin:6px 0 10px; }
+  .rvOk > b{ font-size:19px; display:block; margin-bottom:4px; }
+  .rvMotifs{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .rvSem{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .rvSem .rvPuce{ padding:6px 10px; font-size:12.5px; }
+  .piege{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+  @media (max-width:380px){ .rvCreneaux{ grid-template-columns:repeat(3,1fr); } .rvMotifs{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body class="clair">
+<div class="boite">
+  <div class="entete">
+    <div class="logo">EC</div>
+    <div><h1 id="titre">Bureau</h1><div class="sous">Évolution Conduites</div></div>
+    <div class="boutentete"><button class="rondentete" id="btTheme" title="Changer de thème">☀️</button></div>
+  </div>
+  <div id="ecran"><div class="card"><div class="empty">Chargement…</div></div></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var RELAIS = 'https://bilan-proxy.evolutionconduites.workers.dev';
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- le thème : clair par défaut, comme l'espace élève ---------- */
+  function appliquerTheme(clair){
+    document.body.classList.toggle('clair', clair);
+    $('btTheme').textContent = clair ? '☀️' : '🌙';
+    try{ localStorage.setItem('ec_theme_eleve', clair ? 'clair' : 'sombre'); }catch(e){}
+  }
+  (function(){
+    var clair = true;
+    try{ var g = localStorage.getItem('ec_theme_eleve'); if(g) clair = (g === 'clair'); }catch(e){}
+    appliquerTheme(clair);
+  })();
+  $('btTheme').addEventListener('click', function(){ appliquerTheme(!document.body.classList.contains('clair')); });
+
+  /* ---------- quel bureau : l'adresse le dit ---------- */
+  var adresse = new URL(location.href);
+  var bureau = adresse.searchParams.get('b') || '';
+  if(!bureau){
+    var m = location.pathname.match(/\/(loudeac|saint-brieuc)(\/|$)/);
+    bureau = m ? m[1] : '';
+  }
+  var jetonAnnuler = adresse.searchParams.get('annuler') || '';
+
+  /* ---------- petites aides ---------- */
+  function el(tag, classe, texte){
+    var e = document.createElement(tag);
+    if(classe) e.className = classe;
+    if(texte != null) e.textContent = texte;
+    return e;
+  }
+  function date(iso){
+    var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)) : null;
+  }
+  function jourLong(iso){
+    var d = date(iso);
+    return d ? d.toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }) : '';
+  }
+  function majuscule(t){ return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+  function heure(h){ return String(h || '').replace(/^0(\d)/, '$1').replace(':', 'h'); }
+  function plages(pl){ return (pl || []).map(function(p){ return heure(p[0]) + ' – ' + heure(p[1]); }).join(' · '); }
+  function plus(iso, n){
+    var d = date(iso); if(!d) return '';
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  var donnees = null;
+  var choix = { jour: '', heure: '', motif: '' };
+  var semaine = 0;
+
+  function ecran(){ var e = $('ecran'); e.innerHTML = ''; return e; }
+  function erreur(texte){
+    var e = ecran();
+    var c = el('div', 'card');
+    c.appendChild(el('div', 'message erreur', texte));
+    var b = el('button', 'btn btn-secondary', 'Réessayer');
+    b.addEventListener('click', charger);
+    c.appendChild(b);
+    e.appendChild(c);
+  }
+
+  async function lire(){
+    var u = RELAIS + '/bureau?b=' + encodeURIComponent(bureau) + (jetonAnnuler ? '&annuler=' + encodeURIComponent(jetonAnnuler) : '');
+    var r = await fetch(u, { cache: 'no-store' });
+    return r.json();
+  }
+  async function ecrire(corps){
+    var r = await fetch(RELAIS + '/bureau', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify(corps) });
+    return r.json();
+  }
+
+  async function charger(){
+    if(!bureau){ erreur('Cette page ne connaît pas ce bureau.'); return; }
+    try{
+      donnees = await lire();
+    }catch(e){
+      erreur('La page ne répond pas. Vérifiez votre connexion, puis réessayez.');
+      return;
+    }
+    if(!donnees || donnees.status !== 'ok'){ erreur((donnees && donnees.message) || 'Cette page ne connaît pas ce bureau.'); return; }
+    var b = donnees.bureau || {};
+    $('titre').textContent = b.titre || 'Bureau';
+    document.title = (b.titre || 'Bureau') + ' — Évolution Conduites';
+    if(jetonAnnuler) return ecranAnnuler();
+    if(!donnees.actif) return ecranCoupe();
+    accueil();
+  }
+
+  function coordonnees(c, b, avecItineraire){
+    var a = el('div', 'rvAdr');
+    /* Avec « Itinéraire », la ville suffit : le code postal faisait
+       passer le lien à la ligne sur un téléphone. */
+    a.appendChild(el('span', '', '📍 ' + (avecItineraire ? String(b.adresse).replace(/,\s*\d{5}\s+/, ', ') : b.adresse)));
+    if(avecItineraire){
+      var it = el('a', '', 'Itinéraire ›');
+      it.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(b.adresse);
+      it.target = '_blank'; it.rel = 'noopener';
+      a.appendChild(it);
+    }
+    c.appendChild(a);
+    var t = el('div', 'rvAdr suite');
+    t.appendChild(el('span', '', '📞 ' + b.tel));
+    var ap = el('a', '', 'Appeler ›');
+    ap.href = 'tel:' + String(b.tel || '').replace(/[^\d+]/g, '');
+    t.appendChild(ap);
+    c.appendChild(t);
+  }
+
+  /* ---------- la page coupée ---------- */
+  function ecranCoupe(){
+    var b = donnees.bureau;
+    var e = ecran();
+    var c = el('div', 'card rvOk');
+    c.appendChild(el('div', 'gros', '📵'));
+    c.appendChild(el('b', '', 'Cette page n’est pas active pour le moment'));
+    c.appendChild(el('div', 'rvNote', 'Pour nous joindre ou passer au bureau :'));
+    var z = el('div');
+    z.style.textAlign = 'left';
+    coordonnees(z, b, false);
+    z.firstChild.style.borderTop = '0';
+    c.appendChild(z);
+    e.appendChild(c);
+  }
+
+  /* ---------- l'accueil : ouvert ou fermé, les horaires ---------- */
+  function joursAvecCreneaux(){
+    var c = donnees.creneaux || {};
+    return Object.keys(c).sort().filter(function(j){ return c[j].some(function(x){ return !x.pris; }); });
+  }
+
+  function accueil(){
+    var d = donnees, b = d.bureau;
+    var e = ecran();
+    var c = el('div', 'card');
+    var et = el('div', 'rvEtat');
+    var ouvert = d.maintenant && d.maintenant.ouvert;
+    et.appendChild(el('span', 'rvPastille ' + (ouvert ? 'ouvert' : 'ferme')));
+    var t = el('div');
+    t.appendChild(el('b', '', ouvert ? 'Ouvert en ce moment' : 'Fermé en ce moment'));
+    var p = d.maintenant && d.maintenant.prochaine;
+    var dit = '';
+    if(ouvert) dit = 'Jusqu’à ' + heure(d.maintenant.jusqua);
+    else if(p){
+      dit = 'Prochaine ouverture : ' + (p.jour === d.aujourdhui ? 'aujourd’hui, ' : (p.jour === plus(d.aujourdhui, 1) ? 'demain, ' : '')) +
+            jourLong(p.jour) + ' à ' + heure(p.heure);
+    }else dit = 'Pas d’ouverture prévue pour le moment : appelez-nous.';
+    t.appendChild(el('span', '', dit));
+    et.appendChild(t);
+    c.appendChild(et);
+    coordonnees(c, b, true);
+    e.appendChild(c);
+
+    if(d.rdvOuverts){
+      var libres = joursAvecCreneaux();
+      var bt = el('button', 'btn btn-primary', '📅 Prendre rendez-vous au bureau');
+      bt.style.cssText = 'margin:0 0 16px;padding:15px;font-size:16px;';
+      if(!libres.length){
+        bt.disabled = true;
+        bt.textContent = '📅 Aucun créneau libre pour le moment';
+      }
+      bt.addEventListener('click', function(){ choix = { jour: libres[0] || '', heure: '', motif: '' }; ecranChoix(); });
+      e.appendChild(bt);
+    }
+
+    var s = el('div', 'card');
+    s.appendChild(el('div', 'section-title', semaine === 0 ? '🕐 Les horaires de cette semaine'
+                                             : '🕐 Les horaires de la semaine du ' + jourLong(plus(d.jours[0].jour, 7 * semaine)).replace(/^\S+\s/, '')));
+    var l = el('div', 'rvJours');
+    var debut = plus(d.jours[0].jour, 7 * semaine), fin = plus(debut, 6);
+    d.jours.forEach(function(j){
+      if(j.jour < debut || j.jour > fin) return;
+      if(semaine === 0 && j.jour < d.aujourdhui) return;
+      /* Le dimanche fermé n'apprend rien à personne */
+      if(!j.ouvert && !j.excep && date(j.jour).getUTCDay() === 0) return;
+      var auj = j.jour === d.aujourdhui;
+      var r = el('div', 'rvJ' + (auj ? ' auj' : ''));
+      r.appendChild(el('span', '', auj ? 'Aujourd’hui, ' + jourLong(j.jour).replace(/\s\S+$/, '')
+                                       : majuscule(jourLong(j.jour).replace(/\s\S+$/, ''))));
+      r.appendChild(el('span', 'h' + (j.ouvert ? '' : (j.excep ? ' excep' : ' ferme')),
+                       j.ouvert ? plages(j.plages) : (j.excep ? 'fermé exceptionnellement' : 'fermé')));
+      l.appendChild(r);
+    });
+    s.appendChild(l);
+    var sem = el('div', 'rvSem');
+    [0, 1, 2].forEach(function(k){
+      var lun = plus(d.jours[0].jour, 7 * k);
+      var pu = el('button', 'rvPuce' + (k === semaine ? ' on' : ''),
+                  k === 0 ? 'Cette semaine' : 'Du ' + date(lun).getUTCDate() + ' ' +
+                  date(lun).toLocaleDateString('fr-FR', { timeZone: 'UTC', month: 'short' }));
+      pu.addEventListener('click', function(){ semaine = k; accueil(); });
+      sem.appendChild(pu);
+    });
+    s.appendChild(sem);
+    s.appendChild(el('div', 'rvNote', 'Les horaires changent d’une semaine à l’autre : cette page est toujours à jour.'));
+    e.appendChild(s);
+    if(d.rdvOuverts){
+      var n = el('div', 'rvNote', 'Un rendez-vous dure ' + (d.duree || 30) + ' minutes. Les leçons de conduite se réservent dans ' +
+                 'votre espace Drivup : ici, c’est pour passer au bureau.');
+      n.style.padding = '0 4px';
+      e.appendChild(n);
+    }
+  }
+
+  /* ---------- 1 · le jour, 2 · l'heure ---------- */
+  function ecranChoix(){
+    var d = donnees;
+    var e = ecran();
+    var c = el('div', 'card');
+    c.appendChild(el('div', 'section-title', '📅 Prendre rendez-vous'));
+    c.appendChild(el('div', 'rvEtape', '1 · Le jour'));
+    var pj = el('div', 'rvPuces');
+    joursAvecCreneaux().forEach(function(j){
+      var dd = date(j);
+      var p = el('button', 'rvPuce' + (j === choix.jour ? ' on' : ''));
+      p.appendChild(document.createTextNode(dd.toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'short' }) + ' ' + dd.getUTCDate()));
+      p.appendChild(el('small', '', dd.toLocaleDateString('fr-FR', { timeZone: 'UTC', month: 'short' })));
+      p.addEventListener('click', function(){ choix.jour = j; choix.heure = ''; ecranChoix(); });
+      pj.appendChild(p);
+    });
+    c.appendChild(pj);
+    c.appendChild(el('div', 'rvNote', 'Seulement les jours où le bureau est ouvert, sur les trois semaines qui viennent.'));
+    if(choix.jour){
+      var et = el('div', 'rvEtape', '2 · L’heure — ' + jourLong(choix.jour));
+      et.style.marginTop = '14px';
+      c.appendChild(et);
+      var g = el('div', 'rvCreneaux');
+      (d.creneaux[choix.jour] || []).forEach(function(x){
+        var b = el('button', 'rvPuce' + (x.pris ? ' pris' : '') + (x.h === choix.heure ? ' on' : ''), heure(x.h));
+        if(x.pris) b.disabled = true;
+        else b.addEventListener('click', function(){ choix.heure = x.h; ecranChoix(); });
+        g.appendChild(b);
+      });
+      c.appendChild(g);
+      c.appendChild(el('div', 'rvNote', 'Barré = déjà pris.'));
+    }
+    var suite = el('button', 'btn btn-primary', choix.heure ? 'Continuer — ' + jourLong(choix.jour) + ' à ' + heure(choix.heure)
+                                                            : 'Choisissez un jour et une heure');
+    suite.style.marginTop = '14px';
+    suite.disabled = !choix.heure;
+    suite.addEventListener('click', ecranFormulaire);
+    c.appendChild(suite);
+    var ret = el('button', 'btn btn-secondary', '‹ Retour aux horaires');
+    ret.addEventListener('click', accueil);
+    c.appendChild(ret);
+    e.appendChild(c);
+  }
+
+  /* ---------- 3 · vous ---------- */
+  var saisie = { nom: '', mail: '', tel: '', precision: '' };
+  function ecranFormulaire(message){
+    var d = donnees;
+    var e = ecran();
+    var c = el('div', 'card');
+    c.appendChild(el('div', 'section-title', '📅 Prendre rendez-vous'));
+    var rc = el('div', 'rvRecap');
+    var t = el('span');
+    t.appendChild(document.createTextNode('📅 '));
+    t.appendChild(el('b', '', majuscule(jourLong(choix.jour)) + ' à ' + heure(choix.heure)));
+    t.appendChild(document.createTextNode(' · ' + (d.duree || 30) + ' min'));
+    var ch = el('button', '', 'Changer');
+    ch.addEventListener('click', ecranChoix);
+    rc.append(t, ch);
+    c.appendChild(rc);
+    if(message) c.appendChild(el('div', 'message erreur', message));
+    c.appendChild(el('div', 'rvEtape', '3 · Vous'));
+    var champ = function(lib, type, cle, auto){
+      var l = el('label', '', lib);
+      var i = document.createElement('input');
+      i.type = type; i.value = saisie[cle] || ''; i.autocomplete = auto;
+      i.addEventListener('input', function(){ saisie[cle] = i.value; });
+      l.htmlFor = i.id = 'ch-' + cle;
+      c.append(l, i);
+      return i;
+    };
+    champ('Prénom et nom', 'text', 'nom', 'name');
+    champ('Votre mail — la confirmation part ici', 'email', 'mail', 'email');
+    champ('Votre téléphone', 'tel', 'tel', 'tel');
+    c.appendChild(el('label', '', 'Pourquoi venez-vous ?'));
+    var mo = el('div', 'rvMotifs');
+    Object.keys(d.motifs || {}).forEach(function(k){
+      var b = el('button', 'rvPuce' + (choix.motif === k ? ' on' : ''), d.motifs[k]);
+      b.type = 'button';
+      b.addEventListener('click', function(){
+        choix.motif = k;
+        mo.querySelectorAll('.rvPuce').forEach(function(x){ x.classList.remove('on'); });
+        b.classList.add('on');
+      });
+      mo.appendChild(b);
+    });
+    c.appendChild(mo);
+    var lp = el('label', '', 'Une précision ? (facultatif)');
+    var ta = document.createElement('textarea');
+    ta.rows = 2; ta.value = saisie.precision; ta.maxLength = 300; ta.id = lp.htmlFor = 'ch-precision';
+    ta.addEventListener('input', function(){ saisie.precision = ta.value; });
+    c.append(lp, ta);
+    /* Le piège à robots : invisible pour une personne */
+    var pg = el('div', 'piege');
+    var pi = document.createElement('input');
+    pi.type = 'text'; pi.tabIndex = -1; pi.autocomplete = 'off'; pi.name = 'site'; pi.id = 'ch-site';
+    pg.appendChild(pi);
+    c.appendChild(pg);
+    var ok = el('button', 'btn btn-primary', '✅ Confirmer le rendez-vous');
+    ok.style.marginTop = '6px';
+    ok.addEventListener('click', async function(){
+      if(!choix.motif){ ecranFormulaire('Choisissez le motif de votre venue.'); return; }
+      ok.disabled = true;
+      ok.textContent = 'Envoi…';
+      var r;
+      try{
+        r = await ecrire({ quoi: 'prendre', b: bureau, jour: choix.jour, heure: choix.heure, motif: choix.motif,
+                           nom: saisie.nom, mail: saisie.mail, tel: saisie.tel, precision: saisie.precision, site: pi.value });
+      }catch(err){ r = { status: 'error', message: 'La page ne répond pas. Vérifiez votre connexion, puis réessayez.' }; }
+      if(r && r.status === 'ok') return ecranOk(r);
+      if(r && r.reprendre){
+        try{ donnees = await lire(); }catch(err){}
+        choix.heure = '';
+        if(joursAvecCreneaux().indexOf(choix.jour) === -1) choix.jour = joursAvecCreneaux()[0] || '';
+        ecranChoix();
+        var e2 = $('ecran').querySelector('.card');
+        if(e2) e2.insertBefore(el('div', 'message erreur', r.message), e2.children[1]);
+        return;
+      }
+      ecranFormulaire((r && r.message) || 'Le rendez-vous n’a pas pu être enregistré.');
+    });
+    c.appendChild(ok);
+    c.appendChild(el('div', 'rvNote', '🔒 Vos coordonnées ne servent qu’à ce rendez-vous. Elles sont effacées un mois après.'));
+    e.appendChild(c);
+  }
+
+  /* ---------- c'est noté ---------- */
+  function ecranOk(r){
+    var b = donnees.bureau;
+    var e = ecran();
+    var c = el('div', 'card rvOk');
+    c.appendChild(el('div', 'gros', '✅'));
+    c.appendChild(el('b', '', 'C’est noté !'));
+    var q = el('div');
+    q.style.cssText = 'font-size:16px;margin-bottom:12px;';
+    q.appendChild(document.createTextNode(majuscule(jourLong(r.jour)) + ' à ' + heure(r.heure)));
+    q.appendChild(document.createElement('br'));
+    var s = el('span', '', b.titre + ' · ' + r.motif);
+    s.style.cssText = 'color:var(--muted);font-size:14px;';
+    q.appendChild(s);
+    c.appendChild(q);
+    var n = el('div', 'rvNote');
+    n.style.marginBottom = '14px';
+    n.append(document.createTextNode('Un mail de confirmation vient de partir à '), el('b', '', r.mail),
+             document.createTextNode(', et un rappel partira la veille. Il contient un lien pour annuler si vous ne pouvez pas venir.'));
+    c.appendChild(n);
+    var ag = el('button', 'btn btn-secondary', '📅 Ajouter à mon agenda');
+    ag.addEventListener('click', function(){ agenda(r, b); });
+    c.appendChild(ag);
+    e.appendChild(c);
+  }
+
+  function agenda(r, b){
+    var deb = r.jour.replace(/-/g, '') + 'T' + r.heure.replace(':', '') + '00';
+    var m = parseInt(r.heure.slice(0, 2), 10) * 60 + parseInt(r.heure.slice(3), 10) + (donnees.duree || 30);
+    var fin = r.jour.replace(/-/g, '') + 'T' + String(Math.floor(m / 60)).padStart(2, '0') + String(m % 60).padStart(2, '0') + '00';
+    var ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Evolution Conduites//Bureau//FR', 'BEGIN:VEVENT',
+      'UID:' + r.id + '@evolutionconduites.fr', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
+      'DTSTART;TZID=Europe/Paris:' + deb, 'DTEND;TZID=Europe/Paris:' + fin,
+      'SUMMARY:Rendez-vous — ' + b.titre, 'LOCATION:' + b.adresse.replace(/,/g, '\\,'),
+      'DESCRIPTION:' + r.motif + ' — Évolution Conduites\\, ' + b.tel, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    a.download = 'rendez-vous-bureau.ics';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  /* ---------- le lien « Annuler mon rendez-vous » du mail ---------- */
+  function ecranAnnuler(){
+    var d = donnees, b = d.bureau, x = d.annulation;
+    var e = ecran();
+    var c = el('div', 'card rvOk');
+    if(!x){
+      c.appendChild(el('div', 'gros', '🤔'));
+      c.appendChild(el('b', '', 'Ce lien ne correspond à aucun rendez-vous'));
+      c.appendChild(el('div', 'rvNote', 'Il a peut-être déjà servi. Pour toute question, appelez-nous au ' + b.tel + '.'));
+    }else if(x.etat !== 'ok'){
+      c.appendChild(el('div', 'gros', '✖️'));
+      c.appendChild(el('b', '', 'Ce rendez-vous est déjà annulé'));
+      c.appendChild(el('div', 'rvNote', majuscule(jourLong(x.jour)) + ' à ' + heure(x.heure) + ' — ' + b.titre));
+    }else{
+      c.appendChild(el('div', 'gros', '📅'));
+      c.appendChild(el('b', '', 'Annuler votre rendez-vous ?'));
+      var q = el('div', '', majuscule(jourLong(x.jour)) + ' à ' + heure(x.heure));
+      q.style.cssText = 'font-size:16px;margin:6px 0 4px;';
+      c.appendChild(q);
+      c.appendChild(el('div', 'rvNote', b.titre + (x.motif ? ' · ' + x.motif : '')));
+      var bt = el('button', 'btn btn-primary', '✖️ Annuler mon rendez-vous');
+      bt.style.marginTop = '14px';
+      bt.addEventListener('click', async function(){
+        bt.disabled = true;
+        var r;
+        try{ r = await ecrire({ quoi: 'annuler', t: jetonAnnuler }); }
+        catch(err){ r = { status: 'error', message: 'La page ne répond pas. Réessayez dans un instant.' }; }
+        if(r && r.status === 'ok'){
+          var e2 = ecran();
+          var c2 = el('div', 'card rvOk');
+          c2.appendChild(el('div', 'gros', '👍'));
+          c2.appendChild(el('b', '', 'Votre rendez-vous est annulé'));
+          c2.appendChild(el('div', 'rvNote', 'Le créneau est libéré. Merci de nous avoir prévenus !'));
+          var re = el('a', 'btn btn-secondary', '📅 Voir les horaires du bureau');
+          re.href = location.pathname + (adresse.searchParams.get('b') ? '?b=' + encodeURIComponent(bureau) : '');
+          re.style.marginTop = '14px';
+          c2.appendChild(re);
+          e2.appendChild(c2);
+          return;
+        }
+        bt.disabled = false;
+        c.appendChild(el('div', 'message erreur', (r && r.message) || 'L’annulation n’a pas pu être faite.'));
+      });
+      c.appendChild(bt);
+      var garder = el('a', 'btn btn-secondary', 'Garder mon rendez-vous');
+      garder.href = location.pathname + (adresse.searchParams.get('b') ? '?b=' + encodeURIComponent(bureau) : '');
+      c.appendChild(garder);
+    }
+    e.appendChild(c);
+  }
+
+  charger();
+})();
+</script>
+</body>
+</html>
