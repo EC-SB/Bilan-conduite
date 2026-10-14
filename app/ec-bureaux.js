@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 09:54 — v1171 */
+/* Déployé le 14/10/2026 à 10:52 — v1173 */
 /* ============================================================
    ec-bureaux.js — 📍 LES BUREAUX : HORAIRES ET RENDEZ-VOUS — v1170
 
@@ -997,6 +997,11 @@ async function poserLesBureauxDrivup(lus){
     await appelPrep({ action: 'bureauDrivupPoser', bureau: x.bureau, du: x.du, au: x.au, jours: x.jours, decisions: x.choix });
     faits.push(x.nom);
     delete etatDesBureaux[x.bureau];
+    /* 🔄 v1173 — David : « quand je fais une mise à jour de Drivup pour
+       les horaires d'ouverture, je dois recharger la page ». L'écran
+       du bureau, s'il est là (souvent sous la fenêtre du favori), se
+       relit tout de suite. */
+    if($('bureauZone-' + x.bureau)) afficherUnBureau(x.bureau);
   }
   return faits;
 }
