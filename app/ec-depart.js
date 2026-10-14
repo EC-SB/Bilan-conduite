@@ -1,4 +1,4 @@
-/* Déployé le 09/10/2026 à 09:33 — v1115 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1873,7 +1873,8 @@ function ligneDuCompte(u){
       const nom = document.createElement('strong');
       nom.textContent = u.nom + (u.role === 'admin' ? ' — admin' : '');
       const sous = document.createElement('span');
-      sous.textContent = 'Code ' + u.code + (u.principal ? ' · compte principal' : (u.cree ? ' · créé le ' + u.cree : ''));
+      sous.textContent = 'Code ' + u.code + (u.principal ? ' · compte principal' : (u.cree ? ' · créé le ' + u.cree : '')) +
+                         (u.mail ? ' · ✉️ ' + u.mail : '');
       meta.appendChild(nom);
       meta.appendChild(sous);
 
@@ -2007,6 +2008,32 @@ function ligneDuCompte(u){
         verrou.style.cssText = 'font-size:11px;color:var(--muted);';
         verrou.textContent = u.principal ? '🔒' : '(toi)';
         actions.appendChild(verrou);
+      }
+
+      /* ✉️ v1170 — l'adresse mail de chacun, comptes principaux
+         compris : c'est là qu'arrivent les rendez-vous pris au
+         bureau (le bureau, les administrateurs, la personne du
+         jour). */
+      {
+        const bMail = document.createElement('button');
+        bMail.className = 'btn btn-secondary';
+        bMail.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;' + (u.mail ? '' : 'opacity:.75;');
+        bMail.textContent = '✉️';
+        bMail.title = u.mail ? 'Adresse mail de ' + u.nom + ' : ' + u.mail : 'Adresse mail de ' + u.nom + ' (aucune)';
+        bMail.addEventListener('click', async () => {
+          const v = await demander(
+            'Adresse mail de ' + u.nom + '\n\nElle reçoit les rendez-vous pris au bureau ' +
+            '(quand ' + u.nom + ' le tient, ou s’il est administrateur).\n' +
+            'Laisse vide pour n’en mettre aucune.', u.mail || '', 'Adresse mail');
+          if(v === null) return;
+          bMail.disabled = true;
+          try{
+            await appelAdmin({ action:'mail', cible:u.code, mail: String(v).trim() });
+            messageAdmin(String(v).trim() ? 'Adresse de ' + u.nom + ' enregistrée.' : 'Adresse de ' + u.nom + ' retirée.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); bMail.disabled = false; }
+        });
+        actions.appendChild(bMail);
       }
 
       /* ⚠️ CE QUE CETTE PERSONNE VOIT, RANGÉ PAR ONGLET — v962,
