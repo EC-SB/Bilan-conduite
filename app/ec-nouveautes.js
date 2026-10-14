@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 10:52 — v1173 */
+/* Déployé le 14/10/2026 à 11:21 — v1174 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1174,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '⚡ Les réponses rapides se règlent, et 📄 Modèles messages s’ouvre depuis le fil',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Le gestionnaire des réponses rapides',
+        texte: '⚙️ de la messagerie › ⚡ Réponses rapides (administrateurs) : changer le texte d’un bouton et son message, ' +
+               'en créer, choisir les conversations où il apparaît (Bureau, Vitrine, Retards…), et l’ordre par ⠿ ou ↑ ↓.' },
+      { emoji: '🔤',
+        titre: 'Des mots qui se remplacent',
+        texte: '{prénom}, {nom}, {moi}, {bureau}, {moniteur}, {prochain cours}, {frise}, {examen blanc}, {date d’examen} : ' +
+               '« Bonjour {prénom} » part en « Bonjour Léa ».' },
+      { emoji: '📄',
+        titre: 'Modèles messages depuis le fil',
+        texte: 'Au bout des réponses rapides : catégorie, puis fiche — son texte arrive dans la zone d’écriture, mots ' +
+               'remplacés, à relire avant d’envoyer. Plus de copier-coller.' },
+      { emoji: '📱',
+        titre: 'Tous les boutons sur le téléphone',
+        texte: 'Ils passent à la ligne au lieu d’être coupés à trois.' }
+    ]
+  },
   {
     version: 1173,
     date: 'Mercredi 14 octobre 2026',
