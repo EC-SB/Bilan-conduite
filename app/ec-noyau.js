@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 11:32 — v1164 */
+/* Déployé le 13/10/2026 à 16:08 — v1170 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -395,6 +395,8 @@ const SECTIONS = [
   { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)', onglet:'gestion' },
   { cle:'incidents',        nom:'🚨 Signalements', onglet:'gestion' },
   { cle:'menage',           nom:'🧹 Ménage des dossiers', onglet:'gestion' },
+  /* 📍 v1170 — horaires et rendez-vous des bureaux (ec-bureaux.js) */
+  { cle:'bureaux',          nom:'📍 Horaires et rendez-vous des bureaux', onglet:'gestion' },
   { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
