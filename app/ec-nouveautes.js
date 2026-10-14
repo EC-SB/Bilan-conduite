@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 09:54 — v1171 */
+/* Déployé le 14/10/2026 à 10:37 — v1172 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1172,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '✋ Préparation permis : les heures du groupe se changent à la main',
+    quoi: [
+      { emoji: '✋',
+        titre: 'Message groupe Messenger : toutes les heures à la main',
+        texte: 'Le rendez-vous, et pour chaque élève le début et la fin de sa conduite et de son examen : touche une ' +
+               'case et tape l’heure. Elle passe en vert et ne bouge plus ; elle est gardée avec la session, sur tous ' +
+               'les appareils. ↩️ revient au calcul.' },
+      { emoji: '📥',
+        titre: 'Les conduites reprises de Drivup',
+        texte: 'Si le favori a lu le planning du jour, les conduites prennent ses heures (cases en pointillés). ' +
+               'Le rendez-vous, les écoutes et la pause suivent.' },
+      { emoji: '🕐',
+        titre: '« Horaires modifiés » dans le groupe 💬',
+        texte: 'Si le groupe de la messagerie est déjà créé, changer une heure y envoie « 🕐 Horaires modifiés » avec ' +
+               'les nouvelles heures, 20 secondes après la dernière retouche (ou tout de suite avec « Envoyer maintenant »).' },
+      { emoji: '🧹',
+        titre: 'Plus de « Sans session »',
+        texte: 'Un élève qui n’est plus dans une session n’apparaît plus ici : les groupes sont les sessions de 🎓 Suivi permis.' }
+    ]
+  },
   {
     version: 1171,
     date: 'Mercredi 14 octobre 2026',
