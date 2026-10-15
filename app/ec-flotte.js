@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:23 — v895 */
+/* Déployé le 15/10/2026 à 12:15 — v1181 */
 /* ============================================================
    ec-flotte.js
    Le suivi de la flotte.
@@ -180,6 +180,7 @@ function correspondFlotte(v, mots){
   const cat = CATEGORIES_FLOTTE.find(x => x.cle === v.categorie);
   const foin = normaliserMot([
     v.nom, v.immat, v.modele, v.categorie,
+    v.numero ? 'n' + v.numero + ' ' + v.numero : '',
     cat ? cat.nom.replace(/[^\wÀ-ÿ ]/g, '') : '',
     v.carburant, v.site, v.boite === 'bva' ? 'automatique' : 'manuelle',
     v.motifIndispo
@@ -324,6 +325,8 @@ function ligneVehicule(v){
   const t = document.createElement('div');
   t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.4;';
   t.innerHTML =
+    /* 🚗 v1181 — le numéro du planning Drivup */
+    (v.numero ? '<span class="vNumPuce" title="N° sur le planning Drivup">' + String(v.numero).replace(/</g, '&lt;') + '</span> ' : '') +
     '<strong>' + v.nom.replace(/</g, '&lt;') + '</strong>' +
     (v.immat ? ' <span style="font-size:11px;color:var(--muted);">' +
       v.immat.replace(/</g, '&lt;') + '</span>' : '') +
@@ -381,6 +384,16 @@ function ouvrirFicheVehicule(v){
         CATEGORIES_FLOTTE.map(c => '<option value="' + c.cle + '">' + c.nom +
                                    '</option>').join('') +
       '</select></div>' +
+    '</div>' +
+
+    /* 🚗 v1181 — David, le 15 octobre : « en haut du planning on met des
+       numéros qui correspondent aux voitures ». C'est ici qu'un numéro
+       devient une voiture. */
+    '<div class="duo">' +
+      '<div><label for="vNumero">N° Drivup</label>' +
+        '<input type="text" id="vNumero" inputmode="numeric" maxlength="3" placeholder="Ex : 7"></div>' +
+      '<div class="vNumAide">Le numéro posé en haut du planning Drivup (« .7 ») : ' +
+        'les rappels en reprennent la voiture.</div>' +
     '</div>' +
 
     '<div class="duo">' +
@@ -476,6 +489,7 @@ function ouvrirFicheVehicule(v){
     boite.querySelector('#vImmat').value = v.immat || '';
     boite.querySelector('#vMec').value = v.miseEnCirculation || '';
     boite.querySelector('#vBoite').value = v.boite || '';
+    boite.querySelector('#vNumero').value = v.numero || '';
 
     /* Un carburant hors liste bascule sur la saisie libre */
     const carb = v.carburant || '';
@@ -624,6 +638,7 @@ function ouvrirFicheVehicule(v){
         immat: boite.querySelector('#vImmat').value.trim().toUpperCase(),
         miseEnCirculation: boite.querySelector('#vMec').value,
         boite: boite.querySelector('#vBoite').value,
+        numero: boite.querySelector('#vNumero').value.replace(/\D/g, ''),
         carburant: (boite.querySelector('#vCarbChoix').value === 'autre')
                      ? boite.querySelector('#vCarburant').value.trim()
                      : boite.querySelector('#vCarbChoix').value,
