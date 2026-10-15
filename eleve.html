@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 14/10/2026 à 12:39 — v1175 -->
+<!-- Déployé le 15/10/2026 à 11:29 — v1180 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1271,6 +1271,40 @@
   }
 
   .cache{ display:none !important; }
+
+  /* ↩️ RÉPONDRE À UN MESSAGE — v1180 */
+  .fil{ overflow-x:hidden; }
+  .bulle{ position:relative; touch-action:pan-y; }
+  .citeEl{ display:block; margin:0 0 6px; padding:5px 9px 6px; border-left:3px solid var(--accent-text);
+           border-radius:8px; background:rgba(127,127,127,.14); cursor:pointer; white-space:normal; }
+  .bulle.moi .citeEl{ border-left-color:var(--on-accent); background:rgba(0,0,0,.07); }
+  .citeEl.ote{ font-style:italic; opacity:.75; }
+  .citeQuiEl{ display:block; font-size:10.5px; font-weight:800; opacity:.8; }
+  .citeApEl{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+             font-size:12.5px; line-height:1.4; opacity:.85; word-break:break-word; }
+  .bulle.photo .citeEl{ margin:4px 4px 6px; }
+  .repBtEl{ display:none; position:absolute; top:50%; transform:translateY(-50%); width:30px; height:30px;
+            padding:0; margin:0; border:none; border-radius:50%; background:transparent; cursor:pointer;
+            font-size:15px; line-height:30px; opacity:0; transition:opacity .12s; }
+  .bulle.eux .repBtEl{ right:-34px; }
+  .bulle.moi .repBtEl{ left:-34px; }
+  @media (hover:hover) and (pointer:fine){
+    .repBtEl{ display:block; }
+    .bulle:hover .repBtEl, .repBtEl:focus-visible{ opacity:.75; }
+    .repBtEl:hover{ opacity:1; background:rgba(127,127,127,.18); }
+  }
+  .glisseIcoEl{ position:absolute; left:-30px; top:50%; transform:translateY(-50%) scale(.8);
+                font-size:17px; opacity:0; pointer-events:none; transition:transform .12s; }
+  .glisseIcoEl.pret{ transform:translateY(-50%) scale(1.1); }
+  @keyframes eclairEl{ 0%,100%{ box-shadow:0 0 0 0 transparent; } 20%,60%{ box-shadow:0 0 0 3px var(--accent-text); } }
+  .bulle.eclairEl{ animation:eclairEl 1.8s ease; }
+  .repBarreEl{ display:flex; align-items:center; gap:8px; margin:0 0 6px; padding:6px 6px 6px 10px;
+               border-left:3px solid var(--accent-text); border-radius:10px; background:var(--navy-deep); min-width:0; }
+  .repTxtEl{ flex:1; min-width:0; cursor:pointer; }
+  .repQuiEl{ font-size:11.5px; font-weight:800; color:var(--accent-text); }
+  .repApEl{ font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .repXEl{ flex:none; width:30px; height:30px; padding:0; margin:0; border:none; border-radius:50%;
+           background:transparent; color:var(--cream); cursor:pointer; font-size:14px; }
 
   /* ============================================================
      ⚠️ COUCHÉ — ET CE BLOC EST LE DERNIER DE LA FEUILLE, EXPRÈS.
@@ -4045,6 +4079,8 @@
   }
   var conversationsEl = [];
   var filEl = null;
+  /* ↩️ v1180 — le message auquel il répond : { conv, id, rang, qui, apercu } */
+  var reponseEl = null;
   var battementEl = null;
   var contexteEl = null;
   var brouillonsEl = {};
@@ -4394,6 +4430,7 @@
 
   function ouvrirFilEleve(id){
     neufEl = null;
+    reponseEl = null;              /* ↩️ v1180 */
     ouvrirPleinEcran('<div class="card"><div class="empty">Ouverture…</div></div>');
 
     appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
@@ -4476,6 +4513,7 @@
          disposition — et la rangée du bas peut encaisser un
          cinquième outil sans reprendre un pixel au champ. */
       h += '<div class="zoneEcrire">' +
+        '<div id="repBarreEl"></div>' +
         '<textarea id="chFilTexte" rows="2" placeholder="Écris ton message…">' +
           echapper(brouillonsEl[id] || '') + '</textarea>' +
         '<div class="zoneOutils">' +
@@ -4516,6 +4554,14 @@
       t.addEventListener('input', function(){
         brouillonsEl[id] = t.value;
         majBoutonEnvoiEl();
+      });
+      /* ↩️ v1180 — Échap renonce à la réponse en cours */
+      t.addEventListener('keydown', function(ev){
+        if(ev.key === 'Escape' && reponseEl){
+          ev.preventDefault();
+          reponseEl = null;
+          poserBarreReponseEl();
+        }
       });
     }
     var b = $('btFilEnvoyer');
@@ -4566,6 +4612,7 @@
     majBoutonEnvoiEl();
     brancherLesCreneauxEl();
     brancherLesReactionsEl();
+    brancherLesReponsesEl();       /* ↩️ v1180 */
     brancherLesPhotosEl();
     brancherLesVocauxEl();
     var p = $('btPlusVieux');
@@ -4579,7 +4626,7 @@
     if(m.de === 'systeme'){
       /* « — conversation fermée » est écrit pour le bureau ; l'élève
          lit « ✓ Réglé par David », et la ligne du bas dit le reste. */
-      return '<div class="bulle systeme">' +
+      return '<div class="bulle systeme" data-rang="' + Number(m.rang || 0) + '">' +
         echapper(String(m.texte || '').replace(/ — conversation fermée$/, '')) + '</div>';
     }
     /* 📅 La carte d'un créneau proposé — v1141. Elle ne change pas :
@@ -4595,7 +4642,7 @@
        a déjà tout vidé — ni texte, ni pièce, ni réaction n'arrivent
        jusqu'ici. */
     if(Number(m.supprime || 0)){
-      return '<div class="bulle ' + (mien ? 'moi' : 'eux') + ' ote">' +
+      return '<div class="bulle ' + (mien ? 'moi' : 'eux') + ' ote" data-rang="' + Number(m.rang || 0) + '">' +
         '<span class="oteMot">🚫 Message supprimé</span>' +
         '<span class="h">' +
         echapper(String(m.envoyeLe || '').slice(11)) + '</span></div>';
@@ -4612,7 +4659,8 @@
     var aPhoto = (m.piece && pieceEstUnDocumentEl(m.piece)) ? ' doc'
                : (m.piece && !sonore) ? ' photo' : (sonore ? ' vocal' : '');
     var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + aReac + aPhoto +
-            '" data-msg="' + echapper(m.id || '') + '">';
+            (m.cite ? ' aCite' : '') +
+            '" data-msg="' + echapper(m.id || '') + '" data-rang="' + Number(m.rang || 0) + '">';
     if(!mien && m.auteur){
       h += '<span class="sig">' + echapper(m.auteur) + '</span>';
     }
@@ -4628,6 +4676,8 @@
            ({ retard:'Retard annoncé', annul:'Annulation demandée',
               oubli:'Objet oublié' }[m.motif] || '') + '</span>';
     }
+    /* ↩️ Le message auquel celui-ci répond — v1180, en tête de bulle */
+    h += citationEl(m);
     /* 📷 La photo vient avant le texte — v1088 : le mot joint commente
        l'image, c'est l'ordre dans lequel on les a écrits. */
     h += imageDuMessageEl(m);
@@ -4656,6 +4706,11 @@
     h += '<span class="hh">' +
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
     h += pastillesEl(m);
+    /* ↩️ au survol, à l'ordinateur — caché au doigt par la feuille */
+    if(filEl && filEl.peutEcrire && m.id){
+      h += '<button type="button" class="repBtEl" data-repondre="' + echapper(m.id) + '" ' +
+           'title="Répondre" aria-label="Répondre à ce message">↩️</button>';
+    }
     return h + '</div>';
   }
 
@@ -4743,8 +4798,10 @@
     b.disabled = true;
     dire('msgFil', 'Envoi…', 'attente');
     appeler(avecLeFilNeuf({ action: 'eleveEcrire', eleve: moi.nom,
-                            code: moi.code, id: id, texte: texte }))
+                            code: moi.code, id: id, texte: texte,
+                            reponseA: reponseAPourEl(id) }))
       .then(function(d){
+        oublierReponseEl(id);
         if(t) t.value = '';
         delete brouillonsEl[id];
         dire('msgFil', '');
@@ -4886,8 +4943,9 @@
       var texte = t ? t.value.trim() : '';
       return appeler(avecLeFilNeuf({ action:'elevePhoto', eleve: moi.nom,
                        code: moi.code, id: id, photo: p.data, l: p.l,
-                       h: p.h, texte: texte }))
+                       h: p.h, texte: texte, reponseA: reponseAPourEl(id) }))
         .then(function(d){
+          oublierReponseEl(id);
           adopterLeFilNe(d);
           if(t){ t.value = ''; delete brouillonsEl[id]; }
           dire('msgFil', '', '');
@@ -5046,9 +5104,10 @@
       return lireEnBase64El(fichier).then(function(data){
         return appeler(avecLeFilNeuf({ action: 'eleveVideo', eleve: moi.nom,
                          code: moi.code, id: filEl.conv.id, video: data,
-                         duree: sec, texte: '' }));
+                         duree: sec, texte: '', reponseA: reponseAPourEl(filEl.conv.id) }));
       });
     }).then(function(r){
+      oublierReponseEl();
       adopterLeFilNe(r);
       if(r && typeof r.reste === 'number') resteVideosEl = r.reste;
       return rafraichirLeFilEleve(true);
@@ -5280,8 +5339,9 @@
       return lireEnBase64El(blob).then(function(data){
         return appeler(avecLeFilNeuf({ action: 'eleveVideo', eleve: moi.nom,
                          code: moi.code, id: v.fil, video: data,
-                         duree: sec, texte: '' }));
+                         duree: sec, texte: '', reponseA: reponseAPourEl(v.fil) }));
       }).then(function(r){
+        oublierReponseEl(v.fil);
         adopterLeFilNe(r);
         if(r && typeof r.reste === 'number') resteVideosEl = r.reste;
         rendreLaBarreVideoEl();
@@ -5655,8 +5715,9 @@
       l.onload = function(){
         appeler(avecLeFilNeuf({ action: 'eleveVocal', eleve: moi.nom,
                   code: moi.code, id: v.fil, son: String(l.result || ''),
-                  duree: sec, texte: mots }))
+                  duree: sec, texte: mots, reponseA: reponseAPourEl(v.fil) }))
           .then(function(r){
+            oublierReponseEl(v.fil);
             adopterLeFilNe(r);
             if(r && typeof r.reste === 'number') resteVocauxEl = r.reste;
             rendre();
@@ -5833,6 +5894,21 @@
     var mien = groupeReacEl(m.reacs).filter(function(x){ return x.mien; })[0];
     var boite = document.createElement('div');
     boite.className = 'reacChoix' + (m.de === 'moi' ? ' moi' : '');
+    /* ↩️ Répondre à ce message — v1180, en premier */
+    if(peut && m.id && !Number(m.supprime || 0)){
+      var rb = document.createElement('button');
+      rb.type = 'button';
+      rb.className = 'reacRepondre';
+      rb.textContent = '↩️';
+      rb.title = 'Répondre à ce message';
+      rb.setAttribute('aria-label', 'Répondre à ce message');
+      rb.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        fermerLeSelecteurEl();
+        repondreAuMessageEl(m);
+      });
+      boite.appendChild(rb);
+    }
     if(peut) REACTIONS_EL.forEach(function(e){
       var b = document.createElement('button');
       b.type = 'button';
@@ -5882,29 +5958,271 @@
     var annuler = function(){
       if(minuteur){ clearTimeout(minuteur); minuteur = null; }
     };
+    /* ↩️ v1180 — glisser vers la droite pour répondre, au doigt */
+    var glisse = glissementEl(bulle, m, annuler);
     bulle.addEventListener('pointerdown', function(ev){
       if(ev.button === 2) return;
       depart = { x: ev.clientX, y: ev.clientY };
       annuler();
+      glisse.debut(ev);
       minuteur = setTimeout(function(){
         minuteur = null;
+        glisse.oublier();
         ouvrirLeSelecteurEl(bulle, m);
       }, 480);
     });
     bulle.addEventListener('pointermove', function(ev){
+      glisse.bouge(ev);
       if(!minuteur || !depart) return;
       if(Math.abs(ev.clientX - depart.x) > 9 || Math.abs(ev.clientY - depart.y) > 9){
         annuler();
       }
     });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function(q){
-      bulle.addEventListener(q, annuler);
+    ['pointerup', 'pointercancel'].forEach(function(q){
+      bulle.addEventListener(q, function(ev){ annuler(); glisse.fin(ev); });
     });
+    bulle.addEventListener('pointerleave', annuler);
     bulle.addEventListener('contextmenu', function(ev){
       ev.preventDefault();
       annuler();
       ouvrirLeSelecteurEl(bulle, m);
     });
+  }
+
+  /* ============================================================
+     ↩️ RÉPONDRE À UN MESSAGE PRÉCIS — v1180
+
+     David, le 15 octobre : « qu'on réponde à un message que l'on a
+     reçu ou envoyé, comme Messenger » — pour l'équipe ET les élèves.
+     Trois gestes : ↩️ dans le menu de l'appui long, glisser la bulle
+     vers la droite, ↩️ au survol à l'ordinateur. Toucher la citation
+     remonte au message d'origine.
+
+     ⚠️ ON N'ENVOIE QUE L'IDENTIFIANT : le serveur vérifie qu'il est
+     de CE fil, et c'est lui qui rend la citation, avec la même règle
+     de noms que les bulles (un autre élève d'un groupe : son prénom).
+     ============================================================ */
+  var SEUIL_GLISSER_EL = 60;
+
+  function apercuEl(m){
+    if(!m) return '';
+    if(Number(m.supprime || 0)) return 'Message supprimé';
+    var t = String(m.texte || '').replace(/\s+/g, ' ').trim();
+    if(t) return t.length > 140 ? t.slice(0, 139) + '…' : t;
+    var sorte = String((m.piece && m.piece.type) || m.pieceType || '');
+    var nom = (m.piece && m.piece.nom) || m.pieceNom || '';
+    return sorte.indexOf('audio/') === 0 ? '🎤 Message vocal'
+         : sorte.indexOf('video/') === 0 ? '🎥 Vidéo'
+         : sorte.indexOf('image/') === 0 ? '📷 Photo'
+         : nom ? '📎 ' + nom : 'Message';
+  }
+
+  /* '' = lui-même */
+  function quiDeLaCitationEl(de, auteur){
+    if(de === 'moi') return '';
+    if(de === 'systeme') return 'Évolution Conduites';
+    return String(auteur || '') || 'Évolution Conduites';
+  }
+
+  function reponseAPourEl(convId){
+    return (reponseEl && convId && reponseEl.conv === convId) ? reponseEl.id : '';
+  }
+
+  function oublierReponseEl(convId){
+    if(!reponseEl) return;
+    if(convId && reponseEl.conv !== convId) return;
+    reponseEl = null;
+    poserBarreReponseEl();
+  }
+
+  function repondreAuMessageEl(m){
+    if(!m || !m.id || !filEl || !filEl.conv || !filEl.conv.id || !filEl.peutEcrire) return;
+    if(Number(m.supprime || 0)) return;
+    reponseEl = { conv: filEl.conv.id, id: m.id, rang: Number(m.rang || 0),
+                  qui: quiDeLaCitationEl(m.de, m.auteur), apercu: apercuEl(m) };
+    poserBarreReponseEl();
+    var t = $('chFilTexte');
+    /* Le clavier s'ouvre une fois le doigt levé, pas au milieu du geste. */
+    if(t) setTimeout(function(){
+      try{ t.focus({ preventScroll: true }); }catch(e){ t.focus(); }
+    }, 0);
+  }
+
+  function poserBarreReponseEl(){
+    var z = $('repBarreEl');
+    if(!z) return;
+    var ici = reponseEl && filEl && filEl.conv && reponseEl.conv === filEl.conv.id && filEl.peutEcrire;
+    if(!ici){ z.innerHTML = ''; z.className = ''; return; }
+    z.className = 'repBarreEl';
+    z.innerHTML =
+      '<div class="repTxtEl" id="repTxtEl">' +
+        '<div class="repQuiEl">↩️ ' + echapper(reponseEl.qui ? 'Réponse à ' + reponseEl.qui
+                                                            : 'Réponse à ton message') + '</div>' +
+        '<div class="repApEl">' + echapper(reponseEl.apercu) + '</div>' +
+      '</div>' +
+      '<button type="button" class="repXEl" id="repXEl" title="Ne plus répondre à ce message" ' +
+        'aria-label="Annuler la réponse">✕</button>';
+    $('repXEl').addEventListener('click', function(ev){
+      ev.stopPropagation();
+      reponseEl = null;
+      poserBarreReponseEl();
+    });
+    $('repTxtEl').addEventListener('click', function(){
+      if(reponseEl) allerAuMessageCiteEl({ id: reponseEl.id, rang: reponseEl.rang });
+    });
+  }
+
+  function citationEl(m){
+    var c = m && m.cite;
+    if(!c || !c.id) return '';
+    var qui = quiDeLaCitationEl(c.de, c.auteur);
+    return '<span class="citeEl' + (Number(c.supprime || 0) ? ' ote' : '') + '" role="button" tabindex="0" ' +
+             'data-cite="' + echapper(c.id) + '" data-cite-rang="' + Number(c.rang || 0) + '" ' +
+             'title="Voir le message d’origine">' +
+             '<span class="citeQuiEl">↩️ ' + echapper(qui || 'Toi') + '</span>' +
+             '<span class="citeApEl">' + echapper(c.apercu || '') + '</span>' +
+           '</span>';
+  }
+
+  function brancherLesReponsesEl(){
+    if(!filEl) return;
+    poserBarreReponseEl();
+    var parId = {};
+    (filEl.messages || []).forEach(function(m){ parId[m.id] = m; });
+    Array.prototype.forEach.call(document.querySelectorAll('#leFilEleve [data-cite]'), function(el){
+      var aller = function(ev){
+        ev.stopPropagation();
+        ev.preventDefault();
+        allerAuMessageCiteEl({ id: el.getAttribute('data-cite'),
+                               rang: Number(el.getAttribute('data-cite-rang') || 0) });
+      };
+      el.addEventListener('click', aller);
+      el.addEventListener('keydown', function(ev){ if(ev.key === 'Enter' || ev.key === ' ') aller(ev); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#leFilEleve [data-repondre]'), function(b){
+      b.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var m = parId[b.getAttribute('data-repondre')];
+        if(m) repondreAuMessageEl(m);
+      });
+    });
+  }
+
+  function bulleDuFilEl(c){
+    var fil = $('leFilEleve');
+    if(!fil || !c) return null;
+    var el = c.id ? fil.querySelector('.bulle[data-msg="' + String(c.id).replace(/"/g, '') + '"]') : null;
+    if(!el && c.rang) el = fil.querySelector('[data-rang="' + Number(c.rang) + '"]');
+    return el;
+  }
+
+  function eclairerEl(el){
+    try{ el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }catch(e){ el.scrollIntoView(); }
+    el.classList.remove('eclairEl');
+    void el.offsetWidth;
+    el.classList.add('eclairEl');
+    setTimeout(function(){ el.classList.remove('eclairEl'); }, 1900);
+  }
+
+  /* Le message d'origine peut être plus vieux que la page chargée :
+     on remonte page par page, vingt-cinq au plus. */
+  function allerAuMessageCiteEl(c){
+    if(!c || !filEl || !filEl.conv || !filEl.conv.id) return;
+    var el = bulleDuFilEl(c);
+    if(el){ eclairerEl(el); return; }
+    var id = filEl.conv.id;
+    var charge = false;
+    var tours = 0;
+    var finir = function(){
+      if(charge) dessinerFilEleve();
+      var el2 = bulleDuFilEl(c);
+      if(el2) eclairerEl(el2);
+      else dire('msgFil', 'Ce message n’est plus dans la conversation.', '');
+    };
+    var suivant = function(){
+      if(!filEl || !filEl.conv || filEl.conv.id !== id) return;
+      var msgs = filEl.messages || [];
+      var deja = msgs.some(function(x){ return x.id === c.id; });
+      var plusVieux = msgs[0];
+      if(deja || !filEl.encore || !plusVieux || tours >= 25 ||
+         (c.rang && Number(plusVieux.rang || 0) <= Number(c.rang))) return finir();
+      tours++;
+      appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id, avant: plusVieux.rang })
+        .then(function(d){
+          if(!filEl || !filEl.conv || filEl.conv.id !== id) return;
+          filEl.messages = ((d && d.messages) || []).concat(filEl.messages || []);
+          filEl.encore = !!(d && d.encore);
+          charge = true;
+          suivant();
+        })
+        .catch(function(e){
+          dire('msgFil', (e && e.message) || 'Lecture impossible.', 'erreur');
+          finir();
+        });
+    };
+    suivant();
+  }
+
+  /* Glisser la bulle vers la droite — au doigt seulement. */
+  function glissementEl(bulle, m, annulerAppui){
+    var g = null;
+    var remettre = function(){
+      if(!g) return;
+      bulle.style.transition = 'transform .18s ease';
+      bulle.style.transform = '';
+      if(g.ico && g.ico.parentNode) g.ico.parentNode.removeChild(g.ico);
+      setTimeout(function(){ bulle.style.transition = ''; }, 200);
+      g = null;
+    };
+    return {
+      debut: function(ev){
+        g = null;
+        if(ev.pointerType === 'mouse') return;
+        if(!m || !m.id || Number(m.supprime || 0)) return;
+        if(!filEl || !filEl.peutEcrire) return;
+        g = { x: ev.clientX, y: ev.clientY, id: ev.pointerId, actif: false, dx: 0, ico: null };
+      },
+      bouge: function(ev){
+        if(!g || ev.pointerId !== g.id) return;
+        var dx = ev.clientX - g.x, dy = ev.clientY - g.y;
+        if(!g.actif){
+          if(Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)){ g = null; return; }
+          if(dx < 12 || dx < Math.abs(dy) * 1.5) return;
+          g.actif = true;
+          annulerAppui();
+          try{ bulle.setPointerCapture(g.id); }catch(e){}
+          g.ico = document.createElement('span');
+          g.ico.className = 'glisseIcoEl';
+          g.ico.textContent = '↩️';
+          bulle.appendChild(g.ico);
+        }
+        g.dx = Math.max(0, Math.min(dx, 90));
+        bulle.style.transition = 'none';
+        bulle.style.transform = 'translateX(' + g.dx + 'px)';
+        if(g.ico){
+          g.ico.style.opacity = String(Math.min(1, g.dx / SEUIL_GLISSER_EL));
+          g.ico.classList.toggle('pret', g.dx >= SEUIL_GLISSER_EL);
+        }
+        ev.preventDefault();
+      },
+      fin: function(ev){
+        if(!g) return;
+        if(ev && g.id !== ev.pointerId) return;
+        var fait = g.actif && g.dx >= SEUIL_GLISSER_EL && ev && ev.type === 'pointerup';
+        var actif = g.actif;
+        remettre();
+        if(actif){
+          var bloquer = function(e){ e.stopPropagation(); e.preventDefault(); };
+          bulle.addEventListener('click', bloquer, true);
+          setTimeout(function(){ bulle.removeEventListener('click', bloquer, true); }, 350);
+        }
+        if(fait){
+          if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(e){} }
+          repondreAuMessageEl(m);
+        }
+      },
+      oublier: function(){ g = null; }
+    };
   }
 
   function brancherLesReactionsEl(){
@@ -6164,8 +6482,9 @@
       var texte = t ? t.value.trim() : '';
       return appeler(avecLeFilNeuf({ action: 'eleveFichier', eleve: moi.nom,
                        code: moi.code, id: id, fichier: data,
-                       nom: fichier.name || '', texte: texte }))
+                       nom: fichier.name || '', texte: texte, reponseA: reponseAPourEl(id) }))
         .then(function(r){
+          oublierReponseEl(id);
           adopterLeFilNe(r);
           if(r && typeof r.reste === 'number') resteFichiersEl = r.reste;
           if(t){ t.value = ''; delete brouillonsEl[id]; }
@@ -6474,9 +6793,10 @@
     if(!filEl || !filEl.conv || !filEl.peutEcrire) return;
     var b = $('btFilEnvoyer');
     if(b) b.disabled = true;
+    var filP = filEl.conv.id;
     appeler({ action:'eleveEcrire', eleve: moi.nom, code: moi.code,
-              id: filEl.conv.id, texte: '👍' })
-      .then(function(){ return rafraichirLeFilEleve(true); })
+              id: filP, texte: '👍', reponseA: reponseAPourEl(filP) })
+      .then(function(){ oublierReponseEl(filP); return rafraichirLeFilEleve(true); })
       .catch(function(e){
         dire('msgFil', e.message || 'Le pouce n\'est pas parti.', 'erreur');
       })
@@ -6942,6 +7262,22 @@
       .then(function(d){
         if(!filEl || !filEl.conv || filEl.conv.id !== id) return;
         var liste = (d && d.messages) || [];
+        /* ⚠️ LES PAGES ANCIENNES DÉJÀ LUES RESTENT — v1180 : la
+           relecture ne rapporte que la dernière page. Sans cette
+           couture, remonter à un vieux message cité ne tiendrait
+           que jusqu'au battement suivant. */
+        var anciens = (filEl && filEl.messages) || [];
+        if(liste.length && anciens.length){
+          var premier = liste[0];
+          var touche = anciens.some(function(x){ return x.id === premier.id; });
+          if(touche){
+            var garder = anciens.filter(function(x){ return Number(x.rang || 0) < Number(premier.rang || 0); });
+            if(garder.length){
+              d.messages = liste = garder.concat(liste);
+              d.encore = !!filEl.encore;
+            }
+          }
+        }
         var neuf = liste.length ? liste[liste.length - 1].rang : 0;
         /* ⚠️ ON NE REDESSINE QUE SI QUELQUE CHOSE A CHANGÉ. Redessiner
            toutes les quatre secondes ferait sauter le défilement et
