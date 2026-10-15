@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 13:01 — v1166 */
+/* Déployé le 15/10/2026 à 12:15 — v1181 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1835,22 +1835,160 @@ function remplirDepuisDrivupRappel(h){
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  /* Le type de séance, quand Drivup le dit clairement : un examen,
-     un examen blanc. Sinon on laisse celui qui est choisi. */
-  const sel = $('rapType');
-  if(sel){
-    const lib = normaliserMot(c.libelle || '');
-    const cherche = c.examen || /examen du permis/.test(lib) ? (t => /examen/.test(t) && !/blanc/.test(t))
-                  : /examen blanc/.test(lib) ? (t => /blanc/.test(t))
-                  : null;
-    if(cherche){
-      const o = [...sel.options].find(o => cherche(normaliserMot(o.textContent)));
-      if(o && sel.value !== o.value){
-        sel.value = o.value;
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }
+  /* Le type de séance, quand Drivup le dit — 🚗 v1181 : examen,
+     examen blanc, simulateur avec moniteur, conduite. */
+  typeDepuisDrivupRappel(c, el ? el.value : c.eleve);
+  /* 🚗 v1181 — la voiture, d'après les numéros du haut du planning.
+     Pas pour le simulateur : on n'y monte dans aucune voiture. */
+  if(!/simulateur/.test(normaliserMot(c.libelle || ''))) voitureDepuisDrivupRappel(c, el ? el.value : c.eleve);
+}
+
+/* ============================================================
+   🚗 LA VOITURE ET LE TYPE DE SÉANCE, REPRIS DE DRIVUP — v1181
+
+   David, le 15 octobre : « en haut du planning on met des numéros qui
+   correspondent aux voitures […] mettre les voitures à jour dans les
+   rappels et le type de leçon si c'est conduite, examen blanc ou
+   simulateur avec moniteur ». Ses choix : le numéro devient une
+   voiture par le champ « N° Drivup » de la Flotte ; le type se lit
+   dans le titre du cours ; on PRÉ-REMPLIT, et tout reste modifiable.
+
+   Son exemple, Jean-Jacques le 15 octobre : « .1 » à 7h00 (A3 n° 1,
+   boîte manuelle), « .7 » à 7h30 (Q3 n° 7, automatique), « .9 » à
+   12h45 (Q3 n° 9, l'automatique de l'après-midi). Un numéro vaut à
+   partir de son heure, pour la boîte de SA voiture : à 13h15, un
+   élève en boîte automatique monte dans la 9, un élève en manuelle
+   reste dans la 1.
+   ============================================================ */
+
+/* La boîte de l'élève : « bva », « bvm », ou '' si on ne sait pas.
+   Même lecture que le cours créé derrière le rappel. */
+function boiteDeLEleveRappel(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const formation = String((f && f.formation) || '').trim();
+  if(!formation) return '';
+  const parcours = (typeof parcoursDeLaFormation === 'function') ? parcoursDeLaFormation(formation) : null;
+  if(parcours && parcours.boite) return parcours.boite === 'BV' ? 'bvm' : 'bva';
+  if(/manuel|\bbv\b|b[oô]ite m/i.test(formation)) return 'bvm';
+  if(/\bbea\b|auto/i.test(formation)) return 'bva';
+  return '';
+}
+
+/* La voiture d'un cours : pour chaque boîte, le dernier numéro posé
+   avant le début du cours (ou le premier de la journée, s'il est posé
+   plus tard). */
+function voitureDuCoursDrivupRappel(c, voitures, flotte, boite){
+  const minutes = h => { const m = String(h || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+  const debut = minutes(c.debut);
+  const moniteur = normaliserMot(c.moniteur || '');
+  const duJour = (voitures || []).filter(v => v.jour === c.jour &&
+    ((v.moniteurDrivup && v.moniteurDrivup === c.moniteurDrivup) ||
+     (moniteur && normaliserMot(v.moniteur || '') === moniteur)))
+    .sort((a, b) => String(a.heure).localeCompare(String(b.heure)));
+  if(!duJour.length) return null;
+  const parBoite = {};
+  duJour.forEach(v => {
+    const veh = (typeof vehiculeDuNumeroDrivup === 'function') ? vehiculeDuNumeroDrivup(flotte, v.numero) : null;
+    const b = veh ? (veh.boite === 'bva' ? 'bva' : 'bvm') : '?';
+    const t = parBoite[b] = parBoite[b] || { avant: null, premier: null };
+    const ici = { v: v, veh: veh };
+    if(!t.premier) t.premier = ici;
+    if(debut === null || minutes(v.heure) <= debut) t.avant = ici;
+  });
+  const prendre = b => parBoite[b] ? (parBoite[b].avant || parBoite[b].premier) : null;
+  const boites = Object.keys(parBoite);
+  /* Boîte inconnue : seulement s'il n'y a qu'une voiture possible */
+  const r = boite ? prendre(boite) : (boites.length === 1 ? prendre(boites[0]) : null);
+  /* Un numéro que la Flotte ne connaît pas, posé APRÈS la voiture
+     trouvée (ou sans voiture trouvée) : c'est peut-être lui — on le
+     dit plutôt que d'annoncer une voiture qui n'est peut-être plus
+     la bonne. */
+  const inc = parBoite['?'] ? prendre('?') : null;
+  if(inc && (!r || String(inc.v.heure) > String(r.v.heure)) &&
+     (debut === null || minutes(inc.v.heure) <= debut || !r)) return inc;
+  return r;
+}
+
+async function voitureDepuisDrivupRappel(c, eleve){
+  if(!c || !c.jour) return;
+  const dv = (typeof drivupDuJourRappels === 'function') ? await drivupDuJourRappels(c.jour) : null;
+  const voitures = (dv && dv.voitures) || [];
+  if(!voitures.length) return;
+  const flotte = await chargerFlotteRappel();
+  const trouve = voitureDuCoursDrivupRappel(c, voitures, flotte, boiteDeLEleveRappel(eleve));
+  if(!trouve) return;
+  const sel = $('rapVehicule');
+  if(!sel) return;
+  if(!trouve.veh){
+    showToast('🚗 Drivup dit voiture n° ' + trouve.v.numero + ' : aucun véhicule de la Flotte ne porte ce N°.');
+    return;
   }
+  const o = [...sel.options].find(x => x.value === trouve.veh.nom);
+  if(!o) return;
+  if(o.disabled){
+    showToast('🚗 Drivup dit ' + trouve.veh.nom + ' (n° ' + trouve.v.numero + '), mais elle est indisponible dans la Flotte.');
+    return;
+  }
+  if(sel.value !== o.value){
+    sel.value = o.value;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
+/* Le type de séance. ⚠️ UN TYPE CHOISI À LA MAIN RESTE : on ne
+   remplace que ce que Drivup avait pu poser (examen, examen blanc,
+   simulateur) ou un menu vide — un « 1er cours en voiture » choisi
+   pour cet élève ne redevient pas « conduite » tout seul. */
+function genreDuTypeRappel(titre){
+  const t = normaliserMot(titreAfficheRappel(titre || ''));
+  if(/blanc/.test(t)) return 'blanc';
+  if(/simu/.test(t)) return 'simu';
+  if(/examen/.test(t)) return 'examen';
+  if(/1er|premier|evaluation|aac|accompagn|rdv|rendez|post|supervis/.test(t) ||
+     /\b1\s*(ᵉʳ|ᵉ|er|re)\b|\b1\s*ᵉ/i.test(String(titre || ''))) return 'autre';
+  if(/conduite|lecon|cours/.test(t)) return 'conduite';
+  return 'autre';
+}
+
+function typeDepuisDrivupRappel(c, eleve){
+  const sel = $('rapType');
+  if(!sel) return;
+  const lib = normaliserMot(c.libelle || '');
+  const voulu = (c.examen || /examen du permis/.test(lib)) ? 'examen'
+              : /examen blanc/.test(lib) ? 'blanc'
+              : /simulateur/.test(lib) ? 'simu'
+              : /conduite/.test(lib) ? 'conduite'
+              : '';
+  if(!voulu) return;
+  const opts = [...sel.options].filter(o => o.value);
+  const courant = opts.find(o => o.value === sel.value);
+  const genreCourant = courant ? genreDuTypeRappel(courant.textContent) : '';
+  if(genreCourant === voulu) return;
+  if(voulu === 'conduite' && courant && genreCourant === 'autre') return;
+
+  /* Plusieurs types du même genre (Saint-Brieuc / Loudéac, BV / BEA) :
+     celui de la ville du cours, puis de la boîte de l'élève, puis le
+     premier dans l'ordre rangé par David. */
+  const ville = /loudeac/.test(normaliserMot(c.agence || '') + ' ' + lib) ? 'loudeac'
+              : /brieuc/.test(normaliserMot(c.agence || '') + ' ' + lib) ? 'brieuc' : '';
+  const boite = boiteDeLEleveRappel(eleve);
+  const score = o => {
+    const t = normaliserMot(titreAfficheRappel(o.textContent));
+    let n = 0;
+    if(ville && t.indexOf(ville) !== -1) n += 4;
+    if(ville && /loudeac|brieuc/.test(t) && t.indexOf(ville) === -1) n -= 4;
+    if(boite === 'bva' && /\bbea\b|auto/.test(t)) n += 2;
+    if(boite === 'bvm' && /\bbv\b|manuel/.test(t)) n += 2;
+    if(boite === 'bva' && /\bbv\b|manuel/.test(t)) n -= 2;
+    if(boite === 'bvm' && /\bbea\b|auto/.test(t)) n -= 2;
+    return n;
+  };
+  const candidats = opts.filter(o => genreDuTypeRappel(o.textContent) === voulu);
+  if(!candidats.length) return;
+  let mieux = candidats[0], haut = score(mieux);
+  candidats.forEach(o => { const n = score(o); if(n > haut){ haut = n; mieux = o; } });
+  sel.value = mieux.value;
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 /* Après un envoi : le prochain cours Drivup encore à prévenir */
