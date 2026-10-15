@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 12:39 — v1175 */
+/* Déployé le 15/10/2026 à 16:27 — v1184 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -141,6 +141,9 @@ const ONGLETS_ELEVE = [
      premier constat de l'audit. Elle n'est plus qu'ici. */
   { cle:'route',    emoji:'🧭', titre:'Sa route',    section:'eleves' },
   { cle:'fiche',    emoji:'📇', titre:'Fiche',       section:'eleves' },
+  /* 📊 v1184 — l'évaluation de départ : heures, boîte, montant, frise
+     et photos du simulateur. Le droit de l'écran Évaluation. */
+  { cle:'evaluation', emoji:'📊', titre:'Évaluation', section:'evaluation' },
   { cle:'cours',    emoji:'📚', titre:'Cours',       section:'recherche' },
   { cle:'permis',   emoji:'🎓', titre:'Permis',      section:'permis' },
   /* ⚠️ « acces_eleves », PAS « proccorriger ».
@@ -2831,6 +2834,10 @@ function enteteEleve(nom){
     d.appendChild(p);
   }
 
+  /* 🆔 v1184 — l'id Drivup, juste après la formation : visible sur
+     tous les onglets du dossier. */
+  if(f && f.eleve) d.appendChild(pastilleDrivupEleve(nom, f));
+
   if(f.autreAE){
     const p = document.createElement('span');
     p.style.cssText = 'flex-shrink:0;font-size:12px;padding:5px 10px;' +
@@ -2899,6 +2906,96 @@ function actionsRapidesEleve(nom, f){
   return z;
 }
 
+
+/* ── 🆔 L'ID DRIVUP — v1184 ──────────────────────────────────────
+
+   David, le 15 octobre : « une case avec l'id drivup pour faire la
+   différence des homonymes et que je puisse changer à la main s'il
+   y a un problème à l'import », « à côté de sa formation en haut,
+   comme ça on le voit partout dans son dossier ». Le bureau et les
+   administrateurs la corrigent ; les autres la voient. Sans id, elle
+   dit « ❓ » comme l'âge inconnu. */
+function peutCorrigerIdDrivup(){
+  return typeof ACCES !== 'undefined' && ACCES && (ACCES.role === 'admin' || ACCES.role === 'bureau');
+}
+function pastilleDrivupEleve(nom, f){
+  const id = String((f && f.idDrivup) || '').replace(/\D/g, '');
+  const peut = peutCorrigerIdDrivup();
+  const p = document.createElement(peut ? 'button' : 'span');
+  p.className = peut ? 'btn btn-secondary' : '';
+  p.dataset.idDrivup = id || '?';
+  p.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:5px 11px;' +
+    'font-size:12px;font-weight:700;border-radius:999px;white-space:nowrap;' +
+    (peut ? '' : 'border:1px solid var(--line);') +
+    (id ? '' : 'border-color:var(--orange);color:var(--orange);');
+  p.textContent = '🆔 Drivup ' + (id || '❓');
+  p.title = id ? 'Id de sa fiche Drivup' + (peut ? ' — clique pour le corriger' : '')
+               : 'Id Drivup inconnu' + (peut ? ' — clique pour le poser' : '');
+  if(peut) p.addEventListener('click', () => fenetreIdDrivup(nom, id));
+  return p;
+}
+function fenetreIdDrivup(nom, id){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.style.cssText = 'max-width:min(460px,95vw);';
+  m.innerHTML = '<h3></h3>' +
+    '<div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Le numéro de sa fiche Drivup. ' +
+      'C’est lui qui distingue deux élèves au même nom quand le favori 📥 reprend Drivup. Une correction à la main l’emporte : ' +
+      'le favori ne la touche plus.</div>' +
+    '<label for="idDrivupChamp">Id Drivup</label>' +
+    '<input type="text" id="idDrivupChamp" inputmode="numeric" autocomplete="off" style="font-size:20px;">' +
+    '<div id="idDrivupDit"></div>' +
+    '<div class="btn-row"><button type="button" class="btn btn-primary" id="idDrivupOk">Enregistrer</button>' +
+    '<button type="button" class="btn btn-secondary" id="idDrivupNon">Annuler</button></div>';
+  m.querySelector('h3').textContent = '🆔 Id Drivup — ' + nom;
+  fond.appendChild(m);
+  document.body.appendChild(fond);
+  const champ = m.querySelector('#idDrivupChamp');
+  const dit = m.querySelector('#idDrivupDit');
+  const ok = m.querySelector('#idDrivupOk');
+  champ.value = id;
+  const cible = (typeof normaliserMot === 'function') ? normaliserMot(nom) : nom;
+  const verifier = () => {
+    const v = champ.value.replace(/\D/g, '');
+    const autre = v && (typeof fichesEleves !== 'undefined' ? fichesEleves : []).find(x =>
+      x && String(x.idDrivup || '').replace(/\D/g, '') === v &&
+      ((typeof normaliserMot === 'function') ? normaliserMot(x.eleve) : x.eleve) !== cible);
+    dit.innerHTML = '';
+    dit.style.cssText = '';
+    if(autre){
+      dit.style.cssText = 'border:1px solid var(--red);border-radius:11px;padding:11px 13px;margin:-4px 0 12px;' +
+        'font-size:13px;line-height:1.55;color:var(--red);';
+      dit.textContent = '⚠️ Ce numéro est déjà sur la fiche de ' + autre.eleve +
+        '. Un même id ne peut pas être sur deux fiches : corrige l’une des deux.';
+    }else if(champ.value && v !== champ.value.trim()){
+      dit.style.cssText = 'font-size:12px;color:var(--muted);margin:-6px 0 10px;';
+      dit.textContent = 'Seuls les chiffres sont gardés : ' + (v || '—');
+    }
+    ok.disabled = !!autre;
+  };
+  champ.addEventListener('input', verifier);
+  verifier();
+  setTimeout(() => champ.focus(), 50);
+  m.querySelector('#idDrivupNon').addEventListener('click', () => fermerFond(fond));
+  ok.addEventListener('click', async () => {
+    const v = champ.value.replace(/\D/g, '');
+    ok.disabled = true; ok.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({ action: 'ficheIdDrivup', eleve: nom, idDrivup: v });
+      const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+      if(f) f.idDrivup = v;
+      fermerFond(fond);
+      showToast('Id Drivup enregistré ✅');
+      dessinerPageEleve();
+    }catch(e){
+      ok.disabled = false; ok.textContent = 'Enregistrer';
+      dit.style.cssText = 'font-size:12.5px;color:var(--red);margin:-4px 0 10px;';
+      dit.textContent = '⚠️ ' + e.message;
+    }
+  });
+}
 
 /* ── L'ÂGE, TOUJOURS AFFICHÉ ────────────────────────────────────
 
@@ -3026,6 +3123,7 @@ function choisirOngletEleve(cle){
 function remplirOngletEleve(corps, nom, cle){
   if(cle === 'route')       return ongletRoute(corps, nom);
   if(cle === 'fiche')       return ongletFiche(corps, nom);
+  if(cle === 'evaluation' && typeof ongletEvaluationEleve === 'function') return ongletEvaluationEleve(corps, nom);
   if(cle === 'cours')       return ongletCours(corps, nom);
   if(cle === 'permis')      return ongletPermis(corps, nom);
   if(cle === 'messages')    return ongletMessagesEleve(corps, nom);
