@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 15:23 — v1183 */
+/* Déployé le 15/10/2026 à 16:55 — v1185 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -6567,7 +6567,9 @@ function clePousseeEnOctets(t){
 function abonnementEnClair(ab){
   const j = ab.toJSON ? ab.toJSON() : {};
   const c = j.keys || {};
-  return { endpoint: ab.endpoint, p256dh: c.p256dh || '', auth: c.auth || '' };
+  /* 🕘 v1185 — et de quoi le reconnaître dans « Tes autres appareils » */
+  return { endpoint: ab.endpoint, p256dh: c.p256dh || '', auth: c.auth || '',
+           appareil: (typeof libelleAppareilEC === 'function') ? libelleAppareilEC() : '' };
 }
 
 async function serviceWorkerPret(){
@@ -6716,6 +6718,8 @@ async function preparerLaPoussee(){
   }else pousseeEtatEC = 'off';
 
   dessinerLaPoussee();
+  /* 🕘 v1185 — ses horaires, pour le bandeau et la fenêtre */
+  if(pousseeEtatEC === 'on' && !appareilsLusEC) chargerMesAppareilsEC();
 }
 
 function dessinerLaPoussee(){
@@ -6739,16 +6743,36 @@ function dessinerLaPoussee(){
       'Ça se débloque dans les réglages du navigateur, pas ici.</span>';
     ligne.appendChild(texte);
   }else if(pousseeEtatEC === 'on'){
-    texte.innerHTML = '🔔 Tu es prévenu sur cet appareil.<br>' +
+    /* 🕘 v1185 — ses heures, ou « en pause jusqu'à… » */
+    const et = (typeof etatHorairesEC === 'function') ? etatHorairesEC() : null;
+    texte.innerHTML = (et && et.pause ? et.titre : '🔔 Tu es prévenu sur cet appareil.') + '<br>' +
       '<span style="color:var(--muted);font-size:11.5px;">' +
-      'La notification dit qui écrit, jamais ce qui est écrit.</span>';
+      (et ? et.sous : 'La notification dit qui écrit, jamais ce qui est écrit.') + '</span>';
     ligne.appendChild(texte);
+    if(et){
+      [['🕘 Horaires', false], ['🌴 Pause', true]].forEach(([lib, pause]) => {
+        const h = document.createElement('button');
+        h.className = 'btn btn-secondary';
+        h.style.cssText = 'width:auto;margin:0;padding:6px 12px;font-size:12px;';
+        h.textContent = lib;
+        h.dataset.horaires = pause ? 'pause' : 'heures';
+        h.addEventListener('click', () => fenetreHorairesEC(cetAppareilEC().id, pause));
+        ligne.appendChild(h);
+      });
+    }
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
     b.style.cssText = 'width:auto;margin:0;padding:6px 12px;font-size:12px;';
     b.textContent = 'Arrêter';
     b.addEventListener('click', () => arreterLaPoussee(b));
     ligne.appendChild(b);
+    /* 🕘 v1185 — les trois boutons restent ensemble, sous le texte */
+    if(et){
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;width:100%;';
+      [...ligne.querySelectorAll('button')].forEach(x => r.appendChild(x));
+      ligne.appendChild(r);
+    }
   }else{
     texte.innerHTML = '🔔 Être prévenu des nouveaux messages sur cet appareil.<br>' +
       '<span style="color:var(--muted);font-size:11.5px;">' +
@@ -6764,6 +6788,334 @@ function dessinerLaPoussee(){
   }
 
   zone.appendChild(ligne);
+}
+
+
+/* ============================================================
+   🕘 LES HORAIRES DE MES NOTIFICATIONS — v1185
+
+   David, le 15 octobre : « mettre les jours et heures auxquels on veut
+   recevoir les notifications individuellement et par appareil ».
+   Chaque appareil a ses créneaux (plusieurs par jour), ses cases
+   « ça sonne quand même » (⏰ retards et 🚫 annulations au départ),
+   et une « 🌴 Pause jusqu'au… ». Hors créneaux, le Worker garde tout
+   pour UN résumé au début du créneau suivant.
+
+   ⚠️ LA RÈGLE EST AU WORKER. Cet écran règle et affiche ; c'est le
+   Worker qui décide, à l'envoi, si une notification part ou attend.
+   ============================================================ */
+let appareilsEC = null;          /* [{ id, moi, nom, appareil, horaires, pauseJusqua }] */
+let appareilsLusEC = false;
+const JOURS_HORAIRES = [[1, 'Lun'], [2, 'Mar'], [3, 'Mer'], [4, 'Jeu'], [5, 'Ven'], [6, 'Sam'], [0, 'Dim']];
+const CASES_HORAIRES = [['appel', '📞 Appels'], ['retard', '⏰ Retards annoncés'], ['annul', '🚫 Annulations'],
+  ['oubli', '🧤 Objets oubliés'], ['message', '💬 Messages'], ['reaction', '😀 Réactions'],
+  ['vitrine', '👋 Vitrine (QR code)'], ['rdv', '📍 Rendez-vous au bureau']];
+
+/* « Android · Chrome » : de quoi reconnaître l'appareil dans la liste */
+function libelleAppareilEC(){
+  const u = navigator.userAgent || '';
+  const sys = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android'
+    : /Windows/.test(u) ? 'Windows' : /Mac OS X|Macintosh/.test(u) ? 'Mac' : /Linux/.test(u) ? 'Linux' : 'Appareil';
+  const nav = /Edg\//.test(u) ? 'Edge' : /SamsungBrowser/.test(u) ? 'Samsung' : /Firefox\//.test(u) ? 'Firefox'
+    : /Chrome\//.test(u) ? 'Chrome' : /Safari\//.test(u) ? 'Safari' : 'Navigateur';
+  return sys + ' · ' + nav;
+}
+function iconeAppareilEC(a){
+  return /iPhone|Android/.test(a || '') ? '📱' : /iPad/.test(a || '') ? '📱' : '💻';
+}
+
+/* L'heure de Paris, comme au Worker */
+function instantParisEC(t){
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', weekday: 'short',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(t));
+  const v = {};
+  parts.forEach(p => { v[p.type] = p.value; });
+  const jours = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return { jour: jours[v.weekday] || 0, minute: (Number(v.hour) % 24) * 60 + Number(v.minute) };
+}
+/* « 2026-11-02 », « 08:00 » à Paris → l'instant (ms) */
+function instantDepuisParisEC(jour, heure){
+  const m = String(jour || '').match(/^(\d{4})-(\d{2})-(\d{2})$/), h = String(heure || '00:00').match(/^(\d{1,2}):(\d{2})$/);
+  if(!m || !h) return 0;
+  const voulu = Date.UTC(+m[1], +m[2] - 1, +m[3], +h[1], +h[2]);
+  let t = voulu;
+  for(let i = 0; i < 3; i++){
+    const f = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(t));
+    const v = {}; f.forEach(p => { v[p.type] = p.value; });
+    const vu = Date.UTC(+v.year, +v.month - 1, +v.day, +v.hour % 24, +v.minute);
+    t += voulu - vu;
+  }
+  return t;
+}
+function heureLisibleEC(min){
+  const h = Math.floor(min / 60), m = min % 60;
+  return h + 'h' + (m ? String(m).padStart(2, '0') : '');
+}
+function dansLesHeuresEC(h, t){
+  if(!h || h.mode !== 'heures') return true;
+  const p = instantParisEC(t);
+  return ((h.j && h.j[p.jour]) || []).some(c => p.minute >= c[0] && p.minute < c[1]);
+}
+/* Le prochain début de créneau, dans les 8 jours */
+function prochainDebutEC(h, t){
+  if(!h || h.mode !== 'heures') return 0;
+  const p = instantParisEC(t);
+  for(let k = 0; k < 8; k++){
+    const jour = (p.jour + k) % 7;
+    const debuts = ((h.j && h.j[jour]) || []).map(c => c[0]).sort((a, b) => a - b);
+    const d = debuts.find(x => k > 0 || x > p.minute);
+    if(d !== undefined) return t + (k * 1440 + d - p.minute) * 60000 - (t % 60000);
+  }
+  return 0;
+}
+function quandLisibleEC(t){
+  const auj = instantParisEC(Date.now()), la = instantParisEC(t);
+  const ecart = Math.round((t - Date.now()) / 86400000);
+  const heure = heureLisibleEC(la.minute).replace(/h$/, 'h00');
+  const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  if(la.jour === auj.jour && ecart < 1) return 'aujourd’hui ' + heure;
+  if(ecart < 7) return jours[la.jour] + ' ' + heure;
+  return new Date(t).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long' }) + ', ' + heure;
+}
+/* « lun–ven 8h–12h · 14h–19h · sam 9h–12h · dim : rien » */
+function resumeHorairesEC(h){
+  if(!h || h.mode !== 'heures') return '🔔 tout le temps';
+  const noms = { 1: 'lun', 2: 'mar', 3: 'mer', 4: 'jeu', 5: 'ven', 6: 'sam', 0: 'dim' };
+  const ordre = [1, 2, 3, 4, 5, 6, 0];
+  const texte = d => ((h.j && h.j[d]) || []).map(c => heureLisibleEC(c[0]) + '–' + heureLisibleEC(c[1])).join(' · ') || 'rien';
+  const out = [];
+  for(let i = 0; i < 7;){
+    let k = i;
+    while(k + 1 < 7 && texte(ordre[k + 1]) === texte(ordre[i])) k++;
+    const lib = k > i ? noms[ordre[i]] + '–' + noms[ordre[k]] : noms[ordre[i]];
+    const t = texte(ordre[i]);
+    out.push(t === 'rien' ? lib + ' : rien' : lib + ' ' + t);
+    i = k + 1;
+  }
+  return '🕘 ' + out.join(' · ');
+}
+function exceptionsLisiblesEC(h){
+  const sauf = (h && h.sauf) || [];
+  return CASES_HORAIRES.filter(([c]) => sauf.indexOf(c) !== -1).map(([, l]) => l.replace(/^(\S+) (.*)$/, (x, e, m) => e + ' ' + m.toLowerCase())).join(' · ');
+}
+
+async function monPointDArriveeEC(){
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    const ab = reg && await reg.pushManager.getSubscription();
+    return ab ? ab.endpoint : '';
+  }catch(e){ return ''; }
+}
+async function chargerMesAppareilsEC(){
+  try{
+    const d = await appelPrep({ action: 'poussAppareils', endpoint: await monPointDArriveeEC() });
+    appareilsEC = (d && d.appareils) || [];
+  }catch(e){ appareilsEC = null; }
+  appareilsLusEC = true;
+  dessinerLaPoussee();
+}
+function cetAppareilEC(){
+  return (appareilsEC || []).find(a => a.moi) || null;
+}
+
+/* La ligne du bandeau, sous « Tu es prévenu sur cet appareil » */
+function etatHorairesEC(){
+  const a = cetAppareilEC();
+  if(!a) return null;
+  const t = Date.now();
+  const sauf = exceptionsLisiblesEC(a.horaires);
+  if(Number(a.pauseJusqua || 0) > t){
+    return { pause: true, titre: '🌴 <b>En pause</b> jusqu’à <b>' + quandLisibleEC(a.pauseJusqua) + '</b>.',
+             sous: (sauf ? 'Sonnent quand même : ' + sauf + '. ' : '') + 'Le reste t’attend dans un résumé.' };
+  }
+  if(!dansLesHeuresEC(a.horaires, t)){
+    const p = prochainDebutEC(a.horaires, t);
+    return { pause: true, titre: '🌙 <b>En pause sur cet appareil</b>' + (p ? ' jusqu’à <b>' + quandLisibleEC(p) + '</b>' : '') + '.',
+             sous: (sauf ? 'Sonnent quand même : ' + sauf + '. ' : '') + 'Le reste t’attend dans un résumé.' };
+  }
+  return { pause: false, sous: resumeHorairesEC(a.horaires) };
+}
+
+/* ---------- La fenêtre « 🕘 Quand me prévenir » ---------- */
+function fenetreHorairesEC(id, versLaPause){
+  const a = (appareilsEC || []).find(x => x.id === id) || cetAppareilEC();
+  if(!a) return;
+  const h = JSON.parse(JSON.stringify(a.horaires || { mode: 'tout', j: {}, sauf: ['retard', 'annul'] }));
+  for(let d = 0; d < 7; d++) if(!Array.isArray(h.j[d])) h.j[d] = [];
+  const vide = [0, 1, 2, 3, 4, 5, 6].every(d => !h.j[d].length);
+  let edition = null;                      /* { jour, i } : le créneau qu'on règle */
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.style.cssText = 'max-width:min(560px,95vw);max-height:92vh;overflow-y:auto;';
+  fond.appendChild(m);
+  document.body.appendChild(fond);
+  const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); };
+
+  const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const enMin = v => { const x = String(v || '').match(/^(\d{1,2}):(\d{2})$/); return x ? (+x[1]) * 60 + (+x[2]) : NaN; };
+  const enHeure = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+
+  const dessiner = () => {
+    const nomAvant = m.querySelector('#horNom') ? m.querySelector('#horNom').value : a.nom;
+    const puce = (d, i, c) => '<span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--orange);background:rgba(182,255,14,.12);color:var(--cream);border-radius:999px;padding:4px 6px 4px 10px;font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer;" data-edit="' + d + ',' + i + '">' +
+      heureLisibleEC(c[0]).replace(/h$/, 'h00') + '–' + heureLisibleEC(c[1]).replace(/h$/, 'h00') +
+      '<button type="button" data-oter="' + d + ',' + i + '" title="Retirer ce créneau" style="width:20px;height:20px;border-radius:50%;background:var(--line);border:0;margin:0;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;color:var(--cream);">✕</button></span>';
+    const editeur = (d, i) => {
+      const c = i >= 0 ? h.j[d][i] : [480, 720];
+      return '<span style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;border:1px solid var(--orange);border-radius:12px;padding:5px 7px;">' +
+        '<input type="time" id="horDe" value="' + enHeure(c[0]) + '" step="900" style="width:auto;margin:0;padding:5px 6px;font-size:13px;">–' +
+        '<input type="time" id="horA" value="' + enHeure(c[1] >= 1440 ? 1439 : c[1]) + '" step="900" style="width:auto;margin:0;padding:5px 6px;font-size:13px;">' +
+        '<button type="button" class="btn btn-primary" id="horOk" style="width:auto;margin:0;padding:5px 10px;font-size:12px;">OK</button>' +
+        '<button type="button" class="btn btn-secondary" id="horNon" style="width:auto;margin:0;padding:5px 10px;font-size:12px;">✕</button></span>';
+    };
+    const grille = JOURS_HORAIRES.map(([d, lib], k) => {
+      const l = h.j[d];
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;' + (k ? 'border-top:1px solid var(--line);' : '') + '">' +
+        '<b style="width:38px;flex-shrink:0;font-size:13px;">' + lib + '</b>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0;align-items:center;">' +
+          (l.length ? l.map((c, i) => (edition && edition.jour === d && edition.i === i) ? editeur(d, i) : puce(d, i, c)).join('')
+                    : '<span style="font-size:12.5px;color:var(--muted);padding:4px 0;">🌙 rien de la journée</span>') +
+          ((edition && edition.jour === d && edition.i === -1) ? editeur(d, -1)
+            : (l.length < 6 ? '<button type="button" data-ajout="' + d + '" style="display:inline-flex;align-items:center;border:1px dashed var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px;color:var(--muted);background:transparent;margin:0;width:auto;cursor:pointer;font-family:inherit;white-space:nowrap;">＋ créneau</button>' : '')) +
+        '</div></div>';
+    }).join('');
+    const pause = Number(a.pauseJusqua || 0) > Date.now();
+    const demain = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const autres = (appareilsEC || []).filter(x => x.id !== a.id);
+    m.innerHTML = '<h3>🕘 Quand me prévenir</h3>' +
+      '<label for="horNom">' + (a.moi ? 'Cet appareil' : 'Appareil') + '</label>' +
+      '<input type="text" id="horNom" maxlength="40" placeholder="' + e(a.appareil || 'Mon téléphone') + '" value="' + e(nomAvant || '') + '">' +
+      '<div style="font-size:11.5px;color:var(--muted);margin:-8px 0 12px;">' + e(a.appareil || 'Appareil') + (a.creeLe ? ' · activé le ' + e(String(a.creeLe).slice(0, 10)) : '') +
+        '. Le nom sert à le reconnaître dans la liste du bas.</div>' +
+      (a.moi && !a.regle && !vide ? '<div style="border:1px solid var(--bleu);border-radius:11px;padding:9px 12px;margin:-4px 0 12px;font-size:12.5px;line-height:1.5;">🆕 Cet appareil a repris les heures d’un autre de tes appareils. Change-les s’il doit sonner autrement.</div>' : '') +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">' +
+        '<button type="button" data-mode="tout" class="btn ' + (h.mode !== 'heures' ? 'btn-primary' : 'btn-secondary') + '" style="width:auto;flex:1;margin:0;padding:10px;font-size:13px;">🔔 Tout le temps</button>' +
+        '<button type="button" data-mode="heures" class="btn ' + (h.mode === 'heures' ? 'btn-primary' : 'btn-secondary') + '" style="width:auto;flex:1;margin:0;padding:10px;font-size:13px;">🕘 À ces heures</button></div>' +
+      (h.mode === 'heures'
+        ? '<div style="border:1px solid var(--line);border-radius:11px;padding:2px 12px;margin-bottom:8px;">' + grille + '</div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">' +
+            '<button type="button" class="btn btn-secondary" data-copier="semaine" style="width:auto;margin:0;padding:6px 11px;font-size:12px;">📋 Copier lundi sur mar–ven</button>' +
+            '<button type="button" class="btn btn-secondary" data-copier="tout" style="width:auto;margin:0;padding:6px 11px;font-size:12px;">📋 … sur toute la semaine</button></div>' +
+          '<label>En dehors de ces heures, ça sonne quand même pour</label>'
+        : '<label>Pendant une pause 🌴, ça sonne quand même pour</label>') +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:2px 12px;margin-bottom:10px;">' +
+        CASES_HORAIRES.map(([c, l]) => '<label style="display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:0;font-size:13.5px;color:var(--cream);margin:0;padding:6px 0;font-weight:400;">' +
+          '<input type="checkbox" data-sauf="' + c + '"' + (h.sauf.indexOf(c) !== -1 ? ' checked' : '') + ' style="width:18px;height:18px;margin:0;flex-shrink:0;">' + l + '</label>').join('') + '</div>' +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:14px;">Tout le reste attend : au début du créneau suivant, <b>une seule notification</b> résume ce qui est arrivé pendant la pause.</div>' +
+      '<div id="horDit" style="font-size:12.5px;color:var(--red);margin-bottom:8px;"></div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-primary" id="horEnreg">Enregistrer</button><button type="button" class="btn btn-secondary" id="horFermer">Fermer</button></div>' +
+      '<label id="horPauseLab" style="margin-top:16px;">🌴 Pause jusqu’au…</label>' +
+      (pause
+        ? '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--orange);border-radius:11px;padding:9px 12px;margin-bottom:6px;font-size:13px;">' +
+            '<span style="flex:1;min-width:180px;">🌴 <b>En pause jusqu’à ' + e(quandLisibleEC(a.pauseJusqua)) + '</b><br><span style="font-size:11.5px;color:var(--muted);">Rien ne sonne (sauf les cases cochées), puis le résumé.</span></span>' +
+            '<button type="button" class="btn btn-secondary" id="horReprendre" style="width:auto;margin:0;padding:6px 11px;font-size:12px;">Reprendre maintenant</button></div>'
+        : '<div class="duo" style="margin-bottom:0;"><div><input type="date" id="horPauseJour" min="' + new Date().toISOString().slice(0, 10) + '" value="' + demain + '"></div>' +
+            '<div><input type="time" id="horPauseHeure" value="08:00"></div></div>' +
+          '<button type="button" class="btn btn-secondary" id="horPauser" style="margin:0 0 8px;padding:10px;font-size:13px;">🌴 Mettre en pause</button>') +
+      '<label style="display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--cream);margin:0 0 6px;font-weight:400;">' +
+        '<input type="checkbox" id="horTous" checked style="width:18px;height:18px;margin:0;">Sur tous mes appareils</label>' +
+      '<div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;">Pour des vacances ou un jour férié : les horaires reprennent tout seuls à la date choisie.</div>' +
+      (autres.length ? '<label style="margin-top:16px;">Tes autres appareils</label>' + autres.map(x =>
+        '<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:6px;">' +
+          '<span style="font-size:20px;">' + iconeAppareilEC(x.appareil) + '</span><div style="flex:1;min-width:0;"><b style="font-size:13.5px;">' + e(x.nom || x.appareil || 'Appareil') + (x.moi ? ' (celui-ci)' : '') + '</b>' +
+          '<div style="font-size:11.5px;color:var(--muted);">' + e(x.appareil || '') + ' · ' + e((Number(x.pauseJusqua || 0) > Date.now() ? '🌴 en pause · ' : '') + resumeHorairesEC(x.horaires)) + '</div></div>' +
+          '<button type="button" class="btn btn-secondary" data-regler="' + e(x.id) + '" style="width:auto;margin:0;padding:6px 11px;font-size:12px;">Régler</button></div>').join('') +
+        '<div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Chaque appareil a ses heures. On peut les régler d’ici, sans l’avoir en main.</div>' : '');
+
+    const dit = t => { const d = m.querySelector('#horDit'); if(d) d.textContent = t || ''; };
+    m.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+      h.mode = b.getAttribute('data-mode');
+      /* Rien de posé : on propose une semaine ordinaire, à corriger */
+      if(h.mode === 'heures' && [0, 1, 2, 3, 4, 5, 6].every(d => !h.j[d].length)){
+        [1, 2, 3, 4, 5].forEach(d => { h.j[d] = [[480, 720], [840, 1140]]; });
+        h.j[6] = [[540, 720]];
+      }
+      edition = null; dessiner();
+    }));
+    m.querySelectorAll('[data-oter]').forEach(b => b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const [d, i] = b.getAttribute('data-oter').split(',').map(Number);
+      h.j[d].splice(i, 1); edition = null; dessiner();
+    }));
+    m.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => {
+      const [d, i] = b.getAttribute('data-edit').split(',').map(Number);
+      edition = { jour: d, i: i }; dessiner();
+    }));
+    m.querySelectorAll('[data-ajout]').forEach(b => b.addEventListener('click', () => {
+      edition = { jour: Number(b.getAttribute('data-ajout')), i: -1 }; dessiner();
+    }));
+    const ok = m.querySelector('#horOk');
+    if(ok) ok.addEventListener('click', () => {
+      const de = enMin(m.querySelector('#horDe').value);
+      let a2 = enMin(m.querySelector('#horA').value);
+      if(a2 === 1439) a2 = 1440;
+      if(!(de < a2)){ dit('L’heure de fin doit être après l’heure de début.'); return; }
+      const l = h.j[edition.jour].slice();
+      if(edition.i >= 0) l.splice(edition.i, 1);
+      if(l.some(c => de < c[1] && a2 > c[0])){ dit('Ce créneau en chevauche un autre le même jour.'); return; }
+      l.push([de, a2]); l.sort((x, y) => x[0] - y[0]);
+      h.j[edition.jour] = l; edition = null; dessiner();
+    });
+    const non = m.querySelector('#horNon');
+    if(non) non.addEventListener('click', () => { edition = null; dessiner(); });
+    m.querySelectorAll('[data-copier]').forEach(b => b.addEventListener('click', () => {
+      const vers = b.getAttribute('data-copier') === 'tout' ? [2, 3, 4, 5, 6, 0] : [2, 3, 4, 5];
+      vers.forEach(d => { h.j[d] = h.j[1].map(c => c.slice()); });
+      edition = null; dessiner();
+    }));
+    m.querySelectorAll('[data-sauf]').forEach(c => c.addEventListener('change', () => {
+      const k = c.getAttribute('data-sauf');
+      h.sauf = h.sauf.filter(x => x !== k);
+      if(c.checked) h.sauf.push(k);
+    }));
+    m.querySelector('#horFermer').addEventListener('click', fermer);
+    m.querySelector('#horEnreg').addEventListener('click', async ev => {
+      const b = ev.currentTarget;
+      if(h.mode === 'heures' && [0, 1, 2, 3, 4, 5, 6].every(d => !h.j[d].length)){
+        dit('Aucun créneau : mets au moins un créneau, ou choisis « Tout le temps ».'); return;
+      }
+      b.disabled = true; b.textContent = 'Enregistrement…';
+      try{
+        await appelPrep({ action: 'poussHoraires', id: a.id, nom: m.querySelector('#horNom').value, horaires: h });
+        fermer();
+        if(typeof showToast === 'function') showToast('🕘 Horaires enregistrés');
+        chargerMesAppareilsEC();
+      }catch(err){ b.disabled = false; b.textContent = 'Enregistrer'; dit(err.message || String(err)); }
+    });
+    const pauser = m.querySelector('#horPauser');
+    if(pauser) pauser.addEventListener('click', async () => {
+      const t = instantDepuisParisEC(m.querySelector('#horPauseJour').value, m.querySelector('#horPauseHeure').value);
+      if(!t || t <= Date.now()){ dit('Choisis une date et une heure à venir.'); return; }
+      pauser.disabled = true;
+      try{
+        await appelPrep({ action: 'poussPause', id: a.id, jusqua: t, tous: m.querySelector('#horTous').checked });
+        (appareilsEC || []).forEach(x => { if(m.querySelector('#horTous').checked || x.id === a.id) x.pauseJusqua = t; });
+        if(typeof showToast === 'function') showToast('🌴 En pause jusqu’à ' + quandLisibleEC(t));
+        dessiner(); dessinerLaPoussee();
+      }catch(err){ pauser.disabled = false; dit(err.message || String(err)); }
+    });
+    const reprendre = m.querySelector('#horReprendre');
+    if(reprendre) reprendre.addEventListener('click', async () => {
+      reprendre.disabled = true;
+      try{
+        await appelPrep({ action: 'poussPause', id: a.id, jusqua: 0, tous: m.querySelector('#horTous').checked });
+        (appareilsEC || []).forEach(x => { if(m.querySelector('#horTous').checked || x.id === a.id) x.pauseJusqua = 0; });
+        dessiner(); dessinerLaPoussee();
+      }catch(err){ reprendre.disabled = false; dit(err.message || String(err)); }
+    });
+    m.querySelectorAll('[data-regler]').forEach(b => b.addEventListener('click', () => {
+      fermer(); fenetreHorairesEC(b.getAttribute('data-regler'));
+    }));
+  };
+  dessiner();
+  if(versLaPause){
+    const l = m.querySelector('#horPauseLab');
+    if(l) setTimeout(() => l.scrollIntoView({ block: 'start' }), 30);
+  }
 }
 
 /* ------------------------------------------------------------
