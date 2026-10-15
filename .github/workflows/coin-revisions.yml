@@ -1,4 +1,4 @@
-# Déployé le 13/10/2026 à 16:08 — v1170
+# Déployé le 15/10/2026 à 15:23 — v1183
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -9,7 +9,7 @@
 #  dépôt, et celui-ci est pris par « app.evolutionconduites.fr ».
 #  La page élève a donc besoin d'un second dépôt — mais PAS d'une
 #  seconde copie entretenue à la main. C'est cette action qui
-#  recopie, à chaque poussée, les cinq fichiers dont la page a
+#  recopie, à chaque poussée, les six fichiers dont la page a
 #  besoin — et, depuis la v1170, la page des bureaux (bureau.html),
 #  publiée sous /loudeac/ et /saint-brieuc/. Une seule source, une copie faite par la machine.
 #
@@ -30,6 +30,7 @@ on:
       - 'icone-192.png'
       - 'icone-512.png'
       - 'bureau.html'
+      - 'appel-commun.js'   # 📞 v1183 — l'écran d'appel, partagé avec l'appli
   workflow_dispatch:        # et à la demande, depuis l'onglet Actions
 
 jobs:
@@ -46,6 +47,8 @@ jobs:
           # eleve.evolutionconduites.fr, sans rien derrière.
           cp eleve.html sortie/index.html
           cp sw.js manifest-eleve.webmanifest sortie/
+          # 📞 v1183 — l'écran d'appel : eleve.html le charge à côté d'elle
+          cp appel-commun.js sortie/
           cp icone-192.png icone-512.png sortie/
 
           # 📍 v1170 — la page des bureaux, derrière le QR code de la
