@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 11:29 — v1180 */
+/* Déployé le 15/10/2026 à 15:23 — v1183 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1078,6 +1078,10 @@ function dessinerLeFil(){
   /* --- ⏰ 🧤 le bandeau du retard ou de l'objet --- */
   const pan = ckPanneauDuFil(f, !large);
   if(pan) zone.appendChild(pan);
+  /* 📞 v1183 — « Appeler — qui sonne ? » */
+  if(typeof panneauAppelEC === 'function' && appelPanneauEC && appelPanneauEC === c.id && f.estMembre){
+    zone.appendChild(panneauAppelEC(f));
+  }
 
   /* --- le fil --- */
   const fil = document.createElement('div');
@@ -1115,6 +1119,10 @@ function dessinerLeFil(){
       (apres && String(apres.envoyeLe || '').slice(0, 10) === jour) ? apres : null));
     if(Number(m.rang || 0) > rangLuEC) rangLuEC = Number(m.rang || 0);
   });
+
+  /* 📞 v1183 — l'appel en cours : la carte « Rejoindre » */
+  const carteAppel = (typeof carteAppelDuFilEC === 'function') ? carteAppelDuFilEC(f) : null;
+  if(carteAppel) fil.appendChild(carteAppel);
 
   /* ⚠️ L'EMPREINTE SE NOTE OÙ L'ON DESSINE — v1086. */
   empreinteReacEC = empreinteDesReactions(f);
@@ -1359,6 +1367,11 @@ function bulleDuMessage(m, avant, apres){
     return ckCarteCreneau(m);
   }
 
+  /* 📞 v1183 — la trace d'un appel, avec l'icône dessinée */
+  if(m.auteurGenre === 'systeme' && m.motif === 'appel' && typeof ligneDAppelEC === 'function'){
+    const la = ligneDAppelEC(m);
+    if(la) return la;
+  }
   if(m.auteurGenre === 'systeme'){
     const s = document.createElement('div');
     s.className = 'msgSys';
@@ -1865,6 +1878,10 @@ async function rafraichirLeFil(silencieux){
     }
   }
 
+  /* 📞 v1183 — l'appel du fil change (quelqu'un entre, sort, il
+     finit) sans qu'aucun message n'arrive : sa carte doit suivre. */
+  const appelAvant = (typeof empreinteAppelEC === 'function') ? empreinteAppelEC(filOuvertEC) : '';
+
   filOuvertEC = d;
   filOuvertEC.viser = 0;
 
@@ -1882,7 +1899,8 @@ async function rafraichirLeFil(silencieux){
      troisième repère, et il doit tenir compte de QUI a réagi : deux
      personnes qui échangent leurs emoji ne changent pas le nombre de
      pastilles. */
-  const bouge = (empreinteDesReactions(d) !== empreinteReacEC);
+  const bouge = (empreinteDesReactions(d) !== empreinteReacEC) ||
+    ((typeof empreinteAppelEC === 'function') && empreinteAppelEC(d) !== appelAvant);
 
   if(combien !== avant || dernier !== rangLuEC || bouge || viser){
     filOuvertEC.viser = viser || 0;
@@ -3152,6 +3170,8 @@ async function compterLaMessagerie(){
   try{
     const d = await appelPrep({ action: 'convList' });
     const liste = (d && d.conversations) || [];
+    /* 📞 v1183 — un appel qui sonne pour moi */
+    if(d && typeof verifierLesSonneriesEC === 'function') verifierLesSonneriesEC(d.appelsSonnent || []);
     /* ⚠️ ON NE REMPLACE LA LISTE QUE SI ELLE EST LA MÊME DEMANDE —
        v1141. Ce comptage lit les conversations OUVERTES ; posées sur
        l'écran « 🗄️ Fermées » ou « 🔒 Supervision », elles l'auraient
@@ -6762,6 +6782,9 @@ function ecouterLeServiceWorker(){
     try{
       allerALaMessagerie('messagerie');
       ouvrirLeFil(d.fil);
+      /* 📞 v1183 — un appel touché : on relit tout de suite ce qui
+         sonne, et l'écran « … t'appelle » s'affiche */
+      if(d.appel && typeof compterSiBesoin === 'function') compterSiBesoin(true);
     }catch(e){}
   });
 }
@@ -6776,6 +6799,7 @@ function filDemandeParLAdresse(){
     const fil = u.searchParams.get('fil');
     if(!fil) return '';
     u.searchParams.delete('fil');
+    u.searchParams.delete('appel');      /* 📞 v1183 */
     window.history.replaceState(null, '', u.pathname + u.search + u.hash);
     return fil;
   }catch(e){ return ''; }
