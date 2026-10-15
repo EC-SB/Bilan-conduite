@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 12:28 — v1017 */
+/* Déployé le 15/10/2026 à 16:27 — v1184 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -122,6 +122,30 @@ function eurosEval(v){
 }
 
 
+/* ============================================================
+   📊 L'ÉVALUATION JUSQU'AU DOSSIER — v1184
+
+   David, le 15 octobre : « il faut que l'on puisse mettre le nom de
+   l'élève et que ça arrive sur son dossier ; si le nom n'existe pas
+   il faut qu'on puisse créer l'élève, que la frise s'enregistre
+   toute seule et qu'on puisse mettre les photos de l'évaluation ».
+   Schéma validé, l'écran RESTE ici (« il existe déjà dans élève
+   administratif »). Dans l'ordre :
+   · l'élève d'abord — trouvé, presque (faute de frappe), ou nouveau
+     (nom, téléphone ET mail obligatoires) ;
+   · le calcul, inchangé ;
+   · « Il part en » : manuelle ou automatique, chacune avec son
+     montant et sa frise — AAC et CS avec le forfait de 💰 Tarifs
+     (prêt à partir + prêt pour l'examen) ;
+   · les photos du résultat du simulateur ;
+   · « 💾 Enregistrer » : formation et frise dans sa fiche (on
+     DEMANDE avant de remplacer celles qu'il a), le reste dans son
+     dossier, onglet 📊 Évaluation.
+   ============================================================ */
+const etatEval = { boite: '', remplacer: '', nouveau: false, photos: [], envoi: false, fait: null };
+let evalElevePrevu = '';
+const EVAL_PHOTOS_MAX_ECRAN = 6;
+
 async function afficherEvaluation(){
   const zone = $('evaluationZone');
   if(!zone) return;
@@ -130,10 +154,23 @@ async function afficherEvaluation(){
   if(typeof chargerTarifs === 'function'){
     try{ await chargerTarifs(); }catch(e){}
   }
+  /* Les forfaits AAC et CS, et la liste des fiches pour reconnaître
+     l'élève : lus une fois, sans bloquer l'écran s'ils manquent. */
+  if(typeof tarifsDuCatalogue === 'function'){
+    try{ await tarifsDuCatalogue(); }catch(e){}
+  }
+  if(typeof fichesEleves !== 'undefined' && !fichesEleves.length && typeof chargerFiches === 'function'){
+    try{ await chargerFiches(); }catch(e){}
+  }
   zone.innerHTML = '';
+  Object.assign(etatEval, { boite: '', remplacer: '', nouveau: false, photos: [], envoi: false, fait: null });
 
   const haut = document.createElement('div');
   haut.innerHTML =
+    '<label for="evEleve">Élève — son dossier reçoit l’évaluation</label>' +
+    '<input type="text" id="evEleve" list="listeEleves" ' +
+      'autocomplete="off" placeholder="Son nom">' +
+    '<div id="evEtatEleve"></div>' +
     '<div class="duo">' +
       '<div><label for="evHeures">🚗 Heures en manuelle</label>' +
         '<input type="number" id="evHeures" inputmode="numeric" min="0" ' +
@@ -145,10 +182,6 @@ async function afficherEvaluation(){
     '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
       'line-height:1.5;">Saisis les heures du simulateur à gauche : ' +
       'l\'automatique se calcule. Tu peux aussi la corriger à droite.</div>' +
-
-    '<label for="evEleve">Élève</label>' +
-    '<input type="text" id="evEleve" list="listeEleves" ' +
-      'autocomplete="off" placeholder="Son nom">' +
 
     /* Le type de formation : l'AAC et la CS ont un programme
        fixe, elles ne se calculent pas. */
@@ -166,6 +199,7 @@ async function afficherEvaluation(){
 
   const ch = $('evHeures');
   const cb = $('evHeuresBea');
+  const ce = $('evEleve');
 
   /* La manuelle recalcule l'automatique ; corriger l'automatique
      ne touche pas à la manuelle. */
@@ -174,14 +208,196 @@ async function afficherEvaluation(){
     dessinerEvaluation();
   });
   cb.addEventListener('input', dessinerEvaluation);
+  ce.addEventListener('input', () => {
+    etatEval.remplacer = ''; etatEval.nouveau = false;
+    dessinerEtatEleveEval();
+    majEnregistrerEval();
+  });
 
   const ct = $('evType');
-  if(ct) ct.addEventListener('change', dessinerEvaluation);
+  if(ct) ct.addEventListener('change', () => { etatEval.boite = ''; dessinerEvaluation(); });
 
-  setTimeout(() => ch.focus(), 100);
+  /* « Refaire l'évaluation », depuis son dossier : le nom est posé */
+  if(evalElevePrevu){ ce.value = evalElevePrevu; evalElevePrevu = ''; }
+  setTimeout(() => (ce.value ? ch : ce).focus(), 100);
+  dessinerEtatEleveEval();
   dessinerEvaluation();
 }
 
+/* ---------- L'élève : trouvé, presque, nouveau ---------- */
+function ficheExacteEval(nom){
+  return (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+}
+/* Les fiches au nom presque pareil : lettres à une ou deux près,
+   mots dans le désordre, ou le début d'un nom composé. */
+function fichesProchesEval(nom){
+  const fiches = (typeof fichesEleves !== 'undefined' && fichesEleves) || [];
+  const k = String(normaliserMot(nom) || '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if(k.length < 3) return [];
+  const lettres = k.replace(/ /g, '');
+  const mots = k.split(' ').sort().join(' ');
+  const dist = (a, b) => {
+    if(Math.abs(a.length - b.length) > 2) return 9;
+    const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for(let i = 1; i <= a.length; i++){
+      let prec = d[0]; d[0] = i;
+      for(let j = 1; j <= b.length; j++){
+        const t = d[j];
+        d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prec + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prec = t;
+      }
+    }
+    return d[b.length];
+  };
+  const out = [];
+  fiches.forEach(f => {
+    if(!f || !f.eleve) return;
+    const fk = String(normaliserMot(f.eleve) || '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const fl = fk.replace(/ /g, '');
+    const proche = fk.split(' ').sort().join(' ') === mots ||
+      (lettres.length >= 6 && dist(lettres, fl) <= (lettres.length >= 10 ? 2 : 1)) ||
+      (k.length >= 6 && fk.indexOf(k) === 0);
+    if(proche) out.push(f);
+  });
+  return out.slice(0, 3);
+}
+function telValideEval(t){ return String(t || '').replace(/\D/g, '').length >= 10; }
+function mailValideEval(t){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(t || '').trim()); }
+
+function dessinerEtatEleveEval(){
+  const z = $('evEtatEleve');
+  if(!z) return;
+  z.innerHTML = '';
+  z.style.cssText = '';
+  const nom = String(($('evEleve') || {}).value || '').trim();
+  if(etatEval.fait) return;
+  if(nom.length < 2) return;
+  const cadre = (bord) => 'border:1px solid ' + bord + ';border-radius:11px;padding:11px 13px;' +
+    'margin:-4px 0 14px;font-size:13px;line-height:1.55;';
+  const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const f = ficheExacteEval(nom);
+  if(f){
+    const tel = f.telephone ? ((typeof telLisible === 'function') ? telLisible(f.telephone) : f.telephone) : '';
+    const deja = String(f.formation || '').trim() || String(f.frise || '').trim();
+    z.style.cssText = cadre(deja ? '#E8A33D' : 'var(--orange)');
+    z.innerHTML = '✅ <strong>Dossier trouvé</strong> · ' + e(f.eleve) + (tel ? ' · ' + e(tel) : '') +
+      (deja
+        ? '<div style="font-size:12px;margin-top:3px;">⚠️ Il a déjà ' +
+            [f.formation ? 'une formation (<strong>' + e(f.formation) + '</strong>)' : '',
+             f.frise ? 'une frise (<em>' + e(f.frise) + '</em>)' : ''].filter(Boolean).join(' et ') + '.</div>' +
+          '<div style="margin-top:8px;font-weight:700;">On les remplace par celles de cette évaluation ?</div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;">' +
+            '<button type="button" class="btn ' + (etatEval.remplacer === 'oui' ? 'btn-primary' : 'btn-secondary') + '" data-remplacer="oui" ' +
+              'style="width:auto;margin:0;padding:7px 12px;font-size:12.5px;">🔄 Oui, remplacer</button>' +
+            '<button type="button" class="btn ' + (etatEval.remplacer === 'non' ? 'btn-primary' : 'btn-secondary') + '" data-remplacer="non" ' +
+              'style="width:auto;margin:0;padding:7px 12px;font-size:12.5px;">✋ Non, garder les siennes</button></div>' +
+          '<div style="font-size:11.5px;color:var(--muted);margin-top:6px;">Tant qu’on n’a pas répondu, « Enregistrer » reste grisé. ' +
+            'Dans les deux cas, l’évaluation (montant, photos) va dans son dossier.</div>'
+        : '<div style="font-size:11.5px;color:var(--muted);">Formation : à préciser · Frise : pas encore posée</div>');
+    z.querySelectorAll('[data-remplacer]').forEach(b => b.addEventListener('click', () => {
+      etatEval.remplacer = b.getAttribute('data-remplacer');
+      dessinerEtatEleveEval();
+      majEnregistrerEval();
+    }));
+    return;
+  }
+  const proches = etatEval.nouveau ? [] : fichesProchesEval(nom);
+  if(proches.length){
+    z.style.cssText = cadre('#E8A33D');
+    z.innerHTML = '🤔 <strong>« ' + e(nom) + ' » n’est pas au répertoire.</strong> Tu voulais dire :' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;"></div>';
+    const r = z.lastElementChild;
+    proches.forEach(p => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;margin:0;padding:6px 12px;font-size:12.5px;';
+      b.textContent = '👤 ' + p.eleve + (p.formation ? ' · ' + p.formation : '');
+      b.addEventListener('click', () => {
+        $('evEleve').value = p.eleve;
+        etatEval.remplacer = '';
+        dessinerEtatEleveEval(); majEnregistrerEval();
+      });
+      r.appendChild(b);
+    });
+    const n = document.createElement('button');
+    n.type = 'button'; n.className = 'btn btn-secondary';
+    n.style.cssText = 'width:auto;margin:0;padding:6px 12px;font-size:12.5px;';
+    n.textContent = '🆕 Non, c’est un nouvel élève';
+    n.addEventListener('click', () => { etatEval.nouveau = true; dessinerEtatEleveEval(); majEnregistrerEval(); });
+    r.appendChild(n);
+    return;
+  }
+  /* Personne qui ressemble : c'est un nouvel élève */
+  etatEval.nouveau = true;
+  const telAvant = ($('evTel') || {}).value || '', mailAvant = ($('evMail') || {}).value || '';
+  z.style.cssText = cadre('var(--bleu)');
+  z.innerHTML = '🆕 <strong>« ' + e(nom) + ' » n’est pas encore au répertoire.</strong> Sa fiche sera créée quand tu enregistres.' +
+    '<div class="duo" style="margin-top:9px;">' +
+      '<div><label for="evTel">📱 Téléphone *</label><input type="tel" id="evTel" inputmode="tel" placeholder="06 12 34 56 78"></div>' +
+      '<div><label for="evMail">✉️ Mail *</label><input type="email" id="evMail" inputmode="email" placeholder="prenom.nom@exemple.fr"></div></div>' +
+    '<div id="evNouveauDit" style="font-size:12px;margin-top:-6px;"></div>';
+  $('evTel').value = telAvant; $('evMail').value = mailAvant;
+  ['evTel', 'evMail'].forEach(id => $(id).addEventListener('input', () => { majNouveauEval(); majEnregistrerEval(); }));
+  majNouveauEval();
+}
+function majNouveauEval(){
+  const d = $('evNouveauDit');
+  if(!d) return;
+  const tel = $('evTel'), mail = $('evMail');
+  const tOk = telValideEval(tel.value), mOk = mailValideEval(mail.value);
+  tel.style.borderColor = (tel.value && !tOk) ? 'var(--red)' : '';
+  mail.style.borderColor = (mail.value && !mOk) ? 'var(--red)' : '';
+  const manque = [!tOk ? 'le téléphone' : '', !mOk ? 'le mail' : ''].filter(Boolean);
+  d.style.color = manque.length ? 'var(--red)' : 'var(--muted)';
+  d.textContent = manque.length
+    ? '* Obligatoires : il manque ' + manque.join(' et ') + '. « Enregistrer » reste grisé tant que les deux ne sont pas remplis.'
+    : '* Obligatoires : c’est bon.';
+}
+
+/* ---------- Les deux boîtes : montant et frise ---------- */
+/* Le forfait d'un AAC ou d'une CS, lu dans 💰 Tarifs : le total de la
+   fiche, « prêt à partir » + « prêt pour l'examen » (David, le
+   15 octobre). Les prix du moment, jamais une copie. */
+function forfaitEval(type, auto){
+  const id = (type === 'cs' ? 'pack-cs' : 'pack-aac') + (auto ? '-bea' : '');
+  const d = (typeof tfData !== 'undefined' && tfData) ? tfData : null;
+  if(!d || typeof tfFiche !== 'function' || typeof tfTotaux !== 'function') return null;
+  const f = tfFiche(d, id);
+  if(!f) return null;
+  const t = tfTotaux(d, f);
+  return { titre: f.titre || id, total: t.global, blocs: t.blocs || [] };
+}
+function friseFixeEval(type, auto){
+  const k = (type === 'cs' ? 'cs' : 'aac') + (auto ? 'bea' : 'bv');
+  return (typeof FRISES_FIXES !== 'undefined' && FRISES_FIXES[k]) || '';
+}
+/* Ce que chaque boîte écrirait : { BV: {...}, BEA: {...} } */
+function boitesEval(h, hBea, type){
+  if(type){
+    const pref = type === 'cs' ? 'CS ' : 'AAC ';
+    return ['BV', 'BEA'].reduce((o, b) => {
+      const auto = b === 'BEA';
+      const fo = forfaitEval(type, auto);
+      o[b] = {
+        boite: b, formation: pref + b,
+        titre: (auto ? '🚙 ' : '🚗 ') + (type === 'cs' ? 'CS ' : 'AAC ') + (auto ? 'automatique' : 'manuelle') + ' (' + pref + b + ')',
+        montant: fo ? fo.total : 0,
+        detail: fo
+          ? '💰 ' + fo.titre + ' (Tarifs) : ' + fo.blocs.map(eurosEval).join(' prêt à partir + ') +
+            (fo.blocs.length > 1 ? ' prêt pour l’examen' : '')
+          : '⚠️ Forfait introuvable dans 💰 Tarifs',
+        frise: friseFixeEval(type, auto)
+      };
+      return o;
+    }, {});
+  }
+  const r = calculEvaluation(h, hBea);
+  const fr = (auto) => noteInterne(r, auto).split('\n')[1].replace(/^- /, '');
+  return {
+    BV:  { boite: 'BV', formation: 'BV', titre: '🚗 Boîte manuelle (BV)', montant: r.devisBV.total, detail: '', frise: fr(false), r: r },
+    BEA: { boite: 'BEA', formation: 'BEA', titre: '🚙 Boîte automatique (BEA)', montant: r.devisBEA.total, detail: '', frise: fr(true), r: r }
+  };
+}
 
 function dessinerEvaluation(){
   const zone = $('evResultat');
@@ -191,9 +407,12 @@ function dessinerEvaluation(){
   const hBea = Number(($('evHeuresBea') || {}).value);
   zone.innerHTML = '';
 
+  if(etatEval.fait){ zone.appendChild(blocFaitEval()); return; }
+
   if(!h || h <= 0){
     zone.innerHTML = '<div class="empty">Saisis le nombre d\'heures ' +
       'rendu par le simulateur.</div>';
+    majEnregistrerEval();
     return;
   }
 
@@ -202,6 +421,12 @@ function dessinerEvaluation(){
   const type = ($('evType') || {}).value || '';
   if(type){
     dessinerEvaluationAac(zone, h, type === 'cs');
+    zone.appendChild(blocBoiteEval(h, hBea, type));
+    /* les textes à coller restent en bas, comme en formation classique */
+    const g = zone.querySelector('#evTextes');
+    if(g) zone.appendChild(g);
+    filtrerLesTextesEval(zone);
+    majEnregistrerEval();
     return;
   }
 
@@ -246,9 +471,14 @@ function dessinerEvaluation(){
   t.innerHTML = html;
   zone.appendChild(t);
 
-  /* Le détail du devis, replié : on y va rarement */
-  [['🚗 Devis boîte manuelle', r.devisBV],
-   ['🚙 Devis boîte automatique', r.devisBEA]].forEach(([nom, d]) => {
+  /* 📊 v1184 — « Il part en », les photos, Enregistrer */
+  zone.appendChild(blocBoiteEval(h, hBea, ''));
+
+  /* Le détail du devis, replié : on y va rarement. Une boîte
+     choisie ne montre plus que le sien. */
+  [['🚗 Devis boîte manuelle', r.devisBV, 'BV'],
+   ['🚙 Devis boîte automatique', r.devisBEA, 'BEA']].forEach(([nom, d, b]) => {
+    if(etatEval.boite && etatEval.boite !== b) return;
     const det = document.createElement('details');
     det.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
       'padding:9px 12px;margin-bottom:8px;';
@@ -275,28 +505,390 @@ function dessinerEvaluation(){
     zone.appendChild(det);
   });
 
-  /* Les quatre textes à coller */
+  /* Les textes à coller */
   const r2 = document.createElement('div');
+  r2.id = 'evTextes';
   r2.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' +
     'margin-top:12px;';
 
-  const bouton = (nom, quoi) => {
+  const bouton = (nom, quoi, boite) => {
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
     b.style.cssText = 'padding:12px;font-size:13px;margin:0;';
     b.textContent = nom;
+    b.dataset.boite = boite;
     b.addEventListener('click', () => ouvrirTexteEvaluation(quoi, r));
     r2.appendChild(b);
   };
 
-  bouton('💬 Messenger — BV', 'messengerBV');
-  bouton('💬 Messenger — BEA', 'messengerBEA');
-  bouton('✉️ Mail — BV', 'mailBV');
-  bouton('✉️ Mail — BEA', 'mailBEA');
-  bouton('📝 Frise BV', 'noteBV');
-  bouton('📝 Frise BEA', 'noteBEA');
+  bouton('💬 Messenger — BV', 'messengerBV', 'BV');
+  bouton('💬 Messenger — BEA', 'messengerBEA', 'BEA');
+  bouton('✉️ Mail — BV', 'mailBV', 'BV');
+  bouton('✉️ Mail — BEA', 'mailBEA', 'BEA');
+  bouton('📝 Frise BV', 'noteBV', 'BV');
+  bouton('📝 Frise BEA', 'noteBEA', 'BEA');
 
   zone.appendChild(r2);
+  filtrerLesTextesEval(zone);
+  majEnregistrerEval();
+}
+
+/* Une boîte choisie : seulement ses textes, sur une rangée */
+function filtrerLesTextesEval(zone){
+  const g = zone.querySelector('#evTextes');
+  if(!g || !etatEval.boite) return;
+  [...g.children].forEach(b => {
+    if(b.dataset.boite !== etatEval.boite){ b.remove(); return; }
+    b.textContent = b.textContent.replace(/ — (BV|BEA)$/, '').replace(/^📝 Frise (BV|BEA)$/, '📝 Frise (Drivup)');
+  });
+  g.style.gridTemplateColumns = 'repeat(' + Math.max(1, g.children.length) + ',minmax(0,1fr))';
+}
+
+function blocBoiteEval(h, hBea, type){
+  const bloc = document.createElement('div');
+  bloc.id = 'evBloc';
+  const boites = boitesEval(h, hBea, type);
+
+  const lab = document.createElement('label');
+  lab.textContent = 'Il part en';
+  bloc.appendChild(lab);
+  const deux = document.createElement('div');
+  deux.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;margin-bottom:14px;';
+  ['BV', 'BEA'].forEach(cle => {
+    const x = boites[cle];
+    const on = etatEval.boite === cle;
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.dataset.boite = cle;
+    c.style.cssText = 'text-align:left;margin:0;padding:13px 14px;border-radius:13px;cursor:pointer;font-family:inherit;width:100%;' +
+      'background:' + (on ? 'rgba(182,255,14,.14)' : 'transparent') + ';border:2px solid ' + (on ? 'var(--orange)' : 'var(--line)') + ';color:var(--cream);';
+    const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    c.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:15px;flex:1;">' + e(x.titre) + '</strong>' +
+      (on ? '<span style="font-size:11.5px;font-weight:800;background:var(--orange);color:var(--on-accent);border-radius:999px;padding:3px 9px;">✓ choisi</span>' : '') + '</div>' +
+      '<div style="font-size:22px;font-weight:800;color:var(--accent-text);margin:4px 0 2px;">' + eurosEval(x.montant) + '</div>' +
+      (x.detail ? '<div style="font-size:11.5px;color:var(--muted);margin-bottom:4px;">' + e(x.detail) + '</div>' : '') +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.45;">🧭 ' + e(x.frise || '—') + '</div>';
+    c.addEventListener('click', () => { etatEval.boite = cle; dessinerEvaluation(); });
+    deux.appendChild(c);
+  });
+  bloc.appendChild(deux);
+
+  /* Les photos du simulateur */
+  const lp = document.createElement('label');
+  lp.textContent = '📷 Photos du résultat du simulateur';
+  bloc.appendChild(lp);
+  const ph = document.createElement('div');
+  ph.id = 'evPhotos';
+  ph.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:stretch;';
+  etatEval.photos.forEach((p, i) => {
+    const v = document.createElement('div');
+    v.style.cssText = 'position:relative;width:132px;height:88px;border-radius:10px;overflow:hidden;border:1px solid var(--line);flex:0 0 auto;';
+    const im = document.createElement('img');
+    im.src = p.data; im.alt = 'Photo ' + (i + 1);
+    im.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;';
+    im.addEventListener('click', () => { if(typeof ouvrirLaPhotoEnGrand === 'function') ouvrirLaPhotoEnGrand(p.data); });
+    const x = document.createElement('button');
+    x.type = 'button'; x.title = 'Retirer cette photo'; x.textContent = '✕';
+    x.style.cssText = 'position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);' +
+      'color:#fff;border:0;margin:0;padding:0;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+    x.addEventListener('click', () => { etatEval.photos.splice(i, 1); dessinerEvaluation(); });
+    v.appendChild(im); v.appendChild(x);
+    ph.appendChild(v);
+  });
+  if(etatEval.photos.length < EVAL_PHOTOS_MAX_ECRAN){
+    const choix = (camera) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.style.cssText = 'width:132px;height:88px;margin:0;border-radius:10px;font-family:inherit;line-height:1.35;cursor:pointer;flex:0 0 auto;font-size:13px;' +
+        (camera ? 'border:1.5px dashed var(--orange);background:transparent;color:var(--accent-text);font-weight:700;'
+                : 'border:1px solid var(--line);background:transparent;color:var(--cream);');
+      b.innerHTML = camera ? '📷<br>Prendre<br>une photo' : '🖼️<br>Choisir dans<br>la galerie';
+      b.addEventListener('click', () => choisirPhotosEval(camera));
+      ph.appendChild(b);
+    };
+    choix(true); choix(false);
+  }
+  bloc.appendChild(ph);
+
+  /* Enregistrer */
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.id = 'evEnregistrer';
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'margin:0 0 6px;padding:15px;font-size:15px;';
+  b.addEventListener('click', () => enregistrerEvaluation(boites));
+  bloc.appendChild(b);
+  const dit = document.createElement('div');
+  dit.id = 'evEnregistrerDit';
+  dit.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:14px;';
+  bloc.appendChild(dit);
+  bloc._boites = boites;
+  return bloc;
+}
+
+/* Ce qui manque encore pour enregistrer — dit sous le bouton */
+function majEnregistrerEval(){
+  const b = $('evEnregistrer'), dit = $('evEnregistrerDit');
+  if(!b || !dit) return;
+  const nom = String(($('evEleve') || {}).value || '').trim();
+  const f = nom ? ficheExacteEval(nom) : null;
+  const bloc = $('evBloc');
+  const x = (bloc && bloc._boites && etatEval.boite) ? bloc._boites[etatEval.boite] : null;
+  const manque = [];
+  if(nom.length < 2) manque.push('le nom de l’élève');
+  else if(!f && !etatEval.nouveau) manque.push('dire si c’est un nouvel élève ou l’un de ceux proposés');
+  else if(!f){
+    if(!telValideEval(($('evTel') || {}).value)) manque.push('son téléphone');
+    if(!mailValideEval(($('evMail') || {}).value)) manque.push('son mail');
+  }else if((String(f.formation || '').trim() || String(f.frise || '').trim()) && !etatEval.remplacer){
+    manque.push('dire si on remplace sa formation et sa frise');
+  }
+  if(!x) manque.push('la boîte (manuelle ou automatique)');
+  else if(!x.frise) manque.push('sa frise');
+  b.textContent = etatEval.envoi ? '⏳ Enregistrement…' : '💾 Enregistrer dans le dossier de ' + (f ? f.eleve : (nom || '…'));
+  b.disabled = !!manque.length || etatEval.envoi;
+  dit.innerHTML = manque.length
+    ? 'Il manque : ' + manque.join(', ') + '.'
+    : 'Écrit dans son dossier : formation <strong>' + x.formation + '</strong>, sa frise, le ' +
+      (($('evType') || {}).value ? 'forfait' : 'devis') + ' de <strong>' + eurosEval(x.montant) + '</strong>, ' +
+      etatEval.photos.length + ' photo(s), la date et qui a fait l’évaluation.';
+}
+
+/* Les photos : l'appareil de la tablette, ou la galerie. Réduites
+   avant l'envoi — c'est au simulateur, souvent sur la 4G. */
+function choisirPhotosEval(camera){
+  const i = document.createElement('input');
+  i.type = 'file';
+  i.accept = 'image/*';
+  if(camera) i.setAttribute('capture', 'environment');
+  else i.multiple = true;
+  i.addEventListener('change', async () => {
+    const fichiers = [...(i.files || [])].slice(0, EVAL_PHOTOS_MAX_ECRAN - etatEval.photos.length);
+    for(const f of fichiers){
+      try{
+        const p = (typeof reduireLaPhoto === 'function') ? await reduireLaPhoto(f) : await reduirePhotoEval(f);
+        etatEval.photos.push(p);
+      }catch(e){ if(typeof showToast === 'function') showToast('Photo illisible : ' + e.message); }
+    }
+    dessinerEvaluation();
+  });
+  i.click();
+}
+async function reduirePhotoEval(fichier){
+  const u = URL.createObjectURL(fichier);
+  try{
+    const img = await new Promise((ok, ko) => { const x = new Image(); x.onload = () => ok(x); x.onerror = () => ko(new Error('image illisible')); x.src = u; });
+    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return { data: c.toDataURL('image/jpeg', 0.82), l: c.width, h: c.height };
+  }finally{ URL.revokeObjectURL(u); }
+}
+
+async function enregistrerEvaluation(boites){
+  const nom = String(($('evEleve') || {}).value || '').trim();
+  const x = boites && boites[etatEval.boite];
+  if(!x || etatEval.envoi) return;
+  const f = ficheExacteEval(nom);
+  const type = ($('evType') || {}).value || '';
+  const h = Number($('evHeures').value) || 0;
+  const r = x.r || null;
+  etatEval.envoi = true;
+  majEnregistrerEval();
+  let rep;
+  try{
+    rep = await appelPrep({
+      action: 'evaluationEnregistrer', eleve: f ? f.eleve : nom,
+      telephone: f ? '' : (($('evTel') || {}).value || ''), email: f ? '' : (($('evMail') || {}).value || ''),
+      remplacer: etatEval.remplacer, formation: x.formation, frise: x.frise, montant: x.montant,
+      heuresBV: h, heuresBEA: r ? r.bea : (Number(($('evHeuresBea') || {}).value) || 0), type: type,
+      detail: r ? { simu: x.boite === 'BEA' ? r.simuBEA : r.simuBV, c2h: x.boite === 'BEA' ? r.c2hBEA : r.c2hBV,
+                    lecons: x.boite === 'BEA' ? (r.c2hBEA > 6 ? r.leconsBEA : r.leconsBEA2) : r.leconsBV }
+                : { forfait: x.detail }
+    });
+  }catch(e){
+    etatEval.envoi = false;
+    majEnregistrerEval();
+    if(typeof showToast === 'function') showToast('Impossible : ' + e.message);
+    return;
+  }
+  /* Les photos, une par une : une photo ratée n'efface pas le reste */
+  let posees = 0, ratees = 0;
+  for(const p of etatEval.photos){
+    try{ await appelPrep({ action: 'evaluationPhoto', id: rep.id, photo: p.data }); posees++; }
+    catch(e){ ratees++; }
+  }
+  etatEval.envoi = false;
+  etatEval.fait = { nom: rep.eleve || nom, x: x, rep: rep, posees: posees, ratees: ratees, h: h, type: type,
+                    r: r, hBea: r ? r.bea : 0 };
+  if(typeof chargerFiches === 'function'){ try{ await chargerFiches(); }catch(e){} }
+  dessinerEtatEleveEval();
+  dessinerEvaluation();
+  if(typeof showToast === 'function') showToast('Évaluation enregistrée ✅');
+}
+
+function blocFaitEval(){
+  const d = etatEval.fait;
+  const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const z = document.createElement('div');
+  z.style.cssText = 'border:1px solid var(--orange);border-radius:11px;padding:11px 13px;margin:0 0 14px;font-size:13px;line-height:1.55;';
+  const formation = d.rep.formationEcrite ? '<strong>' + e(d.rep.formationEcrite) + '</strong>' : 'gardée (' + e(d.x.formation) + ' non écrite)';
+  const frise = d.rep.friseEcrite ? e(d.rep.friseEcrite) : 'gardée (celle de l’évaluation n’a pas été écrite)';
+  z.innerHTML = '<div style="font-size:15px;font-weight:800;margin-bottom:4px;">✅ Enregistré dans le dossier de ' + e(d.nom) + '</div>' +
+    '📇 Formation : ' + formation + '<br>' +
+    '🧭 Frise : ' + frise + '<br>' +
+    '💶 ' + (d.type ? 'Forfait' : 'Devis') + ' : <strong>' + eurosEval(d.x.montant) + '</strong><br>' +
+    '📷 ' + d.posees + ' photo' + (d.posees > 1 ? 's' : '') + ' du simulateur' +
+    (d.ratees ? ' <span style="color:var(--red);">— ' + d.ratees + ' n’a pas pu partir</span>' : '') +
+    (d.rep.cree ? '<br>🆕 Fiche créée au répertoire' : '') +
+    '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;"></div>';
+  const r = z.lastElementChild;
+  const b1 = document.createElement('button');
+  b1.type = 'button'; b1.className = 'btn btn-primary';
+  b1.style.cssText = 'width:auto;flex:1;margin:0;padding:11px;font-size:13px;';
+  b1.textContent = '👤 Ouvrir son dossier';
+  b1.addEventListener('click', () => { if(typeof ouvrirPageEleve === 'function') ouvrirPageEleve(d.nom); });
+  const b2 = document.createElement('button');
+  b2.type = 'button'; b2.className = 'btn btn-secondary';
+  b2.style.cssText = 'width:auto;flex:1;margin:0;padding:11px;font-size:13px;';
+  b2.textContent = '➕ Nouvelle évaluation';
+  b2.addEventListener('click', () => afficherEvaluation());
+  r.appendChild(b1); r.appendChild(b2);
+  /* Les textes de la boîte choisie restent à portée */
+  const t = document.createElement('div');
+  t.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px;margin-top:10px;';
+  const auto = d.x.boite === 'BEA';
+  const bt = (lib, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-secondary';
+    b.style.cssText = 'padding:12px;font-size:13px;margin:0;'; b.textContent = lib; b.addEventListener('click', fn); t.appendChild(b); };
+  if(d.type){
+    bt('💬 Messenger', () => ouvrirTexteAac(d.h, auto, d.type === 'cs', false, d.nom));
+    bt('✉️ Mail', () => ouvrirTexteAac(d.h, auto, d.type === 'cs', true, d.nom));
+  }else if(d.r){
+    bt('💬 Messenger', () => ouvrirTexteEvaluation(auto ? 'messengerBEA' : 'messengerBV', d.r, d.nom));
+    bt('✉️ Mail', () => ouvrirTexteEvaluation(auto ? 'mailBEA' : 'mailBV', d.r, d.nom));
+    bt('📝 Frise (Drivup)', () => ouvrirTexteEvaluation(auto ? 'noteBEA' : 'noteBV', d.r, d.nom));
+  }
+  const w = document.createElement('div');
+  w.appendChild(z); w.appendChild(t);
+  return w;
+}
+
+/* ============================================================
+   📊 DANS SON DOSSIER : l'onglet « Évaluation » — v1184
+   ============================================================ */
+async function ongletEvaluationEleve(corps, nom){
+  corps.innerHTML = '<div class="empty">Lecture de ses évaluations…</div>';
+  let d;
+  try{ d = await appelPrep({ action: 'evaluationsDe', eleve: nom }); }
+  catch(e){ corps.innerHTML = '<div class="empty">⚠️ ' + String(e.message || e).replace(/</g, '&lt;') + '</div>'; return; }
+  corps.innerHTML = '';
+  const liste = (d && d.evaluations) || [];
+  const refaire = (libelle) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn btn-secondary';
+    b.style.cssText = 'flex:1;margin:0;padding:12px;font-size:13px;';
+    b.textContent = libelle;
+    b.addEventListener('click', () => {
+      evalElevePrevu = nom;
+      if(typeof afficherOnglet === 'function') afficherOnglet('eleves');
+      if(typeof afficherVue === 'function') afficherVue('eleves', 'evaluation');
+      else afficherEvaluation();
+    });
+    return b;
+  };
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = 'Pas encore d’évaluation enregistrée dans son dossier.';
+    corps.appendChild(v);
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:8px;margin-top:12px;';
+    r.appendChild(refaire('📊 Faire son évaluation'));
+    corps.appendChild(r);
+    return;
+  }
+  const carte = (ev) => {
+    const w = document.createElement('div');
+    const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const t = document.createElement('div');
+    t.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:4px 12px;';
+    const jour = (typeof jourFr === 'function') ? jourFr(String(ev.jour || '').slice(0, 10)) : String(ev.jour || '').slice(0, 10);
+    const auto = /BEA$/.test(ev.formation);
+    const lignes = [
+      ['📅 Faite le', e(jour) + (ev.par ? ' · par ' + e(ev.par) : '')],
+      ['🖥️ Simulateur', ev.type ? e(ev.heuresBV) + ' h évaluées' : e(ev.heuresBV) + ' h en manuelle · ' + e(ev.heuresBEA) + ' h en automatique'],
+      [(auto ? '🚙' : '🚗') + ' Il part en', e(ev.type ? ev.formation : (auto ? 'Boîte automatique (BEA)' : 'Boîte manuelle (BV)'))],
+      ['💶 ' + (ev.type ? 'Forfait' : 'Devis'), '<strong style="color:var(--accent-text);font-size:15px;">' + eurosEval(ev.montant) + '</strong>' +
+        (ev.detail && ev.detail.forfait ? '<div style="font-size:11.5px;color:var(--muted);">' + e(ev.detail.forfait) + '</div>' : '')],
+      ['🧭 Frise', e(ev.frise), true]
+    ];
+    if(ev.ecrit && !ev.ecrit.formation && !ev.ecrit.frise){
+      lignes.push(['📇 Sa fiche', 'gardée telle quelle (on n’a pas remplacé sa formation ni sa frise)']);
+    }
+    lignes.forEach(([k, v, dessous], i) => {
+      const l = document.createElement('div');
+      l.style.cssText = (dessous ? 'display:block;' : 'display:flex;gap:12px;justify-content:space-between;') +
+        'padding:9px 0;font-size:13.5px;line-height:1.5;' + (i ? 'border-top:1px solid var(--line);' : '');
+      l.innerHTML = '<span style="color:var(--muted);flex-shrink:0;' + (dessous ? 'display:block;' : '') + '">' + k + '</span>' +
+        '<span style="min-width:0;word-break:break-word;' + (dessous ? 'display:block;margin-top:2px;' : 'text-align:right;') + '">' + v + '</span>';
+      t.appendChild(l);
+    });
+    w.appendChild(t);
+    if((ev.photos || []).length){
+      const ph = document.createElement('div');
+      ph.style.cssText = 'margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;';
+      ph.innerHTML = '<div style="font-size:13px;margin-bottom:8px;">📷 <strong>Photos du simulateur</strong> · ' + ev.photos.length + '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;"></div>' +
+        '<div style="font-size:11.5px;color:var(--muted);margin-top:6px;">Toucher une photo l’ouvre en grand. L’élève ne les voit pas.</div>';
+      const r = ph.children[1];
+      const base = (typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL) || '';
+      ev.photos.forEach(lien => {
+        const src = base + lien;
+        const im = document.createElement('img');
+        im.src = src; im.alt = 'Photo du simulateur'; im.loading = 'lazy';
+        im.style.cssText = 'width:180px;max-width:100%;height:120px;object-fit:cover;border-radius:9px;border:1px solid var(--line);cursor:zoom-in;';
+        im.addEventListener('click', () => {
+          if(typeof ouvrirLaPhotoEnGrand === 'function') ouvrirLaPhotoEnGrand(src);
+          else window.open(src, '_blank', 'noopener');
+        });
+        r.appendChild(im);
+      });
+      w.appendChild(ph);
+    }
+    return w;
+  };
+
+  const der = liste[0];
+  corps.appendChild(carte(der));
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;';
+  const bt = (lib, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-secondary';
+    b.style.cssText = 'flex:1;margin:0;padding:12px;font-size:13px;'; b.textContent = lib; b.addEventListener('click', fn); r.appendChild(b); };
+  const auto = /BEA$/.test(der.formation);
+  if(der.type){
+    bt('💬 Messenger', () => ouvrirTexteAac(der.heuresBV, auto, der.type === 'cs', false, nom));
+    bt('✉️ Mail', () => ouvrirTexteAac(der.heuresBV, auto, der.type === 'cs', true, nom));
+  }else{
+    const rr = calculEvaluation(der.heuresBV, der.heuresBEA);
+    bt('💬 Messenger', () => ouvrirTexteEvaluation(auto ? 'messengerBEA' : 'messengerBV', rr, nom));
+    bt('✉️ Mail', () => ouvrirTexteEvaluation(auto ? 'mailBEA' : 'mailBV', rr, nom));
+  }
+  r.appendChild(refaire('📊 Refaire l’évaluation'));
+  corps.appendChild(r);
+
+  if(liste.length > 1){
+    const det = document.createElement('details');
+    det.style.cssText = 'margin-top:14px;border:1px dashed var(--line);border-radius:10px;padding:9px 12px;';
+    det.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;">Évaluations précédentes · ' + (liste.length - 1) + '</summary>';
+    liste.slice(1).forEach(ev => { const c = carte(ev); c.style.marginTop = '10px'; det.appendChild(c); });
+    corps.appendChild(det);
+  }
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5;';
+  n.textContent = 'Une évaluation refaite s’ajoute : les anciennes restent, la plus récente est en haut.';
+  corps.appendChild(n);
 }
 
 
@@ -330,6 +922,7 @@ function dessinerEvaluationAac(zone, heures, supervisee){
 
   /* Les quatre messages */
   const r = document.createElement('div');
+  r.id = 'evTextes';
   r.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
 
   const bouton = (libelle, auto, mail) => {
@@ -337,6 +930,7 @@ function dessinerEvaluationAac(zone, heures, supervisee){
     b.className = 'btn btn-secondary';
     b.style.cssText = 'padding:12px;font-size:13px;margin:0;';
     b.textContent = libelle;
+    b.dataset.boite = auto ? 'BEA' : 'BV';
     b.addEventListener('click', () =>
       ouvrirTexteAac(heures, auto, supervisee, mail));
     r.appendChild(b);
@@ -351,8 +945,9 @@ function dessinerEvaluationAac(zone, heures, supervisee){
 }
 
 
-async function ouvrirTexteAac(heures, auto, supervisee, mail){
-  const nom = String(($('evEleve') && $('evEleve').value) || '').trim();
+async function ouvrirTexteAac(heures, auto, supervisee, mail, nomDonne){
+  /* 📊 v1184 — depuis son dossier, le nom vient avec la demande */
+  const nom = String(nomDonne || ($('evEleve') && $('evEleve').value) || '').trim();
 
   const texte = mail
     ? messageAacMail(heures, auto, supervisee)
@@ -604,8 +1199,9 @@ function noteInterne(r, auto){
 }
 
 
-async function ouvrirTexteEvaluation(quoi, r){
-  const nom = String(($('evEleve') && $('evEleve').value) || '').trim();
+async function ouvrirTexteEvaluation(quoi, r, nomDonne){
+  /* 📊 v1184 — depuis son dossier, le nom vient avec la demande */
+  const nom = String(nomDonne || ($('evEleve') && $('evEleve').value) || '').trim();
   const prenom = nom ? nom.split(' ')[0] : '';
 
   let titre, texte, sujet = '';
