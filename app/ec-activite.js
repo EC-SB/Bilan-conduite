@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 12:39 — v1175 */
+/* Déployé le 15/10/2026 à 15:23 — v1183 */
 /* ============================================================
    ec-activite.js
    🎓 Ce que font les élèves dans leur espace — Outils › Mesurer,
@@ -255,6 +255,9 @@ if(document.readyState === 'loading'){
    ============================================================ */
 function ecranDePresence(){
   try{
+    /* 📞 v1183 — en appel, ça se voit dans le journal en direct */
+    const enAppel = (typeof AppelEC !== 'undefined' && AppelEC.enCours) ? AppelEC.enCours() : null;
+    if(enAppel) return '📞 En appel — ' + (enAppel.titre || '');
     const o = (typeof ongletActif !== 'undefined') ? ongletActif : '';
     const nomCours = ($('studentName') && $('studentName').value.trim()) || '';
     if(o === 'cours'){
