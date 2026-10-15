@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 15:23 — v1183 */
+/* Déployé le 15/10/2026 à 17:23 — v1186 */
 /* ============================================================
    appel-commun.js — 📞 LES APPELS, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -44,7 +44,8 @@
     retourner: '<path d="M4 7h3l1.6-2.3c.3-.4.8-.7 1.3-.7h4.2c.5 0 1 .3 1.3.7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" fill="currentColor"/><path d="M8.5 12.8a3.6 3.6 0 0 1 6.3-1.9M15.5 14.2a3.6 3.6 0 0 1-6.3 1.9" fill="none" stroke="TROU" stroke-width="1.8" stroke-linecap="round"/><path d="M15.1 9.2v1.9h-1.9M8.9 17.8v-1.9h1.9" fill="none" stroke="TROU" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
     ajouter: '<circle cx="9.5" cy="7.8" r="4" fill="currentColor"/><path d="M2 20.5c0-4.1 3.4-6.7 7.5-6.7s7.5 2.6 7.5 6.7z" fill="currentColor"/><path d="M19.5 6.5v7M16 10h7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
     reduire: '<path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
-    agrandir: '<path d="M6 14.5l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+    agrandir: '<path d="M6 14.5l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+    hp: '<path d="M2.6 9.4c0-.8.6-1.4 1.4-1.4h2.9l4.5-3.6c.7-.6 1.8-.1 1.8.9v13.4c0 1-1.1 1.5-1.8.9L6.9 16H4c-.8 0-1.4-.6-1.4-1.4z" fill="currentColor"/><path d="M16.1 8.7a4.8 4.8 0 0 1 0 6.6M18.9 6.1a8.6 8.6 0 0 1 0 11.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
   };
   function ic(nom, taille, trou, barre) {
     var t = taille || 24;
@@ -76,6 +77,10 @@
     '.aplRond img{width:100%;height:100%;object-fit:cover}',
     '.aplNom{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:700;border-radius:8px;padding:3px 8px;display:flex;align-items:center;gap:5px;max-width:calc(100% - 20px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}',
     '.aplNote{position:absolute;right:10px;top:10px;font-size:11px;color:#9AA7B1;z-index:2}',
+    '.aplTuile.sonne{flex-direction:column;gap:18px}',
+    '.aplTuile.sonne .aplRond{animation:aplPulse 1.6s infinite}',
+    '.aplChez{font-size:16px;font-weight:800;color:#E9F1F5;text-align:center;padding:0 16px;line-height:1.35}',
+    '.aplChez small{display:block;font-size:12.5px;font-weight:400;color:#9AA7B1;margin-top:4px}',
     '.aplMoiFlotte{position:absolute;right:10px;bottom:10px;width:96px;height:132px;z-index:3;box-shadow:0 6px 18px rgba(0,0,0,.5)}',
     '.aplMoiFlotte .aplRond{width:44px;height:44px;font-size:16px}',
     '.aplMoiFlotte .aplNom{left:6px;bottom:6px;font-size:11px;padding:2px 6px}',
@@ -89,6 +94,7 @@
     '.aplMsg{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(20,26,32,.95);border:1px solid #1F2A33;border-radius:12px;padding:8px 12px;font-size:13px;z-index:5;max-width:90%;text-align:center}',
     '.aplListe{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:#141A20;border:1px solid #1F2A33;border-radius:14px;padding:10px;z-index:6;min-width:240px;max-width:92%}',
     '.aplListe b{display:block;font-size:13px;margin:0 0 6px}',
+    '.aplListe button.choisi{background:#B6FF0E;color:#0B0B0B;font-weight:700}',
     '.aplListe button{display:block;width:100%;text-align:left;background:#1F2A33;color:#fff;border:0;border-radius:10px;padding:9px 11px;margin:0 0 6px;font:inherit;font-size:13px;cursor:pointer}',
     '.aplPastille{position:fixed;right:14px;top:max(14px,env(safe-area-inset-top));z-index:2147483000;background:#07090B;color:#E9F1F5;border:2px solid #B6FF0E;border-radius:16px;padding:9px 11px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}',
     '.aplPastille b{display:flex;align-items:center;gap:6px;font-size:13px}.aplPastille small{display:block;font-size:11.5px;color:#7E8C97;font-family:ui-monospace,Menlo,monospace}',
@@ -104,7 +110,7 @@
     '.aplSonne .choix button{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;color:#E9F1F5;font:inherit;font-size:13px;cursor:pointer;margin:0;padding:0}',
     '.aplSonne .choix i{width:70px;height:70px;border-radius:50%;display:flex;align-items:center;justify-content:center}',
     '.aplSonne .note{font-size:12px;color:#7E8C97;max-width:300px;line-height:1.5}',
-    '@media (max-width:640px){.aplBas{gap:4px}.aplBt{min-width:58px}.aplBt i{width:52px;height:52px}.aplRond{width:64px;height:64px;font-size:22px}}'
+    '@media (max-width:640px){.aplBas{gap:4px;flex-wrap:nowrap}.aplBt{flex:1 1 0;min-width:0;max-width:80px}.aplBt{font-size:11px}.aplBt span{text-align:center;line-height:1.2}.aplBt i{width:52px;height:52px}.aplRond{width:64px;height:64px;font-size:22px}}'
   ].join('\n');
   function poserLeStyle() {
     if (document.getElementById('aplCss')) return;
@@ -245,8 +251,12 @@
       route: o.route, billet: o.billet, appel: o.appel, genre: o.genre === 'vocal' ? 'vocal' : 'video',
       titre: o.titre || 'Appel', eleve: !!o.eleve, surFin: o.surFin, tel: telephone(),
       cam: false, micro: true, partage: false, face: 'user', debut: Date.now(),
-      etat: null, recus: [], niveaux: {}, fini: false, audios: {}, decroche: 0
+      etat: null, recus: [], niveaux: {}, fini: false, audios: {}, decroche: 0,
+      son: true, sortie: '', sorties: []
     };
+    /* La tonalité « ça sonne » de celui qui appelle : le contexte audio
+       naît ici, pendant le geste (sinon Safari le laisse muet). */
+    try { c.actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { c.actx = null; }
     courant = c;
     c.enFile = file(c);
     dessinerLEcran(c);
@@ -410,8 +420,12 @@
       bas.appendChild(b);
     };
     bt('micro', ic('micro', 26, c.micro ? '#1F2A33' : '#3A2A20', !c.micro), c.micro ? 'Micro' : 'Micro coupé', c.micro ? '' : 'coupe', function () { basculerMicro(c); });
+    var oreille = c.son && c.genre === 'vocal' && sortieChoisie(c) && sortieChoisie(c).oreille;
+    bt('son', ic(oreille ? 'tel' : 'hp', 26, c.son ? '#1F2A33' : '#3A2A20', !c.son),
+       !c.son ? 'Haut\u2011parleur coupé' : (c.genre === 'vocal' && sortieChoisie(c) ? sortieChoisie(c).court : 'Haut\u2011parleur'),
+       c.son ? '' : 'coupe', function () { toucherLeSon(c); });
     bt('camera', ic('camera', 26, c.cam ? '#1F2A33' : '#3A2A20', !c.cam), c.cam ? 'Caméra' : 'Caméra coupée', c.cam ? '' : 'coupe', function () { basculerCamera(c); });
-    if (c.tel) bt('retourner', ic('retourner', 26), 'Retourner', '', function () { retourner(c); });
+    if (c.tel) { if (c.cam) bt('retourner', ic('retourner', 26), 'Retourner', '', function () { retourner(c); }); }
     else if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
       bt('partage', ic('ecran', 26, c.partage ? '#B6FF0E' : '#1F2A33'), c.partage ? 'Arrêter le partage' : 'Partager l’écran', c.partage ? 'on' : '', function () { basculerPartage(c); });
     }
@@ -444,12 +458,21 @@
     var moi = null, autres = [];
     gens.forEach(function (x) { if (x.moi) moi = x; else autres.push(x); });
     if (!moi) moi = { cle: '__moi', qui: 'Toi', moi: 1 };
+    /* Personne n'a encore décroché : une vignette « Ça sonne chez … »
+       tient la place de ceux qu'on appelle, et la tonalité joue. */
+    var sonnent = ((c.etat && c.etat.gens) || []).filter(function (x) { return x.etat === 'invite' && !x.moi; });
+    var attente = c.etat && !c.etat.decroche && !c.etat.fini && !autres.length && sonnent.length ? sonnent : null;
+    if (attente) autres.push({ cle: '__sonne', qui: '', sonne: attente });
+    tonalite(c, !!attente);
+    if (!attente && c.actx && c.etat && (c.etat.decroche || autres.length)) fermerLaTonalite(c);
     var sous = c.e.querySelector('.aplSous');
     if (sous) {
       var partageur = null;
       gens.forEach(function (x) { if (x.partage && !x.moi) partageur = x; });
+      var genre = c.genre === 'video' ? 'Appel vidéo' : 'Appel vocal';
       sous.textContent = partageur ? partageur.qui + ' partage son écran'
-        : (c.genre === 'video' ? 'Appel vidéo' : 'Appel vocal') + ' · ' + (autres.length + 1) + ' personne' + (autres.length ? 's' : '') +
+        : attente ? genre + ' · ça sonne…'
+        : genre + ' · ' + (autres.length + 1) + ' personne' + (autres.length ? 's' : '') +
           (!autres.length && c.etat && !c.etat.decroche ? ' · ça sonne…' : '');
     }
     var partage = null;
@@ -481,6 +504,21 @@
       var cle = x.moi ? '__moi' : x.cle;
       vues[cle] = true;
       var t = avant[cle];
+      if (x.sonne) {
+        if (!t) { t = el('div', 'aplTuile sonne'); t.setAttribute('data-cle', cle); t.innerHTML = '<span class="aplRond"></span><span class="aplChez"></span>'; }
+        var noms = [], bureau = false;
+        x.sonne.forEach(function (y) { if (y.bureau) bureau = true; else if (noms.indexOf(y.qui) < 0) noms.push(y.qui); });
+        var liste = noms.length > 1 ? noms.slice(0, -1).join(', ') + ' et ' + noms[noms.length - 1] : (noms[0] || '');
+        var chez = noms.length ? 'Ça sonne chez ' + liste + (bureau ? ' et au bureau' : '') : 'Ça sonne au bureau';
+        var r = t.querySelector('.aplRond');
+        var dans = noms.length ? echap(initiales(noms[0])) : ic('tel', 40);
+        if (r.getAttribute('data-q') !== dans) { r.setAttribute('data-q', dans); r.innerHTML = dans; }
+        var h = echap(chez) + '…<small>' + (c.son ? 'Tu entends la tonalité tant que personne n’a décroché.' : 'Haut-parleur coupé : tonalité muette.') + '</small>';
+        var z = t.querySelector('.aplChez');
+        if (z.getAttribute('data-q') !== h) { z.setAttribute('data-q', h); z.innerHTML = h; }
+        g.appendChild(t);
+        return;
+      }
       if (!t) {
         t = el('div', 'aplTuile');
         t.setAttribute('data-cle', cle);
@@ -523,6 +561,104 @@
     var a = c.audios[cle];
     if (!a) { a = document.createElement('audio'); a.autoplay = true; a.style.display = 'none'; document.body.appendChild(a); c.audios[cle] = a; }
     if (!a.srcObject || a.srcObject.getAudioTracks()[0] !== p) { a.srcObject = new MediaStream([p]); try { a.play(); } catch (e) {} }
+    reglerUnSon(c, a);
+  }
+  function reglerUnSon(c, a) {
+    a.muted = !c.son;
+    if (c.sortie && a.setSinkId && a.__sortie !== c.sortie) {
+      a.__sortie = c.sortie;
+      a.setSinkId(c.sortie).catch(function () { a.__sortie = ''; });
+    }
+  }
+
+  /* ---------- Le son qu'on entend : couper, et (vocal) où l'écouter ----------
+     Un navigateur de téléphone ne laisse presque jamais une page choisir
+     entre le haut-parleur et l'écouteur : le choix n'apparaît que si le
+     téléphone donne plusieurs sorties (écouteur, Bluetooth…). Sinon le
+     bouton coupe et remet le son, simplement. */
+  function chercherLesSorties(c) {
+    var md = navigator.mediaDevices;
+    if (!md || !md.enumerateDevices || !('setSinkId' in HTMLMediaElement.prototype)) return Promise.resolve([]);
+    return md.enumerateDevices().then(function (l) {
+      var vus = {}, out = [];
+      l.forEach(function (d) {
+        if (d.kind !== 'audiooutput' || d.deviceId === 'communications' || vus[d.deviceId]) return;
+        vus[d.deviceId] = 1;
+        var nom = String(d.label || '').replace(/^(Par défaut|Default)\s*-\s*/i, '').trim();
+        var oreille = /earpiece|receiver|écouteur du téléphone|combiné/i.test(nom);
+        var parDefaut = d.deviceId === 'default' || d.deviceId === '';
+        out.push({ id: d.deviceId, oreille: oreille,
+                   nom: oreille ? 'À l’oreille (écouteur)' : parDefaut ? (c.tel ? 'Haut-parleur' : 'Sortie par défaut') : (nom || 'Autre sortie'),
+                   court: oreille ? 'Écouteur' : parDefaut ? 'Haut\u2011parleur' : (nom || 'Autre').slice(0, 14) });
+      });
+      return out.length >= 2 ? out : [];
+    }).catch(function () { return []; });
+  }
+  function sortieChoisie(c) {
+    if (!c.sorties.length) return null;
+    for (var i = 0; i < c.sorties.length; i++) if (c.sorties[i].id === (c.sortie || 'default')) return c.sorties[i];
+    return c.sorties[0];
+  }
+  function appliquerLeSon(c) {
+    Object.keys(c.audios).forEach(function (k) { reglerUnSon(c, c.audios[k]); });
+    if (!c.son) tonalite(c, false);
+    majMoi(c);
+  }
+  function toucherLeSon(c) {
+    if (c.genre !== 'vocal') { c.son = !c.son; appliquerLeSon(c); return; }
+    chercherLesSorties(c).then(function (l) {
+      c.sorties = l;
+      if (!l.length) { c.son = !c.son; appliquerLeSon(c); return; }
+      var x = c.e && c.e.querySelector('.aplListe');
+      if (x) { x.parentNode.removeChild(x); return; }
+      x = el('div', 'aplListe', '<b>Où écouter ?</b>');
+      var choisie = sortieChoisie(c);
+      l.forEach(function (d) {
+        var b = el('button', c.son && choisie === d ? 'choisi' : '', echap(d.nom));
+        b.type = 'button';
+        b.addEventListener('click', function () {
+          c.son = true; c.sortie = d.id;
+          Object.keys(c.audios).forEach(function (k) { c.audios[k].__sortie = ''; });
+          if (x.parentNode) x.parentNode.removeChild(x);
+          appliquerLeSon(c);
+        });
+        x.appendChild(b);
+      });
+      var coupe = el('button', c.son ? '' : 'choisi', 'Couper le son');
+      coupe.type = 'button';
+      coupe.addEventListener('click', function () { c.son = false; if (x.parentNode) x.parentNode.removeChild(x); appliquerLeSon(c); });
+      x.appendChild(coupe);
+      c.e.appendChild(x);
+    });
+  }
+
+  /* ---------- La tonalité de celui qui appelle : 440 Hz, 1,5 s sur 5 ---------- */
+  function tonalite(c, oui) {
+    if (!oui || !c.son || c.fini || !c.actx) {
+      if (c.tonaliteT) { clearInterval(c.tonaliteT); c.tonaliteT = null; }
+      return;
+    }
+    if (c.tonaliteT) return;
+    var ctx = c.actx;
+    var bip = function () {
+      try {
+        if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+        var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
+        o.type = 'sine'; o.frequency.value = 440;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.09, t + 0.04);
+        g.gain.setValueAtTime(0.09, t + 1.46);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + 1.52);
+      } catch (e) {}
+    };
+    bip();
+    c.tonaliteT = setInterval(bip, 5000);
+  }
+  function fermerLaTonalite(c) {
+    tonalite(c, false);
+    if (c.actx) { try { c.actx.close(); } catch (e) {} c.actx = null; }
   }
 
   function message(c, t) {
@@ -636,6 +772,7 @@
     if (c.fini) return;
     c.fini = true;
     clearInterval(c.minuteur); clearInterval(c.horloge);
+    fermerLaTonalite(c);
     var fin = function (octets) {
       if (parMoi !== null) poster(c, 'quitter', { octets: octets || 0 }).catch(function () {});
       [c.audio, c.camPiste, c.ecranPiste].forEach(function (t) { if (t) { try { t.stop(); } catch (e) {} } });
