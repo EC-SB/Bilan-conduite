@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 15/10/2026 à 15:23 — v1183 */
 /* ============================================================
    🔔 LE SERVICE WORKER — étape 3 de la messagerie
 
@@ -180,6 +180,28 @@ self.addEventListener("push", function (e) {
   const titre = a.titre || "💬 Nouveau message";
   const texte = a.texte || "Tu as un nouveau message";
 
+  /* 📞 v1183 — UN APPEL QUI SONNE. Ce n'est pas un message non lu :
+     la pastille ne bouge pas. La notification reste à l'écran tant
+     qu'on ne l'a pas touchée (sur les appareils qui le permettent),
+     vibre comme une sonnerie, et la page ouverte est prévenue tout de
+     suite pour afficher « … t'appelle ». */
+  if (a.appel) {
+    e.waitUntil(Promise.all([
+      self.registration.showNotification(titre, {
+        body: texte, icon: ICONE, badge: ICONE,
+        tag: a.tag || ("appel-" + a.appel), renotify: true,
+        requireInteraction: true, vibrate: [400, 200, 400, 200, 400],
+        data: { fil: a.fil || "", page: a.page || "index.html", vue: "", appel: String(a.appel) }
+      }),
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (fenetres) {
+        fenetres.forEach(function (f) {
+          try { f.postMessage({ quoi: "appel", appel: String(a.appel), fil: a.fil || "" }); } catch (err) {}
+        });
+      })
+    ]));
+    return;
+  }
+
   /* ⚠️ LA PASTILLE MONTE D'UN, ET LA NOTIFICATION S'AFFICHE QUAND
      MÊME — v1107. Les deux dans le même « waitUntil » : une
      pastille posée sans notification visible est interdite par les
@@ -216,7 +238,10 @@ self.addEventListener("notificationclick", function (e) {
   const page = d.page || "index.html";
   const fil = d.fil || "";
   const vue = d.vue || "";
-  const suite = fil ? "?fil=" + encodeURIComponent(fil) : (vue ? "?vue=" + encodeURIComponent(vue) : "");
+  /* 📞 v1183 — toucher un appel ouvre le fil ET l'écran qui sonne */
+  const appel = d.appel || "";
+  const suite = fil ? "?fil=" + encodeURIComponent(fil) + (appel ? "&appel=" + encodeURIComponent(appel) : "")
+                    : (vue ? "?vue=" + encodeURIComponent(vue) : "");
 
   e.waitUntil(Promise.resolve()
     /* Pour l'élève, l'adresse que SA page nous a donnée ; pour le
@@ -236,7 +261,7 @@ self.addEventListener("notificationclick", function (e) {
             if (f.url.split("?")[0].split("#")[0] === cible.split("?")[0]) {
               /* On lui dit quel fil ouvrir : elle est peut-être sur
                  un tout autre écran. */
-              try { f.postMessage(vue && !fil ? { quoi: "ouvrirVue", vue: vue } : { quoi: "ouvrirFil", fil: fil }); } catch (err) {}
+              try { f.postMessage(vue && !fil ? { quoi: "ouvrirVue", vue: vue } : { quoi: "ouvrirFil", fil: fil, appel: appel }); } catch (err) {}
               return f.focus();
             }
           }
