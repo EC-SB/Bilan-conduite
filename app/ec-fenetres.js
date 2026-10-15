@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 15:23 — v1183 */
+/* Déployé le 15/10/2026 à 16:27 — v1184 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2558,6 +2558,23 @@ async function ajouterLaBaseAuDossier(d, nom){
     d.total = (d.total || 0) + lignes.length;
   }catch(e){
     d.parties.push({ titre: 'Ses renseignements et disponibilités', lignes: [],
+      note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+  }
+  /* 📊 v1184 — ses évaluations de départ (les photos restent dans le
+     dossier : l'export dit combien il y en a) */
+  try{
+    const r = await appelPrep({ action: 'evaluationsDe', eleve: nom });
+    const lignes = ((r && r.evaluations) || []).map(ev => ({
+      'Faite le': String(ev.jour || ''), 'Par': ev.par || '',
+      'Heures au simulateur': ev.type ? String(ev.heuresBV) : ev.heuresBV + ' h (manuelle) · ' + ev.heuresBEA + ' h (automatique)',
+      'Formation': ev.formation || '', 'Montant': (typeof eurosEval === 'function') ? eurosEval(ev.montant) : String(ev.montant),
+      'Frise': ev.frise || '', 'Photos du simulateur': String((ev.photos || []).length)
+    }));
+    d.parties.push({ titre: 'Ses évaluations de départ', lignes: lignes,
+      note: 'Les photos du résultat du simulateur sont dans son dossier, onglet 📊 Évaluation.' });
+    d.total = (d.total || 0) + lignes.length;
+  }catch(e){
+    d.parties.push({ titre: 'Ses évaluations de départ', lignes: [],
       note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
   }
   try{
