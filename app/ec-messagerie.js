@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 16:00 — v1177 */
+/* Déployé le 15/10/2026 à 11:29 — v1180 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -77,6 +77,10 @@ function dansLeTiroir(){ return tiroirOuvertEC; }
 
 let conversationsEC = [];
 let filOuvertEC = null;          /* { conv, messages, membres, … } */
+/* ↩️ v1180 — le message auquel on est en train de répondre :
+   { conv, id, rang, qui, apercu }, ou null. Il appartient à UN fil :
+   ouvrir un autre fil l'oublie. */
+let reponseEC = null;
 let battementMessagerie = null;
 let rangLuEC = 0;                /* le plus haut rang déjà affiché */
 let empreinteReacEC = '';        /* l'état des réactions déjà dessinées */
@@ -981,6 +985,7 @@ async function ouvrirLeFil(id, viser){
      (rechargé après un geste) garde ce qui était ouvert. */
   const autre = !(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === id);
   if(autre){
+    reponseEC = null;              /* ↩️ v1180 */
     ckFicheOuverte = false;
     ckChoixMoniteur = false;
     ckCreneauOuvert = false;
@@ -1026,6 +1031,7 @@ function fermerLeFil(){
   fermerLaPhotoEnGrand();
   empreinteReacEC = '';
   filOuvertEC = null;
+  reponseEC = null;                /* ↩️ v1180 */
   ckFicheOuverte = false;
   ckCreneauOuvert = false;
   arreterLaVeilleDuFil();
@@ -1140,6 +1146,7 @@ function dessinerLeFil(){
   if(f.peutEcrire){
     zone.appendChild(ckReponsesRapides(f, !large));
     zone.appendChild(zoneDEcritureDuFil(c.id));
+    poserLaBarreDeReponseEC();     /* ↩️ v1180 */
   }else{
     const g = document.createElement('div');
     g.className = 'ckFerme';
@@ -1442,6 +1449,14 @@ function bulleDuMessage(m, avant, apres){
     b.appendChild(mo);
   }
 
+  /* ↩️ Le message auquel celui-ci répond — v1180. En tête de bulle :
+     on lit d'abord DE QUOI on parle, puis ce qu'on en dit. */
+  const cite = citationDuMessageEC(m);
+  if(cite){
+    b.classList.add('aCite');
+    b.appendChild(cite);
+  }
+
   /* 📷 La photo vient AVANT le texte — v1088. Le mot joint commente
      l'image : le lire après, c'est l'ordre dans lequel on les a
      écrits. */
@@ -1524,6 +1539,13 @@ function bulleDuMessage(m, avant, apres){
   brancherLAppuiLong(b, m);
 
   ligne.appendChild(b);
+  /* ↩️ Au survol, à l'ordinateur — v1180. Côté intérieur de la bulle :
+     à gauche des siennes, à droite de celles des autres. */
+  const rep = boutonRepondreEC(m);
+  if(rep){
+    if(sienne) ligne.insertBefore(rep, b);
+    else ligne.appendChild(rep);
+  }
   return ligne;
 }
 
@@ -1709,6 +1731,13 @@ function zoneDEcritureDuFil(id){
       ev.preventDefault();
       ecrireDansLeFil();
     }
+    /* ↩️ v1180 — Échap renonce à la réponse en cours */
+    if(ev.key === 'Escape' && reponseEC){
+      ev.preventDefault();
+      ev.stopPropagation();
+      reponseEC = null;
+      poserLaBarreDeReponseEC();
+    }
   });
 
   /* La hauteur se calcule sur un élément posé dans la page :
@@ -1734,7 +1763,8 @@ async function ecrireDansLeFil(){
 
   if(bouton) bouton.disabled = true;
   try{
-    await appelPrep({ action: 'convEcrire', id: id, texte: texte });
+    await appelPrep({ action: 'convEcrire', id: id, texte: texte, reponseA: reponseAPourEC(id) });
+    oublierLaReponseEC(id);
     if(champ) champ.value = '';
     delete brouillonsMessagerie[id];
     await rafraichirLeFil();
@@ -1812,6 +1842,29 @@ async function rafraichirLeFil(silencieux){
   if(!filOuvertEC || !filOuvertEC.conv || filOuvertEC.conv.id !== id) return;
 
   const viser = filOuvertEC.viser;
+
+  /* ⚠️ LES PAGES ANCIENNES DÉJÀ LUES RESTENT — v1180. La relecture ne
+     rapporte que la DERNIÈRE page : la poser telle quelle jetait ce
+     que « ↑ Messages plus anciens » avait chargé, et le battement
+     suivant (quatre secondes) ramenait tout en bas. Toucher une
+     citation pour remonter à un vieux message n'aurait tenu que
+     quatre secondes. On recoud donc l'ancien début à la nouvelle
+     page — seulement si les deux se touchent : un trou dans le fil
+     serait pire qu'un retour en bas. */
+  const anciens = filOuvertEC.messages || [];
+  const neufs = d.messages || [];
+  if(neufs.length && anciens.length){
+    const premier = neufs[0];
+    const touche = anciens.some(x => x.id === premier.id);
+    if(touche){
+      const garder = anciens.filter(x => Number(x.rang || 0) < Number(premier.rang || 0));
+      if(garder.length){
+        d.messages = garder.concat(neufs);
+        d.encore = !!filOuvertEC.encore;
+      }
+    }
+  }
+
   filOuvertEC = d;
   filOuvertEC.viser = 0;
 
@@ -3961,7 +4014,8 @@ async function envoyerUnePhotoDansLeFil(fichier){
     const texte = champ ? champ.value.trim() : '';
 
     await appelPrep({ action: 'convPhoto', id: id, photo: p.data,
-                      l: p.l, h: p.h, texte: texte });
+                      l: p.l, h: p.h, texte: texte, reponseA: reponseAPourEC(id) });
+    oublierLaReponseEC(id);
 
     if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
     await rafraichirLeFil();
@@ -4547,7 +4601,8 @@ async function arreterLeVocalEC(envoyer){
   try{
     const son = await blobEnBase64EC(blob);
     await appelPrep({ action: 'convVocal', id: v.fil, son: son,
-                      duree: sec, texte: mots });
+                      duree: sec, texte: mots, reponseA: reponseAPourEC(v.fil) });
+    oublierLaReponseEC(v.fil);
     rendreLaBarre();
     await rafraichirLeFil();
   }catch(e){
@@ -4730,8 +4785,10 @@ async function envoyerUneVideoChoisieEC(fichier){
     const champ = $('msgElvTexte');
     const texte = champ ? champ.value.trim() : '';
 
-    await appelPrep({ action: 'convVideo', id: filOuvertEC.conv.id,
-                      video: data, duree: sec, texte: texte });
+    const filV = filOuvertEC.conv.id;
+    await appelPrep({ action: 'convVideo', id: filV,
+                      video: data, duree: sec, texte: texte, reponseA: reponseAPourEC(filV) });
+    oublierLaReponseEC(filV);
 
     if(champ){ champ.value = ''; delete brouillonsMessagerie[filOuvertEC.conv.id]; }
     await rafraichirLeFil();
@@ -5024,7 +5081,8 @@ async function arreterLaVideoEC(envoyer){
     const champ = $('msgElvTexte');
     const texte = champ ? champ.value.trim() : '';
     await appelPrep({ action: 'convVideo', id: v.fil, video: data,
-                      duree: sec, texte: texte });
+                      duree: sec, texte: texte, reponseA: reponseAPourEC(v.fil) });
+    oublierLaReponseEC(v.fil);
     if(champ){ champ.value = ''; delete brouillonsMessagerie[v.fil]; }
     rendreLaBarreVideoEC(v);
     await rafraichirLeFil();
@@ -5444,6 +5502,24 @@ function ouvrirLeSelecteurDeReaction(bulle, m){
 
   const boite = document.createElement('div');
   boite.className = 'msgReacChoix';
+
+  /* ↩️ Répondre à ce message — v1180. En premier : c'est le geste le
+     plus fréquent du menu, avant même les émoticônes. */
+  if(peut && m && m.id && !Number(m.supprime || 0)){
+    const r = document.createElement('button');
+    r.type = 'button';
+    r.className = 'msgReacRepondre';
+    r.textContent = '↩️';
+    r.title = 'Répondre à ce message';
+    r.setAttribute('aria-label', 'Répondre à ce message');
+    r.addEventListener('click', ev => {
+      ev.stopPropagation();
+      fermerLeSelecteurDeReaction();
+      repondreAuMessageEC(m);
+    });
+    boite.appendChild(r);
+  }
+
   if(peut) REACTIONS_EC.forEach(e => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -5541,29 +5617,329 @@ function brancherLAppuiLong(bulle, m){
 
   const annuler = () => { if(minuteur){ clearTimeout(minuteur); minuteur = null; } };
 
+  /* ↩️ GLISSER VERS LA DROITE POUR RÉPONDRE — v1180, au doigt
+     seulement : à la souris, le même geste sélectionne du texte, et
+     l'ordinateur a son ↩️ au survol. « touch-action: pan-y » (feuille
+     de style) laisse au navigateur le défilement vertical et nous
+     donne l'horizontal. */
+  const glisse = glissementPourRepondreEC(bulle, m, annuler);
+
   bulle.addEventListener('pointerdown', ev => {
     if(ev.button === 2) return;             /* le clic droit a son propre chemin */
     depart = { x: ev.clientX, y: ev.clientY };
     annuler();
+    glisse.debut(ev);
     minuteur = setTimeout(() => {
       minuteur = null;
+      glisse.oublier();
       ouvrirLeSelecteurDeReaction(bulle, m);
     }, 480);
   });
   bulle.addEventListener('pointermove', ev => {
+    glisse.bouge(ev);
     if(!minuteur || !depart) return;
     if(Math.abs(ev.clientX - depart.x) > 9 || Math.abs(ev.clientY - depart.y) > 9){
       annuler();
     }
   });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(q =>
-    bulle.addEventListener(q, annuler));
+  ['pointerup', 'pointercancel'].forEach(q =>
+    bulle.addEventListener(q, ev => { annuler(); glisse.fin(ev); }));
+  bulle.addEventListener('pointerleave', annuler);
 
   bulle.addEventListener('contextmenu', ev => {
     ev.preventDefault();
     annuler();
     ouvrirLeSelecteurDeReaction(bulle, m);
   });
+}
+
+/* ============================================================
+   ↩️ RÉPONDRE À UN MESSAGE PRÉCIS — v1180
+
+   David, le 15 octobre : « qu'on réponde à un message que l'on a
+   reçu ou envoyé pour le reprendre, comme Messenger ». Ses choix :
+   l'équipe et les élèves ; trois gestes — ↩️ dans le menu de l'appui
+   long, glisser la bulle vers la droite, ↩️ au survol à l'ordinateur ;
+   toucher la citation remonte au message d'origine.
+
+   ⚠️ ON N'ENVOIE QUE L'IDENTIFIANT. Le serveur vérifie qu'il est bien
+   de CE fil (sinon il l'ignore) et c'est lui qui rend la citation, lue
+   au moment de montrer : un message supprimé depuis se cite
+   « Message supprimé », jamais par une copie de ce qu'il disait.
+   ============================================================ */
+
+/* Ce que la barre montre du message visé — la même règle que le
+   serveur, pour ne pas attendre un aller-retour. */
+function apercuDuMessageEC(m){
+  if(!m) return '';
+  if(Number(m.supprime || 0)) return 'Message supprimé';
+  const t = String(m.texte || '').replace(/\s+/g, ' ').trim();
+  if(t) return t.length > 140 ? t.slice(0, 139) + '…' : t;
+  const sorte = String(m.pieceType || '');
+  return sorte.indexOf('audio/') === 0 ? '🎤 Message vocal'
+       : sorte.indexOf('video/') === 0 ? '🎥 Vidéo'
+       : sorte.indexOf('image/') === 0 ? '📷 Photo'
+       : m.pieceNom ? '📎 ' + String(m.pieceNom) : 'Message';
+}
+
+/* « toi » ou le nom : la même question que la bulle se pose. */
+function auteurDeLaCitationEC(genre, auteur){
+  if(genre === 'systeme') return 'Évolution Conduites';
+  const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  if(genre === 'user' && moi && normaliserMessagerie(auteur) === moi) return '';
+  return String(auteur || '');
+}
+
+/* L'identifiant à joindre à un envoi dans CE fil — '' sinon. */
+function reponseAPourEC(convId){
+  return (reponseEC && reponseEC.conv === convId) ? reponseEC.id : '';
+}
+
+/* Après un envoi réussi dans ce fil, la barre s'en va. */
+function oublierLaReponseEC(convId){
+  if(!reponseEC) return;
+  if(convId && reponseEC.conv !== convId) return;
+  reponseEC = null;
+  poserLaBarreDeReponseEC();
+}
+
+function repondreAuMessageEC(m){
+  if(!m || !m.id || !filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
+  if(Number(m.supprime || 0)) return;
+  reponseEC = {
+    conv: filOuvertEC.conv.id, id: m.id, rang: Number(m.rang || 0),
+    qui: auteurDeLaCitationEC(m.auteurGenre, m.auteur),
+    apercu: apercuDuMessageEC(m)
+  };
+  poserLaBarreDeReponseEC();
+  const t = $('msgElvTexte');
+  /* ⚠️ PAS DE CLAVIER QUI SURGIT AU MILIEU D'UN GLISSEMENT : le focus
+     se donne au tour suivant, une fois le doigt levé. */
+  if(t) setTimeout(() => { try{ t.focus({ preventScroll: true }); }catch(e){ t.focus(); } }, 0);
+}
+
+/* La barre « ↩️ Réponse à … ✕ », juste au-dessus de la barre
+   d'écriture. Elle se reconstruit à chaque dessin du fil. */
+function poserLaBarreDeReponseEC(){
+  const zone = zoneFilMsg();
+  if(!zone) return;
+  const vieille = zone.querySelector('#msgRepBarre');
+  if(vieille && vieille.parentNode) vieille.parentNode.removeChild(vieille);
+  const ici = reponseEC && filOuvertEC && filOuvertEC.conv &&
+              reponseEC.conv === filOuvertEC.conv.id && filOuvertEC.peutEcrire;
+  if(!ici) return;
+  const barre = zone.querySelector('.msgBarre');
+  if(!barre || !barre.parentNode) return;
+
+  const r = document.createElement('div');
+  r.id = 'msgRepBarre';
+  r.className = 'msgRepBarre';
+  const txt = document.createElement('div');
+  txt.className = 'msgRepTxt';
+  const qui = document.createElement('div');
+  qui.className = 'msgRepQui';
+  qui.textContent = '↩️ ' + (reponseEC.qui ? 'Réponse à ' + reponseEC.qui : 'Réponse à ton message');
+  const ap = document.createElement('div');
+  ap.className = 'msgRepAp';
+  ap.textContent = reponseEC.apercu;
+  txt.appendChild(qui);
+  txt.appendChild(ap);
+  /* Toucher l'aperçu remonte au message, comme la citation. */
+  txt.addEventListener('click', () => {
+    if(reponseEC) allerAuMessageCiteEC({ id: reponseEC.id, rang: reponseEC.rang });
+  });
+  r.appendChild(txt);
+
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'msgRepX';
+  x.textContent = '✕';
+  x.title = 'Ne plus répondre à ce message';
+  x.setAttribute('aria-label', 'Annuler la réponse');
+  x.addEventListener('click', ev => {
+    ev.stopPropagation();
+    reponseEC = null;
+    poserLaBarreDeReponseEC();
+  });
+  r.appendChild(x);
+  barre.parentNode.insertBefore(r, barre);
+}
+
+/* La citation en tête de bulle. Rien si le message ne répond à rien. */
+function citationDuMessageEC(m){
+  const c = m && m.cite;
+  if(!c || !c.id) return null;
+  const d = document.createElement('div');
+  d.className = 'msgCite' + (Number(c.supprime || 0) ? ' ote' : '');
+  d.setAttribute('role', 'button');
+  d.setAttribute('tabindex', '0');
+  d.title = 'Voir le message d’origine';
+  const qui = document.createElement('span');
+  qui.className = 'msgCiteQui';
+  const nom = auteurDeLaCitationEC(c.auteurGenre, c.auteur);
+  qui.textContent = '↩️ ' + (nom || 'Toi');
+  const ap = document.createElement('span');
+  ap.className = 'msgCiteAp';
+  ap.textContent = c.apercu || '';
+  d.appendChild(qui);
+  d.appendChild(ap);
+  const aller = ev => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    allerAuMessageCiteEC(c);
+  };
+  d.addEventListener('click', aller);
+  d.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' ') aller(ev); });
+  return d;
+}
+
+/* ↩️ au survol, à l'ordinateur. Caché au doigt par la feuille de style. */
+function boutonRepondreEC(m){
+  if(!m || !m.id || Number(m.supprime || 0)) return null;
+  if(!filOuvertEC || !filOuvertEC.peutEcrire) return null;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'msgRepBt';
+  b.textContent = '↩️';
+  b.title = 'Répondre';
+  b.setAttribute('aria-label', 'Répondre à ce message');
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    repondreAuMessageEC(m);
+  });
+  return b;
+}
+
+function bulleDuFilEC(c){
+  const fil = $('msgElvFil');
+  if(!fil || !c) return null;
+  const parId = c.id && fil.querySelector('.msgB[data-msg="' + String(c.id).replace(/"/g, '') + '"]');
+  if(parId) return parId;
+  const ligne = c.rang && fil.querySelector('[data-rang="' + Number(c.rang) + '"]');
+  if(!ligne) return null;
+  return ligne.querySelector('.msgB') || ligne;
+}
+
+function eclairerLaBulleEC(el){
+  try{ el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  catch(e){ el.scrollIntoView(); }
+  el.classList.remove('msgEclair');
+  void el.offsetWidth;               /* relance l'animation */
+  el.classList.add('msgEclair');
+  setTimeout(() => el.classList.remove('msgEclair'), 1900);
+}
+
+/* ⚠️ LE MESSAGE D'ORIGINE PEUT ÊTRE PLUS VIEUX QUE LA PAGE CHARGÉE.
+   On remonte alors page par page, comme « ↑ Messages plus anciens »,
+   jusqu'à le trouver — avec une limite, pour qu'un fil de dix mille
+   messages ne parte pas en boucle. */
+async function allerAuMessageCiteEC(c){
+  if(!c || !filOuvertEC || !filOuvertEC.conv) return;
+  let el = bulleDuFilEC(c);
+  if(el){ eclairerLaBulleEC(el); return; }
+
+  const id = filOuvertEC.conv.id;
+  let charge = false;
+  try{
+    for(let tours = 0; tours < 25; tours++){
+      if(!filOuvertEC || !filOuvertEC.conv || filOuvertEC.conv.id !== id) return;
+      const msgs = filOuvertEC.messages || [];
+      if(msgs.some(x => x.id === c.id)) break;
+      const plusVieux = msgs[0];
+      if(!filOuvertEC.encore || !plusVieux) break;
+      if(c.rang && Number(plusVieux.rang || 0) <= Number(c.rang)) break;
+      const d = await appelPrep({ action: 'convFil', id: id, avant: plusVieux.rang });
+      if(!filOuvertEC || !filOuvertEC.conv || filOuvertEC.conv.id !== id) return;
+      filOuvertEC.messages = (d.messages || []).concat(filOuvertEC.messages || []);
+      filOuvertEC.encore = !!d.encore;
+      charge = true;
+    }
+  }catch(e){
+    if(typeof showToast === 'function') showToast('Lecture impossible : ' + ((e && e.message) || e));
+  }
+  if(charge) dessinerLeFil();
+  /* Après le défilement vers le bas que pose « dessinerLeFil ». */
+  setTimeout(() => {
+    const el2 = bulleDuFilEC(c);
+    if(el2) eclairerLaBulleEC(el2);
+    else if(typeof showToast === 'function') showToast('Ce message n’est plus dans la conversation.');
+  }, 0);
+}
+
+/* Le glissement vers la droite. Rend trois prises pour l'appui long. */
+const SEUIL_GLISSER_EC = 60;
+function glissementPourRepondreEC(bulle, m, annulerAppui){
+  let g = null;    /* { x, y, id, actif, dx, ico } */
+  const ligne = () => bulle.parentNode;
+  const remettre = () => {
+    if(!g) return;
+    bulle.style.transition = 'transform .18s ease';
+    bulle.style.transform = '';
+    if(g.ico && g.ico.parentNode) g.ico.parentNode.removeChild(g.ico);
+    bulle.classList.remove('glisseB');
+    const l = ligne();
+    if(l) l.classList.remove('glisse');
+    setTimeout(() => { bulle.style.transition = ''; }, 200);
+    g = null;
+  };
+  return {
+    debut(ev){
+      g = null;
+      if(ev.pointerType === 'mouse') return;
+      if(!m || !m.id || Number(m.supprime || 0)) return;
+      if(!filOuvertEC || !filOuvertEC.peutEcrire) return;
+      g = { x: ev.clientX, y: ev.clientY, id: ev.pointerId, actif: false, dx: 0, ico: null };
+    },
+    bouge(ev){
+      if(!g || ev.pointerId !== g.id) return;
+      const dx = ev.clientX - g.x, dy = ev.clientY - g.y;
+      if(!g.actif){
+        /* Un geste surtout vertical, c'est un défilement : on lâche. */
+        if(Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)){ g = null; return; }
+        if(dx < 12 || dx < Math.abs(dy) * 1.5) return;
+        g.actif = true;
+        annulerAppui();
+        try{ bulle.setPointerCapture(g.id); }catch(e){}
+        const l = ligne();
+        if(l) l.classList.add('glisse');
+        /* ⚠️ L'ICÔNE VOYAGE AVEC LA BULLE, à sa gauche : elle se
+           découvre dans la place que la bulle libère, au lieu de se
+           poser sur le rond de l'auteur. */
+        bulle.classList.add('glisseB');
+        g.ico = document.createElement('span');
+        g.ico.className = 'msgGlisseIco';
+        g.ico.textContent = '↩️';
+        bulle.appendChild(g.ico);
+      }
+      g.dx = Math.max(0, Math.min(dx, 90));
+      bulle.style.transition = 'none';
+      bulle.style.transform = 'translateX(' + g.dx + 'px)';
+      if(g.ico){
+        const p = Math.min(1, g.dx / SEUIL_GLISSER_EC);
+        g.ico.style.opacity = String(p);
+        g.ico.classList.toggle('pret', g.dx >= SEUIL_GLISSER_EC);
+      }
+      ev.preventDefault();
+    },
+    fin(ev){
+      if(!g) return;
+      if(ev && g.id !== ev.pointerId) return;
+      const fait = g.actif && g.dx >= SEUIL_GLISSER_EC && ev && ev.type === 'pointerup';
+      const actif = g.actif;
+      remettre();
+      if(actif){
+        /* Le clic qui suit le doigt levé ne doit rien ouvrir. */
+        const bloquer = e => { e.stopPropagation(); e.preventDefault(); };
+        bulle.addEventListener('click', bloquer, { capture: true, once: true });
+        setTimeout(() => bulle.removeEventListener('click', bloquer, { capture: true }), 350);
+      }
+      if(fait){
+        if(navigator.vibrate) try{ navigator.vibrate(12); }catch(e){}
+        repondreAuMessageEC(m);
+      }
+    },
+    oublier(){ g = null; }
+  };
 }
 
 /* ------------------------------------------------------------
@@ -5938,7 +6314,8 @@ async function envoyerUnFichierDansLeFilEC(fichier){
     const champ = $('msgElvTexte');
     const texte = champ ? champ.value.trim() : '';
     await appelPrep({ action: 'convFichier', id: id, fichier: data,
-                      nom: fichier.name || '', texte: texte });
+                      nom: fichier.name || '', texte: texte, reponseA: reponseAPourEC(id) });
+    oublierLaReponseEC(id);
     if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
     await rafraichirLeFil();
   }catch(e){
@@ -6093,7 +6470,9 @@ async function envoyerLePouce(){
   const b = $('msgElvEnvoyer');
   if(b) b.disabled = true;
   try{
-    await appelPrep({ action: 'convEcrire', id: filOuvertEC.conv.id, texte: '👍' });
+    const filP = filOuvertEC.conv.id;
+    await appelPrep({ action: 'convEcrire', id: filP, texte: '👍', reponseA: reponseAPourEC(filP) });
+    oublierLaReponseEC(filP);
     await rafraichirLeFil();
   }catch(e){
     if(typeof showToast === 'function'){
