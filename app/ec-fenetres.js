@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 12:39 — v1175 */
+/* Déployé le 15/10/2026 à 15:23 — v1183 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1387,7 +1387,14 @@ const MODULES_ELEVE = [
      17 septembre : un accès qui s'ouvrirait tout seul arriverait
      chez deux cents élèves d'un coup. */
   { cle:'messages',          nom:'💬 Écrire à l\'école (le bureau)' },
-  { cle:'messages_moniteur', nom:'💬 … et à son moniteur' }
+  { cle:'messages_moniteur', nom:'💬 … et à son moniteur' },
+  /* 📞 LES APPELS — v1183. David, le 15 octobre : « un interrupteur
+     par élève pour appel vocal et un interrupteur vidéo ». Fermés par
+     défaut, comme tout cet onglet. Ils ne servent qu'à APPELER : on
+     peut toujours l'appeler, lui, et il répond sans case cochée.
+     La vidéo ne s'ouvre qu'avec le vocal (la case suit). */
+  { cle:'appel_vocal',       nom:'📞 Peut appeler en vocal (le bureau, son moniteur)' },
+  { cle:'appel_video',       nom:'🎥 … et en vidéo' }
 ];
 
 /* ============================================================
@@ -1817,6 +1824,12 @@ async function afficherEspaceEleve(nom, zone){
     const pourTous = (m.cle === 'messages');
     if(pourTous){ cb.checked = true; cb.disabled = true; }
     cb.addEventListener('change', async () => {
+      /* 📞 v1183 — la vidéo emporte le vocal, et l'inverse */
+      const caseDe = (cle) => zm.querySelector('[data-module="' + cle + '"]');
+      const avant = {};
+      ['appel_vocal', 'appel_video'].forEach(k => { const x = caseDe(k); if(x) avant[k] = x.checked; });
+      if(m.cle === 'appel_video' && cb.checked && caseDe('appel_vocal')) caseDe('appel_vocal').checked = true;
+      if(m.cle === 'appel_vocal' && !cb.checked && caseDe('appel_video')) caseDe('appel_video').checked = false;
       const liste = MODULES_ELEVE
         .filter(x => {
           const c2 = zm.querySelector('[data-module="' + x.cle + '"]');
@@ -1831,6 +1844,7 @@ async function afficherEspaceEleve(nom, zone){
       }catch(e){
         showToast('Impossible : ' + e.message);
         cb.checked = !cb.checked;
+        Object.keys(avant).forEach(k => { if(k !== m.cle && caseDe(k)) caseDe(k).checked = avant[k]; });
       }
     });
     l.appendChild(cb);
