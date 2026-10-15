@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 15/10/2026 à 15:23 — v1183 */
 /* ============================================================
    ec-journal.js
    Journal d'activité — réservé aux administrateurs.
@@ -156,6 +156,7 @@ const FAMILLES_JOURNAL = [
   ['cours',        '📅 Cours'],
   ['mails',        '✉️ Mails'],
   ['sms',          '📱 SMS'],
+  ['appels',       '📞 Appels'],
   ['autres',       '• Autres'],
   ['suppressions', '✕ Suppressions']
 ];
@@ -207,7 +208,7 @@ async function relireLeJournal(forcer){
   }
   etatJournal.lu = Date.now();
   const sig = JSON.stringify([(data.lignes || []).length, (data.lignes || [])[0] && data.lignes[0].id,
-                              data.enLigne, qui, eleve, jours, etatJournal.famille, etatJournal.jour]);
+                              data.enLigne, data.appels, qui, eleve, jours, etatJournal.famille, etatJournal.jour]);
   if(!forcer && sig === etatJournal.signature) return;
   etatJournal.signature = sig;
   etatJournal.data = data;
@@ -219,6 +220,58 @@ function majHorlogeDuJournal(){
   if(!h || !etatJournal.lu) return;
   const s = Math.max(0, Math.round((Date.now() - etatJournal.lu) / 1000));
   h.textContent = 'mis à jour il y a ' + (s < 60 ? s + ' s' : Math.floor(s / 60) + ' min');
+}
+
+/* 📞 v1183 — LE CRÉDIT CLOUDFLARE DES APPELS
+
+   David, le 15 octobre : « Oui et le crédit restant de cloudflare »,
+   puis « Solution 1 » : l'appli compte elle-même. Chaque appareil dit
+   en raccrochant combien il a reçu ; c'est une estimation proche de
+   la facture de Cloudflare (1 000 Go offerts par mois, puis 0,05 $
+   le Go). S'il voit trop d'écart, on passera par leur API. */
+const GO_PAR_HEURE_APPEL = 2.5;   /* à trois en vidéo, estimation */
+function dessinerCreditDesAppels(cr){
+  const z = $('journalEnLigne');
+  if(!z || !z.parentNode) return;
+  let b = document.getElementById('journalCredit');
+  if(!cr){ if(b) b.remove(); return; }
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'journalCredit';
+    b.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;';
+    z.parentNode.insertBefore(b, z);
+  }
+  const offerts = Number(cr.offertsGo || 1000);
+  const go = Number(cr.octets || 0) / 1e9;
+  const reste = Math.max(0, offerts - go);
+  const pc = Math.min(100, Math.max(go > 0 ? 1 : 0, go / offerts * 100));
+  const fr = n => n.toLocaleString('fr-FR', { maximumFractionDigits: n < 10 ? 1 : 0 });
+  let mois = '';
+  try{
+    const [a, m] = String(cr.mois || '').split('-').map(Number);
+    mois = new Date(a, m - 1, 15).toLocaleDateString('fr-FR', { month: 'long' });
+  }catch(e){ mois = ''; }
+  const sec = Number(cr.secondes || 0);
+  const duree = sec >= 3600 ? Math.floor(sec / 3600) + ' h ' + String(Math.round((sec % 3600) / 60)).padStart(2, '0')
+                            : Math.round(sec / 60) + ' min';
+  const n = Number(cr.appels || 0);
+  const icone = (typeof AppelEC !== 'undefined') ? AppelEC.ic('tel', 16) : '📞';
+  b.innerHTML =
+    '<div style="font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px;">' +
+      '<i style="display:inline-flex;color:var(--accent-text);font-style:normal;">' + icone + '</i>' +
+      'Appels' + (mois ? ' · ' + echapper(mois) : '') + ' — crédit Cloudflare</div>' +
+    '<div style="height:10px;border-radius:999px;background:var(--line);overflow:hidden;">' +
+      '<div style="width:' + pc.toFixed(1) + '%;height:100%;background:' + (pc > 85 ? 'var(--red)' : 'var(--orange)') + ';"></div></div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;line-height:1.9;margin-top:4px;">' +
+      '<span><b>' + fr(go) + ' Go</b> utilisés</span><span>·</span>' +
+      '<span><b>' + fr(reste) + ' Go</b> restants sur ' + offerts.toLocaleString('fr-FR') + ' offerts</span>' +
+      '<span style="color:var(--muted);margin-left:auto;">≈ ' + Math.floor(reste / GO_PAR_HEURE_APPEL).toLocaleString('fr-FR') +
+        ' h d’appel à 3 en vidéo · ' + n + ' appel' + (n > 1 ? 's' : '') + ' ce mois' + (sec ? ', ' + duree : '') + '</span></div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      (Number(cr.branche || 0)
+        ? 'Au-delà des ' + offerts.toLocaleString('fr-FR') + ' Go : 0,05 $ le Go. Le compteur repart à zéro le 1ᵉʳ du mois. Compté par l’appli (estimation).'
+        : '⚠️ Les appels ne sont pas encore branchés : il manque REALTIME_SFU_APP_ID et REALTIME_SFU_BEARER_TOKEN dans les variables du Worker.') +
+    '</div>';
 }
 
 /* 🟢 Qui est là, et sur quel écran */
@@ -258,6 +311,7 @@ function dessinerLeJournal(){
   const zone = $('journalListe');
   const data = etatJournal.data;
   if(!zone || !data) return;
+  dessinerCreditDesAppels(data.appels);
   dessinerEnLigne(data.enLigne);
   zone.innerHTML = '';
 
