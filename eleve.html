@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 15/10/2026 à 11:29 — v1180 -->
+<!-- Déployé le 15/10/2026 à 15:23 — v1183 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1212,6 +1212,13 @@
   .ckCarte .row button + button{ background:transparent; color:var(--kt); border-color:var(--kl); }
   .ckCarte .fait{ margin-top:8px; font-weight:800; color:var(--kd); }
   .ckCarte .fait.oui{ color:var(--knt); }
+  /* 📞 v1183 — les appels : boutons d'en-tête, cartes, trace */
+  .ckTop .rond.apBtEl{ color:var(--accent-text); }
+  .ckCarte .lab.apLab{ display:flex; align-items:center; gap:6px; }
+  .ckCarte .row button.apBt{ display:flex; align-items:center; justify-content:center; gap:6px; }
+  .ckCarte .row button[disabled]{ opacity:.55; cursor:default; }
+  .bulle.systeme.apTrace .aplIc{ display:inline-block; vertical-align:-2px; margin-right:5px; }
+  .ckCarte .apNote{ font-size:11.5px; color:var(--kd); margin-top:6px; text-align:center; }
   .ckp .zoneEcrire{ border-color:var(--kl); background:var(--kp1); border-radius:20px; }
   .ckp .zoneEcrire button.btn{ background:var(--kn); color:var(--ksurN); box-shadow:0 0 16px var(--kglow); }
   .ckRegle{ text-align:center; font-size:13px; color:var(--kd); padding:10px 0 4px; }
@@ -1641,6 +1648,8 @@
 
 </div>
 
+<!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
+<script src="appel-commun.js?v=1183"></script>
 <script>
 (function(){
   'use strict';
@@ -4107,6 +4116,7 @@
            fil, sans passer par la liste. */
         allerAOnglet('messages');
         ouvrirFilEleve(demande);
+        if(appelDeLAdresseEl) chercherLesSonneriesEl();
       }
     }
   }
@@ -4140,6 +4150,7 @@
         dessinerMesObjetsEl();
         dessinerConversationsEleve();
         dessinerLesOnglets();
+        verifierLesSonneriesEl((d && d.appelsSonnent) || []);   /* 📞 v1183 */
       })
       .catch(function(e){
         if(z) z.innerHTML = '<div class="message erreur">' +
@@ -4390,7 +4401,9 @@
           : '<div class="av" style="font-size:17px;">' + rondDuFilEl(c) + '</div>';
       })() +
       '<div class="tt"><div class="t">' + echapper(c.qui || 'Conversation') + '</div>' +
-      '<div class="s">' + sous + '</div></div></div>';
+      '<div class="s">' + sous + '</div></div>' +
+      /* 📞 v1183 — 📞 et 🎥, seulement si le bureau les lui a ouverts */
+      boutonsAppelEl(c) + '</div>';
   }
 
   function brancherRetour(){
@@ -4499,6 +4512,8 @@
           '.<br>Tant que tu n\'as rien envoyé, rien n\'est parti.'
         : 'Rien encore. Écris ton message en dessous.') + '</div>';
     }
+    /* 📞 v1183 — l'appel en cours dans ce fil : « Répondre » ou « Rejoindre » */
+    h += carteAppelEl();
     h += '</div>';
 
     if(filEl.peutEcrire){
@@ -4613,6 +4628,7 @@
     brancherLesCreneauxEl();
     brancherLesReactionsEl();
     brancherLesReponsesEl();       /* ↩️ v1180 */
+    brancherLesAppelsEl();         /* 📞 v1183 */
     brancherLesPhotosEl();
     brancherLesVocauxEl();
     var p = $('btPlusVieux');
@@ -4623,6 +4639,14 @@
   }
 
   function bulleEleve(m){
+    /* 📞 v1183 — la trace d'un appel, avec l'icône dessinée */
+    if(m.de === 'systeme' && m.motif === 'appel' && appelsPossiblesEl()){
+      var dA = m.donnees || {};
+      return '<div class="bulle systeme apTrace" data-rang="' + Number(m.rang || 0) + '">' +
+        AppelEC.ic(dA.genre === 'vocal' ? 'tel' : 'camera', 14) + '<span>' +
+        echapper(String(m.texte || '').replace(/^(📞|🎥)\s*/, '')) +
+        (m.envoyeLe ? ' · ' + echapper(String(m.envoyeLe).slice(11)) : '') + '</span></div>';
+    }
     if(m.de === 'systeme'){
       /* « — conversation fermée » est écrit pour le bureau ; l'élève
          lit « ✓ Réglé par David », et la ligne du bas dit le reste. */
@@ -4726,6 +4750,9 @@
     var d = m.donnees || {};
     var rep = reponseAuCreneauEl(m);
     var ouvert = !rep && filEl && filEl.peutEcrire;
+    /* 📞 v1183 — un appel prévu : le même créneau, son étiquette, et
+       « Rejoindre » qui s'allume quand l'équipe lance l'appel */
+    if(d.appel) return carteAppelPrevuEl(m, d, rep, ouvert);
     return '<div class="ckCarte" data-carte="' + echapper(m.id || '') + '">' +
       '<div class="lab">NOUVEAU CRÉNEAU</div>' +
       '<div class="v">' + echapper(d.libelle || String(m.texte || '').replace(/^📅 Créneau proposé : /, '')) + '</div>' +
@@ -4757,6 +4784,215 @@
           });
       });
     });
+  }
+
+  /* ============================================================
+     📞 LES APPELS — v1183
+
+     David, le 15 octobre : des appels vocaux et vidéo pour les
+     corrections post-permis. Côté élève :
+     · il RÉPOND quand on l'appelle (notification, écran qui sonne,
+       carte « … t'appelle » dans son fil) ;
+     · il n'APPELLE que si le bureau le lui a ouvert, dans sa fiche
+       (« Peut appeler en vocal », « … et en vidéo ») : 📞 et 🎥
+       apparaissent alors dans l'en-tête de ses fils ;
+     · la trace reste dans le fil (durée, qui), rien n'est enregistré.
+
+     L'écran d'appel, la sonnerie et WebRTC sont dans
+     appel-commun.js, le même fichier que l'application.
+     ⚠️ Le Worker revérifie tout : un élève sans la case « vocal »
+     ne lance pas d'appel, même en fabriquant la demande.
+     ============================================================ */
+  var sonneriesRefuseesEl = {};
+  var appelDeLAdresseEl = '';
+
+  function appelsPossiblesEl(){
+    return typeof window.AppelEC !== 'undefined' && !!window.RTCPeerConnection;
+  }
+
+  function boutonsAppelEl(c){
+    var o = filEl && filEl.appelsOuverts;
+    if(!o || !Number(o.vocal || 0) || !appelsPossiblesEl()) return '';
+    if(!c || !c.id || Number(c.fermee || 0) || c.mode === 'annonce' || !filEl.peutEcrire) return '';
+    var b = function(id, ic, lab){
+      return '<button type="button" class="rond apBtEl" id="' + id + '" aria-label="' + lab + '" title="' + lab + '">' +
+        AppelEC.ic(ic, 20) + '</button>';
+    };
+    return b('btAppelVocalEl', 'tel', 'Appel vocal') +
+           (Number(o.video || 0) ? b('btAppelVideoEl', 'camera', 'Appel vidéo') : '');
+  }
+
+  function titreAppelEl(){
+    return (filEl && filEl.conv && filEl.conv.qui) || 'Évolution Conduites';
+  }
+
+  function ouvrirAppelEl(appelId, billet, genre, titre, sansCamera){
+    if(!appelsPossiblesEl()) return;
+    window.AppelEC.ouvrir({
+      route: RELAIS + '/appel', billet: billet, appel: appelId, genre: genre,
+      titre: titre || titreAppelEl(), eleve: true, sansCamera: !!sansCamera,
+      surFin: function(){
+        setTimeout(function(){ if(filEl) rafraichirLeFilEleve(true); }, 1200);
+      }
+    });
+    if(filEl) setTimeout(function(){ if(filEl) dessinerFilEleve(); }, 50);
+  }
+
+  function lancerAppelEl(genre, bouton){
+    if(!filEl || !filEl.conv || !filEl.conv.id) return;
+    if(bouton) bouton.disabled = true;
+    var titre = titreAppelEl();
+    appeler({ action: 'eleveAppelLancer', eleve: moi.nom, code: moi.code,
+              id: filEl.conv.id, genre: genre })
+      .then(function(r){
+        if(bouton) bouton.disabled = false;
+        ouvrirAppelEl(r.appel, r.billet, genre, titre);
+      })
+      .catch(function(e){
+        if(bouton) bouton.disabled = false;
+        dire('msgFil', (e && e.message) || "L'appel n'a pas pu partir.", 'erreur');
+      });
+  }
+
+  function rejoindreAppelEl(appelId, genre, titre, sansCamera){
+    appeler({ action: 'eleveAppelBillet', eleve: moi.nom, code: moi.code, appel: appelId })
+      .then(function(r){ ouvrirAppelEl(r.appel, r.billet, r.genre || genre, titre, sansCamera); })
+      .catch(function(e){
+        dire('msgFil', (e && e.message) || "Impossible de rejoindre l'appel.", 'erreur');
+        if(filEl) rafraichirLeFilEleve(true);
+      });
+  }
+
+  function refuserAppelEl(appelId){
+    sonneriesRefuseesEl[appelId] = true;
+    try{ window.AppelEC.fermerSonnerie(); }catch(e){}
+    return appeler({ action: 'eleveAppelRefuser', eleve: moi.nom, code: moi.code, appel: appelId })
+      .catch(function(){});
+  }
+
+  /* Ce qui, dans l'appel du fil, doit redessiner la carte */
+  function empreinteAppelEl(f){
+    var a = f && f.appel;
+    var o = (f && f.appelsOuverts) || {};
+    return (a ? [a.id, a.fini ? 1 : 0, a.decroche ? 1 : 0,
+                 (a.gens || []).map(function(x){ return x.cle + ':' + x.etat; }).join(',')].join('|') : '') +
+           '#' + Number(o.vocal || 0) + Number(o.video || 0);
+  }
+
+  /* La carte de l'appel en cours, au bas du fil */
+  function carteAppelEl(){
+    var a = filEl && filEl.appel;
+    if(!a || a.fini || !appelsPossiblesEl()) return '';
+    var video = a.genre !== 'vocal';
+    var ic = video ? 'camera' : 'tel';
+    var gens = a.gens || [];
+    var moiA = gens.filter(function(x){ return x.moi; })[0] || null;
+    /* la boîte du bureau se dit « le bureau », pas la liste de ses membres */
+    var autres = gens.filter(function(x){ return !x.moi && !x.bureau && x.qui !== a.par && x.etat !== 'refuse'; })
+                     .map(function(x){ return x.qui; });
+    if(gens.some(function(x){ return x.bureau && x.etat === 'invite'; }) &&
+       !gens.some(function(x){ return x.bureau && x.etat === 'dedans'; })) autres.push('le bureau');
+    var dedans = gens.filter(function(x){ return x.etat === 'dedans'; }).map(function(x){ return x.qui; });
+    var enCours = window.AppelEC.enCours && window.AppelEC.enCours();
+    var h = '<div class="ckCarte" id="apCarteEl" data-appel="' + echapper(a.id) + '" data-genre="' + (video ? 'video' : 'vocal') + '">';
+    if(enCours && enCours.appel === a.id){
+      h += '<div class="lab apLab">' + window.AppelEC.ic(ic, 14) + (video ? 'APPEL VIDÉO EN COURS' : 'APPEL VOCAL EN COURS') + '</div>' +
+           '<div class="v">' + echapper(dedans.join(', ') || a.par) + '</div>' +
+           '<div class="row"><button type="button" class="apBt" data-ap="revenir">' +
+             window.AppelEC.ic('agrandir', 16) + 'Revenir à l’appel</button></div>';
+    }else if(moiA && moiA.etat === 'invite' && !a.decroche && a.parCle !== moiA.cle && !sonneriesRefuseesEl[a.id]){
+      var depuis = Math.max(1, Math.round((Date.now() - Number(a.debut || Date.now())) / 1000));
+      h += '<div class="lab apLab">' + window.AppelEC.ic(ic, 14) + echapper(String(a.par || 'On').toUpperCase()) + ' T’APPELLE</div>' +
+           '<div class="v">' + (video ? 'Appel vidéo' : 'Appel vocal') +
+             (autres.length ? ' · avec ' + echapper(autres.join(', ')) : '') + '</div>' +
+           '<div class="avec">ça sonne depuis ' + (depuis < 60 ? depuis + ' s' : Math.round(depuis / 60) + ' min') + '</div>' +
+           '<div class="row"><button type="button" class="apBt" data-ap="oui">' + window.AppelEC.ic(ic, 18) + 'Répondre</button>' +
+           '<button type="button" data-ap="non">Refuser</button></div>';
+    }else{
+      var min = a.decroche ? Math.max(1, Math.round((Date.now() - Number(a.decroche)) / 60000)) : 0;
+      h += '<div class="lab apLab">' + window.AppelEC.ic(ic, 14) + (video ? 'APPEL VIDÉO EN COURS' : 'APPEL VOCAL EN COURS') + '</div>' +
+           '<div class="v">' + echapper(dedans.length ? dedans.join(', ') : 'Lancé par ' + a.par) + '</div>' +
+           '<div class="avec">' + (min ? 'depuis ' + min + ' min' : 'ça sonne') + '</div>' +
+           '<div class="row"><button type="button" class="apBt" data-ap="oui">' + window.AppelEC.ic(ic, 18) + 'Rejoindre</button>' +
+           (video ? '<button type="button" class="apBt" data-ap="sansCam">' + window.AppelEC.ic('tel', 16) + 'Sans caméra</button>' : '') +
+           '</div>';
+    }
+    return h + '</div>';
+  }
+
+  /* L'appel prévu : la carte du créneau, à l'étiquette d'un appel */
+  function carteAppelPrevuEl(m, d, rep, ouvert){
+    var video = d.appel !== 'vocal';
+    var ic = video ? 'camera' : 'tel';
+    var ico = appelsPossiblesEl() ? window.AppelEC.ic(ic, 14) : '';
+    var a = filEl && filEl.appel;
+    var actif = !!(a && !a.fini && appelsPossiblesEl());
+    var libelle = d.libelle || String(m.texte || '').replace(/^📅 Appel (vidéo|vocal) prévu : /, '');
+    return '<div class="ckCarte" data-carte="' + echapper(m.id || '') + '">' +
+      '<div class="lab apLab">' + ico + (video ? 'APPEL VIDÉO PRÉVU' : 'APPEL VOCAL PRÉVU') + '</div>' +
+      '<div class="v">' + echapper(libelle) + '</div>' +
+      (d.avec ? '<div class="avec">' + echapper('avec ' + d.avec) + '</div>' : '') +
+      (ouvert
+        ? '<div class="row"><button type="button" data-cren="1">✓ Ça me va</button>' +
+          '<button type="button" data-cren="0">Autre heure</button></div>'
+        : (rep === 'non' ? '<div class="fait">↺ Tu as demandé une autre heure</div>' : '')) +
+      (rep !== 'non'
+        ? '<div class="row"><button type="button" class="apBt"' +
+            (actif ? ' data-ap="oui" data-appel-prevu="' + echapper(a.id) + '"' : ' disabled') + '>' +
+            (appelsPossiblesEl() ? window.AppelEC.ic(ic, 18) : '') + 'Rejoindre</button></div>' +
+          (actif ? '' : '<div class="apNote">Le bouton s’allume quand l’appel commence.</div>')
+        : '') +
+      '</div>';
+  }
+
+  function brancherLesAppelsEl(){
+    var z = $('zoneEcrireEcole');
+    if(!z) return;
+    var bv = $('btAppelVocalEl');
+    if(bv) bv.addEventListener('click', function(){ lancerAppelEl('vocal', bv); });
+    var bw = $('btAppelVideoEl');
+    if(bw) bw.addEventListener('click', function(){ lancerAppelEl('video', bw); });
+    Array.prototype.forEach.call(z.querySelectorAll('[data-ap]'), function(b){
+      b.addEventListener('click', function(){
+        var a = filEl && filEl.appel;
+        if(!a) return;
+        var quoi = b.getAttribute('data-ap');
+        if(quoi === 'revenir'){ window.AppelEC.revenir(); return; }
+        if(quoi === 'non'){
+          refuserAppelEl(a.id).then(function(){ if(filEl) dessinerFilEleve(); });
+          return;
+        }
+        sonneriesRefuseesEl[a.id] = true;
+        try{ window.AppelEC.fermerSonnerie(); }catch(e){}
+        rejoindreAppelEl(a.id, a.genre, titreAppelEl(), quoi === 'sansCam');
+      });
+    });
+  }
+
+  /* Ça sonne pour lui, hors du fil (liste, notification) */
+  function verifierLesSonneriesEl(liste){
+    if(!appelsPossiblesEl()) return;
+    if(window.AppelEC.enCours && window.AppelEC.enCours()) return;
+    var a = (liste || []).filter(function(x){ return !sonneriesRefuseesEl[x.id]; })[0];
+    if(!a) return;
+    window.AppelEC.sonner({
+      id: a.id, par: a.par, genre: a.genre, avec: a.avec || [], fil: '',
+      surRepondre: function(){
+        sonneriesRefuseesEl[a.id] = true;
+        try{
+          if(!filEl || !filEl.conv || filEl.conv.id !== a.conv){ allerAOnglet('messages'); ouvrirFilEleve(a.conv); }
+        }catch(e){}
+        rejoindreAppelEl(a.id, a.genre, a.par);
+      },
+      surRefuser: function(){ refuserAppelEl(a.id); }
+    });
+  }
+
+  function chercherLesSonneriesEl(){
+    if(!moi || !moi.code) return;
+    appeler({ action: 'eleveAppelsSonnent', eleve: moi.nom, code: moi.code })
+      .then(function(d){ verifierLesSonneriesEl((d && d.appels) || []); })
+      .catch(function(){});
   }
 
   /* ============================================================
@@ -7108,8 +7344,11 @@
     if(!poussPossibleEl() || !navigator.serviceWorker) return;
     navigator.serviceWorker.addEventListener('message', function(ev){
       var d = ev && ev.data;
+      /* 📞 v1183 — un appel qui sonne pendant que la page est ouverte */
+      if(d && d.quoi === 'appel'){ chercherLesSonneriesEl(); return; }
       if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
       try{ allerAOnglet('messages'); ouvrirFilEleve(d.fil); }catch(e){}
+      if(d.appel) chercherLesSonneriesEl();
     });
   }
 
@@ -7121,7 +7360,10 @@
       var u = new URL(window.location.href);
       var fil = u.searchParams.get('fil');
       if(!fil) return '';
+      /* 📞 v1183 — la notification d'un appel : l'écran qui sonne */
+      appelDeLAdresseEl = u.searchParams.get('appel') || '';
       u.searchParams.delete('fil');
+      u.searchParams.delete('appel');
       window.history.replaceState(null, '', u.pathname + u.search + u.hash);
       return fil;
     }catch(e){ return ''; }
@@ -7257,6 +7499,7 @@
     var avant = (filEl.messages || []).length;
     var dernier = avant ? filEl.messages[avant - 1].rang : 0;
     var empreinteAvant = empreinteReacEl(filEl);
+    var appelAvant = empreinteAppelEl(filEl);     /* 📞 v1183 */
 
     return appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
       .then(function(d){
@@ -7296,6 +7539,7 @@
            passe de « envoyé » à « lu par le bureau ». */
         if(liste.length !== avant || neuf !== dernier ||
            empreinteReacEl(d) !== empreinteAvant ||
+           empreinteAppelEl(d) !== appelAvant ||
            Number((d && d.luEcole) || 0) !== Number((filEl && filEl.luEcole) || 0)){
           filEl = d;
           noterLeResteVocaux(d);
