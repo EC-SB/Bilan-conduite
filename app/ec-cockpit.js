@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 11:29 — v1180 */
+/* Déployé le 15/10/2026 à 15:23 — v1183 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -538,13 +538,19 @@ function ckEnteteDuFil(f, large){
   const clos = Number(c.fermee || 0);
   const rond = large ? '' : 'rond';
 
+  /* 📞 v1183 — appeler, devant 📌 */
+  const bApp = (typeof boutonAppelDuFilEC === 'function') ? boutonAppelDuFilEC(f) : null;
+  if(bApp) b.appendChild(bApp);
   if(f.estMembre){
     b.appendChild(ckBouton('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste',
       () => ckMarquer(c.id, 'epingle'), rond + (Number(c.epingle || 0) ? ' on' : '')));
     const rap = ckRappelActif(Object.assign({}, c, { nonLus: 0 }));
-    b.appendChild(ckBouton(large ? (rap ? '⏰ Demain 9h' : '⏰ Demain') : '⏰',
+    /* 📞 v1183 — David : « ⏰ Demain » devient « ⏰ » quand le bouton
+       d'appel est là, sinon le nom de l'élève ne tient plus. */
+    const court = !large || !!bApp;
+    b.appendChild(ckBouton(!court ? (rap ? '⏰ Demain 9h' : '⏰ Demain') : '⏰',
       rap ? 'Retirer le rappel' : 'Me la rappeler demain 9h',
-      () => ckMarquer(c.id, 'rappel'), rond + (rap ? ' on' : '')));
+      () => ckMarquer(c.id, 'rappel'), (court ? 'rond' : '') + (rap ? ' on' : '')));
   }
   if(large && c.eleve && f.peutEcrire && c.genre !== 'groupe'){
     b.appendChild(ckBouton('📅 Décaler', 'Proposer un autre créneau à l’élève', () => {
@@ -913,13 +919,16 @@ function ckCarteCreneau(m){
   c.setAttribute('data-msg', m.id || '');
   const lab = document.createElement('div');
   lab.className = 'lab';
-  lab.textContent = 'CRÉNEAU PROPOSÉ';
+  /* 📞 v1183 — un appel prévu */
+  lab.textContent = d.appel === 'video' ? 'APPEL VIDÉO PRÉVU' : d.appel === 'vocal' ? 'APPEL VOCAL PRÉVU' : 'CRÉNEAU PROPOSÉ';
   const v = document.createElement('div');
   v.className = 'v';
-  v.textContent = d.libelle || String(m.texte || '').replace(/^📅 Créneau proposé : /, '');
+  v.textContent = d.libelle || String(m.texte || '').replace(/^📅 (Créneau proposé|Appel vidéo prévu|Appel vocal prévu) : /, '');
   const e = document.createElement('div');
   e.className = 'e';
-  e.textContent = [d.avec, d.lieu].filter(Boolean).join(' · ') +
+  e.textContent = d.appel
+    ? (d.avec ? 'avec ' + d.avec + ' · ' : '') + 'lance l’appel depuis ce fil à l’heure dite'
+    : [d.avec, d.lieu].filter(Boolean).join(' · ') +
     ((d.avec || d.lieu) ? ' · ' : '') +
     (etat === 'propose' ? '⏳ en attente de la réponse' : etat === 'accepte' ? '✅ accepté' : '↺ refusé');
   c.appendChild(lab); c.appendChild(v); c.appendChild(e);
@@ -946,13 +955,25 @@ function ckFormCreneau(f){
       if(prep && prep.moniteur) avec = prep.moniteur;
       if(prep && prep.site) lieu = prep.site;
     }catch(e){}
-    ckCreneauBrouillon = { conv: c.id, jour: ckDemainIso(), heure: '09:00', avec: avec, lieu: lieu };
+    ckCreneauBrouillon = { conv: c.id, jour: ckDemainIso(), heure: '09:00', avec: avec, lieu: lieu,
+      /* 📞 v1183 — « 📅 Plus tard » du panneau d'appel */
+      appel: (typeof appelPrevuEC !== 'undefined' && appelPrevuEC === c.id) ? 'video' : '' };
   }
   const br = ckCreneauBrouillon;
   const z = document.createElement('div');
   z.className = 'ckCren';
-  z.innerHTML =
-    '<div class="lab">📅 PROPOSER UN CRÉNEAU À ' + echapper(ckPrenom(c.eleve).toUpperCase()) + '</div>' +
+  z.innerHTML = br.appel
+    ? '<div class="lab">📅 PROPOSER UN APPEL À ' + echapper(ckPrenom(c.eleve).toUpperCase()) + '</div>' +
+      '<div class="ligne">' +
+        '<label>Jour<input type="date" class="ckCrJour"></label>' +
+        '<label>Heure<input type="time" step="900" class="ckCrHeure"></label>' +
+        '<label>Avec<select class="ckCrAvec"></select></label>' +
+        '<label>Appel<select class="ckCrAppel"><option value="video">vidéo</option><option value="vocal">vocal</option></select></label>' +
+        '<input type="hidden" class="ckCrLieu">' +
+      '</div>' +
+      '<div class="ckNote">L’élève reçoit une carte « Appel prévu ». À l’heure dite, lance l’appel depuis ce fil : ' +
+        'ça sonne chez lui, et son bouton « Rejoindre » s’allume.</div>'
+    : '<div class="lab">📅 PROPOSER UN CRÉNEAU À ' + echapper(ckPrenom(c.eleve).toUpperCase()) + '</div>' +
     '<div class="ligne">' +
       '<label>Jour<input type="date" class="ckCrJour"></label>' +
       '<label>Heure<input type="time" step="900" class="ckCrHeure"></label>' +
@@ -961,6 +982,11 @@ function ckFormCreneau(f){
     '</div>' +
     '<div class="ckNote">L’élève reçoit une carte « ✓ Ça me va / Autre ». Son accord s’écrit ici : ' +
       'c’est toi qui reportes le cours dans le planning.</div>';
+  const choixAppel = z.querySelector('.ckCrAppel');
+  if(choixAppel){
+    choixAppel.value = br.appel;
+    choixAppel.addEventListener('change', () => { br.appel = choixAppel.value; });
+  }
   const j = z.querySelector('.ckCrJour'); j.value = br.jour;
   const h = z.querySelector('.ckCrHeure'); h.value = br.heure;
   const a = z.querySelector('.ckCrAvec');
@@ -975,15 +1001,20 @@ function ckFormCreneau(f){
   const acts = document.createElement('div');
   acts.className = 'acts';
   acts.appendChild(ckBouton('📨 Proposer à ' + ckPrenom(c.eleve), 'Envoyer la carte', async () => {
-    await appelPrep({ action: 'convCreneau', id: c.id, jour: br.jour, heure: br.heure,
-                      avec: br.avec, lieu: br.lieu });
+    await appelPrep(Object.assign({ action: 'convCreneau', id: c.id, jour: br.jour, heure: br.heure,
+                      avec: br.avec, lieu: br.lieu }, br.appel ? { appel: br.appel } : {}));
     ckCreneauOuvert = false;
     ckCreneauBrouillon = null;
+    if(typeof appelPrevuEC !== 'undefined') appelPrevuEC = '';
     if(typeof showToast === 'function') showToast('📅 Créneau proposé à ' + ckPrenom(c.eleve));
     await rafraichirLeFil();
     dessinerLeFil();
   }, 'p'));
-  acts.appendChild(ckBouton('Annuler', '', () => { ckCreneauOuvert = false; dessinerLeFil(); }));
+  acts.appendChild(ckBouton('Annuler', '', () => {
+    ckCreneauOuvert = false; ckCreneauBrouillon = null;
+    if(typeof appelPrevuEC !== 'undefined') appelPrevuEC = '';
+    dessinerLeFil();
+  }));
   z.appendChild(acts);
   return z;
 }
