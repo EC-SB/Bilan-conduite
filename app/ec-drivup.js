@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 15/10/2026 à 12:15 — v1181 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -21,6 +21,10 @@
      son rappel envoyé — comme aujourd'hui ;
    · on reprend la conduite et les examens, pas le simulateur, le
      code, la théorie, les écoutes ni les tablettes ;
+     🚗 v1181 — David, le 15 octobre : le SIMULATEUR AVEC MONITEUR
+     se reprend aussi (son rappel a son type de séance), et les
+     numéros de voiture posés en haut du planning (« .1 », « .7 »)
+     remplissent la voiture du rappel ;
    · une fiche se COMPLÈTE, elle n'est jamais remplacée : une case
      remplie chez nous n'est pas touchée, même si Drivup dit autre
      chose.
@@ -109,10 +113,37 @@ function formationDeDrivup(code){
 }
 
 /* Ce qu'on ne reprend pas, quel que soit le moniteur */
+/* ⚠️ LE SIMULATEUR RESTE « HORS CONDUITE » ICI — v1181 : c'est la liste
+   que lisent aussi les heures du jour du permis (ec-messenger.js), où
+   une séance de simulateur n'est pas la conduite d'avant l'examen.
+   Seul le tri des cours à reprendre (coursRetenuDrivup) l'accepte. */
 const DRIVUP_HORS_CONDUITE = /simulateur|ecoute pedagogique|code etg|\betg\b|theorie|tablettes|visio/;
+/* 🚗 v1181 — le simulateur se reprend AVEC moniteur seulement : la
+   colonne d'un moniteur de l'appli (vérifiée plus bas), et rien qui
+   dise qu'il s'y entraîne seul. */
+const DRIVUP_SIMU_SEUL = /simulateur.*\b(seul|sans moniteur|autonom\w*|libre)\b/;
+
+/* Le titre du cours, quand le libellé ne dit pas ce qu'il est */
+function texteDuCoursDrivup(c){
+  return sansAccentDrivup(String(c.libelle || '') + ' ' + String(c.titre || ''));
+}
+
+/* 🚗 v1181 — le libellé gardé pour les rappels : celui du détail, et
+   le titre du cours en plus quand c'est LUI qui dit « Examen blanc »
+   ou « Simulateur » (David : « par le titre du cours »). */
+function libelleGardeDrivup(c){
+  const l = String(c.libelle || '').replace(/\s+/g, ' ').trim();
+  const t = String(c.titre || '').replace(/\s+/g, ' ').trim();
+  const dit = x => /examen blanc|simulateur/.test(sansAccentDrivup(x));
+  return propreDrivup((t && dit(t) && !dit(l) && t !== l) ? (l ? l + ' — ' + t : t) : l, 140);
+}
 
 function coursRetenuDrivup(c){
-  if(DRIVUP_HORS_CONDUITE.test(sansAccentDrivup(c.libelle))) return false;
+  const t = texteDuCoursDrivup(c);
+  const simu = /simulateur/.test(t);
+  if(simu && DRIVUP_SIMU_SEUL.test(t)) return false;
+  if(!simu && DRIVUP_HORS_CONDUITE.test(t)) return false;
+  if(simu && DRIVUP_HORS_CONDUITE.test(t.replace(/simulateur/g, ''))) return false;
   if(c.examen) return true;
   return !!moniteurDeLAppliDrivup(c.moniteurDrivup);
 }
@@ -123,6 +154,7 @@ function libelleCourtDrivup(c){
   const n = sansAccentDrivup(l);
   if(c.examen || /examen du permis/.test(n)) return 'Examen' + ((l.match(/permis de conduire\s+(\S+)/i) || [])[1] ? ' ' + l.match(/permis de conduire\s+(\S+)/i)[1] : '');
   if(/examen blanc/.test(n)) return 'Examen blanc';
+  if(/simulateur/.test(n)) return 'Simulateur';
   if(/^moto/.test(n)) return 'Moto';
   const d = (l.match(/\b(\d+h\d*)\b/) || [])[1];
   const bea = /automatique|bea/.test(n) ? ' · BEA' : '';
@@ -206,17 +238,18 @@ async function dernieresLecturesDrivup(){
 const drivupRappels = { jour: '', quand: 0, donnees: null, enCours: null };
 
 async function drivupDuJourRappels(jourIso){
-  if(!jourIso || !(ACCES && ACCES.code)) return { cours: [], lectures: [] };
+  if(!jourIso || !(ACCES && ACCES.code)) return { cours: [], lectures: [], voitures: [] };
   if(drivupRappels.jour === jourIso && drivupRappels.donnees && Date.now() - drivupRappels.quand < 60000){
     return drivupRappels.donnees;
   }
   if(drivupRappels.jour === jourIso && drivupRappels.enCours) return drivupRappels.enCours;
   drivupRappels.jour = jourIso;
   drivupRappels.enCours = (async () => {
-    let d = { cours: [], lectures: [] };
+    let d = { cours: [], lectures: [], voitures: [] };
     try{
       const r = await appelPrep({ action: 'drivupPlanning', du: jourIso, au: jourIso });
-      d = { cours: (r && r.cours) || [], lectures: (r && r.lectures) || [] };
+      d = { cours: (r && r.cours) || [], lectures: (r && r.lectures) || [],
+            voitures: (r && r.voitures) || [] };   /* 🚗 v1181 */
     }catch(e){ /* sans Drivup, les créneaux restent ceux d'avant */ }
     drivupRappels.donnees = d;
     drivupRappels.quand = Date.now();
@@ -453,12 +486,84 @@ function lignesDuPlanningDrivup(p){
         moniteur: moniteurDeLAppliDrivup(c.moniteurDrivup),
         moniteurDrivup: propreDrivup(c.moniteurDrivup, 60),
         eleve: nom, idEleve: chiffresDrivup(x.id),
-        libelle: propreDrivup(c.libelle, 140), examen: !!c.examen,
+        libelle: libelleGardeDrivup(c), examen: !!c.examen,
         _fiche: fiche, _x: x
       });
     });
   });
   return { lignes, horsConduite, ressourcesIgnorees };
+}
+
+/* ============================================================
+   🚗 LES NUMÉROS DE VOITURE — v1181
+
+   David, le 15 octobre : « en haut du planning on met des numéros qui
+   correspondent aux voitures ». Jean-Jacques, ce jour-là : « .1 » à
+   7h00 (A3 n° 1, boîte manuelle), « .7 » à 7h30 (Q3 n° 7, automatique),
+   « .9 » à 12h45 (Q3 n° 9, l'automatique de l'après-midi). Le numéro
+   devient une voiture par le champ « N° Drivup » de la Flotte ; la
+   boîte de l'élève dit laquelle des deux voitures du moniteur.
+   ============================================================ */
+function voituresDuPlanningDrivup(p){
+  return (Array.isArray(p.voitures) ? p.voitures : []).slice(0, 600)
+    .filter(v => /^\d{4}-\d{2}-\d{2}$/.test(String(v.jour)) && /^\d{2}:\d{2}$/.test(String(v.heure)) &&
+                 /^\d{1,3}$/.test(String(v.numero)) && v.moniteurDrivup)
+    .map(v => ({ jour: v.jour, heure: v.heure, numero: String(Number(v.numero)),
+                 moniteurDrivup: propreDrivup(v.moniteurDrivup, 60),
+                 moniteur: moniteurDeLAppliDrivup(v.moniteurDrivup) || '' }));
+}
+
+/* La voiture de la Flotte qui porte ce numéro (hors vendues) */
+function vehiculeDuNumeroDrivup(flotte, numero){
+  const n = String(Number(numero || 0) || '');
+  if(!n) return null;
+  return (flotte || []).find(v => v.etat !== 'vendu' && String(Number(v.numero || 0) || '') === n) || null;
+}
+
+/* Ce que la fenêtre montre : par moniteur et par jour, « 1 · A3 4 »,
+   et les numéros que la Flotte ne connaît pas encore. */
+async function blocDesVoituresDrivup(voitures){
+  let flotte = [];
+  try{
+    const d = await appelPrep({ action: 'flotteList' });
+    flotte = (d && d.vehicules) || [];
+  }catch(e){ flotte = null; }
+  const pli = document.createElement('details');
+  pli.className = 'dvPli';
+  const s = document.createElement('summary');
+  const inconnus = {};
+  const parQui = {};
+  voitures.forEach(v => {
+    const veh = flotte ? vehiculeDuNumeroDrivup(flotte, v.numero) : null;
+    if(flotte && !veh) inconnus[v.numero] = true;
+    const k = (v.moniteur || v.moniteurDrivup) + ' · ' + dateLisibleDrivup(v.jour);
+    (parQui[k] = parQui[k] || []).push(v.heure.replace(':', 'h') + ' n° ' + v.numero + (veh ? ' ' + veh.nom : ''));
+  });
+  const nbInc = Object.keys(inconnus).length;
+  s.textContent = '🚗 ' + voitures.length + ' numéro' + (voitures.length > 1 ? 's' : '') + ' de voiture lu' +
+    (voitures.length > 1 ? 's' : '') + (nbInc ? ' · ⚠️ ' + nbInc + ' inconnu' + (nbInc > 1 ? 's' : '') + ' de la Flotte' : '');
+  pli.appendChild(s);
+  if(nbInc){
+    const w = document.createElement('div');
+    w.className = 'dvNote';
+    w.style.color = 'var(--warn-text)';
+    w.textContent = '⚠️ N° ' + Object.keys(inconnus).sort((a, b) => a - b).join(', ') +
+      ' : aucun véhicule de la Flotte ne porte ce numéro. Remplis « N° Drivup » dans sa fiche ' +
+      '(Gestion › Le parc), sinon le rappel ne saura pas quelle voiture annoncer.';
+    pli.appendChild(w);
+  }else if(flotte === null){
+    const w = document.createElement('div');
+    w.className = 'dvNote';
+    w.textContent = 'La Flotte n’a pas pu être lue : les numéros sont gardés, la voiture se retrouvera au rappel.';
+    pli.appendChild(w);
+  }
+  Object.keys(parQui).forEach(k => {
+    const l = document.createElement('div');
+    l.className = 'dvNote';
+    l.textContent = k + ' — ' + parQui[k].join(' · ');
+    pli.appendChild(l);
+  });
+  return pli;
 }
 
 function comparerPlanningDrivup(p, lignes, existants){
@@ -621,6 +726,10 @@ async function fenetrePlanningDrivup(p){
     f.boite.appendChild(w);
   }
 
+  /* 🚗 v1181 — les numéros de voiture lus en haut du planning */
+  const voitures = voituresDuPlanningDrivup(p);
+  if(voitures.length) f.boite.appendChild(await blocDesVoituresDrivup(voitures));
+
   /* 📍 v1170 — les horaires des bureaux, lus en même temps */
   let bureauxLus = [];
   if(typeof blocDesBureauxDrivup === 'function' && (p.bureaux || p.bureauxErreur)){
@@ -660,7 +769,10 @@ async function fenetrePlanningDrivup(p){
       action: 'drivupPlanningPoser', porteeGenre: genre, porteeValeur: portee, du: du, au: au,
       cours: lignes.map(l => ({ id: l.id, jour: l.jour, debut: l.debut, fin: l.fin, agence: l.agence,
         moniteur: l.moniteur, moniteurDrivup: l.moniteurDrivup, eleve: l.eleve, idEleve: l.idEleve,
-        libelle: l.libelle, examen: l.examen }))
+        libelle: l.libelle, examen: l.examen })),
+      /* 🚗 v1181 — les numéros de voiture, et les colonnes lues */
+      voitures: voitures,
+      colonnes: Array.isArray(p.colonnes) ? p.colonnes : undefined
     });
     oublierDrivupRappels();
     if(fiches.length && typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
@@ -674,6 +786,7 @@ async function fenetrePlanningDrivup(p){
     non.textContent = 'Fermer';
     etat.style.color = '';
     etat.textContent = '✅ Enregistré : ' + ((r && r.nb) || lignes.length) + ' cours' +
+      ((r && r.voitures) ? ' · ' + r.voitures + ' numéro(s) de voiture' : '') +
       (fiches.length ? ' · ' + fiches.length + ' fiche(s) créée(s) ou complétée(s)' : '') +
       (ph.posees ? ' · ' + ph.posees + ' photo(s) reprise(s)' : '') +
       (hb.length ? ' · horaires du bureau de ' + hb.join(' et de ') + ' repris' : '') + '.';
