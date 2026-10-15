@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 13:01 — v1166 */
+/* Déployé le 15/10/2026 à 13:26 — v1182 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1372,7 +1372,7 @@ async function afficherPrepares(recharger, silencieux){
       (aApporter ? ' <span style="font-size:15px;" title="' +
         aApporter.titre + '">' + aApporter.emojis +
         (aApporter.texte
-          ? '<span style="font-size:13px;font-weight:800;color:var(--warn-text);">' +
+          ? '<span class="ciDeposer" style="font-size:13px;font-weight:800;color:var(--warn-text);">' +
             ' ' + aApporter.texte + '</span>' : '') +
         '</span>' : '') +
       '</div>';
@@ -5302,9 +5302,13 @@ function repereDeNote(cours){
   /* L'émoji seul ne se lit pas : il faut savoir ce qu'il veut dire,
      et l'info-bulle demande de survoler — ce qu'on ne fait pas sur
      un téléphone. La carte d'identité se prend AVANT le cours ou
-     pas du tout : elle s'écrit en toutes lettres. */
+     pas du tout : elle s'écrit en toutes lettres.
+
+     ⚠️ v1182 — David, le 15 octobre : « quand il y a le logo carte
+     d'identité rajoute à côté en majuscule : DOIT DEPOSER SA PIECE
+     D'IDENTITE AU BUREAU ». « Prendre CI ! » ne disait pas où. */
   return { emojis: emojis.join(''), titre: 'À prévoir : ' + quoi.join(' · '),
-           texte: debut.indexOf('🆔') !== -1 ? 'Prendre CI !' : '' };
+           texte: debut.indexOf('🆔') !== -1 ? "DOIT DEPOSER SA PIECE D'IDENTITE AU BUREAU" : '' };
 }
 
 
