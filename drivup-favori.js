@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 15/10/2026 à 12:15 — v1181 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -177,6 +177,27 @@
     }
     if (!porteeValeur) throw new Error('je ne reconnais pas ce planning (ni agence ni moniteur seul)');
 
+    /* 🚗 v1181 — LES NUMÉROS DE VOITURE. David, le 15 octobre : « en
+       haut du planning on met des numéros qui correspondent aux
+       voitures ». Ce sont de petits créneaux sans élève, titrés « .1 »,
+       « .7 », dans la colonne du moniteur : à 7h00 « .1 » (A3 n° 1,
+       boîte manuelle), à 7h30 « .7 » (Q3 n° 7, automatique), et à
+       12h45 « .9 » quand il change de voiture l'après-midi. L'heure
+       compte : c'est à partir d'elle que la voiture vaut. On ne lit
+       que le titre, le jour, l'heure et la colonne. */
+    const voitures = [];
+    tous.forEach(e => {
+      const m = propre(e.title).match(/^[.·•]\s*(\d{1,3})$/);
+      if (!m) return;
+      const res = (e.getResources ? e.getResources() : []).map(r => propre(r.title));
+      if (!res[0]) return;
+      voitures.push({ jour: jourDuTexte(e.startStr), heure: heureDuTexte(e.startStr),
+                      moniteurDrivup: res[0], numero: String(Number(m[1])) });
+    });
+    /* Les colonnes lues : une voiture retirée dans Drivup doit
+       s'effacer chez nous, mais seulement pour ces moniteurs-là. */
+    const colonnes = (cal.getResources ? cal.getResources() : []).map(r => propre(r.title)).filter(Boolean);
+
     const avecEleves = tous.filter(e => {
       const p = e.extendedProps || {};
       return Number(p.nbrEleve) > 0 || p.clientName || (p.examen && p.examen !== '0');
@@ -221,7 +242,9 @@
     }
     await Promise.all([ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier()]);
     cours.sort((a, b) => (a.jour + a.debut).localeCompare(b.jour + b.debut));
-    return { genre: 'planning', porteeGenre, porteeValeur, du, au, cours, ignores, detailsRates: rates };
+    return { genre: 'planning', porteeGenre, porteeValeur, du, au, cours,
+             ignores: Math.max(0, ignores - voitures.length), detailsRates: rates,
+             voitures, colonnes };
   }
 
   /* ---------- 📍 Les horaires des bureaux — v1170 ----------
