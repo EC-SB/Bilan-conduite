@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 10:37 — v1172 */
+/* Déployé le 16/10/2026 à 13:43 — v1190 */
 /* ============================================================
    ec-messenger.js
    Générateur du message pour le groupe Messenger « jour du permis ».
@@ -274,75 +274,54 @@ function sansEspacesNiTirets(t){
 
 /* Les dates d'examen à venir, d'après les fiches de suivi */
 function datesPermisAVenir(){
+  /* ⚠️ C'EST LA SESSION QUI DIT LA DATE — v1190.
+
+     David, le 16 octobre : « il me manque des dates dans Messenger
+     permis, ça remonte pas depuis Suivi permis ».
+
+     Avant, un élève était rangé à la PREMIÈRE date trouvée : sa fiche
+     de suivi, puis les bilans, puis seulement sa session. Quand sa
+     fiche portait une autre date que sa session (date déplacée dans
+     🎓 Suivi permis, repassage), il partait sous l'autre date, la
+     session ne le retrouvait plus, et si personne d'autre n'y était,
+     la date entière disparaissait. Un ancien résultat (ajourné) ou un
+     vieil « annulé » resté sur la fiche l'écartait aussi.
+
+     Depuis la v1172, seuls les élèves placés dans une session
+     apparaissent ici. La session est donc la seule source de la date,
+     de l'heure et du rang ; la fiche de suivi n'apporte plus que ce
+     qu'elle seule sait (repassage, centre si la session n'en a pas). */
   const auj = todayLocal();
   const parDate = {};
-  const vus = {};
+  const suivi = etatBureau.suivi || [];
+  const fiche = nom => suivi.find(y => normaliserMot(y.eleve) === normaliserMot(nom)) || null;
+  const lesSessions = (typeof sessionsPermis !== 'undefined' ? sessionsPermis : []) || [];
 
-  function ajouter(nom, dateFr, s){
-    const cle = normaliserMot(nom || '');
-    if(!cle || vus[cle]) return;
-    if(s && s.resultat) return;                  /* déjà passé */
-    if(s && s.statut === 'annule') return;
-    const iso = dateFrVersIso(dateFr);
+  lesSessions.forEach(sess => {
+    const iso = sess.date ? dateFrVersIso(sess.date) : '';
     if(!iso || iso < auj) return;                /* on ne propose que l'à-venir */
-    vus[cle] = true;
-    if(!parDate[iso]) parDate[iso] = [];
-    parDate[iso].push({
-      nom: nom,
-      centre: (s && s.centre) || '',
-      moniteur: (s && s.moniteurDate) || '',
-      /* ⚠️ v1133 — PLUS « groupePermis ». C'était le groupe de
-         l'ancienne liste « Permis prévus » : il ne bougeait plus
-         depuis que les groupes se font en sessions, dans 🎓 Suivi
-         permis. Le groupe d'un élève, c'est sa session — posée
-         plus bas. */
-      session: '',
-      repassage: !!(s && s.nbAjournements),
-      heure: ''
-    });
-  }
-
-  /* Deux sources, comme la liste « Permis prévus » : la fiche de
-     suivi, et l'état déduit des bilans. Un élève dont seule l'une
-     porte la date manquait au groupe. */
-  (etatBureau.suivi || []).forEach(s => ajouter(s.eleve, s.datePermis, s));
-
-  (etatBureau.eleves || []).forEach(e => {
-    if(!e.etat || e.etat.permis !== 'prevu') return;
-    const s = (etatBureau.suivi || []).find(
-      y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
-    ajouter(e.eleve, e.etat.permisDate || (s && s.datePermis) || '', s);
-  });
-
-  /* Les sessions : elles portent l'ordre de passage et les heures,
-     que les deux autres sources ne connaissent pas. */
-  (typeof sessionsPermis !== 'undefined' ? sessionsPermis : []).forEach(sess => {
-    if(!sess.date) return;
-    sess.eleves.forEach(p => {
+    (sess.eleves || []).forEach(p => {
       if(!p.eleve) return;
-      const s = (etatBureau.suivi || []).find(
-        y => normaliserMot(y.eleve) === normaliserMot(p.eleve));
-      ajouter(p.eleve, sess.date, Object.assign({}, s, {
+      const s = fiche(p.eleve);
+      if(!parDate[iso]) parDate[iso] = [];
+      /* Un même élève deux fois dans la même session : une ligne */
+      if(parDate[iso].some(x => x.session === sess.id && normaliserMot(x.nom) === normaliserMot(p.eleve))) return;
+      parDate[iso].push({
+        nom: p.eleve,
         centre: sess.centre || (s && s.centre) || '',
-        moniteurDate: sess.moniteur || (s && s.moniteurDate) || ''
-      }));
-
-      /* L'heure et le rang viennent de la session */
-      const lot = parDate[sess.date] || [];
-      const dans = lot.find(x => normaliserMot(x.nom) === normaliserMot(p.eleve));
-      if(dans){
-        dans.heure = p.heure || dans.heure;
-        dans.rang = p.rang;
-        dans.session = sess.id;
-      }
+        moniteur: sess.moniteur || (s && s.moniteurDate) || '',
+        session: sess.id,
+        repassage: !!(s && s.nbAjournements),
+        heure: p.heure || '',
+        rang: p.rang
+      });
     });
   });
 
   return Object.keys(parDate).sort().map(iso => ({
     iso: iso,
     /* Les sessions de ce jour : ce sont elles, les groupes. */
-    sessions: (typeof sessionsPermis !== 'undefined' ? sessionsPermis : [])
-      .filter(x => x.date === iso),
+    sessions: lesSessions.filter(x => x.date && dateFrVersIso(x.date) === iso),
     /* L'ordre de la session s'il existe, l'alphabet sinon */
     eleves: parDate[iso].sort((a, b) => {
       if(a.rang && b.rang) return a.rang - b.rang;
