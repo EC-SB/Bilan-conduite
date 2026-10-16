@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 15:23 — v1183 */
+/* Déployé le 16/10/2026 à 11:24 — v1188 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1882,8 +1882,23 @@ function ckFicheEclair(f){
     membres.forEach(m => {
       const d = document.createElement('div');
       d.className = 'v2 fort';
-      d.textContent = '• ' + (m.genre === 'boite' ? '🏢 la boîte du bureau' : m.qui) +
-        (m.genre === 'eleve' ? '' : m.genre === 'user' ? ' · équipe' : '');
+      /* 👤 v1188 — David, le 12 octobre : les noms des élèves d'un
+         groupe doivent mener à leur dossier. Un nom d'élève se touche
+         et ouvre son dossier, comme « 👤 Ouvrir son dossier » sur le
+         fil d'un seul élève ; l'équipe et la boîte restent du texte. */
+      if(m.genre === 'eleve' && m.qui && typeof ouvrirPageEleve === 'function'){
+        d.appendChild(document.createTextNode('• '));
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ckVersDossier';
+        b.title = 'Ouvrir le dossier de ' + m.qui;
+        b.textContent = m.qui + ' ›';
+        b.addEventListener('click', () => ouvrirPageEleve(m.qui));
+        d.appendChild(b);
+      }else{
+        d.textContent = '• ' + (m.genre === 'boite' ? '🏢 la boîte du bureau' : m.qui) +
+          (m.genre === 'eleve' ? '' : m.genre === 'user' ? ' · équipe' : '');
+      }
       g.appendChild(d);
     });
     frag.appendChild(g);
