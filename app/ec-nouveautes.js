@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:54 — v1193 */
+/* Déployé le 16/10/2026 à 16:06 — v1194 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1194,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '👁️ L’équipe : un interrupteur par ligne pour ce que chacun voit de sa fiche',
+    quoi: [
+      { emoji: '👁️',
+        titre: 'Ce que chacun voit dans « Ma fiche »',
+        texte: 'Outils › 👥 Équipe, fiche d’une personne : un interrupteur au bout de chaque papier, absence, bloc d’heures ' +
+               'et résultat. Tout est caché au départ ; ce qu’on allume apparaît dans sa fiche (⋯ › 👤 Ma fiche). ' +
+               'Ce qu’elle dépose elle-même reste visible tant que ça attend. Elle n’est alertée que de ce qu’on lui montre.' },
+      { emoji: '🏥',
+        titre: 'Médecine du travail : seulement si on l’ajoute',
+        texte: 'Elle n’est plus attendue d’office sur les fiches. On l’ajoute avec « ➕ Ajouter un papier » quand on veut la suivre.' }
+    ]
+  },
   {
     version: 1193,
     date: 'Vendredi 16 octobre 2026',
