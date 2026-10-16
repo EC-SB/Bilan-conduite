@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:18 — v1158 */
+/* Déployé le 16/10/2026 à 13:35 — v1189 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -106,7 +106,12 @@ const FAMILLES_BANDEAU = [
      ne dit que « ça dure depuis hier », et elle appelle un geste —
      un coup de fil, ou se lever pour aller la reposer. */
   { cle:'cbgasoil', emoji:'⛽', nom:'CB Gasoil pas reposée',
-    droit:'cbgasoil',      reglable:true }
+    droit:'cbgasoil',      reglable:true },
+  /* 👥 v1189 — les papiers de l'équipe et les échéances de l'école.
+     Pas de droit ici : le Worker ne rend à chacun que ce qui le
+     regarde (l'administration voit tout, chacun voit SES papiers). */
+  { cle:'echeances', emoji:'📄', nom:'Papiers et échéances',
+    droit:'',              reglable:true }
 ];
 
 /* À combien de jours un rendez-vous AAC monte dans le bandeau. */
@@ -748,6 +753,8 @@ function lignesDuBandeau(){
     heures:   lignesHeuresExamen,
     anniv:    lignesAnniversaires,
     cbgasoil: (typeof lignesCbGasoil === 'function') ? lignesCbGasoil : (() => []),
+    /* 👥 v1189 — les papiers et les échéances (ec-equipe.js) */
+    echeances: (typeof lignesEcheances === 'function') ? lignesEcheances : (() => []),
     conv:     lignesMessagesEleves,
     objet:    lignesObjetsOublies
   };
