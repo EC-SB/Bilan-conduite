@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 17:25 — v1178 */
+/* Déployé le 16/10/2026 à 13:35 — v1189 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -57,7 +57,9 @@ const SECTIONS_ONGLET = {
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans',
             'stats', 'journal',
             'bureau_messages', 'sms', 'taches', 'notifs',
-            'caisse', 'coutsia', 'paie', 'tarifs'],
+            'caisse', 'coutsia', 'paie', 'tarifs',
+            /* 👥 v1189 — l'équipe et l'école */
+            'equipe'],
   /* « tarifs » manquait ici, et il est pourtant accordable dans
      ⚙️ Accès : un compte à qui l'on n'accordait QUE les tarifs
      n'obtenait pas l'onglet Gestion, et n'atteignait donc jamais
@@ -323,6 +325,10 @@ const VUES = {
            ['sms',        '📱 SMS',                     'sms',         'L’équipe'],
            ['taches',     '✅ Tâches',                  'taches',      'L’équipe'],
            ['notifs',     '🔔 Alertes',                 'notifs',      'L’équipe'],
+           /* 👥 v1189 — les fiches de l'équipe (papiers, arrêts, heures,
+              résultats) et les échéances de l'école */
+           ['equipe',     '👥 Équipe',                  'equipe',      'L’équipe'],
+           ['ecole',      '🏫 L’école',                 'equipe',      'L’équipe'],
 
            ['caisse',     '🏦 Caisse',                  'caisse',      'Argent'],
            ['coutsia',    '💸 Coûts IA',                'coutsia',     'Argent'],
@@ -1860,6 +1866,9 @@ function reveillerVue(cle){
     moto:       () => afficherMoto(),
     remorque:   () => afficherRemorque(),
     paie:       () => afficherPaie(),
+    /* 👥 v1189 */
+    equipe:     () => (typeof afficherEquipe === 'function') && afficherEquipe(),
+    ecole:      () => (typeof afficherEcole === 'function') && afficherEcole(),
     /* ⚠️ DEUX ÉCRANS SOUS UN SEUL BOUTON, ET CHACUN DEMANDE SON
        DROIT AVANT DE PARTIR.
 
