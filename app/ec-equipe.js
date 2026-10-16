@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 16:06 — v1194 */
+/* Déployé le 16/10/2026 à 16:18 — v1195 */
 /* ============================================================
    ec-equipe.js — 👥 L'ÉQUIPE et 🏫 L'ÉCOLE — v1189
 
@@ -302,15 +302,54 @@ function dessinerListeEquipe(z){
     const d = document.createElement('div');
     d.className = 'eqLigne eqClic';
     d.innerHTML =
-      '<span class="eqRond">' + eEq((p.nom || '?').trim().split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase()) + '</span>' +
+      '<span class="eqRond"></span>' +
       '<span class="eqCorps"><strong>' + eEq(p.nom) + '</strong> <span class="eqGris">· ' + eEq(roleDeLaPersonne(p)) + '</span>' +
         '<div style="font-size:12.5px;color:' + PAST_EQ[k][2] + ';">' + eEq(phraseDeLaPersonne(p)) + '</div>' +
         '<div class="eqGris">' + (p.dansPaie ? '💶 dans la paie' : p.horsPaie ? '🚫 hors paie' : '💶 plus dans la paie') +
           (p.compte ? ' · 🔑 compte « ' + eEq(p.compte) + ' »' : ' · 🔑 aucun compte relié') + '</div></span>' +
       '<span class="eqDroite">' + pastilleEq(k, t) + '<span class="eqGris" style="font-size:18px;">›</span></span>';
+    /* 🖼️ v1195 — la photo de la messagerie, à la place des initiales */
+    poserPhotoEq(d.querySelector('.eqRond'), p);
     d.addEventListener('click', () => ouvrirFicheEquipe(p.id));
     z.appendChild(d);
   });
+  if(typeof chargerPhotosProfil === 'function'){
+    chargerPhotosProfil(false).then(change => { if(change) z.querySelectorAll('.eqRond').forEach((r, i) => poserPhotoEq(r, montres[i])); }).catch(() => {});
+  }
+}
+
+/* ============================================================
+   🖼️ LA PHOTO DE LA MESSAGERIE — v1195
+
+   David : « il faut que la photo de la messagerie soit liée ici aussi
+   et qu'on puisse la changer ici aussi ». C'est LA MÊME : même clé
+   (« user:<compte> »), même fenêtre (ouvrirFenetrePhotoProfil), mêmes
+   règles — chacun la sienne, les administrateurs celle de tout le
+   monde. La changer ici la change dans la messagerie, et l'inverse.
+   ============================================================ */
+function initialesEq(nom){
+  return (nom || '?').trim().split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase();
+}
+function clePhotoEq(f){
+  return (typeof clePhotoProfil === 'function') ? clePhotoProfil('user', f.compte || f.nom) : '';
+}
+function poserPhotoEq(el, f){
+  if(!el || !f) return;
+  el.setAttribute('data-photo-eq', f.compte || f.nom || '');
+  el.setAttribute('data-nom', f.nom || '');
+  const crayon = el.querySelector('.eqRondCrayon');
+  if(typeof poserPhotoDans === 'function') poserPhotoDans(el, clePhotoEq(f), initialesEq(f.nom));
+  else el.textContent = initialesEq(f.nom);
+  if(crayon) el.appendChild(crayon);
+}
+/* Après un changement de photo : la fiche et la liste se repeignent */
+function repeindreEquipeApresPhoto(){
+  try{
+    document.querySelectorAll('[data-photo-eq]').forEach(el => {
+      const f = { nom: el.getAttribute('data-nom') || '', compte: el.getAttribute('data-photo-eq') || '' };
+      poserPhotoEq(el, f);
+    });
+  }catch(e){}
 }
 
 /* ============================================================
@@ -352,6 +391,24 @@ async function dessinerFicheEquipe(z, enFenetre){
     r.addEventListener('click', () => { equipeEC.fiche = null; afficherEquipe(); });
     h.appendChild(r);
   }
+  /* 🖼️ v1195 — sa photo, celle de la messagerie. Un appui la change :
+     la sienne pour la personne, celle de tout le monde pour un admin. */
+  const ph = document.createElement('button');
+  ph.type = 'button';
+  ph.className = 'eqRond eqRondFiche';
+  ph.setAttribute('data-photo-eq', f.compte || f.nom);
+  ph.setAttribute('data-nom', f.nom);
+  poserPhotoEq(ph, f);
+  const changePhoto = typeof ouvrirFenetrePhotoProfil === 'function' &&
+    (!d.estAdmin || (typeof ACCES !== 'undefined' && (ACCES.role === 'admin' || (typeof aDroit === 'function' && aDroit('messagerie_admin')))));
+  if(changePhoto){
+    ph.title = 'Changer la photo (la même que dans la messagerie)';
+    ph.insertAdjacentHTML('beforeend', '<span class="eqRondCrayon">📷</span>');
+    ph.addEventListener('click', () => ouvrirFenetrePhotoProfil(d.estAdmin
+      ? { cible: 'user', nom: f.compte || f.nom, titre: 'La photo de ' + f.nom }
+      : { cible: 'moi' }));
+  }else ph.disabled = true;
+  h.appendChild(ph);
   const t = document.createElement('div');
   t.style.cssText = 'flex:1;min-width:180px;';
   t.innerHTML = '<div style="font-weight:800;font-size:17px;">' + eEq(f.nom) + (f.actif ? '' : ' <span class="eqGris">· ancien</span>') + '</div>' +
@@ -377,7 +434,7 @@ async function dessinerFicheEquipe(z, enFenetre){
   /* 👁️ v1194 — chez la personne, un onglet dont rien ne lui est
      montré n'apparaît pas. Papiers et Absences restent : c'est là
      qu'elle dépose ses papiers et déclare un arrêt. */
-  const ongletsVus = [['papiers', '📄 Papiers'], ['absences', '🏖️ Absences'], ['heures', '⏱️ Heures'], ['resultats', '📈 Résultats']]
+  const ongletsVus = [['coord', '🪪 Coordonnées'], ['papiers', '📄 Papiers'], ['absences', '🏖️ Absences'], ['heures', '⏱️ Heures'], ['resultats', '📈 Résultats']]
     .filter(x => d.estAdmin || x[0] === 'papiers' || x[0] === 'absences' ||
                  (d.vues || []).some(k => k.indexOf(x[0] + ':') === 0));
   if(!ongletsVus.some(x => x[0] === equipeEC.onglet)) equipeEC.onglet = 'papiers';
@@ -402,10 +459,131 @@ async function dessinerFicheEquipe(z, enFenetre){
   const corps = document.createElement('div');
   z.appendChild(corps);
   const redessiner = () => dessinerFicheEquipe(z, enFenetre);
-  if(equipeEC.onglet === 'absences') dessinerAbsencesEq(corps, d, redessiner);
+  if(equipeEC.onglet === 'coord') dessinerCoordonneesEq(corps, d, redessiner);
+  else if(equipeEC.onglet === 'absences') dessinerAbsencesEq(corps, d, redessiner);
   else if(equipeEC.onglet === 'heures') dessinerHeuresEq(corps, d);
   else if(equipeEC.onglet === 'resultats') dessinerResultatsEq(corps, d);
   else dessinerPapiersEq(corps, d, redessiner);
+}
+
+/* ---------- 🪪 Coordonnées — v1195 ---------- */
+const COORD_EQ = [
+  ['adresse',  '🏠', 'Adresse'],
+  ['portable', '📱', 'Portable'],
+  ['mail',     '✉️', 'Adresse mail'],
+  ['rib',      '🏦', 'RIB']
+];
+function dessinerCoordonneesEq(z, d, redessiner){
+  const f = d.fiche;
+  const c = d.coord || {};
+  let rien = true;
+  COORD_EQ.forEach(([k, ic, nom]) => {
+    const v = c[k];
+    if(v === null || v === undefined) return;          /* caché à la personne */
+    rien = false;
+    const l = document.createElement('div');
+    l.className = 'eqLigne';
+    l.style.alignItems = 'flex-start';
+    let valeur = '';
+    if(k === 'rib'){
+      valeur = v.aFichier ? 'Déposé' + (v.par ? ' par ' + eEq(v.par) : '') + (v.le ? ' le ' + new Date(v.le).toLocaleDateString('fr-FR') : '')
+                          : '<span class="eqGris">Pas encore déposé</span>';
+    }else if(!v){
+      valeur = '<span class="eqGris">Pas encore renseigné</span>';
+    }else if(k === 'portable'){
+      valeur = '<a href="tel:' + eEq(String(v).replace(/[^+0-9]/g, '')) + '">' + eEq(v) + '</a>';
+    }else if(k === 'mail'){
+      valeur = '<a href="mailto:' + eEq(v) + '">' + eEq(v) + '</a>';
+    }else valeur = eEq(v);
+    const aide = k === 'mail' ? '<div class="eqGris">La même que dans ⚙️ Accès : les alertes et les mails de l’appli y partent.</div>'
+               : k === 'rib' ? '<div class="eqGris">Le document seul (photo ou PDF) : aucun numéro n’est tapé dans l’appli.</div>' : '';
+    l.innerHTML = '<span class="eqIc">' + ic + '</span><span class="eqCorps"><strong>' + nom + '</strong>' +
+      '<div style="font-size:13.5px;overflow-wrap:anywhere;">' + valeur + '</div>' + aide + '</span>';
+    const dr = document.createElement('span');
+    dr.className = 'eqDroite';
+    if(k === 'rib'){
+      if(v.aFichier) dr.appendChild(petitBoutonEq('📎 Voir', 'Ouvrir le RIB', () => ouvrirUnScan('rib', f.id)));
+      dr.appendChild(petitBoutonEq(v.aFichier ? '🔁 Remplacer' : '➕ Déposer', 'Photo ou PDF du RIB', () => deposerRibEq(f, redessiner)));
+      if(v.aFichier) dr.appendChild(petitBoutonEq('🗑️', 'Retirer le RIB', async () => {
+        if(!await confirmer('Retirer le RIB de ' + f.nom + ' ?')) return;
+        try{ await appelPrep({ action: 'equipeCoordonnees', id: f.id, ribRetirer: '1' }); showToast('RIB retiré'); redessiner(); }
+        catch(e){ showToast('Impossible : ' + e.message); }
+      }));
+    }else{
+      dr.appendChild(petitBoutonEq('✏️', 'Modifier', () => modifierCoordEq(f, k, nom, v || '', redessiner)));
+    }
+    if(reglageDesVuesEq(d)) dr.appendChild(interrupteurVueEq(d, 'coord:' + k));
+    l.appendChild(dr);
+    z.appendChild(l);
+  });
+  if(rien){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = 'Rien à afficher pour le moment.';
+    z.appendChild(v);
+  }
+}
+function modifierCoordEq(f, k, nom, actuel, apres){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(440px, 94vw)';
+  const type = k === 'mail' ? 'email' : k === 'portable' ? 'tel' : 'text';
+  boite.innerHTML = '<h3>' + eEq(nom) + ' — ' + eEq(f.nom) + '</h3>' +
+    (k === 'adresse'
+      ? '<label for="eqcV">Adresse</label><textarea id="eqcV" rows="3" placeholder="N°, rue, code postal, ville"></textarea>'
+      : '<label for="eqcV">' + eEq(nom) + '</label><input type="' + type + '" id="eqcV" ' +
+        (k === 'portable' ? 'inputmode="tel" placeholder="06 12 34 56 78"' : 'inputmode="email" placeholder="prenom@exemple.fr"') + '>') +
+    (k === 'mail' ? '<div class="eqAide" style="margin-top:6px;">C’est aussi l’adresse de ⚙️ Accès : la changer ici la change là-bas.</div>' : '');
+  boite.querySelector('#eqcV').value = actuel;
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary'; bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => fermerFond(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary'; bOk.textContent = '💾 Enregistrer';
+  bOk.addEventListener('click', async () => {
+    bOk.disabled = true;
+    try{
+      await appelPrep({ action: 'equipeCoordonnees', id: f.id, [k]: boite.querySelector('#eqcV').value.trim() });
+      fermerFond(fond); showToast('Enregistré ✅'); apres && apres();
+    }catch(e){ showToast('Impossible : ' + e.message); bOk.disabled = false; }
+  });
+  r.append(bA, bOk);
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  try{ boite.querySelector('#eqcV').focus(); }catch(e){}
+}
+function deposerRibEq(f, apres){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(440px, 94vw)';
+  boite.innerHTML = '<h3>🏦 RIB — ' + eEq(f.nom) + '</h3>';
+  const fichier = blocFichierEq(boite, '📎 Le RIB', 'Photo ou PDF, 10 Mo au plus. Il remplace le précédent.');
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary'; bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => fermerFond(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary'; bOk.textContent = '📤 Déposer';
+  bOk.addEventListener('click', async () => {
+    if(!fichier.fichier){ showToast('Choisis la photo ou le PDF du RIB.'); return; }
+    bOk.disabled = true;
+    try{
+      await appelPrep({ action: 'equipeCoordonnees', id: f.id, rib: await fichierPourLEquipe(fichier.fichier) });
+      fermerFond(fond); showToast('RIB déposé ✅'); apres && apres();
+    }catch(e){ showToast('Impossible : ' + e.message); bOk.disabled = false; }
+  });
+  r.append(bA, bOk);
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
 }
 
 /* ---------- 📄 Papiers ---------- */
