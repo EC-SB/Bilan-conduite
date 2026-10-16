@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 13:43 — v1190 */
+/* Déployé le 16/10/2026 à 14:18 — v1191 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1191,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '🔴 ELEVE PAS PREVENU sur la ligne d’examen · 💬 bulle verte',
+    quoi: [
+      { emoji: '🔴',
+        titre: 'Sur la ligne rouge de 📅 Mes prochains cours',
+        texte: 'Au bout de « EXAMEN OFFICIEL PRÉVU LE … » : ELEVE PAS PREVENU tant que le 📣 n’est pas coché ' +
+               'dans 🎓 Suivi permis, ou ELEVE FANTOME / ELEVE A REMPLACER selon sa fiche. Coché, la mention s’en va. ' +
+               'L’étiquette qui l’écrivait en dessous est retirée.' },
+      { emoji: '💬',
+        titre: 'La bulle du groupe, en vert',
+        texte: 'Dans 🎓 Suivi permis, un appui sur 💬 la met sur un rond vert : groupe fait. ' +
+               'Elle passe au vert toute seule quand le groupe de la messagerie de la session existe.' }
+    ]
+  },
   {
     version: 1190,
     date: 'Vendredi 16 octobre 2026',
