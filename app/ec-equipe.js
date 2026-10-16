@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 13:35 — v1189 */
+/* Déployé le 16/10/2026 à 16:06 — v1194 */
 /* ============================================================
    ec-equipe.js — 👥 L'ÉQUIPE et 🏫 L'ÉCOLE — v1189
 
@@ -98,6 +98,58 @@ function petitBoutonEq(texte, titre, faire, fort){
   b.textContent = texte;
   if(titre) b.title = titre;
   b.addEventListener('click', ev => { ev.stopPropagation(); faire(b); });
+  return b;
+}
+
+/* ============================================================
+   👁️ L'INTERRUPTEUR « IL LE VOIT » — v1194
+
+   David, le 16 octobre : « mets-moi des interrupteurs au bout de
+   chaque chose pour voir ce qu'ils peuvent voir ou non » — une ligne,
+   un interrupteur, personne par personne, tout caché au départ. Le
+   tri se fait dans le Worker : ce qui est coupé ne part pas vers la
+   personne (voir « CE QUE LA PERSONNE VOIT DE SA FICHE »).
+   ============================================================ */
+const GENRES_MULTIPLES_EQ = { formation: 1, diplome: 1, autre: 1 };
+function cleVuePapierEq(p){
+  return GENRES_MULTIPLES_EQ[p.genre] && p.id ? 'papier:' + p.id : 'papier:' + p.genre;
+}
+/* La page de l'administration pose les interrupteurs ; celle de la
+   personne lit seulement ce qui lui est montré. */
+function reglageDesVuesEq(d){ return !!(d && d.estAdmin && d.peutModifier); }
+function voitEq(d, cle){
+  if(d && d.estAdmin) return true;
+  return ((d && d.vues) || []).indexOf(cle) !== -1;
+}
+function interrupteurVueEq(d, cle){
+  const f = d.fiche;
+  const qui = f.compte || f.nom;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'eqVue';
+  const peindre = () => {
+    const oui = (d.vues || []).indexOf(cle) !== -1;
+    b.classList.toggle('oui', oui);
+    b.setAttribute('aria-pressed', oui ? 'true' : 'false');
+    b.title = oui ? qui + ' le voit dans sa fiche — appuie pour le lui cacher'
+                  : 'Caché à ' + qui + ' — appuie pour le lui montrer';
+    b.innerHTML = '<span class="eqVueRail"><span class="eqVueBille"></span></span><span class="eqVueOeil">' + (oui ? '👁️' : '🙈') + '</span>';
+  };
+  peindre();
+  b.addEventListener('click', async ev => {
+    ev.stopPropagation();
+    d.vues = d.vues || [];
+    const avant = d.vues.indexOf(cle) !== -1;
+    if(avant) d.vues = d.vues.filter(k => k !== cle); else d.vues.push(cle);
+    peindre();
+    b.disabled = true;
+    try{ await appelPrep({ action: 'equipeVue', personne: f.id, cle: cle, visible: avant ? '0' : '1' }); }
+    catch(e){
+      if(avant) d.vues.push(cle); else d.vues = d.vues.filter(k => k !== cle);
+      peindre();
+      showToast('Impossible : ' + e.message);
+    }finally{ b.disabled = false; }
+  });
   return b;
 }
 
@@ -322,7 +374,22 @@ async function dessinerFicheEquipe(z, enFenetre){
 
   const o = document.createElement('div');
   o.className = 'eqOnglets';
-  [['papiers', '📄 Papiers'], ['absences', '🏖️ Absences'], ['heures', '⏱️ Heures'], ['resultats', '📈 Résultats']].forEach(x => {
+  /* 👁️ v1194 — chez la personne, un onglet dont rien ne lui est
+     montré n'apparaît pas. Papiers et Absences restent : c'est là
+     qu'elle dépose ses papiers et déclare un arrêt. */
+  const ongletsVus = [['papiers', '📄 Papiers'], ['absences', '🏖️ Absences'], ['heures', '⏱️ Heures'], ['resultats', '📈 Résultats']]
+    .filter(x => d.estAdmin || x[0] === 'papiers' || x[0] === 'absences' ||
+                 (d.vues || []).some(k => k.indexOf(x[0] + ':') === 0));
+  if(!ongletsVus.some(x => x[0] === equipeEC.onglet)) equipeEC.onglet = 'papiers';
+  if(reglageDesVuesEq(d)){
+    const a = document.createElement('div');
+    a.className = 'eqAide eqAideVue';
+    a.innerHTML = '👁️ Les interrupteurs au bout de chaque ligne disent ce que <strong>' + eEq(f.compte || f.nom) +
+      '</strong> voit dans ⋯ › 👤 Ma fiche. Tout est caché au départ.' +
+      (f.compte ? '' : ' <span style="color:var(--warn-text);">Aucun compte n’est relié à cette fiche : il ne voit rien tant qu’on n’en relie pas un (✏️ Modifier).</span>');
+    z.appendChild(a);
+  }
+  ongletsVus.forEach(x => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn ' + (x[0] === equipeEC.onglet ? 'btn-primary' : 'btn-secondary');
@@ -347,10 +414,12 @@ function dessinerPapiersEq(z, d, redessiner){
   const papiers = d.papiers || [];
   const enseigne = f.fonction === 'enseigne';
   /* Les papiers attendus selon la fonction, même s'ils manquent */
-  const attendus = (enseigne ? ['autorisation', 'medical', 'permis'] : []).concat(f.horsPaie ? [] : ['travail']);
+  /* 🏥 v1194 — la médecine du travail n'est plus attendue d'office
+     (David : « je la rajoute uniquement si je veux »). */
+  const attendus = enseigne ? ['autorisation', 'medical', 'permis'] : [];
   const lignes = [];
   papiers.filter(p => p.etat === 'attente').forEach(p => lignes.push(p));
-  attendus.forEach(g => { if(!papiers.some(p => p.genre === g && p.etat === 'valide')) lignes.push({ genre: g, manquant: true }); });
+  attendus.forEach(g => { if(!papiers.some(p => p.genre === g && p.etat === 'valide') && voitEq(d, 'papier:' + g)) lignes.push({ genre: g, manquant: true }); });
   papiers.filter(p => p.etat === 'valide').forEach(p => lignes.push(p));
   papiers.filter(p => p.etat === 'refuse').slice(0, 3).forEach(p => lignes.push(p));
 
@@ -401,9 +470,17 @@ function dessinerPapiersEq(z, d, redessiner){
     }else if(p.etat === 'valide' && d.peutModifier){
       dr.appendChild(petitBoutonEq('✏️', 'Corriger', () => ouvrirPapierEq(f, p, redessiner)));
     }
+    /* 👁️ v1194 — sauf un dépôt en attente : c'est sa démarche, il le voit */
+    if(reglageDesVuesEq(d) && (p.manquant || p.etat === 'valide')) dr.appendChild(interrupteurVueEq(d, cleVuePapierEq(p)));
     l.appendChild(dr);
     z.appendChild(l);
   });
+  if(!lignes.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = d.estAdmin ? 'Aucun papier enregistré.' : 'Rien à afficher pour le moment.';
+    z.appendChild(v);
+  }
 
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
@@ -523,7 +600,7 @@ function dessinerAbsencesEq(z, d, redessiner){
   if(!lignes.length){
     const v = document.createElement('div');
     v.className = 'empty';
-    v.textContent = 'Aucune absence enregistrée.';
+    v.textContent = d.estAdmin ? 'Aucune absence enregistrée.' : 'Rien à afficher pour le moment.';
     z.appendChild(v);
   }
   lignes.slice(0, 40).forEach(L => {
@@ -558,6 +635,8 @@ function dessinerAbsencesEq(z, d, redessiner){
     if(L.sorte === 'paie' && L.x.type === 'arret' && !L.copie && d.peutModifier){
       dr.appendChild(petitBoutonEq('📎 Joindre', 'Joindre la copie de l’arrêt', () => joindreCopieEq(f, L.x, redessiner)));
     }
+    /* 👁️ v1194 */
+    if(reglageDesVuesEq(d) && L.sorte !== 'depot') dr.appendChild(interrupteurVueEq(d, L.sorte === 'paie' ? 'absence:' + L.x.id : 'arret:' + L.a.id));
     l.appendChild(dr);
     z.appendChild(l);
   });
@@ -667,8 +746,8 @@ function selecteurMoisEq(z, redessiner){
   r.append(g, t, dr);
   z.appendChild(r);
 }
-function tuileEq(gros, petit, sous){
-  return '<div class="eqTuile"><div class="eqGros">' + eEq(gros) + '</div><div class="eqPetitT">' + eEq(petit) + '</div>' +
+function tuileEq(gros, petit, sous, cle){
+  return '<div class="eqTuile"' + (cle ? ' data-cle="' + cle + '"' : '') + '><div class="eqGros">' + eEq(gros) + '</div><div class="eqPetitT">' + eEq(petit) + '</div>' +
          (sous ? '<div class="eqGris">' + eEq(sous) + '</div>' : '') + '</div>';
 }
 function familleDuBilanEq(type){
@@ -692,10 +771,12 @@ async function dessinerHeuresEq(z, d){
   z.appendChild(bloc);
   const nomM = f.compte || f.nom;
   let bilans = [];
-  try{
-    const r = await appelPrep({ action: 'search', moniteur: nomM, leger: 1, maxi: 3000 });
-    bilans = (r && r.resultats) || [];
-  }catch(e){ bilans = null; }
+  if(voitEq(d, 'heures:cours')){
+    try{
+      const r = await appelPrep({ action: 'search', moniteur: nomM, leger: 1, maxi: 3000 });
+      bilans = (r && r.resultats) || [];
+    }catch(e){ bilans = null; }
+  }
   const duMois = (bilans || []).filter(b => {
     const t = String(b.date || '');
     const iso = /^\d{4}-\d{2}/.test(t) ? t.slice(0, 7) : (/^(\d{2})\/(\d{2})\/(\d{4})/.exec(t) ? t.replace(/^(\d{2})\/(\d{2})\/(\d{4}).*$/, '$3-$2') : '');
@@ -703,32 +784,44 @@ async function dessinerHeuresEq(z, d){
   });
   const parFam = {};
   duMois.forEach(b => { const fa = familleDuBilanEq(b.type); const k = fa[1]; parFam[k] = parFam[k] || { ic: fa[0], n: 0 }; parFam[k].n++; });
-  let h = '<div class="eqTitreBloc">COURS DONNÉS — D’APRÈS LES BILANS</div>';
-  if(bilans === null) h += '<div class="eqAide">Les bilans n’ont pas pu être lus.</div>';
+  let h = '';
+  if(!voitEq(d, 'heures:cours')){ /* 👁️ caché à la personne */ }
+  else if(bilans === null) h += '<div class="eqTitreBloc" data-cle="heures:cours">COURS DONNÉS — D’APRÈS LES BILANS</div><div class="eqAide">Les bilans n’ont pas pu être lus.</div>';
   else {
+    h += '<div class="eqTitreBloc" data-cle="heures:cours">COURS DONNÉS — D’APRÈS LES BILANS</div>';
     h += '<div class="eqGrille">' + tuileEq(String(duMois.length), duMois.length > 1 ? 'cours au total' : 'cours', '') +
       Object.keys(parFam).sort((a, b) => parFam[b].n - parFam[a].n).map(k => tuileEq(String(parFam[k].n), parFam[k].ic + ' ' + k, '')).join('') + '</div>' +
       '<div class="eqAide" style="margin-top:6px;">Un cours = un bilan enregistré à son nom (« ' + eEq(nomM) + ' »). L’appli ne connaît pas la durée d’un cours : elle compte les cours, pas les heures.</div>';
   }
   /* Les examens présentés, d'après 📈 Réussite */
   let res = null;
-  try{ if(typeof chargerResultats === 'function') res = await chargerResultats(); }catch(e){ res = null; }
+  try{ if(voitEq(d, 'heures:examens') && typeof chargerResultats === 'function') res = await chargerResultats(); }catch(e){ res = null; }
   if(res){
     const siens = res.filter(r => (typeof memeNom === 'function' ? memeNom(r.moniteur, nomM) || memeNom(r.moniteur, f.nom) : false) && String(r.iso || '').slice(0, 7) === m);
-    h += '<div class="eqTitreBloc">EXAMENS ACCOMPAGNÉS</div><div class="eqGrille">' +
+    h += '<div class="eqTitreBloc" data-cle="heures:examens">EXAMENS ACCOMPAGNÉS</div><div class="eqGrille">' +
       tuileEq(String(siens.length), '🎯 Candidats présentés', siens.length ? siens.filter(r => r.resultat === 'obtenu').length + ' reçu(s)' : '') + '</div>';
   }
   /* La paie, relue — rien n'est saisi ici */
-  if(f.dansPaie && d.salarie){
+  if(f.dansPaie && d.salarie && voitEq(d, 'heures:paie')){
     const abs = (d.absences || []).filter(a => String(a.du || '').slice(0, 7) === m || String(a.au || '').slice(0, 7) === m);
     const compte = t => abs.filter(a => a.type === t).length;
-    h += '<div class="eqTitreBloc">PAIE — REPRIS DE 💶 PAIE</div><div class="eqGrille">' +
+    h += '<div class="eqTitreBloc" data-cle="heures:paie">PAIE — REPRIS DE 💶 PAIE</div><div class="eqGrille">' +
       tuileEq(String(d.salarie.baseHebdo || '').replace('.', ',') + ' h', 'Contrat par semaine', (d.salarie.joursSemaine || '') + ' jours') +
       tuileEq(String(compte('cp')), '🏖️ Congés', 'sur le mois') + tuileEq(String(compte('arret')), '🤒 Arrêts', 'sur le mois') +
       tuileEq(String(compte('recup')), '🕐 Récupérations', 'sur le mois') + '</div>' +
       '<div class="eqAide" style="margin-top:6px;">Les heures supplémentaires et le message au gestionnaire restent dans 💶 Paie.</div>';
   }
-  bloc.innerHTML = h;
+  bloc.innerHTML = h || '<div class="empty">Rien à afficher pour le moment.</div>';
+  poserLesInterrupteursEq(bloc, d);
+}
+
+/* 👁️ v1194 — un interrupteur au bout de chaque titre de bloc / tuile */
+function poserLesInterrupteursEq(bloc, d){
+  if(!reglageDesVuesEq(d)) return;
+  bloc.querySelectorAll('[data-cle]').forEach(t => {
+    t.classList.add('eqAvecVue');
+    t.appendChild(interrupteurVueEq(d, t.getAttribute('data-cle')));
+  });
 }
 
 /* ---------- 📈 Résultats ---------- */
@@ -747,11 +840,15 @@ async function dessinerResultatsEq(z, d){
   const siens = periode.filter(r => memeNom(r.moniteur, nomM) || memeNom(r.moniteur, f.nom));
   const t = calculerTaux(siens), t1 = calculerTaux(premiersPassages(siens)), ecole = calculerTaux(periode.filter(aUnMoniteur));
   const pc = x => (typeof pourcent === 'function') ? pourcent(x) : (x === null ? '—' : x + ' %');
-  bloc.innerHTML = '<div class="eqTitreBloc">LES 12 DERNIERS MOIS — LE MÊME CALCUL QUE 📈 RÉUSSITE</div><div class="eqGrille">' +
-    tuileEq(pc(t.taux), 'Réussite', t.reussis + ' reçu(s) sur ' + t.total + ' passage(s)') +
-    tuileEq(pc(t1.taux), '1er passage', t1.reussis + ' sur ' + t1.total) +
-    tuileEq(pc(ecole.taux), 'Moyenne de l’école', 'tous moniteurs') + '</div>' +
-    (t.total && !t.fiable ? '<div class="eqAide" style="margin-top:6px;">Peu de passages : le taux bouge vite.</div>' : '');
+  const tuiles = [
+    voitEq(d, 'resultats:reussite') ? tuileEq(pc(t.taux), 'Réussite', t.reussis + ' reçu(s) sur ' + t.total + ' passage(s)', 'resultats:reussite') : '',
+    voitEq(d, 'resultats:premier') ? tuileEq(pc(t1.taux), '1er passage', t1.reussis + ' sur ' + t1.total, 'resultats:premier') : '',
+    voitEq(d, 'resultats:ecole') ? tuileEq(pc(ecole.taux), 'Moyenne de l’école', 'tous moniteurs', 'resultats:ecole') : ''
+  ].join('');
+  bloc.innerHTML = tuiles ? '<div class="eqTitreBloc">LES 12 DERNIERS MOIS — LE MÊME CALCUL QUE 📈 RÉUSSITE</div><div class="eqGrille">' + tuiles + '</div>' +
+    (t.total && !t.fiable && voitEq(d, 'resultats:reussite') ? '<div class="eqAide" style="margin-top:6px;">Peu de passages : le taux bouge vite.</div>' : '')
+    : '<div class="empty">Rien à afficher pour le moment.</div>';
+  poserLesInterrupteursEq(bloc, d);
 }
 
 /* ============================================================
