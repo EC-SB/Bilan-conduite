@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 15:11 — v1176 */
+/* Déployé le 16/10/2026 à 11:01 — v1187 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,148 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1187,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '🦊 L’émoji de chaque moniteur revient sur la fiche véhicule des bilans AAC',
+    quoi: [
+      { emoji: '🦊',
+        titre: 'Les manœuvres faites avec un collègue',
+        texte: 'Sur la fiche véhicule des bilans AAC, une manœuvre faite avec un autre moniteur porte son émoji, ' +
+               'et plus seulement ✅. Prévu le 10 octobre, il ne s’affichait jamais : c’est réparé.' }
+    ]
+  },
+  {
+    version: 1186,
+    date: 'Jeudi 15 octobre 2026',
+    resume: '📞 Appels vocaux et vidéo dans la messagerie',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Appeler depuis un fil',
+        texte: 'Le combiné en tête du fil ouvre « Appeler — qui sonne ? » : tous les membres du fil sont cochés, ' +
+               'tu décoches qui ne doit pas sonner (6 personnes au plus). Puis Appel vidéo, Appel vocal ou 📅 Plus tard.' },
+      { emoji: '🔔',
+        titre: 'Tu entends que ça sonne',
+        texte: 'Tant que personne n’a décroché : « Ça sonne chez … » à l’écran, et la tonalité d’un vrai téléphone. ' +
+               'Tout s’arrête dès que quelqu’un répond.' },
+      { emoji: '🔇',
+        titre: 'Couper le micro, couper le son',
+        texte: 'Micro et Haut-parleur, côte à côte, en vocal comme en vidéo. En vocal, si le téléphone le permet, ' +
+               'Haut-parleur propose aussi « À l’oreille ».' },
+      { emoji: '🔽',
+        titre: 'Réduire',
+        texte: 'L’appel continue dans une pastille en haut à droite, et l’appli reste utilisable (dossier, bilan…). ' +
+               '« Revenir » rouvre l’appel. Sur ordinateur, « Partager l’écran » montre un bilan pendant qu’on en parle.' },
+      { emoji: '🔑',
+        titre: 'Un élève n’appelle que si on le lui ouvre',
+        texte: 'Deux interrupteurs dans l’onglet 🔑 de sa fiche : vocal, vidéo. Fermés par défaut. ' +
+               'Rien n’est enregistré : ni le son, ni l’image.' }
+    ]
+  },
+  {
+    version: 1185,
+    date: 'Jeudi 15 octobre 2026',
+    resume: '🕘 Tes notifications sonnent aux heures que tu choisis, appareil par appareil',
+    quoi: [
+      { emoji: '🕘',
+        titre: 'Tes heures, par appareil',
+        texte: 'Dans 💬 Messagerie, sur le bandeau des notifications : 🕘 Horaires. Plusieurs créneaux par jour, ' +
+               'un réglage par téléphone ou ordinateur. Un appareil qu’on active reprend les heures d’un autre des tiens.' },
+      { emoji: '📋',
+        titre: 'Le résumé au retour',
+        texte: 'En dehors de tes heures, rien ne sonne : un seul résumé arrive au début de ton créneau suivant.' },
+      { emoji: '🚨',
+        titre: 'Ce qui sonne quand même',
+        texte: 'Tu coches ce qui doit passer à toute heure. Au départ : les retards et les annulations.' },
+      { emoji: '🌴',
+        titre: 'Pause jusqu’au…',
+        texte: 'Vacances, jour férié : 🌴 Mettre en pause jusqu’à une date et une heure, puis « Reprendre maintenant » quand tu veux.' }
+    ]
+  },
+  {
+    version: 1184,
+    date: 'Jeudi 15 octobre 2026',
+    resume: '📊 L’évaluation de départ arrive dans le dossier de l’élève, avec sa frise et ses photos',
+    quoi: [
+      { emoji: '📊',
+        titre: 'Élèves › Administratif › 📊 Évaluation',
+        texte: 'Tu tapes le nom de l’élève : l’appli le trouve, ou le crée (nom, téléphone et mail obligatoires). ' +
+               'L’évaluation se range dans son dossier, onglet 📊 Évaluation.' },
+      { emoji: '🚗',
+        titre: '« Il part en » BV ou BEA',
+        texte: 'Le choix de la boîte pose la bonne frise toute seule, et le bon montant dans son dossier. ' +
+               'AAC et CS : le forfait du pack de 💰 Tarifs. Si une formation ou une frise existe déjà, l’appli demande si on remplace.' },
+      { emoji: '📷',
+        titre: 'Les photos du simulateur',
+        texte: 'Prendre une photo ou la choisir dans la galerie : elles restent dans son dossier.' },
+      { emoji: '🆔',
+        titre: 'L’Id Drivup en tête du dossier',
+        texte: 'À côté de la formation, visible partout dans le dossier : il distingue les homonymes. ' +
+               'Le bureau et les administrateurs le corrigent à la main si l’import s’est trompé.' }
+    ]
+  },
+  {
+    version: 1182,
+    date: 'Jeudi 15 octobre 2026',
+    resume: '🚗 Les rappels reprennent la voiture et le simulateur depuis Drivup',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'La voiture du planning Drivup',
+        texte: 'Les numéros posés en haut du planning (« .1 », « .7 ») remplissent la voiture du rappel. ' +
+               'La correspondance se règle dans la fiche du véhicule (Flotte), case « N° Drivup ».' },
+      { emoji: '🖥️',
+        titre: 'Le type de leçon',
+        texte: 'Conduite, examen blanc et simulateur avec moniteur sont lus dans le titre du cours Drivup. ' +
+               'Pré-rempli dans le rappel, et toujours modifiable.' },
+      { emoji: '🆔',
+        titre: 'La pièce d’identité',
+        texte: 'Dans Mes prochains cours, à côté du 🆔 : « DOIT DEPOSER SA PIECE D’IDENTITE AU BUREAU ».' }
+    ]
+  },
+  {
+    version: 1180,
+    date: 'Jeudi 15 octobre 2026',
+    resume: '↩️ Répondre à un message précis, comme sur Messenger',
+    quoi: [
+      { emoji: '↩️',
+        titre: 'Trois façons de répondre',
+        texte: 'Appui long sur la bulle puis ↩️, glisser la bulle vers la droite, ou ↩️ au survol sur ordinateur. ' +
+               'Le message cité s’affiche au-dessus de ta réponse.' },
+      { emoji: '👆',
+        titre: 'Remonter au message',
+        texte: 'Toucher la citation remonte au message d’origine dans le fil. Les élèves peuvent répondre de la même façon.' }
+    ]
+  },
+  {
+    version: 1179,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '💰 Tarifs : un prix changé met tout à jour',
+    quoi: [
+      { emoji: '💰',
+        titre: 'Outils › Argent › 💰 Tarifs',
+        texte: 'Les prix, les fiches, Imprimer vite, et le devis d’évaluation. Un tarif unitaire changé met à jour ' +
+               'toutes les fiches et tous les totaux.' },
+      { emoji: '🖨️',
+        titre: 'Imprimer, envoyer',
+        texte: 'Impression PDF, export JPG pour le site, plusieurs PDF par mail, et des boutons d’impression rapide. ' +
+               'La fenêtre des boutons a un ✕ en haut et défile sur les petits écrans.' }
+    ]
+  },
+  {
+    version: 1177,
+    date: 'Mercredi 14 octobre 2026',
+    resume: '👀 Le bureau partage sa lecture : un fil ouvert par l’un s’éteint chez les autres',
+    quoi: [
+      { emoji: '👀',
+        titre: 'Un seul point à éteindre',
+        texte: 'Quand quelqu’un du bureau ou un administrateur ouvre un fil bureau, vitrine, retard, annulation, ' +
+               'oubli ou groupe, le point s’éteint chez les autres du bureau. La liste affiche « 👀 » et le prénom à la place.' },
+      { emoji: '🎯',
+        titre: 'Les moniteurs gardent le leur',
+        texte: '« Vu par » ne change pas : il ne montre que ceux qui ont vraiment ouvert. Un nouveau message rallume ' +
+               'le point chez tout le monde. Les options se règlent dans ⚙️ de la messagerie (administrateurs).' }
+    ]
+  },
   {
     version: 1176,
     date: 'Mercredi 14 octobre 2026',
@@ -1687,6 +1829,18 @@ function aDesNouveautesNonLues(){
   return !!d && versionNouveauteLue() < d.version;
 }
 
+/* 🆕 v1187 — TOUTES les notes pas encore lues, pas seulement la
+   dernière. Dix livraisons sans note (v1177 → v1186) : n'ouvrir que
+   la plus récente, c'était cacher les appels sous le son des appels,
+   et l'évaluation, les horaires, Tarifs… dans « précédentes », où
+   personne ne va. Un appareil neuf (rien en mémoire) ne voit que la
+   dernière : il n'a pas à rattraper soixante notes. */
+function nouveautesNonLues(){
+  const lue = versionNouveauteLue();
+  if(!lue) return NOUVEAUTES.slice(0, 1);
+  return NOUVEAUTES.filter(n => n.version > lue);
+}
+
 
 /* ============================================================
    LA LIGNE DU BANDEAU
@@ -1701,7 +1855,8 @@ function lignesNouveautes(){
   if(!aDesNouveautesNonLues()) return [];
 
   const d = derniereNouveaute();
-  const n = (d.quoi || []).length;
+  const nl = nouveautesNonLues();
+  const n = nl.reduce((t, x) => t + (x.quoi || []).length, 0);
 
   return [{
     id: 'nouveautes:' + d.version,
@@ -1709,7 +1864,8 @@ function lignesNouveautes(){
     emoji: '🆕',
     texte: 'Du nouveau dans l’outil — ' + n + ' changement' +
            (n > 1 ? 's' : ''),
-    sous: d.resume || '',
+    sous: nl.length > 1 ? nl.map(x => x.resume).filter(Boolean).slice(0, 3).join(' · ') + (nl.length > 3 ? ' …' : '')
+                        : (d.resume || ''),
     urgente: false,
     action: ouvrirNouveautes,
     actionTexte: 'Lire'
@@ -1733,8 +1889,10 @@ function ouvrirNouveautes(){
   if(!d){
     boite.innerHTML = '<div class="empty">Rien à raconter pour le moment.</div>';
   }else{
-    boite.appendChild(blocNouveaute(d));
-    const avant = NOUVEAUTES.slice(1);
+    const nl = nouveautesNonLues();
+    const aLire = nl.length ? nl : [d];
+    aLire.forEach((n, i) => boite.appendChild(blocNouveaute(n, aLire.length > 1 ? i : -1)));
+    const avant = NOUVEAUTES.slice(aLire.length);
     if(avant.length) boite.appendChild(voletNouveautesPrecedentes(avant));
   }
 
@@ -1766,13 +1924,27 @@ function ouvrirNouveautes(){
   });
 }
 
-function blocNouveaute(n){
+/* rang : -1 = une seule note (comme avant) ; 0, 1, 2… = plusieurs
+   notes à lire d'affilée — le grand titre une fois, puis chaque note
+   avec son résumé, pour qu'on sache de quoi elle parle. */
+function blocNouveaute(n, rang){
   const z = document.createElement('div');
+  const plusieurs = typeof rang === 'number' && rang >= 0;
 
-  const t = document.createElement('div');
-  t.className = 'nvTitre';
-  t.textContent = '🆕 Du nouveau dans l’outil';
-  z.appendChild(t);
+  if(!plusieurs || rang === 0){
+    const t = document.createElement('div');
+    t.className = 'nvTitre';
+    t.textContent = '🆕 Du nouveau dans l’outil';
+    z.appendChild(t);
+  }
+  if(plusieurs){
+    z.style.marginTop = rang ? '18px' : '';
+    const r = document.createElement('div');
+    r.className = 'nvResume';
+    r.style.cssText = 'font-weight:800;font-size:15px;margin-top:' + (rang ? '0' : '8px') + ';';
+    r.textContent = n.resume || '';
+    z.appendChild(r);
+  }
 
   const dt = document.createElement('div');
   dt.className = 'nvDate';
