@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 13:35 — v1189 */
+/* Déployé le 16/10/2026 à 13:43 — v1190 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,18 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1190,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '📣 Messenger permis reprend toutes les dates de 🎓 Suivi permis',
+    quoi: [
+      { emoji: '📣',
+        titre: 'Plus de date oubliée',
+        texte: 'Messenger permis montre chaque session à venir de 🎓 Suivi permis, avec ses élèves. ' +
+               'Une date déplacée, un repassage ou un ancien « annulé » sur la fiche faisaient disparaître des élèves, ' +
+               'parfois une date entière : c’est la session qui décide maintenant.' }
+    ]
+  },
   {
     version: 1189,
     date: 'Vendredi 16 octobre 2026',
