@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:18 — v1191 */
+/* Déployé le 16/10/2026 à 14:40 — v1192 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1107,25 +1107,31 @@ function blocSession(sess, auj){
   n.title = prets + ' prêt(s) sur ' + sess.eleves.length + ' place(s)';
   tete.appendChild(n);
 
-  /* Le groupe : grisé tant qu'il n'est pas créé, sur un rond VERT une
+  /* Le groupe : bulle grise tant qu'il n'est pas créé, bulle VERTE une
      fois fait. Un appui bascule, sans ouvrir la session.
 
      ⚠️ v1191 — David, le 16 octobre : « mets la bulle en vert quand
      on clique dessus pour dire que le groupe Messenger est fait, et
      qu'elle passe en vert toute seule si le groupe de messagerie est
-     fait ». Avant, « fait » ne faisait que rendre sa couleur à l'émoji
-     — une bulle blanche, qu'on ne distinguait pas d'une bulle grise.
-     Le groupe de la messagerie la verdit aussi : voir
-     cocherLesGroupesFaits. */
+     fait ». Le groupe de la messagerie la verdit aussi : voir
+     cocherLesGroupesFaits.
+
+     ⚠️ v1192 — LA BULLE ELLE-MÊME, PAS UN ROND DERRIÈRE. La v1191
+     posait l'émoji 💬 sur un rond vert ; David, capture à l'appui :
+     « c'est moche, tu peux pas mettre la bulle en elle-même en
+     vert ». Un émoji ne se recolore pas : la bulle est donc dessinée,
+     même silhouette, remplie de gris ou de vert. */
   const fait = !!sess.groupeFait;
   const bMess = document.createElement('button');
   bMess.className = 'btn btn-secondary bulleGroupe' + (fait ? ' fait' : '');
-  bMess.style.cssText = 'width:30px;height:30px;padding:0;font-size:15px;margin:0;' +
-    'flex-shrink:0;border:none;border-radius:50%;line-height:30px;text-align:center;' +
-    'background:' + (fait ? 'var(--green)' : 'none') + ';' +
-    'filter:' + (fait ? 'none' : 'grayscale(1)') + ';' +
-    'opacity:' + (fait ? '1' : '.45') + ';';
-  bMess.textContent = '💬';
+  bMess.style.cssText = 'width:30px;height:30px;padding:0;margin:0;' +
+    'flex-shrink:0;border:none;background:none;display:inline-flex;' +
+    'align-items:center;justify-content:center;';
+  bMess.innerHTML = '<svg width="22" height="20" viewBox="0 0 22 20" aria-hidden="true" style="display:block;">' +
+    '<path d="M5 1.2h12a4 4 0 0 1 4 4v6.2a4 4 0 0 1-4 4H9.6l-4.4 3.4c-.5.4-1.2 0-1.2-.6v-2.9A4 4 0 0 1 1 11.4V5.2a4 4 0 0 1 4-4z" ' +
+    'fill="' + (fait ? 'var(--green)' : 'var(--muted)') + '" ' +
+    'stroke="' + (fait ? 'var(--accent-text)' : 'none') + '" stroke-width="1.2" stroke-linejoin="round"' +
+    (fait ? '' : ' opacity=".55"') + '/></svg>';
   bMess.title = fait
     ? 'Groupe fait (Messenger ou messagerie) — appuie pour annuler'
     : 'Groupe pas encore fait — appuie quand il l’est';
