@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 10:52 — v1173 */
+/* Déployé le 16/10/2026 à 14:18 — v1191 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -167,6 +167,35 @@ function redessinerSessions(){
    en ont besoin autant que cet écran. Séparé du dessin pour qu'ils
    puissent l'appeler sans repeindre une page qu'ils n'affichent
    pas. */
+/* ============================================================
+   💬 LA BULLE SE VERDIT TOUTE SEULE — v1191
+
+   Une session dont le groupe de la messagerie existe a son groupe
+   fait : la case se coche (et s'enregistre) sans qu'on y touche. La
+   création depuis Messenger permis la cochait déjà ; un groupe créé
+   avant, ou dont l'enregistrement avait échoué, restait gris.
+
+   Sans le droit d'écrire les sessions, la bulle est verte à l'écran
+   quand même : le groupe existe, c'est ce qu'elle doit dire.
+   ============================================================ */
+function cocherLesGroupesFaits(liens){
+  const l = liens || ((typeof liensGroupesPermis !== 'undefined') ? liensGroupesPermis : {}) || {};
+  let change = false;
+  (sessionsPermis || []).forEach(sess => {
+    if(!sess || !sess.id || sess.groupeFait || !l[sess.id]) return;
+    sess.groupeFait = true;
+    change = true;
+    try{
+      appelPrep({ action: 'sessionGroupe', id: sess.id, groupeFait: 'oui' }).catch(() => {});
+    }catch(e){}
+  });
+  const z = (typeof $ === 'function') ? $('sessionsPermis') : null;
+  if(change && z && z.childElementCount && typeof redessinerSessions === 'function'){
+    try{ redessinerSessions(); }catch(e){}
+  }
+  return change;
+}
+
 async function chargerSessionsPermis(){
   /* Le suivi en même temps : c'est lui qui porte « à remplacer »,
      « tout est OK » et le reste à payer. */
@@ -192,7 +221,7 @@ async function chargerSessionsPermis(){
      Une session vient d'être relue : si elle a changé, son groupe
      suit. Sans attendre, et sans jamais bloquer cet écran. */
   if(typeof suivreLesGroupesPermis === 'function'){
-    try{ suivreLesGroupesPermis(sessionsPermis).catch(() => {}); }catch(e){}
+    try{ suivreLesGroupesPermis(sessionsPermis).then(cocherLesGroupesFaits).catch(() => {}); }catch(e){}
   }
 
   return sessionsPermis;
@@ -1078,18 +1107,29 @@ function blocSession(sess, auj){
   n.title = prets + ' prêt(s) sur ' + sess.eleves.length + ' place(s)';
   tete.appendChild(n);
 
-  /* Le groupe : grisé tant qu'il n'est pas créé, en couleur une fois
-     fait. Un appui bascule, sans ouvrir la session. */
+  /* Le groupe : grisé tant qu'il n'est pas créé, sur un rond VERT une
+     fois fait. Un appui bascule, sans ouvrir la session.
+
+     ⚠️ v1191 — David, le 16 octobre : « mets la bulle en vert quand
+     on clique dessus pour dire que le groupe Messenger est fait, et
+     qu'elle passe en vert toute seule si le groupe de messagerie est
+     fait ». Avant, « fait » ne faisait que rendre sa couleur à l'émoji
+     — une bulle blanche, qu'on ne distinguait pas d'une bulle grise.
+     Le groupe de la messagerie la verdit aussi : voir
+     cocherLesGroupesFaits. */
+  const fait = !!sess.groupeFait;
   const bMess = document.createElement('button');
-  bMess.className = 'btn btn-secondary';
-  bMess.style.cssText = 'width:auto;padding:5px 6px;font-size:15px;margin:0;' +
-    'flex-shrink:0;border:none;background:none;' +
-    'filter:' + (sess.groupeFait ? 'none' : 'grayscale(1)') + ';' +
-    'opacity:' + (sess.groupeFait ? '1' : '.45') + ';';
+  bMess.className = 'btn btn-secondary bulleGroupe' + (fait ? ' fait' : '');
+  bMess.style.cssText = 'width:30px;height:30px;padding:0;font-size:15px;margin:0;' +
+    'flex-shrink:0;border:none;border-radius:50%;line-height:30px;text-align:center;' +
+    'background:' + (fait ? 'var(--green)' : 'none') + ';' +
+    'filter:' + (fait ? 'none' : 'grayscale(1)') + ';' +
+    'opacity:' + (fait ? '1' : '.45') + ';';
   bMess.textContent = '💬';
-  bMess.title = sess.groupeFait
-    ? 'Groupe Messenger fait — appuie pour annuler'
-    : 'Groupe Messenger pas encore fait';
+  bMess.title = fait
+    ? 'Groupe fait (Messenger ou messagerie) — appuie pour annuler'
+    : 'Groupe pas encore fait — appuie quand il l’est';
+  bMess.setAttribute('aria-pressed', fait ? 'true' : 'false');
   bMess.addEventListener('click', async ev => {
     ev.stopPropagation();
 
