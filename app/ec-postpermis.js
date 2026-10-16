@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 22:30 — v1095 */
+/* Déployé le 16/10/2026 à 14:54 — v1193 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -292,6 +292,8 @@ async function afficherPostExamen(tous){
               dateAjournement: dateAjo,
               datePermis: '', aPlanifier: '', retireAPrevoir: '',
               toutOk: '', aRemplacer: '', dateADonner: '', fantome: '',
+              /* 💶 📆 v1193 — un repassage se repaie et se replanifie */
+              toutPaye: '', toutPlanifie: '',
               rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '',
               bilanExamen: '', suite: '', commentaireMoniteur: '',
               /* ⚠️ LE BILAN DE L'ÉLÈVE PART AUSSI — étape 1d.
