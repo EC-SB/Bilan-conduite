@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 16:37 — v1196 */
+/* Déployé le 16/10/2026 à 17:01 — v1197 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1197,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '🆕 Un élève créé par l’évaluation se retrouve tout de suite',
+    quoi: [
+      { emoji: '🆕',
+        titre: 'Plus d’attente après une évaluation',
+        texte: 'Quand l’évaluation crée l’élève, la liste des élèves de l’appareil est relue aussitôt : la recherche du dossier ' +
+               'et les champs à suggestions le trouvent tout de suite, sans attendre le prochain démarrage.' }
+    ]
+  },
   {
     version: 1196,
     date: 'Vendredi 16 octobre 2026',
