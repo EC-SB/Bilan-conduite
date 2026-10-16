@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:18 — v1191 */
+/* Déployé le 16/10/2026 à 14:40 — v1192 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -51,6 +51,16 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1192,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '💬 Suivi permis : c’est la bulle elle-même qui passe au vert',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Une bulle verte, sans rond derrière',
+        texte: 'Dans 🎓 Suivi permis, la bulle du groupe est grise tant qu’il n’est pas fait, et devient verte une fois fait.' }
+    ]
+  },
+  {
     version: 1191,
     date: 'Vendredi 16 octobre 2026',
     resume: '🔴 ELEVE PAS PREVENU sur la ligne d’examen · 💬 bulle verte',
@@ -62,7 +72,7 @@ const NOUVEAUTES = [
                'L’étiquette qui l’écrivait en dessous est retirée.' },
       { emoji: '💬',
         titre: 'La bulle du groupe, en vert',
-        texte: 'Dans 🎓 Suivi permis, un appui sur 💬 la met sur un rond vert : groupe fait. ' +
+        texte: 'Dans 🎓 Suivi permis, un appui sur la bulle 💬 la passe au vert : groupe fait. ' +
                'Elle passe au vert toute seule quand le groupe de la messagerie de la session existe.' }
     ]
   },
