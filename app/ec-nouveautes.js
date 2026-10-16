@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 11:01 — v1187 */
+/* Déployé le 16/10/2026 à 11:24 — v1188 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1188,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '👤 Dans un groupe, le nom d’un élève ouvre son dossier',
+    quoi: [
+      { emoji: '👤',
+        titre: 'Des noms qui mènent au dossier',
+        texte: 'Dans 💬 Messagerie, fiche d’un groupe (à droite, ou ⓘ sur le téléphone) : touche le nom d’un élève ' +
+               'pour ouvrir son dossier. L’équipe et la boîte du bureau restent écrites comme avant.' }
+    ]
+  },
   {
     version: 1187,
     date: 'Vendredi 16 octobre 2026',
