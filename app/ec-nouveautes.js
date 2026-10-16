@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 16:06 — v1194 */
+/* Déployé le 16/10/2026 à 16:18 — v1195 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1195,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '🪪 L’équipe : photo, adresse, portable, mail et RIB sur la fiche',
+    quoi: [
+      { emoji: '🖼️',
+        titre: 'La photo de la messagerie, sur la fiche',
+        texte: 'La même photo que dans 💬 : en tête de la fiche et dans la liste de l’équipe. 📷 pour la changer — la sienne ' +
+               'dans Ma fiche, celle de tout le monde pour un administrateur. Changée ici, elle change dans la messagerie.' },
+      { emoji: '🪪',
+        titre: 'Un onglet Coordonnées',
+        texte: 'Adresse, portable, adresse mail (la même que dans ⚙️ Accès : on la change d’un côté, elle change de l’autre) ' +
+               'et le RIB, déposé en photo ou PDF. Chaque ligne a son interrupteur 👁️ ; ce qui est allumé, la personne le voit et peut le corriger.' }
+    ]
+  },
   {
     version: 1194,
     date: 'Vendredi 16 octobre 2026',
