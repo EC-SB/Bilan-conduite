@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:40 — v1192 */
+/* Déployé le 16/10/2026 à 14:54 — v1193 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -119,9 +119,9 @@ function etatPlace(place, eleveBureau){
   if(!place.prevenu) manque.push('pas prévenu');
   if(!place.dossierOk) manque.push('dossier à vérifier');
   if(su.fairePoint === 'oui') manque.push('faire le point');
-  if(su.resteAPayer && parseFloat(su.resteAPayer) > 0){
-    manque.push('reste ' + su.resteAPayer + ' € à payer');
-  }
+  /* 💶 v1193 — le reste à payer ne s'écrit plus ici : la ligne
+     « 💶 Il doit de l'argent » le porte, avec le montant, tant que
+     « Tout est payé » n'est pas coché. Voir lignesDeLaPreparation. */
   /* Une relance dépassée : c'est le genre de chose qui se perd */
   if(su.relanceLe && su.relanceLe <= todayLocal()){
     manque.push('à relancer');
@@ -134,9 +134,14 @@ function etatPlace(place, eleveBureau){
     if(a.simuNuit === 'aprevoir') manque.push('simulateur à prévoir');
   }
 
+  /* ⚠️ v1193 — PLUS DE VERT SANS « TOUT EST OK ». David, le 16 octobre :
+     « l'élève ne passe au vert que quand la case Tout est OK est
+     cochée ». Avant, une fiche sans rien à signaler passait au vert
+     toute seule — un élève dont personne n'avait encore regardé la
+     préparation avait l'air prêt. */
   if(!manque.length){
-    return { cle:'ok', emoji:'✅', texte:'Tout est prêt',
-             couleur:'var(--accent-text)' };
+    return { cle:'attente', emoji:'🟠', texte:'à valider : « Tout est OK » pas coché',
+             couleur:'var(--warn-text)' };
   }
   return { cle:'attente', emoji: place.prevenu ? '🟠' : '🔴',
            texte: manque.join(' · '), couleur:'var(--warn-text)' };
@@ -1175,6 +1180,9 @@ function blocSession(sess, auj){
     return '<div class="ses-pl" title="' + ech(e.texte) + '">' + h +
       '<span class="ses-pe">' + e.emoji + '</span>' +
       '<span class="ses-pn" style="color:' + e.couleur + ';">' + ech(x.eleve) + '</span>' +
+      /* 💶 📆 v1193 — replié : au bout du prénom. À côté du nom et pas
+         dedans : un nom long est coupé par « … », les marques jamais. */
+      iconesDeLaPreparation(x.eleve) +
       etiquetteBoite(boiteDe(x.eleve)) + '</div>';
   }).join('');
   bloc.appendChild(apercu);
@@ -1452,6 +1460,46 @@ function casesHeuresPermis(nom){
 }
 
 
+/* ============================================================
+   💶 📆 CE QUI RESTE À PAYER ET À PLANIFIER — v1193
+
+   David, le 16 octobre : « ajoute une case Tout est payé : tant
+   qu'elle n'est pas cochée, mets un petit billet au bout du prénom
+   quand c'est replié, et quand c'est déplié écris en dessous Il doit
+   de l'argent. Il doit planifier encore des choses : même principe,
+   avec un calendrier ».
+
+   Une case PAS cochée vaut « pas encore » : c'est le bureau qui
+   l'affirme en la cochant, jamais l'outil qui le devine.
+   ============================================================ */
+function marquesDeLaPreparation(nom){
+  if(!nom) return { paye: true, planifie: true };
+  const su = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  return { paye: su.toutPaye === 'oui', planifie: su.toutPlanifie === 'oui', su: su };
+}
+function iconesDeLaPreparation(nom){
+  const m = marquesDeLaPreparation(nom);
+  const t = (m.paye ? '' : '<span title="Il doit de l’argent">💶</span>') +
+            (m.planifie ? '' : '<span title="Il doit planifier encore des choses">📆</span>');
+  return t ? '<span class="ses-marques" style="font-size:13px;margin-left:-2px;">' + t + '</span>' : '';
+}
+function lignesDeLaPreparation(nom){
+  const m = marquesDeLaPreparation(nom);
+  let h = '';
+  if(!m.paye){
+    const reste = String((m.su && m.su.resteAPayer) || '').trim();
+    const montant = reste && parseFloat(reste.replace(',', '.')) > 0
+      ? ' (reste ' + reste.replace(/</g, '&lt;') + ' €)' : '';
+    h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
+         '💶 Il doit de l’argent' + montant + '</div>';
+  }
+  if(!m.planifie){
+    h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
+         '📆 Il doit planifier encore des choses</div>';
+  }
+  return h;
+}
+
 function lignePlace(p, sess){
   const etat = etatPlace(p, eleveDuBureau(p.eleve));
   const vide = !p.eleve;
@@ -1473,7 +1521,8 @@ function lignePlace(p, sess){
   const su = (typeof suiviDe === 'function' && p.eleve) ? suiviDe(p.eleve) : {};
   const ficheVide = !vide && !su.resteAPayer && !su.reservations &&
                     !su.relanceLe && !su.lecons2h && su.toutOk !== 'oui' &&
-                    su.aRemplacer !== 'oui' && su.fairePoint !== 'oui';
+                    su.aRemplacer !== 'oui' && su.fairePoint !== 'oui' &&
+                    su.toutPaye !== 'oui' && su.toutPlanifie !== 'oui';
 
   nom.innerHTML = vide
     ? '<span style="color:var(--muted);font-style:italic;">⬜ Place libre — ' +
@@ -1485,6 +1534,8 @@ function lignePlace(p, sess){
         '📝 fiche à remplir</span>' : '') +
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
       etat.emoji + ' ' + etat.texte + '</div>' +
+      /* 💶 📆 v1193 — déplié : écrit en toutes lettres */
+      lignesDeLaPreparation(p.eleve) +
       /* Ce que le bureau a noté : les leçons posées et le reste à
          faire. C'est ce qu'on veut voir sans ouvrir la fiche. */
       (su.reservations ? '<div style="font-size:11px;color:var(--accent-text);' +
@@ -2023,6 +2074,18 @@ function ouvrirPlace(p, sess){
       '<input type="checkbox" id="plPoint" style="width:19px;height:19px;">' +
       '❓ Faire le point avec lui</label>' +
 
+    /* 💶 📆 v1193 — David, le 16 octobre : tant qu'elles ne sont pas
+       cochées, un billet et un calendrier suivent son prénom. */
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:8px;font-weight:400;">' +
+      '<input type="checkbox" id="plPaye" style="width:19px;height:19px;">' +
+      '💶 Tout est payé</label>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:8px;font-weight:400;">' +
+      '<input type="checkbox" id="plPlanifie" style="width:19px;height:19px;">' +
+      '📆 Tout est planifié</label>' +
+
     '<div class="duo">' +
       '<div><label for="plPay">Reste à payer</label>' +
         '<input type="text" id="plPay" inputmode="decimal" placeholder="Ex : 180"></div>' +
@@ -2083,6 +2146,8 @@ function ouvrirPlace(p, sess){
   boite.querySelector('#plOk').checked = (su.toutOk === 'oui');
   boite.querySelector('#plRemplacer').checked = (su.aRemplacer === 'oui');
   boite.querySelector('#plPoint').checked = (su.fairePoint === 'oui');
+  boite.querySelector('#plPaye').checked = (su.toutPaye === 'oui');
+  boite.querySelector('#plPlanifie').checked = (su.toutPlanifie === 'oui');
   boite.querySelector('#plPay').value = su.resteAPayer || '';
   boite.querySelector('#plQd').value = su.paiementPrevu || '';
   boite.querySelector('#plL2').value = su.lecons2h || '';
@@ -2206,6 +2271,8 @@ function ouvrirPlace(p, sess){
         toutOk: boite.querySelector('#plOk').checked ? 'oui' : '',
         aRemplacer: boite.querySelector('#plRemplacer').checked ? 'oui' : '',
         fairePoint: boite.querySelector('#plPoint').checked ? 'oui' : '',
+        toutPaye: boite.querySelector('#plPaye').checked ? 'oui' : '',
+        toutPlanifie: boite.querySelector('#plPlanifie').checked ? 'oui' : '',
         resteAPayer: boite.querySelector('#plPay').value.trim(),
         paiementPrevu: boite.querySelector('#plQd').value,
         lecons2h: boite.querySelector('#plL2').value.trim(),
