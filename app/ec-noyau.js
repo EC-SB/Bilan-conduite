@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 16/10/2026 à 13:35 — v1189 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -397,6 +397,10 @@ const SECTIONS = [
   { cle:'menage',           nom:'🧹 Ménage des dossiers', onglet:'gestion' },
   /* 📍 v1170 — horaires et rendez-vous des bureaux (ec-bureaux.js) */
   { cle:'bureaux',          nom:'📍 Horaires et rendez-vous des bureaux', onglet:'gestion' },
+  /* 👥 v1189 — l'équipe (papiers, arrêts) et les échéances de l'école (ec-equipe.js).
+     Administrateurs seuls par le rôle : les papiers de chacun ne se
+     montrent pas sans que David le décide. */
+  { cle:'equipe',           nom:'👥 Équipe et échéances', onglet:'outils' },
   { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
