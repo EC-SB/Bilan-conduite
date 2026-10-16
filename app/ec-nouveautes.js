@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 16:18 — v1195 */
+/* Déployé le 16/10/2026 à 16:37 — v1196 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1196,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '📷 Évaluation : la photo du simulateur juste sous « Formation »',
+    quoi: [
+      { emoji: '📷',
+        titre: 'La photo d’abord',
+        texte: 'Élèves › Administratif › Évaluation : les photos du résultat du simulateur sont juste sous « Formation », ' +
+               'et se prennent avant même de taper le nombre d’heures.' }
+    ]
+  },
   {
     version: 1195,
     date: 'Vendredi 16 octobre 2026',
