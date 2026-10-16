@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:40 — v1192 */
+/* Déployé le 16/10/2026 à 14:54 — v1193 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1193,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '💶 Tout est payé · 📆 Tout est planifié dans Suivi permis',
+    quoi: [
+      { emoji: '💶',
+        titre: 'Deux cases dans « Sa préparation »',
+        texte: '🎓 Suivi permis, fiche de la place : 💶 Tout est payé et 📆 Tout est planifié. Tant qu’elles ne sont pas ' +
+               'cochées, 💶 et 📆 suivent le prénom sur la session fermée, et « Il doit de l’argent » / « Il doit planifier ' +
+               'encore des choses » s’écrivent dessous quand elle est ouverte.' },
+      { emoji: '✅',
+        titre: 'Vert seulement avec « Tout est OK »',
+        texte: 'Un élève ne passe au vert que si « Tout est OK — il peut passer » est coché. Sinon il reste orange, ' +
+               'avec « à valider » quand plus rien ne manque.' }
+    ]
+  },
   {
     version: 1192,
     date: 'Vendredi 16 octobre 2026',
