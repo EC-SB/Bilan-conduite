@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 10:05 — v1058 */
+/* Déployé le 16/10/2026 à 13:35 — v1189 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -2253,17 +2253,45 @@ function ouvrirSemaine(s, lundi, w){
    UN SALARIÉ
    ============================================================ */
 
-function ouvrirSalarie(s){
+/* 👥 v1189 — LE MÊME FORMULAIRE SERT L'ÉQUIPE ET LA PAIE.
+
+   David, le 16 octobre : « il faut que la liste moniteur et paie se
+   suivent automatiquement, peu importe où on crée le moniteur ».
+   Deux formulaires auraient fini par ne plus demander la même chose :
+   c'est donc celui du salarié qui reçoit ce qui lui manquait — la
+   fonction, les catégories enseignées, le compte d'accès — et, ouvert
+   depuis 👥 Équipe, la case « 💶 Dans la paie » (décochée : fiche
+   seule, pour un gérant ou un indépendant).
+   o : { depuis: 'equipe' | 'paie', fiche } */
+function ouvrirSalarie(s, o){
+  o = o || {};
+  const depuisEquipe = o.depuis === 'equipe';
+  const fiche = o.fiche || null;
+  const voitEquipe = (typeof aDroit === 'function') && aDroit('equipe');
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
   boite.className = 'modal';
   boite.style.maxWidth = 'min(460px, 94vw)';
 
+  const nomTitre = s ? s.nom : (fiche ? fiche.nom : '');
   boite.innerHTML =
-    '<h3>' + (s ? s.nom.replace(/</g, '&lt;') : 'Nouveau salarié') + '</h3>' +
+    '<h3>' + (nomTitre ? nomTitre.replace(/</g, '&lt;') : (depuisEquipe ? 'Ajouter quelqu’un à l’équipe' : 'Nouveau salarié')) + '</h3>' +
     '<label for="slNom">Nom</label>' +
     '<input type="text" id="slNom" placeholder="Comme sur le bulletin de paie">' +
+    (voitEquipe ?
+      '<label>Fonction</label><div id="slFonction" class="eqFiltres" style="margin-bottom:10px;">' +
+        [['enseigne', '🎓 Enseigne la conduite'], ['bureau', '🏢 Bureau'], ['autre', '✳️ Autre']].map(f =>
+          '<button type="button" class="btn btn-secondary" data-fonction="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
+      '<div id="slCatZ"><label>Catégories enseignées</label><div id="slCat" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' +
+        ['B', 'BE', 'A', 'A2', 'A1', 'AM'].map(c => '<button type="button" class="eqCat" data-cat="' + c + '">' + c + '</button>').join('') + '</div></div>' +
+      '<label for="slCompte">Son compte d’accès</label><select id="slCompte"><option value="">— aucun pour le moment —</option></select>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;line-height:1.5;">C’est par lui qu’on voit sa fiche (⋯ › 👤 Ma fiche). Aucun compte n’est créé ici.</div>'
+    : '') +
+    (depuisEquipe ?
+      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin:4px 0 10px;">' +
+        '<input type="checkbox" id="slDansPaie" checked style="width:19px;height:19px;">💶 Dans la paie</label>' : '') +
+    '<div id="slPaieZ">' +
     '<div class="duo">' +
       '<div><label for="slBase">Base hebdomadaire</label>' +
         '<input type="text" id="slBase" inputmode="decimal" value="35"></div>' +
@@ -2298,17 +2326,88 @@ function ouvrirSalarie(s){
       'Ce qui manque d\'un mois précédent, à rattraper. Il se déduit du ' +
       'mois indiqué, puis se remet à jour.</div>' +
 
+    '</div>' +
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
       'font-size:15px;color:var(--cream);margin:4px 0 10px;">' +
       '<input type="checkbox" id="slActif" checked style="width:19px;height:19px;">' +
       'Toujours dans l\'effectif</label>' +
     '<label for="slRem">Remarque</label>' +
-    '<input type="text" id="slRem" placeholder="Facultatif">';
+    '<input type="text" id="slRem" placeholder="Facultatif">' +
+    (depuisEquipe || voitEquipe ? '<div id="slNoteSuivi" class="eqNoteSuivi"></div>' : '');
 
   const cases = () => Array.prototype.slice.call(
     boite.querySelectorAll('#slJoursCases input[type="checkbox"]'));
   const coches = () => cases().filter(c => c.checked)
     .map(c => Number(c.dataset.jour));
+
+  /* 👥 v1189 — la fonction, les catégories, le compte, la paie */
+  const eq = { fonction: (fiche && fiche.fonction) || '', categories: (fiche && fiche.categories) || '', compte: (fiche && fiche.compte) || '',
+              /* ⚠️ lu : ce que la fiche sait est arrivé — sans ça, enregistrer trop tôt écraserait sa fonction par « autre » */
+              lu: !!fiche || !s, t: {} };
+  const majEquipe = () => {
+    if(!voitEquipe) return;
+    boite.querySelectorAll('#slFonction [data-fonction]').forEach(b => {
+      b.className = 'btn ' + (b.dataset.fonction === eq.fonction ? 'btn-primary' : 'btn-secondary'); });
+    boite.querySelector('#slCatZ').style.display = eq.fonction === 'enseigne' ? '' : 'none';
+    const cats = eq.categories ? eq.categories.split(',') : [];
+    boite.querySelectorAll('#slCat [data-cat]').forEach(b => b.classList.toggle('on', cats.indexOf(b.dataset.cat) !== -1));
+  };
+  /* Ce qu'on envoie de la fiche : seulement ce qu'on sait — lu depuis
+     la fiche, ou choisi ici. Le reste n'est pas envoyé, et le Worker
+     le garde tel quel. */
+  const extrasEquipe = () => {
+    const x = {};
+    if(eq.lu || eq.t.fonction) x.equipeFonction = eq.fonction || 'autre';
+    if(eq.lu || eq.t.categories) x.equipeCategories = eq.fonction === 'enseigne' ? eq.categories : '';
+    if(eq.lu || eq.t.compte) x.equipeCompte = eq.compte;
+    return x;
+  };
+  const majPaie = () => {
+    const dans = !depuisEquipe || boite.querySelector('#slDansPaie').checked;
+    boite.querySelector('#slPaieZ').style.display = dans ? '' : 'none';
+    const n = boite.querySelector('#slNoteSuivi');
+    if(n) n.innerHTML = depuisEquipe
+      ? (dans ? '💶 Elle apparaît aussi dans <b>💶 Paie</b>, avec ces heures.' : '🚫 Fiche seule, hors paie (gérant, indépendant).')
+      : '👥 Elle a aussi sa fiche dans <b>Outils › L’équipe</b> (papiers, absences, heures).';
+  };
+  if(voitEquipe){
+    boite.querySelectorAll('#slFonction [data-fonction]').forEach(b => b.addEventListener('click', () => { eq.fonction = b.dataset.fonction; eq.t.fonction = true; majEquipe(); }));
+    boite.querySelectorAll('#slCat [data-cat]').forEach(b => b.addEventListener('click', () => {
+      const cats = eq.categories ? eq.categories.split(',') : [];
+      const i = cats.indexOf(b.dataset.cat);
+      if(i === -1) cats.push(b.dataset.cat); else cats.splice(i, 1);
+      eq.categories = ['B', 'BE', 'A', 'A2', 'A1', 'AM'].filter(c => cats.indexOf(c) !== -1).join(',');
+      eq.t.categories = true;
+      majEquipe();
+    }));
+    /* Les comptes d'accès, et — ouvert depuis la Paie — ce que la fiche sait déjà */
+    (async () => {
+      try{
+        const d = await appelPrep({ action: 'equipeComptes' });
+        const sel = boite.querySelector('#slCompte');
+        ((d && d.comptes) || []).forEach(n => { const op = document.createElement('option'); op.value = n; op.textContent = n; sel.appendChild(op); });
+        if(!fiche && s && typeof equipeEC !== 'undefined'){
+          if(!equipeEC.liste){ try{ equipeEC.liste = ((await appelPrep({ action: 'equipeListe' })) || {}).equipe || []; }catch(e){} }
+          const f = (equipeEC.liste || []).find(x => x.paieId === s.id);
+          if(f){ ['fonction', 'categories', 'compte'].forEach(k => { if(!eq.t[k]) eq[k] = f[k] || ''; }); majEquipe(); }
+          eq.lu = true;
+        }
+        if(eq.compte && !Array.prototype.some.call(sel.options, op => op.value === eq.compte)){
+          const op = document.createElement('option'); op.value = eq.compte; op.textContent = eq.compte; sel.appendChild(op);
+        }
+        sel.value = eq.compte || '';
+      }catch(e){ /* sans la liste des comptes, le reste fonctionne */ }
+    })();
+    boite.querySelector('#slCompte').addEventListener('change', ev => { eq.compte = ev.target.value; eq.t.compte = true; });
+  }
+  if(depuisEquipe){
+    if(fiche && !fiche.dansPaie) boite.querySelector('#slDansPaie').checked = false;
+    boite.querySelector('#slDansPaie').addEventListener('change', majPaie);
+  }
+  if(fiche && !s){
+    boite.querySelector('#slNom').value = fiche.nom || '';
+    boite.querySelector('#slActif').checked = !!fiche.actif;
+  }
 
   if(s){
     boite.querySelector('#slNom').value = s.nom || '';
@@ -2338,6 +2437,8 @@ function ouvrirSalarie(s){
     boite.querySelector(x).addEventListener('input', majDeduit));
   cases().forEach(c => c.addEventListener('change', majDeduit));
   majDeduit();
+  majEquipe();
+  majPaie();
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -2348,7 +2449,7 @@ function ouvrirSalarie(s){
   bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
-  if(s){
+  if(s && !depuisEquipe){
     const bSup = document.createElement('button');
     bSup.className = 'btn btn-secondary';
     bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
@@ -2368,7 +2469,7 @@ function ouvrirSalarie(s){
 
   const bOk = document.createElement('button');
   bOk.className = 'btn btn-primary';
-  bOk.textContent = s ? '💾 Enregistrer' : '➕ Ajouter';
+  bOk.textContent = (s || fiche) ? '💾 Enregistrer' : '➕ Ajouter';
   bOk.addEventListener('click', async () => {
     const nom = boite.querySelector('#slNom').value.trim();
     if(!nom){ showToast('Indique son nom.'); return; }
@@ -2378,8 +2479,34 @@ function ouvrirSalarie(s){
     const jours = jt.length || parseInt(boite.querySelector('#slJours').value, 10) || 4;
 
     bOk.disabled = true;
+    /* 👥 v1189 — depuis l'équipe : la fiche ET la Paie, en un seul appel */
+    if(depuisEquipe){
+      try{
+        const rep = await appelPrep({
+          action: 'equipePoser', id: fiche ? fiche.id : '', nom: nom,
+          fonction: eq.fonction || 'autre', categories: eq.fonction === 'enseigne' ? eq.categories : '', compte: eq.compte,
+          dansPaie: boite.querySelector('#slDansPaie').checked ? 'oui' : 'non',
+          baseHebdo: base, joursSemaine: jours, joursTravailles: jt.join(','), heuresJour: arrondiQuart(base / jours),
+          report: nombrePaie(boite.querySelector('#slReport').value) || 0,
+          reportMois: boite.querySelector('#slReportMois').value,
+          actif: boite.querySelector('#slActif').checked ? 'oui' : 'non',
+          remarque: boite.querySelector('#slRem').value.trim()
+        });
+        fermerFond(fond);
+        showToast('Enregistré ✅');
+        if(typeof equipeEC !== 'undefined'){
+          if(!fiche && rep && rep.id) equipeEC.fiche = { id: rep.id, d: null };
+          equipeEC.liste = null;
+        }
+        if(typeof afficherEquipe === 'function') afficherEquipe();
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        bOk.disabled = false;
+      }
+      return;
+    }
     try{
-      await appelPrep({
+      await appelPrep(Object.assign({
         action: 'paieSalarieSet',
         id: s ? s.id : '',
         nom: nom,
@@ -2392,9 +2519,10 @@ function ouvrirSalarie(s){
         actif: boite.querySelector('#slActif').checked ? 'oui' : 'non',
         remarque: boite.querySelector('#slRem').value.trim(),
         par: ACCES.moniteur || ''
-      });
+      }, voitEquipe ? extrasEquipe() : {}));
       fermerFond(fond);
       showToast('Enregistré ✅');
+      if(typeof equipeEC !== 'undefined') equipeEC.liste = null;
       afficherPaie();
     }catch(e){
       showToast('Impossible : ' + e.message);
@@ -2443,6 +2571,19 @@ function ouvrirAbsence(a){
     '<input type="text" id="abRem" placeholder="Facultatif">' +
     '<div id="abAlerte" style="font-size:12px;margin:8px 0 0;line-height:1.5;"></div>';
 
+  /* 📎 v1189 — la copie de l'arrêt, rangée sur la fiche de l'équipe
+     (onglet 🏖️ Absences). Seulement pour un arrêt, et seulement si
+     l'on peut écrire dans l'équipe ou la paie. */
+  let copieArret = null;
+  const zCopie = document.createElement('div');
+  if(typeof blocFichierEq === 'function'){
+    copieArret = blocFichierEq(zCopie, '📎 Copie de l’arrêt',
+      'Le volet employeur de l’avis d’arrêt (photo ou PDF). Il apparaît aussi sur sa fiche, onglet 🏖️ Absences.');
+    boite.appendChild(zCopie);
+  }
+  const majCopie = () => { zCopie.style.display = boite.querySelector('#abType').value === 'arret' ? '' : 'none'; };
+  boite.querySelector('#abType').addEventListener('change', majCopie);
+
   if(a){
     boite.querySelector('#abSal').value = a.idSalarie;
     boite.querySelector('#abType').value = a.type;
@@ -2450,6 +2591,7 @@ function ouvrirAbsence(a){
     boite.querySelector('#abAu').value = a.au || '';
     boite.querySelector('#abRem').value = a.remarque || '';
   }
+  majCopie();
 
   /* Le chevauchement CP/arrêt : exactement le cas sur lequel le
      gestionnaire doit trancher. */
@@ -2511,7 +2653,7 @@ function ouvrirAbsence(a){
 
     bOk.disabled = true;
     try{
-      await appelPrep({
+      const rep = await appelPrep({
         action: 'paieAbsenceSet',
         id: a ? a.id : '',
         idSalarie: boite.querySelector('#abSal').value,
@@ -2521,6 +2663,14 @@ function ouvrirAbsence(a){
         remarque: boite.querySelector('#abRem').value.trim(),
         par: ACCES.moniteur || ''
       });
+      /* 📎 v1189 — la copie suit l'absence enregistrée */
+      if(copieArret && copieArret.fichier && boite.querySelector('#abType').value === 'arret'){
+        try{
+          await appelPrep({ action: 'equipeArretCopie', absenceId: (rep && rep.id) || (a ? a.id : ''),
+                            idSalarie: boite.querySelector('#abSal').value, du: du, au: boite.querySelector('#abAu').value,
+                            fichier: await fichierPourLEquipe(copieArret.fichier) });
+        }catch(e){ showToast('Arrêt enregistré, mais la copie n’a pas suivi : ' + e.message); }
+      }
       fermerFond(fond);
       showToast('Enregistrée ✅');
       afficherPaie();
