@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 16:27 — v1184 */
+/* Déployé le 16/10/2026 à 16:37 — v1196 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -190,7 +190,15 @@ async function afficherEvaluation(){
       '<option value="">🚗 Formation classique</option>' +
       '<option value="aac">👨‍👩‍👦 Conduite accompagnée (AAC)</option>' +
       '<option value="cs">👨‍👩‍👦 Conduite supervisée (CS)</option>' +
-    '</select>';
+    '</select>' +
+    /* 📷 v1196 — LES PHOTOS JUSTE SOUS LA FORMATION, AVANT LES HEURES.
+       David, le 16 octobre : « il faut que je puisse mettre la photo
+       directement sous Formation classique avant même de renseigner
+       le nombre d'heures ». Elles vivaient dans le bloc du résultat,
+       qui n'apparaît qu'une fois les heures tapées — alors que la
+       photo de l'écran du simulateur, c'est ce qu'on a en premier. */
+    '<div id="evPhotosZone"><label>📷 Photos du résultat du simulateur</label>' +
+      '<div id="evPhotos" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:stretch;"></div></div>';
   zone.appendChild(haut);
 
   const zr = document.createElement('div');
@@ -402,6 +410,7 @@ function boitesEval(h, hBea, type){
 function dessinerEvaluation(){
   const zone = $('evResultat');
   if(!zone) return;
+  dessinerPhotosEval();
 
   const h = Number($('evHeures').value);
   const hBea = Number(($('evHeuresBea') || {}).value);
@@ -573,42 +582,8 @@ function blocBoiteEval(h, hBea, type){
   });
   bloc.appendChild(deux);
 
-  /* Les photos du simulateur */
-  const lp = document.createElement('label');
-  lp.textContent = '📷 Photos du résultat du simulateur';
-  bloc.appendChild(lp);
-  const ph = document.createElement('div');
-  ph.id = 'evPhotos';
-  ph.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:stretch;';
-  etatEval.photos.forEach((p, i) => {
-    const v = document.createElement('div');
-    v.style.cssText = 'position:relative;width:132px;height:88px;border-radius:10px;overflow:hidden;border:1px solid var(--line);flex:0 0 auto;';
-    const im = document.createElement('img');
-    im.src = p.data; im.alt = 'Photo ' + (i + 1);
-    im.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;';
-    im.addEventListener('click', () => { if(typeof ouvrirLaPhotoEnGrand === 'function') ouvrirLaPhotoEnGrand(p.data); });
-    const x = document.createElement('button');
-    x.type = 'button'; x.title = 'Retirer cette photo'; x.textContent = '✕';
-    x.style.cssText = 'position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);' +
-      'color:#fff;border:0;margin:0;padding:0;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;';
-    x.addEventListener('click', () => { etatEval.photos.splice(i, 1); dessinerEvaluation(); });
-    v.appendChild(im); v.appendChild(x);
-    ph.appendChild(v);
-  });
-  if(etatEval.photos.length < EVAL_PHOTOS_MAX_ECRAN){
-    const choix = (camera) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.style.cssText = 'width:132px;height:88px;margin:0;border-radius:10px;font-family:inherit;line-height:1.35;cursor:pointer;flex:0 0 auto;font-size:13px;' +
-        (camera ? 'border:1.5px dashed var(--orange);background:transparent;color:var(--accent-text);font-weight:700;'
-                : 'border:1px solid var(--line);background:transparent;color:var(--cream);');
-      b.innerHTML = camera ? '📷<br>Prendre<br>une photo' : '🖼️<br>Choisir dans<br>la galerie';
-      b.addEventListener('click', () => choisirPhotosEval(camera));
-      ph.appendChild(b);
-    };
-    choix(true); choix(false);
-  }
-  bloc.appendChild(ph);
+  /* 📷 Les photos du simulateur : sous la Formation, depuis la v1196
+     (voir dessinerPhotosEval). Le bouton les compte toujours. */
 
   /* Enregistrer */
   const b = document.createElement('button');
@@ -654,6 +629,44 @@ function majEnregistrerEval(){
       etatEval.photos.length + ' photo(s), la date et qui a fait l’évaluation.';
 }
 
+/* 📷 v1196 — les photos, sous la Formation : on peut les prendre
+   avant de taper les heures. Ajouter ou retirer une photo ne
+   redessine qu'elles (et le bouton qui les compte). */
+function dessinerPhotosEval(){
+  const zz = $('evPhotosZone'), ph = $('evPhotos');
+  if(!ph) return;
+  if(zz) zz.style.display = etatEval.fait ? 'none' : '';
+  ph.innerHTML = '';
+  etatEval.photos.forEach((p, i) => {
+    const v = document.createElement('div');
+    v.style.cssText = 'position:relative;width:132px;height:88px;border-radius:10px;overflow:hidden;border:1px solid var(--line);flex:0 0 auto;';
+    const im = document.createElement('img');
+    im.src = p.data; im.alt = 'Photo ' + (i + 1);
+    im.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;';
+    im.addEventListener('click', () => { if(typeof ouvrirLaPhotoEnGrand === 'function') ouvrirLaPhotoEnGrand(p.data); });
+    const x = document.createElement('button');
+    x.type = 'button'; x.title = 'Retirer cette photo'; x.textContent = '✕';
+    x.style.cssText = 'position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);' +
+      'color:#fff;border:0;margin:0;padding:0;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+    x.addEventListener('click', () => { etatEval.photos.splice(i, 1); dessinerPhotosEval(); majEnregistrerEval(); });
+    v.appendChild(im); v.appendChild(x);
+    ph.appendChild(v);
+  });
+  if(etatEval.photos.length < EVAL_PHOTOS_MAX_ECRAN){
+    const choix = (camera) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.style.cssText = 'width:132px;height:88px;margin:0;border-radius:10px;font-family:inherit;line-height:1.35;cursor:pointer;flex:0 0 auto;font-size:13px;' +
+        (camera ? 'border:1.5px dashed var(--orange);background:transparent;color:var(--accent-text);font-weight:700;'
+                : 'border:1px solid var(--line);background:transparent;color:var(--cream);');
+      b.innerHTML = camera ? '📷<br>Prendre<br>une photo' : '🖼️<br>Choisir dans<br>la galerie';
+      b.addEventListener('click', () => choisirPhotosEval(camera));
+      ph.appendChild(b);
+    };
+    choix(true); choix(false);
+  }
+}
+
 /* Les photos : l'appareil de la tablette, ou la galerie. Réduites
    avant l'envoi — c'est au simulateur, souvent sur la 4G. */
 function choisirPhotosEval(camera){
@@ -670,7 +683,8 @@ function choisirPhotosEval(camera){
         etatEval.photos.push(p);
       }catch(e){ if(typeof showToast === 'function') showToast('Photo illisible : ' + e.message); }
     }
-    dessinerEvaluation();
+    dessinerPhotosEval();
+    majEnregistrerEval();
   });
   i.click();
 }
