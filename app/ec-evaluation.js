@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 16:37 — v1196 */
+/* Déployé le 16/10/2026 à 17:01 — v1197 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -737,7 +737,17 @@ async function enregistrerEvaluation(boites){
   etatEval.envoi = false;
   etatEval.fait = { nom: rep.eleve || nom, x: x, rep: rep, posees: posees, ratees: ratees, h: h, type: type,
                     r: r, hBea: r ? r.bea : 0 };
-  if(typeof chargerFiches === 'function'){ try{ await chargerFiches(); }catch(e){} }
+  /* 🆕 v1197 — un élève créé ici se retrouve TOUT DE SUITE partout.
+     David, le 16 octobre : « j'ai dû créer l'élève mais je ne le
+     retrouve pas dans mes élèves » — puis, un moment après : « il
+     vient d'apparaître ». On relisait les fiches, pas la liste des
+     élèves de l'appareil (celle des champs à suggestions et de la
+     recherche), relue seulement au démarrage ou après un bilan. Le
+     répertoire, lui, recharge les deux ensemble : on fait pareil. */
+  await Promise.all([
+    (typeof chargerFiches === 'function') ? chargerFiches().catch(() => null) : Promise.resolve(),
+    (rep && rep.cree && typeof chargerEleves === 'function') ? chargerEleves().catch(() => null) : Promise.resolve()
+  ]);
   dessinerEtatEleveEval();
   dessinerEvaluation();
   if(typeof showToast === 'function') showToast('Évaluation enregistrée ✅');
