@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 13:26 — v1182 */
+/* Déployé le 16/10/2026 à 14:18 — v1191 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1945,6 +1945,9 @@ async function afficherPrepares(recharger, silencieux){
     /* v1132 — et les heures qui restent se recalculent : voir
        avecLaReserveDuJour. */
     reste = avecLaReserveDuJour(reste, cours);
+    /* v1191 — et l'état de sa place, en majuscules, sur la même
+       ligne : voir avecLEtatDeLaPlace. */
+    reste = avecLEtatDeLaPlace(reste, cours);
     reste = sansRedites(reste);
     /* Le 📌 aussi : c'est là que les heures recopiées s'étaient
        accumulées. */
@@ -2014,28 +2017,11 @@ async function afficherPrepares(recharger, silencieux){
        passé » les effacent. Elle est LUE, jamais écrite : la fiche
        de suivi reste le seul endroit où ces deux cases se posent.
        ------------------------------------------------------------ */
-    const marquePlace = (typeof marquePlaceExamen === 'function')
-      ? marquePlaceExamen(cours.eleve) : null;
-    if(marquePlace){
-      const m = document.createElement('span');
-      m.className = 'place';
-      /* Un contour, pas un fond plein : la couleur est fixe pour le
-         prête-nom, et un texte posé dessus ne serait lisible que
-         dans l'un des deux thèmes.
-
-         « display:inline-block » : la feuille de style met TOUS les
-         span de la carte en « block » (.history-item .meta span).
-         Le cadre s'étirait donc sur toute la largeur — ce qui le
-         faisait justement lire comme un bandeau sur le cours
-         entier, au lieu d'une étiquette. */
-      m.style.cssText = 'display:inline-block;margin-top:5px;' +
-        'padding:2px 9px;border-radius:8px;font-weight:800;font-size:12px;' +
-        'color:' + marquePlace.couleur + ';' +
-        'border:1px solid ' + marquePlace.couleur + ';';
-      m.textContent = marquePlace.emoji + ' ' + marquePlace.court;
-      m.title = marquePlace.long;
-      meta.appendChild(m);
-    }
+    /* ⚠️ v1191 — L'ÉTIQUETTE EST PASSÉE SUR LA LIGNE ROUGE. David, le
+       16 octobre : « sur la ligne… élève fantôme ou élève à remplacer
+       suivant son statut aussi ». Elle disait la même chose juste en
+       dessous : la garder aurait écrit l'état deux fois. Voir
+       avecLEtatDeLaPlace. */
 
     row.appendChild(meta);
 
@@ -4361,6 +4347,60 @@ function avecLaReserveDuJour(texte, cours){
     return RE_MENTION_RESERVE.test(seg)
       ? seg.replace(RE_MENTION_RESERVE, neuve)
       : seg + neuve;
+  }).join(' · ')).join('\n');
+}
+
+/* ============================================================
+   L'ÉTAT DE LA PLACE, SUR LA LIGNE ROUGE — v1191
+
+   David, le 16 octobre : « sur la ligne rouge dans mes prochains
+   cours, tant que l'élève n'est pas prévenu (pas coché dans Suivi
+   permis), il faut le préciser sur la ligne en majuscules : ELEVE
+   PAS PREVENU ». Puis : « élève fantôme ou élève à remplacer suivant
+   son statut aussi ».
+
+   Une seule mention, la plus forte :
+     · ELEVE A REMPLACER — la case « à remplacer » de sa fiche ;
+     · ELEVE FANTOME     — la case « 👻 fantôme » (un prête-nom n'est
+                           jamais prévenu : le dire en plus serait
+                           une redite) ;
+     · ELEVE PAS PREVENU — sa place dans la session à venir n'a pas
+                           le 📣 de 🎓 Suivi permis.
+   Les deux cases se lisent par marquePlaceExamen, la règle commune
+   aux autres écrans ; la place par placeEnSessionDe. Lue à chaque
+   affichage, jamais écrite dans la note : cochée « prévenu », la
+   mention s'en va d'elle-même.
+   ============================================================ */
+const MENTIONS_DE_PLACE = ['ELEVE A REMPLACER', 'ELEVE FANTOME', 'ELEVE PAS PREVENU'];
+const RE_MENTION_PLACE = new RegExp(' — (?:' + MENTIONS_DE_PLACE.join('|') + ')', 'g');
+
+function mentionDeLaPlace(nom){
+  if(!nom) return '';
+  let m = null;
+  try{ m = (typeof marquePlaceExamen === 'function') ? marquePlaceExamen(nom) : null; }catch(e){ m = null; }
+  if(m && m.cle === 'remplacer') return 'ELEVE A REMPLACER';
+  if(m && m.cle === 'pretenom') return 'ELEVE FANTOME';
+  let t = null;
+  try{ t = (typeof placeEnSessionDe === 'function') ? placeEnSessionDe(nom) : null; }catch(e){ t = null; }
+  if(!t || !t.place || !t.date) return '';
+  const iso = (typeof dateFrVersIso === 'function') ? dateFrVersIso(t.date) : String(t.date);
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+  if(!iso || (auj && iso < auj)) return '';     /* une session passée ne prévient plus personne */
+  return t.place.prevenu ? '' : 'ELEVE PAS PREVENU';
+}
+
+function avecLEtatDeLaPlace(texte, cours){
+  const t = String(texte || '');
+  if(!t || !cours || !cours.eleve) return t;
+  const estExamenPrevu = (x) =>
+    ((typeof EXAMEN_PREVU !== 'undefined') && x.indexOf(EXAMEN_PREVU) !== -1) ||
+    /EXAMEN OFFICIEL PRÉVU LE/i.test(x);
+  if(!estExamenPrevu(t)) return t;
+  const mention = mentionDeLaPlace(cours.eleve);
+  return t.split('\n').map(ligne => ligne.split(' · ').map(seg => {
+    if(!estExamenPrevu(seg)) return seg;
+    const nu = seg.replace(RE_MENTION_PLACE, '');
+    return mention ? nu + ' — ' + mention : nu;
   }).join(' · ')).join('\n');
 }
 
