@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 11:24 — v1188 */
+/* Déployé le 16/10/2026 à 13:35 — v1189 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1189,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '👤 Ma fiche : tes papiers et tes arrêts, avec un rappel avant chaque échéance',
+    quoi: [
+      { emoji: '👤',
+        titre: 'Ma fiche',
+        texte: '⋯ › 👤 Ma fiche : ton autorisation d’enseigner, ton certificat médical, ton permis, la médecine du travail, ' +
+               'avec leurs dates. Tu y déposes un papier ou un arrêt de travail (photo ou PDF) ; l’administration le valide.' },
+      { emoji: '🔔',
+        titre: 'Prévenu avant l’échéance',
+        texte: 'Une notification et un mail 4 mois puis 2 mois avant la fin d’un de tes papiers, et une ligne 📄 dans le bandeau.' },
+      { emoji: '👥',
+        titre: 'Outils › L’équipe (administrateurs)',
+        texte: '👥 Équipe : la fiche de chacun (papiers, absences, cours donnés, résultats). La liste et 💶 Paie se suivent : ' +
+               'une personne créée, renommée ou partie d’un côté l’est aussi de l’autre. Une copie d’arrêt se joint aussi depuis la Paie. ' +
+               '🏫 L’école : agrément, réactualisation de l’exploitant, label, Qualiopi, garantie financière, avec les fenêtres d’audit. ' +
+               'Accès : ⚙️ › « 👥 Équipe et échéances ».' }
+    ]
+  },
   {
     version: 1188,
     date: 'Vendredi 16 octobre 2026',
