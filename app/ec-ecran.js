@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 13:44 — v1203 */
+/* Déployé le 17/10/2026 à 14:07 — v1204 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -329,7 +329,10 @@ function blocApercusEcrans(){
       return;
     }
     [['accueil', '🏠 Accueil'], ['vitrine', '🪟 Vitrine']].forEach(([ou, nom]) => {
-      const adresse = CONFIG.LIEN_ECRAN + '?t=' + encodeURIComponent(j) + '&ou=' + ou;
+      const adresse = CONFIG.LIEN_ECRAN + '?t=' + encodeURIComponent(j) + '&ou=' + ou +
+        /* v1204 — la version dans l'adresse : sans elle, le navigateur
+           montrait l'ancienne page de l'écran après un déploiement */
+        (typeof VERSION_MODULES !== 'undefined' ? '&v=' + VERSION_MODULES : '');
       const t = document.createElement('div');
       t.className = 'afTele';
       t.innerHTML = '<div class="afCadre"><iframe title="Aperçu de l’écran ' + ou + '" loading="lazy" tabindex="-1"></iframe></div>' +
@@ -1037,7 +1040,7 @@ function blocQrEcran(){
   tete.className = 'afQrTete';
   tete.innerHTML = (svg ? '<div class="afQrImg">' + svg + '</div>' : '') +
     '<div style="flex:1;min-width:0;"><strong>🔳 QR code de Saint-Brieuc sur les écrans</strong>' +
-    '<div class="afResume" style="margin:4px 0 0;">Un encart en bas à droite, posé en transparence par-dessus les diapositives, avec ta phrase ' +
+    '<div class="afResume" style="margin:4px 0 0;">Un encart posé en transparence par-dessus les diapositives (en bas à droite, ou là où tu le places plus bas), avec ta phrase ' +
     '(le code reste noir sur blanc). Il mène à ' + echEcran(String(q.adresse || '').replace(/^https?:\/\//, '')) + '.</div></div>';
   z.appendChild(tete);
   if(!q.pageActive){
@@ -1051,7 +1054,7 @@ function blocQrEcran(){
     if(typeof interrupteur !== 'function') return;
     z.appendChild(interrupteur({
       cle: cle, titre: titre, ouvert: !!q[k],
-      quandOuvert: q.pageActive ? 'Le QR code est à l’écran, en bas à droite.' : 'Il apparaîtra dès que la page publique de Saint-Brieuc sera ouverte.',
+      quandOuvert: q.pageActive ? 'Le QR code est à l’écran' + ((q.place && q.place[k]) ? ', à la place réglée plus bas.' : ', en bas à droite.') : 'Il apparaîtra dès que la page publique de Saint-Brieuc sera ouverte.',
       quandFerme: 'Pas de QR code sur cet écran.',
       basculer: async (oui) => {
         const r = await appelPrep({ action: 'ecranQrPoser', cle: cle, valeur: oui ? '1' : '0' });
@@ -1080,6 +1083,8 @@ function blocQrEcran(){
     bS.disabled = false;
   });
   z.appendChild(t);
+  /* 📐 v1204 — sa place et sa taille, glissées sur la télé en petit */
+  if(typeof blocPlaceQr === 'function') z.appendChild(blocPlaceQr());
   return z;
 }
 
