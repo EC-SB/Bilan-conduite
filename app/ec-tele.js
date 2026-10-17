@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 11:37 — v1201 */
+/* Déployé le 17/10/2026 à 13:44 — v1203 */
 /* ============================================================
    ec-tele.js
    🖥️ La mise en page des télés et 🎨 les thèmes — v1201
@@ -582,7 +582,12 @@
       'body.mep .scene{left:0 !important;right:0 !important;width:auto !important;}' +
       'body.mep footer{position:fixed;left:0;bottom:0;background:none;border:0;-webkit-backdrop-filter:none;backdrop-filter:none;padding:2px 12px;z-index:9;}' +
       'body.mep #imminent{position:fixed;inset:0;}' +
-      'body.mep #decor{position:fixed;inset:0;width:100vw;height:100vh;}';
+      'body.mep #decor{position:fixed;inset:0;width:100vw;height:100vh;}' +
+      /* ⚠️ v1203 — la vitrine n'a pas ces quatre-là (sa date, son heure
+         et sa météo sont dans « La météo, la date et l'heure ») : la ligne
+         au-dessus remettait l'en-tête de l'accueil à l'écran, en haut à
+         gauche, sans bloc pour le masquer. */
+      (ou === 'vitrine' ? 'body.mep header{display:none !important;}' : '');
     Object.keys(defs).forEach(k => {
       const d = defs[k], x = b[k], z = k === 'scene' ? 1 : x.taille / 100, sel = 'body.mep ' + d.sel;
       if(x.cache){ s += sel + '{display:none !important;}'; return; }
