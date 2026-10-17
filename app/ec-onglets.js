@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 13:35 — v1189 */
+/* Déployé le 16/10/2026 à 18:44 — v1198 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -1885,7 +1885,8 @@ function reveillerVue(cle){
         afficherCarrosserie();
       }
     },
-    ecran:      () => afficherEcran(),
+    /* 📺 v1198 — en arrivant : toujours 📅 Planning (David) */
+    ecran:      () => afficherEcran({ arrivee: true }),
     loudeac:    () => (typeof afficherUnBureau === 'function') && afficherUnBureau('loudeac'),
     stbrieuc:   () => (typeof afficherUnBureau === 'function') && afficherUnBureau('saint-brieuc'),
     proccorriger: () => afficherProcCorriger(),
