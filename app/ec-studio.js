@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 10:51 — v1199 */
+/* Déployé le 17/10/2026 à 11:08 — v1200 */
 /* ============================================================
    ec-studio.js
    🎨 Le studio de diapositives — v1199
@@ -340,8 +340,7 @@ function ouvrirStudio(o){
       '</div>' +
       '<div class="stPanneau" id="stPanneau"></div>' +
     '</div>' +
-    '<div class="stFeuille" id="stFeuille"></div>' +
-    '<input type="file" accept="image/*" id="stFichier" style="display:none">';
+    '<div class="stFeuille" id="stFeuille"></div>';
   document.body.appendChild(z);
   document.body.classList.add('stOuvert');
   z.querySelector('#stNom').value = compo.nom || '';
@@ -354,11 +353,6 @@ function ouvrirStudio(o){
     if(aj) return ajouterElementStudio(aj.dataset.ajout);
     const f = ev.target.closest('[data-feuille]');
     if(f){ studio.feuille = f.dataset.feuille; studio.choix = ''; dessinerStudio(); }
-  });
-  z.querySelector('#stFichier').addEventListener('change', ev => {
-    const f = ev.target.files && ev.target.files[0];
-    ev.target.value = '';
-    if(f && studio && studio.quandPhoto) studio.quandPhoto(f);
   });
   const cadre = z.querySelector('#stCadre');
   cadre.addEventListener('pointerdown', pointeurStudio);
@@ -492,21 +486,199 @@ function elementStudio(a){
 }
 
 /* ---------- Une photo : prise ou choisie, envoyée dans R2 ---------- */
+/* ============================================================
+   📚 AJOUTER UNE PHOTO : prise, choisie, ou piochée dans la
+   photothèque de l'école — v1200 (étape ② du studio)
+
+   David : « vas-y pour l'étape 2 ». Les photos de l'école (les
+   véhicules, les bureaux, les événements) se gardent une fois et se
+   reprennent dans n'importe quelle diapositive, pour le fond comme
+   pour un cadre.
+   ============================================================ */
+const RANGEMENTS_PHOTOS = [['vehicules', '🚗 Véhicules'], ['bureaux', '🏢 Bureaux'], ['evenements', '🎉 Événements'], ['autres', '📁 Autres']];
+
 function choisirPhotoStudio(quand){
-  studio.quandPhoto = async f => {
+  ouvrirPhotosStudio(cle => {
+    if(!studio) return;
+    memoriserStudio();
+    quand(cle);
+  });
+}
+
+async function lirePhotothequeStudio(){
+  const r = await appelPrep({ action: 'ecranPhotheque' });
+  const photos = (r && r.photos) || [];
+  photos.forEach(p => { liensStudio[p.cle] = p.lien; });
+  return photos;
+}
+
+function ouvrirPhotosStudio(quand){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const b = document.createElement('div');
+  b.className = 'modal';
+  b.style.cssText = 'width:min(680px,96vw);max-height:90vh;overflow-y:auto;';
+  b.style.setProperty('max-width', 'min(680px, 96vw)', 'important');
+  b.innerHTML = '<h3>📷 Ajouter une photo</h3>' +
+    '<div class="stRang">' +
+      '<button type="button" class="btn btn-secondary" data-ph="camera">📷 Prendre une photo</button>' +
+      '<button type="button" class="btn btn-secondary" data-ph="fichier">🖼️ Choisir un fichier</button>' +
+    '</div>' +
+    '<label class="stCocheL"><input type="checkbox" id="phGarder"> ➕ Garder dans la photothèque</label>' +
+    '<div id="phGarderDetails" style="display:none;">' +
+      '<label for="phNom">Son nom</label><input type="text" id="phNom" maxlength="60" placeholder="Ex : A3 n°4, le bureau de Loudéac…">' +
+      '<label>Rangée dans</label><div class="stChips" id="phRangement">' +
+        RANGEMENTS_PHOTOS.map(([k, t], i) => '<button type="button" class="btn ' + (i === 0 ? 'btn-primary' : 'btn-secondary') + '" data-rg="' + k + '">' + t + '</button>').join('') +
+      '</div>' +
+    '</div>' +
+    '<div class="stSep" id="phTitre">📚 La photothèque de l’école</div>' +
+    '<div class="stChips" id="phFiltres"></div>' +
+    '<div class="stPhotos" id="phGrille"><div class="stPetit">Lecture…</div></div>' +
+    '<div class="btn-row"><button type="button" class="btn btn-secondary" data-ph="annuler">Annuler</button>' +
+      '<button type="button" class="btn btn-primary" data-ph="mettre" disabled>Mettre cette photo</button></div>' +
+    '<input type="file" accept="image/*" capture="environment" id="phCamera" style="display:none">' +
+    '<input type="file" accept="image/*" id="phFichier" style="display:none">';
+  fond.appendChild(b);
+  document.body.appendChild(fond);
+
+  let photos = [], filtre = 'toutes', choisie = '', rangement = 'vehicules';
+  const fermer = () => fermerFond(fond);
+
+  const garder = b.querySelector('#phGarder');
+  garder.addEventListener('change', () => { b.querySelector('#phGarderDetails').style.display = garder.checked ? 'block' : 'none'; });
+  b.querySelectorAll('[data-rg]').forEach(x => x.addEventListener('click', () => {
+    rangement = x.dataset.rg;
+    b.querySelectorAll('[data-rg]').forEach(y => y.className = 'btn ' + (y === x ? 'btn-primary' : 'btn-secondary'));
+  }));
+
+  const dessiner = () => {
+    const compte = k => photos.filter(p => k === 'toutes' || p.categorie === k).length;
+    b.querySelector('#phTitre').textContent = '📚 La photothèque de l’école · ' + photos.length;
+    b.querySelector('#phFiltres').innerHTML = [['toutes', 'Toutes']].concat(RANGEMENTS_PHOTOS)
+      .filter(([k]) => k === 'toutes' || compte(k))
+      .map(([k, t]) => '<button type="button" class="btn ' + (filtre === k ? 'btn-primary' : 'btn-secondary') + '" data-filtre="' + k + '">' + t + ' · ' + compte(k) + '</button>').join('');
+    b.querySelectorAll('[data-filtre]').forEach(x => x.addEventListener('click', () => { filtre = x.dataset.filtre; dessiner(); }));
+    const g = b.querySelector('#phGrille');
+    g.innerHTML = '';
+    const vues = photos.filter(p => filtre === 'toutes' || p.categorie === filtre);
+    if(!vues.length){
+      g.innerHTML = '<div class="stPetit">Pas encore de photo ici : coche « ➕ Garder dans la photothèque » en en ajoutant une, ' +
+                    'elle sera là la prochaine fois.</div>';
+    }
+    vues.forEach(p => {
+      const t = document.createElement('div');
+      t.className = 'stPhoto' + (p.cle === choisie ? ' on' : '');
+      t.setAttribute('role', 'button');
+      t.tabIndex = 0;
+      t.dataset.cle = p.cle;
+      t.style.backgroundImage = 'url("' + String(lienStudio(p.cle)).replace(/"/g, '%22') + '")';
+      const n = document.createElement('span');
+      n.className = 'n';
+      n.textContent = p.nom || 'Sans nom';
+      t.appendChild(n);
+      const plus = document.createElement('button');
+      plus.type = 'button';
+      plus.className = 'plus';
+      plus.title = 'Renommer, ranger, retirer';
+      plus.textContent = '⋯';
+      plus.addEventListener('click', ev => {
+        ev.stopPropagation();
+        ouvrirRangerPhoto(p, liste => { photos = liste; if(!photos.some(x => x.cle === choisie)) choisie = ''; dessiner(); majBouton(); });
+      });
+      t.appendChild(plus);
+      t.addEventListener('click', () => { choisie = p.cle; dessiner(); majBouton(); });
+      t.addEventListener('dblclick', () => { choisie = p.cle; mettre(); });
+      g.appendChild(t);
+    });
+  };
+  const majBouton = () => { b.querySelector('[data-ph="mettre"]').disabled = !choisie; };
+  const mettre = () => { if(!choisie) return; fermer(); quand(choisie); };
+
+  const envoyer = async f => {
+    if(!f) return;
+    const boutons = b.querySelectorAll('[data-ph="camera"], [data-ph="fichier"]');
+    boutons.forEach(x => { x.disabled = true; });
     showToast('Envoi de la photo…');
     try{
       const donnees = await reduirePhotoStudio(f);
-      const r = await appelPrep({ action: 'ecranPhotoPoser', photo: donnees });
+      const nom = String(b.querySelector('#phNom').value || '').trim() ||
+                  String(f.name || '').replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').slice(0, 60);
+      const corps = { action: 'ecranPhotoPoser', photo: donnees };
+      if(garder.checked) Object.assign(corps, { garder: '1', titre: nom, categorie: rangement });
+      const r = await appelPrep(corps);
       if(!r || !r.cle) throw new Error((r && r.message) || 'Photo refusée.');
       liensStudio[r.cle] = r.lien;
-      memoriserStudio();
+      fermer();
       quand(r.cle);
-      showToast('Photo posée ✅');
+      showToast(garder.checked ? 'Photo posée et gardée dans la photothèque ✅' : 'Photo posée ✅');
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      boutons.forEach(x => { x.disabled = false; });
+    }
+  };
+  b.querySelector('#phCamera').addEventListener('change', ev => { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; envoyer(f); });
+  b.querySelector('#phFichier').addEventListener('change', ev => { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; envoyer(f); });
+  b.addEventListener('click', ev => {
+    const x = ev.target.closest('[data-ph]');
+    if(!x) return;
+    const k = x.dataset.ph;
+    if(k === 'annuler') fermer();
+    else if(k === 'camera') b.querySelector('#phCamera').click();
+    else if(k === 'fichier') b.querySelector('#phFichier').click();
+    else if(k === 'mettre') mettre();
+  });
+
+  lirePhotothequeStudio().then(l => { photos = l; dessiner(); }).catch(e => {
+    b.querySelector('#phGrille').innerHTML = '<div class="stPetit">⚠️ ' + echEcran(e.message) + '</div>';
+  });
+}
+
+/* ⋯ une photo de la photothèque : son nom, son rangement, la retirer */
+function ouvrirRangerPhoto(p, apres){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const b = document.createElement('div');
+  b.className = 'modal';
+  let rangement = p.categorie || 'autres';
+  b.innerHTML = '<h3>📚 Cette photo</h3>' +
+    '<div class="stPhoto stPhotoGrande"></div>' +
+    '<label for="phRNom">Son nom</label><input type="text" id="phRNom" maxlength="60">' +
+    '<label>Rangée dans</label><div class="stChips">' +
+      RANGEMENTS_PHOTOS.map(([k, t]) => '<button type="button" class="btn ' + (k === rangement ? 'btn-primary' : 'btn-secondary') + '" data-rg="' + k + '">' + t + '</button>').join('') +
+    '</div>' +
+    '<div class="stPetit" style="margin-bottom:10px;">La retirer ne l’enlève pas des diapositives qui s’en servent.</div>' +
+    '<div class="btn-row"><button type="button" class="btn btn-secondary stRouge" data-r="retirer">Retirer de la photothèque</button></div>' +
+    '<div class="btn-row"><button type="button" class="btn btn-secondary" data-r="annuler">Annuler</button>' +
+      '<button type="button" class="btn btn-primary" data-r="ok">💾 Enregistrer</button></div>';
+  b.querySelector('.stPhotoGrande').style.backgroundImage = 'url("' + String(lienStudio(p.cle)).replace(/"/g, '%22') + '")';
+  b.querySelector('#phRNom').value = p.nom || '';
+  fond.appendChild(b);
+  document.body.appendChild(fond);
+  b.querySelectorAll('[data-rg]').forEach(x => x.addEventListener('click', () => {
+    rangement = x.dataset.rg;
+    b.querySelectorAll('[data-rg]').forEach(y => y.className = 'btn ' + (y === x ? 'btn-primary' : 'btn-secondary'));
+  }));
+  const envoyer = async garder => {
+    try{
+      const r = await appelPrep({ action: 'ecranPhotoRanger', cle: p.cle, titre: b.querySelector('#phRNom').value.trim(),
+                                  categorie: rangement, bib: garder ? '1' : '0' });
+      ((r && r.photos) || []).forEach(x => { liensStudio[x.cle] = x.lien; });
+      fermerFond(fond);
+      showToast(garder ? 'Photo rangée ✅' : 'Retirée de la photothèque ✅');
+      apres((r && r.photos) || []);
     }catch(e){ showToast('Impossible : ' + e.message); }
   };
-  document.getElementById('stFichier').click();
+  b.addEventListener('click', async ev => {
+    const x = ev.target.closest('[data-r]');
+    if(!x) return;
+    if(x.dataset.r === 'annuler') fermerFond(fond);
+    else if(x.dataset.r === 'ok') envoyer(true);
+    else if(x.dataset.r === 'retirer'){
+      if(await confirmer('Retirer « ' + (p.nom || 'cette photo') + ' » de la photothèque ?')) envoyer(false);
+    }
+  });
 }
+
 function reduirePhotoStudio(fichier){
   return new Promise((ok, ko) => {
     const l = new FileReader();
