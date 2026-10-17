@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 18:44 — v1198 */
+/* Déployé le 17/10/2026 à 10:51 — v1199 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -255,6 +255,9 @@ async function afficherEcran(o){
   diaposEcran = (d.ok && d.ok.diapos) || [];
   reglagesEcran = (r && r.reglages) || {};
   qrEcran = (q && q.qr) || null;
+  /* 🎨 v1199 — la transition du carrousel, et les liens des photos du studio */
+  if(typeof transitionEcran !== 'undefined') transitionEcran = (q && q.transition) || null;
+  if(typeof preparerLiensDesDiapos === 'function') await preparerLiensDesDiapos(diaposEcran).catch(() => {});
   planningDuJourEcran = (p && p.planning) || [];
 
   zone.innerHTML = '';
@@ -368,7 +371,7 @@ function ligneProchainEcran(){
   }else{
     a = '🌙 <strong>Plus de cours à l’écran aujourd’hui</strong>';
   }
-  const tourne = ou => diaposEcran.filter(x => etatDiapo(x) === 'ecran' && (x.type === 'message' || x.type === 'video') &&
+  const tourne = ou => diaposEcran.filter(x => etatDiapo(x) === 'ecran' && !TYPES_FIXES_ECRAN[x.type] &&
                                             (x.ou === ou || x.ou === 'les-deux')).length;
   z.innerHTML = a + ' · 🖼️ ' + tourne('accueil') + ' diapositive(s) tournent à l’accueil, ' + tourne('vitrine') + ' à la vitrine';
   return z;
@@ -798,7 +801,9 @@ function dessinerDiaposEcran(z){
   n.className = 'btn btn-primary';
   n.style.cssText = 'margin:0 0 4px;padding:13px;font-size:14px;';
   n.textContent = '➕ Nouvelle diapositive';
-  n.addEventListener('click', () => ouvrirEditeurDiapo(null));
+  /* 🎨 v1199 — d'abord « Créer une diapositive » (le studio), le reste
+     ouvre la fenêtre d'avant */
+  n.addEventListener('click', () => (typeof ouvrirNouvelleDiapo === 'function' ? ouvrirNouvelleDiapo() : ouvrirEditeurDiapo(null)));
   z.appendChild(n);
 
   const vue = diaposEcran.filter(x => filtreDiapos === 'tous' || x.ou === filtreDiapos || x.ou === 'les-deux');
@@ -853,6 +858,10 @@ function miniDiapoEcran(d, glisser){
   const role = { bandeau: ' défilant', fond: ' fond fixe', panneau: ' texte fixe', video: ' vidéo' }[d.type] || '';
   const poignee = glisser ? '<span class="poignee" title="Glisser pour changer l’ordre">⠿</span>' : '';
   const ent = '<span class="ou">' + ou + role + '</span>' + poignee;
+  if(d.type === 'compo'){
+    /* 🎨 v1199 — le vrai dessin, posé une fois la carte à sa place */
+    return '<div class="afMini compo">' + ent + '<div class="afCompo"></div></div>';
+  }
   if(d.type === 'bandeau'){
     return '<div class="afMini bandeau">' + ent + '<div class="bd">' + echEcran(d.contenu || d.titre) + '</div></div>';
   }
@@ -889,6 +898,14 @@ function carteDiapoEcran(d, glisser){
     '<div class="afDiapoBas"><div class="t"><strong>' + echEcran(d.titre || d.contenu || 'Sans titre') + '</strong>' +
       '<div class="s">' + p + ' ' + duree + quand + '</div></div></div>';
   c.querySelector('.afMini').addEventListener('click', ev => { if(ev.target.closest('.poignee')) return; ouvrirEditeurDiapo(d); });
+  if(d.type === 'compo' && typeof vignetteCompo === 'function'){
+    const m = c.querySelector('.afMini'), v = c.querySelector('.afCompo');
+    requestAnimationFrame(() => {
+      const W = d.ou === 'vitrine' ? 1024 : 1600, H = d.ou === 'vitrine' ? 824 : 722;
+      const l = Math.floor(Math.min(m.clientWidth, m.clientHeight * W / H));
+      if(l > 0) vignetteCompo(v, d, l);
+    });
+  }
   const bas = c.querySelector('.afDiapoBas');
   if(etat !== 'terminee'){
     const bP = document.createElement('button');
@@ -988,6 +1005,7 @@ async function enregistrerOrdreCarrousel(ids){
 function dessinerReglagesEcran(z){
   z.appendChild(blocPleinEcran());
   z.appendChild(blocQrEcran());
+  if(typeof blocTransitionsEcran === 'function') z.appendChild(blocTransitionsEcran());
   z.appendChild(blocAdresses());
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
@@ -1623,7 +1641,9 @@ function blocAdresses(){
    CRÉER OU MODIFIER UNE DIAPOSITIVE
    ============================================================ */
 
-function ouvrirEditeurDiapo(d){
+function ouvrirEditeurDiapo(d, preset){
+  /* 🎨 v1199 — une diapositive du studio s'ouvre dans le studio */
+  if(d && d.type === 'compo' && typeof ouvrirStudio === 'function') return ouvrirStudio({ diapo: d });
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
@@ -1771,14 +1791,19 @@ function ouvrirEditeurDiapo(d){
   };
 
   if(d){
-    selType.value = d.type === 'fond' ? 'fond'
-                  : d.type === 'panneau' ? 'panneau' : 'message';
+    /* ⚠️ v1199 — un texte défilant ou une vidéo rouvert ici repassait
+       en « elle tourne dans le carrousel » : l'enregistrer le
+       changeait de rôle sans qu'on l'ait demandé. */
+    selType.value = ['fond', 'panneau', 'bandeau', 'video'].indexOf(d.type) !== -1 ? d.type : 'message';
     boite.querySelector('#diTitre').value = d.titre || '';
     boite.querySelector('#diTexte').value = d.contenu || '';
     boite.querySelector('#diOu').value = d.ou || 'les-deux';
     boite.querySelector('#diDuree').value = String(d.duree || 15);
     boite.querySelector('#diDu').value = d.du || '';
     boite.querySelector('#diAu').value = d.au || '';
+  }else if(preset){
+    /* 🎨 v1199 — choisi dans « ➕ Nouvelle diapositive » */
+    selType.value = preset === 'image' ? 'message' : preset;
   }
   montrer();
   majSelonType();
