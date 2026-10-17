@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 18:44 — v1198 */
+/* Déployé le 17/10/2026 à 10:51 — v1199 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1199,
+    date: 'Samedi 17 octobre 2026',
+    resume: '🎨 Le studio : créer ses diapositives dans l’appli, et les transitions',
+    quoi: [
+      { emoji: '🎨',
+        titre: 'Créer une diapositive, comme dans Canva',
+        texte: 'Dans 📺 Affichage › 🖼️ Diapositives, « ➕ Nouvelle diapositive » propose d’abord 🎨 Créer une diapositive : on part ' +
+               'd’un des sept modèles, puis on touche un élément pour le modifier, on le glisse, on tire un coin pour l’agrandir. ' +
+               'Textes, photos, pastilles, pictogrammes, QR code, logo, formes, n’importe quelle couleur. Les zones hachurées montrent ' +
+               'la place du planning et du QR sur la télé ; l’accueil et la vitrine ont chacun leur rangement.' },
+      { emoji: '⭐',
+        titre: 'Tes propres modèles',
+        texte: '« ⭐ Garder comme modèle » range une diapositive dans « ⭐ Tes modèles ». Et « ⧉ » repart d’une diapositive déjà faite.' },
+      { emoji: '✨',
+        titre: 'Les transitions',
+        texte: 'Dans ⚙️ Réglages : fondu, glisser, monter, zoom, volet ou au hasard, rapide, normale ou lente. Une diapositive du ' +
+               'studio peut avoir la sienne, et ses éléments peuvent arriver un par un.' },
+      { emoji: '🩹',
+        titre: 'Un texte défilant reste un texte défilant',
+        texte: 'Rouvert pour être modifié, il repassait en « diapositive du carrousel » sans qu’on le demande. Corrigé, comme pour une vidéo.' }
+    ]
+  },
   {
     version: 1198,
     date: 'Vendredi 16 octobre 2026',
