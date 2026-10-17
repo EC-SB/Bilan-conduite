@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/10/2026 à 14:07 — v1204 -->
+<!-- Déployé le 17/10/2026 à 14:43 — v1205 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -457,6 +457,9 @@
   /* 🎨 v1201 — la toile des thèmes, et le QR qui se retire pendant
      « Vos cours commencent » (on le devinait flou derrière le voile) */
   #decor{ position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; display:none; }
+  /* 🖼️ v1205 — les décors fixes à soi : devant les diapositives, derrière les blocs */
+  #fixes{ position:fixed; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+  #fixes img{ position:absolute; height:auto; max-width:none; display:block; }
   #decor.vu{ display:block; }
   body.imminent #qrEncart{ display:none !important; }
   body.apercu{ cursor:default; }
@@ -500,6 +503,7 @@
     <!-- 🎨 v1201 — les petites images des thèmes : derrière les cours
          à venir et le QR, devant les diapositives -->
     <canvas id="decor"></canvas>
+    <div id="fixes" aria-hidden="true"></div>
 
     <section id="planning">
       <h2>📅 Les cours à venir</h2>
@@ -539,7 +543,7 @@
 <!-- 🎨 v1199 — le dessin des diapositives du studio, le même que dans l'appli -->
 <script src="app/ec-compo.js?v=1199"></script>
 <!-- 🖥️ v1201 — la mise en page et les thèmes, le même code que dans l'appli -->
-<script src="app/ec-tele.js?v=1204"></script>
+<script src="app/ec-tele.js?v=1205"></script>
 <script>
 /* ============================================================
    RÉGLAGES
@@ -592,7 +596,7 @@ if(APERCU) document.body.classList.add('apercu');
 let DONNEES_TELE = { mep: null, themes: null, liens: {}, jour: '', qrPlace: null };
 const APERCU_VOULU = {};
 let IMMINENT_TITRES = ['Votre cours commence', 'Vos cours commencent'];
-let decorEnCours = null, signatureDecor = '';
+let decorEnCours = null, signatureDecor = '', signatureFixes = '';
 
 /* ✨ v1199 — la transition du carrousel, réglée dans l'application */
 let TRANSITION = { transition: 'fondu', transitionDuree: 'normale' };
@@ -1146,8 +1150,35 @@ function appliquerAffichage(){
   }
   feuilleDeStyle('styleTheme').textContent = theme ? Tele.cssTheme(theme) : '';
   lancerDecor(theme);
+  dessinerFixes(theme);
   majImminents();
   if(APERCU) setTimeout(envoyerLesPlaces, 80);
+}
+/* 🖼️ v1205 — les décors fixes du thème, chacun à sa place pour CET écran */
+function dessinerFixes(theme){
+  const z = document.getElementById('fixes');
+  if(!z || !window.Tele) return;
+  const a = theme ? Tele.nettoyerAnimation(theme.animation) : null;
+  const l = a ? a.fixes : [];
+  const sig = JSON.stringify(l.map(f => [f.cle, f[OU], lienTele(f.cle)]));
+  if(sig === signatureFixes) return;
+  signatureFixes = sig;
+  z.textContent = '';
+  const n = v => Number(v).toFixed(3);
+  l.forEach((f, i) => {
+    const u = lienTele(f.cle);
+    if(!u) return;
+    const p = f[OU] || Tele.PLACE_FIXE_DEFAUT;
+    const im = new Image();
+    im.alt = '';
+    im.dataset.i = String(i);
+    im.style.left = 'calc(100vw * ' + n(p.x / 1600) + ')';
+    im.style.top = 'calc(100vh * ' + n(p.y / 900) + ')';
+    im.style.width = 'calc(100vw * ' + n(p.w / 1600) + ')';
+    if(APERCU) im.addEventListener('load', () => envoyerLesPlaces());
+    im.src = u;
+    z.appendChild(im);
+  });
 }
 function lancerDecor(theme){
   const toile = document.getElementById('decor');
@@ -1179,6 +1210,11 @@ function envoyerLesPlaces(){
     const r = el.getBoundingClientRect();
     if(!r.width || !r.height || getComputedStyle(el).display === 'none'){ places[k] = null; return; }
     places[k] = [r.left * 1600 / innerWidth, r.top * 900 / innerHeight, r.width * 1600 / innerWidth, r.height * 900 / innerHeight].map(Math.round);
+  });
+  /* 🖼️ v1205 — et les décors fixes : [rang, x, y, largeur, hauteur] */
+  places.fixes = Array.prototype.map.call(document.querySelectorAll('#fixes img'), im => {
+    const r = im.getBoundingClientRect();
+    return [Number(im.dataset.i), r.left * 1600 / innerWidth, r.top * 900 / innerHeight, r.width * 1600 / innerWidth, r.height * 900 / innerHeight].map(Math.round);
   });
   window.parent.postMessage({ ecPlaces: places, ou: OU }, '*');
 }
