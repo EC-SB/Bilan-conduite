@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 13:44 — v1203 */
+/* Déployé le 17/10/2026 à 14:07 — v1204 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1204,
+    date: 'Samedi 17 octobre 2026',
+    resume: '📐 Le QR se place et se dimensionne en le glissant sur la télé',
+    quoi: [
+      { emoji: '📐',
+        titre: 'Le QR, où tu veux et de la taille que tu veux',
+        texte: '⚙️ Réglages › 🔳 QR code › « 📐 Le placer sur la télé » : la vraie page de la télé en petit, tu glisses l’encart, ' +
+               'tu tires le coin ◢ pour l’agrandir, 💾. Une place pour l’accueil, une pour la vitrine, la même pour toutes les diapositives. ' +
+               '« ↺ En bas à droite » le remet comme avant.' },
+      { emoji: '🖥️',
+        titre: 'Les aperçus toujours à jour',
+        texte: 'Les télés en petit d’Affichage ne montrent plus une ancienne version de l’écran après une mise à jour.' }
+    ]
+  },
   {
     version: 1203,
     date: 'Samedi 17 octobre 2026',
