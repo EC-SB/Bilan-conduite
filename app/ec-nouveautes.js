@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 17:01 — v1197 */
+/* Déployé le 16/10/2026 à 18:44 — v1198 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1198,
+    date: 'Vendredi 16 octobre 2026',
+    resume: '📺 Affichage repensé, et le QR de Saint-Brieuc sur les écrans',
+    quoi: [
+      { emoji: '📺',
+        titre: 'La page Affichage, en trois onglets',
+        texte: 'En arrivant : 📅 Planning. Un seul planning pour tous les jours (Aujourd’hui, Demain, ou un autre jour), une carte par cours ' +
+               'avec des puces à toucher pour le moniteur, le véhicule et le lieu. Les cours passés et retirés sont repliés en bas. ' +
+               'Les aperçus des deux télés se replient (repliés sur le téléphone).' },
+      { emoji: '⠿',
+        titre: 'Le carrousel se range en glissant',
+        texte: 'Dans 🖼️ Diapositives, attrapez ⠿ et glissez la diapositive à sa place : l’ordre est enregistré. ' +
+               'Ce qui est toujours à l’écran (défilant, fond, texte fixe) est à part ; les diapositives en pause ou terminées sont repliées.' },
+      { emoji: '🔳',
+        titre: 'Le QR code de Saint-Brieuc sur les télés',
+        texte: 'Un encart fixe en bas à droite, avec sa phrase ; le carrousel se resserre pour ne rien cacher. Un interrupteur par écran ' +
+               'et la phrase dans ⚙️ Réglages. Il ne s’affiche que si la page publique de Saint-Brieuc est ouverte.' }
+    ]
+  },
   {
     version: 1197,
     date: 'Vendredi 16 octobre 2026',
