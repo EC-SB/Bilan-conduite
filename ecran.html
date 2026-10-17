@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 16/10/2026 à 18:44 — v1198 -->
+<!-- Déployé le 17/10/2026 à 10:51 — v1199 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -435,6 +435,37 @@
   #qrEncart .t{ font-size:21px; font-weight:800; line-height:1.22; margin-top:8px; }
   body.avecQr .scene{ right:278px; }
   body.vitrine.avecQr .scene{ right:278px; width:calc(64% - 278px); }
+
+  /* 🎨 v1199 — UNE DIAPOSITIVE DU STUDIO GARDE TOUTE SA PLACE. Elle a
+     été rangée dans le studio en connaissant celle du planning et du
+     QR : elle ne se resserre pas pour l'encart, et à la vitrine elle
+     n'est pas fondue sur sa gauche (le texte qu'on y a posé
+     disparaîtrait). */
+  body.avecQr .scene.compo{ right:0; }
+  body.vitrine .scene.compo, body.vitrine.avecQr .scene.compo{
+    right:0; width:64%; -webkit-mask-image:none; mask-image:none;
+  }
+
+  /* ✨ v1199 — LES TRANSITIONS DU CARROUSEL. La nouvelle arrive par-
+     dessus l'ancienne, qui s'en va de la même façon. La durée vient
+     du réglage (rapide, normale, lente). */
+  .scene.anim{ opacity:1; transition:none; animation-duration:var(--td, 1.2s);
+               animation-fill-mode:both; animation-timing-function:cubic-bezier(.25,.7,.25,1); }
+  .scene.e-fondu{ animation-name:eFondu; }      .scene.s-fondu{ animation-name:sFondu; }
+  .scene.e-glisser{ animation-name:eGlisser; }  .scene.s-glisser{ animation-name:sGlisser; }
+  .scene.e-monter{ animation-name:eMonter; }    .scene.s-monter{ animation-name:sMonter; }
+  .scene.e-zoom{ animation-name:eZoom; }        .scene.s-zoom{ animation-name:sZoom; }
+  .scene.e-volet{ animation-name:eVolet; }      .scene.s-volet{ animation-name:sReste; }
+  @keyframes eFondu{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes sFondu{ from{ opacity:1; } to{ opacity:0; } }
+  @keyframes eGlisser{ from{ transform:translateX(100%); } to{ transform:none; } }
+  @keyframes sGlisser{ from{ transform:none; } to{ transform:translateX(-100%); } }
+  @keyframes eMonter{ from{ transform:translateY(100%); } to{ transform:none; } }
+  @keyframes sMonter{ from{ transform:none; } to{ transform:translateY(-100%); } }
+  @keyframes eZoom{ from{ transform:scale(.6); opacity:0; } to{ transform:none; opacity:1; } }
+  @keyframes sZoom{ from{ transform:none; opacity:1; } to{ transform:scale(1.15); opacity:0; } }
+  @keyframes eVolet{ from{ clip-path:inset(0 0 100% 0); } to{ clip-path:inset(0 0 0 0); } }
+  @keyframes sReste{ from{ opacity:1; } to{ opacity:1; } }
 </style>
 </head>
 <body>
@@ -487,6 +518,8 @@
   </footer>
 </div>
 
+<!-- 🎨 v1199 — le dessin des diapositives du studio, le même que dans l'appli -->
+<script src="app/ec-compo.js?v=1199"></script>
 <script>
 /* ============================================================
    RÉGLAGES
@@ -527,6 +560,10 @@ let diapos = [];
 let iDiapo = 0;
 let minuteurDiapo = null;
 let signature = '';
+/* ✨ v1199 — la transition du carrousel, réglée dans l'application */
+let TRANSITION = { transition: 'fondu', transitionDuree: 'normale' };
+const DUREES_TRANSITION = { rapide: 0.6, normale: 1.2, lente: 2 };
+const TYPES_TRANSITION = ['fondu', 'glisser', 'monter', 'zoom', 'volet'];
 
 /* L'heure vient du classeur, pas du téléviseur. Une box mal réglée
    décalerait tous les passages en plein écran, et c'est le genre de
@@ -749,14 +786,20 @@ async function chargerVraiment(){
 
     /* On ne relance le carrousel que si le contenu a changé :
        sinon il repartirait de la première image chaque minute. */
+    if(d && d.transition) TRANSITION = d.transition;
     const neuf = JSON.stringify(((d && d.diapos) || [])
-      .map(x => x.id + x.titre + x.contenu));
+      .map(x => x.id + x.titre + x.contenu + (x.sig || '')));
     if(neuf !== signature){
       signature = neuf;
       diapos = (d && d.diapos) || [];
       iDiapo = 0;
       dessinerPoints();
       lancerCarrousel();
+    }else{
+      /* 🎨 v1199 — rien n'a changé, mais les liens des photos du studio
+         sont renouvelés : ils expirent, et une télé allumée des jours
+         durant finirait par montrer des cadres vides. */
+      diapos = (d && d.diapos) || diapos;
     }
   }catch(e){
     /* Une lenteur passagère n'est pas une panne : l'écran garde ce
@@ -1038,10 +1081,18 @@ function afficherDiapo(){
 
   /* Une vidéo est désignée par son adresse : elle est trop lourde
      pour tenir dans le classeur. */
-  const video = (d.type === 'video') ? String(d.contenu || '').trim() : '';
-  const avecImage = !!d.image;
+  const studio = d.type === 'compo' && d.compo && window.Compo;
+  const video = (!studio && d.type === 'video') ? String(d.contenu || '').trim() : '';
+  const avecImage = !studio && !!d.image;
   const el = document.createElement('div');
-  el.className = 'scene' + (video || avecImage ? '' : ' texte');
+  el.className = 'scene' + (studio ? ' compo' : (video || avecImage ? '' : ' texte'));
+
+  /* ✨ v1199 — comment elle arrive : la sienne (studio), sinon celle
+     du carrousel ; « au hasard » en tire une à chaque fois */
+  let tr = (studio && TYPES_TRANSITION.indexOf(d.compo.transition) !== -1) ? d.compo.transition : TRANSITION.transition;
+  if(tr === 'hasard') tr = TYPES_TRANSITION[Math.floor(Math.random() * TYPES_TRANSITION.length)];
+  if(TYPES_TRANSITION.indexOf(tr) === -1) tr = 'fondu';
+  const td = DUREES_TRANSITION[TRANSITION.transitionDuree] || 1.2;
 
   el.innerHTML =
     (video
@@ -1058,17 +1109,31 @@ function afficherDiapo(){
 
   /* Le panneau absent laisse la place aux photos */
   const p = document.getElementById('panneau');
-  if(OU === 'vitrine' && p && p.style.display === 'none') el.style.width = '100%';
+  if(!studio && OU === 'vitrine' && p && p.style.display === 'none') el.style.width = '100%';
 
-  /* L'ancienne s'efface pendant que la nouvelle apparaît */
-  const vieille = z.querySelector('.scene');
+  /* La nouvelle arrive par-dessus pendant que l'ancienne s'en va, de
+     la même façon (✨ v1199 — le fondu n'est plus la seule). */
+  const vieilles = Array.prototype.slice.call(z.querySelectorAll('.scene'));
+  el.style.setProperty('--td', td + 's');
+  el.classList.add('anim', 'e-' + tr, 'vue');
   z.appendChild(el);
-  requestAnimationFrame(() => {
-    el.classList.add('vue');
-    if(vieille){
-      vieille.classList.remove('vue');
-      setTimeout(() => vieille.remove(), 1300);
-    }
+  if(studio){
+    /* 🎨 Le dessin du studio, une fois la scène à sa taille. Les
+       photos arrivent en liens signés relatifs au Worker. */
+    const qrSvg = () => { const q = document.querySelector('#qrEncart .qr'); return q ? q.innerHTML : ''; };
+    try{
+      Compo.rendre(el, d.compo, OU === 'vitrine' ? 'vitrine' : 'accueil', {
+        arrivee: true, delai: td * 0.6,
+        photo: k => (d.liens && d.liens[k]) ? RELAIS + d.liens[k] : '',
+        qr: () => qrSvg()
+      });
+    }catch(e){ console.warn('Diapositive du studio illisible', e); }
+  }
+  vieilles.forEach(v => {
+    v.classList.remove('vue');
+    v.style.setProperty('--td', td + 's');
+    v.className = v.className.replace(/\be-\w+/g, '').trim() + ' anim s-' + tr;
+    setTimeout(() => v.remove(), td * 1000 + 150);
   });
 
   document.querySelectorAll('.point').forEach((pt, i) =>
