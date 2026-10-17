@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 10:51 — v1199 */
+/* Déployé le 17/10/2026 à 11:37 — v1201 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -240,13 +240,15 @@ async function afficherEcran(o){
   if(!zone) return;
 
   zone.innerHTML = '<div class="empty">Lecture de l’affichage…</div>';
-  const [d, r, q, p] = await Promise.all([
+  const [d, r, q, p, mp] = await Promise.all([
     appelPrep({ action: 'ecranList' }).then(x => ({ ok: x }), e => ({ err: e })),
     /* Les réglages, le QR et le planning du jour n'empêchent pas la
        page de s'afficher : illisibles, on fait sans. */
     appelPrep({ action: 'reglagesList' }).catch(() => null),
     appelPrep({ action: 'ecranQrLire' }).catch(() => null),
-    appelPrep({ action: 'ecranPlanning' }).catch(() => null)
+    appelPrep({ action: 'ecranPlanning' }).catch(() => null),
+    /* 🖥️ v1201 — les mises en page et les thèmes */
+    appelPrep({ action: 'ecranMises' }).catch(() => null)
   ]);
   if(d.err){
     zone.innerHTML = '<div class="empty">⚠️ ' + echEcran(d.err.message) + '</div>';
@@ -257,6 +259,7 @@ async function afficherEcran(o){
   qrEcran = (q && q.qr) || null;
   /* 🎨 v1199 — la transition du carrousel, et les liens des photos du studio */
   if(typeof transitionEcran !== 'undefined') transitionEcran = (q && q.transition) || null;
+  if(typeof majTeleEcran === 'function') majTeleEcran(mp);
   if(typeof preparerLiensDesDiapos === 'function') await preparerLiensDesDiapos(diaposEcran).catch(() => {});
   planningDuJourEcran = (p && p.planning) || [];
 
@@ -292,6 +295,8 @@ async function afficherEcran(o){
 function dessinerOngletEcran(){
   const c = $('ecranCorps');
   if(!c) return;
+  /* 🎨 v1201 — les vignettes animées des thèmes s'arrêtent avec leur onglet */
+  if(typeof vignettesThemes !== 'undefined'){ vignettesThemes.forEach(m => m.arreter()); vignettesThemes = []; }
   c.innerHTML = '';
   if(ongletEcran === 'diapos') dessinerDiaposEcran(c);
   else if(ongletEcran === 'reglages') dessinerReglagesEcran(c);
@@ -1006,6 +1011,8 @@ function dessinerReglagesEcran(z){
   z.appendChild(blocPleinEcran());
   z.appendChild(blocQrEcran());
   if(typeof blocTransitionsEcran === 'function') z.appendChild(blocTransitionsEcran());
+  if(typeof blocMisesEnPage === 'function') z.appendChild(blocMisesEnPage());
+  if(typeof blocThemesEcran === 'function') z.appendChild(blocThemesEcran());
   z.appendChild(blocAdresses());
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
