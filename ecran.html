@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Déployé le 16/10/2026 à 18:44 — v1198 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -407,6 +408,33 @@
     color:var(--muted); font-size:30px;
   }
   .repos .gros{ font-size:80px; }
+
+  /* ============================================================
+     🔳 LE QR CODE DE SAINT-BRIEUC — v1198
+
+     David : « l'intégrer sans être une diapositive par-dessus ce
+     qui passe à l'écran, avec un texte à définir ». Un encart fixe
+     en bas à droite, et le carrousel se resserre pour lui laisser
+     sa place : il ne cache rien. Il n'apparaît que si le Worker le
+     dit (« qr.montrer ») : interrupteur de l'écran allumé ET page
+     publique de Saint-Brieuc ouverte. Le cours en plein écran
+     passe par-dessus, comme sur tout le reste.
+     ============================================================ */
+  #qrEncart{
+    position:absolute; right:24px; bottom:24px; z-index:4;
+    display:none; width:230px;
+    background:#fff; color:#0B0B0B;
+    border-radius:20px; padding:14px 14px 13px;
+    box-shadow:0 14px 40px rgba(0,0,0,.35);
+    text-align:center;
+  }
+  body.avecQr #qrEncart{ display:block; }
+  #qrEncart .qr{ width:100%; aspect-ratio:1/1; }
+  #qrEncart .qr svg{ width:100%; height:100%; display:block; }
+  #qrEncart .qr .qrline{ stroke-width:1; }
+  #qrEncart .t{ font-size:21px; font-weight:800; line-height:1.22; margin-top:8px; }
+  body.avecQr .scene{ right:278px; }
+  body.vitrine.avecQr .scene{ right:278px; width:calc(64% - 278px); }
 </style>
 </head>
 <body>
@@ -441,6 +469,12 @@
     </section>
 
     <div id="meteoVitrine"></div>
+
+    <!-- 🔳 v1198 — le QR code de Saint-Brieuc, fixe en bas à droite -->
+    <aside id="qrEncart" aria-label="QR code du bureau de Saint-Brieuc">
+      <div class="qr"><svg viewBox="0 0 33 33" class="segno"><path class="qrline" stroke="#0b0b0b" d="M0 0.5h7m1 0h2m1 0h1m1 0h2m1 0h5m2 0h2m1 0h7m-33 1h1m5 0h1m1 0h1m1 0h4m2 0h1m1 0h1m4 0h2m1 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m4 0h2m3 0h2m1 0h1m4 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h1m5 0h2m2 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m6 0h2m2 0h5m4 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-25 1h1m1 0h1m1 0h1m1 0h1m2 0h2m1 0h1m-21 1h1m1 0h2m1 0h3m6 0h1m1 0h4m1 0h1m4 0h1m2 0h1m1 0h2m-32 1h5m2 0h5m3 0h1m1 0h4m1 0h1m2 0h2m1 0h2m1 0h1m-32 1h1m1 0h1m2 0h4m1 0h2m1 0h1m1 0h2m2 0h1m1 0h2m3 0h3m1 0h2m-32 1h4m2 0h1m1 0h2m2 0h2m3 0h3m2 0h2m2 0h1m1 0h1m1 0h2m-33 1h2m1 0h1m2 0h1m1 0h5m2 0h1m2 0h1m3 0h1m2 0h1m1 0h3m1 0h2m-32 1h1m1 0h3m1 0h1m3 0h1m1 0h1m2 0h1m1 0h1m3 0h1m1 0h1m2 0h1m3 0h1m-32 1h1m1 0h1m1 0h3m3 0h1m1 0h1m2 0h4m7 0h3m1 0h1m-31 1h1m1 0h4m1 0h2m1 0h1m1 0h3m1 0h1m1 0h10m1 0h2m-30 1h2m2 0h2m2 0h2m1 0h2m1 0h2m1 0h2m1 0h6m1 0h1m1 0h1m-28 1h1m1 0h1m4 0h1m3 0h2m1 0h1m2 0h1m2 0h4m1 0h2m1 0h2m-33 1h2m2 0h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m2 0h3m2 0h4m1 0h1m-31 1h1m1 0h2m1 0h1m4 0h1m2 0h2m1 0h1m5 0h3m3 0h1m2 0h1m-31 1h2m3 0h4m1 0h4m3 0h2m1 0h1m7 0h3m-32 1h4m1 0h1m4 0h1m2 0h3m2 0h1m2 0h1m1 0h1m1 0h2m3 0h1m1 0h1m-28 1h3m1 0h1m1 0h2m3 0h1m3 0h13m-32 1h3m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m3 0h1m-29 1h1m2 0h4m3 0h3m1 0h2m1 0h1m2 0h1m1 0h7m-21 1h3m1 0h6m1 0h1m3 0h2m3 0h2m1 0h1m-32 1h7m1 0h3m1 0h3m1 0h1m2 0h1m1 0h4m1 0h1m1 0h1m-29 1h1m5 0h1m1 0h3m3 0h1m1 0h1m3 0h5m3 0h4m-32 1h1m1 0h3m1 0h1m2 0h1m4 0h2m1 0h1m1 0h3m1 0h6m1 0h3m-33 1h1m1 0h3m1 0h1m1 0h5m4 0h3m1 0h2m4 0h1m1 0h2m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h4m1 0h1m3 0h1m2 0h1m1 0h2m2 0h2m1 0h1m-30 1h1m5 0h1m6 0h7m2 0h7m3 0h1m-33 1h7m1 0h1m2 0h2m1 0h5m2 0h1m3 0h1m2 0h3"/></svg></div>
+      <div class="t" id="qrTexte"></div>
+    </aside>
   </main>
 
   <!-- Le texte défilant : au-dessus du pied de page, visible sur
@@ -471,7 +505,7 @@ const DELAI_METEO   = 900000;
 /* ⚠️ COMBIEN DE TEMPS LE COURS PREND L'ÉCRAN — RÉGLABLE DEPUIS
    L'APPLICATION.
 
-   Chrystel, le 9 septembre 2026 : « est-ce que tu peux faire en
+   David, le 9 septembre 2026 : « est-ce que tu peux faire en
    sorte que je puisse changer le temps manuellement ».
 
    C'était deux constantes ici, et une phrase écrite en dur dans
@@ -708,6 +742,7 @@ async function chargerVraiment(){
     dessinerFond(d && d.fond);
     dessinerPanneau(d && d.panneau);
     dessinerBandeau((d && d.bandeaux) || []);
+    dessinerQr(d && d.qr);
     planningActuel = (d && d.planning) || [];
     dessinerPlanning(planningActuel);
     majImminents();
@@ -786,6 +821,16 @@ function dessinerPanneau(p){
    longueur, sinon un texte court filerait et un long ramperait.
    ============================================================ */
 let signatureBandeau = '';
+
+/* 🔳 v1198 — l'encart du QR code : montré ou retiré à chaque
+   relecture, avec la phrase réglée dans l'application. */
+function dessinerQr(q){
+  const oui = !!(q && q.montrer);
+  document.body.classList.toggle('avecQr', oui);
+  const t = document.getElementById('qrTexte');
+  /* « rendez-vous » ne se coupe pas au trait d'union */
+  if(t) t.textContent = oui ? String(q.texte || '').replace(/-/g, '\u2011') : '';
+}
 
 function dessinerBandeau(liste){
   const z = document.getElementById('bandeau');
