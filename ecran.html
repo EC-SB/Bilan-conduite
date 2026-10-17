@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/10/2026 à 10:51 — v1199 -->
+<!-- Déployé le 17/10/2026 à 11:37 — v1201 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -446,6 +446,13 @@
     right:0; width:64%; -webkit-mask-image:none; mask-image:none;
   }
 
+  /* 🎨 v1201 — la toile des thèmes, et le QR qui se retire pendant
+     « Vos cours commencent » (on le devinait flou derrière le voile) */
+  #decor{ position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; display:none; }
+  #decor.vu{ display:block; }
+  body.imminent #qrEncart{ display:none !important; }
+  body.apercu{ cursor:default; }
+
   /* ✨ v1199 — LES TRANSITIONS DU CARROUSEL. La nouvelle arrive par-
      dessus l'ancienne, qui s'en va de la même façon. La durée vient
      du réglage (rapide, normale, lente). */
@@ -482,6 +489,9 @@
   <main>
     <div id="fondFixe"></div>
     <div id="scenes"></div>
+    <!-- 🎨 v1201 — les petites images des thèmes : derrière les cours
+         à venir et le QR, devant les diapositives -->
+    <canvas id="decor"></canvas>
 
     <section id="planning">
       <h2>📅 Les cours à venir</h2>
@@ -520,6 +530,8 @@
 
 <!-- 🎨 v1199 — le dessin des diapositives du studio, le même que dans l'appli -->
 <script src="app/ec-compo.js?v=1199"></script>
+<!-- 🖥️ v1201 — la mise en page et les thèmes, le même code que dans l'appli -->
+<script src="app/ec-tele.js?v=1201"></script>
 <script>
 /* ============================================================
    RÉGLAGES
@@ -560,6 +572,20 @@ let diapos = [];
 let iDiapo = 0;
 let minuteurDiapo = null;
 let signature = '';
+/* 🖥️ v1201 — LA MISE EN PAGE ET LE THÈME DU JOUR
+
+   Ils arrivent avec les données (« mep », « themes », « liensTele »)
+   et ec-tele.js les traduit en CSS. Dans l'appli, le studio de mise
+   en page affiche cette même page en petit (« &apercu=1 ») et lui
+   envoie son brouillon par message : on montre le brouillon, on
+   renvoie la place de chaque bloc. Rien n'est enregistré d'ici. */
+const APERCU = PARAMS.get('apercu') === '1';
+if(APERCU) document.body.classList.add('apercu');
+let DONNEES_TELE = { mep: null, themes: null, liens: {}, jour: '' };
+const APERCU_VOULU = {};
+let IMMINENT_TITRES = ['Votre cours commence', 'Vos cours commencent'];
+let decorEnCours = null, signatureDecor = '';
+
 /* ✨ v1199 — la transition du carrousel, réglée dans l'application */
 let TRANSITION = { transition: 'fondu', transitionDuree: 'normale' };
 const DUREES_TRANSITION = { rapide: 0.6, normale: 1.2, lente: 2 };
@@ -780,6 +806,9 @@ async function chargerVraiment(){
     dessinerPanneau(d && d.panneau);
     dessinerBandeau((d && d.bandeaux) || []);
     dessinerQr(d && d.qr);
+    DONNEES_TELE = { mep: (d && d.mep) || null, themes: (d && d.themes) || null,
+                     liens: (d && d.liensTele) || {}, jour: (d && d.jour) || '' };
+    appliquerAffichage();
     planningActuel = (d && d.planning) || [];
     dessinerPlanning(planningActuel);
     majImminents();
@@ -1023,7 +1052,10 @@ function majImminents(){
   const zt = document.getElementById('imminentTitre');
   if(!z || !zl || !zt || OU === 'vitrine') return;
 
-  const liste = coursImminents();
+  const liste = APERCU_VOULU.demo
+    ? [{ id: 'x1', heure: '10:30', eleve: 'Léa M.', moniteur: 'David', vehicule: 'A3 n°4', lieu: 'devant' },
+       { id: 'x2', heure: '10:30', eleve: 'Tom R.', moniteur: 'Maryne', vehicule: 'Q3 n°7', lieu: 'cour' }]
+    : coursImminents();
 
   if(!liste.length){
     z.classList.remove('vu');
@@ -1039,8 +1071,7 @@ function majImminents(){
                                c.vehicule, c.lieu, c.auGarage].join('|')).join('§');
   if(neuf !== signatureImminent){
     signatureImminent = neuf;
-    zt.textContent = (liste.length > 1) ? 'Vos cours commencent'
-                                        : 'Votre cours commence';
+    zt.textContent = (liste.length > 1) ? IMMINENT_TITRES[1] : IMMINENT_TITRES[0];
     zl.innerHTML = liste.map(blocImminent).join('');
     z.classList.toggle('seul', liste.length === 1);
     z.classList.toggle('serre', liste.length > 3);
@@ -1050,6 +1081,101 @@ function majImminents(){
   document.body.classList.add('imminent');
 }
 
+
+/* ============================================================
+   🖥️ v1201 — LA MISE EN PAGE, LE THÈME, LES PETITES IMAGES
+   ============================================================ */
+function feuilleDeStyle(id){
+  let st = document.getElementById(id);
+  if(!st){ st = document.createElement('style'); st.id = id; document.head.appendChild(st); }
+  return st;
+}
+function lienTele(cle){
+  const l = (APERCU_VOULU.liens && APERCU_VOULU.liens[cle]) || DONNEES_TELE.liens[cle] || '';
+  if(!l) return '';
+  return l.charAt(0) === '/' ? RELAIS + l : l;
+}
+function jourIsoTele(){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(DONNEES_TELE.jour || '')) return DONNEES_TELE.jour;
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+}
+function appliquerAffichage(){
+  if(!window.Tele) return;
+  /* La mise en page : celle de l'appli (aperçu), sinon celle en service */
+  const mep = ('mep' in APERCU_VOULU) ? APERCU_VOULU.mep : DONNEES_TELE.mep;
+  document.body.classList.toggle('mep', !!mep);
+  feuilleDeStyle('styleMep').textContent = mep ? Tele.cssMep(mep, OU) : '';
+  feuilleDeStyle('styleImminent').textContent = mep ? Tele.cssImminent(mep, lienTele) : '';
+  const propre = mep ? Tele.nettoyerMep(mep) : null;
+  const h2 = document.querySelector('#planning h2');
+  if(h2) h2.textContent = (propre && OU !== 'vitrine' && propre.accueil.blocs.planning.titre) || '📅 Les cours à venir';
+  IMMINENT_TITRES = propre ? [propre.imminent.titre1, propre.imminent.titre2] : ['Votre cours commence', 'Vos cours commencent'];
+  signatureImminent = '';
+
+  /* Le thème : celui de l'appli (aperçu), sinon celui du jour */
+  let theme = null;
+  if('theme' in APERCU_VOULU) theme = APERCU_VOULU.theme;
+  else{
+    const t = DONNEES_TELE.themes;
+    if(t && t.auto){
+      const choisi = Tele.themeDuJour(Tele.themesComplets(t.lignes || []), jourIsoTele(), OU);
+      theme = choisi ? choisi.config : null;
+    }
+  }
+  feuilleDeStyle('styleTheme').textContent = theme ? Tele.cssTheme(theme) : '';
+  lancerDecor(theme);
+  majImminents();
+  if(APERCU) setTimeout(envoyerLesPlaces, 80);
+}
+function lancerDecor(theme){
+  const toile = document.getElementById('decor');
+  if(!toile) return;
+  const a = theme ? Tele.nettoyerAnimation(theme.animation) : null;
+  const vide = !a || (!a.lutins.length && !a.decors.length && !a.photos.length);
+  const sig = vide ? '' : JSON.stringify(a) + '|' + document.body.classList.contains('mep');
+  if(sig === signatureDecor){ if(decorEnCours) decorEnCours.pause(!!APERCU_VOULU.pause); return; }
+  signatureDecor = sig;
+  if(decorEnCours){ decorEnCours.arreter(); decorEnCours = null; }
+  toile.classList.toggle('vu', !vide);
+  if(vide) return;
+  requestAnimationFrame(() => {
+    toile.width = Math.max(1, Math.round(toile.clientWidth));
+    toile.height = Math.max(1, Math.round(toile.clientHeight));
+    decorEnCours = Tele.lancer(toile, a, { photos: a.photos.map(lienTele).filter(Boolean), pause: !!APERCU_VOULU.pause });
+  });
+}
+addEventListener('resize', () => { signatureDecor = ''; appliquerAffichage(); });
+
+/* L'aperçu dans l'appli : le brouillon arrive par message, la place
+   des blocs repart de même (en coordonnées d'un écran 1600 × 900) */
+function envoyerLesPlaces(){
+  if(!APERCU || !window.Tele || window.parent === window) return;
+  const places = {};
+  Object.keys(Tele.BLOCS[OU]).forEach(k => {
+    const el = document.querySelector(Tele.BLOCS[OU][k].sel);
+    if(!el) return;
+    const r = el.getBoundingClientRect();
+    if(!r.width || !r.height || getComputedStyle(el).display === 'none'){ places[k] = null; return; }
+    places[k] = [r.left * 1600 / innerWidth, r.top * 900 / innerHeight, r.width * 1600 / innerWidth, r.height * 900 / innerHeight].map(Math.round);
+  });
+  window.parent.postMessage({ ecPlaces: places, ou: OU }, '*');
+}
+if(APERCU){
+  addEventListener('message', ev => {
+    if(ev.source !== window.parent) return;
+    const m = ev.data && ev.data.ecApercu;
+    if(!m || typeof m !== 'object') return;
+    ['mep', 'theme'].forEach(k => {
+      if(k in m){ if(m[k] === undefined) delete APERCU_VOULU[k]; else APERCU_VOULU[k] = m[k]; }
+    });
+    if('demo' in m) APERCU_VOULU.demo = !!m.demo;
+    if('pause' in m) APERCU_VOULU.pause = !!m.pause;
+    if(m.liens && typeof m.liens === 'object') APERCU_VOULU.liens = Object.assign({}, APERCU_VOULU.liens || {}, m.liens);
+    if(m.oublier) ['mep', 'theme'].forEach(k => delete APERCU_VOULU[k]);
+    appliquerAffichage();
+  });
+}
 
 /* ============================================================
    LE CARROUSEL
