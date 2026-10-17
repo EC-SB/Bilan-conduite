@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 12:19 — v1202 */
+/* Déployé le 17/10/2026 à 13:44 — v1203 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1203,
+    date: 'Samedi 17 octobre 2026',
+    resume: '🔳 Le QR posé par-dessus les diapositives ; la vitrine sans l’en-tête de l’accueil',
+    quoi: [
+      { emoji: '🔳',
+        titre: 'Le QR code ne prend plus de colonne',
+        texte: 'Les diapositives gardent toute la largeur : l’encart du QR est posé dessus, en transparence. Le code lui-même reste ' +
+               'noir sur son carré blanc, pour que les téléphones le lisent.' },
+      { emoji: '🪟',
+        titre: 'La vitrine en mise en page',
+        texte: 'Le nom, la date, la météo et l’heure de l’accueil ne s’affichent plus en haut à gauche de la vitrine : sa date, son heure ' +
+               'et sa météo sont dans son bloc « La météo, la date et l’heure ».' }
+    ]
+  },
   {
     version: 1202,
     date: 'Samedi 17 octobre 2026',
