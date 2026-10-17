@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 14:58 — v978 */
+/* Déployé le 16/10/2026 à 18:44 — v1198 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -27,7 +27,7 @@ function pleinEcranActif(){
 /* ============================================================
    COMBIEN DE TEMPS LE COURS PREND L'ÉCRAN
 
-   Chrystel, le 9 septembre 2026 : « est-ce que tu peux faire en
+   David, le 9 septembre 2026 : « est-ce que tu peux faire en
    sorte que je puisse changer le temps manuellement ».
 
    C'était cinq minutes avant et cinq après, écrites en dur à deux
@@ -182,267 +182,317 @@ function blocDureesPleinEcran(){
   return d;
 }
 
-async function afficherEcran(){
+/* ============================================================
+   📺 LA PAGE AFFICHAGE, REFAITE — v1198
+
+   David, le 16 octobre : « est-ce que tu peux me proposer une
+   refonte visuelle et ergonomique de la page Affichage ». Schéma
+   validé (« tu peux coder »), avec ses réponses :
+     · les aperçus des deux téléviseurs, repliables — repliés sur le
+       téléphone, ouverts sur la tablette et l'ordinateur ;
+     · l'ordre du carrousel en glissant (⠿), plus de ▲▼ ;
+     · les cours passés repliés en bas ;
+     · en arrivant sur la page : toujours l'onglet 📅 Planning.
+
+   Ce qui était une seule longue page devient :
+     ① ce que montrent les écrans en ce moment, et le prochain plein
+       écran ;
+     ② trois onglets — 📅 Planning et 🖼️ Diapositives (tous les
+       jours), ⚙️ Réglages (une fois).
+
+   ⚠️ RIEN NE CHANGE DANS CE QUI EST ENREGISTRÉ. Mêmes actions
+   (ecranLigneSet, ecranSet…), mêmes champs : seul l'écran de réglage
+   est neuf. Les deux plannings — celui du jour et celui d'un autre
+   jour — n'en font plus qu'un, avec la même carte et la même liste
+   d'emplacements (celle de 📍 Gérer les emplacements ; le planning du
+   jour en avait une écrite à la main, avec d'autres libellés).
+   ============================================================ */
+let ongletEcran = 'planning';
+let jourEcran = '';             /* '' = aujourd'hui */
+let filtreDiapos = 'tous';
+let qrEcran = null;
+let planningDuJourEcran = [];   /* aujourd'hui : sert au « prochain » */
+
+const echEcran = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+function minutesDeHeure(h){
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(h || ''));
+  return m ? (+m[1]) * 60 + (+m[2]) : null;
+}
+function minutesMaintenant(){ const n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
+function isoPlusJours(iso, n){
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function jourCourtEcran(iso){
+  const d = new Date(iso + 'T12:00:00');
+  const j = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][d.getDay()];
+  return j + ' ' + d.getDate();
+}
+
+async function afficherEcran(o){
+  o = o || {};
+  /* « Toujours Planning en arrivant » (David) : seul le passage par
+     l'onglet remet à zéro. Un enregistrement qui redessine garde
+     l'onglet où l'on est. */
+  if(o.arrivee){ ongletEcran = 'planning'; jourEcran = ''; }
   const zone = $('ecranZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Lecture des diapositives…</div>';
-  try{
-    const d = await appelPrep({ action: 'ecranList' });
-    diaposEcran = (d && d.diapos) || [];
-  }catch(e){
-    zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
+  zone.innerHTML = '<div class="empty">Lecture de l’affichage…</div>';
+  const [d, r, q, p] = await Promise.all([
+    appelPrep({ action: 'ecranList' }).then(x => ({ ok: x }), e => ({ err: e })),
+    /* Les réglages, le QR et le planning du jour n'empêchent pas la
+       page de s'afficher : illisibles, on fait sans. */
+    appelPrep({ action: 'reglagesList' }).catch(() => null),
+    appelPrep({ action: 'ecranQrLire' }).catch(() => null),
+    appelPrep({ action: 'ecranPlanning' }).catch(() => null)
+  ]);
+  if(d.err){
+    zone.innerHTML = '<div class="empty">⚠️ ' + echEcran(d.err.message) + '</div>';
     return;
   }
-
-  /* Les réglages n'empêchent pas l'écran de s'afficher : illisibles,
-     on garde le comportement normal plutôt que de tout bloquer. */
-  try{
-    const r = await appelPrep({ action: 'reglagesList' });
-    reglagesEcran = (r && r.reglages) || {};
-  }catch(e){
-    reglagesEcran = {};
-  }
+  diaposEcran = (d.ok && d.ok.diapos) || [];
+  reglagesEcran = (r && r.reglages) || {};
+  qrEcran = (q && q.qr) || null;
+  planningDuJourEcran = (p && p.planning) || [];
 
   zone.innerHTML = '';
+  zone.appendChild(blocApercusEcrans());
+  zone.appendChild(ligneProchainEcran());
 
-  /* Ce qui se passe à l'heure du cours, avant tout le reste : c'est
-     le réglage qu'on vient couper en vitesse un jour de contrôle. */
-  zone.appendChild(blocPleinEcran());
+  const o2 = document.createElement('div');
+  o2.className = 'eqOnglets afOnglets';
+  const aVenir = coursRangesEcran(planningDuJourEcran, true).avenir.length;
+  const actives = diaposEcran.filter(x => etatDiapo(x) === 'ecran' || etatDiapo(x) === 'programmee').length;
+  [['planning', '📅 Planning', aVenir], ['diapos', '🖼️ <span class="afLong">Diapositives</span><span class="afCourt">Diapos</span>', actives], ['reglages', '⚙️ Réglages', null]].forEach(([k, n, c]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.onglet = k;
+    b.className = 'btn ' + (k === ongletEcran ? 'btn-primary' : 'btn-secondary');
+    b.innerHTML = n + (c !== null ? ' · ' + c : '');
+    b.addEventListener('click', () => {
+      ongletEcran = k;
+      o2.querySelectorAll('button').forEach(x => x.className = 'btn ' + (x.dataset.onglet === k ? 'btn-primary' : 'btn-secondary'));
+      dessinerOngletEcran();
+    });
+    o2.appendChild(b);
+  });
+  zone.appendChild(o2);
 
-  /* Le planning tel qu'il apparaît à l'accueil, modifiable ici */
-  zone.appendChild(blocPlanning());
-
-  /* Les adresses à ouvrir sur les téléviseurs */
-  zone.appendChild(blocAdresses());
-
-  /* Les plannings des jours suivants, repliés : on ne les prépare
-     pas tous les jours, mais quand on le fait il faut pouvoir. */
-  zone.appendChild(blocPlanningsAVenir());
-
-  const bLieux = document.createElement('button');
-  bLieux.className = 'btn btn-secondary';
-  bLieux.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
-  bLieux.textContent = '📍 Gérer les emplacements';
-  bLieux.addEventListener('click', () => ouvrirGestionLieux());
-  zone.appendChild(bLieux);
-
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
-  b.textContent = '➕ Nouvelle diapositive';
-  b.addEventListener('click', () => ouvrirEditeurDiapo(null));
-  zone.appendChild(b);
-
-  if(!diaposEcran.length){
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.innerHTML = 'Aucune diapositive.<br>' +
-      '<span style="font-size:12px;">Ajoute un message ou une image ' +
-      'à faire tourner sur les écrans.</span>';
-    zone.appendChild(v);
-    return;
-  }
-
-  const c = document.createElement('div');
-  c.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
-  const actives = diaposEcran.filter(x => x.actif).length;
-  c.textContent = diaposEcran.length + ' diapositive(s) · ' + actives + ' active(s)';
-  zone.appendChild(c);
-
-  diaposEcran.forEach((d, i) => zone.appendChild(ligneDiapo(d, i)));
+  const corps = document.createElement('div');
+  corps.id = 'ecranCorps';
+  zone.appendChild(corps);
+  dessinerOngletEcran();
 }
 
-
-
-
+function dessinerOngletEcran(){
+  const c = $('ecranCorps');
+  if(!c) return;
+  c.innerHTML = '';
+  if(ongletEcran === 'diapos') dessinerDiaposEcran(c);
+  else if(ongletEcran === 'reglages') dessinerReglagesEcran(c);
+  else dessinerPlanningEcran(c);
+}
 
 /* ============================================================
-   LES PLANNINGS À VENIR
+   ① CE QUE MONTRENT LES ÉCRANS EN CE MOMENT
 
-   Le planning du jour est déjà au-dessus. Ici, on prépare ceux
-   des jours suivants.
+   La vraie page de l'écran, en petit (une iframe réduite) : ce
+   qu'on voit ici est exactement ce que voit la salle d'attente.
+   Chargée seulement quand le tiroir est ouvert — replié sur le
+   téléphone (David), il ne coûte rien.
    ============================================================ */
-
-let jourPlanning = '';
-
-function blocPlanningsAVenir(){
+function blocApercusEcrans(){
   const d = document.createElement('details');
-  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-    'padding:10px 12px;margin-bottom:12px;';
-  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
-    'color:var(--accent-text);">📅 Planning d\'un autre jour</summary>';
-
-  const z = document.createElement('div');
-  z.style.marginTop = '10px';
-
-  const barre = document.createElement('div');
-  barre.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;';
-
-  const ch = document.createElement('input');
-  ch.type = 'date';
-  ch.style.cssText = 'flex:1;min-width:0;margin:0;';
-  /* Demain par défaut : c'est ce qu'on prépare le plus souvent */
-  if(!jourPlanning){
-    const dem = new Date();
-    dem.setDate(dem.getDate() + 1);
-    jourPlanning = dem.getFullYear() + '-' +
-                   String(dem.getMonth() + 1).padStart(2, '0') + '-' +
-                   String(dem.getDate()).padStart(2, '0');
-  }
-  ch.value = jourPlanning;
-  barre.appendChild(ch);
-
-  const bAdd = document.createElement('button');
-  bAdd.className = 'btn btn-secondary';
-  bAdd.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
-    'flex-shrink:0;';
-  bAdd.textContent = '➕';
-  bAdd.title = 'Ajouter une ligne ce jour-là';
-  barre.appendChild(bAdd);
-
-  z.appendChild(barre);
-
-  const zListe = document.createElement('div');
-  z.appendChild(zListe);
+  d.className = 'afTiroir afApercus';
+  d.open = window.innerWidth > 620;
+  d.innerHTML = '<summary>📺 Les deux écrans en ce moment</summary>';
+  const g = document.createElement('div');
+  g.className = 'afEnDirect';
+  d.appendChild(g);
 
   const charger = async () => {
-    jourPlanning = ch.value;
-    zListe.innerHTML = '<div class="empty">Lecture…</div>';
-
-    try{
-      const r = await appelPrep({ action: 'ecranPlanningJour', jour: jourPlanning });
-      const liste = (r && r.planning) || [];
-
-      zListe.innerHTML = '';
-      if(!liste.length){
-        zListe.innerHTML = '<div class="empty">Aucun cours ce jour-là.<br>' +
-          '<span style="font-size:12px;">Le ➕ en ajoute un à la main.</span></div>';
-        return;
-      }
-
-      /* Chaque ligne retient le jour qu'elle affiche : changer la
-       date ne doit pas envoyer une ligne sur le mauvais jour. */
-    const jourAffiche = jourPlanning;
-    liste.forEach(x => zListe.appendChild(ligneAutreJour(x, charger, jourAffiche)));
-    }catch(e){
-      zListe.innerHTML = '<div class="empty">⚠️ ' +
-        e.message.replace(/</g, '&lt;') + '</div>';
+    if(g.dataset.charge) return;
+    g.dataset.charge = '1';
+    const j = await chargerJetonEcran();
+    if(!j){
+      g.innerHTML = '<div class="afResume" style="grid-column:1/-1;">⚠️ ECRAN_TOKEN n’est pas réglé dans Cloudflare : pas d’aperçu (voir ⚙️ Réglages › Adresses des écrans).</div>';
+      return;
     }
+    [['accueil', '🏠 Accueil'], ['vitrine', '🪟 Vitrine']].forEach(([ou, nom]) => {
+      const adresse = CONFIG.LIEN_ECRAN + '?t=' + encodeURIComponent(j) + '&ou=' + ou;
+      const t = document.createElement('div');
+      t.className = 'afTele';
+      t.innerHTML = '<div class="afCadre"><iframe title="Aperçu de l’écran ' + ou + '" loading="lazy" tabindex="-1"></iframe></div>' +
+        '<div class="afTeleBas"><span class="afPoint"></span><strong>' + nom + ' <span class="eqGris" style="font-weight:400;">· en ce moment</span></strong></div>';
+      const ifr = t.querySelector('iframe');
+      ifr.src = adresse;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'afPetit';
+      b.title = 'Ouvrir cet écran en grand';
+      b.textContent = '⛶';
+      b.addEventListener('click', () => window.open(adresse, '_blank', 'noopener'));
+      t.querySelector('.afTeleBas').appendChild(b);
+      g.appendChild(t);
+      /* La page de l'écran est faite pour 1600 × 900 : on la réduit à
+         la largeur du cadre, au lieu de la laisser se réarranger. */
+      const cadre = t.querySelector('.afCadre');
+      const ajuster = () => { const k = cadre.clientWidth / 1600; ifr.style.transform = 'scale(' + k + ')'; };
+      ajuster();
+      if(typeof ResizeObserver === 'function') new ResizeObserver(ajuster).observe(cadre);
+    });
   };
-
-  ch.addEventListener('change', charger);
-  /* La date se lit dans le champ au moment du clic : jourPlanning
-     n'est mis à jour qu'au chargement, et le bouton gardait la
-     valeur du dessin précédent. */
-  bAdd.addEventListener('click', () => {
-    const voulu = ch.value || jourPlanning;
-    jourPlanning = voulu;
-    ouvrirLigneAutreJour(voulu, charger);
-  });
-
-  /* On ne charge qu'à l'ouverture du tiroir : inutile de tirer
-     un planning que personne ne regarde. */
-  d.addEventListener('toggle', () => {
-    if(d.open && !zListe.innerHTML) charger();
-  });
-
-  d.appendChild(z);
+  d.addEventListener('toggle', () => { if(d.open) charger(); });
+  if(d.open) charger();
   return d;
 }
 
-
-/* Une ligne d'un autre jour, réglable comme celles du jour */
-function ligneAutreJour(c, rafraichir, jour){
-  const l = document.createElement('div');
-  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
-    (c.masque ? 'opacity:.45;' : '');
-
-  const h1 = document.createElement('div');
-  h1.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-
-  const t = document.createElement('div');
-  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.35;';
-  t.innerHTML = '<strong>' +
-    (c.eleveComplet || c.eleve || '—').replace(/</g, '&lt;') + '</strong>' +
-    (c.manuel ? ' <span style="font-size:10px;color:var(--muted);">' +
-                'ajouté à la main</span>' : '') +
-    (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
-                'retiré de l\'écran</span>' : '');
-  h1.appendChild(t);
-
-  const selMon = document.createElement('select');
-  selMon.style.cssText = 'width:auto;max-width:110px;margin:0;padding:5px 7px;' +
-    'font-size:11px;flex-shrink:0;';
-  remplirMoniteursEcran(selMon, c.moniteur || '');
-  selMon.addEventListener('change', () => {
-    c.moniteur = selMon.value;
-    enregistrerLigneJour(c, jour);
-  });
-  h1.appendChild(selMon);
-
-  l.appendChild(h1);
-
-  const h2 = document.createElement('div');
-  h2.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
-
-  const heure = document.createElement('input');
-  heure.type = 'time';
-  heure.value = c.heure || '';
-  heure.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 8px;' +
-    'font-size:13px;';
-  heure.addEventListener('change', () => {
-    c.heure = heure.value;
-    enregistrerLigneJour(c, jour);
-  });
-  h2.appendChild(heure);
-
-  const veh = document.createElement('select');
-  veh.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
-  remplirVehiculesEcran(veh, c.vehicule || '');
-  veh.addEventListener('change', () => {
-    c.vehicule = (veh.value === 'autre') ? '' : veh.value;
-    enregistrerLigneJour(c, jour);
-  });
-  h2.appendChild(veh);
-
-  const lieu = document.createElement('select');
-  lieu.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
-  remplirListeLieux(lieu, c.lieu || '', false);
-  lieu.addEventListener('change', () => {
-    c.lieu = lieu.value;
-    enregistrerLigneJour(c, jour);
-  });
-  h2.appendChild(lieu);
-
-  const bSup = document.createElement('button');
-  bSup.className = 'btn btn-secondary';
-  bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
-    'flex-shrink:0;' + (c.masque ? '' : 'color:var(--red);border-color:var(--red);');
-  bSup.textContent = c.masque ? '↩️' : '🗑️';
-  bSup.addEventListener('click', async () => {
-    if(c.manuel && !c.masque){
-      if(!await confirmer('Supprimer cette ligne ?')) return;
-      try{
-        await appelPrep({ action: 'ecranLigneDelete', id: c.id });
-        showToast('Supprimée ✅');
-        rafraichir();
-      }catch(e){ showToast('Impossible : ' + e.message); }
-      return;
-    }
-    c.masque = !c.masque;
-    await enregistrerLigneJour(c, jour);
-    rafraichir();
-  });
-  h2.appendChild(bSup);
-
-  l.appendChild(h2);
-  return l;
+/* La phrase sous les aperçus : le prochain plein écran, et ce qui tourne */
+function ligneProchainEcran(){
+  const z = document.createElement('div');
+  z.className = 'afProchain';
+  const r = coursRangesEcran(planningDuJourEcran, true);
+  const prochain = r.avenir.find(c => c.__etat === 'prochain') || null;
+  const maintenant = minutesMaintenant();
+  let a = '';
+  if(r.avenir.some(c => c.__etat === 'grand')){
+    const c = r.avenir.find(x => x.__etat === 'grand');
+    a = '🖥️ <strong>En plein écran : ' + echEcran(nomPublicEleve(c.eleveComplet || c.eleve)) + '</strong>';
+  }else if(prochain){
+    const m = minutesDeHeure(prochain.heure);
+    const dans = m === null ? '' : ' (dans ' + (m - maintenant >= 60 ? Math.floor((m - maintenant) / 60) + ' h ' + String((m - maintenant) % 60).padStart(2, '0') : (m - maintenant) + ' min') + ')';
+    a = '⏭️ <strong>' + (pleinEcranActif() ? 'Prochain plein écran' : 'Prochain cours') + ' : ' +
+        echEcran(nomPublicEleve(prochain.eleveComplet || prochain.eleve)) + ' à ' + echEcran(String(prochain.heure).replace(':', 'h')) + '</strong>' + dans;
+  }else{
+    a = '🌙 <strong>Plus de cours à l’écran aujourd’hui</strong>';
+  }
+  const tourne = ou => diaposEcran.filter(x => etatDiapo(x) === 'ecran' && (x.type === 'message' || x.type === 'video') &&
+                                            (x.ou === ou || x.ou === 'les-deux')).length;
+  z.innerHTML = a + ' · 🖼️ ' + tourne('accueil') + ' diapositive(s) tournent à l’accueil, ' + tourne('vitrine') + ' à la vitrine';
+  return z;
 }
 
+/* ============================================================
+   ② 📅 LE PLANNING — un seul, pour tous les jours
+   ============================================================ */
 
-/* Enregistre une ligne d'un jour donné */
-async function enregistrerLigneJour(c, jour){
+/* Range une journée : à venir (avec « grand » / « prochain »),
+   passés, retirés. Le « maintenant » ne vaut que pour aujourd'hui. */
+function coursRangesEcran(liste, aujourdhui){
+  const maintenant = minutesMaintenant();
+  const av = minutesAvantEcran(), ap = minutesApresEcran();
+  const avenir = [], passes = [], retires = [];
+  (liste || []).forEach(c => {
+    c.__etat = '';
+    if(c.masque){ retires.push(c); return; }
+    const m = minutesDeHeure(c.heure);
+    /* Passé : son heure, et le temps qu'il garde l'écran après, sont
+       derrière nous. */
+    if(aujourdhui && m !== null && m + ap < maintenant){
+      passes.push(c); return;
+    }
+    if(aujourdhui && m !== null && pleinEcranActif() && maintenant >= m - av && maintenant <= m + ap) c.__etat = 'grand';
+    avenir.push(c);
+  });
+  if(aujourdhui){
+    const p = avenir.find(c => c.__etat !== 'grand' && minutesDeHeure(c.heure) !== null && minutesDeHeure(c.heure) >= maintenant);
+    if(p) p.__etat = 'prochain';
+  }
+  return { avenir: avenir, passes: passes, retires: retires };
+}
+
+function dessinerPlanningEcran(z){
+  const auj = todayLocal();
+  const jour = jourEcran || auj;
+  const j = document.createElement('div');
+  j.className = 'afJours';
+  const demain = isoPlusJours(auj, 1);
+  let apres = isoPlusJours(auj, 2);
+  if(new Date(apres + 'T12:00:00').getDay() === 0) apres = isoPlusJours(auj, 3);
+  const choix = [[auj, 'Aujourd’hui · ' + jourCourtEcran(auj)], [demain, 'Demain · ' + jourCourtEcran(demain)],
+                 [apres, jourCourtEcran(apres).replace(/^./, x => x.toUpperCase())]];
+  const autre = choix.every(x => x[0] !== jour);
+  choix.forEach(([iso, t]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (iso === jour ? 'btn-primary' : 'btn-secondary');
+    b.textContent = t;
+    b.addEventListener('click', () => { jourEcran = iso === auj ? '' : iso; dessinerOngletEcran(); });
+    j.appendChild(b);
+  });
+  const ba = document.createElement('label');
+  ba.className = 'btn ' + (autre ? 'btn-primary' : 'btn-secondary') + ' afAutreJour';
+  ba.innerHTML = '📅 ' + (autre ? jourCourtEcran(jour).replace(/^./, x => x.toUpperCase()) + ' ' + jour.slice(5, 7) : 'Autre jour') +
+    '<input type="date" aria-label="Choisir un jour">';
+  const ch = ba.querySelector('input');
+  ch.value = jour;
+  ch.addEventListener('change', () => { if(ch.value){ jourEcran = ch.value === auj ? '' : ch.value; dessinerOngletEcran(); } });
+  j.appendChild(ba);
+  z.appendChild(j);
+
+  const liste = document.createElement('div');
+  liste.innerHTML = '<div class="empty">Lecture…</div>';
+  z.appendChild(liste);
+
+  const recharger = async () => {
+    let l = [];
+    try{
+      if(jour === auj){
+        const r = await appelPrep({ action: 'ecranPlanning' });
+        l = (r && r.planning) || [];
+        planningDuJourEcran = l;
+      }else{
+        const r = await appelPrep({ action: 'ecranPlanningJour', jour: jour });
+        l = (r && r.planning) || [];
+      }
+    }catch(e){
+      liste.innerHTML = '<div class="empty">⚠️ ' + echEcran(e.message) + '</div>';
+      return;
+    }
+    dessinerJourneeEcran(liste, l, jour, recharger);
+  };
+  if(jour === auj) dessinerJourneeEcran(liste, planningDuJourEcran, jour, recharger);
+  else recharger();
+}
+
+function dessinerJourneeEcran(z, l, jour, recharger){
+  z.innerHTML = '';
+  const auj = jour === todayLocal();
+  const r = coursRangesEcran(l, auj);
+  const dit = document.createElement('div');
+  dit.className = 'afResume';
+  dit.innerHTML = r.avenir.length
+    ? '<strong style="color:var(--cream);">' + r.avenir.length + ' cours à l’écran</strong> · l’écran se met à jour dans la minute · touche une puce pour la changer'
+    : (auj ? 'Plus de cours à l’écran aujourd’hui. L’écran affiche « Plus de cours aujourd’hui ».'
+           : 'Aucun cours ce jour-là. « ➕ Ajouter une ligne » en met un à la main.');
+  z.appendChild(dit);
+  r.avenir.forEach(c => z.appendChild(carteCoursEcran(c, l, jour, recharger)));
+
+  const add = document.createElement('button');
+  add.className = 'btn btn-secondary';
+  add.style.cssText = 'margin:4px 0 8px;padding:11px;font-size:13px;';
+  add.textContent = '➕ Ajouter une ligne à la main';
+  add.addEventListener('click', () => ouvrirLigneManuelle(jour, recharger));
+  z.appendChild(add);
+
+  const tiroir = (titre, cours, classe) => {
+    if(!cours.length) return;
+    const t = document.createElement('details');
+    t.className = 'afTiroir ' + (classe || '');
+    t.innerHTML = '<summary>' + titre + '</summary>';
+    cours.forEach(c => { const k = carteCoursEcran(c, l, jour, recharger); k.classList.add('afEteint'); t.appendChild(k); });
+    z.appendChild(t);
+  };
+  /* Repliés en bas (David) : ils ne sont plus à l'écran, mais se
+     corrigent encore. */
+  tiroir('🕐 ' + r.passes.length + ' cours déjà passé' + (r.passes.length > 1 ? 's' : '') + ' — ' + (r.passes.length > 1 ? 'ils ont' : 'il a') + ' quitté l’écran', r.passes, 'afPasses');
+  tiroir('🙈 ' + r.retires.length + ' retiré' + (r.retires.length > 1 ? 's' : '') + ' de l’écran — ↩️ dans ⋯ pour remettre', r.retires, 'afRetires');
+}
+
+/* Une ligne qui change : enregistrée pour SON jour */
+async function enregistrerLigneDuJour(c, jour, silencieux){
   try{
     await appelPrep({
       action: 'ecranLigneSet',
@@ -458,87 +508,554 @@ async function enregistrerLigneJour(c, jour){
       masque: c.masque ? 'oui' : '',
       par: ACCES.moniteur || ''
     });
-  }catch(e){ showToast('Impossible : ' + e.message); }
+    if(!silencieux) showToast('Enregistré ✅');
+  }catch(e){
+    if(!silencieux) showToast('Impossible : ' + e.message);
+    throw e;
+  }
 }
 
+function carteCoursEcran(c, liste, jour, recharger){
+  const k = document.createElement('div');
+  k.className = 'afCours' + (c.__etat === 'prochain' || c.__etat === 'grand' ? ' maintenant' : '');
+  const pastille = (t, cls) => '<span class="afBadge ' + cls + '">' + t + '</span>';
 
-/* Ajouter une ligne à la main sur un jour choisi */
-/* Nom propre à ce tiroir : ec-ecran déclare déjà une
-   ouvrirLigneManuelle pour le planning du jour, et deux fonctions
-   du même nom se percutent. */
-function ouvrirLigneAutreJour(jour, rafraichir){
+  const h = document.createElement('input');
+  h.type = 'time';
+  h.className = 'afHeure';
+  h.value = c.heure || '';
+  h.setAttribute('aria-label', 'Heure');
+  h.addEventListener('change', async () => {
+    c.heure = h.value;
+    try{ await enregistrerLigneDuJour(c, jour); recharger(); }catch(e){}
+  });
+  k.appendChild(h);
+
+  const qui = document.createElement('div');
+  qui.className = 'afQui';
+  qui.innerHTML = '<strong>' + echEcran(c.eleveComplet || c.eleve || '—') + '</strong>' +
+    (c.manuel ? pastille('à la main', 'gris') : '') +
+    (c.__etat === 'grand' ? pastille('● en plein écran', 'vert') : '') +
+    (c.__etat === 'prochain' ? pastille('⏭️ prochain', 'citron') : '') +
+    (c.masque ? pastille('retiré de l’écran', 'gris') : '') +
+    '<div class="afPub"></div>';
+  peindreApercuNomPublic(qui.querySelector('.afPub'), c.eleveComplet || c.eleve);
+  k.appendChild(qui);
+
+  const plus = document.createElement('button');
+  plus.type = 'button';
+  plus.className = 'afPlus';
+  plus.title = 'Plus';
+  plus.textContent = '⋯';
+  plus.addEventListener('click', () => menuCoursEcran(c, liste, jour, recharger, qui));
+  k.appendChild(plus);
+
+  /* Les trois puces : moniteur, véhicule, lieu */
+  const puces = document.createElement('div');
+  puces.className = 'afPuces';
+  const selMon = document.createElement('select');
+  selMon.className = 'afPuce';
+  selMon.setAttribute('aria-label', 'Moniteur');
+  remplirMoniteursEcran(selMon, c.moniteur || '');
+  selMon.addEventListener('change', () => { c.moniteur = selMon.value; enregistrerLigneDuJour(c, jour).catch(() => {}); });
+  puces.appendChild(selMon);
+
+  const veh = document.createElement('select');
+  veh.className = 'afPuce';
+  veh.setAttribute('aria-label', 'Véhicule');
+  const libre = document.createElement('input');
+  libre.type = 'text';
+  libre.className = 'afPuce afLibre';
+  libre.placeholder = 'Quel véhicule ?';
+  libre.value = c.vehicule || '';
+  libre.style.display = 'none';
+  remplirVehiculesEcran(veh, c.vehicule || '').then(() => { peindreVeh(); });
+  const peindreVeh = () => {
+    const enSalle = lieuSansVehicule(c.lieu || '');
+    veh.style.display = enSalle ? 'none' : '';
+    libre.style.display = (!enSalle && veh.value === 'autre') ? '' : 'none';
+    veh.classList.toggle('vide', !enSalle && !c.vehicule);
+  };
+  veh.addEventListener('change', () => {
+    if(veh.value === 'autre'){ peindreVeh(); setTimeout(() => libre.focus(), 60); return; }
+    c.vehicule = veh.value;
+    peindreVeh();
+    enregistrerLigneDuJour(c, jour).catch(() => {});
+  });
+  libre.addEventListener('change', () => { c.vehicule = libre.value.trim(); peindreVeh(); enregistrerLigneDuJour(c, jour).catch(() => {}); });
+  puces.appendChild(veh);
+  puces.appendChild(libre);
+
+  const lieu = document.createElement('select');
+  lieu.className = 'afPuce';
+  lieu.setAttribute('aria-label', 'Où');
+  remplirListeLieux(lieu, c.lieu || '', false);
+  lieu.addEventListener('change', () => {
+    c.lieu = lieu.value;
+    /* Une séance en salle n'a pas de véhicule : il s'efface */
+    if(lieuSansVehicule(lieu.value)){ c.vehicule = ''; veh.value = ''; libre.value = ''; }
+    lieu.classList.toggle('vide', !c.lieu);
+    peindreVeh();
+    enregistrerLigneDuJour(c, jour).catch(() => {});
+  });
+  lieu.classList.toggle('vide', !c.lieu);
+  puces.appendChild(lieu);
+  k.appendChild(puces);
+  peindreVeh();
+  return k;
+}
+
+/* ⋯ : ce qu'on fait rarement — le nom affiché, l'ordre à heure égale,
+   retirer ou remettre, supprimer une ligne ajoutée à la main. */
+function menuCoursEcran(c, liste, jour, recharger, qui){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.style.maxWidth = 'min(380px, 94vw)';
+  m.innerHTML = '<h3 style="margin-top:0;">' + echEcran(c.eleveComplet || c.eleve || '—') +
+    (c.heure ? ' · ' + echEcran(String(c.heure).replace(':', 'h')) : '') + '</h3>';
+  const bouton = (texte, faire, rouge) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'margin:0 0 7px;padding:11px;text-align:left;' + (rouge ? 'color:var(--red);border-color:var(--red);' : '');
+    b.textContent = texte;
+    b.addEventListener('click', async () => { fermerFond(fond); await faire(); });
+    m.appendChild(b);
+  };
+  bouton('✏️ Nom à l’écran : « ' + nomPublicEleve(c.eleveComplet || c.eleve) + ' »', async () => {
+    if(await corrigerNomPublic(c.eleveComplet || c.eleve)) peindreApercuNomPublic(qui.querySelector('.afPub'), c.eleveComplet || c.eleve);
+  });
+  /* L'heure range le planning : monter ou descendre ne départage que
+     deux cours à la même heure (voir la v787). */
+  const memeHeure = liste.filter(x => !x.masque && (x.heure || '') === (c.heure || ''));
+  if(memeHeure.length > 1){
+    [['▲ Passer avant (même heure)', -1], ['▼ Passer après (même heure)', 1]].forEach(([t, sens]) => {
+      bouton(t, async () => {
+        const i = memeHeure.indexOf(c), j = i + sens;
+        if(j < 0 || j >= memeHeure.length) return;
+        const voisin = memeHeure[j];
+        const a = liste.indexOf(c), b = liste.indexOf(voisin);
+        liste[a] = voisin; liste[b] = c;
+        const lo = Math.min(a, b), hi = Math.max(a, b);
+        liste[lo].ordre = lo + 1; liste[hi].ordre = hi + 1;
+        try{
+          await Promise.all([c, voisin].map(x => enregistrerLigneDuJour(x, jour, true)));
+          showToast('Ordre enregistré ✅');
+        }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+        recharger();
+      });
+    });
+  }
+  if(c.masque){
+    bouton('↩️ Remettre à l’écran', async () => {
+      c.masque = false;
+      try{ await enregistrerLigneDuJour(c, jour, true); showToast('Remise à l’écran ✅'); }
+      catch(e){ c.masque = true; showToast('Impossible : ' + e.message); }
+      recharger();
+    });
+  }else if(c.manuel){
+    bouton('🗑️ Supprimer cette ligne', async () => {
+      if(!await confirmer('Supprimer cette ligne de l’affichage ?')) return;
+      try{ await appelPrep({ action: 'ecranLigneDelete', id: c.id }); showToast('Supprimée ✅'); }
+      catch(e){ showToast('Impossible : ' + e.message); }
+      recharger();
+    }, true);
+  }else{
+    bouton('🙈 Retirer de l’écran', async () => {
+      if(!await confirmer('Retirer ' + (c.eleveComplet || c.eleve) + ' de l’écran ?\n\nSon cours reste dans les prochains cours du ' +
+                          'moniteur : seul l’affichage est concerné.')) return;
+      c.masque = true;
+      try{ await enregistrerLigneDuJour(c, jour, true); showToast('Retiré de l’écran ✅'); }
+      catch(e){ c.masque = false; showToast('Impossible : ' + e.message); }
+      recharger();
+    }, true);
+  }
+  const f = document.createElement('button');
+  f.type = 'button';
+  f.className = 'btn btn-secondary';
+  f.style.cssText = 'margin:4px 0 0;padding:10px;';
+  f.textContent = 'Fermer';
+  f.addEventListener('click', () => fermerFond(fond));
+  m.appendChild(f);
+  fond.appendChild(m);
+  fond.addEventListener('click', ev => { if(ev.target === fond) fermerFond(fond); });
+  document.body.appendChild(fond);
+}
+
+/* Ajouter une ligne qui n'a pas de préparation, sur le jour affiché */
+function ouvrirLigneManuelle(jour, apres){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
   boite.className = 'modal';
   boite.style.maxWidth = 'min(460px, 94vw)';
-
-  boite.innerHTML = '<h3>➕ Ligne du ' + jour.split('-').reverse().join('/') + '</h3>' +
-    '<label for="ljEleve">Qui</label>' +
-    '<input type="text" id="ljEleve" list="listeEleves" autocomplete="off" ' +
-      'placeholder="Nom, ou ce qu\'on affiche">' +
+  const auj = jour === todayLocal();
+  boite.innerHTML =
+    '<h3>➕ ' + (auj ? 'Ajouter au planning affiché' : 'Ligne du ' + jour.split('-').reverse().join('/')) + '</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      "Pour ce qui n'a pas de cours préparé : un rendez-vous, une reprise, " +
+      'un créneau au simulateur.</div>' +
+    '<label for="lmEleve">Élève ou intitulé</label>' +
+    '<input type="text" id="lmEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Ex : Ambre Guillebon, ou Réunion AAC">' +
     '<div class="duo">' +
-      '<div><label for="ljHeure">Heure</label>' +
-        '<input type="time" id="ljHeure"></div>' +
-      '<div><label for="ljMon">Moniteur</label>' +
-        '<select id="ljMon"></select></div>' +
+      '<div><label for="lmHeure">Heure</label><input type="time" id="lmHeure"></div>' +
+      '<div><label for="lmMon">Moniteur</label><select id="lmMon"></select></div>' +
     '</div>' +
     '<div class="duo">' +
-      '<div><label for="ljVeh">Véhicule</label>' +
-        '<select id="ljVeh"></select></div>' +
-      '<div><label for="ljLieu">Où</label>' +
-        '<select id="ljLieu"></select></div>' +
+      '<div><label for="lmMod">Véhicule</label>' +
+        '<select id="lmMod"><option value="">— chargement —</option></select>' +
+        '<input type="text" id="lmVeh" placeholder="Lequel ?" ' +
+          'style="display:none;margin-top:6px;"></div>' +
+      '<div><label for="lmLieu">Où</label><select id="lmLieu"></select></div>' +
     '</div>';
 
-  remplirMoniteursEcran(boite.querySelector('#ljMon'), ACCES.moniteur || '');
-  remplirVehiculesEcran(boite.querySelector('#ljVeh'), '');
-  remplirListeLieux(boite.querySelector('#ljLieu'), '', false);
+  remplirListeLieux(boite.querySelector('#lmLieu'), '', false);
+  remplirMoniteursEcran(boite.querySelector('#lmMon'), auj ? '' : (ACCES.moniteur || ''));
+  const selMod = boite.querySelector('#lmMod');
+  const champLibre = boite.querySelector('#lmVeh');
+  remplirVehiculesEcran(selMod, '');
+  selMod.addEventListener('change', () => {
+    const l = (selMod.value === 'autre');
+    champLibre.style.display = l ? 'block' : 'none';
+    if(l) setTimeout(() => champLibre.focus(), 60);
+  });
 
   const r = document.createElement('div');
   r.className = 'btn-row';
-
-  const bA = document.createElement('button');
-  bA.className = 'btn btn-secondary';
-  bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => fermerFond(fond));
-  r.appendChild(bA);
-
-  const bO = document.createElement('button');
-  bO.className = 'btn btn-primary';
-  bO.textContent = '➕ Ajouter';
-  bO.addEventListener('click', async () => {
-    const qui = boite.querySelector('#ljEleve').value.trim();
-    if(!qui){ showToast('Indique qui.'); return; }
-
-    bO.disabled = true;
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => fermerFond(fond));
+  r.appendChild(bAnn);
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '➕ Ajouter';
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#lmEleve').value.trim();
+    if(!nom){ showToast('Indique un élève ou un intitulé.'); return; }
+    bOk.disabled = true;
+    bOk.textContent = 'Ajout…';
     try{
-      const v = boite.querySelector('#ljVeh').value;
       await appelPrep({
-        action: 'ecranLigneSet',
-        id: '', idPrep: '',
+        action: 'ecranLigneSet', id: '', idPrep: '',
         jour: jour,
-        eleve: qui,
-        moniteur: boite.querySelector('#ljMon').value,
-        heure: boite.querySelector('#ljHeure').value,
-        vehicule: (v === 'autre') ? '' : v,
-        lieu: boite.querySelector('#ljLieu').value,
+        eleve: nom,
+        moniteur: boite.querySelector('#lmMon').value,
+        heure: boite.querySelector('#lmHeure').value,
+        vehicule: (selMod.value === 'autre') ? champLibre.value.trim() : selMod.value,
+        lieu: boite.querySelector('#lmLieu').value,
         ordre: 0,
         par: ACCES.moniteur || ''
       });
       fermerFond(fond);
-      showToast('Ajoutée ✅');
-      rafraichir();
+      showToast('Ajouté au planning ✅');
+      if(typeof apres === 'function') apres();
     }catch(e){
       showToast('Impossible : ' + e.message);
-      bO.disabled = false;
+      bOk.disabled = false;
+      bOk.textContent = '➕ Ajouter';
     }
   });
-  r.appendChild(bO);
-
+  r.appendChild(bOk);
   boite.appendChild(r);
   fond.appendChild(boite);
   document.body.appendChild(fond);
-  setTimeout(() => boite.querySelector('#ljEleve').focus(), 100);
+  setTimeout(() => boite.querySelector('#lmEleve').focus(), 100);
+}
+
+/* ============================================================
+   ③ 🖼️ LES DIAPOSITIVES
+   ============================================================ */
+const TYPES_FIXES_ECRAN = { bandeau: 1, fond: 1, panneau: 1 };
+
+/* ecran · programmee · pause · terminee */
+function etatDiapo(d){
+  const auj = todayLocal();
+  if(d.au && d.au < auj) return 'terminee';
+  if(!d.actif) return 'pause';
+  if(d.du && d.du > auj) return 'programmee';
+  return 'ecran';
+}
+
+function dessinerDiaposEcran(z){
+  const pour = ou => diaposEcran.filter(x => x.ou === ou || x.ou === 'les-deux').length;
+  const f = document.createElement('div');
+  f.className = 'afJours afTrois';
+  [['tous', 'Tous · ' + diaposEcran.length], ['accueil', '🏠 Accueil · ' + pour('accueil')], ['vitrine', '🪟 Vitrine · ' + pour('vitrine')]].forEach(([k, t]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (k === filtreDiapos ? 'btn-primary' : 'btn-secondary');
+    b.textContent = t;
+    b.addEventListener('click', () => { filtreDiapos = k; dessinerOngletEcran(); });
+    f.appendChild(b);
+  });
+  z.appendChild(f);
+
+  const n = document.createElement('button');
+  n.className = 'btn btn-primary';
+  n.style.cssText = 'margin:0 0 4px;padding:13px;font-size:14px;';
+  n.textContent = '➕ Nouvelle diapositive';
+  n.addEventListener('click', () => ouvrirEditeurDiapo(null));
+  z.appendChild(n);
+
+  const vue = diaposEcran.filter(x => filtreDiapos === 'tous' || x.ou === filtreDiapos || x.ou === 'les-deux');
+  const vivante = x => etatDiapo(x) === 'ecran' || etatDiapo(x) === 'programmee';
+  const carrousel = vue.filter(x => vivante(x) && !TYPES_FIXES_ECRAN[x.type]);
+  const fixes = vue.filter(x => vivante(x) && TYPES_FIXES_ECRAN[x.type]);
+  const autres = vue.filter(x => !vivante(x));
+
+  if(!diaposEcran.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune diapositive.<br><span style="font-size:12px;">Ajoute un message ou une image à faire tourner sur les écrans.</span>';
+    z.appendChild(v);
+    return;
+  }
+
+  const groupe = (titre, aide, liste, glisser) => {
+    if(!liste.length) return;
+    const h = document.createElement('div');
+    h.className = 'afGroupe';
+    h.innerHTML = titre + ' <span class="n">· ' + liste.length + '</span>';
+    z.appendChild(h);
+    if(aide){ const a = document.createElement('div'); a.className = 'afResume'; a.style.marginTop = '-4px'; a.textContent = aide; z.appendChild(a); }
+    const g = document.createElement('div');
+    g.className = 'afDiapos';
+    liste.forEach(d => g.appendChild(carteDiapoEcran(d, glisser)));
+    z.appendChild(g);
+    if(glisser) rendreCarrouselGlissable(g);
+  };
+  const tousVisibles = filtreDiapos === 'tous';
+  groupe('🔄 LE CARROUSEL, DANS L’ORDRE',
+    tousVisibles ? 'Elles passent chacune leur tour. ⠿ pour les glisser dans un autre ordre.'
+                 : 'Elles passent chacune leur tour. Pour changer l’ordre, reviens sur « Tous ».',
+    carrousel, tousVisibles && carrousel.length > 1);
+  groupe('📌 TOUJOURS À L’ÉCRAN', 'Le texte défilant en bas, le fond et le texte fixe de la vitrine.', fixes, false);
+  if(autres.length){
+    const t = document.createElement('details');
+    t.className = 'afTiroir';
+    t.style.marginTop = '16px';
+    t.innerHTML = '<summary>💤 ' + autres.length + ' en pause ou terminée' + (autres.length > 1 ? 's' : '') + ' — gardée' + (autres.length > 1 ? 's' : '') + ' pour les ressortir</summary>';
+    const g = document.createElement('div');
+    g.className = 'afDiapos';
+    g.style.marginTop = '10px';
+    autres.forEach(d => g.appendChild(carteDiapoEcran(d, false)));
+    t.appendChild(g);
+    z.appendChild(t);
+  }
+}
+
+function miniDiapoEcran(d, glisser){
+  const ou = { 'les-deux': '🏠🪟', accueil: '🏠', vitrine: '🪟' }[d.ou] || '';
+  const role = { bandeau: ' défilant', fond: ' fond fixe', panneau: ' texte fixe', video: ' vidéo' }[d.type] || '';
+  const poignee = glisser ? '<span class="poignee" title="Glisser pour changer l’ordre">⠿</span>' : '';
+  const ent = '<span class="ou">' + ou + role + '</span>' + poignee;
+  if(d.type === 'bandeau'){
+    return '<div class="afMini bandeau">' + ent + '<div class="bd">' + echEcran(d.contenu || d.titre) + '</div></div>';
+  }
+  if(d.image){
+    return '<div class="afMini image" style="background-image:url(&quot;' + echEcran(d.image) + '&quot;);">' + ent +
+      (d.titre && d.type !== 'fond' ? '<div class="leg">' + echEcran(d.titre) + '</div>' : '') + '</div>';
+  }
+  if(d.type === 'fond') return '<div class="afMini">' + ent + '<span>🖼️ pas d’image</span></div>';
+  if(d.type === 'panneau'){
+    return '<div class="afMini panneau">' + ent + '<b>' + echEcran(d.titre) + '</b><span>' + echEcran(d.contenu) + '</span></div>';
+  }
+  if(d.type === 'video'){
+    return '<div class="afMini video">' + ent + '<i>▶</i>' + (d.titre ? '<span>' + echEcran(d.titre) + '</span>' : '') + '</div>';
+  }
+  return '<div class="afMini">' + ent + (d.titre ? '<b>' + echEcran(d.titre) + '</b>' : '') +
+    (d.contenu ? '<span>' + echEcran(String(d.contenu).slice(0, 120)) + '</span>' : '') + '</div>';
+}
+
+function carteDiapoEcran(d, glisser){
+  const c = document.createElement('div');
+  const etat = etatDiapo(d);
+  c.className = 'afDiapo' + (etat === 'pause' || etat === 'terminee' ? ' eteinte' : '');
+  c.dataset.id = d.id;
+  const jj = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '';
+  const quand = etat === 'terminee' ? 'terminée le ' + jj(d.au)
+              : etat === 'programmee' ? 'du ' + jj(d.du) + (d.au ? ' au ' + jj(d.au) : '')
+              : d.au ? 'jusqu’au ' + jj(d.au) : 'sans fin';
+  const duree = TYPES_FIXES_ECRAN[d.type] ? '' : (Number(d.duree) === 0 ? '🔁 en boucle · ' : d.duree + ' s · ');
+  const p = etat === 'pause' ? '<span class="afBadge gris">⏸️ en pause</span>'
+          : etat === 'terminee' ? '<span class="afBadge gris">terminée</span>'
+          : etat === 'programmee' ? '<span class="afBadge gris">🗓️ dès le ' + jj(d.du) + '</span>'
+          : '<span class="afBadge vert">● à l’écran</span>';
+  c.innerHTML = miniDiapoEcran(d, glisser) +
+    '<div class="afDiapoBas"><div class="t"><strong>' + echEcran(d.titre || d.contenu || 'Sans titre') + '</strong>' +
+      '<div class="s">' + p + ' ' + duree + quand + '</div></div></div>';
+  c.querySelector('.afMini').addEventListener('click', ev => { if(ev.target.closest('.poignee')) return; ouvrirEditeurDiapo(d); });
+  const bas = c.querySelector('.afDiapoBas');
+  if(etat !== 'terminee'){
+    const bP = document.createElement('button');
+    bP.type = 'button';
+    bP.className = 'afPetit';
+    bP.textContent = d.actif ? '⏸️' : '▶️';
+    bP.title = d.actif ? 'Mettre en pause' : 'Remettre à l’écran';
+    bP.addEventListener('click', async () => {
+      d.actif = !d.actif;
+      dessinerOngletEcran();
+      try{ await enregistrerDiapoEcran(d); }
+      catch(e){ d.actif = !d.actif; dessinerOngletEcran(); showToast('Impossible : ' + e.message); }
+    });
+    bas.appendChild(bP);
+  }
+  const bM = document.createElement('button');
+  bM.type = 'button';
+  bM.className = 'afPetit';
+  bM.textContent = '✏️';
+  bM.title = etat === 'terminee' ? 'Modifier (changer ses dates pour la ressortir)' : 'Modifier';
+  bM.addEventListener('click', () => ouvrirEditeurDiapo(d));
+  bas.appendChild(bM);
+  return c;
+}
+
+function enregistrerDiapoEcran(x){
+  return appelPrep({ action: 'ecranSet', id: x.id, type: x.type, titre: x.titre,
+                     contenu: x.contenu, ou: x.ou, duree: x.duree,
+                     actif: x.actif ? 'oui' : 'non', du: x.du, au: x.au,
+                     ordre: x.ordre, par: ACCES.moniteur || '' });
+}
+
+/* ⠿ GLISSER POUR CHANGER L'ORDRE — David a choisi de glisser plutôt
+   que les flèches. La poignée seule déclenche (le reste de la carte
+   s'ouvre au toucher, et la liste défile au doigt) ; la carte suit
+   le doigt, les autres s'écartent, et au lâcher on numérote toute la
+   liste d'après sa nouvelle place — on n'enregistre que celles dont
+   le numéro a changé. */
+function rendreCarrouselGlissable(g){
+  g.querySelectorAll('.poignee').forEach(p => {
+    p.style.touchAction = 'none';
+    p.addEventListener('pointerdown', ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const carte = p.closest('.afDiapo');
+      carte.classList.add('glisse');
+      /* Les mouvements sont suivis sur toute la page (pas de capture :
+         elle se perd quand la carte bouge dans la grille). */
+      const bouger = e2 => {
+        const sous = document.elementsFromPoint(e2.clientX, e2.clientY);
+        const cible = sous.map(x => x.closest && x.closest('.afDiapo')).find(x => x && x !== carte && x.parentNode === g);
+        if(!cible) return;
+        const r = cible.getBoundingClientRect();
+        const avant = (g.offsetWidth > r.width * 1.5)
+          ? (e2.clientY < r.top + r.height / 2 && e2.clientX < r.right) || e2.clientY < r.top || (e2.clientX < r.left + r.width / 2 && e2.clientY < r.bottom)
+          : e2.clientY < r.top + r.height / 2;
+        g.insertBefore(carte, avant ? cible : cible.nextSibling);
+      };
+      const lacher = async () => {
+        document.removeEventListener('pointermove', bouger);
+        document.removeEventListener('pointerup', lacher);
+        document.removeEventListener('pointercancel', lacher);
+        carte.classList.remove('glisse');
+        await enregistrerOrdreCarrousel([...g.querySelectorAll('.afDiapo')].map(x => x.dataset.id));
+      };
+      document.addEventListener('pointermove', bouger);
+      document.addEventListener('pointerup', lacher);
+      document.addEventListener('pointercancel', lacher);
+    });
+  });
+}
+
+async function enregistrerOrdreCarrousel(ids){
+  /* Le carrousel dans son nouvel ordre, puis le reste à sa place */
+  const parId = {};
+  diaposEcran.forEach(x => { parId[x.id] = x; });
+  const dedans = ids.map(id => parId[id]).filter(Boolean);
+  const avant = diaposEcran.map(x => x.id).join('|');
+  const pris = {};
+  dedans.forEach(x => { pris[x.id] = 1; });
+  let i = 0;
+  diaposEcran = diaposEcran.map(x => pris[x.id] ? dedans[i++] : x);
+  if(diaposEcran.map(x => x.id).join('|') === avant) return;
+  const changees = [];
+  diaposEcran.forEach((x, n) => { if(Number(x.ordre) !== n + 1){ x.ordre = n + 1; changees.push(x); } });
+  try{
+    await Promise.all(changees.map(enregistrerDiapoEcran));
+    showToast('Ordre enregistré ✅');
+  }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+  dessinerOngletEcran();
+}
+
+/* ============================================================
+   ④ ⚙️ LES RÉGLAGES — ce qu'on règle une fois, sans rien y changer,
+   plus le QR code de Saint-Brieuc (v1198)
+   ============================================================ */
+function dessinerReglagesEcran(z){
+  z.appendChild(blocPleinEcran());
+  z.appendChild(blocQrEcran());
+  z.appendChild(blocAdresses());
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
+  b.textContent = '📍 Gérer les emplacements';
+  b.addEventListener('click', () => ouvrirGestionLieux());
+  z.appendChild(b);
+}
+
+/* 🔳 Le QR code de Saint-Brieuc sur les écrans — voir « LE QR CODE DE
+   SAINT-BRIEUC SUR LES ÉCRANS » dans le Worker. */
+function blocQrEcran(){
+  const z = document.createElement('div');
+  z.className = 'afQrBloc';
+  const q = qrEcran;
+  if(!q){
+    z.innerHTML = '<div class="afResume">🔳 Le QR code de Saint-Brieuc n’a pas pu être lu.</div>';
+    return z;
+  }
+  const svg = (typeof QR_BUREAUX !== 'undefined' && QR_BUREAUX['saint-brieuc']) || '';
+  const tete = document.createElement('div');
+  tete.className = 'afQrTete';
+  tete.innerHTML = (svg ? '<div class="afQrImg">' + svg + '</div>' : '') +
+    '<div style="flex:1;min-width:0;"><strong>🔳 QR code de Saint-Brieuc sur les écrans</strong>' +
+    '<div class="afResume" style="margin:4px 0 0;">Un encart fixe en bas à droite, avec ta phrase : le carrousel se resserre pour lui ' +
+    'laisser sa place, rien n’est caché. Il mène à ' + echEcran(String(q.adresse || '').replace(/^https?:\/\//, '')) + '.</div></div>';
+  z.appendChild(tete);
+  if(!q.pageActive){
+    const a = document.createElement('div');
+    a.className = 'afAlerte';
+    a.innerHTML = '⚠️ <strong>La page publique de Saint-Brieuc est coupée</strong> (Gestion › L’accueil › 📍 St-Brieuc) : ' +
+      'le QR code ne s’affiche pas tant qu’elle l’est — il mènerait à « page pas active ».';
+    z.appendChild(a);
+  }
+  [['qrAccueil', 'accueil', '🏠 Sur l’écran de l’accueil'], ['qrVitrine', 'vitrine', '🪟 Sur l’écran de la vitrine']].forEach(([cle, k, titre]) => {
+    if(typeof interrupteur !== 'function') return;
+    z.appendChild(interrupteur({
+      cle: cle, titre: titre, ouvert: !!q[k],
+      quandOuvert: q.pageActive ? 'Le QR code est à l’écran, en bas à droite.' : 'Il apparaîtra dès que la page publique de Saint-Brieuc sera ouverte.',
+      quandFerme: 'Pas de QR code sur cet écran.',
+      basculer: async (oui) => {
+        const r = await appelPrep({ action: 'ecranQrPoser', cle: cle, valeur: oui ? '1' : '0' });
+        if(r && r.qr) qrEcran = r.qr;
+      },
+      apres: () => dessinerOngletEcran()
+    }));
+  });
+  const t = document.createElement('div');
+  t.innerHTML = '<label for="ecrQrTexte">La phrase sous le QR code</label>' +
+    '<div style="display:flex;gap:8px;align-items:center;">' +
+      '<input type="text" id="ecrQrTexte" maxlength="80" style="flex:1;min-width:0;margin:0;">' +
+      '<button type="button" class="btn btn-secondary" style="width:auto;margin:0;padding:10px 14px;flex-shrink:0;">💾</button></div>' +
+    '<div class="afResume" style="margin-top:6px;">80 caractères au plus — elle se lit de loin : courte, c’est mieux.</div>';
+  const ch = t.querySelector('input');
+  ch.value = q.texte || '';
+  const bS = t.querySelector('button');
+  bS.title = 'Enregistrer la phrase';
+  bS.addEventListener('click', async () => {
+    bS.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'ecranQrPoser', cle: 'qrTexte', valeur: ch.value });
+      if(r && r.qr){ qrEcran = r.qr; ch.value = r.qr.texte; }
+      showToast('Phrase enregistrée ✅');
+    }catch(e){ showToast('Impossible : ' + e.message); }
+    bS.disabled = false;
+  });
+  z.appendChild(t);
+  return z;
 }
 
 
@@ -884,473 +1401,6 @@ function decouperVehicule(v){
 }
 
 
-/* ============================================================
-   LE PLANNING DE L'ÉCRAN
-
-   Ce que l'accueil affiche aujourd'hui. L'heure se règle ici :
-   elle est écrite dans la note de la préparation, et l'écran la
-   reprend au prochain rafraîchissement.
-   ============================================================ */
-function blocPlanning(){
-  const d = document.createElement('details');
-  d.open = true;
-  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-    'padding:10px 12px;margin-bottom:14px;';
-  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
-    'color:var(--accent-text);">📅 Le planning affiché aujourd\'hui</summary>';
-
-  const z = document.createElement('div');
-  z.style.marginTop = '10px';
-  z.innerHTML = '<div style="font-size:12px;color:var(--muted);">Lecture…</div>';
-  d.appendChild(z);
-
-  chargerPlanningEcran(z);
-  return d;
-}
-
-async function chargerPlanningEcran(z){
-  let liste = [];
-  try{
-    const r = await appelPrep({ action: 'ecranPlanning' });
-    liste = (r && r.planning) || [];
-  }catch(e){
-    z.innerHTML = '<div style="font-size:12px;color:var(--warn-text);">⚠️ ' +
-                  e.message.replace(/</g, '&lt;') + '</div>';
-    return;
-  }
-
-  dessinerLignes(liste, z);
-}
-
-
-function dessinerLignes(liste, z){
-  z.innerHTML = '';
-
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'margin-bottom:10px;padding:10px;font-size:13px;';
-  b.textContent = '➕ Ajouter une ligne à la main';
-  b.addEventListener('click', () => ouvrirLigneManuelle(z));
-  z.appendChild(b);
-
-  if(!liste.length){
-    const v = document.createElement('div');
-    v.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
-    v.innerHTML = 'Aucun cours préparé pour aujourd\'hui.<br>' +
-      'L\'écran affichera « Aucun cours prévu ».';
-    z.appendChild(v);
-    return;
-  }
-
-  const a = document.createElement('div');
-  a.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
-  const auj = new Date();
-  const maintenant = String(auj.getHours()).padStart(2, '0') + ':' +
-                     String(auj.getMinutes()).padStart(2, '0');
-  const passes = liste.filter(x => x.heure && x.heure < maintenant).length;
-
-  const caches = liste.filter(x => x.masque).length;
-
-  a.innerHTML = liste.length + ' ligne(s) · heure, véhicule et emplacement se ' +
-    'règlent ici. L\'écran se met à jour dans la minute.' +
-    (caches ? '<br><span style="color:var(--muted);">🗑️ ' + caches +
-      ' retirée(s) de l\'écran · ↩️ pour les remettre.</span>' : '') +
-    (passes ? '<br><span style="color:var(--muted);">🕐 ' + passes +
-      ' cours déjà passé(s) : ils ont quitté l\'écran mais restent ' +
-      'modifiables ici.</span>' : '');
-  z.appendChild(a);
-
-  liste.forEach(c => z.appendChild(lignePlanningEcran(c, liste, z)));
-}
-
-function lignePlanningEcran(c, liste, z){
-  /* Un cours passé n'est plus à l'écran : on le grise ici pour
-     qu'on comprenne pourquoi il n'y apparaît pas. */
-  const n = new Date();
-  const maintenant = String(n.getHours()).padStart(2, '0') + ':' +
-                     String(n.getMinutes()).padStart(2, '0');
-  const passe = c.heure && c.heure < maintenant;
-
-  const l = document.createElement('div');
-  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
-    (passe || c.masque ? 'opacity:.45;' : '');
-
-  /* ---- Première ligne : heure, élève, ordre ---- */
-  const h1 = document.createElement('div');
-  h1.style.cssText = 'display:flex;gap:8px;align-items:center;';
-
-  const h = document.createElement('input');
-  h.type = 'time';
-  h.value = c.heure || '';
-  h.style.cssText = 'width:100px;flex-shrink:0;margin:0;padding:7px 8px;font-size:14px;';
-  h.addEventListener('change', () => {
-    c.heure = h.value;
-    enregistrerLigne(c);
-  });
-  h1.appendChild(h);
-
-  const t = document.createElement('div');
-  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.35;';
-  t.innerHTML = '<strong>' + (c.eleveComplet || c.eleve || '—').replace(/</g, '&lt;') +
-    '</strong>' + (c.manuel ? ' <span style="font-size:10px;color:var(--muted);">' +
-                              'ajouté à la main</span>' : '') +
-    (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
-                'retiré de l\'écran</span>' : '') +
-    '<div class="apercuNomPublic" style="font-size:11px;color:var(--muted);' +
-      'cursor:pointer;"></div>';
-  h1.appendChild(t);
-
-  /* Le 👁️ dit ce que la salle d'attente verra — et il se corrige.
-     C'est le seul endroit où l'on voit l'abréviation, donc le seul
-     où l'on s'aperçoit qu'elle est fausse : « La Perle Mossongo
-     Molodjo » y devenait « La M. ». Un clic, on écrit ce qu'il
-     faut, et ça vaut pour tous les écrans. */
-  peindreApercuNomPublic(t.querySelector('.apercuNomPublic'),
-                         c.eleveComplet || c.eleve);
-
-  /* Le moniteur, changeable : un rappel mal saisi ou un échange
-     de dernière minute ne doit pas obliger à tout refaire. */
-  const selMon = document.createElement('select');
-  selMon.className = 'choixMoniteur';
-  selMon.style.cssText = 'width:auto;max-width:120px;margin:0;padding:5px 7px;' +
-    'font-size:11px;flex-shrink:0;';
-  remplirMoniteursEcran(selMon, c.moniteur || '');
-  selMon.addEventListener('change', () => {
-    c.moniteur = selMon.value;
-    enregistrerLigne(c);
-  });
-  h1.appendChild(selMon);
-
-  /* MONTER ET DESCENDRE — SEULEMENT ENTRE COURS DE MÊME HEURE.
-
-     Depuis la v787 c'est l'heure qui range le planning. Ces deux
-     boutons ne servent donc plus qu'à départager deux cours à la
-     même heure. Déplacer un cours par-dessus une autre heure ne
-     tiendrait pas : le serveur le remettrait à sa place au
-     prochain chargement.
-
-     Alors on ne fait pas semblant. Le bouton le dit, au lieu de
-     bouger une ligne qui reviendrait toute seule — un écran qui
-     défait ce qu'on vient d'y faire est pire qu'un bouton qui
-     refuse. */
-  [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'width:auto;padding:5px 7px;font-size:11px;margin:0;flex-shrink:0;';
-    b.textContent = signe;
-    b.title = 'Changer la place parmi les cours de la même heure';
-    b.addEventListener('click', async () => {
-      const i = liste.indexOf(c);
-      const j = i + sens;
-      if(i === -1 || j < 0 || j >= liste.length) return;
-
-      const voisin = liste[j];
-      if((c.heure || '') !== (voisin.heure || '')){
-        showToast('Le planning se range par heure. Change l\'heure du ' +
-                  'cours pour le déplacer.');
-        return;
-      }
-
-      liste[i] = voisin; liste[j] = c;
-
-      /* Celui qui est passé devant prend le plus petit numéro.
-         On numérote APRÈS l'échange, d'après les places réelles :
-         échanger les deux « ordre » entre eux ne marche pas quand
-         ils valent la même chose — et ils valent la même chose tant
-         que personne n'a jamais rangé cette journée à la main.
-
-         Et on n'enregistre que ces deux-là. Renuméroter toute la
-         liste en mémoire pour n'en enregistrer que deux faisait
-         diverger l'écran et la feuille dès le second déplacement. */
-      const lo = Math.min(i, j);
-      const hi = Math.max(i, j);
-      liste[lo].ordre = lo + 1;
-      liste[hi].ordre = hi + 1;
-
-      dessinerLignes(liste, z);
-      try{
-        await Promise.all([c, voisin].map(x => enregistrerLigne(x, true)));
-      }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
-    });
-    h1.appendChild(b);
-  });
-
-  l.appendChild(h1);
-
-  /* ---- Seconde ligne : véhicule et emplacement ---- */
-  const h2 = document.createElement('div');
-  h2.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;' +
-    'padding-left:108px;';
-
-  /* Le modèle d'un côté, le numéro de l'autre : c'est ainsi qu'on
-     désigne un véhicule ici, et le taper en entier à chaque fois
-     n'apporte rien. */
-  /* Les véhicules de la flotte, avec leur immatriculation. Le
-     dernier choix ouvre la saisie libre : un véhicule de prêt ou
-     de location n'est pas dans la flotte. */
-  const modele = document.createElement('select');
-  modele.className = 'choixVehicule';
-  modele.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
-
-  const num = document.createElement('input');
-  num.type = 'text';
-  num.placeholder = 'Véhicule';
-  num.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 9px;font-size:13px;' +
-    'display:none;';
-  num.value = c.vehicule || '';
-
-  remplirVehiculesEcran(modele, c.vehicule || '');
-
-  const majVeh = () => {
-    if(modele.value === 'autre'){
-      num.style.display = 'block';
-      c.vehicule = num.value.trim();
-    }else{
-      num.style.display = 'none';
-      c.vehicule = modele.value;
-    }
-    enregistrerLigne(c);
-  };
-  modele.addEventListener('change', () => {
-    if(modele.value === 'autre') setTimeout(() => num.focus(), 60);
-    majVeh();
-  });
-  num.addEventListener('change', majVeh);
-
-  h2.appendChild(modele);
-  h2.appendChild(num);
-
-  /* Un peu d'air avant le choix du lieu */
-  const espace = document.createElement('span');
-  espace.style.cssText = 'flex:1;min-width:0;';
-  h2.appendChild(espace);
-
-  const lieu = document.createElement('select');
-  lieu.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 9px;font-size:13px;';
-  lieu.innerHTML =
-    '<option value="">— où —</option>' +
-    '<option value="devant">🛣️ Devant</option>' +
-    '<option value="cour">🅿️ Cour intérieure</option>' +
-    '<option value="moto">🏍️ Moto</option>' +
-    '<option value="scooter">🛵 Scooter</option>' +
-    '<option value="bureau">🏢 Bureau</option>' +
-    '<option value="tablettes">📱 Salle des tablettes</option>' +
-    '<option value="cours">📚 Salle de cours</option>' +
-    '<option value="simulateur">🖥️ Simulateur</option>';
-  lieu.value = c.lieu || '';
-
-  /* Une séance en salle n'a pas de véhicule : le champ s'efface
-     plutôt que de laisser croire qu'il faut le remplir. */
-  const majSelonLieu = () => {
-    const enSalle = lieuSansVehicule(lieu.value);
-    modele.style.display = enSalle ? 'none' : '';
-    num.style.display = (enSalle || modele.value !== 'autre') ? 'none' : '';
-  };
-
-  lieu.addEventListener('change', () => {
-    c.lieu = lieu.value;
-    /* Le véhicule d'une séance qui n'en a plus besoin s'efface */
-    if(lieuSansVehicule(lieu.value)){
-      c.vehicule = '';
-      modele.value = '';
-      num.value = '';
-    }
-    majSelonLieu();
-    enregistrerLigne(c);
-  });
-  majSelonLieu();
-
-  h2.appendChild(lieu);
-
-  /* Toute ligne se retire de l'écran. Celle ajoutée à la main est
-     supprimée ; celle qui vient d'un cours est seulement masquée —
-     la préparation du moniteur ne nous appartient pas. */
-  const bSup = document.createElement('button');
-  bSup.className = 'btn btn-secondary';
-  bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
-    'flex-shrink:0;' + (c.masque ? '' : 'color:var(--red);border-color:var(--red);');
-  bSup.textContent = c.masque ? '↩️' : '🗑️';
-  bSup.title = c.masque
-    ? 'Remettre à l\'écran'
-    : (c.manuel ? 'Supprimer cette ligne'
-                : 'Retirer de l\'écran — le cours du moniteur est conservé');
-
-  bSup.addEventListener('click', async () => {
-    /* Déjà masquée : on la remet, sans rien demander */
-    if(c.masque){
-      c.masque = false;
-      try{
-        await enregistrerLigne(c, true);
-        showToast('Remise à l\'écran ✅');
-        chargerPlanningEcran(z);
-      }catch(e){
-        c.masque = true;
-        showToast('Impossible : ' + e.message);
-      }
-      return;
-    }
-
-    if(c.manuel){
-      if(!await confirmer('Supprimer cette ligne de l\'affichage ?')) return;
-      try{
-        await appelPrep({ action: 'ecranLigneDelete', id: c.id });
-        showToast('Supprimée ✅');
-        chargerPlanningEcran(z);
-      }catch(e){ showToast('Impossible : ' + e.message); }
-      return;
-    }
-
-    if(!await confirmer('Retirer ' + (c.eleveComplet || c.eleve) +
-        ' de l\'écran ?\n\nSon cours reste dans les prochains cours du ' +
-        'moniteur : seul l\'affichage est concerné.')) return;
-
-    c.masque = true;
-    try{
-      await enregistrerLigne(c, true);
-      showToast('Retirée de l\'écran ✅');
-      chargerPlanningEcran(z);
-    }catch(e){
-      c.masque = false;
-      showToast('Impossible : ' + e.message);
-    }
-  });
-  h2.appendChild(bSup);
-
-  l.appendChild(h2);
-  return l;
-}
-
-
-/* Enregistre les détails d'affichage d'une ligne */
-async function enregistrerLigne(c, silencieux){
-  try{
-    await appelPrep({
-      action: 'ecranLigneSet',
-      id: c.manuel ? c.id : '',
-      idPrep: c.manuel ? '' : c.id,
-      jour: todayLocal(),
-      eleve: c.eleveComplet || c.eleve || '',
-      moniteur: c.moniteur || '',
-      heure: c.heure || '',
-      vehicule: c.vehicule || '',
-      lieu: c.lieu || '',
-      ordre: c.ordre || 0,
-      masque: c.masque ? 'oui' : '',
-      par: ACCES.moniteur || ''
-    });
-    if(!silencieux) showToast('Enregistré ✅');
-  }catch(e){
-    if(!silencieux) showToast('Impossible : ' + e.message);
-    throw e;
-  }
-}
-
-
-/* Ajouter une ligne qui n'a pas de préparation */
-function ouvrirLigneManuelle(z){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.maxWidth = 'min(460px, 94vw)';
-
-  boite.innerHTML =
-    '<h3>Ajouter au planning affiché</h3>' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
-      "Pour ce qui n'a pas de cours préparé : un rendez-vous, une reprise, " +
-      'un créneau au simulateur.</div>' +
-    '<label for="lmEleve">Élève ou intitulé</label>' +
-    '<input type="text" id="lmEleve" list="listeEleves" autocomplete="off" ' +
-      'placeholder="Ex : Ambre Guillebon, ou Réunion AAC">' +
-    '<div class="duo">' +
-      '<div><label for="lmHeure">Heure</label><input type="time" id="lmHeure"></div>' +
-      '<div><label for="lmMon">Moniteur</label><select id="lmMon"></select></div>' +
-    '</div>' +
-    '<div class="duo">' +
-      '<div><label for="lmMod">Véhicule</label>' +
-        '<select id="lmMod"><option value="">— chargement —</option></select>' +
-        '<input type="text" id="lmVeh" placeholder="Lequel ?" ' +
-          'style="display:none;margin-top:6px;"></div>' +
-      '<div><label for="lmLieu">Où</label><select id="lmLieu">' +
-        '<option value="">— non précisé —</option>' +
-        '<option value="devant">🛣️ Devant</option>' +
-        '<option value="cour">🅿️ Cour intérieure</option>' +
-        '<option value="moto">🏍️ Moto</option>' +
-        '<option value="scooter">🛵 Scooter</option>' +
-        '<option value="bureau">🏢 Bureau</option>' +
-        '<option value="tablettes">📱 Salle des tablettes</option>' +
-        '<option value="cours">📚 Salle de cours</option>' +
-        '<option value="simulateur">🖥️ Simulateur</option>' +
-      '</select></div>' +
-    '</div>';
-
-  remplirListeLieux(boite.querySelector('#lmLieu'), '', false);
-
-  /* La liste des véhicules, et la saisie libre qui va avec */
-  const selMod = boite.querySelector('#lmMod');
-  const champLibre = boite.querySelector('#lmVeh');
-  remplirVehiculesEcran(selMod, '');
-  selMod.addEventListener('change', () => {
-    const libre = (selMod.value === 'autre');
-    champLibre.style.display = libre ? 'block' : 'none';
-    if(libre) setTimeout(() => champLibre.focus(), 60);
-  });
-
-  const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
-  boite.querySelector('#lmMon').innerHTML = '<option value="">— aucun —</option>' +
-    gens.map(g => '<option value="' + String(g).replace(/"/g, '&quot;') + '">' +
-                  g + '</option>').join('');
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => fermerFond(fond));
-  r.appendChild(bAnn);
-
-  const bOk = document.createElement('button');
-  bOk.className = 'btn btn-primary';
-  bOk.textContent = '➕ Ajouter';
-  bOk.addEventListener('click', async () => {
-    const nom = boite.querySelector('#lmEleve').value.trim();
-    if(!nom){ showToast('Indique un élève ou un intitulé.'); return; }
-
-    bOk.disabled = true;
-    bOk.textContent = 'Ajout…';
-    try{
-      await appelPrep({
-        action: 'ecranLigneSet',
-        jour: todayLocal(),
-        eleve: nom,
-        moniteur: boite.querySelector('#lmMon').value,
-        heure: boite.querySelector('#lmHeure').value,
-        vehicule: (boite.querySelector('#lmMod').value === 'autre')
-                    ? boite.querySelector('#lmVeh').value.trim()
-                    : boite.querySelector('#lmMod').value,
-        lieu: boite.querySelector('#lmLieu').value,
-        ordre: 0,
-        par: ACCES.moniteur || ''
-      });
-      fermerFond(fond);
-      showToast('Ajouté au planning ✅');
-      chargerPlanningEcran(z);
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      bOk.disabled = false;
-      bOk.textContent = '➕ Ajouter';
-    }
-  });
-  r.appendChild(bOk);
-
-  boite.appendChild(r);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-  setTimeout(() => boite.querySelector('#lmEleve').focus(), 100);
-}
-
-
 /* ------------------------------------------------------------
    LE NOM SUR L'ÉCRAN PUBLIC
 
@@ -1412,7 +1462,7 @@ function peindreApercuNomPublic(zone, nom){
 /* ------------------------------------------------------------
    CORRIGER CE QUE LA SALLE D'ATTENTE VOIT
 
-   Chrystel : « La Perle Mossongo Molodjo — La Perle c'est son
+   David : « La Perle Mossongo Molodjo — La Perle c'est son
    prénom, Mossongo Molodjo son nom de famille, et j'ai des élèves
    avec plusieurs noms de famille ». Aucune règle ne sait couper ça.
 
@@ -1566,105 +1616,6 @@ function blocAdresses(){
   d.appendChild(n);
 
   return d;
-}
-
-
-/* Une diapositive dans la liste */
-function ligneDiapo(d, rang){
-  const l = document.createElement('div');
-  l.style.cssText = 'display:flex;gap:10px;align-items:center;' +
-    'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
-    'margin-bottom:6px;' + (d.actif ? '' : 'opacity:.5;');
-
-  /* L'aperçu : l'image, ou le type */
-  const ap = document.createElement('div');
-  ap.style.cssText = 'width:52px;height:38px;flex-shrink:0;border-radius:7px;' +
-    'background:var(--navy);display:flex;align-items:center;justify-content:center;' +
-    'font-size:20px;overflow:hidden;';
-  if(d.image){
-    const i = document.createElement('img');
-    i.src = d.image;
-    i.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-    ap.appendChild(i);
-  }else{
-    ap.textContent = (d.type === 'panneau') ? '📝'
-                   : (d.type === 'video') ? '🎬'
-                   : (d.type === 'bandeau') ? '📢' : '💬';
-  }
-  l.appendChild(ap);
-
-  const t = document.createElement('div');
-  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.45;cursor:pointer;';
-  const ouTexte = { accueil:'🏠 accueil', vitrine:'🪟 vitrine', 'les-deux':'🏠🪟 les deux' };
-  const roles = { fond:'🖼️ fond fixe', panneau:'📝 texte fixe',
-                  bandeau:'📢 défilant' };
-  const estVideo = (d.type === 'video');
-  const fixe = !!roles[d.type];
-
-  t.innerHTML =
-    '<strong>' + (d.titre || d.contenu || 'Sans titre').slice(0, 40)
-      .replace(/</g, '&lt;') + '</strong>' +
-    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
-      (fixe ? roles[d.type] + ' · ' : '') + (estVideo ? '🎬 vidéo · ' : '') +
-      (ouTexte[d.ou] || d.ou) +
-      (fixe ? '' : ' · ' + (Number(d.duree) === 0 ? '🔁 en boucle'
-                                                  : d.duree + ' s mini')) +
-      (d.du || d.au ? ' · du ' + (d.du || '…') + ' au ' + (d.au || '…') : '') +
-      (d.actif ? '' : ' · en pause') +
-    '</div>';
-  t.addEventListener('click', () => ouvrirEditeurDiapo(d));
-  l.appendChild(t);
-
-  /* Monter et descendre : l'ordre du carrousel */
-  [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;flex-shrink:0;';
-    b.textContent = signe;
-    b.addEventListener('click', async () => {
-      const j = rang + sens;
-      if(j < 0 || j >= diaposEcran.length) return;
-
-      const a = diaposEcran[rang];
-      diaposEcran[rang] = diaposEcran[j];
-      diaposEcran[j] = a;
-      diaposEcran.forEach((x, n) => { x.ordre = n + 1; });
-
-      afficherEcran();
-      try{
-        await Promise.all([diaposEcran[rang], diaposEcran[j]].map(x =>
-          appelPrep({ action: 'ecranSet', id: x.id, type: x.type, titre: x.titre,
-                      contenu: x.contenu, ou: x.ou, duree: x.duree,
-                      actif: x.actif ? 'oui' : 'non', du: x.du, au: x.au,
-                      ordre: x.ordre, par: ACCES.moniteur || '' })));
-      }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
-    });
-    l.appendChild(b);
-  });
-
-  /* En pause : elle reste, mais ne passe plus */
-  const bP = document.createElement('button');
-  bP.className = 'btn btn-secondary';
-  bP.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;';
-  bP.textContent = d.actif ? '⏸️' : '▶️';
-  bP.title = d.actif ? 'Mettre en pause' : 'Remettre à l\'écran';
-  bP.addEventListener('click', async () => {
-    d.actif = !d.actif;
-    afficherEcran();
-    try{
-      await appelPrep({ action: 'ecranSet', id: d.id, type: d.type, titre: d.titre,
-                        contenu: d.contenu, ou: d.ou, duree: d.duree,
-                        actif: d.actif ? 'oui' : 'non', du: d.du, au: d.au,
-                        ordre: d.ordre, par: ACCES.moniteur || '' });
-    }catch(e){
-      d.actif = !d.actif;
-      afficherEcran();
-      showToast('Impossible : ' + e.message);
-    }
-  });
-  l.appendChild(bP);
-
-  return l;
 }
 
 
