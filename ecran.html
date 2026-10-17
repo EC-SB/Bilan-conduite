@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/10/2026 à 11:37 — v1201 -->
+<!-- Déployé le 17/10/2026 à 13:44 — v1203 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -420,29 +420,37 @@
      publique de Saint-Brieuc ouverte. Le cours en plein écran
      passe par-dessus, comme sur tout le reste.
      ============================================================ */
+  /* ⚠️ v1203 — PAR-DESSUS LES DIAPOSITIVES, PLUS DE COLONNE. David,
+     le 17 octobre : « quand j'active le QR code, ça crée une colonne à
+     droite au lieu de se mettre en transparence par-dessus les
+     diapositives ». Le carrousel garde toute sa largeur ; l'encart est
+     une vitre teintée posée dessus. Le CODE, lui, reste noir sur son
+     carré blanc avec sa marge : c'est ce que lisent les téléphones,
+     quel que soit le fond choisi pour l'encart (mise en page comprise). */
   #qrEncart{
     position:absolute; right:24px; bottom:24px; z-index:4;
     display:none; width:230px;
-    background:#fff; color:#0B0B0B;
-    border-radius:20px; padding:14px 14px 13px;
+    background:rgba(11,14,20,.55); color:var(--cream);
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:20px; padding:12px 12px 11px;
     box-shadow:0 14px 40px rgba(0,0,0,.35);
     text-align:center;
   }
   body.avecQr #qrEncart{ display:block; }
-  #qrEncart .qr{ width:100%; aspect-ratio:1/1; }
+  #qrEncart .qr{ width:100%; aspect-ratio:1/1; background:#fff !important; padding:9px;
+                 border-radius:12px; box-sizing:border-box; }
   #qrEncart .qr svg{ width:100%; height:100%; display:block; }
-  #qrEncart .qr .qrline{ stroke-width:1; }
-  #qrEncart .t{ font-size:21px; font-weight:800; line-height:1.22; margin-top:8px; }
-  body.avecQr .scene{ right:278px; }
-  body.vitrine.avecQr .scene{ right:278px; width:calc(64% - 278px); }
+  #qrEncart .qr .qrline{ stroke-width:1; stroke:#0b0b0b !important; }
+  #qrEncart .t{ font-size:21px; font-weight:800; line-height:1.22; margin-top:8px;
+                text-shadow:0 1px 6px rgba(0,0,0,.5); }
 
   /* 🎨 v1199 — UNE DIAPOSITIVE DU STUDIO GARDE TOUTE SA PLACE. Elle a
      été rangée dans le studio en connaissant celle du planning et du
      QR : elle ne se resserre pas pour l'encart, et à la vitrine elle
      n'est pas fondue sur sa gauche (le texte qu'on y a posé
      disparaîtrait). */
-  body.avecQr .scene.compo{ right:0; }
-  body.vitrine .scene.compo, body.vitrine.avecQr .scene.compo{
+  body.vitrine .scene.compo{
     right:0; width:64%; -webkit-mask-image:none; mask-image:none;
   }
 
@@ -531,7 +539,7 @@
 <!-- 🎨 v1199 — le dessin des diapositives du studio, le même que dans l'appli -->
 <script src="app/ec-compo.js?v=1199"></script>
 <!-- 🖥️ v1201 — la mise en page et les thèmes, le même code que dans l'appli -->
-<script src="app/ec-tele.js?v=1201"></script>
+<script src="app/ec-tele.js?v=1203"></script>
 <script>
 /* ============================================================
    RÉGLAGES
