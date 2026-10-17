@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 11:37 — v1201 */
+/* Déployé le 17/10/2026 à 13:44 — v1203 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -1037,8 +1037,8 @@ function blocQrEcran(){
   tete.className = 'afQrTete';
   tete.innerHTML = (svg ? '<div class="afQrImg">' + svg + '</div>' : '') +
     '<div style="flex:1;min-width:0;"><strong>🔳 QR code de Saint-Brieuc sur les écrans</strong>' +
-    '<div class="afResume" style="margin:4px 0 0;">Un encart fixe en bas à droite, avec ta phrase : le carrousel se resserre pour lui ' +
-    'laisser sa place, rien n’est caché. Il mène à ' + echEcran(String(q.adresse || '').replace(/^https?:\/\//, '')) + '.</div></div>';
+    '<div class="afResume" style="margin:4px 0 0;">Un encart en bas à droite, posé en transparence par-dessus les diapositives, avec ta phrase ' +
+    '(le code reste noir sur blanc). Il mène à ' + echEcran(String(q.adresse || '').replace(/^https?:\/\//, '')) + '.</div></div>';
   z.appendChild(tete);
   if(!q.pageActive){
     const a = document.createElement('div');
