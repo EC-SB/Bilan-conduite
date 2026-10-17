@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 10:51 — v1199 */
+/* Déployé le 17/10/2026 à 11:08 — v1200 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1200,
+    date: 'Samedi 17 octobre 2026',
+    resume: '📚 La photothèque de l’école, dans le studio de diapositives',
+    quoi: [
+      { emoji: '📚',
+        titre: 'Les photos de l’école, gardées une fois',
+        texte: 'Dans le studio, « 📷 Photo » (et le fond en photo) propose de prendre une photo, d’en choisir une, ou de piocher ' +
+               'dans la photothèque : véhicules, bureaux, événements. Coche « ➕ Garder dans la photothèque » en ajoutant une photo ' +
+               'pour la retrouver dans les prochaines diapositives.' },
+      { emoji: '⋯',
+        titre: 'Ranger la photothèque',
+        texte: 'Le ⋯ d’une photo la renomme, la change de rangement ou la retire. La retirer ne l’enlève pas des diapositives qui s’en servent.' }
+    ]
+  },
   {
     version: 1199,
     date: 'Samedi 17 octobre 2026',
