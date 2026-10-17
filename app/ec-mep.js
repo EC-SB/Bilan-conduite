@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 11:37 — v1201 */
+/* Déployé le 17/10/2026 à 14:07 — v1204 */
 /* ============================================================
    ec-mep.js
    🖥️ La mise en page des télés et 🎨 les thèmes — v1201
@@ -70,7 +70,8 @@ async function apercuTele(cadre, ou, quandPlaces){
   if(ro) ro.observe(cadre);
   const charger = o => {
     if(!j){ cadre.classList.add('mepSansJeton'); return; }
-    ifr.src = CONFIG.LIEN_ECRAN + '?t=' + encodeURIComponent(j) + '&ou=' + o + '&apercu=1';
+    ifr.src = CONFIG.LIEN_ECRAN + '?t=' + encodeURIComponent(j) + '&ou=' + o + '&apercu=1' +
+      (typeof VERSION_MODULES !== 'undefined' ? '&v=' + VERSION_MODULES : '');
   };
   charger(ou);
   return {
@@ -477,9 +478,13 @@ function pointeurMep(ev){
   const depart = { x: ev.clientX, y: ev.clientY, b: Object.assign({}, b), place: place.slice() };
   let bouge = false, attente = false;
   try{ cal.setPointerCapture(ev.pointerId); }catch(e){}
+  /* 📐 v1204 — un QR placé dans ⚙️ Réglages › 🔳 QR code garde cette place-là */
+  const qrFixe = k === 'qr' && !!placeQrReglee(ouMep());
+  let ditQr = false;
   const bouger = e2 => {
     const dx = (e2.clientX - depart.x) / s, dy = (e2.clientY - depart.y) / s;
     if(!bouge && Math.abs(dx) * s < 3 && Math.abs(dy) * s < 3) return;
+    if(qrFixe){ if(!ditQr){ ditQr = true; showToast('📐 Sa place se règle dans ⚙️ Réglages › 🔳 QR code'); } return; }
     if(!bouge){ bouge = true; memoriserMep(); }
     const x = mepS.cfg[ouMep()].blocs[k];
     if(!poignee){
@@ -518,7 +523,8 @@ function blocReglagesMep(){
   z.innerHTML = '<h4>' + def.titre + '</h4>' +
     '<label class="stCocheL"><input type="checkbox" data-k="affiche"' + (b.cache ? '' : ' checked') + '> 👁️ À l’écran</label>' +
     (k === 'planning' ? '<label for="mepTitre">Le titre</label><input type="text" id="mepTitre" maxlength="60" placeholder="📅 Les cours à venir">' : '') +
-    (k === 'qr' ? '<div class="stPetit" style="margin:4px 0;">🔒 Le code lui-même reste noir sur blanc, avec sa marge blanche : c’est ce qui permet aux téléphones de le lire. La phrase se change dans « 🔳 QR code » plus haut.</div>' : '') +
+    (k === 'qr' ? '<div class="stPetit" style="margin:4px 0;">🔒 Le code lui-même reste noir sur blanc, avec sa marge blanche : c’est ce qui permet aux téléphones de le lire. La phrase se change dans « 🔳 QR code » plus haut.' +
+      (placeQrReglee(ou) ? ' 📐 Sa place et sa taille aussi : elles y sont réglées pour cet écran.' : '') + '</div>' : '') +
     '<label>Le fond</label><div data-coul="fond">' + couleursTele(b.fond, 'Automatique : comme d’origine ou selon le thème') + '</div>' +
     '<label>Le contour</label><div data-coul="contour">' + couleursTele(b.contour, 'Sans contour ajouté') + '</div>' +
     (k !== 'scene' ? '<label>Le texte</label><div data-coul="texte">' + couleursTele(b.texte, 'Automatique') + '</div>' : '') +
@@ -883,3 +889,180 @@ function blocQuandTheme(){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-mep.js'] = true;
+
+/* ============================================================
+   📐 v1204 — LA PLACE ET LA TAILLE DU QR, SUR LA TÉLÉ EN PETIT
+
+   David, le 17 octobre : « je veux qu'il aille dessus et que je
+   puisse régler sa taille et sa position directement sans avoir à
+   refaire chaque diapositive ». Ses choix : le glisser sur la télé,
+   une place par écran.
+
+   Dans ⚙️ Réglages › 🔳 QR code : la vraie page de la télé (aperçu),
+   l'encart montré même s'il est coupé à cet écran, glissé du doigt,
+   le coin ◢ pour sa taille. La place part dans les réglages du QR
+   (qrPlaceAccueil / qrPlaceVitrine) et passe avant celle d'une mise
+   en page : un seul endroit pour le placer.
+   ============================================================ */
+let qrPl = null;
+
+function placeQrReglee(ou){
+  return (qrEcran && qrEcran.place && qrEcran.place[ou === 'vitrine' ? 'vitrine' : 'accueil']) || null;
+}
+
+function blocPlaceQr(){
+  if(qrPl && qrPl.apercu){ try{ qrPl.apercu.detruire(); }catch(e){} qrPl.apercu = null; }
+  const z = document.createElement('div');
+  z.className = 'qrPlaceBloc';
+  const dire = ou => placeQrReglee(ou) ? 'placé à ta main' : 'en bas à droite (d’origine)';
+  z.innerHTML = '<label>📐 Sa place et sa taille</label>' +
+    '<div class="afResume" style="margin:0 0 8px;" id="qrPlaceResume">🏠 Accueil : ' + dire('accueil') + ' · 🪟 Vitrine : ' + dire('vitrine') +
+    '. Une place par écran, la même pour toutes les diapositives.</div>' +
+    '<button type="button" class="btn btn-secondary" id="qrPlaceOuvrir">📐 Le placer sur la télé</button>' +
+    '<div id="qrPlaceZone" style="display:none;">' +
+      '<div class="stChips" id="qrPlaceOu"></div>' +
+      '<div class="mepCadre" id="qrPlaceCadre"><div class="mepCalque" id="qrPlaceCalque"></div></div>' +
+      '<div class="stPetit" style="margin:6px 0 8px;">Glisse l’encart où tu veux, tire le coin ◢ pour sa taille. Le code reste noir sur blanc.</div>' +
+      '<div class="qrPlaceBoutons">' +
+        '<button type="button" class="btn btn-primary" data-qp="enregistrer">💾 Enregistrer</button>' +
+        '<button type="button" class="btn btn-secondary" data-qp="origine">↺ En bas à droite</button>' +
+        '<button type="button" class="btn btn-secondary" data-qp="fermer">Fermer</button>' +
+      '</div>' +
+    '</div>';
+  z.querySelector('#qrPlaceOuvrir').addEventListener('click', () => ouvrirPlaceQr(z, 'accueil'));
+  z.querySelectorAll('[data-qp]').forEach(b => b.addEventListener('click', () => actionPlaceQr(z, b.dataset.qp, b)));
+  if(qrPl && qrPl.ouvert) setTimeout(() => ouvrirPlaceQr(z, qrPl.ou), 0);
+  return z;
+}
+
+async function ouvrirPlaceQr(z, ou){
+  if(qrPl && qrPl.apercu){ try{ qrPl.apercu.detruire(); }catch(e){} }
+  qrPl = { ouvert: true, ou: ou, brouillon: placeQrReglee(ou), rendu: null, apercu: null, change: false };
+  z.querySelector('#qrPlaceOuvrir').style.display = 'none';
+  const zone = z.querySelector('#qrPlaceZone');
+  zone.style.display = 'block';
+  const og = z.querySelector('#qrPlaceOu');
+  og.innerHTML = [['accueil', '🏠 Accueil'], ['vitrine', '🪟 Vitrine']].map(([k, t]) =>
+    '<button type="button" class="btn ' + (k === ou ? 'btn-primary' : 'btn-secondary') + '" data-qpou="' + k + '">' + t + '</button>').join('');
+  og.querySelectorAll('[data-qpou]').forEach(b => b.addEventListener('click', async () => {
+    if(b.dataset.qpou === qrPl.ou) return;
+    if(qrPl.change && !await confirmer('La place n’est pas enregistrée. Passer à l’autre écran quand même ?')) return;
+    ouvrirPlaceQr(z, b.dataset.qpou);
+  }));
+  const cadre = z.querySelector('#qrPlaceCadre');
+  const l = Math.max(200, zone.clientWidth || z.clientWidth || 320);
+  cadre.style.width = l + 'px';
+  cadre.style.height = Math.round(l * 9 / 16) + 'px';
+  cadre.querySelectorAll('iframe').forEach(x => x.remove());
+  const etat = qrPl;
+  etat.apercu = await apercuTele(cadre, ou, (places, o) => {
+    if(qrPl !== etat || o !== etat.ou || etat.glisse) return;
+    etat.rendu = places && places.qr ? places.qr.slice() : null;
+    dessinerPlaceQr(z);
+  });
+  etat.apercu.envoyer({ qrVoir: true, qrPlace: etat.brouillon || null });
+  const cal = z.querySelector('#qrPlaceCalque');
+  cal.onpointerdown = ev => pointeurPlaceQr(ev, z);
+  dessinerPlaceQr(z);
+}
+
+function dessinerPlaceQr(z){
+  const cal = z.querySelector('#qrPlaceCalque');
+  if(!cal || !qrPl) return;
+  cal.innerHTML = '';
+  const p = qrPl.rendu;
+  if(!p) return;
+  const s = (parseFloat(z.querySelector('#qrPlaceCadre').style.width) || 1) / 1600;
+  const d = document.createElement('div');
+  d.className = 'mepZone on qrPlaceZone';
+  d.style.left = p[0] * s + 'px'; d.style.top = p[1] * s + 'px';
+  d.style.width = p[2] * s + 'px'; d.style.height = p[3] * s + 'px';
+  const h = document.createElement('div');
+  h.className = 'stPoignee p-se';
+  h.dataset.poignee = 'se';
+  h.style.left = p[2] * s + 'px'; h.style.top = p[3] * s + 'px';
+  d.appendChild(h);
+  const t = document.createElement('div');
+  t.className = 'mepEtiquette';
+  t.textContent = '🔳 Le QR code';
+  /* près du bord droit, l'étiquette se range à droite : coupée sinon */
+  if(p[0] * s + 120 > (parseFloat(z.querySelector('#qrPlaceCadre').style.width) || 0)){ t.style.left = 'auto'; t.style.right = '-2px'; }
+  d.appendChild(t);
+  cal.appendChild(d);
+}
+
+function pointeurPlaceQr(ev, z){
+  if(!qrPl || !qrPl.rendu) return;
+  const cal = ev.currentTarget;
+  const s = (parseFloat(z.querySelector('#qrPlaceCadre').style.width) || 1) / 1600;
+  const r = cal.getBoundingClientRect();
+  const px = (ev.clientX - r.left) / s, py = (ev.clientY - r.top) / s;
+  const p = qrPl.rendu;
+  const poignee = ev.target.closest('[data-poignee]');
+  if(!poignee && !(px >= p[0] && px <= p[0] + p[2] && py >= p[1] && py <= p[1] + p[3])) return;
+  ev.preventDefault();
+  const depart = { x: ev.clientX, y: ev.clientY, p: p.slice() };
+  const etat = qrPl;
+  let attente = false;
+  try{ cal.setPointerCapture(ev.pointerId); }catch(e){}
+  const bouger = e2 => {
+    const dx = (e2.clientX - depart.x) / s, dy = (e2.clientY - depart.y) / s;
+    if(!etat.glisse && Math.abs(dx) * s < 3 && Math.abs(dy) * s < 3) return;
+    etat.glisse = true; etat.change = true;
+    let x = depart.p[0], y = depart.p[1], w = depart.p[2];
+    if(poignee){ w = Math.min(600, Math.max(130, depart.p[2] + Math.max(dx, dy * depart.p[2] / depart.p[3]))); }
+    else{ x = depart.p[0] + dx; y = depart.p[1] + dy; }
+    x = Math.round(Math.min(1600 - w, Math.max(0, x)));
+    y = Math.round(Math.min(860, Math.max(0, y)));
+    w = Math.round(w);
+    const h = Math.round(depart.p[3] * w / depart.p[2]);
+    etat.brouillon = { x: x, y: y, w: w };
+    etat.rendu = [x, y, w, h];
+    dessinerPlaceQr(z);
+    if(!attente){ attente = true; requestAnimationFrame(() => { attente = false; if(etat.apercu) etat.apercu.envoyer({ qrPlace: etat.brouillon }); }); }
+  };
+  const lacher = () => {
+    cal.removeEventListener('pointermove', bouger);
+    cal.removeEventListener('pointerup', lacher);
+    cal.removeEventListener('pointercancel', lacher);
+    /* la télé en petit renvoie alors la vraie hauteur de l'encart */
+    const avait = etat.glisse;
+    etat.glisse = false;
+    if(avait && etat.apercu) etat.apercu.envoyer({ qrPlace: etat.brouillon });
+  };
+  cal.addEventListener('pointermove', bouger);
+  cal.addEventListener('pointerup', lacher);
+  cal.addEventListener('pointercancel', lacher);
+}
+
+async function actionPlaceQr(z, a, bouton){
+  if(!qrPl) return;
+  if(a === 'fermer'){
+    if(qrPl.change && !await confirmer('La place n’est pas enregistrée. Fermer quand même ?')) return;
+    if(qrPl.apercu) try{ qrPl.apercu.detruire(); }catch(e){}
+    qrPl = null;
+    z.querySelector('#qrPlaceZone').style.display = 'none';
+    z.querySelector('#qrPlaceOuvrir').style.display = '';
+    return;
+  }
+  if(a === 'origine'){
+    qrPl.brouillon = null; qrPl.change = true;
+    if(qrPl.apercu) qrPl.apercu.envoyer({ qrPlace: null });
+    return;
+  }
+  if(a === 'enregistrer'){
+    const ou = qrPl.ou;
+    bouton.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'ecranQrPoser', cle: ou === 'vitrine' ? 'qrPlaceVitrine' : 'qrPlaceAccueil',
+                                  valeur: qrPl.brouillon ? JSON.stringify(qrPl.brouillon) : '' });
+      if(r && r.qr) qrEcran = r.qr;
+      qrPl.change = false;
+      const dire = o => placeQrReglee(o) ? 'placé à ta main' : 'en bas à droite (d’origine)';
+      const res = z.querySelector('#qrPlaceResume');
+      if(res) res.textContent = '🏠 Accueil : ' + dire('accueil') + ' · 🪟 Vitrine : ' + dire('vitrine') + '. Une place par écran, la même pour toutes les diapositives.';
+      showToast((ou === 'vitrine' ? 'Vitrine' : 'Accueil') + ' : place du QR enregistrée ✅ (dans la minute sur la télé)');
+    }catch(e){ showToast('Impossible : ' + e.message); }
+    bouton.disabled = false;
+  }
+}
