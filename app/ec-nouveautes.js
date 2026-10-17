@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:07 — v1204 */
+/* Déployé le 17/10/2026 à 14:43 — v1205 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1205,
+    date: 'Samedi 17 octobre 2026',
+    resume: '🖼️ Tes propres décors fixes dans les thèmes, glissés sur la télé',
+    quoi: [
+      { emoji: '🖼️',
+        titre: 'Tes décors fixes',
+        texte: 'Dans le studio d’un thème › ✨ L’animation › « ➕ Ajouter un décor (PNG) » : choisis une image, glisse-la sur la télé ' +
+               'en petit, tire le coin ◢ pour sa taille. Une place pour l’accueil, une pour la vitrine. Ils passent derrière les cours, ' +
+               'le QR et la météo.' },
+      { emoji: '✂️',
+        titre: 'Les PNG détourés restent détourés',
+        texte: 'Une image avec du transparent (décor, petite image animée « Ta photo ») garde sa transparence au lieu d’arriver sur un fond noir.' }
+    ]
+  },
   {
     version: 1204,
     date: 'Samedi 17 octobre 2026',
