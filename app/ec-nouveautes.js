@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 11:37 — v1201 */
+/* Déployé le 17/10/2026 à 12:19 — v1202 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,20 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1202,
+    date: 'Samedi 17 octobre 2026',
+    resume: '🏁 Le résultat du post-permis visible dans le dossier de l’élève',
+    quoi: [
+      { emoji: '🏁',
+        titre: 'Le post-permis, lisible sans ouvrir le compte rendu',
+        texte: 'Dans Élèves › dossier › 📚 Cours, la ligne « RDV post-permis » dit ce qui a été décidé (« 4 + 3h avant repassage », ' +
+               '« ⛔ Pas de repassage »…) et, en 🔒, le commentaire pour le bureau. Visible pour l’équipe seulement.' },
+      { emoji: '🔒',
+        titre: 'Le commentaire pour le bureau reste chez nous',
+        texte: 'Il ne part plus quand on renvoie le bilan d’un post-permis par ✉️, et n’apparaît plus dans « Mes leçons » de l’élève.' }
+    ]
+  },
   {
     version: 1201,
     date: 'Samedi 17 octobre 2026',
