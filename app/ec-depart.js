@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 17/10/2026 à 12:19 — v1202 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -506,6 +506,68 @@ function blocParcours(eleve, note, consignes){
 
 
 /* ============================================================
+   🏁 LE RENDEZ-VOUS POST-PERMIS, RELU DANS L'HISTORIQUE — v1202
+
+   David, le 17 octobre, capture du dossier d'un élève : « mets
+   visible pour nous dans le résumé le résultat du post-permis ».
+   La ligne « RDV post-permis » n'avait pas de note (elle n'en écrit
+   pas — voir terminerRdvPost) : le titre restait nu, et il fallait
+   ouvrir le compte rendu pour savoir ce qui avait été décidé. Son
+   choix : la conclusion + le commentaire pour le bureau.
+
+   ⚠️ ON RELIT LE COMPTE RENDU, ON N'ÉCRIT PAS DE NOTE. La note de la
+   DERNIÈRE ligne sert de point de départ au cours suivant
+   (« derniereNote ») : en poser une ici changerait les cours
+   préparés. Le compte rendu (colonne E) porte déjà les deux
+   morceaux, et il marche pour tous les rendez-vous déjà faits.
+
+   ⚠️ ET LE COMMENTAIRE POUR LE BUREAU NE SORT PAS DE L'ÉQUIPE. Il
+   est rangé dans le même texte, en dernier : « bilanPourLEleve » le
+   retire avant tout envoi à l'élève (✉️ ci-dessous ; « Mes leçons »
+   fait de même côté Apps Script, leconsDeLEleve).
+   ============================================================ */
+const RDV_POST_ENTETE = '🏁 RENDEZ-VOUS POST-PERMIS';
+const RDV_POST_BUREAU = '💬 Commentaire pour le bureau';
+
+function partiesDuRdvPost(bilan){
+  const t = String(bilan || '').replace(/\r/g, '');
+  if(t.trim().indexOf(RDV_POST_ENTETE) !== 0) return null;
+  const i = t.indexOf('\n\n' + RDV_POST_BUREAU + '\n');
+  const pourLui = (i === -1) ? t : t.slice(0, i);
+  const bureau = (i === -1) ? '' : t.slice(i + 2 + RDV_POST_BUREAU.length + 1).trim();
+  /* La conclusion est le premier bloc après l'en-tête — sauf si elle
+     manque : le bloc suivant est alors une partie titrée. */
+  const bloc = (pourLui.trim().split(/\n\n+/)[1] || '').trim();
+  const conclusion = /^(📄|📝|✍️)/.test(bloc) ? '' : bloc;
+  return { pourLui: pourLui.trim(), bureau: bureau, conclusion: conclusion };
+}
+
+/* « ➕ 3h avant repassage — 4h à faire » se dit « 4 + 3h avant
+   repassage », comme sur la ligne de l'examen officiel. */
+function phraseDuRdvPost(conclusion){
+  const c = String(conclusion || '').trim();
+  const m = c.match(/avant repassage\s*—\s*(\d+)\s*h\s*à faire/i);
+  if(m) return m[1] === '0' ? 'plus que les 3h avant repassage'
+                            : m[1] + ' + 3h avant repassage';
+  return c.replace(/\s*—\s*\d+\s*h\s*à faire\s*$/i, '');
+}
+
+function resumeDuRdvPost(bilan){
+  const p = partiesDuRdvPost(bilan);
+  if(!p) return '';
+  const phrase = phraseDuRdvPost(p.conclusion);
+  const bureau = p.bureau.split('\n').map(x => x.trim()).filter(Boolean)
+    .map(x => '🔒 ' + x).join('\n');
+  return '🏁 POST-PERMIS' + (phrase ? ' · ' + phrase : '') + (bureau ? '\n' + bureau : '');
+}
+
+function bilanPourLEleve(bilan){
+  const p = partiesDuRdvPost(bilan);
+  return p ? p.pourLui : String(bilan || '');
+}
+
+
+/* ============================================================
    UNE LIGNE DE LEÇON — ÉCRITE UNE FOIS, AFFICHÉE PARTOUT
 
    Elle vivait à l'intérieur de « rechercherEleve », donc elle
@@ -537,20 +599,23 @@ function ligneBilan(item, nomCherche, refaire){
   const note = ((typeof noteAvecResultatExamenBlanc === 'function')
     ? noteAvecResultatExamenBlanc(item.eleve, item.note)
     : (item.note || '')).trim();
+  /* 🏁 v1202 — sans note, un rendez-vous post-permis montre sa
+     conclusion et le commentaire pour le bureau. */
+  const resume = note || resumeDuRdvPost(item.bilan);
     const t = document.createElement('strong');
     if(!nom || nom.length < 2){
       /* Recherche par moniteur : on met l'élève en avant */
       t.textContent = item.eleve || '(sans nom)';
-    }else if(note){
+    }else if(resume){
       /* La note interne prend la place du titre : c'est ce que le
          moniteur suivant doit voir en premier, en entier. */
       if(typeof colorerNote === 'function'){
         t.appendChild(document.createTextNode('📌 '));
         const dedans = document.createElement('span');
-        colorerNote(dedans, note);
+        colorerNote(dedans, resume);
         t.appendChild(dedans);
       }else{
-        t.textContent = '📌 ' + note;
+        t.textContent = '📌 ' + resume;
       }
       t.style.color = 'var(--accent-text)';
       t.style.whiteSpace = 'pre-wrap';
@@ -562,7 +627,7 @@ function ligneBilan(item, nomCherche, refaire){
     }
     const s = document.createElement('span');
     s.textContent = 'Cours du ' + (item.date || '?') +
-                    [' ', item.site, item.moniteur, note ? item.type : '']
+                    [' ', item.site, item.moniteur, resume ? item.type : '']
                       .filter(Boolean).join(' · ');
 
     const h = document.createElement('span');
@@ -735,8 +800,9 @@ function ligneBilan(item, nomCherche, refaire){
         bMail.disabled = true;
         bMail.textContent = '…';
         try{
+          /* 🏁 v1202 — le commentaire pour le bureau reste chez nous */
           const combien = await envoyerBilanParMail(item.eleve, item.date,
-                                                    item.bilan);
+                                                    bilanPourLEleve(item.bilan));
           if(!combien){
             /* Annulé à la fenêtre d'adresse : ce n'est pas un
                échec, et ça ne doit pas ressembler à un envoi. */
