@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 13:44 — v1203 */
+/* Déployé le 17/10/2026 à 14:07 — v1204 */
 /* ============================================================
    ec-tele.js
    🖥️ La mise en page des télés et 🎨 les thèmes — v1201
@@ -620,6 +620,32 @@
     return s;
   }
 
+  /* 📐 v1204 — LA PLACE DU QR, RÉGLÉE DANS ⚙️ RÉGLAGES › 🔳 QR CODE.
+     Une par écran, en coordonnées 1600 × 900 ; elle passe avant celle
+     d'une mise en page (sélecteur plus fort, feuille posée après).
+     « z » : la taille du texte d'une mise en page (zoom) — on la garde,
+     et on divise la place par elle comme le fait cssMep. */
+  function nettoyerPlaceQr(p){
+    if(typeof p === 'string'){ if(!p.trim()) return null; try{ p = JSON.parse(p); }catch(e){ return null; } }
+    if(!p || typeof p !== 'object') return null;
+    const w = Math.round(nombre(p.w, 130, 600, NaN));
+    if(!isFinite(w)) return null;
+    const x = Math.round(nombre(p.x, 0, 1600 - w, NaN)), y = Math.round(nombre(p.y, 0, 860, NaN));
+    if(!isFinite(x) || !isFinite(y)) return null;
+    return { x: x, y: y, w: w };
+  }
+  function cssPlaceQr(p, z){
+    const q = nettoyerPlaceQr(p);
+    if(!q) return '';
+    z = (isFinite(z) && z > 0) ? z : 1;
+    const r = v => Math.round(v * 100) / 100;
+    return ':root{--ex:calc(100vw / 1600);--ey:calc(100vh / 900);}' +
+      'html body.avecQr #qrEncart{position:fixed !important;right:auto !important;bottom:auto !important;margin:0 !important;' +
+      'left:calc(var(--ex) * ' + r(q.x / z) + ') !important;top:calc(var(--ey) * ' + r(q.y / z) + ') !important;' +
+      'width:calc(var(--ex) * ' + r(q.w / z) + ') !important;height:auto !important;max-height:none !important;' +
+      'zoom:' + r(z) + ';box-sizing:border-box;}';
+  }
+
   /* « Vos cours commencent » */
   function cssImminent(m, lienPhoto){
     const i = nettoyerMep(m).imminent;
@@ -646,6 +672,7 @@
     nettoyerTheme: nettoyerTheme, nettoyerAnimation: nettoyerAnimation, themesComplets: themesComplets,
     paques: paques, dansLaPeriode: dansLaPeriode, joursAvant: joursAvant, themeDuJour: themeDuJour, cssTheme: cssTheme,
     nettoyerMep: nettoyerMep, cssMep: cssMep, cssImminent: cssImminent, photosDeLaMep: photosDeLaMep,
+    nettoyerPlaceQr: nettoyerPlaceQr, cssPlaceQr: cssPlaceQr,
     couleur: couleur, avecAlpha: avecAlpha
   };
 })();
