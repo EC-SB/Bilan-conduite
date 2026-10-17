@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:07 — v1204 */
+/* Déployé le 17/10/2026 à 14:43 — v1205 */
 /* ============================================================
    ec-mep.js
    🖥️ La mise en page des télés et 🎨 les thèmes — v1201
@@ -688,8 +688,100 @@ async function ouvrirThemeStudio(th){
   thS.redim = () => dessinerTheme();
   addEventListener('resize', thS.redim);
   dessinerTheme();
-  thS.apercu = await apercuTele(z.querySelector('#mepCadre'), 'accueil', () => {});
+  thS.fixeChoix = -1; thS.fixesRendus = [];
+  const etat = thS;
+  thS.apercu = await apercuTele(z.querySelector('#mepCadre'), 'accueil', (places, o) => {
+    if(thS !== etat || o !== etat.ou || etat.glisse) return;
+    etat.fixesRendus = (places && Array.isArray(places.fixes)) ? places.fixes : [];
+    dessinerCalqueTheme();
+  });
   envoyerTheme();
+  z.querySelector('#mepCalque').addEventListener('pointerdown', pointeurTheme);
+}
+
+/* ============================================================
+   🖼️ v1205 — LES DÉCORS FIXES, GLISSÉS SUR LA TÉLÉ EN PETIT
+
+   La télé en petit renvoie la place de chacun (en 1600 × 900) ; on
+   dessine un cadre par-dessus. Un appui le choisit, glisser le
+   déplace, le coin ◢ change sa taille (sans le déformer). La place
+   va dans l'écran de l'onglet (🏠 Accueil ou 🪟 Vitrine).
+   ============================================================ */
+function dessinerCalqueTheme(){
+  const cal = document.getElementById('mepCalque');
+  if(!cal || !thS) return;
+  cal.innerHTML = '';
+  const s = (parseFloat(document.getElementById('mepCadre').style.width) || 1) / 1600;
+  (thS.fixesRendus || []).forEach(p => {
+    const i = p[0];
+    const d = document.createElement('div');
+    d.className = 'mepZone thFixe' + (i === thS.fixeChoix ? ' on' : '');
+    d.dataset.fixe = String(i);
+    d.style.left = p[1] * s + 'px'; d.style.top = p[2] * s + 'px';
+    d.style.width = p[3] * s + 'px'; d.style.height = p[4] * s + 'px';
+    if(i === thS.fixeChoix){
+      const h = document.createElement('div');
+      h.className = 'stPoignee p-se';
+      h.dataset.poignee = 'se';
+      h.style.left = p[3] * s + 'px'; h.style.top = p[4] * s + 'px';
+      d.appendChild(h);
+      const t = document.createElement('div');
+      t.className = 'mepEtiquette';
+      t.textContent = '🖼️ Décor ' + (i + 1);
+      d.appendChild(t);
+    }
+    cal.appendChild(d);
+  });
+}
+function pointeurTheme(ev){
+  if(!thS) return;
+  const cal = ev.currentTarget;
+  const s = (parseFloat(document.getElementById('mepCadre').style.width) || 1) / 1600;
+  const r = cal.getBoundingClientRect();
+  const px = (ev.clientX - r.left) / s, py = (ev.clientY - r.top) / s;
+  const poignee = ev.target.closest('[data-poignee]');
+  let p = null;
+  if(poignee) p = (thS.fixesRendus || []).find(x => x[0] === thS.fixeChoix) || null;
+  else{
+    /* le dernier posé est au-dessus : on cherche depuis la fin */
+    const l = (thS.fixesRendus || []).slice().reverse();
+    p = l.find(x => px >= x[1] && px <= x[1] + x[3] && py >= x[2] && py <= x[2] + x[4]) || null;
+  }
+  if(!p){ if(thS.fixeChoix !== -1){ thS.fixeChoix = -1; dessinerCalqueTheme(); } return; }
+  ev.preventDefault();
+  const i = p[0], ou = thS.ou;
+  if(thS.fixeChoix !== i){ thS.fixeChoix = i; dessinerCalqueTheme(); }
+  const depart = { x: ev.clientX, y: ev.clientY, p: p.slice() };
+  const etat = thS;
+  let attente = false;
+  try{ cal.setPointerCapture(ev.pointerId); }catch(e){}
+  const bouger = e2 => {
+    const dx = (e2.clientX - depart.x) / s, dy = (e2.clientY - depart.y) / s;
+    if(!etat.glisse && Math.abs(dx) * s < 3 && Math.abs(dy) * s < 3) return;
+    etat.glisse = true; etat.modifie = true;
+    let x = depart.p[1], y = depart.p[2], w = depart.p[3];
+    if(poignee) w = Math.min(1600, Math.max(30, depart.p[3] + Math.max(dx, dy * depart.p[3] / Math.max(1, depart.p[4]))));
+    else{ x = depart.p[1] + dx; y = depart.p[2] + dy; }
+    x = Math.round(Math.min(1600, Math.max(-800, x))); y = Math.round(Math.min(900, Math.max(-600, y))); w = Math.round(w);
+    const f = etat.cfg.animation.fixes[i];
+    if(!f) return;
+    f[ou] = { x: x, y: y, w: w };
+    const h = Math.round(depart.p[4] * w / Math.max(1, depart.p[3]));
+    etat.fixesRendus = etat.fixesRendus.map(q => q[0] === i ? [i, x, y, w, h] : q);
+    dessinerCalqueTheme();
+    if(!attente){ attente = true; requestAnimationFrame(() => { attente = false; envoyerTheme(); }); }
+  };
+  const lacher = () => {
+    cal.removeEventListener('pointermove', bouger);
+    cal.removeEventListener('pointerup', lacher);
+    cal.removeEventListener('pointercancel', lacher);
+    const avait = etat.glisse;
+    etat.glisse = false;
+    if(avait){ etat.cfg = Tele.nettoyerTheme(etat.cfg, etat.id); envoyerTheme(); }
+  };
+  cal.addEventListener('pointermove', bouger);
+  cal.addEventListener('pointerup', lacher);
+  cal.addEventListener('pointercancel', lacher);
 }
 function envoyerTheme(){
   if(thS && thS.apercu) thS.apercu.envoyer({ theme: Tele.nettoyerTheme(thS.cfg, thS.id), pause: thS.pause, liens: liensAbsolus() });
@@ -748,6 +840,7 @@ function dessinerTheme(){
     (tel ? '' : '<span class="info">Ça bouge ici comme sur la télé</span>');
   og.querySelectorAll('[data-ou]').forEach(b => b.addEventListener('click', () => {
     thS.ou = b.dataset.ou;
+    thS.fixesRendus = [];
     if(thS.apercu){ thS.apercu.changerOu(thS.ou); envoyerTheme(); }
     dessinerTheme();
   }));
@@ -758,6 +851,7 @@ function dessinerTheme(){
   cadre.style.width = l + 'px';
   cadre.style.height = Math.round(l * 9 / 16) + 'px';
   if(thS.apercu) thS.apercu.ajuster();
+  dessinerCalqueTheme();
   const bas = z.querySelector('#mepBasTel');
   bas.innerHTML = [['animation', '✨ L’animation'], ['couleurs', '🎨 Les couleurs'], ['quand', '🗓️ Quand']]
     .map(([k, t]) => '<button type="button" class="btn btn-secondary" data-feuilleth="' + k + '">' + t + '</button>').join('');
@@ -788,7 +882,11 @@ function blocAnimationTheme(){
     [['quantite', 'Combien'], ['vitesse', 'Vitesse'], ['taille', 'Taille']].map(([k, t]) =>
       '<label>' + t + '</label><input class="stCurseur" type="range" min="0" max="100" value="' + a[k] + '" data-curseur="' + k + '">').join('') +
     '<label>Les décors fixes</label>' + Object.keys(Tele.DECORS).map(k =>
-      '<label class="stCocheL"><input type="checkbox" data-decor="' + k + '"' + (a.decors.indexOf(k) !== -1 ? ' checked' : '') + '> ' + Tele.DECORS[k] + '</label>').join('');
+      '<label class="stCocheL"><input type="checkbox" data-decor="' + k + '"' + (a.decors.indexOf(k) !== -1 ? ' checked' : '') + '> ' + Tele.DECORS[k] + '</label>').join('') +
+    '<label>🖼️ Tes décors fixes</label><div class="thFixes"></div>' +
+    '<div class="stPetit" style="margin:2px 0 8px;">Un PNG détouré (une guirlande, des feuilles, un sapin…) posé où tu veux. Glisse-le sur la télé, ' +
+      'tire le coin ◢ pour sa taille. Une place pour 🏠 l’accueil, une pour 🪟 la vitrine (les onglets au-dessus de la télé). ' +
+      'Il passe derrière les cours, le QR et la météo.</div>';
   const g = z.querySelector('.stLutins');
   Object.keys(Tele.LUTINS).forEach(k => {
     const t = document.createElement('button');
@@ -823,6 +921,34 @@ function blocAnimationTheme(){
       if(thS.cfg.animation.photos.indexOf(cle) === -1) thS.cfg.animation.photos.push(cle);
     })));
     g.appendChild(p);
+  }
+  /* 🖼️ v1205 — tes décors fixes */
+  const gf = z.querySelector('.thFixes');
+  a.fixes.forEach((f, i) => {
+    const t = document.createElement('div');
+    t.className = 'thFixe1' + (i === thS.fixeChoix ? ' on' : '');
+    t.innerHTML = '<span class="stLutinPhoto"></span><span class="thFixeNom">Décor ' + (i + 1) + '</span>' +
+      '<button type="button" class="btn btn-secondary" data-fx="choisir">🎯 Le montrer</button>' +
+      '<button type="button" class="btn btn-secondary" data-fx="retirer" title="Retirer ce décor">✕</button>';
+    t.querySelector('.stLutinPhoto').style.backgroundImage = 'url("' + String(lienStudio(f.cle)).replace(/"/g, '%22') + '")';
+    t.querySelector('[data-fx="choisir"]').addEventListener('click', () => { thS.fixeChoix = i; dessinerCalqueTheme(); });
+    t.querySelector('[data-fx="retirer"]').addEventListener('click', () => changerTheme(() => {
+      thS.cfg.animation.fixes.splice(i, 1);
+      thS.fixeChoix = -1;
+    }));
+    gf.appendChild(t);
+  });
+  if(a.fixes.length < 6){
+    const p = document.createElement('button');
+    p.type = 'button';
+    p.className = 'btn btn-secondary';
+    p.textContent = '➕ Ajouter un décor (PNG)';
+    p.addEventListener('click', () => ouvrirPhotosStudio(cle => changerTheme(() => {
+      const d = Tele.PLACE_FIXE_DEFAUT;
+      thS.cfg.animation.fixes.push({ cle: cle, accueil: Object.assign({}, d), vitrine: Object.assign({}, d) });
+      thS.fixeChoix = thS.cfg.animation.fixes.length - 1;
+    })));
+    gf.appendChild(p);
   }
   z.querySelectorAll('[data-sens]').forEach(x => x.addEventListener('click', () => changerTheme(() => { thS.cfg.animation.sens = x.dataset.sens; })));
   z.querySelectorAll('[data-curseur]').forEach(x => x.addEventListener('change', () => changerTheme(() => { thS.cfg.animation[x.dataset.curseur] = Number(x.value); })));
