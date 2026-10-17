@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:18 — v1191 */
+/* Déployé le 17/10/2026 à 10:51 — v1199 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -76,7 +76,9 @@ const ACTIONS_LOURDES = { elevesImport: 90000,
                              pour ça — et abandonner à vingt-cinq secondes
                              annonçait un échec au moniteur alors que le
                              mail était PARTI. */
-                          mailBilan: 60000 };
+                          mailBilan: 60000,
+                          /* 🎨 v1199 — une photo du studio monte depuis le téléphone */
+                          ecranPhotoPoser: 60000 };
 /* ⚠️ CELLES QU'ON NE RECOMMENCE JAMAIS.
 
    « eleveRenommer » y manquait, et ça s'est vu au premier usage : le
@@ -102,7 +104,9 @@ const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                       'smsLog', 'eleveRetirer', 'eleveRenommer',
                       'consigneEffacerEleve', 'mailBilan',
                       /* 📥 v1166 — ajouter des lignes deux fois ferait deux fiches */
-                      'drivupFiches'];
+                      'drivupFiches',
+                      /* 🎨 v1199 — la rejouer déposerait la photo deux fois */
+                      'ecranPhotoPoser'];
 
 /* ⚠️ NE PAS EMPILER UN RAFRAÎCHISSEMENT SUR UN CLASSEUR QUI RÉPOND
    DÉJÀ — v949.
