@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 11:08 — v1200 */
+/* Déployé le 17/10/2026 à 11:37 — v1201 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,27 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1201,
+    date: 'Samedi 17 octobre 2026',
+    resume: '🖥️ Placer les blocs des télés, « Vos cours commencent », et les thèmes des saisons',
+    quoi: [
+      { emoji: '🧩',
+        titre: 'La mise en page des télés',
+        texte: '⚙️ Réglages › « Mises en page » : ✏️ ouvre la vraie page de la télé en petit. Glisse un bloc (météo, heure, ' +
+               'cours à venir, QR…) pour le déplacer, tire un coin pour sa taille, change son fond, sa forme, son texte, ou masque-le d’un 👁️. ' +
+               'Une mise en page par écran (accueil, vitrine) ; « D’origine » remet l’écran d’avant.' },
+      { emoji: '⏰',
+        titre: '« Vos cours commencent » à ton goût',
+        texte: 'Dans le même studio, l’onglet ⏰ : les titres, ce qu’il y a derrière (voile, couleur ou photo), les cartes, ' +
+               'l’heure en pastille, avec ou sans moniteur et véhicule. Le QR se retire pendant cet écran.' },
+      { emoji: '🍂',
+        titre: 'Les thèmes des saisons et des fêtes',
+        texte: 'Dix thèmes (automne, Halloween, Noël, hiver, Nouvel An, Saint-Valentin, printemps, Pâques, été, 14 juillet) changent ' +
+               'les couleurs et font tomber ou monter de petites images, chacun à ses dates. Ils sont allumés : 🍂 l’automne est déjà sur les télés. ' +
+               'Un appui en coupe un, ou tous avec « Thèmes automatiques ». ✏️ change ses images (même ta photo), ses couleurs, ses dates.' }
+    ]
+  },
   {
     version: 1200,
     date: 'Samedi 17 octobre 2026',
