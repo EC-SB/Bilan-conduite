@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 11:08 — v1200 */
+/* Déployé le 17/10/2026 à 14:43 — v1205 */
 /* ============================================================
    ec-studio.js
    🎨 Le studio de diapositives — v1199
@@ -687,6 +687,36 @@ function reduirePhotoStudio(fichier){
       const img = new Image();
       img.onerror = () => ko(new Error('Image illisible.'));
       img.onload = () => {
+        /* 🖼️ v1205 — UN PNG DÉTOURÉ GARDE SA TRANSPARENCE. Tout partait en
+           JPEG : le fond transparent devenait noir, et un décor ou une
+           petite image animée « à toi » arrivait dans un carré noir. Si
+           l'image a du transparent, elle part en WebP (ou PNG si le
+           navigateur ne sait pas faire de WebP), plus petite s'il le faut. */
+        const transparente = (() => {
+          try{
+            const c = document.createElement('canvas');
+            const k = Math.min(1, 200 / Math.max(img.width, img.height));
+            c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+            const g = c.getContext('2d');
+            g.drawImage(img, 0, 0, c.width, c.height);
+            const d = g.getImageData(0, 0, c.width, c.height).data;
+            for(let i = 3; i < d.length; i += 4) if(d[i] < 250) return true;
+          }catch(e){}
+          return false;
+        })();
+        if(transparente){
+          for(const [m, q] of [[1400, 0.9], [1100, 0.86], [900, 0.8], [700, 0.8], [500, 0.8]]){
+            const k = Math.min(1, m / Math.max(img.width, img.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(img.width * k);
+            c.height = Math.round(img.height * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            let d = c.toDataURL('image/webp', q);
+            if(d.indexOf('data:image/webp') !== 0) d = c.toDataURL('image/png');
+            if(d.length < 1400000) return ok(d);
+          }
+          return ko(new Error('L’image reste trop lourde.'));
+        }
         for(const [m, q] of [[1800, 0.84], [1500, 0.78], [1200, 0.72], [1000, 0.66]]){
           const k = Math.min(1, m / Math.max(img.width, img.height));
           const c = document.createElement('canvas');
