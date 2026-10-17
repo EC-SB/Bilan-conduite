@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/10/2026 à 13:44 — v1203 -->
+<!-- Déployé le 17/10/2026 à 14:07 — v1204 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -539,7 +539,7 @@
 <!-- 🎨 v1199 — le dessin des diapositives du studio, le même que dans l'appli -->
 <script src="app/ec-compo.js?v=1199"></script>
 <!-- 🖥️ v1201 — la mise en page et les thèmes, le même code que dans l'appli -->
-<script src="app/ec-tele.js?v=1203"></script>
+<script src="app/ec-tele.js?v=1204"></script>
 <script>
 /* ============================================================
    RÉGLAGES
@@ -589,7 +589,7 @@ let signature = '';
    renvoie la place de chaque bloc. Rien n'est enregistré d'ici. */
 const APERCU = PARAMS.get('apercu') === '1';
 if(APERCU) document.body.classList.add('apercu');
-let DONNEES_TELE = { mep: null, themes: null, liens: {}, jour: '' };
+let DONNEES_TELE = { mep: null, themes: null, liens: {}, jour: '', qrPlace: null };
 const APERCU_VOULU = {};
 let IMMINENT_TITRES = ['Votre cours commence', 'Vos cours commencent'];
 let decorEnCours = null, signatureDecor = '';
@@ -815,7 +815,8 @@ async function chargerVraiment(){
     dessinerBandeau((d && d.bandeaux) || []);
     dessinerQr(d && d.qr);
     DONNEES_TELE = { mep: (d && d.mep) || null, themes: (d && d.themes) || null,
-                     liens: (d && d.liensTele) || {}, jour: (d && d.jour) || '' };
+                     liens: (d && d.liensTele) || {}, jour: (d && d.jour) || '',
+                     qrPlace: (d && d.qr && d.qr.place) || null };
     appliquerAffichage();
     planningActuel = (d && d.planning) || [];
     dessinerPlanning(planningActuel);
@@ -1121,6 +1122,18 @@ function appliquerAffichage(){
   IMMINENT_TITRES = propre ? [propre.imminent.titre1, propre.imminent.titre2] : ['Votre cours commence', 'Vos cours commencent'];
   signatureImminent = '';
 
+  /* 📐 v1204 — la place du QR réglée dans l'appli (passe avant celle
+     d'une mise en page). Dans l'aperçu, l'appli peut le montrer même
+     coupé à cet écran, pour qu'on puisse le placer. */
+  const placeQr = ('qrPlace' in APERCU_VOULU) ? APERCU_VOULU.qrPlace : DONNEES_TELE.qrPlace;
+  const zQr = propre ? propre[OU === 'vitrine' ? 'vitrine' : 'accueil'].blocs.qr.taille / 100 : 1;
+  feuilleDeStyle('styleQrPlace').textContent = placeQr ? Tele.cssPlaceQr(placeQr, zQr) : '';
+  if(APERCU && APERCU_VOULU.qrVoir){
+    document.body.classList.add('avecQr');
+    const tq = document.getElementById('qrTexte');
+    if(tq && !tq.textContent) tq.textContent = 'Horaires et rendez\u2011vous : scannez';
+  }
+
   /* Le thème : celui de l'appli (aperçu), sinon celui du jour */
   let theme = null;
   if('theme' in APERCU_VOULU) theme = APERCU_VOULU.theme;
@@ -1174,13 +1187,14 @@ if(APERCU){
     if(ev.source !== window.parent) return;
     const m = ev.data && ev.data.ecApercu;
     if(!m || typeof m !== 'object') return;
-    ['mep', 'theme'].forEach(k => {
+    ['mep', 'theme', 'qrPlace'].forEach(k => {
       if(k in m){ if(m[k] === undefined) delete APERCU_VOULU[k]; else APERCU_VOULU[k] = m[k]; }
     });
+    if('qrVoir' in m) APERCU_VOULU.qrVoir = !!m.qrVoir;
     if('demo' in m) APERCU_VOULU.demo = !!m.demo;
     if('pause' in m) APERCU_VOULU.pause = !!m.pause;
     if(m.liens && typeof m.liens === 'object') APERCU_VOULU.liens = Object.assign({}, APERCU_VOULU.liens || {}, m.liens);
-    if(m.oublier) ['mep', 'theme'].forEach(k => delete APERCU_VOULU[k]);
+    if(m.oublier) ['mep', 'theme', 'qrPlace'].forEach(k => delete APERCU_VOULU[k]);
     appliquerAffichage();
   });
 }
