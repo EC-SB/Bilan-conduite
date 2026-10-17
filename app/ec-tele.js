@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:07 — v1204 */
+/* Déployé le 17/10/2026 à 14:43 — v1205 */
 /* ============================================================
    ec-tele.js
    🖥️ La mise en page des télés et 🎨 les thèmes — v1201
@@ -365,9 +365,29 @@
   /* ============================================================
      LES THÈMES
      ============================================================ */
+  /* 🖼️ v1205 — LES DÉCORS FIXES À SOI. David, le 17 octobre : « je n'ai
+     pas la possibilité d'ajouter et de placer des décors fixes ». Un PNG
+     de la photothèque, posé où on veut — une place pour l'accueil, une
+     pour la vitrine (ses choix), glissée sur la télé en petit — et
+     DERRIÈRE les blocs (cours, QR, météo restent lisibles).
+     ⚠️ Des nombres bornés et une clé « ecran/… » : rien d'autre ne passe. */
+  const PLACE_FIXE_DEFAUT = { x: 600, y: 330, w: 400 };
+  function placeFixe(p){
+    if(!p || typeof p !== 'object') return null;
+    const w = Math.round(nombre(p.w, 30, 1600, NaN));
+    const x = Math.round(nombre(p.x, -800, 1600, NaN)), y = Math.round(nombre(p.y, -600, 900, NaN));
+    return (isFinite(w) && isFinite(x) && isFinite(y)) ? { x: x, y: y, w: w } : null;
+  }
+  function nettoyerFixe(f){
+    if(!f || typeof f !== 'object') return null;
+    const cle = cleDePhoto(f.cle);
+    if(!cle) return null;
+    return { cle: cle, accueil: placeFixe(f.accueil), vitrine: placeFixe(f.vitrine) };
+  }
   function nettoyerAnimation(a){
     a = (a && typeof a === 'object') ? a : {};
     return {
+      fixes: (Array.isArray(a.fixes) ? a.fixes : []).map(nettoyerFixe).filter(Boolean).slice(0, 6),
       lutins: (Array.isArray(a.lutins) ? a.lutins : []).filter(k => LUTINS[k]).slice(0, 13),
       photos: (Array.isArray(a.photos) ? a.photos : []).map(cleDePhoto).filter(Boolean).slice(0, 6),
       sens: ['tombe', 'monte', 'traverse'].indexOf(a.sens) !== -1 ? a.sens : '',
@@ -672,7 +692,7 @@
     nettoyerTheme: nettoyerTheme, nettoyerAnimation: nettoyerAnimation, themesComplets: themesComplets,
     paques: paques, dansLaPeriode: dansLaPeriode, joursAvant: joursAvant, themeDuJour: themeDuJour, cssTheme: cssTheme,
     nettoyerMep: nettoyerMep, cssMep: cssMep, cssImminent: cssImminent, photosDeLaMep: photosDeLaMep,
-    nettoyerPlaceQr: nettoyerPlaceQr, cssPlaceQr: cssPlaceQr,
+    nettoyerPlaceQr: nettoyerPlaceQr, cssPlaceQr: cssPlaceQr, placeFixe: placeFixe, PLACE_FIXE_DEFAUT: PLACE_FIXE_DEFAUT,
     couleur: couleur, avecAlpha: avecAlpha
   };
 })();
