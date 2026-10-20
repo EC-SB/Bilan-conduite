@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:21 — v939 */
+/* Déployé le 20/10/2026 à 11:45 — v1209 */
 /* ============================================================
    ec-coutsia.js
    Ce que l'IA coûte à l'auto-école.
@@ -455,6 +455,8 @@ function dessinerEcranCouts(){
   const zone = $('coutsIaZone');
   if(!zone) return;
   zone.innerHTML = '';
+  /* ⏱️ v1209 — le seuil d'alerte des bilans IA, et les durées */
+  if(typeof blocTempsDesGenerations === 'function') zone.appendChild(blocTempsDesGenerations());
   zone.appendChild(blocPeriodeCouts());
 
   const liste = document.createElement('div');
@@ -689,6 +691,8 @@ async function chargerCoutsIa(){
   if(!z) return;
   const b = bornesDeLaPeriode(coutsPeriode, coutsDu, coutsAu);
   z.innerHTML = '<div class="empty">Chargement…</div>';
+  /* ⏱️ v1209 — les durées des générations, sur la même période */
+  if(typeof chargerTempsDesGenerations === 'function') chargerTempsDesGenerations(b);
 
   /* Les deux lectures partent ENSEMBLE. En série, on attendrait la
      somme des deux délais pour un chiffre de comparaison ; et si
@@ -994,6 +998,9 @@ function detailDesCouts(lignes){
         '<br>' + (Number(x.entree) || 0).toLocaleString('fr-FR') + ' → ' +
         (Number(x.sortie) || 0).toLocaleString('fr-FR') + ' jetons' +
         (x.modele ? ' · ' + p(x.modele) : '') +
+        /* ⏱️ v1209 — le temps qu'a mis l'IA (vide pour les lignes d'avant) */
+        ((x.duree !== '' && x.duree !== undefined && x.duree !== null && typeof dureeLisibleIA === 'function')
+          ? ' · ⏱️ ' + dureeLisibleIA(x.duree) : '') +
       '</div>';
     z.appendChild(l);
   });
