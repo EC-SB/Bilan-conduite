@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 10:51 — v1199 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3885,6 +3885,13 @@ async function ouvrirRdvPost(cours){
 
   /* Ce que l'élève a écrit, et ce que le moniteur ajoute */
   $('rdvPostEleveBilan').value = s.bilanEleve || '';
+  /* 📷 v1211 — les photos de son bilan écrit à la main : le moniteur
+     les voit, et peut en ajouter une prise au rendez-vous. */
+  const zPhotos = $('rdvPostPhotosBilan');
+  if(zPhotos && typeof galeriePhotosBilan === 'function'){
+    zPhotos.innerHTML = '';
+    zPhotos.appendChild(galeriePhotosBilan(cours.eleve, { champ: $('rdvPostEleveBilan') }));
+  }
   $('rdvPostTexte').value = s.texteMoniteur || '';
 
   /* Ce qui avait été tapé et jamais enregistré revient par-dessus :
