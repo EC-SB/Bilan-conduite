@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:01 — v1208 */
+/* Déployé le 20/10/2026 à 11:45 — v1209 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1209,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🤖 Un bilan IA ne peut plus attendre sans fin',
+    quoi: [
+      { emoji: '📶',
+        titre: 'La génération qu’on voit avancer',
+        texte: 'Le bilan s’écrit au fil de l’eau : le nombre de mots écrits, le temps écoulé et le temps habituel s’affichent, et l’écran reste allumé. ' +
+               'Une connexion qui meurt (réseau, veille du téléphone) est relancée toute seule, une fois.' },
+      { emoji: '⏱️',
+        titre: 'Au bout de 6 minutes, le moniteur choisit',
+        texte: '« 🔁 Relancer la génération » ou « ✍️ Envoyer sans la partie IA » : le bilan habituel, avec la dictée en clair, et les rubriques qu’il coche ' +
+               'remplies à la main. La génération continue en fond pendant ce temps. Le bureau reçoit une notification.' },
+      { emoji: '✍️',
+        titre: 'La dictée gardée',
+        texte: 'Un bilan envoyé sans IA garde sa dictée : elle apparaît dans « 🩹 Cours non terminés › ✍️ Envoyés sans la partie IA ». ' +
+               '« 🤖 Refaire avec l’IA » arrive à la prochaine livraison.' },
+      { emoji: '💸',
+        titre: 'Le seuil, réglable, et les durées mesurées',
+        texte: 'Outils › Argent › 💸 Coûts IA : le seuil d’alerte (administrateurs), le temps habituel, les plus longues, les échecs ; chaque ligne du détail porte sa durée.' }
+    ]
+  },
   {
     version: 1208,
     date: 'Mardi 20 octobre 2026',
