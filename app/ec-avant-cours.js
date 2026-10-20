@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 13:15 — v1212 */
+/* Déployé le 20/10/2026 à 16:10 — v1219 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -1273,6 +1273,163 @@ function preparationDuCours(nom, jour){
   return siennes.find(x => x.date === jour) ||
          siennes.slice().sort((a, b) =>
            String(b.date).localeCompare(String(a.date)))[0] || null;
+}
+
+/* ============================================================
+   📍 OÙ IL EN EST, DANS LE BILAN QU'IL REÇOIT — v1219
+
+   David, le 20 octobre : « est-ce que dans les bilans que reçoivent
+   les élèves ça indique où ils en sont par rapport à leur frise ? »
+   Non : le bilan rappelait la frise, sans dire où il en était
+   dedans. Ses choix, sur schéma :
+     · une ligne « 📍 Où tu en es : … » juste sous le rappel de la
+       frise, en fin de bilan — ou en fin de bilan s'il n'a pas de
+       rappel de frise ;
+     · « ⚠️ ATTENTION : ce nombre peut changer selon ton évolution. »
+       en dessous — sauf pour la leçon de veille et l'ajournement,
+       où il n'y a pas de nombre ;
+     · tous les bilans d'élève.
+
+   ⚠️ LES MÊMES SOURCES QUE LA PHRASE VERTE DU MONITEUR. Le rang du
+   cours (le questionnaire), la frise, l'état de l'examen blanc et
+   du permis (etatQuiFaitFoi), le solde d'heures (heuresQuiComptent,
+   APRÈS le cours qui vient d'avoir lieu), la veille (la phrase
+   verte elle-même). L'élève lit donc ce que le moniteur voit.
+
+   ⚠️ ET RIEN PLUTÔT QUE FAUX. Sans rang, sans frise, sans solde :
+   pas de ligne. Le moniteur la lit de toute façon avant d'envoyer
+   (elle est dans le texte du bilan), et peut la corriger.
+   ============================================================ */
+const MODELES_SANS_OU_TU_EN_ES = ['handicap', 'prefecture', 'formation-accompagnateur',
+  'eval-manuelle', 'eval-auto', 'examen-blanc', 'examen-officiel', 'rdv-post'];
+const ATTENTION_EVOLUTION = '⚠️ ATTENTION : ce nombre peut changer selon ton évolution.';
+
+function ouTuEnEsPourLEleve(nom, q, note, modele, jour){
+  q = q || {};
+  if(!nom || MODELES_SANS_OU_TU_EN_ES.indexOf(String(modele || '')) !== -1) return null;
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const etat = (typeof etatQuiFaitFoi === 'function') ? (etatQuiFaitFoi(nom) || {}) : {};
+  const clair = (typeof noteEnClair === 'function') ? noteEnClair(note || '') : String(note || '');
+  const a = (typeof analyserNote === 'function') ? (analyserNote(clair) || {}) : {};
+  const enLettres = d => (typeof dateEnToutesLettres === 'function' && d) ? (dateEnToutesLettres(d) || d) : (d || '');
+  const pl = k => (k > 1 ? 's' : '');
+  const rang = k => (typeof rangLecon === 'function') ? rangLecon(k) : k + 'ème';
+  const nombre = v => { const x = parseFloat(String(v === undefined || v === null ? '' : v).replace(',', '.')); return isNaN(x) ? null : x; };
+  const avec = texte => ({ texte: texte, attention: true });
+  const sans = texte => ({ texte: texte, attention: false });
+
+  /* ① La leçon de veille : la phrase verte le dit déjà */
+  let pos = '';
+  try{
+    const corps = (typeof morceauxDeNotePreparee === 'function') ? morceauxDeNotePreparee(note || '').corps : (note || '');
+    pos = String(lignePositionDuHaut(nom, corps, note || '', modele, jour) || '');
+  }catch(e){ pos = ''; }
+  const dateExam = etat.examDate || '';
+  const isoJour = String(jour || '').slice(0, 10);
+  const examAVenir = !!dateExam && (!isoJour || String(dateExam).slice(0, 10) >= isoJour);
+  if(/le[çc]on de veille/i.test(pos) && examAVenir){
+    return sans('c’était ta leçon de veille → ton examen est le ' + enLettres(dateExam) + '.');
+  }
+
+  /* ② Ajourné, rendez-vous post-permis pas encore fait */
+  if(s.resultat === 'ajourne' && s.rdvPostFait !== 'oui' && !examAVenir){
+    return sans((s.dateAjournement ? 'examen du ' + enLettres(s.dateAjournement) + ' ajourné' : 'examen ajourné') +
+                ' → prochaine étape, ton rendez-vous post-permis (envoie ton bilan écrit avant).');
+  }
+
+  const h = (typeof heuresQuiComptent === 'function') ? (heuresQuiComptent(nom, a) || {}) : {};
+  const pasLeNiveau = (typeof estPasLeNiveau === 'function' && estPasLeNiveau(h.valeur));
+  const heures = pasLeNiveau ? null : nombre(h.valeur);
+  const examDit = examAVenir ? ' (permis le ' + enLettres(dateExam) + ')' : '';
+  const resteEnHeures = (debut, quoi) => (heures === null) ? null
+    : avec(debut + ' → ' + (heures > 0 ? 'il te reste ' + heures + 'h de leçons, puis les 3h avant ' + quoi
+                                        : 'il te reste les 3h avant ' + quoi) + examDit + '.');
+
+  /* ③ Après le rendez-vous post-permis : ses heures font loi */
+  if(s.rdvPostFait === 'oui'){
+    return resteEnHeures('rendez-vous post-permis fait', 'ton prochain examen');
+  }
+
+  const frise = String(q.frise || ((typeof extraireFrise === 'function') ? extraireFrise(note || '') : '') || '');
+  const n = parseInt(q.lecon, 10);
+
+  /* ④ AAC, conduite supervisée : la fiche véhicule mène à une étape */
+  const totalAacCs = (typeof leconsPrevuesAacCs === 'function') ? leconsPrevuesAacCs(frise) : null;
+  if(totalAacCs){
+    if(q.rvp2 === 'fait' || q.rvp1 === 'fait' || q.rvPrealable === 'fait' || isNaN(n) || !n) return null;
+    if(typeof leconCompteDansLaFrise === 'function' && modele && !leconCompteDansLaFrise(modele)) return null;
+    const etape = (typeof etapeApresFicheVehicule === 'function') ? etapeApresFicheVehicule(frise) : 'l’étape suivante';
+    if(n < totalAacCs) return avec(rang(n) + ' leçon faite sur ' + totalAacCs + ' → il te reste ' + (totalAacCs - n) +
+                                   ' leçon' + pl(totalAacCs - n) + ' avant ' + etape + '.');
+    if(n === totalAacCs) return avec(rang(n) + ' leçon sur ' + totalAacCs + ' → la prochaine étape, c’est ' + etape + '.');
+    return avec(rang(n) + ' leçon, ta frise en prévoyait ' + totalAacCs + ' → on continue jusqu’à ce que tu sois prêt pour ' + etape + '.');
+  }
+
+  /* ⑤ Examen blanc derrière lui */
+  const ebPasse = q.examBlanc === 'passe' || !!q.ebPasse || etat.examBlanc === 'passe';
+  if(ebPasse){
+    const r = (typeof resultatExamenBlanc === 'function') ? resultatExamenBlanc(nom, a) : null;
+    if(pasLeNiveau || (r && r.cle === 'pasleniveau')){
+      /* sans nombre, pas d'« ATTENTION : ce nombre… » (comme la veille) */
+      const avecNombre = heures !== null && heures > 0;
+      return (avecNombre ? avec : sans)('examen blanc fait, tu n’avais pas encore le niveau → on continue' +
+                  (avecNombre ? ', il te reste ' + heures + 'h de leçons avant de refaire le point' : '') + '.');
+    }
+    const parHeures = resteEnHeures('examen blanc fait ✅', 'ton examen');
+    if(parHeures) return parHeures;
+    /* Sans solde d'heures : ce que la frise prévoyait après l'examen blanc */
+    const avant = (typeof leconsAvantExamenBlanc === 'function') ? leconsAvantExamenBlanc(frise) : null;
+    const apres = (typeof leconsApresExamenBlanc === 'function') ? leconsApresExamenBlanc(frise) : null;
+    if(apres && avant !== null && !isNaN(n) && n > avant){
+      const reste = apres - (n - avant);
+      if(reste > 0) return avec('examen blanc fait ✅ → il te reste ' + reste + ' leçon' + pl(reste) +
+                                ' de 2h, puis les 3h avant ton examen' + examDit + '.');
+      if(reste === 0) return avec('examen blanc fait ✅ → il te reste les 3h avant ton examen' + examDit + '.');
+    }
+    return null;
+  }
+
+  /* ⑥ Avant l'examen blanc : la frise et le rang du cours */
+  if(isNaN(n) || !n) return null;
+  if(typeof leconCompteDansLaFrise === 'function' && modele && !leconCompteDansLaFrise(modele)) return null;
+  const prevues = (typeof leconsAvantExamenBlanc === 'function') ? leconsAvantExamenBlanc(frise) : null;
+  if(!prevues) return null;
+  if(n < prevues) return avec(rang(n) + ' leçon faite sur ' + prevues + ' → il te reste ' + (prevues - n) +
+                              ' leçon' + pl(prevues - n) + ' de 2h avant ton examen blanc.');
+  if(n === prevues) return avec(rang(n) + ' leçon sur ' + prevues + ' → ta prochaine leçon, c’est ton examen blanc.');
+  return avec(rang(n) + ' leçon, ta frise en prévoyait ' + prevues +
+              ' avant l’examen blanc → on continue jusqu’à ce que tu sois prêt pour ton examen blanc.');
+}
+
+/* Le bloc, posé sous le rappel de la frise — ou en fin de bilan */
+function blocOuTuEnEs(o){
+  if(!o || !o.texte) return '';
+  return '📍 Où tu en es : ' + o.texte + (o.attention ? '\n' + ATTENTION_EVOLUTION : '');
+}
+function avecOuTuEnEs(bilan, o){
+  const t = String(bilan || '');
+  const bloc = blocOuTuEnEs(o);
+  if(!bloc || t.indexOf('📍 Où tu en es : ') !== -1) return t;
+  const m = /Rappel (?:du reste )?de ta FRISE[^\n]*\n[^\n]*/.exec(t);
+  if(m){
+    const i = m.index + m[0].length;
+    return t.slice(0, i).replace(/[ \t]+$/, '') + '\n' + bloc + t.slice(i);
+  }
+  return t.replace(/\s*$/, '') + '\n\n' + bloc;
+}
+/* Le cours ouvert à l'écran : son élève, son questionnaire, sa note */
+function avecOuTuEnEsDuCours(bilan){
+  try{
+    const nom = ($('studentName') && $('studentName').value.trim()) || '';
+    const modele = ($('modele') && $('modele').value) || '';
+    const note = ($('noteInterne') && $('noteInterne').value) || '';
+    const jour = ($('lessonDate') && $('lessonDate').value) || '';
+    const q = (typeof contexteDepart !== 'undefined' && contexteDepart) ? contexteDepart : {};
+    return avecOuTuEnEs(bilan, ouTuEnEsPourLEleve(nom, q, note, modele, jour));
+  }catch(e){
+    console.warn('Où tu en es :', e);
+    return bilan;
+  }
 }
 
 /* Signale que ce module est bien chargé */
