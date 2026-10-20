@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 09:49 — v1206 */
+/* Déployé le 20/10/2026 à 10:36 — v1207 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -717,6 +717,13 @@ let prefixeExamenBlanc = '';
 let formesFiches = {};          /* modèle → forme publiée */
 let formeEnCours = null;        /* la forme de la fiche ouverte */
 let formeImposee;               /* reprise d'un brouillon : SA forme */
+/* ✍️ v1207 — la fiche ouverte, telle qu'elle est dessinée (ordre,
+   titres, zones ajoutées) : la lecture des saisies, le miroir du
+   bureau et la place des zones ajoutées dans le bilan la relisent. */
+let champsFicheOuverte = null, ficheOuverteModele = '';
+function champsDeLaFicheOuverte(modeleCle){
+  return (champsFicheOuverte && ficheOuverteModele && ficheOuverteModele === modeleCle) ? champsFicheOuverte : null;
+}
 const FONDS_FICHE = {
   '#DCD0FF': { nom: 'Violet',  fort: '#7C5CE6' }, '#E8EDF3': { nom: 'Ardoise', fort: '#5B6B80' },
   '#EEFFC2': { nom: 'Citron',  fort: '#6E9E00' }, '#D6ECFF': { nom: 'Bleu',    fort: '#2F7FD8' },
@@ -726,7 +733,39 @@ const FONDS_FICHE = {
 const INTENSITES_FICHE = ['leger', 'franc', 'fort'];
 /* Les zones qui calculent (CEPC, observations, niveau…) : elles se
    déplacent, se renomment, se colorent — elles ne se masquent pas. */
-const TYPES_LIBRES_FICHE = ['texte', 'court', 'ok', 'titre', 'sousTitre', 'photo', 'note3', 'ouinon', 'abc', 'heures'];
+const TYPES_LIBRES_FICHE = ['texte', 'court', 'ok', 'titre', 'sousTitre', 'photo', 'note3', 'ouinon', 'abc', 'heures', 'cases'];
+
+/* ✍️ v1207 — LES ZONES AJOUTÉES (livraison ②). Ce qu'on peut poser
+   « ➕ Ici » entre deux zones. Leur contenu part dans le bilan juste
+   sous la zone qui les précède sur la fiche (choix B de David) : voir
+   « placerAjoutsDansLeBilan ». */
+const TYPES_AJOUT_FICHE = {
+  titre:     { nom: '📌 Titre de partie',        aide: 'Un grand repère, comme « 2 - Pendant l’examen »' },
+  sousTitre: { nom: '🔖 Sous-titre en couleur',  aide: 'Sépare deux sujets dans une partie' },
+  texte:     { nom: '✍️ Cadre de texte',         aide: 'Le moniteur écrit ou dicte 🎙️ ; des cases peuvent y poser des phrases' },
+  court:     { nom: '▪️ Ligne courte',           aide: 'Une seule ligne : un numéro, un mot, un lieu' },
+  cases:     { nom: '☑ Cases à cocher seules',   aide: 'Chaque case cochée écrit sa phrase dans le bilan' },
+  ok:        { nom: '✅❌ Trois états',           aide: '✅, ❌ ou —' },
+  ouinon:    { nom: '👍 Oui / non',              aide: 'Oui, non ou —' },
+  note3:     { nom: '🔢 Note de 0 à 3',          aide: 'Quatre boutons : 0, 1, 2, 3' }
+};
+const RE_CLE_AJOUT_FICHE = /^z[a-z0-9]{2,12}$/;
+const RE_CLE_CADRE_FICHE = /^c[a-z0-9]{2,12}$/;
+function nouvelleCleFiche(prefixe, prises){
+  let k;
+  do{ k = prefixe + Math.random().toString(36).slice(2, 8).replace(/[^a-z0-9]/g, 'x'); }while(prises.indexOf(k) !== -1);
+  return k;
+}
+/* Les zones ajoutées d'une forme, prêtes à dessiner comme les autres */
+function ajoutsDeLaForme(forme){
+  const a = (forme && Array.isArray(forme.ajouts)) ? forme.ajouts : [];
+  return a.map(z => {
+    const c = { cle: z.cle, type: z.type, nom: z.nom || '', ajout: true };
+    if(z.aide) c.aide = z.aide;
+    if(z.type === 'texte') c.lignes = z.lignes || 4;
+    return c;
+  });
+}
 const CLES_VERROUILLEES_FICHE = ['heuresAvant', 'bilanElim', 'examen.verifNote', 'estimationTexte'];
 function zoneVerrouilleeFiche(ch){
   if(!ch) return true;
@@ -743,7 +782,21 @@ function texteFiche(v, max){ return String(v == null ? '' : v).replace(/[\u0000-
    connues, des textes bornés, des couleurs vérifiées. */
 function nettoyerFormeFiche(forme, champs){
   const f = (forme && typeof forme === 'object') ? forme : {};
-  const cles = (champs || []).map(ch => ch.cle);
+  const clesOrigine = (champs || []).map(ch => ch.cle);
+  /* ✍️ v1207 — les zones ajoutées : une clé à nous (« z… »), un type
+     de la liste, un titre et une aide bornés. Rien d'autre ne passe. */
+  const ajouts = [];
+  (Array.isArray(f.ajouts) ? f.ajouts : []).slice(0, 40).forEach(z => {
+    if(!z || typeof z !== 'object') return;
+    const k = String(z.cle || '');
+    if(!RE_CLE_AJOUT_FICHE.test(k) || clesOrigine.indexOf(k) !== -1 || ajouts.some(x => x.cle === k)) return;
+    if(!Object.prototype.hasOwnProperty.call(TYPES_AJOUT_FICHE, z.type)) return;
+    const o = { cle: k, type: z.type, nom: texteFiche(z.nom, 120) };
+    if(typeof z.aide === 'string' && z.aide.trim()) o.aide = texteFiche(z.aide, 240);
+    if(z.type === 'texte'){ const n = parseInt(z.lignes, 10); o.lignes = (n >= 1 && n <= 12) ? n : 4; }
+    ajouts.push(o);
+  });
+  const cles = clesOrigine.concat(ajouts.map(z => z.cle));
   const zones = {};
   const src = (f.zones && typeof f.zones === 'object') ? f.zones : {};
   cles.forEach(k => {
@@ -768,13 +821,29 @@ function nettoyerFormeFiche(forme, champs){
   });
   const ordre = [];
   (Array.isArray(f.ordre) ? f.ordre : []).forEach(k => { if(cles.indexOf(k) !== -1 && ordre.indexOf(k) === -1) ordre.push(k); });
-  return { v: 1, zones: zones, ordre: ordre };
+  /* ✍️ v1207 — « 📦 Encadrer » : un fond pour plusieurs zones qui se
+     suivent, de « de » à « a » dans l'ordre de la fiche. */
+  const cadres = [];
+  (Array.isArray(f.cadres) ? f.cadres : []).slice(0, 16).forEach(c => {
+    if(!c || typeof c !== 'object') return;
+    const id = String(c.id || '');
+    if(!RE_CLE_CADRE_FICHE.test(id) || cadres.some(x => x.id === id)) return;
+    if(cles.indexOf(c.de) === -1 || cles.indexOf(c.a) === -1) return;
+    const fond = couleurFiche(c.fond);
+    if(!fond) return;
+    cadres.push({ id: id, de: c.de, a: c.a, fond: fond,
+                  intensite: INTENSITES_FICHE.indexOf(c.intensite) !== -1 ? c.intensite : 'franc' });
+  });
+  const o = { v: 1, zones: zones, ordre: ordre };
+  if(ajouts.length) o.ajouts = ajouts;
+  if(cadres.length) o.cadres = cadres;
+  return o;
 }
-/* Les rubriques d'origine, habillées par la forme */
+/* Les rubriques d'origine (et les zones ajoutées), habillées par la forme */
 function champsAvecForme(champs, forme){
   if(!Array.isArray(champs)) return champs;
   const f = nettoyerFormeFiche(forme, champs);
-  let liste = champs.map(ch => {
+  let liste = champs.concat(ajoutsDeLaForme(f)).map(ch => {
     const c = Object.assign({}, ch);
     const z = f.zones[ch.cle] || {};
     if(z.nom !== undefined && z.nom.trim()) c.nom = z.nom;
@@ -787,7 +856,7 @@ function champsAvecForme(champs, forme){
     else if(c.phraseCoche) c.cases = [{ libelle: '', phrase: String(c.phraseCoche), ou: 'debut', office: 0 }];
     delete c.phraseCoche;
     if(z.micro === 0) c.sansMicro = true;
-    if(z.cache && !zoneVerrouilleeFiche(ch)) c.cacheFiche = true;
+    if(z.cache && (ch.ajout || !zoneVerrouilleeFiche(ch))) c.cacheFiche = true;
     return c;
   });
   if(f.ordre.length){
@@ -796,6 +865,17 @@ function champsAvecForme(champs, forme){
     dOrigine.sort((a, b) => (rang(a[0].cle) - rang(b[0].cle)) || (a[1] - b[1]));
     liste = dOrigine.map(x => x[0]);
   }
+  /* Les cadres se posent APRÈS l'ordre : un cadre va « de telle zone
+     à telle zone », telles qu'elles se suivent sur la fiche. Il
+     l'emporte sur le fond propre de chaque zone qu'il entoure. */
+  (f.cadres || []).forEach(cd => {
+    let i = liste.findIndex(c => c.cle === cd.de), j = liste.findIndex(c => c.cle === cd.a);
+    if(i === -1 || j === -1) return;
+    if(i > j){ const t = i; i = j; j = t; }
+    for(let k = i; k <= j; k++){
+      liste[k].fond = cd.fond; liste[k].intensite = cd.intensite; liste[k].cadre = cd.id;
+    }
+  });
   return liste;
 }
 /* La forme publiée d'un modèle (gardée sur l'appareil : une fiche
@@ -862,6 +942,184 @@ function masquerMicrosFiche(bloc){
   if(typeof MutationObserver === 'function'){
     new MutationObserver(() => cacher(bloc)).observe(bloc, { childList: true, subtree: true });
   }
+}
+
+/* ============================================================
+   ✍️ OÙ VONT LES ZONES AJOUTÉES DANS LE BILAN — v1207
+
+   Le choix B de David : « juste sous la zone qui la précède sur la
+   fiche ». Le bilan, lui, est composé par le constructeur du modèle
+   (ec-modeles.js), qui ne connaît pas ces zones : on les y glisse
+   APRÈS coup, sans toucher à une seule ligne de ce qu'il a écrit.
+
+   Pour savoir où finit une zone d'origine dans le texte, on refait
+   le bilan avec une marque invisible au bout de SA valeur, et on
+   regarde où elle sort. ⚠️ ON NE GARDE LA PLACE QUE SI, MARQUE
+   ÔTÉE, LE BILAN EST IDENTIQUE À LA LIGNE PRÈS : une zone dont la
+   valeur change la forme du bilan (un titre qui n'apparaît que
+   s'il y a du texte…) n'est pas un repère, on remonte à la
+   précédente. Rien de trouvé au-dessus : à la fin du bilan.
+   ============================================================ */
+const MARQUE_AJOUT_FICHE = '';
+function grasFiche(t){ return (typeof grasUnicode === 'function') ? grasUnicode(t) : String(t || ''); }
+function lignesDUnAjoutFiche(c, v){
+  const nom = String(c.nom || '').trim();
+  const val = (v == null) ? '' : String(v).trim();
+  if(c.type === 'titre') return nom ? [grasFiche(nom.toUpperCase()), '━━━━━━━━━━━━━━━━━━'] : [];
+  if(c.type === 'sousTitre') return nom ? [grasFiche(nom)] : [];
+  if(!val) return [];
+  if(c.type === 'texte' || c.type === 'cases'){
+    const l = val.split('\n');
+    return nom ? [grasFiche(nom) + ' :'].concat(l) : l;
+  }
+  if(c.type === 'court') return [(nom ? grasFiche(nom) + ' : ' : '') + val.replace(/\s*\n\s*/g, ' ')];
+  if(c.type === 'ok') return (val === '✅' || val === '❌') ? [(nom ? grasFiche(nom) + ' ' : '') + val] : [];
+  if(c.type === 'ouinon') return (val === 'oui' || val === 'non') ? [(nom ? grasFiche(nom) + ' : ' : '') + (val === 'oui' ? '✅ Oui' : '❌ Non')] : [];
+  if(c.type === 'note3') return /^[0-3]$/.test(val) ? [(nom ? grasFiche(nom) + ' : ' : '') + val + ' /3'] : [];
+  return [];
+}
+/* Une suite de zones ajoutées → ses lignes. Un titre ajouté ne sort
+   que si une zone remplie le suit : pas de titre orphelin. */
+function lignesDesAjoutsFiche(zones, valeurs){
+  const out = [];
+  let enAttente = [];
+  zones.forEach(c => {
+    if(c.cacheFiche) return;
+    const l = lignesDUnAjoutFiche(c, valeurs[c.cle]);
+    if(c.type === 'titre' || c.type === 'sousTitre'){
+      if(c.type === 'titre') enAttente = [];
+      if(l.length) enAttente.push(l);
+      return;
+    }
+    if(!l.length) return;
+    enAttente.forEach(t => { if(out.length) out.push(''); t.forEach(x => out.push(x)); });
+    enAttente = [];
+    if(out.length) out.push('');
+    l.forEach(x => out.push(x));
+  });
+  return out;
+}
+/* Un titre de la fiche et celui du bilan s'écrivent dans des alphabets
+   différents (« 𝟯 - 𝗕𝗜𝗟𝗔𝗡 » en gras Unicode) : on compare leurs lettres. */
+function normeTitreFiche(t){
+  return String(t || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+function placerAjoutsDansLeBilan(bilan, champsFiche, valeurs, donneesJson, construire){
+  if(!Array.isArray(champsFiche) || !champsFiche.some(c => c && c.ajout)) return bilan;
+  const lignes0 = String(bilan).split('\n');
+  /* les suites de zones ajoutées, dans l'ordre de la fiche */
+  const suites = [];
+  let cur = null;
+  champsFiche.forEach((c, i) => {
+    if(c && c.ajout){ if(!cur){ cur = { debut: i, zones: [] }; suites.push(cur); } cur.zones.push(c); }
+    else cur = null;
+  });
+  const egales = (a, b) => a.length === b.length && a.every((x, i) => String(x).replace(/\s+$/, '') === String(b[i]).replace(/\s+$/, ''));
+  const lire = (d, cle) => { const p = String(cle).split('.'); let o = d; for(const k of p){ if(!o || typeof o !== 'object') return undefined; o = o[k]; } return o; };
+  const memo = {};
+  const placeApres = c => {
+    if(memo[c.cle] !== undefined) return memo[c.cle];
+    let r = -1;
+    try{
+      const d = JSON.parse(donneesJson);
+      const v = lire(d, c.cle);
+      if(v === undefined || v === null || typeof v === 'string'){
+        const p = String(c.cle).split('.');
+        let o = d;
+        for(let i = 0; i < p.length - 1; i++){ if(!o[p[i]] || typeof o[p[i]] !== 'object') o[p[i]] = {}; o = o[p[i]]; }
+        o[p[p.length - 1]] = (v || '') + MARQUE_AJOUT_FICHE;
+        const l = String(construire(d)).split('\n');
+        const k = l.findIndex(x => x.indexOf(MARQUE_AJOUT_FICHE) !== -1);
+        if(k !== -1){
+          const sans = l.map(x => x.split(MARQUE_AJOUT_FICHE).join(''));
+          if(egales(sans, lignes0)) r = k + 1;
+          else if(!sans[k].trim() && egales(sans.slice(0, k).concat(sans.slice(k + 1)), lignes0)) r = k;
+          else if(!v && sans.length > lignes0.length){
+            /* Vide, la zone ne laisse rien ; remplie, elle ajoute ses
+               lignes (un titre et son texte) À UN SEUL ENDROIT, tout le
+               reste à l'identique : c'est là qu'elle aurait été. */
+            let j = 0;
+            while(j < lignes0.length && egales([sans[j]], [lignes0[j]])) j++;
+            const n = sans.length - lignes0.length;
+            if(j <= k && k < j + n && egales(sans.slice(j + n), lignes0.slice(j))) r = j;
+          }
+        }
+      }
+    }catch(e){ r = -1; }
+    memo[c.cle] = r;
+    return r;
+  };
+  const poses = [];
+  let plancher = 0;
+  suites.forEach(su => {
+    const lignes = lignesDesAjoutsFiche(su.zones, valeurs);
+    if(!lignes.length) return;
+    /* On remonte la fiche zone par zone, sans franchir le début de
+       la partie (un titre) ni une zone qui calcule : elle écrit des
+       lignes qu'on ne sait pas situer, et passer par-dessus ferait
+       sortir le bloc bien plus haut qu'elle. */
+    let idx = -1, essais = 0;
+    for(let i = su.debut - 1; i >= 0 && idx === -1 && essais < 12; i--){
+      const c = champsFiche[i];
+      if(!c || c.ajout || c.type === 'sousTitre') continue;
+      if(c.type === 'titre' || zoneVerrouilleeFiche(c)) break;
+      if(c.type !== 'texte' && c.type !== 'court') continue;
+      essais++;
+      idx = placeApres(c);
+    }
+    /* Rien au-dessus : à la fin de SA partie, juste avant le titre de
+       la suivante quand on le retrouve dans le bilan… */
+    if(idx === -1){
+      const t = champsFiche.slice(su.debut).find(c => c && !c.ajout && c.type === 'titre');
+      const n = t ? normeTitreFiche(t.nom) : '';
+      if(n.length >= 6){
+        const k = lignes0.findIndex((l, i) => {
+          if(i < plancher) return false;
+          const x = normeTitreFiche(l);
+          return x && (x === n || (x.length >= 8 && n.indexOf(x) === 0) || (n.length >= 8 && x.indexOf(n) === 0));
+        });
+        if(k !== -1){
+          let j = k;
+          while(j > plancher && !String(lignes0[j - 1]).trim()) j--;
+          idx = j;
+          plancher = idx;
+          poses.push({ idx: idx, lignes: lignes });
+          return;
+        }
+      }
+      /* … sinon tout à la fin, sans peser sur les suivantes */
+      poses.push({ idx: lignes0.length, lignes: lignes, fin: true });
+      return;
+    }
+    /* Sous la zone, c'est sous TOUT ce qu'elle a laissé : on passe les
+       lignes vides et les cases à remplir restées vides (« 👉 »,
+       « 👨‍✈️ »…), pour ne pas se glisser au milieu d'une liste. */
+    while(idx < lignes0.length && /^[^\p{L}\p{N}]{0,8}$/u.test(String(lignes0[idx]).trim())) idx++;
+    idx = Math.max(idx, plancher);
+    plancher = idx;
+    poses.push({ idx: idx, lignes: lignes });
+  });
+  if(!poses.length) return bilan;
+  /* les blocs de la fin passent après tous les autres, dans l'ordre de la fiche */
+  poses.sort((a, b) => (a.idx - b.idx) || ((a.fin ? 1 : 0) - (b.fin ? 1 : 0)));
+  const out = [];
+  let p = 0;
+  const glisser = pose => {
+    if(out.length && String(out[out.length - 1]).trim()) out.push('');
+    pose.lignes.forEach(x => out.push(x));
+    out.push('');
+  };
+  for(let i = 0; i <= lignes0.length; i++){
+    while(p < poses.length && poses[p].idx === i){ glisser(poses[p]); p++; }
+    if(i < lignes0.length){
+      /* pas deux lignes vides de suite là où on a glissé un bloc */
+      if(out.length && out[out.length - 1] === '' && !String(lignes0[i]).trim() && p > 0 && poses[p - 1].idx === i) continue;
+      out.push(lignes0[i]);
+    }
+  }
+  /* posé tout au bout : pas de ligne vide de plus après lui */
+  if(poses[poses.length - 1].idx === lignes0.length && out[out.length - 1] === '') out.pop();
+  return out.join('\n');
 }
 
 /* L'identifiant d'un champ. TOUS les points sont remplacés :
@@ -1452,6 +1710,7 @@ async function ouvrirBilanManuel(){
                : (modele.schema === 'handicap' ? null : formePublieeDe(modeleCle));
   formeImposee = undefined;
   const champs = formeEnCours ? champsAvecForme(champsBase, formeEnCours) : champsAvecForme(champsBase, null);
+  champsFicheOuverte = champs; ficheOuverteModele = modeleCle;
 
   const eleve = $('studentName').value.trim();
   const btn = $('manuelBtn');
@@ -3878,9 +4137,12 @@ function ficheManuelleEnTexte(quelleZone){
 
   const sel = (typeof $ === 'function') ? $('modele') : null;
   const modele = (sel && typeof MODELES === 'object') ? MODELES[sel.value] : null;
+  /* ✍️ v1207 — la fiche telle que le moniteur la voit (ordre,
+     titres, zones ajoutées), quand c'est elle qui est ouverte */
   const champs = modele
-    ? ((modele.schema === 'handicap' && typeof schemaHandicap === 'function')
-        ? schemaHandicap() : CHAMPS_MANUELS[modele.schema])
+    ? (champsDeLaFicheOuverte(sel.value) ||
+       ((modele.schema === 'handicap' && typeof schemaHandicap === 'function')
+        ? schemaHandicap() : CHAMPS_MANUELS[modele.schema]))
     : null;
 
   /* Pas de schéma connu : on retombe sur la lecture de la page,
@@ -3893,6 +4155,7 @@ function ficheManuelleEnTexte(quelleZone){
   let remplis = 0;
 
   champs.forEach(ch => {
+    if(ch.cacheFiche) return;   /* ✍️ masquée par le créateur de fiches */
     if(ch.type === 'envoiAvant' || ch.type === 'rappelFrise' ||
        ch.type === 'photo' || ch.type === 'apercuEval') return;
 
@@ -4253,13 +4516,30 @@ function lireChampsManuels(champsVoulus){
   /* La fiche handicap se construit ligne par ligne depuis le
      document papier : elle est trop longue pour être écrite à
      la main dans le tableau des schémas. */
-  const champs = champsVoulus || ((modele.schema === 'handicap')
+  let champs = champsVoulus || ((modele.schema === 'handicap')
     ? schemaHandicap()
     : CHAMPS_MANUELS[modele.schema]);
   if(!champs) return;
+  /* ✍️ v1207 — et les zones ajoutées par le créateur de fiches */
+  if(!champsVoulus){
+    const ouverte = champsDeLaFicheOuverte($('modele').value);
+    const ajouts = ouverte ? ouverte.filter(c => c && c.ajout) : [];
+    if(ajouts.length) champs = champs.concat(ajouts);
+  }
 
   champs.forEach(ch => {
-    if(ch.type === 'titre' || ch.type === 'sousTitre' ||
+    if(ch.type === 'cases'){
+      /* ✍️ v1207 — des cases seules : les phrases cochées, dans
+         l'ordre des cases */
+      const cbs = document.querySelectorAll('.caseSeule[data-cle="' + String(ch.cle).replace(/"/g, '') + '"]');
+      if(!cbs.length) return;
+      const phrases = [];
+      Array.prototype.forEach.call(cbs, cb => {
+        const c = (ch.cases || [])[Number(cb.value)];
+        if(cb.checked && c && c.phrase) phrases.push(String(c.phrase));
+      });
+      champsManuels[ch.cle] = phrases.join('\n');
+    }else if(ch.type === 'titre' || ch.type === 'sousTitre' ||
        ch.type === 'envoiAvant' || ch.type === 'rappelFrise'){
       /* Ni un intertitre, ni un sous-titre, ni un bouton ne
          portent de réponse */
@@ -4414,6 +4694,8 @@ function lireChampsManuels(champsVoulus){
 async function genererBilanManuel(){
   /* On relève d'abord tout ce que le moniteur a saisi */
   lireChampsManuels();
+  /* ✍️ v1207 — la fiche telle qu'il l'a remplie (zones ajoutées) */
+  const ficheDuBilan = champsDeLaFicheOuverte($('modele').value);
 
   /* ⚠️ LE TRAJET SE CLÔT ET SE SIGNALE ICI — v997. Avant tout le
      reste : le questionnaire de fin dure, et pendant ce temps le
@@ -4596,14 +4878,31 @@ async function genererBilanManuel(){
 
   let bilan;
   try{
-    bilan = modele.build(donnees, {
+    const ctxBilan = {
       manoeuvresAvant: manoeuvresAvant,
       marquesAvant: marquesAvant,
       transcript: (typeof aererTexte === 'function'
                     ? aererTexte(champsManuels.texteDicte || '')
                     : (champsManuels.texteDicte || '')),
       note: $('noteInterne').value.trim()
-    });
+    };
+    /* ✍️ v1207 — des zones ajoutées sur la fiche : on garde de quoi
+       refaire le bilan à l'identique pour trouver leur place. */
+    const avecAjouts = !!(ficheDuBilan && ficheDuBilan.some(c => c && c.ajout));
+    const donneesJson = avecAjouts ? JSON.stringify(donnees) : '';
+    const ctxJson = avecAjouts ? JSON.stringify(ctxBilan) : '';
+    bilan = modele.build(donnees, ctxBilan);
+    if(avecAjouts){
+      try{
+        bilan = placerAjoutsDansLeBilan(bilan, ficheDuBilan, champsManuels, donneesJson,
+                                        d => modele.build(d, JSON.parse(ctxJson)));
+      }catch(e){
+        /* plutôt à la fin que perdues */
+        console.warn('Zones ajoutées :', e);
+        const l = lignesDesAjoutsFiche(ficheDuBilan.filter(c => c && c.ajout), champsManuels);
+        if(l.length) bilan += '\n\n' + l.join('\n');
+      }
+    }
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
     if(typeof blocProcedures === 'function'){
@@ -6714,6 +7013,52 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         'Sa fiche reste en haut pour la suite.';
       bloc.appendChild(a);
 
+    }else if(ch.type === 'cases'){
+      /* ✍️ v1207 — des cases seules (zone ajoutée par le créateur) :
+         chaque case cochée écrit sa phrase dans le bilan. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      if(ch.aide){
+        const a = document.createElement('div');
+        a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;';
+        a.textContent = ch.aide;
+        bloc.appendChild(a);
+      }
+      const liste = Array.isArray(ch.cases) ? ch.cases : [];
+      liste.forEach((c, i) => {
+        if(!c || !c.phrase) return;
+        const lab = document.createElement('label');
+        lab.className = 'caseSeuleL';
+        lab.style.cssText = 'display:flex;align-items:flex-start;gap:9px;' +
+          'margin:0 0 8px;font-size:13.5px;line-height:1.45;' +
+          'text-transform:none;color:var(--cream);cursor:pointer;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'caseSeule';
+        cb.setAttribute('data-cle', ch.cle);
+        cb.value = String(i);
+        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:1px;';
+        if(c.office) cb.checked = true;
+        cb.addEventListener('change', () => {
+          champsManuels[ch.cle] = liste.filter((x, j) => {
+            const autre = bloc.querySelector('.caseSeule[value="' + j + '"]');
+            return autre && autre.checked && x && x.phrase;
+          }).map(x => x.phrase).join('\n');
+          if(typeof sauvegarderManuel === 'function') sauvegarderManuel();
+        });
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(c.libelle || c.phrase));
+        if(c.libelle) lab.title = c.phrase;
+        bloc.appendChild(lab);
+      });
+      if(!liste.length){
+        const v = document.createElement('div');
+        v.style.cssText = 'font-size:12px;color:var(--muted);';
+        v.textContent = '(aucune case pour l’instant)';
+        bloc.appendChild(v);
+      }
+
     }else if(ch.type === 'titre'){
       /* Un intertitre : il sépare deux moments de l'examen, et
          porte le bouton d'envoi de sa partie. */
@@ -7299,7 +7644,9 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
        de la couleur. */
     if(ch.fond){
       const intensite = ch.intensite || 'leger';
-      const marque = ch.fond + '|' + intensite;
+      /* ✍️ v1207 — un cadre « 📦 Encadrer » réunit SES zones, et
+         seulement elles : sa marque est la sienne, pas sa couleur. */
+      const marque = (ch.cadre ? 'cadre:' + ch.cadre + '|' : '') + ch.fond + '|' + intensite;
       const der = zone.lastElementChild;
       let cadre = (der && der.classList.contains('cadreFond') &&
                    der.dataset.fond === marque) ? der : null;
@@ -7307,6 +7654,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         cadre = document.createElement('div');
         peindreCadreFond(cadre, ch.fond, intensite);
         cadre.dataset.fond = marque;
+        if(ch.cadre) cadre.dataset.cadre = ch.cadre;
         zone.appendChild(cadre);
       }
       if(intensite === 'fort' && (ch.type === 'titre' || ch.type === 'sousTitre')){
