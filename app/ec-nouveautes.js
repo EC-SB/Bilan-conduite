@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:05 — v1210 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1211,
+    date: 'Mardi 20 octobre 2026',
+    resume: '📋 Procédures cochées, 🅿️ manœuvre d’examen, 🚗 phrases par voiture, 📷 bilan en photo',
+    quoi: [
+      { emoji: '📋',
+        titre: 'Les procédures, cochées pendant le cours',
+        texte: 'En vocal, sous la fiche véhicule : « 📋 Procédures à joindre au bilan ». Sur un bilan à la main (et ceux qui ne se font qu’à la main), ' +
+               'juste sous « 📍 Repère ici », avant « Composer le bilan ». Ce qui est coché part en fin de bilan, comme une procédure demandée à voix haute — jamais deux fois.' },
+      { emoji: '🅿️',
+        titre: 'Manœuvre : … (examen blanc et officiel)',
+        texte: 'Le titre de la partie manœuvre est une liste : le moniteur choisit la manœuvre faite. Les remarques disent « Manœuvre : Créneau · … », ' +
+               'le bilan porte « 🅿️ Manœuvre : … » avec l’émoji du moniteur, et elle compte sur la fiche véhicule de l’élève.' },
+      { emoji: '🚗',
+        titre: 'Les spécificités des véhicules, dans le créateur de fiches',
+        texte: 'Une case à cocher ou une zone entière peut être réservée à certaines voitures de la flotte : le moniteur ne la voit que si c’est la voiture du cours. ' +
+               'Les deux cases de la survitesse sont maintenant des cases comme les autres (« ⚡ voitures à alerte de survitesse »). « 👁️ Essayer » permet de choisir la voiture.' },
+      { emoji: '📷',
+        titre: 'Le bilan post-permis écrit à la main, en photo',
+        texte: 'Sous « 📝 Bilan écrit par l’élève » : « 📷 Ajouter » (ou coller l’image dans le champ). Le moniteur les voit et en ajoute au rendez-vous, ' +
+               'elles sont dans le dossier (onglet Permis), et l’élève les retrouve dans son espace. Douze au plus par élève.' }
+    ]
+  },
   {
     version: 1210,
     date: 'Mardi 20 octobre 2026',
