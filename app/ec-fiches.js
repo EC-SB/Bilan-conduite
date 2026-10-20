@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 10:44 — v1207 */
+/* Déployé le 20/10/2026 à 11:01 — v1208 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -14,6 +14,8 @@
    « 🗑️ Retirer » une zone ajoutée, « 📦 Encadrer » plusieurs zones
    d'un même fond. Une zone ajoutée part dans le bilan juste sous la
    zone qui la précède (choix B) — voir placerAjoutsDansLeBilan.
+   v1208 : une zone ajoutée peut être « 🔒 Pour nous seulement » — elle
+   part dans la note interne, jamais à l'élève (poserPourNousDansLaNote).
 
    ⚠️ LA FICHE DU MILIEU EST LA VRAIE. Elle est dessinée par
    dessinerChampsManuels — la fonction même qui dessine la fiche du
@@ -454,7 +456,10 @@ function blocZoneFiche(cle){
   z.innerHTML = '<h4>' + (verrou ? '🔒 ' : ajout ? '➕ ' : '✏️ ') + echFiche(nomCourtFiche(c)) + '</h4>' +
     (ajout ? '<div class="fiAjoutNote">➕ <b>Zone ajoutée</b> · ' + echFiche((TYPES_AJOUT_FICHE[c.type] || {}).nom || c.type) +
       (c.type === 'titre' || c.type === 'sousTitre' ? '<br>Dans le bilan, elle sort en tête des zones ajoutées remplies qui la suivent.'
-                                                   : '<br>Dans le bilan, ce que le moniteur y met part <b>juste sous la zone du dessus</b>.') + '</div>' : '') +
+       : c.pourNous ? '<br>🔒 <b>Pour nous seulement</b> : ce que le moniteur y met part dans la <b>note interne</b>, jamais à l’élève.'
+                    : '<br>Dans le bilan, ce que le moniteur y met part <b>juste sous la zone du dessus</b>.') + '</div>' +
+      (c.type === 'titre' || c.type === 'sousTitre' ? '' :
+        '<label class="stCocheL"><input type="checkbox" id="fiPourNous"' + (c.pourNous ? ' checked' : '') + '> 🔒 Pour nous seulement (note interne, jamais à l’élève)</label>') : '') +
     (verrou ? '<div class="fiVerrouNote">🔒 <b>Une zone qui calcule</b> : elle nourrit le bilan, le suivi ou les listes. Tu peux la <b>renommer</b>, la <b>déplacer</b>, lui donner un <b>fond</b> et retirer son <b>micro</b> — pas la masquer.</div>' : '') +
     '<label for="fiNom">Le titre sur la fiche</label><input type="text" id="fiNom" maxlength="120">' +
     (avecAide ? '<label for="fiAide">La petite aide dessous</label><input type="text" id="fiAide" maxlength="240" placeholder="(aucune)">' : '') +
@@ -503,6 +508,8 @@ function blocZoneFiche(cle){
       plusTard();
     });
   }
+  const pn = z.querySelector('#fiPourNous');
+  if(pn) pn.addEventListener('change', () => changerFiche(() => { if(aj){ if(pn.checked) aj.bureau = 1; else delete aj.bureau; } }));
   z.querySelectorAll('[data-lignes]').forEach(b => b.addEventListener('click', () => changerFiche(() => { if(aj) aj.lignes = Number(b.dataset.lignes); })));
   const mi = z.querySelector('#fiMicro');
   if(mi) mi.addEventListener('change', () => changerFiche(() => { if(mi.checked) delete reglageZoneFiche(cle).micro; else reglageZoneFiche(cle).micro = 0; }));
@@ -577,15 +584,20 @@ function ouvrirAjoutFiche(apres){
       '<button type="button" class="fiType" data-type="texte" data-sans-micro="1"><b>✍️ Cadre de texte sans 🎙️</b><small>Le même, sans le micro au bout</small></button>' +
     '</div>' +
     '<label for="fiAjNom">Son titre sur la fiche</label><input type="text" id="fiAjNom" maxlength="120" placeholder="Ex. : Remarque sur le stationnement">' +
+    '<label class="stCocheL" style="margin-top:8px;"><input type="checkbox" id="fiAjNous"> 🔒 Pour nous seulement : dans la note interne, jamais à l’élève</label>' +
     '<div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="btn btn-primary" id="fiAjOk" disabled>➕ Ajouter</button><button type="button" class="btn btn-secondary" id="fiAjNon">Annuler</button></div></div>';
   fond.querySelector('.modal').style.setProperty('max-width', '560px', 'important');
   document.body.appendChild(fond);
   let type = '', sansMicro = false;
-  const ok = fond.querySelector('#fiAjOk'), nom = fond.querySelector('#fiAjNom');
+  const ok = fond.querySelector('#fiAjOk'), nom = fond.querySelector('#fiAjNom'), nous = fond.querySelector('#fiAjNous');
   fond.querySelectorAll('.fiType').forEach(b => b.addEventListener('click', () => {
     type = b.dataset.type; sansMicro = !!b.dataset.sansMicro;
     fond.querySelectorAll('.fiType').forEach(x => x.classList.toggle('on', x === b));
     ok.disabled = false;
+    /* un titre n'a rien à écrire : ni dans le bilan, ni dans la note */
+    const titre = type === 'titre' || type === 'sousTitre';
+    nous.disabled = titre; if(titre) nous.checked = false;
+    nous.parentElement.style.opacity = titre ? '.45' : '';
     nom.focus();
   }));
   fond.querySelector('#fiAjNon').addEventListener('click', () => fond.remove());
@@ -599,6 +611,7 @@ function ouvrirAjoutFiche(apres){
       cle = nouvelleCleFiche('z', prises);
       const n = { cle: cle, type: type, nom: titre };
       if(type === 'texte') n.lignes = 4;
+      if(nous.checked && type !== 'titre' && type !== 'sousTitre') n.bureau = 1;
       fiS.forme.ajouts = (fiS.forme.ajouts || []).concat([n]);
       if(sansMicro) reglageZoneFiche(cle).micro = 0;
       const ordre = ordreCourantFiche().filter(k => k !== cle);
@@ -761,7 +774,7 @@ function blocListeZonesFiche(){
     if(c.cadre) d.style.setProperty('--cadre', c.fond === 'ardoise' ? '#5B6B80' : ((FONDS_FICHE[c.fond] && FONDS_FICHE[c.fond].fort) || c.fond));
     const coul = c.fond ? (c.fond === 'ardoise' ? '#E8EDF3' : c.fond) : '';
     const signes = (c.ajout ? '➕ ' : '') + (c.type === 'titre' ? '📌' : c.type === 'sousTitre' ? '🔖' : c.type === 'ok' ? '✅❌' : (c.type === 'texte' || c.type === 'court') ? '✍️' : c.type === 'cases' ? '☑' : '') +
-      ((c.cases || []).length ? ' ☑' + c.cases.length : '') + (r.micro === 0 ? ' 🔇' : '') + (c.cadre ? ' 📦' : '') + (verrou ? ' 🔒' : '');
+      ((c.cases || []).length ? ' ☑' + c.cases.length : '') + (r.micro === 0 ? ' 🔇' : '') + (c.cadre ? ' 📦' : '') + (c.pourNous ? ' 🔐' : '') + (verrou ? ' 🔒' : '');
     d.innerHTML = '<span class="pastille" style="background:' + (coul || 'transparent') + ';' + (coul ? '' : 'border-style:dashed;') + '"></span>' +
       '<button type="button" class="n" data-zc="choisir">' + echFiche(nomCourtFiche(c)) + '</button><span class="s">' + signes + '</span>' +
       '<button type="button" class="btn btn-secondary" data-zc="haut" title="Monter"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
