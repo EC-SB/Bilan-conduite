@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:35 — v1215 */
+/* Déployé le 20/10/2026 à 14:49 — v1216 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,20 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1216,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🎯 La phrase verte reste visible pendant tout le cours',
+    quoi: [
+      { emoji: '🎯',
+        titre: 'Où il en est, pendant tout le cours',
+        texte: 'La phrase verte de la carte (« 5ème leçon — plus que 2 leçons », « C’est la leçon de veille… », « 🏁 Ajourné le … ») ' +
+               's’affiche aussi sous « 📋 Compléter les infos », pour tous les élèves, pendant tout le cours.' },
+      { emoji: '🚗',
+        titre: '« Permis le … » au lieu du 📅',
+        texte: 'Dans la ligne sous « 📋 Compléter les infos », la date d’examen se lit « Permis le 22/10/2026 ».' }
+    ]
+  },
   {
     version: 1215,
     date: 'Mardi 20 octobre 2026',
