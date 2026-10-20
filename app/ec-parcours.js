@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 12:10 — v1061 */
+/* Déployé le 20/10/2026 à 18:14 — v1221 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1743,45 +1743,48 @@ function quandCourtParcours(texte){
   return m[1] + '/' + m[2] + (m[3] ? ' à ' + m[3] : '');
 }
 
+/* ============================================================
+   🎓 LE PARCOURS D'UN ÉLÈVE, EN PASTILLES — v1221
+
+   David, capture à l'appui : « le parcours des élèves est illisible,
+   on voit pas bien ». Il a choisi les PASTILLES (S2) : une carte par
+   guide, une pastille par segment — verte et « ✓ » s'il l'a vu, avec
+   le nombre de fois, grise s'il reste à voir. Toucher une pastille
+   ouvre une bulle : quand il l'a vu, combien de fois, et ce que le
+   segment contient.
+
+   ⚠️ DEUX DÉFAUTS DE SA CAPTURE, RÉPARÉS ICI :
+     · « guides/RWceaq….jpg|guides/… » s'affichait comme TITRE d'une
+       image : c'est la liste des fichiers que l'éditeur range dans
+       le titre quand on n'en a pas écrit. Une clé de fichier n'est
+       pas un titre — on écrit « 3 images ».
+     · « COURS DE THEORIE DE LA CO� » : le classeur coupe l'aperçu à
+       120 caractères, et les lettres « en gras » venues de Facebook
+       tiennent DEUX caractères chacune. Couper entre les deux laisse
+       une moitié de lettre, qui s'affiche « � ». On l'enlève, et on
+       met « … » : c'était bien une coupure.
+
+   ⚠️ CE QUE LA DONNÉE SAIT, ET CE QU'ELLE NE SAIT PAS — v1061.
+   L'élève valide un SEGMENT, jamais un bloc. Ce que la bulle liste
+   est ce que le segment CONTIENT, pas des coches séparées.
+   ============================================================ */
 function detailDuParcours(l, catalogue){
-  /* ⚠️ LE CATALOGUE SE PASSE, IL NE SE DEVINE PLUS — v1061. L'écran
-     « Parcours des élèves » a le sien en mémoire ; le dossier d'un
-     élève, lui, reçoit le sien avec sa réponse à lui. Lire la
-     variable du module dans les deux cas, c'était écraser celle de
-     l'écran de suivi en ouvrant une fiche — et retrouver, en y
-     revenant, des guides sans titre. */
+  /* ⚠️ LE CATALOGUE SE PASSE, IL NE SE DEVINE PLUS — v1061. */
   const cat = catalogue || guidesDuSuivi || {};
   const d = document.createElement('div');
-  d.style.cssText = 'margin:8px 0 2px;padding:9px 11px;border-radius:9px;' +
-    'background:var(--navy);border:1px solid var(--line);';
+  d.className = 'svP';
+  /* ⚠️ DANS L'ÉCRAN DE SUIVI, LA LIGNE ENTIÈRE SE REPLIE AU CLIC.
+     Toucher une pastille ne doit pas replier ce qu'on lit. */
+  d.addEventListener('click', ev => ev.stopPropagation());
 
   const liste = (l.liste || []);
   if(!liste.length){
-    d.innerHTML = '<div style="font-size:12px;color:var(--muted);">' +
-      'Ses groupes n\'ont aucun guide publié.</div>';
+    const v = document.createElement('div');
+    v.className = 'svNote';
+    v.textContent = 'Ses groupes n\'ont aucun guide publié.';
+    d.appendChild(v);
     return d;
   }
-
-  /* ⚠️ CE QUE LA DONNÉE SAIT, ET CE QU'ELLE NE SAIT PAS — v1061.
-
-     L'élève coche une ÉTAPE, jamais un bloc : ParcoursVu enregistre
-     Élève · Guide · Segment, et il n'y a pas de colonne « bloc ».
-     Les choses listées sous une étape sont donc ce qu'elle CONTIENT,
-     pas ce qui a été lu une par une.
-
-     Écrire un ✓ devant chacune serait afficher une précision que
-     personne ne détient — et c'est exactement le doute de David :
-     « je ne suis pas sûr qu'il ait vu le bloc texte TESTE ». La
-     phrase ci-dessous dit la règle, et le remède : un titre d'étape
-     devant un bloc en fait une étape à lui, donc une coche à lui. */
-  const note = document.createElement('div');
-  note.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.45;' +
-    'margin-bottom:6px;';
-  note.innerHTML = 'Le ✓ porte sur l\'<b>étape</b> : ce qui est listé ' +
-    'dessous est son contenu, pas des coches séparées. Pour suivre une ' +
-    'chose en particulier, mets-lui un 🏷️ <b>Titre d\'étape</b> devant ' +
-    'dans le guide.';
-  d.appendChild(note);
 
   /* Rangés par groupe, dans l'ordre où ils lui arrivent. */
   const groupes = [];
@@ -1799,107 +1802,153 @@ function detailDuParcours(l, catalogue){
 
   groupes.forEach(g => {
     const t = document.createElement('div');
-    t.style.cssText = 'font-size:11.5px;font-weight:700;margin:8px 0 4px;' +
-      'color:var(--accent-text);';
+    t.className = 'svGrp';
     t.textContent = (g.icone ? g.icone + ' ' : '') + g.nom;
     d.appendChild(t);
-
-    g.ids.forEach(id => {
-      const g2 = cat[id] || {};
-      const segs = g2.segments || [];
-      const fiches = fichesDuGuide(l, id);
-      const tout = !!(fiches[''] && fiches[''].vuLe);
-      const vuLe = vuLeDuGuide(segs, fiches);
-
-      const totalSeg = segs.length || 1;
-      const faitsSeg = segs.length
-        ? (tout ? segs.length
-                : segs.filter(sg => fiches[sg.id] && fiches[sg.id].vuLe).length)
-        : (tout ? 1 : 0);
-
-      /* ---- La ligne du guide ---- */
-      const li = document.createElement('div');
-      li.style.cssText = 'display:flex;gap:8px;align-items:baseline;' +
-        'font-size:12.5px;margin:5px 0 2px;' + (vuLe ? '' : 'color:var(--muted);');
-
-      const marque = document.createElement('span');
-      marque.style.cssText = 'flex-shrink:0;width:14px;' +
-        (vuLe ? 'color:var(--accent-text);'
-              : (faitsSeg ? 'color:var(--warn-text);' : ''));
-      /* Trois états, parce qu'il y en a trois : rien, en cours, fini.
-         Deux seulement, et « en cours » se lit comme « rien ». */
-      marque.textContent = vuLe ? '✓' : (faitsSeg ? '◐' : '·');
-      li.appendChild(marque);
-
-      const nom = document.createElement('span');
-      nom.style.cssText = 'flex:1;min-width:0;font-weight:700;';
-      /* ⚠️ UN GUIDE QUE LE CATALOGUE NE CONNAÎT PAS GARDE SON
-         IDENTIFIANT : une ligne vide ferait croire à un guide sans
-         titre plutôt qu'à un guide dépublié. */
-      nom.textContent = g2.titre || ('(guide ' + id + ')');
-      li.appendChild(nom);
-
-      const q = document.createElement('span');
-      q.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-      q.textContent = segs.length
-        ? faitsSeg + '/' + totalSeg
-        : (vuLe ? quandCourtParcours(vuLe) : 'pas encore');
-      li.appendChild(q);
-      d.appendChild(li);
-
-      /* ---- Et chaque étape dessous, c'est ça « le détail de tout ».
-         Un guide dépublié dont on ne connaît plus le découpage n'a
-         rien à montrer ici : sa ligne porte déjà sa date. ---- */
-      if(!segs.length) return;
-
-      segs.forEach(sg => {
-        const f = tout ? (fiches[sg.id] || fiches['']) : fiches[sg.id];
-        const vu = !!(f && f.vuLe) || tout;
-
-        const ls = document.createElement('div');
-        ls.style.cssText = 'display:flex;gap:7px;align-items:baseline;' +
-          'font-size:11.5px;margin:0 0 2px;padding-left:22px;' +
-          (vu ? '' : 'color:var(--muted);');
-
-        const m2 = document.createElement('span');
-        m2.style.cssText = 'flex-shrink:0;width:12px;' +
-          (vu ? 'color:var(--accent-text);' : '');
-        m2.textContent = vu ? '✓' : '·';
-        ls.appendChild(m2);
-
-        const n2 = document.createElement('span');
-        n2.style.cssText = 'flex:1;min-width:0;';
-        n2.textContent = sg.titre || '(étape sans titre)';
-        ls.appendChild(n2);
-
-        const q2 = document.createElement('span');
-        q2.style.cssText = 'font-size:10.5px;color:var(--muted);flex-shrink:0;' +
-          'text-align:right;';
-        if(f && f.vuLe){
-          const n = Number(f.vues) || 1;
-          /* Combien de fois, et quand la dernière : c'est ce qui
-             distingue « il a ouvert une fois en diagonale » de « il
-             y est revenu trois fois ». */
-          q2.innerHTML = quandCourtParcours(f.vuLe) +
-            (n > 1 ? '<br><span style="color:var(--accent-text);">' + n +
-                     ' fois</span>' : '') +
-            (f.revuLe && f.revuLe !== f.vuLe
-              ? '<br>revu ' + quandCourtParcours(f.revuLe) : '');
-        }else{
-          q2.textContent = vu ? '(guide entier)' : 'pas encore';
-        }
-        ls.appendChild(q2);
-        d.appendChild(ls);
-
-        /* ---- Et tout ce que l'étape contient — v1061. ----
-           Absent d'une réponse plus ancienne : on n'affiche alors
-           rien de plus, au lieu de n'afficher rien du tout. */
-        (sg.blocs || []).forEach(b => d.appendChild(blocDuSuivi(b, vu)));
-      });
-    });
+    g.ids.forEach(id => d.appendChild(carteDuGuideSuivi(l, id, cat[id] || {})));
   });
 
+  const note = document.createElement('div');
+  note.className = 'svNote';
+  note.textContent = 'ⓘ Touche un segment pour voir quand il l’a vu et ce qu’il contient. ' +
+    'Le ✓ porte sur le segment entier : pour suivre une chose à part, mets-lui ' +
+    'un 🏷️ Titre d’étape devant dans le guide.';
+  d.appendChild(note);
   return d;
+}
+
+function carteDuGuideSuivi(l, id, g2){
+  const segs = g2.segments || [];
+  const fiches = fichesDuGuide(l, id);
+  const tout = !!(fiches[''] && fiches[''].vuLe);
+  const vuLe = vuLeDuGuide(segs, fiches);
+
+  /* Un guide dépublié dont on ne connaît plus le découpage vaut un
+     segment : le guide entier. */
+  const lesSegs = segs.length ? segs
+    : [{ id: '', titre: 'Le guide entier', blocs: [] }];
+  const etats = lesSegs.map(sg => {
+    const f = segs.length ? (tout ? (fiches[sg.id] || fiches['']) : fiches[sg.id])
+                          : (vuLe ? (fiches[''] || { vuLe: vuLe }) : null);
+    return { sg: sg, f: f, vu: !!(f && f.vuLe) || tout || (!segs.length && !!vuLe) };
+  });
+  const faits = etats.filter(x => x.vu).length;
+
+  const c = document.createElement('div');
+  c.className = 'svCarte';
+
+  const h = document.createElement('div');
+  h.className = 'svTete';
+  const rond = document.createElement('span');
+  rond.className = 'svRond ' + (faits === etats.length ? 'fini' : (faits ? 'encours' : ''));
+  rond.textContent = faits === etats.length ? '✓' : '';
+  h.appendChild(rond);
+  const nom = document.createElement('b');
+  /* ⚠️ UN GUIDE QUE LE CATALOGUE NE CONNAÎT PAS GARDE SON IDENTIFIANT. */
+  nom.textContent = g2.titre || ('(guide ' + id + ')');
+  h.appendChild(nom);
+  const mini = document.createElement('span');
+  mini.className = 'svMini';
+  const remp = document.createElement('i');
+  remp.style.width = Math.round(faits / Math.max(1, etats.length) * 100) + '%';
+  mini.appendChild(remp);
+  h.appendChild(mini);
+  const cpt = document.createElement('span');
+  cpt.className = 'svCpt';
+  cpt.textContent = faits + ' / ' + etats.length;
+  h.appendChild(cpt);
+  c.appendChild(h);
+
+  const pills = document.createElement('div');
+  pills.className = 'svPills';
+  const bulle = document.createElement('div');
+  bulle.className = 'svBulle';
+  bulle.style.display = 'none';
+  let ouverte = -1;
+
+  etats.forEach((x, i) => {
+    const p = document.createElement('button');
+    p.type = 'button';
+    p.className = 'svPill' + (x.vu ? ' vu' : '');
+    p.textContent = (x.vu ? '✓ ' : '') + (x.sg.titre || '(étape sans titre)');
+    const n = x.f && x.f.vuLe ? (Number(x.f.vues) || 1) : 0;
+    if(n){
+      const b = document.createElement('span');
+      b.className = 'svFois';
+      b.textContent = n + '×';
+      p.appendChild(b);
+    }
+    p.addEventListener('click', () => {
+      const avant = pills.querySelector('.svPill.ici');
+      if(avant) avant.classList.remove('ici');
+      if(ouverte === i){ ouverte = -1; bulle.style.display = 'none'; return; }
+      ouverte = i;
+      p.classList.add('ici');
+      remplirLaBulleDuSuivi(bulle, x);
+      bulle.style.display = '';
+    });
+    pills.appendChild(p);
+  });
+  c.appendChild(pills);
+  c.appendChild(bulle);
+  return c;
+}
+
+function remplirLaBulleDuSuivi(bulle, x){
+  bulle.textContent = '';
+  const l1 = document.createElement('div');
+  const t = document.createElement('b');
+  t.textContent = x.sg.titre || '(étape sans titre)';
+  l1.appendChild(t);
+  const f = x.f;
+  if(f && f.vuLe){
+    const n = Number(f.vues) || 1;
+    l1.appendChild(document.createTextNode(' — vu le ' + quandCourtParcours(f.vuLe) + ' · '));
+    const fo = document.createElement('b');
+    fo.className = 'svVert';
+    fo.textContent = n + ' fois';
+    l1.appendChild(fo);
+    if(f.revuLe && f.revuLe !== f.vuLe){
+      l1.appendChild(document.createTextNode(' · dernière le ' + quandCourtParcours(f.revuLe)));
+    }
+  }else{
+    l1.appendChild(document.createTextNode(x.vu ? ' — vu (guide entier coché)' : ' — pas encore vu'));
+  }
+  bulle.appendChild(l1);
+  /* Absent d'une réponse plus ancienne : on n'affiche alors rien de
+     plus, au lieu de n'afficher rien du tout. */
+  (x.sg.blocs || []).forEach(b => bulle.appendChild(blocDuSuivi(b, x.vu)));
+}
+
+/* « COURS DE LA CO\uD835 » → « COURS DE LA CO… ». Une moitié de lettre
+   — ou le « � » qu'elle devient en route — ne s'affiche jamais. */
+function apercuNettoye(texte){
+  const s0 = String(texte || '');
+  let s = '';
+  for(let i = 0; i < s0.length; i++){
+    const c = s0.charCodeAt(i);
+    if(c >= 0xD800 && c <= 0xDBFF){
+      const n = s0.charCodeAt(i + 1);
+      if(n >= 0xDC00 && n <= 0xDFFF){ s += s0.charAt(i) + s0.charAt(i + 1); i++; }
+      continue;
+    }
+    if(c >= 0xDC00 && c <= 0xDFFF) continue;
+    if(c === 0xFFFD) continue;
+    s += s0.charAt(i);
+  }
+  s = s.trim();
+  const coupe = s0.length >= 120 || /�\s*$/.test(s0) ||
+                /[\uD800-\uDBFF]\s*$/.test(s0);
+  return (coupe && s && !/…$/.test(s)) ? s + '…' : s;
+}
+
+/* Une clé de fichier n'est pas un titre. */
+function titreLisibleDuBloc(b){
+  const t = String((b && b.titre) || '').trim();
+  if(!t) return '';
+  if(/(^|\|)\s*guides\//i.test(t)) return '';
+  if(/^[\w.\/-]+\.(jpe?g|png|gif|webp|heic|avif|mp4|mov|m4v|webm|pdf)$/i.test(t)) return '';
+  return t;
 }
 
 
@@ -1921,7 +1970,7 @@ const NOM_DU_BLOC = { video: 'Vidéo', image: 'Image', pdf: 'PDF' };
 function blocDuSuivi(b, vu){
   const li = document.createElement('div');
   li.style.cssText = 'display:flex;gap:7px;align-items:center;font-size:11.5px;' +
-    'margin:0 0 3px;padding-left:36px;' +
+    'margin:5px 0 0;' +
     (vu ? 'color:var(--soft);' : 'color:var(--muted);');
 
   if(b.type === 'texte'){
@@ -1933,7 +1982,7 @@ function blocDuSuivi(b, vu){
     const t = document.createElement('span');
     t.style.cssText = 'flex:1;min-width:0;overflow:hidden;' +
       'text-overflow:ellipsis;white-space:nowrap;font-style:italic;';
-    t.textContent = '« ' + (String(b.apercu || '').trim() || 'texte vide') + ' »';
+    t.textContent = '« ' + (apercuNettoye(b.apercu) || 'texte vide') + ' »';
     li.appendChild(t);
     return li;
   }
@@ -1957,8 +2006,10 @@ function blocDuSuivi(b, vu){
   const n = document.createElement('span');
   n.style.cssText = 'flex:1;min-width:0;overflow:hidden;' +
     'text-overflow:ellipsis;white-space:nowrap;';
-  n.textContent = String(b.titre || '').trim() ||
-                  (NOM_DU_BLOC[b.type] || 'Fichier');
+  /* ⚠️ « guides/RWce….jpg|guides/… » n'est pas un titre — v1221 */
+  n.textContent = titreLisibleDuBloc(b) ||
+    ((b.type === 'image' && cles.length > 1) ? cles.length + ' images'
+                                              : (NOM_DU_BLOC[b.type] || 'Fichier'));
   li.appendChild(n);
 
   /* ⚠️ UN BLOC MÉDIA SANS FICHIER NE MONTRE RIEN CHEZ L'ÉLÈVE, et
@@ -1969,7 +2020,7 @@ function blocDuSuivi(b, vu){
     v.style.cssText = 'flex-shrink:0;font-size:10.5px;color:var(--warn-text);';
     v.textContent = 'aucun fichier';
     li.appendChild(v);
-  }else if(cles.length > 1){
+  }else if(cles.length > 1 && titreLisibleDuBloc(b)){
     const c = document.createElement('span');
     c.style.cssText = 'flex-shrink:0;font-size:10.5px;';
     c.textContent = cles.length + ' images';
