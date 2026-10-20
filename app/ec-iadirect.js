@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 20/10/2026 à 16:10 — v1219 */
 /* ============================================================
    ec-iadirect.js
    🤖 L'IA AU FIL DE L'EAU, ET LE BILAN QUI NE REVIENT PAS — v1209
@@ -535,6 +535,8 @@ async function composerSansIA(){
                                       transcript: aere, note: $('noteInterne').value.trim() });
   if(typeof sansEcoutes === 'function' && sansEcoutes({ note: $('noteInterne').value })) bilan += '\n\n' + rappelEcoutes();
   if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
+  /* 📍 v1219 — où il en est, sous le rappel de sa frise */
+  if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
   if(typeof blocProcedures === 'function') bilan += blocProcedures(transcript);
   if(typeof blocTranscription === 'function') bilan += blocTranscription(bilan, aere);
   if(typeof blocTrajet === 'function') bilan += blocTrajet();
