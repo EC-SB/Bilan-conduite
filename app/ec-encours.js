@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 22:15 — v1068 */
+/* Déployé le 20/10/2026 à 11:45 — v1209 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -112,11 +112,27 @@ async function afficherEnCours(recharger){
      ------------------------------------------------------------ */
   const ecartes = brouillonsTous.filter(b => b.etat === 'ecarte');
 
+  /* ⏱️ v1209 — ENVOYÉS SANS LA PARTIE IA. Le bilan est parti à
+     l'élève ; la dictée est gardée exprès, pour le refaire avec l'IA.
+     Ce n'est ni une panne ni un reste à effacer : son propre bloc,
+     en haut, et rien d'autre ne la compte. */
+  const sansIA = brouillonsTous.filter(b => b.etat === 'sans-ia');
+  if(sansIA.length){
+    zone.appendChild(titreBloc('✍️ Envoyés sans la partie IA', sansIA.length,
+      "Le bilan est parti à l'élève sans le résumé de l'IA (elle n'avait pas " +
+      'répondu à temps). La dictée est gardée : le bilan pourra être refait ' +
+      "avec l'IA, relu par le moniteur, puis renvoyé à l'élève."));
+    sansIA
+      .slice()
+      .sort((a, b) => String(b.deposeLe || '').localeCompare(String(a.deposeLe || '')))
+      .forEach(b => zone.appendChild(ligneBrouillon(b)));
+  }
+
   const dejaFaits = brouillonsTous.filter(b =>
-    b.etat !== 'a-corriger' && b.etat !== 'ecarte' && bilanExistant(b));
+    b.etat !== 'a-corriger' && b.etat !== 'ecarte' && b.etat !== 'sans-ia' && bilanExistant(b));
 
   const restePlainte = brouillonsTous.filter(b =>
-    dejaFaits.indexOf(b) === -1 && ecartes.indexOf(b) === -1);
+    dejaFaits.indexOf(b) === -1 && ecartes.indexOf(b) === -1 && sansIA.indexOf(b) === -1);
 
   if(dejaFaits.length){
     zone.appendChild(titreBloc('✅ Bilan déjà enregistré — dictée à effacer',
@@ -536,7 +552,9 @@ function ligneBrouillon(b){
     return cle;
   })();
 
-  const fait = bilanExistant(b);
+  /* ⏱️ v1209 — envoyé sans IA : le bilan existe, mais la dictée n'est
+     pas un reste à effacer (voir le bloc « Envoyés sans la partie IA ») */
+  const fait = b.etat === 'sans-ia' ? null : bilanExistant(b);
   const gps = ligneDuGps(b);
 
   d.innerHTML =
@@ -555,6 +573,11 @@ function ligneBrouillon(b){
       (b.etat === 'a-corriger'
         ? '<br><span style="color:var(--bleu);">📝 bilan proposé — ' +
           'en attente de sa correction</span>'
+        : '') +
+      (b.etat === 'sans-ia'
+        ? '<br><span style="color:var(--warn-text);">✍️ envoyé à l’élève sans la partie IA' +
+          (b.deposeLe ? ' le ' + String(b.deposeLe).replace(/</g, '&lt;') : '') +
+          ' — dictée gardée pour le refaire avec l’IA</span>'
         : '') +
       /* La sécu : qui l'a rangée, et quand. Sans le « quand », le
          bureau ne peut pas dire si le moniteur vient de la ranger
@@ -593,7 +616,7 @@ function ligneBrouillon(b){
 
   /* Reprendre n'a plus de sens quand le bilan est déjà là : le
      bouton principal devient l'effacement. */
-  if(!fait){
+  if(!fait && b.etat !== 'sans-ia'){
     const bR = document.createElement('button');
     bR.className = 'btn btn-primary';
     bR.style.cssText = 'flex:1;padding:10px;font-size:13px;margin:0;';
