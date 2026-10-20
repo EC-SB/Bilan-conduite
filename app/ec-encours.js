@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:45 — v1209 */
+/* Déployé le 20/10/2026 à 12:05 — v1210 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -129,7 +129,7 @@ async function afficherEnCours(recharger){
   }
 
   const dejaFaits = brouillonsTous.filter(b =>
-    b.etat !== 'a-corriger' && b.etat !== 'ecarte' && b.etat !== 'sans-ia' && bilanExistant(b));
+    b.etat !== 'a-corriger' && b.etat !== 'refait' && b.etat !== 'ecarte' && b.etat !== 'sans-ia' && bilanExistant(b));
 
   const restePlainte = brouillonsTous.filter(b =>
     dejaFaits.indexOf(b) === -1 && ecartes.indexOf(b) === -1 && sansIA.indexOf(b) === -1);
@@ -149,7 +149,7 @@ async function afficherEnCours(recharger){
   /* Ce que le bureau a déjà repris et renvoyé : ce n'est plus à
      lui d'agir, c'est au moniteur — mais il faut pouvoir le
      relancer s'il ne le fait jamais. */
-  const aCorriger = restePlainte.filter(b => b.etat === 'a-corriger');
+  const aCorriger = restePlainte.filter(b => b.etat === 'a-corriger' || b.etat === 'refait');
 
   /* CE QUI EST EN TRAIN DE SE GÉNÉRER.
 
@@ -167,7 +167,7 @@ async function afficherEnCours(recharger){
     b.etat === 'en-generation' && depuisDepot(b) < 30);
 
   const dictees = restePlainte.filter(b =>
-    b.etat !== 'a-corriger' && enGeneration.indexOf(b) === -1);
+    b.etat !== 'a-corriger' && b.etat !== 'refait' && enGeneration.indexOf(b) === -1);
 
   if(enGeneration.length){
     zone.appendChild(titreBloc('⚙️ Bilans en cours de génération',
@@ -574,6 +574,10 @@ function ligneBrouillon(b){
         ? '<br><span style="color:var(--bleu);">📝 bilan proposé — ' +
           'en attente de sa correction</span>'
         : '') +
+      (b.etat === 'refait'
+        ? '<br><span style="color:var(--bleu);">🤖 bilan refait avec l’IA — en attente de la relecture de ' +
+          String(b.moniteur || 'son moniteur').replace(/</g, '&lt;') + ', qui le renverra à l’élève</span>'
+        : '') +
       (b.etat === 'sans-ia'
         ? '<br><span style="color:var(--warn-text);">✍️ envoyé à l’élève sans la partie IA' +
           (b.deposeLe ? ' le ' + String(b.deposeLe).replace(/</g, '&lt;') : '') +
@@ -616,11 +620,24 @@ function ligneBrouillon(b){
 
   /* Reprendre n'a plus de sens quand le bilan est déjà là : le
      bouton principal devient l'effacement. */
+  /* 🤖 v1210 — envoyé sans IA : on le refait avec l'IA d'ici */
+  if(b.etat === 'sans-ia'){
+    const bI = document.createElement('button');
+    bI.className = 'btn btn-primary';
+    bI.style.cssText = 'flex:1;padding:10px;font-size:13px;margin:0;';
+    bI.textContent = '🤖 Refaire avec l’IA';
+    bI.title = "La dictée gardée repart à l'IA ; le bilan refait remplace celui envoyé sans IA";
+    bI.addEventListener('click', () => {
+      if(typeof refaireAvecIA === 'function') refaireAvecIA(b, null);
+      else showToast('Indisponible sur cet écran.');
+    });
+    r.appendChild(bI);
+  }
   if(!fait && b.etat !== 'sans-ia'){
     const bR = document.createElement('button');
     bR.className = 'btn btn-primary';
     bR.style.cssText = 'flex:1;padding:10px;font-size:13px;margin:0;';
-    const enAttente = (b.etat === 'a-corriger');
+    const enAttente = (b.etat === 'a-corriger' || b.etat === 'refait');
     bR.textContent = enAttente ? '👁️ Revoir le bilan proposé' : '↩️ Reprendre ici';
     bR.title = enAttente
       ? "Le bilan est déjà généré et l'attend : ceci le rouvre chez toi"
