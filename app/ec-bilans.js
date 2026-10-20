@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 20/10/2026 à 09:49 — v1206 */
 /* ============================================================
    ec-bilans.js
    Gestion des modèles de bilan.
@@ -138,6 +138,17 @@ async function afficherTextesBilan(){
   bNouveau.addEventListener('click', () => ouvrirEditeurModeleBilan());
   zone.appendChild(bNouveau);
 
+  /* ✍️ v1206 — le créateur de fiches, pour les administrateurs */
+  if(typeof ouvrirCreateurFiches === 'function' && ACCES && ACCES.role === 'admin'){
+    const bf = document.createElement('button');
+    bf.className = 'btn btn-secondary';
+    bf.id = 'btCreateurFiches';
+    bf.style.cssText = 'margin-bottom:14px;border-color:var(--accent-text);';
+    bf.innerHTML = '🎨 Créateur de fiches « bilan à la main »<br><span style="font-size:11.5px;font-weight:400;color:var(--muted);">Fonds des zones, cases à cocher, micros, ordre : la vraie fiche, comme la voit le moniteur</span>';
+    bf.addEventListener('click', () => ouvrirCreateurFiches());
+    zone.appendChild(bf);
+  }
+
   /* Les modèles, groupés */
   const parGroupe = {};
   Object.keys(MODELES).forEach(cle => {
@@ -181,6 +192,17 @@ async function afficherTextesBilan(){
 
       /* Le formulaire manuel, puis les consignes IA */
       if(m.schema !== 'rdvpost'){
+        /* ✍️ v1206 — sa fiche à lui, dans le créateur */
+        if(typeof ouvrirCreateurFiches === 'function' && ACCES && ACCES.role === 'admin' &&
+           typeof modelesDesFiches === 'function' && modelesDesFiches().some(x => x.cle === cle)){
+          const bf = document.createElement('button');
+          bf.className = 'btn btn-secondary';
+          bf.style.cssText = 'padding:9px;font-size:13px;margin:0 0 6px;';
+          const f = (typeof formesFiches !== 'undefined' && formesFiches[cle]) ? ' · réglée' : '';
+          bf.textContent = '🎨 Régler la fiche du moniteur' + f;
+          bf.addEventListener('click', () => ouvrirCreateurFiches(cle));
+          d.appendChild(bf);
+        }
         d.appendChild(blocFormulaireManuel(m.schema));
         d.appendChild(blocConsignesIA(m.schema));
       }
@@ -440,6 +462,8 @@ function ouvrirEditeurModeleBilan(){
 /* Chargé à l'ouverture de session, pour que les modèles ajoutés
    apparaissent dans la liste des types de bilan. */
 async function appliquerTextesBilan(){
+  /* ✍️ v1206 — les fiches réglées dans le créateur (publiées) */
+  if(typeof chargerFormesFiches === 'function') chargerFormesFiches();
   await chargerModelesBilan();
   appliquerModelesAjoutes();
   appliquerChampsManuels();
