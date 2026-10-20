@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 20/10/2026 à 13:48 — v1213 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -4158,6 +4158,11 @@ function repeindreBoutonsManuels(){
     }
     appliquerMentionManoeuvre(sel.value);
   });
+  /* 🔘 v1213 — les boutons se relisent sur leurs cases (une reprise
+     coche les cases sans prévenir les boutons) */
+  Array.prototype.forEach.call(zone.querySelectorAll('.zoneVueCases'), z => {
+    if(typeof z._appliquerVue === 'function') z._appliquerVue();
+  });
   return n;
 }
 
@@ -6899,9 +6904,21 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       const venuDAilleurs = (typeof vientDuneAutreAE === 'function')
         ? vientDuneAutreAE(nomIci) : true;
 
+      /* 🔘 v1213 — des boutons, ou les cases d'avant (voir « BOUTONS OU
+         CASES », ec-vocal.js) : les cases restent la vérité, et gardent
+         leur rang parmi les saisies de la fiche. Les émojis de ceux qui
+         l'ont faite, comme à l'écran de cours. */
+      const marquesFaites = (dossier && dossier.marques) || {};
       const lm = document.createElement('label');
-      lm.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
       bloc.appendChild(lm);
+      const majTitreM = () => {
+        lm.textContent = ch.nom + ' — ' + ((typeof vueEnCases !== 'function' || vueEnCases()) ? 'coche' : 'touche') +
+          ' celles travaillées aujourd\'hui';
+      };
+      if(typeof basculeVueCases === 'function') bloc.appendChild(basculeVueCases());
+      const miroirsM = [];
+      const grilleM = document.createElement('div');
+      grilleM.className = 'grillePastilles';
       const zm = document.createElement('div');
       zm.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
         'padding:10px 12px;max-height:260px;overflow-y:auto;';
@@ -6942,8 +6959,24 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         }
 
         zm.appendChild(lab);
+        if(typeof boutonDeManoeuvre === 'function'){
+          const marque = marquesFaites[normaliserMot(nom)] || (dejaOk ? '✅' : '');
+          miroirsM.push(boutonDeManoeuvre(cb, nom, marque, lab.querySelector('input.mAilleurs')));
+        }
       });
       bloc.appendChild(zm);
+      if(miroirsM.length){
+        miroirsM.forEach(m => grilleM.appendChild(m));
+        bloc.appendChild(grilleM);
+        const zoneM = document.createElement('div');
+        deuxHabits(zoneM, zm, grilleM, () => miroirsM.forEach(m => m._peindre()));
+        zoneM._appliquerVueM = zoneM._appliquerVue;
+        /* La zone qui bascule, c'est le bloc : on y accroche l'habit */
+        bloc.classList.add('zoneVueCases');
+        bloc._appliquerVue = () => { zoneM._appliquerVueM(); majTitreM(); };
+        zoneM.classList.remove('zoneVueCases');
+      }
+      majTitreM();
 
     }else if(ch.type === 'competences'){
       /* Le modèle attend un statut ET des erreurs par compétence :
