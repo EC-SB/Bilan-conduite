@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 20/10/2026 à 12:49 — v1211 -->
+<!-- Déployé le 20/10/2026 à 17:02 — v1220 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -3289,7 +3289,6 @@
      classeur dit combien de fois il y est repassé ; le faire monter
      à chaque va-et-vient de la page rendrait ce nombre absurde.
      ============================================================ */
-  var SECONDES_POUR_VU = 2;
   var PART_A_L_ECRAN = 0.5;
   var PART_DE_VIDEO = 0.9;
 
@@ -3297,7 +3296,75 @@
      « guide::segment », comme partout ailleurs. */
   var dejaEnvoye = {};
   var guetteur = null;
-  var minuteries = {};
+
+  /* ============================================================
+     ⚠️ UN SEGMENT À LA FOIS, LE TEMPS DE LE LIRE — v1220
+
+     David : « si j'appuie en haut sur le titre du groupe, ça valide
+     comme si j'avais tout vu alors que je n'ai pas tout vu ».
+
+     Deux causes, réparées toutes les deux :
+       · les fichiers du parcours n'arrivaient pas signés avec la
+         connexion (voir le Worker) : sans vidéo ni image, chaque
+         segment se réduisait à une ligne, et toute la page tenait à
+         l'écran d'un coup ;
+       · tout ce qui était à l'écran deux secondes se comptait lu, EN
+         MÊME TEMPS. Un appui sur le groupe redessine la page : deux
+         secondes plus tard, tout était « vu ».
+
+     Désormais :
+       · UN segment à la fois : le premier non vu à l'écran, en
+         partant du haut. Le suivant ne commence qu'après lui ;
+       · le temps de le LIRE, pas deux secondes : 2 s, plus un quart
+         de seconde par mot, plus 3 s par image ou document — entre
+         4 et 45 s ;
+       · un segment sans rien à lire ne se compte jamais tout seul
+         (la coche reste) ;
+       · un segment plus haut que l'écran compte quand il occupe
+         l'essentiel de l'écran.
+     La vidéo, elle, garde sa règle : 90 % regardés.
+     ============================================================ */
+  var visibles = {};
+  var enLecture = null;   /* { cle, minuterie } */
+
+  function dureeDeLecture(el){
+    var dedans = el.querySelector('.sdedans');
+    if(!dedans) return null;
+    var texte = '';
+    Array.prototype.forEach.call(dedans.querySelectorAll('p'), function(x){ texte += ' ' + (x.textContent || ''); });
+    var mots = texte.split(/\s+/).filter(Boolean).length;
+    var images = dedans.querySelectorAll('img').length;
+    var fichiers = dedans.querySelectorAll('a.fichier').length;
+    if(!mots && !images && !fichiers) return null;
+    var s = 2 + mots * 0.25 + images * 3 + fichiers * 3;
+    return Math.round(Math.min(45, Math.max(4, s)) * 1000);
+  }
+
+  function arreterLaLecture(){
+    if(enLecture){ clearTimeout(enLecture.minuterie); enLecture = null; }
+  }
+
+  function choisirLeSegmentALire(){
+    var mieux = null, haut = Infinity;
+    Object.keys(visibles).forEach(function(cle){
+      var el = visibles[cle];
+      if(!el || !document.body.contains(el) || dejaEnvoye[cle]) return;
+      if(!el.querySelector('.sdedans') || el.querySelector('video')) return;
+      if(dureeDeLecture(el) === null) return;
+      var t = el.getBoundingClientRect().top;
+      if(t < haut){ haut = t; mieux = el; }
+    });
+    var cle = mieux ? mieux.getAttribute('data-seg') : '';
+    if(enLecture && enLecture.cle === cle) return;
+    arreterLaLecture();
+    if(!mieux) return;
+    enLecture = { cle: cle, minuterie: setTimeout(function(){
+      enLecture = null;
+      delete visibles[cle];
+      noterVu(mieux, 'lu');
+      choisirLeSegmentALire();
+    }, dureeDeLecture(mieux)) };
+  }
 
   function brancherLeTracker(zone){
     /* ⚠️ UN GUETTEUR, PAS UN PAR SEGMENT. La page se redessine à
@@ -3305,8 +3372,8 @@
        laisserait des dizaines à tourner, tous en train de compter
        les mêmes segments. */
     if(guetteur){ guetteur.disconnect(); guetteur = null; }
-    for(var k in minuteries){ clearTimeout(minuteries[k]); }
-    minuteries = {};
+    arreterLaLecture();
+    visibles = {};
 
     /* ⚠️ SANS OBSERVATEUR, LE TRACKER SE TAIT — et la coche reste.
        Un vieux navigateur ne doit pas perdre le parcours : il perd
@@ -3318,35 +3385,15 @@
         var el = en.target;
         var cle = el.getAttribute('data-seg') || '';
         if(!cle) return;
-
-        if(!en.isIntersecting || en.intersectionRatio < PART_A_L_ECRAN){
-          if(minuteries[cle]){ clearTimeout(minuteries[cle]); delete minuteries[cle]; }
-          return;
-        }
-        if(minuteries[cle] || dejaEnvoye[cle]) return;
-
-        /* ⚠️ UN SEGMENT REPLIÉ N'EST PAS UN SEGMENT LU — v1056.
-
-           Un segment déjà vu s'affiche replié sur son titre : ce qui
-           est à l'écran, c'est la ligne, pas le contenu. Le compter
-           ferait monter « Nb vues » à chaque fois que l'élève
-           descend la page, et le bureau lirait « revu 7 fois » d'un
-           élève qui n'a fait que passer devant. Le nombre aurait eu
-           l'air d'être juste, ce qui est le pire des cas.
-
-           Quand il le REDÉPLIE, en revanche, il le revoit — et là
-           c'est exactement ce que David demande. */
-        if(!el.querySelector('.sdedans')) return;
-
-        /* Un segment qui porte une vidéo attend SA vidéo. */
-        if(el.querySelector('video')) return;
-
-        minuteries[cle] = setTimeout(function(){
-          delete minuteries[cle];
-          noterVu(el, 'lu');
-        }, SECONDES_POUR_VU * 1000);
+        /* À l'écran pour de bon : la moitié du segment, ou — s'il est
+           plus haut que l'écran — l'essentiel de l'écran */
+        var ecran = (en.rootBounds && en.rootBounds.height) || window.innerHeight || 1;
+        var la = en.isIntersecting && (en.intersectionRatio >= PART_A_L_ECRAN ||
+                 en.intersectionRect.height >= ecran * 0.6);
+        if(la) visibles[cle] = el; else delete visibles[cle];
       });
-    }, { threshold: [0, PART_A_L_ECRAN, 1] });
+      choisirLeSegmentALire();
+    }, { threshold: [0, 0.25, PART_A_L_ECRAN, 0.75, 1] });
 
     var segs = zone.querySelectorAll('[data-seg]');
     for(var i = 0; i < segs.length; i++) guetteur.observe(segs[i]);
