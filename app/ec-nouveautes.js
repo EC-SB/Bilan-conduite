@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 10:36 — v1207 */
+/* Déployé le 20/10/2026 à 11:01 — v1208 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1208,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🔒 Une zone ajoutée peut rester « pour nous seulement »',
+    quoi: [
+      { emoji: '🔒',
+        titre: 'Pour nous seulement',
+        texte: 'Dans le 🎨 créateur de fiches, une zone ajoutée peut être cochée « 🔒 Pour nous seulement » : ce que le moniteur y met part dans la ' +
+               'note interne du cours, jamais dans le bilan de l’élève. Sur sa fiche, le moniteur voit « 🔒 Pour nous seulement — ne part pas à l’élève ».' }
+    ]
+  },
   {
     version: 1207,
     date: 'Mardi 20 octobre 2026',
