@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 11:36 — v355 */
+/* Déployé le 20/10/2026 à 15:06 — v1218 */
 /* ============================================================
    ec-consignes.js
    Consignes données à l'IA pour produire un bilan
@@ -145,7 +145,7 @@ const SCHEMAS = {
   '📋 Ta formation et ton organisation / ➡️ À travailler la prochaine fois\n' +
   'Chaque rubrique commence par son titre sur sa propre ligne, suivi de puces « • » courtes. ' +
   'Une information ne doit apparaître que dans UNE seule rubrique, jamais répétée ailleurs. ' +
-  'Tutoie l\'élève, reste encourageant, va à l\'essentiel.\n' +
+  'Tutoie l\'élève, reste encourageant sur ce qui va bien — sans jamais adoucir une faute —, va à l\'essentiel.\n' +
   '\n' +
   'EXHAUSTIVITÉ — c\'est la règle la plus importante de ce résumé :\n' +
   'Avant de conclure, relis la transcription et vérifie que CHAQUE remarque du moniteur se ' +
@@ -286,6 +286,33 @@ const SCHEMAS = {
    son formulaire et ses consignes puissent différer de la boîte manuelle.
    Au départ, les deux sont identiques. */
 SCHEMAS.conduiteResumeAuto = SCHEMAS.conduiteResume;
+
+/* ============================================================
+   ⚖️ LA GRAVITÉ D'UNE FAUTE NE SE NÉGOCIE PAS — v1218
+
+   David, le 20 octobre : « la génération IA écrit des bêtises plus
+   grosses qu'elle : "tu as un peu dépassé le stop, ce n'est pas
+   grave" par exemple — eh bien si, c'est très grave ».
+
+   Le résumé demandait d'être « encourageant » : l'IA l'a pris pour
+   une permission d'adoucir. Cette règle-ci part avec CHAQUE bilan,
+   à la fin de la consigne — y compris quand l'école a réécrit ses
+   consignes (« Consignes personnalisées ») : une consigne réécrite ne
+   doit pas pouvoir la perdre.
+   ============================================================ */
+const CONSIGNE_GRAVITE =
+'\n\nGRAVITÉ DES FAUTES — RÈGLE ABSOLUE, AU-DESSUS DE TOUTES LES AUTRES :\n' +
+'- Tu ne minimises JAMAIS une faute. Tu n\'écris jamais « ce n\'est pas grave », « pas bien méchant », ' +
+'« un peu », « légèrement », « juste », « petit » ou « petite » pour qualifier une faute de l\'élève — sauf si le ' +
+'moniteur l\'a dit lui-même, mot pour mot, à propos de CETTE faute.\n' +
+'- Une faute de sécurité est toujours écrite comme grave, sans détour : stop non marqué (roues non arrêtées, ' +
+'ligne d\'arrêt dépassée), feu rouge ou orange franchi, refus de priorité (véhicule ou piéton), sens interdit, ' +
+'ligne continue franchie, vitesse excessive, intervention du moniteur (frein, volant), mise en danger d\'un usager. ' +
+'Tu dis clairement qu\'à l\'examen, c\'est une faute éliminatoire.\n' +
+'- Encourager, c\'est souligner ce qui va bien ; ce n\'est jamais rendre une faute plus légère qu\'elle n\'est.\n' +
+'- Tu restes au niveau d\'exigence du moniteur : s\'il a insisté ou s\'est fâché, tu insistes ; tu n\'atténues pas.\n' +
+'- Tu n\'ajoutes aucun jugement que le moniteur n\'a pas exprimé, et tu n\'en retires aucun.\n';
+function consigneGraviteIA(){ return CONSIGNE_GRAVITE; }
 
 function construireConsignes(modeleCle){
   const m = MODELES[modeleCle];
