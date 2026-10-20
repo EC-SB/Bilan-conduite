@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 10:36 — v1207 */
+/* Déployé le 20/10/2026 à 11:01 — v1208 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -750,6 +750,7 @@ const TYPES_AJOUT_FICHE = {
   note3:     { nom: '🔢 Note de 0 à 3',          aide: 'Quatre boutons : 0, 1, 2, 3' }
 };
 const RE_CLE_AJOUT_FICHE = /^z[a-z0-9]{2,12}$/;
+const TYPES_TITRES_FICHE = ['titre', 'sousTitre'];
 const RE_CLE_CADRE_FICHE = /^c[a-z0-9]{2,12}$/;
 function nouvelleCleFiche(prefixe, prises){
   let k;
@@ -761,6 +762,9 @@ function ajoutsDeLaForme(forme){
   const a = (forme && Array.isArray(forme.ajouts)) ? forme.ajouts : [];
   return a.map(z => {
     const c = { cle: z.cle, type: z.type, nom: z.nom || '', ajout: true };
+    /* ✍️ v1208 — « 🔒 Pour nous seulement » : dans la note interne,
+       jamais dans le bilan de l'élève */
+    if(z.bureau && TYPES_TITRES_FICHE.indexOf(z.type) === -1) c.pourNous = true;
     if(z.aide) c.aide = z.aide;
     if(z.type === 'texte') c.lignes = z.lignes || 4;
     return c;
@@ -794,6 +798,7 @@ function nettoyerFormeFiche(forme, champs){
     const o = { cle: k, type: z.type, nom: texteFiche(z.nom, 120) };
     if(typeof z.aide === 'string' && z.aide.trim()) o.aide = texteFiche(z.aide, 240);
     if(z.type === 'texte'){ const n = parseInt(z.lignes, 10); o.lignes = (n >= 1 && n <= 12) ? n : 4; }
+    if(z.bureau && TYPES_TITRES_FICHE.indexOf(z.type) === -1) o.bureau = 1;
     ajouts.push(o);
   });
   const cles = clesOrigine.concat(ajouts.map(z => z.cle));
@@ -984,7 +989,7 @@ function lignesDesAjoutsFiche(zones, valeurs){
   const out = [];
   let enAttente = [];
   zones.forEach(c => {
-    if(c.cacheFiche) return;
+    if(c.cacheFiche || c.pourNous) return;   /* 🔒 pour nous : dans la note interne */
     const l = lignesDUnAjoutFiche(c, valeurs[c.cle]);
     if(c.type === 'titre' || c.type === 'sousTitre'){
       if(c.type === 'titre') enAttente = [];
@@ -999,6 +1004,34 @@ function lignesDesAjoutsFiche(zones, valeurs){
   });
   return out;
 }
+/* ✍️ v1208 — « 🔒 Pour nous seulement » : une ligne par zone remplie,
+   dans la note interne (jamais envoyée à l'élève). Elles portent
+   toutes « 🔒 ✍️ » : un bilan refait les remplace au lieu de les
+   doubler. */
+const MARQUE_NOTE_FICHE = '🔒 ✍️ ';
+function lignesPourNousFiche(champsFiche, valeurs){
+  const out = [];
+  (champsFiche || []).forEach(c => {
+    if(!c || !c.ajout || !c.pourNous || c.cacheFiche) return;
+    const v = (valeurs[c.cle] == null) ? '' : String(valeurs[c.cle]).trim();
+    if(!v) return;
+    let t = '';
+    if(c.type === 'texte' || c.type === 'court' || c.type === 'cases') t = v.split('\n').map(x => x.trim()).filter(Boolean).join(' · ');
+    else if(c.type === 'ok') t = (v === '✅' || v === '❌') ? v : '';
+    else if(c.type === 'ouinon') t = v === 'oui' ? '✅ Oui' : (v === 'non' ? '❌ Non' : '');
+    else if(c.type === 'note3') t = /^[0-3]$/.test(v) ? v + ' /3' : '';
+    if(!t) return;
+    const nom = String(c.nom || '').replace(/\s+/g, ' ').trim();
+    out.push(MARQUE_NOTE_FICHE + (nom ? nom + ' : ' : '') + t);
+  });
+  return out;
+}
+function poserPourNousDansLaNote(note, champsFiche, valeurs){
+  const garde = String(note || '').split('\n').filter(l => l.indexOf(MARQUE_NOTE_FICHE.trim()) !== 0);
+  const l = lignesPourNousFiche(champsFiche, valeurs);
+  return garde.concat(l).join('\n').trim();
+}
+
 /* Un titre de la fiche et celui du bilan s'écrivent dans des alphabets
    différents (« 𝟯 - 𝗕𝗜𝗟𝗔𝗡 » en gras Unicode) : on compare leurs lettres. */
 function normeTitreFiche(t){
@@ -4968,6 +5001,14 @@ async function genererBilanManuel(){
     enregistrerCepcInterne(eleve, champsManuels.cepc);
   }
 
+  /* ✍️ v1208 — les zones « 🔒 Pour nous seulement » vont dans la note
+     interne. ICI, APRÈS le bilan et après le ménage des lignes 🔒 de
+     l'examen officiel : rien ne peut les faire passer dans le texte
+     de l'élève, ni les effacer. */
+  if(ficheDuBilan && ficheDuBilan.some(c => c && c.pourNous) && $('noteInterne')){
+    $('noteInterne').value = poserPourNousDansLaNote($('noteInterne').value, ficheDuBilan, champsManuels);
+  }
+
   currentLessonMeta = {
     modeleLabel: modele.label,
     studentName: eleve,
@@ -6014,6 +6055,8 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
        les saisies se comptent par rang, elle doit garder le sien. */
     bloc.dataset.zone = ch.cle;
     if(ch.cacheFiche) bloc.classList.add('ficheCachee');
+    /* ✍️ v1208 — le moniteur voit que ça ne part pas à l'élève */
+    if(ch.pourNous) bloc.classList.add('zonePourNous');
 
     /* Certains champs ne servent que si l élève a le niveau :
        les montrer ailleurs fait remplir pour rien. */
