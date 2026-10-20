@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 09:49 — v1206 */
+/* Déployé le 20/10/2026 à 10:36 — v1207 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,24 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1207,
+    date: 'Mardi 20 octobre 2026',
+    resume: '➕ Créateur de fiches : ajouter, retirer et encadrer des zones',
+    quoi: [
+      { emoji: '➕',
+        titre: 'Ajouter une zone entre deux autres',
+        texte: 'Dans le 🎨 créateur de fiches, « ➕ » entre deux zones : titre de partie, sous-titre en couleur, cadre de texte (avec ou sans 🎙️), ' +
+               'ligne courte, cases à cocher seules, ✅❌—, oui/non, note de 0 à 3. 🗑️ retire une zone ajoutée ; les zones d’origine, elles, se masquent.' },
+      { emoji: '📝',
+        titre: 'Dans le bilan, juste sous la zone du dessus',
+        texte: 'Ce que le moniteur met dans une zone ajoutée part dans le bilan juste sous la zone qui la précède sur la fiche, sans toucher au reste. ' +
+               'Si rien n’est écrit au-dessus, en fin de sa partie. Une zone laissée vide ne laisse rien.' },
+      { emoji: '📦',
+        titre: 'Encadrer plusieurs zones d’un même fond',
+        texte: '« 📦 Encadrer » : touche la première zone, puis la dernière — un seul cadre, dont tu choisis la couleur et la force.' }
+    ]
+  },
   {
     version: 1206,
     date: 'Mardi 20 octobre 2026',
