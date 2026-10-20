@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 12:30 — v1103 */
+/* Déployé le 20/10/2026 à 11:45 — v1209 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -144,7 +144,10 @@ function afficherBilansEnFond(){
         b.eleve.replace(/</g, '&lt;') + ' est prêt</strong>';
     }else{
       t.innerHTML = '<span style="color:var(--muted);">⏳ Bilan de ' +
-        b.eleve.replace(/</g, '&lt;') + ' en cours…</span>';
+        b.eleve.replace(/</g, '&lt;') + ' en cours…</span>' +
+        /* ⏱️ v1209 — le seuil est passé : il continue, le bureau le sait */
+        (b.lent ? '<div style="font-size:11px;color:var(--warn-text);">⚠️ pas revenu après ' + b.lent +
+                  ' min — il continue, le bureau est prévenu</div>' : '');
     }
     l.appendChild(t);
 
@@ -592,6 +595,19 @@ async function attendreLesDepots(){
 
 async function retirerBrouillonServeur(eleve){
   if(!eleve) return;
+  /* ⏱️ v1209 — UN BILAN ENVOYÉ SANS IA GARDE SA DICTÉE. Elle reste au
+     serveur, marquée « sans-ia », avec le bilan parti : c'est d'elle
+     que le bilan sera refait avec l'IA (dossier de l'élève, « Cours
+     non terminés »). Déposée une dernière fois, puis plus rien. */
+  if(typeof dicteeAGarderSansIA === 'function' && dicteeAGarderSansIA(eleve)){
+    await attendreLesDepots();
+    try{
+      await deposerBrouillonServeur({ etat: 'sans-ia',
+        bilan: ($('resultText') && $('resultText').value) || '' });
+    }catch(e){}
+    marquerCoursTermine(eleve);
+    return;
+  }
   /* L'interdit AVANT l'appel, pas après : entre les deux il y a un
      aller-retour réseau, et c'est précisément là que le dépôt en
      retard se glissait. */
@@ -645,7 +661,9 @@ async function chercherBrouillonsServeur(silencieux){
        tout seul, celui qui a fait paniquer David. La dictée,
        elle, n'a pas bougé — elle attend au bureau, dans
        « Cours non terminés ». */
-    const l = ((d && d.brouillons) || []).filter(b => b && b.etat !== 'ecarte');
+    /* ⏱️ v1209 — ni ce qui est parti sans IA : le bilan est envoyé,
+       la dictée attend au bureau pour être refaite avec l'IA. */
+    const l = ((d && d.brouillons) || []).filter(b => b && b.etat !== 'ecarte' && b.etat !== 'sans-ia');
 
     /* Un bilan à corriger passe devant : c'est celui qui attend
        une action, et le bureau vient de le renvoyer. */
