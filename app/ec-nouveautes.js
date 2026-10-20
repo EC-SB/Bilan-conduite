@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:45 — v1209 */
+/* Déployé le 20/10/2026 à 12:05 — v1210 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1210,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🤖 Refaire avec l’IA un bilan envoyé sans la partie IA',
+    quoi: [
+      { emoji: '🤖',
+        titre: 'Refaire avec l’IA',
+        texte: 'Un bilan parti sans la partie IA le dit dans le dossier de l’élève (📚 Cours) et dans « 🩹 Cours non terminés » : ' +
+               '« 🤖 Refaire avec l’IA » renvoie la dictée gardée à l’IA. Le moniteur du cours, le bureau et les admins peuvent le faire.' },
+      { emoji: '📨',
+        titre: 'Il remplace celui envoyé sans IA',
+        texte: 'Le moniteur relit, corrige, puis « 📨 Renvoyer à l’élève » : la même ligne est remplacée (son historique se met à jour) et un mail ' +
+               '« 📄 Ton bilan complet du cours du … » lui part. La dictée s’efface à ce moment-là.' },
+      { emoji: '📤',
+        titre: 'Refait par le bureau',
+        texte: 'Si ce n’est pas le moniteur du cours qui le refait, le bilan part chez lui pour relecture (« 📝 Un bilan t’attend — refait avec l’IA ») : ' +
+               'c’est lui qui le renvoie à l’élève.' }
+    ]
+  },
   {
     version: 1209,
     date: 'Mardi 20 octobre 2026',
