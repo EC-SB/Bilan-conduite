@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:18 — v1158 */
+/* Déployé le 20/10/2026 à 13:15 — v1212 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -618,6 +618,18 @@ function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
      à rebours sans échéance n'est pas un compte à rebours. */
   const dateExam = etat.examDate || (a.permis === 'prevu' ? a.permisDate : '');
   if(!dateExam) return pos;
+
+  /* ⚠️ UN EXAMEN PASSÉ N'A PLUS DE VEILLE — v1211. David, capture à
+     l'appui : un élève ajourné le 15 octobre, et sa carte du 21
+     annonçait « C'est la leçon de veille de l'examen du jeudi 15
+     octobre ». La fiche garde la date de l'examen raté tant qu'aucune
+     autre n'est prise, et la réserve épuisée criait « veille ». Un
+     compte à rebours vers une date déjà passée ne compte plus rien. */
+  const isoExam = /^\d{4}-\d{2}-\d{2}/.test(String(dateExam))
+    ? String(dateExam).slice(0, 10)
+    : ((typeof dateFrVersIso === 'function') ? (dateFrVersIso(dateExam) || '') : '');
+  const isoJour = String(jourDuCours || '').slice(0, 10);
+  if(isoExam && /^\d{4}-\d{2}-\d{2}$/.test(isoJour) && isoExam < isoJour) return pos;
 
   /* ⚠️ LE CAS OÙ LE COMPTE À REBOURS MENTIRAIT. Sa place est tenue
      pour quelqu'un d'autre, ou elle doit être rendue : lui annoncer
