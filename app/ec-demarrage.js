@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 13:15 — v1212 */
+/* Déployé le 20/10/2026 à 14:25 — v1214 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -976,11 +976,17 @@ function depuisCombien(debut){
    suivant.
    ============================================================ */
 function surLEcranDuCours(){
-  const z = $('recordView');
   /* « offsetParent » est nul dès qu'un parent est caché, ou que
      l'élément l'est : c'est ce qui rend la réponse insensible au
      chemin par lequel l'écran a été montré ou masqué. */
-  return !!(z && z.offsetParent !== null);
+  /* ⚠️ ET L'ÉCRAN DE LA GÉNÉRATION EN FAIT PARTIE — v1214. David,
+     capture à l'appui : « ⏸ EN PAUSE … Y revenir » au-dessus de
+     « Génération du bilan en cours… ». On y est déjà : le bilan qui
+     s'écrit, c'est ce cours-là. */
+  return ['recordView', 'generatingView'].some(id => {
+    const z = $(id);
+    return !!(z && z.offsetParent !== null);
+  });
 }
 
 /* ⚠️ ET IL LE REMARQUE TOUT SEUL.
