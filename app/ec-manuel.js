@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:45 — v1209 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -73,26 +73,150 @@ function lireLaVoitureDuCours(){
   return voitureDuCoursManuel.promesse;
 }
 
-/* Montre les cases de la survitesse quand la voiture en a une — et
-   toujours celle dont la phrase est déjà dans le cadre (une fiche
-   reprise doit pouvoir la décocher). */
-async function majCasesSurvitesse(){
-  const zone = $('manuelChamps');
-  if(!zone) return;
-  const cases = zone.querySelectorAll('label[data-survitesse]');
-  if(!cases.length) return;
-  let voiture = '';
-  try{ voiture = await lireLaVoitureDuCours(); }catch(e){ voiture = ''; }
-  const oui = voitureAvecAlerteSurvitesse(voiture);
-  Array.prototype.forEach.call(cases, lab => {
-    const cb = lab.querySelector('input');
-    /* L'état se relit dans le cadre : une reprise y remet le texte
-       sans prévenir la case. */
-    const t = lab.parentNode ? lab.parentNode.querySelector('textarea') : null;
-    if(cb && t) cb.checked = String(t.value).indexOf(lab.getAttribute('data-phrase') || '') !== -1;
-    lab.style.display = (oui || (cb && cb.checked)) ? 'flex' : 'none';
+/* ============================================================
+   🚗 LES SPÉCIFICITÉS DES VÉHICULES — v1211
+
+   David, le 20 octobre : « dans le constructeur des bilans il me
+   manque la partie pour les spécificités des véhicules, les phrases
+   qui s'affichent uniquement quand c'est telle ou telle voiture ».
+   Ses choix : une CASE à cocher réservée à certaines voitures, une
+   ZONE ENTIÈRE réservée à certaines voitures, et la survitesse
+   reprise dans ce mécanisme.
+
+   Une condition, c'est une liste de noms de la flotte (« Q3 10 »,
+   « A3 BV Loudéac »…), ou « @survitesse » — les quatre voitures de la
+   v1144, reconnues comme avant. La voiture du cours vient toujours de
+   l'écran d'accueil (vehiculeDuCours), une fois par élève et par jour.
+
+   ⚠️ CACHÉE N'EST PAS RETIRÉE. Une case ou une zone hors voiture reste
+   dessinée, invisible : les saisies se replacent par leur RANG, elle
+   doit garder le sien. Et ses cases sont hors saisie : leur état se
+   relit dans le texte.
+
+   ⚠️ CE QUI EST DÉJÀ COCHÉ RESTE VISIBLE, quelle que soit la voiture :
+   une fiche reprise doit pouvoir décocher.
+
+   ⚠️ « COCHÉE D'OFFICE » ATTEND LA VOITURE. Une phrase réservée au Q3
+   ne se pose pas sur l'A3 le temps que la réponse arrive : elle se
+   pose quand la voiture est connue et qu'elle correspond — et
+   seulement si personne n'a encore touché au cadre.
+   ============================================================ */
+const VOITURES_SURVITESSE = '@survitesse';
+function casesSurvitesse(){
+  return [
+    { libelle: '', phrase: PHRASE_SURVITESSE_OUBLIEE, ou: 'debut', office: 0, voitures: [VOITURES_SURVITESSE] },
+    { libelle: '', phrase: PHRASE_SURVITESSE_PENSE,   ou: 'debut', office: 0, voitures: [VOITURES_SURVITESSE] }
+  ];
+}
+/* « Audi Q3 n°10 » et « Q3 10 » : les mêmes mots qui comptent */
+function motsDeLaVoiture(nom){
+  const vides = ['audi', 'de', 'du', 'la', 'le', 'n', 'no', 'num'];
+  return String(nom || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/n\s*°/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim().split(' ')
+    .filter(m => m && vides.indexOf(m) === -1);
+}
+function voitureCorrespond(voiture, voitures){
+  const liste = Array.isArray(voitures) ? voitures : String(voitures || '').split('|');
+  const v = motsDeLaVoiture(voiture);
+  if(!v.length) return false;
+  return liste.some(x => {
+    if(x === VOITURES_SURVITESSE) return voitureAvecAlerteSurvitesse(voiture);
+    const m = motsDeLaVoiture(x);
+    return m.length > 0 && m.length === v.length && m.every(y => v.indexOf(y) !== -1);
   });
 }
+/* Le nom à montrer pour une condition */
+function libelleVoitures(voitures){
+  return (voitures || []).map(x => x === VOITURES_SURVITESSE ? '⚡ voitures à alerte de survitesse' : x).join(', ');
+}
+
+/* Dans le créateur, en réglage : tout se voit (on règle ce qu'on voit) */
+function ficheEnReglage(){
+  return !!(window.essaiFicheEnCours && typeof fiS !== 'undefined' && fiS && !fiS.essai);
+}
+function voitureDeLEssai(){
+  return (typeof fiS !== 'undefined' && fiS && fiS.voitureEssai) ? String(fiS.voitureEssai) : '';
+}
+
+let zoneVoituresCourante = null;
+let minuteurVoitures = null;
+function planifierMajVoitures(zone){
+  if(zone) zoneVoituresCourante = zone;
+  clearTimeout(minuteurVoitures);
+  minuteurVoitures = setTimeout(() => { majCasesSelonVoiture(zoneVoituresCourante); }, 0);
+}
+
+async function majCasesSelonVoiture(racine){
+  const zone = racine || zoneVoituresCourante || $('manuelChamps');
+  if(!zone) return;
+  const cases = zone.querySelectorAll('label[data-voitures], label[data-office-differe]');
+  const blocs = zone.querySelectorAll('[data-zone][data-voitures]');
+  if(!cases.length && !blocs.length) return;
+  const reglage = ficheEnReglage();
+  let voiture = '';
+  if(window.essaiFicheEnCours) voiture = voitureDeLEssai();
+  else{ try{ voiture = await lireLaVoitureDuCours(); }catch(e){ voiture = ''; } }
+
+  const blocOk = b => !b || !b.dataset.voitures || reglage || voitureCorrespond(voiture, b.dataset.voitures);
+
+  Array.prototype.forEach.call(blocs, b => {
+    const rempli = Array.prototype.some.call(b.querySelectorAll('textarea'), t => String(t.value).trim() &&
+                     String(t.value) !== String(t.dataset.valeurOuverture || '')) ||
+                   Array.prototype.some.call(b.querySelectorAll('input.caseSeule'), x => x.checked);
+    b.classList.toggle('horsVoiture', !(blocOk(b) || rempli));
+    b.classList.toggle('selonVoiture', reglage);
+    if(reglage) b.setAttribute('data-voitures-txt', '🚗 ' + libelleVoitures(b.dataset.voitures.split('|')));
+  });
+
+  Array.prototype.forEach.call(cases, lab => {
+    const cb = lab.querySelector('input');
+    const b = lab.closest('[data-zone]');
+    const ok = (!lab.dataset.voitures || reglage || voitureCorrespond(voiture, lab.dataset.voitures)) && blocOk(b);
+    const t = (b && !lab.classList.contains('caseSeuleL')) ? b.querySelector('textarea') : null;
+    const phrase = lab.getAttribute('data-phrase') || '';
+    /* L'état se relit dans le cadre : une reprise y remet le texte
+       sans prévenir la case. */
+    if(cb && t && phrase) cb.checked = String(t.value).indexOf(phrase) !== -1;
+
+    /* Cochée d'office, une fois, quand la voiture correspond */
+    if(!reglage && ok && cb && !cb.checked && lab.hasAttribute('data-office-differe') && !lab.dataset.officeFait &&
+       (window.essaiFicheEnCours || voiture)){
+      lab.dataset.officeFait = '1';
+      if(t){
+        if(String(t.value) === String(t.dataset.valeurOuverture || '')){
+          const fin = lab.getAttribute('data-fin') === '1';
+          t.value = t.value ? (fin ? t.value + '\n' + phrase : phrase + '\n' + t.value) : phrase;
+          t.dataset.valeurOuverture = t.value;
+          const cle = t.getAttribute('data-cle-champ');
+          if(cle) champsManuels[cle] = t.value;
+          cb.checked = true;
+        }
+      }else{
+        const cle = cb.getAttribute('data-cle');
+        if(!cle || champsManuels[cle] === undefined){
+          cb.checked = true;
+          cb.dispatchEvent(new Event('change'));
+        }
+      }
+    }
+    if(lab.dataset.voitures){
+      lab.style.display = (ok || (cb && cb.checked)) ? 'flex' : 'none';
+      if(reglage){
+        lab.title = 'Seulement avec : ' + libelleVoitures(lab.dataset.voitures.split('|'));
+        if(!lab.dataset.marqueVoiture){
+          lab.dataset.marqueVoiture = '1';
+          lab.appendChild(document.createTextNode(' 🚗'));
+        }
+      }
+    }
+  });
+}
+/* L'ancien nom : la reprise d'une fiche l'appelle encore */
+function majCasesSurvitesse(){ return majCasesSelonVoiture(); }
 
 /* Les champs dont la fiche garde la trace, PAR LEUR RANG.
 
@@ -310,7 +434,10 @@ const CHAMPS_MANUELS = {
        Ce qui change, c'est la mention « Manœuvre » qui les précède
        dans le bilan, « pour qu'on voie que l'erreur est survenue
        pendant la manœuvre ». */
-    { cle:'__sManoeuvre', type:'sousTitre', nom:'🅿️ MANŒUVRE', fond:'ardoise' },
+    /* 🅿️ v1211 — le titre devient « Manœuvre : … », une liste où le
+       moniteur choisit la manœuvre faite. Voir choixManoeuvre. */
+    { cle:'__sManoeuvre', type:'sousTitre', nom:'🅿️ Manœuvre', fond:'ardoise',
+      choixManoeuvre:'examen.manoeuvreFaite' },
     { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
       lignes:2, mention:'Manœuvre', fond:'ardoise',
       nom:'Ce qui s\'est passé pendant la manœuvre' },
@@ -534,7 +661,8 @@ const CHAMPS_MANUELS = {
        examen officiel tu le mets juste avant OBSERVATIONS DE
        L'INSPECTEUR ». Il n'y a pas de repère « 2-3 » ici — c'est
        ce titre-là qui sert de repère. */
-    { cle:'__sManoeuvreOff', type:'sousTitre', nom:'🅿️ MANŒUVRE', fond:'ardoise' },
+    { cle:'__sManoeuvreOff', type:'sousTitre', nom:'🅿️ Manœuvre', fond:'ardoise',
+      choixManoeuvre:'examen.manoeuvreFaite' },
     { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
       lignes:2, mention:'Manœuvre', fond:'ardoise',
       nom:'Ce qui s\'est passé pendant la manœuvre' },
@@ -675,6 +803,9 @@ CHAMPS_MANUELS.rvp = CHAMPS_MANUELS.rvp.concat(
     .filter(c => c.cle.indexOf('avant.') !== 0 && c.cle !== '__t1')
     .map(c => Object.assign({}, c, {
       cle: (c.cle.indexOf('__') === 0) ? c.cle + 'Rvp' : 'examenBlanc.' + c.cle,
+      /* 🅿️ v1211 — la manœuvre choisie se range avec le reste de
+         l'examen blanc, sous « examenBlanc. » */
+      ...(c.choixManoeuvre ? { choixManoeuvre: 'examenBlanc.' + c.choixManoeuvre } : {}),
       /* Tout le module ne s'affiche que sur un « oui » */
       siEb: 'oui'
     }))
@@ -781,6 +912,17 @@ function couleurFiche(v){
   const s = String(v || '');
   return /^#[0-9a-f]{6}$/i.test(s) ? s.toUpperCase() : (s === 'ardoise' ? 'ardoise' : '');
 }
+/* 🚗 v1211 — une liste de voitures : des noms courts, sans « | »,
+   trente au plus, sans doublon ; « @survitesse » passe tel quel */
+function voituresFiche(l){
+  const out = [];
+  (Array.isArray(l) ? l : []).slice(0, 30).forEach(x => {
+    if(typeof x !== 'string') return;
+    const v = (x === '@survitesse') ? x : texteFiche(x, 60).replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+    if(v && out.indexOf(v) === -1) out.push(v);
+  });
+  return out;
+}
 function texteFiche(v, max){ return String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f]/g, '').slice(0, max); }
 /* La forme telle qu'on peut s'en servir : rien d'autre que des clés
    connues, des textes bornés, des couleurs vérifiées. */
@@ -819,9 +961,15 @@ function nettoyerFormeFiche(forme, champs){
         libelle: texteFiche(c && c.libelle, 80).trim(),
         phrase: texteFiche(c && c.phrase, 500).trim(),
         ou: (c && c.ou === 'fin') ? 'fin' : 'debut',
-        office: (c && c.office) ? 1 : 0
-      })).filter(c => c.phrase);
+        office: (c && c.office) ? 1 : 0,
+        voitures: voituresFiche(c && c.voitures)
+      })).filter(c => c.phrase).map(c => { if(!c.voitures.length) delete c.voitures; return c; });
     }
+    /* 🚗 v1211 — les voitures d'une zone, et « sv » : les cases de la
+       survitesse sont déjà dans « cases » (l'admin les a reprises) */
+    if(z.sv === 1) o.sv = 1;
+    const vz = voituresFiche(z.voitures);
+    if(vz.length) o.voitures = vz;
     if(Object.keys(o).length) zones[k] = o;
   });
   const ordre = [];
@@ -860,6 +1008,16 @@ function champsAvecForme(champs, forme){
     if(z.cases) c.cases = z.cases;
     else if(c.phraseCoche) c.cases = [{ libelle: '', phrase: String(c.phraseCoche), ou: 'debut', office: 0 }];
     delete c.phraseCoche;
+    /* 🚗 v1211 — les deux cases de la survitesse deviennent deux cases
+       comme les autres, réservées à leurs voitures. Tant que l'admin
+       n'a pas touché aux cases de la zone (« sv »), elles s'ajoutent
+       au bout, comme avant. */
+    if(c.survitesse){
+      if(!z.sv) c.cases = (c.cases || []).concat(casesSurvitesse());
+      delete c.survitesse;
+    }
+    /* Une zone entière réservée à certaines voitures */
+    if(Array.isArray(z.voitures) && z.voitures.length && (ch.ajout || !zoneVerrouilleeFiche(ch))) c.voitures = z.voitures.slice();
     if(z.micro === 0) c.sansMicro = true;
     if(z.cache && (ch.ajout || !zoneVerrouilleeFiche(ch))) c.cacheFiche = true;
     return c;
@@ -1906,6 +2064,10 @@ async function ouvrirBilanManuel(){
   $('recordView').style.display = 'none';
   $('resultView').style.display = 'none';
   $('manuelView').style.display = 'block';
+  /* 📋 v1211 — les procédures à joindre, juste avant « Composer » */
+  if(typeof dessinerProceduresAJoindre === 'function'){
+    try{ dessinerProceduresAJoindre('proceduresManuel'); }catch(e){}
+  }
 
   /* ⚠️ LE TRAJET PART AUSSI D'ICI — v986. Il ne démarrait qu'avec
      le micro : un moniteur qui remplit son bilan à la main
@@ -3981,7 +4143,106 @@ function repeindreBoutonsManuels(){
     b.click();
     n++;
   });
+  /* 🅿️ v1211 — la manœuvre choisie revient dans sa liste, et sa
+     mention sur les lignes */
+  Array.prototype.forEach.call(zone.querySelectorAll('select.choixManoeuvre'), sel => {
+    const v = String(champsManuels[sel.dataset.cle] || '');
+    if(v && sel.value !== v){
+      if(!Array.prototype.some.call(sel.options, o => o.value === v)){
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      }
+      sel.value = v;
+      n++;
+    }
+    appliquerMentionManoeuvre(sel.value);
+  });
   return n;
+}
+
+/* ============================================================
+   🅿️ LA MANŒUVRE DE L'EXAMEN, CHOISIE DANS LE TITRE — v1211
+
+   David, le 20 octobre : « dans la partie manœuvre des examens blanc
+   et des examens officiels, transforme le titre en liste déroulante
+   pour choisir la manœuvre faite ; le titre devient Manœuvre : "la
+   manœuvre" ».
+
+   Trois effets, d'un seul choix :
+     · les lignes de la zone portent « Manœuvre : Créneau · » au lieu
+       de « Manœuvre · » — le bilan dit QUELLE manœuvre a posé
+       problème ;
+     · le bilan porte une ligne « 🅿️ Manœuvre : … », même sans
+       erreur ;
+     · et cette ligne compte sur la fiche véhicule de l'élève : elle
+       est lue comme une marque (voir marquesManoeuvreExamen).
+   ============================================================ */
+const MENTION_MANOEUVRE = 'Manœuvre';
+function mentionDeLaManoeuvre(choix){
+  const v = String(choix || '').trim();
+  return v ? MENTION_MANOEUVRE + ' : ' + v : MENTION_MANOEUVRE;
+}
+
+function poserChoixManoeuvre(t, ch){
+  t.textContent = '';
+  t.style.display = 'flex';
+  t.style.alignItems = 'center';
+  t.style.gap = '8px';
+  t.style.flexWrap = 'wrap';
+  const n = document.createElement('span');
+  n.style.cssText = 'flex-shrink:0;';
+  n.textContent = String(ch.nom || '🅿️ Manœuvre').replace(/\s*:\s*$/, '') + ' :';
+  t.appendChild(n);
+
+  const sel = document.createElement('select');
+  sel.className = 'choixManoeuvre';
+  sel.setAttribute('data-cle', ch.choixManoeuvre);
+  sel.setAttribute('data-hors-saisie', '1');
+  sel.setAttribute('aria-label', 'Manœuvre faite');
+  sel.style.cssText = 'flex:1 1 170px;min-width:0;width:auto;margin:0;padding:7px 9px;' +
+    'font-size:14px;font-weight:700;font-family:inherit;';
+  const vide = document.createElement('option');
+  vide.value = '';
+  vide.textContent = '— choisis la manœuvre —';
+  sel.appendChild(vide);
+  ((typeof BLOC !== 'undefined' && BLOC.ficheListeConduite) || []).forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  });
+  const deja = String(champsManuels[ch.choixManoeuvre] || '');
+  if(deja){
+    if(!Array.prototype.some.call(sel.options, o => o.value === deja)){
+      const o = document.createElement('option');
+      o.value = deja; o.textContent = deja;
+      sel.appendChild(o);
+    }
+    sel.value = deja;
+  }
+  sel.addEventListener('change', () => {
+    if(sel.value) champsManuels[ch.choixManoeuvre] = sel.value;
+    else delete champsManuels[ch.choixManoeuvre];
+    appliquerMentionManoeuvre(sel.value);
+    if(typeof majBilanEliminatoires === 'function'){ try{ majBilanEliminatoires(); }catch(e){} }
+    if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
+  });
+  t.appendChild(sel);
+  /* La zone n'est pas encore dessinée : la mention se pose juste après */
+  setTimeout(() => appliquerMentionManoeuvre(sel.value), 0);
+}
+
+/* La mention de la zone, et celle de chacune de ses lignes */
+function appliquerMentionManoeuvre(choix){
+  const z = document.getElementById('obsManoeuvre');
+  if(!z) return;
+  const m = mentionDeLaManoeuvre(choix);
+  z.dataset.mention = m;
+  Array.prototype.forEach.call(z.children, d => {
+    if(!d.dataset) return;
+    const avant = String(d.dataset.mention || '');
+    if(!avant || avant.indexOf(MENTION_MANOEUVRE) === 0) d.dataset.mention = m;
+  });
 }
 
 /* Repose ce qui avait été saisi, une fois la fiche dessinée */
@@ -4204,7 +4465,9 @@ function ficheManuelleEnTexte(quelleZone){
        l'explication d'à côté. */
     if(ch.type === 'sousTitre'){
       lignes.push('');
-      lignes.push('  · ' + String(ch.nom || '').trim());
+      const choix = ch.choixManoeuvre ? String(champsManuels[ch.choixManoeuvre] || '').trim() : '';
+      lignes.push('  · ' + String(ch.nom || '').trim() + (choix ? ' : ' + choix : ''));
+      if(choix) remplis++;
       return;
     }
 
@@ -6055,6 +6318,13 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
        les saisies se comptent par rang, elle doit garder le sien. */
     bloc.dataset.zone = ch.cle;
     if(ch.cacheFiche) bloc.classList.add('ficheCachee');
+    /* 🚗 v1211 — une zone réservée à certaines voitures : cachée tant
+       qu'on ne sait pas que c'est la bonne */
+    if(Array.isArray(ch.voitures) && ch.voitures.length){
+      bloc.dataset.voitures = ch.voitures.join('|');
+      bloc.classList.add('horsVoiture');
+      planifierMajVoitures(zone);
+    }
     /* ✍️ v1208 — le moniteur voit que ça ne part pas à l'élève */
     if(ch.pourNous) bloc.classList.add('zonePourNous');
 
@@ -7082,7 +7352,18 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         cb.setAttribute('data-cle', ch.cle);
         cb.value = String(i);
         cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:1px;';
-        if(c.office) cb.checked = true;
+        /* 🚗 v1211 — réservée à certaines voitures (la case, ou toute
+           la zone) : cachée tant qu'on ne sait pas, et « d'office »
+           attend la voiture */
+        const selonVoiture = (Array.isArray(c.voitures) && c.voitures.length) ||
+                             (Array.isArray(ch.voitures) && ch.voitures.length);
+        if(Array.isArray(c.voitures) && c.voitures.length){
+          lab.setAttribute('data-voitures', c.voitures.join('|'));
+          lab.style.display = 'none';
+        }
+        if(c.office && selonVoiture) lab.setAttribute('data-office-differe', '1');
+        else if(c.office) cb.checked = true;
+        if(selonVoiture) planifierMajVoitures(zone);
         cb.addEventListener('change', () => {
           champsManuels[ch.cle] = liste.filter((x, j) => {
             const autre = bloc.querySelector('.caseSeule[value="' + j + '"]');
@@ -7148,6 +7429,8 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         'letter-spacing:.01em;';
       t.textContent = ch.nom;
       bloc.appendChild(t);
+      /* 🅿️ v1211 — « Manœuvre : … » : la liste dans le titre */
+      if(ch.choixManoeuvre) poserChoixManoeuvre(t, ch);
 
       if(ch.aide){
         const a = document.createElement('div');
@@ -7524,15 +7807,21 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       /* ✍️ v1206 — les cases réglées dans le créateur de fiches : un
          libellé court (ou la phrase elle-même), la phrase, sa place
          (en tête ou à la fin), cochée d'office ou non. */
+      const versCochable = c => ({ phrase: String(c.phrase), libelle: String(c.libelle || ''), fin: c.ou === 'fin', office: !!c.office,
+                                   voitures: (Array.isArray(c.voitures) && c.voitures.length) ? c.voitures : null });
       if(Array.isArray(ch.cases)){
-        ch.cases.forEach(c => { if(c && c.phrase) cochables.push({ phrase: String(c.phrase), libelle: String(c.libelle || ''), fin: c.ou === 'fin', office: !!c.office }); });
+        ch.cases.forEach(c => { if(c && c.phrase) cochables.push(versCochable(c)); });
       }else if(ch.phraseCoche) cochables.push({ phrase: String(ch.phraseCoche) });
       /* v1144 — les deux cases de l'alerte de survitesse, cachées
-         tant qu'on ne sait pas que la voiture en a une. */
+         tant qu'on ne sait pas que la voiture en a une. v1211 : des
+         cases réservées à leurs voitures, comme celles du créateur
+         (une fiche passée par « champsAvecForme » les a déjà). */
       if(ch.survitesse){
-        cochables.push({ phrase: PHRASE_SURVITESSE_OUBLIEE, survitesse: true });
-        cochables.push({ phrase: PHRASE_SURVITESSE_PENSE,   survitesse: true });
+        casesSurvitesse().forEach(c => cochables.push(versCochable(c)));
       }
+      /* Une zone réservée à certaines voitures : ses cases cochées
+         d'office attendent la voiture, elles aussi. */
+      const zoneSelonVoiture = Array.isArray(ch.voitures) && ch.voitures.length > 0;
       cochables.forEach(coche => {
         const phrase = coche.phrase;
 
@@ -7579,18 +7868,27 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
           cb.checked = (String(t.value).indexOf(phrase) !== -1);
         }, 0);
 
-        if(coche.survitesse){
-          lab.setAttribute('data-survitesse', '1');
-          lab.setAttribute('data-phrase', phrase);
+        /* 🚗 v1211 — réservée à certaines voitures : cachée tant
+           qu'on ne sait pas, hors saisie (son état se relit dans le
+           cadre), et son « d'office » attend la voiture. */
+        if(coche.voitures){
+          lab.setAttribute('data-voitures', coche.voitures.join('|'));
+          if(coche.voitures.indexOf(VOITURES_SURVITESSE) !== -1) lab.setAttribute('data-survitesse', '1');
           cb.setAttribute('data-hors-saisie', '1');
           lab.style.display = 'none';
         }
+        lab.setAttribute('data-phrase', phrase);
+        if(coche.office && (coche.voitures || zoneSelonVoiture)){
+          lab.setAttribute('data-office-differe', '1');
+          if(coche.fin) lab.setAttribute('data-fin', '1');
+        }
         bloc.appendChild(lab);
       });
-      if(ch.survitesse){
+      if(cochables.some(c => c.voitures || (c.office && zoneSelonVoiture))){
         /* Après la reprise éventuelle : la case cochée d'une fiche
            rouverte reste visible même sans réseau. */
-        setTimeout(() => { majCasesSurvitesse(); }, 0);
+        t.setAttribute('data-cle-champ', ch.cle);
+        planifierMajVoitures(zone);
       }
 
       /* Le texte pré-rempli : le moniteur n'a plus qu'à effacer
@@ -7599,11 +7897,15 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       /* ✍️ v1206 — une case « cochée d'office » pose sa phrase à
          l'ouverture ; une fiche reprise retrouve ensuite ce qui avait
          été écrit (la reprise passe après). */
-      cochables.filter(c => c.office).forEach(c => {
+      cochables.filter(c => c.office && !c.voitures && !zoneSelonVoiture).forEach(c => {
         if(String(t.value).indexOf(c.phrase) !== -1) return;
         t.value = t.value ? (c.fin ? t.value + '\n' + c.phrase : c.phrase + '\n' + t.value) : c.phrase;
         champsManuels[ch.cle] = t.value;
       });
+      /* 🚗 v1211 — ce que le cadre porte à l'ouverture : une case
+         d'office réservée à une voiture ne se pose que si rien n'a
+         bougé depuis (ni le moniteur, ni une reprise). */
+      t.dataset.valeurOuverture = t.value;
       t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
         'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
