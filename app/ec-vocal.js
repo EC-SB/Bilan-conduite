@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 15:06 — v1218 */
+/* Déployé le 20/10/2026 à 16:10 — v1219 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -833,6 +833,8 @@ async function lancerLaGeneration(){
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
     /* Les procédures réclamées à la voix, recopiées en fin de bilan */
+    /* 📍 v1219 — où il en est, sous le rappel de sa frise */
+    if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
     bilan += blocProcedures(coursCorrige);
 
     /* Ce que le moniteur a dit, en clair. Seul le modèle Conduite
