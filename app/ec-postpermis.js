@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:54 — v1193 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -1008,6 +1008,12 @@ function blocRdvPost(e){
     '<input type="date" id="' + id + 'd">' +
     '<label for="' + id + 'm">Moniteur qui le reçoit</label>' +
     '<select id="' + id + 'm"><option value="">— à définir —</option></select>';
+
+  /* 📷 v1211 — sa feuille écrite à la main, en photo, sous son texte */
+  const champEleve = f.querySelector('#' + id + 'e');
+  if(champEleve && typeof galeriePhotosBilan === 'function'){
+    champEleve.after(galeriePhotosBilan(e.eleve, { champ: champEleve }));
+  }
 
   /* Les captures du CEPC, ajoutables ici si ça n'a pas été fait
      au moment de la saisie du résultat. */
@@ -2923,3 +2929,245 @@ async function consignerResultat(e, resultat, iso){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-postpermis.js'] = true;
+
+
+/* ============================================================
+   📷 LES PHOTOS DU BILAN ÉCRIT PAR L'ÉLÈVE — v1211
+
+   David, le 20 octobre : « j'ai un élève qui a écrit à la main et
+   m'a envoyé en photo ce qu'il a écrit sur papier libre ». Recopier
+   une page manuscrite dans le champ texte, c'est un quart d'heure
+   perdu et des fautes en plus ; la photo, elle, dit tout.
+
+   Le bureau les ajoute sous « 📝 Bilan écrit par l'élève », le
+   moniteur aussi, au rendez-vous ; elles se revoient dans le dossier
+   (onglet Permis), et l'élève les retrouve dans son espace.
+
+   ⚠️ RANGÉES DANS R2, PAS DANS UNE CELLULE. Une page manuscrite
+   réduite à 45 000 caractères pour tenir dans le classeur, comme
+   les captures du CEPC, ne se lit plus. Ici : deux mégaoctets,
+   « permis/ », lien signé qui expire, douze au plus par élève.
+   ============================================================ */
+const PHOTOS_BILAN_MAX = 12;
+const PHOTO_BILAN_MAX_CAR = Math.floor(2 * 1024 * 1024 / 3) * 4 - 64;
+
+/* Une page écrite à la main doit rester LISIBLE : on part grand,
+   et on ne réduit que si ça ne passe pas. */
+function reduirePhotoBilan(fichier){
+  return new Promise((ok, ko) => {
+    const u = URL.createObjectURL(fichier);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(u); ko(new Error("Image illisible (JPEG, PNG ou WebP).")); };
+    img.onload = () => {
+      try{
+        const essais = [[2200, 0.85], [2000, 0.78], [1700, 0.72], [1400, 0.66]];
+        for(let i = 0; i < essais.length; i++){
+          const [cote, q] = essais[i];
+          const k = Math.min(1, cote / Math.max(img.naturalWidth, img.naturalHeight));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * k));
+          c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          const g = c.getContext('2d');
+          g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+          g.drawImage(img, 0, 0, c.width, c.height);
+          const d = c.toDataURL('image/jpeg', q);
+          if(d.length <= PHOTO_BILAN_MAX_CAR) return ok(d);
+        }
+        ko(new Error("La photo reste trop lourde."));
+      }finally{ URL.revokeObjectURL(u); }
+    };
+    img.src = u;
+  });
+}
+
+function adressePhotoBilan(lien){
+  const l = String(lien || '');
+  if(l.charAt(0) !== '/') return l;
+  const base = (typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL) || '';
+  return String(base).replace(/\/$/, '') + l;
+}
+
+/* opts : { modifiable, champ (textarea où coller), cacherSiVide } */
+function galeriePhotosBilan(nom, opts){
+  opts = opts || {};
+  const peut = opts.modifiable !== false &&
+    (typeof peutModifier !== 'function' || peutModifier('cours'));
+  const z = document.createElement('div');
+  z.className = 'galeriePhotosBilan';
+  z.style.cssText = 'margin:-6px 0 14px;';
+  if(opts.cacherSiVide) z.style.display = 'none';
+
+  const titre = document.createElement('div');
+  titre.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;';
+  titre.textContent = peut
+    ? '📷 Écrit à la main ? Ajoute la photo de sa feuille' +
+      (opts.champ ? ' (ou colle-la dans le champ ci-dessus).' : '.')
+    : '📷 Photos de son bilan écrit à la main';
+  z.appendChild(titre);
+
+  const grille = document.createElement('div');
+  grille.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+  z.appendChild(grille);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'font-size:12px;margin-top:6px;min-height:0;line-height:1.4;';
+  z.appendChild(msg);
+
+  let photos = [];
+  let occupe = false;
+  let charge = false;
+
+  function dire(t, erreur){
+    msg.style.color = erreur ? 'var(--warn-text)' : 'var(--muted)';
+    msg.textContent = t || '';
+  }
+
+  function voir(src){
+    if(typeof ouvrirLaPhotoEnGrand === 'function') ouvrirLaPhotoEnGrand(src);
+    else window.open(src, '_blank', 'noopener');
+  }
+
+  function tuile(){
+    const c = document.createElement('div');
+    c.style.cssText = 'position:relative;width:84px;height:84px;border-radius:10px;' +
+      'overflow:hidden;border:1px solid var(--line);background:var(--navy-deep);flex:0 0 auto;';
+    return c;
+  }
+
+  function dessiner(){
+    grille.innerHTML = '';
+    photos.forEach(p => {
+      const c = tuile();
+      const img = document.createElement('img');
+      img.src = adressePhotoBilan(p.lien);
+      img.alt = 'Bilan écrit à la main';
+      img.loading = 'lazy';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;';
+      img.addEventListener('click', () => voir(img.src));
+      c.appendChild(img);
+      if(peut){
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'retirerPhotoBilan';
+        x.title = 'Retirer cette photo';
+        x.setAttribute('aria-label', 'Retirer cette photo');
+        x.textContent = '✕';
+        x.style.cssText = 'position:absolute;top:3px;right:3px;width:24px;height:24px;margin:0;' +
+          'padding:0;border-radius:50%;border:none;background:rgba(0,0,0,.65);color:#fff;' +
+          'font-size:13px;line-height:24px;cursor:pointer;';
+        x.addEventListener('click', ev => { ev.stopPropagation(); retirer(p); });
+        c.appendChild(x);
+      }
+      grille.appendChild(c);
+    });
+    if(peut && photos.length < PHOTOS_BILAN_MAX){
+      const c = tuile();
+      c.style.borderStyle = 'dashed';
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ajouterPhotoBilan';
+      b.disabled = occupe;
+      b.textContent = occupe ? '⏳' : '📷 Ajouter';
+      b.style.cssText = 'width:100%;height:100%;margin:0;padding:0;border:none;background:none;' +
+        'color:var(--accent-text);font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;';
+      b.addEventListener('click', choisir);
+      c.appendChild(b);
+      grille.appendChild(c);
+    }
+    if(opts.cacherSiVide) z.style.display = (photos.length || (peut && charge)) ? '' : 'none';
+  }
+
+  async function charger(){
+    try{
+      const r = await appelPrep({ action: 'bilanElevePhotos', eleve: nom });
+      photos = (r && r.photos) || [];
+    }catch(e){ photos = []; }
+    charge = true;
+    dessiner();
+  }
+
+  function choisir(){
+    const f = document.createElement('input');
+    f.type = 'file';
+    f.accept = 'image/*';
+    f.multiple = true;
+    f.style.display = 'none';
+    document.body.appendChild(f);
+    f.addEventListener('change', () => {
+      const liste = Array.prototype.slice.call(f.files || []);
+      f.remove();
+      ajouter(liste);
+    });
+    f.click();
+  }
+
+  async function ajouter(fichiers){
+    const images = (fichiers || []).filter(x => x && /^image\//.test(x.type || 'image/'));
+    if(!images.length || occupe) return;
+    const place = PHOTOS_BILAN_MAX - photos.length;
+    if(place <= 0){ dire(PHOTOS_BILAN_MAX + ' photos au plus par élève.', true); return; }
+    occupe = true;
+    dessiner();
+    let faites = 0;
+    try{
+      for(const x of images.slice(0, place)){
+        dire('Envoi de la photo ' + (faites + 1) + '/' + Math.min(images.length, place) + '…');
+        const data = await reduirePhotoBilan(x);
+        const r = await appelPrep({ action: 'bilanElevePhotoAjouter', eleve: nom, photo: data });
+        photos = (r && r.photos) || photos;
+        faites++;
+      }
+      dire(faites > 1 ? '✅ ' + faites + ' photos ajoutées.' : '✅ Photo ajoutée.');
+      if(images.length > place) dire(PHOTOS_BILAN_MAX + ' photos au plus : les autres ne sont pas parties.', true);
+    }catch(err){
+      dire((faites ? faites + ' ajoutée(s), puis : ' : '') + ((err && err.message) || err), true);
+    }finally{
+      occupe = false;
+      dessiner();
+    }
+  }
+
+  async function retirer(p){
+    const oui = (typeof confirmer === 'function')
+      ? await confirmer('Retirer cette photo du bilan de ' + nom + ' ?', '📷 Photo du bilan', true)
+      : true;
+    if(!oui) return;
+    try{
+      const r = await appelPrep({ action: 'bilanElevePhotoRetirer', id: p.id });
+      photos = (r && r.photos) || photos.filter(x => x.id !== p.id);
+      dire('Photo retirée.');
+    }catch(err){ dire((err && err.message) || String(err), true); }
+    dessiner();
+  }
+
+  /* Une photo collée dans le champ texte part dans la galerie : c'est
+     le geste naturel quand la photo arrive par Messenger. */
+  /* ⚠️ UN SEUL ÉCOUTEUR PAR CHAMP. L'écran du rendez-vous garde le
+     même champ d'un élève à l'autre : sans ce ménage, chaque
+     ouverture ajoutait un écouteur, et une photo collée partait deux
+     fois — parfois dans le dossier de l'élève précédent. */
+  if(opts.champ && opts.champ._collerPhotoBilan){
+    opts.champ.removeEventListener('paste', opts.champ._collerPhotoBilan);
+    opts.champ._collerPhotoBilan = null;
+  }
+  if(peut && opts.champ){
+    opts.champ.addEventListener('paste', opts.champ._collerPhotoBilan = ev => {
+      const items = (ev.clipboardData && ev.clipboardData.items) || [];
+      const fichiers = [];
+      for(let i = 0; i < items.length; i++){
+        if(items[i].kind === 'file' && /^image\//.test(items[i].type)){
+          const f = items[i].getAsFile();
+          if(f) fichiers.push(f);
+        }
+      }
+      if(!fichiers.length) return;
+      ev.preventDefault();
+      ajouter(fichiers);
+    });
+  }
+
+  z._recharger = charger;
+  dessiner();
+  charger();
+  return z;
+}
