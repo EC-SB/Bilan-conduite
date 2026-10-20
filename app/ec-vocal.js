@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:45 — v1209 */
+/* Déployé le 20/10/2026 à 12:05 — v1210 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -903,6 +903,9 @@ async function lancerLaGeneration(){
 
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
+    /* 🤖 v1210 — un bilan qu'on refait avec l'IA : son bandeau et son
+       renvoi (il remplace celui envoyé sans IA) */
+    if(typeof refaitIA !== 'undefined' && refaitIA && typeof montrerRefaitIA === 'function') montrerRefaitIA();
     /* Les procédures à cocher, prêtes dès l'affichage du bilan */
     if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
     /* Le tiroir des repères suit le même chemin : c'est l'autre
