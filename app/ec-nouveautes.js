@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:43 — v1205 */
+/* Déployé le 20/10/2026 à 09:49 — v1206 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1206,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🎨 Le créateur des fiches « bilan à la main » : fonds, cases, micros',
+    quoi: [
+      { emoji: '🎨',
+        titre: 'Régler la fiche que voit le moniteur',
+        texte: 'Outils › Ce qu’on écrit › Modèles de bilan › « 🎨 Créateur de fiches » (administrateurs) : la vraie fiche au milieu, ' +
+               'tu touches une zone pour changer son titre, son aide, son fond (9 couleurs, Léger / Franc / Très visible), son micro 🎙️, ' +
+               'ses cases à cocher. 🧩 Les zones : l’ordre (↑ ↓) et masquer (👁️).' },
+      { emoji: '☑',
+        titre: 'Des cases à cocher qui écrivent une phrase',
+        texte: 'Un libellé court pour le moniteur, la phrase qui s’écrit dans le cadre (en tête ou à la fin), cochée d’office ou non. ' +
+               'Les cases d’origine se modifient aussi.' },
+      { emoji: '💾',
+        titre: 'Brouillon, essai, publication',
+        texte: 'Tout part dans un brouillon ; « 👁️ Essayer comme un moniteur » ; « 💾 Publier » l’envoie à tous ; « ⧉ Copier vers… » reporte ' +
+               'sur d’autres modèles ; « ↺ Comme avant » remet la fiche d’origine. Une fiche déjà commencée garde sa forme jusqu’à la fin du cours.' }
+    ]
+  },
   {
     version: 1205,
     date: 'Samedi 17 octobre 2026',
