@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 15:06 — v1218 */
+/* Déployé le 20/10/2026 à 16:10 — v1219 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1219,
+    date: 'Mardi 20 octobre 2026',
+    resume: '📍 Le bilan dit à l’élève où il en est dans sa frise',
+    quoi: [
+      { emoji: '📍',
+        titre: '« Où tu en es », sous le rappel de la frise',
+        texte: 'Chaque bilan d’élève dit maintenant où il en est : « 5ème leçon faite sur 7 → il te reste 2 leçons de 2h avant ton examen blanc », ' +
+               '« examen blanc fait ✅ → il te reste 4h de leçons, puis les 3h avant ton examen », « rendez-vous post-permis fait → … ». ' +
+               'Les mêmes chiffres que la phrase verte du moniteur, et rien quand on ne sait pas.' },
+      { emoji: '⚠️',
+        titre: '« ATTENTION : ce nombre peut changer selon ton évolution »',
+        texte: 'Toujours en dessous quand il y a un nombre — pas pour la leçon de veille ni pour l’ajournement.' }
+    ]
+  },
   {
     version: 1218,
     date: 'Mardi 20 octobre 2026',
