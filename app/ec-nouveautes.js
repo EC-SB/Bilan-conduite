@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 16:10 — v1219 */
+/* Déployé le 20/10/2026 à 17:02 — v1220 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,20 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1220,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🎬 Espace élève : les vidéos du parcours reviennent, et « vu » veut dire lu',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Les vidéos, images et PDF du parcours s’affichent',
+        texte: 'Depuis que l’espace élève charge tout en une fois, les fichiers du parcours arrivaient sans leur lien : l’élève ne voyait que le texte. Ils sont de nouveau là dès l’ouverture.' },
+      { emoji: '👁️',
+        titre: 'Un segment n’est « vu » que s’il a été lu',
+        texte: 'Ouvrir un groupe ne valide plus tout ce qui est à l’écran. Un seul segment à la fois, le premier en partant du haut, le temps de le lire ' +
+               '(selon sa longueur, ses images, ses documents) ; un segment vide ne se valide jamais tout seul. Les vidéos : 90 % regardés, comme avant.' }
+    ]
+  },
   {
     version: 1219,
     date: 'Mardi 20 octobre 2026',
