@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:49 — v1216 */
+/* Déployé le 20/10/2026 à 14:56 — v1217 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1217,
+    date: 'Mardi 20 octobre 2026',
+    resume: '📏 Plus de « découpe-le en deux bilans » : l’IA a deux fois plus de place',
+    quoi: [
+      { emoji: '📏',
+        titre: 'Un cours dense passe en un seul bilan',
+        texte: 'L’IA réfléchit avant d’écrire, et cette réflexion prenait toute la place réservée au bilan : sur un cours dense, ' +
+               'elle rendait un bilan vide (« arrêt : max_tokens »). Elle a maintenant deux fois plus de place, et si ça ne suffit pas, ' +
+               'elle reprend toute seule avec quatre fois plus. On ne paie que ce qu’elle écrit.' },
+      { emoji: '✍️',
+        titre: 'La correction du cours aussi',
+        texte: 'Chaque partie de la correction a la même place, et reprend avec plus de place si elle a été coupée.' }
+    ]
+  },
   {
     version: 1216,
     date: 'Mardi 20 octobre 2026',
