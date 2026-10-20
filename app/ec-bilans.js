@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 09:49 — v1206 */
+/* Déployé le 20/10/2026 à 10:36 — v1207 */
 /* ============================================================
    ec-bilans.js
    Gestion des modèles de bilan.
@@ -203,7 +203,10 @@ async function afficherTextesBilan(){
           bf.addEventListener('click', () => ouvrirCreateurFiches(cle));
           d.appendChild(bf);
         }
-        d.appendChild(blocFormulaireManuel(m.schema));
+        /* ✍️ v1207 — le créateur remplace l'ancienne liste « ✍️ Formulaire
+           du bilan manuel ». Elle ne reste que là où un ancien formulaire
+           modifié existe encore : pour pouvoir le remettre d'origine. */
+        if(champsPersonnalises(m.schema)) d.appendChild(blocFormulaireManuel(m.schema));
         d.appendChild(blocConsignesIA(m.schema));
       }
 
@@ -516,8 +519,8 @@ function blocFormulaireManuel(schema){
   const dispo = (typeof CHAMPS_MANUELS !== 'undefined') && CHAMPS_MANUELS[schema];
 
   d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:600;color:' +
-    (perso ? 'var(--accent-text)' : 'var(--muted)') + ';">✍️ Formulaire du bilan manuel' +
-    (perso ? ' · modifié' : '') + '</summary>';
+    (perso ? 'var(--accent-text)' : 'var(--muted)') + ';">✍️ Ancien formulaire du bilan manuel' +
+    (perso ? ' · modifié — remplacé par le 🎨 créateur' : '') + '</summary>';
 
   if(!dispo){
     const v = document.createElement('div');
