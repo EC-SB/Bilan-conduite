@@ -1,4 +1,4 @@
-/* Déployé le 09/10/2026 à 09:43 — v1116 */
+/* Déployé le 20/10/2026 à 11:45 — v1209 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -1377,7 +1377,9 @@ $('manuelGen').addEventListener('click', async () => {
   b.disabled = true;
   b.textContent = 'Composition…';
   try{
-    await genererBilanManuel();
+    /* ⏱️ v1209 — le même écran sert à « ✍️ Envoyer sans la partie IA » */
+    if(window.sansIAEnCours && typeof composerSansIA === 'function') await composerSansIA();
+    else await genererBilanManuel();
   }catch(e){
     console.error('Composer le bilan :', e);
     await informer('La composition a échoué.\n\nDétail : ' +
@@ -1388,7 +1390,11 @@ $('manuelGen').addEventListener('click', async () => {
     b.textContent = '📄 Composer le bilan';
   }
 });
-$('manuelAnnul').addEventListener('click', fermerBilanManuel);
+$('manuelAnnul').addEventListener('click', () => {
+  /* ⏱️ v1209 — sans IA : « Revenir » rend la dictée, pas la journée */
+  if(window.sansIAEnCours && typeof quitterSansIA === 'function') quitterSansIA();
+  else fermerBilanManuel();
+});
 $('rdvPostEnr').addEventListener('click', terminerRdvPost);
 $('rdvPostAnnul').addEventListener('click', fermerRdvPost);
 $('prepTous').addEventListener('change', () => afficherPrepares(false));
