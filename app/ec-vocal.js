@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 20/10/2026 à 13:48 — v1213 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1185,32 +1185,75 @@ function proceduresDemandees(texte){
   return demandes;
 }
 
-/* La boîte du cours en train de se faire */
-function boiteDuCours(){
+/* La boîte du cours en train de se faire.
+
+   ⚠️ SON NOM À ELLE — v1213. Elle s'appelait « boiteDuCours », comme
+   celle de ec-questionnaire.js (la boîte d'une FORMATION), chargée
+   après : la seconde l'emportait, rendait « » sans formation, et le
+   tri des procédures par boîte ne se faisait jamais — un cours en BV
+   proposait le frein de parking de la BEA et l'attelage de la
+   remorque. David, le 20 octobre : BV voit « BV » et « BEA et BV »,
+   BEA voit « BEA » et « BEA et BV », pas de BE.
+
+   L'ordre (choix de David) :
+     · un élève en remorque (formation BE) : « be » ;
+     · le modèle du cours quand il dit la boîte (« …-manuelle »,
+       « …-auto ») ;
+     · sinon (examen blanc, RVP, examen officiel…) : la formation. */
+function boiteDuModeleDuCours(){
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  let f = '';
+  try{
+    const fi = (nom && typeof ficheDe === 'function') ? ficheDe(nom) : null;
+    f = (fi && typeof boiteDeLaFormation === 'function')
+      ? String(boiteDeLaFormation(fi.formation) || '').toUpperCase() : '';
+  }catch(e){ f = ''; }
+  if(f === 'BE') return 'be';
   const cle = $('modele') ? $('modele').value : '';
   if(/manuelle/i.test(cle)) return 'bv';
-  if(/auto/i.test(cle)) return 'bea';
-  return '';
+  if(/-auto$/i.test(cle)) return 'bea';
+  return f === 'BEA' ? 'bea' : (f === 'BV' ? 'bv' : '');
 }
 
-/* Les procédures utilisables pour cette boîte. Une procédure sans
-   boîte vaut pour les deux : le point de patinage n'a pas de sens
-   en automatique, mais le créneau se fait dans les deux. */
-function proceduresDeLaBoite(){
-  const b = boiteDuCours();
+/* Les procédures de cette boîte. Une procédure sans boîte vaut pour
+   les deux boîtes de la voiture : le point de patinage n'a pas de
+   sens en automatique, mais le créneau se fait dans les deux. Celles
+   de la remorque (BE) ne vont qu'à la remorque — et la remorque ne
+   voit qu'elles (réglage « Pour qui ? » des procédures). */
+function procedureVautPourLaBoite(m, b){
+  const mb = String((m && m.boite) || '').trim().toLowerCase();
+  if(b === 'be') return mb === 'be';
+  if(mb === 'be') return false;
+  if(!mb || !b) return true;           /* les deux boîtes, ou boîte inconnue */
+  return mb === b;
+}
+function toutesLesProcedures(){
   return ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
-    .filter(m => m.usage === 'procedure')
-    .filter(m => {
-      const mb = String(m.boite || '').trim().toLowerCase();
-      if(!mb) return true;                 /* les deux boîtes */
-      if(!b) return true;                  /* boîte inconnue : on garde tout */
-      return mb === b;
-    });
+    .filter(m => m.usage === 'procedure');
+}
+function proceduresDeLaBoite(){
+  const b = boiteDuModeleDuCours();
+  return toutesLesProcedures().filter(m => procedureVautPourLaBoite(m, b));
+}
+/* 🔘 v1213 — « Les autres procédures (pas pour cette boîte) » */
+function proceduresHorsDeLaBoite(){
+  const b = boiteDuModeleDuCours();
+  return toutesLesProcedures().filter(m => !procedureVautPourLaBoite(m, b));
+}
+function etiquetteBoiteProcedure(m){
+  const mb = String((m && m.boite) || '').trim().toLowerCase();
+  return mb === 'be' ? '🚚 BE' : mb === 'bea' ? '🚗 BEA' : mb === 'bv' ? '🚗 BV' : '🚗 BEA et BV';
 }
 
 /* Retrouve la procédure la plus proche du nom prononcé */
+/* 🔘 v1213 — celle de la boîte d'abord ; une procédure demandée à
+   voix haute qui n'est pas de cette boîte se trouve quand même : le
+   moniteur l'a demandée. */
 function trouverProcedure(nomDit){
-  const liste = proceduresDeLaBoite();
+  return trouverProcedureDans(nomDit, proceduresDeLaBoite()) ||
+         trouverProcedureDans(nomDit, proceduresHorsDeLaBoite());
+}
+function trouverProcedureDans(nomDit, liste){
   if(!liste.length) return null;
 
   const q = normaliserMot(nomDit);
@@ -1242,7 +1285,7 @@ function consigneProceduresIA(){
   const liste = proceduresDeLaBoite();
   if(!liste.length) return '';
 
-  const b = boiteDuCours();
+  const b = boiteDuModeleDuCours();
   const nom = b === 'bea' ? 'boîte automatique'
             : b === 'bv' ? 'boîte manuelle' : '';
 
@@ -1373,6 +1416,120 @@ function proceduresChoisiesAuBilan(){
   return ids.map(id => toutes.find(p => String(p.id || p.nom) === id)).filter(Boolean);
 }
 
+/* ============================================================
+   🔘 BOUTONS OU CASES — v1213
+
+   David, le 20 octobre : « des boutons plutôt que des cases à cocher,
+   qui passent en vert quand elles sont incluses » — pour les
+   procédures ET la fiche véhicule — « mais laisse la possibilité de
+   repasser en mode case à cocher comme c'est actuellement ». Ses
+   choix : un seul réglage pour les deux tiroirs, gardé sur le
+   téléphone de chaque moniteur, boutons par défaut.
+
+   ⚠️ LES CASES RESTENT LA VÉRITÉ. En mode boutons, elles sont là,
+   cachées : chaque bouton ne fait que cocher ou décocher SA case, et
+   se repeindre. Tout ce qui lit la fiche — le bilan, le dépôt, la
+   reprise après un plantage, le rang des saisies d'une fiche à la
+   main — lit les cases, comme avant. Un second état aurait fini par
+   ne plus dire la même chose.
+   ============================================================ */
+const CLE_VUE_CASES = 'ec_vue_cases';
+function vueEnCases(){
+  try{ return localStorage.getItem(CLE_VUE_CASES) === 'cases'; }catch(e){ return false; }
+}
+function poserVueEnCases(oui){
+  try{ localStorage.setItem(CLE_VUE_CASES, oui ? 'cases' : 'boutons'); }catch(e){}
+  document.querySelectorAll('.zoneVueCases').forEach(z => { if(typeof z._appliquerVue === 'function') z._appliquerVue(); });
+}
+function pastilleVue(texte, on){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn pastilleVue ' + (on ? 'btn-primary' : 'btn-secondary');
+  b.textContent = texte;
+  return b;
+}
+/* « 🔘 Boutons | ☑ Cases » : le même réglage partout */
+function basculeVueCases(){
+  const r = document.createElement('div');
+  r.className = 'basculeVue';
+  const bb = pastilleVue('🔘 Boutons', false), bc = pastilleVue('☑ Cases', false);
+  const peindre = () => {
+    const c = vueEnCases();
+    bb.className = 'btn pastilleVue ' + (c ? 'btn-secondary' : 'btn-primary');
+    bc.className = 'btn pastilleVue ' + (c ? 'btn-primary' : 'btn-secondary');
+    bb.setAttribute('aria-pressed', c ? 'false' : 'true');
+    bc.setAttribute('aria-pressed', c ? 'true' : 'false');
+  };
+  bb.addEventListener('click', () => poserVueEnCases(false));
+  bc.addEventListener('click', () => poserVueEnCases(true));
+  r.appendChild(bb); r.appendChild(bc);
+  r.classList.add('zoneVueCases');
+  r._appliquerVue = peindre;
+  peindre();
+  return r;
+}
+/* Une zone qui a ses deux habits : « cases » (l'actuel) et « boutons » */
+function deuxHabits(zone, cases, boutons, repeindre){
+  zone.classList.add('zoneVueCases');
+  zone._appliquerVue = () => {
+    const c = vueEnCases();
+    cases.style.display = c ? '' : 'none';
+    boutons.style.display = c ? 'none' : '';
+    if(!c && typeof repeindre === 'function') repeindre();
+  };
+  zone._appliquerVue();
+}
+/* L'émoji du moniteur qui coche, ✅ à défaut */
+function monEmojiDeFiche(){
+  return (typeof ACCES !== 'undefined' && ACCES && ACCES.emoji) ? String(ACCES.emoji).trim() : '✅';
+}
+
+/* ------------------------------------------------------------
+   UNE MANŒUVRE EN BOUTON : son nom, les émojis de ceux qui l'ont
+   faite ; touchée, elle passe en vert avec l'émoji du moniteur. Et le
+   🚗 « déjà fait dans une autre auto-école » en petit bouton collé à
+   droite, qui se colore à part (choix de David).
+   ------------------------------------------------------------ */
+function boutonDeManoeuvre(cb, libelle, marque, cbAilleurs){
+  const g = document.createElement('span');
+  g.className = 'pastilleGroupe';
+  const b = pastilleVue('', false);
+  b.dataset.manoeuvre = libelle;
+  const moi = monEmojiDeFiche();
+  let a = null;
+  const peindre = () => {
+    const on = !!cb.checked;
+    const m = String(marque || '').trim();
+    b.className = 'btn pastilleVue ' + (on ? 'btn-primary' : 'btn-secondary') + ((!on && m) ? ' pastilleFaite' : '');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.textContent = libelle + (m ? ' ' + m : '') + ((on && m.split(/\s+/).indexOf(moi) === -1) ? ' ' + moi : '');
+    if(a){
+      const ao = !!cbAilleurs.checked;
+      a.className = 'btn pastilleVue pastilleAilleurs ' + (ao ? 'on' : 'btn-secondary');
+      a.setAttribute('aria-pressed', ao ? 'true' : 'false');
+    }
+  };
+  b.addEventListener('click', () => {
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change', { bubbles: true }));
+    peindre();
+  });
+  g.appendChild(b);
+  if(cbAilleurs){
+    a = pastilleVue('🚗', false);
+    a.title = 'Déjà fait dans une autre auto-école';
+    a.addEventListener('click', () => {
+      cbAilleurs.checked = !cbAilleurs.checked;
+      cbAilleurs.dispatchEvent(new Event('change', { bubbles: true }));
+      peindre();
+    });
+    g.appendChild(a);
+  }
+  g._peindre = peindre;
+  peindre();
+  return g;
+}
+
 function dessinerProceduresAJoindre(idZone){
   const z = $(idZone);
   if(!z) return;
@@ -1380,14 +1537,12 @@ function dessinerProceduresAJoindre(idZone){
   if(!cleProcsDuCours()){ z.style.display = 'none'; return; }
 
   const choisies = proceduresCochees();
-  const liste = proceduresDeLaBoite().slice();
-  /* Une procédure cochée qui n'est plus de cette boîte (le modèle a
-     changé) reste à l'écran : on doit pouvoir la décocher. */
-  proceduresChoisiesAuBilan().forEach(p => {
-    if(!liste.some(x => String(x.id || x.nom) === String(p.id || p.nom))) liste.push(p);
-  });
-  liste.sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
-  if(!liste.length){ z.style.display = 'none'; return; }
+  const tri = l => l.slice().sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+  const liste = tri(proceduresDeLaBoite());
+  /* 🔘 v1213 — les autres boîtes, à part. Une procédure d'une autre
+     boîte déjà cochée reste visible : on doit pouvoir la décocher. */
+  const autres = tri(proceduresHorsDeLaBoite());
+  if(!liste.length && !autres.length){ z.style.display = 'none'; return; }
   z.style.display = '';
 
   const d = document.createElement('details');
@@ -1402,15 +1557,33 @@ function dessinerProceduresAJoindre(idZone){
       (n ? ' — ' + n + ' choisie' + (n > 1 ? 's' : '') : '');
   }
 
+  const b = boiteDuModeleDuCours();
   const aide = document.createElement('div');
-  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;';
-  aide.textContent = "Coche celles que l'élève doit retrouver à la fin de son bilan. " +
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 4px;line-height:1.5;';
+  aide.textContent = (b === 'bv' ? '🕹️ Cours en boîte manuelle : les procédures BV, et BEA et BV. '
+                    : b === 'bea' ? '⚙️ Cours en boîte automatique : les procédures BEA, et BEA et BV. '
+                    : b === 'be' ? '🚚 Cours de remorque : les procédures BE. ' : '') +
     'Celles que tu demandes à voix haute s’ajoutent toujours toutes seules.';
   d.appendChild(aide);
+  d.appendChild(basculeVueCases());
 
-  liste.forEach(p => {
+  const pastilles = [];
+  const majChoix = () => {
+    const ids = [];
+    z.querySelectorAll('input.procJointe').forEach(x => { if(x.checked) ids.push(x.value); });
+    poserProceduresCochees(ids);
+    z.querySelectorAll('label.ligneProc').forEach(l => {
+      const x = l.querySelector('input'); l.style.fontWeight = x && x.checked ? '700' : '400';
+    });
+    pastilles.forEach(f => f());
+    majTitre();
+  };
+
+  /* Une procédure : sa case (l'actuel) et son bouton */
+  const unePaire = (p, etiquette, cases, boutons) => {
     const id = String(p.id || p.nom);
     const l = document.createElement('label');
+    l.className = 'ligneProc';
     l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;font-size:14px;' +
       'text-transform:none;margin:0;font-weight:400;cursor:pointer;color:var(--cream);';
     const cb = document.createElement('input');
@@ -1420,21 +1593,49 @@ function dessinerProceduresAJoindre(idZone){
     cb.dataset.horsSaisie = '1';
     cb.checked = choisies.indexOf(id) !== -1;
     cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;margin:0;';
-    cb.addEventListener('change', () => {
-      const ids = [];
-      z.querySelectorAll('input.procJointe').forEach(x => { if(x.checked) ids.push(x.value); });
-      poserProceduresCochees(ids);
-      l.style.fontWeight = cb.checked ? '700' : '400';
-      majTitre();
-    });
-    l.style.fontWeight = cb.checked ? '700' : '400';
+    cb.addEventListener('change', majChoix);
     l.appendChild(cb);
     const t = document.createElement('span');
     t.style.cssText = 'flex:1;min-width:0;';
-    t.textContent = p.nom || 'Sans nom';
+    t.textContent = (p.nom || 'Sans nom') + (etiquette ? '  ' + etiquette : '');
     l.appendChild(t);
-    d.appendChild(l);
-  });
+    cases.appendChild(l);
+
+    const bt = pastilleVue((p.nom || 'Sans nom') + (etiquette ? '  ' + etiquette : ''), cb.checked);
+    bt.dataset.proc = id;
+    const peindre = () => {
+      bt.className = 'btn pastilleVue ' + (cb.checked ? 'btn-primary' : 'btn-secondary');
+      bt.setAttribute('aria-pressed', cb.checked ? 'true' : 'false');
+    };
+    bt.addEventListener('click', () => { cb.checked = !cb.checked; majChoix(); });
+    pastilles.push(peindre);
+    peindre();
+    boutons.appendChild(bt);
+  };
+
+  const habit = (parent, l, avecEtiquette) => {
+    const zone = document.createElement('div');
+    const cases = document.createElement('div');
+    const boutons = document.createElement('div');
+    boutons.className = 'grillePastilles';
+    l.forEach(p => unePaire(p, avecEtiquette ? etiquetteBoiteProcedure(p) : '', cases, boutons));
+    zone.appendChild(cases); zone.appendChild(boutons);
+    parent.appendChild(zone);
+    deuxHabits(zone, cases, boutons);
+  };
+  habit(d, liste, false);
+
+  if(autres.length){
+    const ad = document.createElement('details');
+    ad.className = 'autresProcedures';
+    const nAutres = autres.filter(p => choisies.indexOf(String(p.id || p.nom)) !== -1).length;
+    ad.open = nAutres > 0;
+    const as = document.createElement('summary');
+    as.textContent = 'Les autres procédures (pas pour cette boîte) — ' + autres.length;
+    ad.appendChild(as);
+    habit(ad, autres, true);
+    d.appendChild(ad);
+  }
 
   majTitre();
   z.appendChild(d);
@@ -1461,9 +1662,14 @@ function remplirChoixProcedures(){
   if(zone) zone.style.display = liste.length ? 'flex' : 'none';
   if(!liste.length) return;
 
+  const opt = p => '<option value="' + String(p.id || p.nom).replace(/"/g, '&quot;') +
+                   '">' + String(p.nom || 'Sans nom').replace(/</g, '&lt;') + '</option>';
+  /* 🔘 v1213 — les autres boîtes, à part et en dessous */
+  const autres = proceduresHorsDeLaBoite()
+    .slice().sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
   sel.innerHTML = '<option value="">📋 Ajouter une procédure…</option>' +
-    liste.map(p => '<option value="' + String(p.id || p.nom).replace(/"/g, '&quot;') +
-                   '">' + (p.nom || 'Sans nom') + '</option>').join('');
+    liste.map(opt).join('') +
+    (autres.length ? '<optgroup label="Les autres (pas pour cette boîte)">' + autres.map(opt).join('') + '</optgroup>' : '');
 }
 
 function ajouterProcedureAuBilan(){
@@ -1471,7 +1677,7 @@ function ajouterProcedureAuBilan(){
   const zone = $('resultText');
   if(!sel || !zone || !sel.value) return;
 
-  const p = proceduresDeLaBoite()
+  const p = toutesLesProcedures()
     .find(x => String(x.id || x.nom) === sel.value);
   if(!p){ showToast('Procédure introuvable.'); return; }
 
@@ -1550,13 +1756,20 @@ async function afficherFicheDuCours(){
 
   d.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
     'color:var(--accent-text);">🦉 Fiche véhicule — ' + acquises + ' sur ' +
-    (BLOC.ficheListeConduite || []).length + ' · coche ce que tu fais aujourd\'hui</summary>';
+    (BLOC.ficheListeConduite || []).length + ' · <span class="verbeFiche"></span> ce que tu fais aujourd\'hui</summary>';
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;';
   aide.textContent = "Facultatif : ce que tu dictes est déjà repris tout seul. " +
     "Ces cases servent à compléter ce que l'enregistrement aurait manqué.";
   d.appendChild(aide);
+  /* 🔘 v1213 — « 🔘 Boutons | ☑ Cases » : les cases restent, cachées
+     en mode boutons (voir « BOUTONS OU CASES ») */
+  d.appendChild(basculeVueCases());
+  const casesFiche = document.createElement('div');
+  const boutonsFiche = document.createElement('div');
+  boutonsFiche.className = 'grillePastilles';
+  const miroirs = [];
 
   /* Tout cocher d'un coup : quand la fiche est bouclée, cocher
      dix-neuf cases une par une n'a pas de sens. */
@@ -1578,7 +1791,7 @@ async function afficherFicheDuCours(){
   const tt = document.createElement('span');
   tt.textContent = 'Tout cocher';
   tout.appendChild(tt);
-  d.appendChild(tout);
+  casesFiche.appendChild(tout);
 
   (BLOC.ficheListeConduite || []).forEach(libelle => {
     const cle = normaliserMot(libelle);
@@ -1662,8 +1875,36 @@ async function afficherFicheDuCours(){
       l.appendChild(ail);
     }
 
-    d.appendChild(l);
+    casesFiche.appendChild(l);
+    /* 🔘 v1213 — son bouton, branché sur ses cases */
+    miroirs.push(boutonDeManoeuvre(cb, libelle, deja, l.querySelector('input.mAilleurs')));
   });
+
+  /* « ✅ Tout » : la case « Tout cocher », en bouton */
+  const bTout = pastilleVue('✅ Tout', false);
+  bTout.style.fontWeight = '800';
+  bTout.addEventListener('click', () => {
+    cbTout.checked = !cbTout.checked;
+    cbTout.dispatchEvent(new Event('change'));
+    miroirs.forEach(m => m._peindre());
+    bTout.className = 'btn pastilleVue ' + (cbTout.checked ? 'btn-primary' : 'btn-secondary');
+  });
+  boutonsFiche.appendChild(bTout);
+  miroirs.forEach(m => boutonsFiche.appendChild(m));
+  d.appendChild(casesFiche);
+  d.appendChild(boutonsFiche);
+  const verbe = d.querySelector('.verbeFiche');
+  deuxHabits(d, casesFiche, boutonsFiche, () => miroirs.forEach(m => m._peindre()));
+  const majVerbe = () => {
+    const c = vueEnCases();
+    if(verbe) verbe.textContent = c ? 'coche' : 'touche';
+    aide.textContent = 'Facultatif : ce que tu dictes est déjà repris tout seul. ' +
+      (c ? "Ces cases servent à compléter ce que l'enregistrement aurait manqué."
+         : 'Touche une manœuvre : elle passe en vert avec ton émoji.');
+  };
+  const avantVue = d._appliquerVue;
+  d._appliquerVue = () => { avantVue(); majVerbe(); };
+  majVerbe();
 
   zone.appendChild(d);
   zone.style.display = 'block';
