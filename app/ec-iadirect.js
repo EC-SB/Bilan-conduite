@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:51 — v1209 */
+/* Déployé le 20/10/2026 à 12:05 — v1210 */
 /* ============================================================
    ec-iadirect.js
    🤖 L'IA AU FIL DE L'EAU, ET LE BILAN QUI NE REVIENT PAS — v1209
@@ -20,7 +20,7 @@
      · le bureau prévenu (la boîte du bureau seulement) ;
      · sans IA : le bilan habituel, le moniteur coche les rubriques
        qu'il remplit à la main ; la dictée reste gardée pour refaire
-       le bilan avec l'IA (livraison suivante) ;
+       le bilan avec l'IA (v1210, « REFAIRE AVEC L'IA » plus bas) ;
      · les durées mesurées, pour régler le seuil sur des chiffres.
 
    Application Bilan de conduite — Évolution Conduites
@@ -609,6 +609,248 @@ async function chargerTempsDesGenerations(bornes){
                  ['Envoyés sans IA', String(r.sansIa)], ['Générations', String(r.n)]];
   z.innerHTML = cases.map(([t, v]) => '<div style="border:1px solid var(--line);border-radius:10px;padding:8px 12px;"><div style="font-size:11.5px;color:var(--muted);">' +
     echIA(t) + '</div><div style="font-weight:800;font-size:16px;">' + echIA(v) + '</div></div>').join('');
+}
+
+/* ============================================================
+   🤖 REFAIRE AVEC L'IA — v1210 (livraison ②)
+
+   Un bilan parti sans la partie IA garde sa dictée. On la renvoie à
+   l'IA — depuis le dossier de l'élève (📚 Cours) ou « Cours non
+   terminés » — et le bilan refait REMPLACE celui envoyé sans IA :
+   même ligne du classeur, un mail « 📄 Ton bilan complet du cours
+   du … », l'historique de l'élève se met à jour.
+
+   Les choix de David : le moniteur du cours, le bureau et les admins
+   peuvent le refaire ; si ce n'est pas le moniteur du cours, le bilan
+   refait lui part pour relecture (« 📤 Renvoyer à … ») et c'est lui
+   qui le renvoie à l'élève. La dictée reste jusqu'au renvoi.
+   ============================================================ */
+let refaitIA = null;
+function refaitIAEnCours(eleve){
+  return !!(refaitIA && normaliserMot(refaitIA.eleve || '') === normaliserMot(eleve || ''));
+}
+function estLeMoniteurDuCours(b){
+  return normaliserMot((typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || '') === normaliserMot((b && b.moniteur) || '');
+}
+function jourDuCoursIA(d){
+  const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : String(d || '');
+}
+
+async function refaireAvecIA(b, ligne){
+  if(!b || !String(b.transcript || '').trim()){ showToast('La dictée de ce cours n’est plus là.'); return; }
+  const jour = jourDuCoursIA(b.dateCours);
+  const moi = estLeMoniteurDuCours(b);
+  if(!await confirmer('🤖 Refaire avec l’IA le bilan de ' + b.eleve + (jour ? ' du ' + jour : '') + ' ?\n\n' +
+      'La dictée gardée repart à l’IA. ' + (moi
+        ? 'Tu relis, tu corriges, puis « 📨 Renvoyer à l’élève » : il remplace le bilan envoyé sans IA.'
+        : 'Le bilan refait part ensuite à ' + (b.moniteur || 'son moniteur') + ', qui le relit et le renvoie à l’élève.'), 'Refaire')) return;
+  if(typeof reprendreBrouillonServeur === 'function'){
+    await reprendreBrouillonServeur(Object.assign({}, b, { etat: 'dictee', fiche: '', bilan: '' }));
+  }
+  /* Il a préféré garder le cours ouvert : on n'a rien chargé */
+  if(normaliserMot(($('studentName') && $('studentName').value) || '') !== normaliserMot(b.eleve || '') ||
+     String((typeof finalTranscript !== 'undefined' && finalTranscript) || '') !== String(b.transcript || '')){
+    return;
+  }
+  /* À partir d'ici, plus aucun dépôt automatique : la dictée gardée
+     ne doit pas être écrasée (voir deposerBrouillonServeur) */
+  refaitIA = { b: b, ligne: ligne || null, eleve: b.eleve, dateCours: b.dateCours, moniteur: b.moniteur };
+  if(typeof lancerLaGeneration === 'function') await lancerLaGeneration();
+}
+
+/* Le moniteur rouvre un bilan refait par le bureau (« 🤖 refait ») */
+function ouvrirRefaitIA(b){
+  refaitIA = { b: b, ligne: null, eleve: b.eleve, dateCours: b.dateCours, moniteur: b.moniteur };
+  montrerRefaitIA();
+}
+
+/* Le bandeau du bilan refait, et lui seul pour finir : pas de
+   « Copier, enregistrer » (ce serait un deuxième cours). */
+const ACTIONS_HABITUELLES_RESULTAT = ['copyBtn', 'renvoyerMoniteur', 'corrigerBtn', 'corrigerLecon'];
+function montrerRefaitIA(){
+  const r = refaitIA;
+  if(!r) return;
+  const carte = $('resultView') && $('resultView').querySelector('.card');
+  if(!carte) return;
+  let ban = $('refaitBandeau');
+  if(!ban){
+    ban = document.createElement('div');
+    ban.id = 'refaitBandeau';
+    ban.style.cssText = 'border:2px solid var(--orange);border-radius:12px;padding:11px 13px;margin-bottom:14px;';
+    carte.prepend(ban);
+  }
+  const moi = estLeMoniteurDuCours(r.b);
+  const jour = jourDuCoursIA(r.dateCours);
+  ban.innerHTML = '<div style="font-weight:800;font-size:14px;">🤖 Bilan refait avec l’IA — cours du ' + echIA(jour) + '</div>' +
+    '<div style="font-size:12.5px;line-height:1.5;color:var(--soft);margin:4px 0 10px;">' + (moi
+      ? 'Relis et corrige. « 📨 Renvoyer à l’élève » remplace le bilan envoyé sans IA : un mail lui part, et son historique se met à jour.'
+      : 'Relis-le si tu veux. Il part à <b>' + echIA(r.moniteur || 'son moniteur') + '</b> : c’est lui qui le relit et le renvoie à l’élève.') + '</div>' +
+    '<button type="button" class="btn btn-primary" id="refaitEnvoyer" style="margin:0 0 8px;padding:12px;font-size:14px;">' +
+      (moi ? '📨 Renvoyer à l’élève' : '📤 Renvoyer à ' + echIA(r.moniteur || 'son moniteur') + ' pour correction') + '</button>' +
+    '<button type="button" class="btn btn-secondary" id="refaitLaisser" style="margin:0;padding:9px;font-size:12.5px;">Laisser pour plus tard (la dictée reste gardée)</button>';
+  $('refaitEnvoyer').addEventListener('click', () => (moi ? renvoyerRefaitALEleve() : renvoyerRefaitAuMoniteur()));
+  $('refaitLaisser').addEventListener('click', () => terminerRefaitIA('Le bilan refait n’est pas parti : la dictée reste gardée.'));
+  /* Les actions habituelles se cachent le temps du bilan refait */
+  if(!r.caches){
+    r.caches = [];
+    const autres = $('exportSheetsBtn') && $('exportSheetsBtn').closest('details');
+    ACTIONS_HABITUELLES_RESULTAT.map(id => $(id)).concat([autres]).forEach(x => {
+      if(!x) return;
+      r.caches.push([x, x.style.display]);
+      x.style.display = 'none';
+    });
+  }
+  window.scrollTo(0, 0);
+}
+
+/* Fin du bilan refait (renvoyé ou laissé) : l'écran redevient lui-même */
+function terminerRefaitIA(message){
+  const r = refaitIA;
+  refaitIA = null;
+  const ban = $('refaitBandeau'); if(ban) ban.remove();
+  if(r && r.caches) r.caches.forEach(([x, d]) => { x.style.display = d; });
+  if(typeof marquerExport === 'function') try{ marquerExport(true); }catch(e){}
+  if(typeof fermerLeCoursOuvert === 'function') fermerLeCoursOuvert();
+  if($('studentName')) $('studentName').value = '';
+  if($('transcriptBox')) $('transcriptBox').value = '';
+  if(typeof finalTranscript !== 'undefined') finalTranscript = '';
+  if(typeof committedTranscript !== 'undefined') committedTranscript = '';
+  if($('noteInterne')) $('noteInterne').value = '';
+  if($('recordView')) $('recordView').style.display = 'block';
+  if(typeof brouillonRepris !== 'undefined') brouillonRepris = null;
+  if(message) showToast(message);
+}
+
+/* La ligne du cours dans le classeur : connue depuis le dossier, sinon
+   cherchée (même élève, même jour, même moniteur ; à défaut, le texte
+   envoyé sans IA). */
+async function trouverLigneDuCours(r){
+  if(r.ligne) return r.ligne;
+  let res = [];
+  try{
+    const d = await appelPrep({ action: 'search', eleve: r.eleve, exact: true, maxi: 60 });
+    res = (d && d.resultats) || [];
+  }catch(e){ return null; }
+  const jour = jourDe(r.dateCours);
+  let l = res.filter(x => jourDe(x.date) === jour);
+  if(l.length > 1){
+    const m = l.filter(x => normaliserMot(x.moniteur || '') === normaliserMot(r.moniteur || ''));
+    if(m.length) l = m;
+  }
+  if(l.length > 1 && r.b && r.b.bilan){
+    const t = l.filter(x => String(x.bilan || '').trim() === String(r.b.bilan).trim());
+    if(t.length) l = t;
+  }
+  return l.length ? l[0].ligne : null;
+}
+
+async function renvoyerRefaitALEleve(){
+  const r = refaitIA;
+  if(!r) return;
+  const texte = String(($('resultText') && $('resultText').value) || '').trim();
+  if(!texte){ showToast('Le bilan est vide.'); return; }
+  const jourTxt = (typeof dateEnToutesLettres === 'function') ? (dateEnToutesLettres(r.dateCours) || jourDuCoursIA(r.dateCours)) : jourDuCoursIA(r.dateCours);
+  if(!await confirmer('📨 Renvoyer à ' + r.eleve + ' son bilan complet du ' + jourDuCoursIA(r.dateCours) + ' ?\n\n' +
+      'Il remplace le bilan envoyé sans IA (dans son historique aussi), et un mail lui part.', 'Renvoyer')) return;
+  const bouton = $('refaitEnvoyer');
+  if(bouton){ bouton.disabled = true; bouton.textContent = 'Envoi…'; }
+  const rendre = () => { if(bouton){ bouton.disabled = false; bouton.textContent = '📨 Renvoyer à l’élève'; } };
+  const ligne = await trouverLigneDuCours(r);
+  if(!ligne){
+    rendre();
+    await informer('Le cours du ' + jourDuCoursIA(r.dateCours) + ' de ' + r.eleve + ' est introuvable dans le classeur.\n\n' +
+                   'Rien n’a été remplacé ni envoyé : ouvre son dossier (📚 Cours) et refais-le de là.');
+    return;
+  }
+  try{
+    const m = await appelPrep({ action: 'bilanMaj', ligne: ligne, eleve: r.eleve, bilan: texte,
+                                manoeuvres: (typeof manoeuvresDejaFaites === 'function') ? manoeuvresDejaFaites(texte).join(' | ') : undefined });
+    if(!m || m.status === 'error') throw new Error((m && m.message) || 'refusé');
+  }catch(e){
+    rendre();
+    showToast('Bilan non remplacé : ' + e.message);
+    return;
+  }
+  if(typeof viderCaches === 'function') try{ viderCaches(r.eleve); }catch(e){}
+  /* La dictée a servi : elle s'en va (c'est le renvoi qui l'efface) */
+  try{ await appelPrep(r.b && r.b.id ? { action: 'brouillonDelete', id: r.b.id } : { action: 'brouillonDelete', eleve: r.eleve }); }catch(e){}
+  let envoye = 0, echec = '';
+  try{
+    const pourLui = (typeof bilanPourLEleve === 'function') ? bilanPourLEleve(texte) : texte;
+    envoye = await envoyerBilanParMail(r.eleve, r.dateCours,
+      '📄 Voici ton bilan complété : il remplace celui reçu le jour du cours.\n\n' + pourLui,
+      { sujet: '📄 Ton bilan complet du cours du ' + jourTxt });
+  }catch(e){ echec = e.message; }
+  const eleve = r.eleve;
+  terminerRefaitIA();
+  if(echec || !envoye){
+    await informer('✅ Le bilan de ' + eleve + ' est remplacé dans son historique.\n\n' +
+      '⚠️ Le mail n’est pas parti' + (echec ? ' : ' + echec : '') + '. Renvoie-le depuis son dossier (📚 Cours › ✉️).');
+  }else{
+    showToast('📨 Bilan complet renvoyé à ' + eleve + ' ✅');
+  }
+}
+
+async function renvoyerRefaitAuMoniteur(){
+  const r = refaitIA;
+  if(!r) return;
+  const texte = String(($('resultText') && $('resultText').value) || '').trim();
+  if(!texte){ showToast('Le bilan est vide.'); return; }
+  const bouton = $('refaitEnvoyer');
+  if(bouton){ bouton.disabled = true; bouton.textContent = 'Envoi…'; }
+  try{
+    await deposerBrouillonServeur({ refait: true, pour: r.moniteur, eleve: r.eleve, dateCours: r.dateCours,
+      modele: (r.b && r.b.modele) || '', site: (r.b && r.b.site) || '', transcript: (r.b && r.b.transcript) || '',
+      note: (r.b && r.b.note) || '', bilan: texte, etat: 'refait' });
+    if(typeof envoyerConsigne === 'function'){
+      try{ await envoyerConsigne(r.eleve, 'bilan', '🤖 Bilan refait avec l’IA — à relire et renvoyer à l’élève (' + jourDuCoursIA(r.dateCours) + ')'); }catch(e){}
+    }
+  }catch(e){
+    if(bouton){ bouton.disabled = false; bouton.textContent = '📤 Renvoyer à ' + (r.moniteur || 'son moniteur') + ' pour correction'; }
+    showToast('Impossible : ' + e.message);
+    return;
+  }
+  terminerRefaitIA('📤 Parti chez ' + (r.moniteur || 'son moniteur') + ' pour relecture ✅');
+}
+
+/* Le dossier de l'élève (📚 Cours) : les bilans partis sans IA le
+   disent, avec « 🤖 Refaire avec l'IA » */
+async function decorerCoursSansIA(lignes, items, eleve){
+  if(!lignes || !lignes.length) return;
+  let d;
+  try{ d = await appelPrep({ action: 'brouillonsSansIa', eleve: eleve }); }catch(e){ return; }
+  const gardees = (d && d.brouillons) || [];
+  if(!gardees.length) return;
+  items.forEach((it, i) => {
+    const row = lignes[i];
+    if(!row || !it) return;
+    const jour = jourDe(it.date);
+    let b = gardees.filter(x => jourDe(x.dateCours) === jour && normaliserMot(x.moniteur || '') === normaliserMot(it.moniteur || ''))[0] ||
+            gardees.filter(x => jourDe(x.dateCours) === jour)[0];
+    if(!b || row.dataset.sansIa) return;
+    row.dataset.sansIa = b.etat;
+    const meta = row.querySelector('.meta');
+    if(!meta) return;
+    const s = document.createElement('span');
+    s.style.cssText = 'color:var(--warn-text);font-weight:700;';
+    s.textContent = b.etat === 'refait'
+      ? '🤖 Refait avec l’IA — chez ' + (b.moniteur || 'son moniteur') + ' pour relecture'
+      : '✍️ Envoyé sans la partie IA — la dictée est gardée';
+    meta.appendChild(s);
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;flex-shrink:0;';
+    if(b.etat === 'refait'){
+      if(!estLeMoniteurDuCours(b)) return;
+      btn.textContent = '↩️ Le relire';
+      btn.addEventListener('click', ev => { ev.stopPropagation(); if(typeof reprendreBrouillonServeur === 'function') reprendreBrouillonServeur(b); });
+    }else{
+      btn.textContent = '🤖 Refaire avec l’IA';
+      btn.addEventListener('click', ev => { ev.stopPropagation(); refaireAvecIA(b, it.ligne || null); });
+    }
+    meta.after(btn);
+  });
 }
 
 /* Toucher la notification « bilan pas revenu » ouvre « Cours non terminés » */
