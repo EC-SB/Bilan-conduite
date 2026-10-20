@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:01 — v1208 */
+/* Déployé le 20/10/2026 à 11:45 — v1209 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3924,7 +3924,7 @@ function sauvegarderManuel(){
      c'est exactement là qu'il sert. */
   if(typeof bilanEnregistre !== 'undefined' && bilanEnregistre) return;
   /* ✍️ v1206 — l'essai du créateur de fiches ne laisse rien */
-  if(window.essaiFicheEnCours) return;
+  if(window.essaiFicheEnCours || window.sansIAEnCours) return;
 
   const brouillon = brouillonManuelActuel();
   if(!brouillon) return;
@@ -4352,7 +4352,7 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
      n'existe que si « modeManuel » est vrai. Avec une zone, c'est
      un écran qui se garde lui-même — le rendez-vous post-permis. */
   if(!quelleZone && !modeManuel) return;
-  if(window.essaiFicheEnCours) return;
+  if(window.essaiFicheEnCours || window.sansIAEnCours) return;
 
   /* ⚠️ MÊME GARDE QUE « sauvegarderManuel » — v1076, et pour la
      même raison : un cours enregistré n'a plus rien à déposer dans
