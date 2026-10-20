@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:56 — v1217 */
+/* Déployé le 20/10/2026 à 15:06 — v1218 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2468,7 +2468,9 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
                          ? consigneCorrectionsIA() : '') +
                        (typeof consigneLieuxIA === 'function' ? consigneLieuxIA() : '') +
                        consigneProceduresIA() +
-                       consigneMoniteurIA(transcript);
+                       consigneMoniteurIA(transcript) +
+                       /* ⚖️ v1218 — en dernier : elle a le dernier mot */
+                       (typeof consigneGraviteIA === 'function' ? consigneGraviteIA() : '');
   /* ------------------------------------------------------------
      LE NOM DE FAMILLE NE SORT PAS
 
