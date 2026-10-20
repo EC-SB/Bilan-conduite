@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:35 — v1215 */
+/* Déployé le 20/10/2026 à 14:56 — v1217 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2198,6 +2198,7 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
   }
 
   let derniereErreur = null;
+  let plusDePlace = false;
 
   /* Jusqu'à 3 tentatives : un échec ponctuel ne doit pas laisser
      une partie du cours en texte brut. */
@@ -2217,7 +2218,10 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
                                     (typeof consigneLieuxIA === 'function'
                                       ? consigneLieuxIA() : '') +
                                     consigneMoniteurIA(tranche) + contexte,
-                                    tranche, 8000,
+                                    /* 📏 v1217 — le raisonnement de l'IA compte
+                                       dans ce plafond : 16000, puis 32000 si elle
+                                       l'a touché à l'essai d'avant */
+                                    tranche, plusDePlace ? JETONS_BILAN_LONG : JETONS_BILAN,
                                     'Correction de la transcription', true);
       const propre = String((txt && txt.texte) || '').trim();
       const fin = (txt && txt.fin) || '';
@@ -2244,10 +2248,12 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
          ce motif manque (un Worker d'avant), et seulement quand
          l'original, lui, finissait sa phrase.
          ============================================================ */
-      if(!propre){
-        derniereErreur = new Error('réponse vide');
-      }else if(fin === 'max_tokens'){
+      if(fin === 'max_tokens'){
+        /* vide ou pas : la place a manqué (le raisonnement compte) */
+        plusDePlace = true;
         derniereErreur = new Error('réponse coupée (trop longue pour une seule réponse)');
+      }else if(!propre){
+        derniereErreur = new Error('réponse vide');
       }else if(propre.length < tranche.length * 0.75){
         derniereErreur = new Error('réponse tronquée (' +
           Math.round(propre.length / tranche.length * 100) + '% de l\'original)');
@@ -2450,6 +2456,10 @@ async function bilansAnterieurs(nomEleve){
   }
 }
 
+/* 📏 v1217 — la place du bilan, raisonnement de l'IA compris */
+const JETONS_BILAN = 16000;
+const JETONS_BILAN_LONG = 32000;
+
 async function appelIA(modeleCle, transcript, studentName, monitorName, site, dateStr){
   /* Les ordres du moniteur passent aussi au résumé : « ça doit
      apparaître en gras » n'a de sens qu'à cette étape. */
@@ -2496,24 +2506,50 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
      attendue pour toujours. Elle est relancée une fois, toute seule ;
      si la seconde meurt aussi, l'erreur remonte — et à 6 minutes,
      l'alerte laisse le moniteur choisir (ec-iadirect.js). */
-  const corpsIA = {
+  /* ============================================================
+     📏 LA PLACE DE L'IA — v1217
+
+     David, capture à l'appui : « Réponse trop longue pour le modèle
+     (arrêt : max_tokens). Cours de 1456 mots — découpe-le en deux
+     bilans. » — « je ne peux pas faire ça, il faut trouver une
+     solution ».
+
+     Le modèle RÉFLÉCHIT avant d'écrire, et ce raisonnement compte
+     dans le même plafond que le bilan (le Worker le dit depuis le
+     1er septembre). À 8000, sur un cours dense, il épuisait tout à
+     réfléchir et rendait un bilan VIDE. Découper le cours n'était
+     pas une solution : c'est la place qui manquait, pas le cours
+     qui était trop long.
+
+     Le plafond passe à 16000, et si l'IA le touche encore, elle est
+     relancée d'elle-même avec 32000. Le plafond n'est pas ce qu'on
+     paie : on paie ce qu'elle écrit, et elle s'arrête quand elle a
+     fini. Le Worker l'accepte jusqu'à 32000 (v1217).
+     ============================================================ */
+  const corpsIA = (jetons) => ({
     code: ACCES.code,
     quoi: 'Bilan — ' + MODELES[modeleCle].label,
     payload: {
       model: 'claude-sonnet-5',
-      max_tokens: 8000,
+      max_tokens: jetons,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMsg }]
     }
+  });
+  const appeler = async (jetons) => {
+    try{
+      return await appelIAFlux(corpsIA(jetons), { surTexte: noterMotsGeneration });
+    }catch(e){
+      if(!e || !e.coupure) throw e;
+      if(generationIA && !generationIA.finie) generationIA.relances++;
+      phaseGeneration('Nouvelle tentative — rédaction du résumé…');
+      return await appelIAFlux(corpsIA(jetons), { surTexte: noterMotsGeneration });
+    }
   };
-  let data;
-  try{
-    data = await appelIAFlux(corpsIA, { surTexte: noterMotsGeneration });
-  }catch(e){
-    if(!e || !e.coupure) throw e;
-    if(generationIA && !generationIA.finie) generationIA.relances++;
-    phaseGeneration('Nouvelle tentative — rédaction du résumé…');
-    data = await appelIAFlux(corpsIA, { surTexte: noterMotsGeneration });
+  let data = await appeler(JETONS_BILAN);
+  if(data && data.stop_reason === 'max_tokens'){
+    phaseGeneration('Cours dense — l’IA reprend avec plus de place…');
+    data = await appeler(JETONS_BILAN_LONG);
   }
   if(data.type === 'error' || data.error){
     throw new Error((data.error && data.error.message) || JSON.stringify(data).slice(0, 300));
@@ -2525,8 +2561,8 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
     const raison = data.stop_reason ? ' (arrêt : ' + data.stop_reason + ')' : '';
     const mots = transcript.trim().split(/\s+/).filter(Boolean).length;
     if(data.stop_reason === 'max_tokens'){
-      throw new Error('Réponse trop longue pour le modèle' + raison +
-        '. Cours de ' + mots + ' mots — découpe-le en deux bilans.');
+      throw new Error('L’IA n’a pas fini d’écrire ce bilan, même avec deux fois plus de place' + raison +
+        ' (cours de ' + mots + ' mots). Relance, ou envoie-le sans la partie IA.');
     }
     throw new Error('Réponse vide du modèle' + raison +
       '. Cours de ' + mots + ' mots. Blocs reçus : ' +
@@ -2594,8 +2630,8 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
         return marquer(rattrape);
       }catch(e3){
         if(data.stop_reason === 'max_tokens'){
-          throw new Error('Réponse coupée en cours de route et irrécupérable : ' +
-            'le cours est trop long. Découpe-le en deux bilans.');
+          throw new Error('Réponse coupée en cours de route et irrécupérable, ' +
+            'même avec deux fois plus de place. Relance, ou envoie-le sans la partie IA.');
         }
         throw new Error('JSON illisible : ' + e.message +
                         ' — début reçu : ' + brut.slice(0, 120));
