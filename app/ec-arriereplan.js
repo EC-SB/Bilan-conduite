@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:05 — v1210 */
+/* Déployé le 20/10/2026 à 14:25 — v1214 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -31,13 +31,15 @@ function surDebutGeneration(){
   b.style.display = 'none';
   b.disabled = false;
 
+  /* ⚠️ PLUS DE « COMMENCER UN AUTRE COURS » PENDANT LA GÉNÉRATION —
+     v1214. David, capture à l'appui : « il faut enlever la possibilité
+     de commencer un autre cours, ça va foutre le bordel sinon ». Un
+     second cours ouvert pendant que le premier s'écrit, c'est deux
+     élèves sur le même écran, la même dictée vidée sous le bilan en
+     cours, et un brouillon qui ne sait plus à qui il appartient. Le
+     bouton ne se montre plus ; le bilan sans IA (⏱️ v1209) reste la
+     sortie quand l'IA tarde. */
   clearTimeout(minuteurAutreCours);
-  minuteurAutreCours = setTimeout(() => {
-    /* Toujours en train de générer : on propose d'enchaîner */
-    if($('generatingView') && $('generatingView').style.display !== 'none'){
-      b.style.display = 'block';
-    }
-  }, DELAI_AUTRE_COURS);
 }
 
 
