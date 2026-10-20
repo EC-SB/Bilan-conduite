@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 13:48 — v1213 */
+/* Déployé le 20/10/2026 à 14:35 — v1215 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2218,17 +2218,40 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
                                       ? consigneLieuxIA() : '') +
                                     consigneMoniteurIA(tranche) + contexte,
                                     tranche, 8000,
-                                    'Correction de la transcription');
-      const propre = (txt || '').trim();
+                                    'Correction de la transcription', true);
+      const propre = String((txt && txt.texte) || '').trim();
+      const fin = (txt && txt.fin) || '';
 
-      /* Une correction fait forcément une longueur comparable à
-         l'original : trop court = réponse tronquée. */
+      /* ============================================================
+         ⚠️ COMPLÈTE, C'EST L'IA QUI LE DIT — v1215
+
+         David, capture à l'appui : « ⚠️ Correction incomplète —
+         partie 1 (réponse coupée en pleine phrase) », trois essais
+         payés pour rien, et la partie restée en texte brut.
+
+         La règle jugeait une réponse complète à son DERNIER
+         CARACTÈRE : un point, un point d'interrogation… Or une
+         dictée n'a presque pas de ponctuation, et une partie se
+         coupe où elle peut — au milieu d'une phrase. L'IA, à qui on
+         interdit d'inventer, rendait fidèlement une partie qui finit
+         sans point : la règle y voyait une coupure, trois fois de
+         suite, à coup sûr. Une parenthèse ou un guillemet « ” » en
+         fin de texte faisaient pareil.
+
+         L'IA dit elle-même pourquoi elle s'arrête : « end_turn » =
+         elle a fini ; « max_tokens » = coupée par la limite. C'est
+         ça qui tranche. La dernière ponctuation ne sert plus que si
+         ce motif manque (un Worker d'avant), et seulement quand
+         l'original, lui, finissait sa phrase.
+         ============================================================ */
       if(!propre){
         derniereErreur = new Error('réponse vide');
+      }else if(fin === 'max_tokens'){
+        derniereErreur = new Error('réponse coupée (trop longue pour une seule réponse)');
       }else if(propre.length < tranche.length * 0.75){
         derniereErreur = new Error('réponse tronquée (' +
           Math.round(propre.length / tranche.length * 100) + '% de l\'original)');
-      }else if(!finDePhrase(propre)){
+      }else if(!fin && !finDePhrase(propre) && finDePhrase(tranche)){
         derniereErreur = new Error('réponse coupée en pleine phrase');
       }else{
         return { texte: propre };
@@ -2382,7 +2405,9 @@ function reparerJson(brut){
 }
 
 /* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
-async function appelBrutIA(systemPrompt, message, maxTokens, quoi){
+/* « avecFin » : rend aussi POURQUOI la réponse s'est arrêtée — v1215.
+   C'est la seule façon fiable de savoir si elle est complète. */
+async function appelBrutIA(systemPrompt, message, maxTokens, quoi, avecFin){
   /* ⏱️ v1209 — au fil de l'eau, avec un délai de silence : un appel
      muet ne s'attend plus pour toujours (voir ec-iadirect.js). Les
      tranches de la correction gardent leurs trois essais. */
@@ -2402,7 +2427,8 @@ async function appelBrutIA(systemPrompt, message, maxTokens, quoi){
       }
     });
   if(data.error) throw new Error(data.error.message || 'erreur API');
-  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  const texte = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  return avecFin ? { texte: texte, fin: String(data.stop_reason || '') } : texte;
 }
 
 /* Les bilans précédents d'un élève, lus une seule fois.
