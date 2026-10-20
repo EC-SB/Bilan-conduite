@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 17:02 — v1220 */
+/* Déployé le 20/10/2026 à 18:14 — v1221 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,24 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1221,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🎬 « Réviser » devient un chemin, avec une recherche ; parcours lisible au bureau',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Espace élève : « Réviser » en chemin',
+        texte: 'Une pastille ronde par segment, le long d’un chemin : ✓ ce qui est vu, ▶ le prochain à voir, un numéro pour la suite, avec le temps qu’il demande. ' +
+               'Un appui ouvre le segment dans un panneau qui monte du bas, avec « ✓ Vu — Suivant › ». Les puces en haut filtrent par groupe, ou « Tout ».' },
+      { emoji: '🔎',
+        titre: 'Une barre de recherche',
+        texte: 'L’élève tape « stop », « créneau », « huile »… et retrouve tout ce qui en parle dans ses guides et dans ses bilans, mots surlignés. Sans accents ni majuscules ; un appui ouvre le segment ou le bilan.' },
+      { emoji: '🎓',
+        titre: 'Bureau : le parcours d’un élève en pastilles',
+        texte: 'Une carte par guide, une pastille par segment (verte et « 4× » s’il l’a vu, grise sinon). Touche une pastille : quand il l’a vu, combien de fois, et ce que le segment contient. ' +
+               'Fini les noms de fichiers en guise de titre et le « � » en fin d’aperçu.' }
+    ]
+  },
   {
     version: 1220,
     date: 'Mardi 20 octobre 2026',
