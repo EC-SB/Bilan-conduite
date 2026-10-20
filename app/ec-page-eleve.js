@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:05 — v1210 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -4843,6 +4843,22 @@ function ongletPermis(corps, nom){
   if(passe.length){
     corps.appendChild(sousTitreDossier('Ce qui est déjà passé'));
     passe.forEach(([t, d]) => corps.appendChild(ligneDossier(t, d)));
+  }
+
+  /* 📷 v1211 — LES PHOTOS DE SON BILAN ÉCRIT À LA MAIN. Visibles
+     dès qu'il y en a ; ajoutables là où un post-permis a un sens
+     (ajourné, rendez-vous prévu ou fait, bilan déjà reçu). */
+  if(typeof galeriePhotosBilan === 'function'){
+    const contexte = !!(s.rdvPostDate || s.rdvPostFait || String(s.bilanEleve || '').trim() ||
+                        s.bilanEleveEtat || /ajourn/i.test(String(s.resultat || '')));
+    const t = sousTitreDossier('📷 Son bilan écrit à la main');
+    const g = galeriePhotosBilan(nom, { modifiable: contexte, cacherSiVide: true });
+    t.style.display = 'none';
+    /* Le titre suit la galerie : caché tant qu'elle l'est */
+    new MutationObserver(() => { t.style.display = g.style.display; })
+      .observe(g, { attributes: true, attributeFilter: ['style'] });
+    corps.appendChild(t);
+    corps.appendChild(g);
   }
 
   /* La passerelle, quand la question ne s'est pas ouverte au bon
