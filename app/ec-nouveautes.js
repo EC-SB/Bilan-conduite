@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:56 — v1217 */
+/* Déployé le 20/10/2026 à 15:06 — v1218 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,18 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1218,
+    date: 'Mardi 20 octobre 2026',
+    resume: '⚖️ L’IA n’adoucit plus une faute grave',
+    quoi: [
+      { emoji: '⚖️',
+        titre: 'Une faute grave reste grave',
+        texte: 'L’IA ne peut plus écrire « ce n’est pas grave », « un peu », « légèrement »… pour une faute, sauf si le moniteur l’a dit lui-même. ' +
+               'Stop non marqué, feu rouge, refus de priorité, sens interdit, ligne continue, vitesse excessive, intervention du moniteur : ' +
+               'écrits comme graves, avec la mention « éliminatoire à l’examen ». La règle part avec chaque bilan, même si les consignes ont été réécrites.' }
+    ]
+  },
   {
     version: 1217,
     date: 'Mardi 20 octobre 2026',
