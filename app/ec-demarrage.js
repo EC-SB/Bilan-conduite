@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:45 — v1209 */
+/* Déployé le 20/10/2026 à 13:15 — v1212 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -337,8 +337,8 @@ function proposerRepriseManuelle(man, banniere){
 /* ============================================================
    ⚠️ RAMENER L'ÉCRAN LÀ OÙ L'ON VA ÉCRIRE — v1115
 
-   Chrystel, le 9 octobre, sur son téléphone : un cours a sauté,
-   elle appuie sur « Reprendre », et le cours « n'apparaît nulle
+   David, le 9 octobre, sur son téléphone : un cours a sauté,
+   il appuie sur « Reprendre », et le cours « n'apparaît nulle
    part ».
 
    Il était pourtant bien rétabli. Mais #recordView porte
@@ -1397,8 +1397,8 @@ $('manuelAnnul').addEventListener('click', () => {
 });
 $('rdvPostEnr').addEventListener('click', terminerRdvPost);
 $('rdvPostAnnul').addEventListener('click', fermerRdvPost);
-$('prepTous').addEventListener('change', () => afficherPrepares(false));
-if($('prepQui')) $('prepQui').addEventListener('change', () => afficherPrepares(false));
+/* 👥 v1211 — la case et la liste sont devenues des boutons, qui
+   s'écoutent eux-mêmes : voir dessinerFiltreMoniteurs. */
 if($('prepPour')) remplirPourQui();
 
 /* Seconde chance : à l'ouverture du tiroir, on remplit le menu si la
