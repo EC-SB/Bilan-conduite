@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:05 — v1210 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1292,10 +1292,152 @@ function blocTranscription(bilan, texte){
 
 function blocProcedures(texte){
   const liste = proceduresAJoindre(texte);
+  /* 📋 v1211 — et celles que le moniteur a cochées, une seule fois
+     chacune : dite ET cochée, elle ne part pas deux fois. */
+  const vues = {};
+  liste.forEach(p => { vues[String(p.id || p.nom)] = true; });
+  proceduresChoisiesAuBilan().forEach(p => {
+    const k = String(p.id || p.nom);
+    if(vues[k]) return;
+    vues[k] = true;
+    liste.push(p);
+  });
   if(!liste.length) return '';
 
   return '\n\n' + liste.map(p =>
     '📋 ' + (p.nom || 'Procédure') + '\n' + (p.contenu || '')).join('\n\n');
+}
+
+/* ============================================================
+   📋 LES PROCÉDURES À JOINDRE, COCHÉES PENDANT LE COURS — v1211
+
+   David, le 20 octobre : un bouton « pour mettre les procédures
+   directement dans le bilan, ça évitera au moniteur d'oublier de
+   les mettre à la fin ». En vocal, sous la fiche véhicule, au-dessus
+   de la transcription ; à la main, juste avant « Composer le bilan ».
+
+   Des cases, pas une liste qui insère : rien n'est encore écrit
+   pendant le cours. Ce qui est coché part en fin de bilan, au même
+   endroit et sous la même forme que les procédures demandées à voix
+   haute — « blocProcedures » fait l'union, sans doublon.
+
+   ⚠️ GARDÉES DANS LE TÉLÉPHONE, PAR ÉLÈVE ET PAR JOUR. Un plantage,
+   un passage du vocal au « sans IA », un « refaire avec l'IA » : le
+   choix doit survivre à tout ce qui recompose le bilan. Trente-six
+   heures, puis elles s'effacent toutes seules.
+   ============================================================ */
+const CLE_PROCS_JOINTES = 'ec_procs_jointes';
+const DUREE_PROCS_JOINTES = 36 * 3600 * 1000;
+
+function cleProcsDuCours(){
+  const e = normaliserMot(($('studentName') && $('studentName').value) || '');
+  if(!e) return '';
+  return e + '|' + (($('lessonDate') && $('lessonDate').value) || '');
+}
+
+function lireProcsJointes(){
+  try{
+    const t = JSON.parse(localStorage.getItem(CLE_PROCS_JOINTES) || '{}');
+    return (t && typeof t === 'object' && !Array.isArray(t)) ? t : {};
+  }catch(e){ return {}; }
+}
+
+function proceduresCochees(){
+  const k = cleProcsDuCours();
+  if(!k) return [];
+  const x = lireProcsJointes()[k];
+  if(!x || !Array.isArray(x.ids) || Date.now() - Number(x.t || 0) > DUREE_PROCS_JOINTES) return [];
+  return x.ids.map(String);
+}
+
+function poserProceduresCochees(ids){
+  const k = cleProcsDuCours();
+  if(!k) return;
+  const t = lireProcsJointes();
+  const maintenant = Date.now();
+  Object.keys(t).forEach(c => {
+    if(!t[c] || maintenant - Number(t[c].t || 0) > DUREE_PROCS_JOINTES) delete t[c];
+  });
+  if(ids && ids.length) t[k] = { ids: ids.map(String), t: maintenant };
+  else delete t[k];
+  try{ localStorage.setItem(CLE_PROCS_JOINTES, JSON.stringify(t)); }catch(e){}
+}
+
+/* Les procédures cochées, telles qu'elles sont AUJOURD'HUI dans les
+   réglages : un texte corrigé au bureau part corrigé. */
+function proceduresChoisiesAuBilan(){
+  const ids = proceduresCochees();
+  if(!ids.length) return [];
+  const toutes = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .filter(m => m.usage === 'procedure');
+  return ids.map(id => toutes.find(p => String(p.id || p.nom) === id)).filter(Boolean);
+}
+
+function dessinerProceduresAJoindre(idZone){
+  const z = $(idZone);
+  if(!z) return;
+  z.innerHTML = '';
+  if(!cleProcsDuCours()){ z.style.display = 'none'; return; }
+
+  const choisies = proceduresCochees();
+  const liste = proceduresDeLaBoite().slice();
+  /* Une procédure cochée qui n'est plus de cette boîte (le modèle a
+     changé) reste à l'écran : on doit pouvoir la décocher. */
+  proceduresChoisiesAuBilan().forEach(p => {
+    if(!liste.some(x => String(x.id || x.nom) === String(p.id || p.nom))) liste.push(p);
+  });
+  liste.sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+  if(!liste.length){ z.style.display = 'none'; return; }
+  z.style.display = '';
+
+  const d = document.createElement('details');
+  d.className = 'tiroirProcedures';
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
+  const s = document.createElement('summary');
+  s.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;color:var(--accent-text);';
+  d.appendChild(s);
+  function majTitre(){
+    const n = proceduresCochees().length;
+    s.textContent = '📋 Procédures à joindre au bilan' +
+      (n ? ' — ' + n + ' choisie' + (n > 1 ? 's' : '') : '');
+  }
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;';
+  aide.textContent = "Coche celles que l'élève doit retrouver à la fin de son bilan. " +
+    'Celles que tu demandes à voix haute s’ajoutent toujours toutes seules.';
+  d.appendChild(aide);
+
+  liste.forEach(p => {
+    const id = String(p.id || p.nom);
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;font-size:14px;' +
+      'text-transform:none;margin:0;font-weight:400;cursor:pointer;color:var(--cream);';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'procJointe';
+    cb.value = id;
+    cb.dataset.horsSaisie = '1';
+    cb.checked = choisies.indexOf(id) !== -1;
+    cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;margin:0;';
+    cb.addEventListener('change', () => {
+      const ids = [];
+      z.querySelectorAll('input.procJointe').forEach(x => { if(x.checked) ids.push(x.value); });
+      poserProceduresCochees(ids);
+      l.style.fontWeight = cb.checked ? '700' : '400';
+      majTitre();
+    });
+    l.style.fontWeight = cb.checked ? '700' : '400';
+    l.appendChild(cb);
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = p.nom || 'Sans nom';
+    l.appendChild(t);
+    d.appendChild(l);
+  });
+
+  majTitre();
+  z.appendChild(d);
 }
 
 /* ============================================================
@@ -1379,6 +1521,8 @@ async function afficherFicheDuCours(){
   if(!zone) return;
 
   const nom = $('studentName') ? $('studentName').value.trim() : '';
+  /* 📋 v1211 — sous la fiche, au-dessus de la transcription */
+  try{ dessinerProceduresAJoindre('proceduresCours'); }catch(e){}
   if(nom.length < 3){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
 
   /* Ce qui est déjà validé : coché et grisé, on n'y touche pas */
