@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 15/10/2026 à 17:23 — v1186 -->
+<!-- Déployé le 20/10/2026 à 12:49 — v1211 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1473,6 +1473,15 @@
         <span id="cptLecons" style="font-size:12px;color:var(--muted);"></span>
       </div>
       <div id="mesLecons"></div>
+    </div>
+
+    <!-- 📷 v1211 — son bilan post-permis écrit à la main, en photo :
+         ce que l'école a rangé dans son dossier, il le revoit ici. -->
+    <div class="card" id="carteMesPhotosBilan" style="display:none;">
+      <div class="section-title">📷 Mon bilan écrit à la main</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">
+        Les photos de ta feuille, rangées dans ton dossier. Touche une photo pour la voir en grand.</div>
+      <div id="mesPhotosBilan" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
     </div>
 
     <div class="card" id="carteDrivup">
@@ -3465,6 +3474,31 @@
     if(ouvert('parcours')) poserLeParcours(d && d.parcours);
     if(ouvert('rappel')) dessinerProchain(d && d.prochain);
     if(ouvert('historique')) dessinerLecons((d && d.lecons) || []);
+    dessinerMesPhotosBilan((d && d.photosBilan) || []);
+  }
+
+  /* 📷 v1211 — LES PHOTOS DE SON BILAN ÉCRIT À LA MAIN. Elles arrivent
+     AVEC son dossier (le Worker les y joint, signées pour une heure) :
+     pas d'appel de plus, pas de réveil de plus. Rien à montrer, rien
+     d'affiché : la carte n'existe que pour celui dont l'école a rangé
+     une feuille. */
+  function dessinerMesPhotosBilan(photos){
+    var z = $('mesPhotosBilan');
+    if(!z) return;
+    z.innerHTML = '';
+    montrer('carteMesPhotosBilan', photos.length > 0);
+    photos.forEach(function(p){
+      var src = String((p && p.lien) || '');
+      if(!/^https:\/\//.test(src)) return;
+      var i = document.createElement('img');
+      i.src = src;
+      i.alt = 'Mon bilan écrit à la main';
+      i.loading = 'lazy';
+      i.style.cssText = 'width:96px;height:96px;object-fit:cover;border-radius:10px;' +
+        'border:1px solid var(--line);cursor:zoom-in;display:block;';
+      i.addEventListener('click', function(){ voirLaPhotoEl(i.src); });
+      z.appendChild(i);
+    });
   }
 
   function chargerDossier(){
@@ -5245,7 +5279,11 @@
     voilePhotoEl = null;
   }
 
-  function ouvrirLaPhotoEl(src){
+  /* ⚠️ « VOIR », PAS « OUVRIR » — v1211. Elle portait le même nom
+     que la prise de photo du « + », plus bas dans le même bloc : la
+     seconde l'emportait, et toucher une photo reçue ouvrait
+     l'appareil photo au lieu de la montrer en grand. */
+  function voirLaPhotoEl(src){
     fermerLaPhotoEl();
     var v = document.createElement('div');
     v.className = 'voilePhoto';
@@ -6036,7 +6074,7 @@
       document.querySelectorAll('#leFilEleve .imgFil'), function(i){
         i.addEventListener('click', function(ev){
           ev.stopPropagation();
-          ouvrirLaPhotoEl(i.src);
+          voirLaPhotoEl(i.src);
         });
       });
   }
