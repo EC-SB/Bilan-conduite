@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:25 — v1214 */
+/* Déployé le 20/10/2026 à 14:35 — v1215 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,18 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1215,
+    date: 'Mardi 20 octobre 2026',
+    resume: '✍️ Fini les « Correction incomplète » pour une phrase sans point',
+    quoi: [
+      { emoji: '✍️',
+        titre: 'La correction du cours n’est plus refusée à tort',
+        texte: 'Une partie de dictée se coupe souvent au milieu d’une phrase : l’IA la rendait corrigée mais sans point final, et l’application ' +
+               'la croyait coupée — trois essais, puis « ⚠️ Correction incomplète » et le texte brut. C’est maintenant l’IA qui dit si elle a fini : ' +
+               'une vraie coupure est toujours repérée, une phrase sans point ne l’est plus.' }
+    ]
+  },
   {
     version: 1214,
     date: 'Mardi 20 octobre 2026',
