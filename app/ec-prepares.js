@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 20/10/2026 à 13:15 — v1212 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -863,24 +863,220 @@ let listeAffichee = [];
 
 /* Les moniteurs qui ont des cours, avec leur nombre. On ne propose
    que ceux qui en ont : une liste de noms vides n'aide personne. */
-function remplirFiltreMoniteurs(sel){
-  const compte = {};
+/* ============================================================
+   👥 LES COURS DES AUTRES MONITEURS, PAR BOUTONS — v1211
+
+   David, le 20 octobre : « des boutons pour voir les cours des autres
+   moniteurs au lieu d'une liste déroulante ». Son choix : une rangée,
+   sans la case à cocher — « 👤 Mes cours », « 👥 Tous », puis un
+   bouton par moniteur, avec son émoji et son nombre de cours. Un
+   appui suffit ; le bouton choisi est en vert.
+
+   ''  : mes cours (et ceux de personne, comme avant)
+   '*' : tous
+   sinon : la clé d'un moniteur (son nom normalisé, ou « ? » pour les
+           cours de personne)
+   ============================================================ */
+let filtrePrepares = '';
+function cleFiltreMoniteur(nom){
+  const n = normaliserMot(String(nom || '').trim());
+  return n || '?';
+}
+function dessinerFiltreMoniteurs(){
+  const z = $('prepQuiBoutons');
+  if(!z) return;
+  const moi = normaliserMot((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  const compte = {}, noms = {};
   prepares.forEach(x => {
-    const n = (x.moniteur || '').trim() || '(non attribué)';
-    compte[n] = (compte[n] || 0) + 1;
+    const k = cleFiltreMoniteur(x.moniteur);
+    compte[k] = (compte[k] || 0) + 1;
+    if(!noms[k]) noms[k] = String(x.moniteur || '').trim();
+  });
+  const autres = Object.keys(compte).filter(k => k !== moi && k !== '?')
+    .sort((a, b) => noms[a].localeCompare(noms[b], 'fr'));
+  if(compte['?']) autres.push('?');
+  const miens = prepares.filter(x => !x.moniteur || normaliserMot(x.moniteur) === moi).length;
+
+  const boutons = [];
+  if(moi) boutons.push({ cle: '', texte: '👤 Mes cours', n: miens });
+  boutons.push({ cle: '*', texte: '👥 Tous', n: prepares.length });
+  autres.forEach(k => {
+    const em = (k !== '?' && typeof emojiDuMoniteur === 'function') ? emojiDuMoniteur(noms[k]) : '';
+    boutons.push({ cle: k, texte: k === '?' ? '❔ Non attribués' : (em ? em + ' ' : '') + noms[k], n: compte[k] });
+  });
+  const choisi = (!moi && !filtrePrepares) ? '*' : filtrePrepares;
+
+  /* Rien de neuf : on ne redessine pas (le bouton garde son focus) */
+  const signature = boutons.map(b => b.cle + '=' + b.texte + '=' + b.n).join('|') + '#' + choisi;
+  if(z._signature === signature) return;
+  z._signature = signature;
+
+  z.innerHTML = '';
+  z.style.display = prepares.length ? '' : 'none';
+  boutons.forEach(b => {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'btn ' + (b.cle === choisi ? 'btn-primary' : 'btn-secondary');
+    x.setAttribute('aria-pressed', b.cle === choisi ? 'true' : 'false');
+    x.dataset.qui = b.cle;
+    x.textContent = b.texte + ' · ' + b.n;
+    x.addEventListener('click', () => {
+      if(filtrePrepares === b.cle && b.cle !== '') return;
+      filtrePrepares = b.cle;
+      afficherPrepares(false);
+    });
+    z.appendChild(x);
   });
 
-  const noms = Object.keys(compte).sort((a, b) => a.localeCompare(b, 'fr'));
-  const signature = noms.map(n => n + compte[n]).join('|');
-  if(sel._signature === signature) return;      /* rien de neuf */
-  sel._signature = signature;
+  /* Les émojis de l'équipe arrivent une fois par session : la rangée
+     se repeint quand ils sont là. */
+  if(typeof chargerEmojisEquipe === 'function' && typeof emojisEquipe !== 'undefined' && !emojisEquipe &&
+     !dessinerFiltreMoniteurs._attend){
+    dessinerFiltreMoniteurs._attend = true;
+    chargerEmojisEquipe().then(() => { z._signature = ''; dessinerFiltreMoniteurs(); }).catch(() => {});
+  }
+}
 
-  const choix = sel.value;
-  sel.innerHTML = '<option value="">Tous les moniteurs — ' +
-    prepares.length + ' cours</option>' +
-    noms.map(n => '<option value="' + n.replace(/"/g, '&quot;') + '">' +
-                  n + ' — ' + compte[n] + '</option>').join('');
-  if(choix && noms.indexOf(choix) !== -1) sel.value = choix;
+
+/* ============================================================
+   🔁 LA CARTE D'UN RENDEZ-VOUS POST-PERMIS — v1211
+
+   En tête : le résultat de l'examen (« 🏁 Ajourné le jeudi 15
+   octobre 2026 — 1er repassage »). Dessous : la sortie d'examen —
+   ce que le moniteur a noté en sortant (inspecteur, heures
+   demandées, mot pour l'équipe) — et les captures du CEPC. Rien de
+   la préparation à l'examen : la veille, la frise, l'examen blanc,
+   le simulateur, « pas de date d'examen » — choix de David.
+   ============================================================ */
+function lignePostPermisDuHaut(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const n = parseInt(s.nbAjournements, 10) || 0;
+  const d = s.dateAjournement
+    ? ((typeof dateEnToutesLettres === 'function' && dateEnToutesLettres(s.dateAjournement)) || s.dateAjournement) : '';
+  if(s.resultat === 'ajourne' || n){
+    return '🏁 Ajourné' + (d ? ' le ' + d : '') +
+           (n ? ' — ' + n + (n === 1 ? 'er' : 'e') + ' repassage' : '');
+  }
+  return '🔁 Rendez-vous post-permis';
+}
+
+/* Ce que la carte retire de la note : la préparation à l'examen, et
+   ce que le bloc du dessus redit déjà (le repassage, la sortie). Les
+   mots du moniteur et le 📌 du bureau restent. */
+const FAMILLES_HORS_POST_PERMIS = ['repassage', 'frise', 'lecon', 'leconVide', 'friseEtat', 'aRenseigner',
+  'avantEB', 'examenBlanc', 'examenPermis', 'trois_h', 'simuNuit', 'rdvPost', 'formAccomp', 'rvPrealable', 'rvp1', 'rvp2'];
+/* Un morceau de la sortie d'examen : « Inspecteur : … », « Demandé :
+   … », « Par : … », « ⛔ Pas de repassage… », ou une ligne 🔒 */
+const RE_MORCEAU_SORTIE = /^(?:📌\s*)?(?:🔒|(?:Inspecteur|Demandé|Par)\s*:|⛔\s*Pas de repassage)/i;
+
+function notePostPermisSurLaCarte(texte){
+  const garde = [];
+  let dansLaSortie = false;
+  String(texte || '').split('\n').forEach(l => {
+    const segs = l.split(' · ').filter(seg => {
+      const t = seg.trim();
+      /* ⚠️ LA SORTIE D'EXAMEN, OÙ QU'ELLE SOIT. Elle arrive sur ses
+         propres lignes, ou recollée en une seule derrière le 📌 : le
+         bloc du dessus la redit, en clair. */
+      if(t.indexOf('🔒 EXAMEN OFFICIEL') !== -1){ dansLaSortie = true; return false; }
+      if(dansLaSortie && RE_MORCEAU_SORTIE.test(t)) return false;
+      dansLaSortie = false;
+      const f = (typeof familleDuSegment === 'function') ? familleDuSegment(seg) : null;
+      if(f && FAMILLES_HORS_POST_PERMIS.indexOf(f.cle) !== -1) return false;
+      /* « C'est la leçon de veille… » écrit dans une vieille note */
+      return !/le[çc]on de veille de l.examen/i.test(seg);
+    });
+    const r = segs.join(' · ').trim();
+    if(r) garde.push(r);
+  });
+  return garde.join('\n');
+}
+
+/* La sortie d'examen dans un texte, qu'elle soit sur ses lignes ou
+   recollée sur une seule (« 📌 🔒 EXAMEN OFFICIEL · Inspecteur : … ·
+   🔒 mot pour l'équipe · … ») : on ne prend que ses morceaux à elle. */
+function sortieDExamenDuTexte(texte){
+  const segs = String(texte || '').split('\n')
+    .reduce((o, l) => o.concat(l.split(' · ')), [])
+    .map(x => x.trim());
+  const i = segs.findIndex(x => x.indexOf('🔒 EXAMEN OFFICIEL') !== -1);
+  if(i === -1) return null;
+  const bouts = [], notes = [];
+  for(let k = i + 1; k < segs.length; k++){
+    const x = segs[k].replace(/^📌\s*/, '');
+    if(/^🔒/.test(x)) notes.push(x.replace(/^🔒\s*/, ''));
+    else if(RE_MORCEAU_SORTIE.test(x)) bouts.push(x);
+    else break;
+  }
+  return { texte: bouts.join(' · '), note: notes.join('\n') };
+}
+
+/* La sortie d'examen et les captures, lues une fois par élève et par
+   session : la carte se redessine souvent, le classeur n'a pas à être
+   relu à chaque fois. */
+const sortiesPostPermis = {};
+const capturesPostPermis = {};
+function blocPostPermisDeLaCarte(cours){
+  const nom = cours.eleve || '';
+  const z = document.createElement('div');
+  z.className = 'postPermisCarte';
+  z.style.cssText = 'display:flex;flex-direction:column;gap:2px;margin:2px 0 4px;' +
+    'font-size:13px;line-height:1.45;';
+  const ligneSortie = document.createElement('div');
+  const ligneNote = document.createElement('div');
+  ligneNote.style.cssText = 'white-space:pre-wrap;';
+  const ligneCepc = document.createElement('div');
+  z.appendChild(ligneSortie); z.appendChild(ligneNote); z.appendChild(ligneCepc);
+
+  const poserSortie = m => {
+    if(!m){
+      ligneSortie.style.color = 'var(--muted)';
+      ligneSortie.textContent = '🗣️ Sortie d’examen : rien de noté';
+      ligneNote.textContent = '';
+      return;
+    }
+    ligneSortie.style.color = 'var(--accent-text)';
+    ligneSortie.style.fontWeight = '700';
+    ligneSortie.textContent = '🗣️ Sortie d’examen : ' + (m.texte || '').trim();
+    ligneNote.textContent = m.note ? m.note.split('\n').map(x => '🔒 ' + x).join('\n') : '';
+  };
+  const poserCepc = n => {
+    if(n === null){ ligneCepc.textContent = ''; return; }
+    ligneCepc.style.color = n ? 'var(--cream)' : 'var(--warn-text)';
+    ligneCepc.textContent = '🧾 CEPC : ' + (n ? n + ' capture' + (n > 1 ? 's' : '') : 'aucune capture');
+  };
+
+  const cle = normaliserMot(nom);
+  const sv = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const fi = (typeof ficheDe === 'function') ? (ficheDe(nom) || {}) : {};
+  const tout = sortieDExamenDuTexte(cours.note) || sortieDExamenDuTexte(sv.note) ||
+               sortieDExamenDuTexte(fi.remarques);
+  if(tout) sortiesPostPermis[cle] = tout;
+  if(sortiesPostPermis[cle] !== undefined) poserSortie(sortiesPostPermis[cle]);
+  else{
+    ligneSortie.style.color = 'var(--muted)';
+    ligneSortie.textContent = '🗣️ Sortie d’examen…';
+    (async () => {
+      let m = null;
+      try{
+        const ex = (typeof dernierExamenOfficielDe === 'function') ? await dernierExamenOfficielDe(nom, false) : null;
+        m = ex ? sortieDExamenDuTexte(ex.note) : null;
+        sortiesPostPermis[cle] = m;
+      }catch(e){ /* hors ligne : on retentera au prochain dessin */ }
+      poserSortie(m);
+    })();
+  }
+
+  if(capturesPostPermis[cle] !== undefined) poserCepc(capturesPostPermis[cle]);
+  else if(typeof chargerCaptures === 'function'){
+    ligneCepc.style.color = 'var(--muted)';
+    ligneCepc.textContent = '🧾 CEPC…';
+    chargerCaptures(nom).then(l => {
+      capturesPostPermis[cle] = Array.isArray(l) ? l.length : 0;
+      poserCepc(capturesPostPermis[cle]);
+    }).catch(() => poserCepc(null));
+  }
+  return z;
 }
 
 
@@ -1176,23 +1372,23 @@ async function afficherPrepares(recharger, silencieux){
       }
     }
   }
-  /* Chacun ne voit que ses cours, sauf demande explicite */
-  const tousMoniteurs = $('prepTous') && $('prepTous').checked;
+  /* Chacun ne voit que ses cours, sauf demande explicite.
+     👥 v1211 — la demande se fait par une rangée de boutons (voir
+     dessinerFiltreMoniteurs) : « 👤 Mes cours », « 👥 Tous », puis
+     un bouton par moniteur. */
   const moi = normaliserMot(ACCES.moniteur || '');
+  if(filtrePrepares && filtrePrepares !== '*' &&
+     !prepares.some(x => cleFiltreMoniteur(x.moniteur) === filtrePrepares)){
+    filtrePrepares = '';
+  }
+  const tousMoniteurs = filtrePrepares !== '' || !moi;
+  dessinerFiltreMoniteurs();
   let liste = prepares.slice();
 
-  /* Le filtre par moniteur ne sert que si l'on voit tout le monde */
-  const selQui = $('prepQui');
-  if(selQui){
-    selQui.style.display = tousMoniteurs ? 'block' : 'none';
-    if(tousMoniteurs) remplirFiltreMoniteurs(selQui);
-  }
-
-  if(!tousMoniteurs && moi){
+  if(!tousMoniteurs){
     liste = liste.filter(x => !x.moniteur || normaliserMot(x.moniteur) === moi);
-  }else if(selQui && selQui.value){
-    liste = liste.filter(x => normaliserMot(x.moniteur || '') ===
-                              normaliserMot(selQui.value));
+  }else if(filtrePrepares && filtrePrepares !== '*'){
+    liste = liste.filter(x => cleFiltreMoniteur(x.moniteur) === filtrePrepares);
   }
 
   majCompteur('cptPrepares', liste.length);
@@ -1208,7 +1404,7 @@ async function afficherPrepares(recharger, silencieux){
     zone.innerHTML = '<div class="empty">' +
       (autres && !tousMoniteurs
         ? 'Aucun cours préparé à ton nom.<br>' + autres +
-          ' cours préparé(s) par d\'autres moniteurs — coche la case ci-dessus pour les voir.'
+          ' cours préparé(s) par d\'autres moniteurs — « 👥 Tous » ci-dessus pour les voir.'
         : 'Aucun cours préparé.<br>Prépare tes cours à l\'avance : le jour J, ' +
           'tu choisis l\'élève et tu démarres.') +
       '</div>';
@@ -1486,7 +1682,16 @@ async function afficherPrepares(recharger, silencieux){
        compte n'est plus le rang mais ce qu'il reste à faire avant.
        Deux écrans qui choisiraient chacun leur phrase finiraient
        par ne plus dire la même chose. */
-    const pos = (typeof lignePositionDuHaut === 'function')
+    /* 🔁 v1211 — UN RENDEZ-VOUS POST-PERMIS NE PRÉPARE PAS UN EXAMEN.
+       David, capture à l'appui : « quand c'est un post-permis c'est
+       pas ça que je dois voir ». La carte annonçait « C'est la leçon
+       de veille de l'examen du jeudi 15 octobre » — l'examen qu'il
+       venait de rater — puis la frise, l'examen blanc, le simulateur.
+       Ses choix : en tête, le résultat de l'examen ; dessous, la
+       sortie d'examen et les captures du CEPC ; tout le reste part. */
+    const estPostPermis = (cours.modele === 'rdv-post');
+    const pos = estPostPermis ? lignePostPermisDuHaut(cours.eleve)
+      : (typeof lignePositionDuHaut === 'function')
       /* Le modèle voyage avec : le jour de l'examen, la phrase est
          « EXAMEN CE JOUR — 4ÈME PASSAGE », et rien autour. */
       /* … et le JOUR DU COURS aussi — v1053 : c'est lui qui dit si
@@ -1773,6 +1978,8 @@ async function afficherPrepares(recharger, silencieux){
     }
 
     if(ligneRang.childNodes.length) meta.appendChild(ligneRang);
+    /* 🔁 v1211 — la sortie d'examen et les captures du CEPC */
+    if(estPostPermis) meta.appendChild(blocPostPermisDeLaCarte(cours));
 
     /* ------------------------------------------------------------
        LE SUIVI HANDICAP SUR LA CARTE
@@ -1953,9 +2160,13 @@ async function afficherPrepares(recharger, silencieux){
        ligne : voir avecLEtatDeLaPlace. */
     reste = avecLEtatDeLaPlace(reste, cours);
     reste = sansRedites(reste);
+    /* 🔁 v1211 — sur un rendez-vous post-permis, la préparation à
+       l'examen ne s'affiche plus (le bloc du dessus dit le reste) */
+    if(estPostPermis) reste = notePostPermisSurLaCarte(reste);
     /* Le 📌 aussi : c'est là que les heures recopiées s'étaient
        accumulées. */
-    const consigne = sansRedites(partsNote.consigne);
+    let consigne = sansRedites(partsNote.consigne);
+    if(estPostPermis) consigne = notePostPermisSurLaCarte(consigne);
 
     const texteNote = [reste, consigne ? '📌 ' + consigne : '']
       .filter(Boolean).join('\n');
