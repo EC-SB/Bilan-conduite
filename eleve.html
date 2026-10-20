@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 20/10/2026 à 17:02 — v1220 -->
+<!-- Déployé le 20/10/2026 à 18:14 — v1221 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -648,6 +648,149 @@
     display:inline-block; min-width:16px; padding:0 4px; margin-left:5px;
     border-radius:8px; background:var(--red); color:#fff;
     font-size:10.5px; line-height:16px; text-align:center;
+  }
+
+  /* ===== 🎬 Réviser en chemin — v1221 =====
+     David a choisi le chemin (option B) : une pastille par segment,
+     en zigzag, et le segment s'ouvre dans un panneau qui monte du bas.
+     ⚠️ L'ENCRE SUR L'ACCENT. « Vu » porte var(--accent-text) — vert
+     foncé en clair, vert vif en sombre — donc son encre est
+     var(--navy-deep), qui s'y oppose dans les deux thèmes. « ▶ »
+     porte le vert vif des deux côtés, donc var(--on-accent). */
+  .rechP{
+    display:flex; align-items:center; gap:8px; margin:0 0 12px;
+    background:var(--navy); border:1.5px solid var(--line);
+    border-radius:14px; padding:0 6px 0 13px; font-size:15px;
+  }
+  .rechP:focus-within{ border-color:var(--accent-text); }
+  .rechP input{
+    flex:1; min-width:0; border:0; background:transparent; margin:0;
+    padding:12px 0; font-size:16px; color:var(--cream); outline:none;
+    font-family:inherit; box-shadow:none; border-radius:0;
+    -webkit-appearance:none; appearance:none;
+  }
+  .rechP input::placeholder{ color:var(--muted); }
+  .rechP input::-webkit-search-cancel-button{ display:none; }
+  .rechP button{
+    flex-shrink:0; border:0; background:transparent; color:var(--muted);
+    font-size:16px; padding:8px 9px; cursor:pointer; margin:0; width:auto;
+  }
+  .puces{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 6px; }
+  .puces button{
+    flex:0 1 auto; margin:0; width:auto; padding:7px 12px; border-radius:999px;
+    border:1px solid var(--line); background:transparent; color:var(--cream);
+    font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .puces button.ici{
+    background:var(--orange); border-color:var(--orange); color:var(--on-accent);
+  }
+  .puces .pastille{
+    display:inline-block; min-width:18px; padding:0 5px; margin-left:5px;
+    border-radius:9px; background:var(--red); color:#fff;
+    font-size:11px; line-height:18px; text-align:center;
+  }
+  .chemin{ padding:4px 0 10px; }
+  .chemin .jalon{
+    text-align:center; font-size:13px; font-weight:800; color:var(--muted);
+    margin:14px 0 6px; letter-spacing:.03em; text-transform:uppercase;
+    line-height:1.4;
+  }
+  .chemin .jalon:first-child{ margin-top:8px; }
+  .chemin .noeud{
+    display:flex; align-items:center; gap:12px; width:100%; margin:8px 0;
+    padding:0; border:0; background:transparent; text-align:left;
+    font-family:inherit; cursor:pointer; color:var(--cream);
+  }
+  .chemin .noeud.d{ flex-direction:row-reverse; text-align:right; }
+  .chemin .rond{
+    width:54px; height:54px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:900; border:3px solid var(--line);
+    color:var(--muted); background:var(--navy-deep); box-sizing:border-box;
+  }
+  .chemin .noeud.vu .rond{
+    background:var(--accent-text); border-color:var(--accent-text);
+    color:var(--navy-deep);
+  }
+  .chemin .noeud.ici .rond{
+    background:var(--orange); border-color:var(--orange); color:var(--on-accent);
+    box-shadow:0 0 0 6px rgba(182,255,14,.25); width:64px; height:64px;
+  }
+  .chemin .lib{ flex:1; min-width:0; font-size:14px; font-weight:600; line-height:1.35; }
+  .chemin .lib small{
+    display:block; font-size:11.5px; color:var(--muted); font-weight:400; margin-top:2px;
+  }
+  .chemin .trait{ width:3px; height:14px; background:var(--line); margin:-4px 0 -4px 26px; }
+  .chemin .trait.d{ margin-left:auto; margin-right:26px; }
+  .chemin + .ditpartage{ margin:6px 0 0; }
+
+  /* Le panneau d'un segment. Centré comme la page sur un écran
+     large, au-dessus de la barre des onglets. */
+  #feuilleParcours .voile{
+    position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80;
+  }
+  #feuilleParcours .feuille{
+    position:fixed; left:0; right:0; bottom:0; z-index:81;
+    max-width:600px; margin:0 auto; max-height:88vh; overflow-y:auto;
+    overscroll-behavior:contain; box-sizing:border-box;
+    background:var(--navy-deep); border-radius:22px 22px 0 0;
+    box-shadow:0 -10px 40px rgba(0,0,0,.35);
+    padding:10px 18px calc(18px + var(--dessous));
+  }
+  #feuilleParcours .poignee{
+    width:44px; height:5px; border-radius:3px; background:var(--line);
+    margin:0 auto 12px; cursor:pointer;
+  }
+  #feuilleParcours .fhaut{ font-size:12px; color:var(--muted); }
+  #feuilleParcours .stitre{
+    font-size:19px; font-weight:800; color:var(--cream); margin:4px 0 10px; line-height:1.3;
+  }
+  #feuilleParcours .sdedans p{
+    margin:0 0 11px; font-size:15px; line-height:1.6;
+    white-space:pre-wrap; color:var(--soft);
+  }
+  #feuilleParcours .sdedans p.vide{ color:var(--muted); font-style:italic; }
+  #feuilleParcours video, #feuilleParcours img{
+    width:100%; border-radius:12px; margin:0 0 11px; background:#000; display:block;
+  }
+  #feuilleParcours .fichier{
+    display:inline-block; margin:0 0 11px; font-size:14px;
+    color:var(--accent-text); text-decoration:none; font-weight:700;
+  }
+  #feuilleParcours .fvu{ font-size:12.5px; color:var(--accent-text); margin:4px 0 0; font-weight:700; }
+  #feuilleParcours .fvu .defaire{
+    border:0; background:transparent; padding:0; margin:0; width:auto;
+    font:inherit; font-weight:400; color:var(--muted); text-decoration:underline; cursor:pointer;
+  }
+  #feuilleParcours .basnav{ display:flex; gap:8px; margin-top:14px; }
+  #feuilleParcours .basnav button{
+    margin:0; border-radius:14px; padding:13px; font-family:inherit;
+    font-size:15px; font-weight:800; cursor:pointer;
+  }
+  #feuilleParcours .basnav .b1{
+    flex:0 0 38%; border:1px solid var(--line); background:transparent; color:var(--cream);
+  }
+  #feuilleParcours .basnav .b2{
+    flex:1; border:0; background:var(--orange); color:var(--on-accent);
+  }
+  body.feuilleOuverte{ overflow:hidden; }
+
+  /* 🔎 Les résultats */
+  .resNb{ font-size:12.5px; color:var(--muted); margin:2px 0 4px; }
+  .resSec{
+    font-size:12.5px; font-weight:800; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.04em; margin:12px 0 6px;
+  }
+  .res{
+    display:block; width:100%; text-align:left; margin:0 0 7px; cursor:pointer;
+    border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+    background:transparent; font-family:inherit; color:var(--cream);
+  }
+  .res b{ display:block; font-size:14.5px; color:var(--cream); }
+  .res small{ display:block; font-size:12px; color:var(--muted); margin:2px 0 4px; }
+  .res .ext{ display:block; font-size:13.5px; color:var(--soft); line-height:1.45; overflow-wrap:anywhere; }
+  .res mark, .chemin mark{
+    background:var(--orange); color:var(--on-accent); border-radius:3px; padding:0 2px;
   }
 
   /* 📣 Une annonce — v1038 */
@@ -2870,22 +3013,6 @@
   var groupeIci = '';
 
   /* ============================================================
-     CE QUI EST DÉPLIÉ, PAR SEGMENT — v1056
-
-     La clé est « guide::segment » : deux guides peuvent porter des
-     segments de même nom, et un identifiant de segment seul les
-     confondrait.
-
-     ⚠️ TROIS ÉTATS, PAS DEUX. « true » veut dire qu'il l'a rouvert,
-     « false » qu'il l'a replié, et ABSENT veut dire « je n'ai rien
-     demandé » — auquel cas la règle de David s'applique : un
-     segment vu naît replié, un segment neuf naît ouvert. Avec un
-     simple booléen, tous les segments neufs seraient nés repliés,
-     et l'élève aurait trouvé un guide vide. Absent n'est pas faux.
-     ============================================================ */
-  var segmentsOuverts = {};
-
-  /* ============================================================
      COMBIEN DE SEGMENTS, ET COMBIEN DE VUS — v1056, À UN ENDROIT
 
      Trois écrans posent cette question : le compteur du haut, la
@@ -2923,12 +3050,41 @@
     return vus;
   }
 
+  /* ============================================================
+     🎬 RÉVISER EN CHEMIN — v1221
+
+     David : « propose-moi plusieurs refontes graphiques et
+     ergonomiques de la partie Réviser, et il faut une barre de
+     recherche ». Il a choisi le CHEMIN (option B) : une pastille
+     ronde par segment, posées en zigzag le long d'un chemin, et le
+     segment s'ouvre dans un panneau qui monte du bas.
+
+     ⚠️ CE QUI NE CHANGE PAS, ET QUI EST À DAVID :
+       · tout est lisible tout de suite — n'importe quelle pastille
+         s'ouvre, vue ou pas (v1056) ;
+       · la mesure de lecture reste, la coche aussi, et elle va dans
+         les deux sens (v1040) ;
+       · un groupe = un filtre ; on arrive sur le premier groupe qui
+         n'est pas fini (v1039) ;
+       · l'élève voit que son avancement est partagé (v1056).
+
+     ⚠️ ET LE CONTENU N'EST PLUS DANS LA PAGE. Il vit dans le
+     panneau : la page n'est qu'un plan. C'est ce qui a rendu le
+     tracker simple — un segment est lu quand son panneau est resté
+     ouvert le temps de le lire, et il n'y a plus jamais deux
+     segments « à l'écran » en même temps.
+     ============================================================ */
+  var TOUS_LES_GROUPES = '*';
+  var rechercheIci = '';
+  var mesLecons = [];
+
   function dessinerParcours(avant){
     var z = $('monParcours');
     if(!z) return;
     montrer('carteParcours', true);
 
     if(!mesEtapes.length){
+      fermerLaFeuille();
       z.innerHTML = '<div class="empty">Ton parcours arrive bientôt.<br>' +
         "C'est l'auto-école qui l'ouvre.</div>";
       var c0 = $('cptParcours');
@@ -2936,22 +3092,7 @@
       return;
     }
 
-    var groupes = lesGroupes();
-    if(!groupes.some(function(g){ return g.id === groupeIci; })){
-      /* On arrive sur le premier groupe qui n'est pas fini : c'est
-         celui qui l'attend. */
-      var aFaire = groupes.filter(function(g){
-        return g.etapes.some(function(e){ return !e.vuLe; }); });
-      groupeIci = (aFaire[0] || groupes[0]).id;
-    }
-    var ici = groupes.filter(function(g){ return g.id === groupeIci; })[0];
-
-    /* Le compteur du HAUT parle de TOUT le parcours : c'est lui qui
-       dit ce qui reste avant le prochain cours, tous groupes
-       confondus. */
-    /* ⚠️ LE COMPTEUR DU HAUT PARLE DE SEGMENTS — v1056, comme tout
-       le reste. Deux comptes différents à deux endroits de la même
-       page, c'est le défaut que ce dossier répare partout ailleurs. */
+    /* Le compteur du HAUT parle de TOUT le parcours, en segments. */
     var cpt = compterLesSegments(mesEtapes);
     var faits = cpt.vus, reste = cpt.total - cpt.vus;
     var c = $('cptParcours');
@@ -2963,172 +3104,472 @@
           : '');
     }
 
-    var html = '';
-    /* Les sous-onglets : un par groupe, avec ce qui lui reste. */
-    if(groupes.length > 1){
-      html += '<div class="sousonglets">' + groupes.map(function(g){
-        /* La pastille compte des SEGMENTS, comme tout le reste
-           de cette page — v1056. */
-        var cg = compterLesSegments(g.etapes);
-        var r = cg.total - cg.vus;
-        return '<button data-groupe="' + echapper(g.id) + '"' +
-          (g.id === groupeIci ? ' class="ici"' : '') + '>' +
-          echapper((g.icone ? g.icone + ' ' : '') + g.nom) +
-          (r ? '<span class="pastille">' + r + '</span>' : ' ✓') +
-          '</button>';
-      }).join('') + '</div>';
-    }
-
-    var siennes = ici.etapes;
-    /* ⚠️ LA BARRE COMPTE DES SEGMENTS — v1056. « 1 guide sur 2 » sur
-       un guide de six segments dont il en a vu cinq ne dit rien de
-       ce qu'il a fait. David : « 5 segments sur 7 ». */
-    var ct = compterLesSegments(siennes);
-    var faitsIci = ct.vus, totalIci = ct.total;
-    /* ⚠️ PLUS D'« ÉTAPE COURANTE » — v1056. David : « tout est
-       lisible tout de suite ». Le verrouillage venait du groupe
-       Facebook, où l'on ajoutait l'élève au fur et à mesure ; ici il
-       révise, et il révise dans l'ordre qu'il veut — souvent la
-       veille de l'examen, en cherchant une chose précise. Tous les
-       guides s'ouvrent, et ce sont les SEGMENTS déjà vus qui se
-       replient. */
-
-    /* ============================================================
-       ⚠️ IL DOIT SAVOIR QU'ON MESURE — v1056
-
-       Mesurer ce qu'un élève regarde, et combien de fois, c'est une
-       donnée personnelle de plus que ce qu'on collectait hier. Ce
-       suivi est légitime — c'est le suivi de sa formation — mais il
-       doit être VISIBLE PAR LUI. C'est la même ligne de conduite que
-       le relevé GPS des moniteurs, et ça coûte une phrase.
-       ============================================================ */
-    html += '<div class="ditpartage">👁️ Ton avancement est partagé avec ' +
-            'ton moniteur : il voit quels segments tu as vus, et quand.</div>';
-
-    html += '<div class="barre"><div style="width:' +
-      Math.round((faitsIci / Math.max(1, totalIci)) * 100) + '%"></div></div>';
-
-    for(var k = 0; k < siennes.length; k++){
-      html += blocEtape(siennes[k], k);
-    }
-    z.innerHTML = html;
-
-    var bs = z.querySelectorAll('[data-groupe]');
-    for(var b = 0; b < bs.length; b++){
-      bs[b].addEventListener('click', function(){
-        groupeIci = this.getAttribute('data-groupe');
-        /* On change de matière : ce qu'on avait déplié dans l'autre
-           ne nous suit pas — v1056. */
-        segmentsOuverts = {};
-        dessinerParcours(dernierAvant);
+    /* ⚠️ LA BARRE DE RECHERCHE NE SE REDESSINE JAMAIS. Elle est posée
+       une fois ; seul ce qui est dessous change. Redessiner un champ
+       pendant qu'on y tape, c'est perdre le clavier à chaque lettre. */
+    if(!$('rechParcours')){
+      z.innerHTML =
+        '<div class="rechP">🔎<input type="search" id="rechParcours" ' +
+          'placeholder="Cherche : stop, créneau, huile…" ' +
+          'autocomplete="off" enterkeyhint="search" aria-label="Chercher dans mes révisions">' +
+          '<button type="button" id="rechEffacer" aria-label="Effacer" class="cache">✕</button></div>' +
+        '<div id="parcoursCorps"></div>';
+      var champ = $('rechParcours');
+      champ.value = rechercheIci;
+      champ.addEventListener('input', function(){
+        rechercheIci = champ.value;
+        dessinerLeCorps();
+      });
+      $('rechEffacer').addEventListener('click', function(){
+        champ.value = ''; rechercheIci = '';
+        dessinerLeCorps();
+        try{ champ.focus(); }catch(e){}
       });
     }
-
-    /* ⚠️ ON PEUT REVOIR CE QU'ON A DÉJÀ VU — v1040, par segment
-       depuis la v1056. Un segment coché se repliait et ne se
-       rouvrait plus : la coche effaçait le contenu. C'est le
-       contraire de ce qu'on veut d'un parcours de révision — on y
-       revient la veille de l'examen, justement. */
-    var plis = z.querySelectorAll('[data-plier]');
-    for(var r2 = 0; r2 < plis.length; r2++){
-      plis[r2].addEventListener('click', function(ev){
-        /* Un appui sur la coche, qui vit dans le segment, ne doit
-           pas replier ce qu'on vient de cocher. */
-        if(ev.target && ev.target.closest && ev.target.closest('.coche')) return;
-        var cle = this.getAttribute('data-plier');
-        var seg = this.parentNode;
-        var estVu = seg && seg.className.indexOf('vu') !== -1;
-        var ouvertLa = estVu ? (segmentsOuverts[cle] === true)
-                             : (segmentsOuverts[cle] !== false);
-        segmentsOuverts[cle] = !ouvertLa;
-        dessinerParcours(dernierAvant);
-      });
-    }
-
-    /* La coche, branchée après coup : innerHTML efface les écouteurs. */
-    var cases = z.querySelectorAll('input[data-coche]');
-    for(var m = 0; m < cases.length; m++){
-      cases[m].addEventListener('change', cocherSegment);
-    }
-    brancherLesCarrousels(z);
-    brancherLeTracker(z);
+    dessinerLeCorps();
     /* Le compte de ce qui reste a changé : la barre le dit. */
     dessinerLesOnglets();
   }
 
-  /* ============================================================
-     UN GUIDE, UNE SUITE DE SEGMENTS — v1056
+  /* Le groupe choisi, ou celui qui l'attend. */
+  function groupesAffiches(){
+    var groupes = lesGroupes();
+    if(groupeIci !== TOUS_LES_GROUPES &&
+       !groupes.some(function(g){ return g.id === groupeIci; })){
+      var aFaire = groupes.filter(function(g){
+        return g.etapes.some(function(e){ return !e.vuLe; }); });
+      groupeIci = (aFaire[0] || groupes[0]).id;
+    }
+    return {
+      tous: groupes,
+      ici: groupeIci === TOUS_LES_GROUPES ? groupes
+         : groupes.filter(function(g){ return g.id === groupeIci; })
+    };
+  }
 
-     David : « l'élève ne valide pas un guide complet, c'est segment
-     par segment — je veux comme les guides sur Facebook ».
-
-     ⚠️ TROIS RÈGLES, TOUTES LES TROIS DE DAVID :
-       · tout est lisible tout de suite — plus de verrouillage ;
-       · un segment déjà vu se replie sur son titre ;
-       · la coche reste, EN PLUS de la mesure.
-
-     ⚠️ ET LA DÉCOUPE NE SE CALCULE PAS ICI. Le classeur envoie des
-     BORNES — « du bloc 3 au bloc 7 » — parce qu'une règle de
-     découpage écrite des deux côtés finit par ne plus compter
-     pareil, et personne ne sait alors lequel des deux chiffres
-     croire. Voir segmentsDuGuide, dans apps-script.
-     ============================================================ */
-  function blocEtape(e, i){
-    var segs = (e.segments && e.segments.length) ? e.segments
+  /* Les segments d'un guide, toujours sous la même forme. Un guide
+     qu'on n'a pas découpé vaut un segment, celui qui porte son titre. */
+  function segmentsDe(e){
+    return (e.segments && e.segments.length) ? e.segments
       : [{ id: '', titre: e.titre || 'Le guide', de: 0,
            a: ((e.blocs || []).length - 1), vuLe: e.vuLe || '' }];
-    var blocs = e.blocs || [];
-    var faits = 0;
-    for(var f = 0; f < segs.length; f++) if(segs[f].vuLe) faits++;
-    var tout = (faits === segs.length);
+  }
 
-    var h = '<div class="etape' + (tout ? ' faite' : '') + ' ouverte">' +
-      '<div class="tete">' +
-        '<span class="num">' + (tout ? '✓' : (i + 1)) + '</span>' +
-        '<span class="nom">' + echapper(e.titre || 'Étape') + '</span>' +
-        '<span class="quand">' + faits + ' / ' + segs.length + '</span>' +
-      '</div><div class="dedans">';
+  /* La file dans l'ordre où il la descend : c'est elle que « Suivant »
+     suit, et c'est en elle qu'on cherche la pastille « ▶ ». */
+  function fileDesSegments(groupes){
+    var file = [];
+    groupes.forEach(function(g){
+      g.etapes.forEach(function(e){
+        var segs = segmentsDe(e);
+        segs.forEach(function(sg, k){
+          file.push({ e: e, sg: sg, k: k, n: segs.length,
+                      icone: g.icone, cle: e.id + '::' + sg.id });
+        });
+      });
+    });
+    return file;
+  }
 
-    for(var k = 0; k < segs.length; k++){
-      var sg = segs[k];
-      /* ⚠️ « replié » N'EST PAS « fermé à clé ». Un segment vu se
-         replie sur son titre — la page reste courte et la
-         progression se voit d'un coup d'œil — mais il se rouvre
-         d'un appui, parce qu'on révise en y revenant. */
-      var vu = !!sg.vuLe;
-      var cle = e.id + '::' + sg.id;
-      var ouvert = vu ? (segmentsOuverts[cle] === true)
-                      : (segmentsOuverts[cle] !== false);
+  function dessinerLeCorps(){
+    var corps = $('parcoursCorps');
+    if(!corps) return;
+    var ef = $('rechEffacer');
+    if(ef) ef.className = rechercheIci ? '' : 'cache';
 
-      h += '<div class="seg' + (vu ? ' vu' : '') + '"' +
-           ' data-seg="' + echapper(cle) + '"' +
-           ' data-guide="' + echapper(e.id) + '"' +
-           ' data-segid="' + echapper(sg.id) + '">' +
-           '<div class="stete" data-plier="' + echapper(cle) + '">' +
-             '<span class="spuce">' + (vu ? '✓' : (k + 1)) + '</span>' +
-             '<span class="snom">' + echapper(sg.titre || 'Segment') + '</span>' +
-             (vu ? '<span class="squand">vu le ' +
-                     echapper(courtJourHeure(sg.vuLe)) + '</span>' : '') +
-             '<span class="sfleche">' + (ouvert ? '▲' : '▼') + '</span>' +
-           '</div>';
-
-      if(ouvert){
-        h += '<div class="sdedans">';
-        for(var n = sg.de; n <= sg.a && n < blocs.length; n++){
-          h += rendreBloc(blocs[n]);
-        }
-        /* ⚠️ LA COCHE RESTE, EN PLUS DE LA MESURE — David : « on le
-           garde en plus ». La mesure dit ce qu'il a regardé ; la
-           coche lui laisse dire « c'est bon, j'ai fini ». */
-        h += '<label class="coche"><input type="checkbox" data-coche="' +
-               echapper(cle) + '"' + (vu ? ' checked' : '') + '><span>' +
-               (vu ? 'Je l\'ai vu' : 'J\'ai vu ce segment') + '</span></label>';
-        h += '</div>';
-      }
-      h += '</div>';
+    if(motsCherches().length){
+      corps.innerHTML = resultatsDeRecherche();
+      brancherLesOuvertures(corps);
+      return;
     }
 
-    return h + '</div></div>';
+    var g = groupesAffiches();
+    var html = '';
+    if(g.tous.length > 1){
+      var resteTout = 0;
+      var puces = g.tous.map(function(gr){
+        var cg = compterLesSegments(gr.etapes);
+        var r = cg.total - cg.vus;
+        resteTout += r;
+        return pucheDeGroupe(gr.id, (gr.icone ? gr.icone + ' ' : '') + gr.nom, r);
+      });
+      html += '<div class="puces">' +
+        pucheDeGroupe(TOUS_LES_GROUPES, 'Tout', resteTout) + puces.join('') + '</div>';
+    }
+
+    var file = fileDesSegments(g.ici);
+    var prochain = file.filter(function(x){ return !x.sg.vuLe; })[0];
+    var cleIci = prochain ? prochain.cle : '';
+
+    html += '<div class="chemin">';
+    var guidePrec = null;
+    file.forEach(function(x){
+      if(x.e !== guidePrec){
+        guidePrec = x.e;
+        var segs = segmentsDe(x.e);
+        var f = segs.filter(function(s){ return !!s.vuLe; }).length;
+        html += '<div class="jalon">' + echapper((x.icone ? x.icone + ' ' : '') +
+          (x.e.titre || 'Le guide') + ' · ' + f + '/' + segs.length) + '</div>';
+      }
+      var droite = (x.k % 2 === 1);
+      var vu = !!x.sg.vuLe;
+      var ici = (x.cle === cleIci);
+      if(x.k > 0) html += '<div class="trait' + (droite ? ' d' : '') + '"></div>';
+      html += '<button type="button" class="noeud' + (droite ? ' d' : '') +
+        (vu ? ' vu' : '') + (ici ? ' ici' : '') + '"' +
+        ' data-ouvrir="' + echapper(x.cle) + '"' +
+        ' data-seg="' + echapper(x.cle) + '"' +
+        ' data-guide="' + echapper(x.e.id) + '"' +
+        ' data-segid="' + echapper(x.sg.id) + '">' +
+        '<span class="rond">' + (vu ? '✓' : (ici ? '▶' : (x.k + 1))) + '</span>' +
+        '<span class="lib">' + echapper(x.sg.titre || 'Segment') +
+          '<small>' + echapper(vu ? 'vu le ' + jourDuVu(x.sg.vuLe)
+                                  : resumeDuSegment(x.e, x.sg)) + '</small></span>' +
+        '</button>';
+    });
+    html += '</div>';
+
+    /* ⚠️ IL DOIT SAVOIR QU'ON MESURE — v1056. Mesurer ce qu'un élève
+       regarde est une donnée de plus : ça se dit, sur l'écran même. */
+    html += '<div class="ditpartage">👁️ Ton avancement est partagé avec ' +
+            'ton moniteur : il voit quels segments tu as vus, et quand.</div>';
+    corps.innerHTML = html;
+
+    var bs = corps.querySelectorAll('[data-groupe]');
+    for(var b = 0; b < bs.length; b++){
+      bs[b].addEventListener('click', function(){
+        groupeIci = this.getAttribute('data-groupe');
+        dessinerLeCorps();
+      });
+    }
+    brancherLesOuvertures(corps);
+  }
+
+  /* Une puce de groupe, avec ce qui lui reste — ou ✓. */
+  function pucheDeGroupe(id, nom, reste){
+    return '<button type="button" data-groupe="' + echapper(id) + '"' +
+      (id === groupeIci ? ' class="ici"' : '') + '>' + echapper(nom) +
+      (reste ? '<span class="pastille">' + reste + '</span>' : ' ✓') + '</button>';
+  }
+
+  function brancherLesOuvertures(zone){
+    var os = zone.querySelectorAll('[data-ouvrir]');
+    for(var i = 0; i < os.length; i++){
+      os[i].addEventListener('click', function(){
+        ouvrirLaFeuille(this.getAttribute('data-ouvrir'));
+      });
+    }
+    var bl = zone.querySelectorAll('[data-bilan]');
+    for(var j = 0; j < bl.length; j++){
+      bl[j].addEventListener('click', function(){
+        ouvrirLeBilan(Number(this.getAttribute('data-bilan')));
+      });
+    }
+  }
+
+  /* « 18/10/2026 20:14 » → « 18/10 ». Sous une pastille, le jour
+     suffit ; l'heure est dans le panneau. */
+  function jourDuVu(t){
+    var m = String(t || '').match(/^(\d{2}\/\d{2})/);
+    return m ? m[1] : String(t || '');
+  }
+
+  /* Ce que le segment contient, et le temps qu'il demande : c'est ce
+     qui fait choisir « j'ai cinq minutes, je fais celui-là ». */
+  function resumeDuSegment(e, sg){
+    var blocs = e.blocs || [];
+    var mots = 0, images = 0, videos = 0, docs = 0;
+    for(var n = sg.de; n <= sg.a && n < blocs.length; n++){
+      var b = blocs[n] || {};
+      var liens = (b.liens && b.liens.length) ? b.liens : (b.lien ? [b.lien] : []);
+      if(b.type === 'texte'){
+        mots += String(b.texte || '').split(/\s+/).filter(Boolean).length;
+      }else if(b.type === 'image') images += Math.max(1, liens.length);
+      else if(b.type === 'video') videos++;
+      else if(liens.length) docs++;
+    }
+    var duree = '';
+    if(mots || images){
+      var s = 2 + mots * 0.25 + images * 3;
+      duree = s < 55 ? '≈ ' + Math.max(10, Math.round(s / 10) * 10) + ' s'
+                     : '≈ ' + Math.max(1, Math.round(s / 60)) + ' min';
+    }
+    if(videos) return '🎬 vidéo' + (duree ? ' · ' + duree : '');
+    var ic = images ? '🖼️' : (docs ? '📄' : '📝');
+    return ic + (duree ? ' ' + duree : '');
+  }
+
+
+  /* ============================================================
+     LE PANNEAU D'UN SEGMENT — v1221
+
+     ⚠️ « ✓ Vu — Suivant › » EST UNE COCHE. C'est le geste de
+     l'élève qui dit « c'est bon » ; la mesure, elle, continue de
+     marquer sans qu'il touche à rien.
+
+     ⚠️ ET LA COCHE SE DÉFAIT. « Je ne l'ai pas encore vu » remet le
+     segment à voir (colonne « Décoché le » du classeur, v1040).
+     ============================================================ */
+  var feuilleIci = '';     /* « guide::segment » ouvert, ou '' */
+  var fileDeLaFeuille = [];
+
+  function ouvrirLaFeuille(cle){
+    /* La file qu'il suit : celle de l'écran, si le segment y est ;
+       sinon celle de son groupe (ouvert depuis la recherche). */
+    var file = fileDesSegments(groupesAffiches().ici);
+    if(!file.some(function(x){ return x.cle === cle; })){
+      file = fileDesSegments(lesGroupes().filter(function(g){
+        return g.etapes.some(function(e){
+          return segmentsDe(e).some(function(sg){ return e.id + '::' + sg.id === cle; });
+        });
+      }));
+    }
+    var x = file.filter(function(y){ return y.cle === cle; })[0];
+    if(!x) return;
+    fileDeLaFeuille = file;
+    feuilleIci = cle;
+
+    var f = $('feuilleParcours');
+    if(!f){
+      f = document.createElement('div');
+      f.id = 'feuilleParcours';
+      document.body.appendChild(f);
+    }
+    var blocs = x.e.blocs || [];
+    var dedans = '';
+    for(var n = x.sg.de; n <= x.sg.a && n < blocs.length; n++) dedans += rendreBloc(blocs[n]);
+    if(!dedans) dedans = '<p class="vide">Ce segment n’a rien à montrer pour l’instant.</p>';
+
+    f.innerHTML = '<div class="voile" data-fermer="1"></div>' +
+      '<div class="feuille" role="dialog" aria-modal="true" aria-label="' + echapper(x.sg.titre || 'Segment') + '"' +
+        ' data-seg="' + echapper(x.cle) + '" data-guide="' + echapper(x.e.id) + '"' +
+        ' data-segid="' + echapper(x.sg.id) + '">' +
+        '<div class="poignee" data-fermer="1"></div>' +
+        '<div class="fhaut">' + echapper((x.icone ? x.icone + ' ' : '') + (x.e.titre || 'Le guide') +
+          ' · ' + (x.k + 1) + '/' + x.n) + '</div>' +
+        '<div class="stitre">' + echapper(x.sg.titre || 'Segment') + '</div>' +
+        '<div class="sdedans">' + dedans + '</div>' +
+        '<div id="feuilleBas"></div>' +
+      '</div>';
+    f.className = 'ouverte';
+    document.body.classList.add('feuilleOuverte');
+
+    var fs = f.querySelectorAll('[data-fermer]');
+    for(var i = 0; i < fs.length; i++) fs[i].addEventListener('click', fermerLaFeuille);
+    var sc = f.querySelector('.feuille');
+    if(sc) sc.scrollTop = 0;
+    dessinerLeBasDeLaFeuille();
+    brancherLesCarrousels(f);
+    brancherLeTracker(f.querySelector('.feuille'));
+  }
+
+  function dessinerLeBasDeLaFeuille(){
+    var bas = $('feuilleBas');
+    if(!bas || !feuilleIci) return;
+    var i = -1;
+    fileDeLaFeuille.forEach(function(y, k){ if(y.cle === feuilleIci) i = k; });
+    var x = fileDeLaFeuille[i];
+    if(!x) return;
+    var vu = !!x.sg.vuLe;
+    var dernier = (i === fileDeLaFeuille.length - 1);
+    var aller = dernier ? 'Terminer' : 'Suivant ›';
+    bas.innerHTML =
+      (vu ? '<div class="fvu">✓ Vu le ' + echapper(courtJourHeure(x.sg.vuLe)) +
+            ' · <button type="button" class="defaire">Je ne l’ai pas encore vu</button></div>' : '') +
+      '<div class="basnav">' +
+        '<button type="button" class="b1" data-fermer="1">Fermer</button>' +
+        '<button type="button" class="b2">' + (vu ? aller : '✓ Vu — ' + aller) + '</button>' +
+      '</div>';
+    bas.querySelector('.b1').addEventListener('click', fermerLaFeuille);
+    bas.querySelector('.b2').addEventListener('click', function(){
+      if(!x.sg.vuLe){
+        dejaEnvoye[x.cle] = true;
+        envoyerLaCoche(x.e.id, x.sg.id, true, null, 'suivant');
+      }
+      if(dernier) fermerLaFeuille();
+      else ouvrirLaFeuille(fileDeLaFeuille[i + 1].cle);
+    });
+    var d = bas.querySelector('.defaire');
+    if(d) d.addEventListener('click', function(){
+      d.disabled = true;
+      delete dejaEnvoye[x.cle];
+      envoyerLaCoche(x.e.id, x.sg.id, false, null, 'coche');
+    });
+  }
+
+  function fermerLaFeuille(){
+    arreterLaLecture();
+    feuilleIci = '';
+    var f = $('feuilleParcours');
+    if(f){ f.innerHTML = ''; f.className = ''; }
+    document.body.classList.remove('feuilleOuverte');
+  }
+
+  document.addEventListener('keydown', function(ev){
+    if(feuilleIci && (ev.key === 'Escape' || ev.key === 'Esc')) fermerLaFeuille();
+  });
+
+
+  /* ============================================================
+     🔎 LA RECHERCHE — v1221
+
+     David : « quand un élève cherche quelque chose, ça lui propose
+     tout ce qui concerne ». Il a choisi : SES GUIDES et SES BILANS.
+
+     ⚠️ SANS ACCENTS NI MAJUSCULES, ET SANS LES LETTRES « EN GRAS ».
+     « creneau » trouve « Créneau », et « cours » trouve « 𝐂𝐎𝐔𝐑𝐒 » —
+     ces lettres mathématiques que Facebook a laissées dans les
+     guides. NFKD les ramène à des lettres ordinaires.
+
+     ⚠️ TOUS LES MOTS, PAS UN SEUL. « feu rouge » ne doit pas
+     ramener chaque « feu » du parcours.
+
+     ⚠️ ET ON NE CHERCHE QUE CE QU'IL A DÉJÀ. Ses guides et ses
+     bilans sont arrivés avec sa connexion : aucun appel de plus,
+     rien qui parte d'ici.
+     ============================================================ */
+  function normaliserAvecPlan(texte){
+    var s = String(texte || '');
+    var out = '', plan = [];
+    for(var i = 0; i < s.length; i++){
+      var c = s.charAt(i);
+      var code = s.charCodeAt(i);
+      var lg = 1;
+      if(code >= 0xD800 && code <= 0xDBFF && i + 1 < s.length){ c = s.substr(i, 2); lg = 2; }
+      var n = c;
+      try{ n = c.normalize('NFKD'); }catch(e){}
+      n = n.replace(/[̀-ͯ]/g, '').toLowerCase();
+      for(var k = 0; k < n.length; k++){ out += n.charAt(k); plan.push(i); }
+      if(lg === 2) i++;
+    }
+    plan.push(s.length);
+    return { t: out, plan: plan, s: s };
+  }
+
+  function normaliser(texte){ return normaliserAvecPlan(texte).t; }
+
+  function motsCherches(){
+    var q = normaliser(rechercheIci).replace(/[^a-z0-9]+/g, ' ').trim();
+    if(q.length < 2) return [];
+    return q.split(' ').filter(function(m){ return m.length > 0; });
+  }
+
+  function contientTout(texteNormalise, mots){
+    return mots.every(function(m){ return texteNormalise.indexOf(m) !== -1; });
+  }
+
+  /* Un morceau du texte, autour du premier mot trouvé, avec les mots
+     surlignés. Échappé morceau par morceau : rien de ce qui vient des
+     guides ne s'écrit en HTML. */
+  function extraitSurligne(texte, mots, long){
+    var N = normaliserAvecPlan(texte);
+    if(!N.s) return '';
+    var premier = -1;
+    mots.forEach(function(m){
+      var p = N.t.indexOf(m);
+      if(p !== -1 && (premier === -1 || p < premier)) premier = p;
+    });
+    var deb = 0, fin = N.s.length;
+    if(long){
+      var o = premier === -1 ? 0 : N.plan[premier];
+      deb = Math.max(0, o - 40);
+      fin = Math.min(N.s.length, deb + long);
+      var cf = N.s.charCodeAt(fin - 1);
+      if(fin < N.s.length && cf >= 0xD800 && cf <= 0xDBFF) fin--;
+      if(deb > 0){ var sp = N.s.indexOf(' ', deb); if(sp !== -1 && sp < o) deb = sp + 1; }
+    }
+    /* Les plages à surligner, en positions du texte d'origine */
+    var marques = [];
+    mots.forEach(function(m){
+      var p = N.t.indexOf(m);
+      while(p !== -1){
+        marques.push([N.plan[p], N.plan[p + m.length] !== undefined ? N.plan[p + m.length] : N.s.length]);
+        p = N.t.indexOf(m, p + m.length);
+      }
+    });
+    marques.sort(function(a, b){ return a[0] - b[0]; });
+    var h = deb > 0 ? '…' : '', ici = deb;
+    marques.forEach(function(r){
+      var a = Math.max(r[0], ici), b = Math.min(r[1], fin);
+      if(b <= a) return;
+      h += echapper(N.s.slice(ici, a)) + '<mark>' + echapper(N.s.slice(a, b)) + '</mark>';
+      ici = b;
+    });
+    h += echapper(N.s.slice(ici, fin)) + (fin < N.s.length ? '…' : '');
+    return h;
+  }
+
+  function resultatsDeRecherche(){
+    var mots = motsCherches();
+    var trouves = [];
+    lesGroupes().forEach(function(g){
+      g.etapes.forEach(function(e){
+        var segs = segmentsDe(e), blocs = e.blocs || [];
+        segs.forEach(function(sg, k){
+          var textes = [];
+          var titres = [];
+          var video = false;
+          for(var n = sg.de; n <= sg.a && n < blocs.length; n++){
+            var b = blocs[n] || {};
+            if(b.type === 'texte' && b.texte) textes.push(String(b.texte));
+            else if(b.titre && !/(^|\|)guides\//.test(String(b.titre))) titres.push(String(b.titre));
+            if(b.type === 'video') video = true;
+          }
+          var tout = normaliser([e.titre, sg.titre].concat(titres, textes).join(' \n '));
+          if(!contientTout(tout, mots)) return;
+          var corps = textes.join(' ') || titres.join(' · ');
+          var dansTitre = contientTout(normaliser(sg.titre + ' ' + e.titre), mots);
+          trouves.push({ dansTitre: dansTitre, html:
+            '<button type="button" class="res" data-ouvrir="' + echapper(e.id + '::' + sg.id) + '">' +
+              '<b>' + extraitSurligne(sg.titre || 'Segment', mots, 0) + '</b>' +
+              '<small>' + echapper((g.icone ? g.icone + ' ' : '') + (e.titre || 'Le guide') +
+                ' · segment ' + (k + 1) + (sg.vuLe ? ' · ✓ vu' : '') + (video ? ' · 🎬 vidéo' : '')) + '</small>' +
+              (corps ? '<span class="ext">' + extraitSurligne(corps.replace(/\s+/g, ' '), mots, 130) + '</span>' : '') +
+            '</button>' });
+        });
+      });
+    });
+    /* Ce qui le dit dans son titre passe devant ce qui le dit en passant. */
+    trouves.sort(function(a, b){ return (b.dansTitre ? 1 : 0) - (a.dansTitre ? 1 : 0); });
+
+    var bilans = [];
+    mesLecons.forEach(function(l, i){
+      var t = String(l.bilan || '');
+      if(!t || !contientTout(normaliser(t), mots)) return;
+      bilans.push('<button type="button" class="res" data-bilan="' + i + '">' +
+        '<b>' + echapper('Leçon du ' + jourDuVu(l.date || '') + (l.moniteur ? ' · ' + l.moniteur : '')) + '</b>' +
+        '<small>Ouvre ce bilan</small>' +
+        '<span class="ext">' + extraitSurligne(t.replace(/\s+/g, ' '), mots, 130) + '</span></button>');
+    });
+
+    var total = trouves.length + bilans.length;
+    var q = echapper(String(rechercheIci).trim());
+    if(!total){
+      return '<div class="resNb">Rien trouvé pour « ' + q + ' ». Essaie un autre mot.</div>';
+    }
+    var h = '<div class="resNb">' + total + ' résultat' + (total > 1 ? 's' : '') +
+            ' pour « ' + q + ' »</div>';
+    if(trouves.length){
+      h += '<div class="resSec">🎬 Dans tes guides · ' + trouves.length + '</div>' +
+           trouves.slice(0, 40).map(function(x){ return x.html; }).join('');
+    }
+    if(bilans.length){
+      h += '<div class="resSec">📖 Tes bilans · ' + bilans.length + '</div>' +
+           bilans.slice(0, 20).join('');
+    }
+    return h;
+  }
+
+  /* Un bilan trouvé : on l'ouvre là où il vit, sur l'accueil. */
+  function ouvrirLeBilan(i){
+    var l = mesLecons[i];
+    if(!l) return;
+    allerAOnglet('accueil');
+    var ds = document.querySelectorAll('#mesLecons details.lecon');
+    var d = ds[i];
+    if(!d) return;
+    d.open = true;
+    try{ d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }catch(e){ d.scrollIntoView(); }
   }
 
   /* « 18/09/2026 20:14 » → « 18/09 à 20:14 ». Dans une ligne de
@@ -3264,74 +3705,47 @@
   }
 
   /* ============================================================
-     ON MESURE LA LECTURE, PAS LA DÉCLARATION — v1056
+     ON MESURE LA LECTURE, PAS LA DÉCLARATION — v1056, refait en v1221
 
      David : « de notre côté on doit voir quel segment il a vu même
      s'il n'a pas cliqué sur le bouton, il faut un vrai tracker de ce
      qui a été vu ».
 
-     Un segment se marque vu sans qu'on clique sur rien : il est
-     compté lu quand il est resté à l'écran, à plus de la MOITIÉ,
-     pendant au moins DEUX SECONDES.
+     ⚠️ UN SEGMENT EST LU QUAND SON PANNEAU EST RESTÉ OUVERT LE TEMPS
+     DE LE LIRE — v1221. Depuis le chemin, il n'y a plus qu'un segment
+     à l'écran à la fois : celui du panneau. Plus de calcul de ce qui
+     est « à la moitié de l'écran », plus de course entre deux
+     segments visibles ensemble (le défaut de la v1220 : un appui
+     sur le groupe, et tout était « vu »).
 
-     ⚠️ POURQUOI DEUX SECONDES ET LA MOITIÉ DE L'ÉCRAN. Sans durée,
-     faire défiler la page d'un coup marquerait tout comme vu. Avec
-     une durée trop longue, un élève qui lit vite et remonte serait
-     compté absent. Deux secondes, c'est le temps qu'on ne passe pas
-     sur ce qu'on saute.
+     Le temps de le LIRE, la règle de la v1220 : 2 s, plus un quart de
+     seconde par mot, plus 3 s par image ou document — entre 4 et
+     45 s. Un segment sans rien à lire ne se compte jamais tout seul
+     (« ✓ Vu » reste). Fermer le panneau avant, c'est ne pas l'avoir
+     lu.
 
-     ⚠️ ET UNE VIDÉO SE MESURE AUTREMENT. Un segment qui tient une
-     vidéo n'est pas lu parce qu'on l'a eu sous les yeux : il l'est
-     quand la vidéo a VRAIMENT été regardée. David : « pour la vidéo
-     90 % de vu valide ».
+     ⚠️ ET UNE VIDÉO SE MESURE AUTREMENT. David : « pour la vidéo 90 %
+     de vu valide ».
+
+     ⚠️ UN SEGMENT DÉJÀ VU SE MESURE ENCORE : c'est ce qui fait
+     monter « revu le » et « N fois » côté bureau.
 
      ⚠️ ET ON N'ENVOIE QU'UNE FOIS PAR SÉANCE. Le compteur du
      classeur dit combien de fois il y est repassé ; le faire monter
-     à chaque va-et-vient de la page rendrait ce nombre absurde.
+     à chaque ouverture de panneau rendrait ce nombre absurde.
      ============================================================ */
-  var PART_A_L_ECRAN = 0.5;
   var PART_DE_VIDEO = 0.9;
 
   /* Ce qui a déjà été envoyé pendant cette séance : la clé
      « guide::segment », comme partout ailleurs. */
   var dejaEnvoye = {};
-  var guetteur = null;
-
-  /* ============================================================
-     ⚠️ UN SEGMENT À LA FOIS, LE TEMPS DE LE LIRE — v1220
-
-     David : « si j'appuie en haut sur le titre du groupe, ça valide
-     comme si j'avais tout vu alors que je n'ai pas tout vu ».
-
-     Deux causes, réparées toutes les deux :
-       · les fichiers du parcours n'arrivaient pas signés avec la
-         connexion (voir le Worker) : sans vidéo ni image, chaque
-         segment se réduisait à une ligne, et toute la page tenait à
-         l'écran d'un coup ;
-       · tout ce qui était à l'écran deux secondes se comptait lu, EN
-         MÊME TEMPS. Un appui sur le groupe redessine la page : deux
-         secondes plus tard, tout était « vu ».
-
-     Désormais :
-       · UN segment à la fois : le premier non vu à l'écran, en
-         partant du haut. Le suivant ne commence qu'après lui ;
-       · le temps de le LIRE, pas deux secondes : 2 s, plus un quart
-         de seconde par mot, plus 3 s par image ou document — entre
-         4 et 45 s ;
-       · un segment sans rien à lire ne se compte jamais tout seul
-         (la coche reste) ;
-       · un segment plus haut que l'écran compte quand il occupe
-         l'essentiel de l'écran.
-     La vidéo, elle, garde sa règle : 90 % regardés.
-     ============================================================ */
-  var visibles = {};
   var enLecture = null;   /* { cle, minuterie } */
 
   function dureeDeLecture(el){
     var dedans = el.querySelector('.sdedans');
     if(!dedans) return null;
     var texte = '';
-    Array.prototype.forEach.call(dedans.querySelectorAll('p'), function(x){ texte += ' ' + (x.textContent || ''); });
+    Array.prototype.forEach.call(dedans.querySelectorAll('p:not(.vide)'), function(x){ texte += ' ' + (x.textContent || ''); });
     var mots = texte.split(/\s+/).filter(Boolean).length;
     var images = dedans.querySelectorAll('img').length;
     var fichiers = dedans.querySelectorAll('a.fichier').length;
@@ -3344,73 +3758,32 @@
     if(enLecture){ clearTimeout(enLecture.minuterie); enLecture = null; }
   }
 
-  function choisirLeSegmentALire(){
-    var mieux = null, haut = Infinity;
-    Object.keys(visibles).forEach(function(cle){
-      var el = visibles[cle];
-      if(!el || !document.body.contains(el) || dejaEnvoye[cle]) return;
-      if(!el.querySelector('.sdedans') || el.querySelector('video')) return;
-      if(dureeDeLecture(el) === null) return;
-      var t = el.getBoundingClientRect().top;
-      if(t < haut){ haut = t; mieux = el; }
-    });
-    var cle = mieux ? mieux.getAttribute('data-seg') : '';
-    if(enLecture && enLecture.cle === cle) return;
+  function brancherLeTracker(el){
     arreterLaLecture();
-    if(!mieux) return;
-    enLecture = { cle: cle, minuterie: setTimeout(function(){
-      enLecture = null;
-      delete visibles[cle];
-      noterVu(mieux, 'lu');
-      choisirLeSegmentALire();
-    }, dureeDeLecture(mieux)) };
-  }
-
-  function brancherLeTracker(zone){
-    /* ⚠️ UN GUETTEUR, PAS UN PAR SEGMENT. La page se redessine à
-       chaque pli : en créer un nouveau sans arrêter l'ancien en
-       laisserait des dizaines à tourner, tous en train de compter
-       les mêmes segments. */
-    if(guetteur){ guetteur.disconnect(); guetteur = null; }
-    arreterLaLecture();
-    visibles = {};
-
-    /* ⚠️ SANS OBSERVATEUR, LE TRACKER SE TAIT — et la coche reste.
-       Un vieux navigateur ne doit pas perdre le parcours : il perd
-       la mesure, ce qui est exactement ce que la coche répare. */
-    if(typeof IntersectionObserver !== 'function') return;
-
-    guetteur = new IntersectionObserver(function(entrees){
-      entrees.forEach(function(en){
-        var el = en.target;
-        var cle = el.getAttribute('data-seg') || '';
-        if(!cle) return;
-        /* À l'écran pour de bon : la moitié du segment, ou — s'il est
-           plus haut que l'écran — l'essentiel de l'écran */
-        var ecran = (en.rootBounds && en.rootBounds.height) || window.innerHeight || 1;
-        var la = en.isIntersecting && (en.intersectionRatio >= PART_A_L_ECRAN ||
-                 en.intersectionRect.height >= ecran * 0.6);
-        if(la) visibles[cle] = el; else delete visibles[cle];
-      });
-      choisirLeSegmentALire();
-    }, { threshold: [0, 0.25, PART_A_L_ECRAN, 0.75, 1] });
-
-    var segs = zone.querySelectorAll('[data-seg]');
-    for(var i = 0; i < segs.length; i++) guetteur.observe(segs[i]);
+    if(!el) return;
+    var cle = el.getAttribute('data-seg') || '';
+    if(!cle) return;
 
     /* Les vidéos : 90 % de la durée, et pas une seconde de moins. */
-    var vids = zone.querySelectorAll('.seg video');
+    var vids = el.querySelectorAll('video');
     for(var v = 0; v < vids.length; v++){
       (function(vid){
         vid.addEventListener('timeupdate', function(){
           var duree = Number(vid.duration) || 0;
           if(!duree) return;
           if((Number(vid.currentTime) || 0) / duree < PART_DE_VIDEO) return;
-          var seg = vid.closest ? vid.closest('[data-seg]') : null;
-          if(seg) noterVu(seg, 'video');
+          noterVu(el, 'video');
         });
       })(vids[v]);
     }
+    /* Un segment qui tient une vidéo n'est lu que par elle. */
+    if(vids.length || dejaEnvoye[cle]) return;
+    var ms = dureeDeLecture(el);
+    if(ms === null) return;
+    enLecture = { cle: cle, minuterie: setTimeout(function(){
+      enLecture = null;
+      if(feuilleIci === cle) noterVu(el, 'lu');
+    }, ms) };
   }
 
   /* La porte unique : mesure ou coche, c'est la même écriture. */
@@ -3420,25 +3793,6 @@
     dejaEnvoye[cle] = true;
     envoyerLaCoche(el.getAttribute('data-guide'),
                    el.getAttribute('data-segid'), true, null, pourquoi);
-  }
-
-  function cocherSegment(ev){
-    var cb = ev.target;
-    var cle = cb.getAttribute('data-coche') || '';
-    var seg = cb.closest ? cb.closest('[data-seg]') : null;
-    if(!seg) return;
-    /* ⚠️ LA COCHE VA DANS LES DEUX SENS — v1040. Depuis qu'on peut
-       rouvrir un segment déjà vu, sa case est cochée : la décocher
-       doit vouloir dire quelque chose, sinon c'est une case qui
-       ment. Le classeur sait déjà le faire (colonne « Décoché le »). */
-    var avant = cb.checked;
-    cb.disabled = true;
-    /* Décocher rend le segment de nouveau mesurable : sinon il
-       resterait « déjà envoyé » et la mesure ne le reprendrait
-       jamais. */
-    if(avant) dejaEnvoye[cle] = true; else delete dejaEnvoye[cle];
-    envoyerLaCoche(seg.getAttribute('data-guide'),
-                   seg.getAttribute('data-segid'), avant, cb, 'coche');
   }
 
   function envoyerLaCoche(guide, segment, vu, cb, pourquoi){
@@ -3460,40 +3814,24 @@
           e.vuLe = (tous.length && tous.every(function(sg){ return !!sg.vuLe; }))
             ? (tous[tous.length - 1].vuLe || 'à l’instant') : '';
         });
-        /* ⚠️ UNE MESURE NE REPLIE RIEN SOUS SES YEUX. Elle marque, et
-           l'élève continue de lire ; c'est au prochain passage que le
-           segment s'ouvrira replié. Une coche, elle, est un geste :
-           on redessine. */
-        if(pourquoi === 'coche'){
-          if(!vu) delete segmentsOuverts[guide + '::' + (segment || '')];
-          dessinerParcours(dernierAvant);
-        }else{
-          majPuceDuSegment(guide, segment);
-        }
+        /* ⚠️ LE PLAN SE REDESSINE, LE PANNEAU NON — v1221. Le chemin
+           est derrière le panneau : le redessiner ne fait rien sauter
+           sous ses doigts. Le panneau, lui, garde sa vidéo en cours ;
+           seul son bas change (« ✓ Vu le … »). */
+        majPuceDuSegment(guide, segment);
       })
       .catch(function(e){
-        if(cb){ cb.disabled = false; cb.checked = !vu; }
         delete dejaEnvoye[guide + '::' + (segment || '')];
+        if(feuilleIci === guide + '::' + (segment || '')) dessinerLeBasDeLaFeuille();
         dire('msgEnvoi', 'La coche n’est pas partie : ' + e.message, 'erreur');
       });
   }
 
-  /* ⚠️ LA PUCE PASSE AU VERT SANS REDESSINER. Redessiner pendant
-     qu'il lit lui ferait sauter la page sous les doigts — et c'est
-     précisément ce que la mesure existe pour éviter : qu'il ait à
-     faire quelque chose. */
+  /* Après une mesure ou une coche : le plan, le compteur, la barre
+     des onglets, et le bas du panneau s'il montre ce segment. */
   function majPuceDuSegment(guide, segment){
-    var z = $('monParcours');
-    if(!z) return;
-    var el = z.querySelector('[data-seg="' +
-      String(guide + '::' + (segment || '')).replace(/"/g, '\\"') + '"]');
-    if(!el) return;
-    if(el.className.indexOf('vu') === -1) el.className += ' vu';
-    var p = el.querySelector('.spuce');
-    if(p) p.textContent = '✓';
-    var c = el.querySelector('input[data-coche]');
-    if(c) c.checked = true;
-    dessinerLesOnglets();
+    dessinerParcours(dernierAvant);
+    if(feuilleIci === guide + '::' + (segment || '')) dessinerLeBasDeLaFeuille();
   }
 
   /* « 2026-09-22 » → « 22/09 ». Dans une ligne de compteur, le jour
@@ -3639,6 +3977,8 @@
   }
 
   function dessinerLecons(liste){
+    /* Gardés pour la recherche de « Réviser » — v1221 */
+    mesLecons = liste || [];
     var z = $('mesLecons');
     if(!z) return;
     montrer('carteLecons', true);
