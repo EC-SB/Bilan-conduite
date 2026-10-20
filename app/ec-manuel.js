@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 15:11 — v1176 */
+/* Déployé le 20/10/2026 à 09:49 — v1206 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -695,6 +695,175 @@ CHAMPS_MANUELS.conduiteResumeAuto =
    forme ni le même sens. */
 let prefixeExamenBlanc = '';
 
+/* ============================================================
+   ✍️ LA FORME D'UNE FICHE — v1206
+
+   David, le 20 octobre : « que je puisse choisir le fond de certaines
+   zones pour que les moniteurs se repèrent […] ajouter des cases à
+   cocher et modifier celles qui y sont pour mettre une phrase
+   directement, ajouter ou enlever les boutons de micro en bout de
+   ligne ». Ses choix : une forme par MODÈLE, publiée par un admin.
+
+   ⚠️ UNE FORME NE TOUCHE PAS AU BILAN. Elle se pose sur les rubriques
+   d'origine (CHAMPS_MANUELS) : titres, aides, fonds, cases, micros,
+   ordre, zones masquées. Les clés ne changent jamais : le bilan se
+   compose comme avant, avec ce que le moniteur a rempli.
+
+   ⚠️ ET UNE FICHE COMMENCÉE GARDE SA FORME. Les saisies se replacent
+   par leur RANG : une fiche qui changerait d'ordre entre deux
+   ouvertures écrirait dans les mauvaises cases. Le brouillon emporte
+   donc la forme avec laquelle il a commencé (« formeEnCours »).
+   ============================================================ */
+let formesFiches = {};          /* modèle → forme publiée */
+let formeEnCours = null;        /* la forme de la fiche ouverte */
+let formeImposee;               /* reprise d'un brouillon : SA forme */
+const FONDS_FICHE = {
+  '#DCD0FF': { nom: 'Violet',  fort: '#7C5CE6' }, '#E8EDF3': { nom: 'Ardoise', fort: '#5B6B80' },
+  '#EEFFC2': { nom: 'Citron',  fort: '#6E9E00' }, '#D6ECFF': { nom: 'Bleu',    fort: '#2F7FD8' },
+  '#FFD9E6': { nom: 'Rose',    fort: '#D9467A' }, '#FFE7A8': { nom: 'Sable',   fort: '#B88A12' },
+  '#FFD8B8': { nom: 'Orange',  fort: '#E07A1F' }, '#D4F5DF': { nom: 'Vert',    fort: '#2E9E5B' }
+};
+const INTENSITES_FICHE = ['leger', 'franc', 'fort'];
+/* Les zones qui calculent (CEPC, observations, niveau…) : elles se
+   déplacent, se renomment, se colorent — elles ne se masquent pas. */
+const TYPES_LIBRES_FICHE = ['texte', 'court', 'ok', 'titre', 'sousTitre', 'photo', 'note3', 'ouinon', 'abc', 'heures'];
+const CLES_VERROUILLEES_FICHE = ['heuresAvant', 'bilanElim', 'examen.verifNote', 'estimationTexte'];
+function zoneVerrouilleeFiche(ch){
+  if(!ch) return true;
+  const c = String(ch.cle || '').replace(/^examenBlanc\./, '');
+  return TYPES_LIBRES_FICHE.indexOf(ch.type) === -1 || CLES_VERROUILLEES_FICHE.indexOf(c) !== -1 ||
+         /(^|\.)bilanElim$/.test(c) || !!ch.siNiveau;
+}
+function couleurFiche(v){
+  const s = String(v || '');
+  return /^#[0-9a-f]{6}$/i.test(s) ? s.toUpperCase() : (s === 'ardoise' ? 'ardoise' : '');
+}
+function texteFiche(v, max){ return String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f]/g, '').slice(0, max); }
+/* La forme telle qu'on peut s'en servir : rien d'autre que des clés
+   connues, des textes bornés, des couleurs vérifiées. */
+function nettoyerFormeFiche(forme, champs){
+  const f = (forme && typeof forme === 'object') ? forme : {};
+  const cles = (champs || []).map(ch => ch.cle);
+  const zones = {};
+  const src = (f.zones && typeof f.zones === 'object') ? f.zones : {};
+  cles.forEach(k => {
+    const z = src[k];
+    if(!z || typeof z !== 'object') return;
+    const o = {};
+    if(typeof z.nom === 'string') o.nom = texteFiche(z.nom, 120);
+    if(typeof z.aide === 'string') o.aide = texteFiche(z.aide, 240);
+    if(z.fond !== undefined) o.fond = couleurFiche(z.fond);
+    if(INTENSITES_FICHE.indexOf(z.intensite) !== -1) o.intensite = z.intensite;
+    if(z.micro === 0 || z.micro === 1) o.micro = z.micro;
+    if(z.cache === 1) o.cache = 1;
+    if(Array.isArray(z.cases)){
+      o.cases = z.cases.slice(0, 8).map(c => ({
+        libelle: texteFiche(c && c.libelle, 80).trim(),
+        phrase: texteFiche(c && c.phrase, 500).trim(),
+        ou: (c && c.ou === 'fin') ? 'fin' : 'debut',
+        office: (c && c.office) ? 1 : 0
+      })).filter(c => c.phrase);
+    }
+    if(Object.keys(o).length) zones[k] = o;
+  });
+  const ordre = [];
+  (Array.isArray(f.ordre) ? f.ordre : []).forEach(k => { if(cles.indexOf(k) !== -1 && ordre.indexOf(k) === -1) ordre.push(k); });
+  return { v: 1, zones: zones, ordre: ordre };
+}
+/* Les rubriques d'origine, habillées par la forme */
+function champsAvecForme(champs, forme){
+  if(!Array.isArray(champs)) return champs;
+  const f = nettoyerFormeFiche(forme, champs);
+  let liste = champs.map(ch => {
+    const c = Object.assign({}, ch);
+    const z = f.zones[ch.cle] || {};
+    if(z.nom !== undefined && z.nom.trim()) c.nom = z.nom;
+    if(z.aide !== undefined) c.aide = z.aide;
+    if(z.fond !== undefined){
+      if(z.fond) c.fond = z.fond; else delete c.fond;
+    }
+    c.intensite = z.intensite || (c.fond === 'ardoise' || !c.fond ? 'leger' : 'franc');
+    if(z.cases) c.cases = z.cases;
+    else if(c.phraseCoche) c.cases = [{ libelle: '', phrase: String(c.phraseCoche), ou: 'debut', office: 0 }];
+    delete c.phraseCoche;
+    if(z.micro === 0) c.sansMicro = true;
+    if(z.cache && !zoneVerrouilleeFiche(ch)) c.cacheFiche = true;
+    return c;
+  });
+  if(f.ordre.length){
+    const rang = k => { const i = f.ordre.indexOf(k); return i === -1 ? 1e6 : i; };
+    const dOrigine = liste.map((c, i) => [c, i]);
+    dOrigine.sort((a, b) => (rang(a[0].cle) - rang(b[0].cle)) || (a[1] - b[1]));
+    liste = dOrigine.map(x => x[0]);
+  }
+  return liste;
+}
+/* La forme publiée d'un modèle (gardée sur l'appareil : une fiche
+   s'ouvre aussi sans réseau, dans la voiture) */
+function formePublieeDe(modeleCle){
+  const f = formesFiches && formesFiches[modeleCle];
+  return (f && typeof f === 'object') ? f : null;
+}
+function lireFormesFichesEnCache(){
+  try{ const o = JSON.parse(localStorage.getItem('ec_formes_fiches') || '{}'); if(o && typeof o === 'object') formesFiches = o; }catch(e){}
+}
+async function chargerFormesFiches(){
+  lireFormesFichesEnCache();
+  try{
+    const r = await appelPrep({ action: 'fichesManuellesLire' });
+    if(r && r.status === 'ok' && r.publiees && typeof r.publiees === 'object'){
+      formesFiches = r.publiees;
+      try{ localStorage.setItem('ec_formes_fiches', JSON.stringify(formesFiches)); }catch(e){}
+    }
+    return r;
+  }catch(e){ return null; }
+}
+lireFormesFichesEnCache();
+
+/* Le fond d'un cadre : la couleur, et sa force */
+function peindreCadreFond(cadre, fond, intensite){
+  cadre.className = 'cadreFond';
+  cadre.removeAttribute('style');
+  if(fond === 'ardoise' && intensite === 'leger'){ cadre.classList.add('ardoise'); return; }
+  const c = fond === 'ardoise' ? '#E8EDF3' : fond;
+  const fort = (FONDS_FICHE[c] && FONDS_FICHE[c].fort) || melangerCouleurFiche(c, '#000000', 0.45);
+  const clair = document.body.classList.contains('clair');
+  cadre.classList.add('fond-' + intensite);
+  if(intensite === 'leger'){
+    cadre.style.background = clair ? melangerCouleurFiche(c, '#FFFFFF', 0.45) : avecAlphaFiche(fort, 0.16);
+    cadre.style.border = '1px solid ' + avecAlphaFiche(fort, 0.35);
+  }else if(intensite === 'franc'){
+    cadre.style.background = clair ? c : avecAlphaFiche(fort, 0.26);
+    cadre.style.border = '1px solid ' + avecAlphaFiche(fort, 0.6);
+  }else{
+    cadre.style.background = clair ? c : avecAlphaFiche(fort, 0.32);
+    cadre.style.border = '2px solid ' + fort;
+    cadre.style.borderLeftWidth = '9px';
+    cadre.style.setProperty('--fond-fort', fort);
+  }
+}
+function melangerCouleurFiche(a, b, t){
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const x = p(a), y = p(b);
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+function avecAlphaFiche(h, a){
+  const p = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  return 'rgba(' + p.join(',') + ',' + a + ')';
+}
+/* Sans micro : on cache les 🎙️ de la zone, et ceux des lignes qu'on
+   y ajoutera (« ➕ Ajouter une ligne »). */
+function estBoutonMicro(b){
+  return b && b.tagName === 'BUTTON' && (/^\s*(🎙️|🎙|⏹️)\s*$/.test(b.textContent) || /^Dicter/.test(b.title || ''));
+}
+function masquerMicrosFiche(bloc){
+  const cacher = racine => racine.querySelectorAll('button').forEach(b => { if(estBoutonMicro(b)) b.classList.add('micoCache'); });
+  cacher(bloc);
+  if(typeof MutationObserver === 'function'){
+    new MutationObserver(() => cacher(bloc)).observe(bloc, { childList: true, subtree: true });
+  }
+}
+
 /* L'identifiant d'un champ. TOUS les points sont remplacés :
    replace('.','_') n'en remplaçait qu'un, et une clé préfixée en
    compte deux (« examenBlanc.examen.verifNote »). */
@@ -1273,10 +1442,16 @@ async function ouvrirBilanManuel(){
   /* La fiche handicap se construit ligne par ligne depuis le
      document papier : elle est trop longue pour être écrite à
      la main dans le tableau des schémas. */
-  const champs = (modele.schema === 'handicap')
+  const champsBase = (modele.schema === 'handicap')
     ? schemaHandicap()
     : CHAMPS_MANUELS[modele.schema];
-  if(!champs){ showToast('Ce modèle ne se remplit pas encore à la main.'); return; }
+  if(!champsBase){ showToast('Ce modèle ne se remplit pas encore à la main.'); return; }
+  /* ✍️ v1206 — la forme publiée de ce modèle ; une fiche reprise
+     garde la sienne (voir « LA FORME D'UNE FICHE ») */
+  formeEnCours = (formeImposee !== undefined) ? formeImposee
+               : (modele.schema === 'handicap' ? null : formePublieeDe(modeleCle));
+  formeImposee = undefined;
+  const champs = formeEnCours ? champsAvecForme(champsBase, formeEnCours) : champsAvecForme(champsBase, null);
 
   const eleve = $('studentName').value.trim();
   const btn = $('manuelBtn');
@@ -3421,7 +3596,9 @@ function brouillonManuelActuel(){
        elles ne vivaient que dans la mémoire de la page, et une
        monitrice qui avait tout rempli n'en retrouvait rien. */
     quest: quest,
-    saisies: saisies
+    saisies: saisies,
+    /* ✍️ v1206 — la forme avec laquelle la fiche a commencé */
+    forme: formeEnCours || null
   };
 }
 
@@ -3454,6 +3631,8 @@ function sauvegarderManuel(){
      Le filet reste entier tant que le bilan n'est pas enregistré :
      c'est exactement là qu'il sert. */
   if(typeof bilanEnregistre !== 'undefined' && bilanEnregistre) return;
+  /* ✍️ v1206 — l'essai du créateur de fiches ne laisse rien */
+  if(window.essaiFicheEnCours) return;
 
   const brouillon = brouillonManuelActuel();
   if(!brouillon) return;
@@ -3877,6 +4056,7 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
      n'existe que si « modeManuel » est vrai. Avec une zone, c'est
      un écran qui se garde lui-même — le rendez-vous post-permis. */
   if(!quelleZone && !modeManuel) return;
+  if(window.essaiFicheEnCours) return;
 
   /* ⚠️ MÊME GARDE QUE « sauvegarderManuel » — v1076, et pour la
      même raison : un cours enregistré n'a plus rien à déposer dans
@@ -5056,6 +5236,8 @@ function reprendreBrouillon(b){
 
   /* La fiche se dessine, puis on y repose les saisies */
   ouvertureParReprise = true;
+  /* ✍️ v1206 — la fiche revient avec SA forme (absente = d'origine) */
+  formeImposee = (b.forme && typeof b.forme === 'object') ? b.forme : null;
   const ouverture = ouvrirBilanManuel();
   ouvertureParReprise = false;
   ouverture.then(() => {
@@ -5528,6 +5710,11 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
   champs.forEach(ch => {
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
+    /* ✍️ v1206 — chaque zone porte sa clé (le créateur de fiches la
+       retrouve), et une zone masquée reste dessinée mais invisible :
+       les saisies se comptent par rang, elle doit garder le sien. */
+    bloc.dataset.zone = ch.cle;
+    if(ch.cacheFiche) bloc.classList.add('ficheCachee');
 
     /* Certains champs ne servent que si l élève a le niveau :
        les montrer ailleurs fait remplir pour rien. */
@@ -6946,7 +7133,12 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
          jour cochée sur un cadre vide.
          ------------------------------------------------------ */
       const cochables = [];
-      if(ch.phraseCoche) cochables.push({ phrase: String(ch.phraseCoche) });
+      /* ✍️ v1206 — les cases réglées dans le créateur de fiches : un
+         libellé court (ou la phrase elle-même), la phrase, sa place
+         (en tête ou à la fin), cochée d'office ou non. */
+      if(Array.isArray(ch.cases)){
+        ch.cases.forEach(c => { if(c && c.phrase) cochables.push({ phrase: String(c.phrase), libelle: String(c.libelle || ''), fin: c.ou === 'fin', office: !!c.office }); });
+      }else if(ch.phraseCoche) cochables.push({ phrase: String(ch.phraseCoche) });
       /* v1144 — les deux cases de l'alerte de survitesse, cachées
          tant qu'on ne sait pas que la voiture en a une. */
       if(ch.survitesse){
@@ -6965,18 +7157,19 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         cb.type = 'checkbox';
         cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:1px;';
         lab.appendChild(cb);
-        lab.appendChild(document.createTextNode(phrase));
+        lab.appendChild(document.createTextNode(coche.libelle || phrase));
+        if(coche.libelle) lab.title = phrase;
 
         /* Retirer, c'est retirer la phrase ET la ligne vide qu'elle
            a poussée devant elle — sinon le cadre garde un blanc en
            tête à chaque aller-retour sur la case. */
         const sansLaPhrase = v =>
-          String(v || '').split(phrase).join('').replace(/^\s*\n+/, '').trim();
+          String(v || '').split(phrase).join('').replace(/^\s*\n+/, '').replace(/\n+\s*$/, '').trim();
 
         cb.addEventListener('change', () => {
           const reste = sansLaPhrase(t.value);
           t.value = cb.checked
-            ? (reste ? phrase + '\n' + reste : phrase)
+            ? (reste ? (coche.fin ? reste + '\n' + phrase : phrase + '\n' + reste) : phrase)
             : reste;
           champsManuels[ch.cle] = t.value;
           /* ⚠️ LA VRAIE PORTE — v1103, voir plus haut : le nom
@@ -7015,6 +7208,14 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       /* Le texte pré-rempli : le moniteur n'a plus qu'à effacer
          l'émoji qui ne convient pas et compléter les blancs. */
       if(ch.defaut) t.value = ch.defaut;
+      /* ✍️ v1206 — une case « cochée d'office » pose sa phrase à
+         l'ouverture ; une fiche reprise retrouve ensuite ce qui avait
+         été écrit (la reprise passe après). */
+      cochables.filter(c => c.office).forEach(c => {
+        if(String(t.value).indexOf(c.phrase) !== -1) return;
+        t.value = t.value ? (c.fin ? t.value + '\n' + c.phrase : c.phrase + '\n' + t.value) : c.phrase;
+        champsManuels[ch.cle] = t.value;
+      });
       t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
         'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
@@ -7089,15 +7290,27 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
        titre MANŒUVRE à la ligne « Conduite autonome » : on voit où
        la partie commence et où reprend la suite. Teinte : ardoise,
        son choix sur le schéma. */
+    /* ✍️ v1206 — sans micro, si le créateur l'a retiré */
+    if(ch.sansMicro) masquerMicrosFiche(bloc);
+
+    /* ✍️ v1206 — la couleur ET sa force : deux zones qui se suivent
+       avec le même fond et la même force partagent un seul cadre.
+       En « très visible », les titres du cadre deviennent un bandeau
+       de la couleur. */
     if(ch.fond){
+      const intensite = ch.intensite || 'leger';
+      const marque = ch.fond + '|' + intensite;
       const der = zone.lastElementChild;
       let cadre = (der && der.classList.contains('cadreFond') &&
-                   der.dataset.fond === ch.fond) ? der : null;
+                   der.dataset.fond === marque) ? der : null;
       if(!cadre){
         cadre = document.createElement('div');
-        cadre.className = 'cadreFond ' + ch.fond;
-        cadre.dataset.fond = ch.fond;
+        peindreCadreFond(cadre, ch.fond, intensite);
+        cadre.dataset.fond = marque;
         zone.appendChild(cadre);
+      }
+      if(intensite === 'fort' && (ch.type === 'titre' || ch.type === 'sousTitre')){
+        bloc.classList.add('titreFondFort');
       }
       cadre.appendChild(bloc);
       return;
