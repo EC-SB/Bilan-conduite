@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 13:48 — v1213 */
+/* Déployé le 20/10/2026 à 16:10 — v1219 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -5207,6 +5207,8 @@ async function genererBilanManuel(){
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
     if(typeof blocProcedures === 'function'){
+      /* 📍 v1219 — où il en est, sous le rappel de sa frise */
+      if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
       bilan += blocProcedures(champsManuels.texteDicte || '');
     }
 
