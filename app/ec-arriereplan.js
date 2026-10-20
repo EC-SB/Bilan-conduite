@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:45 — v1209 */
+/* Déployé le 20/10/2026 à 12:05 — v1210 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -57,6 +57,11 @@ function surFinGeneration(){
    ============================================================ */
 
 async function commencerAutreCours(){
+  /* 🤖 v1210 — un bilan refait se termine avant le cours suivant */
+  if(typeof refaitIA !== 'undefined' && refaitIA){
+    showToast('Termine d’abord le bilan refait avec l’IA.');
+    return;
+  }
   const eleve = ($('studentName') && $('studentName').value.trim()) || 'cet élève';
 
   if(!await confirmer(
@@ -270,6 +275,10 @@ function texteDicteEnCours(){
 }
 
 async function deposerBrouillonServeur(extra){
+  /* 🤖 v1210 — pendant qu'on refait un bilan avec l'IA, aucun dépôt
+     automatique : il écraserait la dictée gardée du moniteur. Seul le
+     renvoi au moniteur (« refait ») dépose. */
+  if(typeof refaitIA !== 'undefined' && refaitIA && !(extra && extra.refait)) return;
   const texte = texteDicteEnCours();
   if(!String(texte).trim()) return;
 
@@ -595,6 +604,9 @@ async function attendreLesDepots(){
 
 async function retirerBrouillonServeur(eleve){
   if(!eleve) return;
+  /* 🤖 v1210 — un bilan qu'on refait avec l'IA garde sa dictée
+     jusqu'au renvoi à l'élève (c'est le renvoi qui l'efface). */
+  if(typeof refaitIAEnCours === 'function' && refaitIAEnCours(eleve)) return;
   /* ⏱️ v1209 — UN BILAN ENVOYÉ SANS IA GARDE SA DICTÉE. Elle reste au
      serveur, marquée « sans-ia », avec le bilan parti : c'est d'elle
      que le bilan sera refait avec l'IA (dossier de l'élève, « Cours
@@ -667,18 +679,22 @@ async function chercherBrouillonsServeur(silencieux){
 
     /* Un bilan à corriger passe devant : c'est celui qui attend
        une action, et le bureau vient de le renvoyer. */
-    l.sort((a, b) => (b.etat === 'a-corriger') - (a.etat === 'a-corriger'));
+    /* 🤖 v1210 — un bilan refait avec l'IA attend aussi sa relecture */
+    const attend = x => x.etat === 'a-corriger' || x.etat === 'refait';
+    l.sort((a, b) => attend(b) - attend(a));
 
     /* Annoncé une fois, à voix haute : le moniteur doit savoir
        tout de suite que son cours l'attend. Une fois par COURS,
        pas une fois par dépôt — l'identifiant, lui, change à
        chaque fois que le classeur repose la ligne. */
-    if(l.length && l[0].etat === 'a-corriger' && typeof showToast === 'function'){
+    if(l.length && attend(l[0]) && typeof showToast === 'function'){
       try{
         const cle = cleDuBrouillon(l[0]);
         if(localStorage.getItem('ec_bilan_annonce') !== cle){
           localStorage.setItem('ec_bilan_annonce', cle);
-          showToast('📝 Un bilan généré au bureau t\'attend — à corriger');
+          showToast(l[0].etat === 'refait'
+            ? '🤖 Un bilan refait avec l\'IA t\'attend — à relire et renvoyer à l\'élève'
+            : '📝 Un bilan généré au bureau t\'attend — à corriger');
         }
       }catch(e){}
     }
@@ -792,6 +808,11 @@ function raisonBrouillon(b){
     return 'Le bureau l\'a généré à ta place : relis-le, corrige, ' +
            'puis enregistre.';
   }
+  /* 🤖 v1210 */
+  if(etat === 'refait'){
+    return 'Envoyé sans la partie IA, puis refait avec l\'IA par le bureau : ' +
+           'relis-le, corrige, puis renvoie-le à l\'élève.';
+  }
 
   if(etat === 'en-generation'){
     /* Passé une demi-heure ce n'est plus une génération en cours,
@@ -887,7 +908,7 @@ function proposerBrouillonServeur(b, combien){
   Array.prototype.slice.call(zone.querySelectorAll('.ligneBrouillonServeur'))
     .forEach(x => x.remove());
 
-  const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
+  const aCorriger = (b.etat === 'a-corriger' || b.etat === 'refait') && String(b.bilan || '').trim();
 
   /* ⚠️ UN COURS = UNE LIGNE. Ce cours est déjà en haut de l'écran,
      avec sa fiche complète : on ne le redit pas ici.
@@ -918,7 +939,7 @@ function proposerBrouillonServeur(b, combien){
   t.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;';
   t.innerHTML = (aCorriger
       ? '<strong style="color:var(--bleu);">📝 Un bilan t\'attend</strong>' +
-        '<span style="color:var(--muted);font-size:11px;"> — généré au bureau</span>'
+        '<span style="color:var(--muted);font-size:11px;"> — ' + (b.etat === 'refait' ? 'refait avec l’IA' : 'généré au bureau') + '</span>'
       : '<strong style="color:var(--accent-text);">💾 Un cours n\'a ' +
         'pas abouti</strong>') +
     /* ⚠️ POURQUOI CETTE LIGNE EST LÀ, ÉCRIT NOIR SUR BLANC.
@@ -1154,7 +1175,7 @@ async function reprendreBrouillonServeur(b){
   if(typeof afficherOnglet === 'function') afficherOnglet('cours', true);
   if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
 
-  const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
+  const aCorriger = (b.etat === 'a-corriger' || b.etat === 'refait') && String(b.bilan || '').trim();
 
   if(aCorriger){
     /* Le bureau a déjà généré : on atterrit sur le bilan, pas sur
@@ -1193,6 +1214,10 @@ async function reprendreBrouillonServeur(b){
   if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
 
   majBoutonRenvoi();
+
+  /* 🤖 v1210 — un bilan refait avec l'IA : il remplace celui envoyé
+     sans IA, il ne s'enregistre pas comme un nouveau cours. */
+  if(b.etat === 'refait' && aCorriger && typeof ouvrirRefaitIA === 'function') ouvrirRefaitIA(b);
 
   if(typeof sauvegarderLocal === 'function') sauvegarderLocal(true);
 
