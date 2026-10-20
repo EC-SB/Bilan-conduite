@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 13:48 — v1213 */
+/* Déployé le 20/10/2026 à 14:25 — v1214 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1214,
+    date: 'Mardi 20 octobre 2026',
+    resume: '⏳ Pendant la génération du bilan, rien d’autre à l’écran',
+    quoi: [
+      { emoji: '⏳',
+        titre: 'Plus de « Y revenir » pendant la génération',
+        texte: 'Le bandeau « ⏸ EN PAUSE … Y revenir » se cache sur l’écran « Génération du bilan en cours… » : on y est déjà. Il revient dès qu’on quitte cet écran.' },
+      { emoji: '🚫',
+        titre: 'Plus de « Commencer un autre cours » pendant la génération',
+        texte: 'Un second cours ouvert pendant que le bilan du premier s’écrit mélangeait les deux. Si l’IA tarde, « ✍️ Envoyer sans la partie IA » reste la sortie.' }
+    ]
+  },
   {
     version: 1213,
     date: 'Mardi 20 octobre 2026',
