@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 11:01 — v1208 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -84,6 +84,7 @@ async function ouvrirCreateurFiches(modeleCle){
   chargerFormeFiche();
   coquilleFiche();
   dessinerCreateurFiche();
+  chargerFlotteFiche();
 }
 function chargerFormeFiche(){
   const b = fiS.brouillons[fiS.modele], p = fiS.publiees[fiS.modele];
@@ -400,8 +401,22 @@ function dessinerPanneauFiche(){
   panneau.innerHTML = ''; feuille.innerHTML = '';
   if(fiS.essai){
     feuille.style.display = 'none';
-    panneau.appendChild(Object.assign(document.createElement('div'), { className: 'stBloc',
-      innerHTML: '<h4>👁️ Essai</h4><div class="stPetit">Remplis la fiche comme un moniteur : coche, écris, appuie sur les boutons. Rien n’est enregistré, rien ne part. « ✏️ Revenir aux réglages » pour continuer.</div>' }));
+    const essai = Object.assign(document.createElement('div'), { className: 'stBloc',
+      innerHTML: '<h4>👁️ Essai</h4><div class="stPetit">Remplis la fiche comme un moniteur : coche, écris, appuie sur les boutons. Rien n’est enregistré, rien ne part. « ✏️ Revenir aux réglages » pour continuer.</div>' +
+        /* 🚗 v1211 — la voiture du cours, pour voir ce qui lui est réservé */
+        '<label for="fiVoitureEssai">🚗 Essayer avec la voiture</label><select id="fiVoitureEssai"></select>' +
+        '<div class="stPetit">Les cases et les zones réservées à certaines voitures n’apparaissent que sur la bonne.</div>' });
+    const sv = essai.querySelector('#fiVoitureEssai');
+    const vides = document.createElement('option');
+    vides.value = ''; vides.textContent = '— voiture inconnue —';
+    sv.appendChild(vides);
+    (fiS.flotte || []).forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sv.appendChild(o); });
+    sv.value = fiS.voitureEssai || '';
+    sv.addEventListener('change', () => {
+      fiS.voitureEssai = sv.value;
+      if(typeof majCasesSelonVoiture === 'function') majCasesSelonVoiture(document.getElementById('fiZone'));
+    });
+    panneau.appendChild(essai);
     return;
   }
   const blocs = [];
@@ -453,6 +468,10 @@ function blocZoneFiche(cle){
   const fond = c.fond || '';
   const cases = Array.isArray(c.cases) ? c.cases : [];
   const cadre = c.cadre ? (fiS.forme.cadres || []).find(x => x.id === c.cadre) : null;
+  /* 🚗 v1211 — une zone (pas une zone qui calcule) peut être réservée
+     à certaines voitures */
+  const avecVoitures = ajout || !verrou;
+  const voituresZone = Array.isArray(c.voitures) ? c.voitures : [];
   z.innerHTML = '<h4>' + (verrou ? '🔒 ' : ajout ? '➕ ' : '✏️ ') + echFiche(nomCourtFiche(c)) + '</h4>' +
     (ajout ? '<div class="fiAjoutNote">➕ <b>Zone ajoutée</b> · ' + echFiche((TYPES_AJOUT_FICHE[c.type] || {}).nom || c.type) +
       (c.type === 'titre' || c.type === 'sousTitre' ? '<br>Dans le bilan, elle sort en tête des zones ajoutées remplies qui la suivent.'
@@ -474,6 +493,9 @@ function blocZoneFiche(cle){
           '<button type="button" class="btn ' + ((c.intensite || 'franc') === k ? 'btn-primary' : 'btn-secondary') + '" data-intens="' + k + '">' + t + '</button>').join('') + '</div>' +
           '<div class="stPetit" style="margin:4px 0 6px;">Deux zones qui se suivent avec le même fond et la même force sont encadrées ensemble.</div>' : '') +
         '<div class="stChips" style="margin:2px 0 4px;"><button type="button" class="btn btn-secondary" data-fa="encadrer">📦 Encadrer à partir d’ici…</button></div>') +
+    (avecVoitures ? '<label>🚗 Zone seulement avec ces voitures</label><div class="stPetit" style="margin:-2px 0 6px;">' +
+      (voituresZone.length ? 'Sur les autres voitures, le moniteur ne la voit pas.' : 'Aucune cochée : elle est là sur toutes les voitures.') +
+      '</div><div class="fiVoitures" id="fiVoituresZone"></div>' : '') +
     (avecCases ? '<label>☑ Les cases à cocher</label><div class="fiCases"></div>' +
       (cases.length < 8 ? '<button type="button" class="btn btn-secondary fiPetitBtn" id="fiCaseAjout">➕ Ajouter une case</button>' : '') : '') +
     (!verrou && !ajout ? '<label class="stCocheL" style="margin-top:10px;"><input type="checkbox" id="fiAffiche"' + (r.cache ? '' : ' checked') + '> 👁️ À l’écran</label>' : '') +
@@ -527,6 +549,10 @@ function blocZoneFiche(cle){
   if(vc) vc.addEventListener('click', () => { fiS.cadre = cadre.id; fiS.choix = ''; if(telFiche()) fiS.feuille = 'zone'; marquerChoixFiche(); dessinerPanneauFiche(); });
   const af = z.querySelector('#fiAffiche');
   if(af) af.addEventListener('change', () => changerFiche(() => { if(af.checked) delete reglageZoneFiche(cle).cache; else reglageZoneFiche(cle).cache = 1; }));
+  const fvz = z.querySelector('#fiVoituresZone');
+  if(fvz) choixVoituresFiche(fvz, voituresZone, l => changerFiche(() => {
+    if(l.length) reglageZoneFiche(cle).voitures = l; else delete reglageZoneFiche(cle).voitures;
+  }));
   const za = z.querySelector('#fiZoneAvant');
   if(za) za.addEventListener('click', () => changerFiche(() => { delete fiS.forme.zones[cle]; }));
   const rz = z.querySelector('#fiRetirerZone');
@@ -546,11 +572,12 @@ function blocZoneFiche(cle){
       l.className = 'fiCase';
       l.innerHTML = '<div class="q"><b>☑ ' + echFiche(cs.libelle || cs.phrase.slice(0, 50) + (cs.phrase.length > 50 ? '…' : '')) + '</b>' +
         (cs.libelle ? '<small>« ' + echFiche(cs.phrase) + ' »</small>' : '') +
-        '<small>' + (c.type === 'cases' ? 'sa phrase part dans le bilan' : (cs.ou === 'fin' ? '⬇️ à la fin du cadre' : '⬆️ en tête du cadre')) + (cs.office ? ' · cochée d’office' : '') + '</small></div>' +
+        '<small>' + (c.type === 'cases' ? 'sa phrase part dans le bilan' : (cs.ou === 'fin' ? '⬇️ à la fin du cadre' : '⬆️ en tête du cadre')) + (cs.office ? ' · cochée d’office' : '') + '</small>' +
+        (Array.isArray(cs.voitures) && cs.voitures.length ? '<small>🚗 seulement avec : ' + echFiche(libelleVoitures(cs.voitures)) + '</small>' : '') + '</div>' +
         (i > 0 ? '<button type="button" class="btn btn-secondary" data-cs="haut" title="Monter">↑</button>' : '') +
         '<button type="button" class="btn btn-secondary" data-cs="modifier" title="Modifier">✏️</button>' +
         '<button type="button" class="btn btn-secondary" data-cs="retirer" title="Retirer">✕</button>';
-      const toutes = () => (reglageZoneFiche(cle).cases = cases.map(x => Object.assign({}, x)));
+      const toutes = () => casesDeLaZoneFiche(cle, cases);
       l.querySelector('[data-cs="modifier"]').addEventListener('click', () => ouvrirCaseFiche(cle, i));
       l.querySelector('[data-cs="retirer"]').addEventListener('click', async () => {
         if(!await confirmer('Retirer la case « ' + (cs.libelle || cs.phrase.slice(0, 60)) + ' » ?')) return;
@@ -733,12 +760,17 @@ function ouvrirCaseFiche(cle, i){
     '<textarea id="fiCsPhrase" rows="4" maxlength="500" class="fiTexte"></textarea>' +
     (c && c.type === 'cases' ? '' : '<label>Où elle s’écrit</label><div class="stChips"><button type="button" class="btn" data-ou="debut">⬆️ En tête du cadre</button><button type="button" class="btn" data-ou="fin">⬇️ À la fin</button></div>') +
     '<label class="stCocheL" style="margin-top:8px;"><input type="checkbox" id="fiCsOffice"> Cochée d’office à l’ouverture de la fiche</label>' +
+    /* 🚗 v1211 — une case réservée à certaines voitures */
+    '<label>🚗 Seulement avec ces voitures</label><div class="stPetit" style="margin:-2px 0 6px;">Aucune cochée : la case est là sur toutes les voitures.</div>' +
+    '<div class="fiVoitures" id="fiCsVoitures"></div>' +
     '<div class="stPetit" style="margin:8px 0 12px;">Décochée, la phrase repart du cadre, sans toucher à ce que le moniteur a écrit autour.</div>' +
     '<div style="display:flex;gap:8px;"><button type="button" class="btn btn-primary" id="fiCsOk">💾 Garder</button><button type="button" class="btn btn-secondary" id="fiCsNon">Annuler</button></div></div>';
   fond.querySelector('.modal').style.setProperty('max-width', '520px', 'important');
   document.body.appendChild(fond);
   const lib = fond.querySelector('#fiCsLib'), ph = fond.querySelector('#fiCsPhrase'), of = fond.querySelector('#fiCsOffice');
   lib.value = cs.libelle || ''; ph.value = cs.phrase || ''; of.checked = !!cs.office;
+  let voitures = Array.isArray(cs.voitures) ? cs.voitures.slice() : [];
+  choixVoituresFiche(fond.querySelector('#fiCsVoitures'), voitures, l => { voitures = l; });
   let ou = cs.ou === 'fin' ? 'fin' : 'debut';
   const peindre = () => fond.querySelectorAll('[data-ou]').forEach(b => { b.className = 'btn ' + (b.dataset.ou === ou ? 'btn-primary' : 'btn-secondary'); });
   peindre();
@@ -749,13 +781,85 @@ function ouvrirCaseFiche(cle, i){
     const phrase = ph.value.trim();
     if(!phrase){ showToast('Écris la phrase qui part dans le cadre.'); return; }
     changerFiche(() => {
-      const l = (reglageZoneFiche(cle).cases = cases.map(x => Object.assign({}, x)));
+      const l = casesDeLaZoneFiche(cle, cases);
       const n = { libelle: lib.value.trim(), phrase: phrase, ou: ou, office: of.checked ? 1 : 0 };
+      if(voitures.length) n.voitures = voitures.slice();
       if(i >= 0) l[i] = n; else l.push(n);
     });
     fermer();
   });
   setTimeout(() => (i >= 0 ? lib : ph).focus(), 50);
+}
+
+/* ============================================================
+   🚗 LES VOITURES — v1211
+
+   La flotte (sans les voitures vendues ni les remorques), lue une
+   fois à l'ouverture du créateur. Une condition se coche dans une
+   liste : « ⚡ les voitures à alerte de survitesse », puis chaque
+   voiture. Une voiture déjà choisie qui a quitté la flotte reste dans
+   la liste : on doit pouvoir la décocher.
+   ============================================================ */
+async function chargerFlotteFiche(){
+  if(!fiS || fiS.flotte) return;
+  try{
+    const r = await appelPrep({ action: 'flotteList' });
+    const l = ((r && r.vehicules) || [])
+      .filter(v => v && v.nom && v.etat !== 'vendu' && v.categorie !== 'remorque')
+      .map(v => String(v.nom).trim()).filter(Boolean);
+    if(!fiS) return;
+    fiS.flotte = l.filter((x, i) => l.indexOf(x) === i)
+      .sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  }catch(e){
+    if(fiS) fiS.flotte = [];
+  }
+  if(fiS && !document.querySelector('.fiModal')) dessinerPanneauFiche();
+}
+function choixVoituresFiche(div, choisies, quandChange){
+  if(!div) return;
+  let sel = (choisies || []).slice();
+  div.innerHTML = '';
+  const ligne = (val, texte) => {
+    const l = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = sel.indexOf(val) !== -1;
+    cb.addEventListener('change', () => {
+      if(cb.checked){ if(sel.indexOf(val) === -1) sel.push(val); }
+      else sel = sel.filter(x => x !== val);
+      quandChange(sel.slice());
+    });
+    l.appendChild(cb);
+    l.appendChild(document.createTextNode(texte));
+    div.appendChild(l);
+  };
+  ligne(VOITURES_SURVITESSE, '⚡ Les voitures à alerte de survitesse (Q3 n°10, A3 n°2, A3 BV et BEA de Loudéac)');
+  const sep = document.createElement('div');
+  sep.className = 'sep';
+  div.appendChild(sep);
+  const liste = ((fiS && fiS.flotte) || []).slice();
+  sel.forEach(v => { if(v !== VOITURES_SURVITESSE && liste.indexOf(v) === -1) liste.push(v); });
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'stPetit';
+    v.textContent = (fiS && fiS.flotte) ? 'Aucune voiture dans la flotte.' : 'Lecture de la flotte…';
+    div.appendChild(v);
+  }
+  liste.forEach(v => ligne(v, '🚗 ' + v));
+}
+/* Les cases d'une zone, prêtes à changer. ⚠️ Une zone qui portait les
+   deux cases de la survitesse les a maintenant DANS sa liste : « sv »
+   le dit, pour qu'elles ne s'ajoutent pas une seconde fois. */
+function casesDeLaZoneFiche(cle, cases){
+  const r = reglageZoneFiche(cle);
+  r.cases = (cases || []).map(x => {
+    const o = Object.assign({}, x);
+    if(Array.isArray(x.voitures)) o.voitures = x.voitures.slice();
+    return o;
+  });
+  const base = baseDeZoneFiche(cle);
+  if(base && base.survitesse) r.sv = 1;
+  return r.cases;
 }
 
 /* La liste des zones : ordre, masquées, d'un coup d'œil */
