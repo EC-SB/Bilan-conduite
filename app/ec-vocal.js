@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 13:10 — v1076 */
+/* Déployé le 20/10/2026 à 11:45 — v1209 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -683,7 +683,13 @@ $('confirmOverlay').addEventListener('click', e => {
 
 $('confirmGen').addEventListener('click', async () => {
   $('confirmOverlay').classList.remove('show');
+  await lancerLaGeneration();
+});
 
+/* ⏱️ v1209 — la génération est une fonction à part : « 🔁 Relancer la
+   génération » la rappelle telle quelle, sur la même dictée (voir
+   ec-iadirect.js). */
+async function lancerLaGeneration(){
   const modeleCle = $('modele').value;
   const modele = MODELES[modeleCle];
   const studentName = $('studentName').value.trim() || "l'élève";
@@ -709,6 +715,10 @@ $('confirmGen').addEventListener('click', async () => {
   $('recordView').style.display = 'none';
   $('generatingView').style.display = 'block';
   $('progressionGen').textContent = 'Préparation…';
+  /* ⏱️ v1209 — la génération surveillée : chrono, écran allumé, seuil
+     d'alerte, relance. Une génération remplacée ne touche plus à
+     l'écran : c'est « verifierGenerationIA » plus bas. */
+  const gen = commencerGenerationIA({ eleve: studentName, quoi: modele.label, modele: modeleCle });
 
   /* Un élève attend peut-être déjà : on proposera d'enchaîner si
      la génération s'éternise. */
@@ -763,7 +773,8 @@ $('confirmGen').addEventListener('click', async () => {
           $('progressionGen').textContent = msg;
         });
       }
-      $('progressionGen').textContent = 'Rédaction du résumé…';
+      verifierGenerationIA(gen);
+      phaseGeneration('Rédaction du résumé…');
 
       const historique = await promesseHistorique;
       await promesseEmojis;
@@ -780,7 +791,9 @@ $('confirmGen').addEventListener('click', async () => {
       });
     }
 
+    if(!avecFiche) phaseGeneration('Rédaction du bilan…');
     const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
+    verifierGenerationIA(gen);
 
     /* La réponse est arrivée tronquée : le bilan existe, mais sa
        fin manque. On le dit clairement plutôt que de le laisser
@@ -851,6 +864,11 @@ $('confirmGen').addEventListener('click', async () => {
 
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
 
+    /* ⏱️ v1209 — remplacée entre-temps (relance, envoi sans IA) : elle
+       n'écrit rien. Sinon, sa durée et son issue partent au Worker. */
+    verifierGenerationIA(gen);
+    finirGenerationIA(gen, gen.relances ? 'relance' : 'ok');
+
     $('resultText').value = bilan;
     if(typeof remplirChoixProcedures === 'function') remplirChoixProcedures();
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
@@ -908,6 +926,10 @@ $('confirmGen').addEventListener('click', async () => {
       retirerBrouillonServeur(eleveDuBilan);
     }
   }catch(err){
+    /* ⏱️ v1209 — une génération remplacée (🔁 relancée, ✍️ envoyée sans
+       IA) s'arrête en silence : celle qui l'a remplacée tient l'écran. */
+    if(err && err.annule) return;
+    finirGenerationIA(gen, 'echec');
     console.error('Erreur génération bilan:', err);
     if(typeof surFinGeneration === 'function') surFinGeneration();
 
@@ -927,7 +949,7 @@ $('confirmGen').addEventListener('click', async () => {
     d.textContent = 'Détail : ' + (err && err.message ? err.message : String(err));
     $('finishBtn').insertAdjacentElement('afterend', d);
   }
-});
+}
 
 
 /* Va chercher dans Sheets les manœuvres déjà validées pour cet élève,
@@ -1973,10 +1995,10 @@ function reparerJson(brut){
 
 /* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
 async function appelBrutIA(systemPrompt, message, maxTokens, quoi){
-  const r = await fetch(CONFIG.IA_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  /* ⏱️ v1209 — au fil de l'eau, avec un délai de silence : un appel
+     muet ne s'attend plus pour toujours (voir ec-iadirect.js). Les
+     tranches de la correction gardent leurs trois essais. */
+  const data = await appelIAFlux({
       code: ACCES.code,
       /* CE QUE COÛTE CETTE GÉNÉRATION, ET POURQUOI.
 
@@ -1990,14 +2012,7 @@ async function appelBrutIA(systemPrompt, message, maxTokens, quoi){
         system: systemPrompt,
         messages: [{ role: 'user', content: message }]
       }
-    })
-  });
-  if(r.status === 403){
-    verrouiller('Session expirée, saisis ton code à nouveau.');
-    throw new Error('Accès refusé');
-  }
-  if(!r.ok) throw new Error('HTTP ' + r.status);
-  const data = await r.json();
+    });
   if(data.error) throw new Error(data.error.message || 'erreur API');
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
 }
@@ -2060,33 +2075,32 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
     'Date : ' + dateStr + '\n\n' +
     'Transcription brute du cours :\n"""\n' + transcript + '\n"""';
 
-  const response = await fetch(CONFIG.IA_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      code: ACCES.code,
-      quoi: 'Bilan — ' + MODELES[modeleCle].label,
-      payload: {
-        model: 'claude-sonnet-5',
-        max_tokens: 8000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userMsg }]
-      }
-    })
-  });
+  /* ⏱️ v1209 — AU FIL DE L'EAU, ET RELANCÉ UNE FOIS.
 
-  if(response.status === 403){
-    verrouiller('Session expirée, saisis ton code à nouveau.');
-    throw new Error('Accès refusé — code invalide.');
+     Le texte arrive à mesure (« 1 240 mots écrits »), et une
+     connexion morte se voit en une minute et demie au lieu d'être
+     attendue pour toujours. Elle est relancée une fois, toute seule ;
+     si la seconde meurt aussi, l'erreur remonte — et à 6 minutes,
+     l'alerte laisse le moniteur choisir (ec-iadirect.js). */
+  const corpsIA = {
+    code: ACCES.code,
+    quoi: 'Bilan — ' + MODELES[modeleCle].label,
+    payload: {
+      model: 'claude-sonnet-5',
+      max_tokens: 8000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }]
+    }
+  };
+  let data;
+  try{
+    data = await appelIAFlux(corpsIA, { surTexte: noterMotsGeneration });
+  }catch(e){
+    if(!e || !e.coupure) throw e;
+    if(generationIA && !generationIA.finie) generationIA.relances++;
+    phaseGeneration('Nouvelle tentative — rédaction du résumé…');
+    data = await appelIAFlux(corpsIA, { surTexte: noterMotsGeneration });
   }
-
-  if(!response.ok){
-    let body = '';
-    try{ body = await response.text(); }catch(e){}
-    throw new Error('HTTP ' + response.status + ' — ' + body.slice(0, 300));
-  }
-
-  const data = await response.json();
   if(data.type === 'error' || data.error){
     throw new Error((data.error && data.error.message) || JSON.stringify(data).slice(0, 300));
   }
