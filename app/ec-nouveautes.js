@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 20/10/2026 à 13:15 — v1212 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,24 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1212,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🔁 La carte d’un RDV post-permis, 👥 les cours des autres en boutons',
+    quoi: [
+      { emoji: '🏁',
+        titre: 'Un RDV post-permis parle du post-permis',
+        texte: 'En tête de sa carte, le résultat : « 🏁 Ajourné le … — 1er repassage ». Dessous, la sortie d’examen (inspecteur, heures demandées, ' +
+               'le mot pour l’équipe) et les captures du CEPC. La veille, la frise, l’examen blanc, le simulateur et « pas de date d’examen » n’y sont plus.' },
+      { emoji: '👥',
+        titre: 'Les cours des autres moniteurs, d’un appui',
+        texte: 'La case et la liste déroulante sont remplacées par une rangée de boutons : « 👤 Mes cours », « 👥 Tous », ' +
+               'puis un bouton par moniteur avec son émoji et son nombre de cours.' },
+      { emoji: '🗓️',
+        titre: 'Plus de « veille » d’un examen passé',
+        texte: 'Après un ajournement, la date de l’examen raté ne fait plus annoncer « C’est la leçon de veille de l’examen » sur les cours suivants.' }
+    ]
+  },
   {
     version: 1211,
     date: 'Mardi 20 octobre 2026',
