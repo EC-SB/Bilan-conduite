@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 15:05 — v1106 */
+/* Déployé le 20/10/2026 à 14:49 — v1216 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -7803,25 +7803,61 @@ function majBoutonCompleter(){
       b.style.fontWeight = '';
     }
 
+    /* 🎯 v1216 — LA PHRASE VERTE, ICI AUSSI. David : « cette phrase
+       n'est visible qu'au départ, après on ne sait plus où on en est ».
+       La même que sur la carte des prochains cours — la même fonction,
+       pour tout le monde — juste sous le bouton, au-dessus du
+       récapitulatif. */
+    let phrase = b.nextElementSibling;
+    if(!phrase || !phrase.dataset || phrase.dataset.positionCompleter !== '1'){
+      phrase = document.createElement('div');
+      phrase.dataset.positionCompleter = '1';
+      phrase.className = 'positionCompleter';
+      phrase.style.cssText = 'flex-basis:100%;font-size:15px;font-weight:800;line-height:1.35;' +
+        'color:var(--accent-text);margin-top:6px;';
+      if(b.parentNode) b.parentNode.insertBefore(phrase, b.nextSibling);
+    }
+    phrase.textContent = connu ? phraseVerteDuCours(eleve, modele) : '';
+    phrase.style.display = phrase.textContent ? '' : 'none';
+
     /* Ce qui EST enregistré, sous le bouton : le moniteur voit
        l'état de l'élève sans rien ouvrir. Une ligne par bouton,
        posée une fois et remise à jour ensuite. */
-    let ligne = b.nextElementSibling;
+    let ligne = phrase.nextElementSibling;
     if(!ligne || !ligne.dataset || ligne.dataset.recapCompleter !== '1'){
       ligne = document.createElement('div');
       ligne.dataset.recapCompleter = '1';
       ligne.style.cssText = 'flex-basis:100%;font-size:11px;color:var(--muted);' +
         'line-height:1.5;margin-top:2px;';
-      if(b.parentNode) b.parentNode.insertBefore(ligne, b.nextSibling);
+      if(phrase.parentNode) phrase.parentNode.insertBefore(ligne, phrase.nextSibling);
     }
 
     const fiche = (connu && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+    /* 📅 v1216 — « Permis le 22/10/2026 » : le mot plutôt que le
+       calendrier (David). */
     const su = connu
       ? recapDuCours(contexteDepart, eleve, modele, fiche)
-          .filter(x => !x.manque).map(x => x.icone + ' ' + x.valeur)
+          .filter(x => !x.manque)
+          .map(x => x.icone === '📅'
+            ? 'Permis' + (/^(?:le|ajourné)\b/.test(String(x.valeur)) ? ' ' : ' : ') + x.valeur
+            : x.icone + ' ' + x.valeur)
       : [];
     ligne.textContent = su.length ? su.join(' · ') : '';
   });
+}
+
+/* 🎯 v1216 — la phrase verte du cours ouvert : celle de la carte de
+   « Mes prochains cours », lue sur la note du cours et son jour. Un
+   rendez-vous post-permis a la sienne (le résultat de l'examen). */
+function phraseVerteDuCours(eleve, modele){
+  try{
+    if(modele === 'rdv-post' && typeof lignePostPermisDuHaut === 'function') return lignePostPermisDuHaut(eleve);
+    if(typeof lignePositionDuHaut !== 'function') return '';
+    const note = ($('noteInterne') && $('noteInterne').value) || '';
+    const corps = (typeof morceauxDeNotePreparee === 'function') ? morceauxDeNotePreparee(note).corps : note;
+    const jour = ($('lessonDate') && $('lessonDate').value) || '';
+    return String(lignePositionDuHaut(eleve, corps, note, modele, jour) || '').trim();
+  }catch(e){ return ''; }
 }
 
 /* Construit la rangée de boutons sous un champ de note */
