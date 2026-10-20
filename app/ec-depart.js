@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 12:19 — v1202 */
+/* Déployé le 20/10/2026 à 12:05 — v1210 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1166,8 +1166,13 @@ async function rechercherEleve(){
       zone.appendChild(entete);
     }
 
-    res.forEach(item => zone.appendChild(
-      ligneBilan(item, nom, rechercherEleve)));
+    const lignesCours = res.map(item => {
+      const l = ligneBilan(item, nom, rechercherEleve);
+      zone.appendChild(l);
+      return l;
+    });
+    /* 🤖 v1210 — les bilans partis sans la partie IA */
+    if(nom && typeof decorerCoursSansIA === 'function') decorerCoursSansIA(lignesCours, res, nom);
   }catch(e){
     console.error('Erreur recherche:', e);
     zone.innerHTML = '<div class="empty">Erreur de recherche : ' + e.message + '</div>';
