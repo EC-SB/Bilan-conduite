@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 13:15 — v1212 */
+/* Déployé le 20/10/2026 à 13:48 — v1213 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1213,
+    date: 'Mardi 20 octobre 2026',
+    resume: '🔘 Procédures et fiche véhicule en boutons, procédures triées par boîte',
+    quoi: [
+      { emoji: '🕹️',
+        titre: 'Les procédures de la bonne boîte',
+        texte: 'Cours en BV : les procédures BV, et BEA et BV. Cours en BEA : les procédures BEA, et BEA et BV. Plus de BE sur la voiture. ' +
+               'Pour un examen blanc, un RVP ou un examen officiel, la boîte vient de la formation ; un élève en remorque voit ses procédures BE. ' +
+               'Les autres restent à portée de main, dans « Les autres procédures (pas pour cette boîte) ». L’IA ne reçoit plus que celles de la boîte.' },
+      { emoji: '🔘',
+        titre: 'Des boutons qui passent en vert',
+        texte: 'Les procédures à joindre et la fiche véhicule (pendant le cours et sur le bilan à la main) se touchent comme des boutons. ' +
+               'Une manœuvre touchée passe en vert avec ton émoji, à côté de ceux des moniteurs qui l’ont déjà faite. ' +
+               'Pour un élève venu d’une autre auto-école, le petit 🚗 à droite se colore en bleu.' },
+      { emoji: '☑',
+        titre: 'Ou les cases, comme avant',
+        texte: '« 🔘 Boutons | ☑ Cases » en haut de chaque tiroir : ton choix est gardé sur ton téléphone, pour les deux.' }
+    ]
+  },
   {
     version: 1212,
     date: 'Mardi 20 octobre 2026',
