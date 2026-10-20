@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 09:30 — v1069 */
+/* Déployé le 20/10/2026 à 12:49 — v1211 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1190,6 +1190,8 @@ function buildExamenBlanc(ai, ctx){
   if(txt(ex.verifRemarque)) ligneParLigne(ex.verifRemarque).forEach(o => L(o));
   L('https://www.facebook.com/groups/864826058258637');
   L(' ');
+  /* 🅿️ v1211 — la manœuvre faite, choisie dans le titre de sa zone */
+  ligneManoeuvreExamen(ex).forEach(o => L(o));
   L('𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :');
   L('');
 
@@ -1466,6 +1468,8 @@ function buildExamen(ai){
     '𝙉𝙤𝙩𝙚 :  /3',
     'https://www.facebook.com/groups/864826058258637',
     ' ',
+    /* 🅿️ v1211 — la manœuvre faite, juste avant les observations */
+    ...ligneManoeuvreExamen(e),
     ''
   ];
   /* ------------------------------------------------------------
@@ -2154,7 +2158,9 @@ function marquePropre(bout){
 function marquesDejaPosees(texteBilanPrecedent){
   const marques = {};
   const bloc = blocFicheDuBilan(texteBilanPrecedent);
-  if(!bloc) return marques;
+  /* 🅿️ v1211 — un bilan d'examen n'a pas de fiche, mais sa manœuvre
+     compte : voir marquesManoeuvreExamen */
+  if(!bloc) return marquesManoeuvreExamen(texteBilanPrecedent, marques);
 
   const norme = normaliserMot(bloc);
 
@@ -2193,6 +2199,49 @@ function marquesDejaPosees(texteBilanPrecedent){
     }
   });
 
+  /* Un rendez-vous pédagogique porte une fiche ET un examen blanc */
+  return marquesManoeuvreExamen(texteBilanPrecedent, marques);
+}
+
+/* ============================================================
+   🅿️ LA MANŒUVRE D'UN EXAMEN, SUR LA FICHE VÉHICULE — v1211
+
+   Le moniteur la choisit dans le titre « Manœuvre : … » d'un examen
+   blanc ou officiel. Le bilan la porte sur une ligne à elle :
+
+     🅿️ Manœuvre : CD Créneau droit 🦄
+
+   Le libellé exact de la fiche véhicule, puis la marque du moniteur
+   — la même que celle d'une case cochée pendant un cours. Et c'est
+   cette ligne qui la fait compter sur sa fiche : un bilan d'examen
+   n'a pas de bloc « fiche véhicule », marquesDejaPosees la lit donc
+   en plus de ce bloc.
+   ============================================================ */
+const PREFIXE_MANOEUVRE_EXAMEN = '🅿️ Manœuvre : ';
+
+function ligneManoeuvreExamen(e){
+  const lib = txt(e && e.manoeuvreFaite);
+  if(!lib) return [];
+  const emoji = (typeof ACCES !== 'undefined' && ACCES && ACCES.emoji) ? String(ACCES.emoji).trim() : '';
+  return [PREFIXE_MANOEUVRE_EXAMEN + lib + ' ' + (emoji || MARQUE_FAITE), ''];
+}
+
+function marquesManoeuvreExamen(texte, marques){
+  String(texte || '').split('\n').forEach(l => {
+    const t = l.trim();
+    if(t.indexOf(PREFIXE_MANOEUVRE_EXAMEN) !== 0) return;
+    const reste = t.slice(PREFIXE_MANOEUVRE_EXAMEN.length);
+    const lib = BLOC.ficheListeConduite
+      .filter(x => reste.indexOf(x) === 0)
+      .sort((a, b) => b.length - a.length)[0];
+    if(!lib) return;
+    const bout = reste.slice(lib.length);
+    if(!estUneMarque(bout)) return;
+    const m = marquePropre(bout);
+    if(!m) return;
+    const k = normaliserMot(lib);
+    marques[k] = ajouterMarque(marques[k], m);
+  });
   return marques;
 }
 
