@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 16:27 — v1184 */
+/* Déployé le 20/10/2026 à 12:05 — v1210 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -3965,8 +3965,13 @@ async function ongletCours(corps, nom){
      Elle vivait enfermée dans « rechercherEleve » ; elle en est
      sortie pour que les deux écrans la partagent. Le jour où le
      renvoi par mail changera, il changera pour les deux. */
-  res.forEach(item => corps.appendChild(
-    ligneBilan(item, nom, () => dessinerPageEleve())));
+  const lignesCours = res.map(item => {
+    const l = ligneBilan(item, nom, () => dessinerPageEleve());
+    corps.appendChild(l);
+    return l;
+  });
+  /* 🤖 v1210 — les bilans partis sans la partie IA : « 🤖 Refaire avec l'IA » */
+  if(typeof decorerCoursSansIA === 'function') decorerCoursSansIA(lignesCours, res, nom);
 }
 
 
