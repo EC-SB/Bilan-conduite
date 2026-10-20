@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 09:49 — v1206 */
+/* Déployé le 20/10/2026 à 10:44 — v1207 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -10,7 +10,10 @@
    brouillon, « 👁️ Essayer comme un moniteur », « 💾 Publier »,
    « ↺ Comme avant ». Livraison ① : sur les zones existantes — titres,
    aides, fonds et leur force, micros, cases à cocher, ordre, zones
-   masquées.
+   masquées. Livraison ② (v1207) : « ➕ Ajouter ici » entre deux zones,
+   « 🗑️ Retirer » une zone ajoutée, « 📦 Encadrer » plusieurs zones
+   d'un même fond. Une zone ajoutée part dans le bilan juste sous la
+   zone qui la précède (choix B) — voir placerAjoutsDansLeBilan.
 
    ⚠️ LA FICHE DU MILIEU EST LA VRAIE. Elle est dessinée par
    dessinerChampsManuels — la fonction même qui dessine la fiche du
@@ -41,6 +44,12 @@ function champsDeBaseFiche(modeleCle){
 const echFiche = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 function telFiche(){ return innerWidth < 900; }
 function formeVideFiche(){ return { v: 1, zones: {}, ordre: [] }; }
+/* ✍️ v1207 — les zones d'origine ET les zones ajoutées */
+function zonesDeBaseFiche(){ return champsDeBaseFiche(fiS.modele).concat(ajoutsDeLaForme(fiS.forme)); }
+function baseDeZoneFiche(cle){ return zonesDeBaseFiche().find(c => c.cle === cle) || null; }
+function ajoutFiche(cle){ return (fiS.forme.ajouts || []).find(z => z.cle === cle) || null; }
+function verrouFiche(cle){ const b = baseDeZoneFiche(cle); return !!b && !b.ajout && zoneVerrouilleeFiche(b); }
+function nettoyerFiche(){ fiS.forme = nettoyerFormeFiche(fiS.forme, champsDeBaseFiche(fiS.modele)); }
 
 /* ============================================================
    OUVRIR, FERMER
@@ -63,7 +72,7 @@ async function ouvrirCreateurFiches(modeleCle){
   fiS = {
     modele: liste.some(x => x.cle === modeleCle) ? modeleCle : liste[0].cle,
     publiees: r.publiees || {}, brouillons: r.brouillons || {}, infos: r.infos || {},
-    forme: null, choix: '', format: 'tel', essai: false, feuille: '', minuteur: null, enCours: null,
+    forme: null, choix: '', cadre: '', encadre: null, format: 'tel', essai: false, feuille: '', minuteur: null, enCours: null,
     sauve: {
       champsManuels: champsManuels, champsDessinesCourants: (typeof champsDessinesCourants !== 'undefined') ? champsDessinesCourants : null,
       dossierManuel: (typeof dossierManuel !== 'undefined') ? dossierManuel : null,
@@ -77,7 +86,7 @@ async function ouvrirCreateurFiches(modeleCle){
 function chargerFormeFiche(){
   const b = fiS.brouillons[fiS.modele], p = fiS.publiees[fiS.modele];
   fiS.forme = nettoyerFormeFiche(JSON.parse(JSON.stringify(b || p || formeVideFiche())), champsDeBaseFiche(fiS.modele));
-  fiS.choix = ''; fiS.feuille = '';
+  fiS.choix = ''; fiS.feuille = ''; fiS.cadre = ''; fiS.encadre = null;
 }
 async function fermerCreateurFiche(){
   if(!fiS || fiS.fermeture) return;
@@ -114,6 +123,7 @@ function coquilleFiche(){
       '<div class="stToile">' +
         '<div class="stFormats" id="fiFormats"></div>' +
         '<div class="fiEtat" id="fiEtat"></div>' +
+        '<div class="fiConsigne" id="fiConsigne" style="display:none;"></div>' +
         '<div class="fiCadre" id="fiCadre"><div class="card fiCarte"><div id="fiZone" class="fiZone"></div></div></div>' +
         '<div class="stAjout stSeulTel" id="fiBasTel"></div>' +
       '</div>' +
@@ -143,10 +153,15 @@ function coquilleFiche(){
     /* seuls les vrais appuis : la fiche, en se dessinant, rejoue des
        clics sur ses boutons (✅ ❌, niveau…) qui remontent jusqu'ici */
     if(fiS.essai || !ev.isTrusted) return;
+    /* ✍️ v1207 — « ➕ Ajouter ici » */
+    const ici = ev.target.closest('[data-ici]');
+    if(ici){ ev.preventDefault(); ouvrirAjoutFiche(ici.dataset.ici); return; }
     const b = ev.target.closest('[data-zone]');
     if(!b) return;
     ev.preventDefault();
-    fiS.choix = b.dataset.zone;
+    /* ✍️ v1207 — « 📦 Encadrer » : la première zone, puis la dernière */
+    if(fiS.encadre){ choisirPourEncadrerFiche(b.dataset.zone); return; }
+    fiS.choix = b.dataset.zone; fiS.cadre = '';
     if(telFiche()) fiS.feuille = 'zone';
     marquerChoixFiche();
     dessinerPanneauFiche();
@@ -161,10 +176,12 @@ function coquilleFiche(){
 async function actionFiche(a){
   if(!fiS) return;
   if(a === 'fermer'){ await fermerCreateurFiche(); return; }
-  if(a === 'fermerFeuille'){ fiS.feuille = ''; if(telFiche()) fiS.choix = ''; marquerChoixFiche(); dessinerPanneauFiche(); return; }
+  if(a === 'fermerFeuille'){ fiS.feuille = ''; if(telFiche()){ fiS.choix = ''; fiS.cadre = ''; } marquerChoixFiche(); dessinerPanneauFiche(); return; }
+  if(a === 'encadrer'){ commencerEncadrerFiche(fiS.choix || ''); return; }
+  if(a === 'encadrerNon'){ fiS.encadre = null; dessinerConsigneFiche(); return; }
   if(a === 'essai'){
     fiS.essai = !fiS.essai;
-    fiS.choix = ''; fiS.feuille = '';
+    fiS.choix = ''; fiS.feuille = ''; fiS.cadre = ''; fiS.encadre = null;
     dessinerCreateurFiche();
     if(fiS.essai) showToast('👁️ Essai : remplis comme un moniteur — rien n’est enregistré');
     return;
@@ -206,7 +223,9 @@ function majFichesDepuis(r){
 /* Le brouillon part tout seul, une seconde après le dernier geste */
 function changerFiche(fn){
   fn();
-  fiS.forme = nettoyerFormeFiche(fiS.forme, champsDeBaseFiche(fiS.modele));
+  nettoyerFiche();
+  if(fiS.choix && !baseDeZoneFiche(fiS.choix)) fiS.choix = '';
+  if(fiS.cadre && !(fiS.forme.cadres || []).some(c => c.id === fiS.cadre)) fiS.cadre = '';
   dessinerFicheDuMoniteur();
   dessinerPanneauFiche();
   clearTimeout(fiS.minuteur);
@@ -243,11 +262,13 @@ function dessinerCreateurFiche(){
   cadre.classList.toggle('fiTel', tel);
   const bas = z.querySelector('#fiBasTel');
   bas.innerHTML = fiS.essai ? '' : '<button type="button" class="btn btn-secondary" id="fiZonesTel">🧩 Les zones</button>' +
+    '<button type="button" class="btn btn-secondary" data-fa="encadrer">📦 Encadrer</button>' +
     '<button type="button" class="btn btn-secondary" data-fa="copier">⧉ Copier vers…</button>' +
     '<button type="button" class="btn btn-secondary" data-fa="avant">↺ Comme avant</button>';
   const bz = bas.querySelector('#fiZonesTel');
-  if(bz) bz.addEventListener('click', () => { fiS.feuille = 'zones'; fiS.choix = ''; marquerChoixFiche(); dessinerPanneauFiche(); });
+  if(bz) bz.addEventListener('click', () => { fiS.feuille = 'zones'; fiS.choix = ''; fiS.cadre = ''; marquerChoixFiche(); dessinerPanneauFiche(); });
   dessinerEtatFiche();
+  dessinerConsigneFiche();
   dessinerFicheDuMoniteur();
   dessinerPanneauFiche();
 }
@@ -300,8 +321,19 @@ function dessinerFicheDuMoniteur(){
       if(!b) return;
       if(c.__masquee) b.classList.add('fiMasquee');
       if(c.siNiveau) b.classList.add('fiSelon');
-      if(zoneVerrouilleeFiche(champsDeBaseFiche(fiS.modele).find(x => x.cle === c.cle))) b.classList.add('fiZoneVerrou');
+      if(c.ajout) b.classList.add('fiAjoutee');
+      if(verrouFiche(c.cle)) b.classList.add('fiZoneVerrou');
     });
+    /* ✍️ v1207 — « ➕ Ajouter ici » : avant la première zone, puis
+       sous chacune. Posés APRÈS le dessin : la fiche elle-même ne
+       change pas d'un pouce. */
+    const blocs = Array.prototype.filter.call(zone.querySelectorAll('[data-zone]'), b => !b.parentElement.closest('[data-zone]'));
+    if(blocs.length){
+      const premier = blocs[0].parentElement.classList.contains('cadreFond') ? blocs[0].parentElement : blocs[0];
+      premier.parentElement.insertBefore(ligneAjoutFiche(''), premier);
+    }
+    blocs.forEach(b => b.after(ligneAjoutFiche(b.dataset.zone)));
+    zone.querySelectorAll('.cadreFond[data-cadre]').forEach(cd => cd.classList.add('fiCadreEncadre'));
   }
   marquerChoixFiche();
   if(cadre) cadre.scrollTop = haut;
@@ -310,18 +342,41 @@ function marquerChoixFiche(){
   const zone = document.getElementById('fiZone');
   if(!zone) return;
   zone.querySelectorAll('.fiChoisie').forEach(x => x.classList.remove('fiChoisie'));
+  zone.querySelectorAll('.fiIci.apresChoix').forEach(x => x.classList.remove('apresChoix'));
+  if(fiS.cadre){
+    const cd = zone.querySelector('.cadreFond[data-cadre="' + CSS.escape(fiS.cadre) + '"]');
+    if(cd) cd.classList.add('fiChoisie');
+  }
+  if(fiS.encadre && fiS.encadre.de){
+    const d = zone.querySelector('[data-zone="' + CSS.escape(fiS.encadre.de) + '"]');
+    if(d){ d.classList.add('fiChoisie'); d.dataset.etiquette = '📦 Début du cadre'; }
+    return;
+  }
   if(!fiS.choix) return;
   const b = zone.querySelector('[data-zone="' + CSS.escape(fiS.choix) + '"]');
   if(b){
     b.classList.add('fiChoisie');
-    b.dataset.etiquette = (zoneVerrouilleeFiche(champCourantFiche(fiS.choix)) ? '🔒 ' : '✏️ ') + nomCourtFiche(champCourantFiche(fiS.choix));
+    const c = champCourantFiche(fiS.choix);
+    b.dataset.etiquette = (verrouFiche(fiS.choix) ? '🔒 ' : (c && c.ajout ? '➕ ' : '✏️ ')) + nomCourtFiche(c);
+    const ici = b.nextElementSibling;
+    if(ici && ici.classList.contains('fiIci')) ici.classList.add('apresChoix');
   }
+}
+function ligneAjoutFiche(apres){
+  const d = document.createElement('div');
+  d.className = 'fiIci';
+  d.dataset.ici = apres;
+  d.innerHTML = '<button type="button" title="Ajouter une zone ici">➕<span> Ajouter ici</span></button>';
+  return d;
 }
 function champCourantFiche(cle){
   return champsAvecForme(champsDeBaseFiche(fiS.modele), fiS.forme).find(c => c.cle === cle) || null;
 }
 function nomCourtFiche(c){
-  return String((c && c.nom) || (c && c.cle) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const n = String((c && c.nom) || '').replace(/\s+/g, ' ').trim();
+  if(n) return n.slice(0, 60);
+  if(c && c.ajout) return '(' + ((TYPES_AJOUT_FICHE[c.type] || {}).nom || 'zone ajoutée') + ' sans titre)';
+  return String((c && c.cle) || '').slice(0, 60);
 }
 function zoneAUnMicroFiche(cle){
   const b = document.querySelector('#fiZone [data-zone="' + CSS.escape(cle) + '"]');
@@ -348,10 +403,13 @@ function dessinerPanneauFiche(){
     return;
   }
   const blocs = [];
-  if(fiS.choix) blocs.push(blocZoneFiche(fiS.choix));
+  if(fiS.cadre) blocs.push(blocCadreFiche(fiS.cadre));
+  else if(fiS.choix) blocs.push(blocZoneFiche(fiS.choix));
   else if(!tel) blocs.push(Object.assign(document.createElement('div'), { className: 'stBloc',
     innerHTML: '<h4>✏️ Régler la fiche</h4><div class="stPetit">Touche une zone de la fiche pour changer son titre, son fond, ses cases à cocher ou son micro. ' +
-      'Chaque changement part dans un <b>brouillon</b> : les moniteurs ne voient rien avant « 💾 Publier ».</div>' }));
+      '« ➕ » entre deux zones pour en <b>ajouter</b> une. ' +
+      'Chaque changement part dans un <b>brouillon</b> : les moniteurs ne voient rien avant « 💾 Publier ».</div>' +
+      '<div class="stChips" style="margin-top:8px;"><button type="button" class="btn btn-secondary" data-fa="encadrer">📦 Encadrer plusieurs zones</button></div>' }));
   if(!tel || fiS.feuille === 'zones') blocs.push(blocListeZonesFiche());
   if(tel){
     feuille.style.display = (fiS.feuille && blocs.length) ? 'block' : 'none';
@@ -377,55 +435,75 @@ function pastillesFondFiche(actuel){
 }
 
 function blocZoneFiche(cle){
-  const base = champsDeBaseFiche(fiS.modele).find(c => c.cle === cle);
+  const base = baseDeZoneFiche(cle);
   const c = champCourantFiche(cle);
   const z = document.createElement('div');
   z.className = 'stBloc';
   if(!base || !c){ z.innerHTML = '<div class="stPetit">Zone introuvable.</div>'; return z; }
   const r = fiS.forme.zones[cle] || {};
-  const verrou = zoneVerrouilleeFiche(base);
+  const ajout = !!base.ajout;
+  const aj = ajout ? ajoutFiche(cle) : null;
+  const verrou = verrouFiche(cle);
   const texte = c.type === 'texte' || c.type === 'court';
-  const avecAide = texte || c.type === 'titre' || c.type === 'sousTitre';
+  const avecCases = texte || c.type === 'cases';
+  const avecAide = avecCases || c.type === 'titre' || c.type === 'sousTitre';
   const micro = zoneAUnMicroFiche(cle);
   const fond = c.fond || '';
   const cases = Array.isArray(c.cases) ? c.cases : [];
-  z.innerHTML = '<h4>' + (verrou ? '🔒 ' : '✏️ ') + echFiche(nomCourtFiche(c)) + '</h4>' +
+  const cadre = c.cadre ? (fiS.forme.cadres || []).find(x => x.id === c.cadre) : null;
+  z.innerHTML = '<h4>' + (verrou ? '🔒 ' : ajout ? '➕ ' : '✏️ ') + echFiche(nomCourtFiche(c)) + '</h4>' +
+    (ajout ? '<div class="fiAjoutNote">➕ <b>Zone ajoutée</b> · ' + echFiche((TYPES_AJOUT_FICHE[c.type] || {}).nom || c.type) +
+      (c.type === 'titre' || c.type === 'sousTitre' ? '<br>Dans le bilan, elle sort en tête des zones ajoutées remplies qui la suivent.'
+                                                   : '<br>Dans le bilan, ce que le moniteur y met part <b>juste sous la zone du dessus</b>.') + '</div>' : '') +
     (verrou ? '<div class="fiVerrouNote">🔒 <b>Une zone qui calcule</b> : elle nourrit le bilan, le suivi ou les listes. Tu peux la <b>renommer</b>, la <b>déplacer</b>, lui donner un <b>fond</b> et retirer son <b>micro</b> — pas la masquer.</div>' : '') +
     '<label for="fiNom">Le titre sur la fiche</label><input type="text" id="fiNom" maxlength="120">' +
     (avecAide ? '<label for="fiAide">La petite aide dessous</label><input type="text" id="fiAide" maxlength="240" placeholder="(aucune)">' : '') +
+    (ajout && c.type === 'texte' ? '<label>La hauteur du cadre</label><div class="stChips fiIntens">' + [2, 4, 6, 10].map(n =>
+      '<button type="button" class="btn ' + ((aj && aj.lignes) === n ? 'btn-primary' : 'btn-secondary') + '" data-lignes="' + n + '">' + n + ' lignes</button>').join('') + '</div>' : '') +
     (micro ? '<label class="stCocheL"><input type="checkbox" id="fiMicro"' + (r.micro === 0 ? '' : ' checked') + '> 🎙️ Le micro au bout de la ligne</label>' : '') +
-    '<label>Le fond de la zone</label>' + pastillesFondFiche(fond) +
-    (fond ? '<div class="stChips fiIntens">' + [['leger', 'Léger'], ['franc', 'Franc'], ['fort', 'Très visible']].map(([k, t]) =>
-      '<button type="button" class="btn ' + ((c.intensite || 'franc') === k ? 'btn-primary' : 'btn-secondary') + '" data-intens="' + k + '">' + t + '</button>').join('') + '</div>' +
-      '<div class="stPetit" style="margin:4px 0 6px;">Deux zones qui se suivent avec le même fond et la même force sont encadrées ensemble.</div>' : '') +
-    (texte ? '<label>☑ Les cases à cocher</label><div class="fiCases"></div>' +
+    (cadre
+      ? '<label>Le fond de la zone</label><div class="fiAjoutNote">📦 Elle est dans un <b>cadre</b> : son fond est celui du cadre.' +
+        '<div class="stChips" style="margin-top:6px;"><button type="button" class="btn btn-secondary" id="fiVoirCadre">📦 Régler le cadre</button></div></div>'
+      : '<label>Le fond de la zone</label>' + pastillesFondFiche(fond) +
+        (fond ? '<div class="stChips fiIntens">' + [['leger', 'Léger'], ['franc', 'Franc'], ['fort', 'Très visible']].map(([k, t]) =>
+          '<button type="button" class="btn ' + ((c.intensite || 'franc') === k ? 'btn-primary' : 'btn-secondary') + '" data-intens="' + k + '">' + t + '</button>').join('') + '</div>' +
+          '<div class="stPetit" style="margin:4px 0 6px;">Deux zones qui se suivent avec le même fond et la même force sont encadrées ensemble.</div>' : '') +
+        '<div class="stChips" style="margin:2px 0 4px;"><button type="button" class="btn btn-secondary" data-fa="encadrer">📦 Encadrer à partir d’ici…</button></div>') +
+    (avecCases ? '<label>☑ Les cases à cocher</label><div class="fiCases"></div>' +
       (cases.length < 8 ? '<button type="button" class="btn btn-secondary fiPetitBtn" id="fiCaseAjout">➕ Ajouter une case</button>' : '') : '') +
-    (!verrou ? '<label class="stCocheL" style="margin-top:10px;"><input type="checkbox" id="fiAffiche"' + (r.cache ? '' : ' checked') + '> 👁️ À l’écran</label>' : '') +
-    '<div class="stChips" style="margin-top:10px;"><button type="button" class="btn btn-secondary" id="fiZoneAvant">↺ Cette zone comme avant</button></div>';
+    (!verrou && !ajout ? '<label class="stCocheL" style="margin-top:10px;"><input type="checkbox" id="fiAffiche"' + (r.cache ? '' : ' checked') + '> 👁️ À l’écran</label>' : '') +
+    '<div class="stChips" style="margin-top:10px;">' +
+      (ajout ? '<button type="button" class="btn btn-secondary fiRetirer" id="fiRetirerZone">🗑️ Retirer cette zone</button>'
+             : '<button type="button" class="btn btn-secondary" id="fiZoneAvant">↺ Cette zone comme avant</button>') +
+    '</div>';
 
-  const nom = z.querySelector('#fiNom');
-  nom.value = c.nom || '';
-  let premier = true;
-  nom.addEventListener('input', () => {
-    const v = nom.value;
-    reglageZoneFiche(cle).nom = (v.trim() === String(base.nom || '').trim()) ? undefined : v;
-    if(reglageZoneFiche(cle).nom === undefined) delete reglageZoneFiche(cle).nom;
+  const plusTard = () => {
     clearTimeout(fiS.minuteur); fiS.minuteur = setTimeout(() => enregistrerBrouillonFiche(), 1000);
     dessinerEtatFiche('…');
-    clearTimeout(fiS.redessin); fiS.redessin = setTimeout(() => { fiS.forme = nettoyerFormeFiche(fiS.forme, champsDeBaseFiche(fiS.modele)); dessinerFicheDuMoniteur(); }, 350);
-    premier = false;
+    clearTimeout(fiS.redessin); fiS.redessin = setTimeout(() => { nettoyerFiche(); dessinerFicheDuMoniteur(); }, 350);
+  };
+  const nom = z.querySelector('#fiNom');
+  nom.value = c.nom || '';
+  nom.addEventListener('input', () => {
+    const v = nom.value;
+    if(aj){ aj.nom = v; }
+    else{
+      reglageZoneFiche(cle).nom = (v.trim() === String(base.nom || '').trim()) ? undefined : v;
+      if(reglageZoneFiche(cle).nom === undefined) delete reglageZoneFiche(cle).nom;
+    }
+    plusTard();
   });
   const aide = z.querySelector('#fiAide');
   if(aide){
     aide.value = c.aide || '';
     aide.addEventListener('input', () => {
       const v = aide.value;
-      if(v === String(base.aide || '')) delete reglageZoneFiche(cle).aide; else reglageZoneFiche(cle).aide = v;
-      clearTimeout(fiS.minuteur); fiS.minuteur = setTimeout(() => enregistrerBrouillonFiche(), 1000);
-      dessinerEtatFiche('…');
-      clearTimeout(fiS.redessin); fiS.redessin = setTimeout(() => { fiS.forme = nettoyerFormeFiche(fiS.forme, champsDeBaseFiche(fiS.modele)); dessinerFicheDuMoniteur(); }, 350);
+      if(aj){ aj.aide = v; }
+      else if(v === String(base.aide || '')) delete reglageZoneFiche(cle).aide; else reglageZoneFiche(cle).aide = v;
+      plusTard();
     });
   }
+  z.querySelectorAll('[data-lignes]').forEach(b => b.addEventListener('click', () => changerFiche(() => { if(aj) aj.lignes = Number(b.dataset.lignes); })));
   const mi = z.querySelector('#fiMicro');
   if(mi) mi.addEventListener('change', () => changerFiche(() => { if(mi.checked) delete reglageZoneFiche(cle).micro; else reglageZoneFiche(cle).micro = 0; }));
   z.querySelectorAll('[data-fond]').forEach(b => b.addEventListener('click', () => changerFiche(() => {
@@ -438,9 +516,19 @@ function blocZoneFiche(cle){
   const ci = z.querySelector('.stAutreCouleur input');
   if(ci) ci.addEventListener('change', () => changerFiche(() => { const reg = reglageZoneFiche(cle); reg.fond = ci.value.toUpperCase(); if(!reg.intensite) reg.intensite = 'franc'; }));
   z.querySelectorAll('[data-intens]').forEach(b => b.addEventListener('click', () => changerFiche(() => { reglageZoneFiche(cle).intensite = b.dataset.intens; })));
+  const vc = z.querySelector('#fiVoirCadre');
+  if(vc) vc.addEventListener('click', () => { fiS.cadre = cadre.id; fiS.choix = ''; if(telFiche()) fiS.feuille = 'zone'; marquerChoixFiche(); dessinerPanneauFiche(); });
   const af = z.querySelector('#fiAffiche');
   if(af) af.addEventListener('change', () => changerFiche(() => { if(af.checked) delete reglageZoneFiche(cle).cache; else reglageZoneFiche(cle).cache = 1; }));
-  z.querySelector('#fiZoneAvant').addEventListener('click', () => changerFiche(() => { delete fiS.forme.zones[cle]; }));
+  const za = z.querySelector('#fiZoneAvant');
+  if(za) za.addEventListener('click', () => changerFiche(() => { delete fiS.forme.zones[cle]; }));
+  const rz = z.querySelector('#fiRetirerZone');
+  if(rz) rz.addEventListener('click', async () => {
+    if(!await confirmer('Retirer la zone « ' + nomCourtFiche(c) + ' » de la fiche ?\n\nLes moniteurs ne la verront plus après « 💾 Publier ». Une fiche déjà commencée la garde jusqu’à la fin du cours.', 'Retirer')) return;
+    changerFiche(() => retirerAjoutFiche(cle));
+    if(telFiche()) fiS.feuille = '';
+    dessinerPanneauFiche();
+  });
 
   /* les cases */
   const gc = z.querySelector('.fiCases');
@@ -451,7 +539,7 @@ function blocZoneFiche(cle){
       l.className = 'fiCase';
       l.innerHTML = '<div class="q"><b>☑ ' + echFiche(cs.libelle || cs.phrase.slice(0, 50) + (cs.phrase.length > 50 ? '…' : '')) + '</b>' +
         (cs.libelle ? '<small>« ' + echFiche(cs.phrase) + ' »</small>' : '') +
-        '<small>' + (cs.ou === 'fin' ? '⬇️ à la fin du cadre' : '⬆️ en tête du cadre') + (cs.office ? ' · cochée d’office' : '') + '</small></div>' +
+        '<small>' + (c.type === 'cases' ? 'sa phrase part dans le bilan' : (cs.ou === 'fin' ? '⬇️ à la fin du cadre' : '⬆️ en tête du cadre')) + (cs.office ? ' · cochée d’office' : '') + '</small></div>' +
         (i > 0 ? '<button type="button" class="btn btn-secondary" data-cs="haut" title="Monter">↑</button>' : '') +
         '<button type="button" class="btn btn-secondary" data-cs="modifier" title="Modifier">✏️</button>' +
         '<button type="button" class="btn btn-secondary" data-cs="retirer" title="Retirer">✕</button>';
@@ -471,6 +559,152 @@ function blocZoneFiche(cle){
   return z;
 }
 
+/* ============================================================
+   ✍️ v1207 — AJOUTER, RETIRER, ENCADRER
+   ============================================================ */
+function ordreCourantFiche(){ return champsAvecForme(champsDeBaseFiche(fiS.modele), fiS.forme).map(c => c.cle); }
+
+/* « ➕ Ajouter ici » : le type, puis son titre */
+function ouvrirAjoutFiche(apres){
+  const avant = apres ? champCourantFiche(apres) : null;
+  const fond = document.createElement('div');
+  fond.className = 'overlay show fiModal';
+  fond.innerHTML = '<div class="modal"><h3>➕ Ajouter une zone ' + (avant ? 'sous « ' + echFiche(nomCourtFiche(avant)) + ' »' : 'tout en haut') + '</h3>' +
+    '<div class="stPetit" style="margin-bottom:8px;">Ce que le moniteur y mettra part dans le bilan <b>juste sous la zone du dessus</b>' +
+    ' (s’il n’a rien écrit au-dessus, à la fin du bilan).</div>' +
+    '<div class="fiTypes">' + Object.keys(TYPES_AJOUT_FICHE).map(k =>
+      '<button type="button" class="fiType" data-type="' + k + '"><b>' + echFiche(TYPES_AJOUT_FICHE[k].nom) + '</b><small>' + echFiche(TYPES_AJOUT_FICHE[k].aide) + '</small></button>').join('') +
+      '<button type="button" class="fiType" data-type="texte" data-sans-micro="1"><b>✍️ Cadre de texte sans 🎙️</b><small>Le même, sans le micro au bout</small></button>' +
+    '</div>' +
+    '<label for="fiAjNom">Son titre sur la fiche</label><input type="text" id="fiAjNom" maxlength="120" placeholder="Ex. : Remarque sur le stationnement">' +
+    '<div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="btn btn-primary" id="fiAjOk" disabled>➕ Ajouter</button><button type="button" class="btn btn-secondary" id="fiAjNon">Annuler</button></div></div>';
+  fond.querySelector('.modal').style.setProperty('max-width', '560px', 'important');
+  document.body.appendChild(fond);
+  let type = '', sansMicro = false;
+  const ok = fond.querySelector('#fiAjOk'), nom = fond.querySelector('#fiAjNom');
+  fond.querySelectorAll('.fiType').forEach(b => b.addEventListener('click', () => {
+    type = b.dataset.type; sansMicro = !!b.dataset.sansMicro;
+    fond.querySelectorAll('.fiType').forEach(x => x.classList.toggle('on', x === b));
+    ok.disabled = false;
+    nom.focus();
+  }));
+  fond.querySelector('#fiAjNon').addEventListener('click', () => fond.remove());
+  ok.addEventListener('click', () => {
+    if(!type) return;
+    const titre = nom.value.trim();
+    if((type === 'titre' || type === 'sousTitre') && !titre){ showToast('Écris le titre.'); nom.focus(); return; }
+    let cle = '';
+    changerFiche(() => {
+      const prises = zonesDeBaseFiche().map(x => x.cle);
+      cle = nouvelleCleFiche('z', prises);
+      const n = { cle: cle, type: type, nom: titre };
+      if(type === 'texte') n.lignes = 4;
+      fiS.forme.ajouts = (fiS.forme.ajouts || []).concat([n]);
+      if(sansMicro) reglageZoneFiche(cle).micro = 0;
+      const ordre = ordreCourantFiche().filter(k => k !== cle);
+      const i = apres ? ordre.indexOf(apres) : -1;
+      ordre.splice(i + 1, 0, cle);
+      fiS.forme.ordre = ordre;
+    });
+    fond.remove();
+    fiS.choix = cle; fiS.cadre = '';
+    if(telFiche()) fiS.feuille = 'zone';
+    marquerChoixFiche(); dessinerPanneauFiche();
+    const bl = document.querySelector('#fiZone [data-zone="' + CSS.escape(cle) + '"]');
+    /* sur téléphone, les réglages montent du bas : la zone va en haut */
+    if(bl && bl.scrollIntoView) bl.scrollIntoView({ block: telFiche() ? 'start' : 'center' });
+    showToast(type === 'cases' ? '➕ Zone ajoutée — pose ses cases à droite' : '➕ Zone ajoutée');
+  });
+}
+
+/* Retirer une zone ajoutée (les zones d'origine se masquent, elles) */
+function retirerAjoutFiche(cle){
+  const ordre = ordreCourantFiche();
+  const i = ordre.indexOf(cle);
+  /* un cadre qui commençait ou finissait sur elle se resserre */
+  fiS.forme.cadres = (fiS.forme.cadres || []).map(cd => {
+    let de = ordre.indexOf(cd.de), a = ordre.indexOf(cd.a);
+    if(de > a){ const t = de; de = a; a = t; }
+    if(i < de || i > a) return cd;
+    if(de === a) return null;
+    const n = Object.assign({}, cd);
+    n.de = ordre[de === i ? de + 1 : de]; n.a = ordre[a === i ? a - 1 : a];
+    return n;
+  }).filter(Boolean);
+  fiS.forme.ajouts = (fiS.forme.ajouts || []).filter(z => z.cle !== cle);
+  delete fiS.forme.zones[cle];
+  fiS.forme.ordre = (fiS.forme.ordre || []).filter(k => k !== cle);
+  if(fiS.choix === cle) fiS.choix = '';
+}
+
+/* « 📦 Encadrer » : on touche la première zone, puis la dernière */
+function commencerEncadrerFiche(de){
+  fiS.encadre = { de: de || '' };
+  fiS.cadre = '';
+  if(de) fiS.choix = '';
+  fiS.feuille = '';
+  marquerChoixFiche(); dessinerPanneauFiche(); dessinerConsigneFiche();
+}
+function dessinerConsigneFiche(){
+  const e = document.getElementById('fiConsigne');
+  if(!e || !fiS) return;
+  if(!fiS.encadre || fiS.essai){ e.style.display = 'none'; e.innerHTML = ''; marquerChoixFiche(); return; }
+  e.style.display = '';
+  e.innerHTML = '📦 ' + (fiS.encadre.de ? 'Touche maintenant la <b>dernière</b> zone du cadre' : 'Touche la <b>première</b> zone du cadre') +
+    ' <button type="button" class="btn btn-secondary" data-fa="encadrerNon">Annuler</button>';
+  marquerChoixFiche();
+}
+function choisirPourEncadrerFiche(cle){
+  if(!fiS.encadre.de){ fiS.encadre.de = cle; dessinerConsigneFiche(); return; }
+  const ordre = ordreCourantFiche();
+  let i = ordre.indexOf(fiS.encadre.de), j = ordre.indexOf(cle);
+  fiS.encadre = null;
+  if(i === -1 || j === -1){ dessinerConsigneFiche(); return; }
+  if(i > j){ const t = i; i = j; j = t; }
+  const id = nouvelleCleFiche('c', (fiS.forme.cadres || []).map(c => c.id));
+  changerFiche(() => {
+    /* un cadre qui chevauche le nouveau s'efface : un seul fond par zone */
+    const garde = (fiS.forme.cadres || []).filter(cd => {
+      let a = ordre.indexOf(cd.de), b = ordre.indexOf(cd.a);
+      if(a > b){ const t = a; a = b; b = t; }
+      return b < i || a > j;
+    });
+    garde.push({ id: id, de: ordre[i], a: ordre[j], fond: '#DCD0FF', intensite: 'franc' });
+    fiS.forme.cadres = garde;
+  });
+  fiS.cadre = id; fiS.choix = '';
+  if(telFiche()) fiS.feuille = 'zone';
+  dessinerConsigneFiche(); dessinerPanneauFiche();
+  showToast('📦 Cadre posé — choisis sa couleur');
+}
+function blocCadreFiche(id){
+  const z = document.createElement('div');
+  z.className = 'stBloc';
+  const cd = (fiS.forme.cadres || []).find(c => c.id === id);
+  if(!cd){ z.innerHTML = '<div class="stPetit">Cadre introuvable.</div>'; return z; }
+  const de = champCourantFiche(cd.de), a = champCourantFiche(cd.a);
+  const n = (() => { const o = ordreCourantFiche(); return Math.abs(o.indexOf(cd.a) - o.indexOf(cd.de)) + 1; })();
+  z.innerHTML = '<h4>📦 Un cadre de ' + n + ' zone' + (n > 1 ? 's' : '') + '</h4>' +
+    '<div class="stPetit" style="margin-bottom:6px;">De « <b>' + echFiche(nomCourtFiche(de)) + '</b> » à « <b>' + echFiche(nomCourtFiche(a)) + '</b> ». ' +
+    'Une zone déplacée entre les deux entre dans le cadre.</div>' +
+    '<label>Le fond du cadre</label>' + pastillesFondFiche(cd.fond).replace('<button type="button" class="mepAuto' + (!cd.fond ? ' on' : '') + '" data-fond="" title="Sans fond">∅</button>', '') +
+    '<div class="stChips fiIntens">' + [['leger', 'Léger'], ['franc', 'Franc'], ['fort', 'Très visible']].map(([k, t]) =>
+      '<button type="button" class="btn ' + (cd.intensite === k ? 'btn-primary' : 'btn-secondary') + '" data-intens="' + k + '">' + t + '</button>').join('') + '</div>' +
+    '<div class="stChips" style="margin-top:10px;"><button type="button" class="btn btn-secondary" data-fa="encadrer">📦 Refaire le cadre…</button>' +
+    '<button type="button" class="btn btn-secondary fiRetirer" id="fiCadreRetirer">✕ Retirer le cadre</button></div>';
+  const poser = fn => changerFiche(() => { const c = (fiS.forme.cadres || []).find(x => x.id === id); if(c) fn(c); });
+  z.querySelectorAll('[data-fond]').forEach(b => b.addEventListener('click', () => poser(c => { if(b.dataset.fond) c.fond = b.dataset.fond; })));
+  const ci = z.querySelector('.stAutreCouleur input');
+  if(ci) ci.addEventListener('change', () => poser(c => { c.fond = ci.value.toUpperCase(); }));
+  z.querySelectorAll('[data-intens]').forEach(b => b.addEventListener('click', () => poser(c => { c.intensite = b.dataset.intens; })));
+  z.querySelector('#fiCadreRetirer').addEventListener('click', () => {
+    changerFiche(() => { fiS.forme.cadres = (fiS.forme.cadres || []).filter(c => c.id !== id); });
+    fiS.cadre = ''; if(telFiche()) fiS.feuille = '';
+    marquerChoixFiche(); dessinerPanneauFiche();
+  });
+  return z;
+}
+
 /* Une case à cocher, en grand */
 function ouvrirCaseFiche(cle, i){
   const c = champCourantFiche(cle);
@@ -482,9 +716,9 @@ function ouvrirCaseFiche(cle, i){
     '<h3>☑ ' + (i >= 0 ? 'Une case à cocher' : 'Nouvelle case à cocher') + '</h3>' +
     '<label for="fiCsLib">Ce que voit le moniteur à côté de la case (court)</label>' +
     '<input type="text" id="fiCsLib" maxlength="80" placeholder="(vide : la phrase entière s’affiche)">' +
-    '<label for="fiCsPhrase">La phrase qui s’écrit dans le cadre quand il coche</label>' +
+    '<label for="fiCsPhrase">' + (c && c.type === 'cases' ? 'La phrase qui part dans le bilan quand il coche' : 'La phrase qui s’écrit dans le cadre quand il coche') + '</label>' +
     '<textarea id="fiCsPhrase" rows="4" maxlength="500" class="fiTexte"></textarea>' +
-    '<label>Où elle s’écrit</label><div class="stChips"><button type="button" class="btn" data-ou="debut">⬆️ En tête du cadre</button><button type="button" class="btn" data-ou="fin">⬇️ À la fin</button></div>' +
+    (c && c.type === 'cases' ? '' : '<label>Où elle s’écrit</label><div class="stChips"><button type="button" class="btn" data-ou="debut">⬆️ En tête du cadre</button><button type="button" class="btn" data-ou="fin">⬇️ À la fin</button></div>') +
     '<label class="stCocheL" style="margin-top:8px;"><input type="checkbox" id="fiCsOffice"> Cochée d’office à l’ouverture de la fiche</label>' +
     '<div class="stPetit" style="margin:8px 0 12px;">Décochée, la phrase repart du cadre, sans toucher à ce que le moniteur a écrit autour.</div>' +
     '<div style="display:flex;gap:8px;"><button type="button" class="btn btn-primary" id="fiCsOk">💾 Garder</button><button type="button" class="btn btn-secondary" id="fiCsNon">Annuler</button></div></div>';
@@ -515,28 +749,28 @@ function ouvrirCaseFiche(cle, i){
 function blocListeZonesFiche(){
   const z = document.createElement('div');
   z.className = 'stBloc';
-  const base = champsDeBaseFiche(fiS.modele);
-  const liste = champsAvecForme(base, fiS.forme);
-  z.innerHTML = '<h4>🧩 Les zones de la fiche</h4><div class="stPetit" style="margin-bottom:6px;">↑ ↓ pour changer l’ordre, 👁️ pour masquer. Touche un nom pour la régler.</div><div class="fiZones"></div>' +
+  const liste = champsAvecForme(champsDeBaseFiche(fiS.modele), fiS.forme);
+  z.innerHTML = '<h4>🧩 Les zones de la fiche</h4><div class="stPetit" style="margin-bottom:6px;">↑ ↓ pour changer l’ordre, 👁️ pour masquer, 🗑️ pour retirer une zone ajoutée. Touche un nom pour la régler.</div><div class="fiZones"></div>' +
     '<div class="stChips" style="margin-top:8px;"><button type="button" class="btn btn-secondary" id="fiOrdreAvant">↺ L’ordre d’origine</button></div>';
   const g = z.querySelector('.fiZones');
   liste.forEach((c, i) => {
-    const b = base.find(x => x.cle === c.cle);
-    const verrou = zoneVerrouilleeFiche(b);
+    const verrou = verrouFiche(c.cle);
     const r = fiS.forme.zones[c.cle] || {};
     const d = document.createElement('div');
-    d.className = (c.cle === fiS.choix ? 'on' : '') + (r.cache ? ' masquee' : '');
+    d.className = (c.cle === fiS.choix ? 'on' : '') + (r.cache ? ' masquee' : '') + (c.ajout ? ' ajoutee' : '') + (c.cadre ? ' encadree' : '');
+    if(c.cadre) d.style.setProperty('--cadre', c.fond === 'ardoise' ? '#5B6B80' : ((FONDS_FICHE[c.fond] && FONDS_FICHE[c.fond].fort) || c.fond));
     const coul = c.fond ? (c.fond === 'ardoise' ? '#E8EDF3' : c.fond) : '';
-    const signes = (c.type === 'titre' ? '📌' : c.type === 'sousTitre' ? '🔖' : c.type === 'ok' ? '✅❌' : (c.type === 'texte' || c.type === 'court') ? '✍️' : '') +
-      ((c.cases || []).length ? ' ☑' + c.cases.length : '') + (r.micro === 0 ? ' 🔇' : '') + (verrou ? ' 🔒' : '');
+    const signes = (c.ajout ? '➕ ' : '') + (c.type === 'titre' ? '📌' : c.type === 'sousTitre' ? '🔖' : c.type === 'ok' ? '✅❌' : (c.type === 'texte' || c.type === 'court') ? '✍️' : c.type === 'cases' ? '☑' : '') +
+      ((c.cases || []).length ? ' ☑' + c.cases.length : '') + (r.micro === 0 ? ' 🔇' : '') + (c.cadre ? ' 📦' : '') + (verrou ? ' 🔒' : '');
     d.innerHTML = '<span class="pastille" style="background:' + (coul || 'transparent') + ';' + (coul ? '' : 'border-style:dashed;') + '"></span>' +
       '<button type="button" class="n" data-zc="choisir">' + echFiche(nomCourtFiche(c)) + '</button><span class="s">' + signes + '</span>' +
       '<button type="button" class="btn btn-secondary" data-zc="haut" title="Monter"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
       '<button type="button" class="btn btn-secondary" data-zc="bas" title="Descendre"' + (i === liste.length - 1 ? ' disabled' : '') + '>↓</button>' +
       (verrou ? '<span class="oeil" title="Zone qui calcule : toujours à l’écran">🔒</span>'
+       : c.ajout ? '<button type="button" class="btn btn-secondary oeil" data-zc="retirer" title="Retirer cette zone ajoutée">🗑️</button>'
               : '<button type="button" class="btn btn-secondary oeil" data-zc="oeil" title="' + (r.cache ? 'Masquée — appuie pour la remettre' : 'À l’écran — appuie pour la masquer') + '">' + (r.cache ? '🙈' : '👁️') + '</button>');
     d.querySelector('[data-zc="choisir"]').addEventListener('click', () => {
-      fiS.choix = c.cle; fiS.feuille = telFiche() ? 'zone' : '';
+      fiS.choix = c.cle; fiS.cadre = ''; fiS.feuille = telFiche() ? 'zone' : '';
       marquerChoixFiche(); dessinerPanneauFiche();
       const bl = document.querySelector('#fiZone [data-zone="' + CSS.escape(c.cle) + '"]');
       if(bl) bl.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -552,6 +786,11 @@ function blocListeZonesFiche(){
     d.querySelector('[data-zc="bas"]').addEventListener('click', () => deplacer(1));
     const oe = d.querySelector('[data-zc="oeil"]');
     if(oe) oe.addEventListener('click', () => changerFiche(() => { if(r.cache) delete reglageZoneFiche(c.cle).cache; else reglageZoneFiche(c.cle).cache = 1; }));
+    const rt = d.querySelector('[data-zc="retirer"]');
+    if(rt) rt.addEventListener('click', async () => {
+      if(!await confirmer('Retirer la zone « ' + nomCourtFiche(c) + ' » de la fiche ?', 'Retirer')) return;
+      changerFiche(() => retirerAjoutFiche(c.cle));
+    });
     g.appendChild(d);
   });
   z.querySelector('#fiOrdreAvant').addEventListener('click', () => changerFiche(() => { fiS.forme.ordre = []; }));
@@ -566,7 +805,8 @@ function ouvrirCopieFiche(){
   const fond = document.createElement('div');
   fond.className = 'overlay show fiModal';
   fond.innerHTML = '<div class="modal"><h3>⧉ Copier « ' + echFiche(moi.label) + ' » vers…</h3>' +
-    '<div class="stPetit" style="margin-bottom:8px;">Les réglages partent en <b>brouillon</b> sur les modèles cochés : seules les zones qu’ils ont aussi sont reprises. Ouvre-les ensuite pour vérifier et publier.</div>' +
+    '<div class="stPetit" style="margin-bottom:8px;">Les réglages partent en <b>brouillon</b> sur les modèles cochés : seules les zones qu’ils ont aussi sont reprises. ' +
+      'Les <b>zones ajoutées</b> ne partent que vers les modèles qui ont les mêmes zones. Ouvre-les ensuite pour vérifier et publier.</div>' +
     '<div class="fiCopie">' + autres.map(m => '<label class="stCocheL"><input type="checkbox" value="' + echFiche(m.cle) + '"' + (m.schema === moi.schema ? ' checked' : '') + '> ' + echFiche(m.label) +
       (m.schema === moi.schema ? ' <span class="stPetit">· mêmes zones</span>' : '') + '</label>').join('') + '</div>' +
     '<div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="btn btn-primary" id="fiCopOk">⧉ Copier</button><button type="button" class="btn btn-secondary" id="fiCopNon">Annuler</button></div></div>';
@@ -582,7 +822,11 @@ function ouvrirCopieFiche(){
       await enregistrerBrouillonFiche(true);
       let r = null, reprises = 0;
       for(const k of cibles){
-        const f = nettoyerFormeFiche(fiS.forme, champsDeBaseFiche(k));
+        /* les zones ajoutées vivent par rapport à leurs voisines : elles
+           ne partent que vers un modèle qui a les mêmes zones */
+        const src = JSON.parse(JSON.stringify(fiS.forme));
+        if(MODELES[k].schema !== moi.schema){ delete src.ajouts; }
+        const f = nettoyerFormeFiche(src, champsDeBaseFiche(k));
         reprises += Object.keys(f.zones).length;
         r = await appelPrep({ action: 'ficheManuellePoser', modele: k, forme: JSON.stringify(f), publier: '0' });
       }
