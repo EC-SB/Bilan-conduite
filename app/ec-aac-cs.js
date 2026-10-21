@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 11:16 — v1226 */
+/* Déployé le 21/10/2026 à 12:10 — v1228 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -737,7 +737,8 @@ async function afficherAacCs(){
      répondre avec ce qu'on avait il y a vingt secondes, c'est
      répondre à côté. Le rafraîchissement automatique des
      90 secondes prend le relais ensuite. */
-  if(zA) await chargerToursRvt(true);
+  /* ✉️ v1228 — et les relances AAC, en même temps */
+  if(zA) await Promise.all([chargerToursRvt(true), chargerRelancesAac()]);
 
   /* Les lieux avant de dessiner : une rangée de pastilles qui
      arriverait après coup montrerait deux villes puis quatre, et
@@ -4040,6 +4041,10 @@ function ligneAac(x){
     meta.appendChild(t);
   }
 
+  /* ✉️ v1228 — la relance, et la réponse de la famille */
+  const rel = ligneRelanceAac(x.eleve);
+  if(rel) meta.appendChild(rel);
+
   if(x.parcoursCle && x.suivi.parcoursLe){
     const q = document.createElement('span');
     q.style.opacity = '.7';
@@ -4156,6 +4161,13 @@ function boutonsAac(x, zone){
      (Sans date de préalable, on n'arrive jamais ici : la fonction
      rend la main plus haut, sur le bouton qui la demande. Il n'y a
      alors rien à corriger.) */
+  /* ✉️ v1228 — le mail de relance des rendez-vous */
+  if(x.parcours.rdvAttendus){
+    zone.appendChild(petitBouton('✉️ Mail de relance',
+      'Rappeler les rendez-vous AAC, demander leurs disponibilités et quand passer l’examen',
+      async () => ouvrirRelanceAac(x)));
+  }
+
   zone.appendChild(petitBouton('✏️ Corriger ses rendez-vous',
     'Changer une date, ou revenir sur un rendez-vous noté par erreur',
     () => corrigerRendezVous(x)));
@@ -4499,4 +4511,441 @@ async function changerParcours(x, vers){
     showToast(p.long + ' ✅');
     redessinerAacCs();
   }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+/* ============================================================
+   ✉️ LA RELANCE DES RENDEZ-VOUS AAC — v1228
+
+   David, le 21 octobre : « il faut que je puisse envoyer les mails
+   de relance pour les rendez-vous AAC directement depuis l'app,
+   attention il faut prévoir d'ajouter le mail prescripteur s'il
+   n'est pas dans la fiche de l'élève » — un message adapté à là où
+   en est l'élève, pour avoir leurs disponibilités pour les
+   rendez-vous pratiques, et quand il veut passer l'examen.
+
+   Ses choix, sur le schéma : la famille répond sur une page à
+   cocher (aac.html, comme le sondage du théorique) ; son texte des
+   3 rendez-vous part EN ENTIER, avec « fait le » / « à prévoir » à
+   chaque titre ; les disponibilités se donnent en jours × matin /
+   après-midi / fin de journée ; la réponse s'écrit en une ligne sous
+   l'élève. Et, ajouté pendant le codage : « il faut que l'on puisse
+   choisir si on affiche quand l'élève veut passer l'examen » — une
+   case, à chaque envoi.
+
+   Le théorique ne se demande jamais ici : il se fixe à plusieurs
+   familles, par le sondage. Le mail le rappelle.
+   ============================================================ */
+const TEXTE_3_RDV_AAC = [
+  '💪 𝗥𝗔𝗣𝗣𝗘𝗟𝗦 𝗗𝗘𝗦 𝟯 𝗥𝗘𝗡𝗗𝗘𝗭-𝗩𝗢𝗨𝗦 𝗔̀ 𝗘𝗙𝗙𝗘𝗖𝗧𝗨𝗘𝗥 𝗣𝗘𝗡𝗗𝗔𝗡𝗧 𝗟𝗔 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 𝗔𝗖𝗖𝗢𝗠𝗣𝗔𝗚𝗡𝗘́𝗘 :',
+  '',
+  '📅 𝗥𝗗𝗩 𝗣𝗘́𝗗𝗔𝗚𝗢𝗚𝗜𝗤𝗨𝗘 𝗣𝗥𝗔𝗧𝗜𝗤𝗨𝗘 𝟭 (2h) :{rvp1}',
+  "• 𝙌𝙪𝙖𝙣𝙙 ? Entre 4 et 6 mois après le départ en AAC, après environ 1 000 km parcourus avec l'accompagnateur.",
+  "• 𝙊𝙪̀ ? RDV chez Évolution Conduites pour un cours dans le véhicule école, en présence de l'élève, de l'accompagnateur et du moniteur. N'oubliez pas d'emmener la carte SD de l'élève pour filmer le cours et le revoir ensuite de chez vous.",
+  "• 𝙋𝙤𝙪𝙧𝙦𝙪𝙤𝙞 ? - vérifier la progression de l'élève - corriger d'éventuelles mauvaises habitudes - approfondir certains points théoriques et pratiques - donner des conseils pour la suite de l'apprentissage",
+  '',
+  '📅 𝗥𝗗𝗩 𝗣𝗘́𝗗𝗔𝗚𝗢𝗚𝗜𝗤𝗨𝗘 𝗧𝗛𝗘́𝗢𝗥𝗜𝗤𝗨𝗘 (2h) :{rvt}',
+  "• 𝙌𝙪𝙖𝙣𝙙 ? DOIT être effectué avec PLUSIEURS ÉLÈVES et PLUSIEURS ACCOMPAGNATEURS. Nous proposerons un sondage pour fixer les dates possibles. Ce rendez-vous n'est donc pas modifiable une fois programmé, car vous ne serez pas seuls. Si vous ne pouvez pas être présents, vous devrez participer à une prochaine session, attention il n'y en a que 2 par an.",
+  "• 𝙊𝙪̀ ? RDV chez Évolution Conduites pour un cours en salle, en présence de l'élève et de l'accompagnateur.",
+  '• 𝙋𝙤𝙪𝙧𝙦𝙪𝙤𝙞 ? Ça ne se raconte pas, ça se vit !',
+  '',
+  '📅 𝗥𝗗𝗩 𝗣𝗘́𝗗𝗔𝗚𝗢𝗚𝗜𝗤𝗨𝗘 𝗣𝗥𝗔𝗧𝗜𝗤𝗨𝗘 𝟮 (2h) :{rvp2}',
+  "• 𝙌𝙪𝙖𝙣𝙙 ? 2 mois avant la fin de la formation AAC et après environ 3 000 km parcourus avec l'accompagnateur.",
+  "• 𝙊𝙪̀ ? RDV chez Évolution Conduites pour un cours dans le véhicule école, en présence de l'élève, de l'accompagnateur et du moniteur. N'oubliez pas d'emmener la carte SD de l'élève pour filmer le cours et le revoir ensuite de chez vous.",
+  "• 𝙋𝙤𝙪𝙧𝙦𝙪𝙤𝙞 ? - faire un examen blanc - évaluer le nombre d'heures préparatoires au permis en plus des 3h obligatoires avant permis (2h la veille du permis et 1h le jour même pour être bien échauffé) - travailler les derniers points à améliorer - répondre aux questions de l'accompagnateur sur le passage de l'examen"
+].join('\n');
+
+/* Où le lien se pose dans le texte modifiable — remplacé à l'envoi
+   par le vrai lien, que seul le Worker connaît (il fabrique le
+   jeton). */
+const LIEN_AAC_VISIBLE = '👉 [le lien vers la page de réponse se met ici]';
+const LIEN_AAC_MARQUE = '__LIEN_AAC__';
+
+let relancesAac = [];
+async function chargerRelancesAac(){
+  try{
+    const d = await appelPrep({ action: 'aacRelances' });
+    relancesAac = (d && d.relances) || [];
+  }catch(e){ /* la liste reste lisible sans les relances */ }
+  return relancesAac;
+}
+function relanceAacDe(nom){
+  const n = normaliserMot(nom);
+  return (relancesAac || []).find(r => normaliserMot(r.eleve) === n) || null;
+}
+
+function lienRelanceAac(){
+  return location.origin + location.pathname.replace(/[^/]*$/, '') + 'aac.html';
+}
+
+const RDV_FAITS_AAC = { fait: 1, ailleurs: 1, sansobjet: 1 };
+
+/* Ce que la situation propose : le prochain rendez-vous pratique pas
+   fait, et l'examen seulement une fois le RVP 1 passé (la case reste
+   libre — c'est le choix de David). */
+function situationRelanceAac(x){
+  const r1 = x.rdv.rvp1, r2 = x.rdv.rvp2;
+  let rvp = '';
+  if(!RDV_FAITS_AAC[r1.cle]) rvp = 'rvp1';
+  else if(!RDV_FAITS_AAC[r2.cle]) rvp = 'rvp2';
+  const prevu = rvp && x.rdv[rvp].cle === 'prevu';
+  return {
+    rvp: rvp,
+    dispos: !!rvp && !prevu,
+    examen: r1.cle === 'fait' || r1.cle === 'ailleurs',
+    examDes: (x.ech && x.ech.exam && x.ech.exam.iso) || '',
+    rvt: !RDV_FAITS_AAC[x.rdv.rvt.cle]
+  };
+}
+
+function prenomAac(nom){ return String(nom || '').trim().split(/\s+/)[0] || ''; }
+
+function etatDansLeMailAac(e){
+  const d = String(e.txt || '').match(/\d{2}\/\d{2}\/\d{4}/);
+  if(e.cle === 'fait' || e.cle === 'ailleurs') return ' ✅ fait' + (d ? ' le ' + d[0] : '');
+  if(e.cle === 'prevu') return ' 📅 prévu' + (d ? ' le ' + d[0] : '');
+  if(e.cle === 'sansobjet') return '';
+  return ' ⏳ à prévoir';
+}
+
+function texteRelanceAac(x, choix){
+  const p = prenomAac(x.eleve);
+  const nomRvp = { rvp1: 'RVP 1', rvp2: 'RVP 2' };
+  const l = ['Bonjour,', ''];
+  const r1 = x.rdv.rvp1;
+  const d1 = String(r1.txt || '').match(/\d{2}\/\d{2}\/\d{4}/);
+  let phrase = '';
+  if(choix.rvp === 'rvp1'){
+    const pr = String(x.rdv.prealable.txt || '').match(/\d{2}\/\d{2}\/\d{4}/);
+    phrase = 'La conduite accompagnée de ' + p + (pr ? ' a commencé le ' + pr[0] + '.' : ' est en cours.') +
+      ' Il reste le rendez-vous pédagogique pratique 1';
+  }else if(choix.rvp === 'rvp2'){
+    phrase = p + ' a fait son RVP 1' + (d1 ? ' le ' + d1[0] : '') +
+      '. Il reste le rendez-vous pédagogique pratique 2';
+  }else{
+    phrase = p + ' a fait ses rendez-vous pédagogiques pratiques';
+  }
+  if(choix.rvp){
+    const e = x.rdv[choix.rvp];
+    const att = String(e.txt || '').match(/attendu le (\d{2}\/\d{2}\/\d{4})/);
+    if(att) phrase += e.retard ? ' (il était attendu vers le ' + att[1] + ')' : ' (vers le ' + att[1] + ')';
+  }
+  if(choix.examen && choix.examDes){
+    phrase += (choix.rvp ? ', puis l\'examen, possible à partir du ' : ', et l\'examen est possible à partir du ') +
+      jourFrCs(choix.examDes);
+  }
+  l.push(phrase + '.', '');
+
+  const demandes = [];
+  if(choix.dispos && choix.rvp) demandes.push('  · vos disponibilités pour le ' + nomRvp[choix.rvp] + ' ;');
+  if(choix.examen) demandes.push('  · quand ' + p + ' souhaite passer l\'examen.');
+  if(demandes.length){
+    if(demandes.length === 1) demandes[0] = demandes[0].replace(/ ;$/, '.');
+    l.push('Pour les organiser, dites-nous-le en quelques appuis :');
+    demandes.forEach(d => l.push(d));
+    l.push('', LIEN_AAC_VISIBLE, '');
+  }
+  if(choix.rvt){
+    l.push('Le rendez-vous théorique, lui, se fixe à plusieurs familles : vous recevrez un sondage à part.', '');
+  }
+  l.push(TEXTE_3_RDV_AAC
+    .replace('{rvp1}', etatDansLeMailAac(x.rdv.rvp1))
+    .replace('{rvt}', etatDansLeMailAac(x.rdv.rvt))
+    .replace('{rvp2}', etatDansLeMailAac(x.rdv.rvp2)));
+  l.push('', 'À bientôt,', "L'équipe Évolution Conduites");
+
+  const objet = [];
+  if(choix.dispos && choix.rvp) objet.push(nomRvp[choix.rvp]);
+  if(choix.examen) objet.push("date d'examen");
+  return {
+    sujet: 'Conduite accompagnée de ' + p + ' — ' +
+      (objet.length ? objet.join(' et ') : 'rappel des rendez-vous'),
+    texte: l.join('\n')
+  };
+}
+
+const MAIL_VALIDE_AAC = v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v || '').trim());
+
+/* La fenêtre d'envoi : où il en est, à qui, ce qu'on demande, le
+   mail (modifiable), puis Envoyer. */
+function ouvrirRelanceAac(x){
+  const nom = x.eleve;
+  const f = (typeof ficheDe === 'function' ? ficheDe(nom) : null) || {};
+  const sit = situationRelanceAac(x);
+  const choix = { rvp: sit.rvp, dispos: sit.dispos, examen: sit.examen, examDes: sit.examDes, rvt: sit.rvt };
+  let modifie = false;
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  fond.id = 'aacRelFond';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(560px, 94vw)';
+  fond.appendChild(boite);
+
+  const h = document.createElement('h3');
+  h.textContent = '✉️ Relance RDV AAC — ' + nom;
+  boite.appendChild(h);
+
+  const titrePart = t => {
+    const d = document.createElement('div');
+    d.style.cssText = 'font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:14px 0 6px;';
+    d.textContent = t;
+    boite.appendChild(d);
+  };
+  const caseA = (libelle, sous, coche, inactif) => {
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;gap:9px;align-items:flex-start;font-size:13.5px;margin:0 0 8px;' +
+      'text-transform:none;letter-spacing:0;font-weight:400;color:var(--text);cursor:pointer;' + (inactif ? 'opacity:.45;' : '');
+    const c = document.createElement('input');
+    c.type = 'checkbox'; c.checked = !!coche; c.disabled = !!inactif;
+    c.style.cssText = 'margin-top:3px;flex-shrink:0;width:auto;';
+    const s = document.createElement('span');
+    s.style.cssText = 'flex:1;line-height:1.45;';
+    const t = document.createElement('span');
+    t.textContent = libelle;
+    s.appendChild(t);
+    if(sous){
+      const u = document.createElement('div');
+      u.style.cssText = 'font-size:11.5px;color:var(--muted);';
+      u.textContent = sous;
+      s.appendChild(u);
+    }
+    lab.appendChild(c); lab.appendChild(s);
+    boite.appendChild(lab);
+    return c;
+  };
+
+  /* Où il en est — les lignes du suivi, telles quelles */
+  titrePart('Où en est ' + prenomAac(nom) + ' (lu dans son suivi)');
+  const ou = document.createElement('div');
+  ou.style.cssText = 'display:flex;flex-direction:column;gap:2px;font-size:13px;border:1px solid var(--border);border-radius:10px;padding:8px 11px;';
+  [['① Préalable', x.rdv.prealable], ['② RVP 1', x.rdv.rvp1], ['③ RVP 2', x.rdv.rvp2], ['🗣️ Théorique', x.rdv.rvt]]
+    .forEach(([t, e]) => { const l = ligneRdvAacCs(t, e); l.style.fontSize = '13px'; ou.appendChild(l); });
+  const exl = document.createElement('span');
+  exl.textContent = '🎓 ' + (sit.examDes ? 'Examen possible à partir du ' + jourFrCs(sit.examDes) : "Date d'examen possible inconnue");
+  ou.appendChild(exl);
+  boite.appendChild(ou);
+
+  /* Les destinataires. Une adresse absente de la fiche se tape ici,
+     et s'y enregistre (case cochée d'office). */
+  titrePart('Destinataires');
+  const adresses = [];
+  const destinataire = (libelle, champ, valeur, attendu) => {
+    const existe = MAIL_VALIDE_AAC(valeur);
+    const c = caseA(libelle + (existe ? ' — ' + valeur : ''), '', existe || attendu);
+    const a = { coche: c, champ: champ, valeur: existe ? String(valeur).trim() : '', saisie: null, garder: null };
+    if(!existe){
+      const manque = document.createElement('div');
+      manque.style.cssText = 'font-size:12px;color:var(--warn-text);margin:-4px 0 5px 24px;';
+      manque.textContent = 'Pas dans sa fiche : tapez-la ici.';
+      boite.appendChild(manque);
+      const i = document.createElement('input');
+      i.type = 'email'; i.inputMode = 'email'; i.autocomplete = 'off';
+      i.placeholder = champ === 'mailPrescripteur' ? 'adresse du prescripteur' : "adresse de l'élève";
+      i.style.cssText = 'margin:0 0 6px 24px;width:calc(100% - 24px);';
+      i.className = 'aacRel_' + champ;
+      boite.appendChild(i);
+      a.saisie = i;
+      a.garder = caseA("💾 L'enregistrer dans sa fiche", 'Les prochains mails (bilans, rappels, sondage théorique) partiront aussi à cette adresse.', true);
+      a.garder.parentNode.style.marginLeft = '24px';
+      i.addEventListener('input', () => { if(MAIL_VALIDE_AAC(i.value)) c.checked = true; majBouton(); });
+    }
+    c.addEventListener('change', majBouton);
+    adresses.push(a);
+  };
+  destinataire('👤 Élève', 'email', f.email, false);
+  destinataire('🧑‍🏫 Accompagnateur / prescripteur', 'mailPrescripteur', f.mailPrescripteur, true);
+
+  /* Ce qu'on demande */
+  titrePart('On leur demande');
+  const nomRvp = { rvp1: '② RVP 1', rvp2: '③ RVP 2' };
+  let cDispos = null;
+  if(sit.rvp){
+    cDispos = caseA('Disponibilités pour le ' + nomRvp[sit.rvp] + ' (2h, voiture école)',
+      'Jours × matin / après-midi / fin de journée' + (x.rdv[sit.rvp].cle === 'prevu' ? ' — il est déjà prévu' : ''), choix.dispos);
+    cDispos.className = 'aacRelDispos';
+  }else{
+    caseA('Disponibilités pratiques', 'RVP 1 et RVP 2 déjà faits', false, true);
+  }
+  const cExamen = caseA("🎓 Quand passer l'examen", 'Dès que possible · peu importe · une semaine précise · pendant des vacances scolaires', choix.examen);
+  cExamen.className = 'aacRelExamen';
+  if(sit.rvt){
+    const n = document.createElement('div');
+    n.style.cssText = 'font-size:12px;color:var(--muted);margin:-2px 0 4px 24px;line-height:1.45;';
+    n.textContent = '🗣️ Théorique : pas demandé ici — il se fixe par le sondage commun. Le mail le rappelle.';
+    boite.appendChild(n);
+  }
+
+  /* Le mail */
+  titrePart('Le mail (modifiable)');
+  const obj = document.createElement('input');
+  obj.type = 'text';
+  obj.className = 'aacRelObjet';
+  obj.style.cssText = 'width:100%;margin-bottom:6px;font-size:13px;';
+  boite.appendChild(obj);
+  const zt = document.createElement('textarea');
+  zt.className = 'aacRelTexte';
+  zt.style.cssText = 'width:100%;height:190px;font-size:13px;line-height:1.5;';
+  boite.appendChild(zt);
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:12px;color:var(--muted);margin-top:4px;display:none;';
+  boite.appendChild(note);
+  const refaire = () => {
+    const t = texteRelanceAac(x, choix);
+    obj.value = t.sujet; zt.value = t.texte; modifie = false; note.style.display = 'none';
+  };
+  refaire();
+  zt.addEventListener('input', () => { modifie = true; });
+  obj.addEventListener('input', () => { modifie = true; });
+  const changerCase = () => {
+    choix.dispos = !!(cDispos && cDispos.checked);
+    choix.examen = cExamen.checked;
+    if(!modifie){ refaire(); return; }
+    note.textContent = '';
+    note.appendChild(document.createTextNode('Le texte a été modifié à la main : il ne suit plus les cases. '));
+    const a = document.createElement('a');
+    a.href = '#'; a.textContent = '↺ Refaire le texte';
+    a.addEventListener('click', ev => { ev.preventDefault(); refaire(); });
+    note.appendChild(a);
+    note.style.display = 'block';
+  };
+  if(cDispos) cDispos.addEventListener('change', changerCase);
+  cExamen.addEventListener('change', changerCase);
+
+  const etat = document.createElement('div');
+  etat.style.cssText = 'font-size:13px;margin-top:8px;min-height:1px;';
+  boite.appendChild(etat);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  rangee.style.marginTop = '12px';
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary'; bA.textContent = 'Annuler';
+  const bE = document.createElement('button');
+  bE.className = 'btn btn-primary aacRelEnvoyer';
+  rangee.appendChild(bA); rangee.appendChild(bE);
+  boite.appendChild(rangee);
+
+  function destinatairesChoisis(){
+    return adresses.filter(a => a.coche.checked)
+      .map(a => a.saisie ? String(a.saisie.value || '').trim() : a.valeur)
+      .filter(MAIL_VALIDE_AAC);
+  }
+  function majBouton(){
+    const n = destinatairesChoisis().length;
+    bE.disabled = !n;
+    bE.textContent = n ? '📨 Envoyer' + (n > 1 ? ' aux ' + n + ' adresses' : '') : 'Aucune adresse';
+  }
+  majBouton();
+
+  bA.addEventListener('click', () => fermerFond(fond));
+  bE.addEventListener('click', async () => {
+    const to = destinatairesChoisis();
+    if(!to.length) return;
+    const demande = choix.dispos || choix.examen;
+    let texte = String(zt.value || '');
+    if(demande){
+      if(texte.indexOf(LIEN_AAC_VISIBLE) !== -1) texte = texte.split(LIEN_AAC_VISIBLE).join(LIEN_AAC_MARQUE);
+      else if(texte.indexOf(LIEN_AAC_MARQUE) === -1) texte += '\n\n' + LIEN_AAC_MARQUE;
+    }else{
+      texte = texte.split(LIEN_AAC_VISIBLE).join('').replace(/\n{3,}/g, '\n\n');
+    }
+    const html = (typeof mailEnHtml === 'function')
+      ? mailEnHtml(texte, demande ? LIEN_AAC_MARQUE : '', choix.dispos ? '🗓️ Donner nos disponibilités' : '🎓 Répondre')
+      : undefined;
+    bE.disabled = true; bA.disabled = true;
+    etat.style.color = 'var(--muted)';
+    etat.textContent = '⏳ Envoi…';
+    try{
+      const r = await appelPrep({ action: 'aacRelanceEnvoyer', eleve: nom, to: to,
+        sujet: String(obj.value || '').trim() || texteRelanceAac(x, choix).sujet,
+        texte: texte, html: html, base: lienRelanceAac(),
+        demande: { rvp: choix.dispos ? choix.rvp : '', examen: choix.examen ? 1 : 0,
+                   examDes: choix.examDes, prenom: prenomAac(nom) } });
+      if(!r || r.status !== 'ok') throw new Error((r && (r.message || r.error)) || 'envoi refusé');
+      /* La ligne sous l'élève, tout de suite : sans attendre la relecture */
+      const avant = relanceAacDe(nom);
+      const neuve = Object.assign({ demandeRepondue: {} }, avant || {}, r.relance || {});
+      if(avant && avant.reponduLe){ neuve.reponduLe = avant.reponduLe; neuve.reponse = avant.reponse; }
+      relancesAac = (relancesAac || []).filter(z => normaliserMot(z.eleve) !== normaliserMot(nom)).concat([neuve]);
+    }catch(e){
+      etat.style.color = 'var(--red)';
+      etat.textContent = 'Pas envoyé : ' + e.message;
+      bA.disabled = false; majBouton();
+      return;
+    }
+    /* Les adresses tapées, dans la fiche — après l'envoi : un mail
+       parti vaut mieux qu'une fiche à jour et un mail en panne. */
+    const ecrits = [];
+    for(const a of adresses){
+      if(!a.saisie || !a.garder || !a.garder.checked || !a.coche.checked) continue;
+      const v = String(a.saisie.value || '').trim();
+      if(!MAIL_VALIDE_AAC(v)) continue;
+      const maj = { action: 'ficheSet', eleve: nom };
+      maj[a.champ] = v;
+      try{
+        await appelPrep(maj);
+        const f2 = ficheDe(nom);
+        if(f2) f2[a.champ] = v;
+        ecrits.push(v);
+      }catch(e){ showToast("Mail parti, mais l'adresse n'a pas pu s'enregistrer : " + e.message); }
+    }
+    fermerFond(fond);
+    showToast('📨 Relance envoyée ✅' + (ecrits.length ? ' — adresse enregistrée dans sa fiche' : ''));
+    redessinerAacCs();
+  });
+
+  document.body.appendChild(fond);
+}
+
+/* La ligne sous l'élève : envoyée quand, par qui — et la réponse. */
+const JOURS_AAC = { lun: 'lun.', mar: 'mar.', mer: 'mer.', jeu: 'jeu.', ven: 'ven.', sam: 'sam.' };
+const MOMENTS_AAC = { matin: 'matin', aprem: 'après-midi', soir: 'fin de journée' };
+const VACANCES_AAC = { toussaint: 'Toussaint', noel: 'Noël', hiver: 'hiver', printemps: 'printemps', ete: 'été' };
+
+function resumeReponseAac(r){
+  const rep = r.reponse || {};
+  const dem = r.demandeRepondue || r.demande || {};
+  const morceaux = [];
+  if(rep.dispos){
+    const jours = Object.keys(JOURS_AAC).filter(j => (rep.dispos[j] || []).length)
+      .map(j => JOURS_AAC[j] + ' ' + rep.dispos[j].map(m => MOMENTS_AAC[m] || m).join(' + '));
+    const rvp = dem.rvp === 'rvp1' ? 'RVP 1' : (dem.rvp === 'rvp2' ? 'RVP 2' : 'Dispos');
+    morceaux.push(rvp + ' → ' + (jours.length ? jours.join(', ') : 'aucun créneau coché') +
+      (rep.precision ? ' (« ' + rep.precision + ' »)' : ''));
+  }
+  if(rep.examen && rep.examen.choix){
+    const e = rep.examen;
+    let t = '';
+    if(e.choix === 'vite') t = 'dès que possible';
+    else if(e.choix === 'egal') t = 'peu importe';
+    else if(e.choix === 'semaine') t = e.semaine ? 'semaine du ' + jourFrCs(e.semaine) : 'une semaine précise';
+    else if(e.choix === 'vacances') t = 'vacances : ' + ((e.vacances || []).map(v => {
+      const m = String(v).split('-'); return (VACANCES_AAC[m[0]] || m[0]) + ' ' + (m[1] || '');
+    }).join(', ') || 'à préciser');
+    morceaux.push('Examen → ' + t);
+  }
+  return morceaux.join(' · ');
+}
+
+function ligneRelanceAac(nom){
+  const r = relanceAacDe(nom);
+  if(!r || !r.le) return null;
+  const l = document.createElement('span');
+  l.className = 'relanceAac';
+  l.style.cssText = 'font-size:12.5px;color:var(--cream);line-height:1.5;';
+  /* le jour à l'heure de Paris, pas celui de Greenwich */
+  const jour = ms => { const d = new Date(ms);
+    return jourFrCs(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')); };
+  let t = '✉️ Relance envoyée le ' + jour(r.le) + (r.par ? ' (' + r.par + ')' : '');
+  if(r.reponduLe && r.reponse){
+    t += ' · 📝 Réponse le ' + jour(r.reponduLe) + (r.reponse.qui ? ' (' + r.reponse.qui + ')' : '');
+    const res = resumeReponseAac(r);
+    if(res) t += ' : ' + res;
+  }else if((r.demande || {}).rvp || (r.demande || {}).examen){
+    t += ' · réponse attendue';
+  }
+  l.textContent = t;
+  return l;
 }
