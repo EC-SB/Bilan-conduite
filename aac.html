@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<!-- Déployé le 21/10/2026 à 12:10 — v1228 -->
+<!-- ============================================================
+     CONDUITE ACCOMPAGNÉE — VOS DISPONIBILITÉS ET L'EXAMEN
+     Évolution Conduites — v1228
+
+     L'élève et son accompagnateur arrivent ici depuis le mail de
+     relance des rendez-vous AAC (Suivi AAC › « ✉️ Mail de relance »).
+     La page ne demande QUE ce que le bureau a coché : les
+     disponibilités pour le prochain rendez-vous pratique, et/ou
+     quand l'élève veut passer l'examen.
+
+     ⚠️ CETTE PAGE LIT D'ABORD, ET N'ÉCRIT QUE SUR CLIC — même règle
+     que rvt.html : les messageries ouvrent les liens toutes seules.
+
+     Le jeton ne vaut que pour cette relance. Il ne connecte à rien,
+     ne montre que le prénom, aucune adresse, aucun autre élève.
+     ============================================================ -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Conduite accompagnée — Évolution Conduites</title>
+<style>
+  :root{
+    --fond:#0B0B0B; --carte:#121212; --ligne:#2A2A2A; --creme:#F2EFE9;
+    --gris:#9A968E; --orange:#E8A33D; --vert:#B6FF0E; --bleu:#5EC8FF;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --fond:#F4F2ED; --carte:#FFFFFF; --ligne:#E4E0D8; --creme:#1A1A1A;
+           --gris:#8A857C; --orange:#B87A12; --vert:#7FB800; --bleu:#0B6FA4; }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:0; background:var(--fond); color:var(--creme);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.6; -webkit-text-size-adjust:100%;
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+  }
+  .page{max-width:460px;width:100%;padding:28px 18px 40px}
+  .marque{font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+          color:var(--gris);margin-bottom:22px;text-align:center}
+  .pastille{font-size:48px;line-height:1;margin-bottom:12px;text-align:center}
+  h1{font-size:22px;margin:0 0 8px;line-height:1.3}
+  p{margin:0 0 14px;font-size:16px}
+  .gris{color:var(--gris);font-size:14px}
+  .centre{text-align:center}
+
+  .creneau{background:var(--carte);border:1px solid var(--ligne);
+           border-radius:13px;padding:13px 15px;margin-bottom:10px}
+  .creneau .quand{font-weight:800;font-size:17px;margin-bottom:2px}
+  .creneau .ou{color:var(--gris);font-size:14px;margin-bottom:10px}
+  .choix{display:flex;gap:8px}
+  .choix button{flex:1;margin:0;padding:11px;font-size:15px;
+                background:transparent;border:1.5px solid var(--ligne);
+                color:var(--creme);font-weight:600}
+  .choix button.on{background:var(--vert);color:#0B0B0B;border-color:var(--vert)}
+  .choix button.non.on{background:var(--orange);color:#0B0B0B;
+                       border-color:var(--orange)}
+
+  label{display:block;font-size:13px;color:var(--gris);margin:18px 0 6px}
+  input[type=text]{width:100%;padding:13px;font-size:16px;border-radius:11px;
+    border:1.5px solid var(--ligne);background:var(--carte);color:var(--creme);
+    font-family:inherit}
+  button{
+    width:100%;padding:15px;font-size:17px;font-weight:700;cursor:pointer;
+    border-radius:12px;border:0;background:var(--vert);color:#0B0B0B;
+    font-family:inherit;margin-top:18px;
+  }
+  button:disabled{opacity:.5;cursor:default}
+  .avis{background:var(--carte);border:1px solid var(--ligne);
+        border-radius:11px;padding:12px 14px;margin:16px 0;font-size:14px}
+  .avis.chaud{border-color:var(--orange);color:var(--orange)}
+  .pied{color:var(--gris);font-size:12px;margin-top:26px;line-height:1.7;
+        text-align:center}
+
+  body{display:block}
+  h2{font-size:18px;margin:26px 0 6px;line-height:1.3}
+  .grille{display:grid;grid-template-columns:78px 1fr 1fr 1fr;gap:6px;align-items:center;font-size:13px}
+  .grille .tete{color:var(--gris);text-align:center;font-size:12px}
+  .grille .jour{font-weight:700}
+  .grille button{margin:0;padding:9px 0;font-size:14px;width:100%;background:transparent;
+    border:1.5px solid var(--ligne);color:var(--creme);font-weight:600;border-radius:10px}
+  .grille button.on{background:var(--vert);color:#0B0B0B;border-color:var(--vert)}
+  .option{background:var(--carte);border:1.5px solid var(--ligne);border-radius:13px;
+    padding:11px 13px;margin-bottom:8px;cursor:pointer}
+  .option.on{border-color:var(--vert);border-width:2px}
+  .option .t{font-weight:700;font-size:15.5px}
+  .option .s{color:var(--gris);font-size:13.5px}
+  .puces{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+  .puces button{margin:0;width:auto;padding:7px 13px;font-size:13.5px;background:transparent;
+    border:1.5px solid var(--ligne);color:var(--creme);font-weight:600;border-radius:10px}
+  .puces button.on{background:var(--vert);color:#0B0B0B;border-color:var(--vert)}
+  input[type=date]{width:100%;padding:11px;font-size:16px;border-radius:11px;margin-top:9px;
+    border:1.5px solid var(--ligne);background:var(--carte);color:var(--creme);font-family:inherit}
+  #msg{color:var(--orange);font-size:14px;margin-top:10px;min-height:1px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="marque">Évolution Conduites</div>
+  <div id="zone"><p class="gris centre">Un instant…</p></div>
+</div>
+
+<script>
+var PROXY = 'https://bilan-proxy.evolutionconduites.workers.dev';
+
+var jeton = (location.search.match(/[?&]r=([A-Za-z0-9]{22})/) || [])[1] || '';
+var zone = document.getElementById('zone');
+var donnees = null;
+var etat = { dispos: {}, precision: '', examen: { choix: '', semaine: '', vacances: [] }, qui: '' };
+
+var JOURS = [['lun','Lundi'],['mar','Mardi'],['mer','Mercredi'],['jeu','Jeudi'],['ven','Vendredi'],['sam','Samedi']];
+var MOMENTS = [['matin','Matin'],['aprem','Après-midi'],['soir','Fin de journée']];
+
+function ech(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function jourFr(iso){
+  var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+function aujourdhui(){
+  var d = new Date();
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+
+/* LES VACANCES SCOLAIRES, PAR LEUR NOM — sans dates. Des dates
+   recopiées ici seraient fausses un jour sans que personne ne s'en
+   aperçoive ; le nom suffit pour dire « pendant Noël ». On propose
+   les cinq prochaines, à partir du jour où l'examen est possible. */
+function prochainesVacances(depuis){
+  var base = depuis && depuis > aujourdhui() ? depuis : aujourdhui();
+  var an = Number(base.slice(0, 4));
+  var liste = [];
+  for(var y = an - 1; y <= an + 2; y++){
+    liste.push(['hiver-' + y, 'Hiver ' + y, y + '-03-05']);
+    liste.push(['printemps-' + y, 'Printemps ' + y, y + '-05-02']);
+    liste.push(['ete-' + y, 'Été ' + y, y + '-08-31']);
+    liste.push(['toussaint-' + y, 'Toussaint ' + y, y + '-11-02']);
+    liste.push(['noel-' + y, 'Noël ' + y, (y + 1) + '-01-03']);
+  }
+  /* la troisième case : le dernier jour approximatif — des vacances
+     déjà finies ne se proposent plus */
+  return liste.filter(function(v){ return v[2] >= base; })
+    .sort(function(a, b){ return a[2] < b[2] ? -1 : 1; }).slice(0, 5);
+}
+
+function rien(message){
+  zone.innerHTML = '<div class="pastille">📭</div><p class="centre">' + ech(message) + '</p>' +
+    '<p class="gris centre">Une question ? Répondez simplement au mail, ou appelez-nous.</p>';
+}
+
+function dessiner(){
+  var d = donnees;
+  var p = d.prenom || "l'élève";
+  var nomRvp = d.rvp === 'rvp1' ? 'RVP 1' : 'RVP 2';
+  var h = '<div class="pastille">🚗</div>' +
+    '<h1>Conduite accompagnée de ' + ech(p) + '</h1>';
+  var reste = [];
+  if(d.rvp) reste.push('le <strong>' + nomRvp + '</strong> (2h, en voiture école, avec l\'accompagnateur)');
+  if(d.examen) reste.push('l\'<strong>examen</strong>' + (d.examDes ? ', possible à partir du <strong>' + jourFr(d.examDes) + '</strong>' : ''));
+  if(reste.length) h += '<p class="gris">Il reste ' + reste.join(', puis ') + '.</p>';
+  if(d.reponduLe){
+    var r = new Date(d.reponduLe);
+    h += '<div class="avis">Vous nous avez déjà répondu le ' +
+      ('0' + r.getDate()).slice(-2) + '/' + ('0' + (r.getMonth() + 1)).slice(-2) + '/' + r.getFullYear() +
+      '. Vous pouvez changer vos réponses ci-dessous.</div>';
+  }
+  var n = 0;
+  if(d.rvp){
+    n++;
+    h += '<h2>' + n + '. Vos disponibilités pour le ' + nomRvp + '</h2>' +
+      '<p class="gris">Cochez tout ce qui vous va, de façon habituelle.</p>' +
+      '<div class="grille"><div></div>' +
+      MOMENTS.map(function(m){ return '<div class="tete">' + m[1] + '</div>'; }).join('');
+    JOURS.forEach(function(j){
+      h += '<div class="jour">' + j[1] + '</div>';
+      MOMENTS.forEach(function(m){
+        var on = (etat.dispos[j[0]] || []).indexOf(m[0]) !== -1;
+        h += '<button type="button" class="' + (on ? 'on' : '') + '" data-j="' + j[0] + '" data-m="' + m[0] + '" ' +
+          'aria-pressed="' + on + '" aria-label="' + j[1] + ' ' + m[1] + '">' + (on ? '✓' : '·') + '</button>';
+      });
+    });
+    h += '</div><label for="precision">Une précision ? (semaines impossibles, horaires…)</label>' +
+      '<input type="text" id="precision" maxlength="300" value="' + ech(etat.precision) + '">';
+  }
+  if(d.examen){
+    n++;
+    var e = etat.examen;
+    var opt = function(cle, titre, sous, plus){
+      return '<div class="option' + (e.choix === cle ? ' on' : '') + '" data-choix="' + cle + '" role="radio" aria-checked="' + (e.choix === cle) + '" tabindex="0">' +
+        '<div class="t">' + (e.choix === cle ? '◉ ' : '○ ') + titre + '</div>' +
+        (sous ? '<div class="s">' + sous + '</div>' : '') + (e.choix === cle && plus ? plus : '') + '</div>';
+    };
+    h += '<h2>' + n + '. Quand ' + ech(p) + ' veut passer l\'examen ?</h2>' +
+      opt('vite', 'Dès que possible', d.examDes ? 'à partir du ' + jourFr(d.examDes) : '') +
+      opt('egal', 'Peu importe') +
+      opt('semaine', 'Une semaine précise', e.semaine ? 'semaine du ' + jourFr(e.semaine) : 'choisissez un jour de cette semaine',
+        '<input type="date" id="semaine" value="' + ech(e.semaine) + '" min="' + ech(d.examDes || aujourdhui()) + '">') +
+      opt('vacances', 'Pendant des vacances scolaires', '',
+        '<div class="puces">' + prochainesVacances(d.examDes).map(function(v){
+          var on = e.vacances.indexOf(v[0]) !== -1;
+          return '<button type="button" data-vac="' + v[0] + '" class="' + (on ? 'on' : '') + '" aria-pressed="' + on + '">' + v[1] + '</button>';
+        }).join('') + '</div>');
+  }
+  h += '<label for="qui">Qui répond ?</label>' +
+    '<input type="text" id="qui" maxlength="80" placeholder="ex. : sa maman (accompagnatrice)" value="' + ech(etat.qui) + '">' +
+    '<button type="button" id="envoyer">Envoyer</button><div id="msg"></div>' +
+    '<div class="pied">Vous pourrez revenir sur ce lien pour changer vos réponses.</div>';
+  zone.innerHTML = h;
+  brancher();
+}
+
+function garderLesChamps(){
+  var pr = document.getElementById('precision'); if(pr) etat.precision = pr.value;
+  var qu = document.getElementById('qui'); if(qu) etat.qui = qu.value;
+  var se = document.getElementById('semaine'); if(se) etat.examen.semaine = se.value;
+}
+
+function brancher(){
+  Array.prototype.forEach.call(zone.querySelectorAll('.grille button'), function(b){
+    b.addEventListener('click', function(){
+      var j = b.getAttribute('data-j'), m = b.getAttribute('data-m');
+      var l = etat.dispos[j] || (etat.dispos[j] = []);
+      var i = l.indexOf(m);
+      if(i === -1) l.push(m); else l.splice(i, 1);
+      var on = i === -1;
+      b.className = on ? 'on' : ''; b.textContent = on ? '✓' : '·'; b.setAttribute('aria-pressed', on);
+    });
+  });
+  Array.prototype.forEach.call(zone.querySelectorAll('.option'), function(o){
+    var choisir = function(ev){
+      if(ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'BUTTON')) return;
+      garderLesChamps();
+      etat.examen.choix = o.getAttribute('data-choix');
+      dessiner();
+    };
+    o.addEventListener('click', choisir);
+    o.addEventListener('keydown', function(ev){ if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); choisir(ev); } });
+  });
+  Array.prototype.forEach.call(zone.querySelectorAll('.puces button'), function(b){
+    b.addEventListener('click', function(){
+      var v = b.getAttribute('data-vac'), l = etat.examen.vacances, i = l.indexOf(v);
+      if(i === -1) l.push(v); else l.splice(i, 1);
+      var on = i === -1;
+      b.className = on ? 'on' : ''; b.setAttribute('aria-pressed', on);
+    });
+  });
+  var se = document.getElementById('semaine');
+  if(se) se.addEventListener('change', function(){ garderLesChamps(); dessiner(); });
+  document.getElementById('envoyer').addEventListener('click', envoyer);
+}
+
+function envoyer(){
+  garderLesChamps();
+  var b = document.getElementById('envoyer'), msg = document.getElementById('msg');
+  var corps = { r: jeton, qui: etat.qui };
+  if(donnees.rvp){ corps.dispos = etat.dispos; corps.precision = etat.precision; }
+  if(donnees.examen){
+    corps.examen = { choix: etat.examen.choix };
+    if(etat.examen.choix === 'semaine'){
+      if(!etat.examen.semaine){ msg.textContent = 'Choisissez un jour de la semaine voulue.'; return; }
+      corps.examen.semaine = etat.examen.semaine;
+    }
+    if(etat.examen.choix === 'vacances'){
+      if(!etat.examen.vacances.length){ msg.textContent = 'Choisissez au moins des vacances.'; return; }
+      corps.examen.vacances = etat.examen.vacances;
+    }
+  }
+  b.disabled = true; msg.textContent = '';
+  fetch(PROXY + '/aac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || d.status !== 'ok'){
+        b.disabled = false;
+        msg.textContent = (d && (d.message || d.error)) || "L'envoi n'a pas abouti. Réessayez.";
+        return;
+      }
+      zone.innerHTML = '<div class="pastille">✅</div><h1 class="centre">Merci, c\'est noté !</h1>' +
+        '<p class="gris centre">Nous revenons vers vous pour fixer la date.<br>Vous pouvez rouvrir ce lien pour changer vos réponses.</p>';
+    })
+    .catch(function(){ b.disabled = false; msg.textContent = "Pas de connexion. Réessayez dans un instant."; });
+}
+
+if(!jeton){
+  rien("Ce lien est incomplet. Ouvrez-le depuis le mail que nous vous avons envoyé.");
+}else{
+  fetch(PROXY + '/aac?r=' + encodeURIComponent(jeton))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || d.status !== 'ok') return rien((d && (d.message || d.error)) || "Ce lien n'est plus valable.");
+      donnees = d;
+      var rep = d.reponse || {};
+      if(rep.dispos) etat.dispos = rep.dispos;
+      if(rep.precision) etat.precision = rep.precision;
+      if(rep.examen) etat.examen = { choix: rep.examen.choix || '', semaine: rep.examen.semaine || '', vacances: rep.examen.vacances || [] };
+      if(rep.qui) etat.qui = rep.qui;
+      dessiner();
+    })
+    .catch(function(){ rien("Pas de connexion. Réessayez dans un instant."); });
+}
+</script>
+</body>
+</html>
