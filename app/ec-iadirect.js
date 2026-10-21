@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 16:10 — v1219 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-iadirect.js
    🤖 L'IA AU FIL DE L'EAU, ET LE BILAN QUI NE REVIENT PAS — v1209
@@ -428,6 +428,9 @@ function ouvrirSansIA(){
   if(typeof dessinerProceduresAJoindre === 'function'){
     try{ dessinerProceduresAJoindre('proceduresManuel'); }catch(e){}
   }
+  if(typeof dessinerSegmentsARevoir === 'function'){
+    try{ dessinerSegmentsARevoir('revoirManuel'); }catch(e){}
+  }
   $('generatingView').style.display = 'none';
   $('recordView').style.display = 'none';
   v.style.display = 'block';
@@ -538,6 +541,7 @@ async function composerSansIA(){
   /* 📍 v1219 — où il en est, sous le rappel de sa frise */
   if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
   if(typeof blocProcedures === 'function') bilan += blocProcedures(transcript);
+  if(typeof blocARevoir === 'function') bilan += blocARevoir();
   if(typeof blocTranscription === 'function') bilan += blocTranscription(bilan, aere);
   if(typeof blocTrajet === 'function') bilan += blocTrajet();
   const moniteur = $('monitorName').value.trim();
