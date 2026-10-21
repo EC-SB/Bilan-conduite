@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 11:45 — v1227 */
+/* Déployé le 21/10/2026 à 12:10 — v1228 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,20 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1228,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '✉️ Suivi AAC : le mail de relance des rendez-vous, et la réponse de la famille',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Le mail de relance AAC, depuis l’app',
+        texte: 'Suivi AAC › « ✉️ Mail de relance » : la fenêtre montre où en est l’élève, ses adresses (le prescripteur se tape là s’il manque, et s’enregistre dans sa fiche), et ce qu’on demande — ses disponibilités pour le prochain RVP pratique, et « quand passer l’examen » (une case à cocher ou non, à chaque envoi). ' +
+               'Le mail reprend votre texte des 3 rendez-vous en entier, avec « ✅ fait le … » ou « ⏳ à prévoir » sur chaque titre, et reste modifiable avant l’envoi.' },
+      { emoji: '📝',
+        titre: 'La famille répond en quelques appuis',
+        texte: 'Le lien du mail ouvre une page : jours × matin / après-midi / fin de journée, et pour l’examen « dès que possible », « peu importe », une semaine précise ou des vacances scolaires. La réponse s’écrit sous l’élève : « ✉️ Relance envoyée le … · 📝 Réponse le … ».' }
+    ]
+  },
   {
     version: 1227,
     date: 'Mercredi 21 octobre 2026',
