@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/10/2026 à 10:38 — v1225 -->
+<!-- Déployé le 21/10/2026 à 11:45 — v1227 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2211,6 +2211,41 @@
     peindreLeSouvenir();
   }
 
+  /* ============================================================
+     ⚡ ENTRER TOUT DE SUITE — v1227
+
+     David : « la vérification pour entrer sur l'espace élève est très
+     longue ». La connexion attendait le classeur : son réveil, une
+     dizaine de secondes, puis tout le dossier préparé d'un coup.
+
+     Deux appels partent maintenant ENSEMBLE :
+       · « eleveEntree » — le nom et le code, vérifiés en direct par le
+         Worker : la page entre en moins d'une seconde, la messagerie
+         démarre, et les cartes disent « ⏳ … se charge » ;
+       · « eleveConnexion » — la même qu'avant : tout le reste (son
+         parcours, ses leçons, ses procédures, sa boîte…) se pose dès
+         qu'elle répond.
+     Si la connexion complète refuse (permis obtenu, accès expiré),
+     la page revient à l'écran d'entrée avec son message. Si
+     « eleveEntree » ne répond pas, ou refuse, on attend la connexion
+     complète, exactement comme avant.
+     ============================================================ */
+  var entreeRapide = false;
+
+  function memoriserLeCode(code){
+    /* Le code reste sur l'appareil — si l'élève l'a bien voulu.
+       Le retaper à chaque fois découragerait de s'entraîner ;
+       le garder sans le dire serait pire. */
+    try{
+      if(souvenirActif){
+        localStorage.setItem('ec_eleve',
+          JSON.stringify({ nom: moi.nom, code: code }));
+      }else{
+        localStorage.removeItem('ec_eleve');
+      }
+    }catch(e){}
+  }
+
   function connecter(){
     var nom = $('chNom').value.trim();
     var code = $('chCode').value.trim();
@@ -2220,9 +2255,34 @@
 
     $('btConnexion').disabled = true;
     dire('msgConnexion', 'Vérification…', 'attente');
+    lancerLaConnexion(nom, code, false);
+  }
+
+  /* ⚠️ LA MÊME POUR LE RETOUR SUR L'APPAREIL — v1227. L'élève déjà
+     venu (code gardé) passait par un chemin à part, qui ne gardait pas
+     ce que la connexion rapporte : la page redemandait ensuite son
+     dossier, son bilan et ses récitations — trois réveils de plus du
+     classeur, précisément pour l'élève le plus fidèle. */
+  function lancerLaConnexion(nom, code, auto){
+    var complete = false;
+    duDemarrage = null;
+    entreeRapide = false;
+
+    appeler({ action: 'eleveEntree', eleve: nom, code: code })
+      .then(function(r){
+        if(complete || !r || !r.eleve) return;
+        entreeRapide = true;
+        moi.nom = r.eleve;
+        moi.code = code;
+        lireModules(r);
+        memoriserLeCode(code);
+        entrerTout();
+      })
+      .catch(function(){ /* on attend la connexion complète */ });
 
     appeler({ action: 'eleveConnexion', eleve: nom, code: code })
       .then(function(d){
+        complete = true;
         moi.nom = d.eleve || nom;
         moi.code = code;
         procedures = d.procedures || [];
@@ -2235,32 +2295,56 @@
         lireModules(d);
         /* Ce que la connexion a rapporté en plus — voir « entrer ». */
         duDemarrage = d;
+        memoriserLeCode(code);
 
-        /* Le code reste sur l'appareil — si l'élève l'a bien voulu.
-           Le retaper à chaque fois découragerait de s'entraîner ;
-           le garder sans le dire serait pire. */
-        try{
-          if(souvenirActif){
-            localStorage.setItem('ec_eleve',
-              JSON.stringify({ nom: moi.nom, code: code }));
-          }else{
-            localStorage.removeItem('ec_eleve');
-          }
-        }catch(e){}
-
-        entrer();
+        if(entreeRapide) completerLEntree(); else entrer();
       })
       .catch(function(e){
+        complete = true;
+        if(entreeRapide){
+          /* Entré trop vite : le classeur dit non (formation finie,
+             accès expiré). On revient à l'écran d'entrée, avec son
+             message — et sans garder un code qui ne sert plus. */
+          entreeRapide = false;
+          $('vueEleve').classList.add('cache');
+          $('vueConnexion').classList.remove('cache');
+          try{ localStorage.removeItem('ec_eleve'); }catch(x){}
+        }
+        if(auto){ sortir(); if(e && e.message) dire('msgConnexion', e.message, 'erreur'); return; }
         dire('msgConnexion', e.message || 'Connexion impossible.', 'erreur');
       })
       .then(function(){ $('btConnexion').disabled = false; });
   }
 
+  /* Tout d'un coup : la connexion complète est arrivée la première */
   function entrer(){
+    entrerTout();
+    completerLEntree();
+  }
+
+  /* Ce qui ne dépend que de son nom et de ses modules */
+  function entrerTout(){
     $('vueConnexion').classList.add('cache');
     $('vueEleve').classList.remove('cache');
     $('bonjour').textContent = 'Bonjour ' + (moi.nom.split(' ')[0] || '');
 
+    montrer('carteReciter', ouvert('proccorriger'));
+    montrer('carteEnvois', ouvert('proccorriger'));
+    montrer('carteDrivup', ouvert('code'));
+    if(!duDemarrage){
+      $('chProc').innerHTML = '<option value="">⏳ Tes procédures se chargent…</option>';
+      if(ouvert('parcours') && $('monParcours') && !mesEtapes.length){
+        montrer('carteParcours', true);
+        $('monParcours').innerHTML = '<div class="empty">⏳ Ton parcours se charge…</div>';
+      }
+      dire('msgEnvoi', '⏳ Ton espace se charge…', 'attente');
+    }
+    dessinerLesOnglets();
+    if(ouvert('messages')) demarrerMessages();
+  }
+
+  /* Ce que la connexion complète apporte */
+  function completerLEntree(){
     $('chProc').innerHTML = procedures.length
       ? procedures.map(function(p){
           return '<option value="' + echapper(p.id) + '">' +
@@ -2275,6 +2359,8 @@
     montrer('carteReciter', ouvert('proccorriger'));
     montrer('carteEnvois', ouvert('proccorriger'));
     montrer('carteDrivup', ouvert('code'));
+    var m = $('msgEnvoi');
+    if(m && /se charge/.test(m.textContent || '')) dire('msgEnvoi', '', '');
 
     montrerBoite();
     montrerLangue();
@@ -2314,7 +2400,7 @@
       if(dem.recitations) appliquerEnvois(dem.recitations, dem.demandes);
       else chargerEnvois();
     }
-    if(ouvert('messages')) demarrerMessages();
+    /* La messagerie a démarré avec l'entrée (entrerTout) */
 
     /* ⚠️ POUR TOUT LE MONDE, et c'est la réponse qui tranche. Un
        élève qui a son permis reçoit « attendu: false » et ne voit
@@ -4432,7 +4518,10 @@
     };
     $('btPasSortir').addEventListener('click', fermer);
     fond.addEventListener('click', function(e){ if(e.target === fond) fermer(); });
-    $('btOuiSortir').addEventListener('click', function(){ fermer(); sortir(); });
+    /* ⚡ v1227 — se déconnecter recharge la page : la suivante entre
+       avant que son espace soit arrivé, et ne doit RIEN voir de celui
+       d'avant (parcours, leçons, messages) pendant ces secondes-là. */
+    $('btOuiSortir').addEventListener('click', function(){ fermer(); sortir(); try{ location.reload(); }catch(e){} });
   }
   var demandeSortie = false;
 
@@ -8557,19 +8646,7 @@
     if(garde && garde.nom && garde.code){
       moi.nom = garde.nom;
       moi.code = garde.code;
-      appeler({ action: 'eleveConnexion', eleve: moi.nom, code: moi.code })
-        .then(function(d){
-          procedures = d.procedures || [];
-          demandes = d.demandes || [];
-          maLangue = d.langue || '';
-          languesDispo = d.langues || [];
-          maBoite = d.boite || '';
-          lireRenseignements(d);
-          boiteFigee = !!d.boiteFigee;
-          lireModules(d);
-          entrer();
-        })
-        .catch(function(){ sortir(); });
+      lancerLaConnexion(garde.nom, garde.code, true);
     }
   }catch(e){}
 })();
