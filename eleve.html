@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/10/2026 à 09:16 — v1222 -->
+<!-- Déployé le 21/10/2026 à 10:38 — v1225 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -793,6 +793,16 @@
   #feuilleParcours .basnav .b2{
     flex:1; border:0; background:var(--orange); color:var(--on-accent);
   }
+  /* 🎬 v1225 — « Passer › » avance sans valider ; « ✓ Vu » attend */
+  #feuilleParcours .basnav .b1{ flex:0 0 auto; padding:13px 14px; }
+  #feuilleParcours .basnav .b0{
+    flex:0 0 auto; padding:13px 14px; border:1px solid var(--line);
+    background:transparent; color:var(--muted);
+  }
+  #feuilleParcours .basnav .b2[disabled]{
+    background:var(--line); color:var(--muted); cursor:default; font-weight:700;
+  }
+  #feuilleParcours .fpct{ font-size:12.5px; color:var(--muted); margin:4px 0 0; }
   body.feuilleOuverte{ overflow:hidden; }
 
   /* 🔎 Les résultats */
@@ -3434,6 +3444,8 @@
     var x = file.filter(function(y){ return y.cle === cle; })[0];
     if(!x) return;
     fileDeLaFeuille = file;
+    /* Passer d'un segment à l'autre : ce qu'il a regardé du premier part */
+    if(feuilleIci && feuilleIci !== cle) envoyerLaPartDeVideo(feuilleIci, true);
     feuilleIci = cle;
 
     var f = $('feuilleParcours');
@@ -3465,14 +3477,32 @@
     for(var i = 0; i < fs.length; i++) fs[i].addEventListener('click', fermerLaFeuille);
     var sc = f.querySelector('.feuille');
     if(sc) sc.scrollTop = 0;
-    dessinerLeBasDeLaFeuille();
     brancherLesCarrousels(f);
     brancherLeTracker(f.querySelector('.feuille'));
+    dessinerLeBasDeLaFeuille();
   }
+
+  /* ============================================================
+     ⚠️ « ✓ VU » NE SE DONNE PLUS SANS AVOIR VU — v1225
+
+     David : « côté élève j'ai juste appuyé sur Vu — Suivant sans
+     regarder la vidéo, et dans le suivi on voit qu'il a tout ». Ses
+     choix :
+       · une VIDÉO : le bouton reste grisé, avec la part regardée
+         (« ▶ Regarde la vidéo — 35 % »), jusqu'à 90 % des secondes
+         VRAIMENT lues (sauter à la fin ne compte pas) ;
+       · le reste (texte, images, PDF) : le bouton attend le temps de
+         lecture, avec un compte à rebours ;
+       · à côté, « Passer › » avance SANS RIEN VALIDER : la pastille
+         reste à voir, chez nous et chez lui.
+     Un segment sans rien à lire garde son « ✓ Vu » tout de suite.
+     ============================================================ */
+  var compteARebours = null;
 
   function dessinerLeBasDeLaFeuille(){
     var bas = $('feuilleBas');
     if(!bas || !feuilleIci) return;
+    clearInterval(compteARebours); compteARebours = null;
     var i = -1;
     fileDeLaFeuille.forEach(function(y, k){ if(y.cle === feuilleIci) i = k; });
     var x = fileDeLaFeuille[i];
@@ -3480,22 +3510,50 @@
     var vu = !!x.sg.vuLe;
     var dernier = (i === fileDeLaFeuille.length - 1);
     var aller = dernier ? 'Terminer' : 'Suivant ›';
+    var el = document.querySelector('#feuilleParcours .feuille');
+    var aVideo = !!(el && el.querySelector('video'));
+    var ms = el ? dureeDeLecture(el) : null;
+    /* Ce qu'il faut attendre : une vidéo, ou le temps de lire */
+    var st = lectureDu(x.cle);
+    var attente = !vu && ((aVideo && (st.pct || 0) < PART_DE_VIDEO * 100) ||
+                          (!aVideo && ms !== null && !!enLecture && enLecture.cle === x.cle));
+    var pctTxt = aVideo ? ' · ' + (st.pct || 0) + ' %' : '';
     bas.innerHTML =
       (vu ? '<div class="fvu">✓ Vu le ' + echapper(courtJourHeure(x.sg.vuLe)) +
             ' · <button type="button" class="defaire">Je ne l’ai pas encore vu</button></div>' : '') +
+      (aVideo && (st.pct || vu) ? '<div class="fpct">🎬 Vidéo regardée à <b>' + (st.pct || 0) + ' %</b></div>' : '') +
       '<div class="basnav">' +
         '<button type="button" class="b1" data-fermer="1">Fermer</button>' +
-        '<button type="button" class="b2">' + (vu ? aller : '✓ Vu — ' + aller) + '</button>' +
+        (attente ? '<button type="button" class="b0">Passer ›</button>' : '') +
+        '<button type="button" class="b2"' + (attente ? ' disabled' : '') + '>' +
+          (vu ? aller : attente ? (aVideo ? '▶ Vidéo' + pctTxt : '⏳ Lecture') : '✓ Vu — ' + aller) +
+        '</button>' +
       '</div>';
     bas.querySelector('.b1').addEventListener('click', fermerLaFeuille);
+    var allerPlusLoin = function(){
+      if(dernier) fermerLaFeuille();
+      else ouvrirLaFeuille(fileDeLaFeuille[i + 1].cle);
+    };
+    var b0 = bas.querySelector('.b0');
+    if(b0) b0.addEventListener('click', allerPlusLoin);
     bas.querySelector('.b2').addEventListener('click', function(){
+      if(this.disabled) return;
       if(!x.sg.vuLe){
         dejaEnvoye[x.cle] = true;
         envoyerLaCoche(x.e.id, x.sg.id, true, null, 'suivant');
       }
-      if(dernier) fermerLaFeuille();
-      else ouvrirLaFeuille(fileDeLaFeuille[i + 1].cle);
+      allerPlusLoin();
     });
+    /* Le compte à rebours du temps de lecture */
+    if(attente && !aVideo && enLecture && enLecture.cle === x.cle){
+      var b2 = bas.querySelector('.b2');
+      var tic = function(){
+        var reste = Math.max(0, Math.ceil((enLecture ? enLecture.fin - Date.now() : 0) / 1000));
+        if(b2) b2.textContent = '⏳ Lecture · ' + reste + ' s';
+      };
+      tic();
+      compteARebours = setInterval(tic, 500);
+    }
     var d = bas.querySelector('.defaire');
     if(d) d.addEventListener('click', function(){
       d.disabled = true;
@@ -3504,8 +3562,21 @@
     });
   }
 
+  /* Ce bouton seul se met à jour pendant la vidéo : redessiner le bas
+     à chaque seconde ferait clignoter les boutons sous son doigt. */
+  function majLaPartDeVideo(cle){
+    if(feuilleIci !== cle) return;
+    var st = lectureDu(cle);
+    var b2 = document.querySelector('#feuilleBas .b2');
+    if(b2 && b2.disabled) b2.textContent = '▶ Vidéo · ' + (st.pct || 0) + ' %';
+    var fp = document.querySelector('#feuilleBas .fpct b');
+    if(fp) fp.textContent = (st.pct || 0) + ' %';
+  }
+
   function fermerLaFeuille(){
     arreterLaLecture();
+    clearInterval(compteARebours); compteARebours = null;
+    if(feuilleIci) envoyerLaPartDeVideo(feuilleIci, true);
     feuilleIci = '';
     var f = $('feuilleParcours');
     if(f){ f.innerHTML = ''; f.className = ''; }
@@ -3865,29 +3936,107 @@
     if(enLecture){ clearTimeout(enLecture.minuterie); enLecture = null; }
   }
 
+  /* ============================================================
+     🎬 LES SECONDES VRAIMENT REGARDÉES — v1225
+
+     On garde, par vidéo, les morceaux réellement lus : un morceau
+     n'avance que si la lecture avance d'elle-même (moins de 3 s entre
+     deux relevés). Faire glisser le curseur à la fin, c'est un saut :
+     il ne compte pas. Revoir un passage ne le compte pas deux fois —
+     les morceaux se fondent.
+
+     La part (en %) se garde pour la séance (rouvrir le segment
+     repart d'où il en était) et part au Worker, qui garde la
+     MEILLEURE : toutes les 10 %, et quand on quitte le segment.
+     ============================================================ */
+  var lectures = {};      /* cle → { morceaux: [[ [a,b]… ] par vidéo], durees: [], pct, envoye } */
+
+  function lectureDu(cle){
+    return lectures[cle] || (lectures[cle] = { morceaux: [], durees: [], pct: 0, envoye: 0 });
+  }
+
+  function fondreLesMorceaux(l){
+    var t = l.slice().sort(function(a, b){ return a[0] - b[0]; }), out = [];
+    t.forEach(function(m){
+      var d = out[out.length - 1];
+      if(d && m[0] <= d[1] + 0.5) d[1] = Math.max(d[1], m[1]);
+      else out.push([m[0], m[1]]);
+    });
+    return out;
+  }
+
+  function calculerLaPart(st){
+    var vu = 0, total = 0;
+    for(var k = 0; k < st.durees.length; k++){
+      var d = Number(st.durees[k]) || 0;
+      if(!d || !isFinite(d)) continue;
+      total += d;
+      (st.morceaux[k] || []).forEach(function(m){ vu += Math.max(0, Math.min(d, m[1]) - Math.max(0, m[0])); });
+    }
+    return total ? Math.min(100, Math.floor(vu / total * 100)) : 0;
+  }
+
+  function envoyerLaPartDeVideo(cle, aLaFin){
+    var st = lectures[cle];
+    if(!st || !st.pct || st.pct <= st.envoye) return;
+    if(!aLaFin && st.pct < st.envoye + 10 && st.pct < 90) return;
+    st.envoye = st.pct;
+    var p = cle.split('::');
+    appeler({ action: 'eleveVideoVue', eleve: moi.nom, code: moi.code,
+              guide: p[0], segment: p.slice(1).join('::'), pct: st.pct }).catch(function(){ st.envoye = 0; });
+  }
+
   function brancherLeTracker(el){
     arreterLaLecture();
     if(!el) return;
     var cle = el.getAttribute('data-seg') || '';
     if(!cle) return;
 
-    /* Les vidéos : 90 % de la durée, et pas une seconde de moins. */
+    /* Les vidéos : 90 % des secondes vraiment lues. */
     var vids = el.querySelectorAll('video');
+    var st = lectureDu(cle);
     for(var v = 0; v < vids.length; v++){
-      (function(vid){
+      (function(vid, k){
+        if(!st.morceaux[k]) st.morceaux[k] = [];
+        var dernier = null;
+        var noterDuree = function(){
+          var d = Number(vid.duration) || 0;
+          if(d && isFinite(d)) st.durees[k] = d;
+        };
+        vid.addEventListener('loadedmetadata', noterDuree);
+        vid.addEventListener('durationchange', noterDuree);
+        vid.addEventListener('play', function(){ dernier = Number(vid.currentTime) || 0; });
+        vid.addEventListener('seeking', function(){ dernier = null; });
+        vid.addEventListener('seeked', function(){ dernier = vid.paused ? null : (Number(vid.currentTime) || 0); });
+        vid.addEventListener('pause', function(){ dernier = null; });
+        vid.addEventListener('ended', function(){ dernier = null; });
         vid.addEventListener('timeupdate', function(){
-          var duree = Number(vid.duration) || 0;
-          if(!duree) return;
-          if((Number(vid.currentTime) || 0) / duree < PART_DE_VIDEO) return;
-          noterVu(el, 'video');
+          noterDuree();
+          if(vid.paused || vid.seeking) return;
+          var t = Number(vid.currentTime) || 0;
+          if(dernier !== null && t > dernier && t - dernier < 3){
+            st.morceaux[k].push([dernier, t]);
+            st.morceaux[k] = fondreLesMorceaux(st.morceaux[k]);
+          }
+          dernier = t;
+          var avant = st.pct;
+          st.pct = Math.max(st.pct, calculerLaPart(st));
+          if(st.pct !== avant) majLaPartDeVideo(cle);
+          if(st.pct >= PART_DE_VIDEO * 100){
+            envoyerLaPartDeVideo(cle, true);
+            noterVu(el, 'video');
+          }else{
+            envoyerLaPartDeVideo(cle, false);
+          }
         });
-      })(vids[v]);
+        noterDuree();
+      })(vids[v], v);
     }
     /* Un segment qui tient une vidéo n'est lu que par elle. */
     if(vids.length || dejaEnvoye[cle]) return;
     var ms = dureeDeLecture(el);
     if(ms === null) return;
-    enLecture = { cle: cle, minuterie: setTimeout(function(){
+    enLecture = { cle: cle, fin: Date.now() + ms, minuterie: setTimeout(function(){
       enLecture = null;
       if(feuilleIci === cle) noterVu(el, 'lu');
     }, ms) };
