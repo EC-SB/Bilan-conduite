@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:16 — v1222 */
+/* Déployé le 21/10/2026 à 09:53 — v1223 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -803,6 +803,13 @@ async function ouvrirLeGuide(x, groupe){
           'Publier quand même ?')) return;
     }
 
+    /* ⚠️ CHAQUE TITRE D'ÉTAPE GARDE UN IDENTIFIANT — v1223. Sans lui,
+       tous les segments d'un guide n'en faisaient qu'un (voir
+       segmentsDuGuide). Celui qu'on pose est celui que le classeur
+       lui donnait déjà (« t » + son rang) : rien ne change de nom, et
+       il ne bougera plus si l'on déplace le titre ensuite. */
+    poserLesIdsDesTitres(blocs);
+
     enregistrementEnCours = true;
     cadre.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try{
@@ -1388,6 +1395,22 @@ function relireLesBlocs(cadre, blocs){
 function blocsSansFichier(blocs){
   return (blocs || []).filter(b => !blocEcrit(b.type) &&
                                    clesDuBloc(b).length === 0);
+}
+
+function poserLesIdsDesTitres(blocs){
+  const pris = {};
+  (blocs || []).forEach(b => { if(b && b.type === 'titre' && b.id) pris[String(b.id)] = true; });
+  let rang = 0;
+  (blocs || []).forEach(b => {
+    if(!b || b.type !== 'titre') return;
+    rang++;
+    if(b.id) return;
+    let id = 't' + rang;
+    while(pris[id]) id = 't' + rang + '-' + Math.random().toString(36).slice(2, 6);
+    pris[id] = true;
+    b.id = id;
+  });
+  return blocs;
 }
 
 /* ⚠️ VOIR AVANT DE PUBLIER. Composer à l'aveugle, c'est publier
