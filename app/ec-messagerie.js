@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 16:55 — v1185 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -6071,7 +6071,10 @@ const ICONES_BARRE_EC = (() => {
       '<path d="M16.6 10.4 22.2 7v10l-5.6-3.4z" fill="currentColor"/><circle class="trou" cx="6" cy="10" r="1.4"/>'),
     video: svg('<rect x="2.5" y="4" width="19" height="16" rx="3" fill="currentColor"/>' +
       '<path class="trou" d="M10 8.4v7.2l6-3.6z"/>'),
-    fichier: svg('<path d="M20.5 11.2 12.3 19.4a5 5 0 0 1-7.1-7.1l8.4-8.4a3.4 3.4 0 0 1 4.8 4.8l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>')
+    fichier: svg('<path d="M20.5 11.2 12.3 19.4a5 5 0 0 1-7.1-7.1l8.4-8.4a3.4 3.4 0 0 1 4.8 4.8l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'),
+    /* 🎬 v1222 — « à revoir » : un marque-page avec ▶ */
+    revoir: svg('<path d="M6 2.5h12A1.5 1.5 0 0 1 19.5 4v17.3L12 16.7l-7.5 4.6V4A1.5 1.5 0 0 1 6 2.5z" fill="currentColor"/>' +
+      '<path class="trou" d="M10 6.6v6.6l5.2-3.3z"/>')
   };
 })();
 
@@ -6109,7 +6112,102 @@ function gestesDuPlus(){
   }
   g.push({ id: 'msgPlusVideo',   icone: 'video',   nom: 'Choisir<br>une vidéo', faire: choisirUneVideoEC });
   g.push({ id: 'msgPlusFichier', icone: 'fichier', nom: 'Joindre<br>un fichier', faire: choisirUnFichierEC });
+  /* 🎬 v1222 — dans une conversation avec un élève seulement */
+  if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.eleve){
+    g.push({ id: 'msgPlusRevoir', icone: 'revoir', nom: 'À<br>revoir', faire: () => choisirUnSegmentARevoirEC() });
+  }
   return g;
+}
+
+/* ============================================================
+   🎬 « À REVOIR » DANS LA CONVERSATION — v1222
+
+   David : dire à l'élève « va revoir tel endroit ». ＋ › À revoir :
+   on choisit un segment de SON parcours, un mot si on veut ; une
+   carte part dans le fil — il la touche, le segment s'ouvre dans son
+   « Réviser » — et le segment s'épingle 📌 en tête de son Réviser.
+   ============================================================ */
+async function choisirUnSegmentARevoirEC(){
+  const f = filOuvertEC;
+  if(!f || !f.conv || !f.conv.eleve) return;
+  const eleve = f.conv.eleve;
+  let guides = [];
+  try{
+    const d = await appelPrep({ action: 'parcoursSegmentsDeLEleve', eleve: eleve });
+    guides = (d && d.guides) || [];
+  }catch(e){ showToast('Son parcours ne se lit pas : ' + (e.message || e)); return; }
+  if(!guides.length){ showToast('Aucun guide n’est ouvert dans son coin révisions.'); return; }
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 95vw);max-height:88vh;overflow-y:auto;';
+  const h = document.createElement('h3');
+  h.textContent = '🎬 À revoir — ' + eleve;
+  boite.appendChild(h);
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
+  aide.textContent = 'Une carte part dans la conversation ; il la touche et le segment s’ouvre. Il s’épingle aussi 📌 en tête de son « Réviser ». ✓ = déjà vu.';
+  boite.appendChild(aide);
+  const ch = document.createElement('input');
+  ch.type = 'search';
+  ch.placeholder = 'Chercher un segment…';
+  ch.style.cssText = 'margin-bottom:8px;';
+  boite.appendChild(ch);
+  const liste = document.createElement('div');
+  boite.appendChild(liste);
+  const sans = t => String(t || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const dessiner = () => {
+    liste.textContent = '';
+    const q = sans(ch.value).trim();
+    guides.forEach(g => {
+      const segs = g.segments.filter(sg => !q || sans(sg.titre + ' ' + g.titre).indexOf(q) !== -1);
+      if(!segs.length) return;
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 4px;';
+      t.textContent = (g.groupeIcone ? g.groupeIcone + ' ' : '') + (g.titre || 'Guide');
+      liste.appendChild(t);
+      segs.forEach(sg => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'display:block;width:100%;text-align:left;margin:0 0 6px;font-weight:600;';
+        b.textContent = (sg.titre || 'Segment') + (sg.vu ? '  ✓' : '');
+        b.addEventListener('click', async () => {
+          const mot = await demander('Un mot pour ' + eleve + ' (facultatif) :', '', '🎬 « ' + (sg.titre || 'Segment') + ' »');
+          if(mot === null || mot === undefined) return;
+          b.disabled = true;
+          try{
+            const r = await appelPrep({ action: 'convRevoir', id: f.conv.id, guide: g.id, segment: sg.id || '',
+                                        titre: sg.titre || '', guideTitre: g.titre || '', mot: String(mot || '').trim() });
+            if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+            fermerFond(fond);
+            await rafraichirLeFil();
+          }catch(e){ b.disabled = false; showToast('Pas parti : ' + (e.message || e)); }
+        });
+        liste.appendChild(b);
+      });
+    });
+    if(!liste.childNodes.length){
+      const v = document.createElement('div');
+      v.className = 'empty';
+      v.textContent = 'Rien ne correspond.';
+      liste.appendChild(v);
+    }
+  };
+  ch.addEventListener('input', dessiner);
+  dessiner();
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => fermerFond(fond));
+  r.appendChild(bF);
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
 }
 
 /* Le geste d'un id, sans passer par le panneau — pour le fil neuf,
