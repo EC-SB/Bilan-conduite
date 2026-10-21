@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 18:14 — v1221 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1222,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '📌 « À revoir » pour un élève, ↺ remettre à voir, et les heures supp dans L’équipe',
+    quoi: [
+      { emoji: '⏫',
+        titre: 'L’équipe › Heures : les heures supplémentaires',
+        texte: 'Normales et à 25 % du mois, ce qui reste des mois d’avant, la récup à prendre, et la décision une fois le mois clôturé — le calcul même de 💶 Paie. ' +
+               'Un interrupteur 👁️ décide si la personne les voit dans Ma fiche (caché au départ).' },
+      { emoji: '↺',
+        titre: 'Remettre à voir, pour un élève',
+        texte: 'Dans son parcours (Parcours des élèves ou son dossier) : ↺ sur un segment (dans sa bulle), sur un guide, ou sur tout un groupe. ' +
+               'La pastille repasse à voir chez nous et chez lui ; sa première date et son nombre de fois sont gardés et repartent s’il le revoit.' },
+      { emoji: '📌',
+        titre: 'Lui demander de revoir un segment — trois façons',
+        texte: 'Depuis son parcours (bulle d’un segment › 📌, avec un mot si on veut) ; pendant le cours (tiroir « 🎬 À revoir dans son coin révisions », sous les procédures : ils partent en fin de bilan avec un lien) ; ' +
+               'ou dans une conversation avec lui (＋ › À revoir : une carte qu’il touche pour ouvrir le segment). ' +
+               'Chez lui, ça s’épingle en tête de « Réviser » avec une notification, et ça s’éteint tout seul quand il l’a relu — on voit « revu le … ».' }
+    ]
+  },
   {
     version: 1221,
     date: 'Mardi 20 octobre 2026',
