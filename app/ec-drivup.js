@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 13:06 — v1229 */
+/* Déployé le 21/10/2026 à 13:18 — v1230 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -1332,8 +1332,13 @@ function calculerEcoutesDrivup(d, ctx){
     const [jour, debut, groupe] = k.split('|');
     let deja = 0;
     (cols[groupe] || []).forEach(c => (occupe[c.id + '|' + jour] || []).forEach(x => { if(x[2] === debut) deja++; }));
-    parCreneau[k].forEach(l => {
-      if(deja > 0){ deja--; l.etat = 'deja'; l.coche = false; l.raison = 'écoute déjà ouverte à cette heure'; }
+    /* ⚠️ UNE ÉCOUTE PAR COURS — David : « s'il y a 3 cours à 10h sans
+       contre-indication, il faut 3 écoutes en face ». Les écoutes déjà
+       posées servent d'abord les cours qui en ont besoin : un 1er cours
+       ou un préalable à la même heure ne « prend » pas celle d'un
+       autre, sinon l'autre resterait sans la sienne. */
+    parCreneau[k].slice().sort((a, b) => (a.etat === 'ouvrir' ? 0 : 1) - (b.etat === 'ouvrir' ? 0 : 1)).forEach(l => {
+      if(deja > 0 && l.etat === 'ouvrir'){ deja--; l.etat = 'deja'; l.coche = false; l.raison = 'écoute déjà ouverte à cette heure'; }
     });
   });
 
