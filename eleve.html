@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 20/10/2026 à 18:14 — v1221 -->
+<!-- Déployé le 21/10/2026 à 09:16 — v1222 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -669,6 +669,7 @@
     font-family:inherit; box-shadow:none; border-radius:0;
     -webkit-appearance:none; appearance:none;
   }
+  body.clair .rechP input{ background:transparent; }
   .rechP input::placeholder{ color:var(--muted); }
   .rechP input::-webkit-search-cancel-button{ display:none; }
   .rechP button{
@@ -726,6 +727,25 @@
 
   /* Le panneau d'un segment. Centré comme la page sur un écran
      large, au-dessus de la barre des onglets. */
+  /* 📌 À revoir — v1222 */
+  .aRevoir{
+    border:1.5px solid var(--orange); background:var(--orange-soft);
+    border-radius:14px; padding:10px 12px 4px; margin:0 0 12px;
+  }
+  .aRevoir .arT{ font-size:13px; font-weight:800; color:var(--on-accent); margin-bottom:6px; }
+  .aRevoir .arL{
+    display:block; width:100%; text-align:left; margin:0 0 8px; padding:9px 11px;
+    border:0; border-radius:11px; background:#fff; color:#14161B;
+    font-family:inherit; cursor:pointer;
+  }
+  .aRevoir .arL b{ display:block; font-size:14.5px; }
+  .aRevoir .arL small{ display:block; font-size:12px; color:#64655F; margin-top:2px; }
+  .aRevoir .arMot{ display:block; font-size:13px; font-style:italic; margin-top:4px; color:#2C2F36; }
+  .chemin .rond{ position:relative; }
+  .chemin .rond .pin{
+    position:absolute; top:-6px; right:-6px; font-style:normal; font-size:16px;
+    line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));
+  }
   #feuilleParcours .voile{
     position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80;
   }
@@ -2822,6 +2842,19 @@
     if(b && !$('rgEcran')) ouvrirRenseignements();
   });
 
+  /* 🎬 v1222 — la carte « à revoir » d'une conversation */
+  document.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-revoir-seg]');
+    if(!b) return;
+    var cle = b.getAttribute('data-revoir-seg') || '';
+    if(!trouverLeSegment(cle)){
+      dire('msgEnvoi', 'Ce segment n’est pas (ou plus) dans ton parcours.', 'erreur');
+      return;
+    }
+    try{ allerAOnglet('reviser'); }catch(e){}
+    ouvrirLaFeuille(cle);
+  });
+
   function questionDeRg(id){
     return questionsDuModeleRg().filter(function(q){ return q.id === id; })[0] || {};
   }
@@ -2995,7 +3028,33 @@
   function poserLeParcours(p){
     mesEtapes = (p && p.etapes) || [];
     dernierAvant = (p && p.avant) || null;
+    mesARevoir = (p && p.aRevoir) || [];
     dessinerParcours(dernierAvant);
+    /* 📌 v1222 — l'espace s'ouvre POUR « à revoir » (la notification,
+       ou un lien) : on va droit à Réviser, et au segment s'il est dit. */
+    var lien = lienDuParcoursDansLAdresse();
+    if(lien.vue === 'reviser' || lien.seg){
+      try{ allerAOnglet('reviser'); }catch(e){}
+      if(lien.seg) ouvrirLaFeuille(lien.seg);
+    }
+  }
+
+  /* « ?vue=reviser » et « ?seg=guide::segment », lus une fois puis
+     retirés de l'adresse : un rechargement trois jours plus tard ne
+     doit pas rouvrir le même segment. */
+  var lienDuParcoursLu = false;
+  function lienDuParcoursDansLAdresse(){
+    if(lienDuParcoursLu) return {};
+    lienDuParcoursLu = true;
+    try{
+      var u = new URL(window.location.href);
+      var vue = u.searchParams.get('vue') || '';
+      var seg = u.searchParams.get('seg') || '';
+      if(!vue && !seg) return {};
+      u.searchParams.delete('vue'); u.searchParams.delete('seg');
+      window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+      return { vue: vue, seg: seg };
+    }catch(e){ return {}; }
   }
 
   /* ⚠️ UN SOUS-ONGLET PAR GROUPE — v1039.
@@ -3077,6 +3136,8 @@
   var TOUS_LES_GROUPES = '*';
   var rechercheIci = '';
   var mesLecons = [];
+  /* 📌 v1222 — ce que son moniteur lui demande de revoir */
+  var mesARevoir = [];
 
   function dessinerParcours(avant){
     var z = $('monParcours');
@@ -3184,7 +3245,7 @@
     }
 
     var g = groupesAffiches();
-    var html = '';
+    var html = carteARevoir();
     if(g.tous.length > 1){
       var resteTout = 0;
       var puces = g.tous.map(function(gr){
@@ -3215,13 +3276,15 @@
       var vu = !!x.sg.vuLe;
       var ici = (x.cle === cleIci);
       if(x.k > 0) html += '<div class="trait' + (droite ? ' d' : '') + '"></div>';
+      var epingle = estARevoir(x.cle);
       html += '<button type="button" class="noeud' + (droite ? ' d' : '') +
-        (vu ? ' vu' : '') + (ici ? ' ici' : '') + '"' +
+        (vu ? ' vu' : '') + (ici ? ' ici' : '') + (epingle ? ' epingle' : '') + '"' +
         ' data-ouvrir="' + echapper(x.cle) + '"' +
         ' data-seg="' + echapper(x.cle) + '"' +
         ' data-guide="' + echapper(x.e.id) + '"' +
         ' data-segid="' + echapper(x.sg.id) + '">' +
-        '<span class="rond">' + (vu ? '✓' : (ici ? '▶' : (x.k + 1))) + '</span>' +
+        '<span class="rond">' + (vu ? '✓' : (ici ? '▶' : (x.k + 1))) +
+          (epingle ? '<i class="pin" aria-label="À revoir">📌</i>' : '') + '</span>' +
         '<span class="lib">' + echapper(x.sg.titre || 'Segment') +
           '<small>' + echapper(vu ? 'vu le ' + jourDuVu(x.sg.vuLe)
                                   : resumeDuSegment(x.e, x.sg)) + '</small></span>' +
@@ -3250,6 +3313,50 @@
     return '<button type="button" data-groupe="' + echapper(id) + '"' +
       (id === groupeIci ? ' class="ici"' : '') + '>' + echapper(nom) +
       (reste ? '<span class="pastille">' + reste + '</span>' : ' ✓') + '</button>';
+  }
+
+  /* ============================================================
+     📌 À REVOIR — v1222
+
+     David : « il faut qu'on puisse dire à l'élève d'aller voir tel ou
+     tel endroit ». Ce que son moniteur lui demande de revoir passe
+     EN TÊTE de Réviser, et la pastille porte 📌. Ça s'éteint tout
+     seul quand il l'a relu : le Worker le note, et la carte se
+     redessine sans lui.
+     ============================================================ */
+  function trouverLeSegment(cle){
+    var x = null;
+    mesEtapes.forEach(function(e){
+      segmentsDe(e).forEach(function(sg){ if(e.id + '::' + sg.id === cle) x = { e: e, sg: sg }; });
+    });
+    return x;
+  }
+
+  function estARevoir(cle){
+    return mesARevoir.some(function(r){ return r.guide + '::' + (r.segment || '') === cle; });
+  }
+
+  function carteARevoir(){
+    var lignes = [];
+    mesARevoir.forEach(function(r){
+      var cle = r.guide + '::' + (r.segment || '');
+      var x = trouverLeSegment(cle);
+      if(!x) return;   /* un segment qui n'est plus dans son parcours */
+      lignes.push('<button type="button" class="arL" data-ouvrir="' + echapper(cle) + '">' +
+        '<b>' + echapper(x.sg.titre || r.titre || 'Segment') + '</b>' +
+        '<small>' + echapper((x.e.groupeIcone ? x.e.groupeIcone + ' ' : '') + (x.e.titre || '') +
+          (r.par ? ' · demandé par ' + prenomCourt(r.par) : '')) + '</small>' +
+        (r.mot ? '<span class="arMot">« ' + echapper(r.mot) + ' »</span>' : '') +
+        '</button>');
+    });
+    if(!lignes.length) return '';
+    return '<div class="aRevoir"><div class="arT">📌 À revoir — ton moniteur te le demande</div>' +
+           lignes.join('') + '</div>';
+  }
+
+  function prenomCourt(nom){
+    var m = String(nom || '').trim().split(/\s+/);
+    return m.length > 1 ? m[m.length - 1] : (m[0] || '');
   }
 
   function brancherLesOuvertures(zone){
@@ -3818,6 +3925,12 @@
            est derrière le panneau : le redessiner ne fait rien sauter
            sous ses doigts. Le panneau, lui, garde sa vidéo en cours ;
            seul son bas change (« ✓ Vu le … »). */
+        /* 📌 relu : la demande s'éteint ici aussi (le Worker l'a notée) */
+        if(vu){
+          mesARevoir = mesARevoir.filter(function(r){
+            return !(r.guide === guide && String(r.segment || '') === String(segment || ''));
+          });
+        }
         majPuceDuSegment(guide, segment);
       })
       .catch(function(e){
@@ -5147,6 +5260,13 @@
     if(m.motif === 'renseignements' && modeleRg){
       h += '<button type="button" class="btRgFil" data-rg-ouvrir="1">📋 ' +
            echapper((modeleRg.carte && modeleRg.carte.titre) || 'Mes renseignements') + '</button>';
+    }
+    /* 🎬 v1222 — « à revoir » envoyé dans la conversation : un appui
+       ouvre le segment, dans son panneau de Réviser. */
+    if(m.motif === 'revoir' && m.donnees && m.donnees.guide){
+      h += '<button type="button" class="btRgFil" data-revoir-seg="' +
+           echapper(m.donnees.guide + '::' + (m.donnees.segment || '')) + '">🎬 Ouvrir « ' +
+           echapper(m.donnees.titre || 'le segment') + ' »</button>';
     }
     h += '<span class="hh">' +
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
@@ -7771,6 +7891,11 @@
       var d = ev && ev.data;
       /* 📞 v1183 — un appel qui sonne pendant que la page est ouverte */
       if(d && d.quoi === 'appel'){ chercherLesSonneriesEl(); return; }
+      /* 📌 v1222 — « à revoir » : l'onglet Réviser */
+      if(d && d.quoi === 'ouvrirVue'){
+        if(d.vue === 'reviser'){ try{ allerAOnglet('reviser'); }catch(e){} }
+        return;
+      }
       if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
       try{ allerAOnglet('messages'); ouvrirFilEleve(d.fil); }catch(e){}
       if(d.appel) chercherLesSonneriesEl();
