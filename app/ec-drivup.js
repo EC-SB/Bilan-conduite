@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 13:41 — v1231 */
+/* Déployé le 21/10/2026 à 14:16 — v1233 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -1244,7 +1244,9 @@ function calculerEcoutesDrivup(d, ctx){
   evs.forEach(e => {
     if(!colsParId[e.res]) return;
     (occupe[e.res + '|' + e.jour] = occupe[e.res + '|' + e.jour] || [])
-      .push([minutesDrivup(e.debut), minutesDrivup(e.fin), idsEcoute[e.type] ? e.debut : null]);
+      .push([minutesDrivup(e.debut), minutesDrivup(e.fin), idsEcoute[e.type] ? e.debut : null,
+             /* « NON » posé dans une colonne d'écoute, en face d'un cours */
+             nomDe(e.type) === 'non' || sansAccentDrivup(e.titre) === 'non']);
   });
   const libre = (res, jour, a, b) => !(occupe[res + '|' + jour] || []).some(x => x[0] < b && a < x[1]);
 
@@ -1330,27 +1332,54 @@ function calculerEcoutesDrivup(d, ctx){
   /* Déjà ouverte : à la même heure, autant d'écoutes dans les colonnes
      du groupe que de cours — les premiers cours (ordre de l'écran)
      sont servis. */
+  /* ⚠️ DÉJÀ OUVERTE — une écoute par cours. David : « s'il y a 3 cours
+     à 10h sans contre-indication, il faut 3 écoutes en face ».
+
+     Une écoute déjà posée dans les colonnes du groupe sert un cours
+     quand elle COUVRE son début : la même heure, ou commencée avant
+     et pas finie — le samedi 31/10, l'écoute 4h de BV 3 posée à 8h
+     (un élève inscrit) sert aussi le cours de 10h. Mais une écoute ne
+     sert qu'un cours à la fois : tant que le cours qu'elle sert n'est
+     pas fini, elle n'est pas libre pour un autre.
+
+     Elle sert d'abord les cours qui en ont besoin (un 1er cours ou un
+     préalable ne « prend » pas celle d'un autre), d'abord à la même
+     heure, d'abord de la même durée (le 24/10 à 13h : l'écoute 2h est
+     celle du cours de 2h de Hery, pas du cours d'1h d'à côté). On
+     avance dans l'ordre des heures. */
+  const existantes = [];
+  ['bea', 'bv', 'loudeac'].forEach(g => (cols[g] || []).forEach(c => {
+    Object.keys(occupe).filter(k => k.indexOf(c.id + '|') === 0).forEach(k => {
+      const jour = k.slice(c.id.length + 1);
+      occupe[k].forEach(x => {
+        if(x[2] !== null) existantes.push({ groupe: g, jour: jour, a: x[0], b: x[1], debut: x[2], libreA: 0 });
+        else if(x[3]) existantes.push({ groupe: g, jour: jour, a: x[0], b: x[1], debut: heureDeMinutesDrivup(x[0]), libreA: 0, non: true });
+      });
+    });
+  }));
   const parCreneau = {};
   lignes.forEach(l => { (parCreneau[l.jour + '|' + l.debut + '|' + l.groupe] = parCreneau[l.jour + '|' + l.debut + '|' + l.groupe] || []).push(l); });
-  Object.keys(parCreneau).forEach(k => {
+  Object.keys(parCreneau).sort().forEach(k => {
     const [jour, debut, groupe] = k.split('|');
-    /* Les écoutes déjà posées à cette heure dans les colonnes du groupe,
-       avec leur durée */
-    const deja = [];
-    (cols[groupe] || []).forEach(c => (occupe[c.id + '|' + jour] || []).forEach(x => { if(x[2] === debut) deja.push(x[1] - x[0]); }));
-    /* ⚠️ UNE ÉCOUTE PAR COURS — David : « s'il y a 3 cours à 10h sans
-       contre-indication, il faut 3 écoutes en face ». Les écoutes déjà
-       posées servent seulement les cours qui en ont besoin (un 1er
-       cours ou un préalable ne « prend » pas celle d'un autre), et
-       d'abord le cours de LA MÊME DURÉE : le 24/10 à 13h, l'écoute 2h
-       est celle du cours de 2h de Hery, pas du cours d'1h d'à côté. */
+    const t = minutesDrivup(debut);
     const besoin = parCreneau[k].filter(l => l.etat === 'ouvrir' && l.prestation);
-    const servir = l => { l.etat = 'deja'; l.coche = false; l.raison = 'écoute déjà ouverte à cette heure'; };
-    besoin.forEach(l => {
-      const i = deja.indexOf(l.prestation.min);
-      if(i !== -1){ deja.splice(i, 1); servir(l); }
+    const servir = (l, x) => {
+      x.libreA = minutesDrivup(l.fin) || (t + l.prestation.min);
+      l.etat = 'deja'; l.coche = false; l.raison = 'écoute déjà ouverte à cette heure';
+    };
+    const dispo = () => existantes.filter(x => !x.non && x.groupe === groupe && x.jour === jour && x.a <= t && t < x.b && x.libreA <= t);
+    /* même heure et même durée, puis même heure, puis commencée avant */
+    besoin.forEach(l => { const x = dispo().find(x => x.debut === debut && (x.b - x.a) === l.prestation.min); if(x) servir(l, x); });
+    besoin.filter(l => l.etat === 'ouvrir').forEach(l => { const x = dispo().find(x => x.debut === debut); if(x) servir(l, x); });
+    /* ⚠️ « NON » EN FACE DU COURS — relevé dans le planning de David le
+       21/10 (le 21/10 à 10h, le 23/10 à 13h, le 24/10 à 17h) : un bloc
+       « NON » posé dans une colonne d'écoute à l'heure d'un cours dit
+       « pas d'écoute pour celui-là ». On le respecte (recochable). */
+    besoin.filter(l => l.etat === 'ouvrir').forEach(l => {
+      const x = existantes.find(x => x.non && x.groupe === groupe && x.jour === jour && x.debut === debut && x.libreA <= t);
+      if(x){ x.libreA = minutesDrivup(l.fin) || (t + 60); l.etat = 'ecarte'; l.coche = false; l.raison = '« NON » posé en face dans Drivup'; }
     });
-    besoin.filter(l => l.etat === 'ouvrir').forEach(l => { if(deja.length){ deja.shift(); servir(l); } });
+    besoin.filter(l => l.etat === 'ouvrir').forEach(l => { const x = dispo()[0]; if(x) servir(l, x); });
   });
 
   /* Les colonnes : d'abord pour les cours retenus, puis pour ceux
