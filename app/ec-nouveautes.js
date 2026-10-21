@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 12:10 — v1228 */
+/* Déployé le 21/10/2026 à 13:06 — v1229 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1229,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '👂 Drivup : ouvrir les écoutes pédagogiques depuis le favori',
+    quoi: [
+      { emoji: '👂',
+        titre: 'Les écoutes pédagogiques ouvertes pour vous dans Drivup',
+        texte: 'Sur le planning d’une agence, cliquez le favori « 📥 Bilan de conduite », puis « 👂 Écoutes à ouvrir » : la liste des cours de conduite des semaines à venir (4 par défaut, réglable), chacun avec sa colonne (BEA ou BV d’après la voiture, « Ecoute » pour Loudéac) et sa prestation (1h, 1h30 pour un examen blanc, 2h…). ' +
+               'Les 1ers cours, préalables, RVP (mémo Drivup ou Suivi AAC), simulateurs et examens sont écartés — on peut en recocher un. Vous validez, le favori remplit le formulaire « Planifier » de Drivup pour chacune, puis vérifie qu’elle y est.' }
+    ]
+  },
   {
     version: 1228,
     date: 'Mercredi 21 octobre 2026',
