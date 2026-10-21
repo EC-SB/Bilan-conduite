@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 16:10 — v1219 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2067,6 +2067,9 @@ async function ouvrirBilanManuel(){
   /* 📋 v1211 — les procédures à joindre, juste avant « Composer » */
   if(typeof dessinerProceduresAJoindre === 'function'){
     try{ dessinerProceduresAJoindre('proceduresManuel'); }catch(e){}
+  }
+  if(typeof dessinerSegmentsARevoir === 'function'){
+    try{ dessinerSegmentsARevoir('revoirManuel'); }catch(e){}
   }
 
   /* ⚠️ LE TRAJET PART AUSSI D'ICI — v986. Il ne démarrait qu'avec
@@ -5210,6 +5213,7 @@ async function genererBilanManuel(){
       /* 📍 v1219 — où il en est, sous le rappel de sa frise */
       if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
       bilan += blocProcedures(champsManuels.texteDicte || '');
+      if(typeof blocARevoir === 'function') bilan += blocARevoir();
     }
 
     /* ⚠️ ET LE TRAJET, EXACTEMENT COMME EN VOCAL — v986. David, le
