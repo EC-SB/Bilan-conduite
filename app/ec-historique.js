@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:53 — v1033 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-historique.js
    Le cours en train de se faire : on le dit, et on dit qu'il est
@@ -128,6 +128,21 @@ async function envoyerLigneDeBilan(data){
          apparaîtrait sous des cours qui n'ont jamais eu de GPS. */
       if(releve) data.gps = JSON.stringify(releve);
     }catch(e){ /* pas de relevé lisible : la ligne part sans */ }
+  }
+
+  /* 🎬 v1222 — les segments « à revoir » cochés pendant le cours,
+     pour que le Worker les épingle dans son Réviser. Ici, dans la
+     seule fonction que les trois chemins traversent. */
+  /* ⚠️ ET SEULEMENT POUR L'ÉLÈVE DE L'ÉCRAN : les cases sont rangées
+     par élève et par jour d'après les champs de l'écran ; une ligne
+     d'un autre élève n'emporte pas les siennes. */
+  const memeEleve = typeof normaliserMot === 'function' && $('studentName') &&
+    normaliserMot(String((data && data.studentName) || '')) === normaliserMot($('studentName').value || '');
+  if(data && data.revoirParcours === undefined && memeEleve && typeof segmentsARevoirDuCours === 'function'){
+    try{
+      const l = segmentsARevoirDuCours();
+      if(l.length) data.revoirParcours = JSON.stringify(l);
+    }catch(e){ /* rien de coché lisible : le bilan part sans */ }
   }
 
   const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
