@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 11:16 — v1226 */
+/* Déployé le 21/10/2026 à 11:45 — v1227 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1227,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '⚡ Espace élève : on entre tout de suite, le reste arrive derrière',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Entrer dans l’espace élève sans attendre',
+        texte: 'Le nom et le code se vérifient maintenant en direct (moins d’une seconde) : la page s’ouvre, la messagerie démarre, et le parcours, les leçons et les procédures arrivent derrière (« ⏳ … se charge »). ' +
+               'L’élève qui revient sur son téléphone (code gardé) ne déclenche plus trois réveils du classeur en plus.' }
+    ]
+  },
   {
     version: 1226,
     date: 'Mercredi 21 octobre 2026',
