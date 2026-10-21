@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:16 — v1222 */
+/* Déployé le 21/10/2026 à 09:53 — v1223 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,18 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1223,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '🎬 Chaque segment d’un guide a enfin son identifiant : 📌, ↺ et « vu » visent le bon',
+    quoi: [
+      { emoji: '🎯',
+        titre: 'Un segment = un segment',
+        texte: 'L’éditeur ne donnait pas d’identifiant aux « 🏷️ Titres d’étape » : tous les segments d’un guide n’en faisaient qu’un. ' +
+               'Épingler un segment les épinglait tous, la carte « À revoir » ouvrait le premier, et lire un segment cochait tout le guide. ' +
+               'Chaque titre a maintenant le sien, sans rien republier.' }
+    ]
+  },
   {
     version: 1222,
     date: 'Mercredi 21 octobre 2026',
