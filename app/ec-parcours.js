@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 18:14 — v1221 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1800,12 +1800,26 @@ function detailDuParcours(l, catalogue){
     parId[cle].ids.push(id);
   });
 
+  const ctxS = { l: l, cat: cat, d: d, catalogue: catalogue };
   groupes.forEach(g => {
     const t = document.createElement('div');
     t.className = 'svGrp';
-    t.textContent = (g.icone ? g.icone + ' ' : '') + g.nom;
+    const nomG = document.createElement('span');
+    nomG.textContent = (g.icone ? g.icone + ' ' : '') + g.nom;
+    t.appendChild(nomG);
+    /* ↺ v1222 — tout le groupe, pour cet élève */
+    const cibles = g.ids.map(id => ciblesDuGuide(l, id, cat[id] || {}, null)).filter(Boolean);
+    if(peutToucherLeParcours() && cibles.length){
+      const r = document.createElement('button');
+      r.type = 'button';
+      r.className = 'svLien';
+      r.textContent = '↺ Remettre le groupe à voir';
+      r.addEventListener('click', () => remettreAVoirDuSuivi(ctxS, cibles,
+        'Remettre à voir TOUT le groupe « ' + g.nom + ' » pour ' + l.eleve + ' ?'));
+      t.appendChild(r);
+    }
     d.appendChild(t);
-    g.ids.forEach(id => d.appendChild(carteDuGuideSuivi(l, id, cat[id] || {})));
+    g.ids.forEach(id => d.appendChild(carteDuGuideSuivi(l, id, cat[id] || {}, ctxS)));
   });
 
   const note = document.createElement('div');
@@ -1817,7 +1831,7 @@ function detailDuParcours(l, catalogue){
   return d;
 }
 
-function carteDuGuideSuivi(l, id, g2){
+function carteDuGuideSuivi(l, id, g2, ctxS){
   const segs = g2.segments || [];
   const fiches = fichesDuGuide(l, id);
   const tout = !!(fiches[''] && fiches[''].vuLe);
@@ -1857,6 +1871,19 @@ function carteDuGuideSuivi(l, id, g2){
   cpt.className = 'svCpt';
   cpt.textContent = faits + ' / ' + etats.length;
   h.appendChild(cpt);
+  /* ↺ v1222 — tout le guide, pour cet élève */
+  const ciblesG = ciblesDuGuide(l, id, g2, null);
+  if(ctxS && peutToucherLeParcours() && ciblesG){
+    const r = document.createElement('button');
+    r.type = 'button';
+    r.className = 'svRaz';
+    r.title = 'Remettre ce guide à voir';
+    r.setAttribute('aria-label', 'Remettre ce guide à voir');
+    r.textContent = '↺';
+    r.addEventListener('click', () => remettreAVoirDuSuivi(ctxS, [ciblesG],
+      'Remettre à voir tout le guide « ' + (g2.titre || id) + ' » pour ' + l.eleve + ' ?'));
+    h.appendChild(r);
+  }
   c.appendChild(h);
 
   const pills = document.createElement('div');
@@ -1866,11 +1893,18 @@ function carteDuGuideSuivi(l, id, g2){
   bulle.style.display = 'none';
   let ouverte = -1;
 
+  const demandes = (l.revoir || []).filter(r => r.guide === id);
+  const remisG = (l.remis || {})[id] || {};
   etats.forEach((x, i) => {
+    x.guide = id;
+    x.tous = lesSegs.map(sg => sg.id || '');
+    x.demandes = demandes.filter(r => String(r.segment || '') === String(x.sg.id || ''));
+    x.remis = x.vu ? null : (remisG[x.sg.id || ''] || null);
+    const epingle = x.demandes.some(r => !r.vuLe);
     const p = document.createElement('button');
     p.type = 'button';
-    p.className = 'svPill' + (x.vu ? ' vu' : '');
-    p.textContent = (x.vu ? '✓ ' : '') + (x.sg.titre || '(étape sans titre)');
+    p.className = 'svPill' + (x.vu ? ' vu' : '') + (epingle ? ' epingle' : '');
+    p.textContent = (epingle ? '📌 ' : '') + (x.vu ? '✓ ' : '') + (x.sg.titre || '(étape sans titre)');
     const n = x.f && x.f.vuLe ? (Number(x.f.vues) || 1) : 0;
     if(n){
       const b = document.createElement('span');
@@ -1878,23 +1912,27 @@ function carteDuGuideSuivi(l, id, g2){
       b.textContent = n + '×';
       p.appendChild(b);
     }
-    p.addEventListener('click', () => {
+    const ouvrir = () => {
       const avant = pills.querySelector('.svPill.ici');
       if(avant) avant.classList.remove('ici');
-      if(ouverte === i){ ouverte = -1; bulle.style.display = 'none'; return; }
+      if(ouverte === i){ ouverte = -1; bulle.style.display = 'none'; bulleDuSuiviOuverte = ''; return; }
       ouverte = i;
+      bulleDuSuiviOuverte = l.eleve + '|' + id + '::' + (x.sg.id || '');
       p.classList.add('ici');
-      remplirLaBulleDuSuivi(bulle, x);
+      remplirLaBulleDuSuivi(bulle, x, ctxS);
       bulle.style.display = '';
-    });
+    };
+    p.addEventListener('click', ouvrir);
     pills.appendChild(p);
+    /* Après une action, la bulle qu'on regardait se rouvre. */
+    if(bulleDuSuiviOuverte === l.eleve + '|' + id + '::' + (x.sg.id || '')) setTimeout(() => { if(ouverte !== i) ouvrir(); }, 0);
   });
   c.appendChild(pills);
   c.appendChild(bulle);
   return c;
 }
 
-function remplirLaBulleDuSuivi(bulle, x){
+function remplirLaBulleDuSuivi(bulle, x, ctxS){
   bulle.textContent = '';
   const l1 = document.createElement('div');
   const t = document.createElement('b');
@@ -1915,9 +1953,61 @@ function remplirLaBulleDuSuivi(bulle, x){
     l1.appendChild(document.createTextNode(x.vu ? ' — vu (guide entier coché)' : ' — pas encore vu'));
   }
   bulle.appendChild(l1);
+  /* ↺ v1222 — remis à voir : son histoire reste */
+  if(x.remis && x.remis.remisLe){
+    const r = document.createElement('div');
+    r.className = 'svInfo';
+    r.textContent = '↺ Remis à voir le ' + quandCourtParcours(x.remis.remisLe) +
+      (x.remis.vuLe ? ' — avant : vu la 1re fois le ' + quandCourtParcours(x.remis.vuLe) + ', ' +
+        (Number(x.remis.vues) || 1) + ' fois' : '');
+    bulle.appendChild(r);
+  }
+  /* 📌 v1222 — ce qu'on lui a demandé de revoir */
+  (x.demandes || []).forEach(dm => {
+    const r = document.createElement('div');
+    r.className = 'svInfo';
+    r.textContent = '📌 Demandé le ' + quandMsParcours(dm.le) + (dm.par ? ' par ' + dm.par : '') +
+      (dm.source === 'bilan' ? ' (bilan du cours)' : dm.source === 'message' ? ' (messagerie)' : '') +
+      (dm.mot ? ' « ' + dm.mot + ' »' : '') +
+      (dm.vuLe ? ' — ✓ revu le ' + quandMsParcours(dm.vuLe) : ' — pas encore revu');
+    if(!dm.vuLe && ctxS && peutToucherLeParcours()){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'svLien';
+      b.textContent = 'Retirer';
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try{ await appelPrep({ action: 'parcoursRevoirRetirer', id: dm.id }); await rafraichirLeDetailDuSuivi(ctxS); }
+        catch(e){ b.disabled = false; showToast('Impossible : ' + e.message); }
+      });
+      r.appendChild(b);
+    }
+    bulle.appendChild(r);
+  });
   /* Absent d'une réponse plus ancienne : on n'affiche alors rien de
      plus, au lieu de n'afficher rien du tout. */
   (x.sg.blocs || []).forEach(b => bulle.appendChild(blocDuSuivi(b, x.vu)));
+  if(ctxS && peutToucherLeParcours()){
+    const ac = document.createElement('div');
+    ac.className = 'svActions';
+    const bP = document.createElement('button');
+    bP.type = 'button';
+    bP.className = 'btn btn-secondary';
+    bP.textContent = '📌 Lui demander de revoir';
+    bP.addEventListener('click', () => demanderDeRevoirDuSuivi(ctxS, x, bP));
+    ac.appendChild(bP);
+    if(x.vu){
+      const bR = document.createElement('button');
+      bR.type = 'button';
+      bR.className = 'btn btn-secondary';
+      bR.textContent = '↺ Remettre à voir';
+      bR.addEventListener('click', () => remettreAVoirDuSuivi(ctxS,
+        [{ guide: x.guide, segments: [x.sg.id || ''], tous: x.tous }],
+        'Remettre « ' + (x.sg.titre || 'ce segment') + ' » à voir pour ' + ctxS.l.eleve + ' ?'));
+      ac.appendChild(bR);
+    }
+    bulle.appendChild(ac);
+  }
 }
 
 /* « COURS DE LA CO\uD835 » → « COURS DE LA CO… ». Une moitié de lettre
@@ -1940,6 +2030,85 @@ function apercuNettoye(texte){
   const coupe = s0.length >= 120 || /�\s*$/.test(s0) ||
                 /[\uD800-\uDBFF]\s*$/.test(s0);
   return (coupe && s && !/…$/.test(s)) ? s + '…' : s;
+}
+
+/* ============================================================
+   ↺ 📌 REMETTRE À VOIR, DEMANDER DE REVOIR — v1222
+
+   David : « il faut que l'on puisse réinitialiser les statistiques
+   par groupe et par segment » — pour UN élève, en gardant
+   l'historique (son choix) ; « et qu'on puisse dire à l'élève
+   d'aller voir tel ou tel endroit » — 📌, avec une notification.
+   Les deux demandent « 🎬 Parcours : Modifier ».
+   ============================================================ */
+let bulleDuSuiviOuverte = '';
+
+function peutToucherLeParcours(){
+  return typeof peutModifier === 'function' && peutModifier('parcours');
+}
+
+/* Ce qu'il y a à remettre à voir dans un guide (un segment, ou tous
+   ceux qu'il a vus) — rien s'il n'a rien vu. */
+function ciblesDuGuide(l, id, g2, seulement){
+  const segs = (g2 && g2.segments) || [];
+  const fiches = fichesDuGuide(l, id);
+  const tous = segs.length ? segs.map(sg => sg.id || '') : [''];
+  const vus = seulement ? [seulement]
+    : Object.keys(fiches).filter(k => fiches[k] && fiches[k].vuLe);
+  if(!vus.length) return null;
+  return { guide: id, segments: vus, tous: tous };
+}
+
+async function remettreAVoirDuSuivi(ctxS, cibles, question){
+  const oui = await confirmer(question + '\n\nSes dates et son nombre de fois sont gardés ; ' +
+    'la pastille repasse « à voir », chez nous et chez lui.', '↺ Remettre à voir');
+  if(!oui) return;
+  try{
+    const r = await appelPrep({ action: 'parcoursRemettreAVoir', eleve: ctxS.l.eleve, cibles: cibles });
+    if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+    showToast('↺ Remis à voir');
+    await rafraichirLeDetailDuSuivi(ctxS);
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+async function demanderDeRevoirDuSuivi(ctxS, x, bouton){
+  const mot = await demander('Un mot pour ' + ctxS.l.eleve + ' (facultatif) — il le lira en tête de « Réviser » :',
+    '', '📌 « ' + (x.sg.titre || 'Segment') + ' » à revoir');
+  if(mot === null || mot === undefined) return;
+  if(bouton) bouton.disabled = true;
+  try{
+    const r = await appelPrep({ action: 'parcoursRevoirPoser', eleve: ctxS.l.eleve, guide: x.guide,
+                                segment: x.sg.id || '', titre: x.sg.titre || '', mot: String(mot || '').trim() });
+    if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+    showToast('📌 Demandé — il est prévenu');
+    await rafraichirLeDetailDuSuivi(ctxS);
+  }catch(e){ if(bouton) bouton.disabled = false; showToast('Impossible : ' + e.message); }
+}
+
+/* Relit CET élève, et redessine là où on est : la liste du suivi
+   (ses compteurs changent aussi), ou le bloc de son dossier. */
+async function rafraichirLeDetailDuSuivi(ctxS){
+  const d = await appelPrep({ action: 'parcoursSuivi', eleve: ctxS.l.eleve });
+  const cible = String(ctxS.l.eleve || '').trim().toLowerCase();
+  const neuve = ((d && d.lignes) || []).find(x => String(x.eleve || '').trim().toLowerCase() === cible);
+  if(!neuve) return;
+  const k = suiviParcours.findIndex(x => String(x.eleve || '').trim().toLowerCase() === cible);
+  if(k !== -1 && !ctxS.catalogue){
+    suiviParcours[k] = neuve;
+    Object.assign(guidesDuSuivi, (d && d.guides) || {});
+    dessinerSuiviParcours();
+    return;
+  }
+  const cat = Object.assign({}, ctxS.cat, (d && d.guides) || {});
+  if(ctxS.d && ctxS.d.parentNode) ctxS.d.replaceWith(detailDuParcours(neuve, cat));
+}
+
+/* 1 761 000 000 000 → « 21/10 à 14:05 » */
+function quandMsParcours(ms){
+  const t = new Date(Number(ms) || 0);
+  if(!Number(ms) || isNaN(t.getTime())) return '';
+  const z = n => String(n).padStart(2, '0');
+  return z(t.getDate()) + '/' + z(t.getMonth() + 1) + ' à ' + z(t.getHours()) + ':' + z(t.getMinutes());
 }
 
 /* Une clé de fichier n'est pas un titre. */
