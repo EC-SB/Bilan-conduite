@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 12:15 — v1181 */
+/* Déployé le 21/10/2026 à 13:06 — v1229 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -675,6 +675,17 @@ async function fenetrePlanningDrivup(p){
   if(ign) puces.append(puceDrivup('ignore', ign, 'dispos, blocs et séances hors conduite ignorés'));
   f.boite.appendChild(puces);
 
+  /* 👂 v1229 — ouvrir les écoutes, depuis le planning d'une agence */
+  if(genre === 'agence' && window.opener && !window.opener.closed){
+    const be = document.createElement('button');
+    be.className = 'btn btn-secondary';
+    be.id = 'drivupBoutonEcoutes';
+    be.style.cssText = 'width:auto;margin:0 0 12px;padding:8px 12px;font-size:13px;';
+    be.textContent = '👂 Écoutes à ouvrir (' + semainesDesEcoutesDrivup() + ' sem.)';
+    be.addEventListener('click', () => fenetreEcoutesDrivup(du));
+    f.boite.appendChild(be);
+  }
+
   if(!changes.length){
     const v = document.createElement('div');
     v.className = 'dvPli';
@@ -1115,6 +1126,436 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
     try{ dessinerBlocDrivup(); }catch(e){}
   }, 500);
 })();
+
+
+
+/* ============================================================
+   👂 OUVRIR LES ÉCOUTES PÉDAGOGIQUES DANS DRIVUP — v1229
+
+   David, le 21 octobre : « sur le planning, quand un cours est prévu
+   sur un moniteur, il faut ouvrir une écoute pédagogique dans les
+   cases écoutes, sauf quand c'est 1er cours, rendez-vous préalable,
+   rendez-vous pédagogique, simulateur ». Puis : « pour l'examen
+   blanc il y a une écoute de 1h30 », et « quand le cours est annoncé
+   sur Loudéac il faut bien ouvrir dans la colonne écoute Loudéac ».
+
+   Ce qu'on a vu dans Drivup, le 21 octobre, sans rien y écrire :
+   · une écoute est une séance « sans élève » posée dans une colonne
+     d'écoute — BEA 1, BEA 2, BEA 3, BV 1, BV 2, BV 3 pour
+     Saint-Brieuc, « Ecoute » pour Loudéac — à l'heure du cours ;
+   · sa prestation dit la durée et le lieu : « Écoute pédagogique 2h
+     St Brieuc », « … 1h30 Loudéac », « … 1h » (sans lieu)…
+   · Drivup la crée par son formulaire « Planifier » (booking_rec.php,
+     envoyé à iframe_ok_rec.php) : le favori fait exactement ça.
+
+   Ses choix : BEA ou BV d'après la voiture (le numéro en haut du
+   planning), sinon d'après la formation ; la 1re colonne libre ;
+   toutes prises → signalé, rien créé ; le préalable, les RVP et le
+   1er cours se reconnaissent au mémo du cours Drivup et par l'appli ;
+   la durée lue se règle ici (4 semaines par défaut). C'est la SEULE
+   chose que le favori écrit dans Drivup — feu vert de David, contrat
+   vérifié — et seulement après qu'on a validé la liste.
+   ============================================================ */
+const ECOUTES_SEMAINES_CLE = 'ec_ecoutes_semaines';
+function semainesDesEcoutesDrivup(){
+  let n = 4;
+  try{ n = parseInt(localStorage.getItem(ECOUTES_SEMAINES_CLE) || '4', 10); }catch(e){}
+  return (n >= 1 && n <= 8) ? n : 4;
+}
+function poserSemainesDesEcoutesDrivup(n){
+  try{ localStorage.setItem(ECOUTES_SEMAINES_CLE, String(n)); }catch(e){}
+}
+
+/* Ce qui ne prend jamais d'écoute, lu dans le mémo du cours */
+const ECOUTE_MEMO_EXCLU = [
+  [/pr[ée]alable/i, 'RDV préalable (mémo Drivup)'],
+  [/\brvp\b|\brdv\s*p[ée]da|rendez[- ]vous\s+p[ée]dagogique/i, 'RDV pédagogique (mémo Drivup)'],
+  [/\b1\s*(er|ere|ère|°)\s*(cours|le[çc]on)|premi[eè]re?\s+(cours|le[çc]on)/i, '1er cours (mémo Drivup)']
+];
+/* Les séances de conduite voiture : elles seules prennent une écoute */
+const ECOUTE_LECON = /conduite|examen blanc|test exam blanc|eval voiture|remise a niveau/;
+const ECOUTE_PAS_LECON = /moto|remorque|voiturette|simu|baby|theorie|salle|etg|code/;
+const ECOUTE_EB = /examen blanc|test exam blanc/;
+
+function minutesDrivup(h){
+  const m = String(h || '').match(/^(\d{2}):(\d{2})$/);
+  return m ? (+m[1]) * 60 + (+m[2]) : NaN;
+}
+function heureDeMinutesDrivup(n){
+  return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+}
+
+/* Les prestations d'écoute, lues dans le formulaire de Drivup :
+   « Écoute pédagogique 2h St Brieuc » → { min: 120, site: 'sb' }.
+   Une écoute sans lieu (« … 1h ») sert aux deux. */
+function prestationsDEcouteDrivup(prestations){
+  const out = [];
+  Object.keys(prestations || {}).forEach(id => {
+    const n = sansAccentDrivup(prestations[id]);
+    const m = n.match(/^ecoute(?: pedagogique)? (\d)h(\d\d)?(?: (st brieuc|saint brieuc|loudeac))?$/);
+    if(!m) return;
+    out.push({ id: String(id), nom: String(prestations[id]).trim(), min: (+m[1]) * 60 + (m[2] ? +m[2] : 0),
+               site: !m[3] ? '' : (m[3] === 'loudeac' ? 'loudeac' : 'sb') });
+  });
+  return out;
+}
+function prestationPourDrivup(liste, min, site){
+  return liste.find(p => p.min === min && p.site === site) ||
+         liste.find(p => p.min === min && p.site === '') || null;
+}
+
+/* Les colonnes d'écoute, dans l'ordre de l'écran */
+function colonnesDEcouteDrivup(ressources){
+  const out = { bea: [], bv: [], loudeac: [] };
+  (ressources || []).forEach(r => {
+    const t = sansAccentDrivup(r.titre);
+    if(t === 'bea') out.bea.push({ id: String(r.id), titre: 'BEA ' + (out.bea.length + 1) });
+    else if(t === 'bv') out.bv.push({ id: String(r.id), titre: 'BV ' + (out.bv.length + 1) });
+    else if(t === 'ecoute') out.loudeac.push({ id: String(r.id), titre: 'Écoute Loudéac' });
+  });
+  return out;
+}
+
+/* LE CALCUL — sans réseau, pour être vérifiable.
+   d : ce que le favori a lu ; ctx : { flotte, ficheDe(x), suiviDe(nom),
+   bureauDe(nom) }. Rend une ligne par cours de conduite. */
+function calculerEcoutesDrivup(d, ctx){
+  const prest = d.prestations || {};
+  const nomDe = id => sansAccentDrivup(prest[String(id)] || '');
+  const ecoutes = prestationsDEcouteDrivup(prest);
+  const idsEcoute = {};
+  ecoutes.forEach(p => { idsEcoute[p.id] = true; });
+  const cols = colonnesDEcouteDrivup(d.ressources);
+  const colsParId = {};
+  ['bea', 'bv', 'loudeac'].forEach(g => cols[g].forEach(c => { colsParId[c.id] = g; }));
+  const titreRes = {};
+  (d.ressources || []).forEach(r => { titreRes[String(r.id)] = r.titre; });
+  const ordreRes = {};
+  (d.ressources || []).forEach((r, i) => { ordreRes[String(r.id)] = i; });
+
+  const evs = (d.evenements || []).map(e => ({
+    id: String(e.id), res: String(e.res), type: String(e.type || ''), jour: String(e.jour), debut: String(e.debut),
+    fin: String(e.fin), memo: String(e.memo || ''), examen: String(e.examen || '0'), nbr: Number(e.nbr) || 0,
+    adresse: String(e.adresse || ''), titre: String(e.titre || '')
+  })).filter(e => /^\d{4}-\d{2}-\d{2}$/.test(e.jour) && !isNaN(minutesDrivup(e.debut)) && !isNaN(minutesDrivup(e.fin)));
+
+  /* L'occupation des colonnes d'écoute : tout ce qui y est posé */
+  const occupe = {};
+  evs.forEach(e => {
+    if(!colsParId[e.res]) return;
+    (occupe[e.res + '|' + e.jour] = occupe[e.res + '|' + e.jour] || [])
+      .push([minutesDrivup(e.debut), minutesDrivup(e.fin), idsEcoute[e.type] ? e.debut : null]);
+  });
+  const libre = (res, jour, a, b) => !(occupe[res + '|' + jour] || []).some(x => x[0] < b && a < x[1]);
+
+  /* Les numéros de voiture : « . 7 » à 7h30 dans la colonne du moniteur */
+  const voitures = evs.map(e => {
+    const m = nomDe(e.type).match(/^\s*(\d{1,3})$/) || sansAccentDrivup(e.titre).match(/^(\d{1,3})$/);
+    return (/^\s*\.\s*\d{1,3}\s*$/.test(prest[e.type] || '') || /^\s*[.·•]\s*\d{1,3}\s*$/.test(e.titre)) && m
+      ? { res: e.res, jour: e.jour, heure: e.debut, numero: String(Number(m[1])) } : null;
+  }).filter(Boolean);
+  const boiteDeLaVoiture = (res, jour, debut) => {
+    const v = voitures.filter(x => x.res === res && x.jour === jour && x.heure <= debut)
+      .sort((a, b) => a.heure.localeCompare(b.heure)).pop();
+    if(!v) return '';
+    const veh = vehiculeDuNumeroDrivup(ctx.flotte || [], v.numero);
+    return veh ? (veh.boite === 'bva' ? 'bea' : 'bv') : '';
+  };
+
+  /* Les cours de conduite des moniteurs */
+  const lecons = evs.filter(e => {
+    if(colsParId[e.res]) return false;
+    if(!ctx.moniteurDe(titreRes[e.res] || '')) return false;
+    const n = nomDe(e.type);
+    return ECOUTE_LECON.test(n) && !ECOUTE_PAS_LECON.test(n);
+  }).sort((a, b) => (a.jour + a.debut).localeCompare(b.jour + b.debut) || (ordreRes[a.res] - ordreRes[b.res]));
+
+  /* Le 1er cours, compté par l'appli : aucune leçon chez nous, et
+     c'est le premier de la période lue */
+  const dejaVu = {};
+  const lignes = lecons.map(e => {
+    const n = nomDe(e.type);
+    const eleves = ((d.details || {})[e.id] || []);
+    const x = eleves[0] || null;
+    const fiche = x ? ctx.ficheDe(x) : null;
+    const nomEleve = fiche ? fiche.eleve : (x ? nomDeLEleveDrivup(x) : '');
+    const site = /loudeac/.test(n) || /loud/i.test(e.adresse) ? 'loudeac' : 'sb';
+    const eb = ECOUTE_EB.test(n);
+    const duree = eb ? 90 : minutesDrivup(e.fin) - minutesDrivup(e.debut);
+    let boite = '';
+    if(site === 'sb'){
+      boite = boiteDeLaVoiture(e.res, e.jour, e.debut);
+      if(!boite){
+        if(/\bbea\b/.test(n) && !/bv bea/.test(n)) boite = 'bea';
+        else if(/\bbv\b/.test(n) || /^conduite \d/.test(n) || /^examen blanc pratique (st brieuc|loudeac)?$/.test(n)) boite = 'bv';
+        else{
+          const fo = sansAccentDrivup((x && x.formation) || (fiche && fiche.formation) || '');
+          boite = /bea|pmr|aménag|amenag/.test(fo) ? 'bea' : 'bv';
+        }
+      }
+    }
+    const groupe = site === 'loudeac' ? 'loudeac' : boite;
+    const ligne = {
+      cle: e.id, eventId: e.id, jour: e.jour, debut: e.debut, fin: e.fin, res: e.res,
+      moniteurDrivup: titreRes[e.res] || '', moniteur: ctx.moniteurDe(titreRes[e.res] || '') || '',
+      eleve: nomEleve, libelle: prest[e.type] || '', site: site, groupe: groupe, eb: eb,
+      prestation: prestationPourDrivup(ecoutes, duree, site), duree: duree,
+      colonne: null, etat: 'ouvrir', raison: '', coche: true
+    };
+    /* Pourquoi on n'en ouvre pas */
+    const raisons = [];
+    if(e.examen !== '0') raisons.push('examen');
+    if(!e.nbr && !x) raisons.push('pas d’élève sur ce cours');
+    ECOUTE_MEMO_EXCLU.forEach(([re, r]) => { if(re.test(e.memo)) raisons.push(r); });
+    if(fiche){
+      const s = ctx.suiviDe(fiche.eleve) || {};
+      if(String(s.rvpDate || '') === e.jour) raisons.push('RDV préalable (Suivi AAC)');
+      if(String(s.rvp1Date || '') === e.jour) raisons.push('RVP 1 (Suivi AAC)');
+      if(String(s.rvp2Date || '') === e.jour) raisons.push('RVP 2 (Suivi AAC)');
+      const b = ctx.bureauDe(fiche.eleve);
+      const sansLecon = !b || (!(Number(b.lecons) || 0) && !(Number(b.leconNum) || 0) &&
+                               !((b.datesLecons || []).some(j => j < e.jour)));
+      if(sansLecon && !dejaVu[fiche.eleve] && !eb) raisons.push('1er cours (aucune leçon dans l’appli)');
+      dejaVu[fiche.eleve] = true;
+    }
+    if(!ligne.prestation) raisons.push('pas d’écoute de ' + (duree % 60 ? Math.floor(duree / 60) + 'h' + String(duree % 60).padStart(2, '0') : (duree / 60) + 'h') + ' dans Drivup');
+    if(raisons.length){ ligne.etat = 'ecarte'; ligne.raison = raisons.join(' · '); ligne.coche = false; }
+    return ligne;
+  });
+
+  /* Déjà ouverte : à la même heure, autant d'écoutes dans les colonnes
+     du groupe que de cours — les premiers cours (ordre de l'écran)
+     sont servis. */
+  const parCreneau = {};
+  lignes.forEach(l => { (parCreneau[l.jour + '|' + l.debut + '|' + l.groupe] = parCreneau[l.jour + '|' + l.debut + '|' + l.groupe] || []).push(l); });
+  Object.keys(parCreneau).forEach(k => {
+    const [jour, debut, groupe] = k.split('|');
+    let deja = 0;
+    (cols[groupe] || []).forEach(c => (occupe[c.id + '|' + jour] || []).forEach(x => { if(x[2] === debut) deja++; }));
+    parCreneau[k].forEach(l => {
+      if(deja > 0){ deja--; l.etat = 'deja'; l.coche = false; l.raison = 'écoute déjà ouverte à cette heure'; }
+    });
+  });
+
+  /* Les colonnes : d'abord pour les cours retenus, puis pour ceux
+     qu'on pourrait recocher */
+  const poser = l => {
+    if(!l.prestation) return;
+    const a = minutesDrivup(l.debut), b = a + l.prestation.min;
+    const c = (cols[l.groupe] || []).find(c => libre(c.id, l.jour, a, b));
+    if(!c){
+      if(l.etat === 'ouvrir'){ l.etat = 'ecarte'; l.coche = false;
+        l.raison = 'plus de colonne ' + (l.groupe === 'loudeac' ? 'Écoute Loudéac' : l.groupe.toUpperCase()) + ' libre'; }
+      return;
+    }
+    l.colonne = c;
+    (occupe[c.id + '|' + l.jour] = occupe[c.id + '|' + l.jour] || []).push([a, b, l.debut]);
+  };
+  lignes.filter(l => l.etat === 'ouvrir').forEach(poser);
+  lignes.filter(l => l.etat === 'ecarte' && l.prestation && !l.colonne).forEach(poser);
+  return lignes;
+}
+
+/* ------------------------------------------------------------
+   LA FENÊTRE — lire, choisir, ouvrir
+   ------------------------------------------------------------ */
+function envoyerADrivup(m){
+  if(!window.opener || window.opener.closed) throw new Error('L’onglet Drivup est fermé : reclique sur le favori depuis le planning de l’agence.');
+  window.opener.postMessage(m, DRIVUP_ORIGINE);
+}
+
+/* ⚠️ UN ACCUSÉ SOUS 20 SECONDES. Une page Drivup rechargée a perdu
+   le favori : sans lui, personne ne répond — on le dit vite, au lieu
+   de laisser tourner trois minutes. */
+function attendreDeDrivup(type, surProgression, delai){
+  return new Promise((ok, ko) => {
+    const fin = () => { clearTimeout(t); clearTimeout(t0); window.removeEventListener('message', ecoute); };
+    const t = setTimeout(() => { fin(); ko(new Error('Drivup ne répond plus. Recharge le planning Drivup et reclique sur le favori.')); }, delai || 180000);
+    const t0 = setTimeout(() => { fin(); ko(new Error('Le favori ne répond pas dans l’onglet Drivup : reclique sur le favori depuis le planning de l’agence, puis recommence.')); }, 20000);
+    function ecoute(ev){
+      if(ev.origin !== DRIVUP_ORIGINE || !ev.data) return;
+      if(ev.data.type === 'drivup-ecoutes-progression'){ clearTimeout(t0); if(surProgression) surProgression(ev.data); return; }
+      if(ev.data.type === 'drivup-ecoutes-erreur'){ fin(); ko(new Error(ev.data.message || 'erreur dans Drivup')); return; }
+      if(ev.data.type !== type) return;
+      fin();
+      ok(ev.data);
+    }
+    window.addEventListener('message', ecoute);
+  });
+}
+
+async function fenetreEcoutesDrivup(du){
+  const semaines = semainesDesEcoutesDrivup();
+  const f = cadreDrivup('👂 Écoutes à ouvrir dans Drivup', '');
+  f.fond.id = 'drivupEcoutes';
+  const reglage = document.createElement('div');
+  reglage.className = 'dvNote';
+  reglage.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;';
+  const lab = document.createElement('span');
+  lab.textContent = 'Lire à partir du ' + dateLisibleDrivup(du) + ', sur';
+  const sel = document.createElement('select');
+  sel.id = 'drivupEcoutesSemaines';
+  sel.style.cssText = 'width:auto;padding:4px 8px;';
+  for(let n = 1; n <= 8; n++){
+    const o = document.createElement('option');
+    o.value = String(n); o.textContent = n + ' semaine' + (n > 1 ? 's' : '');
+    if(n === semaines) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => {
+    poserSemainesDesEcoutesDrivup(parseInt(sel.value, 10));
+    f.fermer();
+    fenetreEcoutesDrivup(du);
+  });
+  reglage.append(lab, sel);
+  f.boite.appendChild(reglage);
+
+  const corps = document.createElement('div');
+  corps.innerHTML = '<div class="dvBarre"><span></span></div><div class="dvNote" id="drivupEcoutesLu">Lecture du planning dans Drivup…</div>';
+  f.boite.appendChild(corps);
+  let d;
+  try{
+    envoyerADrivup({ type: 'drivup-ecoutes-lire', du: du, semaines: semaines });
+    d = await attendreDeDrivup('drivup-ecoutes-lues', p => {
+      const b = corps.querySelector('.dvBarre span');
+      if(b && p.total) b.style.width = Math.min(100, Math.round(p.fait * 100 / p.total)) + '%';
+      const t = $('drivupEcoutesLu');
+      if(t) t.textContent = p.texte || ((p.fait || 0) + ' / ' + (p.total || 0));
+    });
+  }catch(e){
+    corps.innerHTML = '';
+    const w = document.createElement('div');
+    w.className = 'empty';
+    w.textContent = '⚠️ ' + e.message;
+    corps.appendChild(w);
+    return;
+  }
+  corps.remove();
+
+  let flotte = [];
+  try{ const r = await appelPrep({ action: 'flotteList' }); flotte = (r && r.vehicules) || []; }catch(e){}
+  const lignes = calculerEcoutesDrivup(d, {
+    flotte: flotte,
+    ficheDe: ficheDeLEleveDrivup,
+    moniteurDe: moniteurDeLAppliDrivup,
+    suiviDe: nom => (typeof suiviDe === 'function' ? suiviDe(nom) : {}) || {},
+    bureauDe: nom => (typeof eleveDuBureau === 'function' ? eleveDuBureau(nom) : null)
+  });
+  f.sous.textContent = 'Du ' + dateLisibleDrivup(d.du) + ' au ' + dateLisibleDrivup(d.au) +
+    ' · une écoute par cours de conduite, dans la 1re colonne libre (BEA ou BV à Saint-Brieuc, « Ecoute » à Loudéac).';
+
+  const aOuvrir = lignes.filter(l => l.etat === 'ouvrir');
+  const deja = lignes.filter(l => l.etat === 'deja');
+  const ecartes = lignes.filter(l => l.etat === 'ecarte');
+  const puces = document.createElement('div');
+  puces.className = 'dvPuces';
+  puces.append(puceDrivup('neuf', aOuvrir.length, '👂 à ouvrir'));
+  if(deja.length) puces.append(puceDrivup('', deja.length, deja.length > 1 ? '✅ déjà ouvertes' : '✅ déjà ouverte'));
+  if(ecartes.length) puces.append(puceDrivup('ignore', ecartes.length, ecartes.length > 1 ? 'écartés' : 'écarté'));
+  f.boite.appendChild(puces);
+
+  const cases = [];
+  let jourCourant = '';
+  const ligneUI = (l, ou) => {
+    if(l.jour !== jourCourant){
+      jourCourant = l.jour;
+      const j = document.createElement('div');
+      j.className = 'dvJour';
+      j.textContent = dateLisibleDrivup(l.jour);
+      ou.appendChild(j);
+    }
+    const el = document.createElement('label');
+    el.className = 'dvL' + (l.etat === 'ouvrir' ? '' : ' annule');
+    el.dataset.cle = l.cle;
+    const c = document.createElement('input');
+    c.type = 'checkbox';
+    c.checked = l.coche;
+    c.disabled = !(l.prestation && l.colonne);
+    const h = document.createElement('span');
+    h.className = 'dvH';
+    h.textContent = l.debut.replace(':', 'h');
+    const qui = document.createElement('span');
+    qui.className = 'dvQui';
+    const b = document.createElement('b');
+    b.textContent = (l.moniteur || l.moniteurDrivup) + (l.eleve ? ' · ' + l.eleve : '');
+    const sp = document.createElement('span');
+    sp.textContent = (l.colonne ? l.colonne.titre + ' · ' : '') + (l.prestation ? l.prestation.nom : l.libelle) +
+      (l.raison ? ' — ' + l.raison : '');
+    qui.append(b, sp);
+    el.append(c, h, qui);
+    if(l.etat === 'ouvrir' || (l.prestation && l.colonne)) cases.push({ l: l, c: c, el: el });
+    c.addEventListener('change', majBouton);
+    ou.appendChild(el);
+  };
+  aOuvrir.forEach(l => ligneUI(l, f.boite));
+  if(!aOuvrir.length){
+    const v = document.createElement('div');
+    v.className = 'dvPli';
+    v.textContent = '✅ Rien à ouvrir : chaque cours a déjà son écoute, ou n’en prend pas.';
+    f.boite.appendChild(v);
+  }
+  if(ecartes.length){
+    const pli = document.createElement('details');
+    pli.className = 'dvPli';
+    const s = document.createElement('summary');
+    s.textContent = ecartes.length + ' cours écarté' + (ecartes.length > 1 ? 's' : '') + ' (on peut en recocher un)';
+    pli.appendChild(s);
+    jourCourant = '';
+    ecartes.forEach(l => ligneUI(l, pli));
+    f.boite.appendChild(pli);
+  }
+  if(deja.length){
+    const pli = document.createElement('details');
+    pli.className = 'dvPli';
+    const s = document.createElement('summary');
+    s.textContent = deja.length + ' cours ont déjà leur écoute';
+    pli.appendChild(s);
+    jourCourant = '';
+    deja.forEach(l => ligneUI(l, pli));
+    f.boite.appendChild(pli);
+  }
+
+  const btns = boutonsDrivup(f.boite, '👂 Ouvrir', async (etat, ok, non) => {
+    const choisies = cases.filter(x => x.c.checked).map(x => x.l);
+    if(!choisies.length){ ok.disabled = false; non.disabled = false; majBouton(); return; }
+    ok.textContent = 'Dans Drivup…';
+    etat.style.color = '';
+    etat.textContent = 'Ouverture des écoutes dans Drivup… 0 / ' + choisies.length;
+    envoyerADrivup({ type: 'drivup-ecoutes-creer', liste: choisies.map(l => ({
+      cle: l.cle, res: l.colonne.id, typMo: l.prestation.id, jour: l.jour, debut: l.debut, min: l.prestation.min })) });
+    const r = await attendreDeDrivup('drivup-ecoutes-faites', p => {
+      etat.textContent = 'Ouverture des écoutes dans Drivup… ' + (p.fait || 0) + ' / ' + (p.total || choisies.length);
+    }, 600000);
+    let bons = 0, mauvais = 0;
+    (r.resultats || []).forEach(x => {
+      const it = cases.find(y => y.l.cle === x.cle);
+      if(!it) return;
+      it.c.disabled = true; it.c.checked = false;
+      const et = document.createElement('span');
+      et.className = 'dvEt ' + (x.ok ? 'neuf' : 'annule');
+      et.textContent = x.ok ? '✅ Ouverte' : '⚠️ ' + (x.message || 'non ouverte');
+      it.el.appendChild(et);
+      if(x.ok) bons++; else mauvais++;
+    });
+    ok.style.display = 'none';
+    non.disabled = false;
+    non.textContent = 'Fermer';
+    etat.style.color = mauvais ? 'var(--warn-text)' : '';
+    etat.textContent = (bons ? '✅ ' + bons + ' écoute' + (bons > 1 ? 's' : '') + ' ouverte' + (bons > 1 ? 's' : '') + ' dans Drivup' : '') +
+      (mauvais ? (bons ? ' · ' : '') + '⚠️ ' + mauvais + ' non ouverte' + (mauvais > 1 ? 's' : '') + ' (voir les lignes)' : '') + '.';
+  }, f.fermer);
+  function majBouton(){
+    const n = cases.filter(x => x.c.checked).length;
+    btns.ok.disabled = !n;
+    btns.ok.textContent = n ? '👂 Ouvrir ' + n + ' écoute' + (n > 1 ? 's' : '') + ' dans Drivup' : 'Rien de coché';
+  }
+  majBouton();
+  const note = document.createElement('div');
+  note.className = 'dvNote';
+  note.textContent = 'Le favori remplit le formulaire « Planifier » de Drivup pour chaque écoute cochée, comme à la main, ' +
+    'puis relit le planning pour vérifier qu’elle y est. Rien d’autre n’est écrit dans Drivup.';
+  f.boite.appendChild(note);
+}
 
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-drivup.js'] = true;
