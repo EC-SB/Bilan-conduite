@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 16:10 — v1219 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -836,6 +836,7 @@ async function lancerLaGeneration(){
     /* 📍 v1219 — où il en est, sous le rappel de sa frise */
     if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
     bilan += blocProcedures(coursCorrige);
+    if(typeof blocARevoir === 'function') bilan += blocARevoir();
 
     /* Ce que le moniteur a dit, en clair. Seul le modèle Conduite
        le reprenait : sur un RVP ou un examen blanc, son travail
@@ -1644,6 +1645,165 @@ function dessinerProceduresAJoindre(idZone){
 }
 
 /* ============================================================
+   🎬 À REVOIR DANS SON COIN RÉVISIONS — v1222
+
+   David : « il faut aussi qu'on puisse dire à l'élève d'aller voir
+   tel ou tel endroit » — et, parmi les façons proposées, « depuis le
+   bilan du cours ». Comme les procédures à joindre : le moniteur
+   coche, pendant le cours, des segments de SON parcours. Ils partent
+   en fin de bilan (avec un lien qui ouvre le segment) et s'épinglent
+   en tête de son « Réviser » quand le bilan est enregistré (le
+   Worker s'en charge — voir « revoirParcours »).
+
+   ⚠️ LES MÊMES GARDE-FOUS QUE LES PROCÉDURES : gardés dans le
+   téléphone, par élève et par jour, trente-six heures.
+   ============================================================ */
+const CLE_REVOIR_COURS = 'ec_revoir_cours';
+const cacheSegmentsEleve = {};
+
+function lireRevoirCours(){
+  try{
+    const t = JSON.parse(localStorage.getItem(CLE_REVOIR_COURS) || '{}');
+    return (t && typeof t === 'object' && !Array.isArray(t)) ? t : {};
+  }catch(e){ return {}; }
+}
+/* [{ guide, segment, titre, guideTitre }] */
+function segmentsARevoirDuCours(){
+  const k = cleProcsDuCours();
+  if(!k) return [];
+  const x = lireRevoirCours()[k];
+  if(!x || !Array.isArray(x.l) || Date.now() - Number(x.t || 0) > DUREE_PROCS_JOINTES) return [];
+  return x.l;
+}
+function poserSegmentsARevoir(liste){
+  const k = cleProcsDuCours();
+  if(!k) return;
+  const t = lireRevoirCours();
+  const maintenant = Date.now();
+  Object.keys(t).forEach(c => { if(!t[c] || maintenant - Number(t[c].t || 0) > DUREE_PROCS_JOINTES) delete t[c]; });
+  if(liste && liste.length) t[k] = { l: liste, t: maintenant }; else delete t[k];
+  try{ localStorage.setItem(CLE_REVOIR_COURS, JSON.stringify(t)); }catch(e){}
+}
+
+async function segmentsDuParcoursDeLEleve(nom){
+  const k = normaliserMot(nom);
+  const c = cacheSegmentsEleve[k];
+  if(c && Date.now() - c.t < 5 * 60000) return c.guides;
+  const d = await appelPrep({ action: 'parcoursSegmentsDeLEleve', eleve: nom });
+  const guides = (d && d.guides) || [];
+  cacheSegmentsEleve[k] = { t: Date.now(), guides: guides };
+  return guides;
+}
+
+/* Le lien qui ouvre CE segment dans son espace */
+function lienDuSegmentARevoir(x){
+  const base = (typeof CONFIG !== 'undefined' && CONFIG.LIEN_ELEVE) || '';
+  return base + '?seg=' + encodeURIComponent(x.guide + '::' + (x.segment || ''));
+}
+
+/* Le bloc ajouté en fin de bilan */
+function blocARevoir(){
+  const l = segmentsARevoirDuCours();
+  if(!l.length) return '';
+  return '\n\n🎬 À revoir dans ton coin révisions :\n' + l.map(x =>
+    '• ' + (x.titre || 'Segment') + (x.guideTitre ? ' (' + x.guideTitre + ')' : '') + '\n  ' + lienDuSegmentARevoir(x)
+  ).join('\n');
+}
+
+async function dessinerSegmentsARevoir(idZone){
+  const z = $(idZone);
+  if(!z) return;
+  const nom = (($('studentName') && $('studentName').value) || '').trim();
+  if(!cleProcsDuCours() || nom.length < 3){ z.style.display = 'none'; z.innerHTML = ''; return; }
+  let guides = [];
+  try{ guides = await segmentsDuParcoursDeLEleve(nom); }catch(e){ guides = []; }
+  /* L'élève a changé pendant la lecture : on ne dessine pas le sien */
+  if(((($('studentName') && $('studentName').value) || '').trim()) !== nom) return;
+  z.innerHTML = '';
+  if(!guides.length){ z.style.display = 'none'; return; }
+  z.style.display = '';
+
+  let choisis = segmentsARevoirDuCours();
+  const estChoisi = (g, sg) => choisis.some(x => x.guide === g.id && String(x.segment || '') === String(sg.id || ''));
+
+  const d = document.createElement('details');
+  d.className = 'tiroirProcedures tiroirRevoir';
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
+  d.open = choisis.length > 0;
+  const s = document.createElement('summary');
+  s.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;color:var(--accent-text);';
+  d.appendChild(s);
+  const majTitre = () => {
+    const n = choisis.length;
+    s.textContent = '🎬 À revoir dans son coin révisions' + (n ? ' — ' + n + ' choisi' + (n > 1 ? 's' : '') : '');
+  };
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 4px;line-height:1.5;';
+  aide.textContent = 'Ils partent en fin de bilan, avec un lien qui ouvre le segment, et s’épinglent 📌 en tête de son « Réviser » ' +
+    'quand le bilan est enregistré. ✓ = déjà vu.';
+  d.appendChild(aide);
+  d.appendChild(basculeVueCases());
+
+  const repeints = [];
+  const basculer = (g, sg) => {
+    if(estChoisi(g, sg)){
+      choisis = choisis.filter(x => !(x.guide === g.id && String(x.segment || '') === String(sg.id || '')));
+    }else{
+      choisis = choisis.concat([{ guide: g.id, segment: sg.id || '', titre: sg.titre || '', guideTitre: g.titre || '' }]);
+    }
+    poserSegmentsARevoir(choisis);
+    repeints.forEach(f => f());
+    majTitre();
+  };
+
+  guides.forEach(g => {
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 4px;';
+    t.textContent = (g.groupeIcone ? g.groupeIcone + ' ' : '') + (g.titre || 'Guide');
+    d.appendChild(t);
+    const zone = document.createElement('div');
+    const cases = document.createElement('div');
+    const boutons = document.createElement('div');
+    boutons.className = 'grillePastilles';
+    g.segments.forEach(sg => {
+      const libelle = (sg.titre || 'Segment') + (sg.vu ? ' ✓' : '');
+      const l = document.createElement('label');
+      l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;font-size:14px;' +
+        'text-transform:none;margin:0;font-weight:400;cursor:pointer;color:var(--cream);';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'segARevoir';
+      cb.dataset.horsSaisie = '1';
+      cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;margin:0;';
+      cb.addEventListener('change', () => basculer(g, sg));
+      const tx = document.createElement('span');
+      tx.style.cssText = 'flex:1;min-width:0;';
+      tx.textContent = libelle;
+      l.append(cb, tx);
+      cases.appendChild(l);
+      const bt = pastilleVue(libelle, false);
+      bt.addEventListener('click', () => basculer(g, sg));
+      boutons.appendChild(bt);
+      const peindre = () => {
+        const on = estChoisi(g, sg);
+        cb.checked = on;
+        l.style.fontWeight = on ? '700' : '400';
+        bt.className = 'btn pastilleVue ' + (on ? 'btn-primary' : 'btn-secondary');
+        bt.setAttribute('aria-pressed', on ? 'true' : 'false');
+      };
+      repeints.push(peindre);
+      peindre();
+    });
+    zone.append(cases, boutons);
+    d.appendChild(zone);
+    deuxHabits(zone, cases, boutons);
+  });
+
+  majTitre();
+  z.appendChild(d);
+}
+
+/* ============================================================
    AJOUTER UNE PROCÉDURE À LA MAIN
 
    La voix sert pendant le cours ; ici, c'est pour le bilan manuel
@@ -1731,6 +1891,8 @@ async function afficherFicheDuCours(){
   const nom = $('studentName') ? $('studentName').value.trim() : '';
   /* 📋 v1211 — sous la fiche, au-dessus de la transcription */
   try{ dessinerProceduresAJoindre('proceduresCours'); }catch(e){}
+  /* 🎬 v1222 — et ce qu'il aura à revoir dans son coin révisions */
+  try{ dessinerSegmentsARevoir('revoirCours'); }catch(e){}
   if(nom.length < 3){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
 
   /* Ce qui est déjà validé : coché et grisé, on n'y touche pas */
