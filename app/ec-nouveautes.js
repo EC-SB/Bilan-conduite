@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 13:06 — v1229 */
+/* Déployé le 21/10/2026 à 14:00 — v1232 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1232,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '🔘 Procédures du cours : noms courts, gras, une couleur par boîte',
+    quoi: [
+      { emoji: '🔘',
+        titre: 'Les procédures se lisent d’un coup d’œil pendant le cours',
+        texte: 'Dans « 📋 Procédures à joindre au bilan », les procédures sont rangées par boîte (BEA, BV, BEA et BV), avec une couleur par boîte, et leur nom est raccourci tout seul (plus de « Procédures BEA › » ni de « (boîte à embrayage…) »). ' +
+               'Pour choisir le nom vous-même : Ce qu’on écrit › Procédures › la fiche › « 🔘 Nom sur le bouton », avec **gras** où vous voulez. Le bilan garde le nom complet.' }
+    ]
+  },
   {
     version: 1229,
     date: 'Mercredi 21 octobre 2026',
