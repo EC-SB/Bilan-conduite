@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 13:35 — v1189 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -1596,6 +1596,49 @@ function produitDuMois(s){
     majore += so.majore;
   });
   return { normales: arrondiQuart(normal), majorees: arrondiQuart(majore) };
+}
+
+/* ============================================================
+   ⏫ LES HEURES SUPP D'UNE PERSONNE, POUR SA FICHE D'ÉQUIPE — v1222
+
+   David : « dans l'équipe, dans les heures, il manque les heures
+   supplémentaires ».
+
+   ⚠️ LE MÊME CALCUL, PAS UN SECOND. La fiche d'équipe ne recompte
+   rien à sa façon : elle prête ses données à ces fonctions-ci, le
+   temps d'un calcul, et les rend. Deux calculs des heures supp
+   finiraient par donner deux nombres, et c'est la paie qui
+   compterait faux.
+
+   ⚠️ ET L'ÉCRAN 💶 PAIE N'EST JAMAIS TOUCHÉ. Ses tableaux sont mis
+   de côté puis remis tels quels, même si le calcul échoue.
+   ============================================================ */
+function heuresSuppPourLaFiche(donnees, mois){
+  if(!donnees || !donnees.salarie || !mois) return null;
+  const garde = { sa: salariesPaie, se: semainesPaie, ab: absencesPaie,
+                  cl: cloturesPaie, ra: rattachements, mo: moisPaie };
+  try{
+    const s = donnees.salarie;
+    salariesPaie = [s];
+    semainesPaie = donnees.semaines || [];
+    absencesPaie = donnees.absences || [];
+    cloturesPaie = donnees.clotures || [];
+    rattachements = donnees.rattachements || {};
+    moisPaie = mois;
+    const m = produitDuMois(s);
+    const avant = reportAvant(s, mois);
+    const c = clotureDe(s.id, mois);
+    return {
+      normales: m.normales, majorees: m.majorees,
+      avantNormales: avant.normales, avantMajorees: avant.majorees,
+      recupAPrendre: avant.recup,
+      cloture: c ? { normalesPayees: c.normalesPayees || 0, majoreesPayees: c.majoreesPayees || 0,
+                     recup: c.recupCreditee || 0 } : null
+    };
+  }finally{
+    salariesPaie = garde.sa; semainesPaie = garde.se; absencesPaie = garde.ab;
+    cloturesPaie = garde.cl; rattachements = garde.ra; moisPaie = garde.mo;
+  }
 }
 
 /* Une heure à 25 % ne vaut pas forcément une heure de récup : elle
