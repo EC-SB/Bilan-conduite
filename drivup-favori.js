@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 12:15 — v1181 */
+/* Déployé le 21/10/2026 à 13:06 — v1229 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -21,8 +21,10 @@
      à venir : les horaires d'ouverture des bureaux, pour les seuls
      bureaux dont la reprise Drivup est activée dans l'application.
 
-   Il ne fait que LIRE : aucun bouton n'est touché, rien n'est écrit
-   dans Drivup, aucun mot de passe n'est lu. Ce qu'il a lu part
+   Il LIT : aucun bouton n'est touché, aucun mot de passe n'est lu.
+   Une seule exception, voulue par David le 21 octobre : 👂 ouvrir les
+   écoutes pédagogiques, quand l'onglet de l'application le demande
+   après validation (voir « les écoutes pédagogiques » plus bas). Ce qu'il a lu part
    dans l'onglet de l'application que le favori vient d'ouvrir, qui
    montre ce qui change et attend qu'on valide.
 
@@ -435,6 +437,241 @@
       neph: v('neph').replace(/\D/g, ''), mobile: v('fakeMobile'), naissance: v('dateNaissance'),
       formation: formationDeLaFiche(), photo: photoDe(avatar), notes: notes
     } };
+  }
+
+  /* ---------- 👂 v1229 — les écoutes pédagogiques ----------
+
+     David, le 21 octobre : « quand un cours est prévu sur un
+     moniteur, il faut ouvrir une écoute pédagogique dans les cases
+     écoutes ». C'est la SEULE chose que ce favori écrit dans Drivup
+     (son feu vert, contrat vérifié), et seulement quand l'onglet
+     Bilan de conduite le demande, après qu'on a validé la liste.
+
+     ⚠️ ON N'OBÉIT QU'À L'ONGLET DE L'APPLICATION (origine APP), et
+     même à lui, on ne fait QUE ça : une prestation d'écoute, dans une
+     colonne d'écoute (BEA, BV, Ecoute), à une heure donnée. Une
+     demande qui sort de ce cadre est refusée ici, quoi qu'elle dise.
+
+     ⚠️ ET ON CRÉE COMME DRIVUP CRÉE : on ouvre son formulaire
+     « Planifier » (booking_rec.php) avec la prestation choisie, on
+     vérifie qu'il dit bien la bonne colonne, la bonne heure et la
+     bonne prestation, puis on l'envoie tel que Drivup l'a rempli. */
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const semaineIso = d => {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const j = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - j);
+    const an = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil(((t - an) / 86400000 + 1) / 7);
+  };
+  const fluxDuPlanning = () => performance.getEntriesByType('resource').map(e => e.name)
+    .filter(n => /\/planning\/data\/FCIO_agence_events\.php/.test(n)).pop() || '';
+  function ressourcesALEcran() {
+    const cal = window.__FC_CAL;
+    const liste = (cal && cal.getResources ? cal.getResources() : []).map(r => ({ id: String(r.id), titre: propre(r.title) }));
+    const ordre = [];
+    document.querySelectorAll('[data-resource-id]').forEach(e => {
+      const id = e.getAttribute('data-resource-id');
+      if (id && ordre.indexOf(id) === -1) ordre.push(id);
+    });
+    if (!ordre.length) return liste;
+    return liste.slice().sort((a, b) => {
+      const ia = ordre.indexOf(a.id), ib = ordre.indexOf(b.id);
+      return (ia === -1 ? 1e6 : ia) - (ib === -1 ? 1e6 : ib);
+    });
+  }
+  const estColonneDEcoute = titre => /^(bea|bv|ecoute)$/.test(sansAccent(titre));
+
+  function parametresDuFormulaire(jour, debut, res, typMo) {
+    const m = String(jour).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const h = String(debut).match(/^(\d{2}):(\d{2})$/);
+    const d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return new URLSearchParams({
+      heure: String(+h[1] * 100 + +h[2]), jour: String(((d.getDay() + 6) % 7) + 1), semaine: String(semaineIso(d)),
+      annee: m[1], date_start: jour + ' ' + debut + ':00', type: '0', lieu: '0', prestation: '0',
+      ladate2: String(+m[2]), jour2: String(+m[3]), id_presta: '', mono: String(res), elevemax: '', duration: '',
+      time: String(Date.now()), typ_mo: String(typMo || ''), typ_pr: '', agence: '0', mode: '1'
+    });
+  }
+  async function formulaireDrivup(jour, debut, res, typMo) {
+    const r = await fetch('/planning/booking_rec.php?' + parametresDuFormulaire(jour, debut, res, typMo), { credentials: 'include' });
+    if (!r.ok) throw new Error('formulaire ' + r.status);
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+    const form = doc.querySelector('form');
+    if (!form) throw new Error('formulaire introuvable');
+    return form;
+  }
+  async function prestationsDrivup(jour, res) {
+    const form = await formulaireDrivup(jour, '10:00', res, '');
+    const out = {};
+    const sel = form.querySelector('[name="type_rdv"]');
+    [...(sel ? sel.options : [])].forEach(o => {
+      const id = (String(o.value).match(/typ_mo=(\d+)/) || [])[1];
+      if (id) out[id] = propre(o.textContent).slice(0, 80);
+    });
+    return out;
+  }
+  async function evenementsDrivup(du, semaines) {
+    const flux = fluxDuPlanning();
+    if (!flux) throw new Error('Le flux du planning est introuvable : recharge la page Drivup, puis reclique sur le favori.');
+    const vus = {};
+    const out = [];
+    for (let k = 0; k < semaines; k++) {
+      const u = new URL(flux, location.href);
+      u.searchParams.set('date', jourPlus(du, 7 * k));
+      u.searchParams.set('_', String(Date.now()));
+      const l = await (await fetch(u.href, { credentials: 'include' })).json();
+      (Array.isArray(l) ? l : ((l && l.events) || [])).forEach(e => {
+        if (!e || vus[e.id]) return;
+        vus[e.id] = true;
+        out.push(e);
+      });
+      await pause(60);
+    }
+    return out;
+  }
+
+  let ecoutesOccupe = false;
+  async function lireLesEcoutes(demande, source) {
+    const repondre = m => { try { source.postMessage(m, APP); } catch (e) {} };
+    if (!/\/planning\/agence\.php/.test(location.pathname) || !window.__FC_CAL) {
+      return repondre({ type: 'drivup-ecoutes-erreur', message: 'Ouvre le planning d’une agence dans Drivup, puis reclique sur le favori.' });
+    }
+    /* L'accusé tout de suite : l'onglet sait que le favori écoute */
+    repondre({ type: 'drivup-ecoutes-progression', fait: 0, total: 0, texte: 'Lecture du planning dans Drivup…' });
+    const semaines = Math.max(1, Math.min(8, parseInt(demande.semaines, 10) || 4));
+    const du = /^\d{4}-\d{2}-\d{2}$/.test(String(demande.du)) ? String(demande.du)
+             : new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+    const au = jourPlus(du, 7 * semaines - 1);
+    dire('👂 Lecture des écoutes…');
+    const ressources = ressourcesALEcran();
+    const colEcoute = ressources.find(r => estColonneDEcoute(r.titre));
+    const prestations = await prestationsDrivup(du, colEcoute ? colEcoute.id : (ressources[0] || {}).id || '');
+    const bruts = (await evenementsDrivup(du, semaines))
+      .filter(e => { const j = jourDuTexte(e.start); return j >= du && j <= au; });
+    const evenements = bruts.map(e => ({
+      id: String(e.id), res: String(e.resourceId || ''), type: String(e.typeRdv || ''),
+      jour: jourDuTexte(e.start), debut: heureDuTexte(e.start), fin: heureDuTexte(e.end),
+      memo: propre(e.memo).slice(0, 300), examen: String(e.examen || '0'), nbr: Number(e.nbrEleve) || 0,
+      adresse: propre(e.address).slice(0, 60), titre: propre(e.title).slice(0, 80),
+      agendaInterne: String(e.agendaInterne || '')
+    }));
+    /* L'élève de chaque cours de conduite (le détail que Drivup ouvre
+       quand on clique) : pour le reconnaître chez nous. */
+    const titres = {};
+    ressources.forEach(r => { titres[r.id] = r.titre; });
+    const LECON = /conduite|examen blanc|test exam blanc|eval voiture|remise a niveau/;
+    const PAS = /moto|remorque|voiturette|simu|baby|theorie|salle|etg|code/;
+    const aLire = evenements.filter(e => e.nbr > 0 && e.examen === '0' && !estColonneDEcoute(titres[e.res] || '') &&
+      LECON.test(sansAccent(prestations[e.type] || '')) && !PAS.test(sansAccent(prestations[e.type] || '')));
+    const details = {};
+    let fait = 0;
+    const file = aLire.slice();
+    async function ouvrier() {
+      while (file.length) {
+        const e = file.shift();
+        try {
+          const d = await lireDetail({ id: e.id, extendedProps: { agendaInterne: e.agendaInterne, typeRdv: e.type, examen: '0' } });
+          details[e.id] = d.eleves.map(x => ({ id: x.id, nom: x.nom, prenom: x.prenom, formation: x.formation }));
+        } catch (err) { details[e.id] = []; }
+        fait++;
+        if (fait % 4 === 0 || fait === aLire.length) {
+          repondre({ type: 'drivup-ecoutes-progression', fait: fait, total: aLire.length,
+                     texte: 'Lecture des cours dans Drivup… ' + fait + ' / ' + aLire.length });
+        }
+        await pause(40);
+      }
+    }
+    await Promise.all([ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier()]);
+    dire('👂 ' + aLire.length + ' cours lus. Choisis dans l’onglet Bilan de conduite.');
+    repondre({ type: 'drivup-ecoutes-lues', du: du, au: au, ressources: ressources, prestations: prestations,
+               evenements: evenements.map(e => { const c = Object.assign({}, e); delete c.agendaInterne; return c; }),
+               details: details });
+  }
+
+  async function creerLesEcoutes(demande, source) {
+    const repondre = m => { try { source.postMessage(m, APP); } catch (e) {} };
+    if (ecoutesOccupe) return;
+    repondre({ type: 'drivup-ecoutes-progression', fait: 0, total: (demande.liste || []).length });
+    ecoutesOccupe = true;
+    try {
+      const ressources = ressourcesALEcran();
+      const titres = {};
+      ressources.forEach(r => { titres[r.id] = r.titre; });
+      const liste = (Array.isArray(demande.liste) ? demande.liste : []).slice(0, 300);
+      const resultats = [];
+      if (!liste.length) return repondre({ type: 'drivup-ecoutes-faites', resultats: [] });
+      const prestations = await prestationsDrivup(liste[0].jour, liste[0].res);
+      /* L'état du planning juste avant : une colonne prise entre-temps
+         ne se double pas. */
+      const jours = [...new Set(liste.map(x => String(x.jour)))].sort();
+      const avant = await evenementsDrivup(jours[0], Math.min(9, Math.ceil(((new Date(jours[jours.length - 1]) - new Date(jours[0])) / 86400000 + 1) / 7) + 1));
+      const prise = (res, jour, a, b) => avant.some(e => String(e.resourceId) === res && jourDuTexte(e.start) === jour &&
+        (() => { const x = heureDuTexte(e.start), y = heureDuTexte(e.end); const mn = h => +h.slice(0, 2) * 60 + +h.slice(3, 5);
+                 return mn(x) < b && a < mn(y); })());
+      let fait = 0;
+      for (const it of liste) {
+        const r = { cle: String(it.cle || ''), ok: false, message: '' };
+        try {
+          const res = String(it.res || ''), typMo = String(it.typMo || ''), jour = String(it.jour || ''), debut = String(it.debut || '');
+          if (!estColonneDEcoute(titres[res] || '')) throw new Error('colonne refusée');
+          if (!/^[ée]coute/i.test(prestations[typMo] || '')) throw new Error('prestation refusée');
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(jour) || !/^\d{2}:\d{2}$/.test(debut)) throw new Error('heure refusée');
+          const a = +debut.slice(0, 2) * 60 + +debut.slice(3, 5);
+          if (prise(res, jour, a, a + (Number(it.min) || 60))) throw new Error('colonne prise entre-temps');
+          const form = await formulaireDrivup(jour, debut, res, typMo);
+          const val = n => { const e = form.querySelector('[name="' + n + '"]'); return e ? String(e.value) : ''; };
+          if (val('typ_mo') !== typMo || val('moniteur') !== res || Number(val('debut')) !== (+debut.slice(0, 2) * 100 + +debut.slice(3, 5)) ||
+              val('date_start').slice(0, 16) !== jour + ' ' + debut) throw new Error('le formulaire de Drivup ne correspond pas');
+          const action = new URL(form.getAttribute('action') || '', location.origin + '/planning/');
+          if (action.origin !== location.origin || !/iframe_ok_rec\.php$/.test(action.pathname)) throw new Error('envoi refusé');
+          const envoi = await fetch(action.href, { method: 'POST', body: new FormData(form), credentials: 'include' });
+          if (!envoi.ok) throw new Error('Drivup a répondu ' + envoi.status);
+          r.ok = true;
+          r._verif = { res, typMo, jour, debut };
+          avant.push({ resourceId: res, start: jour + 'T' + debut + ':00', end: jour + 'T' + String(Math.floor((a + (Number(it.min) || 60)) / 60)).padStart(2, '0') + ':' + String((a + (Number(it.min) || 60)) % 60).padStart(2, '0') + ':00' });
+        } catch (e) { r.message = (e && e.message) || String(e); }
+        resultats.push(r);
+        fait++;
+        dire('👂 Écoutes ouvertes : ' + fait + ' / ' + liste.length);
+        repondre({ type: 'drivup-ecoutes-progression', fait: fait, total: liste.length });
+        await pause(300);
+      }
+      /* La vérification : on relit le planning, chaque écoute doit y être */
+      const envoyees = resultats.filter(x => x.ok);
+      if (envoyees.length) {
+        const apres = await evenementsDrivup(jours[0], Math.min(9, Math.ceil(((new Date(jours[jours.length - 1]) - new Date(jours[0])) / 86400000 + 1) / 7) + 1));
+        envoyees.forEach(x => {
+          const v = x._verif;
+          const la = apres.some(e => String(e.resourceId) === v.res && String(e.typeRdv) === v.typMo &&
+                                     jourDuTexte(e.start) === v.jour && heureDuTexte(e.start) === v.debut);
+          if (!la) { x.ok = false; x.message = 'envoyée, mais absente du planning Drivup'; }
+        });
+      }
+      resultats.forEach(x => { delete x._verif; });
+      try { if (window.__FC_CAL && window.__FC_CAL.refetchEvents) window.__FC_CAL.refetchEvents(); } catch (e) {}
+      const bons = resultats.filter(x => x.ok).length;
+      dire('👂 ' + bons + ' écoute(s) ouverte(s) sur ' + liste.length + '.');
+      repondre({ type: 'drivup-ecoutes-faites', resultats: resultats });
+    } catch (e) {
+      repondre({ type: 'drivup-ecoutes-erreur', message: (e && e.message) || String(e) });
+    } finally {
+      ecoutesOccupe = false;
+    }
+  }
+
+  if (!window.__ecEcoutesBranche) {
+    window.__ecEcoutesBranche = true;
+    window.addEventListener('message', ev => {
+      if (ev.origin !== APP || !ev.data || !ev.source) return;
+      if (ev.data.type === 'drivup-ecoutes-lire') {
+        lireLesEcoutes(ev.data, ev.source).catch(e => {
+          try { ev.source.postMessage({ type: 'drivup-ecoutes-erreur', message: (e && e.message) || String(e) }, APP); } catch (x) {}
+        });
+      } else if (ev.data.type === 'drivup-ecoutes-creer') {
+        creerLesEcoutes(ev.data, ev.source);
+      }
+    });
   }
 
   /* ---------- Envoyer à l'onglet de l'application ---------- */
