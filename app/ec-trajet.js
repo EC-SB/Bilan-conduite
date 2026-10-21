@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 12:30 — v1103 */
+/* Déployé le 21/10/2026 à 10:24 — v1224 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -2405,7 +2405,8 @@ function dessinerEtatDuTrajet(){
   if(typeof positionPartagee === 'function' && positionPartagee()){
     const p = document.createElement('span');
     p.className = 'gris partageDirect';
-    p.textContent = '· 📡 position partagée';
+    /* 📍 v1224 — et il sait que la dernière reste au bureau */
+    p.textContent = '· 📡 position partagée (la dernière reste visible au bureau)';
     z.appendChild(p);
   }
 }
