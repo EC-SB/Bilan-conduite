@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 16:18 — v1195 */
+/* Déployé le 21/10/2026 à 09:16 — v1222 */
 /* ============================================================
    ec-equipe.js — 👥 L'ÉQUIPE et 🏫 L'ÉCOLE — v1189
 
@@ -986,8 +986,35 @@ async function dessinerHeuresEq(z, d){
     h += '<div class="eqTitreBloc" data-cle="heures:paie">PAIE — REPRIS DE 💶 PAIE</div><div class="eqGrille">' +
       tuileEq(String(d.salarie.baseHebdo || '').replace('.', ',') + ' h', 'Contrat par semaine', (d.salarie.joursSemaine || '') + ' jours') +
       tuileEq(String(compte('cp')), '🏖️ Congés', 'sur le mois') + tuileEq(String(compte('arret')), '🤒 Arrêts', 'sur le mois') +
-      tuileEq(String(compte('recup')), '🕐 Récupérations', 'sur le mois') + '</div>' +
-      '<div class="eqAide" style="margin-top:6px;">Les heures supplémentaires et le message au gestionnaire restent dans 💶 Paie.</div>';
+      tuileEq(String(compte('recup')), '🕐 Récupérations', 'sur le mois') + '</div>';
+  }
+  /* ⏫ v1222 — les heures supp, du calcul même de 💶 Paie */
+  if(f.dansPaie && d.heuresSup && voitEq(d, 'heures:sup') && typeof heuresSuppPourLaFiche === 'function'){
+    let hs = null;
+    try{ hs = heuresSuppPourLaFiche(d.heuresSup, m); }catch(e){ hs = null; }
+    const hh = v => (typeof enHeures === 'function' ? enHeures(v) : String(v).replace('.', ',') + ' h');
+    h += '<div class="eqTitreBloc" data-cle="heures:sup">HEURES SUPPLÉMENTAIRES — REPRIS DE 💶 PAIE</div>';
+    if(!hs){
+      h += '<div class="eqAide">Les heures supp n’ont pas pu être calculées.</div>';
+    }else{
+      let t = tuileEq(hh(hs.normales), '⏫ Normales', 'sur le mois') +
+              tuileEq(hh(hs.majorees), '⏫ À 25 %', 'sur le mois');
+      if(hs.avantNormales || hs.avantMajorees){
+        t += tuileEq(hh(hs.avantNormales + hs.avantMajorees), '↩️ Reportées des mois d’avant',
+                     hh(hs.avantNormales) + ' normales · ' + hh(hs.avantMajorees) + ' à 25 %');
+      }
+      if(hs.recupAPrendre) t += tuileEq(hh(hs.recupAPrendre), '🕐 Récup à prendre', 'au début du mois');
+      if(hs.cloture){
+        t += tuileEq('✅ Clôturé', 'Décision du mois', 'payées : ' + hh(hs.cloture.normalesPayees) + ' + ' +
+                     hh(hs.cloture.majoreesPayees) + ' à 25 %' + (hs.cloture.recup ? ' · en récup : ' + hh(hs.cloture.recup) : ''));
+      }else{
+        t += tuileEq('⏳', 'Mois pas encore clôturé', 'la décision se prend dans 💶 Paie');
+      }
+      h += '<div class="eqGrille">' + t + '</div>';
+    }
+  }
+  if(f.dansPaie && (d.estAdmin || voitEq(d, 'heures:sup') || voitEq(d, 'heures:paie'))){
+    h += '<div class="eqAide" style="margin-top:6px;">Le message au gestionnaire de paie reste dans 💶 Paie.</div>';
   }
   bloc.innerHTML = h || '<div class="empty">Rien à afficher pour le moment.</div>';
   poserLesInterrupteursEq(bloc, d);
