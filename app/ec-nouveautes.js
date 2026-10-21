@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:53 — v1223 */
+/* Déployé le 21/10/2026 à 10:24 — v1224 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,24 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1224,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '🗺️ En direct : la dernière position connue de chaque voiture, et 🏠 revenue au bureau',
+    quoi: [
+      { emoji: '📍',
+        titre: 'La dernière position connue',
+        texte: 'Une voiture qui n’envoie plus rien garde sur la carte une bulle grise « dernière position » avec la date et l’heure. ' +
+               'UN seul point par voiture est gardé, remplacé à chaque signal, sans historique ni vitesse. Les moniteurs le lisent sur leur ligne de trajet.' },
+      { emoji: '🏠',
+        titre: 'Revenue au bureau',
+        texte: 'Le bouton « 🏠 Revenue au bureau » (Saint-Brieuc ou Loudéac) efface sa dernière position. Elle passe aussi toute seule « au bureau » quand elle s’arrête à moins de 150 m de l’un d’eux.' },
+      { emoji: '🚗',
+        titre: 'Toutes les voitures, et ce qu’on sait d’elles',
+        texte: 'La liste sous la carte montre toute la flotte : 📡 en direct, 📍 dernière position, 🏠 au bureau ou ❔ inconnue ; qui l’a en ce moment et son prochain cours (d’après le planning). ' +
+               'Un appui sur une ligne zoome sur la voiture — ou sur son bureau.' }
+    ]
+  },
   {
     version: 1223,
     date: 'Mercredi 21 octobre 2026',
