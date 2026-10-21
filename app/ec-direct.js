@@ -1,4 +1,4 @@
-/* Déployé le 12/10/2026 — v1148 */
+/* Déployé le 21/10/2026 à 10:24 — v1224 */
 /* ============================================================
    ec-direct.js
    🗺️ Les voitures en direct — Gestion › Le parc › En direct,
@@ -15,7 +15,12 @@
    n'envoie que latitude, longitude, le nom de la voiture et le
    site. Le Worker la remet au Durable Object de la messagerie en
    direct, qui la garde EN MÉMOIRE et l'efface 2 min après le
-   dernier signe. Rien n'est écrit, nulle part.
+   dernier signe.
+
+   📍 v1224 — ET UN SEUL POINT PAR VOITURE EST GARDÉ (choix de
+   David) : la dernière position connue, remplacée à chaque signal,
+   effacée au retour au bureau. Voir le Worker, « LA DERNIÈRE
+   POSITION CONNUE DE CHAQUE VOITURE ».
 
    ⚠️ LE RELEVÉ DU TRAJET RESTE LE SEUL CAPTEUR. Ce fichier ne pose
    aucune veille GPS à lui : il reçoit les positions que le relevé
@@ -133,8 +138,27 @@ function positionPartagee(){
 
 /* ============================================================
    CÔTÉ BUREAU — LA CARTE
+
+   📍 v1224 — David : « il faut que j'aie les dernières positions
+   connues ; si pas de position, une bulle “dernière position connue”
+   avec la date et l'heure ; et que je puisse dire si la voiture est
+   de nouveau au bureau. J'ai besoin de savoir où sont les véhicules
+   en temps réel avec les infos que l'on a ».
+
+   Trois états par voiture, dans cet ordre :
+     📡 en direct (un téléphone l'envoie en ce moment) ;
+     📍 dernière position connue (gardée par le Worker : UN point par
+        voiture, remplacé, sans historique) ;
+     🏠 au bureau (le bouton, ou toute seule à moins de 150 m) —
+        sinon ❔ position inconnue.
+   Et pour chacune, d'après le planning d'aujourd'hui et de demain :
+   qui l'a (le cours en cours), et quand elle ressort.
    ============================================================ */
-const etatCarteDirect = { voitures: [], branche: true, suivie: '', lu: 0,
+const VOITURE_INFOS_PAS = 300000;      /* le planning : toutes les 5 min */
+const VOITURE_COURS_MINUTES = 150;     /* un cours commencé il y a moins de 2 h 30 est « en cours » */
+
+const etatCarteDirect = { voitures: [], dernieres: [], infos: null, infosLu: 0,
+                          branche: true, suivie: '', lu: 0,
                           minuteur: null, horloge: null, cleVue: '',
                           etats: '' };
 
@@ -148,11 +172,14 @@ function carteDirectSousLesYeux(){
 async function afficherVoituresEnDirect(){
   if(typeof ACCES === 'undefined' || ACCES.role !== 'admin') return;
   if(!$('directCarte')) return;
-  await relireLesVoituresEnDirect(true);
+  await Promise.all([relireLesVoituresEnDirect(true), relireLesInfosDesVoitures()]);
+  dessinerVoituresEnDirect(true);
 
   clearInterval(etatCarteDirect.minuteur);
   etatCarteDirect.minuteur = setInterval(() => {
-    if(carteDirectSousLesYeux()) relireLesVoituresEnDirect(false);
+    if(!carteDirectSousLesYeux()) return;
+    relireLesVoituresEnDirect(false);
+    if(Date.now() - etatCarteDirect.infosLu > VOITURE_INFOS_PAS) relireLesInfosDesVoitures().then(() => dessinerVoituresEnDirect(true));
   }, 15000);
   clearInterval(etatCarteDirect.horloge);
   etatCarteDirect.horloge = setInterval(() => {
@@ -168,7 +195,7 @@ async function relireLesVoituresEnDirect(forcer){
     if(forcer){
       const z = $('directListe');
       if(z) z.innerHTML = '<div class="empty">⚠️ ' + echapper(String((e && e.message) || e)) + '</div>';
-      dessinerLeFondDirect([]);
+      dessinerLeFondDirect([], []);
     }
     return;
   }
@@ -179,17 +206,32 @@ async function relireLesVoituresEnDirect(forcer){
   etatCarteDirect.voitures = ((r && r.voitures) || []).map(v => Object.assign({}, v, {
     recu: maintenant - (Number(v.age) || 0)
   }));
+  /* 📍 La dernière position connue : son heure vient d'un âge, elle
+     aussi — et elle se lit en date et heure. */
+  etatCarteDirect.dernieres = ((r && r.dernieres) || []).map(d => Object.assign({}, d, {
+    quand: d.age === null || d.age === undefined ? 0 : maintenant - Number(d.age),
+    auBureauQuand: d.auBureauAge === null || d.auBureauAge === undefined ? 0 : maintenant - Number(d.auBureauAge)
+  }));
   etatCarteDirect.lu = maintenant;
   etatCarteDirect.etats = '';
   dessinerVoituresEnDirect(true);
 }
 
+async function relireLesInfosDesVoitures(){
+  try{
+    const r = await appelPrep({ action: 'voituresInfos' });
+    if(r && r.status === 'ok'){ etatCarteDirect.infos = r; etatCarteDirect.infosLu = Date.now(); }
+  }catch(e){ /* sans le planning, la carte reste lisible */ }
+}
+
 /* Le logo de la voiture : celui de sa catégorie dans la Flotte,
    quand la Flotte est chargée ; 🚙 pour une Q-quelque-chose. */
 function emojiDeLaVoiture(nom){
-  const n = (typeof normaliserMot === 'function') ? normaliserMot(nom) : String(nom || '').toLowerCase();
-  if(typeof flotte !== 'undefined' && Array.isArray(flotte) && typeof CATEGORIES_FLOTTE !== 'undefined'){
-    const v = flotte.find(x => ((typeof normaliserMot === 'function') ? normaliserMot(x.nom) : String(x.nom || '').toLowerCase()) === n);
+  const n = cleDeVoitureDirect(nom);
+  const flotteVue = (etatCarteDirect.infos && etatCarteDirect.infos.flotte) ||
+                    ((typeof flotte !== 'undefined' && Array.isArray(flotte)) ? flotte : []);
+  if(typeof CATEGORIES_FLOTTE !== 'undefined'){
+    const v = flotteVue.find(x => cleDeVoitureDirect(x.nom) === n);
     if(v && v.categorie && v.categorie !== 'voiture'){
       const cat = CATEGORIES_FLOTTE.find(c => c.cle === v.categorie);
       if(cat) return String(cat.nom).split(' ')[0];
@@ -198,50 +240,146 @@ function emojiDeLaVoiture(nom){
   return /^q\s*\d/.test(n) ? '🚙' : '🚗';
 }
 
+function cleDeVoitureDirect(nom){
+  return (typeof normaliserMot === 'function') ? normaliserMot(nom) : String(nom || '').toLowerCase().trim();
+}
+
 function ageEnMotsDirect(ms){
   const s = Math.max(0, Math.round(ms / 1000));
   if(s < 60) return s + ' s';
   const m = Math.floor(s / 60), r = s % 60;
-  return m + ' min' + (r ? ' ' + String(r).padStart(2, '0') : '');
+  if(m < 60) return m + ' min' + (r ? ' ' + String(r).padStart(2, '0') : '');
+  const h = Math.floor(m / 60);
+  return h + ' h ' + String(m % 60).padStart(2, '0');
+}
+
+/* « 21/10 à 14:32 » — et « aujourd'hui à 14:32 » le jour même */
+function dateHeureDirect(ms){
+  const d = new Date(Number(ms) || 0);
+  if(!Number(ms) || isNaN(d.getTime())) return '';
+  const z = n => String(n).padStart(2, '0');
+  const auj = new Date();
+  const memeJour = d.getDate() === auj.getDate() && d.getMonth() === auj.getMonth() && d.getFullYear() === auj.getFullYear();
+  return (memeJour ? 'aujourd’hui' : 'le ' + z(d.getDate()) + '/' + z(d.getMonth() + 1)) +
+         ' à ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+
+/* Les voitures, telles qu'on les connaît maintenant : une ligne par
+   voiture de la Flotte, et une par voiture vue qui n'y est pas. */
+function voituresConnuesDirect(){
+  const maintenant = Date.now();
+  const enDirect = etatCarteDirect.voitures.filter(v => maintenant - v.recu < VOITURE_EFFACEE);
+  const parCle = {};
+  const ordre = [];
+  const fiche = (nom) => {
+    const k = cleDeVoitureDirect(nom) || '?';
+    if(!parCle[k]){ parCle[k] = { cle: k, nom: nom || 'Voiture ?', flotte: null, live: null, derniere: null }; ordre.push(k); }
+    return parCle[k];
+  };
+  const fl = (etatCarteDirect.infos && etatCarteDirect.infos.flotte) || [];
+  fl.forEach(v => { fiche(v.nom).flotte = v; });
+  etatCarteDirect.dernieres.forEach(d => { fiche(d.voiture).derniere = d; });
+  enDirect.forEach(v => {
+    if(!v.voiture) return;
+    const f = fiche(v.voiture);
+    if(!f.live || v.recu > f.live.recu) f.live = v;
+  });
+  return ordre.map(k => {
+    const f = parCle[k];
+    const vivant = f.live && maintenant - f.live.recu < VOITURE_SANS_SIGNAL;
+    const d = f.derniere;
+    f.etat = vivant ? 'direct'
+      : (d && d.auBureau) ? 'bureau'
+      : (d && d.lat !== null && d.lat !== undefined) ? 'derniere'
+      : (f.live) ? 'derniere'
+      : 'inconnue';
+    /* Une voiture en direct qui vient de perdre le signal : sa
+       dernière position est celle du direct, plus fraîche que D1 */
+    if(f.etat === 'derniere' && f.live && (!d || d.lat === null || d.lat === undefined || f.live.recu > (d.quand || 0))){
+      f.point = { lat: f.live.lat, lon: f.live.lon, quand: f.live.recu, qui: f.live.qui };
+    }else if(f.etat === 'derniere'){
+      f.point = { lat: d.lat, lon: d.lon, quand: d.quand, qui: d.qui };
+    }
+    return f;
+  });
+}
+
+/* Le planning de cette voiture : le cours en cours, le précédent, le suivant */
+function coursDeLaVoitureDirect(nom){
+  const inf = etatCarteDirect.infos;
+  if(!inf || !Array.isArray(inf.cours)) return null;
+  const k = cleDeVoitureDirect(nom);
+  const siens = inf.cours.filter(c => cleDeVoitureDirect(c.voiture) === k)
+    .sort((a, b) => (a.jour + a.heure).localeCompare(b.jour + b.heure));
+  const z = n => String(n).padStart(2, '0');
+  const t = new Date();
+  const maintenant = z(t.getHours()) + ':' + z(t.getMinutes());
+  const enMin = h => { const m = String(h || '').match(/^(\d{1,2}):(\d{2})/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const now = enMin(maintenant);
+  const auj = siens.filter(c => c.jour === inf.aujourdhui && enMin(c.heure) !== null);
+  const commences = auj.filter(c => enMin(c.heure) <= now);
+  const dernier = commences[commences.length - 1] || null;
+  const enCours = dernier && (now - enMin(dernier.heure)) <= VOITURE_COURS_MINUTES ? dernier : null;
+  const prochain = auj.find(c => enMin(c.heure) > now) ||
+                   siens.find(c => c.jour === inf.demain) || null;
+  return { enCours: enCours, dernier: enCours ? null : dernier, prochain: prochain, demain: inf.demain };
+}
+
+function libelleDuCoursDirect(c){
+  const m = (typeof MODELES === 'object' && MODELES && MODELES[c.modele]) ? MODELES[c.modele].label : '';
+  return c.heure + (c.moniteur ? ' avec ' + c.moniteur : '') + (m ? ' (' + m + ')' : '');
 }
 
 function dessinerVoituresEnDirect(forcer){
   const maintenant = Date.now();
-  /* Celles qui ont dépassé deux minutes partent aussi d'ici */
+  /* Celles qui ont dépassé deux minutes partent du direct (elles
+     restent en « dernière position connue ») */
   etatCarteDirect.voitures = etatCarteDirect.voitures.filter(v => maintenant - v.recu < VOITURE_EFFACEE);
   const actives = etatCarteDirect.voitures.filter(v => maintenant - v.recu < VOITURE_SANS_SIGNAL);
-  if(etatCarteDirect.suivie && !actives.some(v => v.cle === etatCarteDirect.suivie)){
+  const connues = voituresConnuesDirect();
+  const anciennes = connues.filter(f => f.etat === 'derniere' && f.point && isFinite(f.point.lat) && isFinite(f.point.lon));
+  if(etatCarteDirect.suivie && !actives.some(v => v.cle === etatCarteDirect.suivie) &&
+     !anciennes.some(f => 'd:' + f.cle === etatCarteDirect.suivie) &&
+     !bureauxDirect().some(b => 'b:' + b.id === etatCarteDirect.suivie)){
     etatCarteDirect.suivie = '';
   }
 
   /* La seconde qui passe ne redessine que les « il y a » ; une
      voiture qui change d'état redessine tout. */
-  const etats = etatCarteDirect.voitures.map(v => v.cle + (maintenant - v.recu < VOITURE_SANS_SIGNAL ? '+' : '-')).join('|') +
-                '#' + etatCarteDirect.suivie + '#' + etatCarteDirect.branche;
+  const etats = connues.map(f => f.cle + ':' + f.etat).join('|') + '#' +
+                etatCarteDirect.voitures.map(v => v.cle + (maintenant - v.recu < VOITURE_SANS_SIGNAL ? '+' : '-')).join('|') +
+                '#' + etatCarteDirect.suivie + '#' + etatCarteDirect.branche + '#' + etatCarteDirect.infosLu + '#' + etatCarteDirect.lu;
   if(!forcer && etats === etatCarteDirect.etats){
     document.querySelectorAll('#directCard [data-recu]').forEach(s => {
       const age = maintenant - Number(s.getAttribute('data-recu'));
       const genre = s.getAttribute('data-genre');
       if(genre === 'vu') s.textContent = 'il y a ' + ageEnMotsDirect(age);
-      else if(genre === 'perdu') s.textContent = 'plus de signal depuis ' + ageEnMotsDirect(age);
-      else if(genre === 'reste') s.textContent = 'elle disparaîtra dans ' + ageEnMotsDirect(VOITURE_EFFACEE - age);
     });
     return;
   }
   etatCarteDirect.etats = etats;
 
-  dessinerLeFondDirect(actives);
-  dessinerLaListeDirect(actives);
+  dessinerLeFondDirect(actives, anciennes);
+  dessinerLaListeDirect(actives, connues);
+}
+
+/* 🏠 Les bureaux connus du Worker (leur adresse, géolocalisée) */
+function bureauxDirect(){
+  return (etatCarteDirect.infos && etatCarteDirect.infos.bureaux) || [];
+}
+function bureauDuNomDirect(nom){
+  const k = cleDeVoitureDirect(nom);
+  return bureauxDirect().find(b => cleDeVoitureDirect(b.nom) === k) || null;
 }
 
 /* ---- la carte : les tuiles du Plan IGN, et les pastilles ---- */
-function vueDeLaCarteDirect(actives, L, H){
+function vueDeLaCarteDirect(points, L, H){
   const marge = 70;
   if(etatCarteDirect.suivie){
-    const v = actives.find(x => x.cle === etatCarteDirect.suivie);
+    const v = points.find(x => x.cle === etatCarteDirect.suivie);
     if(v) return { z: VOITURE_ZOOM_MAX, cx: carteX(v.lon, VOITURE_ZOOM_MAX), cy: carteY(v.lat, VOITURE_ZOOM_MAX) };
   }
-  const pts = actives.length ? actives : VOITURES_PAR_DEFAUT;
+  const pts = points.length ? points : VOITURES_PAR_DEFAUT;
   let latMin = 90, latMax = -90, lonMin = 180, lonMax = -180;
   pts.forEach(p => {
     latMin = Math.min(latMin, p.lat); latMax = Math.max(latMax, p.lat);
@@ -257,14 +395,27 @@ function vueDeLaCarteDirect(actives, L, H){
   return centre(VOITURE_ZOOM_MIN);
 }
 
-function dessinerLeFondDirect(actives){
+function dessinerLeFondDirect(actives, anciennes){
   const boite = $('directCarte');
   if(!boite) return;
+  anciennes = anciennes || [];
   const L = boite.clientWidth || 600;
   const H = Math.round(Math.min(380, Math.max(240, L * 0.48)));
   boite.style.height = H + 'px';
 
-  const vue = vueDeLaCarteDirect(actives, L, H);
+  const points = actives.map(v => ({ cle: v.cle, lat: v.lat, lon: v.lon }))
+    .concat(anciennes.map(f => ({ cle: 'd:' + f.cle, lat: f.point.lat, lon: f.point.lon })));
+  /* 🏠 Un bureau compte dans le cadrage s'il a des voitures, ou si on l'a choisi */
+  const auBureau = {};
+  voituresConnuesDirect().forEach(f => {
+    if(f.etat !== 'bureau') return;
+    const b = bureauDuNomDirect(f.derniere.auBureau);
+    if(b) (auBureau[b.id] = auBureau[b.id] || []).push(f.nom);
+  });
+  bureauxDirect().forEach(b => {
+    if(etatCarteDirect.suivie === 'b:' + b.id || (auBureau[b.id] || []).length) points.push({ cle: 'b:' + b.id, lat: b.lat, lon: b.lon });
+  });
+  const vue = vueDeLaCarteDirect(points, L, H);
   const gauche = vue.cx - L / 2, haut = vue.cy - H / 2;
 
   /* Les tuiles ne se refont que si la vue a bougé : sinon la carte
@@ -305,7 +456,7 @@ function dessinerLeFondDirect(actives){
   /* Ce qui se pose par-dessus se refait à chaque fois */
   boite.querySelectorAll('.surCarteDirect').forEach(x => x.remove());
 
-  if(!actives.length){
+  if(!actives.length && !anciennes.length){
     const vide = document.createElement('div');
     vide.className = 'surCarteDirect';
     vide.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
@@ -315,25 +466,39 @@ function dessinerLeFondDirect(actives){
     boite.appendChild(vide);
   }
 
-  actives.forEach(v => {
-    const x = carteX(v.lon, vue.z) - gauche, y = carteY(v.lat, vue.z) - haut;
+  /* 📍 Les dernières positions connues d'abord : les voitures en
+     direct passent par-dessus. Grises, avec la date et l'heure. */
+  const pastille = (x, y, fond, bord, html, classe) => {
     if(x < -20 || y < -20 || x > L + 20 || y > H + 20) return;
     const m = document.createElement('div');
-    m.className = 'surCarteDirect marqueVoiture';
+    m.className = 'surCarteDirect ' + classe;
     m.style.cssText = 'position:absolute;left:' + Math.round(x) + 'px;top:' + Math.round(y) + 'px;width:0;height:0;';
     m.innerHTML =
       '<span style="position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;' +
-        'background:#B6FF0E;border:2.5px solid #14161B;box-sizing:border-box;"></span>' +
+        'background:' + fond + ';border:2.5px solid ' + bord + ';box-sizing:border-box;"></span>' +
       '<span style="position:absolute;left:0;bottom:14px;transform:translateX(-50%);white-space:nowrap;' +
-        'background:#14161B;color:#C9CBC4;border-radius:8px;padding:5px 10px;font-size:13px;line-height:1.3;' +
-        'box-shadow:0 2px 6px rgba(0,0,0,.25);">' +
-        echapper(emojiDeLaVoiture(v.voiture)) + ' <strong style="color:#B6FF0E;">' +
-        echapper((v.voiture || 'Voiture ?') + ' · ' + (v.qui || '')) + '</strong> · ' +
-        '<span data-recu="' + v.recu + '" data-genre="vu">il y a ' + ageEnMotsDirect(Date.now() - v.recu) + '</span>' +
-        '<span style="position:absolute;left:50%;bottom:-5px;margin-left:-5px;width:0;height:0;' +
-          'border-left:5px solid transparent;border-right:5px solid transparent;border-top:5px solid #14161B;"></span>' +
-      '</span>';
+        'background:' + (classe === 'marqueVoiture' ? '#14161B' : '#F2F2EC') + ';color:' + (classe === 'marqueVoiture' ? '#C9CBC4' : '#3A3B37') + ';' +
+        'border:1px solid ' + (classe === 'marqueVoiture' ? '#14161B' : '#B9BAB2') + ';' +
+        'border-radius:8px;padding:5px 10px;font-size:13px;line-height:1.3;box-shadow:0 2px 6px rgba(0,0,0,.25);">' + html + '</span>';
     boite.appendChild(m);
+  };
+  bureauxDirect().forEach(b => {
+    const l = auBureau[b.id] || [];
+    if(!l.length && etatCarteDirect.suivie !== 'b:' + b.id) return;
+    pastille(carteX(b.lon, vue.z) - gauche, carteY(b.lat, vue.z) - haut, '#FFFFFF', '#3B6900',
+      '🏠 <strong>Bureau de ' + echapper(b.nom) + '</strong>' +
+      (l.length ? ' · ' + echapper(l.join(', ')) : ' · aucune voiture'), 'marqueBureau');
+  });
+  anciennes.forEach(f => {
+    pastille(carteX(f.point.lon, vue.z) - gauche, carteY(f.point.lat, vue.z) - haut, '#9A9B94', '#3A3B37',
+      echapper(emojiDeLaVoiture(f.nom)) + ' <strong>' + echapper(f.nom) + '</strong> · dernière position ' +
+      echapper(dateHeureDirect(f.point.quand)), 'marqueAncienne');
+  });
+  actives.forEach(v => {
+    pastille(carteX(v.lon, vue.z) - gauche, carteY(v.lat, vue.z) - haut, '#B6FF0E', '#14161B',
+      echapper(emojiDeLaVoiture(v.voiture)) + ' <strong style="color:#B6FF0E;">' +
+      echapper((v.voiture || 'Voiture ?') + ' · ' + (v.qui || '')) + '</strong> · ' +
+      '<span data-recu="' + v.recu + '" data-genre="vu">il y a ' + ageEnMotsDirect(Date.now() - v.recu) + '</span>', 'marqueVoiture');
   });
 
   if(etatCarteDirect.suivie){
@@ -349,8 +514,8 @@ function dessinerLeFondDirect(actives){
   }
 }
 
-/* ---- la liste sous la carte ---- */
-function dessinerLaListeDirect(actives){
+/* ---- la liste sous la carte : TOUTES les voitures ---- */
+function dessinerLaListeDirect(actives, connues){
   const z = $('directListe');
   if(!z) return;
   z.innerHTML = '';
@@ -360,67 +525,159 @@ function dessinerLaListeDirect(actives){
     const w = document.createElement('div');
     w.style.cssText = 'border:1px solid var(--red);background:var(--warn-bg);color:var(--warn-text);' +
       'border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px;line-height:1.5;';
-    w.innerHTML = '⚠️ <strong>La carte attend un réglage dans Cloudflare</strong> : la liaison ' +
-      '« FIL » du Worker (la même que la messagerie en direct). Tant qu’elle manque, les ' +
-      'téléphones n’envoient rien.';
+    w.innerHTML = '⚠️ <strong>Le direct attend un réglage dans Cloudflare</strong> : la liaison ' +
+      '« FIL » du Worker (la même que la messagerie en direct). Les dernières positions connues, ' +
+      'elles, restent à jour.';
     z.appendChild(w);
-    return;
   }
 
-  const toutes = etatCarteDirect.voitures.slice().sort((a, b) => b.recu - a.recu);
-  if(!toutes.length) return;
+  connues = connues || voituresConnuesDirect();
+  /* Les voitures en direct qui n'ont pas de nom : on les montre quand même */
+  const sansNom = actives.filter(v => !v.voiture);
+  if(!connues.length && !sansNom.length) return;
+
+  const rang = { direct: 0, derniere: 1, bureau: 2, inconnue: 3 };
+  const tri = connues.slice().sort((a, b) => (rang[a.etat] - rang[b.etat]) ||
+    String((a.flotte && a.flotte.numero) || a.nom).localeCompare(String((b.flotte && b.flotte.numero) || b.nom), 'fr', { numeric: true }));
+  const nb = e => tri.filter(f => f.etat === e).length;
 
   const t = document.createElement('div');
+  t.className = 'titreDirect';
   t.style.cssText = 'font-size:14px;font-weight:700;color:var(--accent-text);margin:14px 0 4px;';
-  t.textContent = 'En cours maintenant · ' + actives.length;
+  t.textContent = 'Toutes les voitures · ' + tri.length + '  —  📡 ' + (nb('direct') + sansNom.length) +
+    ' en direct · 📍 ' + nb('derniere') + ' dernière position · 🏠 ' + nb('bureau') + ' au bureau' +
+    (nb('inconnue') ? ' · ❔ ' + nb('inconnue') : '');
   z.appendChild(t);
 
-  toutes.forEach(v => {
-    const age = maintenant - v.recu;
-    const perdue = age >= VOITURE_SANS_SIGNAL;
+  /* 🔍 v1224 — David : « que je puisse cliquer dessus pour zoomer sur
+     la carte ». Toute la ligne : en direct ou dernière position, on
+     zoome sur elle ; au bureau, sur le bureau. */
+  const cibleDeLaLigne = (f) => {
+    if(f.etat === 'direct' && f.live) return f.live.cle;
+    if(f.etat === 'derniere' && f.point) return 'd:' + f.cle;
+    if(f.etat === 'bureau'){ const b = bureauDuNomDirect(f.derniere.auBureau); return b ? 'b:' + b.id : ''; }
+    return '';
+  };
+  const zoomer = (cible) => {
+    etatCarteDirect.suivie = cible;
+    dessinerVoituresEnDirect(true);
+    const cc = $('directCarte');
+    if(cc && cc.scrollIntoView) cc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  const ligne = (f) => {
     const l = document.createElement('div');
-    l.className = 'ligneDirect';
+    const cible = cibleDeLaLigne(f);
+    l.className = 'ligneDirect etat-' + f.etat + (cible && cible === etatCarteDirect.suivie ? ' suivieDirect' : '');
     l.style.cssText = 'display:flex;gap:12px;align-items:flex-start;padding:10px 8px;' +
-      'border-bottom:1px solid var(--line);font-size:14px;line-height:1.5;';
+      'border-bottom:1px solid var(--line);font-size:14px;line-height:1.5;' +
+      (cible ? 'cursor:pointer;' : '') +
+      (cible && cible === etatCarteDirect.suivie ? 'background:var(--orange-soft);border-radius:10px;' : '');
+    if(cible){
+      l.setAttribute('role', 'button');
+      l.title = 'Zoomer sur la carte';
+      l.addEventListener('click', ev => {
+        if(ev.target && ev.target.closest && ev.target.closest('button')) return;
+        zoomer(cible);
+      });
+    }else{
+      l.addEventListener('click', ev => {
+        if(ev.target && ev.target.closest && ev.target.closest('button')) return;
+        if(typeof showToast === 'function') showToast('Pas de position connue pour « ' + f.nom + ' ».');
+      });
+    }
     const ic = document.createElement('span');
     ic.style.cssText = 'flex-shrink:0;font-size:18px;width:24px;text-align:center;';
-    ic.textContent = perdue ? '⚪' : emojiDeLaVoiture(v.voiture);
+    ic.textContent = f.etat === 'direct' ? emojiDeLaVoiture(f.nom) : f.etat === 'derniere' ? '📍' : f.etat === 'bureau' ? '🏠' : '❔';
     l.appendChild(ic);
 
     const txt = document.createElement('div');
-    txt.style.cssText = 'flex:1;min-width:0;overflow-wrap:anywhere;' + (perdue ? 'color:var(--muted);' : '');
-    const nomVoiture = '<strong>' + echapper(v.voiture || 'Voiture ?') + '</strong> · ' + echapper(v.qui || '');
-    if(perdue){
-      txt.innerHTML = nomVoiture + ' — <span data-recu="' + v.recu + '" data-genre="perdu">plus de signal depuis ' +
-        ageEnMotsDirect(age) + '</span>' +
-        '<div style="font-size:13px;">Écran éteint ou hors réseau : <span data-recu="' + v.recu +
-        '" data-genre="reste">elle disparaîtra dans ' + ageEnMotsDirect(VOITURE_EFFACEE - age) + '</span></div>';
+    txt.style.cssText = 'flex:1;min-width:0;overflow-wrap:anywhere;';
+    let h = '<strong>' + echapper(f.nom) + '</strong>' +
+      (f.flotte && f.flotte.boite ? ' <span style="color:var(--muted);font-size:12px;">' + echapper(f.flotte.boite) + '</span>' : '');
+    if(f.etat === 'direct'){
+      h += ' · ' + echapper(f.live.qui || '') +
+        '<div style="font-size:13px;color:var(--muted);">📡 En direct · vu <span data-recu="' + f.live.recu +
+        '" data-genre="vu">il y a ' + ageEnMotsDirect(maintenant - f.live.recu) + '</span></div>';
+    }else if(f.etat === 'derniere'){
+      h += '<div style="font-size:13px;">📍 Dernière position connue : <strong>' + echapper(dateHeureDirect(f.point.quand)) +
+        '</strong>' + (f.point.qui ? ' · ' + echapper(f.point.qui) : '') + '</div>';
+    }else if(f.etat === 'bureau'){
+      const d = f.derniere;
+      h += '<div style="font-size:13px;color:var(--muted);">🏠 Au bureau de ' + echapper(d.auBureau) +
+        (d.auBureauQuand ? ' depuis ' + echapper(dateHeureDirect(d.auBureauQuand)) : '') +
+        (d.auBureauPar === 'auto' ? ' (revenue toute seule)' : d.auBureauPar ? ' (dit par ' + echapper(d.auBureauPar) + ')' : '') + '</div>';
     }else{
-      txt.innerHTML = nomVoiture +
-        '<div style="font-size:13px;color:var(--muted);">' +
-        (v.site ? echapper(v.site) + ' · ' : '') +
-        (v.voiture ? '' : 'voiture absente de l’écran d’accueil · ') +
-        'vu <span data-recu="' + v.recu + '" data-genre="vu">il y a ' + ageEnMotsDirect(age) + '</span></div>';
+      h += '<div style="font-size:13px;color:var(--muted);">❔ Position inconnue</div>';
     }
+    /* 🔧 au garage */
+    const fl = f.flotte;
+    const auj = etatCarteDirect.infos && etatCarteDirect.infos.aujourdhui;
+    if(fl && (fl.etat === 'immobilise' || (fl.indispoDu && auj && auj >= fl.indispoDu && (!fl.indispoAu || auj <= fl.indispoAu)))){
+      h += '<div style="font-size:13px;color:var(--warn-text);">🔧 Indisponible' + (fl.motifIndispo ? ' · ' + echapper(fl.motifIndispo) : '') + '</div>';
+    }
+    /* 🧑‍🏫 qui l'a, et quand elle ressort */
+    const c = coursDeLaVoitureDirect(f.nom);
+    if(c){
+      if(c.enCours) h += '<div style="font-size:13px;">🧑‍🏫 En cours : ' + echapper(libelleDuCoursDirect(c.enCours)) + '</div>';
+      else if(c.dernier) h += '<div style="font-size:13px;color:var(--muted);">Dernier cours : ' + echapper(libelleDuCoursDirect(c.dernier)) + '</div>';
+      if(c.prochain){
+        h += '<div style="font-size:13px;color:var(--muted);">⏭️ Prochain : ' +
+          (c.prochain.jour === c.demain ? 'demain ' : '') + echapper(libelleDuCoursDirect(c.prochain)) + '</div>';
+      }else if(etatCarteDirect.infos){
+        h += '<div style="font-size:13px;color:var(--muted);">⏭️ Pas de cours prévu d’ici demain</div>';
+      }
+    }
+    txt.innerHTML = h;
     l.appendChild(txt);
 
-    if(!perdue){
+    const actions = document.createElement('div');
+    actions.style.cssText = 'flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;';
+    const bouton = (texte, faire, classe) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'centrerDirect';
-      b.style.cssText = 'flex-shrink:0;width:auto;border:0;background:none;color:var(--accent-text);' +
-        'font-size:14px;font-weight:700;padding:2px 4px;cursor:pointer;';
-      b.textContent = '📍 Centrer';
-      b.addEventListener('click', () => {
-        etatCarteDirect.suivie = v.cle;
-        dessinerVoituresEnDirect(true);
-        const c = $('directCarte');
-        if(c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-      l.appendChild(b);
+      b.className = classe;
+      b.style.cssText = 'width:auto;border:0;background:none;color:var(--accent-text);' +
+        'font-size:14px;font-weight:700;padding:2px 4px;cursor:pointer;white-space:nowrap;margin:0;';
+      b.textContent = texte;
+      b.addEventListener('click', faire);
+      actions.appendChild(b);
+    };
+    if(cible){
+      bouton('📍 Centrer', () => zoomer(cible), 'centrerDirect');
     }
-    z.appendChild(l);
-  });
+    if(f.etat === 'derniere' || f.etat === 'inconnue'){
+      bouton('🏠 Revenue au bureau', () => direVoitureAuBureau(f), 'auBureauDirect');
+    }
+    l.appendChild(actions);
+    return l;
+  };
+
+  tri.forEach(f => z.appendChild(ligne(f)));
+  sansNom.forEach(v => z.appendChild(ligne({ cle: v.cle, nom: 'Voiture ?', etat: 'direct', live: v, flotte: null })));
+}
+
+/* 🏠 « Elle est revenue au bureau » : lequel ? Celui de la voiture
+   d'abord (sa fiche Flotte), l'autre ensuite. */
+async function direVoitureAuBureau(f){
+  const site = cleDeVoitureDirect((f.flotte && f.flotte.site) || '');
+  const choix = [
+    { nom: '🏠 Saint-Brieuc', valeur: 'saint-brieuc', principal: !/loudeac/.test(site) },
+    { nom: '🏠 Loudéac', valeur: 'loudeac', principal: /loudeac/.test(site) }
+  ];
+  if(/loudeac/.test(site)) choix.reverse();
+  choix.unshift({ nom: 'Annuler', valeur: null });
+  const b = (typeof fenetre === 'function')
+    ? await fenetre('« ' + f.nom + ' » est revenue au bureau de… ?\n\nSa dernière position connue sera effacée.', choix, '🏠 Revenue au bureau')
+    : null;
+  if(!b) return;
+  try{
+    const r = await appelPrep({ action: 'voitureAuBureau', voiture: f.nom, bureau: b });
+    if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+    if(typeof showToast === 'function') showToast('🏠 ' + f.nom + ' : au bureau');
+    await relireLesVoituresEnDirect(true);
+  }catch(e){
+    if(typeof showToast === 'function') showToast('Impossible : ' + ((e && e.message) || e));
+  }
 }
 
 /* Une carte se recalcule quand la fenêtre change de taille */
