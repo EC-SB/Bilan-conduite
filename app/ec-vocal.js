@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:16 — v1222 */
+/* Déployé le 21/10/2026 à 14:00 — v1232 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1533,6 +1533,67 @@ function boutonDeManoeuvre(cb, libelle, marque, cbAilleurs){
   return g;
 }
 
+/* ============================================================
+   🔘 LE NOM DES PROCÉDURES SUR LES BOUTONS — v1232
+
+   David, le 21 octobre : « est-ce qu'on peut changer le nom ici pour
+   que les moniteurs s'y retrouvent plus facilement, car là c'est long
+   pour eux à lire, et voir si on peut mettre certaines choses en gras
+   ou en couleur ». Son choix (③) : un « nom sur le bouton » écrit
+   dans la fiche de la procédure, avec **gras** où il veut ; vide, le
+   titre raccourci tout seul ; rangées par boîte, une couleur par
+   boîte. Pour les boutons ET les cases — le bilan, lui, garde le nom
+   complet, et la voix aussi.
+   ============================================================ */
+const SIGLES_PROCEDURE = ['PAD', 'VA', 'VD', 'BEA', 'BV', 'BE', 'GPS', 'SD', 'ABS'];
+function nomRaccourciProcedure(p){
+  let t = String((p && (p.titre || p.nom)) || '').normalize('NFKC');
+  /* « Procédures BEA › … » : la catégorie d'avant la v958, collée au nom */
+  const i = t.indexOf(' › ');
+  if(i !== -1) t = t.slice(i + 3);
+  t = t.replace(/\([^()]*bo[iî]te[^()]*\)/gi, '').replace(/🚙|🚘/gu, '')
+       .replace(/\b(BV ET BEA|BEA ET BV)\b/gi, '').replace(/\s+/g, ' ').trim();
+  for(let k = 0; k < 2; k++) t = t.replace(/\s+(BEA|BV)(\s*[^\p{L}\s]*)?$/u, '$2').trim();
+  t = t.replace(/^(\p{Extended_Pictographic}\uFE0F?\s*)?proc[ée]dures?\s+/iu, '$1');
+  t = t.split(' ').map(w => {
+    const l = w.replace(/[^\p{L}'’-]/gu, '');
+    return (/^[\p{Lu}'’-]{2,}$/u.test(l) && SIGLES_PROCEDURE.indexOf(l) === -1) ? w.toLowerCase() : w;
+  }).join(' ');
+  t = t.replace(/^((?:\p{Extended_Pictographic}\uFE0F?\s*)?)(\p{L})/u, (m, e, l) => e + l.toUpperCase());
+  return t || String((p && p.nom) || 'Sans nom');
+}
+function nomSurLeBoutonProcedure(p){
+  const n = String((p && p.nomBouton) || '').trim();
+  return n || nomRaccourciProcedure(p);
+}
+/* « 🔴 **Giratoire** » → du texte et du gras, jamais de HTML */
+function poserNomDeProcedure(el, texte){
+  el.textContent = '';
+  String(texte || '').split(/(\*\*[^*]+\*\*)/).forEach(b => {
+    if(!b) return;
+    if(/^\*\*[^*]+\*\*$/.test(b)){
+      const g = document.createElement('b');
+      g.textContent = b.slice(2, -2);
+      el.appendChild(g);
+    }else el.appendChild(document.createTextNode(b.replace(/\*\*/g, '')));
+  });
+}
+function familleDeProcedure(p){
+  const mb = String((p && p.boite) || '').trim().toLowerCase();
+  return mb === 'be' ? 'be' : mb === 'bea' ? 'bea' : mb === 'bv' ? 'bv' : 'deux';
+}
+const FAMILLES_PROCEDURE = { bea: '⚙️ BEA', bv: '🕹️ BV', deux: '🚗 BEA et BV', be: '🚚 BE' };
+/* Le bouton tel que le moniteur le verra — aussi pour l'aperçu de l'éditeur */
+function boutonDApercuProcedure(p){
+  const b = pastilleVue('', false);
+  b.classList.add('procNom', 'proc-' + familleDeProcedure(p));
+  const sp = document.createElement('span');
+  poserNomDeProcedure(sp, nomSurLeBoutonProcedure(p));
+  b.appendChild(sp);
+  b.title = String(p.nom || '');
+  return b;
+}
+
 function dessinerProceduresAJoindre(idZone){
   const z = $(idZone);
   if(!z) return;
@@ -1600,14 +1661,22 @@ function dessinerProceduresAJoindre(idZone){
     l.appendChild(cb);
     const t = document.createElement('span');
     t.style.cssText = 'flex:1;min-width:0;';
-    t.textContent = (p.nom || 'Sans nom') + (etiquette ? '  ' + etiquette : '');
+    t.className = 'procNom';
+    /* 🔘 v1232 — le nom sur le bouton, ici aussi (son choix) */
+    poserNomDeProcedure(t, nomSurLeBoutonProcedure(p) + (etiquette ? '  ' + etiquette : ''));
+    l.title = String(p.nom || '');
     l.appendChild(t);
     cases.appendChild(l);
 
-    const bt = pastilleVue((p.nom || 'Sans nom') + (etiquette ? '  ' + etiquette : ''), cb.checked);
+    const bt = pastilleVue('', cb.checked);
+    const btT = document.createElement('span');
+    poserNomDeProcedure(btT, nomSurLeBoutonProcedure(p) + (etiquette ? '  ' + etiquette : ''));
+    bt.appendChild(btT);
+    bt.title = String(p.nom || '');
     bt.dataset.proc = id;
+    const fam = ' procNom proc-' + familleDeProcedure(p);
     const peindre = () => {
-      bt.className = 'btn pastilleVue ' + (cb.checked ? 'btn-primary' : 'btn-secondary');
+      bt.className = 'btn pastilleVue' + fam + ' ' + (cb.checked ? 'btn-primary' : 'btn-secondary');
       bt.setAttribute('aria-pressed', cb.checked ? 'true' : 'false');
     };
     bt.addEventListener('click', () => { cb.checked = !cb.checked; majChoix(); });
@@ -1626,7 +1695,19 @@ function dessinerProceduresAJoindre(idZone){
     parent.appendChild(zone);
     deuxHabits(zone, cases, boutons);
   };
-  habit(d, liste, false);
+  /* 🔘 v1232 — rangées par boîte : BEA, BV, puis BEA et BV */
+  const parFamille = {};
+  liste.forEach(p => { (parFamille[familleDeProcedure(p)] = parFamille[familleDeProcedure(p)] || []).push(p); });
+  const familles = ['bea', 'bv', 'deux', 'be'].filter(f => parFamille[f]);
+  familles.forEach(f => {
+    if(familles.length > 1){
+      const t = document.createElement('div');
+      t.className = 'procFamille';
+      t.textContent = FAMILLES_PROCEDURE[f];
+      d.appendChild(t);
+    }
+    habit(d, parFamille[f], false);
+  });
 
   if(autres.length){
     const ad = document.createElement('details');
