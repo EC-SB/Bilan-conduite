@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 11:24 — v970 */
+/* Déployé le 21/10/2026 à 14:00 — v1232 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -561,6 +561,8 @@ async function enregistrerModeleTexte(m){
     ordre: !!m.ordre,
     consigne: m.consigne || '',
     bilan: m.bilan || '',
+    /* 🔘 v1232 — absent = on garde celui du classeur */
+    nomBouton: (m.nomBouton === undefined) ? undefined : (m.nomBouton || ''),
     contenu: m.contenu || ''
   });
 }
@@ -2229,6 +2231,14 @@ function ouvrirEditeurModele(modele, usageImpose){
       '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
         'line-height:1.5;">Un élève en remorque ne voit que les ' +
         'procédures BE, et lui seul les voit.</div>' +
+      /* 🔘 v1232 — le nom sur le bouton, pendant le cours (choix ③ de David) */
+      '<label for="mdNomBouton">🔘 Nom sur le bouton (pendant le cours)</label>' +
+      '<input type="text" id="mdNomBouton" maxlength="80" autocomplete="off" ' +
+        'placeholder="ex. : 🔴 **Giratoire**">' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.5;">' +
+        'Court, pour s’y retrouver d’un coup d’œil. Mets **entre deux étoiles** ce qui ' +
+        'doit être en gras. Vide : le titre, raccourci tout seul.</div>' +
+      '<div id="mdNomBoutonApercu" style="margin:0 0 12px;"></div>' +
     '</div>' +
 
     /* Comment l'IA doit corriger CELLE-CI.
@@ -2324,6 +2334,8 @@ function ouvrirEditeurModele(modele, usageImpose){
       ? g('mdConsigne').value.trim() : '',
     bilan: (g('mdUsage').value === 'rappel_cours' && g('mdBilan'))
       ? g('mdBilan').value : '',
+    nomBouton: (g('mdUsage').value === 'procedure' && g('mdNomBouton'))
+      ? g('mdNomBouton').value.trim() : '',
     contenu: g('mdContenu').value.trim()
   });
 
@@ -2397,6 +2409,20 @@ function ouvrirEditeurModele(modele, usageImpose){
   g('mdUsage').addEventListener('change', majBoite);
 
   if(modele && modele.boite && g('mdBoite')) g('mdBoite').value = modele.boite;
+  /* 🔘 v1232 — le nom sur le bouton, et son aperçu tel que le moniteur le verra */
+  if(g('mdNomBouton')){
+    if(modele) g('mdNomBouton').value = modele.nomBouton || '';
+    const apercu = () => {
+      const z = g('mdNomBoutonApercu');
+      if(!z || typeof boutonDApercuProcedure !== 'function') return;
+      z.innerHTML = '';
+      z.appendChild(boutonDApercuProcedure({ nom: g('mdNom').value, titre: g('mdNom').value,
+        nomBouton: g('mdNomBouton').value, boite: g('mdBoite') ? g('mdBoite').value : '' }));
+    };
+    ['mdNomBouton', 'mdNom'].forEach(id => { if(g(id)) g(id).addEventListener('input', apercu); });
+    if(g('mdBoite')) g('mdBoite').addEventListener('change', apercu);
+    apercu();
+  }
   if(modele && g('mdOrdre')) g('mdOrdre').checked = !!modele.ordre;
   if(modele && g('mdConsigne')) g('mdConsigne').value = modele.consigne || '';
   if(modele && g('mdBilan')){
@@ -2599,7 +2625,7 @@ function ouvrirEditeurModele(modele, usageImpose){
   const etatActuel = () => {
     const f = fichePleine();
     return JSON.stringify({ n: f.nom, c: f.contenu, e: f.etiquettes, u: f.usage,
-                            b: f.boite, o: f.ordre, g: f.consigne, i: f.bilan });
+                            b: f.boite, o: f.ordre, g: f.consigne, i: f.bilan, nb: f.nomBouton });
   };
 
   let enCours = false;
