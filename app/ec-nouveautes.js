@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 10:38 — v1225 */
+/* Déployé le 21/10/2026 à 11:16 — v1226 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,17 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1226,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '📣 Suivi AAC : « prévenu » pour prévoir un rendez-vous, avec la date visée',
+    quoi: [
+      { emoji: '📣',
+        titre: 'Prévenu pour prévoir le rendez-vous',
+        texte: 'Sur chaque rendez-vous pas encore fait (RVP 1, RVP 2, théorique), « 📣 … : prévenu » : on choisit la date visée, le jour et qui a prévenu se notent tout seuls. ' +
+               'La ligne « EN RETARD » reste, et dessous : « 📣 Prévenu le 21/10 (David) — RDV à prévoir pour le 15/11 ». Un nouvel appui permet de prévenir à nouveau ou de retirer.' }
+    ]
+  },
   {
     version: 1225,
     date: 'Mercredi 21 octobre 2026',
