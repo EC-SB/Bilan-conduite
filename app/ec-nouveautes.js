@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 10:24 — v1224 */
+/* Déployé le 21/10/2026 à 10:38 — v1225 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,21 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1225,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '🎬 « ✓ Vu » ne se donne plus sans avoir vu : % de vidéo regardée et « Passer »',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Une vidéo se valide en la regardant',
+        texte: 'Côté élève, « ✓ Vu » reste grisé (« ▶ Vidéo · 35 % ») jusqu’à 90 % des secondes VRAIMENT lues : sauter à la fin ne compte pas, revoir un passage ne compte pas deux fois. ' +
+               'Pour un texte, « ✓ Vu » attend le temps de lecture (compte à rebours). « Passer › » avance sans rien valider.' },
+      { emoji: '📊',
+        titre: 'Le % de vidéo regardée, côté bureau',
+        texte: 'Dans le parcours d’un élève, la pastille porte « 🎬 35 % » tant que la vidéo n’est pas vue à 90 %, et la bulle dit « Vidéo regardée à 35 % (sa meilleure fois) ». ' +
+               'Avant cette version rien n’était mesuré : « aucune lecture mesurée ».' }
+    ]
+  },
   {
     version: 1224,
     date: 'Mercredi 21 octobre 2026',
