@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:53 — v1223 */
+/* Déployé le 21/10/2026 à 10:38 — v1225 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1923,6 +1923,10 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
     x.tous = lesSegs.map(sg => sg.id || '');
     x.demandes = demandes.filter(r => String(r.segment || '') === String(x.sg.id || ''));
     x.remis = x.vu ? null : (remisG[x.sg.id || ''] || null);
+    /* 🎬 v1225 — la part de vidéo vraiment regardée (sa meilleure) */
+    x.aVideo = (x.sg.blocs || []).some(b => b.type === 'video');
+    const pv = ((l.videos || {})[id] || {})[x.sg.id || ''];
+    x.pctVideo = (pv === undefined || pv === null) ? null : Number(pv) || 0;
     const epingle = x.demandes.some(r => !r.vuLe);
     const p = document.createElement('button');
     p.type = 'button';
@@ -1933,6 +1937,14 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
       const b = document.createElement('span');
       b.className = 'svFois';
       b.textContent = n + '×';
+      p.appendChild(b);
+    }
+    /* 🎬 « 35 % » tant que la vidéo n'est pas vue à 90 % — David :
+       « j'ai besoin d'avoir le pourcentage de vidéo vu » */
+    if(x.aVideo && x.pctVideo !== null && x.pctVideo < 90){
+      const b = document.createElement('span');
+      b.className = 'svPct';
+      b.textContent = '🎬 ' + x.pctVideo + ' %';
       p.appendChild(b);
     }
     const ouvrir = () => {
@@ -1976,6 +1988,15 @@ function remplirLaBulleDuSuivi(bulle, x, ctxS){
     l1.appendChild(document.createTextNode(x.vu ? ' — vu (guide entier coché)' : ' — pas encore vu'));
   }
   bulle.appendChild(l1);
+  /* 🎬 v1225 — la vidéo : la part vraiment regardée */
+  if(x.aVideo){
+    const r = document.createElement('div');
+    r.className = 'svInfo';
+    r.textContent = x.pctVideo === null
+      ? '🎬 Vidéo : aucune lecture mesurée'
+      : '🎬 Vidéo regardée à ' + x.pctVideo + ' %' + (x.pctVideo >= 90 ? ' ✓' : '') + ' (sa meilleure fois)';
+    bulle.appendChild(r);
+  }
   /* ↺ v1222 — remis à voir : son histoire reste */
   if(x.remis && x.remis.remisLe){
     const r = document.createElement('div');
