@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:18 — v1158 */
+/* Déployé le 21/10/2026 à 11:16 — v1226 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -4000,9 +4000,21 @@ function ligneAac(x){
   /* Les quatre rendez-vous, par la même fonction — le préalable
      compris. Il était dessiné à part, sans style : c'est pour ça
      qu'il restait gris quand les RVP passaient au vert. */
-  [['① Préalable', x.rdv.prealable], ['② RVP 1', x.rdv.rvp1],
-   ['③ RVP 2', x.rdv.rvp2], ['🗣️ Théorique', x.rdv.rvt]]
-    .forEach(([titre, e]) => meta.appendChild(ligneRdvAacCs(titre, e)));
+  [['① Préalable', x.rdv.prealable, ''], ['② RVP 1', x.rdv.rvp1, 'rvp1'],
+   ['③ RVP 2', x.rdv.rvp2, 'rvp2'], ['🗣️ Théorique', x.rdv.rvt, 'rvt']]
+    .forEach(([titre, e, cle]) => {
+      meta.appendChild(ligneRdvAacCs(titre, e));
+      /* 📣 v1226 — prévenu, dessous : la ligne rouge reste (son choix) */
+      const pv = cle ? prevenuAac(x, cle) : null;
+      if(pv && e && e.cle !== 'fait' && e.cle !== 'ailleurs'){
+        const l = document.createElement('span');
+        l.className = 'prevenuAac';
+        l.style.cssText = 'font-size:12.5px;color:var(--cream);';
+        l.textContent = '📣 Prévenu le ' + jourFrCs(pv.le) + (pv.par ? ' (' + pv.par + ')' : '') +
+          (pv.pour ? ' — RDV à prévoir pour le ' + jourFrCs(pv.pour) : '');
+        meta.appendChild(l);
+      }
+    });
 
   if(x.eb.txt){
     const eb = document.createElement('span');
@@ -4104,6 +4116,10 @@ function boutonsAac(x, zone){
      ['🗣️ Théorique', 'rvt']].forEach(([titre, cle]) => {
       if(x.rdv[cle === 'rvt' ? 'rvt' : cle].cle === 'fait' ||
          x.rdv[cle === 'rvt' ? 'rvt' : cle].cle === 'ailleurs') return;
+      /* 📣 v1226 — « on l'a prévenu de prévoir ce rendez-vous » */
+      const pv = prevenuAac(x, cle);
+      zone.appendChild(petitBouton(pv ? '📣 ' + titre + ' : prévenu le ' + jourFrCs(pv.le) : '📣 ' + titre + ' : prévenu',
+        'On l’a prévenu de prévoir ce rendez-vous — pour quelle date ?', () => noterPrevenuAac(x, cle, titre)));
       zone.appendChild(petitBouton('✅ ' + titre + ' fait',
         'Noter la date, et où il a eu lieu', async () => {
           const iso = await choisirDate(titre);
@@ -4170,6 +4186,64 @@ function boutonsAac(x, zone){
       'Les rendez-vous faits sont toujours là, les échéances reviennent',
       () => changerParcours(x, '')));
   }
+}
+
+
+/* ============================================================
+   📣 PRÉVENU POUR PRÉVOIR LE RENDEZ-VOUS — v1226
+
+   David, le 21 octobre : « ajoute une case pour dire qu'on a prévenu
+   pour prévoir le rendez-vous à telle date ». Ses choix : une par
+   rendez-vous (RVP 1, RVP 2, théorique), avec la date VISÉE ; le
+   jour où l'on a prévenu et qui l'a fait se notent tout seuls ; la
+   ligne rouge « EN RETARD » reste, le prévenu s'écrit dessous.
+
+   Une seule colonne du suivi (116), en JSON :
+   { rvp1: { le, pour, par }, rvp2: {…}, rvt: {…} }
+   ============================================================ */
+function prevenusAac(x){
+  try{
+    const t = JSON.parse(String(((x && x.suivi) || {}).aacPrevenus || '') || '{}');
+    return (t && typeof t === 'object' && !Array.isArray(t)) ? t : {};
+  }catch(e){ return {}; }
+}
+function prevenuAac(x, cle){
+  const p = prevenusAac(x)[cle];
+  return (p && p.le) ? p : null;
+}
+
+async function noterPrevenuAac(x, cle, titre){
+  const nom = x.eleve;
+  const deja = prevenuAac(x, cle);
+  if(deja && typeof fenetre === 'function'){
+    const choix = await fenetre('📣 Prévenu le ' + jourFrCs(deja.le) + (deja.par ? ' (' + deja.par + ')' : '') +
+      (deja.pour ? '\nRDV à prévoir pour le ' + jourFrCs(deja.pour) : ''), [
+      { nom: 'Annuler', valeur: null },
+      { nom: '🗑️ Retirer', valeur: 'retirer', danger: true },
+      { nom: '📅 Prévenu à nouveau', valeur: 'neuf', principal: true }
+    ], titre + ' — prévenu');
+    if(!choix) return;
+    if(choix === 'retirer'){
+      const t = prevenusAac(x);
+      delete t[cle];
+      try{
+        await majSuivi(nom, { aacPrevenus: Object.keys(t).length ? JSON.stringify(t) : '' });
+        showToast('Retiré ✅');
+      }catch(e){ showToast('Impossible : ' + e.message); }
+      redessinerAacCs();
+      return;
+    }
+  }
+  const pour = await choisirDate(titre + ' — RDV à prévoir pour le…', (deja && deja.pour) || '');
+  if(!pour) return;
+  const t = prevenusAac(x);
+  t[cle] = { le: (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10),
+             pour: pour, par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '' };
+  try{
+    await majSuivi(nom, { aacPrevenus: JSON.stringify(t) });
+    showToast('📣 Noté ✅');
+  }catch(e){ showToast('Impossible : ' + e.message); }
+  redessinerAacCs();
 }
 
 
