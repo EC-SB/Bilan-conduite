@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 09:42 — v1236 */
+/* Déployé le 22/10/2026 à 14:39 — v1243 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -401,6 +401,10 @@ const SECTIONS = [
      Administrateurs seuls par le rôle : les papiers de chacun ne se
      montrent pas sans que David le décide. */
   { cle:'equipe',           nom:'👥 Équipe et échéances', onglet:'outils' },
+  /* ✉️ v1243 — les courriers sur papier à en-tête (ec-courriers.js).
+     « m » écrit et envoie ; les modèles, les en-têtes et les signatures
+     demandent en plus d'être administrateur (le Worker le vérifie). */
+  { cle:'courriers',        nom:'✉️ Courriers sur papier à en-tête', onglet:'outils' },
   { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
