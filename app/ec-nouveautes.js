@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 11:14 — v1239 */
+/* Déployé le 22/10/2026 à 11:31 — v1240 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1240,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '🔁 Les nouvelles zones à leur place sur une fiche déjà réglée',
+    quoi: [
+      { emoji: '🔁',
+        titre: 'Arrêt de précision et « Après la manœuvre » à leur place',
+        texte: 'Sur une fiche réglée avant leur arrivée, ces zones tombaient tout en bas de la fiche. Elles se rangent maintenant derrière leur voisine d’origine : avant la manœuvre, et juste sous Autonomie (dans le cadre).' },
+      { emoji: '➖',
+        titre: 'Le point retiré après la manœuvre tient',
+        texte: 'Un ⚠️ posé ailleurs ne le rend plus ; la note « … /2 » de l’installation dans le bilan le suit aussi, avec « (−1 après la manœuvre) ».' }
+    ]
+  },
   {
     version: 1239,
     date: 'Jeudi 22 octobre 2026',
