@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 09:42 — v1236 */
+/* Déployé le 22/10/2026 à 10:11 — v1237 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -462,8 +462,8 @@ const CHAMPS_MANUELS = {
        coche au retour d'un examen interrompu, dans la voiture,
        au milieu d'une fiche qu'on vient de remplir pour rien. */
     { cle:'nonMene', type:'nonMene', nom:'Examen non mené à son terme',
-      aide:'La grille se vide et se met en retrait. Un second appui la ' +
-           'rend telle qu\'elle était.' },
+      aide:'Le CEPC garde ses notes et se remplit toujours. ' +
+           '« 🧹 Vider le CEPC et le griser », dessous, le vide.' },
 
     { cle:'observations',type:'texte', lignes:12,
       nom:'2-4 · Observations',
@@ -1865,12 +1865,14 @@ function examenNonMene(){
 /* Le texte de la case du bas, quand l'examen s'est arrêté. Il
    remplace le total : voir majTotalCepc, son seul appelant. */
 function mentionCepcNonMene(){
+  /* v1236 — la grille peut garder ses notes (David, le 22/10) */
+  const notes = Array.prototype.some.call(document.querySelectorAll('.cepcNiveau'), c => String(c.value || '') !== '');
   return '<span style="display:block;text-align:center;color:#E5322D;' +
     'font-size:17px;font-weight:800;line-height:1.3;">' +
     'EXAMEN NON MENÉ À SON TERME</span>' +
     '<span style="display:block;text-align:center;color:#8A94A0;' +
     'font-size:10.5px;font-weight:400;margin-top:5px;line-height:1.4;">' +
-    'Grille vierge — aucune note n\'a été portée</span>';
+    (notes ? 'Les notes portées jusqu’à l’arrêt de l’examen — pas de total' : 'Grille vierge — aucune note n\'a été portée') + '</span>';
 }
 
 /* La grille en retrait, ou rendue. On ne touche QUE l'opacité :
@@ -1888,32 +1890,56 @@ function grisailleDuCepc(mettre){
   });
 }
 
+/* ⚠️ v1236 — COCHER NE VIDE PLUS LE CEPC. David, le 22/10 : « quand on
+   coche examen non mené à son terme, il faut qu'on puisse quand même
+   remplir le CEPC, qu'il garde ses notes et qu'on puisse le modifier ;
+   ajouter un bouton sous la case, dans le même cadre : vider le CEPC et
+   le griser ». La case ne fait plus que dire l'arrêt (et « pas le
+   niveau » au point 4) ; le bouton, lui, vide et grise — et rend les
+   notes au second appui. */
+function cleCepcVide(){ return cleNonMeneCourante + 'Vide'; }
+function cepcVide(){ return String(champsManuels[cleCepcVide()] || '') === 'oui'; }
 function basculerNonMene(bouton){
   const avant = examenNonMene();
   const apres = !avant;
   champsManuels[cleNonMeneCourante] = apres ? 'oui' : '';
 
-  const champs = document.querySelectorAll('.cepcNiveau');
-
   if(apres){
-    /* La copie de ce qui était noté, pour pouvoir le rendre. */
-    const copie = {};
-    champs.forEach((c) => {
-      copie[c.getAttribute('data-comp')] = {
-        valeur: c.value, parDefaut: c.dataset.parDefaut || ''
-      };
-      c.value = '';
-      c.dataset.parDefaut = '';
-      if(typeof repeindreLigneCepc === 'function') repeindreLigneCepc(c);
-    });
-    bouton._cepcAvant = copie;
-
     /* ⚠️ LE POINT 4, SUR L'EXAMEN BLANC SEULEMENT. L'examen officiel
        n'en a pas : le bouton n'existe pas, et on ne va pas le
        chercher. */
     const g = document.getElementById('ouinon_' + cleNiveauCourante);
     const bNon = g ? g.querySelector('[data-val="non"]') : null;
     if(bNon) bNon.click();
+    /* une fiche reprise : le CEPC qu'on avait vidé reste vidé et grisé */
+    const bv0 = bouton.parentNode && bouton.parentNode.querySelector('.cepcViderBouton');
+    if(bv0 && cepcVide()){ peindreViderCepc(bv0, true); grisailleDuCepc(true); }
+  }else if(cepcVide()){
+    /* décochée : un CEPC vidé retrouve ses notes */
+    const bv = bouton.parentNode && bouton.parentNode.querySelector('.cepcViderBouton');
+    if(bv) basculerViderCepc(bv);
+  }
+
+  peindreNonMene(bouton, apres);
+  const bv = bouton.parentNode && bouton.parentNode.querySelector('.cepcViderBouton');
+  if(bv) bv.style.display = apres ? 'flex' : 'none';
+  majTotalCepc();
+}
+
+/* 🧹 « Vider le CEPC et le griser », ou le rendre comme il était */
+function basculerViderCepc(bouton){
+  const vider = !cepcVide();
+  const champs = document.querySelectorAll('.cepcNiveau');
+  if(vider){
+    const copie = {};
+    champs.forEach((c) => {
+      copie[c.getAttribute('data-comp')] = { valeur: c.value, parDefaut: c.dataset.parDefaut || '' };
+      c.value = '';
+      c.dataset.parDefaut = '';
+      if(typeof repeindreLigneCepc === 'function') repeindreLigneCepc(c);
+    });
+    bouton._cepcAvant = copie;
+    champsManuels[cleCepcVide()] = 'oui';
   }else{
     const copie = bouton._cepcAvant || null;
     champs.forEach((c) => {
@@ -1924,11 +1950,16 @@ function basculerNonMene(bouton){
       if(typeof repeindreLigneCepc === 'function') repeindreLigneCepc(c);
     });
     bouton._cepcAvant = null;
+    delete champsManuels[cleCepcVide()];
   }
-
-  peindreNonMene(bouton, apres);
-  grisailleDuCepc(apres);
+  peindreViderCepc(bouton, vider);
+  grisailleDuCepc(vider);
   majTotalCepc();
+  if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
+}
+function peindreViderCepc(b, vide){
+  b.textContent = vide ? '↩️ Remettre les notes du CEPC' : '🧹 Vider le CEPC et le griser';
+  b.style.borderColor = vide ? 'var(--red)' : 'var(--line)';
 }
 
 /* Le bouton lui-même : coché, il est rouge et plein. */
@@ -4294,18 +4325,14 @@ function repeindreBoutonsManuels(){
   });
   /* 🅿️ v1211 — la manœuvre choisie revient dans sa liste, et sa
      mention sur les lignes */
-  Array.prototype.forEach.call(zone.querySelectorAll('select.choixManoeuvre'), sel => {
-    const v = String(champsManuels[sel.dataset.cle] || '');
-    if(v && sel.value !== v){
-      if(!Array.prototype.some.call(sel.options, o => o.value === v)){
-        const o = document.createElement('option');
-        o.value = v; o.textContent = v;
-        sel.appendChild(o);
-      }
-      sel.value = v;
-      n++;
-    }
-    appliquerMentionManoeuvre(sel.value);
+  Array.prototype.forEach.call(zone.querySelectorAll('details.choixManoeuvre'), d => {
+    const voulu = valeursManoeuvresChoisies(champsManuels[d.dataset.cle]);
+    Array.prototype.forEach.call(d.querySelectorAll('input.choixManoeuvreCase'), cb => {
+      const v = voulu.indexOf(cb.value) !== -1;
+      if(cb.checked !== v){ cb.checked = v; if(v) n++; }
+    });
+    resumerChoixManoeuvre(d);
+    appliquerMentionManoeuvre(champsManuels[d.dataset.cle]);
   });
   /* 🔘 v1213 — les boutons se relisent sur leurs cases (une reprise
      coche les cases sans prévenir les boutons) */
@@ -4334,7 +4361,7 @@ function repeindreBoutonsManuels(){
    ============================================================ */
 const MENTION_MANOEUVRE = 'Manœuvre';
 function mentionDeLaManoeuvre(choix){
-  const v = String(choix || '').trim();
+  const v = valeursManoeuvresChoisies(choix).join(' + ');
   return v ? MENTION_MANOEUVRE + ' : ' + v : MENTION_MANOEUVRE;
 }
 
@@ -4349,43 +4376,60 @@ function poserChoixManoeuvre(t, ch){
   n.textContent = String(ch.nom || '🅿️ Manœuvre').replace(/\s*:\s*$/, '') + ' :';
   t.appendChild(n);
 
-  const sel = document.createElement('select');
-  sel.className = 'choixManoeuvre';
-  sel.setAttribute('data-cle', ch.choixManoeuvre);
-  sel.setAttribute('data-hors-saisie', '1');
-  sel.setAttribute('aria-label', 'Manœuvre faite');
-  sel.style.cssText = 'flex:1 1 170px;min-width:0;width:auto;margin:0;padding:7px 9px;' +
-    'font-size:14px;font-weight:700;font-family:inherit;';
-  const vide = document.createElement('option');
-  vide.value = '';
-  vide.textContent = '— choisis la manœuvre —';
-  sel.appendChild(vide);
-  /* 🅿️ v1236 — la liste réglée dans le créateur de fiches (une pour
-     l'examen blanc, l'examen officiel et le RVP), sinon celle de l'école */
-  listeDuMenuManoeuvres().forEach(m => {
-    const o = document.createElement('option');
-    o.value = m; o.textContent = m;
-    sel.appendChild(o);
+  /* 🅿️ v1236 — PLUSIEURS MANŒUVRES. David, le 22/10 : « on doit
+     pouvoir en choisir plusieurs, car c'est au minimum 2 manœuvres ».
+     Des cases dans un menu qui se déplie ; la valeur garde une manœuvre
+     par ligne. La liste est celle du créateur de fiches (une pour
+     l'examen blanc, l'examen officiel et le RVP), sinon celle de l'école. */
+  const d = document.createElement('details');
+  d.className = 'choixManoeuvre';
+  d.setAttribute('data-cle', ch.choixManoeuvre);
+  d.style.cssText = 'flex:1 1 170px;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--navy);' +
+    'font-size:14px;font-weight:700;color:var(--cream);letter-spacing:0;';
+  const su = document.createElement('summary');
+  su.style.cssText = 'cursor:pointer;padding:7px 9px;list-style:none;';
+  d.appendChild(su);
+  const corps = document.createElement('div');
+  corps.style.cssText = 'padding:2px 10px 8px;max-height:320px;overflow-y:auto;font-weight:600;';
+  d.appendChild(corps);
+  const deja = valeursManoeuvresChoisies(champsManuels[ch.choixManoeuvre]);
+  const liste = listeDuMenuManoeuvres().slice();
+  deja.forEach(v => { if(liste.indexOf(v) === -1) liste.push(v); });
+  liste.forEach(m => {
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;align-items:flex-start;gap:9px;margin:6px 0;font-size:14px;line-height:1.35;' +
+      'text-transform:none;color:var(--cream);cursor:pointer;font-weight:600;letter-spacing:0;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'choixManoeuvreCase';
+    cb.setAttribute('data-hors-saisie', '1');
+    cb.value = m;
+    cb.checked = deja.indexOf(m) !== -1;
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:1px;';
+    cb.addEventListener('change', () => {
+      const l = Array.prototype.filter.call(d.querySelectorAll('input.choixManoeuvreCase'), x => x.checked).map(x => x.value);
+      if(l.length) champsManuels[ch.choixManoeuvre] = l.join('\n'); else delete champsManuels[ch.choixManoeuvre];
+      resumerChoixManoeuvre(d);
+      appliquerMentionManoeuvre(champsManuels[ch.choixManoeuvre]);
+      if(typeof majBilanEliminatoires === 'function'){ try{ majBilanEliminatoires(); }catch(e){} }
+      if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
+    });
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(m));
+    corps.appendChild(lab);
   });
-  const deja = String(champsManuels[ch.choixManoeuvre] || '');
-  if(deja){
-    if(!Array.prototype.some.call(sel.options, o => o.value === deja)){
-      const o = document.createElement('option');
-      o.value = deja; o.textContent = deja;
-      sel.appendChild(o);
-    }
-    sel.value = deja;
-  }
-  sel.addEventListener('change', () => {
-    if(sel.value) champsManuels[ch.choixManoeuvre] = sel.value;
-    else delete champsManuels[ch.choixManoeuvre];
-    appliquerMentionManoeuvre(sel.value);
-    if(typeof majBilanEliminatoires === 'function'){ try{ majBilanEliminatoires(); }catch(e){} }
-    if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
-  });
-  t.appendChild(sel);
+  resumerChoixManoeuvre(d);
+  t.appendChild(d);
   /* La zone n'est pas encore dessinée : la mention se pose juste après */
-  setTimeout(() => appliquerMentionManoeuvre(sel.value), 0);
+  setTimeout(() => appliquerMentionManoeuvre(champsManuels[ch.choixManoeuvre]), 0);
+}
+function valeursManoeuvresChoisies(v){
+  return String(v == null ? '' : v).split('\n').map(x => x.trim()).filter(Boolean);
+}
+function resumerChoixManoeuvre(d){
+  const l = Array.prototype.filter.call(d.querySelectorAll('input.choixManoeuvreCase'), x => x.checked).map(x => x.value);
+  const su = d.querySelector('summary');
+  if(su) su.textContent = (l.length ? l.join(' · ') : '— choisis les manœuvres —') + '  ▾';
 }
 
 /* La mention de la zone, et celle de chacune de ses lignes */
@@ -4621,7 +4665,7 @@ function ficheManuelleEnTexte(quelleZone){
        l'explication d'à côté. */
     if(ch.type === 'sousTitre'){
       lignes.push('');
-      const choix = ch.choixManoeuvre ? String(champsManuels[ch.choixManoeuvre] || '').trim() : '';
+      const choix = ch.choixManoeuvre ? valeursManoeuvresChoisies(champsManuels[ch.choixManoeuvre]).join(', ') : '';
       lignes.push('  · ' + String(ch.nom || '').trim() + (choix ? ' : ' + choix : ''));
       if(choix) remplis++;
       return;
@@ -7619,15 +7663,27 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
 
       b.addEventListener('click', () => basculerNonMene(b));
       g.appendChild(b);
+      /* 🧹 v1236 — vider le CEPC et le griser : un bouton à part, dans
+         le même cadre, là seulement quand l'examen s'est arrêté */
+      const bv = document.createElement('button');
+      bv.type = 'button';
+      bv.className = 'btn btn-secondary cepcViderBouton';
+      bv.style.cssText = 'display:none;align-items:center;justify-content:center;gap:8px;width:100%;margin:8px 0 0;' +
+        'padding:11px;font-size:14px;border:2px solid var(--line);border-radius:12px;';
+      peindreViderCepc(bv, false);
+      bv.addEventListener('click', () => basculerViderCepc(bv));
+      g.appendChild(bv);
       bloc.appendChild(g);
 
-      /* Une fiche rouverte retrouve sa case allumée, et sa grille
-         en retrait avec elle. Après le dessin du CEPC, qui vient
-         juste au-dessus. */
+      /* Une fiche rouverte retrouve sa case allumée (et sa grille en
+         retrait si on l'avait vidée). Après le dessin du CEPC, qui
+         vient juste au-dessus. */
       if(examenNonMene()){
         setTimeout(() => {
           peindreNonMene(b, true);
-          grisailleDuCepc(true);
+          bv.style.display = 'flex';
+          peindreViderCepc(bv, cepcVide());
+          grisailleDuCepc(cepcVide());
           majTotalCepc();
         }, 0);
       }
