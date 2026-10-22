@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:16 — v1222 */
+/* Déployé le 22/10/2026 à 09:42 — v1236 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -864,7 +864,7 @@ const FONDS_FICHE = {
 const INTENSITES_FICHE = ['leger', 'franc', 'fort'];
 /* Les zones qui calculent (CEPC, observations, niveau…) : elles se
    déplacent, se renomment, se colorent — elles ne se masquent pas. */
-const TYPES_LIBRES_FICHE = ['texte', 'court', 'ok', 'titre', 'sousTitre', 'photo', 'note3', 'ouinon', 'abc', 'heures', 'cases'];
+const TYPES_LIBRES_FICHE = ['texte', 'court', 'ok', 'titre', 'sousTitre', 'photo', 'note3', 'ouinon', 'abc', 'heures', 'cases', 'liste'];
 
 /* ✍️ v1207 — LES ZONES AJOUTÉES (livraison ②). Ce qu'on peut poser
    « ➕ Ici » entre deux zones. Leur contenu part dans le bilan juste
@@ -878,8 +878,77 @@ const TYPES_AJOUT_FICHE = {
   cases:     { nom: '☑ Cases à cocher seules',   aide: 'Chaque case cochée écrit sa phrase dans le bilan' },
   ok:        { nom: '✅❌ Trois états',           aide: '✅, ❌ ou —' },
   ouinon:    { nom: '👍 Oui / non',              aide: 'Oui, non ou —' },
-  note3:     { nom: '🔢 Note de 0 à 3',          aide: 'Quatre boutons : 0, 1, 2, 3' }
+  note3:     { nom: '🔢 Note de 0 à 3',          aide: 'Quatre boutons : 0, 1, 2, 3' },
+  /* ▾ v1236 — David : « que je puisse ajouter des listes déroulantes,
+     où je veux, et les lier avec certaines choses » */
+  liste:     { nom: '▾ Liste déroulante',        aide: 'Le moniteur choisit dans une liste : chaque choix peut écrire une phrase, faire apparaître des zones, cocher son dossier' }
 };
+/* ▾ v1236 — d'où viennent les choix d'une liste. « Ma liste » : écrits
+   par l'admin. Les autres suivent l'appli (les voitures : la Flotte,
+   reprise à chaque publication — un moniteur ne lit pas la Flotte). */
+const SOURCES_LISTE_FICHE = {
+  main: '✍️ Ma liste', manoeuvres: '🅿️ Les manœuvres', voitures: '🚗 Les voitures', moniteurs: '👤 Les moniteurs',
+  centres: '📍 Les centres d’examen', procedures: '📋 Les procédures', formations: '🎓 Les formations'
+};
+/* 🅿️ v1236 — le menu « Manœuvre : … » de l'examen blanc, de l'examen
+   officiel et du RVP : UNE liste pour les trois (choix de David), rangée
+   comme une fiche, sous ce nom-là (brouillon, puis « 💾 Publier »). */
+const CLE_MENU_MANOEUVRES = 'menu-manoeuvres';
+function textesFiche(l, combien, max){
+  const out = [];
+  (Array.isArray(l) ? l : []).slice(0, combien).forEach(x => {
+    if(typeof x !== 'string') return;
+    const v = texteFiche(x, max).replace(/\s+/g, ' ').trim();
+    if(v && out.indexOf(v) === -1) out.push(v);
+  });
+  return out;
+}
+function nettoyerMenuManoeuvres(f){
+  return { v: 1, liste: textesFiche(f && f.liste, 60, 80) };
+}
+/* La liste du menu : celle du créateur ouvert, sinon la publiée, sinon
+   celle de l'école */
+function listeDuMenuManoeuvres(){
+  const ecole = (typeof BLOC !== 'undefined' && BLOC.ficheListeConduite) || [];
+  if(typeof fiS !== 'undefined' && fiS && Array.isArray(fiS.menu)) return fiS.menu.length ? fiS.menu : ecole;
+  const f = (typeof formesFiches !== 'undefined' && formesFiches) ? formesFiches[CLE_MENU_MANOEUVRES] : null;
+  const l = f ? nettoyerMenuManoeuvres(f).liste : [];
+  return l.length ? l : ecole;
+}
+/* Les libellés d'une source de l'appli */
+function itemsDeLaSourceFiche(source, ch){
+  const tri = l => l.slice().sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  if(source === 'manoeuvres') return ((typeof BLOC !== 'undefined' && BLOC.ficheListeConduite) || []).slice();
+  if(source === 'voitures'){
+    const vivante = (typeof fiS !== 'undefined' && fiS && Array.isArray(fiS.flotte) && fiS.flotte.length) ? fiS.flotte : null;
+    return (vivante || (ch && ch.items) || []).slice();
+  }
+  if(source === 'moniteurs') return tri(textesFiche((typeof moniteursActifs !== 'undefined' && moniteursActifs) || [], 60, 60));
+  if(source === 'centres') return ((typeof CENTRES_EXAMEN !== 'undefined' && CENTRES_EXAMEN) || ['Saint-Brieuc', 'Loudéac']).slice();
+  if(source === 'procedures'){
+    let l = [];
+    try{ l = (typeof toutesLesProcedures === 'function') ? toutesLesProcedures().map(p => String((p && p.nom) || '').trim()) : []; }catch(e){ l = []; }
+    return tri(textesFiche(l, 200, 120));
+  }
+  if(source === 'formations'){
+    return (typeof FORMATIONS_BASE !== 'undefined' ? FORMATIONS_BASE : []).map(x => String(x.cle || '').trim()).filter(Boolean);
+  }
+  return [];
+}
+/* Les choix d'une liste, avec leurs réglages (phrase, zones montrées,
+   manœuvre comptée faite, voitures) */
+function choixDeLaListeFiche(ch){
+  const reglages = Array.isArray(ch && ch.choix) ? ch.choix : [];
+  if(!ch || !ch.source || ch.source === 'main') return reglages.map(c => Object.assign({}, c));
+  return itemsDeLaSourceFiche(ch.source, ch).map(lib => Object.assign({}, reglages.find(c => c.libelle === lib) || {}, { libelle: lib }));
+}
+function valeursDeLaListeFiche(v){
+  return String(v == null ? '' : v).split('\n').map(x => x.trim()).filter(Boolean);
+}
+function couleurTexteFiche(v){
+  const s = String(v || '');
+  return /^#[0-9a-f]{6}$/i.test(s) ? s.toUpperCase() : '';
+}
 const RE_CLE_AJOUT_FICHE = /^z[a-z0-9]{2,12}$/;
 const TYPES_TITRES_FICHE = ['titre', 'sousTitre'];
 const RE_CLE_CADRE_FICHE = /^c[a-z0-9]{2,12}$/;
@@ -898,6 +967,12 @@ function ajoutsDeLaForme(forme){
     if(z.bureau && TYPES_TITRES_FICHE.indexOf(z.type) === -1) c.pourNous = true;
     if(z.aide) c.aide = z.aide;
     if(z.type === 'texte') c.lignes = z.lignes || 4;
+    if(z.type === 'liste'){
+      c.source = z.source || 'main';
+      c.choix = Array.isArray(z.choix) ? z.choix : [];
+      if(z.multi) c.multi = true;
+      if(Array.isArray(z.items)) c.items = z.items;
+    }
     return c;
   });
 }
@@ -941,9 +1016,36 @@ function nettoyerFormeFiche(forme, champs){
     if(typeof z.aide === 'string' && z.aide.trim()) o.aide = texteFiche(z.aide, 240);
     if(z.type === 'texte'){ const n = parseInt(z.lignes, 10); o.lignes = (n >= 1 && n <= 12) ? n : 4; }
     if(z.bureau && TYPES_TITRES_FICHE.indexOf(z.type) === -1) o.bureau = 1;
+    /* ▾ v1236 — une liste : sa source, ses choix et leurs liens */
+    if(z.type === 'liste'){
+      o.source = Object.prototype.hasOwnProperty.call(SOURCES_LISTE_FICHE, z.source) ? z.source : 'main';
+      const vus = [];
+      o.choix = (Array.isArray(z.choix) ? z.choix : []).slice(0, 80).map(c => {
+        if(!c || typeof c !== 'object') return null;
+        const n = { libelle: texteFiche(c.libelle, 80).replace(/\s+/g, ' ').trim() };
+        if(!n.libelle || vus.indexOf(n.libelle) !== -1) return null;
+        vus.push(n.libelle);
+        const ph = texteFiche(c.phrase, 500).trim();
+        if(ph) n.phrase = ph;
+        const m = (Array.isArray(c.montre) ? c.montre : []).filter(k => typeof k === 'string' && k.length <= 80).slice(0, 20);
+        if(m.length) n.montre = m;
+        if(c.fait) n.fait = 1;
+        const vz = voituresFiche(c.voitures);
+        if(vz.length) n.voitures = vz;
+        return n;
+      }).filter(Boolean);
+      if(z.multi) o.multi = 1;
+      if(o.source === 'voitures') o.items = textesFiche(z.items, 60, 60);
+    }
     ajouts.push(o);
   });
   const cles = clesOrigine.concat(ajouts.map(z => z.cle));
+  /* ▾ les zones qu'un choix fait apparaître : des clés de CETTE fiche */
+  ajouts.forEach(z => { if(z.type === 'liste') z.choix.forEach(c => {
+    if(!c.montre) return;
+    c.montre = c.montre.filter((k, i, t) => k !== z.cle && cles.indexOf(k) !== -1 && t.indexOf(k) === i);
+    if(!c.montre.length) delete c.montre;
+  }); });
   const zones = {};
   const src = (f.zones && typeof f.zones === 'object') ? f.zones : {};
   cles.forEach(k => {
@@ -968,6 +1070,13 @@ function nettoyerFormeFiche(forme, champs){
     /* 🚗 v1211 — les voitures d'une zone, et « sv » : les cases de la
        survitesse sont déjà dans « cases » (l'admin les a reprises) */
     if(z.sv === 1) o.sv = 1;
+    /* 🎨 v1236 — la couleur du titre (t), de l'aide (a), de ce que le
+       moniteur écrit (x) ; « b » : aussi dans le bilan */
+    if(z.couleurs && typeof z.couleurs === 'object'){
+      const cc = {};
+      ['t', 'a', 'x'].forEach(q => { const v = couleurTexteFiche(z.couleurs[q]); if(v) cc[q] = v; });
+      if(cc.t || cc.a || cc.x){ if(z.couleurs.b) cc.b = 1; o.couleurs = cc; }
+    }
     const vz = voituresFiche(z.voitures);
     if(vz.length) o.voitures = vz;
     if(Object.keys(o).length) zones[k] = o;
@@ -1020,7 +1129,18 @@ function champsAvecForme(champs, forme){
     if(Array.isArray(z.voitures) && z.voitures.length && (ch.ajout || !zoneVerrouilleeFiche(ch))) c.voitures = z.voitures.slice();
     if(z.micro === 0) c.sansMicro = true;
     if(z.cache && (ch.ajout || !zoneVerrouilleeFiche(ch))) c.cacheFiche = true;
+    if(z.couleurs) c.couleurs = Object.assign({}, z.couleurs);
     return c;
+  });
+  /* ▾ v1236 — une zone qu'un choix de liste fait apparaître : cachée
+     tant que ce choix n'est pas pris (siListe) */
+  liste.forEach(l => {
+    if(l.type !== 'liste' || l.cacheFiche) return;
+    (l.choix || []).forEach(it => (it.montre || []).forEach(k => {
+      const t = liste.find(x => x.cle === k);
+      if(!t || t === l || !(t.ajout || !zoneVerrouilleeFiche(t))) return;
+      t.siListe = (t.siListe || []).concat([{ l: l.cle, v: it.libelle }]);
+    }));
   });
   if(f.ordre.length){
     const rang = k => { const i = f.ordre.indexOf(k); return i === -1 ? 1e6 : i; };
@@ -1139,6 +1259,26 @@ function lignesDUnAjoutFiche(c, v){
   if(c.type === 'ok') return (val === '✅' || val === '❌') ? [(nom ? grasFiche(nom) + ' ' : '') + val] : [];
   if(c.type === 'ouinon') return (val === 'oui' || val === 'non') ? [(nom ? grasFiche(nom) + ' : ' : '') + (val === 'oui' ? '✅ Oui' : '❌ Non')] : [];
   if(c.type === 'note3') return /^[0-3]$/.test(val) ? [(nom ? grasFiche(nom) + ' : ' : '') + val + ' /3'] : [];
+  if(c.type === 'liste'){
+    /* ▾ v1236 — les phrases des choix pris (dans l'ordre de la liste),
+       puis les manœuvres à compter faites : la même ligne que la
+       manœuvre d'un examen, que la fiche de l'élève sait relire. */
+    const pris = valeursDeLaListeFiche(val);
+    const phrases = [], faites = [];
+    choixDeLaListeFiche(c).forEach(it => {
+      if(pris.indexOf(it.libelle) === -1) return;
+      if(it.phrase) String(it.phrase).split('\n').forEach(x => { if(x.trim()) phrases.push(x.trim()); });
+      if(it.fait && c.source === 'manoeuvres') faites.push(it.libelle);
+    });
+    const out = phrases.length ? (nom ? [grasFiche(nom) + ' :'].concat(phrases) : phrases) : [];
+    if(faites.length){
+      const emoji = (typeof ACCES !== 'undefined' && ACCES && ACCES.emoji) ? String(ACCES.emoji).trim() : '';
+      const prefixe = (typeof PREFIXE_MANOEUVRE_EXAMEN !== 'undefined') ? PREFIXE_MANOEUVRE_EXAMEN : '🅿️ Manœuvre : ';
+      const marque = emoji || ((typeof MARQUE_FAITE !== 'undefined') ? MARQUE_FAITE : '✅');
+      faites.forEach(f => out.push(prefixe + f + ' ' + marque));
+    }
+    return out;
+  }
   return [];
 }
 /* Une suite de zones ajoutées → ses lignes. Un titre ajouté ne sort
@@ -1178,6 +1318,12 @@ function lignesPourNousFiche(champsFiche, valeurs){
     else if(c.type === 'ok') t = (v === '✅' || v === '❌') ? v : '';
     else if(c.type === 'ouinon') t = v === 'oui' ? '✅ Oui' : (v === 'non' ? '❌ Non' : '');
     else if(c.type === 'note3') t = /^[0-3]$/.test(v) ? v + ' /3' : '';
+    else if(c.type === 'liste'){
+      /* les phrases des choix pris, sinon les choix eux-mêmes */
+      const pris = valeursDeLaListeFiche(v);
+      const ph = choixDeLaListeFiche(c).filter(it => pris.indexOf(it.libelle) !== -1 && it.phrase).map(it => String(it.phrase).replace(/\s*\n\s*/g, ' '));
+      t = (ph.length ? ph : pris).join(' · ');
+    }
     if(!t) return;
     const nom = String(c.nom || '').replace(/\s+/g, ' ').trim();
     out.push(MARQUE_NOTE_FICHE + (nom ? nom + ' : ' : '') + t);
@@ -4214,7 +4360,9 @@ function poserChoixManoeuvre(t, ch){
   vide.value = '';
   vide.textContent = '— choisis la manœuvre —';
   sel.appendChild(vide);
-  ((typeof BLOC !== 'undefined' && BLOC.ficheListeConduite) || []).forEach(m => {
+  /* 🅿️ v1236 — la liste réglée dans le créateur de fiches (une pour
+     l'examen blanc, l'examen officiel et le RVP), sinon celle de l'école */
+  listeDuMenuManoeuvres().forEach(m => {
     const o = document.createElement('option');
     o.value = m; o.textContent = m;
     sel.appendChild(o);
@@ -4843,6 +4991,12 @@ function lireChampsManuels(champsVoulus){
         if(cb.checked && c && c.phrase) phrases.push(String(c.phrase));
       });
       champsManuels[ch.cle] = phrases.join('\n');
+    }else if(ch.type === 'liste'){
+      /* ▾ v1236 — le ou les choix pris, un par ligne */
+      const zl = document.querySelector('[data-zone="' + String(ch.cle).replace(/"/g, '') + '"]');
+      if(!zl) return;
+      const l = valeurDeLaListeDans(zl, ch.cle);
+      if(l.length) champsManuels[ch.cle] = l.join('\n'); else delete champsManuels[ch.cle];
     }else if(ch.type === 'titre' || ch.type === 'sousTitre' ||
        ch.type === 'envoiAvant' || ch.type === 'rappelFrise'){
       /* Ni un intertitre, ni un sous-titre, ni un bouton ne
@@ -5000,6 +5154,8 @@ async function genererBilanManuel(){
   lireChampsManuels();
   /* ✍️ v1207 — la fiche telle qu'il l'a remplie (zones ajoutées) */
   const ficheDuBilan = champsDeLaFicheOuverte($('modele').value);
+  /* ▾ v1236 — une zone qu'une liste a laissée cachée ne parle pas */
+  const cacheesParListes = ficheDuBilan ? clesCacheesParListes(ficheDuBilan, champsManuels) : [];
 
   /* ⚠️ LE TRAJET SE CLÔT ET SE SIGNALE ICI — v997. Avant tout le
      reste : le questionnaire de fin dure, et pendant ce temps le
@@ -5157,13 +5313,14 @@ async function genererBilanManuel(){
   const donnees = { manoeuvres: liste };
   /* Le simulateur attend « competences », rangé par clé */
   if(champsManuels.competences) donnees.competences = champsManuels.competences;
-  Object.keys(champsManuels).forEach(k => {
+  const valeursDuBilan = valeursSansLesCachees(champsManuels, cacheesParListes);
+  Object.keys(valeursDuBilan).forEach(k => {
     /* Les manœuvres sont déjà mises en forme au-dessus : les
        recopier telles quelles remettait des objets { nom, fait }
        là où le constructeur attend des noms, et la fiche
        véhicule ressortait vide. */
     if(k === 'manoeuvres') return;
-    if(k.indexOf('.') === -1){ donnees[k] = champsManuels[k]; return; }
+    if(k.indexOf('.') === -1){ donnees[k] = valeursDuBilan[k]; return; }
 
     /* Autant de niveaux que la clé en compte. Une seule profondeur
        suffisait tant que les clés valaient « avant.carteSD » ; les
@@ -5177,7 +5334,7 @@ async function genererBilanManuel(){
       if(!cible[pas] || typeof cible[pas] !== 'object') cible[pas] = {};
       cible = cible[pas];
     }
-    cible[chemin[chemin.length - 1]] = champsManuels[k];
+    cible[chemin[chemin.length - 1]] = valeursDuBilan[k];
   });
 
   let bilan;
@@ -5198,12 +5355,12 @@ async function genererBilanManuel(){
     bilan = modele.build(donnees, ctxBilan);
     if(avecAjouts){
       try{
-        bilan = placerAjoutsDansLeBilan(bilan, ficheDuBilan, champsManuels, donneesJson,
+        bilan = placerAjoutsDansLeBilan(bilan, ficheDuBilan, valeursDuBilan, donneesJson,
                                         d => modele.build(d, JSON.parse(ctxJson)));
       }catch(e){
         /* plutôt à la fin que perdues */
         console.warn('Zones ajoutées :', e);
-        const l = lignesDesAjoutsFiche(ficheDuBilan.filter(c => c && c.ajout), champsManuels);
+        const l = lignesDesAjoutsFiche(ficheDuBilan.filter(c => c && c.ajout), valeursDuBilan);
         if(l.length) bilan += '\n\n' + l.join('\n');
       }
     }
@@ -5280,7 +5437,15 @@ async function genererBilanManuel(){
      l'examen officiel : rien ne peut les faire passer dans le texte
      de l'élève, ni les effacer. */
   if(ficheDuBilan && ficheDuBilan.some(c => c && c.pourNous) && $('noteInterne')){
-    $('noteInterne').value = poserPourNousDansLaNote($('noteInterne').value, ficheDuBilan, champsManuels);
+    $('noteInterne').value = poserPourNousDansLaNote($('noteInterne').value, ficheDuBilan, valeursDuBilan);
+  }
+  /* 🎨 v1236 — les lignes à colorer dans le mail et « 📖 Mes leçons » */
+  couleursBilanCourant = null;
+  if(ficheDuBilan && ficheDuBilan.some(c => c && c.couleurs && c.couleurs.b)){
+    try{
+      couleursBilanCourant = { eleve: eleve, jour: $('lessonDate').value,
+        lignes: couleursDesLignesDuBilan(bilan, ficheDuBilan, valeursDuBilan, cacheesParListes) };
+    }catch(e){ couleursBilanCourant = null; }
   }
 
   currentLessonMeta = {
@@ -5891,6 +6056,8 @@ function reprendreBrouillon(b){
     }
 
     n += replacerSaisiesManuelles(b.saisies);
+    /* ▾ v1236 — les choix repris refont apparaître leurs zones */
+    if(typeof majZonesSelonListes === 'function') majZonesSelonListes();
 
     /* ⚠️ ET LE CEPC REPRIS SE REPEINT — v911.
 
@@ -6312,6 +6479,259 @@ function majApercuEval(){
   if(re) re.style.display = aLaMain ? '' : 'none';
 }
 
+/* ============================================================
+   ▾ LES LISTES DÉROULANTES DE LA FICHE — v1236
+
+   David : « que je puisse ajouter des listes déroulantes où je veux,
+   et que je puisse les lier avec certaines choses ». Un choix peut
+   écrire sa phrase dans le bilan, faire apparaître des zones (cachées
+   tant qu'on ne le prend pas), compter une manœuvre faite. « Plusieurs
+   choix possibles » : des cases dans la liste.
+   ============================================================ */
+function dessinerListeFiche(bloc, ch, zone){
+  const l = document.createElement('label');
+  l.textContent = ch.nom;
+  bloc.appendChild(l);
+  if(ch.aide){
+    const a = document.createElement('div');
+    a.className = 'aideFiche';
+    a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;';
+    a.textContent = ch.aide;
+    bloc.appendChild(a);
+  }
+  const items = choixDeLaListeFiche(ch);
+  const pris = valeursDeLaListeFiche(champsManuels[ch.cle]);
+  const apres = () => {
+    majZonesSelonListes(zone);
+    if(typeof planifierSauvegardeManuelle === 'function' && !window.essaiFicheEnCours) planifierSauvegardeManuelle();
+  };
+  if(!ch.multi){
+    const sel = document.createElement('select');
+    sel.className = 'listeFiche';
+    sel.id = idChamp(ch.cle);
+    sel.setAttribute('data-cle', ch.cle);
+    sel.style.cssText = 'width:100%;margin:0;padding:9px 11px;font-size:15px;font-weight:700;font-family:inherit;';
+    const vide = document.createElement('option');
+    vide.value = ''; vide.textContent = '— choisis —';
+    sel.appendChild(vide);
+    items.forEach(it => {
+      const o = document.createElement('option');
+      o.value = it.libelle; o.textContent = it.libelle;
+      if(Array.isArray(it.voitures) && it.voitures.length){ o.setAttribute('data-voitures', it.voitures.join('|')); planifierMajVoitures(zone); }
+      sel.appendChild(o);
+    });
+    /* un choix d'une fiche reprise qui n'est plus dans la liste reste lisible */
+    if(pris[0] && !items.some(it => it.libelle === pris[0])){
+      const o = document.createElement('option');
+      o.value = pris[0]; o.textContent = pris[0];
+      sel.appendChild(o);
+    }
+    sel.value = pris[0] || '';
+    sel.addEventListener('change', () => {
+      if(sel.value) champsManuels[ch.cle] = sel.value; else delete champsManuels[ch.cle];
+      apres();
+    });
+    bloc.appendChild(sel);
+  }else{
+    /* plusieurs choix : des cases, dans un menu qui se déplie */
+    const d = document.createElement('details');
+    d.className = 'listeFicheMulti';
+    d.style.cssText = 'border:1px solid var(--line);border-radius:10px;background:var(--navy);';
+    const su = document.createElement('summary');
+    su.style.cssText = 'cursor:pointer;padding:9px 11px;font-size:15px;font-weight:700;list-style:none;';
+    const resume = () => {
+      const l2 = Array.prototype.filter.call(d.querySelectorAll('input.listeFicheCase'), x => x.checked).map(x => x.value);
+      su.textContent = (l2.length ? l2.join(' · ') : '— choisis —') + '  ▾';
+      return l2;
+    };
+    d.appendChild(su);
+    const corps = document.createElement('div');
+    corps.style.cssText = 'padding:2px 11px 8px;';
+    const ligne = (lib, voitures) => {
+      const lab = document.createElement('label');
+      lab.className = 'caseSeuleL listeFicheL';
+      lab.style.cssText = 'display:flex;align-items:flex-start;gap:9px;margin:6px 0;font-size:14px;line-height:1.4;' +
+        'text-transform:none;color:var(--cream);cursor:pointer;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'listeFicheCase';
+      cb.setAttribute('data-cle', ch.cle);
+      cb.value = lib;
+      cb.checked = pris.indexOf(lib) !== -1;
+      cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:1px;';
+      if(Array.isArray(voitures) && voitures.length){ lab.setAttribute('data-voitures', voitures.join('|')); lab.style.display = 'none'; planifierMajVoitures(zone); }
+      cb.addEventListener('change', () => {
+        const l2 = resume();
+        if(l2.length) champsManuels[ch.cle] = l2.join('\n'); else delete champsManuels[ch.cle];
+        apres();
+      });
+      lab.appendChild(cb);
+      lab.appendChild(document.createTextNode(lib));
+      corps.appendChild(lab);
+    };
+    items.forEach(it => ligne(it.libelle, it.voitures));
+    pris.forEach(p => { if(!items.some(it => it.libelle === p)) ligne(p, null); });
+    if(!items.length){
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:12px;color:var(--muted);';
+      v.textContent = '(aucun choix pour l’instant)';
+      corps.appendChild(v);
+    }
+    d.appendChild(corps);
+    resume();
+    bloc.appendChild(d);
+  }
+}
+/* Ce qui est choisi dans une liste, lu dans la page (ou en mémoire) */
+function valeurDeLaListeDans(racine, cle){
+  const k = String(cle || '').replace(/["\\]/g, '');
+  const sel = racine && racine.querySelector('select.listeFiche[data-cle="' + k + '"]');
+  if(sel) return sel.value ? [sel.value] : [];
+  const cbs = racine ? racine.querySelectorAll('input.listeFicheCase[data-cle="' + k + '"]') : [];
+  if(cbs.length) return Array.prototype.filter.call(cbs, x => x.checked).map(x => x.value);
+  return valeursDeLaListeFiche(champsManuels[cle]);
+}
+let zoneListesCourante = null, minuteurListes = null;
+function planifierMajListes(zone){
+  if(zone) zoneListesCourante = zone;
+  clearTimeout(minuteurListes);
+  minuteurListes = setTimeout(() => majZonesSelonListes(zoneListesCourante), 0);
+}
+/* Les zones liées à un choix : là si le choix est pris (en réglage,
+   toujours là, avec ce qui les fait apparaître) */
+function majZonesSelonListes(racine){
+  const zone = racine || zoneListesCourante || $('manuelChamps');
+  if(!zone) return;
+  const reglage = ficheEnReglage();
+  Array.prototype.forEach.call(zone.querySelectorAll('details.listeFicheMulti'), d => {
+    const su = d.querySelector('summary');
+    const l2 = Array.prototype.filter.call(d.querySelectorAll('input.listeFicheCase'), x => x.checked).map(x => x.value);
+    if(su) su.textContent = (l2.length ? l2.join(' · ') : '— choisis —') + '  ▾';
+  });
+  Array.prototype.forEach.call(zone.querySelectorAll('[data-si-liste]'), b => {
+    let conds = [];
+    try{ conds = JSON.parse(b.dataset.siListe) || []; }catch(e){ conds = []; }
+    const ok = reglage || conds.some(c => valeurDeLaListeDans(zone, c.l).indexOf(c.v) !== -1);
+    b.classList.toggle('horsListe', !ok);
+    b.classList.toggle('selonListe', reglage);
+    if(reglage) b.setAttribute('data-liste-txt', '👁️ apparaît avec ' + conds.map(c => '« ' + c.v + ' »').join(' ou '));
+  });
+}
+/* Les zones cachées par leur liste : leur texte ne part pas dans le
+   bilan (il revient si on reprend le choix — David, le 22/10) */
+function clesCacheesParListes(champsFiche, valeurs){
+  const out = [];
+  (champsFiche || []).forEach(c => {
+    if(!c || !Array.isArray(c.siListe) || !c.siListe.length) return;
+    const ok = c.siListe.some(x => valeursDeLaListeFiche(valeurs[x.l]).indexOf(x.v) !== -1);
+    if(!ok) out.push(c.cle);
+  });
+  return out;
+}
+function valeursSansLesCachees(valeurs, cachees){
+  if(!cachees || !cachees.length) return valeurs;
+  const o = {};
+  Object.keys(valeurs || {}).forEach(k => {
+    if(cachees.some(c => k === c || k.indexOf(c + '.') === 0)) return;
+    o[k] = valeurs[k];
+  });
+  return o;
+}
+
+/* ============================================================
+   🎨 LA COULEUR DES TEXTES D'UNE ZONE — v1236
+
+   David : « changer la couleur des titres, des textes ». Le titre,
+   la petite aide, ce que le moniteur écrit. En mode sombre, la couleur
+   s'éclaircit pour rester lisible.
+   ============================================================ */
+function couleurLisibleFiche(c){
+  if(!c) return '';
+  return document.body.classList.contains('clair') ? c : melangerCouleurFiche(c, '#FFFFFF', 0.4);
+}
+function peindreTextesFiche(bloc, ch){
+  const cc = ch.couleurs || {};
+  const enfants = Array.prototype.slice.call(bloc.children);
+  const titre = (ch.type === 'titre' || ch.type === 'sousTitre')
+    ? enfants.find(e => e.tagName === 'DIV')
+    : enfants.find(e => e.tagName === 'LABEL');
+  if(cc.t && titre) titre.style.color = couleurLisibleFiche(cc.t);
+  if(cc.a && ch.aide){
+    const a = enfants.find(e => e !== titre && e.tagName === 'DIV' && String(e.textContent).trim() === String(ch.aide).trim());
+    if(a) a.style.color = couleurLisibleFiche(cc.a);
+  }
+  if(cc.x){
+    bloc.querySelectorAll('textarea, input[type="text"], input:not([type]), select, summary').forEach(e => { e.style.color = couleurLisibleFiche(cc.x); });
+  }
+}
+
+/* 🎨 Dans le bilan (« Aussi dans le bilan ») : les lignes de ce que le
+   moniteur a écrit, et le titre de la rubrique au-dessus — repérées par
+   leur texte. Le bilan reste un texte simple : la couleur ne se voit
+   que dans le mail et dans « 📖 Mes leçons » ; une ligne retouchée
+   avant l'envoi la perd. */
+let couleursBilanCourant = null;
+const RE_RUBRIQUE_BILAN = /^[\u{1D7CE}-\u{1D7FF}]/u;
+function couleursDesLignesDuBilan(bilan, champsFiche, valeurs, cachees){
+  const lignes = String(bilan || '').split('\n');
+  const net = x => String(x == null ? '' : x).trim();
+  const out = [];
+  const pose = (i, c) => { const t = net(lignes[i]); if(t && c && !out.some(x => x[0] === t)) out.push([t, c]); };
+  const indices = t => { const r = []; lignes.forEach((l, i) => { if(net(l) === t) r.push(i); }); return r; };
+  (champsFiche || []).forEach(c => {
+    const cc = c && c.couleurs;
+    if(!cc || !cc.b || !(cc.t || cc.x)) return;
+    if(c.pourNous || c.cacheFiche || (cachees || []).indexOf(c.cle) !== -1) return;
+    const v = valeurs ? valeurs[c.cle] : undefined;
+    if(c.ajout){
+      const l = lignesDUnAjoutFiche(c, v);
+      if(!l.length) return;
+      if(c.type === 'titre' || c.type === 'sousTitre'){ indices(net(l[0])).forEach(i => pose(i, cc.t)); return; }
+      const nom = String(c.nom || '').trim();
+      const avecTitre = nom && net(l[0]) === net(grasFiche(nom) + ' :');
+      if(avecTitre) indices(net(l[0])).forEach(i => pose(i, cc.t || cc.x));
+      l.slice(avecTitre ? 1 : 0).forEach(x => indices(net(x)).forEach(i => pose(i, cc.x || cc.t)));
+      return;
+    }
+    if(typeof v !== 'string' || !v.trim()) return;
+    let premier = -1;
+    v.split('\n').map(net).filter(Boolean).forEach(x => {
+      indices(x).forEach(i => { if(premier === -1 || i < premier) premier = i; if(cc.x) pose(i, cc.x); });
+    });
+    if(cc.t && premier > 0){
+      for(let j = premier - 1; j >= Math.max(0, premier - 10); j--){
+        if(RE_RUBRIQUE_BILAN.test(net(lignes[j]))){ pose(j, cc.t); break; }
+      }
+    }
+  });
+  return out;
+}
+function jourIsoFiche(d){
+  const t = String(d || '').trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
+}
+/* Les lignes colorées de CE bilan (même élève, même jour), encore
+   présentes dans le texte tel qu'il part */
+function couleursDuBilanPour(eleve, jour, texte){
+  const c = couleursBilanCourant;
+  if(!c || !Array.isArray(c.lignes) || !c.lignes.length) return [];
+  const n = x => String(x || '').trim().toLowerCase();
+  if(n(c.eleve) !== n(eleve) || jourIsoFiche(c.jour) !== jourIsoFiche(jour)) return [];
+  const presentes = {};
+  String(texte || '').split('\n').forEach(l => { presentes[l.trim()] = true; });
+  return c.lignes.filter(x => presentes[x[0]]);
+}
+/* Gardées pour « 📖 Mes leçons » (D1, par élève et par jour) */
+function poserCouleursDuBilan(eleve, jour, texte){
+  const l = couleursDuBilanPour(eleve, jour, texte);
+  const j = jourIsoFiche(jour);
+  if(!l.length || !j || typeof appelPrep !== 'function') return Promise.resolve(null);
+  return appelPrep({ action: 'bilanCouleursPoser', eleve: String(eleve || '').trim(), jour: j, lignes: l }).catch(() => null);
+}
+
 function dessinerChampsManuels(champs, zone, modele, dossier){
   champsDessinesCourants = champs;
   /* 📝 v1176 — la liste des remarques du CEPC part dès l'ouverture
@@ -6345,6 +6765,12 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
     /* Les champs de l'examen blanc du RVP : cachés tant que la
        question n'a pas reçu « oui ». */
     if(ch.siEb) bloc.dataset.siEb = ch.siEb;
+    /* ▾ v1236 — une zone qu'un choix de liste fait apparaître */
+    if(Array.isArray(ch.siListe) && ch.siListe.length){
+      bloc.dataset.siListe = JSON.stringify(ch.siListe);
+      if(!ficheEnReglage()) bloc.classList.add('horsListe');
+      planifierMajListes(zone);
+    }
 
     if(ch.type === 'rappelFrise'){
       /* Sa frise et ses leçons faites : de quoi juger sans
@@ -7422,6 +7848,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         bloc.appendChild(v);
       }
 
+    }else if(ch.type === 'liste'){
+      /* ▾ v1236 — une liste déroulante (zone ajoutée par le créateur) */
+      dessinerListeFiche(bloc, ch, zone);
+
     }else if(ch.type === 'titre'){
       /* Un intertitre : il sépare deux moments de l'examen, et
          porte le bouton d'envoi de sa partie. */
@@ -8021,6 +8451,8 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
        son choix sur le schéma. */
     /* ✍️ v1206 — sans micro, si le créateur l'a retiré */
     if(ch.sansMicro) masquerMicrosFiche(bloc);
+    /* 🎨 v1236 — la couleur du titre, de l'aide, du texte */
+    if(ch.couleurs) peindreTextesFiche(bloc, ch);
 
     /* ✍️ v1206 — la couleur ET sa force : deux zones qui se suivent
        avec le même fond et la même force partagent un seul cadre.
