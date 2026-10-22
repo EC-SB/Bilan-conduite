@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:11 — v1237 */
+/* Déployé le 22/10/2026 à 10:36 — v1238 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1238,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '🎯 Arrêt de précision et 🔁 après la manœuvre sur les examens ; 📦 cadres sans limite',
+    quoi: [
+      { emoji: '🎯',
+        titre: 'L’arrêt de précision, avant la manœuvre',
+        texte: 'Examen blanc, examen officiel et RVP : « 🅿️ Manœuvre : Arrêt de précision » avec ses lignes Remarque de l’inspecteur / Explication (☠️ ⚠️, ➕ Ajouter une ligne), dans le cadre gris. « faite », cochée d’office, le compte dans la fiche des manœuvres de l’élève.' },
+      { emoji: '🔁',
+        titre: 'Passager et voyants revus après la manœuvre',
+        texte: 'Sous Autonomie, deux cases ✅ ❌ : chaque ❌ enlève 1 point à « Savoir s’installer et assurer la sécurité à bord » sur le CEPC, même si c’était bon avant la manœuvre. Le bilan porte « 🔁 Après la manœuvre : Passager … · Voyants … ».' },
+      { emoji: '📦',
+        titre: 'Des cadres de toute taille',
+        texte: 'Dans le créateur de fiches : « ➕ » dans un cadre (même sous sa dernière zone) y ajoute la zone ; le cadre se règle avec « Il commence à / Il finit à » ; pour encadrer, on peut aussi toucher les noms dans « 🧩 Les zones ».' },
+      { emoji: '👨‍✈️',
+        titre: 'Deux nouveaux types dans « ➕ Ajouter ici » (examens)',
+        texte: '« 👨‍✈️ Remarques de l’inspecteur + explications », avec la mention qui part dans le bilan et le nombre de lignes ; « ✅❌ Trois états qui enlèvent des points au CEPC », avec la ligne du CEPC et 1 à 3 points.' }
+    ]
+  },
   {
     version: 1237,
     date: 'Jeudi 22 octobre 2026',
