@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 15:04 — v1234 */
+/* Déployé le 22/10/2026 à 15:14 — v1244 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1171,6 +1171,19 @@ function blocSession(sess, auj){
   });
   tete.appendChild(bMess);
 
+  /* ✉️ v1244 — A : les convocations de toute la session (ec-courriers.js) */
+  if(typeof boutonConvocationsDeSession === 'function' && boutonConvocationsDeSession() &&
+     !passe && sess.eleves.some(x => x.eleve)){
+    const bC = document.createElement('button');
+    bC.type = 'button';
+    bC.className = 'sesConvoc';
+    bC.textContent = '✉️';
+    bC.title = 'Convocations de la session (courriers)';
+    bC.setAttribute('aria-label', 'Convocations de la session');
+    bC.addEventListener('click', ev => { ev.stopPropagation(); crConvocationsDeSession(sess); });
+    tete.appendChild(bC);
+  }
+
   const fl = document.createElement('div');
   fl.style.cssText = 'flex-shrink:0;font-size:12px;color:var(--muted);transition:transform .2s;';
   fl.textContent = '▼';
@@ -1502,7 +1515,9 @@ function lignesDeLaPreparation(nom){
     const montant = reste && parseFloat(reste.replace(',', '.')) > 0
       ? ' (reste ' + reste.replace(/</g, '&lt;') + ' €)' : '';
     h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
-         '💶 Il doit de l’argent' + montant + '</div>';
+         '💶 Il doit de l’argent' + montant +
+         /* ✉️ v1244 — C : la relance de paiement, à son nom, le reste pré-rempli */
+         ((typeof boutonRelancePourLeSuivi === 'function') ? boutonRelancePourLeSuivi(nom, reste) : '') + '</div>';
   }
   if(!m.planifie){
     h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
