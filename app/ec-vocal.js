@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 14:00 — v1232 */
+/* Déployé le 22/10/2026 à 09:42 — v1236 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -3413,6 +3413,10 @@ function direEtatFin(texte, erreur){
    ============================================================ */
 function confirmerFinDeCours(){
   const eleve = (currentLessonMeta && currentLessonMeta.studentName) || '';
+  /* 🎨 v1236 — les couleurs du bilan, pour « 📖 Mes leçons » */
+  if(eleve && typeof poserCouleursDuBilan === 'function' && $('resultText')){
+    poserCouleursDuBilan(eleve, (currentLessonMeta && currentLessonMeta.dateStr) || $('lessonDate').value, $('resultText').value);
+  }
   const f = (eleve && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
   const mess = (f && f.messenger) || '';
 
