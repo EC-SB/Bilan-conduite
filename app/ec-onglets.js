@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 15:04 — v1234 */
+/* Déployé le 22/10/2026 à 14:39 — v1243 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -59,7 +59,9 @@ const SECTIONS_ONGLET = {
             'bureau_messages', 'sms', 'taches', 'notifs',
             'caisse', 'coutsia', 'paie', 'tarifs',
             /* 👥 v1189 — l'équipe et l'école */
-            'equipe'],
+            'equipe',
+            /* ✉️ v1243 — les courriers */
+            'courriers'],
   /* « tarifs » manquait ici, et il est pourtant accordable dans
      ⚙️ Accès : un compte à qui l'on n'accordait QUE les tarifs
      n'obtenait pas l'onglet Gestion, et n'atteignait donc jamais
@@ -343,6 +345,9 @@ const VUES = {
            ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
            ['procedures', '🚦 Procédures',             'procedures',  'Ce qu’on écrit'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
+           /* ✉️ v1243 — David : « dans Ce qu'on écrit, un endroit pour
+              envoyer des courriers types » */
+           ['courriers',  '✉️ Courriers',               'courriers',   'Ce qu’on écrit'],
            /* « 📚 Historique des cours » a été retiré.
 
               Ce bouton ne chargeait RIEN : sa vue n'était branchée
@@ -1872,6 +1877,8 @@ function reveillerVue(cle){
     /* 👥 v1189 */
     equipe:     () => (typeof afficherEquipe === 'function') && afficherEquipe(),
     ecole:      () => (typeof afficherEcole === 'function') && afficherEcole(),
+    /* ✉️ v1243 */
+    courriers:  () => (typeof afficherCourriers === 'function') && afficherCourriers(),
     /* ⚠️ DEUX ÉCRANS SOUS UN SEUL BOUTON, ET CHACUN DEMANDE SON
        DROIT AVANT DE PARTIR.
 
