@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 19:20 — v1235 */
+/* Déployé le 22/10/2026 à 10:11 — v1237 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -695,7 +695,11 @@
        séance ». On cherche donc ce mot dans le mémo, le titre, puis le
        détail que Drivup ouvre quand on clique (lecture seule). */
     const SIMU = /simu.*moniteur/;
-    const seuls = evenements.filter(e => SIMU.test(sansAccent(toutes[e.type] || '')) && e.nbr === 1 && /^1\/[2-9]$/.test(e.places));
+    /* v1236 (relevé dans Drivup le 22/10) : un simulateur avec moniteur
+       à UN inscrit n'affiche pas de « places » (le champ est vide) ; son
+       intitulé complet (« Simulateur avec moniteur 1h (Passerelle) »)
+       n'est que dans le détail du cours. */
+    const seuls = evenements.filter(e => SIMU.test(sansAccent(toutes[e.type] || '')) && e.nbr === 1);
     for (const e of seuls) {
       let texte = e.memo + ' \n ' + e.titre;
       try {
@@ -703,7 +707,10 @@
                               encodeURIComponent(e.type) + '&coursId=' + encodeURIComponent(e.id), { credentials: 'include' });
         if (r.ok) {
           const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
-          texte += ' \n ' + String((doc.body && doc.body.textContent) || '');
+          const tout = String((doc.body && doc.body.textContent) || '').replace(/\s+/g, ' ');
+          const intitule = tout.match(/Simulateur[^-–]{0,80}/i);
+          if (intitule) e.intitule = propre(intitule[0]).slice(0, 80);
+          texte += ' \n ' + tout;
           const el = elevesDuDetail(doc).eleves[0];
           if (el) e.inscrit = propre([el.prenom, el.nom].filter(Boolean).join(' ')).slice(0, 60);
         }
