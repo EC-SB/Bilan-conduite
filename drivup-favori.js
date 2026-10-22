@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 11:14 — v1239 */
+/* Déployé le 22/10/2026 à 12:31 — v1241 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -174,6 +174,14 @@
       porteeGenre = 'moniteur';
       const res = cal.getResources ? cal.getResources() : [];
       porteeValeur = res.length === 1 ? propre(res[0].title) : '';
+    } else if (/tous_les_utilisateurs\.php/.test(location.pathname)) {
+      /* v1241 — « TOUS LES UTILISATEURS ». David, le 22/10 : le favori
+         refusait ce planning (« ni agence ni moniteur seul »). Il montre
+         toutes les agences : on prend tout ce qu'il affiche, et chez
+         nous la lecture remplace les cours de toutes les agences sur
+         ces jours-là. */
+      porteeGenre = 'tous';
+      porteeValeur = 'Toutes les agences';
     } else {
       porteeValeur = propre((document.title.match(/^Agence\s+(.+?)\s+-\s+Drivup/i) || [])[1] || '');
     }
@@ -277,7 +285,7 @@
   const sansAccent = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
   async function lireLesBureaux() {
-    if (!/\/planning\/agence\.php/.test(location.pathname)) return null;
+    if (!/\/planning\/(agence|tous_les_utilisateurs)\.php/.test(location.pathname)) return null;
     let quels = [];
     try {
       const r = await fetch(RELAIS + '/bureau?quoi=drivup', { credentials: 'omit', cache: 'no-store' });
@@ -838,7 +846,7 @@
         envoyer(p);
       } else {
         if (fen && !fen.closed) fen.close();
-        finir('Ouvre dans Drivup le planning d’une agence ou d’un moniteur, la liste des élèves, ou la fiche d’un élève, puis reclique sur le favori.');
+        finir('Ouvre dans Drivup le planning d’une agence, de tous les utilisateurs ou d’un moniteur, la liste des élèves, ou la fiche d’un élève, puis reclique sur le favori.');
       }
     } catch (e) {
       if (fen && !fen.closed) fen.close();
