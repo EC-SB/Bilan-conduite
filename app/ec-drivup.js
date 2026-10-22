@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 12:31 — v1241 */
+/* Déployé le 22/10/2026 à 13:46 — v1242 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -696,8 +696,9 @@ async function fenetrePlanningDrivup(p){
     f.boite.appendChild(nc);
   }
 
-  /* 👂 v1229 — ouvrir les écoutes, depuis le planning d'une agence */
-  if(genre === 'agence' && window.opener && !window.opener.closed){
+  /* 👂 v1229 — ouvrir les écoutes, depuis le planning d'une agence ;
+     v1242 : et depuis « Tous les utilisateurs » (David, le 22/10) */
+  if((genre === 'agence' || genre === 'tous') && window.opener && !window.opener.closed){
     const be = document.createElement('button');
     be.className = 'btn btn-secondary';
     be.id = 'drivupBoutonEcoutes';
