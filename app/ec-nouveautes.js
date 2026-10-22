@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:36 — v1238 */
+/* Déployé le 22/10/2026 à 11:14 — v1239 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1239,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '🗓️ Créneaux libres : toutes les agences d’un coup, trous d’1h à part',
+    quoi: [
+      { emoji: '🗓️',
+        titre: 'Toutes les agences à chaque lecture',
+        texte: 'Le favori « 📥 » lit maintenant le planning de toutes les agences, quel que soit celui qui est ouvert (Saint-Brieuc, Loudéac ou « Tous les utilisateurs ») : un cours posé à Loudéac n’est plus pris pour un trou à Saint-Brieuc.' },
+      { emoji: '⏳',
+        titre: 'Les trous d’1h, dans leur filtre',
+        texte: 'Élèves › 🗓️ Créneaux libres : « ⏳ Trous d’1h » est une pastille à part, à côté de « ⬜ Rien d’ouvert » (qui garde les créneaux de 2h et « libre après son permis »).' }
+    ]
+  },
   {
     version: 1238,
     date: 'Jeudi 22 octobre 2026',
