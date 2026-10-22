@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/10/2026 à 11:45 — v1227 -->
+<!-- Déployé le 22/10/2026 à 09:42 — v1236 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -4206,7 +4206,7 @@
     dessinerLesOnglets();
     if(ouvert('parcours')) poserLeParcours(d && d.parcours);
     if(ouvert('rappel')) dessinerProchain(d && d.prochain);
-    if(ouvert('historique')) dessinerLecons((d && d.lecons) || []);
+    if(ouvert('historique')) dessinerLecons((d && d.lecons) || [], (d && d.couleursBilans) || []);
     dessinerMesPhotosBilan((d && d.photosBilan) || []);
   }
 
@@ -4324,7 +4324,31 @@
     });
   }
 
-  function dessinerLecons(liste){
+  /* 🎨 v1236 — un bilan dont l'école a coloré certaines lignes : le
+     même texte, ces lignes-là en couleur */
+  function jourIsoLecon(t){
+    var s = String(t || '').trim(), m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
+  }
+  function texteDeLecon(l, couleurs){
+    var j = jourIsoLecon(l.date), table = null;
+    (couleurs || []).forEach(function(c){
+      if(!c || c.jour !== j || !Array.isArray(c.lignes)) return;
+      table = table || {};
+      c.lignes.forEach(function(x){
+        if(Array.isArray(x) && /^#[0-9a-f]{6}$/i.test(String(x[1] || ''))) table[String(x[0]).trim()] = x[1];
+      });
+    });
+    if(!table) return echapper(l.bilan || '');
+    return String(l.bilan || '').split('\n').map(function(x){
+      var c = table[x.trim()];
+      return c ? '<span style="color:' + c + ';">' + echapper(x) + '</span>' : echapper(x);
+    }).join('\n');
+  }
+
+  function dessinerLecons(liste, couleurs){
     /* Gardés pour la recherche de « Réviser » — v1221 */
     mesLecons = liste || [];
     var z = $('mesLecons');
@@ -4348,7 +4372,7 @@
           '<span class="qui">' + echapper(l.moniteur || '') +
             (l.type ? ' · ' + echapper(l.type) : '') + '</span>' +
         '</summary>' +
-        '<div class="texte">' + echapper(l.bilan || '') + '</div>' +
+        '<div class="texte">' + texteDeLecon(l, couleurs) + '</div>' +
       '</details>';
     }).join('');
 
