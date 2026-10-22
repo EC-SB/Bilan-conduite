@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 14:00 — v1232 */
+/* Déployé le 21/10/2026 à 19:20 — v1235 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,33 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1235,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '🕹️ Simulateur à 1 place dans les créneaux libres, et 🚫 pour en retirer',
+    quoi: [
+      { emoji: '🕹️',
+        titre: 'Le simulateur avec moniteur où il reste une place',
+        texte: 'Élèves › 🗓️ Créneaux libres montre aussi les séances de simulateur avec moniteur où un seul élève est inscrit (1/2), avec la séance telle qu’elle est écrite dans Drivup (« séance 3 et 4 »…) et qui y est déjà.' },
+      { emoji: '🚫',
+        titre: 'Ne pas proposer un créneau',
+        texte: 'Le bouton 🚫 sur une ligne la retire de la liste et de la fenêtre « Proposer » (rien ne change dans Drivup). Les créneaux retirés sont rangés en bas de la liste, avec ↩️ Remettre.' }
+    ]
+  },
+  {
+    version: 1234,
+    date: 'Mercredi 21 octobre 2026',
+    resume: '🗓️ Créneaux libres lus dans Drivup, à proposer aux élèves',
+    quoi: [
+      { emoji: '🗓️',
+        titre: 'Les créneaux libres, au même endroit',
+        texte: 'Élèves › 🗓️ Créneaux libres : les cours ouverts sans élève, les « Résa » et les moments où un moniteur n’a rien d’ouvert sur ses horaires (⚙️ réglables par moniteur), sur les 4 semaines à venir — avec « 👥 À placer » : les permis prévus dont le planning n’est pas fait. ' +
+               'La liste se met à jour à chaque clic du favori « 📥 » sur le planning d’une agence.' },
+      { emoji: '📋',
+        titre: 'Proposer des créneaux depuis 🎓 Suivi permis',
+        texte: 'Le bouton « 🗓️ Créneaux libres » (en haut, et sous « 📆 Il doit planifier ») ouvre une fenêtre triée pour l’élève (avant son permis, dans sa boîte) : on coche, puis 📋 copier le message ou 💬 l’envoyer dans sa messagerie.' }
+    ]
+  },
   {
     version: 1232,
     date: 'Mercredi 21 octobre 2026',
