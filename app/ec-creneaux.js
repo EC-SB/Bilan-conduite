@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:11 — v1237 */
+/* Déployé le 22/10/2026 à 11:14 — v1239 */
 /* ============================================================
    ec-creneaux.js — 🗓️ LES CRÉNEAUX LIBRES (v1234)
 
@@ -182,7 +182,7 @@ async function enregistrerLesCreneauxDrivup(c){
   const lignes = creneauxCalcules(Object.assign({}, lecture, { le: Date.now() }), creneauxEtat.horaires || {});
   return { ouverts: lignes.filter(x => x.genre === 'ouvert').length, resa: lignes.filter(x => x.genre === 'resa').length,
            simu: lignes.filter(x => x.genre === 'simu').length, dispo: lignes.filter(x => x.genre === 'dispo').length,
-           rien: lignes.filter(x => x.genre === 'rien').length };
+           rien: lignes.filter(x => x.genre === 'rien').length, trou: lignes.filter(x => x.genre === 'trou').length };
 }
 
 /* ------------------------------------------------------------
@@ -250,7 +250,8 @@ function creneauxCalcules(lecture, horaires){
         });
       });
       poses.forEach(([a, b, sorte]) => {
-        out.push({ genre: 'rien', jour: j, debut: heureCreneau(a), fin: heureCreneau(b), moniteur: m.nom,
+        /* v1239 — les trous à part, dans leur filtre (David, le 22/10) */
+        out.push({ genre: sorte === 'trou' ? 'trou' : 'rien', jour: j, debut: heureCreneau(a), fin: heureCreneau(b), moniteur: m.nom,
                    libelle: sorte === 'permis' ? 'Libre après son permis' : sorte === 'trou' ? 'Trou d’' + dureeCreneauTexte(b - a) : 'Rien d’ouvert sur sa journée',
                    agence: '', boite: '' });
       });
@@ -320,6 +321,7 @@ const GENRES_CRENEAU = {
   ouvert: { nom: '🟢 Cours ouverts sans élève', court: '🟢 Cours ouvert', couleur: '#3d8b00' },
   resa:   { nom: '📌 Résa', court: '📌 Résa', couleur: '#B87A12' },
   rien:   { nom: '⬜ Rien d’ouvert', court: '⬜ Rien d’ouvert', couleur: '#8A857C' },
+  trou:   { nom: '⏳ Trous d’1h', court: '⏳ Trou', couleur: '#7C5CE6' },
   simu:   { nom: '🕹️ Simu : 1 place', court: '🕹️ Simu 1 place', couleur: '#2F7FD8' },
   dispo:  { nom: '✍️ Dispo écrite', court: '✍️ Dispo', couleur: '#2E9E5B' }
 };
@@ -412,7 +414,7 @@ async function afficherCreneauxLibres(){
   info.textContent = 'Lu dans Drivup' + (lu ? ' le ' + lu.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) +
     ' à ' + lu.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h') : '') +
     (lect.par ? ' (' + lect.par + ')' : '') + ' · jusqu’au ' + jourLongCreneau(lect.au) +
-    ' — se met à jour à chaque clic du favori « 📥 » sur le planning d’une agence.';
+    ' — toutes les agences, mises à jour à chaque clic du favori « 📥 » sur un planning.';
   z.appendChild(info);
   if(lu && Date.now() - lu.getTime() > 3 * 86400000){
     const v = document.createElement('div');
@@ -438,7 +440,7 @@ async function afficherCreneauxLibres(){
     filtres.innerHTML = '';
     const r1 = document.createElement('div'); r1.className = 'grillePastilles'; r1.style.marginBottom = '8px';
     const n = g => toutes.filter(x => (g === 'tout' || x.genre === g) && !creneauMasque(x)).length;
-    [['tout', 'Tout'], ['ouvert', GENRES_CRENEAU.ouvert.nom], ['simu', GENRES_CRENEAU.simu.nom], ['resa', GENRES_CRENEAU.resa.nom], ['dispo', GENRES_CRENEAU.dispo.nom], ['rien', GENRES_CRENEAU.rien.nom]].forEach(([g, t]) => {
+    [['tout', 'Tout'], ['ouvert', GENRES_CRENEAU.ouvert.nom], ['simu', GENRES_CRENEAU.simu.nom], ['resa', GENRES_CRENEAU.resa.nom], ['dispo', GENRES_CRENEAU.dispo.nom], ['rien', GENRES_CRENEAU.rien.nom], ['trou', GENRES_CRENEAU.trou.nom]].forEach(([g, t]) => {
       const p = pastilleCreneau(t + ' · ' + n(g), filtresCreneaux.genre === g, () => { filtresCreneaux.genre = g; dessiner(); });
       p.dataset.genre = g; r1.appendChild(p);
     });
@@ -452,7 +454,7 @@ async function afficherCreneauxLibres(){
     liste.innerHTML = '';
     const filtrees = toutes.filter(x => (filtresCreneaux.genre === 'tout' || x.genre === filtresCreneaux.genre) &&
       (!filtresCreneaux.moniteur || x.moniteur === filtresCreneaux.moniteur) &&
-      (!filtresCreneaux.agence || x.agence === filtresCreneaux.agence || (x.genre === 'rien' && !x.agence)));
+      (!filtresCreneaux.agence || x.agence === filtresCreneaux.agence || ((x.genre === 'rien' || x.genre === 'trou') && !x.agence)));
     const vues = filtrees.filter(x => !creneauMasque(x));
     const retires = filtrees.filter(x => creneauMasque(x));
     if(!vues.length){
@@ -674,12 +676,12 @@ async function fenetreCreneauxLibres(eleveDonne, creneauChoisi){
     [['sb', '📍 St-Brieuc'], ['loudeac', '📍 Loudéac']].forEach(([a, t]) => pastilles.appendChild(pastilleCreneau(t, f.agence === a,
       () => { f.agence = f.agence === a ? '' : a; peindre(); })));
     /* 🟢 📌 ⬜ : un genre à la fois, ou tout */
-    ['ouvert', 'simu', 'resa', 'dispo', 'rien'].forEach(g => pastilles.appendChild(pastilleCreneau(GENRES_CRENEAU[g].court, f.genre === g,
+    ['ouvert', 'simu', 'resa', 'dispo', 'rien', 'trou'].forEach(g => pastilles.appendChild(pastilleCreneau(GENRES_CRENEAU[g].court, f.genre === g,
       () => { f.genre = f.genre === g ? 'tout' : g; peindre(); })));
 
     const vues = toutes.filter(c => !creneauMasque(c) && (f.genre === 'tout' || c.genre === f.genre) && (!session || !f.avant || c.jour < session.date) &&
       (!boite || !f.boite || !c.boite || c.boite === boite) &&
-      (!f.agence || c.agence === f.agence || (c.genre === 'rien' && !c.agence)) || choisis[cleC(c)]).slice(0, 400);
+      (!f.agence || c.agence === f.agence || ((c.genre === 'rien' || c.genre === 'trou') && !c.agence)) || choisis[cleC(c)]).slice(0, 400);
     liste.innerHTML = '';
     if(!vues.length){
       const v = document.createElement('div'); v.className = 'empty'; v.textContent = 'Aucun créneau avec ces filtres.'; liste.appendChild(v);
@@ -700,7 +702,7 @@ async function fenetreCreneauxLibres(eleveDonne, creneauChoisi){
       const mm = document.createTextNode(' — ' + c.moniteur);
       const d = document.createElement('span');
       d.style.cssText = 'display:block;font-size:12px;color:var(--muted);';
-      d.textContent = GENRES_CRENEAU[c.genre].court + (c.genre === 'rien' ? '' : ' · ' + c.libelle) +
+      d.textContent = GENRES_CRENEAU[c.genre].court + (c.genre === 'rien' || c.genre === 'trou' ? '' : ' · ' + c.libelle) +
         (c.agence ? ' · 📍 ' + (c.agence === 'loudeac' ? 'Loudéac' : 'St-Brieuc') : '');
       t.append(b, mm, d);
       lab.append(cb, t);
