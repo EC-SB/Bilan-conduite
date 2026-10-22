@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 12:31 — v1241 */
+/* Déployé le 22/10/2026 à 13:46 — v1242 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -519,8 +519,25 @@
     });
     return out;
   }
+  /* v1242 — « Tous les utilisateurs » : son flux est celui des agences
+     sans « agence= » (relevé le 22/10), il rend toute l'école. */
+  const surTousLesUtilisateurs = () => /\/planning\/tous_les_utilisateurs\.php/.test(location.pathname);
+  /* v1242 — les prestations de CHAQUE sorte de colonne d'écoute (BEA,
+     BV, Ecoute de Loudéac) : sur « Tous les utilisateurs », elles sont
+     toutes à l'écran, et le menu d'une colonne peut ne pas offrir les
+     écoutes d'une autre agence. Une colonne par titre suffit. */
+  async function prestationsDesColonnes(jour, ids, secours) {
+    const titres = {};
+    ressourcesALEcran().forEach(r => { titres[r.id] = sansAccent(r.titre); });
+    const vus = {}, choix = [];
+    ids.forEach(id => { const t = titres[id] || id; if (id && !vus[t]) { vus[t] = true; choix.push(id); } });
+    if (!choix.length && secours) choix.push(secours);
+    const out = {};
+    for (const id of choix.slice(0, 6)) Object.assign(out, await prestationsDrivup(jour, id));
+    return out;
+  }
   async function evenementsDrivup(du, semaines) {
-    const flux = fluxDuPlanning();
+    const flux = fluxDuPlanning() || (surTousLesUtilisateurs() ? '/planning/data/FCIO_agence_events.php' : '');
     if (!flux) throw new Error('Le flux du planning est introuvable : recharge la page Drivup, puis reclique sur le favori.');
     const vus = {};
     const out = [];
@@ -542,8 +559,8 @@
   let ecoutesOccupe = false;
   async function lireLesEcoutes(demande, source) {
     const repondre = m => { try { source.postMessage(m, APP); } catch (e) {} };
-    if (!/\/planning\/agence\.php/.test(location.pathname) || !window.__FC_CAL) {
-      return repondre({ type: 'drivup-ecoutes-erreur', message: 'Ouvre le planning d’une agence dans Drivup, puis reclique sur le favori.' });
+    if (!/\/planning\/(agence|tous_les_utilisateurs)\.php/.test(location.pathname) || !window.__FC_CAL) {
+      return repondre({ type: 'drivup-ecoutes-erreur', message: 'Ouvre dans Drivup le planning d’une agence ou « Tous les utilisateurs », puis reclique sur le favori.' });
     }
     /* L'accusé tout de suite : l'onglet sait que le favori écoute */
     repondre({ type: 'drivup-ecoutes-progression', fait: 0, total: 0, texte: 'Lecture du planning dans Drivup…' });
@@ -553,8 +570,8 @@
     const au = jourPlus(du, 7 * semaines - 1);
     dire('👂 Lecture des écoutes…');
     const ressources = ressourcesALEcran();
-    const colEcoute = ressources.find(r => estColonneDEcoute(r.titre));
-    const prestations = await prestationsDrivup(du, colEcoute ? colEcoute.id : (ressources[0] || {}).id || '');
+    const prestations = await prestationsDesColonnes(du, ressources.filter(r => estColonneDEcoute(r.titre)).map(r => r.id),
+                                                     (ressources[0] || {}).id || '');
     const bruts = (await evenementsDrivup(du, semaines))
       .filter(e => { const j = jourDuTexte(e.start); return j >= du && j <= au; });
     const evenements = bruts.map(e => ({
@@ -609,7 +626,7 @@
       const liste = (Array.isArray(demande.liste) ? demande.liste : []).slice(0, 300);
       const resultats = [];
       if (!liste.length) return repondre({ type: 'drivup-ecoutes-faites', resultats: [] });
-      const prestations = await prestationsDrivup(liste[0].jour, liste[0].res);
+      const prestations = await prestationsDesColonnes(liste[0].jour, liste.map(x => String(x.res || '')), String(liste[0].res || ''));
       /* L'état du planning juste avant : une colonne prise entre-temps
          ne se double pas. */
       const jours = [...new Set(liste.map(x => String(x.jour)))].sort();
