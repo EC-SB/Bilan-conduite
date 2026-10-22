@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 18:44 — v1198 */
+/* Déployé le 21/10/2026 à 15:04 — v1234 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -272,6 +272,8 @@ const VUES = {
            ['renseignements', '📋 Renseignements',   'eleves',      'Au quotidien'],
            ['recherche',  '📚 Historique des leçons', 'recherche',   'Au quotidien'],
            ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
+           /* 🗓️ v1234 — les créneaux libres lus dans Drivup (choix de David : sous les rappels) */
+           ['creneaux',   '🗓️ Créneaux libres',      'rappels',     'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
 
            ['evaluation', '📊 Évaluation',            'evaluation',  'Administratif'],
@@ -1848,6 +1850,7 @@ function reveillerVue(cle){
     oublis:     () => (typeof afficherObjetsOublies === 'function') &&
                       afficherObjetsOublies(),
     rappels:    () => modeRappel('manuel'),
+    creneaux:   () => (typeof afficherCreneauxLibres === 'function') && afficherCreneauxLibres(),
     sessions:   () => afficherSessionsPermis(),
     /* Une vue branchée nulle part reste sur « Chargement… » pour
        toujours — c'est ce qui était arrivé à « Historique des
