@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 14:39 — v1243 */
+/* Déployé le 22/10/2026 à 17:10 — v1246 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -347,6 +347,9 @@ const VUES = {
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
            /* ✉️ v1243 — David : « dans Ce qu'on écrit, un endroit pour
               envoyer des courriers types » */
+           /* 🧰 v1246 — David : « un endroit, la base de données des
+              questions de vérification, que je puisse modifier » */
+           ['verifs',     '🧰 Vérifications',          'bilans',      'Ce qu’on écrit'],
            ['courriers',  '✉️ Courriers',               'courriers',   'Ce qu’on écrit'],
            /* « 📚 Historique des cours » a été retiré.
 
@@ -1879,6 +1882,8 @@ function reveillerVue(cle){
     ecole:      () => (typeof afficherEcole === 'function') && afficherEcole(),
     /* ✉️ v1243 */
     courriers:  () => (typeof afficherCourriers === 'function') && afficherCourriers(),
+    /* 🧰 v1246 */
+    verifs:     () => (typeof afficherVerifs === 'function') && afficherVerifs(),
     /* ⚠️ DEUX ÉCRANS SOUS UN SEUL BOUTON, ET CHACUN DEMANDE SON
        DROIT AVANT DE PARTIR.
 
