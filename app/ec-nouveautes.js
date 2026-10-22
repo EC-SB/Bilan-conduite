@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 17:10 — v1246 */
+/* Déployé le 22/10/2026 à 17:39 — v1247 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1247,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '✏️ Courriers : tailles, couleurs, listes — un vrai traitement de texte',
+    quoi: [
+      { emoji: '🔠',
+        titre: 'Taille et style de ligne',
+        texte: 'Choisis la taille (8 à 72) ou un style tout prêt : Titre, Sous-titre, Petit texte. A− et A+ font un cran.' },
+      { emoji: '🎨',
+        titre: 'Couleur et surligneur',
+        texte: 'Une palette de couleurs pour le texte (et « Autre couleur… »), et un surligneur. Le PDF garde les mêmes couleurs.' },
+      { emoji: '📋',
+        titre: 'Listes et retraits',
+        texte: 'Listes à puces ou numérotées, sous-listes, retrait d’une ligne, barré, annuler et rétablir.' }
+    ]
+  },
   {
     version: 1246,
     date: 'Jeudi 22 octobre 2026',
