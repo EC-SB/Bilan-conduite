@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 13:06 — v1229 */
+/* Déployé le 21/10/2026 à 19:20 — v1235 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -660,6 +660,63 @@
     }
   }
 
+  /* ---------- 🗓️ v1234 — les créneaux libres ----------
+     Lus à CHAQUE clic du favori sur le planning d'une agence (choix de
+     David) : quatre semaines à partir d'aujourd'hui, sans ouvrir le
+     détail des cours — le flux du planning suffit. Lecture seule. */
+  /* « Séance 3 et 4 », « 1ère et 2ème séance », « séance n°3 » : le
+     morceau tel qu'il est écrit, pour que le bureau le lise lui-même. */
+  function seanceDuTexte(t) {
+    const x = String(t || '').replace(/\s+/g, ' ');
+    const m = x.match(/s[ée]ances?\s*(?:n\s*[°o]\s*)?\d+(?:\s*(?:et|&|\+|-|à)\s*\d+)?/i) ||
+              x.match(/\b\d+\s*(?:e|è|er|ère|ere|eme|ème)?\s*(?:et|&|\+|-)\s*\d+\s*(?:e|è|eme|ème)\s*s[ée]ances?/i) ||
+              x.match(/\b\d+\s*(?:e|è|er|ère|ere|eme|ème)\s*(?:et|&|\+|-)\s*\d+\s*(?:e|è|eme|ème)\b/i) ||
+              x.match(/\b\d+\s*(?:e|è|er|ère|ere|eme|ème)\s*s[ée]ances?/i);
+    return m ? m[0].trim().slice(0, 40) : '';
+  }
+  async function lireLesCreneaux() {
+    if (!/\/planning\/agence\.php/.test(location.pathname)) return null;
+    const du = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+    const au = jourPlus(du, 27);
+    const ressources = ressourcesALEcran();
+    if (!ressources.length) return null;
+    const colEcoute = ressources.find(r => estColonneDEcoute(r.titre));
+    const toutes = await prestationsDrivup(du, colEcoute ? colEcoute.id : ressources[0].id);
+    const evenements = (await evenementsDrivup(du, 4))
+      .filter(e => { const j = jourDuTexte(e.start); return j >= du && j <= au; })
+      .map(e => ({ res: String(e.resourceId || ''), type: String(e.typeRdv || ''), jour: jourDuTexte(e.start),
+                   debut: heureDuTexte(e.start), fin: heureDuTexte(e.end), nbr: Number(e.nbrEleve) || 0,
+                   examen: String(e.examen || '0'), adresse: propre(e.address).slice(0, 40),
+                   titre: propre(e.title).slice(0, 80), places: propre(e.number).slice(0, 10),
+                   memo: propre(e.memo).slice(0, 200), id: String(e.id || ''), agenda: String(e.agendaInterne || '') }));
+    /* 🕹️ v1235 — LE SIMULATEUR AVEC MONITEUR, UNE SEULE PERSONNE INSCRITE.
+       David : « on en met 2 au maximum ; il faut qu'on voie si c'est la
+       1re et 2e séance, la 3e, la 3e et 4e » — « c'est écrit dans sa
+       séance ». On cherche donc ce mot dans le mémo, le titre, puis le
+       détail que Drivup ouvre quand on clique (lecture seule). */
+    const SIMU = /simu.*moniteur/;
+    const seuls = evenements.filter(e => SIMU.test(sansAccent(toutes[e.type] || '')) && e.nbr === 1 && /^1\/[2-9]$/.test(e.places));
+    for (const e of seuls) {
+      let texte = e.memo + ' \n ' + e.titre;
+      try {
+        const r = await fetch('/planning/booking_details.php?id=' + encodeURIComponent(e.agenda) + '&typeRdv=' +
+                              encodeURIComponent(e.type) + '&coursId=' + encodeURIComponent(e.id), { credentials: 'include' });
+        if (r.ok) {
+          const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+          texte += ' \n ' + String((doc.body && doc.body.textContent) || '');
+          const el = elevesDuDetail(doc).eleves[0];
+          if (el) e.inscrit = propre([el.prenom, el.nom].filter(Boolean).join(' ')).slice(0, 60);
+        }
+      } catch (err) { /* sans le détail, le mémo et le titre restent */ }
+      e.seance = seanceDuTexte(texte);
+      await pause(40);
+    }
+    evenements.forEach(e => { delete e.memo; delete e.id; delete e.agenda; });
+    const prestations = {};
+    evenements.forEach(e => { if (toutes[e.type]) prestations[e.type] = toutes[e.type]; });
+    return { du: du, au: au, ressources: ressources, prestations: prestations, evenements: evenements };
+  }
+
   if (!window.__ecEcoutesBranche) {
     window.__ecEcoutesBranche = true;
     window.addEventListener('message', ev => {
@@ -719,6 +776,14 @@
           else if (b && b.erreur) p.bureauxErreur = b.erreur;
         } catch (e) {
           p.bureauxErreur = 'Les horaires des bureaux n’ont pas pu être lus : ' + (e && e.message ? e.message : e);
+        }
+        /* 🗓️ v1234 — les créneaux libres, en plus */
+        try {
+          dire('Lecture des créneaux libres…');
+          const c = await lireLesCreneaux();
+          if (c) p.creneaux = c;
+        } catch (e) {
+          p.creneauxErreur = 'Les créneaux libres n’ont pas pu être lus : ' + (e && e.message ? e.message : e);
         }
         envoyer(p);
       } else if (/\/eleves\/profil\.php/.test(location.pathname) && document.getElementById('nom')) {
