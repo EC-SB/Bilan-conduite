@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 13:35 — v1189 */
+/* Déployé le 22/10/2026 à 09:42 — v1236 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1517,6 +1517,9 @@ async function envoyerBilanParMail(eleve, dateCours, texte, suite){
 
   const jour = (typeof dateEnToutesLettres === 'function')
     ? (dateEnToutesLettres(dateCours) || dateCours) : dateCours;
+  /* 🎨 v1236 — les couleurs choisies dans le créateur de fiches */
+  const couleurs = (typeof couleursDuBilanPour === 'function') ? couleursDuBilanPour(nom, dateCours, texte) : [];
+  if(couleurs.length && typeof poserCouleursDuBilan === 'function') poserCouleursDuBilan(nom, dateCours, texte);
 
   const corps = { action: 'mailBilan', to: mails, genre: 'bilan', eleve: nom,
                   /* ✉️ v1164 — un rendez-vous post-permis porte son propre objet */
@@ -1526,6 +1529,7 @@ async function envoyerBilanParMail(eleve, dateCours, texte, suite){
     corps.finDeCours = true;
     corps.dateCours = String(dateCours || '');
   }
+  if(couleurs.length) corps.html = htmlDuBilan(texte, couleurs) + '</div>';
 
   /* ⚠️ LA CARTE DU TRAJET NE TIENT PAS LE BILAN — v988.
 
@@ -1587,7 +1591,7 @@ async function envoyerBilanParMail(eleve, dateCours, texte, suite){
       if(carte){
         corps.html = htmlDuBilan(
           (typeof texteSansBlocTrajet === 'function')
-            ? texteSansBlocTrajet(texte) : texte) + carte.html + '</div>';
+            ? texteSansBlocTrajet(texte) : texte, couleurs) + carte.html + '</div>';
         corps.images = [carte.image];
       }
     }
@@ -1610,9 +1614,21 @@ async function envoyerBilanParMail(eleve, dateCours, texte, suite){
 
    ⚠️ LA BALISE N'EST PAS REFERMÉE ICI : le bloc de la carte vient
    se glisser dedans, et c'est l'appelant qui ferme. */
-function htmlDuBilan(texte){
-  const t = String(texte || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/* 🎨 v1236 — « couleurs » (facultatif) : [[ligne, '#RRGGBB'], …], les
+   lignes que le créateur de fiches colore (« Aussi dans le bilan »).
+   Le texte reste le même, à la lettre : seule sa couleur change. */
+function htmlDuBilan(texte, couleurs){
+  const ech = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const table = {};
+  (Array.isArray(couleurs) ? couleurs : []).forEach(x => {
+    if(Array.isArray(x) && /^#[0-9a-f]{6}$/i.test(String(x[1] || ''))) table[String(x[0]).trim()] = x[1];
+  });
+  const t = Object.keys(table).length
+    ? String(texte || '').split('\n').map(l => {
+        const c = table[l.trim()];
+        return c ? '<span style="color:' + c + ';">' + ech(l) + '</span>' : ech(l);
+      }).join('\n')
+    : ech(texte || '');
   return '<div style="font-family:-apple-system,BlinkMacSystemFont,' +
     '\'Segoe UI\',Roboto,Arial,sans-serif;font-size:15px;line-height:1.6;' +
     'color:#14161B;max-width:560px;">' +
