@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 15:14 — v1244 */
+/* Déployé le 22/10/2026 à 16:13 — v1245 */
 /* ============================================================
    ec-courriers.js — ✉️ LES COURRIERS SUR PAPIER À EN-TÊTE (v1243)
 
@@ -132,6 +132,7 @@ function crImage(id){ return ((CR.d && CR.d.images) || []).find(i => String(i.id
 /* L'image d'une pose : la bibliothèque, ou la signature de l'élève (H) */
 function crImageDeLaPose(p, ed){
   if(p.img === 'eleve') return ed && ed.signatureEleve ? { donnees: ed.signatureEleve.donnees, sorte: 'eleve' } : null;
+  if(/^i\d+$/.test(p.img)) return ((ed && ed.images) || []).find(i => i.id === p.img) || null;
   return crImage(p.img);
 }
 function crSignataire(id){
@@ -301,7 +302,17 @@ function crDessinerPage(o){
   }
   const haut = crHautCorpsDe(e, o.dest);
   corps.style.cssText = 'left:' + CR_MM.marge + 'mm;top:' + haut + 'mm;width:' + CR_LARGEUR_CORPS + 'mm;';
+  corps.setAttribute('data-indice', 'Écris ton courrier ici…');
   corps.innerHTML = crCorpsPropre(o.corps || '<div><br></div>');
+  /* ⚠️ v1245 — LE CORPS PREND TOUTE LA PAGE. David : « courrier vierge,
+     je ne peux pas écrire dedans ». Le corps d'un courrier vierge ne
+     faisait qu'une ligne en haut : toucher le milieu de la page ne
+     tombait sur rien. Il descend désormais jusqu'au trait de fin de
+     page, et une page vide dit où écrire. */
+  corps.style.minHeight = Math.max(20, crBasCorps(e) - crHautCorpsDe(e, o.dest)) + 'mm';
+  const vide = () => corps.classList.toggle('crVide', !corps.textContent.trim() && !corps.querySelector('[data-case]'));
+  corps.addEventListener('input', vide);
+  vide();
   page.appendChild(corps);
 
   /* La fin de la page 1 : un trait, pour voir ce qui passera page 2 */
@@ -440,7 +451,7 @@ function crDessinerPoses(v, ed, quand){
     }
     /* La signature de l'élève se déplace par qui écrit le courrier ;
        celles de l'école, par un administrateur. */
-    if(crEstAdmin() || (p.img === 'eleve' && crPeutEcrire())){
+    if(crEstAdmin() || ((p.img === 'eleve' || /^i\d+$/.test(p.img)) && crPeutEcrire())){
       const barre = crEl('div', 'crPoseBarre');
       const tourne = crEl('button', '', '⟳'); tourne.type = 'button'; tourne.title = 'Tourner';
       const ote = crEl('button', '', '✕'); ote.type = 'button'; ote.title = 'Retirer de la page';
@@ -451,6 +462,7 @@ function crDessinerPoses(v, ed, quand){
         ev.stopPropagation();
         ed.poses.splice(i, 1);
         if(p.img === 'eleve') ed.signatureEleve = null;
+        if(/^i\d+$/.test(p.img) && !ed.poses.some(q => q.img === p.img)) ed.images = (ed.images || []).filter(x => x.id !== p.img);
         crDessinerPoses(v, ed, quand); if(quand) quand();
       });
       tourne.addEventListener('click', ev => {
@@ -770,7 +782,7 @@ async function crFabriquerPdf(v, ed, docCommun){
     const hNat = p.w * t.h / t.w;
     const cx = p.x + p.w / 2, cy = p.y + hNat / 2;
     const wr = p.w * t.wr / t.w, hr = p.w * t.hr / t.w;
-    doc.addImage(t.src, 'PNG', cx - wr / 2, cy - hr / 2, wr, hr, undefined, 'FAST');
+    doc.addImage(t.src, /^data:image\/jpeg/.test(t.src) ? 'JPEG' : 'PNG', cx - wr / 2, cy - hr / 2, wr, hr, undefined, 'FAST');
   }
   doc.setProperties({ title: (ed.titre || 'Courrier') + (ed.eleve ? ' — ' + ed.eleve : ''), creator: 'Évolution Conduites' });
   return doc;
@@ -997,7 +1009,7 @@ async function crRouvrirFait(id){
     if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'Courrier introuvable');
     const x = r.courrier, d = x.donnees || {};
     crEcrire(x.modele, x.eleve, { id: x.id, numero: x.numero, corps: d.corps, cases: d.cases || {}, jours: d.jours || [],
-      entete: d.entete || x.entete, signataire: d.signataire, poses: d.poses || [], civilite: d.civilite || '', titre: x.titre, dest: d.dest || null, signatureEleve: d.signatureEleve || null });
+      entete: d.entete || x.entete, signataire: d.signataire, poses: d.poses || [], civilite: d.civilite || '', titre: x.titre, dest: d.dest || null, signatureEleve: d.signatureEleve || null, images: d.images || [] });
   }catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); }
 }
 
@@ -1082,7 +1094,8 @@ async function crEcrire(modeleId, eleve, reprise){
     signataire: r.signataire || m.signataire || '', cases: Object.assign({}, r.cases || {}),
     jours: (r.jours || []).slice(), joursRepris: !!(r.jours && r.jours.length), poses: JSON.parse(JSON.stringify(r.poses || m.poses || [])),
     civilite: r.civilite || '', examen: null, corps: r.corps || m.corps, modifie: false,
-    dest: r.dest || null, signatureEleve: r.signatureEleve || null
+    dest: r.dest || null, signatureEleve: r.signatureEleve || null,
+    images: JSON.parse(JSON.stringify(r.images || (r.id || r.corps ? [] : m.images) || []))
   };
   if(r.casesDepart) Object.assign(ed.cases, r.casesDepart);
   if(!ed.civilite && ed.eleve){ const f = crFicheDe(ed.eleve); if(f && (f.genre === 'F' || f.genre === 'M')) ed.civilite = f.genre; }
@@ -1119,6 +1132,10 @@ function crDessinerEcriture(){
   v.corps.setAttribute('contenteditable', 'true');
   v.corps.spellcheck = true;
   cadre.appendChild(v.page);
+  /* ✏️ v1245 — la barre d'écriture, comme dans Word. David : « je n'ai
+     pas la possibilité de mettre en gras, en italique, de souligner
+     comme un vrai Word ». */
+  if(crPeutEcrire()) droite.appendChild(crBarreDEcriture(() => v.corps, () => { ed.modifie = true; }));
   droite.appendChild(cadre);
   ed.v = v;
   const alerte = crEl('div', 'crAlerte');
@@ -1286,6 +1303,9 @@ function crDessinerEcriture(){
   });
   gauche.appendChild(crAide('Placé pour une enveloppe à fenêtre à droite. Son mail, s’il en a un, est proposé à l’envoi.'));
 
+  /* 🖼️ v1245 — des images (photo, plan, capture) : bouton ou copier-coller */
+  if(crPeutEcrire()) crSectionImages(gauche, ed, () => { ed.modifie = true; crDessinerPoses(v, ed, () => { ed.modifie = true; }); });
+
   /* Signatures et tampons */
   gauche.appendChild(crLab('Signature et tampon'));
   if(crEstAdmin()){
@@ -1357,7 +1377,8 @@ function crDonneesARanger(ed){
   const cases = {};
   crCasesDuCorps(ed.v.corps).forEach(c => { cases[c] = crValeur(c, ed); });
   return { corps: crCorpsARanger(ed.v.corps), cases: cases, jours: ed.jours, entete: ed.entete, signataire: ed.signataire,
-           poses: ed.poses, civilite: ed.civilite, dest: ed.dest || null, signatureEleve: ed.signatureEleve || null };
+           poses: ed.poses, civilite: ed.civilite, dest: ed.dest || null, signatureEleve: ed.signatureEleve || null,
+           images: crImagesUtiles(ed) };
 }
 async function crGarder(numeroter){
   const ed = CR.ed;
@@ -1536,6 +1557,11 @@ function crFenetreImages(){
   b.appendChild(nom);
   const fic = document.createElement('input'); fic.type = 'file'; fic.accept = 'image/*';
   b.appendChild(fic);
+  /* 📋 v1245 — ou collée : Ctrl+V, ou appui long › Coller dans le cadre */
+  const zoneColle = crEl('div', 'crColle', '📋 Ou colle l’image ici (Ctrl+V, ou appui long › Coller)');
+  zoneColle.setAttribute('contenteditable', 'true');
+  zoneColle.addEventListener('beforeinput', ev => { if(ev.inputType !== 'insertFromPaste') ev.preventDefault(); });
+  b.appendChild(zoneColle);
   b.appendChild(crAide('Une photo ou un scan, sur une feuille blanche, bien à plat et bien éclairée.'));
   const deux = crEl('div', 'crAvantApres');
   const av = crEl('div', 'crAA'); av.appendChild(crEl('small', '', 'Ta photo'));
@@ -1563,8 +1589,16 @@ function crFenetreImages(){
     if(!etat.png) showToast('⚠️ Rien à garder : baisse « Fond blanc retiré ».');
   };
   glis.addEventListener('input', refaire);
-  fic.addEventListener('change', async () => {
-    const f = fic.files && fic.files[0];
+  const coller = ev => {
+    if(!document.body.contains(fen.fond)){ document.removeEventListener('paste', coller); return; }
+    const it = [...((ev.clipboardData && ev.clipboardData.items) || [])].find(i => i.kind === 'file' && /^image\//.test(i.type));
+    ev.preventDefault();
+    if(!it){ showToast('⚠️ Il n’y a pas d’image à coller.'); return; }
+    prendre(it.getAsFile());
+  };
+  document.addEventListener('paste', coller);
+  fic.addEventListener('change', () => prendre(fic.files && fic.files[0]));
+  const prendre = async f => {
     if(!f) return;
     try{
       etat.brut = await crLireFichier(f);
@@ -1573,7 +1607,7 @@ function crFenetreImages(){
       deux.style.display = ''; reglages.style.display = '';
       refaire();
     }catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); }
-  });
+  };
   const r = crEl('div', 'btn-row');
   const go = crBouton('💾 Enregistrer l’image', 'btn-primary', async () => {
     if(!etat.png){ showToast('⚠️ Choisis d’abord une photo.'); return; }
@@ -1667,7 +1701,8 @@ function crEditerModele(id){
     id: '', icone: '📄', nom: '', aide: '', eleve: 'facultatif', entete: 'auto', signataire: '', qui: 'bureau', poses: [],
     corps: '<div><br></div>', mail: { objet: '', texte: 'Bonjour {prenom},\n\nVous trouverez ci-joint notre courrier.\n\nL’équipe Évolution Conduites' }
   };
-  CR.ed = { sorte: 'modele', m: m, entete: m.entete === 'lo' ? 'lo' : 'sb', poses: m.poses, modifie: false };
+  m.images = m.images || [];
+  CR.ed = { sorte: 'modele', m: m, entete: m.entete === 'lo' ? 'lo' : 'sb', poses: m.poses, images: m.images, modifie: false };
   crDessinerModele();
 }
 function crDessinerModele(){
@@ -1721,6 +1756,7 @@ function crDessinerModele(){
   gauche.appendChild(s);
   gauche.appendChild(crLab('Qui peut s’en servir'));
   gauche.appendChild(crPuces([['bureau', 'Bureau + admins'], ['admins', '👑 Admins seulement']], m.qui, v => { m.qui = v; touche(); }));
+  crSectionImages(gauche, ed, () => { m.poses = ed.poses; ed.modifie = true; crDessinerPoses(ed.v, ed, () => { m.poses = ed.poses; ed.modifie = true; }); });
   gauche.appendChild(crLab('Signature et tampon posés d’office'));
   const r = crEl('div', 'crPuces');
   (CR.d.images || []).forEach(img => {
@@ -1740,6 +1776,7 @@ function crDessinerModele(){
   const go = crBouton('💾 Enregistrer le modèle', 'btn-primary', async () => {
     m.corps = crCorpsARanger(ed.v.corps);
     m.poses = ed.poses;
+    m.images = crImagesUtiles(ed);
     if(!m.nom.trim()){ showToast('⚠️ Donne un nom au modèle.'); return; }
     go.disabled = true;
     try{
@@ -1769,16 +1806,7 @@ function crDessinerModele(){
   gauche.appendChild(act);
 
   /* La barre d'écriture et la page */
-  const outils = crEl('div', 'crOutils');
-  const cmd = (t, titre, c, v) => {
-    const b = crEl('button', 'crOutil', t); b.type = 'button'; b.title = titre;
-    b.addEventListener('mousedown', ev => ev.preventDefault());
-    b.addEventListener('click', () => { ed.v.corps.focus(); document.execCommand(c, false, v || null); touche(); });
-    outils.appendChild(b);
-  };
-  cmd('G', 'Gras', 'bold'); cmd('I', 'Italique', 'italic'); cmd('S', 'Souligné', 'underline');
-  cmd('⯇', 'À gauche', 'justifyLeft'); cmd('≡', 'Centré', 'justifyCenter'); cmd('⯈', 'À droite', 'justifyRight'); cmd('☰', 'Justifié', 'justifyFull');
-  droite.appendChild(outils);
+  droite.appendChild(crBarreDEcriture(() => ed.v.corps, touche));
   const ins = crEl('div', 'crInsere');
   ins.appendChild(crEl('span', 'crLab', '➕ Insérer une case :'));
   let curseur = null;
@@ -2167,6 +2195,162 @@ function crSignatureRecadree(c){
   const s = document.createElement('canvas'); s.width = Math.round(w * k); s.height = Math.round(h * k);
   s.getContext('2d').drawImage(c, x0, y0, w, h, 0, 0, s.width, s.height);
   return s.toDataURL('image/png');
+}
+
+
+/* ============================================================
+   🖼️ v1245 — LES IMAGES DANS UN COURRIER
+   David : « il faut qu'on puisse ajouter des images, soit avec un
+   bouton soit en copier-coller ». Une photo, un plan, une capture :
+   posée sur la page comme une signature (glisser, taille, ⟳), rangée
+   avec CE courrier (ou ce modèle). Le fond blanc se retire au choix.
+   ============================================================ */
+function crImagesUtiles(ed){
+  return (ed.images || []).filter(i => (ed.poses || []).some(p => p.img === i.id));
+}
+function crSectionImages(gauche, ed, apres){
+  gauche.appendChild(crLab('Images'));
+  const fic = document.createElement('input');
+  fic.type = 'file'; fic.accept = 'image/*'; fic.style.display = 'none';
+  fic.addEventListener('change', () => { const f = fic.files && fic.files[0]; fic.value = ''; if(f) crAjouterImage(f, ed, apres); });
+  const b = crBouton('🖼️ Ajouter une image', '', () => fic.click());
+  b.style.cssText = 'width:auto;margin:0;';
+  gauche.append(b, fic);
+  gauche.appendChild(crAide('Ou copie une image et colle-la (Ctrl+V, ou appui long › Coller) n’importe où sur la page.'));
+}
+/* L'image arrive : un aperçu, le fond blanc au choix, puis la page */
+async function crAjouterImage(fichier, ed, apres){
+  if(!/^image\//.test(fichier.type || '')){ showToast('⚠️ Ce n’est pas une image.'); return; }
+  if((ed.images || []).length >= 6){ showToast('⚠️ Six images au plus par courrier.'); return; }
+  let img;
+  try{ img = await crChargerImage(await crLireFichier(fichier)); }catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); return; }
+  const fen = crFenetre('🖼️ Ajouter une image');
+  const b = fen.boite;
+  const ap = crEl('div', 'crAA');
+  const im = document.createElement('img'); im.alt = '';
+  ap.appendChild(im);
+  b.appendChild(ap);
+  const lab = crEl('label', 'crCoche');
+  const fond = document.createElement('input'); fond.type = 'checkbox';
+  lab.append(fond, document.createTextNode(' ✨ Retirer le fond blanc (un scan, un dessin, un tampon)'));
+  b.appendChild(lab);
+  let donnees = '';
+  const refaire = () => { donnees = fond.checked ? (crTraiterImage(img, { fond: 70 }) || '') : crImageCompressee(img); im.src = donnees; };
+  fond.addEventListener('change', refaire);
+  refaire();
+  const r = crEl('div', 'btn-row');
+  r.append(crBouton('Annuler', '', fen.fermer), crBouton('✅ Mettre sur la page', 'btn-primary', async () => {
+    if(!donnees){ showToast('⚠️ Rien à poser.'); return; }
+    if(donnees.length > 1000000){ showToast('⚠️ Image trop lourde, même réduite.'); return; }
+    const total = (ed.images || []).reduce((n, x) => n + x.donnees.length, 0);
+    if(total + donnees.length > 1600000){ showToast('⚠️ Trop d’images dans ce courrier (1,6 Mo au plus).'); return; }
+    let n = 1;
+    while((ed.images || []).some(x => x.id === 'i' + n)) n++;
+    ed.images = (ed.images || []).concat([{ id: 'i' + n, donnees: donnees }]);
+    const nat = await crChargerImage(donnees);
+    const e = crEntete(ed.entete) || crEntete('sb');
+    const w = Math.min(90, Math.max(20, nat.naturalWidth * 0.2));
+    if(!ed.poses) ed.poses = [];
+    ed.poses.push({ img: 'i' + n, x: Math.round((CR_MM.largeur - w) / 2), y: Math.round(crHautCorpsDe(e, ed.dest) + 25), w: Math.round(w), r: 0 });
+    fen.fermer();
+    apres();
+  }));
+  b.appendChild(r);
+}
+/* Une photo : réduite (1400 px), en JPEG ; une image transparente garde son PNG */
+function crImageCompressee(img){
+  const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+  const W = Math.max(1, Math.round(img.naturalWidth * k)), H = Math.max(1, Math.round(img.naturalHeight * k));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.drawImage(img, 0, 0, W, H);
+  const d = x.getImageData(0, 0, W, H).data;
+  let transparente = false;
+  for(let i = 3; i < d.length; i += 4 * 7){ if(d[i] < 250){ transparente = true; break; } }
+  if(transparente) return c.toDataURL('image/png');
+  const f = document.createElement('canvas'); f.width = W; f.height = H;
+  const y = f.getContext('2d'); y.fillStyle = '#fff'; y.fillRect(0, 0, W, H); y.drawImage(c, 0, 0);
+  return f.toDataURL('image/jpeg', 0.85);
+}
+/* Le copier-coller : une image collée devient une image du courrier ;
+   un texte collé dans la page entre en texte simple (pas les couleurs
+   ni les polices d'un autre logiciel). */
+document.addEventListener('paste', ev => {
+  const ed = CR.ed;
+  if(!ed || !ed.v || !document.body.contains(ed.v.page)) return;
+  const items = [...((ev.clipboardData && ev.clipboardData.items) || [])];
+  const image = items.find(i => i.kind === 'file' && /^image\//.test(i.type));
+  const cible = ev.target;
+  if(document.querySelector('.crModal')) return;     /* une fenêtre ouverte gère le sien */
+  if(image){
+    if(ed.sorte === 'modele' ? !crEstAdmin() : !crPeutEcrire()) return;
+    ev.preventDefault();
+    const f = image.getAsFile();
+    if(f) crAjouterImage(f, ed, () => {
+      ed.modifie = true;
+      if(ed.sorte === 'modele') ed.m.poses = ed.poses;
+      crDessinerPoses(ed.v, ed, () => { ed.modifie = true; if(ed.sorte === 'modele') ed.m.poses = ed.poses; });
+    });
+    return;
+  }
+  if(cible && ed.v.corps.contains(cible)){
+    const t = ev.clipboardData && ev.clipboardData.getData('text/plain');
+    if(t != null){ ev.preventDefault(); document.execCommand('insertText', false, t); }
+  }
+});
+
+
+/* ============================================================
+   ✏️ LA BARRE D'ÉCRITURE — gras, italique, souligné, alignements
+   Ce que le PDF sait récrire à l'identique, et rien de plus : une
+   couleur ou une taille qu'il ne reproduirait pas serait une promesse
+   que la page ne tient pas. Les raccourcis marchent aussi (Ctrl+B,
+   Ctrl+I, Ctrl+U). Le bouton de ce qui est actif s'allume.
+   ============================================================ */
+function crBarreDEcriture(corps, touche){
+  const outils = crEl('div', 'crOutils');
+  const boutons = [];
+  const cmd = (html, titre, c, etat) => {
+    const b = crEl('button', 'crOutil'); b.type = 'button'; b.title = titre; b.innerHTML = html;
+    b.addEventListener('mousedown', ev => ev.preventDefault());
+    b.addEventListener('click', () => {
+      const el = corps();
+      if(!el.contains(document.activeElement) && document.activeElement !== el){
+        el.focus();
+        const sel = window.getSelection();
+        if(sel && (!sel.rangeCount || !el.contains(sel.anchorNode))){ const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+      }
+      document.execCommand(c, false, null);
+      touche();
+      allumer();
+    });
+    if(etat) boutons.push([b, etat]);
+    outils.appendChild(b);
+  };
+  const sep = () => outils.appendChild(crEl('span', 'crOutilSep'));
+  cmd('<b>G</b>', 'Gras (Ctrl+B)', 'bold', 'bold');
+  cmd('<i>I</i>', 'Italique (Ctrl+I)', 'italic', 'italic');
+  cmd('<u>S</u>', 'Souligné (Ctrl+U)', 'underline', 'underline');
+  sep();
+  const ligne = (n) => '<span class="crAlign crAlign' + n + '"><i></i><i></i><i></i><i></i></span>';
+  cmd(ligne('G'), 'Aligner à gauche', 'justifyLeft', 'justifyLeft');
+  cmd(ligne('C'), 'Centrer', 'justifyCenter', 'justifyCenter');
+  cmd(ligne('D'), 'Aligner à droite', 'justifyRight', 'justifyRight');
+  cmd(ligne('J'), 'Justifier', 'justifyFull', 'justifyFull');
+  sep();
+  cmd('⌫ <small>mise en forme</small>', 'Retirer gras, italique et souligné de la sélection', 'removeFormat');
+  const allumer = () => {
+    const el = corps();
+    const sel = window.getSelection();
+    const dedans = el && sel && sel.rangeCount && el.contains(sel.anchorNode);
+    boutons.forEach(([b, etat]) => {
+      let on = false;
+      try{ on = !!(dedans && document.queryCommandState(etat)); }catch(e){}
+      b.classList.toggle('on', on);
+    });
+  };
+  document.addEventListener('selectionchange', () => { if(document.body.contains(outils)) allumer(); });
+  return outils;
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
