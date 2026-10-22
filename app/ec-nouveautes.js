@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 19:20 — v1235 */
+/* Déployé le 22/10/2026 à 09:42 — v1236 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1236,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '✍️ Créateur de fiches : menu des manœuvres, listes déroulantes, couleurs',
+    quoi: [
+      { emoji: '🅿️',
+        titre: 'Le menu des manœuvres se règle à la main',
+        texte: 'Dans le créateur de fiches, touche la zone « 🅿️ Manœuvre : … » : « 📋 Les choix du menu » permet d’ajouter, renommer, monter ou retirer une manœuvre. Une seule liste pour l’examen blanc, l’examen officiel et le RVP ; elle part aux moniteurs avec « 💾 Publier ». La fiche des manœuvres de l’élève ne change pas.' },
+      { emoji: '▾',
+        titre: 'Des listes déroulantes où tu veux',
+        texte: '« ➕ Ajouter ici » › « ▾ Liste déroulante » : tes propres choix, ou une liste de l’appli (manœuvres, voitures, moniteurs, centres d’examen, procédures, formations). Chaque choix peut écrire sa phrase dans le bilan, faire apparaître des zones (cachées tant qu’on ne le prend pas, et leur texte ne part pas), ou compter la manœuvre faite dans sa fiche. « Plusieurs choix possibles » met des cases dans la liste.' },
+      { emoji: '🎨',
+        titre: 'La couleur des textes',
+        texte: 'Sur chaque zone : la couleur du titre, de la petite aide et de ce que le moniteur écrit. « Aussi dans le bilan » les fait passer dans le mail et dans « 📖 Mes leçons » de l’élève (la copie pour Messenger reste sans couleur).' }
+    ]
+  },
   {
     version: 1235,
     date: 'Mercredi 21 octobre 2026',
