@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 11:31 — v1240 */
+/* Déployé le 22/10/2026 à 17:10 — v1246 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -4559,6 +4559,10 @@ function poserChoixManoeuvre(t, ch){
       appliquerMentionManoeuvre(champsManuels[ch.choixManoeuvre]);
       if(typeof majBilanEliminatoires === 'function'){ try{ majBilanEliminatoires(); }catch(e){} }
       if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
+      /* v1246 — David, le 22/10 : « une fois coché la liste reste ouverte,
+         il faut cliquer en dehors pour sortir » → elle se referme à chaque
+         coche (on la rouvre pour la deuxième manœuvre). */
+      d.open = false;
     });
     lab.appendChild(cb);
     lab.appendChild(document.createTextNode(m));
@@ -4578,9 +4582,11 @@ function resumerChoixManoeuvre(d){
   if(su) su.textContent = (l.length ? l.join(' · ') : '— choisis les manœuvres —') + '  ▾';
 }
 
-/* 🎯 v1238 — « ✅ faite » au bout d'un titre : cochée d'office */
+/* 🎯 v1238 — « ✅ faite » au bout d'un titre.
+   v1246 — DÉCOCHÉE d'office (David, le 22/10 : « Décoche de base arrêt
+   de précision faite ») : le moniteur la coche quand elle a été faite. */
 function poserChoixFait(t, ch){
-  if(champsManuels[ch.choixFait] === undefined) champsManuels[ch.choixFait] = 'oui';
+  if(champsManuels[ch.choixFait] === undefined) champsManuels[ch.choixFait] = 'non';
   t.style.display = 'flex'; t.style.alignItems = 'center'; t.style.gap = '8px'; t.style.flexWrap = 'wrap';
   const n = document.createElement('span');
   n.style.cssText = 'flex:1 1 auto;min-width:0;';
