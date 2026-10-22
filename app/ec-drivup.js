@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 11:14 — v1239 */
+/* Déployé le 22/10/2026 à 12:31 — v1241 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -220,7 +220,7 @@ function dessinerBlocDrivup(){
   dernieresLecturesDrivup().then(l => {
     if(!l.length) return;
     der.textContent = 'Dernières lectures : ' + l.slice(0, 3).map(x =>
-      (x.portee === 'fiches' ? 'élèves' : String(x.portee).replace(/^(agence|moniteur):/, '')) +
+      (x.portee === 'fiches' ? 'élèves' : String(x.portee).replace(/^(agence|moniteur|tous):/, '')) +
       ' le ' + x.luLe + (x.luPar ? ' par ' + x.luPar : '')).join(' · ');
   }).catch(() => {});
 }
@@ -267,7 +267,7 @@ async function poserBandeauDrivupRappels(zone){
   if(ancien) ancien.remove();
   const j = new Date().toLocaleDateString('fr-CA');
   const d = await drivupDuJourRappels(j);
-  const lect = (d.lectures || []).filter(x => /^(agence|moniteur):/.test(x.portee));
+  const lect = (d.lectures || []).filter(x => /^(agence|moniteur|tous):/.test(x.portee));
   const b = document.createElement('div');
   b.id = 'rapDrivupBandeau';
   b.className = 'dvBandeau';
@@ -278,7 +278,7 @@ async function poserBandeauDrivupRappels(zone){
   if(lect.length){
     const fort = document.createElement('b');
     fort.textContent = 'Planning Drivup lu ' + lect.slice(0, 2).map(x =>
-      String(x.portee).replace(/^(agence|moniteur):\s*(\d+\s*-\s*)?/, '') + ' le ' + x.luLe).join(' · ');
+      String(x.portee).replace(/^(agence|moniteur|tous):\s*(\d+\s*-\s*)?/, '') + ' le ' + x.luLe).join(' · ');
     const plus = document.createTextNode((lect[0].luPar ? ' par ' + lect[0].luPar : '') +
       ' — jusqu’au ' + dateLisibleDrivup(lect[0].au));
     const sm = document.createElement('small');
@@ -567,7 +567,8 @@ async function blocDesVoituresDrivup(voitures){
 }
 
 function comparerPlanningDrivup(p, lignes, existants){
-  const dansLaPortee = existants.filter(x => p.porteeGenre === 'moniteur'
+  /* v1241 — « Tous les utilisateurs » : toutes les agences à la fois */
+  const dansLaPortee = existants.filter(x => p.porteeGenre === 'tous' ? true : p.porteeGenre === 'moniteur'
     ? x.moniteurDrivup === p.porteeValeur : x.agence === p.porteeValeur);
   const avant = {};
   dansLaPortee.forEach(x => { avant[x.id] = x; });
@@ -638,11 +639,11 @@ function ligneDeChangementDrivup(c){
 
 async function fenetrePlanningDrivup(p){
   const portee = propreDrivup(p.porteeValeur, 60);
-  const genre = p.porteeGenre === 'moniteur' ? 'moniteur' : 'agence';
+  const genre = p.porteeGenre === 'moniteur' ? 'moniteur' : p.porteeGenre === 'tous' ? 'tous' : 'agence';
   const du = String(p.du || ''), au = String(p.au || '');
   const lu = p.luA ? new Date(p.luA).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
   const f = cadreDrivup('📥 Reçu de Drivup — le planning',
-    (genre === 'agence' ? 'Agence ' : 'Moniteur ') + portee + ' · du ' + dateLisibleDrivup(du) +
+    (genre === 'agence' ? 'Agence ' : genre === 'tous' ? '' : 'Moniteur ') + portee + ' · du ' + dateLisibleDrivup(du) +
     ' au ' + dateLisibleDrivup(au) + (lu ? ' · lu à ' + lu : ''));
   const attente = document.createElement('div');
   attente.className = 'empty';
