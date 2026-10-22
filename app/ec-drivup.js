@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 14:16 — v1233 */
+/* Déployé le 21/10/2026 à 19:20 — v1235 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -674,6 +674,26 @@ async function fenetrePlanningDrivup(p){
   const ign = (p.ignores || 0) + horsConduite;
   if(ign) puces.append(puceDrivup('ignore', ign, 'dispos, blocs et séances hors conduite ignorés'));
   f.boite.appendChild(puces);
+
+  /* 🗓️ v1234 — les créneaux libres : mis à jour à chaque lecture d'une
+     agence (choix de David), sans rien attendre d'autre */
+  if(p.creneaux && typeof enregistrerLesCreneauxDrivup === 'function'){
+    const nc = document.createElement('div');
+    nc.className = 'dvNote crenNote';
+    nc.style.margin = '0 0 10px';
+    nc.textContent = '🗓️ Créneaux libres : mise à jour…';
+    f.boite.appendChild(nc);
+    enregistrerLesCreneauxDrivup(p.creneaux).then(r => {
+      nc.textContent = '🗓️ Créneaux libres mis à jour : ' + r.ouverts + ' cours ouvert(s) sans élève · ' + r.resa +
+        ' « Résa » · ' + (r.simu ? r.simu + ' simu à 1 place · ' : '') + r.rien + ' moment(s) sans cours — Élèves › 🗓️ Créneaux libres.';
+    }).catch(e => { nc.style.color = 'var(--warn-text)'; nc.textContent = '⚠️ Créneaux libres non mis à jour : ' + ((e && e.message) || e); });
+  }else if(p.creneauxErreur){
+    const nc = document.createElement('div');
+    nc.className = 'dvNote';
+    nc.style.cssText = 'margin:0 0 10px;color:var(--warn-text);';
+    nc.textContent = '⚠️ ' + p.creneauxErreur;
+    f.boite.appendChild(nc);
+  }
 
   /* 👂 v1229 — ouvrir les écoutes, depuis le planning d'une agence */
   if(genre === 'agence' && window.opener && !window.opener.closed){
