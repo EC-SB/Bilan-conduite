@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:36 — v1238 */
+/* Déployé le 22/10/2026 à 11:31 — v1240 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1208,10 +1208,32 @@ function champsAvecForme(champs, forme){
       t.siListe = (t.siListe || []).concat([{ l: l.cle, v: it.libelle }]);
     }));
   });
+  const nouvelles = {};
   if(f.ordre.length){
-    const rang = k => { const i = f.ordre.indexOf(k); return i === -1 ? 1e6 : i; };
-    const dOrigine = liste.map((c, i) => [c, i]);
-    dOrigine.sort((a, b) => (rang(a[0].cle) - rang(b[0].cle)) || (a[1] - b[1]));
+    /* ⚠️ v1240 — UNE ZONE QUE L'ORDRE NE CONNAÎT PAS (arrivée avec une
+       mise à jour, après la publication de la fiche) se range juste
+       derrière la zone qui la précède dans la fiche d'origine — et non
+       plus tout en bas de la fiche. */
+    const pos = {};
+    f.ordre.forEach((k, i) => { pos[k] = i; });
+    /* Elle va juste AVANT la zone qui la suit dans la fiche d'origine
+       (après ce que l'admin a ajouté derrière sa voisine) — seulement
+       si l'ordre connaît ses deux voisines ; sinon, comme avant, en bas. */
+    /* (un ordre qui ne liste que quelques zones les met en tête : là,
+       les autres suivent en bas, comme toujours) */
+    const bases = liste.filter(c => !c.ajout);
+    const complet = bases.length && bases.filter(c => pos[c.cle] !== undefined).length >= 0.8 * bases.length;
+    const rangs = liste.map((c, i) => {
+      if(pos[c.cle] !== undefined) return pos[c.cle];
+      if(c.ajout || !complet) return 1e6;
+      let avant = false, apres = null;
+      for(let j = i - 1; j >= 0; j--){ if(!liste[j].ajout && pos[liste[j].cle] !== undefined){ avant = true; break; } }
+      for(let j = i + 1; j < liste.length; j++){ if(!liste[j].ajout && pos[liste[j].cle] !== undefined){ apres = pos[liste[j].cle]; break; } }
+      if(avant && apres !== null){ nouvelles[c.cle] = true; return apres - 0.5 + i / 1e5; }
+      return 1e6;
+    });
+    const dOrigine = liste.map((c, i) => [c, i, rangs[i]]);
+    dOrigine.sort((a, b) => (a[2] - b[2]) || (a[1] - b[1]));
     liste = dOrigine.map(x => x[0]);
   }
   /* Les cadres se posent APRÈS l'ordre : un cadre va « de telle zone
@@ -1221,6 +1243,9 @@ function champsAvecForme(champs, forme){
     let i = liste.findIndex(c => c.cle === cd.de), j = liste.findIndex(c => c.cle === cd.a);
     if(i === -1 || j === -1) return;
     if(i > j){ const t = i; i = j; j = t; }
+    /* v1240 — une zone arrivée après la publication, posée juste derrière
+       la dernière zone du cadre, en fait partie */
+    while(j + 1 < liste.length && nouvelles[liste[j + 1].cle]) j++;
     for(let k = i; k <= j; k++){
       liste[k].fond = cd.fond; liste[k].intensite = cd.intensite; liste[k].cadre = cd.id;
     }
@@ -3414,6 +3439,9 @@ function toutesCategoriesCepc(){
    descend jamais sous zéro, et n'atteint jamais E : seule la
    tête de mort élimine. */
 function retirerPointsCepc(){
+  /* ➖ v1240 — les points « après la manœuvre » se rendent avant le
+     recalcul, et se retirent après : un ⚠️ posé ailleurs ne les efface plus */
+  if(typeof rendreMoinsCepc === 'function') rendreMoinsCepc();
   const perdus = {};
 
   lignesObservations().forEach(d => {
@@ -3488,6 +3516,7 @@ function retirerPointsCepc(){
     repeindreLigneCepc(champ);
   });
 
+  if(typeof appliquerMoinsCepc === 'function') appliquerMoinsCepc();
   if(typeof majTotalCepc === 'function') majTotalCepc();
 }
 
