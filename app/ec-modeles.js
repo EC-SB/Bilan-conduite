@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 22/10/2026 à 10:11 — v1237 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -831,7 +831,10 @@ function construireCepcTexte(cepc, observations, c, nonMene){
      qui n'a pas eu lieu, et l'élève le lirait comme un échec. */
   if(nonMene){
     P(MENTION_NON_MENE);
-    P('Grille vierge — aucune note n\'a été portée.');
+    /* v1236 — la grille peut garder les notes portées avant l'arrêt
+       (David, le 22/10) : elles sont au-dessus, sans total ni verdict */
+    const notes = Object.keys(cepc || {}).some(k => String((cepc || {})[k] || '') !== '');
+    P(notes ? 'Notes portées jusqu’à l’arrêt de l’examen — pas de total.' : 'Grille vierge — aucune note n\'a été portée.');
   }else if(c.elimine){
     P('❌ 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘 — Total : E');
     c.eliminatoires.forEach(e => P('   🟥 ' + e));
@@ -2219,11 +2222,13 @@ function marquesDejaPosees(texteBilanPrecedent){
    ============================================================ */
 const PREFIXE_MANOEUVRE_EXAMEN = '🅿️ Manœuvre : ';
 
+/* 🅿️ v1236 — plusieurs manœuvres (« au minimum 2 ») : une ligne par
+   manœuvre, la même que la fiche de l'élève sait relire */
 function ligneManoeuvreExamen(e){
-  const lib = txt(e && e.manoeuvreFaite);
-  if(!lib) return [];
+  const libs = String((e && e.manoeuvreFaite) || '').split('\n').map(x => x.trim()).filter(Boolean);
+  if(!libs.length) return [];
   const emoji = (typeof ACCES !== 'undefined' && ACCES && ACCES.emoji) ? String(ACCES.emoji).trim() : '';
-  return [PREFIXE_MANOEUVRE_EXAMEN + lib + ' ' + (emoji || MARQUE_FAITE), ''];
+  return libs.map(lib => PREFIXE_MANOEUVRE_EXAMEN + lib + ' ' + (emoji || MARQUE_FAITE)).concat(['']);
 }
 
 function marquesManoeuvreExamen(texte, marques){
