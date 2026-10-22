@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:11 — v1237 */
+/* Déployé le 22/10/2026 à 10:36 — v1238 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -436,6 +436,16 @@ const CHAMPS_MANUELS = {
        pendant la manœuvre ». */
     /* 🅿️ v1211 — le titre devient « Manœuvre : … », une liste où le
        moniteur choisit la manœuvre faite. Voir choixManoeuvre. */
+    /* 🎯 v1238 — L'ARRÊT DE PRÉCISION, AVANT LA MANŒUVRE, DANS LE MÊME
+       CADRE. David, le 22/10 : « Manœuvre : Arrêt de précision, avec en
+       dessous Remarque de l'inspecteur et Explication ou correction ».
+       Les mêmes lignes que la manœuvre ; « faite » (cochée d'office)
+       la compte dans la fiche des manœuvres de l'élève. */
+    { cle:'__sArret', type:'sousTitre', nom:'🅿️ Manœuvre : Arrêt de précision', fond:'ardoise',
+      choixFait:'examen.arretPrecisionFaite' },
+    { cle:'examen.arretPrecision', type:'observations', zone:'obsArretPrecision',
+      lignes:2, mention:'Arrêt de précision', fond:'ardoise',
+      nom:'Ce qui s\'est passé pendant l\'arrêt de précision' },
     { cle:'__sManoeuvre', type:'sousTitre', nom:'🅿️ Manœuvre', fond:'ardoise',
       choixManoeuvre:'examen.manoeuvreFaite' },
     { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
@@ -446,6 +456,15 @@ const CHAMPS_MANUELS = {
     { cle:'examen.autonomie', type:'autonomie', ligne:'Conduite autonome',
       nom:'Conduite autonome', fond:'ardoise',
       aide:'Ce qui a manqué en conduite autonome.' },
+    /* 🔁 v1238 — PASSAGER ET VOYANTS, REVUS APRÈS LA MANŒUVRE. David :
+       « après la manœuvre on doit revoir si l'élève a vérifié à nouveau
+       passagers et voyants, et ça doit enlever des points sur le CEPC
+       même si c'était bon avant ». Un ❌ = 1 point de moins (son choix). */
+    { cle:'__sApres', type:'sousTitre', nom:'🔁 Après la manœuvre', fond:'ardoise' },
+    { cle:'examen.apresPassager', type:'ok', nom:'Passager (revu après la manœuvre)', defaut:'', fond:'ardoise',
+      cepcMoins:{ ligne:"Savoir s'installer et assurer la sécurité à bord", points:1 } },
+    { cle:'examen.apresVoyants', type:'ok', nom:'Voyants (revus après la manœuvre)', defaut:'', fond:'ardoise',
+      cepcMoins:{ ligne:"Savoir s'installer et assurer la sécurité à bord", points:1 } },
 
     /* Vingt paires, comme pour l'examen officiel : la remarque de
        l'inspecteur, puis l'explication du moniteur. */
@@ -661,6 +680,16 @@ const CHAMPS_MANUELS = {
        examen officiel tu le mets juste avant OBSERVATIONS DE
        L'INSPECTEUR ». Il n'y a pas de repère « 2-3 » ici — c'est
        ce titre-là qui sert de repère. */
+    /* 🎯 v1238 — L'ARRÊT DE PRÉCISION, AVANT LA MANŒUVRE, DANS LE MÊME
+       CADRE. David, le 22/10 : « Manœuvre : Arrêt de précision, avec en
+       dessous Remarque de l'inspecteur et Explication ou correction ».
+       Les mêmes lignes que la manœuvre ; « faite » (cochée d'office)
+       la compte dans la fiche des manœuvres de l'élève. */
+    { cle:'__sArretOff', type:'sousTitre', nom:'🅿️ Manœuvre : Arrêt de précision', fond:'ardoise',
+      choixFait:'examen.arretPrecisionFaite' },
+    { cle:'examen.arretPrecision', type:'observations', zone:'obsArretPrecision',
+      lignes:2, mention:'Arrêt de précision', fond:'ardoise',
+      nom:'Ce qui s\'est passé pendant l\'arrêt de précision' },
     { cle:'__sManoeuvreOff', type:'sousTitre', nom:'🅿️ Manœuvre', fond:'ardoise',
       choixManoeuvre:'examen.manoeuvreFaite' },
     { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
@@ -671,6 +700,15 @@ const CHAMPS_MANUELS = {
     { cle:'examen.autonomie', type:'autonomie', ligne:'Conduite autonome',
       nom:'Conduite autonome', fond:'ardoise',
       aide:'Ce qui a manqué en conduite autonome.' },
+    /* 🔁 v1238 — PASSAGER ET VOYANTS, REVUS APRÈS LA MANŒUVRE. David :
+       « après la manœuvre on doit revoir si l'élève a vérifié à nouveau
+       passagers et voyants, et ça doit enlever des points sur le CEPC
+       même si c'était bon avant ». Un ❌ = 1 point de moins (son choix). */
+    { cle:'__sApresOff', type:'sousTitre', nom:'🔁 Après la manœuvre', fond:'ardoise' },
+    { cle:'examen.apresPassager', type:'ok', nom:'Passager (revu après la manœuvre)', defaut:'', fond:'ardoise',
+      cepcMoins:{ ligne:"Savoir s'installer et assurer la sécurité à bord", points:1 } },
+    { cle:'examen.apresVoyants', type:'ok', nom:'Voyants (revus après la manœuvre)', defaut:'', fond:'ardoise',
+      cepcMoins:{ ligne:"Savoir s'installer et assurer la sécurité à bord", points:1 } },
 
     { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' },
 
@@ -806,6 +844,7 @@ CHAMPS_MANUELS.rvp = CHAMPS_MANUELS.rvp.concat(
       /* 🅿️ v1211 — la manœuvre choisie se range avec le reste de
          l'examen blanc, sous « examenBlanc. » */
       ...(c.choixManoeuvre ? { choixManoeuvre: 'examenBlanc.' + c.choixManoeuvre } : {}),
+      ...(c.choixFait ? { choixFait: 'examenBlanc.' + c.choixFait } : {}),
       /* Tout le module ne s'affiche que sur un « oui » */
       siEb: 'oui'
     }))
@@ -881,8 +920,18 @@ const TYPES_AJOUT_FICHE = {
   note3:     { nom: '🔢 Note de 0 à 3',          aide: 'Quatre boutons : 0, 1, 2, 3' },
   /* ▾ v1236 — David : « que je puisse ajouter des listes déroulantes,
      où je veux, et les lier avec certaines choses » */
-  liste:     { nom: '▾ Liste déroulante',        aide: 'Le moniteur choisit dans une liste : chaque choix peut écrire une phrase, faire apparaître des zones, cocher son dossier' }
+  liste:     { nom: '▾ Liste déroulante',        aide: 'Le moniteur choisit dans une liste : chaque choix peut écrire une phrase, faire apparaître des zones, cocher son dossier' },
+  /* 🎯 v1238 — des lignes « Remarque de l'inspecteur / Explication »,
+     comme la manœuvre (examens seulement : elles se rangent sous le CEPC) */
+  remarques: { nom: '👨‍✈️ Remarques de l’inspecteur + explications', aide: 'Des lignes Remarque / Explication avec ☠️ ⚠️, rangées sous le CEPC (examens)', examens: true }
 };
+/* Les fiches qui ont un CEPC (les remarques et les points s'y rangent) */
+const SCHEMAS_CEPC_FICHE = ['examenblanc', 'examen', 'rvp'];
+function lignesCepcFiche(){
+  const out = [];
+  ((typeof CEPC_BLOCS !== 'undefined' && CEPC_BLOCS) || []).forEach(b => (b.items || []).forEach(it => out.push(it.nom)));
+  return out;
+}
 /* ▾ v1236 — d'où viennent les choix d'une liste. « Ma liste » : écrits
    par l'admin. Les autres suivent l'appli (les voitures : la Flotte,
    reprise à chaque publication — un moniteur ne lit pas la Flotte). */
@@ -967,6 +1016,12 @@ function ajoutsDeLaForme(forme){
     if(z.bureau && TYPES_TITRES_FICHE.indexOf(z.type) === -1) c.pourNous = true;
     if(z.aide) c.aide = z.aide;
     if(z.type === 'texte') c.lignes = z.lignes || 4;
+    /* 🎯 v1238 — des remarques : dessinées et lues comme celles de la manœuvre */
+    if(z.type === 'remarques'){
+      c.type = 'observations'; c.typeAjout = 'remarques';
+      c.zone = 'obs_' + z.cle; c.mention = z.mention || z.nom || 'Remarque'; c.lignes = z.lignes || 2;
+    }
+    if(z.type === 'ok' && z.cepcMoins) c.cepcMoins = Object.assign({}, z.cepcMoins);
     if(z.type === 'liste'){
       c.source = z.source || 'main';
       c.choix = Array.isArray(z.choix) ? z.choix : [];
@@ -1016,6 +1071,17 @@ function nettoyerFormeFiche(forme, champs){
     if(typeof z.aide === 'string' && z.aide.trim()) o.aide = texteFiche(z.aide, 240);
     if(z.type === 'texte'){ const n = parseInt(z.lignes, 10); o.lignes = (n >= 1 && n <= 12) ? n : 4; }
     if(z.bureau && TYPES_TITRES_FICHE.indexOf(z.type) === -1) o.bureau = 1;
+    if(z.type === 'remarques'){
+      const m = texteFiche(z.mention, 80).replace(/\s+/g, ' ').trim();
+      if(m) o.mention = m;
+      const n = parseInt(z.lignes, 10); o.lignes = (n >= 1 && n <= 20) ? n : 2;
+      delete o.bureau;   /* elles vont au CEPC, donc à l'élève */
+    }
+    if(z.type === 'ok' && z.cepcMoins && typeof z.cepcMoins === 'object'){
+      const l = String(z.cepcMoins.ligne || '');
+      const pts = parseInt(z.cepcMoins.points, 10);
+      if(lignesCepcFiche().indexOf(l) !== -1) o.cepcMoins = { ligne: l, points: (pts >= 1 && pts <= 3) ? pts : 1 };
+    }
     /* ▾ v1236 — une liste : sa source, ses choix et leurs liens */
     if(z.type === 'liste'){
       o.source = Object.prototype.hasOwnProperty.call(SOURCES_LISTE_FICHE, z.source) ? z.source : 'main';
@@ -3491,6 +3557,9 @@ function reporterNotesCepc(){
   const p = lire('examen.instPassager',     'examen.passager');
   const v = lire('examen.instVoyants',      'examen.voyants');
 
+  /* ➖ v1238 — on rend d'abord ce que les cases « enlève des points »
+     avaient retiré : la note se recalcule, puis on les retire à neuf */
+  rendreMoinsCepc();
   const nInst = (typeof noteInstallationSurDeux === 'function')
     ? noteInstallationSurDeux(i, p, v) : '';
   if(nInst !== ''){
@@ -3526,6 +3595,50 @@ function reporterNotesCepc(){
   if(nv !== undefined && nv !== ''){
     poserNoteCepc('Effectuer des vérifications du véhicule', String(nv));
   }
+  appliquerMoinsCepc();
+}
+
+/* ➖ v1238 — LES CASES QUI ENLÈVENT DES POINTS AU CEPC. David, le 22/10 :
+   passager et voyants revus après la manœuvre, « ça doit enlever des
+   points sur le CEPC même si c'était bon avant ». Chaque ❌ retire ses
+   points sur sa ligne (sans descendre sous 0). Ce qui a été retiré se
+   garde sur la case du CEPC, pour être rendu avant tout recalcul — et
+   seulement si la note n'a pas été changée à la main entre-temps. */
+function zonesMoinsCepc(){
+  return ((typeof champsDessinesCourants !== 'undefined' && champsDessinesCourants) || [])
+    .filter(c => c && c.cepcMoins && c.cepcMoins.ligne);
+}
+function caseCepcDe(ligne){
+  return document.querySelector('.cepcNiveau[data-comp="' + String(ligne).replace(/"/g, '') + '"]');
+}
+function rendreMoinsCepc(){
+  document.querySelectorAll('.cepcNiveau[data-moins]').forEach(c => {
+    const moins = Number(c.dataset.moins || 0);
+    if(moins && c.value === c.dataset.apresMoins){
+      const v = Number(String(c.value).replace(',', '.')) + moins;
+      c.value = String(v);
+      if(c.parentNode) c.parentNode.querySelectorAll('button').forEach(b => { if(typeof b._peindre === 'function') b._peindre(); });
+    }
+    delete c.dataset.moins; delete c.dataset.apresMoins;
+  });
+}
+function appliquerMoinsCepc(){
+  const parLigne = {};
+  zonesMoinsCepc().forEach(c => {
+    if(champsManuels[c.cle] !== '❌') return;
+    parLigne[c.cepcMoins.ligne] = (parLigne[c.cepcMoins.ligne] || 0) + (Number(c.cepcMoins.points) || 1);
+  });
+  Object.keys(parLigne).forEach(l => {
+    const c = caseCepcDe(l);
+    if(!c || c.value === '' || c.value === 'E') return;
+    const avant = Number(String(c.value).replace(',', '.'));
+    if(isNaN(avant)) return;
+    const apres = Math.max(0, avant - parLigne[l]);
+    if(apres === avant) return;
+    poserNoteCepc(l, String(apres));
+    c.dataset.moins = String(avant - apres);
+    c.dataset.apresMoins = c.value;
+  });
 }
 
 
@@ -4325,6 +4438,10 @@ function repeindreBoutonsManuels(){
   });
   /* 🅿️ v1211 — la manœuvre choisie revient dans sa liste, et sa
      mention sur les lignes */
+  Array.prototype.forEach.call(zone.querySelectorAll('input.choixFaitCase'), cb => {
+    const v = champsManuels[cb.getAttribute('data-cle')];
+    if(v === 'oui' || v === 'non') cb.checked = v === 'oui';
+  });
   Array.prototype.forEach.call(zone.querySelectorAll('details.choixManoeuvre'), d => {
     const voulu = valeursManoeuvresChoisies(champsManuels[d.dataset.cle]);
     Array.prototype.forEach.call(d.querySelectorAll('input.choixManoeuvreCase'), cb => {
@@ -4430,6 +4547,34 @@ function resumerChoixManoeuvre(d){
   const l = Array.prototype.filter.call(d.querySelectorAll('input.choixManoeuvreCase'), x => x.checked).map(x => x.value);
   const su = d.querySelector('summary');
   if(su) su.textContent = (l.length ? l.join(' · ') : '— choisis les manœuvres —') + '  ▾';
+}
+
+/* 🎯 v1238 — « ✅ faite » au bout d'un titre : cochée d'office */
+function poserChoixFait(t, ch){
+  if(champsManuels[ch.choixFait] === undefined) champsManuels[ch.choixFait] = 'oui';
+  t.style.display = 'flex'; t.style.alignItems = 'center'; t.style.gap = '8px'; t.style.flexWrap = 'wrap';
+  const n = document.createElement('span');
+  n.style.cssText = 'flex:1 1 auto;min-width:0;';
+  n.textContent = t.textContent;
+  t.textContent = '';
+  t.appendChild(n);
+  const lab = document.createElement('label');
+  lab.style.cssText = 'display:flex;align-items:center;gap:7px;margin:0;font-size:13.5px;font-weight:700;' +
+    'text-transform:none;letter-spacing:0;color:var(--cream);cursor:pointer;flex-shrink:0;';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'choixFaitCase';
+  cb.setAttribute('data-cle', ch.choixFait);
+  cb.setAttribute('data-hors-saisie', '1');
+  cb.style.cssText = 'width:18px;height:18px;margin:0;';
+  cb.checked = champsManuels[ch.choixFait] === 'oui';
+  cb.addEventListener('change', () => {
+    champsManuels[ch.choixFait] = cb.checked ? 'oui' : 'non';
+    if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
+  });
+  lab.appendChild(cb);
+  lab.appendChild(document.createTextNode('faite'));
+  t.appendChild(lab);
 }
 
 /* La mention de la zone, et celle de chacune de ses lignes */
@@ -5358,6 +5503,18 @@ async function genererBilanManuel(){
   /* Le simulateur attend « competences », rangé par clé */
   if(champsManuels.competences) donnees.competences = champsManuels.competences;
   const valeursDuBilan = valeursSansLesCachees(champsManuels, cacheesParListes);
+  /* 🎯 v1238 — les remarques des zones ajoutées rejoignent celles de la
+     manœuvre : rangées sous le CEPC, avec leur mention */
+  if(ficheDuBilan){
+    const autres = [];
+    ficheDuBilan.forEach(c => {
+      if(!c || !c.ajout || c.type !== 'observations' || c.cacheFiche || cacheesParListes.indexOf(c.cle) !== -1) return;
+      const l = valeursDuBilan[c.cle];
+      if(Array.isArray(l)) l.forEach(o => { if(o) autres.push(o); });
+      delete valeursDuBilan[c.cle];
+    });
+    if(autres.length) valeursDuBilan[(MODELES[$('modele').value] && MODELES[$('modele').value].schema === 'rvp' ? 'examenBlanc.' : '') + 'examen.autresRemarques'] = autres;
+  }
   Object.keys(valeursDuBilan).forEach(k => {
     /* Les manœuvres sont déjà mises en forme au-dessus : les
        recopier telles quelles remettait des objets { nom, fait }
@@ -6099,6 +6256,15 @@ function reprendreBrouillon(b){
       n += replacerObservationsManuelles(man, 'obsManoeuvre', 2);
     }
 
+    /* 🎯 v1238 — l'arrêt de précision et les remarques des zones
+       ajoutées : leurs lignes reviennent dans leur zone, de même */
+    ((typeof champsDessinesCourants !== 'undefined' && champsDessinesCourants) || []).forEach(ch => {
+      if(!ch || ch.type !== 'observations' || !ch.zone || ch.zone === 'obsManoeuvre' || ch.zone === 'obsManuel') return;
+      const l = b.champs && b.champs[ch.cle];
+      if(Array.isArray(l) && l.length && typeof replacerObservationsManuelles === 'function'){
+        n += replacerObservationsManuelles(l, ch.zone, ch.lignes || 2);
+      }
+    });
     n += replacerSaisiesManuelles(b.saisies);
     /* ▾ v1236 — les choix repris refont apparaître leurs zones */
     if(typeof majZonesSelonListes === 'function') majZonesSelonListes();
@@ -6673,7 +6839,7 @@ function clesCacheesParListes(champsFiche, valeurs){
   return out;
 }
 function valeursSansLesCachees(valeurs, cachees){
-  if(!cachees || !cachees.length) return valeurs;
+  if(!cachees || !cachees.length) return Object.assign({}, valeurs);
   const o = {};
   Object.keys(valeurs || {}).forEach(k => {
     if(cachees.some(c => k === c || k.indexOf(c + '.') === 0)) return;
@@ -7310,7 +7476,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
          points. Voir reporterNotesCepc, qui fait le compte. */
       const surInstallation =
         /(^|\.)examen\.(inst(Passager|Voyants)|passager|voyants|vi|qser|secours)$/
-          .test(ch.cle);
+          .test(ch.cle) || !!(ch.cepcMoins && ch.cepcMoins.ligne);
       /* Trois états : ✅ ❌ ou rien. Compact et sur une seule ligne
          avec son libellé : un bilan en compte une dizaine, et de
          gros boutons empilés faisaient défiler pour rien. */
@@ -7956,6 +8122,8 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       bloc.appendChild(t);
       /* 🅿️ v1211 — « Manœuvre : … » : la liste dans le titre */
       if(ch.choixManoeuvre) poserChoixManoeuvre(t, ch);
+      /* 🎯 v1238 — « faite » au bout du titre (l'arrêt de précision) */
+      if(ch.choixFait) poserChoixFait(t, ch);
 
       if(ch.aide){
         const a = document.createElement('div');
