@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 11:31 — v1240 */
+/* Déployé le 22/10/2026 à 12:31 — v1241 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1241,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '📥 Le favori marche sur « Tous les utilisateurs »',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Le planning de toutes les agences d’un coup',
+        texte: 'Sur le planning Drivup « Tous les utilisateurs », le favori ne dit plus « je ne reconnais pas ce planning » : il lit Saint-Brieuc et Loudéac ensemble, chaque cours garde son agence, et un cours disparu de Drivup est marqué « Annulé » dans l’une comme dans l’autre. Les horaires des bureaux et les créneaux libres suivent aussi.' }
+    ]
+  },
   {
     version: 1240,
     date: 'Jeudi 22 octobre 2026',
