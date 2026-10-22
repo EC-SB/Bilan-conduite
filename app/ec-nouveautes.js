@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 13:46 — v1242 */
+/* Déployé le 22/10/2026 à 15:14 — v1244 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,47 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1244,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '✉️ Courriers : une session d’un coup, relance, carnet, messagerie, signature',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Les convocations de toute une session',
+        texte: '🎓 Suivi permis : le ✉️ d’une session prépare la convocation de chaque élève (ses jours, l’en-tête de son agence, son numéro). Un envoi pour tous, ou un seul PDF pour imprimer la pile.' },
+      { emoji: '💶',
+        titre: '« ✉️ Relance » à côté de « Il doit de l’argent »',
+        texte: 'Elle ouvre la relance de paiement de l’élève, le reste à payer déjà écrit.' },
+      { emoji: '📇',
+        titre: 'Le carnet d’adresses',
+        texte: 'Employeurs, lycées, mission locale… : leur adresse se pose dans la fenêtre de l’enveloppe, et leur mail est proposé à l’envoi.' },
+      { emoji: '💬',
+        titre: 'Le courrier aussi dans sa messagerie',
+        texte: 'En envoyant, « Aussi dans sa messagerie » dépose le PDF dans son fil « Le bureau » (s’il a son espace élève) — même sans adresse mail.' },
+      { emoji: '✍️',
+        titre: 'L’élève signe sur la tablette',
+        texte: '« ✍️ Faire signer » : il signe au doigt, sa signature se pose sur la page et ne sert qu’à ce courrier.' }
+    ]
+  },
+  {
+    version: 1243,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '✉️ Les courriers sur papier à en-tête',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Outils › Ce qu’on écrit › ✉️ Courriers',
+        texte: 'Un courrier vierge (l’en-tête et le pied de page), la convocation à l’examen, et des attestations prêtes (inscription, formation, réussite, restitution du dossier, relance de paiement). On choisit l’élève : son nom, Monsieur/Madame, « convoqué/convoquée », sa catégorie et ses jours d’examen se remplissent seuls. On relit sur la vraie page, puis 📄 PDF, 🖨️ impression ou ✉️ mail.' },
+      { emoji: '📍',
+        titre: 'Saint-Brieuc ou Loudéac',
+        texte: 'L’en-tête suit l’agence de l’élève et se change d’un toucher. Le Siret est au pied des deux.' },
+      { emoji: '✍️',
+        titre: 'Signatures et tampons (administrateurs)',
+        texte: 'Une photo de la signature ou du tampon : le fond blanc est retiré, l’image se pose par-dessus le texte et se glisse où l’on veut, se règle en taille et se tourne.' },
+      { emoji: '🔢',
+        titre: 'Un numéro par courrier, et l’onglet ✉️ Courriers du dossier',
+        texte: 'Chaque courrier fait reçoit « EC-2026-0001 » écrit au bas de la page, se retrouve par la recherche, et se range dans le dossier de l’élève avec son PDF.' }
+    ]
+  },
   {
     version: 1242,
     date: 'Jeudi 22 octobre 2026',
