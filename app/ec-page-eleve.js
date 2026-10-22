@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 22/10/2026 à 14:39 — v1243 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -179,6 +179,9 @@ const ONGLETS_ELEVE = [
      dossier : toute l'équipe qui ouvre un dossier lit et écrit ses
      notes (choix de David). Voir ec-notes-dossier.js. */
   { cle:'notes',    emoji:'📝', titre:'Notes internes', section:'eleves' },
+  /* ✉️ v1243 — ses courriers (convocations, attestations…), et
+     « ✉️ Faire un courrier » l'élève déjà choisi. Voir ec-courriers.js. */
+  { cle:'courriers', emoji:'✉️', titre:'Courriers', section:'courriers' },
   { cle:'proc',     emoji:'📄', titre:'Procédures',  section:'proccorriger' },
   /* En lecture seule — voir la note ci-dessus. Il suit le droit du
      cours : qui peut lire un bilan peut lire ce qui l'a produit. */
@@ -3131,6 +3134,10 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'notes'){
     if(typeof ongletNotesDossier === 'function') return ongletNotesDossier(corps, nom);
     corps.appendChild(vidDossier("Les notes internes ne sont pas disponibles sur cet écran."));
+    return;
+  }
+  if(cle === 'courriers'){
+    if(typeof ongletCourriersEleve === 'function') return ongletCourriersEleve(corps, nom);
     return;
   }
   if(cle === 'proc')        return ongletProcedures(corps, nom);
