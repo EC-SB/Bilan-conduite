@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:11 — v1237 */
+/* Déployé le 22/10/2026 à 11:14 — v1239 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -674,15 +674,48 @@
               x.match(/\b\d+\s*(?:e|è|er|ère|ere|eme|ème)\s*s[ée]ances?/i);
     return m ? m[0].trim().slice(0, 40) : '';
   }
+  /* v1239 — TOUTES LES AGENCES D'UN COUP. David, le 22/10 : lire Saint-
+     Brieuc puis Loudéac donnait des « trous » là où des cours étaient
+     posés dans l'autre agence. Relevé dans Drivup : le flux d'une page
+     agence porte « agence=1 » ou « agence=3 » et ne rend que celle-là ;
+     sans ce paramètre (comme « Tous les utilisateurs »), il rend tout.
+     Les colonnes de toutes les agences viennent de leur flux à elles. */
+  async function evenementsDeTouteLEcole(du, semaines) {
+    const vus = {};
+    const out = [];
+    for (let k = 0; k < semaines; k++) {
+      const u = new URL('/planning/data/FCIO_agence_events.php', location.href);
+      u.searchParams.set('date', jourPlus(du, 7 * k));
+      u.searchParams.set('_', String(Date.now()));
+      const l = await (await fetch(u.href, { credentials: 'include' })).json();
+      (Array.isArray(l) ? l : ((l && l.events) || [])).forEach(e => {
+        if (!e || vus[e.id]) return;
+        vus[e.id] = true;
+        out.push(e);
+      });
+      await pause(60);
+    }
+    return out;
+  }
+  async function ressourcesDeTouteLEcole(du) {
+    try {
+      const u = new URL('/planning/data/FCIO_semaine_resources.php', location.href);
+      u.searchParams.set('date', du);
+      const l = await (await fetch(u.href, { credentials: 'include' })).json();
+      const r = (Array.isArray(l) ? l : ((l && l.resources) || [])).map(x => ({ id: String(x.id), titre: propre(x.title) })).filter(x => x.id);
+      if (r.length) return r;
+    } catch (e) { /* on se rabat sur les colonnes à l'écran */ }
+    return ressourcesALEcran();
+  }
   async function lireLesCreneaux() {
-    if (!/\/planning\/agence\.php/.test(location.pathname)) return null;
+    if (!/\/planning\/(agence|tous_les_utilisateurs)\.php/.test(location.pathname)) return null;
     const du = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
     const au = jourPlus(du, 27);
-    const ressources = ressourcesALEcran();
+    const ressources = await ressourcesDeTouteLEcole(du);
     if (!ressources.length) return null;
     const colEcoute = ressources.find(r => estColonneDEcoute(r.titre));
     const toutes = await prestationsDrivup(du, colEcoute ? colEcoute.id : ressources[0].id);
-    const evenements = (await evenementsDrivup(du, 4))
+    const evenements = (await evenementsDeTouteLEcole(du, 4))
       .filter(e => { const j = jourDuTexte(e.start); return j >= du && j <= au; })
       .map(e => ({ res: String(e.resourceId || ''), type: String(e.typeRdv || ''), jour: jourDuTexte(e.start),
                    debut: heureDuTexte(e.start), fin: heureDuTexte(e.end), nbr: Number(e.nbrEleve) || 0,
