@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:36 — v1238 */
+/* Déployé le 22/10/2026 à 11:31 — v1240 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -776,6 +776,18 @@ function toutesLesRemarques(observations, e){
   return out;
 }
 
+/* 🔁 v1240 — la note /2 de l'installation suit le CEPC : un ❌ « revu
+   après la manœuvre » y retire aussi son point (David, le 22/10) */
+function noteInstallationApres(n, e){
+  if(n === '' || n === undefined) return n;
+  const moins = [e && e.apresPassager, e && e.apresVoyants].filter(x => x === '❌').length;
+  if(!moins) return n;
+  return String(Math.max(0, Number(n) - moins));
+}
+function mentionApresManoeuvre(n, e){
+  const moins = [e && e.apresPassager, e && e.apresVoyants].filter(x => x === '❌').length;
+  return (moins && n !== '' && n !== undefined) ? ' (−' + moins + ' après la manœuvre)' : '';
+}
 function noteInstallationSurDeux(installation, passager, voyants){
   const cases = [installation, passager, voyants];
   if(!cases.some(v => v)) return '';
@@ -1177,8 +1189,8 @@ function buildExamenBlanc(ai, ctx){
   /* Les trois cases comptent ensemble : voir
      noteInstallationSurDeux. La règle vit là-bas, et là-bas
      seulement. */
-  const nInst = noteInstallationSurDeux(ex.instInstallation,
-                                        ex.instPassager, ex.instVoyants);
+  const nInst = noteInstallationApres(noteInstallationSurDeux(ex.instInstallation,
+                                        ex.instPassager, ex.instVoyants), ex);
 
   /* L'ordre du questionnaire, à la ligne près : les trois cases,
      la note, puis la remarque. Le moniteur retrouve sous les yeux
@@ -1187,7 +1199,7 @@ function buildExamenBlanc(ai, ctx){
     (ex.instInstallation ? st(ex.instInstallation) : '✅❌'));
   L('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + (ex.instPassager ? st(ex.instPassager) : '✅❌'));
   L('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + (ex.instVoyants ? st(ex.instVoyants) : '✅❌'));
-  L('𝙉𝙤𝙩𝙚 : ' + (nInst === '' ? ' ' : ' ' + nInst) + ' /2');
+  L('𝙉𝙤𝙩𝙚 : ' + (nInst === '' ? ' ' : ' ' + nInst) + ' /2' + mentionApresManoeuvre(nInst, ex));
   if(txt(ex.installation)) ligneParLigne(ex.installation).forEach(o => L(o));
   L('');
   L('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion));
@@ -1458,8 +1470,8 @@ function buildExamen(ai){
        venait jamais, alors qu'il est posé juste à côté sur le CEPC.
        Une note affichée à blanc à côté d'une note remplie, c'est
        l'élève qui choisit laquelle croire. */
-    '𝙉𝙤𝙩𝙚 : ' + (noteInstallationSurDeux(e.installation, e.passager, e.voyants)
-                  || ' ') + ' /2 ',
+    '𝙉𝙤𝙩𝙚 : ' + (noteInstallationApres(noteInstallationSurDeux(e.installation, e.passager, e.voyants), e)
+                  || ' ') + ' /2 ' + mentionApresManoeuvre(noteInstallationSurDeux(e.installation, e.passager, e.voyants), e),
     '',
     '𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(e.verifQuestion),
     'Vérification ' + (e.vi ? st(e.vi) : '✅️❌️'),
