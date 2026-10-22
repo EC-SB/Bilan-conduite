@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 14:54 — v1193 */
+/* Déployé le 21/10/2026 à 15:04 — v1234 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -840,6 +840,17 @@ zone.innerHTML = '';
   bPer.addEventListener('click', () => ouvrirPlacesPerdues());
   barre.appendChild(bPer);
 
+  /* 🗓️ v1234 — les créneaux libres lus dans Drivup (choix de David :
+     en haut, et sous « 📆 Il doit planifier ») */
+  if(typeof fenetreCreneauxLibres === 'function'){
+    const bCr = document.createElement('button');
+    bCr.className = 'btn btn-secondary ses-b2 crenHaut';
+    bCr.textContent = '🗓️ Créneaux libres';
+    bCr.title = 'Les cours ouverts sans élève, les « Résa » et les moniteurs sans cours, lus dans Drivup';
+    bCr.addEventListener('click', () => fenetreCreneauxLibres(''));
+    barre.appendChild(bCr);
+  }
+
   if(!sessionsPermis.length){
     const v = document.createElement('div');
     v.className = 'empty';
@@ -1495,7 +1506,9 @@ function lignesDeLaPreparation(nom){
   }
   if(!m.planifie){
     h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
-         '📆 Il doit planifier encore des choses</div>';
+         '📆 Il doit planifier encore des choses' +
+         /* 🗓️ v1234 — la fenêtre des créneaux, à son nom */
+         ((typeof boutonCreneauxPourLeSuivi === 'function') ? boutonCreneauxPourLeSuivi(nom) : '') + '</div>';
   }
   return h;
 }
