@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 19:20 — v1235 */
+/* Déployé le 22/10/2026 à 10:11 — v1237 */
 /* ============================================================
    ec-creneaux.js — 🗓️ LES CRÉNEAUX LIBRES (v1234)
 
@@ -111,38 +111,64 @@ function compacterCreneauxDrivup(c){
   const moniteurDe = t => (typeof moniteurDeLAppliDrivup === 'function') ? moniteurDeLAppliDrivup(t) : '';
   const moniteurs = [];
   const index = {};
+  /* v1236 — deux colonnes Drivup pour le même moniteur (« Chrystel »
+     et « ChrystelAnQn ») : UN moniteur, et les cours des deux comptent.
+     Sinon la colonne vide le donnait libre toute la journée. */
   (c.ressources || []).forEach(r => {
     const nom = moniteurDe(r.titre);
     if(!nom || index[String(r.id)] !== undefined) return;
+    const deja = moniteurs.findIndex(m => m.nom === nom);
+    if(deja !== -1){ index[String(r.id)] = deja; return; }
     index[String(r.id)] = moniteurs.length;
     moniteurs.push({ res: String(r.id), titre: String(r.titre || ''), nom: nom });
   });
   const prest = c.prestations || {};
+  const min = h => { const m = String(h || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : NaN; };
+  /* Les repères posés sur une colonne (« .LOUDEAC », « . 3-4 », « 1. Passerelle ») */
+  const estRepere = e => { const brut = String(prest[e.type] || '').trim(), t = String(e.titre || '').trim();
+    return /^\d*\s*[.·•]/.test(brut) || /^[.·•]\s*[\w -]{0,20}$/.test(t); };
+  const evs = (c.evenements || []).filter(e => index[String(e.res)] !== undefined);
+  /* La séance d'un simulateur : le repère « . 3 », « . 3-4 » posé sur la
+     même colonne, pendant le simulateur (relevé dans Drivup le 22/10).
+     Un repère de voiture (« . 2 » à 7h45) commence avant : il ne compte pas. */
+  const seanceDuRepere = e => {
+    const d = min(e.debut), f = min(e.fin);
+    const r = evs.find(x => x !== e && String(x.res) === String(e.res) && x.jour === e.jour && estRepere(x) &&
+      min(x.debut) < f && min(x.fin) > d && (min(x.debut) >= d - 5 || min(x.fin) >= f - 5) && /^\d*\s*[.·•]\s*\d+(\s*(-|et|&)\s*\d+)?\s*$/i.test(String(prest[x.type] || x.titre || '').trim()));
+    return r ? String(prest[r.type] || r.titre).replace(/^\d*\s*[.·•]\s*/, '').trim() : '';
+  };
   const ev = [];
-  (c.evenements || []).forEach(e => {
+  evs.forEach(e => {
     const i = index[String(e.res)];
-    if(i === undefined) return;
     const brut = String(prest[e.type] || '').trim();
     const nom = sa(brut);
     const titre = String(e.titre || '').trim();
-    /* Les repères (« . 7 », « .ST BRIEUC ») ne sont pas des cours */
-    if(/^[.·•]/.test(brut) || /^[.·•]\s*[\w -]{0,20}$/.test(titre)) return;
+    /* v1236 — un repère n'est pas un cours, mais le moniteur n'est pas
+       libre pour autant (« .LOUDEAC » : il est à Loudéac) : occupé. */
     let genre = 'x', libelle = '';
-    /* 🕹️ v1235 — le simulateur avec moniteur où il reste une place
-       (« 1/2 ») : on montre la séance écrite dans Drivup, et qui y est. */
+    if(estRepere(e)){ ev.push([i, e.jour, e.debut, e.fin, 'x', '', '', '']); return; }
+    const nbr = Number(e.nbr) || 0;
     const pl = String(e.places || '').match(/^(\d+)\/(\d+)$/);
-    if(/simu.*moniteur/.test(nom) && pl && +pl[1] >= 1 && +pl[1] < +pl[2]){
+    if(/simu.*moniteur/.test(nom) && (nbr === 1 || (pl && +pl[1] >= 1 && +pl[1] < +pl[2]))){
+      /* 🕹️ le simulateur avec moniteur où il reste une place (2 au plus) */
       genre = 's';
-      libelle = brut + ' · ' + e.places + ' · ' + (e.seance ? '« ' + e.seance + ' »' : 'séance pas écrite') +
+      const seance = seanceDuRepere(e) || e.seance || '';
+      libelle = (e.intitule || brut) + ' · 1/2 · ' + (seance ? 'séance « ' + seance + ' »' : 'séance pas écrite') +
         (e.inscrit ? ' · avec ' + e.inscrit : '');
+    }else if(String(e.examen || '0') !== '0'){
+      genre = 'p';   /* un permis : occupé, et on peut proposer juste après */
+    }else if(/trajet/.test(nom)){
+      genre = 't';
+    }else if(!nbr && (/\b\d+\s*h\s*dispo\b/.test(nom) || /\b\d+\s*h\s*dispo\b/i.test(titre)) && !/pas de/.test(nom)){
+      genre = 'd'; libelle = titre && !/^\s*$/.test(titre) ? titre : brut;   /* ✍️ « 1h dispo » écrit dans Drivup */
     }else if(/\br[ée]sap?\b/i.test(titre) || /\bresap?\b/.test(nom)){
       genre = 'r'; libelle = titre || brut;
-    }else if(!Number(e.nbr) && String(e.examen || '0') === '0' && CRENEAU_LECON.test(nom) && !CRENEAU_PAS_LECON.test(nom)){
+    }else if(!nbr && String(e.examen || '0') === '0' && CRENEAU_LECON.test(nom) && !CRENEAU_PAS_LECON.test(nom)){
       genre = 'o'; libelle = brut + (e.places ? ' · ' + e.places : '');
     }
     const agence = (/loud/i.test(String(e.adresse || '')) || /loudeac/.test(nom)) ? 'L'
                  : (/brieuc/i.test(String(e.adresse || '')) || /brieuc/.test(nom)) ? 'SB' : '';
-    const boite = genre === 's' ? (/\bbea\b/.test(nom) ? 'bea' : 'bv') : genre !== 'o' ? '' : (/bv bea/.test(nom) ? '' : /\bbea\b/.test(nom) ? 'bea' : (/\bbv\b/.test(nom) || /^conduite \d/.test(nom)) ? 'bv' : '');
+    const boite = genre === 's' ? (/\bbea\b/.test(nom) || /\bbea\b/i.test(e.intitule || '') ? 'bea' : 'bv') : genre !== 'o' ? '' : (/bv bea/.test(nom) ? '' : /\bbea\b/.test(nom) ? 'bea' : (/\bbv\b/.test(nom) || /^conduite \d/.test(nom)) ? 'bv' : '');
     ev.push([i, e.jour, e.debut, e.fin, genre, libelle, agence, boite]);
   });
   return { du: c.du, au: c.au, moniteurs: moniteurs, ev: ev };
@@ -155,13 +181,15 @@ async function enregistrerLesCreneauxDrivup(c){
   creneauxEtat.luA = 0;
   const lignes = creneauxCalcules(Object.assign({}, lecture, { le: Date.now() }), creneauxEtat.horaires || {});
   return { ouverts: lignes.filter(x => x.genre === 'ouvert').length, resa: lignes.filter(x => x.genre === 'resa').length,
-           simu: lignes.filter(x => x.genre === 'simu').length,
+           simu: lignes.filter(x => x.genre === 'simu').length, dispo: lignes.filter(x => x.genre === 'dispo').length,
            rien: lignes.filter(x => x.genre === 'rien').length };
 }
 
 /* ------------------------------------------------------------
    ② LA LISTE, CALCULÉE À L'AFFICHAGE (les horaires peuvent changer)
    ------------------------------------------------------------ */
+/* v1236 — les créneaux de 2h où l'on place les cours (David, le 22/10) */
+const BLOCS_CRENEAU = [[480, 600], [600, 720], [780, 900], [900, 1020], [1020, 1140]];
 function creneauxCalcules(lecture, horaires){
   if(!lecture || !Array.isArray(lecture.ev)) return [];
   const auj = aujourdhuiCreneau();
@@ -169,41 +197,72 @@ function creneauxCalcules(lecture, horaires){
   const passe = (j, fin) => j < auj || (j === auj && minutesCreneau(fin) <= mnt);
   const out = [];
   const lieu = a => a === 'L' ? 'loudeac' : a === 'SB' ? 'sb' : '';
+  const GENRE = { o: 'ouvert', s: 'simu', r: 'resa', d: 'dispo' };
   (lecture.ev || []).forEach(e => {
-    if(e[4] === 'x' || passe(e[1], e[3])) return;
+    if(!GENRE[e[4]] || passe(e[1], e[3])) return;
     const m = lecture.moniteurs[e[0]] || {};
-    out.push({ genre: e[4] === 'o' ? 'ouvert' : e[4] === 's' ? 'simu' : 'resa', jour: e[1], debut: e[2], fin: e[3], moniteur: m.nom || m.titre || '',
+    out.push({ genre: GENRE[e[4]], jour: e[1], debut: e[2], fin: e[3], moniteur: m.nom || m.titre || '',
                libelle: e[5] || '', agence: lieu(e[6]), boite: e[7] || '' });
   });
-  /* « Rien d'ouvert » : ses horaires du jour, moins tout ce qui est posé */
+  /* « Rien d'ouvert » : ses horaires du jour, moins tout ce qui est posé,
+     proposé par créneaux de 2h (8h-10h, 10h-12h, 13h-15h, 15h-17h,
+     17h-19h) ; un créneau à moitié pris garde son trou d'1h ; après un
+     permis, de l'heure de fin à 2h après (fini avant 12h, ou avant 19h). */
   (lecture.moniteurs || []).forEach((m, i) => {
     const h = horairesDuMoniteur(m.nom, horaires);
     for(let j = (lecture.du > auj ? lecture.du : auj); j && j <= lecture.au; j = jourPlusCreneau(j, 1)){
-      const cle = cleDuJourCreneau(j);
-      let plages = plagesDesHoraires(h[cle] || '');
-      if(!plages.length) continue;
-      const pris = (lecture.ev || []).filter(e => e[0] === i && e[1] === j)
-        .map(e => [minutesCreneau(e[2]), minutesCreneau(e[3])]).filter(x => !isNaN(x[0]) && !isNaN(x[1]));
+      const plagesJour = plagesDesHoraires(h[cleDuJourCreneau(j)] || '');
+      if(!plagesJour.length) continue;
+      const evJour = (lecture.ev || []).filter(e => e[0] === i && e[1] === j);
+      const pris = evJour.map(e => [minutesCreneau(e[2]), minutesCreneau(e[3])]).filter(x => !isNaN(x[0]) && !isNaN(x[1]));
+      const debutMin = (j === auj) ? Math.ceil(mnt / 15) * 15 : 0;
+      /* le libre : ses horaires, moins ce qui est pris, moins le passé */
+      let libres = plagesJour.map(x => [Math.max(x[0], debutMin), x[1]]).filter(x => x[1] > x[0]);
       pris.forEach(([a, b]) => {
         const reste = [];
-        plages.forEach(([x, y]) => {
+        libres.forEach(([x, y]) => {
           if(b <= x || a >= y){ reste.push([x, y]); return; }
           if(a > x) reste.push([x, a]);
           if(b < y) reste.push([b, y]);
         });
-        plages = reste;
+        libres = reste;
       });
-      plages.forEach(([a, b]) => {
-        if(j === auj){ a = Math.max(a, Math.ceil(mnt / 15) * 15); }
-        if(b - a < DUREE_MINI_RIEN) return;
+      const toutLibre = (a, b) => libres.some(([x, y]) => x <= a && b <= y);
+      const poses = [];
+      /* après un permis (et son trajet retour) */
+      evJour.filter(e => e[4] === 'p').forEach(e => {
+        let fin = minutesCreneau(e[3]);
+        for(let k = 0; k < 3; k++){
+          const t = evJour.find(x => x[4] === 't' && minutesCreneau(x[2]) >= fin - 5 && minutesCreneau(x[2]) <= fin + 15);
+          if(!t) break;
+          fin = Math.max(fin, minutesCreneau(t[3]));
+        }
+        const finP = fin + 120;
+        const borne = fin < 720 ? 720 : 1140;
+        if(finP <= borne && toutLibre(fin, finP) && !poses.some(x => x[0] < finP && fin < x[1])) poses.push([fin, finP, 'permis']);
+      });
+      BLOCS_CRENEAU.forEach(([a, b]) => {
+        libres.forEach(([x, y]) => {
+          const d = Math.max(a, x), f = Math.min(b, y);
+          if(f - d < DUREE_MINI_RIEN) return;
+          if(poses.some(p => p[0] < f && d < p[1])) return;
+          poses.push([d, f, (d === a && f === b) ? 'bloc' : 'trou']);
+        });
+      });
+      poses.forEach(([a, b, sorte]) => {
         out.push({ genre: 'rien', jour: j, debut: heureCreneau(a), fin: heureCreneau(b), moniteur: m.nom,
-                   libelle: 'Rien d’ouvert sur sa journée', agence: '', boite: '' });
+                   libelle: sorte === 'permis' ? 'Libre après son permis' : sorte === 'trou' ? 'Trou d’' + dureeCreneauTexte(b - a) : 'Rien d’ouvert sur sa journée',
+                   agence: '', boite: '' });
       });
     }
   });
   const ordre = {};
   (lecture.moniteurs || []).forEach((m, i) => { ordre[m.nom] = i; });
   return out.sort((a, b) => (a.jour + a.debut).localeCompare(b.jour + b.debut) || ((ordre[a.moniteur] || 0) - (ordre[b.moniteur] || 0)));
+}
+function dureeCreneauTexte(n){
+  const h = Math.floor(n / 60), m = n % 60;
+  return h + 'h' + (m ? String(m).padStart(2, '0') : '');
 }
 
 async function chargerCreneaux(forcer){
@@ -261,7 +320,8 @@ const GENRES_CRENEAU = {
   ouvert: { nom: '🟢 Cours ouverts sans élève', court: '🟢 Cours ouvert', couleur: '#3d8b00' },
   resa:   { nom: '📌 Résa', court: '📌 Résa', couleur: '#B87A12' },
   rien:   { nom: '⬜ Rien d’ouvert', court: '⬜ Rien d’ouvert', couleur: '#8A857C' },
-  simu:   { nom: '🕹️ Simu : 1 place', court: '🕹️ Simu 1 place', couleur: '#2F7FD8' }
+  simu:   { nom: '🕹️ Simu : 1 place', court: '🕹️ Simu 1 place', couleur: '#2F7FD8' },
+  dispo:  { nom: '✍️ Dispo écrite', court: '✍️ Dispo', couleur: '#2E9E5B' }
 };
 function pastilleCreneau(texte, on, faire){
   const b = document.createElement('button');
@@ -378,7 +438,7 @@ async function afficherCreneauxLibres(){
     filtres.innerHTML = '';
     const r1 = document.createElement('div'); r1.className = 'grillePastilles'; r1.style.marginBottom = '8px';
     const n = g => toutes.filter(x => (g === 'tout' || x.genre === g) && !creneauMasque(x)).length;
-    [['tout', 'Tout'], ['ouvert', GENRES_CRENEAU.ouvert.nom], ['simu', GENRES_CRENEAU.simu.nom], ['resa', GENRES_CRENEAU.resa.nom], ['rien', GENRES_CRENEAU.rien.nom]].forEach(([g, t]) => {
+    [['tout', 'Tout'], ['ouvert', GENRES_CRENEAU.ouvert.nom], ['simu', GENRES_CRENEAU.simu.nom], ['resa', GENRES_CRENEAU.resa.nom], ['dispo', GENRES_CRENEAU.dispo.nom], ['rien', GENRES_CRENEAU.rien.nom]].forEach(([g, t]) => {
       const p = pastilleCreneau(t + ' · ' + n(g), filtresCreneaux.genre === g, () => { filtresCreneaux.genre = g; dessiner(); });
       p.dataset.genre = g; r1.appendChild(p);
     });
@@ -520,7 +580,7 @@ function messageDesCreneaux(eleve, choisis, session){
     (session ? ' avant ton permis du ' + (typeof jourFrCs === 'function' ? jourFrCs(session.date) : session.date) : '') + ' :'];
   choisis.forEach(c => l.push('· ' + jourLongCreneau(c.jour) + ' de ' + heureLisibleCreneau(c.debut) + ' à ' + heureLisibleCreneau(c.fin) +
     (c.agence ? ' (' + (c.agence === 'loudeac' ? 'Loudéac' : 'Saint-Brieuc') + ')' : '') +
-    (c.genre === 'simu' ? ' — simulateur avec moniteur' : '')));
+    (c.genre === 'simu' ? ' — simulateur avec moniteur' + (/passerelle/i.test(c.libelle) ? ' (passerelle)' : '') : '')));
   l.push('Dis-nous lesquels te vont !');
   return l.join('\n');
 }
@@ -614,12 +674,12 @@ async function fenetreCreneauxLibres(eleveDonne, creneauChoisi){
     [['sb', '📍 St-Brieuc'], ['loudeac', '📍 Loudéac']].forEach(([a, t]) => pastilles.appendChild(pastilleCreneau(t, f.agence === a,
       () => { f.agence = f.agence === a ? '' : a; peindre(); })));
     /* 🟢 📌 ⬜ : un genre à la fois, ou tout */
-    ['ouvert', 'simu', 'resa', 'rien'].forEach(g => pastilles.appendChild(pastilleCreneau(GENRES_CRENEAU[g].court, f.genre === g,
+    ['ouvert', 'simu', 'resa', 'dispo', 'rien'].forEach(g => pastilles.appendChild(pastilleCreneau(GENRES_CRENEAU[g].court, f.genre === g,
       () => { f.genre = f.genre === g ? 'tout' : g; peindre(); })));
 
     const vues = toutes.filter(c => !creneauMasque(c) && (f.genre === 'tout' || c.genre === f.genre) && (!session || !f.avant || c.jour < session.date) &&
       (!boite || !f.boite || !c.boite || c.boite === boite) &&
-      (!f.agence || c.agence === f.agence || (c.genre === 'rien' && !c.agence)) || choisis[cleC(c)]).slice(0, 80);
+      (!f.agence || c.agence === f.agence || (c.genre === 'rien' && !c.agence)) || choisis[cleC(c)]).slice(0, 400);
     liste.innerHTML = '';
     if(!vues.length){
       const v = document.createElement('div'); v.className = 'empty'; v.textContent = 'Aucun créneau avec ces filtres.'; liste.appendChild(v);
