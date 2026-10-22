@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 09:42 — v1236 */
+/* Déployé le 22/10/2026 à 10:36 — v1238 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -520,11 +520,12 @@ function blocZoneFiche(cle){
   const avecVoitures = ajout || !verrou;
   const voituresZone = Array.isArray(c.voitures) ? c.voitures : [];
   z.innerHTML = '<h4>' + (verrou ? '🔒 ' : ajout ? '➕ ' : '✏️ ') + echFiche(nomCourtFiche(c)) + '</h4>' +
-    (ajout ? '<div class="fiAjoutNote">➕ <b>Zone ajoutée</b> · ' + echFiche((TYPES_AJOUT_FICHE[c.type] || {}).nom || c.type) +
+    (ajout ? '<div class="fiAjoutNote">➕ <b>Zone ajoutée</b> · ' + echFiche((TYPES_AJOUT_FICHE[c.typeAjout || c.type] || {}).nom || c.type) +
       (c.type === 'titre' || c.type === 'sousTitre' ? '<br>Dans le bilan, elle sort en tête des zones ajoutées remplies qui la suivent.'
+       : c.typeAjout === 'remarques' ? '<br>Dans le bilan, ses lignes se rangent <b>sous la ligne du CEPC</b> choisie (☠️ ⚠️), avec leur mention — comme celles de la manœuvre.'
        : c.pourNous ? '<br>🔒 <b>Pour nous seulement</b> : ce que le moniteur y met part dans la <b>note interne</b>, jamais à l’élève.'
                     : '<br>Dans le bilan, ce que le moniteur y met part <b>juste sous la zone du dessus</b>.') + '</div>' +
-      (c.type === 'titre' || c.type === 'sousTitre' ? '' :
+      (c.type === 'titre' || c.type === 'sousTitre' || c.typeAjout === 'remarques' ? '' :
         '<label class="stCocheL"><input type="checkbox" id="fiPourNous"' + (c.pourNous ? ' checked' : '') + '> 🔒 Pour nous seulement (note interne, jamais à l’élève)</label>') : '') +
     (verrou ? '<div class="fiVerrouNote">🔒 <b>Une zone qui calcule</b> : elle nourrit le bilan, le suivi ou les listes. Tu peux la <b>renommer</b>, la <b>déplacer</b>, lui donner un <b>fond</b> et retirer son <b>micro</b> — pas la masquer.</div>' : '') +
     '<label for="fiNom">Le titre sur la fiche</label><input type="text" id="fiNom" maxlength="120">' +
@@ -532,6 +533,10 @@ function blocZoneFiche(cle){
     /* 🅿️ v1236 — le menu des manœuvres ; ▾ une liste ajoutée */
     (c.choixManoeuvre ? '<div id="fiMenu"></div>' : '') +
     (ajout && c.type === 'liste' ? '<div id="fiListe"></div>' : '') +
+    /* 🎯 v1238 — des remarques : leur mention, leur nombre de lignes ;
+       ➖ une case trois états : les points qu'elle enlève au CEPC */
+    (ajout && c.typeAjout === 'remarques' ? '<div id="fiRemarques"></div>' : '') +
+    (ajout && c.type === 'ok' && SCHEMAS_CEPC_FICHE.indexOf(MODELES[fiS.modele].schema) !== -1 ? '<div id="fiMoinsCepc"></div>' : '') +
     (ajout && c.type === 'texte' ? '<label>La hauteur du cadre</label><div class="stChips fiIntens">' + [2, 4, 6, 10].map(n =>
       '<button type="button" class="btn ' + ((aj && aj.lignes) === n ? 'btn-primary' : 'btn-secondary') + '" data-lignes="' + n + '">' + n + ' lignes</button>').join('') + '</div>' : '') +
     (micro ? '<label class="stCocheL"><input type="checkbox" id="fiMicro"' + (r.micro === 0 ? '' : ' checked') + '> 🎙️ Le micro au bout de la ligne</label>' : '') +
@@ -645,6 +650,10 @@ function blocZoneFiche(cle){
   if(fm) remplirMenuFiche(fm);
   const fl = z.querySelector('#fiListe');
   if(fl && aj) remplirListeFiche(fl, cle, aj);
+  const fr = z.querySelector('#fiRemarques');
+  if(fr && aj) remplirRemarquesFiche(fr, aj);
+  const fmc = z.querySelector('#fiMoinsCepc');
+  if(fmc && aj) remplirMoinsCepcFiche(fmc, aj);
   remplirCouleursFiche(z.querySelector('#fiCouleurs'), cle, c);
   return z;
 }
@@ -850,6 +859,44 @@ function ouvrirChoixListeFiche(cle, libelle){
 }
 
 /* ============================================================
+   🎯 v1238 — DES REMARQUES DE L'INSPECTEUR + EXPLICATIONS, et ➖ LES
+   POINTS QU'UNE CASE TROIS ÉTATS ENLÈVE AU CEPC
+   ============================================================ */
+function remplirRemarquesFiche(div, aj){
+  div.innerHTML = '<label for="fiMention">La mention devant chaque ligne dans le bilan</label>' +
+    '<input type="text" id="fiMention" maxlength="80" placeholder="Ex. : Arrêt de précision">' +
+    '<div class="stPetit" style="margin:2px 0 6px;">Comme « Manœuvre : Créneau · … » : la mention dit dans le bilan où l’erreur est arrivée.</div>' +
+    '<label>Les lignes prêtes à l’ouverture</label><div class="stChips fiIntens">' + [1, 2, 3, 5].map(n =>
+      '<button type="button" class="btn ' + ((aj.lignes || 2) === n ? 'btn-primary' : 'btn-secondary') + '" data-lr="' + n + '">' + n + '</button>').join('') + '</div>' +
+    '<div class="stPetit" style="margin:2px 0 6px;">Le moniteur en ajoute d’autres avec « ➕ Ajouter une ligne ».</div>';
+  const m = div.querySelector('#fiMention');
+  m.value = aj.mention || '';
+  m.addEventListener('input', () => {
+    aj.mention = m.value;
+    clearTimeout(fiS.minuteur); fiS.minuteur = setTimeout(() => enregistrerBrouillonFiche(), 1000);
+    dessinerEtatFiche('…');
+    clearTimeout(fiS.redessin); fiS.redessin = setTimeout(() => { nettoyerFiche(); dessinerFicheDuMoniteur(); }, 350);
+  });
+  div.querySelectorAll('[data-lr]').forEach(b => b.addEventListener('click', () => changerFiche(() => { aj.lignes = Number(b.dataset.lr); })));
+}
+function remplirMoinsCepcFiche(div, aj){
+  const cm = aj.cepcMoins || null;
+  div.innerHTML = '<label for="fiMoinsLigne">➖ Un ❌ enlève des points au CEPC</label>' +
+    '<select id="fiMoinsLigne"><option value="">— non, elle n’enlève rien —</option>' +
+      lignesCepcFiche().map(l => '<option value="' + echFiche(l) + '"' + (cm && cm.ligne === l ? ' selected' : '') + '>' + echFiche(l) + '</option>').join('') + '</select>' +
+    (cm ? '<div class="stChips fiIntens" style="margin-top:6px;">' + [1, 2, 3].map(n =>
+      '<button type="button" class="btn ' + (cm.points === n ? 'btn-primary' : 'btn-secondary') + '" data-pts="' + n + '">− ' + n + ' point' + (n > 1 ? 's' : '') + '</button>').join('') + '</div>' +
+      '<div class="stPetit" style="margin:4px 0 6px;">Même si la ligne était bonne avant : la note retombe d’autant (jamais sous 0), et remonte si la case repasse à ✅ ou —.</div>' : '');
+  const sel = div.querySelector('#fiMoinsLigne');
+  sel.addEventListener('change', () => changerFiche(() => {
+    if(sel.value) aj.cepcMoins = { ligne: sel.value, points: (cm && cm.points) || 1 }; else delete aj.cepcMoins;
+  }));
+  div.querySelectorAll('[data-pts]').forEach(b => b.addEventListener('click', () => changerFiche(() => {
+    if(aj.cepcMoins) aj.cepcMoins.points = Number(b.dataset.pts);
+  })));
+}
+
+/* ============================================================
    🎨 v1236 — LA COULEUR DES TEXTES D'UNE ZONE
    ============================================================ */
 const COULEURS_TEXTE_FICHE = [['#6B3FD8', 'Violet'], ['#1F6FD1', 'Bleu'], ['#1E8A4C', 'Vert'], ['#D9480F', 'Orange'],
@@ -900,28 +947,30 @@ function ordreCourantFiche(){ return champsAvecForme(champsDeBaseFiche(fiS.model
 /* « ➕ Ajouter ici » : le type, puis son titre */
 function ouvrirAjoutFiche(apres){
   const avant = apres ? champCourantFiche(apres) : null;
+  const avecCepc = SCHEMAS_CEPC_FICHE.indexOf(MODELES[fiS.modele].schema) !== -1;
   const fond = document.createElement('div');
   fond.className = 'overlay show fiModal';
   fond.innerHTML = '<div class="modal"><h3>➕ Ajouter une zone ' + (avant ? 'sous « ' + echFiche(nomCourtFiche(avant)) + ' »' : 'tout en haut') + '</h3>' +
     '<div class="stPetit" style="margin-bottom:8px;">Ce que le moniteur y mettra part dans le bilan <b>juste sous la zone du dessus</b>' +
     ' (s’il n’a rien écrit au-dessus, à la fin du bilan).</div>' +
-    '<div class="fiTypes">' + Object.keys(TYPES_AJOUT_FICHE).map(k =>
+    '<div class="fiTypes">' + Object.keys(TYPES_AJOUT_FICHE).filter(k => !TYPES_AJOUT_FICHE[k].examens || avecCepc).map(k =>
       '<button type="button" class="fiType" data-type="' + k + '"><b>' + echFiche(TYPES_AJOUT_FICHE[k].nom) + '</b><small>' + echFiche(TYPES_AJOUT_FICHE[k].aide) + '</small></button>').join('') +
       '<button type="button" class="fiType" data-type="texte" data-sans-micro="1"><b>✍️ Cadre de texte sans 🎙️</b><small>Le même, sans le micro au bout</small></button>' +
+      (avecCepc ? '<button type="button" class="fiType" data-type="ok" data-cepc="1"><b>✅❌ Trois états qui enlèvent des points au CEPC</b><small>Un ❌ retire des points sur la ligne du CEPC choisie</small></button>' : '') +
     '</div>' +
     '<label for="fiAjNom">Son titre sur la fiche</label><input type="text" id="fiAjNom" maxlength="120" placeholder="Ex. : Remarque sur le stationnement">' +
     '<label class="stCocheL" style="margin-top:8px;"><input type="checkbox" id="fiAjNous"> 🔒 Pour nous seulement : dans la note interne, jamais à l’élève</label>' +
     '<div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="btn btn-primary" id="fiAjOk" disabled>➕ Ajouter</button><button type="button" class="btn btn-secondary" id="fiAjNon">Annuler</button></div></div>';
   fond.querySelector('.modal').style.setProperty('max-width', '560px', 'important');
   document.body.appendChild(fond);
-  let type = '', sansMicro = false;
+  let type = '', sansMicro = false, avecMoins = false;
   const ok = fond.querySelector('#fiAjOk'), nom = fond.querySelector('#fiAjNom'), nous = fond.querySelector('#fiAjNous');
   fond.querySelectorAll('.fiType').forEach(b => b.addEventListener('click', () => {
-    type = b.dataset.type; sansMicro = !!b.dataset.sansMicro;
+    type = b.dataset.type; sansMicro = !!b.dataset.sansMicro; avecMoins = !!b.dataset.cepc;
     fond.querySelectorAll('.fiType').forEach(x => x.classList.toggle('on', x === b));
     ok.disabled = false;
     /* un titre n'a rien à écrire : ni dans le bilan, ni dans la note */
-    const titre = type === 'titre' || type === 'sousTitre';
+    const titre = type === 'titre' || type === 'sousTitre' || type === 'remarques';
     nous.disabled = titre; if(titre) nous.checked = false;
     nous.parentElement.style.opacity = titre ? '.45' : '';
     nom.focus();
@@ -938,13 +987,30 @@ function ouvrirAjoutFiche(apres){
       const n = { cle: cle, type: type, nom: titre };
       if(type === 'texte') n.lignes = 4;
       if(type === 'liste'){ n.source = 'main'; n.choix = []; }
-      if(nous.checked && type !== 'titre' && type !== 'sousTitre') n.bureau = 1;
+      if(type === 'remarques'){ n.mention = titre || 'Remarque'; n.lignes = 2; }
+      if(type === 'ok' && avecMoins) n.cepcMoins = { ligne: lignesCepcFiche()[0] || '', points: 1 };
+      if(nous.checked && type !== 'titre' && type !== 'sousTitre' && type !== 'remarques') n.bureau = 1;
       fiS.forme.ajouts = (fiS.forme.ajouts || []).concat([n]);
       if(sansMicro) reglageZoneFiche(cle).micro = 0;
       const ordre = ordreCourantFiche().filter(k => k !== cle);
       const i = apres ? ordre.indexOf(apres) : -1;
       ordre.splice(i + 1, 0, cle);
       fiS.forme.ordre = ordre;
+      /* 📦 v1238 — « ➕ » DANS un cadre (y compris sous sa dernière zone,
+         où le ➕ est dessiné dedans) : la zone entre dans le cadre. Même
+         chose pour un fond partagé (le gris Manœuvre/Autonomie). */
+      if(apres){
+        (fiS.forme.cadres || []).forEach(cd => { if(cd.a === apres) cd.a = cle; });
+        const enCadre = (fiS.forme.cadres || []).some(cd => {
+          let a = ordre.indexOf(cd.de), b = ordre.indexOf(cd.a); if(a > b){ const t = a; a = b; b = t; }
+          const k = ordre.indexOf(cle); return k >= a && k <= b;
+        });
+        const av = avant;
+        if(!enCadre && av && av.fond && !av.cadre){
+          reglageZoneFiche(cle).fond = av.fond;
+          reglageZoneFiche(cle).intensite = av.intensite || 'leger';
+        }
+      }
     });
     fond.remove();
     fiS.choix = cle; fiS.cadre = '';
@@ -990,7 +1056,7 @@ function dessinerConsigneFiche(){
   if(!e || !fiS) return;
   if(!fiS.encadre || fiS.essai){ e.style.display = 'none'; e.innerHTML = ''; marquerChoixFiche(); return; }
   e.style.display = '';
-  e.innerHTML = '📦 ' + (fiS.encadre.de ? 'Touche maintenant la <b>dernière</b> zone du cadre' : 'Touche la <b>première</b> zone du cadre') +
+  e.innerHTML = '📦 ' + (fiS.encadre.de ? 'Touche maintenant la <b>dernière</b> zone du cadre' : 'Touche la <b>première</b> zone du cadre') + ' (sur la fiche, ou dans « 🧩 Les zones »)' +
     ' <button type="button" class="btn btn-secondary" data-fa="encadrerNon">Annuler</button>';
   marquerChoixFiche();
 }
@@ -1024,15 +1090,36 @@ function blocCadreFiche(id){
   if(!cd){ z.innerHTML = '<div class="stPetit">Cadre introuvable.</div>'; return z; }
   const de = champCourantFiche(cd.de), a = champCourantFiche(cd.a);
   const n = (() => { const o = ordreCourantFiche(); return Math.abs(o.indexOf(cd.a) - o.indexOf(cd.de)) + 1; })();
+  /* 📦 v1238 — David : « je ne peux mettre que 2 choses dans un cadre ».
+     Le début et la fin se choisissent aussi ici, dans des listes : autant
+     de zones qu'on veut, sans viser sur la fiche. */
+  const ordreZ = champsAvecForme(champsDeBaseFiche(fiS.modele), fiS.forme);
+  const options = sel => ordreZ.map(x => '<option value="' + echFiche(x.cle) + '"' + (x.cle === sel ? ' selected' : '') + '>' + echFiche(nomCourtFiche(x)) + '</option>').join('');
   z.innerHTML = '<h4>📦 Un cadre de ' + n + ' zone' + (n > 1 ? 's' : '') + '</h4>' +
-    '<div class="stPetit" style="margin-bottom:6px;">De « <b>' + echFiche(nomCourtFiche(de)) + '</b> » à « <b>' + echFiche(nomCourtFiche(a)) + '</b> ». ' +
-    'Une zone déplacée entre les deux entre dans le cadre.</div>' +
+    '<label for="fiCadreDe">Il commence à</label><select id="fiCadreDe">' + options(cd.de) + '</select>' +
+    '<label for="fiCadreA">Il finit à</label><select id="fiCadreA">' + options(cd.a) + '</select>' +
+    '<div class="stPetit" style="margin:4px 0 6px;">Toutes les zones entre les deux sont dans le cadre. Une zone ajoutée avec « ➕ » dans le cadre, ou déplacée entre les deux, y entre aussi.</div>' +
     '<label>Le fond du cadre</label>' + pastillesFondFiche(cd.fond).replace('<button type="button" class="mepAuto' + (!cd.fond ? ' on' : '') + '" data-fond="" title="Sans fond">∅</button>', '') +
     '<div class="stChips fiIntens">' + [['leger', 'Léger'], ['franc', 'Franc'], ['fort', 'Très visible']].map(([k, t]) =>
       '<button type="button" class="btn ' + (cd.intensite === k ? 'btn-primary' : 'btn-secondary') + '" data-intens="' + k + '">' + t + '</button>').join('') + '</div>' +
     '<div class="stChips" style="margin-top:10px;"><button type="button" class="btn btn-secondary" data-fa="encadrer">📦 Refaire le cadre…</button>' +
     '<button type="button" class="btn btn-secondary fiRetirer" id="fiCadreRetirer">✕ Retirer le cadre</button></div>';
   const poser = fn => changerFiche(() => { const c = (fiS.forme.cadres || []).find(x => x.id === id); if(c) fn(c); });
+  const bornes = () => changerFiche(() => {
+    const c = (fiS.forme.cadres || []).find(x => x.id === id);
+    if(!c) return;
+    c.de = z.querySelector('#fiCadreDe').value; c.a = z.querySelector('#fiCadreA').value;
+    /* un autre cadre qui chevauche s'efface : un seul fond par zone */
+    const o = ordreCourantFiche();
+    let i = o.indexOf(c.de), j = o.indexOf(c.a); if(i > j){ const t = i; i = j; j = t; }
+    fiS.forme.cadres = fiS.forme.cadres.filter(x => {
+      if(x.id === id) return true;
+      let a = o.indexOf(x.de), b = o.indexOf(x.a); if(a > b){ const t = a; a = b; b = t; }
+      return b < i || a > j;
+    });
+  });
+  z.querySelector('#fiCadreDe').addEventListener('change', bornes);
+  z.querySelector('#fiCadreA').addEventListener('change', bornes);
   z.querySelectorAll('[data-fond]').forEach(b => b.addEventListener('click', () => poser(c => { if(b.dataset.fond) c.fond = b.dataset.fond; })));
   const ci = z.querySelector('.stAutreCouleur input');
   if(ci) ci.addEventListener('change', () => poser(c => { c.fond = ci.value.toUpperCase(); }));
@@ -1088,7 +1175,7 @@ function ouvrirCaseFiche(cle, i){
     });
     fermer();
   });
-  setTimeout(() => (i >= 0 ? lib : ph).focus(), 50);
+  setTimeout(() => { if(!fond.contains(document.activeElement)) (i >= 0 ? lib : ph).focus(); }, 50);
 }
 
 /* ============================================================
@@ -1177,7 +1264,8 @@ function blocListeZonesFiche(){
     d.className = (c.cle === fiS.choix ? 'on' : '') + (r.cache ? ' masquee' : '') + (c.ajout ? ' ajoutee' : '') + (c.cadre ? ' encadree' : '');
     if(c.cadre) d.style.setProperty('--cadre', c.fond === 'ardoise' ? '#5B6B80' : ((FONDS_FICHE[c.fond] && FONDS_FICHE[c.fond].fort) || c.fond));
     const coul = c.fond ? (c.fond === 'ardoise' ? '#E8EDF3' : c.fond) : '';
-    const signes = (c.ajout ? '➕ ' : '') + (c.type === 'titre' ? '📌' : c.type === 'sousTitre' ? '🔖' : c.type === 'ok' ? '✅❌' : (c.type === 'texte' || c.type === 'court') ? '✍️' : c.type === 'cases' ? '☑' : c.type === 'liste' ? '▾' : '') +
+    const signes = (c.ajout ? '➕ ' : '') + (c.type === 'titre' ? '📌' : c.type === 'sousTitre' ? '🔖' : c.type === 'ok' ? '✅❌' : (c.type === 'texte' || c.type === 'court') ? '✍️' : c.type === 'cases' ? '☑' : c.type === 'liste' ? '▾' : c.type === 'observations' ? '👨‍✈️' : '') +
+      (c.cepcMoins ? ' ➖' : '') +
       (c.siListe ? ' 👁️' : '') + (c.couleurs ? ' 🎨' : '') +
       ((c.cases || []).length ? ' ☑' + c.cases.length : '') + (r.micro === 0 ? ' 🔇' : '') + (c.cadre ? ' 📦' : '') + (c.pourNous ? ' 🔐' : '') + (verrou ? ' 🔒' : '');
     d.innerHTML = '<span class="pastille" style="background:' + (coul || 'transparent') + ';' + (coul ? '' : 'border-style:dashed;') + '"></span>' +
@@ -1188,6 +1276,8 @@ function blocListeZonesFiche(){
        : c.ajout ? '<button type="button" class="btn btn-secondary oeil" data-zc="retirer" title="Retirer cette zone ajoutée">🗑️</button>'
               : '<button type="button" class="btn btn-secondary oeil" data-zc="oeil" title="' + (r.cache ? 'Masquée — appuie pour la remettre' : 'À l’écran — appuie pour la masquer') + '">' + (r.cache ? '🙈' : '👁️') + '</button>');
     d.querySelector('[data-zc="choisir"]').addEventListener('click', () => {
+      /* 📦 v1238 — en train d'encadrer : la liste sert aussi à choisir */
+      if(fiS.encadre){ choisirPourEncadrerFiche(c.cle); return; }
       fiS.choix = c.cle; fiS.cadre = ''; fiS.feuille = telFiche() ? 'zone' : '';
       marquerChoixFiche(); dessinerPanneauFiche();
       const bl = document.querySelector('#fiZone [data-zone="' + CSS.escape(c.cle) + '"]');
