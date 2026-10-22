@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 12:31 — v1241 */
+/* Déployé le 22/10/2026 à 13:46 — v1242 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1242,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '👂 Les écoutes aussi depuis « Tous les utilisateurs »',
+    quoi: [
+      { emoji: '👂',
+        titre: 'Écoutes à ouvrir, toutes agences',
+        texte: 'Le bouton « 👂 Écoutes à ouvrir » apparaît aussi quand le favori a lu le planning « Tous les utilisateurs » : les cours de Saint-Brieuc vont en BEA ou BV, ceux de Loudéac dans la colonne « Ecoute », dans la même liste à valider.' }
+    ]
+  },
   {
     version: 1241,
     date: 'Jeudi 22 octobre 2026',
