@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 16:13 — v1245 */
+/* Déployé le 22/10/2026 à 17:39 — v1247 */
 /* ============================================================
    ec-courriers.js — ✉️ LES COURRIERS SUR PAPIER À EN-TÊTE (v1243)
 
@@ -186,15 +186,65 @@ function crPhraseDesJours(jours){
 }
 
 /* ---------- Le tamis, côté écran ----------
-   Même règle que le Worker (corpsDeCourrierPropre) : des lignes, du
-   gras, de l'italique, du souligné, des cases. Rien d'autre n'entre
-   dans la page, et rien d'autre n'en sort. */
+   Même règle que le Worker (corpsDeCourrierPropre). Ce qui entre dans
+   la page, et ce qui en sort, c'est ce que le PDF sait récrire :
+   · des lignes (div), alignées, en retrait (margin-left, en mm) ;
+   · des listes à puces et numérotées (ul, ol, li) ;
+   · gras, italique, souligné, barré (b, i, u, s) ;
+   · v1247 — une taille (en points), une couleur, un surlignage
+     (span style), et les cases (span data-case).
+   Rien d'autre : ni police, ni lien, ni image dans le texte. */
+const CR_TAILLE_CORPS = 14;
+function crCouleurPropre(v){
+  v = String(v || '').trim().toLowerCase();
+  let m = v.match(/^#([0-9a-f]{6})$/);
+  if(m) return '#' + m[1];
+  m = v.match(/^#([0-9a-f]{3})$/);
+  if(m) return '#' + m[1].split('').map(c => c + c).join('');
+  m = v.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+)\s*)?\)$/);
+  if(m){
+    if(m[4] !== undefined && Number(m[4]) < 0.5) return '';
+    return '#' + [m[1], m[2], m[3]].map(x => Math.min(255, +x).toString(16).padStart(2, '0')).join('');
+  }
+  return '';
+}
+/* « 18pt », « 24px » → des points, par demi-point, de 6 à 72 */
+function crTaillePropre(v){
+  const m = String(v || '').trim().match(/^(\d{1,3}(?:\.\d+)?)(pt|px)$/);
+  if(!m) return 0;
+  let n = +m[1];
+  if(m[2] === 'px') n = n * 0.75;
+  n = Math.round(n * 2) / 2;
+  return n >= 6 && n <= 72 ? n : 0;
+}
+/* Un retrait en mm (ou en px), par mm, de 0 à 60 */
+function crRetraitPropre(v){
+  const m = String(v || '').trim().match(/^(\d{1,3}(?:\.\d+)?)(mm|px)$/);
+  if(!m) return 0;
+  let n = +m[1];
+  if(m[2] === 'px') n = n * 25.4 / 96;
+  n = Math.round(n);
+  return n > 0 ? Math.min(60, n) : 0;
+}
+function crStyleDuSpan(n){
+  const st = n.style || {};
+  return {
+    pt: crTaillePropre(st.fontSize) || (n.tagName === 'FONT' && n.getAttribute('size') === '7' && CR.tailleEnCours ? CR.tailleEnCours : 0),
+    c: crCouleurPropre(st.color || (n.tagName === 'FONT' ? n.getAttribute('color') : '')),
+    f: crCouleurPropre(st.backgroundColor),
+    b: /^(bold|bolder|[6-9]00)$/.test(String(st.fontWeight || '')),
+    i: String(st.fontStyle || '') === 'italic',
+    u: /underline/.test(String(st.textDecoration || st.textDecorationLine || '')),
+    s: /line-through/.test(String(st.textDecoration || st.textDecorationLine || ''))
+  };
+}
 function crCorpsPropre(html){
   const doc = new DOMParser().parseFromString('<div>' + String(html || '') + '</div>', 'text/html');
   const sortie = document.createElement('div');
+  const BLOCS = ['div', 'p', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'];
   const copier = (src, dst) => {
     src.childNodes.forEach(n => {
-      if(n.nodeType === 3){ dst.appendChild(document.createTextNode(n.textContent)); return; }
+      if(n.nodeType === 3){ const t = n.textContent.replace(/\u200B/g, ''); if(t) dst.appendChild(document.createTextNode(t)); return; }
       if(n.nodeType !== 1) return;
       const tag = n.tagName.toLowerCase();
       if(tag === 'br'){ dst.appendChild(document.createElement('br')); return; }
@@ -207,18 +257,50 @@ function crCorpsPropre(html){
         }
         return;
       }
-      if(['div', 'p', 'b', 'strong', 'i', 'em', 'u'].indexOf(tag) !== -1){
-        const e = document.createElement(tag === 'p' ? 'div' : tag);
-        if(tag === 'div' || tag === 'p'){
-          const a = (n.style && n.style.textAlign) || n.getAttribute('align') || '';
-          if(/^(left|right|center|justify)$/.test(a)) e.style.textAlign = a;
+      if(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template', 'img', 'video', 'audio', 'canvas', 'input', 'textarea', 'select', 'button'].indexOf(tag) !== -1) return;
+      if(tag === 'ul' || tag === 'ol'){
+        const e = document.createElement(tag);
+        copier(n, e);
+        if(e.childNodes.length) dst.appendChild(e);
+        return;
+      }
+      if(BLOCS.indexOf(tag) !== -1){
+        /* un li hors d'une liste redevient une ligne */
+        const enListe = tag === 'li' && /^(ul|ol)$/.test(dst.tagName.toLowerCase());
+        const e = document.createElement(enListe ? 'li' : 'div');
+        const a = (n.style && n.style.textAlign) || n.getAttribute('align') || '';
+        if(/^(left|right|center|justify)$/.test(a)) e.style.textAlign = a;
+        if(!enListe){
+          const r = Math.min(60, crRetraitPropre(n.style && n.style.marginLeft) + (tag === 'blockquote' ? 10 : 0));
+          if(r) e.style.marginLeft = r + 'mm';
         }
         copier(n, e);
         dst.appendChild(e);
         return;
       }
-      if(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template'].indexOf(tag) !== -1) return;
-      copier(n, dst);    /* une balise inconnue : son texte reste */
+      let ici = dst;
+      const envelopper = t => { const e = document.createElement(t); ici.appendChild(e); ici = e; };
+      if(tag === 'b' || tag === 'strong') envelopper('b');
+      else if(tag === 'i' || tag === 'em') envelopper('i');
+      else if(tag === 'u' || tag === 'ins') envelopper('u');
+      else if(tag === 's' || tag === 'strike' || tag === 'del') envelopper('s');
+      if(n.hasAttribute('style') || tag === 'font'){
+        const st = crStyleDuSpan(n);
+        if(st.pt || st.c || st.f){
+          const e = document.createElement('span');
+          if(st.pt) e.style.fontSize = st.pt + 'pt';
+          if(st.c) e.style.color = st.c;
+          if(st.f) e.style.backgroundColor = st.f;
+          ici.appendChild(e); ici = e;
+        }
+        if(st.b && tag !== 'b' && tag !== 'strong') envelopper('b');
+        if(st.i && tag !== 'i' && tag !== 'em') envelopper('i');
+        if(st.u && tag !== 'u') envelopper('u');
+        if(st.s && tag !== 's') envelopper('s');
+      }
+      copier(n, ici);    /* une balise inconnue : son texte reste */
+      /* une enveloppe restée vide (une case d'attente jamais remplie) s'en va */
+      while(ici !== dst && !ici.childNodes.length){ const p = ici.parentNode; ici.remove(); ici = p; }
     });
   };
   copier(doc.body.firstChild || doc.body, sortie);
@@ -573,58 +655,113 @@ function crTraiterImage(img, o){
    LE PDF — récrit ligne par ligne, avec la police de l'écran
    ============================================================ */
 /* Le texte de la page en blocs (une ligne d'écran = un bloc) et en
-   morceaux (gras, italique, souligné). */
+   morceaux de même allure (gras, italique, souligné, barré, taille,
+   couleur, surlignage).
+   v1247 — un bloc sait aussi son retrait (x, en mm depuis la marge)
+   et sa marque de liste (• ◦ ▪ ou « 3. »), posée sur sa 1re ligne. */
+const CR_LISTE_MM = 7;          /* le retrait d'un niveau de liste — le même qu'à l'écran */
 function crBlocsDuCorps(corps){
   const blocs = [];
   let cur = null;
-  const nouveau = align => { cur = { align: align || 'left', runs: [] }; blocs.push(cur); };
-  const marcher = (noeud, st, align) => {
+  const nouveau = (ctx, st) => {
+    cur = { align: ctx.align || 'left', runs: [], x: ctx.x || 0, pt: Math.max(CR_TAILLE_CORPS, (st && st.pt) || 0), marque: null };
+    if(ctx.m && !ctx.m.prise){ cur.marque = ctx.m.marque; ctx.m.prise = true; }
+    blocs.push(cur);
+  };
+  const run = (t, st, ctx) => {
+    if(!cur) nouveau(ctx, st);
+    cur.runs.push({ t: t, b: st.b, i: st.i, u: st.u, s: st.s, pt: st.pt || CR_TAILLE_CORPS, c: st.c || '', f: st.f || '' });
+  };
+  const liste = (n, st, ctx, prof) => {
+    let num = 0;
+    n.childNodes.forEach(k => {
+      if(k.nodeType !== 1) return;
+      const t = k.tagName.toLowerCase();
+      const ctx2 = { align: ctx.align, x: ctx.x + CR_LISTE_MM };
+      if(t === 'ul' || t === 'ol'){ cur = null; liste(k, st, ctx2, prof + 1); cur = null; return; }
+      num++;
+      cur = null;
+      const marque = n.tagName.toLowerCase() === 'ol' ? { t: 'num', n: num } : { t: prof <= 1 ? 'disc' : (prof === 2 ? 'circle' : 'square') };
+      const a = (k.style && k.style.textAlign) || '';
+      if(/^(left|right|center|justify)$/.test(a)) ctx2.align = a;
+      ctx2.m = { marque: marque, prise: false };
+      ctx2.prof = prof;
+      marcher(k, st, ctx2);
+      if(!ctx2.m.prise) nouveau(ctx2, st);
+      cur = null;
+    });
+  };
+  const marcher = (noeud, st, ctx) => {
     noeud.childNodes.forEach(n => {
       if(n.nodeType === 3){
-        const t = n.textContent.replace(/[\s ]+/g, ' ');
+        const t = n.textContent.replace(/\u200B/g, '').replace(/[\s ]+/g, ' ');
         if(!t) return;
-        if(!cur) nouveau(align);
-        cur.runs.push({ t: t, b: st.b, i: st.i, u: st.u });
+        run(t, st, ctx);
         return;
       }
       if(n.nodeType !== 1) return;
       const tag = n.tagName.toLowerCase();
-      if(tag === 'br'){ if(!cur) nouveau(align); cur = null; return; }
+      if(tag === 'br'){
+        if(!cur) nouveau(ctx, st);
+        else if((st.pt || 0) > cur.pt) cur.pt = st.pt;
+        cur = null; return;
+      }
       if(n.hasAttribute('data-case')){
         if(n.hasAttribute('data-vide')) return;      /* une case vide ne s'imprime pas */
-        const t = n.textContent.replace(/[\s ]+/g, ' ');
+        const t = n.textContent.replace(/[\s ]+/g, ' ');
         if(!t) return;
-        if(!cur) nouveau(align);
-        cur.runs.push({ t: t, b: st.b, i: st.i, u: st.u });
+        run(t, st, ctx);
         return;
       }
-      if(tag === 'div' || tag === 'p'){
+      if(tag === 'ul' || tag === 'ol'){
+        cur = null;
+        liste(n, st, ctx, (ctx.prof || 0) + 1);
+        cur = null;
+        return;
+      }
+      if(tag === 'div' || tag === 'p' || tag === 'blockquote' || tag === 'li' || /^h[1-6]$/.test(tag)){
         cur = null;
         const avant = blocs.length;
-        const a = (n.style && n.style.textAlign) || align;
-        marcher(n, st, a);
-        if(blocs.length === avant) nouveau(a);
+        const a = (n.style && n.style.textAlign) || '';
+        const ctx2 = Object.assign({}, ctx, {
+          align: /^(left|right|center|justify)$/.test(a) ? a : ctx.align,
+          x: ctx.x + crRetraitPropre(n.style && n.style.marginLeft) + (tag === 'blockquote' ? 10 : 0)
+        });
+        marcher(n, st, ctx2);
+        if(blocs.length === avant) nouveau(ctx2, st);
         cur = null;
         return;
       }
       const s2 = Object.assign({}, st);
       if(tag === 'b' || tag === 'strong') s2.b = true;
       if(tag === 'i' || tag === 'em') s2.i = true;
-      if(tag === 'u') s2.u = true;
-      marcher(n, s2, align);
+      if(tag === 'u' || tag === 'ins') s2.u = true;
+      if(tag === 's' || tag === 'strike' || tag === 'del') s2.s = true;
+      if(n.hasAttribute('style') || tag === 'font'){
+        const y = crStyleDuSpan(n);
+        if(y.pt) s2.pt = y.pt;
+        if(y.c) s2.c = y.c;
+        if(y.f) s2.f = y.f;
+        if(y.b) s2.b = true;
+        if(y.i) s2.i = true;
+        if(y.u) s2.u = true;
+        if(y.s) s2.s = true;
+      }
+      marcher(n, s2, ctx);
     });
   };
-  marcher(corps, { b: false, i: false, u: false }, 'left');
+  marcher(corps, { b: false, i: false, u: false, s: false, pt: 0, c: '', f: '' }, { align: 'left', x: 0, prof: 0 });
   return blocs;
 }
 function crStyle(r){ return r.b && r.i ? 'bolditalic' : (r.b ? 'bold' : (r.i ? 'italic' : 'normal')); }
-/* Couper un bloc en lignes, comme le navigateur : mot par mot */
-function crLignesDuBloc(doc, bloc, largeur, taille){
+/* Couper un bloc en lignes, comme le navigateur : mot par mot, chaque
+   mot à sa taille */
+function crLignesDuBloc(doc, bloc, largeur){
   const mots = [];
+  const mesurer = (t, r) => { doc.setFont('CarlitoEC', crStyle(r)); doc.setFontSize(r.pt || CR_TAILLE_CORPS); return doc.getTextWidth(t); };
   bloc.runs.forEach(r => {
     (r.t.match(/\s+|[^\s]+/g) || []).forEach(m => {
-      doc.setFont('CarlitoEC', crStyle(r)); doc.setFontSize(taille);
-      mots.push({ t: m, r: r, w: doc.getTextWidth(m), esp: /^\s+$/.test(m) });
+      mots.push({ t: m, r: r, w: mesurer(m, r), esp: /^\s+$/.test(m) });
     });
   });
   const lignes = [];
@@ -642,18 +779,21 @@ function crLignesDuBloc(doc, bloc, largeur, taille){
       /* Un mot plus long que la ligne : coupé lettre à lettre */
       let bout = '';
       [...m.t].forEach(ch => {
-        doc.setFont('CarlitoEC', crStyle(m.r));
-        const w = doc.getTextWidth(bout + ch);
-        if(w > largeur && bout){ ligne.push({ t: bout, r: m.r, w: doc.getTextWidth(bout), esp: false }); pousser(); bout = ch; }
+        const w = mesurer(bout + ch, m.r);
+        if(w > largeur && bout){ ligne.push({ t: bout, r: m.r, w: mesurer(bout, m.r), esp: false }); pousser(); bout = ch; }
         else bout += ch;
       });
-      if(bout){ const w = doc.getTextWidth(bout); ligne.push({ t: bout, r: m.r, w: w, esp: false }); l += w; }
+      if(bout){ const w = mesurer(bout, m.r); ligne.push({ t: bout, r: m.r, w: w, esp: false }); l += w; }
       return;
     }
     ligne.push(m); l += m.w;
   });
   pousser();
   return lignes;
+}
+function crRvb(hex){
+  const m = String(hex || '').match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
 }
 function crImagePivotee(src, r){
   return crChargerImage(src).then(im => {
@@ -738,37 +878,76 @@ async function crFabriquerPdf(v, ed, docCommun){
     });
   }
 
-  /* Le corps */
-  const taille = CR_MM.corpsPt;
-  const h = taille * CR_MM.interligne * pt;
+  /* Le corps — v1247 : chaque ligne prend la hauteur de son plus grand
+     texte (jamais moins que le corps, 14 pt : la « jambe » de la ligne,
+     comme le navigateur), chaque mot sa taille et sa couleur. */
   let y = crHautCorpsDe(e, ed.dest);
   let page = 1;
   crBlocsDuCorps(v.corps).forEach(bloc => {
-    const lignes = bloc.runs.length ? crLignesDuBloc(doc, bloc, CR_LARGEUR_CORPS, taille) : [[]];
+    const largeur = CR_LARGEUR_CORPS - bloc.x;
+    const lignes = bloc.runs.length ? crLignesDuBloc(doc, bloc, largeur) : [[]];
     lignes.forEach((ligne, li) => {
+      const taille = ligne.length ? Math.max(CR_TAILLE_CORPS, ...ligne.map(m => m.r.pt || CR_TAILLE_CORPS)) : bloc.pt;
+      const h = taille * CR_MM.interligne * pt;
       if(y + h > crBasCorps(e) + 0.2){
         doc.addPage(); page++; tete(); pied();
         y = crHautCorps(e);
       }
       const total = ligne.reduce((s, m) => s + m.w, 0);
       const derniere = li === lignes.length - 1;
-      let x = CR_MM.marge, ajout = 0;
-      if(bloc.align === 'right') x += CR_LARGEUR_CORPS - total;
-      else if(bloc.align === 'center') x += (CR_LARGEUR_CORPS - total) / 2;
+      let x = CR_MM.marge + bloc.x, ajout = 0;
+      if(bloc.align === 'right') x += largeur - total;
+      else if(bloc.align === 'center') x += (largeur - total) / 2;
       else if(bloc.align === 'justify' && !derniere){
         const esp = ligne.filter(m => m.esp).length;
-        if(esp) ajout = (CR_LARGEUR_CORPS - total) / esp;
+        if(esp) ajout = (largeur - total) / esp;
       }
       const base = crBase(y, h, taille);
+      const debut = x;
+      /* 1 · les surlignages, sous le texte */
+      let xx = x;
       ligne.forEach(m => {
         const w = m.w + (m.esp ? ajout : 0);
+        if(m.r.f){
+          const em = (m.r.pt || CR_TAILLE_CORPS) * pt;
+          const c = crRvb(m.r.f);
+          doc.setFillColor(c[0], c[1], c[2]);
+          doc.rect(xx, base - 0.9521 * em, w, 1.2207 * em, 'F');
+        }
+        xx += w;
+      });
+      /* 2 · le texte, souligné et barré de sa couleur */
+      ligne.forEach(m => {
+        const w = m.w + (m.esp ? ajout : 0);
+        const tm = m.r.pt || CR_TAILLE_CORPS;
+        const c = crRvb(m.r.c);
         if(!m.esp){
-          doc.setFont('CarlitoEC', crStyle(m.r)); doc.setFontSize(taille);
+          doc.setFont('CarlitoEC', crStyle(m.r)); doc.setFontSize(tm);
+          doc.setTextColor(c[0], c[1], c[2]);
           doc.text(m.t, x, base);
         }
-        if(m.r.u){ doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.25); doc.line(x, base + 0.9, x + w, base + 0.9); }
+        if(m.r.u || m.r.s){
+          doc.setDrawColor(c[0], c[1], c[2]); doc.setLineWidth(0.25 * tm / CR_TAILLE_CORPS);
+          if(m.r.u) doc.line(x, base + 0.9 * tm / CR_TAILLE_CORPS, x + w, base + 0.9 * tm / CR_TAILLE_CORPS);
+          if(m.r.s) doc.line(x, base - 0.27 * tm * pt, x + w, base - 0.27 * tm * pt);
+        }
         x += w;
       });
+      doc.setTextColor(0, 0, 0); doc.setDrawColor(0, 0, 0);
+      /* 3 · la marque de liste, sur la 1re ligne du bloc */
+      if(li === 0 && bloc.marque){
+        const q = bloc.marque;
+        if(q.t === 'num'){
+          doc.setFont('CarlitoEC', 'normal'); doc.setFontSize(CR_TAILLE_CORPS);
+          doc.text(q.n + '.', debut - 1, base, { align: 'right' });
+        }else{
+          const cx = debut - 3.5, cy = base - 1.16, r = 0.75;
+          doc.setFillColor(0, 0, 0); doc.setLineWidth(0.25);
+          if(q.t === 'disc') doc.circle(cx, cy, r, 'F');
+          else if(q.t === 'circle') doc.circle(cx, cy, r - 0.125, 'S');
+          else doc.rect(cx - r, cy - r, 2 * r, 2 * r, 'F');
+        }
+      }
       y += h;
     });
   });
@@ -2301,44 +2480,430 @@ document.addEventListener('paste', ev => {
 
 
 /* ============================================================
-   ✏️ LA BARRE D'ÉCRITURE — gras, italique, souligné, alignements
-   Ce que le PDF sait récrire à l'identique, et rien de plus : une
-   couleur ou une taille qu'il ne reproduirait pas serait une promesse
-   que la page ne tient pas. Les raccourcis marchent aussi (Ctrl+B,
-   Ctrl+I, Ctrl+U). Le bouton de ce qui est actif s'allume.
+   ✏️ LA BARRE D'ÉCRITURE — un vrai traitement de texte (v1247)
+
+   v1245 : gras, italique, souligné, alignements. David, le 22/10 :
+   « il me manque la taille de la police, la couleur aussi — si je veux
+   écrire un titre en plus grand et d'une autre couleur, j'ai besoin
+   d'un éditeur de texte complet ».
+
+   Tout ce que la barre pose, le PDF le récrit à l'identique (voir
+   crBlocsDuCorps) : style de ligne (titre, sous-titre), taille,
+   gras / italique / souligné / barré, couleur du texte, surligneur,
+   alignements, listes à puces et numérotées, retraits, annuler /
+   rétablir, effacer la mise en forme. Pas de choix de police : la
+   page et le PDF n'en ont qu'une (Calibri), et une police que le PDF
+   n'aurait pas serait une promesse que la page ne tient pas.
+
+   ⚠️ LE NAVIGATEUR ÉCRIT SES TAILLES ET SES COULEURS À SA FAÇON
+   (<font size="7">, <font color>, « xxx-large »). crNormaliserCorps
+   les remet en <span style="font-size:18pt; color:#c00000"> à chaque
+   frappe : la page, le PDF et ce qui se range disent la même chose.
    ============================================================ */
+const CR_TAILLES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
+const CR_COULEURS = [
+  ['#000000', 'Noir'], ['#595959', 'Gris foncé'], ['#A6A6A6', 'Gris'], ['#FFFFFF', 'Blanc'],
+  ['#C00000', 'Rouge foncé'], ['#E02020', 'Rouge'], ['#E07A1F', 'Orange'], ['#BF9000', 'Or'],
+  ['#2E7D32', 'Vert foncé'], ['#5BA300', 'Vert'], ['#0563C1', 'Bleu'], ['#1F3864', 'Bleu marine'],
+  ['#00A3B4', 'Turquoise'], ['#7030A0', 'Violet'], ['#C2185B', 'Rose']
+];
+const CR_SURLIGNEURS = [['', 'Aucun'], ['#FFFF00', 'Jaune'], ['#B6FF0E', 'Vert pomme'], ['#00FFFF', 'Turquoise'],
+  ['#FFC0CB', 'Rose'], ['#FFD966', 'Orange clair'], ['#D9D9D9', 'Gris']];
+const CR_STYLES_LIGNE = [
+  ['normal', 'Texte normal', 0, false],
+  ['titre', 'Titre', 24, true],
+  ['soustitre', 'Sous-titre', 18, true],
+  ['petit', 'Petit texte', 11, false]
+];
+/* Les <font> du navigateur → des <span style> (la sélection reste en place :
+   on déplace les nœuds de texte, on ne les recrée pas) */
+function crNormaliserCorps(el){
+  if(!el) return false;
+  if(!el.querySelector('font, span[style], span.crAttente, blockquote')) return false;
+  /* ⚠️ Déplacer un nœud de texte remet à zéro une sélection posée dedans
+     (règle du DOM) : on la note avant, et on la repose après — sinon la
+     couleur choisie juste après une taille tomberait dans le vide. */
+  const sel = window.getSelection();
+  const garde = sel && sel.rangeCount && el.contains(sel.anchorNode)
+    ? [sel.anchorNode, sel.anchorOffset, sel.focusNode, sel.focusOffset] : null;
+  let change = false;
+  el.querySelectorAll('font').forEach(f => {
+    const st = crStyleDuSpan(f);
+    const sp = document.createElement('span');
+    if(st.pt) sp.style.fontSize = st.pt + 'pt';
+    if(st.c) sp.style.color = st.c;
+    if(st.f) sp.style.backgroundColor = st.f;
+    f.parentNode.insertBefore(sp, f);
+    while(f.firstChild) sp.appendChild(f.firstChild);
+    f.remove();
+    /* La nouvelle taille (ou couleur) vaut pour TOUT ce qui était choisi */
+    sp.querySelectorAll('span[style]').forEach(x => {
+      if(st.pt) x.style.fontSize = '';
+      if(st.c) x.style.color = '';
+      if(!x.getAttribute('style')) x.removeAttribute('style');
+    });
+    change = true;
+  });
+  /* La case d'attente a reçu sa frappe : elle devient un span ordinaire,
+     sans son caractère invisible */
+  el.querySelectorAll('span.crAttente').forEach(x => {
+    if(!x.textContent.replace(/\u200B/g, '')) return;
+    x.classList.remove('crAttente');
+    if(!x.getAttribute('class')) x.removeAttribute('class');
+    const t = x.firstChild;
+    if(t && t.nodeType === 3 && t.data.charAt(0) === '\u200B') t.deleteData(0, 1);
+    change = true;
+  });
+  el.querySelectorAll('span[style]').forEach(x => {
+    if(/(x+-)?(large|small)|medium|larger|smaller/.test(x.style.fontSize)){
+      x.style.fontSize = CR.tailleEnCours ? CR.tailleEnCours + 'pt' : ''; change = true;
+    }
+    if(x.style.backgroundColor && !crCouleurPropre(x.style.backgroundColor)){ x.style.backgroundColor = ''; change = true; }
+    if(!x.getAttribute('style') && !x.hasAttribute('data-case') && !x.classList.contains('crAttente')){
+      x.removeAttribute('style');
+      if(!x.attributes.length){ while(x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); }
+      change = true;
+    }
+  });
+  /* Un retrait du navigateur (blockquote) devient un retrait en mm */
+  el.querySelectorAll('blockquote').forEach(b => {
+    const d = document.createElement('div');
+    d.style.marginLeft = Math.min(60, crRetraitPropre(b.style.marginLeft) + 10) + 'mm';
+    b.parentNode.insertBefore(d, b);
+    while(b.firstChild) d.appendChild(b.firstChild);
+    b.remove();
+    change = true;
+  });
+  if(change && garde && el.contains(garde[0]) && el.contains(garde[2])){
+    try{ sel.setBaseAndExtent(garde[0], Math.min(garde[1], crLongueurNoeud(garde[0])), garde[2], Math.min(garde[3], crLongueurNoeud(garde[2]))); }catch(e){}
+  }
+  return change;
+}
+function crLongueurNoeud(n){ return n.nodeType === 3 ? n.length : n.childNodes.length; }
+document.addEventListener('input', ev => {
+  const t = ev.target;
+  if(t && t.classList && t.classList.contains('crCorps')) crNormaliserCorps(t);
+}, true);
+
 function crBarreDEcriture(corps, touche){
   const outils = crEl('div', 'crOutils');
   const boutons = [];
-  const cmd = (html, titre, c, etat) => {
-    const b = crEl('button', 'crOutil'); b.type = 'button'; b.title = titre; b.innerHTML = html;
+  let sauvee = null;
+  /* La sélection dans la page, gardée : un menu ou une palette prend le
+     focus, et le choix doit s'appliquer à ce qui était sélectionné */
+  const garder = () => {
+    const el = corps();
+    const sel = window.getSelection();
+    if(el && sel && sel.rangeCount && el.contains(sel.anchorNode)) sauvee = sel.getRangeAt(0).cloneRange();
+  };
+  const reprendre = () => {
+    const el = corps();
+    if(!el) return null;
+    const sel = window.getSelection();
+    /* La sélection est déjà dans la page : on n'y touche pas (la
+       reposer effacerait ce que le navigateur retient pour la frappe) */
+    if(sel.rangeCount && el.contains(sel.anchorNode) && el.contains(sel.focusNode)){
+      if(document.activeElement !== el) el.focus({ preventScroll: true });
+      return el;
+    }
+    if(document.activeElement !== el) el.focus({ preventScroll: true });
+    if(sauvee && el.contains(sauvee.startContainer) && el.contains(sauvee.endContainer)){
+      sel.removeAllRanges(); sel.addRange(sauvee);
+    }else if(!sel.rangeCount || !el.contains(sel.anchorNode)){
+      const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);
+    }
+    return el;
+  };
+  const fini = () => {
+    const el = corps();
+    crNormaliserCorps(el);
+    touche();
+    if(el) el.dispatchEvent(new Event('input', { bubbles: true }));
+    garder();
+    allumer();
+  };
+  const exec = (c, v, css) => {
+    try{ document.execCommand('styleWithCSS', false, !!css); }catch(e){}
+    document.execCommand(c, false, v == null ? null : v);
+    try{ document.execCommand('styleWithCSS', false, false); }catch(e){}
+  };
+  /* ⚠️ AU CURSEUR (rien de sélectionné), une taille, une couleur, un
+     surligneur se posent dans une petite case d'attente (<span> avec un
+     caractère invisible) où la frappe tombe : le navigateur, lui,
+     oublie ces choix dès qu'on touche un autre bouton. */
+  const auCurseur = (quoi) => {
+    const sel = window.getSelection();
+    if(!sel.rangeCount || !sel.isCollapsed) return false;
+    const n = sel.anchorNode;
+    let sp = n && (n.nodeType === 3 ? n.parentNode : n);
+    if(!(sp && sp.classList && sp.classList.contains('crAttente') && /^\u200B*$/.test(sp.textContent))){
+      sp = document.createElement('span');
+      sp.className = 'crAttente';
+      sp.appendChild(document.createTextNode('\u200B'));
+      const r = sel.getRangeAt(0);
+      r.insertNode(sp);
+    }
+    quoi(sp);
+    sel.setBaseAndExtent(sp.firstChild, 1, sp.firstChild, 1);
+    return true;
+  };
+  const taille = t => {
+    CR.tailleEnCours = t;
+    if(!auCurseur(sp => { sp.style.fontSize = t + 'pt'; })) exec('fontSize', '7');
+  };
+  const couleur = c => { if(!auCurseur(sp => { sp.style.color = c; })) exec('foreColor', c); };
+  /* « Aucun » au bout d'un passage surligné : la frappe sort du passage
+     (avec la même taille, la même couleur, le même gras) */
+  const sortirDuSurlignage = () => {
+    const sel = window.getSelection();
+    if(!sel.rangeCount || !sel.isCollapsed) return false;
+    const n = sel.anchorNode, p = n.nodeType === 3 ? n.parentNode : n;
+    let haut = null;
+    for(let x = p; x && !x.classList.contains('crCorps') && !/^(DIV|P|LI|UL|OL)$/.test(x.tagName); x = x.parentNode) if(x.style && x.style.backgroundColor) haut = x;
+    if(!haut) return false;
+    const r = document.createRange(); r.setStart(n, sel.anchorOffset); r.setEnd(haut, haut.childNodes.length);
+    if(r.toString().replace(/\u200B/g, '')) return false;
+    const cs = getComputedStyle(p);
+    const sp = document.createElement('span');
+    sp.className = 'crAttente';
+    sp.style.fontSize = (crTaillePropre(cs.fontSize) || CR_TAILLE_CORPS) + 'pt';
+    const co = crCouleurPropre(cs.color); if(co && co !== '#000000') sp.style.color = co;
+    if(/^(bold|bolder|[6-9]00)$/.test(cs.fontWeight)) sp.style.fontWeight = '700';
+    if(cs.fontStyle === 'italic') sp.style.fontStyle = 'italic';
+    sp.appendChild(document.createTextNode('\u200B'));
+    haut.parentNode.insertBefore(sp, haut.nextSibling);
+    sel.setBaseAndExtent(sp.firstChild, 1, sp.firstChild, 1);
+    return true;
+  };
+  const surligner = c => {
+    if(!c && sortirDuSurlignage()) return;
+    if(auCurseur(sp => {
+      /* « Aucun » sous un passage surligné : du blanc, la couleur du papier */
+      let fond = '';
+      for(let x = sp.parentNode; x && !x.classList.contains('crCorps'); x = x.parentNode) if(x.style && x.style.backgroundColor){ fond = x.style.backgroundColor; break; }
+      sp.style.backgroundColor = c || (fond ? '#ffffff' : '');
+    })) return;
+    exec('hiliteColor', c || 'transparent', true);
+  };
+  const bouton = (html, titre, quoi, etat, cls) => {
+    const b = crEl('button', 'crOutil' + (cls ? ' ' + cls : '')); b.type = 'button'; b.title = titre; b.innerHTML = html;
+    b.setAttribute('aria-label', titre);
     b.addEventListener('mousedown', ev => ev.preventDefault());
-    b.addEventListener('click', () => {
-      const el = corps();
-      if(!el.contains(document.activeElement) && document.activeElement !== el){
-        el.focus();
-        const sel = window.getSelection();
-        if(sel && (!sel.rangeCount || !el.contains(sel.anchorNode))){ const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
-      }
-      document.execCommand(c, false, null);
-      touche();
-      allumer();
-    });
+    b.addEventListener('click', () => { if(!reprendre()) return; quoi(); fini(); });
     if(etat) boutons.push([b, etat]);
     outils.appendChild(b);
+    return b;
   };
+  const cmd = (html, titre, c, etat, cls) => bouton(html, titre, () => exec(c), etat, cls);
   const sep = () => outils.appendChild(crEl('span', 'crOutilSep'));
+
+  /* Les blocs (lignes) touchés par la sélection */
+  const blocsChoisis = () => {
+    const el = corps();
+    const sel = window.getSelection();
+    if(!el || !sel.rangeCount) return [];
+    const r = sel.getRangeAt(0);
+    const blocDe = n => {
+      let x = n.nodeType === 1 ? n : n.parentNode;
+      while(x && x !== el && !/^(DIV|P|LI)$/.test(x.tagName)) x = x.parentNode;
+      return x;
+    };
+    let a = blocDe(r.startContainer), z = blocDe(r.endContainer);
+    if(!a || !z) return [];
+    /* Une ligne posée à même un bloc qui contient aussi des listes (le
+       navigateur fait ça en sortant d'une liste) : elle devient sa
+       propre ligne, pour que le retrait ou le style ne touche qu'elle */
+    const estBloc = x => x.nodeType === 1 && /^(UL|OL|DIV|P|LI)$/.test(x.tagName);
+    const isoler = (b, n) => {
+      if(!b || b === el || ![...b.childNodes].some(x => estBloc(x) && x.tagName !== 'LI')) return b;
+      let top = n; while(top && top.parentNode !== b) top = top.parentNode;
+      if(!top || estBloc(top)) return b;
+      let debut = top, fin = top;
+      while(debut.previousSibling && !estBloc(debut.previousSibling) && debut.previousSibling.nodeName !== 'BR') debut = debut.previousSibling;
+      while(fin.nodeName !== 'BR' && fin.nextSibling && !estBloc(fin.nextSibling)) fin = fin.nextSibling;
+      const g = [sel.anchorNode, sel.anchorOffset, sel.focusNode, sel.focusOffset];
+      const d = document.createElement('div');
+      b.insertBefore(d, debut);
+      for(let x = debut; x;){ const suiv = x.nextSibling; d.appendChild(x); if(x === fin) break; x = suiv; }
+      try{ sel.setBaseAndExtent(g[0], g[1], g[2], g[3]); }catch(e){}
+      return d;
+    };
+    a = isoler(a, r.startContainer);
+    z = a.contains(r.endContainer) ? a : isoler(z, r.endContainer);
+    if(a === el || z === el){
+      /* du texte posé à même la page : on en fait une ligne */
+      document.execCommand('formatBlock', false, 'div');
+      a = blocDe(sel.getRangeAt(0).startContainer); z = blocDe(sel.getRangeAt(0).endContainer);
+      if(a === el || z === el) return [];
+    }
+    const tous = [...el.querySelectorAll('div, p, li')].filter(b => !b.querySelector('div, p, li'));
+    const ia = tous.indexOf(a), iz = tous.indexOf(z);
+    if(ia === -1 || iz === -1) return [a];
+    return tous.slice(Math.min(ia, iz), Math.max(ia, iz) + 1);
+  };
+
+  /* 1 · le style de la ligne : titre, sous-titre… */
+  const choixStyle = crEl('select', 'crOutilChoix crStyleLigne');
+  choixStyle.title = 'Style de la ligne';
+  choixStyle.setAttribute('aria-label', 'Style de la ligne');
+  choixStyle.appendChild(new Option('Style…', ''));
+  CR_STYLES_LIGNE.forEach(([k, nom]) => choixStyle.appendChild(new Option(nom, k)));
+  choixStyle.addEventListener('mousedown', garder);
+  choixStyle.addEventListener('change', () => {
+    const k = choixStyle.value;
+    choixStyle.value = '';
+    const def = CR_STYLES_LIGNE.find(x => x[0] === k);
+    if(!def || !reprendre()) return;
+    blocsChoisis().forEach(b => {
+      /* la ligne entière reprend l'allure du style : on retire gras,
+         tailles et couleurs (pas les cases, pas le surligneur) */
+      b.querySelectorAll('b, strong').forEach(x => { while(x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); });
+      b.querySelectorAll('span[style]').forEach(x => {
+        x.style.fontSize = ''; x.style.color = ''; x.style.fontWeight = '';
+        if(!x.getAttribute('style')){ x.removeAttribute('style'); if(!x.attributes.length){ while(x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); } }
+      });
+      if(!def[2] && !def[3]) return;
+      const enfants = [];
+      for(const n of [...b.childNodes]){ if(n.nodeType === 1 && /^(UL|OL|DIV|P|LI)$/.test(n.tagName)) break; enfants.push(n); }
+      if(!enfants.length) return;
+      let haut = b;
+      const enveloppe = document.createElement('span');
+      if(def[2]) enveloppe.style.fontSize = def[2] + 'pt';
+      let dedans = enveloppe;
+      if(def[3]){ const g = document.createElement('b'); enveloppe.appendChild(g); dedans = g; }
+      haut.insertBefore(enveloppe, enfants[0]);
+      enfants.forEach(n => dedans.appendChild(n));
+    });
+    fini();
+  });
+  outils.appendChild(choixStyle);
+
+  /* 2 · la taille */
+  const choixTaille = crEl('select', 'crOutilChoix crTaille');
+  choixTaille.title = 'Taille du texte (points)';
+  choixTaille.setAttribute('aria-label', 'Taille du texte');
+  choixTaille.appendChild(new Option('—', ''));
+  CR_TAILLES.forEach(t => choixTaille.appendChild(new Option(String(t), String(t))));
+  choixTaille.addEventListener('mousedown', garder);
+  choixTaille.addEventListener('change', () => {
+    const t = Number(choixTaille.value);
+    if(!t || !reprendre()) return;
+    taille(t);
+    fini();
+  });
+  outils.appendChild(choixTaille);
+  bouton('A<small>−</small>', 'Plus petit', () => pas(-1));
+  bouton('A<small>+</small>', 'Plus grand', () => pas(1));
+  const pas = sens => {
+    const t = tailleIci() || CR_TAILLE_CORPS;
+    const i = CR_TAILLES.findIndex(x => x >= t);
+    const n = CR_TAILLES[Math.max(0, Math.min(CR_TAILLES.length - 1, (i === -1 ? CR_TAILLES.length - 1 : (CR_TAILLES[i] === t ? i + sens : (sens > 0 ? i : i - 1)))))];
+    taille(n);
+  };
+  sep();
+
+  /* 3 · gras, italique, souligné, barré */
   cmd('<b>G</b>', 'Gras (Ctrl+B)', 'bold', 'bold');
   cmd('<i>I</i>', 'Italique (Ctrl+I)', 'italic', 'italic');
   cmd('<u>S</u>', 'Souligné (Ctrl+U)', 'underline', 'underline');
+  cmd('<s>ab</s>', 'Barré', 'strikeThrough', 'strikeThrough');
   sep();
+
+  /* 4 · les couleurs : une palette qui s'ouvre sous le bouton */
+  let palette = null;
+  const fermerPalette = () => { if(palette){ palette.remove(); palette = null; } };
+  const ouvrirPalette = (ancre, liste, titre, quoi, autre) => {
+    const deja = palette && palette.__ancre === ancre;
+    fermerPalette();
+    if(deja) return;
+    garder();
+    palette = crEl('div', 'crPalette');
+    palette.__ancre = ancre;
+    palette.appendChild(crEl('div', 'crPaletteT', titre));
+    const grille = crEl('div', 'crPaletteG');
+    liste.forEach(([c, nom]) => {
+      const b = crEl('button', 'crPastille' + (c ? '' : ' aucune')); b.type = 'button';
+      b.title = nom; b.setAttribute('aria-label', nom);
+      if(c) b.style.background = c;
+      b.addEventListener('mousedown', ev => ev.preventDefault());
+      b.addEventListener('click', () => { fermerPalette(); if(!reprendre()) return; quoi(c); fini(); });
+      grille.appendChild(b);
+    });
+    palette.appendChild(grille);
+    if(autre){
+      const lab = crEl('label', 'crPaletteAutre', '🎨 Autre couleur… ');
+      const i = document.createElement('input'); i.type = 'color'; i.value = '#1F3864';
+      i.addEventListener('change', () => { fermerPalette(); if(!reprendre()) return; quoi(i.value); fini(); });
+      lab.appendChild(i);
+      palette.appendChild(lab);
+    }
+    outils.appendChild(palette);
+    const ra = ancre.getBoundingClientRect(), ro = outils.getBoundingClientRect();
+    palette.style.left = Math.max(0, Math.min(ra.left - ro.left, ro.width - 230)) + 'px';
+    palette.style.top = (ra.bottom - ro.top + 4) + 'px';
+  };
+  document.addEventListener('mousedown', ev => {
+    if(palette && !palette.contains(ev.target) && !(palette.__ancre && palette.__ancre.contains(ev.target))) fermerPalette();
+  });
+  const bCouleur = crEl('button', 'crOutil crOutilCouleur'); bCouleur.type = 'button';
+  bCouleur.title = 'Couleur du texte'; bCouleur.setAttribute('aria-label', 'Couleur du texte');
+  bCouleur.innerHTML = '<span class="crLettreA">A</span><span class="crBarreCouleur"></span>';
+  bCouleur.addEventListener('mousedown', ev => ev.preventDefault());
+  bCouleur.addEventListener('click', () => ouvrirPalette(bCouleur, CR_COULEURS, 'Couleur du texte', couleur, true));
+  outils.appendChild(bCouleur);
+  const bSurl = crEl('button', 'crOutil crOutilCouleur'); bSurl.type = 'button';
+  bSurl.title = 'Surligneur'; bSurl.setAttribute('aria-label', 'Surligneur');
+  bSurl.innerHTML = '<span class="crLettreA">🖍️</span><span class="crBarreCouleur" style="background:#FFFF00"></span>';
+  bSurl.addEventListener('mousedown', ev => ev.preventDefault());
+  bSurl.addEventListener('click', () => ouvrirPalette(bSurl, CR_SURLIGNEURS, 'Surligneur', surligner, false));
+  outils.appendChild(bSurl);
+  sep();
+
+  /* 5 · les alignements */
   const ligne = (n) => '<span class="crAlign crAlign' + n + '"><i></i><i></i><i></i><i></i></span>';
   cmd(ligne('G'), 'Aligner à gauche', 'justifyLeft', 'justifyLeft');
   cmd(ligne('C'), 'Centrer', 'justifyCenter', 'justifyCenter');
   cmd(ligne('D'), 'Aligner à droite', 'justifyRight', 'justifyRight');
   cmd(ligne('J'), 'Justifier', 'justifyFull', 'justifyFull');
   sep();
-  cmd('⌫ <small>mise en forme</small>', 'Retirer gras, italique et souligné de la sélection', 'removeFormat');
+
+  /* 6 · les listes et les retraits */
+  cmd('<span class="crIcListe">•≡</span>', 'Liste à puces', 'insertUnorderedList', 'insertUnorderedList');
+  cmd('<span class="crIcListe">1≡</span>', 'Liste numérotée', 'insertOrderedList', 'insertOrderedList');
+  const retrait = sens => {
+    const sel = window.getSelection();
+    const dansListe = sel.rangeCount && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentNode).closest('li');
+    if(dansListe && corps().contains(dansListe)){ exec(sens > 0 ? 'indent' : 'outdent'); return; }
+    blocsChoisis().forEach(b => {
+      const n = Math.max(0, Math.min(60, crRetraitPropre(b.style.marginLeft) + sens * 10));
+      b.style.marginLeft = n ? n + 'mm' : '';
+      if(!b.getAttribute('style')) b.removeAttribute('style');
+    });
+  };
+  bouton('<span class="crIcListe">⇤</span>', 'Diminuer le retrait', () => retrait(-1));
+  bouton('<span class="crIcListe">⇥</span>', 'Augmenter le retrait', () => retrait(1));
+  sep();
+
+  /* 7 · annuler, rétablir, effacer */
+  cmd('↶', 'Annuler (Ctrl+Z)', 'undo');
+  cmd('↷', 'Rétablir (Ctrl+Y)', 'redo');
+  bouton('⌫ <small>mise en forme</small>', 'Retirer toute la mise en forme de la sélection (taille, couleur, gras…)', () => {
+    exec('removeFormat');
+    /* le navigateur garde parfois un surlignage : on l'enlève aussi */
+    const el = corps(), sel = window.getSelection();
+    if(sel.rangeCount && !sel.isCollapsed) el.querySelectorAll('span[style]').forEach(x => {
+      if(sel.containsNode(x, true) && !x.hasAttribute('data-case')){ while(x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); }
+    });
+  });
+
+  /* Ce qui est actif s'allume, la taille et la couleur d'ici se lisent */
+  const tailleIci = () => {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return 0;
+    let n = sel.anchorNode; if(n && n.nodeType === 3) n = n.parentNode;
+    if(!n || !corps() || !corps().contains(n)) return 0;
+    return crTaillePropre(getComputedStyle(n).fontSize);
+  };
   const allumer = () => {
     const el = corps();
     const sel = window.getSelection();
@@ -2348,8 +2913,19 @@ function crBarreDEcriture(corps, touche){
       try{ on = !!(dedans && document.queryCommandState(etat)); }catch(e){}
       b.classList.toggle('on', on);
     });
+    if(dedans){
+      const t = tailleIci();
+      choixTaille.value = CR_TAILLES.indexOf(t) !== -1 ? String(t) : '';
+      let n = sel.anchorNode; if(n && n.nodeType === 3) n = n.parentNode;
+      const c = crCouleurPropre(getComputedStyle(n).color) || '#000000';
+      bCouleur.querySelector('.crBarreCouleur').style.background = c;
+    }
   };
-  document.addEventListener('selectionchange', () => { if(document.body.contains(outils)) allumer(); });
+  document.addEventListener('selectionchange', () => {
+    if(!document.body.contains(outils)) return;
+    garder();
+    allumer();
+  });
   return outils;
 }
 
