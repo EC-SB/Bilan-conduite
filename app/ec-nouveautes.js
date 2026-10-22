@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 16:13 — v1245 */
+/* Déployé le 22/10/2026 à 17:10 — v1246 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1246,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '🧰 Les questions de vérification s’affichent sous leur numéro',
+    quoi: [
+      { emoji: '📖',
+        titre: 'La question sous son numéro',
+        texte: 'Examen blanc, RVP, examen officiel et en-tête des cours : tape le numéro, la vérification (VI ou VE), la QSER et les 1ers secours s’affichent. Les réponses sont derrière « 👁️ Voir les réponses ».' },
+      { emoji: '⚠️',
+        titre: 'Les questions neutralisées',
+        texte: 'Les 1ers secours des questions 11, 18, 59, 76 et 97 (PLS) sont barrés : la fiche montre la question suivante, celle que pose l’inspecteur.' },
+      { emoji: '📝',
+        titre: 'Dans le bilan',
+        texte: 'Sous le numéro de la question, le bilan écrit les questions posées et leurs réponses.' },
+      { emoji: '🧰',
+        titre: 'La banque des questions',
+        texte: 'Outils › Ce qu’on écrit › Vérifications : les 100 questions, à chercher et à imprimer. Les administrateurs peuvent corriger une question, ou la neutraliser et la remplacer.' },
+      { emoji: '🅿️',
+        titre: 'La manœuvre et l’arrêt de précision',
+        texte: 'La liste des manœuvres se referme à chaque coche, et « Arrêt de précision faite » n’est plus cochée d’office.' }
+    ]
+  },
   {
     version: 1245,
     date: 'Jeudi 22 octobre 2026',
