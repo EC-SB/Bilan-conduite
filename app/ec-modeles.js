@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 11:31 — v1240 */
+/* Déployé le 22/10/2026 à 17:10 — v1246 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1203,6 +1203,10 @@ function buildExamenBlanc(ai, ctx){
   if(txt(ex.installation)) ligneParLigne(ex.installation).forEach(o => L(o));
   L('');
   L('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion));
+  /* 🧰 v1246 — les questions et leurs réponses (David : « C »), tirées
+     de la banque (ec-verifs.js) ; la remplaçante quand une partie est
+     neutralisée */
+  if(typeof lignesVerifsPourLeBilan === 'function') lignesVerifsPourLeBilan(ex.verifQuestion).forEach(o => L(o));
   L('𝙉𝙤𝙩𝙚 : ' + (txt(ex.verifNote) ? ' ' + txt(ex.verifNote) : ' ') + ' /3');
   /* Laissée vide, elle ne laisse aucune trace : pas de ligne
      blanche, pas de titre orphelin. */
@@ -1475,13 +1479,17 @@ function buildExamen(ai){
     '',
     '𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(e.verifQuestion),
     'Vérification ' + (e.vi ? st(e.vi) : '✅️❌️'),
+    /* 🧰 v1246 — sous chaque ligne, la question posée et sa réponse */
+    ...questionDuBilanOfficiel(e.verifQuestion, 'verif'),
     /* L'explication du moniteur, quand il en a écrit une : c'est
        ce qui aide l'élève à ne pas refaire l'erreur. Sans texte,
        la ligne disparaît plutôt que de laisser un blanc. */
     ...ligneParLigne(e.viTexte),
     'QSER ' + (e.qser ? st(e.qser) : '✅️❌️'),
+    ...questionDuBilanOfficiel(e.verifQuestion, 'qser'),
     ...ligneParLigne(e.qserTexte),
     '1er secour ' + (e.secours ? st(e.secours) : '✅️❌️'),
+    ...questionDuBilanOfficiel(e.verifQuestion, 'secours'),
     ...ligneParLigne(e.secoursTexte),
     '',
     '𝙉𝙤𝙩𝙚 :  /3',
@@ -2240,6 +2248,13 @@ const PREFIXE_MANOEUVRE_EXAMEN = '🅿️ Manœuvre : ';
 
 /* 🅿️ v1236 — plusieurs manœuvres (« au minimum 2 ») : une ligne par
    manœuvre, la même que la fiche de l'élève sait relire */
+/* 🧰 v1246 — à l'examen officiel : sous « Vérification ✅ », « QSER ❌ »…,
+   la question posée et sa réponse (ou sa remplaçante, si neutralisée) */
+function questionDuBilanOfficiel(valeur, partie){
+  if(typeof ligneVerifPourLeBilan !== 'function') return [];
+  const t = ligneVerifPourLeBilan(valeur, partie, false);
+  return t ? ['↳ ' + t] : [];
+}
 function ligneManoeuvreExamen(e){
   const libs = String((e && e.manoeuvreFaite) || '').split('\n').map(x => x.trim()).filter(Boolean);
   /* 🎯 v1238 — l'arrêt de précision « fait » compte aussi */
@@ -2506,6 +2521,8 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   parts.push('𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨' +
     (txt(ai.verifQuestion) ? ' : question n° ' + txt(ai.verifQuestion) : '') +
     ' https://www.facebook.com/groups/864826058258637 ');
+  /* 🧰 v1246 — les questions et leurs réponses (ec-verifs.js) */
+  if(typeof lignesVerifsPourLeBilan === 'function') lignesVerifsPourLeBilan(ai.verifQuestion).forEach(o => parts.push(o));
   parts.push((txt(ai.verifNote) ? txt(ai.verifNote) + '/3' : '/3') +
              ' points jour du permis ');
   parts.push('');
