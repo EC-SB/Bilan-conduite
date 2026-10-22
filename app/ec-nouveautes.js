@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 15:14 — v1244 */
+/* Déployé le 22/10/2026 à 16:13 — v1245 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1245,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '✏️ Courriers : écrire comme dans Word, et des images',
+    quoi: [
+      { emoji: '✏️',
+        titre: 'On écrit sur toute la page',
+        texte: 'Le courrier vierge ne faisait qu’une ligne : on touche maintenant n’importe où sur la page pour écrire, et une page vide dit « Écris ton courrier ici… ».' },
+      { emoji: '🅱️',
+        titre: 'La barre d’écriture, comme dans Word',
+        texte: 'Gras, italique, souligné, à gauche, centré, à droite, justifié, et « retirer la mise en forme » ; Ctrl+B, Ctrl+I, Ctrl+U marchent aussi. Le PDF reprend tout à l’identique.' },
+      { emoji: '🖼️',
+        titre: 'Des images dans un courrier',
+        texte: '« 🖼️ Ajouter une image », ou copier-coller (Ctrl+V, ou appui long › Coller) : une photo, un plan, une capture, posée sur la page comme une signature. « ✨ Retirer le fond blanc » au choix. Une image posée dans un modèle revient sur chaque courrier.' },
+      { emoji: '📋',
+        titre: 'Les signatures et tampons se collent aussi',
+        texte: 'Dans ✍️ Signatures et tampons, à côté du bouton : « 📋 Ou colle l’image ici ».' }
+    ]
+  },
   {
     version: 1244,
     date: 'Jeudi 22 octobre 2026',
