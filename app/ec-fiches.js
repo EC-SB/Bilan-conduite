@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 22/10/2026 à 09:42 — v1236 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -75,16 +75,47 @@ async function ouvrirCreateurFiches(modeleCle){
     modele: liste.some(x => x.cle === modeleCle) ? modeleCle : liste[0].cle,
     publiees: r.publiees || {}, brouillons: r.brouillons || {}, infos: r.infos || {},
     forme: null, choix: '', cadre: '', encadre: null, format: 'tel', essai: false, feuille: '', minuteur: null, enCours: null,
+    /* 🅿️ v1236 — le menu des manœuvres, commun à trois fiches */
+    menu: null, minuteurMenu: null,
     sauve: {
       champsManuels: champsManuels, champsDessinesCourants: (typeof champsDessinesCourants !== 'undefined') ? champsDessinesCourants : null,
       dossierManuel: (typeof dossierManuel !== 'undefined') ? dossierManuel : null,
       prefixeExamenBlanc: prefixeExamenBlanc, cleNiveauCourante: cleNiveauCourante
     }
   };
+  chargerMenuFiche();
   chargerFormeFiche();
   coquilleFiche();
   dessinerCreateurFiche();
   chargerFlotteFiche();
+}
+function chargerMenuFiche(){
+  const f = fiS.brouillons[CLE_MENU_MANOEUVRES] || fiS.publiees[CLE_MENU_MANOEUVRES];
+  fiS.menu = nettoyerMenuManoeuvres(f).liste;
+}
+/* 🅿️ v1236 — un changement du menu : son brouillon à lui */
+function changerMenuFiche(fn){
+  if(!fiS.menu.length) fiS.menu = ((typeof BLOC !== 'undefined' && BLOC.ficheListeConduite) || []).slice();
+  fn(fiS.menu);
+  fiS.menu = nettoyerMenuManoeuvres({ liste: fiS.menu }).liste;
+  dessinerFicheDuMoniteur();
+  dessinerPanneauFiche();
+  clearTimeout(fiS.minuteurMenu);
+  fiS.minuteurMenu = setTimeout(() => enregistrerMenuFiche(), 1000);
+  dessinerEtatFiche('…');
+}
+async function enregistrerMenuFiche(maintenant){
+  if(!fiS || !fiS.minuteurMenu) return;
+  clearTimeout(fiS.minuteurMenu); fiS.minuteurMenu = null;
+  try{
+    const r = await appelPrep({ action: 'ficheManuellePoser', modele: CLE_MENU_MANOEUVRES, forme: JSON.stringify({ v: 1, liste: fiS.menu }), publier: '0' });
+    if(fiS){ majFichesDepuis(r); if(!maintenant) dessinerEtatFiche(); }
+  }catch(e){ showToast('Menu des manœuvres non enregistré : ' + e.message); }
+}
+/* 🚗 les listes « Les voitures » emportent la Flotte du moment */
+function voituresDesListesFiche(){
+  if(!fiS || !Array.isArray(fiS.flotte) || !fiS.flotte.length) return;
+  (fiS.forme.ajouts || []).forEach(a => { if(a.type === 'liste' && a.source === 'voitures') a.items = fiS.flotte.slice(); });
 }
 function chargerFormeFiche(){
   const b = fiS.brouillons[fiS.modele], p = fiS.publiees[fiS.modele];
@@ -95,6 +126,7 @@ async function fermerCreateurFiche(){
   if(!fiS || fiS.fermeture) return;
   fiS.fermeture = true;
   await enregistrerBrouillonFiche(true);
+  await enregistrerMenuFiche(true);
   window.essaiFicheEnCours = false;
   const s = fiS.sauve;
   champsManuels = s.champsManuels;
@@ -208,8 +240,15 @@ async function actionFiche(a){
                         'Elle s’applique à leur prochain bilan ; une fiche déjà commencée garde sa forme jusqu’à la fin du cours.', 'Publier')) return;
     try{
       clearTimeout(fiS.minuteur); fiS.minuteur = null;
-      const r = await appelPrep({ action: 'ficheManuellePoser', modele: fiS.modele, forme: JSON.stringify(fiS.forme), publier: '1' });
+      voituresDesListesFiche();
+      let r = await appelPrep({ action: 'ficheManuellePoser', modele: fiS.modele, forme: JSON.stringify(fiS.forme), publier: '1' });
       majFichesDepuis(r);
+      /* 🅿️ v1236 — le menu des manœuvres en brouillon part avec */
+      await enregistrerMenuFiche(true);
+      if(fiS.brouillons[CLE_MENU_MANOEUVRES]){
+        r = await appelPrep({ action: 'ficheManuellePoser', modele: CLE_MENU_MANOEUVRES, forme: JSON.stringify({ v: 1, liste: fiS.menu }), publier: '1' });
+        majFichesDepuis(r);
+      }
       dessinerEtatFiche();
       showToast('Publiée ✅ — les moniteurs l’ont à leur prochain bilan');
     }catch(e){ showToast('Impossible : ' + e.message); }
@@ -287,6 +326,7 @@ function dessinerEtatFiche(enCours){
     (publie ? ' · les moniteurs ont la version publiée' + (i.publieLe ? ' le ' + echFiche(i.publieLe) : '') : ' · les moniteurs ont la fiche d’origine');
   else if(publie) t = '✅ Publiée' + (i.publieLe ? ' le ' + echFiche(i.publieLe) : '') + (i.publiePar ? ' par ' + echFiche(i.publiePar) : '') + ' — c’est celle des moniteurs';
   else t = 'Fiche d’origine — chaque changement part dans un brouillon, rien ne change pour les moniteurs avant « 💾 Publier »';
+  if(!enCours && fiS.brouillons[CLE_MENU_MANOEUVRES]) t += ' · 🅿️ <b>menu des manœuvres</b> : brouillon pas encore publié';
   e.innerHTML = t;
 }
 
@@ -326,6 +366,13 @@ function dessinerFicheDuMoniteur(){
       if(c.siNiveau) b.classList.add('fiSelon');
       if(c.ajout) b.classList.add('fiAjoutee');
       if(verrouFiche(c.cle)) b.classList.add('fiZoneVerrou');
+      /* ▾ v1236 — une zone qu'un choix de liste fait apparaître */
+      if(Array.isArray(c.siListe) && c.siListe.length){
+        const s = document.createElement('div');
+        s.className = 'fiBadgeListe';
+        s.textContent = '👁️ apparaît avec ' + c.siListe.map(x => '« ' + x.v + ' »').join(' ou ');
+        b.appendChild(s);
+      }
     });
     /* ✍️ v1207 — « ➕ Ajouter ici » : avant la première zone, puis
        sous chacune. Posés APRÈS le dessin : la fiche elle-même ne
@@ -482,9 +529,13 @@ function blocZoneFiche(cle){
     (verrou ? '<div class="fiVerrouNote">🔒 <b>Une zone qui calcule</b> : elle nourrit le bilan, le suivi ou les listes. Tu peux la <b>renommer</b>, la <b>déplacer</b>, lui donner un <b>fond</b> et retirer son <b>micro</b> — pas la masquer.</div>' : '') +
     '<label for="fiNom">Le titre sur la fiche</label><input type="text" id="fiNom" maxlength="120">' +
     (avecAide ? '<label for="fiAide">La petite aide dessous</label><input type="text" id="fiAide" maxlength="240" placeholder="(aucune)">' : '') +
+    /* 🅿️ v1236 — le menu des manœuvres ; ▾ une liste ajoutée */
+    (c.choixManoeuvre ? '<div id="fiMenu"></div>' : '') +
+    (ajout && c.type === 'liste' ? '<div id="fiListe"></div>' : '') +
     (ajout && c.type === 'texte' ? '<label>La hauteur du cadre</label><div class="stChips fiIntens">' + [2, 4, 6, 10].map(n =>
       '<button type="button" class="btn ' + ((aj && aj.lignes) === n ? 'btn-primary' : 'btn-secondary') + '" data-lignes="' + n + '">' + n + ' lignes</button>').join('') + '</div>' : '') +
     (micro ? '<label class="stCocheL"><input type="checkbox" id="fiMicro"' + (r.micro === 0 ? '' : ' checked') + '> 🎙️ Le micro au bout de la ligne</label>' : '') +
+    '<div id="fiCouleurs"></div>' +
     (cadre
       ? '<label>Le fond de la zone</label><div class="fiAjoutNote">📦 Elle est dans un <b>cadre</b> : son fond est celui du cadre.' +
         '<div class="stChips" style="margin-top:6px;"><button type="button" class="btn btn-secondary" id="fiVoirCadre">📦 Régler le cadre</button></div></div>'
@@ -590,7 +641,255 @@ function blocZoneFiche(cle){
   }
   const ca = z.querySelector('#fiCaseAjout');
   if(ca) ca.addEventListener('click', () => ouvrirCaseFiche(cle, -1));
+  const fm = z.querySelector('#fiMenu');
+  if(fm) remplirMenuFiche(fm);
+  const fl = z.querySelector('#fiListe');
+  if(fl && aj) remplirListeFiche(fl, cle, aj);
+  remplirCouleursFiche(z.querySelector('#fiCouleurs'), cle, c);
   return z;
+}
+
+/* ============================================================
+   🅿️ v1236 — LE MENU DES MANŒUVRES
+
+   David : « que je puisse changer la liste des manœuvres à la main ».
+   Ses choix : seulement ce menu (la fiche des manœuvres de l'élève ne
+   bouge pas), et une seule liste pour l'examen blanc, l'examen
+   officiel et le RVP.
+   ============================================================ */
+function remplirMenuFiche(div){
+  const liste = listeDuMenuManoeuvres();
+  const perso = fiS.menu.length > 0;
+  div.innerHTML = '<label>📋 Les choix du menu (' + liste.length + ')</label>' +
+    '<div class="stPetit" style="margin:-2px 0 6px;">La <b>même liste</b> pour l’examen blanc, l’examen officiel et le RVP' +
+      (perso ? ', réglée à la main' : ' : c’est celle de l’école') + '. La fiche des manœuvres de l’élève ne change pas.</div>' +
+    '<div class="fiCases"></div>' +
+    '<div class="stChips"><button type="button" class="btn btn-secondary fiPetitBtn" id="fiMenuAjout">➕ Ajouter une manœuvre</button>' +
+      (perso ? '<button type="button" class="btn btn-secondary fiPetitBtn" id="fiMenuOrigine">↺ La liste d’origine</button>' : '') + '</div>';
+  const g = div.querySelector('.fiCases');
+  liste.forEach((m, i) => {
+    const l = document.createElement('div');
+    l.className = 'fiCase';
+    l.innerHTML = '<div class="q"><b></b></div>' +
+      (i > 0 ? '<button type="button" class="btn btn-secondary" data-mn="haut" title="Monter">↑</button>' : '') +
+      '<button type="button" class="btn btn-secondary" data-mn="modifier" title="Renommer">✏️</button>' +
+      '<button type="button" class="btn btn-secondary" data-mn="retirer" title="Retirer">✕</button>';
+    l.querySelector('b').textContent = m;
+    const h = l.querySelector('[data-mn="haut"]');
+    if(h) h.addEventListener('click', () => changerMenuFiche(t => { const x = t[i - 1]; t[i - 1] = t[i]; t[i] = x; }));
+    l.querySelector('[data-mn="modifier"]').addEventListener('click', async () => {
+      const n = await demander('Le nouveau nom de « ' + m + ' » dans le menu :', m, '✏️ Renommer');
+      if(n == null || !String(n).trim()) return;
+      changerMenuFiche(t => { t[i] = String(n).trim(); });
+    });
+    l.querySelector('[data-mn="retirer"]').addEventListener('click', async () => {
+      if(liste.length <= 1){ showToast('Le menu garde au moins une manœuvre.'); return; }
+      if(!await confirmer('Retirer « ' + m + ' » du menu des manœuvres ?')) return;
+      changerMenuFiche(t => { t.splice(i, 1); });
+    });
+    g.appendChild(l);
+  });
+  div.querySelector('#fiMenuAjout').addEventListener('click', async () => {
+    const n = await demander('La manœuvre à ajouter au menu (à la fin de la liste) :', '', '➕ Ajouter une manœuvre');
+    if(n == null || !String(n).trim()) return;
+    changerMenuFiche(t => { t.push(String(n).trim()); });
+  });
+  const o = div.querySelector('#fiMenuOrigine');
+  if(o) o.addEventListener('click', async () => {
+    if(!await confirmer('Remettre la liste des manœuvres de l’école dans le menu ?')) return;
+    fiS.menu = [];
+    clearTimeout(fiS.minuteurMenu);
+    fiS.minuteurMenu = setTimeout(() => enregistrerMenuFiche(), 300);
+    dessinerFicheDuMoniteur(); dessinerPanneauFiche();
+  });
+}
+
+/* ============================================================
+   ▾ v1236 — UNE LISTE DÉROULANTE AJOUTÉE : d'où viennent ses choix,
+   et ce que fait chacun (phrase, zones qui apparaissent, manœuvre
+   comptée faite, voitures)
+   ============================================================ */
+function remplirListeFiche(div, cle, aj){
+  const source = aj.source || 'main';
+  const items = choixDeLaListeFiche(Object.assign({}, aj, { source: source }));
+  const zones = champsAvecForme(champsDeBaseFiche(fiS.modele), fiS.forme);
+  const nomDe = k => { const x = zones.find(y => y.cle === k); return x ? nomCourtFiche(x) : ''; };
+  const notes = {
+    main: 'Tu écris les choix toi-même, dans l’ordre que tu veux.',
+    manoeuvres: 'Les manœuvres de l’école, tenues à jour toutes seules. Touche ✏️ pour régler ce que fait un choix.',
+    voitures: 'Les voitures de la Flotte (sans vendues ni remorques), reprises à chaque « 💾 Publier ».',
+    moniteurs: 'Les moniteurs de l’appli, tenus à jour tout seuls.',
+    centres: 'Les centres d’examen de l’appli.',
+    procedures: 'Les procédures de l’appli, tenues à jour toutes seules.',
+    formations: 'Les formations de l’appli.'
+  };
+  div.innerHTML = '<label>▾ D’où viennent les choix</label><div class="stChips fiIntens">' +
+      Object.keys(SOURCES_LISTE_FICHE).map(k => '<button type="button" class="btn ' + (k === source ? 'btn-primary' : 'btn-secondary') + '" data-src="' + k + '">' +
+        echFiche(SOURCES_LISTE_FICHE[k]) + '</button>').join('') + '</div>' +
+    '<div class="stPetit" style="margin:2px 0 6px;">' + notes[source] + '</div>' +
+    '<label>Les choix (' + items.length + ')</label><div class="fiCases"></div>' +
+    (source === 'main' ? '<button type="button" class="btn btn-secondary fiPetitBtn" id="fiChoixAjout">➕ Ajouter un choix</button>' : '') +
+    (source === 'manoeuvres' && !aj.bureau ? '<div class="stChips" style="margin-top:6px;"><button type="button" class="btn btn-secondary fiPetitBtn" id="fiFaitesToutes">✅ Toutes comptées faites</button>' +
+      '<button type="button" class="btn btn-secondary fiPetitBtn" id="fiFaitesAucune">Aucune</button></div>' : '') +
+    '<label class="stCocheL" style="margin-top:8px;"><input type="checkbox" id="fiMulti"' + (aj.multi ? ' checked' : '') + '> Plusieurs choix possibles (cases dans la liste)</label>';
+  div.querySelectorAll('[data-src]').forEach(b => b.addEventListener('click', () => changerFiche(() => {
+    aj.source = b.dataset.src;
+    if(aj.source === 'voitures') aj.items = (fiS.flotte || []).slice(); else delete aj.items;
+  })));
+  const g = div.querySelector('.fiCases');
+  if(!items.length){
+    g.innerHTML = '<div class="stPetit" style="margin:0 0 6px;">' + (source === 'main' ? 'Aucun choix : « ➕ Ajouter un choix ».' :
+      source === 'voitures' && !fiS.flotte ? 'Lecture de la Flotte…' : 'Aucun choix dans cette liste pour l’instant.') + '</div>';
+  }
+  items.forEach((it, i) => {
+    const l = document.createElement('div');
+    l.className = 'fiCase';
+    const petits = [];
+    petits.push(it.phrase ? '« ' + echFiche(it.phrase.length > 90 ? it.phrase.slice(0, 90) + '…' : it.phrase) + ' »' : 'rien dans le bilan');
+    if(it.montre && it.montre.length) petits.push('👁️ fait apparaître : ' + echFiche(it.montre.map(nomDe).filter(Boolean).join(' · ')));
+    if(it.fait && source === 'manoeuvres') petits.push('✅ comptée faite dans sa fiche des manœuvres');
+    if(it.voitures && it.voitures.length) petits.push('🚗 seulement avec : ' + echFiche(libelleVoitures(it.voitures)));
+    l.innerHTML = '<div class="q"><b>' + echFiche(it.libelle) + '</b>' + petits.map(x => '<small>' + x + '</small>').join('') + '</div>' +
+      (source === 'main' && i > 0 ? '<button type="button" class="btn btn-secondary" data-ch="haut" title="Monter">↑</button>' : '') +
+      '<button type="button" class="btn btn-secondary" data-ch="modifier" title="Régler">✏️</button>' +
+      (source === 'main' ? '<button type="button" class="btn btn-secondary" data-ch="retirer" title="Retirer">✕</button>' : '');
+    const h = l.querySelector('[data-ch="haut"]');
+    if(h) h.addEventListener('click', () => changerFiche(() => { const t = aj.choix; const x = t[i - 1]; t[i - 1] = t[i]; t[i] = x; }));
+    l.querySelector('[data-ch="modifier"]').addEventListener('click', () => ouvrirChoixListeFiche(cle, it.libelle));
+    const rt = l.querySelector('[data-ch="retirer"]');
+    if(rt) rt.addEventListener('click', async () => {
+      if(!await confirmer('Retirer le choix « ' + it.libelle + ' » ?')) return;
+      changerFiche(() => { aj.choix = (aj.choix || []).filter(x => x.libelle !== it.libelle); });
+    });
+    g.appendChild(l);
+  });
+  const ad = div.querySelector('#fiChoixAjout');
+  if(ad) ad.addEventListener('click', () => ouvrirChoixListeFiche(cle, null));
+  const toutes = (oui) => changerFiche(() => {
+    const l = (aj.choix || []).slice();
+    items.forEach(it => {
+      let x = l.find(y => y.libelle === it.libelle);
+      if(!x){ x = { libelle: it.libelle }; l.push(x); }
+      if(oui) x.fait = 1; else delete x.fait;
+    });
+    aj.choix = l;
+  });
+  const ft = div.querySelector('#fiFaitesToutes'), fa = div.querySelector('#fiFaitesAucune');
+  if(ft) ft.addEventListener('click', () => toutes(true));
+  if(fa) fa.addEventListener('click', () => toutes(false));
+  const mu = div.querySelector('#fiMulti');
+  mu.addEventListener('change', () => changerFiche(() => { if(mu.checked) aj.multi = 1; else delete aj.multi; }));
+}
+/* La fenêtre d'un choix (libelle null : un nouveau, dans « Ma liste ») */
+function ouvrirChoixListeFiche(cle, libelle){
+  const aj = ajoutFiche(cle);
+  if(!aj) return;
+  const source = aj.source || 'main';
+  const items = choixDeLaListeFiche(Object.assign({}, aj, { source: source }));
+  const it = libelle == null ? { libelle: '' } : (items.find(x => x.libelle === libelle) || { libelle: libelle });
+  const zones = champsAvecForme(champsDeBaseFiche(fiS.modele), fiS.forme)
+    .filter(z => z.cle !== cle && (z.ajout || !verrouFiche(z.cle)));
+  const peutFaire = source === 'manoeuvres' && !aj.bureau;
+  const fond = document.createElement('div');
+  fond.className = 'overlay show fiModal';
+  fond.innerHTML = '<div class="modal">' +
+    '<h3>▾ ' + (libelle == null ? 'Nouveau choix' : 'Un choix de la liste') + '</h3>' +
+    '<label for="fiChLib">Ce que voit le moniteur dans la liste</label>' +
+    '<input type="text" id="fiChLib" maxlength="80"' + (source !== 'main' ? ' disabled' : '') + '>' +
+    '<label for="fiChPhrase">La phrase qui part dans le bilan quand il le choisit</label>' +
+    '<textarea id="fiChPhrase" rows="3" maxlength="500" class="fiTexte"></textarea>' +
+    '<div class="stPetit" style="margin:2px 0 6px;">Vide : rien ne part dans le bilan, le choix sert seulement à la fiche.</div>' +
+    '<label>👁️ Fait apparaître ces zones (cachées tant qu’on ne le choisit pas)</label>' +
+    '<div class="fiVoitures" id="fiChZones"></div>' +
+    '<label>✅ Dans son dossier</label>' +
+    '<div class="stPetit" style="margin:-2px 0 6px;">' + (source === 'manoeuvres'
+      ? (aj.bureau ? 'Pas dans une zone « 🔒 Pour nous seulement » : la manœuvre se compte par le bilan de l’élève.' : 'La manœuvre choisie compte comme faite dans sa fiche des manœuvres, avec l’émoji du moniteur.')
+      : 'Seulement quand les choix viennent de <b>🅿️ Les manœuvres</b>.') + '</div>' +
+    '<label class="stCocheL"' + (peutFaire ? '' : ' style="opacity:.45;"') + '><input type="checkbox" id="fiChFait"' + (peutFaire ? '' : ' disabled') + (it.fait && peutFaire ? ' checked' : '') + '> La compter faite dans sa fiche des manœuvres</label>' +
+    '<label>🚗 Seulement avec ces voitures</label><div class="stPetit" style="margin:-2px 0 6px;">Aucune cochée : le choix est là sur toutes les voitures.</div>' +
+    '<div class="fiVoitures" id="fiChVoitures"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="btn btn-primary" id="fiChOk">💾 Garder</button><button type="button" class="btn btn-secondary" id="fiChNon">Annuler</button></div></div>';
+  fond.querySelector('.modal').style.setProperty('max-width', '520px', 'important');
+  document.body.appendChild(fond);
+  const lib = fond.querySelector('#fiChLib'), ph = fond.querySelector('#fiChPhrase'), fa = fond.querySelector('#fiChFait');
+  lib.value = it.libelle || ''; ph.value = it.phrase || '';
+  let montre = Array.isArray(it.montre) ? it.montre.slice() : [];
+  const gz = fond.querySelector('#fiChZones');
+  if(!zones.length) gz.innerHTML = '<div class="stPetit">Aucune autre zone à faire apparaître.</div>';
+  zones.forEach(z => {
+    const l = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = montre.indexOf(z.cle) !== -1;
+    cb.addEventListener('change', () => { montre = montre.filter(k => k !== z.cle); if(cb.checked) montre.push(z.cle); });
+    l.appendChild(cb);
+    l.appendChild(document.createTextNode(nomCourtFiche(z) + (z.ajout ? ' ➕' : '')));
+    gz.appendChild(l);
+  });
+  let voitures = Array.isArray(it.voitures) ? it.voitures.slice() : [];
+  choixVoituresFiche(fond.querySelector('#fiChVoitures'), voitures, l => { voitures = l; });
+  fond.querySelector('#fiChNon').addEventListener('click', () => fond.remove());
+  fond.querySelector('#fiChOk').addEventListener('click', () => {
+    const nom = String(lib.value || '').replace(/\s+/g, ' ').trim();
+    if(!nom){ showToast('Écris ce que voit le moniteur dans la liste.'); lib.focus(); return; }
+    if(source === 'main' && nom !== it.libelle && (aj.choix || []).some(x => x.libelle === nom)){ showToast('Ce choix est déjà dans la liste.'); return; }
+    changerFiche(() => {
+      const n = { libelle: nom };
+      if(ph.value.trim()) n.phrase = ph.value.trim();
+      if(montre.length) n.montre = montre.slice();
+      if(fa && fa.checked && peutFaire) n.fait = 1;
+      if(voitures.length) n.voitures = voitures.slice();
+      const l = (aj.choix || []).slice();
+      const i = l.findIndex(x => x.libelle === (libelle == null ? nom : libelle));
+      if(i !== -1) l[i] = n; else l.push(n);
+      aj.choix = l;
+    });
+    fond.remove();
+  });
+  setTimeout(() => { if(!fond.contains(document.activeElement)) (source === 'main' && libelle == null ? lib : ph).focus(); }, 50);
+}
+
+/* ============================================================
+   🎨 v1236 — LA COULEUR DES TEXTES D'UNE ZONE
+   ============================================================ */
+const COULEURS_TEXTE_FICHE = [['#6B3FD8', 'Violet'], ['#1F6FD1', 'Bleu'], ['#1E8A4C', 'Vert'], ['#D9480F', 'Orange'],
+                              ['#C92A2A', 'Rouge'], ['#C2255C', 'Rose'], ['#5C6370', 'Gris'], ['#14161B', 'Noir']];
+function remplirCouleursFiche(div, cle, c){
+  if(!div) return;
+  const r = fiS.forme.zones[cle] || {};
+  const cc = r.couleurs || {};
+  const titre = c.type === 'titre' || c.type === 'sousTitre';
+  const rangs = [['t', 'Le titre'], ['a', 'La petite aide']].concat(titre ? [] : [['x', 'Ce que le moniteur écrit']]);
+  const pastilles = q => '<div class="stCouleurs" data-q="' + q + '">' +
+    '<button type="button" class="mepAuto' + (!cc[q] ? ' on' : '') + '" data-coul="" title="La couleur habituelle">A</button>' +
+    COULEURS_TEXTE_FICHE.map(([v, n]) => '<button type="button" class="' + (cc[q] === v ? 'on' : '') + '" data-coul="' + v + '" style="background:' + v + '" title="' + n + '"></button>').join('') +
+    '<label class="stAutreCouleur" title="N’importe quelle couleur">🎨<input type="color" value="' + (cc[q] ? cc[q].toLowerCase() : '#1f6fd1') + '"></label></div>';
+  div.innerHTML = '<label>🎨 La couleur des textes</label>' +
+    '<div class="stPetit" style="margin:-2px 0 6px;">A = la couleur habituelle. En mode sombre, la couleur choisie s’éclaircit toute seule pour rester lisible.</div>' +
+    rangs.map(([q, t]) => '<div class="fiRangCouleur">' + t + '</div>' + pastilles(q)).join('') +
+    (c.pourNous ? '' : '<label class="stCocheL" style="margin-top:6px;"><input type="checkbox" id="fiCoulBilan"' + (cc.b ? ' checked' : '') + (cc.t || cc.a || cc.x ? '' : ' disabled') +
+      '> Aussi dans le bilan (mail et 📖 Mes leçons)</label>');
+  const poser = (q, v) => changerFiche(() => {
+    const reg = reglageZoneFiche(cle);
+    const n = Object.assign({}, reg.couleurs || {});
+    const avant = !!(n.t || n.a || n.x);
+    if(v) n[q] = v; else delete n[q];
+    /* la première couleur : « aussi dans le bilan » coché d'office */
+    if(!avant && v) n.b = 1;
+    if(n.t || n.a || n.x) reg.couleurs = n; else delete reg.couleurs;
+  });
+  div.querySelectorAll('.stCouleurs').forEach(rg => {
+    const q = rg.dataset.q;
+    rg.querySelectorAll('[data-coul]').forEach(b => b.addEventListener('click', () => poser(q, b.dataset.coul)));
+    const i = rg.querySelector('input[type="color"]');
+    if(i) i.addEventListener('change', () => poser(q, String(i.value).toUpperCase()));
+  });
+  const cb = div.querySelector('#fiCoulBilan');
+  if(cb) cb.addEventListener('change', () => changerFiche(() => {
+    const reg = reglageZoneFiche(cle);
+    if(!reg.couleurs) return;
+    if(cb.checked) reg.couleurs.b = 1; else delete reg.couleurs.b;
+  }));
 }
 
 /* ============================================================
@@ -638,6 +937,7 @@ function ouvrirAjoutFiche(apres){
       cle = nouvelleCleFiche('z', prises);
       const n = { cle: cle, type: type, nom: titre };
       if(type === 'texte') n.lignes = 4;
+      if(type === 'liste'){ n.source = 'main'; n.choix = []; }
       if(nous.checked && type !== 'titre' && type !== 'sousTitre') n.bureau = 1;
       fiS.forme.ajouts = (fiS.forme.ajouts || []).concat([n]);
       if(sansMicro) reglageZoneFiche(cle).micro = 0;
@@ -653,7 +953,7 @@ function ouvrirAjoutFiche(apres){
     const bl = document.querySelector('#fiZone [data-zone="' + CSS.escape(cle) + '"]');
     /* sur téléphone, les réglages montent du bas : la zone va en haut */
     if(bl && bl.scrollIntoView) bl.scrollIntoView({ block: telFiche() ? 'start' : 'center' });
-    showToast(type === 'cases' ? '➕ Zone ajoutée — pose ses cases à droite' : '➕ Zone ajoutée');
+    showToast(type === 'cases' ? '➕ Zone ajoutée — pose ses cases à droite' : type === 'liste' ? '➕ Liste ajoutée — pose ses choix à droite' : '➕ Zone ajoutée');
   });
 }
 
@@ -877,7 +1177,8 @@ function blocListeZonesFiche(){
     d.className = (c.cle === fiS.choix ? 'on' : '') + (r.cache ? ' masquee' : '') + (c.ajout ? ' ajoutee' : '') + (c.cadre ? ' encadree' : '');
     if(c.cadre) d.style.setProperty('--cadre', c.fond === 'ardoise' ? '#5B6B80' : ((FONDS_FICHE[c.fond] && FONDS_FICHE[c.fond].fort) || c.fond));
     const coul = c.fond ? (c.fond === 'ardoise' ? '#E8EDF3' : c.fond) : '';
-    const signes = (c.ajout ? '➕ ' : '') + (c.type === 'titre' ? '📌' : c.type === 'sousTitre' ? '🔖' : c.type === 'ok' ? '✅❌' : (c.type === 'texte' || c.type === 'court') ? '✍️' : c.type === 'cases' ? '☑' : '') +
+    const signes = (c.ajout ? '➕ ' : '') + (c.type === 'titre' ? '📌' : c.type === 'sousTitre' ? '🔖' : c.type === 'ok' ? '✅❌' : (c.type === 'texte' || c.type === 'court') ? '✍️' : c.type === 'cases' ? '☑' : c.type === 'liste' ? '▾' : '') +
+      (c.siListe ? ' 👁️' : '') + (c.couleurs ? ' 🎨' : '') +
       ((c.cases || []).length ? ' ☑' + c.cases.length : '') + (r.micro === 0 ? ' 🔇' : '') + (c.cadre ? ' 📦' : '') + (c.pourNous ? ' 🔐' : '') + (verrou ? ' 🔒' : '');
     d.innerHTML = '<span class="pastille" style="background:' + (coul || 'transparent') + ';' + (coul ? '' : 'border-style:dashed;') + '"></span>' +
       '<button type="button" class="n" data-zc="choisir">' + echFiche(nomCourtFiche(c)) + '</button><span class="s">' + signes + '</span>' +
