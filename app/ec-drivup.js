@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:11 — v1237 */
+/* Déployé le 22/10/2026 à 11:14 — v1239 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -685,7 +685,7 @@ async function fenetrePlanningDrivup(p){
     f.boite.appendChild(nc);
     enregistrerLesCreneauxDrivup(p.creneaux).then(r => {
       nc.textContent = '🗓️ Créneaux libres mis à jour : ' + r.ouverts + ' cours ouvert(s) sans élève · ' + r.resa +
-        ' « Résa » · ' + (r.simu ? r.simu + ' simu à 1 place · ' : '') + (r.dispo ? r.dispo + ' dispo écrite(s) · ' : '') + r.rien + ' moment(s) sans cours — Élèves › 🗓️ Créneaux libres.';
+        ' « Résa » · ' + (r.simu ? r.simu + ' simu à 1 place · ' : '') + (r.dispo ? r.dispo + ' dispo écrite(s) · ' : '') + r.rien + ' moment(s) sans cours' + (r.trou ? ' · ' + r.trou + ' trou(s) d’1h' : '') + ' — Élèves › 🗓️ Créneaux libres.';
     }).catch(e => { nc.style.color = 'var(--warn-text)'; nc.textContent = '⚠️ Créneaux libres non mis à jour : ' + ((e && e.message) || e); });
   }else if(p.creneauxErreur){
     const nc = document.createElement('div');
