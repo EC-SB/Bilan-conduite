@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 09:42 — v1236 */
+/* Déployé le 22/10/2026 à 10:11 — v1237 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1237,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '🗓️ Créneaux de 2h, simulateurs repérés, plusieurs manœuvres, CEPC gardé',
+    quoi: [
+      { emoji: '🗓️',
+        titre: 'Les créneaux libres, comme on les propose',
+        texte: 'Quand rien n’est ouvert, la journée d’un moniteur se propose par créneaux de 2h (8h-10h, 10h-12h, 13h-15h, 15h-17h, 17h-19h) ; un créneau à moitié pris garde son trou d’1h ; après un permis, de l’heure de fin (trajet retour compris) à 2h après. ' +
+               'Une note sur sa colonne (« .LOUDÉAC »…) compte comme occupée. « 1h dispo » écrit dans Drivup a sa pastille « ✍️ Dispo écrite ».' },
+      { emoji: '🕹️',
+        titre: 'Le simulateur avec moniteur à 1 place, enfin repéré',
+        texte: 'Il était manqué : Drivup n’écrit pas de places pour un seul inscrit. Il apparaît maintenant avec son intitulé (« (Passerelle) » quand c’en est un) et la séance notée sur la colonne (« 3 », « 3-4 »).' },
+      { emoji: '🅿️',
+        titre: 'Plusieurs manœuvres à l’examen',
+        texte: 'Le menu « Manœuvre : … » de l’examen blanc, de l’examen officiel et du RVP se coche : au moins 2 manœuvres. Le bilan porte une ligne par manœuvre, et chacune compte dans la fiche des manœuvres de l’élève.' },
+      { emoji: '🧾',
+        titre: '« Examen non mené à son terme » garde le CEPC',
+        texte: 'La case ne vide plus la grille : on la remplit et on la modifie. Le bouton « 🧹 Vider le CEPC et le griser », dessous, la vide (un second appui rend les notes). Dans le bilan : les notes portées, et la mention à la place du total.' }
+    ]
+  },
   {
     version: 1236,
     date: 'Jeudi 22 octobre 2026',
