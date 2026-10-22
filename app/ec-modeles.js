@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:11 — v1237 */
+/* Déployé le 22/10/2026 à 10:36 — v1238 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -762,7 +762,11 @@ function toutesLesRemarques(observations, e){
     if(Array.isArray(l)) l.forEach(o => { if(o) out.push(o); });
   };
   pousser(observations);
+  /* 🎯 v1238 — l'arrêt de précision, et les remarques des zones
+     ajoutées par le créateur de fiches, se rangent comme la manœuvre */
+  pousser(e && e.arretPrecision);
   pousser(e && e.manoeuvre);
+  pousser(e && e.autresRemarques);
 
   const a = e && e.autonomie;
   if(a && txt(a.texte)){
@@ -2226,9 +2230,14 @@ const PREFIXE_MANOEUVRE_EXAMEN = '🅿️ Manœuvre : ';
    manœuvre, la même que la fiche de l'élève sait relire */
 function ligneManoeuvreExamen(e){
   const libs = String((e && e.manoeuvreFaite) || '').split('\n').map(x => x.trim()).filter(Boolean);
-  if(!libs.length) return [];
+  /* 🎯 v1238 — l'arrêt de précision « fait » compte aussi */
+  if(e && e.arretPrecisionFaite === 'oui' && libs.indexOf('Arrêt de précision') === -1) libs.unshift('Arrêt de précision');
   const emoji = (typeof ACCES !== 'undefined' && ACCES && ACCES.emoji) ? String(ACCES.emoji).trim() : '';
-  return libs.map(lib => PREFIXE_MANOEUVRE_EXAMEN + lib + ' ' + (emoji || MARQUE_FAITE)).concat(['']);
+  const out = libs.map(lib => PREFIXE_MANOEUVRE_EXAMEN + lib + ' ' + (emoji || MARQUE_FAITE));
+  /* 🔁 v1238 — passager et voyants revus après la manœuvre */
+  const ap = [['Passager', e && e.apresPassager], ['Voyants', e && e.apresVoyants]].filter(x => x[1] === '✅' || x[1] === '❌');
+  if(ap.length) out.push('🔁 Après la manœuvre : ' + ap.map(x => x[0] + ' ' + x[1]).join(' · '));
+  return out.length ? out.concat(['']) : [];
 }
 
 function marquesManoeuvreExamen(texte, marques){
