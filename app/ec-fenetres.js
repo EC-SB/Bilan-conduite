@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 16:27 — v1184 */
+/* Déployé le 22/10/2026 à 19:33 — v1248 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1371,6 +1371,9 @@ const MODULES_ELEVE = [
   /* ⚠️ Son parcours — v1036. Fermé comme les autres tant que
      personne ne l'ouvre : un groupe neuf n'arrive chez personne. */
   { cle:'parcours',     nom:'🎬 Son parcours — vidéos et guides' },
+  /* 🎮 v1248 — le jeu des vérifications (onglet « 🧰 Vérifs » de son
+     espace). Fermé comme les autres tant que personne ne l'ouvre. */
+  { cle:'verifs',       nom:'🧰 Le jeu des vérifications' },
   { cle:'rappel',       nom:'📅 Son prochain cours' },
   { cle:'historique',   nom:'📖 L\'historique de ses leçons' },
   /* ⚠️ LES DEUX CASES DE LA MESSAGERIE — v1071.
