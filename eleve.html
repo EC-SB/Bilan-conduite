@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 22/10/2026 à 19:33 — v1248 -->
+<!-- Déployé le 23/10/2026 à 10:24 — v1249 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1575,6 +1575,34 @@
   .jv .jvRevoir button{ border:1px solid var(--line); background:var(--navy-deep); color:var(--cream); border-radius:12px; padding:8px 10px; font:700 13px/1.2 inherit; cursor:pointer; text-align:left; }
   .jv .jvRevoir button small{ display:block; font-weight:600; font-size:11px; color:var(--muted); margin-top:2px; }
   .jv .jvPartage{ font-size:12px; color:var(--muted); margin-top:4px; }
+  .jv .jvVoitCarte{ display:flex; gap:10px; align-items:center; }
+  .jv .jvVoitCarte b{ display:block; font-size:14.5px; } .jv .jvVoitCarte small{ display:block; color:var(--muted); font-size:12px; }
+  .jv .jvVoitIc{ font-size:30px; }
+  .jv .jvVoitChoix{ display:block; width:100%; text-align:left; border:2px solid var(--line); background:var(--navy-deep); color:var(--cream); border-radius:14px;
+    padding:11px 12px; margin-bottom:8px; font:inherit; cursor:pointer; }
+  .jv .jvVoitChoix.on{ border-color:#7DBB00; background:rgba(182,255,14,.12); }
+  .jv .jvVoitChoix b{ display:block; font-size:15px; } .jv .jvVoitChoix small{ display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  .jv .jvScene{ position:relative; width:100%; border-radius:14px; overflow:hidden; background:#0E1116; margin-top:10px; user-select:none; -webkit-user-select:none;
+    box-shadow:0 8px 20px rgba(0,0,0,.18); }
+  .jv .jvScene img{ position:absolute; inset:0; width:100%; height:100%; object-fit:fill; display:block; pointer-events:none; }
+  .jv .jvScene.jvGlisse img{ animation:jvGlisse .5s cubic-bezier(.6,.05,.3,1); }
+  @keyframes jvGlisse{ from{ transform:translateX(30%); opacity:0 } }
+  .jv .jvZone{ position:absolute; background:transparent; border:0; padding:0; margin:0; cursor:pointer; border-radius:10px; }
+  .jv .jvScene.indice .jvZone.bonne{ background:rgba(182,255,14,.25); box-shadow:0 0 0 3px #B6FF0E; animation:jvPulse 1s ease-in-out infinite; }
+  @keyframes jvPulse{ 50%{ box-shadow:0 0 0 7px #B6FF0E; background:rgba(182,255,14,.42); } }
+  .jv .jvLieu{ position:absolute; left:8px; top:8px; background:rgba(0,0,0,.6); color:#fff; font-size:11.5px; font-weight:700; border-radius:999px; padding:4px 10px; pointer-events:none; }
+  .jv .jvToast{ position:absolute; left:50%; bottom:10px; transform:translateX(-50%) translateY(16px); opacity:0; background:#14161B; color:#fff; border-radius:12px;
+    padding:8px 12px; font-size:13px; font-weight:700; transition:all .25s; pointer-events:none; max-width:92%; text-align:center; }
+  .jv .jvToast.on{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .jv .jvToast.ko{ background:#C33A12; } .jv .jvToast.ok{ background:#2E8B14; }
+  .jv .jvBoum{ position:absolute; width:20px; height:20px; border-radius:50%; border:4px solid #B6FF0E; transform:translate(-50%,-50%); animation:jvBoum .7s ease-out forwards; pointer-events:none; }
+  @keyframes jvBoum{ to{ width:140px; height:140px; opacity:0; border-width:1px; } }
+  .jv .jvConsigne{ font-weight:700; font-size:13.5px; margin-top:8px; }
+  .jv .jvOutils{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .jv .jvOutils .btn{ flex:1 1 140px; margin:0; width:auto; font-size:13px; padding:10px 8px; }
+  .jv .jvBravo{ margin-top:12px; border:2px solid #9BD58A; background:rgba(46,139,20,.10); border-radius:14px; padding:12px; font-size:14px; line-height:1.45; }
+  .jv .jvBravo b{ display:block; font-size:15px; margin-bottom:4px; }
+  .jv .jvDoux2{ color:var(--muted); font-size:13px; margin-top:4px; }
   @media (prefers-reduced-motion: reduce){ .jv *{ animation:none !important; transition:none !important; } }
   /* ============================================================
      ⚠️ COUCHÉ — ET CE BLOC EST LE DERNIER DE LA FEUILLE, EXPRÈS.
@@ -8989,6 +9017,8 @@
       ['jourJ', 'cartes'].forEach(function(k){ JV.d[k] = Object.assign(jvVide()[k], (d.donnees || {})[k] || {}); });
       JV.ecole = d.ecole || { revoir: {} };
       JV.surch = d.surcharges || {};
+      /* 📸 v1249 — nos voitures, leurs photos, chemins et règles */
+      JV.at = d.atelier || null;
       JV.pret = true;
       JV.enCours = null;
       jvAccueil();
@@ -9079,7 +9109,21 @@
       b.addEventListener('click', quoi);
       modes.appendChild(b);
     };
-    mode('jourj', '🎯', 'Le jour J', 'Une question tirée au sort, lue par l’inspecteur. Tu réponds à voix haute : noté sur 3, comme à l’examen.', 0, true, jvJourJ);
+    /* 📸 v1249 — sa voiture, et « Ma voiture, en vrai » quand l'atelier a des photos */
+    var voitures = jvVoitures(), voit = jvVoiture();
+    if(voitures.length){
+      var cv = jvEl('div', 'card jvVoitCarte');
+      cv.innerHTML = '<div class="jvVoitIc">🚗</div><div style="flex:1;min-width:0"><b></b><small></small></div>';
+      cv.querySelector('b').textContent = voit ? 'Ta voiture : ' + voit.nom : 'Choisis ta voiture';
+      cv.querySelector('small').textContent = voit ? jvNbPlacees(voit.id) + ' question(s) sur ses photos' : 'Le jeu te montrera SES photos';
+      var bc = jvBouton(voit ? 'Changer' : 'Choisir', 'btn btn-secondary', function(){ jvChoisirVoiture(); });
+      bc.style.cssText = 'width:auto;margin:0;padding:8px 12px;font-size:13px';
+      cv.appendChild(bc);
+      r.appendChild(cv);
+      if(!voit) mode('voiture', '🚗', 'Ma voiture, en vrai', 'Choisis d’abord ta voiture : ouvre la porte, le capot, et montre le bon endroit sur SES photos.', 0, true, function(){ jvChoisirVoiture(jvMaVoiture); });
+      else if(jvNbPlacees(voit.id)) mode('voiture', '🚗', 'Ma voiture, en vrai', 'Sur les photos de ta ' + echapper(voit.nom) + ' : fais les gestes dans l’ordre, montre le bon endroit.', 0, true, jvMaVoiture);
+    }
+    mode('jourj', '🎯', 'Le jour J', 'Une question tirée au sort, lue par l’inspecteur. Tu réponds à voix haute : noté sur 3, comme à l’examen.', 0, !(voit && jvNbPlacees(voit.id)), jvJourJ);
     var reste = jvCartesRestantes();
     mode('cartes', '🃏', 'Cartes éclair', reste ? reste + ' carte' + (reste > 1 ? 's' : '') + ' pour aujourd’hui' : '✅ Faites aujourd’hui — encore ?', reste, false, jvCartes);
     var ar = jvARevoir();
@@ -9156,6 +9200,9 @@
   }
   /* Une partie : rend { ok } par fini(ok) */
   function jvPoserPartie(zone, n, k, facon, fini){
+    /* 📸 v1249 — la vérification sur les photos de SA voiture, quand
+       l'atelier l'a placée (zone, ou règle 🗣️ / 🖥️) */
+    if(k === 'v' && JV.d && jvPlacee(JV.d.voiture, n)) return jvVerifEnVrai(zone, n, fini);
     var x = jvQuestion(n);
     var d = jvPartieDemandee(n, k);
     var c = jvEl('div', 'card jvPop');
@@ -9414,6 +9461,238 @@
     tout.style.marginTop = '12px';
     c.appendChild(tout);
     r.appendChild(c);
+  }
+
+
+  /* ============================================================
+     🚗 MA VOITURE, EN VRAI — v1249 (livraison ②)
+
+     L'idée de David : « l'image de la voiture que l'élève a […] il doit
+     cliquer sur la porte pour sortir de la voiture, puis sur le capot
+     pour l'ouvrir, et ensuite cliquer au bon endroit ». Les photos, les
+     zones, l'ordre des étapes (« chez nous, il faut d'abord ouvrir la
+     porte pour accéder à la poignée du capot ») et les règles (« la
+     hauteur des feux : c'est automatique », « l'ordinateur de bord »)
+     se règlent dans l'atelier d'Outils, voiture par voiture.
+
+     Une question est « sur ta voiture » quand une zone d'une de ses
+     photos y répond, ou quand une règle dit quoi répondre (🗣️ / 🖥️).
+     Sinon elle se joue comme avant, carte retournée.
+     ============================================================ */
+  var JV_ENDROITS = { volant: '🪑 Au volant', porte: '🚪 Porte ouverte', devant: '🚶 Devant', capot: '🔧 Capot ouvert', voyants: '🚨 Voyants allumés',
+                      coffre: '🧳 Coffre', arriere: '🔙 Arrière', cote: '↔️ Côté', roue: '🛞 Roue' };
+  function jvAt(){ return JV.at || { reglages: { voitures: [], chemins: {}, regles: {} }, photos: [] }; }
+  function jvPhotosDe(v){ return jvAt().photos.filter(function(p){ return p.voitures.indexOf(v) !== -1; }); }
+  function jvVoitures(){ return jvAt().reglages.voitures.filter(function(v){ return jvPhotosDe(v.id).length; }); }
+  function jvVoiture(){
+    var id = JV.d && JV.d.voiture;
+    return jvVoitures().filter(function(v){ return v.id === id; })[0] || null;
+  }
+  function jvPhotoDe(v, endroit){ return jvPhotosDe(v).filter(function(p){ return p.endroit === endroit; })[0] || null; }
+  function jvPhotoParId(id){ return jvAt().photos.filter(function(p){ return p.id === id; })[0] || null; }
+  function jvRegle(v, n){ var r = jvAt().reglages.regles[v]; return (r && r[String(n)]) || null; }
+  /* La zone qui répond à la question n sur la voiture v (sur LA photo de
+     cet endroit pour cette voiture) */
+  function jvZoneReponse(v, n){
+    var ps = jvPhotosDe(v);
+    for(var i = 0; i < ps.length; i++){
+      var p = ps[i];
+      if(jvPhotoDe(v, p.endroit) !== p) continue;
+      for(var k = 0; k < p.zones.length; k++){
+        var z = p.zones[k];
+        if(z.sorte === 'reponse' && (z.questions || []).indexOf(n) !== -1) return { photo: p, zone: z };
+      }
+    }
+    return null;
+  }
+  /* La question qui se joue vraiment pour la vérification de n : elle-même,
+     ou sa remplaçante si la banque la neutralise */
+  function jvCibleVerif(n){
+    var d = jvPartieDemandee(n, 'v');
+    if(!d || !d.neutre) return n;
+    return d.depuis || 0;
+  }
+  function jvPlacee(v, n){
+    var m = jvCibleVerif(n);
+    return !!(v && m && (jvRegle(v, m) || jvZoneReponse(v, m)));
+  }
+  function jvNbPlacees(v){ var c = 0; for(var n = 1; n <= 100; n++) if(jvPlacee(v, n)) c++; return c; }
+  function jvLien(p){ return p && p.lien ? (p.lien.charAt(0) === '/' ? RELAIS + p.lien : p.lien) : ''; }
+  function jvEtapesDuChemin(v, endroit){
+    var c = (jvAt().reglages.chemins[v] || {})[endroit] || [];
+    return c.map(function(s){
+      var p = jvPhotoParId(s.photo);
+      var z = p && p.zones.filter(function(x){ return x.id === s.zone; })[0];
+      return (p && z) ? { photo: p, zone: z } : null;
+    }).filter(Boolean);
+  }
+
+  /* La vérification sur les photos de sa voiture */
+  function jvVerifEnVrai(zone, n, fini){
+    var v = JV.d.voiture, voit = jvVoiture();
+    var m = jvCibleVerif(n);
+    var x = jvQuestion(n), d = jvPartieDemandee(n, 'v');
+    var regle = jvRegle(v, m), rep = jvZoneReponse(v, m);
+    var voyant = /voyant/i.test(d.q || '');
+    var etapes = [];
+    var depart = null;
+    if(regle){
+      depart = jvPhotoDe(v, regle.mode === 'ordi' ? 'voyants' : 'volant') || jvPhotoDe(v, 'volant') || jvPhotosDe(v)[0];
+    }else{
+      etapes = jvEtapesDuChemin(v, rep.photo.endroit);
+      etapes.push({ photo: rep.photo, zone: rep.zone, fin: true });
+      depart = etapes[0].photo;
+    }
+    var fautes = 0, indice = false, i = 0, fait = false;
+    var c = jvEl('div', 'card jvPop');
+    c.appendChild(jvEl('span', 'jvPart v', echapper(jvNomPartie('v', x.type)) + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')));
+    if(d.neutre) c.appendChild(jvEl('div', 'jvNeutre', '⚠️ Cette question est neutralisée' + (d.neutre.pourquoi ? ' (' + echapper(d.neutre.pourquoi) + ')' : '') + ' : l’inspecteur pose celle-ci à la place.'));
+    c.appendChild(jvEl('div', 'jvQ', echapper(d.q)));
+    var barre = etapes.length > 1 ? jvEl('div', 'jvEtapes') : null;
+    if(barre){ etapes.forEach(function(){ barre.appendChild(document.createElement('span')); }); c.appendChild(barre); }
+    var sc = jvEl('div', 'jvScene');
+    var lieu = jvEl('span', 'jvLieu', '');
+    var toast = jvEl('div', 'jvToast', '');
+    c.appendChild(sc);
+    var consigne = jvEl('div', 'jvConsigne', '');
+    c.appendChild(consigne);
+    var outils = jvEl('div', 'jvOutils');
+    var bIndice = jvBouton('💡 Indice', 'btn btn-secondary', function(){ indice = true; sc.classList.add('indice'); });
+    if(!regle) outils.appendChild(bIndice);
+    /* Toujours là : la bonne réponse quand la règle le dit, un piège sinon */
+    var bouton2 = function(mode, texte, non){
+      var b = jvBouton(texte, 'btn btn-secondary jvDit', function(){
+        if(fait) return;
+        if(regle && regle.mode === mode) return reussi(true);
+        fautes++;
+        jvBip('ko');
+        dire(non, 'ko');
+      });
+      b.setAttribute('data-mode', mode);
+      outils.appendChild(b);
+    };
+    bouton2('dire', '🙅 Il n’y en a pas sur cette voiture', '❌ Si, il y en a sur ta voiture : cherche bien.');
+    if(voyant) bouton2('ordi', '🖥️ C’est l’ordinateur de bord qui l’affiche', '❌ Non : ce voyant existe sur ta voiture, cherche-le.');
+    c.appendChild(outils);
+    var suite = jvEl('div', '');
+    c.appendChild(suite);
+    zone.appendChild(c);
+
+    var dire = function(t, k){ toast.textContent = t; toast.className = 'jvToast on ' + (k || ''); clearTimeout(toast._t); toast._t = setTimeout(function(){ toast.className = 'jvToast'; }, 1800); };
+    var montrer = function(p){
+      sc.innerHTML = '';
+      sc.classList.remove('indice');
+      sc.style.aspectRatio = (p.l || 4) + ' / ' + (p.h || 3);
+      var img = document.createElement('img');
+      img.src = jvLien(p); img.alt = ''; img.draggable = false;
+      sc.appendChild(img);
+      p.zones.forEach(function(z){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'jvZone';
+        b.setAttribute('data-z', z.id);
+        b.setAttribute('aria-label', 'Zone');
+        b.style.cssText = 'left:' + z.x + '%;top:' + z.y + '%;width:' + z.w + '%;height:' + z.h + '%';
+        sc.appendChild(b);
+      });
+      lieu.textContent = (JV_ENDROITS[p.endroit] || '') + (voit ? ' · ' + voit.nom : '');
+      sc.appendChild(lieu); sc.appendChild(toast);
+      sc.classList.remove('jvGlisse'); void sc.offsetWidth; sc.classList.add('jvGlisse');
+    };
+    var majEtape = function(){
+      if(barre) Array.prototype.forEach.call(barre.children, function(s, k){ s.className = k < i ? 'f' : (k === i ? 'c' : ''); });
+      var e = etapes[i];
+      Array.prototype.forEach.call(sc.querySelectorAll('.jvZone'), function(b){ b.classList.toggle('bonne', !!e && b.getAttribute('data-z') === e.zone.id); });
+      consigne.textContent = regle ? 'Regarde bien… Si ça n’existe pas sur ta voiture, dis-le.'
+        : (etapes.length > 1 ? 'Étape ' + (i + 1) + ' sur ' + etapes.length + ' : touche le bon endroit, dans l’ordre.' : 'Touche le bon endroit sur la photo.');
+    };
+    var reussi = function(parBouton){
+      fait = true;
+      jvBip('ok');
+      sc.classList.remove('indice');
+      var ok = fautes === 0 && !indice;
+      var t = parBouton ? (regle.mode === 'ordi' ? '✅ Oui : sur ta voiture, ce voyant n’existe pas — c’est l’ordinateur de bord qui l’affiche.' : '✅ Exact !')
+                        : '✅ Bien vu' + (ok ? ' !' : ' — ' + fautes + ' erreur' + (fautes > 1 ? 's' : '') + (indice ? ', avec l’indice' : ''));
+      var r = jvEl('div', 'jvBravo', '');
+      r.appendChild(jvEl('b', '', echapper(t)));
+      if(parBouton && regle.dire) r.appendChild(jvEl('div', '', echapper(regle.dire)));
+      if(parBouton && regle.general) r.appendChild(jvEl('div', 'jvDoux2', echapper(regle.general)));
+      var b = jvBouton('Continuer ▶', 'btn btn-primary', function(){ fini(ok); });
+      b.style.marginTop = '10px';
+      r.appendChild(b);
+      suite.innerHTML = '';
+      suite.appendChild(r);
+      outils.style.display = 'none';
+      consigne.textContent = '';
+      setTimeout(function(){ try{ r.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }catch(e){} }, 120);
+    };
+    sc.addEventListener('click', function(ev){
+      if(fait) return;
+      var b = ev.target.closest ? ev.target.closest('.jvZone') : null;
+      var e = etapes[i];
+      if(b && e && b.getAttribute('data-z') === e.zone.id){
+        var rr = sc.getBoundingClientRect();
+        var o = jvEl('span', 'jvBoum', '');
+        o.style.left = (ev.clientX - rr.left) + 'px'; o.style.top = (ev.clientY - rr.top) + 'px';
+        sc.appendChild(o); setTimeout(function(){ if(o.parentNode) o.remove(); }, 800);
+        i++;
+        if(e.fin || i >= etapes.length){ majEtape(); return reussi(false); }
+        jvBip('ok');
+        dire('✅ ' + (e.zone.nom || 'Oui'), 'ok');
+        var suivante = etapes[i].photo;
+        if(suivante !== e.photo) setTimeout(function(){ montrer(suivante); majEtape(); }, 450);
+        else majEtape();
+        return;
+      }
+      fautes++;
+      jvBip('ko');
+      c.classList.remove('jvSecoue'); void c.offsetWidth; c.classList.add('jvSecoue');
+      var z = null;
+      if(b){
+        var p = etapes[i] ? etapes[i].photo : depart;
+        var zid = b.getAttribute('data-z');
+        z = (p.zones.filter(function(y){ return y.id === zid; })[0]) || null;
+      }
+      dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + '. Essaie encore !' : '🤔 Pas ici…', 'ko');
+    });
+    montrer(depart);
+    majEtape();
+    /* les photos suivantes se chargent pendant qu'il cherche */
+    etapes.forEach(function(e){ var im = new Image(); im.src = jvLien(e.photo); });
+  }
+
+  /* Choisir sa voiture (parmi celles qui ont des photos) */
+  function jvChoisirVoiture(apres){
+    var r = jvRacine();
+    jvTete(r, '🚗 Ta voiture');
+    var c = jvEl('div', 'card');
+    c.appendChild(jvEl('div', '', '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Choisis la voiture avec laquelle tu prends tes cours : le jeu te montre SES photos.</div>'));
+    jvVoitures().forEach(function(v){
+      var b = jvEl('button', 'jvVoitChoix' + (JV.d.voiture === v.id ? ' on' : ''));
+      b.type = 'button';
+      b.setAttribute('data-voiture', v.id);
+      b.innerHTML = '<b></b><small></small>';
+      b.firstChild.textContent = '🚗 ' + v.nom;
+      b.lastChild.textContent = (v.boite === 'BEA' ? 'Boîte automatique' : (v.boite === 'BV' ? 'Boîte manuelle' : '')) + ' · ' + jvNbPlacees(v.id) + ' question(s) sur ses photos';
+      b.addEventListener('click', function(){ JV.d.voiture = v.id; jvSauver(); (apres || jvAccueil)(); });
+      c.appendChild(b);
+    });
+    r.appendChild(c);
+  }
+
+  /* 🚗 Une partie « Ma voiture, en vrai » : d'abord ce qui est à revoir,
+     puis ce qu'il maîtrise le moins */
+  function jvMaVoiture(){
+    var voit = jvVoiture();
+    if(!voit) return jvChoisirVoiture(jvMaVoiture);
+    var l = [];
+    for(var n = 1; n <= 100; n++) if(jvPlacee(voit.id, n)) l.push(n);
+    if(!l.length) return jvAccueil();
+    var revoir = {};
+    jvARevoir().forEach(function(x){ revoir[x.n] = 1; });
+    l.sort(function(a, b){ return (revoir[b] ? 1 : 0) - (revoir[a] ? 1 : 0) || jvEtat(a, 'v')[0] - jvEtat(b, 'v')[0] || Math.random() - 0.5; });
+    var choix = l.slice(0, Math.min(3, l.length));
+    jvEntrainement([choix[Math.floor(Math.random() * choix.length)]], 'voiture');
   }
 
 
