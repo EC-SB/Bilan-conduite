@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 14:43 — v1252 */
+/* Déployé le 23/10/2026 à 15:15 — v1253 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -831,6 +831,9 @@ async function ouvrirLeGuide(x, groupe){
                        '(v' + rep.versionScript + ', il faut la v250).\n\nLa vidéo est bien déposée ; ' +
                        'mets le script à jour, puis rouvre le guide et refais « 🎬 Monter la vidéo ».');
       }
+      /* 🎞️ v1253 — et seulement maintenant, les vidéos d'origine des
+         vidéos floutées, et les anciens sous-titres */
+      await effacerLesFichiersRemplaces(blocs);
       parcoursGroupeOuvert = idGroupe;
       afficherParcours();
     }catch(e){
@@ -1449,7 +1452,8 @@ function ligneDuBlocVideo(b, l){
       if(liens[0]){
         const v = document.createElement('video');
         const seg = montage ? M.segments(montage)[0] : null;
-        v.src = liens[(seg ? montage.clips[seg.ci].i : 0)] + '#t=' + (seg ? seg.de + 0.1 : 0.1);
+        const tv = (montage && montage.fabrique) ? montage.fabrique.de + 0.5 : (seg ? seg.de + 0.1 : 0.1);
+        v.src = liens[(seg ? montage.clips[seg.ci].i : 0)] + '#t=' + tv;
         v.preload = 'metadata'; v.muted = true; v.playsInline = true;
         v.setAttribute('aria-hidden', 'true'); v.tabIndex = -1;
         v.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
@@ -1478,9 +1482,22 @@ function ligneDuBlocVideo(b, l){
                       (b.poids ? ' — ' + poidsLisible(b.poids) : '');
       infos.appendChild(t);
       const d = document.createElement('div');
-      d.textContent = montage ? '🎬 Montage : ' + M.resume(montage) : '🎬 Sans montage : la vidéo telle quelle.';
+      const fa = montage && montage.fabrique;
+      d.textContent = fa
+        ? '🎞️ Vidéo fabriquée' + (fa.le ? ' le ' + fa.le : '') + (fa.flou ? ' (floutée)' : '') + ' : tout est dans l’image.'
+        : montage ? '🎬 Montage : ' + M.resume(montage) : '🎬 Sans montage : la vidéo telle quelle.';
       infos.appendChild(d);
-      if(montage){
+      if(montage && montage.sousTitres && montage.sousTitres.on){
+        const st = document.createElement('div');
+        st.textContent = '💬 Sous-titres : ' + montage.sousTitres.n + ' phrase' + (montage.sousTitres.n > 1 ? 's' : '') + ' (bouton « CC » chez l’élève)';
+        infos.appendChild(st);
+      }
+      if(fa){
+        const e = document.createElement('div');
+        e.style.color = 'var(--muted)';
+        e.textContent = 'La vidéo d’origine ' + (b._aEffacer && b._aEffacer.length ? 'sera effacée à l’enregistrement du guide.' : 'est effacée : le flou ne peut plus être défait.');
+        infos.appendChild(e);
+      }else if(montage){
         const e = document.createElement('div');
         e.style.color = 'var(--muted)';
         e.textContent = 'L’élève voit ' + M.mmss(M.dureeTotale(montage)) +
@@ -1491,8 +1508,16 @@ function ligneDuBlocVideo(b, l){
     rangee.appendChild(infos);
 
     boutons.innerHTML = '';
-    if(cles.length){
+    if(cles.length && montage && montage.fabrique){
+      boutons.appendChild(bouton('💬 Sous-titres', true, () => sousTitresSeuls()));
+      boutons.appendChild(bouton('🔄 Remplacer la vidéo', false, () => { remplacer = true; choix.click(); }));
+    }else if(cles.length){
       boutons.appendChild(bouton(montage ? '🎬 Modifier le montage' : '🎬 Monter la vidéo', true, () => modifier()));
+      /* 🎞️ v1253 — l'option B : le montage devient un vrai fichier MP4,
+         à envoyer ailleurs (Messenger…). Sur l'ordinateur seulement. */
+      if(montage && typeof ECFabrique !== 'undefined' && window.VideoEncoder && !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '')){
+        boutons.appendChild(bouton('🎞️ Télécharger en MP4', false, () => telechargerLeMontage()));
+      }
       boutons.appendChild(bouton('🔄 Remplacer la vidéo', false, () => { remplacer = true; choix.click(); }));
     }else{
       boutons.appendChild(bouton('📤 Choisir la vidéo', true, () => { remplacer = false; choix.click(); }));
@@ -1502,6 +1527,33 @@ function ligneDuBlocVideo(b, l){
   /* Déposer ce que l'éditeur a rendu : les vidéos neuves, la musique
      neuve. Ce qui était déjà déposé garde sa clé. */
   const deposer = async (res) => {
+    /* 🎞️ v1253 — UNE VIDÉO FABRIQUÉE (le flou) : on ne dépose QUE le
+       fichier fabriqué ; les vidéos d'origine déjà déposées seront
+       effacées à l'enregistrement du guide (pas avant : le guide
+       enregistré les montre encore). */
+    if(res.fabrique){
+      const fab = res.fabrique;
+      const fic = new File([fab.blob], 'video.mp4', { type: 'video/mp4' });
+      barre.style.display = 'block'; boutons.innerHTML = '';
+      rangee.textContent = '📤 Dépôt de la vidéo fabriquée (' + poidsLisible(fic.size) + ')…';
+      const cle = await deposerUnFichier('video', fic, (pc) => { dedans.style.width = pc + '%'; rangee.textContent = '📤 Dépôt de la vidéo fabriquée… ' + pc + ' %'; });
+      let lien = '';
+      try{ lien = await lienDuFichierDeGuide(cle); }catch(e){ lien = ''; }
+      const raw = res.clips.filter(c => c.cle).map(c => c.cle).concat(cles.filter(c => c !== cle));
+      aEffacerAvecLeGuide(b, raw.filter((x, i, l) => l.indexOf(x) === i));
+      const rf = M.recettePropre({
+        clips: [{ i: 0, debut: 0, fin: fab.duree, duree: fab.duree, l: fab.l, h: fab.h }],
+        copy: { on: false }, fili: { on: false }, gen: { on: false },
+        titre: { on: false, texte: res.recette.titre.texte, sous: res.recette.titre.sous },
+        textes: [], muets: [], flous: [], musique: { on: false }, tr: res.recette.tr,
+        fabrique: { de: fab.de, a: fab.a, flou: true, duree: fab.duree, le: new Date().toLocaleDateString('fr-FR') },
+        sousTitres: res.recette.sousTitres, fichiers: {}
+      }, 1);
+      cles = [cle]; liens = [lien]; liensM = { polices: {} }; b.poids = fic.size;
+      barre.style.display = 'none';
+      await deposerLesSousTitres(rf, res.sousTitres);
+      return rf;
+    }
     const aEnvoyer = res.clips.filter(c => c.fichier).length +
                      ((res.musique && res.musique.fichier) ? 1 : 0);
     let rang = 0, poids = 0, ancien = 0;
@@ -1542,15 +1594,88 @@ function ligneDuBlocVideo(b, l){
       nLiensM.polices[k] = (liensM.polices || {})[k] || '';
     });
     barre.style.display = 'none';
+    const ancienSt = liensM.soustitres || '';
     cles = nCles; liens = nLiens; liensM = nLiensM;
+    if(ancienSt) liensM.soustitres = ancienSt;
     if(poids) b.poids = ancien ? (Number(b.poids) || 0) + poids : poids;
+    await deposerLesSousTitres(recette, res.sousTitres);
     return recette;
   };
 
-  /* Ouvrir l'éditeur — sur une vidéo neuve, ou sur ce qui est déposé. */
-  const ouvrir = async (clips, recette, musique, nouveau) => {
+  /* 💬 v1253 — les sous-titres relus partent dans un petit fichier
+     .vtt ; s'ils n'ont pas changé, la recette garde celui d'avant. */
+  const deposerLesSousTitres = async (recette, st) => {
+    const avant = montage && montage.fichiers && montage.fichiers.soustitres;
+    if(!st || !st.change){
+      /* rien de touché : on garde le fichier d'avant tel quel (même si
+         l'éditeur n'a pas pu le relire) */
+      if(avant){ recette.fichiers.soustitres = avant; recette.sousTitres = M.copie(montage.sousTitres); }
+      else recette.sousTitres = { on: false, n: 0 };
+      return;
+    }
+    if(avant) aEffacerAvecLeGuide(b, [avant]);
+    if(!st.cues.length){ recette.sousTitres = { on: false, n: 0 }; delete liensM.soustitres; return; }
+    const fic = new File([M.versVTT(st.cues)], 'soustitres.vtt', { type: 'text/vtt' });
+    const cle = await deposerUnFichier('soustitres', fic, () => {});
+    recette.fichiers.soustitres = cle;
+    recette.sousTitres.n = st.cues.length;
+    try{ liensM.soustitres = await lienDuFichierDeGuide(cle); }catch(e){ liensM.soustitres = ''; }
+  };
+
+  /* 💬 Une vidéo fabriquée : seuls ses sous-titres se reprennent. */
+  const sousTitresSeuls = async () => {
+    const fa = montage.fabrique;
+    let lien = liens[0];
+    try{ lien = await lienDuFichierDeGuide(cles[0]); }catch(e){}
+    let lienSt = '';
+    if(montage.fichiers && montage.fichiers.soustitres){ try{ lienSt = await lienDuFichierDeGuide(montage.fichiers.soustitres); }catch(e){} }
     const res = await ouvrirEditeurMontage({
-      clips: clips, recette: recette, musique: musique, nouveau: nouveau,
+      mode: 'soustitres', titre: nom.value.trim(), sousTitres: lienSt,
+      clips: [{ cle: cles[0], lien: lien, nom: (nom.value.trim() || 'Vidéo') + '.mp4' }],
+      recette: { clips: [{ i: 0, debut: fa.de, fin: fa.a, duree: fa.duree, l: montage.clips[0].l, h: montage.clips[0].h }],
+                 copy: { on: false }, titre: { on: false, texte: montage.titre.texte }, fili: { on: false }, gen: { on: false },
+                 sousTitres: montage.sousTitres }
+    });
+    if(!res || !res.sousTitres) return;
+    try{
+      const rf = M.copie(montage);
+      rf.sousTitres = { on: !!res.on, n: res.sousTitres.cues.length };
+      await deposerLesSousTitres(rf, res.sousTitres);
+      montage = M.recettePropre(rf, 1);
+      redire();
+      showToast('Sous-titres enregistrés ✅ — n’oublie pas d’enregistrer le guide');
+    }catch(e){ redire(); showToast('Dépôt impossible : ' + e.message); }
+  };
+
+  /* 🎞️ Télécharger le montage en un vrai fichier MP4 (option B). */
+  const telechargerLeMontage = async () => {
+    try{
+      const frais = await Promise.all(cles.map(c => lienDuFichierDeGuide(c).catch(() => '')));
+      const fm = montage.fichiers || {};
+      let mus = null;
+      if(montage.musique.on && fm.musique){ try{ mus = await lienDuFichierDeGuide(fm.musique); }catch(e){} }
+      let cues = [];
+      if(montage.sousTitres.on && fm.soustitres){
+        try{ const l = await lienDuFichierDeGuide(fm.soustitres); cues = M.depuisVTT(await (await fetch(l)).text()); }catch(e){}
+      }
+      const reg = await ECMontageEditeur.reglagesVideo();
+      const lp = {};
+      for(const k of Object.keys(fm.polices || {})){ try{ lp[k] = await lienDuFichierDeGuide(fm.polices[k]); }catch(e){} }
+      const persos = ECMontageEditeur.persosDe(M.squelettePropre(reg.reglages || {}), lp);
+      const x = await ECFabrique.fenetre({
+        titre: 'Fabrication du fichier MP4', dureeEstimee: M.dureeContenu(montage),
+        recette: montage, clips: frais.map((l, i) => ({ lien: l || liens[i] })), musique: mus, persos: persos,
+        sousTitres: cues, incruster: cues.length > 0
+      });
+      ECFabrique.telecharger(x.blob, nom.value.trim() || 'video');
+      showToast('🎞️ Fichier MP4 prêt (' + poidsLisible(x.blob.size) + ')');
+    }catch(e){ showToast('Fabrication impossible : ' + e.message); }
+  };
+
+  /* Ouvrir l'éditeur — sur une vidéo neuve, ou sur ce qui est déposé. */
+  const ouvrir = async (clips, recette, musique, nouveau, lienSt) => {
+    const res = await ouvrirEditeurMontage({
+      clips: clips, recette: recette, musique: musique, nouveau: nouveau, sousTitres: lienSt || '',
       liensPolices: liensM.polices || {},
       titre: nom.value.trim() || (clips[0] && clips[0].fichier ? clips[0].fichier.name.replace(/\.[^.]+$/, '') : '')
     });
@@ -1594,7 +1719,9 @@ function ligneDuBlocVideo(b, l){
     }
     liensM = Object.assign({}, liensM, { polices: Object.assign({}, liensM.polices || {}, lp) });
     const clips = cles.map((c, i) => ({ cle: c, lien: liens[i], nom: (nom.value.trim() || 'Vidéo') + (cles.length > 1 ? ' ' + (i + 1) : '') + '.mp4', poids: 0 }));
-    await ouvrir(clips, montage, musique, false);
+    let lienSt = '';
+    if(fm.soustitres){ try{ lienSt = await lienDuFichierDeGuide(fm.soustitres); }catch(e){} }
+    await ouvrir(clips, montage, musique, false, lienSt);
   };
 
   choix.addEventListener('change', async () => {
@@ -1610,6 +1737,29 @@ function ligneDuBlocVideo(b, l){
   redire();
 }
 
+/* 🎞️ v1253 — LES FICHIERS REMPLACÉS S'EFFACENT AVEC LE GUIDE, PAS
+   AVANT. La vidéo d'origine d'une vidéo floutée doit disparaître (la
+   plaque ne doit plus exister nulle part) — mais tant que le guide
+   n'est pas enregistré, c'est elle qu'il montre encore. La liste est
+   portée par le bloc lui-même, cachée de l'envoi (non énumérable) :
+   un autre guide ne peut pas l'effacer par erreur. */
+function aEffacerAvecLeGuide(b, cles){
+  if(!b._aEffacer) Object.defineProperty(b, '_aEffacer', { value: [], enumerable: false, writable: true });
+  (cles || []).forEach(c => { if(estUneCleDeFichier(c) && b._aEffacer.indexOf(c) === -1) b._aEffacer.push(c); });
+}
+async function effacerLesFichiersRemplaces(blocs){
+  const garder = {};
+  (blocs || []).forEach(b => clesDuBloc(b).forEach(c => { garder[c] = 1; }));
+  for(const b of (blocs || [])){
+    const l = (b && b._aEffacer) || [];
+    while(l.length){
+      const c = l.shift();
+      if(garder[c]) continue;   /* encore montrée par un bloc : on la garde */
+      try{ await appelPrep({ action: 'parcoursFichierSuppr', cle: c }); }catch(e){ /* le ménage de R2 s'en chargera */ }
+    }
+  }
+}
+
 /* L'aperçu « comme l'élève la verra » : le même lecteur que chez lui. */
 async function montrerLaVideoDuBloc(x, titre){
   if(!x.montage){ return montrerLeFichier('video', x.cles[0], titre, x.liens[0]); }
@@ -1621,7 +1771,8 @@ async function montrerLaVideoDuBloc(x, titre){
   const lec = ECMontage.lecteur(boite, {
     recette: x.montage, clips: liens.map(l => ({ lien: l })),
     musique: (x.montage.musique.on && x.liensM && x.liensM.musique) ? x.liensM.musique : null,
-    persos: persos, titre: titre, peutPasser: () => true
+    persos: persos, titre: titre, peutPasser: () => true,
+    sousTitres: (x.liensM && x.liensM.soustitres) || ''
   });
   await fenetre(boite, [{ nom: 'Fermer', valeur: true }], '👁️ ' + (titre || 'La vidéo'));
   lec.detruire();
