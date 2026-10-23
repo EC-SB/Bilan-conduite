@@ -1,4 +1,4 @@
-# Déployé le 15/10/2026 à 15:23 — v1183
+# Déployé le 22/10/2026 à 19:33 — v1248
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -31,6 +31,7 @@ on:
       - 'icone-512.png'
       - 'bureau.html'
       - 'appel-commun.js'   # 📞 v1183 — l'écran d'appel, partagé avec l'appli
+      - 'app/ec-verifs-banque.js'   # 🎮 v1248 — les 100 questions, pour le jeu des vérifications
   workflow_dispatch:        # et à la demande, depuis l'onglet Actions
 
 jobs:
@@ -49,6 +50,11 @@ jobs:
           cp sw.js manifest-eleve.webmanifest sortie/
           # 📞 v1183 — l'écran d'appel : eleve.html le charge à côté d'elle
           cp appel-commun.js sortie/
+          # 🎮 v1248 — les 100 questions de vérification : le jeu de la
+          # page élève les charge à côté d'elle (une seule source, recopiée)
+          # (à la racine, sous « verifs-banque.js » : le dossier app/ de
+          # l'application du bureau n'a rien à faire sur ce domaine)
+          cp app/ec-verifs-banque.js sortie/verifs-banque.js
           cp icone-192.png icone-512.png sortie/
 
           # 📍 v1170 — la page des bureaux, derrière le QR code de la
