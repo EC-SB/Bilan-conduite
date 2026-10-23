@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:48 — v1251 */
+/* Déployé le 23/10/2026 à 14:43 — v1252 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1252,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '🎬 Monter une vidéo de guide sans logiciel de montage',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Un éditeur avant le dépôt',
+        texte: 'Dans un bloc « 🎬 Vidéo » d’un guide, choisir la vidéo ouvre l’éditeur : ton squelette se monte tout seul autour (avertissement, titre, copyright, roue, générique). Coupe le début, la fin ou un passage au milieu, puis « 💾 Enregistrer le montage » — ou « Déposer sans montage ».' },
+      { emoji: '🏷️',
+        titre: 'Textes, polices, couleurs',
+        texte: 'Des textes posés sur l’image au moment voulu, que tu fais glisser (ou flèches du clavier) ; 6 polices, 4 tailles, 6 couleurs et 🎨 la tienne, 4 fonds. Le copyright se place à 6 endroits, dont en bas au milieu.' },
+      { emoji: '🔊',
+        titre: 'Le son, et plusieurs vidéos',
+        texte: 'Couper le son d’un passage, ajouter une musique (libre de droits), mettre jusqu’à 4 vidéos bout à bout. La vidéo d’origine n’est jamais touchée : « 🎬 Modifier le montage » à tout moment.' },
+      { emoji: '🦴',
+        titre: 'Outils › Ce qu’on écrit › 🎬 Squelette des vidéos',
+        texte: 'L’avertissement, le copyright, le générique, les transitions, le style maison des textes et les polices de l’école, réglés une fois (administrateurs). Chez l’élève : le début se passe dès la 2ᵉ fois, et les 90 % ne comptent que la vidéo elle-même.' }
+    ]
+  },
   {
     version: 1251,
     date: 'Vendredi 23 octobre 2026',
