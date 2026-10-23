@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 14:43 — v1252 */
+/* Déployé le 23/10/2026 à 15:15 — v1253 */
 /* ============================================================
    ec-montage-editeur.js — ✂️ L'ÉDITEUR DE MONTAGE (v1252)
 
@@ -51,7 +51,7 @@
     '.mv .mvBtn.sel{background:#14161B;color:#fff;border-color:#14161B;}',
     '.mv .mvBtn.sel::before{content:"✓ ";}',
     '.mvOnglets{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:12px 0 0;background:var(--fond);border-radius:12px;padding:4px;}',
-    '@media (min-width:640px){.mvOnglets{grid-template-columns:repeat(5,1fr);}}',
+    '@media (min-width:640px){.mvOnglets{grid-template-columns:repeat(4,1fr);}}',
     '.mvOnglets [role=tab]{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:48px;border:0;border-radius:9px;background:transparent;color:var(--texte);font:600 13px/1.15 inherit;cursor:pointer;padding:4px 2px;width:auto;margin:0;}',
     '.mvOnglets [role=tab][aria-selected=true]{background:var(--carte);box-shadow:0 1px 4px rgba(0,0,0,.12);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px;}',
     '.mvPanneau{padding:12px 2px 2px;}',
@@ -101,6 +101,16 @@
     '.mvTxt.edit{pointer-events:auto;cursor:move;touch-action:none;outline:2px dashed rgba(255,255,255,.95);outline-offset:2px;box-shadow:0 0 0 4px rgba(0,0,0,.55);min-width:44px;}',
     '.mvTxt.edit:focus-visible{outline:3px solid #B6FF0E;}',
     '.mvScene.edition .mvGrand{display:none;}',
+    '.mvFlou.edit{pointer-events:auto;cursor:move;touch-action:none;outline:2px dashed rgba(255,255,255,.95);outline-offset:1px;box-shadow:0 0 0 3px rgba(0,0,0,.55);}',
+    '.mvFlou.edit:focus-visible{outline:3px solid #B6FF0E;}',
+    '.mvStListe li{flex-wrap:wrap;}',
+    '.mvStListe li .mvBtn{min-width:44px;}',
+    '.mvStListe li .q{flex:1 1 100%;font-size:12.5px;color:var(--doux);font-variant-numeric:tabular-nums;}',
+    '.mv .mvStListe li input[type=text]{flex:1 1 180px;min-width:0;min-height:44px;border:1px solid #9C9D95;border-radius:10px;padding:8px 10px;font:inherit;color:var(--texte);background:#fff;margin:0;}',
+    '.mvObjet .lab{font-weight:600;font-size:14px;margin:4px 0 0;}',
+    '.mvPts{list-style:none;padding:0;margin:6px 0 10px;display:flex;flex-direction:column;gap:6px;}',
+    '.mvPts li{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}',
+    '.mvPts li .q{flex:1;min-width:0;font-size:13.5px;font-variant-numeric:tabular-nums;}',
     '.mvLigne2{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px;}',
     '.mvLigne2 .q{flex:1 1 100%;font-size:13.5px;color:var(--doux);font-variant-numeric:tabular-nums;}',
     '.mvLigne2 .mvBtn{flex:1 1 150px;}',
@@ -228,12 +238,13 @@
   window.ouvrirEditeurMontage = function(o){
     poserLeStyle();
     return new Promise(function(rendre){
-      var E = { cl: [], r: null, sel: 0, tete: 0, mus: o.musique || null, muetDe: null, modifie: false, m: null, joue: false, persos: {}, reg: {}, rendu: false };
+      var E = { cl: [], r: null, sel: 0, tete: 0, mus: o.musique || null, muetDe: null, modifie: false, m: null, joue: false, persos: {}, reg: {}, rendu: false,
+                st: Array.isArray(o.sousTitres) ? o.sousTitres.slice() : [], stChange: false, mode: o.mode === 'soustitres' ? 'soustitres' : 'montage', fabrique: false };
       var retour = document.activeElement;
       var fond = el('div', 'mvFond');
       var boite = el('section', 'mv');
       boite.setAttribute('role', 'dialog'); boite.setAttribute('aria-modal', 'true'); boite.setAttribute('aria-labelledby', 'mvH');
-      boite.innerHTML = '<div class="mvTete"><h2 id="mvH" tabindex="-1">🎬 Monter la vidéo <span class="mvFic" id="mvFic"></span></h2>' +
+      boite.innerHTML = '<div class="mvTete"><h2 id="mvH" tabindex="-1">' + (o.mode === 'soustitres' ? '💬 Les sous-titres de la vidéo' : '🎬 Monter la vidéo') + ' <span class="mvFic" id="mvFic"></span></h2>' +
         '<button type="button" class="mvRond" id="mvFermer" aria-label="Fermer l’éditeur">✕</button></div>' +
         '<div class="mvAttente" role="status">⏳ Lecture de la vidéo…</div>';
       fond.appendChild(boite);
@@ -273,9 +284,9 @@
         var x = boite.querySelector('.mvQuitter');
         if(x){ x.querySelector('button').focus(); return; }
         x = el('div', 'mvQuitter'); x.setAttribute('role', 'alertdialog'); x.setAttribute('aria-labelledby', 'mvQuitterT');
-        var p = el('p', '', 'Garder les changements du montage ?'); p.id = 'mvQuitterT'; x.appendChild(p);
+        var p = el('p', '', E.mode === 'soustitres' ? 'Garder les changements des sous-titres ?' : 'Garder les changements du montage ?'); p.id = 'mvQuitterT'; x.appendChild(p);
         var r = el('div', 'mvActions');
-        r.appendChild(bouton('💾 Enregistrer le montage', null, function(){ enregistrer(); }, 'prim'));
+        r.appendChild(bouton(E.mode === 'soustitres' ? '💾 Enregistrer les sous-titres' : (E.r && E.r.flous.length ? '🎞️ Fabriquer la vidéo floutée' : '💾 Enregistrer le montage'), null, function(){ x.remove(); enregistrer(); }, 'prim'));
         r.appendChild(bouton('Abandonner les changements', null, function(){ fermer(null); }));
         r.appendChild(bouton('Continuer le montage', null, function(){ x.remove(); boite.querySelector('#mvFermer').focus(); }));
         x.appendChild(r);
@@ -287,7 +298,11 @@
       reglagesVideo().then(function(d){
         E.reg = M.squelettePropre(d.reglages || {});
         E.persos = persosDe(E.reg, o.liensPolices);
-        return Promise.all((o.clips || []).map(preparerClip));
+        /* 💬 les sous-titres déjà relus, lus dans leur fichier */
+        var st = (typeof o.sousTitres === 'string' && o.sousTitres)
+          ? fetch(lienEntier(o.sousTitres)).then(function(x){ return x.ok ? x.text() : ''; }).then(function(t){ E.st = M.depuisVTT(t); }).catch(function(){})
+          : Promise.resolve();
+        return st.then(function(){ return Promise.all((o.clips || []).map(preparerClip)); });
       }).then(function(l){
         E.cl = l;
         var mal = l.filter(function(c){ return c.erreur; });
@@ -354,8 +369,10 @@
             '<button type="button" role="tab" id="mvOgC" aria-controls="mvPnC" aria-selected="true"><span aria-hidden="true">✂️</span>Couper</button>' +
             '<button type="button" role="tab" id="mvOgT" aria-controls="mvPnT" aria-selected="false" tabindex="-1"><span aria-hidden="true">🏷️</span>Textes</button>' +
             '<button type="button" role="tab" id="mvOgS" aria-controls="mvPnS" aria-selected="false" tabindex="-1"><span aria-hidden="true">🔊</span>Son</button>' +
+            '<button type="button" role="tab" id="mvOgF" aria-controls="mvPnF" aria-selected="false" tabindex="-1"><span aria-hidden="true">🙈</span>Flou</button>' +
             '<button type="button" role="tab" id="mvOgH" aria-controls="mvPnH" aria-selected="false" tabindex="-1"><span aria-hidden="true">©️</span>Habillage</button>' +
             '<button type="button" role="tab" id="mvOgX" aria-controls="mvPnX" aria-selected="false" tabindex="-1"><span aria-hidden="true">✨</span>Transitions</button>' +
+            '<button type="button" role="tab" id="mvOgST" aria-controls="mvPnST" aria-selected="false" tabindex="-1"><span aria-hidden="true">💬</span>Sous-titres</button>' +
           '</div>' +
           '<div class="mvPanneau" role="tabpanel" id="mvPnC" aria-labelledby="mvOgC">' +
             '<h3>Les vidéos, dans l’ordre</h3>' +
@@ -405,6 +422,12 @@
             '<div class="mvChamp"><label for="mvVolVid">Volume du son de la vidéo <span class="val" id="mvVolVidVal"></span></label><input type="range" class="mvCurseur" id="mvVolVid" min="0" max="100" step="5"></div>' +
             '<p class="mvAide">⚠️ Seulement des musiques libres de droits (ou achetées pour cet usage) : une chanson du commerce est interdite dans une vidéo diffusée. Garde la preuve de la licence.</p>' +
           '</div>' +
+          '<div class="mvPanneau" role="tabpanel" id="mvPnF" aria-labelledby="mvOgF" hidden>' +
+            '<p class="mvAide">Une plaque, un visage : place la position, touche « ➕ Ajouter un flou ici », puis fais glisser la zone dessus (flèches : déplacer ; Maj + flèches : agrandir). Si ce qu’on floute bouge : avance la position et redéplace la zone à chaque changement de direction. Chaque place devient un <b>point de passage</b> ; entre deux points, la zone glisse toute seule.</p>' +
+            '<p class="mvBandeau">🎞️ Une vidéo floutée se <b>fabrique</b> sur l’ordinateur du bureau (Chrome ou Edge) : le flou est alors dans l’image, et la vidéo d’origine est effacée — la plaque n’existe plus nulle part.</p>' +
+            '<button type="button" class="mvBtn mvPleine" id="mvAjoutFlou">➕ Ajouter un flou ici</button>' +
+            '<div id="mvFlous"></div>' +
+          '</div>' +
           '<div class="mvPanneau" role="tabpanel" id="mvPnH" aria-labelledby="mvOgH" hidden>' +
             '<p class="mvAide">Repris du squelette de l’école (Outils › Ce qu’on écrit › 🎬 Squelette des vidéos). Ici, tu les changes pour cette vidéo seulement.</p>' +
             '<button type="button" role="switch" class="mvInter" id="mvSwCopy"><span class="pis" aria-hidden="true"></span><span class="nom">Avertissement au début (≈ 7 s)</span><span class="etat"></span></button>' +
@@ -420,6 +443,14 @@
             [['titre', 'Entre le titre et la vidéo'], ['coupe', 'Entre deux morceaux, ou deux vidéos'], ['fin', 'Avant le générique']].map(function(x){
               return '<fieldset class="mvChoix"><legend>' + x[1] + '</legend>' + M.TRANSITIONS.map(function(t){ return '<label><input type="radio" name="mvTr' + x[0] + '" value="' + t[0] + '"><span>' + t[1] + '</span></label>'; }).join('') + '</fieldset>';
             }).join('') +
+          '</div>' +
+          '<div class="mvPanneau" role="tabpanel" id="mvPnST" aria-labelledby="mvOgST" hidden>' +
+            '<p class="mvAide">La reconnaissance vocale écrit ce qui est dit dans la vidéo, avec les temps. <b>Relis</b> : dans la voiture, le vent et le moteur la trompent parfois. Chez l’élève, le bouton « CC » les affiche.</p>' +
+            '<button type="button" role="switch" class="mvInter" id="mvSwSt"><span class="pis" aria-hidden="true"></span><span class="nom">Sous-titres proposés à l’élève (bouton CC)</span><span class="etat"></span></button>' +
+            '<button type="button" class="mvBtn mvPleine" id="mvCreerSt">💬 Créer les sous-titres</button>' +
+            '<p class="mvAide" id="mvStEtat" role="status" aria-live="polite"></p>' +
+            '<ol class="mvMorceaux mvStListe" id="mvStListe" aria-label="Les phrases des sous-titres"></ol>' +
+            '<button type="button" class="mvBtn mvPleine" id="mvAjoutSt">➕ Ajouter une phrase à la position</button>' +
           '</div>' +
           '<div class="mvResume" id="mvResume"></div>' +
           '<div class="mvActions">' +
@@ -553,6 +584,40 @@
         M.dessinerTextes(E.S, E.r, E.tete, E.persos, function(e, i){
           e.classList.add('edit');
           rendreMobile(e, i, 'Texte « ' + E.r.textes[i].texte + ' ». Flèches pour le déplacer.');
+        }, function(z, i){
+          z.classList.add('edit');
+          rendreFlouMobile(z, i);
+        });
+      }
+      /* 🙈 Déplacer un flou, c'est poser un POINT DE PASSAGE à la
+         position (ou corriger celui qui y est déjà). */
+      function pointIci(f){
+        var p = M.placeFlou(f, E.tete), t = Math.round(E.tete * 10) / 10;
+        var k = -1;
+        f.points.forEach(function(x, j){ if(Math.abs(x.t - t) < 0.15) k = j; });
+        if(k < 0){ f.points.push({ t: t, x: p.x, y: p.y, w: p.w, h: p.h }); f.points.sort(function(a, b){ return a.t - b.t; }); f.points.forEach(function(x, j){ if(x.t === t) k = j; }); }
+        return f.points[k];
+      }
+      function rendreFlouMobile(z, i){
+        var f = E.r.flous[i];
+        z.tabIndex = 0; z.setAttribute('role', 'button'); z.setAttribute('aria-roledescription', 'zone déplaçable');
+        z.setAttribute('aria-label', 'Flou ' + (i + 1) + '. Flèches pour le déplacer, Maj et flèches pour l’agrandir. Déplacé ici, il pose un point de passage à ' + M.lu(E.tete) + '.');
+        z.setAttribute('data-f', i);
+        z.addEventListener('keydown', function(ev){
+          var d = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] }[ev.key];
+          if(!d) return; ev.preventDefault();
+          var p = pointIci(f);
+          if(ev.shiftKey){ p.w = Math.max(6, Math.min(100 - p.x, p.w + d[0])); p.h = Math.max(6, Math.min(100 - p.y, p.h + d[1])); }
+          else { p.x = Math.max(0, Math.min(100 - p.w, p.x + d[0])); p.y = Math.max(0, Math.min(100 - p.h, p.y + d[1])); }
+          touche(); dessinerCalque(); dessinerFlous();
+          var n = E.S.calque.querySelector('[data-f="' + i + '"]'); if(n) n.focus();
+        });
+        z.addEventListener('pointerdown', function(ev){
+          ev.preventDefault(); z.focus(); try{ z.setPointerCapture(ev.pointerId); }catch(e){}
+          var p = pointIci(f), rc = E.S.calque.getBoundingClientRect(), x0 = ev.clientX, y0 = ev.clientY, px = p.x, py = p.y;
+          var bouger = function(m){ p.x = Math.max(0, Math.min(100 - p.w, px + (m.clientX - x0) / rc.width * 100)); p.y = Math.max(0, Math.min(100 - p.h, py + (m.clientY - y0) / rc.height * 100)); z.style.left = p.x + '%'; z.style.top = p.y + '%'; };
+          var lacher = function(){ z.removeEventListener('pointermove', bouger); touche(); dessinerFlous(); annoncer('Point de passage posé à ' + M.lu(p.t) + '.'); };
+          z.addEventListener('pointermove', bouger); z.addEventListener('pointerup', lacher, { once: true });
         });
       }
       function rendreMobile(e, i, nom){
@@ -601,6 +666,146 @@
           z.appendChild(fs);
         });
       }
+      function dessinerFlous(){
+        var z = $('mvFlous'); if(!z) return; z.innerHTML = '';
+        E.r.flous.forEach(function(f, i){
+          var fs = el('fieldset', 'mvObjet');
+          fs.appendChild(el('legend', '', 'Flou ' + (i + 1)));
+          fs.appendChild(ligneDeTemps(f, function(){ dessinerFlous(); dessinerCalque(); }, 'le flou ' + (i + 1)));
+          var fo = el('fieldset', 'mvChoix'); fo.appendChild(el('legend', '', 'Forme'));
+          [['', '▭ Rectangle (une plaque)'], ['1', '◯ Rond (un visage)']].forEach(function(x){
+            var l = el('label'), rr = el('input'); rr.type = 'radio'; rr.name = 'mvFo' + i + '_' + prochainId; rr.value = x[0]; rr.checked = (f.rond ? '1' : '') === x[0];
+            rr.addEventListener('change', function(){ if(rr.checked){ f.rond = !!x[0]; touche(); dessinerCalque(); } });
+            l.appendChild(rr); l.appendChild(el('span', '', x[1])); fo.appendChild(l);
+          });
+          fs.appendChild(fo);
+          fs.appendChild(el('div', 'lab', 'Points de passage'));
+          var ul = el('ul', 'mvPts'); ul.setAttribute('aria-label', 'Les points de passage du flou ' + (i + 1));
+          f.points.forEach(function(p, j){
+            var li = el('li');
+            li.appendChild(el('span', 'q', '📍 à ' + M.hms(p.t)));
+            li.appendChild(bouton('Aller', 'Aller au point de passage de ' + M.lu(p.t), function(){ if(E.joue) arreter(); E.tete = p.t; voirTete(); annoncer('Position : ' + M.lu(p.t) + '.'); }));
+            if(f.points.length > 1) li.appendChild(bouton('🗑️', 'Retirer le point de passage de ' + M.lu(p.t), function(){ f.points.splice(j, 1); touche(); dessinerFlous(); dessinerCalque(); annoncer('Point de passage retiré.'); }));
+            ul.appendChild(li);
+          });
+          fs.appendChild(ul);
+          fs.appendChild(bouton('📍 Poser un point de passage ici', 'Poser un point de passage à la position', function(){ pointIci(f); touche(); dessinerFlous(); dessinerCalque(); annoncer('Point de passage posé à ' + M.lu(E.tete) + '. Déplace la zone sur l’image.'); }));
+          fs.appendChild(bouton('🗑️ Retirer ce flou', 'Retirer le flou ' + (i + 1), function(){ E.r.flous.splice(i, 1); touche(); dessinerFlous(); dessinerCalque(); dessinerResume(); peindreEnregistrer(); annoncer('Flou retiré.'); }));
+          z.appendChild(fs);
+        });
+      }
+
+      /* ---------- 💬 les sous-titres ---------- */
+      function dessinerSt(){
+        var l = $('mvStListe'); if(!l) return; l.innerHTML = '';
+        E.st.forEach(function(c, i){
+          var li = el('li');
+          var id = 'mvStT' + (prochainId++);
+          var lb = el('label', 'q', M.hms(c.de) + ' → ' + M.hms(c.a)); lb.htmlFor = id;
+          li.appendChild(lb);
+          var inp = el('input'); inp.type = 'text'; inp.id = id; inp.value = c.texte; inp.maxLength = 300;
+          inp.setAttribute('aria-label', 'Phrase ' + (i + 1) + ', de ' + M.lu(c.de) + ' à ' + M.lu(c.a));
+          inp.addEventListener('input', function(){ c.texte = inp.value; E.stChange = true; touche(); });
+          li.appendChild(inp);
+          li.appendChild(bouton('▶', 'Réécouter la phrase ' + (i + 1), function(){ reecouter(c); }));
+          li.appendChild(bouton('🗑️', 'Retirer la phrase ' + (i + 1), function(){ E.st.splice(i, 1); E.stChange = true; touche(); dessinerSt(); dessinerResume(); annoncer('Phrase retirée.'); }));
+          l.appendChild(li);
+        });
+        var b = $('mvCreerSt'); if(b && !E.stEnCours) b.textContent = E.st.length ? '🔄 Refaire les sous-titres' : '💬 Créer les sous-titres';
+        var sw = $('mvSwSt');
+        if(sw){ sw.setAttribute('aria-checked', E.r.sousTitres.on ? 'true' : 'false'); sw.querySelector('.etat').textContent = E.r.sousTitres.on ? 'Activé' : 'Désactivé'; }
+      }
+      /* Réentendre une phrase : la vidéo joue de son début à sa fin. */
+      function reecouter(c){
+        if(E.joue) arreter();
+        E.tete = c.de; voirTete();
+        var v = E.S.video, o2 = M.ou(E.r, c.a);
+        var fin = o2 ? o2.temps : 0, deb = M.ou(E.r, c.de);
+        setTimeout(function(){
+          v.muted = false;
+          var stop = function(){ if(v.currentTime >= fin - 0.05 || (deb && o2 && deb.seg !== o2.seg && v.currentTime >= deb.seg.a - 0.05)){ v.pause(); v.removeEventListener('timeupdate', stop); } };
+          v.addEventListener('timeupdate', stop);
+          v.play().catch(function(){});
+        }, 250);
+      }
+      /* Le son du CONTENU (sans la musique, sans les passages coupés),
+         en 16 kHz mono : ce qu'attend la reconnaissance vocale. */
+      function sonDuContenu(){
+        var D = dureeVideo(), TX = 16000;
+        var oac = new OfflineAudioContext(1, Math.max(1, Math.ceil(D * TX)), TX);
+        var tampons = {};
+        var segs = M.segments(E.r);
+        var decoder = function(lien){ return fetch(lien).then(function(x){ return x.arrayBuffer(); }).then(function(b){ return new OfflineAudioContext(1, TX, TX).decodeAudioData(b); }).catch(function(){ return null; }); };
+        return segs.reduce(function(p, sg){
+          return p.then(function(){
+            var i = E.r.clips[sg.ci].i;
+            if(tampons[i] !== undefined) return;
+            return decoder(E.cl[i].lien).then(function(b){ tampons[i] = b; });
+          });
+        }, Promise.resolve()).then(function(){
+          segs.forEach(function(sg){
+            var b = tampons[E.r.clips[sg.ci].i]; if(!b) return;
+            var src = oac.createBufferSource(); src.buffer = b;
+            var g = oac.createGain(), len = sg.a - sg.de;
+            g.gain.setValueAtTime(1, 0);
+            E.r.muets.forEach(function(m){ var de = Math.max(m.de, sg.off), a = Math.min(m.a, sg.off + len); if(a > de){ g.gain.setValueAtTime(0, de); g.gain.setValueAtTime(1, a); } });
+            src.connect(g); g.connect(oac.destination); src.start(sg.off, sg.de, len);
+          });
+          return oac.startRendering();
+        }).then(function(b){ return b.getChannelData(0); });
+      }
+      /* Couper sur un silence, entre 20 et 30 s ; un morceau en WAV. */
+      function morceauxDeSon(d, TX){
+        var out = [], i = 0, fen = Math.round(TX * 0.25);
+        while(i < d.length){
+          if(d.length - i <= TX * 30){ out.push([i, d.length]); break; }
+          var mieux = i + TX * 28, min = Infinity;
+          for(var j = i + TX * 20; j + fen < i + TX * 30; j += fen / 2){
+            var e = 0; for(var k = j; k < j + fen; k += 8) e += d[k] * d[k];
+            if(e < min){ min = e; mieux = j + fen / 2; }
+          }
+          out.push([i, Math.round(mieux)]); i = Math.round(mieux);
+        }
+        return out;
+      }
+      function enWavBase64(d, de, a, TX){
+        var n = a - de, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+        var ec = function(o2, t){ for(var i = 0; i < t.length; i++) v.setUint8(o2 + i, t.charCodeAt(i)); };
+        ec(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ec(8, 'WAVE'); ec(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, TX, true); v.setUint32(28, TX * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); ec(36, 'data'); v.setUint32(40, n * 2, true);
+        for(var i = 0; i < n; i++){ var x = Math.max(-1, Math.min(1, d[de + i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7FFF, true); }
+        var octets = new Uint8Array(buf), bin = '';
+        for(var k = 0; k < octets.length; k += 0x8000) bin += String.fromCharCode.apply(null, octets.subarray(k, k + 0x8000));
+        return btoa(bin);
+      }
+      function creerSt(){
+        if(E.stEnCours){ E.stEnCours.annule = true; return; }
+        var b = $('mvCreerSt'), etat = $('mvStEtat');
+        var jeton = E.stEnCours = { annule: false };
+        b.textContent = '⏹ Arrêter';
+        etat.textContent = '⏳ Le son de la vidéo se prépare…';
+        var TX = 16000, phrases = [];
+        sonDuContenu().then(function(d){
+          var m = morceauxDeSon(d, TX);
+          return m.reduce(function(p, x, n){
+            return p.then(function(){
+              if(jeton.annule) throw new Error('Arrêté.');
+              etat.textContent = '⏳ Écoute de la vidéo : ' + Math.round(n / m.length * 100) + ' % (' + M.mmss(x[0] / TX) + ' sur ' + M.mmss(d.length / TX) + ')…';
+              return appel({ action: 'videoSousTitres', audio: enWavBase64(d, x[0], x[1], TX), debut: x[0] / TX, titre: E.r.titre.texte || o.titre || '' }).then(function(r2){
+                if(!r2 || r2.status !== 'ok') throw new Error((r2 && r2.message) || 'Reconnaissance vocale indisponible.');
+                phrases = phrases.concat(r2.phrases || []);
+              });
+            });
+          }, Promise.resolve());
+        }).then(function(){
+          E.st = phrases.map(function(p){ return { de: p.de, a: Math.max(p.a, p.de + 0.5), texte: p.texte }; });
+          E.stChange = true; E.r.sousTitres.on = !!E.st.length; touche();
+          etat.textContent = E.st.length ? '✅ ' + E.st.length + ' phrase' + (E.st.length > 1 ? 's' : '') + ' : relis-les, puis enregistre.' : 'Aucune parole reconnue dans cette vidéo.';
+        }).catch(function(e){
+          etat.textContent = '❌ ' + (e.message || 'Impossible pour le moment.');
+        }).then(function(){ E.stEnCours = null; dessinerSt(); dessinerResume(); });
+      }
+
       function dessinerMuets(){
         var l = $('mvMuets'); l.innerHTML = '';
         E.r.muets.forEach(function(m, i){
@@ -624,13 +829,19 @@
         if(r.textes.length) plus.push(r.textes.length + ' texte' + (r.textes.length > 1 ? 's' : ''));
         if(r.muets.length) plus.push(r.muets.length + ' passage' + (r.muets.length > 1 ? 's' : '') + ' sans le son');
         if(r.musique.on) plus.push('musique');
+        if(r.flous.length) plus.push(r.flous.length + ' flou' + (r.flous.length > 1 ? 's' : '') + ' (vidéo à fabriquer)');
+        if(E.st.length) plus.push(E.st.length + ' sous-titre' + (E.st.length > 1 ? 's' : ''));
         var z = $('mvResume'); z.innerHTML = '';
         z.appendChild(el('b', '', 'Durée finale : ' + M.hms(M.dureeTotale(r))));
         z.appendChild(el('br')); z.appendChild(document.createTextNode(p.join(' · ')));
         if(plus.length){ z.appendChild(el('br')); z.appendChild(document.createTextNode(plus.join(' · '))); }
         if(!E.joue) $('mvTemps').textContent = '0:00,0 / ' + M.hms(M.dureeTotale(r));
       }
-      function tout(){ dessinerHabillage(); dessinerClips(); dessinerBande(); dessinerMorceaux(); dessinerTete(); dessinerMuets(); dessinerResume(); }
+      function tout(){ dessinerHabillage(); dessinerClips(); dessinerBande(); dessinerMorceaux(); dessinerTete(); dessinerMuets(); dessinerFlous(); dessinerSt(); dessinerResume(); }
+      function peindreEnregistrer(){
+        var b = $('mvEnregistrer'); if(!b) return;
+        b.textContent = E.mode === 'soustitres' ? '💾 Enregistrer les sous-titres' : (E.r.flous.length ? '🎞️ Fabriquer la vidéo floutée' : '💾 Enregistrer le montage');
+      }
 
       /* La vidéo, à la position : l'image qu'on règle. */
       var enVue = { ci: -1, src: '' };
@@ -651,7 +862,8 @@
         E.S.calque.innerHTML = '';
         E.S.scene.classList.remove('edition');
         var clips = E.cl.map(function(c){ return { lien: c.lien }; });
-        E.m = M.moteur(E.S, { recette: E.r, clips: clips, musique: E.r.musique.on && E.mus ? lienEntier(E.mus.lien) : null, persos: E.persos });
+        E.m = M.moteur(E.S, { recette: E.r, clips: clips, musique: E.r.musique.on && E.mus ? lienEntier(E.mus.lien) : null, persos: E.persos,
+                              cues: E.st, cc: function(){ return E.r.sousTitres.on; } });
         enVue.src = '';
         var debut = Date.now();
         E.m.sur('temps', function(){ $('mvTemps').textContent = M.hms((Date.now() - debut) / 1000) + ' / ' + M.hms(M.dureeTotale(E.r)); });
@@ -668,7 +880,7 @@
         enVue.src = ''; ongletEdition();
         dessinerHabillage(); dessinerResume(); voirTete();
       }
-      function ongletEdition(){ var t = boite.querySelector('[role=tab][aria-selected=true]'); E.S.scene.classList.toggle('edition', !!t && t.id === 'mvOgT'); }
+      function ongletEdition(){ var t = boite.querySelector('[role=tab][aria-selected=true]'); E.S.scene.classList.toggle('edition', !!t && (t.id === 'mvOgT' || t.id === 'mvOgF')); }
 
       /* ---------- les branchements ---------- */
       function interrupteur(id, partie, apres){
@@ -761,8 +973,41 @@
           var maj = function(){ E.r.musique[x[1]] = +i.value / 100; $(x[0] + 'Val').textContent = i.value + ' %'; i.setAttribute('aria-valuetext', i.value + ' pour cent'); };
           i.addEventListener('input', function(){ touche(); maj(); }); maj();
         });
+        $('mvAjoutFlou').addEventListener('click', function(){
+          if(E.joue) arreter();
+          var d = dureeVideo(), de = Math.min(E.tete, Math.max(0, d - 1));
+          E.r.flous.push({ de: de, a: Math.min(d, E.tete + 3), rond: false, points: [{ t: Math.round(de * 10) / 10, x: 35, y: 55, w: 30, h: 10 }] });
+          touche(); dessinerFlous(); dessinerCalque(); dessinerResume(); peindreEnregistrer();
+          var z = E.S.calque.querySelector('.mvFlou'); if(z) z.focus();
+          annoncer('Flou ajouté, de ' + M.lu(de) + ' à ' + M.lu(Math.min(d, E.tete + 3)) + '. Fais-le glisser sur ce qu’il faut cacher.');
+        });
+        $('mvSwSt').addEventListener('click', function(){ E.r.sousTitres.on = !E.r.sousTitres.on; E.stChange = true; touche(); dessinerSt(); annoncer('Sous-titres ' + (E.r.sousTitres.on ? 'proposés' : 'cachés') + ' à l’élève.'); });
+        $('mvCreerSt').addEventListener('click', function(){
+          if(E.st.length && !E.stEnCours && !E.stConfirme){
+            E.stConfirme = true;
+            $('mvStEtat').textContent = '⚠️ Refaire remplace les ' + E.st.length + ' phrases (et tes corrections). Touche encore « Refaire » pour confirmer.';
+            return;
+          }
+          E.stConfirme = false; creerSt();
+        });
+        $('mvAjoutSt').addEventListener('click', function(){
+          var d = dureeVideo(), de = Math.min(E.tete, Math.max(0, d - 1));
+          E.st.push({ de: de, a: Math.min(d, de + 2.5), texte: '' }); E.st.sort(function(a, b){ return a.de - b.de; });
+          E.stChange = true; E.r.sousTitres.on = true; touche(); dessinerSt(); dessinerResume();
+          var ins = [].slice.call($('mvStListe').querySelectorAll('input')); var n = ins.filter(function(x){ return !x.value; })[0]; if(n) n.focus();
+          annoncer('Phrase ajoutée à ' + M.lu(de) + ' : écris-la.');
+        });
         $('mvEnregistrer').addEventListener('click', enregistrer);
         var bs = $('mvSans'); if(bs) bs.addEventListener('click', function(){ fermer({ sans: true }); });
+        peindreEnregistrer();
+        /* 💬 Une vidéo déjà fabriquée : seuls ses sous-titres se reprennent
+           (la vidéo d'origine n'existe plus). */
+        if(E.mode === 'soustitres'){
+          tabs.forEach(function(t){ if(t.id !== 'mvOgST') t.hidden = true; });
+          boite.querySelector('.mvOnglets').style.gridTemplateColumns = '1fr';
+          choisir($('mvOgST'));
+          $('mvPasser').hidden = true;
+        }
       }
 
       /* ---------- enregistrer : la recette, et ce qu'il reste à déposer ---------- */
@@ -782,11 +1027,68 @@
         if(Object.keys(fp).length) r.fichiers.polices = fp;
         if(!(r.musique.on && E.mus)) r.musique.on = false;
         else if(E.mus.cle) r.fichiers.musique = E.mus.cle;
+        r.sousTitres = { on: !!(E.r.sousTitres.on && E.st.length), n: E.st.length };
         var propre = M.recettePropre(r, pris.length);
-        fermer({
+        var st = { cues: E.st.filter(function(c){ return String(c.texte || '').trim(); }), change: E.stChange };
+        if(E.mode === 'soustitres'){ fermer({ sousTitres: st, on: propre.sousTitres.on }); return; }
+        var res = {
           recette: propre,
           clips: pris.map(function(c){ return c.fichier ? { fichier: c.fichier, duree: c.duree, l: c.l, h: c.h, vignette: (c.vignettes || [])[0] || '' } : { cle: c.cle, lien: c.lien, duree: c.duree, l: c.l, h: c.h, vignette: (c.vignettes || [])[0] || '' }; }),
-          musique: propre.musique.on ? (E.mus.fichier ? { fichier: E.mus.fichier, nom: E.mus.nom } : { cle: E.mus.cle, lien: E.mus.lien, nom: E.mus.nom }) : null
+          musique: propre.musique.on ? (E.mus.fichier ? { fichier: E.mus.fichier, nom: E.mus.nom } : { cle: E.mus.cle, lien: E.mus.lien, nom: E.mus.nom }) : null,
+          sousTitres: st
+        };
+        if(!propre.flous.length){ fermer(res); return; }
+        fabriquerEtFermer(res, pris);
+      }
+
+      /* ============================================================
+         🎞️ UNE VIDÉO FLOUTÉE SE FABRIQUE — le choix de David (23/10)
+
+         Le flou n'est pas posé par-dessus : la vidéo est redessinée
+         ici, avec tout son montage dans l'image, puis déposée à la
+         place de l'originale — qui sera effacée à l'enregistrement du
+         guide.
+         ============================================================ */
+      function fabriquerEtFermer(res, pris){
+        var zone = boite.querySelector('.mvFabrique');
+        if(zone) zone.remove();
+        zone = el('div', 'mvBandeau mvFabrique'); zone.setAttribute('role', 'alertdialog'); zone.setAttribute('aria-labelledby', 'mvFabQ');
+        boite.querySelector('.mvActions').before(zone);
+        var dire = function(t){ var p = el('p', '', t); p.id = 'mvFabQ'; p.style.margin = '0 0 8px'; zone.appendChild(p); };
+        if(typeof ECFabrique === 'undefined'){ dire('La fabrique des vidéos n’est pas chargée : recharge la page.'); return; }
+        var c0 = pris[0] || {};
+        ECFabrique.possible({ l: c0.l, h: c0.h, essai: !!o.essai }).then(function(cap){
+          zone.innerHTML = '';
+          if(!cap.ok){
+            dire('⚠️ ' + cap.raison);
+            zone.appendChild(el('p', '', 'Le montage n’est pas perdu tant que tu ne fermes pas : ouvre ce guide sur l’ordinateur du bureau pour fabriquer la vidéo, ou retire le flou.'));
+            zone.querySelector('p').focus && zone.setAttribute('tabindex', '-1');
+            zone.focus();
+            return;
+          }
+          var duree = M.dureeTotale(res.recette);
+          dire('🎞️ La vidéo va être fabriquée (' + cap.l + ' × ' + cap.h + ', ≈ ' + M.mmss(M.dureeContenu(res.recette)) + ' d’attente). Le flou sera dans l’image ; la vidéo d’origine sera effacée à l’enregistrement du guide.');
+          var a = el('div', 'mvActions');
+          a.appendChild(bouton('🎞️ Fabriquer maintenant', null, function(){
+            zone.remove();
+            ECFabrique.fenetre({
+              titre: 'Fabrication de la vidéo floutée', dureeEstimee: M.dureeContenu(res.recette),
+              recette: res.recette, clips: pris.map(function(c){ return { lien: c.lien }; }),
+              musique: res.recette.musique.on && E.mus ? lienEntier(E.mus.lien) : null,
+              persos: E.persos, essai: !!o.essai
+            }).then(function(x){
+              x.duree = x.duree || duree;
+              res.fabrique = x;
+              fermer(res);
+            }, function(e){
+              annoncer('Fabrication arrêtée : ' + e.message);
+              var b = el('div', 'mvBandeau mvFabrique'); b.setAttribute('role', 'alert'); b.textContent = '❌ ' + e.message;
+              boite.querySelector('.mvActions').before(b);
+            });
+          }, 'prim'));
+          a.appendChild(bouton('Pas maintenant', null, function(){ zone.remove(); $('mvEnregistrer').focus(); }));
+          zone.appendChild(a);
+          a.querySelector('button').focus();
         });
       }
     });
