@@ -1,4 +1,4 @@
-# Déployé le 22/10/2026 à 19:33 — v1248
+# Déployé le 23/10/2026 à 14:43 — v1252
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -32,6 +32,8 @@ on:
       - 'bureau.html'
       - 'appel-commun.js'   # 📞 v1183 — l'écran d'appel, partagé avec l'appli
       - 'app/ec-verifs-banque.js'   # 🎮 v1248 — les 100 questions, pour le jeu des vérifications
+      - 'app/ec-montage.js'         # 🎬 v1252 — le lecteur des vidéos montées du parcours
+      - 'app/ec-montage-polices.js' # 🎬 v1252 — ses 5 polices, chargées à la demande
   workflow_dispatch:        # et à la demande, depuis l'onglet Actions
 
 jobs:
@@ -55,6 +57,10 @@ jobs:
           # (à la racine, sous « verifs-banque.js » : le dossier app/ de
           # l'application du bureau n'a rien à faire sur ce domaine)
           cp app/ec-verifs-banque.js sortie/verifs-banque.js
+          # 🎬 v1252 — le lecteur des vidéos montées et ses polices :
+          # même nom qu'au dépôt principal, à côté de la page (le
+          # lecteur va chercher ses polices à côté de lui-même)
+          cp app/ec-montage.js app/ec-montage-polices.js sortie/
           cp icone-192.png icone-512.png sortie/
 
           # 📍 v1170 — la page des bureaux, derrière le QR code de la
