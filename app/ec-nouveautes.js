@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 16:12 — v1254 */
+/* Déployé le 23/10/2026 à 17:14 — v1255 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1255,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '💡 Jeu des vérifications : allumer les feux, puis faire le tour',
+    quoi: [
+      { emoji: '💡',
+        titre: 'L’élève allume lui-même les feux',
+        texte: 'Au volant de SA voiture, il touche la bonne commande le bon nombre de fois (la bague : deux crans), puis une autre si besoin, et dit « C’est allumé ». Un appui de trop ou la mauvaise commande : on lui dit ce qu’il a fait, tout s’éteint, et la question part dans « À revoir ».' },
+      { emoji: '🚶',
+        titre: 'Puis il fait le tour de la voiture',
+        texte: 'Il sort par la porte et touche les feux allumés sur la vraie photo, devant et derrière.' },
+      { emoji: '📸',
+        titre: 'Dans l’atelier (Outils › Vérifications)',
+        texte: 'Pour chaque vue, « 💡 Les feux sur cette photo » accueille la photo avec tel feu allumé ; une nouvelle sorte de zone, 🔘 « commande » ; le panneau « 💡 Allumer les feux » (quelles commandes, combien d’appuis, pour quelles voitures) ; et la règle « L’allumer, puis contrôler » question par question.' }
+    ]
+  },
   {
     version: 1254,
     date: 'Vendredi 23 octobre 2026',
