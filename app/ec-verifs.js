@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 17:10 — v1246 */
+/* Déployé le 22/10/2026 à 19:33 — v1248 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -588,6 +588,104 @@ function vbExporter(){
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 400);
   showToastVerifs('Choisis « Enregistrer en PDF » dans l’impression');
+}
+
+/* ============================================================
+   🎮 v1248 — LE JEU DES ÉLÈVES, VU PAR L'ÉQUIPE
+
+   David a choisi : « le moniteur voit la progression, pas de
+   classement ». Deux endroits :
+     · le dossier de l'élève, onglet 🔑 Coin révisions, sous son
+       parcours : ce qu'il maîtrise, sa série, ce qu'il a à revoir, et
+       la grille des 100 ;
+     · Mes prochains cours : une ligne sur la carte d'un examen blanc,
+       d'un examen ou d'un RVP — « 🧰 Vérifs : 23/100 · à revoir 12, 37 ».
+   Le jeu lui-même est dans eleve.html (onglet « 🧰 Vérifs »).
+   ============================================================ */
+const JEU_CACHE = {};          /* nom → { t, r } */
+const JEU_MODELES_CARTE = ['examen-blanc', 'examen-officiel', 'aac-rvp'];
+let jeuEnCours = null;
+function jeuCle(nom){ return String(nom || '').trim().toLowerCase(); }
+async function resumesDuJeu(noms){
+  const manquent = noms.filter(n => { const c = JEU_CACHE[jeuCle(n)]; return !c || Date.now() - c.t > 5 * 60000; });
+  if(manquent.length && typeof appelPrep === 'function'){
+    const r = await appelPrep({ action: 'verifsEleves', eleves: manquent });
+    const el = (r && r.eleves) || {};
+    manquent.forEach(n => {
+      const k = Object.keys(el).find(x => jeuCle(x) === jeuCle(n));
+      JEU_CACHE[jeuCle(n)] = { t: Date.now(), r: k ? el[k] : null };
+    });
+  }
+  const out = {};
+  noms.forEach(n => { const c = JEU_CACHE[jeuCle(n)]; out[n] = c ? c.r : null; });
+  return out;
+}
+function jeuPhraseRevoir(l){
+  if(!l || !l.length) return '';
+  return l.slice(0, 8).join(' · ') + (l.length > 8 ? ' …' : '');
+}
+/* Mes prochains cours : la ligne des examens */
+function verifsLignesDesCartes(){
+  const cartes = [...document.querySelectorAll('#listePrepares .history-item[data-modele]')]
+    .filter(c => JEU_MODELES_CARTE.indexOf(c.dataset.modele) !== -1 && c.dataset.eleve && !c.querySelector('.vqPrep'));
+  if(!cartes.length || jeuEnCours || !verifsConnecte()) return;
+  const noms = [...new Set(cartes.map(c => c.dataset.eleve))];
+  jeuEnCours = resumesDuJeu(noms).then(res => {
+    jeuEnCours = null;
+    cartes.forEach(c => {
+      if(c.querySelector('.vqPrep')) return;
+      const r = res[c.dataset.eleve];
+      const l = document.createElement('div');
+      l.className = 'vqPrep';
+      if(!r){ l.dataset.vide = '1'; c.appendChild(l); return; }
+      l.textContent = '🧰 Vérifs : ' + r.maitrisees + '/100 maîtrisées' + (r.revoir.length ? ' · à revoir : ' + jeuPhraseRevoir(r.revoir) : '');
+      const m = c.querySelector('.meta') || c;
+      m.appendChild(l);
+    });
+  }).catch(() => { jeuEnCours = null; cartes.forEach(c => { if(!c.querySelector('.vqPrep')){ const l = document.createElement('div'); l.className = 'vqPrep'; l.dataset.vide = '1'; c.appendChild(l); } }); });
+}
+setInterval(() => { if(!document.hidden) verifsLignesDesCartes(); }, 1500);
+
+/* Le dossier : 🔑 Coin révisions, sous son parcours */
+async function posterVerifsDuDossier(corps, nom){
+  const cadre = document.createElement('div');
+  cadre.className = 'vqDossier';
+  cadre.style.cssText = 'margin-top:16px;padding-top:14px;border-top:1px solid var(--line);';
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:8px;';
+  t.textContent = '🧰 Son jeu des vérifications';
+  cadre.appendChild(t);
+  const zone = document.createElement('div');
+  zone.innerHTML = '<div class="empty">Lecture…</div>';
+  cadre.appendChild(zone);
+  corps.appendChild(cadre);
+  let r = null;
+  try{
+    delete JEU_CACHE[jeuCle(nom)];
+    r = (await resumesDuJeu([nom]))[nom];
+  }catch(e){
+    zone.innerHTML = '';
+    zone.appendChild(vqEl('div', 'empty', '⚠️ Illisible : ' + ((e && e.message) || e)));
+    return;
+  }
+  zone.innerHTML = '';
+  if(!r){
+    zone.appendChild(vqEl('div', 'empty', 'Il n’a pas encore joué. Le jeu s’ouvre avec la case « 🧰 Le jeu des vérifications », plus haut.'));
+    return;
+  }
+  const lignes = vqEl('div', 'vqJeuLignes');
+  const ligne = (a, b) => { const d = vqEl('div', 'vqJeuL'); d.appendChild(vqEl('b', '', a)); const s = vqEl('span', ''); if(typeof b === 'string') s.textContent = b; else s.appendChild(b); d.appendChild(s); lignes.appendChild(d); };
+  ligne('Maîtrisées', r.maitrisees + ' / 100');
+  ligne('Série', '🔥 ' + (r.serie || 0) + ' jour' + (r.serie > 1 ? 's' : '') + (r.jour ? ' · dernier jour joué : ' + r.jour.split('-').reverse().join('/') : ''));
+  const rv = vqEl('span', '');
+  if(r.revoir.length) r.revoir.forEach(n => rv.appendChild(vqEl('span', 'vqJeuPuce', String(n)))); else rv.textContent = 'rien 👏';
+  ligne('À revoir', rv);
+  ligne('Jour J', (r.jourJ && r.jourJ.parties ? r.jourJ.parties + ' partie(s) · ' + r.jourJ.parfaits + ' fois 3/3' : 'pas encore joué'));
+  zone.appendChild(lignes);
+  const g = vqEl('div', 'vqJeuGrille');
+  String(r.grille || '').split('').forEach((c, i) => { const x = vqEl('i', c === '.' ? '' : c, String(i + 1)); g.appendChild(x); });
+  zone.appendChild(g);
+  zone.appendChild(vqEl('div', 'vbAide', 'Vert : maîtrisée (3 réussites, 3 jours) · jaune : en cours · rose : à revoir (ratée dans le jeu, ou à un examen blanc / examen dont le bilan est parti par mail).'));
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
