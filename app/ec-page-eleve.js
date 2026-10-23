@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 14:39 — v1243 */
+/* Déployé le 22/10/2026 à 19:33 — v1248 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -3812,6 +3812,10 @@ function ongletAcces(corps, nom){
      pas, on le dit dans son cadre et le reste de l'onglet continue
      de servir. */
   posterLeParcoursDuDossier(corps, nom);
+
+  /* 🎮 v1248 — et son jeu des vérifications : ce qu'il maîtrise, ce
+     qu'il a à revoir (ec-verifs.js) */
+  if(typeof posterVerifsDuDossier === 'function') posterVerifsDuDossier(corps, nom);
 
   /* 🕓 v1147 — et ce qu'il fait dans son espace, juste en dessous
      (administrateurs seuls, voir ec-activite.js) */
