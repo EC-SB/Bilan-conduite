@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:16 — v1222 */
+/* Déployé le 23/10/2026 à 11:48 — v1251 */
 /* ============================================================
    ec-iadirect.js
    🤖 L'IA AU FIL DE L'EAU, ET LE BILAN QUI NE REVIENT PAS — v1209
@@ -427,6 +427,8 @@ function ouvrirSansIA(){
   /* 📋 v1211 — celles cochées pendant la dictée sont là, cochées */
   if(typeof dessinerProceduresAJoindre === 'function'){
     try{ dessinerProceduresAJoindre('proceduresManuel'); }catch(e){}
+    /* 🧰 v1251 — les questions de vérification, juste dessous */
+    try{ if(typeof dessinerQuestionsVerifs === 'function') dessinerQuestionsVerifs('verifsManuel'); }catch(e){}
   }
   if(typeof dessinerSegmentsARevoir === 'function'){
     try{ dessinerSegmentsARevoir('revoirManuel'); }catch(e){}
