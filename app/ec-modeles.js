@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 17:10 — v1246 */
+/* Déployé le 23/10/2026 à 11:48 — v1251 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -2502,6 +2502,13 @@ function blocFicheAac(items, liste, ctx){
 }
 
 
+/* 🧰 v1251 — la section 𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨 d'un cours d'AAC : elle n'existait
+   pas ; elle n'apparaît que si une question a été posée. */
+function sectionVerifsDuCours(ai, ctx){
+  const l = (typeof lignesVerifsDuCours === 'function') ? lignesVerifsDuCours(ai || {}, ctx && ctx.transcript) : null;
+  return l ? l.concat(['']) : [];
+}
+
 function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   ai = ai || {};
   const parts = [];
@@ -2517,14 +2524,22 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   parts.push('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + (ai.voyants === '❌' ? '❌' : '✅'));
   parts.push('/2 points jour du permis ');
   parts.push('');
-  /* Le numéro de question et la note, quand le moniteur les a saisis */
-  parts.push('𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨' +
-    (txt(ai.verifQuestion) ? ' : question n° ' + txt(ai.verifQuestion) : '') +
-    ' https://www.facebook.com/groups/864826058258637 ');
-  /* 🧰 v1246 — les questions et leurs réponses (ec-verifs.js) */
-  if(typeof lignesVerifsPourLeBilan === 'function') lignesVerifsPourLeBilan(ai.verifQuestion).forEach(o => parts.push(o));
-  parts.push((txt(ai.verifNote) ? txt(ai.verifNote) + '/3' : '/3') +
-             ' points jour du permis ');
+  /* 🧰 v1251 — les questions posées pendant le cours (le tiroir
+     « 🧰 Questions de vérification », ec-verifs.js), chacune avec ses
+     trois parties, ✅ ❌ et sa note. Sans question : comme avant. */
+  const qv = (typeof lignesVerifsDuCours === 'function') ? lignesVerifsDuCours(ai, texteCours || ai.texteDicte) : null;
+  if(qv){
+    qv.forEach(o => parts.push(o));
+  }else{
+    /* Le numéro de question et la note, quand le moniteur les a saisis */
+    parts.push('𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨' +
+      (txt(ai.verifQuestion) ? ' : question n° ' + txt(ai.verifQuestion) : '') +
+      ' https://www.facebook.com/groups/864826058258637 ');
+    /* 🧰 v1246 — les questions et leurs réponses (ec-verifs.js) */
+    if(typeof lignesVerifsPourLeBilan === 'function') lignesVerifsPourLeBilan(ai.verifQuestion).forEach(o => parts.push(o));
+    parts.push((txt(ai.verifNote) ? txt(ai.verifNote) + '/3' : '/3') +
+               ' points jour du permis ');
+  }
   parts.push('');
   parts.push('🎙️ 𝕋𝕆ℕ ℂ𝕆𝕌ℝ𝕊 :');
   parts.push(txt(texteCours || ai.texteDicte));
@@ -2597,6 +2612,7 @@ const MODELES = {
       BLOC.entete, '',
       BLOC.carteSD(ai.carteSD), '',
       BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
+      ...sectionVerifsDuCours(ai, ctx),
       blocRubriques(ai.rubriques),
       blocFicheAac(ai.ficheVehicule, BLOC.ficheListe, ctx), '',
       rappelAac('4 leçons de 2 heures + simu nuit et risques + 2 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable.')
@@ -2609,6 +2625,7 @@ const MODELES = {
       BLOC.entete, '',
       '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿 ✅  donnée ce jour \nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). ', '',
       BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
+      ...sectionVerifsDuCours(ai, ctx),
       blocRubriques(ai.rubriques),
       blocFicheAac(ai.ficheVehicule, BLOC.ficheListeAacAuto, ctx), '',
       rappelAac('3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable.')
