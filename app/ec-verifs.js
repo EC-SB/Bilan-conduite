@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 19:33 — v1248 */
+/* Déployé le 23/10/2026 à 10:24 — v1249 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -289,15 +289,36 @@ function vbNeutralisees(){ return vbToutes().filter(x => x.neutre && Object.keys
 async function afficherVerifs(){
   const z = document.getElementById('verifsZone');
   if(!z) return;
-  if(!z.querySelector('#vbListe')) vbDessinerEcran(z);
+  if(!z.querySelector('#vbListe') && VERIFS.vue !== 'atelier') vbDessinerEcran(z);
   const ok = await chargerVerifs(true);
   if(!ok && verifsARelire()) showToastVerifs('⚠️ Banque lue hors ligne : les dernières modifications ne sont peut-être pas là.');
-  vbDessinerEcran(z);
+  if(VERIFS.vue !== 'atelier' || !z.querySelector('.at')) vbDessinerEcran(z);
 }
 function showToastVerifs(m){ if(typeof showToast === 'function') showToast(m); }
 
+/* 📸 v1249 — deux onglets pour les administrateurs : la banque, et
+   l'atelier du jeu (ec-jeu-atelier.js) */
+function vbOnglets(z){
+  if(!vbEstAdmin() || typeof afficherAtelierJeu !== 'function') return;
+  const o = vqEl('div', 'atOng');
+  [['banque', '📖 Les 100 questions'], ['atelier', '📸 Nos voitures — l’atelier du jeu']].forEach(([k, t]) => {
+    const b = vqEl('button', 'vbPuce' + ((VERIFS.vue || 'banque') === k ? ' on' : ''), t);
+    b.type = 'button';
+    b.setAttribute('data-vue-verifs', k);
+    b.addEventListener('click', () => { VERIFS.vue = k; vbDessinerEcran(z); });
+    o.appendChild(b);
+  });
+  z.appendChild(o);
+}
 function vbDessinerEcran(z){
   z.innerHTML = '';
+  vbOnglets(z);
+  if(VERIFS.vue === 'atelier' && vbEstAdmin() && typeof afficherAtelierJeu === 'function'){
+    const a = vqEl('div', 'at');
+    z.appendChild(a);
+    afficherAtelierJeu(a);
+    return;
+  }
   const b = vqEl('div', 'vb');
   b.appendChild(vqEl('div', 'vbIntro', 'Les 100 questions de l’examen (banque DSR du 1er janvier 2018) : la vérification (VI intérieure, VE extérieure), la question de sécurité routière (QSER) et celle de premiers secours, avec leurs réponses. Les fiches les montrent dès qu’on tape le numéro. ' +
     (vbEstAdmin() ? 'Une question peut être corrigée (✏️), ou neutralisée et remplacée.' : 'Seul un administrateur les modifie.')));
