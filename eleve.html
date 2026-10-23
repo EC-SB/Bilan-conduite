@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 23/10/2026 à 14:43 — v1252 -->
+<!-- Déployé le 23/10/2026 à 15:15 — v1253 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -4254,7 +4254,7 @@
     if(window.ECMontage) return Promise.resolve();
     if(chargementDuMontage) return chargementDuMontage;
     chargementDuMontage = new Promise(function(ok, ko){
-      var essais = ['ec-montage.js?v=1252', 'app/ec-montage.js?v=1252'];
+      var essais = ['ec-montage.js?v=1253', 'app/ec-montage.js?v=1253'];
       var essayer = function(){
         if(!essais.length){ chargementDuMontage = null; ko(new Error('Le lecteur de vidéo n’a pas pu se charger.')); return; }
         var s = document.createElement('script');
@@ -4303,6 +4303,8 @@
         clips: m.liens.map(function(l){ return { lien: l }; }),
         musique: (m.b.montage.musique && m.b.montage.musique.on && liensM.musique) ? liensM.musique : null,
         persos: persos,
+        /* 💬 v1253 — les sous-titres (le .vtt signé, déposé à côté) */
+        sousTitres: liensM.soustitres || '',
         titre: String(m.b.titre || ''),
         peutPasser: function(){ return dejaVuLeDebut(id) || segValide(); },
         surIntroFaite: function(){ noterLeDebutVu(id); },
@@ -4311,7 +4313,7 @@
       lec.video.setAttribute('data-mv', '1');
       lecteursOuverts.push(lec);
       /* La durée se connaît tout de suite : le bouton peut dire 0 %. */
-      surContenu(0, 0, lec.moteur.duree());
+      surContenu(0, 0, lec.dureeCompte);
     }).catch(function(e){
       pl.textContent = '⚠️ ' + e.message + ' Recharge la page.';
     });
