@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 23/10/2026 à 15:15 — v1253 -->
+<!-- Déployé le 23/10/2026 à 16:12 — v1254 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -4254,7 +4254,7 @@
     if(window.ECMontage) return Promise.resolve();
     if(chargementDuMontage) return chargementDuMontage;
     chargementDuMontage = new Promise(function(ok, ko){
-      var essais = ['ec-montage.js?v=1253', 'app/ec-montage.js?v=1253'];
+      var essais = ['ec-montage.js?v=1254', 'app/ec-montage.js?v=1254'];
       var essayer = function(){
         if(!essais.length){ chargementDuMontage = null; ko(new Error('Le lecteur de vidéo n’a pas pu se charger.')); return; }
         var s = document.createElement('script');
