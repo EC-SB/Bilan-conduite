@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 10:24 — v1249 */
+/* Déployé le 23/10/2026 à 11:07 — v1250 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1250,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '🚨 Le bon voyant : contre la montre, sur le tableau de bord de sa voiture',
+    quoi: [
+      { emoji: '🚨',
+        titre: 'Le bon voyant',
+        texte: 'Dans le jeu des élèves : « touche le voyant qui… », 15 secondes par voyant, une série ⚡ qui multiplie les points, et un record à battre. Sur la photo « Voyants allumés » de SA voiture.' },
+      { emoji: '🖥️',
+        titre: 'Quand le voyant n’existe pas',
+        texte: 'Si tu as réglé la question « c’est l’ordinateur de bord » pour sa voiture dans l’atelier, c’est la case 🖥️ qu’il doit toucher.' },
+      { emoji: '📸',
+        titre: 'Pour qu’il apparaisse',
+        texte: 'Dépose la photo « Voyants allumés » de la voiture dans l’atelier, et dessine une zone 🎯 sur chaque voyant avec les numéros de ses questions (15 et 75 pour la pression d’huile, 23 pour la batterie…).' }
+    ]
+  },
   {
     version: 1249,
     date: 'Vendredi 23 octobre 2026',
