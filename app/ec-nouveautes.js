@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 14:43 — v1252 */
+/* Déployé le 23/10/2026 à 15:15 — v1253 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1253,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '🙈 Le flou, 💬 les sous-titres, 🎞️ le vrai fichier MP4',
+    quoi: [
+      { emoji: '🙈',
+        titre: 'Flouter une plaque ou un visage',
+        texte: 'Onglet « 🙈 Flou » de l’éditeur : un rectangle ou un rond, que tu poses sur l’image. Si ça bouge, redéplace-le à chaque changement de direction : chaque place devient un point de passage, et entre deux la zone glisse toute seule.' },
+      { emoji: '🎞️',
+        titre: 'Une vidéo floutée se fabrique',
+        texte: 'Sur l’ordinateur du bureau (Chrome ou Edge) : la vidéo est refaite avec tout son montage dans l’image, le flou compris. La vidéo d’origine est effacée à l’enregistrement du guide : la plaque n’existe plus nulle part.' },
+      { emoji: '💬',
+        titre: 'Les sous-titres automatiques',
+        texte: 'Onglet « 💬 Sous-titres » : la reconnaissance vocale écrit ce qui est dit, avec les temps. Tu relis, tu corriges, tu réécoutes une phrase (▶). Chez l’élève, le bouton « CC » les affiche.' },
+      { emoji: '📥',
+        titre: 'Télécharger en MP4',
+        texte: 'Sur une vidéo montée, « 🎞️ Télécharger en MP4 » fabrique le vrai fichier (H.264, que tous les téléphones lisent), sous-titres incrustés : pour Messenger ou un envoi.' }
+    ]
+  },
   {
     version: 1252,
     date: 'Vendredi 23 octobre 2026',
