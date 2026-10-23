@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 14:43 — v1252 */
+/* Déployé le 23/10/2026 à 15:15 — v1253 */
 /* ============================================================
    ec-montage.js — 🎬 LE MONTAGE DES VIDÉOS DU PARCOURS (v1252)
 
@@ -32,7 +32,7 @@
    ============================================================ */
 (function(G){
   'use strict';
-  var V = '1252';
+  var V = '1253';
   var ICI = (document.currentScript && document.currentScript.src) || '';
   var DOSSIER = ICI ? ICI.replace(/[^\/]*$/, '') : 'app/';
 
@@ -117,6 +117,18 @@
     var muets = (Array.isArray(r.muets) ? r.muets : []).slice(0, 30).map(function(m){
       return { de: entre(m && m.de, 0, 36000), a: entre(m && m.a, 0, 36000) };
     }).filter(function(m){ return m.a > m.de; });
+    /* 🙈 v1253 — le flou : une zone (rectangle ou rond) et ses points
+       de passage (David : « des points de passage » pour un objet qui
+       zigzague) ; entre deux points, elle glisse en ligne droite. */
+    var flous = (Array.isArray(r.flous) ? r.flous : []).slice(0, 20).map(function(f){
+      f = f || {};
+      var pts = (Array.isArray(f.points) ? f.points : []).slice(0, 60).map(function(p){
+        p = p || {};
+        var w = entre(p.w, 4, 100), h = entre(p.h, 4, 100);
+        return { t: Math.round(entre(p.t, 0, 36000) * 10) / 10, x: entre(p.x, 0, 100 - w), y: entre(p.y, 0, 100 - h), w: w, h: h };
+      }).sort(function(a, b){ return a.t - b.t; });
+      return { de: entre(f.de, 0, 36000), a: entre(f.a, 0, 36000), rond: !!f.rond, points: pts };
+    }).filter(function(f){ return f.a > f.de && f.points.length; });
     var mu = (r.musique && typeof r.musique === 'object') ? r.musique : {};
     var tr = (r.tr && typeof r.tr === 'object') ? r.tr : {};
     var fichiers = (r.fichiers && typeof r.fichiers === 'object') ? r.fichiers : {};
@@ -125,15 +137,64 @@
     Object.keys(fp).slice(0, 10).forEach(function(k){ if(/^[a-z0-9]{1,12}$/.test(k) && cleValide(fp[k])) polices[k] = String(fp[k]); });
     var out = {
       v: 1, clips: clips, copy: parties.copy, titre: parties.titre, fili: parties.fili, gen: parties.gen,
-      textes: textes, muets: muets,
+      textes: textes, muets: muets, flous: flous,
       musique: { on: !!mu.on, ou: mu.ou === 'bords' ? 'bords' : 'tout', vol: entre(mu.vol === undefined ? 0.35 : mu.vol, 0, 1), volVid: entre(mu.volVid === undefined ? 1 : mu.volVid, 0, 1), nom: texte(mu.nom, 80) },
       tr: { titre: un(TRANSITIONS, tr.titre, 'glisse'), coupe: un(TRANSITIONS, tr.coupe, 'noir'), fin: un(TRANSITIONS, tr.fin, 'roue') },
       fichiers: {}
     };
     if(cleValide(fichiers.musique)) out.fichiers.musique = String(fichiers.musique);
     if(Object.keys(polices).length) out.fichiers.polices = polices;
+    /* 💬 v1253 — les sous-titres : le texte vit dans un fichier .vtt
+       déposé à côté (la cellule d'un guide ne tiendrait pas dix
+       minutes de paroles) ; la recette dit s'il y en a, et leur style. */
+    if(cleValide(fichiers.soustitres)) out.fichiers.soustitres = String(fichiers.soustitres);
+    var st = (r.sousTitres && typeof r.sousTitres === 'object') ? r.sousTitres : {};
+    out.sousTitres = { on: !!st.on, n: Math.max(0, Math.min(5000, parseInt(st.n, 10) || 0)) };
+    /* 🎞️ v1253 — une vidéo FABRIQUÉE (le flou l'impose) : tout est
+       dans l'image ; la recette ne dit plus que la fenêtre du contenu
+       dans le fichier (pour « passer le début » et les 90 %). */
+    if(r.fabrique && typeof r.fabrique === 'object'){
+      var fa = r.fabrique;
+      out.fabrique = { de: entre(fa.de, 0, 36000), a: entre(fa.a, 0, 36000), flou: !!fa.flou, le: texte(fa.le, 20), duree: entre(fa.duree, 0, 36000) };
+      if(!(out.fabrique.a > out.fabrique.de)) delete out.fabrique;
+    }
     out.duree = Math.round(dureeContenu(out) * 10) / 10;
     return out;
+  }
+  /* La place d'un flou à l'instant t : entre deux points de passage,
+     en ligne droite ; avant le premier et après le dernier, immobile. */
+  function placeFlou(f, t){
+    var p = f.points;
+    if(!p || !p.length) return null;
+    if(t <= p[0].t || p.length === 1) return p[0];
+    for(var i = 1; i < p.length; i++){
+      if(t <= p[i].t){
+        var a = p[i - 1], b = p[i], k = (b.t > a.t) ? (t - a.t) / (b.t - a.t) : 1;
+        return { t: t, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, w: a.w + (b.w - a.w) * k, h: a.h + (b.h - a.h) * k };
+      }
+    }
+    return p[p.length - 1];
+  }
+  /* ---------- les sous-titres, au format WebVTT ---------- */
+  function hmsVtt(t){ t = Math.max(0, t); var h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t - h * 3600 - m * 60; return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s.toFixed(3); }
+  function versVTT(cues){
+    return 'WEBVTT\n\n' + (cues || []).filter(function(c){ return c && c.a > c.de && String(c.texte || '').trim(); }).map(function(c, i){
+      return (i + 1) + '\n' + hmsVtt(c.de) + ' --> ' + hmsVtt(c.a) + '\n' + String(c.texte).replace(/-->/g, '→').replace(/\n{2,}/g, '\n').trim();
+    }).join('\n\n') + '\n';
+  }
+  function depuisVTT(texte){
+    var out = [];
+    String(texte || '').replace(/\r/g, '').split(/\n\n+/).forEach(function(b){
+      var l = b.split('\n'), k = -1;
+      for(var i = 0; i < l.length; i++) if(/-->/.test(l[i])){ k = i; break; }
+      if(k < 0) return;
+      var m = l[k].match(/([\d:.]+)\s*-->\s*([\d:.]+)/);
+      if(!m) return;
+      var sec = function(x){ var p = x.split(':').map(Number); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p[0] * 60 + p[1]; };
+      var tx = l.slice(k + 1).join('\n').trim();
+      if(tx) out.push({ de: sec(m[1]), a: sec(m[2]), texte: tx.slice(0, 300) });
+    });
+    return out.slice(0, 5000);
   }
   function cleValide(c){ return /^guides\/[A-Za-z0-9]{22}\.[a-z0-9]{1,5}$/.test(String(c || '')); }
 
@@ -205,7 +266,9 @@
     if(r.textes.length) p.push(r.textes.length + ' texte' + (r.textes.length > 1 ? 's' : ''));
     if(r.muets.length) p.push('son coupé ×' + r.muets.length);
     if(r.musique.on) p.push('musique');
+    if(r.flous && r.flous.length) p.push('flou ×' + r.flous.length);
     if(r.gen.on) p.push('générique');
+    if(r.fabrique) return 'vidéo fabriquée' + (r.fabrique.flou ? ' (floutée)' : '');
     return p.join(' · ');
   }
 
@@ -321,6 +384,10 @@
     '.mvVoile.roue{opacity:1;-webkit-mask:repeating-conic-gradient(from 0deg,#000 0 calc(var(--p,0) * 90deg),transparent 0 90deg);mask:repeating-conic-gradient(from 0deg,#000 0 calc(var(--p,0) * 90deg),transparent 0 90deg);}',
     '.mvCalque{position:absolute;inset:0;overflow:hidden;z-index:3;pointer-events:none;}',
     '.mvTxt{position:absolute;line-height:1.25;overflow-wrap:anywhere;pointer-events:none;}',
+    '.mvFlou{position:absolute;-webkit-backdrop-filter:blur(calc(var(--mvU,3px) * 3.5));backdrop-filter:blur(calc(var(--mvU,3px) * 3.5));background:rgba(128,128,128,.12);pointer-events:none;}',
+    '.mvFlou.rond{border-radius:50%;}',
+    '.mvSt{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);max-width:90%;width:max-content;text-align:center;z-index:3;pointer-events:none;color:#fff;background:rgba(0,0,0,.72);border-radius:.3em;padding:.15em .5em;line-height:1.3;white-space:pre-line;font:500 calc(var(--mvU,3px) * 4.6)/1.3 "Segoe UI",Selawik,"Helvetica Neue",system-ui,sans-serif;}',
+    '.mvL-cc[aria-pressed=true]{background:#14161B !important;color:#fff !important;border-color:#14161B !important;}',
     '.mvGrand{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72px;height:72px;border-radius:999px;border:0;background:rgba(255,255,255,.92);color:#0B0B0B;font-size:28px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);z-index:7;}',
     '.mvGrand:focus-visible{outline:3px solid #B6FF0E;outline-offset:3px;}',
     '.mvSr{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}',
@@ -348,6 +415,15 @@
     document.head.appendChild(s);
   }
 
+  /* ⚠️ LES TAILLES SUIVENT LA VIDÉO, PAS L'ÉCRAN — v1253. Une unité
+     « --mvU » vaut le centième de la largeur de la scène : un texte
+     posé occupe la même part de l'image en petit, en plein écran — et
+     dans le fichier fabriqué, qui la dessine avec les mêmes nombres
+     (ec-montage-fabrique.js). Les nombres ci-dessous redonnent, sur un
+     téléphone, les tailles de la v1252. */
+  var BASES = { copy: 4.7, titre: 7.8, sous: 4.7, fili: 3.9, gen: 5.7, texte: 5.2, st: 4.6 };
+  function unite(n){ return 'calc(var(--mvU, 3px) * ' + n + ')'; }
+
   /* ---------- la scène : le même dessin pour l'élève et pour le bureau ---------- */
   function creerScene(){
     poserLeStyle();
@@ -356,6 +432,7 @@
     sc.innerHTML =
       '<video playsinline preload="metadata"></video>' +
       '<div class="mvCalque"></div>' +
+      '<div class="mvSt" aria-hidden="true" hidden></div>' +
       '<div class="mvFili bd" aria-hidden="true"></div>' +
       '<div class="mvCarte mvCopy" aria-hidden="true"><p></p></div>' +
       '<div class="mvCarte mvTitreCarte" aria-hidden="true"><p class="t"></p><p class="s"></p></div>' +
@@ -363,37 +440,52 @@
       '<div class="mvVoile"></div>' +
       '<button type="button" class="mvGrand" aria-label="Lire la vidéo">▶</button>';
     var q = function(s){ return sc.querySelector(s); };
-    return { scene: sc, video: q('video'), calque: q('.mvCalque'), fili: q('.mvFili'), copy: q('.mvCopy'), copyTxt: q('.mvCopy p'),
+    var mesurer = function(){ var w = sc.getBoundingClientRect().width; if(w) sc.style.setProperty('--mvU', (w / 100) + 'px'); };
+    if(G.ResizeObserver){ try{ new ResizeObserver(mesurer).observe(sc); }catch(e){} }
+    setTimeout(mesurer, 0);
+    return { scene: sc, video: q('video'), calque: q('.mvCalque'), st: q('.mvSt'), fili: q('.mvFili'), copy: q('.mvCopy'), copyTxt: q('.mvCopy p'),
              titreCarte: q('.mvTitreCarte'), titreT: q('.mvTitreCarte .t'), titreS: q('.mvTitreCarte .s'),
              gen: q('.mvGen'), genTxt: q('.mvGen .roule'), voile: q('.mvVoile'), grand: q('.mvGrand') };
   }
 
   /* L'habillage posé dans la scène (textes et styles des cartes). */
   function habiller(S, r, persos){
-    S.copyTxt.textContent = r.copy.texte; appliquerStyle(S.copyTxt, r.copy.style, 'clamp(11px,3.6vw,15px)', persos);
-    S.titreT.textContent = r.titre.texte || ' '; appliquerStyle(S.titreT, r.titre.style, 'clamp(17px,6vw,26px)', persos);
+    S.copyTxt.textContent = r.copy.texte; appliquerStyle(S.copyTxt, r.copy.style, unite(BASES.copy), persos);
+    S.titreT.textContent = r.titre.texte || ' '; appliquerStyle(S.titreT, r.titre.style, unite(BASES.titre), persos);
     S.titreS.textContent = r.titre.sous || ''; S.titreS.hidden = !r.titre.sous;
-    appliquerStyle(S.titreS, { police: r.titre.style.police, taille: 'm', couleur: r.titre.style.couleur, fond: 'aucun' }, 'clamp(12px,3.6vw,15px)', persos);
+    appliquerStyle(S.titreS, { police: r.titre.style.police, taille: 'm', couleur: r.titre.style.couleur, fond: 'aucun' }, unite(BASES.sous), persos);
     S.fili.textContent = r.fili.texte;
     var on = S.fili.classList.contains('on');
     S.fili.className = 'mvFili ' + r.fili.pos + (on ? ' on' : '');
-    appliquerStyle(S.fili, r.fili.style, 'clamp(10px,3vw,14px)', persos);
-    if(r.fili.style.fond === 'aucun') S.fili.style.padding = '8px 10px';
-    S.genTxt.textContent = r.gen.texte; appliquerStyle(S.genTxt, r.gen.style, 'clamp(14px,4.4vw,20px)', persos);
+    appliquerStyle(S.fili, r.fili.style, unite(BASES.fili), persos);
+    if(r.fili.style.fond === 'aucun') S.fili.style.padding = '.6em .8em';
+    S.genTxt.textContent = r.gen.texte; appliquerStyle(S.genTxt, r.gen.style, unite(BASES.gen), persos);
     S.genTxt.style.background = 'transparent';
   }
 
-  /* Les textes posés sur l'image, à l'instant t du contenu. */
-  function dessinerTextes(S, r, t, persos, pour){
+  /* Les textes posés sur l'image, à l'instant t du contenu — et, dessous,
+     les flous (v1253). Un flou ainsi posé n'est qu'un APERÇU : la vidéo
+     brute garde ce qu'il cache, c'est pourquoi une vidéo floutée se
+     fabrique (voir ec-montage-fabrique.js). */
+  function dessinerTextes(S, r, t, persos, pour, pourFlou){
     var vus = [];
     S.calque.innerHTML = '';
+    (r.flous || []).forEach(function(f, i){
+      if(t < f.de - 0.05 || t > f.a + 0.05) return;
+      var p = placeFlou(f, t); if(!p) return;
+      var z = document.createElement('div');
+      z.className = 'mvFlou' + (f.rond ? ' rond' : '');
+      z.style.left = p.x + '%'; z.style.top = p.y + '%'; z.style.width = p.w + '%'; z.style.height = p.h + '%';
+      if(pourFlou) pourFlou(z, i, p);
+      S.calque.appendChild(z);
+    });
     (r.textes || []).forEach(function(x, i){
       if(t < x.de - 0.05 || t > x.a + 0.05) return;
       var e = document.createElement('div');
       e.className = 'mvTxt';
       e.textContent = x.texte || ' ';
       e.style.left = x.x + '%'; e.style.top = x.y + '%'; e.style.maxWidth = (98 - x.x) + '%';
-      appliquerStyle(e, x.style, 'clamp(12px,4vw,18px)', persos);
+      appliquerStyle(e, x.style, unite(BASES.texte), persos);
       if(pour) pour(e, i);
       S.calque.appendChild(e);
       vus.push(i);
@@ -420,6 +512,20 @@
     var video = S.video, musique = null;
     if(o.musique){ musique = new Audio(); musique.loop = true; musique.preload = 'auto'; musique.src = o.musique; }
     var segs = segments(r);
+    /* 💬 v1253 — les sous-titres : affichés si l'élève a touché « CC ».
+       « decalage » : dans un fichier fabriqué, le contenu ne commence
+       qu'après l'avertissement et le titre, eux aussi dans l'image. */
+    var cues = o.cues || null, decal = Number(o.decalage) || 0;
+    function poserSt(){
+      if(!S.st) return;
+      var c = null;
+      if(cues && cues.length && et.enVideo && (!o.cc || o.cc())){
+        var t = et.tContenu - decal;
+        for(var i = 0; i < cues.length; i++) if(t >= cues[i].de && t <= cues[i].a){ c = cues[i]; break; }
+      }
+      S.st.hidden = !c;
+      if(c && S.st.textContent !== c.texte) S.st.textContent = c.texte;
+    }
     var et = { joue: false, i: -1, tLoc: 0, etapes: [], fini: false, attente: null, charge: -1, enVideo: false, tContenu: 0, dernier: null, introFaite: false };
     var ecouteurs = {};
     function emettre(n, a, b){ (ecouteurs[n] || []).forEach(function(f){ try{ f(a, b); }catch(e){} }); }
@@ -525,8 +631,8 @@
     function basculer(e){
       if(e.bascule) return;
       e.bascule = true;
-      if(e.vers === 'gen'){ video.pause(); et.enVideo = false; poserFili(); S.calque.innerHTML = ''; cartes(0, 0, 1); S.genTxt.style.top = '100%'; }
-      else { cartes(0, 0, 0); video.style.opacity = 1; et.enVideo = true; et.tContenu = segs[e.vers].off; poserFili(); dessinerTextes(S, r, et.tContenu, persos, o.surTexte); }
+      if(e.vers === 'gen'){ video.pause(); et.enVideo = false; poserFili(); poserSt(); S.calque.innerHTML = ''; cartes(0, 0, 1); S.genTxt.style.top = '100%'; }
+      else { cartes(0, 0, 0); video.style.opacity = 1; et.enVideo = true; et.tContenu = segs[e.vers].off; poserFili(); dessinerTextes(S, r, et.tContenu, persos, o.surTexte); poserSt(); }
     }
     function rendreTr(e){
       var t = typeReel(e.type), p = e.d ? Math.min(1, et.tLoc / e.d) : 1;
@@ -580,6 +686,7 @@
           var p = video.play(); if(p && p.catch) p.catch(function(){});
         }
         dessinerTextes(S, r, et.tContenu, persos, o.surTexte);
+        poserSt();
         volumes();
         emettre('temps', et.tContenu);
         if(t >= sg.a - 0.05 || video.ended){ video.pause(); suivant(); }
@@ -656,7 +763,7 @@
       var joue = et.joue;
       video.pause();
       aller(o2.seg.ci, o2.temps).then(function(){
-        dessinerTextes(S, r, t, persos, o.surTexte);
+        dessinerTextes(S, r, t, persos, o.surTexte); poserSt();
         if(joue){ et.joue = true; var p = video.play(); if(p && p.catch) p.catch(function(){}); planifier(); }
         emettre('temps', t); emettre('etat');
       });
@@ -679,7 +786,7 @@
       et.joue = false; et.fini = false; et.etapes = []; et.i = -1;
       video.pause(); video.style.transform = ''; video.style.opacity = 1; video.muted = false;
       S.voile.style.opacity = 0; S.voile.classList.remove('roue'); S.gen.style.transform = '';
-      cartes(0, 0, 0); S.genTxt.style.top = '100%'; et.enVideo = false; poserFili(); S.calque.innerHTML = '';
+      cartes(0, 0, 0); S.genTxt.style.top = '100%'; et.enVideo = false; poserFili(); poserSt(); S.calque.innerHTML = '';
       if(musique) musique.pause();
       S.grand.hidden = false;
       emettre('etat');
@@ -692,7 +799,8 @@
       sur: function(n, f){ (ecouteurs[n] = ecouteurs[n] || []).push(f); },
       etat: function(){ var e = et.etapes[et.i]; return { joue: et.joue, fini: et.fini, phase: e ? e.s : '', tContenu: et.tContenu, introFaite: et.introFaite, enIntro: !!(e && (e.s === 'copy' || e.s === 'noir' || e.s === 'titre' || (e.s === 'tr' && e.vers === 0))) }; },
       duree: function(){ return dureeContenu(r); },
-      couperLeSon: function(v){ o.muet = !!v; volumes(); }
+      couperLeSon: function(v){ o.muet = !!v; volumes(); },
+      sousTitres: function(l){ if(l !== undefined) cues = l; poserSt(); }
     };
   }
 
@@ -700,7 +808,13 @@
      LE LECTEUR — la scène, ses commandes, pour l'élève et l'aperçu
 
      o : { recette, clips:[{lien}], musique, persos, titre,
-           peutPasser(): booléen, surContenu(de, a), surIntroFaite() }
+           peutPasser(): booléen, surContenu(de, a), surIntroFaite(),
+           sousTitres: [ {de, a, texte} ] ou le lien du .vtt }
+
+     🎞️ v1253 — UNE VIDÉO FABRIQUÉE (recette.fabrique) : tout est
+     dans l'image ; le lecteur la joue d'un bout à l'autre, mais
+     « passer le début » saute à la fenêtre du contenu, et seule cette
+     fenêtre compte dans les 90 %.
 
      ⚠️ LA BARRE NE MONTRE QUE LE CONTENU. L'avertissement et le titre
      n'y ont pas de place : on ne « recule » pas dans un générique, et
@@ -723,6 +837,7 @@
       '<button type="button" class="mvL-lire" aria-label="Lire">▶</button>' +
       '<input type="range" class="mvL-pos" min="0" step="0.1" value="0" aria-label="Position dans la vidéo">' +
       '<span class="mvL-temps" aria-hidden="true">0:00</span>' +
+      '<button type="button" class="mvL-cc" aria-pressed="false" aria-label="Sous-titres" hidden>CC</button>' +
       '<button type="button" class="mvL-son" aria-pressed="false" aria-label="Couper le son">🔊</button>' +
       '<button type="button" class="mvL-plein" aria-pressed="false" aria-label="Plein écran">⛶</button>';
     w.appendChild(barre);
@@ -737,10 +852,26 @@
 
     var persos = o.persos || {};
     var dit = {};
+    var fa = r.fabrique || null;
+    var ccOn = false;
+    try{ ccOn = localStorage.getItem('ec_mv_cc') === '1'; }catch(e){}
     var m = moteur(S, { recette: r, clips: o.clips, musique: o.musique, persos: persos, peutPasser: o.peutPasser,
+      cues: Array.isArray(o.sousTitres) ? o.sousTitres : null, decalage: fa ? fa.de : 0, cc: function(){ return ccOn; },
       surTexte: function(e, i){ if(!dit[i]){ dit[i] = 1; annonce.textContent = r.textes[i].texte; } } });
     var q = function(s){ return barre.querySelector(s); };
-    var bLire = q('.mvL-lire'), pos = q('.mvL-pos'), temps = q('.mvL-temps'), bSon = q('.mvL-son'), bPlein = q('.mvL-plein');
+    var bLire = q('.mvL-lire'), pos = q('.mvL-pos'), temps = q('.mvL-temps'), bSon = q('.mvL-son'), bPlein = q('.mvL-plein'), bCc = q('.mvL-cc');
+    /* 💬 « CC » : les sous-titres, quand la vidéo en a. Le choix reste
+       sur ce téléphone pour les vidéos suivantes. */
+    var peindreCc = function(){ bCc.setAttribute('aria-pressed', ccOn ? 'true' : 'false'); bCc.setAttribute('aria-label', ccOn ? 'Masquer les sous-titres' : 'Afficher les sous-titres'); };
+    if(Array.isArray(o.sousTitres) && o.sousTitres.length){ bCc.hidden = false; }
+    else if(typeof o.sousTitres === 'string' && o.sousTitres && r.sousTitres.on){
+      fetch(o.sousTitres).then(function(x){ return x.ok ? x.text() : ''; }).then(function(t){
+        var l = depuisVTT(t);
+        if(l.length){ m.sousTitres(l); bCc.hidden = false; }
+      }).catch(function(){});
+    }
+    peindreCc();
+    bCc.addEventListener('click', function(){ ccOn = !ccOn; try{ localStorage.setItem('ec_mv_cc', ccOn ? '1' : '0'); }catch(e){} peindreCc(); m.sousTitres(); });
     var d = m.duree();
     pos.max = d.toFixed(1);
     temps.textContent = '0:00 / ' + mmss(d);
@@ -751,11 +882,20 @@
       bLire.setAttribute('aria-label', e.joue ? 'Pause' : (e.fini ? 'Revoir' : 'Lire'));
       if(!glisse){ pos.value = e.tContenu.toFixed(1); pos.setAttribute('aria-valuetext', lu(e.tContenu) + ' sur ' + lu(d)); }
       temps.textContent = mmss(e.tContenu) + ' / ' + mmss(d);
-      passer.hidden = !(e.joue && e.enIntro && o.peutPasser && o.peutPasser());
+      var dansLeDebut = fa ? (e.tContenu < fa.de - 0.5 && (e.phase === 'seg' || e.phase === 'tr')) : e.enIntro;
+      passer.hidden = !(e.joue && dansLeDebut && o.peutPasser && o.peutPasser());
+      if(fa && !introFa && e.tContenu >= fa.de){ introFa = true; if(o.surIntroFaite) o.surIntroFaite(); }
     }
+    var introFa = false;
     m.sur('temps', majBarre); m.sur('etat', majBarre);
-    m.sur('contenu', function(a, b){ if(o.surContenu) o.surContenu(a, b, d); });
-    m.sur('introFaite', function(){ if(o.surIntroFaite) o.surIntroFaite(); });
+    m.sur('contenu', function(a, b){
+      if(!o.surContenu) return;
+      if(!fa){ o.surContenu(a, b, d); return; }
+      /* Dans un fichier fabriqué, seule la fenêtre du contenu compte. */
+      var x = Math.max(a, fa.de), y = Math.min(b, fa.a);
+      if(y > x) o.surContenu(x - fa.de, y - fa.de, fa.a - fa.de);
+    });
+    m.sur('introFaite', function(){ if(!fa && o.surIntroFaite) o.surIntroFaite(); });
     m.sur('fin', function(){ S.grand.hidden = false; S.grand.setAttribute('aria-label', 'Revoir la vidéo'); S.grand.textContent = '↻'; annonce.textContent = 'Fin de la vidéo.'; if(o.surFin) o.surFin(); });
     var partie = false;
     var demarrer = function(){
@@ -769,7 +909,7 @@
     };
     S.grand.addEventListener('click', demarrer);
     bLire.addEventListener('click', demarrer);
-    passer.addEventListener('click', function(){ m.passerIntro(); bLire.focus(); });
+    passer.addEventListener('click', function(){ if(fa) m.allerA(fa.de); else m.passerIntro(); bLire.focus(); });
     pos.addEventListener('input', function(){ glisse = true; temps.textContent = mmss(+pos.value) + ' / ' + mmss(d); });
     pos.addEventListener('change', function(){ glisse = false; partie = true; m.allerA(+pos.value); });
     bSon.addEventListener('click', function(){
@@ -801,7 +941,7 @@
     chargerLesPolices(stylesDe(r), persos).then(function(){ habiller(S, r, persos); });
     m.preparer();
     majBarre();
-    return { element: w, moteur: m, recette: r, video: S.video, detruire: function(){ m.detruire(); if(w.parentNode) w.parentNode.removeChild(w); } };
+    return { element: w, moteur: m, recette: r, video: S.video, dureeCompte: fa ? fa.a - fa.de : d, detruire: function(){ m.detruire(); if(w.parentNode) w.parentNode.removeChild(w); } };
   }
 
   G.ECMontage = {
@@ -812,7 +952,8 @@
     hms: hms, mmss: mmss, lu: lu, resume: resume, contraste: contraste, contrasteDuStyle: contrasteDuStyle,
     policeDe: policeDe, appliquerStyle: appliquerStyle, chargerLesPolices: chargerLesPolices, stylesDe: stylesDe,
     creerScene: creerScene, habiller: habiller, dessinerTextes: dessinerTextes, moteur: moteur, lecteur: lecteur,
-    poserLeStyle: poserLeStyle, cleValide: cleValide, copie: copie
+    poserLeStyle: poserLeStyle, cleValide: cleValide, copie: copie,
+    placeFlou: placeFlou, versVTT: versVTT, depuisVTT: depuisVTT, BASES: BASES, unite: unite, lum: lum
   };
 })(window);
 
