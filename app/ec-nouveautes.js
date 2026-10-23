@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 17:39 — v1247 */
+/* Déployé le 22/10/2026 à 19:33 — v1248 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1248,
+    date: 'Jeudi 22 octobre 2026',
+    resume: '🎮 Le jeu des vérifications arrive dans l’espace des élèves',
+    quoi: [
+      { emoji: '🧰',
+        titre: 'Un onglet « Vérifs » pour l’élève',
+        texte: 'Il s’ouvre élève par élève, dans 🔑 Coin révisions : case « 🧰 Le jeu des vérifications ». Le jour J, Cartes éclair, À revoir, et la grille des 100 questions.' },
+      { emoji: '📝',
+        titre: 'Les questions ratées reviennent',
+        texte: 'Un examen blanc, un examen ou un cours dont la question de vérification est ratée : quand le bilan part par mail, la question revient « à revoir » dans son jeu.' },
+      { emoji: '👀',
+        titre: 'Sa progression',
+        texte: 'Dans son dossier (🔑, sous son parcours), et sur la carte d’un examen blanc ou d’un examen dans Mes prochains cours : ce qu’il maîtrise sur 100, et ce qu’il a à revoir.' }
+    ]
+  },
   {
     version: 1247,
     date: 'Jeudi 22 octobre 2026',
