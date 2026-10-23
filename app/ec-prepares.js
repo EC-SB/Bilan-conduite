@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 14:55 — v1243 */
+/* Déployé le 22/10/2026 à 19:33 — v1248 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1534,6 +1534,9 @@ async function afficherPrepares(recharger, silencieux){
        relit là. */
     row.dataset.heure = h || '';
     row.dataset.eleve = cours.eleve || '';
+    /* 🎮 v1248 — le modèle du cours : la ligne « 🧰 Vérifs » des
+       examens blancs et des examens s'y accroche (ec-verifs.js) */
+    row.dataset.modele = cours.modele || '';
 
     /* Ce que l'élève apporte : à côté de l'heure, pour le voir sans
        ouvrir le cours. */
