@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 10:24 — v1249 */
+/* Déployé le 23/10/2026 à 11:07 — v1250 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -702,6 +702,8 @@ async function posterVerifsDuDossier(corps, nom){
   if(r.revoir.length) r.revoir.forEach(n => rv.appendChild(vqEl('span', 'vqJeuPuce', String(n)))); else rv.textContent = 'rien 👏';
   ligne('À revoir', rv);
   ligne('Jour J', (r.jourJ && r.jourJ.parties ? r.jourJ.parties + ' partie(s) · ' + r.jourJ.parfaits + ' fois 3/3' : 'pas encore joué'));
+  /* 🚨 v1250 */
+  if(r.voyants && r.voyants.parties) ligne('Le bon voyant', r.voyants.parties + ' partie(s) · record ' + r.voyants.record + ' points');
   zone.appendChild(lignes);
   const g = vqEl('div', 'vqJeuGrille');
   String(r.grille || '').split('').forEach((c, i) => { const x = vqEl('i', c === '.' ? '' : c, String(i + 1)); g.appendChild(x); });
