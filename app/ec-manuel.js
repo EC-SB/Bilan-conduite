@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 17:10 — v1246 */
+/* Déployé le 23/10/2026 à 11:48 — v1251 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2335,6 +2335,8 @@ async function ouvrirBilanManuel(){
   /* 📋 v1211 — les procédures à joindre, juste avant « Composer » */
   if(typeof dessinerProceduresAJoindre === 'function'){
     try{ dessinerProceduresAJoindre('proceduresManuel'); }catch(e){}
+    /* 🧰 v1251 — les questions de vérification, juste dessous */
+    try{ if(typeof dessinerQuestionsVerifs === 'function') dessinerQuestionsVerifs('verifsManuel'); }catch(e){}
   }
   if(typeof dessinerSegmentsARevoir === 'function'){
     try{ dessinerSegmentsARevoir('revoirManuel'); }catch(e){}
@@ -8212,47 +8214,30 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       ligneCase('passager', '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧', '');
       ligneCase('voyants', '𝙑𝙤𝙮𝙖𝙣𝙩𝙨', '/2 points jour du permis');
 
-      /* Les vérifications : deux champs courts, pas des cases */
+      /* 🧰 v1251 — « Question n° / Note sur 3 » remplacés par un
+         rappel : les questions se posent dans le tiroir « 🧰 Questions
+         de vérification », juste avant « Composer le bilan » (choix de
+         David, le 23/10). Le bloc entier se cache sur un cours qui n'en
+         a pas (rendez-vous préalable…). */
+      const bv = document.createElement('div');
+      bv.className = 'qvBlocEntete';
+
       const sep = document.createElement('div');
       sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0 8px;';
-      z.appendChild(sep);
+      bv.appendChild(sep);
 
       const v = document.createElement('div');
       v.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:2px;';
       v.textContent = '𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨';
-      z.appendChild(v);
+      bv.appendChild(v);
 
       const lien = document.createElement('div');
       lien.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;' +
         'word-break:break-all;';
       lien.textContent = 'https://www.facebook.com/groups/864826058258637';
-      z.appendChild(lien);
-
-      const duo = document.createElement('div');
-      duo.style.cssText = 'display:flex;gap:10px;';
-      [['verifQuestion', 'Question n°', 'Ex : 12'],
-       ['verifNote', 'Note sur 3', 'Ex : 3']].forEach(([cle, lab, ph]) => {
-        const col = document.createElement('div');
-        col.style.cssText = 'flex:1;min-width:0;';
-        const e = document.createElement('label');
-        e.textContent = lab;
-        e.style.cssText = 'font-size:12px;margin-bottom:4px;text-transform:none;';
-        col.appendChild(e);
-        const i = document.createElement('input');
-        i.type = 'text';
-        i.className = 'enteteTexte';
-        i.setAttribute('data-cle', cle);
-        i.placeholder = ph;
-        i.style.cssText = 'margin:0;padding:9px 10px;font-size:15px;';
-        col.appendChild(i);
-        duo.appendChild(col);
-      });
-      z.appendChild(duo);
-
-      const pts = document.createElement('div');
-      pts.style.cssText = 'font-size:12px;color:var(--muted);margin-top:6px;';
-      pts.textContent = '/3 points jour du permis';
-      z.appendChild(pts);
+      bv.appendChild(lien);
+      z.appendChild(bv);
+      if(typeof rappelQuestionsVerifs === 'function'){ const rq = rappelQuestionsVerifs('manuel'); bv.appendChild(rq); qvPeindreRappel(rq); }
 
       bloc.appendChild(z);
 
