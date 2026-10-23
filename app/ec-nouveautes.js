@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:07 — v1250 */
+/* Déployé le 23/10/2026 à 11:48 — v1251 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1251,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '🧰 Les questions de vérification se posent pendant le cours',
+    quoi: [
+      { emoji: '🧰',
+        titre: 'Un tiroir « Questions de vérification »',
+        texte: 'Sous les procédures, au vocal et au bilan à la main, pour la conduite et l’AAC : tu tapes le n°, la question s’affiche (réponses derrière 👁️), tu en poses autant que tu veux.' },
+      { emoji: '✅',
+        titre: 'Noter partie par partie',
+        texte: 'Vérification, QSER, premiers secours : ✅ ou ❌, la note sur 3 se fait toute seule. « — » = pas demandée.' },
+      { emoji: '📄',
+        titre: 'Tout part dans le bilan',
+        texte: 'Chaque question avec ses réponses, ✅ ❌ et sa note, puis le total. Une partie ❌ revient « à revoir » dans le jeu de l’élève.' },
+      { emoji: '🎙️',
+        titre: 'À la voix aussi',
+        texte: '« Question 12 » dit pendant l’enregistrement la pose toute seule. La case « Question n° / Note sur 3 » de l’en-tête est remplacée par un rappel.' }
+    ]
+  },
   {
     version: 1250,
     date: 'Vendredi 23 octobre 2026',
