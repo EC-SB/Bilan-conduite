@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 19:33 — v1248 */
+/* Déployé le 23/10/2026 à 15:15 — v1253 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -60,6 +60,8 @@ const DELAI_ORDINAIRE = 25000;
    On n'y remet pas celles qui valent le délai ordinaire : le même
    nombre écrit à deux endroits finit toujours par n'en suivre qu'un. */
 const ACTIONS_LOURDES = { elevesImport: 90000,
+                          /* 💬 v1253 — un morceau de son transcrit par Whisper */
+                          videoSousTitres: 60000,
                           /* Vingt-trois feuilles à relire et à réécrire.
                              À douze secondes, l'application croyait à une
                              panne — voir SANS_REPRISE juste dessous. */
