@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 22/10/2026 à 09:42 — v1236 -->
+<!-- Déployé le 22/10/2026 à 19:33 — v1248 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1486,6 +1486,96 @@
   .repXEl{ flex:none; width:30px; height:30px; padding:0; margin:0; border:none; border-radius:50%;
            background:transparent; color:var(--cream); cursor:pointer; font-size:14px; }
 
+  /* ===== 🎮 LE JEU DES VÉRIFICATIONS — v1248 ===== */
+  .jv{ font-size:14px; line-height:1.4; }
+  .jv .jvHero{ background:linear-gradient(135deg,#14161B,#2A2F1A); color:#fff; border:0; position:relative; overflow:hidden; }
+  .jv .jvHero .jvGros{ font-size:21px; font-weight:900; letter-spacing:-.01em; }
+  .jv .jvHero .jvDoux{ color:#C9CCBF; font-size:12.5px; }
+  .jv .jvLigneH{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .jv .jvFlamme{ display:inline-flex; align-items:center; gap:4px; background:rgba(255,176,32,.16); color:#FFB020; border-radius:999px; padding:3px 10px; font-weight:800; font-size:13px; }
+  .jv .jvSon{ margin-left:auto; width:34px; height:34px; border-radius:999px; border:1px solid rgba(255,255,255,.25); background:transparent; color:#fff; font-size:15px; cursor:pointer; }
+  .jv .jvXp{ height:10px; border-radius:99px; background:rgba(255,255,255,.14); overflow:hidden; margin:10px 0 4px; }
+  .jv .jvXp i{ display:block; height:100%; background:linear-gradient(90deg,#B6FF0E,#5CE1E6); border-radius:99px; animation:jvXp 1.2s ease-out both; }
+  @keyframes jvXp{ from{ width:0 } }
+  .jv .jvModes{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .jv .jvMode{ border:1px solid var(--line); background:var(--navy-deep); color:var(--cream); border-radius:16px; padding:12px; text-align:left; cursor:pointer; position:relative;
+    min-height:92px; font:inherit; transition:transform .12s, box-shadow .12s; }
+  .jv .jvMode:active{ transform:scale(.98); }
+  .jv .jvMode .e{ font-size:26px; display:block; margin-bottom:4px; }
+  .jv .jvMode b{ display:block; font-size:14px; }
+  .jv .jvMode small{ display:block; margin-top:2px; font-size:11.5px; line-height:1.35; color:var(--muted); }
+  .jv .jvMode.vedette{ grid-column:1 / -1; display:flex; gap:12px; align-items:center; min-height:0; background:linear-gradient(135deg,rgba(182,255,14,.30),var(--navy-deep)); border-color:#B6E35A; }
+  .jv .jvMode.vedette .e{ font-size:34px; margin:0; }
+  .jv .jvMode .jvNb{ position:absolute; top:8px; right:8px; min-width:20px; height:20px; padding:0 6px; border-radius:99px; background:var(--red); color:#fff; font-size:11px; font-weight:800; line-height:20px; text-align:center; }
+  .jv .jvGrille{ display:grid; grid-template-columns:repeat(10,1fr); gap:4px; }
+  .jv .jvGrille button{ aspect-ratio:1; border-radius:5px; border:0; padding:0; background:var(--line); font:700 9px/1 inherit; color:var(--muted); cursor:pointer; min-width:0; }
+  .jv .jvGrille button.a{ background:#FFE3A3; color:#8F5A00; }
+  .jv .jvGrille button.m{ background:#B6FF0E; color:#2F5600; }
+  .jv .jvGrille button.r{ background:#FFD3C7; color:#8F2E0E; }
+  .jv .jvLeg{ display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin-top:8px; }
+  .jv .jvLeg i{ display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:-1px; margin-right:3px; }
+  .jv .jvBadges{ display:flex; gap:8px; flex-wrap:wrap; }
+  .jv .jvBadge{ width:64px; text-align:center; font-size:10.5px; color:var(--muted); font-weight:700; line-height:1.25; }
+  .jv .jvBadge i{ display:flex; width:50px; height:50px; margin:0 auto 4px; border-radius:50%; align-items:center; justify-content:center; font-size:23px; font-style:normal;
+    background:radial-gradient(circle at 30% 30%,#fff,#EEFFC7); border:2px solid #B6E35A; }
+  .jv .jvBadge.non i{ filter:grayscale(1); opacity:.35; }
+  .jv .jvHaut{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .jv .jvHaut .q{ flex:1; font-weight:800; font-size:14px; }
+  .jv .jvX{ border:1px solid var(--line); background:var(--navy-deep); color:var(--cream); border-radius:999px; width:36px; height:36px; cursor:pointer; font-size:15px; flex-shrink:0; }
+  .jv .jvType{ font-size:10.5px; font-weight:800; border-radius:999px; padding:2px 8px; color:#fff; background:#7A0A0A; vertical-align:2px; }
+  .jv .jvType.VI{ background:#E02020; }
+  .jv .jvBulle{ background:var(--navy-deep); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:15px; font-weight:700; line-height:1.35; }
+  .jv .jvBulle .qui{ font-size:11px; color:var(--muted); font-weight:700; display:block; margin-bottom:2px; }
+  .jv .jvEtapes{ display:flex; gap:5px; margin:10px 0; }
+  .jv .jvEtapes span{ flex:1; height:6px; border-radius:99px; background:var(--line); transition:background .4s; }
+  .jv .jvEtapes span.f{ background:#B6FF0E; } .jv .jvEtapes span.k{ background:#FF8A66; } .jv .jvEtapes span.c{ background:#E4FFA8; }
+  .jv .jvPart{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:6px; display:inline-block; margin-bottom:6px; }
+  .jv .jvPart.v{ background:#FDE2E2; color:#9B1010; } .jv .jvPart.q{ background:#FFE7CC; color:#9A4A00; } .jv .jvPart.s{ background:#DDF5D5; color:#226B13; }
+  .jv .jvQ{ font-weight:700; font-size:15.5px; line-height:1.4; }
+  .jv .jvNeutre{ background:#FFF4D6; color:#5C3D00; border-radius:10px; padding:7px 9px; margin:6px 0; font-size:12.5px; font-weight:700; }
+  .jv .jvChoix{ display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+  .jv .jvChoix button{ text-align:left; border:2px solid var(--line); background:var(--navy-deep); color:var(--cream); border-radius:14px; padding:11px 12px; font:600 14px/1.35 inherit;
+    cursor:pointer; display:flex; gap:10px; align-items:center; transition:border-color .2s, background .2s; }
+  .jv .jvChoix button b{ width:26px; height:26px; flex-shrink:0; border-radius:8px; background:var(--navy); display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .jv .jvChoix button.bon{ border-color:#2E8B14; background:rgba(46,139,20,.12); }
+  .jv .jvChoix button.bon b{ background:#2E8B14; color:#fff; }
+  .jv .jvChoix button.faux{ border-color:#C33A12; background:rgba(195,58,18,.10); }
+  .jv .jvChoix button.faux b{ background:#C33A12; color:#fff; }
+  .jv .jvCarte{ perspective:900px; margin-top:12px; cursor:pointer; }
+  .jv .jvCarte .in{ position:relative; min-height:170px; transition:transform .6s; transform-style:preserve-3d; }
+  .jv .jvCarte.vu .in{ transform:rotateY(180deg); }
+  .jv .jvCarte .f, .jv .jvCarte .d{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:16px; padding:14px;
+    display:flex; flex-direction:column; justify-content:center; gap:8px; }
+  .jv .jvCarte .f{ background:linear-gradient(135deg,rgba(182,255,14,.18),var(--navy-deep)); border:2px solid #B6E35A; font-weight:700; font-size:14.5px; color:var(--cream); }
+  .jv .jvCarte .d{ background:#14161B; color:#fff; transform:rotateY(180deg); font-size:15px; }
+  .jv .jvCarte .d b{ color:#B6FF0E; }
+  .jv .jvCarte small{ font-size:11.5px; color:var(--muted); font-weight:600; }
+  .jv .jvDeux{ display:flex; gap:8px; margin-top:12px; }
+  .jv .jvDeux .btn{ flex:1; margin:0; }
+  .jv .jvRes{ text-align:center; position:relative; overflow:hidden; }
+  .jv .jvEtoiles{ font-size:40px; letter-spacing:6px; }
+  .jv .jvEtoiles span{ display:inline-block; animation:jvEtoile .5s cubic-bezier(.3,1.6,.5,1) both; }
+  .jv .jvEtoiles span:nth-child(2){ animation-delay:.25s } .jv .jvEtoiles span:nth-child(3){ animation-delay:.5s }
+  .jv .jvEtoiles span.non{ opacity:.18; }
+  @keyframes jvEtoile{ from{ transform:scale(0) rotate(-90deg) } }
+  .jv .jvGain{ display:inline-block; margin-top:6px; background:var(--orange-soft); color:var(--accent-text); font-weight:900; border-radius:999px; padding:4px 12px; animation:jvMonte .8s .6s both; }
+  @keyframes jvMonte{ from{ transform:translateY(14px); opacity:0 } }
+  .jv .jvTirage{ display:flex; justify-content:center; gap:6px; margin:12px 0; }
+  .jv .jvTirage span{ width:58px; height:80px; border-radius:14px; background:#14161B; color:#B6FF0E; font-size:48px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+  .jv .jvTirage span.roule{ animation:jvRoule .09s linear infinite; }
+  @keyframes jvRoule{ 50%{ transform:translateY(-4px); filter:blur(1.5px); } }
+  .jv .jvConfetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:60; }
+  .jv .jvConfetti i{ position:absolute; top:-12px; width:8px; height:12px; border-radius:2px; animation:jvTombe 1.7s ease-in forwards; }
+  @keyframes jvTombe{ to{ transform:translateY(105vh) rotate(720deg); opacity:.3; } }
+  .jv .jvSecoue{ animation:jvSecoue .45s; }
+  @keyframes jvSecoue{ 20%{ transform:translateX(-8px) } 40%{ transform:translateX(7px) } 60%{ transform:translateX(-5px) } 80%{ transform:translateX(3px) } }
+  .jv .jvPop{ animation:jvPop .45s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes jvPop{ 40%{ transform:scale(1.04) } }
+  .jv .jvRevoir{ display:flex; flex-wrap:wrap; gap:6px; }
+  .jv .jvRevoir button{ border:1px solid var(--line); background:var(--navy-deep); color:var(--cream); border-radius:12px; padding:8px 10px; font:700 13px/1.2 inherit; cursor:pointer; text-align:left; }
+  .jv .jvRevoir button small{ display:block; font-weight:600; font-size:11px; color:var(--muted); margin-top:2px; }
+  .jv .jvPartage{ font-size:12px; color:var(--muted); margin-top:4px; }
+  @media (prefers-reduced-motion: reduce){ .jv *{ animation:none !important; transition:none !important; } }
   /* ============================================================
      ⚠️ COUCHÉ — ET CE BLOC EST LE DERNIER DE LA FEUILLE, EXPRÈS.
 
@@ -1676,6 +1766,9 @@
     </div>
 
     </div><!-- /ongletReviser -->
+
+    <!-- 🎮 v1248 — le jeu des vérifications (module « verifs ») -->
+    <div id="ongletVerifs" class="cache"><div id="jvZone"></div></div>
 
     <div id="ongletReciter" class="cache">
     <div class="card" id="carteReciter">
@@ -2484,6 +2577,12 @@
     { cle:'reviser', nom:'🎬 Réviser', emoji:'🎬', court:'Réviser',
       zone:'ongletReviser',
       quand: function(){ return ouvert('parcours'); } },
+    /* 🎮 v1248 — David : « un jeu pour faire travailler les
+       vérifications aux élèves directement sur leur espace » ; son
+       choix : un onglet à lui. */
+    { cle:'verifs', nom:'🧰 Vérifs', emoji:'🧰', court:'Vérifs',
+      zone:'ongletVerifs',
+      quand: function(){ return ouvert('verifs'); } },
     { cle:'reciter', nom:'📋 Réciter', emoji:'📋', court:'Réciter',
       zone:'ongletReciter',
       quand: function(){ return ouvert('proccorriger'); } },
@@ -3001,7 +3100,9 @@
       reciter: demandes.filter(function(x){ return x.etat !== 'fait'; }).length,
       /* Les réponses qu'il n'a pas lues, et elles seules : le serveur
          exclut ses propres messages du compte. */
-      messages: nonLusMessages
+      messages: nonLusMessages,
+      /* 🎮 v1248 — ses cartes éclair du jour, pas encore faites */
+      verifs: jvCartesRestantes()
     };
 
     barre.innerHTML = '';
@@ -3069,6 +3170,7 @@
     accueil:  '',
     reviser:  'Regarde les étapes dans l’ordre, à ton rythme.',
     reciter:  'Choisis une procédure, puis récite-la ou écris-la.',
+    verifs:   'Entraîne-toi aux 100 questions de l’examen.',
     messages: 'Réponse sous 48 heures ouvrées.',
     bilan:    'Raconte ton examen : c’est ce qui ouvre ton rendez-vous.'
   };
@@ -3092,6 +3194,8 @@
   function allerAOnglet(cle){
     ongletIci = cle;
     dessinerLesOnglets();
+    /* 🎮 v1248 — le jeu se charge à sa première ouverture */
+    if(cle === 'verifs') jvOuvrir();
     /* On remonte : un onglet ouvert au milieu d'un long défilement
        donne l'impression que rien ne s'est passé. */
     try{ window.scrollTo(0, 0); }catch(e){}
@@ -8650,6 +8754,668 @@
     if(filEl) rafraichirLeFilEleve(true);
     else if(ouvert('messages')) chargerConversationsEleve();
   });
+
+  /* ============================================================
+     🎮 LE JEU DES VÉRIFICATIONS — v1248 (livraison ①)
+
+     David, le 22/10 : « réfléchir à un jeu pour faire travailler les
+     vérifications aux élèves directement sur leur espace […] quelque
+     chose de ludique et d'animé ». Ses choix sur le schéma :
+       · un onglet « 🧰 Vérifs » (le bureau l'ouvre dans 🔑) ;
+       · tous les jeux — cette livraison : 🎯 Le jour J, 🃏 Cartes
+         éclair, 🔁 À revoir, et la grille des 100 ; « Ma voiture, en
+         vrai » et « Le bon voyant » viennent avec tes photos ;
+       · QSER et secours : 3 réponses au choix pour s'entraîner, à
+         voix haute puis carte retournée au Jour J ;
+       · son moniteur voit sa progression ; pas de classement.
+
+     LA BANQUE : les 100 questions de app/ec-verifs-banque.js (chargé
+     à la première ouverture de l'onglet), corrigées et neutralisées
+     comme le bureau l'a réglé (🧰 Vérifications d'Outils). Une partie
+     neutralisée se joue avec sa remplaçante, comme à l'examen.
+
+     LA RÉVISION ESPACÉE : chaque partie (vérification, QSER, secours)
+     de chaque question a sa « boîte » de 0 à 5. Réussie : elle monte
+     d'une boîte (une fois par jour) et revient plus tard ; ratée :
+     elle redescend en boîte 1 et revient demain. Une question est
+     MAÎTRISÉE quand ses trois parties sont en boîte 3 ou plus — trois
+     réussites, trois jours différents.
+     ============================================================ */
+  var JV = { pret: false, enCours: null, d: null, ecole: { revoir: {} }, surch: {}, auj: '', son: true,
+             minuteur: null, aSauver: false, ronde: null };
+  try{ JV.son = localStorage.getItem('ec_jv_son') !== '0'; }catch(e){}
+  var JV_PARTIES = ['v', 'q', 's'];
+  var JV_ATTENTE = [0, 1, 2, 4, 7, 14];        /* jours avant de revoir, par boîte */
+  var JV_NIVEAUX = [[0, 'Débutant'], [100, 'Curieux'], [250, 'Apprenti mécano'], [500, 'Mécano en herbe'], [900, 'Œil de lynx'],
+                    [1400, 'As du capot'], [2000, 'Copilote expert'], [2800, 'Pro des vérifs'], [3800, 'Prêt pour l’inspecteur'], [5000, 'Légende du permis']];
+  var JV_BADGES = [['premiere', '🧰', '1ʳᵉ partie'], ['serie3', '🔥', '3 jours'], ['serie7', '🔥', '7 jours'], ['serie30', '🏆', '30 jours'],
+                   ['jourj3', '🎯', '3/3 au Jour J'], ['cartes7', '🃏', 'Cartes 7 jours'], ['m10', '🔧', '10 maîtrisées'], ['m25', '⚙️', '25 maîtrisées'],
+                   ['m50', '🚗', '50 maîtrisées'], ['m100', '💯', 'Les 100']];
+
+  function jvAujourdhui(){
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function jvJoursEntre(a, b){
+    if(!a || !b) return 9999;
+    return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
+  }
+  function jvVide(){ return { p: {}, xp: 0, serie: 0, record: 0, jour: '', badges: [], revoir: {}, jourJ: { parties: 0, parfaits: 0 }, cartes: { jour: '', faites: 0, jours: 0 }, parties: 0 }; }
+
+  /* ---------- La banque, comme le bureau l'a réglée ---------- */
+  function jvBanque(){ return (typeof BANQUE_VERIFS_DSR !== 'undefined') ? BANQUE_VERIFS_DSR : []; }
+  function jvQuestion(n){
+    var o = jvBanque()[n - 1];
+    if(!o || o.n !== n) o = jvBanque().filter(function(x){ return x.n === n; })[0];
+    if(!o) return null;
+    var s = JV.surch[String(n)];
+    if(!s) return o;
+    var q = { n: n, type: o.type, neutre: (s.neutre && typeof s.neutre === 'object') ? s.neutre : {} };
+    JV_PARTIES.forEach(function(k){
+      var c = k === 'v' ? 'verif' : (k === 'q' ? 'qser' : 'secours');
+      q[c] = s[c] != null ? s[c] : o[c];
+      q[c + 'Rep'] = s[c + 'Rep'] != null ? s[c + 'Rep'] : o[c + 'Rep'];
+    });
+    return q;
+  }
+  function jvChamp(k){ return k === 'v' ? 'verif' : (k === 'q' ? 'qser' : 'secours'); }
+  /* La partie telle qu'elle se pose : la sienne, ou sa remplaçante */
+  function jvPartieDemandee(n, k, prof){
+    var x = jvQuestion(n);
+    if(!x) return null;
+    var c = jvChamp(k);
+    var ne = x.neutre && x.neutre[c];
+    if(!ne) return { q: x[c] || '', r: x[c + 'Rep'] || '', neutre: null };
+    var res = { q: '', r: '', neutre: ne, barre: x[c] || '', depuis: null };
+    prof = prof || 0;
+    if(ne.mode === 'texte'){ res.q = ne.q || ''; res.r = ne.r || ''; }
+    else if(ne.mode === 'num' && Number(ne.num) >= 1 && Number(ne.num) <= 100 && Number(ne.num) !== n && prof < 5){
+      var y = jvPartieDemandee(Number(ne.num), k, prof + 1);
+      if(y){ res.q = y.q; res.r = y.r; res.depuis = y.depuis || Number(ne.num); }
+    }else{
+      for(var i = 1; i < 100; i++){
+        var m = ((n - 1 + i) % 100) + 1;
+        var z = jvQuestion(m);
+        if(z && !(z.neutre && z.neutre[c])){ res.q = z[c] || ''; res.r = z[c + 'Rep'] || ''; res.depuis = m; break; }
+      }
+    }
+    return res;
+  }
+
+  /* ---------- La progression ---------- */
+  function jvEtat(n, k){
+    var q = JV.d.p[String(n)] || {};
+    return q[k] || [0, '', 0, 0, 0];
+  }
+  function jvMaitrisee(n){ return JV_PARTIES.every(function(k){ return jvEtat(n, k)[0] >= 3; }); }
+  function jvVue(n){ return JV_PARTIES.some(function(k){ return !!jvEtat(n, k)[1]; }); }
+  function jvNbMaitrisees(){ var c = 0; for(var n = 1; n <= 100; n++) if(jvMaitrisee(n)) c++; return c; }
+  /* À revoir : ratée dans le jeu, ou à l'école (examen blanc, examen,
+     cours) et pas rejouée juste depuis */
+  function jvARevoir(){
+    var out = [];
+    for(var n = 1; n <= 100; n++){
+      var j = JV.d.revoir[String(n)];
+      var e = JV.ecole.revoir[String(n)];
+      var rejoue = e && e.le && JV_PARTIES.every(function(k){ var t = jvEtat(n, k); return t[1] && t[1] >= e.le && t[4] === 1; });
+      if(j) out.push({ n: n, de: 'jeu' });
+      else if(e && !rejoue) out.push({ n: n, de: e.de });
+    }
+    return out;
+  }
+  function jvNiveau(xp){
+    var i = 0;
+    for(var k = 0; k < JV_NIVEAUX.length; k++) if(xp >= JV_NIVEAUX[k][0]) i = k;
+    var suivant = JV_NIVEAUX[i + 1];
+    return { n: i + 1, nom: JV_NIVEAUX[i][1], de: JV_NIVEAUX[i][0], a: suivant ? suivant[0] : null };
+  }
+  /* Une partie jouée : sa boîte, l'XP, la série, et « à revoir » */
+  function jvNoter(n, k, ok, gain){
+    var auj = jvAujourdhui();
+    var c = String(n);
+    if(!JV.d.p[c]) JV.d.p[c] = {};
+    var t = (JV.d.p[c][k] || [0, '', 0, 0, 0]).slice();
+    if(ok){ if(t[1] !== auj || t[0] === 0) t[0] = Math.min(5, t[0] + 1); t[2]++; }
+    else t[0] = 1;
+    t[3]++; t[1] = auj; t[4] = ok ? 1 : 0;
+    JV.d.p[c][k] = t;
+    if(ok) JV.d.xp += (gain == null ? 10 : gain);
+    if(!ok) JV.d.revoir[c] = auj;
+    else if(JV.d.revoir[c] && JV_PARTIES.every(function(x){ return jvEtat(n, x)[4] === 1; })) delete JV.d.revoir[c];
+    if(JV.d.jour !== auj){
+      JV.d.serie = jvJoursEntre(JV.d.jour, auj) === 1 ? JV.d.serie + 1 : 1;
+      JV.d.jour = auj;
+      JV.d.record = Math.max(JV.d.record || 0, JV.d.serie);
+    }
+  }
+  function jvNouveauxBadges(){
+    var d = JV.d, m = jvNbMaitrisees(), neufs = [];
+    var veut = { premiere: d.parties >= 1, serie3: d.serie >= 3, serie7: d.serie >= 7, serie30: d.serie >= 30, jourj3: d.jourJ.parfaits >= 1,
+                 cartes7: d.cartes.jours >= 7, m10: m >= 10, m25: m >= 25, m50: m >= 50, m100: m >= 100 };
+    JV_BADGES.forEach(function(b){ if(veut[b[0]] && d.badges.indexOf(b[0]) === -1){ d.badges.push(b[0]); neufs.push(b); } });
+    return neufs;
+  }
+  function jvSauver(){
+    clearTimeout(JV.minuteur);
+    JV.aSauver = true;
+    JV.minuteur = setTimeout(function(){
+      appeler({ action: 'eleveVerifsPoser', eleve: moi.nom, code: moi.code, donnees: JV.d })
+        .then(function(){ JV.aSauver = false; })
+        .catch(function(){ /* on réessaie à la prochaine partie */ });
+    }, 1200);
+  }
+
+  /* ---------- Sons, vibrations, confettis ---------- */
+  var jvAudio = null;
+  function jvBip(genre){
+    if(!JV.son) return;
+    try{
+      jvAudio = jvAudio || new (window.AudioContext || window.webkitAudioContext)();
+      var notes = genre === 'ok' ? [660, 880] : (genre === 'fete' ? [523, 659, 784, 1047] : [220, 180]);
+      notes.forEach(function(f, i){
+        var o = jvAudio.createOscillator(), g = jvAudio.createGain();
+        o.type = genre === 'ko' ? 'sawtooth' : 'triangle';
+        o.frequency.value = f;
+        var t0 = jvAudio.currentTime + i * 0.11;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(genre === 'ko' ? 0.05 : 0.12, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+        o.connect(g); g.connect(jvAudio.destination);
+        o.start(t0); o.stop(t0 + 0.18);
+      });
+    }catch(e){}
+    try{ if(navigator.vibrate) navigator.vibrate(genre === 'ko' ? [40, 40, 40] : 25); }catch(e){}
+  }
+  function jvDire(texte){
+    if(!JV.son) return;
+    try{
+      if(!window.speechSynthesis) return;
+      var u = new SpeechSynthesisUtterance(texte);
+      u.lang = 'fr-FR';
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function jvConfettis(){
+    var z = $('jvZone');
+    if(!z) return;
+    var cf = document.createElement('div');
+    cf.className = 'jvConfetti';
+    var couleurs = ['#B6FF0E', '#5CE1E6', '#FFB020', '#FF5C33', '#3B8BFF', '#FFFFFF'];
+    for(var k = 0; k < 50; k++){
+      var i = document.createElement('i');
+      i.style.left = (Math.random() * 100) + '%';
+      i.style.background = couleurs[k % couleurs.length];
+      i.style.animationDelay = (Math.random() * 0.5) + 's';
+      i.style.animationDuration = (1.2 + Math.random()) + 's';
+      cf.appendChild(i);
+    }
+    z.appendChild(cf);
+    setTimeout(function(){ if(cf.parentNode) cf.remove(); }, 2800);
+  }
+
+  /* ---------- Ouvrir l'onglet ---------- */
+  function jvChargerLaBanque(){
+    if(typeof BANQUE_VERIFS_DSR !== 'undefined') return Promise.resolve();
+    return new Promise(function(ok, ko){
+      var s = null;
+      /* Sur eleve.evolutionconduites.fr, elle est publiée à côté de la
+         page (« verifs-banque.js », voir coin-revisions.yml) ; ouverte
+         depuis le dépôt principal, elle est dans app/. */
+      var essais = ['verifs-banque.js?v=1248', 'app/ec-verifs-banque.js?v=1248'];
+      var essayer = function(){
+        if(!essais.length){ ko(new Error('La banque des questions n’a pas pu se charger.')); return; }
+        s = document.createElement('script');
+        s.src = essais.shift();
+        s.onload = function(){ if(typeof BANQUE_VERIFS_DSR !== 'undefined') ok(); else essayer(); };
+        s.onerror = function(){ if(s.parentNode) s.remove(); essayer(); };
+        document.head.appendChild(s);
+      };
+      essayer();
+    });
+  }
+  function jvOuvrir(){
+    var z = $('jvZone');
+    if(!z) return;
+    if(JV.pret){ if(!JV.ronde) jvAccueil(); return; }
+    if(JV.enCours) return;
+    z.innerHTML = '<div class="card"><div class="empty">Chargement de tes vérifications…</div></div>';
+    JV.enCours = Promise.all([
+      jvChargerLaBanque(),
+      appeler({ action: 'eleveVerifsLire', eleve: moi.nom, code: moi.code })
+    ]).then(function(r){
+      var d = r[1] || {};
+      JV.d = Object.assign(jvVide(), d.donnees || {});
+      ['jourJ', 'cartes'].forEach(function(k){ JV.d[k] = Object.assign(jvVide()[k], (d.donnees || {})[k] || {}); });
+      JV.ecole = d.ecole || { revoir: {} };
+      JV.surch = d.surcharges || {};
+      JV.pret = true;
+      JV.enCours = null;
+      jvAccueil();
+      dessinerLesOnglets();
+    }).catch(function(e){
+      JV.enCours = null;
+      z.innerHTML = '';
+      var c = document.createElement('div');
+      c.className = 'card';
+      c.innerHTML = '<div class="message erreur"></div>';
+      c.firstChild.textContent = '⚠️ ' + ((e && e.message) || 'Le jeu ne répond pas pour le moment.');
+      var b = document.createElement('button');
+      b.className = 'btn btn-secondary'; b.style.marginTop = '10px'; b.textContent = '↻ Réessayer';
+      b.addEventListener('click', jvOuvrir);
+      c.appendChild(b);
+      z.appendChild(c);
+    });
+  }
+  /* La pastille de l'onglet : les cartes du jour qu'il reste */
+  function jvCartesRestantes(){
+    var faites = 0;
+    if(!JV || !JV.pret){
+      /* Pas encore ouvert : ce que cet appareil a retenu de ses cartes */
+      try{ var g = JSON.parse(localStorage.getItem('ec_jv_cartes') || 'null'); if(g && g.jour === jvAujourdhui()) faites = Number(g.faites) || 0; }catch(e){}
+      return Math.max(0, 5 - faites);
+    }
+    faites = JV.d.cartes.jour === jvAujourdhui() ? JV.d.cartes.faites : 0;
+    return Math.max(0, 5 - faites);
+  }
+
+  /* ---------- Petits outils de dessin ---------- */
+  function jvEl(tag, cls, html){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(html != null) e.innerHTML = html;
+    return e;
+  }
+  function jvBouton(texte, cls, quoi){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = cls || 'btn btn-secondary';
+    b.textContent = texte;
+    if(quoi) b.addEventListener('click', quoi);
+    return b;
+  }
+  function jvRacine(){
+    var z = $('jvZone');
+    z.innerHTML = '';
+    var r = jvEl('div', 'jv');
+    z.appendChild(r);
+    try{ window.scrollTo(0, 0); }catch(e){}
+    return r;
+  }
+  function jvNomPartie(k, type){
+    return k === 'v' ? (type === 'VE' ? 'Vérification extérieure' : 'Vérification intérieure') : (k === 'q' ? 'QSER' : '1ers secours');
+  }
+
+  /* ============================================================
+     🏠 L'ACCUEIL DU JEU
+     ============================================================ */
+  function jvAccueil(){
+    JV.ronde = null;
+    var r = jvRacine();
+    var d = JV.d, nv = jvNiveau(d.xp), m = jvNbMaitrisees();
+    var serieVivante = d.jour && jvJoursEntre(d.jour, jvAujourdhui()) <= 1 ? d.serie : 0;
+    var pct = nv.a ? Math.round((d.xp - nv.de) * 100 / (nv.a - nv.de)) : 100;
+    var hero = jvEl('div', 'card jvHero');
+    hero.innerHTML = '<div class="jvLigneH"><span class="jvGros">🧰 Mes vérifs</span><span class="jvFlamme">🔥 ' + serieVivante + ' jour' + (serieVivante > 1 ? 's' : '') + '</span></div>' +
+      '<div class="jvDoux" style="margin-top:2px">Niveau ' + nv.n + ' · ' + echapper(nv.nom) + ' · ' + d.xp + ' XP</div>' +
+      '<div class="jvXp"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="jvDoux"><b style="color:#B6FF0E">' + m + '</b> vérifications maîtrisées sur 100' + (nv.a ? ' · encore ' + (nv.a - d.xp) + ' XP avant le niveau ' + (nv.n + 1) : '') + '</div>';
+    var son = jvBouton(JV.son ? '🔊' : '🔇', 'jvSon', function(){
+      JV.son = !JV.son;
+      try{ localStorage.setItem('ec_jv_son', JV.son ? '1' : '0'); }catch(e){}
+      son.textContent = JV.son ? '🔊' : '🔇';
+    });
+    son.title = 'Le son et la voix';
+    son.setAttribute('aria-label', 'Le son et la voix');
+    hero.firstChild.appendChild(son);
+    r.appendChild(hero);
+
+    var modes = jvEl('div', 'jvModes');
+    var mode = function(cle, e, titre, sous, nb, vedette, quoi){
+      var b = jvEl('button', 'jvMode' + (vedette ? ' vedette' : ''));
+      b.type = 'button';
+      b.setAttribute('data-jv', cle);
+      b.innerHTML = '<span class="e">' + e + '</span><span><b>' + titre + '</b><small>' + sous + '</small></span>' + (nb ? '<span class="jvNb">' + nb + '</span>' : '');
+      b.addEventListener('click', quoi);
+      modes.appendChild(b);
+    };
+    mode('jourj', '🎯', 'Le jour J', 'Une question tirée au sort, lue par l’inspecteur. Tu réponds à voix haute : noté sur 3, comme à l’examen.', 0, true, jvJourJ);
+    var reste = jvCartesRestantes();
+    mode('cartes', '🃏', 'Cartes éclair', reste ? reste + ' carte' + (reste > 1 ? 's' : '') + ' pour aujourd’hui' : '✅ Faites aujourd’hui — encore ?', reste, false, jvCartes);
+    var ar = jvARevoir();
+    mode('revoir', '🔁', 'À revoir', ar.length ? 'Les questions ratées, ici ou avec ton moniteur.' : 'Rien à revoir 👏', ar.length, false, jvListeARevoir);
+    r.appendChild(modes);
+
+    var g = jvEl('div', 'card');
+    g.innerHTML = '<div class="section-title" style="margin-bottom:8px">📈 Les 100 questions <span style="font-weight:400;color:var(--muted);font-size:12px">· touche une case pour la jouer</span></div>';
+    var grille = jvEl('div', 'jvGrille');
+    var aRevoir = {};
+    ar.forEach(function(x){ aRevoir[x.n] = 1; });
+    for(var n = 1; n <= 100; n++){
+      (function(n){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = n;
+        b.className = aRevoir[n] ? 'r' : (jvMaitrisee(n) ? 'm' : (jvVue(n) ? 'a' : ''));
+        b.setAttribute('aria-label', 'Question ' + n);
+        b.addEventListener('click', function(){ jvEntrainement([n], 'grille'); });
+        grille.appendChild(b);
+      })(n);
+    }
+    g.appendChild(grille);
+    g.appendChild(jvEl('div', 'jvLeg', '<span><i style="background:#B6FF0E"></i>maîtrisée</span><span><i style="background:#FFE3A3"></i>en cours</span>' +
+      '<span><i style="background:#FFD3C7"></i>à revoir</span><span><i style="background:var(--line)"></i>pas encore vue</span>'));
+    r.appendChild(g);
+
+    var bd = jvEl('div', 'card');
+    bd.innerHTML = '<div class="section-title" style="margin-bottom:8px">🏅 Mes badges</div>';
+    var lb = jvEl('div', 'jvBadges');
+    JV_BADGES.forEach(function(b){
+      lb.appendChild(jvEl('div', 'jvBadge' + (d.badges.indexOf(b[0]) === -1 ? ' non' : ''), '<i>' + b[1] + '</i>' + echapper(b[2])));
+    });
+    bd.appendChild(lb);
+    bd.appendChild(jvEl('div', 'jvPartage', '👁️ Ta progression est partagée avec ton moniteur — pas avec les autres élèves.'));
+    r.appendChild(bd);
+  }
+
+  /* ============================================================
+     UNE PARTIE : la carte qui se retourne (à voix haute), ou 3 choix
+     ============================================================ */
+  function jvTete(r, titre, quitter){
+    var h = jvEl('div', 'jvHaut');
+    var x = jvBouton('✕', 'jvX', quitter || jvAccueil);
+    x.setAttribute('aria-label', 'Quitter');
+    h.appendChild(x);
+    h.appendChild(jvEl('span', 'q', titre));
+    var serie = JV.d.jour === jvAujourdhui() ? JV.d.serie : 0;
+    if(serie) h.appendChild(jvEl('span', 'jvFlamme', '🔥 ' + serie));
+    r.appendChild(h);
+    return h;
+  }
+  function jvEtapes(r, n){
+    var e = jvEl('div', 'jvEtapes');
+    for(var i = 0; i < n; i++) e.appendChild(document.createElement('span'));
+    r.appendChild(e);
+    return function(i, etats){
+      Array.prototype.forEach.call(e.children, function(s, k){ s.className = etats[k] || (k === i ? 'c' : ''); });
+    };
+  }
+  /* Trois réponses : la bonne, et deux prises dans les AUTRES questions
+     de la même sorte (jamais la même phrase) */
+  function jvLeurres(k, bonne){
+    var c = jvChamp(k), vues = {}, pool = [];
+    var norm = function(t){ return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim(); };
+    vues[norm(bonne)] = 1;
+    for(var n = 1; n <= 100; n++){
+      var x = jvQuestion(n);
+      var t = x && x[c + 'Rep'];
+      if(t && !vues[norm(t)]){ vues[norm(t)] = 1; pool.push(t); }
+    }
+    for(var i = pool.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp; }
+    return pool.slice(0, 2);
+  }
+  /* Une partie : rend { ok } par fini(ok) */
+  function jvPoserPartie(zone, n, k, facon, fini){
+    var x = jvQuestion(n);
+    var d = jvPartieDemandee(n, k);
+    var c = jvEl('div', 'card jvPop');
+    c.appendChild(jvEl('span', 'jvPart ' + k, echapper(jvNomPartie(k, x.type))));
+    if(d.neutre){
+      c.appendChild(jvEl('div', 'jvNeutre', '⚠️ Cette question est neutralisée' + (d.neutre.pourquoi ? ' (' + echapper(d.neutre.pourquoi) + ')' : '') +
+        ' : l’inspecteur pose celle-ci à la place.'));
+    }
+    c.appendChild(jvEl('div', 'jvQ', echapper(d.q || '—')));
+    zone.appendChild(c);
+    var repondu = false;
+    var finir = function(ok){
+      if(repondu) return;
+      repondu = true;
+      jvBip(ok ? 'ok' : 'ko');
+      if(!ok){ c.classList.remove('jvSecoue'); void c.offsetWidth; c.classList.add('jvSecoue'); }
+      setTimeout(function(){ fini(ok); }, ok ? 650 : 1100);
+    };
+    /* 3 choix : seulement s'il y a une réponse écrite, et pour s'entraîner */
+    if(facon === 'choix' && d.r && k !== 'v'){
+      var ch = [d.r].concat(jvLeurres(k, d.r));
+      for(var i = ch.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var tmp = ch[i]; ch[i] = ch[j]; ch[j] = tmp; }
+      var l = jvEl('div', 'jvChoix');
+      ch.forEach(function(t, i){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.innerHTML = '<b>' + 'ABC'.charAt(i) + '</b><span></span>';
+        b.lastChild.textContent = t;
+        b.setAttribute('data-bon', t === d.r ? '1' : '0');
+        b.addEventListener('click', function(){
+          if(repondu) return;
+          var bon = t === d.r;
+          if(!bon) b.className = 'faux';
+          Array.prototype.forEach.call(l.children, function(y){ if(y.getAttribute('data-bon') === '1') y.className = 'bon'; });
+          finir(bon);
+        });
+        l.appendChild(b);
+      });
+      c.appendChild(l);
+      return;
+    }
+    /* À voix haute, puis la carte se retourne */
+    var carte = jvEl('div', 'jvCarte');
+    carte.innerHTML = '<div class="in"><div class="f"><span>' + (k === 'v' ? '👉 Montre-la (dans ta tête, ou dans la voiture), en disant ce que tu fais.' :
+      '🗣️ Réponds à voix haute, comme à l’examen.') + '</span><small>Puis touche la carte pour voir la réponse</small></div>' +
+      '<div class="d"><span>La réponse :</span><b></b></div></div>';
+    carte.querySelector('.d b').textContent = d.r || (k === 'v' ? 'Pas de réponse écrite dans la banque : ton moniteur te la montre dans la voiture.' : '—');
+    c.appendChild(carte);
+    var deux = jvEl('div', 'jvDeux');
+    deux.style.display = 'none';
+    deux.appendChild(jvBouton('🔁 À revoir', 'btn btn-secondary', function(){ finir(false); }));
+    deux.appendChild(jvBouton('✅ Je savais', 'btn btn-primary', function(){ finir(true); }));
+    c.appendChild(deux);
+    carte.addEventListener('click', function(){
+      carte.classList.add('vu');
+      deux.style.display = 'flex';
+      setTimeout(function(){ try{ deux.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }catch(e){} }, 300);
+    });
+  }
+  /* Le résultat d'une ronde */
+  function jvResultat(titre, bons, total, gain, rejouer, neufs, sous){
+    JV.d.parties++;
+    neufs = (neufs || []).concat(jvNouveauxBadges());
+    jvSauver();
+    dessinerLesOnglets();
+    var r = jvRacine();
+    jvTete(r, titre);
+    var et = total ? Math.round(bons * 3 / total) : 0;
+    var c = jvEl('div', 'card jvRes');
+    var etoiles = '';
+    for(var i = 0; i < 3; i++) etoiles += '<span' + (i < et ? '' : ' class="non"') + '>⭐</span>';
+    c.innerHTML = '<div class="jvEtoiles">' + etoiles + '</div>' +
+      '<div style="font-size:21px;font-weight:900;margin-top:6px">' + (et === 3 ? 'Parfait !' : (et === 2 ? 'Bien joué !' : (et === 1 ? 'C’est en route !' : 'On s’accroche !'))) + '</div>' +
+      '<div style="color:var(--muted);font-size:13px">' + bons + ' sur ' + total + (sous ? ' · ' + sous : '') + '</div>' +
+      '<div class="jvGain">+' + gain + ' XP · 🔥 ' + JV.d.serie + ' jour' + (JV.d.serie > 1 ? 's' : '') + '</div>';
+    if(neufs.length){
+      var nb = jvEl('div', 'jvBadges');
+      nb.style.cssText = 'justify-content:center;margin-top:14px';
+      neufs.forEach(function(b){ nb.appendChild(jvEl('div', 'jvBadge jvPop', '<i>' + b[1] + '</i>🆕 ' + echapper(b[2]))); });
+      c.appendChild(nb);
+    }
+    var deux = jvEl('div', 'jvDeux');
+    deux.appendChild(jvBouton('🏠 Accueil', 'btn btn-secondary', jvAccueil));
+    if(rejouer) deux.appendChild(jvBouton('▶ Encore', 'btn btn-primary', rejouer));
+    c.appendChild(deux);
+    r.appendChild(c);
+    if(et === 3 || neufs.length){ jvBip('fete'); jvConfettis(); }
+  }
+
+  /* ============================================================
+     ▶ S'ENTRAÎNER SUR UNE QUESTION (la grille, « À revoir »)
+     Vérification : carte retournée ; QSER et secours : 3 choix.
+     ============================================================ */
+  function jvEntrainement(liste, d_ou){
+    if(!liste.length) return jvAccueil();
+    var n = liste[0];
+    var x = jvQuestion(n);
+    if(!x) return jvAccueil();
+    JV.ronde = 'entrainement';
+    var r = jvRacine();
+    jvTete(r, 'Question ' + n + ' <span class="jvType ' + x.type + '">' + x.type + '</span>');
+    var etapes = jvEtapes(r, 3);
+    var zone = jvEl('div', '');
+    r.appendChild(zone);
+    var etats = [], bons = 0, gain = 0, i = 0;
+    var suite = function(){
+      etapes(i, etats);
+      if(i >= 3){
+        var reste = liste.slice(1);
+        return jvResultat('Question ' + n, bons, 3, gain, reste.length ? function(){ jvEntrainement(reste, d_ou); } :
+          function(){ jvEntrainement([n], d_ou); }, null, reste.length ? 'encore ' + reste.length + ' à revoir' : '');
+      }
+      var k = JV_PARTIES[i];
+      zone.innerHTML = '';
+      jvPoserPartie(zone, n, k, 'choix', function(ok){
+        jvNoter(n, k, ok);
+        etats[i] = ok ? 'f' : 'k';
+        if(ok){ bons++; gain += 10; }
+        i++;
+        suite();
+      });
+    };
+    suite();
+  }
+
+  /* ============================================================
+     🎯 LE JOUR J — tiré au sort, lu par l'inspecteur, noté sur 3
+     ============================================================ */
+  function jvJourJ(){
+    JV.ronde = 'jourj';
+    var n = 1 + Math.floor(Math.random() * 100);
+    var x = jvQuestion(n);
+    var r = jvRacine();
+    jvTete(r, '🎯 Le jour J');
+    var c = jvEl('div', 'card');
+    c.style.textAlign = 'center';
+    c.innerHTML = '<div style="color:var(--muted);font-size:13px">L’inspecteur tire une question…</div><div class="jvTirage"><span class="roule">0</span><span class="roule">0</span></div>';
+    r.appendChild(c);
+    var ch = c.querySelectorAll('.jvTirage span');
+    var tic = setInterval(function(){ Array.prototype.forEach.call(ch, function(x){ if(x.classList.contains('roule')) x.textContent = Math.floor(Math.random() * 10); }); }, 70);
+    var txt = String(n).padStart(2, '0');
+    setTimeout(function(){ ch[0].classList.remove('roule'); ch[0].textContent = txt.length > 2 ? '10' : txt.charAt(0); }, 900);
+    setTimeout(function(){
+      clearInterval(tic);
+      ch[1].classList.remove('roule');
+      ch[1].textContent = txt.length > 2 ? '0' : txt.charAt(1);
+      jvBip('ok');
+      var dv = jvPartieDemandee(n, 'v');
+      var bulle = jvEl('div', 'jvBulle', '<span class="qui">👮 L’inspecteur · question ' + n + ' <span class="jvType ' + x.type + '">' + x.type + '</span></span>');
+      bulle.appendChild(document.createTextNode(dv.q));
+      r.appendChild(bulle);
+      jvDire('Question ' + n + '. ' + (x.type === 'VE' ? 'Vérification extérieure. ' : 'Vérification intérieure. ') + dv.q);
+      var etapes = jvEtapes(r, 3);
+      var zone = jvEl('div', '');
+      r.appendChild(zone);
+      var etats = [], bons = 0, gain = 0, i = 0;
+      var suite = function(){
+        etapes(i, etats);
+        if(i >= 3){
+          JV.d.jourJ.parties++;
+          var neufs = [];
+          if(bons === 3){ JV.d.jourJ.parfaits++; JV.d.xp += 20; gain += 20; }
+          return jvResultat('🎯 Le jour J · question ' + n, bons, 3, gain, jvJourJ, neufs, bons + ' point' + (bons > 1 ? 's' : '') + ' sur 3 le jour du permis');
+        }
+        var k = JV_PARTIES[i];
+        zone.innerHTML = '';
+        if(i > 0) jvDire(jvPartieDemandee(n, k).q);
+        jvPoserPartie(zone, n, k, 'voix', function(ok){
+          jvNoter(n, k, ok);
+          etats[i] = ok ? 'f' : 'k';
+          if(ok){ bons++; gain += 10; }
+          i++;
+          suite();
+        });
+      };
+      suite();
+    }, 1500);
+  }
+
+  /* ============================================================
+     🃏 CARTES ÉCLAIR — 5 par jour, ce qui est dû d'abord
+     ============================================================ */
+  function jvCartesDuJour(combien){
+    var auj = jvAujourdhui(), dues = [], neuves = [];
+    for(var n = 1; n <= 100; n++){
+      JV_PARTIES.forEach(function(k){
+        var t = jvEtat(n, k);
+        if(!t[1]) neuves.push({ n: n, k: k });
+        else if(jvJoursEntre(t[1], auj) >= JV_ATTENTE[t[0]] && !(t[1] === auj && t[4] === 1)) dues.push({ n: n, k: k, b: t[0] });
+      });
+    }
+    dues.sort(function(a, b){ return a.b - b.b || Math.random() - 0.5; });
+    for(var i = neuves.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var tmp = neuves[i]; neuves[i] = neuves[j]; neuves[j] = tmp; }
+    return dues.concat(neuves).slice(0, combien);
+  }
+  function jvCartes(){
+    JV.ronde = 'cartes';
+    var cartes = jvCartesDuJour(5);
+    if(!cartes.length) return jvAccueil();
+    var r = jvRacine();
+    var titre = jvTete(r, '🃏 Cartes éclair');
+    var etapes = jvEtapes(r, cartes.length);
+    var zone = jvEl('div', '');
+    r.appendChild(zone);
+    var etats = [], bons = 0, gain = 0, i = 0, auj = jvAujourdhui();
+    var suite = function(){
+      etapes(i, etats);
+      titre.querySelector('.q').textContent = '🃏 Cartes éclair · ' + Math.min(i + 1, cartes.length) + ' / ' + cartes.length;
+      if(i >= cartes.length){
+        if(JV.d.cartes.jour !== auj){ JV.d.cartes.jour = auj; JV.d.cartes.faites = 0; }
+        var avant = JV.d.cartes.faites;
+        JV.d.cartes.faites = Math.min(100, avant + cartes.length);
+        if(avant < 5 && JV.d.cartes.faites >= 5) JV.d.cartes.jours++;
+        try{ localStorage.setItem('ec_jv_cartes', JSON.stringify({ jour: auj, faites: JV.d.cartes.faites })); }catch(e){}
+        return jvResultat('🃏 Cartes éclair', bons, cartes.length, gain, jvCartes);
+      }
+      var c = cartes[i];
+      var x = jvQuestion(c.n);
+      zone.innerHTML = '';
+      zone.appendChild(jvEl('div', '', '<div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px">Question ' + c.n +
+        ' <span class="jvType ' + x.type + '">' + x.type + '</span></div>'));
+      jvPoserPartie(zone, c.n, c.k, 'choix', function(ok){
+        jvNoter(c.n, c.k, ok);
+        etats[i] = ok ? 'f' : 'k';
+        if(ok){ bons++; gain += 10; }
+        i++;
+        suite();
+      });
+    };
+    suite();
+  }
+
+  /* ============================================================
+     🔁 À REVOIR
+     ============================================================ */
+  function jvListeARevoir(){
+    var ar = jvARevoir();
+    if(!ar.length) return jvAccueil();
+    JV.ronde = 'revoir';
+    var r = jvRacine();
+    jvTete(r, '🔁 À revoir · ' + ar.length);
+    var c = jvEl('div', 'card');
+    c.appendChild(jvEl('div', '', '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Rejoue-les jusqu’à les réussir en entier : elles quittent la liste toutes seules.</div>'));
+    var l = jvEl('div', 'jvRevoir');
+    var DE = { jeu: '🎮 ratée dans le jeu', eb: '📝 ton examen blanc', off: '🏁 ton examen', cours: '🚗 en cours' };
+    ar.forEach(function(x){
+      var q = jvQuestion(x.n);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = 'Question ' + x.n + ' <span class="jvType ' + q.type + '">' + q.type + '</span><small>' + (DE[x.de] || '') + '</small>';
+      b.addEventListener('click', function(){ jvEntrainement([x.n], 'revoir'); });
+      l.appendChild(b);
+    });
+    c.appendChild(l);
+    var tout = jvBouton('▶ Toutes, à la suite', 'btn btn-primary', function(){ jvEntrainement(ar.map(function(x){ return x.n; }), 'revoir'); });
+    tout.style.marginTop = '12px';
+    c.appendChild(tout);
+    r.appendChild(c);
+  }
+
 
   ['btTheme1', 'btTheme2'].forEach(function(id){
     var b = $(id);
