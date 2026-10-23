@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:07 — v1250 */
+/* Déployé le 23/10/2026 à 11:48 — v1251 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -24,6 +24,8 @@
         chaque partie dans SA zone (Vérification, QSER, 1ers secours) ;
      3. l'en-tête des cours (Carte SD · Installation · Vérifications),
         au questionnaire et au vocal : la carte sous « Question n° ».
+        ⚠️ v1251 : ce champ n'existe plus (un rappel à la place) ; les
+        questions d'un cours se posent dans le tiroir 🧰, plus bas.
 
    ⚠️ LA CARTE N'EST PAS UN CHAMP. Elle ne porte ni input ni textarea :
    une fiche se replace par le rang de ses champs (voir
@@ -249,9 +251,11 @@ function verifsPoserCartes(forcer){
     if(!duo || !duo.parentNode) return;
     vqPoser(duo.parentNode, 'entete' + rang, verifsNumero(i.value), null, duo);
   });
+  /* 🧰 v1251 — et les questions posées pendant le cours */
+  if(forcer && typeof qvRedessiner === 'function') qvRedessiner();
   /* La banque se relit une fois connecté (puis toutes les 30 minutes) */
   if(verifsConnecte() && !VERIFS.enCours && document.querySelector('.vqCarte') && verifsARelire())
-    chargerVerifs().then(ok => { if(ok) verifsPoserCartes(); });
+    chargerVerifs().then(ok => { if(ok) verifsPoserCartes(true); });
 }
 document.addEventListener('input', ev => {
   const t = ev.target;
@@ -710,6 +714,394 @@ async function posterVerifsDuDossier(corps, nom){
   zone.appendChild(g);
   zone.appendChild(vqEl('div', 'vbAide', 'Vert : maîtrisée (3 réussites, 3 jours) · jaune : en cours · rose : à revoir (ratée dans le jeu, ou à un examen blanc / examen dont le bilan est parti par mail).'));
 }
+
+/* ============================================================
+   🧰 v1251 — LES QUESTIONS POSÉES PENDANT LE COURS
+
+   David, le 23/10 : « sur le même principe que le bouton pour ajouter
+   des procédures, il faut un bouton pour poser des questions de
+   vérification : le moniteur appuie, met le numéro de la question, il
+   voit les questions, l'élève répond, le moniteur met une note sur 3
+   et tout ça va dans son bilan ; plusieurs questions ; sur les bilans
+   vocaux et manuels ; seulement les conduites et conduites
+   accompagnées — pas les simulateurs, ni les évaluations, ni les
+   examens, qui ont déjà leur case ».
+
+   Ses choix sur le schéma :
+     · ✅ ❌ par partie (vérification, QSER, secours) : la note sur 3
+       se calcule, « — » = pas demandée ;
+     · la case « Question n° / Note sur 3 » de l'en-tête est
+       REMPLACÉE par un rappel qui renvoie au tiroir ;
+     · pas sur le rendez-vous préalable ;
+     · au vocal, « question 12 » dite à voix haute la pose toute seule.
+
+   GARDÉES DANS LE TÉLÉPHONE, PAR ÉLÈVE ET PAR JOUR, comme les
+   procédures cochées (même clé, cleProcsDuCours, trente-six heures) :
+   un plantage, un passage au bilan manuel ne les perdent pas.
+   « ot » garde les numéros retirés d'un ✕ : la voix ne les remet pas.
+
+   ⚠️ LE BILAN : chaque partie se termine par ✅ ou ❌ (ou « (pas
+   demandée) »). Le Worker la lit (verifsRateesDuBilan) : une partie
+   ❌ part dans « À revoir » du jeu de l'élève.
+   ============================================================ */
+const QV_MODELES = ['conduite-auto', 'conduite-manuelle', 'aac-manuelle', 'aac-auto'];
+const QV_CLE = 'ec_verifs_cours';
+const QV_DUREE = 36 * 3600 * 1000;
+const QV_ZONES = ['verifsCours', 'verifsManuel'];
+const QV_NOMS = { qser: 'QSER', secours: 'Premiers secours' };
+
+function qvModeleOk(cle){
+  const m = cle != null ? cle : ((typeof $ === 'function' && $('modele')) ? $('modele').value : '');
+  return QV_MODELES.indexOf(m) !== -1;
+}
+function qvCle(){ return (typeof cleProcsDuCours === 'function') ? cleProcsDuCours() : ''; }
+function qvLireTout(){
+  try{
+    const t = JSON.parse(localStorage.getItem(QV_CLE) || '{}');
+    return (t && typeof t === 'object' && !Array.isArray(t)) ? t : {};
+  }catch(e){ return {}; }
+}
+function qvMarque(v){ return v === '✅' || v === '❌' ? v : ''; }
+function qvEtat(){
+  const vide = { qs: [], ot: [] };
+  const k = qvCle();
+  if(!k) return vide;
+  const x = qvLireTout()[k];
+  if(!x || Date.now() - Number(x.t || 0) > QV_DUREE) return vide;
+  const vus = {};
+  const qs = (Array.isArray(x.qs) ? x.qs : []).map(q => {
+    const n = verifsNumero(q && q.n);
+    if(!n || vus[n]) return null;
+    vus[n] = true;
+    const p = (q && q.p) || {};
+    return { n: n, p: { verif: qvMarque(p.verif), qser: qvMarque(p.qser), secours: qvMarque(p.secours) } };
+  }).filter(Boolean);
+  const ot = (Array.isArray(x.ot) ? x.ot : []).map(verifsNumero).filter(Boolean);
+  return { qs: qs, ot: ot };
+}
+function qvPoserEtat(e){
+  const k = qvCle();
+  if(!k) return;
+  const t = qvLireTout();
+  const maintenant = Date.now();
+  Object.keys(t).forEach(c => { if(!t[c] || maintenant - Number(t[c].t || 0) > QV_DUREE) delete t[c]; });
+  if(e.qs.length || e.ot.length) t[k] = { qs: e.qs, ot: e.ot, t: maintenant };
+  else delete t[k];
+  try{ localStorage.setItem(QV_CLE, JSON.stringify(t)); }catch(err){}
+}
+function qvNoteDe(q){ return VERIFS_PARTIES.filter(k => q.p[k] === '✅').length; }
+function qvNotee(q){ return VERIFS_PARTIES.some(k => q.p[k]); }
+function qvTotal(qs){
+  const notees = qs.filter(qvNotee);
+  return { notees: notees.length, points: notees.reduce((a, q) => a + qvNoteDe(q), 0) };
+}
+function qvResume(qs){
+  if(!qs.length) return '';
+  const t = qvTotal(qs);
+  return qs.length + ' posée' + (qs.length > 1 ? 's' : '') + (t.notees ? ' · ' + t.points + '/' + (t.notees * 3) : '');
+}
+
+/* ---------- Poser, retirer, noter ---------- */
+function qvPoser(n, parLaVoix){
+  n = verifsNumero(n);
+  if(!n) return 'numero';
+  const e = qvEtat();
+  if(e.qs.some(q => q.n === n)) return 'deja';
+  if(parLaVoix && e.ot.indexOf(n) !== -1) return 'retiree';
+  e.qs.push({ n: n, p: { verif: '', qser: '', secours: '' } });
+  e.ot = e.ot.filter(x => x !== n);
+  qvPoserEtat(e);
+  return 'ok';
+}
+function qvRetirer(n){
+  const e = qvEtat();
+  e.qs = e.qs.filter(q => q.n !== n);
+  if(e.ot.indexOf(n) === -1) e.ot.push(n);
+  qvPoserEtat(e);
+}
+function qvNoter(n, k, v){
+  const e = qvEtat();
+  const q = e.qs.find(x => x.n === n);
+  if(!q || VERIFS_PARTIES.indexOf(k) === -1) return;
+  q.p[k] = qvMarque(v);
+  qvPoserEtat(e);
+}
+
+/* ---------- La voix : « question 12 », « question numéro 12 » ---------- */
+function qvNumerosDits(texte){
+  const out = [];
+  const re = /\bquestions?\s+(?:(?:de\s+)?v[ée]rifications?\s+)?(?:n\s*[°º]\s*|num[ée]ro\s+|no\.?\s+)?(\d{1,3})(?![\d,.]?\d)/gi;
+  let m;
+  while((m = re.exec(String(texte || ''))) !== null){
+    const n = verifsNumero(m[1]);
+    if(n && String(n) === m[1].replace(/^0+/, '') && out.indexOf(n) === -1) out.push(n);
+  }
+  return out;
+}
+
+/* ---------- Le tiroir ---------- */
+function qvBoutons3(n, k, val, apres){
+  const r = vqEl('div', 'qvTrois');
+  r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+  r.setAttribute('data-partie', k);
+  const peindre = v => {
+    Array.prototype.forEach.call(r.children, b => {
+      const choisi = b.getAttribute('data-val') === v;
+      b.classList.toggle('qvChoisi', choisi);
+      b.setAttribute('aria-pressed', choisi ? 'true' : 'false');
+      const c = { '✅': ['var(--orange)', '#0B0B0B'], '❌': ['var(--red)', '#FFFFFF'], '': ['var(--muted)', '#0B0B0B'] }[b.getAttribute('data-val')];
+      b.style.background = choisi ? c[0] : 'var(--navy)';
+      b.style.borderColor = choisi ? c[0] : 'var(--line)';
+      b.style.color = choisi ? c[1] : 'var(--cream)';
+      b.style.fontWeight = choisi ? '700' : '400';
+      b.style.transform = choisi ? 'scale(1.04)' : 'none';
+      b.style.boxShadow = choisi ? '0 2px 10px rgba(0,0,0,.35)' : 'none';
+    });
+  };
+  [['✅', '✅'], ['❌', '❌'], ['—', '']].forEach(([lab, v]) => {
+    const b = vqEl('button', 'btn btn-secondary', lab);
+    b.type = 'button';
+    b.setAttribute('data-val', v);
+    b.setAttribute('data-hors-saisie', '1');
+    b.style.cssText = 'width:auto;padding:7px 11px;font-size:15px;margin:0;transition:transform .1s, background .1s;';
+    b.addEventListener('click', ev => {
+      ev.preventDefault();
+      qvNoter(n, k, v);
+      peindre(v);
+      if(apres) apres();
+    });
+    r.appendChild(b);
+  });
+  peindre(val || '');
+  return r;
+}
+function qvBloc(q, majTitre){
+  const x = verifsQuestion(q.n);
+  const w = vqEl('div', 'qvBloc');
+  w.setAttribute('data-qv', String(q.n));
+  w.style.cssText = 'border-top:1px solid var(--line);margin-top:12px;padding-top:4px;';
+  const c = vqCarte(q.n);
+  const tete = c.querySelector('.vqTete') || c;
+  const x2 = vqEl('button', 'vqBouton qvRetirer', '✕');
+  x2.type = 'button';
+  x2.title = 'Retirer cette question';
+  x2.setAttribute('data-hors-saisie', '1');
+  x2.style.marginLeft = tete === c ? 'auto' : '0';
+  x2.addEventListener('click', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    qvRetirer(q.n);
+    qvRedessiner();
+  });
+  tete.appendChild(x2);
+  w.appendChild(c);
+  if(!x) return w;
+  const notes = vqEl('div', 'qvNotes');
+  notes.style.cssText = 'margin-top:10px;';
+  const tot = vqEl('div', 'qvNote');
+  tot.style.cssText = 'text-align:right;font-size:14px;font-weight:800;color:var(--accent-text);';
+  const majNote = () => {
+    const e = qvEtat().qs.find(y => y.n === q.n) || q;
+    tot.textContent = qvNotee(e) ? 'Note : ' + qvNoteDe(e) + ' / 3' : 'Pas encore notée';
+    if(majTitre) majTitre();
+  };
+  VERIFS_PARTIES.forEach(k => {
+    const l = vqEl('div', 'qvLigne');
+    l.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;align-items:center;';
+    const lab = vqEl('label', '', QV_NOMS[k] || verifsNomPartie(k, x.type));
+    lab.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;text-transform:none;color:var(--cream);';
+    l.appendChild(lab);
+    l.appendChild(qvBoutons3(q.n, k, q.p[k], majNote));
+    notes.appendChild(l);
+  });
+  notes.appendChild(tot);
+  w.appendChild(notes);
+  majNote();
+  return w;
+}
+function dessinerQuestionsVerifs(idZone){
+  const z = typeof idZone === 'string' ? document.getElementById(idZone) : idZone;
+  if(!z) return;
+  const sig = qvModeleOk() + '|' + qvCle();
+  z.setAttribute('data-qv-sig', sig);
+  const avant = z.querySelector('details.tiroirVerifs');
+  const ouvert = !!(avant && avant.open);
+  const tape = avant && avant.querySelector('input.qvNumero') ? avant.querySelector('input.qvNumero').value : '';
+  z.innerHTML = '';
+  if(!qvModeleOk() || !qvCle()){ z.style.display = 'none'; qvMajRappels(); return; }
+  z.style.display = '';
+
+  const d = document.createElement('details');
+  d.className = 'tiroirVerifs';
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
+  d.open = ouvert;
+  const s = document.createElement('summary');
+  s.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;color:var(--accent-text);';
+  d.appendChild(s);
+  const majTitre = () => {
+    const r = qvResume(qvEtat().qs);
+    s.textContent = '🧰 Questions de vérification' + (r ? ' — ' + r : '');
+    qvMajRappels();
+  };
+
+  const aide = vqEl('div', 'qvAide', 'Tape le numéro de la question, l’élève répond, tu coches chaque partie : la note sur 3 se fait toute seule. ' +
+    'Tu peux en poser plusieurs : tout part dans son bilan.' + (idZone === 'verifsCours' ? ' « Question 12 » dit à voix haute la pose aussi.' : ''));
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 8px;line-height:1.5;';
+  d.appendChild(aide);
+
+  const rang = vqEl('div', 'qvRang');
+  rang.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  const i = document.createElement('input');
+  i.type = 'text';
+  i.inputMode = 'numeric';
+  i.className = 'qvNumero';
+  i.placeholder = 'N° (1 à 100)';
+  i.value = tape;
+  i.setAttribute('data-hors-saisie', '1');
+  i.dataset.horsSaisie = '1';
+  i.style.cssText = 'flex:1;min-width:0;margin:0;';
+  rang.appendChild(i);
+  const poser = () => {
+    const r = qvPoser(i.value);
+    if(r === 'numero'){ showToastVerifs('Tape un numéro de 1 à 100'); i.focus(); return; }
+    if(r === 'deja') showToastVerifs('🧰 La question ' + verifsNumero(i.value) + ' est déjà posée');
+    i.value = '';
+    qvRedessiner(true);
+  };
+  const b = vqEl('button', 'btn btn-primary qvPoser', '➕ Poser');
+  b.type = 'button';
+  b.setAttribute('data-hors-saisie', '1');
+  b.style.cssText = 'width:auto;margin:0;padding:10px 14px;font-size:14px;white-space:nowrap;';
+  b.addEventListener('click', ev => { ev.preventDefault(); poser(); });
+  i.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); poser(); } });
+  rang.appendChild(b);
+  const h = vqEl('button', 'btn btn-secondary qvHasard', '🎲');
+  h.type = 'button';
+  h.title = 'Une question au hasard';
+  h.setAttribute('data-hors-saisie', '1');
+  h.style.cssText = 'width:auto;margin:0;padding:10px 12px;font-size:14px;';
+  h.addEventListener('click', ev => {
+    ev.preventDefault();
+    const deja = qvEtat().qs.map(q => q.n);
+    const libres = [];
+    for(let n = 1; n <= 100; n++) if(deja.indexOf(n) === -1) libres.push(n);
+    if(!libres.length) return;
+    qvPoser(libres[Math.floor(Math.random() * libres.length)]);
+    qvRedessiner(true);
+  });
+  rang.appendChild(h);
+  d.appendChild(rang);
+
+  /* La dernière posée en haut : c'est elle qu'on lit à l'élève */
+  qvEtat().qs.slice().reverse().forEach(q => d.appendChild(qvBloc(q, majTitre)));
+  z.appendChild(d);
+  majTitre();
+}
+/* Redessine les tiroirs présents ; « ouvrir » ouvre ceux qui sont visibles */
+function qvRedessiner(ouvrir){
+  QV_ZONES.forEach(id => {
+    const z = document.getElementById(id);
+    if(!z) return;
+    if(ouvrir && z.offsetParent){
+      const d = z.querySelector('details.tiroirVerifs');
+      if(d) d.open = true;
+    }
+    dessinerQuestionsVerifs(id);
+  });
+  qvMajRappels();
+}
+
+/* ---------- Le rappel, à la place de « Question n° / Note sur 3 » ---------- */
+function rappelQuestionsVerifs(ou){
+  const r = vqEl('div', 'qvRappel');
+  r.setAttribute('data-ou', ou || '');
+  r.setAttribute('data-hors-saisie', '1');
+  r.style.cssText = 'font-size:13px;line-height:1.5;border:1px dashed var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;';
+  r.addEventListener('click', () => {
+    const z = document.getElementById(ou === 'vocal' ? 'verifsCours' : 'verifsManuel');
+    const d = z && z.querySelector('details.tiroirVerifs');
+    if(!d) return;
+    d.open = true;
+    try{ d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){ d.scrollIntoView(); }
+  });
+  qvPeindreRappel(r);
+  return r;
+}
+function qvPeindreRappel(r){
+  const blocVerifs = r.closest('.qvBlocEntete');
+  const ok = qvModeleOk();
+  if(blocVerifs) blocVerifs.style.display = ok ? '' : 'none';
+  const qs = qvEtat().qs;
+  const t = qvTotal(qs);
+  const titre = qs.length
+    ? '🧰 ' + qs.length + ' question' + (qs.length > 1 ? 's' : '') + ' posée' + (qs.length > 1 ? 's' : '') + (t.notees ? ' · ' + t.points + '/' + (t.notees * 3) : '')
+    : '🧰 Aucune question posée pour l’instant';
+  const ou = r.getAttribute('data-ou') === 'vocal'
+    ? 'Elles se posent avec le bouton « 🧰 Questions de vérification », sous les procédures.'
+    : 'Elles se posent en bas, avec le bouton « 🧰 Questions de vérification », juste avant « Composer le bilan ».';
+  const sig = titre + '|' + ou + '|' + ok;
+  if(r.getAttribute('data-sig') === sig) return;
+  r.setAttribute('data-sig', sig);
+  r.innerHTML = '';
+  r.appendChild(vqEl('b', '', titre));
+  r.appendChild(document.createElement('br'));
+  const sp = vqEl('span', '', ou);
+  sp.style.color = 'var(--muted)';
+  r.appendChild(sp);
+}
+function qvMajRappels(){ document.querySelectorAll('.qvRappel').forEach(qvPeindreRappel); }
+
+/* ---------- Le bilan ---------- */
+/* Les lignes de la section 𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨, ou null si aucune question.
+   S'y ajoutent les numéros que l'IA a relevés (ai.verifQuestion) et
+   ceux dits dans le cours, sauf ceux retirés d'un ✕. */
+function lignesVerifsDuCours(ai, texte){
+  const e = qvEtat();
+  const qs = e.qs.slice();
+  const ajouter = n => { if(n && e.ot.indexOf(n) === -1 && !qs.some(q => q.n === n)) qs.push({ n: n, p: { verif: '', qser: '', secours: '' } }); };
+  String((ai && ai.verifQuestion) || '').split(/[^\d]+/).forEach(x => ajouter(verifsNumero(x)));
+  qvNumerosDits(texte).forEach(ajouter);
+  const avecTexte = qs.filter(q => verifsQuestion(q.n));
+  if(!avecTexte.length) return null;
+  const out = ['𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨 https://www.facebook.com/groups/864826058258637 '];
+  avecTexte.forEach(q => {
+    const notee = qvNotee(q);
+    out.push('question n° ' + q.n + (notee ? ' : ' + qvNoteDe(q) + '/3' : ''));
+    VERIFS_PARTIES.forEach(k => {
+      const l = ligneVerifPourLeBilan(q.n, k, true);
+      if(!l) return;
+      out.push(l + (notee ? ' ' + (q.p[k] || '(pas demandée)') : ''));
+    });
+  });
+  const t = qvTotal(avecTexte);
+  if(avecTexte.length > 1){
+    if(t.notees) out.push('𝗧𝗼𝘁𝗮𝗹 : ' + t.points + '/' + (t.notees * 3) + ' sur ' + t.notees + ' question' + (t.notees > 1 ? 's' : ''));
+    out.push('/3 points jour du permis (une seule question ce jour-là) ');
+  }else{
+    out.push('/3 points jour du permis ');
+  }
+  return out;
+}
+
+/* ---------- La veille : modèle ou élève changé, et la voix ---------- */
+setInterval(() => {
+  if(document.hidden) return;
+  QV_ZONES.forEach(id => {
+    const z = document.getElementById(id);
+    if(!z || !z.hasAttribute('data-qv-sig')) return;
+    if(z.getAttribute('data-qv-sig') !== qvModeleOk() + '|' + qvCle()) dessinerQuestionsVerifs(id);
+  });
+  qvMajRappels();
+  /* « question 12 » dite pendant l'enregistrement */
+  if(typeof isRecording === 'undefined' || !isRecording || !qvModeleOk() || !qvCle()) return;
+  const texte = (typeof finalTranscript === 'string' ? finalTranscript : '');
+  if(!texte) return;
+  let neuves = [];
+  qvNumerosDits(texte).forEach(n => { if(qvPoser(n, true) === 'ok') neuves.push(n); });
+  if(neuves.length){
+    qvRedessiner();
+    showToastVerifs('🧰 Question' + (neuves.length > 1 ? 's ' : ' ') + neuves.join(', ') + ' posée' + (neuves.length > 1 ? 's' : '') + ' — note-la dans « Questions de vérification »');
+  }
+}, 1500);
 
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-verifs.js'] = true;
