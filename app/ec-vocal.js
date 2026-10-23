@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 09:42 — v1236 */
+/* Déployé le 23/10/2026 à 11:48 — v1251 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1972,6 +1972,8 @@ async function afficherFicheDuCours(){
   const nom = $('studentName') ? $('studentName').value.trim() : '';
   /* 📋 v1211 — sous la fiche, au-dessus de la transcription */
   try{ dessinerProceduresAJoindre('proceduresCours'); }catch(e){}
+  /* 🧰 v1251 — les questions de vérification, juste dessous */
+  try{ if(typeof dessinerQuestionsVerifs === 'function') dessinerQuestionsVerifs('verifsCours'); }catch(e){}
   /* 🎬 v1222 — et ce qu'il aura à revoir dans son coin révisions */
   try{ dessinerSegmentsARevoir('revoirCours'); }catch(e){}
   if(nom.length < 3){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
@@ -2250,45 +2252,29 @@ function afficherEnteteDuCours(){
     d.appendChild(l);
   });
 
+  /* 🧰 v1251 — « Question n° / Note sur 3 » remplacés par un rappel :
+     les questions se posent dans le tiroir « 🧰 Questions de
+     vérification », sous les procédures (choix de David, le 23/10).
+     Le bloc entier se cache sur un cours qui n'en a pas (rendez-vous
+     préalable…). */
+  const bv = document.createElement('div');
+  bv.className = 'qvBlocEntete';
+
   const sep = document.createElement('div');
   sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0 8px;';
-  d.appendChild(sep);
+  bv.appendChild(sep);
 
   const v = document.createElement('div');
   v.style.cssText = 'font-size:14px;font-weight:700;';
   v.textContent = '𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨';
-  d.appendChild(v);
+  bv.appendChild(v);
 
   const lien = document.createElement('div');
   lien.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;word-break:break-all;';
   lien.textContent = 'https://www.facebook.com/groups/864826058258637';
-  d.appendChild(lien);
-
-  const duo = document.createElement('div');
-  duo.style.cssText = 'display:flex;gap:10px;';
-  [['verifQuestion', 'Question n°', 'Ex : 12'],
-   ['verifNote', 'Note sur 3', 'Ex : 3']].forEach(([cle, lab, ph]) => {
-    const col = document.createElement('div');
-    col.style.cssText = 'flex:1;min-width:0;';
-    const e = document.createElement('label');
-    e.textContent = lab;
-    e.style.cssText = 'font-size:12px;margin-bottom:4px;text-transform:none;';
-    col.appendChild(e);
-    const i = document.createElement('input');
-    i.type = 'text';
-    i.className = 'entTexte';
-    i.setAttribute('data-cle', cle);
-    i.placeholder = ph;
-    i.style.cssText = 'margin:0;padding:9px 10px;font-size:15px;';
-    col.appendChild(i);
-    duo.appendChild(col);
-  });
-  d.appendChild(duo);
-
-  const pts = document.createElement('div');
-  pts.style.cssText = 'font-size:12px;color:var(--muted);margin-top:6px;';
-  pts.textContent = '/3 points jour du permis';
-  d.appendChild(pts);
+  bv.appendChild(lien);
+  d.appendChild(bv);
+  if(typeof rappelQuestionsVerifs === 'function'){ const rq = rappelQuestionsVerifs('vocal'); bv.appendChild(rq); qvPeindreRappel(rq); }
 
   zone.appendChild(d);
   zone.style.display = 'block';
