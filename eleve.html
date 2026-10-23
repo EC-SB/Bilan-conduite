@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 23/10/2026 à 10:24 — v1249 -->
+<!-- Déployé le 23/10/2026 à 11:07 — v1250 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1603,6 +1603,13 @@
   .jv .jvBravo{ margin-top:12px; border:2px solid #9BD58A; background:rgba(46,139,20,.10); border-radius:14px; padding:12px; font-size:14px; line-height:1.45; }
   .jv .jvBravo b{ display:block; font-size:15px; margin-bottom:4px; }
   .jv .jvDoux2{ color:var(--muted); font-size:13px; margin-top:4px; }
+  .jv .jvChrono{ height:8px; border-radius:99px; background:var(--line); overflow:hidden; margin:10px 0 2px; }
+  .jv .jvChrono i{ display:block; height:100%; width:100%; background:linear-gradient(90deg,#B6FF0E,#FFB020,#FF5C33); animation:jvChrono 15s linear forwards; }
+  @keyframes jvChrono{ to{ width:0 } }
+  .jv .jvCombo{ transition:transform .2s; }
+  .jv .jvCombo.chaud{ background:rgba(92,225,230,.18); color:#0E7C86; animation:jvPop .45s; }
+  .jv .jvScore{ font-weight:800; font-size:14px; margin-top:10px; text-align:center; }
+  .jv .jvDit.jvLeBon{ border-color:#2E8B14; box-shadow:0 0 0 3px rgba(46,139,20,.35); }
   @media (prefers-reduced-motion: reduce){ .jv *{ animation:none !important; transition:none !important; } }
   /* ============================================================
      ⚠️ COUCHÉ — ET CE BLOC EST LE DERNIER DE LA FEUILLE, EXPRÈS.
@@ -8818,7 +8825,7 @@
                     [1400, 'As du capot'], [2000, 'Copilote expert'], [2800, 'Pro des vérifs'], [3800, 'Prêt pour l’inspecteur'], [5000, 'Légende du permis']];
   var JV_BADGES = [['premiere', '🧰', '1ʳᵉ partie'], ['serie3', '🔥', '3 jours'], ['serie7', '🔥', '7 jours'], ['serie30', '🏆', '30 jours'],
                    ['jourj3', '🎯', '3/3 au Jour J'], ['cartes7', '🃏', 'Cartes 7 jours'], ['m10', '🔧', '10 maîtrisées'], ['m25', '⚙️', '25 maîtrisées'],
-                   ['m50', '🚗', '50 maîtrisées'], ['m100', '💯', 'Les 100']];
+                   ['m50', '🚗', '50 maîtrisées'], ['m100', '💯', 'Les 100'], ['voyants8', '🚨', 'Tous les voyants']];
 
   function jvAujourdhui(){
     var d = new Date();
@@ -8828,7 +8835,7 @@
     if(!a || !b) return 9999;
     return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
   }
-  function jvVide(){ return { p: {}, xp: 0, serie: 0, record: 0, jour: '', badges: [], revoir: {}, jourJ: { parties: 0, parfaits: 0 }, cartes: { jour: '', faites: 0, jours: 0 }, parties: 0 }; }
+  function jvVide(){ return { p: {}, xp: 0, serie: 0, record: 0, jour: '', badges: [], revoir: {}, jourJ: { parties: 0, parfaits: 0 }, cartes: { jour: '', faites: 0, jours: 0 }, voyants: { record: 0, parties: 0, parfaits: 0 }, parties: 0 }; }
 
   /* ---------- La banque, comme le bureau l'a réglée ---------- */
   function jvBanque(){ return (typeof BANQUE_VERIFS_DSR !== 'undefined') ? BANQUE_VERIFS_DSR : []; }
@@ -8919,7 +8926,7 @@
   function jvNouveauxBadges(){
     var d = JV.d, m = jvNbMaitrisees(), neufs = [];
     var veut = { premiere: d.parties >= 1, serie3: d.serie >= 3, serie7: d.serie >= 7, serie30: d.serie >= 30, jourj3: d.jourJ.parfaits >= 1,
-                 cartes7: d.cartes.jours >= 7, m10: m >= 10, m25: m >= 25, m50: m >= 50, m100: m >= 100 };
+                 cartes7: d.cartes.jours >= 7, m10: m >= 10, m25: m >= 25, m50: m >= 50, m100: m >= 100, voyants8: !!(d.voyants && d.voyants.parfaits >= 1) };
     JV_BADGES.forEach(function(b){ if(veut[b[0]] && d.badges.indexOf(b[0]) === -1){ d.badges.push(b[0]); neufs.push(b); } });
     return neufs;
   }
@@ -9014,7 +9021,7 @@
     ]).then(function(r){
       var d = r[1] || {};
       JV.d = Object.assign(jvVide(), d.donnees || {});
-      ['jourJ', 'cartes'].forEach(function(k){ JV.d[k] = Object.assign(jvVide()[k], (d.donnees || {})[k] || {}); });
+      ['jourJ', 'cartes', 'voyants'].forEach(function(k){ JV.d[k] = Object.assign(jvVide()[k], (d.donnees || {})[k] || {}); });
       JV.ecole = d.ecole || { revoir: {} };
       JV.surch = d.surcharges || {};
       /* 📸 v1249 — nos voitures, leurs photos, chemins et règles */
@@ -9124,6 +9131,9 @@
       else if(jvNbPlacees(voit.id)) mode('voiture', '🚗', 'Ma voiture, en vrai', 'Sur les photos de ta ' + echapper(voit.nom) + ' : fais les gestes dans l’ordre, montre le bon endroit.', 0, true, jvMaVoiture);
     }
     mode('jourj', '🎯', 'Le jour J', 'Une question tirée au sort, lue par l’inspecteur. Tu réponds à voix haute : noté sur 3, comme à l’examen.', 0, !(voit && jvNbPlacees(voit.id)), jvJourJ);
+    /* 🚨 v1250 — le bon voyant, sur le tableau de bord de sa voiture */
+    var nbVoyants = voit ? jvVoyantsPlaces(voit.id).length : 0;
+    if(nbVoyants) mode('voyants', '🚨', 'Le bon voyant', 'Contre la montre, sur le tableau de bord de ta ' + echapper(voit.nom) + (JV.d.voyants.record ? ' · record : ' + JV.d.voyants.record : '') + '.', 0, false, jvBonVoyant);
     var reste = jvCartesRestantes();
     mode('cartes', '🃏', 'Cartes éclair', reste ? reste + ' carte' + (reste > 1 ? 's' : '') + ' pour aujourd’hui' : '✅ Faites aujourd’hui — encore ?', reste, false, jvCartes);
     var ar = jvARevoir();
@@ -9693,6 +9703,165 @@
     l.sort(function(a, b){ return (revoir[b] ? 1 : 0) - (revoir[a] ? 1 : 0) || jvEtat(a, 'v')[0] - jvEtat(b, 'v')[0] || Math.random() - 0.5; });
     var choix = l.slice(0, Math.min(3, l.length));
     jvEntrainement([choix[Math.floor(Math.random() * choix.length)]], 'voiture');
+  }
+
+
+  /* ============================================================
+     🚨 LE BON VOYANT — v1250 (livraison ③)
+
+     Contre la montre, sur le tableau de bord de SA voiture : « Touche
+     le voyant qui… ». Les voyants sont ceux que David a placés dans
+     l'atelier (zones 🎯 des questions qui parlent d'un voyant) ; quand
+     un voyant n'existe pas sur la voiture, la bonne réponse est
+     « 🖥️ C'est l'ordinateur de bord » (sa règle). Pas de photo de
+     tableau de bord pour sa voiture : le jeu ne s'affiche pas.
+
+     15 secondes par voyant. Juste du premier coup : 10 points, plus
+     les secondes qui restent, multipliés par la série (⚡ x2 dès deux
+     de suite, jusqu'à x4). Faux, ou le temps passé : on lui montre le
+     bon, la série retombe, et la question revient « à revoir ».
+     ============================================================ */
+  var JV_CHRONO = 15000;
+  function jvVoyantsPlaces(v){
+    var l = [];
+    for(var n = 1; n <= 100; n++){
+      var x = jvQuestion(n);
+      if(x && /voyant/i.test(x.verif || '') && jvPlacee(v, n)) l.push(n);
+    }
+    return l;
+  }
+  function jvBonVoyant(){
+    var voit = jvVoiture();
+    if(!voit) return jvChoisirVoiture(jvBonVoyant);
+    var l = jvVoyantsPlaces(voit.id);
+    if(!l.length) return jvAccueil();
+    for(var i = l.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = l[i]; l[i] = l[j]; l[j] = t; }
+    var tours = l.slice(0, 8);
+    JV.ronde = 'voyants';
+    var r = jvRacine();
+    var tete = jvTete(r, '🚨 Le bon voyant');
+    var serie = jvEl('span', 'jvFlamme jvCombo', '⚡ x1');
+    tete.appendChild(serie);
+    var bulle = jvEl('div', 'jvBulle', '');
+    r.appendChild(bulle);
+    var chrono = jvEl('div', 'jvChrono', '<i></i>');
+    r.appendChild(chrono);
+    var c = jvEl('div', 'card');
+    c.style.marginTop = '8px';
+    var sc = jvEl('div', 'jvScene');
+    var lieu = jvEl('span', 'jvLieu', '');
+    var toast = jvEl('div', 'jvToast', '');
+    c.appendChild(sc);
+    var outils = jvEl('div', 'jvOutils');
+    c.appendChild(outils);
+    var score = jvEl('div', 'jvScore', '');
+    c.appendChild(score);
+    r.appendChild(c);
+    var k = 0, points = 0, combo = 0, bons = 0, minuteur = null, fini = false, regle = null, rep = null, debut = 0;
+    var dire = function(t, kk){ toast.textContent = t; toast.className = 'jvToast on ' + (kk || ''); clearTimeout(toast._t); toast._t = setTimeout(function(){ toast.className = 'jvToast'; }, 1500); };
+    var montrer = function(p){
+      sc.innerHTML = '';
+      sc.style.aspectRatio = (p.l || 4) + ' / ' + (p.h || 3);
+      var img = document.createElement('img');
+      img.src = jvLien(p); img.alt = ''; img.draggable = false;
+      sc.appendChild(img);
+      p.zones.forEach(function(z){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'jvZone';
+        b.setAttribute('data-z', z.id); b.setAttribute('aria-label', 'Zone');
+        b.style.cssText = 'left:' + z.x + '%;top:' + z.y + '%;width:' + z.w + '%;height:' + z.h + '%';
+        sc.appendChild(b);
+      });
+      lieu.textContent = (JV_ENDROITS[p.endroit] || '') + ' · ' + voit.nom;
+      sc.appendChild(lieu); sc.appendChild(toast);
+    };
+    var majScore = function(){
+      var mult = Math.min(4, 1 + Math.floor(combo / 2));
+      serie.textContent = '⚡ x' + mult;
+      serie.classList.toggle('chaud', mult > 1);
+      score.textContent = '🏁 ' + points + ' point' + (points > 1 ? 's' : '') + ' · ' + bons + ' / ' + tours.length;
+      return mult;
+    };
+    var finTour = function(ok){
+      if(fini) return;
+      fini = true;
+      clearTimeout(minuteur);
+      var n = tours[k];
+      jvNoter(n, 'v', ok);
+      if(ok){
+        var reste = Math.max(0, Math.ceil((JV_CHRONO - (Date.now() - debut)) / 1000));
+        combo++;
+        var mult = majScore();
+        var gagne = (10 + reste) * mult;
+        points += gagne; bons++;
+        majScore();
+        jvBip('ok');
+        dire('✅ +' + gagne + (mult > 1 ? ' (⚡ x' + mult + ')' : ''), 'ok');
+      }else{
+        combo = 0;
+        majScore();
+        jvBip('ko');
+        /* on lui montre le bon */
+        if(rep && !regle){
+          Array.prototype.forEach.call(sc.querySelectorAll('.jvZone'), function(b){ b.classList.toggle('bonne', b.getAttribute('data-z') === rep.zone.id); });
+          sc.classList.add('indice');
+        }else if(regle){
+          Array.prototype.forEach.call(outils.querySelectorAll('.jvDit'), function(b){ b.classList.toggle('jvLeBon', b.getAttribute('data-mode') === regle.mode); });
+        }
+      }
+      chrono.firstChild.style.animation = 'none';
+      setTimeout(function(){ if(!document.body.contains(r)) return; k++; tour(); }, ok ? 900 : 1700);
+    };
+    var tour = function(){
+      if(k >= tours.length) return resultat();
+      fini = false;
+      var n = tours[k];
+      var m = jvCibleVerif(n);
+      var d = jvPartieDemandee(n, 'v');
+      regle = jvRegle(voit.id, m); rep = regle ? null : jvZoneReponse(voit.id, m);
+      tete.querySelector('.q').textContent = '🚨 Le bon voyant · ' + (k + 1) + ' / ' + tours.length;
+      bulle.innerHTML = '<span class="qui">Question ' + n + '</span>';
+      bulle.setAttribute('data-n', String(n));
+      bulle.appendChild(document.createTextNode(d.q));
+      var photo = regle ? (jvPhotoDe(voit.id, 'voyants') || jvPhotoDe(voit.id, 'volant') || jvPhotosDe(voit.id)[0]) : rep.photo;
+      montrer(photo);
+      sc.classList.remove('indice');
+      outils.innerHTML = '';
+      [['dire', '🙅 Il n’y en a pas'], ['ordi', '🖥️ L’ordinateur de bord']].forEach(function(x){
+        var b = jvBouton(x[1], 'btn btn-secondary jvDit', function(){ finTour(!!(regle && regle.mode === x[0])); });
+        b.setAttribute('data-mode', x[0]);
+        outils.appendChild(b);
+      });
+      chrono.innerHTML = '<i></i>';
+      chrono.firstChild.style.animationDuration = (JV_CHRONO / 1000) + 's';
+      debut = Date.now();
+      minuteur = setTimeout(function(){ if(!document.body.contains(r)) return; if(!fini){ dire('⏱️ Trop tard !', 'ko'); finTour(false); } }, JV_CHRONO);
+    };
+    sc.addEventListener('click', function(ev){
+      if(fini) return;
+      var b = ev.target.closest ? ev.target.closest('.jvZone') : null;
+      if(!b) return;
+      var ok = !regle && rep && b.getAttribute('data-z') === rep.zone.id;
+      if(!ok){
+        var p = rep ? rep.photo : null, zid = b.getAttribute('data-z');
+        var z = p && p.zones.filter(function(y){ return y.id === zid; })[0];
+        dire(z && z.nom ? '❌ Ça, c’est ' + z.nom : '❌ Raté', 'ko');
+        c.classList.remove('jvSecoue'); void c.offsetWidth; c.classList.add('jvSecoue');
+      }
+      finTour(ok);
+    });
+    var resultat = function(){
+      var vy = JV.d.voyants;
+      vy.parties++;
+      var record = points > vy.record;
+      if(record) vy.record = points;
+      if(bons === tours.length) vy.parfaits++;
+      JV.d.xp += bons * 10;
+      jvResultat('🚨 Le bon voyant', bons, tours.length, bons * 10, jvBonVoyant, null,
+        points + ' points' + (record ? ' · 🏆 nouveau record !' : ' · record : ' + vy.record));
+    };
+    majScore();
+    tour();
   }
 
 
