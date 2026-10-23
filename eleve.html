@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 23/10/2026 à 16:12 — v1254 -->
+<!-- Déployé le 23/10/2026 à 17:14 — v1255 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1619,6 +1619,14 @@
   .jv .jvCombo.chaud{ background:rgba(92,225,230,.18); color:#0E7C86; animation:jvPop .45s; }
   .jv .jvScore{ font-weight:800; font-size:14px; margin-top:10px; text-align:center; }
   .jv .jvDit.jvLeBon{ border-color:#2E8B14; box-shadow:0 0 0 3px rgba(46,139,20,.35); }
+  /* 💡 v1255 — allumer les feux, puis faire le tour */
+  .jv .jvFait{ font-size:13px; margin-top:8px; color:var(--muted); min-height:18px; }
+  .jv .jvFait b{ color:var(--cream); }
+  .jv .jvAller{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .jv .jvAller .btn{ flex:1 1 110px; margin:0; width:auto; font-size:13px; padding:10px 8px; min-height:44px; }
+  .jv .jvAller .btn.ici{ border-color:#7DBB00; box-shadow:0 0 0 2px rgba(125,187,0,.45); }
+  .jv .jvScene.allume::after{ content:''; position:absolute; inset:0; pointer-events:none; box-shadow:inset 0 0 40px rgba(255,214,0,.35); animation:jvAllume .8s ease-out; }
+  @keyframes jvAllume{ from{ box-shadow:inset 0 0 120px rgba(255,214,0,.9); } }
   @media (prefers-reduced-motion: reduce){ .jv *{ animation:none !important; transition:none !important; } }
   /* ============================================================
      ⚠️ COUCHÉ — ET CE BLOC EST LE DERNIER DE LA FEUILLE, EXPRÈS.
@@ -9628,7 +9636,17 @@
     var id = JV.d && JV.d.voiture;
     return jvVoitures().filter(function(v){ return v.id === id; })[0] || null;
   }
-  function jvPhotoDe(v, endroit){ return jvPhotosDe(v).filter(function(p){ return p.endroit === endroit; })[0] || null; }
+  /* ⚠️ v1255 — la photo NORMALE d'un endroit (feux éteints) ; celles où
+     des feux sont allumés se demandent avec leur « etat » */
+  function jvPhotoDe(v, endroit, etat){ return jvPhotosDe(v).filter(function(p){ return p.endroit === endroit && (p.etat || '') === (etat || ''); })[0] || null; }
+  function jvAllumage(v, a){
+    var l = ((jvAt().reglages.allumages || {})[v] || {})[a] || [];
+    return l.map(function(s){
+      var p = jvPhotoParId(s.photo);
+      var z = p && p.zones.filter(function(x){ return x.id === s.zone; })[0];
+      return (p && z) ? { photo: p, zone: z, fois: s.fois || 1 } : null;
+    }).filter(Boolean);
+  }
   function jvPhotoParId(id){ return jvAt().photos.filter(function(p){ return p.id === id; })[0] || null; }
   function jvRegle(v, n){ var r = jvAt().reglages.regles[v]; return (r && r[String(n)]) || null; }
   /* La zone qui répond à la question n sur la voiture v (sur LA photo de
@@ -9654,7 +9672,11 @@
   }
   function jvPlacee(v, n){
     var m = jvCibleVerif(n);
-    return !!(v && m && (jvRegle(v, m) || jvZoneReponse(v, m)));
+    var rg = v && m ? jvRegle(v, m) : null;
+    /* 💡 une question « à allumer » ne se joue que si sa voiture sait
+       comment les allumer */
+    if(rg && rg.mode === 'allumer') return jvAllumage(v, rg.allumage).length > 0;
+    return !!(v && m && (rg || jvZoneReponse(v, m)));
   }
   function jvNbPlacees(v){ var c = 0; for(var n = 1; n <= 100; n++) if(jvPlacee(v, n)) c++; return c; }
   function jvLien(p){ return p && p.lien ? (p.lien.charAt(0) === '/' ? RELAIS + p.lien : p.lien) : ''; }
@@ -9673,6 +9695,7 @@
     var m = jvCibleVerif(n);
     var x = jvQuestion(n), d = jvPartieDemandee(n, 'v');
     var regle = jvRegle(v, m), rep = jvZoneReponse(v, m);
+    if(regle && regle.mode === 'allumer') return jvAllumerEnVrai(zone, n, fini, regle);
     var voyant = /voyant/i.test(d.q || '');
     var etapes = [];
     var depart = null;
@@ -9801,6 +9824,255 @@
     etapes.forEach(function(e){ var im = new Image(); im.src = jvLien(e.photo); });
   }
 
+  /* ============================================================
+     💡 ALLUMER LES FEUX, PUIS FAIRE LE TOUR — v1255
+
+     David, le 23 octobre : « il faut que l'élève allume les feux pour
+     les contrôler : appuyer sur le bon bouton un certain nombre de
+     fois, ou sur un bouton puis une commande, et avoir vraiment la
+     photo avec les bons feux allumés ». Ses choix :
+       · il TOUCHE la commande le bon nombre de fois (la bague : deux
+         crans), puis une autre si besoin, et dit « C'est allumé » ;
+       · ensuite il FAIT LE TOUR, devant et/ou derrière, et touche les
+         feux allumés sur la vraie photo de SA voiture ;
+       · une mauvaise commande, un appui de trop ou de moins : on lui dit
+         ce qu'il a fait, tout s'éteint, il recommence — et la question
+         part dans « À revoir ».
+     ============================================================ */
+  var JV_ORDRE_TOUR = ['volant', 'voyants', 'devant', 'cote', 'arriere'];
+  function jvAllumerEnVrai(zone, n, fini, regle){
+    var v = JV.d.voiture, voit = jvVoiture();
+    var m = jvCibleVerif(n), a = regle.allumage;
+    var x = jvQuestion(n), d = jvPartieDemandee(n, 'v');
+    var etapes = jvAllumage(v, a);
+    /* ce qu'il faudra toucher pour contrôler : les feux allumés (zones 🎯
+       de la question sur les photos « allumées » de sa voiture) */
+    var cibles = [];
+    JV_ORDRE_TOUR.forEach(function(e){
+      var p = jvPhotoDe(v, e, a);
+      if(!p) return;
+      p.zones.forEach(function(z){ if(z.sorte === 'reponse' && (z.questions || []).indexOf(m) !== -1) cibles.push({ photo: p, zone: z }); });
+    });
+    var allumees = JV_ORDRE_TOUR.map(function(e){ return jvPhotoDe(v, e, a); }).filter(Boolean);
+    var vues = [];
+    etapes.forEach(function(s){ if(vues.indexOf(s.photo) === -1) vues.push(s.photo); });
+    var fautes = 0, indice = false, fait = false, phase = 'allumer', faits = [], ici = vues[0], c0 = 0;
+    var c = jvEl('div', 'card jvPop');
+    c.appendChild(jvEl('span', 'jvPart v', echapper(jvNomPartie('v', x.type)) + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')));
+    if(d.neutre) c.appendChild(jvEl('div', 'jvNeutre', '⚠️ Cette question est neutralisée' + (d.neutre.pourquoi ? ' (' + echapper(d.neutre.pourquoi) + ')' : '') + ' : l’inspecteur pose celle-ci à la place.'));
+    c.appendChild(jvEl('div', 'jvQ', echapper(d.q)));
+    var sc = jvEl('div', 'jvScene');
+    var lieu = jvEl('span', 'jvLieu', '');
+    var toast = jvEl('div', 'jvToast', '');
+    c.appendChild(sc);
+    var aller = jvEl('div', 'jvAller');
+    c.appendChild(aller);
+    var consigne = jvEl('div', 'jvConsigne', '');
+    consigne.setAttribute('role', 'status');
+    c.appendChild(consigne);
+    var tally = jvEl('div', 'jvFait', '');
+    c.appendChild(tally);
+    var outils = jvEl('div', 'jvOutils');
+    c.appendChild(outils);
+    var suite = jvEl('div', '');
+    c.appendChild(suite);
+    zone.appendChild(c);
+
+    var dire = function(t, k){ toast.textContent = t; toast.className = 'jvToast on ' + (k || ''); clearTimeout(toast._t); toast._t = setTimeout(function(){ toast.className = 'jvToast'; }, 2200); };
+    var secouer = function(){ fautes++; jvBip('ko'); c.classList.remove('jvSecoue'); void c.offsetWidth; c.classList.add('jvSecoue'); };
+    var montrer = function(p, allume){
+      ici = p;
+      sc.innerHTML = '';
+      sc.classList.remove('indice');
+      clearTimeout(toast._t); toast.className = 'jvToast';
+      sc.classList.toggle('allume', !!allume);
+      sc.style.aspectRatio = (p.l || 4) + ' / ' + (p.h || 3);
+      var img = document.createElement('img');
+      img.src = jvLien(p); img.alt = ''; img.draggable = false;
+      sc.appendChild(img);
+      p.zones.forEach(function(z){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'jvZone';
+        b.setAttribute('data-z', z.id);
+        b.setAttribute('aria-label', z.sorte === 'commande' ? (z.nom || 'Commande') : 'Zone');
+        b.style.cssText = 'left:' + z.x + '%;top:' + z.y + '%;width:' + z.w + '%;height:' + z.h + '%';
+        sc.appendChild(b);
+      });
+      lieu.textContent = (JV_ENDROITS[p.endroit] || '') + (p.etat ? ' · feux allumés' : '') + (voit ? ' · ' + voit.nom : '');
+      sc.appendChild(lieu); sc.appendChild(toast);
+      sc.classList.remove('jvGlisse'); void sc.offsetWidth; sc.classList.add('jvGlisse');
+      marquerIndice();
+    };
+    var marquerIndice = function(){
+      var bon = null;
+      if(phase === 'allumer'){
+        /* la prochaine commande attendue, d'après ce qu'il a déjà fait —
+           ou « recommence » s'il s'est déjà trompé, ou « c'est bon » */
+        var runs = paquets(), juste = true, k = 0;
+        for(k = 0; k < runs.length; k++){
+          var e = etapes[k], rr = runs[k];
+          var dernier = k === runs.length - 1;
+          if(!e || rr.cle !== e.photo.id + ':' + e.zone.id || rr.fois > e.fois || (!dernier && rr.fois < e.fois)){ juste = false; break; }
+        }
+        var reste = 0;
+        if(juste){
+          var der = runs[runs.length - 1];
+          k = runs.length && der.fois < etapes[runs.length - 1].fois ? runs.length - 1 : runs.length;
+          bon = etapes[k] || null;
+          reste = bon ? bon.fois - (k === runs.length - 1 ? der.fois : 0) : 0;
+        }
+        if(indice) consigne.textContent = !juste ? '💡 Indice : il y a une erreur dans ce que tu as fait. « ↺ Tout éteindre », et recommence.'
+          : (bon ? '💡 Indice : ' + (bon.zone.nom || 'cette commande') + ' — encore ' + reste + ' appui' + (reste > 1 ? 's' : '') + '.'
+                 : '💡 Indice : c’est bon ! Appuie sur « 💡 C’est allumé ».');
+      }else if(cibles[c0]) bon = cibles[c0];
+      Array.prototype.forEach.call(sc.querySelectorAll('.jvZone'), function(b){ b.classList.toggle('bonne', !!bon && bon.photo === ici && b.getAttribute('data-z') === bon.zone.id); });
+      sc.classList.toggle('indice', indice);
+    };
+    /* ce qu'il a fait, en paquets : « bague ×2, comodo ×1 » */
+    var paquets = function(){
+      var l = [];
+      faits.forEach(function(f){ var d2 = l[l.length - 1]; if(d2 && d2.cle === f.cle) d2.fois++; else l.push({ cle: f.cle, nom: f.nom, fois: 1 }); });
+      return l;
+    };
+    var direFaits = function(){
+      var l = paquets();
+      tally.innerHTML = l.length ? 'Tu as fait : ' + l.map(function(p){ return '<b>' + echapper(p.nom) + ' ×' + p.fois + '</b>'; }).join(' puis ') : '';
+    };
+    var toutEteindre = function(){ faits = []; direFaits(); if(vues[0] && ici !== vues[0]) montrer(vues[0]); else marquerIndice(); };
+
+    /* ---------- 1 · allumer ---------- */
+    var dessinerAller = function(){
+      aller.innerHTML = '';
+      var lieux = phase === 'allumer' ? vues : allumees;
+      if(lieux.length < 2) return;
+      lieux.forEach(function(p){
+        var b = jvBouton(JV_ENDROITS[p.endroit] || p.endroit, 'btn btn-secondary' + (p === ici ? ' ici' : ''), function(){
+          if(fait) return;
+          montrer(p, phase !== 'allumer'); dessinerAller();
+        });
+        b.setAttribute('aria-pressed', p === ici ? 'true' : 'false');
+        aller.appendChild(b);
+      });
+    };
+    var verifier = function(){
+      if(fait || phase !== 'allumer') return;
+      var l = paquets();
+      if(!l.length){ secouer(); dire('🤔 Rien n’est allumé : touche la commande.', 'ko'); return; }
+      var faux = '';
+      for(var k = 0; k < Math.max(l.length, etapes.length); k++){
+        var e = etapes[k], p = l[k];
+        if(!e){ faux = '❌ Tu as aussi actionné ' + p.nom + ' : ce n’est pas nécessaire.'; break; }
+        if(!p){ faux = '❌ Pas encore : il manque quelque chose pour les allumer.'; break; }
+        if(p.cle !== e.photo.id + ':' + e.zone.id){ faux = '❌ Ça, c’est ' + p.nom + ' : ce n’est pas la bonne commande.'; break; }
+        if(p.fois < e.fois){ faux = '❌ Pas assez : ' + p.nom + ', tu n’y es pas encore.'; break; }
+        if(p.fois > e.fois){ faux = '❌ Trop loin : un appui de trop sur ' + p.nom + '.'; break; }
+      }
+      if(faux){
+        secouer();
+        dire(faux, 'ko');
+        consigne.textContent = faux + ' Tout s’éteint : recommence.';
+        toutEteindre();
+        return;
+      }
+      /* ✅ allumés : la photo avec les feux allumés, vue du volant */
+      jvBip('ok');
+      phase = 'controle';
+      tally.textContent = '';
+      var p0 = allumees.filter(function(p){ return p.endroit === ici.endroit; })[0] || allumees[0];
+      if(!cibles.length){ if(p0) montrer(p0, true); return reussi(); }
+      dire('✅ C’est allumé !', 'ok');
+      bAllume.style.display = 'none'; bEteindre.style.display = 'none';
+      if(p0 && p0 !== cibles[0].photo && (p0.endroit === 'volant' || p0.endroit === 'voyants')){
+        montrer(p0, true);
+        setTimeout(function(){ if(!fait) allerControler(); }, 1400);
+      }else allerControler();
+    };
+    /* ---------- 2 · contrôler : faire le tour ---------- */
+    var allerControler = function(){
+      consigne.textContent = 'Maintenant, contrôle : ' + (cibles.length > 1 ? 'touche les ' + cibles.length + ' feux allumés' : 'touche le feu allumé') +
+        (cibles.some(function(x){ return ['devant', 'cote', 'arriere'].indexOf(x.photo.endroit) !== -1; }) ? ' — fais le tour de la voiture.' : '.');
+      var p = cibles[0].photo;
+      /* il sort de la voiture par le bon chemin, comme à l'examen */
+      var ch = ['devant', 'cote', 'arriere'].indexOf(p.endroit) !== -1 ? jvEtapesDuChemin(v, p.endroit) : [];
+      if(ch.length){ sortie = ch; iS = 0; aller.innerHTML = ''; montrer(ch[0].photo); consigne.textContent = 'D’abord, sors de la voiture pour aller voir.'; return; }
+      montrer(p, true); dessinerAller();
+    };
+    var sortie = [], iS = 0;
+    var reussi = function(){
+      fait = true;
+      jvBip('ok');
+      sc.classList.remove('indice');
+      var ok = fautes === 0 && !indice;
+      var r = jvEl('div', 'jvBravo', '');
+      r.appendChild(jvEl('b', '', echapper('✅ ' + (cibles.length ? 'Allumés et contrôlés' : 'Allumés') + (ok ? ' !' : ' — ' + fautes + ' erreur' + (fautes > 1 ? 's' : '') + (indice ? ', avec l’indice' : '')))));
+      if(x && x.verifRep) r.appendChild(jvEl('div', 'jvDoux2', echapper(x.verifRep)));
+      var b = jvBouton('Continuer ▶', 'btn btn-primary', function(){ fini(ok); });
+      b.style.marginTop = '10px';
+      r.appendChild(b);
+      suite.innerHTML = ''; suite.appendChild(r);
+      outils.style.display = 'none'; aller.innerHTML = ''; consigne.textContent = ''; tally.textContent = '';
+      setTimeout(function(){ try{ r.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }catch(e){} }, 120);
+    };
+
+    sc.addEventListener('click', function(ev){
+      if(fait) return;
+      var b = ev.target.closest ? ev.target.closest('.jvZone') : null;
+      var z = b ? (ici.zones.filter(function(y){ return y.id === b.getAttribute('data-z'); })[0] || null) : null;
+      var rr = sc.getBoundingClientRect();
+      var boum = function(){ var o = jvEl('span', 'jvBoum', ''); o.style.left = (ev.clientX - rr.left) + 'px'; o.style.top = (ev.clientY - rr.top) + 'px'; sc.appendChild(o); setTimeout(function(){ if(o.parentNode) o.remove(); }, 800); };
+      if(phase === 'allumer'){
+        if(z && z.sorte === 'commande'){
+          boum(); jvBip('ok');
+          faits.push({ cle: ici.id + ':' + z.id, nom: z.nom || 'la commande' });
+          var l = paquets();
+          dire('🔘 ' + (z.nom || 'Commande') + ' ×' + l[l.length - 1].fois);
+          direFaits(); marquerIndice();
+          return;
+        }
+        secouer();
+        dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + ' : ça n’allume rien.' : '🤔 Pas ici… cherche la commande.', 'ko');
+        return;
+      }
+      /* la sortie de la voiture */
+      if(sortie.length && iS < sortie.length){
+        var e2 = sortie[iS];
+        if(z && z.id === e2.zone.id && ici === e2.photo){
+          boum(); jvBip('ok'); iS++;
+          if(iS < sortie.length){ dire('✅ ' + (z.nom || 'Oui'), 'ok'); if(sortie[iS].photo !== ici) setTimeout(function(){ montrer(sortie[iS].photo); }, 400); return; }
+          sortie = [];
+          setTimeout(function(){ montrer(cibles[c0].photo, true); dessinerAller(); consigne.textContent = 'Contrôle : touche ' + (cibles.length - c0 > 1 ? 'les feux allumés' : 'le feu allumé') + '.'; }, 400);
+          return;
+        }
+        secouer();
+        dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + '. Sors de la voiture !' : '🤔 Pas ici… sors de la voiture.', 'ko');
+        return;
+      }
+      var cible = cibles[c0];
+      if(z && cible && ici === cible.photo && z.id === cible.zone.id){
+        boum(); jvBip('ok');
+        c0++;
+        if(c0 >= cibles.length) return reussi();
+        dire('✅ ' + (z.nom || 'Bien vu'), 'ok');
+        consigne.textContent = 'Contrôlé ' + c0 + ' sur ' + cibles.length + '. ' + (cibles[c0].photo !== ici ? 'Va voir ailleurs : ' + (JV_ENDROITS[cibles[c0].photo.endroit] || '') + '.' : 'Encore un.');
+        marquerIndice();
+        return;
+      }
+      secouer();
+      dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + '.' : (cible && ici !== cible.photo ? '🤔 Pas par ici : fais le tour.' : '🤔 Pas ici…'), 'ko');
+    });
+
+    var bAllume = jvBouton('💡 C’est allumé', 'btn btn-primary', verifier);
+    outils.appendChild(bAllume);
+    var bEteindre = jvBouton('↺ Tout éteindre', 'btn btn-secondary', function(){ if(!fait && phase === 'allumer'){ toutEteindre(); consigne.textContent = 'Tout est éteint : recommence.'; } });
+    outils.appendChild(bEteindre);
+    outils.appendChild(jvBouton('💡 Indice', 'btn btn-secondary', function(){ indice = true; marquerIndice(); }));
+    consigne.textContent = 'Au volant : allume-les. Touche la bonne commande, le bon nombre de fois' + (etapes.length > 1 ? ' (et parfois une deuxième)' : '') + ', puis « 💡 C’est allumé ».';
+    montrer(vues[0]);
+    dessinerAller();
+    /* les photos allumées se chargent pendant qu'il cherche */
+    allumees.concat(cibles.map(function(y){ return y.photo; })).forEach(function(p){ var im = new Image(); im.src = jvLien(p); });
+  }
+
   /* Choisir sa voiture (parmi celles qui ont des photos) */
   function jvChoisirVoiture(apres){
     var r = jvRacine();
@@ -9856,7 +10128,8 @@
     var l = [];
     for(var n = 1; n <= 100; n++){
       var x = jvQuestion(n);
-      if(x && /voyant/i.test(x.verif || '') && jvPlacee(v, n)) l.push(n);
+      var rg = jvRegle(v, jvCibleVerif(n));
+      if(x && /voyant/i.test(x.verif || '') && jvPlacee(v, n) && !(rg && rg.mode === 'allumer')) l.push(n);
     }
     return l;
   }
