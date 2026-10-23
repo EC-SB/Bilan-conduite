@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 10:38 — v1225 */
+/* Déployé le 23/10/2026 à 14:43 — v1252 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -813,7 +813,7 @@ async function ouvrirLeGuide(x, groupe){
     enregistrementEnCours = true;
     cadre.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try{
-      await appelPrep({
+      const rep = await appelPrep({
         action: 'parcoursGuideSet',
         id: idPose,
         groupe: idGroupe,
@@ -823,6 +823,14 @@ async function ouvrirLeGuide(x, groupe){
         par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || ''
       });
       showToast(quelEtat === 'publie' ? 'Guide publié ✅' : 'Brouillon gardé ✅');
+      /* 🎬 v1252 — un classeur d'avant la v250 jette la recette du
+         montage sans un mot (blocsPropres recopie champ par champ). */
+      if(blocs.some(x => x && x.montage) && rep && rep.versionScript !== undefined &&
+         Number(rep.versionScript) < 250){
+        await informer('⚠️ Le montage n’a pas été gardé : le script Google Sheets n’est pas à jour ' +
+                       '(v' + rep.versionScript + ', il faut la v250).\n\nLa vidéo est bien déposée ; ' +
+                       'mets le script à jour, puis rouvre le guide et refais « 🎬 Monter la vidéo ».');
+      }
       parcoursGroupeOuvert = idGroupe;
       afficherParcours();
     }catch(e){
@@ -1169,6 +1177,13 @@ function ligneDeBloc(b, i){
        ⚠️ ET LES GUIDES D'AVANT CONTINUENT DE SE LIRE : un « fichier »
        seul devient une liste d'un élément. Voir clesDuBloc.
        ============================================================ */
+    /* 🎬 v1252 — la vidéo a désormais son éditeur de montage : voir
+       ligneDuBlocVideo, juste en dessous. */
+    if(b.type === 'video' && typeof ECMontage !== 'undefined' &&
+       typeof ouvrirEditeurMontage === 'function'){
+      ligneDuBlocVideo(b, l);
+      return l;
+    }
     let cles = clesDuBloc(b);
     let liens = liensDuBloc(b);
     const plusieurs = (b.type === 'image');
@@ -1329,6 +1344,289 @@ function ligneDeBloc(b, i){
   return l;
 }
 
+/* ============================================================
+   🎬 LE BLOC VIDÉO ET SON MONTAGE — v1252
+
+   David, le 23 octobre : « que je puisse mettre des vidéos dans les
+   groupes sans avoir à passer par un logiciel de montage avant ».
+   Choisir la vidéo ouvre l'éditeur AVANT le dépôt (ec-montage-
+   editeur.js) ; on y coupe, on titre, on habille, puis on enregistre
+   — ou on dépose sans montage. Ensuite, le bloc montre ce qui a été
+   monté, avec « 🎬 Modifier le montage » et « 🔄 Remplacer la vidéo »
+   (le schéma v2, § 3, à l'identique).
+
+   ⚠️ LA VIDÉO BRUTE N'EST JAMAIS TOUCHÉE. La recette se range dans
+   « montage », à côté des clés : modifier le montage ne redépose
+   rien, et ce qui est coupé reste là, rien n'est perdu.
+
+   ⚠️ PLUSIEURS VIDÉOS BOUT À BOUT : leurs clés s'alignent dans
+   « fichier », séparées par « | », comme les images d'un carrousel.
+   Le relais les signe déjà dans cet ordre — la recette dit laquelle
+   joue quand.
+
+   ⚠️ ET LE NOM A ENFIN SON ÉTIQUETTE (défaut E2 / P1 de l'audit : un
+   champ sans étiquette ne se lit pas au lecteur d'écran, et son
+   exemple grisé disparaît dès qu'on tape).
+   ============================================================ */
+let numeroDeChampVideo = 0;
+function ligneDuBlocVideo(b, l){
+  const M = ECMontage;
+  let cles = clesDuBloc(b);
+  let liens = liensDuBloc(b);
+  let liensM = (b.montage && b.montage.liens) || {};
+  let montage = (b.montage && typeof b.montage === 'object' && cles.length)
+    ? M.recettePropre(b.montage, cles.length) : null;
+
+  const f = document.createElement('input');
+  f.type = 'hidden'; f.dataset.champ = 'fichier';
+  l.appendChild(f);
+  const mt = document.createElement('input');
+  mt.type = 'hidden'; mt.dataset.champ = 'montage';
+  l.appendChild(mt);
+
+  const idNom = 'pdNomVideo' + (++numeroDeChampVideo);
+  const lab = document.createElement('label');
+  lab.htmlFor = idNom;
+  lab.textContent = 'Nom affiché à l’élève';
+  lab.style.cssText = 'display:block;margin:10px 0 4px;font-size:13px;font-weight:700;' +
+    'text-transform:none;letter-spacing:0;color:var(--text);';
+  l.appendChild(lab);
+  const nom = document.createElement('input');
+  nom.type = 'text'; nom.id = idNom; nom.dataset.champ = 'titre';
+  nom.style.cssText = 'margin:0;font-size:14px;width:100%;font-family:inherit;min-height:44px;';
+  nom.value = b.titre || (estUneCleDeFichier(b.fichier) ? '' : String(b.fichier || ''));
+  l.appendChild(nom);
+
+  const rangee = document.createElement('div');
+  rangee.style.cssText = 'display:flex;gap:10px;margin-top:10px;align-items:flex-start;';
+  l.appendChild(rangee);
+
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:none;height:5px;border-radius:3px;' +
+    'background:var(--line);margin-top:6px;overflow:hidden;';
+  const dedans = document.createElement('div');
+  dedans.style.cssText = 'height:100%;width:0;background:var(--orange);transition:width .2s;';
+  barre.appendChild(dedans);
+  l.appendChild(barre);
+
+  const boutons = document.createElement('div');
+  boutons.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:10px;';
+  l.appendChild(boutons);
+
+  const choix = document.createElement('input');
+  choix.type = 'file'; choix.accept = 'video/mp4'; choix.style.display = 'none';
+  choix.tabIndex = -1; choix.setAttribute('aria-hidden', 'true');
+  l.appendChild(choix);
+  let remplacer = false;
+
+  const bouton = (texte, prim, quoi) => {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'btn ' + (prim ? 'btn-primary' : 'btn-secondary');
+    x.style.cssText = 'width:auto;margin:0;min-height:44px;padding:10px 14px;font-size:14px;';
+    x.textContent = texte;
+    x.addEventListener('click', quoi);
+    return x;
+  };
+
+  const redire = () => {
+    f.value = cles.join('|');
+    mt.value = montage ? JSON.stringify(montage) : '';
+    b.fichier = f.value;
+    b.lien = liens[0] || '';
+    b.liens = liens.slice();
+    if(montage){ b.montage = JSON.parse(mt.value); b.montage.liens = liensM; b.duree = montage.duree; }
+    else delete b.montage;
+
+    rangee.innerHTML = '';
+    if(cles.length){
+      /* La vignette : la première image de ce que l'élève verra. */
+      const vg = document.createElement('button');
+      vg.type = 'button';
+      vg.setAttribute('aria-label', 'Voir la vidéo comme l’élève la verra');
+      vg.style.cssText = 'position:relative;width:64px;height:96px;flex-shrink:0;border:1px solid var(--line);' +
+        'border-radius:10px;overflow:hidden;background:#000;padding:0;margin:0;cursor:pointer;';
+      if(liens[0]){
+        const v = document.createElement('video');
+        const seg = montage ? M.segments(montage)[0] : null;
+        v.src = liens[(seg ? montage.clips[seg.ci].i : 0)] + '#t=' + (seg ? seg.de + 0.1 : 0.1);
+        v.preload = 'metadata'; v.muted = true; v.playsInline = true;
+        v.setAttribute('aria-hidden', 'true'); v.tabIndex = -1;
+        v.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
+        vg.appendChild(v);
+      }
+      const p = document.createElement('span');
+      p.textContent = '▶'; p.setAttribute('aria-hidden', 'true');
+      p.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;' +
+        'font-size:20px;text-shadow:0 0 6px rgba(0,0,0,.8);';
+      vg.appendChild(p);
+      vg.addEventListener('click', () => {
+        montrerLaVideoDuBloc({ cles: cles, liens: liens, montage: montage, liensM: liensM }, nom.value.trim())
+          .catch(e => showToast('Impossible : ' + e.message));
+      });
+      rangee.appendChild(vg);
+    }
+    const infos = document.createElement('div');
+    infos.style.cssText = 'flex:1;min-width:0;font-size:13.5px;line-height:1.5;';
+    if(!cles.length){
+      infos.style.color = 'var(--warn-text)';
+      infos.textContent = '⚠️ Aucune vidéo déposée : ce bloc ne montrera rien à l’élève.';
+    }else{
+      const t = document.createElement('div');
+      t.style.cssText = 'font-weight:700;color:var(--accent-text);';
+      t.textContent = '✅ Vidéo' + (cles.length > 1 ? 's' : '') + ' déposée' + (cles.length > 1 ? 's (' + cles.length + ')' : '') +
+                      (b.poids ? ' — ' + poidsLisible(b.poids) : '');
+      infos.appendChild(t);
+      const d = document.createElement('div');
+      d.textContent = montage ? '🎬 Montage : ' + M.resume(montage) : '🎬 Sans montage : la vidéo telle quelle.';
+      infos.appendChild(d);
+      if(montage){
+        const e = document.createElement('div');
+        e.style.color = 'var(--muted)';
+        e.textContent = 'L’élève voit ' + M.mmss(M.dureeTotale(montage)) +
+                        ' · ce qui est coupé reste gardé, rien n’est perdu';
+        infos.appendChild(e);
+      }
+    }
+    rangee.appendChild(infos);
+
+    boutons.innerHTML = '';
+    if(cles.length){
+      boutons.appendChild(bouton(montage ? '🎬 Modifier le montage' : '🎬 Monter la vidéo', true, () => modifier()));
+      boutons.appendChild(bouton('🔄 Remplacer la vidéo', false, () => { remplacer = true; choix.click(); }));
+    }else{
+      boutons.appendChild(bouton('📤 Choisir la vidéo', true, () => { remplacer = false; choix.click(); }));
+    }
+  };
+
+  /* Déposer ce que l'éditeur a rendu : les vidéos neuves, la musique
+     neuve. Ce qui était déjà déposé garde sa clé. */
+  const deposer = async (res) => {
+    const aEnvoyer = res.clips.filter(c => c.fichier).length +
+                     ((res.musique && res.musique.fichier) ? 1 : 0);
+    let rang = 0, poids = 0, ancien = 0;
+    const nCles = [], nLiens = [];
+    boutons.innerHTML = '';
+    barre.style.display = aEnvoyer ? 'block' : 'none';
+    const dire = (t) => { rangee.innerHTML = ''; const x = document.createElement('div'); x.style.cssText = 'font-size:13.5px;color:var(--muted);'; x.setAttribute('role', 'status'); x.textContent = t; rangee.appendChild(x); };
+    for(const c of res.clips){
+      if(!c.fichier){ nCles.push(c.cle); nLiens.push(c.lien || ''); ancien++; continue; }
+      rang++;
+      const quoi = aEnvoyer > 1 ? ' (' + rang + '/' + aEnvoyer + ')' : '';
+      dire('📤 Dépôt de ' + c.fichier.name + ' (' + poidsLisible(c.fichier.size) + ')' + quoi + '…');
+      dedans.style.width = '0';
+      const cle = await deposerUnFichier('video', c.fichier, (pc) => {
+        dedans.style.width = pc + '%'; dire('📤 Dépôt' + quoi + '… ' + pc + ' %');
+      });
+      let lien = '';
+      try{ lien = await lienDuFichierDeGuide(cle); }catch(e){ lien = ''; }
+      nCles.push(cle); nLiens.push(lien); poids += c.fichier.size;
+    }
+    const nLiensM = { polices: {} };
+    const recette = res.recette;
+    if(res.musique && res.musique.fichier){
+      rang++;
+      dire('📤 Dépôt de la musique' + (aEnvoyer > 1 ? ' (' + rang + '/' + aEnvoyer + ')' : '') + '…');
+      dedans.style.width = '0';
+      const nomM = res.musique.fichier.name;
+      const fic = new File([res.musique.fichier], /\.m4a$/i.test(nomM) ? 'musique.m4a' : 'musique.mp3',
+                           { type: res.musique.fichier.type });
+      const cle = await deposerUnFichier('audio', fic, (pc) => { dedans.style.width = pc + '%'; });
+      recette.fichiers.musique = cle;
+      try{ nLiensM.musique = await lienDuFichierDeGuide(cle); }catch(e){ nLiensM.musique = ''; }
+    }else if(res.musique && res.musique.cle){
+      recette.fichiers.musique = res.musique.cle;
+      nLiensM.musique = res.musique.lien || '';
+    }
+    Object.keys((recette.fichiers && recette.fichiers.polices) || {}).forEach(k => {
+      nLiensM.polices[k] = (liensM.polices || {})[k] || '';
+    });
+    barre.style.display = 'none';
+    cles = nCles; liens = nLiens; liensM = nLiensM;
+    if(poids) b.poids = ancien ? (Number(b.poids) || 0) + poids : poids;
+    return recette;
+  };
+
+  /* Ouvrir l'éditeur — sur une vidéo neuve, ou sur ce qui est déposé. */
+  const ouvrir = async (clips, recette, musique, nouveau) => {
+    const res = await ouvrirEditeurMontage({
+      clips: clips, recette: recette, musique: musique, nouveau: nouveau,
+      liensPolices: liensM.polices || {},
+      titre: nom.value.trim() || (clips[0] && clips[0].fichier ? clips[0].fichier.name.replace(/\.[^.]+$/, '') : '')
+    });
+    if(!res) return;
+    try{
+      if(res.sans){
+        const fic = clips[0].fichier;
+        const r2 = await deposer({ clips: [{ fichier: fic }], recette: { fichiers: {} }, musique: null });
+        void r2;
+        montage = null; liensM = {};
+        b.poids = fic.size;
+        if(!nom.value.trim()) nom.value = fic.name.replace(/\.[^.]+$/, '');
+      }else{
+        montage = await deposer(res);
+        if(!nom.value.trim()) nom.value = montage.titre.texte ||
+          (res.clips[0] && res.clips[0].fichier ? res.clips[0].fichier.name.replace(/\.[^.]+$/, '') : '');
+      }
+      redire();
+      showToast(res.sans ? 'Vidéo déposée ✅' : 'Montage enregistré ✅ — n’oublie pas d’enregistrer le guide');
+    }catch(e){
+      barre.style.display = 'none';
+      redire();
+      showToast('Dépôt impossible : ' + e.message);
+    }
+  };
+
+  const modifier = async () => {
+    /* Des liens neufs : ceux du guide ont peut-être expiré (une heure). */
+    const frais = await Promise.all(cles.map(c => lienDuFichierDeGuide(c).catch(() => '')));
+    liens = frais.map((x, i) => x || liens[i] || '');
+    const fm = (montage && montage.fichiers) || {};
+    let musique = null;
+    if(fm.musique){
+      let lm = liensM.musique || '';
+      try{ lm = await lienDuFichierDeGuide(fm.musique); }catch(e){}
+      musique = { cle: fm.musique, lien: lm, nom: (montage && montage.musique.nom) || 'La musique choisie' };
+    }
+    const lp = {};
+    for(const k of Object.keys(fm.polices || {})){
+      try{ lp[k] = await lienDuFichierDeGuide(fm.polices[k]); }catch(e){ lp[k] = (liensM.polices || {})[k] || ''; }
+    }
+    liensM = Object.assign({}, liensM, { polices: Object.assign({}, liensM.polices || {}, lp) });
+    const clips = cles.map((c, i) => ({ cle: c, lien: liens[i], nom: (nom.value.trim() || 'Vidéo') + (cles.length > 1 ? ' ' + (i + 1) : '') + '.mp4', poids: 0 }));
+    await ouvrir(clips, montage, musique, false);
+  };
+
+  choix.addEventListener('change', async () => {
+    const fic = choix.files && choix.files[0];
+    choix.value = '';
+    if(!fic) return;
+    /* Remplacer garde l'habillage et le titre ; les coupes, les textes
+       et les silences étaient ceux de l'autre vidéo. */
+    const garde = (remplacer && montage) ? Object.assign({}, montage, { clips: [], textes: [], muets: [] }) : null;
+    await ouvrir([{ fichier: fic }], garde, null, true);
+  });
+
+  redire();
+}
+
+/* L'aperçu « comme l'élève la verra » : le même lecteur que chez lui. */
+async function montrerLaVideoDuBloc(x, titre){
+  if(!x.montage){ return montrerLeFichier('video', x.cles[0], titre, x.liens[0]); }
+  const liens = await Promise.all(x.cles.map((c, i) => x.liens[i] ? Promise.resolve(x.liens[i]) : lienDuFichierDeGuide(c)));
+  const reg = await ECMontageEditeur.reglagesVideo();
+  const persos = ECMontageEditeur.persosDe(ECMontage.squelettePropre(reg.reglages || {}), (x.liensM && x.liensM.polices) || {});
+  const boite = document.createElement('div');
+  boite.style.cssText = 'max-width:100%;color:var(--text);';
+  const lec = ECMontage.lecteur(boite, {
+    recette: x.montage, clips: liens.map(l => ({ lien: l })),
+    musique: (x.montage.musique.on && x.liensM && x.liensM.musique) ? x.liensM.musique : null,
+    persos: persos, titre: titre, peutPasser: () => true
+  });
+  await fenetre(boite, [{ nom: 'Fermer', valeur: true }], '👁️ ' + (titre || 'La vidéo'));
+  lec.detruire();
+}
+
 /* ⚠️ VÉRIFIER AVANT DE PUBLIER. Un .mp4 qui contient du VP9 s'ouvre
    ici en carré noir — et c'est exactement le cas de deux vidéos du
    NAS. Le voir maintenant coûte dix secondes ; le voir par un élève
@@ -1377,8 +1675,17 @@ function relireLesBlocs(cadre, blocs){
     const ta = lignes[i].querySelector('[data-champ="texte"]');
     const f = lignes[i].querySelector('[data-champ="fichier"]');
     const n = lignes[i].querySelector('[data-champ="titre"]');
+    const mt = lignes[i].querySelector('[data-champ="montage"]');
     if(ta) blocs[i].texte = ta.value;
     if(f) blocs[i].fichier = f.value.trim();
+    /* 🎬 v1252 — la recette du montage part avec le bloc (sans ses
+       liens signés : ils expirent, le relais les refait). Vide : la
+       vidéo est déposée sans montage. */
+    if(mt){
+      let m = null;
+      try{ m = mt.value ? JSON.parse(mt.value) : null; }catch(e){ m = null; }
+      if(m){ delete m.liens; blocs[i].montage = m; } else delete blocs[i].montage;
+    }
     /* ⚠️ LE NOM SE RELIT AUSSI — v1034. Il était absent de cette
        boucle : le titre tapé sous une vidéo se serait perdu à
        l'enregistrement, sans une erreur, sans un mot. C'est le même
@@ -1434,6 +1741,8 @@ function apercuDuGuide(titre, blocs){
          aperçu qui ment sur ce point ne sert à rien. */
       const combien = clesDuBloc(b).length;
       bouts.push(t.emoji + ' ' + (b.titre || t.nom) +
+                 (b.type === 'video' && b.montage ? '  (montée : ' +
+                   (typeof ECMontage !== 'undefined' ? ECMontage.resume(ECMontage.recettePropre(b.montage)) : 'oui') + ')' : '') +
                  (combien > 1 ? '  (' + combien + ' images)' : '') +
                  (combien ? '' : '  ⚠️ AUCUN FICHIER DÉPOSÉ — ce bloc ' +
                                  'sera vide chez l\'élève'));
