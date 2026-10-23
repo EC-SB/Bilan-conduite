@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 15:15 — v1253 */
+/* Déployé le 23/10/2026 à 16:12 — v1254 */
 /* ============================================================
    ec-montage-fabrique.js — 🎞️ FABRIQUER LA VIDÉO (option B, v1253)
 
@@ -157,7 +157,7 @@
     var persos = o.persos || {};
     var c0 = r.clips[0] || {};
     var cfg, W, H, U, can, ctx, tmp, tctx, snap, sctx, video, muxer, venc, aenc, erreur = null;
-    var cues = o.incruster ? (o.sousTitres || []) : [];
+    var cues = o.incruster ? M.decouperCues(o.sousTitres || []) : [];
     var arreter = function(){ if(jeton.annule) throw new Error('Fabrication annulée.'); if(erreur) throw erreur; };
 
     /* ---------- le déroulé, comme le lecteur ---------- */
@@ -243,7 +243,7 @@
         });
         if(cues.length){
           var c = null; for(var i = 0; i < cues.length; i++) if(tContenu >= cues[i].de && tContenu <= cues[i].a){ c = cues[i]; break; }
-          if(c) bloc(ctx, c.texte, { police: 'classique', taille: 'm', couleur: '#FFFFFF', fond: 'noir' }, M.BASES.st * U, persos, { x: W / 2, basEn: H * 0.91, l: W * 0.9, centre: true, interligne: 1.3 });
+          if(c) bloc(ctx, c.texte, { police: 'classique', taille: 'm', couleur: '#FFFFFF', fond: 'noir' }, (W > H ? 2.6 : M.BASES.st) * U, persos, { x: W / 2, basEn: (r.fili.on && r.fili.pos.charAt(0) === 'b') ? Math.min(H * 0.92, H - 10 * U) : H * 0.92, l: W * 0.9, centre: true, interligne: 1.3 });
         }
         if(r.fili.on) dessinerFili();
       }
