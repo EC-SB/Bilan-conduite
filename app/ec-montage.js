@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 15:15 — v1253 */
+/* Déployé le 23/10/2026 à 16:12 — v1254 */
 /* ============================================================
    ec-montage.js — 🎬 LE MONTAGE DES VIDÉOS DU PARCOURS (v1252)
 
@@ -32,7 +32,7 @@
    ============================================================ */
 (function(G){
   'use strict';
-  var V = '1253';
+  var V = '1254';
   var ICI = (document.currentScript && document.currentScript.src) || '';
   var DOSSIER = ICI ? ICI.replace(/[^\/]*$/, '') : 'app/';
 
@@ -181,6 +181,32 @@
     return 'WEBVTT\n\n' + (cues || []).filter(function(c){ return c && c.a > c.de && String(c.texte || '').trim(); }).map(function(c, i){
       return (i + 1) + '\n' + hmsVtt(c.de) + ' --> ' + hmsVtt(c.a) + '\n' + String(c.texte).replace(/-->/g, '→').replace(/\n{2,}/g, '\n').trim();
     }).join('\n\n') + '\n';
+  }
+  /* 💬 v1254 — UNE PHRASE DE WHISPER PEUT FAIRE QUARANTE MOTS, et elle
+     couvrait toute l'image sur un téléphone. À l'écran, elle se coupe en
+     morceaux de deux lignes au plus (≈ 80 signes), de préférence après
+     une ponctuation, et le temps se partage selon la longueur. Le texte
+     relu au bureau, lui, ne change pas. */
+  function decouperCues(cues, max){
+    max = max || 80;
+    var out = [];
+    (cues || []).forEach(function(c){
+      var t = String(c.texte || '').replace(/\s+/g, ' ').trim();
+      if(t.length <= max){ out.push({ de: c.de, a: c.a, texte: t }); return; }
+      var mots = t.split(' '), bouts = [], cour = '';
+      mots.forEach(function(m){
+        var essai = cour ? cour + ' ' + m : m;
+        if(essai.length > max && cour){ bouts.push(cour); cour = m; }
+        else {
+          cour = essai;
+          if(cour.length >= max * 0.55 && /[,.;:!?]$/.test(m)){ bouts.push(cour); cour = ''; }
+        }
+      });
+      if(cour) bouts.push(cour);
+      var total = bouts.reduce(function(s2, b){ return s2 + b.length; }, 0), t0 = c.de, d = c.a - c.de;
+      bouts.forEach(function(b){ var l = d * b.length / total; out.push({ de: t0, a: t0 + l, texte: b }); t0 += l; });
+    });
+    return out;
   }
   function depuisVTT(texte){
     var out = [];
@@ -386,7 +412,15 @@
     '.mvTxt{position:absolute;line-height:1.25;overflow-wrap:anywhere;pointer-events:none;}',
     '.mvFlou{position:absolute;-webkit-backdrop-filter:blur(calc(var(--mvU,3px) * 3.5));backdrop-filter:blur(calc(var(--mvU,3px) * 3.5));background:rgba(128,128,128,.12);pointer-events:none;}',
     '.mvFlou.rond{border-radius:50%;}',
-    '.mvSt{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);max-width:90%;width:max-content;text-align:center;z-index:3;pointer-events:none;color:#fff;background:rgba(0,0,0,.72);border-radius:.3em;padding:.15em .5em;line-height:1.3;white-space:pre-line;font:500 calc(var(--mvU,3px) * 4.6)/1.3 "Segoe UI",Selawik,"Helvetica Neue",system-ui,sans-serif;}',
+    /* 💬 v1254 — David : « sur téléphone, quand on met les sous-titres,
+       ça prend tout l'écran ». La taille suit la vidéo, mais BORNÉE
+       (13 à 22 px), et une vidéo en paysage, plus large, a son propre
+       rapport : sinon le plein écran donnait des lettres de 60 px. */
+    '.mvSt{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);max-width:90%;width:max-content;text-align:center;z-index:3;pointer-events:none;color:#fff;background:rgba(0,0,0,.72);border-radius:.3em;padding:.15em .5em;line-height:1.3;white-space:pre-line;font-weight:500;font-family:"Segoe UI",Selawik,"Helvetica Neue",system-ui,sans-serif;font-size:clamp(13px, calc(var(--mvU,3px) * 4.6), 22px);}',
+    '.mvScene.paysage .mvSt{font-size:clamp(13px, calc(var(--mvU,3px) * 2.6), 22px);bottom:6%;}',
+    /* au-dessus du copyright quand il est en bas, jamais dessus */
+    '.mvScene.filiBas .mvSt{bottom:max(8%, calc(var(--mvU,3px) * 10));}',
+    '.mvScene.paysage.filiBas .mvSt{bottom:max(6%, calc(var(--mvU,3px) * 10));}',
     '.mvL-cc[aria-pressed=true]{background:#14161B !important;color:#fff !important;border-color:#14161B !important;}',
     '.mvGrand{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72px;height:72px;border-radius:999px;border:0;background:rgba(255,255,255,.92);color:#0B0B0B;font-size:28px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);z-index:7;}',
     '.mvGrand:focus-visible{outline:3px solid #B6FF0E;outline-offset:3px;}',
@@ -404,7 +438,13 @@
     '.mvL-passer{position:absolute;right:calc(50% - min(50%,180px) + 10px);bottom:62px;z-index:8;background:rgba(255,255,255,.95);}',
     '.mvL .mvScene.paysage ~ .mvL-passer{right:10px;}',
     '.mvL.plein{position:fixed;inset:0;z-index:99999;background:#000;margin:0;display:flex;flex-direction:column;justify-content:center;padding:10px;}',
-    '.mvL.plein .mvScene{max-width:none;width:auto;height:calc(100% - 60px);max-height:calc(100% - 60px);}',
+    /* 🖥️ v1254 — David : « quand on met en grand écran, la vidéo on ne
+       l'a pas en entier ». La hauteur était imposée, la largeur suivait
+       (9/16 ou 16/9) et débordait de l'écran du téléphone. Désormais la
+       vidéo prend la plus grande taille qui TIENT, en largeur comme en
+       hauteur. */
+    '.mvL.plein .mvScene{max-width:none;max-height:none;height:auto;margin:0 auto;width:min(100%, calc((100vh - 84px) * 9 / 16));width:min(100%, calc((100dvh - 84px) * 9 / 16));}',
+    '.mvL.plein .mvScene.paysage{width:min(100%, calc((100vh - 84px) * 16 / 9));width:min(100%, calc((100dvh - 84px) * 16 / 9));}',
     '.mvL.plein .mvL-barre{max-width:none;width:100%;color:#fff;}',
     '.mvL.plein .mvL-passer{right:20px;bottom:74px;}',
     '@media (prefers-reduced-motion: reduce){.mvCarte,.mvFili{transition:none;}}'
@@ -457,6 +497,7 @@
     S.fili.textContent = r.fili.texte;
     var on = S.fili.classList.contains('on');
     S.fili.className = 'mvFili ' + r.fili.pos + (on ? ' on' : '');
+    S.scene.classList.toggle('filiBas', !!(r.fili.on && r.fili.pos.charAt(0) === 'b'));
     appliquerStyle(S.fili, r.fili.style, unite(BASES.fili), persos);
     if(r.fili.style.fond === 'aucun') S.fili.style.padding = '.6em .8em';
     S.genTxt.textContent = r.gen.texte; appliquerStyle(S.genTxt, r.gen.style, unite(BASES.gen), persos);
@@ -515,7 +556,7 @@
     /* 💬 v1253 — les sous-titres : affichés si l'élève a touché « CC ».
        « decalage » : dans un fichier fabriqué, le contenu ne commence
        qu'après l'avertissement et le titre, eux aussi dans l'image. */
-    var cues = o.cues || null, decal = Number(o.decalage) || 0;
+    var cues = o.cues ? decouperCues(o.cues) : null, decal = Number(o.decalage) || 0;
     function poserSt(){
       if(!S.st) return;
       var c = null;
@@ -800,7 +841,7 @@
       etat: function(){ var e = et.etapes[et.i]; return { joue: et.joue, fini: et.fini, phase: e ? e.s : '', tContenu: et.tContenu, introFaite: et.introFaite, enIntro: !!(e && (e.s === 'copy' || e.s === 'noir' || e.s === 'titre' || (e.s === 'tr' && e.vers === 0))) }; },
       duree: function(){ return dureeContenu(r); },
       couperLeSon: function(v){ o.muet = !!v; volumes(); },
-      sousTitres: function(l){ if(l !== undefined) cues = l; poserSt(); }
+      sousTitres: function(l){ if(l !== undefined) cues = decouperCues(l); poserSt(); }
     };
   }
 
@@ -953,7 +994,7 @@
     policeDe: policeDe, appliquerStyle: appliquerStyle, chargerLesPolices: chargerLesPolices, stylesDe: stylesDe,
     creerScene: creerScene, habiller: habiller, dessinerTextes: dessinerTextes, moteur: moteur, lecteur: lecteur,
     poserLeStyle: poserLeStyle, cleValide: cleValide, copie: copie,
-    placeFlou: placeFlou, versVTT: versVTT, depuisVTT: depuisVTT, BASES: BASES, unite: unite, lum: lum
+    placeFlou: placeFlou, versVTT: versVTT, depuisVTT: depuisVTT, decouperCues: decouperCues, BASES: BASES, unite: unite, lum: lum
   };
 })(window);
 
