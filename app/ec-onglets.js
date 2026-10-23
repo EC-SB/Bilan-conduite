@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 17:10 — v1246 */
+/* Déployé le 23/10/2026 à 14:43 — v1252 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -351,6 +351,13 @@ const VUES = {
               questions de vérification, que je puisse modifier » */
            ['verifs',     '🧰 Vérifications',          'bilans',      'Ce qu’on écrit'],
            ['courriers',  '✉️ Courriers',               'courriers',   'Ce qu’on écrit'],
+           /* 🎬 v1252 — David : « le squelette » de ses vidéos (début,
+              copyright, générique, transitions, style des textes,
+              polices de l'école), réglé une fois pour l'école. Le
+              droit est celui des modèles de bilan, comme 🧰 Vérifications
+              (un bouton d'Outils porte un droit d'Outils) ; le changer :
+              administrateurs (vérifié dans la porte du relais). */
+           ['squelette',  '🎬 Squelette des vidéos',   'bilans',      'Ce qu’on écrit'],
            /* « 📚 Historique des cours » a été retiré.
 
               Ce bouton ne chargeait RIEN : sa vue n'était branchée
@@ -1884,6 +1891,7 @@ function reveillerVue(cle){
     courriers:  () => (typeof afficherCourriers === 'function') && afficherCourriers(),
     /* 🧰 v1246 */
     verifs:     () => (typeof afficherVerifs === 'function') && afficherVerifs(),
+    squelette:  () => (typeof afficherSqueletteVideo === 'function') && afficherSqueletteVideo(),
     /* ⚠️ DEUX ÉCRANS SOUS UN SEUL BOUTON, ET CHACUN DEMANDE SON
        DROIT AVANT DE PARTIR.
 
