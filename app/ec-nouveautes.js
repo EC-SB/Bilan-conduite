@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 19:33 — v1248 */
+/* Déployé le 23/10/2026 à 10:24 — v1249 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1249,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '📸 L’atelier du jeu : nos voitures, nos photos, leurs chemins',
+    quoi: [
+      { emoji: '📸',
+        titre: 'L’atelier (administrateurs)',
+        texte: 'Outils › 🧰 Vérifications › « 📸 Nos voitures » : les voitures du jeu, une photo par endroit (au volant, porte ouverte, devant, capot ouvert…), et des zones dessinées au doigt. Une photo peut servir à plusieurs voitures.' },
+      { emoji: '🧭',
+        titre: 'Le chemin, dans l’ordre',
+        texte: 'Par voiture et par endroit, les gestes dans l’ordre (ex. : la porte, puis la manette du capot, puis le capot) — et « Appliquer aussi à » d’autres voitures en un clic.' },
+      { emoji: '🔧',
+        titre: 'Question par question',
+        texte: 'La montrer sur la photo, « il n’y en a pas : à dire » (ex. hauteur des feux automatique), ou « c’est l’ordinateur de bord » — « Même chose pour » plusieurs voitures.' },
+      { emoji: '🚗',
+        titre: 'Chez l’élève : « Ma voiture, en vrai »',
+        texte: 'Il choisit sa voiture, et fait les gestes sur SES photos. S’il se trompe, on lui dit ce qu’il a touché.' }
+    ]
+  },
   {
     version: 1248,
     date: 'Jeudi 22 octobre 2026',
