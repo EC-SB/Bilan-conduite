@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 15:15 — v1253 */
+/* Déployé le 23/10/2026 à 16:12 — v1254 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1254,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '📱 Vidéos au téléphone : plein écran entier, sous-titres à leur taille',
+    quoi: [
+      { emoji: '🖥️',
+        titre: 'Le plein écran montre toute la vidéo',
+        texte: 'Debout ou couché, la vidéo prend la plus grande taille qui tient dans l’écran du téléphone, sans rien couper.' },
+      { emoji: '💬',
+        titre: 'Des sous-titres qui ne cachent plus l’image',
+        texte: 'Deux lignes au plus (une longue phrase se découpe et défile), une taille bornée même en plein écran, et toujours au-dessus du copyright.' }
+    ]
+  },
   {
     version: 1253,
     date: 'Vendredi 23 octobre 2026',
