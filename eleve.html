@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 23/10/2026 à 11:07 — v1250 -->
+<!-- Déployé le 23/10/2026 à 14:43 — v1252 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -773,6 +773,15 @@
   #feuilleParcours video, #feuilleParcours img{
     width:100%; border-radius:12px; margin:0 0 11px; background:#000; display:block;
   }
+  /* 🎬 v1252 — une vidéo montée : son lecteur (app/ec-montage.js) tient
+     sa scène lui-même ; les règles du panneau ne la déforment pas. */
+  #feuilleParcours .mvL{ margin:0 0 11px; }
+  #feuilleParcours .mvScene video{ margin:0; border-radius:0; }
+  #feuilleParcours .mvL p{ margin:0; white-space:pre-line; }
+  #feuilleParcours .mvL .mvTitreCarte .s{ margin-top:6px; }
+  #feuilleParcours .mvL-barre{ color:var(--cream); }
+  #feuilleParcours .mvPlace{ min-height:120px; border-radius:12px; background:#000; color:#fff;
+    display:flex; align-items:center; justify-content:center; margin:0 0 11px; font-size:14px; }
   #feuilleParcours .fichier{
     display:inline-block; margin:0 0 11px; font-size:14px;
     color:var(--accent-text); text-decoration:none; font-weight:700;
@@ -3681,6 +3690,7 @@
     }
     var blocs = x.e.blocs || [];
     var dedans = '';
+    arreterLesMontages();
     for(var n = x.sg.de; n <= x.sg.a && n < blocs.length; n++) dedans += rendreBloc(blocs[n]);
     if(!dedans) dedans = '<p class="vide">Ce segment n’a rien à montrer pour l’instant.</p>';
 
@@ -3736,7 +3746,7 @@
     var dernier = (i === fileDeLaFeuille.length - 1);
     var aller = dernier ? 'Terminer' : 'Suivant ›';
     var el = document.querySelector('#feuilleParcours .feuille');
-    var aVideo = !!(el && el.querySelector('video'));
+    var aVideo = !!(el && el.querySelector('video, .mvPlace, .mvL'));
     var ms = el ? dureeDeLecture(el) : null;
     /* Ce qu'il faut attendre : une vidéo, ou le temps de lire */
     var st = lectureDu(x.cle);
@@ -3800,6 +3810,7 @@
 
   function fermerLaFeuille(){
     arreterLaLecture();
+    arreterLesMontages();
     clearInterval(compteARebours); compteARebours = null;
     if(feuilleIci) envoyerLaPartDeVideo(feuilleIci, true);
     feuilleIci = '';
@@ -4004,6 +4015,15 @@
     var lu = titre ? '<p>' + echapper(titre) + '</p>' : '';
 
     if(t === 'video'){
+      /* 🎬 v1252 — UNE VIDÉO MONTÉE SE JOUE AVEC SA RECETTE : l'avertis-
+         sement, le titre, les morceaux gardés, le copyright, les textes,
+         la musique, le générique (app/ec-montage.js). Ici, une place ;
+         le lecteur s'y pose une fois le panneau ouvert (voir
+         brancherLeTracker). */
+      if(b.montage && b.montage.clips && b.montage.clips.length){
+        montagesDeLaFeuille.push({ b: b, liens: liens });
+        return '<div class="mvPlace" data-mv="' + (montagesDeLaFeuille.length - 1) + '">⏳ Chargement de la vidéo…</div>' + lu;
+      }
       return '<video controls playsinline preload="metadata" src="' +
              echapper(liens[0]) + '"></video>' + lu;
     }
@@ -4211,6 +4231,92 @@
               guide: p[0], segment: p.slice(1).join('::'), pct: st.pct }).catch(function(){ st.envoye = 0; });
   }
 
+  /* ============================================================
+     🎬 LES VIDÉOS MONTÉES — v1252
+
+     Le lecteur vit dans « ec-montage.js », le même fichier que celui
+     du bureau : ce que l'élève voit est exactement ce que le bureau a
+     vérifié dans l'éditeur. Il se charge à la première vidéo montée
+     — un élève sans vidéo montée ne le télécharge jamais.
+
+     ⚠️ DEUX ADRESSES, comme la banque des vérifications : à côté de la
+     page sur eleve.evolutionconduites.fr (recopié par
+     coin-revisions.yml), dans app/ depuis le dépôt principal.
+
+     ⚠️ « PASSER LE DÉBUT », À PARTIR DE LA 2ᵉ FOIS (le choix de David) :
+     dès que l'avertissement et le titre ont été vus une fois sur ce
+     téléphone, ou que le segment est déjà validé.
+     ============================================================ */
+  var montagesDeLaFeuille = [];
+  var lecteursOuverts = [];
+  var chargementDuMontage = null;
+  function chargerLeMontage(){
+    if(window.ECMontage) return Promise.resolve();
+    if(chargementDuMontage) return chargementDuMontage;
+    chargementDuMontage = new Promise(function(ok, ko){
+      var essais = ['ec-montage.js?v=1252', 'app/ec-montage.js?v=1252'];
+      var essayer = function(){
+        if(!essais.length){ chargementDuMontage = null; ko(new Error('Le lecteur de vidéo n’a pas pu se charger.')); return; }
+        var s = document.createElement('script');
+        s.src = essais.shift();
+        s.onload = function(){ if(window.ECMontage) ok(); else essayer(); };
+        s.onerror = function(){ if(s.parentNode) s.parentNode.removeChild(s); essayer(); };
+        document.head.appendChild(s);
+      };
+      essayer();
+    });
+    return chargementDuMontage;
+  }
+  function arreterLesMontages(){
+    lecteursOuverts.forEach(function(l){ try{ l.detruire(); }catch(e){} });
+    lecteursOuverts = [];
+    montagesDeLaFeuille = [];
+  }
+  function dejaVuLeDebut(id){
+    try{ return (JSON.parse(localStorage.getItem('ec_mv_debut') || '{}') || {})[id] === 1; }catch(e){ return false; }
+  }
+  function noterLeDebutVu(id){
+    try{
+      var d = JSON.parse(localStorage.getItem('ec_mv_debut') || '{}') || {};
+      d[id] = 1;
+      var k = Object.keys(d); if(k.length > 300) delete d[k[0]];
+      localStorage.setItem('ec_mv_debut', JSON.stringify(d));
+    }catch(e){}
+  }
+  function poserUnMontage(pl, n, id, surContenu){
+    var m = montagesDeLaFeuille[n];
+    if(!m) return;
+    var segValide = function(){
+      var x = null;
+      fileDeLaFeuille.forEach(function(y){ if(y.cle === feuilleIci) x = y; });
+      return !!(x && x.sg && x.sg.vuLe);
+    };
+    chargerLeMontage().then(function(){
+      if(!pl.parentNode) return;
+      var liensM = (m.b.montage && m.b.montage.liens) || {};
+      var persos = {};
+      Object.keys(liensM.polices || {}).forEach(function(k){ persos[k] = { nom: 'Police', lien: liensM.polices[k] }; });
+      var boite = document.createElement('div');
+      pl.parentNode.replaceChild(boite, pl);
+      var lec = ECMontage.lecteur(boite, {
+        recette: m.b.montage,
+        clips: m.liens.map(function(l){ return { lien: l }; }),
+        musique: (m.b.montage.musique && m.b.montage.musique.on && liensM.musique) ? liensM.musique : null,
+        persos: persos,
+        titre: String(m.b.titre || ''),
+        peutPasser: function(){ return dejaVuLeDebut(id) || segValide(); },
+        surIntroFaite: function(){ noterLeDebutVu(id); },
+        surContenu: surContenu
+      });
+      lec.video.setAttribute('data-mv', '1');
+      lecteursOuverts.push(lec);
+      /* La durée se connaît tout de suite : le bouton peut dire 0 %. */
+      surContenu(0, 0, lec.moteur.duree());
+    }).catch(function(e){
+      pl.textContent = '⚠️ ' + e.message + ' Recharge la page.';
+    });
+  }
+
   function brancherLeTracker(el){
     arreterLaLecture();
     if(!el) return;
@@ -4218,7 +4324,7 @@
     if(!cle) return;
 
     /* Les vidéos : 90 % des secondes vraiment lues. */
-    var vids = el.querySelectorAll('video');
+    var vids = el.querySelectorAll('video:not([data-mv])');
     var st = lectureDu(cle);
     for(var v = 0; v < vids.length; v++){
       (function(vid, k){
@@ -4257,8 +4363,30 @@
         noterDuree();
       })(vids[v], v);
     }
+    /* 🎬 v1252 — LES VIDÉOS MONTÉES : les secondes du CONTENU. Le
+       lecteur rapporte ce qui a vraiment été lu, dans le temps du
+       montage — l'avertissement, le titre et le générique ne comptent
+       pas dans les 90 % (schéma v2, § 5), et un passage coupé ne peut
+       pas manquer. */
+    var places = el.querySelectorAll('.mvPlace');
+    for(var j = 0; j < places.length; j++){
+      (function(pl, k, id){
+        if(!st.morceaux[k]) st.morceaux[k] = [];
+        poserUnMontage(pl, id, cle + '#' + k, function(a, b, d){
+          st.durees[k] = d;
+          if(!(b > a)) return;
+          st.morceaux[k].push([a, b]);
+          st.morceaux[k] = fondreLesMorceaux(st.morceaux[k]);
+          var avant = st.pct;
+          st.pct = Math.max(st.pct, calculerLaPart(st));
+          if(st.pct !== avant) majLaPartDeVideo(cle);
+          if(st.pct >= PART_DE_VIDEO * 100){ envoyerLaPartDeVideo(cle, true); noterVu(el, 'video'); }
+          else envoyerLaPartDeVideo(cle, false);
+        });
+      })(places[j], vids.length + j, Number(places[j].getAttribute('data-mv')) || 0);
+    }
     /* Un segment qui tient une vidéo n'est lu que par elle. */
-    if(vids.length || dejaEnvoye[cle]) return;
+    if(vids.length || places.length || dejaEnvoye[cle]) return;
     var ms = dureeDeLecture(el);
     if(ms === null) return;
     enLecture = { cle: cle, fin: Date.now() + ms, minuterie: setTimeout(function(){
