@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 11:09 — v1259 */
+/* Déployé le 24/10/2026 à 12:04 — v1261 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -608,6 +608,15 @@ function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
     return pos;
   }
 
+  /* 🎯 v1261 — LA PHRASE CHOISIE PASSE DEVANT LE CALCUL. David : « que
+     je choisisse ce que montre la phrase verte ». Voir
+     phraseVerteChoisieDuHaut, plus bas. Le jour de l'examen, au-dessus,
+     reste l'examen. */
+  if(typeof phraseVerteChoisieDuHaut === 'function'){
+    const choisie = phraseVerteChoisieDuHaut(nom, corps, note, jourDuCours, pos);
+    if(choisie) return choisie;
+  }
+
   const etat = (typeof etatQuiFaitFoi === 'function')
     ? (etatQuiFaitFoi(nom) || {}) : {};
   const clair = (typeof noteEnClair === 'function')
@@ -732,6 +741,599 @@ function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
   }
 
   return ligneRestantAvantExamen(pos, reste, jourDit, cEstLaVeille);
+}
+
+/* ============================================================
+   🎯 LA PHRASE VERTE, CHOISIE — v1261
+
+   David, le 24 octobre, sur le schéma : « est-ce qu'on peut pas faire
+   en sorte que je choisisse ce que montre la phrase verte ». Ses
+   réponses :
+     1. le choix vaut pour l'ÉLÈVE, jusqu'à ce qu'on remette
+        « Automatique » — pas pour un seul cours ;
+     2. peuvent choisir : le moniteur du cours, le bureau et les
+        administrateurs ;
+     3. le bilan envoyé à l'élève suit le choix (« 📍 Où tu en es ») ;
+     4. « ✍️ Ma phrase » reste, avec un constructeur : des infos qui
+        se remplissent toutes seules, à chaque cours ;
+     5. on peut aussi la changer pendant le cours, sous
+        « 📋 Compléter les infos ».
+
+   ⚠️ UNE SEULE CASE, SUR LA FICHE DE SUIVI. « phraseVerte » (colonne
+   117) porte le choix en JSON : { choix, heures, total, texte, par,
+   le }. Vide, c'est « Automatique ». Le choix ne touche QUE la phrase
+   verte : les heures restantes, la tuile du dossier, la ligne rouge
+   de l'examen et les listes du bureau continuent de calculer.
+
+   ⚠️ CE QUI SE CHOISIT, CE SONT DES PHRASES QUI CONTINUENT DE VIVRE.
+   Un choix gardé de cours en cours ne doit pas figer ce qui bouge :
+     · la date de l'examen et le rang du cours sont relus à chaque
+       fois ;
+     · « ⏳ Il reste des heures » retient AU COURS DE QUEL RANG on l'a
+       dit (« total ») : deux leçons plus tard, 6h sont devenues 2h ;
+     · les [infos] de « Ma phrase » se remplissent au moment où on la
+       lit.
+
+   ⚠️ LE JOUR DE L'EXAMEN, ON DIT L'EXAMEN (v967) : un choix ne passe
+   pas devant « EXAMEN CE JOUR — 4ÈME PASSAGE ».
+   ============================================================ */
+const PHRASE_VERTE_CHOIX = [
+  { cle:'auto',   emoji:'🤖', titre:'Automatique',
+    aide:"Ce que l'appli calcule avec ses heures et le calendrier" },
+  { cle:'veille', emoji:'🎓', titre:"C'est la leçon de veille" },
+  { cle:'trois',  emoji:'⏱️', titre:'Plus que les 3h avant examen' },
+  { cle:'reste',  emoji:'⏳', titre:'Il reste des heures' },
+  { cle:'rang',   emoji:'📍', titre:'Seulement où il en est' },
+  { cle:'libre',  emoji:'✍️', titre:'Ma phrase' }
+];
+
+/* Les infos du constructeur. Écrites entre crochets dans la phrase,
+   remplacées à chaque lecture. Le nom entre crochets EST la clé : la
+   phrase enregistrée se relit telle quelle dans le classeur. */
+const PHRASE_VERTE_INFOS = [
+  { cle:'Où il en est',         emoji:'📍' },
+  { cle:'N° de leçon',          emoji:'🔢' },
+  { cle:"Date de l'examen",     emoji:'📅' },
+  { cle:"Jours avant l'examen", emoji:'🗓️' },
+  { cle:'Heures restantes',     emoji:'⏱️' },
+  { cle:'Passage',              emoji:'🏁' },
+  { cle:'Examen blanc',         emoji:'🅑' },
+  { cle:'Prénom',               emoji:'👤' }
+];
+
+function nombrePhraseVerte(v){
+  const x = parseFloat(String(v === undefined || v === null ? '' : v).replace(',', '.'));
+  return isNaN(x) ? null : x;
+}
+
+/* Le choix enregistré pour cet élève, ou null (= Automatique) */
+function phraseVerteDeLEleve(nom){
+  if(!nom || typeof suiviDe !== 'function') return null;
+  const brut = String((suiviDe(nom) || {}).phraseVerte || '').trim();
+  if(!brut) return null;
+  let o = null;
+  try{ o = JSON.parse(brut); }catch(e){ return null; }
+  if(!o || typeof o !== 'object') return null;
+  if(['veille', 'trois', 'reste', 'rang', 'libre'].indexOf(o.choix) === -1) return null;
+  if(o.choix === 'libre' && !String(o.texte || '').trim()) return null;
+  if(o.choix === 'reste' && (nombrePhraseVerte(o.heures) === null || nombrePhraseVerte(o.heures) < 0)) return null;
+  return o;
+}
+
+/* Ce qu'on sait de l'élève pour ce cours-là — les mêmes sources que
+   le calcul automatique (lignePositionDuHaut). */
+function contextePhraseVerte(nom, corps, note, jourDuCours, pos){
+  const etat = (typeof etatQuiFaitFoi === 'function') ? (etatQuiFaitFoi(nom) || {}) : {};
+  const clair = (typeof noteEnClair === 'function')
+    ? noteEnClair(note || corps || '') : String(note || corps || '');
+  const a = (typeof analyserNote === 'function') ? (analyserNote(clair) || {}) : {};
+  if(pos === undefined || pos === null){
+    pos = (typeof lignePosition === 'function') ? lignePosition(corps || '') : '';
+  }
+  let dateExam = etat.examDate || (a.permis === 'prevu' ? a.permisDate : '') || '';
+  const isoExam = /^\d{4}-\d{2}-\d{2}/.test(String(dateExam))
+    ? String(dateExam).slice(0, 10)
+    : ((typeof dateFrVersIso === 'function' && dateExam) ? (dateFrVersIso(dateExam) || '') : '');
+  const isoJour = String(jourDuCours || '').slice(0, 10);
+  /* Un examen déjà passé n'est plus « l'examen » (v1211) */
+  if(isoExam && /^\d{4}-\d{2}-\d{2}$/.test(isoJour) && isoExam < isoJour){ dateExam = ''; }
+  const jourDit = dateExam
+    ? ((typeof dateEnToutesLettres === 'function') ? (dateEnToutesLettres(dateExam) || dateExam) : dateExam)
+    : '';
+  const q = (typeof heuresQuiComptent === 'function') ? (heuresQuiComptent(nom, a) || {}) : {};
+  return { nom: nom, pos: String(pos || ''), a: a, etat: etat, dateExam: dateExam,
+           isoExam: dateExam ? isoExam : '', jourDit: jourDit, isoJour: isoJour, q: q };
+}
+
+/* Le rang du cours au total (« 23ÈME AU TOTAL »), ou null. C'est
+   « lecon » d'analyserNote (rangDansLaNote) ; « leconTotal », lui, est
+   le total de la frise (« 3ème leçon sur 5 »). */
+function rangTotalPhraseVerte(ctx){
+  const a = (ctx && ctx.a) || {};
+  const l = parseInt(a.lecon, 10);
+  return (!isNaN(l) && l > 0) ? l : null;
+}
+
+/* « Il reste des heures » : ce qui a été dit, moins les leçons faites
+   depuis le cours où on l'a dit. */
+function heuresChoisiesPourCeCours(choix, ctx){
+  const h = nombrePhraseVerte(choix.heures);
+  if(h === null) return null;
+  const parLecon = (typeof HEURES_PAR_LECON === 'number') ? HEURES_PAR_LECON : 2;
+  const r0 = parseInt(choix.total, 10), r = rangTotalPhraseVerte(ctx);
+  const faites = (!isNaN(r0) && r !== null && r > r0) ? (r - r0) : 0;
+  const reste = h - faites * parLecon;
+  return reste > 0 ? Math.round(reste * 10) / 10 : 0;
+}
+
+/* Les [infos] du constructeur, remplies pour ce cours */
+function infosPhraseVerte(ctx){
+  const enLettres = d => (typeof dateEnToutesLettres === 'function' && d) ? (dateEnToutesLettres(d) || d) : (d || '');
+  const o = {};
+  const court = (typeof positionAbregee === 'function') ? positionAbregee(ctx.pos) : String(ctx.pos || '');
+  o['Où il en est'] = court ? court.toLowerCase() : '';
+  const r = rangTotalPhraseVerte(ctx);
+  o['N° de leçon'] = r ? ((typeof rangLecon === 'function') ? rangLecon(r) : r + 'ème') + ' leçon' : '';
+  o["Date de l'examen"] = ctx.jourDit || '';
+  let jours = '';
+  if(ctx.isoExam && /^\d{4}-\d{2}-\d{2}$/.test(ctx.isoJour)){
+    const [y1, m1, d1] = ctx.isoJour.split('-').map(Number);
+    const [y2, m2, d2] = ctx.isoExam.split('-').map(Number);
+    const n = Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+    jours = n === 0 ? "le jour de l'examen" : n === 1 ? "la veille de l'examen"
+          : n > 1 ? n + " jours avant l'examen" : '';
+  }
+  o["Jours avant l'examen"] = jours;
+  const pasLeNiveau = (typeof estPasLeNiveau === 'function' && estPasLeNiveau(ctx.q && ctx.q.valeur));
+  const h = pasLeNiveau ? null : nombrePhraseVerte(ctx.q && ctx.q.valeur);
+  o['Heures restantes'] = h === null ? '' : h + 'h';
+  const rep = parseInt((ctx.etat || {}).repassages, 10);
+  const p = (isNaN(rep) ? 0 : rep) + 1;
+  o['Passage'] = (p === 1 ? '1er' : p + 'ème') + ' passage';
+  const e = ctx.etat || {}, s = (typeof suiviDe === 'function') ? (suiviDe(ctx.nom) || {}) : {};
+  o['Examen blanc'] = e.examBlanc === 'passe'
+    ? 'examen blanc passé' + (e.examBlancDate ? ' le ' + enLettres(e.examBlancDate) : '')
+    : (s.ebDatePrevue ? 'examen blanc prévu le ' + enLettres(s.ebDatePrevue) : 'examen blanc pas encore passé');
+  o['Prénom'] = String(ctx.nom || '').trim().split(/\s+/)[0] || '';
+  return o;
+}
+
+/* « Ma phrase », remplie. Une info que l'appli ne connaît pas se lit
+   « ? » : le moniteur la voit dans l'aperçu, et ne l'envoie pas. */
+function remplirMaPhrase(texte, ctx){
+  const infos = infosPhraseVerte(ctx);
+  return String(texte || '').replace(/\[([^\]\n]{1,40})\]/g, (tout, cle) => {
+    if(!Object.prototype.hasOwnProperty.call(infos, cle)) return tout;
+    return infos[cle] || '?';
+  }).replace(/\s+/g, ' ').trim();
+}
+function infosInconnuesDeMaPhrase(texte, ctx){
+  const infos = infosPhraseVerte(ctx);
+  const out = [];
+  String(texte || '').replace(/\[([^\]\n]{1,40})\]/g, (tout, cle) => {
+    if(Object.prototype.hasOwnProperty.call(infos, cle) && !infos[cle] && out.indexOf(cle) === -1) out.push(cle);
+    return tout;
+  });
+  return out;
+}
+
+/* La phrase verte d'un choix, pour le moniteur */
+function textePhraseVerteChoisie(choix, ctx){
+  if(!choix) return '';
+  const pos = ctx.pos;
+  switch(choix.choix){
+    case 'veille': return ligneRestantAvantExamen(pos, null, ctx.jourDit, true);
+    case 'trois':  return ligneRestantAvantExamen(pos, 0, ctx.jourDit, false);
+    case 'reste':  return ligneRestantAvantExamen(pos, heuresChoisiesPourCeCours(choix, ctx), ctx.jourDit, false);
+    /* Le rang seul, dégraissé comme dans le schéma : sans 🎯 ni gras */
+    case 'rang':   return ((typeof sansGras === 'function') ? sansGras(pos || '') : String(pos || ''))
+                            .replace(/^\s*🎯\s*/, '').trim();
+    case 'libre':  return remplirMaPhrase(choix.texte, ctx);
+  }
+  return '';
+}
+
+/* Appelée par lignePositionDuHaut : la phrase choisie, ou '' */
+function phraseVerteChoisieDuHaut(nom, corps, note, jourDuCours, pos){
+  const choix = phraseVerteDeLEleve(nom);
+  if(!choix) return '';
+  try{
+    return String(textePhraseVerteChoisie(choix, contextePhraseVerte(nom, corps, note, jourDuCours, pos)) || '').trim();
+  }catch(e){ return ''; }
+}
+
+/* ── 📍 Où tu en es, dans le bilan : la même chose, dite à l'élève ── */
+function ouTuEnEsChoisi(nom, note, modele, jour){
+  const choix = phraseVerteDeLEleve(nom);
+  if(!choix) return null;
+  if(typeof laSeanceEstLExamen === 'function' && laSeanceEstLExamen(modele)) return null;
+  const corps = (typeof morceauxDeNotePreparee === 'function') ? morceauxDeNotePreparee(note || '').corps : (note || '');
+  const ctx = contextePhraseVerte(nom, corps, note || '', jour);
+  const examDit = ctx.jourDit ? ' (permis le ' + ctx.jourDit + ')' : '';
+  const avec = texte => ({ texte: texte, attention: true });
+  const sans = texte => ({ texte: texte, attention: false });
+  switch(choix.choix){
+    case 'veille':
+      return sans(ctx.jourDit ? 'c’était ta leçon de veille → ton examen est le ' + ctx.jourDit + '.'
+                              : 'c’était ta leçon de veille avant ton examen.');
+    case 'trois':
+      return avec('il te reste les 3h avant ton examen' + examDit + '.');
+    case 'reste': {
+      const h = heuresChoisiesPourCeCours(choix, ctx);
+      return avec(h > 0 ? 'il te reste ' + h + 'h de leçons, puis les 3h avant ton examen' + examDit + '.'
+                        : 'il te reste les 3h avant ton examen' + examDit + '.');
+    }
+    case 'rang': {
+      let t = (typeof sansGras === 'function') ? sansGras(ctx.pos) : String(ctx.pos || '');
+      t = t.replace(/^\s*🎯\s*/, '').trim().toLowerCase();
+      return t ? sans(t + '.') : null;
+    }
+    case 'libre': {
+      const t = remplirMaPhrase(choix.texte, ctx);
+      if(!t) return null;
+      /* Une phrase qui annonce des heures porte l'avertissement */
+      return (/\[Heures restantes\]/.test(choix.texte) ? avec : sans)(t);
+    }
+  }
+  return null;
+}
+
+/* ── Qui peut choisir : le moniteur du cours, le bureau, les admins ── */
+function peutChoisirLaPhraseVerte(moniteurDuCours){
+  if(typeof ACCES === 'undefined' || !ACCES) return false;
+  if(typeof peutModifier === 'function' && !peutModifier('cours')) return false;
+  if(ACCES.role === 'admin' || ACCES.role === 'bureau') return true;
+  const m = String(moniteurDuCours || '').trim();
+  if(!m) return true;
+  const n = (typeof normaliserMot === 'function') ? normaliserMot : (x => String(x || '').toLowerCase());
+  return n(m) === n(ACCES.moniteur || '');
+}
+
+/* ============================================================
+   L'AFFICHAGE : ✏️ AU BOUT DE LA PHRASE, LA MENTION DESSOUS
+
+   « o » : { nom, calcul() → la phrase, modele, jour, note, corps,
+             moniteur (du cours), titre (« cours du lundi 26 octobre »),
+             apres() — ce qu'il faut redessiner après un choix }
+   La phrase se recalcule elle-même : après un choix, toutes celles du
+   même élève à l'écran (carte, bloc d'ouverture, écran du cours)
+   suivent sans recharger la page.
+   ============================================================ */
+function poserPhraseVerte(el, o){
+  if(!el || !o) return;
+  el._phraseVerte = o;
+  el.dataset.phraseVerte = String(o.nom || '');
+  const texte = String((o.calcul && o.calcul()) || '').trim();
+  el.textContent = texte;
+  const sApplique = !(typeof laSeanceEstLExamen === 'function' && laSeanceEstLExamen(o.modele)) &&
+                    o.modele !== 'rdv-post';
+  const peut = sApplique && !!o.nom && peutChoisirLaPhraseVerte(o.moniteur);
+  const choix = sApplique ? phraseVerteDeLEleve(o.nom) : null;
+
+  if(texte && peut){
+    const c = document.createElement('span');
+    c.className = 'pvCrayon';
+    c.textContent = ' ✏️';
+    c.setAttribute('aria-hidden', 'true');
+    el.appendChild(c);
+    el.classList.add('pvTouchable');
+    el.setAttribute('role', 'button');
+    el.tabIndex = 0;
+    el.title = 'Choisir ce que dit la phrase verte';
+    if(!el._pvEcoute){
+      el._pvEcoute = true;
+      const ouvrir = e => {
+        /* Une carte repliée ou la colonne de gauche : toucher choisit
+           le cours, comme avant. */
+        if(el.closest('.pliee, .journee') || !el.classList.contains('pvTouchable')) return;
+        e.preventDefault(); e.stopPropagation();
+        ouvrirChoixPhraseVerte(el._phraseVerte);
+      };
+      el.addEventListener('click', ouvrir);
+      el.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' ') ouvrir(e); });
+    }
+  }else{
+    el.classList.remove('pvTouchable');
+    el.removeAttribute('role');
+    el.removeAttribute('tabindex');
+    el.removeAttribute('title');
+  }
+
+  /* La mention, juste dessous */
+  let m = el.nextElementSibling;
+  if(!(m && m.dataset && m.dataset.phraseMention === '1')) m = null;
+  if(!choix || !texte){
+    if(m) m.remove();
+    return;
+  }
+  if(!m){
+    m = document.createElement('div');
+    m.dataset.phraseMention = '1';
+    m.className = 'pvMention';
+    el.after(m);
+  }
+  m.innerHTML = '';
+  const pil = document.createElement('span');
+  pil.className = 'pvPastille';
+  const le = choix.le ? ((typeof dateEnToutesLettres === 'function') ? (dateEnToutesLettres(choix.le) || choix.le) : choix.le) : '';
+  pil.textContent = '✋ Choisie' + (choix.par ? ' par ' + choix.par : '') +
+    (le ? ' le ' + String(le).replace(/\s+\d{4}\s*$/, '') : '');
+  m.appendChild(pil);
+  if(peut){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary pvAuto';
+    b.textContent = '↩️ Automatique';
+    b.title = "Revenir à ce que l'appli calcule";
+    b.addEventListener('click', async e => {
+      e.preventDefault(); e.stopPropagation();
+      b.disabled = true;
+      await enregistrerPhraseVerte(o.nom, '');
+      b.disabled = false;
+    });
+    m.appendChild(b);
+  }
+}
+
+function rafraichirPhrasesVertes(nom){
+  const n = (typeof normaliserMot === 'function') ? normaliserMot : (x => String(x || '').toLowerCase());
+  document.querySelectorAll('[data-phrase-verte]').forEach(el => {
+    if(!el._phraseVerte || n(el.dataset.phraseVerte) !== n(nom)) return;
+    try{
+      if(typeof el._phraseVerte.apres === 'function') el._phraseVerte.apres();
+      else poserPhraseVerte(el, el._phraseVerte);
+    }catch(e){ console.warn('Phrase verte :', e); }
+  });
+}
+
+async function enregistrerPhraseVerte(nom, valeur){
+  try{
+    await majSuivi(nom, { phraseVerte: valeur });
+  }catch(e){
+    if(typeof informer === 'function') await informer(String(e && e.message || e), '⚠️ Pas enregistré');
+    return false;
+  }
+  rafraichirPhrasesVertes(nom);
+  if(typeof showToast === 'function') showToast(valeur ? '🎯 Phrase verte choisie' : '↩️ Phrase verte automatique');
+  return true;
+}
+
+/* ============================================================
+   LA FENÊTRE « 🎯 La phrase verte »
+   ============================================================ */
+function ouvrirChoixPhraseVerte(o){
+  if(!o || !o.nom) return;
+  const ctx = contextePhraseVerte(o.nom, o.corps || '', o.note || '', o.jour || '');
+  const avant = phraseVerteDeLEleve(o.nom);
+  let sel = avant ? avant.choix : 'auto';
+  /* « Automatique » montre ce que l'appli calculerait SANS choix */
+  const auto = () => {
+    const garde = (typeof suiviDe === 'function') ? suiviDe(o.nom) : null;
+    const v = garde ? garde.phraseVerte : undefined;
+    if(garde) garde.phraseVerte = '';
+    try{ return String(lignePositionDuHaut(o.nom, o.corps || '', o.note || '', o.modele, o.jour) || ''); }
+    catch(e){ return ''; }
+    finally{ if(garde) garde.phraseVerte = v; }
+  };
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal pvFenetre';
+  boite.setAttribute('role', 'dialog');
+  boite.setAttribute('aria-label', 'La phrase verte');
+  const h = document.createElement('h3');
+  h.textContent = '🎯 La phrase verte';
+  boite.appendChild(h);
+  const intro = document.createElement('div');
+  intro.className = 'pvIntro';
+  intro.textContent = o.nom + (o.titre ? ' · ' + o.titre : '') + '. ' +
+    'C’est ce que diront la carte, l’écran du cours et la ligne « 📍 Où tu en es » de son bilan.';
+  boite.appendChild(intro);
+
+  const zone = document.createElement('div');
+  zone.setAttribute('role', 'radiogroup');
+  boite.appendChild(zone);
+
+  const champHeures = document.createElement('input');
+  champHeures.type = 'text';
+  champHeures.inputMode = 'decimal';
+  champHeures.className = 'pvHeures';
+  champHeures.setAttribute('aria-label', 'Heures qui restent');
+  champHeures.value = (avant && avant.choix === 'reste') ? String(avant.heures) : '';
+  const champLibre = document.createElement('textarea');
+  champLibre.className = 'pvLibre';
+  champLibre.rows = 2;
+  champLibre.placeholder = 'Ex : Dernière leçon avant les 3h — revoir les créneaux';
+  champLibre.setAttribute('aria-label', 'Ma phrase');
+  champLibre.value = (avant && avant.choix === 'libre') ? String(avant.texte || '') : '';
+
+  const apercus = {};
+  const options = {};
+  const choixDe = k => {
+    if(k === 'reste') return { choix: 'reste', heures: champHeures.value, total: rangTotalPhraseVerte(ctx) };
+    if(k === 'libre') return { choix: 'libre', texte: champLibre.value };
+    return { choix: k };
+  };
+  const majApercus = () => {
+    PHRASE_VERTE_CHOIX.forEach(c => {
+      const ap = apercus[c.cle];
+      if(!ap) return;
+      let t = '';
+      if(c.cle === 'auto') t = auto();
+      else if(c.cle === 'reste') t = nombrePhraseVerte(champHeures.value) === null ? '' : textePhraseVerteChoisie(choixDe('reste'), ctx);
+      else t = textePhraseVerteChoisie(choixDe(c.cle), ctx);
+      ap.textContent = t;
+      ap.style.display = t ? '' : 'none';
+    });
+    const inc = infosInconnuesDeMaPhrase(champLibre.value, ctx);
+    alerteLibre.textContent = inc.length ? '⚠️ L’appli ne connaît pas encore : ' + inc.join(', ') + ' (« ? »)' : '';
+    alerteLibre.style.display = inc.length ? '' : 'none';
+  };
+  const choisir = k => {
+    sel = k;
+    Object.keys(options).forEach(c => {
+      const on = c === k;
+      options[c].classList.toggle('on', on);
+      options[c].setAttribute('aria-checked', on ? 'true' : 'false');
+      options[c].tabIndex = on ? 0 : -1;
+    });
+  };
+
+  const alerteLibre = document.createElement('div');
+  alerteLibre.className = 'pvAlerte';
+  alerteLibre.style.display = 'none';
+
+  PHRASE_VERTE_CHOIX.forEach(c => {
+    const op = document.createElement('div');
+    op.className = 'pvOpt';
+    op.setAttribute('role', 'radio');
+    op.dataset.choix = c.cle;
+    const rond = document.createElement('span');
+    rond.className = 'pvRond';
+    op.appendChild(rond);
+    const corps = document.createElement('span');
+    corps.className = 'pvCorps';
+    const t = document.createElement('b');
+    t.textContent = c.emoji + ' ' + c.titre;
+    corps.appendChild(t);
+    if(c.aide){
+      const a = document.createElement('div');
+      a.className = 'pvAide';
+      a.textContent = c.aide;
+      corps.appendChild(a);
+    }
+    if(c.cle === 'reste'){
+      const l = document.createElement('div');
+      l.className = 'pvLigneHeures';
+      const t1 = document.createElement('span'); t1.textContent = 'Reste encore';
+      const t2 = document.createElement('span'); t2.textContent = 'h + 3h avant examen';
+      l.appendChild(t1); l.appendChild(champHeures); l.appendChild(t2);
+      corps.appendChild(l);
+      const a = document.createElement('div');
+      a.className = 'pvAide';
+      a.textContent = 'Après ce cours. Les leçons suivantes se décomptent toutes seules.';
+      corps.appendChild(a);
+    }
+    if(c.cle === 'libre'){
+      corps.appendChild(champLibre);
+      const aide = document.createElement('div');
+      aide.className = 'pvAide';
+      aide.textContent = 'Les [infos] se remplissent toutes seules, à chaque cours :';
+      corps.appendChild(aide);
+      const puces = document.createElement('div');
+      puces.className = 'pvInfos';
+      PHRASE_VERTE_INFOS.forEach(x => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pvInfo';
+        b.textContent = '➕ ' + x.emoji + ' ' + x.cle;
+        b.title = 'Ajouter [' + x.cle + '] à la phrase';
+        b.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          const v = champLibre.value;
+          const d = (typeof champLibre.selectionStart === 'number') ? champLibre.selectionStart : v.length;
+          const f = (typeof champLibre.selectionEnd === 'number') ? champLibre.selectionEnd : v.length;
+          const avantT = v.slice(0, d), apresT = v.slice(f);
+          const bout = (avantT && !/\s$/.test(avantT) ? ' ' : '') + '[' + x.cle + ']' + (apresT && !/^\s/.test(apresT) ? ' ' : '');
+          champLibre.value = avantT + bout + apresT;
+          const pos = (avantT + bout).length;
+          champLibre.focus();
+          try{ champLibre.setSelectionRange(pos, pos); }catch(er){}
+          choisir('libre'); majApercus();
+        });
+        puces.appendChild(b);
+      });
+      corps.appendChild(puces);
+      corps.appendChild(alerteLibre);
+    }
+    const ap = document.createElement('div');
+    ap.className = 'pvApercu';
+    apercus[c.cle] = ap;
+    corps.appendChild(ap);
+    op.appendChild(corps);
+    op.addEventListener('click', e => {
+      if(e.target === champHeures || e.target === champLibre) { choisir(c.cle); return; }
+      choisir(c.cle);
+      if(c.cle === 'reste') champHeures.focus();
+      if(c.cle === 'libre' && !e.target.closest('.pvInfo')) champLibre.focus();
+    });
+    op.addEventListener('keydown', e => {
+      if(e.target !== op) return;
+      const i = PHRASE_VERTE_CHOIX.findIndex(x => x.cle === sel);
+      let j = -1;
+      if(e.key === 'ArrowDown' || e.key === 'ArrowRight') j = (i + 1) % PHRASE_VERTE_CHOIX.length;
+      if(e.key === 'ArrowUp' || e.key === 'ArrowLeft') j = (i - 1 + PHRASE_VERTE_CHOIX.length) % PHRASE_VERTE_CHOIX.length;
+      if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); choisir(c.cle); return; }
+      if(j !== -1){ e.preventDefault(); choisir(PHRASE_VERTE_CHOIX[j].cle); options[PHRASE_VERTE_CHOIX[j].cle].focus(); }
+    });
+    options[c.cle] = op;
+    zone.appendChild(op);
+  });
+  champHeures.addEventListener('input', () => { choisir('reste'); majApercus(); });
+  champLibre.addEventListener('input', () => { choisir('libre'); majApercus(); });
+
+  const pied = document.createElement('div');
+  pied.className = 'pvPied';
+  pied.innerHTML = 'Pour <b>cet élève</b>, jusqu’à ce que quelqu’un remette « Automatique ».';
+  boite.appendChild(pied);
+  const erreur = document.createElement('div');
+  erreur.className = 'pvAlerte';
+  erreur.setAttribute('role', 'alert');
+  erreur.style.display = 'none';
+  boite.appendChild(erreur);
+
+  const ro = document.createElement('div');
+  ro.className = 'pvBoutons';
+  const bA = document.createElement('button');
+  bA.type = 'button';
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  const bOk = document.createElement('button');
+  bOk.type = 'button';
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  ro.appendChild(bA); ro.appendChild(bOk);
+  boite.appendChild(ro);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const fermer = () => {
+    try{ (typeof fermerFond === 'function') ? fermerFond(fond) : fond.remove(); }catch(e){ fond.remove(); }
+  };
+  bA.addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+  boite.addEventListener('keydown', e => { if(e.key === 'Escape') fermer(); });
+  bOk.addEventListener('click', async () => {
+    const dire = m => { erreur.textContent = m; erreur.style.display = ''; };
+    let valeur = '';
+    if(sel !== 'auto'){
+      const c = choixDe(sel);
+      if(sel === 'reste'){
+        const n = nombrePhraseVerte(champHeures.value);
+        if(n === null || n < 0){ dire('⚠️ Écris le nombre d’heures qui restent.'); champHeures.focus(); return; }
+        c.heures = String(n);
+        if(c.total === null) delete c.total;
+      }
+      if(sel === 'libre'){
+        c.texte = String(champLibre.value || '').replace(/\s+/g, ' ').trim();
+        if(!c.texte){ dire('⚠️ Écris ta phrase.'); champLibre.focus(); return; }
+      }
+      c.par = (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || '';
+      c.le = (typeof todayLocal === 'function') ? todayLocal() : '';
+      valeur = JSON.stringify(c);
+    }
+    bOk.disabled = true; bA.disabled = true;
+    bOk.textContent = '…';
+    const fait = await enregistrerPhraseVerte(o.nom, valeur);
+    bOk.disabled = false; bA.disabled = false;
+    bOk.textContent = '💾 Enregistrer';
+    if(fait) fermer();
+  });
+
+  choisir(sel);
+  majApercus();
+  setTimeout(() => { try{ options[sel].focus(); }catch(e){} }, 30);
 }
 
 /* ------------------------------------------------------------
@@ -1119,6 +1721,13 @@ function blocAvantLeCours(nom, res, prep, opts){
       'color:var(--accent-text);margin-top:7px;';
     p.textContent = pos;
     carte.appendChild(p);
+    /* 🎯 v1261 — choisie ? la mention dessous ; et elle suit un choix
+       fait ailleurs (carte, écran du cours). */
+    if(typeof poserPhraseVerte === 'function'){
+      poserPhraseVerte(p, { nom: nom, modele: prep && prep.modele, jour: jourDuCours,
+        note: brute, corps: corps, moniteur: (prep && prep.moniteur) || '',
+        calcul: () => lignePositionDuHaut(nom, corps, brute, prep && prep.modele, jourDuCours) });
+    }
   }
 
   /* ── Le reste de la note : la frise, les rendez-vous, et les mots
@@ -1335,6 +1944,9 @@ const ATTENTION_EVOLUTION = '⚠️ ATTENTION : ce nombre peut changer selon ton
 function ouTuEnEsPourLEleve(nom, q, note, modele, jour){
   q = q || {};
   if(!nom || MODELES_SANS_OU_TU_EN_ES.indexOf(String(modele || '')) !== -1) return null;
+  /* 🎯 v1261 — la phrase verte choisie : le bilan la suit (David) */
+  const choisi = (typeof ouTuEnEsChoisi === 'function') ? ouTuEnEsChoisi(nom, note, modele, jour) : null;
+  if(choisi) return choisi;
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
   const etat = (typeof etatQuiFaitFoi === 'function') ? (etatQuiFaitFoi(nom) || {}) : {};
   const clair = (typeof noteEnClair === 'function') ? noteEnClair(note || '') : String(note || '');
