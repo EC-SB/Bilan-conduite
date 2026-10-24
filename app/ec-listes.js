@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -397,7 +397,7 @@ function ouvrirExamBlancManuel(){
       await envoyerConsigne(nom, 'examblanc',
         'Examen blanc fixé au ' + dateEnToutesLettres(date) + ' (bureau)');
       /* Prévu n'est pas passé : le niveau reste inconnu */
-      await noterExamenBlanc(nom, '', dateEnToutesLettres(date));
+      await noterExamenBlancPrevu(nom, date);
 
       /* Le cours, s'il n'existe pas déjà pour ce jour-là */
       if(boite.querySelector('#ebmCours').checked){
@@ -464,7 +464,7 @@ function boutonDateExamBlanc(e, x){
     try{
       await envoyerConsigne(e.eleve, 'examblanc',
         'Examen blanc déplacé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-      await noterExamenBlanc(e.eleve, '', dateEnToutesLettres(iso));
+      await noterExamenBlancPrevu(e.eleve, iso);
       showToast('Date changée ✅');
       redessinerBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
@@ -526,6 +526,26 @@ function boutonAnnulerExamBlanc(e, x){
    relues à chaque affichage. Une phrase changée, et elle se
    perdait. Le suivi la porte désormais aussi.
    ============================================================ */
+
+/* ============================================================
+   📅 UN EXAMEN BLANC PRÉVU — v1257
+
+   « ebDate » est le jour où l'examen blanc a été FAIT ; le jour où
+   il est PRÉVU s'appelle « ebDatePrevue ». Cinq boutons (Fixer la
+   date, ➕ Prévoir, Changer la date, Planifier de la CS et du
+   dossier) écrivaient la date prévue dans « ebDate » : « Sa route »
+   affichait alors « passé le » une date à venir. Repéré en relisant
+   le guide, le 24 octobre.
+
+   Prévoir un nouvel examen blanc, c'est aussi tourner la page du
+   précédent : sa date de passage et son résultat s'effacent (prévu
+   n'est pas passé, le niveau redevient inconnu).
+   ============================================================ */
+async function noterExamenBlancPrevu(nom, iso){
+  if(!nom || typeof majSuivi !== 'function') return;
+  try{ await majSuivi(nom, { ebDatePrevue: String(iso || '').trim(), ebDate: '', ebNiveau: '' }); }
+  catch(e){ /* la consigne suffit */ }
+}
 
 async function noterExamenBlanc(nom, quoi, date, heures){
   if(!nom || typeof majSuivi !== 'function') return;
@@ -791,10 +811,9 @@ function afficherExamensBlancs(tous){
           /* Date de l'examen blanc */
           if(!s.ebDatePrevue){
             zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
-              await majSuivi(x.eleve, { ebDatePrevue: iso });
               await envoyerConsigne(x.eleve, 'examblanc',
                 'Examen blanc fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-              await noterExamenBlanc(x.eleve, '', dateEnToutesLettres(iso));
+              await noterExamenBlancPrevu(x.eleve, iso);
               showToast('Date transmise ✅');
               redessinerBureau();
             }));
