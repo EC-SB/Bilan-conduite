@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 16:10 — v1219 */
+/* Déployé le 24/10/2026 à 10:48 — v1258 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -690,7 +690,18 @@ function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
        « apresCharniere », c'est-à-dire le rang tel que CE cours le
        connaît, et c'est lui qu'on vient de changer sur la carte. */
     const q = heuresQuiComptent(nom, a) || {};
-    if(q.depasse) cEstLaVeille = true;
+    /* ⚠️ UNE LEÇON AU-DELÀ, PAS PLUS — v1258. David, le 24 octobre,
+       sur la carte de Natalia Tanie : « la phrase verte doit écrire
+       plus que les 3h avant examen, ce n'est pas la leçon de veille ».
+       6 + 3h décidés à son examen blanc, comptés depuis sa 4ᵉ leçon
+       après l'ajournement : à sa 10ᵉ, la réserve était dépassée de
+       8 h, et TOUT dépassement criait « veille » — à quatre jours de
+       l'examen. C'est la règle de la tuile du dossier (v1156) : UNE
+       leçon au-delà de la réserve, c'est la leçon de veille ; plus,
+       c'est un vrai dépassement, et il reste les 3h. La veille du
+       calendrier, elle, ne change pas. */
+    const parLecon = (typeof HEURES_PAR_LECON === 'number') ? HEURES_PAR_LECON : 2;
+    if(q.depasse && Number(q.auDela) > 0 && Number(q.auDela) <= parLecon) cEstLaVeille = true;
     const su = String(q.valeur === undefined || q.valeur === null
       ? '' : q.valeur).trim();
     /* ⚠️ UN SEUL FILTRE, PAS DEUX. La première écriture écartait
