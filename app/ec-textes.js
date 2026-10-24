@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 24/10/2026 à 15:03 — v1263 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -622,6 +622,15 @@ const LOT_VIGNETTES = 6;
 const REFUS_NON_IMAGE = 'Seules les images se rangent dans une fiche. ' +
   'Pour un PDF, fais une capture d’écran de la page et colle l’image.';
 
+/* 📥 v1262 — une image rangée dans le compartiment arrive en lien
+   signé (« /parcours/fichier?… ») : il se demande au Worker. */
+function srcImageFiche(v){
+  const t = String(v || '');
+  if(t.charAt(0) !== '/') return t;
+  const base = String((typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL) || '').replace(/\/$/, '');
+  return base + t;
+}
+
 function estUnFichierImage(f){
   return !!(f && f.type && String(f.type).indexOf('image/') === 0);
 }
@@ -715,7 +724,7 @@ function bandeDeVignettes(m){
 
     liste.slice(0, MAX_VIGNETTES_CARTE).forEach(im => {
       const i = document.createElement('img');
-      i.src = im.image;
+      i.src = srcImageFiche(im.image);
       i.alt = '';
       z.appendChild(i);
     });
@@ -1796,9 +1805,15 @@ async function supprimerEtiquette(cat){
   await reecrireCategorie(cat, '');
 }
 
-function dessinerListeFiches(){
+/* 📥 v1262 — PAR PAQUETS DE 80. Avec les fiches Keep de David
+   (6 888), dessiner toutes les cartes d'un coup figeait l'écran ;
+   la recherche, elle, cherche toujours dans toutes. */
+const PAQUET_FICHES = 80;
+let fichesMontrees = PAQUET_FICHES;
+function dessinerListeFiches(suite){
   const zone = document.querySelector('#textesZone .biblioFiches');
   if(!zone) return;
+  if(suite !== true) fichesMontrees = PAQUET_FICHES;
   zone.innerHTML = '';
 
   const mots = sansAccents(rechercheFiches).split(/\s+/).filter(Boolean);
@@ -1815,7 +1830,16 @@ function dessinerListeFiches(){
     return;
   }
 
-  liste.forEach(m => zone.appendChild(carteDeFiche(m, mots)));
+  liste.slice(0, fichesMontrees).forEach(m => zone.appendChild(carteDeFiche(m, mots)));
+  if(liste.length > fichesMontrees){
+    const reste = liste.length - fichesMontrees;
+    const plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'btn btn-secondary biblioPlus';
+    plus.textContent = 'Afficher ' + Math.min(PAQUET_FICHES, reste) + ' fiches de plus (' + reste + ' restantes)';
+    plus.addEventListener('click', () => { fichesMontrees += PAQUET_FICHES; dessinerListeFiches(true); });
+    zone.appendChild(plus);
+  }
 
   /* Les vignettes se remplissent quand leur carte arrive à
      l'écran : la liste ne paie que ce qu'on regarde. */
@@ -2771,12 +2795,12 @@ function ouvrirEditeurModele(modele, usageImpose){
       v.className = 'vigFiche';
 
       const img = document.createElement('img');
-      img.src = im.image;
+      img.src = srcImageFiche(im.image);
       img.alt = '';
       img.title = 'Image ' + (i + 1) + ' — appuie pour agrandir';
       img.addEventListener('click', () => {
         if(typeof agrandirImage === 'function'){
-          agrandirImage(im.image, g('mdNom').value.trim());
+          agrandirImage(srcImageFiche(im.image), g('mdNom').value.trim());
         }
       });
       v.appendChild(img);
