@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 18:16 — v1256 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1257,
+    date: 'Samedi 24 octobre 2026',
+    resume: '📘 Le guide refait pour la v1257, et cinq petites erreurs corrigées',
+    quoi: [
+      { emoji: '📘',
+        titre: 'Le guide d’utilisation est à jour',
+        texte: 'Menu ⋯ › Guide : douze chapitres, dont trois nouveaux — le parcours et l’espace élève, les vérifications et leur jeu, Drivup et le favori 📥.' },
+      { emoji: '📝',
+        titre: 'Un examen blanc prévu n’est plus « passé »',
+        texte: '« Fixer la date », « ➕ Prévoir un examen blanc », « Changer la date » et « 📅 Planifier » (CS et dossier) écrivent maintenant la date prévue : « Sa route » ne dit plus « passé le » une date à venir. Et un examen blanc planifié depuis la CS ou le dossier est enfin relu comme prévu dans les listes.' },
+      { emoji: '🧹',
+        titre: 'Des libellés remis d’aplomb',
+        texte: '« Ajouter une date » : le bouton dit « 📌 Enregistrer » ou « 📅 Enregistrer la date » selon la situation. L’aide des alertes envoie vers Gestion › ⚙️ Accès.' }
+    ]
+  },
   {
     version: 1256,
     date: 'Vendredi 23 octobre 2026',
@@ -738,7 +754,7 @@ const NOUVEAUTES = [
                '« 📄 Ton bilan complet du cours du … » lui part. La dictée s’efface à ce moment-là.' },
       { emoji: '📤',
         titre: 'Refait par le bureau',
-        texte: 'Si ce n’est pas le moniteur du cours qui le refait, le bilan part chez lui pour relecture (« 📝 Un bilan t’attend — refait avec l’IA ») : ' +
+        texte: 'Si ce n’est pas le moniteur du cours qui le refait, le bilan part chez lui pour relecture (« 🤖 Un bilan refait avec l’IA t’attend — à relire et renvoyer à l’élève ») : ' +
                'c’est lui qui le renvoie à l’élève.' }
     ]
   },
