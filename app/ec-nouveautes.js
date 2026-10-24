@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 11:09 — v1259 */
+/* Déployé le 24/10/2026 à 11:33 — v1260 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1260,
+    date: 'Samedi 24 octobre 2026',
+    resume: '✅ Suivi permis : les trois cases de la préparation se cochent ensemble',
+    quoi: [
+      { emoji: '✅',
+        titre: 'Les trois cases se tiennent',
+        texte: 'Dans la fiche d’une place (🎓 Suivi permis) : cocher « ✅ Tout est OK » coche « 💶 Tout est payé » et « 📆 Tout est planifié » ; cocher ces deux-là coche « Tout est OK » ; décocher l’une des deux le décoche.' }
+    ]
+  },
   {
     version: 1259,
     date: 'Samedi 24 octobre 2026',
