@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 15:15 — v1253 */
+/* Déployé le 24/10/2026 à 12:04 — v1261 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1727,6 +1727,18 @@ async function afficherPrepares(recharger, silencieux){
         'color:var(--accent-text);flex:1 1 100%;min-width:0;';
       p.textContent = pos;
       ligneRang.appendChild(p);
+      /* 🎯 v1261 — David : « que je choisisse ce que montre la phrase
+         verte ». ✏️ au bout ; choisie, la mention dessous. */
+      if(!estPostPermis && typeof poserPhraseVerte === 'function'){
+        const h = (typeof heureDeLaPreparation === 'function') ? heureDeLaPreparation(cours) : '';
+        const jourC = (typeof dateEnToutesLettres === 'function' && cours.date)
+          ? String(dateEnToutesLettres(cours.date) || cours.date).replace(/\s+\d{4}\s*$/, '') : '';
+        poserPhraseVerte(p, { nom: cours.eleve, modele: cours.modele, jour: cours.date,
+          note: cours.note, corps: partsNote.corps, moniteur: cours.moniteur || '',
+          titre: jourC ? 'cours du ' + jourC + (h ? ' à ' + String(h).replace(/^0(?=\d)/, '').replace(':', 'h') : '') : '',
+          calcul: () => lignePositionDuHaut(cours.eleve, partsNote.corps, cours.note,
+                                            cours.modele, cours.date) });
+      }
     }
     /* 📲 v1158 — la phrase de la leçon de veille d'un élève en AAC,
        juste sous la ligne qui dit que c'est la veille. */
