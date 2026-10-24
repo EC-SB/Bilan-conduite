@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 19:33 — v1248 */
+/* Déployé le 23/10/2026 à 18:16 — v1256 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1787,6 +1787,51 @@ async function afficherEspaceEleve(nom, zone){
     '<code data-code style="font-size:16px;letter-spacing:.12em;' +
       'color:var(--accent-text);font-weight:700;flex-shrink:0;' +
       'cursor:pointer;" title="Afficher le code">••••••</code></div>';
+
+  /* ============================================================
+     👀 OUVRIR SON ESPACE POUR LE LUI MONTRER — v1256
+
+     David, le 23 octobre : « un bouton qui permet que l'on se
+     connecte à l'espace élève directement dans un nouvel onglet afin
+     de lui montrer comment faire sur son espace ». Ses choix : montrer
+     seulement (rien ne part ni ne s'enregistre à son nom), et toute
+     l'équipe qui voit ce bloc ; chaque ouverture est notée au journal.
+
+     ⚠️ SON CODE NE PASSE PAS PAR ICI. Le Worker rend un ticket (deux
+     minutes, une seule fois) que la page élève échange contre une
+     session de démonstration. L'onglet s'ouvre AVANT l'appel (sinon
+     le navigateur le prendrait pour une fenêtre surgissante), puis il
+     reçoit son adresse.
+     ============================================================ */
+  if(acces.actif){
+    const bM = document.createElement('button');
+    bM.type = 'button';
+    bM.className = 'btn btn-secondary';
+    bM.setAttribute('data-montrer-espace', '1');
+    bM.style.cssText = 'margin-top:10px;padding:10px;font-size:13px;';
+    bM.textContent = '👀 Ouvrir son espace pour le lui montrer';
+    const aideM = document.createElement('div');
+    aideM.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.45;';
+    aideM.textContent = 'Dans un nouvel onglet, comme il le voit. Rien n’est envoyé ni enregistré à son nom.';
+    bM.addEventListener('click', async () => {
+      const w = window.open('about:blank', '_blank');
+      bM.disabled = true;
+      try{
+        const d = await appelPrep({ action: 'eleveAccompagner', eleve: nom });
+        if(!d || !d.ticket) throw new Error((d && d.message) || 'pas de ticket');
+        const adresse = String(CONFIG.LIEN_ELEVE || 'eleve.html').split('#')[0] + '#accompagner=' + d.ticket;
+        if(w && !w.closed){ try{ w.opener = null; }catch(e){} w.location.href = adresse; }
+        else window.open(adresse, '_blank', 'noopener');
+      }catch(e){
+        try{ if(w) w.close(); }catch(x){}
+        showToast('Impossible : ' + e.message);
+      }finally{
+        bM.disabled = false;
+      }
+    });
+    carte.appendChild(bM);
+    carte.appendChild(aideM);
+  }
 
   /* Ce qu'il trouve dans son espace */
   const zm = document.createElement('div');
