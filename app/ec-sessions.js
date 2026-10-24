@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 15:14 — v1244 */
+/* Déployé le 24/10/2026 à 11:33 — v1260 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -2176,6 +2176,28 @@ function ouvrirPlace(p, sess){
   boite.querySelector('#plPoint').checked = (su.fairePoint === 'oui');
   boite.querySelector('#plPaye').checked = (su.toutPaye === 'oui');
   boite.querySelector('#plPlanifie').checked = (su.toutPlanifie === 'oui');
+
+  /* ✅ v1260 — LES TROIS CASES SE TIENNENT. David, le 24 octobre :
+     « quand on coche Tout est OK, il faut que ça coche Tout est payé
+     et Tout est planifié, et quand on coche les deux, il faut que ça
+     coche Tout est OK ». Et dans l'autre sens, par la même logique :
+     décocher l'une des deux décoche « Tout est OK » — tout n'est plus
+     OK. Décocher « Tout est OK » ne touche pas aux deux autres : le
+     dossier peut manquer d'autre chose qu'un paiement ou un cours. */
+  {
+    const cOk = boite.querySelector('#plOk');
+    const cPaye = boite.querySelector('#plPaye');
+    const cPlan = boite.querySelector('#plPlanifie');
+    cOk.addEventListener('change', () => {
+      if(cOk.checked){ cPaye.checked = true; cPlan.checked = true; }
+    });
+    const lesDeux = () => {
+      if(cPaye.checked && cPlan.checked) cOk.checked = true;
+      else cOk.checked = false;
+    };
+    cPaye.addEventListener('change', lesDeux);
+    cPlan.addEventListener('change', lesDeux);
+  }
   boite.querySelector('#plPay').value = su.resteAPayer || '';
   boite.querySelector('#plQd').value = su.paiementPrevu || '';
   boite.querySelector('#plL2').value = su.lecons2h || '';
