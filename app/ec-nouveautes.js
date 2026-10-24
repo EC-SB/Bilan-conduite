@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 24/10/2026 à 10:48 — v1258 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1258,
+    date: 'Samedi 24 octobre 2026',
+    resume: '🎯 La phrase verte ne dit plus « leçon de veille » quatre jours trop tôt',
+    quoi: [
+      { emoji: '🎯',
+        titre: 'Une réserve dépassée n’est pas la veille',
+        texte: 'Quand les heures avant l’examen sont dépassées de plus d’une leçon, la phrase verte dit « Plus que les 3h avant examen » au lieu de « C’est la leçon de veille ». La veille reste dite pour le dernier cours prévu dans les 3 jours avant l’examen, ou pour la leçon juste après la réserve — comme la tuile du dossier.' }
+    ]
+  },
   {
     version: 1257,
     date: 'Samedi 24 octobre 2026',
