@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1262
+     GUIDE-VERSION: 1263
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1262</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1263</strong><br>
     Mis à jour le 24 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -578,7 +578,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1262</strong>, relu le 24 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1263</strong>, relu le 24 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -3961,15 +3961,17 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <p>À gauche, le rail des catégories avec leur compte&nbsp;: <span class="b">🏷️ Toutes</span>, chaque catégorie (le <span class="b">✏️</span> la renomme ou la supprime), <span class="b">🔒 Mon privé</span> et <span class="b">📭 Sans catégorie</span>. Une fiche se glisse sur une catégorie pour l'y ranger. À droite, les fiches, chacune avec ses gestes&nbsp;: <span class="b">↑</span> <span class="b">↓</span> pour l'ordre, <span class="b">📋</span> copier toute la fiche, <span class="b">✂️</span> copier un morceau, <span class="b">✉️</span> l'envoyer par mail, <span class="b">🎨</span> la couleur de la fiche. Une fiche peut porter des images (Ctrl+V, glisser, ou choisir).</p>
 
     <h4>📥 Importer ses fiches Google Keep</h4>
-    <p>C'est l'outil qui remplace Keep&nbsp;: les fiches de Keep y entrent en une fois, et c'est vous qui choisissez la catégorie de chacune.</p>
+    <p>C'est l'outil qui remplace Keep&nbsp;: les fiches de Keep y entrent, et c'est vous qui décidez où va chacune — même quand il y en a des milliers.</p>
     <ol class="etapes">
       <li>Sur <strong>takeout.google.com</strong>&nbsp;: <span class="b">Tout désélectionner</span>, cochez seulement <strong>Keep</strong>, <span class="b">Étape suivante</span>, un export <strong>une fois</strong> en <strong>.zip</strong>, <span class="b">Créer une exportation</span>. Google envoie un e-mail avec le lien&nbsp;: téléchargez le zip.</li>
       <li>Ici, <span class="b">📥 Keep</span>, puis <span class="b">📂 Choisir le zip de Google</span> (ou glissez-le). Plusieurs zips si Google a coupé l'export&nbsp;; les fichiers <code>.json</code> et les photos si le zip est déjà ouvert. <strong>Rien ne part tant qu'on n'a pas appuyé sur Importer</strong>&nbsp;: le zip se lit dans le navigateur.</li>
-      <li>Chaque fiche s'affiche, avec sa couleur Keep et ses pastilles (<span class="ch">📌 épinglée</span>, <span class="ch">🗄️ archivée</span>, <span class="ch">☑️ liste</span>, <span class="ch">🖼️ 2 photos</span>, <span class="ch">🏷️ Keep : …</span>). Sa <strong>Catégorie</strong> est pré-remplie avec son libellé Keep (<span class="ch">🆕</span> devant une catégorie qui sera créée)&nbsp;; on la change dans la liste, ou <span class="b">➕ Nouvelle catégorie…</span> en crée une, aussitôt proposée pour toutes les fiches. <span class="b">🔒 Ma catégorie privée</span> la garde pour soi.</li>
-      <li>Pour aller vite&nbsp;: <span class="ch">🔎 Chercher une fiche…</span>, <span class="b">☑ Tout</span> / <span class="b">☐ Rien</span>, et <span class="b">Aux fiches cochées&nbsp;:</span> une catégorie + <span class="b">Mettre cette catégorie</span> (seulement sur les fiches visibles et cochées).</li>
-      <li><span class="b">📥 Importer 42 fiches</span>&nbsp;: les fiches entrent une par une, en <span class="ch">📄 Texte libre</span>, avec leurs photos. Une seconde par fiche environ (le classeur limite les écritures par minute).</li>
+      <li><strong>D'abord les libellés.</strong> La fenêtre montre vos libellés Keep, le plus gros d'abord, chacun avec son nombre de fiches (<span class="ch">🦁 CHRYSTEL Lundi · 312 fiches ›</span>), et <span class="ch">📭 Sans libellé</span> à la fin. Au départ, tous sont <span class="ch">⏳ À décider</span>&nbsp;: rien n'est importé, aucune catégorie n'est créée. Pour chacun, <strong>Va dans</strong>&nbsp;: une catégorie de l'appli, <span class="b">➕ Nouvelle catégorie…</span> (le nom du libellé est proposé, à changer si besoin), <span class="b">🔒 Ma catégorie privée</span>, <span class="b">📭 Sans catégorie</span> ou <span class="b">🚫 Ne pas importer</span>. Les compteurs disent où on en est (<span class="ch">✅ 23 / 104 libellés décidés</span>, <span class="ch">📥 4 120 fiches prêtes</span>, <span class="ch">⏳ 1 204 à décider</span>)&nbsp;; les filtres <span class="b">⏳ À décider</span> / <span class="b">✅ Décidés</span> et la recherche aident à s'y retrouver.</li>
+      <li><strong>Puis, si besoin, fiche par fiche.</strong> Toucher un libellé montre ses fiches, 50 par 50 (<span class="b">Afficher 50 de plus</span>), avec leur couleur Keep et leurs pastilles (<span class="ch">📌 épinglée</span>, <span class="ch">🗄️ archivée</span>, <span class="ch">☑️ liste</span>, <span class="ch">🖼️ 2 photos</span>). Chaque fiche suit son libellé (<span class="ch">↳ Comme le libellé</span>) tant qu'on ne lui choisit pas autre chose&nbsp;; sa case la décoche. <span class="b">☑ Toutes</span>, <span class="b">☐ Aucune</span> et <span class="b">↺ Comme le libellé</span> agissent sur les fiches affichées. <span class="b">🔎 Dans les fiches</span> retrouve un mot dans toutes les fiches, quel que soit leur libellé.</li>
+      <li><span class="b">📥 Importer 4 120 fiches</span>&nbsp;: les fiches entrent une par une, en <span class="ch">📄 Texte libre</span>, avec leurs photos — environ une seconde par fiche et par photo (le classeur limite les écritures par minute), la durée est annoncée. On garde l'onglet ouvert&nbsp;; <span class="b">⏸ Arrêter</span> s'arrête après la fiche en cours.</li>
     </ol>
-    <div class="note astuce"><span class="tag">Ce qui suit, ce qui reste</span><p>Les listes à cocher deviennent des lignes <code>☐</code> / <code>☑</code>, les liens que Keep avait reconnus sont ajoutés en <code>🔗</code>. Les fiches de la <strong>corbeille Keep</strong> restent dans Keep. Une fiche <strong>déjà dans l'appli</strong> (même titre, même texte) arrive décochée&nbsp;: refaire l'import plus tard ne double rien.</p></div>
+    <div class="note astuce"><span class="tag">Trier en plusieurs fois</span><p>Les choix sont <strong>gardés sur l'appareil</strong>&nbsp;: on ferme, on revient, on redépose le même zip, et tout est là. Les fiches déjà importées s'affichent <span class="ch">☑️ déjà importée</span> et ne repartent pas&nbsp;; une fiche déjà présente dans l'appli (même titre, même texte) arrive décochée.</p></div>
+    <div class="note astuce"><span class="tag">Ce qui suit, ce qui reste</span><p>Les listes à cocher deviennent des lignes <code>☐</code> / <code>☑</code>, les liens que Keep avait reconnus sont ajoutés en <code>🔗</code>. Une fiche qui a plusieurs libellés suit le premier. Les fiches de la <strong>corbeille Keep</strong> restent dans Keep. Les photos des fiches sont rangées dans l'espace de stockage de l'école (liens qui expirent, jamais publics), plus dans le classeur.</p></div>
+    <p>La bibliothèque montre ses fiches <strong>80 par 80</strong> (<span class="b">Afficher 80 fiches de plus</span>)&nbsp;; la recherche, elle, cherche dans toutes.</p>
 
     <h4>Les emplacements</h4>
     <p>Dans <span class="b">⚙️ Réglages</span> d'une fiche, <span class="b">Où sera-t-il utilisé ?</span> la pose sur un <strong>usage</strong>, qui décide où l'application ira la chercher. Une nouvelle fiche est un <span class="ch">📄 Texte libre</span>&nbsp;; les onze autres usages sont des emplacements&nbsp;:</p>
