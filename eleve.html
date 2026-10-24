@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 23/10/2026 à 17:14 — v1255 -->
+<!-- Déployé le 23/10/2026 à 18:16 — v1256 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -200,6 +200,15 @@
   }
   .message.erreur{ background: var(--warn-bg); color: var(--warn-text); }
   .message.ok{ background: rgba(182,255,14,.10); color: var(--accent-text); }
+  /* 👀 v1256 — la démonstration de l'équipe, et la partie d'essai */
+  /* sous les fenêtres posées sur la page (questionnaire, photo en grand,
+     appel) : elles ont leur propre bouton pour fermer */
+  .bandeauDemo{ position:sticky; top:0; z-index:65; display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap;
+    background:#FFE58A; color:#3A2A00; font-size:13px; line-height:1.4; padding:8px 12px; text-align:center; font-weight:600;
+    box-shadow:0 2px 8px rgba(0,0,0,.18); }
+  .bandeauDemo span{ flex:1 1 220px; min-width:0; }
+  .bandeauDemo button{ flex:0 0 auto; min-height:44px; padding:0 14px; border-radius:10px; border:1px solid rgba(58,42,0,.35);
+    background:#fff; color:#3A2A00; font:700 13px/1 inherit; cursor:pointer; }
   .message.attente{ background: rgba(182,255,14,.07); color: var(--muted); }
 
   .empty{ font-size:13px; color:var(--muted); line-height:1.5; }
@@ -2039,7 +2048,107 @@
      réveils du classeur de plus. Voir « entrer ». */
   var duDemarrage = null;
 
+  /* ============================================================
+     👀 L'ÉQUIPE DANS SON ESPACE — v1256
+
+     David, le 23 octobre : depuis le dossier d'un élève, « se
+     connecter à l'espace élève directement dans un nouvel onglet afin
+     de lui montrer comment faire », et dans Outils › Vérifications,
+     « jouer au jeu de notre côté afin de tester ». Ses choix :
+       · ACCOMP — montrer seulement. La page n'a ni son nom ni son
+         code : elle a une SESSION (échangée contre le ticket de
+         l'équipe, puis gardée dans cet onglet seulement), et le
+         Worker refuse tout ce qui écrirait. Rien n'est gardé sur
+         l'appareil.
+       · MODE_ESSAI — la partie d'essai, dans un cadre d'Outils. Rien
+         n'est gardé : la page ne parle même pas au Worker, l'appli
+         lui donne ce qu'un élève qui n'a jamais joué recevrait.
+     ============================================================ */
+  var ACCOMP = null;
+  var CLE_ACCOMP = 'ec_accompagne';
+  var TICKET_ACCOMP = (location.hash.match(/(?:#|&)accompagner=([0-9a-f]{48})(?:&|$)/) || [])[1] || '';
+  var MODE_ESSAI = /[?&]essai=jeu(?:&|$)/.test(location.search);
+  var ESSAI = null, ESSAI_NOM = '';
+  function reponseDEssai(c){
+    var a = c && c.action;
+    if(a === 'eleveEntree') return { status: 'ok', eleve: ESSAI_NOM, modules: 'verifs' };
+    if(a === 'eleveConnexion') return { status: 'ok', eleve: ESSAI_NOM, modules: 'verifs', procedures: [], demandes: [], langues: [],
+      recitations: [], dossier: { status: 'ok', annonces: [], lecons: [], parcours: { etapes: [] } } };
+    if(a === 'eleveVerifsLire') return JSON.parse(JSON.stringify(ESSAI));
+    return { status: 'ok', essai: true };
+  }
+  function poserLeBandeau(texte, bouton, quoi){
+    var b = $('bandeauDemo');
+    if(!b){
+      b = document.createElement('div');
+      b.id = 'bandeauDemo';
+      b.className = 'bandeauDemo';
+      b.setAttribute('role', 'status');
+      document.body.insertBefore(b, document.body.firstChild);
+    }
+    b.innerHTML = '';
+    var t = document.createElement('span');
+    t.textContent = texte;
+    b.appendChild(t);
+    if(bouton){
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.textContent = bouton;
+      x.addEventListener('click', quoi);
+      b.appendChild(x);
+    }
+  }
+  function finirLAccompagnement(){
+    try{ sessionStorage.removeItem(CLE_ACCOMP); }catch(e){}
+    ACCOMP = null;
+    var b = $('bandeauDemo');
+    if(b) b.parentNode.removeChild(b);
+  }
+  function demarrerAccompagnement(){
+    var garde = null;
+    try{ garde = JSON.parse(sessionStorage.getItem(CLE_ACCOMP) || 'null'); }catch(e){ garde = null; }
+    var ticket = TICKET_ACCOMP;
+    /* le ticket ne reste pas dans la barre d'adresse */
+    if(ticket){ try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){} }
+    $('btConnexion').disabled = true;
+    dire('msgConnexion', '⏳ Ouverture de son espace…', 'attente');
+    var p = ticket ? appeler({ action: 'eleveAccompagnement', ticket: ticket }) : Promise.resolve(garde);
+    p.then(function(x){
+      if(!x || !x.session || !x.eleve) throw new Error('Ce lien a expiré : rouvre son espace depuis son dossier.');
+      ACCOMP = { session: x.session, eleve: x.eleve, par: x.par || '' };
+      try{ sessionStorage.setItem(CLE_ACCOMP, JSON.stringify(ACCOMP)); }catch(e){}
+      poserLeBandeau('👀 Espace de ' + x.eleve + (x.par ? ', ouvert par ' + x.par : '') +
+                     ' — démonstration : rien n’est envoyé ni enregistré à son nom.', '✕ Terminer', function(){
+        sortir();
+        try{ window.close(); }catch(e){}
+      });
+      lancerLaConnexion(x.eleve, 'accompagne', true);
+    }).catch(function(e){
+      finirLAccompagnement();
+      $('btConnexion').disabled = false;
+      dire('msgConnexion', (e && e.message) || 'Ce lien a expiré : rouvre son espace depuis son dossier.', 'erreur');
+    });
+  }
+  function demarrerEssai(){
+    $('vueConnexion').classList.add('cache');
+    window.addEventListener('message', function(ev){
+      if(ev.origin !== location.origin || ev.source !== parent) return;
+      var m = ev.data || {};
+      if(!m.jvEssai || ESSAI) return;
+      ESSAI = m.jvEssai;
+      ESSAI_NOM = String(m.nom || 'Équipe');
+      if(typeof m.clair === 'boolean') appliquerTheme(m.clair);
+      poserLeBandeau('🧪 Partie d’essai — rien n’est gardé.');
+      var bs = $('btSortir');
+      if(bs) bs.style.display = 'none';
+      lancerLaConnexion(ESSAI_NOM, 'essai', true);
+    });
+    if(parent && parent !== window) parent.postMessage({ jvEssaiPret: 1 }, location.origin);
+  }
+
   function appeler(corps){
+    if(MODE_ESSAI) return Promise.resolve(reponseDEssai(corps));
+    if(ACCOMP) corps = Object.assign({}, corps, { accompagne: ACCOMP.session });
     return fetch(RELAIS + '/eleve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2378,6 +2487,8 @@
   var entreeRapide = false;
 
   function memoriserLeCode(code){
+    /* 👀 v1256 — ni la démonstration ni l'essai ne gardent rien */
+    if(ACCOMP || MODE_ESSAI) return;
     /* Le code reste sur l'appareil — si l'élève l'a bien voulu.
        Le retaper à chaque fois découragerait de s'entraîner ;
        le garder sans le dire serait pire. */
@@ -2453,7 +2564,7 @@
           entreeRapide = false;
           $('vueEleve').classList.add('cache');
           $('vueConnexion').classList.remove('cache');
-          try{ localStorage.removeItem('ec_eleve'); }catch(x){}
+          if(!ACCOMP && !MODE_ESSAI) try{ localStorage.removeItem('ec_eleve'); }catch(x){}
         }
         if(auto){ sortir(); if(e && e.message) dire('msgConnexion', e.message, 'erreur'); return; }
         dire('msgConnexion', e.message || 'Connexion impossible.', 'erreur');
@@ -2486,6 +2597,8 @@
     }
     dessinerLesOnglets();
     if(ouvert('messages')) demarrerMessages();
+    /* 🎮 v1256 — la partie d'essai s'ouvre sur le jeu */
+    if(MODE_ESSAI) allerAOnglet('verifs');
   }
 
   /* Ce que la connexion complète apporte */
@@ -3170,6 +3283,8 @@
         if(z) z.className = (!!vus.length && o.cle === vus[0].cle) ? '' : 'cache';
       });
       ongletIci = vus.length ? vus[0].cle : '';
+      /* v1256 — la ligne sous « Bonjour » suit aussi l'onglet unique */
+      poserLeSousTitreEl();
       return;
     }
     barre.style.display = '';
@@ -4827,7 +4942,10 @@
   var demandeSortie = false;
 
   function sortir(){
-    try{ localStorage.removeItem('ec_eleve'); }catch(e){}
+    /* 👀 v1256 — sortir d'une démonstration n'efface pas le code d'un
+       élève gardé sur cet appareil (ce n'est pas le sien) */
+    if(ACCOMP){ finirLAccompagnement(); }
+    else try{ localStorage.removeItem('ec_eleve'); }catch(e){}
     moi = { nom: '', code: '' };
     $('chCode').value = '';
     document.body.classList.remove('avecbarre');
@@ -10280,6 +10398,11 @@
   /* 📋 v1175 — ouverte par l'application, dans un cadre : ni
      connexion, ni reprise. Voir demarrerFormulaireRg. */
   if(MODE_FORM_RG) demarrerFormulaireRg();
+
+  /* 🎮 / 👀 v1256 — la partie d'essai de l'équipe ; son espace ouvert
+     par l'équipe pour le lui montrer */
+  else if(MODE_ESSAI) demarrerEssai();
+  else if(TICKET_ACCOMP || (function(){ try{ return !!sessionStorage.getItem(CLE_ACCOMP); }catch(e){ return false; } })()) demarrerAccompagnement();
 
   /* Déjà venu sur cet appareil : on reprend sans rien redemander */
   else try{
