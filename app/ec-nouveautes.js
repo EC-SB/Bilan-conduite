@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 11:33 — v1260 */
+/* Déployé le 24/10/2026 à 12:04 — v1261 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1261,
+    date: 'Samedi 24 octobre 2026',
+    resume: '🎯 La phrase verte se choisit, pour l’élève',
+    quoi: [
+      { emoji: '✏️',
+        titre: 'Toucher la phrase verte pour la choisir',
+        texte: 'Sur la carte de 📅 Mes prochains cours, ou pendant le cours sous « 📋 Compléter les infos » : 🤖 Automatique, 🎓 C’est la leçon de veille, ⏱️ Plus que les 3h, ⏳ Il reste des heures, 📍 Seulement où il en est, ou ✍️ Ma phrase. Le moniteur du cours, le bureau et les administrateurs peuvent choisir.' },
+      { emoji: '✋',
+        titre: 'Pour l’élève, jusqu’à « ↩️ Automatique »',
+        texte: 'Le choix suit l’élève de cours en cours, avec la mention « ✋ Choisie par … » sous la phrase. « Il reste des heures » se décompte tout seul à chaque leçon. Le bilan (« 📍 Où tu en es ») suit le choix. Le jour de l’examen, la phrase dit toujours l’examen.' },
+      { emoji: '✍️',
+        titre: 'Ma phrase, avec des infos qui se remplissent',
+        texte: 'Des boutons ajoutent [Où il en est], [Date de l’examen], [Jours avant l’examen], [Heures restantes], [Passage]… : elles se remplissent toutes seules à chaque cours. Une info que l’appli ne connaît pas s’affiche « ? ».' }
+    ]
+  },
   {
     version: 1260,
     date: 'Samedi 24 octobre 2026',
