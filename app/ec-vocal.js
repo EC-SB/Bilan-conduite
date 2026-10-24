@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:48 — v1251 */
+/* Déployé le 24/10/2026 à 15:33 — v1264 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1594,6 +1594,87 @@ function boutonDApercuProcedure(p){
   return b;
 }
 
+/* ============================================================
+   👁 VOIR LA PROCÉDURE — v1264
+
+   David, le 24 octobre, sur les procédures à joindre au bilan :
+   « sur chaque procédure tu peux mettre un œil qui permet de voir le
+   contenu de la procédure dans un pop up ». Le texte tel qu'il partira
+   (gras compris), sa consigne s'il en a une, et ses images. Lire ne
+   coche rien : on ferme, et le choix est celui d'avant.
+   ============================================================ */
+function boutonOeilProcedure(p){
+  const o = pastilleVue('👁', false);
+  o.classList.add('pastilleOeil');
+  o.dataset.voirProc = String(p.id || p.nom || '');
+  o.title = 'Voir la procédure';
+  o.setAttribute('aria-label', 'Voir la procédure « ' + String(p.nom || '') + ' »');
+  o.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); voirLaProcedure(p); });
+  return o;
+}
+function voirLaProcedure(p){
+  if(!p) return;
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal procVoir';
+  boite.setAttribute('role', 'dialog');
+  /* en titre, le nom du bouton qu'il vient de lire ; dessous, le
+     titre complet de la fiche et sa boîte */
+  const h = document.createElement('h3');
+  poserNomDeProcedure(h, '📋 ' + nomSurLeBoutonProcedure(p));
+  boite.appendChild(h);
+  boite.setAttribute('aria-label', h.textContent);
+  const fam = document.createElement('div');
+  fam.className = 'procVoirBoite';
+  fam.textContent = String(p.titre || p.nom || '') + ' · ' + etiquetteBoiteProcedure(p);
+  boite.appendChild(fam);
+  const t = document.createElement('div');
+  t.className = 'procVoirTexte';
+  const contenu = String(p.contenu || '').trim();
+  if(contenu) poserNomDeProcedure(t, contenu);
+  else t.textContent = 'Cette procédure n’a pas encore de texte.';
+  boite.appendChild(t);
+  if(String(p.consigne || '').trim()){
+    const c = document.createElement('div');
+    c.className = 'procVoirConsigne';
+    c.textContent = '📌 ' + String(p.consigne).trim();
+    boite.appendChild(c);
+  }
+  const imgs = document.createElement('div');
+  imgs.className = 'procVoirImages';
+  boite.appendChild(imgs);
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.type = 'button';
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  r.appendChild(bF);
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const fermer = () => { try{ fermerFond(fond); }catch(e){ fond.remove(); } document.removeEventListener('keydown', echap); };
+  const echap = e => { if(e.key === 'Escape') fermer(); };
+  bF.addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+  document.addEventListener('keydown', echap);
+  setTimeout(() => bF.focus(), 30);
+  /* ses images, si elle en a */
+  const id = String(p.id || '');
+  if(id && typeof chargerImagesDeFiches === 'function' && typeof imagesRecues !== 'undefined'){
+    chargerImagesDeFiches([id], false).then(() => {
+      (imagesRecues[id] || []).forEach(im => {
+        const i = document.createElement('img');
+        i.src = (typeof srcImageFiche === 'function') ? srcImageFiche(im.image) : im.image;
+        i.alt = '';
+        i.addEventListener('click', () => { if(typeof agrandirImage === 'function') agrandirImage(i.src, h.textContent); });
+        imgs.appendChild(i);
+      });
+    }).catch(() => {});
+  }
+}
+
 function dessinerProceduresAJoindre(idZone){
   const z = $(idZone);
   if(!z) return;
@@ -1666,6 +1747,8 @@ function dessinerProceduresAJoindre(idZone){
     poserNomDeProcedure(t, nomSurLeBoutonProcedure(p) + (etiquette ? '  ' + etiquette : ''));
     l.title = String(p.nom || '');
     l.appendChild(t);
+    /* 👁 v1264 — voir la procédure, sans cocher la case */
+    l.appendChild(boutonOeilProcedure(p));
     cases.appendChild(l);
 
     const bt = pastilleVue('', cb.checked);
@@ -1682,7 +1765,12 @@ function dessinerProceduresAJoindre(idZone){
     bt.addEventListener('click', () => { cb.checked = !cb.checked; majChoix(); });
     pastilles.push(peindre);
     peindre();
-    boutons.appendChild(bt);
+    /* 👁 v1264 — l'œil, collé à droite du bouton */
+    const g = document.createElement('span');
+    g.className = 'pastilleGroupe';
+    g.appendChild(bt);
+    g.appendChild(boutonOeilProcedure(p));
+    boutons.appendChild(g);
   };
 
   const habit = (parent, l, avecEtiquette) => {
