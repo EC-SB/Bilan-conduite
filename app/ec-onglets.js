@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 14:43 — v1252 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -341,7 +341,7 @@ const VUES = {
 
            ['placesbe',   '🚚 Places BE',              'placesbe',    'Demandes'],
 
-           ['textes',     '📄 Modèles messages',           'textes',      'Ce qu’on écrit'],
+           ['textes',     '📄 Ce qu’on écrit et envoie (keep)',           'textes',      'Ce qu’on écrit'],
            ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
            ['procedures', '🚦 Procédures',             'procedures',  'Ce qu’on écrit'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
