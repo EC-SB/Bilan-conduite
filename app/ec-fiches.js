@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 10:36 — v1238 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -952,7 +952,7 @@ function ouvrirAjoutFiche(apres){
   fond.className = 'overlay show fiModal';
   fond.innerHTML = '<div class="modal"><h3>➕ Ajouter une zone ' + (avant ? 'sous « ' + echFiche(nomCourtFiche(avant)) + ' »' : 'tout en haut') + '</h3>' +
     '<div class="stPetit" style="margin-bottom:8px;">Ce que le moniteur y mettra part dans le bilan <b>juste sous la zone du dessus</b>' +
-    ' (s’il n’a rien écrit au-dessus, à la fin du bilan).</div>' +
+    ' (s’il n’a rien écrit au-dessus, à la fin de sa partie).</div>' +
     '<div class="fiTypes">' + Object.keys(TYPES_AJOUT_FICHE).filter(k => !TYPES_AJOUT_FICHE[k].examens || avecCepc).map(k =>
       '<button type="button" class="fiType" data-type="' + k + '"><b>' + echFiche(TYPES_AJOUT_FICHE[k].nom) + '</b><small>' + echFiche(TYPES_AJOUT_FICHE[k].aide) + '</small></button>').join('') +
       '<button type="button" class="fiType" data-type="texte" data-sans-micro="1"><b>✍️ Cadre de texte sans 🎙️</b><small>Le même, sans le micro au bout</small></button>' +
