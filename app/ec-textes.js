@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 15:03 — v1263 */
+/* Déployé le 24/10/2026 à 16:19 — v1265 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -937,10 +937,20 @@ async function bougerFiche(id, devant, apres){
   const ou = tout.indexOf(devant);
   tout.splice(apres ? ou + 1 : ou, 0, pris);
 
-  ordreFiches = tout;
-  dessinerListeFiches();
+  /* 📥 v1265 — ON NE GARDE QUE LE DÉBUT RANGÉ. Avec les milliers de
+     fiches de Keep, la liste entière ne tiendrait plus dans une case
+     du classeur (50 000 caractères) : on garde jusqu'à la dernière
+     fiche déjà rangée ou déplacée — les autres suivent par titre,
+     comme avant. */
+  const dejaRangees = new Set(ordreFiches || []);
+  let fin = 0;
+  tout.forEach((x, i) => { if(dejaRangees.has(x) || x === id || x === devant) fin = i + 1; });
+  const garde = tout.slice(0, fin);
+
+  ordreFiches = garde;
+  dessinerListeFiches(true);
   try{
-    await enregistrerOrdreFiches(tout);
+    await enregistrerOrdreFiches(garde);
   }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
 }
 
@@ -1366,6 +1376,7 @@ function dessinerRailEtiquettes(){
     b.innerHTML = '<span class="nom">' + nom.replace(/</g, '&lt;') + '</span>' +
                   '<span class="n">' + n + '</span>';
     b.addEventListener('click', () => {
+      if(b.dataset.vientDeGlisser) return;
       etiquetteChoisie = (etiquetteChoisie === cle) ? '' : cle;
       dessinerRailEtiquettes();
       dessinerListeFiches();
@@ -1384,28 +1395,20 @@ function dessinerRailEtiquettes(){
       });
       b.appendChild(cr);
 
-      b.draggable = true;
       b.dataset.etq = cle;
-      b.addEventListener('dragstart', e => {
-        glisseEtq = cle; b.classList.add('prise');
-        try{ e.dataTransfer.effectAllowed = 'move'; }catch(err){}
-      });
-      b.addEventListener('dragend', () => {
-        glisseEtq = '';
-        rail.querySelectorAll('.etqLigne').forEach(x =>
-          x.classList.remove('prise', 'cible'));
-      });
-      b.addEventListener('dragover', e => {
-        if(!glisseEtq || glisseEtq === cle) return;
-        e.preventDefault(); b.classList.add('cible');
-      });
-      b.addEventListener('dragleave', () => b.classList.remove('cible'));
-      b.addEventListener('drop', async e => {
-        e.preventDefault(); b.classList.remove('cible');
-        if(!glisseEtq || glisseEtq === cle) return;
-        await rangerEtiquette(glisseEtq, cle);
-      });
+      /* 🔀 v1265 — au pointeur (souris ET doigt), plus par le glisser
+         du navigateur : voir glisserUneCategorie */
+      const pg = document.createElement('span');
+      pg.className = 'etqPoignee';
+      pg.textContent = '⠿';
+      pg.setAttribute('aria-hidden', 'true');
+      b.insertBefore(pg, b.firstChild);
+      b.title = 'Glisser pour ranger (ou Alt + ↑ / ↓)';
+      glisserUneCategorie(rail, b, cle);
     }
+    /* 📁 v1265 — une fiche lâchée sur une catégorie s'y range (ce que
+       le guide promettait, et que rien ne faisait) */
+    if(cle !== '' && cle !== '*sans*') recevoirUneFiche(b, cle);
     rail.appendChild(b);
     return b;
   };
@@ -1685,16 +1688,171 @@ function ouvrirCategorie(cat){
    ============================================================ */
 /* On déplace, on n'échange pas : glisser la dernière en tête ne
    doit pas envoyer la première tout en bas. */
-async function rangerEtiquette(quoi, devant){
+/* ============================================================
+   🔀 RANGER LES CATÉGORIES — v1265
+
+   David, capture du rail à l'appui : « le déplacement en cliquer
+   glisser ne fonctionne pas bien du tout ». Il avait raison, trois
+   fois :
+     · le rail se redessinait AVANT que le nouvel ordre soit posé :
+       l'écran montrait toujours le déplacement d'avant (le premier
+       glisser ne faisait rien, le deuxième montrait le premier…) ;
+     · descendre posait la catégorie APRÈS la cible, monter AVANT,
+       sous un trait toujours dessiné au-dessus ;
+     · le glisser du navigateur sur un bouton ne part pas sur Firefox,
+       ni au doigt.
+   Désormais : on attrape la ligne (la poignée ⠿ au doigt), un trait
+   montre où elle va se poser, entre deux lignes ou tout en bas, et on
+   lâche. Au clavier : Alt + ↑ / ↓. L'ordre est posé, PUIS dessiné.
+   ============================================================ */
+async function rangerEtiquette(quoi, avant){
+  /* « avant » : la catégorie devant laquelle elle se pose ; vide, elle
+     va tout à la fin */
   const l = toutesLesEtiquettes();
-  const de = l.indexOf(quoi), vers = l.indexOf(devant);
-  if(de === -1 || vers === -1 || de === vers) return;
+  const de = l.indexOf(quoi);
+  if(de === -1 || quoi === avant) return;
   const [pris] = l.splice(de, 1);
-  l.splice(vers, 0, pris);
+  const ou = avant ? l.indexOf(avant) : -1;
+  if(ou === -1) l.push(pris); else l.splice(ou, 0, pris);
+  ordreEtiquettes = l.slice();
   dessinerRailEtiquettes();
+  const r = document.querySelector('#textesZone .etqLigne[data-etq="' + String(quoi).replace(/["\\]/g, '\\$&') + '"]');
+  if(r) r.classList.add('posee');
   try{
     await enregistrerOrdreEtiquettes(l);
   }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+}
+function glisserUneCategorie(rail, b, cle){
+  let depart = null, enCours = false, trait = null, cibleAvant = undefined, idPointeur = null;
+  const lignes = () => [...rail.querySelectorAll('.etqLigne[data-etq]')];
+  const horizontal = () => getComputedStyle(rail).flexDirection === 'row';
+  const viser = ev => {
+    const h = horizontal();
+    const autres = lignes().filter(x => x !== b);
+    let avant = null;
+    for(const x of autres){
+      const r = x.getBoundingClientRect();
+      const milieu = h ? r.left + r.width / 2 : r.top + r.height / 2;
+      if((h ? ev.clientX : ev.clientY) < milieu){ avant = x; break; }
+    }
+    cibleAvant = avant ? avant.dataset.etq : '';
+    /* le trait : au-dessus de la ligne visée, ou sous la dernière */
+    const ref = avant || autres[autres.length - 1];
+    if(!ref){ trait.style.display = 'none'; return; }
+    const rr = ref.getBoundingClientRect(), rz = rail.getBoundingClientRect();
+    trait.style.display = '';
+    if(h){
+      trait.className = 'etqTrait vertical';
+      trait.style.left = ((avant ? rr.left - 4 : rr.right + 2) - rz.left + rail.scrollLeft) + 'px';
+      trait.style.top = (rr.top - rz.top) + 'px'; trait.style.height = rr.height + 'px'; trait.style.width = '';
+    }else{
+      trait.className = 'etqTrait';
+      trait.style.top = ((avant ? rr.top - 2 : rr.bottom + 1) - rz.top + rail.scrollTop) + 'px';
+      trait.style.left = '0px'; trait.style.width = rz.width + 'px'; trait.style.height = '';
+    }
+    /* au bord : on fait défiler */
+    if(h){
+      if(ev.clientX < rz.left + 30) rail.scrollLeft -= 12; else if(ev.clientX > rz.right - 30) rail.scrollLeft += 12;
+    }else{
+      if(ev.clientY < 60) window.scrollBy(0, -14); else if(ev.clientY > window.innerHeight - 60) window.scrollBy(0, 14);
+    }
+  };
+  const finir = async ev => {
+    const etait = enCours;
+    enCours = false; depart = null;
+    try{ if(idPointeur !== null) b.releasePointerCapture(idPointeur); }catch(e){}
+    idPointeur = null;
+    document.body.classList.remove('etqGlisse');
+    if(trait) trait.remove();
+    trait = null;
+    b.classList.remove('prise');
+    if(!etait) return;
+    /* le clic qui suit un glisser ne choisit pas la catégorie */
+    b.dataset.vientDeGlisser = '1';
+    setTimeout(() => { delete b.dataset.vientDeGlisser; }, 50);
+    if(ev && ev.type === 'pointerup' && cibleAvant !== undefined && cibleAvant !== cle){
+      const l = lignes().map(x => x.dataset.etq);
+      const i = l.indexOf(cle);
+      /* déjà à cet endroit : rien */
+      if(!(cibleAvant === (l[i + 1] || ''))) await rangerEtiquette(cle, cibleAvant);
+    }
+    cibleAvant = undefined;
+  };
+  b.addEventListener('pointerdown', ev => {
+    if(ev.button !== 0 || ev.target.closest('.etqCrayon')) return;
+    /* au doigt, seulement par la poignée : sinon on ne pourrait plus
+       faire défiler le rail */
+    if(ev.pointerType !== 'mouse' && !ev.target.closest('.etqPoignee')) return;
+    depart = { x: ev.clientX, y: ev.clientY };
+    idPointeur = ev.pointerId;
+    try{ b.setPointerCapture(ev.pointerId); }catch(e){}
+    if(ev.pointerType !== 'mouse') ev.preventDefault();
+  });
+  b.addEventListener('pointermove', ev => {
+    if(!depart) return;
+    if(!enCours){
+      if(Math.abs(ev.clientX - depart.x) + Math.abs(ev.clientY - depart.y) < 6) return;
+      enCours = true;
+      b.classList.add('prise');
+      document.body.classList.add('etqGlisse');
+      if(getComputedStyle(rail).position === 'static') rail.style.position = 'relative';
+      trait = document.createElement('div');
+      trait.className = 'etqTrait';
+      rail.appendChild(trait);
+    }
+    ev.preventDefault();
+    viser(ev);
+  });
+  b.addEventListener('pointerup', finir);
+  b.addEventListener('pointercancel', finir);
+  b.addEventListener('click', ev => {
+    if(b.dataset.vientDeGlisser){ ev.stopImmediatePropagation(); ev.preventDefault(); }
+  }, true);
+  b.addEventListener('keydown', async ev => {
+    if(!ev.altKey || (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown' && ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight')) return;
+    ev.preventDefault();
+    const l = toutesLesEtiquettes();
+    const i = l.indexOf(cle);
+    const monte = ev.key === 'ArrowUp' || ev.key === 'ArrowLeft';
+    if(monte && i > 0) await rangerEtiquette(cle, l[i - 1]);
+    else if(!monte && i !== -1 && i < l.length - 1) await rangerEtiquette(cle, l[i + 2] || '');
+    const r = document.querySelector('#textesZone .etqLigne[data-etq="' + String(cle).replace(/["\\]/g, '\\$&') + '"]');
+    if(r) r.focus();
+  });
+}
+
+/* 📁 Une fiche lâchée sur une catégorie : elle y est rangée (elle
+   garde les autres). Sur « 🔒 Privé », elle devient privée. */
+function recevoirUneFiche(b, cle){
+  b.addEventListener('dragover', e => {
+    if(!glisseFiche) return;
+    e.preventDefault();
+    b.classList.add('depot');
+  });
+  b.addEventListener('dragleave', e => { if(!b.contains(e.relatedTarget)) b.classList.remove('depot'); });
+  b.addEventListener('drop', async e => {
+    if(!glisseFiche) return;
+    e.preventDefault();
+    b.classList.remove('depot');
+    const m = (modelesTexte || []).find(x => x.id === glisseFiche);
+    glisseFiche = '';
+    if(!m) return;
+    const cat = cle === '*prive*' ? maMarquePrivee() : cle;
+    if(!cat) return;
+    const l = etiquettesDe(m);
+    if(l.indexOf(cat) !== -1){ showToast('Elle y est déjà.'); return; }
+    const avant = m.etiquettes;
+    m.etiquettes = l.concat([cat]).join(SEP_ETIQ);
+    try{
+      await enregistrerModeleTexte(m);
+      showToast('📁 « ' + (m.titre || m.nom) + ' » rangée dans ' + (cle === '*prive*' ? '🔒 privé' : cle));
+    }catch(err){
+      m.etiquettes = avant;
+      showToast('Pas rangée : ' + ((err && err.message) || err));
+    }
+    dessinerRailEtiquettes();
+    dessinerListeFiches(true);
+  });
 }
 
 /* ⚠️ « QUELLES FICHES SONT À L'ÉCRAN » NE S'ÉCRIT QU'ICI — v959.
