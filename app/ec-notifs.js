@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-notifs.js
    Ce qui attend une décision du bureau.
@@ -222,7 +222,7 @@ async function afficherNotifs(){
       '👥 Qui voit quelles pastilles</div>' +
     '<div style="font-size:11px;color:var(--muted);line-height:1.55;">' +
       'Chaque type d\'alerte a son droit, à cocher compte par compte dans ' +
-      '<strong>Outils → ⚙️ Accès</strong> :<br>' +
+      '<strong>Gestion › ⚙️ Accès</strong> :<br>' +
       TYPES_NOTIF.map(t => '· ' + t.nom + ' → <em>' +
         (t.droit || 'tout le monde') + '</em>').join('<br>') +
       '<br><br>Un compte sans ces droits ne voit aucune pastille.</div>';
