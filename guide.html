@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1256
+     GUIDE-VERSION: 1257
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1256</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1257</strong><br>
     Mis à jour le 24 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -578,7 +578,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1256</strong>, relu le 24 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1257</strong>, relu le 24 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -2143,7 +2143,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
         <tr><td><span class="b">Leçons restantes (facultatif)</span></td><td>Un nombre.</td></tr>
       </tbody>
     </table></div>
-    <p>Le bouton s'appelle <span class="b">✅ Enregistrer</span> à l'ouverture, puis <span class="b">📅 Enregistrer la date</span> ou <span class="b">📌 Enregistrer</span> une fois la situation changée. La saisie fabrique une <strong>phrase calibrée au mot près</strong>, pour que l'application sache la relire plus tard&nbsp;: <span class="ch">Examen du permis fixé au jeudi 12 novembre 2026 — encore 3 leçons avant (bureau)</span>. Le formulaire se vide ensuite et l'élève ajouté est surligné en orange quelques secondes.</p>
+    <p>Le bouton s'appelle <span class="b">📌 Enregistrer</span> quand la situation est «&nbsp;À prévoir&nbsp;», et <span class="b">📅 Enregistrer la date</span> quand une date est fixée. La saisie fabrique une <strong>phrase calibrée au mot près</strong>, pour que l'application sache la relire plus tard&nbsp;: <span class="ch">Examen du permis fixé au jeudi 12 novembre 2026 — encore 3 leçons avant (bureau)</span>. Le formulaire se vide ensuite et l'élève ajouté est surligné en orange quelques secondes.</p>
     <div class="note piege"><span class="tag">Ce n'est pas une écriture dans la fiche</span><p>Cette saisie n'écrit <strong>pas</strong> dans la fiche de suivi de l'élève. Elle crée une <em>consigne</em>, qui ne sera prise en compte qu'au prochain cours (voir <a href="#circuit" class="aller">le circuit d'une information</a>).</p></div>
 
     <h4>🌙 Simulateurs nuit et risques</h4>
@@ -2165,7 +2165,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
     <div class="note piege"><span class="tag">Deux pièges de rangement</span>
       <ul style="margin-bottom:0">
-        <li>« Fixer la date » ici écrit la date prévue <strong>et aussi la date de l'examen blanc</strong>, et remet son niveau à vide&nbsp;: un résultat déjà noté s'efface.</li>
+        <li>« Fixer la date » écrit la date prévue de l'examen blanc et efface la date et le résultat du précédent&nbsp;: prévoir un nouvel examen blanc tourne la page de l'ancien.</li>
         <li>La liste <strong>📝 Examens blancs prévus</strong> — ceux dont la date est déjà posée — <strong>n'est pas ici</strong> mais dans l'onglet Permis, vue <a href="#envisager" class="aller">🤔 À envisager</a>.</li>
       </ul>
     </div>
@@ -2432,7 +2432,7 @@ Places de la 1ʳᵉ quinzaine de novembre — 9 places à prendre
 
     <h4>📝 Examens blancs prévus</h4>
     <p><em>« Ceux dont la date est posée, du plus proche au plus lointain. »</em> Deux sources réunies&nbsp;: les dates posées par le bureau, et <strong>les cours préparés portant le modèle « Examen blanc »</strong>. Un élève dont la date d'examen du permis est déjà posée est exclu&nbsp;: l'examen blanc a joué son rôle.</p>
-    <p>Un bouton <span class="b">➕ Prévoir un examen blanc</span> ouvre une fenêtre avec élève, date, heure, moniteur, et une case <span class="b">Créer aussi le cours</span>. L'effet écrit la date et <strong>remet le niveau à vide</strong>&nbsp;: prévu n'est pas passé.</p>
+    <p>Un bouton <span class="b">➕ Prévoir un examen blanc</span> ouvre une fenêtre avec élève, date, heure, moniteur, et une case <span class="b">Créer aussi le cours</span>. L'effet écrit la date <strong>prévue</strong> et remet le niveau à vide&nbsp;: prévu n'est pas passé.</p>
     <p>Si la date est <strong>dépassée</strong>, la ligne dit <span class="ch">⚠️ Le … — date dépassée, sa suite ?</span> et trois boutons apparaissent, qui reprennent les conclusions du questionnaire&nbsp;:</p>
     <ul>
       <li><span class="b">⛔ Pas le niveau</span> — il passe en Pas prêts.</li>
