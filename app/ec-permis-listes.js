@@ -1,4 +1,4 @@
-/* Déployé le 12/10/2026 à 15:22 — v1156 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3167,7 +3167,8 @@ async function ajouterDateBureau(){
     etat.textContent = 'Erreur : ' + e.message;
   }finally{
     btn.disabled = false;
-    btn.textContent = '📅 Enregistrer la date';
+    /* v1257 — le libellé suit la situation choisie, comme au changement */
+    btn.textContent = ($('addEtat') && $('addEtat').value === 'date') ? '📅 Enregistrer la date' : '📌 Enregistrer';
   }
 }
 
