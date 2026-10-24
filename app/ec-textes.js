@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 14:00 — v1232 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -1296,6 +1296,19 @@ function dessinerBibliotheque(){
   bImport.title = 'Coller plusieurs fiches d’un coup';
   bImport.addEventListener('click', ouvrirImportModeles);
   barre.appendChild(bImport);
+
+  /* 📥 v1262 — David : « récupérer toutes mes fiches Keep », une
+     catégorie par fiche (ec-import-keep.js). */
+  if(typeof ouvrirImportKeep === 'function'){
+    const bKeep = document.createElement('button');
+    bKeep.className = 'btn btn-secondary';
+    bKeep.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bKeep.textContent = '📥 Keep';
+    bKeep.title = 'Importer mes fiches Google Keep (le zip de Google Takeout)';
+    bKeep.setAttribute('data-import-keep', '1');
+    bKeep.addEventListener('click', ouvrirImportKeep);
+    barre.appendChild(bKeep);
+  }
 
   /* ⚙️ Qui voit quelle catégorie — réservé aux administrateurs :
      eux seuls peuvent lire la liste des comptes, et eux seuls ont à
