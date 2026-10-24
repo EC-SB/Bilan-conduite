@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-correction.js
    Signaler une erreur du moniteur dans un bilan et la remplacer
@@ -73,7 +73,7 @@ async function ouvrirCorrectionMoniteur(){
   }else{
     const a = document.createElement('div');
     a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
-    a.textContent = "Astuce : enregistre tes procédures dans « Mes modèles de message » " +
+    a.textContent = "Astuce : enregistre tes procédures dans « Ce qu’on écrit et envoie (keep) » " +
       "pour les réutiliser d'un appui.";
     boite.appendChild(a);
   }
