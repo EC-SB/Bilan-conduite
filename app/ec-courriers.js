@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 17:39 — v1247 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-courriers.js — ✉️ LES COURRIERS SUR PAPIER À EN-TÊTE (v1243)
 
@@ -1035,7 +1035,7 @@ function crAccueil(){
   const z = $('courriersZone');
   if(!z) return;
   z.innerHTML = '';
-  z.appendChild(crEl('div', 'crIntro', 'Les courriers sur papier à en-tête de l’école : on choisit un modèle, l’élève si besoin, et l’appli remplit ce qu’elle sait. On relit sur la vraie page, on pose la signature et le tampon, puis 📄 PDF, 🖨️ impression ou ✉️ mail. À ne pas confondre avec « Modèles messages », qui sont des textes sans en-tête.'));
+  z.appendChild(crEl('div', 'crIntro', 'Les courriers sur papier à en-tête de l’école : on choisit un modèle, l’élève si besoin, et l’appli remplit ce qu’elle sait. On relit sur la vraie page, on pose la signature et le tampon, puis 📄 PDF, 🖨️ impression ou ✉️ mail. À ne pas confondre avec « Ce qu’on écrit et envoie (keep) », qui sont des textes sans en-tête.'));
 
   const barre = crEl('div', 'crBarre');
   const cherche = document.createElement('input');
