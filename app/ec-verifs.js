@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:48 — v1251 */
+/* Déployé le 23/10/2026 à 18:16 — v1256 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -293,19 +293,26 @@ function vbNeutralisees(){ return vbToutes().filter(x => x.neutre && Object.keys
 async function afficherVerifs(){
   const z = document.getElementById('verifsZone');
   if(!z) return;
-  if(!z.querySelector('#vbListe') && VERIFS.vue !== 'atelier') vbDessinerEcran(z);
+  const vue = VERIFS.vue || 'banque';
+  if(vue === 'jouer' && !z.querySelector('.vbEssai')) vbDessinerEcran(z);
+  else if(!z.querySelector('#vbListe') && vue === 'banque') vbDessinerEcran(z);
   const ok = await chargerVerifs(true);
   if(!ok && verifsARelire()) showToastVerifs('⚠️ Banque lue hors ligne : les dernières modifications ne sont peut-être pas là.');
-  if(VERIFS.vue !== 'atelier' || !z.querySelector('.at')) vbDessinerEcran(z);
+  /* la partie d'essai et l'atelier ne se redessinent pas sous les doigts */
+  if(vue === 'banque' || !z.querySelector(vue === 'jouer' ? '.vbEssai' : '.at')) vbDessinerEcran(z);
 }
 function showToastVerifs(m){ if(typeof showToast === 'function') showToast(m); }
 
 /* 📸 v1249 — deux onglets pour les administrateurs : la banque, et
-   l'atelier du jeu (ec-jeu-atelier.js) */
+   l'atelier du jeu (ec-jeu-atelier.js).
+   🎮 v1256 — et pour toute l'équipe, « Jouer » : David, « un onglet
+   pour que l'on puisse jouer au jeu de notre côté afin de tester ». */
 function vbOnglets(z){
-  if(!vbEstAdmin() || typeof afficherAtelierJeu !== 'function') return;
   const o = vqEl('div', 'atOng');
-  [['banque', '📖 Les 100 questions'], ['atelier', '📸 Nos voitures — l’atelier du jeu']].forEach(([k, t]) => {
+  const l = [['banque', '📖 Les 100 questions']];
+  if(vbEstAdmin() && typeof afficherAtelierJeu === 'function') l.push(['atelier', '📸 Nos voitures — l’atelier du jeu']);
+  l.push(['jouer', '🎮 Jouer (essai)']);
+  l.forEach(([k, t]) => {
     const b = vqEl('button', 'vbPuce' + ((VERIFS.vue || 'banque') === k ? ' on' : ''), t);
     b.type = 'button';
     b.setAttribute('data-vue-verifs', k);
@@ -317,6 +324,7 @@ function vbOnglets(z){
 function vbDessinerEcran(z){
   z.innerHTML = '';
   vbOnglets(z);
+  if(VERIFS.vue === 'jouer') return vbJouer(z);
   if(VERIFS.vue === 'atelier' && vbEstAdmin() && typeof afficherAtelierJeu === 'function'){
     const a = vqEl('div', 'at');
     z.appendChild(a);
@@ -349,6 +357,50 @@ function vbDessinerEcran(z){
   b.appendChild(l);
   z.appendChild(b);
   vbDessinerListe();
+}
+/* ============================================================
+   🎮 JOUER, DE NOTRE CÔTÉ — v1256
+
+   Le VRAI jeu : eleve.html, dans un cadre de la taille d'un
+   téléphone, ouvert en « partie d'essai ». L'appli lui donne ce
+   qu'un élève qui n'a jamais joué recevrait (nos voitures, leurs
+   photos, la banque avec ses corrections) ; la page, elle, ne parle
+   pas au Worker. Choix de David : rien n'est gardé — « ↺ Recommencer »
+   ou rouvrir l'onglet repart de zéro.
+   ============================================================ */
+function vbJouer(z){
+  const c = vqEl('div', 'vbEssai');
+  const rang = vqEl('div', 'vbRang');
+  rang.appendChild(vqEl('div', 'vbIntro', '🧪 Le jeu tel que l’élève le voit, avec nos voitures et leurs photos. Rien n’est gardé : à chaque ouverture, on repart de zéro.'));
+  const re = vqEl('button', 'btn btn-secondary', '↺ Recommencer à zéro'); re.type = 'button';
+  re.addEventListener('click', () => vbDessinerEcran(z));
+  rang.appendChild(re);
+  c.appendChild(rang);
+  const tel = vqEl('div', 'vbTel');
+  tel.innerHTML = '<div class="empty">Chargement du jeu…</div>';
+  c.appendChild(tel);
+  z.appendChild(c);
+  appelPrep({ action: 'jeuEssaiLire' }).then(d => {
+    if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'le jeu ne répond pas');
+    if(!tel.isConnected) return;
+    const f = document.createElement('iframe');
+    f.className = 'vbCadre';
+    f.title = 'Le jeu des vérifications — partie d’essai';
+    f.src = 'eleve.html?essai=jeu';
+    tel.innerHTML = '';
+    tel.appendChild(f);
+    const ecoute = ev => {
+      if(!f.isConnected){ window.removeEventListener('message', ecoute); return; }
+      if(ev.source !== f.contentWindow || ev.origin !== location.origin) return;
+      if(ev.data && ev.data.jvEssaiPret){
+        f.contentWindow.postMessage({ jvEssai: d, nom: (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || 'Équipe',
+                                      clair: document.body.classList.contains('clair') }, location.origin);
+      }
+    };
+    window.addEventListener('message', ecoute);
+  }).catch(e => {
+    if(tel.isConnected) tel.innerHTML = '<div class="empty">⚠️ ' + String((e && e.message) || e).replace(/</g, '&lt;') + '</div>';
+  });
 }
 function vbDessinerListe(){
   const l = document.getElementById('vbListe');
