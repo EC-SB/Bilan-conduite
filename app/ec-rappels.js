@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 12:15 — v1181 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -294,7 +294,7 @@ async function afficherRappels(){
       ? '<br><span style="font-size:12px;color:var(--muted);">Modèle : « ' +
         modelePour('rappel_cours').titre + ' »</span>'
       : '<br><span style="font-size:12px;color:var(--muted);">Aucun modèle enregistré : ' +
-        "texte proposé par l'application. Crée-en un dans « Modèles messages », usage " +
+        "texte proposé par l'application. Crée-en un dans « Ce qu’on écrit et envoie (keep) », usage " +
         '« Rappel de cours ».</span>');
   zone.appendChild(tete);
 
@@ -851,7 +851,7 @@ function composerRappel(r){
   const tous = typesDisponibles();
   if(!tous.length){
     return "Aucun modèle de rappel enregistré.\n\n" +
-      "Va dans ⚙️ Outils → 📄 Modèles messages, crée un texte avec l'usage " +
+      "Va dans 🔨 Outils → 📄 Ce qu’on écrit et envoie (keep), crée un texte avec l'usage " +
       '« 🔔 Rappel de cours par mail — élève », et il apparaîtra ici.';
   }
   const type = tous.find(x => x.cle === r.type) || tous[0];
@@ -1077,7 +1077,7 @@ async function afficherRappelManuel(){
     v.className = 'empty';
     v.style.cssText = 'padding:16px;line-height:1.6;';
     v.innerHTML = '📄 <strong>Aucun modèle de rappel enregistré.</strong><br>' +
-      '<span style="font-size:12px;">Va dans <strong>📄 Modèles messages</strong>, ' +
+      '<span style="font-size:12px;">Va dans <strong>📄 Ce qu’on écrit et envoie (keep)</strong>, ' +
       'crée un texte avec l\'usage « 🔔 Rappel de cours par mail — élève », ' +
       'et il apparaîtra ici.<br>' +
       'Le bouton 📥 Importer permet d\'en coller plusieurs d\'un coup.</span>';
@@ -2149,7 +2149,7 @@ async function ouvrirRangementTypesRappel(){
     if(!items.length){
       const v = document.createElement('div');
       v.className = 'empty';
-      v.textContent = 'Aucun type de séance : ils se créent dans 📄 Modèles messages.';
+      v.textContent = 'Aucun type de séance : ils se créent dans 📄 Ce qu’on écrit et envoie (keep).';
       boite.appendChild(v);
     }
 
