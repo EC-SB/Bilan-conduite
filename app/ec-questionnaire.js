@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:49 — v1216 */
+/* Déployé le 24/10/2026 à 12:04 — v1261 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -7817,19 +7817,50 @@ function majBoutonCompleter(){
         'color:var(--accent-text);margin-top:6px;';
       if(b.parentNode) b.parentNode.insertBefore(phrase, b.nextSibling);
     }
-    phrase.textContent = connu ? phraseVerteDuCours(eleve, modele) : '';
+    /* 🎯 v1261 — et on peut la CHANGER ici (David : « oui »), avec la
+       même fenêtre que sur la carte. Après un choix, tout ce bloc se
+       redessine. */
+    if(connu && modele !== 'rdv-post' && typeof poserPhraseVerte === 'function'){
+      poserPhraseVerte(phrase, { nom: eleve, modele: modele,
+        jour: ($('lessonDate') && $('lessonDate').value) || '',
+        note: ($('noteInterne') && $('noteInterne').value) || '',
+        corps: (() => { const n = ($('noteInterne') && $('noteInterne').value) || '';
+          return (typeof morceauxDeNotePreparee === 'function') ? morceauxDeNotePreparee(n).corps : n; })(),
+        moniteur: (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || '',
+        titre: (() => { const j = ($('lessonDate') && $('lessonDate').value) || '';
+          const l = (j && typeof dateEnToutesLettres === 'function') ? String(dateEnToutesLettres(j) || '') : '';
+          return l ? 'cours du ' + l.replace(/\s+\d{4}\s*$/, '') : 'ce cours'; })(),
+        calcul: () => phraseVerteDuCours(eleve, modele),
+        apres: () => majBoutonCompleter() });
+    }else{
+      phrase.textContent = connu ? phraseVerteDuCours(eleve, modele) : '';
+      if(typeof poserPhraseVerte === 'function'){
+        const m0 = phrase.nextElementSibling;
+        if(m0 && m0.dataset && m0.dataset.phraseMention === '1') m0.remove();
+        phrase.classList.remove('pvTouchable');
+        delete phrase.dataset.phraseVerte;
+        phrase.removeAttribute('role'); phrase.removeAttribute('tabindex'); phrase.removeAttribute('title');
+      }
+    }
     phrase.style.display = phrase.textContent ? '' : 'none';
+    /* La mention « ✋ Choisie par … » se pose juste sous la phrase */
+    let apresPhrase = phrase;
+    if(phrase.nextElementSibling && phrase.nextElementSibling.dataset &&
+       phrase.nextElementSibling.dataset.phraseMention === '1'){
+      apresPhrase = phrase.nextElementSibling;
+      apresPhrase.style.display = phrase.style.display;
+    }
 
     /* Ce qui EST enregistré, sous le bouton : le moniteur voit
        l'état de l'élève sans rien ouvrir. Une ligne par bouton,
        posée une fois et remise à jour ensuite. */
-    let ligne = phrase.nextElementSibling;
+    let ligne = apresPhrase.nextElementSibling;
     if(!ligne || !ligne.dataset || ligne.dataset.recapCompleter !== '1'){
       ligne = document.createElement('div');
       ligne.dataset.recapCompleter = '1';
       ligne.style.cssText = 'flex-basis:100%;font-size:11px;color:var(--muted);' +
         'line-height:1.5;margin-top:2px;';
-      if(phrase.parentNode) phrase.parentNode.insertBefore(ligne, phrase.nextSibling);
+      if(apresPhrase.parentNode) apresPhrase.parentNode.insertBefore(ligne, apresPhrase.nextSibling);
     }
 
     const fiche = (connu && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
