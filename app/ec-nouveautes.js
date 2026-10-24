@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 12:04 — v1261 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1262,
+    date: 'Samedi 24 octobre 2026',
+    resume: '📥 Les fiches Google Keep entrent dans « Ce qu’on écrit et envoie (keep) »',
+    quoi: [
+      { emoji: '📄',
+        titre: '« Modèles messages » s’appelle « Ce qu’on écrit et envoie (keep) »',
+        texte: 'Outils › Ce qu’on écrit : c’est l’outil qui remplace Keep. Dans la messagerie, le bouton s’appelle « 📄 Ce qu’on écrit et envoie ».' },
+      { emoji: '📥',
+        titre: 'Importer ses fiches Keep',
+        texte: 'Le bouton « 📥 Keep » : on dépose le zip de Google Takeout, chaque fiche s’affiche avec sa couleur, on choisit sa catégorie (pré-remplie avec le libellé Keep, ou « ➕ Nouvelle catégorie… »), puis on importe. Photos et listes à cocher suivent ; la corbeille reste dans Keep ; une fiche déjà là arrive décochée.' }
+    ]
+  },
   {
     version: 1261,
     date: 'Samedi 24 octobre 2026',
