@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 24/10/2026 à 15:03 — v1263 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1263,
+    date: 'Samedi 24 octobre 2026',
+    resume: '📥 Import Keep : on trie par libellé, puis fiche par fiche',
+    quoi: [
+      { emoji: '🏷️',
+        titre: 'D’abord les libellés Keep',
+        texte: 'Chaque libellé, avec son nombre de fiches, « Va dans » : une catégorie de l’appli, ➕ une nouvelle, 🔒 privée, 📭 sans catégorie ou 🚫 ne pas importer. Au départ tout est « ⏳ à décider » : rien n’est créé sans vous.' },
+      { emoji: '📝',
+        titre: 'Puis fiche par fiche, si besoin',
+        texte: 'Toucher un libellé montre ses fiches, 50 par 50 ; chacune suit son libellé tant qu’on ne la change pas. Les choix sont gardés sur l’appareil, l’import s’arrête et reprend sans rien doubler.' },
+      { emoji: '🖼️',
+        titre: 'Les photos des fiches hors du classeur',
+        texte: 'Les nouvelles images des fiches vont dans l’espace de stockage de l’école (liens qui expirent), pour ne pas alourdir le classeur. La bibliothèque montre ses fiches 80 par 80.' }
+    ]
+  },
   {
     version: 1262,
     date: 'Samedi 24 octobre 2026',
