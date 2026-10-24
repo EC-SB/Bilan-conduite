@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 12:10 — v1228 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -1068,8 +1068,8 @@ function boutonsCs(x, zone){
             ? (dateEnToutesLettres(iso) || iso) : iso;
           await envoyerConsigne(nom, 'examblanc',
             'Examen blanc prévu le ' + jour + ' (bureau)');
-          if(typeof noterExamenBlanc === 'function'){
-            await noterExamenBlanc(nom, '', jour);
+          if(typeof noterExamenBlancPrevu === 'function'){
+            await noterExamenBlancPrevu(nom, iso);
           }
           showToast('Examen blanc planifié ✅');
           redessinerAacCs();
