@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 13:31 — v1167 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -116,7 +116,9 @@ function analyserNote(note){
   /* « déplacé au » vient du bouton qui change la date : sans
      cette règle, la nouvelle date n'était jamais relue et
      l'ancienne restait affichée partout. */
-  else if((m = t.match(/Examen blanc (?:fixé|déplacé|replacé) (?:au|le) ([^—·(]+)/i))){
+  /* 📅 v1257 — « prévu le » vient du 📅 Planifier de la CS et du
+     dossier : jamais relu jusqu'ici, l'élève restait « à prévoir ». */
+  else if((m = t.match(/Examen blanc (?:fixé|déplacé|replacé|prévu) (?:au|le) ([^—·(]+)/i))){
     r.examBlanc = 'reserve';
     r.examBlancDate = m[1].trim();
   }
