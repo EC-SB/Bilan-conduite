@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 11:24 — v1188 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1050,8 +1050,8 @@ function ckReponsesRapides(f, petit){
   const bm = document.createElement('button');
   bm.type = 'button';
   bm.className = 'ckVite ckViteModeles' + (ckModelesOuvert ? ' on' : '');
-  bm.textContent = '📄 Modèles messages';
-  bm.title = 'Reprendre le texte d’une fiche de Modèles messages';
+  bm.textContent = '📄 Ce qu’on écrit et envoie';
+  bm.title = 'Reprendre le texte d’une fiche de « Ce qu’on écrit et envoie (keep) »';
   bm.addEventListener('click', () => { ckModelesOuvert = !ckModelesOuvert; ckModelesCategorie = ''; dessinerLeFil(); });
   v.appendChild(bm);
   if(ckModelesOuvert){
@@ -1219,7 +1219,7 @@ function panneauDesModeles(choisir, fermer){
     h.className = 'ckModelesTete';
     const t = document.createElement('div');
     t.className = 'ckModelesChemin';
-    t.textContent = '📄 Modèles messages' + (ckModelesCategorie ? ' › ' + ckModelesCategorie : '');
+    t.textContent = '📄 Ce qu’on écrit et envoie' + (ckModelesCategorie ? ' › ' + ckModelesCategorie : '');
     if(ckModelesCategorie){
       h.appendChild(ckBouton('‹', 'Revenir aux catégories', () => { ckModelesCategorie = ''; dessiner(); }, 'rond'));
     }
@@ -1233,7 +1233,7 @@ function panneauDesModeles(choisir, fermer){
       p.appendChild(l);
       chargerModelesTexte().then(() => { if(typeof chargerAccesCategories === 'function') return chargerAccesCategories(); })
         .then(() => { if(modelesTexte && modelesTexte.length) dessiner();
-                      else l.innerHTML = '<div class="empty" style="padding:10px;font-size:12.5px;">Aucune fiche dans 📄 Modèles messages.</div>'; });
+                      else l.innerHTML = '<div class="empty" style="padding:10px;font-size:12.5px;">Aucune fiche dans 📄 Ce qu’on écrit et envoie (keep).</div>'; });
       return;
     }
     if(!ckModelesCategorie){
