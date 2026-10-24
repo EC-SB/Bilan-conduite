@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 19:33 — v1248 */
+/* Déployé le 24/10/2026 à 10:00 — v1257 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -4716,8 +4716,8 @@ function ongletPermis(corps, nom){
     const jour = dateEnToutesLettres(iso) || iso;
     await envoyerConsigne(nom, 'examblanc',
       'Examen blanc prévu le ' + jour + ' (bureau)');
-    if(typeof noterExamenBlanc === 'function'){
-      await noterExamenBlanc(nom, '', jour);
+    if(typeof noterExamenBlancPrevu === 'function'){
+      await noterExamenBlancPrevu(nom, iso);
     }
     showToast('Examen blanc planifié ✅');
     refaire();
