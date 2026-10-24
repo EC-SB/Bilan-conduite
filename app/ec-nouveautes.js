@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 15:03 — v1263 */
+/* Déployé le 24/10/2026 à 15:33 — v1264 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1264,
+    date: 'Samedi 24 octobre 2026',
+    resume: '👁 Voir une procédure avant de la joindre au bilan',
+    quoi: [
+      { emoji: '👁',
+        titre: 'Un œil sur chaque procédure',
+        texte: 'Dans « 📋 Procédures à joindre au bilan », le 👁 collé à droite de chaque procédure ouvre son contenu dans une fenêtre : son texte, sa consigne et ses images. Regarder ne la coche pas.' }
+    ]
+  },
   {
     version: 1263,
     date: 'Samedi 24 octobre 2026',
