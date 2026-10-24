@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 15:33 — v1264 */
+/* Déployé le 24/10/2026 à 16:19 — v1265 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1265,
+    date: 'Samedi 24 octobre 2026',
+    resume: '🔀 Les catégories se rangent enfin en les glissant',
+    quoi: [
+      { emoji: '🔀',
+        titre: 'Glisser une catégorie',
+        texte: 'Dans « Ce qu’on écrit et envoie (keep) », on attrape une catégorie (au doigt : par sa poignée ⠿), un trait montre où elle va, on lâche : elle se pose là, tout de suite — même tout en bas. Au clavier : Alt + ↑ / ↓.' },
+      { emoji: '📁',
+        titre: 'Une fiche lâchée sur une catégorie',
+        texte: 'Glisser une fiche sur une catégorie l’y range (elle garde ses autres catégories) ; sur « 🔒 Privé », elle devient privée.' }
+    ]
+  },
   {
     version: 1264,
     date: 'Samedi 24 octobre 2026',
