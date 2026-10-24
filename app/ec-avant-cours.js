@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:48 — v1258 */
+/* Déployé le 24/10/2026 à 11:09 — v1259 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -684,6 +684,8 @@ function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
   let cEstLaVeille = (typeof estLaLeconDeVeille === 'function')
     ? estLaLeconDeVeille(nom, jourDuCours, dateExam)
     : cEstLaVeilleDeLExamen(jourDuCours, dateExam);
+  /* La seule certitude du calendrier : l'examen est demain. */
+  const veilleExacte = cEstLaVeilleDeLExamen(jourDuCours, dateExam);
 
   if(typeof heuresQuiComptent === 'function'){
     /* ⚠️ ON LUI DONNE L'ÉTAT DU JOUR — v1052. « a » porte
@@ -701,9 +703,24 @@ function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
        c'est un vrai dépassement, et il reste les 3h. La veille du
        calendrier, elle, ne change pas. */
     const parLecon = (typeof HEURES_PAR_LECON === 'number') ? HEURES_PAR_LECON : 2;
-    if(q.depasse && Number(q.auDela) > 0 && Number(q.auDela) <= parLecon) cEstLaVeille = true;
     const su = String(q.valeur === undefined || q.valeur === null
       ? '' : q.valeur).trim();
+    /* ⚠️ ET LA FENÊTRE DES 3 JOURS NE PASSE PAS DEVANT LES HEURES —
+       v1259. David, le même jour : « il me le met bien partout sauf
+       sur la phrase verte ». La phrase verte restait sur « veille » :
+       son cours est dans les 3 jours avant l'examen, et c'est le
+       dernier cours PRÉPARÉ — la règle de la v1158, posée pour les
+       élèves en AAC dont personne ne compte les heures. Mais le
+       cours de la veille n'est préparé que la veille : à deux jours
+       de l'examen, l'avant-dernier cours passait pour le dernier.
+       Quand les heures sont connues, ce sont elles qui disent la
+       veille (une leçon au-delà de la réserve), avec la seule
+       certitude du calendrier : l'examen est demain. Sans heures,
+       la fenêtre des 3 jours reste. */
+    if(su !== '' && !isNaN(parseFloat(su))){
+      cEstLaVeille = veilleExacte ||
+        !!(q.depasse && Number(q.auDela) > 0 && Number(q.auDela) <= parLecon);
+    }
     /* ⚠️ UN SEUL FILTRE, PAS DEUX. La première écriture écartait
        « pas le niveau » par son nom AVANT de vérifier que c'est un
        nombre — mais « niveau » n'est pas un nombre, et le second
