@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 17:14 — v1255 */
+/* Déployé le 23/10/2026 à 18:16 — v1256 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1256,
+    date: 'Vendredi 23 octobre 2026',
+    resume: '👀 Montrer son espace à un élève · 🎮 jouer au jeu des vérifications de notre côté',
+    quoi: [
+      { emoji: '👀',
+        titre: 'Ouvrir l’espace d’un élève pour le lui montrer',
+        texte: 'Dans son dossier, onglet 🔑 Coin révisions : « 👀 Ouvrir son espace pour le lui montrer ». Son espace s’ouvre dans un nouvel onglet, comme il le voit, sans taper son code. C’est une démonstration : rien ne part ni ne s’enregistre à son nom (ni message, ni récitation, ni progression, ni dernière visite). « ✕ Terminer » la ferme ; elle s’arrête seule au bout de deux heures. Chaque ouverture est notée au journal.' },
+      { emoji: '🎮',
+        titre: 'Outils › Vérifications › 🎮 Jouer (essai)',
+        texte: 'Le vrai jeu, dans un téléphone, avec nos voitures et leurs photos, pour le tester. Rien n’est gardé : « ↺ Recommencer à zéro » ou rouvrir l’onglet repart de zéro.' }
+    ]
+  },
   {
     version: 1255,
     date: 'Vendredi 23 octobre 2026',
