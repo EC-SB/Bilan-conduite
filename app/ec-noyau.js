@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 14:39 — v1243 */
+/* Déployé le 24/10/2026 à 14:28 — v1262 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -260,7 +260,7 @@ const SECTIONS = [
   { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)', onglet:'permis' },
   { cle:'bureau_messages',  nom:'📨 Messages internes', onglet:'outils' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis', onglet:'eleves' },
-  { cle:'textes',           nom:'📄 Mes modèles de message', onglet:'outils' },
+  { cle:'textes',           nom:'📄 Ce qu’on écrit et envoie (keep)', onglet:'outils' },
   /* ⚠️ DEUX DROITS POUR UN SEUL ÉCRAN — v959.
 
      David, le 11 septembre : « ma crainte c'est que quelqu'un
