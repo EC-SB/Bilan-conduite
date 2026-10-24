@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:48 — v1258 */
+/* Déployé le 24/10/2026 à 11:09 — v1259 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1259,
+    date: 'Samedi 24 octobre 2026',
+    resume: '🎯 La phrase verte suit les heures, pas seulement le dernier cours préparé',
+    quoi: [
+      { emoji: '🎯',
+        titre: 'La veille, quand les heures le disent',
+        texte: 'Un cours dans les 3 jours avant l’examen n’est plus annoncé « leçon de veille » juste parce que c’est le dernier cours préparé : quand les heures sont connues, la phrase verte suit les heures (« Plus que les 3h avant examen »), sauf si l’examen est le lendemain. Sans heures connues (AAC), rien ne change.' }
+    ]
+  },
   {
     version: 1258,
     date: 'Samedi 24 octobre 2026',
