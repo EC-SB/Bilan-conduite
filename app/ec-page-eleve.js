@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 26/10/2026 à 11:53 — v1266 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -173,6 +173,9 @@ const ONGLETS_ELEVE = [
      3 mois » : ses conversations sont rangées dans son dossier, à
      côté de ses leçons, et cherchables. */
   { cle:'messages', emoji:'💬', titre:'Messages',     section:'messagerie' },
+  /* 📞 v1266 — ses appels (Allo, et ceux notés d'un portable). Voir
+     ec-suivi-appels.js. */
+  { cle:'appels',   emoji:'📞', titre:'Appels',       section:'appels' },
   { cle:'acces',    emoji:'🔑', titre:'Coin révisions', section:'acces_eleves' },
   /* 📝 JUSTE SOUS COIN RÉVISIONS — v1139. David : « ajoute un sous-
      onglet sous Coin révisions, Notes internes ». Il suit le droit du
@@ -3130,6 +3133,10 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'cours')       return ongletCours(corps, nom);
   if(cle === 'permis')      return ongletPermis(corps, nom);
   if(cle === 'messages')    return ongletMessagesEleve(corps, nom);
+  if(cle === 'appels'){
+    if(typeof ongletAppelsEleve === 'function') return ongletAppelsEleve(corps, nom);
+    return;
+  }
   if(cle === 'acces')       return ongletAcces(corps, nom);
   if(cle === 'notes'){
     if(typeof ongletNotesDossier === 'function') return ongletNotesDossier(corps, nom);
