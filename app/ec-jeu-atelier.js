@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 12:48 — v1268 */
+/* Déployé le 26/10/2026 à 13:42 — v1270 */
 /* ============================================================
    ec-jeu-atelier.js — 📸 L'ATELIER DU JEU DES VÉRIFICATIONS (v1249)
 
@@ -44,7 +44,7 @@ const AT_ALLUMAGES = [['croisement', '💡 Feux de croisement', [26, 82]], ['rou
   ['stop', '🛑 Feux stop (frein)', [46, 90]], ['recul', '↩️ Feux de recul', [44]], ['diurnes', '☀️ Feux diurnes', [52, 92]]];
 /* les endroits où une photo peut montrer des feux allumés */
 const AT_ENDROITS_ALLUMES = ['volant', 'voyants', 'devant', 'arriere', 'cote'];
-const AT = { d: null, voiture: '', endroit: 'volant', etat: '', zone: '', regleN: 0, cheminAussi: {}, regleAussi: {}, allumage: 'croisement', allumageAussi: {}, occupe: false, place: '', ouvert: '' };
+const AT = { d: null, voiture: '', endroit: 'volant', etat: '', zone: '', regleN: 0, cheminAussi: {}, regleAussi: {}, allumage: 'croisement', allumageAussi: {}, occupe: false, place: '', ouvert: '', cherche: '', deplacer: '' };
 function atNomAllumage(a){ const x = AT_ALLUMAGES.find(y => y[0] === a); return x ? x[1] : a; }
 function atAllumageDeQuestion(n){ const x = AT_ALLUMAGES.find(y => y[2].indexOf(n) !== -1); return x ? x[0] : ''; }
 
@@ -239,8 +239,74 @@ function atPanneauListe(v){
   b.appendChild(l);
   if(!ici.length) b.appendChild(vqEl('div', 'vbAide', 'Rien d’habituel sur cette photo.'));
   b.appendChild(vqEl('div', 'vbAide', 'Touche une ligne, puis glisse sur la photo : la zone est enregistrée avec son nom et ses questions.'));
+  b.appendChild(atPanneauAilleurs(v));
   b.appendChild(atBoutonAutre());
   return b;
+}
+/* 🔎 v1270 — TOUT LE RESTE, D'OÙ QU'IL SOIT. David, le 26 octobre :
+   « c'est galère encore, tu as mis des questions qui ne sont pas pour
+   les bonnes photos ». La liste n'est qu'une proposition : ce qu'on
+   trouve ICI sur nos voitures, c'est lui qui le voit. Ici, tout ce qui
+   reste à placer, cherché par mot ou par numéro ; le toucher le RANGE sur
+   cette photo (pour la suite aussi) et on le dessine aussitôt. */
+function atPanneauAilleurs(v){
+  const d = vqEl('div', 'atAilleurs');
+  d.appendChild(vqEl('div', 'vbLab', '🔎 Autre chose sur cette photo ? Tout ce qui reste à placer'));
+  const ch = vqEl('input', 'vbIn atCherche');
+  ch.type = 'text';
+  ch.placeholder = 'Un mot ou un numéro : « plaque », « pression », « 38 »…';
+  ch.value = AT.cherche || '';
+  ch.setAttribute('data-hors-saisie', '1');
+  d.appendChild(ch);
+  const l = vqEl('div', 'atAutres');
+  d.appendChild(l);
+  const remplir = () => {
+    l.innerHTML = '';
+    const mots = atNormal(ch.value).split(' ').filter(Boolean);
+    const out = [];
+    atElements().forEach(el => el.parties.forEach((pa, i) => {
+      const k = i + 1;
+      if(pa.endroit === AT.endroit && (pa.etat || '') === (AT.etat || '')) return;
+      if(atZoneDePartie(v, el, k) || atAbsent(v, el, k)) return;
+      const qs = el.questions.map(q => ((verifsQuestion(q) || {}).verif) || '').join(' ');
+      const t = atNormal(el.nom + ' ' + atNomPartie(el, k) + ' ' + qs) + ' ' + el.questions.join(' ');
+      if(mots.length && !mots.every(m => /^\d+$/.test(m) ? el.questions.indexOf(Number(m)) !== -1 : t.indexOf(m) !== -1)) return;
+      out.push({ el, k, pa });
+    }));
+    if(!out.length){ l.appendChild(vqEl('div', 'vbAide', mots.length ? 'Rien ne correspond : « ➕ Autre chose à placer… » pour l’ajouter.' : 'Tout est placé ou réglé.')); return; }
+    out.forEach(({ el, k, pa }) => {
+      const x = vqEl('button', 'atAutre');
+      x.type = 'button';
+      x.setAttribute('data-autre', el.id + ':' + k);
+      x.appendChild(vqEl('span', 'ic', el.ic || '🎯'));
+      const t = vqEl('span', 't');
+      t.appendChild(vqEl('b', '', el.parties.length > 1 ? el.nom + ' — ' + atNomPartie(el, k) : el.nom));
+      t.appendChild(vqEl('small', '', (el.questions.length ? 'Q ' + el.questions.join(' · ') + ' · ' : '') + 'rangé sur ' + atNomLieu(pa)));
+      x.appendChild(t);
+      x.appendChild(vqEl('span', 'st', '＋ ici'));
+      x.title = el.questions.map(q => q + ' · ' + (((verifsQuestion(q) || {}).verif) || '')).join('\n');
+      x.addEventListener('click', () => atDeplacerPartie(el, k, AT.endroit, AT.etat || '', true));
+      l.appendChild(x);
+    });
+  };
+  ch.addEventListener('input', () => { AT.cherche = ch.value; remplir(); });
+  remplir();
+  return d;
+}
+/* Ranger une partie sur une autre photo (la liste modifiée est gardée) */
+function atDeplacerPartie(el, k, endroit, etat, dessiner){
+  const rr = atCopieReglages();
+  const l = atElements().map(x => JSON.parse(JSON.stringify(x)));
+  const e = l.find(x => x.id === el.id);
+  if(!e || !e.parties[k - 1]) return;
+  e.parties[k - 1].endroit = endroit;
+  e.parties[k - 1].etat = AT_ENDROITS_ALLUMES.indexOf(endroit) !== -1 ? (etat || '') : '';
+  rr.elements = l;
+  const cle = el.id + ':' + k;
+  return atReglagesPoser(rr, null, '📍 ' + atNomPartie(el, k) + ' : rangé sur ' + atNomLieu(e.parties[k - 1])).then(r => {
+    if(!r) return;
+    if(dessiner){ AT.place = cle; AT.ouvert = cle; AT.zone = ''; AT.cherche = ''; atRedessiner(); }
+  });
 }
 function atBoutonAutre(){
   const x = vqEl('button', 'btn btn-secondary atPlus', '➕ Autre chose à placer…'); x.type = 'button';
@@ -269,6 +335,10 @@ function atLigneElement(v, el, k){
   tx.appendChild(vqEl('small', '', el.sorte === 'passage' ? '➡️ passage' : (el.sorte === 'commande' ? '🔘 commande' + (el.questions.length ? ' · ' : '') : '') +
     (el.questions.length ? (el.questions.length > 1 ? 'Questions ' : 'Question ') + el.questions.join(' · ') : (el.sorte === 'commande' ? '' : '')) +
     (parties > 1 ? ' · ' + parties + ' parties' : '')));
+  /* v1270 — la question en clair, pour reconnaître sans chercher */
+  const q0 = el.questions.length && typeof verifsQuestion === 'function' ? verifsQuestion(el.questions[0]) : null;
+  if(q0) tx.appendChild(vqEl('small', 'atQTexte', q0.verif));
+  b.title = el.questions.map(q => q + ' · ' + (((typeof verifsQuestion === 'function' && verifsQuestion(q)) || {}).verif || '')).join('\n');
   b.appendChild(ic); b.appendChild(tx); b.appendChild(vqEl('span', 'st', st));
   b.addEventListener('click', () => atToucherElement(v, el, k));
   ligne.appendChild(b);
@@ -303,8 +373,24 @@ function atLigneElement(v, el, k){
       geste('🗣️ Pas sur cette voiture', () => atPoserAbsent(v, el, k, 'dire'));
       if(/voyant/i.test(el.nom) && parties === 1) geste('🖥️ C’est l’ordinateur de bord', () => atPoserAbsent(v, el, k, 'ordi'));
     }
+    /* 📍 v1270 — pas sur cette photo : la ranger ailleurs, d'un toucher */
+    if(!t && !abs){
+      geste(AT.deplacer === cle ? '📍 Où est-ce ? ▾' : '📍 Pas sur cette photo…', () => { AT.deplacer = AT.deplacer === cle ? '' : cle; atDessiner(); });
+    }
     geste('📝 Modifier l’élément', () => atEditerElement(el));
     ligne.appendChild(g);
+    if(AT.deplacer === cle && !t && !abs){
+      const ou = vqEl('div', 'atElGestes atOu');
+      AT_ENDROITS.forEach(([e, nom]) => {
+        if(e === AT.endroit) return;
+        const x = vqEl('button', 'vbPuce' + (atPhotoDe(v, e) ? ' plein' : ''), nom);
+        x.type = 'button';
+        x.setAttribute('data-vers', e);
+        x.addEventListener('click', () => { AT.deplacer = ''; atDeplacerPartie(el, k, e, AT_ENDROITS_ALLUMES.indexOf(e) !== -1 ? (pa.etat || '') : '', false); });
+        ou.appendChild(x);
+      });
+      ligne.appendChild(ou);
+    }
   }
   return ligne;
 }
