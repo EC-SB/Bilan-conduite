@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 11:53 — v1266 */
+/* Déployé le 26/10/2026 à 13:08 — v1269 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -42,6 +42,7 @@ const CANAUX_APPEL_EC = {
   messenger:  { emoji: 'Ⓜ️', nom: 'Messenger',  fait: 'Messenger',          couleur: '#0A7CFF', fond: 'rgba(10,124,255,.10)' }
 };
 
+const apOuverts = {};
 const suiviAppelsEC = { appels: null, jours: 7, filtre: 'tous', cherche: '', synchro: 0, erreur: '',
                         cle: true, peutEcouter: false, aujourdhui: '', depuis: 0, charge: false };
 let aRappelerEC = { appels: [], aujourdhui: '', lu: false };
@@ -87,6 +88,32 @@ function apNumeroDeFiche(v){
   if(t.indexOf('+') !== 0) t = (t.length === 9) ? '+33' + t : '+' + t;
   return /^\+\d{8,15}$/.test(t) ? t : '';
 }
+/* 📄 v1269 — le résumé complet d'Allo est écrit en Markdown (# titre,
+   ## partie, - liste, **gras**) : on le montre mis en forme, et on le
+   reprend en texte simple dans un mail ou un message. */
+function apMarkdown(t){
+  const lignes = String(t || '').replace(/\r/g, '').split('\n');
+  const gras = x => apEsc(x).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  let h = '', liste = false;
+  lignes.forEach(l => {
+    const x = l.trim();
+    const puce = x.match(/^[-*•]\s+(.*)$/);
+    if(puce){ if(!liste){ h += '<ul>'; liste = true; } h += '<li>' + gras(puce[1]) + '</li>'; return; }
+    if(liste){ h += '</ul>'; liste = false; }
+    if(!x) return;
+    const t1 = x.match(/^#{1,2}\s+(.*)$/), t2 = x.match(/^#{3,6}\s+(.*)$/);
+    if(t1) h += '<div class="apMdT">' + gras(t1[1]) + '</div>';
+    else if(t2) h += '<div class="apMdS">' + gras(t2[1]) + '</div>';
+    else h += '<div>' + gras(x) + '</div>';
+  });
+  if(liste) h += '</ul>';
+  return h;
+}
+function apTexteSimple(t){
+  return String(t || '').replace(/\r/g, '').split('\n').map(l => l.trim()
+    .replace(/^#{1,6}\s+/, '').replace(/^[-*•]\s+/, '• ').replace(/\*\*([^*]+)\*\*/g, '$1')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+function apResumeEntier(a){ return (a.resumeComplet && a.resumeComplet.trim()) || a.resume || ''; }
 function apFiche(nom){
   if(typeof ficheDe === 'function') return ficheDe(nom) || null;
   return null;
@@ -394,6 +421,36 @@ function ligneAppelEC(a, o){
     }
     c.appendChild(r);
   }
+  /* 📄 v1269 — le résumé complet de l'appel, à déplier */
+  if(a.source === 'allo' && a.genre === 'CALL'){
+    const bloc = document.createElement('div');
+    bloc.className = 'apComplet';
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'apDeplier';
+    const ouvert = !!apOuverts[a.id];
+    t.textContent = (ouvert ? '▾ ' : '▸ ') + '📄 Résumé complet de l’appel';
+    t.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+    bloc.appendChild(t);
+    const corps = document.createElement('div');
+    corps.className = 'apMd';
+    corps.style.display = ouvert ? '' : 'none';
+    if(ouvert) corps.innerHTML = a.resumeComplet ? apMarkdown(a.resumeComplet) : '<i>Lecture chez Allo…</i>';
+    bloc.appendChild(corps);
+    t.addEventListener('click', async () => {
+      apOuverts[a.id] = !apOuverts[a.id];
+      if(!apOuverts[a.id]){ corps.style.display = 'none'; t.textContent = '▸ 📄 Résumé complet de l’appel'; t.setAttribute('aria-expanded', 'false'); return; }
+      t.textContent = '▾ 📄 Résumé complet de l’appel'; t.setAttribute('aria-expanded', 'true');
+      corps.style.display = '';
+      if(a.resumeComplet){ corps.innerHTML = apMarkdown(a.resumeComplet); return; }
+      corps.innerHTML = '<i>Lecture chez Allo…</i>';
+      try{
+        const d = await appelPrep({ action: 'alloResume', id: a.id });
+        if(d && d.appel){ Object.assign(a, d.appel); corps.innerHTML = apMarkdown(d.appel.resumeComplet || d.appel.resume || ''); }
+      }catch(e){ corps.textContent = '⚠️ ' + e.message; }
+    });
+    c.appendChild(bloc);
+  }
 
   /* Ce qu'on a envoyé */
   (a.envois || []).forEach(e => {
@@ -444,7 +501,8 @@ function ligneAppelEC(a, o){
     }
     if(apEnAttente(a)) bouton(o.dossier ? '☑️' : '☑️ Rappel fait', () => rappelFaitAppel(a), false, 'Le rappel est fait');
     if(a.genre !== 'SMS') bouton(o.dossier ? '✏️' : '✏️ Ce qui s’est passé', () => ouvrirCeQuiSestPasse(a), false, 'Ce qui s’est passé');
-    if(a.eleve || a.pasEleve) bouton(o.dossier ? '✉️' : '✉️ Envoyer', () => ouvrirEnvoyerDepuisAppel(a, ''), false, 'Envoyer un mail, un message dans la messagerie ou sur Messenger');
+    /* v1269 — sur chaque appel, rattaché ou non : un mail à une adresse tapée, ou un texte à copier */
+    bouton(o.dossier ? '✉️' : '✉️ Écrire', () => ouvrirEnvoyerDepuisAppel(a, ''), false, 'Écrire un mail, un message dans la messagerie, ou un texte à copier sur Messenger');
     if(a.enregistrement && a.source === 'allo' && (suiviAppelsEC.peutEcouter || apRoleEcoute())) bouton('▶', () => ecouterAppel(a), false, 'Écouter l’enregistrement');
     if(g.children.length) c.appendChild(g);
   }
@@ -522,7 +580,18 @@ function apDetecte(a){
     : (a.sens === 'out' ? '↗️ Appel sortant' : '↙️ Appel entrant') + ' · ' + apDuree(a.duree);
   d.innerHTML = apEsc(qui) + (a.source === 'allo' && st ? ' · <b>Allo a détecté : ' + apEsc(st.emoji + ' ' + st.nom.toLowerCase()) +
     (a.statut === 'repondeur' ? ', pas de message laissé' : '') + '.</b>' : '') +
-    (a.resume ? '<br><span style="color:var(--muted)">Résumé : « ' + apEsc(a.resume) + ' »</span>' : '');
+    (a.resumeComplet ? '<div class="apMd apMdBoite">' + apMarkdown(a.resumeComplet) + '</div>'
+      : (a.resume ? '<br><span style="color:var(--muted)">Résumé : « ' + apEsc(a.resume) + ' »</span>' : ''));
+  /* 📄 v1269 — pas encore lu : on le demande à Allo, et il prend sa place */
+  if(!a.resumeComplet && a.source === 'allo' && a.genre === 'CALL'){
+    appelPrep({ action: 'alloResume', id: a.id }).then(x => {
+      if(x && x.appel && x.appel.resumeComplet && d.isConnected){
+        Object.assign(a, x.appel);
+        const s0 = d.querySelector('span'); if(s0 && s0.previousSibling && s0.previousSibling.nodeName === 'BR') s0.previousSibling.remove(); if(s0) s0.remove();
+        const m = document.createElement('div'); m.className = 'apMd apMdBoite'; m.innerHTML = apMarkdown(x.appel.resumeComplet); d.appendChild(m);
+      }
+    }).catch(() => {});
+  }
   return d;
 }
 
@@ -612,6 +681,31 @@ function ouvrirCeQuiSestPasse(a){
   note.value = a.note || '';
   note.style.margin = '0';
   f.boite.appendChild(note);
+
+  /* ✉️ v1269 — écrire tout de suite, depuis cette fenêtre */
+  f.boite.appendChild(apLab('Écrire maintenant'));
+  const ecr = document.createElement('div');
+  ecr.className = 'apQuand';
+  [['mail', '✉️ Un mail'], ['messagerie', '💬 Sa messagerie'], ['messenger', 'Ⓜ️ Un texte pour Messenger']].forEach(([k, t]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn pastilleVue btn-secondary';
+    b.setAttribute('data-ecrire', k);
+    b.textContent = t;
+    b.addEventListener('click', async () => {
+      /* ce qui est déjà choisi est gardé, puis la fenêtre d'écriture s'ouvre */
+      try{
+        const d = await appelPrep({ action: 'alloStatut', id: a.id, statut: statut, rappel: cR.i.checked ? quand : '',
+                                    mail: cM.i.checked ? 1 : 0, messagerie: cG.i.checked ? 1 : 0, note: note.value.trim() });
+        f.fermer();
+        const a2 = (d && d.appel) || a;
+        apRemplacer(a2);
+        ouvrirEnvoyerDepuisAppel(a2, k);
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    ecr.appendChild(b);
+  });
+  f.boite.appendChild(ecr);
 
   const dit = document.createElement('div');
   dit.className = 'apDit';
@@ -811,7 +905,7 @@ async function ouvrirEnvoyerDepuisAppel(a, canalDepart){
   const fi = a.eleve ? (apFiche(a.eleve) || {}) : {};
   const prenom = String(a.eleve || '').split(' ')[0];
   const f = apFenetre('✉️ Envoyer à ' + (a.eleve || a.libelle || apNumero(a.numero)), 580);
-  let canal = canalDepart || (fi.email ? 'mail' : 'messagerie');
+  let canal = canalDepart || (fi.email || !a.eleve ? 'mail' : 'messagerie');
 
   const chips = document.createElement('div');
   chips.className = 'apQuand';
@@ -830,6 +924,15 @@ async function ouvrirEnvoyerDepuisAppel(a, canalDepart){
   dest.className = 'apDetecte';
   dest.style.marginTop = '10px';
   f.boite.appendChild(dest);
+  /* v1269 — l'adresse, modifiable (celle de sa fiche, ou une autre : un parent, un prospect) */
+  const lA = apLab('À');
+  const aMail = document.createElement('input');
+  aMail.type = 'email';
+  aMail.className = 'apA';
+  aMail.placeholder = 'adresse@exemple.fr';
+  aMail.value = fi.email || '';
+  aMail.style.margin = '0';
+  f.boite.append(lA, aMail);
   const cPres = apCoche('Aussi au prescripteur (' + (fi.mailPrescripteur || '') + ')', false);
   f.boite.appendChild(cPres.l);
 
@@ -837,7 +940,7 @@ async function ouvrirEnvoyerDepuisAppel(a, canalDepart){
   f.boite.appendChild(apLab('Partir d’un modèle (facultatif)'));
   const sel = document.createElement('select');
   sel.className = 'apModele';
-  sel.innerHTML = '<option value="">— texte libre —</option>';
+  sel.innerHTML = '<option value="">— texte libre —</option>' + (apResumeEntier(a) ? '<option value="__resume">📄 Le résumé de l’appel</option>' : '');
   f.boite.appendChild(sel);
   if(typeof chargerModelesTexte === 'function'){
     chargerModelesTexte().then(liste => {
@@ -872,6 +975,12 @@ async function ouvrirEnvoyerDepuisAppel(a, canalDepart){
   texte.value = prenom ? 'Bonjour ' + prenom + ',\n\n' : '';
   f.boite.appendChild(texte);
   sel.addEventListener('change', () => {
+    if(sel.value === '__resume'){
+      texte.value = (prenom ? 'Bonjour ' + prenom + ',\n\n' : 'Bonjour,\n\n') + 'Suite à notre appel' + (a.jour ? ' du ' + apJourLong(a.jour) : '') + ' :\n\n' +
+        apTexteSimple(apResumeEntier(a)) + '\n\nÉvolution Conduites';
+      sujet.value = 'Suite à notre appel';
+      return;
+    }
     const m = (sel._modeles || []).find(x => String(x.id) === sel.value);
     if(!m) return;
     const date = (typeof dateEnToutesLettres === 'function' && typeof todayLocal === 'function') ? dateEnToutesLettres(todayLocal()) : '';
@@ -889,9 +998,21 @@ async function ouvrirEnvoyerDepuisAppel(a, canalDepart){
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
   bA.addEventListener('click', f.fermer);
+  /* 📋 v1269 — copier le texte, pour le coller où l'on veut */
+  const bC2 = document.createElement('button');
+  bC2.className = 'btn btn-secondary apCopier';
+  bC2.textContent = '📋 Copier le texte';
+  bC2.addEventListener('click', async () => {
+    const t = texte.value.trim();
+    if(!t){ showToast('Le message est vide.'); return; }
+    let ok = false;
+    try{ await navigator.clipboard.writeText(t); ok = true; }catch(e){}
+    if(!ok){ try{ texte.focus(); texte.select(); ok = document.execCommand('copy'); }catch(e){} }
+    showToast(ok ? '📋 Copié : colle-le où tu veux' : 'Sélectionne le texte et copie-le (Ctrl + C)');
+  });
   const bE = document.createElement('button');
   bE.className = 'btn btn-primary';
-  r.append(bA, bE);
+  r.append(bA, bC2, bE);
   f.boite.appendChild(r);
 
   function maj(){
@@ -899,13 +1020,15 @@ async function ouvrirEnvoyerDepuisAppel(a, canalDepart){
     const mail = canal === 'mail';
     lSujet.style.display = sujet.style.display = mail ? '' : 'none';
     cPres.l.style.display = (mail && fi.mailPrescripteur) ? '' : 'none';
+    lA.style.display = aMail.style.display = mail ? '' : 'none';
     bE.disabled = false;
     if(mail){
-      dest.innerHTML = fi.email ? '✉️ À <b>' + apEsc(fi.email) + '</b>, depuis l’adresse de l’auto-école.' : '⚠️ ' + apEsc(a.eleve || 'Cette personne') + ' n’a pas d’adresse mail sur sa fiche.';
-      bE.disabled = !fi.email;
+      dest.innerHTML = '✉️ Depuis l’adresse de l’auto-école' + (fi.email ? ', à son adresse de fiche (modifiable).' : (a.eleve ? ' : pas d’adresse sur sa fiche, tape-la.' : ' : tape l’adresse.'));
       bE.textContent = '✉️ Envoyer le mail';
     }else if(canal === 'messagerie'){
-      dest.innerHTML = '💬 Dans son fil « <b>Le bureau</b> » de la messagerie, signé de ton nom.';
+      dest.innerHTML = a.eleve ? '💬 Dans son fil « <b>Le bureau</b> » de la messagerie, signé de ton nom.'
+        : '⚠️ La messagerie est celle de l’espace d’un élève : rattache d’abord cet appel. Tu peux quand même écrire et « 📋 Copier le texte ».';
+      bE.disabled = !a.eleve;
       bE.textContent = '💬 Envoyer dans la messagerie';
     }else{
       const lien = apLienMessenger(fi.messenger);
@@ -929,8 +1052,9 @@ async function ouvrirEnvoyerDepuisAppel(a, canalDepart){
         try{ window.open(lien, '_blank', 'noopener'); }catch(e){}
         a2 = lien;
       }
+      if(canal === 'mail' && !aMail.value.trim()){ bE.disabled = false; showToast('Tape l’adresse mail.'); aMail.focus(); return; }
       const d = await appelPrep({ action: 'alloEnvoyer', id: a.id, canal: canal, texte: t, sujet: sujet.value.trim(),
-                                  prescripteur: cPres.i.checked ? 1 : 0, a: a2 });
+                                  prescripteur: cPres.i.checked ? 1 : 0, a: a2, to: canal === 'mail' ? aMail.value.trim() : '' });
       f.fermer();
       apRemplacer(d && d.appel);
       showToast(canal === 'mail' ? 'Mail envoyé ✅' : canal === 'messagerie' ? 'Message envoyé dans la messagerie ✅' : 'Texte copié : colle-le dans Messenger ✅');
