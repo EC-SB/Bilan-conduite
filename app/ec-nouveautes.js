@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 13:42 — v1270 */
+/* Déployé le 26/10/2026 à 14:46 — v1271 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1271,
+    date: 'Lundi 26 octobre 2026',
+    resume: '🧤 Jeu des vérifs : côté passager, portière et sièges arrière',
+    quoi: [
+      { emoji: '🧤',
+        titre: 'Trois photos de plus',
+        texte: 'Dans l’atelier, trois nouveaux endroits : « 🧤 Côté passager, boîte à gants ouverte » (l’airbag passager, 37 et 87), « 🚪 Portière arrière ouverte » (la sécurité enfant, 42 et 88) et « 💺 Sièges arrière » (les attaches Isofix, 61). Ces trois lignes y sont déjà rangées, et le chemin (sortir par la porte) se remplit tout seul.' }
+    ]
+  },
   {
     version: 1270,
     date: 'Lundi 26 octobre 2026',
