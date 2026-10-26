@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 16:19 — v1265 */
+/* Déployé le 26/10/2026 à 11:53 — v1266 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1266,
+    date: 'Lundi 26 octobre 2026',
+    resume: '📞 Le suivi des appels d’Allo, et l’historique dans le dossier',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Élèves › Au quotidien › Suivi des appels',
+        texte: 'Les appels et SMS du 02 21 65 24 24 arrivent tout seuls (relus toutes les 5 minutes) : joint, message laissé, répondeur, pas de réponse, accueil IA. En haut, ⏰ ce qu’il faut rappeler. Un appel se range dans le dossier de l’élève dont c’est le numéro ; sinon, « 🔗 Rattacher » (un parent peut être gardé comme proche).' },
+      { emoji: '✏️',
+        titre: 'Ce qui s’est passé',
+        texte: 'Ce qu’Allo a détecté est déjà posé ; on corrige si besoin, on choisit « à rappeler » aujourd’hui, demain ou un autre jour, on ajoute une note — avec ton nom. Quand le rappel est fait, le tag « A rappeller » s’enlève aussi dans Allo.' },
+      { emoji: '✉️',
+        titre: 'Envoyer depuis le suivi',
+        texte: 'Un mail, un message dans la messagerie ou un Messenger (copié puis ouvert), à partir d’un modèle de « Ce qu’on écrit » si on veut : ce qui est parti reste écrit sous l’appel.' },
+      { emoji: '👤',
+        titre: 'L’onglet 📞 Appels du dossier',
+        texte: 'Tout l’historique des appels de l’élève et de ses proches, et « ➕ Noter un appel » passé d’un portable personnel. « 📞 Tout rappeler » envoie les rappels du jour dans la file d’appels d’Allo.' }
+    ]
+  },
   {
     version: 1265,
     date: 'Samedi 24 octobre 2026',
