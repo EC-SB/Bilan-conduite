@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 12:48 — v1268 */
+/* Déployé le 26/10/2026 à 13:08 — v1269 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1269,
+    date: 'Lundi 26 octobre 2026',
+    resume: '📄 Suivi des appels : le résumé complet, et écrire sur chaque appel',
+    quoi: [
+      { emoji: '📄',
+        titre: 'Le résumé complet de l’appel',
+        texte: 'Sous chaque appel, « 📄 Résumé complet de l’appel » déplie tout ce qu’Allo a écrit (le titre, les détails, la prochaine étape). Il est aussi dans « Ce qui s’est passé ».' },
+      { emoji: '✉️',
+        titre: 'Écrire, et copier',
+        texte: '« ✉️ Écrire » est sur chaque appel, même non rattaché, et dans « Ce qui s’est passé ». L’adresse se modifie, « 📄 Le résumé de l’appel » remplit un message tout prêt, et « 📋 Copier le texte » permet de le coller sur Messenger ou ailleurs.' }
+    ]
+  },
   {
     version: 1268,
     date: 'Lundi 26 octobre 2026',
