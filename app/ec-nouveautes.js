@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 13:08 — v1269 */
+/* Déployé le 26/10/2026 à 13:42 — v1270 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1270,
+    date: 'Lundi 26 octobre 2026',
+    resume: '🔎 Jeu des vérifs : tout se place sur n’importe quelle photo',
+    quoi: [
+      { emoji: '🔎',
+        titre: 'Tout ce qui reste à placer',
+        texte: 'Dans l’atelier, sous la liste de la photo, « 🔎 Autre chose sur cette photo ? » cherche par mot ou par numéro dans tout ce qui n’est pas encore placé. « ＋ ici » le range sur la photo affichée et on le dessine aussitôt.' },
+      { emoji: '📍',
+        titre: 'Pas sur cette photo',
+        texte: '« 📍 Pas sur cette photo… » range une ligne sur un autre endroit d’un toucher. Et chaque ligne écrit la question en clair, pour voir tout de suite si elle va avec la photo.' }
+    ]
+  },
   {
     version: 1269,
     date: 'Lundi 26 octobre 2026',
