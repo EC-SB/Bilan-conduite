@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1265
+     GUIDE-VERSION: 1266
      ============================================================ -->
 
 <style>
@@ -416,8 +416,8 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1265</strong><br>
-    Mis à jour le 24 octobre 2026 · Évolution Conduites</p>
+  <p class="sous">Guide d'utilisation · <strong>v1266</strong><br>
+    Mis à jour le 26 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
     <div class="titre">Filtrer par rôle</div>
@@ -458,6 +458,7 @@ html{scroll-behavior:smooth}
           <li><a href="#el-renseignements">Renseignements</a></li>
           <li><a href="#historique-lecons">Historique des leçons</a></li>
           <li><a href="#rappels">Rappels de cours</a></li>
+          <li><a href="#el-appels">Suivi des appels</a></li>
           <li><a href="#el-creneaux">Créneaux libres</a></li>
           <li><a href="#procedures">Procédures à corriger</a></li>
           <li><a href="#evaluation">Évaluation de départ</a></li>
@@ -578,7 +579,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1265</strong>, relu le 24 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1266</strong>, relu le 26 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -832,6 +833,7 @@ html{scroll-behavior:smooth}
         <tr><td>🤝 Rendez-vous AAC et CS</td><td class="libre">Les rendez-vous des 15 prochains jours, et ceux en retard.</td><td>droit <span class="ch">suivi_aac_cs</span></td></tr>
         <tr><td>💬 Messages des élèves</td><td class="libre">Les conversations qui attendent une réponse — un retard annoncé pour le cours de ce matin passe en tête.</td><td>droit <span class="ch">messagerie</span></td></tr>
         <tr><td>🧤 Objets oubliés</td><td class="libre">Les oublis signalés qui ne sont pas réglés.</td><td>droit <span class="ch">messagerie_bureau</span></td></tr>
+        <tr><td>⏰ Personnes à rappeler</td><td class="libre">Une ligne&nbsp;: <span class="ch">3 personnes à rappeler</span>, avec leurs noms — les rappels du jour et ceux en retard du <a href="#el-appels" class="aller">suivi des appels</a>.</td><td>droit <span class="ch">appels</span> (modifier)</td></tr>
         <tr><td>📝 Examens blancs et simulateurs à prévoir</td><td class="libre">Les élèves à qui il faut prévoir l'un ou l'autre — ou une date de permis.</td><td>droits <span class="ch">notif_examblanc</span>, <span class="ch">notif_simu</span>, <span class="ch">notif_permis</span></td></tr>
         <tr><td>⏱️ Heures avant examen à poser</td><td class="libre">Un nombre d'heures dit par un moniteur et qui attend une date (voir plus bas).</td><td>Tout le monde</td></tr>
         <tr><td>🎂 Anniversaires du jour</td><td class="libre">Les élèves qui ont pris un cours dans l'année.</td><td>droit <span class="ch">cours</span></td></tr>
@@ -894,7 +896,7 @@ html{scroll-behavior:smooth}
     </table></div>
 
     <h4>La barre des vues, rangée par familles</h4>
-    <p>Sous les onglets, une seconde rangée de boutons — <strong>la barre des vues</strong> — découpe l'onglet en écrans. Quand un onglet en compte beaucoup, ils sont rangés sous de petits titres de <strong>familles</strong>&nbsp;: dans <span class="b">🔍 Élèves</span>, par exemple, <em>Au quotidien</em> (Dossier élève, Renseignements, Historique des leçons, Rappels de cours, Créneaux libres, Procédures), <em>Administratif</em> (Évaluation, Financements, Paiement en plusieurs fois, Handicap, Code) et <em>Entrées et sorties</em> (Ajouter des élèves, Permis obtenu, Départ). Une famille vidée par les droits disparaît avec son titre.</p>
+    <p>Sous les onglets, une seconde rangée de boutons — <strong>la barre des vues</strong> — découpe l'onglet en écrans. Quand un onglet en compte beaucoup, ils sont rangés sous de petits titres de <strong>familles</strong>&nbsp;: dans <span class="b">🔍 Élèves</span>, par exemple, <em>Au quotidien</em> (Dossier élève, Renseignements, Historique des leçons, Rappels de cours, Suivi des appels, Créneaux libres, Procédures), <em>Administratif</em> (Évaluation, Financements, Paiement en plusieurs fois, Handicap, Code) et <em>Entrées et sorties</em> (Ajouter des élèves, Permis obtenu, Départ). Une famille vidée par les droits disparaît avec son titre.</p>
     <p>Un bouton peut porter un <strong>compte orange</strong>&nbsp;: le travail qui attend dans cet écran (procédures à corriger, tâches, alertes…).</p>
     <p>Sur un écran d'au moins 1280&nbsp;px de large, la barre des vues devient une <strong>colonne à gauche</strong>, comme un sommaire. Le bouton <span class="b">⟨</span> en haut de la colonne la <strong>replie</strong>&nbsp;: il ne reste que les emojis, et le nom de chaque écran apparaît en bulle au survol. <span class="b">⟩</span> la déplie. Le choix vaut pour tous les onglets, et il est retenu dans ce navigateur.</p>
 
@@ -1553,7 +1555,7 @@ html{scroll-behavior:smooth}
   <div class="tab"><table>
     <thead><tr><th>Famille</th><th>Les vues, dans l'ordre</th></tr></thead>
     <tbody>
-      <tr><td><strong>Au quotidien</strong></td><td class="libre"><span class="b">👤 Dossier élève</span> · <span class="b">📋 Renseignements</span> · <span class="b">📚 Historique des leçons</span> · <span class="b">🔔 Rappels de cours</span> · <span class="b">🗓️ Créneaux libres</span> · <span class="b">📥 Procédures</span></td></tr>
+      <tr><td><strong>Au quotidien</strong></td><td class="libre"><span class="b">👤 Dossier élève</span> · <span class="b">📋 Renseignements</span> · <span class="b">📚 Historique des leçons</span> · <span class="b">🔔 Rappels de cours</span> · <span class="b">📞 Suivi des appels</span> · <span class="b">🗓️ Créneaux libres</span> · <span class="b">📥 Procédures</span></td></tr>
       <tr><td><strong>Administratif</strong></td><td class="libre"><span class="b">📊 Évaluation</span> · <span class="b">💶 Financements</span> · <span class="b">💳 Paiement en plusieurs fois</span> · <span class="b">♿ Handicap</span> · <span class="b">🎓 Code</span></td></tr>
       <tr><td><strong>Entrées et sorties</strong></td><td class="libre"><span class="b">➕ Ajouter des élèves</span> · <span class="b">🪪 Permis obtenu</span> · <span class="b">🚪 Départ</span></td></tr>
     </tbody>
@@ -1607,6 +1609,7 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">📚 Cours</span></td><td>Ses leçons, la plus récente en premier — la même ligne que l'historique des leçons.</td><td><span class="ch">recherche</span></td></tr>
         <tr><td><span class="b">🎓 Permis</span></td><td>La tuile du permis, sa conduite accompagnée ou supervisée, le simulateur, l'examen blanc, sa place d'examen et sa liste, ce qui est déjà passé, les photos de son bilan écrit à la main.</td><td><span class="ch">permis</span></td></tr>
         <tr><td><span class="b">💬 Messages</span></td><td>Ses conversations, rangées dans son dossier et cherchables (<span class="ch">🔍 Chercher dans ses conversations…</span>).</td><td><span class="ch">messagerie</span></td></tr>
+        <tr><td><span class="b">📞 Appels</span></td><td>Tous ses appels (Allo) et ceux de ses proches, ses SMS, ce qu'on lui a envoyé depuis le suivi, et <span class="b">➕ Noter un appel passé d’un autre téléphone</span> (voir <a href="#el-appels" class="aller">Suivi des appels</a>).</td><td><span class="ch">appels</span></td></tr>
         <tr><td><span class="b">🔑 Coin révisions</span></td><td>Son espace élève&nbsp;: l'accès, le code, ce qu'il y trouve, ses groupes, son parcours, son jeu des vérifications, et <span class="b">👀 Ouvrir son espace pour le lui montrer</span>.</td><td><span class="ch">acces_eleves</span></td></tr>
         <tr><td><span class="b">📝 Notes internes</span></td><td>Les notes de l'équipe sur cet élève, par catégorie. L'élève ne les voit jamais.</td><td><span class="ch">eleves</span></td></tr>
         <tr><td><span class="b">✉️ Courriers</span></td><td>Les courriers faits pour lui (convocations, attestations…), avec leur PDF, et <span class="b">✉️ Faire un courrier à …</span>.</td><td><span class="ch">courriers</span></td></tr>
@@ -1829,6 +1832,48 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     <p>En tête&nbsp;: <span class="ch">4 envoi(s) aujourd'hui · ✋ 2 confirmée(s) · ⏳ 2 sans réponse</span>, puis le total. <span class="b">🔄</span> relit le journal, et le champ <span class="ch">🔍 Filtrer par élève, adresse ou moniteur</span> trie la liste. Chaque envoi se déplie&nbsp;: qui a envoyé (<span class="ch">👤 Maryne</span> en orange quand c'est quelqu'un d'autre), les destinataires, le texte, et si l'élève a confirmé.</p>
     <h5>🔁 Rattraper les cours</h5>
     <p>La réparation quand des rappels sont partis sans créer les cours&nbsp;: <span class="b">Rappels envoyés le</span> (aujourd'hui), <span class="b">Cours à créer pour le</span> (demain), <span class="b">Tout attribuer à</span>, puis une ligne par élève — une case cochée, le nom, l'heure reprise du rappel, un menu de moniteur. <span class="b">📅 Créer les cours</span>&nbsp;; ceux qui restent sans effet (déjà présents, ou formation sans bilan) sont <strong>nommés</strong>, pas comptés en réussites.</p>
+  </section>
+
+  <section id="el-appels">
+    <h3>📞 Suivi des appels</h3>
+    <div class="qui mini"><span class="lab">Vue</span> <span class="role bureau">Bureau</span><span class="role admin">Admin</span> <span class="ou">— droit <span class="ch">appels</span> ; « voir » (à cocher pour un moniteur) lit et note un appel passé de son portable.</span></div>
+    <p>Les appels et les SMS du numéro de l'école, <strong>02 21 65 24 24 (Allo)</strong>, arrivent tout seuls&nbsp;: l'application relit Allo <strong>toutes les 5 minutes</strong> (<span class="b">🔄 Relire maintenant</span> pour ne pas attendre). Le suivi commence le jour de sa mise en place&nbsp;: les appels d'avant ne sont pas repris.</p>
+    <p>En tête, quatre tuiles qui filtrent la liste&nbsp;: <span class="ch">⏰ À rappeler</span> (en rouge), <span class="ch">❓ Numéros non rattachés</span>, <span class="ch">📞 Appels aujourd’hui</span>, <span class="ch">📵 Répondeurs cette semaine</span>. Puis la recherche (un nom, un numéro, un mot du résumé), la période (aujourd'hui, la semaine, 30 jours, 3 mois, un an) et les filtres par statut. Ce qui attend un rappel et les numéros non rattachés restent visibles quelle que soit la période.</p>
+
+    <h4>Le statut, posé par Allo, corrigé par nous</h4>
+    <div class="tab"><table>
+      <thead><tr><th>Statut</th><th>D'où il vient</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">✅ Joint</span></td><td>Un appel décroché, sans répondeur détecté. Ses rappels d'avant se ferment tout seuls.</td></tr>
+        <tr><td><span class="b">📩 Message laissé</span></td><td>Appel sortant&nbsp;: Allo a détecté qu'un message a été laissé. Pas de rappel d'office.</td></tr>
+        <tr><td><span class="b">📵 Répondeur</span></td><td>Appel sortant&nbsp;: répondeur, rien laissé. <strong>À rappeler aujourd'hui</strong>, d'office.</td></tr>
+        <tr><td><span class="b">🔕 Pas de réponse</span></td><td>Appel sortant qui n'a pas abouti. À rappeler d'office.</td></tr>
+        <tr><td><span class="b">📲 Appel manqué</span></td><td>Appel entrant que personne n'a pris. À rappeler d'office.</td></tr>
+        <tr><td><span class="b">🤖 Accueil IA</span></td><td>Appel entrant pris par l'accueil d'Allo. Avec son tag <span class="ch">A rappeller</span>, il est à rappeler.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Chaque ligne dit <span class="ch">détecté par Allo</span> tant que personne n'a rien changé, puis <span class="ch">✋ David</span>&nbsp;: Allo n'a qu'un compte pour toute l'école, c'est donc le nom de celui qui remplit la fenêtre qui est gardé.</p>
+
+    <h4>✏️ Ce qui s'est passé</h4>
+    <p>La fenêtre rappelle ce qu'Allo a détecté et son résumé, le statut déjà choisi. On peut le changer (<span class="b">✅ Je l’ai eu(e)</span>, <span class="b">📩 J’ai laissé un message</span>, <span class="b">📵 Répondeur, rien laissé</span>, <span class="b">🔕 Pas de réponse / occupé</span>), poser <span class="b">⏰ À rappeler</span> aujourd'hui, demain ou <span class="b">📅 Le…</span>, cocher <span class="b">✉️ Je lui ai envoyé un mail</span> ou <span class="b">💬 Je lui ai écrit dans la messagerie</span>, et écrire une note. <span class="b">🗑️</span> retire l'appel de notre suivi (il reste chez Allo).</p>
+    <p><span class="b">☑️ Rappel fait</span> ferme un rappel sans rien changer d'autre. Quand un rappel se ferme, le tag <span class="ch">A rappeller</span> est aussi <strong>retiré dans Allo</strong>, pour que les deux disent la même chose.</p>
+
+    <h4>🔗 Rattacher un numéro</h4>
+    <p>Un appel se range tout seul dans le dossier de l'élève dont c'est le numéro de fiche. Sinon il reste en rouge (<span class="ch">❓ 06 98 34 46 71</span>, avec <span class="ch">Allo a entendu « … »</span>). <span class="b">🔗 Rattacher</span> propose des élèves d'après le nom entendu, ou une recherche. La case <span class="b">👪 C’est un parent / un proche</span> garde le numéro dans son dossier («&nbsp;📞 Autres numéros&nbsp;»)&nbsp;: ses prochains appels se rangeront seuls. Sinon&nbsp;: <span class="b">🏷️ Pas un élève</span> (un prospect, un organisme) ou <span class="b">➕ Nouvel élève…</span>.</p>
+
+    <h4>✉️ Envoyer depuis le suivi</h4>
+    <p><span class="b">✉️ Envoyer</span> écrit à l'élève par <span class="b">✉️ Mail</span> (son adresse de fiche, et au besoin le prescripteur, depuis l'adresse de l'école), par la <span class="b">💬 Messagerie</span> (son fil «&nbsp;Le bureau&nbsp;», signé de ton nom) ou par <span class="b">Ⓜ️ Messenger</span>&nbsp;: l'application ne peut pas écrire sur Messenger elle-même, elle <strong>copie le texte et ouvre sa conversation</strong> — il reste à coller et envoyer. On peut partir d'un modèle de <a href="#textes" class="aller">📄 Ce qu’on écrit et envoie (keep)</a> ({prenom} se remplit). Ce qui est parti reste écrit sous l'appel, avec qui et quand.</p>
+
+    <h4>📞 Rappeler, et tout rappeler</h4>
+    <p><span class="b">📞 Rappeler</span> compose le numéro sur l'appareil. <span class="b">📞 Tout rappeler</span> envoie les numéros à rappeler aujourd'hui et en retard dans la <strong>file d'appels d'Allo</strong> (le Power Dialer), pour les enchaîner depuis Allo.</p>
+
+    <h4>▶ Écouter, ➕ noter, et ce qui est gardé</h4>
+    <ul>
+      <li><span class="b">▶</span> (bureau et administrateurs) demande à Allo un lien d'écoute <strong>valable une heure</strong>&nbsp;: aucun enregistrement n'est copié dans l'application.</li>
+      <li><span class="b">➕ Noter un appel passé d’un autre téléphone</span>&nbsp;: un appel fait depuis un portable personnel rejoint le dossier, avec le nom de celui qui le note.</li>
+      <li>L'historique d'un élève est gardé tant qu'il est inscrit, et part avec son dossier. Les appels qui ne sont à aucun élève («&nbsp;pas un élève&nbsp;», ou jamais rattachés) sont effacés au bout d'un an.</li>
+    </ul>
+    <div class="note piege"><span class="tag">Une clé Allo qui n'a pas les droits</span><p>Si l'écran dit <span class="ch">⚠️ La clé Allo du Worker n'a pas le droit de lire les appels</span>, il faut créer dans Allo (Settings › API) une clé avec CONVERSATIONS_READ, TAGS_WRITE et DIALING_QUEUE_READ_WRITE, et la ranger dans le secret <span class="ch">ALLO_CLE_APPELS</span> du Worker.</p></div>
   </section>
 
   <section id="el-creneaux">
