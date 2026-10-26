@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 11:53 — v1266 */
+/* Déployé le 26/10/2026 à 12:48 — v1268 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1268,
+    date: 'Lundi 26 octobre 2026',
+    resume: '📋 Jeu des vérifs : les zones se placent depuis une liste',
+    quoi: [
+      { emoji: '📋',
+        titre: 'L’atelier du jeu : « À placer sur cette photo »',
+        texte: 'Pour chaque photo, la liste de ce qu’on y trouve, déjà reliée aux bonnes questions : on touche une ligne, on glisse sur la photo, c’est enregistré. Une zone se déplace en la glissant et s’agrandit par son coin. Les chemins (porte → poignée → capot) se remplissent tout seuls.' },
+      { emoji: '🔢',
+        titre: 'Tout montrer, dans l’ordre qu’on veut',
+        texte: 'Dans le jeu, une question à plusieurs endroits demande tout : les plaques devant ET derrière, les clignotants côté trottoir devant, sur le côté et derrière. L’élève fait le tour de la voiture, dans l’ordre qu’il veut.' }
+    ]
+  },
   {
     version: 1266,
     date: 'Lundi 26 octobre 2026',
