@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 13:35 — v1189 */
+/* Déployé le 26/10/2026 à 11:53 — v1266 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -87,6 +87,10 @@ const FAMILLES_BANDEAU = [
      douleur que cette étape répare. */
   { cle:'objet',    emoji:'🧤', nom:'Objets oubliés',
     droit:'messagerie_bureau', reglable:true },
+  /* 📞 v1266 — « ⏰ 3 personnes à rappeler », une ligne pour le bureau
+     (ceux qui peuvent modifier le suivi des appels). */
+  { cle:'appels',   emoji:'⏰', nom:'Personnes à rappeler (suivi des appels)',
+    droit:'appels',        reglable:true },
   { cle:'aprevoir', emoji:'📝', nom:'Examens blancs et simulateurs à prévoir',
     droit:'',              reglable:true },
   /* ⚠️ LES HEURES ONT LEUR FAMILLE À ELLES — v908.
@@ -756,7 +760,9 @@ function lignesDuBandeau(){
     /* 👥 v1189 — les papiers et les échéances (ec-equipe.js) */
     echeances: (typeof lignesEcheances === 'function') ? lignesEcheances : (() => []),
     conv:     lignesMessagesEleves,
-    objet:    lignesObjetsOublies
+    objet:    lignesObjetsOublies,
+    /* 📞 v1266 (ec-suivi-appels.js) */
+    appels:   (typeof lignesAppelsARappeler === 'function') ? lignesAppelsARappeler : (() => [])
   };
 
   /* ② Ce qui est à moi — v1090. Calculé UNE fois pour tout le
@@ -1108,7 +1114,9 @@ const GROUPE_DE_LA_FAMILLE = {
   prise:      'sem',
   objet:      'attente',
   aprevoir:   'attente',
-  heures:     'attente'
+  heures:     'attente',
+  /* 📞 v1266 — à rappeler, c'est aujourd'hui */
+  appels:     'auj'
 };
 
 function groupeDeLaLigne(l){
