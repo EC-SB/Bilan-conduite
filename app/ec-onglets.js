@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 26/10/2026 à 11:53 — v1266 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -28,7 +28,9 @@ const SECTIONS_ONGLET = {
      mot : un droit qui ne mène nulle part est pire qu'un droit
      refusé. */
   cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
+  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart',
+          /* 📞 v1266 — le suivi des appels */
+          'appels'],
   /* ⚠️ « parcours » VIT DANS SUIVI, ET DANS SUIVI SEULEMENT — v1037.
 
      Il était dans Gestion tant qu'il n'y avait que l'atelier. Le
@@ -274,6 +276,8 @@ const VUES = {
            ['renseignements', '📋 Renseignements',   'eleves',      'Au quotidien'],
            ['recherche',  '📚 Historique des leçons', 'recherche',   'Au quotidien'],
            ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
+           /* 📞 v1266 — le suivi des appels d'Allo (choix de David : sous les rappels) */
+           ['appels',     '📞 Suivi des appels',      'appels',      'Au quotidien'],
            /* 🗓️ v1234 — les créneaux libres lus dans Drivup (choix de David : sous les rappels) */
            ['creneaux',   '🗓️ Créneaux libres',      'rappels',     'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
@@ -1866,6 +1870,8 @@ function reveillerVue(cle){
                       afficherObjetsOublies(),
     rappels:    () => modeRappel('manuel'),
     creneaux:   () => (typeof afficherCreneauxLibres === 'function') && afficherCreneauxLibres(),
+    /* 📞 v1266 — relu à chaque arrivée : un appel de la minute doit y être */
+    appels:     () => (typeof afficherSuiviAppels === 'function') && afficherSuiviAppels(true),
     sessions:   () => afficherSessionsPermis(),
     /* Une vue branchée nulle part reste sur « Chargement… » pour
        toujours — c'est ce qui était arrivé à « Historique des
