@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 14:39 — v1243 */
+/* Déployé le 26/10/2026 à 11:53 — v1266 */
 /* ============================================================
    ec-mails.js
    ✉️ Les mails envoyés — Outils › Mesurer
@@ -36,6 +36,7 @@ const GENRES_MAIL = [
   ['tarifs',     '💰', 'Tarifs',                   'envoi',       'envois'],
   ['handicap',   '♿', 'Fiches d’évaluation',      'fiche',       'fiches'],
   ['courrier',   '✉️', 'Courriers',                'courrier',    'courriers'],
+  ['appel',      '📞', 'Suivi des appels',         'mail',        'mails'],
   ['autre',      '✉️', 'Autres',                   'autre',       'autres']
 ];
 function genreDuMailEcran(cle){
