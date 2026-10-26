@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 13:42 — v1270 */
+/* Déployé le 26/10/2026 à 14:46 — v1271 */
 /* ============================================================
    ec-jeu-atelier.js — 📸 L'ATELIER DU JEU DES VÉRIFICATIONS (v1249)
 
@@ -28,7 +28,13 @@
        — 🔧 LES RÈGLES par question et par voiture (🗣️ / 🖥️), elles
        aussi « Même chose pour : ».
    ============================================================ */
-const AT_ENDROITS = [['volant', '🪑 Au volant'], ['porte', '🚪 Porte ouverte'], ['devant', '🚶 Devant'], ['capot', '🔧 Capot ouvert'],
+/* 🧤 v1271 — trois endroits de plus. David, le 26 octobre : « pour
+   l'airbag passager, il faut que j'ajoute la photo côté passager et
+   ouvrir la boîte à gants ; les fixations Isofix, c'est sur les sièges
+   arrière ; la sécurité enfant, il faut que je prenne en photo la
+   portière arrière ouverte ». */
+const AT_ENDROITS = [['volant', '🪑 Au volant'], ['porte', '🚪 Porte ouverte'], ['passager', '🧤 Côté passager, boîte à gants ouverte'],
+  ['portiere', '🚪 Portière arrière ouverte'], ['sieges', '💺 Sièges arrière'], ['devant', '🚶 Devant'], ['capot', '🔧 Capot ouvert'],
   ['voyants', '🚨 Voyants allumés'], ['coffre', '🧳 Coffre'], ['arriere', '🔙 Arrière'], ['cote', '↔️ Côté'], ['roue', '🛞 Roue']];
 /* 💡 v1255 — LES FEUX À ALLUMER. David, le 23 octobre : « sur certaines
    vérifs il faut que l'élève allume les feux pour les contrôler : il va
@@ -102,7 +108,7 @@ const AT_ELEMENTS_LISTE = [
   ['regulateur', '🚗', 'La commande du régulateur', 'reponse', [33], [['volant']]],
   ['limiteur', '🚦', 'La commande du limiteur', 'reponse', [57], [['volant']]],
   ['klaxon', '📯', 'L’avertisseur sonore', 'reponse', [35], [['volant']]],
-  ['airbag', '🎈', 'La désactivation de l’airbag passager', 'reponse', [37, 87], [['volant']]],
+  ['airbag', '🎈', 'La désactivation de l’airbag passager', 'reponse', [37, 87], [['passager']]],
   ['recyclage', '🔁', 'Le recyclage de l’air', 'reponse', [49, 93], [['volant']]],
   ['appui-tete', '💺', 'Le réglage de l’appui-tête', 'reponse', [45], [['volant']]],
   ['carte-grise', '📄', 'La carte grise', 'reponse', [9], [['volant']]],
@@ -110,7 +116,7 @@ const AT_ELEMENTS_LISTE = [
   ['constat', '📄', 'Le constat amiable', 'reponse', [53], [['volant']]],
   ['ethylotest', '🧪', 'L’éthylotest', 'reponse', [17, 77], [['volant']]],
   ['gilet', '🦺', 'Le gilet de haute visibilité', 'reponse', [7, 71], [['volant']]],
-  ['isofix', '👶', 'Les attaches Isofix', 'reponse', [61], [['volant']]],
+  ['isofix', '👶', 'Les attaches Isofix', 'reponse', [61], [['sieges']]],
   /* 🚨 voyants allumés */
   ['voyant-huile', '🚨', 'Le voyant de pression d’huile', 'reponse', [15, 75], [['voyants']]],
   ['voyant-batterie', '🚨', 'Le voyant de batterie', 'reponse', [23], [['voyants']]],
@@ -125,7 +131,7 @@ const AT_ELEMENTS_LISTE = [
   /* 🚪 porte ouverte */
   ['poignee-capot', '➡️', 'La poignée d’ouverture du capot', 'passage', [], [['porte']]],
   ['plaque-pressions', '🏷️', 'La plaque des pressions des pneus', 'reponse', [38, 86], [['porte']]],
-  ['securite-enfant', '🔒', 'La sécurité enfant', 'reponse', [42, 88], [['porte']]],
+  ['securite-enfant', '🔒', 'La sécurité enfant', 'reponse', [42, 88], [['portiere']]],
   /* 🚶 devant — et ce qui se montre à plusieurs endroits */
   ['capot-ouvrir', '➡️', 'Le capot (l’ouvrir)', 'passage', [], [['devant']]],
   ['plaques', '🔢', 'Les plaques d’immatriculation', 'reponse', [6], [['devant', '', 'la plaque avant'], ['arriere', '', 'la plaque arrière']]],
@@ -158,10 +164,28 @@ const AT_ELEMENTS_LISTE = [
 
 /* 🧭 les chemins qui se remplissent tout seuls : l'endroit, et les
    passages à toucher dans l'ordre (élément:partie) */
-const AT_CHEMINS_AUTO = { porte: ['porte:1'], devant: ['porte:1'], arriere: ['porte:1'], cote: ['porte:1'], roue: ['porte:1'],
+const AT_CHEMINS_AUTO = { porte: ['porte:1'], passager: ['porte:1'], portiere: ['porte:1'], sieges: ['porte:1'], devant: ['porte:1'], arriere: ['porte:1'], cote: ['porte:1'], roue: ['porte:1'],
   capot: ['porte:1', 'poignee-capot:1', 'capot-ouvrir:1'], coffre: ['porte:1', 'coffre-ouvrir:1'] };
 
-function atElements(){ const r = atReglages(); return Array.isArray(r.elements) && r.elements.length ? r.elements : AT_ELEMENTS_LISTE; }
+function atElements(){ const r = atReglages(); return Array.isArray(r.elements) && r.elements.length ? ((r.listeVue || 0) >= 1271 ? r.elements : atListeCorrigee(r.elements)) : AT_ELEMENTS_LISTE; }
+/* 🧤 v1271 — une liste déjà enregistrée garde l'ancien endroit de
+   l'airbag, de l'Isofix et de la sécurité enfant : on les range à leur
+   nouvelle place, sauf si une zone les montre déjà quelque part. Une
+   seule fois : la liste enregistrée ensuite porte « listeVue: 1271 »,
+   et un déplacement fait à la main n'est plus jamais corrigé. */
+const AT_ANCIENS_ENDROITS = { airbag: 'volant', isofix: 'volant', 'securite-enfant': 'porte' };
+function atListeCorrigee(l){
+  if(!l.some(el => AT_ANCIENS_ENDROITS[el.id])) return l;
+  return l.map(el => {
+    const avant = AT_ANCIENS_ENDROITS[el.id];
+    if(!avant || el.parties.length !== 1 || el.parties[0].endroit !== avant || el.parties[0].etat) return el;
+    const pose = atPhotos().some(p => (p.zones || []).some(z => z.el === el.id + ':1'
+      || (!z.el && z.sorte !== 'passage' && (z.questions || []).some(q => el.questions.indexOf(q) !== -1))));
+    if(pose) return el;
+    const neuf = AT_ELEMENTS_LISTE.find(x => x.id === el.id);
+    return Object.assign({}, el, { parties: [Object.assign({}, el.parties[0], { endroit: neuf.parties[0].endroit })] });
+  });
+}
 function atNormal(t){ return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 function atNomPartie(el, k){ const p = el.parties[k - 1]; return (p && p.nom) || el.nom.replace(/^(Le |La |Les |L’)/, (m) => m.toLowerCase()); }
 /* La zone qui tient une partie, sur la photo de cette voiture — posée
@@ -676,7 +700,12 @@ function atRedessiner(){ if(AT.racine && document.body.contains(AT.racine)) atDe
 function atReglagesPoser(reg, bouton, dit){
   return atAppel({ action: 'jeuReglagesPoser', reglages: reg }, bouton).then(r => { if(r){ if(dit) showToastVerifs(dit); atRedessiner(); } return r; });
 }
-function atCopieReglages(){ return JSON.parse(JSON.stringify(atReglages())); }
+function atCopieReglages(){
+  const r = JSON.parse(JSON.stringify(atReglages()));
+  if(Array.isArray(r.elements) && r.elements.length && (r.listeVue || 0) < 1271) r.elements = JSON.parse(JSON.stringify(atListeCorrigee(r.elements)));
+  r.listeVue = 1271;
+  return r;
+}
 
 /* ---------- La page ---------- */
 function atDessiner(){
