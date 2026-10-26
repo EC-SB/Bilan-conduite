@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 17:14 — v1255 */
+/* Déployé le 26/10/2026 à 12:48 — v1268 */
 /* ============================================================
    ec-jeu-atelier.js — 📸 L'ATELIER DU JEU DES VÉRIFICATIONS (v1249)
 
@@ -44,9 +44,484 @@ const AT_ALLUMAGES = [['croisement', '💡 Feux de croisement', [26, 82]], ['rou
   ['stop', '🛑 Feux stop (frein)', [46, 90]], ['recul', '↩️ Feux de recul', [44]], ['diurnes', '☀️ Feux diurnes', [52, 92]]];
 /* les endroits où une photo peut montrer des feux allumés */
 const AT_ENDROITS_ALLUMES = ['volant', 'voyants', 'devant', 'arriere', 'cote'];
-const AT = { d: null, voiture: '', endroit: 'volant', etat: '', zone: '', regleN: 0, cheminAussi: {}, regleAussi: {}, allumage: 'croisement', allumageAussi: {}, occupe: false };
+const AT = { d: null, voiture: '', endroit: 'volant', etat: '', zone: '', regleN: 0, cheminAussi: {}, regleAussi: {}, allumage: 'croisement', allumageAussi: {}, occupe: false, place: '', ouvert: '' };
 function atNomAllumage(a){ const x = AT_ALLUMAGES.find(y => y[0] === a); return x ? x[1] : a; }
 function atAllumageDeQuestion(n){ const x = AT_ALLUMAGES.find(y => y[2].indexOf(n) !== -1); return x ? x[0] : ''; }
+
+/* ============================================================
+   📋 v1268 — LA LISTE « À PLACER SUR CETTE PHOTO »
+
+   David, le 26 octobre : « je dois mettre les zones et ensuite chercher
+   à la main à quelle question ça correspond, c'est trop compliqué :
+   trouve une solution pour simplifier la création des zones, des
+   boutons, et que ça se lie aux bonnes questions directement ». Et :
+   « pour la question 6, il faut montrer toutes les plaques : devant ET
+   derrière ; pareil pour les clignotants côté trottoir : devant, sur le
+   côté et derrière ».
+
+   Ses choix sur le schéma : la liste telle que proposée, et il peut
+   ajouter, renommer, déplacer un élément depuis l'atelier ; l'élève
+   montre les parties dans l'ordre qu'il veut ; une partie absente sur
+   une voiture = « 🗣️ il n'y en a pas » et la question ne demande plus
+   que les autres ; le chemin vers le capot se remplit tout seul
+   (porte → poignée → capot), modifiable ; les feux allumés se posent
+   sur les photos allumées, la liste dit ce qui manque.
+
+   Un ÉLÉMENT = ce qu'on montre (le bocal du lave-glace), sa sorte
+   (🎯 réponse, ➡️ passage, 🔘 commande), ses questions, et ses PARTIES :
+   une par endroit où il faut le montrer (la plaque avant sur « Devant »,
+   la plaque arrière sur « Arrière »). Une zone posée depuis la liste
+   garde « el » = « plaques:2 » : c'est ce qui dit où en est la liste.
+   ============================================================ */
+/* [id, emoji, nom, sorte, questions, [[endroit, feux allumés, nom de la partie]…]] */
+const AT_ELEMENTS_LISTE = [
+  /* 🔧 capot ouvert */
+  ['lave-glace', '🫙', 'Le bocal du lave-glace', 'reponse', [2, 50], [['capot']]],
+  ['refroidissement', '🌡️', 'Le bocal du liquide de refroidissement', 'reponse', [12, 72], [['capot']]],
+  ['liquide-frein', '🛑', 'Le bocal du liquide de frein', 'reponse', [8, 70], [['capot']]],
+  ['jauge', '🛢️', 'La jauge d’huile', 'reponse', [22, 80], [['capot']]],
+  ['bouchon-huile', '🛢️', 'Le bouchon de remplissage d’huile', 'reponse', [36], [['capot']]],
+  ['batterie', '🔋', 'La batterie', 'reponse', [24], [['capot']]],
+  ['ampoules-avant', '💡', 'L’accès aux ampoules avant', 'reponse', [56, 96], [['capot']]],
+  ['capot-fermer', '🔒', 'Le capot (le refermer, vérifier)', 'reponse', [48, 64], [['capot']]],
+  /* 🪑 au volant */
+  ['porte', '🚪', 'La porte (pour sortir)', 'passage', [], [['volant']]],
+  ['bague', '🔘', 'La bague des feux', 'commande', [], [['volant']]],
+  ['comodo', '🔘', 'Le comodo des clignotants', 'commande', [], [['volant']]],
+  ['bouton-detresse', '⚠️', 'Le bouton des feux de détresse', 'commande', [31, 85], [['volant']]],
+  ['pedale-frein', '🦶', 'La pédale de frein', 'commande', [], [['volant']]],
+  ['levier', '🕹️', 'Le levier de vitesse (marche arrière)', 'commande', [], [['volant']]],
+  ['hauteur-feux', '🔆', 'La commande de hauteur des feux', 'reponse', [1, 65], [['volant']]],
+  ['retroviseur', '🪞', 'Le rétroviseur intérieur (position nuit)', 'reponse', [3, 67], [['volant']]],
+  ['essuie-avant', '🌧️', 'La commande des essuie-glaces avant', 'reponse', [5, 69], [['volant']]],
+  ['essuie-arriere', '🌧️', 'La commande de l’essuie-glace arrière', 'reponse', [59, 97], [['volant']]],
+  ['carburant', '⛽', 'L’indicateur de carburant', 'reponse', [11], [['volant']]],
+  ['degivrage', '❄️', 'Le dégivrage de la lunette arrière', 'reponse', [13, 73], [['volant']]],
+  ['reglage-volant', '🎡', 'Le réglage du volant', 'reponse', [19], [['volant']]],
+  ['pare-brise', '🌬️', 'L’air vers le pare-brise', 'reponse', [21, 79], [['volant']]],
+  ['regulateur', '🚗', 'La commande du régulateur', 'reponse', [33], [['volant']]],
+  ['limiteur', '🚦', 'La commande du limiteur', 'reponse', [57], [['volant']]],
+  ['klaxon', '📯', 'L’avertisseur sonore', 'reponse', [35], [['volant']]],
+  ['airbag', '🎈', 'La désactivation de l’airbag passager', 'reponse', [37, 87], [['volant']]],
+  ['recyclage', '🔁', 'Le recyclage de l’air', 'reponse', [49, 93], [['volant']]],
+  ['appui-tete', '💺', 'Le réglage de l’appui-tête', 'reponse', [45], [['volant']]],
+  ['carte-grise', '📄', 'La carte grise', 'reponse', [9], [['volant']]],
+  ['assurance', '📄', 'L’attestation d’assurance et la vignette', 'reponse', [41], [['volant']]],
+  ['constat', '📄', 'Le constat amiable', 'reponse', [53], [['volant']]],
+  ['ethylotest', '🧪', 'L’éthylotest', 'reponse', [17, 77], [['volant']]],
+  ['gilet', '🦺', 'Le gilet de haute visibilité', 'reponse', [7, 71], [['volant']]],
+  ['isofix', '👶', 'Les attaches Isofix', 'reponse', [61], [['volant']]],
+  /* 🚨 voyants allumés */
+  ['voyant-huile', '🚨', 'Le voyant de pression d’huile', 'reponse', [15, 75], [['voyants']]],
+  ['voyant-batterie', '🚨', 'Le voyant de batterie', 'reponse', [23], [['voyants']]],
+  ['voyant-freinage', '🚨', 'Le voyant de freinage', 'reponse', [25, 55, 81], [['voyants']]],
+  ['voyant-temperature', '🚨', 'Le voyant de température', 'reponse', [27, 83], [['voyants']]],
+  ['voyant-portiere', '🚨', 'Le voyant de portière ouverte', 'reponse', [29], [['voyants']]],
+  ['voyant-ceinture', '🚨', 'Le voyant de ceinture', 'reponse', [39, 89], [['voyants']]],
+  ['voyant-brouillard', '🚨', 'Le voyant du feu de brouillard arrière', 'reponse', [47], [['voyants']]],
+  ['voyant-pneus', '🚨', 'Le voyant de pression des pneus', 'reponse', [63, 99], [['voyants']]],
+  ['voyant-brouillard-allume', '🌫️', 'Le voyant de brouillard, feu allumé', 'reponse', [43, 91], [['voyants', 'brouillard']]],
+  ['voyant-route-allume', '🔦', 'Le voyant des feux de route, allumés', 'reponse', [51, 95], [['voyants', 'route']]],
+  /* 🚪 porte ouverte */
+  ['poignee-capot', '➡️', 'La poignée d’ouverture du capot', 'passage', [], [['porte']]],
+  ['plaque-pressions', '🏷️', 'La plaque des pressions des pneus', 'reponse', [38, 86], [['porte']]],
+  ['securite-enfant', '🔒', 'La sécurité enfant', 'reponse', [42, 88], [['porte']]],
+  /* 🚶 devant — et ce qui se montre à plusieurs endroits */
+  ['capot-ouvrir', '➡️', 'Le capot (l’ouvrir)', 'passage', [], [['devant']]],
+  ['plaques', '🔢', 'Les plaques d’immatriculation', 'reponse', [6], [['devant', '', 'la plaque avant'], ['arriere', '', 'la plaque arrière']]],
+  ['gicleurs', '💦', 'Les gicleurs de lave-glace', 'reponse', [66, 100], [['devant']]],
+  ['balais', '🪟', 'Les balais d’essuie-glace', 'reponse', [10], [['devant', '', 'les balais avant'], ['arriere', '', 'le balai arrière']]],
+  ['feux-croisement', '💡', 'Les feux de croisement', 'reponse', [26, 82], [['devant', 'croisement']]],
+  ['feux-route', '🔦', 'Les feux de route', 'reponse', [20, 78], [['devant', 'route']]],
+  ['feux-diurnes', '☀️', 'Les feux diurnes', 'reponse', [52, 92], [['devant', 'diurnes']]],
+  ['feux-position', '🅿️', 'Les feux de position', 'reponse', [30], [['devant', 'position', 'les feux de position avant'], ['arriere', 'position', 'les feux de position arrière']]],
+  ['feux-detresse', '⚠️', 'Les feux de détresse', 'reponse', [18, 76], [['devant', 'detresse', 'les feux de détresse avant'], ['arriere', 'detresse', 'les feux de détresse arrière']]],
+  ['clignotants', '➡️', 'Les clignotants côté trottoir', 'reponse', [14, 74], [['devant', 'clignotant', 'le clignotant avant droit'], ['cote', 'clignotant', 'le répétiteur sur le côté'], ['arriere', 'clignotant', 'le clignotant arrière droit']]],
+  /* ↔️ côté */
+  ['trappe', '⛽', 'La trappe à carburant', 'reponse', [34], [['cote']]],
+  /* 🔙 arrière */
+  ['coffre-ouvrir', '➡️', 'Le coffre (l’ouvrir)', 'passage', [], [['arriere']]],
+  ['eclairage-plaque', '💡', 'L’éclairage de la plaque arrière', 'reponse', [40], [['arriere', 'position']]],
+  ['ampoules-arriere', '💡', 'L’accès aux ampoules arrière', 'reponse', [58, 98], [['arriere']]],
+  ['reflechissants', '🔶', 'Les dispositifs réfléchissants', 'reponse', [28], [['arriere']]],
+  ['feu-brouillard', '🌫️', 'Le feu de brouillard arrière', 'reponse', [16], [['arriere', 'brouillard']]],
+  ['feux-stop', '🛑', 'Les feux stop', 'reponse', [46, 90], [['arriere', 'stop']]],
+  ['feux-recul', '↩️', 'Les feux de recul', 'reponse', [44], [['arriere', 'recul']]],
+  /* 🧳 coffre */
+  ['coffre-fermer', '🧳', 'Le coffre (le refermer, vérifier)', 'reponse', [60, 62], [['coffre']]],
+  ['triangle', '⚠️', 'Le triangle', 'reponse', [54, 94], [['coffre']]],
+  /* 🛞 roue */
+  ['flanc', '🛞', 'Le flanc du pneu', 'reponse', [4, 68], [['roue']]],
+  ['temoin-usure', '🔍', 'Le témoin d’usure', 'reponse', [32, 84], [['roue']]]
+].map(([id, ic, nom, sorte, questions, parties]) => ({ id, ic, nom, sorte, questions,
+  parties: parties.map(([endroit, etat, n]) => ({ endroit: endroit, etat: etat || '', nom: n || '' })) }));
+
+/* 🧭 les chemins qui se remplissent tout seuls : l'endroit, et les
+   passages à toucher dans l'ordre (élément:partie) */
+const AT_CHEMINS_AUTO = { porte: ['porte:1'], devant: ['porte:1'], arriere: ['porte:1'], cote: ['porte:1'], roue: ['porte:1'],
+  capot: ['porte:1', 'poignee-capot:1', 'capot-ouvrir:1'], coffre: ['porte:1', 'coffre-ouvrir:1'] };
+
+function atElements(){ const r = atReglages(); return Array.isArray(r.elements) && r.elements.length ? r.elements : AT_ELEMENTS_LISTE; }
+function atNormal(t){ return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+function atNomPartie(el, k){ const p = el.parties[k - 1]; return (p && p.nom) || el.nom.replace(/^(Le |La |Les |L’)/, (m) => m.toLowerCase()); }
+/* La zone qui tient une partie, sur la photo de cette voiture — posée
+   depuis la liste (« el »), ou dessinée avant la v1268 (ses questions,
+   ou son nom pour un passage, une commande) */
+function atZoneDePartie(v, el, k){
+  const pa = el.parties[k - 1];
+  if(!pa) return null;
+  const p = atPhotoDe(v, pa.endroit, pa.etat);
+  if(!p) return null;
+  const cle = el.id + ':' + k;
+  let z = p.zones.find(x => x.el === cle);
+  if(!z) z = p.zones.find(x => !x.el && x.sorte === el.sorte && (el.questions.length
+    ? (x.questions || []).some(q => el.questions.indexOf(q) !== -1)
+    : atNormal(x.nom) && (atNormal(x.nom) === atNormal(atNomPartie(el, k)) || atNormal(el.nom).indexOf(atNormal(x.nom)) !== -1)));
+  return z ? { photo: p, zone: z } : null;
+}
+function atPlaceEnCours(){
+  if(!AT.place) return null;
+  const [id, k] = AT.place.split(':');
+  const el = atElements().find(x => x.id === id);
+  const pa = el && el.parties[Number(k) - 1];
+  if(!pa || pa.endroit !== AT.endroit || (pa.etat || '') !== (AT.etat || '')) return null;
+  return { el: el, k: Number(k) };
+}
+function atAbsent(v, el, k){
+  if(((atReglages().absents || {})[v] || []).indexOf(el.id + ':' + k) !== -1) return 'dire';
+  /* un élément d'une seule partie, réglé « à dire » / « ordinateur de bord » question par question */
+  if(el.parties.length === 1 && el.questions.length){
+    const m = el.questions.map(q => atRegle(v, q)).filter(Boolean);
+    if(m.length === el.questions.length && m.every(r => r.mode === 'dire' || r.mode === 'ordi')) return m[0].mode;
+  }
+  return '';
+}
+/* Ce qui se place sur la photo affichée : [{ el, k }] */
+function atPartiesIci(){
+  const l = [];
+  atElements().forEach(el => el.parties.forEach((pa, i) => { if(pa.endroit === AT.endroit && (pa.etat || '') === (AT.etat || '')) l.push({ el: el, k: i + 1 }); }));
+  return l;
+}
+function atNomLieu(pa){ return atNomEndroit(pa.endroit) + (pa.etat ? ' (' + atNomAllumage(pa.etat) + ' allumés)' : ''); }
+
+/* La colonne de droite : la liste */
+function atPanneauListe(v){
+  const b = vqEl('div', 'atP atListe');
+  const p = atPhotoDe(v, AT.endroit, AT.etat);
+  const nomVue = atNomEndroit(AT.endroit) + (AT.etat ? ' — ' + atNomAllumage(AT.etat) + ' allumés' : '');
+  b.appendChild(vqEl('h4', '', '📋 À placer sur « ' + nomVue + ' » — ' + atVoitureNom(v)));
+  const ici = atPartiesIci();
+  if(!p){
+    b.appendChild(vqEl('div', 'vbAide', ici.length ? 'Dépose d’abord la photo : ' + ici.length + ' chose' + (ici.length > 1 ? 's' : '') + ' s’y placeront (' + ici.slice(0, 4).map(x => atNomPartie(x.el, x.k)).join(', ') + (ici.length > 4 ? '…' : '') + ').' : 'Rien d’habituel ici : « ➕ Autre chose à placer… » pour ajouter un élément.'));
+    b.appendChild(atBoutonAutre());
+    return b;
+  }
+  /* les zones dessinées sans élément (avant la v1268, ou à la main) */
+  const libres = p.zones.filter(z => !z.el && !atElements().some(el => el.parties.some((pa, i) => { const t = atZoneDePartie(v, el, i + 1); return t && t.zone === z; })));
+  if(libres.length){
+    const d = vqEl('div', 'atLibres');
+    d.appendChild(vqEl('b', '', '🧩 À rattacher : '));
+    libres.forEach(z => {
+      const x = vqEl('button', 'vbPuce' + (AT.zone === z.id ? ' on' : ''), (z.nom || 'zone sans nom') + ((z.questions || []).length ? ' · ' + z.questions.join(' · ') : ''));
+      x.type = 'button';
+      x.setAttribute('data-libre', z.id);
+      x.addEventListener('click', () => { AT.zone = z.id; AT.place = ''; atDessiner(); });
+      d.appendChild(x);
+    });
+    d.appendChild(vqEl('div', 'vbAide', 'Touche une zone, puis dans la liste ce qu’elle montre : elle s’y rattache.'));
+    b.appendChild(d);
+  }
+  const faits = ici.filter(x => atZoneDePartie(v, x.el, x.k) || atAbsent(v, x.el, x.k)).length;
+  b.appendChild(vqEl('div', 'atCompte', faits + ' sur ' + ici.length + ' placé' + (faits > 1 ? 's' : '') + (p.voitures.length > 1 ? ' · cette photo sert aussi à ' + p.voitures.filter(x => x !== v).map(atVoitureNom).join(', ') : '')));
+  const bar = vqEl('div', 'atBar'); const i0 = vqEl('i', ''); i0.style.width = (ici.length ? Math.round(faits * 100 / ici.length) : 0) + '%'; bar.appendChild(i0); b.appendChild(bar);
+  const l = vqEl('div', 'atEls');
+  ici.forEach(({ el, k }) => l.appendChild(atLigneElement(v, el, k)));
+  b.appendChild(l);
+  if(!ici.length) b.appendChild(vqEl('div', 'vbAide', 'Rien d’habituel sur cette photo.'));
+  b.appendChild(vqEl('div', 'vbAide', 'Touche une ligne, puis glisse sur la photo : la zone est enregistrée avec son nom et ses questions.'));
+  b.appendChild(atBoutonAutre());
+  return b;
+}
+function atBoutonAutre(){
+  const x = vqEl('button', 'btn btn-secondary atPlus', '➕ Autre chose à placer…'); x.type = 'button';
+  x.addEventListener('click', () => atEditerElement(null));
+  const d = vqEl('div', 'atBtns'); d.appendChild(x); return d;
+}
+function atLigneElement(v, el, k){
+  const cle = el.id + ':' + k;
+  const t = atZoneDePartie(v, el, k);
+  const abs = atAbsent(v, el, k);
+  const parties = el.parties.length;
+  const lesFaites = el.parties.map((pa, i) => !!(atZoneDePartie(v, el, i + 1) || atAbsent(v, el, i + 1)));
+  const n = lesFaites.filter(Boolean).length;
+  let cls = 'atEl', st = 'à placer';
+  if(abs){ cls += ' dire'; st = abs === 'ordi' ? '🖥️ ordinateur' : '🗣️ à dire'; }
+  else if(t){ cls += ' fait'; st = '✓ placé'; }
+  if(parties > 1 && !abs){ cls += n === parties ? ' fait' : ' part'; st = n + ' / ' + parties; }
+  if(AT.place === cle) { cls += ' encours'; st = '✏️ à dessiner'; }
+  const ligne = vqEl('div', 'atElBloc');
+  const b = vqEl('button', cls);
+  b.type = 'button';
+  b.setAttribute('data-el', cle);
+  const ic = vqEl('span', 'ic', el.ic || (el.sorte === 'passage' ? '➡️' : el.sorte === 'commande' ? '🔘' : '🎯'));
+  const tx = vqEl('span', 't');
+  tx.appendChild(vqEl('b', '', parties > 1 ? el.nom + ' — ' + atNomPartie(el, k) : el.nom));
+  tx.appendChild(vqEl('small', '', el.sorte === 'passage' ? '➡️ passage' : (el.sorte === 'commande' ? '🔘 commande' + (el.questions.length ? ' · ' : '') : '') +
+    (el.questions.length ? (el.questions.length > 1 ? 'Questions ' : 'Question ') + el.questions.join(' · ') : (el.sorte === 'commande' ? '' : '')) +
+    (parties > 1 ? ' · ' + parties + ' parties' : '')));
+  b.appendChild(ic); b.appendChild(tx); b.appendChild(vqEl('span', 'st', st));
+  b.addEventListener('click', () => atToucherElement(v, el, k));
+  ligne.appendChild(b);
+  /* les parties ailleurs, et le reste à régler */
+  const det = vqEl('div', 'atParts');
+  if(parties > 1){
+    el.parties.forEach((pa, i) => {
+      if(i + 1 === k) return;
+      const fait = lesFaites[i];
+      const d = vqEl('div', '');
+      d.appendChild(document.createTextNode((i + 1) + ' · ' + atNomPartie(el, i + 1) + ' — ' + atNomLieu(pa) + (fait ? ' ✓' : '') + ' '));
+      const a = vqEl('button', 'atLienPetit', 'y aller →'); a.type = 'button';
+      a.addEventListener('click', () => { AT.endroit = pa.endroit; AT.etat = pa.etat || ''; AT.zone = ''; AT.place = fait ? '' : el.id + ':' + (i + 1); atDessiner(); });
+      d.appendChild(a);
+      det.appendChild(d);
+    });
+  }
+  /* 💡 une partie à feux allumés : la voiture sait-elle les allumer ? */
+  const pa = el.parties[k - 1];
+  if(pa.etat && t && !((atReglages().allumages[v] || {})[pa.etat] || []).length){
+    det.appendChild(vqEl('div', 'atManque', '💡 Reste à dire comment les allumer : « 💡 Allumer les feux », plus bas.'));
+  }
+  if(det.children.length) ligne.appendChild(det);
+  /* ouvert : ses gestes */
+  if(AT.ouvert === cle){
+    const g = vqEl('div', 'atElGestes');
+    const geste = (txt, f, cl) => { const x = vqEl('button', 'vbPuce' + (cl ? ' ' + cl : ''), txt); x.type = 'button'; x.addEventListener('click', f); g.appendChild(x); };
+    if(t) geste('🎯 Voir la zone', () => { AT.zone = t.zone.id; AT.place = ''; atDessiner(); });
+    if(t) geste('✏️ La redessiner', () => { AT.place = cle; AT.zone = ''; atDessiner(); });
+    if(abs) geste('↩️ Elle existe sur cette voiture', () => atPoserAbsent(v, el, k, ''));
+    else if(el.sorte !== 'passage'){
+      geste('🗣️ Pas sur cette voiture', () => atPoserAbsent(v, el, k, 'dire'));
+      if(/voyant/i.test(el.nom) && parties === 1) geste('🖥️ C’est l’ordinateur de bord', () => atPoserAbsent(v, el, k, 'ordi'));
+    }
+    geste('📝 Modifier l’élément', () => atEditerElement(el));
+    ligne.appendChild(g);
+  }
+  return ligne;
+}
+/* Toucher une ligne : rattacher la zone choisie, ou dessiner */
+function atToucherElement(v, el, k){
+  const cle = el.id + ':' + k;
+  const p = atPhotoDe(v, AT.endroit, AT.etat);
+  const zSel = p && AT.zone && p.zones.find(z => z.id === AT.zone);
+  if(zSel && !zSel.el && !atElements().some(e2 => e2.parties.some((pa, i) => { const t = atZoneDePartie(v, e2, i + 1); return t && t.zone === zSel && e2 !== el; }))){
+    /* 🧩 rattacher la zone choisie à cet élément */
+    const zones = p.zones.map(z => z.id !== zSel.id ? z : Object.assign({}, z, { el: cle, nom: atNomPartie(el, k), sorte: el.sorte, questions: el.sorte === 'passage' ? [] : el.questions.slice() }));
+    atAppel({ action: 'jeuPhotoPoser', id: p.id, endroit: p.endroit, etat: p.etat || '', nom: p.nom, voitures: p.voitures, zones: zones })
+      .then(r => { if(r){ AT.zone = ''; AT.ouvert = cle; showToastVerifs('🧩 Rattachée : ' + el.nom); atApresPose(el, k); } });
+    return;
+  }
+  const t = atZoneDePartie(v, el, k);
+  AT.ouvert = AT.ouvert === cle && AT.place !== cle ? '' : cle;
+  AT.place = t || atAbsent(v, el, k) ? '' : cle;
+  AT.zone = '';
+  atDessiner();
+}
+/* 🗣️ / 🖥️ / ↩️ */
+function atPoserAbsent(v, el, k, mode){
+  const r = atCopieReglages();
+  r.absents = r.absents || {};
+  const cle = el.id + ':' + k;
+  const l = (r.absents[v] || []).filter(x => x !== cle);
+  if(el.parties.length === 1 && el.questions.length){
+    r.regles[v] = r.regles[v] || {};
+    el.questions.forEach(q => {
+      if(mode) r.regles[v][String(q)] = { mode: mode, dire: mode === 'ordi' ? 'C’est l’ordinateur de bord qui l’affiche.' : 'Il n’y en a pas sur cette voiture.', general: ((typeof verifsQuestion === 'function' && verifsQuestion(q)) || {}).verifRep || '' };
+      else delete r.regles[v][String(q)];
+    });
+  }else if(mode) l.push(cle);
+  if(l.length) r.absents[v] = l; else delete r.absents[v];
+  AT.place = '';
+  return atReglagesPoser(r, null, mode ? (mode === 'ordi' ? '🖥️ Ordinateur de bord' : '🗣️ Pas sur cette voiture') + ' : ' + atNomPartie(el, k) : '↩️ ' + atNomPartie(el, k) + ' : à placer');
+}
+/* Après une pose : les feux allumés se jouent « à allumer », les
+   passages remplissent les chemins, et on passe à la suivante */
+async function atApresPose(el, k){
+  const pa = el.parties[k - 1];
+  const r = atCopieReglages();
+  let change = false;
+  const voitures = (atPhotoDe(AT.voiture, pa.endroit, pa.etat) || { voitures: [AT.voiture] }).voitures;
+  if(pa.etat && el.sorte !== 'passage'){
+    voitures.forEach(v => {
+      r.regles[v] = r.regles[v] || {};
+      el.questions.forEach(q => { if(!r.regles[v][String(q)]){ r.regles[v][String(q)] = { mode: 'allumer', allumage: pa.etat }; change = true; } });
+    });
+  }
+  if(atCheminsAuto(r)) change = true;
+  if(change){ await atAppel({ action: 'jeuReglagesPoser', reglages: r }); AT.cheminEdit = null; }
+  /* la suivante, sur cette photo */
+  const v = AT.voiture;
+  const reste = atPartiesIci().find(x => !atZoneDePartie(v, x.el, x.k) && !atAbsent(v, x.el, x.k));
+  AT.place = reste ? reste.el.id + ':' + reste.k : '';
+  AT.ouvert = AT.place;
+  atRedessiner();
+}
+/* 🧭 Les chemins tout seuls, pour chaque voiture, là où il n'y en a pas */
+/* … et après une photo déposée ou partagée : l'endroit qui manquait est peut-être là */
+async function atCheminsAutoPoser(){
+  const r = atCopieReglages();
+  if(atCheminsAuto(r)){ await atAppel({ action: 'jeuReglagesPoser', reglages: r }); AT.cheminEdit = null; }
+}
+function atCheminsAuto(r){
+  let change = false;
+  (r.voitures || []).forEach(vv => {
+    const v = vv.id;
+    Object.keys(AT_CHEMINS_AUTO).forEach(e => {
+      if(((r.chemins[v] || {})[e] || []).length) return;
+      const etapes = [];
+      for(const cle of AT_CHEMINS_AUTO[e]){
+        const [id, k] = cle.split(':');
+        const el = atElements().find(x => x.id === id);
+        const t = el && atZoneDePartie(v, el, Number(k));
+        if(!t) return;
+        etapes.push({ photo: t.photo.id, zone: t.zone.id });
+      }
+      /* seulement si la voiture a une photo de cet endroit */
+      if(!atPhotoDe(v, e)) return;
+      r.chemins[v] = r.chemins[v] || {};
+      r.chemins[v][e] = etapes;
+      change = true;
+    });
+  });
+  return change;
+}
+
+/* 📝 Ajouter, renommer, déplacer un élément */
+function atEditerElement(el){
+  const neuf = !el;
+  const e = el ? JSON.parse(JSON.stringify(el)) : { id: '', ic: '🎯', nom: '', sorte: 'reponse', questions: [], parties: [{ endroit: AT.endroit, etat: AT.etat || '', nom: '' }] };
+  const fond = vqEl('div', 'overlay show');
+  const m = vqEl('div', 'modal atModal');
+  m.style.cssText = 'max-width:min(560px, 96vw);max-height:92vh;overflow-y:auto;text-align:left;';
+  m.appendChild(vqEl('h3', '', neuf ? '➕ Autre chose à placer' : '📝 ' + e.nom));
+  const champ = (lab, val, ph) => { m.appendChild(vqEl('div', 'vbLab', lab)); const i = vqEl('input', 'vbIn'); i.type = 'text'; i.value = val || ''; i.placeholder = ph || ''; i.setAttribute('data-hors-saisie', '1'); m.appendChild(i); return i; };
+  const ic = champ('Emoji', e.ic, '🎯');
+  ic.style.maxWidth = '90px';
+  const nom = champ('Son nom (dit à l’élève quand il le touche par erreur)', e.nom, 'Ex : le bocal du lave-glace');
+  m.appendChild(vqEl('div', 'vbLab', 'C’est'));
+  const ch = vqEl('div', 'vbChx');
+  [['reponse', '🎯 La réponse à des questions'], ['passage', '➡️ Un passage'], ['commande', '🔘 Une commande']].forEach(([k, t]) => {
+    const x = vqEl('button', 'vbPuce' + (e.sorte === k ? ' on' : ''), t); x.type = 'button';
+    x.addEventListener('click', () => { e.sorte = k; ch.querySelectorAll('.vbPuce').forEach(y => y.classList.toggle('on', y === x)); zq.style.display = k === 'passage' ? 'none' : ''; });
+    ch.appendChild(x);
+  });
+  m.appendChild(ch);
+  /* les questions : cherchées par mot, pas par numéro */
+  const zq = vqEl('div', '');
+  zq.appendChild(vqEl('div', 'vbLab', 'Ses questions'));
+  const choisies = vqEl('div', 'vbChx');
+  const cherche = vqEl('input', 'vbIn'); cherche.type = 'text'; cherche.placeholder = '🔎 Un mot : « lave-glace », « plaque », « voyant »…'; cherche.setAttribute('data-hors-saisie', '1');
+  const res = vqEl('div', 'atRes');
+  const majQ = () => {
+    choisies.innerHTML = '';
+    e.questions.forEach(q => {
+      const x = vqEl('button', 'vbPuce on', q + ' ✕'); x.type = 'button'; x.title = ((verifsQuestion(q) || {}).verif) || '';
+      x.addEventListener('click', () => { e.questions = e.questions.filter(y => y !== q); majQ(); voir(); });
+      choisies.appendChild(x);
+    });
+    if(!e.questions.length) choisies.appendChild(vqEl('span', 'vbAide', 'aucune pour l’instant'));
+  };
+  const voir = () => {
+    res.innerHTML = '';
+    const mots = atNormal(cherche.value).split(' ').filter(x => x.length > 1);
+    if(!mots.length) return;
+    for(let q = 1; q <= 100; q++){
+      const x = verifsQuestion(q);
+      if(!x || e.questions.indexOf(q) !== -1) continue;
+      const t = atNormal(x.verif);
+      if(!mots.every(w => t.indexOf(w) !== -1)) continue;
+      const b = vqEl('button', 'atRe', q + ' · ' + x.verif); b.type = 'button';
+      b.addEventListener('click', () => { e.questions.push(q); e.questions.sort((a, c) => a - c); majQ(); voir(); });
+      res.appendChild(b);
+      if(res.children.length >= 8) break;
+    }
+  };
+  cherche.addEventListener('input', voir);
+  zq.appendChild(choisies); zq.appendChild(cherche); zq.appendChild(res);
+  zq.style.display = e.sorte === 'passage' ? 'none' : '';
+  m.appendChild(zq);
+  majQ();
+  /* ses parties : où il faut le montrer */
+  m.appendChild(vqEl('div', 'vbLab', 'Où il faut le montrer (une ligne par partie : devant ET derrière…)'));
+  const zp = vqEl('div', 'atPartiesEd');
+  const majP = () => {
+    zp.innerHTML = '';
+    e.parties.forEach((pa, i) => {
+      const li = vqEl('div', 'atPartieEd');
+      const se = vqEl('select', 'vbIn');
+      AT_ENDROITS.forEach(([x, t]) => se.appendChild(new Option(t, x)));
+      se.value = pa.endroit;
+      const sf = vqEl('select', 'vbIn');
+      [['', 'feux éteints']].concat(AT_ALLUMAGES.map(a => [a[0], a[1] + ' allumés'])).forEach(([x, t]) => sf.appendChild(new Option(t, x)));
+      sf.value = pa.etat || '';
+      const montreFeux = () => { sf.style.display = AT_ENDROITS_ALLUMES.indexOf(se.value) !== -1 ? '' : 'none'; if(sf.style.display === 'none') sf.value = ''; };
+      se.addEventListener('change', () => { pa.endroit = se.value; montreFeux(); pa.etat = sf.value; });
+      sf.addEventListener('change', () => { pa.etat = sf.value; });
+      montreFeux();
+      const n = vqEl('input', 'vbIn'); n.type = 'text'; n.value = pa.nom || ''; n.placeholder = e.parties.length > 1 ? 'Ex : la plaque avant' : 'le même nom';
+      n.setAttribute('data-hors-saisie', '1');
+      n.addEventListener('input', () => { pa.nom = n.value; });
+      li.appendChild(se); li.appendChild(sf); li.appendChild(n);
+      if(e.parties.length > 1){ const x = vqEl('button', 'atMini', '✕'); x.type = 'button'; x.title = 'Retirer cette partie'; x.addEventListener('click', () => { e.parties.splice(i, 1); majP(); }); li.appendChild(x); }
+      zp.appendChild(li);
+    });
+  };
+  majP();
+  m.appendChild(zp);
+  const plus = vqEl('button', 'btn btn-secondary atPlus', '➕ Une partie de plus'); plus.type = 'button';
+  plus.addEventListener('click', () => { e.parties.push({ endroit: 'arriere', etat: '', nom: '' }); majP(); });
+  m.appendChild(plus);
+  const r = vqEl('div', 'btn-row');
+  if(!neuf){
+    const bs = vqEl('button', 'btn btn-secondary', '🗑️ Retirer de la liste'); bs.type = 'button';
+    bs.addEventListener('click', async () => {
+      if(!await confirmer('Retirer « ' + e.nom + ' » de la liste ? Les zones déjà posées restent sur les photos.', 'Retirer un élément', true)) return;
+      const rr = atCopieReglages();
+      rr.elements = atElements().filter(x => x.id !== e.id);
+      atReglagesPoser(rr, bs, 'Retiré de la liste').then(x => { if(x) fermerFond(fond); });
+    });
+    r.appendChild(bs);
+  }
+  const ba = vqEl('button', 'btn btn-secondary', 'Annuler'); ba.type = 'button';
+  ba.addEventListener('click', () => fermerFond(fond));
+  const bo = vqEl('button', 'btn btn-primary', '💾 Enregistrer'); bo.type = 'button';
+  bo.addEventListener('click', () => {
+    e.nom = nom.value.trim(); e.ic = ic.value.trim();
+    if(!e.nom){ showToastVerifs('Donne-lui un nom.'); return; }
+    if(e.sorte === 'passage') e.questions = [];
+    if(neuf){
+      let id = atNormal(e.nom).replace(/ /g, '-').slice(0, 30) || 'element', i = 2;
+      const base = id;
+      while(atElements().some(x => x.id === id)) id = base + '-' + (i++);
+      e.id = id;
+    }
+    const rr = atCopieReglages();
+    const l = atElements().map(x => JSON.parse(JSON.stringify(x)));
+    const j = l.findIndex(x => x.id === e.id);
+    if(j === -1) l.push(e); else l[j] = e;
+    rr.elements = l;
+    atReglagesPoser(rr, bo, '📝 ' + e.nom + ' : enregistré').then(x => {
+      if(!x) return;
+      fermerFond(fond);
+      /* le nouvel élément tout de suite à dessiner, s'il est sur cette photo */
+      const k = e.parties.findIndex(pa => pa.endroit === AT.endroit && (pa.etat || '') === (AT.etat || ''));
+      if(neuf && k !== -1){ AT.place = e.id + ':' + (k + 1); AT.ouvert = AT.place; atRedessiner(); }
+    });
+  });
+  r.appendChild(ba); r.appendChild(bo);
+  m.appendChild(r);
+  fond.appendChild(m);
+  document.body.appendChild(fond);
+}
 
 function atNomEndroit(e){ const x = AT_ENDROITS.find(y => y[0] === e); return x ? x[1] : e; }
 function atReglages(){ const r = (AT.d && AT.d.reglages) || { voitures: [], chemins: {}, regles: {} }; if(!r.allumages) r.allumages = {}; return r; }
@@ -75,7 +550,8 @@ function atNouvelId(p){ let i = 1; while(p.zones.some(z => z.id === 'z' + i)) i+
 function atZoneReponse(v, n){
   for(const p of atPhotos()){
     if(p.voitures.indexOf(v) === -1 || atPhotoDe(v, p.endroit) !== p) continue;
-    const z = p.zones.find(z => z.sorte === 'reponse' && (z.questions || []).indexOf(n) !== -1);
+    /* 📋 v1268 — une 🔘 commande peut aussi répondre (le bouton des feux de détresse) */
+    const z = p.zones.find(z => z.sorte !== 'passage' && (z.questions || []).indexOf(n) !== -1);
     if(z) return { photo: p, zone: z };
   }
   return null;
@@ -120,7 +596,7 @@ function atCopieReglages(){ return JSON.parse(JSON.stringify(atReglages())); }
 function atDessiner(){
   const z = AT.racine;
   z.innerHTML = '';
-  z.appendChild(vqEl('div', 'vbIntro', 'Pour chaque voiture : une photo par endroit, et sur chaque photo des zones dessinées au doigt. 🎯 Une zone « réponse » répond à des questions ; ➡️ une zone « passage » mène à un autre endroit (porte, manette, capot). Le 🧭 chemin dit dans quel ordre l’élève les touche. Une question sans rien se joue quand même, en questions-réponses.'));
+  z.appendChild(vqEl('div', 'vbIntro', 'Pour chaque voiture : une photo par endroit. À droite, 📋 ce qui se place sur la photo affichée, déjà relié à ses questions : touche une ligne, glisse sur la photo, c’est enregistré. Ce qui se montre à plusieurs endroits (les plaques, les clignotants) a une partie par photo. Une question sans rien se joue quand même, en questions-réponses.'));
   const g = vqEl('div', 'atGrille');
   g.appendChild(atColVoitures());
   g.appendChild(atColPhoto());
@@ -188,7 +664,7 @@ function atColPhoto(){
     const b = vqEl('button', 'vbPuce' + (e === AT.endroit ? ' on' : '') + (atPhotoDe(v, e) ? ' plein' : ''), t + (atPhotoDe(v, e) ? ' ✓' : ''));
     b.type = 'button';
     b.setAttribute('data-endroit', e);
-    b.addEventListener('click', () => { AT.endroit = e; AT.zone = ''; if(AT_ENDROITS_ALLUMES.indexOf(e) === -1) AT.etat = ''; atDessiner(); });
+    b.addEventListener('click', () => { AT.endroit = e; AT.zone = ''; AT.place = ''; AT.ouvert = ''; if(AT_ENDROITS_ALLUMES.indexOf(e) === -1) AT.etat = ''; atDessiner(); });
     ch.appendChild(b);
   });
   c.appendChild(ch);
@@ -201,7 +677,7 @@ function atColPhoto(){
       const b = vqEl('button', 'vbPuce' + (a === AT.etat ? ' on' : '') + (a2 ? ' plein' : ''), t + (a2 ? ' ✓' : ''));
       b.type = 'button';
       b.setAttribute('data-etat', a);
-      b.addEventListener('click', () => { AT.etat = a; AT.zone = ''; atDessiner(); });
+      b.addEventListener('click', () => { AT.etat = a; AT.zone = ''; AT.place = ''; AT.ouvert = ''; atDessiner(); });
       ce.appendChild(b);
     });
     c.appendChild(ce);
@@ -247,7 +723,18 @@ function atColPhoto(){
   sert.appendChild(vqEl('div', 'vbAide', 'Même photo pour plusieurs voitures : les zones ne se dessinent qu’une fois. Une voiture n’a qu’une photo par endroit' + (AT_ENDROITS_ALLUMES.indexOf(AT.endroit) !== -1 ? ' et par feux allumés.' : '.')));
   c.appendChild(sert);
   /* l'éditeur : glisser pour dessiner une zone, toucher une zone pour la régler */
-  const ed = vqEl('div', 'atEd');
+  /* 📋 v1268 — ce qu'on dessine maintenant */
+  const enCours = atPlaceEnCours();
+  if(enCours){
+    const bd = vqEl('div', 'atBandeau');
+    bd.appendChild(vqEl('span', '', '✏️ Dessine maintenant : ' + (enCours.el.ic || '') + ' ' + atNomPartie(enCours.el, enCours.k) +
+      (enCours.el.questions.length ? ' → question' + (enCours.el.questions.length > 1 ? 's ' : ' ') + enCours.el.questions.join(' et ') : (enCours.el.sorte === 'passage' ? ' (passage)' : ' (commande)'))));
+    const an = vqEl('button', 'btn btn-secondary atPlus', 'Annuler'); an.type = 'button';
+    an.addEventListener('click', () => { AT.place = ''; atDessiner(); });
+    bd.appendChild(an);
+    c.appendChild(bd);
+  }
+  const ed = vqEl('div', 'atEd' + (enCours ? ' aDessiner' : ''));
   ed.style.aspectRatio = (p.l || 4) + ' / ' + (p.h || 3);
   const img = document.createElement('img'); img.src = atLien(p); img.alt = ''; img.draggable = false;
   ed.appendChild(img);
@@ -255,14 +742,26 @@ function atColPhoto(){
     const d = vqEl('div', 'atZ' + (zz.sorte === 'passage' ? ' passage' : zz.sorte === 'commande' ? ' commande' : '') + (zz.id === AT.zone ? ' sel' : ''));
     d.setAttribute('data-z', zz.id);
     d.style.cssText = 'left:' + zz.x + '%;top:' + zz.y + '%;width:' + zz.w + '%;height:' + zz.h + '%';
-    d.appendChild(vqEl('b', '', (zz.sorte === 'passage' ? '➡️ ' : zz.sorte === 'commande' ? '🔘 ' : '🎯 ') + (zz.nom || 'sans nom') + (zz.sorte === 'reponse' && zz.questions && zz.questions.length ? ' · ' + zz.questions.join(' · ') : '')));
+    d.appendChild(vqEl('b', '', (zz.sorte === 'passage' ? '➡️ ' : zz.sorte === 'commande' ? '🔘 ' : '🎯 ') + (zz.nom || 'sans nom') + (zz.sorte !== 'passage' && zz.questions && zz.questions.length ? ' · ' + zz.questions.join(' · ') : '')));
+    /* 📋 v1268 — la zone choisie se déplace (en la glissant) et s'agrandit (par son coin) */
+    if(zz.id === AT.zone){ const h = vqEl('i', 'atPoig'); h.title = 'Agrandir'; d.appendChild(h); d.title = 'Glisse pour la déplacer ; tire le coin pour l’agrandir'; }
     ed.appendChild(d);
   });
-  let debut = null, cadre = null;
+  let debut = null, cadre = null, bouge = null;
   const pos = ev => { const r = ed.getBoundingClientRect(); return { x: Math.max(0, Math.min(100, (ev.clientX - r.left) * 100 / r.width)), y: Math.max(0, Math.min(100, (ev.clientY - r.top) * 100 / r.height)) }; };
+  const arrondi = n => Math.round(n * 10) / 10;
   ed.addEventListener('pointerdown', ev => {
     const zz = ev.target.closest('.atZ');
-    if(zz){ AT.zone = zz.getAttribute('data-z'); atDessiner(); return; }
+    if(zz && zz.getAttribute('data-z') === AT.zone){
+      const z0 = p.zones.find(x => x.id === AT.zone);
+      if(z0){
+        bouge = { d: zz, z: z0, depart: pos(ev), coin: !!ev.target.closest('.atPoig'), x: z0.x, y: z0.y, w: z0.w, h: z0.h, change: false };
+        try{ ed.setPointerCapture(ev.pointerId); }catch(e){}
+        ev.preventDefault();
+        return;
+      }
+    }
+    if(zz){ AT.zone = zz.getAttribute('data-z'); AT.place = ''; atDessiner(); return; }
     debut = pos(ev);
     cadre = vqEl('div', 'atZ nouv');
     ed.appendChild(cadre);
@@ -270,11 +769,27 @@ function atColPhoto(){
     ev.preventDefault();
   });
   ed.addEventListener('pointermove', ev => {
+    if(bouge){
+      const q = pos(ev), dx = q.x - bouge.depart.x, dy = q.y - bouge.depart.y;
+      if(Math.abs(dx) + Math.abs(dy) > 0.4) bouge.change = true;
+      if(bouge.coin){ bouge.w = arrondi(Math.max(2, Math.min(100 - bouge.z.x, bouge.z.w + dx))); bouge.h = arrondi(Math.max(2, Math.min(100 - bouge.z.y, bouge.z.h + dy))); }
+      else{ bouge.x = arrondi(Math.max(0, Math.min(100 - bouge.z.w, bouge.z.x + dx))); bouge.y = arrondi(Math.max(0, Math.min(100 - bouge.z.h, bouge.z.y + dy))); }
+      bouge.d.style.left = bouge.x + '%'; bouge.d.style.top = bouge.y + '%'; bouge.d.style.width = bouge.w + '%'; bouge.d.style.height = bouge.h + '%';
+      return;
+    }
     if(!debut) return;
     const q = pos(ev);
     cadre.style.cssText = 'left:' + Math.min(debut.x, q.x) + '%;top:' + Math.min(debut.y, q.y) + '%;width:' + Math.abs(q.x - debut.x) + '%;height:' + Math.abs(q.y - debut.y) + '%';
   });
   ed.addEventListener('pointerup', ev => {
+    if(bouge){
+      const b0 = bouge; bouge = null;
+      if(!b0.change) return;
+      const zones = p.zones.map(x => x.id !== b0.z.id ? x : Object.assign({}, x, { x: b0.x, y: b0.y, w: b0.w, h: b0.h }));
+      atAppel({ action: 'jeuPhotoPoser', id: p.id, endroit: p.endroit, etat: p.etat || '', nom: p.nom, voitures: p.voitures, zones: zones })
+        .then(r => { if(r){ showToastVerifs(b0.coin ? '↘️ Zone agrandie' : '✋ Zone déplacée'); atRedessiner(); } });
+      return;
+    }
     if(!debut) return;
     const q = pos(ev), d0 = debut;
     debut = null;
@@ -282,6 +797,19 @@ function atColPhoto(){
     const w = Math.abs(q.x - d0.x), h = Math.abs(q.y - d0.y);
     if(w < 2 || h < 2) return;
     const id = atNouvelId(p);
+    /* 📋 v1268 — depuis la liste : nom, sorte, questions déjà là, enregistrée tout de suite */
+    const pl = atPlaceEnCours();
+    if(pl){
+      const cle = pl.el.id + ':' + pl.k;
+      const zone = { id: id, nom: atNomPartie(pl.el, pl.k), sorte: pl.el.sorte, questions: pl.el.sorte === 'passage' ? [] : pl.el.questions.slice(), el: cle,
+                     x: arrondi(Math.min(d0.x, q.x)), y: arrondi(Math.min(d0.y, q.y)), w: arrondi(w), h: arrondi(h) };
+      /* « ✏️ La redessiner » : l'ancienne zone de cette partie s'en va */
+      const avant = atZoneDePartie(AT.voiture, pl.el, pl.k);
+      const zones = p.zones.filter(x => !(avant && avant.photo === p && x.id === avant.zone.id)).concat([zone]);
+      atAppel({ action: 'jeuPhotoPoser', id: p.id, endroit: p.endroit, etat: p.etat || '', nom: p.nom, voitures: p.voitures, zones: zones })
+        .then(r => { if(r){ showToastVerifs('🎯 ' + atNomPartie(pl.el, pl.k) + ' : placé'); atApresPose(pl.el, pl.k); } });
+      return;
+    }
     p.zones.push({ id: id, nom: '', sorte: 'reponse', questions: [], x: Math.round(Math.min(d0.x, q.x) * 10) / 10, y: Math.round(Math.min(d0.y, q.y) * 10) / 10,
                    w: Math.round(w * 10) / 10, h: Math.round(h * 10) / 10 });
     AT.zone = id;
@@ -289,7 +817,7 @@ function atColPhoto(){
     const n = AT.racine.querySelector('.atZoneNom'); if(n) n.focus();
   });
   c.appendChild(ed);
-  c.appendChild(vqEl('div', 'vbAide', 'Glisse sur la photo pour dessiner une zone ; touche une zone pour la régler (à droite). Les élèves ne voient jamais les cadres.'));
+  c.appendChild(vqEl('div', 'vbAide', 'Choisis à droite ce que tu places, puis glisse sur la photo. Une zone touchée se déplace en la glissant, et s’agrandit par son coin. Les élèves ne voient jamais les cadres.'));
   const bas = vqEl('div', 'atBtns');
   const f = vqEl('input', ''); f.type = 'file'; f.accept = 'image/*'; f.style.display = 'none';
   const bc = vqEl('button', 'btn btn-secondary', '🔄 Changer la photo'); bc.type = 'button';
@@ -333,7 +861,7 @@ async function atDeposer(fichier, photo, bouton){
     }
   }
   const ok = await atAppel(c, bouton);
-  if(ok){ showToastVerifs('📷 Photo enregistrée'); atRedessiner(); }
+  if(ok){ showToastVerifs('📷 Photo enregistrée'); await atCheminsAutoPoser(); atRedessiner(); }
 }
 async function atBasculerVoiture(p, v, oui, bouton){
   if(oui){
@@ -343,7 +871,7 @@ async function atBasculerVoiture(p, v, oui, bouton){
   }
   const voitures = oui ? p.voitures.concat([v]) : p.voitures.filter(y => y !== v);
   const r = await atAppel({ action: 'jeuPhotoPoser', id: p.id, endroit: p.endroit, etat: p.etat || '', nom: p.nom, voitures: voitures, zones: p.zones }, bouton);
-  if(r) atRedessiner();
+  if(r){ await atCheminsAutoPoser(); atRedessiner(); }
 }
 
 /* ---------- 3 · La zone, le chemin, les règles ---------- */
@@ -354,6 +882,8 @@ function atColReglages(){
   const p = atPhotoDe(v, AT.endroit, AT.etat);
   const zz = p && p.zones.find(x => x.id === AT.zone);
   if(zz) c.appendChild(atPanneauZone(p, zz));
+  /* 📋 v1268 — la liste « À placer » */
+  c.appendChild(atPanneauListe(v));
   c.appendChild(atPanneauChemin(v));
   c.appendChild(atPanneauAllumer(v));
   c.appendChild(atPanneauRegles(v));
@@ -372,7 +902,7 @@ function atPanneauZone(p, zz){
   [['reponse', '🎯 La réponse à des questions'], ['passage', '➡️ Un passage (porte, manette, capot…)'], ['commande', '🔘 Une commande à actionner (bague, bouton, pédale…)']].forEach(([k, t]) => {
     const x = vqEl('button', 'vbPuce' + (sorte === k ? ' on' : ''), t); x.type = 'button';
     x.setAttribute('data-sorte', k);
-    x.addEventListener('click', () => { sorte = k; ch.querySelectorAll('.vbPuce').forEach(y => y.classList.toggle('on', y === x)); qs.style.display = k === 'reponse' ? '' : 'none'; });
+    x.addEventListener('click', () => { sorte = k; ch.querySelectorAll('.vbPuce').forEach(y => y.classList.toggle('on', y === x)); qs.style.display = k !== 'passage' ? '' : 'none'; });
     ch.appendChild(x);
   });
   b.appendChild(ch);
@@ -384,12 +914,12 @@ function atPanneauZone(p, zz){
   const voir = () => { apercu.textContent = lire().map(n => { const q = verifsQuestion(n); return n + ' · ' + (q ? q.verif : '?'); }).join('\n'); apercu.style.whiteSpace = 'pre-line'; };
   num.addEventListener('input', voir); voir();
   qs.appendChild(apercu);
-  qs.style.display = sorte === 'reponse' ? '' : 'none';
+  qs.style.display = sorte !== 'passage' ? '' : 'none';
   b.appendChild(qs);
   const bt = vqEl('div', 'atBtns');
   const ok = vqEl('button', 'btn btn-primary', '💾 Enregistrer la zone'); ok.type = 'button';
   ok.addEventListener('click', () => {
-    const zones = p.zones.map(x => x.id !== zz.id ? x : Object.assign({}, x, { nom: nom.value.trim(), sorte: sorte, questions: sorte === 'reponse' ? lire() : [] }));
+    const zones = p.zones.map(x => x.id !== zz.id ? x : Object.assign({}, x, { nom: nom.value.trim(), sorte: sorte, questions: sorte !== 'passage' ? lire() : [] }));
     atAppel({ action: 'jeuPhotoPoser', id: p.id, endroit: p.endroit, etat: p.etat || '', nom: p.nom, voitures: p.voitures, zones: zones }, ok).then(r => { if(r){ showToastVerifs('🎯 Zone enregistrée'); atRedessiner(); } });
   });
   const ret = vqEl('button', 'btn btn-secondary', '🗑️ Retirer la zone'); ret.type = 'button';
