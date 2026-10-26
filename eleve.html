@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 23/10/2026 à 18:16 — v1256 -->
+<!-- Déployé le 26/10/2026 à 12:48 — v1268 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1607,6 +1607,9 @@
   @keyframes jvGlisse{ from{ transform:translateX(30%); opacity:0 } }
   .jv .jvZone{ position:absolute; background:transparent; border:0; padding:0; margin:0; cursor:pointer; border-radius:10px; }
   .jv .jvScene.indice .jvZone.bonne{ background:rgba(182,255,14,.25); box-shadow:0 0 0 3px #B6FF0E; animation:jvPulse 1s ease-in-out infinite; }
+  /* 📋 v1268 — une partie déjà montrée reste cochée sur la photo */
+  .jv .jvZone.montre{ background:rgba(125,187,0,.22); box-shadow:0 0 0 3px #7DBB00; }
+  .jv .jvZone.montre::after{ content:'✓'; position:absolute; right:-8px; top:-10px; width:22px; height:22px; border-radius:50%; background:#7DBB00; color:#fff; font:800 13px/22px sans-serif; text-align:center; }
   @keyframes jvPulse{ 50%{ box-shadow:0 0 0 7px #B6FF0E; background:rgba(182,255,14,.42); } }
   .jv .jvLieu{ position:absolute; left:8px; top:8px; background:rgba(0,0,0,.6); color:#fff; font-size:11.5px; font-weight:700; border-radius:999px; padding:4px 10px; pointer-events:none; }
   .jv .jvToast{ position:absolute; left:50%; bottom:10px; transform:translateX(-50%) translateY(16px); opacity:0; background:#14161B; color:#fff; border-radius:12px;
@@ -9769,17 +9772,23 @@
   function jvRegle(v, n){ var r = jvAt().reglages.regles[v]; return (r && r[String(n)]) || null; }
   /* La zone qui répond à la question n sur la voiture v (sur LA photo de
      cet endroit pour cette voiture) */
-  function jvZoneReponse(v, n){
-    var ps = jvPhotosDe(v);
-    for(var i = 0; i < ps.length; i++){
-      var p = ps[i];
-      if(jvPhotoDe(v, p.endroit) !== p) continue;
-      for(var k = 0; k < p.zones.length; k++){
-        var z = p.zones[k];
-        if(z.sorte === 'reponse' && (z.questions || []).indexOf(n) !== -1) return { photo: p, zone: z };
-      }
-    }
-    return null;
+  function jvZoneReponse(v, n){ return jvZonesReponse(v, n)[0] || null; }
+  /* 📋 v1268 — TOUT CE QU'IL FAUT MONTRER pour la question n : David, le
+     26 octobre, « pour la question 6 il faut montrer toutes les plaques :
+     devant ET derrière ; pareil pour les clignotants ». Chaque zone qui
+     répond à n sur les photos de sa voiture est une partie ; il les
+     montre toutes, dans l'ordre qu'il veut (son choix). Une partie
+     absente sur sa voiture n'a pas de zone : elle n'est pas demandée.
+     Une 🔘 commande peut aussi répondre (le bouton des feux de détresse). */
+  var JV_ORDRE_PARTIES = ['volant', 'voyants', 'porte', 'capot', 'devant', 'cote', 'arriere', 'coffre', 'roue'];
+  function jvZonesReponse(v, n){
+    var l = [];
+    JV_ORDRE_PARTIES.forEach(function(e){
+      var p = jvPhotoDe(v, e);
+      if(!p) return;
+      p.zones.forEach(function(z){ if(z.sorte !== 'passage' && (z.questions || []).indexOf(n) !== -1) l.push({ photo: p, zone: z }); });
+    });
+    return l;
   }
   /* La question qui se joue vraiment pour la vérification de n : elle-même,
      ou sa remplaçante si la banque la neutralise */
@@ -9812,8 +9821,10 @@
     var v = JV.d.voiture, voit = jvVoiture();
     var m = jvCibleVerif(n);
     var x = jvQuestion(n), d = jvPartieDemandee(n, 'v');
-    var regle = jvRegle(v, m), rep = jvZoneReponse(v, m);
+    var regle = jvRegle(v, m);
     if(regle && regle.mode === 'allumer') return jvAllumerEnVrai(zone, n, fini, regle);
+    var parts = regle ? [] : jvZonesReponse(v, m), rep = parts[0] || null;
+    var multi = parts.length > 1, montres = [], ici = null;
     var voyant = /voyant/i.test(d.q || '');
     var etapes = [];
     var depart = null;
@@ -9835,10 +9846,13 @@
     var lieu = jvEl('span', 'jvLieu', '');
     var toast = jvEl('div', 'jvToast', '');
     c.appendChild(sc);
+    var aller = jvEl('div', 'jvAller');
+    c.appendChild(aller);
     var consigne = jvEl('div', 'jvConsigne', '');
+    consigne.setAttribute('role', 'status');
     c.appendChild(consigne);
     var outils = jvEl('div', 'jvOutils');
-    var bIndice = jvBouton('💡 Indice', 'btn btn-secondary', function(){ indice = true; sc.classList.add('indice'); });
+    var bIndice = jvBouton('💡 Indice', 'btn btn-secondary', function(){ indice = true; sc.classList.add('indice'); majEtape(); });
     if(!regle) outils.appendChild(bIndice);
     /* Toujours là : la bonne réponse quand la règle le dit, un piège sinon */
     var bouton2 = function(mode, texte, non){
@@ -9861,6 +9875,7 @@
 
     var dire = function(t, k){ toast.textContent = t; toast.className = 'jvToast on ' + (k || ''); clearTimeout(toast._t); toast._t = setTimeout(function(){ toast.className = 'jvToast'; }, 1800); };
     var montrer = function(p){
+      ici = p;
       sc.innerHTML = '';
       sc.classList.remove('indice');
       sc.style.aspectRatio = (p.l || 4) + ' / ' + (p.h || 3);
@@ -9870,7 +9885,7 @@
       p.zones.forEach(function(z){
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = 'jvZone';
+        b.className = 'jvZone' + (montres.some(function(x){ return x.photo === p && x.zone.id === z.id; }) ? ' montre' : '');
         b.setAttribute('data-z', z.id);
         b.setAttribute('aria-label', 'Zone');
         b.style.cssText = 'left:' + z.x + '%;top:' + z.y + '%;width:' + z.w + '%;height:' + z.h + '%';
@@ -9880,8 +9895,38 @@
       sc.appendChild(lieu); sc.appendChild(toast);
       sc.classList.remove('jvGlisse'); void sc.offsetWidth; sc.classList.add('jvGlisse');
     };
+    /* 📋 v1268 — plusieurs parties : il est arrivé, il montre tout, où il veut */
+    var auxParties = function(){ return multi && !regle && i >= etapes.length - 1; };
+    var resteAMontrer = function(){ return parts.filter(function(x){ return montres.indexOf(x) === -1; }); };
+    var dessinerAller = function(){
+      aller.innerHTML = '';
+      if(!auxParties()) return;
+      var lieux = [];
+      parts.forEach(function(x){ if(lieux.indexOf(x.photo) === -1) lieux.push(x.photo); });
+      if(lieux.length < 2) return;
+      lieux.forEach(function(p){
+        var b = jvBouton(JV_ENDROITS[p.endroit] || p.endroit, 'btn btn-secondary' + (p === ici ? ' ici' : ''), function(){
+          if(fait || p === ici) return;
+          montrer(p); majEtape(); dessinerAller();
+        });
+        b.setAttribute('aria-pressed', p === ici ? 'true' : 'false');
+        aller.appendChild(b);
+      });
+    };
     var majEtape = function(){
       if(barre) Array.prototype.forEach.call(barre.children, function(s, k){ s.className = k < i ? 'f' : (k === i ? 'c' : ''); });
+      if(auxParties()){
+        var reste = resteAMontrer();
+        var bon = reste.filter(function(x){ return x.photo === ici; })[0] || null;
+        Array.prototype.forEach.call(sc.querySelectorAll('.jvZone'), function(b){ b.classList.toggle('bonne', !!bon && b.getAttribute('data-z') === bon.zone.id); });
+        var ailleurs = [];
+        reste.forEach(function(x){ if(x.photo !== ici){ var t = JV_ENDROITS[x.photo.endroit] || ''; if(ailleurs.indexOf(t) === -1) ailleurs.push(t); } });
+        consigne.textContent = !montres.length
+          ? 'Il y a ' + parts.length + ' choses à montrer' + (ailleurs.length ? ', à plusieurs endroits : fais le tour de la voiture.' : '.')
+          : 'Montré ' + montres.length + ' sur ' + parts.length + '. ' + (bon ? 'Encore ici.' : 'Va voir ailleurs : ' + ailleurs.join(', ') + '.');
+        if(indice && !bon && ailleurs.length) consigne.textContent += ' 💡 ' + ailleurs[0] + ' !';
+        return;
+      }
       var e = etapes[i];
       Array.prototype.forEach.call(sc.querySelectorAll('.jvZone'), function(b){ b.classList.toggle('bonne', !!e && b.getAttribute('data-z') === e.zone.id); });
       consigne.textContent = regle ? 'Regarde bien… Si ça n’existe pas sur ta voiture, dis-le.'
@@ -9904,12 +9949,39 @@
       suite.innerHTML = '';
       suite.appendChild(r);
       outils.style.display = 'none';
+      aller.innerHTML = '';
       consigne.textContent = '';
       setTimeout(function(){ try{ r.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }catch(e){} }, 120);
     };
     sc.addEventListener('click', function(ev){
       if(fait) return;
       var b = ev.target.closest ? ev.target.closest('.jvZone') : null;
+      /* 📋 v1268 — les parties, dans l'ordre qu'il veut */
+      if(auxParties()){
+        var zid = b ? b.getAttribute('data-z') : '';
+        var touche = b ? resteAMontrer().filter(function(x){ return x.photo === ici && x.zone.id === zid; })[0] : null;
+        if(touche){
+          var rr2 = sc.getBoundingClientRect();
+          var o2 = jvEl('span', 'jvBoum', '');
+          o2.style.left = (ev.clientX - rr2.left) + 'px'; o2.style.top = (ev.clientY - rr2.top) + 'px';
+          sc.appendChild(o2); setTimeout(function(){ if(o2.parentNode) o2.remove(); }, 800);
+          b.classList.add('montre');
+          montres.push(touche);
+          if(montres.length >= parts.length){ i = etapes.length; majEtape(); dessinerAller(); return reussi(false); }
+          jvBip('ok');
+          dire('✅ ' + (touche.zone.nom || 'Oui'), 'ok');
+          majEtape(); dessinerAller();
+          return;
+        }
+        if(b && montres.some(function(x){ return x.photo === ici && x.zone.id === zid; })){ dire('✅ Déjà montré : cherche le reste.', 'ok'); return; }
+        fautes++;
+        jvBip('ko');
+        c.classList.remove('jvSecoue'); void c.offsetWidth; c.classList.add('jvSecoue');
+        var z2 = b ? (ici.zones.filter(function(y){ return y.id === zid; })[0] || null) : null;
+        var ailleurs2 = !resteAMontrer().some(function(x){ return x.photo === ici; });
+        dire(z2 && z2.nom ? '❌ Ça, c’est ' + z2.nom + '.' : (ailleurs2 ? '🤔 Plus rien ici : fais le tour.' : '🤔 Pas ici…'), 'ko');
+        return;
+      }
       var e = etapes[i];
       if(b && e && b.getAttribute('data-z') === e.zone.id){
         var rr = sc.getBoundingClientRect();
@@ -9917,12 +9989,22 @@
         o.style.left = (ev.clientX - rr.left) + 'px'; o.style.top = (ev.clientY - rr.top) + 'px';
         sc.appendChild(o); setTimeout(function(){ if(o.parentNode) o.remove(); }, 800);
         i++;
+        /* 📋 v1268 — la première partie d'une question qui en a plusieurs */
+        if(e.fin && multi){
+          montres.push(parts[0]);
+          b.classList.add('montre');
+          i = etapes.length - 1;
+          jvBip('ok');
+          dire('✅ ' + (e.zone.nom || 'Oui'), 'ok');
+          majEtape(); dessinerAller();
+          return;
+        }
         if(e.fin || i >= etapes.length){ majEtape(); return reussi(false); }
         jvBip('ok');
         dire('✅ ' + (e.zone.nom || 'Oui'), 'ok');
         var suivante = etapes[i].photo;
-        if(suivante !== e.photo) setTimeout(function(){ montrer(suivante); majEtape(); }, 450);
-        else majEtape();
+        if(suivante !== e.photo) setTimeout(function(){ montrer(suivante); majEtape(); dessinerAller(); }, 450);
+        else { majEtape(); dessinerAller(); }
         return;
       }
       fautes++;
@@ -9938,8 +10020,9 @@
     });
     montrer(depart);
     majEtape();
+    dessinerAller();
     /* les photos suivantes se chargent pendant qu'il cherche */
-    etapes.forEach(function(e){ var im = new Image(); im.src = jvLien(e.photo); });
+    etapes.concat(parts).forEach(function(e){ var im = new Image(); im.src = jvLien(e.photo); });
   }
 
   /* ============================================================
@@ -9974,7 +10057,7 @@
     var allumees = JV_ORDRE_TOUR.map(function(e){ return jvPhotoDe(v, e, a); }).filter(Boolean);
     var vues = [];
     etapes.forEach(function(s){ if(vues.indexOf(s.photo) === -1) vues.push(s.photo); });
-    var fautes = 0, indice = false, fait = false, phase = 'allumer', faits = [], ici = vues[0], c0 = 0;
+    var fautes = 0, indice = false, fait = false, phase = 'allumer', faits = [], ici = vues[0], c0 = 0, controles = [];
     var c = jvEl('div', 'card jvPop');
     c.appendChild(jvEl('span', 'jvPart v', echapper(jvNomPartie('v', x.type)) + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')));
     if(d.neutre) c.appendChild(jvEl('div', 'jvNeutre', '⚠️ Cette question est neutralisée' + (d.neutre.pourquoi ? ' (' + echapper(d.neutre.pourquoi) + ')' : '') + ' : l’inspecteur pose celle-ci à la place.'));
@@ -10010,7 +10093,7 @@
       sc.appendChild(img);
       p.zones.forEach(function(z){
         var b = document.createElement('button');
-        b.type = 'button'; b.className = 'jvZone';
+        b.type = 'button'; b.className = 'jvZone' + (controles.some(function(x){ return x.photo === p && x.zone.id === z.id; }) ? ' montre' : '');
         b.setAttribute('data-z', z.id);
         b.setAttribute('aria-label', z.sorte === 'commande' ? (z.nom || 'Commande') : 'Zone');
         b.style.cssText = 'left:' + z.x + '%;top:' + z.y + '%;width:' + z.w + '%;height:' + z.h + '%';
@@ -10042,7 +10125,11 @@
         if(indice) consigne.textContent = !juste ? '💡 Indice : il y a une erreur dans ce que tu as fait. « ↺ Tout éteindre », et recommence.'
           : (bon ? '💡 Indice : ' + (bon.zone.nom || 'cette commande') + ' — encore ' + reste + ' appui' + (reste > 1 ? 's' : '') + '.'
                  : '💡 Indice : c’est bon ! Appuie sur « 💡 C’est allumé ».');
-      }else if(cibles[c0]) bon = cibles[c0];
+      }else{
+        /* 📋 v1268 — dans l'ordre qu'il veut : la prochaine encore à toucher, ici d'abord */
+        var reste = cibles.filter(function(x){ return controles.indexOf(x) === -1; });
+        bon = reste.filter(function(x){ return x.photo === ici; })[0] || reste[0] || null;
+      }
       Array.prototype.forEach.call(sc.querySelectorAll('.jvZone'), function(b){ b.classList.toggle('bonne', !!bon && bon.photo === ici && b.getAttribute('data-z') === bon.zone.id); });
       sc.classList.toggle('indice', indice);
     };
@@ -10158,25 +10245,32 @@
           boum(); jvBip('ok'); iS++;
           if(iS < sortie.length){ dire('✅ ' + (z.nom || 'Oui'), 'ok'); if(sortie[iS].photo !== ici) setTimeout(function(){ montrer(sortie[iS].photo); }, 400); return; }
           sortie = [];
-          setTimeout(function(){ montrer(cibles[c0].photo, true); dessinerAller(); consigne.textContent = 'Contrôle : touche ' + (cibles.length - c0 > 1 ? 'les feux allumés' : 'le feu allumé') + '.'; }, 400);
+          setTimeout(function(){ montrer(cibles[0].photo, true); dessinerAller(); consigne.textContent = 'Contrôle : touche ' + (cibles.length > 1 ? 'les feux allumés' : 'le feu allumé') + '.'; }, 400);
           return;
         }
         secouer();
         dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + '. Sors de la voiture !' : '🤔 Pas ici… sors de la voiture.', 'ko');
         return;
       }
-      var cible = cibles[c0];
-      if(z && cible && ici === cible.photo && z.id === cible.zone.id){
+      /* 📋 v1268 — les feux à contrôler, dans l'ordre qu'il veut (choix de David) */
+      var restants = cibles.filter(function(x){ return controles.indexOf(x) === -1; });
+      var cible = z ? restants.filter(function(x){ return x.photo === ici && x.zone.id === z.id; })[0] : null;
+      if(cible){
         boum(); jvBip('ok');
-        c0++;
+        controles.push(cible); c0 = controles.length;
+        b.classList.add('montre');
         if(c0 >= cibles.length) return reussi();
         dire('✅ ' + (z.nom || 'Bien vu'), 'ok');
-        consigne.textContent = 'Contrôlé ' + c0 + ' sur ' + cibles.length + '. ' + (cibles[c0].photo !== ici ? 'Va voir ailleurs : ' + (JV_ENDROITS[cibles[c0].photo.endroit] || '') + '.' : 'Encore un.');
+        var encore = restants.filter(function(x){ return x !== cible; });
+        var ailleurs = [];
+        encore.forEach(function(x){ if(x.photo !== ici){ var t = JV_ENDROITS[x.photo.endroit] || ''; if(ailleurs.indexOf(t) === -1) ailleurs.push(t); } });
+        consigne.textContent = 'Contrôlé ' + c0 + ' sur ' + cibles.length + '. ' + (encore.some(function(x){ return x.photo === ici; }) ? 'Encore un ici.' : 'Va voir ailleurs : ' + ailleurs.join(', ') + '.');
         marquerIndice();
         return;
       }
+      if(z && controles.some(function(x){ return x.photo === ici && x.zone.id === z.id; })){ dire('✅ Déjà contrôlé : cherche les autres.', 'ok'); return; }
       secouer();
-      dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + '.' : (cible && ici !== cible.photo ? '🤔 Pas par ici : fais le tour.' : '🤔 Pas ici…'), 'ko');
+      dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + '.' : (!restants.some(function(x){ return x.photo === ici; }) ? '🤔 Pas par ici : fais le tour.' : '🤔 Pas ici…'), 'ko');
     });
 
     var bAllume = jvBouton('💡 C’est allumé', 'btn btn-primary', verifier);
