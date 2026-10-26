@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 26/10/2026 à 12:48 — v1268 -->
+<!-- Déployé le 26/10/2026 à 14:46 — v1271 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -9748,7 +9748,7 @@
      photos y répond, ou quand une règle dit quoi répondre (🗣️ / 🖥️).
      Sinon elle se joue comme avant, carte retournée.
      ============================================================ */
-  var JV_ENDROITS = { volant: '🪑 Au volant', porte: '🚪 Porte ouverte', devant: '🚶 Devant', capot: '🔧 Capot ouvert', voyants: '🚨 Voyants allumés',
+  var JV_ENDROITS = { volant: '🪑 Au volant', porte: '🚪 Porte ouverte', passager: '🧤 Côté passager', portiere: '🚪 Portière arrière', sieges: '💺 Sièges arrière', devant: '🚶 Devant', capot: '🔧 Capot ouvert', voyants: '🚨 Voyants allumés',
                       coffre: '🧳 Coffre', arriere: '🔙 Arrière', cote: '↔️ Côté', roue: '🛞 Roue' };
   function jvAt(){ return JV.at || { reglages: { voitures: [], chemins: {}, regles: {} }, photos: [] }; }
   function jvPhotosDe(v){ return jvAt().photos.filter(function(p){ return p.voitures.indexOf(v) !== -1; }); }
@@ -9780,7 +9780,7 @@
      montre toutes, dans l'ordre qu'il veut (son choix). Une partie
      absente sur sa voiture n'a pas de zone : elle n'est pas demandée.
      Une 🔘 commande peut aussi répondre (le bouton des feux de détresse). */
-  var JV_ORDRE_PARTIES = ['volant', 'voyants', 'porte', 'capot', 'devant', 'cote', 'arriere', 'coffre', 'roue'];
+  var JV_ORDRE_PARTIES = ['volant', 'voyants', 'porte', 'passager', 'portiere', 'sieges', 'capot', 'devant', 'cote', 'arriere', 'coffre', 'roue'];
   function jvZonesReponse(v, n){
     var l = [];
     JV_ORDRE_PARTIES.forEach(function(e){
