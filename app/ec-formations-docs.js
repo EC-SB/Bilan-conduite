@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 16:17 — v1280 */
+/* Déployé le 27/10/2026 à 17:38 — v1282 */
 /* ============================================================
    ec-formations-docs.js — 💼 LES DOCUMENTS DES FORMATIONS ENTREPRISE (v1280)
 
@@ -82,8 +82,26 @@ function feSeancesDe(d, st){ return (d.seances || []).filter(s => !s.stagiaires 
 function feHeuresFaites(d, st, jusqua){
   if(st.heures !== undefined && st.heures !== null && st.heures !== '') return Number(st.heures) || 0;
   const j = jusqua || feAujourdhui();
-  return feArr(feSeancesDe(d, st).filter(s => s.date && s.date <= j && (s.absents || []).indexOf(st.id) === -1).reduce((x, s) => x + feDureeSeance(s), 0));
+  return feArr(feSeancesDe(d, st).filter(s => s.date && s.date <= j).reduce((x, s) => {
+    /* ✍️ v1282 — une séance signée sur le téléphone compte ce qui est
+       signé : chaque demi-journée signée vaut sa part de la séance */
+    const sig = Array.isArray(s.signatures) ? s.signatures : [];
+    if(sig.length){
+      const demis = feDemis(s);
+      const faits = demis.filter(dm => sig.some(e => e.qui === st.id && e.demi === dm && !e.absent)).length;
+      return x + feDureeSeance(s) * faits / demis.length;
+    }
+    return (s.absents || []).indexOf(st.id) === -1 ? x + feDureeSeance(s) : x;
+  }, 0));
 }
+/* ✍️ v1282 — une séance qui commence le matin et finit l'après-midi se
+   signe deux fois (même règle que le Worker, demisFE) */
+function feDemis(s){ const a = feMinutes(s.debut), b = feMinutes(s.fin); return (a !== null && b !== null && a < 12 * 60 && b > 13 * 60 + 30) ? ['matin', 'apres'] : ['']; }
+function feInscrits(d, s){ const t = d.stagiaires || []; return s.stagiaires && s.stagiaires.length ? t.filter(z => s.stagiaires.indexOf(z.id) !== -1) : t; }
+function feSigDe(s, qui, demi){ return (Array.isArray(s.signatures) ? s.signatures : []).find(e => e.qui === qui && e.demi === demi) || null; }
+function feDemiComplete(d, s, demi){ return !!feSigDe(s, '_formateur', demi); }
+function feSeanceSignee(d, s){ return Array.isArray(s.signatures) && s.signatures.length > 0 && feDemis(s).every(dm => feDemiComplete(d, s, dm)); }
+function feHeureDe(ms){ const t = new Date(ms); return t.getHours() + 'h' + String(t.getMinutes()).padStart(2, '0'); }
 
 /* ============================================================
    LE MOTEUR : des blocs → des pages sur le papier à en-tête
@@ -175,6 +193,7 @@ async function feFabriquerPdf(docs, entete){
   };
   const haut = crHautCorps(e) - 4, bas = crBasCorps(e) + 4;
   const pagesDe = [];
+  const zones = [];
   let premiere = true;
 
   for(const d of docs){
@@ -291,6 +310,8 @@ async function feFabriquerPdf(docs, entete){
             doc.text(String(t), x, crBase(yy, hh, tt)); yy += hh;
           });
           doc.setDrawColor(170, 170, 170); doc.setLineWidth(0.2); doc.rect(x, yy + 1, w, h - (yy - y) - 1);
+          /* ✍️ v1282 — où signer : la page de signature en ligne y pose la signature de l'entreprise */
+          zones.push({ doc: d.cle || '', i: i, page: doc.getNumberOfPages(), x: x, y: yy + 1, w: w, h: h - (yy - y) - 1 });
           if(c.image){ try{ doc.addImage(c.image, feImageType(c.image), x + 3, yy + 2.5, Math.min(w - 6, 52), h - (yy - y) - 4, undefined, 'FAST'); }catch(err){} }
         });
         y += h + 3;
@@ -312,6 +333,7 @@ async function feFabriquerPdf(docs, entete){
     }
   });
   doc.setProperties({ title: docs.length === 1 ? docs[0].titre : 'Formation', creator: 'Évolution Conduites' });
+  doc.zonesFE = zones;
   return doc;
 }
 
@@ -482,10 +504,20 @@ const FE_DOCS = {
     });
     return { titre: 'Règlement intérieur', ref: '', blocs: blocs };
   },
-  emargement(d, o, x, s){
+  emargement(d, o, x, s, images){
     const f = d.formation || {};
     const tous = d.stagiaires || [];
     const sta = s.stagiaires && s.stagiaires.length ? tous.filter(z => s.stagiaires.indexOf(z.id) !== -1) : tous;
+    /* ✍️ v1282 — signée sur le téléphone : les signatures dans les cases */
+    const sig = Array.isArray(s.signatures) ? s.signatures : [];
+    const im = images || {};
+    const cellule = (qui, dm) => { const e = sig.find(z => z.qui === qui && z.demi === dm); return e ? (e.absent ? '**ABSENT**' : '') : ''; };
+    const image = (qui, dm, col) => { const e = sig.find(z => z.qui === qui && z.demi === dm && !z.absent); return e && im[e.cle] ? { col: col, src: im[e.cle] } : null; };
+    const formE = sig.filter(z => z.qui === '_formateur');
+    const recueil = sig.length ? sta.map(z => {
+      const l = sig.filter(e => e.qui === z.id).map(e => (e.absent ? 'absent' : 'signé à ' + feHeureDe(e.a)) + (e.demi === 'matin' ? ' (matin)' : e.demi === 'apres' ? ' (après-midi)' : ''));
+      return z.nom + ' : ' + (l.join(', ') || '—');
+    }).join(' · ') + (formE.length ? ' · formateur (' + formE[0].nom + ') : ' + formE.map(e => 'signé à ' + feHeureDe(e.a) + (e.demi === 'matin' ? ' (matin)' : e.demi === 'apres' ? ' (après-midi)' : '')).join(', ') : '') : '';
     const a = feMinutes(s.debut), b = feMinutes(s.fin);
     const deux = a !== null && b !== null && a < 12 * 60 && b > 13 * 60 + 30;
     const demi = deux ? 'journée' : (a !== null && a >= 12 * 60 ? 'après-midi' : 'matin');
@@ -499,12 +531,17 @@ const FE_DOCS = {
                           ['Contenu', s.contenu || ''], ['Lieu', s.lieu || f.lieu || o.lieu], ['Formateur', ((s.formateur || f.formateur) ? (s.formateur || f.formateur) + ', ' : '') + 'enseignant de la conduite et de la sécurité routière']] },
       { t: 'espace', h: 2 },
       deux ? { t: 'table', cols: [{ w: 48 }, {}, { w: 40, align: 'center' }, { w: 40, align: 'center' }], entete: ['Stagiaire', 'Fonction', 'Signature matin', 'Signature après-midi'],
-               lignes: sta.map(z => [z.nom, z.fonction || '', '', '']), hMin: 14, taille: 10 }
+               lignes: sta.map(z => [z.nom, z.fonction || '', cellule(z.id, 'matin'), cellule(z.id, 'apres')]), hMin: 14, taille: 10,
+               styles: sta.map(z => ({ images: [image(z.id, 'matin', 2), image(z.id, 'apres', 3)] })) }
            : { t: 'table', cols: [{ w: 48 }, {}, { w: 18, align: 'center' }, { w: 18, align: 'center' }, { w: 48, align: 'center' }], entete: ['Stagiaire', 'Fonction', 'Arrivée', 'Départ', 'Signature'],
-               lignes: sta.map(z => [z.nom, z.fonction || '', feHeure(s.debut), feHeure(s.fin), '']), hMin: 14, taille: 10 },
+               lignes: sta.map(z => [z.nom, z.fonction || '', feHeure(s.debut), feHeure(s.fin), cellule(z.id, '')]), hMin: 14, taille: 10,
+               styles: sta.map(z => ({ images: [image(z.id, '', 4)] })) },
       { t: 'espace', h: 3 },
-      { t: 'signatures', hauteur: 24, cases: [{ titre: 'Signature du formateur', nom: s.formateur || f.formateur || '' }, null] },
-      { t: 'p', gris: true, taille: 9, texte: 'Chaque stagiaire signe à chaque séance (et au moins par demi-journée) ; une signature manquante ne se complète pas après coup.' }
+      deux && formE.length ? { t: 'signatures', hauteur: 24, cases: [{ titre: 'Signature du formateur — matin', nom: s.formateur || f.formateur || '', image: (formE.find(e => e.demi === 'matin') && im[formE.find(e => e.demi === 'matin').cle]) || '' },
+                                                                   { titre: 'Signature du formateur — après-midi', nom: s.formateur || f.formateur || '', image: (formE.find(e => e.demi === 'apres') && im[formE.find(e => e.demi === 'apres').cle]) || '' }] }
+                           : { t: 'signatures', hauteur: 24, cases: [{ titre: 'Signature du formateur', nom: s.formateur || f.formateur || '', image: (formE[0] && im[formE[0].cle]) || '' }, null] },
+      recueil ? { t: 'p', gris: true, taille: 8.5, texte: 'Signatures électroniques recueillies sur le téléphone du formateur, horodatées, nominatives et non modifiables (journal du dossier ' + x.numero + ') — ' + recueil + '.' }
+              : { t: 'p', gris: true, taille: 9, texte: 'Chaque stagiaire signe à chaque séance (et au moins par demi-journée) ; une signature manquante ne se complète pas après coup.' }
     ] };
   },
   attestation(d, o, x, st){
@@ -546,13 +583,20 @@ const FE_DOCS = {
 };
 
 /* Les documents d'un dossier, prêts à fabriquer */
-function feDocument(cle, x, extra){
+function feDocument(cle, x, extra, images){
   const o = FE.d.organisme;
-  return FE_DOCS[cle](x.donnees, o, x, extra);
+  const r = FE_DOCS[cle](x.donnees, o, x, extra, images);
+  r.cle = cle;
+  return r;
 }
 async function fePdfB64(docs){
   const doc = await feFabriquerPdf(docs);
   return doc.output('datauristring').split(',')[1];
+}
+/* Le PDF, et les cadres de signature (en mm) */
+async function fePdfEtZones(docs){
+  const doc = await feFabriquerPdf(docs);
+  return { b64: doc.output('datauristring').split(',')[1], zones: doc.zonesFE || [], pages: doc.getNumberOfPages() };
 }
 function feNomPdf(titre, x){
   return ((titre || 'Document') + ' - ' + ((x.donnees.entreprise && x.donnees.entreprise.nom) || '') + ' - ' + x.numero)
