@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 10:39 — v1272 */
+/* Déployé le 27/10/2026 à 11:08 — v1273 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1273,
+    date: 'Mardi 27 octobre 2026',
+    resume: '⚠️ « Suivi de … » : le tiroir, la messagerie, le dossier',
+    quoi: [
+      { emoji: '⚠️',
+        titre: 'Le tiroir « Suivi de … »',
+        texte: 'Au-dessus des questions de vérification : 🎧 pas d’écoutes (le texte part dans le bilan), 👥 pas les groupes (❌ dans le bilan), un texte libre, ses repères et les messages qui parlent de lui. Rouge quand il y a quelque chose à savoir ; un bilan ❌ coche tout seul.' },
+      { emoji: '📌',
+        titre: 'Les élèves dans « Message important »',
+        texte: 'Dans « Message important » et « Suivi examen », le prénom d’un élève (ou « mon élève actuel », ou une réponse) range le message dans son suivi ; sa fiche s’affiche à droite. Plusieurs élèves du même prénom : on choisit. D’autres conversations dans ⚙️ Réglages.' },
+      { emoji: '👤',
+        titre: 'Dans le dossier élève',
+        texte: 'L’onglet « ⚠️ Suivi » en tête, et un résumé rouge au-dessus des tuiles quand il y a quelque chose à savoir.' }
+    ]
+  },
   {
     version: 1272,
     date: 'Mardi 27 octobre 2026',
