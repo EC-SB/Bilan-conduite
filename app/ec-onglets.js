@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 11:53 — v1266 */
+/* Déployé le 27/10/2026 à 16:17 — v1280 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -63,7 +63,9 @@ const SECTIONS_ONGLET = {
             /* 👥 v1189 — l'équipe et l'école */
             'equipe',
             /* ✉️ v1243 — les courriers */
-            'courriers'],
+            'courriers',
+            /* 💼 v1280 — les formations entreprise */
+            'formations'],
   /* « tarifs » manquait ici, et il est pourtant accordable dans
      ⚙️ Accès : un compte à qui l'on n'accordait QUE les tarifs
      n'obtenait pas l'onglet Gestion, et n'atteignait donc jamais
@@ -344,6 +346,12 @@ const VUES = {
            ['tarifs',     '💰 Tarifs',                 'tarifs',       'Argent'],
 
            ['placesbe',   '🚚 Places BE',              'placesbe',    'Demandes'],
+
+           /* 💼 v1280 — David : « dans Outils il va falloir que l'on crée
+              un générateur de formation entreprise ». 💼 ET NON 🎓 : le
+              chapeau est déjà « 🎓 Activité des élèves », dans ce même
+              rail (voir la leçon de v962 plus haut). */
+           ['formations', '💼 Formations',             'formations',  'Entreprises'],
 
            ['textes',     '📄 Ce qu’on écrit et envoie (keep)',           'textes',      'Ce qu’on écrit'],
            ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
@@ -1895,6 +1903,8 @@ function reveillerVue(cle){
     ecole:      () => (typeof afficherEcole === 'function') && afficherEcole(),
     /* ✉️ v1243 */
     courriers:  () => (typeof afficherCourriers === 'function') && afficherCourriers(),
+    /* 💼 v1280 */
+    formations: () => (typeof afficherFormations === 'function') && afficherFormations(),
     /* 🧰 v1246 */
     verifs:     () => (typeof afficherVerifs === 'function') && afficherVerifs(),
     squelette:  () => (typeof afficherSqueletteVideo === 'function') && afficherSqueletteVideo(),
