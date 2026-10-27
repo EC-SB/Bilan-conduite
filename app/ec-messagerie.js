@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:08 — v1273 */
+/* Déployé le 27/10/2026 à 11:46 — v1274 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1040,6 +1040,8 @@ function fermerLeFil(){
 }
 
 function dessinerLeFil(){
+  /* 🎤 v1274 — les vocaux récents sans texte s'écrivent tout seuls */
+  if(typeof ecrireLesVocauxDuFilEC === 'function') setTimeout(() => { try{ ecrireLesVocauxDuFilEC(); }catch(e){} }, 400);
   const large = ckLarge();
   const zone = zoneFilMsg();
   if(!zone || !filOuvertEC) return;
@@ -1516,6 +1518,20 @@ function bulleDuMessage(m, avant, apres){
   }else if(m.texte){
     b.appendChild(document.createTextNode(m.texte));
   }
+  /* 🎤 v1274 — un vocal sans texte : on peut le faire écrire (et ça se
+     fait tout seul pour les vocaux récents, voir ecrireLesVocauxDuFilEC) */
+  if(vocal && !m.texte && m.piece && m.piece.lien){
+    const ec = document.createElement('button');
+    ec.type = 'button';
+    ec.className = 'msgVocEcrire';
+    ec.setAttribute('data-vocal', m.id || '');
+    ec.textContent = vocauxEnCoursEC[m.id] ? '✍️ J’écris ce qui est dit…' : '✍️ Écrire ce qui est dit';
+    ec.addEventListener('click', ev => { ev.stopPropagation(); ecrireUnVocalEC(m, ec); });
+    b.appendChild(ec);
+  }
+  /* 📍 v1274 — une position : où c'est, et de quoi y aller */
+  const posB = (typeof carteDeLaPositionEC === 'function') ? carteDeLaPositionEC(m) : null;
+  if(posB) b.appendChild(posB);
 
   /* ⚠️ L'HEURE EST POSÉE APRÈS LE TEXTE, et c'est ce qui la met au
      bout de la DERNIÈRE ligne. Un flottant rencontré après trois
@@ -1887,7 +1903,7 @@ async function rafraichirLeFil(silencieux){
      finit) sans qu'aucun message n'arrive : sa carte doit suivre. */
   const appelAvant = (typeof empreinteAppelEC === 'function') ? empreinteAppelEC(filOuvertEC) : '';
   /* 📌 v1273 — une étiquette d'élève choisie ou retirée change la bulle */
-  const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => m.suivi || []));
+  const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => [m.suivi || [], (m.piece && !m.texte) ? 0 : 1]));
   const suiviAvant = sigSuivi(filOuvertEC);
 
   filOuvertEC = d;
@@ -4763,6 +4779,134 @@ function ecrireLeVocalSiRienEC(v, blob){
   return v.texteAuto;
 }
 
+/* ============================================================
+   🎤 v1274 — LES VOCAUX DES AUTRES, ÉCRITS APRÈS COUP
+
+   David, le 27 octobre : « je vois bien mes transcriptions, mais pas
+   celles des autres sous leurs vocaux ». Leurs téléphones n'écrivaient
+   rien. Celui qui ouvre le fil fait écrire les vocaux récents qui n'ont
+   pas de texte (le son est relu, puis Whisper au Worker), et le texte se
+   range au Worker pour tout le monde. Un par un, cinq au plus par
+   ouverture, chacun une seule fois par session ; « ✍️ Écrire ce qui est
+   dit » le fait à la main pour les plus anciens.
+   ============================================================ */
+const vocauxEnCoursEC = {};
+const vocauxEssayesEC = {};
+async function ecrireUnVocalEC(m, bouton){
+  const f = filOuvertEC;
+  if(!f || !f.conv || !m || !m.id || vocauxEnCoursEC[m.id]) return;
+  vocauxEnCoursEC[m.id] = true;
+  vocauxEssayesEC[m.id] = true;
+  if(bouton){ bouton.disabled = true; bouton.textContent = '✍️ J’écris ce qui est dit…'; }
+  try{
+    const r = await fetch(adresseDeLaPiece(m.piece));
+    if(!r.ok) throw new Error('son introuvable');
+    const texte = await texteDuVocalEC(await r.blob());
+    if(!texte){ if(bouton){ bouton.disabled = false; bouton.textContent = '✍️ Rien n’a été reconnu'; } return; }
+    await appelPrep({ action: 'convVocalTexteMettre', id: f.conv.id, message: m.id, texte: texte,
+                      suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, f.conv.id) : undefined });
+    await rafraichirLeFil(true);
+  }catch(e){
+    if(bouton){ bouton.disabled = false; bouton.textContent = '✍️ Écrire ce qui est dit'; }
+    if(bouton && typeof showToast === 'function') showToast('Le texte n’a pas pu être écrit : ' + (e.message || e));
+  }finally{
+    delete vocauxEnCoursEC[m.id];
+  }
+}
+let ecrireLesVocauxEnCoursEC = false;
+async function ecrireLesVocauxDuFilEC(){
+  if(ecrireLesVocauxEnCoursEC) return;
+  const f = filOuvertEC;
+  if(!f || !f.conv || !Array.isArray(f.messages)) return;
+  const limite = Date.now() - 30 * 86400000;
+  const date = t => { const x = String(t || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/); return x ? new Date(+x[3], +x[2] - 1, +x[1]).getTime() : 0; };
+  const aFaire = f.messages.filter(m => m && m.id && !m.texte && !Number(m.supprime || 0) && m.piece && m.piece.lien &&
+    typeof pieceEstUnSon === 'function' && pieceEstUnSon(m.piece) && !vocauxEssayesEC[m.id] && date(m.envoyeLe) >= limite).slice(-5);
+  if(!aFaire.length) return;
+  ecrireLesVocauxEnCoursEC = true;
+  try{
+    for(const m of aFaire){
+      if(!filOuvertEC || filOuvertEC.conv.id !== f.conv.id) break;
+      const b = document.querySelector('.msgVocEcrire[data-vocal="' + m.id + '"]');
+      await ecrireUnVocalEC(m, b);
+    }
+  }finally{ ecrireLesVocauxEnCoursEC = false; }
+}
+
+/* ============================================================
+   📍 v1274 — MA POSITION
+
+   David, le 27 octobre : « un bouton qui donne l'emplacement GPS, qui
+   va permettre de nous dire où c'est précisément » (le groupe Trafic).
+   Le téléphone donne le point ; l'adresse la plus proche est cherchée
+   (OpenStreetMap), sans bloquer si elle ne vient pas. La bulle montre
+   l'adresse, la précision, et ouvre Google Maps ou Waze.
+   ============================================================ */
+function positionDuTelephoneEC(){
+  return new Promise((ok, ko) => {
+    if(!navigator.geolocation) return ko(new Error('ce téléphone ne donne pas sa position'));
+    navigator.geolocation.getCurrentPosition(p => ok(p.coords), e => ko(new Error(e && e.code === 1 ? 'la position est refusée pour ce site' : 'position introuvable')),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 20000 });
+  });
+}
+async function adresseDuPointEC(lat, lng){
+  try{
+    const ctl = window.AbortController ? new window.AbortController() : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), 3500) : null;
+    const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&accept-language=fr&lat=' +
+      encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng), ctl ? { signal: ctl.signal } : {});
+    if(t) clearTimeout(t);
+    if(!r.ok) return '';
+    const d = await r.json();
+    const a = (d && d.address) || {};
+    const rue = [a.house_number, a.road || a.pedestrian || a.path].filter(Boolean).join(' ');
+    const lieu = a.village || a.town || a.city || a.municipality || '';
+    return [rue, lieu].filter(Boolean).join(', ') || String((d && d.display_name) || '').split(',').slice(0, 3).join(',');
+  }catch(e){ return ''; }
+}
+async function envoyerMaPositionEC(texte, bouton){
+  const f = filOuvertEC;
+  if(!f || !f.conv) return;
+  const avant = bouton ? bouton.textContent : '';
+  if(bouton) bouton.textContent = '📍 Position…';
+  else if(typeof showToast === 'function') showToast('📍 Je cherche ta position…');
+  try{
+    const c = await positionDuTelephoneEC();
+    const adresse = await adresseDuPointEC(c.latitude, c.longitude);
+    const t = String(texte || '📍 Ma position').trim();
+    await appelPrep({ action: 'convEcrire', id: f.conv.id, texte: t + (adresse ? ' — ' + adresse : ''),
+                      position: { lat: c.latitude, lng: c.longitude, precision: Math.round(c.accuracy || 0), adresse: adresse },
+                      suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(t, f.conv.id) : undefined });
+    await rafraichirLeFil();
+  }catch(e){
+    if(typeof showToast === 'function') showToast('📍 ' + (e.message || e));
+    throw e;
+  }finally{
+    if(bouton) bouton.textContent = avant;
+  }
+}
+function carteDeLaPositionEC(m){
+  const p = m && m.donnees && m.donnees.position;
+  if(!p || !isFinite(Number(p.lat)) || !isFinite(Number(p.lng))) return null;
+  const z = document.createElement('div');
+  z.className = 'msgPosition';
+  const q = Number(p.lat).toFixed(6) + ',' + Number(p.lng).toFixed(6);
+  const t = document.createElement('div');
+  t.className = 'msgPosT';
+  t.textContent = '📍 ' + (p.adresse || q) + (p.precision ? ' · ± ' + p.precision + ' m' : '');
+  z.appendChild(t);
+  const l = document.createElement('div');
+  l.className = 'msgPosL';
+  [['🗺️ Google Maps', 'https://www.google.com/maps/search/?api=1&query=' + q], ['🚗 Waze', 'https://waze.com/ul?ll=' + q + '&navigate=yes']].forEach(([n, u]) => {
+    const a = document.createElement('a');
+    a.href = u; a.target = '_blank'; a.rel = 'noopener'; a.textContent = n;
+    a.addEventListener('click', ev => ev.stopPropagation());
+    l.appendChild(a);
+  });
+  z.appendChild(l);
+  return z;
+}
+
 function blobEnBase64EC(blob){
   return new Promise((resolve, reject) => {
     const l = new FileReader();
@@ -6197,6 +6341,9 @@ const ICONES_BARRE_EC = (() => {
     video: svg('<rect x="2.5" y="4" width="19" height="16" rx="3" fill="currentColor"/>' +
       '<path class="trou" d="M10 8.4v7.2l6-3.6z"/>'),
     fichier: svg('<path d="M20.5 11.2 12.3 19.4a5 5 0 0 1-7.1-7.1l8.4-8.4a3.4 3.4 0 0 1 4.8 4.8l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'),
+    /* 📍 v1274 — « ma position » : une épingle de carte */
+    position: svg('<path d="M12 2.2a7.3 7.3 0 0 0-7.3 7.3c0 5.2 7.3 12.3 7.3 12.3s7.3-7.1 7.3-12.3A7.3 7.3 0 0 0 12 2.2z" fill="currentColor"/>' +
+      '<circle class="trou" cx="12" cy="9.5" r="2.8"/>'),
     /* 🎬 v1222 — « à revoir » : un marque-page avec ▶ */
     revoir: svg('<path d="M6 2.5h12A1.5 1.5 0 0 1 19.5 4v17.3L12 16.7l-7.5 4.6V4A1.5 1.5 0 0 1 6 2.5z" fill="currentColor"/>' +
       '<path class="trou" d="M10 6.6v6.6l5.2-3.3z"/>')
@@ -6237,6 +6384,11 @@ function gestesDuPlus(){
   }
   g.push({ id: 'msgPlusVideo',   icone: 'video',   nom: 'Choisir<br>une vidéo', faire: choisirUneVideoEC });
   g.push({ id: 'msgPlusFichier', icone: 'fichier', nom: 'Joindre<br>un fichier', faire: choisirUnFichierEC });
+  /* 📍 v1274 — la position GPS, dans les conversations entre nous */
+  if(filOuvertEC && filOuvertEC.conv && !filOuvertEC.conv.eleve && ['groupe', 'interne'].indexOf(filOuvertEC.conv.genre) !== -1 &&
+     navigator.geolocation){
+    g.push({ id: 'msgPlusPosition', icone: 'position', nom: 'Ma<br>position', faire: () => envoyerMaPositionEC('📍 Ma position') });
+  }
   /* 🎬 v1222 — dans une conversation avec un élève seulement */
   if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.eleve){
     g.push({ id: 'msgPlusRevoir', icone: 'revoir', nom: 'À<br>revoir', faire: () => choisirUnSegmentARevoirEC() });
