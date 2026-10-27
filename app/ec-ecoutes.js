@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 06:20 — v723 */
+/* Déployé le 27/10/2026 à 14:07 — v1277 */
 /* ============================================================
    ec-ecoutes.js
    Suivi des écoutes pédagogiques.
@@ -25,6 +25,8 @@ const TEXTE_ABSENCE_ECOUTE =
 
 let ecoutesSans = [];
 let ecoutesAbsents = [];
+/* 👂 v1277 — ce que le pointage a trouvé (D1), et les rappels de demain */
+let ecoutesPointage = null;
 
 async function afficherEcoutes(){
   const zone = $('ecoutesZone');
@@ -35,20 +37,27 @@ async function afficherEcoutes(){
     /* Le répertoire en même temps : c'est lui qui porte les numéros,
        et l'attendre au moment d'enregistrer donnait l'impression
        d'un blocage. */
-    const [d] = await Promise.all([
+    const [d, d1] = await Promise.all([
       appelPrep({ action: 'ecouteList' }),
+      appelPrep({ action: 'ecoutesListe' }).catch(() => null),
       (typeof chargerFiches === 'function' &&
        (typeof fichesEleves === 'undefined' || !fichesEleves.length))
         ? chargerFiches().catch(() => []) : Promise.resolve()
     ]);
     ecoutesSans = (d && d.sans) || [];
     ecoutesAbsents = (d && d.absents) || [];
+    ecoutesPointage = d1 && d1.status === 'ok' ? d1 : null;
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
   }
 
   zone.innerHTML = '';
+
+  /* 👂 v1277 — en tête : les réglages et les rappels de demain */
+  if(ecoutesPointage && typeof blocsSuiviEcoutesEP === 'function'){
+    try{ blocsSuiviEcoutesEP(zone, ecoutesPointage); }catch(e){ console.warn('Écoutes :', e); }
+  }
 
   /* ---- Signaler une absence ---- */
   const f = document.createElement('div');
@@ -237,7 +246,10 @@ async function afficherEcoutes(){
   /* ---- Ceux qui ne sont pas venus ---- */
   const t2 = document.createElement('div');
   t2.style.cssText = 'font-size:15px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
-  t2.textContent = '🚫 Pas venu en écoute — ' + ecoutesAbsents.length + ' absence(s)';
+  const duPointage = (ecoutesPointage && ecoutesPointage.absences) || [];
+  const aConfirmer = duPointage.filter(a => a.etat !== 'envoyee').length;
+  t2.textContent = '🚫 Pas venu en écoute — ' + (ecoutesAbsents.length + duPointage.length) + ' absence(s)' +
+    (aConfirmer ? ' · ❓ ' + aConfirmer + ' à confirmer' : '');
   zone.appendChild(t2);
 
   const a2 = document.createElement('div');
@@ -246,7 +258,7 @@ async function afficherEcoutes(){
     "n'a pas pu venir. Les récidivistes apparaissent en rouge.";
   zone.appendChild(a2);
 
-  if(!ecoutesAbsents.length){
+  if(!ecoutesAbsents.length && !duPointage.length){
     const v = document.createElement('div');
     v.className = 'empty';
     v.style.cssText = 'padding:10px;font-size:12px;';
@@ -255,18 +267,28 @@ async function afficherEcoutes(){
     return;
   }
 
-  /* Groupés par élève : le compteur est ce qui compte, pas la ligne */
+  /* Groupés par élève : le compteur est ce qui compte, pas la ligne.
+     👂 v1277 — les absences trouvées au pointage rejoignent celles
+     signalées à la main (« GUIVARCH Lena » = « Lena Guivarch »). */
+  const cleAbs = n => (typeof cleNomEP === 'function') ? cleNomEP(n) : normaliserMot(n);
   const parEleve = {};
   ecoutesAbsents.forEach(x => {
-    const cle = normaliserMot(x.eleve);
-    if(!parEleve[cle]) parEleve[cle] = { eleve: x.eleve, lignes: [] };
+    const cle = cleAbs(x.eleve);
+    if(!parEleve[cle]) parEleve[cle] = { eleve: x.eleve, lignes: [], pointage: [] };
     parEleve[cle].lignes.push(x);
+  });
+  duPointage.forEach(x => {
+    const cle = cleAbs(x.eleve);
+    if(!parEleve[cle]) parEleve[cle] = { eleve: x.eleve, lignes: [], pointage: [] };
+    parEleve[cle].pointage.push(x);
   });
 
   const l2 = document.createElement('div');
+  const nb = g => g.lignes.length + g.pointage.length;
   Object.keys(parEleve)
     .map(k => parEleve[k])
-    .sort((a, b) => b.lignes.length - a.lignes.length ||
+    .sort((a, b) => (b.pointage.some(x => x.etat !== 'envoyee') ? 1 : 0) - (a.pointage.some(x => x.etat !== 'envoyee') ? 1 : 0) ||
+                    nb(b) - nb(a) ||
                     a.eleve.localeCompare(b.eleve, 'fr'))
     .forEach(g => l2.appendChild(blocAbsences(g)));
   zone.appendChild(l2);
@@ -309,7 +331,7 @@ function ligneSansEcoute(x){
 
 /* Un élève et toutes ses absences */
 function blocAbsences(g){
-  const n = g.lignes.length;
+  const n = g.lignes.length + ((g.pointage || []).length);
   const grave = n >= 3;
 
   const d = document.createElement('div');
@@ -321,6 +343,13 @@ function blocAbsences(g){
     (grave ? 'var(--red)' : 'var(--cream)') + ';';
   h.textContent = g.eleve + '  ·  ' + n + ' absence' + (n > 1 ? 's' : '');
   d.appendChild(h);
+
+  /* 👂 v1277 — d'abord celles du pointage (à confirmer en tête) */
+  if(typeof ligneAbsenceEP === 'function'){
+    (g.pointage || []).slice()
+      .sort((a, b) => ((a.etat === 'envoyee') - (b.etat === 'envoyee')) || String(b.jour + b.heure).localeCompare(String(a.jour + a.heure)))
+      .forEach(a => d.appendChild(ligneAbsenceEP(a)));
+  }
 
   g.lignes
     .slice()
