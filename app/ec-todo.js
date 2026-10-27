@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 15:29 — v1279 */
+/* Déployé le 27/10/2026 à 16:59 — v1281 */
 /* ============================================================
    ec-todo.js — v1278
    ☑️ La todo list : le bouton à côté du 💬, et son volet.
@@ -76,11 +76,68 @@ async function chargerTD(avecEquipe){
 function poserTD(d){
   if(!d || d.status !== 'ok') return;
   if(d.equipe && d.equipe.length) TD.equipe = d.equipe;
+  /* 🔁 v1281 — relu toutes les 10 s volet ouvert : on ne redessine que
+     si quelque chose a changé (sinon le volet clignote) */
+  const empreinte = JSON.stringify([d.jour, d.quotidien, d.journee, d.listes, d.toutesQuotidiennes]);
+  const pareil = empreinte === TD.empreinte;
+  TD.empreinte = empreinte;
   TD.d = d;
   TD.charge = Date.now();
+  majPastilleTD();
+  if(TD.ouvert && !pareil){ if(occupeTD()) TD.retenu = true; else dessinerTD(); }
+}
+/* On écrit, on modifie une tâche, on crée une liste : la relecture
+   attend, pour ne rien effacer sous les doigts */
+function occupeTD(){
+  const z = $('todoCorps'), f = document.activeElement;
+  return !!(TD.edition || TD.creation || TD.reglage || (z && f && z.contains(f) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)));
+}
+/* La pastille : ce que dit le Worker, plus les tâches sous condition
+   qui ont quelque chose à faire (seule l'appli connaît les tuiles) */
+function majPastilleTD(){
+  const d = TD.d;
+  if(!d) return;
+  let c = Number(d.compte) || 0;
+  (d.quotidien || []).forEach(x => { if(x.condition && !x.faitLe){ const v = valeurConditionTD(x.condition); if(v && v.n > 0) c++; } });
   const n = $('todoBtnN');
-  if(n){ n.textContent = d.compte > 99 ? '99+' : String(d.compte || ''); n.style.display = d.compte ? 'inline-block' : 'none'; }
-  if(TD.ouvert) dessinerTD();
+  if(n){ n.textContent = c > 99 ? '99+' : String(c || ''); n.style.display = c ? 'inline-block' : 'none'; }
+}
+
+/* ⚡ v1281 — LES TÂCHES SOUS CONDITION. David : « mettre une condition,
+   par exemple s'il y a des résultats d'examen à renseigner, la tâche
+   faire les post-permis ». Une tâche de tous les jours peut dépendre
+   d'une TUILE de l'appli (Permis, Suivi, Moto…) : elle n'apparaît que
+   si la tuile compte quelque chose, avec le nombre. La clé gardée est
+   « onglet|tuile ». */
+function tuilesPourConditionTD(){
+  const out = [];
+  if(typeof TUILES === 'undefined' || typeof tuilesDeLOnglet !== 'function') return out;
+  Object.keys(TUILES).forEach(o => {
+    let l = [];
+    try{ l = tuilesDeLOnglet(o).liste; }catch(e){ l = []; }
+    l.forEach(t => {
+      const k = typeof cleDeLaTuile === 'function' ? cleDeLaTuile(t) : String(t.cle || t.cpt || '');
+      if(k && t.lib) out.push({ cle: o + '|' + k, onglet: o, t: t, lib: t.lib });
+    });
+  });
+  return out;
+}
+const NOMS_ONGLETS_TD = { permis: 'Permis', suivi: 'Suivi', eleves: 'Élèves', outils: 'Outils', gestion: 'Gestion', cours: 'Cours', messagerie: 'Messagerie' };
+function tuileDeConditionTD(cle){ return tuilesPourConditionTD().find(x => x.cle === cle) || null; }
+function valeurConditionTD(cle){
+  const x = tuileDeConditionTD(cle);
+  if(!x) return null;
+  let v = null;
+  try{ v = valeurDeLaTuile(x.t); }catch(e){ v = null; }
+  if(v === false) return { n: 0 };
+  return v && typeof v.n === 'number' ? v : null;
+}
+/* Une tuile pas encore lue : on charge le bureau en silence, une fois
+   toutes les 10 minutes au plus (c'est ce que fait l'onglet Permis) */
+function chargerLesTuilesTD(){
+  if(Date.now() - (TD.tuilesLues || 0) < 10 * 60000) return;
+  TD.tuilesLues = Date.now();
+  try{ if(typeof afficherBureau === 'function') Promise.resolve(afficherBureau(true)).then(() => { majPastilleTD(); if(TD.ouvert) dessinerTD(); }).catch(() => {}); }catch(e){}
 }
 async function agirTD(corps, bouton){
   if(bouton) bouton.disabled = true;
@@ -129,6 +186,7 @@ function dessinerTD(){
   const f = document.activeElement;
   /* pas pendant qu'on écrit (le texte de sa journée, une tâche qu'on modifie) */
   if(f && z.contains(f) && f.dataset.tdGarde) return;
+  TD.retenu = false;
   const d = TD.d;
   const reg = $('todoRegler');
   if(reg) reg.style.display = d && d.peutRegler ? '' : 'none';
@@ -194,10 +252,27 @@ function dessinerBureauTD(z, d){
     z.appendChild(elTD('div', 'tdVide', d.peutRegler ? 'Aucune tâche de tous les jours pour aujourd’hui : ⚙️ pour les écrire.' : 'Aucune tâche de tous les jours pour aujourd’hui.'));
   }
   q.forEach(x => {
+    /* ⚡ sous condition : cachée quand la tuile ne compte rien */
+    let compteCond = null;
+    if(x.condition){
+      const v = valeurConditionTD(x.condition);
+      if(v === null) chargerLesTuilesTD();
+      else if(!(v.n > 0) && !x.faitLe) return;
+      compteCond = v;
+    }
     const r = elTD('div', 'tdItem' + (x.faitLe ? ' fait' : '') + (x.pasFaitHier && !x.faitLe ? ' hier' : ''));
     r.appendChild(caseTD(!!x.faitLe, (ev, b) => agirTD({ action: 'todoQuotidienCocher', id: x.id, fait: !x.faitLe }, b)));
     const tx = elTD('div', 'tdTexte');
-    tx.appendChild(elTD('span', 'tdLibelle', x.texte));
+    tx.appendChild(elTD('span', 'tdLibelle', x.texte + (compteCond && compteCond.n > 0 && !x.faitLe ? ' (' + compteCond.n + ')' : '')));
+    if(x.condition){
+      const tu = tuileDeConditionTD(x.condition);
+      const lien = elTD('div', 'tdCond', '⚡ ' + (tu ? tu.lib + (compteCond ? '' : ' — pas encore lue') : 'tuile introuvable ici'));
+      if(tu && typeof ouvrirLaTuile === 'function'){
+        lien.classList.add('lien'); lien.title = 'Ouvrir « ' + tu.lib + ' »';
+        lien.addEventListener('click', ev => { ev.stopPropagation(); fermerTD(); try{ afficherOnglet(tu.onglet); ouvrirLaTuile(tu.onglet, tu.t); }catch(e){} });
+      }
+      tx.appendChild(lien);
+    }
     if(x.faitLe) tx.appendChild(elTD('div', 'tdSous', '✅ ' + x.faitPar + ' · ' + heureTD(x.faitLe)));
     else if(x.pasFaitHier) tx.appendChild(elTD('div', 'tdSous alerte', '⚠️ pas fait hier'));
     /* 🙋 v1279 — David : « un bouton c'est moi qui fais ça, ça se
@@ -211,6 +286,12 @@ function dessinerBureauTD(z, d){
         (ev, b) => agirTD({ action: 'todoQuotidienPrendre', id: x.id }, b)));
     else if(!x.faitLe && aMoi)
       r.appendChild(boutonTD('↩️', 'tdPetit', 'Je ne m’en occupe plus', (ev, b) => agirTD({ action: 'todoQuotidienPrendre', id: x.id, prendre: false }, b)));
+    /* 🙋 v1281 — reprendre la tâche de quelqu'un, tant qu'elle n'est pas cochée */
+    else if(!x.faitLe && x.prisPar)
+      r.appendChild(boutonTD('🙋 Je reprends', 'tdPrendre', 'Reprendre la tâche de ' + x.prisPar + ' : elle passe dans ta journée', async (ev, b) => {
+        if(typeof confirmer === 'function' && !await confirmer(x.prisPar + ' s’en occupe. Reprendre « ' + x.texte + ' » ?', 'Je reprends', false)) return;
+        agirTD({ action: 'todoQuotidienPrendre', id: x.id, reprendre: true }, b);
+      }));
     if(x.prisPar && !x.faitLe) r.classList.add('pris');
     z.appendChild(r);
   });
@@ -250,7 +331,8 @@ function carteJourneeTD(p, moi, lecture){
   t.appendChild(rondTD(p.personne));
   t.appendChild(elTD('b', '', p.personne + (moi ? ' (toi)' : '')));
   c.appendChild(t);
-  (p.items || []).forEach(x => {
+  /* ✅ v1281 — David : « quand c'est barré, il faut que ça aille en bas » */
+  (p.items || []).slice().sort((a, b) => (a.fait ? 1 : 0) - (b.fait ? 1 : 0) || (a.fait ? (a.faitLe || 0) - (b.faitLe || 0) : 0)).forEach(x => {
     const r = elTD('div', 'tdItem' + (x.fait ? ' fait' : ''));
     if(moi && !lecture) r.appendChild(caseTD(!!x.fait, (ev, b) => agirTD({ action: 'todoJourneeEcrire', quoi: 'cocher', id: x.id, fait: !x.fait }, b)));
     else r.appendChild(elTD('span', 'tdCase lecture' + (x.fait ? ' fait' : ''), x.fait ? '☑' : '☐'));
@@ -351,6 +433,7 @@ function ligneItemTD(x, l, d){
   }
   if(sous.length) tx.appendChild(elTD('div', 'tdSous' + (!x.fait && x.echeance && x.echeance < d.jour ? ' alerte' : ''), sous.join(' · ')));
   if(x.note) tx.appendChild(elTD('div', 'tdSous', x.note));
+  if((x.images || []).length) tx.appendChild(vignettesTD(x, false));
   tx.addEventListener('click', () => { TD.edition = x.id; dessinerTD(); });
   tx.title = 'Modifier';
   r.appendChild(tx);
@@ -379,6 +462,28 @@ function editeurItemTD(x, l){
   f.appendChild(ligne);
   const note = document.createElement('input'); note.type = 'text'; note.placeholder = 'Une précision (facultatif)'; note.value = x.note || ''; note.maxLength = 500;
   f.appendChild(note);
+  /* 🖼️ v1281 — des images, collées (Ctrl+V) ou importées */
+  const zi = elTD('div', 'tdImagesEd');
+  /* les vignettes se refont sur place : ce qu'on a tapé dans l'éditeur reste */
+  const refaire = () => {
+    const av = zi.querySelector('.tdImages');
+    const nv = (x.images || []).length ? vignettesTD(x, true, refaire) : null;
+    if(av && nv) av.replaceWith(nv); else if(av) av.remove(); else if(nv) zi.insertBefore(nv, zi.firstChild);
+  };
+  refaire();
+  const fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*'; fi.multiple = true; fi.style.display = 'none'; fi.className = 'tdFichier';
+  fi.addEventListener('change', () => { ajouterImagesTD(x, [...(fi.files || [])], refaire); fi.value = ''; });
+  const li = elTD('div', 'tdImagesLigne');
+  li.appendChild(boutonTD('🖼️ Importer une image', 'btn-secondary tdPetitBtn', 'Choisir une image ou une photo', () => fi.click()));
+  li.appendChild(elTD('span', 'tdSous', 'ou colle-la ici (Ctrl+V)'));
+  zi.append(li, fi);
+  f.appendChild(zi);
+  f.addEventListener('paste', ev => {
+    const imgs = [...((ev.clipboardData && ev.clipboardData.items) || [])].filter(i => /^image\//.test(i.type)).map(i => i.getAsFile()).filter(Boolean);
+    if(!imgs.length) return;
+    ev.preventDefault();
+    ajouterImagesTD(x, imgs, refaire);
+  });
   const b = elTD('div', 'tdEditionBoutons');
   b.appendChild(boutonTD('Enregistrer', 'btn-primary', '', async (ev, bt) => {
     TD.edition = '';
@@ -391,6 +496,77 @@ function editeurItemTD(x, l){
   setTimeout(() => { try{ t.focus(); }catch(e){} }, 30);
   return f;
 }
+/* 🖼️ Les images d'une tâche */
+function vignettesTD(x, retirer, refaire){
+  const w = elTD('div', 'tdImages');
+  (x.images || []).forEach(im => {
+    const c = elTD('span', 'tdMini');
+    const i = document.createElement('img');
+    i.src = im.mini || ''; i.alt = 'Image'; i.loading = 'lazy';
+    c.appendChild(i);
+    c.addEventListener('click', ev => { ev.stopPropagation(); voirImageTD(x, im); });
+    if(retirer){
+      const b = boutonTD('✕', 'tdMiniX', 'Retirer cette image', async (ev, bt) => {
+        ev.stopPropagation();
+        if(typeof confirmer === 'function' && !await confirmer('Retirer cette image ?', 'Retirer', true)) return;
+        TD.edition = x.id;
+        const d = await agirTD({ action: 'todoImageRetirer', id: x.id, cle: im.cle }, bt);
+        majImagesDeTD(x, d);
+        if(refaire) refaire(); else dessinerTD();
+      });
+      c.appendChild(b);
+    }
+    w.appendChild(c);
+  });
+  return w;
+}
+function imageVersJpegTD(fichier, max, qualite){
+  return new Promise((ok, non) => {
+    const url = URL.createObjectURL(fichier);
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL('image/jpeg', qualite));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); non(new Error('Image illisible')); };
+    im.src = url;
+  });
+}
+function majImagesDeTD(x, d){
+  const n = ((d && d.listes) || []).reduce((y, l) => y || l.items.find(i => i.id === x.id), null);
+  if(n) x.images = n.images;
+}
+async function ajouterImagesTD(x, fichiers, refaire){
+  for(const f of fichiers.slice(0, 8)){
+    try{
+      toastTD('🖼️ Envoi de l’image…');
+      const grand = await imageVersJpegTD(f, 1600, 0.82), mini = await imageVersJpegTD(f, 240, 0.7);
+      const d = await appelPrep({ action: 'todoImagePoser', id: x.id, contenu: grand, mini: mini });
+      if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Image refusée');
+      TD.edition = x.id;
+      poserTD(d);
+      majImagesDeTD(x, d);
+      if(refaire) refaire(); else { TD.retenu = false; dessinerTD(); }
+    }catch(e){ toastTD('Image : ' + ((e && e.message) || e)); }
+  }
+}
+async function voirImageTD(x, im){
+  const fond = elTD('div', 'tdVisionneuse');
+  const i = document.createElement('img'); i.alt = 'Image'; i.src = im.mini || '';
+  fond.appendChild(i);
+  fond.appendChild(elTD('div', 'tdSous', 'Toucher pour fermer'));
+  fond.addEventListener('click', () => fond.remove());
+  document.body.appendChild(fond);
+  try{
+    const d = await appelPrep({ action: 'todoImageLire', id: x.id, cle: im.cle });
+    if(d && d.status === 'ok') i.src = d.donnees;
+  }catch(e){ toastTD('Image : ' + ((e && e.message) || e)); }
+}
+
 function formListeTD(genre, l){
   const f = elTD('div', 'tdCreation');
   f.appendChild(elTD('div', 'tdCreationTitre', l ? '✏️ ' + l.nom : (genre === 'perso' ? '＋ Nouvelle liste perso' : '＋ Nouvelle liste partagée')));
@@ -452,14 +628,34 @@ function dessinerReglageTD(z, d){
     }));
     r.appendChild(haut);
     r.appendChild(puceJoursTD(x.jours, j => agirTD({ action: 'todoQuotidienRegler', quoi: 'modifier', id: x.id, jours: j })));
+    r.appendChild(choixConditionTD(x.condition || '', c => agirTD({ action: 'todoQuotidienRegler', quoi: 'modifier', id: x.id, condition: c })));
     zone.appendChild(r);
   });
   z.appendChild(zone);
-  let joursNeufs = '1111110';
+  let joursNeufs = '1111110', condNeuve = '';
   const a = elTD('div', 'tdRegLigne neuve');
-  a.appendChild(ligneAjoutTD('Une tâche de tous les jours', (t, b) => agirTD({ action: 'todoQuotidienRegler', quoi: 'ajouter', texte: t, jours: joursNeufs }, b), 'todoQuotidienNeuve'));
+  a.appendChild(ligneAjoutTD('Une tâche de tous les jours', (t, b) => agirTD({ action: 'todoQuotidienRegler', quoi: 'ajouter', texte: t, jours: joursNeufs, condition: condNeuve }, b), 'todoQuotidienNeuve'));
   a.appendChild(puceJoursTD(joursNeufs, j => { joursNeufs = j; }));
+  a.appendChild(choixConditionTD('', c => { condNeuve = c; }));
   z.appendChild(a);
+}
+function choixConditionTD(valeur, changer){
+  const w = elTD('div', 'tdCondChoix');
+  w.appendChild(elTD('span', 'tdSous', '⚡'));
+  const s = document.createElement('select');
+  s.className = 'tdCondSelect';
+  s.appendChild(new Option('Tous les jours choisis, sans condition', ''));
+  const groupes = {};
+  tuilesPourConditionTD().forEach(x => {
+    const g = NOMS_ONGLETS_TD[x.onglet] || x.onglet;
+    if(!groupes[g]){ groupes[g] = document.createElement('optgroup'); groupes[g].label = 'Seulement s’il y a… (' + g + ')'; s.appendChild(groupes[g]); }
+    groupes[g].appendChild(new Option(x.lib, x.cle));
+  });
+  if(valeur && ![...s.options].some(o => o.value === valeur)) s.appendChild(new Option('⚡ ' + valeur.split('|').pop() + ' (pas encore lue)', valeur));
+  s.value = valeur || '';
+  s.addEventListener('change', () => changer(s.value));
+  w.appendChild(s);
+  return w;
 }
 function puceJoursTD(jours, changer){
   const w = elTD('div', 'tdJours');
@@ -476,13 +672,18 @@ function puceJoursTD(jours, changer){
 }
 
 /* ⠿ Ranger en glissant (doigt ou souris) */
+/* ⚠️ v1281 — « le bouton pour déplacer ne fonctionne pas » : la ligne
+   change de place dans la page pendant qu'on glisse, et une poignée
+   déplacée perd la capture du doigt — plus aucun mouvement n'arrivait.
+   On écoute désormais la fenêtre entière. */
 function brancherGlisserTD(poignee, ligne, listeId, quotidien){
   poignee.style.touchAction = 'none';
   poignee.addEventListener('pointerdown', ev => {
     ev.preventDefault();
+    ev.stopPropagation();
     const parent = ligne.parentElement;
     ligne.classList.add('tdGlisse');
-    try{ poignee.setPointerCapture(ev.pointerId); }catch(e){}
+    const ordreAvant = [...parent.children].map(x => x.dataset.id).filter(Boolean).join();
     const bouger = e => {
       const autres = [...parent.children].filter(x => x !== ligne && x.dataset.id && !x.classList.contains('fait'));
       const avant = autres.find(x => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
@@ -493,17 +694,18 @@ function brancherGlisserTD(poignee, ligne, listeId, quotidien){
       }
     };
     const lacher = () => {
-      poignee.removeEventListener('pointermove', bouger);
-      poignee.removeEventListener('pointerup', lacher);
-      poignee.removeEventListener('pointercancel', lacher);
+      window.removeEventListener('pointermove', bouger);
+      window.removeEventListener('pointerup', lacher);
+      window.removeEventListener('pointercancel', lacher);
       ligne.classList.remove('tdGlisse');
       const ids = [...parent.children].map(x => x.dataset.id).filter(Boolean);
+      if(ids.join() === ordreAvant) return;
       if(quotidien) agirTD({ action: 'todoQuotidienRegler', quoi: 'ordre', ids: ids });
       else agirTD({ action: 'todoItemEcrire', quoi: 'ordre', id: ligne.dataset.id, ids: ids });
     };
-    poignee.addEventListener('pointermove', bouger);
-    poignee.addEventListener('pointerup', lacher);
-    poignee.addEventListener('pointercancel', lacher);
+    window.addEventListener('pointermove', bouger);
+    window.addEventListener('pointerup', lacher);
+    window.addEventListener('pointercancel', lacher);
   });
 }
 
@@ -550,10 +752,19 @@ async function reprendreLesTachesTD(){
     if(++n < 240) setTimeout(essayer, 1000);
   };
   setTimeout(essayer, 2500);
+  /* 🔁 v1281 — David : « il faut rafraîchir pour voir ce que mettent
+     les autres ». Volet ouvert : relu toutes les 10 s ; fermé : la
+     pastille toutes les minutes. */
   setInterval(() => {
     if(typeof ACCES === 'undefined' || !ACCES || !ACCES.code || document.hidden) return;
-    if(TD.ouvert || Date.now() - TD.charge > 4.5 * 60000) chargerTD(false);
-  }, 45000);
+    if(TD.ouvert ? Date.now() - TD.charge > 9000 : Date.now() - TD.charge > 60000) chargerTD(false);
+  }, 5000);
+  /* un redessin retenu pendant qu'on écrivait se fait en quittant le champ */
+  document.addEventListener('focusout', ev => {
+    const z = $('todoCorps');
+    if(!z || !TD.ouvert || !TD.retenu || !z.contains(ev.target)) return;
+    setTimeout(() => { if(TD.retenu && !occupeTD()){ TD.retenu = false; dessinerTD(); } }, 250);
+  });
   document.addEventListener('visibilitychange', () => {
     if(!document.hidden && typeof ACCES !== 'undefined' && ACCES && ACCES.code && Date.now() - TD.charge > 60000) chargerTD(false);
   });
