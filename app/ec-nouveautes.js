@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 14:07 — v1277 */
+/* Déployé le 27/10/2026 à 14:44 — v1278 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1278,
+    date: 'Mardi 27 octobre 2026',
+    resume: '☑️ La todo list : le bureau du jour, Ma journée, des listes perso et partagées',
+    quoi: [
+      { emoji: '☑️',
+        titre: 'Un bouton à côté du 💬',
+        texte: 'Il ouvre « À faire ». Qui le voit se choisit dans ⚙️ Accès (case « ☑️ À faire »).' },
+      { emoji: '🏢',
+        titre: 'Le bureau, chaque jour',
+        texte: 'Les tâches de tous les jours, décochées chaque matin à 6h (« ⚠️ pas fait hier » si oubliée), et « Ma journée » où chacun dit ce qu’il fait.' },
+      { emoji: '👥',
+        titre: 'Listes perso et partagées',
+        texte: 'Avec une date, une personne, une note. Les ✅ Tâches du bureau sont reprises dans « 🏢 Bureau ». Une notification seulement quand on t’attribue une tâche.' }
+    ]
+  },
   {
     version: 1277,
     date: 'Mardi 27 octobre 2026',
