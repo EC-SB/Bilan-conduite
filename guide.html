@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1277
+     GUIDE-VERSION: 1278
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1277</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1278</strong><br>
     Mis à jour le 27 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -537,6 +537,7 @@ html{scroll-behavior:smooth}
                 <li><a href="#ou-activite">Activité des élèves</a></li>
                 <li><a href="#messages">Messages internes</a></li>
                 <li><a href="#ou-sms">SMS</a></li>
+                <li><a href="#todo">☑️ À faire</a></li>
                 <li><a href="#taches">Tâches</a></li>
                 <li><a href="#alertes">Alertes</a></li>
                 <li><a href="#ou-equipe">Équipe et Ma fiche</a></li>
@@ -579,7 +580,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1277</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1278</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -3879,6 +3880,19 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <p><em>« Les envois urgents, facturés au segment, et le journal de tout ce qui est parti — mails compris. »</em> Les rappels de cours partent par <strong>mail</strong> depuis <span class="b">🔔 Rappels de cours</span>&nbsp;: c'est gratuit, et le financeur le reçoit aussi. Cet écran ne sert qu'à l'urgence — un élève à prévenir tout de suite, une voiture au garage.</p>
     <div class="note piege"><span class="tag">⚠️ Le SMS est facturé, le mail non</span><p>Chaque message est facturé <strong>au segment</strong>&nbsp;: 160 caractères, ou <strong>70 seulement</strong> si un emoji ou une lettre accentuée hors de l'alphabet standard s'y glisse. L'écran le compte <em>avant</em> l'envoi et nomme les caractères fautifs&nbsp;; <span class="b">🧹 Nettoyer</span> les remplace pour revenir à 160.</p></div>
     <p>Trois champs — <span class="b">👤 Élève</span> (facultatif, pour le journal), <span class="b">📱 Numéro</span>, <span class="b">💬 Message</span> — puis <span class="b">💬 Envoyer (2 segments)</span>, avec une confirmation qui annonce le prix. Dessous, <span class="b">🧮 Ce que coûterait une campagne</span> simule un volume (envois par jour, jours par semaine) et compare avec le même message nettoyé. En bas, <span class="b">📜 Journal des SMS</span>&nbsp;: ce qui est parti ce mois-ci, combien de segments, combien d'euros.</p>
+  </section>
+
+  <section id="todo">
+    <h3>☑️ À faire (la todo list)</h3>
+    <p>Le bouton <span class="b">☑️</span>, en haut à côté du <span class="b">💬</span>, ouvre un volet à droite. Sa pastille compte ce qui reste&nbsp;: les tâches du bureau du jour pas encore cochées, et les tâches datées d'aujourd'hui (ou en retard) ou attribuées à soi. Il n'apparaît qu'aux comptes qui ont la case <span class="b">☑️ À faire (todo list)</span> dans <span class="b">⚙️ Accès</span>&nbsp;: le bureau et les administrateurs l'ont par leur rôle, un moniteur seulement si on la lui coche.</p>
+    <h4>🏢 Bureau · aujourd'hui</h4>
+    <p><span class="b">🔁 Tous les jours</span>&nbsp;: <strong>une seule liste pour Saint-Brieuc et Loudéac</strong>. Elle revient décochée <strong>chaque matin à 6h</strong>&nbsp;; une tâche cochée dit qui et à quelle heure (<span class="ch">✅ Hery · 14:43</span>). Une tâche oubliée la veille s'affiche en rouge avec <span class="ch">⚠️ pas fait hier</span>.</p>
+    <p><span class="b">🗓️ Ma journée</span>&nbsp;: chacun dit ce qu'il fait aujourd'hui, en lignes à cocher et en texte libre. Tout le monde voit la journée des autres&nbsp;; on n'écrit que dans la sienne. Elle repart vide le lendemain, et <span class="b">📜 La journée d'hier</span> la relit.</p>
+    <p><span class="b">⚙️</span> (bureau et administrateurs)&nbsp;: les tâches de tous les jours, avec les jours où elles reviennent (<span class="ch">L M M J V S D</span>, du lundi au samedi par défaut), <span class="b">✕</span> pour en retirer une, <span class="b">⠿</span> pour les ranger.</p>
+    <h4>👤 Mes listes et 👥 Partagées</h4>
+    <p>Une liste <strong>perso</strong> n'est vue que par soi. Une liste <strong>partagée</strong> est vue par les personnes choisies à sa création (<span class="b">＋</span>, puis les pastilles <span class="b">Avec qui ?</span>)&nbsp;; seul celui qui l'a créée (ou un administrateur) la renomme, change les personnes ou la supprime. Un appui sur une tâche l'ouvre&nbsp;: <span class="b">📅</span> pour quand, <span class="b">👤</span> pour qui, une note. <span class="b">🧹 Effacer les faites</span> fait le ménage.</p>
+    <div class="note astuce"><span class="tag">Une seule notification</span><p>Rien ne sonne, sauf quand une tâche est <strong>attribuée à quelqu'un</strong>&nbsp;: il reçoit <span class="ch">☑️ Une tâche pour toi</span>, qui ouvre le volet.</p></div>
+    <div class="note astuce"><span class="tag">Les ✅ Tâches du bureau</span><p>À la première ouverture par le bureau ou un administrateur, elles sont reprises dans la liste partagée <span class="b">🏢 Bureau</span> (administrateurs et bureau), avec la personne, la date, la priorité et l'état dans la note.</p></div>
   </section>
 
   <section id="taches">
