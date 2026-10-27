@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 27/10/2026 à 14:44 — v1278 */
 /* ============================================================
    ec-taches.js
    Les tâches du bureau : qui fait quoi, avec quelle urgence.
@@ -69,6 +69,24 @@ async function afficherTaches(){
   }
 
   zone.innerHTML = '';
+
+  /* ☑️ v1278 — les tâches du bureau vivent maintenant dans le bouton ☑️
+     (David : « tu mets dans liste partagée bureau ») : elles y ont été
+     reprises une fois ; cet écran reste pour retrouver une ancienne
+     tâche et son image. */
+  const nv = document.createElement('div');
+  nv.style.cssText = 'border:2px solid var(--green);border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:13.5px;line-height:1.5;';
+  nv.innerHTML = '<b>☑️ Les tâches du bureau sont maintenant dans le bouton ☑️ en haut</b>, liste partagée « 🏢 Bureau ». ' +
+    'Elles y ont été reprises (avec la personne, la date, la priorité). Cet écran reste pour retrouver une ancienne tâche et son image.';
+  if(typeof ouvrirTD === 'function'){
+    const o = document.createElement('button');
+    o.className = 'btn btn-secondary';
+    o.style.cssText = 'width:auto;margin:8px 0 0;padding:8px 12px;font-size:13px;display:block;';
+    o.textContent = '☑️ Ouvrir « À faire »';
+    o.addEventListener('click', () => ouvrirTD('partage'));
+    nv.appendChild(o);
+  }
+  zone.appendChild(nv);
 
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
