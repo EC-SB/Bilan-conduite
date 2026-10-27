@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 14:44 — v1278 */
+/* Déployé le 27/10/2026 à 16:17 — v1280 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -405,6 +405,8 @@ const SECTIONS = [
      « m » écrit et envoie ; les modèles, les en-têtes et les signatures
      demandent en plus d'être administrateur (le Worker le vérifie). */
   { cle:'courriers',        nom:'✉️ Courriers sur papier à en-tête', onglet:'outils' },
+  /* 💼 v1280 — les formations entreprise (ec-formations.js) */
+  { cle:'formations',       nom:'💼 Formations entreprise (OPCO)', onglet:'outils' },
   /* 📞 v1266 — le suivi des appels d'Allo (ec-suivi-appels.js). « Voir »
      lit et note un appel passé d'un portable ; « Modifier » fait le
      reste. L'écoute des enregistrements : bureau et administrateurs. */
