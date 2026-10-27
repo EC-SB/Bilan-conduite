@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:48 — v1251 */
+/* Déployé le 27/10/2026 à 10:39 — v1272 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -38,11 +38,21 @@ function lignesErreurs(arr, mini){
   return out.join('\n');
 }
 
+/* 🎬 v1272 — sous la Carte SD, dans tous les bilans. David, le 27
+   octobre : « télécharge VLC si tu n'arrives pas à lire les vidéos,
+   avec le lien de VLC », et « vous pouvez aussi venir regarder votre
+   carte SD ici, en salle des tablettes ». Tutoiement dans les bilans
+   de l'élève, vouvoiement pour l'accompagnateur. */
+const LIGNES_VLC = '🎬 Tu n’arrives pas à lire les vidéos ? Télécharge VLC (gratuit) : https://www.videolan.org/vlc/\n' +
+  '📺 Tu peux aussi venir regarder ta carte SD ici, en salle des tablettes.';
+const LIGNES_VLC_VOUS = '🎬 Vous n’arrivez pas à lire les vidéos ? Téléchargez VLC (gratuit) : https://www.videolan.org/vlc/\n' +
+  '📺 Vous pouvez aussi venir regarder votre carte SD ici, en salle des tablettes.';
+
 /* ---------- Blocs communs ---------- */
 const BLOC = {
   entete: '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝔸 ℂ𝕆ℕ𝔻𝕌𝕀𝕋𝔼 👀\nRappel : dsl pour les fautes, écriture orale automatique 😅',
 
-  carteSD: v => '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿  ' + st(v) + '\nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). ',
+  carteSD: v => '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿  ' + st(v) + '\nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). \n' + LIGNES_VLC,
 
   installPassVoyants: (i, p, v) =>
     '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣  ' + st(i) + 'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/\n' +
@@ -1163,6 +1173,7 @@ function buildExamenBlanc(ai, ctx){
   L('𝟭-𝟭. 𝗖𝗮𝗿𝘁𝗲 𝗦𝗗 ' + st(av.carteSD));
   L("N'oublie pas de la regarder et si tu as un souci, contacte-nous !");
   L('💡Rappel, tous tes cours sont filmés, par une caméra avant et arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours !');
+  L(LIGNES_VLC);
   L('');
   /* Le bloc est repris tel que le moniteur l'a laissé : c'est lui
      qui efface l'émoji qui ne convient pas. */
@@ -2504,6 +2515,10 @@ function blocFicheAac(items, liste, ctx){
 
 /* 🧰 v1251 — la section 𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨 d'un cours d'AAC : elle n'existait
    pas ; elle n'apparaît que si une question a été posée. */
+function reperesDuJourPourLeBilan(){
+  return (typeof lignesReperesDuJourSE === 'function') ? lignesReperesDuJourSE() : [];
+}
+
 function sectionVerifsDuCours(ai, ctx){
   const l = (typeof lignesVerifsDuCours === 'function') ? lignesVerifsDuCours(ai || {}, ctx && ctx.transcript) : null;
   return l ? l.concat(['']) : [];
@@ -2518,6 +2533,7 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   parts.push('');
   parts.push('𝘾𝙖𝙧𝙩𝙚 𝙎𝘿  ' + (ai.carteSD === '❌' ? '❌' : '✅'));
   parts.push("N'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). ");
+  parts.push(LIGNES_VLC);
   parts.push('');
   parts.push('𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣  ' + (ai.installation === '❌' ? '❌' : '✅') + ' https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
   parts.push('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + (ai.passager === '❌' ? '❌' : '✅'));
@@ -2567,6 +2583,8 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
     ? manoeuvresRetireesEnCours() : [];
 
   parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant, ailleurs, retirees));
+  /* 👁️ v1272 — ses repères écrits ou changés aujourd'hui (ec-suivi-eleve.js) */
+  reperesDuJourPourLeBilan().forEach(o => parts.push(o));
   parts.push('');
   /* Sans émoji au bout : la question se suffit, et une coche
      laissée au hasard n'apprend rien à l'élève. */
@@ -2614,7 +2632,7 @@ const MODELES = {
       BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
       ...sectionVerifsDuCours(ai, ctx),
       blocRubriques(ai.rubriques),
-      blocFicheAac(ai.ficheVehicule, BLOC.ficheListe, ctx), '',
+      blocFicheAac(ai.ficheVehicule, BLOC.ficheListe, ctx), ...reperesDuJourPourLeBilan(), '',
       rappelAac('4 leçons de 2 heures + simu nuit et risques + 2 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable.')
     ].join('\n')
   },
@@ -2623,11 +2641,11 @@ const MODELES = {
     opts: { verifs:false, fiche:true },
     build: (ai, ctx) => [
       BLOC.entete, '',
-      '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿 ✅  donnée ce jour \nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). ', '',
+      '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿 ✅  donnée ce jour \nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). \n' + LIGNES_VLC, '',
       BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
       ...sectionVerifsDuCours(ai, ctx),
       blocRubriques(ai.rubriques),
-      blocFicheAac(ai.ficheVehicule, BLOC.ficheListeAacAuto, ctx), '',
+      blocFicheAac(ai.ficheVehicule, BLOC.ficheListeAacAuto, ctx), ...reperesDuJourPourLeBilan(), '',
       rappelAac('3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable.')
     ].join('\n')
   },
@@ -2665,6 +2683,7 @@ const MODELES = {
       '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕍𝕆𝕋ℝ𝔼 ℂ𝕆ℕ𝔻𝕌𝕀𝕋𝔼 👀',
       'Rappel : dsl pour les fautes, écriture orale automatique 😅', '',
       'Carte SD ' + st(ai.carteSD),
+      LIGNES_VLC_VOUS,
       'Installation ' + st(ai.installation), '',
       blocRubriques(ai.rubriques),
       '⚠️On doit avoir conscience de ces erreurs, pour éviter de les transmettre à l\'apprenti conducteur AAC ou CS ⚠️'
