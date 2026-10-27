@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 12:49 — v1211 */
+/* Déployé le 27/10/2026 à 11:46 — v1274 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -242,6 +242,8 @@ async function afficherPostExamen(tous){
           bOk.disabled = true;
           try{
             await consignerResultat(x, 'obtenu', iso);
+            /* 💬 v1274 — et dans « Suivi examen » : « ✅ Nom Prénom — Reçu » */
+            annoncerDansSuiviExamen(x.eleve, 'obtenu', iso);
             /* Il sort de toutes les listes de suivi */
             for(const cs of (x.enAttente || [])){
               try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
@@ -284,6 +286,8 @@ async function afficherPostExamen(tous){
           bNon.disabled = true;
           try{
             await consignerResultat(x, 'ajourne', iso);
+            /* 💬 v1274 — et dans « Suivi examen » : le nom, puis les captures du CEPC */
+            annoncerDansSuiviExamen(x.eleve, 'ajourne', iso);
             const n = (parseInt(s.nbAjournements, 10) || 0) + 1;
             const dateAjo = iso || todayLocal();
             await majSuivi(x.eleve, {
@@ -2873,6 +2877,57 @@ async function moniteurQuiAPresente(eleve){
 }
 
 /* Consigne le résultat, pour les statistiques */
+/* ============================================================
+   💬 v1274 — LE RÉSULTAT, DANS LA CONVERSATION « SUIVI EXAMEN »
+
+   David, le 27 octobre : « quand on fait résultat permis, il faut
+   qu'en plus les résultats aillent dans la conversation Suivi examen :
+   quand un élève est ajourné, on met son nom et prénom et les captures
+   d'écran ; quand il est reçu, on met son nom et prénom avec Reçu ».
+   Écrit au nom de celui qui saisit, dans le groupe dont le nom est
+   « Suivi examen » (il faut en être) ; le message entre aussi dans le
+   « ⚠️ Suivi » de l'élève. Les captures : celles de cet examen. En
+   arrière-plan : le résultat, lui, est déjà enregistré.
+   ============================================================ */
+function estSuiviExamenPP(titre){
+  const t = String(titre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return /^suivi (d )?(des )?examens?$/.test(t);
+}
+function memeJourPP(a, b){
+  const iso = t => { t = String(t || '').trim(); let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1] + m[2] + m[3];
+    m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3] + m[2] + m[1] : ''; };
+  return !!iso(a) && iso(a) === iso(b);
+}
+function tailleDeLImagePP(src){
+  return new Promise(ok => { const i = new Image(); i.onload = () => ok({ l: i.naturalWidth || 0, h: i.naturalHeight || 0 }); i.onerror = () => ok({ l: 0, h: 0 }); i.src = src; });
+}
+async function annoncerDansSuiviExamen(eleve, resultat, iso){
+  try{
+    const d = await appelPrep({ action: 'convList' });
+    const conv = ((d && d.conversations) || []).find(c => (c.genre === 'groupe' || c.genre === 'interne') && !c.eleve && estSuiviExamenPP(c.titre));
+    if(!conv){
+      if(typeof showToast === 'function') showToast('ℹ️ Pas de conversation « Suivi examen » pour toi : le résultat n’y est pas annoncé.');
+      return false;
+    }
+    const texte = resultat === 'obtenu' ? '✅ ' + eleve + ' — Reçu' : '❌ ' + eleve + ' — Ajourné';
+    await appelPrep({ action: 'convEcrire', id: conv.id, texte: texte, suivi: { noms: [eleve] } });
+    let n = 0;
+    if(resultat === 'ajourne'){
+      const caps = (await chargerCaptures(eleve)).filter(c => c && /^data:image\//.test(c.image || '') && (!iso || !c.dateExamen || memeJourPP(c.dateExamen, iso)));
+      for(const c of caps){
+        const t = await tailleDeLImagePP(c.image);
+        await appelPrep({ action: 'convPhoto', id: conv.id, photo: c.image, l: t.l, h: t.h, texte: c.legende || '' });
+        n++;
+      }
+    }
+    if(typeof showToast === 'function') showToast('💬 Annoncé dans « ' + (conv.titre || 'Suivi examen') + ' »' + (n ? ' avec ' + n + ' capture' + (n > 1 ? 's' : '') : ''));
+    return true;
+  }catch(e){
+    if(typeof showToast === 'function') showToast('« Suivi examen » : ' + ((e && e.message) || e));
+    return false;
+  }
+}
+
 async function consignerResultat(e, resultat, iso){
   const s = suiviDe(e.eleve) || {};
 
