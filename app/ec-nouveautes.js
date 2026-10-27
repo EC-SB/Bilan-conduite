@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:46 — v1274 */
+/* Déployé le 27/10/2026 à 12:09 — v1275 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1275,
+    date: 'Mardi 27 octobre 2026',
+    resume: '📌 Les prénoms reconnus dans « Message important »',
+    quoi: [
+      { emoji: '📌',
+        titre: 'Le prénom seul est reconnu',
+        texte: 'Même quand l’élève est écrit « GUIVARCH Lena » (Drivup) : « Lena » suffit, et c’est la même élève que « Lena Guivarch ». Un titre qui contient « important » (ou « suivi » et « exam ») est lu d’office.' },
+      { emoji: '👀',
+        titre: 'On voit à qui ira le message',
+        texte: 'Pendant qu’on tape : « Ira dans le suivi de : 📌 Lena Guivarch ». Les messages déjà envoyés sans étiquette se rangent à l’ouverture du fil.' }
+    ]
+  },
   {
     version: 1274,
     date: 'Mardi 27 octobre 2026',
