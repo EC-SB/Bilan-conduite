@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 16:17 — v1280 */
+/* Déployé le 27/10/2026 à 17:38 — v1282 */
 /* ============================================================
    ec-formations.js — 💼 LES FORMATIONS ENTREPRISE (v1280)
    Outils › Entreprises › 💼 Formations
@@ -68,6 +68,7 @@ async function feSauverMaintenant(journal){
     const r = await appelPrep({ action: 'formationPoser', id: x.id, donnees: x.donnees, journal: j });
     if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'Dossier non enregistré');
     x.majLe = r.formation.majLe; x.majPar = r.formation.majPar;
+    feFusionServeur(x, r.formation.donnees);
     if(j) delete FE.journal[x.id];
     feEtat('✓ enregistré');
     return true;
@@ -78,6 +79,25 @@ async function feSauverMaintenant(journal){
   }
 }
 function feEtat(t){ const e = $('feEtat'); if(e) e.textContent = t; }
+/* ✍️ v1282 — les signatures et ce que l'entreprise a fait en ligne
+   viennent du Worker : on les recopie dans le dossier ouvert sans
+   toucher au reste (un champ en cours de frappe garde sa valeur) */
+function feFusionServeur(x, sd){
+  if(!x || !sd) return;
+  const d = x.donnees;
+  d.seances = d.seances || [];
+  (sd.seances || []).forEach(ss => {
+    const l = d.seances.find(y => y.id === ss.id);
+    if(!l){ if((ss.signatures || []).length) d.seances.push(ss); return; }
+    if((ss.signatures || []).length){ l.signatures = ss.signatures; l.date = ss.date; l.debut = ss.debut; l.fin = ss.fin; if(ss.formateur) l.formateur = ss.formateur; }
+  });
+  d.stagiaires = d.stagiaires || [];
+  (sd.stagiaires || []).forEach(st => { if(!d.stagiaires.some(y => y.id === st.id)) d.stagiaires.push(st); });
+  const ss = sd.suivi || {};
+  d.suivi = d.suivi || {};
+  ['conventionSignee', 'opcoDepot'].forEach(k => { if(ss[k] && ss[k].enLigne) d.suivi[k] = ss[k]; });
+  if(sd.opco && sd.opco.dossier && !(d.opco && d.opco.dossier)){ d.opco = d.opco || {}; d.opco.dossier = sd.opco.dossier; }
+}
 
 /* ---------- le chargement ---------- */
 async function afficherFormations(){
@@ -85,8 +105,12 @@ async function afficherFormations(){
   if(!z) return;
   if(!FE.d) z.innerHTML = '<div class="empty">Chargement…</div>';
   try{
-    const r = await appelPrep({ action: 'formationsLire' });
+    /* ✍️ v1282 — un moniteur sans la case 💼 : ses formations seulement,
+       pour faire signer (David : « tous les moniteurs, sans case ») */
+    const restreint = typeof aDroit === 'function' && !aDroit('formations');
+    const r = await appelPrep({ action: restreint ? 'formationsMiennes' : 'formationsLire' });
     if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'Lecture impossible');
+    r.restreint = restreint;
     if(FE.attente) r.formations = r.formations.map(x => x.id === FE.attente.id ? FE.attente : x);
     FE.d = r;
   }catch(e){
@@ -107,7 +131,8 @@ function feDessiner(){
   if(!z || !FE.d) return;
   const haut = window.scrollY;
   z.innerHTML = '';
-  if(FE.vue === 'dossier' && feCourant()) feDessinerDossier(z, feCourant());
+  if(FE.d.restreint && typeof feDessinerMoniteur === 'function') feDessinerMoniteur(z);
+  else if(FE.vue === 'dossier' && feCourant()) feDessinerDossier(z, feCourant());
   else feDessinerListe(z);
   window.scrollTo(0, haut);
 }
@@ -354,8 +379,9 @@ function feOngletResume(z, x){
   a.appendChild(feLigneCoche(s.convocations ? 'ok' : 'non', 'Convocations envoyées aux salariés', s.convocations ? 'le ' + feDateFr(s.convocations) + ', avec le règlement intérieur' : ''));
   a.appendChild(feEl('div', 'feTemps', 'PENDANT'));
   const ns = (d.seances || []).length;
-  a.appendChild(feLigneCoche(ns ? 'att' : 'non', 'Feuilles de présence : ' + ns + ' séance' + (ns > 1 ? 's' : ''),
-    'chaque stagiaire signe à chaque séance (au moins par demi-journée), le formateur aussi — à imprimer depuis 📅 Séances ; le scan signé se dépose dans 📄 Documents'));
+  const nsig = (d.seances || []).filter(se => feSeanceSignee(d, se)).length;
+  a.appendChild(feLigneCoche(ns && nsig === ns ? 'ok' : (ns ? 'att' : 'non'), 'Feuilles de présence : ' + ns + ' séance' + (ns > 1 ? 's' : '') + (nsig ? ' · ' + nsig + ' signée' + (nsig > 1 ? 's' : '') + ' sur le téléphone' : ''),
+    'chaque stagiaire signe à chaque séance (au moins par demi-journée), le formateur aussi — sur le téléphone du formateur (✍️ Faire signer), ou sur papier : le scan se dépose dans 📄 Documents'));
   a.appendChild(feEl('div', 'feTemps', 'APRÈS'));
   a.appendChild(feLigneCoche(s.attestations ? 'ok' : 'non', 'Attestations de fin de formation (' + (d.stagiaires || []).length + ')', s.attestations ? 'le ' + feDateFr(s.attestations) : 'objectifs, nature, durée, résultats de l’évaluation'));
   a.appendChild(feLigneCoche(s.certificats ? 'ok' : 'non', 'Certificats de réalisation (' + (d.stagiaires || []).length + ')', s.certificats ? 'le ' + feDateFr(s.certificats) : (opco ? 'modèle du ministère du Travail — demandé pour le paiement' : 'facultatif sans OPCO')));
@@ -811,7 +837,7 @@ function feOngletSeances(z, x){
   const d = x.donnees;
   d.seances = d.seances || [];
   const auj = feAujourdhui();
-  z.appendChild(feAide('Chaque séance a sa feuille de présence : <b>🖨️</b> l’imprime, prête à signer par chaque stagiaire et par le formateur (au moins par demi-journée) ; le scan signé se dépose dans 📄 Documents. <i>Livraison 2 : la signature sur le téléphone du moniteur, ici et sur la carte de son cours. Livraison 3 : les séances lues dans Drivup.</i>'));
+  z.appendChild(feAide('Chaque séance a sa feuille de présence. Le formateur la fait <b>signer sur son téléphone</b> (<b>✍️ Faire signer</b>, ici ou sur la carte de son cours) : chaque salarié signe du doigt, puis le formateur ; la feuille signée part toute seule dans 📄 Documents. Sinon <b>🖨️</b> l’imprime, et le scan signé se dépose dans 📄 Documents. <i>Livraison 3 : les séances lues dans Drivup.</i>'));
   const r0 = feEl('div', 'feBarre');
   r0.appendChild(feBouton('＋ Ajouter une séance', 'feEcrit', async () => {
     const der = d.seances[d.seances.length - 1];
@@ -825,6 +851,7 @@ function feOngletSeances(z, x){
   feListeMoniteurs();
   feTrier(d.seances).forEach(s => {
     const passe = s.date && s.date < auj, ajd = s.date === auj;
+    const signee = (s.signatures || []).length > 0;
     const c = feEl('div', 'feBoite feSeance' + (ajd ? ' ajd' : ''));
     const g = feGrille(120);
     g.appendChild(feChamp('Date', s, 'date', { type: 'date' }));
@@ -832,13 +859,17 @@ function feOngletSeances(z, x){
     g.appendChild(feChamp('Fin', s, 'fin', { type: 'time' }));
     g.appendChild(feChamp('Formateur', s, 'formateur', { list: 'feMoniteurs' }));
     c.appendChild(g);
+    /* une séance où quelqu'un a signé ne change plus de date ni d'heure */
+    if(signee) g.querySelectorAll('input').forEach(i => { if(i.type === 'date' || i.type === 'time') i.disabled = true; });
     c.appendChild(feChamp('Contenu', s, 'contenu', { large: true, placeholder: 'Ex. : circulation + plateau' }));
+    if(typeof feLigneSignatures === 'function') c.appendChild(feLigneSignatures(x, s));
     const qui = feEl('div', 'feQui');
     qui.appendChild(feEl('span', 'feAideIn', passe || ajd ? 'Présents (toucher pour noter une absence) :' : 'Stagiaires :'));
     const inscrits = s.stagiaires && s.stagiaires.length ? tous.filter(z2 => s.stagiaires.indexOf(z2.id) !== -1) : tous;
     tous.forEach(st => {
       const dans = inscrits.indexOf(st) !== -1;
       const absent = (s.absents || []).indexOf(st.id) !== -1;
+      if(signee && dans) return;   /* ✍️ signée : la ligne au-dessus dit qui a signé */
       const p = fePuce((dans ? (absent ? '🚫 ' : '') : '＋ ') + (st.nom || '?'), dans && !absent, async () => {
         if(!dans){ s.stagiaires = (s.stagiaires && s.stagiaires.length ? s.stagiaires : []).concat([st.id]); }
         else if(passe || ajd){ s.absents = absent ? s.absents.filter(i => i !== st.id) : (s.absents || []).concat([st.id]); }
@@ -852,8 +883,9 @@ function feOngletSeances(z, x){
     c.appendChild(qui);
     const pied = feEl('div', 'feStagPied');
     pied.appendChild(feEl('span', 'feAideIn', (ajd ? '🔴 aujourd’hui · ' : passe ? '✓ passée · ' : '🕘 à venir · ') + feHeures(feDureeSeance(s))));
-    pied.appendChild(feBouton('🖨️ Feuille de présence', 'feBtnPetit', () => feVoir([feDocument('emargement', x, s)], 'Feuille de présence')));
-    pied.appendChild(feBouton('✕', 'feBtnX feEcrit', async () => {
+    if(typeof feBoutonsSignature === 'function') feBoutonsSignature(x, s).forEach(b => pied.appendChild(b));
+    if(!signee) pied.appendChild(feBouton('🖨️ Feuille de présence', 'feBtnPetit', () => feVoir([feDocument('emargement', x, s)], 'Feuille de présence')));
+    if(!signee) pied.appendChild(feBouton('✕', 'feBtnX feEcrit', async () => {
       if(typeof confirmer === 'function' && !await confirmer('Retirer la séance du ' + feDateFr(s.date) + ' ?', 'Retirer', true)) return;
       d.seances.splice(d.seances.indexOf(s), 1); await feSauverMaintenant('📅 séance du ' + feDateFr(s.date) + ' retirée'); feDessiner();
     }, 'Retirer la séance'));
@@ -864,13 +896,15 @@ function feOngletSeances(z, x){
 function feTrier(l){ return (l || []).slice().sort((a, b) => ((a.date || '') + (a.debut || '')).localeCompare((b.date || '') + (b.debut || ''))); }
 
 /* ---------- 📄 Documents ---------- */
-async function feVoir(docs, titre){
+async function feVoir(docs, titre, entete){
   /* la fenêtre s'ouvre tout de suite (sinon le navigateur la bloque),
      le PDF y arrive quand il est prêt */
   const w = window.open('', '_blank');
   try{
     feToast('📄 Fabrication du PDF…');
-    const doc = await feFabriquerPdf(docs);
+    /* ✍️ v1282 — les documents peuvent attendre leurs signatures */
+    const liste = typeof docs === 'function' ? await docs() : docs;
+    const doc = await feFabriquerPdf(liste, entete);
     const url = URL.createObjectURL(doc.output('blob'));
     if(w){ w.location.href = url; }
     else { const a = document.createElement('a'); a.href = url; a.download = (titre || 'Document') + '.pdf'; document.body.appendChild(a); a.click(); a.remove(); }
@@ -898,7 +932,7 @@ function feListeDocs(x){
   l.push({ cle: 'convocation', emoji: '📨', nom: 'Convocations (' + sta.length + ') + règlement intérieur', etat: s.convocations ? 'envoyées le ' + feDateFr(s.convocations) : '', fait: !!s.convocations,
            docs: () => sta.map(st => feDocument('convocation', x, st)).concat([feDocument('reglement', x)]), vide: !sta.length });
   l.push({ cle: 'reglement', emoji: '📋', nom: 'Règlement intérieur', docs: () => [feDocument('reglement', x)] });
-  l.push({ cle: 'emargement', emoji: '🧾', nom: 'Feuilles de présence (' + (d.seances || []).length + ')', note: 'à imprimer et signer à chaque séance', docs: () => feTrier(d.seances).map(se => feDocument('emargement', x, se)), vide: !(d.seances || []).length, sansMail: true });
+  l.push({ cle: 'emargement', emoji: '🧾', nom: 'Feuilles de présence (' + (d.seances || []).length + ')', note: 'signées sur le téléphone du formateur (📅 Séances), ou à imprimer', docs: () => feTrier(d.seances).map(se => feDocument('emargement', x, se)), vide: !(d.seances || []).length, sansMail: true });
   l.push({ cle: 'attestation', emoji: '🎓', nom: 'Attestations de fin de formation (' + sta.length + ')', etat: s.attestations ? 'faites le ' + feDateFr(s.attestations) : '', fait: !!s.attestations,
            docs: () => sta.map(st => feDocument('attestation', x, st)), vide: !sta.length, suivi: 'attestations' });
   l.push({ cle: 'certificat', emoji: '📜', nom: 'Certificats de réalisation (' + sta.length + ')', etat: s.certificats ? 'faits le ' + feDateFr(s.certificats) : (opco ? 'modèle du ministère du Travail' : 'facultatif sans OPCO'), fait: !!s.certificats,
@@ -1010,20 +1044,30 @@ function feFenetreMail(x, cles){
     const opco = feEstOpco(d) && choisis.has('convention');
     texte.value = 'Bonjour' + (e.signataire ? ' ' + e.signataire : '') + ',\n\nVous trouverez ci-joint' + (quoi.length > 1 ? 's' : '') + ' ' + (quoi.length ? 'le' + (quoi.length > 1 ? 's documents suivants : ' + quoi.join(', ') : ' ' + quoi[0]) : 'nos documents') +
       ' pour la formation « ' + (f.intitule || '') + ' » (' + feEffectif(d) + ' salarié' + (feEffectif(d) > 1 ? 's' : '') + ', ' + feDates(f) + ').' +
-      (choisis.has('convention') ? '\n\nMerci de nous retourner la convention signée et tamponnée.' : '') +
+      (choisis.has('convention') ? ($('feEnLigne') && !$('feEnLigne').checked ? '\n\nMerci de nous retourner la convention signée et tamponnée.'
+        : '\n\nVous pouvez signer la convention en ligne avec le bouton de ce mail : un code envoyé à cette adresse confirme que c’est bien vous, et la convention signée vous revient en PDF.') : '') +
       (opco ? '\n\nLa demande de prise en charge se dépose sur votre espace ' + ((d.opco && d.opco.nom) || 'OPCO') + ', avant le début de la formation, avec la convention signée et le programme.' : '') +
       '\n\nBien cordialement,\n' + (FE.d.moi || '') + ' — Évolution Conduites';
   };
   b.appendChild(feEl('label', 'feLab', 'Documents joints'));
   const zd = feEl('div', 'feOnglets');
-  liste.forEach(k => zd.appendChild(fePuce(k.emoji + ' ' + k.nom, choisis.has(k.cle), p => { if(choisis.has(k.cle)) choisis.delete(k.cle); else choisis.add(k.cle); p.classList.toggle('on', choisis.has(k.cle)); majTexte(); })));
+  liste.forEach(k => zd.appendChild(fePuce(k.emoji + ' ' + k.nom, choisis.has(k.cle), p => { if(choisis.has(k.cle)) choisis.delete(k.cle); else choisis.add(k.cle); p.classList.toggle('on', choisis.has(k.cle)); majTexte(); if(typeof majEnLigne === 'function') majEnLigne(); })));
   b.appendChild(zd);
   b.appendChild(feEl('label', 'feLab', 'Objet')); b.appendChild(objet);
   b.appendChild(feEl('label', 'feLab', 'Message')); b.appendChild(texte);
   majTexte();
+  /* ✍️ v1282 — la convention signée en ligne par l'entreprise */
+  const enLigne = feEl('label', 'feCocheLab feEnLigne'); const el = document.createElement('input'); el.type = 'checkbox'; el.checked = true; el.id = 'feEnLigne';
+  const elT = feEl('span');
+  elT.innerHTML = ' <b>✍️ Avec le bouton « Signer la convention en ligne »</b><span class="feSous2">Sinon, elle imprime, signe, tamponne et te renvoie le scan — tu le déposes dans le dossier.</span>';
+  enLigne.append(el, elT);
+  el.addEventListener('change', () => majTexte());
+  const majEnLigne = () => { enLigne.style.display = choisis.has('convention') ? '' : 'none'; };
+  b.appendChild(enLigne);
   const copie = feEl('label', 'feCocheLab'); const cc = document.createElement('input'); cc.type = 'checkbox';
   copie.append(cc, document.createTextNode(' M’en envoyer une copie'));
   b.appendChild(copie);
+  majEnLigne();
   const r = feEl('div', 'btn-row');
   const go = feBouton('✉️ Envoyer', 'btn-primary', async () => {
     const a = adresses.filter(o => o.on).map(o => o.a).concat(autre.value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean));
@@ -1036,14 +1080,26 @@ function feFenetreMail(x, cles){
     try{
       feToast('✉️ Fabrication des PDF…');
       const pj = [];
-      for(const k of k2) pj.push({ genre: k.cle, nom: feNomPdf(k.nom.replace(/\s*\(\d+\)/, ''), x), contenu: await fePdfB64(k.docs()) });
-      const rr = await appelPrep({ action: 'formationDocPoser', formation: x.id, comment: 'mail', docs: pj, mail: { a: bonnes, objet: objet.value, texte: texte.value, copieMoi: cc.checked } });
+      let signer = null;
+      for(const k of k2){
+        const p = await fePdfEtZones(k.docs());
+        pj.push({ genre: k.cle, nom: feNomPdf(k.nom.replace(/\s*\(\d+\)/, ''), x), contenu: p.b64 });
+        if(k.cle === 'convention' && el.checked){
+          const zs = p.zones.filter(z => z.doc === 'convention' && z.i === 1);
+          const t = feTotaux(d, FE.d.organisme);
+          signer = { page: location.origin + location.pathname.replace(/[^/]*$/, '') + 'convention.html', zone: zs[zs.length - 1] || null,
+                     resume: { intitule: f.intitule || '', n: feEffectif(d), dates: feDates(f), ttc: t.ttc ? feEur(t.ttc) + ' TTC' : '',
+                               opco: feEstOpco(d) ? ((d.opco && d.opco.nom) || 'OPCO') : '', avant: f.dateDebut || '', pages: p.pages } };
+        }
+      }
+      const rr = await appelPrep({ action: 'formationDocPoser', formation: x.id, comment: 'mail', docs: pj, signer: signer, mail: { a: bonnes, objet: objet.value, texte: texte.value, copieMoi: cc.checked } });
       if(!rr || rr.status !== 'ok') throw new Error((rr && rr.message) || 'Le mail n’est pas parti');
       d.suivi = d.suivi || {};
       k2.forEach(k => { if(k.suivi && !d.suivi[k.suivi]) d.suivi[k.suivi] = feAujourdhui(); });
       FE.attente = x; await feSauverMaintenant();
       delete FE.journal[x.id];
-      feToast('✉️ Envoyé à ' + rr.envoyeA.join(', '));
+      feToast('✉️ Envoyé à ' + rr.envoyeA.join(', ') + (rr.enLigne ? ' — avec le bouton de signature' : ''));
+      if(rr.enLigne){ x.enLigne = { envoyeLe: Date.now(), a: bonnes[0], etat: 'attente', par: FE.d.moi }; }
       fen.fermer(); feDessiner();
     }catch(e2){ feToast('⚠️ ' + ((e2 && e2.message) || e2)); go.disabled = false; }
   });
@@ -1200,13 +1256,14 @@ function feOngletFinancement(z, x){
   b.appendChild(feSous(opco ? '🏦 L’OPCO, étape par étape' : '✍️ Les étapes'));
   b.appendChild(feLigneCoche(s.devisEnvoye ? 'ok' : 'non', 'Devis envoyé', s.devisEnvoye ? feDateFr(s.devisEnvoye) : '',
     s.devisEnvoye ? null : feBouton('✏️ Noter', 'feBtnPetit feEcrit', async () => { d.suivi = d.suivi || {}; d.suivi.devisEnvoye = feAujourdhui(); FE.attente = x; await feSauverMaintenant('💶 devis envoyé (noté)'); feDessiner(); })));
-  b.appendChild(feLigneCoche(s.conventionSignee ? 'ok' : 'non', 'Convention signée', s.conventionSignee ? feDateFr(s.conventionSignee.le) + (s.conventionSignee.comment ? ' · ' + s.conventionSignee.comment : '') : 'sur papier : note-la (ou dépose le scan dans 📄 Documents)',
-    feBouton(s.conventionSignee ? '✏️' : '✏️ Noter', 'feBtnPetit feEcrit', () => feNoter(x, 'conventionSignee', '✍️ Convention signée',
+  const enL = x.enLigne && x.enLigne.etat === 'attente' ? '✉️ lien de signature en ligne envoyé le ' + new Date(x.enLigne.envoyeLe).toLocaleDateString('fr-FR') + ' à ' + x.enLigne.a + ' — pas encore signée' : '';
+  b.appendChild(feLigneCoche(s.conventionSignee ? 'ok' : (enL ? 'att' : 'non'), 'Convention signée', s.conventionSignee ? feDateFr(s.conventionSignee.le) + (s.conventionSignee.comment ? ' · ' + s.conventionSignee.comment : '') : (enL || 'sur papier : note-la (ou dépose le scan dans 📄 Documents)'),
+    s.conventionSignee && s.conventionSignee.enLigne ? null : feBouton(s.conventionSignee ? '✏️' : '✏️ Noter', 'feBtnPetit feEcrit', () => feNoter(x, 'conventionSignee', '✍️ Convention signée',
       [{ lab: 'Date', cle: 'le', type: 'date', valeur: (s.conventionSignee && s.conventionSignee.le) || feAujourdhui() }, { lab: 'Remarque', cle: 'comment', valeur: (s.conventionSignee && s.conventionSignee.comment) || 'signée sur papier' }],
       v => '✍️ convention signée (' + (v.comment || '') + ')'))));
   if(opco){
-    b.appendChild(feLigneCoche(s.opcoDepot ? 'ok' : 'non', 'Demande déposée par l’entreprise', s.opcoDepot ? feDateFr(s.opcoDepot.le) + (s.opcoDepot.numero ? ' · n° ' + s.opcoDepot.numero : '') : 'sur son espace OPCO, avant le début',
-      feBouton(s.opcoDepot ? '✏️' : '✏️ Noter', 'feBtnPetit feEcrit', () => feNoter(x, 'opcoDepot', '🏦 Demande déposée à l’OPCO',
+    b.appendChild(feLigneCoche(s.opcoDepot ? 'ok' : 'non', 'Demande déposée par l’entreprise', s.opcoDepot ? feDateFr(s.opcoDepot.le) + (s.opcoDepot.numero ? ' · n° ' + s.opcoDepot.numero : '') + (s.opcoDepot.enLigne ? ' · dit par l’entreprise en ligne' : '') : 'sur son espace OPCO, avant le début',
+      s.opcoDepot && s.opcoDepot.enLigne ? null : feBouton(s.opcoDepot ? '✏️' : '✏️ Noter', 'feBtnPetit feEcrit', () => feNoter(x, 'opcoDepot', '🏦 Demande déposée à l’OPCO',
         [{ lab: 'Date du dépôt', cle: 'le', type: 'date', valeur: (s.opcoDepot && s.opcoDepot.le) || feAujourdhui() }, { lab: 'N° de dossier OPCO', cle: 'numero', valeur: (s.opcoDepot && s.opcoDepot.numero) || (d.opco && d.opco.dossier) || '' }],
         v => { if(v.numero){ d.opco = d.opco || {}; d.opco.dossier = v.numero; } return '🏦 demande OPCO déposée' + (v.numero ? ' · n° ' + v.numero : ''); }))));
     b.appendChild(feLigneCoche(s.opcoAccord ? 'ok' : (s.opcoRefus ? 'ko' : (s.opcoDepot ? 'att' : 'non')), 'Accord de l’OPCO',
@@ -1218,7 +1275,7 @@ function feOngletFinancement(z, x){
   }
   if(s.facture || s.paye || s.opcoAccord || s.opcoDepot || s.conventionSignee){
     const ann = feBouton('↩️ Effacer une étape notée…', 'feBtnLien feEcrit', async () => {
-      const choix = [['paye', 'Paiement'], ['facture', 'Facture'], ['opcoRefus', 'Refus OPCO'], ['opcoAccord', 'Accord OPCO'], ['opcoDepot', 'Dépôt OPCO'], ['conventionSignee', 'Convention signée'], ['devisEnvoye', 'Devis envoyé']].filter(([k]) => s[k]);
+      const choix = [['paye', 'Paiement'], ['facture', 'Facture'], ['opcoRefus', 'Refus OPCO'], ['opcoAccord', 'Accord OPCO'], ['opcoDepot', 'Dépôt OPCO'], ['conventionSignee', 'Convention signée'], ['devisEnvoye', 'Devis envoyé']].filter(([k]) => s[k] && !s[k].enLigne);
       const fen = feFenetre('↩️ Effacer une étape notée');
       choix.forEach(([k, n]) => fen.boite.appendChild(feBouton('↩️ ' + n, 'feBtnPetit', async () => { delete s[k]; FE.attente = x; await feSauverMaintenant('↩️ « ' + n + ' » effacé'); fen.fermer(); feDessiner(); })));
       const r = feEl('div', 'btn-row'); r.appendChild(feBouton('Fermer', '', fen.fermer)); fen.boite.appendChild(r);
