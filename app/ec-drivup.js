@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 13:46 — v1242 */
+/* Déployé le 27/10/2026 à 14:07 — v1277 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -694,6 +694,22 @@ async function fenetrePlanningDrivup(p){
     nc.style.cssText = 'margin:0 0 10px;color:var(--warn-text);';
     nc.textContent = '⚠️ ' + p.creneauxErreur;
     f.boite.appendChild(nc);
+  }
+
+  /* 👂 v1277 — les écoutes réservées (qui est inscrit sur chaque écoute),
+     pour le pointage sur les cours et les rappels : à chaque lecture */
+  if(typeof enregistrerLesEcoutesReserveesDrivup === 'function' && typeof ecoutesDuPlanningEP === 'function' &&
+     ecoutesDuPlanningEP(p).agences.length){
+    const ne = document.createElement('div');
+    ne.className = 'dvNote';
+    ne.style.margin = '0 0 10px';
+    ne.textContent = '👂 Écoutes réservées : mise à jour…';
+    f.boite.appendChild(ne);
+    enregistrerLesEcoutesReserveesDrivup(p).then(r => {
+      ne.textContent = '👂 Écoutes réservées mises à jour : ' + ((r && r.eleves) || 0) + ' élève(s) sur ' + ((r && r.ecoutes) || 0) +
+        ' écoute(s)' + (r && r.disparus ? ' · ' + r.disparus + ' plus réservée(s) dans Drivup' : '') +
+        ' — elles s’affichent sur les cours de Mes prochains cours.';
+    }).catch(e => { ne.style.color = 'var(--warn-text)'; ne.textContent = '⚠️ Écoutes réservées non mises à jour : ' + ((e && e.message) || e); });
   }
 
   /* 👂 v1229 — ouvrir les écoutes, depuis le planning d'une agence ;
