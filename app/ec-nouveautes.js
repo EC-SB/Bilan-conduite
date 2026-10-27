@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:09 — v1275 */
+/* Déployé le 27/10/2026 à 12:48 — v1276 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1276,
+    date: 'Mardi 27 octobre 2026',
+    resume: '🕘 Appels relus tout seuls · 🗑️ suppression visible · 📌 l’élève se choisit en écrivant',
+    quoi: [
+      { emoji: '🕘',
+        titre: 'Les appels arrivent sans « Relire »',
+        texte: 'Si le déclencheur des 5 minutes manque, l’appli relance Allo elle-même dès qu’elle est ouverte, et l’écran du suivi se relit toutes les 2 minutes.' },
+      { emoji: '🗑️',
+        titre: 'Un message supprimé se voit tout de suite',
+        texte: '« 🚫 Message supprimé » apparaît sans recharger la page, chez tout le monde (élèves compris).' },
+      { emoji: '📌',
+        titre: 'On choisit l’élève en écrivant',
+        texte: 'Au-dessus de la barre : ✕ retire un élève, plusieurs élèves du même prénom se choisissent d’un appui. « David » (un collègue et un élève) : proposé, rangé seulement si on touche l’élève.' },
+      { emoji: '⚠️',
+        titre: 'Rouge = une case cochée',
+        texte: 'Le tiroir « Suivi de … » n’est plus rouge pour un simple message ou un texte.' }
+    ]
+  },
   {
     version: 1275,
     date: 'Mardi 27 octobre 2026',
