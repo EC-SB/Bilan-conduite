@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 11:53 — v1266 */
+/* Déployé le 27/10/2026 à 11:08 — v1273 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -139,6 +139,10 @@ const ONGLETS_ELEVE = [
      au-dessus des onglets, en plus du résumé d'état, et les deux
      disaient les mêmes phrases à dix centimètres d'écart — le
      premier constat de l'audit. Elle n'est plus qu'ici. */
+  /* ⚠️ v1273 — « Suivi de … » : ce que toute l'équipe doit savoir sur
+     l'élève (les cases, le texte, ses repères, les messages). En tête,
+     comme sur le schéma que David a validé. */
+  { cle:'suivi',    emoji:'⚠️', titre:'Suivi',       section:'cours' },
   { cle:'route',    emoji:'🧭', titre:'Sa route',    section:'eleves' },
   { cle:'fiche',    emoji:'📇', titre:'Fiche',       section:'eleves' },
   /* 📊 v1184 — l'évaluation de départ : heures, boîte, montant, frise
@@ -2758,6 +2762,8 @@ function dessinerPageEleve(){
   rafraichirEtatDepuisNotes(nom);
 
   zone.appendChild(enteteEleve(nom));
+  /* ⚠️ v1273 — le résumé rouge de « Suivi de … », quand il y a quelque chose à savoir */
+  if(typeof banniereSuiviSE === 'function') zone.appendChild(banniereSuiviSE(nom));
   zone.appendChild(tuilesDuDossier(nom));
 
   const onglets = ongletsEleveVisibles();
@@ -3127,6 +3133,10 @@ function choisirOngletEleve(cle){
 }
 
 function remplirOngletEleve(corps, nom, cle){
+  if(cle === 'suivi'){
+    if(typeof ongletSuiviEleveSE === 'function') return ongletSuiviEleveSE(corps, nom);
+    return;
+  }
   if(cle === 'route')       return ongletRoute(corps, nom);
   if(cle === 'fiche')       return ongletFiche(corps, nom);
   if(cle === 'evaluation' && typeof ongletEvaluationEleve === 'function') return ongletEvaluationEleve(corps, nom);
