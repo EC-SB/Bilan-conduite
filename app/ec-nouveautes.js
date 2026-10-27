@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 14:44 — v1278 */
+/* Déployé le 27/10/2026 à 15:29 — v1279 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1279,
+    date: 'Mardi 27 octobre 2026',
+    resume: '🙋 « C’est moi » sur les tâches de tous les jours',
+    quoi: [
+      { emoji: '🙋',
+        titre: 'Dire qui s’en occupe',
+        texte: 'Dans ☑️ › 🏢 Bureau, « 🙋 C’est moi » sur une tâche de tous les jours : elle passe dans ta journée, et les autres lisent « 🙋 David s’en occupe » tant qu’elle n’est pas cochée.' },
+      { emoji: '☑️',
+        titre: 'Cochée une fois, cochée partout',
+        texte: 'Cochée dans « Ma journée » ou dans « Tous les jours », elle l’est des deux côtés. ↩️ pour la rendre.' }
+    ]
+  },
   {
     version: 1278,
     date: 'Mardi 27 octobre 2026',
