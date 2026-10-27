@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:08 — v1273 */
+/* Déployé le 27/10/2026 à 11:46 — v1274 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1036,9 +1036,17 @@ function ckReponsesRapides(f, petit){
     b.type = 'button';
     b.className = 'ckVite';
     b.textContent = x.bouton;
+    if(x.position) b.title = 'Envoie ce message avec ta position GPS';
     b.addEventListener('click', async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
       b.disabled = true;
+      /* 📍 v1274 — avec la position : où c'est, précisément */
+      if(x.position && typeof envoyerMaPositionEC === 'function'){
+        try{ await envoyerMaPositionEC(remplirLesMotsRapides(x.message, c), b); }
+        catch(e){ if(typeof showToast === 'function') showToast('Le message n’est pas parti : ' + (e.message || e)); }
+        b.disabled = false;
+        return;
+      }
       try{ await ckEcrire(f, remplirLesMotsRapides(x.message, c)); }
       catch(e){ if(typeof showToast === 'function') showToast('Le message n’est pas parti : ' + (e.message || e)); }
       b.disabled = false;
@@ -1295,14 +1303,32 @@ function reponsesRapidesDOrigine(){
     id: x.k, bouton: x.t, message: x.msg || '', sorte: x.k === 'cren' ? 'creneau' : 'message',
     /* le créneau n'avait de sens que dans un fil d'élève */
     genres: x.k === 'cren' ? ['bureau', 'retard', 'annul', 'oubli', 'moniteur'] : sansVitrine.slice()
-  })).concat(VITES_VITRINE_CK.map(x => ({ id: 'v' + x.k, bouton: x.t, message: x.msg, sorte: 'message', genres: ['vitrine'] })));
+  })).concat(VITES_VITRINE_CK.map(x => ({ id: 'v' + x.k, bouton: x.t, message: x.msg, sorte: 'message', genres: ['vitrine'] })))
+    .concat(REPONSES_TRAFIC_CK.map(x => JSON.parse(JSON.stringify(x))));
+}
+/* 🚦 v1274 — David, le 27 octobre : « 3 boutons juste pour cette
+   conversation : Bouchons, Accidents, Marquage au sol effacé », dans le
+   groupe « Trafic » (reconnu par son nom), chacun avec la position GPS.
+   Les mêmes que dans le Worker (REPONSES_TRAFIC). */
+const REPONSES_TRAFIC_CK = [
+  { id: 'trafic-bouchons', bouton: '🚗 Bouchons', message: '🚗 Bouchons', sorte: 'message', genres: [], titres: ['trafic'], position: true },
+  { id: 'trafic-accident', bouton: '💥 Accidents', message: '💥 Accident', sorte: 'message', genres: [], titres: ['trafic'], position: true },
+  { id: 'trafic-marquage', bouton: '🚧 Marquage au sol effacé', message: '🚧 Marquage au sol effacé', sorte: 'message', genres: [], titres: ['trafic'], position: true }
+];
+function ckNormTitre(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+/* 📍 v1274 — un bouton pour un type de conversation, OU pour des
+   conversations précises (choisies dans la fenêtre), OU par leur nom */
+function reponsePourLeFil(x, c){
+  if((x.genres || []).indexOf(c.genre) !== -1) return true;
+  if(c.id && (x.convs || []).indexOf(c.id) !== -1) return true;
+  return !!(c.titre && (x.titres || []).indexOf(ckNormTitre(c.titre)) !== -1);
 }
 function reponsesRapides(){ return reponsesRapidesEC || reponsesRapidesDOrigine(); }
 
 /* Celles d'un fil : cochées pour son type, dans l'ordre de la liste.
    Le créneau demande un élève (on ne le propose pas à un groupe). */
 function reponsesRapidesDuFil(c){
-  return reponsesRapides().filter(x => (x.genres || []).indexOf(c.genre) !== -1 &&
+  return reponsesRapides().filter(x => reponsePourLeFil(x, c) &&
     (x.sorte !== 'creneau' || (c.eleve && c.genre !== 'groupe')));
 }
 
@@ -1323,7 +1349,7 @@ async function enregistrerReponsesRapides(liste){
   return rep;
 }
 
-function rrEtiquettes(genres){
+function rrEtiquettes(genres, x){
   const d = document.createElement('div');
   d.className = 'rrTypes';
   GENRES_RAPIDES.filter(g => (genres || []).indexOf(g) !== -1).forEach(g => {
@@ -1332,6 +1358,19 @@ function rrEtiquettes(genres){
     t.textContent = (GENRES_CK[g] || {}).rond + ' ' + (MOTS_DU_RAIL[g] || (GENRES_CK[g] || {}).nom || g);
     d.appendChild(t);
   });
+  /* 📍 v1274 — les conversations précises, et la position */
+  rrConversationsDe(x).forEach(n => {
+    const t = document.createElement('span');
+    t.className = 'rrType rrConv';
+    t.textContent = '💬 ' + n;
+    d.appendChild(t);
+  });
+  if(x && x.position){
+    const t = document.createElement('span');
+    t.className = 'rrType rrPos';
+    t.textContent = '📍 avec la position';
+    d.appendChild(t);
+  }
   if(!d.children.length){
     const t = document.createElement('span');
     t.className = 'rrType vide';
@@ -1339,6 +1378,30 @@ function rrEtiquettes(genres){
     d.appendChild(t);
   }
   return d;
+}
+
+/* 📍 v1274 — les conversations entre nous qu'on peut choisir pour un
+   bouton, et celles qu'il vise par leur nom (« Trafic ») */
+function rrConversationsProposees(r){
+  const out = [];
+  const liste = ((typeof conversationsEC !== 'undefined' && conversationsEC) || [])
+    .filter(x => (x.genre === 'groupe' || x.genre === 'interne') && !x.eleve);
+  liste.forEach(x => {
+    const nom = x.titre || ((typeof ckTitreListe === 'function') ? ckTitreListe(x) : 'Conversation');
+    out.push({ id: x.id, nom: nom });
+  });
+  ((r && r.titres) || []).forEach(t => {
+    if(!liste.some(x => ckNormTitre(x.titre) === t)) out.push({ titre: t, nom: t.charAt(0).toUpperCase() + t.slice(1), parNom: true });
+    else out.forEach(o => { if(o.id && ckNormTitre((liste.find(x => x.id === o.id) || {}).titre) === t){ o.titre = t; o.parNom = true; } });
+  });
+  return out;
+}
+function rrConversationsDe(x){
+  if(!x) return [];
+  const liste = (typeof conversationsEC !== 'undefined' && conversationsEC) || [];
+  const noms = (x.convs || []).map(id => { const c = liste.find(y => y.id === id); return c ? (c.titre || ((typeof ckTitreListe === 'function') ? ckTitreListe(c) : 'conversation')) : 'une conversation'; });
+  (x.titres || []).forEach(t => noms.push('« ' + t.charAt(0).toUpperCase() + t.slice(1) + ' »'));
+  return noms;
 }
 
 /* La carte du ⚙️ — administrateurs seuls, comme tout l'écran */
@@ -1421,7 +1484,7 @@ function carteReponsesRapides(){
       msg.className = 'rrMessage';
       msg.textContent = x.sorte === 'creneau' ? '📅 ouvre le formulaire du créneau (n’envoie rien tout seul)' : '« ' + x.message + ' »';
       m.appendChild(msg);
-      m.appendChild(rrEtiquettes(x.genres));
+      m.appendChild(rrEtiquettes(x.genres, x));
       l.appendChild(m);
       l.appendChild(ckBouton('✏️', 'Modifier cette réponse', () => fenetreReponseRapide(x, liste, sauver), 'rond'));
       carte.appendChild(l);
@@ -1603,6 +1666,53 @@ function fenetreReponseRapide(x, liste, sauver){
   });
   boite.appendChild(types);
 
+  /* 📍 v1274 — « la possibilité d'en créer d'autres que l'on peut mettre
+     au choix par conversation » (David, le 27 octobre) */
+  r.convs = Array.isArray(r.convs) ? r.convs.slice() : [];
+  r.titres = Array.isArray(r.titres) ? r.titres.slice() : [];
+  const lc = document.createElement('label');
+  lc.textContent = 'Ou seulement dans ces conversations';
+  boite.appendChild(lc);
+  const convsZ = document.createElement('div');
+  convsZ.className = 'rrChoix rrConvs';
+  rrConversationsProposees(r).forEach(o => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.conv = o.id || ('titre:' + o.titre);
+    const dedans = () => (o.id && r.convs.indexOf(o.id) !== -1) || (o.titre && r.titres.indexOf(o.titre) !== -1);
+    const maj = () => { b.className = 'rrFiltre' + (dedans() ? ' on' : ''); b.setAttribute('aria-pressed', dedans() ? 'true' : 'false'); };
+    b.textContent = '💬 ' + o.nom + (o.parNom ? ' (par son nom)' : '');
+    b.addEventListener('click', () => {
+      if(dedans()){
+        if(o.id) r.convs = r.convs.filter(i => i !== o.id);
+        if(o.titre) r.titres = r.titres.filter(t => t !== o.titre);
+      }else if(o.id) r.convs.push(o.id);
+      else r.titres.push(o.titre);
+      maj(); apercu();
+    });
+    maj();
+    convsZ.appendChild(b);
+  });
+  if(!convsZ.children.length){
+    const v = document.createElement('div');
+    v.className = 'rrNote';
+    v.textContent = 'Ouvre d’abord la messagerie : tes conversations entre vous s’afficheront ici.';
+    convsZ.appendChild(v);
+  }
+  boite.appendChild(convsZ);
+  if(r.sorte !== 'creneau'){
+    const lp = document.createElement('label');
+    lp.className = 'rrPosition';
+    const cbp = document.createElement('input');
+    cbp.type = 'checkbox';
+    cbp.id = 'rrPosition';
+    cbp.checked = !!r.position;
+    cbp.addEventListener('change', () => { r.position = cbp.checked; apercu(); });
+    lp.appendChild(cbp);
+    lp.appendChild(document.createTextNode(' 📍 Joindre ma position GPS (où c’est, précisément)'));
+    boite.appendChild(lp);
+  }
+
   /* L'aperçu : le bouton, et la bulle qui part */
   const ap = document.createElement('div');
   ap.className = 'rrApercu';
@@ -1651,7 +1761,10 @@ function fenetreReponseRapide(x, liste, sauver){
     if(r.sorte !== 'creneau') r.message = message.value.trim();
     if(!r.bouton){ err.textContent = 'Écris ce que dit le bouton.'; return; }
     if(r.sorte !== 'creneau' && !r.message){ err.textContent = 'Écris le message qu’il envoie.'; return; }
-    if(!r.genres.length){ err.textContent = 'Coche au moins une conversation : sinon le bouton n’apparaît nulle part.'; return; }
+    if(!r.genres.length && !r.convs.length && !r.titres.length){ err.textContent = 'Coche au moins une conversation : sinon le bouton n’apparaît nulle part.'; return; }
+    if(!r.convs.length) delete r.convs;
+    if(!r.titres.length) delete r.titres;
+    if(!r.position) delete r.position;
     bOk.disabled = true;
     const n = liste.slice();
     if(neuve){ r.id = 'r' + Date.now().toString(36); n.push(r); }
