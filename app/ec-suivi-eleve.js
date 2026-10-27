@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:09 — v1275 */
+/* Déployé le 27/10/2026 à 12:48 — v1276 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -298,13 +298,21 @@ function quandCourtSE(t){
   if(!d) return String(t || '');
   return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + (/\d{2}:\d{2}/.test(t) ? ' ' + String(t).slice(11, 16) : '');
 }
-/* Rouge : une case cochée, un texte, ou un message de la semaine (au-
-   delà, il reste dans la liste sans tout teinter : un tiroir toujours
-   rouge ne se verrait plus) */
+/* ⚠️ v1276 — ROUGE : UNE CASE COCHÉE, ET RIEN D'AUTRE. David, le 27
+   octobre : « le fond est rouge alors qu'aucune case n'est cochée » (un
+   message de la messagerie suffisait). C'est ce que dit le tiroir :
+   « Une case cochée met le tiroir en rouge ». */
 function aSavoirSE(d){
   if(!d) return false;
   const f = d.fiche || {};
-  if(f.ecoutes || f.groupes || String(f.texte || '').trim()) return true;
+  return !!(f.ecoutes || f.groupes);
+}
+/* Quelque chose à lire (sans rouge) : un texte, ou un message de la semaine */
+function aQuelqueChoseSE(d){
+  if(!d) return false;
+  if(aSavoirSE(d)) return true;
+  const f = d.fiche || {};
+  if(String(f.texte || '').trim()) return true;
   const limite = Date.now() - 7 * 86400000;
   return (d.messages || []).some(m => { const x = dateDuMessageSE(m.envoyeLe); return x && x.getTime() >= limite; });
 }
@@ -631,50 +639,116 @@ function elevesDuTexteSE(texte){
   const parPrenom = {};
   l.forEach(x => { if(x.prenom.length >= 3) (parPrenom[x.prenom] = parPrenom[x.prenom] || []).push(x.nom); });
   const ambigus = [];
+  /* ⚠️ v1276 — le prénom d'un collègue (« David ») porté aussi par un
+     élève : on ne range rien tout seul (c'est peut-être le collègue),
+     on le PROPOSE pendant qu'on écrit. David, le 27 octobre : « il ne
+     me repère pas David ». */
+  const doutes = [];
   Object.keys(parPrenom).forEach(p => {
-    if(!mots[p] || equipe[p]) return;
+    if(!mots[p]) return;
     if(surs.some(s => prenomDuNomSE(s) === p)) return;
     const c = parPrenom[p];
+    /* écrit comme dans la liste : « Inès », pas « Ines » */
+    const mot = String(c[0]).split(/\s+/).find(w => normSE(w) === p) || p;
+    const joli = mot === mot.toUpperCase() ? mot.charAt(0) + mot.slice(1).toLowerCase() : mot;
+    const prenom = joli.charAt(0).toUpperCase() + joli.slice(1);
+    if(equipe[p]){ doutes.push({ prenom: prenom, choix: c.slice(0, 8) }); return; }
     if(c.length === 1) surs.push(c[0]);
-    else{
-      /* écrit comme dans la liste : « Inès », pas « Ines » */
-      const mot = String(c[0]).split(/\s+/).find(w => normSE(w) === p) || p;
-      const joli = mot === mot.toUpperCase() ? mot.charAt(0) + mot.slice(1).toLowerCase() : mot;
-      ambigus.push({ prenom: joli.charAt(0).toUpperCase() + joli.slice(1), choix: c.slice(0, 8) });
-    }
+    else ambigus.push({ prenom: prenom, choix: c.slice(0, 8) });
   });
   const actuel = /(^| )mon eleve (actuel|actuelle|en cours|du moment|de maintenant)( |$)/.test(normSE(texte));
-  return { noms: surs.slice(0, 10), ambigus: ambigus.slice(0, 5), actuel: actuel };
+  return { noms: surs.slice(0, 10), ambigus: ambigus.slice(0, 5), actuel: actuel, equipe: doutes.slice(0, 5) };
 }
-/* Ce qui part avec un message (ou un vocal) dans un fil lu pour le suivi */
+/* ✍️ v1276 — les choix faits AU-DESSUS DE LA BARRE, avant d'envoyer
+   (par conversation) : « exclus » (✕ sur une étiquette), « choisis »
+   (le prénom → l'élève choisi, ou '' pour « aucun »). David : « il faut
+   qu'il me propose s'il y en a plusieurs … je ne peux pas choisir
+   directement ici ». */
+const CHOIX_ENVOI_SE = {};
+function choixEnvoiSE(id){ return CHOIX_ENVOI_SE[id] = CHOIX_ENVOI_SE[id] || { exclus: {}, choisis: {} }; }
+/* Ce qui sera rangé : ce que l'appli a reconnu, corrigé par ces choix */
+function suiviResoluSE(texte, id){
+  const r = elevesDuTexteSE(texte || '');
+  const c = choixEnvoiSE(id || '');
+  const k = p => normSE(p);
+  const noms = r.noms.filter(n => !c.exclus[normSE(n)]);
+  const ambigus = [], doutes = [];
+  r.ambigus.concat(r.equipe.map(x => Object.assign({ collegue: true }, x))).forEach(x => {
+    if(Object.prototype.hasOwnProperty.call(c.choisis, k(x.prenom))){
+      const n = c.choisis[k(x.prenom)];
+      if(n && noms.indexOf(n) === -1 && !c.exclus[normSE(n)]) noms.push(n);
+    }else if(x.collegue) doutes.push(x);
+    else ambigus.push(x);
+  });
+  return { noms: noms.slice(0, 10), ambigus: ambigus, doutes: doutes, actuel: r.actuel && !c.exclus['§actuel'] };
+}
+/* Ce qui part avec un message (ou un vocal) dans un fil lu pour le suivi.
+   Un prénom de collègue sans choix ne part pas : ce n'est pas un élève. */
 function suiviPourLEnvoiSE(texte, idFil){
   const f = (typeof filOuvertEC !== 'undefined') ? filOuvertEC : null;
   if(!f || !f.conv || !f.conv.suivi || (idFil && f.conv.id !== idFil)) return undefined;
-  const r = elevesDuTexteSE(texte || '');
-  return (r.noms.length || r.ambigus.length || r.actuel) ? r : undefined;
+  const r = suiviResoluSE(texte, f.conv.id);
+  if(r.noms.length || r.ambigus.length || r.actuel) return { noms: r.noms, ambigus: r.ambigus, actuel: r.actuel };
+  /* tout retiré à la main : on le dit au serveur, pour que la relecture
+     ne le range pas quand même plus tard */
+  const brut = elevesDuTexteSE(texte || '');
+  return (brut.noms.length || brut.ambigus.length || brut.actuel) ? { aucun: true } : undefined;
 }
 /* v1275 — au-dessus de la barre d'écriture, pendant qu'on tape : à qui
-   ira le message. David, le 27 octobre : « ça ne détecte pas les prénoms
-   … ou alors j'écris mal » — on le voit AVANT d'envoyer. */
+   ira le message (on le voit AVANT d'envoyer). v1276 : et on y choisit —
+   ✕ retire un élève, un prénom à plusieurs élèves (ou celui d'un
+   collègue) propose les élèves, un appui suffit. */
 function apercuSuiviSE(texte){
   const zone = (typeof zoneFilMsg === 'function') ? zoneFilMsg() : null;
   if(!zone) return;
   let a = zone.querySelector('#msgSuiviApercu');
   const f = (typeof filOuvertEC !== 'undefined') ? filOuvertEC : null;
-  const r = (f && f.conv && f.conv.suivi && String(texte || '').trim()) ? elevesDuTexteSE(texte) : null;
-  const parts = [];
-  if(r){
-    r.noms.forEach(n => parts.push('📌 ' + n));
-    r.ambigus.forEach(x => parts.push('❓ ' + x.prenom + ' (à choisir parmi ' + x.choix.length + ')'));
-    if(r.actuel) parts.push('📌 mon élève actuel');
-  }
-  if(!parts.length){ if(a && a.parentNode) a.parentNode.removeChild(a); return; }
+  const id = f && f.conv ? f.conv.id : '';
+  if(id && !String(texte || '').trim()) delete CHOIX_ENVOI_SE[id];
+  const r = (f && f.conv && f.conv.suivi && String(texte || '').trim()) ? suiviResoluSE(texte, id) : null;
+  if(!r || !(r.noms.length || r.ambigus.length || r.doutes.length || r.actuel)){ if(a && a.parentNode) a.parentNode.removeChild(a); return; }
   const barre = zone.querySelector('.msgBarre');
   if(!barre || !barre.parentNode) return;
   if(!a){ a = document.createElement('div'); a.id = 'msgSuiviApercu'; a.className = 'msgSuiviApercu'; }
   if(a.nextSibling !== barre) barre.parentNode.insertBefore(a, barre);
-  const txt = 'Ira dans le suivi de : ' + parts.join(' · ');
-  if(a.textContent !== txt) a.textContent = txt;
+  const sig = JSON.stringify(r);
+  if(a.dataset.sig === sig) return;
+  a.dataset.sig = sig;
+  a.innerHTML = '';
+  const c = choixEnvoiSE(id);
+  const redire = () => { a.dataset.sig = ''; const t = document.getElementById('msgElvTexte'); apercuSuiviSE(t ? t.value : ''); if(t) t.focus(); };
+  const bouton = (txt, cls, titre, faire) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.textContent = txt; if(titre) b.title = titre;
+    b.addEventListener('mousedown', ev => ev.preventDefault());
+    b.addEventListener('click', ev => { ev.stopPropagation(); faire(); redire(); });
+    return b;
+  };
+  const lab = document.createElement('span');
+  lab.className = 'msgSuiviLab';
+  lab.textContent = r.noms.length || r.actuel ? 'Ira dans le suivi de :' : 'Un élève ?';
+  a.appendChild(lab);
+  const puce = (txt, retirer) => {
+    const p = document.createElement('span');
+    p.className = 'suiviPuce';
+    p.appendChild(Object.assign(document.createElement('span'), { className: 'msgSuiviNom', textContent: txt }));
+    p.appendChild(bouton('✕', 'suiviPuceX', 'Pas dans le suivi', retirer));
+    a.appendChild(p);
+  };
+  r.noms.forEach(n => puce('📌 ' + n, () => {
+    c.exclus[normSE(n)] = 1;
+    Object.keys(c.choisis).forEach(k => { if(c.choisis[k] === n) c.choisis[k] = ''; });
+  }));
+  if(r.actuel) puce('📌 mon élève actuel', () => { c.exclus['§actuel'] = 1; });
+  r.ambigus.concat(r.doutes).forEach(x => {
+    const q = document.createElement('span');
+    q.className = 'msgSuiviChoix';
+    q.appendChild(Object.assign(document.createElement('span'), { className: 'msgSuiviQ',
+      textContent: '❓ ' + x.prenom + (r.doutes.indexOf(x) !== -1 ? ', un élève ?' : ' :') }));
+    x.choix.forEach(n => q.appendChild(bouton(n, 'msgSuiviOpt', 'Ranger dans le suivi de ' + n, () => { c.choisis[normSE(x.prenom)] = n; delete c.exclus[normSE(n)]; })));
+    q.appendChild(bouton(r.doutes.indexOf(x) !== -1 ? 'Non' : 'Aucun', 'msgSuiviOpt non', r.doutes.indexOf(x) !== -1 ? 'C’est le collègue' : 'Aucun de ces élèves', () => { c.choisis[normSE(x.prenom)] = ''; }));
+    a.appendChild(q);
+  });
 }
 
 /* v1275 — à l'ouverture d'un fil lu pour le suivi, les messages de
@@ -909,8 +983,9 @@ function banniereSuiviSE(nom){
   b.style.display = 'none';
   b._maj = () => {
     const d = suiviSE(nom);
-    if(!d || !aSavoirSE(d)){ b.style.display = 'none'; return; }
+    if(!d || !aQuelqueChoseSE(d)){ b.style.display = 'none'; return; }
     b.style.display = '';
+    b.classList.toggle('calme', !aSavoirSE(d));
     const f = d.fiche || {};
     const l = [];
     const cases = CASES_SUIVI_SE.filter(c => f[c.k]).map(c => c.t);
