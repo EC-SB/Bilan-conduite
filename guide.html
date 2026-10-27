@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1281
+     GUIDE-VERSION: 1282
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1281</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1282</strong><br>
     Mis à jour le 27 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -581,7 +581,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1281</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1282</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -4199,7 +4199,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
 
   <section id="formations-ent">
     <h3>💼 Formations entreprise</h3>
-    <p><em>« Les formations pour les entreprises, de la demande au paiement : on remplit une fois, l’appli fait les documents, les envoie, et dit où en est le financement. »</em> Dans <span class="b">Outils › Entreprises › 💼 Formations</span>, pour le bureau et les administrateurs (droit <span class="ch">formations</span>).</p>
+    <p><em>« Les formations pour les entreprises, de la demande au paiement : on remplit une fois, l’appli fait les documents, les envoie, et dit où en est le financement. »</em> Dans <span class="b">Outils › Entreprises › 💼 Formations</span>, pour le bureau et les administrateurs (droit <span class="ch">formations</span>). Les moniteurs, sans case à cocher, y voient <strong>les formations dont ils sont le formateur</strong> — voir <a href="#formations-signer" class="aller">✍️ Faire signer</a>.</p>
     <h4>Le suivi</h4>
     <p>Chaque formation a sa frise&nbsp;: <span class="ch">Demande → Devis → Convention → Demande OPCO → Accord OPCO → Formation → Attestations → Facture → Payé</span> — 7 étapes en financement direct, sans les deux étapes OPCO. En haut, <span class="b">⚠️ À FAIRE MAINTENANT</span>&nbsp;: une demande OPCO pas déposée à trois semaines du début, pas d’accord à 15 jours, un devis sans réponse depuis 10 jours, des attestations à faire, une facture à noter, un paiement en retard. Filtres <span class="b">En cours</span>, <span class="b">À facturer</span>, <span class="b">Terminées</span>.</p>
     <h4>Un dossier</h4>
@@ -4209,13 +4209,27 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       <li><span class="b">🏢 Entreprise</span>&nbsp;: <span class="b">🔎 Chercher</span> par le nom ou le Siret dans l’annuaire des entreprises&nbsp;; l’OPCO, son n° de dossier, et qui te paie (subrogation ou entreprise remboursée).</li>
       <li><span class="b">📚 Formation</span>&nbsp;: intitulé, nature de l’action, dates, durée, lieu, formateur, objectifs, programme, moyens, évaluation. <span class="b">💾 Garder comme modèle</span>.</li>
       <li><span class="b">💶 Prix</span>&nbsp;: <span class="b">📦 un pack</span> ou <span class="b">➕ une prestation</span> de 💰 Tarifs, ou <span class="b">✏️ une ligne à la main</span> (« la garder dans le modèle »), <strong>par salarié</strong> ou <strong>pour le groupe</strong>. Les tarifs sont TTC&nbsp;: le HT s’en déduit, le TTC d’un pack reste exact. Les prix sont <strong>recopiés</strong>&nbsp;: <span class="b">🔄 Reprendre les prix du jour</span> tant que la convention n’est pas signée.</li>
-      <li><span class="b">👥 Stagiaires</span>&nbsp;: un par un ou <span class="b">📋 Coller une liste</span> (<span class="ch">Nom ; fonction ; mail</span>)&nbsp;; 👤 ouvre la fiche élève. Les heures faites viennent des séances passées, absences retirées.</li>
-      <li><span class="b">📅 Séances</span>&nbsp;: date, horaires, contenu, stagiaires (toucher un nom après la séance note son absence), <span class="b">🖨️ Feuille de présence</span>.</li>
-      <li><span class="b">📄 Documents</span>&nbsp;: devis, programme, convention, lettre pour la demande à l’OPCO, convocations avec le règlement intérieur, feuilles de présence, attestations de fin de formation, certificats de réalisation — sur le papier à en-tête. <span class="b">👁️</span> voir, <span class="b">📄</span> télécharger (une copie se range), <span class="b">✉️</span> envoyer&nbsp;; <span class="b">📨 Convocations aux salariés</span>&nbsp;; <span class="b">📎 Déposer un document signé</span> (convention, accord de l’OPCO, feuille de présence)&nbsp;; <span class="b">📦 Tout le dossier en un PDF</span>.</li>
+      <li><span class="b">👥 Stagiaires</span>&nbsp;: un par un ou <span class="b">📋 Coller une liste</span> (<span class="ch">Nom ; fonction ; mail</span>)&nbsp;; 👤 ouvre la fiche élève. Les heures faites viennent des feuilles signées (sinon des séances passées, absences retirées).</li>
+      <li><span class="b">📅 Séances</span>&nbsp;: date, horaires, contenu, stagiaires (toucher un nom après la séance note son absence), l’état des signatures (<span class="ch">✅ Signée · 2/2 + formateur</span>), <span class="b">✍️ Faire signer</span>, <span class="b">📄 La feuille</span>, ou <span class="b">🖨️ Feuille de présence</span> à imprimer. Une séance signée ne change plus de date ni d’heure et ne se retire pas.</li>
+      <li><span class="b">📄 Documents</span>&nbsp;: devis, programme, convention, lettre pour la demande à l’OPCO, convocations avec le règlement intérieur, feuilles de présence, attestations de fin de formation, certificats de réalisation — sur le papier à en-tête. <span class="b">👁️</span> voir, <span class="b">📄</span> télécharger (une copie se range), <span class="b">✉️</span> envoyer (avec la convention&nbsp;: la case <span class="b">✍️ Avec le bouton « Signer la convention en ligne »</span>)&nbsp;; <span class="b">📨 Convocations aux salariés</span>&nbsp;; <span class="b">📎 Déposer un document signé</span> (convention, accord de l’OPCO, feuille de présence)&nbsp;; <span class="b">📦 Tout le dossier en un PDF</span>.</li>
       <li><span class="b">💶 Financement</span> (ou <span class="b">💶 Paiement</span>)&nbsp;: les montants, la part de l’OPCO à l’accord et le reste pour l’entreprise&nbsp;; on note le dépôt, l’accord ou le refus, la facture (faite dans votre logiciel&nbsp;: n°, date, montant) et le paiement. <span class="b">↩️ Effacer une étape notée…</span></li>
     </ul>
     <div class="note piege"><span class="tag">Ce que demandent les OPCO</span><p>Organisme <strong>certifié Qualiopi</strong> (le n° se saisit dans <span class="b">⚙️ L’organisme</span>, administrateurs)&nbsp;; demande déposée par l’entreprise <strong>avant le début</strong>&nbsp;; feuille de présence signée par chaque stagiaire et par le formateur à chaque séance, au moins par demi-journée&nbsp;; certificat de réalisation et facture pour le paiement.</p></div>
-    <p><span class="b">⚙️ L’organisme</span> (administrateurs)&nbsp;: n° Qualiopi, déclaration d’activité, signataire, référent handicap, TVA, délai de paiement, dédit (10 jours, 30&nbsp;%), tribunal, règlement intérieur. La signature et le tampon des ✉️ Courriers se posent sur les documents quand un administrateur les fait.</p>
+    <p><span class="b">⚙️ L’organisme</span> (administrateurs)&nbsp;: n° Qualiopi, déclaration d’activité, signataire, référent handicap, TVA, délai de paiement, dédit (10 jours, 30&nbsp;%), tribunal, règlement intérieur. La fenêtre défile sur un téléphone&nbsp;; <span class="b">✓ Enregistrer</span> reste en bas de l’écran. La signature et le tampon des ✉️ Courriers se posent sur les documents quand un administrateur les fait.</p>
+
+    <h4 id="formations-signer">✍️ Faire signer la feuille de présence</h4>
+    <p>Le formateur la fait signer <strong>sur son téléphone</strong>, à chaque séance&nbsp;: depuis <span class="b">💼 Formations</span> (pour les formations qui ne sont pas dans « Mes prochains cours ») ou depuis la carte de son cours, quand l’élève du cours est un salarié de la formation (<span class="ch">💼 FORMATION ENTREPRISE</span>, avec <span class="b">✍️ Faire signer</span>).</p>
+    <ol class="etapes">
+      <li>Chaque salarié signe du doigt, un par un (<span class="ch">👉 … à lui</span>), puis <span class="b">✅ Valider sa signature</span>. <span class="b">🚫 Absent</span> s’il n’est pas là&nbsp;; s’il arrive plus tard, on touche son nom pour le faire signer.</li>
+      <li>Le formateur signe <strong>en dernier</strong>. La première fois il dessine sa signature&nbsp;; elle est gardée, et ensuite <span class="b">✅ Je signe la feuille</span> suffit (<span class="b">↺ Refaire ma signature</span> au besoin).</li>
+      <li><span class="ch">✅ C’est signé</span>&nbsp;: la feuille signée (les signatures dans les cases, l’heure de chacune) part toute seule dans 📄 Documents du dossier.</li>
+    </ol>
+    <p>Une séance qui commence le matin et finit l’après-midi se signe deux fois&nbsp;: <span class="b">☀️ Matin</span> et <span class="b">🌙 Après-midi</span>. <span class="b">✍️ Séance non prévue&nbsp;: faire signer maintenant</span> pose une séance qui n’était pas prévue et fait signer tout de suite. Le moniteur voit aussi <span class="b">👥 Stagiaires</span> (avec leurs heures), sans les prix ni le financement&nbsp;; l’onglet Outils n’apparaît qu’à un moniteur formateur d’au moins une formation.</p>
+    <div class="note piege"><span class="tag">Une signature ne se change plus</span><p>Chaque signature est enregistrée avec l’heure exacte et le nom du moniteur connecté, et ne se modifie plus&nbsp;: c’est ce qui la rend valable devant un OPCO (horodatée, nominative, non modifiable, avec le journal du dossier). Seul le formateur de la séance signe comme formateur.</p></div>
+
+    <h4>✍️ La convention signée en ligne par l’entreprise</h4>
+    <p>Envoyée avec <span class="b">✍️ Avec le bouton « Signer la convention en ligne »</span> (cochée par défaut), la convention part avec un bouton. L’entreprise, sur son téléphone ou son ordinateur&nbsp;: <span class="b">📄 Lire la convention</span>, son nom, sa fonction, <span class="ch">J’ai lu la convention et je l’accepte — bon pour accord</span>, sa signature au doigt, <span class="b">🏷️ Ajouter le cachet de l’entreprise (photo)</span> si elle veut, puis <span class="b">✍️ Signer la convention</span>&nbsp;: <strong>un code envoyé à l’adresse qui a reçu la convention</strong> confirme que c’est elle (15 minutes, 5 essais).</p>
+    <p>Le dossier avance tout seul (<span class="ch">Convention signée · signée en ligne par …</span>), le bureau reçoit un mail, et la convention signée — la signature et le cachet dans le cadre « Pour l’entreprise », la mention sur chaque page, un certificat de signature en dernière page — se range dans 📄 Documents et repart à l’entreprise en PDF. Avec un OPCO, elle dit ensuite <span class="b">✅ J’ai déposé la demande</span>, avec son n° de dossier&nbsp;: la frise passe à l’accord. Sans signature en ligne, le scan signé se dépose toujours dans le dossier. Un nouvel envoi remplace le lien précédent.</p>
   </section>
 
   <section id="ou-courriers">
