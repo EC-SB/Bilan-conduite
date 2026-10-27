@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1273
+     GUIDE-VERSION: 1274
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1273</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1274</strong><br>
     Mis à jour le 27 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -579,7 +579,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1273</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1274</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -2749,6 +2749,8 @@ avec une publication en deux temps :
     <p><em>« Il passe en attente de son bilan d'examen, puis du rendez-vous post-permis. »</em> Le compteur d'ajournements s'incrémente, la date d'ajournement est enregistrée, la consigne <span class="ch">Ajourné le … — 🔁 Nᵉ repassage · bilan d'examen et rendez-vous post-permis à prévoir (bureau)</span> part vers le moniteur, et <strong>une fenêtre s'ouvre aussitôt</strong>&nbsp;: <span class="b">📤 À envoyer à …</span>.</p>
     <div class="note danger"><span class="tag">Piège</span><p><strong>« Ajourné » remet à zéro une vingtaine de champs d'un coup</strong> — date de permis, drapeaux « à planifier », « retiré », « tout OK », « tout payé », « tout planifié », « à remplacer », « date à donner », « fantôme », rendez-vous post-permis, bilan d'examen, suite, commentaire, et le bilan écrit par l'élève lors d'un précédent ajournement — sans que la confirmation le détaille. Un élève ajourné perd tout ce qui avait été préparé pour son examen.</p></div>
 
+    <div class="note astuce"><span class="tag">📣 Le résultat part aussi dans « Suivi examen »</span><p>À <span class="b">✅ Permis obtenu</span>, la conversation «&nbsp;Suivi examen&nbsp;» reçoit <span class="ch">✅ Lena Guivarch — Reçu</span>. À <span class="b">❌ Ajourné</span>, elle reçoit <span class="ch">❌ Lena Guivarch — Ajourné</span>, puis <strong>les captures du CEPC de cet examen</strong>, une par une. Il faut donc <strong>coller les captures avant</strong> de cliquer sur Ajourné, et être membre de «&nbsp;Suivi examen&nbsp;»&nbsp;; sinon, un message le dit et rien d'autre ne change. Le message est rangé dans le <span class="b">⚠️ Suivi</span> de l'élève.</p></div>
+
     <h4>🚫 Ne l'a pas passé</h4>
     <p>La troisième issue, et celle qu'on oublie&nbsp;: <em>« L'examen n'a pas eu lieu&nbsp;: sa date s'efface et il repart dans les élèves prêts au permis. »</em> Aucun repassage n'est compté, et sa place sur la session passée est libérée.</p>
     <div class="note astuce"><span class="tag">Pourquoi elle existe</span><p>Sans elle, un élève absent le jour J devait être marqué « ajourné » — ce qui comptait un repassage qu'il n'a jamais fait. Sa date est effacée <strong>aux deux endroits où elle vit</strong>&nbsp;: sa fiche de suivi, et la note de son dernier cours, d'où la consigne <span class="ch">Date d'examen à prévoir (bureau)</span>.</p></div>
@@ -3478,6 +3480,11 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <p>Accents et apostrophes ne comptent pas&nbsp;: <span class="ch">{date d'examen}</span> et <span class="ch">{datedexamen}</span> sont le même mot. Hors d'un fil d'élève ou de vitrine, <span class="ch">{prénom}</span> n'a personne à nommer&nbsp;: il disparaît, la phrase reste lisible.</p>
     <p>Les boutons se règlent dans <a href="#msg-reglages" class="aller">⚙️ Réglages de la messagerie</a>.</p>
 
+    <h4 id="msg-position">📍 Ma position, et la conversation « Trafic »</h4>
+    <p>Dans une conversation entre nous (pas avec un élève), <span class="b">＋</span> › <span class="b">Ma position</span> envoie l'endroit où l'on est&nbsp;: le téléphone demande l'autorisation la première fois, puis la bulle montre l'adresse, la précision (<span class="ch">± 12 m</span>) et deux liens, <span class="b">Google Maps</span> et <span class="b">Waze</span>.</p>
+    <p>Dans une conversation nommée <strong>«&nbsp;Trafic&nbsp;»</strong>, trois boutons rapides de plus&nbsp;: <span class="b">🚗 Bouchons</span>, <span class="b">💥 Accidents</span>, <span class="b">🚧 Marquage au sol effacé</span>. Chacun envoie son message <strong>avec la position</strong>&nbsp;: <span class="ch">💥 Accident — 12 rue de Pontivy, Loudéac</span>. Ils n'apparaissent nulle part ailleurs.</p>
+    <div class="note astuce"><span class="tag">Un bouton pour une seule conversation</span><p>Dans <span class="b">⚡ Réponses rapides</span>, la fenêtre d'un bouton propose, sous les catégories, <span class="b">Ou seulement dans ces conversations</span>&nbsp;: on coche «&nbsp;Trafic&nbsp;», «&nbsp;Message important&nbsp;»… et le bouton n'apparaît que là. La case <span class="b">📍 Joindre ma position GPS</span> fait partir la position avec le message. Supprimer un des trois boutons Trafic&nbsp;: il ne revient pas.</p></div>
+
     <h4 id="msg-modeles">📄 Ce qu’on écrit et envoie, depuis le fil</h4>
     <p>Au bout des réponses rapides, <span class="b">📄 Ce qu’on écrit et envoie</span> ouvre le carnet de l'onglet Outils&nbsp;: on choisit une catégorie, puis une fiche, et son texte arrive <strong>dans la zone d'écriture</strong>, mots déjà remplacés. Il ne part pas tout seul&nbsp;: on relit, on retouche, on envoie.</p>
 
@@ -3501,6 +3508,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     </table></div>
     <p>Pendant qu'on parle, <strong>ce qui est dit s'écrit en dessous</strong>, et ce texte part avec le vocal&nbsp;: sous la bulle, dans l'aperçu de la liste, et surtout <strong>dans la recherche</strong>. Pendant l'enregistrement&nbsp;: <span class="b">❚❚</span> pause, <span class="b">■</span> arrêter sans envoyer (on s'écoute, puis on décide), <span class="b">✕</span> jeter, <span class="b">➤</span> envoyer. À la limite de durée, ça s'arrête tout seul sans envoyer. Pour écouter, un bouton de vitesse tourne <span class="b">×1</span> → <span class="b">×1.5</span> → <span class="b">×2</span>, et la vitesse se garde d'un vocal à l'autre. Un seul son à la fois.</p>
     <div class="note astuce"><span class="tag">✍️ Rien ne s'est écrit pendant qu'on parlait&nbsp;?</span><p>C'est le cas sur iPhone, dans l'appli installée, et souvent sur Android quand le micro est déjà pris par l'enregistrement. Côté équipe, à <span class="b">■</span> ou à <span class="b">➤</span>, l'appli <strong>fait écrire le vocal par le serveur</strong>&nbsp;: <span class="ch">✍️ J’écris ce que tu as dit…</span>, puis le texte apparaît, corrigeable avant l'envoi. Ce qui a été tapé à la main n'est jamais remplacé, et si le serveur ne peut pas écrire, le vocal part quand même, sans texte. Il faut la liaison «&nbsp;AI&nbsp;» du Worker, la même que pour les sous-titres des guides.</p></div>
+    <div class="note astuce"><span class="tag">✍️ Le vocal d'un autre, sans texte dessous</span><p>Quand on ouvre un fil, les vocaux de moins de 30&nbsp;jours qui n'ont pas de texte <strong>s'écrivent tout seuls</strong> (cinq à la fois au plus), et ce texte est gardé <strong>pour tout le monde</strong>&nbsp;: sous la bulle, dans la recherche, dans le <span class="b">⚠️ Suivi</span> de l'élève dont il parle. Pour un vocal plus ancien, un bouton <span class="b">✍️ Écrire ce qui est dit</span> sous la bulle fait la même chose. Dans «&nbsp;Message important&nbsp;», <span class="ch">mon élève actuel</span> d'un vocal écrit après coup désigne l'élève de <strong>celui qui a parlé</strong>, pas de celui qui l'a ouvert.</p></div>
 
     <h5>🎥 La vidéo</h5>
     <ul>
@@ -3729,7 +3737,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       <div><dt>👀 Lecture partagée du bureau</dt><dd>Activée ou non&nbsp;; les familles concernées&nbsp;; <span class="b">👁️ Dès que l’un ouvre le fil</span> ou <span class="b">✍️ Quand l’un répond ou règle</span>&nbsp;; <span class="b">🏢 Bureau + administrateurs</span> ou <span class="b">🏢 Bureau seulement</span>.</dd></div>
       <div><dt>🏢 La photo du bureau</dt><dd><span class="b">🖼️ Changer</span>.</dd></div>
       <div><dt>📌 Conversations lues pour le suivi des élèves</dt><dd>Les conversations entre vous, une case chacune&nbsp;: «&nbsp;Message important&nbsp;» et «&nbsp;Suivi examen&nbsp;» sont cochées d'office. Une conversation cochée nourrit le <span class="b">⚠️ Suivi</span> des élèves dont elle parle (voir <a href="#msg-suivi-eleves" class="aller">📌 Les élèves dans nos conversations</a>). Jamais les conversations avec les élèves.</dd></div>
-      <div><dt>⚡ Réponses rapides</dt><dd>Toutes les réponses rapides de l'équipe&nbsp;: changer le texte d'un bouton et le message qu'il envoie, en créer, choisir <strong>dans quelles conversations</strong> il apparaît (Bureau, Vitrine, Retards…), les ranger par <span class="b">⠿</span> (glisser) ou ↑ ↓, <span class="b">🗑️ Supprimer cette réponse</span>. La fenêtre d'un bouton rappelle les mots qui se remplacent, avec un exemple, et propose <span class="b">📄 Reprendre un modèle</span>. Le bouton du créneau ouvre le formulaire&nbsp;: il n'envoie pas de texte.</dd></div>
+      <div><dt>⚡ Réponses rapides</dt><dd>Toutes les réponses rapides de l'équipe&nbsp;: changer le texte d'un bouton et le message qu'il envoie, en créer, choisir <strong>dans quelles conversations</strong> il apparaît (Bureau, Vitrine, Retards…, ou une conversation précise comme «&nbsp;Trafic&nbsp;»), joindre la position GPS, les ranger par <span class="b">⠿</span> (glisser) ou ↑ ↓, <span class="b">🗑️ Supprimer cette réponse</span>. La fenêtre d'un bouton rappelle les mots qui se remplacent, avec un exemple, et propose <span class="b">📄 Reprendre un modèle</span>. Le bouton du créneau ouvre le formulaire&nbsp;: il n'envoie pas de texte.</dd></div>
     </dl>
   </section>
 
