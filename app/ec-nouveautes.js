@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 16:17 — v1280 */
+/* Déployé le 27/10/2026 à 16:59 — v1281 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1281,
+    date: 'Mardi 27 octobre 2026',
+    resume: '☑️ À faire : partage avec tout le monde, mise à jour toute seule, conditions, images',
+    quoi: [
+      { emoji: '🔁',
+        titre: 'Plus besoin de rafraîchir',
+        texte: 'Le volet ☑️ se relit tout seul toutes les 10 secondes quand il est ouvert. Les listes se partagent aussi avec Chrystel et David.' },
+      { emoji: '⚡',
+        titre: 'Une tâche sous condition',
+        texte: 'Dans ⚙️, « Seulement s’il y a… » une des tuiles de l’appli : la tâche n’apparaît que s’il y a quelque chose, avec le nombre (« Faire les post-permis voiture (3) »).' },
+      { emoji: '🖼️',
+        titre: 'Des images sur les tâches',
+        texte: 'Dans une tâche de liste : « 🖼️ Importer une image » ou Ctrl+V. Aussi : « 🙋 Je reprends » une tâche prise par un autre, ⠿ pour ranger, et les lignes cochées de Ma journée descendent en bas.' }
+    ]
+  },
   {
     version: 1280,
     date: 'Mardi 27 octobre 2026',
