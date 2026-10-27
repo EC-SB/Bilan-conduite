@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:48 — v1276 */
+/* Déployé le 27/10/2026 à 14:07 — v1277 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1277,
+    date: 'Mardi 27 octobre 2026',
+    resume: '👂 La présence aux écoutes : pointage, absences, rappels',
+    quoi: [
+      { emoji: '👂',
+        titre: 'Qui est dans ta voiture ?',
+        texte: 'Sur la carte du cours d’aujourd’hui, les élèves en écoute à cette heure (lus par le favori) : on coche ceux qui sont dans la voiture, ou « Personne avec moi ».' },
+      { emoji: '❓',
+        titre: 'Les pas venus, 30 min après',
+        texte: '« ❓ Pas venu(e) ? » avec « ✉️ Envoyer l’absence » (mail + message) et « ↩️ Était là ». Rien ne part si un cours de l’heure n’a pas pointé. Ils entrent dans « 🚫 Pas venu en écoute ».' },
+      { emoji: '⏰',
+        titre: 'Les rappels d’écoute à 17h',
+        texte: 'La veille, avec où attend la voiture (cour intérieure ou devant, d’après les rappels de cours). À retirer ou à annuler dans Suivi › 👂 Écoutes. Interrupteurs pour les administrateurs.' }
+    ]
+  },
   {
     version: 1276,
     date: 'Mardi 27 octobre 2026',
