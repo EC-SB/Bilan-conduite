@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:48 — v1276 */
+/* Déployé le 27/10/2026 à 15:29 — v1279 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -7708,6 +7708,8 @@ function ouvrirTiroirMessagerie(){
   tiroirOuvertEC = true;
   v.style.display = 'block';
   t.style.transform = 'translateX(0)';
+  /* v1279 — l'ombre seulement ouvert : fermé, elle débordait au bord de l'écran */
+  t.style.boxShadow = '-8px 0 24px rgba(0,0,0,.18)';
 
   /* Un fil déjà ouvert se redessine dans le tiroir ; sinon, la
      liste. Dans les deux cas on relit : le tiroir s'ouvre pour voir
@@ -7733,6 +7735,7 @@ function fermerTiroirMessagerie(){
 
   tiroirOuvertEC = false;
   t.style.transform = 'translateX(100%)';
+  t.style.boxShadow = 'none';
   v.style.display = 'none';
 
   /* L'onglet, s'il est ouvert derrière, reprend la main sur le
