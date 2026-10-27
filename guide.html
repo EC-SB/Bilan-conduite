@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1279
+     GUIDE-VERSION: 1280
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1279</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1280</strong><br>
     Mis à jour le 27 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -547,6 +547,7 @@ html{scroll-behavior:smooth}
                 <li><a href="#paie">Paie</a></li>
                 <li><a href="#tarifs">Tarifs</a></li>
                 <li><a href="#placesbe">Places BE</a></li>
+                <li><a href="#formations-ent">💼 Formations entreprise</a></li>
                 <li><a href="#textes">Ce qu’on écrit et envoie (keep)</a></li>
                 <li><a href="#modeles-bilan">Modèles de bilan et créateur de fiches</a></li>
                 <li><a href="#proc-ref">Procédures de conduite</a></li>
@@ -580,7 +581,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1279</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1280</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -3790,6 +3791,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       <tr><td><strong>L'équipe</strong></td><td class="libre"><span class="b">📨 Messages internes</span> · <span class="b">📱 SMS</span> · <span class="b">✅ Tâches</span> · <span class="b">🔔 Alertes</span> · <span class="b">👥 Équipe</span> · <span class="b">🏫 L'école</span></td></tr>
       <tr><td><strong>Argent</strong></td><td class="libre"><span class="b">🏦 Caisse</span> · <span class="b">💸 Coûts IA</span> · <span class="b">💶 Paie</span> · <span class="b">💰 Tarifs</span></td></tr>
       <tr><td><strong>Demandes</strong></td><td class="libre"><span class="b">🚚 Places BE</span></td></tr>
+      <tr><td><strong>Entreprises</strong></td><td class="libre"><span class="b">💼 Formations</span></td></tr>
       <tr><td><strong>Ce qu'on écrit</strong></td><td class="libre"><span class="b">📄 Ce qu’on écrit et envoie (keep)</span> · <span class="b">📋 Modèles de bilan</span> · <span class="b">🚦 Procédures</span> · <span class="b">🧠 Mémoire de l'IA</span> · <span class="b">🧰 Vérifications</span> · <span class="b">✉️ Courriers</span> · <span class="b">🎬 Squelette des vidéos</span></td></tr>
     </tbody>
   </table></div>
@@ -4191,6 +4193,27 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
   <section id="ou-verifs">
     <h3>🧰 Vérifications — la banque des questions</h3>
     <p>Les 100 questions de vérification de l'examen, avec leur question de sécurité routière et de premiers secours&nbsp;; l'atelier où l'on photographie nos voitures pour le jeu des élèves&nbsp;; et un onglet pour jouer au jeu soi-même. Tout est décrit au chapitre <a href="#chverifs" class="aller">Les vérifications</a>.</p>
+  </section>
+
+  <section id="formations-ent">
+    <h3>💼 Formations entreprise</h3>
+    <p><em>« Les formations pour les entreprises, de la demande au paiement : on remplit une fois, l’appli fait les documents, les envoie, et dit où en est le financement. »</em> Dans <span class="b">Outils › Entreprises › 💼 Formations</span>, pour le bureau et les administrateurs (droit <span class="ch">formations</span>).</p>
+    <h4>Le suivi</h4>
+    <p>Chaque formation a sa frise&nbsp;: <span class="ch">Demande → Devis → Convention → Demande OPCO → Accord OPCO → Formation → Attestations → Facture → Payé</span> — 7 étapes en financement direct, sans les deux étapes OPCO. En haut, <span class="b">⚠️ À FAIRE MAINTENANT</span>&nbsp;: une demande OPCO pas déposée à trois semaines du début, pas d’accord à 15 jours, un devis sans réponse depuis 10 jours, des attestations à faire, une facture à noter, un paiement en retard. Filtres <span class="b">En cours</span>, <span class="b">À facturer</span>, <span class="b">Terminées</span>.</p>
+    <h4>Un dossier</h4>
+    <p><span class="b">＋ Nouvelle formation</span>&nbsp;: l’entreprise, le modèle (🚚 Permis BE, 🚐 Remise à niveau VL / utilitaire, 📘 Remise à niveau code…, repris de vos documents) et <span class="b">🏦 Avec un OPCO</span> ou <span class="b">🏢 Financement direct</span>. Le dossier s’enregistre tout seul, 0,8 seconde après chaque frappe.</p>
+    <ul>
+      <li><span class="b">📋 Où on en est</span>&nbsp;: les pièces que demandent les financeurs, cochées au fil du dossier (❗ ce qui ferait refuser un financement), et l’historique.</li>
+      <li><span class="b">🏢 Entreprise</span>&nbsp;: <span class="b">🔎 Chercher</span> par le nom ou le Siret dans l’annuaire des entreprises&nbsp;; l’OPCO, son n° de dossier, et qui te paie (subrogation ou entreprise remboursée).</li>
+      <li><span class="b">📚 Formation</span>&nbsp;: intitulé, nature de l’action, dates, durée, lieu, formateur, objectifs, programme, moyens, évaluation. <span class="b">💾 Garder comme modèle</span>.</li>
+      <li><span class="b">💶 Prix</span>&nbsp;: <span class="b">📦 un pack</span> ou <span class="b">➕ une prestation</span> de 💰 Tarifs, ou <span class="b">✏️ une ligne à la main</span> (« la garder dans le modèle »), <strong>par salarié</strong> ou <strong>pour le groupe</strong>. Les tarifs sont TTC&nbsp;: le HT s’en déduit, le TTC d’un pack reste exact. Les prix sont <strong>recopiés</strong>&nbsp;: <span class="b">🔄 Reprendre les prix du jour</span> tant que la convention n’est pas signée.</li>
+      <li><span class="b">👥 Stagiaires</span>&nbsp;: un par un ou <span class="b">📋 Coller une liste</span> (<span class="ch">Nom ; fonction ; mail</span>)&nbsp;; 👤 ouvre la fiche élève. Les heures faites viennent des séances passées, absences retirées.</li>
+      <li><span class="b">📅 Séances</span>&nbsp;: date, horaires, contenu, stagiaires (toucher un nom après la séance note son absence), <span class="b">🖨️ Feuille de présence</span>.</li>
+      <li><span class="b">📄 Documents</span>&nbsp;: devis, programme, convention, lettre pour la demande à l’OPCO, convocations avec le règlement intérieur, feuilles de présence, attestations de fin de formation, certificats de réalisation — sur le papier à en-tête. <span class="b">👁️</span> voir, <span class="b">📄</span> télécharger (une copie se range), <span class="b">✉️</span> envoyer&nbsp;; <span class="b">📨 Convocations aux salariés</span>&nbsp;; <span class="b">📎 Déposer un document signé</span> (convention, accord de l’OPCO, feuille de présence)&nbsp;; <span class="b">📦 Tout le dossier en un PDF</span>.</li>
+      <li><span class="b">💶 Financement</span> (ou <span class="b">💶 Paiement</span>)&nbsp;: les montants, la part de l’OPCO à l’accord et le reste pour l’entreprise&nbsp;; on note le dépôt, l’accord ou le refus, la facture (faite dans votre logiciel&nbsp;: n°, date, montant) et le paiement. <span class="b">↩️ Effacer une étape notée…</span></li>
+    </ul>
+    <div class="note piege"><span class="tag">Ce que demandent les OPCO</span><p>Organisme <strong>certifié Qualiopi</strong> (le n° se saisit dans <span class="b">⚙️ L’organisme</span>, administrateurs)&nbsp;; demande déposée par l’entreprise <strong>avant le début</strong>&nbsp;; feuille de présence signée par chaque stagiaire et par le formateur à chaque séance, au moins par demi-journée&nbsp;; certificat de réalisation et facture pour le paiement.</p></div>
+    <p><span class="b">⚙️ L’organisme</span> (administrateurs)&nbsp;: n° Qualiopi, déclaration d’activité, signataire, référent handicap, TVA, délai de paiement, dédit (10 jours, 30&nbsp;%), tribunal, règlement intérieur. La signature et le tampon des ✉️ Courriers se posent sur les documents quand un administrateur les fait.</p>
   </section>
 
   <section id="ou-courriers">
