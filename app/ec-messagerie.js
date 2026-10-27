@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:09 — v1275 */
+/* Déployé le 27/10/2026 à 12:48 — v1276 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1908,7 +1908,11 @@ async function rafraichirLeFil(silencieux){
      finit) sans qu'aucun message n'arrive : sa carte doit suivre. */
   const appelAvant = (typeof empreinteAppelEC === 'function') ? empreinteAppelEC(filOuvertEC) : '';
   /* 📌 v1273 — une étiquette d'élève choisie ou retirée change la bulle */
-  const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => [m.suivi || [], (m.piece && !m.texte) ? 0 : 1]));
+  /* 🗑️ v1275 — et un message supprimé (par soi ou par un autre) ne change
+     ni le nombre ni le dernier rang : David devait recharger la page pour
+     voir « Message supprimé ». Son état et son texte entrent donc dans
+     l'empreinte. */
+  const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => [m.id, Number(m.supprime || 0), m.texte || '', m.suivi || [], (m.piece && !m.texte) ? 0 : 1]));
   const suiviAvant = sigSuivi(filOuvertEC);
 
   filOuvertEC = d;
