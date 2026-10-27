@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 15:29 — v1279 */
+/* Déployé le 27/10/2026 à 16:17 — v1280 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1280,
+    date: 'Mardi 27 octobre 2026',
+    resume: '💼 Les formations entreprise : dossiers, prix, documents, suivi du financement',
+    quoi: [
+      { emoji: '💼',
+        titre: 'Outils › Entreprises › 💼 Formations',
+        texte: 'Un dossier par formation, avec ou sans OPCO, et sa frise : devis, convention, demande et accord OPCO, formation, attestations, facture, paiement. « ⚠️ À faire maintenant » dit ce qui bloque.' },
+      { emoji: '💶',
+        titre: 'Le prix depuis 💰 Tarifs',
+        texte: 'Un pack ou une prestation de 💰 Tarifs, ou une ligne à la main ; par salarié ou pour le groupe. Les prix sont recopiés au devis.' },
+      { emoji: '📄',
+        titre: 'Les documents sur l’en-tête',
+        texte: 'Devis, programme, convention, lettre pour l’OPCO, convocations, règlement intérieur, feuilles de présence, attestations, certificats de réalisation : en PDF, envoyés par mail.' }
+    ]
+  },
   {
     version: 1279,
     date: 'Mardi 27 octobre 2026',
