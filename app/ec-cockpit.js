@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 27/10/2026 à 11:08 — v1273 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1876,6 +1876,14 @@ function ckFicheEclair(f){
     if(bp) acts.appendChild(bp);
     frag.appendChild(acts);
     return frag;
+  }
+  /* 📌 v1273 — un fil lu pour le suivi : la fiche de chaque élève nommé,
+     comme quand on parle à l'élève (David : « que la fiche de l'élève
+     apparaisse à droite, et quand il y a plusieurs élèves, les infos des
+     élèves à droite ») */
+  if(c.suivi && typeof blocElevesDuFilSE === 'function'){
+    const es = blocElevesDuFilSE(f);
+    if(es) frag.appendChild(es);
   }
   if(c.genre === 'groupe'){
     const g = ckCadre('GROUPE · ' + membres.length);
