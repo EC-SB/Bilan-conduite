@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 26/10/2026 à 14:46 — v1271 -->
+<!-- Déployé le 27/10/2026 à 12:48 — v1276 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -8710,6 +8710,11 @@
     var dernier = avant ? filEl.messages[avant - 1].rang : 0;
     var empreinteAvant = empreinteReacEl(filEl);
     var appelAvant = empreinteAppelEl(filEl);     /* 📞 v1183 */
+    /* 🗑️ v1275 — un message supprimé ne change ni le nombre ni le
+       dernier rang : son état et son texte entrent dans l'empreinte
+       (pas le lien de la pièce, resigné à chaque lecture). */
+    var empreinteSuppr = function(x){ return JSON.stringify(((x && x.messages) || []).map(function(m){ return [m.id, Number(m.supprime || 0), m.texte || '']; })); };
+    var supprAvant = empreinteSuppr(filEl);
 
     return appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
       .then(function(d){
@@ -8750,6 +8755,7 @@
         if(liste.length !== avant || neuf !== dernier ||
            empreinteReacEl(d) !== empreinteAvant ||
            empreinteAppelEl(d) !== appelAvant ||
+           empreinteSuppr(d) !== supprAvant ||
            Number((d && d.luEcole) || 0) !== Number((filEl && filEl.luEcole) || 0)){
           filEl = d;
           noterLeResteVocaux(d);
