@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 18:16 — v1256 */
+/* Déployé le 27/10/2026 à 10:39 — v1272 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -826,7 +826,9 @@ function qvEtat(){
     if(!n || vus[n]) return null;
     vus[n] = true;
     const p = (q && q.p) || {};
-    return { n: n, p: { verif: qvMarque(p.verif), qser: qvMarque(p.qser), secours: qvMarque(p.secours) } };
+    /* 💬 v1272 — la réponse de l'élève et le commentaire du moniteur, par partie */
+    const txt3 = o => { o = o || {}; return { verif: String(o.verif || ''), qser: String(o.qser || ''), secours: String(o.secours || '') }; };
+    return { n: n, p: { verif: qvMarque(p.verif), qser: qvMarque(p.qser), secours: qvMarque(p.secours) }, r: txt3(q.r), c: txt3(q.c) };
   }).filter(Boolean);
   const ot = (Array.isArray(x.ot) ? x.ot : []).map(verifsNumero).filter(Boolean);
   return { qs: qs, ot: ot };
@@ -860,7 +862,7 @@ function qvPoser(n, parLaVoix){
   const e = qvEtat();
   if(e.qs.some(q => q.n === n)) return 'deja';
   if(parLaVoix && e.ot.indexOf(n) !== -1) return 'retiree';
-  e.qs.push({ n: n, p: { verif: '', qser: '', secours: '' } });
+  e.qs.push({ n: n, p: { verif: '', qser: '', secours: '' }, r: { verif: '', qser: '', secours: '' }, c: { verif: '', qser: '', secours: '' } });
   e.ot = e.ot.filter(x => x !== n);
   qvPoserEtat(e);
   return 'ok';
@@ -876,6 +878,15 @@ function qvNoter(n, k, v){
   const q = e.qs.find(x => x.n === n);
   if(!q || VERIFS_PARTIES.indexOf(k) === -1) return;
   q.p[k] = qvMarque(v);
+  qvPoserEtat(e);
+}
+
+/* 💬 v1272 — « r » : ce que l'élève a répondu ; « c » : le commentaire du moniteur */
+function qvEcrire(n, k, quoi, t){
+  const e = qvEtat();
+  const q = e.qs.find(x => x.n === n);
+  if(!q || VERIFS_PARTIES.indexOf(k) === -1 || (quoi !== 'r' && quoi !== 'c')) return;
+  q[quoi][k] = String(t || '').slice(0, 400);
   qvPoserEtat(e);
 }
 
@@ -956,19 +967,161 @@ function qvBloc(q, majTitre){
     tot.textContent = qvNotee(e) ? 'Note : ' + qvNoteDe(e) + ' / 3' : 'Pas encore notée';
     if(majTitre) majTitre();
   };
-  VERIFS_PARTIES.forEach(k => {
-    const l = vqEl('div', 'qvLigne');
-    l.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;align-items:center;';
-    const lab = vqEl('label', '', QV_NOMS[k] || verifsNomPartie(k, x.type));
-    lab.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;text-transform:none;color:var(--cream);';
-    l.appendChild(lab);
-    l.appendChild(qvBoutons3(q.n, k, q.p[k], majNote));
-    notes.appendChild(l);
+  /* ✅ ❌ — v1272 : AU BOUT DE CHAQUE LIGNE de la carte, plus en
+     dessous (David, le 27 octobre). Et sous chaque ligne notée, les
+     deux lignes de l'examen blanc : « Réponse de l'élève » (en bleu,
+     comme la remarque de l'inspecteur) et « Commentaire du moniteur ». */
+  const lignesCarte = c.querySelectorAll('.vqL');
+  VERIFS_PARTIES.forEach((k, i) => {
+    const vl = lignesCarte[i];
+    const deux = qvDeuxLignes(q, k);
+    const trois = qvBoutons3(q.n, k, q.p[k], () => {
+      const e = qvEtat().qs.find(y => y.n === q.n) || q;
+      deux.style.display = e.p[k] ? '' : 'none';
+      majNote();
+    });
+    trois.classList.add('qvAuBout');
+    if(vl){
+      const gauche = vqEl('div', 'qvTexteL');
+      while(vl.firstChild) gauche.appendChild(vl.firstChild);
+      vl.classList.add('qvAvecNote');
+      vl.appendChild(gauche);
+      vl.appendChild(trois);
+      vl.parentNode.insertBefore(deux, vl.nextSibling);
+    }else{
+      /* une partie sans ligne dans la carte (neutralisée…) : comme avant */
+      const l = vqEl('div', 'qvLigne');
+      l.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;align-items:center;';
+      const lab = vqEl('label', '', QV_NOMS[k] || verifsNomPartie(k, x.type));
+      lab.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;text-transform:none;color:var(--cream);';
+      l.appendChild(lab);
+      l.appendChild(trois);
+      notes.appendChild(l);
+      notes.appendChild(deux);
+    }
+    deux.style.display = q.p[k] ? '' : 'none';
   });
   notes.appendChild(tot);
   w.appendChild(notes);
+  /* 📜 déjà posée avant ? */
+  const avant = qvDejaPosee(q.n);
+  if(avant){
+    const t = c.querySelector('.vqTete');
+    const ch = vqEl('div', 'qvDejaPosee', '📜 Déjà posée le ' + qvJourCourt(avant.jour) + (avant.par ? ' par ' + avant.par : '') + ' : ' + avant.note + '/3');
+    if(t && t.parentNode) t.parentNode.insertBefore(ch, t.nextSibling);
+  }
   majNote();
   return w;
+}
+function qvDeuxLignes(q, k){
+  const z = vqEl('div', 'qvDeux');
+  z.setAttribute('data-partie', k);
+  const champ = (quoi, ph) => {
+    const r = vqEl('div', 'qvDeuxL');
+    const i = document.createElement('input');
+    i.type = 'text';
+    i.className = quoi === 'r' ? 'qvRep' : 'qvCom';
+    i.placeholder = ph;
+    i.value = (q[quoi] && q[quoi][k]) || '';
+    i.setAttribute('data-hors-saisie', '1');
+    i.dataset.horsSaisie = '1';
+    i.addEventListener('input', () => qvEcrire(q.n, k, quoi, i.value));
+    r.appendChild(i);
+    if(typeof microDObservation === 'function'){
+      const m = microDObservation(i, quoi === 'r' ? 'la réponse de l’élève' : 'ton commentaire');
+      /* la dictée écrit dans le champ : on garde ce qu'elle a écrit */
+      i.addEventListener('change', () => qvEcrire(q.n, k, quoi, i.value));
+      if(m && m.tagName === 'BUTTON') m.addEventListener('click', () => {
+        const t0 = setInterval(() => { qvEcrire(q.n, k, quoi, i.value); if(m.dataset.actif !== 'oui') clearInterval(t0); }, 800);
+      });
+      r.appendChild(m);
+    }
+    return r;
+  };
+  z.appendChild(champ('r', 'Réponse de l’élève'));
+  z.appendChild(champ('c', 'Commentaire du moniteur'));
+  return z;
+}
+
+/* ---------- 📜 v1272 — DÉJÀ POSÉES (gardées comme les manœuvres) ----------
+   David, le 27 octobre : « quand on rouvre cette partie la leçon
+   d'après, on voit les questions posées, avec les réponses que l'élève
+   a données, les points et la date ». Lu au Worker (ec-suivi-eleve.js),
+   écrit à chaque bilan composé (lignesVerifsDuCours). */
+function qvJourDuCours(){
+  const k = qvCle();
+  const j = k.split('|')[1] || '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(j) ? j : ((typeof todayLocal === 'function') ? todayLocal() : '');
+}
+function qvJourCourt(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return String(iso || '');
+  return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function qvHistorique(){
+  const d = (typeof suiviSE === 'function') ? suiviSE() : null;
+  if(!d) return [];
+  const j = qvJourDuCours();
+  return (d.verifs || []).filter(v => v.jour !== j);
+}
+function qvDejaPosee(n){ return qvHistorique().find(v => v.n === n) || null; }
+function qvBlocHistorique(){
+  const h = qvHistorique();
+  if(!h.length) return null;
+  const jours = {};
+  h.forEach(v => { jours[v.jour] = 1; });
+  const nomE = ($('studentName') && $('studentName').value || '').trim().split(/\s+/)[0] || 'l’élève';
+  const d = document.createElement('details');
+  d.className = 'qvHisto';
+  d.open = true;
+  const s = vqEl('summary', '', '📜 Déjà posées à ' + nomE + ' — ' + h.length + ' question' + (h.length > 1 ? 's' : '') + ', ' +
+    Object.keys(jours).length + ' cours');
+  d.appendChild(s);
+  h.forEach(v => {
+    const e = vqEl('div', 'qvHistoL');
+    e.setAttribute('data-qv-histo', String(v.n));
+    const t = vqEl('div', 'qvHistoT');
+    const g = vqEl('span', 'qvHistoQui');
+    g.innerHTML = '<b>' + echapperVerifs(qvJourCourt(v.jour)) + '</b> · ' + echapperVerifs(v.par || '') +
+      ' — <b>Question ' + v.n + '</b> · <b class="' + (v.note === 3 ? 'ok' : 'ko') + '">' + v.note + '/3</b>';
+    t.appendChild(g);
+    const re = vqEl('button', 'btn btn-secondary qvReposer', '🔁 Reposer');
+    re.type = 'button';
+    re.setAttribute('data-hors-saisie', '1');
+    re.addEventListener('click', ev => {
+      ev.preventDefault(); ev.stopPropagation();
+      const r = qvPoser(v.n);
+      if(r === 'deja') showToastVerifs('🧰 La question ' + v.n + ' est déjà posée');
+      qvRedessiner(true);
+    });
+    t.appendChild(re);
+    e.appendChild(t);
+    const det = vqEl('div', 'qvHistoDet');
+    det.style.display = 'none';
+    VERIFS_PARTIES.forEach(k => {
+      const p = (v.parties || {})[k];
+      if(!p) return;
+      const x = verifsQuestion(v.n);
+      const nomP = k === 'verif' ? ((x && x.type) || 'Vérif') : (k === 'qser' ? 'QSER' : '1ers secours');
+      const l = vqEl('div', 'qvHistoP');
+      l.innerHTML = '<b>' + echapperVerifs(nomP) + '</b> ' + (p.v || '—') +
+        (p.r ? '<div class="qvHistoR">↳ Réponse : ' + echapperVerifs(p.r) + '</div>' : '') +
+        (p.c ? '<div class="qvHistoC">↳ ' + echapperVerifs(v.par || 'Moniteur') + ' : ' + echapperVerifs(p.c) + '</div>' : '');
+      det.appendChild(l);
+    });
+    const voir = vqEl('div', 'qvHistoVoir', '▸ toucher pour voir ses réponses');
+    e.appendChild(voir);
+    e.appendChild(det);
+    e.addEventListener('click', () => {
+      const o = det.style.display === 'none';
+      det.style.display = o ? '' : 'none';
+      voir.textContent = o ? '▾ ses réponses' : '▸ toucher pour voir ses réponses';
+    });
+    d.appendChild(e);
+  });
+  return d;
+}
+function echapperVerifs(t){
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function dessinerQuestionsVerifs(idZone){
   const z = typeof idZone === 'string' ? document.getElementById(idZone) : idZone;
@@ -991,7 +1144,8 @@ function dessinerQuestionsVerifs(idZone){
   d.appendChild(s);
   const majTitre = () => {
     const r = qvResume(qvEtat().qs);
-    s.textContent = '🧰 Questions de vérification' + (r ? ' — ' + r : '');
+    const nh = qvHistorique().length;
+    s.textContent = '🧰 Questions de vérification' + (r ? ' — ' + r : '') + (nh ? (r ? ' · ' : ' — ') + nh + ' déjà avant' : '');
     qvMajRappels();
   };
 
@@ -1042,6 +1196,12 @@ function dessinerQuestionsVerifs(idZone){
   });
   rang.appendChild(h);
   d.appendChild(rang);
+
+  /* 📜 v1272 — déjà posées les cours d'avant (lu une fois par élève) */
+  const nomQ = ($('studentName') && $('studentName').value || '').trim();
+  if(typeof chargerSuiviSE === 'function' && nomQ && typeof suiviSE === 'function' && !suiviSE(nomQ)) chargerSuiviSE(nomQ);
+  const histo = qvBlocHistorique();
+  if(histo) d.appendChild(histo);
 
   /* La dernière posée en haut : c'est elle qu'on lit à l'élève */
   qvEtat().qs.slice().reverse().forEach(q => d.appendChild(qvBloc(q, majTitre)));
@@ -1122,8 +1282,13 @@ function lignesVerifsDuCours(ai, texte){
       const l = ligneVerifPourLeBilan(q.n, k, true);
       if(!l) return;
       out.push(l + (notee ? ' ' + (q.p[k] || '(pas demandée)') : ''));
+      /* 💬 v1272 — sa réponse, et le commentaire du moniteur */
+      const rep = String((q.r && q.r[k]) || '').trim(), com = String((q.c && q.c[k]) || '').trim();
+      if(q.p[k] && rep) out.push('↳ Ta réponse : ' + rep);
+      if(q.p[k] && com) out.push('↳ ' + ((typeof ACCES !== 'undefined' && ACCES.moniteur) || 'Ton moniteur') + ' : ' + com);
     });
   });
+  qvEnregistrerHistorique(avecTexte);
   const t = qvTotal(avecTexte);
   if(avecTexte.length > 1){
     if(t.notees) out.push('𝗧𝗼𝘁𝗮𝗹 : ' + t.points + '/' + (t.notees * 3) + ' sur ' + t.notees + ' question' + (t.notees > 1 ? 's' : ''));
@@ -1132,6 +1297,23 @@ function lignesVerifsDuCours(ai, texte){
     out.push('/3 points jour du permis ');
   }
   return out;
+}
+
+/* 📜 v1272 — les questions notées du jour partent au Worker, pour les
+   cours suivants (le même jour remplace : un bilan recomposé ne double
+   rien). En silence : un échec ne gêne pas le bilan. */
+function qvEnregistrerHistorique(qs){
+  const nom = ($('studentName') && $('studentName').value || '').trim();
+  const notees = (qs || []).filter(qvNotee);
+  if(!nom || !notees.length || typeof appelPrep !== 'function') return;
+  const jour = qvJourDuCours();
+  const sig = nom + '|' + jour + '|' + JSON.stringify(notees);
+  if(qvEnregistrerHistorique._sig === sig) return;
+  qvEnregistrerHistorique._sig = sig;
+  try{
+    Promise.resolve(appelPrep({ action: 'suiviVerifsPoser', eleve: nom, jour: jour,
+      qs: notees.map(q => ({ n: q.n, p: q.p, r: q.r || {}, c: q.c || {} })) })).catch(() => { qvEnregistrerHistorique._sig = ''; });
+  }catch(e){ qvEnregistrerHistorique._sig = ''; }
 }
 
 /* ---------- La veille : modèle ou élève changé, et la voix ---------- */
