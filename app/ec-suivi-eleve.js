@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 10:39 — v1272 */
+/* Déployé le 27/10/2026 à 11:08 — v1273 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -30,10 +30,13 @@
 const SANS_REPERE_SE = ['utilisation radio', 'utilisation telephone', 'faire peur', 'parking avec ticket', 'gps',
   'regulateur', 'ouverture du capot', 'va ou tu veux fais ce que tu veux'];
 
-const SUIVI_SE = { nom: '', donnees: null, promesse: null };
+/* Ce qu'on sait de chaque élève, lu au Worker une fois (le cours, le
+   dossier, la colonne de droite de la messagerie peuvent parler de
+   plusieurs élèves à la fois). */
+const SUIVIS_SE = {};
 
 function normSE(t){
-  return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 function cleManoeuvreSE(libelle){ return normSE(libelle).slice(0, 80); }
 function sansRepereSE(libelle){ return SANS_REPERE_SE.indexOf(normSE(libelle)) !== -1; }
@@ -42,34 +45,46 @@ function eleveDuCoursSE(){
   return c ? String(c.value || '').trim() : '';
 }
 function jourSE(){ return (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10); }
+function prenomSE(nom){ return String(nom || '').trim().split(/\s+/)[0] || 'l’élève'; }
 
-/* Ce qu'on sait de l'élève : lu une fois par élève, gardé tant qu'on
-   reste sur lui. « forcer » relit (après un enregistrement ailleurs). */
+function entreeSE(nom){
+  const k = normSE(nom);
+  return SUIVIS_SE[k] || (SUIVIS_SE[k] = { nom: String(nom || '').trim(), donnees: null, promesse: null });
+}
+function poserDonneesSE(nom, r){
+  const e = entreeSE(nom);
+  e.donnees = { reperes: r.reperes || [], verifs: r.verifs || [], fiche: r.fiche || { ecoutes: false, groupes: false, texte: '' },
+                messages: r.messages || [], convs: r.convs || [] };
+  return e.donnees;
+}
 function chargerSuiviSE(nom, forcer){
   nom = String(nom || '').trim();
   if(nom.length < 3 || typeof appelPrep !== 'function') return Promise.resolve(null);
-  if(!forcer && normSE(SUIVI_SE.nom) === normSE(nom)){
-    if(SUIVI_SE.donnees) return Promise.resolve(SUIVI_SE.donnees);
-    if(SUIVI_SE.promesse) return SUIVI_SE.promesse;
+  const e = entreeSE(nom);
+  if(!forcer){
+    if(e.donnees) return Promise.resolve(e.donnees);
+    if(e.promesse) return e.promesse;
   }
-  if(normSE(SUIVI_SE.nom) !== normSE(nom)){ SUIVI_SE.nom = nom; SUIVI_SE.donnees = null; }
-  const p = appelPrep({ action: 'suiviLire', eleve: nom }).then(r => {
-    if(normSE(SUIVI_SE.nom) !== normSE(nom)) return null;
-    SUIVI_SE.donnees = (r && r.status === 'ok') ? { reperes: r.reperes || [], verifs: r.verifs || [] } : { reperes: [], verifs: [] };
-    SUIVI_SE.promesse = null;
-    rafraichirApresSuiviSE();
-    return SUIVI_SE.donnees;
-  }).catch(() => { SUIVI_SE.promesse = null; return null; });
-  SUIVI_SE.promesse = p;
+  const p = Promise.resolve(appelPrep({ action: 'suiviLire', eleve: nom })).then(r => {
+    e.promesse = null;
+    const d = poserDonneesSE(nom, (r && r.status === 'ok') ? r : {});
+    rafraichirApresSuiviSE(nom);
+    return d;
+  }).catch(() => { e.promesse = null; return null; });
+  e.promesse = p;
   return p;
 }
-/* Ce qu'on a déjà, sans attendre (null si pas encore lu, ou autre élève) */
+/* Ce qu'on a déjà, sans attendre (null si pas encore lu) */
 function suiviSE(nom){
   nom = nom == null ? eleveDuCoursSE() : nom;
-  return (SUIVI_SE.donnees && normSE(SUIVI_SE.nom) === normSE(nom)) ? SUIVI_SE.donnees : null;
+  const e = SUIVIS_SE[normSE(nom)];
+  return (e && e.donnees) || null;
 }
-function rafraichirApresSuiviSE(){
+function rafraichirApresSuiviSE(nom){
+  const k = normSE(nom == null ? eleveDuCoursSE() : nom);
   document.querySelectorAll('.oeilRepere').forEach(b => { if(typeof b._peindre === 'function') b._peindre(); });
+  document.querySelectorAll('.suiviVivant').forEach(x => { if((!k || x.dataset.suiviDe === k) && typeof x._maj === 'function') x._maj(); });
+  if(k === normSE(eleveDuCoursSE())) appliquerCasesAuxLignesSE();
   /* pas pendant qu'on écrit une réponse : le champ perdrait la main */
   const a = document.activeElement;
   if(a && a.closest && a.closest('.tiroirVerifs')) return;
@@ -93,7 +108,7 @@ async function poserRepereSE(libelle, texte, nom){
     d.reperes = d.reperes.filter(x => x.manoeuvre !== k);
     if(r.repere) d.reperes.push(r.repere);
   }
-  rafraichirApresSuiviSE();
+  rafraichirApresSuiviSE(nom);
   return r;
 }
 
@@ -131,8 +146,7 @@ function oeilRepereSE(libelle, hote){
 }
 
 function blocRepereSE(libelle){
-  const nomE = eleveDuCoursSE();
-  const prenom = nomE.split(/\s+/)[0] || 'l’élève';
+  const prenom = prenomSE(eleveDuCoursSE());
   const r = repereSE(libelle);
   const b = document.createElement('div');
   b.className = 'repereBloc';
@@ -250,6 +264,580 @@ function boutonAilleursToutSE(grille, racine, peindreTout){
   g.appendChild(b);
   maj();
   return g;
+}
+
+/* ============================================================
+   ⚠️ v1273 — LE TIROIR « SUIVI DE … »
+
+   David, le 27 octobre : « une partie avec pas d'écoutes
+   pédagogiques, pas bosser sur les groupes (qui sont à la fin mais il
+   faut le dire pendant le cours) ; cette partie devient rouge quand
+   c'est coché pour que le moniteur suivant le voie », un texte libre
+   gardé, et les infos de la messagerie. Sur le schéma v2 : « un tiroir
+   comme les autres, là où il y a les procédures et les vérifs » ; son
+   nom : « ⚠️ Suivi de Lena » ; les cases « font ce qu'elles font
+   quand elles sont cochées à la fin : Pas d'écoutes met le texte
+   automatiquement, Ne travaille pas sur les groupes fait ce que fait
+   la croix rouge » ; elles se cochent aussi toutes seules quand le
+   dernier bilan avait ❌, et se décochent à la main ; tout le monde
+   coche et écrit.
+   ============================================================ */
+const ZONES_SUIVI_SE = { verifsCours: 'suiviCours', verifsManuel: 'suiviManuel' };
+const CASES_SUIVI_SE = [
+  { k: 'ecoutes', t: '🎧 Pas d’écoutes pédagogiques', s: 'à lui en parler pendant le cours · le texte des écoutes part dans le bilan', court: '🎧 pas d’écoutes', champ: 'ecoutes' },
+  { k: 'groupes', t: '👥 Ne travaille pas sur les groupes', s: 'à lui en parler pendant le cours · ❌ aux groupes dans le bilan', court: '👥 pas les groupes', champ: 'groupesTravail' }
+];
+function suiviCaseSE(k, nom){ const d = suiviSE(nom); return !!(d && d.fiche && d.fiche[k]); }
+
+function dateDuMessageSE(t){
+  const m = String(t || '').match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+  return m ? new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 12), +(m[5] || 0)) : null;
+}
+function quandCourtSE(t){
+  const d = dateDuMessageSE(t);
+  if(!d) return String(t || '');
+  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + (/\d{2}:\d{2}/.test(t) ? ' ' + String(t).slice(11, 16) : '');
+}
+/* Rouge : une case cochée, un texte, ou un message de la semaine (au-
+   delà, il reste dans la liste sans tout teinter : un tiroir toujours
+   rouge ne se verrait plus) */
+function aSavoirSE(d){
+  if(!d) return false;
+  const f = d.fiche || {};
+  if(f.ecoutes || f.groupes || String(f.texte || '').trim()) return true;
+  const limite = Date.now() - 7 * 86400000;
+  return (d.messages || []).some(m => { const x = dateDuMessageSE(m.envoyeLe); return x && x.getTime() >= limite; });
+}
+function resumeSuiviSE(d){
+  if(!d) return '';
+  const f = d.fiche || {}, l = [];
+  CASES_SUIVI_SE.forEach(c => { if(f[c.k]) l.push(c.court); });
+  if(String(f.texte || '').trim()) l.push('📝');
+  if((d.reperes || []).length) l.push('👁️ ' + d.reperes.length);
+  if((d.messages || []).length) l.push('💬 ' + d.messages.length);
+  return l.join(' · ');
+}
+
+/* Le tiroir, au-dessus de « 🧰 Questions de vérification » (posé par
+   dessinerQuestionsVerifs, et par la veille quand l'élève change) */
+function dessinerSuiviDuCoursSE(id){
+  const z = (typeof $ === 'function') ? $(id) : null;
+  if(!z) return;
+  const nom = eleveDuCoursSE();
+  if(nom.length < 3){ z.style.display = 'none'; z.innerHTML = ''; z.dataset.sig = ''; return; }
+  z.style.display = '';
+  z.dataset.sig = normSE(nom);
+  const avant = z.querySelector('details.tiroirSuivi');
+  const ouvert = !!(avant && avant.open);
+  z.innerHTML = '';
+  const d = document.createElement('details');
+  d.className = 'tiroirSuivi suiviVivant';
+  d.dataset.suiviDe = normSE(nom);
+  d.open = ouvert;
+  const s = document.createElement('summary');
+  d.appendChild(s);
+  const corps = document.createElement('div');
+  corps.className = 'suiviCorps';
+  d.appendChild(corps);
+  d._maj = () => {
+    const x = suiviSE(nom);
+    const r = resumeSuiviSE(x);
+    s.textContent = '⚠️ Suivi de ' + prenomSE(nom) + (r ? ' — ' + r : '');
+    d.classList.toggle('rouge', aSavoirSE(x));
+    const a = document.activeElement;
+    if(a && corps.contains(a) && /TEXTAREA|INPUT|SELECT/.test(a.tagName)) return;
+    corps.innerHTML = '';
+    corps.appendChild(x ? contenuSuiviSE(nom, x) : Object.assign(document.createElement('div'), { className: 'suiviAide', textContent: 'Lecture…' }));
+  };
+  z.appendChild(d);
+  d._maj();
+  if(!suiviSE(nom)) chargerSuiviSE(nom);
+}
+
+/* Le contenu : le même dans le tiroir du cours et dans le dossier */
+function contenuSuiviSE(nom, x){
+  const w = document.createElement('div');
+  w.className = 'suiviContenu';
+  const prenom = prenomSE(nom);
+  const aide = document.createElement('div');
+  aide.className = 'suiviAide';
+  aide.textContent = 'Gardé d’un cours à l’autre, pour tous les moniteurs. Une case cochée met le tiroir en rouge, et fait comme à la fin du cours.';
+  w.appendChild(aide);
+  const f = x.fiche || {};
+  CASES_SUIVI_SE.forEach(c => {
+    const l = document.createElement('label');
+    l.className = 'suiviCase';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!f[c.k];
+    cb.setAttribute('data-suivi-case', c.k);
+    l.appendChild(cb);
+    const t = document.createElement('span');
+    const qui = f[c.k] ? (f[c.k + 'Auto'] ? 'coché tout seul : ❌ au bilan du ' + quandCourtSE(isoVersFrSE(f[c.k + 'Le'])) : '✏️ ' + (f[c.k + 'Par'] || '') + (f[c.k + 'Le'] ? ' · ' + quandCourtSE(isoVersFrSE(f[c.k + 'Le'])) : '')) : '';
+    t.innerHTML = '<b>' + c.t + '</b><br><small>' + echSE(c.s) + (qui ? ' · ' + echSE(qui) : '') + '</small>';
+    l.appendChild(t);
+    cb.addEventListener('change', async () => {
+      cb.disabled = true;
+      try{
+        const r = await appelPrep({ action: 'suiviCasePoser', eleve: nom, cle: c.k, on: cb.checked });
+        if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+        poserDonneesSE(nom, r);
+        rafraichirApresSuiviSE(nom);
+      }catch(e){
+        cb.checked = !cb.checked;
+        cb.disabled = false;
+        if(typeof showToast === 'function') showToast('⚠️ Pas enregistré : ' + (e.message || e));
+      }
+    });
+    w.appendChild(l);
+  });
+  /* 📝 le texte libre */
+  w.appendChild(titreSE('📝 Ce qu’il faut savoir'));
+  const rg = document.createElement('div');
+  rg.className = 'suiviRang';
+  const ta = document.createElement('textarea');
+  ta.rows = 3;
+  ta.className = 'suiviTexte';
+  ta.placeholder = 'Ce que le prochain moniteur doit savoir sur ' + prenom + '…';
+  ta.value = f.texte || '';
+  ta.setAttribute('data-hors-saisie', '1');
+  rg.appendChild(ta);
+  if(typeof microDObservation === 'function') rg.appendChild(microDObservation(ta, 'ce qu’il faut savoir'));
+  w.appendChild(rg);
+  const bas = document.createElement('div');
+  bas.className = 'suiviBas';
+  const qui = document.createElement('span');
+  qui.className = 'suiviQui';
+  qui.textContent = f.texte ? '✏️ ' + (f.textePar || '') + (f.texteLe ? ' · ' + quandCourtSE(isoVersFrSE(f.texteLe)) : '') : '';
+  bas.appendChild(qui);
+  const ok = document.createElement('button');
+  ok.type = 'button';
+  ok.className = 'btn btn-secondary suiviEnregistrer';
+  ok.textContent = '💾 Enregistrer';
+  ok.disabled = true;
+  ta.addEventListener('input', () => { ok.disabled = ta.value.trim() === String(f.texte || '').trim(); });
+  ok.addEventListener('click', async ev => {
+    ev.preventDefault();
+    ok.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'suiviTextePoser', eleve: nom, texte: ta.value });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      const d = suiviSE(nom);
+      if(d){ d.fiche = Object.assign({}, d.fiche, { texte: r.texte, textePar: r.textePar, texteLe: r.texteLe }); }
+      ta.blur();
+      if(typeof showToast === 'function') showToast('📝 Enregistré pour ' + prenom);
+      rafraichirApresSuiviSE(nom);
+    }catch(e){
+      ok.disabled = false;
+      if(typeof showToast === 'function') showToast('⚠️ Pas enregistré : ' + (e.message || e));
+    }
+  });
+  bas.appendChild(ok);
+  w.appendChild(bas);
+  /* 👁️ ses repères */
+  if((x.reperes || []).length){
+    w.appendChild(titreSE('👁️ Ses repères'));
+    x.reperes.forEach(r => {
+      const d = document.createElement('div');
+      d.className = 'suiviRepere';
+      d.innerHTML = '<b>' + echSE(r.libelle || r.manoeuvre) + '</b> — ' + echSE(r.texte) + ' <small>· ' + echSE(r.par || '') + (r.le ? ', ' + echSE(quandCourtSE(isoVersFrSE(r.le))) : '') + '</small>';
+      w.appendChild(d);
+    });
+  }
+  /* 💬 la messagerie */
+  w.appendChild(titreSE('💬 Dans la messagerie, sur ' + prenom));
+  const ms = x.messages || [];
+  if(!ms.length){
+    const v = document.createElement('div');
+    v.className = 'suiviAide';
+    v.textContent = 'Rien pour l’instant. Un message qui parle de ' + prenom + ' dans « Message important » ou « Suivi examen » arrive ici tout seul.';
+    w.appendChild(v);
+  }
+  ms.slice(0, 15).forEach(m => {
+    const d = document.createElement('div');
+    d.className = 'suiviMsg';
+    d.innerHTML = '<b>' + echSE(m.auteur || '') + '</b> <small>' + echSE(quandCourtSE(m.envoyeLe)) +
+      (m.comment === 'reponse' ? ' · en réponse' : '') + (m.titre ? ' · 👥 ' + echSE(m.titre) : '') + '</small><br>' +
+      (m.vocal ? '🎤 ' : '') + echSE(m.texte || (m.vocal ? 'Message vocal' : ''));
+    w.appendChild(d);
+  });
+  /* ✍️ écrire dans la conversation lue */
+  const convs = x.convs || [];
+  if(convs.length){
+    const e = document.createElement('div');
+    e.className = 'suiviEcrire';
+    let sel = null;
+    if(convs.length > 1){
+      sel = document.createElement('select');
+      convs.forEach(c => sel.appendChild(new Option(c.titre || 'Conversation', c.id)));
+      e.appendChild(sel);
+    }
+    const r2 = document.createElement('div');
+    r2.className = 'suiviRang';
+    const t2 = document.createElement('textarea');
+    t2.rows = 2;
+    t2.className = 'suiviMot';
+    t2.placeholder = 'Écrire dans « ' + (convs[0].titre || 'la conversation') + ' » sur ' + prenom + '…';
+    t2.setAttribute('data-hors-saisie', '1');
+    r2.appendChild(t2);
+    const env = document.createElement('button');
+    env.type = 'button';
+    env.className = 'btn btn-primary suiviEnvoyer';
+    env.textContent = '➤';
+    env.title = 'Envoyer';
+    env.addEventListener('click', async ev => {
+      ev.preventDefault();
+      const mot = t2.value.trim();
+      if(!mot) return;
+      const id = sel ? sel.value : convs[0].id;
+      env.disabled = true;
+      try{
+        const r = await appelPrep({ action: 'convEcrire', id: id, texte: '📌 ' + nom + ' : ' + mot, suivi: { noms: [nom] } });
+        if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+        t2.value = '';
+        t2.blur();
+        if(typeof showToast === 'function') showToast('💬 Envoyé dans « ' + ((convs.find(c => c.id === id) || {}).titre || 'la conversation') + ' »');
+        await chargerSuiviSE(nom, true);
+      }catch(e2){
+        if(typeof showToast === 'function') showToast('⚠️ Pas envoyé : ' + (e2.message || e2));
+      }
+      env.disabled = false;
+    });
+    r2.appendChild(env);
+    e.appendChild(r2);
+    w.appendChild(e);
+  }
+  return w;
+}
+function titreSE(t){ const d = document.createElement('div'); d.className = 'suiviTitre'; d.textContent = t; return d; }
+function echSE(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function isoVersFrSE(iso){ const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso || ''); }
+
+/* Les cases font ce que font les réponses de fin de cours : sur le
+   bilan à la main, ❌ aux lignes « 4 groupes de travail suivis » et
+   « Plus d'écoutes que de conduite », marquées d'où elles viennent ;
+   une case décochée rend ce qu'elle avait posé. */
+function appliquerCasesAuxLignesSE(){
+  const d = suiviSE();
+  if(!d) return;
+  CASES_SUIVI_SE.forEach(c => {
+    document.querySelectorAll('[data-champ="' + c.champ + '"]').forEach(r => {
+      const on = !!(d.fiche || {})[c.k];
+      const val = (typeof champsManuels !== 'undefined' && champsManuels) ? champsManuels[c.champ] : undefined;
+      const bouton = v => Array.prototype.find.call(r.querySelectorAll('button[data-val]'), b => b.getAttribute('data-val') === v);
+      const bloc = r.parentElement;
+      let mot = bloc && bloc.nextElementSibling && bloc.nextElementSibling.classList.contains('suiviPose') ? bloc.nextElementSibling : null;
+      if(on && val !== '❌'){
+        const b = bouton('❌');
+        if(b){ b.click(); r.dataset.parSuivi = '1'; }
+      }else if(!on && r.dataset.parSuivi === '1' && val === '❌'){
+        const b = bouton('');
+        if(b) b.click();
+        r.dataset.parSuivi = '';
+      }
+      if(on && r.dataset.parSuivi === '1' && !mot && bloc && bloc.parentNode){
+        mot = document.createElement('div');
+        mot.className = 'suiviPose';
+        mot.textContent = '⚠️ posé par « Suivi de ' + prenomSE(eleveDuCoursSE()) + ' »';
+        bloc.parentNode.insertBefore(mot, bloc.nextSibling);
+      }
+      if((!on || r.dataset.parSuivi !== '1') && mot) mot.remove();
+    });
+  });
+}
+
+/* Le bilan : ce qu'il dit des groupes et des écoutes coche (ou décoche
+   ce qui avait été coché tout seul). Une fois par bilan. */
+function casesParLeBilanSE(groupes, ecoutes){
+  const nom = eleveDuCoursSE();
+  if(nom.length < 3 || typeof appelPrep !== 'function') return;
+  if(!groupes && !ecoutes) return;
+  const sig = normSE(nom) + '|' + groupes + '|' + ecoutes + '|' + jourSE();
+  if(casesParLeBilanSE._sig === sig) return;
+  casesParLeBilanSE._sig = sig;
+  Promise.resolve(appelPrep({ action: 'suiviCasesDuBilan', eleve: nom, groupes: groupes, ecoutes: ecoutes }))
+    .then(r => { if(r && r.change) chargerSuiviSE(nom, true); })
+    .catch(() => { casesParLeBilanSE._sig = ''; });
+}
+
+/* La veille : l'élève du cours a changé → le tiroir suit */
+setInterval(() => {
+  if(document.hidden) return;
+  Object.keys(ZONES_SUIVI_SE).forEach(v => {
+    const z = document.getElementById(ZONES_SUIVI_SE[v]);
+    if(!z) return;
+    const vz = document.getElementById(v);
+    if(vz && vz.style.display === 'none' && !z.dataset.sig) return;
+    if((z.dataset.sig || '') !== normSE(eleveDuCoursSE())) dessinerSuiviDuCoursSE(ZONES_SUIVI_SE[v]);
+  });
+}, 1500);
+
+/* ============================================================
+   💬 v1273 — LA MESSAGERIE : REPÉRER LES ÉLÈVES
+
+   Seulement dans un fil « lu pour le suivi » (conv.suivi, décidé par
+   le Worker) : son nom complet, son prénom seul (s'il est porté par
+   plusieurs élèves, on propose), « mon élève actuel », et une réponse
+   (↩️) suit le message qu'elle cite.
+   ============================================================ */
+function elevesDuTexteSE(texte){
+  const noms = (typeof elevesConnus !== 'undefined' && Array.isArray(elevesConnus)) ? elevesConnus : [];
+  const t = ' ' + normSE(texte) + ' ';
+  const mots = {};
+  normSE(texte).split(' ').forEach(m => { if(m) mots[m] = 1; });
+  const equipe = {};
+  ((typeof lesComptesDeLEquipe === 'function') ? lesComptesDeLEquipe() : []).concat([(typeof ACCES !== 'undefined' && ACCES.moniteur) || ''])
+    .forEach(n => { const p = normSE(n).split(' ')[0]; if(p) equipe[p] = 1; });
+  const surs = [];
+  noms.forEach(n => {
+    const k = normSE(n), p = k.split(' ');
+    if(p.length < 2) return;
+    const inverse = p.slice(1).join(' ') + ' ' + p[0];
+    if((t.indexOf(' ' + k + ' ') !== -1 || t.indexOf(' ' + inverse + ' ') !== -1) && surs.indexOf(n) === -1) surs.push(n);
+  });
+  const parPrenom = {};
+  noms.forEach(n => { const p = normSE(n).split(' ')[0]; if(p.length >= 3) (parPrenom[p] = parPrenom[p] || []).push(n); });
+  const ambigus = [];
+  Object.keys(parPrenom).forEach(p => {
+    if(!mots[p] || equipe[p]) return;
+    if(surs.some(s => normSE(s).split(' ')[0] === p)) return;
+    const l = parPrenom[p];
+    if(l.length === 1) surs.push(l[0]);
+    else ambigus.push({ prenom: p.charAt(0).toUpperCase() + p.slice(1), choix: l.slice(0, 8) });
+  });
+  const actuel = /(^| )mon eleve (actuel|actuelle|en cours|du moment|de maintenant)( |$)/.test(normSE(texte));
+  return { noms: surs.slice(0, 10), ambigus: ambigus.slice(0, 5), actuel: actuel };
+}
+/* Ce qui part avec un message (ou un vocal) dans un fil lu pour le suivi */
+function suiviPourLEnvoiSE(texte, idFil){
+  const f = (typeof filOuvertEC !== 'undefined') ? filOuvertEC : null;
+  if(!f || !f.conv || !f.conv.suivi || (idFil && f.conv.id !== idFil)) return undefined;
+  const r = elevesDuTexteSE(texte || '');
+  return (r.noms.length || r.ambigus.length || r.actuel) ? r : undefined;
+}
+/* Les étiquettes sous une bulle */
+function pucesSuiviSE(m){
+  const l = (m && Array.isArray(m.suivi)) ? m.suivi : [];
+  if(!l.length) return null;
+  const z = document.createElement('div');
+  z.className = 'suiviPuces';
+  l.forEach(x => {
+    const p = document.createElement('span');
+    if(x.eleve){
+      p.className = 'suiviPuce';
+      const n = document.createElement('button');
+      n.type = 'button';
+      n.className = 'suiviPuceNom';
+      n.textContent = '📌 ' + x.eleve + (x.comment === 'actuel' ? ' · élève actuel' : x.comment === 'reponse' ? ' · en réponse' : '');
+      n.title = 'Dans « Suivi de ' + prenomSE(x.eleve) + ' »';
+      n.addEventListener('click', ev => { ev.stopPropagation(); allerALEleveDuFilSE(x.eleve); });
+      p.appendChild(n);
+      const r = document.createElement('button');
+      r.type = 'button';
+      r.className = 'suiviPuceX';
+      r.textContent = '✕';
+      r.title = 'Ce message ne parle pas de ' + x.eleve;
+      r.addEventListener('click', async ev => {
+        ev.stopPropagation();
+        try{
+          await appelPrep({ action: 'suiviMessageRetirer', message: m.id, eleve: x.eleve });
+          if(typeof rafraichirLeFil === 'function') await rafraichirLeFil();
+        }catch(e){ if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e)); }
+      });
+      p.appendChild(r);
+    }else{
+      p.className = 'suiviPuce aChoisir';
+      const n = document.createElement('button');
+      n.type = 'button';
+      n.className = 'suiviPuceNom';
+      n.textContent = '❓ ' + (x.prenom === 'mon élève actuel' ? 'Ton élève actuel' : x.prenom) + ' : ' + (x.prenom === 'mon élève actuel' ? 'lequel ?' : 'lequel ou laquelle ?');
+      n.addEventListener('click', ev => {
+        ev.stopPropagation();
+        const deja = z.querySelector('.suiviChoix');
+        if(deja){ deja.remove(); return; }
+        const c = document.createElement('div');
+        c.className = 'suiviChoix';
+        (x.choix || []).concat(['']).forEach(nom => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = nom || 'Aucun';
+          b.addEventListener('click', async e2 => {
+            e2.stopPropagation();
+            try{
+              await appelPrep({ action: 'suiviMessageChoisir', message: m.id, prenom: x.prenom, eleve: nom });
+              if(typeof rafraichirLeFil === 'function') await rafraichirLeFil();
+            }catch(e3){ if(typeof showToast === 'function') showToast('Impossible : ' + (e3.message || e3)); }
+          });
+          c.appendChild(b);
+        });
+        z.appendChild(c);
+      });
+      p.appendChild(n);
+    }
+    z.appendChild(p);
+  });
+  return z;
+}
+function allerALEleveDuFilSE(nom){
+  const b = document.querySelector('.ckSuiviEleve[data-suivi-de="' + normSE(nom) + '"]');
+  if(b && b.offsetParent){ try{ b.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){ b.scrollIntoView(); } b.classList.add('vu'); setTimeout(() => b.classList.remove('vu'), 1200); return; }
+  if(typeof ouvrirPageEleve === 'function') ouvrirPageEleve(nom);
+}
+/* Les élèves d'un fil lu pour le suivi, le dernier nommé d'abord */
+function elevesDuFilSE(f){
+  const out = [];
+  ((f && f.messages) || []).slice().sort((a, b) => (b.rang || 0) - (a.rang || 0)).forEach(m => {
+    (m.suivi || []).forEach(x => { if(x.eleve && !out.some(n => normSE(n) === normSE(x.eleve))) out.push(x.eleve); });
+  });
+  return out;
+}
+/* À droite (et dans ⓘ sur téléphone) : sa fiche, comme quand on parle
+   à l'élève, une par élève nommé */
+function blocElevesDuFilSE(f){
+  const noms = elevesDuFilSE(f);
+  if(!noms.length) return null;
+  const z = document.createElement('div');
+  z.className = 'ckSuiviEleves';
+  const t = document.createElement('div');
+  t.className = 'ckSuiviTitre';
+  t.textContent = '📌 Les élèves de ce fil · ' + noms.length;
+  z.appendChild(t);
+  noms.slice(0, 8).forEach((nom, i) => {
+    const b = document.createElement('div');
+    b.className = 'ckSuiviEleve suiviVivant';
+    b.dataset.suiviDe = normSE(nom);
+    if(typeof ckBlocEleve === 'function') b.appendChild(ckBlocEleve(nom));
+    const a = document.createElement('div');
+    a.className = 'ckSuiviResume';
+    b.appendChild(a);
+    b._maj = () => {
+      const d = suiviSE(nom);
+      b.classList.toggle('rouge', aSavoirSE(d));
+      if(!d){ a.innerHTML = '<div class="lab">⚠️ SUIVI</div>…'; return; }
+      const f2 = d.fiche || {};
+      const l = [];
+      const cases = CASES_SUIVI_SE.filter(c => f2[c.k]).map(c => c.t);
+      if(cases.length) l.push(echSE(cases.join(' · ')));
+      if(String(f2.texte || '').trim()) l.push('📝 ' + echSE(String(f2.texte).slice(0, 90)) + (String(f2.texte).length > 90 ? '…' : ''));
+      if((d.reperes || []).length) l.push('👁️ ' + d.reperes.length + ' repère' + (d.reperes.length > 1 ? 's' : ''));
+      if((d.messages || []).length) l.push('💬 ' + d.messages.length + ' message' + (d.messages.length > 1 ? 's' : '') + ', le dernier de ' + echSE(d.messages[0].auteur || ''));
+      a.innerHTML = '<div class="lab">⚠️ SUIVI</div>' + (l.length ? l.join('<br>') : 'Rien de particulier');
+    };
+    b._maj();
+    chargerSuiviSE(nom);
+    if(typeof ckBouton === 'function' && typeof ouvrirPageEleve === 'function'){
+      const acts = document.createElement('div');
+      acts.className = 'ckFicheActs';
+      acts.appendChild(ckBouton('👤 Ouvrir son dossier', 'Le dossier complet de ' + nom, () => ouvrirPageEleve(nom)));
+      b.appendChild(acts);
+    }
+    z.appendChild(b);
+  });
+  return z;
+}
+
+/* ⚙️ Les réglages : quelles conversations sont lues pour le suivi */
+function carteSuiviReglagesSE(r){
+  const c = document.createElement('div');
+  c.className = 'regSuivi';
+  c.innerHTML = '<div style="font-weight:800;">📌 Conversations lues pour le suivi des élèves</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin:3px 0 8px;line-height:1.45;">Un message qui nomme un élève (ou « mon élève actuel ») dans une de ces conversations va tout seul dans « ⚠️ Suivi de … » de cet élève. ' +
+    'D’office : « Message important » et « Suivi examen ». Jamais les conversations avec les élèves.</div>';
+  const reg = (r && r.suiviConvs) || { ajoutees: [], retirees: [] };
+  const titres = (r && r.suiviTitres) || [];
+  const liste = ((typeof conversationsEC !== 'undefined' && conversationsEC) || [])
+    .filter(x => (x.genre === 'groupe' || x.genre === 'interne') && !x.eleve);
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12.5px;color:var(--muted);';
+    v.textContent = 'Aucune conversation entre vous à proposer.';
+    c.appendChild(v);
+    return c;
+  }
+  liste.forEach(x => {
+    const parDefaut = titres.indexOf(normSE(x.titre)) !== -1;
+    const lue = reg.ajoutees.indexOf(x.id) !== -1 || (parDefaut && reg.retirees.indexOf(x.id) === -1);
+    const l = document.createElement('label');
+    l.className = 'regSuiviL';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = lue;
+    cb.setAttribute('data-conv', x.id);
+    l.appendChild(cb);
+    const t = document.createElement('span');
+    const nom = x.titre || ((typeof ckTitreListe === 'function') ? ckTitreListe(x) : 'Conversation');
+    t.textContent = (x.genre === 'groupe' ? '👥 ' : '🏠 ') + nom + (parDefaut ? ' · d’office' : '');
+    l.appendChild(t);
+    cb.addEventListener('change', async () => {
+      const v = { ajoutees: reg.ajoutees.filter(i => i !== x.id), retirees: reg.retirees.filter(i => i !== x.id) };
+      if(cb.checked && !parDefaut) v.ajoutees.push(x.id);
+      if(!cb.checked && parDefaut) v.retirees.push(x.id);
+      cb.disabled = true;
+      try{
+        const rep = await appelPrep({ action: 'msgReglageSet', cle: 'suiviConversations', valeur: v });
+        if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+        reg.ajoutees = v.ajoutees; reg.retirees = v.retirees;
+        if(typeof showToast === 'function') showToast(cb.checked ? '📌 Lue pour le suivi' : 'Plus lue pour le suivi');
+      }catch(e){
+        cb.checked = !cb.checked;
+        if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e));
+      }
+      cb.disabled = false;
+    });
+    c.appendChild(l);
+  });
+  return c;
+}
+
+/* ============================================================
+   👤 v1273 — DANS LE DOSSIER ÉLÈVE (« Dans le dossier élève, je suis
+   ok ») : un résumé rouge en haut quand il y a quelque chose à
+   savoir, et l'onglet « ⚠️ Suivi » avec tout.
+   ============================================================ */
+function banniereSuiviSE(nom){
+  const b = document.createElement('div');
+  b.className = 'suiviBanniere suiviVivant';
+  b.dataset.suiviDe = normSE(nom);
+  b.style.display = 'none';
+  b._maj = () => {
+    const d = suiviSE(nom);
+    if(!d || !aSavoirSE(d)){ b.style.display = 'none'; return; }
+    b.style.display = '';
+    const f = d.fiche || {};
+    const l = [];
+    const cases = CASES_SUIVI_SE.filter(c => f[c.k]).map(c => c.t);
+    if(cases.length) l.push(echSE(cases.join(' · ')));
+    if(String(f.texte || '').trim()) l.push('📝 ' + echSE(String(f.texte).slice(0, 70)) + (String(f.texte).length > 70 ? '…' : ''));
+    const bout = [];
+    if((d.reperes || []).length) bout.push('👁️ ' + d.reperes.length + ' repère' + (d.reperes.length > 1 ? 's' : ''));
+    if((d.messages || []).length) bout.push('💬 ' + d.messages.length + ' message' + (d.messages.length > 1 ? 's' : '') + ', le dernier de ' + echSE(d.messages[0].auteur || ''));
+    if(bout.length) l.push(bout.join(' · '));
+    b.innerHTML = '<div class="t">⚠️ SUIVI DE ' + echSE(prenomSE(nom).toUpperCase()) + ' <span>ouvrir ▸</span></div><div class="l">' + l.join('<br>') + '</div>';
+  };
+  b.addEventListener('click', () => { if(typeof choisirOngletEleve === 'function') choisirOngletEleve('suivi'); });
+  chargerSuiviSE(nom).then(() => b._maj());
+  b._maj();
+  return b;
+}
+function ongletSuiviEleveSE(corps, nom){
+  const w = document.createElement('div');
+  w.className = 'suiviOnglet suiviVivant';
+  w.dataset.suiviDe = normSE(nom);
+  w._maj = () => {
+    const d = suiviSE(nom);
+    const a = document.activeElement;
+    if(a && w.contains(a) && /TEXTAREA|INPUT|SELECT/.test(a.tagName)) return;
+    w.innerHTML = '';
+    w.classList.toggle('rouge', aSavoirSE(d));
+    const t = document.createElement('div');
+    t.className = 'suiviOngletTitre';
+    t.textContent = '⚠️ Suivi de ' + prenomSE(nom);
+    w.appendChild(t);
+    w.appendChild(d ? contenuSuiviSE(nom, d) : Object.assign(document.createElement('div'), { className: 'suiviAide', textContent: 'Lecture…' }));
+  };
+  corps.appendChild(w);
+  w._maj();
+  chargerSuiviSE(nom, true);
 }
 
 /* Signale que ce module est bien chargé */
