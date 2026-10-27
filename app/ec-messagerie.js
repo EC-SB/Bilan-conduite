@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:46 — v1274 */
+/* Déployé le 27/10/2026 à 12:09 — v1275 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1042,6 +1042,8 @@ function fermerLeFil(){
 function dessinerLeFil(){
   /* 🎤 v1274 — les vocaux récents sans texte s'écrivent tout seuls */
   if(typeof ecrireLesVocauxDuFilEC === 'function') setTimeout(() => { try{ ecrireLesVocauxDuFilEC(); }catch(e){} }, 400);
+  /* 📌 v1275 — les messages restés sans étiquette, relus */
+  if(typeof relireLeSuiviDuFilSE === 'function') setTimeout(() => { try{ relireLeSuiviDuFilSE(); }catch(e){} }, 700);
   const large = ckLarge();
   const zone = zoneFilMsg();
   if(!zone || !filOuvertEC) return;
@@ -1752,6 +1754,8 @@ function zoneDEcritureDuFil(id){
       b.dataset.icone = icone;
     }
     b.title = vide ? 'Envoyer un pouce' : 'Envoyer (Ctrl + Entrée)';
+    /* 📌 v1275 — à qui ira le message, dans un fil lu pour le suivi */
+    if(typeof apercuSuiviSE === 'function') apercuSuiviSE(t.value);
   };
 
   t.addEventListener('input', () => {
@@ -1800,6 +1804,7 @@ async function ecrireDansLeFil(){
                       suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, id) : undefined });
     oublierLaReponseEC(id);
     if(champ) champ.value = '';
+    if(typeof apercuSuiviSE === 'function') apercuSuiviSE('');
     delete brouillonsMessagerie[id];
     await rafraichirLeFil();
   }catch(e){
