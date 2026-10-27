@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 11:53 — v1266 */
+/* Déployé le 27/10/2026 à 14:44 — v1278 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -409,6 +409,9 @@ const SECTIONS = [
      lit et note un appel passé d'un portable ; « Modifier » fait le
      reste. L'écoute des enregistrements : bureau et administrateurs. */
   { cle:'appels',           nom:'📞 Suivi des appels (Allo)', onglet:'eleves' },
+  /* ☑️ v1278 — la todo list, le bouton à côté du 💬 (ec-todo.js).
+     David : « j'ai besoin de choisir qui la voit » : une case par compte. */
+  { cle:'todo',             nom:'☑️ À faire (todo list)', onglet:'messagerie' },
   { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
