@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 16:17 — v1280 */
+/* Déployé le 27/10/2026 à 17:38 — v1282 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -90,8 +90,19 @@ function ongletsDisponibles(){
        les accès et le journal, qui ne dépendent d'aucun droit. */
     if(o === 'gestion' && ACCES.role === 'admin') return true;
     if(o === 'outils' && ACCES.role === 'admin') return true;
+    /* ✍️ v1282 — un moniteur formateur d'une formation entreprise :
+       Outils, pour 💼 Formations seulement (ec-formations-signer.js) */
+    if(o === 'outils' && window.FE_FORMATEUR) return true;
     return SECTIONS_ONGLET[o].some(s => typeof aDroit === 'function' && aDroit(s));
   });
+}
+/* Les onglets visibles, refaits sans changer d'onglet (v1282) */
+function majOngletsVisibles(){
+  const barre = $('barreOnglets');
+  if(!barre) return;
+  const dispo = ongletsDisponibles();
+  barre.querySelectorAll('.onglet').forEach(b => { b.hidden = (dispo.indexOf(b.getAttribute('data-cible')) === -1); });
+  barre.style.display = (dispo.length > 1) ? 'flex' : 'none';
 }
 
 function afficherOnglet(cle, memoriser){
@@ -198,6 +209,7 @@ function initOnglets(){
   try{ depart = localStorage.getItem(CLE_ONGLET) || ''; }catch(e){}
   if(dispo.indexOf(depart) === -1) depart = dispo[0];
   afficherOnglet(depart, false);
+  if(typeof fsAuDemarrage === 'function') fsAuDemarrage();
 }
 
 
@@ -351,7 +363,10 @@ const VUES = {
               un générateur de formation entreprise ». 💼 ET NON 🎓 : le
               chapeau est déjà « 🎓 Activité des élèves », dans ce même
               rail (voir la leçon de v962 plus haut). */
-           ['formations', '💼 Formations',             'formations',  'Entreprises'],
+           /* ✍️ v1282 — et tous les moniteurs (droit « cours »), sans
+              case : ils n'y voient que les formations dont ils sont le
+              formateur, pour faire signer (David). */
+           ['formations', '💼 Formations',             ['formations', 'cours'],  'Entreprises'],
 
            ['textes',     '📄 Ce qu’on écrit et envoie (keep)',           'textes',      'Ce qu’on écrit'],
            ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
