@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 10:39 — v1272 */
+/* Déployé le 27/10/2026 à 11:08 — v1273 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1540,6 +1540,9 @@ function bulleDuMessage(m, avant, apres){
      ⚠️ LA BULLE PORTE SON IDENTIFIANT. Pour réagir à un message il
      faut savoir LEQUEL : c'est la ligne qui rend tout le reste
      possible, et elle ne coûte rien. */
+  /* 📌 v1273 — les élèves dont parle ce message (fil lu pour le suivi) */
+  const pucesS = (typeof pucesSuiviSE === 'function') ? pucesSuiviSE(m) : null;
+  if(pucesS) b.appendChild(pucesS);
   b.setAttribute('data-msg', m.id || '');
   const pastilles = zoneDesReactions(m);
   if(pastilles){
@@ -1776,7 +1779,9 @@ async function ecrireDansLeFil(){
 
   if(bouton) bouton.disabled = true;
   try{
-    await appelPrep({ action: 'convEcrire', id: id, texte: texte, reponseA: reponseAPourEC(id) });
+    /* 💬 v1273 — un fil lu pour le suivi : les élèves dont le message parle */
+    await appelPrep({ action: 'convEcrire', id: id, texte: texte, reponseA: reponseAPourEC(id),
+                      suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, id) : undefined });
     oublierLaReponseEC(id);
     if(champ) champ.value = '';
     delete brouillonsMessagerie[id];
@@ -1881,6 +1886,9 @@ async function rafraichirLeFil(silencieux){
   /* 📞 v1183 — l'appel du fil change (quelqu'un entre, sort, il
      finit) sans qu'aucun message n'arrive : sa carte doit suivre. */
   const appelAvant = (typeof empreinteAppelEC === 'function') ? empreinteAppelEC(filOuvertEC) : '';
+  /* 📌 v1273 — une étiquette d'élève choisie ou retirée change la bulle */
+  const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => m.suivi || []));
+  const suiviAvant = sigSuivi(filOuvertEC);
 
   filOuvertEC = d;
   filOuvertEC.viser = 0;
@@ -1900,7 +1908,8 @@ async function rafraichirLeFil(silencieux){
      personnes qui échangent leurs emoji ne changent pas le nombre de
      pastilles. */
   const bouge = (empreinteDesReactions(d) !== empreinteReacEC) ||
-    ((typeof empreinteAppelEC === 'function') && empreinteAppelEC(d) !== appelAvant);
+    ((typeof empreinteAppelEC === 'function') && empreinteAppelEC(d) !== appelAvant) ||
+    sigSuivi(d) !== suiviAvant;
 
   if(combien !== avant || dernier !== rangLuEC || bouge || viser){
     filOuvertEC.viser = viser || 0;
@@ -4633,7 +4642,8 @@ async function arreterLeVocalEC(envoyer){
   try{
     const son = await blobEnBase64EC(blob);
     await appelPrep({ action: 'convVocal', id: v.fil, son: son,
-                      duree: sec, texte: texte, reponseA: reponseAPourEC(v.fil) });
+                      duree: sec, texte: texte, reponseA: reponseAPourEC(v.fil),
+                      suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, v.fil) : undefined });
     oublierLaReponseEC(v.fil);
     rendreLaBarre();
     await rafraichirLeFil();
@@ -7998,6 +8008,12 @@ function dessinerReglagesMessagerie(zone, r, exemple){
 
   /* 👀 v1177 — la lecture partagée du bureau */
   corps.appendChild(carteLectureBureau(zone, r, exemple));
+  /* 📌 v1273 — les conversations lues pour le suivi des élèves */
+  if(typeof carteSuiviReglagesSE === 'function'){
+    const cs = carteSuiviReglagesSE(r);
+    cs.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:14px;';
+    corps.appendChild(cs);
+  }
 
   /* 🏢 v1163 — la photo du bureau, que les élèves voient devant leur
      fil « Le bureau ». Les administrateurs la choisissent ici. */
