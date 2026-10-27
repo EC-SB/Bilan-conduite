@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 14:46 — v1271 */
+/* Déployé le 27/10/2026 à 10:39 — v1272 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1272,
+    date: 'Mardi 27 octobre 2026',
+    resume: '🎤 Vocaux écrits · 👁️ repères · 🧰 réponses des vérifs',
+    quoi: [
+      { emoji: '🎤',
+        titre: 'Le texte des vocaux revient',
+        texte: 'Dans la messagerie, si rien ne s’est écrit pendant que tu parlais (iPhone, appli installée…), à ■ ou à ➤ l’appli fait écrire le vocal : « ✍️ J’écris ce que tu as dit… », puis le texte, corrigeable.' },
+      { emoji: '👁️',
+        titre: 'Le repère de l’élève, et un seul 🚗',
+        texte: 'Un 👁️ au bout de chaque manœuvre : son repère à lui, gardé pour les cours suivants et mis dans son bilan le jour où il est écrit. Pour un élève venu d’ailleurs, un seul 🚗 en dernier coche tout ; on en retire une en touchant son 🚗.' },
+      { emoji: '🧰',
+        titre: 'Les questions de vérification',
+        texte: 'Les ✅ ❌ — au bout de chaque ligne ; dessous, la réponse de l’élève et ton commentaire, dans son bilan ; et « 📜 Déjà posées » avec la date, le moniteur, la note et ses réponses.' },
+      { emoji: '🎬',
+        titre: 'VLC sous la Carte SD',
+        texte: 'Dans tous les bilans : télécharger VLC si les vidéos ne se lisent pas, et regarder sa carte SD en salle des tablettes.' }
+    ]
+  },
   {
     version: 1271,
     date: 'Lundi 26 octobre 2026',
