@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 15:33 — v1264 */
+/* Déployé le 27/10/2026 à 10:39 — v1272 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1510,6 +1510,12 @@ function boutonDeManoeuvre(cb, libelle, marque, cbAilleurs){
       const ao = !!cbAilleurs.checked;
       a.className = 'btn pastilleVue pastilleAilleurs ' + (ao ? 'on' : 'btn-secondary');
       a.setAttribute('aria-pressed', ao ? 'true' : 'false');
+      /* 🚗 v1272 — David : « enlève les petites voitures au bout de
+         chaque bouton, il ne le faut qu'une fois, en dernier ». Le 🚗
+         d'une manœuvre ne se montre que si elle est marquée, ou
+         quand on vient de toucher le 🚗 unique (pour en retirer une). */
+      const gr = g.closest ? g.closest('.grillePastilles') : null;
+      a.style.display = (ao || (gr && gr.dataset.ailleurs === '1')) ? '' : 'none';
     }
   };
   b.addEventListener('click', () => {
@@ -1527,6 +1533,11 @@ function boutonDeManoeuvre(cb, libelle, marque, cbAilleurs){
       peindre();
     });
     g.appendChild(a);
+  }
+  /* 👁️ v1272 — son repère à lui (ec-suivi-eleve.js) */
+  if(typeof oeilRepereSE === 'function'){
+    const o = oeilRepereSE(libelle, () => g);
+    if(o) g.appendChild(o);
   }
   g._peindre = peindre;
   peindre();
@@ -2210,6 +2221,11 @@ async function afficherFicheDuCours(){
       l.appendChild(ail);
     }
 
+    /* 👁️ v1272 — l'œil aussi dans la vue « ☑ Cases » */
+    if(typeof oeilRepereSE === 'function'){
+      const o = oeilRepereSE(libelle, () => l);
+      if(o){ o.style.marginLeft = '4px'; o.style.flexShrink = '0'; l.appendChild(o); }
+    }
     casesFiche.appendChild(l);
     /* 🔘 v1213 — son bouton, branché sur ses cases */
     miroirs.push(boutonDeManoeuvre(cb, libelle, deja, l.querySelector('input.mAilleurs')));
@@ -2228,6 +2244,11 @@ async function afficherFicheDuCours(){
   miroirs.forEach(m => boutonsFiche.appendChild(m));
   d.appendChild(casesFiche);
   d.appendChild(boutonsFiche);
+  /* 🚗 v1272 — un seul, à la fin (ec-suivi-eleve.js) */
+  if(typeof boutonAilleursToutSE === 'function'){
+    const at = boutonAilleursToutSE(boutonsFiche, d, () => miroirs.forEach(m => m._peindre()));
+    if(at) boutonsFiche.appendChild(at);
+  }
   const verbe = d.querySelector('.verbeFiche');
   deuxHabits(d, casesFiche, boutonsFiche, () => miroirs.forEach(m => m._peindre()));
   const majVerbe = () => {
