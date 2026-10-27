@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 12:04 — v1261 */
+/* Déployé le 27/10/2026 à 14:07 — v1277 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2262,6 +2262,16 @@ async function afficherPrepares(recharger, silencieux){
        avecLEtatDeLaPlace. */
 
     row.appendChild(meta);
+
+    /* 👂 v1277 — les élèves en écoute à l'heure de ce cours : on coche
+       qui est dans la voiture (ec-ecoutes-presence.js). Le cadre suit la
+       carte ; la ligne résume, dans le sommaire de gauche. */
+    if(typeof blocEcoutesEP === 'function'){
+      try{
+        const be = blocEcoutesEP(cours);
+        if(be){ row.appendChild(be.bloc); meta.appendChild(be.ligne); }
+      }catch(e){ console.warn('Écoutes du cours :', e); }
+    }
 
     const actions = document.createElement('div');
     /* ⚠️ ELLE PORTE UN NOM DEPUIS LA v915. Habillée uniquement à la
