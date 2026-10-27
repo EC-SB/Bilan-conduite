@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1276
+     GUIDE-VERSION: 1277
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1276</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1277</strong><br>
     Mis à jour le 27 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -579,7 +579,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1276</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1277</strong>, relu le 27 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -2378,6 +2378,19 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     <p><em>« Qui ne réserve pas d'écoutes, et qui réserve sans venir. »</em> Deux listes qui ne parlent pas de la même chose&nbsp;: un élève peut être dans les deux.</p>
     <div class="note astuce"><span class="tag">Ouvrir les écoutes dans Drivup</span><p>Ouvrir les créneaux d'écoute eux-mêmes ne se fait pas ici, mais depuis le planning de Drivup, avec le favori <span class="b">📥 Bilan de conduite</span> et son bouton <span class="b">👂 Écoutes à ouvrir</span>. Voir <a href="#chdrivup" class="aller">le chapitre Drivup</a>.</p></div>
 
+    <h4 id="ecoutes-presence">👂 La présence aux écoutes (pointage sur les cours)</h4>
+    <ol class="etapes">
+      <li><strong>Le favori lit qui est inscrit.</strong> À chaque lecture du planning d'une agence (ou de «&nbsp;Tous les utilisateurs&nbsp;»), les écoutes avec des élèves — colonnes BEA et BV de Saint-Brieuc, «&nbsp;Ecoute&nbsp;» de Loudéac — partent à l'application, pour les jours affichés&nbsp;: <span class="ch">👂 Écoutes réservées mises à jour : 14 élève(s) sur 9 écoute(s)</span>. Une réservation qui n'y est plus (annulée dans Drivup) disparaît.</li>
+      <li><strong>Sur la carte du cours</strong> (📅 Mes prochains cours, cours d'aujourd'hui qui prennent une écoute)&nbsp;: <span class="ch">👂 EN ÉCOUTE À 10H</span> montre <strong>tous</strong> les élèves en écoute à cette heure dans ce bureau, BEA et BV. Le moniteur touche ceux qui sont dans sa voiture&nbsp;; dès 2 cochés, les autres disent «&nbsp;pas avec toi ?&nbsp;» mais se cochent encore (pas de maximum). Les autres moniteurs de l'heure voient <span class="ch">avec Hery (10:04)</span>. Sinon, <span class="b">👂 Personne avec moi</span>. Réservé après la lecture&nbsp;: <span class="b">＋ Un élève pas dans la liste</span>. Une écoute de 8h à 12h se pointe <strong>sur chaque cours</strong>.</li>
+      <li><strong>À H+25</strong>, un moniteur qui n'a rien pointé reçoit <span class="ch">👂 Écoutes de 10h à pointer</span>. <strong>À H+30</strong>, un élève que personne n'a coché passe <span class="ch">❓ Pas venu(e) ?</span>, avec <span class="b">✉️ Envoyer l’absence</span> (le mail de «&nbsp;Signaler une absence&nbsp;», signé «&nbsp;L’équipe Évolution Conduites&nbsp;», et le même message de «&nbsp;Le bureau&nbsp;» dans son espace) et <span class="b">↩️ Était là</span>. Le moniteur qui a pointé à cette heure, le bureau et les administrateurs peuvent les toucher.</li>
+    </ol>
+    <div class="note piege"><span class="tag">Un cours qui n'a rien dit</span><p>Tant qu'un cours de cette heure n'a pas pointé, <strong>rien ne part</strong>&nbsp;: ses élèves restent <span class="ch">❓ à vérifier</span> ici, chez le bureau. Une écoute <strong>annulée</strong> ne compte jamais au pointage.</p></div>
+    <p>En tête de l'écran, <span class="b">⚙️ Pointage et rappels des écoutes</span> (administrateurs)&nbsp;: <span class="b">👂 Pointer les écoutes sur les cours</span> (allumé), <span class="b">✉️ Envoyer l’absence tout seul, 30 min après</span> (éteint au départ&nbsp;: allumé, le mail et le message partent seuls), <span class="b">⏰ Rappel des écoutes, la veille à 17h</span> (éteint au départ).</p>
+
+    <h4 id="ecoutes-rappels">⏰ Les rappels d’écoute de demain</h4>
+    <p>La veille à <strong>17h</strong>, chaque élève inscrit reçoit un mail et un message dans son espace&nbsp;: <span class="ch">Petit rappel : tu as réservé une écoute pédagogique demain, mercredi 28 octobre, de 10h à 12h, au bureau de Saint-Brieuc. 🚗 La voiture t’attend dans la cour intérieure. Sois là 5 minutes avant.</span> La voiture vient des <strong>rappels de cours</strong> du lendemain (🅿️ cour intérieure ou 🛣️ devant)&nbsp;: toutes au même endroit, tout le monde y va&nbsp;; sinon la BEA pour les élèves de BEA, la BV pour ceux de BV&nbsp;; si on ne peut pas trancher, au hasard, moitié-moitié. Sans voiture connue, le rappel part sans cette phrase.</p>
+    <p>La liste <span class="b">⏰ Rappels d’écoute de demain</span> les montre par écoute. Avant 17h, <span class="b">✕ Pas de rappel</span> l'empêche de partir&nbsp;; <span class="b">✕ Annuler l’écoute</span> (une leçon qui saute) l'annule pour tous. Après 17h, annuler envoie <span class="ch">Ton écoute pédagogique de demain, … est annulée. Désolés pour ce changement ! Tu peux en réserver une autre dans Drivup.</span> aux élèves déjà prévenus. <span class="b">↩️</span> remet. Moniteurs, bureau et administrateurs peuvent le faire.</p>
+
     <h4>🚫 Signaler une absence en écoute</h4>
     <p><em>« L'élève avait réservé et n'est pas venu. Indique le créneau qu'il a laissé vide. »</em> Sous le nom, l'adresse mail s'affiche en direct&nbsp;: <span class="ch">✉️ adresse</span> en vert, ou <span class="ch">⚠️ Aucune adresse mail sur sa fiche — le message ne pourra pas partir</span>.</p>
     <p>La <span class="b">Date du rendez-vous manqué</span> est pré-remplie à aujourd'hui. La case <span class="b">✉️ Le prévenir par mail</span> déplie le message type — <strong>modifiable avant envoi</strong>, et signé automatiquement du prénom du moniteur connecté.</p>
@@ -2388,7 +2401,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     <div class="note piege"><span class="tag">Piège</span><p><strong>La seule façon d'entrer dans cette liste est la case du questionnaire du moniteur.</strong> Le bureau ne peut pas y ajouter quelqu'un lui-même. Le bouton <span class="b">✓ Il réserve</span> l'en retire quand il s'y remet.</p></div>
 
     <h4>🚫 Pas venu en écoute</h4>
-    <p><em>« Une place réservée et laissée vide, c'est un autre élève qui n'a pas pu venir. Les récidivistes apparaissent en rouge. »</em> Regroupées par élève et triées <strong>par nombre d'absences décroissant</strong>. <strong>À partir de trois absences</strong>, le cadre et le nom passent en rouge. Chaque absence peut être supprimée individuellement (<span class="b">🗑️</span>).</p>
+    <p><em>« Une place réservée et laissée vide, c'est un autre élève qui n'a pas pu venir. Les récidivistes apparaissent en rouge. »</em> Regroupées par élève et triées <strong>par nombre d'absences décroissant</strong>. <strong>À partir de trois absences</strong>, le cadre et le nom passent en rouge. Chaque absence peut être supprimée individuellement (<span class="b">🗑️</span>). Les absences trouvées au pointage s'y ajoutent, marquées <span class="ch">❓ à confirmer</span>, <span class="ch">❓ à vérifier</span> ou <span class="ch">👂 pointage</span> (envoyée), avec <span class="b">✉️ Envoyer l’absence</span> et <span class="b">↩️ Était là</span>.</p>
   </section>
 
   <section id="permis-communs">
