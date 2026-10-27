@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 13:08 — v1269 */
+/* Déployé le 27/10/2026 à 12:48 — v1276 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -145,11 +145,15 @@ async function afficherSuiviAppels(recharger, relire){
       const d = await appelPrep({ action: relire ? 'alloRelire' : 'alloLire', jours: suiviAppelsEC.jours });
       Object.assign(suiviAppelsEC, {
         appels: (d && d.appels) || [], synchro: Number((d && d.synchro) || 0), erreur: (d && d.erreur) || '',
+        cron: Number((d && d.cron) || 0), lu: Date.now(),
         cle: !(d && d.cle === false), peutEcouter: !!(d && d.peutEcouter),
         aujourdhui: (d && d.aujourdhui) || apAujourdhui(), depuis: Number((d && d.depuis) || 0), charge: true
       });
       aRappelerEC = { appels: suiviAppelsEC.appels.filter(apEnAttente), aujourdhui: suiviAppelsEC.aujourdhui, lu: true };
       if(typeof dessinerBandeau === 'function') try{ dessinerBandeau(); }catch(e){}
+      /* 🕘 v1275 — le serveur vient de relancer Allo en arrière-plan :
+         on relit dans quelques secondes pour montrer ce qui est arrivé */
+      if(d && d.relance && !relire) setTimeout(() => apRelireSiVisible(true), 12000);
     }catch(e){
       zone.innerHTML = '<div class="empty">Impossible de lire les appels : ' + apEsc(e.message || e) + '</div>';
       return;
@@ -190,6 +194,17 @@ function dessinerSuiviAppels(){
     (quand ? ' — dernière lecture le ' + apEsc(quand) : '') + '. Un appel se range tout seul dans le dossier de l’élève dont c’est le numéro ; sinon, « 🔗 Rattacher ».' +
     (E.depuis ? ' <span style="opacity:.8">Suivi commencé le ' + apEsc(new Date(E.depuis).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })) + '.</span>' : '');
   zone.appendChild(intro);
+  /* 🕘 v1275 — le déclencheur des 5 minutes de Cloudflare ne tourne pas :
+     l'appli relit quand même dès qu'elle est ouverte, mais pas la nuit */
+  const admin = typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin';
+  if(admin && E.cle && !E.erreur && (!E.cron || Date.now() - E.cron > 20 * 60000)){
+    const w = document.createElement('div');
+    w.className = 'apCron';
+    w.textContent = '🕘 Le déclencheur « toutes les 5 minutes » du Worker ' +
+      (E.cron ? 'ne s’est plus déclenché depuis le ' + new Date(E.cron).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ne s’est jamais déclenché') +
+      ' : l’appli relit Allo quand elle est ouverte. Pour qu’il tourne aussi appli fermée : Cloudflare › ce Worker › Settings › Trigger Events › ajouter le Cron « */5 * * * * ».';
+    zone.appendChild(w);
+  }
   if(!E.cle || E.erreur){
     const err = document.createElement('div');
     err.className = 'apErreur';
@@ -1383,6 +1398,21 @@ function lignesAppelsARappeler(){
     actionTexte: 'Voir'
   }];
 }
+
+/* 🕘 v1275 — l'écran ouvert se relit tout seul, toutes les 2 minutes
+   (jamais pendant qu'on écrit ou qu'une fenêtre est ouverte) */
+function apRelireSiVisible(forcer){
+  const zone = $('suiviAppelsZone');
+  if(!zone || !zone.offsetParent || document.hidden || !suiviAppelsEC.appels) return;
+  if(document.querySelector('.apModal')) return;
+  const f = document.activeElement;
+  if(f && zone.contains(f) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return;
+  if(!forcer && Date.now() - Number(suiviAppelsEC.lu || 0) < 2 * 60000) return;
+  const y = window.scrollY;
+  afficherSuiviAppels(true).then(() => { try{ window.scrollTo(0, y); }catch(e){} });
+}
+setInterval(() => apRelireSiVisible(false), 30000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) apRelireSiVisible(false); });
 
 /* Au démarrage, puis toutes les 5 minutes (le rythme de la relecture d'Allo) */
 (function(){
