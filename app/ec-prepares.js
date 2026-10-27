@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 14:07 — v1277 */
+/* Déployé le 27/10/2026 à 17:38 — v1282 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2271,6 +2271,16 @@ async function afficherPrepares(recharger, silencieux){
         const be = blocEcoutesEP(cours);
         if(be){ row.appendChild(be.bloc); meta.appendChild(be.ligne); }
       }catch(e){ console.warn('Écoutes du cours :', e); }
+    }
+
+    /* 💼 v1282 — l'élève du cours est un salarié d'une formation
+       entreprise : la feuille de présence se fait signer d'ici
+       (ec-formations-signer.js). */
+    if(typeof blocFormationFE === 'function'){
+      try{
+        const bf = blocFormationFE(cours);
+        if(bf){ row.appendChild(bf.bloc); meta.appendChild(bf.ligne); }
+      }catch(e){ console.warn('Formation du cours :', e); }
     }
 
     const actions = document.createElement('div');
