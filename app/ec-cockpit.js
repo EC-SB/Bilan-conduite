@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:46 — v1274 */
+/* Déployé le 27/10/2026 à 12:09 — v1275 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -707,7 +707,8 @@ async function ckEcrire(f, texte){
   /* ↩️ v1180 — une réponse rapide part, elle aussi, en réponse au
      message choisi s'il y en a un. */
   const rep = (typeof reponseAPourEC === 'function') ? reponseAPourEC(f.conv.id) : '';
-  await appelPrep({ action: 'convEcrire', id: f.conv.id, texte: texte, reponseA: rep });
+  await appelPrep({ action: 'convEcrire', id: f.conv.id, texte: texte, reponseA: rep,
+                    suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, f.conv.id) : undefined });
   if(rep && typeof oublierLaReponseEC === 'function') oublierLaReponseEC(f.conv.id);
   await rafraichirLeFil();
 }
