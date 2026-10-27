@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 10:39 — v1272 */
+/* Déployé le 27/10/2026 à 11:08 — v1273 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -2038,6 +2038,8 @@ const TEXTE_PAS_ECOUTES =
 function pasEcoutesPedagogiques(){
   const q = (typeof contexteDepart !== 'undefined' && contexteDepart) ? contexteDepart : null;
   if(q && q.pasEcoute) return true;
+  /* ⚠️ v1273 — « 🎧 Pas d'écoutes pédagogiques » coché dans « Suivi de … » */
+  if(typeof suiviCaseSE === 'function' && suiviCaseSE('ecoutes')) return true;
   /* Repli sur la note, si le questionnaire n'est plus en mémoire */
   const n = (typeof $ === 'function' && $('noteInterne')) ? $('noteInterne').value : '';
   return /pas d'écoutes? pédagogiques?/i.test(n);
@@ -2588,7 +2590,17 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   parts.push('');
   /* Sans émoji au bout : la question se suffit, et une coche
      laissée au hasard n'apprend rien à l'élève. */
-  parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?');
+  /* ⚠️ v1273 — la croix rouge des groupes (fin du cours, ou « 👥 Ne
+     travaille pas sur les groupes » dans « Suivi de … ») se lit enfin
+     dans le bilan : ❌ au bout de la ligne. Sans réponse : sans émoji. */
+  const groupesSuivi = (typeof suiviCaseSE === 'function') && suiviCaseSE('groupes');
+  /* un ✅ touché à la fin du cours l'emporte : il travaille ses groupes */
+  const groupes = ai.groupesTravail === '✅' ? '✅' : ((ai.groupesTravail === '❌' || groupesSuivi) ? '❌' : '');
+  parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?' + (groupes ? ' ' + groupes : ''));
+  /* et le bilan coche (ou décoche ce qu'il avait coché) le suivi */
+  if(typeof casesParLeBilanSE === 'function'){
+    try{ casesParLeBilanSE(groupes, pasEcoutesPedagogiques() ? '❌' : (ai.ecoutes === '✅' ? '✅' : '')); }catch(e){}
+  }
 
   /* La ligne des écoutes n'apparaît QUE si le moniteur a coché la
      case : sinon elle posait une question sans objet à un élève
