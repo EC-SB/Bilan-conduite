@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:16 — v1222 */
+/* Déployé le 27/10/2026 à 10:39 — v1272 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -4443,6 +4443,7 @@ async function terminerLEnregistrementEC(parLeTemps){
   }
 
   passerEnRelectureEC(v, blob, sec);
+  ecrireLeVocalSiRienEC(v, blob);
   if(parLeTemps){
     showToast('Deux minutes : l’enregistrement s’est arrêté. Il est prêt à partir.');
   }
@@ -4618,10 +4619,21 @@ async function arreterLeVocalEC(envoyer){
     if(e){ e.disabled = true; e.textContent = '…'; }
   }
 
+  /* 🎤 v1272 — rien d'écrit pendant qu'on parlait : on l'écrit avant
+     d'envoyer (Whisper, au Worker). Un échec n'empêche pas le son de
+     partir. */
+  let texte = mots;
+  if(!texte){
+    const z = v.vue && v.vue.querySelector('.msgVocMots');
+    if(z && z.dataset.touche !== '1'){
+      try{ texte = String(await ecrireLeVocalSiRienEC(v, blob) || '').trim(); }catch(e){ texte = ''; }
+    }
+  }
+
   try{
     const son = await blobEnBase64EC(blob);
     await appelPrep({ action: 'convVocal', id: v.fil, son: son,
-                      duree: sec, texte: mots, reponseA: reponseAPourEC(v.fil) });
+                      duree: sec, texte: texte, reponseA: reponseAPourEC(v.fil) });
     oublierLaReponseEC(v.fil);
     rendreLaBarre();
     await rafraichirLeFil();
@@ -4636,6 +4648,109 @@ async function arreterLeVocalEC(envoyer){
     }
     showToast('Le vocal n’est pas parti : ' + ((e && e.message) || e));
   }
+}
+
+/* ============================================================
+   🎤 v1272 — LE TEXTE D'UN VOCAL, ÉCRIT PAR LE WORKER
+
+   David, le 27 octobre : « je n'ai plus la transcription des vocaux,
+   et il va falloir que ça fonctionne, car les moniteurs font souvent
+   des vocaux pour parler des élèves ». La reconnaissance du
+   navigateur (SpeechRecognition) n'écrit rien sur iPhone, rien dans
+   l'appli installée, et souvent rien sur Android quand le micro est
+   déjà pris par l'enregistrement. On ne compte donc plus sur elle
+   seule : si, à ⏹ ou à ➤, rien n'est écrit, le son est remis en
+   16 kHz mono, coupé en morceaux de 30 s, et transcrit par le Worker
+   (le même Whisper que les sous-titres des vidéos).
+
+   ⚠️ UNE FOIS PAR VOCAL : ⏹ puis ➤ attendent la même promesse.
+   ⚠️ CE QUI A ÉTÉ TAPÉ À LA MAIN N'EST JAMAIS REMPLACÉ.
+   ============================================================ */
+const VOCAL_TX_EC = 16000;
+const VOCAL_MORCEAU_EC = 30;
+
+function wavBase64DuVocalEC(d, de, a, TX){
+  const n = a - de, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const ec = (o, t) => { for(let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  ec(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ec(8, 'WAVE'); ec(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, TX, true); v.setUint32(28, TX * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  ec(36, 'data'); v.setUint32(40, n * 2, true);
+  for(let i = 0; i < n; i++){ const x = Math.max(-1, Math.min(1, d[de + i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7FFF, true); }
+  const o = new Uint8Array(buf);
+  let bin = '';
+  for(let k = 0; k < o.length; k += 0x8000) bin += String.fromCharCode.apply(null, o.subarray(k, k + 0x8000));
+  return btoa(bin);
+}
+
+/* Le son du vocal, en 16 kHz mono (Float32Array) */
+async function sonDuVocalEC(blob){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if(!AC || !OAC) throw new Error('son illisible ici');
+  const ab = await blob.arrayBuffer();
+  const ac = new AC();
+  let son = null;
+  try{
+    son = await new Promise((ok, ko) => {
+      const p = ac.decodeAudioData(ab, ok, ko);
+      if(p && typeof p.then === 'function') p.then(ok, ko);
+    });
+  }finally{ try{ ac.close(); }catch(e){} }
+  const n = Math.max(1, Math.ceil(son.duration * VOCAL_TX_EC));
+  const off = new OAC(1, n, VOCAL_TX_EC);
+  const src = off.createBufferSource();
+  src.buffer = son;
+  src.connect(off.destination);
+  src.start(0);
+  const rendu = await off.startRendering();
+  return rendu.getChannelData(0);
+}
+
+async function texteDuVocalEC(blob){
+  const d = await sonDuVocalEC(blob);
+  const pas = VOCAL_MORCEAU_EC * VOCAL_TX_EC;
+  const morceaux = [];
+  for(let de = 0; de < d.length; de += pas){
+    const r = await appelPrep({ action: 'convVocalTexte', debut: de / VOCAL_TX_EC,
+                                audio: wavBase64DuVocalEC(d, de, Math.min(d.length, de + pas), VOCAL_TX_EC) });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'reconnaissance indisponible');
+    (r.phrases || []).forEach(p => { if(p && p.texte) morceaux.push(p.texte); });
+  }
+  return morceaux.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/* À ⏹ (et à ➤ si on n'est pas passé par ⏹) : si rien n'est écrit,
+   on fait écrire. Rend la promesse du texte (une seule par vocal). */
+function ecrireLeVocalSiRienEC(v, blob){
+  if(!v) return Promise.resolve('');
+  if(v.texteAuto) return v.texteAuto;
+  const z = v.vue && v.vue.querySelector('.msgVocMots');
+  const deja = z ? String(z.value || '').trim() : String(v.mots || '').trim();
+  if(deja || (z && z.dataset.touche === '1')) return Promise.resolve('');
+  if(z){
+    z.dataset.attente = '1';
+    z.dataset.avant = z.placeholder;
+    z.placeholder = '✍️ J’écris ce que tu as dit…';
+    z.classList.remove('pas');
+    z.readOnly = false;
+  }
+  v.texteAuto = texteDuVocalEC(blob).then(t => {
+    if(z){
+      z.dataset.attente = '';
+      if(z.dataset.touche !== '1' && !String(z.value || '').trim() && t){
+        z.value = t;
+        z.style.height = 'auto';
+        z.style.height = Math.max(19, Math.min(z.scrollHeight, 90)) + 'px';
+      }
+      z.placeholder = t ? z.dataset.avant : 'Rien n’a été reconnu : tu peux l’écrire toi-même.';
+    }
+    return t;
+  }).catch(e => {
+    if(z){ z.dataset.attente = ''; z.placeholder = 'Le texte n’a pas pu être écrit : tu peux l’écrire toi-même.'; }
+    return '';
+  });
+  return v.texteAuto;
 }
 
 function blobEnBase64EC(blob){
