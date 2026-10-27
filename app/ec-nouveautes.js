@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:08 — v1273 */
+/* Déployé le 27/10/2026 à 11:46 — v1274 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1274,
+    date: 'Mardi 27 octobre 2026',
+    resume: '🎤 Les vocaux des autres écrits · 📍 Trafic · 📣 Suivi examen',
+    quoi: [
+      { emoji: '🎤',
+        titre: 'Le texte sous les vocaux des autres',
+        texte: 'Un vocal sans texte s’écrit à l’ouverture du fil (moins de 30 jours), et ce texte reste pour tout le monde. Plus ancien : « ✍️ Écrire ce qui est dit » sous la bulle.' },
+      { emoji: '📍',
+        titre: 'Ma position, et « Trafic »',
+        texte: '＋ › Ma position envoie l’adresse avec Google Maps et Waze. Dans « Trafic » : 🚗 Bouchons, 💥 Accidents, 🚧 Marquage au sol effacé, envoyés avec la position. Un bouton rapide peut maintenant être réservé à une conversation précise.' },
+      { emoji: '📣',
+        titre: 'Le résultat dans « Suivi examen »',
+        texte: 'Reçu : « ✅ Nom — Reçu ». Ajourné : « ❌ Nom — Ajourné » et les captures du CEPC de cet examen (à coller avant de cliquer).' }
+    ]
+  },
   {
     version: 1273,
     date: 'Mardi 27 octobre 2026',
