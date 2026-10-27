@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:48 — v1251 */
+/* Déployé le 27/10/2026 à 10:39 — v1272 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -7637,6 +7637,11 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
           lab.appendChild(ail);
         }
 
+        /* 👁️ v1272 — l'œil aussi dans la vue « ☑ Cases » */
+        if(typeof oeilRepereSE === 'function'){
+          const o = oeilRepereSE(nom, () => lab);
+          if(o){ o.style.marginLeft = '4px'; o.style.flexShrink = '0'; lab.appendChild(o); }
+        }
         zm.appendChild(lab);
         if(typeof boutonDeManoeuvre === 'function'){
           const marque = marquesFaites[normaliserMot(nom)] || (dejaOk ? '✅' : '');
@@ -7646,6 +7651,11 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       bloc.appendChild(zm);
       if(miroirsM.length){
         miroirsM.forEach(m => grilleM.appendChild(m));
+        /* 🚗 v1272 — un seul, à la fin (ec-suivi-eleve.js) */
+        if(typeof boutonAilleursToutSE === 'function'){
+          const at = boutonAilleursToutSE(grilleM, bloc, () => miroirsM.forEach(m => m._peindre()));
+          if(at) grilleM.appendChild(at);
+        }
         bloc.appendChild(grilleM);
         const zoneM = document.createElement('div');
         deuxHabits(zoneM, zm, grilleM, () => miroirsM.forEach(m => m._peindre()));
