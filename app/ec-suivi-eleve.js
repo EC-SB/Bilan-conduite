@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:08 — v1273 */
+/* Déployé le 27/10/2026 à 12:09 — v1275 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -580,8 +580,38 @@ setInterval(() => {
    plusieurs élèves, on propose), « mon élève actuel », et une réponse
    (↩️) suit le message qu'elle cite.
    ============================================================ */
-function elevesDuTexteSE(texte){
+/* v1275 — le prénom d'un nom, qu'il soit écrit « Lena Guivarch » ou
+   « GUIVARCH Lena » : le mot tout en majuscules est le nom de famille.
+   Sans majuscules pour trancher, c'est le premier mot. */
+function prenomDuNomSE(n){
+  const mots = String(n || '').trim().split(/\s+/).filter(Boolean);
+  if(mots.length < 2) return normSE(n).split(' ')[0] || '';
+  const majuscule = m => /[A-ZÀ-Ý]/.test(m) && m === m.toUpperCase() && normSE(m).length >= 2;
+  const nonMaj = mots.filter(m => !majuscule(m));
+  const p = (nonMaj.length && nonMaj.length < mots.length) ? nonMaj[0] : mots[0];
+  return normSE(p).split(' ')[0] || '';
+}
+/* Les élèves connus, un par personne : « Lena Guivarch » et « GUIVARCH Lena »
+   ne font qu'une (on garde l'écriture qui commence par le prénom). */
+function elevesUniquesSE(){
   const noms = (typeof elevesConnus !== 'undefined' && Array.isArray(elevesConnus)) ? elevesConnus : [];
+  if(elevesUniquesSE._src === noms && elevesUniquesSE._n === noms.length) return elevesUniquesSE._l;
+  const vus = {}, l = [];
+  noms.forEach(n => {
+    const k = normSE(n);
+    if(!k || k.split(' ').length < 2) return;
+    const cle = k.split(' ').sort().join(' ');
+    const x = { nom: String(n).trim(), k: k, prenom: prenomDuNomSE(n) };
+    const prenomDabord = y => y.k.split(' ')[0] === y.prenom;
+    if(vus[cle]){ if(!prenomDabord(vus[cle]) && prenomDabord(x)) Object.assign(vus[cle], x); return; }
+    vus[cle] = x;
+    l.push(x);
+  });
+  elevesUniquesSE._src = noms; elevesUniquesSE._n = noms.length; elevesUniquesSE._l = l;
+  return l;
+}
+function elevesDuTexteSE(texte){
+  const l = elevesUniquesSE();
   const t = ' ' + normSE(texte) + ' ';
   const mots = {};
   normSE(texte).split(' ').forEach(m => { if(m) mots[m] = 1; });
@@ -589,21 +619,29 @@ function elevesDuTexteSE(texte){
   ((typeof lesComptesDeLEquipe === 'function') ? lesComptesDeLEquipe() : []).concat([(typeof ACCES !== 'undefined' && ACCES.moniteur) || ''])
     .forEach(n => { const p = normSE(n).split(' ')[0]; if(p) equipe[p] = 1; });
   const surs = [];
-  noms.forEach(n => {
-    const k = normSE(n), p = k.split(' ');
-    if(p.length < 2) return;
+  /* le nom entier, dans un sens ou dans l'autre */
+  l.forEach(x => {
+    const p = x.k.split(' ');
     const inverse = p.slice(1).join(' ') + ' ' + p[0];
-    if((t.indexOf(' ' + k + ' ') !== -1 || t.indexOf(' ' + inverse + ' ') !== -1) && surs.indexOf(n) === -1) surs.push(n);
+    const debut = p.slice(0, -1).join(' '), fin = p[p.length - 1];
+    const inverse2 = fin + ' ' + debut;
+    if((t.indexOf(' ' + x.k + ' ') !== -1 || t.indexOf(' ' + inverse + ' ') !== -1 || t.indexOf(' ' + inverse2 + ' ') !== -1) && surs.indexOf(x.nom) === -1) surs.push(x.nom);
   });
+  /* le prénom seul */
   const parPrenom = {};
-  noms.forEach(n => { const p = normSE(n).split(' ')[0]; if(p.length >= 3) (parPrenom[p] = parPrenom[p] || []).push(n); });
+  l.forEach(x => { if(x.prenom.length >= 3) (parPrenom[x.prenom] = parPrenom[x.prenom] || []).push(x.nom); });
   const ambigus = [];
   Object.keys(parPrenom).forEach(p => {
     if(!mots[p] || equipe[p]) return;
-    if(surs.some(s => normSE(s).split(' ')[0] === p)) return;
-    const l = parPrenom[p];
-    if(l.length === 1) surs.push(l[0]);
-    else ambigus.push({ prenom: p.charAt(0).toUpperCase() + p.slice(1), choix: l.slice(0, 8) });
+    if(surs.some(s => prenomDuNomSE(s) === p)) return;
+    const c = parPrenom[p];
+    if(c.length === 1) surs.push(c[0]);
+    else{
+      /* écrit comme dans la liste : « Inès », pas « Ines » */
+      const mot = String(c[0]).split(/\s+/).find(w => normSE(w) === p) || p;
+      const joli = mot === mot.toUpperCase() ? mot.charAt(0) + mot.slice(1).toLowerCase() : mot;
+      ambigus.push({ prenom: joli.charAt(0).toUpperCase() + joli.slice(1), choix: c.slice(0, 8) });
+    }
   });
   const actuel = /(^| )mon eleve (actuel|actuelle|en cours|du moment|de maintenant)( |$)/.test(normSE(texte));
   return { noms: surs.slice(0, 10), ambigus: ambigus.slice(0, 5), actuel: actuel };
@@ -615,6 +653,69 @@ function suiviPourLEnvoiSE(texte, idFil){
   const r = elevesDuTexteSE(texte || '');
   return (r.noms.length || r.ambigus.length || r.actuel) ? r : undefined;
 }
+/* v1275 — au-dessus de la barre d'écriture, pendant qu'on tape : à qui
+   ira le message. David, le 27 octobre : « ça ne détecte pas les prénoms
+   … ou alors j'écris mal » — on le voit AVANT d'envoyer. */
+function apercuSuiviSE(texte){
+  const zone = (typeof zoneFilMsg === 'function') ? zoneFilMsg() : null;
+  if(!zone) return;
+  let a = zone.querySelector('#msgSuiviApercu');
+  const f = (typeof filOuvertEC !== 'undefined') ? filOuvertEC : null;
+  const r = (f && f.conv && f.conv.suivi && String(texte || '').trim()) ? elevesDuTexteSE(texte) : null;
+  const parts = [];
+  if(r){
+    r.noms.forEach(n => parts.push('📌 ' + n));
+    r.ambigus.forEach(x => parts.push('❓ ' + x.prenom + ' (à choisir parmi ' + x.choix.length + ')'));
+    if(r.actuel) parts.push('📌 mon élève actuel');
+  }
+  if(!parts.length){ if(a && a.parentNode) a.parentNode.removeChild(a); return; }
+  const barre = zone.querySelector('.msgBarre');
+  if(!barre || !barre.parentNode) return;
+  if(!a){ a = document.createElement('div'); a.id = 'msgSuiviApercu'; a.className = 'msgSuiviApercu'; }
+  if(a.nextSibling !== barre) barre.parentNode.insertBefore(a, barre);
+  const txt = 'Ira dans le suivi de : ' + parts.join(' · ');
+  if(a.textContent !== txt) a.textContent = txt;
+}
+
+/* v1275 — à l'ouverture d'un fil lu pour le suivi, les messages de
+   l'équipe des 30 derniers jours qui n'ont aucune étiquette sont relus :
+   ceux écrits avant la mise à jour, depuis une appli pas encore à jour,
+   ou par un bouton rapide. Le serveur ne repose rien sur un message
+   qui a déjà eu une étiquette (même retirée par ✕). */
+const SUIVI_RELUS_SE = {};
+let suiviRelectureSE = false;
+async function relireLeSuiviDuFilSE(){
+  if(suiviRelectureSE || typeof appelPrep !== 'function') return;
+  const f = (typeof filOuvertEC !== 'undefined') ? filOuvertEC : null;
+  if(!f || !f.conv || !f.conv.suivi || !Array.isArray(f.messages)) return;
+  if(!elevesUniquesSE().length) return;
+  const limite = Date.now() - 30 * 86400000;
+  const date = t => { const x = String(t || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/); return x ? new Date(+x[3], +x[2] - 1, +x[1]).getTime() : 0; };
+  const aFaire = [];
+  f.messages.forEach(m => {
+    if(!m || !m.id || SUIVI_RELUS_SE[m.id]) return;
+    if(m.auteurGenre !== 'user' || Number(m.supprime || 0) || !String(m.texte || '').trim()) return;
+    if(Array.isArray(m.suivi) && m.suivi.length) return;
+    if(date(m.envoyeLe) < limite) return;
+    SUIVI_RELUS_SE[m.id] = 1;
+    const r = elevesDuTexteSE(m.texte);
+    if(r.noms.length || r.ambigus.length) aFaire.push({ m: m, r: r });
+  });
+  if(!aFaire.length) return;
+  suiviRelectureSE = true;
+  let pose = 0;
+  try{
+    for(const x of aFaire.slice(-10)){
+      if(!filOuvertEC || !filOuvertEC.conv || filOuvertEC.conv.id !== f.conv.id) break;
+      try{
+        const rep = await appelPrep({ action: 'suiviMessageNoter', id: f.conv.id, message: x.m.id, suivi: { noms: x.r.noms, ambigus: x.r.ambigus } });
+        if(rep && Number(rep.n || 0)) pose++;
+      }catch(e){ /* on réessaiera à la prochaine session */ }
+    }
+  }finally{ suiviRelectureSE = false; }
+  if(pose && typeof rafraichirLeFil === 'function') rafraichirLeFil();
+}
+
 /* Les étiquettes sous une bulle */
 function pucesSuiviSE(m){
   const l = (m && Array.isArray(m.suivi)) ? m.suivi : [];
@@ -737,6 +838,14 @@ function blocElevesDuFilSE(f){
 }
 
 /* ⚙️ Les réglages : quelles conversations sont lues pour le suivi */
+/* v1275 — les fils entre nous (jamais avec un élève), et les titres lus
+   d'office : tout titre qui contient « important », ou « suivi » et
+   « exam » (« ⚠️ Messages importants équipe », « Suivi des examens »…). */
+const GENRES_SUIVI_SE = ['groupe', 'interne', 'moniteur', 'bureau'];
+function titreDeSuiviSE(titre){
+  const t = ' ' + normSE(titre) + ' ';
+  return / important/.test(t) || (/ suivi /.test(t) && / exam/.test(t));
+}
 function carteSuiviReglagesSE(r){
   const c = document.createElement('div');
   c.className = 'regSuivi';
@@ -744,9 +853,8 @@ function carteSuiviReglagesSE(r){
     '<div style="font-size:12px;color:var(--muted);margin:3px 0 8px;line-height:1.45;">Un message qui nomme un élève (ou « mon élève actuel ») dans une de ces conversations va tout seul dans « ⚠️ Suivi de … » de cet élève. ' +
     'D’office : « Message important » et « Suivi examen ». Jamais les conversations avec les élèves.</div>';
   const reg = (r && r.suiviConvs) || { ajoutees: [], retirees: [] };
-  const titres = (r && r.suiviTitres) || [];
   const liste = ((typeof conversationsEC !== 'undefined' && conversationsEC) || [])
-    .filter(x => (x.genre === 'groupe' || x.genre === 'interne') && !x.eleve);
+    .filter(x => GENRES_SUIVI_SE.indexOf(x.genre) !== -1 && !x.eleve);
   if(!liste.length){
     const v = document.createElement('div');
     v.style.cssText = 'font-size:12.5px;color:var(--muted);';
@@ -755,7 +863,7 @@ function carteSuiviReglagesSE(r){
     return c;
   }
   liste.forEach(x => {
-    const parDefaut = titres.indexOf(normSE(x.titre)) !== -1;
+    const parDefaut = titreDeSuiviSE(x.titre);
     const lue = reg.ajoutees.indexOf(x.id) !== -1 || (parDefaut && reg.retirees.indexOf(x.id) === -1);
     const l = document.createElement('label');
     l.className = 'regSuiviL';
