@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 16:59 — v1281 */
+/* Déployé le 27/10/2026 à 17:38 — v1282 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1282,
+    date: 'Mardi 27 octobre 2026',
+    resume: '✍️ Formations : feuilles de présence signées sur téléphone, convention en ligne',
+    quoi: [
+      { emoji: '✍️',
+        titre: 'Faire signer la feuille de présence',
+        texte: 'Le formateur fait signer chaque salarié du doigt (🚫 Absent s’il n’est pas là), puis signe en dernier : depuis 💼 Formations ou depuis la carte de son cours. La feuille signée part toute seule dans le dossier.' },
+      { emoji: '👤',
+        titre: 'Tous les moniteurs, sans case',
+        texte: 'Un moniteur voit les formations dont il est le formateur (séances, stagiaires), et « ✍️ Séance non prévue » pour faire signer une séance qui n’était pas posée.' },
+      { emoji: '📨',
+        titre: 'La convention signée en ligne',
+        texte: 'Le mail de la convention porte un bouton : l’entreprise signe, un code par mail confirme que c’est elle, le dossier avance tout seul et la convention signée revient en PDF. Et ⚙️ L’organisme s’enregistre sur téléphone.' }
+    ]
+  },
   {
     version: 1281,
     date: 'Mardi 27 octobre 2026',
