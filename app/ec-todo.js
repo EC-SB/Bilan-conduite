@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 14:44 — v1278 */
+/* Déployé le 27/10/2026 à 15:29 — v1279 */
 /* ============================================================
    ec-todo.js — v1278
    ☑️ La todo list : le bouton à côté du 💬, et son volet.
@@ -107,6 +107,8 @@ function ouvrirTD(vue){
   if(vue) TD.vue = vue;
   TD.ouvert = true;
   a.style.transform = 'translateX(0)';
+  /* v1279 — l'ombre seulement ouvert : fermé, elle débordait au bord de l'écran */
+  a.style.boxShadow = '-8px 0 24px rgba(0,0,0,.18)';
   if(v) v.style.display = 'block';
   if(typeof fermerTiroirMessagerie === 'function' && typeof tiroirOuvertEC !== 'undefined' && tiroirOuvertEC) fermerTiroirMessagerie();
   dessinerTD();
@@ -115,7 +117,7 @@ function ouvrirTD(vue){
 function fermerTD(){
   const a = $('todoTiroir'), v = $('todoVoile');
   TD.ouvert = false;
-  if(a) a.style.transform = 'translateX(100%)';
+  if(a){ a.style.transform = 'translateX(100%)'; a.style.boxShadow = 'none'; }
   if(v) v.style.display = 'none';
 }
 function basculerTD(){ if(TD.ouvert) fermerTD(); else ouvrirTD(); }
@@ -198,7 +200,18 @@ function dessinerBureauTD(z, d){
     tx.appendChild(elTD('span', 'tdLibelle', x.texte));
     if(x.faitLe) tx.appendChild(elTD('div', 'tdSous', '✅ ' + x.faitPar + ' · ' + heureTD(x.faitLe)));
     else if(x.pasFaitHier) tx.appendChild(elTD('div', 'tdSous alerte', '⚠️ pas fait hier'));
+    /* 🙋 v1279 — David : « un bouton c'est moi qui fais ça, ça se
+       duplique dans ma journée et les autres voient que j'ai prévu de
+       le faire ». Qui s'en occupe reste écrit tant que ce n'est pas coché. */
+    const aMoi = x.prisParCle && x.prisParCle === normTD(d.moi);
+    if(x.prisPar && !x.faitLe) tx.appendChild(elTD('div', 'tdPris' + (aMoi ? ' moi' : ''), '🙋 ' + (aMoi ? 'Tu t’en occupes' : x.prisPar + ' s’en occupe')));
     r.appendChild(tx);
+    if(!x.faitLe && !x.prisPar)
+      r.appendChild(boutonTD('🙋 C’est moi', 'tdPrendre', 'Je m’en occupe aujourd’hui : la tâche passe dans « Ma journée »',
+        (ev, b) => agirTD({ action: 'todoQuotidienPrendre', id: x.id }, b)));
+    else if(!x.faitLe && aMoi)
+      r.appendChild(boutonTD('↩️', 'tdPetit', 'Je ne m’en occupe plus', (ev, b) => agirTD({ action: 'todoQuotidienPrendre', id: x.id, prendre: false }, b)));
+    if(x.prisPar && !x.faitLe) r.classList.add('pris');
     z.appendChild(r);
   });
   if(d.peutRegler){
@@ -243,7 +256,8 @@ function carteJourneeTD(p, moi, lecture){
     else r.appendChild(elTD('span', 'tdCase lecture' + (x.fait ? ' fait' : ''), x.fait ? '☑' : '☐'));
     const tx = elTD('div', 'tdTexte');
     tx.appendChild(elTD('span', 'tdLibelle', x.texte));
-    if(x.fait && x.faitLe) tx.appendChild(elTD('div', 'tdSous', '✅ ' + heureTD(x.faitLe)));
+    if(x.fait && x.faitLe) tx.appendChild(elTD('div', 'tdSous', '✅ ' + heureTD(x.faitLe) + (x.tache ? ' · 🔁 tous les jours' : '')));
+    else if(x.tache) tx.appendChild(elTD('div', 'tdSous', '🔁 des tâches de tous les jours'));
     r.appendChild(tx);
     if(moi && !lecture) r.appendChild(boutonTD('✕', 'tdPetit', 'Retirer', (ev, b) => agirTD({ action: 'todoJourneeEcrire', quoi: 'retirer', id: x.id }, b)));
     c.appendChild(r);
