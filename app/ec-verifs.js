@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 10:39 — v1272 */
+/* Déployé le 27/10/2026 à 11:08 — v1273 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -1124,6 +1124,10 @@ function echapperVerifs(t){
   return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function dessinerQuestionsVerifs(idZone){
+  /* ⚠️ v1273 — le tiroir « Suivi de … », juste au-dessus (ec-suivi-eleve.js) */
+  if(typeof dessinerSuiviDuCoursSE === 'function' && typeof ZONES_SUIVI_SE !== 'undefined' && ZONES_SUIVI_SE[idZone]){
+    try{ dessinerSuiviDuCoursSE(ZONES_SUIVI_SE[idZone]); }catch(e){}
+  }
   const z = typeof idZone === 'string' ? document.getElementById(idZone) : idZone;
   if(!z) return;
   const sig = qvModeleOk() + '|' + qvCle();
