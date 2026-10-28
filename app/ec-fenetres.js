@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:05 — v1285 */
+/* Déployé le 28/10/2026 à 12:59 — v1290 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2076,6 +2076,9 @@ async function afficherEspaceEleve(nom, zone){
   carte.appendChild(rEnvoi);
 
   zone.appendChild(carte);
+
+  /* 📺 v1290 — la salle des tablettes : où il en est, « Déjà vu en salle » */
+  if(typeof ligneSalleFiche === 'function') ligneSalleFiche(nom, zone);
 }
 
 
@@ -2643,6 +2646,24 @@ async function ajouterLaBaseAuDossier(d, nom){
     d.total = (d.total || 0) + lignes.length;
   }catch(e){
     d.parties.push({ titre: 'Ses aides au financement', lignes: [],
+      note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+  }
+  /* 📺 v1290 — sa salle des tablettes (où il en est, ses séances) */
+  try{
+    const r = await appelPrep({ action: 'salleEleve', eleve: nom });
+    const h = ms => ms ? new Date(Number(ms)).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const lignes = ((r && r.seances) || []).map(x => ({
+      'Début': h(x.debut), 'Fin': h(x.fin || x.finPrevue), 'Tablette': (x.tablette || '') + (x.site ? ' (' + x.site + ')' : ''),
+      'Installé par': x.par || 'lui-même (son nom et son code)', 'Vues': x.total ? x.vus + ' sur ' + x.total : '', 'Fin de séance': x.raison || ''
+    }));
+    const e = r && r.eleve;
+    d.parties.push({ titre: 'Sa salle des tablettes', lignes: lignes,
+      note: e ? (e.fini ? (e.deja ? 'Déjà vu avant l’appli — groupes ouverts le ' : 'Fini le ') + h(e.finiLe) + (e.finiPar ? ' (' + e.finiPar + ')' : '') + '.'
+                       : 'En cours : ' + e.vus + ' sur ' + e.total + ' vues. Son code pour revenir seul n’est gardé que sous forme d’empreinte.')
+              : 'Pas de salle des tablettes.' });
+    d.total = (d.total || 0) + lignes.length;
+  }catch(e){
+    d.parties.push({ titre: 'Sa salle des tablettes', lignes: [],
       note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
   }
   try{
