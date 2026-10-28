@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 08:24 — v1284 */
+/* Déployé le 28/10/2026 à 10:05 — v1285 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1285,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '🧮 Les aides d’un élève : CPF, permis à 1 €, Pass’Engagement, Mission locale',
+    quoi: [
+      { emoji: '🧮',
+        titre: 'Quelles aides pour cet élève ?',
+        texte: 'Dans 💶 Financements : ce qu’il peut avoir selon son âge, son permis et sa situation, ce qui reste à payer (et en ALMA), et un mail à relire avant de l’envoyer.' },
+      { emoji: '🎓',
+        titre: 'Les dossiers CPF avec tes messages',
+        texte: 'De l’identité numérique à la sortie de formation : le bon message à chaque étape, le lien de sa formation, et le rappel du jour d’entrée.' },
+      { emoji: '🤝',
+        titre: 'Le Pass’Engagement',
+        texte: 'Attestation, code débloqué, 1er chèque, suite débloquée, 2e chèque : chaque étape datée, et rien sans l’attestation.' },
+      { emoji: '⚙️',
+        titre: 'Le tableau des aides',
+        texte: 'Les aides, tes formations CPF (prix suivis dans 💰 Tarifs), les Missions locales et tes messages : les administrateurs les changent quand la loi change.' }
+    ]
+  },
   {
     version: 1284,
     date: 'Mercredi 28 octobre 2026',
