@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 14:07 — v1277 */
+/* Déployé le 28/10/2026 à 12:59 — v1290 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -466,10 +466,21 @@ function boutonsDrivup(boite, libelle, faire, fermer){
 function lignesDuPlanningDrivup(p){
   const agenceDeLaPortee = p.porteeGenre === 'agence' ? propreDrivup(p.porteeValeur, 60) : '';
   const lignes = [];
+  /* 📺 v1290 — sa théorie (« Cours théorie de la conduite »), pour la
+     salle des tablettes : jusqu'où va sa séance, et qui revient aujourd'hui */
+  const theorie = [];
   let horsConduite = 0;
   const ressourcesIgnorees = {};
   (p.cours || []).slice(0, 1500).forEach(c => {
     if(!/^\d{4}-\d{2}-\d{2}$/.test(String(c.jour)) || !/^\d{2}:\d{2}$/.test(String(c.debut))) return;
+    if(estTheorieDrivup(c)){
+      (c.eleves || []).forEach(x => {
+        const fiche = ficheDeLEleveDrivup(x);
+        const nom = fiche ? fiche.eleve : nomDeLEleveDrivup(x);
+        if(nom) theorie.push({ jour: c.jour, debut: c.debut, fin: /^\d{2}:\d{2}$/.test(String(c.fin || '')) ? c.fin : '',
+                               agence: agenceDeLaPortee || propreDrivup(c.agence, 60), eleve: nom });
+      });
+    }
     if(!coursRetenuDrivup(c)){
       horsConduite++;
       if(c.moniteurDrivup) ressourcesIgnorees[c.moniteurDrivup] = (ressourcesIgnorees[c.moniteurDrivup] || 0) + 1;
@@ -491,7 +502,13 @@ function lignesDuPlanningDrivup(p){
       });
     });
   });
-  return { lignes, horsConduite, ressourcesIgnorees };
+  return { lignes, horsConduite, ressourcesIgnorees, theorie };
+}
+/* 📺 v1290 — « Cours théorie de la conduite 1h », la colonne « Tablettes » ;
+   pas le code, ni la visio */
+function estTheorieDrivup(c){
+  const t = texteDuCoursDrivup(c);
+  return /theorie de la conduite|tablette/.test(t) && !/visio|code etg|\betg\b/.test(t);
 }
 
 /* ============================================================
@@ -660,7 +677,7 @@ async function fenetrePlanningDrivup(p){
   }
   attente.remove();
 
-  const { lignes, horsConduite, ressourcesIgnorees } = lignesDuPlanningDrivup(p);
+  const { lignes, horsConduite, ressourcesIgnorees, theorie } = lignesDuPlanningDrivup(p);
   const { changes, identiques } = comparerPlanningDrivup(p, lignes, existants);
   const n = k => changes.filter(c => c._etat === k).length;
   const inconnus = changes.filter(c => c._etat === 'inconnu');
@@ -821,6 +838,8 @@ async function fenetrePlanningDrivup(p){
         libelle: l.libelle, examen: l.examen })),
       /* 🚗 v1181 — les numéros de voiture, et les colonnes lues */
       voitures: voitures,
+      /* 📺 v1290 — la théorie, pour la salle des tablettes */
+      salle: theorie,
       colonnes: Array.isArray(p.colonnes) ? p.colonnes : undefined
     });
     oublierDrivupRappels();
@@ -836,6 +855,7 @@ async function fenetrePlanningDrivup(p){
     etat.style.color = '';
     etat.textContent = '✅ Enregistré : ' + ((r && r.nb) || lignes.length) + ' cours' +
       ((r && r.voitures) ? ' · ' + r.voitures + ' numéro(s) de voiture' : '') +
+      ((r && r.theorie) ? ' · ' + r.theorie + ' théorie(s) pour la salle des tablettes' : '') +
       (fiches.length ? ' · ' + fiches.length + ' fiche(s) créée(s) ou complétée(s)' : '') +
       (ph.posees ? ' · ' + ph.posees + ' photo(s) reprise(s)' : '') +
       (hb.length ? ' · horaires du bureau de ' + hb.join(' et de ') + ' repris' : '') + '.';
