@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 14:25 — v1293 */
+/* Déployé le 28/10/2026 à 15:36 — v1295 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,32 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1295,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '⏱️ Examen officiel : ▶️ début, ⏹️ fin, la durée pour nous seulement',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'La durée de l’examen officiel',
+        texte: 'En haut de « 🏁 Examen » sur la fiche : ▶️ Début d’examen et ⏹️ Fin d’examen. Les heures se corrigent à la main si un bouton a été oublié.' },
+      { emoji: '📌',
+        titre: 'Sans rouvrir la fiche',
+        texte: 'Les fiches d’examen gardées en haut de l’écran ont aussi leur bouton ▶️ / ⏹️ : on enchaîne les élèves.' },
+      { emoji: '🔒',
+        titre: 'Pour nous, jamais pour l’élève',
+        texte: 'La durée va dans la note interne, le dossier élève › Permis, l’historique des leçons, et Permis › Résultats (moyenne par centre et par inspecteur). Le bilan de l’élève ne la dit jamais.' }
+    ]
+  },
+  {
+    version: 1294,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '📒 Ses aides et leur suivi dans l’onglet 💶 Financement du dossier',
+    quoi: [
+      { emoji: '📒',
+        titre: 'Dans son dossier élève',
+        texte: 'L’onglet 💶 Financement montre le point gardé en entier, les envois et le suivi de chaque aide — plus seulement la fenêtre de sa fiche.' }
+    ]
+  },
   {
     version: 1293,
     date: 'Mercredi 28 octobre 2026',
