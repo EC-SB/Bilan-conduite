@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 13:55 — v976 */
+/* Déployé le 28/10/2026 à 08:24 — v1284 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -972,6 +972,9 @@ function gestesMoto(nom, s, etape){
   else if(etape === 'plateaupasse'){
     principal('✅ Plateau obtenu', () => resultatPlateau(nom, true), 'oui');
     principal('❌ Plateau échoué', () => resultatPlateau(nom, false), 'non');
+    /* 🚫 v1284 — David : « un élève qui n'a pas passé son plateau, et je
+       ne peux pas l'enlever » */
+    principal('🚫 Ne l’a pas passé', () => plateauNonPasse(nom));
     autre('📆 Changer la date', () => saisirDatePlateau(nom));
   }
 
@@ -996,6 +999,7 @@ function gestesMoto(nom, s, etape){
     principal('🎓 Permis obtenu', () => resultatCirculation(nom, true), 'oui');
     principal('❌ Circulation échouée',
               () => resultatCirculation(nom, false), 'non');
+    principal('🚫 Ne l’a pas passée', () => circulationNonPassee(nom));
     autre('📆 Changer la date', () => saisirDateExamenMoto(nom));
   }
 
@@ -1371,10 +1375,12 @@ async function resultatPlateau(nom, reussi){
   if(reussi === undefined){
     const r = await fenetre('Le plateau de ' + nom + ' ?',
       [{ nom:'Annuler', valeur:'' },
+       { nom:'🚫 Pas passé', valeur:'pas' },
        { nom:'❌ Échoué', valeur:'non' },
        { nom:'✅ Obtenu', valeur:'oui', principal:true }],
       'Résultat du plateau');
     if(!r) return;
+    if(r === 'pas') return plateauNonPasse(nom);
     reussi = (r === 'oui');
   }
 
@@ -1417,10 +1423,12 @@ async function resultatCirculation(nom, reussi){
   if(reussi === undefined){
     const r = await fenetre('La circulation de ' + nom + ' ?',
       [{ nom:'Annuler', valeur:'' },
+       { nom:'🚫 Pas passée', valeur:'pas' },
        { nom:'❌ Échouée', valeur:'non' },
        { nom:'🎓 Permis obtenu', valeur:'oui', principal:true }],
       'Résultat de la circulation');
     if(!r) return;
+    if(r === 'pas') return circulationNonPassee(nom);
     reussi = (r === 'oui');
   }
 
@@ -1437,6 +1445,38 @@ async function resultatCirculation(nom, reussi){
   await majMoto(nom, { motoDateExamen: '',
                        motoCircuPassages: String(n) });
   showToast(nom + ' → circulation à prévoir');
+}
+
+
+/* ============================================================
+   🚫 IL NE L'A PAS PASSÉ — v1284
+
+   David, le 28 octobre : un élève n'a pas passé son plateau, la date
+   était passée, et rien ne permettait de l'enlever (« Annuler la
+   date » n'existe qu'avant la date). Ce n'est ni un échec ni une
+   réussite : AUCUN RÉSULTAT ne s'écrit, le compteur de passages ne
+   bouge pas — un examen qu'on n'a pas passé ne compte pas dans le
+   taux de réussite. La date s'efface, et il revient à placer.
+   ============================================================ */
+
+async function plateauNonPasse(nom){
+  const s = suiviDe(nom) || {};
+  if(!await confirmer(nom + " n'a pas passé son plateau ?\n\n" +
+      '(il était prévu le ' + (s.motoDatePlateau || '?') + ')\n' +
+      "Aucun résultat n'est noté et le passage ne compte pas. " +
+      'Il revient dans « plateau à prévoir ».', 'Pas passé')) return;
+  await majMoto(nom, { motoDatePlateau: '', motoEtape: 'pret' });
+  showToast(nom + ' → plateau à prévoir (pas passé)');
+}
+
+async function circulationNonPassee(nom){
+  const s = suiviDe(nom) || {};
+  if(!await confirmer(nom + " n'a pas passé sa circulation ?\n\n" +
+      '(elle était prévue le ' + (s.motoDateExamen || '?') + ')\n' +
+      "Aucun résultat n'est noté et le passage ne compte pas. " +
+      'Son plateau reste acquis : il revient dans « circulation à prévoir ».', 'Pas passée')) return;
+  await majMoto(nom, { motoDateExamen: '' });
+  showToast(nom + ' → circulation à prévoir (pas passée)');
 }
 
 
