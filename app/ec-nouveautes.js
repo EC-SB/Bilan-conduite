@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 17:38 — v1282 */
+/* Déployé le 28/10/2026 à 08:24 — v1284 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,41 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1284,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '☑️ Ma journée reprend la veille · 📷 CEPC nets · 🚫 moto pas passé · 🗺️ tracé',
+    quoi: [
+      { emoji: '☑️',
+        titre: 'Ce qui n’est pas coché revient le lendemain',
+        texte: 'Dans Ma journée, une ligne pas cochée revient en tête le lendemain (↩️ d’hier). Dans Tous les jours, ce qui est fait descend en bas.' },
+      { emoji: '📷',
+        titre: 'Les captures du CEPC restent nettes',
+        texte: 'Elles gardent jusqu’à 2 400 px au lieu d’être écrasées. Celles déjà déposées restent floues : les redéposer pour les avoir nettes.' },
+      { emoji: '🚫',
+        titre: 'Moto : « Ne l’a pas passé »',
+        texte: 'Au plateau comme à la circulation : la date s’efface, aucun résultat n’est noté et le passage ne compte pas.' },
+      { emoji: '🗺️',
+        titre: 'Le tracé de l’examen au post-permis',
+        texte: 'À côté du bilan d’examen officiel, 🗺️ Tracé de l’examen ouvre la carte du trajet du dernier examen, avec le bilan du moniteur.' }
+    ]
+  },
+  {
+    version: 1283,
+    date: 'Mardi 27 octobre 2026',
+    resume: '💼 Formations : Drivup, questionnaires, rapports par l’IA, alertes et BPF',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Les séances lues dans Drivup',
+        texte: 'Dans 📅 Séances, les leçons des salariés pendant la formation (lues par le favori) : ＋ Ajouter, et ❗ si une leçon a disparu du planning.' },
+      { emoji: '📝',
+        titre: 'Les questionnaires Qualiopi',
+        texte: 'Avant devis, positionnement, satisfaction des salariés et de l’entreprise : envoyés par mail avec un lien, ou remplis dans l’appli (le moniteur à la séance). Avec la synthèse.' },
+      { emoji: '🧾',
+        titre: 'Les rapports écrits par l’IA',
+        texte: 'Un rapport par salarié et un rapport à l’entreprise, à partir des bilans de cours. Les alertes vont dans le bandeau et 🔔 Alertes ; 📊 BPF donne les chiffres du bilan pédagogique et financier.' }
+    ]
+  },
   {
     version: 1282,
     date: 'Mardi 27 octobre 2026',
