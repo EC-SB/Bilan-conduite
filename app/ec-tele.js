@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:43 — v1205 */
+/* Déployé le 28/10/2026 à 13:32 — v1291 */
 /* ============================================================
    ec-tele.js
    🖥️ La mise en page des télés et 🎨 les thèmes — v1201
@@ -549,7 +549,9 @@
     }
   };
   const IMMINENT_DEFAUT = { titre1: 'Votre cours commence', titre2: 'Vos cours commencent', derriere: 'voile', couleur: '#0B0E14',
-                            cle: '', assombrir: 0.7, carte: '', carteTexte: '', rayon: 26, heure: 'texte', moniteur: 1, vehicule: 1 };
+                            cle: '', assombrir: 0.7, carte: '', carteTexte: '', rayon: 26, heure: 'texte', moniteur: 1, vehicule: 1,
+                            /* 👂 v1291 — les élèves en écoute pédagogique */
+                            ecoutes: 1, ecoutesOu: 'bas', ecoutesMot: '👂 En écoute', ecoutesCouleur: '', ecoutesSansCase: 1 };
 
   function nettoyerBloc(b, d){
     b = (b && typeof b === 'object') ? b : {};
@@ -560,7 +562,9 @@
       fond: couleur(b.fond, ''), contour: couleur(b.contour, ''), texte: couleur(b.texte, ''), accent: couleur(b.accent, ''),
       rayon: Math.round(nombre(b.rayon, -1, 400, -1)), taille: Math.round(nombre(b.taille, 50, 250, 100)),
       titre: texte(b.titre, 60),
-      moniteur: b.moniteur === 0 ? 0 : 1, vehicule: b.vehicule === 0 ? 0 : 1, lieu: b.lieu === 0 ? 0 : 1
+      moniteur: b.moniteur === 0 ? 0 : 1, vehicule: b.vehicule === 0 ? 0 : 1, lieu: b.lieu === 0 ? 0 : 1,
+      /* 👂 v1291 — les écoutes sous chaque cours de la liste : coupé d'origine (David) */
+      ecoutes: b.ecoutes === 1 ? 1 : 0
     };
   }
   function nettoyerMep(m){
@@ -582,7 +586,12 @@
       carte: couleur(i.carte, ''), carteTexte: couleur(i.carteTexte, ''),
       rayon: Math.round(nombre(i.rayon, 0, 200, 26)),
       heure: i.heure === 'pastille' ? 'pastille' : 'texte',
-      moniteur: i.moniteur === 0 ? 0 : 1, vehicule: i.vehicule === 0 ? 0 : 1
+      moniteur: i.moniteur === 0 ? 0 : 1, vehicule: i.vehicule === 0 ? 0 : 1,
+      ecoutes: i.ecoutes === 0 ? 0 : 1,
+      ecoutesOu: i.ecoutesOu === 'nom' ? 'nom' : 'bas',
+      ecoutesMot: texte(i.ecoutesMot, 30) || IMMINENT_DEFAUT.ecoutesMot,
+      ecoutesCouleur: couleur(i.ecoutesCouleur, ''),
+      ecoutesSansCase: i.ecoutesSansCase === 0 ? 0 : 1
     };
     return out;
   }
@@ -683,6 +692,7 @@
     if(i.heure === 'pastille') s += '#imminent .bh{background:var(--accent);color:#0B0E14 !important;border-radius:999px;padding:2px 26px;align-self:center;}';
     if(!i.moniteur) s += '#imminent .bm{display:none !important;}';
     if(!i.vehicule) s += '#imminent .bv{display:none !important;}';
+    if(i.ecoutesCouleur) s += '#imminent .bec,#imminent .bec2,#imminent .bec2 b,#imminent .sansCase b{color:' + i.ecoutesCouleur + ' !important;}';
     return s;
   }
 
