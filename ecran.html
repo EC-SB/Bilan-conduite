@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/10/2026 à 14:43 — v1205 -->
+<!-- Déployé le 28/10/2026 à 13:32 — v1291 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -191,6 +191,8 @@
   }
   /* Au garage : en rouge, on ne cherche pas cette voiture */
   .cours .v.garage{ color:var(--red); }
+  /* 👂 v1291 — les élèves en écoute sous un cours (interrupteur du constructeur) */
+  .cours .e .ec{ display:block; font-size:17px; font-weight:700; color:var(--accent); white-space:normal; }
 
   /* ============================================================
      LE COURS QUI COMMENCE
@@ -247,6 +249,19 @@
     display:block; font-size:23px; font-weight:400; color:var(--muted);
   }
   #imminent .bv.garage{ color:var(--red); }
+  /* 👂 v1291 — LES ÉLÈVES EN ÉCOUTE, dans la carte de leur voiture.
+     David : « en bas de la carte » par défaut, « sous l'élève » au choix
+     (le constructeur) ; une écoute sans voiture : une ligne dessous. */
+  #imminent .bec{ margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.18); font-size:30px; font-weight:700; line-height:1.3; }
+  #imminent .bec .lab{ display:block; font-size:20px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  #imminent .bec2{ font-size:26px; font-weight:600; color:var(--muted); line-height:1.3; margin-top:-2px; }
+  #imminent .bec2 b{ font-weight:800; }
+  #imminent.seul .bec{ font-size:42px; } #imminent.seul .bec .lab{ font-size:26px; } #imminent.seul .bec2{ font-size:34px; }
+  #imminent.serre .bec{ font-size:22px; margin-top:8px; padding-top:8px; } #imminent.serre .bec .lab{ font-size:15px; } #imminent.serre .bec2{ font-size:19px; }
+  #imminent .sansCase{ font-size:26px; font-weight:700; text-align:center; padding:14px 26px; border-radius:18px; border:1px dashed rgba(255,255,255,.35); background:rgba(11,14,20,.55); }
+  #imminent .sansCase:empty{ display:none; }
+  #imminent .sansCase div + div{ margin-top:6px; }
+  #imminent .sansCase span{ color:var(--muted); font-weight:500; }
 
   /* Un seul cours : tout l'écran pour lui. Au-delà de trois, on
      resserre plutôt que de laisser un nom déborder. */
@@ -519,6 +534,7 @@
     <section id="imminent">
       <div class="surtitre" id="imminentTitre"></div>
       <div class="grille" id="imminentListe"></div>
+      <div class="sansCase" id="imminentSans"></div>
     </section>
 
     <div id="meteoVitrine"></div>
@@ -543,7 +559,7 @@
 <!-- 🎨 v1199 — le dessin des diapositives du studio, le même que dans l'appli -->
 <script src="app/ec-compo.js?v=1199"></script>
 <!-- 🖥️ v1201 — la mise en page et les thèmes, le même code que dans l'appli -->
-<script src="app/ec-tele.js?v=1205"></script>
+<script src="app/ec-tele.js?v=1291"></script>
 <script>
 /* ============================================================
    RÉGLAGES
@@ -596,6 +612,11 @@ if(APERCU) document.body.classList.add('apercu');
 let DONNEES_TELE = { mep: null, themes: null, liens: {}, jour: '', qrPlace: null };
 const APERCU_VOULU = {};
 let IMMINENT_TITRES = ['Votre cours commence', 'Vos cours commencent'];
+/* 👂 v1291 — les écoutes : ce que règle le constructeur (d'origine : en
+   bas de la carte, la ligne « sans voiture », pas dans la liste) */
+const ECOUTES_DEFAUT = { on: 1, ou: 'bas', mot: '👂 En écoute', sansCase: 1, liste: 0 };
+let REG_EC = Object.assign({}, ECOUTES_DEFAUT);
+let ECOUTES_SANS = [];
 let decorEnCours = null, signatureDecor = '', signatureFixes = '';
 
 /* ✨ v1199 — la transition du carrousel, réglée dans l'application */
@@ -823,6 +844,7 @@ async function chargerVraiment(){
                      qrPlace: (d && d.qr && d.qr.place) || null };
     appliquerAffichage();
     planningActuel = (d && d.planning) || [];
+    ECOUTES_SANS = (d && Array.isArray(d.ecoutesSansCase)) ? d.ecoutesSansCase : [];
     dessinerPlanning(planningActuel);
     majImminents();
 
@@ -1000,14 +1022,20 @@ function dessinerPlanning(liste){
     return;
   }
 
-  z.innerHTML = liste.slice(0, 12).map(c => {
+  /* 👂 v1291 — dans l'aperçu du constructeur, un exemple quand personne
+     n'est en écoute : on voit où ça se met */
+  const exemple = APERCU && REG_EC.on && REG_EC.liste && !liste.some(c => (c.ecoutes || []).length);
+  z.innerHTML = liste.slice(0, 12).map((c, i) => {
     const ou = vehiculeHtml(c, 'v');
+    const ec = (exemple && i === 0) ? ['Sarah L.'] : (c.ecoutes || []);
 
     return '<div class="cours">' +
       '<span class="h' + (c.heure ? '' : ' vide') + '">' +
         (c.heure ? c.heure.replace(':', 'h') : '—') + '</span>' +
       '<span class="e">' + echapper(c.eleve) +
-        '<span class="mn">' + echapper(c.moniteur || '') + '</span></span>' +
+        '<span class="mn">' + echapper(c.moniteur || '') + '</span>' +
+        (REG_EC.on && REG_EC.liste && ec.length ? '<span class="ec">' + echapper(REG_EC.mot) + ' : ' + ec.map(echapper).join(' · ') + '</span>' : '') +
+      '</span>' +
       ou +
     '</div>';
   }).join('');
@@ -1051,12 +1079,29 @@ function coursImminents(){
 }
 
 function blocImminent(c){
+  const ec = REG_EC.on ? (c.ecoutes || []) : [];
+  const noms = ec.map(echapper).join(' · ');
   return '<div class="bloc">' +
     '<div class="bh">' + (c.heure ? echapper(c.heure.replace(':', 'h')) : '') + '</div>' +
     '<div class="be">' + echapper(c.eleve) + '</div>' +
+    (ec.length && REG_EC.ou === 'nom' ? '<div class="bec2">' + echapper(REG_EC.mot) + ' : <b>' + noms + '</b></div>' : '') +
     (c.moniteur ? '<div class="bm">avec ' + echapper(c.moniteur) + '</div>' : '') +
     vehiculeHtml(c, 'bv') +
+    (ec.length && REG_EC.ou !== 'nom' ? '<div class="bec"><span class="lab">' + echapper(REG_EC.mot) + '</span>' + noms + '</div>' : '') +
   '</div>';
+}
+/* 👂 v1291 — les écoutes qui commencent maintenant sans aucun cours pour
+   elles (cours annulé, pas encore au planning) : elles ouvrent aussi le
+   plein écran, le temps de dire « passe voir le bureau » */
+function ecoutesSansCase(){
+  if(!REG_EC.on || !REG_EC.sansCase) return [];
+  if(APERCU_VOULU.demo) return [{ heure: '10:30', eleve: 'Maël T.' }];
+  if(!pleinEcranAutorise) return [];
+  const now = maintenantMinutes();
+  return ECOUTES_SANS.filter(x => {
+    const h = minutesDe(x && x.heure);
+    return h !== null && now >= (h - IMMINENT_AVANT) && now <= (h + IMMINENT_APRES);
+  });
 }
 
 function majImminents(){
@@ -1066,11 +1111,12 @@ function majImminents(){
   if(!z || !zl || !zt || OU === 'vitrine') return;
 
   const liste = APERCU_VOULU.demo
-    ? [{ id: 'x1', heure: '10:30', eleve: 'Léa M.', moniteur: 'David', vehicule: 'A3 n°4', lieu: 'devant' },
-       { id: 'x2', heure: '10:30', eleve: 'Tom R.', moniteur: 'Maryne', vehicule: 'Q3 n°7', lieu: 'cour' }]
+    ? [{ id: 'x1', heure: '10:30', eleve: 'Léa M.', moniteur: 'David', vehicule: 'A3 n°4', lieu: 'devant', ecoutes: ['Sarah L.'] },
+       { id: 'x2', heure: '10:30', eleve: 'Tom R.', moniteur: 'Maryne', vehicule: 'Q3 n°7', lieu: 'cour', ecoutes: ['Hugo P.', 'Léna K.'] }]
     : coursImminents();
+  const sans = ecoutesSansCase();
 
-  if(!liste.length){
+  if(!liste.length && !sans.length){
     z.classList.remove('vu');
     document.body.classList.remove('imminent');
     signatureImminent = '';
@@ -1081,11 +1127,15 @@ function majImminents(){
      carte se reconstruirait toutes les dix secondes, et l'élève
      verrait son nom clignoter. */
   const neuf = liste.map(c => [c.id, c.heure, c.eleve, c.moniteur,
-                               c.vehicule, c.lieu, c.auGarage].join('|')).join('§');
+                               c.vehicule, c.lieu, c.auGarage, (c.ecoutes || []).join(',')].join('|')).join('§') +
+               '§' + JSON.stringify(REG_EC) + '§' + sans.map(x => x.heure + x.eleve).join(',');
   if(neuf !== signatureImminent){
     signatureImminent = neuf;
-    zt.textContent = (liste.length > 1) ? IMMINENT_TITRES[1] : IMMINENT_TITRES[0];
+    zt.textContent = !liste.length ? '👂 Écoute pédagogique' : (liste.length > 1) ? IMMINENT_TITRES[1] : IMMINENT_TITRES[0];
     zl.innerHTML = liste.map(blocImminent).join('');
+    const zs = document.getElementById('imminentSans');
+    if(zs) zs.innerHTML = sans.map(x => '<div>👂 Écoute pédagogique' + (liste.some(c => c.heure !== x.heure) ? ' de ' + echapper(String(x.heure).replace(':', 'h')) : '') +
+      ' : <b>' + echapper(x.eleve) + '</b> <span>— ta voiture n’est pas encore connue : passe voir le bureau</span></div>').join('');
     z.classList.toggle('seul', liste.length === 1);
     z.classList.toggle('serre', liste.length > 3);
   }
@@ -1124,6 +1174,11 @@ function appliquerAffichage(){
   const h2 = document.querySelector('#planning h2');
   if(h2) h2.textContent = (propre && OU !== 'vitrine' && propre.accueil.blocs.planning.titre) || '📅 Les cours à venir';
   IMMINENT_TITRES = propre ? [propre.imminent.titre1, propre.imminent.titre2] : ['Votre cours commence', 'Vos cours commencent'];
+  /* 👂 v1291 — les écoutes, comme les règle le constructeur */
+  REG_EC = propre ? { on: propre.imminent.ecoutes, ou: propre.imminent.ecoutesOu, mot: propre.imminent.ecoutesMot,
+                      sansCase: propre.imminent.ecoutesSansCase, liste: propre.accueil.blocs.planning.ecoutes }
+                  : Object.assign({}, ECOUTES_DEFAUT);
+  if(planningActuel.length) dessinerPlanning(planningActuel);
   signatureImminent = '';
 
   /* 📐 v1204 — la place du QR réglée dans l'appli (passe avant celle
