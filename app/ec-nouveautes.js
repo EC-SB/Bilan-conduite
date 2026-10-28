@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 15:36 — v1295 */
+/* Déployé le 28/10/2026 à 17:34 — v1296 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1296,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '🧭 Messagerie refondue : Non lus · Élèves · Équipe · Tout, barre ➕ 😊 🎤',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Quatre onglets en haut de la liste',
+        texte: 'Non lus · Élèves · Équipe · Tout, sur tous les écrans. « Non lus » montre aussi les rappels ⏰ revenus. Les types (retards, oublis, fermées, supervision…) sont dans ⋯ › Filtrer par type.' },
+      { emoji: '⋯',
+        titre: 'Une seule tête de conversation',
+        texte: 'Sur téléphone et dans la barre de droite : ← le nom, 📞 et ⋯. Sur grand écran : 📞 ✓ Réglé ⏰ ⓘ ⋯. Épingler, proposer un créneau, participants… sont dans ⋯.' },
+      { emoji: '➕',
+        titre: 'Une barre d’écriture plus simple',
+        texte: '➕ (photo, vidéo, fichier, réponses rapides, ce qu’on écrit), le champ avec 😊, puis ➤ ou 🎤. Les réponses rapides tiennent sur une ligne, ✕ pour les cacher.' },
+      { emoji: '👆',
+        titre: 'Des gestes au doigt',
+        texte: 'Sur le téléphone, glisser une conversation vers la gauche la règle, vers la droite la rappelle demain 9 h. Même présentation côté élève.' }
+    ]
+  },
   {
     version: 1295,
     date: 'Mercredi 28 octobre 2026',
