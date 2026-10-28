@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 15:29 — v1279 */
+/* Déployé le 28/10/2026 à 10:49 — v1287 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -419,6 +419,14 @@ function ligneConversationCorps(c, d, enChoix){
   tete.className = 'h';
   const q = document.createElement('strong');
   q.textContent = (Number(c.epingle || 0) ? '📌 ' : '') + ckTitreListe(c);
+  /* @ v1287 — on l'a nommé dans un message pas encore lu */
+  if(Number(c.mentionne || 0) && n){
+    const at = document.createElement('span');
+    at.className = 'ckMention';
+    at.textContent = '@';
+    at.title = 'On t’a mentionné';
+    q.insertBefore(at, q.firstChild);
+  }
   const h = document.createElement('span');
   h.className = 'mono';
   h.textContent = heureCourteMessagerie(c.dernierLe);
@@ -1061,6 +1069,12 @@ function dessinerLeFil(){
   fermerLePanneauPlus();
   if(typeof fermerMenuDuFil === 'function' && fermerMenuDuFil) fermerMenuDuFil();
 
+  /* 💬 v1286 — où on lisait, pour ne pas sauter en bas à chaque
+     redessin si on était remonté (voir collerLeFilEnBasEC) */
+  const ancien = zone.querySelector('#msgElvFil');
+  const retenu = ancien ? { conv: zone.getAttribute('data-fil') || '', haut: ancien.scrollTop,
+    enBas: ancien.scrollHeight - ancien.scrollTop - ancien.clientHeight < 60 } : null;
+  zone.setAttribute('data-fil', c.id || '');
   zone.innerHTML = '';
   /* ⚠️ C'EST LE CODE QUI DIT « ÉTROIT », PAS LA FEUILLE DE STYLE.
      Le tiroir fait 400 px sur un écran de 1 400 : une requête de
@@ -1187,11 +1201,40 @@ function dessinerLeFil(){
 
   /* Le fil s'ouvre en bas, là où est le dernier message — et sur le
      message visé quand on arrive par la recherche. */
-  setTimeout(() => {
-    const vise = f.viser && fil.querySelector('[data-rang="' + f.viser + '"]');
-    if(vise) vise.scrollIntoView({ block: 'center' });
-    else fil.scrollTop = fil.scrollHeight;
-  }, 0);
+  /* ⚠️ v1286 — ET IL Y RESTE PENDANT QUE LES PHOTOS ARRIVENT. David,
+     le 28 octobre : « le volet de droite déconne, quand on ouvre une
+     conversation ça ne se met pas en bas directement ». On descendait
+     une fois, tout de suite ; puis les photos sans dimensions (les
+     anciennes) et les vidéos arrivaient et poussaient le bas hors de
+     vue. Le fil reste collé en bas tant qu'on n'est pas remonté soi-
+     même — et un fil redessiné (un message qui arrive, une réaction)
+     garde l'endroit où on lisait si on était remonté. */
+  const vise = f.viser && fil.querySelector('[data-rang="' + f.viser + '"]');
+  if(vise) setTimeout(() => vise.scrollIntoView({ block: 'center' }), 0);
+  else if(retenu && retenu.conv === c.id && !retenu.enBas){
+    fil.scrollTop = retenu.haut;
+    setTimeout(() => { fil.scrollTop = retenu.haut; }, 0);
+  }
+  else collerLeFilEnBasEC(fil);
+}
+
+function collerLeFilEnBasEC(fil){
+  let colle = true;
+  const descendre = () => { if(colle && fil.isConnected) fil.scrollTop = fil.scrollHeight; };
+  fil.addEventListener('scroll', () => {
+    colle = fil.scrollHeight - fil.scrollTop - fil.clientHeight < 60;
+  }, { passive: true });
+  /* les images et les vidéos qui finissent d'arriver */
+  fil.addEventListener('load', descendre, true);
+  fil.addEventListener('loadedmetadata', descendre, true);
+  if(typeof ResizeObserver === 'function'){
+    const ro = new ResizeObserver(descendre);
+    Array.prototype.forEach.call(fil.children, x => ro.observe(x));
+    setTimeout(() => ro.disconnect(), 10000);
+  }
+  descendre();
+  requestAnimationFrame(descendre);
+  [60, 250, 700, 1500].forEach(t => setTimeout(descendre, t));
 }
 
 /* ⚠️ LE ROND N'EST PAS UNE DÉCORATION : c'est ce qui permet de
@@ -1518,7 +1561,10 @@ function bulleDuMessage(m, avant, apres){
     dit.textContent = m.texte;
     b.appendChild(dit);
   }else if(m.texte){
-    b.appendChild(document.createTextNode(m.texte));
+    /* @ v1287 — « @Prénom Nom » d'un membre du fil se voit ; nommé, soi */
+    const mt = fragmentAvecMentionsEC(m.texte);
+    b.appendChild(mt.frag);
+    if(mt.moi && !estDeMoiEC(m)) b.classList.add('mentionMoi');
   }
   /* 🎤 v1274 — un vocal sans texte : on peut le faire écrire (et ça se
      fait tout seul pour les vocaux récents, voir ecrireLesVocauxDuFilEC) */
@@ -1761,8 +1807,26 @@ function zoneDEcritureDuFil(id){
   t.addEventListener('input', () => {
     brouillonsMessagerie[id] = t.value;
     ajuster();
+    /* @ v1287 — taper « @ » propose les membres du fil */
+    proposerUneMentionEC(t, l);
   });
+  t.addEventListener('blur', () => setTimeout(() => { if(mentionEC && mentionEC.t === t) fermerLaMentionEC(); }, 200));
   t.addEventListener('keydown', ev => {
+    if(mentionEC && mentionEC.t === t){
+      if(ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){
+        ev.preventDefault();
+        const n = mentionEC.choix.length;
+        mentionEC.i = (mentionEC.i + (ev.key === 'ArrowDown' ? 1 : n - 1)) % n;
+        Array.prototype.forEach.call(mentionEC.el.children, (x, k) => x.classList.toggle('ici', k === mentionEC.i));
+        return;
+      }
+      if((ev.key === 'Enter' && !ev.ctrlKey && !ev.metaKey) || ev.key === 'Tab'){
+        ev.preventDefault();
+        choisirUneMentionEC(t, mentionEC.choix[mentionEC.i].qui);
+        return;
+      }
+      if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); fermerLaMentionEC(); return; }
+    }
     if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){
       ev.preventDefault();
       ecrireDansLeFil();
@@ -1780,6 +1844,115 @@ function zoneDEcritureDuFil(id){
      « scrollHeight » vaut zéro tant qu'il n'y est pas. */
   setTimeout(ajuster, 0);
   return l;
+}
+
+/* ============================================================
+   @ LES MENTIONS — v1287
+
+   David, le 28 octobre : « ajoute la possibilité de @ un membre de
+   la conversation pour qu'il le voie bien dans la messagerie ».
+   Taper « @ » ouvre la liste des membres du fil (sauf soi et la boîte
+   du bureau) ; un appui écrit « @Prénom Nom ». Celui qu'on a nommé
+   voit la bulle encadrée, « @ » sur la conversation dans la liste, et
+   reçoit « 📣 … t'a mentionné » sur son téléphone (le serveur relit
+   le texte : seul un membre du fil peut être nommé).
+   ============================================================ */
+let mentionEC = null;            /* { el, choix, i, t } — la liste ouverte */
+
+function membresMentionnablesEC(){
+  const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  const vus = {};
+  return ((filOuvertEC && filOuvertEC.membres) || []).filter(x => {
+    if(!x || !x.qui || x.genre === 'boite') return false;
+    const k = normaliserMessagerie(x.qui);
+    if(k === moi || vus[k]) return false;
+    vus[k] = 1;
+    return true;
+  });
+}
+
+function fermerLaMentionEC(){
+  if(mentionEC && mentionEC.el && mentionEC.el.parentNode) mentionEC.el.parentNode.removeChild(mentionEC.el);
+  mentionEC = null;
+}
+
+function proposerUneMentionEC(t, barre){
+  fermerLaMentionEC();
+  const avant = t.value.slice(0, t.selectionStart || 0);
+  const m = avant.match(/(^|\s)@([^\s@]{0,30})$/);
+  if(!m) return;
+  const q = normaliserMessagerie(m[2]);
+  const choix = membresMentionnablesEC().filter(x => {
+    if(!q) return true;
+    const n = normaliserMessagerie(x.qui);
+    return n.indexOf(q) === 0 || n.split(' ').some(w => w.indexOf(q) === 0);
+  }).slice(0, 8);
+  if(!choix.length) return;
+  const el = document.createElement('div');
+  el.className = 'msgMentionListe';
+  el.setAttribute('role', 'listbox');
+  choix.forEach((x, k) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'msgMentionChoix' + (k === 0 ? ' ici' : '');
+    b.setAttribute('role', 'option');
+    const a = document.createElement('b');
+    a.textContent = '@';
+    b.appendChild(a);
+    b.appendChild(document.createTextNode(' ' + x.qui));
+    if(x.genre === 'eleve'){
+      const g = document.createElement('small');
+      g.textContent = 'élève';
+      b.appendChild(g);
+    }
+    /* le champ garde le focus : sinon le clavier du téléphone se ferme */
+    b.addEventListener('pointerdown', e => e.preventDefault());
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => choisirUneMentionEC(t, x.qui));
+    el.appendChild(b);
+  });
+  barre.appendChild(el);
+  mentionEC = { el: el, choix: choix, i: 0, t: t };
+}
+
+function choisirUneMentionEC(t, qui){
+  const pos = t.selectionStart || 0;
+  const avant = t.value.slice(0, pos);
+  const apres = t.value.slice(pos);
+  const neuf = avant.replace(/@([^\s@]{0,30})$/, '@' + qui + ' ');
+  t.value = neuf + apres;
+  t.selectionStart = t.selectionEnd = neuf.length;
+  fermerLaMentionEC();
+  t.dispatchEvent(new Event('input'));
+  t.focus();
+}
+
+/* Le texte d'une bulle, avec les « @Prénom Nom » des membres en relief */
+function fragmentAvecMentionsEC(texte){
+  const frag = document.createDocumentFragment();
+  const t = String(texte || '');
+  const noms = ((filOuvertEC && filOuvertEC.membres) || [])
+    .filter(x => x && x.qui && x.genre !== 'boite').map(x => String(x.qui))
+    .sort((a, b) => b.length - a.length);
+  if(t.indexOf('@') === -1 || !noms.length){
+    frag.appendChild(document.createTextNode(t));
+    return { frag: frag, moi: false };
+  }
+  const echap = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('@(' + noms.map(echap).join('|') + ')', 'gi');
+  const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  let i = 0, x, pourMoi = false;
+  while((x = re.exec(t))){
+    if(x.index > i) frag.appendChild(document.createTextNode(t.slice(i, x.index)));
+    const s = document.createElement('span');
+    s.className = 'msgMention';
+    s.textContent = x[0];
+    if(normaliserMessagerie(x[1]) === moi){ s.classList.add('moi'); pourMoi = true; }
+    frag.appendChild(s);
+    i = x.index + x[0].length;
+  }
+  if(i < t.length) frag.appendChild(document.createTextNode(t.slice(i)));
+  return { frag: frag, moi: pourMoi };
 }
 
 async function ecrireDansLeFil(){
@@ -5703,7 +5876,57 @@ function zoneDesReactions(m){
     if(g.qui.length) p.title = g.qui.join(', ');
     d.appendChild(p);
   });
+  /* 😀 v1286 — DAVID, LE 28 OCTOBRE : « voir qui met la réaction ».
+     Le survol ne marche pas au doigt : un appui sur les pastilles
+     ouvre la liste, emoji par emoji, comme Messenger. L'appui ne
+     part pas jusqu'à la bulle (il y ouvrirait le sélecteur). */
+  if(groupes.some(g => g.qui.length)){
+    d.classList.add('cliquable');
+    d.setAttribute('role', 'button');
+    d.setAttribute('tabindex', '0');
+    d.setAttribute('aria-label', 'Voir qui a réagi');
+    ['pointerdown', 'contextmenu'].forEach(ev => d.addEventListener(ev, e => e.stopPropagation()));
+    const ouvrir = e => { e.stopPropagation(); e.preventDefault(); montrerQuiAReagiEC(groupes); };
+    d.addEventListener('click', ouvrir);
+    d.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' ') ouvrir(e); });
+  }
   return d;
+}
+
+function montrerQuiAReagiEC(groupes){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const b = document.createElement('div');
+  b.className = 'modal msgQuiReac';
+  b.style.maxWidth = 'min(360px, 92vw)';
+  const h = document.createElement('h3');
+  h.textContent = 'Réactions';
+  b.appendChild(h);
+  groupes.forEach(g => {
+    (g.qui.length ? g.qui : ['—']).forEach(nom => {
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:12px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line);font-size:15px;';
+      const e = document.createElement('span');
+      e.style.fontSize = '20px';
+      e.textContent = g.emoji;
+      const n = document.createElement('span');
+      n.textContent = nom;
+      l.appendChild(e); l.appendChild(n);
+      b.appendChild(l);
+    });
+  });
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const ok = document.createElement('button');
+  ok.className = 'btn btn-secondary';
+  ok.textContent = 'Fermer';
+  const fermer = () => { if(fond.parentNode) fond.parentNode.removeChild(fond); };
+  ok.addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+  r.appendChild(ok);
+  b.appendChild(r);
+  fond.appendChild(b);
+  document.body.appendChild(fond);
 }
 
 /* ------------------------------------------------------------
