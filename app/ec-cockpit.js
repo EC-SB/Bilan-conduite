@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 17:34 — v1296 */
+/* Déployé le 28/10/2026 à 18:00 — v1298 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -439,7 +439,13 @@ function ckPastilles(){
    « Non lus », c'est ce que « À traiter » voulait dire : du non lu, ou
    un rappel ⏰ revenu.
    ============================================================ */
-const ONGLETS_MSG_EC = [['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['tout', 'Tout']];
+/* 🏁 v1298 — David : « tu commences par Tout, puis Non lus, puis Élèves,
+   puis Équipe, et un autre bouton avec uniquement les groupes permis ».
+   Un groupe du permis, c'est celui créé depuis une session (le Worker
+   le marque « permis »), ou un groupe dont le nom commence par
+   « Permis ». */
+const ONGLETS_MSG_EC = [['tout', 'Tout'], ['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['permis', 'Permis']];
+function ckEstGroupePermis(c){ return !!c && c.genre === 'groupe' && (Number(c.permis || 0) > 0 || /^\W*permis\b/i.test(String(c.titre || ''))); }
 let ongletMsgEC = (() => { try{ const v = localStorage.getItem('ec_msg_onglet'); return ONGLETS_MSG_EC.some(o => o[0] === v) ? v : 'nonlus'; }catch(e){ return 'nonlus'; } })();
 /* Un fil d'élève, ou un visiteur de la vitrine ; le reste est l'équipe */
 function ckEstEleve(c){ return !!(c && (c.eleve || ['bureau', 'moniteur', 'retard', 'annul', 'oubli', 'vitrine'].indexOf(c.genre) !== -1)); }
@@ -452,6 +458,7 @@ function ckDansLOnglet(c, onglet){
     return ckNonLu(c) || ouvert;
   }
   if(o === 'eleves') return ckEstEleve(c);
+  if(o === 'permis') return ckEstGroupePermis(c);
   if(o === 'equipe') return !ckEstEleve(c);
   return true;
 }
