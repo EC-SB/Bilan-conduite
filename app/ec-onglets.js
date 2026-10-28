@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:05 — v1285 */
+/* Déployé le 28/10/2026 à 12:59 — v1290 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -30,7 +30,9 @@ const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart',
           /* 📞 v1266 — le suivi des appels */
-          'appels'],
+          'appels',
+          /* 📺 v1290 — la salle des tablettes */
+          'salle'],
   /* ⚠️ « parcours » VIT DANS SUIVI, ET DANS SUIVI SEULEMENT — v1037.
 
      Il était dans Gestion tant qu'il n'y avait que l'atelier. Le
@@ -294,6 +296,8 @@ const VUES = {
            ['appels',     '📞 Suivi des appels',      'appels',      'Au quotidien'],
            /* 🗓️ v1234 — les créneaux libres lus dans Drivup (choix de David : sous les rappels) */
            ['creneaux',   '🗓️ Créneaux libres',      'rappels',     'Au quotidien'],
+           /* 📺 v1290 — la salle des tablettes (ec-salle.js) */
+           ['salle',      '📺 Salle des tablettes',   'salle',       'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
 
            ['evaluation', '📊 Évaluation',            'evaluation',  'Administratif'],
@@ -1949,6 +1953,8 @@ function reveillerVue(cle){
     evaluation: () => afficherEvaluation(),
     /* 🧮 v1285 — et les aides de l'élève (ec-aides.js) */
     financements: () => { afficherFinancements(); if(typeof afficherAides === 'function') afficherAides(); },
+    /* 📺 v1290 — la salle des tablettes (ec-salle.js) */
+    salle:      () => (typeof afficherSalle === 'function') && afficherSalle(),
     /* 💰 v1178 — les prix, les fiches, imprimer vite, et le devis */
     tarifs:     () => (typeof afficherTarifsFiches === 'function' ? afficherTarifsFiches() : afficherTarifs()),
     parcours:   () => afficherParcours(),
