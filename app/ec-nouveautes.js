@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:12 — v1289 */
+/* Déployé le 28/10/2026 à 12:59 — v1290 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1290,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '📺 La salle des tablettes : le cours de théorie à son nom, ses groupes à la fin',
+    quoi: [
+      { emoji: '📺',
+        titre: 'La salle des tablettes',
+        texte: 'Élèves › Au quotidien. La 1re fois, quelqu’un de l’équipe l’installe sur une tablette ; ensuite il revient seul (son nom + jour et mois de naissance). Fini : ses groupes s’ouvrent tout seuls.' },
+      { emoji: '🔒',
+        titre: 'Chez lui, le cours de la salle attend',
+        texte: 'Tant qu’il ne l’a pas fini en salle, son espace dit « se regarde en salle des tablettes » et où il en est.' },
+      { emoji: '✅',
+        titre: 'Les élèves d’avant',
+        texte: 'Dans sa fiche : « Déjà vu en salle (avant l’appli) : ouvrir ses groupes ».' },
+      { emoji: '🔑',
+        titre: 'Installer une tablette',
+        texte: 'Administrateurs : un code à six chiffres à taper sur salle.html. La théorie du jour est lue avec le planning Drivup.' }
+    ]
+  },
   {
     version: 1289,
     date: 'Mercredi 28 octobre 2026',
