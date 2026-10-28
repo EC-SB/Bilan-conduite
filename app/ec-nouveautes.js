@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:05 — v1285 */
+/* Déployé le 28/10/2026 à 10:49 — v1287 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,35 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1287,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '📣 @ mentionner un membre de la conversation',
+    quoi: [
+      { emoji: '📣',
+        titre: 'Mentionner quelqu’un avec @',
+        texte: 'Tape « @ » : la liste des membres s’ouvre, un appui (ou Entrée) écrit le nom. La personne reçoit « 📣 … t’a mentionné », et un @ marque la conversation tant qu’elle ne l’a pas lue.' }
+    ]
+  },
+  {
+    version: 1286,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '🔔 Notifications avec la conversation et l’aperçu · 😀 qui a réagi · 📆 cours à venir',
+    quoi: [
+      { emoji: '🔔',
+        titre: 'Les notifications disent la conversation et le début du message',
+        texte: '« 💬 Léa Morvan ↔ le bureau — Léa Morvan : Je serai en retard… ». L’aperçu seulement à qui peut lire ce fil aujourd’hui.' },
+      { emoji: '😀',
+        titre: 'Qui a réagi',
+        texte: 'Un appui sur les réactions sous une bulle donne la liste : 👍 Paula, 👍 Hery…' },
+      { emoji: '💬',
+        titre: 'La conversation s’ouvre en bas',
+        texte: 'Dans le volet de droite aussi, même quand les photos arrivent après ; et si tu étais remonté lire, un message qui arrive ne te fait plus sauter.' },
+      { emoji: '📆',
+        titre: 'Les cours à venir dans l’espace élève',
+        texte: 'Sous « Mon prochain cours » : ses cours et ses écoutes pédagogiques lus dans le planning Drivup.' }
+    ]
+  },
   {
     version: 1285,
     date: 'Mercredi 28 octobre 2026',
