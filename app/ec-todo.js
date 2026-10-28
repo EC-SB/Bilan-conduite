@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 16:59 — v1281 */
+/* Déployé le 28/10/2026 à 08:24 — v1284 */
 /* ============================================================
    ec-todo.js — v1278
    ☑️ La todo list : le bouton à côté du 💬, et son volet.
@@ -251,7 +251,9 @@ function dessinerBureauTD(z, d){
   if(!q.length){
     z.appendChild(elTD('div', 'tdVide', d.peutRegler ? 'Aucune tâche de tous les jours pour aujourd’hui : ⚙️ pour les écrire.' : 'Aucune tâche de tous les jours pour aujourd’hui.'));
   }
-  q.forEach(x => {
+  /* ✅ v1284 — David : « quand quelque chose est fait, il faut qu'il
+     descende pour voir les choses pas encore faites en haut » */
+  q.slice().sort((a, b) => (a.faitLe ? 1 : 0) - (b.faitLe ? 1 : 0) || (a.faitLe && b.faitLe ? a.faitLe - b.faitLe : 0)).forEach(x => {
     /* ⚡ sous condition : cachée quand la tuile ne compte rien */
     let compteCond = null;
     if(x.condition){
@@ -338,8 +340,12 @@ function carteJourneeTD(p, moi, lecture){
     else r.appendChild(elTD('span', 'tdCase lecture' + (x.fait ? ' fait' : ''), x.fait ? '☑' : '☐'));
     const tx = elTD('div', 'tdTexte');
     tx.appendChild(elTD('span', 'tdLibelle', x.texte));
-    if(x.fait && x.faitLe) tx.appendChild(elTD('div', 'tdSous', '✅ ' + heureTD(x.faitLe) + (x.tache ? ' · 🔁 tous les jours' : '')));
+    /* ↩️ v1284 — une ligne pas cochée revient le lendemain */
+    const depuis = x.depuis ? (TD.d && x.depuis === TD.d.hier ? '↩️ d’hier' : '↩️ depuis le ' + x.depuis.slice(8, 10) + '/' + x.depuis.slice(5, 7)) : '';
+    if(x.fait && x.faitLe) tx.appendChild(elTD('div', 'tdSous', '✅ ' + heureTD(x.faitLe) + (x.tache ? ' · 🔁 tous les jours' : '') + (depuis ? ' · ' + depuis : '')));
     else if(x.tache) tx.appendChild(elTD('div', 'tdSous', '🔁 des tâches de tous les jours'));
+    else if(lecture && x.reporte) tx.appendChild(elTD('div', 'tdSous', '↪️ reportée au lendemain'));
+    else if(depuis) tx.appendChild(elTD('div', 'tdSous alerte', depuis));
     r.appendChild(tx);
     if(moi && !lecture) r.appendChild(boutonTD('✕', 'tdPetit', 'Retirer', (ev, b) => agirTD({ action: 'todoJourneeEcrire', quoi: 'retirer', id: x.id }, b)));
     c.appendChild(r);
