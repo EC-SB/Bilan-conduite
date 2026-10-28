@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 17:48 — v1297 */
+/* Déployé le 28/10/2026 à 18:27 — v1299 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,35 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1299,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '📄 Ce qu’on écrit et envoie : trois colonnes, la fiche en entier',
+    quoi: [
+      { emoji: '📄',
+        titre: 'La fiche en entier',
+        texte: 'Sur l’ordinateur : catégories · liste · la fiche ouverte à droite, tout le texte visible. Elle s’enregistre toute seule. Sur le téléphone : en plein écran.' },
+      { emoji: '🏷️',
+        titre: 'Les catégories d’une fiche sur une ligne',
+        texte: 'Seulement les siennes, ✕ pour en retirer une, « ＋ Catégorie » pour chercher, cocher ou créer. À gauche, « Filtrer les catégories… ».' },
+      { emoji: '🖼️',
+        titre: 'Plus simple',
+        texte: '« 🖼️ Ajouter une image » au lieu du grand cadre, l’explication derrière ⓘ, et l’avertissement ⛔ dans la fenêtre ✏️ d’une catégorie.' }
+    ]
+  },
+  {
+    version: 1298,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '🏁 Messagerie : Tout · Non lus · Élèves · Équipe · Permis, et 👍 🎤 😊',
+    quoi: [
+      { emoji: '🏁',
+        titre: 'Un onglet Permis',
+        texte: 'Les onglets dans cet ordre : Tout · Non lus · Élèves · Équipe · Permis. « Permis » ne montre que les groupes du jour du permis.' },
+      { emoji: '👍',
+        titre: 'Le pouce revient',
+        texte: 'La barre d’écriture : ➕, le champ, puis 👍 🎤 😊. Dès qu’on écrit : ➤ 😊. Pareil dans l’espace élève.' }
+    ]
+  },
   {
     version: 1297,
     date: 'Mercredi 28 octobre 2026',
