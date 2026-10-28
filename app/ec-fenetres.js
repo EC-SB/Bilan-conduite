@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:59 — v1290 */
+/* Déployé le 28/10/2026 à 14:25 — v1293 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2636,13 +2636,13 @@ async function ajouterLaBaseAuDossier(d, nom){
   /* 🧮 v1285 — ses dossiers d'aides (CPF, Pass'Engagement, points gardés) */
   try{
     const r = await appelPrep({ action: 'aidesExport', eleve: nom });
-    const nomType = { cpf: 'Dossier CPF', pe22: 'Pass’Engagement', resultat: 'Point sur ses aides' };
+    const nomType = { cpf: 'Dossier CPF', pe22: 'Pass’Engagement', resultat: 'Point sur ses aides', envoi: 'Envoi de ses aides', suivi: 'Suivi d’une aide' };
     const lignes = ((r && r.dossiers) || []).map(x => ({
       'Quoi': nomType[x.type] || x.type, 'Ouvert le': x.creeLe || '', 'Mis à jour': x.majLe || '', 'Étape': x.etape || '',
       'Terminé': x.fini ? 'oui' : 'non', 'Détail': JSON.stringify(x.donnees || {}).slice(0, 600)
     }));
     d.parties.push({ titre: 'Ses aides au financement', lignes: lignes,
-      note: 'Les dossiers CPF et Pass’Engagement suivis, et les points gardés dans sa fiche.' });
+      note: 'Les dossiers CPF et Pass’Engagement, le suivi de ses autres aides (permis à 1 €, Mission locale…), les envois et les points gardés dans sa fiche.' });
     d.total = (d.total || 0) + lignes.length;
   }catch(e){
     d.parties.push({ titre: 'Ses aides au financement', lignes: [],
