@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 27/10/2026 à 12:48 — v1276 -->
+<!-- Déployé le 28/10/2026 à 10:49 — v1287 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -331,6 +331,17 @@
     color:var(--cream); font-size:17px; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
+
+  /* 📆 v1286 — ses cours à venir et ses écoutes, sous le prochain */
+  .aVenir{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .aVenirT{ font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+            color:var(--soft); margin:6px 0 6px; }
+  .aVenirL{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; }
+  .aVenirE{ font-size:18px; line-height:1.3; }
+  .aVenirC{ flex:1; min-width:0; display:flex; flex-direction:column; font-size:14px; line-height:1.45; }
+  .aVenirC b{ font-weight:800; }
+  .aVenirC span{ color:var(--soft); font-size:13px; }
+  .aVenirN{ font-size:12px; color:var(--soft); margin-top:8px; line-height:1.45; }
 
   /* Son prochain cours */
   .prochain .quand{ font-size:17px; font-weight:800; color:var(--accent-text);
@@ -4600,6 +4611,7 @@
     dessinerAnnonces();
     dessinerLesOnglets();
     if(ouvert('parcours')) poserLeParcours(d && d.parcours);
+    mesAVenir = (d && d.aVenir) || null;
     if(ouvert('rappel')) dessinerProchain(d && d.prochain);
     if(ouvert('historique')) dessinerLecons((d && d.lecons) || [], (d && d.couleursBilans) || []);
     dessinerMesPhotosBilan((d && d.photosBilan) || []);
@@ -4645,14 +4657,64 @@
       });
   }
 
+  /* ============================================================
+     📆 SES COURS À VENIR ET SES ÉCOUTES — v1286
+
+     David, le 28 octobre : « quand lecture du planning, mettre sur
+     l'espace élève les cours à venir et les écoutes pédagogiques ».
+     Le Worker les joint à son dossier (aVenir), tels que la dernière
+     lecture du planning Drivup les a rangés. Le cours déjà montré en
+     grand (« Mon prochain cours », avec sa présence à confirmer) ne
+     se répète pas dessous.
+     ============================================================ */
+  var mesAVenir = null;
+  function heureAVenir(x){
+    var h = function(t){ return String(t || '').replace(':', 'h'); };
+    return h(x.debut) + (x.fin ? '–' + h(x.fin) : '');
+  }
+  function dessinerAVenir(z, p){
+    var av = mesAVenir;
+    if(!z || !av) return;
+    var deja = (p && p.jour) ? String(p.jour).slice(0, 10) + ' ' + String(p.heure || '').replace(/\D/g, '').slice(0, 4) : '';
+    var cours = (av.cours || []).filter(function(x){
+      return (x.jour + ' ' + String(x.debut || '').replace(/\D/g, '')) !== deja;
+    });
+    var ecoutes = av.ecoutes || [];
+    if(!cours.length && !ecoutes.length) return;
+    var w = document.createElement('div');
+    w.className = 'aVenir';
+    var ligne = function(emoji, quoi, x, sous){
+      return '<div class="aVenirL"><span class="aVenirE">' + emoji + '</span><span class="aVenirC">' +
+        '<b>' + echapper(jourEnClair(x.jour)) + ' · ' + echapper(heureAVenir(x)) + '</b>' +
+        '<span>' + echapper(quoi) + (sous ? ' · ' + echapper(sous) : '') + '</span></span></div>';
+    };
+    var html = '';
+    if(cours.length){
+      html += '<div class="aVenirT">📆 ' + (p && p.jour ? 'Ensuite' : 'Mes cours à venir') + '</div>' +
+        cours.map(function(x){
+          return ligne(x.examen ? '🏁' : '🚗', x.examen ? 'Examen' : (x.libelle || 'Cours de conduite'), x,
+                       x.moniteur ? 'avec ' + x.moniteur : '');
+        }).join('');
+    }
+    if(ecoutes.length){
+      html += '<div class="aVenirT">👂 Mes écoutes pédagogiques</div>' +
+        ecoutes.map(function(x){ return ligne('👂', 'Écoute pédagogique', x, x.agence); }).join('');
+    }
+    html += '<div class="aVenirN">Lu dans le planning de l’auto-école. Un changement ? Écris au bureau.</div>';
+    w.innerHTML = html;
+    z.appendChild(w);
+  }
+
   function dessinerProchain(p){
     var z = $('monProchain');
     if(!z) return;
     montrer('carteProchain', true);
 
     if(!p || !p.jour){
-      z.innerHTML = '<div class="empty">Aucun cours de prévu pour le moment.<br>' +
-        "C'est l'auto-école qui les pose.</div>";
+      var rien = !(mesAVenir && ((mesAVenir.cours || []).length || (mesAVenir.ecoutes || []).length));
+      z.innerHTML = rien ? '<div class="empty">Aucun cours de prévu pour le moment.<br>' +
+        "C'est l'auto-école qui les pose.</div>" : '';
+      dessinerAVenir(z, null);
       return;
     }
 
@@ -4697,6 +4759,7 @@
           (p.vehicule ? (suite.length ? '<br>' : '') + echapper(p.vehicule) : '') +
           '</div>'
         : '') + bas;
+    dessinerAVenir(z, p);
 
     var bp = $('btPresence');
     if(bp) bp.addEventListener('click', function(){
