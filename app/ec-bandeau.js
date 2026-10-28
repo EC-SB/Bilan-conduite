@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 11:53 — v1266 */
+/* Déployé le 28/10/2026 à 10:05 — v1285 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -115,7 +115,13 @@ const FAMILLES_BANDEAU = [
      Pas de droit ici : le Worker ne rend à chacun que ce qui le
      regarde (l'administration voit tout, chacun voit SES papiers). */
   { cle:'echeances', emoji:'📄', nom:'Papiers et échéances',
-    droit:'',              reglable:true }
+    droit:'',              reglable:true },
+  /* 💼 v1283 — les alertes des formations entreprise (ec-formations-suivi.js) */
+  { cle:'formations', emoji:'💼', nom:'Formations entreprise',
+    droit:'formations',    reglable:true },
+  /* 🧮 v1285 — les dossiers CPF et Pass'Engagement (ec-aides.js) */
+  { cle:'aides',     emoji:'🎓', nom:'Dossiers CPF et Pass’Engagement',
+    droit:'financements',  reglable:true }
 ];
 
 /* À combien de jours un rendez-vous AAC monte dans le bandeau. */
@@ -762,7 +768,11 @@ function lignesDuBandeau(){
     conv:     lignesMessagesEleves,
     objet:    lignesObjetsOublies,
     /* 📞 v1266 (ec-suivi-appels.js) */
-    appels:   (typeof lignesAppelsARappeler === 'function') ? lignesAppelsARappeler : (() => [])
+    appels:   (typeof lignesAppelsARappeler === 'function') ? lignesAppelsARappeler : (() => []),
+    /* 💼 v1283 (ec-formations-suivi.js) */
+    formations: (typeof lignesFormationsBandeau === 'function') ? lignesFormationsBandeau : (() => []),
+    /* 🧮 v1285 (ec-aides.js) */
+    aides:    (typeof lignesAidesBandeau === 'function') ? lignesAidesBandeau : (() => [])
   };
 
   /* ② Ce qui est à moi — v1090. Calculé UNE fois pour tout le
