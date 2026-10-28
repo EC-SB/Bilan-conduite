@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 13:32 — v1291 */
+/* Déployé le 28/10/2026 à 13:57 — v1292 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1292,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '💬 Aides en messagerie · 🏢 employeur / OPCO · 💶 prix du devis · 📒 suivi en fiche',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Dans sa messagerie',
+        texte: 'Ses aides, un message CPF ou un message de son dossier CPF : « 💬 », relu puis envoyé dans sa conversation « Le bureau ».' },
+      { emoji: '🏢',
+        titre: 'Un salarié du privé : son employeur ou son OPCO',
+        texte: 'Proposé d’office (à voir), sauf s’il travaille dans la fonction publique.' },
+      { emoji: '💶',
+        titre: 'Le prix : le devis de son évaluation',
+        texte: 'Plus le pack d’office. Sans devis, le prix reste vide : on le tape ou on choisit son forfait — sans lui, pas de résultat.' },
+      { emoji: '📒',
+        titre: 'Le suivi dans sa fiche',
+        texte: '« Garder dans sa fiche » montre le point en entier dans sa partie financement, avec tout ce qui lui a été envoyé et ses dossiers.' }
+    ]
+  },
   {
     version: 1291,
     date: 'Mercredi 28 octobre 2026',
