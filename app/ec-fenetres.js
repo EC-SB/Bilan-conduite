@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 18:16 — v1256 */
+/* Déployé le 28/10/2026 à 10:05 — v1285 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1571,14 +1571,18 @@ async function afficherFinancementEleve(nom, zone){
   if(!zone) return;
   zone.innerHTML = '';
 
+  /* 🧮 v1285 — « Ses aides possibles », sous son dossier France Travail
+     ou Région s'il en a un (ec-aides.js) */
+  const sesAides = () => { if(typeof ligneAidesFiche === 'function') ligneAidesFiche(nom, zone); };
+
   let dossier = null;
   try{
     const d = await appelPrep({ action: 'peList' });
     dossier = ((d && d.dossiers) || []).find(x =>
       normaliserMot(x.eleve || '') === normaliserMot(nom));
-  }catch(e){ return; }
+  }catch(e){ sesAides(); return; }
 
-  if(!dossier) return;
+  if(!dossier){ sesAides(); return; }
 
   /* « Région » porte un accent : il faut normaliser avant de
      comparer, sinon le test échoue toujours. */
@@ -1641,6 +1645,7 @@ async function afficherFinancementEleve(nom, zone){
 
   det.appendChild(z);
   zone.appendChild(det);
+  sesAides();
 }
 
 
@@ -2623,6 +2628,21 @@ async function ajouterLaBaseAuDossier(d, nom){
     d.total = (d.total || 0) + lignes.length;
   }catch(e){
     d.parties.push({ titre: 'Ses évaluations de départ', lignes: [],
+      note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+  }
+  /* 🧮 v1285 — ses dossiers d'aides (CPF, Pass'Engagement, points gardés) */
+  try{
+    const r = await appelPrep({ action: 'aidesExport', eleve: nom });
+    const nomType = { cpf: 'Dossier CPF', pe22: 'Pass’Engagement', resultat: 'Point sur ses aides' };
+    const lignes = ((r && r.dossiers) || []).map(x => ({
+      'Quoi': nomType[x.type] || x.type, 'Ouvert le': x.creeLe || '', 'Mis à jour': x.majLe || '', 'Étape': x.etape || '',
+      'Terminé': x.fini ? 'oui' : 'non', 'Détail': JSON.stringify(x.donnees || {}).slice(0, 600)
+    }));
+    d.parties.push({ titre: 'Ses aides au financement', lignes: lignes,
+      note: 'Les dossiers CPF et Pass’Engagement suivis, et les points gardés dans sa fiche.' });
+    d.total = (d.total || 0) + lignes.length;
+  }catch(e){
+    d.parties.push({ titre: 'Ses aides au financement', lignes: [],
       note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
   }
   try{
