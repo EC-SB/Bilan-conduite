@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 17:38 — v1282 */
+/* Déployé le 28/10/2026 à 08:24 — v1284 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -4104,6 +4104,9 @@ async function ouvrirRdvPost(cours){
      Le champ part donc de la fiche de suivi, et se complète depuis le
      classeur juste en dessous. */
   $('rdvPostBilan').value = s.bilanExamen || '';
+  /* 🗺️ v1284 — le tracé de son dernier examen, à côté du bilan */
+  const zCarte = $('rdvPostCarte');
+  if(zCarte && !zCarte.firstChild) zCarte.appendChild(boutonCarteDuDernierExamen(() => rdvPostEnCours && rdvPostEnCours.eleve));
   /* La provenance d'un rendez-vous ne vaut pas pour le suivant :
      elle repart à zéro à chaque ouverture. */
   const zSrc = $('rdvPostBilanSource');
@@ -4675,6 +4678,63 @@ function avecLEtatDeLaPlace(texte, cours){
    à l'ouverture du rendez-vous, et quand la recherche revient
    quelques secondes plus tard. Deux endroits pour ouvrir le même
    tiroir, et un jour l'un des deux serait oublié. */
+/* ============================================================
+   🗺️ LE TRACÉ DU DERNIER EXAMEN — v1284
+
+   David, le 28 octobre : « sur les rendez-vous post-permis, ajoute le
+   bouton pour ouvrir la carte du tracé du dernier examen, à côté du
+   bilan qu'a écrit le moniteur pendant l'examen ».
+
+   ⚠️ LA MÊME CARTE QUE PARTOUT. Le dernier examen officiel est celui
+   que choisit dernierExamenOfficielDe (celui dont on reprend le
+   bilan) ; son tracé se lit comme dans les anciens cours du dossier
+   élève (trajetGet), avec le bilan versé dans les points, et s'ouvre
+   dans carte.html — la page que reçoit l'élève dans son mail.
+   ============================================================ */
+async function ouvrirCarteDuDernierExamen(eleve, bouton){
+  const libelle = bouton ? bouton.textContent : '';
+  /* l'onglet s'ouvre tout de suite, sur le geste : après un appel
+     réseau, le navigateur le bloquerait */
+  const onglet = window.open('', '_blank');
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+  const dire = async t => { if(onglet) onglet.close(); if(typeof informer === 'function') await informer(t); else showToast(t); };
+  try{
+    const ex = await dernierExamenOfficielDe(eleve, true);
+    if(!ex){ await dire('Aucun examen officiel enregistré pour ' + eleve + '.'); return; }
+    const rep = await appelPrep({ action: 'trajetGet', eleve: eleve, date: ex.date });
+    const t = rep && rep.trajet;
+    if(!t || !t.trace){
+      const jours = (rep && rep.sesJours) || [];
+      await dire('Aucun tracé pour son examen du ' + (ex.date || '?') + ' (' + (ex.moniteur || '?') + ').\n\n' +
+        (jours.length ? eleve + ' a un tracé le ' + jours.slice(0, 3).join(', le ') + '.' : 'Le relevé GPS n’était pas ouvert pendant l’examen, ou le tracé était trop court pour être gardé.'));
+      return;
+    }
+    const p = (typeof trajetRangeVersPaquet === 'function') ? trajetRangeVersPaquet(t) : null;
+    if(p && typeof verserLeBilanDansLesPoints === 'function') verserLeBilanDansLesPoints(p, ex.bilan);
+    const lien = (p && typeof lienVersLaCarte === 'function') ? lienVersLaCarte(p) : '';
+    if(!lien){ await dire('Le tracé de son examen n’a pas pu être relu.'); return; }
+    if(onglet) onglet.location.href = lien; else window.open(lien, '_blank', 'noopener');
+  }catch(e){
+    await dire('Tracé indisponible : ' + ((e && e.message) || e));
+  }finally{
+    if(bouton){ bouton.disabled = false; bouton.textContent = libelle; }
+  }
+}
+/* Le bouton, posé à côté du bilan de l'examen */
+function boutonCarteDuDernierExamen(eleveOuFonction){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-secondary boutonCarteExamen';
+  b.textContent = '🗺️ Tracé de l’examen';
+  b.title = 'Ouvrir la carte du tracé de son dernier examen';
+  b.addEventListener('click', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    const nom = typeof eleveOuFonction === 'function' ? eleveOuFonction() : eleveOuFonction;
+    if(nom) ouvrirCarteDuDernierExamen(nom, b);
+  });
+  return b;
+}
+
 function ouvrirTiroirDuBilanExamen(ilYAQuelqueChose){
   const champ = $('rdvPostBilan');
   if(!champ || typeof champ.closest !== 'function') return;
