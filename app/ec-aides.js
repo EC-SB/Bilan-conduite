@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:05 — v1285 */
+/* Déployé le 28/10/2026 à 10:49 — v1287 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -442,7 +442,21 @@ function aiDessiner(){
 function aiGenerateur(g, opts){
   const c = aiEl('div', '');
   c.style.marginTop = '10px';
-  const redessiner = () => { const n = aiGenerateur(g, opts); c.replaceWith(n); };
+  /* ⚠️ v1286 — LES ZONES SE REMPLISSENT, ELLES NE SE REMPLACENT PAS.
+     David, le 28 octobre : « Failed to execute 'replaceWith' » en
+     tapant une date de naissance. Le champ date déclenche « change »
+     à chaque chiffre de l'année ; le premier redessinait tout le
+     générateur sous ses doigts, et l'événement suivant (la sortie du
+     champ disparu) redessinait un générateur qui n'était plus là. Les
+     champs qu'on tape ne refont plus que le résultat ; les pastilles
+     refont les questions, et rien ne se dessine hors de la page. */
+  const qz = aiEl('div', ''), rz = aiEl('div', '');
+  const majResultat = () => { if(!rz.isConnected) return; rz.innerHTML = ''; rz.appendChild(aiResultat(g, opts)); };
+  const redessiner = () => {
+    if(!qz.isConnected) return;
+    qz.innerHTML = ''; qz.appendChild(aiQuestions(g, redessiner, majResultat));
+    majResultat();
+  };
   if(opts.dansLaVue){
     c.appendChild(aiEl('div', 'aiAide', 'Au rendez-vous financement, ou au téléphone avec quelqu’un qui n’est pas encore inscrit. Choisis un élève pour remplir avec sa fiche, ou réponds aux questions.')).style.margin = '0 0 10px';
     const hd = aiEl('div', '');
@@ -463,11 +477,13 @@ function aiGenerateur(g, opts){
     hd.appendChild(aiBouton('⚙️ Les aides', '', () => { AI.vue = 'regl'; AI.regl = JSON.parse(JSON.stringify(AI.d.reglages)); AI.sale = false; AI.edite = ''; aiDessiner(); }));
     c.appendChild(hd);
   }
-  c.appendChild(aiQuestions(g, redessiner));
+  qz.appendChild(aiQuestions(g, redessiner, majResultat));
+  c.appendChild(qz);
   const sep = aiEl('div', '');
   sep.style.cssText = 'height:1px;background:var(--line);margin:6px 0 12px;';
   c.appendChild(sep);
-  c.appendChild(aiResultat(g, opts));
+  rz.appendChild(aiResultat(g, opts));
+  c.appendChild(rz);
   return c;
 }
 
@@ -486,7 +502,7 @@ function aiChoix(lab, liste, actif, f, aide){
   return w;
 }
 
-function aiQuestions(g, redessiner){
+function aiQuestions(g, redessiner, majResultat){
   const grille = aiEl('div', 'aiGrille');
   const c1 = aiEl('div'), c2 = aiEl('div');
   const maj = (k, v) => { g[k] = v; redessiner(); };
@@ -497,11 +513,22 @@ function aiQuestions(g, redessiner){
   const a = aiEl('div', ''); a.style.cssText = 'flex:1;min-width:0;';
   a.appendChild(aiEl('label', '', '🎂 Date de naissance'));
   const ia = aiEl('input'); ia.type = 'date'; ia.value = g.naissance || ''; ia.style.marginBottom = '0';
-  ia.addEventListener('change', () => maj('naissance', ia.value));
+  /* L'âge et le résultat suivent la frappe ; une année encore à moitié
+     tapée (« 0019 ») ne compte pas. Le champ reste où il est. */
+  const suivreLaDate = () => {
+    const an = Number(String(ia.value || '').slice(0, 4));
+    const bonne = an >= 1900 && an <= new Date().getFullYear();
+    g.naissance = bonne ? ia.value : '';
+    if(typeof majAge === 'function') majAge();
+    if(majResultat) majResultat();
+  };
+  ia.addEventListener('input', suivreLaDate);
+  ia.addEventListener('change', suivreLaDate);
   a.appendChild(ia);
   const b = aiEl('div', ''); b.style.cssText = 'flex:1;min-width:0;';
   b.appendChild(aiEl('label', '', '💶 Prix de sa formation (€)'));
   const ib = aiEl('input'); ib.type = 'number'; ib.step = '0.01'; ib.min = '0'; ib.value = g.prix ? String(g.prix) : ''; ib.style.marginBottom = '0';
+  ib.addEventListener('input', () => { g.prix = Number(ib.value) || 0; g.forfait = ''; if(majResultat) majResultat(); });
   ib.addEventListener('change', () => { g.prix = Number(ib.value) || 0; g.forfait = ''; if(g.cpfAuto) g.cpf = aiCpfProposee(g); redessiner(); });
   b.appendChild(ib);
   la.appendChild(a); la.appendChild(b);
@@ -514,8 +541,11 @@ function aiQuestions(g, redessiner){
   sf.innerHTML = '<option value="">💰 Son forfait dans 💰 Tarifs…</option>' + fo.map(x => '<option value="' + aiEch(x.id) + '"' + (x.id === g.forfait ? ' selected' : '') + '>' + aiEch(x.titre) + ' — ' + aiEuros(x.prix) + '</option>').join('');
   sf.addEventListener('change', () => { g.forfait = sf.value; const p = aiPrixForfait(sf.value); if(p !== null) g.prix = p; if(g.cpfAuto) g.cpf = aiCpfProposee(g); redessiner(); });
   lf.appendChild(sf);
-  lf.appendChild(aiEl('div', 'aiAide', (age !== null ? age + ' ans · ' : '') + (g.forfait ? 'prix du forfait, lu dans 💰 Tarifs' : 'le prix se tape, ou se prend dans un forfait de 💰 Tarifs')));
-  lf.lastChild.style.marginTop = '4px';
+  const ageEl = aiEl('div', 'aiAide', '');
+  ageEl.style.marginTop = '4px';
+  var majAge = () => { const a2 = aiAge(g); ageEl.textContent = (a2 !== null ? a2 + ' ans · ' : '') + (g.forfait ? 'prix du forfait, lu dans 💰 Tarifs' : 'le prix se tape, ou se prend dans un forfait de 💰 Tarifs'); };
+  majAge();
+  lf.appendChild(ageEl);
   c1.appendChild(lf);
 
   c1.appendChild(aiChoix('🎓 Son permis', [['B', '🚗 B'], ['BEA', '🚗 BEA'], ['AAC', '🚗 AAC / CS'], ['A', '🏍️ A1 / A2'], ['BE', '🚚 BE'], ['AM', '🛵 AM'], ['code', '📖 Code seul']], g.permis,
