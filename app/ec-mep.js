@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:43 — v1205 */
+/* Déployé le 28/10/2026 à 13:32 — v1291 */
 /* ============================================================
    ec-mep.js
    🖥️ La mise en page des télés et 🎨 les thèmes — v1201
@@ -532,7 +532,7 @@ function blocReglagesMep(){
     '<label>La forme</label><div class="stChips">' + [[-1, 'Comme d’origine'], [0, 'Droits'], [14, 'Doux'], [26, 'Arrondis'], [44, 'Très arrondis'], [200, 'Pilule']]
       .map(([v, t]) => '<button type="button" class="btn ' + (b.rayon === v ? 'btn-primary' : 'btn-secondary') + '" data-rayon="' + v + '">' + t + '</button>').join('') + '</div>' +
     (k !== 'scene' ? '<label>La taille du texte · <span id="mepTailleV">' + b.taille + ' %</span></label><input class="stCurseur" type="range" min="50" max="200" step="5" value="' + b.taille + '" id="mepTaille">' : '') +
-    (k === 'planning' ? '<label>On affiche</label>' + [['moniteur', 'Le moniteur'], ['vehicule', 'Le véhicule'], ['lieu', 'Le lieu']]
+    (k === 'planning' ? '<label>On affiche</label>' + [['moniteur', 'Le moniteur'], ['vehicule', 'Le véhicule'], ['lieu', 'Le lieu'], ['ecoutes', '👂 Les élèves en écoute pédagogique (sous chaque cours)']]
       .map(([c, t]) => '<label class="stCocheL"><input type="checkbox" data-montre="' + c + '"' + (b[c] ? ' checked' : '') + '> ' + t + '</label>').join('') : '') +
     '<div class="stPetit" style="margin:8px 0 4px;">Place : ' + b.x + ', ' + b.y + ' · ' + b.w + ' × ' + b.h + '</div>' +
     '<button type="button" class="btn btn-secondary" data-mact="blocAvant">↺ Ce bloc comme avant</button>';
@@ -608,6 +608,14 @@ function blocImminentMep(){
     '<label>On affiche</label>' +
     '<label class="stCocheL"><input type="checkbox" data-imontre="moniteur"' + (i.moniteur ? ' checked' : '') + '> « avec » le moniteur</label>' +
     '<label class="stCocheL"><input type="checkbox" data-imontre="vehicule"' + (i.vehicule ? ' checked' : '') + '> Le véhicule et le lieu</label>' +
+    /* 👂 v1291 — les élèves en écoute pédagogique, dans la carte de leur voiture */
+    '<label class="stCocheL"><input type="checkbox" data-imontre="ecoutes"' + (i.ecoutes ? ' checked' : '') + '> 👂 Les élèves en écoute pédagogique</label>' +
+    (i.ecoutes ? '<label>Les écoutes, où ?</label><div class="stChips">' + [['nom', 'Sous l’élève'], ['bas', 'En bas de la carte']]
+        .map(([k, t]) => '<button type="button" class="btn ' + (i.ecoutesOu === k ? 'btn-primary' : 'btn-secondary') + '" data-iecou="' + k + '">' + t + '</button>').join('') + '</div>' +
+      '<label for="mepEcMot">Le mot devant leurs noms</label><input type="text" id="mepEcMot" maxlength="30">' +
+      '<label>Le texte des écoutes</label><div data-icoul="ecoutesCouleur">' + couleursTele(i.ecoutesCouleur, 'Comme d’origine') + '</div>' +
+      '<label class="stCocheL"><input type="checkbox" data-imontre="ecoutesSansCase"' + (i.ecoutesSansCase ? ' checked' : '') + '> Une écoute sans voiture : « passe voir le bureau »</label>' +
+      '<div class="stPetit">Seulement les écoutes de Saint-Brieuc, dans la carte de la voiture qu’on lui a annoncée la veille. Un élève déjà pointé par son moniteur ne s’affiche plus.</div>' : '') +
     '<div class="stPetit">Pendant ce plein écran, le QR se retire.</div>';
   const t1 = z.querySelector('#mepT1'), t2 = z.querySelector('#mepT2');
   t1.value = i.titre1; t2.value = i.titre2;
@@ -644,6 +652,13 @@ function blocImminentMep(){
   z.querySelectorAll('[data-irayon]').forEach(x => x.addEventListener('click', () => changerMep(() => { mepS.cfg.imminent.rayon = Number(x.dataset.irayon); }, true)));
   z.querySelectorAll('[data-iheure]').forEach(x => x.addEventListener('click', () => changerMep(() => { mepS.cfg.imminent.heure = x.dataset.iheure; }, true)));
   z.querySelectorAll('[data-imontre]').forEach(x => x.addEventListener('change', () => changerMep(() => { mepS.cfg.imminent[x.dataset.imontre] = x.checked ? 1 : 0; }, true)));
+  z.querySelectorAll('[data-iecou]').forEach(x => x.addEventListener('click', () => changerMep(() => { mepS.cfg.imminent.ecoutesOu = x.dataset.iecou; }, true)));
+  const em = z.querySelector('#mepEcMot');
+  if(em){
+    em.value = i.ecoutesMot;
+    let premier = true;
+    em.addEventListener('input', () => { if(premier){ memoriserMep(); premier = false; } mepS.cfg.imminent.ecoutesMot = em.value; mepS.cfg = Tele.nettoyerMep(mepS.cfg); envoyerMep(); });
+  }
   return z;
 }
 
