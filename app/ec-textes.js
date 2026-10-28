@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 08:24 — v1284 */
+/* Déployé le 28/10/2026 à 18:27 — v1299 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -1019,6 +1019,19 @@ function surligner(texte, mots){
    redessin, sinon chaque modification renverrait tout en haut. */
 let etiquetteChoisie = '';
 let rechercheFiches = '';
+/* 📄 v1299 — LA REFONTE VALIDÉE PAR DAVID (« tu peux coder comme ça,
+   c'est nickel ») : sur un écran large, trois colonnes — les
+   catégories (filtrables), la liste des fiches, la fiche ouverte EN
+   ENTIER à droite ; sur un téléphone, un bouton « 🏷️ … ▾ » pour les
+   catégories, la liste, et la fiche en plein écran. */
+let filtreCategories = '';
+let ficheOuverteId = '';          /* la fiche ouverte à droite (écran large) */
+let railCible = null;              /* le rail dessiné ailleurs (la feuille du téléphone) */
+const LARGEUR_TROIS_COLONNES = 860;
+function bibliothequeLarge(){
+  const z = $('textesZone');
+  return !!z && (z.clientWidth || 0) >= LARGEUR_TROIS_COLONNES;
+}
 
 
 /* ============================================================
@@ -1305,7 +1318,7 @@ function dessinerBibliotheque(){
   bNouveau.className = 'btn btn-primary';
   bNouveau.style.cssText = 'width:auto;padding:9px 14px;font-size:13px;margin:0;';
   bNouveau.textContent = '➕ Nouvelle fiche';
-  bNouveau.addEventListener('click', () => ouvrirEditeurModele(null));
+  bNouveau.addEventListener('click', () => ouvrirLaFiche(null));
   barre.appendChild(bNouveau);
 
   const bImport = document.createElement('button');
@@ -1342,25 +1355,125 @@ function dessinerBibliotheque(){
     barre.appendChild(bReg);
   }
 
+  /* ⓘ v1299 — l'explication de l'écran, rangée derrière un bouton */
+  const bInfo = document.createElement('button');
+  bInfo.className = 'btn btn-secondary biblioInfo';
+  bInfo.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+  bInfo.textContent = 'ⓘ';
+  bInfo.title = 'À quoi sert cet écran';
+  bInfo.addEventListener('click', () => {
+    const i = $('textesInfo');
+    if(i){ i.hidden = !i.hidden; bInfo.classList.toggle('on', !i.hidden); }
+  });
+  barre.appendChild(bInfo);
+
   zone.appendChild(barre);
 
-  /* ---- Le corps : les étiquettes, puis les fiches ---- */
+  /* ---- Le corps ---- */
   const corps = document.createElement('div');
-  corps.className = 'biblioCorps';
-  corps.innerHTML = '<div class="biblioEtiq"></div><div class="biblioFiches"></div>';
+  const large = bibliothequeLarge();
+  corps.className = 'biblioCorps ' + (large ? 'trois' : 'etroit');
+  if(large){
+    corps.innerHTML =
+      '<div class="biblioCol colEtiq"><div class="biblioColT"><span>Catégories</span><span class="n" id="biblioNbCat"></span></div>' +
+        '<input type="search" class="biblioFiltreCat" placeholder="Filtrer les catégories…">' +
+        '<div class="biblioEtiq"></div></div>' +
+      '<div class="biblioCol colFiches"><div class="biblioColT"><span id="biblioTitreListe"></span><span class="n" id="biblioNbFiches"></span></div>' +
+        '<div class="biblioFiches enListe"></div></div>' +
+      '<div class="biblioLecture" id="biblioLecture"></div>';
+  }else{
+    corps.innerHTML = '<button type="button" class="btn btn-secondary biblioCatBtn" id="biblioCatBtn"></button>' +
+      '<div class="biblioFiches enListe"></div>';
+  }
   zone.appendChild(corps);
+  const fc = corps.querySelector('.biblioFiltreCat');
+  if(fc){
+    fc.value = filtreCategories;
+    fc.addEventListener('input', () => { filtreCategories = fc.value; dessinerRailEtiquettes(); });
+  }
+  const cb = corps.querySelector('#biblioCatBtn');
+  if(cb) cb.addEventListener('click', ouvrirFeuilleCategories);
 
   dessinerRailEtiquettes();
   dessinerListeFiches();
+  if(large){
+    const m = ficheOuverteId ? (modelesTexte || []).find(x => x.id === ficheOuverteId) : null;
+    if(m) ouvrirEditeurModele(m, null, { dans: $('biblioLecture') });
+    else videLaLecture();
+  }
+  /* Le passage d'une présentation à l'autre (rotation, fenêtre) :
+     ⚠️ comparé à la DERNIÈRE présentation dessinée, pas à la première */
+  window.__ecBiblioLarge = large;
+  if(!window.__ecBiblioTaille){
+    let t = null;
+    window.__ecBiblioTaille = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const z = $('textesZone');
+        if(!z || !z.clientWidth || !z.querySelector('.biblioCorps')) return;
+        if(bibliothequeLarge() !== window.__ecBiblioLarge) dessinerBibliotheque();
+      }, 250);
+    };
+    window.addEventListener('resize', window.__ecBiblioTaille);
+  }
+}
+
+/* La colonne de droite, quand aucune fiche n'est ouverte */
+function videLaLecture(){
+  const z = $('biblioLecture');
+  if(!z) return;
+  ficheOuverteId = '';
+  z.innerHTML = '<div class="biblioVide">📄 Choisis une fiche dans la liste :<br>elle s’ouvre ici, en entier.</div>';
+}
+
+/* Ouvrir une fiche : à droite sur un écran large, en plein écran
+   sinon. ⚠️ CE QUI EST OUVERT S'ENREGISTRE D'ABORD — changer de fiche
+   ne doit rien perdre. */
+async function ouvrirLaFiche(m){
+  const z = $('biblioLecture');
+  const categorie = m ? '' : (etiquetteChoisie === '*prive*' ? (maMarquePrivee() || '') : (etiquetteChoisie === '*sans*' ? '' : etiquetteChoisie));
+  if(z && bibliothequeLarge()){
+    if(window.__ficheEnLigne && !(await window.__ficheEnLigne.quitter())) return;
+    ficheOuverteId = m ? m.id : '';
+    document.querySelectorAll('#textesZone .ficheTexte').forEach(c => c.classList.toggle('ouverte', !!m && c.dataset.fiche === m.id));
+    ouvrirEditeurModele(m, null, { dans: z, categorie: categorie });
+    return;
+  }
+  ouvrirEditeurModele(m, null, { categorie: categorie });
+}
+
+/* 📱 La feuille des catégories (téléphone) : le même rail, filtrable */
+function ouvrirFeuilleCategories(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show feuilleCats';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.innerHTML = '<div class="fcTete"><b>Catégories</b><button type="button" class="fgb" aria-label="Fermer">✕</button></div>' +
+    '<input type="search" class="biblioFiltreCat" placeholder="Filtrer les catégories…">' +
+    '<div class="biblioEtiq dansFeuille"></div>';
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const fermer = () => { railCible = null; fermerFond(fond); dessinerRailEtiquettes(); };
+  boite.querySelector('.fcTete button').addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+  const fc = boite.querySelector('.biblioFiltreCat');
+  fc.value = filtreCategories;
+  fc.addEventListener('input', () => { filtreCategories = fc.value; dessinerRailEtiquettes(); });
+  railCible = boite.querySelector('.biblioEtiq');
+  railCible.__fermer = fermer;
+  dessinerRailEtiquettes();
 }
 
 /* ⚠️ LE RAIL SE RANGE À LA SOURIS — et les flèches restent pour le
    téléphone, où glisser déplacerait la page. Même règle que pour
    les tuiles : deux façons d'y toucher, un seul rangement. */
 function dessinerRailEtiquettes(){
-  const rail = document.querySelector('#textesZone .biblioEtiq');
+  /* 📄 v1299 — le titre des colonnes et le bouton du téléphone suivent */
+  majTitresBibliotheque();
+  const rail = (railCible && document.body.contains(railCible)) ? railCible : document.querySelector('#textesZone .biblioEtiq');
   if(!rail) return;
   rail.innerHTML = '';
+  const filtre = sansAccents(filtreCategories || '').trim();
 
   /* Les mêmes fiches que la liste : sinon le rail annonce douze
      fiches dans un carnet qui en montre neuf. */
@@ -1373,11 +1486,14 @@ function dessinerRailEtiquettes(){
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'etqLigne' + (etiquetteChoisie === cle ? ' on' : '');
+    b.dataset.cat = cle;
     b.innerHTML = '<span class="nom">' + nom.replace(/</g, '&lt;') + '</span>' +
                   '<span class="n">' + n + '</span>';
     b.addEventListener('click', () => {
       if(b.dataset.vientDeGlisser) return;
       etiquetteChoisie = (etiquetteChoisie === cle) ? '' : cle;
+      /* 📱 dans la feuille du téléphone : choisir, c'est refermer */
+      if(rail.__fermer){ rail.__fermer(); dessinerListeFiches(); return; }
       dessinerRailEtiquettes();
       dessinerListeFiches();
     });
@@ -1413,17 +1529,26 @@ function dessinerRailEtiquettes(){
     return b;
   };
 
-  ligne('', '🏷️ Toutes', vues.length, false);
+  if(!filtre) ligne('', '🏷️ Toutes', vues.length, false);
 
   /* ⚠️ LE PRIVÉ EST TOUJOURS LÀ, MÊME VIDE — c'est un endroit où
      poser quelque chose, pas un compte à afficher. Une catégorie
      qui n'apparaît qu'une fois remplie ne se remplit jamais. */
-  ligne('*prive*',
+  if(!filtre) ligne('*prive*',
         jeVoisToutLePrive() ? '🔒 Privé (tout le monde)' : '🔒 Mon privé',
         prives, false);
+  if(!filtre) rail.appendChild(Object.assign(document.createElement('div'), { className: 'etqSep' }));
 
-  toutesLesEtiquettes().filter(jeVoisLaCategorie)
-    .forEach(e => ligne(e, e, compte(e), true));
+  const lesCats = toutesLesEtiquettes().filter(jeVoisLaCategorie);
+  const nb = $('biblioNbCat'); if(nb) nb.textContent = lesCats.length;
+  const gardees = lesCats.filter(e => !filtre || sansAccents(e).indexOf(filtre) !== -1);
+  /* Filtrées : on ne range pas (l'ordre n'aurait plus de sens) */
+  gardees.forEach(e => ligne(e, e, compte(e), !filtre));
+  if(filtre && !gardees.length){
+    rail.appendChild(Object.assign(document.createElement('div'), { className: 'etqRien', textContent: 'Aucune catégorie de ce nom.' }));
+  }
+  if(filtre) return;
+  rail.appendChild(Object.assign(document.createElement('div'), { className: 'etqSep' }));
 
   /* ⚠️ « SANS CATÉGORIE » NE SE SUPPRIME PAS ET NE SE RANGE PAS —
      David : « faire une catégorie qu'on ne peut pas supprimer, avec
@@ -1432,6 +1557,24 @@ function dessinerRailEtiquettes(){
      classeur : elle est le fait de n'en avoir aucune, ce qui est
      précisément ce qui la rend indestructible. */
   ligne('*sans*', '📭 Sans catégorie', sans, false);
+}
+
+/* Le titre de la colonne des fiches, et le bouton des catégories du téléphone */
+function nomDeLaCategorieChoisie(){
+  return etiquetteChoisie === '*prive*' ? (jeVoisToutLePrive() ? '🔒 Privé (tout le monde)' : '🔒 Mon privé')
+       : etiquetteChoisie === '*sans*' ? '📭 Sans catégorie'
+       : etiquetteChoisie || '🏷️ Toutes';
+}
+function majTitresBibliotheque(){
+  const n = fichesAffichees().length;
+  const t = $('biblioTitreListe'); if(t) t.textContent = nomDeLaCategorieChoisie();
+  const c = $('biblioNbFiches'); if(c) c.textContent = n;
+  const b = $('biblioCatBtn');
+  if(b){
+    b.innerHTML = '<span class="nom"></span><span class="n"></span><span class="fl">▾</span>';
+    b.querySelector('.nom').textContent = nomDeLaCategorieChoisie();
+    b.querySelector('.n').textContent = n;
+  }
 }
 
 let glisseEtq = '';
@@ -1600,6 +1743,10 @@ function ouvrirCategorie(cat){
     .filter(m => categoriesDe(m).indexOf(cat) !== -1).length;
 
   boite.insertAdjacentHTML('beforeend',
+    /* ⛔ v1299 — l'avertissement de David, là où on modifie (il était
+       en haut de l'écran) */
+    '<div class="biblioStop">⛔ INTERDICTION DE MODIFIER LES CATÉGORIES SANS LOGO ' +
+      'DEVANT — SOUS RISQUE DE CASSER L’OUTIL</div>' +
     '<h3>🏷️ ' + cat.replace(/</g, '&lt;') + '</h3>' +
     '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
       'margin-bottom:12px;">' + (dedans
@@ -1978,6 +2125,7 @@ function dessinerListeFiches(suite){
   const liste = fichesAffichees();
 
   if(!liste.length){
+    majTitresBibliotheque();
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = (modelesTexte || []).length
@@ -1988,6 +2136,7 @@ function dessinerListeFiches(suite){
     return;
   }
 
+  majTitresBibliotheque();
   liste.slice(0, fichesMontrees).forEach(m => zone.appendChild(carteDeFiche(m, mots)));
   if(liste.length > fichesMontrees){
     const reste = liste.length - fichesMontrees;
@@ -2082,12 +2231,13 @@ function carteDeFiche(m, mots){
      plus, cent fois par jour. Les autres gestes restent en bas de
      carte, et ils ne doivent pas ouvrir la fiche au passage. */
   d.tabIndex = 0;
+  if(m.id === ficheOuverteId) d.classList.add('ouverte');
   d.addEventListener('click', e => {
     if(e.target.closest('.fgb')) return;
-    ouvrirEditeurModele(m);
+    ouvrirLaFiche(m);
   });
   d.addEventListener('keydown', e => {
-    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ouvrirEditeurModele(m); }
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ouvrirLaFiche(m); }
   });
 
   /* ⚠️ ON GLISSE LA CARTE, ET LES FLÈCHES RESTENT POUR LE TÉLÉPHONE
@@ -2342,12 +2492,23 @@ function retirerModeleDeLaMemoire(id){
 }
 
 
-function ouvrirEditeurModele(modele, usageImpose){
+function ouvrirEditeurModele(modele, usageImpose, opts){
+  /* 📄 v1299 — « dans » : la fiche s'ouvre dans la colonne de droite de
+     la bibliothèque (écran large), et s'enregistre toute seule. Sinon,
+     la fenêtre d'avant — en plein écran sur un téléphone. */
+  const enLigne = !!(opts && opts.dans);
   const fond = document.createElement('div');
-  fond.className = 'overlay show';
+  fond.className = enLigne ? 'ficheLecture' : 'overlay show ficheFond';
   const boite = document.createElement('div');
-  boite.className = 'modal ficheOuverte';
-  boite.style.cssText = 'max-width:min(640px, 96vw);max-height:92vh;overflow-y:auto;';
+  boite.className = enLigne ? 'ficheOuverte enLigne' : 'modal ficheOuverte';
+  if(!enLigne) boite.style.cssText = 'max-width:min(680px, 96vw);max-height:92vh;overflow-y:auto;';
+  if(modele && couleurDeLaFiche(modele)) boite.dataset.couleur = couleurDeLaFiche(modele);
+  const moi = {};
+  /* fermer la fenêtre — ou, en ligne, vider la colonne */
+  const quitterLaVue = () => {
+    if(enLigne){ if(window.__ficheEnLigne === moi) window.__ficheEnLigne = null; videLaLecture(); }
+    else fermerFond(fond);
+  };
 
   /* Une fiche neuve est libre par construction : c'est le réglage
      d'usage qui la rendra technique, et il est verrouillé plus bas
@@ -2366,11 +2527,16 @@ function ouvrirEditeurModele(modele, usageImpose){
         '« ⚙️ Textes de l’application ».</div>'
       : '') +
 
-    '<input type="text" id="mdNom" class="fiTitre" ' +
+    '<div class="fiTete"><input type="text" id="mdNom" class="fiTitre" ' +
       'placeholder="Titre de la fiche" value="' +
       ech(modele ? (modele.titre || modele.nom) : '') + '">' +
+      '<span class="fiEtat" id="mdEtat"></span></div>' +
+    /* 🏷️ v1299 — seulement SES catégories, sur une ligne, et « ＋ Catégorie » */
+    '<div id="mdEtiq" class="mdCats"></div>' +
 
-    '<textarea id="mdContenu" class="fiTexte" rows="12" ' +
+    /* 📄 v1299 — LE TEXTE EN ENTIER : la case grandit avec lui (David :
+       « je n'ai pas la totalité de ce qui est écrit ») */
+    '<textarea id="mdContenu" class="fiTexte" rows="6" ' +
       'placeholder="Écris ton message…"></textarea>' +
 
     /* ⚠️ DES ÉTIQUETTES, PAS UNE CATÉGORIE — v958. On coche celles
@@ -2383,25 +2549,17 @@ function ouvrirEditeurModele(modele, usageImpose){
     /* ⚠️ LES IMAGES, ENTRE LE TEXTE ET LES CATÉGORIES — v970. Elles
        illustrent le texte : elles se lisent juste après lui, pas
        après les réglages. */
-    '<label>🖼️ Images</label>' +
     '<div id="mdGalerie" class="galFiche"></div>' +
-    '<div id="mdColler" class="zCollerFiche" tabindex="0">' +
-      '📋 <strong>Colle une image ici</strong><br>' +
-      '<span style="font-size:11px;">Ctrl+V, ou fais glisser l’image — ' +
-      'ou appuie pour la choisir sur l’appareil</span>' +
+    /* 🖼️ v1299 — un bouton au lieu du grand cadre ; coller (Ctrl+V) et
+       glisser une image marchent toujours */
+    '<div id="mdColler" class="zCollerFiche petit" tabindex="0">' +
+      '<span class="fgb">🖼️ Ajouter une image</span>' +
+      '<span class="aide">ou colle-la (Ctrl+V), ou fais-la glisser ici</span>' +
     '</div>' +
     '<div id="mdEtatImg" class="etatImg"></div>' +
     '<input type="file" id="mdFichierImg" accept="image/*" multiple ' +
       'style="display:none;">' +
 
-    '<label>🏷️ Catégories</label>' +
-    '<div id="mdEtiq" class="mdEtiq"></div>' +
-    '<div style="display:flex;gap:6px;margin:-4px 0 12px;">' +
-      '<input type="text" id="mdEtiqNeuve" style="flex:1;margin:0;" ' +
-        'placeholder="Créer une catégorie…">' +
-      '<button type="button" class="btn btn-secondary" id="mdEtiqAdd" ' +
-        'style="width:auto;padding:0 14px;margin:0;font-size:13px;">➕</button>' +
-    '</div>' +
 
     /* Les réglages techniques, rangés : on ne tombe plus dessus en
        venant corriger une faute de frappe. */
@@ -2514,6 +2672,8 @@ function ouvrirEditeurModele(modele, usageImpose){
 
   /* ---- L'état courant, tel qu'il partira ---- */
   let mesEtiquettes = modele ? etiquettesDe(modele) : [];
+  /* 📄 v1299 — une fiche neuve créée depuis une catégorie la porte déjà */
+  if(!modele && opts && opts.categorie) mesEtiquettes = [opts.categorie];
 
   const fichePleine = () => ({
     id: modele ? modele.id : idDeCetteFiche,
@@ -2572,7 +2732,8 @@ function ouvrirEditeurModele(modele, usageImpose){
                             usage: modele.usage || 'libre' });
           retirerModeleDeLaMemoire(modele.id);
           perimerModeles();
-          fermerFond(fond);
+          supprimee = true;
+          quitterLaVue();
           showToast('Fiche supprimée');
           redessiner();
         }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
@@ -2580,14 +2741,52 @@ function ouvrirEditeurModele(modele, usageImpose){
       /* Discret et à part : c'est le seul geste qu'on ne rattrape
          pas, il n'a rien à faire au milieu des autres. */
       bSup.classList.add('sup', 'fgPetit');
+      bSup.textContent = '🗑️ Supprimer';
+    }
+    /* 🎨 v1299 — la couleur, depuis la fiche ouverte */
+    if(!verrou){
+      const bCoul = geste('🎨', 'Couleur de la fiche', () => {
+        const ouverte = boite.querySelector('.palFiche');
+        if(ouverte){ ouverte.remove(); return; }
+        const pal = document.createElement('div');
+        pal.className = 'palFiche';
+        const actuelle = couleurDeLaFiche(modele);
+        [{ cle: '', nom: 'Aucune couleur' }].concat(COULEURS_FICHE).forEach(c => {
+          const x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'fgb pastFiche' + (c.cle === actuelle ? ' choisie' : '');
+          if(c.cle) x.dataset.couleur = c.cle; else x.textContent = '✕';
+          x.title = c.nom;
+          x.addEventListener('click', async () => {
+            pal.remove();
+            if(c.cle) boite.dataset.couleur = c.cle; else delete boite.dataset.couleur;
+            try{ await poserCouleurFiche(modele, c.cle); dessinerListeFiches(); }
+            catch(e){ const r = couleurDeLaFiche(modele); if(r) boite.dataset.couleur = r; else delete boite.dataset.couleur; }
+          });
+          pal.appendChild(x);
+        });
+        pied.parentNode.insertBefore(pal, pied);
+      });
+      /* l'ordre du schéma validé : 📋 ✂️ ✉️ 🎨 ⚙️ … 🗑️ */
+      if(pied.querySelector('.sup')) pied.insertBefore(bCoul, pied.querySelector('.sup'));
     }
   }
+  /* ⚙️ v1299 — les réglages (où l'appli s'en sert…), d'un bouton */
+  const bReg = geste('⚙️ Réglages', 'Où l’appli s’en sert, pour qui…', () => {
+    const d = g('mdPlus');
+    if(!d) return;
+    d.open = !d.open;
+    if(d.open) try{ d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }catch(e){}
+  });
+  if(pied.querySelector('.sup')) pied.insertBefore(bReg, pied.querySelector('.sup'));
 
   const bFermer = document.createElement('button');
   bFermer.className = 'btn btn-primary';
   bFermer.style.cssText = 'width:auto;padding:8px 16px;font-size:13px;margin:0 0 0 auto;';
   bFermer.textContent = '✓ Fermer';
-  pied.appendChild(bFermer);
+  /* en ligne, pas de « Fermer » : la fiche s'enregistre toute seule */
+  if(!enLigne) pied.appendChild(bFermer);
+  let supprimee = false;
 
   /* ---- Les blocs qui n'ont de sens que pour certains usages ---- */
   const majBoite = () => {
@@ -2635,7 +2834,11 @@ function ouvrirEditeurModele(modele, usageImpose){
   }
 
   fond.appendChild(boite);
-  document.body.appendChild(fond);
+  if(enLigne){
+    opts.dans.innerHTML = '';
+    opts.dans.appendChild(fond);
+    window.__ficheEnLigne = moi;
+  }else document.body.appendChild(fond);
 
   /* Rappel des variables disponibles, avec insertion en un appui */
   const majVars = () => {
@@ -2713,70 +2916,144 @@ function ouvrirEditeurModele(modele, usageImpose){
      chose : une fiche libre n'a rien à y régler. */
   if(g('mdPlus')) g('mdPlus').open = (g('mdUsage').value !== 'libre');
 
-  /* ---- Les étiquettes de cette fiche ---- */
+  /* ---- Les catégories de cette fiche ----
+     🏷️ v1299 — David : « la partie catégorie est énorme ». La fiche ne
+     montre plus que SES catégories, sur une ligne (✕ pour en retirer
+     une) ; « ＋ Catégorie » ouvre une recherche : on tape, on coche,
+     ou on crée. La puce « 🔒 Privé » reste une puce comme les autres. */
+  let choixOuvert = false, choixTexte = '';
   const dessinerEtiq = () => {
     const z = g('mdEtiq');
     if(!z) return;
     z.innerHTML = '';
-
-    /* ⚠️ LA PUCE « PRIVÉ » VIENT EN PREMIER, ET C'EST UNE PUCE COMME
-       LES AUTRES — v961. Une fiche privée n'est pas rangée
-       ailleurs : elle porte une catégorie de plus. La rendre
-       publique, c'est décocher, pas déménager. */
     const marque = marqueurPriveDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) });
     const proprio = marque ? marque.slice(PREFIXE_PRIVE.length).trim() : '';
     const mienne = maMarquePrivee();
-    if(mienne || marque){
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'mdEtq prive' + (marque ? ' on' : '');
-      b.textContent = (marque && !cestMoi(proprio))
-        ? '🔒 Privé — ' + proprio : '🔒 Privé';
-      b.title = 'Visible de toi seul, et des administrateurs';
-      b.addEventListener('click', () => {
-        if(marque){
-          mesEtiquettes.splice(mesEtiquettes.indexOf(marque), 1);
-        }else if(mienne){
-          mesEtiquettes.unshift(mienne);
-        }
-        dessinerEtiq();
-      });
-      z.appendChild(b);
+    const lab = document.createElement('span');
+    lab.className = 'mdLab';
+    lab.textContent = '🏷️';
+    z.appendChild(lab);
+    if(marque){
+      const p = document.createElement('span');
+      p.className = 'mdPuce prive';
+      p.textContent = cestMoi(proprio) ? '🔒 Privé' : '🔒 Privé — ' + proprio;
+      p.title = 'Visible de toi seul, et des administrateurs';
+      if(!verrou){
+        const x = document.createElement('button');
+        x.type = 'button'; x.textContent = '✕'; x.title = 'Ne plus la garder privée';
+        x.addEventListener('click', () => { mesEtiquettes.splice(mesEtiquettes.indexOf(marque), 1); aChange(); dessinerEtiq(); });
+        p.appendChild(x);
+      }
+      z.appendChild(p);
     }
-
-    const toutes = toutesLesEtiquettes().filter(jeVoisLaCategorie);
-    categoriesDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) })
-      .forEach(e => { if(toutes.indexOf(e) === -1) toutes.push(e); });
-
-    toutes.forEach(e => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'mdEtq' + (mesEtiquettes.indexOf(e) !== -1 ? ' on' : '');
-      b.textContent = e;
-      b.addEventListener('click', () => {
-        const i = mesEtiquettes.indexOf(e);
-        if(i === -1) mesEtiquettes.push(e); else mesEtiquettes.splice(i, 1);
-        dessinerEtiq();
+    categoriesDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) }).forEach(e => {
+      const p = document.createElement('span');
+      p.className = 'mdPuce';
+      p.dataset.cat = e;
+      p.appendChild(document.createTextNode(e));
+      if(!verrou){
+        const x = document.createElement('button');
+        x.type = 'button'; x.textContent = '✕'; x.title = 'Retirer de « ' + e + ' »';
+        x.addEventListener('click', () => { const i = mesEtiquettes.indexOf(e); if(i !== -1) mesEtiquettes.splice(i, 1); aChange(); dessinerEtiq(); });
+        p.appendChild(x);
+      }
+      z.appendChild(p);
+    });
+    if(verrou) return;
+    if(!marque && mienne){
+      const bp = document.createElement('button');
+      bp.type = 'button';
+      bp.className = 'mdPlusCat discret';
+      bp.textContent = '🔒 Privé';
+      bp.title = 'La rendre privée : visible de toi seul, et des administrateurs';
+      bp.addEventListener('click', () => { mesEtiquettes.unshift(mienne); aChange(); dessinerEtiq(); });
+      z.appendChild(bp);
+    }
+    const plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'mdPlusCat';
+    plus.id = 'mdEtiqAdd';
+    plus.textContent = '＋ Catégorie';
+    plus.addEventListener('click', ev => { ev.stopPropagation(); choixOuvert = !choixOuvert; choixTexte = ''; dessinerEtiq(); });
+    z.appendChild(plus);
+    if(choixOuvert) z.appendChild(choixDesCategories());
+  };
+  /* La recherche des catégories : cocher, décocher, créer */
+  const choixDesCategories = () => {
+    const box = document.createElement('div');
+    box.className = 'mdChoix';
+    box.addEventListener('click', ev => ev.stopPropagation());
+    const champ = document.createElement('input');
+    champ.type = 'text';
+    champ.id = 'mdEtiqNeuve';
+    champ.placeholder = 'Chercher ou créer une catégorie…';
+    champ.autocomplete = 'off';
+    champ.value = choixTexte;
+    box.appendChild(champ);
+    const liste = document.createElement('div');
+    liste.className = 'mdChoixListe';
+    box.appendChild(liste);
+    const creer = document.createElement('button');
+    creer.type = 'button';
+    creer.className = 'mdChoixCree';
+    box.appendChild(creer);
+    const toutes = () => {
+      const t = toutesLesEtiquettes().filter(jeVoisLaCategorie);
+      categoriesDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) }).forEach(e => { if(t.indexOf(e) === -1) t.push(e); });
+      return t;
+    };
+    const sansEmoji = e => sansAccents(String(e).replace(/^[^\p{L}\d]+/u, '')).trim();
+    const remplir = () => {
+      const q = sansAccents(champ.value).trim();
+      const l = toutes().filter(e => !q || sansAccents(e).indexOf(q) !== -1);
+      liste.innerHTML = '';
+      l.forEach(e => {
+        const pris = mesEtiquettes.indexOf(e) !== -1;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'mdChoixL' + (pris ? ' pris' : '');
+        b.dataset.cat = e;
+        b.innerHTML = '<span class="cc">' + (pris ? '✓' : '') + '</span><span class="nom"></span><span class="n"></span>';
+        b.querySelector('.nom').textContent = e;
+        b.querySelector('.n').textContent = (modelesTexte || []).filter(m => categoriesDe(m).indexOf(e) !== -1).length;
+        b.addEventListener('click', () => {
+          const i = mesEtiquettes.indexOf(e);
+          if(i === -1) mesEtiquettes.push(e); else mesEtiquettes.splice(i, 1);
+          choixTexte = champ.value; aChange(); dessinerEtiq();
+        });
+        liste.appendChild(b);
       });
-      z.appendChild(b);
+      if(!l.length) liste.innerHTML = '<div class="mdChoixRien">Aucune catégorie de ce nom.</div>';
+      const v = champ.value.trim();
+      const existe = toutes().some(e => sansAccents(e) === q || sansEmoji(e) === q);
+      creer.hidden = !v || existe;
+      creer.textContent = '➕ Créer « ' + v + ' »';
+    };
+    const creerLa = () => {
+      const v = champ.value.trim();
+      if(!v) return;
+      if(mesEtiquettes.indexOf(v) === -1) mesEtiquettes.push(v);
+      choixTexte = ''; aChange(); dessinerEtiq();
+    };
+    creer.addEventListener('click', creerLa);
+    champ.addEventListener('input', remplir);
+    champ.addEventListener('keydown', e => {
+      if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); choixOuvert = false; dessinerEtiq(); return; }
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      const l = liste.querySelectorAll('.mdChoixL');
+      if(!creer.hidden) creerLa();
+      else if(l.length === 1) l[0].click();
     });
+    remplir();
+    setTimeout(() => { champ.focus(); const n = champ.value.length; try{ champ.setSelectionRange(n, n); }catch(e){} }, 0);
+    return box;
   };
+  /* un clic ailleurs referme la recherche */
+  boite.addEventListener('click', () => { if(choixOuvert){ choixOuvert = false; dessinerEtiq(); } });
+  /* ce qui a bougé s'enregistre (en ligne) */
+  const aChange = () => { if(typeof moi.aChange === 'function') moi.aChange(); };
   dessinerEtiq();
-
-  const ajouterEtiq = () => {
-    const c = g('mdEtiqNeuve');
-    const v = String(c.value || '').trim();
-    if(!v) return;
-    if(mesEtiquettes.indexOf(v) === -1) mesEtiquettes.push(v);
-    c.value = '';
-    dessinerEtiq();
-  };
-  if(g('mdEtiqAdd')) g('mdEtiqAdd').addEventListener('click', ajouterEtiq);
-  if(g('mdEtiqNeuve')){
-    g('mdEtiqNeuve').addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ e.preventDefault(); ajouterEtiq(); }
-    });
-  }
 
   majBoite();
   majVars();
@@ -3063,6 +3340,9 @@ function ouvrirEditeurModele(modele, usageImpose){
        n'est plus là. */
     const surCollage = async ev => {
       if(!document.body.contains(zColler)) return;
+      /* en ligne, la fiche reste à l'écran pendant qu'on fait autre
+         chose : une image collée ailleurs ne doit pas y atterrir */
+      if(enLigne && !(boite.contains(ev.target) || boite.contains(document.activeElement))) return;
 
       const items = (ev.clipboardData && ev.clipboardData.items) || [];
       const fichiers = [];
@@ -3104,13 +3384,106 @@ function ouvrirEditeurModele(modele, usageImpose){
     });
   }
 
-  bFermer.addEventListener('click', fermer);
-  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
-  fond.addEventListener('keydown', e => { if(e.key === 'Escape') fermer(); });
+  /* 📄 v1299 — LE TEXTE EN ENTIER : la case prend la hauteur du texte,
+     elle ne défile jamais à l'intérieur */
+  const grandir = () => {
+    const t = g('mdContenu');
+    if(!t) return;
+    t.style.height = 'auto';
+    t.style.height = Math.max(160, t.scrollHeight + 2) + 'px';
+  };
+  g('mdContenu').addEventListener('input', grandir);
+  setTimeout(grandir, 0);
+  if(typeof ResizeObserver === 'function'){
+    let largeur = 0;
+    /* ⚠️ dans une image suivante, jamais pendant la mesure : sinon le
+       navigateur crie « ResizeObserver loop » et l'appli l'affiche */
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        if(!document.body.contains(boite)){ ro.disconnect(); return; }
+        if(boite.clientWidth !== largeur){ largeur = boite.clientWidth; grandir(); }
+      });
+    });
+    ro.observe(boite);
+  }
+
+  if(!enLigne){
+    bFermer.addEventListener('click', fermer);
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+    fond.addEventListener('keydown', e => { if(e.key === 'Escape') fermer(); });
+  }else{
+    /* ------------------------------------------------------------
+       EN LIGNE : ÇA S'ENREGISTRE TOUT SEUL — v1299
+
+       Pas de « Fermer » dans la colonne de droite : on tape, et une
+       seconde après, c'est écrit (« ✓ Enregistré » en haut). Changer
+       de fiche enregistre d'abord ce qui est ouvert. Ce qui demande
+       une confirmation (une variable de l'appli retirée) attend ce
+       moment-là, plutôt que d'interrompre la frappe.
+       ------------------------------------------------------------ */
+    const etat = g('mdEtat');
+    const dire = (t, c) => { if(etat){ etat.textContent = t || ''; etat.style.color = c || ''; } };
+    if(modele && !verrou) dire('✓ Enregistré');
+    if(verrou) dire('🔒 Lecture seule');
+    let minuterie = null;
+    const sauver = async (silencieux) => {
+      clearTimeout(minuterie);
+      if(verrou || supprimee) return true;
+      const f = fichePleine();
+      if(!ficheEnregistree && !f.nom && !f.contenu) return true;
+      if(depart && etatActuel() === depart) return true;
+      if(!f.nom || !f.contenu){
+        if(silencieux){ dire(!f.nom ? '✍️ Un titre, et elle s’enregistre' : '✍️ Le texte, et elle s’enregistre', 'var(--muted)'); return false; }
+        return await enregistrerLaFiche().catch(() => false);
+      }
+      if(silencieux && alerteDesVariables((modele && modele.contenu) || '', f.contenu, f.usage)){
+        dire('⚠️ à confirmer en changeant de fiche', 'var(--warn-text)');
+        return false;
+      }
+      if(enCours) return false;
+      enCours = true;
+      dire('Enregistrement…', 'var(--muted)');
+      try{
+        const ok = await enregistrerLaFiche();
+        enCours = false;
+        if(!ok){ dire(''); return false; }
+        msg.textContent = '';
+        dire('✓ Enregistré');
+        if(!modele){ modele = (modelesTexte || []).find(m => m.id === idDeCetteFiche) || null; }
+        ficheOuverteId = idDeCetteFiche;
+        dessinerRailEtiquettes();
+        dessinerListeFiches();
+        return true;
+      }catch(e){
+        enCours = false;
+        dire('⚠️ Pas enregistré : ' + e.message, 'var(--warn-text)');
+        return false;
+      }
+    };
+    moi.aChange = () => { if(verrou) return; dire('…', 'var(--muted)'); clearTimeout(minuterie); minuterie = setTimeout(() => sauver(true), 1000); };
+    boite.addEventListener('input', ev => { if(ev.target && ev.target.id === 'mdEtiqNeuve') return; moi.aChange(); });
+    boite.addEventListener('change', ev => { if(ev.target && ev.target.id === 'mdEtiqNeuve') return; moi.aChange(); });
+    g('mdContenu').addEventListener('blur', () => { if(minuterie) sauver(true); });
+    g('mdNom').addEventListener('blur', () => { if(minuterie) sauver(true); });
+    /* changer de fiche : ce qui est ouvert s'enregistre, confirmation comprise */
+    moi.quitter = async () => {
+      if(!document.body.contains(boite)) return true;
+      const ok = await sauver(false);
+      if(!ok && !supprimee){
+        const f = fichePleine();
+        if(!ficheEnregistree && !(f.nom && f.contenu)){
+          /* une fiche neuve à moitié écrite : on demande */
+          return await confirmer('Cette fiche neuve n’a pas encore de ' + (!f.nom ? 'titre' : 'texte') + ' : elle ne sera pas créée. Continuer ?');
+        }
+        return false;
+      }
+      return true;
+    };
+  }
 
   setTimeout(() => {
     const cible = modele ? g('mdContenu') : g('mdNom');
-    if(cible && !verrou) cible.focus();
+    if(cible && !verrou && (!enLigne || !modele)) cible.focus();
   }, 60);
 }
 
