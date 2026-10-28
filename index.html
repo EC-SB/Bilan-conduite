@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1297
+     VERSION APPLICATION : v1299
      VERSION APPS SCRIPT REQUISE : v244
      Mis à jour le : 12/10/2026
 
@@ -2269,24 +2269,40 @@
   /* Le thème sombre est le défaut de l'outil : ses valeurs sont
      celles de base, et « body.clair » les remplace. */
   .ficheTexte[data-couleur="jaune"] { --fondFiche:#3A361C; --bordFiche:#4A4527; }
+  .ficheOuverte[data-couleur="jaune"] { --fondFiche:#3A361C; --bordFiche:#4A4527; }
   .ficheTexte[data-couleur="orange"]{ --fondFiche:#40301C; --bordFiche:#524024; }
+  .ficheOuverte[data-couleur="orange"]{ --fondFiche:#40301C; --bordFiche:#524024; }
   .ficheTexte[data-couleur="rouge"] { --fondFiche:#452A26; --bordFiche:#583931; }
+  .ficheOuverte[data-couleur="rouge"] { --fondFiche:#452A26; --bordFiche:#583931; }
   .ficheTexte[data-couleur="rose"]  { --fondFiche:#432B3A; --bordFiche:#573949; }
+  .ficheOuverte[data-couleur="rose"]  { --fondFiche:#432B3A; --bordFiche:#573949; }
   .ficheTexte[data-couleur="violet"]{ --fondFiche:#322B44; --bordFiche:#423A56; }
+  .ficheOuverte[data-couleur="violet"]{ --fondFiche:#322B44; --bordFiche:#423A56; }
   .ficheTexte[data-couleur="bleu"]  { --fondFiche:#253646; --bordFiche:#334759; }
+  .ficheOuverte[data-couleur="bleu"]  { --fondFiche:#253646; --bordFiche:#334759; }
   .ficheTexte[data-couleur="menthe"]{ --fondFiche:#223B37; --bordFiche:#2F4D48; }
+  .ficheOuverte[data-couleur="menthe"]{ --fondFiche:#223B37; --bordFiche:#2F4D48; }
   .ficheTexte[data-couleur="vert"]  { --fondFiche:#293C24; --bordFiche:#375030; }
+  .ficheOuverte[data-couleur="vert"]  { --fondFiche:#293C24; --bordFiche:#375030; }
 
   body.clair .ficheTexte[data-couleur] .fetq,
   body.clair .ficheTexte[data-couleur] .fgb{ background:rgba(255,255,255,.55); }
   body.clair .ficheTexte[data-couleur="jaune"] { --fondFiche:#FBF4CF; --bordFiche:#E8DFA8; }
+  body.clair .ficheOuverte[data-couleur="jaune"] { --fondFiche:#FBF4CF; --bordFiche:#E8DFA8; }
   body.clair .ficheTexte[data-couleur="orange"]{ --fondFiche:#FBE8D2; --bordFiche:#EDD6B6; }
+  body.clair .ficheOuverte[data-couleur="orange"]{ --fondFiche:#FBE8D2; --bordFiche:#EDD6B6; }
   body.clair .ficheTexte[data-couleur="rouge"] { --fondFiche:#FBE0DC; --bordFiche:#EFC9C2; }
+  body.clair .ficheOuverte[data-couleur="rouge"] { --fondFiche:#FBE0DC; --bordFiche:#EFC9C2; }
   body.clair .ficheTexte[data-couleur="rose"]  { --fondFiche:#F8DFEC; --bordFiche:#E9C3D8; }
+  body.clair .ficheOuverte[data-couleur="rose"]  { --fondFiche:#F8DFEC; --bordFiche:#E9C3D8; }
   body.clair .ficheTexte[data-couleur="violet"]{ --fondFiche:#E6E0F3; --bordFiche:#CFC5E4; }
+  body.clair .ficheOuverte[data-couleur="violet"]{ --fondFiche:#E6E0F3; --bordFiche:#CFC5E4; }
   body.clair .ficheTexte[data-couleur="bleu"]  { --fondFiche:#DCEAF7; --bordFiche:#BFD6EC; }
+  body.clair .ficheOuverte[data-couleur="bleu"]  { --fondFiche:#DCEAF7; --bordFiche:#BFD6EC; }
   body.clair .ficheTexte[data-couleur="menthe"]{ --fondFiche:#D9F1EC; --bordFiche:#B8E0D7; }
+  body.clair .ficheOuverte[data-couleur="menthe"]{ --fondFiche:#D9F1EC; --bordFiche:#B8E0D7; }
   body.clair .ficheTexte[data-couleur="vert"]  { --fondFiche:#E2F3DC; --bordFiche:#C3E2B9; }
+  body.clair .ficheOuverte[data-couleur="vert"]  { --fondFiche:#E2F3DC; --bordFiche:#C3E2B9; }
 
   /* ---- La palette, dépliée sous la fiche ---- */
   .palFiche{ display:flex; gap:6px; flex-wrap:wrap; align-items:center;
@@ -2397,6 +2413,125 @@
                border-radius:20px; padding:6px 12px; }
     .biblioFiches{ grid-template-columns:1fr; }
     .ficheTexte .fgTel{ display:inline-block; }
+  }
+
+  /* ============================================================
+     📄 CE QU'ON ÉCRIT ET ENVOIE, REFONDU — v1299
+
+     Le schéma validé par David (« tu peux coder comme ça, c'est
+     nickel ») : sur un écran large, trois colonnes — les catégories
+     (serrées, filtrables, qui défilent seules), la liste des fiches
+     (une ligne chacune), la fiche ouverte EN ENTIER à droite. Sur un
+     téléphone : « 🏷️ … ▾ » pour les catégories, la liste, la fiche en
+     plein écran. Dans la fiche : ses catégories sur une ligne,
+     « ＋ Catégorie », un bouton pour les images.
+     ============================================================ */
+  .textesInfo{ font-size:12px; color:var(--muted); margin:0 0 12px; line-height:1.5;
+               border:1px solid var(--line); border-radius:10px; padding:9px 11px; }
+  .biblioInfo.on{ border-color:var(--accent-text); color:var(--accent-text); }
+  .biblioCorps.trois{ display:grid; grid-template-columns:210px minmax(0,320px) minmax(0,1fr); gap:12px; align-items:start; }
+  .biblioCol{ border:1px solid var(--line); border-radius:14px; background:var(--navy-deep); display:flex; flex-direction:column;
+              min-height:0; position:sticky; top:8px; max-height:calc(100vh - 24px); overflow:hidden; }
+  .biblioColT{ display:flex; justify-content:space-between; gap:8px; font-size:11px; font-weight:800; letter-spacing:.06em;
+               text-transform:uppercase; color:var(--muted); padding:10px 12px 6px; }
+  .biblioColT > span:first-child{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .biblioFiltreCat{ margin:0 8px 6px !important; width:calc(100% - 16px) !important; padding:7px 10px !important;
+                    font-size:13px !important; border-radius:10px !important; }
+  .biblioCorps.trois .biblioEtiq{ width:auto; flex:1; min-height:0; overflow-y:auto; padding:0 6px 8px; gap:0; }
+  .biblioCorps.trois .etqLigne{ padding:5px 8px; }
+  .etqSep{ height:1px; background:var(--line); margin:5px 8px; flex-shrink:0; }
+  .etqRien{ font-size:12px; color:var(--muted); padding:6px 8px; }
+  .biblioFiches.enListe{ display:block; }
+  .biblioCorps.trois .biblioFiches.enListe{ flex:1; min-height:0; overflow-y:auto; padding:0 6px 8px; }
+  .biblioFiches.enListe .ficheTexte{ padding:8px 10px; margin-bottom:4px; border-color:transparent; border-radius:10px; background:transparent; }
+  .biblioFiches.enListe .ficheTexte[data-couleur]{ border-color:transparent; }
+  .biblioFiches.enListe .ficheTexte:hover{ border-color:var(--line); }
+  .biblioFiches.enListe .ficheTexte .ft{ display:flex; gap:6px; align-items:center; }
+  .biblioFiches.enListe .ficheTexte[data-couleur] .ft::before{ content:""; width:9px; height:9px; border-radius:50%; flex-shrink:0;
+              background:var(--fondFiche); border:1px solid var(--bordFiche); }
+  .biblioFiches.enListe .ficheTexte .fu{ display:none; }
+  .biblioFiches.enListe .ficheTexte .fp{ -webkit-line-clamp:2; max-height:36px; margin-top:2px; font-size:12px; white-space:normal; }
+  .biblioFiches.enListe .ficheTexte .fe{ margin-top:4px; }
+  .biblioFiches.enListe .ficheTexte .ficheVues{ display:none; }
+  .biblioFiches.enListe .ficheTexte .fg{ display:none; }
+  .biblioFiches.enListe .ficheTexte.ouverte{ background:var(--orange-soft); border-color:#CDEB8F; }
+  body:not(.clair) .biblioFiches.enListe .ficheTexte.ouverte{ border-color:var(--accent-text); }
+  .biblioLecture{ min-width:0; }
+  .biblioVide{ border:1px dashed var(--line); border-radius:14px; padding:60px 20px; text-align:center; color:var(--muted); font-size:13px; line-height:1.6; }
+  /* la fiche ouverte, en ligne */
+  .ficheOuverte.enLigne{ border:1px solid var(--line); border-radius:14px; background:var(--navy-deep); padding:12px 16px 0; position:relative; }
+  .ficheOuverte.enLigne[data-couleur], .ficheOuverte.modal[data-couleur]{ background:var(--fondFiche); border-color:var(--bordFiche); }
+  .ficheOuverte .fiTete{ display:flex; align-items:center; gap:10px; }
+  .ficheOuverte .fiTete .fiTitre{ flex:1; min-width:0; margin-bottom:6px !important; }
+  .fiEtat{ font-size:11.5px; font-weight:700; color:var(--accent-text); white-space:nowrap; }
+  .ficheOuverte .fiTexte{ resize:none; overflow:hidden; min-height:160px; margin:0 0 6px; background:none; border:none;
+                          padding:0; border-radius:0; font-size:15px; line-height:1.6; }
+  .ficheOuverte.enLigne .fiPied{ position:sticky; bottom:0; z-index:2; background:inherit; margin:8px -16px 0; padding:10px 16px;
+                                 border-top:1px solid var(--line); border-radius:0 0 14px 14px; }
+  .ficheOuverte.enLigne .fiPied .fgb.sup, .ficheOuverte .fiPied .fgb.sup{ margin-left:auto; }
+  .ficheOuverte .fiPied .fgb{ padding:6px 10px; font-size:12.5px; }
+  .ficheOuverte .palFiche{ margin:6px 0 0; }
+  /* ⚙️ Réglages s'ouvre par son bouton, en bas de la fiche */
+  .ficheOuverte .fiPlus > summary{ display:none; }
+  .ficheOuverte .fiPlus:not([open]){ border:none; padding:0; margin:0; }
+  .zCollerFiche.petit{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; text-align:left; padding:8px 0 4px;
+                       border:none; border-top:1px dashed var(--line); border-radius:0; margin:6px 0 4px; cursor:pointer; }
+  .zCollerFiche.petit .aide{ font-size:11.5px; color:var(--muted); }
+  .zCollerFiche.petit.survol{ outline:2px dashed var(--accent-text); outline-offset:2px; }
+  /* les catégories de la fiche, sur une ligne */
+  .mdCats{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; position:relative; padding:0 0 10px; margin-bottom:10px;
+           border-bottom:1px solid var(--line); }
+  .mdLab{ font-size:12px; color:var(--muted); }
+  .mdPuce{ display:inline-flex; align-items:center; gap:2px; font-size:12px; font-weight:700; border:1px solid var(--line);
+           background:var(--navy); border-radius:999px; padding:3px 4px 3px 10px; color:var(--cream); }
+  .mdPuce.prive{ border-color:var(--accent-text); color:var(--accent-text); }
+  .mdPuce button{ border:none; background:none; font-size:11px; padding:0 5px; color:var(--muted); cursor:pointer; margin:0; width:auto; }
+  .mdPlusCat{ font:inherit; font-size:12px; font-weight:800; border:1px dashed var(--accent-text); color:var(--accent-text);
+              background:none; border-radius:999px; padding:4px 11px; cursor:pointer; margin:0; width:auto; }
+  .mdPlusCat.discret{ border-color:var(--line); color:var(--muted); font-weight:700; }
+  .mdChoix{ position:absolute; z-index:20; left:0; top:calc(100% - 4px); width:min(320px, 100%); background:var(--navy-deep);
+            border:1px solid var(--line); border-radius:14px; box-shadow:0 14px 40px rgba(0,0,0,.18); padding:10px; }
+  .mdChoix input{ margin:0 0 6px !important; padding:8px 10px !important; font-size:13.5px !important; width:100%; }
+  .mdChoixListe{ max-height:260px; overflow-y:auto; }
+  .mdChoixL{ display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; text-align:left; padding:6px 8px;
+             border-radius:8px; font:inherit; font-size:13px; font-weight:600; color:var(--cream); cursor:pointer; margin:0; }
+  .mdChoixL:hover{ background:var(--navy); }
+  .mdChoixL .cc{ width:18px; height:18px; border-radius:5px; border:1.5px solid var(--muted); display:grid; place-items:center;
+                 font-size:12px; flex-shrink:0; }
+  .mdChoixL.pris .cc{ background:var(--orange); border-color:var(--orange); color:var(--on-accent); }
+  .mdChoixL .nom{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mdChoixL .n{ font-size:11px; color:var(--muted); }
+  .mdChoixRien{ font-size:12.5px; color:var(--muted); padding:6px 8px; }
+  .mdChoixCree{ display:block; width:100%; text-align:left; border:none; border-top:1px solid var(--line); background:none;
+                padding:8px; margin:4px 0 0; font:inherit; font-size:13px; font-weight:800; color:var(--accent-text); cursor:pointer; }
+  /* 📱 le téléphone : le bouton des catégories, la feuille */
+  .biblioCorps.etroit{ display:block; }
+  .biblioCatBtn{ display:flex !important; align-items:center; gap:8px; width:100% !important; margin:0 0 10px !important;
+                 text-align:left; padding:10px 12px !important; font-size:14px !important; }
+  .biblioCatBtn .nom{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:800; }
+  .biblioCatBtn .n{ font-size:12px; color:var(--muted); }
+  .biblioCorps.etroit .biblioFiches.enListe .ficheTexte{ background:var(--navy-deep); border-color:var(--line); margin-bottom:8px; padding:10px 12px; }
+  .biblioCorps.etroit .biblioFiches.enListe .ficheTexte .fg{ display:flex; margin-top:6px; }
+  .biblioCorps.etroit .biblioFiches.enListe .ficheTexte .fg .fgb:not(.fgTel){ display:none; }
+  .feuilleCats{ align-items:flex-end !important; }
+  .feuilleCats .modal{ width:100%; max-width:560px; max-height:80vh; display:flex; flex-direction:column; border-radius:20px 20px 0 0;
+                       margin:0; padding:12px 12px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .feuilleCats .fcTete{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .feuilleCats .fcTete b{ flex:1; font-size:15px; }
+  .feuilleCats .biblioFiltreCat{ margin:0 0 6px !important; width:100% !important; }
+  .feuilleCats .biblioEtiq{ width:auto; flex-direction:column; overflow-y:auto; flex:0 1 auto; min-height:120px; max-height:calc(80vh - 120px); gap:0; padding:0; margin:0; }
+  .feuilleCats .etqLigne{ width:100%; border-radius:8px; border-color:transparent; padding:10px 8px; font-size:14px; }
+  .feuilleCats .etqLigne[data-etq]{ touch-action:pan-y; }
+  /* la fiche en plein écran sur le téléphone */
+  @media (max-width:760px){
+    .ficheFond{ align-items:stretch !important; padding:0 !important; }
+    .ficheFond > .modal.ficheOuverte{ max-width:none !important; width:100% !important; max-height:none !important; height:100%;
+      border-radius:0 !important; margin:0 !important; padding:calc(12px + env(safe-area-inset-top, 0px)) 14px 0 !important; }
+    .ficheFond > .modal.ficheOuverte .fiPied{ position:sticky; bottom:0; z-index:2; background:inherit; margin:8px -14px 0;
+      padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--line); }
+    .ficheFond > .modal.ficheOuverte[data-couleur] .fiPied{ background:var(--fondFiche); }
+    .ficheOuverte .fiPied .fgb.sup{ margin-left:0; }
+    .mdChoix{ width:100%; }
   }
 
   .tuiles{
@@ -3691,6 +3826,16 @@
   .ckpOnglet.on{ background:var(--kn); border-color:var(--kn); color:var(--ksurN); }
   .ckpOnglet .n{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; background:rgba(0,0,0,.10);
                  border-radius:999px; padding:0 6px; }
+  /* 🏁 v1298 — cinq onglets (Tout · Non lus · Élèves · Équipe · Permis) :
+     sur une ligne au téléphone, dans le tiroir et sur l'ordinateur ; sur
+     une colonne plus étroite (tablette), ils passent à la ligne au lieu
+     de glisser de côté — on les voit toujours tous */
+  .ckpOnglets{ gap:4px; flex-wrap:wrap; overflow:visible; }
+  .ckpOnglet, .ckpLarge .ckpOnglet{ flex:0 0 auto; justify-content:center; padding:6px 7px; font-size:12.5px; gap:4px; }
+  .ckpOnglet .n{ padding:0 5px; }
+  .ckpLarge .ckpOnglets{ gap:3px; }
+  .ckpLarge .ckpOnglet{ padding:5px 5px; font-size:12px; gap:3px; }
+  .ckpLarge .ckpOnglet .n{ padding:0 4px; font-size:10.5px; }
   .ckpFiltre{ display:flex; align-items:center; gap:8px; margin:0 14px 8px; padding:6px 10px; border-radius:10px;
               background:var(--kmoi); border:1px solid var(--kmoiB); font-size:12.5px; flex-shrink:0; }
   .ckpEtroit .ckpFiltre{ margin:0 0 8px; }
@@ -3738,7 +3883,7 @@
   .ckpLarge .ckVites{ padding-left:max(22px, calc((100% - 760px) / 2)); padding-right:max(22px, calc((100% - 760px) / 2)); }
   .ckpLarge .msgBarre{ margin-left:max(18px, calc((100% - 764px) / 2)); margin-right:max(18px, calc((100% - 764px) / 2)); }
 
-  /* la barre : ➕ · le texte 😊 · 🎤 (➤ dès qu'on écrit) */
+  /* la barre : ➕ · le texte · 👍 🎤 😊 (➤ 😊 dès qu'on écrit — v1298) */
   .msgBarre .msgChamp{ flex:1; min-width:0; display:flex; align-items:flex-end; gap:2px; }
   .msgBarre .msgChamp textarea{ flex:1; min-width:0; }
   .msgBarre .msgChamp .msgOutil{ flex-shrink:0; }
@@ -6193,7 +6338,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1297" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1299" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -7731,9 +7876,10 @@
            variable qu'on vient de retirer. Celui-ci s'adresse à qui
            A le droit : une phrase lue avant le geste vaut mieux
            qu'une alerte reçue après. -->
-      <div class="biblioStop">⛔ INTERDICTION DE MODIFIER LES CATÉGORIES SANS LOGO
-        DEVANT — SOUS RISQUE DE CASSER L'OUTIL</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+      <!-- 📄 v1299 — (schéma validé par David) l'avertissement ⛔ s'affiche
+           désormais dans la fenêtre ✏️ d'une catégorie, là où on la
+           renomme ou la supprime ; l'explication est derrière ⓘ. -->
+      <div id="textesInfo" class="textesInfo" hidden>
         Tous les messages que vous envoyez aux élèves, au même endroit : ceux que
         l'application reprend toute seule (rappel de cours, groupe Messenger du jour
         du permis…) et vos fiches libres, à copier ou à envoyer par mail.
@@ -8447,128 +8593,128 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1297"></script>
-<script src="app/ec-modeles.js?v=1297"></script>
-<script src="app/ec-consignes.js?v=1297"></script>
-<script src="app/ec-noyau.js?v=1297"></script>
-<script src="app/ec-vocal.js?v=1297"></script>
+  <script src="app/ec-etat.js?v=1299"></script>
+<script src="app/ec-modeles.js?v=1299"></script>
+<script src="app/ec-consignes.js?v=1299"></script>
+<script src="app/ec-noyau.js?v=1299"></script>
+<script src="app/ec-vocal.js?v=1299"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1297"></script>
-<script src="app/ec-reseau.js?v=1297"></script>
-<script src="app/ec-manuel.js?v=1297"></script>
-<script src="app/ec-verifs-banque.js?v=1297"></script>
-<script src="app/ec-suivi-eleve.js?v=1297"></script>
-<script src="app/ec-verifs.js?v=1297"></script>
-<script src="app/ec-jeu-atelier.js?v=1297"></script>
-<script src="app/ec-fenetres.js?v=1297"></script>
-<script src="app/ec-montage.js?v=1297"></script>
-<script src="app/ec-montage-editeur.js?v=1297"></script>
-<script src="app/ec-montage-fabrique.js?v=1297"></script>
-<script src="app/ec-parcours.js?v=1297"></script>
-<script src="app/ec-questionnaire.js?v=1297"></script>
-<script src="app/ec-permis.js?v=1297"></script>
-<script src="app/ec-prepares.js?v=1297"></script>
-<script src="app/ec-avant-cours.js?v=1297"></script>
-<script src="app/ec-bureau.js?v=1297"></script>
-<script src="app/ec-places.js?v=1297"></script>
-<script src="app/ec-listes.js?v=1297"></script>
-<script src="app/ec-permis-listes.js?v=1297"></script>
-<script src="app/ec-postpermis.js?v=1297"></script>
-<script src="app/ec-textes.js?v=1297"></script>
-<script src="app/ec-import-keep.js?v=1297"></script>
-<script src="app/ec-correction.js?v=1297"></script>
-<script src="app/ec-bilans.js?v=1297"></script>
-<script src="app/ec-fiches.js?v=1297"></script>
-<script src="app/ec-compo.js?v=1297"></script>
-<script src="app/ec-tele.js?v=1297"></script>
-<script src="app/ec-ecran.js?v=1297"></script>
-<script src="app/ec-studio.js?v=1297"></script>
-<script src="app/ec-mep.js?v=1297"></script>
-<script src="app/ec-version.js?v=1297"></script>
-<script src="app/ec-paie.js?v=1297"></script>
-<script src="app/ec-flotte.js?v=1297"></script>
-<script src="app/ec-carrosserie.js?v=1297"></script>
-<script src="app/ec-solo.js?v=1297"></script>
-<script src="app/ec-handicap-pdf.js?v=1297"></script>
-<script src="app/ec-moto.js?v=1297"></script>
-<script src="app/ec-remorque.js?v=1297"></script>
-<script src="app/ec-arriereplan.js?v=1297"></script>
-<script src="app/ec-iadirect.js?v=1297"></script>
-<script src="app/ec-placesbe.js?v=1297"></script>
-<script src="app/ec-codeamenage.js?v=1297"></script>
-<script src="app/ec-financements.js?v=1297"></script>
-<script src="app/ec-eval-aac.js?v=1297"></script>
-<script src="app/ec-postes.js?v=1297"></script>
-<script src="app/ec-tarifs.js?v=1297"></script>
-<script src="app/ec-tarifs-fiches.js?v=1297"></script>
-<script src="app/ec-courriers.js?v=1297"></script>
-<script src="app/ec-formations-docs.js?v=1297"></script>
-<script src="app/ec-formations.js?v=1297"></script>
-<script src="app/ec-formations-signer.js?v=1297"></script>
-<script src="app/ec-formations-suivi.js?v=1297"></script>
-<script src="app/ec-caisse.js?v=1297"></script>
-<script src="app/ec-menage.js?v=1297"></script>
-<script src="app/ec-page-eleve.js?v=1297"></script>
-<script src="app/ec-notes-dossier.js?v=1297"></script>
-<script src="app/ec-renseignements.js?v=1297"></script>
-<script src="app/ec-messagerie.js?v=1297"></script>
-<script src="app/ec-cockpit.js?v=1297"></script>
+<script src="app/ec-trajet.js?v=1299"></script>
+<script src="app/ec-reseau.js?v=1299"></script>
+<script src="app/ec-manuel.js?v=1299"></script>
+<script src="app/ec-verifs-banque.js?v=1299"></script>
+<script src="app/ec-suivi-eleve.js?v=1299"></script>
+<script src="app/ec-verifs.js?v=1299"></script>
+<script src="app/ec-jeu-atelier.js?v=1299"></script>
+<script src="app/ec-fenetres.js?v=1299"></script>
+<script src="app/ec-montage.js?v=1299"></script>
+<script src="app/ec-montage-editeur.js?v=1299"></script>
+<script src="app/ec-montage-fabrique.js?v=1299"></script>
+<script src="app/ec-parcours.js?v=1299"></script>
+<script src="app/ec-questionnaire.js?v=1299"></script>
+<script src="app/ec-permis.js?v=1299"></script>
+<script src="app/ec-prepares.js?v=1299"></script>
+<script src="app/ec-avant-cours.js?v=1299"></script>
+<script src="app/ec-bureau.js?v=1299"></script>
+<script src="app/ec-places.js?v=1299"></script>
+<script src="app/ec-listes.js?v=1299"></script>
+<script src="app/ec-permis-listes.js?v=1299"></script>
+<script src="app/ec-postpermis.js?v=1299"></script>
+<script src="app/ec-textes.js?v=1299"></script>
+<script src="app/ec-import-keep.js?v=1299"></script>
+<script src="app/ec-correction.js?v=1299"></script>
+<script src="app/ec-bilans.js?v=1299"></script>
+<script src="app/ec-fiches.js?v=1299"></script>
+<script src="app/ec-compo.js?v=1299"></script>
+<script src="app/ec-tele.js?v=1299"></script>
+<script src="app/ec-ecran.js?v=1299"></script>
+<script src="app/ec-studio.js?v=1299"></script>
+<script src="app/ec-mep.js?v=1299"></script>
+<script src="app/ec-version.js?v=1299"></script>
+<script src="app/ec-paie.js?v=1299"></script>
+<script src="app/ec-flotte.js?v=1299"></script>
+<script src="app/ec-carrosserie.js?v=1299"></script>
+<script src="app/ec-solo.js?v=1299"></script>
+<script src="app/ec-handicap-pdf.js?v=1299"></script>
+<script src="app/ec-moto.js?v=1299"></script>
+<script src="app/ec-remorque.js?v=1299"></script>
+<script src="app/ec-arriereplan.js?v=1299"></script>
+<script src="app/ec-iadirect.js?v=1299"></script>
+<script src="app/ec-placesbe.js?v=1299"></script>
+<script src="app/ec-codeamenage.js?v=1299"></script>
+<script src="app/ec-financements.js?v=1299"></script>
+<script src="app/ec-eval-aac.js?v=1299"></script>
+<script src="app/ec-postes.js?v=1299"></script>
+<script src="app/ec-tarifs.js?v=1299"></script>
+<script src="app/ec-tarifs-fiches.js?v=1299"></script>
+<script src="app/ec-courriers.js?v=1299"></script>
+<script src="app/ec-formations-docs.js?v=1299"></script>
+<script src="app/ec-formations.js?v=1299"></script>
+<script src="app/ec-formations-signer.js?v=1299"></script>
+<script src="app/ec-formations-suivi.js?v=1299"></script>
+<script src="app/ec-caisse.js?v=1299"></script>
+<script src="app/ec-menage.js?v=1299"></script>
+<script src="app/ec-page-eleve.js?v=1299"></script>
+<script src="app/ec-notes-dossier.js?v=1299"></script>
+<script src="app/ec-renseignements.js?v=1299"></script>
+<script src="app/ec-messagerie.js?v=1299"></script>
+<script src="app/ec-cockpit.js?v=1299"></script>
 <!-- 📞 v1183 — les appels : l'écran commun (partagé avec eleve.html), puis l'équipe -->
-<script src="appel-commun.js?v=1297"></script>
-<script src="app/ec-appels.js?v=1297"></script>
-<script src="app/ec-aqui.js?v=1297"></script>
-<script src="app/ec-photos-profil.js?v=1297"></script>
-<script src="app/ec-drivup.js?v=1297"></script>
-<script src="app/ec-bureaux.js?v=1297"></script>
-<script src="app/ec-cbgasoil.js?v=1297"></script>
-<script src="app/ec-loupe.js?v=1297"></script>
-<script src="app/ec-coutsia.js?v=1297"></script>
-<script src="app/ec-evaluation.js?v=1297"></script>
+<script src="appel-commun.js?v=1299"></script>
+<script src="app/ec-appels.js?v=1299"></script>
+<script src="app/ec-aqui.js?v=1299"></script>
+<script src="app/ec-photos-profil.js?v=1299"></script>
+<script src="app/ec-drivup.js?v=1299"></script>
+<script src="app/ec-bureaux.js?v=1299"></script>
+<script src="app/ec-cbgasoil.js?v=1299"></script>
+<script src="app/ec-loupe.js?v=1299"></script>
+<script src="app/ec-coutsia.js?v=1299"></script>
+<script src="app/ec-evaluation.js?v=1299"></script>
 <!-- 👥 v1189 — l’équipe : fiches, papiers, arrêts, et les échéances de l’école -->
-<script src="app/ec-equipe.js?v=1297"></script>
-<script src="app/ec-paiement.js?v=1297"></script>
-<script src="app/ec-aides.js?v=1297"></script>
-<script src="app/ec-salle.js?v=1297"></script>
-<script src="app/ec-durees-examen.js?v=1297"></script>
-<script src="app/ec-msg-gestes.js?v=1297"></script>
-<script src="app/ec-handicap.js?v=1297"></script>
-<script src="app/ec-code.js?v=1297"></script>
-<script src="app/ec-proccorriger.js?v=1297"></script>
-<script src="app/ec-sessions.js?v=1297"></script>
-<script src="app/ec-creneaux.js?v=1297"></script>
-<script src="app/ec-suivi-appels.js?v=1297"></script>
-<script src="app/ec-aac-cs.js?v=1297"></script>
-<script src="app/ec-notifs.js?v=1297"></script>
-<script src="app/ec-ecoutes.js?v=1297"></script>
-<script src="app/ec-ecoutes-presence.js?v=1297"></script>
-<script src="app/ec-todo.js?v=1297"></script>
-<script src="app/ec-taches.js?v=1297"></script>
-<script src="app/ec-memoire.js?v=1297"></script>
-<script src="app/ec-historique.js?v=1297"></script>
-<script src="app/ec-rappels.js?v=1297"></script>
-<script src="app/ec-segments.js?v=1297"></script>
-<script src="app/ec-sms.js?v=1297"></script>
-<script src="app/ec-encours.js?v=1297"></script>
-<script src="app/ec-incidents.js?v=1297"></script>
+<script src="app/ec-equipe.js?v=1299"></script>
+<script src="app/ec-paiement.js?v=1299"></script>
+<script src="app/ec-aides.js?v=1299"></script>
+<script src="app/ec-salle.js?v=1299"></script>
+<script src="app/ec-durees-examen.js?v=1299"></script>
+<script src="app/ec-msg-gestes.js?v=1299"></script>
+<script src="app/ec-handicap.js?v=1299"></script>
+<script src="app/ec-code.js?v=1299"></script>
+<script src="app/ec-proccorriger.js?v=1299"></script>
+<script src="app/ec-sessions.js?v=1299"></script>
+<script src="app/ec-creneaux.js?v=1299"></script>
+<script src="app/ec-suivi-appels.js?v=1299"></script>
+<script src="app/ec-aac-cs.js?v=1299"></script>
+<script src="app/ec-notifs.js?v=1299"></script>
+<script src="app/ec-ecoutes.js?v=1299"></script>
+<script src="app/ec-ecoutes-presence.js?v=1299"></script>
+<script src="app/ec-todo.js?v=1299"></script>
+<script src="app/ec-taches.js?v=1299"></script>
+<script src="app/ec-memoire.js?v=1299"></script>
+<script src="app/ec-historique.js?v=1299"></script>
+<script src="app/ec-rappels.js?v=1299"></script>
+<script src="app/ec-segments.js?v=1299"></script>
+<script src="app/ec-sms.js?v=1299"></script>
+<script src="app/ec-encours.js?v=1299"></script>
+<script src="app/ec-incidents.js?v=1299"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1297"></script>
+<script src="app/ec-messages-perso.js?v=1299"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1297"></script>
-<script src="app/ec-bandeau.js?v=1297"></script>
-<script src="app/ec-stats.js?v=1297"></script>
-<script src="app/ec-messenger.js?v=1297"></script>
-<script src="app/ec-journal.js?v=1297"></script>
-<script src="app/ec-mails.js?v=1297"></script>
-<script src="app/ec-activite.js?v=1297"></script>
-<script src="app/ec-direct.js?v=1297"></script>
-<script src="app/ec-depart.js?v=1297"></script>
-<script src="app/ec-onglets.js?v=1297"></script>
-<script src="app/ec-demarrage.js?v=1297"></script>
+<script src="app/ec-nouveautes.js?v=1299"></script>
+<script src="app/ec-bandeau.js?v=1299"></script>
+<script src="app/ec-stats.js?v=1299"></script>
+<script src="app/ec-messenger.js?v=1299"></script>
+<script src="app/ec-journal.js?v=1299"></script>
+<script src="app/ec-mails.js?v=1299"></script>
+<script src="app/ec-activite.js?v=1299"></script>
+<script src="app/ec-direct.js?v=1299"></script>
+<script src="app/ec-depart.js?v=1299"></script>
+<script src="app/ec-onglets.js?v=1299"></script>
+<script src="app/ec-demarrage.js?v=1299"></script>
 
 <script>
 /* ============================================================
