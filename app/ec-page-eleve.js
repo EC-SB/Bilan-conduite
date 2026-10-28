@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:08 — v1273 */
+/* Déployé le 28/10/2026 à 15:36 — v1295 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -4889,6 +4889,9 @@ function ongletPermis(corps, nom){
     corps.appendChild(g);
   }
 
+  /* ⏱️ v1295 — la durée de ses examens officiels, pour nous seulement */
+  if(typeof zoneDureesExamenEleve === 'function') zoneDureesExamenEleve(corps, nom);
+
   /* La passerelle, quand la question ne s'est pas ouverte au bon
      moment. Asynchrone : voir juste en dessous. */
   zonePasserelleEleve(corps, nom, refaire);
@@ -5187,8 +5190,15 @@ async function ongletFinancement(corps, nom){
   if(ongletPageEleve !== 'financement') return;
   corps.innerHTML = '';
 
+  /* 📒 v1294 — David : « j'ai toujours pas le suivi du financement après
+     avoir gardé ». Le point gardé, les envois et le suivi de chaque aide
+     (ec-aides.js) n'étaient que dans la fenêtre de sa fiche, pas ici :
+     ils passent en tête de cet onglet. */
+  const zoneAides = document.createElement('div');
+  corps.appendChild(zoneAides);
+
   if(!dossiers.length){
-    corps.appendChild(vidDossier('Aucun dossier de financement à son nom.'));
+    corps.appendChild(vidDossier('Aucun dossier France Travail ou Région à son nom.'));
   }else{
     dossiers.forEach(x => corps.appendChild(ligneDossier(
       '💶 ' + (x.type || 'Dossier'),
@@ -5205,6 +5215,11 @@ async function ongletFinancement(corps, nom){
   }
 
   boutonEcranComplet(corps, '💶 Ouvrir les financements', 'financements');
+
+  if(typeof ligneAidesFiche === 'function'){
+    try{ await ligneAidesFiche(nom, zoneAides); }catch(e){}
+    /* Rien à son nom côté aides non plus : la zone reste vide */
+  }
 }
 
 
