@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 17:34 — v1296 */
+/* Déployé le 28/10/2026 à 18:00 — v1298 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -311,6 +311,7 @@ function dessinerLaListeMessagerie(){
     v.innerHTML = !conversationsEC.length
       ? "Aucune conversation pour l'instant.<br>Ouvre-en une avec ✏️."
       : (!filtreMessagerie && ongletMsgEC === 'nonlus') ? '🎉 Rien de non lu.<br><span style="font-size:12px;">Tout est lu — le reste est dans « Tout ».</span>'
+      : (!filtreMessagerie && ongletMsgEC === 'permis') ? '🏁 Aucun groupe du permis en cours.<br><span style="font-size:12px;">Ils se créent depuis 🏁 Permis › 📣 Message groupe Messenger.</span>'
       : 'Rien ici.';
     sc.appendChild(v);
     return;
@@ -1801,7 +1802,6 @@ function zoneDEcritureDuFil(id){
     }
   });
   champ.appendChild(t);
-  champ.appendChild(emo);
 
   const b = document.createElement('button');
   b.type = 'button';
@@ -1821,6 +1821,10 @@ function zoneDEcritureDuFil(id){
   });
   l.appendChild(b);
   if(voc) l.appendChild(voc);
+  /* 👍 🎤 😊 v1298 — David : « mets quand même le pouce en rapide avant
+     l'émoji : pouce, micro, émoji ». Champ vide : 👍 🎤 😊 ; dès qu'on
+     écrit : ➤ 😊. Le 😊 sort du champ et reste au bout, toujours. */
+  l.appendChild(emo);
 
   /* ⚠️ LE CHAMP GRANDIT, IL NE DÉFILE PAS. Deux lignes figées
      obligeaient à faire défiler un message de cinq lignes dans une
@@ -1845,9 +1849,8 @@ function zoneDEcritureDuFil(id){
     const vide = !t.value.trim();
     b.classList.remove('eteint');
     b.classList.toggle('pouce', vide);
-    /* 🎤 v1296 — le micro à la place de l'envoi tant que c'est vide
-       (le 👍 reste là où il n'y a pas de micro) */
-    if(voc){ voc.style.display = vide ? '' : 'none'; b.style.display = vide ? 'none' : ''; }
+    /* 👍 v1298 — le pouce revient : 👍 puis 🎤 tant que c'est vide, ➤ seul dès qu'on écrit */
+    if(voc) voc.style.display = vide ? '' : 'none';
     /* 👍 puis l'avion — dessinés, comme le reste de la barre (v1161).
        On ne redessine que si ça change : à chaque frappe, sinon. */
     const icone = vide ? 'pouce' : 'avion';
