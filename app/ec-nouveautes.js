@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 11:52 — v1288 */
+/* Déployé le 28/10/2026 à 12:12 — v1289 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1289,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '🔗 Formation CPF : celle juste au-dessus du prix · 🏦 « Permis à 1 € »',
+    quoi: [
+      { emoji: '🔗',
+        titre: 'La formation CPF proposée est celle juste au-dessus de son prix',
+        texte: 'Pour la voiture, en BV ou en BEA, peu importe. La liste montre toutes les formations du catalogue, rangées par catégorie.' },
+      { emoji: '🏦',
+        titre: '« Permis à 1 € » au lieu de « Prêt à 0 % »',
+        texte: 'Dans le total du générateur et sur la feuille imprimée.' }
+    ]
+  },
   {
     version: 1288,
     date: 'Mercredi 28 octobre 2026',
