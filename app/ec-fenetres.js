@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 14:25 — v1293 */
+/* Déployé le 28/10/2026 à 15:36 — v1295 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2646,6 +2646,20 @@ async function ajouterLaBaseAuDossier(d, nom){
     d.total = (d.total || 0) + lignes.length;
   }catch(e){
     d.parties.push({ titre: 'Ses aides au financement', lignes: [],
+      note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+  }
+  /* ⏱️ v1295 — la durée de ses examens officiels (notée par l'équipe) */
+  try{
+    const r = await appelPrep({ action: 'examenDureeList', eleve: nom });
+    const lignes = ((r && r.durees) || []).map(x => ({
+      'Examen du': x.jour || '', 'Début': x.debut || '', 'Fin': x.fin || '', 'Durée (min)': x.minutes || '',
+      'Inspecteur': x.inspecteur || '', 'Centre': x.centre || '', 'Moniteur': x.moniteur || '', 'Noté le': x.majLe || ''
+    }));
+    d.parties.push({ titre: 'La durée de ses examens', lignes: lignes,
+      note: 'Notée par le moniteur (début et fin de l’examen officiel).' });
+    d.total = (d.total || 0) + lignes.length;
+  }catch(e){
+    d.parties.push({ titre: 'La durée de ses examens', lignes: [],
       note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
   }
   /* 📺 v1290 — sa salle des tablettes (où il en est, ses séances) */
