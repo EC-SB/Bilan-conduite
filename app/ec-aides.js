@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:49 — v1287 */
+/* Déployé le 28/10/2026 à 11:52 — v1288 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -435,6 +435,151 @@ function aiDessiner(){
   t.appendChild(aiEl('summary', '', '🧮 Quelles aides pour cet élève ?'));
   t.appendChild(aiGenerateur(AI.g, { dansLaVue: true }));
   z.appendChild(t);
+  z.appendChild(aiTiroirMessage());
+}
+
+/* ============================================================
+   ✉️ v1288 — UN MESSAGE CPF, SANS DOSSIER
+   David, le 28 octobre : « Comment je fais pour envoyer les messages
+   CPF sans avoir à créer de dossier ? » — « ajoutes un générateur à
+   côté ». Les mêmes messages que ⚙️ Les aides › ✉️ Messages CPF,
+   remplis avec la formation choisie, et la même fenêtre d'envoi.
+   ⚠️ RIEN N'EST NOTÉ : pas de dossier, pas d'étape, pas de « message
+   envoyé le ». Pour suivre, c'est ➕ Suivre son dossier CPF.
+   ============================================================ */
+const AI_MESSAGES_SEULS = [
+  ['identite', '🪪 Identité numérique'], ['devis', '📝 Demande de devis'], ['valider', '✅ Valider le dossier'], ['relance', '♻️ Relance (UP)'],
+  ['valide', '📆 Dossier validé'], ['entreeCode', '🚦 Entrée — code'], ['entreeConduite', '🚦 Entrée — conduite'],
+  ['entreeEnCours', '🚦 Entrée — en cours de formation'], ['entreeProche', '🚦 Entrée — proche du permis'], ['sortie', '🏁 Sortie de formation']];
+function aiMessageVide(){ return { eleve: '', mail: '', formation: '', de: false, cle: 'identite', dateEntree: '', datePermis: '', texte: null }; }
+function aiCleDuMessageSeul(m){
+  if(m.cle === 'devis') return m.de ? 'devisDE' : 'devisClassique';
+  if(m.cle === 'valider') return m.de ? 'validerDE' : 'validerClassique';
+  return m.cle;
+}
+function aiTexteDuMessageSeul(m){
+  const R = aiReglages(), v = ((R.aides || []).find(a => a.cle === 'cpf') || {}).valeurs || {};
+  const f = aiFormationCpf(m.formation), pf = f ? aiPrixFormation(f).prix : null;
+  const vals = Object.assign({}, v, {
+    participation: aiEuros(Number(v.participation) || 0), formation: f ? f.titre : '', prix: pf !== null ? aiEuros(pf) : '', lien: f ? (f.lien || '') : '',
+    dateEntree: m.dateEntree ? aiFrDeIso(m.dateEntree) : '…', datePermis: m.datePermis ? aiFrDeIso(m.datePermis) : '…' });
+  return aiRemplir((R.messages || {})[aiCleDuMessageSeul(m)] || '', vals);
+}
+function aiDelaiEntree(m){
+  const v = ((aiReglages().aides || []).find(a => a.cle === 'cpf') || {}).valeurs || {};
+  return aiPlusJours(aiAujourdhui(), Number(m.de ? v.delaiDE : v.delaiClassique) || 14);
+}
+function aiTiroirMessage(){
+  if(!AI.m) AI.m = aiMessageVide();
+  const t = aiEl('details', 'aiTiroir');
+  t.id = 'aiMessageSeul';
+  t.open = !!AI.mOuvert;
+  t.addEventListener('toggle', () => { AI.mOuvert = t.open; });
+  t.appendChild(aiEl('summary', '', '✉️ Un message CPF, sans dossier'));
+  const c = aiEl('div', '');
+  c.style.marginTop = '10px';
+  const dessiner = () => { c.innerHTML = ''; aiCorpsMessage(c, dessiner); };
+  dessiner();
+  t.appendChild(c);
+  return t;
+}
+function aiCorpsMessage(c, dessiner){
+  const m = AI.m;
+  const change = (k, v) => { m[k] = v; m.texte = null; dessiner(); };
+  c.appendChild(aiEl('div', 'aiAide', 'Pour envoyer un des messages CPF sans ouvrir de dossier. Rien n’est noté : pour suivre ses étapes, ➕ Suivre son dossier CPF (dans « Quelles aides pour cet élève ? »).')).style.margin = '0 0 10px';
+  const hd = aiEl('div', '');
+  hd.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;';
+  const ir = aiEl('input');
+  ir.type = 'text'; ir.setAttribute('list', 'listeEleves'); ir.autocomplete = 'off';
+  ir.placeholder = '🔎 Un élève (ou personne : tu mettras son adresse)';
+  ir.value = m.eleve || '';
+  ir.style.cssText = 'margin:0;flex:1;min-width:200px;';
+  ir.addEventListener('change', () => {
+    const v = ir.value.trim();
+    const f = (typeof ficheDe === 'function') ? ficheDe(v) : null;
+    m.eleve = f ? (f.eleve || v) : v;
+    m.mail = f ? (f.email || '') : '';
+    if(f){ const g = aiGenerateurDeLEleve(m.eleve); if(g.cpf) m.formation = g.cpf; }
+    m.texte = null;
+    dessiner();
+  });
+  hd.appendChild(ir);
+  hd.appendChild(aiBouton('↺ Tout effacer', '', () => { AI.m = aiMessageVide(); dessiner(); }));
+  c.appendChild(hd);
+
+  const gr = aiEl('div', 'aiGrille'), c1 = aiEl('div', ''), c2 = aiEl('div', '');
+  const fc = aiEl('div', 'aiQ');
+  fc.appendChild(aiEl('label', '', '🔗 Sa formation au CPF'));
+  const sel = aiEl('select'); sel.style.marginBottom = '0';
+  sel.innerHTML = '<option value=""' + (!m.formation ? ' selected' : '') + '>— choisis la formation —</option>' +
+    (aiReglages().catalogue || []).map(x => { const p = aiPrixFormation(x).prix; return '<option value="' + aiEch(x.id) + '"' + (x.id === m.formation ? ' selected' : '') + '>' + aiEch(x.titre) + (p !== null ? ' — ' + aiEuros(p) : ' — prix ?') + '</option>'; }).join('');
+  sel.addEventListener('change', () => change('formation', sel.value));
+  fc.appendChild(sel);
+  fc.appendChild(aiEl('div', 'aiAide', 'Son titre, son prix (lu dans 💰 Tarifs) et son lien vont dans le message.'));
+  fc.lastChild.style.marginTop = '4px';
+  c1.appendChild(fc);
+  c1.appendChild(aiChoix('💼 Sa situation', [['n', '🏢 Classique'], ['o', '📋 Demandeur d’emploi']], m.de ? 'o' : 'n', k => {
+    m.de = k === 'o'; if(m.cle === 'valide') m.dateEntree = aiDelaiEntree(m); m.texte = null; dessiner();
+  }, 'Change la demande de devis et la validation (abondement France Travail).'));
+  c2.appendChild(aiChoix('✉️ Le message', AI_MESSAGES_SEULS, m.cle, k => {
+    m.cle = k; if(k === 'valide' && !m.dateEntree) m.dateEntree = aiDelaiEntree(m); m.texte = null; dessiner();
+  }));
+  const champDate = (lab, k) => {
+    const ld = aiEl('div', 'aiQ'); ld.appendChild(aiEl('label', '', lab));
+    const ip = aiEl('input'); ip.type = 'date'; ip.value = m[k] || '';
+    /* comme la date de naissance (v1286) : on ne redessine pas sous les doigts */
+    const suivre = () => { m[k] = /^(19|20)\d\d-/.test(ip.value) ? ip.value : ''; m.texte = null; if(ta.isConnected) ta.value = aiTexteDuMessageSeul(m); };
+    ip.addEventListener('input', suivre); ip.addEventListener('change', suivre);
+    ld.appendChild(ip);
+    return ld;
+  };
+  if(m.cle === 'valide') c2.appendChild(champDate('📆 Son entrée en formation le', 'dateEntree'));
+  if(m.cle === 'entreeProche') c2.appendChild(champDate('🏁 La date de son permis', 'datePermis'));
+  gr.appendChild(c1); gr.appendChild(c2);
+  c.appendChild(gr);
+
+  const brut = String((aiReglages().messages || {})[aiCleDuMessageSeul(m)] || '');
+  if(!m.formation && /\{(formation|prix|lien)\}/.test(brut)) c.appendChild(aiEl('div', 'aiNote', '⚠️ Ce message parle de sa formation : choisis-la au-dessus.')).style.margin = '0 0 6px';
+  c.appendChild(aiEl('div', 'aiSous', 'Le message — ' + aiEch(AI_NOMS_MESSAGES[aiCleDuMessageSeul(m)] || '')));
+  const ta = aiEl('textarea', 'aiMsg');
+  ta.value = m.texte !== null ? m.texte : aiTexteDuMessageSeul(m);
+  ta.addEventListener('input', () => { m.texte = ta.value; });
+  c.appendChild(ta);
+  const r = aiEl('div', 'aiBas');
+  r.appendChild(aiBouton('✉️ Envoyer', 'btn-primary', async () => {
+    const adresse = m.eleve ? await aiAdresseDe(m.eleve, m.mail) : '';
+    aiFenetreMail({ titre: '✉️ ' + (AI_NOMS_MESSAGES[aiCleDuMessageSeul(m)] || 'Message CPF'), eleve: m.eleve, a: adresse,
+      sujet: 'Ton dossier CPF — Évolution Conduites', texte: ta.value, genre: 'cpf' });
+  }));
+  r.appendChild(aiBouton('📋 Copier', '', async () => { try{ await navigator.clipboard.writeText(ta.value); showToast('Copié ✅'); }catch(e){ showToast('Copie impossible'); } }));
+  c.appendChild(r);
+}
+/* Depuis la carte CPF du générateur : le message prérempli */
+function aiVersLeMessage(g, bouton){
+  AI.m = Object.assign(aiMessageVide(), { eleve: g.eleve || '', mail: g.mail || '', formation: g.cpf || '', de: g.situation === 'de' });
+  const z = $('aidesZone');
+  if(z && bouton && z.contains(bouton)){
+    AI.mOuvert = true;
+    aiDessiner();
+    const t = $('aiMessageSeul');
+    if(t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  /* Depuis la fenêtre ouverte dans la fiche de l'élève : une fenêtre de plus */
+  const fond = aiEl('div', 'overlay show');
+  const md = aiEl('div', 'modal');
+  md.style.cssText = 'max-width:min(860px,96vw);max-height:92vh;overflow-y:auto;';
+  const h = aiEl('div', '');
+  h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+  h.appendChild(aiEl('h3', '', '✉️ Un message CPF' + (g.eleve ? ' — ' + aiEch(g.eleve) : ''))).style.cssText = 'flex:1;margin:0;';
+  h.appendChild(aiBouton('✕', '', () => fermerFond(fond)));
+  md.appendChild(h);
+  const c = aiEl('div', 'aiMessageFenetre');
+  const dessiner = () => { c.innerHTML = ''; aiCorpsMessage(c, dessiner); };
+  dessiner();
+  md.appendChild(c);
+  fond.appendChild(md);
+  document.body.appendChild(fond);
 }
 
 /* Le générateur : les questions et le résultat. Il sert dans la vue
@@ -615,6 +760,7 @@ function aiCarte(g, x){
     const r = aiEl('div', 'aiRang');
     if(x.cle === 'cpf'){
       r.appendChild(aiBouton('➕ Suivre son dossier CPF', '', () => aiCreerDossier(g, 'cpf', x)));
+      r.appendChild(aiBouton('✉️ Un message CPF', '', ev => aiVersLeMessage(g, ev.currentTarget)));
       if(x.formation && x.formation.lien) r.appendChild(aiBouton('🔗 Copier le lien de la formation', '', async () => {
         try{ await navigator.clipboard.writeText(x.formation.lien); showToast('Lien copié ✅'); }catch(e){ showToast('Copie impossible'); }
       }));
