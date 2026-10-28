@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 11:52 — v1288 */
+/* Déployé le 28/10/2026 à 12:12 — v1289 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -157,21 +157,40 @@ function aiPermisDeLaFormation(f){
   if(/BEA/.test(t)) return 'BEA';
   return 'B';
 }
+/* ⚠️ v1289 — LA VOITURE, C'EST BV OU BEA, PEU IMPORTE.
+   David, le 28 octobre : « sur le CPF on prend n'importe laquelle qui
+   est de la voiture pour les formations voiture ». Le code seul n'y
+   est plus : il ne couvre pas une formation conduite. */
 function aiCategoriesCpf(g){
-  const bea = /BEA/.test(String(g.formation || ''));
-  return ({ B: ['B', 'Code'], BEA: ['BEA', 'Code'], AAC: [bea ? 'BEA' : 'B', 'Code'], A: ['A2'], BE: ['BE', 'Code'], code: ['Code'], AM: [] })[g.permis] || [];
+  return ({ B: ['B', 'BEA'], BEA: ['B', 'BEA'], AAC: ['B', 'BEA'], A: ['A2'], BE: ['BE'], code: ['Code'], AM: [] })[g.permis] || [];
 }
-/* David : « je prends la formation au plus proche du montant dont on a besoin » */
+/* ⚠️ v1289 — CELLE JUSTE AU-DESSUS, JAMAIS EN DESSOUS.
+   David, le 28 octobre : « il faut mettre la formation qui a un tarif
+   au-dessus tout le temps » (avant : la plus proche, au-dessus ou en
+   dessous). La moins chère de celles qui coûtent au moins son prix ;
+   si aucune n'y arrive, la plus chère. L'annulation (B 10h) ne se
+   propose pas toute seule : elle se choisit dans la liste. */
 function aiCpfProposee(g){
   const cats = aiCategoriesCpf(g);
-  let best = null, ecart = Infinity;
-  (aiReglages().catalogue || []).filter(x => cats.includes(x.cat)).forEach(x => {
+  const prix = Number(g.prix) || 0;
+  const l = (aiReglages().catalogue || [])
+    .filter(x => cats.includes(x.cat) && !/annulation/i.test(String(x.titre || '')))
+    .map(x => ({ id: x.id, p: aiPrixFormation(x).prix }))
+    .filter(x => x.p !== null)
+    .sort((a, b) => a.p - b.p);
+  if(!l.length) return '';
+  return (l.find(x => x.p >= prix) || l[l.length - 1]).id;
+}
+/* Toutes les formations du catalogue, rangées par catégorie */
+const AI_GROUPES_CPF = { B: '🚗 Voiture — BV', BEA: '🚗 Voiture — BEA', Code: '📖 Code', BE: '🚚 Remorque — BE', A2: '🏍️ Moto — A2' };
+function aiOptionsCpf(choisie){
+  const cat = aiReglages().catalogue || [];
+  const ordre = [];
+  cat.forEach(x => { if(!ordre.includes(x.cat)) ordre.push(x.cat); });
+  return ordre.map(c => '<optgroup label="' + aiEch(AI_GROUPES_CPF[c] || c) + '">' + cat.filter(x => x.cat === c).map(x => {
     const p = aiPrixFormation(x).prix;
-    if(p === null) return;
-    const e = Math.abs(p - (Number(g.prix) || 0));
-    if(e < ecart){ ecart = e; best = x; }
-  });
-  return best ? best.id : '';
+    return '<option value="' + aiEch(x.id) + '"' + (x.id === choisie ? ' selected' : '') + '>' + aiEch(x.titre) + (p !== null ? ' — ' + aiEuros(p) : ' — prix ?') + '</option>';
+  }).join('') + '</optgroup>').join('');
 }
 function aiOrganisme(id){ return (aiReglages().organismes || []).find(o => o.id === id) || null; }
 
@@ -303,7 +322,7 @@ function aiRegles(g){
       L.push(x);
       if(g.dejaPret === 'o' && g.echec && (ok !== false) && Number(v.seconde)){
         L.push(base(a, { cle: 'p1b', emoji: '🔁', nom: a.nom + ' — seconde chance', type: 'pret', etat: 'oui', montant: Number(v.seconde),
-          ligne: 'Prêt à 0 % de ' + v.seconde + ' € après un échec à la conduite · une fois par catégorie', marche: [], mail: '' }));
+          ligne: 'Prêt de ' + v.seconde + ' € après un échec à la conduite · une fois par catégorie', marche: [], mail: '' }));
       }
       return;
     }
@@ -342,7 +361,7 @@ function aiRegles(g){
     else {
       pr.montant = m; reste -= m;
       const mens = Number(v.mensualite) || 30;
-      pr.ligne = 'Prêt à 0 % de ' + aiEuros(m) + ' · ' + Math.ceil(m / mens) + ' mois à ' + mens + ' € · accord de la banque' + (aiAge(g) !== null && aiAge(g) < 18 ? ' · signé par ses parents' : '');
+      pr.ligne = 'Prêt de ' + aiEuros(m) + ' · ' + Math.ceil(m / mens) + ' mois à ' + mens + ' € · accord de la banque' + (aiAge(g) !== null && aiAge(g) < 18 ? ' · signé par ses parents' : '');
     }
   }
   const sc = L.find(y => y.cle === 'p1b');
@@ -512,7 +531,7 @@ function aiCorpsMessage(c, dessiner){
   fc.appendChild(aiEl('label', '', '🔗 Sa formation au CPF'));
   const sel = aiEl('select'); sel.style.marginBottom = '0';
   sel.innerHTML = '<option value=""' + (!m.formation ? ' selected' : '') + '>— choisis la formation —</option>' +
-    (aiReglages().catalogue || []).map(x => { const p = aiPrixFormation(x).prix; return '<option value="' + aiEch(x.id) + '"' + (x.id === m.formation ? ' selected' : '') + '>' + aiEch(x.titre) + (p !== null ? ' — ' + aiEuros(p) : ' — prix ?') + '</option>'; }).join('');
+    aiOptionsCpf(m.formation);
   sel.addEventListener('change', () => change('formation', sel.value));
   fc.appendChild(sel);
   fc.appendChild(aiEl('div', 'aiAide', 'Son titre, son prix (lu dans 💰 Tarifs) et son lien vont dans le message.'));
@@ -702,12 +721,10 @@ function aiQuestions(g, redessiner, majResultat){
     const fc = aiEl('div', 'aiQ');
     fc.appendChild(aiEl('label', '', '🔗 Sa formation au CPF'));
     const sel = aiEl('select'); sel.style.marginBottom = '0';
-    const liste = (aiReglages().catalogue || []).filter(x => cats.includes(x.cat));
-    sel.innerHTML = liste.map(x => { const p = aiPrixFormation(x).prix; return '<option value="' + aiEch(x.id) + '"' + (x.id === g.cpf ? ' selected' : '') + '>' + aiEch(x.titre) + (p !== null ? ' — ' + aiEuros(p) : ' — prix ?') + '</option>'; }).join('') +
-      '<option value=""' + (!g.cpf ? ' selected' : '') + '>— pas au CPF —</option>';
+    sel.innerHTML = aiOptionsCpf(g.cpf) + '<option value=""' + (!g.cpf ? ' selected' : '') + '>— pas au CPF —</option>';
     sel.addEventListener('change', () => { g.cpf = sel.value; g.cpfAuto = false; redessiner(); });
     fc.appendChild(sel);
-    fc.appendChild(aiEl('div', 'aiAide', 'Proposée : celle dont le prix est le plus proche du sien. La liste et les liens : ⚙️ Les aides › Formations CPF.'));
+    fc.appendChild(aiEl('div', 'aiAide', 'Proposée : celle juste au-dessus de son prix' + (['B', 'BEA', 'AAC'].includes(g.permis) ? ', en BV ou en BEA' : '') + '. Toutes les formations sont dans la liste ; les liens : ⚙️ Les aides › Formations CPF.'));
     fc.lastChild.style.marginTop = '4px';
     c1.appendChild(fc);
   }
@@ -781,10 +798,10 @@ function aiResultat(g, opts){
   tot.innerHTML = '<div class="aiSous" style="margin:0 0 6px;">Pour ' + aiEch((g.eleve || 'lui').split(' ')[0]) + ' · ' + aiEuros(T.prix) + '</div>' +
     '<div class="aiTotG">' +
     '<div><small>🎁 Payé par les aides</small><b style="color:var(--accent-text);">' + aiEuros(T.aides) + '</b><small>à ne pas rembourser</small></div>' +
-    '<div><small>🏦 Prêt à 0 %</small><b>' + aiEuros(T.pret) + '</b><small>' + (T.pret ? 'il rembourse chaque mois' : 'aucun') + '</small></div>' +
+    '<div><small>🏦 Permis à 1 €</small><b>' + aiEuros(T.pret) + '</b><small>' + (T.pret ? 'il rembourse chaque mois' : 'aucun') + '</small></div>' +
     '<div><small>💳 Il paie</small><b>' + aiEuros(T.paie) + '</b><small>' + (T.paie ? 'ou en 2, 3, 4 fois (ALMA)' : 'rien') + '</small></div></div>' +
     (ab ? '<div style="font-size:12.5px;margin-top:8px;padding-top:7px;border-top:1px solid var(--line);">🧩 <b>Et si France Travail abonde son CPF</b> : jusqu’à ' + aiEuros(ab.montant) + ' de plus — en général, tout le devis.</div>' : '') +
-    '<div style="font-size:11px;color:var(--muted);margin-top:7px;line-height:1.4;">Si tout est accordé. Ordre : CPF, Agefiph, Pass’Engagement, puis le prêt sur ce qui reste — jamais plus que le prix.</div>';
+    '<div style="font-size:11px;color:var(--muted);margin-top:7px;line-height:1.4;">Si tout est accordé. Ordre : CPF, Agefiph, Pass’Engagement, puis le permis à 1 € sur ce qui reste — jamais plus que le prix.</div>';
   z.appendChild(tot);
   const groupe = (t, l, ouvert) => {
     if(!l.length) return;
@@ -891,7 +908,7 @@ function aiImprimer(g){
     'table{border-collapse:collapse;width:100%;font-size:13px;}td{border-bottom:1px solid #ccc;padding:6px;vertical-align:top;}' +
     '.t{display:flex;gap:30px;font-size:14px;margin:10px 0;}.t b{font-size:18px;display:block;}</style></head><body>' +
     '<h1>Les aides pour ' + aiEch(g.eleve || 'cet élève') + ' — ' + aiEuros(T.prix) + '</h1>' +
-    '<div class="t"><div>Payé par les aides<b>' + aiEuros(T.aides) + '</b></div><div>Prêt à 0 %<b>' + aiEuros(T.pret) + '</b></div><div>Il paie<b>' + aiEuros(T.paie) + '</b></div></div>' +
+    '<div class="t"><div>Payé par les aides<b>' + aiEuros(T.aides) + '</b></div><div>Permis à 1 €<b>' + aiEuros(T.pret) + '</b></div><div>Il paie<b>' + aiEuros(T.paie) + '</b></div></div>' +
     '<h2>✅ Possibles</h2><table>' + lignes(L.filter(x => x.etat === 'oui')) + '</table>' +
     '<h2>🟠 À voir</h2><table>' + lignes(L.filter(x => x.etat === 'voir')) + '</table>' +
     '<p style="font-size:12px;color:#555;margin-top:24px;">Si tout est accordé. Évolution Conduites — le ' + aiFrDeIso(aiAujourdhui()) + '.</p>' +
