@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:59 — v1290 */
+/* Déployé le 28/10/2026 à 15:36 — v1295 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -1913,7 +1913,8 @@ function reveillerVue(cle){
     envisager:  () => afficherBureau(),
     preppermis: () => { afficherBureau();
                         if(typeof afficherSolo === 'function') afficherSolo(); },
-    resultats:  () => afficherBureau(),
+    /* ⏱️ v1295 — et la durée des examens (ec-durees-examen.js) */
+    resultats:  () => { afficherBureau(); if(typeof afficherDureesExamen === 'function') afficherDureesExamen(); },
     moto:       () => afficherMoto(),
     remorque:   () => afficherRemorque(),
     paie:       () => afficherPaie(),
