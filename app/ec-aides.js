@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 13:57 — v1292 */
+/* Déployé le 28/10/2026 à 14:25 — v1293 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -41,6 +41,35 @@ const AI_ETAPES_CPF = [
 const AI_ETAPES_PE = [
   ['attestation', '📄 Attestation reçue'], ['code', '🔓 Code débloqué'], ['cheque1', '💶 1er chèque reçu'],
   ['suite', '🔓 Suite débloquée'], ['cheque2', '💶 2e chèque reçu']];
+/* 📌 v1293 — David : « s'il fait un permis 1 €, il faut le suivi ; si
+   c'est le CPF, il faut le suivi ; idem pour les autres ». Un suivi par
+   aide choisie : ses étapes, la date de chacune, un rappel au bandeau
+   quand rien ne bouge, et tout dans « 📒 Le suivi » de sa fiche. */
+const AI_ETAPES_SUIVI = {
+  p1:        [['contrat', '📄 Contrat remis'], ['banque', '🏦 Rendez-vous banque'], ['accord', '✅ Accord de la banque'], ['fonds', '💶 Fonds reçus']],
+  ml:        [['devis', '📤 Devis et calendrier envoyés'], ['accord', '✅ Accord du conseiller'], ['facture', '🧾 Facture envoyée'], ['paiement', '💶 Paiement reçu']],
+  agefiph:   [['demande', '📝 Demande faite'], ['accord', '✅ Accord'], ['versement', '💶 Versement reçu']],
+  employeur: [['demande', '📝 Demande à l’employeur'], ['accord', '✅ Accord'], ['convention', '🧾 Convention ou facture'], ['paiement', '💶 Paiement reçu']],
+  commune:   [['demande', '📝 Demande en mairie'], ['accord', '✅ Accord'], ['versement', '💶 Versement reçu']],
+  alma:      [['calcul', '🧮 Calcul envoyé'], ['echeancier', '✍️ Échéancier signé']] };
+/* Ce qu'on attend après chaque étape (le conseil sous la frise) */
+const AI_CONSEILS_SUIVI = {
+  p1:        { contrat: 'Remets-lui son contrat de formation : le prêt ne dépasse jamais ce qui reste à payer.', banque: 'Il prend rendez-vous dans une banque partenaire avec le contrat et sa pièce d’identité (un mineur : ses parents signent).',
+               accord: 'La banque accepte ou refuse : note le montant accordé.', fonds: 'La banque nous verse le prêt.' },
+  ml:        { devis: 'Envoie le devis et le calendrier à son conseiller.', accord: 'Son conseiller décide : note le montant accordé.', facture: 'Envoie la facture à la Mission locale.', paiement: 'La Mission locale nous verse l’aide.' },
+  agefiph:   { demande: 'Il fait la demande sur agefiph.fr avec sa RQTH, notre devis et l’avis médical — avant de commencer.', accord: 'L’Agefiph répond : note le montant accordé.', versement: 'L’aide est versée.' },
+  employeur: { demande: 'Il demande à son employeur (ou au service RH), directement ou par l’OPCO : on fournit le devis et le programme.', accord: 'L’employeur répond : note le montant accordé.',
+               convention: 'Envoie la convention ou la facture à l’employeur (ou à l’OPCO).', paiement: 'L’employeur (ou l’OPCO) nous paie sa part.' },
+  commune:   { demande: 'Il demande à sa mairie (ou au CCAS) si une bourse au permis existe.', accord: 'La mairie répond : note le montant accordé.', versement: 'La commune verse la bourse.' },
+  alma:      { calcul: 'Envoie-lui le calcul de son paiement en plusieurs fois.', echeancier: 'Il signe son échéancier ALMA.' } };
+/* Rien ne bouge depuis tant de jours → une ligne au bandeau */
+const AI_SUIVI_JOURS = 10;
+function aiAideDuSuivi(x){ return ((x && x.donnees) || {}).aide || ''; }
+function aiTitreSuivi(cle){
+  const a = aiAide(cle);
+  if(cle === 'alma') return '💳 Paiement en plusieurs fois (ALMA)';
+  return a ? (a.emoji + ' ' + a.nom) : cle;
+}
 const AI_ENTREES = [['entreeCode', '📖 Il commence par le code'], ['entreeConduite', '🚗 Il commence la conduite'],
   ['entreeEnCours', '🔁 En cours de formation conduite'], ['entreeProche', '🏁 Proche du permis']];
 const AI_NOMS_MESSAGES = {
@@ -834,7 +863,12 @@ function aiCarte(g, x){
     }
     if(x.cle === 'pe22') r.appendChild(aiBouton('➕ Suivre son Pass’Engagement', '', () => aiCreerDossier(g, 'pe22', x)));
     if(x.cle === 'alma') r.appendChild(aiBouton('💳 Ouvrir le calculateur ALMA', '', () => aiOuvrirAlma(g, x.reste)));
+    if(AI_ETAPES_SUIVI[x.cle]) r.appendChild(aiBouton('➕ Suivre', '', () => aiCreerDossier(g, 'suivi', x)));
     if(r.childNodes.length) d.appendChild(r);
+  }else if(x.etat === 'voir' && AI_ETAPES_SUIVI[x.cle]){
+    const r = aiEl('div', 'aiRang');
+    r.appendChild(aiBouton('➕ Suivre', '', () => aiCreerDossier(g, 'suivi', x)));
+    d.appendChild(r);
   }
   return d;
 }
@@ -1050,12 +1084,15 @@ async function aiOuvrirAlma(g, montant){
    ============================================================ */
 async function aiCreerDossier(g, type, x){
   if(!g.eleve){ showToast('Indique l’élève d’abord.'); return; }
-  const deja = ((AI.d && AI.d.dossiers) || []).find(d => d.type === type && !d.fini && aiNorm(d.eleve) === aiNorm(g.eleve));
-  if(deja){ showToast('Il a déjà un dossier en cours ✅'); aiAllerAuDossier(deja.id); return; }
+  const deja = ((AI.d && AI.d.dossiers) || []).find(d => d.type === type && !d.fini && aiNorm(d.eleve) === aiNorm(g.eleve) &&
+    (type !== 'suivi' || aiAideDuSuivi(d) === x.cle));
+  if(deja){ showToast('Il a déjà un suivi en cours ✅'); aiAllerAuDossier(deja.id); return; }
   const donnees = type === 'cpf'
     ? { formation: g.cpf, formationTitre: x.formation ? x.formation.titre : '', prix: x.prixFormation, lien: x.formation ? x.formation.lien : '',
         de: g.situation === 'de', montant: x.montant, mail: g.mail || '', envois: {} }
-    : { montant: x.montant, dates: {} };
+    : type === 'suivi'
+      ? { aide: x.cle, montant: x.cle === 'alma' ? (x.reste || 0) : (x.montant || 0), prix: Number(g.prix) || 0, dates: {}, note: '' }
+      : { montant: x.montant, dates: {} };
   try{
     const r = await appelPrep({ action: 'aidesDossierSet', eleve: g.eleve, type: type, etape: type === 'cpf' ? 'identite' : '', donnees: donnees });
     if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
@@ -1082,18 +1119,21 @@ function aiDessinerDossiers(){
   const z = $('aidesDossiersZone');
   if(!z || !AI.d) return;
   z.innerHTML = '';
-  const tous = (AI.d.dossiers || []).filter(d => d.type === 'cpf' || d.type === 'pe22');
-  [['cpf', '🎓 Dossiers CPF'], ['pe22', '🤝 Pass’Engagement']].forEach(([type, titre]) => {
-    const l = tous.filter(d => d.type === type);
+  const tous = (AI.d.dossiers || []).filter(d => d.type === 'cpf' || d.type === 'pe22' || d.type === 'suivi');
+  /* 📌 v1293 — après le CPF et le Pass'Engagement, un groupe par aide suivie */
+  const groupes = [['cpf', '🎓 Dossiers CPF', d => d.type === 'cpf', aiCarteCpf], ['pe22', '🤝 Pass’Engagement', d => d.type === 'pe22', aiCartePe]]
+    .concat(Object.keys(AI_ETAPES_SUIVI).map(k => ['suivi:' + k, aiTitreSuivi(k), d => d.type === 'suivi' && aiAideDuSuivi(d) === k, aiCarteSuivi]));
+  groupes.forEach(([type, titre, garde, carte]) => {
+    const l = tous.filter(garde);
     if(!l.length) return;
     const encours = l.filter(d => !d.fini), finis = l.filter(d => d.fini);
     z.appendChild(aiEl('div', 'aiSous', titre + ' · ' + encours.length + ' en cours'));
-    encours.forEach(d => z.appendChild(type === 'cpf' ? aiCarteCpf(d) : aiCartePe(d)));
+    encours.forEach(d => z.appendChild(carte(d)));
     if(finis.length){
       const det = aiEl('details', 'aiTiroir');
       det.appendChild(aiEl('summary', '', '✅ ' + finis.length + ' terminé(s)')).style.cssText = 'font-size:13px;color:var(--muted);font-weight:700;cursor:pointer;';
       const zf = aiEl('div', ''); zf.style.marginTop = '8px';
-      finis.forEach(d => zf.appendChild(type === 'cpf' ? aiCarteCpf(d) : aiCartePe(d)));
+      finis.forEach(d => zf.appendChild(carte(d)));
       det.appendChild(zf);
       z.appendChild(det);
     }
@@ -1254,6 +1294,65 @@ function aiCartePe(x){
     try{ await appelPrep({ action: 'aidesDossierDelete', id: x.id }); await aiCharger(true); aiDessinerDossiers(); }catch(e){ showToast('Impossible : ' + e.message); }
   }));
   c.appendChild(r);
+  return c;
+}
+
+/* 📌 v1293 — la carte d'un suivi (permis à 1 €, Mission locale, Agefiph,
+   employeur/OPCO, commune, ALMA) : comme le Pass'Engagement — on coche
+   l'étape quand elle est faite, la date du jour s'y met */
+function aiCarteSuivi(x){
+  const d = x.donnees || (x.donnees = {});
+  d.dates = d.dates || {};
+  const cle = aiAideDuSuivi(x);
+  const etapes = AI_ETAPES_SUIVI[cle] || [];
+  const c = aiEl('div', 'aiDossier' + (x.fini ? '' : ' chaud'));
+  c.setAttribute('data-aidossier', x.id);
+  const i = etapes.findIndex(e => e[0] === x.etape);
+  const tete = aiEl('div', '');
+  tete.style.cssText = 'display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;';
+  tete.innerHTML = '<b style="font-size:15px;">' + aiEch(aiTitreSuivi(cle).split(' ')[0] + ' ' + x.eleve) + ' — ' + aiEch(aiTitreSuivi(cle).split(' ').slice(1).join(' ')) + '</b>' +
+    '<span style="font-size:12.5px;color:var(--muted);">' + aiEch([d.montant ? (cle === 'p1' ? 'prêt ' : cle === 'alma' ? 'reste ' : '') + aiEuros(d.montant) : '', 'ouvert le ' + String(x.creeLe || '').split(' ')[0]].filter(Boolean).join(' · ')) + '</span>' +
+    '<span style="margin-left:auto;font-size:12px;font-weight:800;color:var(--accent-text);">' + aiEch(x.fini ? '✅ terminé' : i < 0 ? 'à commencer' : etapes[i][1]) + '</span>';
+  c.appendChild(tete);
+  c.appendChild(aiFrise(etapes, x.etape, true));
+  const dit = etapes.filter(e => d.dates[e[0]]).map(e => e[1] + ' le ' + d.dates[e[0]]).join(' · ');
+  if(dit) c.appendChild(aiEl('div', 'aiAide', aiEch(dit))).style.margin = '0 0 8px';
+  const prochaine = etapes[i + 1];
+  if(prochaine && !x.fini) c.appendChild(aiEl('div', '', '👉 ' + aiEch((AI_CONSEILS_SUIVI[cle] || {})[prochaine[0]] || ''))).style.cssText = 'font-size:13px;line-height:1.5;margin:4px 0 8px;';
+  /* Le montant (accordé, prêté…) et une note libre (sa banque, son conseiller…) */
+  const lm = aiEl('div', 'aiQ');
+  lm.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;';
+  const champ = (lab, val, type, f, larg) => {
+    const b = aiEl('div', ''); b.style.cssText = 'display:flex;flex-direction:column;gap:3px;' + (larg ? 'flex:1;min-width:180px;' : '');
+    b.appendChild(aiEl('label', '', lab)).style.cssText = 'font-size:12px;color:var(--muted);font-weight:700;';
+    const ip = aiEl('input'); ip.type = type; ip.value = val; if(type === 'number'){ ip.min = '0'; ip.step = '1'; ip.style.width = '110px'; }
+    ip.addEventListener('change', () => f(ip.value));
+    b.appendChild(ip); return b;
+  };
+  lm.appendChild(champ(cle === 'p1' ? 'Montant du prêt (€)' : cle === 'alma' ? 'Montant (€)' : 'Montant accordé (€)', d.montant || '', 'number', async v => { d.montant = Number(v) || 0; await aiSauver(x); }));
+  lm.appendChild(champ('📝 Note', d.note || '', 'text', async v => { d.note = String(v || '').slice(0, 300); await aiSauver(x); }, true));
+  c.appendChild(lm);
+  const r = aiEl('div', 'aiBas');
+  if(prochaine && !x.fini){
+    r.appendChild(aiBouton('✓ ' + prochaine[1], 'btn-primary', async () => {
+      d.dates[prochaine[0]] = aiFrDeIso(aiAujourdhui());
+      x.etape = prochaine[0];
+      if(!etapes[etapes.findIndex(e => e[0] === prochaine[0]) + 1]) x.fini = true;
+      await aiSauver(x);
+    }));
+  }
+  if(cle === 'alma' && !x.fini) r.appendChild(aiBouton('💳 Calculateur ALMA', '', () => aiOuvrirAlma({ eleve: x.eleve }, Number(d.montant) || 0)));
+  if(i >= 0) r.appendChild(aiBouton('↩️', '', async () => { delete d.dates[x.etape]; x.etape = i > 0 ? etapes[i - 1][0] : ''; x.fini = false; await aiSauver(x); }));
+  if(!x.fini) r.appendChild(aiBouton('⏹️ Abandonné', '', async () => {
+    if(!await confirmer('Arrêter le suivi « ' + aiTitreSuivi(cle) + ' » de ' + x.eleve + ' ? (refusé, ou il n’en veut plus)', 'Suivi', false)) return;
+    d.abandon = aiFrDeIso(aiAujourdhui()); x.fini = true; await aiSauver(x);
+  }));
+  r.appendChild(aiBouton('🗑️', '', async () => {
+    if(!await confirmer('Supprimer le suivi « ' + aiTitreSuivi(cle) + ' » de ' + x.eleve + ' ?', 'Suivi', true)) return;
+    try{ await appelPrep({ action: 'aidesDossierDelete', id: x.id }); await aiCharger(true); aiDessinerDossiers(); }catch(e){ showToast('Impossible : ' + e.message); }
+  }));
+  c.appendChild(r);
+  if(d.abandon) c.appendChild(aiEl('div', 'aiAide', '⏹️ Arrêté le ' + aiEch(d.abandon))).style.margin = '6px 0 0';
   return c;
 }
 
@@ -1541,7 +1640,7 @@ async function ligneAidesFiche(nom, zone){
   const siens = ((AI.d && AI.d.dossiers) || []).filter(d => aiNorm(d.eleve) === aiNorm(nom));
   const gardes = siens.filter(d => d.type === 'resultat');
   const envois = siens.filter(d => d.type === 'envoi');
-  const suivis = siens.filter(d => d.type === 'cpf' || d.type === 'pe22');
+  const suivis = siens.filter(d => d.type === 'cpf' || d.type === 'pe22' || d.type === 'suivi');
   const g = await aiGenerateurAvecDevis(nom);
   const w = aiEl('div', '');
   w.setAttribute('data-aides-fiche', aiNorm(nom));
@@ -1576,6 +1675,16 @@ async function ligneAidesFiche(nom, zone){
     ((d.totaux || {}).prix ? ' (formation ' + aiEuros(d.totaux.prix) + ', il paie ' + aiEuros(d.totaux.paie || 0) + ')' : '') }); });
   suivis.forEach(x => {
     const d = x.donnees || {};
+    if(x.type === 'suivi'){
+      /* 📌 v1293 — l'aide suivie, puis chaque étape faite avec sa date */
+      const cle = aiAideDuSuivi(x), et = AI_ETAPES_SUIVI[cle] || [];
+      const ici = et.find(e => e[0] === x.etape);
+      evts.push({ t: x.ordre || 0, l: aiTitreSuivi(cle) + ' : ' + (d.abandon ? '⏹️ arrêté le ' + d.abandon : x.fini ? '✅ terminé' : ici ? ici[1] : 'à commencer') +
+        (d.montant ? ' · ' + aiEuros(d.montant) : '') + ' · ouvert le ' + String(x.creeLe || '').split(' ')[0] + (x.par ? ' (' + x.par + ')' : '') });
+      et.filter(e => (d.dates || {})[e[0]]).reverse().forEach(e => evts.push({ t: x.ordre || 0, l: '   ✓ ' + e[1] + ' · le ' + d.dates[e[0]] }));
+      if(d.note) evts.push({ t: x.ordre || 0, l: '   📝 ' + d.note });
+      return;
+    }
     const nomEtape = x.type === 'cpf' ? (AI_ETAPES_CPF.find(e => e[0] === x.etape) || ['', ''])[1] : (AI_ETAPES_PE.find(e => e[0] === x.etape) || ['', 'attestation attendue'])[1];
     evts.push({ t: x.ordre || 0, l: (x.type === 'cpf' ? '🎓 Dossier CPF' : '🤝 Pass’Engagement') + ' : ' + nomEtape + (x.fini ? ' ✅ terminé' : '') + ' · ouvert le ' + x.creeLe + (x.par ? ' (' + x.par + ')' : '') });
     Object.keys(d.envois || {}).forEach(k => { const e = d.envois[k] || {}; if(!e.le) return;
@@ -1634,6 +1743,17 @@ function lignesAidesBandeau(){
         out.push({ id: 'aides:relance:' + x.id + ':' + x.etape, famille: 'aides', emoji: '♻️', surLaPersonne: x.eleve,
           texte: x.eleve + ' — CPF sans nouvelles depuis ' + j + ' jours', sous: (AI_ETAPES_CPF.find(k => k[0] === x.etape) || ['', ''])[1], groupe: 'auj',
           action: () => aiAllerDepuisLeBandeau(x.id), actionTexte: 'Relancer' });
+      }
+    }
+    /* 📌 v1293 — un suivi où rien ne bouge depuis 10 jours */
+    if(x.type === 'suivi'){
+      const cle = aiAideDuSuivi(x), et = AI_ETAPES_SUIVI[cle] || [];
+      const i = et.findIndex(e => e[0] === x.etape), suiv = et[i + 1];
+      const j = aiJoursDepuis((d.dates || {})[x.etape] || x.creeLe);
+      if(suiv && j !== null && j >= AI_SUIVI_JOURS){
+        out.push({ id: 'aides:suivi:' + x.id + ':' + (x.etape || 'debut'), famille: 'aides', emoji: aiTitreSuivi(cle).split(' ')[0], surLaPersonne: x.eleve,
+          texte: x.eleve + ' — ' + aiTitreSuivi(cle).split(' ').slice(1).join(' ') + ' : rien depuis ' + j + ' jours', sous: 'Prochaine étape : ' + suiv[1], groupe: 'auj',
+          action: () => aiAllerDepuisLeBandeau(x.id), actionTexte: 'Ouvrir' });
       }
     }
     if(x.type === 'pe22'){
