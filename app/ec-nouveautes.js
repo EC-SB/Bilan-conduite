@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 17:34 — v1296 */
+/* Déployé le 28/10/2026 à 17:48 — v1297 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1297,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '➕ Suivre une aide depuis le dossier, et les conditions d’une aide ajoutée',
+    quoi: [
+      { emoji: '➕',
+        titre: 'Suivre un financement depuis le dossier',
+        texte: 'Onglet 💶 Financement : sur chaque aide du point gardé, « ➕ Suivre » (ou « 📒 où il en est › »). « ➕ Suivre une aide » pour les autres. Les suivis en cours s’y cochent directement.' },
+      { emoji: '👥',
+        titre: 'Les conditions d’une aide ajoutée',
+        texte: '⚙️ Les aides › une aide ajoutée (IRP Auto…) : 👥 pour qui, ❓ une question oui / non que le générateur pose, 💶 jusqu’à. Conditions remplies : ✅ Possible.' },
+      { emoji: '🛠️',
+        titre: 'Apprenti, alternant',
+        texte: 'La situation « Apprenti » s’appelle désormais « Apprenti, alternant ».' }
+    ]
+  },
   {
     version: 1296,
     date: 'Mercredi 28 octobre 2026',
