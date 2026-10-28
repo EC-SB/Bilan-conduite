@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 10:39 — v1272 */
+/* Déployé le 28/10/2026 à 15:36 — v1295 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -613,6 +613,12 @@ const CHAMPS_MANUELS = {
     { cle:'__titreExamen', type:'titre', nom:'🏁 Examen',
       aide:'Ce que l\'inspecteur a noté. À remplir au retour de ' +
            'l\'élève.' },
+    /* ⏱️ v1295 — DAVID : « un bouton début d'examen, et un bouton fin
+       d'examen qui enregistre la durée… elle ne va jamais à l'élève ».
+       En haut de l'examen (son choix), rangée « pour nous » : la note
+       interne, le dossier › Permis, l'historique et Permis › Résultats
+       la montrent ; buildExamen ne la lit pas (ec-durees-examen.js). */
+    { cle:'dureeExamen', type:'dureeExamen', nom:'⏱️ Durée de l’examen' },
     /* Ces champs se rangent sous « examen » : c'est là que le
        constructeur du bilan va les chercher. Sans le préfixe,
        ils n'apparaissaient nulle part. */
@@ -4143,9 +4149,12 @@ function mentionExamen(champs, moniteur){
   const insp = String(champs.inspecteur || '').trim();
   const rep = String(champs.repassage || '').trim();
   const note = String(champs.noteEquipe || '').trim();
-  if(!insp && !rep && !note) return '';
+  /* ⏱️ v1295 — la durée de l'examen, pour nous seulement */
+  const duree = (typeof mentionDureeExamen === 'function') ? mentionDureeExamen(champs.dureeExamen) : '';
+  if(!insp && !rep && !note && !duree) return '';
 
   const bouts = ['🔒 EXAMEN OFFICIEL'];
+  if(duree) bouts.push(duree);
   if(insp) bouts.push('Inspecteur : ' + insp);
   /* ⚠️ « AUCUN » N'EST PAS UN NOMBRE D'HEURES — v912. Écrit comme
      tel, il donnerait « Demandé : aucun + 3 heures », et le
@@ -5243,6 +5252,10 @@ function lireChampsManuels(champsVoulus){
       if(el && String(el.value).trim()){
         champsManuels[ch.cle] = String(el.value).trim();
       }
+    }else if(ch.type === 'dureeExamen'){
+      /* ⏱️ v1295 — « 10:02|10:34 » : les deux heures, lues ensemble */
+      const v = (typeof lireDureeExamenFiche === 'function') ? lireDureeExamenFiche(ch.cle) : '';
+      if(v) champsManuels[ch.cle] = v; else delete champsManuels[ch.cle];
     }else if(ch.type === 'inspecteur' || ch.type === 'repassage'){
       /* ⚠️ LA CASE PASSE AVANT LE NOMBRE — v912. Cochée, elle dit
          « aucun repassage », et le 4 resté dans le champ n'est plus
@@ -5650,6 +5663,8 @@ async function genererBilanManuel(){
      servira au rendez-vous post-permis. Un nouvel examen efface
      la précédente — seul le dernier permis compte. */
   if(modeleCle === 'examen-officiel'){
+    /* ⏱️ v1295 — la durée repart au serveur avec l'inspecteur choisi */
+    if(typeof noterDureeAuBilan === 'function'){ try{ noterDureeAuBilan(champsManuels); }catch(e){} }
     const m = mentionExamen(champsManuels, $('monitorName').value.trim());
     const zn = $('noteInterne');
     if(zn){
@@ -7932,6 +7947,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         apercu.appendChild(img);
         champsManuels[ch.cle] = f.name;
       });
+
+    }else if(ch.type === 'dureeExamen'){
+      /* ⏱️ v1295 — ▶️ Début / ⏹️ Fin, les heures corrigeables (ec-durees-examen.js) */
+      if(typeof dessinerDureeExamen === 'function') dessinerDureeExamen(bloc, ch);
 
     }else if(ch.type === 'inspecteur'){
       /* La liste des inspecteurs, partagée par toute l'équipe :
