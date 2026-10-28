@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:25 — v1214 */
+/* Déployé le 28/10/2026 à 15:36 — v1295 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -236,6 +236,11 @@ function proposerListeBrouillons(liste, banniere, vocal){
       if(typeof reprendreBrouillon === 'function') reprendreBrouillon(b);
     });
 
+    /* ⏱️ v1295 — ▶️ Début / ⏹️ Fin d'examen sans rouvrir la fiche
+       (David : on enchaîne les élèves, la fiche reste gardée) */
+    const dx = (typeof boutonsDureeBrouillon === 'function') ? boutonsDureeBrouillon(b) : null;
+    if(dx){ const sp = l.querySelector('span'); if(sp) sp.appendChild(dx); }
+
     /* ⚠️ UNE CORBEILLE PAR LIGNE.
 
        Il n'y en avait qu'une, en bas, pour toute la liste — et
@@ -326,6 +331,10 @@ function proposerRepriseManuelle(man, banniere){
     (man.eleve ? man.eleve + ' — ' : '') + nom + ' à la main · ' +
     (man.avantEnvoye ? '📤 avant examen envoyé · ' : '') +
     remplis + ' rubrique(s) remplie(s) · ' + quandTexte;
+
+  /* ⏱️ v1295 — ▶️ Début / ⏹️ Fin d'examen, sans rouvrir la fiche */
+  const dx = (typeof boutonsDureeBrouillon === 'function') ? boutonsDureeBrouillon(man) : null;
+  if(dx) $('repriseInfo').appendChild(dx);
 
   /* Le bouton reprend le bilan manuel, pas la dictée */
   const b = $('repriseOui');
