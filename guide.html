@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1297
+     GUIDE-VERSION: 1299
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1297</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1299</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1297</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1299</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -3431,17 +3431,29 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
   <section id="msg-liste">
     <h3>L'écran et la liste des conversations</h3>
 
-    <h4>Sur un ordinateur&nbsp;: quatre colonnes</h4>
+    <h4>Sur un ordinateur&nbsp;: trois colonnes</h4>
     <p>À partir d'une largeur d'écran suffisante, la messagerie se pose en colonnes, de gauche à droite&nbsp;:</p>
     <ol class="etapes">
-      <li><strong>Le rail des familles</strong> — une icône par sorte de conversation, avec son mot en dessous et le nombre de non-lus. En tête, <span class="b">Moi</span>&nbsp;: votre photo (voir <a href="#msg-qui" class="aller">les photos</a>). En bas, <span class="b">🗄️ Fermées</span> et, pour qui en a le droit, <span class="b">🔒 Supervision</span>.</li>
-      <li><strong>La liste</strong> — la recherche, les boutons <span class="b">＋</span> (nouvelle conversation), <span class="b">⚙️</span> (réglages, administrateurs) et <span class="b">☑</span> (choisir pour supprimer, administrateurs), puis les conversations.</li>
-      <li><strong>Le fil</strong> de la conversation ouverte.</li>
-      <li><strong>La fiche éclair</strong>, à droite — qui est en face&nbsp;: un élève, un groupe, un collègue, un visiteur. Sur un écran moyen, elle se range derrière le bouton <span class="b">ⓘ</span> du fil.</li>
+      <li><strong>La liste</strong> — la recherche, <span class="b">✏️</span> (nouvelle conversation) et <span class="b">⋯</span>&nbsp;: filtrer par type, <span class="b">🗄️ Fermées</span>, <span class="b">🔒 Supervision</span> (pour qui en a le droit), <span class="b">🖼️ Ma photo</span>, <span class="b">⚙️ Réglages</span> et <span class="b">☑</span> choisir pour supprimer (administrateurs). Puis <strong>cinq onglets</strong>, et les conversations.</li>
+      <li><strong>Le fil</strong> de la conversation ouverte&nbsp;: en tête <span class="b">📞</span> <span class="b">✓ Réglé</span> <span class="b">⏰</span> <span class="b">ⓘ</span> <span class="b">⋯</span>.</li>
+      <li><strong>La fiche éclair</strong>, à droite — qui est en face&nbsp;: un élève, un groupe, un collègue, un visiteur. <span class="b">ⓘ</span> la cache ou la remontre.</li>
     </ol>
-    <p>Sur un téléphone (et dans le tiroir), les écrans se remplacent&nbsp;: <strong>la liste, puis le fil</strong>, et <span class="b">ⓘ</span> pour la fiche. Le rail devient une rangée de pastilles qui passe à la ligne — jamais de défilement de côté. <span class="b">←</span> ramène à la liste.</p>
+    <p>Sur un téléphone (et dans le tiroir), les écrans se remplacent&nbsp;: <strong>la liste, puis le fil en plein écran</strong>, avec en tête <span class="b">←</span> le nom, <span class="b">📞</span> et <span class="b">⋯</span> (⏰, ✓ Réglé, ⓘ, 📌, 📅…). Au doigt, une conversation glissée vers la gauche se règle, vers la droite revient demain 9&nbsp;h.</p>
 
-    <h4>Les familles</h4>
+    <h4 id="msg-onglets">Les cinq onglets</h4>
+    <div class="tab"><table>
+      <thead><tr><th>Onglet</th><th>Ce qu'il montre</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">Tout</span></td><td>Toutes vos conversations ouvertes, en rubriques.</td></tr>
+        <tr><td><span class="b">Non lus</span></td><td>Ce qui a du non-lu, et les conversations dont votre rappel ⏰ est revenu. Son chiffre compte ces conversations.</td></tr>
+        <tr><td><span class="b">Élèves</span></td><td>Les fils avec un élève, et les visiteurs de la vitrine.</td></tr>
+        <tr><td><span class="b">Équipe</span></td><td>Le reste&nbsp;: entre nous, les groupes.</td></tr>
+        <tr><td><span class="b">Permis</span></td><td>Seulement les groupes du jour du permis&nbsp;: ceux créés depuis <span class="b">📣 Message groupe Messenger</span>, et ceux dont le nom commence par «&nbsp;Permis&nbsp;».</td></tr>
+      </tbody>
+    </table></div>
+    <p>L'onglet choisi est gardé d'une fois sur l'autre. Sur une colonne étroite (tablette), les onglets passent à la ligne&nbsp;: on les voit toujours tous.</p>
+
+    <h4>Filtrer par type (⋯)</h4>
     <div class="tab"><table>
       <thead><tr><th>Famille</th><th>Ce que c'est</th></tr></thead>
       <tbody>
@@ -3456,13 +3468,13 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
         <tr><td><span class="b">👤 Moniteurs</span></td><td>Un élève et son moniteur, sans le bureau. Cette famille n'apparaît que s'il y en a.</td></tr>
       </tbody>
     </table></div>
-    <p>Toucher une famille n'affiche qu'elle&nbsp;; la retoucher revient à « Tout ».</p>
+    <p>Dans <span class="b">⋯</span> › <strong>Filtrer par type</strong>&nbsp;: choisir un type n'affiche que lui, et un bandeau <span class="ch">Filtré : … ✕ Retirer</span> le dit au-dessus de la liste.</p>
 
-    <h4>Quatre rubriques, dans cet ordre</h4>
+    <h4>Quatre rubriques, dans cet ordre (onglets Tout, Élèves, Équipe, Permis)</h4>
     <p>Une liste triée par date seule enterrerait une question de mardi sous trois accusés de lecture de vendredi. La liste est donc rangée en rubriques&nbsp;:</p>
     <ol class="etapes">
       <li><strong>📌 Épinglées</strong> — ce que vous avez épinglé.</li>
-      <li><strong>À traiter</strong> — ce qui a du non-lu, et les conversations dont votre rappel est revenu.</li>
+      <li><strong>Non lus</strong> — ce qui a du non-lu, et les conversations dont votre rappel est revenu.</li>
       <li><strong>Suivies</strong> — le reste.</li>
       <li><strong>⏰ À me rappeler</strong> — ce que vous avez remis à demain.</li>
     </ol>
@@ -3472,7 +3484,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       <tbody>
         <tr><td>La photo ou les initiales</td><td>Qui est en face.</td></tr>
         <tr><td>Le titre et l'heure</td><td>Le nom de l'élève, du groupe ou du visiteur, et l'heure du dernier message.</td></tr>
-        <tr><td>Le mot en couleur</td><td>La famille — <span class="ch">BUREAU</span>, <span class="ch">RETARD</span>, <span class="ch">VITRINE · LOUDÉAC</span>… — puis le début du dernier message.</td></tr>
+        <tr><td>Le petit rond sur la photo</td><td>Le type — 🏢 bureau, ⏰ retard, 🚫 annulation, 🧤 oubli… (un visiteur : <span class="ch">👋 Loudéac ·</span> en tête de l'aperçu) — puis le début du dernier message.</td></tr>
         <tr><td>Le chiffre</td><td>Vos messages non lus.</td></tr>
         <tr><td>La fine barre</td><td>Le temps écoulé sur les <strong>48&nbsp;heures</strong> promises à l'élève pour une réponse, tant qu'il reste du non-lu.</td></tr>
         <tr><td><span class="ch">👀 Prénom</span></td><td>Quelqu'un d'autre du bureau a déjà ouvert ce fil&nbsp;: il ne vous attend plus (voir <a href="#msg-lecture" class="aller">la lecture partagée</a>).</td></tr>
@@ -3484,7 +3496,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <p>Au survol d'une ligne (ordinateur), ou en tête du fil, deux gestes&nbsp;:</p>
     <ul>
       <li><span class="b">📌</span> épingle la conversation <strong>en haut de votre liste</strong>&nbsp;; un second appui la désépingle.</li>
-      <li><span class="b">⏰ Demain</span> la fait sortir de la liste jusqu'au lendemain <strong>9&nbsp;h</strong> (le lundi si demain est dimanche). La remettre à demain, c'est l'avoir vue&nbsp;: ses non-lus s'éteignent. Elle revient d'elle-même dans « À traiter » — <strong>ou plus tôt si l'élève réécrit</strong>.</li>
+      <li><span class="b">⏰ Demain</span> la fait sortir de la liste jusqu'au lendemain <strong>9&nbsp;h</strong> (le lundi si demain est dimanche). La remettre à demain, c'est l'avoir vue&nbsp;: ses non-lus s'éteignent. Elle revient d'elle-même dans « Non lus » — <strong>ou plus tôt si l'élève réécrit</strong>.</li>
     </ul>
     <div class="note astuce"><span class="tag">À vous seul</span><p>Ce que vous épinglez ou remettez à demain ne bouge <strong>que dans votre liste</strong>. Vos collègues ne voient rien changer.</p></div>
 
@@ -3512,13 +3524,14 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     </dl>
 
     <h4>La barre d'écriture</h4>
+    <p>De gauche à droite&nbsp;: <span class="b">＋</span>, le champ, puis <span class="b">👍</span> <span class="b">🎤</span> <span class="b">😊</span> tant que le champ est vide&nbsp;; dès qu'on écrit, <span class="b">➤</span> <span class="b">😊</span>. La même barre dans l'espace élève.</p>
     <div class="tab"><table>
       <thead><tr><th>Bouton</th><th>Ce qu'il fait</th></tr></thead>
       <tbody>
-        <tr><td><span class="b">🎤</span></td><td>Un message vocal. Voir <a href="#msg-pieces" class="aller">plus bas</a>.</td></tr>
-        <tr><td><span class="b">＋</span></td><td>Ouvre une rangée de gestes directs&nbsp;: <span class="b">Prendre une photo</span>, <span class="b">Choisir une photo</span>, <span class="b">Filmer</span>, <span class="b">Choisir une vidéo</span>, <span class="b">Joindre un fichier</span>, et — dans une conversation avec un élève — <span class="b">À revoir</span>. Sur un ordinateur, « Prendre une photo » utilise la webcam&nbsp;; un appareil qui ne sait pas filmer n'a pas « Filmer ».</td></tr>
-        <tr><td><span class="b">🙂</span></td><td>Le panneau des émoticônes.</td></tr>
+        <tr><td><span class="b">＋</span></td><td>Ouvre une rangée de gestes directs&nbsp;: <span class="b">Prendre une photo</span>, <span class="b">Choisir une photo</span>, <span class="b">Filmer</span>, <span class="b">Choisir une vidéo</span>, <span class="b">Joindre un fichier</span>, <span class="b">⚡ Réponses rapides</span>, <span class="b">📄 Ce qu’on écrit</span>, et — dans une conversation avec un élève — <span class="b">À revoir</span>. Sur un ordinateur, « Prendre une photo » utilise la webcam&nbsp;; un appareil qui ne sait pas filmer n'a pas « Filmer ».</td></tr>
         <tr><td>Le pouce / l'avion</td><td>Le même bouton&nbsp;: <strong>champ vide, c'est un pouce</strong> (un accusé de lecture en un geste)&nbsp;; dès qu'on écrit, il devient l'avion qui envoie.</td></tr>
+        <tr><td><span class="b">🎤</span></td><td>Un message vocal (un appui ouvre l'enregistreur&nbsp;: pause, réécoute, envoi). Voir <a href="#msg-pieces" class="aller">plus bas</a>.</td></tr>
+        <tr><td><span class="b">😊</span></td><td>Le panneau des émoticônes.</td></tr>
       </tbody>
     </table></div>
     <p><strong>Ctrl + Entrée</strong> envoie depuis un ordinateur. Ce qui est tapé sans être envoyé reste en brouillon, fil par fil. Une image copiée (<strong>Ctrl + V</strong>, ou « Coller » sur téléphone) part directement comme photo.</p>
@@ -3735,7 +3748,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <div class="tab"><table>
       <thead><tr><th>Photo</th><th>Qui la change</th></tr></thead>
       <tbody>
-        <tr><td>La sienne</td><td>Chacun, par <span class="b">Moi</span> en haut du rail (sur le téléphone&nbsp;: la pastille « Moi » devant « Tout »)&nbsp;: prendre une photo ou en choisir une. Les élèves choisissent la leur dans leur espace.</td></tr>
+        <tr><td>La sienne</td><td>Chacun, par <span class="b">⋯</span> › <span class="b">🖼️ Ma photo</span> en haut de la liste&nbsp;: prendre une photo ou en choisir une. Les élèves choisissent la leur dans leur espace.</td></tr>
         <tr><td>Celle d'un groupe</td><td>Le bureau et les administrateurs (<span class="b">⋯</span> ou la fiche du groupe).</td></tr>
         <tr><td>Celle d'un élève ou d'un collègue</td><td>Les administrateurs, depuis la fiche.</td></tr>
         <tr><td>Celle du bureau</td><td>Les administrateurs, dans ⚙️ Réglages. Les élèves la voient devant leur fil « Le bureau »&nbsp;; sans elle, 🏢.</td></tr>
@@ -4131,11 +4144,15 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
   <section id="textes">
     <h3>📄 Ce qu’on écrit et envoie (keep)</h3>
     <p><em>« Tous les messages que vous envoyez aux élèves, au même endroit : ceux que l'application reprend toute seule (rappel de cours, groupe Messenger du jour du permis…) et vos fiches libres, à copier ou à envoyer par mail. Une fiche peut porter plusieurs catégories, et la recherche cherche partout — titre, texte et catégories. »</em> À ne pas confondre avec <a href="#modeles-bilan" class="aller">Modèles de bilan</a>, qui concerne la structure des bilans, ni avec <a href="#ou-courriers" class="aller">✉️ Courriers</a>, sur papier à en-tête.</p>
-    <div class="note danger"><span class="tag">L'avertissement en tête d'écran</span><p><span class="ch">⛔ INTERDICTION DE MODIFIER LES CATÉGORIES SANS LOGO DEVANT — SOUS RISQUE DE CASSER L'OUTIL</span>. Les catégories techniques portent un logo&nbsp;: l'application va y chercher ses textes. Une alerte nomme aussi toute variable qu'on vient de retirer d'un texte.</p></div>
+    <p>Cette explication est derrière le bouton <span class="b">ⓘ</span> de la barre du haut.</p>
+    <div class="note danger"><span class="tag">L'avertissement, dans la fenêtre ✏️ d'une catégorie</span><p><span class="ch">⛔ INTERDICTION DE MODIFIER LES CATÉGORIES SANS LOGO DEVANT — SOUS RISQUE DE CASSER L'OUTIL</span>. Les catégories techniques portent un logo&nbsp;: l'application va y chercher ses textes. Une alerte nomme aussi toute variable qu'on vient de retirer d'un texte.</p></div>
 
     <h4>L'écran</h4>
     <p>En haut, la recherche <span class="ch">🔎 Chercher dans 128 fiches…</span>, <span class="b">➕ Nouvelle fiche</span>, <span class="b">📥</span> (coller plusieurs fiches d'un coup, séparées par leurs lignes de titre), <span class="b">📥 Keep</span> (importer ses fiches Google Keep, voir plus bas) et, pour un administrateur, <span class="b">⚙️</span> — <em>qui voit quelle catégorie</em>&nbsp;: personne de coché, tout le monde la voit&nbsp;; des noms cochés, elle leur est réservée.</p>
-    <p>À gauche, le rail des catégories avec leur compte&nbsp;: <span class="b">🏷️ Toutes</span>, chaque catégorie (le <span class="b">✏️</span> la renomme ou la supprime), <span class="b">🔒 Mon privé</span> et <span class="b">📭 Sans catégorie</span>. Pour ranger les catégories, on attrape une ligne (au doigt, par sa poignée <span class="b">⠿</span>) et on la glisse&nbsp;: un trait montre où elle va se poser — entre deux lignes, ou tout en bas&nbsp;; au clavier, <kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd>. L'ordre est celui de toute l'école. Une fiche lâchée sur une catégorie y est rangée (elle garde ses autres catégories)&nbsp;; lâchée sur <span class="b">🔒 Privé</span>, elle devient privée. À droite, les fiches, chacune avec ses gestes&nbsp;: <span class="b">↑</span> <span class="b">↓</span> pour l'ordre, <span class="b">📋</span> copier toute la fiche, <span class="b">✂️</span> copier un morceau, <span class="b">✉️</span> l'envoyer par mail, <span class="b">🎨</span> la couleur de la fiche. Une fiche peut porter des images (Ctrl+V, glisser, ou choisir).</p>
+    <h4>L'écran en trois colonnes</h4>
+    <p>Sur un ordinateur (ou une tablette en paysage)&nbsp;: <strong>les catégories</strong> à gauche (avec <span class="ch">Filtrer les catégories…</span> en haut, la colonne défile toute seule), <strong>la liste des fiches</strong> au milieu (une ligne chacune&nbsp;: titre, début du texte, catégories), et <strong>la fiche ouverte, en entier</strong>, à droite. On y écrit directement&nbsp;: <strong>elle s'enregistre toute seule</strong> une seconde après (<span class="ch">✓ Enregistré</span> en haut), et changer de fiche enregistre d'abord celle qui est ouverte. Sur un téléphone&nbsp;: un bouton <span class="b">🏷️ Toutes · 84 ▾</span> ouvre la liste des catégories, et la fiche s'ouvre en plein écran (<span class="b">✓ Fermer</span> enregistre).</p>
+    <p>Dans la fiche&nbsp;: le titre, puis <strong>ses catégories sur une ligne</strong> (<span class="b">✕</span> en retire une) et <span class="b">＋ Catégorie</span>, qui ouvre une recherche&nbsp;: on tape «&nbsp;cp&nbsp;», on coche <span class="ch">🎓 CPF</span>, ou <span class="b">➕ Créer « … »</span>. Puis le texte en entier, <span class="b">🖼️ Ajouter une image</span> (coller avec <kbd>Ctrl</kbd>+<kbd>V</kbd> ou glisser une image marche toujours), et en bas <span class="b">📋</span> <span class="b">✂️</span> <span class="b">✉️</span> <span class="b">🎨</span> <span class="b">⚙️ Réglages</span> <span class="b">🗑️ Supprimer</span>. Une fiche créée pendant qu'une catégorie est choisie la porte déjà.</p>
+    <p>La colonne des catégories, avec leur compte&nbsp;: <span class="b">🏷️ Toutes</span>, chaque catégorie (le <span class="b">✏️</span> la renomme ou la supprime), <span class="b">🔒 Mon privé</span> et <span class="b">📭 Sans catégorie</span>. Pour ranger les catégories, on attrape une ligne (au doigt, par sa poignée <span class="b">⠿</span>) et on la glisse&nbsp;: un trait montre où elle va se poser — entre deux lignes, ou tout en bas&nbsp;; au clavier, <kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd>. L'ordre est celui de toute l'école. Une fiche lâchée sur une catégorie y est rangée (elle garde ses autres catégories)&nbsp;; lâchée sur <span class="b">🔒 Privé</span>, elle devient privée. À droite, les fiches, chacune avec ses gestes&nbsp;: <span class="b">↑</span> <span class="b">↓</span> pour l'ordre, <span class="b">📋</span> copier toute la fiche, <span class="b">✂️</span> copier un morceau, <span class="b">✉️</span> l'envoyer par mail, <span class="b">🎨</span> la couleur de la fiche. Une fiche peut porter des images (Ctrl+V, glisser, ou choisir).</p>
 
     <h4>📥 Importer ses fiches Google Keep</h4>
     <p>C'est l'outil qui remplace Keep&nbsp;: les fiches de Keep y entrent, et c'est vous qui décidez où va chacune — même quand il y en a des milliers.</p>
