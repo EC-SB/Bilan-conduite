@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:09 — v1275 */
+/* Déployé le 28/10/2026 à 10:49 — v1287 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -287,7 +287,7 @@ async function ckMarquer(id, quoi){
    dessinent pareil — inutile de repeindre. */
 function ckEmpreinteListe(liste){
   return (liste || []).map(c => [c.id, c.nonLus, c.dernierLe, c.dernierApercu,
-    c.epingle, c.rappelLe, c.fermee].join('~')).join('|');
+    c.epingle, c.rappelLe, c.fermee, c.mentionne || 0].join('~')).join('|');
 }
 
 /* ------------------------------------------------------------
