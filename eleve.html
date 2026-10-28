@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 28/10/2026 à 10:49 — v1287 -->
+<!-- Déployé le 28/10/2026 à 12:59 — v1290 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -212,6 +212,39 @@
   .message.attente{ background: rgba(182,255,14,.07); color: var(--muted); }
 
   .empty{ font-size:13px; color:var(--muted); line-height:1.5; }
+
+  /* 📺 v1290 — la salle des tablettes : une tablette en paysage, des
+     cibles larges, et chez lui la carte « se regarde en salle » */
+  body.salle .boite{ max-width:1180px; }
+  .salleEcran{ max-width:1180px; margin:0 auto; }
+  .salleTete h1{ font-size:24px; }
+  .salleColonnes{ display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:18px; align-items:start; }
+  @media (max-width:760px){ .salleColonnes{ grid-template-columns:1fr; } }
+  .salleCarte{ padding:22px; }
+  .salleMilieu{ max-width:560px; margin:24px auto; }
+  .salleTexte{ font-size:16px; color:var(--soft); line-height:1.55; margin-bottom:14px; }
+  .salleNoms{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+  .salleNom{ flex-direction:column; align-items:flex-start; gap:2px; text-align:left; min-height:64px; font-size:18px; margin:0; }
+  .salleNom small{ font-size:12.5px; font-weight:500; color:var(--muted); }
+  .salleCases{ display:flex; gap:12px; justify-content:center; margin:6px 0 16px; }
+  .salleCases span{ width:52px; height:60px; border-radius:12px; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:30px; }
+  .salleCases span.plein{ border-color:var(--orange); }
+  .salleClavier{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
+  .salleClavier .btn{ min-height:64px; font-size:24px; font-weight:800; margin:0; }
+  .salleMsg{ font-size:14px; color:var(--warn-text); margin-top:10px; min-height:20px; line-height:1.5; }
+  .salleCodeChamp{ text-align:center; letter-spacing:.4em; font-size:28px; }
+  .salleBravo{ font-size:24px; font-weight:800; margin:6px 0 12px; }
+  .bandeauDemo.salleBandeau{ background:var(--orange); color:var(--on-accent); font-size:15px; font-weight:800; }
+  .bandeauDemo.salleBandeau button{ background:#0B0B0B; color:#fff; border-color:#0B0B0B; font-size:14px; }
+  .maSalle{ border:2px solid var(--orange); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .maSalle b.t{ display:block; font-size:16px; }
+  .maSalle .barre{ height:8px; border-radius:99px; background:var(--line); margin:10px 0 6px; overflow:hidden; }
+  .maSalle .barre i{ display:block; height:100%; background:var(--accent-text); }
+  .maSalle .d{ font-size:13px; color:var(--muted); }
+  .maSalle .p{ font-size:14px; line-height:1.55; margin-top:10px; }
+  .salleFerme{ display:flex; gap:10px; align-items:center; padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; opacity:.6; }
+  .salleFerme span.n{ flex:1; font-weight:700; }
+  .salleFerme small{ font-size:12px; color:var(--muted); }
 
   .demande{
     display:flex; gap:10px; align-items:center;
@@ -2160,16 +2193,289 @@
     if(parent && parent !== window) parent.postMessage({ jvEssaiPret: 1 }, location.origin);
   }
 
+  /* ============================================================
+     📺 LA SALLE DES TABLETTES — v1290
+
+     David, le 28 octobre : « la première fois c'est nous qui
+     l'installons sur la tablette, ensuite il se débrouille quand il
+     revient pour la deuxième heure et pour la troisième » ; pour
+     revenir, son nom et son JOUR ET MOIS DE NAISSANCE. Pas de photo.
+
+     Cette page, ouverte avec « ?salle » (salle.html y mène), devient
+     la tablette :
+       · pas encore posée : le code à six chiffres donné dans l'appli
+         (⚙️ Les tablettes) — elle reçoit son jeton, gardé ici ;
+       · l'accueil : la séance que l'équipe vient d'ouvrir arrive
+         toute seule ; sinon, ceux qui peuvent revenir seuls (leur
+         théorie d'aujourd'hui dans Drivup d'abord), et leur code ;
+       · la séance : SON cours de salle et rien d'autre (le Worker le
+         garantit), un bandeau « ⏹ Je m'arrête » ; elle s'arrête à la
+         fin de son créneau ; fini : ses groupes s'ouvrent chez lui.
+
+     ⚠️ LA TABLETTE N'A JAMAIS SON CODE. Elle a son jeton, puis celui
+     de la séance ; le Worker les change en son nom et son code.
+     ============================================================ */
+  var MODE_SALLE = /[?&]salle(?:[=&]|$)/.test(location.search);
+  var CLE_TABLETTE = 'ec_salle_tablette', CLE_SEANCE = 'ec_salle_seance';
+  var TABLETTE = null, SALLE = null;
+  var salleMinuteur = null, salleVeille = null, salleBattement = null, salleFinEnCours = false, salleDernierAppui = Date.now();
+  var SALLE_VEILLE_MS = 20000, SALLE_VEILLE_LENTE_MS = 60000;
+
+  function salleLire(cle){ try{ return JSON.parse(localStorage.getItem(cle) || 'null'); }catch(e){ return null; } }
+  function salleGarder(cle, v){ try{ if(v) localStorage.setItem(cle, JSON.stringify(v)); else localStorage.removeItem(cle); }catch(e){} }
+  function salleHeure(ms){ var d = new Date(ms); return d.getHours() + 'h' + ('0' + d.getMinutes()).slice(-2); }
+  function sallePrenom(n){ return String(n || '').trim().split(/\s+/)[0] || ''; }
+
+  /* L'écran de la tablette, par-dessus la page quand il n'y a pas de séance */
+  function salleEcran(){
+    var e = $('salleEcran');
+    if(!e){
+      e = document.createElement('div');
+      e.id = 'salleEcran';
+      e.className = 'salleEcran';
+      document.body.appendChild(e);
+    }
+    e.classList.remove('cache');
+    $('vueConnexion').classList.add('cache');
+    $('vueEleve').classList.add('cache');
+    var b = $('bandeauDemo'); if(b) b.parentNode.removeChild(b);
+    return e;
+  }
+  function salleEntete(sous){
+    return '<div class="entete salleTete"><div class="logo">EC</div><div><h1>Salle des tablettes</h1>' +
+      '<div class="sous">' + echapper(sous || 'Évolution Conduites') + '</div></div></div>';
+  }
+  function salleSous(){ return TABLETTE ? 'Évolution Conduites · ' + (TABLETTE.siteNom || '') + ' · 📺 ' + TABLETTE.nom : 'Évolution Conduites'; }
+
+  function demarrerSalle(){
+    document.body.classList.add('salle');
+    TABLETTE = salleLire(CLE_TABLETTE);
+    ['click', 'touchstart', 'keydown'].forEach(function(t){
+      document.addEventListener(t, function(){ salleDernierAppui = Date.now(); }, { passive: true, capture: true });
+    });
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden && !SALLE && TABLETTE) salleVeiller(true); });
+    if(!TABLETTE || !TABLETTE.jeton){ salleInstaller(''); return; }
+    var garde = salleLire(CLE_SEANCE);
+    if(garde && garde.jeton && garde.finPrevue > Date.now()){ salleCommencer(garde); return; }
+    salleGarder(CLE_SEANCE, null);
+    salleAccueil('');
+  }
+
+  /* ① poser la tablette : le code donné dans l'appli */
+  function salleInstaller(msg){
+    var e = salleEcran();
+    e.innerHTML = salleEntete('Évolution Conduites') +
+      '<div class="card salleCarte salleMilieu"><div class="section-title">🔑 Installer cette tablette</div>' +
+      '<div class="salleTexte">Dans l’application de l’auto-école : <b>Élèves › 📺 Salle des tablettes › ➕ Installer une tablette</b>. ' +
+      'Tape ici le code à six chiffres qu’elle donne (valable dix minutes).</div>' +
+      '<input id="salleCodePose" inputmode="numeric" maxlength="6" autocomplete="off" class="salleCodeChamp" aria-label="Le code à six chiffres">' +
+      '<button class="btn btn-primary" id="salleBtPose">Installer</button><div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div>';
+    var ch = $('salleCodePose'), bt = $('salleBtPose');
+    function poser(){
+      var code = ch.value.replace(/\D/g, '');
+      if(code.length !== 6){ $('salleMsg').textContent = 'Le code fait six chiffres.'; return; }
+      bt.disabled = true; $('salleMsg').textContent = '⏳ …';
+      appeler({ action: 'salleTabletteInstaller', code: code }).then(function(d){
+        TABLETTE = { jeton: d.jeton, nom: d.nom, site: d.site, siteNom: d.siteNom };
+        salleGarder(CLE_TABLETTE, TABLETTE);
+        salleAccueil('✅ Tablette installée : ' + d.nom + ' · ' + d.siteNom + '.');
+      }).catch(function(er){ bt.disabled = false; $('salleMsg').textContent = er.message || 'Impossible pour le moment.'; });
+    }
+    bt.addEventListener('click', poser);
+    ch.addEventListener('keydown', function(ev){ if(ev.key === 'Enter') poser(); });
+  }
+
+  /* ② l'accueil */
+  var salleListe = [];
+  function salleAccueil(msg){
+    SALLE = null;
+    salleGarder(CLE_SEANCE, null);
+    if(salleMinuteur){ clearTimeout(salleMinuteur); salleMinuteur = null; }
+    if(salleBattement){ clearInterval(salleBattement); salleBattement = null; }
+    var e = salleEcran();
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="salleColonnes"><div class="card salleCarte salleGrande"><div class="section-title">👋 Bonjour ! Touche ton nom</div>' +
+      '<div class="salleTexte">Tu reviens pour la suite de ton cours de théorie : touche ton nom, puis tape ton <b>jour et ton mois de naissance</b>.</div>' +
+      '<div id="salleNoms" class="salleNoms"><div class="empty">⏳ …</div></div></div>' +
+      '<div class="card salleCarte"><div class="section-title">🆕 La première fois ?</div>' +
+      '<div class="salleTexte">Demande à l’équipe de t’installer : ton cours s’ouvrira ici tout seul.</div>' +
+      '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div></div>';
+    salleVeiller(true);
+  }
+  function salleVeiller(maintenant){
+    if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
+    if(SALLE || !TABLETTE) return;
+    var faire = function(){
+      if(SALLE || !TABLETTE) return;
+      if(document.hidden){ salleVeille = setTimeout(faire, SALLE_VEILLE_LENTE_MS); return; }
+      appeler({ action: 'salleAccueil', tablette: TABLETTE.jeton }).then(function(d){
+        if(SALLE) return;
+        if(d.tablette){ TABLETTE.nom = d.tablette.nom; TABLETTE.site = d.tablette.site; TABLETTE.siteNom = d.tablette.siteNom; salleGarder(CLE_TABLETTE, TABLETTE); }
+        if(d.seance){ salleCommencer(d.seance); return; }
+        salleListe = d.eleves || [];
+        salleDessinerNoms();
+        /* Une tablette qu'on ne touche plus regarde moins souvent */
+        salleVeille = setTimeout(faire, (Date.now() - salleDernierAppui > 30 * 60000) ? SALLE_VEILLE_LENTE_MS : SALLE_VEILLE_MS);
+      }).catch(function(er){
+        if(er && er.tabletteRetiree){ salleGarder(CLE_TABLETTE, null); TABLETTE = null; salleInstaller(er.message); return; }
+        var m = $('salleMsg'); if(m) m.textContent = '⚠️ ' + ((er && er.message) || 'Pas de réseau.');
+        salleVeille = setTimeout(faire, SALLE_VEILLE_MS);
+      });
+    };
+    if(maintenant) faire(); else salleVeille = setTimeout(faire, SALLE_VEILLE_MS);
+  }
+  function salleDessinerNoms(){
+    var z = $('salleNoms');
+    if(!z || !$('salleEcran') || $('salleEcran').classList.contains('cache') || $('salleCodeEleve')) return;
+    if(!salleListe.length){
+      z.innerHTML = '<div class="empty">Personne n’a encore commencé ici. La première fois, c’est l’équipe qui t’installe.</div>';
+      return;
+    }
+    z.innerHTML = '';
+    salleListe.forEach(function(x){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary salleNom';
+      b.innerHTML = '<span>' + echapper(x.eleve) + '</span>' +
+        '<small>' + (x.heure ? '🕐 ' + echapper(x.heure.replace(':', 'h')) + ' · ' : '') +
+        (x.total ? echapper(x.vus + ' sur ' + x.total + ' vues') : 'commencé') + '</small>';
+      b.addEventListener('click', function(){ salleCode(x); });
+      z.appendChild(b);
+    });
+  }
+  /* son jour et son mois de naissance */
+  function salleCode(x){
+    var e = salleEcran();
+    var tape = '';
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="card salleCarte salleMilieu"><div class="section-title">🔒 ' + echapper(sallePrenom(x.eleve)) + ', ton code</div>' +
+      '<div class="salleTexte">Ton <b>jour</b> puis ton <b>mois</b> de naissance : « 0903 » pour le 9 mars.</div>' +
+      '<div id="salleCodeEleve" class="salleCases" aria-live="polite"></div>' +
+      '<div class="salleClavier">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '←', '0', '✓'].map(function(k){
+        return '<button type="button" class="btn ' + (k === '✓' ? 'btn-primary' : 'btn-secondary') + '" data-k="' + k + '">' + k + '</button>'; }).join('') + '</div>' +
+      '<div id="salleMsg" class="salleMsg"></div>' +
+      '<button type="button" class="btn btn-secondary" id="salleRetour">← Ce n’est pas moi</button></div>';
+    function montrerCases(){
+      $('salleCodeEleve').innerHTML = [0, 1, 2, 3].map(function(i){ return '<span class="' + (i < tape.length ? 'plein' : '') + '">' + (i < tape.length ? '•' : '') + '</span>'; }).join('');
+    }
+    function valider(){
+      if(tape.length !== 4){ $('salleMsg').textContent = 'Quatre chiffres : ton jour, puis ton mois.'; return; }
+      $('salleMsg').textContent = '⏳ …';
+      appeler({ action: 'salleEntrer', tablette: TABLETTE.jeton, eleve: x.cle, code: tape }).then(function(d){
+        salleCommencer(d.seance);
+      }).catch(function(er){ tape = ''; montrerCases(); $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.'; });
+    }
+    e.querySelectorAll('.salleClavier button').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-k');
+        if(k === '←') tape = tape.slice(0, -1);
+        else if(k === '✓') return valider();
+        else if(tape.length < 4) tape += k;
+        montrerCases();
+        if(tape.length === 4) valider();
+      });
+    });
+    $('salleRetour').addEventListener('click', function(){ salleAccueil(''); });
+    montrerCases();
+  }
+
+  /* ③ la séance : son cours, à son nom */
+  function salleCommencer(s){
+    if(!s || !s.jeton) return salleAccueil('');
+    if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
+    SALLE = { jeton: s.jeton, eleve: s.eleve, finPrevue: Number(s.finPrevue) || (Date.now() + 3600000), vus: s.vus || 0, total: s.total || 0 };
+    salleFinEnCours = false;
+    salleGarder(CLE_SEANCE, SALLE);
+    var e = $('salleEcran'); if(e) e.classList.add('cache');
+    var bs = $('btSortir'); if(bs) bs.style.display = 'none';
+    salleBandeau();
+    if(salleMinuteur) clearTimeout(salleMinuteur);
+    salleMinuteur = setTimeout(function(){ salleTerminer('heure'); }, Math.max(1000, SALLE.finPrevue - Date.now()));
+    /* Une fois par minute : la séance tient-elle encore ? (arrêtée par
+       l'équipe, ou quelqu'un d'autre installé sur cette tablette) */
+    if(salleBattement) clearInterval(salleBattement);
+    salleBattement = setInterval(function(){
+      if(!SALLE || salleFinEnCours) return;
+      appeler({ action: 'salleOu', salle: SALLE.jeton, vus: SALLE.vus, total: SALLE.total })
+        .then(function(d){ if(d && d.fin && SALLE) salleTerminer('fin'); }).catch(function(){});
+    }, 60000);
+    lancerLaConnexion(s.eleve, 'salle', true);
+  }
+  function salleBandeau(){
+    if(!SALLE) return;
+    poserLeBandeau('📺 ' + (TABLETTE ? TABLETTE.nom + ' · ' : '') + SALLE.eleve +
+      (SALLE.total ? ' · ' + SALLE.vus + ' sur ' + SALLE.total + ' vues' : '') +
+      ' · jusqu’à ' + salleHeure(SALLE.finPrevue), '⏹ Je m’arrête', function(){ salleTerminer('lui'); });
+    var b = $('bandeauDemo'); if(b) b.classList.add('salleBandeau');
+  }
+  /* Après chaque coche : où il en est ; tout vu → le Worker vérifie, et ouvre */
+  function salleApresCoche(){
+    if(!SALLE || salleFinEnCours) return;
+    var n = compterLesSegments(mesEtapes);
+    SALLE.vus = n.vus; SALLE.total = n.total;
+    salleGarder(CLE_SEANCE, SALLE);
+    salleBandeau();
+    var fini = n.total > 0 && n.vus >= n.total;
+    if(fini) salleFinEnCours = true;
+    appeler({ action: 'salleOu', salle: SALLE.jeton, vus: n.vus, total: n.total, fini: fini ? 1 : 0 }).then(function(d){
+      if(d && d.fini) return salleBravo(d.ouverts || []);
+      if(d && d.fin) return salleTerminer('fin');
+      salleFinEnCours = false;
+    }).catch(function(er){ salleFinEnCours = false; if(fini) dire('msgEnvoi', '⚠️ ' + ((er && er.message) || 'La fin n’a pas pu être notée.'), 'erreur'); });
+  }
+  function salleTerminer(pourquoi, texte){
+    var s = SALLE;
+    if(salleMinuteur){ clearTimeout(salleMinuteur); salleMinuteur = null; }
+    fermerLaFeuille();
+    if(s && pourquoi !== 'fin') appeler({ action: 'salleStop', salle: s.jeton }).catch(function(){});
+    SALLE = null;
+    salleGarder(CLE_SEANCE, null);
+    moi = { nom: '', code: '' };
+    mesEtapes = [];
+    salleAccueil(pourquoi === 'heure' ? '⏰ Ton créneau est fini, ' + sallePrenom(s && s.eleve) + ' : tu reprendras là où tu t’es arrêté.'
+               : pourquoi === 'fin' ? '📺 La séance est terminée.'
+               : pourquoi === 'erreur' ? '⚠️ ' + (texte || 'Ton cours n’a pas pu s’ouvrir.') + ' Réessaie, ou demande à l’équipe.'
+               : s ? '👋 À la prochaine, ' + sallePrenom(s.eleve) + ' : tu reprendras là où tu t’es arrêté.' : '');
+  }
+  function salleBravo(ouverts){
+    var s = SALLE;
+    if(salleMinuteur){ clearTimeout(salleMinuteur); salleMinuteur = null; }
+    fermerLaFeuille();
+    SALLE = null;
+    salleGarder(CLE_SEANCE, null);
+    moi = { nom: '', code: '' };
+    mesEtapes = [];
+    var e = salleEcran();
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="card salleCarte salleMilieu" style="text-align:center;"><div style="font-size:54px;">🎉</div>' +
+      '<div class="salleBravo">Bravo ' + echapper(sallePrenom(s && s.eleve)) + ', tu as fini le cours de théorie !</div>' +
+      '<div class="salleTexte">Tes groupes sont ouverts dans <b>ton espace élève</b> :<br>' + ouverts.map(echapper).join(' · ') + '</div>' +
+      '<div class="salleTexte">Tout ce que tu as vu ici est noté : tu ne repars pas de zéro.</div>' +
+      '<button class="btn btn-primary" id="salleBtFin">👋 Terminer — la tablette se libère</button></div>';
+    var fini = false;
+    function finir(){ if(fini) return; fini = true; salleAccueil(''); }
+    $('salleBtFin').addEventListener('click', finir);
+    setTimeout(finir, 3 * 60000);
+  }
+
   function appeler(corps){
     if(MODE_ESSAI) return Promise.resolve(reponseDEssai(corps));
     if(ACCOMP) corps = Object.assign({}, corps, { accompagne: ACCOMP.session });
+    /* 📺 v1290 — pendant une séance de la salle, son jeton de séance */
+    if(SALLE && !corps.salle) corps = Object.assign({}, corps, { salle: SALLE.jeton });
     return fetch(RELAIS + '/eleve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(corps)
     }).then(function(r){ return r.json(); })
       .then(function(d){
-        if(d && d.error){ throw new Error(d.error); }
+        if(d && d.error){
+          var er = new Error(d.error);
+          /* 📺 la séance est finie (heure, arrêtée par l'équipe) : retour à l'accueil */
+          if(d.salleFin){ er.salleFin = true; if(SALLE) setTimeout(function(){ if(SALLE) salleTerminer('fin'); }, 0); }
+          if(d.tabletteRetiree) er.tabletteRetiree = true;
+          throw er;
+        }
         if(d && d.status === 'error'){ throw new Error(d.message || 'Refusé'); }
         return d;
       });
@@ -2502,7 +2808,7 @@
 
   function memoriserLeCode(code){
     /* 👀 v1256 — ni la démonstration ni l'essai ne gardent rien */
-    if(ACCOMP || MODE_ESSAI) return;
+    if(ACCOMP || MODE_ESSAI || MODE_SALLE) return;
     /* Le code reste sur l'appareil — si l'élève l'a bien voulu.
        Le retaper à chaque fois découragerait de s'entraîner ;
        le garder sans le dire serait pire. */
@@ -2571,6 +2877,8 @@
       })
       .catch(function(e){
         complete = true;
+        /* 📺 v1290 — la tablette ne montre jamais l'écran d'entrée */
+        if(MODE_SALLE){ if(SALLE && !(e && e.salleFin)) salleTerminer('erreur', e && e.message); return; }
         if(entreeRapide){
           /* Entré trop vite : le classeur dit non (formation finie,
              accès expiré). On revient à l'écran d'entrée, avec son
@@ -3411,6 +3719,8 @@
     dernierAvant = (p && p.avant) || null;
     mesARevoir = (p && p.aRevoir) || [];
     dessinerParcours(dernierAvant);
+    /* 📺 v1290 — en salle : son compte au bandeau (déjà tout vu : la fin) */
+    if(SALLE) salleApresCoche();
     /* 📌 v1222 — l'espace s'ouvre POUR « à revoir » (la notification,
        ou un lien) : on va droit à Réviser, et au segment s'il est dit. */
     var lien = lienDuParcoursDansLAdresse();
@@ -3520,14 +3830,46 @@
   /* 📌 v1222 — ce que son moniteur lui demande de revoir */
   var mesARevoir = [];
 
+  /* ============================================================
+     📺 CHEZ LUI, AVANT D'AVOIR FINI LA SALLE — v1290
+
+     David : « il ne peut pas continuer le cours de théorie chez lui
+     avant d'avoir fini en salle ». Le Worker retire ces étapes de la
+     réponse ; ici, une carte dit pourquoi, où il en est, et ce qui
+     s'ouvrira à la fin.
+     ============================================================ */
+  var maSalle = null;
+  function dessinerMaSalle(){
+    var z = $('monParcours');
+    var c = $('maSalleEl');
+    if(!maSalle || SALLE || !z){ if(c) c.parentNode.removeChild(c); return; }
+    if(!c){
+      c = document.createElement('div');
+      c.id = 'maSalleEl';
+      z.parentNode.insertBefore(c, z);
+    }
+    var vus = Number(maSalle.vus) || 0, total = Number(maSalle.total) || 0;
+    var noms = (maSalle.salle || []).map(function(g){ return (g.icone ? g.icone + ' ' : '') + g.nom; }).join(', ');
+    var quand = maSalle.majLe ? new Date(Number(maSalle.majLe)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '';
+    c.innerHTML = '<div class="maSalle"><b class="t">📺 Ton cours de théorie se regarde en salle des tablettes</b>' +
+      (noms ? '<div class="d">' + echapper(noms) + '</div>' : '') +
+      (total ? '<div class="barre"><i style="width:' + Math.round(100 * vus / total) + '%"></i></div>' +
+               '<div class="d">' + (vus > 1 ? vus + ' parties vues' : vus + ' partie vue') + ' sur ' + total + (quand ? ' · la dernière fois le ' + quand : '') + '</div>' : '') +
+      '<div class="p">Réserve tes heures de théorie dans Drivup, et viens finir à l’auto-école. <b>Tes groupes s’ouvrent ici dès que tu as fini.</b></div></div>' +
+      (maSalle.ensuite || []).map(function(g){
+        return '<div class="salleFerme"><span>🔒</span><span class="n">' + echapper((g.icone ? g.icone + ' ' : '') + g.nom) + '</span><small>après la salle</small></div>';
+      }).join('');
+  }
+
   function dessinerParcours(avant){
     var z = $('monParcours');
     if(!z) return;
     montrer('carteParcours', true);
+    dessinerMaSalle();
 
     if(!mesEtapes.length){
       fermerLaFeuille();
-      z.innerHTML = '<div class="empty">Ton parcours arrive bientôt.<br>' +
+      z.innerHTML = maSalle ? '' : '<div class="empty">Ton parcours arrive bientôt.<br>' +
         "C'est l'auto-école qui l'ouvre.</div>";
       var c0 = $('cptParcours');
       if(c0) c0.textContent = '';
@@ -4573,6 +4915,8 @@
           });
         }
         majPuceDuSegment(guide, segment);
+        /* 📺 v1290 — où il en est en salle (et la fin, vérifiée par le Worker) */
+        if(SALLE) salleApresCoche();
       })
       .catch(function(e){
         delete dejaEnvoye[guide + '::' + (segment || '')];
@@ -4607,6 +4951,8 @@
      cas — deux copies du dessin, ce serait deux pages qui finissent
      par ne plus se ressembler. */
   function appliquerDossier(d){
+    /* 📺 v1290 — son cours de salle, pas encore fini (voir dessinerMaSalle) */
+    maSalle = (d && d.salle) || null;
     mesAnnonces = (d && d.annonces) || [];
     dessinerAnnonces();
     dessinerLesOnglets();
@@ -5008,6 +5354,8 @@
   var demandeSortie = false;
 
   function sortir(){
+    /* 📺 v1290 — sur la tablette, « sortir » ramène à l'accueil */
+    if(MODE_SALLE){ if(SALLE) salleTerminer('lui'); else salleAccueil(''); return; }
     /* 👀 v1256 — sortir d'une démonstration n'efface pas le code d'un
        élève gardé sur cet appareil (ce n'est pas le sien) */
     if(ACCOMP){ finirLAccompagnement(); }
@@ -10565,6 +10913,8 @@
   /* 🎮 / 👀 v1256 — la partie d'essai de l'équipe ; son espace ouvert
      par l'équipe pour le lui montrer */
   else if(MODE_ESSAI) demarrerEssai();
+  /* 📺 v1290 — la tablette de la salle */
+  else if(MODE_SALLE) demarrerSalle();
   else if(TICKET_ACCOMP || (function(){ try{ return !!sessionStorage.getItem(CLE_ACCOMP); }catch(e){ return false; } })()) demarrerAccompagnement();
 
   /* Déjà venu sur cet appareil : on reprend sans rien redemander */
