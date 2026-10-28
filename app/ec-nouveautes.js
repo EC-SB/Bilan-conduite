@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:49 — v1287 */
+/* Déployé le 28/10/2026 à 11:52 — v1288 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1288,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '✉️ Un message CPF sans ouvrir de dossier',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Les messages CPF, sans dossier',
+        texte: '💶 Financements, sous le générateur : un élève, sa formation, sa situation, le message — rempli avec le prix et le lien, à relire puis envoyer. Rien n’est noté.' }
+    ]
+  },
   {
     version: 1287,
     date: 'Mercredi 28 octobre 2026',
