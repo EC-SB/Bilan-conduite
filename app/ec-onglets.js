@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 17:38 — v1282 */
+/* Déployé le 28/10/2026 à 10:05 — v1285 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -1947,7 +1947,8 @@ function reveillerVue(cle){
     code:       () => afficherCode(),
     handicap:   () => afficherHandicap(),
     evaluation: () => afficherEvaluation(),
-    financements: () => afficherFinancements(),
+    /* 🧮 v1285 — et les aides de l'élève (ec-aides.js) */
+    financements: () => { afficherFinancements(); if(typeof afficherAides === 'function') afficherAides(); },
     /* 💰 v1178 — les prix, les fiches, imprimer vite, et le devis */
     tarifs:     () => (typeof afficherTarifsFiches === 'function' ? afficherTarifsFiches() : afficherTarifs()),
     parcours:   () => afficherParcours(),
