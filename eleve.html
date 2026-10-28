@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 28/10/2026 à 12:59 — v1290 -->
+<!-- Déployé le 28/10/2026 à 17:34 — v1296 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1457,6 +1457,31 @@
   .ckp .zoneEcrire{ border-color:var(--kl); background:var(--kp1); border-radius:20px; }
   .ckp .zoneEcrire button.btn{ background:var(--kn); color:var(--ksurN); box-shadow:0 0 16px var(--kglow); }
   .ckRegle{ text-align:center; font-size:13px; color:var(--kd); padding:10px 0 4px; }
+  /* ============================================================
+     🧭 LE FIL DE L'ÉLÈVE, REFONDU — v1296
+
+     La maquette validée par David le 28 octobre : le fil prend tout
+     l'écran (l'en-tête « Bonjour » et la barre du bas s'effacent), la
+     même barre que l'équipe « ➕ · le texte 😊 · 🎤 », collée en bas.
+     ============================================================ */
+  #zoneEcrireEcole:has(#leFilEleve) > .card{
+    position:fixed; inset:0; z-index:1500; margin:0; border-radius:0; border:none; max-width:none;
+    display:flex; flex-direction:column; height:var(--hautEl, 100dvh); padding:calc(10px + var(--dessus)) calc(12px + var(--adroite)) 0 calc(12px + var(--agauche));
+    box-shadow:none;
+  }
+  #zoneEcrireEcole:has(#leFilEleve) > .card > *{ flex-shrink:0; }
+  #zoneEcrireEcole:has(#leFilEleve) #leFilEleve{ flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto; margin-bottom:6px; }
+  #zoneEcrireEcole:has(#leFilEleve) .ckTop{ margin-bottom:6px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  #zoneEcrireEcole:has(#leFilEleve) .zoneEcrire{ margin-bottom:calc(8px + var(--dessous)); }
+  .zoneEcrire.uneLigneEl, .ckp .zoneEcrire.uneLigneEl{ padding:4px 0; border:none; background:transparent; border-radius:0; }
+  .zoneEcrire.uneLigneEl .zoneOutils{ align-items:flex-end; gap:4px; }
+  .zoneEcrire.uneLigneEl .champEl{ flex:1; min-width:0; display:flex; align-items:flex-end; gap:2px;
+    background:var(--navy-deep); border:1px solid var(--line); border-radius:20px; padding:0 2px 0 12px; }
+  .ckp .zoneEcrire.uneLigneEl .champEl{ background:var(--kp2); border-color:var(--kl); }
+  .zoneEcrire.uneLigneEl textarea{ margin:0; min-height:40px; max-height:140px; padding:10px 0; flex:1; min-width:0; background:transparent; border:none; box-shadow:none; }
+  .zoneEcrire.uneLigneEl .envoiIc{ margin-left:0; }
+  .plusEmo{ font-size:21px; line-height:1; font-weight:800; }
+
   .objetat{
     flex-shrink:0; font-size:11px; font-weight:700; padding:3px 9px;
     border-radius:999px; white-space:nowrap;
@@ -6132,26 +6157,28 @@
          ligne. L'ordre des éléments ne change pas, seulement leur
          disposition — et la rangée du bas peut encaisser un
          cinquième outil sans reprendre un pixel au champ. */
-      h += '<div class="zoneEcrire">' +
+      /* 🧭 v1296 — LA MÊME BARRE QUE L'ÉQUIPE (maquette validée par
+         David le 28 octobre) : « ➕ · le texte 😊 · 🎤 », le 🎤 devient
+         ➤ dès qu'on écrit. Le champ garde toute la largeur qui reste. */
+      h += '<div class="zoneEcrire uneLigneEl">' +
         '<div id="repBarreEl"></div>' +
-        '<textarea id="chFilTexte" rows="2" placeholder="Écris ton message…">' +
-          echapper(brouillonsEl[id] || '') + '</textarea>' +
         '<div class="zoneOutils">' +
-          /* 🎤 · ＋ · 🙂 — v1161. David : « le micro tout seul,
-             ensuite un ＋ », et des icônes à la Messenger. Le 🎥 et
-             le 📷 sont dans le panneau du ＋, avec le 📎. */
+          '<button type="button" class="emoOutil outilIc plusEl" id="btFilPlus" ' +
+            'title="Photo, vidéo, fichier, prévenir le bureau" aria-label="Photo, vidéo, fichier" ' +
+            'aria-expanded="false">' + ICONES_EL.plus + '</button>' +
+          '<div class="champEl">' +
+            '<textarea id="chFilTexte" rows="1" placeholder="Écris ton message…">' +
+              echapper(brouillonsEl[id] || '') + '</textarea>' +
+            '<button type="button" class="emoOutil outilIc" id="btFilEmo" ' +
+              'title="Émoticônes" aria-label="Émoticônes">' + ICONES_EL.emo + '</button>' +
+          '</div>' +
+          '<button type="button" class="envoiIc" id="btFilEnvoyer" ' +
+            'aria-label="Envoyer">' + ICONES_EL.pouce + '</button>' +
           (vocalPossibleEl()
-            ? '<button type="button" class="emoOutil outilIc" id="btFilVocal" ' +
+            ? '<button type="button" class="envoiIc outilIc" id="btFilVocal" ' +
                 'title="Enregistrer un vocal" aria-label="Enregistrer un vocal">' +
                 ICONES_EL.micro + '</button>'
             : '') +
-          '<button type="button" class="emoOutil outilIc plusEl" id="btFilPlus" ' +
-            'title="Photo, vidéo, fichier" aria-label="Photo, vidéo, fichier" ' +
-            'aria-expanded="false">' + ICONES_EL.plus + '</button>' +
-          '<button type="button" class="emoOutil outilIc" id="btFilEmo" ' +
-            'title="Émoticônes" aria-label="Émoticônes">' + ICONES_EL.emo + '</button>' +
-          '<button type="button" class="envoiIc" id="btFilEnvoyer" ' +
-            'aria-label="Envoyer">' + ICONES_EL.pouce + '</button>' +
         '</div>' +
       '</div><div id="msgFil"></div>';
     }else{
@@ -6181,6 +6208,12 @@
           ev.preventDefault();
           reponseEl = null;
           poserBarreReponseEl();
+        }
+        /* ⌨️ v1296 — sur un ordinateur, Entrée envoie (Maj + Entrée :
+           une ligne de plus) ; sur un téléphone, Entrée reste un retour */
+        if(ev.key === 'Enter' && !ev.shiftKey && clavierEl() && t.value.trim()){
+          ev.preventDefault();
+          envoyerDansLeFil();
         }
       });
     }
@@ -6241,6 +6274,43 @@
 
     var f = $('leFilEleve');
     if(f) f.scrollTop = f.scrollHeight;
+    /* 👆 v1296 — glisser depuis le bord gauche : retour à la liste */
+    brancherLeBordEl();
+  }
+
+  /* ⌨️ v1296 — un vrai clavier (ordinateur) ? */
+  function clavierEl(){
+    try{ return !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches); }catch(e){ return false; }
+  }
+  /* 👆 v1296 — le fil prend tout l'écran : on en sort par ←, ou en
+     glissant depuis le bord gauche, comme partout sur un téléphone */
+  function brancherLeBordEl(){
+    var carte = document.querySelector('#zoneEcrireEcole > .card');
+    if(!carte || carte.getAttribute('data-bord') === '1') return;
+    carte.setAttribute('data-bord', '1');
+    var x0 = null, dx = 0;
+    carte.addEventListener('pointerdown', function(ev){
+      if(ev.pointerType === 'mouse') return;
+      var r = carte.getBoundingClientRect();
+      if(ev.clientX - r.left > 24) return;
+      x0 = ev.clientX; dx = 0;
+    });
+    carte.addEventListener('pointermove', function(ev){
+      if(x0 === null) return;
+      dx = Math.max(0, ev.clientX - x0);
+      if(dx > 8){ try{ carte.setPointerCapture(ev.pointerId); }catch(e){} }
+      carte.style.transition = 'none';
+      carte.style.transform = 'translateX(' + dx + 'px)';
+    });
+    var fin = function(){
+      if(x0 === null) return;
+      x0 = null;
+      carte.style.transition = 'transform .2s';
+      carte.style.transform = '';
+      if(dx > 90) fermerPleinEcran();
+    };
+    carte.addEventListener('pointerup', fin);
+    carte.addEventListener('pointercancel', fin);
   }
 
   function bulleEleve(m){
@@ -8214,6 +8284,13 @@
              faire: function(){ if(!videosEpuiseesEl()) choisirUneVideoEl(); } });
     g.push({ id: 'btPlusFichier', icone: 'fichier', nom: 'Joindre<br>un fichier',
              faire: function(){ choisirUnFichierEl(); } });
+    /* ⏰ 🚫 🧤 v1296 — prévenir le bureau, depuis le fil aussi (les
+       mêmes formulaires que les boutons de « Écrire à l'école ») */
+    if(filEl && filEl.conv && filEl.conv.genre !== 'groupe' && typeof ecranMotif === 'function'){
+      g.push({ id: 'btPlusRetard', emoji: '⏰', nom: 'Je serai<br>en retard', faire: function(){ ecranMotif('retard'); } });
+      g.push({ id: 'btPlusAnnul', emoji: '🚫', nom: 'Annuler<br>un cours', faire: function(){ ecranMotif('annul'); } });
+      g.push({ id: 'btPlusOubli', emoji: '🧤', nom: 'Objet<br>oublié', faire: function(){ ecranMotif('oubli'); } });
+    }
     return g;
   }
 
@@ -8232,13 +8309,14 @@
     z.id = 'plusBoite';
     /* Une seule rangée, même à 390 px : autant de colonnes que de
        gestes présents. */
-    z.style.gridTemplateColumns = 'repeat(' + gestes.length + ', minmax(0, 1fr))';
+    /* v1296 — cinq par rangée au plus : ⏰ 🚫 🧤 s'y ajoutent */
+    z.style.gridTemplateColumns = 'repeat(' + Math.min(5, gestes.length) + ', minmax(0, 1fr))';
     gestes.forEach(function(g){
       var t = document.createElement('button');
       t.type = 'button';
       t.id = g.id;
       t.className = 'plusTuile';
-      t.innerHTML = '<span class="plusRond">' + ICONES_EL[g.icone] + '</span>' +
+      t.innerHTML = '<span class="plusRond">' + (g.emoji ? '<span class="plusEmo">' + g.emoji + '</span>' : ICONES_EL[g.icone]) + '</span>' +
                     '<span class="plusNom">' + g.nom + '</span>';
       t.addEventListener('click', function(ev){
         ev.stopPropagation();
@@ -8631,6 +8709,13 @@
     var b = $('btFilEnvoyer');
     if(!t || !b) return;
     var vide = !t.value.trim();
+    /* 🎤 v1296 — le micro tant que c'est vide, l'envoi dès qu'on écrit
+       (le 👍 reste là où il n'y a pas de micro) */
+    var vo = $('btFilVocal');
+    if(vo){ vo.style.display = vide ? '' : 'none'; b.style.display = vide ? 'none' : ''; }
+    /* le champ grandit avec le texte, six lignes au plus */
+    t.style.height = 'auto';
+    t.style.height = Math.max(40, Math.min(t.scrollHeight, 140)) + 'px';
     /* 👍 puis l'avion, dessinés — v1161. Redessinés seulement quand
        ça change, pas à chaque lettre. */
     var icone = vide ? 'pouce' : 'avion';
@@ -9439,6 +9524,16 @@
 
 
   $('btSortir').addEventListener('click', demanderASortir);
+
+  /* 📱 v1296 — la hauteur visible, sans le clavier : le fil plein
+     écran s'y tient, la barre reste juste au-dessus du clavier */
+  (function(){
+    var vv = window.visualViewport;
+    var poser = function(){ document.documentElement.style.setProperty('--hautEl', Math.round(vv ? vv.height : window.innerHeight) + 'px'); };
+    poser();
+    if(vv){ vv.addEventListener('resize', poser); vv.addEventListener('scroll', poser); }
+    window.addEventListener('resize', poser);
+  })();
 
   /* 💬 Écrire à l'école — v1071 */
   Array.prototype.forEach.call(
