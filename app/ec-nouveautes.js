@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:59 — v1290 */
+/* Déployé le 28/10/2026 à 13:32 — v1291 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1291,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '👂 Les élèves en écoute sur « Vos cours commencent », dans la carte de leur voiture',
+    quoi: [
+      { emoji: '👂',
+        titre: 'Les écoutes pédagogiques sur la télé',
+        texte: 'Dans la carte de la voiture annoncée la veille (sinon de sa boîte). Déjà pointé par le moniteur : il ne s’affiche plus. Sans voiture : « passe voir le bureau ».' },
+      { emoji: '✏️',
+        titre: 'Dans le constructeur',
+        texte: '⏰ Vos cours commencent : sous l’élève ou en bas de la carte, le mot, la couleur, la ligne « sans voiture ». Les cours à venir : une case, coupée d’origine.' }
+    ]
+  },
   {
     version: 1290,
     date: 'Mercredi 28 octobre 2026',
