@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 13:57 — v1292 */
+/* Déployé le 28/10/2026 à 14:25 — v1293 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1293,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '📌 Un suivi pour chaque aide : permis à 1 €, Mission locale, employeur…',
+    quoi: [
+      { emoji: '📌',
+        titre: 'Suivre chaque aide choisie',
+        texte: 'Sur la carte d’une aide : « ➕ Suivre ». Permis à 1 € (contrat → banque → accord → fonds), Mission locale, Agefiph, employeur / OPCO, commune, ALMA : on coche chaque étape, la date s’y met.' },
+      { emoji: '🔔',
+        titre: 'Un rappel quand rien ne bouge',
+        texte: 'Dix jours sans nouvelle étape : une ligne au bandeau, avec la prochaine étape attendue.' },
+      { emoji: '📒',
+        titre: 'Dans sa fiche',
+        texte: '« 📒 Le suivi » montre chaque aide suivie, où il en est, les étapes datées, le montant et la note.' }
+    ]
+  },
   {
     version: 1292,
     date: 'Mercredi 28 octobre 2026',
