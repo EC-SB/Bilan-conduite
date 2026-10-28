@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:49 — v1287 */
+/* Déployé le 28/10/2026 à 17:34 — v1296 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -81,7 +81,9 @@ const VITES_VITRINE_CK = [
 /* La largeur à partir de laquelle on dessine les quatre colonnes, et
    celle à partir de laquelle la fiche éclair tient à droite. En
    dessous de la seconde, elle s'ouvre par ⓘ comme sur le téléphone. */
-const CK_LARGE = 900;
+/* 📟 v1296 — David valide la maquette « tous écrans » : une tablette en
+   portrait (768-820 px) a la liste ET le fil côte à côte. */
+const CK_LARGE = 700;
 const CK_AVEC_FICHE = 1150;
 
 let ckFicheOuverte = false;      /* ⓘ : la fiche en feuille (écran étroit) */
@@ -106,6 +108,15 @@ function ckAvecFiche(){
   const z = $('messagerieZone');
   return ckLarge() && (z.clientWidth || 0) >= CK_AVEC_FICHE;
 }
+/* ⓘ v1296 — sur grand écran, la colonne de droite se cache et revient
+   (gardé sur cet appareil) */
+function ckFicheCachee(){ try{ return localStorage.getItem('ec_msg_fiche_cachee') === '1'; }catch(e){ return false; } }
+function ckBasculerLaColonneFiche(){
+  try{ localStorage.setItem('ec_msg_fiche_cachee', ckFicheCachee() ? '0' : '1'); }catch(e){}
+  const k = document.querySelector('#messagerieZone .ckpLarge');
+  if(k) k.classList.toggle('sansFiche', !ckAvecFiche() || ckFicheCachee());
+  if(filOuvertEC) dessinerLeFil();
+}
 
 /* Les quatre colonnes, posées une fois et gardées : redessiner la
    liste ne doit pas effacer le fil qu'on est en train de lire. */
@@ -121,13 +132,14 @@ function ckSquelette(){
     zone.innerHTML = '';
     k = document.createElement('div');
     k.className = 'ckp ckpLarge';
-    k.innerHTML = '<div class="ckpRail" id="ckpRail"></div>' +
-      '<div class="ckpListe" id="ckpListe"></div>' +
+    /* 🧭 v1296 — plus de rail : les 4 onglets et ⋯ › Filtrer sont en
+       tête de la liste (maquette validée par David le 28 octobre). */
+    k.innerHTML = '<div class="ckpListe" id="ckpListe"></div>' +
       '<div class="ckpFil" id="ckpFil"></div>' +
       '<div class="ckpCtx" id="ckpCtx"></div>';
     zone.appendChild(k);
   }
-  k.classList.toggle('sansFiche', !ckAvecFiche());
+  k.classList.toggle('sansFiche', !ckAvecFiche() || ckFicheCachee());
   ckAjusterHauteur(k);
   return k;
 }
@@ -192,9 +204,10 @@ window.addEventListener('resize', () => {
   if(large){
     const k = z.querySelector('.ckpLarge');
     const avant = k.classList.contains('sansFiche');
+    const sans = !ckAvecFiche() || ckFicheCachee();
     ckAjusterHauteur(k);
-    if(avant !== !ckAvecFiche() && filOuvertEC) dessinerLeFil();
-    else k.classList.toggle('sansFiche', !ckAvecFiche());
+    if(avant !== sans && filOuvertEC) dessinerLeFil();
+    else k.classList.toggle('sansFiche', sans);
   }
 });
 
@@ -415,6 +428,101 @@ function ckPastilles(){
   return b;
 }
 
+/* ============================================================
+   🗂️ LES QUATRE ONGLETS — v1296
+
+   David, le 28 octobre, sur la maquette : « c'est ok, change “À
+   traiter” en “Non lus”, c'est la seule modif ». Ils remplacent le
+   rail (grand écran) et les dix pastilles en icônes (téléphone,
+   tiroir) : Non lus · Élèves · Équipe · Tout. Les types (retards,
+   annulations, objets, fermées, supervision…) passent dans ⋯ › Filtrer.
+   « Non lus », c'est ce que « À traiter » voulait dire : du non lu, ou
+   un rappel ⏰ revenu.
+   ============================================================ */
+const ONGLETS_MSG_EC = [['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['tout', 'Tout']];
+let ongletMsgEC = (() => { try{ const v = localStorage.getItem('ec_msg_onglet'); return ONGLETS_MSG_EC.some(o => o[0] === v) ? v : 'nonlus'; }catch(e){ return 'nonlus'; } })();
+/* Un fil d'élève, ou un visiteur de la vitrine ; le reste est l'équipe */
+function ckEstEleve(c){ return !!(c && (c.eleve || ['bureau', 'moniteur', 'retard', 'annul', 'oubli', 'vitrine'].indexOf(c.genre) !== -1)); }
+function ckNonLu(c){ return !!c && (Number(c.nonLus || 0) > 0 || ckRevenu(c)) && !ckRappelActif(c); }
+function ckDansLOnglet(c, onglet){
+  const o = onglet || ongletMsgEC;
+  if(o === 'nonlus'){
+    /* le fil qu'on lit reste à l'écran, même lu */
+    const ouvert = !!(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c.id);
+    return ckNonLu(c) || ouvert;
+  }
+  if(o === 'eleves') return ckEstEleve(c);
+  if(o === 'equipe') return !ckEstEleve(c);
+  return true;
+}
+function ckChoisirOnglet(cle){
+  ongletMsgEC = cle;
+  try{ localStorage.setItem('ec_msg_onglet', cle); }catch(e){}
+  if(filtreMessagerie) ckChoisirFiltre('');
+  else dessinerLaListeMessagerie();
+}
+function ckOnglets(){
+  const b = document.createElement('div');
+  b.className = 'ckpOnglets';
+  const base = (conversationsEC || []).filter(c => !c.enSupervision && !Number(c.fermee || 0));
+  ONGLETS_MSG_EC.forEach(([cle, nom]) => {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'ckpOnglet' + (!filtreMessagerie && ongletMsgEC === cle ? ' on' : '');
+    x.dataset.onglet = cle;
+    const n = cle === 'nonlus' ? base.filter(ckNonLu).length : 0;
+    x.innerHTML = nom + (n ? ' <span class="n">' + (n > 99 ? '99+' : n) + '</span>' : '');
+    x.addEventListener('click', () => ckChoisirOnglet(cle));
+    b.appendChild(x);
+  });
+  return b;
+}
+/* « Filtré : ⏰ Retards ✕ » — un type choisi dans ⋯ prend le pas sur les onglets */
+function ckFiltreActif(){
+  if(!filtreMessagerie) return null;
+  const r = RAIL_CK.find(x => x[0] === filtreMessagerie);
+  const nom = r ? r[1] + ' ' + r[2] : (({ clos: '🗄️ Fermées', supervision: '🔒 Supervision' })[filtreMessagerie] || filtreMessagerie);
+  const d = document.createElement('div');
+  d.className = 'ckpFiltre';
+  const t = document.createElement('span');
+  t.textContent = 'Filtré : ' + nom;
+  d.appendChild(t);
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.textContent = '✕ Retirer';
+  x.addEventListener('click', () => ckChoisirFiltre(''));
+  d.appendChild(x);
+  return d;
+}
+/* ⋯ de la liste : filtrer par type, sa photo, les réglages, choisir… */
+function ckMenuDeLaListe(ancre){
+  const items = [];
+  items.push({ titre: 'FILTRER PAR TYPE' });
+  ckFamillesVisibles().filter(x => x[0]).forEach(x => {
+    const n = ckCompteGenre(x[0]);
+    items.push({ emoji: x[1], texte: x[2] + (n ? ' · ' + n : ''), on: filtreMessagerie === x[0], cle: 'filtre-' + x[0], faire: () => ckChoisirFiltre(x[0]) });
+  });
+  items.push({ emoji: '🗄️', texte: 'Fermées (réglées)', on: filtreMessagerie === 'clos', cle: 'filtre-clos', faire: () => ckChoisirFiltre('clos') });
+  if(ckPeutSuperviser() && !dansLeTiroir()) items.push({ emoji: '🔒', texte: 'Supervision', on: filtreMessagerie === 'supervision', cle: 'filtre-supervision', faire: () => ckChoisirFiltre('supervision') });
+  items.push({ sep: true });
+  if(typeof ouvrirFenetrePhotoProfil === 'function'){
+    items.push({ emoji: '🖼️', texte: 'Ma photo', faire: () => ouvrirFenetrePhotoProfil({ cible: 'moi' }) });
+  }
+  if(typeof peutReglerLaMessagerie === 'function' && peutReglerLaMessagerie()){
+    items.push({ emoji: '⚙️', texte: 'Réglages de la messagerie', cle: 'reglages', faire: () => {
+      if(dansLeTiroir()){ ouvrirLaMessagerieEnGrand(); setTimeout(() => ecranReglagesMessagerie(), 300); }
+      else ecranReglagesMessagerie();
+    } });
+  }
+  if(!dansLeTiroir() && typeof peutSupprimerDesConversations === 'function' && peutSupprimerDesConversations()){
+    items.push({ emoji: modeChoixMessagerie ? '✕' : '☑', texte: modeChoixMessagerie ? 'Annuler le choix' : 'Cocher des conversations pour les supprimer', cle: 'choix',
+      faire: () => { modeChoixMessagerie = !modeChoixMessagerie; choixMessagerie.clear(); dessinerLaListeMessagerie(); } });
+    if(filtreMessagerie === 'clos') items.push({ emoji: '🗑️', texte: 'Supprimer toutes les fermées', danger: true, cle: 'vider', faire: () => viderLesFilsFermes(null, null) });
+  }
+  if(dansLeTiroir()) items.push({ emoji: '↗️', texte: 'Ouvrir en grand', faire: () => ouvrirLaMessagerieEnGrand() });
+  if(typeof menuGestesEC === 'function') menuGestesEC(ancre, 'Messagerie', items);
+}
+
 /* ------------------------------------------------------------
    UNE LIGNE DE LA LISTE
    ------------------------------------------------------------ */
@@ -536,40 +644,37 @@ function ckEnteteDuFil(f, large){
   const b = document.createElement('div');
   b.className = 'b';
   const clos = Number(c.fermee || 0);
-  const rond = large ? '' : 'rond';
+  const rond = 'rond';
 
-  /* 📞 v1183 — appeler, devant 📌 */
+  /* 🧭 v1296 — UNE SEULE TÊTE (maquette validée le 28 octobre) :
+     téléphone et tiroir « ← nom 📞 ⋯ » (et ✕ dans le tiroir) ; grand
+     écran « 📞 ✓ Réglé ⏰ ⓘ ⋯ ». Le reste (📌, 📅, et sur le
+     téléphone ⏰ ✓ ⓘ) est dans ⋯, en tête du menu. */
   const bApp = (typeof boutonAppelDuFilEC === 'function') ? boutonAppelDuFilEC(f) : null;
   if(bApp) b.appendChild(bApp);
-  if(f.estMembre){
-    b.appendChild(ckBouton('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste',
-      () => ckMarquer(c.id, 'epingle'), rond + (Number(c.epingle || 0) ? ' on' : '')));
-    const rap = ckRappelActif(Object.assign({}, c, { nonLus: 0 }));
-    /* 📞 v1183 — David : « ⏰ Demain » devient « ⏰ » quand le bouton
-       d'appel est là, sinon le nom de l'élève ne tient plus. */
-    const court = !large || !!bApp;
-    b.appendChild(ckBouton(!court ? (rap ? '⏰ Demain 9h' : '⏰ Demain') : '⏰',
-      rap ? 'Retirer le rappel' : 'Me la rappeler demain 9h',
-      () => ckMarquer(c.id, 'rappel'), (court ? 'rond' : '') + (rap ? ' on' : '')));
+  const rap = ckRappelActif(Object.assign({}, c, { nonLus: 0 }));
+  const peutRegler = !clos && !f.enSupervision && f.estMembre && ckPeutGerer();
+  const extras = [];
+  const fiche = () => {
+    if(large && ckAvecFiche()) ckBasculerLaColonneFiche();
+    else { ckFicheOuverte = !ckFicheOuverte; dessinerLeFil(); }
+  };
+  if(large){
+    if(peutRegler) b.appendChild(ckBouton('✓ Réglé', 'Réglé : la conversation se ferme et part dans 🗄️ Fermées', () => ckRegler(f), 'regle'));
+    if(f.estMembre) b.appendChild(ckBouton('⏰', rap ? 'Retirer le rappel' : 'Me la rappeler demain 9h', () => ckMarquer(c.id, 'rappel'), 'rond' + (rap ? ' on' : '')));
+    const ficheVue = ckAvecFiche() ? !ckFicheCachee() : ckFicheOuverte;
+    b.appendChild(ckBouton('ⓘ', ficheVue ? 'Cacher la fiche' : (c.eleve ? 'Sa fiche' : 'Les infos'), () => fiche(), 'rond' + (ficheVue ? ' on' : '')));
+  }else{
+    if(f.estMembre) extras.push({ emoji: '⏰', texte: rap ? 'Retirer le rappel' : 'Me la rappeler demain 9h', faire: () => ckMarquer(c.id, 'rappel') });
+    if(peutRegler) extras.push({ emoji: '✓', texte: 'Réglé (la conversation se ferme)', faire: () => ckRegler(f) });
+    extras.push({ emoji: 'ⓘ', texte: c.eleve ? 'Sa fiche' : 'Les infos', faire: () => fiche() });
   }
-  if(large && c.eleve && f.peutEcrire && c.genre !== 'groupe'){
-    b.appendChild(ckBouton('📅 Décaler', 'Proposer un autre créneau à l’élève', () => {
-      ckCreneauOuvert = !ckCreneauOuvert;
-      dessinerLeFil();
-    }, ckCreneauOuvert ? 'on' : ''));
-  }
-  if(!clos && !f.enSupervision && f.estMembre && ckPeutGerer()){
-    b.appendChild(ckBouton(large ? '✓ Réglé' : '✓', 'Réglé : la conversation se ferme et part dans 🗄️ Fermées',
-      () => ckRegler(f), rond));
-  }
-  if(!large || !ckAvecFiche()){
-    b.appendChild(ckBouton('ⓘ', 'La fiche de l’élève', () => {
-      ckFicheOuverte = !ckFicheOuverte;
-      dessinerLeFil();
-    }, rond + (ckFicheOuverte ? ' on' : '')));
+  if(f.estMembre) extras.push({ emoji: '📌', texte: Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', faire: () => ckMarquer(c.id, 'epingle') });
+  if(c.eleve && f.peutEcrire && c.genre !== 'groupe'){
+    extras.push({ emoji: '📅', texte: 'Proposer un autre créneau', faire: () => { ckCreneauOuvert = !ckCreneauOuvert; dessinerLeFil(); } });
   }
 
-  /* Le ⋯ : les actions de barreDesActionsDuFil, rangées dans le menu
+  /* Le ⋯ : ces gestes-là, puis les actions de barreDesActionsDuFil
      — une seule liste décide de ce qui existe (v1079). */
   const boite = document.createElement('div');
   boite.className = 'msgMenuBoite';
@@ -577,10 +682,14 @@ function ckEnteteDuFil(f, large){
   pts.type = 'button';
   pts.className = 'ckBt ' + rond + ' msgPts';
   pts.textContent = '⋯';
-  pts.title = 'Participants, exporter, supprimer';
-  pts.addEventListener('click', ev => { ev.stopPropagation(); basculerLeMenuDuFil(boite, f); });
+  pts.title = 'Plus : épingler, participants, exporter…';
+  pts.addEventListener('click', ev => { ev.stopPropagation(); basculerLeMenuDuFil(boite, f, extras); });
   boite.appendChild(pts);
   b.appendChild(boite);
+  /* Le tiroir n'a plus sa propre tête quand un fil est ouvert : ✕ ici */
+  if(!large && typeof dansLeTiroir === 'function' && dansLeTiroir()){
+    b.appendChild(ckBouton('✕', 'Fermer la messagerie', () => fermerTiroirMessagerie(), 'rond'));
+  }
 
   tete.appendChild(b);
   return tete;
@@ -592,6 +701,26 @@ async function ckRegler(f){
   if(typeof showToast === 'function') showToast('✓ Réglé — rangée dans 🗄️ Fermées');
   await ouvrirLeFil(id);
   afficherMessagerie(true);
+}
+/* ✓ v1296 — régler depuis la liste (glisser vers la gauche, ou ✓ au
+   survol), sans ouvrir : la ligne part, « Annuler » la ramène. */
+async function ckReglerDeLaListe(id){
+  const c = (conversationsEC || []).find(x => x.id === id);
+  if(!c) return;
+  try{ await appelPrep({ action: 'convFermer', id: id, fermee: '1' }); }
+  catch(e){ if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e)); dessinerLaListeMessagerie(); return; }
+  c.fermee = 1;
+  if(filtreMessagerie !== 'clos') conversationsEC = conversationsEC.filter(x => x.id !== id);
+  if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === id) filOuvertEC.conv.fermee = 1;
+  poserLesComptesMessagerie(compterLesNonLusEC());
+  dessinerLaListeMessagerie();
+  const qui = ckTitreListe(c);
+  if(typeof toastAvecGesteEC === 'function'){
+    toastAvecGesteEC('✓ « ' + qui + ' » réglée → 🗄️ Fermées', 'Annuler', async () => {
+      try{ await appelPrep({ action: 'convFermer', id: id, fermee: '0' }); }catch(e){}
+      afficherMessagerie(true);
+    });
+  }else if(typeof showToast === 'function') showToast('✓ Réglé — rangée dans 🗄️ Fermées');
 }
 
 /* ------------------------------------------------------------
@@ -1024,10 +1153,47 @@ function ckFormCreneau(f){
    LES RÉPONSES RAPIDES
    ------------------------------------------------------------ */
 
+/* ⚡ v1296 — les suggestions masquées (sur cet appareil) : ⚡ et ➕ les gardent */
+function ckSuggCachees(){ try{ return localStorage.getItem('ec_msg_sugg_cachees') === '1'; }catch(e){ return false; } }
+function ckCacherSugg(oui){ try{ localStorage.setItem('ec_msg_sugg_cachees', oui ? '1' : '0'); }catch(e){} }
+/* ⚡ toutes les réponses rapides de ce fil, et « Ce qu'on écrit et envoie » */
+function ckFeuilleRapides(f, ancre){
+  const c = (f && f.conv) || {};
+  const items = [{ titre: 'POUR CETTE CONVERSATION' }];
+  const tete = /^(\p{Extended_Pictographic}\uFE0F?)\s*/u;
+  reponsesRapidesDuFil(c).forEach(x => {
+    const m = String(x.bouton).match(tete);
+    items.push({ emoji: m ? m[1] : '⚡', texte: m ? String(x.bouton).replace(tete, '') : String(x.bouton), cle: 'rapide', faire: async () => {
+      if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
+      try{
+        if(x.position && typeof envoyerMaPositionEC === 'function') await envoyerMaPositionEC(remplirLesMotsRapides(x.message, c));
+        else await ckEcrire(f, remplirLesMotsRapides(x.message, c));
+      }catch(e){ if(typeof showToast === 'function') showToast('Le message n’est pas parti : ' + (e.message || e)); }
+    } });
+  });
+  items.push({ sep: true });
+  items.push({ emoji: '📄', texte: 'Ce qu’on écrit et envoie', cle: 'modeles', faire: () => { ckModelesOuvert = true; ckModelesCategorie = ''; dessinerLeFil(); } });
+  if(ckSuggCachees()) items.push({ emoji: '👁️', texte: 'Remettre les suggestions au-dessus de la barre', cle: 'remettre', faire: () => { ckCacherSugg(false); dessinerLeFil(); } });
+  if(typeof peutReglerLaMessagerie === 'function' && peutReglerLaMessagerie() && !dansLeTiroir()){
+    items.push({ emoji: '⚙️', texte: 'Régler les réponses rapides', faire: () => ecranReglagesMessagerie() });
+  }
+  if(typeof menuGestesEC === 'function') menuGestesEC(ancre, '⚡ Réponses rapides', items);
+}
+
 function ckReponsesRapides(f, petit){
   const c = f.conv || {};
   const v = document.createElement('div');
-  v.className = 'ckVites';
+  /* 🧭 v1296 — UNE LIGNE QUI DÉFILE : ⚡ en tête (toutes), les
+     suggestions, ✕ pour les masquer. Plus trois rangées qui mangent
+     l'écran du téléphone. */
+  v.className = 'ckVites uneLigne' + (ckSuggCachees() ? ' cachees' : '');
+  const eclair = document.createElement('button');
+  eclair.type = 'button';
+  eclair.className = 'ckVite ckViteEclair';
+  eclair.textContent = '⚡';
+  eclair.title = 'Toutes les réponses rapides, et « Ce qu’on écrit et envoie »';
+  eclair.addEventListener('click', ev => { ev.stopPropagation(); ckFeuilleRapides(f, eclair); });
+  v.appendChild(eclair);
   if(!reponsesRapidesLues) chargerReponsesRapides().then(change => { if(change && filOuvertEC) dessinerLeFil(); });
   /* 📱 v1174 — David : « tous, ils passent à la ligne ». Plus de
      coupe à trois sur le téléphone. */
@@ -1063,6 +1229,17 @@ function ckReponsesRapides(f, petit){
   bm.title = 'Reprendre le texte d’une fiche de « Ce qu’on écrit et envoie (keep) »';
   bm.addEventListener('click', () => { ckModelesOuvert = !ckModelesOuvert; ckModelesCategorie = ''; dessinerLeFil(); });
   v.appendChild(bm);
+  /* ✕ v1296 — masquer la ligne (⚡ et ➕ gardent tout) */
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'ckVite ckViteX';
+  x.textContent = '✕';
+  x.title = 'Masquer les suggestions (⚡ et ➕ les gardent)';
+  x.addEventListener('click', () => {
+    ckCacherSugg(true); dessinerLeFil();
+    if(typeof toastAvecGesteEC === 'function') toastAvecGesteEC('Suggestions masquées — toujours dans ⚡ et ➕', 'Remettre', () => { ckCacherSugg(false); dessinerLeFil(); });
+  });
+  v.appendChild(x);
   if(ckModelesOuvert){
     const p = panneauDesModeles(texte => {
       ckModelesOuvert = false;
