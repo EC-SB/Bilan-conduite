@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 28/10/2026 à 15:36 — v1295 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -667,6 +667,12 @@ function ligneBilan(item, nomCherche, refaire){
         gps.innerHTML = vu;
         meta.appendChild(gps);
       }
+    }
+
+    /* ⏱️ v1295 — la durée d'un examen officiel, pour nous */
+    if(typeof spanDureeHistorique === 'function'){
+      const dx = spanDureeHistorique(item);
+      if(dx) meta.appendChild(dx);
     }
 
     row.appendChild(meta);
