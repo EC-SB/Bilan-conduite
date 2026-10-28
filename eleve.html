@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 28/10/2026 à 17:34 — v1296 -->
+<!-- Déployé le 28/10/2026 à 18:00 — v1298 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1476,7 +1476,7 @@
   .zoneEcrire.uneLigneEl, .ckp .zoneEcrire.uneLigneEl{ padding:4px 0; border:none; background:transparent; border-radius:0; }
   .zoneEcrire.uneLigneEl .zoneOutils{ align-items:flex-end; gap:4px; }
   .zoneEcrire.uneLigneEl .champEl{ flex:1; min-width:0; display:flex; align-items:flex-end; gap:2px;
-    background:var(--navy-deep); border:1px solid var(--line); border-radius:20px; padding:0 2px 0 12px; }
+    background:var(--navy-deep); border:1px solid var(--line); border-radius:20px; padding:0 12px; }
   .ckp .zoneEcrire.uneLigneEl .champEl{ background:var(--kp2); border-color:var(--kl); }
   .zoneEcrire.uneLigneEl textarea{ margin:0; min-height:40px; max-height:140px; padding:10px 0; flex:1; min-width:0; background:transparent; border:none; box-shadow:none; }
   .zoneEcrire.uneLigneEl .envoiIc{ margin-left:0; }
@@ -6169,8 +6169,6 @@
           '<div class="champEl">' +
             '<textarea id="chFilTexte" rows="1" placeholder="Écris ton message…">' +
               echapper(brouillonsEl[id] || '') + '</textarea>' +
-            '<button type="button" class="emoOutil outilIc" id="btFilEmo" ' +
-              'title="Émoticônes" aria-label="Émoticônes">' + ICONES_EL.emo + '</button>' +
           '</div>' +
           '<button type="button" class="envoiIc" id="btFilEnvoyer" ' +
             'aria-label="Envoyer">' + ICONES_EL.pouce + '</button>' +
@@ -6179,6 +6177,9 @@
                 'title="Enregistrer un vocal" aria-label="Enregistrer un vocal">' +
                 ICONES_EL.micro + '</button>'
             : '') +
+          /* 👍 🎤 😊 v1298 — David : « pouce, micro, émoji » */
+          '<button type="button" class="emoOutil outilIc" id="btFilEmo" ' +
+            'title="Émoticônes" aria-label="Émoticônes">' + ICONES_EL.emo + '</button>' +
         '</div>' +
       '</div><div id="msgFil"></div>';
     }else{
@@ -8709,10 +8710,9 @@
     var b = $('btFilEnvoyer');
     if(!t || !b) return;
     var vide = !t.value.trim();
-    /* 🎤 v1296 — le micro tant que c'est vide, l'envoi dès qu'on écrit
-       (le 👍 reste là où il n'y a pas de micro) */
     var vo = $('btFilVocal');
-    if(vo){ vo.style.display = vide ? '' : 'none'; b.style.display = vide ? 'none' : ''; }
+    /* 👍 v1298 — le pouce revient : 👍 puis 🎤 tant que c'est vide, ➤ seul dès qu'on écrit */
+    if(vo) vo.style.display = vide ? '' : 'none';
     /* le champ grandit avec le texte, six lignes au plus */
     t.style.height = 'auto';
     t.style.height = Math.max(40, Math.min(t.scrollHeight, 140)) + 'px';
