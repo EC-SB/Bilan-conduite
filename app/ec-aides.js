@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:12 — v1289 */
+/* Déployé le 28/10/2026 à 13:57 — v1292 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -173,6 +173,8 @@ function aiCategoriesCpf(g){
 function aiCpfProposee(g){
   const cats = aiCategoriesCpf(g);
   const prix = Number(g.prix) || 0;
+  /* 💶 v1292 — sans prix, rien à proposer : il se choisit d'abord */
+  if(!prix) return '';
   const l = (aiReglages().catalogue || [])
     .filter(x => cats.includes(x.cat) && !/annulation/i.test(String(x.titre || '')))
     .map(x => ({ id: x.id, p: aiPrixFormation(x).prix }))
@@ -196,8 +198,8 @@ function aiOrganisme(id){ return (aiReglages().organismes || []).find(o => o.id 
 
 /* ── Un élève : ce que dit sa fiche ───────────────────────────── */
 function aiGenerateurVide(){
-  return { eleve: '', naissance: '', permis: 'B', formation: '', forfait: '', prix: 0, prixMain: false, cpf: '', cpfAuto: true,
-           premier: true, dejaPret: 'n', echec: false, situation: '', cofi: 'n', ml: false, mlOrg: '', cotes: null, handicap: false, mail: '', presc: '' };
+  return { eleve: '', naissance: '', permis: 'B', formation: '', forfait: '', prix: 0, prixMain: false, prixSource: '', devisLe: '', cpf: '', cpfAuto: true,
+           premier: true, dejaPret: 'n', echec: false, situation: '', fonctionPublique: false, cofi: 'n', ml: false, mlOrg: '', cotes: null, handicap: false, mail: '', presc: '' };
 }
 function aiGenerateurDeLEleve(nom){
   const g = aiGenerateurVide();
@@ -211,10 +213,11 @@ function aiGenerateurDeLEleve(nom){
     g.mail = f.email || '';
     g.presc = f.mailPrescripteur || '';
     g.handicap = /aménag|Régularisation/i.test(String(f.formation || '')) || String(f.amenagee || '') === 'oui';
-    const fo = AI_FORFAIT_DE_LA_FORMATION[f.formation] || '';
-    g.forfait = fo;
-    const p = aiPrixForfait(fo);
-    if(p !== null) g.prix = p;
+    /* ⚠️ v1292 — PLUS DE PRIX D'OFFICE. David, le 28 octobre : « ça reprend
+       le prix du pack au lieu de prendre le prix du devis ; ne mets rien
+       de base ». Le prix vient du devis de son évaluation
+       (aiGenerateurAvecDevis), sinon il se tape ou se choisit dans les
+       forfaits — et sans lui, pas de résultat. */
     /* Le prescripteur est une Mission locale qu'on connaît ? */
     const presc = aiNorm(g.presc);
     const org = presc ? (aiReglages().organismes || []).find(o => o.type === 'ml' && o.mail && (aiNorm(o.mail) === presc ||
@@ -223,6 +226,24 @@ function aiGenerateurDeLEleve(nom){
     else if(/mission[ .-]?locale|missionlocale|\bml\d*\b/i.test(g.presc)){ g.ml = true; }
   }
   g.cpf = aiCpfProposee(g);
+  return g;
+}
+/* 💶 v1292 — le montant du devis de sa dernière évaluation (📊 Évaluation) */
+async function aiDevisDe(nom){
+  try{
+    const r = await appelPrep({ action: 'evaluationsDe', eleve: nom });
+    const ev = ((r && r.evaluations) || []).filter(x => Number(x.montant) > 0)
+      .sort((a, b) => (Number(b.creeLe) || 0) - (Number(a.creeLe) || 0))[0];
+    return ev ? { montant: Number(ev.montant), jour: String(ev.jour || ''), par: ev.par || '' } : null;
+  }catch(e){ return null; }
+}
+async function aiGenerateurAvecDevis(nom){
+  const g = aiGenerateurDeLEleve(nom);
+  const dv = await aiDevisDe(g.eleve);
+  if(dv){
+    g.prix = dv.montant; g.prixSource = 'devis'; g.devisLe = dv.jour;
+    if(g.cpfAuto) g.cpf = aiCpfProposee(g);
+  }
   return g;
 }
 function aiAge(g){ return (g.naissance && typeof ageDe === 'function') ? ageDe(g.naissance) : null; }
@@ -268,6 +289,19 @@ function aiRegles(g){
       }
       x.mail = aiRemplir(a.mail, Object.assign({}, v, { formation: f ? f.titre : '', prix: pf !== null ? aiEuros(pf) : '', lien: f ? f.lien : '' }));
       x.note = '⚠️ Pour nous : des heures en plus d’une formation commencée sans CPF ne se financent pas (Service-Public).';
+      L.push(x);
+      return;
+    }
+    /* 🏢 v1292 — un salarié du privé : son employeur, ou l'OPCO */
+    if(a.cle === 'employeur'){
+      const x = base(a, {});
+      if(g.situation !== 'salarie') x.ligne = 'Seulement pour un salarié';
+      else if(g.fonctionPublique) x.ligne = 'Fonction publique : pas d’OPCO — voir avec son administration';
+      else {
+        x.etat = 'voir';
+        x.ligne = 'Il peut demander à son employeur de prendre en charge une partie de la formation, directement ou via l’OPCO de son entreprise' +
+          ((aiAide('cpf') || {}).actif !== false ? ' — et ' + ((((aiAide('cpf') || {}).valeurs) || {}).cofiMin || 100) + ' € de leur part ouvrent aussi son CPF' : '');
+      }
       L.push(x);
       return;
     }
@@ -513,12 +547,13 @@ function aiCorpsMessage(c, dessiner){
   ir.placeholder = '🔎 Un élève (ou personne : tu mettras son adresse)';
   ir.value = m.eleve || '';
   ir.style.cssText = 'margin:0;flex:1;min-width:200px;';
-  ir.addEventListener('change', () => {
+  ir.addEventListener('change', async () => {
     const v = ir.value.trim();
     const f = (typeof ficheDe === 'function') ? ficheDe(v) : null;
     m.eleve = f ? (f.eleve || v) : v;
     m.mail = f ? (f.email || '') : '';
-    if(f){ const g = aiGenerateurDeLEleve(m.eleve); if(g.cpf) m.formation = g.cpf; }
+    /* sa formation : celle juste au-dessus du devis de son évaluation */
+    if(f){ ir.disabled = true; const g = await aiGenerateurAvecDevis(m.eleve); if(g.cpf) m.formation = g.cpf; }
     m.texte = null;
     dessiner();
   });
@@ -568,7 +603,11 @@ function aiCorpsMessage(c, dessiner){
   r.appendChild(aiBouton('✉️ Envoyer', 'btn-primary', async () => {
     const adresse = m.eleve ? await aiAdresseDe(m.eleve, m.mail) : '';
     aiFenetreMail({ titre: '✉️ ' + (AI_NOMS_MESSAGES[aiCleDuMessageSeul(m)] || 'Message CPF'), eleve: m.eleve, a: adresse,
-      sujet: 'Ton dossier CPF — Évolution Conduites', texte: ta.value, genre: 'cpf' });
+      sujet: 'Ton dossier CPF — Évolution Conduites', texte: ta.value, genre: 'cpf', suivi: true });
+  }));
+  r.appendChild(aiBouton('💬 Dans sa messagerie', '', () => {
+    if(!m.eleve){ showToast('Indique l’élève : le message part dans son espace.'); return; }
+    aiFenetreMail({ canal: 'messagerie', titre: '💬 ' + (AI_NOMS_MESSAGES[aiCleDuMessageSeul(m)] || 'Message CPF'), eleve: m.eleve, texte: ta.value, genre: 'cpf', suivi: true });
   }));
   r.appendChild(aiBouton('📋 Copier', '', async () => { try{ await navigator.clipboard.writeText(ta.value); showToast('Copié ✅'); }catch(e){ showToast('Copie impossible'); } }));
   c.appendChild(r);
@@ -630,10 +669,13 @@ function aiGenerateur(g, opts){
     ir.placeholder = '🔎 Un élève (ou personne : quelqu’un au téléphone)';
     ir.value = g.eleve || '';
     ir.style.cssText = 'margin:0;flex:1;min-width:200px;';
-    ir.addEventListener('change', () => {
+    ir.addEventListener('change', async () => {
       const v = ir.value.trim();
       const f = (typeof ficheDe === 'function') ? ficheDe(v) : null;
-      AI.g = f ? aiGenerateurDeLEleve(f.eleve || v) : Object.assign(g, { eleve: v });
+      if(!f){ AI.g = Object.assign(g, { eleve: v }); aiDessiner(); return; }
+      ir.disabled = true;
+      const ng = await aiGenerateurAvecDevis(f.eleve || v);
+      AI.g = ng;
       aiDessiner();
     });
     hd.appendChild(ir);
@@ -692,8 +734,9 @@ function aiQuestions(g, redessiner, majResultat){
   const b = aiEl('div', ''); b.style.cssText = 'flex:1;min-width:0;';
   b.appendChild(aiEl('label', '', '💶 Prix de sa formation (€)'));
   const ib = aiEl('input'); ib.type = 'number'; ib.step = '0.01'; ib.min = '0'; ib.value = g.prix ? String(g.prix) : ''; ib.style.marginBottom = '0';
-  ib.addEventListener('input', () => { g.prix = Number(ib.value) || 0; g.forfait = ''; if(majResultat) majResultat(); });
-  ib.addEventListener('change', () => { g.prix = Number(ib.value) || 0; g.forfait = ''; if(g.cpfAuto) g.cpf = aiCpfProposee(g); redessiner(); });
+  ib.placeholder = 'à indiquer';
+  ib.addEventListener('input', () => { g.prix = Number(ib.value) || 0; g.forfait = ''; g.prixSource = ''; if(majResultat) majResultat(); });
+  ib.addEventListener('change', () => { g.prix = Number(ib.value) || 0; g.forfait = ''; g.prixSource = ''; if(g.cpfAuto) g.cpf = aiCpfProposee(g); redessiner(); });
   b.appendChild(ib);
   la.appendChild(a); la.appendChild(b);
   c1.appendChild(la);
@@ -703,11 +746,13 @@ function aiQuestions(g, redessiner, majResultat){
   lf.style.marginTop = '8px';
   const sf = aiEl('select'); sf.style.marginBottom = '0';
   sf.innerHTML = '<option value="">💰 Son forfait dans 💰 Tarifs…</option>' + fo.map(x => '<option value="' + aiEch(x.id) + '"' + (x.id === g.forfait ? ' selected' : '') + '>' + aiEch(x.titre) + ' — ' + aiEuros(x.prix) + '</option>').join('');
-  sf.addEventListener('change', () => { g.forfait = sf.value; const p = aiPrixForfait(sf.value); if(p !== null) g.prix = p; if(g.cpfAuto) g.cpf = aiCpfProposee(g); redessiner(); });
+  sf.addEventListener('change', () => { g.forfait = sf.value; g.prixSource = ''; const p = aiPrixForfait(sf.value); if(p !== null) g.prix = p; if(g.cpfAuto) g.cpf = aiCpfProposee(g); redessiner(); });
   lf.appendChild(sf);
   const ageEl = aiEl('div', 'aiAide', '');
   ageEl.style.marginTop = '4px';
-  var majAge = () => { const a2 = aiAge(g); ageEl.textContent = (a2 !== null ? a2 + ' ans · ' : '') + (g.forfait ? 'prix du forfait, lu dans 💰 Tarifs' : 'le prix se tape, ou se prend dans un forfait de 💰 Tarifs'); };
+  var majAge = () => { const a2 = aiAge(g); ageEl.textContent = (a2 !== null ? a2 + ' ans · ' : '') +
+    (g.prixSource === 'devis' ? 'le montant du devis de son évaluation' + (g.devisLe ? ' du ' + aiFrDeIso(g.devisLe) : '') + ' (à changer au besoin)'
+     : g.forfait ? 'prix du forfait, lu dans 💰 Tarifs' : 'le prix se tape (le montant du devis), ou se prend dans un forfait de 💰 Tarifs'); };
   majAge();
   lf.appendChild(ageEl);
   c1.appendChild(lf);
@@ -734,6 +779,11 @@ function aiQuestions(g, redessiner, majResultat){
 
   c2.appendChild(aiChoix('💼 Sa situation', [['lyceen', '🎒 Lycéen, étudiant'], ['de', '📋 Demandeur d’emploi'], ['salarie', '🏢 Salarié'], ['apprenti', '🛠️ Apprenti'], ['sans', '🏠 Sans activité']], g.situation,
     k => maj('situation', k), g.situation === 'de' ? 'Inscrit à France Travail (c’est ce qui ouvre le CPF).' : ''));
+  /* 🏢 v1292 — David : « quand c'est un salarié, proposer de base, s'il ne
+     fait pas partie de la fonction publique, qu'il peut demander à son
+     employeur… ou via l'OPCO » */
+  if(g.situation === 'salarie') c2.appendChild(aiChoix('🏛️ Il travaille dans la fonction publique ?', [['n', 'Non'], ['o', 'Oui']], g.fonctionPublique ? 'o' : 'n',
+    k => maj('fonctionPublique', k === 'o'), g.fonctionPublique ? 'Pas d’OPCO dans le public : voir avec son administration.' : ''));
   if(g.situation === 'salarie') c2.appendChild(aiChoix('🤝 Son employeur (ou un OPCO…) paie au moins ' + (((aiAide('cpf') || {}).valeurs || {}).cofiMin || 100) + ' € ?', [['o', 'Oui'], ['n', 'Non'], ['?', 'Je ne sais pas']], g.cofi, k => maj('cofi', k)));
   const mls = (aiReglages().organismes || []).filter(o => o.type === 'ml');
   c2.appendChild(aiChoix('🧭 Suivi par la Mission locale ?', [['o', 'Oui'], ['n', 'Non']], g.ml ? 'o' : 'n', k => maj('ml', k === 'o'),
@@ -790,6 +840,16 @@ function aiCarte(g, x){
 }
 
 function aiResultat(g, opts){
+  /* 💶 v1292 — sans prix, pas de résultat : il se tape, ou se prend dans
+     un forfait (David : « on est obligé de la remplir ») */
+  if(!(Number(g.prix) > 0)){
+    const v = aiEl('div', 'aiTot');
+    v.style.borderStyle = 'dashed';
+    v.innerHTML = '<div style="font-size:15px;font-weight:800;">💶 Le prix de sa formation ?</div>' +
+      '<div class="aiAide" style="margin:4px 0 0;">Tape le montant de son devis, ou choisis son forfait dans 💰 Tarifs : ses aides se calculent dessus.' +
+      (g.eleve ? ' Aucun devis n’a été trouvé dans son évaluation.' : '') + '</div>';
+    return v;
+  }
   const L = aiRegles(g);
   const T = aiTotaux(g, L);
   const z = aiEl('div');
@@ -822,6 +882,7 @@ function aiResultat(g, opts){
   }
   const r = aiEl('div', 'aiBas');
   r.appendChild(aiBouton('📤 Lui envoyer ses aides', 'btn-primary', () => aiMail(g)));
+  r.appendChild(aiBouton('💬 Dans sa messagerie', '', () => aiMessagerie(g)));
   r.appendChild(aiBouton('🖨️ Imprimer', '', () => aiImprimer(g)));
   r.appendChild(aiBouton('💾 Garder dans sa fiche', '', () => aiGarder(g)));
   z.appendChild(r);
@@ -837,21 +898,49 @@ async function aiAdresseDe(nom, connue){
   return adresse;
 }
 
+/* Le texte de « ses aides » : le même par mail et dans sa messagerie */
+function aiTexteDesAides(g){
+  const L = aiRegles(g);
+  const T = aiTotaux(g, L);
+  const ok = L.filter(x => x.etat === 'oui' && x.mail);
+  const voir = L.filter(x => x.etat === 'voir');
+  const prenom = String(g.eleve || '').split(' ')[0];
+  return 'Bonjour ' + prenom + ',\n\nVoici les aides possibles pour ta formation (' + aiEuros(T.prix) + ') :\n\n' +
+    ok.map(x => x.emoji + ' ' + x.nom + (x.montant ? ' — ' + (x.type === 'pret' ? 'prêt de ' : 'jusqu’à ') + aiEuros(x.montant) : '') + '\n' + x.mail).join('\n\n') +
+    (voir.length ? '\n\nÀ voir aussi : ' + voir.map(x => x.nom).join(', ') + '.' : '') +
+    '\n\nLes aides ne sont pas automatiques : chacune a son dossier, et c’est l’organisme qui décide. Si tu n’y arrives pas, France Services t’aide gratuitement.\n\nL’équipe Évolution Conduites';
+}
+/* 💬 v1292 — dans sa messagerie (sa conversation « Le bureau ») */
+function aiMessagerie(g){
+  if(!g.eleve){ showToast('Indique l’élève.'); return; }
+  aiFenetreMail({ canal: 'messagerie', titre: '💬 Ses aides, dans sa messagerie', eleve: g.eleve, texte: aiTexteDesAides(g), genre: 'aides', suivi: true });
+}
 async function aiMail(g){
   if(!g.eleve){ showToast('Indique l’élève pour retrouver son adresse.'); return; }
   const L = aiRegles(g);
   const T = aiTotaux(g, L);
   const ok = L.filter(x => x.etat === 'oui' && x.mail);
   const voir = L.filter(x => x.etat === 'voir');
-  const prenom = g.eleve.split(' ')[0];
-  const texte = 'Bonjour ' + prenom + ',\n\nVoici les aides possibles pour ta formation (' + aiEuros(T.prix) + ') :\n\n' +
-    ok.map(x => x.emoji + ' ' + x.nom + (x.montant ? ' — ' + (x.type === 'pret' ? 'prêt de ' : 'jusqu’à ') + aiEuros(x.montant) : '') + '\n' + x.mail).join('\n\n') +
-    (voir.length ? '\n\nÀ voir aussi : ' + voir.map(x => x.nom).join(', ') + '.' : '') +
-    '\n\nLes aides ne sont pas automatiques : chacune a son dossier, et c’est l’organisme qui décide. Si tu n’y arrives pas, France Services t’aide gratuitement.\n\nL’équipe Évolution Conduites';
+  const texte = aiTexteDesAides(g);
   const adresse = await aiAdresseDe(g.eleve, g.mail);
   const org = aiOrganisme(g.mlOrg);
   const copie = g.ml ? (g.presc || (org && org.mail) || '') : '';
-  aiFenetreMail({ eleve: g.eleve, a: adresse, copie: copie, sujet: 'Les aides pour ton permis — Évolution Conduites', texte: texte, genre: 'aides' });
+  aiFenetreMail({ eleve: g.eleve, a: adresse, copie: copie, sujet: 'Les aides pour ton permis — Évolution Conduites', titre: '📤 Ses aides', texte: texte, genre: 'aides', suivi: true });
+}
+
+/* 📒 v1292 — LE SUIVI DANS SA FICHE. David : « quand on appuie sur garder
+   dans sa fiche rien ne va dans la partie financement… comme ça on a aussi
+   le suivi dans sa fiche de ce qu'il a fait ». Chaque envoi de ses aides
+   ou d'un message CPF (sans dossier) y est noté ; ceux d'un dossier CPF
+   sont déjà sur son étape. */
+async function aiNoterLEnvoi(o, canal, a, texte){
+  if(!o || !o.suivi || !o.eleve) return;
+  try{
+    await appelPrep({ action: 'aidesDossierSet', eleve: o.eleve, type: 'envoi', etape: o.genre || 'aides', fini: true,
+      donnees: { le: aiFrDeIso(aiAujourdhui()), canal: canal, quoi: String(o.titre || o.sujet || '').replace(/^[✉️💬📤 ]+/u, '').slice(0, 120), a: a || '', debut: String(texte || '').slice(0, 280) } });
+    await aiCharger(true);
+    aiRafraichirLaFiche(o.eleve);
+  }catch(e){ /* l'envoi est parti : le suivi manque, rien de plus */ }
 }
 
 /* La fenêtre d'envoi : on relit, on corrige, on envoie (David) */
@@ -860,26 +949,40 @@ function aiFenetreMail(o){
   const m = aiEl('div', 'modal');
   m.style.cssText = 'max-width:min(640px,95vw);max-height:92vh;overflow-y:auto;';
   m.appendChild(aiEl('h3', '', o.titre || '📤 Lui envoyer ses aides'));
-  m.appendChild(aiEl('label', '', 'À'));
+  /* 💬 v1292 — la même fenêtre pour sa messagerie : ni adresse, ni objet */
+  const parMessagerie = o.canal === 'messagerie';
+  if(parMessagerie) m.appendChild(aiEl('div', 'aiAide', 'Dans sa conversation « Le bureau » de son espace élève, avec une notification sur son téléphone.')).style.margin = '0 0 10px';
+  const la = aiEl('label', '', 'À');
   const ia = aiEl('input'); ia.type = 'email'; ia.value = o.a || ''; ia.placeholder = 'son adresse mail';
-  m.appendChild(ia);
+  if(!parMessagerie){ m.appendChild(la); m.appendChild(ia); }
   let ic = null;
-  if(o.copie){
+  if(o.copie && !parMessagerie){
     const l = aiEl('label', '');
     l.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;';
     ic = aiEl('input'); ic.type = 'checkbox'; ic.checked = true; ic.style.cssText = 'width:auto;margin:0;';
     l.appendChild(ic); l.appendChild(document.createTextNode('Copie à son conseiller (' + o.copie + ')'));
     m.appendChild(l);
   }
-  m.appendChild(aiEl('label', '', 'Objet'));
-  const is = aiEl('input'); is.type = 'text'; is.value = o.sujet;
-  m.appendChild(is);
+  const is = aiEl('input'); is.type = 'text'; is.value = o.sujet || '';
+  if(!parMessagerie){ m.appendChild(aiEl('label', '', 'Objet')); m.appendChild(is); }
   m.appendChild(aiEl('label', '', '✏️ Le message — relis-le et modifie-le avant d’envoyer'));
   const ta = aiEl('textarea', 'aiMsg'); ta.value = o.texte; ta.style.minHeight = '360px';
   m.appendChild(ta);
   const r = aiEl('div', 'btn-row');
   const bA = aiBouton('Annuler', 'btn-secondary', () => fermerFond(fond));
-  const bE = aiBouton('✉️ Envoyer', 'btn-primary', async () => {
+  const bE = aiBouton(parMessagerie ? '💬 Envoyer dans sa messagerie' : '✉️ Envoyer', 'btn-primary', async () => {
+    if(parMessagerie){
+      if(!ta.value.trim()){ showToast('Le message est vide.'); return; }
+      bE.disabled = true; bE.textContent = '…';
+      try{
+        await appelPrep({ action: 'aidesMessagerie', eleve: o.eleve, texte: ta.value, genre: o.genre || 'aides' });
+        fermerFond(fond);
+        showToast('Envoyé dans sa messagerie ✅');
+        aiNoterLEnvoi(o, 'messagerie', '', ta.value);
+        if(o.apres) o.apres('messagerie');
+      }catch(e){ bE.disabled = false; bE.textContent = '💬 Envoyer dans sa messagerie'; showToast('Impossible : ' + e.message); }
+      return;
+    }
     const a = ia.value.trim();
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a)){ showToast('Son adresse mail ?'); ia.focus(); return; }
     const to = [a];
@@ -889,6 +992,7 @@ function aiFenetreMail(o){
       await appelPrep({ action: 'mailBilan', genre: o.genre || 'aides', eleve: o.eleve, to: to, sujet: is.value.trim() || o.sujet, texte: ta.value });
       fermerFond(fond);
       showToast('Envoyé à ' + to.join(', ') + ' ✅');
+      aiNoterLEnvoi(o, 'mail', to.join(', '), ta.value);
       if(o.apres) o.apres();
     }catch(e){ bE.disabled = false; bE.textContent = '✉️ Envoyer'; showToast('Impossible : ' + e.message); }
   });
@@ -921,10 +1025,11 @@ async function aiGarder(g){
   const L = aiRegles(g), T = aiTotaux(g, L);
   try{
     await appelPrep({ action: 'aidesDossierSet', eleve: g.eleve, type: 'resultat', etape: 'point', fini: true, donnees: {
-      le: aiFrDeIso(aiAujourdhui()), entrees: { permis: g.permis, prix: T.prix, situation: g.situation, age: aiAge(g), cpf: g.cpf },
+      le: aiFrDeIso(aiAujourdhui()), entrees: { permis: g.permis, prix: T.prix, prixSource: g.prixSource || '', situation: g.situation, fonctionPublique: !!g.fonctionPublique, age: aiAge(g), cpf: g.cpf },
       totaux: T, lignes: L.filter(x => x.etat === 'oui' || x.etat === 'voir').map(x => ({ emoji: x.emoji, nom: x.nom, etat: x.etat, montant: x.montant, type: x.type })) } });
     showToast('Gardé dans sa fiche ✅');
     await aiCharger(true);
+    aiRafraichirLaFiche(g.eleve);
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
@@ -1038,7 +1143,7 @@ function aiCarteCpf(x){
   if(!AI.dossierOuvert[x.id]) return c;
 
   const env = d.envois[x.etape];
-  c.appendChild(aiEl('div', 'aiAide', env ? '✉️ Message envoyé le ' + aiEch(env.le) + (env.par ? ' par ' + aiEch(env.par) : '') + (env.relances ? ' · ♻️ relancé ' + env.relances + ' fois' : '') + ' · ⏳ en attente de son action'
+  c.appendChild(aiEl('div', 'aiAide', env ? (env.canal === 'messagerie' ? '💬 Message envoyé dans sa messagerie le ' : '✉️ Message envoyé le ') + aiEch(env.le) + (env.par ? ' par ' + aiEch(env.par) : '') + (env.relances ? ' · ♻️ relancé ' + env.relances + ' fois' : '') + ' · ⏳ en attente de son action'
                                         : 'Le message de cette étape n’est pas encore parti.')).style.margin = '0 0 8px';
 
   /* L'entrée en formation : quatre messages, selon où il en est */
@@ -1064,6 +1169,7 @@ function aiCarteCpf(x){
 
   const r = aiEl('div', 'aiBas');
   r.appendChild(aiBouton('✉️ Envoyer', 'btn-primary', () => aiEnvoyerMessageCpf(x, ta.value, false)));
+  r.appendChild(aiBouton('💬 Messagerie', '', () => aiEnvoyerMessageCpf(x, ta.value, false, 'messagerie')));
   r.appendChild(aiBouton('📋 Copier', '', async () => { try{ await navigator.clipboard.writeText(ta.value); showToast('Copié ✅'); }catch(e){ showToast('Copie impossible'); } }));
   if(['identite', 'devis', 'valider'].includes(x.etape)) r.appendChild(aiBouton('♻️ Relancer (UP)', '', () => aiEnvoyerMessageCpf(x, aiMessageCpf(x, 'relance'), true)));
   const suiv = AI_ETAPES_CPF[i + 1];
@@ -1094,14 +1200,15 @@ async function aiEtapeCpf(x, etape){
   x.etape = etape;
   await aiSauver(x);
 }
-async function aiEnvoyerMessageCpf(x, texte, relance){
-  const adresse = await aiAdresseDe(x.eleve, (x.donnees || {}).mail);
-  aiFenetreMail({ titre: relance ? '♻️ Relancer ' + x.eleve : '✉️ ' + (AI_ETAPES_CPF.find(e => e[0] === x.etape) || ['', 'CPF'])[1], eleve: x.eleve, a: adresse,
+async function aiEnvoyerMessageCpf(x, texte, relance, canal){
+  const adresse = canal === 'messagerie' ? '' : await aiAdresseDe(x.eleve, (x.donnees || {}).mail);
+  aiFenetreMail({ canal: canal || 'mail', titre: (canal === 'messagerie' ? '💬 ' : '') + (relance ? '♻️ Relancer ' + x.eleve : (canal === 'messagerie' ? '' : '✉️ ') + (AI_ETAPES_CPF.find(e => e[0] === x.etape) || ['', 'CPF'])[1]), eleve: x.eleve, a: adresse,
     sujet: 'Ton dossier CPF — Évolution Conduites', texte: texte, genre: 'cpf',
-    apres: async () => {
+    apres: async (par) => {
       const d = x.donnees;
       d.envois = d.envois || {};
       const e = d.envois[x.etape] || {};
+      e.canal = par === 'messagerie' ? 'messagerie' : 'mail';
       if(relance){ e.relances = (e.relances || 0) + 1; e.relanceLe = aiFrDeIso(aiAujourdhui()); }
       else { e.le = aiFrDeIso(aiAujourdhui()); e.par = aiMoi(); }
       d.envois[x.etape] = e;
@@ -1419,31 +1526,75 @@ function aiOngletMessages(z, R, ecrit, sale){
 /* ============================================================
    DANS LA FICHE DE L'ÉLÈVE — « 🧮 Ses aides possibles »
    ============================================================ */
+/* 📒 v1292 — sa fiche ouverte se met à jour quand on garde ou envoie */
+function aiRafraichirLaFiche(nom){
+  document.querySelectorAll('[data-aides-fiche]').forEach(x => {
+    if(x.getAttribute('data-aides-fiche') === aiNorm(nom) && x.parentNode) ligneAidesFiche(nom, x.parentNode);
+  });
+}
 async function ligneAidesFiche(nom, zone){
   if(!zone || (typeof aDroit === 'function' && !aDroit('financements'))) return;
-  try{ await aiCharger(false); }catch(e){ return; }
+  /* ⚠️ v1292 — RELU À CHAQUE OUVERTURE : un point gardé il y a une minute
+     (ou sur un autre appareil) doit y être */
+  try{ await aiCharger(true); }catch(e){ return; }
   aiStyle();
-  const g = aiGenerateurDeLEleve(nom);
-  const L = aiRegles(g).filter(x => x.etat === 'oui' && x.type !== 'ecole');
-  const garde = ((AI.d && AI.d.dossiers) || []).filter(d => d.type === 'resultat' && aiNorm(d.eleve) === aiNorm(nom)).slice(0, 1)[0];
-  const suivis = ((AI.d && AI.d.dossiers) || []).filter(d => (d.type === 'cpf' || d.type === 'pe22') && aiNorm(d.eleve) === aiNorm(nom));
-  const d = aiEl('details', '');
-  d.style.cssText = 'border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-top:8px;';
-  d.appendChild(aiEl('summary', '', '🧮 Ses aides possibles : ' + L.length)).style.cssText = 'cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text);';
-  const c = aiEl('div', '');
-  c.style.cssText = 'margin-top:8px;font-size:12.5px;line-height:1.7;';
-  c.innerHTML = L.map(x => '<div style="display:flex;gap:8px;"><span>' + aiEch(x.emoji) + '</span><span style="flex:1;min-width:0;">' + aiEch(x.nom) +
-    (x.montant ? ' · <b>' + (x.type === 'pret' ? 'prêt ' : '') + aiEuros(x.montant) + '</b>' : '') + '</span></div>').join('') +
-    '<div style="color:var(--muted);font-size:11.5px;margin-top:4px;">' + aiEch([aiAge(g) !== null ? aiAge(g) + ' ans' : 'âge inconnu', g.formation || 'formation ?', g.ml ? 'Mission locale' : '', 'sa situation est à demander'].filter(Boolean).join(' · ')) + ' — <u>à vérifier avec lui</u></div>' +
-    (suivis.length ? '<div style="font-size:11.5px;margin-top:4px;">' + suivis.map(s => (s.type === 'cpf' ? '🎓 CPF : ' + aiEch((AI_ETAPES_CPF.find(e => e[0] === s.etape) || ['', ''])[1]) : '🤝 Pass’Engagement : ' + aiEch((AI_ETAPES_PE.find(e => e[0] === s.etape) || ['', 'attestation attendue'])[1])) + (s.fini ? ' ✅' : '')).join('<br>') + '</div>' : '') +
-    (garde ? '<div style="color:var(--muted);font-size:11.5px;margin-top:4px;">💾 Dernier point gardé le ' + aiEch((garde.donnees || {}).le || garde.creeLe) + (garde.par ? ' par ' + aiEch(garde.par) : '') + '</div>' : '');
-  d.appendChild(c);
+  const siens = ((AI.d && AI.d.dossiers) || []).filter(d => aiNorm(d.eleve) === aiNorm(nom));
+  const gardes = siens.filter(d => d.type === 'resultat');
+  const envois = siens.filter(d => d.type === 'envoi');
+  const suivis = siens.filter(d => d.type === 'cpf' || d.type === 'pe22');
+  const g = await aiGenerateurAvecDevis(nom);
+  const w = aiEl('div', '');
+  w.setAttribute('data-aides-fiche', aiNorm(nom));
+  w.style.cssText = 'border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:8px;font-size:12.5px;line-height:1.6;';
+  w.appendChild(aiEl('div', '', '<b style="font-size:13px;">🧮 Ses aides</b>'));
+
+  /* ① le dernier point gardé, en entier */
+  const dernier = gardes[0];
+  if(dernier){
+    const d = dernier.donnees || {}, T = d.totaux || {}, e = d.entrees || {};
+    const lignes = (d.lignes || []);
+    const p = aiEl('div', '');
+    p.style.cssText = 'border:1px solid var(--accent-text);border-radius:10px;padding:8px 10px;margin-top:6px;';
+    p.innerHTML = '<div><b>💾 Point gardé le ' + aiEch(d.le || dernier.creeLe) + (dernier.par ? ' par ' + aiEch(dernier.par) : '') + '</b>' +
+        (T.prix ? ' · formation ' + aiEuros(T.prix) : '') + (e.situation ? ' · ' + aiEch(({ lyceen: 'lycéen, étudiant', de: 'demandeur d’emploi', salarie: 'salarié', apprenti: 'apprenti', sans: 'sans activité' })[e.situation] || e.situation) : '') + '</div>' +
+      '<div style="margin:2px 0 4px;">🎁 Aides ' + aiEuros(T.aides || 0) + ' · 🏦 Permis à 1 € ' + aiEuros(T.pret || 0) + ' · 💳 Il paie <b>' + aiEuros(T.paie || 0) + '</b></div>' +
+      lignes.map(x => '<div>' + (x.etat === 'oui' ? '✅' : '🟠') + ' ' + aiEch(x.emoji + ' ' + x.nom) +
+        (x.montant ? ' · <b>' + (x.type === 'pret' ? 'prêt ' : '') + aiEuros(x.montant) + '</b>' : '') + (x.etat === 'voir' ? ' <span style="color:var(--muted);">(à voir)</span>' : '') + '</div>').join('');
+    w.appendChild(p);
+  }else{
+    const L = (Number(g.prix) > 0 ? aiRegles(g) : []).filter(x => x.etat === 'oui' && x.type !== 'ecole');
+    w.appendChild(aiEl('div', '', '<span style="color:var(--muted);">Aucun point gardé. </span>' +
+      (Number(g.prix) > 0 ? 'Possibles d’après sa fiche (devis ' + aiEuros(g.prix) + ') : ' + (L.length ? L.map(x => aiEch(x.emoji + ' ' + x.nom)).join(' · ') : 'aucune') + ' — <u>à vérifier avec lui</u>'
+                          : 'Pas de devis à son évaluation : le prix est à indiquer dans le générateur.')));
+  }
+
+  /* ② le suivi : ce qui a été fait, du plus récent au plus ancien */
+  const evts = [];
+  envois.forEach(x => { const d = x.donnees || {}; evts.push({ t: x.ordre || 0, l: (d.canal === 'messagerie' ? '💬 ' : '✉️ ') + (d.quoi || (x.etape === 'cpf' ? 'Message CPF' : 'Ses aides')) +
+    (d.canal === 'messagerie' ? ' — dans sa messagerie' : d.a ? ' — à ' + d.a : '') + ' · le ' + (d.le || x.creeLe) + (x.par ? ' par ' + x.par : '') }); });
+  gardes.slice(1).forEach(x => { const d = x.donnees || {}; evts.push({ t: x.ordre || 0, l: '💾 Point gardé · le ' + (d.le || x.creeLe) + (x.par ? ' par ' + x.par : '') +
+    ((d.totaux || {}).prix ? ' (formation ' + aiEuros(d.totaux.prix) + ', il paie ' + aiEuros(d.totaux.paie || 0) + ')' : '') }); });
+  suivis.forEach(x => {
+    const d = x.donnees || {};
+    const nomEtape = x.type === 'cpf' ? (AI_ETAPES_CPF.find(e => e[0] === x.etape) || ['', ''])[1] : (AI_ETAPES_PE.find(e => e[0] === x.etape) || ['', 'attestation attendue'])[1];
+    evts.push({ t: x.ordre || 0, l: (x.type === 'cpf' ? '🎓 Dossier CPF' : '🤝 Pass’Engagement') + ' : ' + nomEtape + (x.fini ? ' ✅ terminé' : '') + ' · ouvert le ' + x.creeLe + (x.par ? ' (' + x.par + ')' : '') });
+    Object.keys(d.envois || {}).forEach(k => { const e = d.envois[k] || {}; if(!e.le) return;
+      evts.push({ t: x.ordre || 0, l: '   ' + (e.canal === 'messagerie' ? '💬 ' : '✉️ ') + 'CPF · ' + ((AI_ETAPES_CPF.find(z => z[0] === k) || ['', k])[1]) + ' · le ' + e.le + (e.par ? ' par ' + e.par : '') + (e.relances ? ' · ♻️ ' + e.relances + ' relance(s)' : '') }); });
+  });
+  if(evts.length){
+    w.appendChild(aiEl('div', 'aiSous', '📒 Le suivi · ' + evts.length)).style.margin = '10px 0 4px';
+    const l = aiEl('div', '');
+    l.innerHTML = evts.sort((a, b) => b.t - a.t).map(e => '<div style="white-space:pre-wrap;">' + aiEch(e.l) + '</div>').join('');
+    w.appendChild(l);
+  }
   const r = aiEl('div', '');
   r.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;';
-  r.appendChild(aiBouton('🧮 Voir le détail', '', () => aiFenetreGenerateur(g)));
-  r.appendChild(aiBouton('📤 Lui envoyer ses aides', '', () => aiMail(g)));
-  d.appendChild(r);
-  zone.appendChild(d);
+  r.appendChild(aiBouton('🧮 Ouvrir le générateur', '', () => aiFenetreGenerateur(g)));
+  r.appendChild(aiBouton('📤 Lui envoyer ses aides', '', () => { if(!(Number(g.prix) > 0)){ showToast('Indique d’abord le prix de sa formation (🧮 Ouvrir le générateur).'); return; } aiMail(g); }));
+  w.appendChild(r);
+  const vieux = zone.querySelector('[data-aides-fiche]');
+  if(vieux) vieux.remove();
+  zone.appendChild(w);
 }
 
 /* Le générateur dans une fenêtre, par-dessus la fiche (on ne la ferme
