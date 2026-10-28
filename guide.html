@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1289
+     GUIDE-VERSION: 1290
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1289</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1290</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -460,6 +460,7 @@ html{scroll-behavior:smooth}
           <li><a href="#rappels">Rappels de cours</a></li>
           <li><a href="#el-appels">Suivi des appels</a></li>
           <li><a href="#el-creneaux">Créneaux libres</a></li>
+          <li><a href="#el-salle">Salle des tablettes</a></li>
           <li><a href="#procedures">Procédures à corriger</a></li>
           <li><a href="#evaluation">Évaluation de départ</a></li>
           <li><a href="#financements">Financements</a></li>
@@ -581,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1289</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1290</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1920,6 +1921,34 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
     <h4>⚙️ Horaires des moniteurs</h4>
     <p>Le tiroir <span class="b">⚙️ Horaires des moniteurs (pour «&nbsp;⬜ Rien d'ouvert&nbsp;»)</span>&nbsp;: une case par jour du lundi au samedi, plusieurs plages possibles (<span class="ch">8-12 · 13h30-19</span>)&nbsp;; vide, il ne travaille pas ce jour-là. Tant qu'un moniteur n'a pas ses horaires, on compte une journée ordinaire&nbsp;: 8-12 · 13-19 en semaine, 8-12 le samedi.</p>
+  </section>
+
+  <section id="el-salle">
+    <h3>📺 Salle des tablettes</h3>
+    <div class="qui mini"><span class="lab">Vue</span> <span class="role moniteur">Moniteur</span><span class="role bureau">Bureau</span><span class="role admin">Admin</span> <span class="ou">— droit <span class="ch">salle</span> (toute l'équipe par le rôle) ; le programme et les tablettes : administrateurs.</span></div>
+    <p>Le cours de théorie se regarde <strong>sur les tablettes de la salle</strong>, à son nom, avec le même suivi que dans son espace (chaque partie vue est notée, rien ne repart de zéro). Tant qu'il ne l'a pas fini en salle, il ne le voit pas chez lui&nbsp;; fini, <strong>ses groupes s'ouvrent tout seuls</strong> dans son espace — ceux que prévoit sa formation, et le cours de la salle pour le revoir.</p>
+    <ol>
+      <li><strong>La première fois, quelqu'un de l'équipe l'installe</strong>&nbsp;: sur une tablette libre, <span class="b">▶ Installer un élève</span> (ou <span class="b">▶ Installer</span> sur sa ligne de théorie du jour). La fenêtre dit sa formation, <span class="ch">📺 En salle</span>, <span class="ch">🔓 Puis s'ouvrent tout seuls</span>, et <strong>son code pour revenir seul&nbsp;: son jour et mois de naissance</strong> (<span class="ch">0911</span> pour le 9 novembre — à lui dire). Sans date de naissance dans sa fiche, la fenêtre la demande. La séance dure jusqu'à la fin de sa théorie lue dans Drivup, ou <span class="b">1 h</span> / <span class="b">2 h</span>. <span class="b">▶ Lancer sur la Tablette 2</span>&nbsp;: la tablette s'ouvre à son nom en quelques secondes. Il faut qu'il ait un espace élève (🔑 dans son dossier).</li>
+      <li><strong>Ensuite, il revient seul</strong> (2&nbsp;h + 1&nbsp;h, 1&nbsp;h + 2&nbsp;h ou 3 × 1&nbsp;h)&nbsp;: sur l'accueil de la tablette, il touche son nom — ceux qui ont leur théorie aujourd'hui dans Drivup d'abord — puis tape son jour et son mois de naissance. Il reprend là où il s'était arrêté.</li>
+      <li>La séance s'arrête à la fin de son créneau, ou quand il touche <span class="b">⏹ Je m'arrête</span>&nbsp;; la tablette revient à l'accueil. Toute la dernière partie vue&nbsp;: <span class="ch">🎉 Bravo …, tu as fini le cours de théorie&nbsp;!</span> — l'ouverture de ses groupes est vérifiée avant de se faire.</li>
+    </ol>
+    <p>Sur la tablette, il n'y a que son cours de salle&nbsp;: ni messages, ni procédures, ni le reste de son parcours, et la tablette n'a jamais son code.</p>
+
+    <h4>Ce que montre la vue</h4>
+    <div class="tab"><table>
+      <thead><tr><th>Partie</th><th>Ce qu'on y fait</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ch">📺 En ce moment · Saint-Brieuc</span> (et Loudéac)</td><td>Chaque tablette&nbsp;: libre (la dernière séance) ou occupée — l'élève, où il en est (<span class="ch">4 sur 9 vues</span>), depuis quand, jusqu'à quand, <span class="ch">installé par Paula</span> ou <span class="ch">revenu seul</span>. <span class="b">⏹ Arrêter sa séance</span>. Une tablette qui ne s'est pas manifestée depuis dix minutes le dit. La vue se relit toute seule.</td></tr>
+        <tr><td><span class="ch">📆 La théorie d'aujourd'hui dans Drivup</span></td><td>Lue avec le planning d'une agence (favori 📥). Pour chacun&nbsp;: <span class="ch">🆕 à installer la première fois</span>, où il en est, ou <span class="ch">✅ fini</span>.</td></tr>
+        <tr><td><span class="ch">👥 En cours</span></td><td>Ceux qui n'ont pas fini, et les finis des 30 derniers jours (repliés).</td></tr>
+        <tr><td><span class="ch">📘 Au programme de la salle</span></td><td>Les groupes du parcours qui se regardent en salle&nbsp;: un appui, <span class="b">📺 En salle</span> / <span class="b">Pas en salle</span> (administrateurs). Un groupe vaut pour les formations cochées dans le groupe&nbsp;; aucune, pour toutes.</td></tr>
+        <tr><td><span class="ch">🔑 Les tablettes</span></td><td>Administrateurs&nbsp;: <span class="b">➕ Installer une tablette</span> (le site, son nom) donne un code à six chiffres, valable dix minutes, à taper sur la tablette dans <strong>salle.html</strong> (à ajouter à son écran d'accueil). <span class="b">🗑️</span> la retire&nbsp;: elle ne peut plus rien ouvrir.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4>Dans sa fiche, et chez lui</h4>
+    <p>Sous son coin révisions&nbsp;: <span class="ch">📺 Salle des tablettes · 4 sur 9 vues</span>, ses séances (tablette, qui l'a installé) et ce qui s'ouvrira à la fin. Pour un élève qui a vu le cours avant l'appli (sur le Facebook de la salle)&nbsp;: <span class="b">✅ Déjà vu en salle (avant l'appli) : ouvrir ses groupes</span>.</p>
+    <p>Chez lui, tant qu'il n'a pas fini&nbsp;: dans 🎬 Réviser, <span class="ch">📺 Ton cours de théorie se regarde en salle des tablettes</span>, où il en est, et les groupes à venir marqués <span class="ch">🔒 après la salle</span>.</p>
   </section>
 
   <section id="procedures">
