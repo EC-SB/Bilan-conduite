@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:46 — v1274 */
+/* Déployé le 28/10/2026 à 08:24 — v1284 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -1001,6 +1001,8 @@ function blocRdvPost(e){
        sien. */
     '<div id="' + id + 'bsrc" style="display:none;font-size:11px;' +
       'color:var(--accent-text);margin:-4px 0 8px;line-height:1.4;"></div>' +
+    /* 🗺️ v1284 — le tracé de son dernier examen, à côté du bilan */
+    '<div id="' + id + 'carte" class="ppCarteLigne"></div>' +
 
     '<label for="' + id + 'e">📝 Bilan écrit par l\'élève</label>' +
     '<div style="font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;">' +
@@ -1080,6 +1082,7 @@ function blocRdvPost(e){
     }
     if(g('b')) g('b').value = s.bilanExamen || '';
     if(g('e')) g('e').value = s.bilanEleve || '';
+    if(g('carte') && typeof boutonCarteDuDernierExamen === 'function') g('carte').appendChild(boutonCarteDuDernierExamen(e.eleve));
 
     /* Le bouton dit ce qu'il va faire, et il le redit à chaque fois
        que la date ou le moniteur change. */
@@ -1679,6 +1682,40 @@ function compresserImage(fichier){
       img.src = lecteur.result;
     };
     lecteur.readAsDataURL(fichier);
+  });
+}
+
+/* 📷 v1284 — David, le 28 octobre : « les captures des CEPC sont
+   floues ». Elles vont maintenant dans le compartiment R2 (le Worker
+   les y range) : on les garde NETTES — 2 400 px, qualité 0,88 — et on
+   ne réduit que si elles dépassent 2 Mo. « compresserImage », au-dessus,
+   reste pour ce qui tient encore dans une cellule du classeur. */
+const TAILLE_MAX_IMAGE_NETTE = Math.floor(2 * 1024 * 1024 / 3) * 4 - 64;
+function compresserImageNette(fichier){
+  return new Promise((resolve, reject) => {
+    const u = URL.createObjectURL(fichier);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(u); reject(new Error("Image illisible.")); };
+    img.onload = () => {
+      try{
+        const essais = [[2400, 0.88], [2000, 0.85], [1700, 0.8], [1400, 0.75], [1100, 0.7]];
+        for(let i = 0; i < essais.length; i++){
+          const [cote, q] = essais[i];
+          const k = Math.min(1, cote / Math.max(img.naturalWidth, img.naturalHeight));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * k));
+          c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          const g = c.getContext('2d');
+          g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+          g.imageSmoothingQuality = 'high';
+          g.drawImage(img, 0, 0, c.width, c.height);
+          const d = c.toDataURL('image/jpeg', q);
+          if(d.length <= TAILLE_MAX_IMAGE_NETTE) return resolve(d);
+        }
+        reject(new Error("L'image reste trop lourde. Recadre la capture."));
+      }finally{ URL.revokeObjectURL(u); }
+    };
+    img.src = u;
   });
 }
 
@@ -2457,7 +2494,7 @@ function blocCaptures(eleve, dateExamen){
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
   aide.textContent = 'Colle, glisse ou choisis tes captures : recto, verso, observations. ' +
-    'Elles sont réduites automatiquement et suivront jusqu\'au rendez-vous post-permis.';
+    'Elles restent nettes et suivront jusqu\'au rendez-vous post-permis.';
   d.appendChild(aide);
 
   const galerie = document.createElement('div');
@@ -2500,7 +2537,7 @@ function blocCaptures(eleve, dateExamen){
         ev.stopPropagation();
         if(!await confirmer('Retirer cette capture ?')) return;
         try{
-          await appelPrep({ action: 'captureDelete', id: cap.id });
+          await appelPrep({ action: 'captureDelete', id: cap.id, eleve: eleve });
           dessiner();
         }catch(e){ showToast('Erreur : ' + e.message); }
       });
@@ -2532,7 +2569,7 @@ function blocCaptures(eleve, dateExamen){
       etat.style.color = 'var(--muted)';
       etat.textContent = 'Capture ' + (i + 1) + ' sur ' + fichiers.length + '…';
       try{
-        const donnees = await compresserImage(fichiers[i]);
+        const donnees = await compresserImageNette(fichiers[i]);
         await appelPrep({ action: 'captureAdd', eleve: eleve,
                           dateExamen: dateExamen || '', image: donnees });
         ok++;
