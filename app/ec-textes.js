@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 16:19 — v1265 */
+/* Déployé le 28/10/2026 à 08:24 — v1284 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -3024,7 +3024,8 @@ function ouvrirEditeurModele(modele, usageImpose){
     for(let i = 0; i < bonnes.length; i++){
       direImg('Image ' + (i + 1) + ' sur ' + bonnes.length + '…');
       try{
-        const donnees = await compresserImage(bonnes[i]);
+        /* 📷 v1284 — les images des fiches vont dans R2 (v1262) : nettes */
+        const donnees = await (typeof compresserImageNette === 'function' ? compresserImageNette : compresserImage)(bonnes[i]);
         await appelPrep({ action: 'ficheImageAdd',
                           fiche: idDeCetteFiche, image: donnees });
         faites++;
