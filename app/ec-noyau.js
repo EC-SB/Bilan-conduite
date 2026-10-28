@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 16:17 — v1280 */
+/* Déployé le 28/10/2026 à 12:59 — v1290 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -411,6 +411,10 @@ const SECTIONS = [
      lit et note un appel passé d'un portable ; « Modifier » fait le
      reste. L'écoute des enregistrements : bureau et administrateurs. */
   { cle:'appels',           nom:'📞 Suivi des appels (Allo)', onglet:'eleves' },
+  /* 📺 v1290 — la salle des tablettes (ec-salle.js). Toute l'équipe par le
+     rôle (David : « n'importe qui de l'équipe » installe un élève) ; le
+     programme et les tablettes : administrateurs (le Worker le vérifie). */
+  { cle:'salle',            nom:'📺 Salle des tablettes', onglet:'eleves' },
   /* ☑️ v1278 — la todo list, le bouton à côté du 💬 (ec-todo.js).
      David : « j'ai besoin de choisir qui la voit » : une case par compte. */
   { cle:'todo',             nom:'☑️ À faire (todo list)', onglet:'messagerie' },
