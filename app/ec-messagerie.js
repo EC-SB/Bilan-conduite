@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 10:49 — v1287 */
+/* Déployé le 28/10/2026 à 17:34 — v1296 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -222,9 +222,12 @@ function dessinerLaListeMessagerie(){
      passent à la ligne ailleurs. La recherche, ＋ et ☑ tiennent sur
      une ligne au-dessus — pas dans le tiroir, qui a ses propres
      boutons dans son en-tête. */
-  if(large) ckDessinerLeRail();
+  /* 🗂️ v1296 — la recherche, ✏️ et ⋯ ; puis les 4 onglets (Non lus ·
+     Élèves · Équipe · Tout). Le tiroir a ✏️ et ⋯ dans sa propre tête. */
   if(!dansLeTiroir()) zone.appendChild(barreDeRechercheMessagerie());
-  if(!large) zone.appendChild(barreDesGenresMessagerie());
+  zone.appendChild(ckOnglets());
+  const fa = ckFiltreActif();
+  if(fa) zone.appendChild(fa);
   if(chercheMessagerie){ lancerLaRecherche(chercheMessagerie, true); return; }
 
   if(!dansLeTiroir()){
@@ -243,11 +246,13 @@ function dessinerLaListeMessagerie(){
      qu'on supervise n'apparaît ni dans « Tout », ni dans « 🏢 », ni
      dans « Fermées » — seulement là, et seulement quand on va le
      chercher. */
+  /* 🗂️ v1296 — sans type choisi dans ⋯, c'est l'onglet qui trie */
   const liste = (filtreMessagerie === 'supervision')
     ? conversationsEC.filter(c => c.enSupervision)
     : conversationsEC.filter(c => !c.enSupervision &&
         (!filtreMessagerie || filtreMessagerie === 'clos' ||
-         c.genre === filtreMessagerie));
+         c.genre === filtreMessagerie) &&
+        (filtreMessagerie || ckDansLOnglet(c)));
 
   /* ⚠️ LA SÉLECTION NE GARDE QUE CE QUI EST ENCORE À L'ÉCRAN. On
      change de filtre, une ligne cochée disparaît de la vue : la
@@ -303,10 +308,10 @@ function dessinerLaListeMessagerie(){
   if(!liste.length){
     const v = document.createElement('div');
     v.className = 'empty';
-    v.innerHTML = conversationsEC.length
-      ? 'Rien ici.'
-      : "Aucune conversation pour l'instant.<br>" +
-        "Ouvre-en une avec ＋.";
+    v.innerHTML = !conversationsEC.length
+      ? "Aucune conversation pour l'instant.<br>Ouvre-en une avec ✏️."
+      : (!filtreMessagerie && ongletMsgEC === 'nonlus') ? '🎉 Rien de non lu.<br><span style="font-size:12px;">Tout est lu — le reste est dans « Tout ».</span>'
+      : 'Rien ici.';
     sc.appendChild(v);
     return;
   }
@@ -337,9 +342,15 @@ function dessinerLaListeMessagerie(){
      rappels revenus), puis le reste, et tout en bas ce qui dort
      jusqu'à demain. Une liste triée par date seule enterre une
      question de mardi sous trois accusés de lecture de vendredi. */
+  /* 🗂️ v1296 — « Non lus » : une seule liste, les épinglées d'abord */
+  if(!filtreMessagerie && ongletMsgEC === 'nonlus'){
+    const ep = liste.filter(c => Number(c.epingle || 0)), au = liste.filter(c => !Number(c.epingle || 0));
+    ep.concat(au).forEach(c => sc.appendChild(ligneConversation(c)));
+    return;
+  }
   const r = ckRangees(liste);
   bloc('📌 ÉPINGLÉES', r.epinglees);
-  bloc('À TRAITER', r.traiter);
+  bloc('NON LUS', r.traiter);
   bloc('SUIVIES', r.suivies);
   bloc('⏰ À ME RAPPELER', r.rappels);
 }
@@ -396,7 +407,10 @@ function ligneConversation(c){
   }
 
   ligneConversationCorps(c, d, false);
-  d.addEventListener('click', () => ouvrirLeFil(c.id));
+  /* 👆 v1296 — au doigt : ← ✓ Réglé, → ⏰ demain ; un toucher ouvre */
+  if(typeof glisserLaLigneEC === 'function' && !c.enSupervision){
+    glisserLaLigneEC(d, c, () => ouvrirLeFil(c.id));
+  }else d.addEventListener('click', () => ouvrirLeFil(c.id));
   return d;
 }
 
@@ -435,13 +449,22 @@ function ligneConversationCorps(c, d, enChoix){
 
   const ap = document.createElement('div');
   ap.className = 'ap';
-  const tag = document.createElement('span');
-  tag.className = 'ckTag mono';
-  tag.style.color = g.coul;
-  tag.textContent = g.mot +
-    /* 👋 v1171 — « VITRINE · LOUDÉAC » : de quel bureau vient le visiteur */
-    (c.genre === 'vitrine' && c.vitrine && c.vitrine.nomBureau ? ' · ' + String(c.vitrine.nomBureau).toUpperCase() : '');
-  ap.appendChild(tag);
+  /* 🧭 v1296 — PLUS D'ÉTIQUETTE « GROUPE / BUREAU / MONITEUR » (maquette
+     validée) : le type se lit au petit rond posé sur la photo. La
+     vitrine garde son bureau, en tête de l'aperçu. */
+  if(['bureau', 'retard', 'annul', 'oubli', 'moniteur', 'interne'].indexOf(c.genre) !== -1){
+    const mini = document.createElement('span');
+    mini.className = 'ckAvMini';
+    mini.textContent = g.rond;
+    mini.title = g.nom || '';
+    av.appendChild(mini);
+  }
+  if(c.genre === 'vitrine' && c.vitrine && c.vitrine.nomBureau){
+    const vb = document.createElement('span');
+    vb.className = 'ckVitrine';
+    vb.textContent = '👋 ' + c.vitrine.nomBureau + ' · ';
+    ap.appendChild(vb);
+  }
   /* L'auteur n'est utile que là où plusieurs parlent : dans un fil
      d'élève, on sait qui écrit. */
   const parQui = (c.genre === 'groupe' || c.genre === 'interne') && c.dernierPar
@@ -527,8 +550,19 @@ function ligneConversationCorps(c, d, enChoix){
       s.addEventListener('click', ev => { ev.stopPropagation(); ckMarquer(c.id, quoi); });
       v.appendChild(s);
     };
-    pt('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', 'epingle');
+    /* ✓ v1296 — régler sans ouvrir, au survol aussi */
+    if(ckPeutGerer() && !Number(c.fermee || 0)){
+      const s = document.createElement('button');
+      s.type = 'button';
+      s.textContent = '✓';
+      s.title = 'Réglé : la conversation se ferme et part dans 🗄️ Fermées';
+      s.setAttribute('aria-label', s.title);
+      s.className = 'ckRegleSurvol';
+      s.addEventListener('click', ev => { ev.stopPropagation(); ckReglerDeLaListe(c.id); });
+      v.appendChild(s);
+    }
     pt('⏰', ckRappelActif(c) ? 'Retirer le rappel' : 'Me la rappeler demain 9h', 'rappel');
+    pt('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', 'epingle');
     d.appendChild(v);
   }
 }
@@ -597,11 +631,11 @@ function barreDeRechercheMessagerie(){
 
   const boite = document.createElement('label');
   boite.className = 'ckpCherche';
-  boite.innerHTML = '<span aria-hidden="true">⌕</span>';
+  boite.innerHTML = '<span aria-hidden="true">🔍</span>';
   const ch = document.createElement('input');
   ch.type = 'text';
   ch.id = 'msgElvCherche';
-  ch.placeholder = 'Rechercher partout';
+  ch.placeholder = 'Un nom, un mot…';
   ch.value = chercheMessagerie;
   ch.addEventListener('keydown', ev => {
     if(ev.key === 'Enter'){ ev.preventDefault(); lancerLaRecherche(ch.value); }
@@ -623,6 +657,12 @@ function barreDeRechercheMessagerie(){
       dessinerLaListeMessagerie();
     });
     boite.appendChild(x);
+  }else if(ckLarge() && typeof claviereEC === 'function' && claviereEC()){
+    /* ⌨️ v1296 — Ctrl K y amène (avec un vrai clavier) */
+    const k = document.createElement('kbd');
+    k.className = 'ckpKbd';
+    k.textContent = 'Ctrl K';
+    boite.appendChild(k);
   }
   l.appendChild(boite);
 
@@ -630,7 +670,7 @@ function barreDeRechercheMessagerie(){
     const n = document.createElement('button');
     n.type = 'button';
     n.className = 'ckBt p';
-    n.textContent = '＋';
+    n.textContent = '✏️';
     n.title = 'Nouvelle conversation';
     n.setAttribute('aria-label', 'Nouvelle conversation');
     /* ✏️ v1150 — « À qui ? » (ec-aqui.js) : un nom, et le fil s'ouvre */
@@ -639,47 +679,28 @@ function barreDeRechercheMessagerie(){
     l.appendChild(n);
   }
 
-  /* ⚙️ v1154 — les réglages de l'école : administrateurs seuls */
-  if(peutReglerLaMessagerie()){
-    const g = document.createElement('button');
-    g.type = 'button';
-    g.className = 'ckBt' + (reglagesMsgOuvertEC ? ' on' : '');
-    g.textContent = '⚙️';
-    g.title = 'Réglages de la messagerie';
-    g.setAttribute('aria-label', g.title);
-    g.addEventListener('click', () => ecranReglagesMessagerie());
-    l.appendChild(g);
-  }
-
-  /* ⚠️ « CHOISIR » EST PARTOUT, « TOUT SUPPRIMER » RESTE SUR
-     FERMÉES — v1111. Un bouton qui détruit tout ne se trouve pas
-     sous la main par hasard : il est là où l'on est déjà venu pour
-     regarder ce qu'on va jeter. Administrateurs seuls. */
-  if(peutSupprimerDesConversations()){
+  /* ⋯ v1296 — filtrer par type, ma photo, ⚙️ réglages, ☑ choisir,
+     🗑️ vider les fermées : un seul menu (maquette validée). ☑ reste
+     visible tant que le mode choix est ouvert, pour en sortir. */
+  if(modeChoixMessagerie){
     const chx = document.createElement('button');
     chx.type = 'button';
-    chx.className = 'ckBt' + (modeChoixMessagerie ? ' on' : '');
-    chx.textContent = modeChoixMessagerie ? '✕' : '☑';
-    chx.title = modeChoixMessagerie ? 'Annuler le choix' : 'Cocher des conversations pour les supprimer';
+    chx.className = 'ckBt on';
+    chx.textContent = '✕';
+    chx.title = 'Annuler le choix';
     chx.setAttribute('aria-label', chx.title);
-    chx.addEventListener('click', () => {
-      modeChoixMessagerie = !modeChoixMessagerie;
-      choixMessagerie.clear();
-      dessinerLaListeMessagerie();
-    });
+    chx.addEventListener('click', () => { modeChoixMessagerie = false; choixMessagerie.clear(); dessinerLaListeMessagerie(); });
     l.appendChild(chx);
-
-    if(filtreMessagerie === 'clos' && !modeChoixMessagerie){
-      const vid = document.createElement('button');
-      vid.type = 'button';
-      vid.className = 'ckBt rouge';
-      vid.textContent = '🗑️';
-      vid.title = 'Supprimer définitivement les conversations fermées';
-      vid.setAttribute('aria-label', 'Tout supprimer');
-      vid.addEventListener('click', () => viderLesFilsFermes(vid, null));
-      l.appendChild(vid);
-    }
   }
+  const pts = document.createElement('button');
+  pts.type = 'button';
+  pts.className = 'ckBt msgListeMenu';
+  pts.id = 'msgListeMenu';
+  pts.textContent = '⋯';
+  pts.title = 'Filtrer par type, ma photo, réglages…';
+  pts.setAttribute('aria-label', pts.title);
+  pts.addEventListener('click', ev => { ev.stopPropagation(); ckMenuDeLaListe(pts); });
+  l.appendChild(pts);
   return l;
 }
 
@@ -1076,6 +1097,9 @@ function dessinerLeFil(){
     enBas: ancien.scrollHeight - ancien.scrollTop - ancien.clientHeight < 60 } : null;
   zone.setAttribute('data-fil', c.id || '');
   zone.innerHTML = '';
+  /* v1296 — le tiroir et le téléphone tiennent le fil sur toute la
+     hauteur : la zone ne défile plus, elle repart d'en haut */
+  if(!large) zone.scrollTop = 0;
   /* ⚠️ C'EST LE CODE QUI DIT « ÉTROIT », PAS LA FEUILLE DE STYLE.
      Le tiroir fait 400 px sur un écran de 1 400 : une requête de
      média sur la fenêtre s'y tromperait. */
@@ -1199,6 +1223,11 @@ function dessinerLeFil(){
     if(ckFicheOuverte) zone.appendChild(ckFeuilleFiche(f, zone));
   }
 
+  /* 👆 v1296 — glisser depuis le bord gauche : retour à la liste
+     (téléphone, tiroir) ; ⌨️ et déposer un fichier (grand écran) */
+  if(!large && typeof brancherLeBordEC === 'function') brancherLeBordEC(zone);
+  if(f.peutEcrire && typeof brancherLeDepotEC === 'function') brancherLeDepotEC(zone);
+
   /* Le fil s'ouvre en bas, là où est le dernier message — et sur le
      message visé quand on arrive par la recherche. */
   /* ⚠️ v1286 — ET IL Y RESTE PENDANT QUE LES PHOTOS ARRIVENT. David,
@@ -1315,11 +1344,28 @@ function sousTitreDuFil(f){
    ------------------------------------------------------------ */
 let fermerMenuDuFil = null;
 
-function basculerLeMenuDuFil(boite, f){
+function basculerLeMenuDuFil(boite, f, extras){
   if(fermerMenuDuFil){
     const etait = boite.querySelector('.msgMenu');
     fermerMenuDuFil();
     if(etait) return;
+  }
+  /* 🧭 v1296 — le menu en feuille (téléphone, tiroir) ou près du
+     bouton (grand écran) : les gestes de la tête d'abord (📌 ⏰ ✓ ⓘ 📅),
+     puis les actions de barreDesActionsDuFil, reprises telles quelles. */
+  if(typeof menuGestesEC === 'function'){
+    const items = (extras || []).slice();
+    const actions = Array.prototype.slice.call(barreDesActionsDuFil(f).children);
+    if(items.length && actions.length) items.push({ sep: true });
+    actions.forEach(b => {
+      const t = String(b.textContent || '').trim();
+      const m = t.match(/^(\S+)\s+(.*)$/);
+      items.push({ emoji: m ? m[1] : '•', texte: m ? m[2] : t, danger: /Supprimer/.test(t), faire: () => b.click() });
+    });
+    if(!items.length) return;
+    const pts = boite.querySelector('.msgPts') || boite;
+    fermerMenuDuFil = menuGestesEC(pts, (f.conv && ckTitreListe(Object.assign({}, f.conv, { membres: f.membres || [] }))) || 'Conversation', items, () => { fermerMenuDuFil = null; });
+    return;
   }
 
   const menu = document.createElement('div');
@@ -1669,11 +1715,15 @@ function zoneDEcritureDuFil(id){
      sur un navigateur sans MediaRecorder est un bouton qui répond
      « impossible » après le clic — autant le dire avant, en ne le
      mettant pas. */
+  /* 🧭 v1296 — « ➕ · le texte 😊 · 🎤 » (maquette validée le 28 octobre) :
+     le ➕ en tête, 😊 dans le champ, et à droite 🎤 tant que le champ
+     est vide, ➤ dès qu'on écrit. */
+  let voc = null;
   if(typeof vocalPossibleEC === 'function' && vocalPossibleEC()){
-    const voc = document.createElement('button');
+    voc = document.createElement('button');
     voc.type = 'button';
     voc.id = 'msgElvVocal';
-    voc.className = 'msgOutil';
+    voc.className = 'msgOutil msgVocalDroite';
     voc.innerHTML = ICONES_BARRE_EC.micro;
     voc.title = 'Enregistrer un vocal';
     voc.setAttribute('aria-label', 'Enregistrer un vocal');
@@ -1681,7 +1731,6 @@ function zoneDEcritureDuFil(id){
       ev.stopPropagation();
       demarrerLeVocalEC(l);
     });
-    l.appendChild(voc);
   }
 
   /* ＋ Photo, vidéo, fichier — v1161. */
@@ -1714,7 +1763,9 @@ function zoneDEcritureDuFil(id){
     ev.stopPropagation();
     basculerLePanneauEmoji(l);
   });
-  l.appendChild(emo);
+  const champ = document.createElement('div');
+  champ.className = 'msgChamp';
+  l.appendChild(champ);
 
   const t = document.createElement('textarea');
   t.id = 'msgElvTexte';
@@ -1749,7 +1800,8 @@ function zoneDEcritureDuFil(id){
       return;
     }
   });
-  l.appendChild(t);
+  champ.appendChild(t);
+  champ.appendChild(emo);
 
   const b = document.createElement('button');
   b.type = 'button';
@@ -1768,6 +1820,7 @@ function zoneDEcritureDuFil(id){
     }
   });
   l.appendChild(b);
+  if(voc) l.appendChild(voc);
 
   /* ⚠️ LE CHAMP GRANDIT, IL NE DÉFILE PAS. Deux lignes figées
      obligeaient à faire défiler un message de cinq lignes dans une
@@ -1792,6 +1845,9 @@ function zoneDEcritureDuFil(id){
     const vide = !t.value.trim();
     b.classList.remove('eteint');
     b.classList.toggle('pouce', vide);
+    /* 🎤 v1296 — le micro à la place de l'envoi tant que c'est vide
+       (le 👍 reste là où il n'y a pas de micro) */
+    if(voc){ voc.style.display = vide ? '' : 'none'; b.style.display = vide ? 'none' : ''; }
     /* 👍 puis l'avion — dessinés, comme le reste de la barre (v1161).
        On ne redessine que si ça change : à chaque frappe, sinon. */
     const icone = vide ? 'pouce' : 'avion';
@@ -1830,6 +1886,12 @@ function zoneDEcritureDuFil(id){
     if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){
       ev.preventDefault();
       ecrireDansLeFil();
+    }
+    /* ⌨️ v1296 — au clavier d'un ordinateur : Entrée envoie, Maj + Entrée
+       va à la ligne (sur un téléphone, Entrée reste un retour à la ligne) */
+    else if(ev.key === 'Enter' && !ev.shiftKey && !ev.altKey && typeof claviereEC === 'function' && claviereEC()){
+      ev.preventDefault();
+      if(t.value.trim()) ecrireDansLeFil();
     }
     /* ↩️ v1180 — Échap renonce à la réponse en cours */
     if(ev.key === 'Escape' && reponseEC){
@@ -6625,6 +6687,21 @@ function gestesDuPlus(){
   if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.eleve){
     g.push({ id: 'msgPlusRevoir', icone: 'revoir', nom: 'À<br>revoir', faire: () => choisirUnSegmentARevoirEC() });
   }
+  /* ⚡ 📄 @ v1296 — les réponses rapides, « Ce qu'on écrit et envoie » et
+     les mentions sont aussi dans ➕ (même masquées au-dessus de la barre) */
+  if(filOuvertEC && filOuvertEC.conv && filOuvertEC.peutEcrire && typeof ckFeuilleRapides === 'function'){
+    g.push({ id: 'msgPlusRapides', emoji: '⚡', nom: 'Réponses<br>rapides', faire: () => ckFeuilleRapides(filOuvertEC, $('msgElvPlus')) });
+    g.push({ id: 'msgPlusModeles', emoji: '📄', nom: 'Ce qu’on<br>écrit', faire: () => { ckModelesOuvert = true; ckModelesCategorie = ''; dessinerLeFil(); } });
+    if((filOuvertEC.membres || []).length > 2){
+      g.push({ id: 'msgPlusMention', emoji: '@', nom: 'Mentionner', faire: () => {
+        const t = $('msgElvTexte');
+        if(!t) return;
+        t.value += (t.value && !/\s$/.test(t.value) ? ' ' : '') + '@';
+        t.focus();
+        t.dispatchEvent(new Event('input', { bubbles: true }));
+      } });
+    }
+  }
   return g;
 }
 
@@ -6742,13 +6819,14 @@ function basculerLePanneauPlus(barre){
      les gestes présents (quatre si l'appareil ne sait pas filmer) :
      une grille « auto-fit » en mettait quatre et renvoyait le
      cinquième seul sur une deuxième ligne. */
-  z.style.gridTemplateColumns = 'repeat(' + gestes.length + ', minmax(0, 1fr))';
+  /* v1296 — cinq par rangée au plus : ⚡ 📄 @ s'y ajoutent */
+  z.style.gridTemplateColumns = 'repeat(' + Math.min(5, gestes.length) + ', minmax(0, 1fr))';
   gestes.forEach(g => {
     const t = document.createElement('button');
     t.type = 'button';
     t.id = g.id;
     t.className = 'msgPlusTuile';
-    t.innerHTML = '<span class="msgPlusRond">' + ICONES_BARRE_EC[g.icone] + '</span>' +
+    t.innerHTML = '<span class="msgPlusRond">' + (g.emoji ? '<span class="msgPlusEmo">' + g.emoji + '</span>' : ICONES_BARRE_EC[g.icone]) + '</span>' +
                   '<span class="msgPlusNom">' + g.nom + '</span>';
     t.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -8007,6 +8085,9 @@ function brancherLeTiroirMessagerie(){
   const n = $('msgElvNeuf');
   if(n) n.addEventListener('click', () => (typeof ecranAQui === 'function')
     ? ecranAQui() : ecranNouvelleConversation());
+  /* ⋯ v1296 — filtrer par type, ma photo… comme en grand */
+  const pm = $('msgElvMenu');
+  if(pm) pm.addEventListener('click', ev => { ev.stopPropagation(); if(typeof ckMenuDeLaListe === 'function') ckMenuDeLaListe(pm); });
 
   /* Posé tout de suite dans son état d'avant connexion — il
      réapparaîtra au premier comptage, une fois les droits connus. */
