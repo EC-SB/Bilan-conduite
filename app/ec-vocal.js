@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 10:39 — v1272 */
+/* Déployé le 30/10/2026 à 16:27 — v1313 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2323,7 +2323,7 @@ function afficherEnteteDuCours(){
   if(!zone) return;
 
   /* On ne redessine pas : le moniteur perdrait ses coches */
-  if(zone.querySelector('.entCase')){ zone.style.display = 'block'; return; }
+  if(zone.querySelector('.entCase')){ zone.style.display = 'block'; if(typeof rafraichirCasesSurvitesse === 'function') rafraichirCasesSurvitesse(); return; }
 
   zone.innerHTML = '';
   const d = document.createElement('details');
@@ -2360,6 +2360,8 @@ function afficherEnteteDuCours(){
 
     d.appendChild(l);
   });
+  /* ⚡ v1312 — l'alerte de survitesse oubliée (A3 2 et Q3 10 seulement) */
+  if(typeof caseSurvitesseDuTiroir === 'function') d.appendChild(caseSurvitesseDuTiroir('entCase'));
 
   /* 🧰 v1251 — « Question n° / Note sur 3 » remplacés par un rappel :
      les questions se posent dans le tiroir « 🧰 Questions de
