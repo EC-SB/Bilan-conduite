@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 20:09 — v1300 */
+/* Déployé le 30/10/2026 à 10:16 — v1303 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -938,7 +938,11 @@ function qvBoutons3(n, k, val, apres){
   peindre(val || '');
   return r;
 }
-function qvBloc(q, majTitre){
+/* 🧰 v1303 — o.examen : les deux lignes TOUJOURS là, sous chaque partie
+   (David : « il me faut 2 lignes en dessous chaque question »), même
+   avant ✅ ❌ ; à l'officiel, la première dit aussi l'inspecteur. */
+function qvBloc(q, majTitre, o){
+  o = o || {};
   const x = verifsQuestion(q.n);
   const w = vqEl('div', 'qvBloc');
   w.setAttribute('data-qv', String(q.n));
@@ -974,10 +978,10 @@ function qvBloc(q, majTitre){
   const lignesCarte = c.querySelectorAll('.vqL');
   VERIFS_PARTIES.forEach((k, i) => {
     const vl = lignesCarte[i];
-    const deux = qvDeuxLignes(q, k);
+    const deux = qvDeuxLignes(q, k, o);
     const trois = qvBoutons3(q.n, k, q.p[k], () => {
       const e = qvEtat().qs.find(y => y.n === q.n) || q;
-      deux.style.display = e.p[k] ? '' : 'none';
+      deux.style.display = (o.examen || e.p[k]) ? '' : 'none';
       majNote();
     });
     trois.classList.add('qvAuBout');
@@ -999,7 +1003,7 @@ function qvBloc(q, majTitre){
       notes.appendChild(l);
       notes.appendChild(deux);
     }
-    deux.style.display = q.p[k] ? '' : 'none';
+    deux.style.display = (o.examen || q.p[k]) ? '' : 'none';
   });
   notes.appendChild(tot);
   w.appendChild(notes);
@@ -1013,7 +1017,8 @@ function qvBloc(q, majTitre){
   majNote();
   return w;
 }
-function qvDeuxLignes(q, k){
+function qvDeuxLignes(q, k, o){
+  o = o || {};
   const z = vqEl('div', 'qvDeux');
   z.setAttribute('data-partie', k);
   const champ = (quoi, ph) => {
@@ -1038,7 +1043,7 @@ function qvDeuxLignes(q, k){
     }
     return r;
   };
-  z.appendChild(champ('r', 'Réponse de l’élève'));
+  z.appendChild(champ('r', o.officiel ? 'Réponse de l’élève · ce qu’a dit l’inspecteur' : 'Réponse de l’élève'));
   z.appendChild(champ('c', 'Commentaire du moniteur'));
   return z;
 }
@@ -1413,7 +1418,7 @@ function dessinerVerifsExamen(bloc, ch){
     bloc.appendChild(rang);
     const histo = qvBlocHistorique();
     if(histo){ histo.open = false; bloc.appendChild(histo); }
-    qvEtat().qs.slice().reverse().forEach(q => bloc.appendChild(qvBloc(q, remplir)));
+    qvEtat().qs.slice().reverse().forEach(q => bloc.appendChild(qvBloc(q, remplir, { examen: true, officiel: bloc._qv.officiel })));
     if(bloc._qvCases.length){
       bloc._qvCases.forEach(x => { const cb = x.querySelector('input'); if(cb && x._qvOrig) cb.checked = x._qvOrig.checked; cases.appendChild(x); });
       bloc.appendChild(cases);
