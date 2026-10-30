@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 17:48 — v1297 */
+/* Déployé le 30/10/2026 à 15:53 — v1312 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -569,6 +569,55 @@ function aiDessiner(){
   t.appendChild(aiGenerateur(AI.g, { dansLaVue: true }));
   z.appendChild(t);
   z.appendChild(aiTiroirMessage());
+  z.appendChild(aiBoutonInfographieCpf());
+}
+
+/* ============================================================
+   🗺️ v1312 — L'INFOGRAPHIE CO-FINANCEMENT CPF – EMPLOYEUR
+   David, le 30 octobre : « tu peux me le mettre dans financement sous
+   un message CPF, sans dossier : un bouton infographie co-financement
+   CPF – Employeur ». La page est un fichier à part
+   (infographie-cpf-employeur.html, à côté d'index.html) : elle s'ouvre
+   ici dans une fenêtre, et son lien peut partir chez un employeur.
+   ============================================================ */
+function aiLienInfographieCpf(){
+  return location.origin + location.pathname.replace(/[^/]*$/, '') + 'infographie-cpf-employeur.html';
+}
+/* le ?v= suit la version de l'appli, comme les modules */
+function aiVersionPage(){ return (typeof VERSION_MODULES !== 'undefined' && VERSION_MODULES) ? VERSION_MODULES : Date.now(); }
+function aiBoutonInfographieCpf(){
+  const b = aiBouton('🗺️ Infographie co-financement CPF – Employeur', '', aiOuvrirInfographieCpf);
+  b.id = 'aiInfographieCpf';
+  b.style.cssText = 'display:block;width:100%;text-align:left;margin:0 0 14px;';
+  return b;
+}
+function aiOuvrirInfographieCpf(){
+  const lien = aiLienInfographieCpf();
+  const fond = aiEl('div', 'overlay show');
+  const md = aiEl('div', 'modal');
+  md.style.cssText = 'width:98vw;height:94vh;display:flex;flex-direction:column;gap:8px;padding:12px;';
+  /* la règle « .modal{max-width:520px !important} » de l'écran large : la page a besoin de place */
+  md.style.setProperty('max-width', 'min(1180px, 98vw)', 'important');
+  const h = aiEl('div', '');
+  h.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
+  h.appendChild(aiEl('h3', '', '🗺️ Co-financement CPF – Employeur')).style.cssText = 'flex:1;margin:0;min-width:180px;';
+  h.appendChild(aiBouton('📋 Copier le lien', '', async () => {
+    try{ await navigator.clipboard.writeText(lien); showToast('Lien copié ✅'); }catch(e){ showToast('Copie impossible : ' + lien); }
+  }));
+  const o = aiEl('a', 'btn btn-secondary aiBtn', '↗ Ouvrir dans un onglet');
+  o.href = lien + '?v=' + aiVersionPage(); o.target = '_blank'; o.rel = 'noopener';
+  h.appendChild(o);
+  h.appendChild(aiBouton('✕', '', () => fermerFond(fond)));
+  h.querySelectorAll('.btn').forEach(x => { x.style.cssText = 'width:auto;margin:0;flex:none;'; });
+  md.appendChild(h);
+  const f = aiEl('iframe', '');
+  f.title = 'Infographie co-financement CPF – Employeur';
+  f.src = lien + '?v=' + aiVersionPage();
+  f.style.cssText = 'flex:1;width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;';
+  md.appendChild(f);
+  fond.appendChild(md);
+  fond.addEventListener('click', e => { if(e.target === fond) fermerFond(fond); });
+  document.body.appendChild(fond);
 }
 
 /* ============================================================
