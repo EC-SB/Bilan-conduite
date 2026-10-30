@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 15:36 — v1295 */
+/* Déployé le 28/10/2026 à 20:09 — v1300 */
 /* ============================================================
    ec-durees-examen.js — ⏱️ LA DURÉE DES EXAMENS OFFICIELS
 
@@ -68,6 +68,42 @@ function dxPhrase(debut, fin, jour){
   if(b) return 'fin à ' + b + ', début non noté';
   return '';
 }
+/* ⏱️ v1300 — l'examen officiel seul part au serveur (ses statistiques,
+   son dossier) ; l'examen blanc et le rendez-vous pédagogique gardent la
+   durée sur la fiche et dans la note interne — jamais à l'élève */
+function dxOfficiel(modele){
+  const m = modele != null ? modele : (($('modele') && $('modele').value) || '');
+  return m === 'examen-officiel';
+}
+const DX_MODELES = { 'examen-officiel': 'dureeExamen', 'examen-blanc': 'dureeExamen', 'aac-rvp': 'examenBlanc.dureeExamen' };
+/* Le compteur : « 12:34 », « 1:02:07 » */
+function dxCompte(ms){
+  const t = Math.max(0, Math.floor(Number(ms || 0) / 1000));
+  const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(sec).padStart(2, '0');
+}
+/* Depuis quand, au plus juste : la seconde notée sur cet appareil quand
+   le bouton a été pressé ici, sinon l'heure de la fiche (à la minute) */
+function dxDepuis(eleve, jour, debut){
+  const h = dxHeure(debut);
+  if(!h) return 0;
+  try{
+    const x = JSON.parse(localStorage.getItem('ec_dx_depuis') || '{}')[dxNorm(eleve) + '|' + jour];
+    if(x && x.h === h) return Number(x.t) || 0;
+  }catch(e){}
+  const m = String(jour || dxAujourdhui()).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3], +h.slice(0, 2), +h.slice(3), 0) : new Date();
+  return d.getTime();
+}
+function dxNoterDepuis(eleve, jour, debut){
+  try{
+    const t = JSON.parse(localStorage.getItem('ec_dx_depuis') || '{}');
+    Object.keys(t).forEach(k => { if(Date.now() - Number((t[k] || {}).t || 0) > 2 * 86400000) delete t[k]; });
+    t[dxNorm(eleve) + '|' + jour] = { h: dxHeure(debut), t: Date.now() };
+    localStorage.setItem('ec_dx_depuis', JSON.stringify(t));
+  }catch(e){}
+}
+
 /* La valeur gardée dans la fiche : « 10:02|10:34 » */
 function dxLireValeur(v){ const p = String(v || '').split('|'); return { debut: dxHeure(p[0]), fin: dxHeure(p[1]) }; }
 
@@ -133,6 +169,9 @@ function dessinerDureeExamen(bloc, ch){
       /* « 🔒 Pour nous seulement — ne part pas à l'élève » : posé par la
          classe zonePourNous, comme les zones « pour nous » du créateur */
       '<b style="font-size:15px;">' + dxEch(ch.nom || '⏱️ Durée de l’examen') + '</b></div>' +
+    /* ⏱️ v1300 — le compteur, visible de loin pendant l'examen */
+    '<div class="dxCompteur" aria-live="off" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;font-weight:800;' +
+      'letter-spacing:.02em;text-align:center;margin:0 0 10px;color:var(--muted);">0:00</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;">' +
       '<button type="button" class="btn btn-primary dxDebut" style="flex:1;min-width:140px;margin:0;padding:12px;font-size:15px;">▶️ Début d’examen</button>' +
       '<button type="button" class="btn btn-secondary dxFin" style="flex:1;min-width:140px;margin:0;padding:12px;font-size:15px;">⏹️ Fin d’examen</button></div>' +
@@ -142,10 +181,27 @@ function dessinerDureeExamen(bloc, ch){
       '<b class="dxTotal" style="color:var(--accent-text);"></b></div>';
   const iD = bloc.querySelector('[data-cle="' + cle + '.debut"]'), iF = bloc.querySelector('[data-cle="' + cle + '.fin"]');
   const bD = bloc.querySelector('.dxDebut'), bF = bloc.querySelector('.dxFin'), tot = bloc.querySelector('.dxTotal');
+  const compteur = bloc.querySelector('.dxCompteur');
   const reglage = () => (typeof ficheEnReglage === 'function') && ficheEnReglage();
+  const compter = () => {
+    const c = dxContexteFiche();
+    const a = dxHeure(iD.value), b = dxHeure(iF.value);
+    if(a && b){
+      const m = dxMinutes(a, b);
+      compteur.textContent = m ? dxCompte(m * 60000) : '—';
+      compteur.style.color = 'var(--accent-text)';
+    }else if(a && c.jour === dxAujourdhui()){
+      compteur.textContent = dxCompte(Date.now() - dxDepuis(c.eleve, c.jour, a));
+      compteur.style.color = 'var(--cream)';
+    }else{
+      compteur.textContent = '0:00';
+      compteur.style.color = 'var(--muted)';
+    }
+  };
   const peindre = () => {
     const c = dxContexteFiche();
     tot.textContent = dxPhrase(iD.value, iF.value, c.jour);
+    compter();
     const enCours = iD.value && !iF.value;
     bD.className = 'btn ' + (iD.value ? 'btn-secondary' : 'btn-primary') + ' dxDebut';
     bF.className = 'btn ' + (enCours ? 'btn-primary' : 'btn-secondary') + ' dxFin';
@@ -154,6 +210,8 @@ function dessinerDureeExamen(bloc, ch){
   const signaler = (el) => { el.dispatchEvent(new Event('input', { bubbles: true })); };
   const envoyer = (attente) => {
     if(reglage()) return;
+    /* l'examen blanc et le rendez-vous pédagogique : sur la fiche seulement */
+    if(!dxOfficiel()) return;
     const c = dxContexteFiche();
     if(!c.eleve) return;
     envoyerDureeExamen(Object.assign(c, { debut: iD.value, fin: iF.value }), attente);
@@ -162,6 +220,7 @@ function dessinerDureeExamen(bloc, ch){
     if(iD.value && typeof confirmer === 'function' &&
        !await confirmer('L’examen a déjà commencé à ' + iD.value + (iF.value ? ' et fini à ' + iF.value : '') + '.\n\nRepartir de maintenant ?', '⏱️ Début d’examen')) return;
     iD.value = dxMaintenant(); iF.value = '';
+    { const c = dxContexteFiche(); dxNoterDepuis(c.eleve, c.jour, iD.value); }
     signaler(iD); peindre(); envoyer(0);
     if(typeof showToast === 'function') showToast('▶️ Examen commencé à ' + iD.value);
   });
@@ -176,6 +235,8 @@ function dessinerDureeExamen(bloc, ch){
      avance tout seul : on repeint de temps en temps, tant qu'elle est là */
   peindre();
   const t = setInterval(() => { if(!bloc.isConnected){ clearInterval(t); return; } peindre(); }, 15000);
+  /* le compteur, à la seconde, tant que l'examen court */
+  const t2 = setInterval(() => { if(!bloc.isConnected){ clearInterval(t2); return; } if(iD.value && !iF.value) compter(); }, 1000);
   setTimeout(peindre, 400);
 }
 /* La valeur que lit le bilan : « 10:02|10:34 » */
@@ -204,10 +265,12 @@ function noterDureeAuBilan(champs){
 /* ============================================================
    ② SUR LA FICHE GARDÉE, EN HAUT DE L'ÉCRAN
    ============================================================ */
-function dxSaisie(b, suffixe){ return (b && b.saisies || []).find(s => String(s.cle || '') === 'dureeExamen.' + suffixe) || null; }
-/* Les boutons d'une fiche d'examen officiel gardée (rien pour les autres) */
+function dxSaisie(b, suffixe){ const k = DX_MODELES[(b && b.modele) || ''] || 'dureeExamen'; return (b && b.saisies || []).find(s => String(s.cle || '') === k + '.' + suffixe) || null; }
+/* Les boutons d'une fiche d'examen gardée : officiel, blanc, rendez-vous
+   pédagogique (v1300) — rien pour les autres */
 function boutonsDureeBrouillon(b){
-  if(!b || b.modele !== 'examen-officiel') return null;
+  if(!b || !DX_MODELES[b.modele]) return null;
+  const cleD = DX_MODELES[b.modele];
   const sD = dxSaisie(b, 'debut'), sF = dxSaisie(b, 'fin');
   if(!sD || !sF) return null;      /* une fiche commencée avant la v1295 */
   const jour = dxIso(b.date) || dxAujourdhui();
@@ -227,19 +290,20 @@ function boutonsDureeBrouillon(b){
     sD.valeur = d; sF.valeur = f;
     /* La fiche ouverte de cet élève : ses champs suivent, et sa garde aussi */
     const ouvert = $('studentName') && dxNorm($('studentName').value) === dxNorm(b.eleve);
-    const iD = ouvert && document.querySelector('#manuelChamps [data-cle="dureeExamen.debut"]');
-    const iF = ouvert && document.querySelector('#manuelChamps [data-cle="dureeExamen.fin"]');
+    const iD = ouvert && document.querySelector('#manuelChamps [data-cle="' + cleD + '.debut"]');
+    const iF = ouvert && document.querySelector('#manuelChamps [data-cle="' + cleD + '.fin"]');
     if(iD && iF){ iD.value = d; iF.value = f; iD.dispatchEvent(new Event('input', { bubbles: true })); }
     try{
       const l = JSON.parse(localStorage.getItem('bilans_manuels') || '[]');
       const x = Array.isArray(l) ? l.find(y => y && dxNorm(y.eleve) === dxNorm(b.eleve) && y.modele === b.modele) : null;
       if(x){
-        (x.saisies || []).forEach(s => { if(s.cle === 'dureeExamen.debut') s.valeur = d; if(s.cle === 'dureeExamen.fin') s.valeur = f; });
+        (x.saisies || []).forEach(s => { if(s.cle === cleD + '.debut') s.valeur = d; if(s.cle === cleD + '.fin') s.valeur = f; });
         localStorage.setItem('bilans_manuels', JSON.stringify(l));
       }
     }catch(e){}
     const s = (typeof suiviDe === 'function') ? (suiviDe(b.eleve) || {}) : {};
-    envoyerDureeExamen({ eleve: b.eleve, jour: jour, debut: d, fin: f, moniteur: b.moniteur || '', centre: String(s.centre || '') }, 0);
+    if(d && !f) dxNoterDepuis(b.eleve, jour, d);
+    if(dxOfficiel(b.modele)) envoyerDureeExamen({ eleve: b.eleve, jour: jour, debut: d, fin: f, moniteur: b.moniteur || '', centre: String(s.centre || '') }, 0);
     if(typeof proposerReprise === 'function') proposerReprise();
   };
   const etat = document.createElement('span');
@@ -247,7 +311,15 @@ function boutonsDureeBrouillon(b){
   if(!deb){
     bouton('▶️ Début d’examen', true, () => { ecrire(dxMaintenant(), ''); if(typeof showToast === 'function') showToast('▶️ ' + b.eleve + ' : examen commencé'); });
   }else if(!fin){
-    etat.textContent = dxPhrase(deb, '', jour);
+    /* ⏱️ v1300 — le compteur, à la seconde */
+    const cpt = document.createElement('b');
+    cpt.className = 'dxCompteurB';
+    cpt.style.cssText = 'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;';
+    const tic = () => { cpt.textContent = '⏱️ ' + dxCompte(Date.now() - dxDepuis(b.eleve, jour, deb)); };
+    tic();
+    const t = setInterval(() => { if(!cpt.isConnected){ clearInterval(t); return; } tic(); }, 1000);
+    w.appendChild(cpt);
+    etat.textContent = 'en cours depuis ' + deb;
     w.appendChild(etat);
     bouton('⏹️ Fin d’examen', true, () => { const f = dxMaintenant(); ecrire(deb, f); if(typeof showToast === 'function') showToast('⏹️ ' + b.eleve + ' : ' + dxPhrase(deb, f)); });
   }else{
