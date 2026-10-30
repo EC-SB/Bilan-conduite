@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1308
+     GUIDE-VERSION: 1309
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1308</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1309</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1308</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1309</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1484,6 +1484,7 @@ html{scroll-behavior:smooth}
       <tbody>
         <tr><td>En tête</td><td>L'élève, la date du rendez-vous, le moniteur, et le repassage — <span class="ch">🔁 2e repassage (ajourné le 3 mars 2026)</span>.</td></tr>
         <tr><td class="libre">À la sortie de l'examen</td><td>N'apparaît que si le moniteur de l'examen officiel a laissé une trace&nbsp;: ce qu'il a demandé en heures, et sa note pour l'équipe.</td></tr>
+        <tr><td class="libre">⚠️ Suivi de …</td><td>Le même tiroir que pendant un cours&nbsp;: <span class="b">🎧 Pas d’écoutes pédagogiques</span>, <span class="b">👥 Ne travaille pas sur les groupes</span>, <span class="b">📝 Ce qu’il faut savoir</span>, et ce qui remonte de la messagerie sur l'élève. Rouge quand une case est cochée.</td></tr>
         <tr><td class="libre">🧾 Notre CEPC et les captures</td><td><strong>La grille posée le jour de l'examen officiel</strong>, en lecture seule, avec son verdict (<span class="ch">Notre total : 21 / 31</span>), au-dessus des <strong>captures du CEPC de l'inspecteur</strong>&nbsp;: on les colle, les glisse ou les choisit (recto, verso, observations)&nbsp;; elles restent nettes (jusqu'à 2&nbsp;400&nbsp;px, rangées dans le compartiment de l'appli), s'agrandissent au clic, et un ✕ les retire. <em>Celles déposées avant le 28 octobre 2026 restent floues&nbsp;: les redéposer pour les avoir nettes.</em></td></tr>
         <tr><td><span class="b">📄 Bilan d'examen officiel</span></td><td>Tiroir, pré-rempli depuis les bilans enregistrés de l'élève&nbsp;; une ligne dit d'où vient le texte. À côté, <span class="b">🗺️ Tracé de l'examen</span> ouvre dans un onglet la carte du trajet du dernier examen, avec le bilan du moniteur sur ses points&nbsp;; sans tracé, il dit <span class="ch">Aucun tracé pour son examen du …</span> et les jours qui en ont un. Le même bouton est dans le rendez-vous vu du bureau.</td></tr>
         <tr><td><span class="b">📝 Bilan écrit par l'élève — corrige-le avec lui</span></td><td><em>« Colle ici ce que l'élève a écrit, ou saisis-le pendant l'entretien. »</em> Dessous, <span class="b">📷 Ajouter</span> dépose la photo de sa feuille écrite à la main (on peut aussi coller l'image). Douze photos au plus par élève&nbsp;; elles sont dans son dossier (onglet Permis) et l'élève les retrouve dans son espace.</td></tr>
@@ -1801,7 +1802,9 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     <h4>Ce qui s'affiche</h4>
     <p><strong>📍 Où en est &lt;élève&gt;</strong> — un encadré qui déduit l'avancement du dernier bilan et des consignes encore en attente. Chaque ligne porte ✅ (fait), ⏳ (en attente) ou 📌 (posé).</p>
     <p><strong>🎙️ Procédures — N récitée(s) · M en attente</strong> — un tiroir&nbsp;: chaque demande non honorée, et chaque récitation <span class="ch">✅</span> (validée) ou <span class="ch">👀</span> (à valider), qu'on déplie pour lire «&nbsp;ce qu'il a dit&nbsp;» et «&nbsp;la correction&nbsp;».</p>
-    <p><strong>La liste des bilans</strong> — la même ligne que l'onglet 📚 Cours du dossier&nbsp;: la note interne en premier, précédée de 📌, puis la date, le site, le moniteur, le type, l'heure de génération, et le relevé GPS du cours quand il y en a un. Au bout&nbsp;: <span class="b">✉️</span> (renvoyer par mail), <span class="b">🗺️</span> (le trajet), et <span class="b">🗑️</span> pour les administrateurs. Un bilan parti sans la partie IA porte <span class="b">🤖 Refaire avec l'IA</span>.</p>
+    <p><strong>La liste des bilans</strong> — la même ligne que l'onglet 📚 Cours du dossier&nbsp;: la note interne en premier, précédée de 📌, puis la date, le site, le moniteur, le type, l'heure de génération, et le relevé GPS du cours quand il y en a un. Au bout&nbsp;: <span class="b">✉️</span> (renvoyer par mail), <span class="b">🗺️</span> (le trajet), <span class="b">👤</span> pour le bureau et les administrateurs — <em>ce bilan n'est pas le sien</em>&nbsp;: on choisit le bon élève, le bilan passe chez lui, part à son adresse, et celui qui l'a reçu à tort est prévenu («&nbsp;ne pas en tenir compte&nbsp;») — chaque envoi se décoche —, et <span class="b">🗑️</span> pour les administrateurs.</p>
+    <div class="note piege"><span class="tag">👥 Deux élèves au même nom</span><p>L'appli range tout sous le nom de l'élève, et ses mails partent à la première fiche&nbsp;: deux fiches au même prénom et nom se confondent. Le dossier le signale par <span class="b">👥 2 élèves à ce nom</span>&nbsp;; un appui (bureau, administrateurs) propose de donner à l'un un nom à lui — <strong>l'année de naissance</strong> ajoutée (<span class="ch">Lucas Martin 2007</span>), ou <span class="ch">#</span> et l'id Drivup s'il n'a pas d'année. Seule sa fiche change de nom&nbsp;: l'historique reste à l'autre, et on passe ses bilans un par un avec <span class="b">👤</span>.</p></div>
+    <p>Un bilan parti sans la partie IA porte <span class="b">🤖 Refaire avec l'IA</span>.</p>
     <p>Un clic sur une ligne <strong>rouvre le bilan et bascule sur l'onglet Cours</strong>, là où il se modifie. La suppression d'un bilan est <strong>définitive</strong>&nbsp;: <em>«&nbsp;le texte du bilan et sa note seront perdus. Les leçons suivantes seront renumérotées.&nbsp;»</em></p>
 
     <h4>La suppression en masse</h4>
@@ -2462,6 +2465,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
     <h4 id="ecoutes-rappels">⏰ Les rappels d’écoute de demain</h4>
     <p>La veille à <strong>17h</strong>, chaque élève inscrit reçoit un mail et un message dans son espace&nbsp;: <span class="ch">Petit rappel : tu as réservé une écoute pédagogique demain, mercredi 28 octobre, de 10h à 12h, au bureau de Saint-Brieuc. 🚗 La voiture t’attend dans la cour intérieure. Sois là 5 minutes avant.</span> La voiture vient des <strong>rappels de cours</strong> du lendemain (🅿️ cour intérieure ou 🛣️ devant)&nbsp;: toutes au même endroit, tout le monde y va&nbsp;; sinon la BEA pour les élèves de BEA, la BV pour ceux de BV&nbsp;; si on ne peut pas trancher, au hasard, moitié-moitié. Sans voiture connue, le rappel part sans cette phrase.</p>
+    <p><strong>Au-dessus, <span class="b">👂 Écoutes d’aujourd’hui — qui est là&nbsp;?</span></strong>&nbsp;: chaque écoute du jour, chaque élève et ce qu'en dit le pointage des moniteurs (<span class="ch">✅ avec Hery à 10h</span>, <span class="ch">❓ personne ne l’avait à 10h</span>, <span class="ch">🚫 absence envoyée</span>…). Le bureau tranche avec <span class="b">✅ Là</span> (ses absences du jour s'effacent, le pointage n'en recrée pas) ou <span class="b">🚫 Pas là</span> (l'absence est posée «&nbsp;à confirmer&nbsp;», puis <span class="b">✉️ Envoyer l’absence</span>)&nbsp;; un second appui retire la décision.</p>
     <p>La liste <span class="b">⏰ Rappels d’écoute de demain</span> les montre par écoute. Avant 17h, <span class="b">✕ Pas de rappel</span> l'empêche de partir&nbsp;; <span class="b">✕ Annuler l’écoute</span> (une leçon qui saute) l'annule pour tous. Après 17h, annuler envoie <span class="ch">Ton écoute pédagogique de demain, … est annulée. Désolés pour ce changement ! Tu peux en réserver une autre dans Drivup.</span> aux élèves déjà prévenus. <span class="b">↩️</span> remet. Moniteurs, bureau et administrateurs peuvent le faire.</p>
 
     <h4>🚫 Signaler une absence en écoute</h4>
