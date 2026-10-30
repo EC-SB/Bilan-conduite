@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1305
+     GUIDE-VERSION: 1306
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1305</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1306</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1305</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1306</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1833,6 +1833,22 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
     <h5>📥 Les cours venus de Drivup</h5>
     <p>Quand le favori 📥 a lu le planning dans Drivup (voir <a href="#chdrivup" class="aller">le chapitre Drivup</a>), l'étape 2 montre <strong>les cours Drivup du moniteur</strong>&nbsp;: l'élève, la séance, et <span class="ch">📥 à envoyer</span> ou <span class="ch">✉️ envoyé</span>. Un appui sur un créneau remplit l'élève, l'heure et le type de séance — conduite, examen blanc ou simulateur avec moniteur, lus dans le titre du cours Drivup. <strong>La voiture</strong> suit les numéros posés en haut du planning Drivup («&nbsp;.1&nbsp;», «&nbsp;.7&nbsp;»), reliés à la flotte par la case <span class="ch">N° Drivup</span> de chaque véhicule&nbsp;; pour un simulateur, aucune voiture n'est posée. Tout reste modifiable. Après un envoi, on passe au cours Drivup suivant.</p>
+    <p>Ce qui se remplit tout seul, en plus (toujours modifiable avant d'envoyer)&nbsp;:</p>
+    <div class="tab"><table>
+      <thead><tr><th>Le cours Drivup</th><th>Ce que fait le rappel</th></tr></thead>
+      <tbody>
+        <tr><td>🎓 Un élève de la session de permis du moniteur</td><td>Rappel à <strong>l'heure du premier élève</strong> (<span class="ch">📥 rappel à 08h15</span>), type <span class="ch">RAPPEL PERMIS VOITURE</span>, et la pause de la <a href="#prep-permis" class="aller">préparation permis</a> ajoutée au message&nbsp;: <span class="ch">🥙 PAUSE 11H00-12H00 : dépôt et reprise à l'auto-école, possibilité de manger sur place 🥙</span>. Dans <em>Mes prochains cours</em>, le cours est posé à l'heure <strong>réelle de conduite</strong> (55 min chacun&nbsp;: 8h15, 9h10, 10h05, puis 12h00 après la pause). Le titre de l'étape 3 dit <span class="ch">rappel 08h15 · conduite 09h10</span>.</td></tr>
+        <tr><td>🎓 Le bloc PERMIS lui-même</td><td>Grisé, <span class="ch">— pas de rappel</span>.</td></tr>
+        <tr><td>🔗 Même élève, même moniteur, un cours qui commence quand le précédent finit</td><td><strong>Un seul rappel</strong>, à l'heure du premier&nbsp;; le suivant est grisé (<span class="ch">🔗 suite de 08h00 — pas de rappel</span>) et sauté. Les deux cours arrivent dans <em>Mes prochains cours</em>.</td></tr>
+        <tr><td>⏰ Un cours de la même demi-journée, après le permis du moniteur</td><td>Mention <span class="ch">Le moniteur peut avoir du retard</span> cochée.</td></tr>
+        <tr><td>🏍️ Un cours moto</td><td>Le type de la famille Moto qui ressemble le plus au titre Drivup (<span class="ch">Moto - Plateau 2h</span> → <span class="ch">MOTO PLATEAU</span>), véhicule <strong>aucun</strong>.</td></tr>
+        <tr><td>🖥️ Un simulateur</td><td>Véhicule <strong>aucun</strong>.</td></tr>
+        <tr><td>🚙 La 1re leçon en voiture (aucune leçon au dossier)</td><td>💾 carte SD + premier cours en boîte manuelle ou automatique, selon la formation.</td></tr>
+        <tr><td>🆔 La leçon de veille d'examen</td><td>🆔 Déposer sa carte d'identité.</td></tr>
+        <tr><td>🚗 Pas de numéro de voiture dans Drivup</td><td>La voiture attitrée du moniteur&nbsp;: Chrystel A3 2 / Q3 10, Jean Jacques A3 1 / Q3 7, Hery A3 3 / Q3 6, François A3 4 / Q3 5 (A3 pour un élève BV, Q3 pour un BEA). Un numéro Drivup passe toujours devant.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Toucher un autre créneau retire ce que les règles avaient posé pour le précédent (mentions, pause, type) — pas ce qu'on a coché ou tapé soi-même.</p>
 
     <h5>Le déroulé d'un envoi</h5>
     <ol class="etapes">
@@ -1875,6 +1891,8 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
     <h4>✏️ Ce qui s'est passé</h4>
     <p>La fenêtre rappelle ce qu'Allo a détecté et son résumé, le statut déjà choisi. On peut le changer (<span class="b">✅ Je l’ai eu(e)</span>, <span class="b">📩 J’ai laissé un message</span>, <span class="b">📵 Répondeur, rien laissé</span>, <span class="b">🔕 Pas de réponse / occupé</span>), poser <span class="b">⏰ À rappeler</span> aujourd'hui, demain ou <span class="b">📅 Le…</span>, cocher <span class="b">✉️ Je lui ai envoyé un mail</span> ou <span class="b">💬 Je lui ai écrit dans la messagerie</span>, et écrire une note. <span class="b">🗑️</span> retire l'appel de notre suivi (il reste chez Allo).</p>
+    <h4>↩️ Les appels liés</h4>
+    <p>Un appel <strong>sortant</strong> se lie aux appels <strong>reçus</strong> du même numéro depuis le précédent appel sortant, dans les 3 jours. L'appel reçu dit <span class="ch">↩️ Rappelé à 11:38 par David · 📩 Message laissé</span>, l'appel sortant <span class="ch">↪️ Rappel de l’appel de 10:55</span>. Un appui sur la pastille encadre l'autre appel dans la liste. Un appel reçu déjà décroché (<span class="ch">✅ Joint</span>) sans demande de rappel ne se lie pas, ni un SMS. Le lien se voit aussi dans l'onglet Appels du dossier.</p>
     <p><span class="b">☑️ Rappel fait</span> ferme un rappel sans rien changer d'autre. Quand un rappel se ferme, le tag <span class="ch">A rappeller</span> est aussi <strong>retiré dans Allo</strong>, pour que les deux disent la même chose.</p>
 
     <h4>🔗 Rattacher un numéro</h4>
