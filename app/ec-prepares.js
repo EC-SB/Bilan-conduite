@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 13:37 — v1308 */
+/* Déployé le 30/10/2026 à 14:07 — v1309 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -4100,6 +4100,12 @@ async function ouvrirRdvPost(cours){
 
      Notre grille D'ABORD : c'est celle qu'on a en tête en arrivant,
      et c'est en la lisant qu'on sait quoi chercher sur la photo. */
+  /* ⚠️ v1308 — « ⚠️ Suivi de … » : pas d'écoutes, pas les groupes, ce
+     qu'il faut savoir, ce qui remonte de la messagerie — le même tiroir
+     que pendant un cours */
+  if(typeof dessinerSuiviDuCoursSE === 'function'){
+    try{ dessinerSuiviDuCoursSE('rdvPostSuivi', cours.eleve); }catch(e){ console.warn('Suivi (RDV post-permis) :', e); }
+  }
   const zc = $('rdvPostCepc');
   zc.innerHTML = '';
   const notre = blocCepcInterneRdvPost(cours.eleve);
