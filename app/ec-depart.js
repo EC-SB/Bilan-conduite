@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 15:36 — v1295 */
+/* Déployé le 30/10/2026 à 14:07 — v1309 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -864,6 +864,18 @@ function ligneBilan(item, nomCherche, refaire){
         }
       });
       row.appendChild(bSup);
+    }
+
+    /* 👤 v1308 — ce bilan n'est pas le sien : le passer au bon élève */
+    if(item.ligne && item.bilan && typeof changerEleveDuBilan === 'function' &&
+       typeof ACCES !== 'undefined' && ACCES && (ACCES.role === 'admin' || ACCES.role === 'bureau')){
+      const bChg = document.createElement('button');
+      bChg.className = 'btn btn-secondary btnChgEleve';
+      bChg.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;flex-shrink:0;';
+      bChg.textContent = '👤';
+      bChg.title = 'Ce bilan n’est pas le sien : le passer à un autre élève';
+      bChg.addEventListener('click', ev => { ev.stopPropagation(); changerEleveDuBilan(item, typeof refaire === 'function' ? refaire : null); });
+      row.appendChild(bChg);
     }
 
     const arrow = document.createElement('div');
