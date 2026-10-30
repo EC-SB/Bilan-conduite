@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 13:37 — v1308 */
+/* Déployé le 30/10/2026 à 14:07 — v1309 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1309,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '👥 Homonymes et 👤 bilan au bon élève · 👂 écoutes du jour · ⚠️ suivi au post-permis',
+    quoi: [
+      { emoji: '👥',
+        titre: 'Deux élèves au même nom',
+        texte: 'Le dossier le signale ; un appui donne à l’un son nom à lui, avec son année de naissance (« Lucas Martin 2007 ») ou son id Drivup.' },
+      { emoji: '👤',
+        titre: 'Ce bilan n’est pas le sien',
+        texte: 'Dans l’historique, 👤 passe un bilan au bon élève, le lui envoie, et prévient celui qui l’a reçu à tort (bureau et administrateurs).' },
+      { emoji: '👂',
+        titre: 'Les écoutes d’aujourd’hui',
+        texte: 'Dans le suivi des écoutes : chaque élève du jour, ce qu’ont pointé les moniteurs, et ✅ Là / 🚫 Pas là pour le bureau.' },
+      { emoji: '⚠️',
+        titre: 'Suivi de l’élève au post-permis',
+        texte: 'Le rendez-vous post-permis a le tiroir « ⚠️ Suivi de … » : pas d’écoutes, pas les groupes, ce qu’il faut savoir, la messagerie.' }
+    ]
+  },
   {
     version: 1308,
     date: 'Vendredi 30 octobre 2026',
