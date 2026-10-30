@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 15:17 — v1311 */
+/* Déployé le 30/10/2026 à 16:48 — v1314 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -51,6 +51,43 @@ function voitureAvecAlerteSurvitesse(nom){
          (a && mots.indexOf('2') !== -1) ||
          (a && loudeac && mots.indexOf('bv') !== -1) ||
          (a && loudeac && mots.indexOf('bea') !== -1);
+}
+
+/* ⚡ v1312 — la case « Tu as oublié d'enlever l'alerte de survitesse »
+   du tiroir Carte SD / Installation / Passager, dans le bilan à la main
+   (classe enteteCase) comme dans le bilan oral (classe entCase).
+   Décochée d'office ; cachée tant que la voiture du cours n'est pas
+   l'A3 2 ou le Q3 10 (lue sur l'écran d'accueil). Cochée, elle reste
+   visible quelle que soit la voiture : on doit pouvoir la décocher. */
+function caseSurvitesseDuTiroir(classe){
+  const l = document.createElement('div');
+  l.className = 'caseSurvitesseTiroir';
+  l.style.cssText = 'display:none;gap:9px;align-items:flex-start;padding:5px 0;';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = classe;
+  cb.setAttribute('data-cle', 'survitesseOubliee');
+  cb.checked = false;
+  cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:2px;';
+  l.appendChild(cb);
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.5;word-break:break-word;';
+  t.innerHTML = '<strong>⚡ Tu as oublié d’enlever l’alerte de survitesse</strong>' +
+    '<div style="font-size:12px;color:var(--muted);line-height:1.5;">Seulement sur l’A3 2 et le Q3 10 · cochée, la phrase va dans son bilan</div>';
+  l.appendChild(t);
+  const montrer = oui => { l.style.display = (oui || cb.checked) ? 'flex' : 'none'; };
+  cb.addEventListener('change', () => { if(!cb.checked) lireLaVoitureDuCours().then(v => montrer(voitureCorrespond(v, VOITURES_SURVITESSE_TIROIR))); });
+  lireLaVoitureDuCours().then(v => montrer(voitureCorrespond(v, VOITURES_SURVITESSE_TIROIR)));
+  /* une case reprise cochée (brouillon) se montre aussitôt */
+  setTimeout(() => { if(cb.checked) l.style.display = 'flex'; }, 0);
+  return l;
+}
+/* L'élève ou le jour a changé : la case suit la nouvelle voiture */
+function rafraichirCasesSurvitesse(){
+  document.querySelectorAll('.caseSurvitesseTiroir').forEach(l => {
+    const cb = l.querySelector('input');
+    lireLaVoitureDuCours().then(v => { l.style.display = (cb.checked || voitureCorrespond(v, VOITURES_SURVITESSE_TIROIR)) ? 'flex' : 'none'; });
+  });
 }
 
 /* La voiture du cours ouvert, une fois par élève et par jour */
@@ -2422,6 +2459,126 @@ function majChampsSelonNiveau(){
   });
 }
 
+
+/* ============================================================
+   🚗 LA VOITURETTE — v1314
+
+   David, le 30 octobre : « sur un examen blanc, sous les boutons a le
+   niveau / pas le niveau / pourrait avoir le niveau, ajoute une case
+   Voiturette : ça ouvre un tiroir avec combien d'heures avant de
+   pouvoir partir en voiturette, et doit faire la formation AM oui/non ».
+   Ses réponses au schéma : la case sous les trois réponses ; la phrase
+   dans le bilan (lignesVoituretteDuBilan, ec-modeles.js) ; « doit faire
+   la formation AM » pour nous seulement — la note interne (l'historique
+   des cours) et le Suivi. L'émoticône : une voiture sans permis 🚗.
+
+   Les clés suivent celle du niveau : « voiturette » à l'examen blanc,
+   « examenBlanc.voiturette » dans le rendez-vous pédagogique. Elles
+   s'écrivent directement dans champsManuels (comme les boutons du
+   niveau) : elles ne dépendent pas des formulaires enregistrés.
+   ============================================================ */
+function blocVoituretteNiveau(cleNiveau){
+  const base = String(cleNiveau || '').replace(/niveau$/, '');
+  const k = n => base + n;
+  const z = document.createElement('div');
+  z.className = 'voituretteNiveau';
+  z.style.cssText = 'flex:0 0 100%;margin-top:8px;';
+  const lab = document.createElement('label');
+  lab.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:15px;font-weight:700;' +
+    'text-transform:none;color:var(--cream);margin:0;cursor:pointer;';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'voitCase';
+  cb.style.cssText = 'width:20px;height:20px;margin:0;flex-shrink:0;';
+  cb.checked = champsManuels[k('voiturette')] === 'oui';
+  lab.appendChild(cb);
+  lab.appendChild(document.createTextNode('🚗 Voiturette'));
+  z.appendChild(lab);
+
+  const t = document.createElement('div');
+  t.className = 'voitTiroir';
+  t.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+    'padding:12px 13px;margin-top:10px;flex-direction:column;gap:12px;display:' + (cb.checked ? 'flex' : 'none') + ';';
+  const h = document.createElement('div');
+  h.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:5px;">' +
+    '⏱️ Combien d’heures avant de pouvoir partir en voiturette ?</div>';
+  const ih = document.createElement('input');
+  ih.type = 'number'; ih.min = '0'; ih.step = '1'; ih.inputMode = 'numeric';
+  ih.className = 'voitHeures';
+  ih.placeholder = '0 = il peut partir tout de suite';
+  ih.style.cssText = 'margin:0;max-width:240px;';
+  ih.value = champsManuels[k('voituretteHeures')] || '';
+  ih.addEventListener('input', () => { champsManuels[k('voituretteHeures')] = ih.value.trim(); });
+  h.appendChild(ih);
+  const ha = document.createElement('div');
+  ha.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;';
+  ha.textContent = 'Vide ou 0 : rien sur les heures dans son bilan.';
+  h.appendChild(ha);
+  t.appendChild(h);
+
+  const am = document.createElement('div');
+  am.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+  const al = document.createElement('div');
+  al.style.cssText = 'flex:1;min-width:160px;font-size:14px;';
+  al.innerHTML = '🎓 Doit faire la formation AM <span style="font-size:11px;color:var(--muted);">(pour nous, pas dans son bilan)</span>';
+  am.appendChild(al);
+  const r = document.createElement('div');
+  r.className = 'voitAM';
+  r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+  [['✅ Oui', 'oui'], ['❌ Non', 'non']].forEach(([l, v]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'padding:11px;font-size:14px;margin:0;';
+    b.textContent = l;
+    b.setAttribute('data-val', v);
+    b.addEventListener('click', () => {
+      const nv = champsManuels[k('formationAM')] === v ? '' : v;   /* un second appui retire */
+      champsManuels[k('formationAM')] = nv;
+      peindreOuiNon(r, nv);
+    });
+    r.appendChild(b);
+  });
+  if(champsManuels[k('formationAM')]) setTimeout(() => peindreOuiNon(r, champsManuels[k('formationAM')]), 0);
+  am.appendChild(r);
+  t.appendChild(am);
+  z.appendChild(t);
+
+  cb.addEventListener('change', () => {
+    champsManuels[k('voiturette')] = cb.checked ? 'oui' : '';
+    t.style.display = cb.checked ? 'flex' : 'none';
+  });
+  return z;
+}
+/* La ligne 🚗 de la note interne (et du Suivi), refaite à chaque bilan */
+function poserVoituretteDansLaNote(prefixe){
+  const zn = $('noteInterne');
+  if(!zn || typeof ligneVoiturettePourNous !== 'function') return '';
+  const p = prefixe || '';
+  const ai = { voiturette: champsManuels[p + 'voiturette'], voituretteHeures: champsManuels[p + 'voituretteHeures'],
+               formationAM: champsManuels[p + 'formationAM'] };
+  const ligne = ligneVoiturettePourNous(ai);
+  const sans = zn.value.split('\n').filter(l => l.trim().indexOf('🚗 Voiturette') !== 0).join('\n').trim();
+  zn.value = ligne ? (ligne + (sans ? '\n' + sans : '')) : sans;
+  return ligne;
+}
+/* … et dans le Suivi (« Ce qu'il faut savoir »), à la place d'une
+   ancienne ligne 🚗 — sans attendre : le bilan ne dépend pas de lui */
+async function poserVoituretteAuSuivi(eleve, ligne){
+  if(!eleve || !ligne || typeof appelPrep !== 'function') return;
+  try{
+    /* lu au serveur, et seulement sur une réponse « ok » : un texte mal
+       lu ne doit jamais en écraser un bon */
+    const d = await appelPrep({ action: 'suiviLire', eleve: eleve });
+    if(!d || d.status !== 'ok') return;
+    const texte = String(((d.fiche) || {}).texte || '');
+    const garde = texte.split('\n').filter(l => l.trim().indexOf('🚗 Voiturette') !== 0).join('\n').trim();
+    const neuf = ligne + (garde ? '\n' + garde : '');
+    if(neuf.trim() === texte.trim()) return;
+    await appelPrep({ action: 'suiviTextePoser', eleve: eleve, texte: neuf });
+    if(typeof rafraichirApresSuiviSE === 'function') rafraichirApresSuiviSE(eleve);
+  }catch(e){ console.warn('Voiturette au suivi :', e); }
+}
 
 function peindreOuiNon(rangee, valeur){
   const couleurs = {
@@ -5821,6 +5978,13 @@ async function genererBilanManuel(){
     zn.value = d ? ('🔒 EXAMEN BLANC · ' + d + (sans ? '\n' + sans : '')) : sans;
   }
 
+  /* 🚗 v1314 — la voiturette : une ligne dans la note interne (l'historique
+     des cours la montre), et la même dans son Suivi */
+  if(modeleCle === 'examen-blanc' || surRendezVousPedago()){
+    const lv = poserVoituretteDansLaNote(modeleCle === 'examen-blanc' ? '' : 'examenBlanc.');
+    if(lv) poserVoituretteAuSuivi(eleve, lv);
+  }
+
   /* ✍️ v1208 — les zones « 🔒 Pour nous seulement » vont dans la note
      interne. ICI, APRÈS le bilan et après le ménage des lignes 🔒 de
      l'examen officiel : rien ne peut les faire passer dans le texte
@@ -5836,6 +6000,11 @@ async function genererBilanManuel(){
         lignes: couleursDesLignesDuBilan(bilan, ficheDuBilan, valeursDuBilan, cacheesParListes) };
     }catch(e){ couleursBilanCourant = null; }
   }
+
+  /* 📝 v1314 — « Tu dois faire ton bilan » : le cours suit tout ce chemin
+     (questionnaire, heures, trajet), mais le texte est celui que l'élève
+     reçoit, avec sa trame à remplir (ec-bilan-eleve.js) */
+  if(window.bilanParLEleveEC && window.bilanParLEleveEC.texte) bilan = window.bilanParLEleveEC.texte;
 
   currentLessonMeta = {
     modeleLabel: modele.label,
@@ -7522,6 +7691,8 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       if(champsManuels[ch.cle]) peindreOuiNon(r, champsManuels[ch.cle]);
 
       bloc.appendChild(r);
+      /* 🚗 v1314 — la voiturette, sous les trois réponses du niveau */
+      if(ch.type === 'niveau') bloc.appendChild(blocVoituretteNiveau(ch.cle));
 
     }else if(ch.type === 'rubriques'){
       /* Les neuf rubriques d'erreurs, une zone de texte chacune.
@@ -8415,6 +8586,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
       ligneCase('passager', '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧', '');
       ligneCase('voyants', '𝙑𝙤𝙮𝙖𝙣𝙩𝙨', '/2 points jour du permis');
+      z.appendChild(caseSurvitesseDuTiroir('enteteCase'));   /* ⚡ v1312 */
 
       /* 🧰 v1251 — « Question n° / Note sur 3 » remplacés par un
          rappel : les questions se posent dans le tiroir « 🧰 Questions
