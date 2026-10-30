@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 15:36 — v1295 */
+/* Déployé le 30/10/2026 à 14:07 — v1309 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2849,6 +2849,9 @@ function enteteEleve(nom){
   /* 🆔 v1184 — l'id Drivup, juste après la formation : visible sur
      tous les onglets du dossier. */
   if(f && f.eleve) d.appendChild(pastilleDrivupEleve(nom, f));
+  /* 👥 v1308 — deux élèves au même nom : l'appli les confond */
+  const hom = pastilleHomonymesEleve(nom);
+  if(hom) d.appendChild(hom);
 
   if(f.autreAE){
     const p = document.createElement('span');
@@ -5350,3 +5353,175 @@ function rafraichirPageEleve(){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-page-eleve.js'] = true;
+
+
+/* ============================================================
+   👥 LES HOMONYMES — v1308
+
+   David, le 30 octobre : un cours d'Hery « s'est fait sur un homonyme ».
+   Deux élèves au MÊME nom : tout se range sous le nom, et les mails
+   partent à la première fiche. Ses choix : les distinguer par l'année
+   de naissance ajoutée au nom (« Lucas Martin 2007 »), l'id Drivup si
+   l'année n'est pas connue ; puis passer un bilan au bon élève.
+   ============================================================ */
+function fichesHomonymes(nom){
+  const k = normaliserMot(nom || '');
+  return ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).filter(x => x && normaliserMot(x.eleve || '') === k);
+}
+function anneeNaissanceHom(f){
+  const t = String((f && f.naissance) || '');
+  const m = t.match(/(19|20)\d{2}/);
+  return m ? m[0] : '';
+}
+function nomDistinctHom(f, nom, deja){
+  const an = anneeNaissanceHom(f), id = String((f && f.idDrivup) || '').replace(/\D/g, '');
+  let n = an ? nom + ' ' + an : (id ? nom + ' #' + id : '');
+  if(n && (deja || []).some(x => normaliserMot(x) === normaliserMot(n)) && id) n = nom + ' #' + id;
+  return n;
+}
+function pastilleHomonymesEleve(nom){
+  const l = fichesHomonymes(nom);
+  if(l.length < 2) return null;
+  const p = document.createElement('button');
+  p.type = 'button';
+  p.className = 'pastilleHomonymes';
+  p.style.cssText = 'flex-shrink:0;font-size:12px;font-weight:800;padding:5px 11px;border-radius:999px;border:0;' +
+    'background:#D9480F;color:#fff;cursor:pointer;width:auto;margin:0;';
+  p.textContent = '👥 ' + l.length + ' élèves à ce nom';
+  p.title = 'L’appli les confond (bilans, mails) : les séparer';
+  p.addEventListener('click', () => ouvrirSeparerHomonymes(nom));
+  return p;
+}
+async function ouvrirSeparerHomonymes(nom){
+  const l = fichesHomonymes(nom);
+  if(l.length < 2){ showToast('Il n’y a plus qu’un élève à ce nom.'); return; }
+  const peut = typeof ACCES !== 'undefined' && ACCES && (ACCES.role === 'admin' || ACCES.role === 'bureau');
+  const w = document.createElement('div');
+  const intro = document.createElement('div');
+  intro.style.cssText = 'font-size:13.5px;line-height:1.5;margin-bottom:10px;';
+  intro.textContent = 'Deux fiches portent le nom « ' + nom + ' » : l’appli range tout sous ce nom, et ses mails partent à la première fiche. ' +
+    'Choisis celui qui prend un nom à lui (en général le plus récent). L’autre garde le nom et tout l’historique ; ' +
+    'tu passeras ensuite les bilans qui ne sont pas les siens avec 👤 dans l’historique.';
+  w.appendChild(intro);
+  const noms = ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).map(x => x.eleve);
+  l.forEach((f, i) => {
+    const lab = document.createElement('label');
+    lab.className = 'homChoix';
+    lab.style.cssText = 'display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin-bottom:8px;cursor:pointer;';
+    const r = document.createElement('input');
+    r.type = 'radio'; r.name = 'homChoix'; r.value = String(i);
+    r.style.cssText = 'width:auto;margin:3px 0 0;';
+    if(i === l.length - 1) r.checked = true;
+    const nouveau = nomDistinctHom(f, nom, noms);
+    r.dataset.nouveau = nouveau;
+    lab.appendChild(r);
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;line-height:1.45;';
+    const infos = [f.formation, f.naissance ? '🎂 ' + f.naissance : '🎂 ?', f.idDrivup ? '🆔 ' + f.idDrivup : '🆔 ?', f.email || '✉️ ?', f.telephone || ''].filter(Boolean);
+    t.innerHTML = '<b>Fiche ' + (i + 1) + '</b> · ' + infos.map(x => String(x).replace(/</g, '&lt;')).join(' · ') +
+      '<br><span style="color:var(--accent-text);font-weight:700;">' + (nouveau ? '→ devient « ' + nouveau.replace(/</g, '&lt;') + ' »' : '⚠️ ni année de naissance ni id Drivup : complète sa fiche d’abord') + '</span>';
+    lab.appendChild(t);
+    w.appendChild(lab);
+  });
+  if(!peut){
+    const n = document.createElement('div');
+    n.style.cssText = 'font-size:12px;color:var(--muted);';
+    n.textContent = 'Le bureau ou un administrateur les sépare.';
+    w.appendChild(n);
+  }
+  const ok = await fenetre(w, peut ? [{ nom: 'Annuler', valeur: false }, { nom: '👥 Lui donner son nom', valeur: true, principal: true }] : [{ nom: 'Fermer', valeur: false }],
+    '👥 Deux élèves « ' + nom + ' »');
+  if(!ok) return;
+  const r = w.querySelector('input[name="homChoix"]:checked');
+  if(!r) return;
+  const f = l[Number(r.value)];
+  const nouveau = r.dataset.nouveau;
+  if(!nouveau){ showToast('Ajoute d’abord sa date de naissance ou son id Drivup.'); return; }
+  try{
+    const rep = await appelPrep({ action: 'eleveSeparer', eleve: nom, nouveau: nouveau, idDrivup: f.idDrivup || '', rang: Number(r.value) });
+    if(!rep || rep.status !== 'ok') throw new Error((rep && rep.message) || 'refusé');
+    f.eleve = nouveau;
+    if(typeof viderCaches === 'function'){ viderCaches(nom); viderCaches(nouveau); }
+    showToast('👥 « ' + nouveau + ' » a son nom à lui ✅');
+    await fenetre('« ' + nouveau + ' » a maintenant son propre nom.\n\nL’historique déjà rangé sous « ' + nom + ' » reste à « ' + nom + ' ». ' +
+      'Les bilans qui sont ceux de ' + nouveau + ' : dans l’historique, 👤 sur la ligne du bilan pour le lui passer (et le lui renvoyer).', [{ nom: 'Compris', valeur: true, principal: true }], '👥 C’est fait');
+    if(typeof ouvrirPageEleve === 'function') ouvrirPageEleve(nom);
+  }catch(e){ showToast('Impossible : ' + (e.message || e)); }
+}
+
+/* 👤 v1308 — passer un bilan à un autre élève, le lui renvoyer, et
+   prévenir celui qui l'a reçu à tort (David : « Changer + prévenir
+   l'autre »). Chaque envoi se décoche. */
+async function changerEleveDuBilan(item, apres){
+  if(!item || !item.ligne) return;
+  const w = document.createElement('div');
+  const homs = fichesHomonymes(item.eleve);
+  if(homs.length > 1){
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:13px;color:#B3261E;font-weight:700;margin-bottom:8px;line-height:1.45;';
+    a.textContent = '⚠️ ' + homs.length + ' élèves s’appellent « ' + item.eleve + ' » : sépare-les d’abord (👥 dans son dossier), sinon le bilan resterait chez les deux.';
+    w.appendChild(a);
+  }
+  const lab = document.createElement('label');
+  lab.textContent = 'À quel élève est ce bilan du ' + (item.date || '?') + ' ?';
+  w.appendChild(lab);
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'chgEleve';
+  inp.setAttribute('list', 'chgEleveListe');
+  inp.placeholder = 'Prénom et nom';
+  w.appendChild(inp);
+  const dl = document.createElement('datalist');
+  dl.id = 'chgEleveListe';
+  ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).forEach(x => {
+    if(!x || !x.eleve || normaliserMot(x.eleve) === normaliserMot(item.eleve)) return;
+    const o = document.createElement('option'); o.value = x.eleve; dl.appendChild(o);
+  });
+  w.appendChild(dl);
+  const caseEnv = (txt) => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-top:8px;font-weight:400;';
+    const c = document.createElement('input'); c.type = 'checkbox'; c.checked = true; c.style.cssText = 'width:auto;margin:2px 0 0;';
+    const s = document.createElement('span'); s.textContent = txt;
+    l.append(c, s); w.appendChild(l);
+    return { c, s };
+  };
+  const envoi = caseEnv('✉️ Le lui envoyer par mail');
+  const autreMail = (((typeof ficheDe === 'function') ? ficheDe(item.eleve) : null) || {}).email || '';
+  const prev = caseEnv('📣 Prévenir ' + item.eleve + (autreMail ? ' (' + autreMail + ')' : ' (pas d’adresse)') + ' que ce bilan ne le concernait pas');
+  if(!autreMail){ prev.c.checked = false; prev.c.disabled = true; }
+  inp.addEventListener('input', () => {
+    const f = (typeof ficheDe === 'function') ? ficheDe(inp.value) : null;
+    envoi.s.textContent = '✉️ Le lui envoyer par mail' + (f ? (f.email ? ' (' + f.email + ')' : ' (pas d’adresse : elle te sera demandée)') : '');
+  });
+  const ok = await fenetre(w, [{ nom: 'Annuler', valeur: false }, { nom: '👤 Passer le bilan', valeur: true, principal: true }], '👤 Ce bilan n’est pas le sien');
+  if(!ok) return;
+  const nouveau = String(inp.value || '').trim();
+  const f = (typeof ficheDe === 'function') ? ficheDe(nouveau) : null;
+  if(!f){ showToast('« ' + nouveau + ' » n’a pas de fiche.'); return; }
+  try{
+    const rep = await appelPrep({ action: 'bilanChangerEleve', ligne: item.ligne, eleve: item.eleve, nouveau: f.eleve });
+    if(!rep || rep.status !== 'ok') throw new Error((rep && rep.message) || 'refusé');
+    const dits = ['bilan passé à ' + f.eleve];
+    if(envoi.c.checked && item.bilan && typeof envoyerBilanParMail === 'function'){
+      try{
+        const n = await envoyerBilanParMail(f.eleve, item.date, (typeof bilanPourLEleve === 'function') ? bilanPourLEleve(item.bilan) : item.bilan);
+        if(n) dits.push('✉️ envoyé à ' + f.eleve);
+      }catch(e){ dits.push('⚠️ mail non parti : ' + e.message); }
+    }
+    if(prev.c.checked && autreMail){
+      const jour = (typeof dateEnToutesLettres === 'function') ? (dateEnToutesLettres(item.date) || item.date) : item.date;
+      const prenom = String(item.eleve || '').trim().split(/\s+/)[0];
+      try{
+        await appelPrep({ action: 'mailBilan', to: [autreMail], genre: 'bilan-erreur', eleve: item.eleve,
+          sujet: 'Ton bilan du cours du ' + jour + ' : ne pas en tenir compte',
+          texte: 'Bonjour ' + prenom + ',\n\nLe bilan du cours du ' + jour + ' que tu as reçu par mail ne te concernait pas : il était destiné à un autre élève. ' +
+                 'Merci de ne pas en tenir compte, et désolés pour cette erreur !\n\nL’équipe Évolution Conduites' });
+        dits.push('📣 ' + item.eleve + ' prévenu(e)');
+      }catch(e){ dits.push('⚠️ ' + item.eleve + ' non prévenu(e) : ' + e.message); }
+    }
+    if(typeof viderCaches === 'function'){ viderCaches(item.eleve); viderCaches(f.eleve); }
+    showToast('👤 ' + dits.join(' · ') + ' ✅');
+    if(typeof apres === 'function') apres();
+  }catch(e){ showToast('Impossible : ' + (e.message || e)); }
+}
