@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 09:34 — v1302 */
+/* Déployé le 30/10/2026 à 10:16 — v1303 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1303,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '🎓 Carte d’un examen prévu épurée · 🧰 deux lignes sous chaque vérification',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'La carte d’un élève qui a son examen',
+        texte: 'Dans 📅 Mes prochains cours : la ligne verte, juste dessous la ligne rouge, le post-permis s’il a déjà été ajourné, puis le 📌. Plus de frise ni d’examen blanc.' },
+      { emoji: '🧰',
+        titre: 'Les deux lignes sous chaque question',
+        texte: 'Examen officiel, examen blanc, RVP : la réponse de l’élève (à l’officiel, avec ce qu’a dit l’inspecteur) et ton commentaire, toujours visibles, même avant ✅ ❌.' }
+    ]
+  },
   {
     version: 1302,
     date: 'Vendredi 30 octobre 2026',
