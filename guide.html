@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1309
+     GUIDE-VERSION: 1310
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1309</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1310</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1309</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1310</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1877,6 +1877,8 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     <p>Les appels et les SMS du numéro de l'école, <strong>02 21 65 24 24 (Allo)</strong>, arrivent tout seuls&nbsp;: l'application relit Allo <strong>toutes les 5 minutes</strong> (<span class="b">🔄 Relire maintenant</span> pour ne pas attendre). Le suivi commence le jour de sa mise en place&nbsp;: les appels d'avant ne sont pas repris.</p>
     <div class="note astuce"><span class="tag">🕘 Qui relit Allo toutes les 5 minutes</span><p>Le déclencheur «&nbsp;toutes les 5 minutes&nbsp;» du Worker, d'abord. Et, s'il manque, <strong>l'appli elle-même</strong>&nbsp;: dès que quelqu'un du bureau a l'appli ouverte, ou que l'écran du suivi est ouvert, une lecture de plus de 5 minutes relance Allo, sans rien attendre. L'écran ouvert se relit seul toutes les 2 minutes (jamais pendant qu'on écrit ou qu'une fenêtre est ouverte). Un administrateur voit une ligne <span class="ch">🕘 Le déclencheur « toutes les 5 minutes » du Worker ne s’est jamais déclenché…</span> quand il ne tourne pas&nbsp;: il se pose dans Cloudflare, Worker › Settings › Trigger Events, Cron <span class="ch">*/5 * * * *</span>.</p></div>
     <p>En tête, quatre tuiles qui filtrent la liste&nbsp;: <span class="ch">⏰ À rappeler</span> (en rouge), <span class="ch">❓ Numéros non rattachés</span>, <span class="ch">📞 Appels aujourd’hui</span>, <span class="ch">📵 Répondeurs cette semaine</span>. Puis la recherche (un nom, un numéro, un mot du résumé), la période (aujourd'hui, la semaine, 30 jours, 3 mois, un an) et les filtres par statut. Ce qui attend un rappel et les numéros non rattachés restent visibles quelle que soit la période.</p>
+    <h4>📞 Une fiche par numéro</h4>
+    <p>Sous les filtres, comme dans Allo&nbsp;: <strong>à gauche, un numéro = une ligne</strong>, le plus récent en haut (le nom de l'élève s'il est rattaché, son dernier appel en une phrase, l'heure, et <span class="ch">⏰ à rappeler</span> ou <span class="ch">↩️ rappelé</span>). Un filtre ne garde que les numéros qui ont un appel de ce genre. <strong>À droite, la fiche du numéro</strong>&nbsp;: le gros bouton vert <span class="b">📞 Rappeler</span>, <span class="b">🔗 Rattacher</span> (s'il ne l'est pas), <span class="b">☑️ Rappel fait</span> (s'il attend), <span class="b">✉️ Écrire</span>, <span class="b">✏️ Ce qui s’est passé</span>&nbsp;; un bandeau orange <span class="ch">⏰ À rappeler … — depuis l’appel de 10:55</span> ou vert <span class="ch">✅ Rappelé à 11:38 par David</span>&nbsp;; puis tout l'historique du numéro en fil, jour par jour — les appels reçus à gauche, les nôtres à droite en vert, chacun avec ses pastilles, son résumé, ce qu'on a envoyé, ✏️ ✉️ ▶. Un élève et sa mère&nbsp;: deux numéros, deux fiches. Sur téléphone, la liste d'abord&nbsp;; un appui ouvre la fiche, <span class="b">← Retour</span> revient. L'onglet <span class="b">📞 Appels</span> du dossier montre le même fil, avec une pastille par numéro (lui, 👪 un proche).</p>
 
     <h4>Le statut, posé par Allo, corrigé par nous</h4>
     <div class="tab"><table>
