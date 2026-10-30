@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 16:48 — v1314 */
+/* Déployé le 30/10/2026 à 17:21 — v1315 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1315,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '⚡ Espace élève plus rapide · 📺 groupes fermés avant la salle',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'L’espace élève s’ouvre tout de suite',
+        texte: 'Il affiche ce que l’élève avait à sa dernière visite, puis se met à jour dès que le classeur répond. Les textes de « Réviser » ne débordent plus sur le côté.' },
+      { emoji: '📺',
+        titre: 'Les groupes après la salle, pour tous',
+        texte: 'Un élève qui n’a pas fini la salle des tablettes ne voit aucun groupe chez lui, même cochés. Élèves d’avant : « Déjà vu en salle : ouvrir ses groupes » dans sa fiche.' }
+    ]
+  },
   {
     version: 1314,
     date: 'Vendredi 30 octobre 2026',
