@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 10:16 — v1303 */
+/* Déployé le 30/10/2026 à 10:52 — v1305 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1305,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '📞 « Rappeler » sur chaque appel du suivi, demande de rappel ou non',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Rappeler, d’un appui',
+        texte: 'Dans 📞 Suivi des appels (et l’onglet Appels du dossier), chaque appel dont on a le numéro a son bouton « 📞 Rappeler », même sans demande de rappel.' }
+    ]
+  },
+  {
+    version: 1304,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '🖼️ Plusieurs photos dans un message · 🎉 le permis obtenu en un bloc',
+    quoi: [
+      { emoji: '🖼️',
+        titre: 'Plusieurs photos d’un coup',
+        texte: '＋ › Choisir une photo : prends-en jusqu’à 10. Elles partent dans un seul message, en mosaïque, avec ce que tu as tapé. L’élève les voit pareil.' },
+      { emoji: '🎉',
+        titre: 'Le permis obtenu, en un seul bloc',
+        texte: 'Dans « Suivi examen » : le texte et les captures du CEPC dans la même bulle, avec des cotillons en fond. Un ajourné aussi, en un bloc (sans cotillons).' }
+    ]
+  },
   {
     version: 1303,
     date: 'Vendredi 30 octobre 2026',
