@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:08 — v1273 */
+/* Déployé le 28/10/2026 à 20:09 — v1300 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -1214,6 +1214,8 @@ function dessinerQuestionsVerifs(idZone){
 }
 /* Redessine les tiroirs présents ; « ouvrir » ouvre ceux qui sont visibles */
 function qvRedessiner(ouvrir){
+  /* 🧰 v1300 — et les questions posées dans une fiche d'examen */
+  document.querySelectorAll('.qvExamen').forEach(b => { if(typeof b._qvDessiner === 'function') b._qvDessiner(); });
   QV_ZONES.forEach(id => {
     const z = document.getElementById(id);
     if(!z) return;
@@ -1224,6 +1226,251 @@ function qvRedessiner(ouvrir){
     dessinerQuestionsVerifs(id);
   });
   qvMajRappels();
+}
+
+/* ============================================================
+   🧰 v1300 — LES QUESTIONS DE VÉRIFICATION DANS LES EXAMENS
+
+   David, le 28 octobre : « sur les vérifications, faire comme sur les
+   cours classiques : les questions avec validé ou non et les cases en
+   dessous ; idem sur l'examen blanc et le rendez-vous pédagogique
+   pratique ». Son choix : à la place des cases de la partie
+   « 🧰 Vérification », au même endroit de la fiche.
+
+   ⚠️ LES ANCIENNES CASES RESTENT, CACHÉES, ET C'EST CE TIROIR QUI LES
+   REMPLIT : le n° de la question, les ✅/❌ (examen officiel) ou la note
+   sur 3 (examen blanc), et les textes. Le bilan, la note du CEPC, les
+   brouillons et l'impression les lisent comme avant — un seul chemin
+   pour le bilan, pas deux. Les cases à phrase (« tu n'as pas bossé tes
+   vérifications ») passent dans le tiroir, telles quelles.
+   ============================================================ */
+const QV_EXAMEN_OFFICIEL = ['examen.verifQuestion', 'examen.vi', 'examen.viTexte', '__sQser', 'examen.qser', 'examen.qserTexte',
+                            '__sSecours', 'examen.secours', 'examen.secoursTexte'];
+const QV_EXAMEN_BLANC = ['examen.verifNote', 'examen.verifQuestion', 'examen.verifRemarque'];
+const QV_CLE_OK = { verif: 'examen.vi', qser: 'examen.qser', secours: 'examen.secours' };
+const QV_CLE_TEXTE = { verif: 'examen.viTexte', qser: 'examen.qserTexte', secours: 'examen.secoursTexte' };
+const QV_NOM_PARTIE = { verif: 'Vérification', qser: 'QSER', secours: 'Premiers secours' };
+function qvStyleExamen(){
+  if(document.getElementById('qvStyleExamen')) return;
+  const st = document.createElement('style');
+  st.id = 'qvStyleExamen';
+  st.textContent = '.qvRemplace{display:none !important;}' +
+    '.qvExamen .qvCasesPhrase{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);}' +
+    '.qvExamen .qvCasesPhrase label{margin:0 0 6px !important;}';
+  document.head.appendChild(st);
+}
+function qvExamenOfficiel(){ return ((typeof $ === 'function' && $('modele')) ? $('modele').value : '') === 'examen-officiel'; }
+/* Le questionnaire (#manuelChamps) ou le module examen blanc du RVP au
+   vocal (#examenBlancCours) : chaque tiroir travaille dans le sien */
+let qvRacineCourante = null;
+function qvRacine(b){ return (b && b.closest && b.closest('#manuelChamps, #examenBlancCours')) || document; }
+function qvDans(){ return qvRacineCourante || document.getElementById('manuelChamps') || document; }
+function qvChampDe(cle){
+  const id = typeof idChamp === 'function' ? idChamp(cle) : '';
+  if(!id) return null;
+  const r = qvDans();
+  return (r.querySelector ? r.querySelector('#' + id) : null) || document.getElementById(id);
+}
+function qvZoneDe(cle){ return qvDans().querySelector('[data-zone="' + String(cle).replace(/"/g, '') + '"]'); }
+function qvPoserTexte(cle, v){
+  const el = qvChampDe(cle);
+  if(!el || el.value === v) return;
+  el.value = v;
+  if(typeof champsManuels !== 'undefined') champsManuels[cle] = v;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function qvPoserOk(cle, v){
+  if(typeof champsManuels !== 'undefined' && (champsManuels[cle] || '') === v) return;
+  const b = qvDans().querySelector('[data-champ="' + cle + '"] [data-val="' + v + '"]');
+  if(b) b.click();
+}
+function qvPoserNote3(cle, v){
+  const el = qvChampDe(cle);
+  if(!el || el.value === v) return;
+  el.value = v;
+  if(typeof champsManuels !== 'undefined') champsManuels[cle] = v;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  if(typeof reporterNotesCepc === 'function') try{ reporterNotesCepc(); }catch(e){}
+}
+/* Le tiroir → les cases cachées (et, au bilan, l'historique de l'élève) */
+function qvRemplirExamen(b, historique){
+  if(!b || !b._qv || !b.isConnected || !b.closest('#manuelChamps, #examenBlancCours')) return;
+  qvRacineCourante = qvRacine(b);
+  try{ qvRemplirExamenDans(b, historique); }finally{ qvRacineCourante = null; }
+}
+/* ⚠️ LE TIROIR N'EFFACE QUE CE QU'IL A ÉCRIT. Une fiche reprise, une case
+   remplie avant lui (n° tapé, ✅, texte, case à phrase) : on garde tout,
+   on retire seulement ses propres lignes d'avant, puis on met les neuves. */
+const QV_ECRIT = {};
+function qvEcritCle(cle){ return qvCle() + '|' + cle; }
+function qvFusionTexte(cle, lignes){
+  const el = qvChampDe(cle);
+  if(!el) return;
+  const k = qvEcritCle(cle);
+  const avant = QV_ECRIT[k] || [];
+  if(!avant.length && !lignes.length) return;
+  const enlever = {};
+  avant.concat(lignes).forEach(l => { enlever[String(l).trim()] = 1; });
+  const garde = String(el.value || '').split('\n').filter(l => !enlever[l.trim()]);
+  while(garde.length && !garde[garde.length - 1].trim()) garde.pop();
+  QV_ECRIT[k] = lignes.slice();
+  qvPoserTexte(cle, garde.concat(lignes).join('\n').replace(/^\s*\n/, ''));
+}
+function qvFusionValeur(cle, v, poser){
+  const k = qvEcritCle(cle);
+  if(!v && !QV_ECRIT[k]) return;
+  QV_ECRIT[k] = v;
+  poser(cle, v);
+}
+function qvRemplirExamenDans(b, historique){
+  const pre = b._qv.pre;
+  const qs = qvEtat().qs.filter(q => verifsQuestion(q.n));
+  /* le n° : laissé tel qu'il est écrit s'il dit déjà les mêmes questions (« Q12 ») */
+  qvFusionValeur(pre + 'examen.verifQuestion', qs.map(q => q.n).join(', '), (cle, v) => {
+    const el = qvChampDe(cle);
+    const deja = String((el && el.value) || '').split(/[^\d]+/).map(verifsNumero).filter(Boolean).join(', ');
+    if(deja !== v) qvPoserTexte(cle, v);
+  });
+  const plusieurs = qs.length > 1;
+  const lignesDe = (k, q) => {
+    const r = String((q.r && q.r[k]) || '').trim(), c = String((q.c && q.c[k]) || '').trim();
+    return [r ? 'Ta réponse : ' + r : '', c].filter(Boolean).map(t => (plusieurs ? 'Question ' + q.n + ' · ' : '') + t);
+  };
+  if(b._qv.officiel){
+    VERIFS_PARTIES.forEach(k => {
+      const m = qs.map(q => q.p[k]).filter(Boolean);
+      qvFusionValeur(pre + QV_CLE_OK[k], m.indexOf('❌') !== -1 ? '❌' : (m.length ? '✅' : ''), qvPoserOk);
+      const l = [];
+      qs.forEach(q => l.push.apply(l, lignesDe(k, q)));
+      qvFusionTexte(pre + QV_CLE_TEXTE[k], l);
+    });
+  }else{
+    const notees = qs.filter(qvNotee);
+    qvFusionValeur(pre + 'examen.verifNote', notees.length ? String(qvNoteDe(notees[notees.length - 1])) : '', qvPoserNote3);
+    const l = [];
+    qs.forEach(q => VERIFS_PARTIES.forEach(k => {
+      const r = String((q.r && q.r[k]) || '').trim(), c = String((q.c && q.c[k]) || '').trim();
+      if(!r && !c) return;
+      l.push((plusieurs ? 'Question ' + q.n + ' · ' : '') + QV_NOM_PARTIE[k] + (q.p[k] ? ' ' + q.p[k] : '') +
+             (r ? ' — ta réponse : ' + r : '') + (c ? ' — ' + c : ''));
+    }));
+    qvFusionTexte(pre + 'examen.verifRemarque', l);
+  }
+  if(historique) qvEnregistrerHistorique(qs);
+}
+/* Au bilan : tous les tiroirs d'examen remplissent leurs cases */
+function syncVerifsExamens(historique){
+  document.querySelectorAll('#manuelChamps .qvExamen, #examenBlancCours .qvExamen').forEach(b => { try{ qvRemplirExamen(b, historique); }catch(e){ console.warn('Vérifications :', e); } });
+}
+function dessinerVerifsExamen(bloc, ch){
+  qvStyleExamen();
+  const pre = String(ch.cle || '').replace(/questionsVerifs$/, '');
+  bloc.classList.add('qvExamen');
+  bloc._qv = { pre: pre, officiel: qvExamenOfficiel() };
+  const cases = vqEl('div', 'qvCasesPhrase');
+  bloc._qvCases = [];
+  let attente = null;
+  const remplir = () => { clearTimeout(attente); attente = setTimeout(() => qvRemplirExamen(bloc), 250); };
+  const dessiner = () => {
+    const tape = (bloc.querySelector('input.qvNumero') || {}).value || '';
+    bloc.innerHTML = '';
+    const l = vqEl('label', '', ch.nom || '🧰 Questions de vérification');
+    bloc.appendChild(l);
+    const aide = vqEl('div', 'qvAide', 'Tape le numéro de la question, l’élève répond, tu coches chaque partie ✅ ❌ : la note se fait toute seule' +
+      (bloc._qv.officiel ? ' (vérification, QSER, premiers secours).' : ' sur 3.') + ' Sous chaque partie : sa réponse et ton commentaire.');
+    aide.style.cssText = 'font-size:11px;color:var(--muted);margin:0 0 8px;line-height:1.5;';
+    bloc.appendChild(aide);
+    const rang = vqEl('div', 'qvRang');
+    rang.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    const i = document.createElement('input');
+    i.type = 'text'; i.inputMode = 'numeric'; i.className = 'qvNumero'; i.placeholder = 'N° (1 à 100)'; i.value = tape;
+    i.setAttribute('data-hors-saisie', '1'); i.dataset.horsSaisie = '1';
+    i.style.cssText = 'flex:1;min-width:0;margin:0;';
+    rang.appendChild(i);
+    const poser = n => {
+      const r = qvPoser(n);
+      if(r === 'numero'){ showToastVerifs('Tape un numéro de 1 à 100'); i.focus(); return; }
+      if(r === 'deja') showToastVerifs('🧰 La question ' + verifsNumero(n) + ' est déjà posée');
+      i.value = '';
+      dessiner(); remplir();
+    };
+    const bP = vqEl('button', 'btn btn-primary qvPoser', '➕ Poser');
+    bP.type = 'button'; bP.setAttribute('data-hors-saisie', '1');
+    bP.style.cssText = 'width:auto;margin:0;padding:10px 14px;font-size:14px;white-space:nowrap;';
+    bP.addEventListener('click', ev => { ev.preventDefault(); poser(i.value); });
+    i.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); poser(i.value); } });
+    rang.appendChild(bP);
+    const h = vqEl('button', 'btn btn-secondary qvHasard', '🎲');
+    h.type = 'button'; h.title = 'Une question au hasard'; h.setAttribute('data-hors-saisie', '1');
+    h.style.cssText = 'width:auto;margin:0;padding:10px 12px;font-size:14px;';
+    h.addEventListener('click', ev => {
+      ev.preventDefault();
+      const deja = qvEtat().qs.map(q => q.n), libres = [];
+      for(let n = 1; n <= 100; n++) if(deja.indexOf(n) === -1) libres.push(n);
+      if(libres.length) poser(libres[Math.floor(Math.random() * libres.length)]);
+    });
+    rang.appendChild(h);
+    bloc.appendChild(rang);
+    const histo = qvBlocHistorique();
+    if(histo){ histo.open = false; bloc.appendChild(histo); }
+    qvEtat().qs.slice().reverse().forEach(q => bloc.appendChild(qvBloc(q, remplir)));
+    if(bloc._qvCases.length){
+      bloc._qvCases.forEach(x => { const cb = x.querySelector('input'); if(cb && x._qvOrig) cb.checked = x._qvOrig.checked; cases.appendChild(x); });
+      bloc.appendChild(cases);
+    }
+  };
+  bloc._qvDessiner = () => { dessiner(); remplir(); };
+  /* les textes (réponse, commentaire) remplissent aussi, un peu après */
+  bloc.addEventListener('input', ev => { if(ev.target && ev.target.closest && ev.target.closest('.qvDeux')) remplir(); });
+  /* Les cases remplacées (elles sont dessinées APRÈS ce bloc) : cachées ;
+     leurs cases à phrase viennent ici ; une fiche reprise sans le tiroir
+     de ce jour retrouve ses questions d'après le n° gardé */
+  setTimeout(() => {
+    if(!bloc.isConnected) return;
+    /* Dans le créateur de fiches, les anciennes zones restent visibles :
+       l'administrateur règle toujours leurs cases à phrase */
+    if(!bloc.closest('#manuelChamps, #examenBlancCours')) return;
+    qvRacineCourante = qvRacine(bloc);
+    try{ qvRangerExamen(bloc, pre); }finally{ qvRacineCourante = null; }
+    dessiner();
+  }, 0);
+  dessiner();
+}
+function qvRangerExamen(bloc, pre){
+  {
+    (bloc._qv.officiel ? QV_EXAMEN_OFFICIEL : QV_EXAMEN_BLANC).forEach(k => {
+      const z = qvZoneDe(pre + k) || qvZoneDe(pre + k + 'Rvp');
+      if(z) z.classList.add('qvRemplace');
+    });
+    const zt = qvZoneDe(pre + (bloc._qv.officiel ? 'examen.viTexte' : 'examen.verifRemarque'));
+    /* ⚠️ LES CASES RESTENT À LEUR PLACE (cachées) : une fiche se garde et se
+       reprend par le RANG de ses champs — en déplacer une décalerait tout ce
+       qui suit. Le tiroir en montre une copie qui coche l'originale. */
+    if(zt) zt.querySelectorAll('label').forEach(lab => {
+      const orig = lab.querySelector('input[type="checkbox"]');
+      if(!orig || lab.hasAttribute('data-voitures')) return;
+      const copie = lab.cloneNode(true);
+      copie.removeAttribute('id');
+      const cb = copie.querySelector('input[type="checkbox"]');
+      cb.removeAttribute('id'); cb.removeAttribute('name');
+      cb.setAttribute('data-hors-saisie', '1');
+      cb.classList.add('qvCopieCase');
+      cb.checked = orig.checked;
+      cb.addEventListener('change', () => { if(orig.checked !== cb.checked) orig.click(); cb.checked = orig.checked; });
+      orig.addEventListener('change', () => { cb.checked = orig.checked; });
+      copie._qvOrig = orig;
+      bloc._qvCases.push(copie);
+    });
+    setTimeout(() => (bloc._qvCases || []).forEach(c => { const cb = c.querySelector('input'); if(cb && c._qvOrig) cb.checked = c._qvOrig.checked; }), 1500);
+    if(!qvEtat().qs.length){
+      const el = qvChampDe(pre + 'examen.verifQuestion');
+      const nums = String((el && el.value) || '').split(/[^\d]+/).map(verifsNumero).filter(Boolean);
+      nums.forEach(n => qvPoser(n));
+      if(nums.length && bloc._qv.officiel && typeof champsManuels !== 'undefined'){
+        VERIFS_PARTIES.forEach(k => { const v = champsManuels[pre + QV_CLE_OK[k]]; if(v === '✅' || v === '❌') qvNoter(nums[0], k, v); });
+      }
+    }
+  }
 }
 
 /* ---------- Le rappel, à la place de « Question n° / Note sur 3 » ---------- */
