@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 18:00 — v1298 */
+/* Déployé le 30/10/2026 à 10:52 — v1305 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1570,8 +1570,11 @@ function bulleDuMessage(m, avant, apres){
   const image = imageDuMessage(m);
   if(image){
     b.classList.add('photo');
+    if(image.classList.contains('msgAlbum')) b.classList.add('album');
     b.appendChild(image);
   }
+  /* 🎉 v1304 — des cotillons en fond (le permis obtenu, dans « Suivi examen ») */
+  if(m.donnees && m.donnees.deco === 'cotillons' && !Number(m.supprime || 0)) b.classList.add('cotillons');
 
   /* 🎤 Le vocal vient avant le texte, pour la même raison que la
      photo — v1098. Sauf qu'ici le texte N'EST PAS un commentaire :
@@ -4279,14 +4282,52 @@ function choisirUnePhoto(){
      l'appareil photo et retire l'accès à la galerie. Le bureau
      envoie surtout des photos déjà prises. */
   z.accept = 'image/*';
+  /* 🖼️ v1304 — plusieurs d'un coup : elles partent dans UN message */
+  z.multiple = true;
   z.style.display = 'none';
   document.body.appendChild(z);
   z.addEventListener('change', () => {
-    const f = z.files && z.files[0];
+    const l = Array.prototype.slice.call(z.files || []);
     document.body.removeChild(z);
-    if(f) envoyerUnePhotoDansLeFil(f);
+    if(l.length > 1) envoyerDesPhotosDansLeFil(l);
+    else if(l[0]) envoyerUnePhotoDansLeFil(l[0]);
   });
   z.click();
+}
+
+/* 🖼️ v1304 — David : « quand on veut envoyer des images c'est message
+   par message, on ne peut pas en mettre plusieurs en une fois ? » Ses
+   choix : un seul message, 10 photos au plus, le mot tapé avec. */
+const PHOTOS_PAR_MESSAGE_EC = 10;
+async function envoyerDesPhotosDansLeFil(fichiers){
+  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
+  if(envoiPhotoEC) return;
+  let l = (fichiers || []).filter(f => f && /^image\//.test(f.type || 'image/'));
+  if(!l.length) return;
+  if(l.length > PHOTOS_PAR_MESSAGE_EC){
+    showToast('📷 ' + PHOTOS_PAR_MESSAGE_EC + ' photos au plus dans un message : les ' + PHOTOS_PAR_MESSAGE_EC + ' premières partent.');
+    l = l.slice(0, PHOTOS_PAR_MESSAGE_EC);
+  }
+  envoiPhotoEC = true;
+  const id = filOuvertEC.conv.id;
+  plusOccupe(true);
+  try{
+    const photos = [];
+    for(const f of l){
+      const p = await reduireLaPhoto(f);
+      photos.push({ photo: p.data, l: p.l, h: p.h });
+    }
+    const champ = $('msgElvTexte');
+    const texte = champ ? champ.value.trim() : '';
+    await appelPrep({ action: 'convPhotos', id: id, photos: photos, texte: texte, reponseA: reponseAPourEC(id) });
+    oublierLaReponseEC(id);
+    if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
+    await rafraichirLeFil();
+  }catch(e){
+    if(typeof showToast === 'function') showToast('Les photos ne sont pas parties : ' + (e.message || e));
+  }
+  envoiPhotoEC = false;
+  plusOccupe(false);
 }
 
 async function envoyerUnePhotoDansLeFil(fichier){
@@ -4335,7 +4376,35 @@ function adresseDeLaPiece(piece){
 /* ⚠️ UNE PIÈCE JOINTE N'EST PAS FORCÉMENT UNE PHOTO. Le type
    décide, et c'est « pieceEstUnSon » qui le dit — déclarée avec
    les vocaux, parce que c'est là que vit ce qu'elle sait. */
+/* 🖼️ v1304 — plusieurs photos : une mosaïque dans la bulle */
+function albumDuMessage(m){
+  const l = (m && Array.isArray(m.pieces)) ? m.pieces : null;
+  if(!l || l.length < 2) return null;
+  const g = document.createElement('div');
+  g.className = 'msgAlbum' + (l.length % 2 ? ' impair' : '');
+  g.setAttribute('data-n', String(l.length));
+  l.forEach(p => {
+    if(!p || !p.lien){
+      const d = document.createElement('div');
+      d.className = 'msgImgAbs';
+      d.textContent = '📷';
+      g.appendChild(d);
+      return;
+    }
+    const i = document.createElement('img');
+    i.className = 'msgImg';
+    i.alt = 'Photo';
+    i.loading = 'lazy';
+    i.src = adresseDeLaPiece(p);
+    i.addEventListener('click', ev => { ev.stopPropagation(); ouvrirLaPhotoEnGrand(i.src); });
+    g.appendChild(i);
+  });
+  return g;
+}
+
 function imageDuMessage(m){
+  const album = albumDuMessage(m);
+  if(album) return album;
   const p = m && m.piece;
   if(!p || pieceEstUnSon(p) || pieceEstUneVideo(p)) return null;
   /* 📎 v1161 — un PDF n'est pas une image : sans cette ligne, il
@@ -6876,12 +6945,14 @@ function ouvrirLeSelecteurDePhotoEC(appareil){
   z.type = 'file';
   z.accept = 'image/*';
   if(appareil) z.setAttribute('capture', 'environment');
+  else z.multiple = true;      /* 🖼️ v1304 — la galerie : plusieurs d'un coup */
   z.style.display = 'none';
   document.body.appendChild(z);
   z.addEventListener('change', () => {
-    const f = z.files && z.files[0];
+    const l = Array.prototype.slice.call(z.files || []);
     if(z.parentNode) document.body.removeChild(z);
-    if(f) envoyerUnePhotoDansLeFil(f);
+    if(l.length > 1) envoyerDesPhotosDansLeFil(l);
+    else if(l[0]) envoyerUnePhotoDansLeFil(l[0]);
   });
   z.click();
 }
