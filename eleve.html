@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 30/10/2026 à 10:52 — v1305 -->
+<!-- Déployé le 30/10/2026 à 17:21 — v1315 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -97,6 +97,11 @@
 
   body{
     margin:0;
+    /* 📱 v1315 — un lien, une ligne de ━━━ ou un mot en lettres de
+       Facebook sans espace ne poussent plus la page sur le côté
+       (David : « il faut décaler sur la droite sur un téléphone ») :
+       ils passent à la ligne. */
+    overflow-wrap:break-word;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                  "Helvetica Neue", Arial, sans-serif;
     background: var(--navy);
@@ -821,7 +826,11 @@
   #feuilleParcours .sdedans p{
     margin:0 0 11px; font-size:15px; line-height:1.6;
     white-space:pre-wrap; color:var(--soft);
+    overflow-wrap:anywhere; word-break:break-word;
   }
+  /* 📱 v1315 — la feuille d'une étape ne défile jamais de côté */
+  #feuilleParcours .feuille{ overflow-x:hidden; }
+  #feuilleParcours .stitre, #feuilleParcours .fhaut{ overflow-wrap:anywhere; }
   #feuilleParcours .sdedans p.vide{ color:var(--muted); font-style:italic; }
   #feuilleParcours video, #feuilleParcours img{
     width:100%; border-radius:12px; margin:0 0 11px; background:#000; display:block;
@@ -2911,6 +2920,9 @@
         memoriserLeCode(code);
 
         if(entreeRapide) completerLEntree(); else entrer();
+        /* ⚡ v1315 — servi depuis sa dernière visite : on redemande au
+           classeur, et la page se met à jour quand il répond */
+        if(d.depuisCache) rafraichirLaConnexion(nom, code);
       })
       .catch(function(e){
         complete = true;
@@ -2929,6 +2941,45 @@
         dire('msgConnexion', e.message || 'Connexion impossible.', 'erreur');
       })
       .then(function(){ $('btConnexion').disabled = false; });
+  }
+
+  /* ============================================================
+     ⚡ v1315 — LA MISE À JOUR APRÈS L'ENTRÉE RAPIDE
+
+     David, le 30 octobre : « c'est très long à charger la page
+     d'accueil et le reste ». Le Worker rend maintenant tout de suite
+     ce que le classeur avait dit à sa dernière visite (« depuisCache »),
+     avec des liens de fichiers refaits à neuf. Ici, on redemande au
+     classeur (« frais ») et on redessine avec sa réponse : le même
+     chemin que la connexion complète.
+
+     ⚠️ UN REFUS DU CLASSEUR GAGNE (accès fermé, permis obtenu) : retour
+     à l'entrée avec son message. ⚠️ UN CLASSEUR INJOIGNABLE NE CHASSE
+     PERSONNE : il garde ce qu'il voit.
+     ============================================================ */
+  function rafraichirLaConnexion(nom, code){
+    if(MODE_ESSAI || ACCOMP || SALLE) return;
+    appeler({ action: 'eleveConnexion', eleve: nom, code: code, frais: true })
+      .then(function(d){
+        if(!d || !moi.nom || moi.code !== code) return;   /* sorti entre-temps */
+        procedures = d.procedures || [];
+        demandes = d.demandes || [];
+        maLangue = d.langue || '';
+        languesDispo = d.langues || [];
+        maBoite = d.boite || '';
+        lireRenseignements(d);
+        boiteFigee = !!d.boiteFigee;
+        lireModules(d);
+        duDemarrage = d;
+        completerLEntree();
+      })
+      .catch(function(e){
+        var m = (e && e.message) || '';
+        if(!m || /injoignable|indisponible|impossible pour le moment|fetch|network|load failed/i.test(m)) return;
+        if(!moi.nom || moi.code !== code) return;
+        sortir();
+        dire('msgConnexion', m, 'erreur');
+      });
   }
 
   /* Tout d'un coup : la connexion complète est arrivée la première */
