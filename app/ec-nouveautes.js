@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 15:53 — v1312 */
+/* Déployé le 30/10/2026 à 16:48 — v1314 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1314,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '📝 « Tu dois faire ton bilan » · 🚗 Voiturette à l’examen blanc',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Tu dois faire ton bilan',
+        texte: 'Sous « Composer le bilan » et sous le bouton rouge (classique et AAC, BEA et BV) : le cours est validé sans bilan à composer, l’élève reçoit la trame à remplir. Son dossier › Cours : on colle ce qu’il a écrit.' },
+      { emoji: '🚗',
+        titre: 'Voiturette, à l’examen blanc',
+        texte: 'Sous « Niveau permis ? » : la case Voiturette (heures avant de partir, formation AM). La phrase va dans son bilan ; la formation AM dans l’historique des cours et le Suivi.' }
+    ]
+  },
+  {
+    version: 1313,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '⚡ L’alerte de survitesse dans le tiroir Carte SD (A3 2 et Q3 10)',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'L’alerte de survitesse oubliée',
+        texte: 'Dans le tiroir « Carte SD — Installation — Vérifications » (à la main et à l’oral), sur l’A3 2 et le Q3 10 : la case « Tu as oublié d’enlever l’alerte de survitesse ». Cochée, la phrase va dans son bilan.' }
+    ]
+  },
   {
     version: 1312,
     date: 'Vendredi 30 octobre 2026',
