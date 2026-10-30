@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:51 — v1310 */
+/* Déployé le 30/10/2026 à 15:17 — v1311 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1311,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '🅱️ La tuile suit le dernier examen blanc · 👂 écoutes plus rapides',
+    quoi: [
+      { emoji: '🅱️',
+        titre: 'Le dernier examen blanc',
+        texte: 'Un examen blanc « pas le niveau » ou « pourrait » met à jour sa date et sa conclusion dans le dossier ; la tuile « Où en est son permis » prend le plus récent.' },
+      { emoji: '👂',
+        titre: 'Les écoutes s’ouvrent plus vite',
+        texte: 'La liste des écoutes se lit directement dans le classeur, sans attendre Apps Script.' }
+    ]
+  },
   {
     version: 1310,
     date: 'Vendredi 30 octobre 2026',
