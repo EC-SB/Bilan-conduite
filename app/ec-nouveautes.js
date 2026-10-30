@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 13:07 — v1307 */
+/* Déployé le 30/10/2026 à 13:37 — v1308 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1308,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '👂 Écoutes sur la télé · 🎓 une carte au permis · 🖼️ photos collées',
+    quoi: [
+      { emoji: '👂',
+        titre: 'Les écoutes sur la télé',
+        texte: 'Dans « Vos cours commencent », les élèves en écoute se mettent dans la carte de leur voiture (« ta voiture n’est pas connue » ne reste que s’il n’y a vraiment aucun cours). Le rappel d’écoute de 17h retrouve aussi la voiture.' },
+      { emoji: '🎓',
+        titre: 'Une carte par élève le jour du permis',
+        texte: 'Un 2e rappel pour un élève qui a déjà sa carte d’examen ne crée pas de 2e carte (et on le dit) ; la carte de conduite en double du même jour se retire toute seule.' },
+      { emoji: '👨‍✈️',
+        titre: 'L’inspecteur repris',
+        texte: 'Choisi sur un élève, il se met tout seul sur les fiches d’examen suivantes du jour.' },
+      { emoji: '🖼️',
+        titre: 'Coller plusieurs photos',
+        texte: 'Dans la messagerie, une capture collée attend au-dessus du champ : on colle les suivantes, puis ➤ envoie tout en un message.' }
+    ]
+  },
   {
     version: 1307,
     date: 'Vendredi 30 octobre 2026',
