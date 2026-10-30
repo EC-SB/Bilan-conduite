@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 08:24 — v1284 */
+/* Déployé le 30/10/2026 à 10:16 — v1303 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2186,6 +2186,14 @@ async function afficherPrepares(recharger, silencieux){
     /* 🔁 v1211 — sur un rendez-vous post-permis, la préparation à
        l'examen ne s'affiche plus (le bloc du dessus dit le reste) */
     if(estPostPermis) reste = notePostPermisSurLaCarte(reste);
+    /* 🎓 v1303 — UN EXAMEN OFFICIEL PRÉVU : LA LIGNE ROUGE, ET C'EST TOUT.
+       David, schéma validé (B) : « il ne reste que ça, la ligne verte et
+       en dessous la ligne rouge ; on n'affiche plus examen blanc ; le
+       repassage : la ligne rouge et en dessous post-permis si c'est un
+       élève déjà ajourné ». Le 📌 reste, dessous ; la ligne rouge monte
+       juste sous la verte. La NOTE garde tout : c'est l'écran qui trie. */
+    const examenPrevuCarte = !estPostPermis ? noteCarteExamenPrevu(reste) : null;
+    if(examenPrevuCarte !== null) reste = examenPrevuCarte;
     /* Le 📌 aussi : c'est là que les heures recopiées s'étaient
        accumulées. */
     let consigne = sansRedites(partsNote.consigne);
@@ -2217,6 +2225,8 @@ async function afficherPrepares(recharger, silencieux){
        rien — il colore, à l'intérieur d'une ligne.
        ------------------------------------------------------------ */
     if(texteNote){
+      /* 🎓 v1303 — examen prévu : juste sous la ligne verte */
+      let apresRang = (examenPrevuCarte !== null && ligneRang.parentNode === meta) ? ligneRang : null;
       lignesDeLaNote(texteNote).forEach(ligne => {
         const n = document.createElement('span');
         n.className = 'note';
@@ -2228,7 +2238,13 @@ async function afficherPrepares(recharger, silencieux){
         }else{
           n.textContent = ligne;
         }
-        meta.appendChild(n);
+        if(apresRang){
+          n.style.borderTop = 'none';
+          meta.insertBefore(n, apresRang.nextSibling);
+          apresRang = n;
+        }else{
+          meta.appendChild(n);
+        }
       });
     }
 
@@ -4532,6 +4548,20 @@ function lignesDeLaNote(texte){
    cherche sur sa carte. « Je ne sais pas » n'est pas un démenti :
    sans état lisible, on ne touche à rien.
    ============================================================ */
+/* 🎓 v1303 — la note de la carte quand un examen officiel est prévu :
+   la ligne « EXAMEN OFFICIEL PRÉVU LE … », puis la ligne du rendez-vous
+   post-permis (elle n'existe que pour un élève déjà ajourné). Sans
+   examen prévu dans la note : null, la carte reste comme avant. */
+function noteCarteExamenPrevu(texte){
+  const clair = x => (typeof sansGras === 'function' ? sansGras(x) : String(x || '')).normalize('NFC').trim();
+  const segs = [];
+  String(texte || '').split('\n').forEach(l => l.split(' · ').forEach(x => { if(x.trim()) segs.push(x.trim()); }));
+  const rouge = segs.find(x => /^(?:🚗\s*)?EXAMEN OFFICIEL PRÉVU LE\b/i.test(clair(x)));
+  if(!rouge) return null;
+  const post = segs.find(x => /^🤝/.test(x) && /RDV POST-PERMIS/i.test(clair(x)));
+  return [rouge, post].filter(Boolean).join('\n');
+}
+
 function sansAnnoncePerimee(texte, eleve){
   const t = String(texte || '');
   if(!t || !eleve || typeof etatQuiFaitFoi !== 'function') return t;
