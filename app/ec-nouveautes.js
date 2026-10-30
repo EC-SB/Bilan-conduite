@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 15:17 — v1311 */
+/* Déployé le 30/10/2026 à 15:53 — v1312 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1312,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '✕ Annuler une écoute du jour · 🗺️ Infographie CPF – Employeur',
+    quoi: [
+      { emoji: '✕',
+        titre: 'Annuler une écoute d’aujourd’hui',
+        texte: 'Suivi › 👂 Écoutes, « Écoutes d’aujourd’hui » : ✕ Annuler (le créneau ou un élève). Elle disparaît des cours des moniteurs et de l’affichage ; on choisit de prévenir l’élève ou non.' },
+      { emoji: '🗺️',
+        titre: 'Co-financement CPF – Employeur',
+        texte: 'Dans 💶 Financements, sous « Un message CPF, sans dossier » : l’infographie étape par étape (élève, auto-école, employeur). Son lien se copie pour l’envoyer à un employeur.' }
+    ]
+  },
   {
     version: 1311,
     date: 'Vendredi 30 octobre 2026',
