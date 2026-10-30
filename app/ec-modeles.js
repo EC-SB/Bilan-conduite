@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 11:08 — v1273 */
+/* Déployé le 30/10/2026 à 16:48 — v1314 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -48,17 +48,29 @@ const LIGNES_VLC = '🎬 Tu n’arrives pas à lire les vidéos ? Télécharge V
 const LIGNES_VLC_VOUS = '🎬 Vous n’arrivez pas à lire les vidéos ? Téléchargez VLC (gratuit) : https://www.videolan.org/vlc/\n' +
   '📺 Vous pouvez aussi venir regarder votre carte SD ici, en salle des tablettes.';
 
+/* ⚡ v1312 — L'ALERTE DE SURVITESSE OUBLIÉE, DANS LE TIROIR DU COURS
+   David, le 30 octobre : « dans le tiroir carte SD, installation,
+   passager, ajoute une case : tu as oublié d'enlever l'alerte de
+   survitesse, pour A3 2 et Q3 10 ». La case n'apparaît que sur ces deux
+   voitures (ec-manuel.js, caseSurvitesseDuTiroir) ; cochée, sa phrase
+   suit la ligne « /2 points jour du permis ». */
+const VOITURES_SURVITESSE_TIROIR = ['A3 2', 'Q3 10'];
+const PHRASE_SURVITESSE_TIROIR = "⚡ Tu as oublié d'enlever l'alerte de survitesse.";
+function ligneSurvitesseDuBilan(v){ return v === '✅' ? '\n' + PHRASE_SURVITESSE_TIROIR : ''; }
+
 /* ---------- Blocs communs ---------- */
 const BLOC = {
   entete: '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝔸 ℂ𝕆ℕ𝔻𝕌𝕀𝕋𝔼 👀\nRappel : dsl pour les fautes, écriture orale automatique 😅',
 
   carteSD: v => '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿  ' + st(v) + '\nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). \n' + LIGNES_VLC,
 
-  installPassVoyants: (i, p, v) =>
+  /* ⚡ v1312 — 4e réponse : la case « Tu as oublié d'enlever l'alerte de
+     survitesse » du tiroir Carte SD / Installation (A3 2 et Q3 10) */
+  installPassVoyants: (i, p, v, s) =>
     '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣  ' + st(i) + 'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/\n' +
     '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + st(p) + '\n' +
     '𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + st(v) + '\n' +
-    '/2 points jour du permis ',
+    '/2 points jour du permis ' + ligneSurvitesseDuBilan(s),
 
   verifications: '𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨 https://www.facebook.com/groups/864826058258637 \n/3 points jour du permis ',
 
@@ -1131,7 +1143,37 @@ function blocNiveauPermis(ai){
     }
   }
 
+  /* 🚗 v1314 — LA VOITURETTE (David, le 30 octobre). La case est sous
+     les trois réponses. Sa phrase va sous le niveau — avant les
+     💡 Rappels quand il n'a pas le niveau. « Doit faire la formation
+     AM » est pour nous : il n'est jamais dans ce texte. */
+  const voit = lignesVoituretteDuBilan(ai);
+  if(voit.length){
+    const i = P.indexOf('💡𝙍𝙖𝙥𝙥𝙚𝙡𝙨 : ');
+    if(i !== -1) P.splice(i, 0, ...voit, '');
+    else{ if(P[P.length - 1] !== '') P.push(''); voit.forEach(l => P.push(l)); }
+  }
+
   return P;
+}
+const PHRASE_VOITURETTE = '🚗 Nous te conseillons de partir en voiturette pour t’entraîner, et dès que tu penses avoir le niveau, on refera un examen blanc ou une leçon pour vérifier. ' +
+  'Passe au bureau pour que l’on t’explique plus en détail comment ça fonctionne.';
+function heuresVoiturette(ai){
+  const h = Number(String((ai && ai.voituretteHeures) || '').replace(',', '.'));
+  return isFinite(h) && h > 0 ? h : 0;
+}
+function lignesVoituretteDuBilan(ai){
+  if(!ai || ai.voiturette !== 'oui') return [];
+  const h = heuresVoiturette(ai);
+  return h ? [PHRASE_VOITURETTE, '⏱️ Avant de pouvoir partir en voiturette : encore ' + String(h).replace('.', ',') + ' h de conduite avec nous.']
+           : [PHRASE_VOITURETTE];
+}
+/* La ligne « pour nous » : note interne (historique des cours) et Suivi */
+function ligneVoiturettePourNous(ai){
+  if(!ai || ai.voiturette !== 'oui') return '';
+  const h = heuresVoiturette(ai);
+  return '🚗 Voiturette conseillée' + (h ? ' — après ' + String(h).replace('.', ',') + ' h de conduite' : '') +
+    (ai.formationAM === 'oui' ? ' · 🎓 DOIT FAIRE LA FORMATION AM' : ai.formationAM === 'non' ? ' · formation AM : non' : '');
 }
 
 function buildExamenBlanc(ai, ctx){
@@ -1637,7 +1679,7 @@ function buildRvp(ai, ctx){
     '',
     BLOC.carteSD(ai && ai.carteSD),
     '',
-    BLOC.installPassVoyants(ai && ai.installation, ai && ai.passager, ai && ai.voyants),
+    BLOC.installPassVoyants(ai && ai.installation, ai && ai.passager, ai && ai.voyants, ai && ai.survitesseOubliee),
     '',
     blocRubriques(r),
     '🆁🅰🅿🅿🅴🅻 :',
@@ -2541,6 +2583,7 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   parts.push('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + (ai.passager === '❌' ? '❌' : '✅'));
   parts.push('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + (ai.voyants === '❌' ? '❌' : '✅'));
   parts.push('/2 points jour du permis ');
+  if(ai.survitesseOubliee === '✅') parts.push(PHRASE_SURVITESSE_TIROIR);   /* ⚡ v1312 */
   parts.push('');
   /* 🧰 v1251 — les questions posées pendant le cours (le tiroir
      « 🧰 Questions de vérification », ec-verifs.js), chacune avec ses
@@ -2641,7 +2684,7 @@ const MODELES = {
     build: (ai, ctx) => [
       BLOC.entete, '',
       BLOC.carteSD(ai.carteSD), '',
-      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
+      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants, ai.survitesseOubliee), '',
       ...sectionVerifsDuCours(ai, ctx),
       blocRubriques(ai.rubriques),
       blocFicheAac(ai.ficheVehicule, BLOC.ficheListe, ctx), ...reperesDuJourPourLeBilan(), '',
@@ -2654,7 +2697,7 @@ const MODELES = {
     build: (ai, ctx) => [
       BLOC.entete, '',
       '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿 ✅  donnée ce jour \nN\'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). \n' + LIGNES_VLC, '',
-      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
+      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants, ai.survitesseOubliee), '',
       ...sectionVerifsDuCours(ai, ctx),
       blocRubriques(ai.rubriques),
       blocFicheAac(ai.ficheVehicule, BLOC.ficheListeAacAuto, ctx), ...reperesDuJourPourLeBilan(), '',
@@ -2672,7 +2715,7 @@ const MODELES = {
       '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ ℝ𝔼ℕ𝔻𝔼ℤ-𝕍𝕆𝕌𝕊 ℙℝ𝔼́𝔸𝕃𝔸𝔹𝕃𝔼 👀',
       'Rappel : dsl pour les fautes, écriture orale automatique 😅', '',
       BLOC.carteSD(ai.carteSD), '',
-      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
+      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants, ai.survitesseOubliee), '',
       blocRubriques(ai.rubriques),
       TAIL_RDV_PREALABLE
     ].join('\n')
@@ -2684,7 +2727,7 @@ const MODELES = {
       '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ ℝ𝔼ℕ𝔻𝔼ℤ-𝕍𝕆𝕌𝕊 ℙℝ𝔼́𝔸𝕃𝔸𝔹𝕃𝔼 👀',
       'Rappel : dsl pour les fautes, écriture orale automatique 😅', '',
       BLOC.carteSD(ai.carteSD), '',
-      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
+      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants, ai.survitesseOubliee), '',
       blocRubriques(ai.rubriques),
       TAIL_RDV_PREALABLE
     ].join('\n')
