@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 10:16 — v1303 */
+/* Déployé le 30/10/2026 à 13:37 — v1308 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1298,6 +1298,38 @@ document.addEventListener('visibilitychange', () => {
   rafraichirPresences();
 });
 
+/* ============================================================
+   🎓 UNE CARTE PAR ÉLÈVE LE JOUR DU PERMIS — v1308
+
+   David, le 30 octobre, sur le schéma du jour de permis : une carte
+   par élève (Examen officiel, à l'heure où il conduit) ; « les cartes
+   du matin déjà créées en double : on les retire toutes seules quand la
+   carte d'examen du même élève existe le même jour ? » — « Oui ».
+
+   Le double, c'est la carte de CONDUITE (conduite ou AAC) du même élève,
+   le même jour qu'une carte Examen officiel : elle venait du rappel de la
+   conduite d'avant examen, et ouvrait un bilan classique. On ne touche
+   pas à une carte dont la fiche est déjà commencée.
+   ============================================================ */
+const MODELES_DOUBLON_PERMIS = ['conduite-auto', 'conduite-manuelle', 'aac-auto', 'aac-manuelle'];
+function doublonsDuPermisDans(liste){
+  const l = liste || [];
+  const examens = {};
+  l.forEach(x => { if(x && x.modele === 'examen-officiel' && x.eleve && x.date) examens[normaliserMot(x.eleve) + '|' + x.date] = 1; });
+  return l.filter(x => x && x.eleve && x.date && MODELES_DOUBLON_PERMIS.indexOf(String(x.modele || '')) !== -1 &&
+    examens[normaliserMot(x.eleve) + '|' + x.date] &&
+    !(typeof ficheCommenceeDe === 'function' && ficheCommenceeDe(x.eleve, x.modele)));
+}
+function retirerDoublonsDuPermis(){
+  if(typeof prepares === 'undefined' || !Array.isArray(prepares)) return 0;
+  const d = doublonsDuPermisDans(prepares);
+  if(!d.length) return 0;
+  const ids = d.map(x => x.id);
+  prepares = prepares.filter(x => ids.indexOf(x.id) === -1);
+  d.forEach(x => { appelPrep({ action: 'prepDelete', id: x.id }).catch(() => {}); });
+  return d.length;
+}
+
 async function afficherPrepares(recharger, silencieux){
   const zone = $('listePrepares');
   if(!zone) return;
@@ -1355,6 +1387,8 @@ async function afficherPrepares(recharger, silencieux){
 
     /* Les sources sont là : les notes peuvent se remettre à jour. */
     rafraichirNotesPreparees();
+    /* 🎓 v1308 — les cartes en double d'un jour de permis s'en vont */
+    if(enLigne) retirerDoublonsDuPermis();
 
     /* La veille des réponses part avec la liste, et se relance à
        chaque affichage : un minuteur laissé derrière un écran fermé
