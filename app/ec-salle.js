@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:59 — v1290 */
+/* Déployé le 28/10/2026 à 20:09 — v1300 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -71,6 +71,7 @@ function slStyle(){
     '.slLigne{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;}' +
     '.slLigne:first-child{border-top:none;}.slLigne .n{flex:1;min-width:160px;font-weight:700;}' +
     '.slLigne small{color:var(--muted);font-size:12px;}' +
+    '.slLigne small.slMain{color:var(--accent-text);font-weight:700;}' +
     '.slPuce{display:inline-block;font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:0 4px 4px 0;}' +
     '.slCode{font-size:40px;font-weight:800;letter-spacing:.18em;text-align:center;margin:12px 0;}';
   document.head.appendChild(s);
@@ -148,6 +149,14 @@ function slDessiner(){
 
   /* ② La théorie d'aujourd'hui dans Drivup */
   z.appendChild(slEl('div', 'slSous', '📆 La théorie d’aujourd’hui dans Drivup · ' + (d.resa || []).length));
+  /* ➕ v1300 — David : « il faut que je puisse ajouter un élève qui n'a
+     pas réservé sur Drivup et qui est là » */
+  if(slPeut()){
+    const ba = slBouton('➕ Un élève présent, pas réservé sur Drivup', 'btn-secondary', () => slFenetreAjouterPresent());
+    ba.id = 'slAjouterPresent';
+    ba.style.marginBottom = '8px';
+    z.appendChild(ba);
+  }
   if(!(d.resa || []).length){
     z.appendChild(slEl('div', 'empty', 'Rien de lu pour aujourd’hui. Elle arrive avec la lecture du planning d’une agence (favori 📥 Bilan de conduite).'));
   }else{
@@ -161,6 +170,18 @@ function slDessiner(){
       const fi = slFicheDe(r.eleve);
       l.appendChild(slEl('span', 'n', slEch(fi ? fi.eleve : r.eleve) + ' <small>· ' + slEch(slSiteNom(r.site)) + '</small>'));
       l.appendChild(slEl('small', '', e ? (e.fini ? '✅ fini' : (e.total ? e.vus + ' sur ' + e.total + ' vues' : 'commencé') + ' · revient seul') : '🆕 à installer la première fois'));
+      if(r.main){
+        l.setAttribute('data-main', '1');
+        l.appendChild(slEl('small', 'slMain', '➕ ajouté' + (r.par ? ' par ' + slEch(r.par) : '') + ' · pas sur Drivup'));
+        if(slPeut()){
+          const x = slBouton('✕', '', async () => {
+            if(!await confirmer('Retirer ' + r.eleve + ' de la théorie d’aujourd’hui ?', '📺 Salle des tablettes')) return;
+            try{ SL.d = await appelPrep({ action: 'salleResaRetirer', id: r.id }); slDessiner(); }catch(err){ showToast('Impossible : ' + err.message); }
+          });
+          x.title = 'Retirer (ajouté par erreur)';
+          l.appendChild(x);
+        }
+      }
       if((!e || !e.fini) && slPeut()){
         const libre = d.tablettes.filter(t => t.site === r.site && !t.seance);
         if(libre.length) l.appendChild(slBouton('▶ Installer', '', () => slFenetreInstaller(libre[0], fi ? fi.eleve : r.eleve)));
@@ -340,6 +361,73 @@ function slFenetreInstaller(t, nomDepart){
     }catch(e){ bG.disabled = false; bG.textContent = '▶ Lancer sur la ' + t.nom; showToast('Impossible : ' + e.message); }
   });
   setTimeout(() => { try{ (nomDepart ? bG : ie).focus(); }catch(e){} }, 50);
+}
+
+/* ============================================================
+   ➕ UN ÉLÈVE PRÉSENT, PAS RÉSERVÉ SUR DRIVUP — v1300
+   Il rejoint la théorie d'aujourd'hui : la tablette le propose, et sa
+   séance dure jusqu'à l'heure dite. Une relecture de Drivup ne l'efface
+   pas (le Worker garde les ajouts « à la main »).
+   ============================================================ */
+function slFenetreAjouterPresent(){
+  const fond = slEl('div', 'overlay show');
+  const m = slEl('div', 'modal');
+  m.style.cssText = 'max-width:min(480px,95vw);';
+  m.appendChild(slEl('h3', '', '➕ Un élève présent, pas réservé sur Drivup'));
+  m.appendChild(slEl('div', 'slAide', 'Il est là pour la salle sans avoir réservé : il rejoint la théorie d’aujourd’hui, et « ▶ Installer » le met sur une tablette.')).style.marginBottom = '12px';
+  m.appendChild(slEl('label', '', 'L’élève'));
+  const ie = slEl('input');
+  ie.type = 'text'; ie.setAttribute('list', 'listeEleves'); ie.autocomplete = 'off';
+  ie.placeholder = '🔎 Son nom';
+  ie.id = 'slPresentNom';
+  m.appendChild(ie);
+  const sites = ['saint-brieuc', 'loudeac'].filter(x => (SL.d.tablettes || []).some(t => t.site === x));
+  let site = sites[0] || 'saint-brieuc';
+  const zs = slEl('div', '');
+  const dessinerSites = () => {
+    zs.innerHTML = '';
+    zs.appendChild(slEl('label', '', '📍 Où'));
+    const rr = slEl('div', 'tdOnglets');
+    ['saint-brieuc', 'loudeac'].forEach(k => {
+      const b = slEl('button', 'btn tdOnglet' + (k === site ? ' on' : ''), slEch(slSiteNom(k)));
+      b.type = 'button'; b.dataset.site = k;
+      b.addEventListener('click', () => { site = k; dessinerSites(); });
+      rr.appendChild(b);
+    });
+    zs.appendChild(rr);
+  };
+  dessinerSites();
+  m.appendChild(zs);
+  const maintenant = new Date();
+  const fin = new Date(maintenant.getTime() + 60 * 60000);
+  const hhmm = d => ('0' + d.getHours()).slice(-2) + ':' + ('0' + (Math.floor(d.getMinutes() / 5) * 5)).slice(-2);
+  m.appendChild(slEl('label', '', '⏱️ Jusqu’à'));
+  const ifin = slEl('input');
+  ifin.type = 'time'; ifin.value = hhmm(fin); ifin.id = 'slPresentFin';
+  m.appendChild(ifin);
+  const msg = slEl('div', 'slAide', '');
+  m.appendChild(msg);
+  const r = slEl('div', 'btn-row');
+  const bA = slBouton('Annuler', 'btn-secondary', () => fermerFond(fond));
+  const bG = slBouton('➕ Ajouter', 'btn-primary', null);
+  r.appendChild(bA); r.appendChild(bG);
+  m.appendChild(r);
+  fond.appendChild(m);
+  fond.addEventListener('click', ev => { if(ev.target === fond) fermerFond(fond); });
+  document.body.appendChild(fond);
+  bG.addEventListener('click', async () => {
+    const nom = ie.value.trim();
+    const fi = slFicheDe(nom);
+    if(!fi && nom.split(/\s+/).length < 2){ msg.textContent = '⚠️ Son prénom ET son nom (ou choisis-le dans la liste).'; ie.focus(); return; }
+    bG.disabled = true; bG.textContent = '…';
+    try{
+      SL.d = await appelPrep({ action: 'salleResaAjouter', eleve: fi ? fi.eleve : nom, site: site, debut: hhmm(new Date()), fin: ifin.value });
+      fermerFond(fond);
+      showToast('➕ ' + (fi ? fi.eleve : nom) + ' rejoint la théorie d’aujourd’hui ✅');
+      slDessiner();
+    }catch(e){ bG.disabled = false; bG.textContent = '➕ Ajouter'; msg.textContent = '⚠️ ' + (e.message || e); }
+  });
+  setTimeout(() => { try{ ie.focus(); }catch(e){} }, 50);
 }
 
 /* ============================================================
