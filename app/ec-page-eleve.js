@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:07 — v1309 */
+/* Déployé le 30/10/2026 à 15:17 — v1311 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -4401,7 +4401,15 @@ function etatDuPermis(nom){
   /* ── 10 à 14 · L'EXAMEN BLANC. Les mots et le décompte viennent
      de resultatExamenBlanc : c'est la phrase que la carte du cours
      affiche déjà au moniteur. ── */
-  const quandEb = court(s.ebDate || a.ebDate || a.examBlancDate);
+  /* 🅱️ v1311 — le PLUS RÉCENT des deux : la fiche de suivi peut garder
+     l'examen blanc d'avant quand le dernier bilan en raconte un nouveau
+     (Hamidou Ali : « examen blanc du 29 août » sous un examen blanc du
+     30 octobre). */
+  const isoEb = v => { const t = String(v || '').trim(); if(!t) return '';
+    return /^\d{4}-\d{2}-\d{2}/.test(t) ? t.slice(0, 10) : ((typeof dateFrVersIso === 'function') ? (dateFrVersIso(t) || '') : ''); };
+  const ebs = [s.ebDate, a.ebDate, a.examBlancDate].filter(Boolean).map(v => ({ v: v, iso: isoEb(v) }));
+  ebs.sort((x, y) => String(y.iso).localeCompare(String(x.iso)));
+  const quandEb = court(ebs.length ? ebs[0].v : '');
 
   if(eb && eb.cle === 'pasleniveau'){
     /* 10 — et ça RESTE affiché jusqu'à ce que la conclusion change
