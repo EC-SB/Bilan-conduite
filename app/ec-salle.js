@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 20:09 — v1300 */
+/* Déployé le 30/10/2026 à 17:21 — v1315 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -551,6 +551,9 @@ async function ligneSalleFiche(nom, zone){
     if(s.length) c.appendChild(slEl('div', '', '<div style="color:var(--muted);">' + s.map(x => slJour(x.debut) + ' · ' + slHeure(x.debut) + '–' + slHeure(x.fin || x.finPrevue) +
       ' (' + slEch(x.tablette || '?') + ', ' + (x.par ? 'installé par ' + slEch(x.par) : 'revenu seul') + ')').join('<br>') + '</div>'));
     if(e && (e.ensuite || []).length) c.appendChild(slEl('div', '', '<div style="color:var(--muted);">Ses groupes s’ouvriront à la fin : ' + e.ensuite.map(g => slEch(slNomGroupe(g))).join(' · ') + '</div>'));
+    /* 📺 v1315 — chez lui, aucun groupe tant que la salle n'est pas finie,
+       même cochés ici (David : « tous les élèves », élèves d'avant compris) */
+    c.appendChild(slEl('div', '', '<div style="color:var(--muted);">🔒 Chez lui, ses groupes restent fermés jusqu’à la fin de la salle, même cochés dans son accès.</div>'));
     if(slPeut()){
       const b = slBouton('✅ Déjà vu en salle (avant l’appli) : ouvrir ses groupes', '', () => slDejaVu(nom, zone, c));
       b.style.marginTop = '8px';
