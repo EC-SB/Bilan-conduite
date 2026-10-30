@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 09:34 — v1302 */
+/* Déployé le 30/10/2026 à 13:37 — v1308 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2134,6 +2134,7 @@ function majTotalCepc(){
 
 /* Construit le formulaire du bilan manuel */
 async function ouvrirBilanManuel(){
+  const ouvertParReprise = ouvertureParReprise;  /* 👨‍✈️ v1308 */
   /* ⚠️ LE MÊME REFUS QUE LE BOUTON VERT — v1013. Celui-ci passait
      par un toast : il s'en va au bout de trois secondes, il ne dit
      pas QUEL champ manque, et il ne laisse rien derrière lui. Une
@@ -2285,6 +2286,8 @@ async function ouvrirBilanManuel(){
   cleNiveauCourante = prefixeExamenBlanc + 'niveau';
 
   dessinerChampsManuels(champs, zone, modele, dossier);
+  /* 👨‍✈️ v1308 — une fiche d'examen neuve : l'inspecteur de l'élève d'avant */
+  if(!ouvertParReprise && modeleCle === 'examen-officiel') setTimeout(() => { try{ reprendreInspecteurDuJour(); }catch(e){} }, 150);
   if(typeof majChampsSelonExamenBlanc === 'function') majChampsSelonExamenBlanc();
 
   /* Tant qu'aucun niveau n'est choisi, on ne demande rien qui en
@@ -4055,6 +4058,76 @@ const INSPECTEURS_BASE = [
 ];
 
 let inspecteursAjoutes = null;
+
+/* ============================================================
+   👨‍✈️ L'INSPECTEUR, REPRIS SUR LES ÉLÈVES SUIVANTS — v1308
+
+   David, le 30 octobre : « quand un moniteur enchaîne plusieurs élèves
+   en examen, il indique l'inspecteur sur le premier élève, et il faut
+   que ça reprenne le nom de l'inspecteur automatiquement sur les élèves
+   suivants ».
+
+   Le nom choisi est gardé pour la journée et ce moniteur (et lu aussi
+   dans les fiches d'examen gardées du jour). Une fiche d'examen
+   officiel qui s'ouvre ou se reprend avec « — à choisir — » le reçoit,
+   avec une ligne qui dit d'où il vient. Un nom déjà choisi ne bouge
+   jamais ; on le change d'un geste si ce n'est pas le même.
+   ============================================================ */
+const CLE_INSPECTEUR_JOUR = 'ec_inspecteur_du_jour';
+function jourDeLaFicheInsp(){
+  return ($('lessonDate') && $('lessonDate').value) || (typeof todayLocal === 'function' ? todayLocal() : '');
+}
+function moniteurDeLaFicheInsp(){
+  return ($('monitorName') && $('monitorName').value) || ((typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || '');
+}
+function memoriserInspecteurDuJour(nom){
+  try{
+    localStorage.setItem(CLE_INSPECTEUR_JOUR, JSON.stringify({ jour: jourDeLaFicheInsp(), moniteur: moniteurDeLaFicheInsp(),
+      nom: String(nom || ''), eleve: ($('studentName') && $('studentName').value) || '' }));
+  }catch(e){}
+}
+function inspecteurDuJour(){
+  const jour = jourDeLaFicheInsp(), mon = normaliserMot(moniteurDeLaFicheInsp());
+  const eleve = normaliserMot(($('studentName') && $('studentName').value) || '');
+  try{
+    const m = JSON.parse(localStorage.getItem(CLE_INSPECTEUR_JOUR) || 'null');
+    if(m && m.nom && m.jour === jour && (!m.moniteur || !mon || normaliserMot(m.moniteur) === mon)) return { nom: m.nom, eleve: m.eleve || '' };
+  }catch(e){}
+  /* Sinon, une autre fiche d'examen officiel gardée aujourd'hui */
+  const b = tousLesBrouillons().filter(x => x && x.modele === 'examen-officiel' && x.date === jour &&
+      normaliserMot(x.eleve || '') !== eleve && x.champs && String(x.champs.inspecteur || '').trim() &&
+      x.champs.inspecteur !== '__autre__' && (!x.moniteur || !mon || normaliserMot(x.moniteur) === mon))
+    .sort((a, c) => (c.ts || 0) - (a.ts || 0))[0];
+  return b ? { nom: String(b.champs.inspecteur).trim(), eleve: b.eleve || '' } : null;
+}
+function reprendreInspecteurDuJour(){
+  if(!$('modele') || $('modele').value !== 'examen-officiel') return false;
+  const sel = $(idChamp('inspecteur'));
+  if(!sel || sel.tagName !== 'SELECT' || sel.value) return false;
+  const r = inspecteurDuJour();
+  if(!r || !r.nom) return false;
+  if(normaliserMot(r.eleve) && normaliserMot(r.eleve) === normaliserMot(($('studentName') && $('studentName').value) || '')) return false;
+  if(![...sel.options].some(o => o.value === r.nom)){
+    const o = document.createElement('option');
+    o.value = r.nom; o.textContent = r.nom;
+    sel.insertBefore(o, sel.lastElementChild);
+  }
+  sel.value = r.nom;
+  sel.dataset.repris = r.nom;
+  if(typeof champsManuels !== 'undefined') champsManuels.inspecteur = r.nom;
+  const bloc = sel.parentNode;
+  let n = bloc.querySelector('.inspRepris');
+  if(!n){
+    n = document.createElement('div');
+    n.className = 'inspRepris';
+    n.style.cssText = 'font-size:12px;color:var(--accent-text);margin-top:5px;line-height:1.4;';
+    bloc.appendChild(n);
+  }
+  n.textContent = '↩️ Repris de la fiche ' + (r.eleve ? 'de ' + r.eleve : 'd’avant') + ' — change-le si ce n’est pas le même inspecteur.';
+  sel.dispatchEvent(new Event('input', { bubbles: true }));
+  try{ if(typeof sauvegarderManuel === 'function') sauvegarderManuel(); }catch(e){}
+  return true;
+}
 
 function inspecteursConnus(){
   const sus = inspecteursAjoutes || [];
@@ -6449,6 +6522,8 @@ function reprendreBrouillon(b){
       afficherSaisieDuJour(b.quest, 'preparationManuel');
     }
     if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
+    /* 👨‍✈️ v1308 — l'inspecteur choisi sur un élève précédent du jour */
+    setTimeout(() => { try{ reprendreInspecteurDuJour(); }catch(e){} }, 60);
     showToast(n ? 'Bilan retrouvé — ' + n + ' réponse(s) ✅'
                 : 'Bilan rouvert ✅');
   }).catch(() => {});
@@ -8053,6 +8128,13 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         o.textContent = propre;
         sel.insertBefore(o, sel.lastElementChild);
         sel.value = propre;
+        memoriserInspecteurDuJour(propre);
+      });
+      /* 👨‍✈️ v1308 — le nom choisi sert aux élèves suivants du même jour */
+      sel.addEventListener('change', () => {
+        if(sel.value && sel.value !== '__autre__') memoriserInspecteurDuJour(sel.value);
+        const n = bloc.querySelector('.inspRepris');
+        if(n && sel.dataset.repris !== sel.value) n.remove();
       });
       bloc.appendChild(sel);
 
