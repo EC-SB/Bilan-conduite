@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 10:52 — v1305 */
+/* Déployé le 30/10/2026 à 13:07 — v1307 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -2486,6 +2486,55 @@ function galerieCapturesAcopier(eleve){
 }
 
 
+/* 📋 v1307 — UN SEUL écouteur pour toute la page, qui cherche la
+   galerie VISIBLE au moment du collage (voir blocCaptures). */
+function zoneVisibleCepc(z){
+  if(!z || !z.isConnected || !z.getClientRects().length) return false;
+  /* une fenêtre ouverte par-dessus : seule une galerie qui est DEDANS compte */
+  const fenetres = [...document.querySelectorAll('.overlay.show')].filter(o => o.getClientRects().length);
+  const dessus = fenetres[fenetres.length - 1] || null;
+  if(dessus) return dessus.contains(z);
+  return true;
+}
+function zonesCollerCepcVisibles(){
+  return [...document.querySelectorAll('.zoneCollerCepc')].filter(zoneVisibleCepc);
+}
+function surCollageCepc(ev){
+  const items = (ev.clipboardData && ev.clipboardData.items) || [];
+  const images = [];
+  for(let i = 0; i < items.length; i++){
+    if(items[i].type && items[i].type.indexOf('image') === 0){
+      const f = items[i].getAsFile();
+      if(f) images.push(f);
+    }
+  }
+  if(!images.length) return;
+  const cible = ev.target;
+  /* La zone elle-même a son propre écouteur */
+  if(cible && cible.closest && cible.closest('.zoneCollerCepc')) return;
+  /* On écrit quelque part (messagerie, note, autre zone) : ce collage
+     est pour ce champ, pas pour un CEPC */
+  if(cible && cible.closest && cible.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+  const zones = zonesCollerCepcVisibles();
+  if(!zones.length) return;
+  if(zones.length > 1){
+    if(typeof showToast === 'function') showToast('📋 Plusieurs élèves à l’écran : clique d’abord « Colle ta capture ici » de l’élève, puis colle.');
+    return;
+  }
+  const z = zones[0];
+  if(typeof z._ajouter !== 'function') return;
+  ev.preventDefault();
+  z.style.borderColor = 'var(--orange)';
+  Promise.resolve(z._ajouter(images)).finally(() => { z.style.borderColor = 'var(--line)'; });
+}
+function ecouterCollageCepc(){
+  /* les anciens écouteurs (avant v1307), s'il en reste un */
+  if(window.__ecCollage){ document.removeEventListener('paste', window.__ecCollage); window.__ecCollage = null; }
+  if(window.__ecCollageCepc) return;
+  window.__ecCollageCepc = surCollageCepc;
+  document.addEventListener('paste', surCollageCepc);
+}
+
 function blocCaptures(eleve, dateExamen){
   const d = document.createElement('div');
   d.style.cssText = 'margin-bottom:12px;';
@@ -2584,6 +2633,7 @@ function blocCaptures(eleve, dateExamen){
     if(ok){
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '✅ ' + ok + ' capture(s) ajoutée(s)';
+      if(typeof showToast === 'function') showToast('📷 ' + ok + ' capture' + (ok > 1 ? 's' : '') + ' ajoutée' + (ok > 1 ? 's' : '') + ' au CEPC de ' + eleve);
       dessiner();
     }
   }
@@ -2621,39 +2671,27 @@ function blocCaptures(eleve, dateExamen){
     zColler.style.borderColor = 'var(--line)';
   });
 
-  /* Coller n'importe où dans la page, même sans avoir cliqué la
-     zone.
+  /* 📋 COLLER N'IMPORTE OÙ — v1307.
 
-     Quand la zone a déjà le curseur, son propre écouteur fait le
-     travail : renvoyer l'événement le comptait deux fois, et
-     l'image arrivait en double. */
-  const surCollage = async ev => {
-    if(document.activeElement === zColler) return;
-    if(!document.body.contains(zColler)) return;
+     David, le 30 octobre : « dans un post-permis j'ai 30 captures du
+     CEPC […] même les captures d'un permis obtenu que j'ai mis ce
+     matin ! J'ai même des captures d'écran de la messagerie ».
 
-    const items = (ev.clipboardData && ev.clipboardData.items) || [];
-    const images = [];
-    for(let i = 0; i < items.length; i++){
-      if(items[i].type && items[i].type.indexOf('image') === 0){
-        const f = items[i].getAsFile();
-        if(f) images.push(f);
-      }
-    }
-    if(!images.length) return;
+     L'écouteur posé sur toute la page restait actif tant que la
+     galerie était dans la page — même cachée : la fiche du rendez-vous
+     post-permis reste dans l'écran une fois refermée, la liste « Permis
+     obtenu » en dessine une par élève. Une image collée dans la
+     messagerie, ou pour un autre élève, partait dans le CEPC du dernier
+     élève ouvert.
 
-    ev.preventDefault();
-    zColler.style.borderColor = 'var(--orange)';
-    await ajouterImages(images);
-    zColler.style.borderColor = 'var(--line)';
-  };
-  /* Un seul écouteur à la fois : sans cela, il s'en ajoutait un
-     à chaque ouverture de la fenêtre, et la troisième image
-     arrivait en trois exemplaires. */
-  if(window.__ecCollage){
-    document.removeEventListener('paste', window.__ecCollage);
-  }
-  window.__ecCollage = surCollage;
-  document.addEventListener('paste', surCollage);
+     Son choix : on colle hors de la zone seulement quand UNE seule
+     galerie est à l'écran (visible, dans la fenêtre du dessus) et qu'on
+     n'écrit pas dans un champ ; sinon on dit de cliquer la zone de
+     l'élève. Et on dit à qui la capture est allée. */
+  zColler._ajouter = ajouterImages;
+  zColler._eleve = eleve;
+  zColler.classList.add('zoneCollerCepc');
+  ecouterCollageCepc();
 
   /* ---- Glisser-déposer ---- */
   ['dragenter', 'dragover'].forEach(n => {
