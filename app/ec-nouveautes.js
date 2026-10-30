@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 09:11 — v1301 */
+/* Déployé le 30/10/2026 à 09:34 — v1302 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1302,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '🎓 Examens enchaînés : la bonne fiche se rouvre, et ⚠️ retire bien le point',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'La fiche d’examen, pas la dictée',
+        texte: 'Après « 📤 Envoyer la partie avant examen », l’élève choisi dans « 👤 Enchaîner » (un autre, ou un ✅ déjà envoyé) rouvre SA fiche d’examen officiel, avec ce qui y était rempli.' },
+      { emoji: '⚠️',
+        titre: 'Le point se retire sur une fiche reprise',
+        texte: 'Une fiche gardée puis reprise garde d’où vient chaque note du CEPC : ⚠️ + « ➖ Oui, enlever un point » retire bien le point. Une note mise à la main reste la tienne.' }
+    ]
+  },
   {
     version: 1301,
     date: 'Vendredi 30 octobre 2026',
