@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 10:52 — v1305 */
+/* Déployé le 30/10/2026 à 12:23 — v1306 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1306,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '🔔 Rappels Drivup qui se remplissent seuls · ↩️ appels liés à leur rappel',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Jour de permis',
+        texte: 'Les élèves de la session viennent à l’heure du premier, type « rappel permis voiture », avec la pause de la préparation permis. Mes prochains cours prend l’heure réelle de conduite (9h10, 10h05…).' },
+      { emoji: '🔗',
+        titre: 'Cours enchaînés, moto, simulateur',
+        texte: 'Deux cours qui se suivent chez le même moniteur : un seul rappel. Moto : type de la famille Moto, sans voiture. Simulateur : sans voiture.' },
+      { emoji: '☑️',
+        titre: 'Les mentions cochées toutes seules',
+        texte: '1re leçon : carte SD + premier cours BV/BEA. Veille d’examen : carte d’identité. Après le permis : le moniteur peut avoir du retard.' },
+      { emoji: '🚗',
+        titre: 'Voitures attitrées',
+        texte: 'Sans numéro dans Drivup, la voiture du moniteur : A3 pour un élève BV, Q3 pour un BEA.' },
+      { emoji: '↩️',
+        titre: 'Les appels liés',
+        texte: 'Dans 📞 Suivi des appels, l’appel reçu montre « Rappelé à 11:38 par David », et le rappel « Rappel de l’appel de 10:55 ».' }
+    ]
+  },
   {
     version: 1305,
     date: 'Vendredi 30 octobre 2026',
