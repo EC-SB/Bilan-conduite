@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 30/10/2026 à 12:23 — v1306 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1794,6 +1794,15 @@ async function peindreCreneauxRappel(){
   /* Un autre jour ou un autre moniteur a pu être choisi pendant la
      lecture : on ne peint pas une journée qui n'est plus la bonne. */
   if(ticket !== peintureCreneaux) return;
+  /* 🔔 v1306 — la journée entière (enchaînements, permis) et le
+     déroulé du permis de ce moniteur, avant de dessiner */
+  coursDrivupJourRappel = ((dv && dv.cours) || []).map(c => Object.assign({ jour: dateDuRappel(jour) }, c));
+  if(coursDrivupJourRappel.some(c => normaliserMot(c.moniteur || '') === normaliserMot(moniteur) && estBlocExamenDr(c))){
+    try{ await planPermisDuJourRappel(dateDuRappel(jour), moniteur); }catch(e){}
+    if(ticket !== peintureCreneaux) return;
+  }else{
+    planPermisRappel = { cle: '', plan: null, enCours: null };
+  }
   dessinerCreneauxRappel(zone, lignes || [], (dv && dv.cours) || []);
 }
 
@@ -1812,6 +1821,14 @@ async function peindreCreneauxRappel(){
 let creneauxDrivupRappel = {};
 
 function coursDrivupEnvoye(c, lignes){
+  /* 🔔 v1306 — prévenu d'ici, ou un élève du permis prévenu (son cours
+     est posé à l'heure réelle de conduite, pas à celle de Drivup) */
+  if(c && envoyesDrivupRappel[c.id || (c.eleve + '|' + c.debut)]) return true;
+  if(c && typeof permisDuCoursDr === 'function' && permisDuCoursDr(c)){
+    const nomP = normaliserMot(c.eleve || '');
+    return (lignes || []).some(l => normaliserMot(l.eleveComplet || '') === nomP ||
+      (l.eleve && normaliserMot(l.eleve) === nomP));
+  }
   const h = heureEnHHMM(c.debut);
   const nom = normaliserMot(c.eleve || '');
   const prenom = nom.split(' ')[0];
@@ -1827,8 +1844,17 @@ function remplirDepuisDrivupRappel(h){
   const moniteur = normaliserMot($('rapMoniteur') ? $('rapMoniteur').value : '');
   const liste = (creneauxDrivupRappel[h] || []).filter(c => normaliserMot(c.moniteur || '') === moniteur);
   const lignes = (planningRappels && planningRappels.lignes) || [];
-  const c = liste.find(x => !coursDrivupEnvoye(x, lignes));
+  /* 🔔 v1306 — ni le bloc PERMIS, ni la suite d'un cours déjà prévenu */
+  const aPrevenir = liste.filter(x => !sansRappelDr(x));
+  if(!aPrevenir.length && liste.length){
+    const e = etatDrivupRappel(liste[0]);
+    showToast((e.texte ? e.texte + ' ' : '') + (e.et || '— pas de rappel'));
+    coursDrivupChoisi = null;
+    return;
+  }
+  const c = aPrevenir.find(x => !coursDrivupEnvoye(x, lignes));
   if(!c) return;
+  coursDrivupChoisi = c;
   const el = $('rappelEleve');
   if(el){
     el.value = c.eleve;
@@ -1840,8 +1866,11 @@ function remplirDepuisDrivupRappel(h){
   typeDepuisDrivupRappel(c, el ? el.value : c.eleve);
   /* 🚗 v1181 — la voiture, d'après les numéros du haut du planning.
      Pas pour le simulateur : on n'y monte dans aucune voiture. */
-  if(!/simulateur/.test(normaliserMot(c.libelle || ''))) voitureDepuisDrivupRappel(c, el ? el.value : c.eleve);
+  if(!/simulateur|\bmoto\b/.test(normaliserMot(c.libelle || ''))) voitureDepuisDrivupRappel(c, el ? el.value : c.eleve);
+  /* 🔔 v1306 — les règles de David (permis, enchaînement, moto, cases…) */
+  appliquerReglesRappel(c, el ? el.value : c.eleve);
 }
+let coursDrivupChoisi = null;
 
 /* ============================================================
    🚗 LA VOITURE ET LE TYPE DE SÉANCE, REPRIS DE DRIVUP — v1181
@@ -1913,9 +1942,16 @@ async function voitureDepuisDrivupRappel(c, eleve){
   if(!c || !c.jour) return;
   const dv = (typeof drivupDuJourRappels === 'function') ? await drivupDuJourRappels(c.jour) : null;
   const voitures = (dv && dv.voitures) || [];
-  if(!voitures.length) return;
   const flotte = await chargerFlotteRappel();
-  const trouve = voitureDuCoursDrivupRappel(c, voitures, flotte, boiteDeLEleveRappel(eleve));
+  const boite = boiteDeLEleveRappel(eleve);
+  let trouve = voitures.length ? voitureDuCoursDrivupRappel(c, voitures, flotte, boite) : null;
+  /* 🚗 v1306 — Drivup ne dit rien : la voiture attitrée du moniteur
+     (David : Chrystel A3 2 / Q3 10, Jean Jacques A3 1 / Q3 7…) */
+  if(!trouve){
+    const n = (typeof voitureAttitreeRappel === 'function') ? voitureAttitreeRappel(c.moniteur, boite) : null;
+    const veh = (n && typeof vehiculeDuNumeroDrivup === 'function') ? vehiculeDuNumeroDrivup(flotte, n) : null;
+    if(veh) trouve = { v: { numero: n }, veh: veh };
+  }
   if(!trouve) return;
   const sel = $('rapVehicule');
   if(!sel) return;
@@ -1991,11 +2027,300 @@ function typeDepuisDrivupRappel(c, eleve){
   sel.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+/* ============================================================
+   🔔 LES RÈGLES DE DAVID — v1306
+
+   Le 30 octobre, schéma validé, avec ses réponses :
+   · 🏍️ un cours moto → un type de la famille Moto ;
+   · 🔗 même élève, même moniteur, un cours qui commence quand le
+     précédent finit → UN rappel, à l'heure du premier ;
+   · 🎓 jour de permis : les élèves de la session viennent à l'heure du
+     premier, type « rappel permis voiture », avec la pause de la
+     préparation permis ; le bloc PERMIS → pas de rappel ; dans « Mes
+     prochains cours », l'heure RÉELLE de conduite (55 min, 9h10, 10h05…) ;
+   · 🚙 1re leçon → carte SD + premier cours BV/BEA ; 🆔 leçon de veille →
+     carte d'identité ; ⏰ les cours de la demi-journée qui suit le
+     permis → « le moniteur peut avoir du retard » ;
+   · 🖥️ simulateur (et moto) → véhicule « aucun » ;
+   · 🚗 sans numéro Drivup, la voiture attitrée du moniteur.
+   Tout reste modifiable avant d'envoyer.
+   ============================================================ */
+/* « A3 2 » et « Q3 10 » : les N° Drivup de la Flotte (A3 = boîte
+   manuelle, Q3 = automatique) */
+const VOITURES_ATTITREES = {
+  'chrystel':     { bvm: 2, bva: 10 },
+  'jean jacques': { bvm: 1, bva: 7 },
+  'hery':         { bvm: 3, bva: 6 },
+  'francois':     { bvm: 4, bva: 5 }
+};
+function voitureAttitreeRappel(moniteur, boite){
+  const n = normaliserMot(moniteur || '');
+  const v = VOITURES_ATTITREES[n] || VOITURES_ATTITREES[n.split(' ')[0]] || null;
+  return (v && boite) ? (v[boite] || null) : null;
+}
+let coursDrivupJourRappel = [];          /* tous les cours Drivup du jour affiché */
+let envoyesDrivupRappel = {};            /* les cours prévenus d'ici, cette séance */
+let heureCoursRappel = null;             /* { eleve, heure } : l'heure du cours ≠ l'heure du rappel */
+let suitesARappel = null;                /* les cours enchaînés à créer avec celui-ci */
+function minDr(h){ const m = String(h || '').match(/^(\d{1,2})[:h](\d{2})/); return m ? +m[1] * 60 + +m[2] : null; }
+function hhmmDr(m){ return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+function cleEleveDr(n){ return (typeof cleNomDrivup === 'function') ? cleNomDrivup(n) : normaliserMot(n || '').split(' ').sort().join(' '); }
+function libDr(c){ return normaliserMot(String((c && c.libelle) || '')); }
+function estBlocExamenDr(c){
+  if(!c) return false;
+  if(Number(c.examen || 0)) return true;
+  return !String(c.eleve || '').trim() && /\bpermis\b|\bexamen\b/.test(libDr(c)) && !/blanc/.test(libDr(c));
+}
+function estSimuDr(c){ return /simulateur/.test(libDr(c)); }
+function estMotoDr(c){ return /\bmoto\b/.test(libDr(c)); }
+/* Les cours de CE moniteur, ce jour-là, dans l'ordre */
+function coursDuMoniteurDr(moniteur){
+  const m = normaliserMot(moniteur || '');
+  return (coursDrivupJourRappel || []).filter(c => normaliserMot(c.moniteur || '') === m)
+    .sort((a, b) => String(a.debut).localeCompare(String(b.debut)));
+}
+/* 🔗 Le cours dont celui-ci est la suite (même élève, même moniteur,
+   il commence quand l'autre finit — 5 minutes de jeu) : le premier de
+   la chaîne, ou null */
+function debutDeChaineDr(c){
+  if(!c || !String(c.eleve || '').trim()) return null;
+  const siens = coursDuMoniteurDr(c.moniteur).filter(x => !estBlocExamenDr(x) && cleEleveDr(x.eleve) === cleEleveDr(c.eleve));
+  let cur = c, premier = null;
+  for(let n = 0; n < 6; n++){
+    const d = minDr(cur.debut);
+    const avant = siens.find(x => x !== cur && minDr(x.fin) !== null && d !== null && d - minDr(x.fin) >= 0 && d - minDr(x.fin) <= 5);
+    if(!avant) break;
+    premier = avant; cur = avant;
+  }
+  return premier;
+}
+/* Les cours qui suivent celui-ci sans coupure (même élève, même moniteur) */
+function suitesDeChaineDr(c){
+  const out = [];
+  if(!c || !String(c.eleve || '').trim()) return out;
+  const siens = coursDuMoniteurDr(c.moniteur).filter(x => !estBlocExamenDr(x) && cleEleveDr(x.eleve) === cleEleveDr(c.eleve));
+  let cur = c;
+  for(let n = 0; n < 6; n++){
+    const f = minDr(cur.fin);
+    const apres = siens.find(x => x !== cur && out.indexOf(x) === -1 && f !== null && minDr(x.debut) - f >= 0 && minDr(x.debut) - f <= 5);
+    if(!apres) break;
+    out.push(apres); cur = apres;
+  }
+  return out;
+}
+/* ⏰ Le permis de ce moniteur qui précède ce cours dans la même
+   demi-journée (avant ou après 13h) */
+function apresUnPermisDr(c){
+  const d = minDr(c.debut);
+  if(d === null) return false;
+  const aprem = d >= 13 * 60;
+  return coursDuMoniteurDr(c.moniteur).some(x => estBlocExamenDr(x) && minDr(x.fin) !== null &&
+    minDr(x.fin) <= d && ((minDr(x.debut) >= 13 * 60) === aprem));
+}
+
+/* 🎓 Le déroulé du permis de ce moniteur ce jour-là — celui de la
+   préparation permis : les conduites de 55 min enchaînées jusqu'au
+   premier examen, la pause là où elle tombe. Les heures tapées à la
+   main dans la préparation passent devant ; celles de Drivup, non
+   (David : « les cours d'avant examen ne sont que de 55 minutes »). */
+let planPermisRappel = { cle: '', plan: null, enCours: null };
+async function planPermisDuJourRappel(jourIso, moniteur){
+  const cle = jourIso + '|' + normaliserMot(moniteur || '');
+  if(planPermisRappel.cle === cle && planPermisRappel.plan !== undefined && !planPermisRappel.enCours) return planPermisRappel.plan;
+  if(planPermisRappel.cle === cle && planPermisRappel.enCours) return planPermisRappel.enCours;
+  planPermisRappel = { cle: cle, plan: undefined, enCours: null };
+  planPermisRappel.enCours = (async () => {
+    let plan = null;
+    try{
+      if(typeof planDuGroupe !== 'function' || typeof nouveauGroupe !== 'function') return null;
+      if((typeof sessionsPermis === 'undefined' || !sessionsPermis || !sessionsPermis.length) && typeof chargerSessionsPermis === 'function'){
+        try{ await chargerSessionsPermis(); }catch(e){}
+      }
+      const sess = ((typeof sessionsPermis !== 'undefined' && sessionsPermis) || [])
+        .filter(x => x && x.date && ((typeof dateFrVersIso === 'function' ? dateFrVersIso(x.date) : x.date) === jourIso || x.date === jourIso));
+      const siens = coursDuMoniteurDr(moniteur);
+      const clesSiens = siens.map(c => cleEleveDr(c.eleve));
+      const laSession = sess.find(x => normaliserMot(x.moniteur || '') === normaliserMot(moniteur || '')) ||
+        sess.find(x => (typeof elevesDeLaSession === 'function' ? elevesDeLaSession(x) : []).some(n => clesSiens.indexOf(cleEleveDr(n)) !== -1));
+      if(!laSession) return null;
+      const noms = (typeof elevesDeLaSession === 'function') ? elevesDeLaSession(laSession) : [];
+      if(!noms.length) return null;
+      const lien = (typeof liensGroupesPermis !== 'undefined' && liensGroupesPermis && liensGroupesPermis[laSession.id]) || null;
+      const reglages = (lien && lien.reglages) || null;
+      const g = Object.assign(nouveauGroupe(''), reglages || {},
+        { heure: (typeof heureExamenDe === 'function' ? heureExamenDe(laSession.heureDebut) : '') || '13h15' });
+      g.eleves = noms.map(n => ({ nom: n }));
+      /* La pause, sans réglage gardé : là où Drivup laisse un trou entre
+         deux élèves du permis (le 9 novembre : après le 3e) */
+      if(!reglages){
+        const ses = noms.map(n => siens.find(c => cleEleveDr(c.eleve) === cleEleveDr(n) && !estBlocExamenDr(c))).filter(Boolean)
+          .sort((a, b) => String(a.debut).localeCompare(String(b.debut)));
+        let k = 0;
+        for(let i = 1; i < ses.length; i++){ if(minDr(ses[i].debut) - minDr(ses[i - 1].fin) >= 30){ k = i; break; } }
+        g.avantPause = k;
+        if(!k) g.pauseDuree = 0;
+      }
+      g.avantPause = Math.max(0, Math.min(Number(g.avantPause) || 0, noms.length - 1));
+      try{
+        const h = await appelPrep({ action: 'permisHeuresLire', jour: jourIso });
+        const x = ((h && h.heures) || []).find(y => y.session === laSession.id);
+        g.main = (x && x.main) || null;
+      }catch(e){ g.main = null; }
+      g.coursDrivup = [];
+      const p = planDuGroupe(g);
+      if(!p) return null;
+      const conduites = p.creneaux.map(cr => minDr(String(cr.conduiteDe).replace('h', ':')));
+      const premier = Math.min.apply(null, conduites.filter(x => x !== null));
+      const parEleve = {};
+      noms.forEach((n, i) => { if(conduites[i] !== null) parEleve[cleEleveDr(n)] = hhmmDr(conduites[i]); });
+      plan = { session: laSession.id, heureRappel: hhmmDr(premier), parEleve: parEleve,
+               pause: p.pauseDe ? '🥙 PAUSE ' + String(p.pauseDe).toUpperCase() + '-' + String(p.pauseA).toUpperCase() +
+                                  " : dépôt et reprise à l'auto-école, possibilité de manger sur place 🥙" : '' };
+    }catch(e){ console.warn('Permis du jour (rappels) :', e); plan = null; }
+    planPermisRappel.plan = plan; planPermisRappel.enCours = null;
+    return plan;
+  })();
+  return planPermisRappel.enCours;
+}
+/* Ce cours est-il celui d'un élève du permis ? (synchrone, plan déjà lu) */
+function permisDuCoursDr(c){
+  const p = planPermisRappel.plan;
+  if(!p || !c || !String(c.eleve || '').trim() || estBlocExamenDr(c)) return null;
+  const h = p.parEleve[cleEleveDr(c.eleve)];
+  return h ? { heureRappel: p.heureRappel, heureCours: h, pause: p.pause } : null;
+}
+/* Ce que le créneau dit de lui-même : 'examen' (pas de rappel),
+   'suite' (pas de rappel), 'permis', ou '' */
+function etatDrivupRappel(c){
+  if(estBlocExamenDr(c)) return { cle: 'examen', texte: '🎓 ' + (String(c.libelle || '').trim() || 'Permis'), et: '— pas de rappel' };
+  const d = debutDeChaineDr(c);
+  if(d) return { cle: 'suite', et: '🔗 suite de ' + heureEnHHMM(d.debut).replace(':', 'h') + ' — pas de rappel' };
+  const p = permisDuCoursDr(c);
+  if(p) return { cle: 'permis', texte: c.eleve + ' · 🎓 permis', et: 'rappel à ' + p.heureRappel.replace(':', 'h') };
+  return { cle: '' };
+}
+function titrePermisRappel(p){
+  return 'rappel ' + p.heureRappel.replace(':', 'h') + ' · conduite ' + p.heureCours.replace(':', 'h');
+}
+function sansRappelDr(c){ const e = etatDrivupRappel(c); return e.cle === 'examen' || e.cle === 'suite'; }
+
+/* Le type d'un genre donné, d'après les titres de David */
+function choisirTypeRappelDr(filtre, score){
+  const sel = $('rapType');
+  if(!sel) return false;
+  const tous = typesDisponibles();
+  const opts = [...sel.options].filter(o => o.value && filtre(o, tous.find(t => t.cle === o.value) || {}));
+  if(!opts.length) return false;
+  let mieux = opts[0], haut = score ? score(mieux) : 0;
+  opts.forEach(o => { const n = score ? score(o) : 0; if(n > haut){ haut = n; mieux = o; } });
+  if(sel.value !== mieux.value){ sel.value = mieux.value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+  return true;
+}
+function cocherOptionRappel(cle){
+  const cb = document.querySelector('.optionRappel[value="' + cle + '"]');
+  if(cb && !cb.checked){ cb.checked = true; reglesPoseesRappel.cases.push(cle); cb.dispatchEvent(new Event('change', { bubbles: true })); }
+}
+/* Ce que les règles ont posé d'elles-mêmes pour le cours d'avant —
+   repris quand on touche un autre créneau, sans toucher à ce qui a été
+   coché ou tapé à la main (la carte SD de Noé ne suit pas Zoé). */
+let reglesPoseesRappel = { cases: [], pause: '', type: '' };
+function defaireReglesRappel(){
+  const r = reglesPoseesRappel;
+  reglesPoseesRappel = { cases: [], pause: '', type: '' };
+  ticketReglesRappel++;
+  r.cases.forEach(cle => {
+    const cb = document.querySelector('.optionRappel[value="' + cle + '"]');
+    if(cb && cb.checked){ cb.checked = false; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+  const lib = $('rapLibre');
+  if(r.pause && lib && lib.value.indexOf(r.pause) !== -1){
+    lib.value = lib.value.replace('\n' + r.pause, '').replace(r.pause, '').trim();
+    lib.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  const sel = $('rapType');
+  if(r.type && sel && sel.value === r.type && typeof typeNeutreParDefaut === 'function'){
+    sel.value = typeNeutreParDefaut();
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+function vehiculeRappel(nom){
+  const sel = $('rapVehicule');
+  if(!sel) return;
+  const o = [...sel.options].find(x => x.value === nom);
+  if(!o || o.disabled || sel.value === nom) return;
+  sel.value = nom;
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
+}
+/* La 1re leçon en voiture : aucune leçon au dossier, aucun cours
+   préparé avant, et pas un élève venu d'une autre auto-école */
+async function estPremiereLeconDr(eleve, jourIso){
+  try{
+    if(typeof vientDuneAutreAE === 'function' && vientDuneAutreAE(eleve)) return false;
+    if(typeof preparationPrecedenteDe === 'function' && preparationPrecedenteDe(eleve, jourIso)) return false;
+    const d = await Promise.race([ chargerDossierEleve(eleve), new Promise(r => setTimeout(() => r(null), 6000)) ]);
+    return !!d && d.lecons === 0;
+  }catch(e){ return false; }
+}
+function estLaVeilleDr(eleve, jourIso){
+  try{
+    const exam = (typeof dateExamenVeille === 'function') ? dateExamenVeille(eleve) : '';
+    if(!exam) return false;
+    return (typeof estLaLeconDeVeille === 'function') ? estLaLeconDeVeille(eleve, jourIso, exam)
+         : (typeof cEstLaVeilleDeLExamen === 'function' ? cEstLaVeilleDeLExamen(jourIso, exam) : false);
+  }catch(e){ return false; }
+}
+
+/* Après le remplissage d'un créneau Drivup : les règles */
+async function appliquerReglesRappel(c, eleve){
+  heureCoursRappel = null;
+  suitesARappel = null;
+  if(!c) return;
+  const ticket = ++ticketReglesRappel;
+  const p = permisDuCoursDr(c);
+  if(p){
+    if(choisirTypeRappelDr((o, t) => { const n = normaliserMot(titreAfficheRappel(o.textContent)); return /\bpermis\b/.test(n) && !/blanc|post|passerelle/.test(n) && t.famille !== 'moto'; },
+      o => /voiture/.test(normaliserMot(o.textContent)) ? 2 : 0)) reglesPoseesRappel.type = $('rapType').value;
+    if($('rapHeure')) $('rapHeure').value = p.heureRappel;
+    if($('rapHeureChoix')){ const ex = [...$('rapHeureChoix').options].some(o => o.value === p.heureRappel); $('rapHeureChoix').value = ex ? p.heureRappel : 'autre'; if($('rapHeure')) $('rapHeure').value = p.heureRappel; }
+    if(p.pause && $('rapLibre') && $('rapLibre').value.indexOf('PAUSE') === -1){
+      $('rapLibre').value = ($('rapLibre').value ? $('rapLibre').value + '\n' : '') + p.pause;
+      reglesPoseesRappel.pause = p.pause;
+      $('rapLibre').dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if(p.heureCours !== p.heureRappel) heureCoursRappel = { eleve: normaliserMot(eleve || c.eleve), heure: p.heureCours };
+    const tt = $('rapCoursTitre');
+    if(tt && tt.querySelector('em')) tt.querySelector('em').textContent = titrePermisRappel(p);
+  }else if(estMotoDr(c)){
+    const mots = libDr(c).split(' ').filter(m => m.length > 3 && m !== 'moto');
+    if(choisirTypeRappelDr((o, t) => t.famille === 'moto' || /\bmoto\b/.test(normaliserMot(o.textContent)),
+      o => { const n = normaliserMot(titreAfficheRappel(o.textContent)); return mots.filter(m => n.indexOf(m) !== -1).length; })) reglesPoseesRappel.type = $('rapType').value;
+  }
+  if(estSimuDr(c) || estMotoDr(c)) vehiculeRappel('');
+  if(apresUnPermisDr(c)) cocherOptionRappel('retard');
+  const suites = suitesDeChaineDr(c);
+  if(suites.length) suitesARappel = suites;
+  const jour = c.jour || '';
+  const voiture = !estSimuDr(c) && !estMotoDr(c) && !estBlocExamenDr(c) && !p;
+  if(voiture && estLaVeilleDr(eleve || c.eleve, jour)) cocherOptionRappel('ci');
+  if(voiture){
+    const premiere = await estPremiereLeconDr(eleve || c.eleve, jour);
+    if(ticket !== ticketReglesRappel) return;
+    if(premiere){
+      cocherOptionRappel('sd');
+      const b = boiteDeLEleveRappel(eleve || c.eleve);
+      if(b === 'bvm') cocherOptionRappel('1er-bv');
+      else if(b === 'bva') cocherOptionRappel('1er-bea');
+    }
+  }
+  apercuRappel();
+}
+let ticketReglesRappel = 0;
+
 /* Après un envoi : le prochain cours Drivup encore à prévenir */
 function avancerAuCoursDrivupRappel(hEnvoyee){
   const lignes = (planningRappels && planningRappels.lignes) || [];
   const heures = Object.keys(creneauxDrivupRappel).sort();
-  const reste = h => (creneauxDrivupRappel[h] || []).some(c => !coursDrivupEnvoye(c, lignes));
+  const reste = h => (creneauxDrivupRappel[h] || []).some(c => !sansRappelDr(c) && !coursDrivupEnvoye(c, lignes));
   const suivante = heures.find(h => h > (hEnvoyee || '') && reste(h)) || heures.find(reste);
   if(suivante) choisirCreneauRappel(suivante);
   return !!suivante;
@@ -2003,7 +2328,10 @@ function avancerAuCoursDrivupRappel(hEnvoyee){
 
 function dessinerCreneauxRappel(zone, lignes, drivup){
   const moniteur = normaliserMot($('rapMoniteur') ? $('rapMoniteur').value : '');
-  const choisie = heureEnHHMM($('rapHeure') ? $('rapHeure').value : '');
+  /* 🔔 v1306 — le créneau du cours choisi reste allumé, même quand le
+     rappel donne une autre heure (le permis : 9h15 → « viens à 8h15 ») */
+  const choisie = (coursDrivupChoisi && heureEnHHMM(coursDrivupChoisi.debut)) ||
+                  heureEnHHMM($('rapHeure') ? $('rapHeure').value : '');
 
   /* 📥 v1166 — les cours Drivup de CE moniteur, par heure.
      ⚠️ Le premier dessin, avant la lecture, n'en apporte pas
@@ -2042,14 +2370,20 @@ function dessinerCreneauxRappel(zone, lignes, drivup){
     const dv = creneauxDrivupRappel[h];
     if(dv && dv.length){
       /* 📥 Un cours Drivup : qui, quelle séance, prévenu ou non */
-      const tous = dv.every(c => coursDrivupEnvoye(c, lignes));
-      b.className = 'rapCr fait dv' + (h === choisie ? ' actif' : '') + (tous ? ' dvEnvoye' : '');
+      /* 🔔 v1306 — le bloc PERMIS et la suite d'un cours : pas de rappel */
+      const etats = dv.map(c => etatDrivupRappel(c));
+      const sans = etats.every(e => e.cle === 'examen' || e.cle === 'suite');
+      const tous = dv.every(c => sansRappelDr(c) || coursDrivupEnvoye(c, lignes));
+      b.className = 'rapCr fait dv' + (h === choisie ? ' actif' : '') + (tous ? ' dvEnvoye' : '') + (sans ? ' dvSans' : '');
       b.textContent = h.replace(':', 'h');
       const qui = document.createElement('small');
-      qui.textContent = dv.map(c => c.eleve).join(', ') + ' · ' +
-        ((typeof libelleCourtDrivup === 'function') ? libelleCourtDrivup(dv[0]) : '');
+      qui.textContent = dv.map((c, i) => etats[i].texte ||
+        ((c.eleve ? c.eleve + ' · ' : '') + ((typeof libelleCourtDrivup === 'function') ? libelleCourtDrivup(c) : ''))).join(', ');
       const et = document.createElement('small');
-      et.textContent = tous ? '✉️ envoyé' : '📥 à envoyer';
+      const permis = etats.find(e => e.cle === 'permis');
+      et.textContent = sans ? etats[0].et
+        : tous ? '✉️ envoyé'
+        : '📥 ' + (permis ? permis.et : 'à envoyer');
       b.append(qui, et);
     }else{
       b.className = 'rapCr' + (h === choisie ? ' actif' : '') +
@@ -2075,7 +2409,9 @@ function dessinerCreneauxRappel(zone, lignes, drivup){
   zone.appendChild(autre);
 
   const t = $('rapCoursTitre');
-  if(t) t.querySelector('em').textContent = choisie ? choisie.replace(':', 'h') : '';
+  /* 🎓 v1306 — un élève du permis : l'heure du rappel ET celle où il conduit */
+  const pc = coursDrivupChoisi ? permisDuCoursDr(coursDrivupChoisi) : null;
+  if(t) t.querySelector('em').textContent = pc ? titrePermisRappel(pc) : (choisie ? choisie.replace(':', 'h') : '');
 }
 
 /* ============================================================
@@ -2311,6 +2647,9 @@ function repeindreMenuTypesRappel(){
 function choisirCreneauRappel(h){
   const lh = $('rapHeureChoix');
   if(!lh) return;
+  coursDrivupChoisi = null; heureCoursRappel = null; suitesARappel = null;
+  /* 🔔 v1306 — ce que les règles avaient posé pour le cours d'avant */
+  if(typeof defaireReglesRappel === 'function') defaireReglesRappel();
   if(h === 'autre'){
     lh.value = 'autre';
   }else{
@@ -3133,9 +3472,17 @@ async function envoyerRappelManuel(){
     /* ⚠️ LE JOUR SE LIT À L'ÉCRAN, PAS EN MÉMOIRE — v1050. Voir
        « jourChoisiMaintenant » : le mail annonçait lundi pendant que
        le cours atterrissait dimanche. */
-    preparerDepuisRappel(nom, jourChoisiMaintenant(),
-      $('rapMoniteur') ? $('rapMoniteur').value : '',
-      detailsDuRappel(lireChoixRappel(), {
+    /* 🔔 v1306 — l'heure du COURS n'est pas toujours celle du rappel :
+       un élève du permis vient à 8h15 mais conduit à 9h10 (David : « le
+       moniteur voit les heures réelles de départ en conduite »). */
+    const heureDuCours = (heureCoursRappel && heureCoursRappel.eleve === normaliserMot(nom)) ? heureCoursRappel.heure : '';
+    const choisi = (coursDrivupChoisi && normaliserMot(coursDrivupChoisi.eleve || '') === normaliserMot(nom)) ? coursDrivupChoisi : null;
+    const suites = (choisi && suitesARappel) ? suitesARappel.slice() : [];
+    if(choisi){
+      envoyesDrivupRappel[choisi.id || (choisi.eleve + '|' + choisi.debut)] = 1;
+      suites.forEach(x => { envoyesDrivupRappel[x.id || (x.eleve + '|' + x.debut)] = 1; });
+    }
+    const detailsEnvoi = detailsDuRappel(lireChoixRappel(), {
         /* ⚠️ LE TYPE SE LIT À L'ÉCRAN, PAS EN MÉMOIRE — v1027.
 
            Il se lisait dans `choixRappel`, un objet rafraîchi une
@@ -3156,7 +3503,21 @@ async function envoyerRappelManuel(){
                    .filter(x => x.checked).map(x => x.value),
         /* Le lien de confirmation suit le cours */
         jeton: dernierJetonRappel
-      }));
+      });
+    if(heureDuCours) detailsEnvoi.heure = heureDuCours;
+    const moniteurEnvoi = $('rapMoniteur') ? $('rapMoniteur').value : '';
+    const jourEnvoi = jourChoisiMaintenant();
+    (async () => {
+      await preparerDepuisRappel(nom, jourEnvoi, moniteurEnvoi, detailsEnvoi);
+      /* 🔗 v1306 — les cours qui s'enchaînent : un seul rappel, mais
+         chacun son cours dans « Mes prochains cours » */
+      for(const x of suites){
+        const h = heureEnHHMM(x.debut);
+        if(!h) continue;
+        await preparerDepuisRappel(nom, jourEnvoi, moniteurEnvoi, Object.assign({}, detailsEnvoi, { heure: h, options: [], jeton: '' }));
+        noterCoursDuJour(dateDuRappel($('rapJour') ? $('rapJour').value : ''), moniteurEnvoi, h, detailsEnvoi.vehicule || '', nom);
+      }
+    })();
 
     /* On passe à l'élève suivant. Ce qui vaut pour lui seul est
        remis à zéro : une mention oubliée d'un rappel à l'autre
@@ -3172,6 +3533,8 @@ async function envoyerRappelManuel(){
          les rappels d'un moniteur les uns après les autres. Hors
          journée type, elle se vide comme avant. */
       const hEnvoyee = $('rapHeure') ? $('rapHeure').value : '';
+      const hDuCours = heureDuCours || hEnvoyee;
+      heureCoursRappel = null; suitesARappel = null; coursDrivupChoisi = null;
       const suivante = heureSuivante(hEnvoyee);
 
       if(suivante){
@@ -3211,7 +3574,7 @@ async function envoyerRappelManuel(){
          c'est lui qui dira si la voiture change. */
       noterCoursDuJour(dateDuRappel($('rapJour') ? $('rapJour').value : ''),
                        $('rapMoniteur') ? $('rapMoniteur').value : '',
-                       hEnvoyee,
+                       hDuCours,
                        $('rapVoiture') ? $('rapVoiture').value : '',
                        nom);
 
@@ -3229,7 +3592,9 @@ async function envoyerRappelManuel(){
       apercuRappel();
       /* 📥 v1166 — s'il reste des cours Drivup à prévenir, le suivant
          se choisit tout seul, avec son élève. */
-      if(typeof avancerAuCoursDrivupRappel === 'function') avancerAuCoursDrivupRappel(heureEnHHMM(hEnvoyee));
+      /* 🔔 v1306 — depuis le créneau Drivup du cours (un élève du permis
+         prévenu pour 8h15 a son créneau à 9h15 : on repart de là) */
+      if(typeof avancerAuCoursDrivupRappel === 'function') avancerAuCoursDrivupRappel(choisi ? heureEnHHMM(choisi.debut) : heureEnHHMM(hEnvoyee));
       /* La pastille qu'on vient de prévenir passe au ✓, et la
          suivante s'allume : c'est là qu'on voit où on en est. */
       peindreCreneauxRappel();
