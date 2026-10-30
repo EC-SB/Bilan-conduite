@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 14:07 — v1277 */
+/* Déployé le 30/10/2026 à 14:07 — v1309 */
 /* ============================================================
    ec-ecoutes-presence.js — v1277
    👂 La présence aux écoutes pédagogiques.
@@ -427,6 +427,11 @@ function blocsSuiviEcoutesEP(zone, d){
   if(!d.estAdmin) r.appendChild(el('div', 'epRegSous', 'Réglé par les administrateurs.'));
   zone.insertBefore(r, zone.firstChild);
 
+  /* 👂 v1308 — les écoutes d'AUJOURD'HUI : ce qu'ont pointé les moniteurs,
+     et le bureau qui dit « il est là » ou « pas là » */
+  const blocJour = blocEcoutesDuJourEP(d, el);
+  if(blocJour) zone.insertBefore(blocJour, r.nextSibling);
+
   /* ⏰ les rappels de demain */
   const lr = d.rappels || [];
   const bloc = el('div', 'epRappels');
@@ -496,7 +501,100 @@ function blocsSuiviEcoutesEP(zone, d){
     bloc.appendChild(gb);
   });
   bloc.appendChild(el('div', 'epPied', 'Avant 17h : « ✕ » = le rappel ne part pas. Après 17h (rappel déjà parti) : « ✕ Annuler » envoie « Ton écoute pédagogique de demain est annulée » (mail + message). Une écoute annulée ne compte pas au pointage.'));
-  zone.insertBefore(bloc, r.nextSibling);
+  zone.insertBefore(bloc, (blocJour && blocJour.parentNode === zone) ? blocJour.nextSibling : r.nextSibling);
+}
+
+/* ============================================================
+   👂 v1308 — LES ÉCOUTES D'AUJOURD'HUI
+
+   David, le 30 octobre : « dans le suivi des écoutes je n'ai que les
+   rappels de demain, je ne vois pas ceux du jour avec ce qu'ont mis les
+   moniteurs, et la possibilité, moi depuis le bureau, de dire s'ils sont
+   bien là ou pas ». Par écoute : chaque élève, ce qu'en dit le pointage
+   (« ✅ avec Hery à 10h », « 🚫 absence envoyée »…), et deux boutons pour
+   le bureau, ✅ Là / 🚫 Pas là, qui passent devant le pointage.
+   ============================================================ */
+function etatJourEP(d, x){
+  const cle = x.eleveCle;
+  const avec = (d.jourPointages || []).filter(p => p.agence === x.agence && minEP(p.heure) >= minEP(x.debut) && minEP(p.heure) < minEP(x.fin) && (p.avec || []).indexOf(cle) !== -1);
+  const muets = (d.jourPointages || []).filter(p => p.agence === x.agence && minEP(p.heure) >= minEP(x.debut) && minEP(p.heure) < minEP(x.fin) && p.personne);
+  const abs = (d.jourAbsences || []).filter(a => a.agence === x.agence && a.eleveCle === cle && a.debut === x.debut);
+  const bureau = (d.jourBureau || {})[x.agence + '|' + x.debut + '|' + cle] || null;
+  const l = [];
+  avec.forEach(p => l.push('✅ avec ' + p.moniteur + ' à ' + heureDiteEP(p.heure)));
+  abs.forEach(a => {
+    if(a.etat === 'envoyee') l.push('🚫 absence envoyée' + (a.envoyePar ? ' par ' + a.envoyePar : '') + (a.envoyeLe ? ' à ' + heureDeMsEP(a.envoyeLe) : ''));
+    else if(a.etat === 'presente') l.push('↩️ était là' + (a.presentPar ? ' (' + a.presentPar + ')' : ''));
+    else if(a.etat === 'a_verifier') l.push('❓ à vérifier (cours pas pointé à ' + heureDiteEP(a.heure) + ')');
+    else l.push('❓ personne ne l’avait à ' + heureDiteEP(a.heure) + (a.pointePar ? ' (pointé : ' + a.pointePar + ')' : ''));
+  });
+  if(!avec.length && !abs.length) l.push(muets.length ? '— ' + muets.map(p => p.moniteur).join(', ') + ' : personne dans la voiture' : '⏳ pas encore pointé');
+  return { texte: l.join(' · '), bureau: bureau, absence: abs.find(a => a.etat === 'a_confirmer' || a.etat === 'a_verifier') || null,
+           present: !!avec.length || abs.some(a => a.etat === 'presente') };
+}
+function blocEcoutesDuJourEP(d, el){
+  const lj = (d.jourResa || []).filter(x => !x.annulee);
+  const bloc = el('div', 'epRappels epJour');
+  bloc.appendChild(el('div', 'epRappelsTitre', '👂 Écoutes d’aujourd’hui — qui est là ?'));
+  bloc.appendChild(el('div', 'epRegSous', (typeof dateEnToutesLettres === 'function' ? dateEnToutesLettres(d.aujourdhui) : d.aujourdhui) +
+    ' · ce qu’ont pointé les moniteurs sur Mes prochains cours' + (d.peutTout ? ' · ✅ / 🚫 : c’est le bureau qui tranche' : '') + '.'));
+  if(!lj.length){
+    bloc.appendChild(el('div', 'empty', 'Aucune écoute aujourd’hui (d’après la dernière lecture du favori).'));
+    return bloc;
+  }
+  const groupes = [], par = {};
+  lj.forEach(x => {
+    const k = x.agence + '|' + x.debut + '|' + x.fin + '|' + x.colonne;
+    if(!par[k]){ par[k] = { agence: x.agence, debut: x.debut, fin: x.fin, colonne: x.colonne, l: [] }; groupes.push(par[k]); }
+    par[k].l.push(x);
+  });
+  const recharger = rep => { if(rep && rep.status === 'ok' && typeof afficherEcoutes === 'function') afficherEcoutes(); };
+  groupes.sort((a, b) => (a.debut + a.agence).localeCompare(b.debut + b.agence)).forEach(g => {
+    const gb = el('div', 'epRappelGroupe');
+    const t = el('div', 'epRappelTete');
+    const enCours = d.minutes >= minEP(g.debut) && d.minutes < minEP(g.fin);
+    t.appendChild(el('b', '', heureDiteEP(g.debut) + '–' + heureDiteEP(g.fin) + ' · ' + nomAgenceEP(g.agence) + ' · ' + colonneDiteEP(g.colonne) +
+      (enCours ? ' — en cours' : d.minutes >= minEP(g.fin) ? ' — finie' : '')));
+    gb.appendChild(t);
+    g.l.forEach(x => {
+      const e = etatJourEP(d, x);
+      const l = el('div', 'epRappelLigne epJourLigne' + (e.bureau ? ' ' + (e.bureau.etat === 'la' ? 'epLa' : 'epPasLa') : (e.present ? ' epLa' : '')));
+      l.setAttribute('data-eleve', x.eleve);
+      const tx = el('div', 'epRappelNom');
+      tx.appendChild(el('b', '', x.eleve));
+      tx.appendChild(el('span', 'epCol', ' · ' + e.texte));
+      if(e.bureau) tx.appendChild(el('div', 'epRegSous', '🏢 ' + (e.bureau.etat === 'la' ? 'Là' : 'Pas là') + ' — ' + (e.bureau.par || 'le bureau') + (e.bureau.quand ? ' à ' + heureDeMsEP(e.bureau.quand) : '')));
+      l.appendChild(tx);
+      if(d.peutTout){
+        const boutons = el('div', 'epJourBoutons');
+        const poser = async (etat, b) => {
+          b.disabled = true;
+          try{ recharger(await appelPrep({ action: 'ecouteBureauPoser', id: x.id, etat: etat })); }
+          catch(err){ b.disabled = false; if(typeof showToast === 'function') showToast('Impossible : ' + ((err && err.message) || err)); }
+        };
+        const bLa = el('button', 'btn ' + (e.bureau && e.bureau.etat === 'la' ? 'btn-primary' : 'btn-secondary'), '✅ Là');
+        bLa.type = 'button';
+        bLa.title = e.bureau && e.bureau.etat === 'la' ? 'Retirer « là »' : 'Il est bien là';
+        bLa.addEventListener('click', () => poser(e.bureau && e.bureau.etat === 'la' ? '' : 'la', bLa));
+        const bAbs = el('button', 'btn ' + (e.bureau && e.bureau.etat === 'absent' ? 'btn-primary' : 'btn-secondary'), '🚫 Pas là');
+        bAbs.type = 'button';
+        bAbs.title = e.bureau && e.bureau.etat === 'absent' ? 'Retirer « pas là »' : 'Il n’est pas venu';
+        bAbs.addEventListener('click', () => poser(e.bureau && e.bureau.etat === 'absent' ? '' : 'absent', bAbs));
+        boutons.append(bLa, bAbs);
+        if(e.absence && e.absence.etat === 'a_confirmer'){
+          const bEnv = el('button', 'btn btn-primary', '✉️ Envoyer l’absence');
+          bEnv.type = 'button';
+          bEnv.addEventListener('click', () => envoyerAbsenceEP(e.absence, bEnv));
+          boutons.appendChild(bEnv);
+        }
+        l.appendChild(boutons);
+      }
+      gb.appendChild(l);
+    });
+    bloc.appendChild(gb);
+  });
+  bloc.appendChild(el('div', 'epPied', '✅ Là : ses absences du jour s’effacent, et le pointage n’en recrée pas. 🚫 Pas là : l’absence est posée « à confirmer » — rien ne part sans « ✉️ Envoyer l’absence » (ou l’envoi automatique, s’il est allumé). Un second appui retire la décision.'));
+  return bloc;
 }
 
 /* Les absences trouvées au pointage, en lignes de la liste « 🚫 Pas
