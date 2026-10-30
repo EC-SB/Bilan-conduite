@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:07 — v1309 */
+/* Déployé le 30/10/2026 à 16:48 — v1314 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -903,6 +903,9 @@ function ligneBilan(item, nomCherche, refaire){
        un geste de plus, et ce geste-là prévient s'il y a un cours
        en cours. */
     row.addEventListener('click', () => ouvrirAncienBilan(item, row));
+    /* 📝 v1314 — « Bilan à faire par l'élève » : et son bilan, à coller
+       (en dernier : la zone prend toute la largeur, sous les boutons) */
+    if(typeof decorerBilanParLEleve === 'function') decorerBilanParLEleve(row, item);
   return row;
 }
 
