@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:48 — v1276 */
+/* Déployé le 30/10/2026 à 10:52 — v1305 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -506,11 +506,14 @@ function ligneAppelEC(a, o){
       return b;
     };
     if(!a.eleve && !a.pasEleve && !o.dossier) bouton('🔗 Rattacher', () => ouvrirRattacherAppel(a), true);
-    if(apEnAttente(a) && a.numero){
+    /* 📞 v1305 — David : « mets-moi un bouton pour rappeler dans le suivi
+       des appels même s'il n'y a pas de demande de rappel ». Sur tout
+       appel dont on a le numéro. */
+    if(a.numero && apNumeroAppelable(a.numero)){
       const t = document.createElement('a');
       t.className = 'btn btn-secondary apBtn';
       t.href = 'tel:' + a.numero;
-      t.textContent = '📞 Rappeler';
+      t.textContent = o.dossier ? '📞' : '📞 Rappeler';
       t.title = 'Appeler le ' + apNumero(a.numero);
       g.appendChild(t);
     }
@@ -524,6 +527,8 @@ function ligneAppelEC(a, o){
   l.appendChild(c);
   return l;
 }
+/* Un numéro qu'on peut composer (pas « masqué », pas vide) */
+function apNumeroAppelable(n){ return String(n || '').replace(/[^\d]/g, '').length >= 6; }
 function apRoleEcoute(){ return typeof ACCES !== 'undefined' && ACCES && (ACCES.role === 'admin' || ACCES.role === 'bureau'); }
 
 /* Après un geste : la ligne change partout où elle est */
