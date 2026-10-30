@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 10:52 — v1305 */
+/* Déployé le 30/10/2026 à 12:23 — v1306 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -177,6 +177,7 @@ function dessinerSuiviAppels(){
   const E = suiviAppelsEC;
   const auj = E.aujourdhui || apAujourdhui();
   const tous = E.appels || [];
+  apCalculerLiens(tous);
   const mots = String(E.cherche || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   const cherche = mots ? tous.filter(a => {
     const t = [a.eleve, a.numero, apNumero(a.numero), a.resume, a.nomEntendu, a.libelle, a.note]
@@ -416,6 +417,9 @@ function ligneAppelEC(a, o){
     p.textContent = '☑️ Rappelé' + (a.rappelFaitPar ? ' · ' + a.rappelFaitPar : '');
     etats.appendChild(p);
   }
+  /* ↩️ v1306 — l'appel reçu et son rappel, liés */
+  const lienAp = apPastillesLien(a);
+  if(lienAp){ etats.appendChild(lienAp); l.classList.add(apLiensEC.get(a.id).rappel ? 'lieRecu' : 'lieRappel'); }
   const src = document.createElement('span');
   src.className = 'apSrc';
   if(a.source === 'main') src.textContent = '📱 ' + (a.via || 'autre téléphone') + ' · noté par ' + (a.statutPar || '?');
@@ -529,6 +533,90 @@ function ligneAppelEC(a, o){
 }
 /* Un numéro qu'on peut composer (pas « masqué », pas vide) */
 function apNumeroAppelable(n){ return String(n || '').replace(/[^\d]/g, '').length >= 6; }
+
+/* ============================================================
+   ↩️ LES APPELS LIÉS — v1306
+
+   David : « est-ce que tu peux lier les appels pour montrer que j'ai
+   bien rappelé » (un appel reçu à 10:55, l'Accueil IA ; un appel
+   sortant au même numéro à 11:38, message laissé).
+
+   Un appel SORTANT répond aux appels REÇUS du même numéro depuis le
+   précédent appel sortant, dans les 3 jours qui le précèdent. Les
+   appels reçus et décrochés par une personne (« ✅ Joint ») sans
+   demande de rappel ne comptent pas : on leur a déjà parlé.
+   Les deux se montrent l'un l'autre :
+   · sur l'appel reçu : « ↩️ Rappelé à 11:38 · 📩 Message laissé » ;
+   · sur l'appel sortant : « ↪️ Rappel de l'appel de 10:55 ».
+   Un appui sur la pastille montre l'autre appel dans la liste.
+   ============================================================ */
+const apLiensEC = new Map();        /* id → { rappel: appel sortant } | { de: [appels reçus] } */
+const AP_LIEN_MAX = 3 * 24 * 3600 * 1000;
+function apCleNumero(n){ const d = String(n || '').replace(/[^\d]/g, ''); return d.length >= 6 ? d.slice(-9) : ''; }
+function apEstAppel(a){ return a && a.genre !== 'SMS' && a.statut !== 'sms'; }
+function apCalculerLiens(liste){
+  const tous = (liste || []).filter(a => a && a.id);
+  tous.forEach(a => apLiensEC.delete(a.id));
+  const parNumero = {};
+  tous.forEach(a => {
+    if(!apEstAppel(a) || !Number(a.quand)) return;
+    const k = apCleNumero(a.numero);
+    if(k) (parNumero[k] = parNumero[k] || []).push(a);
+  });
+  Object.keys(parNumero).forEach(k => {
+    let attente = [];
+    parNumero[k].slice().sort((x, y) => Number(x.quand) - Number(y.quand)).forEach(a => {
+      if(a.sens === 'out'){
+        const recus = attente.filter(r => Number(a.quand) - Number(r.quand) <= AP_LIEN_MAX);
+        if(recus.length){
+          apLiensEC.set(a.id, { de: recus });
+          recus.forEach(r => apLiensEC.set(r.id, { rappel: a }));
+        }
+        attente = [];
+      }else if(!(a.statut === 'joint' && !a.rappelLe)){
+        attente.push(a);
+      }
+    });
+  });
+}
+/* « 11:38 », ou « 31/10 à 11:38 » si ce n'est pas le même jour */
+function apQuandLien(x, jour){ return (x.jour && x.jour !== jour ? apJourCourt(x.jour) + ' à ' : '') + (x.heure || ''); }
+function apPastillesLien(a){
+  const lien = apLiensEC.get(a.id);
+  if(!lien) return null;
+  const p = document.createElement('button');
+  p.type = 'button';
+  p.className = 'apSt apLien';
+  let cible = [];
+  if(lien.rappel){
+    const r = lien.rappel;
+    const st = STATUTS_APPEL_EC[r.statut];
+    p.textContent = '↩️ Rappelé ' + (r.jour && r.jour !== a.jour ? 'le ' : 'à ') + apQuandLien(r, a.jour) +
+      (r.statutPar ? ' par ' + r.statutPar : '') + (st ? ' · ' + st.emoji + ' ' + st.nom : '');
+    p.title = 'Voir l’appel sortant';
+    cible = [r.id];
+  }else{
+    const d = lien.de;
+    /* « de l'appel de 10:55 », « des appels du 29/10 à 16:10 et 17:40 » */
+    const et = l => l.length > 1 ? l.slice(0, -1).join(', ') + ' et ' + l[l.length - 1] : l[0];
+    const memeJour = d.every(x => x.jour === d[0].jour);
+    const quand = memeJour ? (d[0].jour && d[0].jour !== a.jour ? 'du ' + apJourCourt(d[0].jour) + ' à ' : 'de ') + et(d.map(x => x.heure || ''))
+                           : et(d.map(x => (x.jour !== a.jour ? 'du ' + apJourCourt(x.jour) + ' à ' : 'de ') + (x.heure || '')));
+    p.textContent = '↪️ Rappel ' + (d.length > 1 ? 'des appels ' : 'de l’appel ') + quand;
+    p.title = 'Voir l’appel reçu';
+    cible = d.map(x => x.id);
+  }
+  p.addEventListener('click', ev => {
+    ev.preventDefault();
+    const zone = p.closest('#suiviAppelsZone') || p.closest('.apDossier') || document;
+    const lignes = cible.map(id => zone.querySelector('.apLigne[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]')).filter(Boolean);
+    if(!lignes.length){ if(typeof showToast === 'function') showToast('Cet appel n’est pas dans la liste affichée (filtre ou période).'); return; }
+    lignes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    lignes.forEach(l => { l.classList.remove('apLienVu'); void l.offsetWidth; l.classList.add('apLienVu'); });
+    setTimeout(() => lignes.forEach(l => l.classList.remove('apLienVu')), 2400);
+  });
+  return p;
+}
 function apRoleEcoute(){ return typeof ACCES !== 'undefined' && ACCES && (ACCES.role === 'admin' || ACCES.role === 'bureau'); }
 
 /* Après un geste : la ligne change partout où elle est */
@@ -1262,6 +1350,7 @@ const apDossierEC = { eleve: '', appels: null, proches: [], filtre: 'tous', corp
 
 async function ongletAppelsEleve(corps, nom){
   apDossierEC.corps = corps;
+  corps.classList.add('apDossier');
   if(apDossierEC.eleve !== nom){ apDossierEC.eleve = nom; apDossierEC.appels = null; apDossierEC.filtre = 'tous'; }
   corps.innerHTML = '<div class="empty">Chargement des appels…</div>';
   try{
@@ -1281,6 +1370,7 @@ function dessinerAppelsDuDossier(){
   const corps = apDossierEC.corps;
   if(!corps || !apDossierEC.appels) return;
   const tous = apDossierEC.appels;
+  apCalculerLiens(tous);
   corps.innerHTML = '';
   const barre = document.createElement('div');
   barre.className = 'apBarre';
