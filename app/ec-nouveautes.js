@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 18:27 — v1299 */
+/* Déployé le 28/10/2026 à 20:09 — v1300 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1300,
+    date: 'Mercredi 28 octobre 2026',
+    resume: '⏱️ Compteur d’examen, 🧰 vérifications comme en cours, ➕ un élève en salle',
+    quoi: [
+      { emoji: '➕',
+        titre: 'Un élève en salle sans réservation',
+        texte: 'Salle des tablettes : « ➕ Un élève présent, pas réservé sur Drivup ». Il rejoint la théorie du jour, la tablette le propose ; ✕ le retire.' },
+      { emoji: '☠️',
+        titre: 'Examen officiel : plus de phrases toutes faites',
+        texte: 'Après ☠️ ou ⚠️ et la ligne du CEPC, plus de liste de phrases : le E, ou directement la question du point, qui se retire bien sur le CEPC.' },
+      { emoji: '🧰',
+        titre: 'Les vérifications comme en cours',
+        texte: 'Examen officiel, examen blanc et RVP : le numéro, ✅ ❌ par partie, la réponse et le commentaire ; la note et le CEPC se font tout seuls.' },
+      { emoji: '⏱️',
+        titre: 'Un compteur pendant l’examen',
+        texte: 'Il avance à la seconde. ▶️ Début / ⏹️ Fin aussi à l’examen blanc et au RVP : la durée va dans la note interne, jamais à l’élève.' }
+    ]
+  },
   {
     version: 1299,
     date: 'Mercredi 28 octobre 2026',
