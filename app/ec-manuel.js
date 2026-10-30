@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 20:09 — v1300 */
+/* Déployé le 30/10/2026 à 09:34 — v1302 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -4402,7 +4402,20 @@ function brouillonManuelActuel(){
     quest: quest,
     saisies: saisies,
     /* ✍️ v1206 — la forme avec laquelle la fiche a commencé */
-    forme: formeEnCours || null
+    forme: formeEnCours || null,
+    /* ⚠️ v1302 — d'où vient chaque note du CEPC : d (maximum posé par
+       la machine), m (des points retirés par ⚠️), e (☠️), rien (à la
+       main). Sans elle, la reprise rendait tout « à la main » et le ⚠️
+       ne retirait plus de point. */
+    cepcOrigine: (() => {
+      const o = {};
+      document.querySelectorAll('#manuelChamps .cepcNiveau, #examenBlancCours .cepcNiveau').forEach(c => {
+        const nom = c.getAttribute('data-comp');
+        if(!nom) return;
+        o[nom] = c.dataset.parElim === 'oui' ? 'e' : (c.dataset.parMoins === 'oui' ? 'm' : (c.dataset.parDefaut === 'oui' ? 'd' : ''));
+      });
+      return o;
+    })()
   };
 }
 
@@ -6085,7 +6098,14 @@ function ligneEnchainement(cours, fond){
        finirait par ne plus faire la même chose que le premier. */
     if(typeof chargerPrepare === 'function'){
       try{
-        await chargerPrepare(cours);
+        /* ⚠️ v1302 — ET LA FICHE S'OUVRE. David : « quand il fait reprendre
+           pour commencer l'examen, ça rouvre un bilan de conduite classique,
+           sans la partie avant examen ni la partie pendant l'examen ».
+           chargerPrepare ne fait qu'ouvrir le cours (l'écran de la dictée) ;
+           ▶ Ouvrir appuie ensuite sur ✍️ Bilan à la main — ici aussi. Et
+           ouvrirBilanManuel reprend sa fiche commencée s'il en a une. */
+        const ouvert = await chargerPrepare(cours, 'examen-officiel');
+        if(ouvert === true) await ouvrirBilanManuel();
         showToast('👤 ' + cours.eleve);
       }catch(e){
         showToast('Impossible : ' + (e.message || e));
@@ -6236,7 +6256,7 @@ async function passerALExamenDe(nom, et){
   }
   if(et.cours && typeof chargerPrepare === 'function'){
     try{
-      await chargerPrepare(et.cours);
+      await chargerPrepare(et.cours, 'examen-officiel');
       if(typeof prepareEnCours !== 'undefined' && prepareEnCours === et.cours) await ouvrirBilanManuel();
       showToast('👤 ' + nom);
     }catch(e){ showToast('Impossible : ' + (e.message || e)); }
@@ -6362,11 +6382,28 @@ function reprendreBrouillon(b){
        Et une note reprise appartient à celui qui l'a posée : les
        marques de provenance tombent, pour qu'aucun recalcul ne
        vienne écraser ce qu'il avait saisi hier. */
+    /* ⚠️ v1302 — SAUF LES NOTES POSÉES PAR LA MACHINE. David : « quand on
+       appuie sur le ⚠️ pendant un examen officiel, ça n'enlève pas de
+       point sur le CEPC ». La fiche d'examen se garde pendant la partie
+       avant examen, puis se reprend pour l'examen : toutes ses notes
+       devenaient « à la main », et le ⚠️ ne touchait plus à rien. La
+       fiche garde maintenant d'où vient chaque note (b.cepcOrigine) ;
+       une fiche gardée avant cela : une note au maximum, ou un E qu'une
+       ☠️ explique, reste à la machine. */
     try{
+      const origine = (b.cepcOrigine && typeof b.cepcOrigine === 'object') ? b.cepcOrigine : null;
+      const elims = {};
+      document.querySelectorAll('#manuelChamps [data-categorie]').forEach(d => { if(d.dataset.categorie) elims[d.dataset.categorie] = 1; });
       document.querySelectorAll('.cepcNiveau').forEach(champ => {
-        champ.dataset.parDefaut = '';
-        champ.dataset.parMoins = '';
-        champ.dataset.parElim = '';
+        const nom = champ.getAttribute('data-comp') || '';
+        let o = origine ? String(origine[nom] || '') : '';
+        if(!origine){
+          if(champ.value === 'E' && elims[nom]) o = 'e';
+          else if(champ.value === '' || (typeof maxCepc === 'function' && champ.value === String(maxCepc(nom)))) o = 'd';
+        }
+        champ.dataset.parDefaut = o === 'd' ? 'oui' : '';
+        champ.dataset.parMoins = o === 'm' ? 'oui' : '';
+        champ.dataset.parElim = o === 'e' ? 'oui' : '';
         if(typeof repeindreLigneCepc === 'function') repeindreLigneCepc(champ);
       });
       if(typeof majTotalCepc === 'function') majTotalCepc();
