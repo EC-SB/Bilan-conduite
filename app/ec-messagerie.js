@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 10:52 — v1305 */
+/* Déployé le 30/10/2026 à 13:37 — v1308 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1791,18 +1791,23 @@ function zoneDEcritureDuFil(id){
      ⚠️ ON NE LAISSE PAS LE NAVIGATEUR FAIRE SON COLLAGE PAR-DESSUS.
      Sans « preventDefault », certains navigateurs collent le nom du
      fichier dans le champ en même temps qu'on envoie l'image. */
+  /* 🖼️ v1308 — David : « il faut que je puisse coller plusieurs photos
+     avant d'envoyer ». Une image collée ne part plus tout de suite : elle
+     attend au-dessus du champ, avec les suivantes (10 au plus), et tout
+     part en UN message avec le texte, au ➤. */
   t.addEventListener('paste', ev => {
     const d = ev.clipboardData;
     if(!d) return;
     const items = d.items || [];
+    const imgs = [];
     for(let i = 0; i < items.length; i++){
       if(String(items[i].type || '').indexOf('image/') !== 0) continue;
       const f = items[i].getAsFile();
-      if(!f) continue;
-      ev.preventDefault();
-      envoyerUnePhotoDansLeFil(f);
-      return;
+      if(f) imgs.push(f);
     }
+    if(!imgs.length) return;
+    ev.preventDefault();
+    ajouterAuPlateauEC(id, imgs);
   });
   champ.appendChild(t);
 
@@ -1816,7 +1821,7 @@ function zoneDEcritureDuFil(id){
      messenger ». Ce n'est pas un bouton de plus : c'est celui-ci qui
      change de visage tant qu'il n'y a rien à envoyer. */
   b.addEventListener('click', () => {
-    if(($('msgElvTexte') || {}).value && $('msgElvTexte').value.trim()){
+    if((($('msgElvTexte') || {}).value && $('msgElvTexte').value.trim()) || plateauPhotosDe(id).length){
       ecrireDansLeFil();
     }else{
       envoyerLePouce();
@@ -1849,7 +1854,7 @@ function zoneDEcritureDuFil(id){
        était gris tant qu'il n'y avait rien à envoyer ; maintenant il
        y a toujours quelque chose à envoyer, un pouce au minimum. Un
        bouton éteint qui marche quand même serait le pire des deux. */
-    const vide = !t.value.trim();
+    const vide = !t.value.trim() && !plateauPhotosDe(id).length;
     b.classList.remove('eteint');
     b.classList.toggle('pouce', vide);
     /* 👍 v1298 — le pouce revient : 👍 puis 🎤 tant que c'est vide, ➤ seul dès qu'on écrit */
@@ -1897,7 +1902,7 @@ function zoneDEcritureDuFil(id){
        va à la ligne (sur un téléphone, Entrée reste un retour à la ligne) */
     else if(ev.key === 'Enter' && !ev.shiftKey && !ev.altKey && typeof claviereEC === 'function' && claviereEC()){
       ev.preventDefault();
-      if(t.value.trim()) ecrireDansLeFil();
+      if(t.value.trim() || plateauPhotosDe(id).length) ecrireDansLeFil();
     }
     /* ↩️ v1180 — Échap renonce à la réponse en cours */
     if(ev.key === 'Escape' && reponseEC){
@@ -1911,6 +1916,8 @@ function zoneDEcritureDuFil(id){
   /* La hauteur se calcule sur un élément posé dans la page :
      « scrollHeight » vaut zéro tant qu'il n'y est pas. */
   setTimeout(ajuster, 0);
+  /* 🖼️ v1308 — des photos collées attendaient dans ce fil : elles reviennent */
+  if(plateauPhotosDe(id).length) setTimeout(() => dessinerLePlateauEC(id), 0);
   return l;
 }
 
@@ -2030,6 +2037,15 @@ async function ecrireDansLeFil(){
   const bouton = $('msgElvEnvoyer');
   const texte = champ ? champ.value.trim() : '';
 
+  /* 🖼️ v1308 — des photos collées attendent : elles partent avec le texte */
+  const enAttente = plateauPhotosDe(id);
+  if(enAttente.length){
+    if(texte.length > MAX_TEXTE_MESSAGERIE){ showToast('Message trop long (' + MAX_TEXTE_MESSAGERIE + ' caractères au plus).'); return; }
+    const l = enAttente.slice();
+    const parti = l.length > 1 ? await envoyerDesPhotosDansLeFil(l) : await envoyerUnePhotoDansLeFil(l[0]);
+    if(parti){ viderLePlateauEC(id); }
+    return;
+  }
   if(!texte) return;
   if(texte.length > MAX_TEXTE_MESSAGERIE){
     if(typeof showToast === 'function'){
@@ -4310,6 +4326,7 @@ async function envoyerDesPhotosDansLeFil(fichiers){
   }
   envoiPhotoEC = true;
   const id = filOuvertEC.conv.id;
+  let ok = false;
   plusOccupe(true);
   try{
     const photos = [];
@@ -4322,12 +4339,14 @@ async function envoyerDesPhotosDansLeFil(fichiers){
     await appelPrep({ action: 'convPhotos', id: id, photos: photos, texte: texte, reponseA: reponseAPourEC(id) });
     oublierLaReponseEC(id);
     if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
+    ok = true;
     await rafraichirLeFil();
   }catch(e){
     if(typeof showToast === 'function') showToast('Les photos ne sont pas parties : ' + (e.message || e));
   }
   envoiPhotoEC = false;
   plusOccupe(false);
+  return ok;
 }
 
 async function envoyerUnePhotoDansLeFil(fichier){
@@ -4351,6 +4370,7 @@ async function envoyerUnePhotoDansLeFil(fichier){
     oublierLaReponseEC(id);
 
     if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
+    ok = true;
     await rafraichirLeFil();
   }catch(e){
     if(typeof showToast === 'function'){
@@ -4359,6 +4379,72 @@ async function envoyerUnePhotoDansLeFil(fichier){
   }
   envoiPhotoEC = false;
   plusOccupe(false);
+  return ok;
+}
+
+/* ------------------------------------------------------------
+   🖼️ LES PHOTOS COLLÉES QUI ATTENDENT — v1308
+   Par conversation : changer de fil ne les perd pas, et elles ne
+   partent jamais dans un autre fil.
+   ------------------------------------------------------------ */
+const plateauxPhotosEC = {};
+function plateauPhotosDe(id){ return plateauxPhotosEC[id] || []; }
+function ajouterAuPlateauEC(id, fichiers){
+  const l = plateauxPhotosEC[id] = plateauPhotosDe(id).slice();
+  let trop = 0;
+  (fichiers || []).forEach(f => { if(l.length < PHOTOS_PAR_MESSAGE_EC) l.push(f); else trop++; });
+  if(trop && typeof showToast === 'function') showToast('📷 ' + PHOTOS_PAR_MESSAGE_EC + ' photos au plus dans un message.');
+  dessinerLePlateauEC(id);
+}
+function viderLePlateauEC(id){
+  delete plateauxPhotosEC[id];
+  dessinerLePlateauEC(id);
+}
+function dessinerLePlateauEC(id){
+  const t = $('msgElvTexte');
+  const barre = t && t.closest('.msgBarre');
+  if(!barre) return;
+  let z = barre.querySelector('.msgPlateau');
+  const l = plateauPhotosDe(id);
+  if(!l.length){
+    if(z){ z.querySelectorAll('img').forEach(i => { try{ URL.revokeObjectURL(i.src); }catch(e){} }); z.remove(); }
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+  if(!z){
+    z = document.createElement('div');
+    z.className = 'msgPlateau';
+    barre.insertBefore(z, barre.firstChild);
+  }
+  z.querySelectorAll('img').forEach(i => { try{ URL.revokeObjectURL(i.src); }catch(e){} });
+  z.innerHTML = '';
+  l.forEach((f, k) => {
+    const v = document.createElement('div');
+    v.className = 'msgPlateauVig';
+    const i = document.createElement('img');
+    i.alt = 'Photo ' + (k + 1);
+    try{ i.src = URL.createObjectURL(f); }catch(e){}
+    v.appendChild(i);
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'msgPlateauX';
+    x.textContent = '✕';
+    x.title = 'Retirer cette photo';
+    x.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const r = plateauPhotosDe(id).slice(); r.splice(k, 1);
+      if(r.length) plateauxPhotosEC[id] = r; else delete plateauxPhotosEC[id];
+      dessinerLePlateauEC(id);
+    });
+    v.appendChild(x);
+    z.appendChild(v);
+  });
+  const dit = document.createElement('div');
+  dit.className = 'msgPlateauDit';
+  dit.textContent = '📷 ' + l.length + (l.length > 1 ? ' photos prêtes' : ' photo prête') +
+    ' — colle les suivantes, puis ➤ : tout part en un message';
+  z.appendChild(dit);
+  t.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 /* ------------------------------------------------------------
