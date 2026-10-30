@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 09:11 — v1301 */
+/* Déployé le 30/10/2026 à 10:52 — v1305 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -3055,17 +3055,24 @@ async function annoncerDansSuiviExamen(eleve, resultat, iso, infos){
     const texte = resultat === 'obtenu'
       ? texteAnnoncePermisObtenu(eleve, infos.centre != null ? infos.centre : ((suiviDe(eleve) || {}).centre || ''), infos.note)
       : '❌ ' + eleve + ' — Ajourné';
-    await appelPrep({ action: 'convEcrire', id: conv.id, texte: texte, suivi: { noms: [eleve] } });
-    let n = 0;
-    /* les captures du CEPC : ajourné, et reçu aussi (v1301) */
-    {
-      const caps = await capturesDeLExamenPP(eleve, iso);
-      for(const c of caps){
-        const t = await tailleDeLImagePP(c.image);
-        await appelPrep({ action: 'convPhoto', id: conv.id, photo: c.image, l: t.l, h: t.h, texte: c.legende || '' });
-        n++;
-      }
+    /* 🖼️ v1304 — UN SEUL BLOC. David : « est-ce que c'est possible de
+       mettre dans un seul bloc plutôt que 3 messages, et de mettre des
+       cotillons en fond de message ». Le texte et les captures du CEPC de
+       cet examen partent dans le même message (10 au plus : au-delà, un
+       second) ; le permis obtenu a ses cotillons. */
+    const caps = await capturesDeLExamenPP(eleve, iso);
+    const photos = [];
+    for(const c of caps){
+      const t = await tailleDeLImagePP(c.image);
+      photos.push({ photo: c.image, l: t.l, h: t.h });
     }
+    const deco = resultat === 'obtenu' ? 'cotillons' : '';
+    const PAR = 10;
+    await appelPrep({ action: 'convPhotos', id: conv.id, texte: texte, photos: photos.slice(0, PAR), deco: deco, suivi: { noms: [eleve] } });
+    for(let i = PAR; i < photos.length; i += PAR){
+      await appelPrep({ action: 'convPhotos', id: conv.id, texte: '', photos: photos.slice(i, i + PAR), deco: deco });
+    }
+    const n = photos.length;
     if(typeof showToast === 'function') showToast('💬 Annoncé dans « ' + (conv.titre || 'Suivi examen') + ' »' + (n ? ' avec ' + n + ' capture' + (n > 1 ? 's' : '') : ''));
     return true;
   }catch(e){
