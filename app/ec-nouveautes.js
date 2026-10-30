@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 20:09 — v1300 */
+/* Déployé le 30/10/2026 à 09:11 — v1301 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1301,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '🎓 Permis obtenu : centre, note /31 et captures dans « Suivi examen »',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Permis obtenu, annoncé en entier',
+        texte: '« ✅ Permis obtenu » demande le centre et la note du CEPC (déjà remplis si on les connaît). « Suivi examen » reçoit « Nom Prénom - centre - Permis obtenu - 27/31 », puis les captures du CEPC.' }
+    ]
+  },
   {
     version: 1300,
     date: 'Mercredi 28 octobre 2026',
