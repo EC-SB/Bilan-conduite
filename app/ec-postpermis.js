@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 08:24 — v1284 */
+/* Déployé le 30/10/2026 à 09:11 — v1301 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -238,12 +238,15 @@ async function afficherPostExamen(tous){
         bOk.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;';
         bOk.textContent = '✅ Permis obtenu';
         bOk.addEventListener('click', async () => {
-          if(!await confirmer(x.eleve + ' a obtenu son permis ?')) return;
+          /* 🎓 v1301 — la confirmation demande aussi le centre et la note /31 */
+          const rep = await demanderPermisObtenu(x.eleve, iso);
+          if(!rep) return;
           bOk.disabled = true;
           try{
-            await consignerResultat(x, 'obtenu', iso);
-            /* 💬 v1274 — et dans « Suivi examen » : « ✅ Nom Prénom — Reçu » */
-            annoncerDansSuiviExamen(x.eleve, 'obtenu', iso);
+            await consignerResultat(x, 'obtenu', iso, { centre: rep.centre });
+            /* 💬 v1301 — et dans « Suivi examen » : « Nom Prénom - centre -
+               Permis obtenu - note/31 », puis les captures du CEPC */
+            annoncerDansSuiviExamen(x.eleve, 'obtenu', iso, rep);
             /* Il sort de toutes les listes de suivi */
             for(const cs of (x.enAttente || [])){
               try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
@@ -2938,7 +2941,109 @@ function memeJourPP(a, b){
 function tailleDeLImagePP(src){
   return new Promise(ok => { const i = new Image(); i.onload = () => ok({ l: i.naturalWidth || 0, h: i.naturalHeight || 0 }); i.onerror = () => ok({ l: 0, h: 0 }); i.src = src; });
 }
-async function annoncerDansSuiviExamen(eleve, resultat, iso){
+/* ============================================================
+   🎓 v1301 — PERMIS OBTENU : LE CENTRE ET LA NOTE
+
+   David, le 30 octobre : « quand on indique qu'un élève a obtenu son
+   permis, ça envoie un message automatiquement dans le groupe suivi
+   examen : il faut que ça envoie Nom Prénom - Le centre d'examen -
+   Permis obtenu - La note /31, et que ça envoie les captures d'écran
+   du CEPC que l'on met ». Son choix : la note se tape à la
+   confirmation, déjà remplie quand on la connaît (notre CEPC de la
+   fiche d'examen officiel), le centre aussi (son suivi).
+   ============================================================ */
+function noteSur31PP(v){
+  const m = String(v == null ? '' : v).replace(',', '.').match(/\d+(?:\.\d+)?/);
+  if(!m) return '';
+  const n = parseFloat(m[0]);
+  if(isNaN(n) || n < 0 || n > 31) return '';
+  return String(n).replace('.', ',');
+}
+function texteAnnoncePermisObtenu(eleve, centre, note){
+  const n = noteSur31PP(note);
+  return [String(eleve || '').trim(), String(centre || '').trim(), 'Permis obtenu', n ? n + '/31' : '']
+    .filter(Boolean).join(' - ');
+}
+/* Les captures de CET examen (celles mises dans « 📷 Captures du CEPC ») */
+async function capturesDeLExamenPP(eleve, iso){
+  return (await chargerCaptures(eleve))
+    .filter(c => c && /^data:image\//.test(c.image || '') && (!iso || !c.dateExamen || memeJourPP(c.dateExamen, iso)));
+}
+async function demanderPermisObtenu(eleve, iso){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(eleve) || {}) : {};
+  /* La note de notre CEPC (fiche d'examen officiel), si elle est faite */
+  let noteConnue = '';
+  try{
+    const g = (typeof cepcInterneDe === 'function') ? cepcInterneDe(eleve) : null;
+    if(g && typeof calculerCepc === 'function'){
+      const c = calculerCepc(g);
+      if(!c.elimine && c.total > 0) noteConnue = noteSur31PP(c.total);
+    }
+  }catch(e){}
+  const w = document.createElement('div');
+  const ligne = (lib, el, aide) => {
+    const l = document.createElement('label');
+    l.textContent = lib;
+    l.style.cssText = 'display:block;margin:0 0 4px;';
+    w.appendChild(l);
+    w.appendChild(el);
+    if(aide){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin:-6px 0 10px;line-height:1.4;';
+      a.textContent = aide;
+      w.appendChild(a);
+    }
+  };
+  const q = document.createElement('div');
+  q.style.cssText = 'font-size:15px;margin-bottom:12px;';
+  q.textContent = eleve + ' a obtenu son permis ?';
+  w.appendChild(q);
+  const iC = document.createElement('input');
+  iC.type = 'text'; iC.id = 'ppObtenuCentre'; iC.value = String(s.centre || '').trim();
+  iC.placeholder = 'Saint-Brieuc, Loudéac…';
+  iC.setAttribute('list', 'ppCentresListe');
+  const dl = document.createElement('datalist');
+  dl.id = 'ppCentresListe';
+  ((typeof CENTRES_EXAMEN !== 'undefined' && CENTRES_EXAMEN) || ['Saint-Brieuc', 'Loudéac']).forEach(c => { const o = document.createElement('option'); o.value = c; dl.appendChild(o); });
+  w.appendChild(dl);
+  ligne('📍 Centre d’examen', iC);
+  const iN = document.createElement('input');
+  iN.type = 'text'; iN.inputMode = 'decimal'; iN.id = 'ppObtenuNote'; iN.value = noteConnue;
+  iN.placeholder = 'ex. 27';
+  ligne('🧾 Note du CEPC (sur 31)', iN, noteConnue ? 'D’après notre CEPC de la fiche d’examen officiel — vérifie avec celui de l’inspecteur.' : 'Celle du CEPC de l’inspecteur.');
+  const ap = document.createElement('div');
+  ap.style.cssText = 'font-size:12px;line-height:1.5;border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-top:4px;';
+  w.appendChild(ap);
+  const caps = document.createElement('div');
+  caps.style.cssText = 'font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4;';
+  caps.textContent = '📷 Captures du CEPC : …';
+  w.appendChild(caps);
+  const peindre = () => {
+    ap.innerHTML = '';
+    const t = document.createElement('div');
+    t.style.cssText = 'color:var(--muted);font-size:11px;';
+    t.textContent = '💬 Part dans « Suivi examen » :';
+    const b = document.createElement('b');
+    b.className = 'ppObtenuApercu';
+    b.textContent = texteAnnoncePermisObtenu(eleve, iC.value, iN.value);
+    ap.appendChild(t); ap.appendChild(b);
+  };
+  [iC, iN].forEach(i => i.addEventListener('input', peindre));
+  peindre();
+  capturesDeLExamenPP(eleve, iso).then(l => {
+    caps.textContent = l.length
+      ? '📷 ' + l.length + ' capture' + (l.length > 1 ? 's' : '') + ' du CEPC partir' + (l.length > 1 ? 'ont' : 'a') + ' avec.'
+      : '📷 Aucune capture du CEPC pour cet examen : ajoute-les d’abord dans « 📷 Captures du CEPC », sous le bouton.';
+  }).catch(() => { caps.textContent = ''; });
+  setTimeout(() => { try{ (iC.value ? iN : iC).focus(); }catch(e){} }, 60);
+  const ok = await fenetre(w, [
+    { nom: 'Annuler', valeur: false },
+    { nom: '✅ Permis obtenu', valeur: 'ok', principal: true }
+  ], '🎓 Permis obtenu');
+  if(ok !== 'ok') return null;
+  return { centre: iC.value.trim(), note: noteSur31PP(iN.value) };
+}
+async function annoncerDansSuiviExamen(eleve, resultat, iso, infos){
   try{
     const d = await appelPrep({ action: 'convList' });
     const conv = ((d && d.conversations) || []).find(c => (c.genre === 'groupe' || c.genre === 'interne') && !c.eleve && estSuiviExamenPP(c.titre));
@@ -2946,11 +3051,15 @@ async function annoncerDansSuiviExamen(eleve, resultat, iso){
       if(typeof showToast === 'function') showToast('ℹ️ Pas de conversation « Suivi examen » pour toi : le résultat n’y est pas annoncé.');
       return false;
     }
-    const texte = resultat === 'obtenu' ? '✅ ' + eleve + ' — Reçu' : '❌ ' + eleve + ' — Ajourné';
+    infos = infos || {};
+    const texte = resultat === 'obtenu'
+      ? texteAnnoncePermisObtenu(eleve, infos.centre != null ? infos.centre : ((suiviDe(eleve) || {}).centre || ''), infos.note)
+      : '❌ ' + eleve + ' — Ajourné';
     await appelPrep({ action: 'convEcrire', id: conv.id, texte: texte, suivi: { noms: [eleve] } });
     let n = 0;
-    if(resultat === 'ajourne'){
-      const caps = (await chargerCaptures(eleve)).filter(c => c && /^data:image\//.test(c.image || '') && (!iso || !c.dateExamen || memeJourPP(c.dateExamen, iso)));
+    /* les captures du CEPC : ajourné, et reçu aussi (v1301) */
+    {
+      const caps = await capturesDeLExamenPP(eleve, iso);
       for(const c of caps){
         const t = await tailleDeLImagePP(c.image);
         await appelPrep({ action: 'convPhoto', id: conv.id, photo: c.image, l: t.l, h: t.h, texte: c.legende || '' });
@@ -2965,8 +3074,10 @@ async function annoncerDansSuiviExamen(eleve, resultat, iso){
   }
 }
 
-async function consignerResultat(e, resultat, iso){
+async function consignerResultat(e, resultat, iso, plus){
   const s = suiviDe(e.eleve) || {};
+  /* 🎓 v1301 — le centre tapé à la confirmation compte pour les statistiques */
+  const centreDit = plus && String(plus.centre || '').trim();
 
   /* ⚠️ LE CACHE DES RÉSULTATS DOIT OUBLIER, SINON L'ÉLÈVE REVIENT.
 
@@ -2996,7 +3107,7 @@ async function consignerResultat(e, resultat, iso){
       boite: boiteDePostPermis(e),
       parcours: parcoursDe(e),
       moniteur: presentePar,
-      centre: s.centre || '',
+      centre: centreDit || s.centre || '',
       rang: String((parseInt(s.nbAjournements, 10) || 0) + 1)
     });
   }catch(err){
