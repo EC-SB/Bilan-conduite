@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 12:48 — v1276 */
+/* Déployé le 30/10/2026 à 14:07 — v1309 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -328,10 +328,14 @@ function resumeSuiviSE(d){
 
 /* Le tiroir, au-dessus de « 🧰 Questions de vérification » (posé par
    dessinerQuestionsVerifs, et par la veille quand l'élève change) */
-function dessinerSuiviDuCoursSE(id){
+/* 🔁 v1308 — « nomImpose » : le rendez-vous post-permis n'a pas de case
+   « élève » de cours ; il donne le sien (David : « je veux le bloc où il
+   y a Pas d'écoutes, Ne travaille pas sur les groupes, Ce qu'il faut
+   savoir et ce qui remonte de la messagerie »). */
+function dessinerSuiviDuCoursSE(id, nomImpose){
   const z = (typeof $ === 'function') ? $(id) : null;
   if(!z) return;
-  const nom = eleveDuCoursSE();
+  const nom = nomImpose ? String(nomImpose).trim() : eleveDuCoursSE();
   if(nom.length < 3){ z.style.display = 'none'; z.innerHTML = ''; z.dataset.sig = ''; return; }
   z.style.display = '';
   z.dataset.sig = normSE(nom);
