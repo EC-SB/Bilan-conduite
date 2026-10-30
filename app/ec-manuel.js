@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 15:36 — v1295 */
+/* Déployé le 28/10/2026 à 20:09 — v1300 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -387,6 +387,12 @@ const CHAMPS_MANUELS = {
       aide:'Une erreur par ligne.' },
 
     { cle:'__t2', type:'titre', nom:"𝟮 - 𝗣𝗘𝗡𝗗𝗔𝗡𝗧 𝗟'𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖" },
+    /* ⏱️ v1300 — David : « ajoute les boutons aussi dans la partie pendant
+       l'examen blanc, avec le compteur, dans l'examen blanc et le
+       rendez-vous pédagogique pratique — ça ne doit pas partir à l'élève,
+       c'est de l'informatif pour nous ». Le RVP le reçoit tout seul (son
+       module est dérivé d'ici) ; la durée va dans la note interne. */
+    { cle:'dureeExamen', type:'dureeExamen', nom:'⏱️ Durée de l’examen blanc' },
     /* Trois boutons plutôt qu'un texte à corriger.
 
        L'INSTALLATION NE COMPTE PAS DANS LA NOTE. David : « elle
@@ -409,6 +415,9 @@ const CHAMPS_MANUELS = {
        2-2 séparaient déjà, mais pas assez pour un écran de
        téléphone tenu à bout de bras. */
     { cle:'__sVerifB', type:'sousTitre', nom:'🧰 Vérifications' },
+    /* 🧰 v1300 — les questions comme au cours : n°, ✅❌ par partie,
+       réponse et commentaire. Il remplit les cases ci-dessous, cachées. */
+    { cle:'questionsVerifs', type:'questionsVerifs', nom:'🧰 Questions de vérification' },
     { cle:'examen.verifNote',     type:'note3',
       nom:'2-2 · Note des vérifications' },
     { cle:'examen.verifQuestion', type:'court',
@@ -647,6 +656,10 @@ const CHAMPS_MANUELS = {
          endroit (PHRASE_VOITURE_APPORTEE), pour les trois cases. */
       phraseCoche:PHRASE_VOITURE_APPORTEE, survitesse:true },
     { cle:'__sVerif', type:'sousTitre', nom:'🧰 Vérification' },
+    /* 🧰 v1300 — vérification, QSER, premiers secours : comme au cours.
+       Il remplit les cases ci-dessous (cachées) : CEPC, bilan, impression
+       les lisent comme avant. */
+    { cle:'questionsVerifs', type:'questionsVerifs', nom:'🧰 Questions de vérification' },
     { cle:'examen.verifQuestion', type:'court',
       nom:'N° de la question de vérification' },
     { cle:'examen.vi',           type:'ok', nom:'Vérification', defaut:'' },
@@ -2615,7 +2628,10 @@ function ajouterObservationManuelle(zone, valeurs){
 
     /* 📝 v1176 — puis la remarque, dans la ligne bleue. Fermer sans
        choisir laisse la ligne du CEPC marquée : rien n'est défait. */
-    await remarqueDansLaLigne(insp, cat, '☠️');
+    /* 🚫 v1300 — PAS À L'EXAMEN OFFICIEL. David : « enlever dans les
+       examens officiels les phrases pré-faites d'erreur […] juste lié au
+       CEPC ». La ligne du CEPC est marquée, rien de plus. */
+    if(!surExamenOfficiel()) await remarqueDansLaLigne(insp, cat, '☠️');
   });
 
   /* Le CEPC se met à jour à chaque changement : le moniteur voit
@@ -2719,7 +2735,8 @@ function ajouterObservationManuelle(zone, valeurs){
     /* 📝 v1176 — la remarque de cette ligne, entre la compétence et
        le point. « ✍️ Écrire directement » continue vers le point, et
        le curseur attend dans la ligne quand on revient. */
-    const texteRem = await choisirRemarqueCepc(cat, '⚠️');
+    /* 🚫 v1300 — pas de phrases pré-faites à l'examen officiel */
+    const texteRem = surExamenOfficiel() ? '' : await choisirRemarqueCepc(cat, '⚠️');
 
     /* Puis, et seulement alors, la question du point. Annuler ici
        ne pose rien : on ne marque pas une erreur à moitié parce que
@@ -5214,6 +5231,8 @@ function lireChampsManuels(champsVoulus){
     if(ajouts.length) champs = champs.concat(ajouts);
   }
 
+  /* 🧰 v1300 — le tiroir des vérifications remplit d'abord ses cases */
+  if(typeof syncVerifsExamens === 'function') try{ syncVerifsExamens(false); }catch(e){}
   champs.forEach(ch => {
     if(ch.type === 'cases'){
       /* ✍️ v1207 — des cases seules : les phrases cochées, dans
@@ -5233,7 +5252,7 @@ function lireChampsManuels(champsVoulus){
       const l = valeurDeLaListeDans(zl, ch.cle);
       if(l.length) champsManuels[ch.cle] = l.join('\n'); else delete champsManuels[ch.cle];
     }else if(ch.type === 'titre' || ch.type === 'sousTitre' ||
-       ch.type === 'envoiAvant' || ch.type === 'rappelFrise'){
+       ch.type === 'envoiAvant' || ch.type === 'rappelFrise' || ch.type === 'questionsVerifs'){
       /* Ni un intertitre, ni un sous-titre, ni un bouton ne
          portent de réponse */
 
@@ -5390,6 +5409,8 @@ function lireChampsManuels(champsVoulus){
 /* Assemble le bilan à partir de ce qui a été saisi */
 async function genererBilanManuel(){
   /* On relève d'abord tout ce que le moniteur a saisi */
+  /* 🧰 v1300 — au bilan : les questions d'examen gardées dans l'historique de l'élève */
+  if(typeof syncVerifsExamens === 'function') try{ syncVerifsExamens(true); }catch(e){}
   lireChampsManuels();
   /* ✍️ v1207 — la fiche telle qu'il l'a remplie (zones ajoutées) */
   const ficheDuBilan = champsDeLaFicheOuverte($('modele').value);
@@ -5683,6 +5704,15 @@ async function genererBilanManuel(){
        rendu, pas une source ». Elle a sa colonne ; le rendez-vous
        post-permis la lit telle quelle. */
     enregistrerCepcInterne(eleve, champsManuels.cepc);
+  }
+
+  /* ⏱️ v1300 — la durée de l'examen blanc (ou de celui du rendez-vous
+     pédagogique) : une ligne 🔒 dans la note interne, jamais au bilan */
+  if((modeleCle === 'examen-blanc' || surRendezVousPedago()) && $('noteInterne') && typeof mentionDureeExamen === 'function'){
+    const d = mentionDureeExamen(champsManuels[(modeleCle === 'examen-blanc' ? '' : 'examenBlanc.') + 'dureeExamen']);
+    const zn = $('noteInterne');
+    const sans = zn.value.split('\n').filter(l => l.trim().indexOf('🔒 EXAMEN BLANC · ⏱️') !== 0).join('\n').trim();
+    zn.value = d ? ('🔒 EXAMEN BLANC · ' + d + (sans ? '\n' + sans : '')) : sans;
   }
 
   /* ✍️ v1208 — les zones « 🔒 Pour nous seulement » vont dans la note
@@ -7952,6 +7982,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       /* ⏱️ v1295 — ▶️ Début / ⏹️ Fin, les heures corrigeables (ec-durees-examen.js) */
       if(typeof dessinerDureeExamen === 'function') dessinerDureeExamen(bloc, ch);
 
+    }else if(ch.type === 'questionsVerifs'){
+      /* 🧰 v1300 — le tiroir des vérifications du cours (ec-verifs.js) */
+      if(typeof dessinerVerifsExamen === 'function') dessinerVerifsExamen(bloc, ch);
+
     }else if(ch.type === 'inspecteur'){
       /* La liste des inspecteurs, partagée par toute l'équipe :
          un nom ajouté ici sert à tout le monde. */
@@ -8776,6 +8810,11 @@ function champsExamenBlancRvp(){
   const tous = CHAMPS_MANUELS.rvp || [];
   const debut = tous.findIndex(c => c.cle === 'examenBlancFait');
   return (debut === -1) ? [] : tous.slice(debut);
+}
+
+/* L'examen officiel (la clé du modèle) */
+function surExamenOfficiel(){
+  return (($('modele') && $('modele').value) || '') === 'examen-officiel';
 }
 
 /* Sommes-nous sur un rendez-vous pédagogique ? On interroge le
