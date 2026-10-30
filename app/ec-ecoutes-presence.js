@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:07 — v1309 */
+/* Déployé le 30/10/2026 à 15:53 — v1312 */
 /* ============================================================
    ec-ecoutes-presence.js — v1277
    👂 La présence aux écoutes pédagogiques.
@@ -532,8 +532,35 @@ function etatJourEP(d, x){
   return { texte: l.join(' · '), bureau: bureau, absence: abs.find(a => a.etat === 'a_confirmer' || a.etat === 'a_verifier') || null,
            present: !!avec.length || abs.some(a => a.etat === 'presente') };
 }
+/* 👂 v1312 — annuler une écoute d'aujourd'hui (le créneau entier ou un
+   élève). David : « il faut que je puisse les annuler, que ça enlève sur
+   les moniteurs et sur l'affichage ». Le Worker pose annulee = 1 : Mes
+   prochains cours et la télé ne lisent que les écoutes non annulées.
+   On demande s'il faut prévenir l'élève (mail + message). */
+async function annulerEcouteDuJourEP(lignes, titre, recharger, bouton){
+  const noms = lignes.map(x => x.eleve).join(', ');
+  const choix = (typeof fenetre === 'function') ? await fenetre('Annuler ' + titre + ' (' + noms + ') ?\n\n' +
+      'Elle disparaît de Mes prochains cours des moniteurs et de l’affichage.\n\n' +
+      '« Annuler et prévenir » envoie « Ton écoute pédagogique d’aujourd’hui est annulée » (mail + message dans son espace).',
+    [{ nom: 'Retour', valeur: 0 }, { nom: 'Annuler sans prévenir', valeur: 1 }, { nom: 'Annuler et prévenir', valeur: 2, danger: true }],
+    '✕ Annuler l’écoute') : 1;
+  if(!choix) return;
+  if(bouton) bouton.disabled = true;
+  try{
+    const rep = await appelPrep({ action: 'ecouteAnnuler', ids: lignes.map(x => x.id), annuler: true, prevenir: choix === 2 });
+    if(typeof showToast === 'function') showToast('Écoute annulée ✅' + (rep && rep.prevenus ? ' · ' + rep.prevenus + ' prévenu(s)' : ''));
+    ETAT_EP.t = 0;
+    recharger(rep);
+  }catch(e){ if(bouton) bouton.disabled = false; if(typeof showToast === 'function') showToast('Impossible : ' + ((e && e.message) || e)); }
+}
+async function remettreEcouteDuJourEP(lignes, recharger, bouton){
+  if(bouton) bouton.disabled = true;
+  try{ const rep = await appelPrep({ action: 'ecouteAnnuler', ids: lignes.map(x => x.id), annuler: false }); ETAT_EP.t = 0; recharger(rep); }
+  catch(e){ if(bouton) bouton.disabled = false; if(typeof showToast === 'function') showToast('Impossible : ' + ((e && e.message) || e)); }
+}
 function blocEcoutesDuJourEP(d, el){
-  const lj = (d.jourResa || []).filter(x => !x.annulee);
+  /* v1312 : les annulées restent, barrées, avec ↩️ pour les remettre */
+  const lj = d.jourResa || [];
   const bloc = el('div', 'epRappels epJour');
   bloc.appendChild(el('div', 'epRappelsTitre', '👂 Écoutes d’aujourd’hui — qui est là ?'));
   bloc.appendChild(el('div', 'epRegSous', (typeof dateEnToutesLettres === 'function' ? dateEnToutesLettres(d.aujourdhui) : d.aujourdhui) +
@@ -550,13 +577,38 @@ function blocEcoutesDuJourEP(d, el){
   });
   const recharger = rep => { if(rep && rep.status === 'ok' && typeof afficherEcoutes === 'function') afficherEcoutes(); };
   groupes.sort((a, b) => (a.debut + a.agence).localeCompare(b.debut + b.agence)).forEach(g => {
-    const gb = el('div', 'epRappelGroupe');
+    const toutes = g.l.every(x => x.annulee);
+    const gb = el('div', 'epRappelGroupe' + (toutes ? ' annulee' : ''));
     const t = el('div', 'epRappelTete');
     const enCours = d.minutes >= minEP(g.debut) && d.minutes < minEP(g.fin);
+    const titreG = 'l’écoute de ' + heureDiteEP(g.debut);
     t.appendChild(el('b', '', heureDiteEP(g.debut) + '–' + heureDiteEP(g.fin) + ' · ' + nomAgenceEP(g.agence) + ' · ' + colonneDiteEP(g.colonne) +
-      (enCours ? ' — en cours' : d.minutes >= minEP(g.fin) ? ' — finie' : '')));
+      (toutes ? ' — annulée' : enCours ? ' — en cours' : d.minutes >= minEP(g.fin) ? ' — finie' : '')));
+    if(d.peutTout){
+      const ba = el('button', 'btn btn-secondary epAnnulerJour', toutes ? '↩️ Remettre' : '✕ Annuler l’écoute');
+      ba.type = 'button';
+      ba.addEventListener('click', () => toutes ? remettreEcouteDuJourEP(g.l, recharger, ba)
+                                                : annulerEcouteDuJourEP(g.l.filter(x => !x.annulee), titreG, recharger, ba));
+      t.appendChild(ba);
+    }
     gb.appendChild(t);
     g.l.forEach(x => {
+      if(x.annulee){
+        const l = el('div', 'epRappelLigne epJourLigne barre');
+        l.setAttribute('data-eleve', x.eleve);
+        const tx = el('div', 'epRappelNom');
+        tx.appendChild(el('b', '', x.eleve));
+        tx.appendChild(el('span', 'epCol', ' · annulée' + (x.annuleePar ? ' par ' + x.annuleePar : '') + (x.annulationEnvoyee ? ' · 📣 prévenu(e)' : '')));
+        l.appendChild(tx);
+        if(d.peutTout && !toutes){
+          const br = el('button', 'btn btn-secondary', '↩️');
+          br.type = 'button'; br.title = 'Remettre son écoute';
+          br.addEventListener('click', () => remettreEcouteDuJourEP([x], recharger, br));
+          l.appendChild(br);
+        }
+        gb.appendChild(l);
+        return;
+      }
       const e = etatJourEP(d, x);
       const l = el('div', 'epRappelLigne epJourLigne' + (e.bureau ? ' ' + (e.bureau.etat === 'la' ? 'epLa' : 'epPasLa') : (e.present ? ' epLa' : '')));
       l.setAttribute('data-eleve', x.eleve);
@@ -581,6 +633,12 @@ function blocEcoutesDuJourEP(d, el){
         bAbs.title = e.bureau && e.bureau.etat === 'absent' ? 'Retirer « pas là »' : 'Il n’est pas venu';
         bAbs.addEventListener('click', () => poser(e.bureau && e.bureau.etat === 'absent' ? '' : 'absent', bAbs));
         boutons.append(bLa, bAbs);
+        if(g.l.filter(y => !y.annulee).length > 1){
+          const bX = el('button', 'btn btn-secondary', '✕');
+          bX.type = 'button'; bX.title = 'Annuler son écoute (lui/elle seulement)';
+          bX.addEventListener('click', () => annulerEcouteDuJourEP([x], 'l’écoute de ' + heureDiteEP(x.debut), recharger, bX));
+          boutons.appendChild(bX);
+        }
         if(e.absence && e.absence.etat === 'a_confirmer'){
           const bEnv = el('button', 'btn btn-primary', '✉️ Envoyer l’absence');
           bEnv.type = 'button';
@@ -593,7 +651,7 @@ function blocEcoutesDuJourEP(d, el){
     });
     bloc.appendChild(gb);
   });
-  bloc.appendChild(el('div', 'epPied', '✅ Là : ses absences du jour s’effacent, et le pointage n’en recrée pas. 🚫 Pas là : l’absence est posée « à confirmer » — rien ne part sans « ✉️ Envoyer l’absence » (ou l’envoi automatique, s’il est allumé). Un second appui retire la décision.'));
+  bloc.appendChild(el('div', 'epPied', '✅ Là : ses absences du jour s’effacent, et le pointage n’en recrée pas. 🚫 Pas là : l’absence est posée « à confirmer » — rien ne part sans « ✉️ Envoyer l’absence » (ou l’envoi automatique, s’il est allumé). Un second appui retire la décision. ✕ Annuler : l’écoute disparaît des cours des moniteurs et de l’affichage (prévenir l’élève ou non, au choix).'));
   return bloc;
 }
 
