@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:07 — v1309 */
+/* Déployé le 30/10/2026 à 14:51 — v1310 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1310,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '📞 Le suivi des appels : une fiche par numéro, comme Allo',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Une fiche par numéro',
+        texte: 'À gauche les numéros (le plus récent en haut), à droite la fiche : 📞 Rappeler, Rattacher, Écrire, Ce qui s’est passé, et tout l’historique du numéro en fil. Les filtres restent les mêmes.' },
+      { emoji: '👤',
+        titre: 'Dans le dossier aussi',
+        texte: 'L’onglet 📞 Appels de l’élève montre le même fil, avec une pastille par numéro (lui, un proche).' }
+    ]
+  },
   {
     version: 1309,
     date: 'Vendredi 30 octobre 2026',
