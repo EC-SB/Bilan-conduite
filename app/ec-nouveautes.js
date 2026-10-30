@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 12:23 — v1306 */
+/* Déployé le 30/10/2026 à 13:07 — v1307 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1307,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '📋 Les captures du CEPC ne se collent plus chez le mauvais élève',
+    quoi: [
+      { emoji: '📋',
+        titre: 'Coller une capture du CEPC',
+        texte: 'Une image collée dans la messagerie ou pour un autre élève n’atterrit plus dans le CEPC du dernier élève ouvert. Hors de la zone « Colle ta capture ici », le collage ne marche que si un seul élève est à l’écran, et un message dit à qui la capture est allée.' }
+    ]
+  },
   {
     version: 1306,
     date: 'Vendredi 30 octobre 2026',
