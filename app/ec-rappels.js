@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 12:23 — v1306 */
+/* Déployé le 30/10/2026 à 13:37 — v1308 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -4499,6 +4499,20 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       x.date === iso && heureDeNote(x.note) === hVoulue);
     if(deja) return false;
 
+    /* 🎓 v1308 — UNE CARTE PAR ÉLÈVE LE JOUR DU PERMIS. David : « pas de
+       2e carte, et on prévient qu'il y a déjà une carte ». Le rappel est
+       parti ; le cours, lui, n'est pas créé deux fois. */
+    const carteExamen = liste.find(x => normaliserMot(x.eleve || '') === normaliserMot(eleve) &&
+      x.date === iso && x.modele === 'examen-officiel');
+    if(carteExamen){
+      const h = heureDeNote(carteExamen.note);
+      const msg = 'ℹ️ ' + eleve + ' a déjà sa carte d’examen ce jour-là' + (h ? ' (' + String(h).replace(':', 'h') + ')' : '') +
+                  ' : pas de 2e carte dans Mes prochains cours.';
+      showToast(msg);
+      if(typeof direEtatEnvoi === 'function') try{ direEtatEnvoi(msg, false); }catch(e){}
+      return false;
+    }
+
     /* La boîte de l'élève décide du type de bilan. Sans indication —
        fiche vide, élève tout neuf — on part sur l'automatique :
        c'est le cas le plus courant, et le moniteur corrige d'un
@@ -4714,6 +4728,18 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
        rappels pouvait en perdre un en silence. */
     if(!r || (!r.id && r.status !== 'ok')){
       throw new Error('Le cours n\'a pas été enregistré.');
+    }
+
+    /* 🎓 v1308 — la carte d'examen arrive : la carte de conduite du même
+       élève, le même jour (le rappel de la conduite d'avant examen), s'en va */
+    if(cle === 'examen-officiel' && typeof doublonsDuPermisDans === 'function'){
+      try{
+        const avecLui = liste.concat([{ id: r.id, eleve: eleve, date: iso, modele: cle }]);
+        doublonsDuPermisDans(avecLui).forEach(x => {
+          appelPrep({ action: 'prepDelete', id: x.id }).catch(() => {});
+          if(typeof prepares !== 'undefined') prepares = prepares.filter(y => String(y.id) !== String(x.id));
+        });
+      }catch(e){}
     }
 
     /* La liste en mémoire suit tout de suite : le moniteur voit
