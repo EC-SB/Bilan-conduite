@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 13:37 — v1308 */
+/* Déployé le 30/10/2026 à 15:17 — v1311 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3305,6 +3305,26 @@ async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc,
      réponse qu'on n'a pas donnée ne vaut pas zéro, et elle
      n'autorise surtout pas à effacer celle d'avant.
      ============================================================ */
+  /* 🅱️ v1311 — L'EXAMEN BLANC SE NOTE MÊME SANS HEURES. David, le 30
+     octobre, sur Hamidou Ali : « il vient de refaire un examen blanc, il
+     faut mettre la brique à jour ». Un examen blanc « pas le niveau » (ou
+     « pourrait ») n'a pas d'heures : les deux sorties ci-dessous partaient
+     AVANT d'écrire sa date et sa conclusion, et la tuile « Où en est son
+     permis » gardait l'examen blanc d'avant (« examen blanc du 29 août »). */
+  if(estExamenBlanc && (!h || niveau !== 'oui')){
+    try{
+      if(typeof majSuivi === 'function'){
+        await majSuivi(eleve, {
+          ebNiveau: niveau === 'oui' ? 'oui' : niveau === 'peut' ? 'peut' : niveau === 'non' ? 'non' : '',
+          ebDate: ($('lessonDate') && $('lessonDate').value) || ((typeof todayLocal === 'function') ? todayLocal() : '')
+        });
+      }
+    }catch(e){
+      if(typeof showToast === 'function') showToast('⚠️ L’examen blanc de ' + eleve + ' n’a pas atteint le bureau.');
+    }
+    return;
+  }
+
   if(!h) return;                               /* rien n'a été dit */
 
   const valeur = (niveau === 'oui') ? h : '';
