@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 16:18 — v1324 */
+/* Déployé le 31/10/2026 à 17:05 — v1325 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1325,
+    date: 'Samedi 31 octobre 2026',
+    resume: '🔑 Coin révisions : mise en route en 3 étapes, message juste',
+    quoi: [
+      { emoji: '🧭',
+        titre: 'Mettre en route son espace',
+        texte: 'La première fois : sa formation, ce qu’il voit (des interrupteurs déjà réglés), le message. Ensuite, sa carte.' },
+      { emoji: '✉️',
+        titre: 'Le message dit ce qui est ouvert',
+        texte: 'Ses groupes par leur nom, la salle seulement si la théorie est cochée. Il se modifie avant de partir, et part aussi dans sa messagerie.' },
+      { emoji: '📋',
+        titre: 'Le questionnaire, un interrupteur',
+        texte: 'Allumé pour tous, sauf passerelles, remises à niveau et régularisations. Éteint : ni questionnaire, ni relance.' },
+      { emoji: '⚙️',
+        titre: 'Ce qu’on ouvre par formation',
+        texte: 'Les admins règlent, formation par formation, les modules, les groupes et le questionnaire. Passerelles, motos et remises à niveau ne font pas la salle.' }
+    ]
+  },
   {
     version: 1324,
     date: 'Samedi 31 octobre 2026',
