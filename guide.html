@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1324
+     GUIDE-VERSION: 1325
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1324</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1325</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1324</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1325</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1727,16 +1727,25 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
     <h4>🔑 L'onglet Coin révisions</h4>
     <p>Le <strong>coin révisions</strong> est l'espace personnel de l'élève, sur <code>eleve.evolutionconduites.fr</code>&nbsp;: il y suit son parcours, récite ses procédures, joue aux vérifications, écrit au bureau. Tout ce qu'il y trouve se décide ici. Ce qu'il voit de son côté&nbsp;: <a href="#chparcours" class="aller">le chapitre du parcours et de l'espace élève</a>.</p>
-    <p><strong>Sans accès</strong>&nbsp;: <span class="ch">🔒 Pas de coin révisions</span> et <span class="b">🔑 Lui créer un accès</span>. <strong>Avec un accès</strong>, une carte bordée d'orange&nbsp;:</p>
+    <h5 id="coin-mise-en-route">🧭 La première fois&nbsp;: la mise en route</h5>
+    <p><strong>Sans accès</strong>&nbsp;: <span class="ch">🔒 Pas encore de coin révisions</span> et <span class="b">🧭 Mettre en route son espace</span>. Trois étapes&nbsp;:</p>
+    <ol class="etapes">
+      <li><span class="b">① Sa formation</span> — celle de sa fiche (on peut la changer ici, sans toucher à sa fiche). Elle choisit <strong>ce qu'on ouvre d'habitude</strong>, résumé juste en dessous&nbsp;: les modules, les groupes, et le questionnaire oui ou non.</li>
+      <li><span class="b">② Ce qu'il voit</span> — des interrupteurs, déjà réglés par l'habitude de sa formation. Un appui allume ou éteint&nbsp;; rien n'est encore enregistré. Un admin peut cocher <span class="b">⭐ En faire l'habitude pour « … »</span>. <span class="b">Ouvrir son espace ›</span> enregistre tout d'un coup et crée son code.</li>
+      <li><span class="b">③ Le message</span> — <span class="ch">À</span> (l'adresse de sa fiche), <span class="ch">Objet</span>, et le message <strong>écrit d'après ce qui est ouvert</strong>, modifiable avant de partir. <span class="b">💬 L'envoyer aussi dans sa messagerie de l'appli</span> est cochée de base. <span class="b">✉️ Envoyer</span>, <span class="b">📋 Copier</span>, ou <span class="b">Fermer sans envoyer</span> (son espace reste ouvert&nbsp;; le message s'envoie plus tard depuis sa carte).</li>
+    </ol>
+    <div class="note astuce"><span class="tag">L'habitude de base</span><p>Sans réglage pour une formation&nbsp;: 🎬 vidéos et guides, 📅 prochain cours, 📖 historique, 💬 écrire à l'école, et les groupes qui prévoient cette formation. <strong>Le questionnaire est allumé pour tous, sauf les passerelles, les remises à niveau et les régularisations.</strong> <strong>Les passerelles, les motos et les remises à niveau ne font pas la salle</strong>&nbsp;: le groupe de la salle (la théorie) n'est pas coché chez eux. Un admin règle chaque formation une fois pour toutes avec <span class="b">⚙️ Ce qu'on ouvre par formation</span>, en bas de la carte.</p></div>
+    <h5>🔓 Ensuite&nbsp;: sa carte</h5>
     <ul>
-      <li><span class="ch">🔓 Coin révisions</span>, sa dernière venue (<span class="ch">vu le …</span> ou <span class="ch">jamais venu</span>) et sa langue s'il récite dans une autre langue.</li>
-      <li><strong>Son code, masqué</strong> — <span class="ch">••••••</span>. Un appui l'affiche, et la demande est notée au journal. Révéler un code demande aussi le droit des procédures.</li>
-      <li><strong>Ce qu'il trouve dans son espace</strong>, une case par module&nbsp;: <span class="b">📋 Réciter des procédures</span>, <span class="b">🎓 Suivi du code en salle</span>, <span class="b">🎬 Son parcours — vidéos et guides</span>, <span class="b">🧰 Le jeu des vérifications</span>, <span class="b">📅 Son prochain cours</span>, <span class="b">📖 L'historique de ses leçons</span>, <span class="b">💬 Écrire à l'école (le bureau)</span>, <span class="b">💬 … et à son moniteur</span>, <span class="b">📞 Peut appeler en vocal (le bureau, son moniteur)</span>, <span class="b">🎥 … et en vidéo</span>. Chaque case s'enregistre dès qu'on la coche.</li>
-      <li><strong>🧩 Ses groupes</strong> — les groupes du parcours qu'on lui ouvre. <em>«&nbsp;Aucun n'est ouvert de base. C'est toi qui ouvres.&nbsp;»</em> Cocher un groupe ouvre aussi le module 🎬 Son parcours. Un bouton <span class="b">🧩 Ouvrir ce que prévoit sa formation (…)</span> coche d'un coup les groupes prévus pour sa formation&nbsp;: on décoche ensuite ce qu'on ne veut pas.</li>
-      <li><span class="b">✉️ Lui envoyer par mail</span> et <span class="b">📋</span> (copier le message d'accès, avec l'adresse, son nom et son code).</li>
-      <li><span class="b">🚪 Il a quitté l'auto-école</span> (ou <span class="b">↩️ Il est revenu</span>) — ferme son coin révisions tout de suite&nbsp;; son dossier et sa progression restent. Un élève qui a son permis voit son coin révisions se fermer tout seul&nbsp;: <span class="ch">🏁 Il a son permis : son coin révisions s'est fermé tout seul.</span></li>
+      <li><span class="ch">🔓 Coin révisions</span>, sa dernière venue (<span class="ch">vu le …</span> ou <span class="ch">jamais venu</span>), sa formation, sa langue s'il récite dans une autre langue — et <strong>son code, masqué</strong> (<span class="ch">••••••</span>)&nbsp;: <span class="b">👁️ Code</span> l'affiche, et la demande est notée au journal.</li>
+      <li><span class="b">✉️ Lui envoyer son accès</span> — la même fenêtre que l'étape ③&nbsp;: le message dit ce qui est ouvert chez lui, se modifie, part par mail et dans sa messagerie. Et <span class="b">👀 Ouvrir son espace pour le lui montrer</span> (ci-dessous).</li>
+      <li><strong>Ce qu'il trouve dans son espace</strong>, une tuile par module avec son interrupteur&nbsp;: <span class="b">🎬 Ses vidéos et guides</span>, <span class="b">📅 Son prochain cours</span>, <span class="b">📖 L'historique de ses leçons</span>, <span class="b">💬 Écrire à l'école</span>, <span class="b">📋 Le questionnaire</span>, <span class="b">📋 Réciter des procédures</span>, <span class="b">🎓 Suivi du code en salle</span>, <span class="b">🧰 Le jeu des vérifications</span>, <span class="b">💬 … et à son moniteur</span>, <span class="b">📞 Appeler en vocal</span>, <span class="b">🎥 … et en vidéo</span>. <em>Un appui ouvre ou ferme, c'est enregistré.</em></li>
+      <li><strong>🧩 Ses groupes</strong>, en tuiles aussi, chacune avec ce qui l'attend chez lui&nbsp;: <span class="ch">📺 en salle d'abord</span>, <span class="ch">🔒 après la salle</span>, <span class="ch">🔒 après « … »</span> ou <span class="ch">ouvert tout de suite</span>&nbsp;; <span class="ch">pas prévu pour sa formation</span> sur ceux qu'on ne lui ouvre pas d'habitude. Ouvrir un groupe ouvre aussi 🎬&nbsp;; 🎬 ne se ferme pas tant qu'un groupe est ouvert. <span class="b">🧩 Ce que prévoit sa formation (…)</span> remet l'habitude de sa formation, après confirmation.</li>
+      <li><strong>📺 Salle des tablettes</strong> — seulement si un groupe de la salle est ouvert chez lui (ou s'il y est déjà passé). <strong>Sans groupe de la salle, rien n'attend la salle chez lui</strong>&nbsp;: ses groupes s'ouvrent tout de suite.</li>
+      <li>En bas&nbsp;: <span class="ch">Ouvert le …</span>, <span class="b">🧭 Refaire la mise en route</span>, <span class="b">⚙️ Ce qu'on ouvre par formation</span> (admins) et <span class="b">🚪 Il a quitté l'auto-école</span> (ou <span class="b">↩️ Il est revenu</span>) — ferme son coin révisions tout de suite&nbsp;; son dossier et sa progression restent. Un élève qui a son permis voit son coin révisions se fermer tout seul&nbsp;: <span class="ch">🏁 Il a son permis : son coin révisions s'est fermé tout seul.</span></li>
     </ul>
-    <div class="note"><span class="tag">Ouvert d'office, fermé d'office</span><p><span class="b">💬 Écrire à l'école (le bureau)</span> est <strong>ouvert à tous</strong> les élèves qui ont un coin révisions&nbsp;: la case est cochée et grisée, avec la mention <span class="ch">ouvert à tous</span>. Tout le reste est <strong>fermé tant que personne ne l'ouvre</strong> — un module qui s'ouvrirait tout seul arriverait chez deux cents élèves d'un coup. Les appels&nbsp;: la vidéo ne s'ouvre qu'avec le vocal, et ces cases ne servent qu'à ce qu'<em>il</em> appelle — on peut toujours l'appeler, et il répond sans case cochée.</p></div>
+    <div class="note"><span class="tag">📋 Le questionnaire éteint</span><p>Il ne s'ouvre pas quand il entre dans son espace, aucune relance ne part, et l'écran des renseignements le range à part&nbsp;: <span class="b">🚫 Sans questionnaire</span>.</p></div>
+    <div class="note"><span class="tag">Ouvert d'office, fermé d'office</span><p><span class="b">💬 Écrire à l'école (le bureau)</span> est <strong>ouvert à tous</strong> les élèves qui ont un coin révisions&nbsp;: la tuile est allumée et grisée, avec la mention <span class="ch">ouvert à tous</span>. Tout le reste est <strong>fermé tant que personne ne l'ouvre</strong> — un module qui s'ouvrirait tout seul arriverait chez deux cents élèves d'un coup. Les appels&nbsp;: la vidéo ne s'ouvre qu'avec le vocal, et ces cases ne servent qu'à ce qu'<em>il</em> appelle — on peut toujours l'appeler, et il répond sans case cochée.</p></div>
 
     <h5>👀 Ouvrir son espace pour le lui montrer</h5>
     <p>Sous la carte, quand son accès est ouvert&nbsp;: <span class="b">👀 Ouvrir son espace pour le lui montrer</span> — <em>«&nbsp;Dans un nouvel onglet, comme il le voit. Rien n'est envoyé ni enregistré à son nom.&nbsp;»</em> Son espace s'ouvre <strong>sans taper son code</strong>, avec un bandeau jaune en haut&nbsp;: <span class="ch">👀 Espace de Lou Exemplaire, ouvert par Hery — démonstration : rien n'est envoyé ni enregistré à son nom.</span> et <span class="b">✕ Terminer</span>.</p>
@@ -1789,7 +1798,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     </ul>
 
     <h4>L'écran</h4>
-    <p>La liste des élèves qui ont un coin révisions, avec trois filtres&nbsp;: <span class="b">⚠️ À demander</span> · <span class="b">✅ Complets</span> · <span class="b">Tous</span>. Chaque ligne dit où il en est&nbsp;: demandé quand, relancé combien de fois, <span class="ch">son espace n'a pas encore été ouvert</span>, ou <span class="ch">pas de messagerie sur son espace : à lui demander de vive voix</span>. Un élève sans espace se remplit avec lui.</p>
+    <p>La liste des élèves qui ont un coin révisions, avec trois filtres&nbsp;: <span class="b">⚠️ À demander</span> · <span class="b">✅ Complets</span> · <span class="b">Tous</span> — et <span class="b">🚫 Sans questionnaire</span> pour ceux dont l'interrupteur 📋 est éteint dans leur coin révisions (on ne le leur demande pas). Chaque ligne dit où il en est&nbsp;: demandé quand, relancé combien de fois, <span class="ch">son espace n'a pas encore été ouvert</span>, ou <span class="ch">pas de messagerie sur son espace : à lui demander de vive voix</span>. Un élève sans espace se remplit avec lui.</p>
     <ul>
       <li><span class="b">📨 Le lui demander</span> (ou <span class="b">📨 Le lui redemander</span>, <span class="b">📨 Lui demander de les mettre à jour</span>)&nbsp;: un message part dans la messagerie de son espace, avec une notification sur son téléphone, et le questionnaire s'ouvrira tout seul à sa prochaine visite.</li>
       <li><span class="b">📨 Le demander aux N élèves joignables</span>, d'un coup.</li>
@@ -2027,7 +2036,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
     <h4>🔑 Codes du coin révisions</h4>
     <p>En haut&nbsp;: <span class="b">Donner un accès à</span>, <span class="b">Sa langue</span> (avec <span class="b">⚙️</span> pour la liste des langues) et <span class="b">🔑 Créer son code</span>. Ouvrir une autre langue lui permet de réciter dans sa langue — chaque récitation coûte alors une traduction en plus.</p>
-    <p>Puis une carte par élève&nbsp;: le nom, <span class="ch">vu le …</span> ou <span class="ch">jamais venu</span>, la langue, le code <strong>masqué</strong> (<span class="ch">••••••</span> — un appui en affiche un, et la demande est journalisée), et <span class="b">✉️</span> (envoyer l'accès par mail), <span class="b">📋</span> (copier le message), <span class="b">🌍</span> (sa langue), <span class="b">🔄</span> (nouveau code&nbsp;: l'ancien ne marchera plus) et <span class="b">🗑️</span>.</p>
+    <p>Puis une carte par élève&nbsp;: le nom, <span class="ch">vu le …</span> ou <span class="ch">jamais venu</span>, la langue, le code <strong>masqué</strong> (<span class="ch">••••••</span> — un appui en affiche un, et la demande est journalisée), et <span class="b">✉️</span> (la fenêtre <span class="b">✉️ Lui envoyer son accès</span>&nbsp;: mail et messagerie), <span class="b">📋</span> (copier le message), <span class="b">🌍</span> (sa langue), <span class="b">🔄</span> (nouveau code&nbsp;: l'ancien ne marchera plus) et <span class="b">🗑️</span>.</p>
     <div class="note astuce"><span class="tag">Les codes périment</span><p><strong>Douze mois sans venir, et le code ne vaut plus.</strong> La carte l'annonce — <span class="ch">⏳ code expiré (12 mois sans venir)</span> — et l'élève qui essaie lit <em>«&nbsp;Ton accès a expiré. Demande un nouveau code à l'auto-école.&nbsp;»</em> <span class="b">🔄</span> le rouvre, et il garde ses récitations.</p></div>
     <h5>📚 Révisions — ce à quoi il a accès</h5>
     <p>Sous chaque élève, un tiroir&nbsp;: <span class="ch">📚 Révisions — 🚚 Remorque — permis BE · 7 procédures</span>. Les procédures que <strong>sa formation</strong> lui donne sont cochées et verrouillées, avec la mention <span class="ch">par sa formation</span>&nbsp;; les autres se cochent pour lui en ouvrir en plus. Le principe est additif&nbsp;: une case décochée par mégarde ne peut pas le priver de ce qui lui revient. Sans formation renseignée, il ne reçoit que les procédures communes.</p>
