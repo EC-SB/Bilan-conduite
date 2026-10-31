@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 31/10/2026 à 10:44 — v1318 -->
+<!-- Déployé le 31/10/2026 à 11:37 — v1319 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -258,6 +258,19 @@
   .salleCases{ display:flex; gap:12px; justify-content:center; margin:6px 0 16px; }
   .salleCases span{ width:52px; height:60px; border-radius:12px; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:30px; }
   .salleCases span.plein{ border-color:var(--orange); }
+  /* 🔑 v1319 — l'équipe installe un élève sur la tablette */
+  .salleEqCarte{ max-width:640px; }
+  .salleEqLabel{ display:block; font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin:12px 0 6px; }
+  .salleEqChamp{ width:100%; box-sizing:border-box; font-size:17px; min-height:48px; }
+  .salleEqSous{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--muted); margin:14px 0 6px; }
+  .salleEqPuces{ display:flex; flex-wrap:wrap; gap:8px; }
+  .salleEqChoix{ border:1px solid var(--line); background:transparent; color:var(--cream); border-radius:999px; padding:10px 14px; min-height:44px; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  .salleEqChoix.on{ background:var(--orange); border-color:var(--orange); color:var(--on-accent); }
+  .salleEqPuce{ display:inline-block; border:1px solid var(--line); border-radius:999px; padding:3px 10px; margin:2px 4px 2px 0; font-size:13.5px; }
+  .salleEqLignes{ font-size:15px; line-height:2; margin:14px 0 10px; }
+  .salleEqBas{ display:flex; gap:10px; margin-top:16px; }
+  .salleEqBas .btn{ flex:1; margin:0; min-height:52px; }
+  .salleEqPied{ font-size:12.5px; color:var(--muted); margin-top:10px; line-height:1.5; }
   .salleClavier{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
   .salleClavier .btn{ min-height:64px; font-size:24px; font-weight:800; margin:0; }
   .salleMsg{ font-size:14px; color:var(--warn-text); margin-top:10px; min-height:20px; line-height:1.5; }
@@ -274,6 +287,7 @@
   .salleFerme{ display:flex; gap:10px; align-items:center; padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; opacity:.6; }
   .salleFerme span.n{ flex:1; font-weight:700; }
   .salleFerme small{ font-size:12px; color:var(--muted); }
+  .salleFermesTitre{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--muted); margin:14px 0 8px; }
 
   .demande{
     display:flex; gap:10px; align-items:center;
@@ -2401,7 +2415,9 @@
       '<div id="salleNoms" class="salleNoms"><div class="empty">⏳ …</div></div></div>' +
       '<div class="card salleCarte"><div class="section-title">🆕 La première fois ?</div>' +
       '<div class="salleTexte">Demande à l’équipe de t’installer : ton cours s’ouvrira ici tout seul.</div>' +
+      '<button type="button" class="btn btn-primary" id="salleBtEquipe">🔑 L’équipe : installer un élève ici</button>' +
       '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div></div>';
+    $('salleBtEquipe').addEventListener('click', function(){ salleEquipeCode(''); });
     salleVeiller(true);
   }
   function salleVeiller(maintenant){
@@ -2445,6 +2461,189 @@
       z.appendChild(b);
     });
   }
+  /* ============================================================
+     🔑 L'ÉQUIPE INSTALLE UN ÉLÈVE, SUR LA TABLETTE ELLE-MÊME — v1319
+
+     David, le 31 octobre : « il faut que l'on puisse installer un
+     élève directement sur la tablette ». Ses choix (schéma v1318) : le
+     code de chacun (celui de l'appli), toute l'équipe ; « même s'il a
+     déjà commencé, s'il n'a pas réservé sur Drivup et que ça ne remonte
+     pas tout seul ».
+
+     ⚠️ LE CODE N'EST JAMAIS GARDÉ. Il vit en mémoire le temps de la
+     fenêtre ; deux minutes sans rien toucher, et tout s'efface (retour
+     à l'accueil). Il passe par /auth, avec le même compteur d'essais
+     que l'appli (huit codes faux, quinze minutes). Ce que la tablette
+     lit ensuite passe par les portes de l'appli, avec les droits de
+     la personne (« 📺 Salle des tablettes » : modifier).
+     ============================================================ */
+  var EQUIPE_SALLE = null;      /* { code, nom, d, fiches, groupes } */
+  var salleEquipeMinuteur = null;
+  var SALLE_EQUIPE_MS = 2 * 60000;
+  function salleEquipeFin(msg){
+    EQUIPE_SALLE = null;
+    if(salleEquipeMinuteur){ clearInterval(salleEquipeMinuteur); salleEquipeMinuteur = null; }
+    salleAccueil(msg || '');
+  }
+  function salleEquipeVeiller(){
+    if(salleEquipeMinuteur) clearInterval(salleEquipeMinuteur);
+    salleDernierAppui = Date.now();
+    salleEquipeMinuteur = setInterval(function(){
+      if(Date.now() - salleDernierAppui > SALLE_EQUIPE_MS) salleEquipeFin('⏱️ Fenêtre de l’équipe refermée (deux minutes sans rien toucher).');
+    }, 5000);
+  }
+  function appelEquipe(chemin, corps){
+    return fetch(RELAIS + chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ code: EQUIPE_SALLE ? EQUIPE_SALLE.code : '' }, corps)) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){
+        if(!r.ok || (d && d.error)) throw new Error((d && (d.error || d.message)) || ('Refusé (' + r.status + ')'));
+        if(d && d.status === 'error') throw new Error(d.message || 'Refusé');
+        return d;
+      }); });
+  }
+  function salleEquipeCode(msg){
+    if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
+    salleEquipeVeiller();
+    var e = salleEcran();
+    var tape = '';
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="card salleCarte salleMilieu"><div class="section-title">🔑 L’équipe : ton code</div>' +
+      '<div class="salleTexte">Le code avec lequel tu ouvres l’application de l’auto-école. <b>Cache l’écran</b> : l’élève ne doit pas le voir.</div>' +
+      '<div id="salleCodeEquipe" class="salleCases" aria-live="polite"></div>' +
+      '<div class="salleClavier">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '←', '0', '✓'].map(function(k){
+        return '<button type="button" class="btn ' + (k === '✓' ? 'btn-primary' : 'btn-secondary') + '" data-k="' + k + '">' + k + '</button>'; }).join('') + '</div>' +
+      '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div>' +
+      '<button type="button" class="btn btn-secondary" id="salleRetour">← Retour</button></div>';
+    function montrer(){
+      var n = Math.max(6, tape.length);
+      $('salleCodeEquipe').innerHTML = Array.apply(null, Array(n)).map(function(_, i){
+        return '<span class="' + (i < tape.length ? 'plein' : '') + '">' + (i < tape.length ? '•' : '') + '</span>'; }).join('');
+    }
+    function valider(){
+      if(tape.length < 4){ $('salleMsg').textContent = 'Ton code de l’appli, en entier.'; return; }
+      $('salleMsg').textContent = '⏳ …';
+      e.querySelectorAll('.salleClavier button').forEach(function(b){ b.disabled = true; });
+      EQUIPE_SALLE = { code: tape };
+      appelEquipe('/auth', {}).then(function(a){
+        EQUIPE_SALLE.nom = a.moniteur || '';
+        return Promise.all([appelEquipe('/sheets', { action: 'salleLire' }), appelEquipe('/sheets', { action: 'salleFichesTablette' })]);
+      }).then(function(r){
+        EQUIPE_SALLE.d = r[0]; EQUIPE_SALLE.fiches = r[1].fiches || []; EQUIPE_SALLE.groupes = r[1].groupes || [];
+        salleEquipeInstaller();
+      }).catch(function(er){
+        EQUIPE_SALLE = null; tape = ''; montrer();
+        e.querySelectorAll('.salleClavier button').forEach(function(b){ b.disabled = false; });
+        $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.';
+      });
+    }
+    e.querySelectorAll('.salleClavier button').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-k');
+        if(k === '←') tape = tape.slice(0, -1);
+        else if(k === '✓') return valider();
+        else if(tape.length < 12) tape += k;
+        montrer();
+      });
+    });
+    $('salleRetour').addEventListener('click', function(){ salleEquipeFin(''); });
+    montrer();
+  }
+  /* Sa formation : ce qui se regarde en salle, et ce qui s'ouvrira ensuite
+     (la même règle que la fenêtre de l'appli, ec-salle.js › slGroupesPour) */
+  function salleNormE(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function salleCleE(t){ return salleNormE(t).split(/[\s-]+/).filter(Boolean).sort().join(' '); }
+  function salleGroupesPourE(formation){
+    var f = salleNormE(formation), prog = ((EQUIPE_SALLE.d.programme || {}).groupes) || [];
+    var pourLui = function(g){ return (g.formations || []).some(function(x){ return salleNormE(x) === f; }); };
+    var ouverts = (EQUIPE_SALLE.groupes || []).filter(function(g){ return !g.fermeLe; });
+    var salle = ouverts.filter(function(g){ return prog.indexOf(g.id) !== -1 && (!(g.formations || []).length || (f && pourLui(g))); });
+    var ensuite = f ? ouverts.filter(function(g){ return pourLui(g) && !salle.some(function(x){ return x.id === g.id; }); }) : [];
+    var net = function(g){ return { id: g.id, nom: g.nom, icone: g.icone || '' }; };
+    return { salle: salle.map(net), ensuite: ensuite.map(net) };
+  }
+  function salleHeureE(h){ return String(h || '').replace(/^0/, '').replace(':', 'h').replace(/h00$/, 'h'); }
+  function salleEquipeInstaller(){
+    var Q = EQUIPE_SALLE, d = Q.d;
+    var t = (d.tablettes || []).find(function(x){ return TABLETTE && x.nom === TABLETTE.nom && x.site === TABLETTE.site; });
+    var e = salleEcran();
+    if(!t){ salleEquipeFin('⚠️ Cette tablette n’est plus dans la liste de l’appli : réinstalle-la.'); return; }
+    if(t.seance){ salleEquipeFin('📺 ' + t.seance.eleve + ' est déjà sur cette tablette.'); return; }
+    var site = t.site;
+    var puce = function(g){ return '<span class="salleEqPuce">' + echapper((g.icone ? g.icone + ' ' : '') + g.nom) + '</span>'; };
+    var ficheDe = function(nom){ var k = salleCleE(nom); return Q.fiches.find(function(f){ return salleCleE(f.eleve) === k; }) || null; };
+    var finis = {}; (d.eleves || []).forEach(function(x){ if(x.fini) finis[salleCleE(x.eleve)] = 1; });
+    var jour = (d.resa || []).filter(function(r){ return r.site === site && !finis[salleCleE(r.eleve)]; });
+    var commences = (d.eleves || []).filter(function(x){ return !x.fini && !jour.some(function(r){ return salleCleE(r.eleve) === salleCleE(x.eleve); }); });
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="card salleCarte salleMilieu salleEqCarte"><div class="section-title">▶ Installer un élève — 📺 ' + echapper(t.nom) + '</div>' +
+      '<div class="salleTexte">Il est devant la tablette : son cours de salle s’ouvre à son nom. Ensuite, il revient seul.</div>' +
+      '<label for="salleEqNom" class="salleEqLabel">L’élève</label>' +
+      '<input type="text" id="salleEqNom" list="salleEqListe" autocomplete="off" placeholder="🔎 Son nom" class="salleEqChamp">' +
+      '<datalist id="salleEqListe">' + Q.fiches.map(function(f){ return '<option value="' + echapper(f.eleve) + '">'; }).join('') + '</datalist>' +
+      (jour.length ? '<div class="salleEqSous">📆 La théorie d’aujourd’hui (Drivup)</div><div class="salleEqPuces">' + jour.map(function(r){
+        return '<button type="button" class="salleEqChoix" data-nom="' + echapper(r.eleve) + '">' + echapper(salleHeureE(r.debut) + ' · ' + r.eleve) + '</button>'; }).join('') + '</div>' : '') +
+      (commences.length ? '<div class="salleEqSous">↩️ Déjà commencés</div><div class="salleEqPuces">' + commences.map(function(x){
+        return '<button type="button" class="salleEqChoix" data-nom="' + echapper(x.eleve) + '">' + echapper(x.eleve + (x.total ? ' · ' + x.vus + '/' + x.total : '')) + '</button>'; }).join('') + '</div>' : '') +
+      '<div id="salleEqInfo"></div>' +
+      '<div class="salleEqBas"><button type="button" class="btn btn-secondary" id="salleEqAnnuler">Annuler</button>' +
+      '<button type="button" class="btn btn-primary" id="salleEqLancer" disabled>▶ Lancer sur cette tablette</button></div>' +
+      '<div id="salleMsg" class="salleMsg"></div>' +
+      '<div class="salleEqPied">🔑 Ouvert par <b>' + echapper(Q.nom || 'l’équipe') + '</b> · se referme seul au bout de deux minutes sans rien toucher</div></div>';
+    var ie = $('salleEqNom'), info = $('salleEqInfo'), bG = $('salleEqLancer');
+    var choix = null;
+    function majEleve(){
+      var fi = ficheDe(ie.value.trim());
+      info.innerHTML = ''; choix = null; bG.disabled = true;
+      if(!ie.value.trim()) return;
+      if(!fi){ info.innerHTML = '<div class="salleTexte">⚠️ Pas de fiche à ce nom : choisis-le dans la liste.</div>'; return; }
+      var gp = salleGroupesPourE(fi.formation);
+      var ex = (d.eleves || []).find(function(x){ return salleCleE(x.eleve) === salleCleE(fi.eleve); });
+      choix = { eleve: fi.eleve, formation: fi.formation || '', naissance: fi.ddmm ? '2000-' + fi.ddmm.slice(2) + '-' + fi.ddmm.slice(0, 2) : '', salle: gp.salle, ensuite: gp.ensuite, duree: 60 };
+      if(ex && ex.fini){ info.innerHTML = '<div class="salleTexte">✅ ' + echapper(fi.eleve) + ' a déjà fini la salle : ses groupes sont ouverts.</div>'; return; }
+      if(!gp.salle.length){ info.innerHTML = '<div class="salleTexte">⚠️ Rien n’est au programme de la salle pour sa formation (' + echapper(fi.formation || 'non renseignée') + ').</div>'; return; }
+      var l = ['🎓 Sa formation : <b>' + echapper(fi.formation || 'non renseignée') + '</b>',
+               '📺 En salle : ' + gp.salle.map(puce).join(''),
+               '🔓 Puis chez lui : ' + (gp.ensuite.length ? gp.ensuite.map(puce).join('') : 'les groupes de la salle seulement')];
+      if(ex) l.push('↩️ Déjà commencé : ' + (ex.total ? ex.vus + ' sur ' + ex.total + ' vues' : 'pas encore de vue') + ' — il reprend là où il s’est arrêté.');
+      var h = '<div class="salleEqLignes">' + l.join('<br>') + '</div>';
+      if(fi.ddmm) h += '<div class="salleTexte">🔒 Pour revenir seul : son jour et mois de naissance, <b>' + fi.ddmm + '</b> (' + fi.ddmm.slice(0, 2) + '/' + fi.ddmm.slice(2) + '). Dis-le-lui.</div>';
+      else h += '<label for="salleEqNaiss" class="salleEqLabel">Sa date de naissance (son code pour revenir seul)</label><input type="date" id="salleEqNaiss" class="salleEqChamp">';
+      /* Combien de temps : sa théorie de Drivup, sinon 1 h */
+      var mt = new Date(), nowMin = mt.getHours() * 60 + mt.getMinutes();
+      var r0 = jour.find(function(x){ return salleCleE(x.eleve) === salleCleE(fi.eleve) && (Number(String(x.fin).slice(0, 2)) * 60 + Number(String(x.fin).slice(3))) > nowMin + 5; });
+      var finDrivup = r0 ? (Number(r0.fin.slice(0, 2)) * 60 + Number(r0.fin.slice(3))) - nowMin : 0;
+      var options = [['60', '1 h'], ['120', '2 h']];
+      if(finDrivup) options.unshift(['d', 'jusqu’à ' + salleHeureE(r0.fin) + ' (Drivup)']);
+      choix.duree = finDrivup || 60;
+      h += '<div class="salleEqSous">⏱️ Sa séance</div><div class="salleEqPuces" id="salleEqDuree">' + options.map(function(o, i){
+        return '<button type="button" class="salleEqChoix' + (i === 0 ? ' on' : '') + '" data-d="' + o[0] + '">' + echapper(o[1]) + '</button>'; }).join('') + '</div>';
+      info.innerHTML = h;
+      info.querySelectorAll('#salleEqDuree button').forEach(function(b){
+        b.addEventListener('click', function(){
+          info.querySelectorAll('#salleEqDuree button').forEach(function(x){ x.classList.toggle('on', x === b); });
+          var k = b.getAttribute('data-d'); choix.duree = k === 'd' ? finDrivup : Number(k);
+        });
+      });
+      var dn = $('salleEqNaiss');
+      if(dn) dn.addEventListener('input', function(){ choix.naissance = dn.value; });
+      bG.disabled = false;
+    }
+    ie.addEventListener('change', majEleve);
+    ie.addEventListener('input', function(){ if(ficheDe(ie.value.trim())) majEleve(); });
+    e.querySelectorAll('.salleEqPuces [data-nom]').forEach(function(b){
+      b.addEventListener('click', function(){ var fi = ficheDe(b.getAttribute('data-nom')); ie.value = fi ? fi.eleve : b.getAttribute('data-nom'); majEleve(); });
+    });
+    $('salleEqAnnuler').addEventListener('click', function(){ salleEquipeFin(''); });
+    bG.addEventListener('click', function(){
+      if(!choix) return;
+      bG.disabled = true; bG.textContent = '…';
+      appelEquipe('/sheets', { action: 'salleInstallerEleve', tablette: t.id, eleve: choix.eleve, formation: choix.formation,
+                               naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree })
+        .then(function(){ salleEquipeFin('▶ ' + choix.eleve + ' : son cours s’ouvre…'); })
+        .catch(function(er){ bG.disabled = false; bG.textContent = '▶ Lancer sur cette tablette'; $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.'; });
+    });
+  }
+
   /* son jour et son mois de naissance */
   function salleCode(x){
     var e = salleEcran();
@@ -3982,16 +4181,34 @@
      réponse ; ici, une carte dit pourquoi, où il en est, et ce qui
      s'ouvrira à la fin.
      ============================================================ */
-  var maSalle = null;
+  var maSalle = null, mesFermes = null;
+  /* 🔓 v1319 — pourquoi un groupe est fermé : « après la salle », ou
+     « quand tu auras vu 80 % de … (tu en es à 45 %) » */
+  function ligneFermee(g){
+    var pourquoi = 'après la salle';
+    if(g.raison === 'groupe' && g.apres){
+      pourquoi = 'quand tu auras vu ' + (g.apres.seuil || 80) + ' % de « ' + (g.apres.icone ? g.apres.icone + ' ' : '') + g.apres.nom + ' »' +
+        ' (tu en es à ' + (Number(g.apres.pct) || 0) + ' %)';
+    }
+    return '<div class="salleFerme"><span>🔒</span><span class="n">' + echapper((g.icone ? g.icone + ' ' : '') + g.nom) + '</span><small>' + echapper(pourquoi) + '</small></div>';
+  }
   function dessinerMaSalle(){
     var z = $('monParcours');
     var c = $('maSalleEl');
+    var fermes = mesFermes || (maSalle && maSalle.ensuite) || [];
+    if(!maSalle && fermes.length && !SALLE && z){
+      /* Sans salle à finir : les groupes ouverts d'abord, les fermés dessous */
+      if(!c){ c = document.createElement('div'); c.id = 'maSalleEl'; }
+      if(c.previousSibling !== z) z.parentNode.insertBefore(c, z.nextSibling);
+      c.innerHTML = '<div class="salleFermesTitre">🔒 Bientôt</div>' + fermes.map(ligneFermee).join('');
+      return;
+    }
     if(!maSalle || SALLE || !z){ if(c) c.parentNode.removeChild(c); return; }
     if(!c){
       c = document.createElement('div');
       c.id = 'maSalleEl';
-      z.parentNode.insertBefore(c, z);
     }
+    if(c.nextSibling !== z) z.parentNode.insertBefore(c, z);
     var vus = Number(maSalle.vus) || 0, total = Number(maSalle.total) || 0;
     var noms = (maSalle.salle || []).map(function(g){ return (g.icone ? g.icone + ' ' : '') + g.nom; }).join(', ');
     var quand = maSalle.majLe ? new Date(Number(maSalle.majLe)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '';
@@ -4000,9 +4217,7 @@
       (total ? '<div class="barre"><i style="width:' + Math.round(100 * vus / total) + '%"></i></div>' +
                '<div class="d">' + (vus > 1 ? vus + ' parties vues' : vus + ' partie vue') + ' sur ' + total + (quand ? ' · la dernière fois le ' + quand : '') + '</div>' : '') +
       '<div class="p">Réserve tes heures de théorie dans Drivup, et viens finir à l’auto-école. <b>Tes groupes s’ouvrent ici dès que tu as fini.</b></div></div>' +
-      (maSalle.ensuite || []).map(function(g){
-        return '<div class="salleFerme"><span>🔒</span><span class="n">' + echapper((g.icone ? g.icone + ' ' : '') + g.nom) + '</span><small>après la salle</small></div>';
-      }).join('');
+      fermes.map(ligneFermee).join('');
   }
 
   function dessinerParcours(avant){
@@ -4013,7 +4228,7 @@
 
     if(!mesEtapes.length){
       fermerLaFeuille();
-      z.innerHTML = maSalle ? '' : '<div class="empty">Ton parcours arrive bientôt.<br>' +
+      z.innerHTML = (maSalle || (mesFermes && mesFermes.length)) ? '' : '<div class="empty">Ton parcours arrive bientôt.<br>' +
         "C'est l'auto-école qui l'ouvre.</div>";
       var c0 = $('cptParcours');
       if(c0) c0.textContent = '';
@@ -5098,6 +5313,8 @@
   function appliquerDossier(d){
     /* 📺 v1290 — son cours de salle, pas encore fini (voir dessinerMaSalle) */
     maSalle = (d && d.salle) || null;
+    /* 🔓 v1319 — chaque groupe fermé, avec sa raison */
+    mesFermes = (d && Array.isArray(d.groupesFermes)) ? d.groupesFermes : null;
     mesAnnonces = (d && d.annonces) || [];
     dessinerAnnonces();
     dessinerLesOnglets();
