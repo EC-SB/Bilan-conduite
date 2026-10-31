@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1322
+     GUIDE-VERSION: 1323
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1322</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1323</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1322</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1323</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -3017,7 +3017,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
   <dl class="defs">
     <div><dt>Groupe</dt><dd>Une famille de guides, avec une icône et un nom — par exemple <em>« 🚗 Cours mises en pratique »</em>. C'est lui qu'on ouvre à un élève. Il remplace un groupe Facebook.</dd></div>
     <div><dt>Guide</dt><dd>Une suite de <strong>blocs</strong> dans un ordre choisi&nbsp;: un titre, du texte, une vidéo, des images, un PDF.</dd></div>
-    <div><dt>Segment (ou étape)</dt><dd>Un morceau de guide, découpé par un bloc <span class="b">🏷️ Titre d'étape</span>. C'est l'unité que l'élève valide (<span class="ch">✓ Vu</span>) et que le bureau suit.</dd></div>
+    <div><dt>Segment (ou étape)</dt><dd>Un morceau de guide, avec son nom (<span class="b">➕ Nouvelle étape</span> dans l'éditeur). C'est l'unité que l'élève valide (<span class="ch">✓ Vu</span>) et que le bureau suit.</dd></div>
   </dl>
 
   <p>Tout se règle dans l'onglet <span class="b">📓 Suivi</span>, avec trois écrans qui demandent le droit <span class="ch">parcours</span>&nbsp;: <span class="b">🎬 Groupes et guides</span> (où l'on compose), <span class="b">👥 Parcours des élèves</span> (où l'on regarde qui avance) et <span class="b">📣 Annonces</span>. Ce qui est ouvert à <em>un</em> élève se décide, lui, dans son dossier, onglet <span class="b">🔑 Coin révisions</span> — voir <a href="#dossier-eleve" class="aller">le dossier élève</a>.</p>
@@ -3028,41 +3028,28 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
   <section id="pa-guides">
     <h3>🎬 Groupes et guides</h3>
     <p class="chemin"><b>📓 Suivi</b> › <b>🎬 Groupes et guides</b></p>
-    <p>L'écran tient en deux colonnes. À gauche, <span class="b">🧩 Les groupes</span>&nbsp;; à droite, les guides du groupe qu'on a touché.</p>
+    <p>En haut, <strong>les groupes en onglets</strong> (avec leur nombre de guides)&nbsp;; dessous, <strong>les guides du groupe ouvert, en cartes</strong>.</p>
 
     <h4>Les groupes</h4>
     <ul>
-      <li><span class="b">➕ Nouveau groupe</span> ouvre un petit cadre&nbsp;: <span class="b">Son icône et son nom</span>, puis <span class="b">Proposé à quelles formations</span> (des puces BV, BEA, AAC…).</li>
-      <li>Le <span class="b">✏️</span> au bout d'une ligne rouvre ce cadre. On y trouve aussi <span class="b">🗑️ Fermer le groupe</span>&nbsp;: il disparaît de chez les élèves, mais ses guides et ce qu'ils ont vu sont gardés, et <span class="b">↩️ Rouvrir le groupe</span> le remet.</li>
-      <li>L'ordre des groupes est celui que verra l'élève. On le change en attrapant la poignée <span class="b">⠿</span>, ou avec <span class="b">▲</span> <span class="b">▼</span>.</li>
+      <li><span class="b">➕ Groupe</span> ouvre un petit cadre&nbsp;: <span class="b">Son icône et son nom</span>, puis <span class="b">Proposé à quelles formations</span> (des puces BV, BEA, AAC…).</li>
+      <li><span class="b">✏️ Le groupe</span> rouvre ce cadre pour le groupe ouvert. On y trouve <span class="b">🗑️ Fermer le groupe</span> (il disparaît de chez les élèves, ses guides et ce qu'ils ont vu sont gardés, <span class="b">↩️ Rouvrir le groupe</span> le remet) et l'ordre chez l'élève&nbsp;: <span class="b">◀ Plus tôt chez l'élève</span> / <span class="b">Plus tard chez l'élève ▶</span>. Un groupe fermé reste dans les onglets, grisé, avec <span class="ch">· fermé</span>.</li>
     </ul>
     <div class="note astuce"><span class="tag">« Proposé à » n'ouvre rien</span><p>Les formations cochées sur un groupe ne l'ouvrent chez personne. Elles disent seulement ce que proposera le bouton <span class="b">Cocher ce que prévoit sa formation</span> dans l'onglet 🔑 d'une fiche élève. <strong>On ouvre toujours à la main.</strong></p></div>
 
     <h4>Les guides d'un groupe</h4>
-    <p>La colonne de droite dit <span class="ch">3 guide(s) · 2 publié(s)</span>, puis liste les guides, numérotés dans l'ordre, avec la même poignée <span class="b">⠿</span>. <span class="b">➕ Nouveau guide</span> en crée un.</p>
+    <p>Une carte par guide, numérotée dans l'ordre&nbsp;: son titre, <span class="ch">2 étapes · 🎬 1 · 🖼️ 1 · 📝 2</span>, ce qui manque (<span class="ch">⚠️ 1 fichier à déposer</span>) et son état (<span class="ch">✅ Publié</span> ou <span class="ch">✏️ Brouillon</span>). L'ordre se change en attrapant <span class="b">⠿</span>, ou avec <span class="b">◀</span> <span class="b">▶</span>. Un appui sur la carte ouvre le guide&nbsp;; <span class="b">➕ Nouveau guide</span> en crée un.</p>
 
     <h4 id="pa-editeur-guide">Composer un guide</h4>
-    <p>L'éditeur demande <span class="b">Le titre du guide</span>, puis montre <span class="b" style="white-space:normal">Le déroulé — attrape ⠿ et fais glisser</span>&nbsp;: la pile des blocs. En dessous, un bouton par sorte de bloc, qui l'ajoute <strong>en bas de la pile</strong>&nbsp;:</p>
-    <div class="tab"><table>
-      <thead><tr><th>Bloc</th><th>Ce qu'il contient</th></tr></thead>
-      <tbody>
-        <tr><td><span class="b">🏷️ Titre d'étape</span></td><td class="libre">Une ligne. Tout ce qui le suit, jusqu'au titre suivant, forme <strong>une étape que l'élève coche séparément</strong>. Sans aucun titre, le guide entier ne fait qu'une seule étape.</td></tr>
-        <tr><td><span class="b">📝 Texte</span></td><td class="libre">Un texte libre.</td></tr>
-        <tr><td><span class="b">🎬 Vidéo</span></td><td class="libre">Une ou plusieurs vidéos MP4, avec leur montage — voir plus bas.</td></tr>
-        <tr><td><span class="b">🖼️ Image</span></td><td class="libre">Une ou plusieurs images (<span class="b">📤 Déposer des images</span>, puis <span class="b">➕ Ajouter des images</span>)&nbsp;: plusieurs images font un carrousel.</td></tr>
-        <tr><td><span class="b">📄 PDF</span></td><td class="libre">Un fichier, par <span class="b">📤 Déposer le fichier</span> — par exemple <em>« La fiche à imprimer »</em>.</td></tr>
-      </tbody>
-    </table></div>
-    <p>Chaque bloc porte <span class="b">⠿</span>, <span class="b">▲</span> <span class="b">▼</span> et <span class="b">🗑️</span> (retirer ce bloc). Les fichiers montent pendant qu'on continue d'écrire&nbsp;; une barre montre l'avancée.</p>
-    <p>En bas de l'éditeur&nbsp;:</p>
+    <p>Le guide se compose <strong>par étapes</strong>&nbsp;: une étape, c'est un nom (ce que l'élève coche, <span class="ch">✓ Vu</span>) et ce qu'il y a dedans. La barre du haut reste visible&nbsp;: <span class="b">‹ le groupe</span> (retour), le titre du guide, son état, <span class="ch">💾 Enregistré à 14:32</span>, <span class="b">✅ Publier</span> (pour un brouillon) et <span class="b">⋯</span> (<span class="b">✏️ Repasser en brouillon</span>, <span class="b">🗑️ Supprimer ce guide</span>).</p>
     <ul>
-      <li><span class="b">👁️ Voir comme l'élève</span> — l'aperçu, tel qu'il s'affichera chez lui&nbsp;;</li>
-      <li><span class="b">💾 Garder en brouillon</span> (ou <span class="b">💾 Repasser en brouillon</span> pour un guide déjà publié) — un brouillon n'est vu par aucun élève&nbsp;;</li>
-      <li><span class="b">✅ Publier le guide</span>&nbsp;;</li>
-      <li><span class="b">🗑️ Supprimer ce guide</span> — ses blocs partent avec lui, sans retour&nbsp;;</li>
-      <li><span class="b">Fermer sans enregistrer</span>.</li>
+      <li><strong>Sur l'ordinateur</strong>, trois colonnes&nbsp;: <span class="b">Les étapes</span> (le sommaire&nbsp;: un appui ouvre l'étape, <span class="b">⠿</span> la range avec tout son contenu, ⚠️ si un fichier manque), l'étape ouverte au milieu, et <span class="b">👁️ Ce que voit l'élève</span> à droite, qui suit la frappe.</li>
+      <li><strong>Au téléphone</strong>, les étapes en cartes, à replier (<span class="b">▾</span> / <span class="b">▸</span>) et à ranger (<span class="b">⠿</span>, <span class="b">▲</span> <span class="b">▼</span>)&nbsp;; <span class="b">👁️ Voir</span> montre l'aperçu.</li>
+      <li><span class="b">➕ Nouvelle étape</span>, ou <span class="b">📋 Plusieurs d'un coup</span>&nbsp;: une étape par ligne, toutes créées d'un coup, prêtes à remplir.</li>
+      <li>Dans chaque étape, <strong>Ajouter dans cette étape</strong>&nbsp;: <span class="b">＋ 📝 Texte</span>, <span class="b">＋ 🎬 Vidéo</span>, <span class="b">＋ 🖼️ Image</span>, <span class="b">＋ 📄 PDF</span> — le bloc arrive dans l'étape, et pour un fichier, le choix s'ouvre tout de suite. Et la zone <span class="b">⬇️ Glisse ici tes vidéos (MP4), images et PDF</span>&nbsp;: plusieurs fichiers d'un coup, <strong>un bloc par fichier</strong>, le type reconnu tout seul, le nom du fichier comme nom affiché.</li>
+      <li>Chaque bloc garde <span class="b">⠿</span>, <span class="b">▲</span> <span class="b">▼</span> et <span class="b">🗑️</span>, et ce qu'il contenait&nbsp;: un texte libre, une ou plusieurs vidéos MP4 avec leur montage (voir plus bas), une ou plusieurs images (un carrousel), un PDF.</li>
     </ul>
-    <div class="note piege"><span class="tag">Un bloc vide se voit avant de publier</span><p>Un bloc média sans fichier affiche <span class="ch">⚠️ Aucun fichier déposé : ce bloc ne montrera rien à l'élève.</span> Et <span class="b">✅ Publier le guide</span> demande confirmation en listant ces blocs&nbsp;: <em>« Publié tel quel, l'élève verra ces blocs VIDES. »</em></p></div>
+    <div class="note piege"><span class="tag">Tout s'enregistre tout seul</span><p>Quelques secondes après chaque changement, le guide est enregistré (en brouillon tant qu'il n'est pas publié). <strong>Un guide publié change chez l'élève tout de suite</strong> — sauf ce qui est encore vide (une étape sans nom, un bloc sans fichier, un texte vide), qui part dès qu'il est rempli&nbsp;: la barre le dit (<span class="ch">1 vide pas encore chez l'élève</span>), et quitter le guide prévient que ces éléments vides ne sont pas gardés. <span class="b">✅ Publier</span> liste avant les blocs sans fichier.</p></div>
   </section>
 
   <!-- =========================================================== -->
@@ -3089,7 +3076,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
 
     <h4>Enregistrer, ou déposer sans montage</h4>
     <p><span class="b">💾 Enregistrer le montage</span> dépose la vidéo avec sa « recette »&nbsp;; <span class="b">Déposer sans montage</span> la dépose telle quelle. Le bloc affiche ensuite une vignette (un appui la joue comme l'élève la verra), <span class="ch">✅ Vidéo déposée</span>, un résumé du montage, et trois boutons&nbsp;: <span class="b">🎬 Modifier le montage</span>, <span class="b">🔄 Remplacer la vidéo</span> et <span class="b">🎞️ Télécharger en MP4</span>.</p>
-    <div class="note piege"><span class="tag">N'oubliez pas le guide</span><p>Enregistrer le montage ne publie rien&nbsp;: le message le rappelle — <span class="ch">Montage enregistré ✅ — n'oublie pas d'enregistrer le guide</span>. Il faut encore <span class="b">💾 Garder en brouillon</span> ou <span class="b">✅ Publier le guide</span>.</p></div>
+    <div class="note astuce"><span class="tag">Le guide suit</span><p>Le montage enregistré, le guide s'enregistre tout seul — <span class="ch">Montage enregistré ✅ — le guide s'enregistre tout seul</span>. Un guide publié montre la vidéo montée à l'élève dans la foulée.</p></div>
     <div class="note astuce"><span class="tag">La vidéo d'origine n'est jamais touchée</span><p>Le montage est une recette lue au moment de la lecture&nbsp;: ce qui est coupé reste gardé, rien n'est perdu, et <span class="b">🎬 Modifier le montage</span> revient en arrière à tout moment. Seule exception&nbsp;: la vidéo floutée, plus bas.</p></div>
     <div class="note danger"><span class="tag">La musique</span><p>Seulement des musiques <strong>libres de droits</strong>, ou achetées pour cet usage&nbsp;: une chanson du commerce est interdite dans une vidéo diffusée. L'éditeur le rappelle. Gardez la preuve de la licence.</p></div>
 
