@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 15:17 — v1323 */
+/* Déployé le 31/10/2026 à 16:18 — v1324 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -458,7 +458,7 @@ function poserLeStyleDuParcours(){
     '.pcTel .vu{background:#B6FF0E;border-radius:10px;padding:9px;text-align:center;font-weight:800}' +
     '.pcTel .imgs{display:flex;gap:4px;overflow:hidden}.pcTel .imgs img{height:90px;border-radius:6px;object-fit:cover}' +
     '@media (max-width:600px){.pcBarre .pcTitreG{flex:1 1 100%;order:2}.pcBarre .pcRetour,.pcBarre .pcPuce{order:1}.pcBarre .pcSauve{order:1;flex:1}.pcBarre .btn{order:3;flex:1}' +
-      '.pcCorps{padding:0 8px 10px}.pcAjout .btn{flex:1 1 40%}.pcEtT{padding:8px 8px;gap:4px}.pcEtT .pcMeta{display:none}}';
+      '.pcCorps{padding:0 8px 10px}.pcAjout .btn{flex:1 1 40%}.pcEtT{padding:8px 8px;gap:4px;flex-wrap:wrap;justify-content:flex-end}.pcEtT .pcMeta{display:none}.pcEtT .pcNum{margin-right:auto}.pcEtT .pcEtNom{flex:1 1 100%;order:9}}';
   document.head.appendChild(s);
 }
 
@@ -638,11 +638,15 @@ function resumeDesBlocs(compte){
    · Ce qu'on ajoute se range DANS l'étape (fini les blocs à remonter).
    · Plusieurs fichiers glissés d'un coup : un bloc par fichier.
    · ⚠️ ENREGISTREMENT AUTOMATIQUE, et un guide publié change chez
-     l'élève tout de suite (David). Pour ne pas lui montrer un trou
-     pendant qu'on travaille, un guide PUBLIÉ n'envoie pas ce qui est
-     encore vide : une étape sans nom, un bloc sans fichier, un texte
-     vide. Ils partent dès qu'ils sont remplis ; quitter le guide en
-     prévient (ils ne sont pas gardés).
+     l'élève tout de suite (David).
+   · ⚠️ TOUT S'ENREGISTRE, LE VIDE COMPRIS — v1324. David : « il faut
+     que ça enregistre même si j'ai mis une vidéo et que la vidéo n'y
+     est pas : c'est pour me repérer en attendant que je finisse toutes
+     les vidéos ». Chez l'élève, un bloc sans fichier ne montre rien
+     (rendreBloc, eleve.html) : il ne voit pas de cadre vide.
+   · 📁 v1324 — « changer des étapes, ou des guides, pour les mettre dans
+     d'autres groupes si je me suis trompé » : ⋯ › Changer de groupe,
+     et ↪️ sur une étape pour l'envoyer dans un autre guide.
    ============================================================ */
 const PC_LARGE = 900;
 const PC_DELAI = 2500;
@@ -664,25 +668,14 @@ function blocVideParcours(b){
   if(b.type === 'titre') return !String(b.titre || '').trim();
   return clesDuBloc(b).length === 0;
 }
-/* La pile : tout (brouillon), ou ce qui peut partir chez l'élève (publié) */
-function versBlocsParcours(etapes, publie){
+/* La pile, TOUT compris (v1324 : le vide aussi, pour se repérer) */
+function versBlocsParcours(etapes){
   const out = [];
   (etapes || []).forEach(et => {
-    if(et.titre){
-      if(publie && blocVideParcours(et.titre)) return;
-      out.push(et.titre);
-    }
-    et.contenus.forEach(b => { if(!(publie && blocVideParcours(b))) out.push(b); });
+    if(et.titre) out.push(et.titre);
+    et.contenus.forEach(b => out.push(b));
   });
   return out;
-}
-function enAttenteParcours(etapes){
-  let n = 0;
-  (etapes || []).forEach(et => {
-    if(et.titre && blocVideParcours(et.titre)){ n += 1 + et.contenus.filter(b => !blocVideParcours(b)).length; return; }
-    et.contenus.forEach(b => { if(blocVideParcours(b)) n++; });
-  });
-  return n;
 }
 /* Relire UN bloc à l'écran (la même règle que relireLesBlocs) */
 function relireUnBloc(ligne, b){
@@ -717,8 +710,8 @@ async function ouvrirLeGuide(x, groupe){
   let blocs = [];
   const E = { titre: '', etat: 'brouillon', ici: 0, corps: [], dernier: '', enCours: false, encore: false,
               minuterie: null, apercu: null, statut: '', large: null, versionVue: false };
-  const idGroupe = neuf ? groupe.id : x.groupe;
-  const grp = parcoursGroupes.find(g => g.id === idGroupe) || groupe || {};
+  let idGroupe = neuf ? groupe.id : x.groupe;
+  let grp = parcoursGroupes.find(g => g.id === idGroupe) || groupe || {};
   /* L'identifiant est décidé ici, une fois : un rejeu retrouve sa ligne (v1036) */
   const idPose = (x && x.id) || idProposeParLEcran('gd');
 
@@ -739,7 +732,7 @@ async function ouvrirLeGuide(x, groupe){
   E.etapes = versEtapesParcours(blocs);
   if(!E.etapes.length) E.etapes.push({ titre: { type: 'titre', titre: '', texte: '', fichier: '', duree: 0 }, contenus: [] });
   E.etapes[0].ouverte = true;
-  E.dernier = neuf ? '' : JSON.stringify({ t: E.titre, e: E.etat, b: versBlocsParcours(E.etapes, E.etat === 'publie') });
+  E.dernier = neuf ? '' : JSON.stringify({ t: E.titre, e: E.etat, g: idGroupe, b: versBlocsParcours(E.etapes) });
 
   const racine = document.createElement('div');
   racine.className = 'pcEd';
@@ -761,7 +754,7 @@ async function ouvrirLeGuide(x, groupe){
       if(et && et.titre) et.titre.titre = inp.value;
     });
   };
-  const instantane = () => JSON.stringify({ t: E.titre.trim(), e: E.etat, b: versBlocsParcours(E.etapes, E.etat === 'publie') });
+  const instantane = () => JSON.stringify({ t: E.titre.trim(), e: E.etat, g: idGroupe, b: versBlocsParcours(E.etapes) });
 
   /* ── l'enregistrement automatique ── */
   const dire = (t, ko) => {
@@ -782,23 +775,21 @@ async function ouvrirLeGuide(x, groupe){
     relireTout();
     if(!E.titre.trim()){ dire('✏️ Donne un titre au guide : il s’enregistrera tout seul'); return; }
     /* Chaque titre d'étape garde son identifiant (v1223) — posés sur tous, vides compris */
-    poserLesIdsDesTitres(versBlocsParcours(E.etapes, false));
+    poserLesIdsDesTitres(versBlocsParcours(E.etapes));
     const snap = instantane();
     if(snap === E.dernier){ if(!E.statut || /Enregistrement|Modifié/.test(E.statut)) dire('💾 Enregistré'); return; }
     E.enCours = true;
     dire('⏳ Enregistrement…');
-    const tous = versBlocsParcours(E.etapes, false);
+    const tous = versBlocsParcours(E.etapes);
     try{
       const rep = await appelPrep({ action: 'parcoursGuideSet', id: idPose, groupe: idGroupe, titre: E.titre.trim(), etat: E.etat,
-                                    blocs: versBlocsParcours(E.etapes, E.etat === 'publie'),
+                                    blocs: versBlocsParcours(E.etapes),
                                     par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '' });
       if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
       E.dernier = snap;
       neuf = false;
       const h = new Date();
-      const attente = E.etat === 'publie' ? enAttenteParcours(E.etapes) : 0;
-      dire('💾 Enregistré à ' + String(h.getHours()).padStart(2, '0') + ':' + String(h.getMinutes()).padStart(2, '0') +
-           (attente ? ' · ' + attente + ' vide' + (attente > 1 ? 's' : '') + ' pas encore chez l’élève' : ''));
+      dire('💾 Enregistré à ' + String(h.getHours()).padStart(2, '0') + ':' + String(h.getMinutes()).padStart(2, '0'));
       /* 🎬 v1252 — un classeur d'avant la v250 jette la recette du montage */
       if(!E.versionVue && tous.some(b => b && b.montage) && rep && rep.versionScript !== undefined && Number(rep.versionScript) < 250){
         E.versionVue = true;
@@ -808,7 +799,7 @@ async function ouvrirLeGuide(x, groupe){
       /* 🎞️ v1253 — les vidéos d'origine des vidéos floutées, seulement maintenant */
       effacerLesFichiersRemplaces(tous).catch(() => {});
       const l = parcoursGuides.find(g => g.id === idPose);
-      if(l){ l.titre = E.titre.trim(); l.etat = E.etat; }
+      if(l){ l.titre = E.titre.trim(); l.etat = E.etat; l.groupe = idGroupe; }
       majBarre();
     }catch(e){
       dire('⚠️ Pas enregistré : ' + (e.message || 'erreur') + ' — nouvel essai dans 10 s', true);
@@ -835,11 +826,8 @@ async function ouvrirLeGuide(x, groupe){
     while(E.enCours && n++ < 60) await new Promise(r => setTimeout(r, 250));
     if(E.titre.trim() && instantane() !== E.dernier &&
        !await confirmer('Le guide n’a pas pu être enregistré (' + E.statut + ').\n\nQuitter quand même ? Les derniers changements seront perdus.')) return;
-    const attente = E.etat === 'publie' ? enAttenteParcours(E.etapes) : 0;
-    if(attente && !await confirmer(attente + ' élément' + (attente > 1 ? 's' : '') + ' vide' + (attente > 1 ? 's' : '') +
-        ' (étape sans nom, bloc sans fichier, texte vide) ne sont pas gardés : ce guide est publié, il n’envoie que ce qui est rempli.\n\nQuitter quand même ?')) return;
     if(!E.titre.trim() && neuf){
-      if(versBlocsParcours(E.etapes, false).some(b => !blocVideParcours(b)) &&
+      if(versBlocsParcours(E.etapes).some(b => !blocVideParcours(b)) &&
          !await confirmer('Ce guide n’a pas de titre : il n’est pas enregistré.\n\nQuitter quand même ?')) return;
     }
     clearInterval(veille);
@@ -1095,12 +1083,12 @@ async function ouvrirLeGuide(x, groupe){
   const publier = async () => {
     relireTout();
     if(!E.titre.trim()){ showToast('Donne un titre au guide.'); const t = racine.querySelector('.pcTitreG'); if(t) t.focus(); return; }
-    const manquants = blocsSansFichier(versBlocsParcours(E.etapes, false));
+    const manquants = blocsSansFichier(versBlocsParcours(E.etapes));
     const sansNom = E.etapes.filter(et => et.titre && !et.titre.titre.trim()).length;
     if((manquants.length || sansNom) && !await confirmer(
         (manquants.length ? manquants.length + ' bloc(s) sans fichier déposé :\n' + manquants.map(m => '· ' + blocConnu(m.type).emoji + ' ' + (m.titre || blocConnu(m.type).nom)).join('\n') + '\n\n' : '') +
         (sansNom ? sansNom + ' étape(s) sans nom.\n\n' : '') +
-        'Publié, l’élève ne verra pas ce qui est vide, jusqu’à ce que tu le remplisses.\n\nPublier quand même ?')) return;
+        'Tout est gardé ; chez l’élève, un bloc sans fichier ne montre rien tant que tu n’as pas déposé le fichier.\n\nPublier quand même ?')) return;
     E.etat = 'publie';
     majBarre();
     await sauver();
@@ -1109,11 +1097,13 @@ async function ouvrirLeGuide(x, groupe){
   const menu = async () => {
     relireTout();
     const choix = [];
+    if(parcoursGroupes.length > 1) choix.push({ nom: '📁 Changer de groupe', valeur: 'groupe' });
     if(E.etat === 'publie') choix.push({ nom: '✏️ Repasser en brouillon', valeur: 'brouillon' });
     if(!neuf) choix.push({ nom: '🗑️ Supprimer ce guide', valeur: 'suppr' });
     choix.push({ nom: 'Fermer', valeur: '' });
     const v = await fenetre(E.etat === 'publie' ? 'Ce guide est publié : chaque changement arrive chez l’élève tout de suite.' :
                             'Ce guide est en brouillon : l’élève ne le voit pas.', choix, '⋯ ' + (E.titre || 'Le guide'));
+    if(v === 'groupe'){ await changerDeGroupe(); return; }
     if(v === 'brouillon'){
       if(!await confirmer('Repasser « ' + E.titre + ' » en brouillon ?\n\nIl disparaît de chez les élèves jusqu’à ce que tu le republies.')) return;
       E.etat = 'brouillon'; majBarre(); await sauver();
@@ -1128,6 +1118,113 @@ async function ouvrirLeGuide(x, groupe){
       }catch(e){ showToast('Impossible : ' + e.message); }
     }
   };
+  /* 📁 v1324 — le guide part dans un autre groupe (il s'y range en dernier) */
+  const changerDeGroupe = async () => {
+    relireTout();
+    if(!E.titre.trim()){ showToast('Donne d’abord un titre au guide.'); return; }
+    const boite = document.createElement('div');
+    boite.innerHTML = '<div style="font-size:14px;line-height:1.55;margin-bottom:10px;">« ' + echParcours(E.titre.trim()) + ' » va dans le groupe :</div>';
+    const sel = document.createElement('select');
+    sel.id = 'pcAutreGroupe';
+    sel.style.cssText = 'width:100%;margin:0;';
+    parcoursGroupes.filter(g => g.id !== idGroupe).forEach(g => {
+      const o = document.createElement('option');
+      o.value = g.id;
+      o.textContent = (g.icone ? g.icone + ' ' : '') + g.nom + (g.fermeLe ? ' (fermé)' : '');
+      sel.appendChild(o);
+    });
+    boite.appendChild(sel);
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;';
+    a.textContent = 'Il se range à la fin de ce groupe. Ce que les élèves ont déjà vu reste vu ; il n’apparaît que chez ceux à qui ce groupe est ouvert.';
+    boite.appendChild(a);
+    const ok = await fenetre(boite, [{ nom: 'Annuler', valeur: false }, { nom: '📁 Déplacer', valeur: true, principal: true }], '📁 Changer de groupe');
+    const cible = sel.value;
+    if(!ok || !cible || cible === idGroupe) return;
+    const avant = idGroupe;
+    idGroupe = cible;
+    grp = parcoursGroupes.find(g => g.id === cible) || {};
+    await sauver();
+    if(instantane() !== E.dernier){ idGroupe = avant; grp = parcoursGroupes.find(g => g.id === avant) || {}; showToast('Pas déplacé : ' + E.statut); dessiner(); return; }
+    try{
+      const ids = parcoursGuides.filter(g => g.groupe === cible && g.id !== idPose).sort((x1, x2) => x1.ordre - x2.ordre).map(g => g.id).concat([idPose]);
+      await appelPrep({ action: 'parcoursOrdre', quoi: 'guides', ids: ids });
+    }catch(e){ /* il est dans le groupe ; seul son rang reste à refaire */ }
+    showToast('📁 Guide déplacé dans « ' + (grp.nom || 'l’autre groupe') + ' » ✅');
+    dessiner();
+  };
+
+  /* ↪️ v1324 — une étape (son nom et tout ce qu'elle contient) part dans un
+     autre guide, de ce groupe ou d'un autre. L'autre guide s'enregistre
+     d'abord : si ça échoue, rien n'est retiré d'ici. */
+  const deplacerEtape = async (i) => {
+    relireTout();
+    const et = E.etapes[i];
+    if(!et || !et.titre) return;
+    const nom = (et.titre.titre || '').trim() || 'Étape sans nom';
+    const boite = document.createElement('div');
+    boite.innerHTML = '<div style="font-size:14px;line-height:1.55;margin-bottom:10px;">L’étape « ' + echParcours(nom) + ' »' +
+      (et.contenus.length ? ' et ses ' + et.contenus.length + ' bloc' + (et.contenus.length > 1 ? 's' : '') : '') + ' vont à la fin du guide :</div>';
+    const sel = document.createElement('select');
+    sel.id = 'pcAutreGuide';
+    sel.style.cssText = 'width:100%;margin:0;';
+    sel.innerHTML = '<option value="" disabled selected>Choisis le guide…</option>';
+    parcoursGroupes.forEach(g => {
+      const og = document.createElement('optgroup');
+      og.label = (g.icone ? g.icone + ' ' : '') + g.nom;
+      guidesDuGroupe(g.id).filter(x2 => x2.id !== idPose).forEach(x2 => {
+        const o = document.createElement('option');
+        o.value = x2.id;
+        o.textContent = x2.titre + (x2.etat === 'publie' ? '' : ' (brouillon)');
+        og.appendChild(o);
+      });
+      const o = document.createElement('option');
+      o.value = 'neuf:' + g.id;
+      o.textContent = '➕ Un nouveau guide « ' + nom + ' »';
+      og.appendChild(o);
+      sel.appendChild(og);
+    });
+    boite.appendChild(sel);
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;';
+    a.textContent = 'Les élèves qui l’avaient déjà cochée devront la recocher dans l’autre guide.';
+    boite.appendChild(a);
+    const ok = await fenetre(boite, [{ nom: 'Annuler', valeur: false }, { nom: '↪️ Déplacer l’étape', valeur: true, principal: true }], '↪️ Déplacer une étape');
+    const v = sel.value;
+    if(ok && !v){ showToast('Choisis le guide où mettre l’étape.'); return; }
+    if(!ok || !v) return;
+    const morceau = [et.titre].concat(et.contenus).map(b => JSON.parse(JSON.stringify(b)));
+    try{
+      if(/^neuf:/.test(v)){
+        const g = v.slice(5);
+        delete morceau[0].id;
+        poserLesIdsDesTitres(morceau);
+        const r = await appelPrep({ action: 'parcoursGuideSet', id: idProposeParLEcran('gd'), groupe: g, titre: nom, etat: 'brouillon', blocs: morceau,
+                                    par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '' });
+        if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+      }else{
+        const cible = parcoursGuides.find(x2 => x2.id === v);
+        const d = await appelPrep({ action: 'parcoursGuide', id: v });
+        const g = (d && d.guide) || {};
+        const leurs = (g.blocs || []).slice();
+        const pris = {};
+        leurs.forEach(b => { if(b && b.type === 'titre' && b.id) pris[String(b.id)] = true; });
+        if(morceau[0].id && pris[String(morceau[0].id)]) delete morceau[0].id;
+        const tout = leurs.concat(morceau);
+        poserLesIdsDesTitres(tout);
+        const r = await appelPrep({ action: 'parcoursGuideSet', id: v, groupe: (cible && cible.groupe) || g.groupe, titre: g.titre || (cible && cible.titre) || 'Guide',
+                                    etat: g.etat || (cible && cible.etat) || 'brouillon', blocs: tout, par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '' });
+        if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+      }
+    }catch(e){ await informer('L’étape n’a pas été déplacée : ' + e.message + '\n\nElle est toujours ici.', '⚠️ Pas déplacée'); return; }
+    E.etapes.splice(i, 1);
+    if(!E.etapes.length) E.etapes.push(nouvelleEtape(''));
+    E.ici = Math.min(E.ici, E.etapes.length - 1);
+    dessiner();
+    await sauver();
+    showToast('↪️ Étape déplacée ✅');
+  };
+
   const barre = () => {
     const b = document.createElement('div');
     b.className = 'pcBarre';
@@ -1145,7 +1242,7 @@ async function ouvrirLeGuide(x, groupe){
     if(!E.large){
       const v = document.createElement('button');
       v.type = 'button'; v.className = 'btn btn-secondary'; v.textContent = '👁️ Voir';
-      v.addEventListener('click', () => { relireTout(); apercuDuGuide(E.titre.trim(), versBlocsParcours(E.etapes, false)); });
+      v.addEventListener('click', () => { relireTout(); apercuDuGuide(E.titre.trim(), versBlocsParcours(E.etapes)); });
       b.appendChild(v);
     }
     const pub = document.createElement('button');
@@ -1198,6 +1295,11 @@ async function ouvrirLeGuide(x, groupe){
       }
     }
     if(et.titre){
+      const dep = document.createElement('button');
+      dep.type = 'button'; dep.className = 'pcIco pcDeplacer'; dep.textContent = '↪️'; dep.title = 'Déplacer l’étape vers un autre guide';
+      dep.setAttribute('aria-label', 'Déplacer l’étape vers un autre guide');
+      dep.addEventListener('click', (e) => { e.stopPropagation(); deplacerEtape(i); });
+      h.appendChild(dep);
       const sup = document.createElement('button');
       sup.type = 'button'; sup.className = 'pcIco'; sup.textContent = '🗑️'; sup.title = 'Supprimer l’étape';
       sup.addEventListener('click', (e) => { e.stopPropagation(); supprimerEtape(i); });
