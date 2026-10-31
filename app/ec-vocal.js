@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 16:27 — v1313 */
+/* Déployé le 31/10/2026 à 10:44 — v1318 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -3779,6 +3779,60 @@ function majCompteur(id, valeur){
   const el = $(id);
   if(el) el.textContent = valeur ? String(valeur) : '';
 }
+
+/* ============================================================
+   📱 « REPRENDRE L'ENREGISTREMENT », JUSTE AU-DESSUS DE LA
+   TRANSCRIPTION — v1318
+
+   David, le 31 octobre : « sur téléphone, le bouton reprendre
+   l'enregistrement est haut par rapport à la transcription, mets-le
+   juste au-dessus ». En pause, il relit et corrige la transcription :
+   le bouton était tout en haut, au-dessus de la fiche du cours.
+
+   Au téléphone seulement. Dès la première pause, le bouton (et sa
+   ligne d'état) descend juste au-dessus de la transcription et y
+   reste pour la suite du cours : il ne saute pas d'un endroit à
+   l'autre à chaque pause. Il remonte à sa place quand le bouton
+   redevient « Démarrer le cours » (cours suivant).
+   ============================================================ */
+const TELEPHONE_MICRO = '(max-width: 760px)';
+function placerLeBoutonDuMicro(){
+  const b = $('recBtn'), st = $('status'), tr = $('transcriptBox');
+  if(!b || !tr || !tr.parentNode) return;
+  const texte = b.textContent || '';
+  const enBas = (b.nextElementSibling === st) && (st && st.nextElementSibling === tr ||
+                 (st && st.nextElementSibling && st.nextElementSibling.id === 'pauseWarn'));
+  const auTelephone = !!(window.matchMedia && window.matchMedia(TELEPHONE_MICRO).matches);
+  if(/Démarrer/.test(texte) || !auTelephone){
+    if(b.dataset.enBas === '1'){
+      const repere = $('resumeAvantCours');
+      if(repere && repere.parentNode){
+        repere.parentNode.insertBefore(b, repere.nextSibling);
+        if(st) b.parentNode.insertBefore(st, b.nextSibling);
+      }
+      delete b.dataset.enBas;
+    }
+    return;
+  }
+  if(/Reprendre/.test(texte) && b.dataset.enBas !== '1' && !enBas){
+    /* Au-dessus de l'avertissement de pause s'il est là, sinon de la
+       transcription elle-même */
+    const pw = $('pauseWarn');
+    const avant = (pw && pw.nextElementSibling === tr) ? pw : tr;
+    avant.parentNode.insertBefore(b, avant);
+    if(st) avant.parentNode.insertBefore(st, avant);
+    b.dataset.enBas = '1';
+  }
+}
+(function(){
+  const b = $('recBtn');
+  if(!b || typeof MutationObserver === 'undefined') return;
+  new MutationObserver(placerLeBoutonDuMicro).observe(b, { childList: true, characterData: true, subtree: true });
+  if(window.matchMedia){
+    const mq = window.matchMedia(TELEPHONE_MICRO);
+    if(mq.addEventListener) mq.addEventListener('change', placerLeBoutonDuMicro);
+  }
+})();
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
