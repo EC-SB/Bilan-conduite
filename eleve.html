@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 31/10/2026 à 11:37 — v1319 -->
+<!-- Déployé le 31/10/2026 à 12:44 — v1320 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -287,6 +287,15 @@
   .salleFerme{ display:flex; gap:10px; align-items:center; padding:12px 14px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; opacity:.6; }
   .salleFerme span.n{ flex:1; font-weight:700; }
   .salleFerme small{ font-size:12px; color:var(--muted); }
+  /* 📚 v1320 — les lieux sous le bilan d'une leçon */
+  .lieuLecon{ border:1px solid var(--line); border-radius:12px; padding:10px; margin:8px 0; }
+  .lieuLecon .t{ font-weight:800; font-size:14px; }
+  .lieuLecon .t small{ font-weight:500; color:var(--muted); }
+  .lieuLecon .x{ font-size:13.5px; line-height:1.5; margin:4px 0 8px; white-space:pre-wrap; }
+  .lieuLecon .ph{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+  .lieuLecon .ph img{ width:100%; border-radius:8px; cursor:zoom-in; display:block; }
+  .lieuLecon .btn{ margin:0 0 6px; }
+  .lieuLecon .ferme{ font-size:12.5px; color:var(--muted); }
   .salleFermesTitre{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--muted); margin:14px 0 8px; }
 
   .demande{
@@ -4069,8 +4078,19 @@
     var lien = lienDuParcoursDansLAdresse();
     if(lien.vue === 'reviser' || lien.seg){
       try{ allerAOnglet('reviser'); }catch(e){}
-      if(lien.seg) ouvrirLaFeuille(lien.seg);
+      if(lien.seg){ var cleL = cleDUneEtape(lien.seg); if(cleL) ouvrirLaFeuille(cleL); }
     }
+  }
+  /* 📚 v1320 — « guide::segment », ou « guide:: » (une étape entière, depuis
+     un lieu du parcours) : le premier segment du guide. '' s'il n'est pas
+     (encore) ouvert chez lui. */
+  function cleDUneEtape(seg){
+    var p = String(seg || '').split('::'), g = p[0], sg = p[1] || '';
+    var e = mesEtapes.filter(function(x){ return x.id === g; })[0];
+    if(!e) return '';
+    var l = segmentsDe(e);
+    var x = l.filter(function(y){ return y.id === sg; })[0] || l[0];
+    return x ? e.id + '::' + x.id : '';
   }
 
   /* « ?vue=reviser » et « ?seg=guide::segment », lus une fois puis
@@ -5313,6 +5333,8 @@
   function appliquerDossier(d){
     /* 📺 v1290 — son cours de salle, pas encore fini (voir dessinerMaSalle) */
     maSalle = (d && d.salle) || null;
+    /* 📚 v1320 — les lieux de ses leçons (texte, photos, vidéos) */
+    mesLieuxLecons = (d && Array.isArray(d.lieuxLecons)) ? d.lieuxLecons : [];
     /* 🔓 v1319 — chaque groupe fermé, avec sa raison */
     mesFermes = (d && Array.isArray(d.groupesFermes)) ? d.groupesFermes : null;
     mesAnnonces = (d && d.annonces) || [];
@@ -5331,6 +5353,39 @@
      pas d'appel de plus, pas de réveil de plus. Rien à montrer, rien
      d'affiché : la carte n'existe que pour celui dont l'école a rangé
      une feuille. */
+  /* ============================================================
+     📚 LES LIEUX DE SES LEÇONS — v1320
+
+     David : « dans le bilan, le texte au niveau du point de repère, et
+     qu'on puisse ajouter des photos ; lié à une étape d'un groupe pour
+     que l'élève puisse aller voir la vidéo ». Sous le bilan du jour :
+     chaque lieu, son texte, ses photos, et un « 🎬 Revoir » par vidéo.
+     ============================================================ */
+  var mesLieuxLecons = [];
+  function blocDesLieux(jour){
+    var l = mesLieuxLecons.filter(function(x){ return x.jour === jour; });
+    if(!l.length) return '';
+    return l.map(function(x){
+      return '<div class="lieuLecon"><div class="t">📍 ' + x.n + ' · ' + echapper(x.nom) + (x.titre ? ' <small>' + echapper(x.titre) + '</small>' : '') + '</div>' +
+        '<div class="x">' + echapper(x.texte) + '</div>' +
+        ((x.photos || []).length ? '<div class="ph">' + x.photos.map(function(u){
+          return /^https:\/\//.test(u) ? '<img src="' + echapper(u) + '" alt="Photo du lieu" loading="lazy" data-photo-lieu="1">' : ''; }).join('') + '</div>' : '') +
+        (x.videos || []).map(function(v){
+          var cle = cleDUneEtape(v.guide + '::' + (v.segment || ''));
+          return cle ? '<button type="button" class="btn btn-primary" data-revoir="' + echapper(cle) + '">🎬 Revoir « ' + echapper(v.titre) + ' »</button>'
+                     : '<div class="ferme">🔒 « ' + echapper(v.titre) + ' » s’ouvrira dans ton espace plus tard</div>';
+        }).join('') + '</div>';
+    }).join('');
+  }
+  function brancherLesLieux(z){
+    Array.prototype.forEach.call(z.querySelectorAll('[data-photo-lieu]'), function(i){
+      i.addEventListener('click', function(){ voirLaPhotoEl(i.src); });
+    });
+    Array.prototype.forEach.call(z.querySelectorAll('[data-revoir]'), function(b){
+      b.addEventListener('click', function(){ try{ allerAOnglet('reviser'); }catch(e){} ouvrirLaFeuille(b.getAttribute('data-revoir')); });
+    });
+  }
+
   function dessinerMesPhotosBilan(photos){
     var z = $('mesPhotosBilan');
     if(!z) return;
@@ -5540,8 +5595,10 @@
             (l.type ? ' · ' + echapper(l.type) : '') + '</span>' +
         '</summary>' +
         '<div class="texte">' + texteDeLecon(l, couleurs) + '</div>' +
+        blocDesLieux(String(l.date || '')) +
       '</details>';
     }).join('');
+    brancherLesLieux(z);
 
     /* 🎓 v1147 — « a ouvert son bilan du … » : l'école le voit dans
        son suivi. Une fois par bilan et par visite ; rien à attendre
