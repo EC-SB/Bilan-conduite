@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 13:37 — v1308 */
+/* Déployé le 30/10/2026 à 17:51 — v1316 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -6223,7 +6223,7 @@ function estDeMoiEC(m){
   return normaliserMessagerie(m.auteur) === normaliserMessagerie(moi);
 }
 
-function ouvrirLeSelecteurDeReaction(bulle, m){
+function ouvrirLeSelecteurDeReaction(bulle, m, auDoigt){
   fermerLeSelecteurDeReaction();
 
   /* ⚠️ COPIER NE DEMANDE PAS LE DROIT D'ÉCRIRE. Le menu entier
@@ -6337,7 +6337,18 @@ function ouvrirLeSelecteurDeReaction(bulle, m){
 
   /* Un clic ailleurs referme — et il ne doit pas aussi rouvrir le
      sélecteur de la bulle sur laquelle on vient de cliquer. */
-  const dehors = () => fermerLeSelecteurDeReaction();
+  /* ⚠️ v1316 — le doigt qui se lève après l'appui long fait un « clic » :
+     il refermait le menu aussitôt ouvert. Un clic dans les 700 ms ne compte pas. */
+  /* (au doigt seulement : à la souris, il n'y a pas de doigt qui se lève) */
+  const ouvertLe = auDoigt ? Date.now() : 0;
+  /* … et ce même clic tombait sur le menu qui vient d'apparaître sous le
+     doigt (une émoticône envoyée sans le vouloir) : on l'avale. */
+  if(auDoigt){
+    const avaler = ev => { if(Date.now() - ouvertLe < 700){ ev.stopPropagation(); ev.preventDefault(); } };
+    document.addEventListener('click', avaler, true);
+    setTimeout(() => document.removeEventListener('click', avaler, true), 750);
+  }
+  const dehors = () => { if(Date.now() - ouvertLe < 700) return; fermerLeSelecteurDeReaction(); };
   setTimeout(() => document.addEventListener('click', dehors), 0);
 
   reacOuverteEC = () => {
@@ -6355,6 +6366,7 @@ function ouvrirLeSelecteurDeReaction(bulle, m){
 function brancherLAppuiLong(bulle, m){
   let minuteur = null;
   let depart = null;
+  let doigtLe = 0;
 
   const annuler = () => { if(minuteur){ clearTimeout(minuteur); minuteur = null; } };
 
@@ -6368,12 +6380,13 @@ function brancherLAppuiLong(bulle, m){
   bulle.addEventListener('pointerdown', ev => {
     if(ev.button === 2) return;             /* le clic droit a son propre chemin */
     depart = { x: ev.clientX, y: ev.clientY };
+    doigtLe = (ev.pointerType && ev.pointerType !== 'mouse') ? Date.now() : 0;
     annuler();
     glisse.debut(ev);
     minuteur = setTimeout(() => {
       minuteur = null;
       glisse.oublier();
-      ouvrirLeSelecteurDeReaction(bulle, m);
+      ouvrirLeSelecteurDeReaction(bulle, m, !!doigtLe);
     }, 480);
   });
   bulle.addEventListener('pointermove', ev => {
@@ -6390,7 +6403,8 @@ function brancherLAppuiLong(bulle, m){
   bulle.addEventListener('contextmenu', ev => {
     ev.preventDefault();
     annuler();
-    ouvrirLeSelecteurDeReaction(bulle, m);
+    /* Android : l'appui long du doigt arrive aussi par ici */
+    ouvrirLeSelecteurDeReaction(bulle, m, Date.now() - doigtLe < 1500);
   });
 }
 
