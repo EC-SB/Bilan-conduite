@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 17:34 — v1296 */
+/* Déployé le 30/10/2026 à 17:51 — v1316 */
 /* ============================================================
    ec-msg-gestes.js — 🧭 LES GESTES DE LA MESSAGERIE (v1296)
 
@@ -291,6 +291,8 @@ document.addEventListener('keydown', ev => {
   const poser = () => {
     const h = vv ? vv.height : window.innerHeight;
     document.documentElement.style.setProperty('--msgVH', Math.round(h) + 'px');
+    /* v1316 — et où commence la partie visible (le clavier fait glisser la page) */
+    document.documentElement.style.setProperty('--msgVT', Math.round(vv ? Math.max(0, vv.offsetTop) : 0) + 'px');
   };
   poser();
   if(vv){ vv.addEventListener('resize', poser); vv.addEventListener('scroll', poser); }
