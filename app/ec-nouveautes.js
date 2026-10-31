@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:05 — v1325 */
+/* Déployé le 31/10/2026 à 17:20 — v1326 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1326,
+    date: 'Samedi 31 octobre 2026',
+    resume: '⏱️ Étapes : temps de lecture, facultatives, réservées à certains',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'Le temps de lecture d’une étape',
+        texte: 'Dans le guide, ⚙️ Régler sur l’étape : automatique, sans attente, ou un temps fixe (10 s à 5 min).' },
+      { emoji: '💤',
+        titre: 'Une étape facultative',
+        texte: 'Éteins « 📊 Compte dans sa progression » : l’élève la voit, peut l’ignorer, et elle ne compte pas.' },
+      { emoji: '🔒',
+        titre: 'Réservée à certains élèves',
+        texte: '« Seulement certains élèves » ferme l’étape à tous ; ajoute un ou plusieurs élèves. Les autres ne la voient pas. Demande le script Google Sheets v253.' }
+    ]
+  },
   {
     version: 1325,
     date: 'Samedi 31 octobre 2026',
