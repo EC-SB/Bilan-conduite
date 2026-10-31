@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 31/10/2026 à 14:03 — v1321 -->
+<!-- Déployé le 31/10/2026 à 16:18 — v1324 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -4720,8 +4720,9 @@
       var liens = (b.liens && b.liens.length) ? b.liens : (b.lien ? [b.lien] : []);
       if(b.type === 'texte'){
         mots += String(b.texte || '').split(/\s+/).filter(Boolean).length;
-      }else if(b.type === 'image') images += Math.max(1, liens.length);
-      else if(b.type === 'video') videos++;
+      }else if(b.type === 'image') images += liens.length;
+      /* v1324 — une vidéo pas encore déposée (repère de l'équipe) ne compte pas */
+      else if(b.type === 'video'){ if(liens.length) videos++; }
       else if(liens.length) docs++;
     }
     var duree = '';
@@ -5013,7 +5014,7 @@
             var b = blocs[n] || {};
             if(b.type === 'texte' && b.texte) textes.push(String(b.texte));
             else if(b.titre && !/(^|\|)guides\//.test(String(b.titre))) titres.push(String(b.titre));
-            if(b.type === 'video') video = true;
+            if(b.type === 'video' && ((b.liens && b.liens.length) || b.lien)) video = true;
           }
           var tout = normaliser([e.titre, sg.titre].concat(titres, textes).join(' \n '));
           if(!contientTout(tout, mots)) return;
