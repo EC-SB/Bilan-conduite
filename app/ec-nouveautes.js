@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 14:23 — v1322 */
+/* Déployé le 31/10/2026 à 15:17 — v1323 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1323,
+    date: 'Samedi 31 octobre 2026',
+    resume: '🎬 Groupes et guides refaits : par étapes, tout s’enregistre seul',
+    quoi: [
+      { emoji: '🧩',
+        titre: 'Groupes en onglets, guides en cartes',
+        texte: 'Chaque carte dit ses étapes, son état et les fichiers qui manquent.' },
+      { emoji: '🎬',
+        titre: 'Un guide se compose par étapes',
+        texte: 'Sur l’ordinateur : le sommaire, l’étape, et ce que voit l’élève. Au téléphone : les étapes en cartes. « 📋 Plusieurs d’un coup » crée toutes les étapes en une fois ; ce qu’on ajoute arrive dans l’étape.' },
+      { emoji: '⬇️',
+        titre: 'Plusieurs fichiers d’un coup',
+        texte: 'Glisse tes vidéos, images et PDF dans une étape : un bloc par fichier.' },
+      { emoji: '💾',
+        titre: 'Plus de bouton « Enregistrer »',
+        texte: 'Le guide s’enregistre tout seul ; publié, il change chez l’élève tout de suite (sauf ce qui est encore vide).' }
+    ]
+  },
   {
     version: 1322,
     date: 'Samedi 31 octobre 2026',
