@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 11:37 — v1319 */
+/* Déployé le 31/10/2026 à 17:05 — v1325 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -590,12 +590,22 @@ function slNomPropose(site){
 /* ============================================================
    DANS SA FICHE (coin révisions) — où il en est, « Déjà vu en salle »
    ============================================================ */
-async function ligneSalleFiche(nom, zone){
+/* 📺 v1325 — « o.salleCochee » (la carte du coin révisions) : sans groupe
+   de la salle coché chez lui, rien n'attend la salle (filtrerLaSalleChezLui).
+   Jamais venu en salle : le bloc ne s'affiche pas ; installé un jour : il
+   le dit, sans le 🔒. */
+async function ligneSalleFiche(nom, zone, o){
   if(!zone || !nom || (typeof aDroit === 'function' && !aDroit('salle'))) return;
   slStyle();
   let d = null;
   try{ d = await appelPrep({ action: 'salleEleve', eleve: nom }); }catch(e){ return; }
   const e = d && d.eleve;
+  const sansSalle = !!(o && o.salleCochee === false);
+  if(sansSalle && !e){
+    const vieux0 = zone.querySelector('[data-salle-fiche]');
+    if(vieux0) vieux0.remove();
+    return;
+  }
   const c = slEl('div', '');
   c.style.cssText = 'border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:8px;font-size:12.5px;line-height:1.6;';
   if(e && e.fini){
@@ -607,11 +617,15 @@ async function ligneSalleFiche(nom, zone){
     const s = (d.seances || []).slice(0, 6);
     if(s.length) c.appendChild(slEl('div', '', '<div style="color:var(--muted);">' + s.map(x => slJour(x.debut) + ' · ' + slHeure(x.debut) + '–' + slHeure(x.fin || x.finPrevue) +
       ' (' + slEch(x.tablette || '?') + ', ' + (x.par ? 'installé par ' + slEch(x.par) : 'revenu seul') + ')').join('<br>') + '</div>'));
+    if(sansSalle){
+      c.appendChild(slEl('div', '', '<div style="color:var(--muted);">Aucun groupe de la salle n’est coché chez lui : rien n’attend la salle.</div>'));
+    }else{
     if(e && (e.ensuite || []).length) c.appendChild(slEl('div', '', '<div style="color:var(--muted);">Ses groupes s’ouvriront à la fin : ' + e.ensuite.map(g => slEch(slNomGroupe(g))).join(' · ') + '</div>'));
     /* 📺 v1315 — chez lui, aucun groupe tant que la salle n'est pas finie,
        même cochés ici (David : « tous les élèves », élèves d'avant compris) */
     c.appendChild(slEl('div', '', '<div style="color:var(--muted);">🔒 Chez lui, ses groupes restent fermés jusqu’à la fin de la salle, même cochés dans son accès.</div>'));
-    if(slPeut()){
+    }
+    if(slPeut() && !sansSalle){
       const b = slBouton('✅ Déjà vu en salle (avant l’appli) : ouvrir ses groupes', '', () => slDejaVu(nom, zone, c));
       b.style.marginTop = '8px';
       c.appendChild(b);
@@ -620,6 +634,7 @@ async function ligneSalleFiche(nom, zone){
   const vieux = zone.querySelector('[data-salle-fiche]');
   if(vieux) vieux.remove();
   c.setAttribute('data-salle-fiche', '1');
+  zone.__salleO = o;
   zone.appendChild(c);
 }
 async function slDejaVu(nom, zone, carte){
@@ -636,7 +651,7 @@ async function slDejaVu(nom, zone, carte){
   try{
     await appelPrep({ action: 'salleDejaVu', eleve: nom, formation: (fi && fi.formation) || '', salle: gp.salle, ensuite: gp.ensuite });
     showToast('Ses groupes sont ouverts ✅');
-    await ligneSalleFiche(nom, zone);
+    await ligneSalleFiche(nom, zone, zone.__salleO);
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
