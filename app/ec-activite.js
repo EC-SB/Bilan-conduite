@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 15:23 — v1183 */
+/* Déployé le 31/10/2026 à 14:03 — v1321 */
 /* ============================================================
    ec-activite.js
    🎓 Ce que font les élèves dans leur espace — Outils › Mesurer,
@@ -31,6 +31,7 @@ const GESTES_AFFICHES = {
   creneau:       ['📅', 'creneaux',      () => 'a répondu à un créneau'],
   notifications: ['🔔', 'notifications', () => 'a activé les notifications'],
   bilanpost:     ['📝', 'bilans',        () => 'a envoyé son bilan post-permis'],
+  bilancours:    ['📝', 'bilans',        () => 'a envoyé son bilan de cours'],
   boite:         ['⚙️', 'autres',        () => 'a choisi sa boîte de vitesses'],
   /* 📋 v1175 */
   renseignements:['📋', 'autres',        () => 'a envoyé ses renseignements']
