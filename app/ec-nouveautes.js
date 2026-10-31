@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 14:03 — v1321 */
+/* Déployé le 31/10/2026 à 14:23 — v1322 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1322,
+    date: 'Samedi 31 octobre 2026',
+    resume: '📚 Repères de lieu : les vidéos jusqu’à l’étape',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Une vidéo, c’est une étape',
+        texte: 'Dans un lieu, « Ajouter une vidéo » liste les étapes de chaque guide : l’élève revoit exactement la bonne partie.' },
+      { emoji: '🧭',
+        titre: 'Les flèches des sens',
+        texte: 'Plus grandes, sous « 🧭 Un texte par sens » ; la légende du plan ne les annonce plus quand il n’y a qu’un texte.' }
+    ]
+  },
   {
     version: 1321,
     date: 'Samedi 31 octobre 2026',
