@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 17:51 — v1316 */
+/* Déployé le 31/10/2026 à 09:53 — v1317 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1317,
+    date: 'Samedi 31 octobre 2026',
+    resume: '🧮 Le stockage de Cloudflare ménagé',
+    quoi: [
+      { emoji: '🧮',
+        titre: 'Moins de lectures chez Cloudflare',
+        texte: 'Les comptes de l’équipe sont gardés quelques secondes en mémoire, et les codes faux sont comptés dans la base. L’application ne risque plus d’être coupée en fin de journée par la limite gratuite.' }
+    ]
+  },
   {
     version: 1316,
     date: 'Vendredi 30 octobre 2026',
