@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 15:17 — v1323 */
+/* Déployé le 31/10/2026 à 16:18 — v1324 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1324,
+    date: 'Samedi 31 octobre 2026',
+    resume: '📁 Guides et étapes changent de groupe ; le vide est gardé',
+    quoi: [
+      { emoji: '📁',
+        titre: 'Changer un guide de groupe',
+        texte: 'Dans le guide : ⋯ › 📁 Changer de groupe. Il se range à la fin de l’autre groupe.' },
+      { emoji: '↪️',
+        titre: 'Déplacer une étape',
+        texte: 'Le ↪️ d’une étape l’envoie, avec tout son contenu, dans un autre guide (de n’importe quel groupe) ou dans un nouveau guide.' },
+      { emoji: '🎬',
+        titre: 'Une vidéo pas encore tournée reste là',
+        texte: 'Tout s’enregistre, même un bloc sans fichier : un repère en attendant. Chez l’élève, il ne montre rien.' }
+    ]
+  },
   {
     version: 1323,
     date: 'Samedi 31 octobre 2026',
