@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:59 — v1290 */
+/* Déployé le 31/10/2026 à 12:44 — v1320 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -407,6 +407,11 @@ const SECTIONS = [
   { cle:'courriers',        nom:'✉️ Courriers sur papier à en-tête', onglet:'outils' },
   /* 💼 v1280 — les formations entreprise (ec-formations.js) */
   { cle:'formations',       nom:'💼 Formations entreprise (OPCO)', onglet:'outils' },
+  /* 📚 v1320 — la base des lieux du parcours (ec-lieux.js) : tout le
+     monde crée et modifie ; supprimer : le créateur, le bureau, les
+     administrateurs (vérifié par le Worker). Le 📍 du cours, lui,
+     n'a besoin que du cours. */
+  { cle:'lieux',            nom:'📚 Repères de lieu (la base des lieux)', onglet:'outils' },
   /* 📞 v1266 — le suivi des appels d'Allo (ec-suivi-appels.js). « Voir »
      lit et note un appel passé d'un portable ; « Modifier » fait le
      reste. L'écoute des enregistrements : bureau et administrateurs. */
@@ -1609,7 +1614,8 @@ async function envoyerBilanParMail(eleve, dateCours, texte, suite){
         corps.html = htmlDuBilan(
           (typeof texteSansBlocTrajet === 'function')
             ? texteSansBlocTrajet(texte) : texte, couleurs) + carte.html + '</div>';
-        corps.images = [carte.image];
+        /* 📚 v1320 — et les photos des lieux du trajet */
+        corps.images = [carte.image].concat(carte.photos || []);
       }
     }
   }catch(e){
