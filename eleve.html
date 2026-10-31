@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 31/10/2026 à 16:18 — v1324 -->
+<!-- Déployé le 31/10/2026 à 17:20 — v1326 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -829,6 +829,7 @@
   .chemin .lib small{
     display:block; font-size:11.5px; color:var(--muted); font-weight:400; margin-top:2px;
   }
+  .chemin .lib small .facult{ font-style:normal; font-weight:700; }   /* ⏱️ v1326 */
   .chemin .trait{ width:3px; height:14px; background:var(--line); margin:-4px 0 -4px 26px; }
   .chemin .trait.d{ margin-left:auto; margin-right:26px; }
   .chemin + .ditpartage{ margin:6px 0 0; }
@@ -4365,10 +4366,17 @@
      n'a pas découpé : il vaut un segment, celui qui porte son titre.
      Le sauter ferait disparaître du total tous les guides d'avant.
      ============================================================ */
+  /* ⏱️ v1326 — une étape « facultative » se montre, mais ne compte pas
+     (sauf si tout le guide l'est : un guide ne doit pas compter pour rien) */
+  function segmentsQuiComptent(segs){
+    var l = (segs || []).filter(function(x){ return !x.facultatif; });
+    return l.length ? l : (segs || []);
+  }
+
   function compterLesSegments(etapes){
     var total = 0, vus = 0;
     (etapes || []).forEach(function(e){
-      var sg = (e.segments && e.segments.length) ? e.segments
+      var sg = (e.segments && e.segments.length) ? segmentsQuiComptent(e.segments)
              : [{ vuLe: e.vuLe || '' }];
       total += sg.length;
       sg.forEach(function(x){ if(x.vuLe) vus++; });
@@ -4596,7 +4604,7 @@
     file.forEach(function(x){
       if(x.e !== guidePrec){
         guidePrec = x.e;
-        var segs = segmentsDe(x.e);
+        var segs = segmentsQuiComptent(segmentsDe(x.e));
         var f = segs.filter(function(s){ return !!s.vuLe; }).length;
         html += '<div class="jalon">' + echapper((x.icone ? x.icone + ' ' : '') +
           (x.e.titre || 'Le guide') + ' · ' + f + '/' + segs.length) + '</div>';
@@ -4616,7 +4624,8 @@
           (epingle ? '<i class="pin" aria-label="À revoir">📌</i>' : '') + '</span>' +
         '<span class="lib">' + echapper(x.sg.titre || 'Segment') +
           '<small>' + echapper(vu ? 'vu le ' + jourDuVu(x.sg.vuLe)
-                                  : resumeDuSegment(x.e, x.sg)) + '</small></span>' +
+                                  : resumeDuSegment(x.e, x.sg)) +
+            (x.sg.facultatif ? ' · <i class="facult">facultatif</i>' : '') + '</small></span>' +
         '</button>';
     });
     html += '</div>';
@@ -4783,7 +4792,9 @@
     f.innerHTML = '<div class="voile" data-fermer="1"></div>' +
       '<div class="feuille" role="dialog" aria-modal="true" aria-label="' + echapper(x.sg.titre || 'Segment') + '"' +
         ' data-seg="' + echapper(x.cle) + '" data-guide="' + echapper(x.e.id) + '"' +
-        ' data-segid="' + echapper(x.sg.id) + '">' +
+        ' data-segid="' + echapper(x.sg.id) + '"' +
+        /* ⏱️ v1326 — le temps imposé par le bureau pour cette étape */
+        (x.sg.attente ? ' data-attente="' + echapper(x.sg.attente) + '"' : '') + '>' +
         '<div class="poignee" data-fermer="1"></div>' +
         '<div class="fbarre"><button type="button" class="fretour" data-fermer="1">‹ Retour</button>' +
         '<div class="fhaut">' + echapper((x.icone ? x.icone + ' ' : '') + (x.e.titre || 'Le guide') +
@@ -4835,9 +4846,11 @@
     var el = document.querySelector('#feuilleParcours .feuille');
     var aVideo = !!(el && el.querySelector('video, .mvPlace, .mvL'));
     var ms = el ? dureeDeLecture(el) : null;
-    /* Ce qu'il faut attendre : une vidéo, ou le temps de lire */
+    /* Ce qu'il faut attendre : une vidéo, ou le temps de lire —
+       rien si le bureau a mis « sans attente » (v1326) */
     var st = lectureDu(x.cle);
-    var attente = !vu && ((aVideo && (st.pct || 0) < PART_DE_VIDEO * 100) ||
+    var sansAttente = !!(el && el.getAttribute('data-attente') === 'aucune');
+    var attente = !vu && !sansAttente && ((aVideo && (st.pct || 0) < PART_DE_VIDEO * 100) ||
                           (!aVideo && ms !== null && !!enLecture && enLecture.cle === x.cle));
     var pctTxt = aVideo ? ' · ' + (st.pct || 0) + ' %' : '';
     bas.innerHTML =
@@ -5252,6 +5265,11 @@
   var enLecture = null;   /* { cle, minuterie } */
 
   function dureeDeLecture(el){
+    /* ⏱️ v1326 — le temps choisi par le bureau pour l'étape passe devant
+       le calcul : « aucune », ou un nombre de secondes */
+    var impose = el.getAttribute('data-attente') || '';
+    if(impose === 'aucune') return null;
+    if(/^\d+$/.test(impose)) return Math.max(5, Math.min(600, Number(impose))) * 1000;
     var dedans = el.querySelector('.sdedans');
     if(!dedans) return null;
     var texte = '';
