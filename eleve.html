@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 30/10/2026 à 17:51 — v1316 -->
+<!-- Déployé le 31/10/2026 à 10:44 — v1318 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -11,12 +11,36 @@
 <!-- 🔔 Étape 3 : installable sur l'écran d'accueil, ce qui est la
      CONDITION des notifications sur iPhone — Safari ne les donne
      qu'aux pages installées, et c'est la moitié des élèves. -->
-<link rel="manifest" href="manifest-eleve.webmanifest">
+<link rel="manifest" id="lienManifeste" href="manifest-eleve.webmanifest">
 <meta name="theme-color" content="#B6FF0E">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Révisions">
+<meta name="apple-mobile-web-app-title" id="titreRaccourci" content="Révisions">
+<!-- 📺 v1318 — LE RACCOURCI DE LA SALLE ROUVRE LA SALLE. David, le
+     31 octobre : « sur les tablettes, quand je fais un raccourci de
+     Chrome, quand je rouvre ce raccourci ça ouvre l'espace révision,
+     pas la salle ». Chrome rouvre l'adresse de départ du manifeste
+     (« eleve.html », sans « ?salle »). En mode salle, la page donne
+     donc SON manifeste (manifest-salle.webmanifest, qui part de
+     « eleve.html?salle=1 »). Et pour les raccourcis déjà faits : une
+     tablette installée (sa clé est gardée dans le navigateur) qui
+     s'ouvre sur « eleve.html » tout court repart vers la salle. -->
+<script id="raccourciSalle">
+(function(){
+  var salle = /[?&]salle(?:[=&]|$)/.test(location.search);
+  if(salle){
+    document.getElementById('lienManifeste').setAttribute('href', 'manifest-salle.webmanifest');
+    document.getElementById('titreRaccourci').setAttribute('content', 'Salle');
+    return;
+  }
+  if(location.search || location.hash) return;
+  try{
+    var t = JSON.parse(localStorage.getItem('ec_salle_tablette') || 'null');
+    if(t && t.jeton) location.replace('eleve.html?salle=1');
+  }catch(e){}
+})();
+</script>
 
 <!-- =========================================================
      ESPACE ÉLÈVE — Évolution Conduites
@@ -483,6 +507,9 @@
     background:var(--accent-text); color:var(--navy-deep); cursor:pointer;
   }
   .btpres[disabled]{ opacity:.55; cursor:default; }
+  /* 📅 v1318 — réserver ses cours dans son espace Drivup */
+  .btReserver{ text-decoration:none; margin:14px 0 6px; font-size:15px; min-height:48px; }
+  .reserverMot{ font-size:12.5px; color:var(--muted); line-height:1.5; }
   .presok{
     margin:12px 0 0; padding:12px; border-radius:11px;
     background:var(--line); color:var(--accent-text);
@@ -830,6 +857,28 @@
   }
   /* 📱 v1315 — la feuille d'une étape ne défile jamais de côté */
   #feuilleParcours .feuille{ overflow-x:hidden; }
+  /* 📱 v1318 — UNE PARTIE OUVERTE PREND TOUT L'ÉCRAN. David, le
+     31 octobre : « dans réviser, il faut que quand on ouvre une partie
+     ça prenne tout l'écran, pas juste le bas ». La feuille couvre
+     l'écran entier ; sur une tablette, le texte garde une largeur
+     lisible au milieu. En haut, une barre qui reste : « ‹ Retour ». */
+  #feuilleParcours .feuille{
+    top:0; bottom:0; max-width:none; max-height:none; height:100%;
+    border-radius:0; box-shadow:none;
+    padding:0 max(18px, calc((100% - 760px) / 2)) calc(18px + var(--dessous));
+  }
+  #feuilleParcours .poignee{ display:none; }
+  #feuilleParcours .fbarre{
+    position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:10px;
+    margin:0 0 10px; padding:calc(10px + var(--dessus)) 0 10px;
+    background:var(--navy-deep); border-bottom:1px solid var(--line);
+  }
+  #feuilleParcours .fbarre .fretour{
+    flex:0 0 auto; padding:10px 14px; min-height:44px; border-radius:10px;
+    border:1px solid var(--line); background:transparent; color:var(--cream);
+    font:inherit; font-size:15px; font-weight:700; cursor:pointer;
+  }
+  #feuilleParcours .fbarre .fhaut{ flex:1; min-width:0; }
   #feuilleParcours .stitre, #feuilleParcours .fhaut{ overflow-wrap:anywhere; }
   #feuilleParcours .sdedans p.vide{ color:var(--muted); font-style:italic; }
   #feuilleParcours video, #feuilleParcours img{
@@ -1878,6 +1927,12 @@
     <div class="card prochain" id="carteProchain" style="display:none;">
       <div class="section-title">📅 Mon prochain cours</div>
       <div id="monProchain"></div>
+      <!-- 📅 v1318 — David, le 31 octobre : « ce n'est pas l'auto-école
+           qui pose les prochains cours, c'est à l'élève de réserver sur
+           client.drivup.fr, son espace élève : fais un bouton qui y
+           amène directement ». -->
+      <a class="btn btn-primary btReserver" id="btReserverDrivup" href="https://client.drivup.fr/" target="_blank" rel="noopener">📅 Réserver mes cours sur Drivup</a>
+      <div class="reserverMot">Tes cours se réservent dans ton espace élève Drivup. Ils apparaissent ici dès que l’auto-école a relu le planning.</div>
     </div>
 
     <div class="card" id="carteDemandes" style="display:none;">
@@ -4267,8 +4322,9 @@
         ' data-seg="' + echapper(x.cle) + '" data-guide="' + echapper(x.e.id) + '"' +
         ' data-segid="' + echapper(x.sg.id) + '">' +
         '<div class="poignee" data-fermer="1"></div>' +
+        '<div class="fbarre"><button type="button" class="fretour" data-fermer="1">‹ Retour</button>' +
         '<div class="fhaut">' + echapper((x.icone ? x.icone + ' ' : '') + (x.e.titre || 'Le guide') +
-          ' · ' + (x.k + 1) + '/' + x.n) + '</div>' +
+          ' · ' + (x.k + 1) + '/' + x.n) + '</div></div>' +
         '<div class="stitre">' + echapper(x.sg.titre || 'Segment') + '</div>' +
         '<div class="sdedans">' + dedans + '</div>' +
         '<div id="feuilleBas"></div>' +
@@ -5048,6 +5104,7 @@
     if(ouvert('parcours')) poserLeParcours(d && d.parcours);
     mesAVenir = (d && d.aVenir) || null;
     if(ouvert('rappel')) dessinerProchain(d && d.prochain);
+    else { var zp = $('monProchain'); if(zp) zp.innerHTML = ''; montrer('carteProchain', true); }
     if(ouvert('historique')) dessinerLecons((d && d.lecons) || [], (d && d.couleursBilans) || []);
     dessinerMesPhotosBilan((d && d.photosBilan) || []);
   }
@@ -5086,8 +5143,9 @@
       .then(appliquerDossier)
       .catch(function(){
         /* Le reste de la page marche : on ne la bloque pas pour
-           deux cartes de plus. */
-        montrer('carteProchain', false);
+           deux cartes de plus. Le bouton pour réserver reste. */
+        var zp = $('monProchain'); if(zp) zp.innerHTML = '';
+        montrer('carteProchain', true);
         montrer('carteLecons', false);
       });
   }
@@ -5147,8 +5205,7 @@
 
     if(!p || !p.jour){
       var rien = !(mesAVenir && ((mesAVenir.cours || []).length || (mesAVenir.ecoutes || []).length));
-      z.innerHTML = rien ? '<div class="empty">Aucun cours de prévu pour le moment.<br>' +
-        "C'est l'auto-école qui les pose.</div>" : '';
+      z.innerHTML = rien ? '<div class="empty">Aucun cours de prévu pour le moment.</div>' : '';
       dessinerAVenir(z, null);
       return;
     }
