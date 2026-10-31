@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 11:37 — v1319 */
+/* Déployé le 31/10/2026 à 12:44 — v1320 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -67,7 +67,9 @@ const SECTIONS_ONGLET = {
             /* ✉️ v1243 — les courriers */
             'courriers',
             /* 💼 v1280 — les formations entreprise */
-            'formations'],
+            'formations',
+            /* 📚 v1320 — la base des lieux */
+            'lieux'],
   /* « tarifs » manquait ici, et il est pourtant accordable dans
      ⚙️ Accès : un compte à qui l'on n'accordait QUE les tarifs
      n'obtenait pas l'onglet Gestion, et n'atteignait donc jamais
@@ -389,6 +391,9 @@ const VUES = {
               (un bouton d'Outils porte un droit d'Outils) ; le changer :
               administrateurs (vérifié dans la porte du relais). */
            ['squelette',  '🎬 Squelette des vidéos',   'bilans',      'Ce qu’on écrit'],
+           /* 📚 v1320 — David : « une base de données » des lieux du parcours,
+              liée au 📍 du cours. Tout le monde qui fait des cours. */
+           ['lieux',      '📚 Repères de lieu',         'lieux',       'Ce qu’on écrit'],
            /* « 📚 Historique des cours » a été retiré.
 
               Ce bouton ne chargeait RIEN : sa vue n'était branchée
@@ -1927,6 +1932,7 @@ function reveillerVue(cle){
     formations: () => (typeof afficherFormations === 'function') && afficherFormations(),
     /* 🧰 v1246 */
     verifs:     () => (typeof afficherVerifs === 'function') && afficherVerifs(),
+    lieux:      () => (typeof afficherLieux === 'function') && afficherLieux(),
     squelette:  () => (typeof afficherSqueletteVideo === 'function') && afficherSqueletteVideo(),
     /* ⚠️ DEUX ÉCRANS SOUS UN SEUL BOUTON, ET CHACUN DEMANDE SON
        DROIT AVANT DE PARTIR.
