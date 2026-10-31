@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:20 — v1326 */
+/* Déployé le 31/10/2026 à 17:50 — v1327 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1327,
+    date: 'Samedi 31 octobre 2026',
+    resume: '⚡ Un groupe entier sans attente',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Sans attente sur tout le groupe',
+        texte: 'Dans ✏️ Le groupe : l’élève coche « ✓ Vu » tout de suite à chaque étape, vidéos comprises. Une étape réglée à part garde son temps.' }
+    ]
+  },
   {
     version: 1326,
     date: 'Samedi 31 octobre 2026',
