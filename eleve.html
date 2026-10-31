@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 31/10/2026 à 12:44 — v1320 -->
+<!-- Déployé le 31/10/2026 à 14:03 — v1321 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2881,6 +2881,8 @@
     var z = $('zoneMonBilan');
     if(!z) return;
     z.innerHTML = '';
+    /* 📝 v1321 — ses bilans de cours, au-dessus du bilan post-permis */
+    mesBilansCours.forEach(function(b){ z.appendChild(carteBilanCours(b)); });
     if(!bilanAttendu()) return;
 
     var etat = String((monBilan && monBilan.etat) || '');
@@ -3050,6 +3052,229 @@
       .catch(function(e){
         dire('msgBilan', e.message || 'Envoi impossible.', 'erreur');
         if(b){ b.disabled = false; b.textContent = '📨 Envoyer mon bilan'; }
+      });
+  }
+
+
+  /* ============================================================
+     📝 MON BILAN DE COURS — v1321
+
+     David (schéma v1315, puis v1321) : quand l'école a allumé « son
+     espace révisions », le bilan que le moniteur lui demande de FAIRE —
+     ou de COMPLÉTER — se remplit ici. Au moins un mot dans chaque
+     catégorie ; il part au moniteur dans la messagerie, qui le corrige et
+     le valide. Tant que ce n'est pas validé, il peut le reprendre : ce
+     qu'il a écrit revient tel quel (il complète, il ne recommence pas).
+
+     ⚠️ LA TRAME ET LES CASES VIENNENT DU SERVEUR, et c'est lui qui
+     revérifie tout à l'envoi : ici on dessine et on aide, rien de plus.
+     ============================================================ */
+  var mesBilansCours = [];
+  var brouillonsBC = {};       /* id → réponses en cours de saisie */
+
+  function bilansCoursOuverts(){
+    return mesBilansCours.filter(function(b){ return b.etat === 'attendu' || b.etat === 'acompleter' || b.etat === 'envoye'; });
+  }
+  function chargerMesBilansCours(){
+    return appeler({ action: 'eleveBilansCours', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        mesBilansCours = (d && d.bilans) || [];
+        mesBilansCours.forEach(function(b){
+          if(!brouillonsBC[b.id]) brouillonsBC[b.id] = JSON.parse(JSON.stringify(b.reponses || {}));
+        });
+        dessinerLesOnglets();
+        dessinerMonBilan();
+        montrerDemandes();
+      })
+      .catch(function(){ mesBilansCours = []; });
+  }
+  function ceQuiManqueBCEl(b){
+    var r = brouillonsBC[b.id] || {};
+    return (b.cases || []).filter(function(c){
+      if(c.type === 'texte') return !/[A-Za-zÀ-ÿ0-9]/.test(String(r[c.id] || ''));
+      if(c.type === 'ok') return r[c.id] !== true && r[c.id] !== false;
+      return false;
+    });
+  }
+  function carteBilanCours(b){
+    var z = document.createElement('div');
+    z.setAttribute('data-bc', b.id);
+    var r = brouillonsBC[b.id] = brouillonsBC[b.id] || {};
+    var comp = b.genre === 'completer';
+
+    if(b.etat === 'valide'){
+      var v = document.createElement('div');
+      v.className = 'card';
+      v.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">✅ ' + echapper(b.validePar || b.moniteur || 'L’école') +
+        ' a validé ton bilan du cours du ' + echapper(b.ddmm) + '</div>' +
+        '<div style="font-size:14px;line-height:1.6;color:var(--muted);">Tu retrouves la version corrigée dans « 📖 Mes leçons ».</div>';
+      z.appendChild(v);
+      return z;
+    }
+    /* Ce qu'on lui demande de compléter : AU-DESSUS du formulaire (comme le post-permis) */
+    if(b.retour){
+      var rt = document.createElement('div');
+      rt.className = 'card';
+      rt.style.cssText = 'border-color:var(--orange);';
+      rt.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">' + (b.etat === 'acompleter' ? '↩️ ' + echapper(b.moniteur || 'L’école') + ' te demande de compléter' : '⏰ On attend ton bilan') + '</div>';
+      var p = document.createElement('div');
+      p.style.cssText = 'font-size:14.5px;line-height:1.6;white-space:pre-wrap;';
+      p.textContent = b.retour;
+      rt.appendChild(p);
+      z.appendChild(rt);
+    }
+    if(b.etat === 'envoye'){
+      var a = document.createElement('div');
+      a.className = 'card';
+      a.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">📨 Ton bilan est parti à ' + echapper(b.moniteur || 'ton moniteur') + '</div>' +
+        '<div style="font-size:14px;line-height:1.6;color:var(--muted);">Il le lit, le corrige et le valide. Tu peux encore le modifier tant qu’il n’est pas validé.</div>';
+      z.appendChild(a);
+    }
+
+    var carte = document.createElement('div');
+    carte.className = 'card';
+    var tete = document.createElement('div');
+    tete.innerHTML = '<div class="section-title">' + (comp ? '✍️ Je complète mon bilan du cours du ' : '📝 Mon bilan du cours du ') + echapper(b.ddmm) + '</div>' +
+      '<div style="font-size:14px;line-height:1.6;margin-bottom:14px;">' + (b.moniteur ? 'Avec ' + echapper(b.moniteur) + '. ' : '') +
+      (comp ? 'Sous ce qu’a écrit ' + echapper(b.moniteur || 'ton moniteur') + ', ajoute ce que tu as compris ; remplis aussi chaque catégorie vide. '
+            : 'Remplis avec tes mots : ce que tu as réussi, tes erreurs, ce qu’il faut retravailler. ') +
+      'Au moins un mot dans chaque catégorie. ' + echapper(b.moniteur || 'Ton moniteur') + ' le lit, le corrige et le valide.</div>';
+    carte.appendChild(tete);
+
+    var champ = 'width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);padding:9px 10px;' +
+                'border-radius:10px;font-size:15px;line-height:1.5;font-family:inherit;resize:vertical;';
+    /* ✅❌ : carte SD, installation, passager, voyants */
+    (b.cases || []).filter(function(c){ return c.type === 'ok'; }).forEach(function(c){
+      var l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+      var t = document.createElement('div');
+      t.style.cssText = 'flex:1;min-width:0;font-size:15px;font-weight:700;font-style:italic;';
+      t.textContent = c.label + (c.id === 'sd' ? ' : je l’ai regardée' : '');
+      l.appendChild(t);
+      [[true, '✅'], [false, '❌']].forEach(function(pr){
+        var bt = document.createElement('button');
+        bt.type = 'button';
+        var on = r[c.id] === pr[0];
+        bt.className = on ? '' : 'btn btn-secondary';
+        bt.style.cssText = 'width:52px;margin:0;padding:8px 0;border-radius:10px;font-size:16px;cursor:pointer;' +
+          (on ? 'background:var(--orange-soft);border:1px solid var(--orange);color:var(--on-accent);' : '');
+        bt.textContent = pr[1];
+        bt.setAttribute('aria-pressed', on ? 'true' : 'false');
+        bt.addEventListener('click', function(){ r[c.id] = pr[0]; dessinerMonBilan(); });
+        l.appendChild(bt);
+      });
+      carte.appendChild(l);
+    });
+
+    /* L'ordre du schéma : les catégories, les manœuvres, puis « à retravailler » */
+    var textes = (b.cases || []).filter(function(c){ return c.type === 'texte' && c.id !== 'ret'; });
+    var dessinerTexte = function(c, i){
+      if(i === 0 || (c.id === 'ret')){
+        var h = document.createElement('div');
+        h.style.cssText = 'font-size:15px;font-weight:800;margin:12px 0 6px;';
+        h.textContent = c.id === 'ret' ? '' : (comp ? '🧠 Tes erreurs de ce jour' : '🧠 Mes erreurs de ce jour');
+        if(h.textContent) carte.appendChild(h);
+      }
+      var lab = document.createElement('div');
+      lab.style.cssText = c.id === 'ret' ? 'font-size:15px;font-weight:800;margin:14px 0 6px;' :
+        'font-size:12.5px;font-weight:800;color:var(--accent-text, var(--cream));text-transform:uppercase;margin:10px 0 4px;';
+      lab.textContent = c.id === 'ret' ? c.label : c.label.replace(/^(\S+)\s+/, '$1 ');
+      carte.appendChild(lab);
+      if(c.moniteur){
+        var q = document.createElement('div');
+        q.className = 'bcMoniteur';
+        q.style.cssText = 'font-size:14px;line-height:1.5;white-space:pre-wrap;border-left:3px solid var(--line);padding:4px 10px;margin:0 0 6px;color:var(--muted);';
+        q.textContent = (b.moniteur ? b.moniteur + ' : ' : '') + c.moniteur;
+        carte.appendChild(q);
+      }
+      var ta = document.createElement('textarea');
+      ta.rows = 2;
+      ta.value = String(r[c.id] || '');
+      ta.placeholder = c.moniteur ? '✍️ À toi de compléter : pourquoi ? que faut-il faire ?' : (c.id === 'ret' ? 'Une ou deux choses' : 'Au moins un mot (ex. « rien à signaler »)');
+      ta.style.cssText = champ;
+      ta.addEventListener('input', function(){ r[c.id] = ta.value; majEnvoiBC(b); });
+      carte.appendChild(ta);
+    };
+    textes.forEach(dessinerTexte);
+
+    (b.cases || []).filter(function(c){ return c.type === 'choix'; }).forEach(function(c){
+      var h = document.createElement('div');
+      h.style.cssText = 'font-size:15px;font-weight:800;margin:14px 0 6px;';
+      h.textContent = comp ? '🦉 Les manœuvres' : '🦉 Les manœuvres que j’ai travaillées';
+      carte.appendChild(h);
+      if(c.moniteur){
+        var q2 = document.createElement('div');
+        q2.style.cssText = 'font-size:14px;line-height:1.5;white-space:pre-wrap;border-left:3px solid var(--line);padding:4px 10px;margin:0 0 6px;color:var(--muted);';
+        q2.textContent = (b.moniteur ? b.moniteur + ' : ' : '') + c.moniteur;
+        carte.appendChild(q2);
+      }
+      if(comp){
+        var ai = document.createElement('div');
+        ai.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
+        ai.textContent = 'Touche celles que tu as faites aussi.';
+        carte.appendChild(ai);
+      }
+      var choisies = Array.isArray(r[c.id]) ? r[c.id] : (r[c.id] = []);
+      var puces = document.createElement('div');
+      puces.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+      (c.options || []).forEach(function(o){
+        var bt = document.createElement('button');
+        bt.type = 'button';
+        var on = choisies.indexOf(o) !== -1;
+        bt.className = on ? '' : 'btn btn-secondary';
+        bt.style.cssText = 'width:auto;margin:0;padding:7px 11px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;' +
+          (on ? 'background:var(--orange);border:1px solid var(--orange);color:var(--on-accent);' : '');
+        bt.textContent = o.replace(/\s*\(.*\)\s*$/, '').replace(/^(MALD|MAR|CD|CG|BD|BG|BAD|BAG)\b.*$/, '$1') || o;
+        bt.title = o;
+        bt.setAttribute('aria-pressed', on ? 'true' : 'false');
+        bt.addEventListener('click', function(){
+          var k = choisies.indexOf(o);
+          if(k === -1) choisies.push(o); else choisies.splice(k, 1);
+          dessinerMonBilan();
+        });
+        puces.appendChild(bt);
+      });
+      carte.appendChild(puces);
+    });
+    (b.cases || []).filter(function(c){ return c.type === 'texte' && c.id === 'ret'; }).forEach(function(c){ dessinerTexte(c, 1); });
+
+    var cpt = document.createElement('div');
+    cpt.className = 'bcCompte';
+    cpt.style.cssText = 'font-size:13px;color:var(--muted);margin:14px 0 10px;';
+    carte.appendChild(cpt);
+    var env = document.createElement('button');
+    env.className = 'btn btn-primary bcEnvoyer';
+    env.textContent = (b.etat === 'envoye' ? '📨 Renvoyer mon bilan modifié à ' : '📨 Envoyer mon bilan à ') + (b.moniteur || 'mon moniteur');
+    env.addEventListener('click', function(){ envoyerBilanCours(b, env); });
+    carte.appendChild(env);
+    var d = document.createElement('div');
+    d.className = 'ditpartage';
+    d.style.cssText = 'margin-top:12px;';
+    d.textContent = 'Il part à ' + (b.moniteur || 'ton moniteur') + ' dans la messagerie. Tu peux le modifier tant qu’il n’est pas validé.';
+    carte.appendChild(d);
+    z.appendChild(carte);
+    setTimeout(function(){ majEnvoiBC(b); }, 0);
+    return z;
+  }
+  function majEnvoiBC(b){
+    var z = document.querySelector('[data-bc="' + b.id + '"]');
+    if(!z) return;
+    var manque = ceQuiManqueBCEl(b);
+    var c = z.querySelector('.bcCompte'), e = z.querySelector('.bcEnvoyer');
+    if(c) c.textContent = manque.length ? 'Il reste ' + manque.length + ' case(s) à remplir — au moins un mot dans chaque catégorie.' : 'Tout est rempli. Tu peux l’envoyer.';
+    if(e) e.disabled = manque.length > 0;
+  }
+  function envoyerBilanCours(b, bt){
+    if(ceQuiManqueBCEl(b).length){ majEnvoiBC(b); return; }
+    bt.disabled = true; bt.textContent = 'Envoi…';
+    appeler({ action: 'eleveBilanCoursEnvoyer', eleve: moi.nom, code: moi.code, id: b.id, reponses: JSON.stringify(brouillonsBC[b.id] || {}) })
+      .then(function(){
+        dire('msgBilan', '📝 Ton bilan est parti à ' + (b.moniteur || 'ton moniteur') + '.', 'ok');
+        return chargerMesBilansCours();
+      })
+      .catch(function(e){
+        dire('msgBilan', e.message || 'Envoi impossible.', 'erreur');
+        bt.disabled = false; bt.textContent = '📨 Envoyer mon bilan à ' + (b.moniteur || 'mon moniteur');
       });
   }
 
@@ -3338,6 +3563,8 @@
        élève qui a son permis reçoit « attendu: false » et ne voit
        jamais l'onglet. */
     if(dem.bilan) appliquerMonBilan(dem.bilan); else chargerMonBilan();
+    /* 📝 v1321 — ses bilans de cours à faire ou à compléter (espace révisions) */
+    chargerMesBilansCours();
     if(dem.dossier) appliquerDossier(dem.dossier); else chargerDossier();
 
     /* Rien d'ouvert : il ne doit pas rester devant une page nue
@@ -3411,7 +3638,7 @@
       /* Son prochain cours, ce qu'on lui demande, ses leçons, son
          code : tout ce qui se lit sans rien faire. */
       quand: function(){ return !!modeleRg || ouvert('rappel') || ouvert('historique') ||
-                                ouvert('code') || demandes.length > 0 ||
+                                ouvert('code') || demandes.length > 0 || bilansCoursOuverts().length > 0 ||
                                 mesAnnonces.length > 0; } },
     { cle:'reviser', nom:'🎬 Réviser', emoji:'🎬', court:'Réviser',
       zone:'ongletReviser',
@@ -3447,7 +3674,7 @@
        son bilan n'est pas encore validé. */
     { cle:'bilan', nom:'📝 Mon bilan', emoji:'📝', court:'Bilan',
       zone:'ongletBilan',
-      quand: function(){ return bilanAttendu(); } }
+      quand: function(){ return bilanAttendu() || mesBilansCours.length > 0; } }
   ];
   var ongletIci = '';
 
@@ -5678,15 +5905,31 @@
   function montrerDemandes(){
     var carte = $('carteDemandes');
     var z = $('mesDemandes');
-    var attente = demandes.filter(function(x){ return x.etat !== 'fait'; });
+    var attente = ouvert('proccorriger') ? demandes.filter(function(x){ return x.etat !== 'fait'; }) : [];
+    /* 📝 v1321 — son bilan de cours à faire ou à compléter : un appui ouvre l'onglet 📝 Bilan */
+    var bcs = bilansCoursOuverts().filter(function(b){ return b.etat !== 'envoye'; });
 
-    if(!ouvert('proccorriger') || !attente.length){
+    if(!attente.length && !bcs.length){
       carte.style.display = 'none';
       return;
     }
 
     carte.style.display = 'block';
     z.innerHTML = '';
+    bcs.forEach(function(b){
+      var l = document.createElement('div');
+      l.className = 'demande bcDemande';
+      l.innerHTML =
+        '<span style="flex-shrink:0;font-size:18px;">' + (b.genre === 'completer' ? '✍️' : '📝') + '</span>' +
+        '<span class="quoi">' +
+          '<div class="nom">' + (b.genre === 'completer' ? 'Complète ton bilan du cours du ' : 'Fais ton bilan du cours du ') + echapper(b.ddmm) + '</div>' +
+          '<div class="quand">' + (b.etat === 'acompleter' ? '↩️ ' + echapper(b.moniteur || 'L’école') + ' te demande de le compléter'
+                                  : (b.relances ? '⏰ Rappel — ' : '') + 'Demandé par ' + echapper(b.moniteur || 'ton moniteur')) + '</div>' +
+        '</span>' +
+        '<span class="fleche">›</span>';
+      l.addEventListener('click', function(){ allerAOnglet('bilan'); });
+      z.appendChild(l);
+    });
 
     attente.forEach(function(x){
       var l = document.createElement('div');
