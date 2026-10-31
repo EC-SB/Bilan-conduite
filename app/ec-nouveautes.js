@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 10:44 — v1318 */
+/* Déployé le 31/10/2026 à 11:37 — v1319 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1319,
+    date: 'Samedi 31 octobre 2026',
+    resume: '🔑 Installer depuis la tablette · 🔓 Ouverture des groupes · 📊 Statistiques',
+    quoi: [
+      { emoji: '🔑',
+        titre: 'Installer un élève depuis la tablette',
+        texte: 'Sur l’accueil de la tablette : « 🔑 L’équipe : installer un élève ici », ton code de l’appli, puis la même fenêtre que dans l’appli — la théorie du jour, les élèves déjà commencés, et la recherche parmi tous les élèves. Le code n’est jamais gardé.' },
+      { emoji: '🔓',
+        titre: 'Quand chaque groupe s’ouvre chez l’élève',
+        texte: 'Élèves › 📺 Salle des tablettes › 📘 Au programme : pour chaque groupe, En salle puis chez lui, Chez lui après la salle, Après un groupe (dès 80 % vu) ou Tout de suite. L’élève voit pourquoi un groupe est fermé.' },
+      { emoji: '📊',
+        titre: 'Statistiques : durée et retard des examens',
+        texte: 'Outils › « Réussite » devient « 📊 Statistiques » : Taux de réussite, et Durée et retard des examens (retard sur l’heure de 🎓 Suivi permis, à l’heure = à 2 minutes près, par inspecteur, centre, mois). Un élève effacé reste compté : « Examen de 08h30 du 21/10/2026 ».' }
+    ]
+  },
   {
     version: 1318,
     date: 'Samedi 31 octobre 2026',
