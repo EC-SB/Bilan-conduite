@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 16:08 — v1170 */
+/* Déployé le 31/10/2026 à 17:05 — v1325 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1688,6 +1688,10 @@ async function ouvrirCodesEleves(){
         bMail.textContent = '✉️';
         bMail.title = 'Lui envoyer son accès par mail';
         bMail.addEventListener('click', async () => {
+          /* 🔑 v1325 — la fenêtre du coin révisions : le message dit ce
+             qui est ouvert chez lui, se modifie, et part aussi dans sa
+             messagerie (ec-coin-revisions.js) */
+          if(typeof fenetreAccesEleve === 'function'){ fenetreAccesEleve(a.eleve); return; }
           bMail.disabled = true;
           try{
             /* L'adresse vit dans sa fiche, pas ici */
