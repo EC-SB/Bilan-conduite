@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 09:53 — v1317 */
+/* Déployé le 31/10/2026 à 10:44 — v1318 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1318,
+    date: 'Samedi 31 octobre 2026',
+    resume: '📺 Raccourci de la salle · 📅 Réserver sur Drivup · 📱 Réviser en plein écran',
+    quoi: [
+      { emoji: '📺',
+        titre: 'Le raccourci de la tablette rouvre la salle',
+        texte: 'Un raccourci Chrome fait depuis la salle des tablettes rouvre la salle, plus l’espace révisions. Les raccourcis déjà faits sur une tablette installée y repartent aussi.' },
+      { emoji: '📅',
+        titre: 'Réserver ses cours sur Drivup',
+        texte: 'Dans l’espace élève, « Mon prochain cours » a un bouton « 📅 Réserver mes cours sur Drivup » qui ouvre client.drivup.fr.' },
+      { emoji: '📱',
+        titre: 'Réviser : une partie prend tout l’écran',
+        texte: 'Une partie ouverte couvre l’écran entier, avec « ‹ Retour » en haut. Et un élève qui a commencé la salle sans la finir ne voit plus aucun groupe chez lui : ils restent 🔒 jusqu’à la fin de la salle.' },
+      { emoji: '🎙️',
+        titre: '« Reprendre l’enregistrement » au téléphone',
+        texte: 'En pause, le bouton descend juste au-dessus de la transcription, et y reste jusqu’à la fin du cours.' },
+      { emoji: '📈',
+        titre: 'La liste des candidats du taux de réussite',
+        texte: 'Les noms ne s’affichent plus un mot par ligne : le crayon reprend sa place à droite.' }
+    ]
+  },
   {
     version: 1317,
     date: 'Samedi 31 octobre 2026',
