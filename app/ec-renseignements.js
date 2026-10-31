@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 12:39 — v1175 */
+/* Déployé le 31/10/2026 à 17:05 — v1325 */
 /* ============================================================
    📋 RENSEIGNEMENTS ET DISPONIBILITÉS — v1175
 
@@ -472,7 +472,11 @@ function dessinerListeRg(){
   const modele = rgDonnees.modele;
   const tous = rgDonnees.eleves.filter(x => x.acces || x.reponses)
     .map(x => ({ x, etat: etatRg(x, modele) }));
-  const ademander = tous.filter(o => o.etat !== 'complet');
+  /* 📋 v1325 — l'interrupteur « Le questionnaire » éteint dans son coin
+     révisions (passerelles, remises à niveau, régularisations) : on ne le
+     lui demande pas, et il n'est pas relancé */
+  const sansQ = tous.filter(o => o.x.sansQuestionnaire && o.etat !== 'complet');
+  const ademander = tous.filter(o => o.etat !== 'complet' && !o.x.sansQuestionnaire);
   const complets = tous.filter(o => o.etat === 'complet');
   z.innerHTML = '';
 
@@ -490,7 +494,7 @@ function dessinerListeRg(){
   const filtres = document.createElement('div');
   filtres.className = 'rrFiltres';
   [['ademander', '⚠️ À demander', ademander.length], ['complets', '✅ Complets', complets.length],
-   ['tous', 'Tous', tous.length]].forEach(([k, t, n]) => {
+   ['tous', 'Tous', tous.length]].concat(sansQ.length ? [['sansq', '🚫 Sans questionnaire', sansQ.length]] : []).forEach(([k, t, n]) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'rrFiltre' + (rgFiltre === k ? ' on' : '');
@@ -517,7 +521,7 @@ function dessinerListeRg(){
   }
   z.appendChild(haut);
 
-  const vus = rgFiltre === 'complets' ? complets : (rgFiltre === 'tous' ? tous : ademander);
+  const vus = rgFiltre === 'complets' ? complets : (rgFiltre === 'tous' ? tous : (rgFiltre === 'sansq' ? sansQ : ademander));
   const joignables = ademander.filter(o => o.x.acces && o.x.messagerie);
   if(rgFiltre === 'ademander' && joignables.length > 1 && (typeof peutModifier !== 'function' || peutModifier('eleves'))){
     const b = document.createElement('button');
@@ -564,7 +568,8 @@ function dessinerListeRg(){
     m.className = 'rgListeNom';
     const manque = etat === 'incomplet' ? questionsManquantes(modele, x.reponses).length : 0;
     m.innerHTML = '<b>' + echRg(x.eleve) + '</b><span>' + echRg(
-      etat === 'complet' ? texteQuiQuandRg(x)
+      x.sansQuestionnaire && etat !== 'complet' ? '🚫 pas de questionnaire pour lui (son coin révisions)'
+      : etat === 'complet' ? texteQuiQuandRg(x)
       : etat === 'incomplet' ? manque + (manque > 1 ? ' nouvelles questions' : ' nouvelle question') + ' sans réponse · ' + texteQuiQuandRg(x)
       : texteDemandeRg(x)) + '</span>';
     m.addEventListener('click', () => {
@@ -574,7 +579,7 @@ function dessinerListeRg(){
       if(typeof choisirOngletEleve === 'function') choisirOngletEleve('fiche');
     });
     ligne.append(rond, m);
-    if(etat !== 'complet' && x.acces && x.messagerie && (typeof peutModifier !== 'function' || peutModifier('eleves'))){
+    if(etat !== 'complet' && !x.sansQuestionnaire && x.acces && x.messagerie && (typeof peutModifier !== 'function' || peutModifier('eleves'))){
       const d = document.createElement('button');
       d.type = 'button';
       d.className = 'btn btn-secondary rgListeBt';
