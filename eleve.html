@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 30/10/2026 à 17:21 — v1315 -->
+<!-- Déployé le 30/10/2026 à 17:51 — v1316 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1153,7 +1153,7 @@
   /* ⚠️ UNE COUCHE, PAS UN ONGLET : un lien signé ouvert dans un
      onglet reste dans l'historique du téléphone. */
   .voilePhoto{
-    position:fixed; inset:0; z-index:900; background:rgba(0,0,0,.9);
+    position:fixed; inset:0; z-index:1800;   /* v1316 : devant le fil plein écran (1500) */ background:rgba(0,0,0,.9);
     display:flex; align-items:center; justify-content:center; padding:18px;
     cursor:zoom-out;
   }
@@ -1485,8 +1485,9 @@
      l'écran (l'en-tête « Bonjour » et la barre du bas s'effacent), la
      même barre que l'équipe « ➕ · le texte 😊 · 🎤 », collée en bas.
      ============================================================ */
+  /* v1316 — collé à la partie visible (le clavier fait glisser la page) */
   #zoneEcrireEcole:has(#leFilEleve) > .card{
-    position:fixed; inset:0; z-index:1500; margin:0; border-radius:0; border:none; max-width:none;
+    position:fixed; left:0; right:0; top:var(--hautElT, 0px); bottom:auto; z-index:1500; margin:0; border-radius:0; border:none; max-width:none;
     display:flex; flex-direction:column; height:var(--hautEl, 100dvh); padding:calc(10px + var(--dessus)) calc(12px + var(--adroite)) 0 calc(12px + var(--agauche));
     box-shadow:none;
   }
@@ -1516,7 +1517,7 @@
 
   /* La question posée dans la page, jamais par confirm() */
   .overlayEl{
-    position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.55);
+    position:fixed; inset:0; z-index:1700;   /* v1316 : devant le fil plein écran (1500) */ background:rgba(0,0,0,.55);
     display:flex; align-items:center; justify-content:center; padding:20px;
   }
   .boiteEl{
@@ -5992,7 +5993,7 @@
         ouvrirFilEleve(el.getAttribute('data-fil'));
       });
     });
-    brancherLesPhotosEl(z);
+    brancherLesRondsPhotoEl(z);
   }
 
   function prenomDe(nom){
@@ -6254,7 +6255,7 @@
 
     h += '</div>';
     $('zoneEcrireEcole').innerHTML = h;
-    brancherLesPhotosEl($('zoneEcrireEcole'));
+    brancherLesRondsPhotoEl($('zoneEcrireEcole'));
     brancherRetour();
 
     var t = $('chFilTexte');
@@ -7881,7 +7882,7 @@
     }catch(e){ return false; }
   }
 
-  function ouvrirLeSelecteurEl(bulle, m){
+  function ouvrirLeSelecteurEl(bulle, m, auDoigt){
     fermerLeSelecteurEl();
 
     /* Copier ne demande pas le droit d'écrire. */
@@ -7934,10 +7935,27 @@
       });
       boite.appendChild(c);
     }
-    bulle.parentNode.insertBefore(boite, bulle);
+    /* ⚠️ v1316 — AU-DESSUS DE LA RANGÉE, PAS DEDANS. Depuis la refonte,
+       la bulle d'en face vit dans une rangée (avatar + bulle) : posé
+       entre l'avatar et la bulle, le menu lui prenait la largeur — la
+       bulle tombait à 40 px, haute de plusieurs écrans, et « le message
+       disparaissait » à l'appui long (David, le 30 octobre). */
+    var ancre = (bulle.parentNode && /(^|\s)rang/.test(bulle.parentNode.className || '')) ? bulle.parentNode : bulle;
+    ancre.parentNode.insertBefore(boite, ancre);
     bulle.classList.add('vise');
 
-    var dehors = function(){ fermerLeSelecteurEl(); };
+    /* ⚠️ v1316 — le doigt qui se lève après l'appui long fait un « clic » :
+       il refermait le menu aussitôt ouvert. Un clic dans les 700 ms ne compte pas. */
+    /* (au doigt seulement : à la souris, il n'y a pas de doigt qui se lève) */
+    var ouvertLe = auDoigt ? Date.now() : 0;
+    /* … et ce même clic tombait sur le menu qui vient d'apparaître sous le
+       doigt (une émoticône envoyée sans le vouloir) : on l'avale. */
+    if(auDoigt){
+      var avaler = function(ev){ if(Date.now() - ouvertLe < 700){ ev.stopPropagation(); ev.preventDefault(); } };
+      document.addEventListener('click', avaler, true);
+      setTimeout(function(){ document.removeEventListener('click', avaler, true); }, 750);
+    }
+    var dehors = function(){ if(Date.now() - ouvertLe < 700) return; fermerLeSelecteurEl(); };
     setTimeout(function(){ document.addEventListener('click', dehors); }, 0);
     fermerReacEl = function(){
       document.removeEventListener('click', dehors);
@@ -7952,7 +7970,7 @@
      et sur un téléphone, remonter la conversation est le geste le
      plus fréquent de tous. */
   function brancherAppuiLongEl(bulle, m){
-    var minuteur = null, depart = null;
+    var minuteur = null, depart = null, doigtLe = 0;
     var annuler = function(){
       if(minuteur){ clearTimeout(minuteur); minuteur = null; }
     };
@@ -7961,12 +7979,13 @@
     bulle.addEventListener('pointerdown', function(ev){
       if(ev.button === 2) return;
       depart = { x: ev.clientX, y: ev.clientY };
+      doigtLe = (ev.pointerType && ev.pointerType !== 'mouse') ? Date.now() : 0;
       annuler();
       glisse.debut(ev);
       minuteur = setTimeout(function(){
         minuteur = null;
         glisse.oublier();
-        ouvrirLeSelecteurEl(bulle, m);
+        ouvrirLeSelecteurEl(bulle, m, !!doigtLe);
       }, 480);
     });
     bulle.addEventListener('pointermove', function(ev){
@@ -7983,7 +8002,8 @@
     bulle.addEventListener('contextmenu', function(ev){
       ev.preventDefault();
       annuler();
-      ouvrirLeSelecteurEl(bulle, m);
+      /* Android : l'appui long du doigt arrive aussi par ici */
+      ouvrirLeSelecteurEl(bulle, m, Date.now() - doigtLe < 1500);
     });
   }
 
@@ -8576,7 +8596,12 @@
       '</span>';
   }
   /* Les images cassées rendent leur repli — branché après chaque dessin. */
-  function brancherLesPhotosEl(zone){
+  /* ⚠️ v1316 — RENOMMÉE. Elle portait le même nom que celle qui branche le
+     « voir en grand » des photos du fil (plus haut) : déclarée après, elle
+     la remplaçait, et toucher une photo de la messagerie ne faisait plus
+     rien (David : « on ne peut pas appuyer sur les photos pour les voir en
+     plus grand »). La même faute que la v1211 avec « ouvrirLaPhotoEl ». */
+  function brancherLesRondsPhotoEl(zone){
     Array.prototype.forEach.call((zone || document).querySelectorAll('.phRondEl img'), function(i){
       if(i.dataset.branche) return;
       i.dataset.branche = '1';
@@ -8649,7 +8674,7 @@
       '<button type="button" class="btn btn-secondary" id="phElFermer" style="margin-top:8px;">Fermer</button>';
     fond.appendChild(m);
     document.body.appendChild(fond);
-    brancherLesPhotosEl(m);
+    brancherLesRondsPhotoEl(m);
     var fermer = function(){ if(fond.parentNode) fond.parentNode.removeChild(fond); };
     fond.addEventListener('click', function(ev){ if(ev.target === fond) fermer(); });
     m.querySelector('#phElFermer').addEventListener('click', fermer);
@@ -8707,7 +8732,7 @@
     b.innerHTML = '<span class="maPhotoCadre">' +
       rondPhotoEl(clePhotoEl('eleve', moi.nom), initialesPhotoEl(moi.nom), 44) +
       '<span class="maPhotoCrayon">✏️</span></span><span class="maPhotoMot">Ta photo</span>';
-    brancherLesPhotosEl(b);
+    brancherLesRondsPhotoEl(b);
   }
 
   var familleEl = 0;
@@ -9604,7 +9629,10 @@
      écran s'y tient, la barre reste juste au-dessus du clavier */
   (function(){
     var vv = window.visualViewport;
-    var poser = function(){ document.documentElement.style.setProperty('--hautEl', Math.round(vv ? vv.height : window.innerHeight) + 'px'); };
+    var poser = function(){
+      document.documentElement.style.setProperty('--hautEl', Math.round(vv ? vv.height : window.innerHeight) + 'px');
+      document.documentElement.style.setProperty('--hautElT', Math.round(vv ? Math.max(0, vv.offsetTop) : 0) + 'px');
+    };
     poser();
     if(vv){ vv.addEventListener('resize', poser); vv.addEventListener('scroll', poser); }
     window.addEventListener('resize', poser);
