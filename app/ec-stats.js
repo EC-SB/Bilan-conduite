@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 10:44 — v1318 */
+/* Déployé le 31/10/2026 à 11:37 — v1319 */
 /* ============================================================
    ec-stats.js
    Taux de réussite : global, par moniteur, par type de permis.
@@ -479,7 +479,10 @@ function ligneDuNom(r){
 
   const nom = document.createElement('div');
   nom.style.cssText = 'font-weight:800;font-size:14px;';
-  nom.textContent = r.eleve || '—';
+  /* 📊 v1319 — David : « quand ils ont eu leur examen, remplace élève
+     effacé par la date et l'heure de l'examen » */
+  nom.textContent = (r.eleve === '(élève effacé)' && typeof libelleExamenSansNom === 'function')
+    ? libelleExamenSansNom(r) : (r.eleve || '—');
   coeur.appendChild(nom);
 
   const det = document.createElement('div');
@@ -648,6 +651,33 @@ function blocDesNoms(liste){
 /* ------------------------------------------------------------
    L'ÉCRAN
    ------------------------------------------------------------ */
+/* ------------------------------------------------------------
+   📊 STATISTIQUES — DEUX SOUS-ONGLETS — v1319
+
+   David, le 31 octobre : « couple-le avec l'onglet réussite qu'on
+   renomme statistiques, avec un sous-onglet taux de réussite et durée
+   d'examen ». La période, le filtre des passages et les droits sont
+   les mêmes pour les deux ; la durée vit dans ec-durees-examen.js.
+   ------------------------------------------------------------ */
+let statsOnglet = 'reussite';      /* reussite · durees */
+function ongletsStats(){
+  const r = document.createElement('div');
+  r.className = 'tdOnglets';
+  r.id = 'statsOnglets';
+  r.style.cssText = 'margin:0 0 12px;';
+  [['reussite', '📈 Taux de réussite'], ['durees', '⏱️ Durée et retard des examens']].forEach(([k, t]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn tdOnglet' + (statsOnglet === k ? ' on' : '');
+    b.style.cssText = 'width:auto;margin:0;';
+    b.setAttribute('data-onglet', k);
+    b.textContent = t;
+    b.addEventListener('click', () => { if(statsOnglet === k) return; statsOnglet = k; afficherStats(); });
+    r.appendChild(b);
+  });
+  return r;
+}
+
 async function afficherStats(){
   const zone = $('statsZone');
   if(!zone) return;
@@ -655,7 +685,23 @@ async function afficherStats(){
   const reglages = $('statsReglages');
   if(reglages){
     reglages.innerHTML = '';
+    reglages.appendChild(ongletsStats());
+    const intro = document.createElement('div');
+    intro.id = 'statsIntro';
+    intro.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;';
+    intro.textContent = statsOnglet === 'durees'
+      ? 'Les examens officiels chronométrés (▶️ Début, ⏹️ Fin), comparés à l’heure prévue dans 🎓 Suivi permis. Pour l’équipe, jamais à l’élève.'
+      : 'Calculés à partir des résultats saisis dans « Examens passés ».';
+    reglages.appendChild(intro);
     reglages.appendChild(blocPeriodeStats());
+  }
+  if(statsOnglet === 'durees' && typeof afficherDureesStats === 'function'){
+    await afficherDureesStats();
+    return;
+  }
+  /* Les durées sans nom donnent l'heure des examens d'élèves effacés */
+  if(typeof chargerDureesExamen === 'function' && typeof DX !== 'undefined' && !DX.liste){
+    chargerDureesExamen().then(() => { if(statsOnglet === 'reussite' && resultatsLus) dessinerStats(); }).catch(() => {});
   }
 
   if(!resultatsLus){
