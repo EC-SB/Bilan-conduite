@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 12:44 — v1320 */
+/* Déployé le 31/10/2026 à 14:03 — v1321 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1321,
+    date: 'Samedi 31 octobre 2026',
+    resume: '✍️ L’élève fait ou complète son bilan, dans son espace',
+    quoi: [
+      { emoji: '✍️',
+        titre: 'L’élève complète ton bilan',
+        texte: 'Sous « Copier, enregistrer et terminer » : ton bilan part avec des ✍️ sous chaque catégorie écrite, toutes les catégories vides, les manœuvres et « à retravailler ». Le cours est validé tout de suite.' },
+      { emoji: '📝',
+        titre: 'L’élève doit faire ou compléter son bilan',
+        texte: 'La fenêtre du cours, renommée : « Il fait son bilan » (la trame vide) ou « Il complète ton bilan ».' },
+      { emoji: '📚',
+        titre: 'Dans son espace révisions',
+        texte: 'Réglage allumé : il le remplit dans l’onglet 📝 Bilan, il arrive dans la messagerie avec « ✏️ Lire, corriger et valider » ; la version validée remplace le bilan dans son dossier. Relance à 2 jours.' }
+    ]
+  },
   {
     version: 1320,
     date: 'Samedi 31 octobre 2026',
