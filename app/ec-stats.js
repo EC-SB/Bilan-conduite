@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:30 — v953 */
+/* Déployé le 31/10/2026 à 10:44 — v1318 */
 /* ============================================================
    ec-stats.js
    Taux de réussite : global, par moniteur, par type de permis.
@@ -509,7 +509,9 @@ function ligneDuNom(r){
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn ' + (sans ? 'btn-primary' : 'btn-secondary');
-    b.style.cssText = 'margin:0;padding:7px 11px;font-size:12px;flex-shrink:0;';
+    /* 📏 v1318 — « width:auto » : sans lui, le bouton prenait toute la
+       largeur (.btn) et écrasait le nom, un mot par ligne */
+    b.style.cssText = 'margin:0;padding:7px 11px;font-size:12px;flex-shrink:0;width:auto;';
     b.textContent = sans ? '✏️ Renseigner' : '✏️';
     b.title = 'Qui a présenté ce candidat';
     b.addEventListener('click', () => renseignerLeMoniteur(r, b));
@@ -609,7 +611,7 @@ function blocDesNoms(liste){
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn ' + (statsFiltreListe === cle ? 'btn-primary' : 'btn-secondary');
-    b.style.cssText = 'margin:0;padding:6px 12px;font-size:12px;border-radius:20px;';
+    b.style.cssText = 'margin:0;padding:6px 12px;font-size:12px;border-radius:20px;width:auto;';
     b.textContent = nom + ' ' + comptes[cle];
     b.addEventListener('click', () => { statsFiltreListe = cle; dessinerStats(); });
     chips.appendChild(b);
