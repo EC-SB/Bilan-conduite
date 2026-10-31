@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 15:36 — v1295 */
+/* Déployé le 31/10/2026 à 11:37 — v1319 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -330,7 +330,7 @@ const VUES = {
   /* v1145 — l'ordre de David : Mesurer · L'équipe · Argent ·
      Demandes · Ce qu'on écrit. L'équipe et l'Argent viennent de
      Gestion, boutons, logos et droits inchangés. */
-  outils: [['stats',      '📈 Réussite',               ['stats', 'stats_perso'], 'Mesurer'],
+  outils: [['stats',      '📊 Statistiques',           ['stats', 'stats_perso'], 'Mesurer'],
            ['journal',    '📊 Journal',                'journal',     'Mesurer'],
            /* ✉️ v1146 — administrateurs seuls, comme le Journal : le
               droit écrit ici est le sien, et construireBarresVues le
