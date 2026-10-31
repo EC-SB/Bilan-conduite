@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 17:51 — v1316 */
+/* Déployé le 31/10/2026 à 14:03 — v1321 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1630,6 +1630,9 @@ function bulleDuMessage(m, avant, apres){
   /* 📍 v1274 — une position : où c'est, et de quoi y aller */
   const posB = (typeof carteDeLaPositionEC === 'function') ? carteDeLaPositionEC(m) : null;
   if(posB) b.appendChild(posB);
+  /* 📝 v1321 — son bilan de cours : « ✏️ Lire, corriger et valider » (ec-bilan-eleve.js) */
+  const bcB = (typeof carteBilanCoursEC === 'function') ? carteBilanCoursEC(m) : null;
+  if(bcB) b.appendChild(bcB);
 
   /* ⚠️ L'HEURE EST POSÉE APRÈS LE TEXTE, et c'est ce qui la met au
      bout de la DERNIÈRE ligne. Un flottant rencontré après trois
