@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:07 — v1309 */
+/* Déployé le 30/10/2026 à 17:51 — v1316 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -285,8 +285,53 @@ function boutonAilleursToutSE(grille, racine, peindreTout){
 const ZONES_SUIVI_SE = { verifsCours: 'suiviCours', verifsManuel: 'suiviManuel' };
 const CASES_SUIVI_SE = [
   { k: 'ecoutes', t: '🎧 Pas d’écoutes pédagogiques', s: 'à lui en parler pendant le cours · le texte des écoutes part dans le bilan', court: '🎧 pas d’écoutes', champ: 'ecoutes' },
-  { k: 'groupes', t: '👥 Ne travaille pas sur les groupes', s: 'à lui en parler pendant le cours · ❌ aux groupes dans le bilan', court: '👥 pas les groupes', champ: 'groupesTravail' }
+  { k: 'groupes', t: '👥 Ne travaille pas sur les groupes', s: 'à lui en parler pendant le cours · ❌ aux groupes dans le bilan', court: '👥 pas les groupes', champ: 'groupesTravail' },
+  /* 🚨 v1316 — David, le 30 octobre : « ajoute Urgent : il faut ajouter une
+     leçon, avant l'examen s'il a une date d'examen, ou avant l'examen blanc
+     si pas d'examen prévu ; quand un moniteur coche, un message part
+     automatiquement dans Message important pour que le bureau ait
+     l'information ». Pas de ligne du bilan derrière (champ vide). */
+  { k: 'urgent', t: '🚨 Urgent : ajouter une leçon', s: '', court: '🚨 leçon à ajouter', champ: '' }
 ];
+/* « avant son examen du 12/11 » s'il a une date d'examen à venir,
+   « avant l'examen blanc » sinon */
+function quandUrgentSE(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const brut = String(s.datePermis || s.dateExamen || '').trim();
+  let iso = '';
+  let m = brut.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) iso = m[0];
+  else if((m = brut.match(/^(\d{2})\/(\d{2})\/(\d{4})/))) iso = m[3] + '-' + m[2] + '-' + m[1];
+  if(iso && iso >= jourSE()) return 'avant son examen du ' + iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  return 'avant l’examen blanc';
+}
+function texteUrgentSE(nom){ return 'il faut ajouter une leçon ' + quandUrgentSE(nom); }
+/* Le message dans « Message important » : au nom de celui qui coche, et
+   il entre dans le Suivi de l'élève comme tout message de ce fil */
+function estMessageImportantSE(c){
+  const t = normSE(c && c.titre);
+  return !!c && !c.eleve && (c.genre === 'groupe' || c.genre === 'interne') && / important/.test(' ' + t);
+}
+async function prevenirLeBureauUrgentSE(nom){
+  try{
+    /* sa date d'examen vient de l'état du bureau : lu s'il ne l'est pas encore */
+    if(typeof chargerBureau === 'function' && typeof etatBureau !== 'undefined' && !(etatBureau && (etatBureau.suivi || []).length)){
+      try{ await chargerBureau(false); }catch(e){ /* « avant l'examen blanc » par défaut */ }
+    }
+    const d = await appelPrep({ action: 'convList' });
+    const conv = ((d && d.conversations) || []).find(estMessageImportantSE);
+    if(!conv){
+      if(typeof showToast === 'function') showToast('ℹ️ Pas de conversation « Message important » pour toi : préviens le bureau.');
+      return false;
+    }
+    await appelPrep({ action: 'convEcrire', id: conv.id, texte: '🚨 URGENT — ' + nom + ' : ' + texteUrgentSE(nom) + '.', suivi: { noms: [nom] } });
+    if(typeof showToast === 'function') showToast('🚨 Le bureau est prévenu dans « ' + (conv.titre || 'Message important') + ' »');
+    return true;
+  }catch(e){
+    if(typeof showToast === 'function') showToast('« Message important » : ' + ((e && e.message) || e));
+    return false;
+  }
+}
 function suiviCaseSE(k, nom){ const d = suiviSE(nom); return !!(d && d.fiche && d.fiche[k]); }
 
 function dateDuMessageSE(t){
@@ -305,7 +350,7 @@ function quandCourtSE(t){
 function aSavoirSE(d){
   if(!d) return false;
   const f = d.fiche || {};
-  return !!(f.ecoutes || f.groupes);
+  return !!(f.ecoutes || f.groupes || f.urgent);
 }
 /* Quelque chose à lire (sans rouge) : un texte, ou un message de la semaine */
 function aQuelqueChoseSE(d){
@@ -386,7 +431,9 @@ function contenuSuiviSE(nom, x){
     l.appendChild(cb);
     const t = document.createElement('span');
     const qui = f[c.k] ? (f[c.k + 'Auto'] ? 'coché tout seul : ❌ au bilan du ' + quandCourtSE(isoVersFrSE(f[c.k + 'Le'])) : '✏️ ' + (f[c.k + 'Par'] || '') + (f[c.k + 'Le'] ? ' · ' + quandCourtSE(isoVersFrSE(f[c.k + 'Le'])) : '')) : '';
-    t.innerHTML = '<b>' + c.t + '</b><br><small>' + echSE(c.s) + (qui ? ' · ' + echSE(qui) : '') + '</small>';
+    const sous = c.k === 'urgent' ? quandUrgentSE(nom) + ' · le bureau est prévenu dans « Message important »' : c.s;
+    if(c.k === 'urgent') l.classList.add('suiviUrgent');
+    t.innerHTML = '<b>' + c.t + '</b><br><small>' + echSE(sous) + (qui ? ' · ' + echSE(qui) : '') + '</small>';
     l.appendChild(t);
     cb.addEventListener('change', async () => {
       cb.disabled = true;
@@ -395,6 +442,7 @@ function contenuSuiviSE(nom, x){
         if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
         poserDonneesSE(nom, r);
         rafraichirApresSuiviSE(nom);
+        if(c.k === 'urgent' && cb.checked) prevenirLeBureauUrgentSE(nom);
       }catch(e){
         cb.checked = !cb.checked;
         cb.disabled = false;
@@ -533,6 +581,7 @@ function appliquerCasesAuxLignesSE(){
   const d = suiviSE();
   if(!d) return;
   CASES_SUIVI_SE.forEach(c => {
+    if(!c.champ) return;   /* 🚨 l'urgence n'a pas de ligne au bilan */
     document.querySelectorAll('[data-champ="' + c.champ + '"]').forEach(r => {
       const on = !!(d.fiche || {})[c.k];
       const val = (typeof champsManuels !== 'undefined' && champsManuels) ? champsManuels[c.champ] : undefined;
