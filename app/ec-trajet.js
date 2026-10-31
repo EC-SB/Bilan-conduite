@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 10:24 — v1224 */
+/* Déployé le 31/10/2026 à 12:44 — v1320 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -448,6 +448,10 @@ function demarrerTrajet(eleve){
   tenirLEcranPourLeTrajet();
 
   surveillerLaVeilleDuTrajet();
+  /* 📚 v1320 — la base des lieux, chargée maintenant : rien ne part en roulant */
+  if(typeof lieuxAuDemarrage === 'function'){
+    try{ if(typeof lxCarteSousLeBouton === 'function') lxCarteSousLeBouton(''); lieuxAuDemarrage(); }catch(e){}
+  }
   return true;
 }
 
@@ -1374,6 +1378,8 @@ function blocTrajet(){
        finiraient par ne plus dire la même chose. */
     out += '\n' + natureDuPoint(r.type).icone + ' ' + r.n + ' · ' + r.heure +
            (r.nom ? ' — ' + r.nom : '');
+    /* 📚 v1320 — le texte du lieu, juste sous SON repère */
+    if(typeof lignesDuLieuPourLeBilan === 'function') out += lignesDuLieuPourLeBilan(r.n);
   });
 
   return out;
@@ -2198,14 +2204,19 @@ async function carteDuTrajetPourMail(eleve){
   const t = trajetPourEnvoi();
   if(!t) return null;
 
-  return paquetDeLaCarte(t, image);
+  /* 📚 v1320 — le cours du jour seulement : ses lieux, et leurs photos */
+  const p = paquetDeLaCarte(t, image, true);
+  if(typeof lieuxImagesPourMail === 'function'){
+    try{ p.photos = await lieuxImagesPourMail(); }catch(e){ p.photos = []; }
+  }
+  return p;
 }
 
 /* ⚠️ LE BLOC DU MAIL, ÉCRIT UNE SEULE FOIS — v1011. Deux chemins y
    arrivent : le cours du jour et un cours relu. Deux écritures du
    même bloc, et l'élève recevrait deux mises en page selon qu'on
    lui renvoie son bilan ou qu'on le lui envoie. */
-function paquetDeLaCarte(t, image){
+function paquetDeLaCarte(t, image, avecLieux){
 
   const echapper = (s) => String(s || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -2263,6 +2274,9 @@ function paquetDeLaCarte(t, image){
         '<span style="color:#64655F;font-size:12.5px;">' +
           echapper(r.heure) + '</span>' +
         (r.nom ? ' — ' + echapper(r.nom) : '') +
+        /* 📚 v1320 — le lieu sous son repère (le cours du jour : relu
+           des mois plus tard, le trajet n'a plus ses lieux en mémoire) */
+        ((avecLieux && typeof lieuHtmlPourMail === 'function') ? lieuHtmlPourMail(r.n) : '') +
         '</div>';
     });
     html += '</div>' +
@@ -2418,6 +2432,10 @@ function appuyerSurRepere(){
   const n = poserRepere();
   if(!n) return;
   dessinerEtatDuTrajet();
+  /* 📚 v1320 — un lieu connu ici ? Son texte va dans la dictée (ec-lieux.js) */
+  if(typeof lieuxApresRepere === 'function'){
+    try{ lieuxApresRepere(n); }catch(e){ console.warn('Lieux :', e); }
+  }
   if(!b) return;
   b.classList.add('pose');
   b.textContent = '📍 Repère ' + n + ' posé';
@@ -2425,6 +2443,7 @@ function appuyerSurRepere(){
   b._retour = setTimeout(() => {
     b.classList.remove('pose');
     b.textContent = '📍 Repère ici';
+    if(typeof lieuxRedessinerBouton === 'function') lieuxRedessinerBouton();
   }, 1500);
 }
 
@@ -2580,6 +2599,8 @@ async function proposerLesNomsDesReperes(transcription){
     let poses = 0;
     for(const n in noms){
       if(!noms[n]) continue;
+      /* 📚 v1320 — un repère posé sur un lieu de la base garde son nom */
+      if(trajetReperes[parseInt(n, 10) - 1] && trajetReperes[parseInt(n, 10) - 1].lieu) continue;
       if(nommerRepere(parseInt(n, 10), noms[n])) poses++;
     }
     return poses;
@@ -2674,6 +2695,15 @@ function montrerLeTiroirDesReperes(){
     l.appendChild(bX);
 
     zone.appendChild(l);
+    /* 📚 v1320 — le lieu de ce point : texte, photos, vidéos, et le changer */
+    if(typeof lieuSousLeRepere === 'function'){
+      const sous = lieuSousLeRepere(r.n, () => {
+        montrerLeTiroirDesReperes();
+        const ta = (typeof $ === 'function') ? $('resultText') : null;
+        if(ta && ta.value) ta.value = rafraichirBlocTrajet(ta.value);
+      });
+      if(sous){ l.style.borderBottom = 'none'; zone.appendChild(sous); }
+    }
   });
 }
 
@@ -2940,7 +2970,11 @@ async function enregistrerLeTrajet(meta){
          le jour même redevenait propre trois mois plus tard. */
       trou: t.trou || 0
     });
-    if(r && r.status === 'ok') return true;
+    if(r && r.status === 'ok'){
+      /* 📚 v1320 — et quel lieu sous quel repère : l'élève le retrouve dans « Mes leçons » */
+      if(typeof enregistrerLesLieuxDuBilan === 'function') await enregistrerLesLieuxDuBilan(String(m.eleve || ''), jour);
+      return true;
+    }
     await direQueLeTraceNestPasParti(m.eleve,
       (r && r.message) || 'Le classeur a répondu sans confirmer.');
     return false;
