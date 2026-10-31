@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:20 — v1326 */
+/* Déployé le 31/10/2026 à 17:50 — v1327 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -23,6 +23,8 @@
    ============================================================ */
 
 let parcoursGroupes = [];
+/* ⚡ v1327 — les options de chaque groupe ({ id: { sansAttente } }), gardées par le Worker */
+let parcoursOptions = {};
 let parcoursGuides = [];
 let parcoursGroupeOuvert = '';
 let parcoursCharge = false;
@@ -233,6 +235,7 @@ async function afficherParcours(){
     const d = await appelPrep({ action: 'parcoursList' });
     parcoursGroupes = (d && d.groupes) || [];
     parcoursGuides = (d && d.guides) || [];
+    parcoursOptions = (d && d.options) || {};
     parcoursCharge = true;
   }catch(e){
     zone.innerHTML = '<div class="message erreur">Lecture impossible : ' +
@@ -306,6 +309,7 @@ function dessinerParcours(){
     if(x.fermeLe) b.style.opacity = '.55';
     const n = guidesDuGroupe(x.id).length;
     b.innerHTML = echParcours((x.icone ? x.icone + ' ' : '') + x.nom) + ' <small>' + n + '</small>' +
+      ((parcoursOptions[x.id] || {}).sansAttente ? ' <span title="Sans attente : il coche « ✓ Vu » tout de suite">⚡</span>' : '') +
       (x.fermeLe ? ' <small>· fermé</small>' : '');
     b.addEventListener('click', () => { parcoursGroupeOuvert = x.id; dessinerParcours(); });
     ong.appendChild(b);
@@ -515,6 +519,46 @@ async function ouvrirLeGroupe(g){
       'margin-bottom:14px;">⚠️ Ça ne l\'ouvre chez personne. Ça dit seulement ' +
       'ce que le bouton « Cocher ce que prévoit sa formation » proposera, ' +
       'dans l\'onglet 🔑 de la fiche élève. <b>Tu ouvres à la main.</b></div>';
+
+  /* ============================================================
+     ⚡ SANS ATTENTE SUR TOUT LE GROUPE — v1327
+
+     David : « une option par groupe pour dire que tout est ouvert, sans
+     obligation de faire étape après étape ». Ses réponses : il coche
+     « ✓ Vu » tout de suite partout dans le groupe, vidéos comprises ;
+     une étape réglée à part (⚙️ Régler) GARDE son réglage. Enregistré
+     tout de suite, au Worker (parcoursGroupeOptions).
+     ============================================================ */
+  if(!neuf){
+    poserLeStyleDuParcours();
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.dataset.sansAttente = '1';
+    const peindreSw = () => {
+      const on = !!(parcoursOptions[g.id] || {}).sansAttente;
+      sw.className = 'pcSw' + (on ? ' on' : '');
+      sw.setAttribute('role', 'switch');
+      sw.setAttribute('aria-checked', on ? 'true' : 'false');
+      sw.innerHTML = '<span class="t">⚡ Sans attente sur tout le groupe<small>' + (on
+        ? 'Il coche « ✓ Vu » tout de suite, à chaque étape, vidéos comprises. Une étape réglée à part (⚙️ Régler) garde son temps.'
+        : 'De base, il attend le temps de lecture (ou 90 % de la vidéo) avant « ✓ Vu ».') + '</small></span><span class="s"></span>';
+    };
+    peindreSw();
+    sw.addEventListener('click', async () => {
+      const avant = !!(parcoursOptions[g.id] || {}).sansAttente;
+      sw.disabled = true;
+      try{
+        const rep = await appelPrep({ action: 'parcoursGroupeOptions', id: g.id, sansAttente: !avant });
+        if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+        parcoursOptions = (rep && rep.options) || parcoursOptions;
+        peindreSw();
+        showToast(!avant ? '⚡ Sans attente sur tout le groupe ✅' : 'Le temps de lecture revient dans ce groupe ✅');
+      }catch(e){ showToast('Impossible : ' + e.message); }
+      sw.disabled = false;
+    });
+    sw.style.marginBottom = '14px';
+    cadre.appendChild(sw);
+  }
 
   const zf = cadre.querySelector('#pgFormations');
   const choisies = (g && g.formations) ? g.formations.slice() : [];
@@ -975,7 +1019,9 @@ async function ouvrirLeGuide(x, groupe){
     const reservee = !!t.reservee || pour.length > 0;
     const ligne = document.createElement('div');
     ligne.className = 'pcRgL';
-    ligne.innerHTML = '<span class="pcRgC' + (t.attente ? ' on' : '') + '">⏱️ ' + echParcours(resumeAttentePC(t.attente)) + '</span>' +
+    /* ⚡ v1327 — sans temps à elle, l'étape suit son groupe */
+    const duGroupe = !t.attente && !!(parcoursOptions[idGroupe] || {}).sansAttente;
+    ligne.innerHTML = '<span class="pcRgC' + (t.attente || duGroupe ? ' on' : '') + '">' + (duGroupe ? '⚡ sans attente (le groupe)' : '⏱️ ' + echParcours(resumeAttentePC(t.attente))) + '</span>' +
       '<span class="pcRgC' + (t.facultatif ? ' on' : '') + '">' + (t.facultatif ? '💤 facultative' : '📊 compte') + '</span>' +
       '<span class="pcRgC' + (reservee ? ' on' : '') + '">' + (reservee ? (pour.length ? '🔒 ' + pour.length + ' élève' + (pour.length > 1 ? 's' : '') : '🔒 personne pour l’instant') : '👥 tous les élèves') + '</span>';
     const bR = document.createElement('button');
@@ -992,7 +1038,8 @@ async function ouvrirLeGuide(x, groupe){
     /* ⏱️ le temps */
     const la = document.createElement('label'); la.textContent = '⏱️ Temps de lecture imposé';
     const sel = document.createElement('select'); sel.dataset.rg = 'attente';
-    ATTENTES_PC.forEach(([v, n]) => { const o = document.createElement('option'); o.value = v; o.textContent = n; sel.appendChild(o); });
+    ATTENTES_PC.forEach(([v, n]) => { const o = document.createElement('option'); o.value = v;
+      o.textContent = (v === '' && duGroupe) ? '⚡ Comme son groupe : sans attente' : n; sel.appendChild(o); });
     if(t.attente && !ATTENTES_PC.some(x => x[0] === String(t.attente))){ const o = document.createElement('option'); o.value = String(t.attente); o.textContent = t.attente + ' secondes'; sel.appendChild(o); }
     sel.value = String(t.attente || '');
     sel.addEventListener('change', () => { if(sel.value) t.attente = sel.value; else delete t.attente; relireTout(); dessiner(); modifie(); });
