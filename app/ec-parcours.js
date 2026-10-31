@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 16:18 — v1324 */
+/* Déployé le 31/10/2026 à 17:20 — v1326 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -428,6 +428,28 @@ function poserLeStyleDuParcours(){
     '.pcSomL .pcNum{width:22px;height:22px;font-size:11px}' +
     '.pcSomL .t{flex:1;min-width:0}' +
     '.pcSomL .vide{font-weight:400;font-style:italic;opacity:.75}' +
+    /* ⏱️ v1326 — les réglages d'une étape */
+    '.pcRg{border:1px dashed var(--line);border-radius:10px;padding:7px 9px;margin:0 0 9px}' +
+    '.pcRgL{display:flex;gap:6px;align-items:center;flex-wrap:wrap}' +
+    '.pcRgC{font-size:11.5px;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}' +
+    '.pcRgC.on{border-color:var(--orange);color:var(--accent-text)}' +
+    '.pcRgB{margin-left:auto;background:none;border:0;padding:4px 2px;font:inherit;font-size:12.5px;font-weight:700;color:var(--accent-text);cursor:pointer;width:auto}' +
+    '.pcRgP{margin-top:8px;display:flex;flex-direction:column;gap:6px}' +
+    '.pcRgP label{margin:4px 0 0}.pcRgP select{margin:0}' +
+    '.pcSw{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:11px;padding:9px 10px;background:transparent;color:var(--cream);text-align:left;font:inherit;width:100%;margin:2px 0 0;cursor:pointer}' +
+    '.pcSw .t{flex:1;min-width:0;font-size:13px;font-weight:700}.pcSw .t small{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px}' +
+    '.pcSw .s{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;flex-shrink:0}' +
+    '.pcSw .s:after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}' +
+    '.pcSw.on{border-color:var(--orange);background:var(--orange-soft);color:var(--on-accent)}.pcSw.on .t small{color:var(--on-accent);opacity:.8}.pcSw.on .s{background:#3B6900}.pcSw.on .s:after{left:16px}' +
+    '.pcRgQui{display:flex;gap:6px;flex-wrap:wrap}' +
+    '.pcRgQ{flex:1 1 160px;border:1px solid var(--line);border-radius:999px;padding:8px 10px;background:transparent;color:var(--cream);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin:0}' +
+    '.pcRgQ.on{border-color:var(--orange);background:var(--orange);color:var(--on-accent)}' +
+    '.pcRgNoms{display:flex;gap:5px;flex-wrap:wrap}' +
+    '.pcRgNom{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;font-weight:700;border:1px solid var(--orange);border-radius:999px;padding:2px 4px 2px 9px}' +
+    '.pcRgNom button{background:none;border:0;padding:0 4px;margin:0;width:auto;font:inherit;cursor:pointer;color:var(--muted)}' +
+    '.pcRgCherche{margin:0}' +
+    '.pcRgProp{display:flex;gap:5px;flex-wrap:wrap}' +
+    '.pcRgProp button{width:auto;margin:0;padding:5px 9px;font:inherit;font-size:12px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--cream);cursor:pointer}' +
     '.pcSom .btn{margin:8px 0 0;border-style:dashed;padding:10px;font-size:13px}' +
     '.pcEt{border:1px solid var(--line);border-radius:14px;margin-bottom:10px}' +
     '.pcEtT{display:flex;gap:8px;align-items:center;padding:10px 12px}' +
@@ -796,6 +818,13 @@ async function ouvrirLeGuide(x, groupe){
         informer('⚠️ Le montage n’a pas été gardé : le script Google Sheets n’est pas à jour (v' + rep.versionScript +
                  ', il faut la v250).\n\nLa vidéo est bien déposée ; mets le script à jour, puis rouvre le guide et refais « 🎬 Monter la vidéo ».');
       }
+      /* ⏱️ v1326 — un classeur d'avant la v253 jette les réglages des étapes */
+      if(!E.versionReglages && tous.some(b => b && b.type === 'titre' && (b.attente || b.facultatif || b.reservee)) &&
+         rep && rep.versionScript !== undefined && Number(rep.versionScript) < 253){
+        E.versionReglages = true;
+        informer('⚠️ Les réglages des étapes (temps, facultative, élèves choisis) ne sont pas gardés : le script Google Sheets n’est pas à jour (v' +
+                 rep.versionScript + ', il faut la v253).\n\nMets le script à jour, puis rouvre le guide et refais les réglages.');
+      }
       /* 🎞️ v1253 — les vidéos d'origine des vidéos floutées, seulement maintenant */
       effacerLesFichiersRemplaces(tous).catch(() => {});
       const l = parcoursGuides.find(g => g.id === idPose);
@@ -904,11 +933,156 @@ async function ouvrirLeGuide(x, groupe){
     modifie();
   };
 
+  /* ============================================================
+     ⏱️ LES RÉGLAGES D'UNE ÉTAPE — v1326
+
+     David : « dans les groupes il faut que je puisse modifier le temps de
+     lecture imposé par l'appli et dire si des étapes comptent dans la
+     progression ou si on peut les ignorer — de base tout doit compter,
+     certaines peuvent être ignorées ». Et : « les étapes sont ouvertes à
+     tous les élèves de base, mais pour certaines il faut que je ferme à
+     tous et que je n'ouvre qu'à certains élèves en particulier — il faut
+     que je puisse en choisir plusieurs ».
+
+     Ils vivent sur le bloc « titre » de l'étape (attente, facultatif,
+     pour) et s'enregistrent avec le guide. Le classeur (v253) les garde,
+     coupe chez un élève ce qui n'est pas pour lui, et ne compte ni les
+     facultatives ni celles réservées à d'autres.
+     ============================================================ */
+  const ATTENTES_PC = [['', '⏱️ Automatique (d’après le texte et les images)'], ['aucune', '⚡ Sans attente (il valide tout de suite)'],
+    ['10', '10 secondes'], ['20', '20 secondes'], ['30', '30 secondes'], ['45', '45 secondes'], ['60', '1 minute'],
+    ['90', '1 min 30'], ['120', '2 minutes'], ['180', '3 minutes'], ['300', '5 minutes']];
+  const resumeAttentePC = (a) => !a ? 'lecture auto' : a === 'aucune' ? 'sans attente' :
+    (Number(a) >= 60 ? (Number(a) % 60 ? Math.floor(a / 60) + ' min ' + (a % 60) : (a / 60) + ' min') : a + ' s');
+  const elevesPC = async () => {
+    if(E.eleves) return E.eleves;
+    let l = [];
+    try{
+      const d = await appelPrep({ action: 'accesElevesList' });
+      l = ((d && d.acces) || []).filter(x => x.actif !== false).map(x => x.eleve);
+    }catch(e){ l = []; }
+    if(!l.length && typeof fichesEleves !== 'undefined') l = (fichesEleves || []).map(f => f.eleve).filter(Boolean);
+    E.eleves = l.filter((x, k) => x && l.indexOf(x) === k).sort((a, b) => String(a).localeCompare(String(b), 'fr'));
+    return E.eleves;
+  };
+  const reglagesDEtape = (et, i) => {
+    const t = et.titre;
+    const r = document.createElement('div');
+    r.className = 'pcRg';
+    r.dataset.reglages = String(i);
+    const pour = Array.isArray(t.pour) ? t.pour : [];
+    /* « reservee » : fermée à tous sauf la liste, même vide pour l'instant */
+    const reservee = !!t.reservee || pour.length > 0;
+    const ligne = document.createElement('div');
+    ligne.className = 'pcRgL';
+    ligne.innerHTML = '<span class="pcRgC' + (t.attente ? ' on' : '') + '">⏱️ ' + echParcours(resumeAttentePC(t.attente)) + '</span>' +
+      '<span class="pcRgC' + (t.facultatif ? ' on' : '') + '">' + (t.facultatif ? '💤 facultative' : '📊 compte') + '</span>' +
+      '<span class="pcRgC' + (reservee ? ' on' : '') + '">' + (reservee ? (pour.length ? '🔒 ' + pour.length + ' élève' + (pour.length > 1 ? 's' : '') : '🔒 personne pour l’instant') : '👥 tous les élèves') + '</span>';
+    const bR = document.createElement('button');
+    bR.type = 'button'; bR.className = 'pcRgB'; bR.dataset.regler = '1';
+    bR.textContent = et.rgOuvert ? '⚙️ Fermer ▴' : '⚙️ Régler ▾';
+    bR.setAttribute('aria-expanded', et.rgOuvert ? 'true' : 'false');
+    bR.addEventListener('click', () => { relireTout(); et.rgOuvert = !et.rgOuvert; E.ici = i; dessiner(); });
+    ligne.appendChild(bR);
+    r.appendChild(ligne);
+    if(!et.rgOuvert) return r;
+
+    const p = document.createElement('div');
+    p.className = 'pcRgP';
+    /* ⏱️ le temps */
+    const la = document.createElement('label'); la.textContent = '⏱️ Temps de lecture imposé';
+    const sel = document.createElement('select'); sel.dataset.rg = 'attente';
+    ATTENTES_PC.forEach(([v, n]) => { const o = document.createElement('option'); o.value = v; o.textContent = n; sel.appendChild(o); });
+    if(t.attente && !ATTENTES_PC.some(x => x[0] === String(t.attente))){ const o = document.createElement('option'); o.value = String(t.attente); o.textContent = t.attente + ' secondes'; sel.appendChild(o); }
+    sel.value = String(t.attente || '');
+    sel.addEventListener('change', () => { if(sel.value) t.attente = sel.value; else delete t.attente; relireTout(); dessiner(); modifie(); });
+    const aa = document.createElement('div'); aa.className = 'pcAide';
+    aa.textContent = 'Avant de pouvoir dire « ✓ Vu ». Une vidéo se regarde à 90 % — sauf « sans attente ».';
+    p.append(la, sel, aa);
+    /* 📊 compte, ou facultative */
+    const sw = document.createElement('button');
+    sw.type = 'button'; sw.className = 'pcSw' + (t.facultatif ? '' : ' on'); sw.dataset.rg = 'compte';
+    sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', t.facultatif ? 'false' : 'true');
+    sw.innerHTML = '<span class="t">📊 Compte dans sa progression<small>' + (t.facultatif
+      ? '💤 Facultative : il peut l’ignorer, elle ne compte pas dans ses « vus ».'
+      : 'De base, toutes les étapes comptent.') + '</small></span><span class="s"></span>';
+    sw.addEventListener('click', () => { if(t.facultatif) delete t.facultatif; else t.facultatif = true; relireTout(); dessiner(); modifie(); });
+    p.appendChild(sw);
+    /* 👥 qui la voit */
+    const lq = document.createElement('label'); lq.textContent = '👥 Qui la voit';
+    p.appendChild(lq);
+    const qui = document.createElement('div'); qui.className = 'pcRgQui';
+    [['tous', '👥 Tous les élèves'], ['certains', '🔒 Seulement certains élèves']].forEach(([v, n]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.dataset.qui = v;
+      const on = v === 'certains' ? reservee : !reservee;
+      b.className = 'pcRgQ' + (on ? ' on' : '');
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = n;
+      b.addEventListener('click', async () => {
+        relireTout();
+        if(v === 'tous'){
+          if(pour.length && !await confirmer('Rouvrir l’étape « ' + (t.titre || 'sans nom') + ' » à tous les élèves ?', '👥 Tous les élèves')) return;
+          delete t.pour; delete t.reservee;
+        }else{ t.reservee = true; t.pour = pour; }
+        dessiner(); modifie();
+      });
+      qui.appendChild(b);
+    });
+    p.appendChild(qui);
+    if(reservee){
+      const ch = document.createElement('div'); ch.className = 'pcRgNoms';
+      if(!pour.length){
+        const v = document.createElement('div'); v.className = 'pcAide';
+        v.textContent = 'Fermée à tous tant que personne n’est choisi. Cherche et ajoute un ou plusieurs élèves :';
+        ch.appendChild(v);
+      }
+      pour.forEach(n => {
+        const c = document.createElement('span'); c.className = 'pcRgNom';
+        c.textContent = n;
+        const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.title = 'Retirer ' + n;
+        x.setAttribute('aria-label', 'Retirer ' + n);
+        x.addEventListener('click', () => { relireTout(); t.pour = pour.filter(y => y !== n); t.reservee = true; dessiner(); modifie(); });
+        c.appendChild(x);
+        ch.appendChild(c);
+      });
+      p.appendChild(ch);
+      const cherche = document.createElement('input');
+      cherche.type = 'search'; cherche.className = 'pcRgCherche'; cherche.placeholder = '🔎 Ajouter un élève…';
+      cherche.setAttribute('aria-label', 'Ajouter un élève');
+      const prop = document.createElement('div'); prop.className = 'pcRgProp';
+      const proposer = async () => {
+        const q = normaliserMot(cherche.value || '');
+        const tous = await elevesPC();
+        const l = tous.filter(n => pour.indexOf(n) === -1 && (!q || normaliserMot(n).indexOf(q) !== -1)).slice(0, q ? 12 : 8);
+        prop.innerHTML = '';
+        l.forEach(n => {
+          const b = document.createElement('button'); b.type = 'button'; b.textContent = '＋ ' + n; b.dataset.ajouterEleve = n;
+          b.addEventListener('click', () => {
+            relireTout();
+            t.pour = pour.concat([n]);
+            t.reservee = true;
+            dessiner(); modifie();
+            setTimeout(() => { const c2 = racine.querySelector('[data-reglages="' + i + '"] .pcRgCherche'); if(c2) c2.focus(); }, 0);
+          });
+          prop.appendChild(b);
+        });
+        if(!l.length) prop.innerHTML = '<div class="pcAide">' + (tous.length ? 'Personne de ce nom.' : 'Liste des élèves illisible.') + '</div>';
+      };
+      cherche.addEventListener('input', (e) => { e.stopPropagation(); proposer(); });
+      p.append(cherche, prop);
+      proposer();
+    }
+    r.appendChild(p);
+    return r;
+  };
+
   /* ── une étape : ses blocs, « ajouter ici », les fichiers glissés ── */
   const corpsDEtape = (et, i) => {
     const corps = document.createElement('div');
     corps.className = 'pcCorps';
     corps.dataset.corps = i;
+    if(et.titre) corps.appendChild(reglagesDEtape(et, i));
     const zb = document.createElement('div');
     zb.className = 'pcBlocs';
     zb.id = 'pdBlocs' + i;
@@ -1041,7 +1215,8 @@ async function ouvrirLeGuide(x, groupe){
     const n = et && et.titre ? E.etapes.filter(x => x.titre).indexOf(et) + 1 : 0;
     let h = '<div class="h">' + echParcours((grp.icone ? grp.icone + ' ' : '') + (E.titre || 'Le guide')) + '</div><div class="c">' +
       (n ? '<div class="lg" style="margin:0 0 6px;">Étape ' + n + ' sur ' + avecTitre + '</div>' : '') + '<div class="e">' +
-      (et && et.titre ? '<b>' + echParcours(et.titre.titre || 'Étape sans nom') + '</b>' : '');
+      (et && et.titre ? '<b>' + echParcours(et.titre.titre || 'Étape sans nom') + '</b>' +
+        (et.titre.facultatif ? '<div class="lg">💤 facultatif</div>' : '') : '');
     ((et && et.contenus) || []).forEach(b => {
       if(b.type === 'texte'){ if(String(b.texte || '').trim()) h += '<p>' + echParcours(b.texte) + '</p>'; return; }
       const liens = liensDuBloc(b), cles = clesDuBloc(b);
@@ -1286,7 +1461,8 @@ async function ouvrirLeGuide(x, groupe){
       meta.className = 'pcMeta';
       const em = et.contenus.map(b => blocConnu(b.type).emoji).join(' ');
       const manque = et.contenus.filter(b => !blocEcrit(b.type) && !clesDuBloc(b).length).length;
-      meta.innerHTML = echParcours(em) + (manque ? ' · <span style="color:var(--warn-text, #b4471a)">⚠️ ' + manque + ' fichier' + (manque > 1 ? 's' : '') + ' à déposer</span>' : '');
+      meta.innerHTML = echParcours(em) + (manque ? ' · <span style="color:var(--warn-text, #b4471a)">⚠️ ' + manque + ' fichier' + (manque > 1 ? 's' : '') + ' à déposer</span>' : '') +
+        (et.titre && et.titre.facultatif ? ' · 💤' : '') + (et.titre && et.titre.reservee ? ' · 🔒 ' + (et.titre.pour || []).length : '') + (et.titre && et.titre.attente ? ' · ⏱️' : '');
       h.appendChild(meta);
       if(et.titre){
         const fl = document.createElement('span');
@@ -1344,6 +1520,9 @@ async function ouvrirLeGuide(x, groupe){
         l.innerHTML = (et.titre ? '<span class="pcPoi" data-poignee="1" title="Attrape pour ranger">⠿</span>' : '') +
           '<span class="pcNum' + (et.titre ? '' : ' intro') + '">' + (et.titre ? avecTitre.indexOf(et) + 1 : '•') + '</span>' +
           '<span class="t' + (et.titre && !nom ? ' vide' : '') + '">' + echParcours(et.titre ? (nom || 'Étape sans nom') : (avecTitre.length ? 'Avant la 1re étape' : 'Tout le guide')) + '</span>' +
+          (et.titre && et.titre.facultatif ? '<span title="Facultative">💤</span>' : '') +
+          (et.titre && et.titre.reservee ? '<span title="Réservée à ' + (et.titre.pour || []).length + ' élève(s)">🔒</span>' : '') +
+          (et.titre && et.titre.attente ? '<span title="Temps de lecture imposé">⏱️</span>' : '') +
           (manque ? '<span title="Un fichier manque">⚠️</span>' : (et.contenus.some(b => b.type === 'video') ? '<span>🎬</span>' : ''));
         l.addEventListener('click', (e) => {
           if(e.target.closest && e.target.closest('[data-poignee]')) return;
@@ -2895,11 +3074,21 @@ function detailDuParcours(l, catalogue){
   return d;
 }
 
+/* ⏱️ v1326 — l'étape est-elle pour lui ; ce qui compte (sans les facultatives) */
+function etapePourLuiPC(sg, eleve){
+  if(!sg || !sg.reservee) return true;
+  return (sg.pour || []).some(x => normaliserMot(x) === normaliserMot(eleve || ''));
+}
+function segmentsQuiComptentPC(segs){
+  const l = (segs || []).filter(sg => !sg.facultatif);
+  return l.length ? l : (segs || []);
+}
+
 function carteDuGuideSuivi(l, id, g2, ctxS){
-  const segs = g2.segments || [];
+  const segs = (g2.segments || []).filter(sg => etapePourLuiPC(sg, l.eleve));
   const fiches = fichesDuGuide(l, id);
   const tout = !!(fiches[''] && fiches[''].vuLe);
-  const vuLe = vuLeDuGuide(segs, fiches);
+  const vuLe = vuLeDuGuide(segmentsQuiComptentPC(segs), fiches);
 
   /* Un guide dépublié dont on ne connaît plus le découpage vaut un
      segment : le guide entier. */
@@ -2910,7 +3099,9 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
                           : (vuLe ? (fiches[''] || { vuLe: vuLe }) : null);
     return { sg: sg, f: f, vu: !!(f && f.vuLe) || tout || (!segs.length && !!vuLe) };
   });
-  const faits = etats.filter(x => x.vu).length;
+  /* les étapes facultatives se montrent, mais ne comptent pas (v1326) */
+  const comptent = etats.some(x => !x.sg.facultatif) ? etats.filter(x => !x.sg.facultatif) : etats;
+  const faits = comptent.filter(x => x.vu).length;
 
   const c = document.createElement('div');
   c.className = 'svCarte';
@@ -2918,8 +3109,8 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
   const h = document.createElement('div');
   h.className = 'svTete';
   const rond = document.createElement('span');
-  rond.className = 'svRond ' + (faits === etats.length ? 'fini' : (faits ? 'encours' : ''));
-  rond.textContent = faits === etats.length ? '✓' : '';
+  rond.className = 'svRond ' + (faits === comptent.length ? 'fini' : (faits ? 'encours' : ''));
+  rond.textContent = faits === comptent.length ? '✓' : '';
   h.appendChild(rond);
   const nom = document.createElement('b');
   /* ⚠️ UN GUIDE QUE LE CATALOGUE NE CONNAÎT PAS GARDE SON IDENTIFIANT. */
@@ -2928,12 +3119,12 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
   const mini = document.createElement('span');
   mini.className = 'svMini';
   const remp = document.createElement('i');
-  remp.style.width = Math.round(faits / Math.max(1, etats.length) * 100) + '%';
+  remp.style.width = Math.round(faits / Math.max(1, comptent.length) * 100) + '%';
   mini.appendChild(remp);
   h.appendChild(mini);
   const cpt = document.createElement('span');
   cpt.className = 'svCpt';
-  cpt.textContent = faits + ' / ' + etats.length;
+  cpt.textContent = faits + ' / ' + comptent.length;
   h.appendChild(cpt);
   /* ↺ v1222 — tout le guide, pour cet élève */
   const ciblesG = ciblesDuGuide(l, id, g2, null);
@@ -2972,7 +3163,8 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
     const p = document.createElement('button');
     p.type = 'button';
     p.className = 'svPill' + (x.vu ? ' vu' : '') + (epingle ? ' epingle' : '');
-    p.textContent = (epingle ? '📌 ' : '') + (x.vu ? '✓ ' : '') + (x.sg.titre || '(étape sans titre)');
+    p.textContent = (epingle ? '📌 ' : '') + (x.vu ? '✓ ' : '') + (x.sg.titre || '(étape sans titre)') +
+      (x.sg.facultatif ? ' · 💤 facultative' : '') + (x.sg.reservee ? ' · 🔒' : '');
     const n = x.f && x.f.vuLe ? (Number(x.f.vues) || 1) : 0;
     if(n){
       const b = document.createElement('span');
