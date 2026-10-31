@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 12:44 — v1320 */
+/* Déployé le 31/10/2026 à 14:23 — v1322 */
 /* ============================================================
    ec-lieux.js — 📚 LA BASE DES LIEUX, ET LE 📍 QUI LA CONNAÎT
 
@@ -413,7 +413,8 @@ function lxPlan(z, et){
     '<circle cx="' + W / 2 + '" cy="' + H / 2 + '" r="' + rr + '" fill="rgba(59,105,0,.14)" stroke="#3B6900" stroke-dasharray="5 4"/>' +
     '<circle cx="' + W / 2 + '" cy="' + H / 2 + '" r="8" fill="#3B6900" stroke="#fff" stroke-width="3"/>' + fl + '</svg>' +
     '<span class="lxPlanMot">Plan IGN</span></div>' +
-    '<div class="lxAide">Touche la carte pour déplacer le point. Les flèches : les sens ci-dessous.</div>';
+    '<div class="lxAide">Touche la carte pour déplacer le point.' + ((et.sens || []).some(s => s.cap != null)
+      ? ' Les flèches sur la carte : les sens choisis ci-dessous.' : ' Un texte différent selon le sens ? « 🧭 Un texte par sens », ci-dessous.') + '</div>';
   z.innerHTML = h;
   z.querySelector('.lxPlan').addEventListener('click', ev => {
     const b = ev.currentTarget.getBoundingClientRect();
@@ -433,6 +434,8 @@ function lxLireCoordonnees(t){
   return (lat > 41 && lat < 52 && lon > -6 && lon < 10) ? { lat: lat, lon: lon } : null;
 }
 function lxTitreGuide(g){ return (g.groupeIcone ? g.groupeIcone + ' ' : '') + g.groupeNom + ' › ' + g.titre; }
+/* Ses étapes ; un guide sans titre d'étape (ou un Worker d'avant) : le guide entier */
+function lxEtapesDuGuide(g){ return (Array.isArray(g.etapes) && g.etapes.length) ? g.etapes : [{ id: '', titre: g.titre }]; }
 
 function ouvrirFicheLieu(lieu, origine){
   origine = origine || {};
@@ -456,9 +459,14 @@ function ouvrirFicheLieu(lieu, origine){
     const choixRayon = LX_RAYONS.map(r => '<button type="button" class="btn tdOnglet' + (Number(L.rayon) === r ? ' on' : '') + '" data-rayon="' + r + '">' + r + ' m</button>').join('');
     const photoBloc = (liste, cle) => '<div class="lxPhotos">' + liste.map((p, k) => '<span class="lxPhoto"><img src="' + lxEch(p.mini || lxLien(p.lien)) + '" alt=""><button type="button" data-retirer-photo="' + cle + ':' + k + '" title="Retirer">✕</button></span>').join('') +
       '<label class="btn btn-secondary lxAjoutPhoto">📷 Prendre / ajouter<input type="file" accept="image/*" multiple data-photo="' + cle + '" hidden></label></div>';
-    const videosBloc = (z, i) => (z.videos || []).map((v, k) => '<div class="lxVideo"><span>🎬 ' + lxEch(v.titre) + '</span><button type="button" data-retirer-video="' + i + ':' + k + '">✕</button></div>').join('') +
+    const guideDe = v => { const g = (LX.guides || []).find(x => x.id === v.guide); return g && g.titre !== v.titre ? ' <small style="color:var(--muted);">— ' + lxEch(lxTitreGuide(g)) + '</small>' : ''; };
+    const videosBloc = (z, i) => (z.videos || []).map((v, k) => '<div class="lxVideo"><span>🎬 ' + lxEch(v.titre) + guideDe(v) + '</span><button type="button" data-retirer-video="' + i + ':' + k + '">✕</button></div>').join('') +
       '<div class="lxAjoutVideo"><select data-ajout-video="' + i + '"><option value="">➕ Ajouter une vidéo (une étape d’un groupe)…</option>' +
-      (LX.guides || []).slice().sort((a, b) => (a.groupeNom + a.ordre).localeCompare(b.groupeNom + b.ordre)).map(g => '<option value="' + lxEch(g.id) + '">' + lxEch(lxTitreGuide(g)) + '</option>').join('') + '</select></div>';
+      /* 📚 v1321 — David : « il faut aller jusqu'au titre d'étape » : un groupe
+         d'options par guide, une option par ÉTAPE */
+      (LX.guides || []).slice().sort((a, b) => (a.groupeNom + String(a.ordre).padStart(4, '0')).localeCompare(b.groupeNom + String(b.ordre).padStart(4, '0'))).map(g =>
+        '<optgroup label="' + lxEch(lxTitreGuide(g)) + '">' + lxEtapesDuGuide(g).map(e =>
+          '<option value="' + lxEch(g.id + '::' + e.id) + '">' + lxEch(e.titre) + '</option>').join('') + '</optgroup>').join('') + '</select></div>';
     const sensBloc = (z, i) => '<div class="lxSens" style="border-left-color:' + ['#e8590c', '#2F7FD8', '#7C5CE6', '#2E9E5B'][i % 4] + ';">' +
       (parSens ? '<div class="lxSensTete"><input type="text" data-titre="' + i + '" placeholder="En venant de… (rue, direction)" value="' + lxEch(z.titre || '') + '">' +
         (L.sens.length > 1 ? '<button type="button" data-retirer-sens="' + i + '" title="Retirer ce sens">✕</button>' : '') + '</div>' +
@@ -517,10 +525,12 @@ function ouvrirFicheLieu(lieu, origine){
     if(as) as.addEventListener('click', () => { lireChamps(); const pris = L.sens.map(s => s.cap); const libre = LX_CAPS.find(c => pris.indexOf(c[0]) === -1); L.sens.push({ id: '', cap: libre ? libre[0] : 0, titre: '', texte: '', videos: [], photos: [] }); dessiner(); });
     m.querySelectorAll('[data-ajout-video]').forEach(sel => sel.addEventListener('change', () => {
       lireChamps();
-      const g = (LX.guides || []).find(x => x.id === sel.value);
+      const [gid, sid] = String(sel.value || '').split('::');
+      const g = (LX.guides || []).find(x => x.id === gid);
       if(!g) return;
+      const e = lxEtapesDuGuide(g).find(x => x.id === (sid || '')) || { id: '', titre: g.titre };
       const z = L.sens[Number(sel.getAttribute('data-ajout-video'))];
-      z.videos = (z.videos || []).filter(v => v.guide !== g.id).concat([{ guide: g.id, segment: '', titre: g.titre }]);
+      z.videos = (z.videos || []).filter(v => !(v.guide === g.id && (v.segment || '') === e.id)).concat([{ guide: g.id, segment: e.id, titre: e.titre }]);
       dessiner();
     }));
     m.querySelectorAll('[data-retirer-video]').forEach(b => b.addEventListener('click', () => { lireChamps(); const [i, k] = b.getAttribute('data-retirer-video').split(':').map(Number); L.sens[i].videos.splice(k, 1); dessiner(); }));
@@ -657,7 +667,7 @@ function dessinerLieux(){
     '.lxFiche{width:min(980px,96vw) !important;max-width:min(980px,96vw) !important;max-height:94vh;overflow-y:auto;margin-top:12px;}' +
     '.lxDeux{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;}@media (max-width:720px){.lxDeux{grid-template-columns:1fr;}}' +
     '.lxFiche textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;}' +
-    '.lxFiche .tdOnglet{width:auto;margin:0;}.lxCaps .tdOnglet{min-width:40px;}' +
+    '.lxFiche .tdOnglet{width:auto;margin:0;}.lxCaps .tdOnglet{min-width:48px;min-height:44px;font-size:22px;line-height:1;padding:6px 10px;}' +
     '.lxRecherche{display:flex;gap:8px;}.lxRecherche input{margin:0;flex:1;min-width:0;}.lxRecherche .btn{width:auto;margin:0;padding:10px 14px;}' +
     '.lxResultat{display:block;text-align:left;margin:6px 0 0;padding:8px 10px;font-size:13px;}' +
     '.lxPhotos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}.lxPhoto{position:relative;}.lxPhoto img{width:96px;height:66px;object-fit:cover;border-radius:8px;display:block;}' +
