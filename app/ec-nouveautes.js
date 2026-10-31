@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 11:37 — v1319 */
+/* Déployé le 31/10/2026 à 12:44 — v1320 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1320,
+    date: 'Samedi 31 octobre 2026',
+    resume: '📚 Le 📍 Repère connaît les lieux du parcours',
+    quoi: [
+      { emoji: '📍',
+        titre: 'Le bouton Repère connaît les lieux',
+        texte: 'Il prévient 100 m avant un lieu connu, dans ton sens. Un appui : le texte du lieu va dans ta dictée (plusieurs lieux : tu choisis ; aucun : « juste un travail pour l’élève » ou « ➕ Nouveau lieu ici »).' },
+      { emoji: '📚',
+        titre: 'Outils › Repères de lieu',
+        texte: 'La base des lieux : par une adresse ou des coordonnées GPS, un rayon, un texte par sens, des photos et des vidéos. Tout le monde crée et modifie.' },
+      { emoji: '🎬',
+        titre: 'Dans le bilan et chez l’élève',
+        texte: 'Le texte du lieu se pose sous son repère ; le mail et l’espace élève montrent ses photos et un « 🎬 Revoir » par vidéo.' }
+    ]
+  },
   {
     version: 1319,
     date: 'Samedi 31 octobre 2026',
