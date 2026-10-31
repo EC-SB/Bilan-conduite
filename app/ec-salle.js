@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 17:21 — v1315 */
+/* Déployé le 31/10/2026 à 11:37 — v1319 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -73,7 +73,11 @@ function slStyle(){
     '.slLigne small{color:var(--muted);font-size:12px;}' +
     '.slLigne small.slMain{color:var(--accent-text);font-weight:700;}' +
     '.slPuce{display:inline-block;font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin:0 4px 4px 0;}' +
-    '.slCode{font-size:40px;font-weight:800;letter-spacing:.18em;text-align:center;margin:12px 0;}';
+    '.slCode{font-size:40px;font-weight:800;letter-spacing:.18em;text-align:center;margin:12px 0;}' +
+    /* 🔓 v1319 — les quatre choix d'un groupe */
+    '.slRegles{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}' +
+    '.slRegles .tdOnglet{width:auto;margin:0;}' +
+    '.slRegleGroupe{width:auto;margin:0;padding:6px 8px;font-size:13px;}';
   document.head.appendChild(s);
 }
 
@@ -433,28 +437,81 @@ function slFenetreAjouterPresent(){
 /* ============================================================
    📘 AU PROGRAMME DE LA SALLE
    ============================================================ */
+/* ============================================================
+   🔓 QUAND CHAQUE GROUPE S'OUVRE CHEZ L'ÉLÈVE — v1319
+   David (schéma v1318, 🅑) : quatre choix par groupe, « après un
+   groupe » à partir de 80 % vu. « 📺 En salle » = au programme de la
+   salle ; les trois autres sont des règles (le Worker les applique :
+   filtrerLaSalleChezLui). Sans règle : « 🔒 Chez lui après la salle ».
+   ============================================================ */
+const SL_SEUIL = 80;
+const SL_MODES = [['salle', '📺 En salle, puis chez lui'], ['apres', '🔒 Chez lui après la salle'], ['groupe', '🔗 Après un groupe'], ['tout', '✅ Tout de suite']];
+function slModeDe(id){
+  const prog = (SL.d.programme || {});
+  if((prog.groupes || []).indexOf(id) !== -1) return { mode: 'salle' };
+  return (prog.regles || {})[id] || { mode: 'apres' };
+}
+async function slEnregistrerProgramme(id, regle, bouton){
+  const prog = SL.d.programme || {};
+  let groupes = (prog.groupes || []).filter(x => x !== id);
+  const regles = Object.assign({}, prog.regles || {});
+  delete regles[id];
+  if(regle.mode === 'salle') groupes = groupes.concat([id]);
+  else if(regle.mode !== 'apres') regles[id] = regle;
+  if(bouton) bouton.disabled = true;
+  try{ SL.d = await appelPrep({ action: 'salleProgramme', groupes: groupes, regles: regles }); slDessiner(); }
+  catch(e){ if(bouton) bouton.disabled = false; showToast('Impossible : ' + e.message); }
+}
+function slTexteRegle(r, groupes){
+  if(r.mode === 'salle') return '📺 en salle, puis chez lui';
+  if(r.mode === 'tout') return '✅ tout de suite';
+  if(r.mode === 'groupe'){
+    const g = (groupes || []).find(x => x.id === r.groupe);
+    return '🔗 après « ' + (g ? slNomGroupe(g) : '?') + ' » vu à ' + SL_SEUIL + ' %';
+  }
+  return '🔒 chez lui après la salle';
+}
 function slProgramme(){
   const w = slEl('div', '');
   w.appendChild(slEl('div', 'slSous', '📘 Au programme de la salle'));
-  w.appendChild(slEl('div', 'slAide', 'Les groupes du parcours qui se regardent sur les tablettes, selon sa formation (celles cochées dans le groupe ; aucune = toutes). Tant qu’il ne les a pas finis en salle, il ne les voit pas chez lui. Fini : ils s’ouvrent, avec ceux que prévoit sa formation.' +
+  w.appendChild(slEl('div', 'slAide', 'Pour chaque groupe : est-ce qu’il se regarde en salle, et <b>quand il s’ouvre chez l’élève</b>. Ce qui n’est pas encore ouvert lui est montré cadenassé 🔒, avec la raison. « Après un groupe » : dès que ' + SL_SEUIL + ' % de cet autre groupe est vu.' +
     (slPeutRegler() ? '' : ' Un administrateur les choisit.'))).style.marginBottom = '8px';
-  const prog = (SL.d.programme || {}).groupes || [];
   const groupes = (SL.groupes || []).filter(g => !g.fermeLe);
   if(!groupes.length){ w.appendChild(slEl('div', 'empty', 'Aucun groupe dans le parcours.')); return w; }
   groupes.forEach(g => {
-    const l = slEl('div', 'slLigne');
-    const dedans = prog.indexOf(g.id) !== -1;
+    const r = slModeDe(g.id);
+    const l = slEl('div', 'slLigne slLigneRegle');
+    l.setAttribute('data-groupe', g.id);
     l.appendChild(slEl('span', 'n', slEch(slNomGroupe(g)) + ' <small>· ' + slEch((g.formations || []).join(', ') || 'toutes les formations') + '</small>'));
     if(slPeutRegler()){
-      const b = slEl('button', 'btn tdOnglet' + (dedans ? ' on' : ''), dedans ? '📺 En salle' : 'Pas en salle');
-      b.type = 'button';
-      b.addEventListener('click', async () => {
-        const ids = dedans ? prog.filter(x => x !== g.id) : prog.concat([g.id]);
-        b.disabled = true;
-        try{ SL.d = await appelPrep({ action: 'salleProgramme', groupes: ids }); slDessiner(); }catch(e){ b.disabled = false; showToast('Impossible : ' + e.message); }
+      const zc = slEl('div', 'slRegles');
+      SL_MODES.forEach(([k, t]) => {
+        const b = slEl('button', 'btn tdOnglet' + (r.mode === k ? ' on' : ''), slEch(t));
+        b.type = 'button';
+        b.setAttribute('data-mode', k);
+        b.addEventListener('click', () => {
+          if(r.mode === k) return;
+          if(k === 'groupe'){
+            const autre = groupes.find(x => x.id !== g.id);
+            if(!autre){ showToast('Il faut un autre groupe.'); return; }
+            slEnregistrerProgramme(g.id, { mode: 'groupe', groupe: autre.id }, b);
+          }else slEnregistrerProgramme(g.id, { mode: k }, b);
+        });
+        zc.appendChild(b);
       });
-      l.appendChild(b);
-    }else l.appendChild(slEl('small', '', dedans ? '📺 en salle' : '—'));
+      if(r.mode === 'groupe'){
+        const sel = slEl('select', 'slRegleGroupe');
+        groupes.filter(x => x.id !== g.id).forEach(x => {
+          const o = document.createElement('option');
+          o.value = x.id; o.textContent = slNomGroupe(x) + ' — vu à ' + SL_SEUIL + ' %';
+          if(x.id === r.groupe) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.addEventListener('change', () => slEnregistrerProgramme(g.id, { mode: 'groupe', groupe: sel.value }, null));
+        zc.appendChild(sel);
+      }
+      l.appendChild(zc);
+    }else l.appendChild(slEl('small', '', slEch(slTexteRegle(r, groupes))));
     w.appendChild(l);
   });
   if((SL.d.programme || {}).majPar) w.appendChild(slEl('div', 'slAide', 'Réglé le ' + slEch(SL.d.programme.majLe) + ' par ' + slEch(SL.d.programme.majPar) + '.')).style.marginTop = '6px';
