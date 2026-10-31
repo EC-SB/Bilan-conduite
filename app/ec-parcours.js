@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 15:15 — v1253 */
+/* Déployé le 31/10/2026 à 15:17 — v1323 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -145,23 +145,29 @@ function listeRangeable(conteneur, quandChange){
 
   let pris = null;
 
-  const lignes = () => Array.prototype.slice.call(
-    conteneur.querySelectorAll('[data-rang]'));
+  /* ⚠️ LES LIGNES DIRECTES SEULEMENT — v1323 : une étape (rangeable)
+     porte ses blocs (rangeables aussi) ; sans ça, attraper un bloc
+     aurait déplacé l'étape entière, ou l'inverse. */
+  const lignes = () => Array.prototype.filter.call(
+    conteneur.children, l => l.dataset && l.dataset.rang);
 
   const rendreLOrdre = () => lignes().map(l => l.dataset.rang);
 
   /* La ligne sous le doigt, à cette hauteur-là */
-  const sousLeDoigt = (y) => lignes().find(l => {
+  /* ⚠️ ET EN DEUX DIMENSIONS — v1323 : les guides sont des cartes en
+     grille. Une ligne pleine largeur se juge en hauteur, une carte en
+     largeur. */
+  const sousLeDoigt = (x, y) => lignes().find(l => {
     if(l === pris) return false;
     const r = l.getBoundingClientRect();
-    return y >= r.top && y <= r.bottom;
+    return y >= r.top && y <= r.bottom && x >= r.left && x <= r.right;
   });
 
   conteneur.addEventListener('pointerdown', (e) => {
     const poignee = e.target.closest('[data-poignee]');
     if(!poignee) return;
     const ligne = poignee.closest('[data-rang]');
-    if(!ligne) return;
+    if(!ligne || ligne.parentNode !== conteneur) return;
 
     e.preventDefault();
     pris = ligne;
@@ -171,10 +177,11 @@ function listeRangeable(conteneur, quandChange){
 
     const bouger = (ev) => {
       if(!pris) return;
-      const cible = sousLeDoigt(ev.clientY);
+      const cible = sousLeDoigt(ev.clientX, ev.clientY);
       if(!cible) return;
       const r = cible.getBoundingClientRect();
-      const avant = ev.clientY < (r.top + r.height / 2);
+      const enGrille = r.width < conteneur.getBoundingClientRect().width * 0.8;
+      const avant = enGrille ? ev.clientX < (r.left + r.width / 2) : ev.clientY < (r.top + r.height / 2);
       cible.parentNode.insertBefore(pris, avant ? cible : cible.nextSibling);
     };
 
@@ -199,7 +206,8 @@ function listeRangeable(conteneur, quandChange){
     const b = e.target.closest('[data-monter], [data-descendre]');
     if(!b) return;
     const ligne = b.closest('[data-rang]');
-    if(!ligne) return;
+    if(!ligne || ligne.parentNode !== conteneur) return;
+    e.stopPropagation();
     const monte = b.hasAttribute('data-monter');
     const voisin = monte ? ligne.previousElementSibling : ligne.nextElementSibling;
     if(!voisin || !voisin.dataset || !voisin.dataset.rang) return;
@@ -245,126 +253,216 @@ function guidesDuGroupe(id){
     .sort((a, b) => a.ordre - b.ordre);
 }
 
+/* ============================================================
+   🎬 LA LISTE — v1323 (schéma « Groupes et guides », 31 octobre)
+
+   David : « c'est long de créer les titres d'étapes, mettre les choses
+   dedans, et c'est pas assez ergonomique, surtout la création de
+   guide ». Ses réponses : B sur l'ordinateur (sommaire, étape, aperçu
+   de l'élève), A sur le téléphone (étapes en cartes) ; la liste en
+   onglets et en cartes ; un guide publié change chez l'élève tout de
+   suite (enregistrement automatique) ; plusieurs fichiers d'un coup,
+   un bloc par fichier ; pas de bouton dupliquer.
+
+   Les groupes sont des onglets ; les guides du groupe ouvert, des
+   cartes (leurs étapes, leur état, ce qui manque). L'ordre se range
+   toujours au doigt (⠿) ou aux flèches.
+   ============================================================ */
 function dessinerParcours(){
   const zone = $('parcoursZone');
   if(!zone) return;
+  poserLeStyleDuParcours();
   zone.innerHTML = '';
-
-  const duo = document.createElement('div');
-  duo.style.cssText = 'display:flex;gap:16px;flex-wrap:wrap;' +
-    'align-items:flex-start;';
-  duo.appendChild(colonneDesGroupes());
-  const g = parcoursGroupes.find(x => x.id === parcoursGroupeOuvert);
-  if(g) duo.appendChild(colonneDesGuides(g));
-  zone.appendChild(duo);
-}
-
-
-/* ---------- La colonne des groupes ---------- */
-function colonneDesGroupes(){
-  const col = document.createElement('div');
-  col.style.cssText = 'flex:1 1 300px;min-width:0;';
-
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;font-weight:700;margin-bottom:4px;';
-  t.textContent = '🧩 Les groupes';
-  col.appendChild(t);
-
-  const s = document.createElement('div');
-  s.style.cssText = 'font-size:11.5px;color:var(--muted);margin-bottom:9px;';
-  s.textContent = parcoursGroupes.length
-    ? 'Attrape ⠿ pour changer leur ordre chez l\'élève.'
-    : '';
-  col.appendChild(s);
-
-  const liste = document.createElement('div');
-  liste.id = 'parcoursListeGroupes';
 
   if(!parcoursGroupes.length){
     const v = document.createElement('div');
     v.className = 'empty';
-    v.textContent = 'Aucun groupe pour l\'instant. Le premier remplacera ' +
-      'un de tes groupes Facebook.';
-    liste.appendChild(v);
+    v.textContent = 'Aucun groupe pour l\'instant. Le premier remplacera un de tes groupes Facebook.';
+    zone.appendChild(v);
+    const b = document.createElement('button');
+    b.className = 'btn btn-primary';
+    b.style.cssText = 'margin-top:9px;padding:11px;font-size:13px;';
+    b.textContent = '➕ Nouveau groupe';
+    b.addEventListener('click', () => ouvrirLeGroupe(null));
+    zone.appendChild(b);
+    return;
   }
+  if(!parcoursGroupes.some(x => x.id === parcoursGroupeOuvert)){
+    parcoursGroupeOuvert = (parcoursGroupes.find(x => !x.fermeLe) || parcoursGroupes[0]).id;
+  }
+  const g = parcoursGroupes.find(x => x.id === parcoursGroupeOuvert);
 
-  parcoursGroupes.forEach(g => liste.appendChild(ligneDeGroupe(g)));
-  col.appendChild(liste);
+  /* Les groupes, en onglets */
+  const ong = document.createElement('div');
+  ong.className = 'pcOnglets';
+  ong.setAttribute('role', 'tablist');
+  parcoursGroupes.forEach(x => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (x.id === g.id ? 'btn-primary' : 'btn-secondary');
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', x.id === g.id ? 'true' : 'false');
+    b.dataset.groupe = x.id;
+    if(x.fermeLe) b.style.opacity = '.55';
+    const n = guidesDuGroupe(x.id).length;
+    b.innerHTML = echParcours((x.icone ? x.icone + ' ' : '') + x.nom) + ' <small>' + n + '</small>' +
+      (x.fermeLe ? ' <small>· fermé</small>' : '');
+    b.addEventListener('click', () => { parcoursGroupeOuvert = x.id; dessinerParcours(); });
+    ong.appendChild(b);
+  });
+  const bNg = document.createElement('button');
+  bNg.type = 'button';
+  bNg.className = 'btn btn-secondary pcPointille';
+  bNg.textContent = '➕ Groupe';
+  bNg.addEventListener('click', () => ouvrirLeGroupe(null));
+  ong.appendChild(bNg);
+  const vide = document.createElement('span');
+  vide.style.flex = '1';
+  ong.appendChild(vide);
+  const bMg = document.createElement('button');
+  bMg.type = 'button';
+  bMg.className = 'btn btn-secondary';
+  bMg.textContent = '✏️ Le groupe';
+  bMg.addEventListener('click', () => ouvrirLeGroupe(g));
+  ong.appendChild(bMg);
+  zone.appendChild(ong);
 
-  listeRangeable(liste, ordre => {
-    appelPrep({ action: 'parcoursOrdre', quoi: 'groupes', ids: ordre })
+  const liste = guidesDuGroupe(g.id);
+  const aide = document.createElement('div');
+  aide.className = 'pcAide';
+  const publies = liste.filter(x => x.etat === 'publie').length;
+  aide.textContent = (liste.length ? liste.length + ' guide' + (liste.length > 1 ? 's' : '') + ' · ' + publies + ' publié' + (publies > 1 ? 's' : '') + ' — ' : '') +
+    (g.fermeLe ? 'groupe fermé le ' + g.fermeLe + ' (rouvre-le dans ✏️ Le groupe). ' : '') +
+    'Attrape ⠿ pour changer l’ordre chez l’élève · un appui ouvre le guide.';
+  zone.appendChild(aide);
+
+  const grille = document.createElement('div');
+  grille.className = 'pcGrille';
+  grille.id = 'parcoursListeGuides';
+  liste.forEach((x, i) => grille.appendChild(carteDeGuide(x, i + 1)));
+  const nouv = document.createElement('button');
+  nouv.type = 'button';
+  nouv.className = 'pcCarteNeuve';
+  nouv.textContent = '➕ Nouveau guide';
+  nouv.addEventListener('click', () => ouvrirLeGuide(null, g));
+  grille.appendChild(nouv);
+  zone.appendChild(grille);
+
+  listeRangeable(grille, ordre => {
+    appelPrep({ action: 'parcoursOrdre', quoi: 'guides', ids: ordre })
       .then(() => { afficherParcours(); })
       .catch(e => showToast('Ordre non enregistré : ' + e.message));
   });
-
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-top:9px;padding:10px;font-size:13px;';
-  b.textContent = '➕ Nouveau groupe';
-  b.addEventListener('click', () => ouvrirLeGroupe(null));
-  col.appendChild(b);
-
-  return col;
 }
 
-function ligneDeGroupe(g){
-  const l = document.createElement('div');
-  l.dataset.rang = g.id;
-  l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:10px 11px;' +
-    'border:1px solid ' + ((g.id === parcoursGroupeOuvert)
-      ? 'var(--orange)' : 'var(--line)') + ';' +
-    'border-radius:12px;margin-bottom:8px;' +
-    (g.fermeLe ? 'opacity:.55;' : '');
+function echParcours(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-  const poignee = document.createElement('span');
-  poignee.dataset.poignee = '1';
-  poignee.style.cssText = 'cursor:grab;color:var(--muted);font-size:15px;' +
-    'flex-shrink:0;touch-action:none;padding:2px 4px;';
-  poignee.textContent = '⠿';
-  l.appendChild(poignee);
+function carteDeGuide(x, rang){
+  const c = document.createElement('div');
+  c.className = 'pcCarteG';
+  c.dataset.rang = x.id;
+  c.tabIndex = 0;
+  c.setAttribute('role', 'button');
+  c.setAttribute('aria-label', 'Ouvrir le guide ' + x.titre);
+  const cp = x.compte || {};
+  const etapes = Number(cp.titre || 0) || (x.nbBlocs ? 1 : 0);
+  const types = [['video', '🎬'], ['image', '🖼️'], ['pdf', '📄'], ['texte', '📝']].filter(t => cp[t[0]]).map(t => t[1] + ' ' + cp[t[0]]);
+  const manque = Number(x.manquants || 0);
+  c.innerHTML =
+    '<div class="l1"><span class="pcPoi" data-poignee="1" title="Attrape pour ranger">⠿</span><span class="pcNum">' + rang + '</span>' +
+      '<span class="t">' + echParcours(x.titre) + '</span></div>' +
+    '<div class="d">' + (etapes ? etapes + ' étape' + (etapes > 1 ? 's' : '') : 'vide') + (types.length ? ' · ' + types.join(' · ') : '') + '</div>' +
+    (manque ? '<div class="w">⚠️ ' + manque + ' fichier' + (manque > 1 ? 's' : '') + ' à déposer</div>' : '') +
+    '<div class="bas"><span class="pcPuce ' + (x.etat === 'publie' ? 'pcPub">✅ Publié' : 'pcBro">✏️ Brouillon') + '</span><span style="flex:1"></span>' +
+      '<span class="pcFl" data-monter title="Plus tôt">◀</span><span class="pcFl" data-descendre title="Plus tard">▶</span></div>';
+  const ouvrir = (e) => {
+    if(e && e.target && e.target.closest && e.target.closest('[data-poignee],[data-monter],[data-descendre]')) return;
+    ouvrirLeGuide(x, null);
+  };
+  c.addEventListener('click', ouvrir);
+  c.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ouvrir(e); } });
+  return c;
+}
 
-  const nom = document.createElement('button');
-  nom.className = 'btn btn-secondary';
-  /* ⚠️ « text-align » ne suffit pas : .btn est un conteneur flex
-     centré, et le centrage l'emporte. Un nom de groupe se lit à
-     gauche, comme tous les autres noms de l'application. */
-  nom.style.cssText = 'flex:1;min-width:0;justify-content:flex-start;' +
-    'text-align:left;margin:0;padding:4px 6px;' +
-    'border:none;background:transparent;font-size:13px;font-weight:700;' +
-    'color:' + ((g.id === parcoursGroupeOuvert) ? 'var(--accent-text)' : 'var(--cream)') + ';';
-  nom.textContent = (g.icone ? g.icone + ' ' : '') + g.nom +
-    (g.fermeLe ? ' · fermé le ' + g.fermeLe : '');
-  nom.addEventListener('click', () => {
-    parcoursGroupeOuvert = (parcoursGroupeOuvert === g.id) ? '' : g.id;
-    dessinerParcours();
-  });
-  l.appendChild(nom);
-
-  const n = document.createElement('span');
-  n.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-  const nb = guidesDuGroupe(g.id).length;
-  n.textContent = nb ? nb + ' guide' + (nb > 1 ? 's' : '') : '—';
-  l.appendChild(n);
-
-  const fleches = document.createElement('span');
-  fleches.style.cssText = 'flex-shrink:0;color:var(--muted);font-size:13px;';
-  fleches.innerHTML = '<span data-monter style="cursor:pointer;padding:0 3px;" ' +
-    'title="Monter">▲</span><span data-descendre style="cursor:pointer;' +
-    'padding:0 3px;" title="Descendre">▼</span>';
-  l.appendChild(fleches);
-
-  const mod = document.createElement('span');
-  mod.style.cssText = 'flex-shrink:0;cursor:pointer;font-size:13px;';
-  mod.textContent = '✏️';
-  mod.title = 'Modifier le groupe';
-  mod.addEventListener('click', () => ouvrirLeGroupe(g));
-  l.appendChild(mod);
-
-  return l;
+/* Le style de l'écran, posé une fois */
+function poserLeStyleDuParcours(){
+  if(document.getElementById('pcStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'pcStyle';
+  s.textContent =
+    '.pcOnglets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}' +
+    '.pcOnglets .btn{width:auto;margin:0;padding:9px 13px;font-size:13px;min-height:40px}' +
+    '.pcPointille{border-style:dashed!important}' +
+    '.pcAide{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5}' +
+    '.pcGrille{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}' +
+    '.pcCarteG{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;min-height:118px;cursor:pointer;background:var(--navy-deep)}' +
+    '.pcCarteG:hover,.pcCarteG:focus-visible{border-color:var(--orange)}' +
+    '.pcCarteG .l1{display:flex;gap:8px;align-items:center}' +
+    '.pcCarteG .t{font-size:15px;font-weight:800;flex:1;min-width:0;line-height:1.3}' +
+    '.pcCarteG .d{font-size:12px;color:var(--muted)}' +
+    '.pcCarteG .w{font-size:12px;color:var(--warn-text, #b4471a)}' +
+    '.pcCarteG .bas{margin-top:auto;display:flex;gap:6px;align-items:center}' +
+    '.pcCarteNeuve{border:2px dashed var(--line);border-radius:14px;min-height:118px;font-weight:800;color:var(--accent-text);font-size:14px;background:transparent;cursor:pointer;font-family:inherit}' +
+    '.pcCarteNeuve:hover{border-color:var(--orange)}' +
+    '.pcPoi{cursor:grab;color:var(--muted);font-size:15px;flex-shrink:0;touch-action:none;padding:2px 4px}' +
+    '.pcFl{cursor:pointer;color:var(--muted);font-size:12px;padding:4px 6px}' +
+    '.pcNum{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--orange);color:var(--on-accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}' +
+    '.pcNum.intro{background:var(--line);color:var(--muted)}' +
+    '.pcPuce{font-size:11px;font-weight:800;border-radius:999px;padding:4px 9px;white-space:nowrap}' +
+    '.pcPub{background:var(--orange-soft);color:var(--on-accent)}' +
+    '.pcBro{border:1px solid var(--line);color:var(--muted)}' +
+    /* L'éditeur */
+    '.pcBarre{position:sticky;top:8px;z-index:20;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--navy-deep);border:1px solid var(--line);border-radius:14px;padding:9px 12px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.08)}' +
+    '.pcBarre .btn{width:auto;margin:0;padding:9px 13px;font-size:13px;min-height:40px}' +
+    '.pcRetour{font-size:13px;font-weight:700;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;padding:6px 4px;white-space:nowrap}' +
+    '.pcTitreG{flex:1 1 220px;min-width:0;font-size:18px!important;font-weight:800;margin:0!important;border:1px solid transparent!important;background:transparent!important;padding:6px 8px!important}' +
+    '.pcTitreG:hover,.pcTitreG:focus{border-color:var(--line)!important}' +
+    '.pcSauve{font-size:12px;color:var(--muted);white-space:nowrap}' +
+    '.pcSauve.ko{color:var(--red)}' +
+    '.pcTrois{display:grid;grid-template-columns:250px minmax(0,1fr) 300px;gap:14px;align-items:start}' +
+    '.pcSom{border:1px solid var(--line);border-radius:14px;padding:10px;position:sticky;top:76px}' +
+    '.pcSomT{font-size:11.5px;font-weight:800;color:var(--muted);margin:2px 4px 8px;text-transform:uppercase;letter-spacing:.04em}' +
+    '.pcSomL{display:flex;gap:8px;align-items:center;padding:8px 9px;border-radius:10px;font-size:13.5px;font-weight:700;margin-bottom:4px;border:1px solid transparent;cursor:pointer;line-height:1.3}' +
+    '.pcSomL:hover{border-color:var(--line)}' +
+    '.pcSomL.on{border-color:var(--orange);background:var(--orange-soft);color:var(--on-accent)}' +
+    '.pcSomL .pcNum{width:22px;height:22px;font-size:11px}' +
+    '.pcSomL .t{flex:1;min-width:0}' +
+    '.pcSomL .vide{font-weight:400;font-style:italic;opacity:.75}' +
+    '.pcSom .btn{margin:8px 0 0;border-style:dashed;padding:10px;font-size:13px}' +
+    '.pcEt{border:1px solid var(--line);border-radius:14px;margin-bottom:10px}' +
+    '.pcEtT{display:flex;gap:8px;align-items:center;padding:10px 12px}' +
+    '.pcEtNom{flex:1;min-width:0;font-size:16px!important;font-weight:800;margin:0!important;border:1px solid transparent!important;background:transparent!important;padding:6px!important}' +
+    '.pcEtNom:hover,.pcEtNom:focus{border-color:var(--line)!important}' +
+    '.pcEtNom.grand{font-size:19px!important}' +
+    '.pcIco{color:var(--muted);font-size:14px;flex-shrink:0;cursor:pointer;padding:4px 5px;background:none;border:none;font-family:inherit}' +
+    '.pcMeta{font-size:12px;color:var(--muted);white-space:nowrap}' +
+    '.pcCorps{padding:0 12px 12px}' +
+    '.pcBlocs>[data-rang]{background:var(--navy-deep)}' +
+    '.pcAjout{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}' +
+    '.pcAjout .btn{width:auto;margin:0;padding:8px 12px;font-size:13px;border-style:dashed;min-height:40px}.pcAjout>.pcMeta{flex:1 1 100%}' +
+    '.pcDepose{flex:1 1 100%;font-size:12px;color:var(--muted);border:1.5px dashed var(--line);border-radius:10px;padding:10px;text-align:center;cursor:pointer;line-height:1.45}' +
+    '.pcDepose.sur{border-color:var(--orange);background:var(--orange-soft);color:var(--on-accent)}' +
+    '.pcNav{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-top:4px}' +
+    '.pcNav button{background:none;border:none;cursor:pointer;font-family:inherit;font-size:13px;color:var(--muted);padding:6px 0}' +
+    '.pcNav button.suiv{font-weight:800;color:var(--accent-text)}' +
+    '.pcNouv{display:flex;gap:8px;flex-wrap:wrap}' +
+    '.pcNouv .btn{margin:0;border-style:dashed;padding:13px;font-size:14px}' +
+    '.pcTel{border:10px solid #1d2420;border-radius:32px;overflow:hidden;background:#f2f1ec;color:#1d2420;font-size:13px;position:sticky;top:76px}' +
+    '.pcTel .h{background:#fff;padding:10px 12px;font-weight:800;border-bottom:1px solid #e3e1d8}' +
+    '.pcTel .c{padding:12px;max-height:62vh;overflow:auto}' +
+    '.pcTel .e{background:#fff;border:1px solid #e3e1d8;border-radius:12px;padding:10px;margin-bottom:8px}' +
+    '.pcTel p{margin:6px 0;white-space:pre-wrap;line-height:1.5}' +
+    '.pcTel .vid{background:#111;color:#fff;border-radius:8px;height:120px;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;position:relative}' +
+    '.pcTel .vid video{width:100%;height:100%;object-fit:cover}' +
+    '.pcTel .lg{font-size:11px;margin-top:4px;color:#5f6b63}' +
+    '.pcTel .vu{background:#B6FF0E;border-radius:10px;padding:9px;text-align:center;font-weight:800}' +
+    '.pcTel .imgs{display:flex;gap:4px;overflow:hidden}.pcTel .imgs img{height:90px;border-radius:6px;object-fit:cover}' +
+    '@media (max-width:600px){.pcBarre .pcTitreG{flex:1 1 100%;order:2}.pcBarre .pcRetour,.pcBarre .pcPuce{order:1}.pcBarre .pcSauve{order:1;flex:1}.pcBarre .btn{order:3;flex:1}' +
+      '.pcCorps{padding:0 8px 10px}.pcAjout .btn{flex:1 1 40%}.pcEtT{padding:8px 8px;gap:4px}.pcEtT .pcMeta{display:none}}';
+  document.head.appendChild(s);
 }
 
 
-/* ---------- Créer ou modifier un groupe ---------- */
 async function ouvrirLeGroupe(g){
   const zone = $('parcoursZone');
   if(!zone) return;
@@ -452,6 +550,32 @@ async function ouvrirLeGroupe(g){
       }catch(e){ showToast('Impossible : ' + e.message); bF.disabled = false; }
     });
     cadre.appendChild(bF);
+
+    /* 🎬 v1323 — les groupes sont des onglets : leur ordre se règle ici */
+    const rg = parcoursGroupes.findIndex(x => x.id === g.id);
+    const ord = document.createElement('div');
+    ord.style.cssText = 'display:flex;gap:6px;margin:4px 0;';
+    [['◀ Plus tôt chez l’élève', -1], ['Plus tard chez l’élève ▶', 1]].forEach(([lab, sens]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'flex:1;margin:0;padding:9px;font-size:12.5px;';
+      b.textContent = lab;
+      const cible = rg + sens;
+      b.disabled = cible < 0 || cible >= parcoursGroupes.length;
+      b.addEventListener('click', async () => {
+        const ids = parcoursGroupes.map(x => x.id);
+        ids.splice(cible, 0, ids.splice(rg, 1)[0]);
+        b.disabled = true;
+        try{
+          await appelPrep({ action: 'parcoursOrdre', quoi: 'groupes', ids: ids });
+          showToast('Ordre enregistré ✅');
+          afficherParcours();
+        }catch(e){ showToast('Ordre non enregistré : ' + e.message); b.disabled = false; }
+      });
+      ord.appendChild(b);
+    });
+    cadre.appendChild(ord);
   }
 
   const bAnn = document.createElement('button');
@@ -489,91 +613,7 @@ async function ouvrirLeGroupe(g){
 }
 
 
-/* ---------- La colonne des guides du groupe ouvert ---------- */
-function colonneDesGuides(g){
-  const col = document.createElement('div');
-  col.style.cssText = 'flex:1 1 340px;min-width:0;';
-
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;font-weight:700;margin-bottom:4px;';
-  t.textContent = (g.icone ? g.icone + ' ' : '') + g.nom;
-  col.appendChild(t);
-
-  const s = document.createElement('div');
-  s.style.cssText = 'font-size:11.5px;color:var(--muted);margin-bottom:9px;';
-  const liste = guidesDuGroupe(g.id);
-  const publies = liste.filter(x => x.etat === 'publie').length;
-  s.textContent = liste.length
-    ? liste.length + ' guide(s) · ' + publies + ' publié(s)'
-    : 'Aucun guide pour l\'instant.';
-  col.appendChild(s);
-
-  const zl = document.createElement('div');
-  zl.id = 'parcoursListeGuides';
-  liste.forEach((x, i) => zl.appendChild(ligneDeGuide(x, i + 1)));
-  col.appendChild(zl);
-
-  listeRangeable(zl, ordre => {
-    appelPrep({ action: 'parcoursOrdre', quoi: 'guides', ids: ordre })
-      .then(() => { afficherParcours(); })
-      .catch(e => showToast('Ordre non enregistré : ' + e.message));
-  });
-
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-top:9px;padding:10px;font-size:13px;';
-  b.textContent = '➕ Nouveau guide';
-  b.addEventListener('click', () => ouvrirLeGuide(null, g));
-  col.appendChild(b);
-
-  return col;
-}
-
-function ligneDeGuide(x, rang){
-  const l = document.createElement('div');
-  l.dataset.rang = x.id;
-  l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:10px 11px;' +
-    'border:1px solid var(--line);border-radius:12px;margin-bottom:8px;';
-
-  const poignee = document.createElement('span');
-  poignee.dataset.poignee = '1';
-  poignee.style.cssText = 'cursor:grab;color:var(--muted);font-size:15px;' +
-    'flex-shrink:0;touch-action:none;padding:2px 4px;';
-  poignee.textContent = '⠿';
-  l.appendChild(poignee);
-
-  const num = document.createElement('span');
-  num.style.cssText = 'flex:0 0 auto;width:24px;height:24px;border-radius:50%;' +
-    'background:var(--orange-soft);color:var(--on-accent);display:flex;' +
-    'align-items:center;justify-content:center;font-size:11px;font-weight:800;';
-  num.textContent = String(rang);
-  l.appendChild(num);
-
-  const nom = document.createElement('button');
-  nom.className = 'btn btn-secondary';
-  nom.style.cssText = 'flex:1;min-width:0;justify-content:flex-start;' +
-    'text-align:left;margin:0;padding:4px 6px;' +
-    'border:none;background:transparent;font-size:13px;color:var(--cream);';
-  nom.textContent = x.titre;
-  nom.addEventListener('click', () => ouvrirLeGuide(x, null));
-  l.appendChild(nom);
-
-  const det = document.createElement('span');
-  det.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-  det.textContent = resumeDesBlocs(x.compte) +
-    (x.etat === 'publie' ? '' : ' · brouillon');
-  l.appendChild(det);
-
-  const fleches = document.createElement('span');
-  fleches.style.cssText = 'flex-shrink:0;color:var(--muted);font-size:13px;';
-  fleches.innerHTML = '<span data-monter style="cursor:pointer;padding:0 3px;" ' +
-    'title="Monter">▲</span><span data-descendre style="cursor:pointer;' +
-    'padding:0 3px;" title="Descendre">▼</span>';
-  l.appendChild(fleches);
-
-  return l;
-}
-
+/* Le résumé d'un guide par ses types de blocs (« 3 🎬 2 📝 ») */
 function resumeDesBlocs(compte){
   const c = compte || {};
   const bouts = BLOCS_PARCOURS
@@ -582,29 +622,104 @@ function resumeDesBlocs(compte){
   return bouts.length ? bouts.join(' ') : 'vide';
 }
 
-
 /* ============================================================
-   L'ÉDITEUR EN BLOCS
+   🎬 L'ÉDITEUR D'UN GUIDE — v1323
 
-   Un guide est une pile. Un bloc = une chose. Quatre types, et
-   l'ordre est libre parce que rien n'est accroché à rien.
+   ⚠️ LE GUIDE RESTE UNE PILE DE BLOCS, ET C'EST VOULU. Le classeur, le
+   Worker et l'espace élève découpent un guide en ÉTAPES sur ses blocs
+   « titre » (segmentsDuGuide). L'éditeur le montre maintenant par
+   étapes — un titre et ce qui le suit — et le remet en pile pour
+   l'enregistrer. Rien ne change ailleurs : les guides d'avant s'ouvrent
+   tels quels, la progression des élèves ne bouge pas.
+
+   · Ordinateur (zone de 900 px ou plus) : le sommaire des étapes à
+     gauche, l'étape au milieu, ce que voit l'élève à droite (B).
+   · Téléphone : les étapes en cartes repliables (A).
+   · Ce qu'on ajoute se range DANS l'étape (fini les blocs à remonter).
+   · Plusieurs fichiers glissés d'un coup : un bloc par fichier.
+   · ⚠️ ENREGISTREMENT AUTOMATIQUE, et un guide publié change chez
+     l'élève tout de suite (David). Pour ne pas lui montrer un trou
+     pendant qu'on travaille, un guide PUBLIÉ n'envoie pas ce qui est
+     encore vide : une étape sans nom, un bloc sans fichier, un texte
+     vide. Ils partent dès qu'ils sont remplis ; quitter le guide en
+     prévient (ils ne sont pas gardés).
    ============================================================ */
+const PC_LARGE = 900;
+const PC_DELAI = 2500;
+
+/* Les étapes d'une pile : ce qui précède le premier titre est une
+   « introduction » (titre: null) — les guides d'avant les étapes. */
+function versEtapesParcours(blocs){
+  const out = [];
+  (blocs || []).forEach(b => {
+    if(b && b.type === 'titre'){ out.push({ titre: b, contenus: [] }); return; }
+    if(!out.length) out.push({ titre: null, contenus: [] });
+    out[out.length - 1].contenus.push(b);
+  });
+  return out;
+}
+function blocVideParcours(b){
+  if(!b) return true;
+  if(b.type === 'texte') return !String(b.texte || '').trim();
+  if(b.type === 'titre') return !String(b.titre || '').trim();
+  return clesDuBloc(b).length === 0;
+}
+/* La pile : tout (brouillon), ou ce qui peut partir chez l'élève (publié) */
+function versBlocsParcours(etapes, publie){
+  const out = [];
+  (etapes || []).forEach(et => {
+    if(et.titre){
+      if(publie && blocVideParcours(et.titre)) return;
+      out.push(et.titre);
+    }
+    et.contenus.forEach(b => { if(!(publie && blocVideParcours(b))) out.push(b); });
+  });
+  return out;
+}
+function enAttenteParcours(etapes){
+  let n = 0;
+  (etapes || []).forEach(et => {
+    if(et.titre && blocVideParcours(et.titre)){ n += 1 + et.contenus.filter(b => !blocVideParcours(b)).length; return; }
+    et.contenus.forEach(b => { if(blocVideParcours(b)) n++; });
+  });
+  return n;
+}
+/* Relire UN bloc à l'écran (la même règle que relireLesBlocs) */
+function relireUnBloc(ligne, b){
+  if(!ligne || !b) return;
+  const ta = ligne.querySelector('[data-champ="texte"]');
+  const f = ligne.querySelector('[data-champ="fichier"]');
+  const n = ligne.querySelector('[data-champ="titre"]');
+  const mt = ligne.querySelector('[data-champ="montage"]');
+  if(ta) b.texte = ta.value;
+  if(f) b.fichier = f.value.trim();
+  if(mt){
+    let m = null;
+    try{ m = mt.value ? JSON.parse(mt.value) : null; }catch(e){ m = null; }
+    if(m){ delete m.liens; b.montage = m; } else delete b.montage;
+  }
+  if(n) b.titre = n.value.trim();
+}
+/* Le type d'un fichier glissé */
+function genreDuFichierParcours(f){
+  const t = String((f && f.type) || '').toLowerCase(), n = String((f && f.name) || '').toLowerCase();
+  if(t === 'video/mp4' || /\.mp4$/.test(n)) return 'video';
+  if(/^image\/(jpeg|png|webp)$/.test(t) || /\.(jpe?g|png|webp)$/.test(n)) return 'image';
+  if(t === 'application/pdf' || /\.pdf$/.test(n)) return 'pdf';
+  return '';
+}
+
 async function ouvrirLeGuide(x, groupe){
   const zone = $('parcoursZone');
   if(!zone) return;
-
-  const neuf = !x;
+  poserLeStyleDuParcours();
+  let neuf = !x;
   let blocs = [];
-  let titre = '';
-  let etat = 'brouillon';
+  const E = { titre: '', etat: 'brouillon', ici: 0, corps: [], dernier: '', enCours: false, encore: false,
+              minuterie: null, apercu: null, statut: '', large: null, versionVue: false };
   const idGroupe = neuf ? groupe.id : x.groupe;
-  /* ⚠️ L'IDENTIFIANT EST DÉCIDÉ ICI, UNE FOIS — v1036.
-
-     C'est LA correction de « le guide se duplique » : un guide neuf
-     partait sans identifiant, et le classeur en créait donc un
-     nouveau à chaque envoi reçu. Or l'envoi réessaie tout seul au
-     bout de douze secondes, et réveiller le classeur mange ces douze
-     secondes à lui seul. Voir idProposeParLEcran. */
+  const grp = parcoursGroupes.find(g => g.id === idGroupe) || groupe || {};
+  /* L'identifiant est décidé ici, une fois : un rejeu retrouve sa ligne (v1036) */
   const idPose = (x && x.id) || idProposeParLEcran('gd');
 
   if(!neuf){
@@ -613,241 +728,605 @@ async function ouvrirLeGuide(x, groupe){
       const d = await appelPrep({ action: 'parcoursGuide', id: x.id });
       const g = (d && d.guide) || {};
       blocs = (g.blocs || []).slice();
-      titre = g.titre || '';
-      etat = g.etat || 'brouillon';
+      E.titre = g.titre || '';
+      E.etat = g.etat || 'brouillon';
     }catch(e){
       showToast('Lecture impossible : ' + e.message);
       dessinerParcours();
       return;
     }
   }
+  E.etapes = versEtapesParcours(blocs);
+  if(!E.etapes.length) E.etapes.push({ titre: { type: 'titre', titre: '', texte: '', fichier: '', duree: 0 }, contenus: [] });
+  E.etapes[0].ouverte = true;
+  E.dernier = neuf ? '' : JSON.stringify({ t: E.titre, e: E.etat, b: versBlocsParcours(E.etapes, E.etat === 'publie') });
 
-  const cadre = document.createElement('div');
-  cadre.style.cssText = 'border:1px solid var(--orange);border-radius:14px;' +
-    'padding:14px;max-width:560px;';
+  const racine = document.createElement('div');
+  racine.className = 'pcEd';
+  racine.id = 'pcEditeur';
 
-  const dessiner = () => {
-    cadre.innerHTML =
-      '<div style="font-size:14px;font-weight:700;margin-bottom:12px;">' +
-        (neuf ? '➕ Nouveau guide' : '✏️ ' + String(titre).replace(/</g, '&lt;')) +
-      '</div>' +
-      '<label for="pdTitre">Le titre du guide</label>' +
-      '<input type="text" id="pdTitre" placeholder="Le créneau, pas à pas" ' +
-        'style="margin-bottom:13px;">' +
-      '<div style="font-size:11.5px;color:var(--muted);margin-bottom:7px;">' +
-        'Le déroulé — attrape ⠿ et fais glisser</div>' +
-      '<div id="pdBlocs"></div>' +
-      '<div id="pdAjout" style="display:flex;gap:6px;margin:11px 0 12px;' +
-        'flex-wrap:wrap;"></div>';
+  /* ── relire ce qui est à l'écran ── */
+  const relireEtape = (i) => {
+    const corps = E.corps[i];
+    if(!corps) return;
+    const lignes = Array.prototype.filter.call(corps.querySelector('.pcBlocs').children, l => l.dataset && l.dataset.rang);
+    lignes.forEach((l, k) => relireUnBloc(l, E.etapes[i].contenus[k]));
+  };
+  const relireTout = () => {
+    E.corps.forEach((c, i) => relireEtape(i));
+    const tg = racine.querySelector('.pcTitreG');
+    if(tg) E.titre = tg.value;
+    racine.querySelectorAll('[data-etape-nom]').forEach(inp => {
+      const et = E.etapes[Number(inp.dataset.etapeNom)];
+      if(et && et.titre) et.titre.titre = inp.value;
+    });
+  };
+  const instantane = () => JSON.stringify({ t: E.titre.trim(), e: E.etat, b: versBlocsParcours(E.etapes, E.etat === 'publie') });
 
-    cadre.querySelector('#pdTitre').value = titre;
+  /* ── l'enregistrement automatique ── */
+  const dire = (t, ko) => {
+    E.statut = t;
+    const s = racine.querySelector('.pcSauve');
+    if(s){ s.textContent = t; s.classList.toggle('ko', !!ko); }
+  };
+  const planifier = () => {
+    clearTimeout(E.minuterie);
+    E.planifie = true;
+    E.minuterie = setTimeout(sauver, PC_DELAI);
+  };
+  const sauver = async () => {
+    clearTimeout(E.minuterie);
+    E.planifie = false;
+    if(!document.body.contains(racine)) return;
+    if(E.enCours){ E.encore = true; return; }
+    relireTout();
+    if(!E.titre.trim()){ dire('✏️ Donne un titre au guide : il s’enregistrera tout seul'); return; }
+    /* Chaque titre d'étape garde son identifiant (v1223) — posés sur tous, vides compris */
+    poserLesIdsDesTitres(versBlocsParcours(E.etapes, false));
+    const snap = instantane();
+    if(snap === E.dernier){ if(!E.statut || /Enregistrement|Modifié/.test(E.statut)) dire('💾 Enregistré'); return; }
+    E.enCours = true;
+    dire('⏳ Enregistrement…');
+    const tous = versBlocsParcours(E.etapes, false);
+    try{
+      const rep = await appelPrep({ action: 'parcoursGuideSet', id: idPose, groupe: idGroupe, titre: E.titre.trim(), etat: E.etat,
+                                    blocs: versBlocsParcours(E.etapes, E.etat === 'publie'),
+                                    par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '' });
+      if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+      E.dernier = snap;
+      neuf = false;
+      const h = new Date();
+      const attente = E.etat === 'publie' ? enAttenteParcours(E.etapes) : 0;
+      dire('💾 Enregistré à ' + String(h.getHours()).padStart(2, '0') + ':' + String(h.getMinutes()).padStart(2, '0') +
+           (attente ? ' · ' + attente + ' vide' + (attente > 1 ? 's' : '') + ' pas encore chez l’élève' : ''));
+      /* 🎬 v1252 — un classeur d'avant la v250 jette la recette du montage */
+      if(!E.versionVue && tous.some(b => b && b.montage) && rep && rep.versionScript !== undefined && Number(rep.versionScript) < 250){
+        E.versionVue = true;
+        informer('⚠️ Le montage n’a pas été gardé : le script Google Sheets n’est pas à jour (v' + rep.versionScript +
+                 ', il faut la v250).\n\nLa vidéo est bien déposée ; mets le script à jour, puis rouvre le guide et refais « 🎬 Monter la vidéo ».');
+      }
+      /* 🎞️ v1253 — les vidéos d'origine des vidéos floutées, seulement maintenant */
+      effacerLesFichiersRemplaces(tous).catch(() => {});
+      const l = parcoursGuides.find(g => g.id === idPose);
+      if(l){ l.titre = E.titre.trim(); l.etat = E.etat; }
+      majBarre();
+    }catch(e){
+      dire('⚠️ Pas enregistré : ' + (e.message || 'erreur') + ' — nouvel essai dans 10 s', true);
+      E.minuterie = setTimeout(sauver, 10000);
+    }finally{
+      E.enCours = false;
+      if(E.encore){ E.encore = false; planifier(); }
+    }
+  };
+  const modifie = () => { dire('✏️ Modifié…'); planifier(); };
+  /* Une vidéo montée, un fichier déposé : le bloc change sans frappe. On regarde. */
+  const veille = setInterval(() => {
+    if(!document.body.contains(racine)){ clearInterval(veille); window.removeEventListener('resize', auRedimensionnement); return; }
+    if(E.enCours) return;
+    relireTout();
+    if(E.titre.trim() && instantane() !== E.dernier && !E.planifie){ dire('✏️ Modifié…'); planifier(); }
+  }, 5000);
 
-    const zb = cadre.querySelector('#pdBlocs');
-    if(!blocs.length){
+  /* ── quitter ── */
+  const quitter = async () => {
+    relireTout();
+    if(E.titre.trim() && instantane() !== E.dernier){ await sauver(); }
+    let n = 0;
+    while(E.enCours && n++ < 60) await new Promise(r => setTimeout(r, 250));
+    if(E.titre.trim() && instantane() !== E.dernier &&
+       !await confirmer('Le guide n’a pas pu être enregistré (' + E.statut + ').\n\nQuitter quand même ? Les derniers changements seront perdus.')) return;
+    const attente = E.etat === 'publie' ? enAttenteParcours(E.etapes) : 0;
+    if(attente && !await confirmer(attente + ' élément' + (attente > 1 ? 's' : '') + ' vide' + (attente > 1 ? 's' : '') +
+        ' (étape sans nom, bloc sans fichier, texte vide) ne sont pas gardés : ce guide est publié, il n’envoie que ce qui est rempli.\n\nQuitter quand même ?')) return;
+    if(!E.titre.trim() && neuf){
+      if(versBlocsParcours(E.etapes, false).some(b => !blocVideParcours(b)) &&
+         !await confirmer('Ce guide n’a pas de titre : il n’est pas enregistré.\n\nQuitter quand même ?')) return;
+    }
+    clearInterval(veille);
+    window.removeEventListener('resize', auRedimensionnement);
+    parcoursGroupeOuvert = idGroupe;
+    afficherParcours();
+  };
+
+  /* ── les gestes sur les étapes ── */
+  const nouvelleEtape = (titre) => ({ titre: { type: 'titre', titre: titre || '', texte: '', fichier: '', duree: 0 }, contenus: [] });
+  const ajouterEtape = () => {
+    relireTout();
+    E.etapes.push(nouvelleEtape(''));
+    E.ici = E.etapes.length - 1;
+    E.etapes[E.ici].ouverte = true;
+    dessiner();
+    const f = racine.querySelector('[data-etape-nom="' + E.ici + '"]');
+    if(f) f.focus();
+    modifie();
+  };
+  const plusieursEtapes = async () => {
+    relireTout();
+    const boite = document.createElement('div');
+    boite.innerHTML = '<div style="font-size:14px;line-height:1.55;margin-bottom:10px;">Une étape par ligne. Elles s’ajoutent à la suite, vides, prêtes à remplir.</div>';
+    const ta = document.createElement('textarea');
+    ta.id = 'pcLot';
+    ta.rows = 7;
+    ta.placeholder = 'Le carrefour à l’indonésienne\nLa priorité à droite cachée\nLe stop sans visibilité';
+    ta.style.cssText = 'width:100%;font-family:inherit;font-size:15px;line-height:1.7;margin:0;';
+    boite.appendChild(ta);
+    const cpt = document.createElement('div');
+    cpt.style.cssText = 'font-size:12px;color:var(--muted);margin-top:8px;';
+    boite.appendChild(cpt);
+    const lignes = () => ta.value.split('\n').map(l => l.replace(/^\s*[#\-•*\d.)]+\s*/, '').trim()).filter(Boolean);
+    ta.addEventListener('input', () => { const n = lignes().length; cpt.textContent = n ? n + ' étape' + (n > 1 ? 's' : '') + ' seront créées.' : ''; });
+    setTimeout(() => ta.focus(), 50);
+    const ok = await fenetre(boite, [{ nom: 'Annuler', valeur: false }, { nom: '➕ Créer les étapes', valeur: true, principal: true }], '📋 Plusieurs étapes d’un coup');
+    const l = lignes();
+    if(!ok || !l.length) return;
+    /* Une première étape encore vide (guide neuf) prend la première ligne */
+    const der = E.etapes[E.etapes.length - 1];
+    let k = 0;
+    if(der && der.titre && !der.titre.titre.trim() && !der.contenus.length){ der.titre.titre = l[0]; k = 1; }
+    const debut = E.etapes.length - (k ? 1 : 0);
+    l.slice(k).forEach(t => E.etapes.push(nouvelleEtape(t)));
+    E.ici = debut;
+    E.etapes[debut].ouverte = true;
+    dessiner();
+    modifie();
+    showToast('➕ ' + l.length + ' étape' + (l.length > 1 ? 's' : '') + ' créée' + (l.length > 1 ? 's' : ''));
+  };
+  const supprimerEtape = async (i) => {
+    relireTout();
+    const et = E.etapes[i];
+    const pleins = et.contenus.filter(b => !blocVideParcours(b)).length;
+    if((pleins || (et.titre && et.titre.titre.trim())) &&
+       !await confirmer('Supprimer l’étape « ' + ((et.titre && et.titre.titre.trim()) || 'sans nom') + ' »' +
+                        (et.contenus.length ? ' et ses ' + et.contenus.length + ' bloc' + (et.contenus.length > 1 ? 's' : '') : '') + ' ?')) return;
+    E.etapes.splice(i, 1);
+    if(!E.etapes.length) E.etapes.push(nouvelleEtape(''));
+    E.ici = Math.min(E.ici, E.etapes.length - 1);
+    dessiner();
+    modifie();
+  };
+  const rangerEtapes = (ordre) => {
+    relireTout();
+    const parCle = {};
+    E.etapes.forEach((et, i) => { parCle['e' + i] = et; });
+    const ici = E.etapes[E.ici];
+    const intro = E.etapes.filter(et => !et.titre);
+    E.etapes = intro.concat(ordre.map(c => parCle[c]).filter(Boolean));
+    E.ici = Math.max(0, E.etapes.indexOf(ici));
+    dessiner();
+    modifie();
+  };
+
+  /* ── une étape : ses blocs, « ajouter ici », les fichiers glissés ── */
+  const corpsDEtape = (et, i) => {
+    const corps = document.createElement('div');
+    corps.className = 'pcCorps';
+    corps.dataset.corps = i;
+    const zb = document.createElement('div');
+    zb.className = 'pcBlocs';
+    zb.id = 'pdBlocs' + i;
+    if(!et.contenus.length){
       const v = document.createElement('div');
-      v.className = 'empty';
-      v.style.cssText = 'font-size:12.5px;';
-      v.textContent = 'Ce guide est vide. Ajoute un bloc ci-dessous — ' +
-        'du texte seul suffit.';
+      v.className = 'pcAide';
+      v.textContent = et.titre ? 'Étape vide : ajoute ce que l’élève verra.' : 'Rien avant la première étape.';
       zb.appendChild(v);
     }
-    blocs.forEach((b, i) => zb.appendChild(ligneDeBloc(b, i)));
-
-    /* ⚠️ RETIRER UN BLOC, C'EST LE RETIRER DE LA PILE — pas
-       seulement effacer sa ligne à l'écran. Une ligne effacée sans
-       son bloc, et tout ce qui suit se décale d'un cran au moment
-       de relire les cases : le texte du bloc 3 atterrirait dans le
-       bloc 2. On relit la frappe en cours, on retire, on redessine. */
+    et.contenus.forEach((b, k) => zb.appendChild(ligneDeBloc(b, k)));
+    corps.appendChild(zb);
     zb.addEventListener('click', (e) => {
       const s = e.target.closest && e.target.closest('[data-retirer]');
       if(!s) return;
       const ligne = s.closest('[data-rang]');
-      if(!ligne) return;
-      relireLesBlocs(cadre, blocs);
-      const i = Number(String(ligne.dataset.rang || '').slice(1));
-      if(!isNaN(i) && i >= 0 && i < blocs.length) blocs.splice(i, 1);
-      dessiner();
-    });
-
-    listeRangeable(zb, ordre => {
-      /* Le rang de l'écran fait foi : on réordonne le tableau
-         d'après lui, et l'enregistrement réécrira les numéros. */
-      relireLesBlocs(cadre, blocs);
-      const parCle = {};
-      blocs.forEach((b, i) => { parCle['b' + i] = b; });
-      blocs = ordre.map(c => parCle[c]).filter(Boolean);
-      dessiner();
-    });
-
-    const za = cadre.querySelector('#pdAjout');
-    BLOCS_PARCOURS.forEach(t => {
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'flex:1;min-width:88px;margin:0;padding:9px;' +
-        'font-size:12px;border-style:dashed;';
-      b.textContent = t.emoji + ' ' + t.nom;
-      b.addEventListener('click', () => {
-        /* ⚠️ ON RELIT L'ÉCRAN AVANT D'AJOUTER — v1036.
-
-           David, le 18 septembre : « quand je rajoute un bloc dans un
-           guide, ça supprime ce que je viens de mettre ».
-
-           C'était exact, et c'est cette ligne qui manquait. dessiner()
-           reconstruit TOUTE la pile depuis le tableau « blocs » ; ce
-           qui est tapé dans les cases ne rejoint ce tableau que par
-           relireLesBlocs. Sans cet appel, ajouter un bloc redessinait
-           l'écran à partir d'un tableau resté au dernier état connu —
-           et tout ce qui avait été tapé depuis disparaissait.
-
-           ⚠️ ET ÇA NE PERDAIT PAS QUE DU TEXTE. La clé d'un fichier
-           tout juste déposé vit elle aussi dans une case de l'écran :
-           ajouter un bloc après avoir déposé une vidéo de 180 Mo la
-           perdait, silencieusement. Il fallait la redéposer sans
-           jamais savoir pourquoi.
-
-           ⚠️ TROIS GESTES SUR QUATRE LE FAISAIENT DÉJÀ — retirer un
-           bloc, le monter, le descendre. Seul « ajouter » ne le
-           faisait pas. Une moitié posée, l'autre oubliée. */
-        relireLesBlocs(cadre, blocs);
-        /* En FIN de pile : un bloc s'ajoute à la suite de ce qu'on
-           vient d'écrire, et se déplace ensuite au doigt. */
-        blocs.push({ type:t.type, texte:'', fichier:'', titre:'', duree:0 });
-        dessiner();
-      });
-      za.appendChild(b);
-    });
-
-    const bVoir = document.createElement('button');
-    bVoir.className = 'btn btn-secondary';
-    bVoir.style.cssText = 'padding:10px;font-size:13px;';
-    bVoir.textContent = '👁️ Voir comme l\'élève';
-    /* ⚠️ L'APERÇU AUSSI RELIT L'ÉCRAN. Montrer « comme l'élève le
-       verra » à partir d'un tableau périmé, c'est montrer autre chose
-       que ce qui sera publié — et c'est pire que ne rien montrer. */
-    bVoir.addEventListener('click', () => {
-      relireLesBlocs(cadre, blocs);
-      apercuDuGuide(cadre.querySelector('#pdTitre').value.trim(), blocs);
-    });
-    cadre.appendChild(bVoir);
-
-    const bBr = document.createElement('button');
-    bBr.className = 'btn btn-secondary';
-    bBr.style.cssText = 'padding:10px;font-size:13px;';
-    bBr.textContent = (etat === 'publie')
-      ? '💾 Repasser en brouillon' : '💾 Garder en brouillon';
-    bBr.addEventListener('click', () => enregistrer('brouillon'));
-    cadre.appendChild(bBr);
-
-    const bPub = document.createElement('button');
-    bPub.className = 'btn btn-primary';
-    bPub.style.cssText = 'padding:11px;font-size:13px;';
-    bPub.textContent = '✅ Publier le guide';
-    bPub.addEventListener('click', () => enregistrer('publie'));
-    cadre.appendChild(bPub);
-
-    if(!neuf){
-      const bSup = document.createElement('button');
-      bSup.className = 'btn btn-secondary';
-      bSup.style.cssText = 'padding:10px;font-size:13px;color:var(--red);' +
-        'border-color:var(--red);';
-      bSup.textContent = '🗑️ Supprimer ce guide';
-      bSup.addEventListener('click', async () => {
-        if(!await confirmer('Supprimer « ' + titre + ' » ?\n\n' +
-            'Ses blocs partent avec lui, et ça ne se défait pas.')) return;
-        try{
-          await appelPrep({ action: 'parcoursGuideDelete', id: x.id });
-          showToast('Guide supprimé ✅');
-          afficherParcours();
-        }catch(e){ showToast('Impossible : ' + e.message); }
-      });
-      cadre.appendChild(bSup);
-    }
-
-    const bAnn = document.createElement('button');
-    bAnn.className = 'btn btn-secondary';
-    bAnn.style.cssText = 'padding:10px;font-size:13px;';
-    bAnn.textContent = 'Fermer sans enregistrer';
-    bAnn.addEventListener('click', () => dessinerParcours());
-    cadre.appendChild(bAnn);
-  };
-
-  /* ⚠️ UN SEUL ENREGISTREMENT À LA FOIS — v1036. Les boutons du
-     guide ne se verrouillaient pas : deux appuis sur une tablette
-     qui ne répond pas tout de suite, c'étaient deux guides. Ceux du
-     groupe, eux, se verrouillaient déjà — une moitié posée, l'autre
-     oubliée. */
-  let enregistrementEnCours = false;
-
-  const enregistrer = async (quelEtat) => {
-    if(enregistrementEnCours) return;
-    const t = cadre.querySelector('#pdTitre').value.trim();
-    if(!t){ showToast('Donne un titre au guide.'); return; }
-    /* Ce qui est tapé dans les cases l'emporte : on relit l'écran
-       avant d'envoyer, sinon la dernière frappe se perdrait. */
-    relireLesBlocs(cadre, blocs);
-
-    /* ⚠️ PUBLIER UN BLOC VIDE, C'EST PUBLIER UN TROU — v1034.
-
-       Un bloc 🎬 sans fichier déposé ne montre rien chez l'élève, et
-       plus rien ne le signale une fois le guide publié : il faut
-       rouvrir le guide pour s'en apercevoir. On le dit ici, une fois,
-       et on laisse le choix — garder en brouillon un guide dont il
-       manque une vidéo est parfaitement légitime. */
-    if(quelEtat === 'publie'){
-      const manquants = blocsSansFichier(blocs);
-      if(manquants.length && !await confirmer(
-          manquants.length + ' bloc(s) n\'ont pas de fichier déposé :\n' +
-          manquants.map(m => '· ' + blocConnu(m.type).emoji + ' ' +
-                             (m.titre || blocConnu(m.type).nom)).join('\n') +
-          '\n\nPublié tel quel, l\'élève verra ces blocs VIDES.\n\n' +
-          'Publier quand même ?')) return;
-    }
-
-    /* ⚠️ CHAQUE TITRE D'ÉTAPE GARDE UN IDENTIFIANT — v1223. Sans lui,
-       tous les segments d'un guide n'en faisaient qu'un (voir
-       segmentsDuGuide). Celui qu'on pose est celui que le classeur
-       lui donnait déjà (« t » + son rang) : rien ne change de nom, et
-       il ne bougera plus si l'on déplace le titre ensuite. */
-    poserLesIdsDesTitres(blocs);
-
-    enregistrementEnCours = true;
-    cadre.querySelectorAll('button').forEach(b => { b.disabled = true; });
-    try{
-      const rep = await appelPrep({
-        action: 'parcoursGuideSet',
-        id: idPose,
-        groupe: idGroupe,
-        titre: t,
-        etat: quelEtat,
-        blocs: blocs,
-        par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || ''
-      });
-      showToast(quelEtat === 'publie' ? 'Guide publié ✅' : 'Brouillon gardé ✅');
-      /* 🎬 v1252 — un classeur d'avant la v250 jette la recette du
-         montage sans un mot (blocsPropres recopie champ par champ). */
-      if(blocs.some(x => x && x.montage) && rep && rep.versionScript !== undefined &&
-         Number(rep.versionScript) < 250){
-        await informer('⚠️ Le montage n’a pas été gardé : le script Google Sheets n’est pas à jour ' +
-                       '(v' + rep.versionScript + ', il faut la v250).\n\nLa vidéo est bien déposée ; ' +
-                       'mets le script à jour, puis rouvre le guide et refais « 🎬 Monter la vidéo ».');
+      if(!ligne || ligne.parentNode !== zb) return;
+      relireTout();
+      const k = Number(String(ligne.dataset.rang || '').slice(1));
+      if(!isNaN(k) && k >= 0 && k < et.contenus.length){
+        et.contenus.splice(k, 1);
       }
-      /* 🎞️ v1253 — et seulement maintenant, les vidéos d'origine des
-         vidéos floutées, et les anciens sous-titres */
-      await effacerLesFichiersRemplaces(blocs);
-      parcoursGroupeOuvert = idGroupe;
-      afficherParcours();
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      /* L'écran reprend la main : le guide n'est pas parti, il faut
-         pouvoir réessayer sans tout retaper. */
-      enregistrementEnCours = false;
-      cadre.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      dessiner();
+      modifie();
+    });
+    listeRangeable(zb, ordre => {
+      relireTout();
+      const parCle = {};
+      et.contenus.forEach((b, k) => { parCle['b' + k] = b; });
+      et.contenus = ordre.map(c => parCle[c]).filter(Boolean);
+      dessiner();
+      modifie();
+    });
+
+    const aj = document.createElement('div');
+    aj.className = 'pcAjout';
+    aj.innerHTML = '<span class="pcMeta" style="margin-right:2px;">Ajouter dans cette étape :</span>';
+    BLOCS_PARCOURS.filter(t => t.type !== 'titre').forEach(t => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.dataset.ajout = t.type;
+      b.textContent = '＋ ' + t.emoji + ' ' + t.nom;
+      b.addEventListener('click', () => {
+        relireTout();
+        et.contenus.push({ type: t.type, texte: '', fichier: '', titre: '', duree: 0 });
+        E.ici = i; et.ouverte = true;
+        dessiner();
+        const c2 = E.corps[i];
+        const rangees = c2 ? Array.prototype.filter.call(c2.querySelector('.pcBlocs').children, l => l.dataset && l.dataset.rang) : [];
+        const der = rangees[rangees.length - 1];
+        if(der){
+          der.scrollIntoView({ block: 'nearest' });
+          /* Un média : on choisit le fichier tout de suite (même geste) */
+          const fi = t.type !== 'texte' && der.querySelector('input[type=file]');
+          if(fi) fi.click();
+          const ta = t.type === 'texte' && der.querySelector('textarea');
+          if(ta) ta.focus();
+        }
+        modifie();
+      });
+      aj.appendChild(b);
+    });
+    const dz = document.createElement('div');
+    dz.className = 'pcDepose';
+    dz.tabIndex = 0;
+    dz.setAttribute('role', 'button');
+    dz.textContent = '⬇️ Glisse ici tes vidéos (MP4), images et PDF — un bloc par fichier · ou touche pour les choisir';
+    const choix = document.createElement('input');
+    choix.type = 'file';
+    choix.multiple = true;
+    choix.accept = 'video/mp4,image/jpeg,image/png,image/webp,application/pdf';
+    choix.style.display = 'none';
+    dz.addEventListener('click', () => choix.click());
+    dz.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); choix.click(); } });
+    choix.addEventListener('change', () => {
+      const l = choix.files ? Array.prototype.slice.call(choix.files) : [];
+      choix.value = '';
+      if(l.length) deposerDansLEtape(et, i, l, dz);
+    });
+    corps.addEventListener('dragover', (e) => { if(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1){ e.preventDefault(); dz.classList.add('sur'); } });
+    corps.addEventListener('dragleave', (e) => { if(!corps.contains(e.relatedTarget)) dz.classList.remove('sur'); });
+    corps.addEventListener('drop', (e) => {
+      if(!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+      e.preventDefault();
+      dz.classList.remove('sur');
+      deposerDansLEtape(et, i, Array.prototype.slice.call(e.dataTransfer.files), dz);
+    });
+    aj.appendChild(dz);
+    aj.appendChild(choix);
+    corps.appendChild(aj);
+    E.corps[i] = corps;
+    return corps;
+  };
+
+  /* Plusieurs fichiers d'un coup : un bloc par fichier, le type reconnu */
+  const deposerDansLEtape = async (et, i, fichiers, dz) => {
+    const bons = fichiers.filter(genreDuFichierParcours);
+    const refuses = fichiers.length - bons.length;
+    if(!bons.length){ showToast('Seulement des vidéos MP4, des images (JPEG, PNG, WebP) et des PDF.'); return; }
+    const neufs = [];
+    for(let n = 0; n < bons.length; n++){
+      const f = bons[n], genre = genreDuFichierParcours(f);
+      const rang = bons.length > 1 ? ' (' + (n + 1) + '/' + bons.length + ')' : '';
+      dz.textContent = '📤 ' + f.name + rang + '…';
+      try{
+        const cle = await deposerUnFichier(genre, f, (pc) => { dz.textContent = '📤 ' + f.name + rang + ' — ' + pc + ' %'; });
+        let lien = '';
+        try{ lien = await lienDuFichierDeGuide(cle); }catch(e){ lien = ''; }
+        neufs.push({ type: genre, texte: '', fichier: cle, titre: f.name.replace(/\.[^.]+$/, ''), duree: 0, poids: f.size, lien: lien, liens: lien ? [lien] : [] });
+      }catch(e){
+        showToast('Dépôt impossible (' + f.name + ') : ' + e.message);
+      }
+    }
+    if(!document.body.contains(racine)) return;
+    relireTout();
+    et.contenus = et.contenus.concat(neufs);
+    E.ici = Math.max(0, E.etapes.indexOf(et)); et.ouverte = true;
+    dessiner();
+    if(neufs.length) showToast('✅ ' + neufs.length + ' fichier' + (neufs.length > 1 ? 's' : '') + ' ajouté' + (neufs.length > 1 ? 's' : '') +
+                               (refuses ? ' · ' + refuses + ' ignoré' + (refuses > 1 ? 's' : '') + ' (ni MP4, ni image, ni PDF)' : ''));
+    modifie();
+  };
+
+  /* ── ce que voit l'élève (ordinateur) ── */
+  const dessinerApercu = () => {
+    const z = E.apercu;
+    if(!z) return;
+    const et = E.etapes[E.ici];
+    const avecTitre = E.etapes.filter(x => x.titre).length;
+    const n = et && et.titre ? E.etapes.filter(x => x.titre).indexOf(et) + 1 : 0;
+    let h = '<div class="h">' + echParcours((grp.icone ? grp.icone + ' ' : '') + (E.titre || 'Le guide')) + '</div><div class="c">' +
+      (n ? '<div class="lg" style="margin:0 0 6px;">Étape ' + n + ' sur ' + avecTitre + '</div>' : '') + '<div class="e">' +
+      (et && et.titre ? '<b>' + echParcours(et.titre.titre || 'Étape sans nom') + '</b>' : '');
+    ((et && et.contenus) || []).forEach(b => {
+      if(b.type === 'texte'){ if(String(b.texte || '').trim()) h += '<p>' + echParcours(b.texte) + '</p>'; return; }
+      const liens = liensDuBloc(b), cles = clesDuBloc(b);
+      if(b.type === 'video'){
+        h += '<div class="vid">' + (liens[0] ? '<video src="' + echParcours(liens[0]) + '#t=0.5" preload="metadata" muted playsinline></video>' : '') +
+             '<span style="position:absolute;">▶</span></div><div class="lg">' + echParcours(b.titre || 'Vidéo') + (cles.length ? '' : ' — ⚠️ pas encore déposée') + '</div>';
+      }else if(b.type === 'image'){
+        h += '<div class="imgs">' + (liens.length ? liens.slice(0, 3).map(l => '<img src="' + echParcours(l) + '" alt="">').join('') : '<div class="vid" style="background:#e3e1d8;color:#5f6b63;font-size:13px;width:100%;">🖼️</div>') +
+             '</div><div class="lg">' + echParcours(b.titre || 'Images') + (cles.length > 1 ? ' · ' + cles.length + ' images' : '') + (cles.length ? '' : ' — ⚠️ pas encore déposée') + '</div>';
+      }else if(b.type === 'pdf'){
+        h += '<p>📄 <u>' + echParcours(b.titre || 'Le document') + '</u>' + (cles.length ? '' : ' — ⚠️ pas encore déposé') + '</p>';
+      }
+    });
+    h += '</div>' + (n ? '<div class="vu">✅ J’ai vu cette étape</div>' : '') + '</div>';
+    z.innerHTML = h;
+  };
+  let minApercu = null;
+  racine.addEventListener('input', (e) => {
+    if(e.target && e.target.classList && e.target.classList.contains('pcTitreG')) E.titre = e.target.value;
+    if(e.target && e.target.dataset && e.target.dataset.etapeNom !== undefined){
+      const et = E.etapes[Number(e.target.dataset.etapeNom)];
+      if(et && et.titre) et.titre.titre = e.target.value;
+      const l = racine.querySelector('.pcSomL[data-i="' + e.target.dataset.etapeNom + '"] .t');
+      if(l){ l.textContent = e.target.value || 'Étape sans nom'; l.classList.toggle('vide', !e.target.value.trim()); }
+    }
+    modifie();
+    clearTimeout(minApercu);
+    minApercu = setTimeout(() => { relireEtape(E.ici); dessinerApercu(); }, 300);
+  });
+  racine.addEventListener('change', () => modifie());
+
+  /* ── la barre du haut ── */
+  const majBarre = () => {
+    const p = racine.querySelector('.pcBarre .pcPuce');
+    if(p){ p.className = 'pcPuce ' + (E.etat === 'publie' ? 'pcPub' : 'pcBro'); p.textContent = E.etat === 'publie' ? '✅ Publié' : '✏️ Brouillon'; }
+    const bp = racine.querySelector('.pcPublier');
+    if(bp) bp.style.display = E.etat === 'publie' ? 'none' : '';
+  };
+  const publier = async () => {
+    relireTout();
+    if(!E.titre.trim()){ showToast('Donne un titre au guide.'); const t = racine.querySelector('.pcTitreG'); if(t) t.focus(); return; }
+    const manquants = blocsSansFichier(versBlocsParcours(E.etapes, false));
+    const sansNom = E.etapes.filter(et => et.titre && !et.titre.titre.trim()).length;
+    if((manquants.length || sansNom) && !await confirmer(
+        (manquants.length ? manquants.length + ' bloc(s) sans fichier déposé :\n' + manquants.map(m => '· ' + blocConnu(m.type).emoji + ' ' + (m.titre || blocConnu(m.type).nom)).join('\n') + '\n\n' : '') +
+        (sansNom ? sansNom + ' étape(s) sans nom.\n\n' : '') +
+        'Publié, l’élève ne verra pas ce qui est vide, jusqu’à ce que tu le remplisses.\n\nPublier quand même ?')) return;
+    E.etat = 'publie';
+    majBarre();
+    await sauver();
+    if(instantane() === E.dernier) showToast('Guide publié ✅ — il est chez les élèves de ce groupe');
+  };
+  const menu = async () => {
+    relireTout();
+    const choix = [];
+    if(E.etat === 'publie') choix.push({ nom: '✏️ Repasser en brouillon', valeur: 'brouillon' });
+    if(!neuf) choix.push({ nom: '🗑️ Supprimer ce guide', valeur: 'suppr' });
+    choix.push({ nom: 'Fermer', valeur: '' });
+    const v = await fenetre(E.etat === 'publie' ? 'Ce guide est publié : chaque changement arrive chez l’élève tout de suite.' :
+                            'Ce guide est en brouillon : l’élève ne le voit pas.', choix, '⋯ ' + (E.titre || 'Le guide'));
+    if(v === 'brouillon'){
+      if(!await confirmer('Repasser « ' + E.titre + ' » en brouillon ?\n\nIl disparaît de chez les élèves jusqu’à ce que tu le republies.')) return;
+      E.etat = 'brouillon'; majBarre(); await sauver();
+    }else if(v === 'suppr'){
+      if(!await confirmer('Supprimer « ' + E.titre + ' » ?\n\nSes étapes et ses blocs partent avec lui, et ça ne se défait pas.')) return;
+      try{
+        clearInterval(veille); clearTimeout(E.minuterie);
+        await appelPrep({ action: 'parcoursGuideDelete', id: idPose });
+        showToast('Guide supprimé ✅');
+        parcoursGroupeOuvert = idGroupe;
+        afficherParcours();
+      }catch(e){ showToast('Impossible : ' + e.message); }
     }
   };
+  const barre = () => {
+    const b = document.createElement('div');
+    b.className = 'pcBarre';
+    const r = document.createElement('button');
+    r.type = 'button'; r.className = 'pcRetour';
+    r.textContent = '‹ ' + ((grp.icone ? grp.icone + ' ' : '') + (grp.nom || 'Les guides'));
+    r.addEventListener('click', quitter);
+    const t = document.createElement('input');
+    t.type = 'text'; t.className = 'pcTitreG'; t.id = 'pdTitre';
+    t.placeholder = 'Le titre du guide'; t.value = E.titre;
+    t.setAttribute('aria-label', 'Le titre du guide');
+    const p = document.createElement('span'); p.className = 'pcPuce';
+    const s = document.createElement('span'); s.className = 'pcSauve'; s.setAttribute('role', 'status'); s.textContent = E.statut || (neuf ? '✏️ Donne un titre au guide : il s’enregistrera tout seul' : '💾 Enregistré');
+    b.append(r, t, p, s);
+    if(!E.large){
+      const v = document.createElement('button');
+      v.type = 'button'; v.className = 'btn btn-secondary'; v.textContent = '👁️ Voir';
+      v.addEventListener('click', () => { relireTout(); apercuDuGuide(E.titre.trim(), versBlocsParcours(E.etapes, false)); });
+      b.appendChild(v);
+    }
+    const pub = document.createElement('button');
+    pub.type = 'button'; pub.className = 'btn btn-primary pcPublier'; pub.textContent = '✅ Publier';
+    pub.addEventListener('click', publier);
+    const m = document.createElement('button');
+    m.type = 'button'; m.className = 'btn btn-secondary'; m.textContent = '⋯'; m.setAttribute('aria-label', 'Plus');
+    m.addEventListener('click', menu);
+    b.append(pub, m);
+    return b;
+  };
+
+  /* ── l'en-tête d'une étape (nom, ranger, supprimer) ── */
+  const enteteDEtape = (et, i, carte) => {
+    const h = document.createElement('div');
+    h.className = 'pcEtT';
+    const avecTitre = E.etapes.filter(x => x.titre);
+    if(et.titre && carte){
+      const p = document.createElement('span'); p.className = 'pcPoi'; p.dataset.poignee = '1'; p.textContent = '⠿'; p.title = 'Attrape pour ranger l’étape';
+      h.appendChild(p);
+    }
+    const num = document.createElement('span');
+    num.className = 'pcNum' + (et.titre ? '' : ' intro');
+    num.textContent = et.titre ? String(avecTitre.indexOf(et) + 1) : '•';
+    h.appendChild(num);
+    if(et.titre){
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.className = 'pcEtNom' + (carte ? '' : ' grand');
+      inp.dataset.etapeNom = String(i);
+      inp.placeholder = 'Nom de l’étape…'; inp.value = et.titre.titre || '';
+      inp.setAttribute('aria-label', 'Nom de l’étape ' + (avecTitre.indexOf(et) + 1));
+      h.appendChild(inp);
+    }else{
+      const s = document.createElement('span');
+      s.style.cssText = 'flex:1;font-size:14px;font-weight:700;color:var(--muted);';
+      s.textContent = avecTitre.length ? 'Avant la première étape' : 'Tout le guide (une seule étape)';
+      h.appendChild(s);
+    }
+    if(carte){
+      const meta = document.createElement('span');
+      meta.className = 'pcMeta';
+      const em = et.contenus.map(b => blocConnu(b.type).emoji).join(' ');
+      const manque = et.contenus.filter(b => !blocEcrit(b.type) && !clesDuBloc(b).length).length;
+      meta.innerHTML = echParcours(em) + (manque ? ' · <span style="color:var(--warn-text, #b4471a)">⚠️ ' + manque + ' fichier' + (manque > 1 ? 's' : '') + ' à déposer</span>' : '');
+      h.appendChild(meta);
+      if(et.titre){
+        const fl = document.createElement('span');
+        fl.innerHTML = '<span class="pcIco" data-monter title="Monter l’étape">▲</span><span class="pcIco" data-descendre title="Descendre l’étape">▼</span>';
+        h.appendChild(fl);
+      }
+    }
+    if(et.titre){
+      const sup = document.createElement('button');
+      sup.type = 'button'; sup.className = 'pcIco'; sup.textContent = '🗑️'; sup.title = 'Supprimer l’étape';
+      sup.addEventListener('click', (e) => { e.stopPropagation(); supprimerEtape(i); });
+      h.appendChild(sup);
+    }
+    if(carte){
+      const tg = document.createElement('button');
+      tg.type = 'button'; tg.className = 'pcIco'; tg.textContent = et.ouverte ? '▾' : '▸';
+      tg.setAttribute('aria-expanded', et.ouverte ? 'true' : 'false');
+      tg.title = et.ouverte ? 'Replier' : 'Déplier';
+      tg.addEventListener('click', () => { relireTout(); et.ouverte = !et.ouverte; E.ici = i; dessiner(); });
+      h.appendChild(tg);
+    }
+    return h;
+  };
+
+  /* ── l'écran : B (ordinateur) ou A (téléphone) ── */
+  const dessiner = () => {
+    const y = window.scrollY;
+    E.large = (zone.clientWidth || racine.clientWidth || window.innerWidth) >= PC_LARGE;
+    E.corps = [];
+    E.apercu = null;
+    racine.innerHTML = '';
+    racine.appendChild(barre());
+    majBarre();
+    E.ici = Math.max(0, Math.min(E.ici, E.etapes.length - 1));
+    if(E.large){
+      const g = document.createElement('div');
+      g.className = 'pcTrois';
+      /* le sommaire */
+      const som = document.createElement('div');
+      som.className = 'pcSom';
+      som.innerHTML = '<div class="pcSomT">Les étapes</div>';
+      const ligneSom = (et, i) => {
+        const l = document.createElement('div');
+        l.className = 'pcSomL' + (i === E.ici ? ' on' : '');
+        l.dataset.i = String(i);
+        if(et.titre) l.dataset.rang = 'e' + i;
+        const manque = et.contenus.some(b => !blocEcrit(b.type) && !clesDuBloc(b).length);
+        const nom = et.titre ? (et.titre.titre || '').trim() : '';
+        const avecTitre = E.etapes.filter(x => x.titre);
+        l.innerHTML = (et.titre ? '<span class="pcPoi" data-poignee="1" title="Attrape pour ranger">⠿</span>' : '') +
+          '<span class="pcNum' + (et.titre ? '' : ' intro') + '">' + (et.titre ? avecTitre.indexOf(et) + 1 : '•') + '</span>' +
+          '<span class="t' + (et.titre && !nom ? ' vide' : '') + '">' + echParcours(et.titre ? (nom || 'Étape sans nom') : (avecTitre.length ? 'Avant la 1re étape' : 'Tout le guide')) + '</span>' +
+          (manque ? '<span title="Un fichier manque">⚠️</span>' : (et.contenus.some(b => b.type === 'video') ? '<span>🎬</span>' : ''));
+        l.addEventListener('click', (e) => {
+          if(e.target.closest && e.target.closest('[data-poignee]')) return;
+          relireTout(); E.ici = i; dessiner();
+        });
+        return l;
+      };
+      E.etapes.forEach((et, i) => { if(!et.titre) som.appendChild(ligneSom(et, i)); });
+      const listeE = document.createElement('div');
+      E.etapes.forEach((et, i) => { if(et.titre) listeE.appendChild(ligneSom(et, i)); });
+      som.appendChild(listeE);
+      listeRangeable(listeE, rangerEtapes);
+      const bN = document.createElement('button');
+      bN.type = 'button'; bN.className = 'btn btn-secondary'; bN.textContent = '➕ Nouvelle étape';
+      bN.addEventListener('click', ajouterEtape);
+      const bP = document.createElement('button');
+      bP.type = 'button'; bP.className = 'btn btn-secondary'; bP.style.fontSize = '12px'; bP.textContent = '📋 Plusieurs d’un coup';
+      bP.addEventListener('click', plusieursEtapes);
+      som.append(bN, bP);
+      /* l'étape */
+      const mil = document.createElement('div');
+      const et = E.etapes[E.ici];
+      const carte = document.createElement('div');
+      carte.className = 'pcEt';
+      carte.appendChild(enteteDEtape(et, E.ici, false));
+      carte.appendChild(corpsDEtape(et, E.ici));
+      mil.appendChild(carte);
+      const nav = document.createElement('div');
+      nav.className = 'pcNav';
+      const prec = E.etapes[E.ici - 1], suiv = E.etapes[E.ici + 1];
+      const bPr = document.createElement('button'); bPr.type = 'button';
+      bPr.textContent = prec ? '‹ Étape précédente' : '';
+      if(prec) bPr.addEventListener('click', () => { relireTout(); E.ici--; dessiner(); });
+      const bSu = document.createElement('button'); bSu.type = 'button'; bSu.className = 'suiv';
+      bSu.textContent = suiv ? 'Étape suivante : ' + ((suiv.titre && suiv.titre.titre) || 'sans nom') + ' ›' : '➕ Nouvelle étape';
+      bSu.addEventListener('click', () => { if(suiv){ relireTout(); E.ici++; dessiner(); } else ajouterEtape(); });
+      nav.append(bPr, bSu);
+      mil.appendChild(nav);
+      /* l'aperçu */
+      const ap = document.createElement('div');
+      ap.innerHTML = '<div class="pcSomT" style="margin:0 0 8px;">👁️ Ce que voit l’élève</div>';
+      const tel = document.createElement('div');
+      tel.className = 'pcTel';
+      ap.appendChild(tel);
+      E.apercu = tel;
+      g.append(som, mil, ap);
+      racine.appendChild(g);
+      dessinerApercu();
+    }else{
+      const liste = document.createElement('div');
+      E.etapes.forEach((et, i) => {
+        const c = document.createElement('div');
+        c.className = 'pcEt';
+        if(et.titre) c.dataset.rang = 'e' + i;
+        c.appendChild(enteteDEtape(et, i, true));
+        if(et.ouverte) c.appendChild(corpsDEtape(et, i));
+        liste.appendChild(c);
+      });
+      racine.appendChild(liste);
+      listeRangeable(liste, rangerEtapes);
+      const nv = document.createElement('div');
+      nv.className = 'pcNouv';
+      const bN = document.createElement('button');
+      bN.type = 'button'; bN.className = 'btn btn-secondary'; bN.style.flex = '2 1 200px'; bN.textContent = '➕ Nouvelle étape';
+      bN.addEventListener('click', ajouterEtape);
+      const bP = document.createElement('button');
+      bP.type = 'button'; bP.className = 'btn btn-secondary'; bP.style.flex = '1 1 160px'; bP.textContent = '📋 Plusieurs étapes d’un coup';
+      bP.addEventListener('click', plusieursEtapes);
+      nv.append(bN, bP);
+      racine.appendChild(nv);
+    }
+    if(Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
+  };
+  const auRedimensionnement = () => {
+    const large = (zone.clientWidth || window.innerWidth) >= PC_LARGE;
+    if(large !== E.large && document.body.contains(racine)){ relireTout(); dessiner(); }
+  };
+  window.addEventListener('resize', auRedimensionnement);
 
   zone.innerHTML = '';
-  zone.appendChild(cadre);
+  zone.appendChild(racine);
   dessiner();
+  if(neuf){ const t = racine.querySelector('.pcTitreG'); if(t) t.focus(); }
+  /* pour les bancs */
+  racine._pc = { E: E, sauver: sauver, relireTout: relireTout, quitter: quitter };
 }
 
 /* ============================================================
@@ -1643,7 +2122,7 @@ function ligneDuBlocVideo(b, l){
       await deposerLesSousTitres(rf, res.sousTitres);
       montage = M.recettePropre(rf, 1);
       redire();
-      showToast('Sous-titres enregistrés ✅ — n’oublie pas d’enregistrer le guide');
+      showToast('Sous-titres enregistrés ✅ — le guide s’enregistre tout seul');
     }catch(e){ redire(); showToast('Dépôt impossible : ' + e.message); }
   };
 
@@ -1694,7 +2173,7 @@ function ligneDuBlocVideo(b, l){
           (res.clips[0] && res.clips[0].fichier ? res.clips[0].fichier.name.replace(/\.[^.]+$/, '') : '');
       }
       redire();
-      showToast(res.sans ? 'Vidéo déposée ✅' : 'Montage enregistré ✅ — n’oublie pas d’enregistrer le guide');
+      showToast(res.sans ? 'Vidéo déposée ✅' : 'Montage enregistré ✅ — le guide s’enregistre tout seul');
     }catch(e){
       barre.style.display = 'none';
       redire();
