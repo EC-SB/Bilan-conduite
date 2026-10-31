@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 17:21 — v1315 */
+/* Déployé le 30/10/2026 à 17:51 — v1316 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1316,
+    date: 'Vendredi 30 octobre 2026',
+    resume: '📱 Messagerie au téléphone réparée · 🚨 « Urgent » dans le Suivi',
+    quoi: [
+      { emoji: '📱',
+        titre: 'La messagerie au téléphone',
+        texte: 'L’appui long ne fait plus disparaître le message : le menu reste ouvert, avec 📋 Copier. Les photos s’ouvrent en grand devant le fil, et la barre reste au-dessus du clavier.' },
+      { emoji: '🚨',
+        titre: 'Urgent : ajouter une leçon',
+        texte: 'Dans « ⚠️ Suivi de … » : avant son examen (ou avant l’examen blanc). Cochée, elle prévient le bureau dans « Message important ».' }
+    ]
+  },
   {
     version: 1315,
     date: 'Vendredi 30 octobre 2026',
