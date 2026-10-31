@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 31/10/2026 à 17:20 — v1326 -->
+<!-- Déployé le 31/10/2026 à 17:50 — v1327 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -4550,7 +4550,8 @@
   function segmentsDe(e){
     return (e.segments && e.segments.length) ? e.segments
       : [{ id: '', titre: e.titre || 'Le guide', de: 0,
-           a: ((e.blocs || []).length - 1), vuLe: e.vuLe || '' }];
+           a: ((e.blocs || []).length - 1), vuLe: e.vuLe || '',
+           attente: e.attente || '' }];   /* ⚡ v1327 — un groupe « sans attente » */
   }
 
   /* La file dans l'ordre où il la descend : c'est elle que « Suivant »
