@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 20:09 — v1300 */
+/* Déployé le 31/10/2026 à 11:37 — v1319 */
 /* ============================================================
    ec-durees-examen.js — ⏱️ LA DURÉE DES EXAMENS OFFICIELS
 
@@ -394,6 +394,187 @@ async function afficherDureesExamen(){
     '<div style="font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:12px 0 6px;">LES DERNIERS</div>' +
     l.slice(0, 15).map(x => '<div style="font-size:13px;padding:5px 0;border-top:1px solid var(--line);">' + dxFr(x.jour) + ' · <b>' + dxEch(x.eleve) + '</b> · ' + dxEch(dxPhrase(x.debut, x.fin, x.jour)) +
       [x.inspecteur, x.centre, x.moniteur].filter(Boolean).map(t => ' · ' + dxEch(t)).join('') + '</div>').join('');
+}
+
+/* ============================================================
+   📊 STATISTIQUES › ⏱️ DURÉE ET RETARD DES EXAMENS — v1319
+
+   David, le 31 octobre : « maintenant que l'on a les durées d'examen
+   avec l'heure de départ et d'arrivée, compare par rapport à l'heure
+   de début prévue la moyenne des retards par inspecteur, et note sur
+   les examens dans les derniers le delta ». Ses choix (schéma v1318) :
+     · l'heure prévue = celle de 🎓 Suivi permis (le Worker la lit au
+       premier ▶️ Début ; elle se corrige ici, ✏️) ;
+     · « à l'heure » = commencé à 2 minutes près ;
+     · seulement ici (plus dans Permis › Résultats) ;
+     · vu comme le taux de réussite : toute l'équipe avec le droit
+       « stats », ses propres examens seulement avec « stats_perso ».
+   ⚠️ JAMAIS À L'ÉLÈVE, comme le reste de ce module.
+   ============================================================ */
+const DX_A_L_HEURE_MIN = 2;
+const DXF = { inspecteur: '', centre: '', moniteur: '' };
+/* Le retard, en minutes : début réel moins heure prévue (négatif = en avance) */
+function dxRetard(x){
+  const a = dxHeure(x && x.prevu), b = dxHeure(x && x.debut);
+  if(!a || !b) return null;
+  const m = (Number(b.slice(0, 2)) * 60 + Number(b.slice(3))) - (Number(a.slice(0, 2)) * 60 + Number(a.slice(3)));
+  return Math.abs(m) < 240 ? m : null;
+}
+function dxEcart(m){
+  if(m === null || m === undefined || isNaN(m)) return '—';
+  m = Math.round(m);
+  if(m === 0) return '0 min';
+  return (m > 0 ? '+' : '−') + dxDuree(Math.abs(m));
+}
+function dxEcartHtml(m){
+  if(m === null || m === undefined) return '—';
+  const ok = Math.abs(m) <= DX_A_L_HEURE_MIN;
+  return '<span style="font-weight:800;color:' + (ok ? 'var(--accent-text)' : 'var(--red)') + ';">' + dxEcart(m) + '</span>';
+}
+/* Le passage, lu dans les résultats (premier, repassage) — inconnu sinon */
+function dxRangDe(x){
+  if(!x.eleveCle || typeof resultatsExamens === 'undefined') return '';
+  const r = (resultatsExamens || []).find(r => r.iso === x.jour && dxNorm(r.eleve) === x.eleveCle);
+  return r ? String(r.rang || '1') : '';
+}
+/* Ce que l'écran a le droit de compter, et ce qu'on a choisi */
+function dxListeStats(){
+  const tout = (typeof reussiteDeToutLeMonde === 'function') ? reussiteDeToutLeMonde() : true;
+  const moi = (typeof monNomDeMoniteur === 'function') ? monNomDeMoniteur() : '';
+  let l = (DX.liste || []).filter(x => dxHeure(x.debut) || Number(x.minutes) > 0);
+  if(!tout) l = l.filter(x => typeof memeNom === 'function' ? memeNom(x.moniteur, moi) : dxNorm(x.moniteur) === dxNorm(moi));
+  return { tout: tout, moi: moi, permis: l };
+}
+function dxFiltrer(l){
+  const b = bornesStats();
+  const rang = ($('statsRang') && $('statsRang').value) || 'tous';
+  return l.filter(x => dansLesBornes({ iso: x.jour }, b))
+    .filter(x => !DXF.inspecteur || (x.inspecteur || '') === DXF.inspecteur)
+    .filter(x => !DXF.centre || (x.centre || '') === DXF.centre)
+    .filter(x => !DXF.moniteur || (x.moniteur || '') === DXF.moniteur)
+    .filter(x => rang === 'tous' || (rang === 'premier' ? dxRangDe(x) === '1' : (dxRangDe(x) && dxRangDe(x) !== '1')));
+}
+/* Les trois menus : inspecteur, centre, moniteur */
+function filtresDureesStats(){
+  const d = document.createElement('div');
+  d.id = 'statsFiltresDx';
+  d.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:6px;';
+  const { tout, permis } = dxListeStats();
+  const valeurs = k => [...new Set(permis.map(x => String(x[k] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  [['inspecteur', 'Inspecteur'], ['centre', 'Centre'], ['moniteur', 'Moniteur']].forEach(([k, t]) => {
+    if(k === 'moniteur' && !tout) return;
+    const w = document.createElement('div');
+    const id = 'statsDx' + k;
+    w.innerHTML = '<label for="' + id + '">' + t + '</label>';
+    const sel = document.createElement('select');
+    sel.id = id;
+    sel.innerHTML = '<option value="">Tous</option>' + valeurs(k).map(v => '<option value="' + dxEch(v) + '"' + (DXF[k] === v ? ' selected' : '') + '>' + dxEch(v) + '</option>').join('');
+    sel.addEventListener('change', () => { DXF[k] = sel.value; dessinerDureesStats(); });
+    w.appendChild(sel);
+    d.appendChild(w);
+  });
+  return d;
+}
+async function afficherDureesStats(){
+  const z = $('statsZone');
+  if(!z) return;
+  if(!DX.liste) z.innerHTML = '<div class="empty">Lecture des durées…</div>';
+  await chargerDureesExamen(true);
+  if(typeof resultatsLus !== 'undefined' && !resultatsLus && typeof chargerResultats === 'function'){
+    try{ await chargerResultats(false); }catch(e){ /* le passage restera inconnu */ }
+  }
+  const r = $('statsReglages');
+  if(r && !$('statsFiltresDx')) r.appendChild(filtresDureesStats());
+  dessinerDureesStats();
+}
+function dessinerDureesStats(){
+  const z = $('statsZone');
+  if(!z) return;
+  const { tout, moi, permis } = dxListeStats();
+  const l = dxFiltrer(permis);
+  const b = bornesStats();
+  if(!tout && !moi){
+    z.innerHTML = '<div class="empty">Ton compte n’a pas de nom de moniteur : impossible de retrouver tes examens.</div>';
+    return;
+  }
+  if(!l.length){
+    z.innerHTML = '<div class="empty">' + (tout ? 'Aucun examen chronométré sur ' : 'Aucun de tes examens chronométré sur ') + dxEch(b.titre) +
+      '.<br><span style="font-size:12px;">Ils arrivent avec ▶️ Début et ⏹️ Fin, sur la fiche d’examen officiel.</span></div>';
+    return;
+  }
+  const stats = rows => {
+    const m = rows.map(x => Number(x.minutes)).filter(v => v > 0);
+    const r = rows.map(dxRetard).filter(v => v !== null);
+    const moy = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+    return { n: rows.length, nm: m.length, moy: moy(m), min: m.length ? Math.min.apply(null, m) : null, max: m.length ? Math.max.apply(null, m) : null,
+             nr: r.length, retard: moy(r), heure: r.filter(v => Math.abs(v) <= DX_A_L_HEURE_MIN).length, pire: r.length ? Math.max.apply(null, r) : null };
+  };
+  const g = stats(l);
+  const tuile = (t, v, sous) => '<div style="background:var(--navy);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;">' +
+    '<div style="font-size:12.5px;color:var(--muted);">' + t + '</div><div style="font-size:30px;font-weight:800;line-height:1.2;color:var(--accent-text);">' + v + '</div>' +
+    '<div style="font-size:12px;color:var(--muted);">' + sous + '</div></div>';
+  const th = 'padding:5px 6px;', td = 'padding:6px;text-align:center;';
+  const titre = t => '<div style="font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px;">' + t + '</div>';
+  const table = (rows) => '<div style="overflow-x:auto;"><table class="dxTable" style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="color:var(--muted);font-size:12px;">' +
+    '<th style="text-align:left;' + th + '"></th><th style="' + th + '">Examens</th><th style="' + th + '">Durée moyenne</th><th style="' + th + '">Plus court</th><th style="' + th + '">Plus long</th>' +
+    '<th style="' + th + '">Retard moyen</th><th style="' + th + '">À l’heure (± ' + DX_A_L_HEURE_MIN + ' min)</th><th style="' + th + '">Plus gros retard</th></tr>' +
+    rows.map(([k, st]) => '<tr style="border-top:1px solid var(--line);"><td style="padding:6px;">' + dxEch(k) + '</td><td style="' + td + '">' + st.n + '</td>' +
+      '<td style="' + td + 'font-weight:800;color:var(--accent-text);">' + (st.moy !== null ? dxDuree(st.moy) : '—') + '</td>' +
+      '<td style="' + td + '">' + (st.min !== null ? dxDuree(st.min) : '—') + '</td><td style="' + td + '">' + (st.max !== null ? dxDuree(st.max) : '—') + '</td>' +
+      '<td style="' + td + '">' + (st.retard !== null ? dxEcartHtml(st.retard) : '—') + '</td>' +
+      '<td style="' + td + '">' + (st.nr ? Math.round(100 * st.heure / st.nr) + ' %' : '—') + '</td>' +
+      '<td style="' + td + '">' + (st.pire !== null ? dxEcart(st.pire) : '—') + '</td></tr>').join('') + '</table></div>';
+  const par = (cle, vide) => {
+    const m = {};
+    l.forEach(x => { const k = typeof cle === 'function' ? cle(x) : (String(x[cle] || '').trim() || vide); (m[k] = m[k] || []).push(x); });
+    return Object.keys(m).map(k => [k, stats(m[k])]);
+  };
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const parMois = par(x => x.jour.slice(0, 7), '').sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([k, st]) => [MOIS[Number(k.slice(5, 7)) - 1] + ' ' + k.slice(0, 4), st]);
+  const peutCorriger = (typeof aDroit !== 'function') || aDroit('stats') || aDroit('bureau_permis');
+  let h = '<div class="dxTuiles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">' +
+    tuile('Durée moyenne', g.moy !== null ? dxDuree(g.moy) : '—', g.nm + ' examen' + (g.nm > 1 ? 's' : '') + (g.min !== null ? ' · de ' + dxDuree(g.min) + ' à ' + dxDuree(g.max) : '')) +
+    tuile('Retard moyen', g.retard !== null ? dxEcart(g.retard) : '—', g.nr ? 'par rapport à l’heure prévue (' + g.nr + ' examen' + (g.nr > 1 ? 's' : '') + ')' : 'aucune heure prévue notée') +
+    tuile('À l’heure', g.nr ? Math.round(100 * g.heure / g.nr) + ' %' : '—', g.nr ? g.heure + ' sur ' + g.nr + ' commencé' + (g.heure > 1 ? 's' : '') + ' à ± ' + DX_A_L_HEURE_MIN + ' min' : '—') +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-top:8px;">Période : ' + dxEch(b.titre) + ' — 🔒 pour l’équipe, jamais à l’élève</div>' +
+    titre('PAR INSPECTEUR') + table(par('inspecteur', 'Inspecteur non noté').sort((a, b) => b[1].n - a[1].n)) +
+    titre('PAR CENTRE D’EXAMEN') + table(par('centre', 'Centre non noté').sort((a, b) => b[1].n - a[1].n)) +
+    (parMois.length > 1 ? titre('PAR MOIS') + table(parMois) : '') +
+    titre('LES DERNIERS');
+  h += '<div id="dxDerniers">' + l.slice(0, 40).map((x, i) => {
+    const rt = dxRetard(x);
+    return '<div class="dxDernier" style="font-size:13px;padding:6px 0;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<span style="flex:1;min-width:240px;">' + dxFr(x.jour) + ' · <b>' + dxEch(x.eleve) + '</b> · ' + dxEch(dxPhrase(x.debut, x.fin, x.jour)) + ' · ' +
+      (dxHeure(x.prevu) ? 'prévu ' + dxHeure(x.prevu) + ' · ' + dxEcartHtml(rt) : '<span style="color:var(--warn-text);">heure prévue non notée</span>') +
+      [x.inspecteur, x.centre, x.moniteur].filter(Boolean).map(t => ' · ' + dxEch(t)).join('') + '</span>' +
+      (peutCorriger ? '<button type="button" class="btn btn-secondary dxPrevu" data-i="' + i + '" style="width:auto;margin:0;padding:5px 10px;font-size:12px;" title="L’heure prévue de cet examen">✏️ ' + (dxHeure(x.prevu) ? 'prévu' : 'heure prévue') + '</button>' : '') +
+      '</div>';
+  }).join('') + '</div>';
+  z.innerHTML = h;
+  z.querySelectorAll('.dxPrevu').forEach(bt => bt.addEventListener('click', async () => {
+    const x = l[Number(bt.getAttribute('data-i'))];
+    if(!x) return;
+    const v = await demander('L’heure prévue de l’examen (celle de 🎓 Suivi permis), par exemple « 08:30 ».\nVide = pas d’heure prévue.', dxHeure(x.prevu) || '', '⏱️ ' + x.eleve);
+    if(v === null) return;
+    bt.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'examenDureePrevu', id: x.id, prevu: String(v).trim() });
+      x.prevu = r.prevu || '';
+      dessinerDureesStats();
+    }catch(e){ bt.disabled = false; showToast('Impossible : ' + e.message); }
+  }));
+}
+/* Le libellé d'un résultat dont l'élève a été effacé : « Examen de 08h30
+   du 21/10/2026 » (l'heure, si une durée sans nom la donne ce jour-là) */
+function libelleExamenSansNom(r){
+  const jour = String((r && r.iso) || '');
+  const anonymes = (DX.liste || []).filter(x => !x.eleveCle && x.jour === jour);
+  const memes = anonymes.filter(x => !r.moniteur || dxNorm(x.moniteur) === dxNorm(r.moniteur));
+  const x = memes.length === 1 ? memes[0] : (anonymes.length === 1 ? anonymes[0] : null);
+  const h = x ? (dxHeure(x.prevu) || dxHeure(x.debut)) : '';
+  return 'Examen' + (h ? ' de ' + h.replace(':', 'h') : '') + ' du ' + (r.date || dxFr(jour));
 }
 
 /* Signale que ce module est bien chargé */
