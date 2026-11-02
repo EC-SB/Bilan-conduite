@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 15:17 — v1311 */
+/* Déployé le 02/11/2026 à 14:59 — v1333 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2849,6 +2849,9 @@ function enteteEleve(nom){
   /* 🆔 v1184 — l'id Drivup, juste après la formation : visible sur
      tous les onglets du dossier. */
   if(f && f.eleve) d.appendChild(pastilleDrivupEleve(nom, f));
+  /* 🏢 v1333 — son agence d'inscription (Drivup), juste après : c'est son
+     centre d'examen de base */
+  if(f && f.eleve) d.appendChild(pastilleAgenceEleve(nom, f));
   /* 👥 v1308 — deux élèves au même nom : l'appli les confond */
   const hom = pastilleHomonymesEleve(nom);
   if(hom) d.appendChild(hom);
@@ -2949,6 +2952,44 @@ function pastilleDrivupEleve(nom, f){
   if(peut) p.addEventListener('click', () => fenetreIdDrivup(nom, id));
   return p;
 }
+/* 🏢 L'AGENCE D'INSCRIPTION — v1333
+
+   David, le 2 novembre : reprise de Drivup par le favori, gardée dans sa
+   fiche (colonne W), et « qu'on puisse changer » ; inconnue = Saint-Brieuc
+   par défaut. Le bureau et les administrateurs la changent ; les autres la
+   voient. */
+function pastilleAgenceEleve(nom, f){
+  const a = (typeof agencePropre === 'function') ? agencePropre(f && f.agence) : String((f && f.agence) || '');
+  const peut = peutCorrigerIdDrivup();
+  const p = document.createElement(peut ? 'button' : 'span');
+  p.className = peut ? 'btn btn-secondary' : '';
+  p.dataset.agence = a || '?';
+  p.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:5px 11px;' +
+    'font-size:12px;font-weight:700;border-radius:999px;white-space:nowrap;' +
+    (peut ? '' : 'border:1px solid var(--line);') +
+    (a ? '' : 'border-color:var(--orange);color:var(--orange);');
+  p.textContent = '🏢 ' + (a || 'Agence ❓');
+  p.title = a ? 'Son agence d’inscription : son centre d’examen de base' + (peut ? ' — clique pour la changer' : '')
+              : 'Agence pas connue : Saint-Brieuc par défaut' + (peut ? ' — clique pour la poser' : '');
+  if(peut) p.addEventListener('click', () => changerAgenceEleve(nom));
+  return p;
+}
+async function changerAgenceEleve(nom){
+  if(typeof choisirDansUneListe !== 'function') return;
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const avant = (typeof agencePropre === 'function') ? agencePropre(f && f.agence) : '';
+  const v = await choisirDansUneListe('🏢 Agence d’inscription de ' + nom,
+    [{ val: 'Saint-Brieuc', lib: 'Saint-Brieuc' }, { val: 'Loudéac', lib: 'Loudéac' }], avant);
+  if(v === null || v === undefined) return;
+  try{
+    await appelPrep({ action: 'ficheAgence', eleve: nom, agence: v });
+    if(f) f.agence = v;
+    showToast(v ? '🏢 ' + nom + ' : ' + v + ' ✅' : '🏢 Agence retirée : Saint-Brieuc par défaut');
+    dessinerPageEleve();
+    if(typeof redessinerBureau === 'function') redessinerBureau();
+  }catch(e){ showToast('Erreur : ' + e.message); }
+}
+
 function fenetreIdDrivup(nom, id){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -4790,6 +4831,29 @@ function ongletPermis(corps, nom){
       refaire();
     });
   corps.appendChild(lDate);
+
+  /* 📍 v1333 — son centre d'examen : de base celui de son agence (David :
+     « que ça suive automatiquement »), et « OK pour passer aussi à
+     l'autre », pour tous les élèves. Un centre choisi pour un passage
+     (🗓️ RDV PERMIS) se dit à côté. */
+  if(typeof centreDeBase === 'function'){
+    const base = centreDeBase(nom);
+    const ag = agenceDe(nom);
+    const lCentre = ligneDossier('📍 Centre d’examen',
+      base + (ag ? ' · son agence d’inscription' : ' · par défaut (agence pas connue)') +
+      (s.centre && agencePropre(s.centre) && agencePropre(s.centre) !== base ? ' · ce passage : ' + s.centre : ''),
+      ag ? 'var(--accent-text)' : 'var(--warn-text)');
+    lCentre.dataset.centreBase = base;
+    if(typeof peutCorrigerIdDrivup === 'function' && peutCorrigerIdDrivup()){
+      actionDossier(lCentre, '🔀 Changer', () => changerAgenceEleve(nom));
+    }
+    corps.appendChild(lCentre);
+    if(typeof interrupteurLoudeac === 'function'){
+      const sw = interrupteurLoudeac(nom);
+      sw.style.margin = '6px 0 10px';
+      corps.appendChild(sw);
+    }
+  }
 
   /* ── UNE DATE QUE PLUS RIEN NE PORTE ──
 
