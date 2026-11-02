@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 11:44 — v1329 */
+/* Déployé le 02/11/2026 à 12:22 — v1330 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1330,
+    date: 'Lundi 2 novembre 2026',
+    resume: '📣 Préparation et 🏁 Résultats : une ligne par session, par élève',
+    quoi: [
+      { emoji: '📣',
+        titre: 'Préparation',
+        texte: 'Toutes les sessions à venir, rangées par date, une ligne chacune (groupe à créer / créé). Un appui l’ouvre en fenêtre : ① horaires, ② messages, ③ groupe de la messagerie.' },
+      { emoji: '✉️',
+        titre: 'Messages SOLO en puces',
+        texte: 'Un appui choisit le message, son texte et 📋 Copier sont dessous.' },
+      { emoji: '🏁',
+        titre: 'Résultats',
+        texte: 'Rangés par session, une ligne par élève avec ✅ Obtenu · ❌ Ajourné · 🚫 Pas passé. Les captures du CEPC se collent dans la fenêtre du résultat.' }
+    ]
+  },
   {
     version: 1329,
     date: 'Lundi 2 novembre 2026',
