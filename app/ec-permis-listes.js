@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:26 — v1331 */
+/* Déployé le 02/11/2026 à 14:42 — v1332 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2810,6 +2810,16 @@ function etiquetteDuPret(x){
   return { t: motsDeLaReserve(v, false), ton: 'v' };
 }
 
+/* 📍 v1332 — le centre d'examen d'un élève prêt. David : « juste après le
+   nombre d'heures », Saint-Brieuc par défaut ; un « OK Loudéac » le dit
+   à côté (et compte dans le filtre 📍 Loudéac). */
+function centreDuPret(x){
+  return String(suiviDe(x.eleve).centre || '').trim() || 'Saint-Brieuc';
+}
+function pretPourLoudeac(x){
+  return /loud/i.test(centreDuPret(x)) || suiviDe(x.eleve).okLoudeac === 'oui';
+}
+
 async function mettreDansRdvPermis(nom){
   await majSuivi(nom, { aPlanifier: 'oui', retireAPrevoir: '' });
   showToast(nom + ' → 🗓️ RDV PERMIS ✅');
@@ -2831,6 +2841,9 @@ function pucesDesPrets(liste, choisi, nAttente){
     ['repassage', '🔁 Repassages', nRep + nAttente],
     ['urgent', '🔴 Urgents', liste.filter(e => String(e.urgence || '') >= '4').length],
     ['heures', '⏱️ Heures à préciser', liste.filter(heuresAPreciser).length],
+    /* 📍 v1332 — par centre d'examen (un « OK Loudéac » compte dans les deux) */
+    ['sb', '📍 Saint-Brieuc', liste.filter(e => /brieuc/i.test(centreDuPret(e))).length],
+    ['lo', '📍 Loudéac', liste.filter(pretPourLoudeac).length],
     ['annule', '❌ Examens annulés', liste.filter(e => e.etat && e.etat.permis === 'annule').length]
   ];
   choix.forEach(([v, t, n]) => {
@@ -2881,6 +2894,8 @@ function afficherExamensPermis(tous){
   else if(fPer === 'repassage') per = per.filter(e => suiviDe(e.eleve).nbAjournements);
   else if(fPer === 'premier') per = per.filter(e => !suiviDe(e.eleve).nbAjournements);
   else if(fPer === 'heures') per = per.filter(e => heuresAPreciser(e));
+  else if(fPer === 'sb') per = per.filter(e => /brieuc/i.test(centreDuPret(e)));
+  else if(fPer === 'lo') per = per.filter(e => pretPourLoudeac(e));
 
   /* Priorité décroissante, puis demande la plus ancienne */
   per.sort((a, b) => {
@@ -2989,6 +3004,7 @@ function afficherExamensPermis(tous){
         menage: false,            /* « Envoyer vers… » une seule fois, dans la fiche */
         infoLigne: infoLigneDuPret,
         etiquette: etiquetteDuPret,
+        apresEtiquette: x => '📍 ' + centreDuPret(x),
         actionLigne: x => ({
           t: '🗓️ RDV PERMIS',
           titre: 'Mettre ' + x.eleve + ' dans la liste RDV PERMIS',
