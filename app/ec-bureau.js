@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 02/11/2026 à 10:49 — v1328 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1260,6 +1260,8 @@ function barreDeLaBoite(e){
 
 /* Fiche de préparation administrative d'un passage au permis */
 function ligneBureau(e, options){
+  /* 📋 v1328 — une ligne par élève, sa fiche en fenêtre (voir ligneCompacteBureau) */
+  if(options && options.compact) return ligneCompacteBureau(e, options);
   const row = document.createElement('div');
   row.className = 'history-item';
 
@@ -1309,6 +1311,14 @@ function ligneBureau(e, options){
   /* Une note sur une seconde ligne doit rester lisible */
   info.style.whiteSpace = 'pre-wrap';
   meta.appendChild(info);
+
+  /* 📍 v1328 — « ok pour repasser à Loudéac » se voit partout où il est listé */
+  if(sv.okLoudeac === 'oui'){
+    const lo = document.createElement('span');
+    lo.className = 'lcLoudeac';
+    lo.textContent = '📍 OK pour Loudéac';
+    meta.appendChild(lo);
+  }
 
   const sous = document.createElement('span');
   sous.textContent = 'Dernier cours le ' + (e.date || '?') +
@@ -1446,6 +1456,192 @@ function ligneBureau(e, options){
   }
 
   return row;
+}
+
+/* ============================================================
+   📋 UNE LIGNE PAR ÉLÈVE, SA FICHE EN FENÊTRE — v1328
+
+   David, le 2 novembre : « les listes sont très longues […] il va
+   falloir que l'on descende beaucoup sur la page. Trouve une autre
+   méthode ». Son choix sur le schéma : une liste à la fois, un élève
+   par ligne, un appui ouvre sa fiche en fenêtre — « on est sur du
+   compact mais là on voit bien ce qu'il faut faire ».
+
+   ⚠️ LA FICHE EST LA LIGNE D'AVANT, TELLE QUELLE. Elle se construit
+   avec les mêmes options (info, résumé, alerte, actions) : aucun bouton
+   n'est réécrit, il change seulement de place. Une liste peut fournir
+   « fiche » pour un parcours à elle (le post-permis).
+   ⚠️ ELLE SE REDESSINE AVEC LA LISTE (rafraichirFicheBureau, appelée à
+   la fin de redessinerBureau) : un geste fait dans la fiche s'y voit
+   tout de suite ; l'élève sorti de la liste, elle se ferme.
+   ============================================================ */
+let ficheBureauOuverte = null;   /* { eleve, zone, fond, boite } */
+
+function styleLignesCompactes(){
+  if(document.getElementById('lcCss')) return;
+  const st = document.createElement('style');
+  st.id = 'lcCss';
+  st.textContent = `
+.history-item.lc{padding:0!important;display:block!important;border-bottom:1px solid var(--line)}
+.lcL{display:grid;grid-template-columns:minmax(140px,1.1fr) minmax(160px,1.4fr) auto auto 18px;gap:10px;align-items:center;width:100%;margin:0;padding:9px 10px;background:transparent;border:0;border-radius:0;color:var(--cream);text-align:left;font:inherit;font-size:13px;cursor:pointer}
+.lcL:hover,.lcL:focus-visible{background:var(--orange-soft);color:var(--on-accent)}
+.lcL:hover .lcInfo,.lcL:focus-visible .lcInfo{color:var(--on-accent)}
+.lcNom{font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lcNom .rep{margin-right:3px}
+.lcInfo{color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lcEt{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;border:1px solid var(--line);white-space:nowrap;justify-self:start}
+.lcEt.r{color:var(--red);border-color:var(--red);background:var(--warn-bg)}
+.lcEt.o{color:#A85A00;border-color:#E8A23A;background:#FFF4E2}
+.lcEt.v{color:#3B6900;border-color:#9BCB3C;background:#F1FBDD}
+.lcLoudeac{display:inline-block;align-self:flex-start;font-size:11.5px;font-weight:800;color:#1350A8;border:1px solid #1350A8;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.lcF{color:var(--muted);font-size:18px;text-align:right}
+.lcL > span{text-align:left;justify-self:start;min-width:0;max-width:100%}
+.lcL > .lcF{justify-self:end}
+.lcRech{display:block;width:100%!important;max-width:420px;box-sizing:border-box;margin:8px 0 8px!important;padding:9px 11px!important;font-size:13.5px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--navy-deep)!important;color:var(--cream)!important}
+.lcVide{font-size:12.5px;color:var(--muted);padding:8px 2px}
+details.volet-liste.volet-seul > summary{pointer-events:none}
+details.volet-liste.volet-seul > summary::after{display:none}
+.lcFen{max-width:min(620px,94vw)!important;max-height:92vh;overflow:auto}
+.lcFen .history-item{border:0!important;padding:0!important;background:transparent!important}
+.lcFen .lcTete{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
+.lcFen .lcTete h3{flex:1;margin:0}
+.lcSw{display:flex;gap:9px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:8px 10px;background:transparent;color:var(--cream);text-align:left;font:inherit;font-size:13px;width:100%;margin:0 0 10px;cursor:pointer}
+.lcSw .t{flex:1;font-weight:700}.lcSw .t small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.lcSw .s{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;flex-shrink:0}
+.lcSw .s:after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.lcSw.on{border-color:#1350A8;background:#E8F0FF;color:#0B0B0B}.lcSw.on .t small{color:#333}.lcSw.on .s{background:#1350A8}.lcSw.on .s:after{left:16px}
+@media (max-width:700px){.lcL{grid-template-columns:1fr 18px;row-gap:3px}.lcNom,.lcInfo,.lcEt,.lcL .lcLoudeac{grid-column:1}.lcInfo{white-space:normal}.lcEt{white-space:normal;border-radius:10px}.lcF{grid-column:2;grid-row:1/5}}`;
+  document.head.appendChild(st);
+}
+
+function ligneCompacteBureau(e, options){
+  styleLignesCompactes();
+  const sv = suiviDe(e.eleve);
+  const row = document.createElement('div');
+  row.className = 'history-item lc' + (sv.nbAjournements ? ' repassage' : '');
+  row.dataset.eleve = e.eleve || '';
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'lcL';
+  const nom = document.createElement('span');
+  nom.className = 'lcNom';
+  nom.textContent = e.eleve;
+  const info = document.createElement('span');
+  info.className = 'lcInfo';
+  const z = document.createElement('span');
+  const lo = document.createElement('span');
+  b.append(nom, info, z, lo);
+  /* ⚠️ LA LIGNE SE REDIT SANS SE REDESSINER (rafraichirLigne, v1094) */
+  const redire = () => {
+    const et = (typeof options.etiquette === 'function') ? options.etiquette(e)
+      : (options.alerte ? { t: options.alerte(e) ? '⚠️ ' + options.alerte(e) : '', ton: 'r' } : null);
+    info.textContent = String(options.info(e) || '');
+    z.className = (et && et.t) ? 'lcEt ' + (et.ton || '') : '';
+    z.textContent = (et && et.t) || '';
+    const l = suiviDe(e.eleve).okLoudeac === 'oui';
+    lo.className = l ? 'lcLoudeac' : '';
+    lo.textContent = l ? '📍 OK Loudéac' : '';
+  };
+  redire();
+  row.rafraichirLigne = redire;
+  const f = document.createElement('span');
+  f.className = 'lcF'; f.textContent = '›';
+  b.appendChild(f);
+  b.addEventListener('click', () => ouvrirFicheBureau(e, options, row));
+  row.appendChild(b);
+  row.__fiche = { e: e, options: options };
+  return row;
+}
+
+/* 📍 « OK pour passer à Loudéac » — pour un élève ajourné */
+function interrupteurLoudeac(nom){
+  const s = suiviDe(nom);
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.dataset.loudeac = '1';
+  const peindre = (on) => {
+    b.className = 'lcSw' + (on ? ' on' : '');
+    b.setAttribute('role', 'switch');
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.innerHTML = '<span class="t">📍 OK pour passer à Loudéac<small>' + (on
+      ? 'Il veut bien repasser à Loudéac plutôt qu’à Saint-Brieuc.'
+      : 'De base, il repasse à Saint-Brieuc.') + '</small></span><span class="s"></span>';
+  };
+  peindre(s.okLoudeac === 'oui');
+  b.addEventListener('click', async () => {
+    const on = suiviDe(nom).okLoudeac !== 'oui';
+    b.disabled = true;
+    try{
+      await majSuivi(nom, { okLoudeac: on ? 'oui' : '' });
+      peindre(on);
+      showToast(on ? '📍 ' + nom + ' : OK pour Loudéac ✅' : nom + ' : Saint-Brieuc ✅');
+      redessinerBureau();
+    }catch(err){ showToast('Erreur : ' + err.message); }
+    b.disabled = false;
+  });
+  return b;
+}
+
+function remplirFicheBureau(boite, e, options){
+  boite.innerHTML = '';
+  const tete = document.createElement('div');
+  tete.className = 'lcTete';
+  const h = document.createElement('h3');
+  h.textContent = e.eleve;
+  if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(h, e.eleve);
+  tete.appendChild(h);
+  const x = document.createElement('button');
+  x.type = 'button'; x.className = 'btn btn-secondary';
+  x.style.cssText = 'width:auto;margin:0;padding:6px 11px;';
+  x.textContent = '✕'; x.title = 'Fermer';
+  x.addEventListener('click', fermerFicheBureau);
+  tete.appendChild(x);
+  boite.appendChild(tete);
+  if(typeof options.fiche === 'function'){ options.fiche(e, boite); return; }
+  if(suiviDe(e.eleve).nbAjournements) boite.appendChild(interrupteurLoudeac(e.eleve));
+  const corps = ligneBureau(e, Object.assign({}, options, { compact: false, replier: false }));
+  const nomLigne = corps.querySelector('.meta strong');
+  if(nomLigne){
+    const apres = nomLigne.nextElementSibling;
+    if(apres && apres.tagName === 'BUTTON') apres.remove();   /* le 👤 est déjà dans le titre */
+    nomLigne.style.display = 'none';
+  }
+  boite.appendChild(corps);
+}
+
+function ouvrirFicheBureau(e, options, row){
+  fermerFicheBureau();
+  styleLignesCompactes();
+  const fond = document.createElement('div');
+  fond.className = 'overlay show lcO';
+  const boite = document.createElement('div');
+  boite.className = 'modal lcFen';
+  fond.appendChild(boite);
+  fond.addEventListener('click', (ev) => { if(ev.target === fond) fermerFicheBureau(); });
+  document.body.appendChild(fond);
+  const zone = row && row.closest('[id]');
+  ficheBureauOuverte = { eleve: e.eleve, zone: zone ? zone.id : '', fond: fond, boite: boite };
+  remplirFicheBureau(boite, e, options);
+}
+
+function fermerFicheBureau(){
+  if(!ficheBureauOuverte) return;
+  const f = ficheBureauOuverte.fond;
+  ficheBureauOuverte = null;
+  if(f && f.parentNode) f.remove();
+}
+
+/* Après chaque dessin du bureau : la fiche ouverte suit sa ligne */
+function rafraichirFicheBureau(){
+  const o = ficheBureauOuverte;
+  if(!o || !o.fond.parentNode) return;
+  const zone = o.zone ? document.getElementById(o.zone) : null;
+  const row = zone ? [...zone.querySelectorAll('.history-item.lc')].find(r => r.dataset.eleve === o.eleve) : null;
+  if(!row || !row.__fiche){ fermerFicheBureau(); return; }
+  /* une saisie en cours ne se perd pas : on garde la fenêtre telle quelle */
+  const a = document.activeElement;
+  if(a && o.boite.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName || '')) return;
+  remplirFicheBureau(o.boite, row.__fiche.e, row.__fiche.options);
 }
 
 /* Bouton + calendrier pour fixer une date depuis le bureau */
@@ -1601,6 +1797,9 @@ async function redessinerBureau(){
 
   /* Le compte de ce qui attend une décision du bureau */
   majAlerteSuivi(tous);
+
+  /* 📋 v1328 — la fiche ouverte en fenêtre suit sa ligne */
+  rafraichirFicheBureau();
 }
 
 /* Le décompte revient au module des alertes : il connaît les
