@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 11:44 — v1329 */
+/* Déployé le 02/11/2026 à 12:22 — v1330 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -652,6 +652,7 @@ function appliquerFiltreDeVue(vue){
 /* 🔎 v1328 — chercher un élève dans la liste affichée */
 function poserRechercheDuVolet(v){
   if(v.querySelector(':scope > .lcRech')) return;
+  if(v.hasAttribute('data-sans-recherche')) return;   /* v1330 : ✉️ SOLO n'a pas d'élèves */
   const r = document.createElement('input');
   r.type = 'search';
   r.className = 'lcRech';
@@ -661,7 +662,11 @@ function poserRechercheDuVolet(v){
     const q = (typeof normaliserMot === 'function') ? normaliserMot(r.value) : r.value.toLowerCase();
     v.querySelectorAll('.history-item[data-eleve], .lcRdv[data-eleve]').forEach(l => {
       const n = (typeof normaliserMot === 'function') ? normaliserMot(l.dataset.eleve) : l.dataset.eleve.toLowerCase();
-      l.style.display = (!q || n.indexOf(q) !== -1) ? '' : 'none';
+      const garde = (!q || n.indexOf(q) !== -1);
+      l.style.display = garde ? '' : 'none';
+      /* v1330 — une ligne compacte a « display:block!important » : le style
+         seul ne la cachait pas, la recherche ne filtrait rien */
+      l.classList.toggle('lcCache', !garde);
     });
   };
   r.addEventListener('input', filtrer);
