@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 02/11/2026 à 10:49 — v1328 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3509,6 +3509,8 @@ function afficherExamenNonPlanifiable(tous){
 
     zone.appendChild(ligneBureau(e, {
       replier: true,
+      compact: true,
+      etiquette: () => ({ t: '🚫 ' + (motif || 'motif à voir avec le moniteur'), ton: 'r' }),
       info: () => '🚫 examen non planifiable' + (motif ? ' — ' + motif : ''),
       resume: () => e.note || '',
       alerte: () => motif || 'Motif non précisé — à voir avec le moniteur',
@@ -3564,6 +3566,8 @@ function afficherPasDeRepassage(tous){
     const s = suiviDe(e.eleve);
     zone.appendChild(ligneBureau(e, {
       replier: true,
+      compact: true,
+      etiquette: () => ({ t: '⛔ reprise des leçons à suivre', ton: 'o' }),
       info: () => mentionAjournements(s.nbAjournements, s.dateAjournement) +
                   ' · ⛔ pas de repassage pour le moment',
       resume: () => s.commentaireMoniteur || '',
