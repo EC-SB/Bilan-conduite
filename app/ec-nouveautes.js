@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 12:22 — v1330 */
+/* Déployé le 02/11/2026 à 14:26 — v1331 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1331,
+    date: 'Lundi 2 novembre 2026',
+    resume: 'L’ordre des listes, et les repassages en un seul endroit',
+    quoi: [
+      { emoji: '⛔',
+        titre: 'Pas prêts',
+        texte: 'Dans cet ordre : ⏳ Attente bilan post-permis, ⛔ Examen blanc — pas le niveau, 🚫 Non planifiable, ⛔ Pas de repassage.' },
+      { emoji: '🤔',
+        titre: 'À envisager',
+        texte: 'Dans cet ordre : 🚗 Élèves prêts au permis, 🗓️ Liste RDV PERMIS, 📝 Examens blancs prévus.' },
+      { emoji: '🔁',
+        titre: 'Repassages : aussi ceux qui attendent leur bilan',
+        texte: 'Sous les prêts, un raccourci vers les ajournés en attente du bilan post-permis (ils restent dans ⛔ Pas prêts), avec la même fiche.' }
+    ]
+  },
   {
     version: 1330,
     date: 'Lundi 2 novembre 2026',
