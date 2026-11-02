@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 02/11/2026 à 10:49 — v1328 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -980,6 +980,9 @@ function afficherPasNiveau(tous){
 
   liste.forEach(e => {
     zone.appendChild(ligneBureau(e, {
+      /* 📋 v1328 — une ligne, la fiche en fenêtre (ligneCompacteBureau) */
+      compact: true,
+      etiquette: () => ({ t: '⚠️ À replacer ou heures à fixer', ton: 'r' }),
       info: x => 'Examen blanc du ' + (x.etat.ebDate || '?') + ' — pas le niveau',
       resume: x => resumeSuivi(x.eleve),
       alerte: () => 'À replacer ou heures à fixer',
