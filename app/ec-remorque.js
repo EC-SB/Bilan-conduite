@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 13:55 — v976 */
+/* Déployé le 02/11/2026 à 15:47 — v1334 */
 /* ============================================================
    ec-remorque.js
    Le parcours du permis remorque (BE).
@@ -53,7 +53,7 @@ function tuilesRemorque(){
   if(c === null) return null;
 
   return [
-    { cle:'be:total', lib:'Élèves remorque', vue:'remorque', section:'remorque',
+    { cle:'be:total', lib:'Élèves remorque', vue:'remorque', section:'remorque', titre:true,
       valeur:() => ({ n: c.total }) },
     { cle:'be:prevus', lib:'Examens prévus', vue:'remorque', section:'remorque',
       valeur:() => ({ n: c.prevus }) },
