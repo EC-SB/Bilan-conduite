@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1332
+     GUIDE-VERSION: 1333
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1332</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1333</strong><br>
     Mis à jour le 2 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1332</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1333</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1621,6 +1621,7 @@ html{scroll-behavior:smooth}
       <li><span class="b">🎂 17 ans</span> — l'âge, toujours affiché&nbsp;; <span class="b">🎂 ❓ ans</span> en orange quand la date de naissance manque. Un appui ouvre le calendrier pour la poser ou la corriger.</li>
       <li><strong>Sa formation</strong>, en pastille.</li>
       <li><span class="b">🆔 Drivup 12345</span> — le numéro de sa fiche Drivup, qui distingue deux élèves au même nom quand le favori 📥 reprend Drivup (voir <a href="#chdrivup" class="aller">le chapitre Drivup</a>). <span class="ch">🆔 Drivup ❓</span> en orange s'il manque. Le bureau et les administrateurs le corrigent d'un appui&nbsp;; une correction à la main l'emporte, le favori ne la touche plus. Un numéro déjà porté par une autre fiche est refusé.</li>
+      <li><span class="b">🏢 Saint-Brieuc</span> / <span class="b">🏢 Loudéac</span> — <strong>son agence d'inscription</strong> (v1333), reprise de Drivup par le favori (liste des élèves, et sa fiche si elle la montre)&nbsp;: c'est <strong>son centre d'examen de base</strong>. <span class="ch">🏢 Agence ❓</span> en orange si elle n'est pas connue — il compte alors pour Saint-Brieuc. Le bureau et les administrateurs la changent d'un appui.</li>
       <li><span class="ch">🏫</span> et le nom de son ancienne auto-école, s'il vient d'ailleurs.</li>
       <li>Trois ronds d'action, seulement s'ils mènent quelque part&nbsp;: <span class="b">📞</span> l'appeler (s'il a un numéro), <span class="b">💬</span> lui écrire dans la messagerie (ou par SMS pour qui n'a pas la messagerie), <span class="b">📅</span> son prochain cours, quand il en a un de préparé.</li>
     </ul>
@@ -2607,7 +2608,8 @@ Dernier cours le 12/09/2026 avec Hery
     <p>Le bouton d'enregistrement a <strong>deux comportements</strong>&nbsp;: sans date ou sans moniteur, il n'enregistre que les deux bilans&nbsp;; avec les deux, il <strong>crée le cours préparé</strong> chez le moniteur, avec le modèle <em>🔁 Rendez-vous post-permis</em>, la note et le bilan officiel, et prévient le moniteur.</p>
     <div class="note piege"><span class="tag">Coller une capture (Ctrl+V)</span><p>Dans la zone <span class="ch">📋 Colle ta capture ici</span> de l'élève, toujours. Ailleurs dans la page, <strong>seulement quand une seule galerie de captures est à l'écran</strong> et qu'on n'est pas en train d'écrire dans un champ (messagerie, note…)&nbsp;; avec plusieurs élèves à l'écran (liste Permis obtenu), l'appli demande de cliquer d'abord la zone de l'élève. Une galerie fermée ou cachée ne reçoit plus rien. Un message dit à qui la capture a été ajoutée&nbsp;: <span class="ch">📷 1 capture ajoutée au CEPC de Léa Martin</span>.</p></div>
 
-    <h4 id="ok-loudeac">📍 OK pour passer à Loudéac</h4>
+    <h4 id="ok-loudeac">📍 Son centre d'examen, et « OK pour l'autre »</h4>
+    <p><strong>Depuis la v1333</strong>&nbsp;: le centre d'examen de base d'un élève est <strong>celui de son agence</strong> (🏢 en tête de son dossier), Saint-Brieuc si elle n'est pas connue. Son dossier › 🎓 Permis le dit (<span class="ch">📍 Centre d’examen — Loudéac · son agence d’inscription</span>, avec <span class="b">🔀 Changer</span>), et l'interrupteur <span class="b">📍 OK pour passer aussi à …</span> vaut <strong>dans les deux sens et pour tous les élèves</strong>&nbsp;: un élève de Saint-Brieuc OK pour Loudéac, un élève de Loudéac OK pour Saint-Brieuc. C'est le même réglage dans son dossier, dans les fiches des listes et à «&nbsp;❌ Ajourné&nbsp;». Il suit tout seul&nbsp;: le centre affiché dans 🚗 Prêts, les puces 📍 (il compte dans les deux centres s'il est OK), et 🗓️ RDV PERMIS, où son centre est déjà rempli.</p>
     <p>David, le 2 novembre&nbsp;: un élève ajourné peut être <strong>OK pour repasser à Loudéac</strong> au lieu de Saint-Brieuc. Ça se dit <strong>au moment de «&nbsp;❌ Ajourné&nbsp;»</strong> (une case dans la confirmation, cochée s'il l'avait déjà dit), puis à tout moment avec l'interrupteur <span class="b">📍 OK pour passer à Loudéac</span> en haut de sa fiche. Il se lit ensuite sur ses lignes&nbsp;: <span class="ch">📍 OK Loudéac</span> (et <span class="ch">📍 OK pour Loudéac</span> dans les autres listes du bureau).</p>
 
     <h4>🚫 Examen non planifiable</h4>
@@ -2632,14 +2634,14 @@ Dernier cours le 12/09/2026 avec Hery
     </ul>
 
     <h4>🚗 Élèves prêts au permis</h4>
-    <p><strong>Le cœur de l'onglet.</strong> C'est le vivier dans lequel le bureau pioche quand il obtient des places. La ligne dit <span class="ch">🆕 1er passage</span> ou <span class="ch">🔁 2e repassage</span>, sa boîte (BV / BEA) et la date de la demande. <strong>L'étiquette</strong>&nbsp;: rouge <span class="ch">🚨 Prioritaire absolu</span> / <span class="ch">🔴 Urgent</span> s'il est pressé (ses heures passent alors dans la ligne), rouge <span class="ch">❌ Examen annulé</span>, sinon orange <span class="ch">⏱️ heures à préciser</span>, sinon vert ses heures (<span class="ch">3 + 3h</span>, <span class="ch">plus que les 3h avant examen</span>). <span class="ch">📍 OK Loudéac</span> s'affiche aussi. <strong>Juste après l'étiquette, son centre d'examen</strong> (v1332)&nbsp;: <span class="ch">📍 Saint-Brieuc</span> par défaut, ou celui choisi dans son suivi. Au bout de la ligne, <span class="b">🗓️ RDV PERMIS</span> le met dans la liste suivante d'un appui.</p>
+    <p><strong>Le cœur de l'onglet.</strong> C'est le vivier dans lequel le bureau pioche quand il obtient des places. La ligne dit <span class="ch">🆕 1er passage</span> ou <span class="ch">🔁 2e repassage</span>, sa boîte (BV / BEA) et la date de la demande. <strong>L'étiquette</strong>&nbsp;: rouge <span class="ch">🚨 Prioritaire absolu</span> / <span class="ch">🔴 Urgent</span> s'il est pressé (ses heures passent alors dans la ligne), rouge <span class="ch">❌ Examen annulé</span>, sinon orange <span class="ch">⏱️ heures à préciser</span>, sinon vert ses heures (<span class="ch">3 + 3h</span>, <span class="ch">plus que les 3h avant examen</span>). <span class="ch">📍 OK Loudéac</span> s'affiche aussi. <strong>Juste après l'étiquette, son centre d'examen</strong> (v1332)&nbsp;: celui choisi pour ce passage, sinon <strong>celui de son agence</strong> (v1333), Saint-Brieuc si elle n'est pas connue. <span class="ch">📍 OK Saint-Brieuc</span> dit qu'un élève de Loudéac veut bien passer à Saint-Brieuc. Au bout de la ligne, <span class="b">🗓️ RDV PERMIS</span> le met dans la liste suivante d'un appui.</p>
     <p>Y figurent ceux dont la note dit « date d'examen à prévoir », ceux dont l'examen a été annulé, ceux qui ont un rendez-vous post-permis fixé mais pas encore fait, <strong>et ceux dont l'examen blanc conclut « 🤔 Pourrait avoir le niveau »</strong> — avec leur mention, pour qu'on sache qu'il reste un doute. Sont exclus ceux qui sont <strong>déjà placés</strong>&nbsp;: une date dans leur fiche, une date dans leurs notes, ou une place dans une session ouverte.</p>
     <div class="note astuce"><span class="tag">⏳ Le raccourci des repassages</span><p>Depuis la v1331, sous les prêts (dans <span class="b">Tous</span> et dans <span class="b">🔁 Repassages</span>), un bloc <span class="ch">⏳ En attente du bilan post-permis · N</span> montre les ajournés qui attendent leur bilan ou leur rendez-vous post-permis&nbsp;: <strong>un seul endroit</strong> pour voir qui on pourra bientôt représenter. <strong>Ils restent dans ⛔ Pas prêts › Attente bilan post-permis</strong>&nbsp;: ce n'est qu'un raccourci, avec les mêmes lignes et la même fiche (bilan → messages → RDV). <span class="b">↗️ Voir dans ⛔ Pas prêts</span> y emmène. Les puces <span class="b">Tous</span> et <span class="b">🔁 Repassages</span> comptent ces personnes aussi&nbsp;; la puce <span class="b">🚗 Élèves prêts au permis</span> de la barre, non.</p></div>
     <p>Toujours rangée <strong>par priorité</strong>, puis la demande la plus ancienne. Des puces avec leur nombre filtrent&nbsp;: <span class="b">Tous</span>, <span class="b">🆕 Premier passage</span>, <span class="b">🔁 Repassages</span>, <span class="b">🔴 Urgents</span>, <span class="b">⏱️ Heures à préciser</span>, <span class="b">📍 Saint-Brieuc</span>, <span class="b">📍 Loudéac</span> (un élève «&nbsp;OK Loudéac&nbsp;» compte dans les deux), et <span class="b">❌ Examens annulés</span> quand il y en a.</p>
     <p>Ceux qui sont déjà ailleurs tiennent sur une ligne&nbsp;: <span class="ch">ℹ️ 6 déjà dans 🗓️ RDV PERMIS · 1 retiré de la liste</span>, avec <span class="b">Voir ▸</span> (ouvre RDV PERMIS) et <span class="b">↩️ Les remettre ici</span>. Les noms s'affichent au survol.</p>
 
     <h5>Sa fiche</h5>
-    <p>Dans l'ordre&nbsp;: le gros bouton <span class="b">🗓️ Mettre dans la liste RDV PERMIS</span>, puis <span class="b">🚦 Priorité</span> en boutons, puis <strong>Son dossier</strong> (⏱️ heures · 📝 Niveau · 📅 Date de permis · ➡️ Envoyer vers…, une seule fois), le tiroir 📅 Disponibilités, et <span class="b">🗑️ Retirer de la liste</span> en petit, en bas à droite. Pour un repassage, l'interrupteur <span class="b">📍 OK pour passer à Loudéac</span> est en tête.</p>
+    <p>Dans l'ordre&nbsp;: le gros bouton <span class="b">🗓️ Mettre dans la liste RDV PERMIS</span>, puis <span class="b">🚦 Priorité</span> en boutons, puis <strong>Son dossier</strong> (⏱️ heures · 📝 Niveau · 📅 Date de permis · ➡️ Envoyer vers…, une seule fois), le tiroir 📅 Disponibilités, et <span class="b">🗑️ Retirer de la liste</span> en petit, en bas à droite. L'interrupteur <span class="b">📍 OK pour passer aussi à …</span> (l'autre centre que son agence) est en tête, pour tous les élèves (v1333).</p>
     <div class="tab"><table>
       <thead><tr><th>Action</th><th>Effet</th></tr></thead>
       <tbody>
