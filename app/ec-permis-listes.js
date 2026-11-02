@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 11:44 — v1329 */
+/* Déployé le 02/11/2026 à 14:26 — v1331 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2816,16 +2816,19 @@ async function mettreDansRdvPermis(nom){
   redessinerBureau();
 }
 
-function pucesDesPrets(liste, choisi){
+function pucesDesPrets(liste, choisi, nAttente){
+  /* ⏳ v1331 — « Tous » et « 🔁 Repassages » comptent aussi le raccourci des
+     ajournés en attente du bilan post-permis : un nombre de personnes */
+  nAttente = nAttente || 0;
   if(typeof styleLignesCompactes === 'function') styleLignesCompactes();
   const z = document.createElement('div');
   z.className = 'lcPuces';
   z.dataset.pucesPrets = '1';
   const nRep = liste.filter(e => suiviDe(e.eleve).nbAjournements).length;
   const choix = [
-    ['', 'Tous', liste.length],
+    ['', 'Tous', liste.length + nAttente],
     ['premier', '🆕 Premier passage', liste.length - nRep],
-    ['repassage', '🔁 Repassages', nRep],
+    ['repassage', '🔁 Repassages', nRep + nAttente],
     ['urgent', '🔴 Urgents', liste.filter(e => String(e.urgence || '') >= '4').length],
     ['heures', '⏱️ Heures à préciser', liste.filter(heuresAPreciser).length],
     ['annule', '❌ Examens annulés', liste.filter(e => e.etat && e.etat.permis === 'annule').length]
@@ -2860,6 +2863,17 @@ function afficherExamensPermis(tous){
      « Tous — par priorité » d'avant), comptées AVANT le filtre */
   const fPer = filtrePermisChoisi || '';
   const tousPer = per.slice();
+  /* ⏳ v1331 — le raccourci des repassages : les ajournés qui attendent
+     leur bilan post-permis (ils RESTENT dans ⛔ Pas prêts), ceux qui ne
+     sont pas déjà ici (RDV post-permis posé = déjà dans les prêts). */
+  const attenteRacc = tous.filter(e => {
+    const s = suiviDe(e.eleve);
+    return s.resultat === 'ajourne' && s.rdvPostFait !== 'oui' && candidats.indexOf(e) === -1;
+  });
+  if(typeof etapePostPermis === 'function'){
+    attenteRacc.sort((a, b) => etapePostPermis(a.eleve).rang - etapePostPermis(b.eleve).rang);
+  }
+  const avecRaccourci = (fPer === '' || fPer === 'repassage') && attenteRacc.length > 0;
   if(fPer === 'annule') per = per.filter(e => e.etat.permis === 'annule');
   else if(fPer === 'aprevoir') per = per.filter(e => e.etat.permis === 'aprevoir');
   else if(fPer === 'urgent') per = per.filter(e => String(e.urgence || '') >= '4');
@@ -2897,7 +2911,7 @@ function afficherExamensPermis(tous){
 
   zPer.innerHTML = '';
   /* 🗓️ v1329 — les puces, dans la liste (voir filtrePermisChoisi) */
-  zPer.appendChild(pucesDesPrets(tousPer, fPer));
+  zPer.appendChild(pucesDesPrets(tousPer, fPer, attenteRacc.length));
   /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
   boutonAjoutManuel(zPer, 'aprevoir').classList.add('lcPetit');
 
@@ -2963,7 +2977,7 @@ function afficherExamensPermis(tous){
     v.className = 'empty';
     v.textContent = fPer ? 'Aucun élève ne correspond à ce filtre.'
                          : 'Aucun élève prêt au permis.';
-    zPer.appendChild(v);
+    if(!avecRaccourci) zPer.appendChild(v);
   }else{
     /* le nombre et les repassages sont dans les puces (v1329) */
     signalerAjout(zPer);
@@ -3122,6 +3136,49 @@ function afficherExamensPermis(tous){
       }));
     });
   }
+  if(avecRaccourci) zPer.appendChild(raccourciAttenteBilan(attenteRacc));
+}
+
+/* ⏳ LE RACCOURCI DES REPASSAGES — v1331
+
+   David, le 2 novembre : « dans repassages il faudrait voir aussi les
+   élèves qui sont en attente bilan post-permis, pour avoir un seul
+   endroit quand on cherche des élèves à présenter au permis — mais il
+   faut que ça reste dans ⛔ Pas prêts › Attente bilan post-permis ».
+   Ses réponses au schéma : la même fiche ; un seul nombre (« c'est un
+   nombre de personnes ») ; aussi dans « Tous ».
+   Les lignes sont celles de ⛔ Pas prêts (optionsAttenteBilan) : même
+   étiquette, même fiche. Rien n'est écrit : c'est une vue. */
+function raccourciAttenteBilan(liste){
+  const z = document.createElement('div');
+  z.className = 'raccourciAttente';
+  z.style.cssText = 'margin-top:12px;';
+  const t = document.createElement('div');
+  t.style.cssText = 'display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:6px 0 2px;' +
+    'font-size:13px;font-weight:800;color:var(--accent-text);';
+  const tt = document.createElement('span');
+  tt.style.cssText = 'flex:1 1 260px;min-width:0;';
+  tt.textContent = '⏳ En attente du bilan post-permis · ' + liste.length;
+  t.appendChild(tt);
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;margin:0;padding:4px 10px;font-size:12px;';
+  b.textContent = '↗️ Voir dans ⛔ Pas prêts';
+  b.addEventListener('click', () => {
+    if(typeof filtreDeLaVue !== 'undefined') filtreDeLaVue.pasprets = 'attente';
+    if(typeof afficherVue === 'function') afficherVue('permis', 'pasprets');
+    if(typeof majFiltresDeVue === 'function') majFiltresDeVue('pasprets');
+  });
+  t.appendChild(b);
+  z.appendChild(t);
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:12px;color:var(--muted);margin:0 0 6px;line-height:1.4;';
+  a.textContent = 'Raccourci : ils restent dans ⛔ Pas prêts › Attente bilan post-permis. ' +
+    'Un appui ouvre la même fiche (bilan → messages → RDV).';
+  z.appendChild(a);
+  liste.forEach(e => z.appendChild(ligneBureau(e, optionsAttenteBilan(e))));
+  return z;
 }
 
 async function ajouterDateBureau(){
