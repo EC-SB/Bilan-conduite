@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 08:24 — v1284 */
+/* Déployé le 02/11/2026 à 15:47 — v1334 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -135,7 +135,7 @@ function tuilesMoto(){
   };
 
   return [
-    { cle:'moto:total', lib:'Élèves moto', vue:'moto', section:'moto',
+    { cle:'moto:total', lib:'Élèves moto', vue:'moto', section:'moto', titre:true,
       valeur:() => ({ n: c.total }) },
     { cle:'moto:plateauaprevoir', lib:'Plateau à prévoir', vue:'moto',
       section:'moto', ton:'urgent',
