@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:59 — v1333 */
+/* Déployé le 02/11/2026 à 15:47 — v1334 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2005,7 +2005,9 @@ function tuilesDesMoisDePlaces(){
       vue: 'sessions',
       toujours: true,
       ton: (total && pris > total) ? 'urgent' : '',
-      valeur: () => ({ n: pris, texte: pris + ' / ' + (total || '?') })
+      /* La jauge — v1334 : « on la garde », a dit David. */
+      valeur: () => ({ n: pris, texte: pris + ' / ' + (total || '?'),
+                       jauge: total ? Math.round(100 * pris / total) : null })
     };
   });
 }
@@ -2017,6 +2019,7 @@ function tuileReussiteDuMois(){
   if(t === null) return null;
   if(t === false) return false;
   return { n: t.taux,
+           jauge: t.taux,
            texte: (typeof pourcent === 'function') ? pourcent(t.taux)
                                                    : String(t.taux) + ' %',
            sous: t.total + ' présenté' + (t.total > 1 ? 's' : '') + ' · ' +
