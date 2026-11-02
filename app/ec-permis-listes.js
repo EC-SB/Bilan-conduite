@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 10:49 — v1328 */
+/* Déployé le 02/11/2026 à 11:44 — v1329 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -361,7 +361,8 @@ function tableauAPlacer(liste){
       'font-size:13px;font-weight:700;color:var(--accent-text);flex-wrap:wrap;';
 
     const g = document.createElement('span');
-    g.style.cssText = 'flex:1;min-width:0;';
+    /* v1329 — au téléphone, les places passent dessous au lieu d'écraser le titre */
+    g.style.cssText = 'flex:1 1 230px;min-width:0;';
     g.textContent = '📍 ' + centre + ' · ' + semaine;
     t.appendChild(g);
 
@@ -392,19 +393,27 @@ function tableauAPlacer(liste){
     return t;
   };
 
-  /* ---- Une ligne d'élève : son nom, et rien qu'on ait déjà dit ---- */
-  const ligneEleve = (e, sansMoniteur) => {
+  /* ---- Une ligne d'élève : son nom, et rien qu'on ait déjà dit ----
+
+     🗓️ v1329 — schéma validé par David (« comme tu as fait ») : les six
+     petits boutons sans texte (👤 📍 🗓️ BV 📅 ✕) quittent la ligne. Elle
+     dit la boîte et, en UNE étiquette, ce qui manque encore — ou qu'il
+     est prêt. Un appui ouvre sa fiche en fenêtre, où sont les mêmes
+     réglages, en toutes lettres (optionsFicheRdvPermis). */
+  const ligneEleve = (e) => {
+    styleLignesCompactes();
     const s = suiviDe(e.eleve);
     const l = document.createElement('div');
-    l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0 4px 16px;';
+    l.className = 'lcRdv';
+    l.dataset.eleve = e.eleve || '';
+    l.setAttribute('role', 'button');
+    l.tabIndex = 0;
+    l.title = 'Ouvrir la fiche de ' + e.eleve;
 
     const nom = document.createElement('span');
-    nom.style.cssText = 'flex:1;color:var(--cream);font-size:14px;min-width:0;';
-    nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve +
-      (sansMoniteur ? ' · moniteur à définir' : '');
+    nom.className = 'n';
+    nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve;
     l.appendChild(nom);
-    /* 👤 Son dossier — v1134. */
-    if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(nom, e.eleve);
 
     /* La mention post-permis reste : elle dit qu'il n'est pas encore
        plaçable, et c'est justement au moment de placer qu'on la lit. */
@@ -420,193 +429,42 @@ function tableauAPlacer(liste){
         ". Sa place d'examen se prend après.";
       l.appendChild(att);
     }
+    if(s.okLoudeac === 'oui'){
+      const lo = document.createElement('span');
+      lo.className = 'lcLoudeac';
+      lo.textContent = '📍 OK Loudéac';
+      l.appendChild(lo);
+    }
 
-    /* ------------------------------------------------------------
-       ATTRIBUER SANS OUVRIR LA FICHE
+    /* La boîte : écrite (plein) ou d'après sa formation (creux) */
+    const ecrit = String(s.typeExamen || '').toLowerCase();
+    const vue = ecrit || (typeof boiteDe === 'function' ? String(boiteDe(e.eleve) || '').toLowerCase() : '');
+    const ty = document.createElement('span');
+    ty.className = 'lcType' + (vue === 'bea' ? ' bea' : '');
+    ty.textContent = vue ? vue.toUpperCase() : '？';
+    ty.title = !vue ? 'Boîte inconnue' : 'Boîte : ' + vue.toUpperCase() +
+      (ecrit ? ' (choisie)' : " (d'après sa formation)");
+    l.appendChild(ty);
 
-       « Quand ils sont là, il faut que je puisse les attribuer. »
+    const manque = [!s.centre && '📍 centre', !s.moniteurDate && '👤 qui prend la date',
+                    !s.semaine && '🗓️ semaine'].filter(Boolean);
+    const et = document.createElement('span');
+    et.className = 'lcEt ' + (manque.length ? 'r' : 'v');
+    et.textContent = manque.length ? '⚠️ à choisir : ' + manque.join(', ')
+                                    : '✅ prêt — date à prendre';
+    l.appendChild(et);
 
-       Le groupe « ⚠️ À attribuer » nommait le manque sans donner de
-       quoi le combler : il fallait descendre chercher la fiche
-       détaillée de chacun. Le bouton ouvre la même fenêtre que la
-       fiche — avec les favoris et leurs étoiles — donc un seul
-       endroit décide de qui peut prendre une date.
+    const f = document.createElement('span');
+    f.className = 'lcF'; f.textContent = '›';
+    l.appendChild(f);
 
-       Il n'apparaît que là où il sert : quand personne n'est
-       désigné, ou dans la vue par semaine, où le groupe ne dit pas
-       qui prend. Dans la vue par personne, le nom est déjà en tête
-       du groupe. */
-    /* Trois réglages, trois boutons, TOUJOURS LÀ.
-
-       « Et pareil quand ils sont déjà attribués. » Un bouton qui
-       n'apparaît qu'au moment où quelque chose manque ne sert
-       qu'une fois : il faut aussi pouvoir CHANGER. Ils sont donc
-       tous les trois sur chaque ligne, en orange quand la réponse
-       manque, discrets quand elle est là. */
-    const reglage = (icone, titre, valeur, ouvrir, champ) => {
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'width:auto;padding:6px 9px;font-size:14px;margin:0;' +
-        'flex-shrink:0;' + (valeur ? '' :
-          'color:var(--orange);border-color:var(--orange);');
-      b.textContent = icone;
-      b.title = valeur ? (titre + ' : ' + valeur + ' — appuie pour changer')
-                       : titre;
-      b.addEventListener('click', async () => {
-        const v = await ouvrir();
-        if(v === null) return;
-        b.disabled = true;
-        try{
-          const maj = {};
-          maj[champ] = v;
-          await majSuivi(e.eleve, maj);
-          await chargerBureau();
-          redessinerBureau();
-        }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
-      });
-      l.appendChild(b);
-    };
-
-    reglage('👤', 'Qui prend la date', s.moniteurDate || '',
-            () => choisirQuiPrendLaDate(s.moniteurDate || ''), 'moniteurDate');
-
-    reglage('📍', "Centre d'examen", s.centre || '',
-            () => choisirDansUneListe("Centre d'examen",
-              ['Saint-Brieuc', 'Loudéac'].map(c => ({ val: c, lib: c })),
-              s.centre || ''), 'centre');
-
-    /* LES SEMAINES, DANS LE MÊME ORDRE QU'AILLEURS.
-
-       Celles dont la journée d'attribution est passée descendent en
-       bas de la liste — comme dans la fiche. Deux tris différents
-       pour une même question finiraient par proposer deux choses
-       différentes. */
-    reglage('🗓️', 'Semaine à viser', s.semaine || '', () => {
-      const libDe = w => libelleSemaine(w) +
-        ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-      const encore = w => {
-        if(typeof dateDePrise !== 'function') return true;
-        const iso = String(w.du || w.au || '');
-        const m2 = iso.match(/^(\d{4}-\d{2})-(\d{2})$/);
-        if(!m2) return true;
-        const d = dateDePrise(m2[1], Number(m2[2]) <= 15 ? 1 : 2);
-        if(!d) return true;
-        return d >= todayLocal();
-      };
-      const toutes = toutesSemaines();
-      const vers = w => ({
-        val: libDe(w),
-        lib: semaineCourte(w) +
-             (joursDuCentre(w, s.centre) ? ' — ' + joursDuCentre(w, s.centre) : '') +
-             (encore(w) ? '' : ' · prise passée')
-      });
-      return choisirDansUneListe('Semaine à viser',
-        toutes.filter(encore).map(vers).concat(toutes.filter(w => !encore(w)).map(vers)),
-        s.semaine || '');
-    }, 'semaine');
-
-    /* ------------------------------------------------------------
-       LA BOÎTE — DÉDUITE, PUIS ÉCRITE, ET L'ÉCRAN DIT LEQUEL
-
-       David, le 4 septembre : « ici il me manque s'ils sont en BV
-       ou BEA, et la possibilité de changer ».
-
-       C'est plus qu'un affichage : une voiture est manuelle OU
-       automatique, donc c'est la boîte qui décide qui peut passer
-       avec qui. Sans elle sous les yeux, on forme des groupes qui ne
-       tiennent pas dans une voiture.
-
-       Trois états, et le bouton les distingue :
-         · CREUX  — personne n'a tranché, la boîte vient de sa
-                    formation. C'est une déduction, elle se voit
-                    comme telle.
-         · PLEIN  — quelqu'un a répondu : c'est écrit dans
-                    « typeExamen », et ça vaut partout ailleurs.
-         · le troisième appui rend la case à la formation. Sans ce
-           retour, une erreur de doigt s'écrirait pour toujours.
-
-       ⚠️ Il écrit EXACTEMENT le champ que le menu « Boîte » de la
-       fiche de place remplit déjà. Une seule colonne, deux endroits
-       pour la poser — jamais deux colonnes. */
-    const bBoite = document.createElement('button');
-    bBoite.className = 'btn btn-secondary';
-    const peindreBoite = () => {
-      const ecrit = String(s.typeExamen || '').toLowerCase();
-      const vue = ecrit || (typeof boiteDe === 'function'
-        ? String(boiteDe(e.eleve) || '').toLowerCase() : '');
-      const bea = (vue === 'bea');
-      const teinte = !vue ? 'var(--orange)' : (bea ? '#5DADE2' : 'var(--accent-text)');
-      bBoite.textContent = vue ? vue.toUpperCase() : '？';
-      bBoite.style.cssText = 'width:auto;padding:6px 8px;font-size:11px;' +
-        'font-weight:800;margin:0;flex-shrink:0;letter-spacing:.03em;' +
-        'color:' + teinte + ';border-color:' + teinte + ';' +
-        /* Plein = quelqu'un a répondu. Creux = c'est déduit. */
-        (ecrit ? 'background:' + (bea ? 'rgba(93,173,226,.18)'
-                                      : 'rgba(182,255,14,.14)') + ';' : '');
-      bBoite.title = !vue
-        ? 'Boîte inconnue — appuie pour la choisir'
-        : (ecrit ? 'Boîte : ' + vue.toUpperCase() +
-                   ' (choisie) — appuie pour changer'
-                 : 'Boîte : ' + vue.toUpperCase() +
-                   " (d'après sa formation) — appuie pour la fixer");
-    };
-    peindreBoite();
-    bBoite.addEventListener('click', async () => {
-      const ecrit = String(s.typeExamen || '').toLowerCase();
-      /* bv → bea → d'après sa formation → bv … */
-      const suite = ecrit === 'bv' ? 'bea' : ecrit === 'bea' ? '' : 'bv';
-      bBoite.disabled = true;
-      try{
-        await majSuivi(e.eleve, { typeExamen: suite });
-        await chargerBureau();
-        redessinerBureau();
-      }catch(err){
-        showToast('Erreur : ' + err.message);
-        bBoite.disabled = false;
-      }
+    const options = optionsFicheRdvPermis();
+    l.__fiche = { e: e, options: options };
+    const ouvrir = () => ouvrirFicheBureau(e, options, l);
+    l.addEventListener('click', ev => { if(ev.target.closest('button, [data-poignee]')) return; ouvrir(); });
+    l.addEventListener('keydown', ev => {
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); ouvrir(); }
     });
-    l.appendChild(bBoite);
-
-    const bCal = document.createElement('button');
-    bCal.className = 'btn btn-secondary';
-    bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
-    bCal.textContent = '📅';
-    bCal.title = 'Lui donner une place d\'examen';
-    bCal.addEventListener('click', async () => {
-      if(typeof choisirPlaceExamen !== 'function'){
-        showToast("Les sessions d'examen ne sont pas disponibles ici.");
-        return;
-      }
-      const place = await choisirPlaceExamen(e.eleve, s.semaine);
-      if(!place) return;
-      bCal.disabled = true;
-      try{
-        await placerEleveSurPlace(e.eleve, place);
-        showToast('Place prise ✅');
-        redessinerBureau();
-      }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
-    });
-    l.appendChild(bCal);
-
-    const bDel = document.createElement('button');
-    bDel.className = 'btn btn-secondary';
-    bDel.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;' +
-      'color:var(--red);border-color:var(--red);';
-    bDel.textContent = '✕';
-    bDel.title = 'Retirer de la liste RDV PERMIS';
-    bDel.addEventListener('click', async () => {
-      if(!await confirmer('Retirer ' + e.eleve + ' de la liste RDV PERMIS ?\n\n' +
-          'Son suivi n\'est pas supprimé : il y reviendra si un moniteur ' +
-          'le redemande.')) return;
-      bDel.disabled = true;
-      try{
-        await majSuivi(e.eleve, { aPlanifier: '', retireAPrevoir: 'oui' });
-        showToast('Retiré ✅');
-        redessinerBureau();
-      }catch(err){ showToast('Erreur : ' + err.message); bDel.disabled = false; }
-    });
-    l.appendChild(bDel);
-
     return l;
   };
 
@@ -1135,6 +993,7 @@ function dessinerGroupesDuLot(bs, lot, ligneEleve){
          déplacement. */
       const p = document.createElement('span');
       p.textContent = '⠿';
+      p.dataset.poignee = '1';   /* v1329 : un appui ici n'ouvre pas la fiche */
       p.title = 'Glisse pour changer de groupe, ou appuie pour choisir';
       p.style.cssText = 'flex-shrink:0;color:var(--muted);font-size:15px;' +
         'padding:0 2px;user-select:none;';
@@ -1314,198 +1173,245 @@ function afficherRdvPermis(tous){
   }else{
     zAP.appendChild(tableauAPlacer(aPlacer));
 
-    /* Seuls les dossiers incomplets méritent une fiche détaillée :
-       les autres se gèrent depuis la synthèse ci-dessus. */
-    const incomplets = aPlacer.filter(e => {
-      const s = suiviDe(e.eleve);
-      return !s.centre || !s.moniteurDate || !s.semaine;
-    });
-
-    if(!incomplets.length){
-      const ok = document.createElement('div');
-      ok.className = 'empty';
-      ok.innerHTML = '✅ Tous les dossiers sont complets.<br>' +
-        '<span style="font-size:12px;">Utilise la synthèse ci-dessus pour saisir les dates obtenues.</span>';
-      zAP.appendChild(ok);
-    }else{
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:13px;font-weight:700;color:var(--warn-text);margin:12px 0 6px;';
-      t.textContent = '⏳ À compléter (' + incomplets.length + ')';
-      zAP.appendChild(t);
-    }
-
-    incomplets.forEach(e => {
-      zAP.appendChild(ligneBureau(e, {
-        info: x => {
-          const s = suiviDe(x.eleve);
-          const t = (s.typeExamen === 'bea' ? '🅰 BEA'
-                     : s.typeExamen === 'handicap' ? '♿ Handicap' : '🅑 BV');
-          return t + ' · ' + (s.centre || 'centre à définir') +
-                 (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
-                 /* L'absence se dit : cette fiche ne s'ouvre QUE sur
-                    un dossier incomplet, et c'est justement ce qui
-                    manque qu'on vient y lire. */
-                 (s.semaine ? ' · ' + s.semaine : ' · aucune semaine demandée') +
-                 mentionHeuresRestantes(x.eleve) +
-                 mentionExamenBlanc(x);
-        },
-        resume: x => resumeSuivi(x.eleve),
-        alerte: x => {
-          const s = suiviDe(x.eleve);
-          if(!s.centre) return 'Centre d\'examen non défini';
-          if(!s.moniteurDate) return 'Moniteur non défini';
-          return null;
-        },
-        actions: (x, zone) => {
-          zone.appendChild(boutonHeuresRestantes(x.eleve));
-          zone.appendChild(boutonExamenBlanc(x.eleve));
-          zone.appendChild(boutonEnvoyerVers(x.eleve));
-          const s = suiviDe(x.eleve);
-
-          /* ============================================================
-             TROIS RANGÉES DE BOUTONS, PLUS TROIS MENUS
-
-             « Est-ce qu'on ne peut pas mettre des boutons plutôt que
-             des listes déroulantes ? »
-
-             Un menu déroulant demande deux gestes — ouvrir, choisir —
-             pour deux réponses possibles dans le cas du centre. Et le
-             calendrier des semaines est déjà ouvert à côté : le
-             redemander dans un menu, c'est le fermer pour le rouvrir.
-
-             Les trois réglages s'écrivent aux mêmes endroits qu'avant,
-             sous les mêmes noms : c'est l'écran qui change, pas la
-             donnée. Aucun élève déjà renseigné n'est à reprendre.
-             ============================================================ */
-          zone.appendChild(rangeeBoutons('Centre d\'examen',
-            ['Saint-Brieuc', 'Loudéac'].map(c => ({ val: c, lib: c })),
-            s.centre || '',
-            async val => {
-              await majSuivi(x.eleve, { centre: val });
-              await chargerBureau();
-              redessinerBureau();
-            }));
-
-          /* QUI PREND LA DATE — DES FAVORIS, PAS UNE LISTE EN DUR.
-
-             « Le dur me pose problème, je peux pas mettre des
-             favoris ? » Si, et c'est mieux que les deux options que
-             je proposais : une liste en dur vieillit au premier
-             départ, un classement calculé change d'ordre sous les
-             doigts. Un favori se choisit une fois et ne bouge plus
-             tant que personne ne le change.
-
-             Ils sont RANGÉS AVEC LES RÉGLAGES DU BUREAU, donc partagés :
-             les gens qui prennent les dates sont les mêmes pour tout
-             le monde, et chacun ne doit pas refaire son propre
-             classement. */
-          zone.appendChild(rangeeBoutons('Qui prend la date',
-            favorisPrise().map(n => ({ val: n, lib: n })),
-            s.moniteurDate || '',
-            async val => {
-              await majSuivi(x.eleve, { moniteurDate: val });
-              await chargerBureau();
-              redessinerBureau();
-            },
-            {
-              /* Le fourre-tout : tous les autres, et de quoi épingler */
-              autre: 'Autre…',
-              surAutre: async () => {
-                const n = await choisirQuiPrendLaDate(s.moniteurDate || '');
-                if(n === null) return;
-                await majSuivi(x.eleve, { moniteurDate: n });
-                await chargerBureau();
-                redessinerBureau();
-              }
-            }));
-
-          /* LES SEMAINES, AVEC LES PLACES DU CENTRE CHOISI.
-
-             « 2 SB / 2.5 LO » sur un élève dont on vient de dire
-             qu'il passe à Saint-Brieuc, c'est un chiffre à écarter du
-             regard à chaque lecture. Le centre est choisi juste
-             au-dessus : le bouton n'annonce que ce qui le concerne.
-
-             Trois ou quatre semaines sont ouvertes en même temps,
-             rarement plus — au-delà de cinq, le reste passe derrière
-             « Autres… » pour que la fiche ne devienne pas un mur de
-             boutons. */
-          const libDe = w => libelleSemaine(w) +
-            ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-
-          /* Une valeur enregistrée avant l'ajout du numéro doit
-             retrouver sa semaine, pas créer une entrée en double. */
-          const semaines = toutesSemaines();
-          const correspond = semaines.find(w => memeSemaine(libDe(w), s.semaine));
-          if(s.semaine && correspond) s.semaine = libDe(correspond);
-
-          /* ⚠️ UNE SEMAINE DONT LES PLACES SONT DÉJÀ PRISES N'EST
-             PLUS UNE SEMAINE À VISER.
-
-             « Là on va prendre les places pour octobre ; une fois
-             les journées d'attribution passées, ça ne sert plus à
-             rien de les voir ici. »
-
-             Exact, et c'est même trompeur : proposer une semaine de
-             septembre le 3 septembre, c'est proposer une date qu'on
-             ne peut plus obtenir. Le moniteur la choisit, le bureau
-             la lit, et personne ne voit qu'elle est morte.
-
-             Les semaines dont la prise est passée ne disparaissent
-             pas pour autant : elles passent DERRIÈRE « Autres… ».
-             Une place se libère parfois, un dossier se reprend — on
-             ne rend jamais quelque chose inatteignable, on cesse
-             seulement de le proposer en premier. */
-          const encoreVisable = w => {
-            if(typeof dateDePrise !== 'function') return true;
-            const iso = String(w.du || w.au || '');
-            const m = iso.match(/^(\d{4}-\d{2})-(\d{2})$/);
-            if(!m) return true;              /* sans date, on ne juge pas */
-            const d = dateDePrise(m[1], Number(m[2]) <= 15 ? 1 : 2);
-            if(!d) return true;              /* prise inconnue : on montre */
-            return d >= todayLocal();
-          };
-
-          const enTete = semaines.filter(encoreVisable);
-          const passees = semaines.filter(w => !encoreVisable(w));
-
-          const versChoix = w => ({
-            val: libDe(w),
-            lib: semaineCourte(w),
-            sous: joursDuCentre(w, s.centre)
-          });
-          const choixSem = enTete.map(versChoix).concat(passees.map(versChoix));
-          /* Une semaine choisie autrefois et depuis refermée reste
-             proposée : sinon elle disparaîtrait de l'écran sans que
-             personne ne l'ait retirée. */
-          if(s.semaine && !choixSem.some(c => c.val === s.semaine)){
-            choixSem.push({ val: s.semaine, lib: s.semaine, sous: '' });
-          }
-
-          /* Le maximum suit ce qui est encore visable : les semaines
-             dont la prise est passée sont derrière « Autres… », pas
-             comptées dans les cinq premières. */
-          zone.appendChild(rangeeBoutons('Semaine à viser', choixSem,
-            s.semaine || '',
-            async val => {
-              await majSuivi(x.eleve, { semaine: val });
-              await chargerBureau();
-              redessinerBureau();
-            },
-            { max: Math.max(1, Math.min(5, enTete.length)), autre: 'Autres…' }));
-
-          zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            await majSuivi(x.eleve, { datePermis: dateEnToutesLettres(iso),
-                                      aPlanifier: '', statut: '' });
-            showToast('Date transmise ✅');
-            redessinerBureau();
-          }));
-        }
-      }));
-    });
+    /* 🗓️ v1329 — « ⏳ À compléter » n'est plus déroulé ici : les dossiers
+       incomplets le disent sur leur ligne (« ⚠️ à choisir : … ») et la même
+       fiche s'ouvre d'un appui (optionsFicheRdvPermis). Chacun n'apparaît
+       plus qu'une fois. */
   }
+}
+
+/* La fiche d'un élève de la liste RDV PERMIS, en fenêtre — v1329.
+   Ce sont les réglages de l'ancienne fiche « À compléter », plus ce que
+   portaient les six petits boutons de la ligne : la boîte, 📅 lui donner
+   une place d'examen, ✕ le retirer de la liste. */
+function optionsFicheRdvPermis(){
+  return {
+    menage: false,     /* « Envoyer vers… » est déjà dans ses actions : une seule fois */
+    info: x => {
+      const s = suiviDe(x.eleve);
+      const t = (s.typeExamen === 'bea' ? '🅰 BEA'
+                 : s.typeExamen === 'handicap' ? '♿ Handicap' : '🅑 BV');
+      return t + ' · ' + (s.centre || 'centre à définir') +
+             (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
+             /* L'absence se dit : c'est justement ce qui manque
+                qu'on vient lire dans la fiche. */
+             (s.semaine ? ' · ' + s.semaine : ' · aucune semaine demandée') +
+             mentionHeuresRestantes(x.eleve) +
+             mentionExamenBlanc(x);
+    },
+    resume: x => resumeSuivi(x.eleve),
+    alerte: x => {
+      const s = suiviDe(x.eleve);
+      if(!s.centre) return 'Centre d\'examen non défini';
+      if(!s.moniteurDate) return 'Moniteur non défini';
+      return null;
+    },
+    actions: (x, zone) => {
+      zone.appendChild(boutonHeuresRestantes(x.eleve));
+      zone.appendChild(boutonExamenBlanc(x.eleve));
+      zone.appendChild(boutonEnvoyerVers(x.eleve));
+      const s = suiviDe(x.eleve);
+
+      /* ============================================================
+         TROIS RANGÉES DE BOUTONS, PLUS TROIS MENUS
+
+         « Est-ce qu'on ne peut pas mettre des boutons plutôt que
+         des listes déroulantes ? »
+
+         Un menu déroulant demande deux gestes — ouvrir, choisir —
+         pour deux réponses possibles dans le cas du centre. Et le
+         calendrier des semaines est déjà ouvert à côté : le
+         redemander dans un menu, c'est le fermer pour le rouvrir.
+
+         Les trois réglages s'écrivent aux mêmes endroits qu'avant,
+         sous les mêmes noms : c'est l'écran qui change, pas la
+         donnée. Aucun élève déjà renseigné n'est à reprendre.
+         ============================================================ */
+      zone.appendChild(rangeeBoutons('Centre d\'examen',
+        ['Saint-Brieuc', 'Loudéac'].map(c => ({ val: c, lib: c })),
+        s.centre || '',
+        async val => {
+          await majSuivi(x.eleve, { centre: val });
+          await chargerBureau();
+          redessinerBureau();
+        }));
+
+      /* QUI PREND LA DATE — DES FAVORIS, PAS UNE LISTE EN DUR.
+
+         « Le dur me pose problème, je peux pas mettre des
+         favoris ? » Si, et c'est mieux que les deux options que
+         je proposais : une liste en dur vieillit au premier
+         départ, un classement calculé change d'ordre sous les
+         doigts. Un favori se choisit une fois et ne bouge plus
+         tant que personne ne le change.
+
+         Ils sont RANGÉS AVEC LES RÉGLAGES DU BUREAU, donc partagés :
+         les gens qui prennent les dates sont les mêmes pour tout
+         le monde, et chacun ne doit pas refaire son propre
+         classement. */
+      zone.appendChild(rangeeBoutons('Qui prend la date',
+        favorisPrise().map(n => ({ val: n, lib: n })),
+        s.moniteurDate || '',
+        async val => {
+          await majSuivi(x.eleve, { moniteurDate: val });
+          await chargerBureau();
+          redessinerBureau();
+        },
+        {
+          /* Le fourre-tout : tous les autres, et de quoi épingler */
+          autre: 'Autre…',
+          surAutre: async () => {
+            const n = await choisirQuiPrendLaDate(s.moniteurDate || '');
+            if(n === null) return;
+            await majSuivi(x.eleve, { moniteurDate: n });
+            await chargerBureau();
+            redessinerBureau();
+          }
+        }));
+
+      /* LES SEMAINES, AVEC LES PLACES DU CENTRE CHOISI.
+
+         « 2 SB / 2.5 LO » sur un élève dont on vient de dire
+         qu'il passe à Saint-Brieuc, c'est un chiffre à écarter du
+         regard à chaque lecture. Le centre est choisi juste
+         au-dessus : le bouton n'annonce que ce qui le concerne.
+
+         Trois ou quatre semaines sont ouvertes en même temps,
+         rarement plus — au-delà de cinq, le reste passe derrière
+         « Autres… » pour que la fiche ne devienne pas un mur de
+         boutons. */
+      const libDe = w => libelleSemaine(w) +
+        ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
+
+      /* Une valeur enregistrée avant l'ajout du numéro doit
+         retrouver sa semaine, pas créer une entrée en double. */
+      const semaines = toutesSemaines();
+      const correspond = semaines.find(w => memeSemaine(libDe(w), s.semaine));
+      if(s.semaine && correspond) s.semaine = libDe(correspond);
+
+      /* ⚠️ UNE SEMAINE DONT LES PLACES SONT DÉJÀ PRISES N'EST
+         PLUS UNE SEMAINE À VISER.
+
+         « Là on va prendre les places pour octobre ; une fois
+         les journées d'attribution passées, ça ne sert plus à
+         rien de les voir ici. »
+
+         Exact, et c'est même trompeur : proposer une semaine de
+         septembre le 3 septembre, c'est proposer une date qu'on
+         ne peut plus obtenir. Le moniteur la choisit, le bureau
+         la lit, et personne ne voit qu'elle est morte.
+
+         Les semaines dont la prise est passée ne disparaissent
+         pas pour autant : elles passent DERRIÈRE « Autres… ».
+         Une place se libère parfois, un dossier se reprend — on
+         ne rend jamais quelque chose inatteignable, on cesse
+         seulement de le proposer en premier. */
+      const encoreVisable = w => {
+        if(typeof dateDePrise !== 'function') return true;
+        const iso = String(w.du || w.au || '');
+        const m = iso.match(/^(\d{4}-\d{2})-(\d{2})$/);
+        if(!m) return true;              /* sans date, on ne juge pas */
+        const d = dateDePrise(m[1], Number(m[2]) <= 15 ? 1 : 2);
+        if(!d) return true;              /* prise inconnue : on montre */
+        return d >= todayLocal();
+      };
+
+      const enTete = semaines.filter(encoreVisable);
+      const passees = semaines.filter(w => !encoreVisable(w));
+
+      const versChoix = w => ({
+        val: libDe(w),
+        lib: semaineCourte(w),
+        sous: joursDuCentre(w, s.centre)
+      });
+      const choixSem = enTete.map(versChoix).concat(passees.map(versChoix));
+      /* Une semaine choisie autrefois et depuis refermée reste
+         proposée : sinon elle disparaîtrait de l'écran sans que
+         personne ne l'ait retirée. */
+      if(s.semaine && !choixSem.some(c => c.val === s.semaine)){
+        choixSem.push({ val: s.semaine, lib: s.semaine, sous: '' });
+      }
+
+      /* Le maximum suit ce qui est encore visable : les semaines
+         dont la prise est passée sont derrière « Autres… », pas
+         comptées dans les cinq premières. */
+      zone.appendChild(rangeeBoutons('Semaine à viser', choixSem,
+        s.semaine || '',
+        async val => {
+          await majSuivi(x.eleve, { semaine: val });
+          await chargerBureau();
+          redessinerBureau();
+        },
+        { max: Math.max(1, Math.min(5, enTete.length)), autre: 'Autres…' }));
+
+      zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
+        await envoyerConsigne(x.eleve, 'permis',
+          'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+        await majSuivi(x.eleve, { datePermis: dateEnToutesLettres(iso),
+                                  aPlanifier: '', statut: '' });
+        showToast('Date transmise ✅');
+        redessinerBureau();
+      }));
+
+      /* 📅 la place d'examen, sur une session (le 📅 de la ligne d'avant) */
+      if(typeof choisirPlaceExamen === 'function'){
+        const bCal = document.createElement('button');
+        bCal.className = 'btn btn-secondary';
+        bCal.dataset.placeExamen = '1';
+        bCal.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin-left:6px;';
+        bCal.textContent = '🎓 Lui donner une place d\'examen';
+        bCal.addEventListener('click', async () => {
+          const place = await choisirPlaceExamen(x.eleve, suiviDe(x.eleve).semaine);
+          if(!place) return;
+          bCal.disabled = true;
+          try{
+            await placerEleveSurPlace(x.eleve, place);
+            showToast('Place prise ✅');
+            redessinerBureau();
+          }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
+        });
+        zone.appendChild(bCal);
+      }
+
+      /* LA BOÎTE (le bouton BV/BEA de la ligne d'avant, David le 4/09).
+         Même champ « typeExamen » ; rappuyer sur le choix le rend à sa
+         formation, comme le troisième appui d'avant. */
+      const ecrit = String(s.typeExamen || '').toLowerCase();
+      const deduite = (typeof boiteDe === 'function') ? String(boiteDe(x.eleve) || '').toLowerCase() : '';
+      const rBoite = zone.appendChild(rangeeBoutons('Boîte' + (!ecrit && deduite ? ' — ' + deduite.toUpperCase() + " d'après sa formation" : ''),
+        [{ val: 'bv', lib: 'BV' }, { val: 'bea', lib: 'BEA' }],
+        ecrit,
+        async val => {
+          await majSuivi(x.eleve, { typeExamen: val });
+          await chargerBureau();
+          redessinerBureau();
+        }));
+      rBoite.style.marginTop = '10px';
+
+      /* ✕ le retirer de la liste, en petit, en bas à droite */
+      const fin = document.createElement('div');
+      fin.style.cssText = 'margin-top:12px;display:flex;justify-content:flex-end;';
+      const bDel = document.createElement('button');
+      bDel.className = 'btn btn-secondary';
+      bDel.dataset.retirerRdv = '1';
+      bDel.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;' +
+        'color:var(--red);border-color:var(--red);';
+      bDel.textContent = '✕ Retirer de la liste RDV PERMIS';
+      bDel.addEventListener('click', async () => {
+        if(!await confirmer('Retirer ' + x.eleve + ' de la liste RDV PERMIS ?\n\n' +
+            'Son suivi n\'est pas supprimé : il y reviendra si un moniteur ' +
+            'le redemande.')) return;
+        bDel.disabled = true;
+        try{
+          await majSuivi(x.eleve, { aPlanifier: '', retireAPrevoir: 'oui' });
+          showToast('Retiré ✅');
+          redessinerBureau();
+        }catch(err){ showToast('Erreur : ' + err.message); bDel.disabled = false; }
+      });
+      fin.appendChild(bDel);
+      zone.appendChild(fin);
+    }
+  };
 }
 
 
@@ -2866,6 +2772,81 @@ function masquePretAuPermis(e){
 }
 
 
+/* ============================================================
+   🚗 PRÊTS AU PERMIS, UNE LIGNE PAR ÉLÈVE — v1329
+
+   Schéma validé par David le 2 novembre : « Oui », à l'arrivée sur
+   🤔 À envisager on ouvre cette liste, et « aussi un petit bouton »
+   🗓️ RDV PERMIS sur la ligne. La ligne dit QUI il est (1er passage
+   ou repassage, boîte, date de la demande) et UNE étiquette dit ce
+   qui presse : sa priorité s'il est pressé, sinon ses heures.
+   ============================================================ */
+let filtrePermisChoisi = '';   /* le menu « Tous — par priorité » d'avant, en puces */
+
+function heuresAPreciser(e){
+  const r = (typeof heuresQuiComptent === 'function') ? heuresQuiComptent(e.eleve) : { valeur: '' };
+  return String(r.valeur) === '';
+}
+
+function infoLigneDuPret(x){
+  const sv = suiviDe(x.eleve);
+  const n = Number(sv.nbAjournements || 0);
+  const rep = n ? '🔁 ' + (n === 1 ? '1er' : n + 'e') + ' repassage' : '🆕 1er passage';
+  const boite = String((typeof boiteConnueDe === 'function' && boiteConnueDe(x)) || 'bv').toUpperCase();
+  const dem = x.date ? ' · demandé le ' + String(x.date).slice(0, 5) : '';
+  /* pressé : l'étiquette dit la priorité, les heures passent ici */
+  const h = (String(x.urgence || '') >= '4' || (x.etat && x.etat.permis === 'annule'))
+    ? ' · ' + motsDeLaReserve(heuresQuiComptent(x.eleve).valeur, false) : '';
+  return rep + ' · ' + boite + dem + h;
+}
+
+function etiquetteDuPret(x){
+  const u = String(x.urgence || '');
+  if(u === '5') return { t: '🚨 Prioritaire absolu', ton: 'r' };
+  if(u === '4') return { t: '🔴 Urgent', ton: 'r' };
+  if(x.etat && x.etat.permis === 'annule') return { t: '❌ Examen annulé — à reprogrammer', ton: 'r' };
+  const v = heuresQuiComptent(x.eleve).valeur;
+  if(String(v) === '') return { t: '⏱️ heures à préciser', ton: 'o' };
+  return { t: motsDeLaReserve(v, false), ton: 'v' };
+}
+
+async function mettreDansRdvPermis(nom){
+  await majSuivi(nom, { aPlanifier: 'oui', retireAPrevoir: '' });
+  showToast(nom + ' → 🗓️ RDV PERMIS ✅');
+  redessinerBureau();
+}
+
+function pucesDesPrets(liste, choisi){
+  if(typeof styleLignesCompactes === 'function') styleLignesCompactes();
+  const z = document.createElement('div');
+  z.className = 'lcPuces';
+  z.dataset.pucesPrets = '1';
+  const nRep = liste.filter(e => suiviDe(e.eleve).nbAjournements).length;
+  const choix = [
+    ['', 'Tous', liste.length],
+    ['premier', '🆕 Premier passage', liste.length - nRep],
+    ['repassage', '🔁 Repassages', nRep],
+    ['urgent', '🔴 Urgents', liste.filter(e => String(e.urgence || '') >= '4').length],
+    ['heures', '⏱️ Heures à préciser', liste.filter(heuresAPreciser).length],
+    ['annule', '❌ Examens annulés', liste.filter(e => e.etat && e.etat.permis === 'annule').length]
+  ];
+  choix.forEach(([v, t, n]) => {
+    /* une puce à zéro ne mène nulle part — sauf celle qui est choisie */
+    if(v && !n && v !== choisi) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (choisi === v ? 'btn-primary' : 'btn-secondary');
+    b.dataset.filtre = v;
+    b.appendChild(document.createTextNode(t));
+    const c = document.createElement('span');
+    c.className = 'n'; c.textContent = String(n);
+    b.appendChild(c);
+    b.addEventListener('click', () => { filtrePermisChoisi = v; redessinerBureau(); });
+    z.appendChild(b);
+  });
+  return z;
+}
+
 /* Élèves prêts au permis */
 function afficherExamensPermis(tous){
   const zPer = $('listePermis');
@@ -2875,14 +2856,17 @@ function afficherExamensPermis(tous){
   const masques = candidats.filter(e => masquePretAuPermis(e));
   let per = candidats.filter(e => !masquePretAuPermis(e));
 
-  /* Filtre par état */
-  const fPer = $('filtrePermis') ? $('filtrePermis').value : '';
+  /* Filtre par état — 🗓️ v1329 : des puces avec leur nombre (le menu
+     « Tous — par priorité » d'avant), comptées AVANT le filtre */
+  const fPer = filtrePermisChoisi || '';
+  const tousPer = per.slice();
   if(fPer === 'annule') per = per.filter(e => e.etat.permis === 'annule');
   else if(fPer === 'aprevoir') per = per.filter(e => e.etat.permis === 'aprevoir');
   else if(fPer === 'urgent') per = per.filter(e => String(e.urgence || '') >= '4');
   else if(fPer === 'sansprio') per = per.filter(e => !e.urgence);
   else if(fPer === 'repassage') per = per.filter(e => suiviDe(e.eleve).nbAjournements);
   else if(fPer === 'premier') per = per.filter(e => !suiviDe(e.eleve).nbAjournements);
+  else if(fPer === 'heures') per = per.filter(e => heuresAPreciser(e));
 
   /* Priorité décroissante, puis demande la plus ancienne */
   per.sort((a, b) => {
@@ -2895,6 +2879,9 @@ function afficherExamensPermis(tous){
   afficherAttenteBilan(tous);
   afficherPasDeRepassage(tous);
   afficherExamenNonPlanifiable(tous);
+  /* v1329 — et le sien AVANT la barre : 🤔 À envisager s'ouvre sur 🚗 Prêts
+     s'il y a quelqu'un ; lu à zéro, la barre partait sur RDV PERMIS. */
+  majVolet('cptAPrevoir', tousPer.length);
   /* APRÈS les quatre, et jamais avant : la barre lit les compteurs
      qu'elles viennent de poser. */
   rafraichirLesFiltres();
@@ -2909,27 +2896,45 @@ function afficherExamensPermis(tous){
   demanderLeRepertoireEnFond();
 
   zPer.innerHTML = '';
+  /* 🗓️ v1329 — les puces, dans la liste (voir filtrePermisChoisi) */
+  zPer.appendChild(pucesDesPrets(tousPer, fPer));
   /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
-  boutonAjoutManuel(zPer, 'aprevoir');
+  boutonAjoutManuel(zPer, 'aprevoir').classList.add('lcPetit');
 
-  /* Un élève écarté par un drapeau doit rester repérable */
+  /* Un élève écarté par un drapeau doit rester repérable.
+     🗓️ v1329 — sur UNE ligne : combien sont déjà dans RDV PERMIS (Voir ▸
+     y emmène), combien ont été retirés, et de quoi les remettre ici. */
   if(masques.length){
+    const nRdv = masques.filter(x => suiviDe(x.eleve).aPlanifier === 'oui').length;
+    const nRet = masques.length - nRdv;
     const m = document.createElement('div');
-    m.style.cssText = 'font-size:12px;color:var(--muted);padding:8px 10px;margin-bottom:8px;' +
-      'background:var(--navy);border:1px solid var(--line);border-radius:8px;line-height:1.5;';
-    m.innerHTML = 'ℹ️ ' + masques.length + ' élève(s) masqué(s) : ' +
-      masques.map(x => {
-        const s = suiviDe(x.eleve);
-        return x.eleve.replace(/</g,'&lt;') +
-          (s.aPlanifier === 'oui' ? ' (dans RDV PERMIS)' : ' (retiré de la liste)');
-      }).join(' · ');
+    m.className = 'lcMasq';
+    const t = document.createElement('span');
+    t.textContent = 'ℹ️ ' + [nRdv ? nRdv + ' déjà dans 🗓️ RDV PERMIS' : '',
+                             nRet ? nRet + ' retiré' + (nRet > 1 ? 's' : '') + ' de la liste' : '']
+                            .filter(Boolean).join(' · ');
+    t.title = masques.map(x => x.eleve + (suiviDe(x.eleve).aPlanifier === 'oui'
+      ? ' (dans RDV PERMIS)' : ' (retiré de la liste)')).join('\n');
+    m.appendChild(t);
+    if(nRdv){
+      const v = document.createElement('button');
+      v.className = 'btn btn-secondary';
+      v.textContent = 'Voir ▸';
+      v.addEventListener('click', () => {
+        if(typeof filtreDeLaVue !== 'undefined' && typeof majFiltresDeVue === 'function'){
+          filtreDeLaVue.envisager = 'rdvpermis';
+          majFiltresDeVue('envisager');
+        }
+      });
+      m.appendChild(v);
+    }
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
-    b.style.cssText = 'margin-top:8px;padding:8px;font-size:12px;';
-    b.textContent = '↩️ Les remettre dans la liste';
+    b.textContent = '↩️ Les remettre ici';
     b.addEventListener('click', async () => {
       if(!await confirmer('Remettre ces ' + masques.length +
-                          ' élève(s) dans les examens à prévoir ?')) return;
+                          ' élève(s) dans les examens à prévoir ?\n\n' +
+                          masques.map(x => x.eleve).join(', '))) return;
       b.disabled = true;
       try{
         for(const x of masques){
@@ -2951,7 +2956,7 @@ function afficherExamensPermis(tous){
      prêt au permis ». C'est ce qui rendait la disparition de Sandra
      si difficile à voir : l'écran d'accueil continuait de la
      compter. Un compteur n'a pas le droit de décrire l'avant. */
-  majVolet('cptAPrevoir', per.length);
+  majVolet('cptAPrevoir', tousPer.length);   /* v1329 : le total, pas le filtre des puces */
 
   if(!per.length){
     const v = document.createElement('div');
@@ -2960,21 +2965,25 @@ function afficherExamensPermis(tous){
                          : 'Aucun élève prêt au permis.';
     zPer.appendChild(v);
   }else{
-    const cpt = document.createElement('div');
-    cpt.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
-      'padding:4px 2px 8px;';
-    const nRep = per.filter(x => suiviDe(x.eleve).nbAjournements).length;
-    cpt.textContent = per.length + ' élève(s)' +
-      (nRep ? ' · dont ' + nRep + ' repassage(s)' : '');
-    zPer.appendChild(cpt);
+    /* le nombre et les repassages sont dans les puces (v1329) */
     signalerAjout(zPer);
   per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
-        replier: true,
+        /* 🗓️ v1329 — une ligne, une étiquette, la fiche en fenêtre (schéma
+           validé par David : « Oui », « aussi un petit bouton »). */
+        compact: true,
+        menage: false,            /* « Envoyer vers… » une seule fois, dans la fiche */
+        infoLigne: infoLigneDuPret,
+        etiquette: etiquetteDuPret,
+        actionLigne: x => ({
+          t: '🗓️ RDV PERMIS',
+          titre: 'Mettre ' + x.eleve + ' dans la liste RDV PERMIS',
+          faire: () => mettreDansRdvPermis(x.eleve)
+        }),
         /* Demandé par David le 17/09 : la boîte de vitesses se voit
            à côté du nom, sans ouvrir la fiche. C'est la liste où on
            place les examens — et une place BEA ne se donne pas à un
-           élève en BV. */
+           élève en BV. (v1329 : dans la ligne, en toutes lettres.) */
         barreBoite: true,
         info: x => {
           const sv = suiviDe(x.eleve);
@@ -2996,11 +3005,67 @@ function afficherExamensPermis(tous){
                  mentionExamenBlanc(x) +
                  (x.urgence ? ' · ' + u.l : '');
         },
-        alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
+        /* l'urgence se lit dans l'étiquette et dans les boutons 🚦 : plus d'alerte */
         actions: (x, zone) => {
-          zone.appendChild(boutonHeuresRestantes(x.eleve));
-          zone.appendChild(boutonExamenBlanc(x.eleve));
-          zone.appendChild(boutonEnvoyerVers(x.eleve));
+          /* ① le geste de cette liste */
+          const gros = document.createElement('button');
+          gros.className = 'btn btn-primary lcGros';
+          gros.dataset.versRdv = '1';
+          gros.textContent = '🗓️ Mettre dans la liste RDV PERMIS';
+          gros.addEventListener('click', async () => {
+            gros.disabled = true;
+            try{ await mettreDansRdvPermis(x.eleve); }
+            catch(err){ showToast('Erreur : ' + err.message); gros.disabled = false; }
+          });
+          zone.appendChild(gros);
+
+          /* ② 🚦 sa priorité, en boutons (le menu « — normal — » sans titre d'avant) */
+          const lp = document.createElement('div');
+          lp.className = 'lcLab'; lp.textContent = '🚦 Priorité';
+          zone.appendChild(lp);
+          const rp = document.createElement('div');
+          rp.className = 'lcRang';
+          rp.dataset.priorite = '1';
+          URGENCES.forEach(u => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn ' + (String(x.urgence || '') === u.v ? 'btn-primary' : 'btn-secondary');
+            b.style.cssText = 'padding:6px 10px;font-size:12.5px;';
+            b.dataset.urgence = u.v;
+            b.textContent = u.v ? u.l : 'Normal';
+            b.addEventListener('click', async () => {
+              if(String(x.urgence || '') === u.v) return;
+              rp.querySelectorAll('button').forEach(y => { y.disabled = true; });
+              try{
+                await envoyerConsigne(x.eleve, 'urgence', '', u.v);
+                showToast('Priorité enregistrée ✅');
+                await chargerBureau();
+                redessinerBureau();
+              }catch(err){
+                showToast('Erreur : ' + err.message);
+                rp.querySelectorAll('button').forEach(y => { y.disabled = false; });
+              }
+            });
+            rp.appendChild(b);
+          });
+          zone.appendChild(rp);
+
+          /* ③ son dossier : « Envoyer vers… » une seule fois */
+          const ld = document.createElement('div');
+          ld.className = 'lcLab'; ld.textContent = 'Son dossier';
+          zone.appendChild(ld);
+          const rd = document.createElement('div');
+          rd.className = 'lcRang';
+          rd.appendChild(boutonHeuresRestantes(x.eleve));
+          rd.appendChild(boutonExamenBlanc(x.eleve));
+          rd.appendChild(boutonDate('📅 Date de permis', async iso => {
+            await envoyerConsigne(x.eleve, 'permis',
+              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+            showToast('Date transmise ✅');
+            redessinerBureau();
+          }));
+          if(aDroit('bureau_permis')) rd.appendChild(boutonEnvoyerVers(x.eleve));
+          zone.appendChild(rd);
 
           const sPost = suiviDe(x.eleve);
 
@@ -3010,7 +3075,7 @@ function afficherExamensPermis(tous){
           if(sPost.rdvPostDate && sPost.rdvPostFait !== 'oui'){
             const bSans = document.createElement('button');
             bSans.className = 'btn btn-secondary';
-            bSans.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;margin:0 0 10px;';
+            bSans.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;margin:10px 0 0;';
             bSans.textContent = '⏸️ Pas de repassage pour le moment';
             bSans.title = 'Le retire de cette liste sans supprimer son rendez-vous';
             bSans.addEventListener('click', async () => {
@@ -3026,28 +3091,10 @@ function afficherExamensPermis(tous){
             zone.appendChild(bSans);
           }
 
-          const lab = document.createElement('label');
-          lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
-            'font-size:15px;color:var(--cream);margin-bottom:10px;';
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.style.cssText = 'width:19px;height:19px;';
-          cb.checked = (suiviDe(x.eleve).aPlanifier === 'oui');
-          cb.addEventListener('change', async () => {
-            cb.disabled = true;
-            try{
-              await majSuivi(x.eleve, { aPlanifier: cb.checked ? 'oui' : '',
-                                        retireAPrevoir: '' });
-              redessinerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); cb.disabled = false; }
-          });
-          lab.appendChild(cb);
-          lab.appendChild(document.createTextNode('Mettre dans la liste RDV PERMIS'));
-          zone.appendChild(lab);
 
           const bRet = document.createElement('button');
           bRet.className = 'btn btn-secondary';
-          bRet.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin-right:6px;' +
+          bRet.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;' +
             'color:var(--red);border-color:var(--red);';
           bRet.textContent = '🗑️ Retirer de la liste';
           bRet.addEventListener('click', async () => {
@@ -3063,35 +3110,14 @@ function afficherExamensPermis(tous){
               redessinerBureau();
             }catch(e){ showToast('Erreur : ' + e.message); bRet.disabled = false; }
           });
-          zone.appendChild(bRet);
+          const dispo = blocDispo(x);
+          if(dispo){ dispo.style.marginTop = '10px'; zone.appendChild(dispo); }
 
-          zone.appendChild(blocDispo(x));
-
-          zone.appendChild(boutonDate('📅 Date de permis', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            showToast('Date transmise ✅');
-            redessinerBureau();
-          }));
-
-          const sel = document.createElement('select');
-          sel.style.cssText = 'margin-top:8px;margin-bottom:0;';
-          URGENCES.forEach(u => {
-            const o = document.createElement('option');
-            o.value = u.v; o.textContent = u.l;
-            sel.appendChild(o);
-          });
-          sel.value = x.urgence || '';
-          sel.addEventListener('change', async () => {
-            sel.disabled = true;
-            try{
-              await envoyerConsigne(x.eleve, 'urgence', '', sel.value);
-              showToast('Priorité enregistrée ✅');
-              await chargerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); }
-            sel.disabled = false;
-          });
-          zone.appendChild(sel);
+          /* 🗑️ en petit, en bas à droite : on ne le cherche pas, on ne le touche pas par erreur */
+          const fin = document.createElement('div');
+          fin.style.cssText = 'margin-top:12px;display:flex;justify-content:flex-end;';
+          fin.appendChild(bRet);
+          zone.appendChild(fin);
         }
       }));
     });
@@ -5107,9 +5133,8 @@ async function direOuEstPasseLEleve(eleve){
   /* Un filtre laissé sur la liste cache l'élève qu'on vient d'y
      mettre : la liste a raison, c'est l'écran qui ne le montre pas.
      On ne le compte pas comme un échec — on lève le filtre. */
-  const f = $('filtrePermis');
-  if(!raison && !masque && f && f.value){
-    f.value = '';
+  if(!raison && !masque && filtrePermisChoisi){
+    filtrePermisChoisi = '';
     afficherBureau(true);
     showToast(eleve + ' → prêt au permis ✅ (filtre de la liste levé)');
     return;
