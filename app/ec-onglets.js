@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 12:44 — v1320 */
+/* Déployé le 02/11/2026 à 10:49 — v1328 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -633,13 +633,42 @@ function familleDuVolet(v){
 
 function appliquerFiltreDeVue(vue){
   const choisi = filtreDeLaVue[vue] || 'tous';
+  const barre = document.querySelector('.filtres-vue[data-vue="' + vue + '"]');
+  const seule = !!(barre && barre.hasAttribute('data-seule'));
   voletsDeLaVue(vue).forEach(v => {
     const sien = (choisi === 'tous' || v.getAttribute('data-famille') === choisi);
     v.classList.toggle('filtre-off', !sien);
     /* Choisir un filtre OUVRE la liste : sinon on aurait remplacé
        quatre clics par un clic et un clic. */
     if(sien && choisi !== 'tous') v.open = true;
+    /* 📋 v1328 — UNE LISTE À LA FOIS (David : « les listes sont très
+       longues »). La liste choisie est ouverte et ne se replie pas ; une
+       recherche par nom la filtre. */
+    v.classList.toggle('volet-seul', seule && sien);
+    if(seule && sien) poserRechercheDuVolet(v);
   });
+}
+
+/* 🔎 v1328 — chercher un élève dans la liste affichée */
+function poserRechercheDuVolet(v){
+  if(v.querySelector(':scope > .lcRech')) return;
+  const r = document.createElement('input');
+  r.type = 'search';
+  r.className = 'lcRech';
+  r.placeholder = '🔎 Chercher un élève dans cette liste…';
+  r.setAttribute('aria-label', 'Chercher un élève dans cette liste');
+  const filtrer = () => {
+    const q = (typeof normaliserMot === 'function') ? normaliserMot(r.value) : r.value.toLowerCase();
+    v.querySelectorAll('.history-item[data-eleve]').forEach(l => {
+      const n = (typeof normaliserMot === 'function') ? normaliserMot(l.dataset.eleve) : l.dataset.eleve.toLowerCase();
+      l.style.display = (!q || n.indexOf(q) !== -1) ? '' : 'none';
+    });
+  };
+  r.addEventListener('input', filtrer);
+  const s = v.querySelector('summary');
+  if(s) s.after(r); else v.prepend(r);
+  /* la liste se redessine : la recherche se réapplique */
+  new MutationObserver(() => { if(r.value) filtrer(); }).observe(v, { childList: true, subtree: true });
 }
 
 /* ⚠️ PAR QUOI ON COMMENCE — v971.
@@ -693,6 +722,13 @@ function majFiltresDeVue(vue){
   if(choisi !== 'tous' && !fams.some(f => f.cle === choisi && f.n)){
     filtreDeLaVue[vue] = choixParDefaut(barre, fams);
   }
+  /* 📋 v1328 — une liste à la fois : jamais « Tous » ; la première qui a
+     quelqu'un (l'ordre de data-defaut), sinon la première tout court */
+  const seule = barre.hasAttribute('data-seule');
+  if(seule && (filtreDeLaVue[vue] || 'tous') === 'tous'){
+    const f = fams.find(x => x.n) || fams[0];
+    filtreDeLaVue[vue] = f ? f.cle : 'tous';
+  }
 
   barre.innerHTML = '';
 
@@ -714,11 +750,11 @@ function majFiltresDeVue(vue){
     return b;
   };
 
-  barre.appendChild(bouton('tous', 'Tous', total, false));
+  if(!seule) barre.appendChild(bouton('tous', 'Tous', total, false));
   /* UN FILTRE À ZÉRO NE S'AFFICHE PAS. Une rangée de boutons qui ne
      mènent nulle part apprend à ne plus la lire — comme la ligne
      qui disait que tout allait bien sur chaque carte. */
-  fams.filter(f => f.n > 0)
+  fams.filter(f => f.n > 0 || (seule && f.cle === filtreDeLaVue[vue]))
       .forEach(f => barre.appendChild(bouton(f.cle, f.titre, f.n, true)));
 
   /* Rien du tout : on le dit, plutôt que de laisser un « Tous 0 »
