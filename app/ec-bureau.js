@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:26 — v1331 */
+/* Déployé le 02/11/2026 à 14:42 — v1332 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1497,6 +1497,7 @@ function styleLignesCompactes(){
 .lcF{color:var(--muted);font-size:18px;text-align:right}
 .lcL > span{text-align:left;justify-self:start;min-width:0;max-width:100%}
 .lcL > .lcF{justify-self:end}
+.lcL.lcC6{grid-template-columns:minmax(140px,210px) minmax(0,1fr) auto auto auto 18px}.lcL > .lcApres{order:5;font-size:11.5px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--muted);white-space:nowrap;justify-self:end}.lcL.lcC6 > .lcF{order:6}
 .lcL > .lcTags{order:3;display:flex;gap:4px;flex-wrap:wrap;justify-self:end}.lcNomEcrit{color:#A85A00!important;border-color:#E8A23A!important}.lcL > .lcEt{order:4;justify-self:end}.lcL > .lcF{order:5}
 .history-item.lc.lcA{display:flex!important;align-items:center;gap:4px}
 .lcA > .lcL{flex:1;min-width:0}
@@ -1534,7 +1535,7 @@ details.volet-liste.volet-seul > summary::after{display:none}
 /* v1331 — en dernier, et plus fort que .lcA (display:flex!important) : sinon la
    recherche ne cachait pas les lignes qui ont un bouton */
 .history-item.lc.lcA.lcCache,.history-item.lc.lcCache,.lcRdv.lcCache,.lcCache{display:none!important}
-@media (max-width:700px){.history-item.lc.lcA{flex-wrap:wrap}.lcA > .lcL{flex:1 1 100%}.lcAct{margin:-4px 0 9px 10px!important}.lcActs{margin:-4px 0 9px 10px}.lcActs .lcAct{margin:0!important}.lcL{grid-template-columns:1fr 18px;row-gap:3px}.lcL > .lcEt{justify-self:start}.lcRdv .n{flex:1 1 calc(100% - 34px)}.lcRdv .lcEt{white-space:normal;border-radius:10px}.lcNom,.lcInfo,.lcEt,.lcL .lcTags{grid-column:1}.lcL > .lcTags{justify-self:start}.lcTags:empty{display:none}.lcInfo{white-space:normal}.lcEt{white-space:normal;border-radius:10px}.lcF{grid-column:2;grid-row:1/5}}`;
+@media (max-width:700px){.lcL.lcC6{grid-template-columns:1fr 18px}.lcL > .lcApres{grid-column:1;justify-self:start}.history-item.lc.lcA{flex-wrap:wrap}.lcA > .lcL{flex:1 1 100%}.lcAct{margin:-4px 0 9px 10px!important}.lcActs{margin:-4px 0 9px 10px}.lcActs .lcAct{margin:0!important}.lcL{grid-template-columns:1fr 18px;row-gap:3px}.lcL > .lcEt{justify-self:start}.lcRdv .n{flex:1 1 calc(100% - 34px)}.lcRdv .lcEt{white-space:normal;border-radius:10px}.lcNom,.lcInfo,.lcEt,.lcL .lcTags{grid-column:1}.lcL > .lcTags{justify-self:start}.lcTags:empty{display:none}.lcInfo{white-space:normal}.lcEt{white-space:normal;border-radius:10px}.lcF{grid-column:2;grid-row:1/5}}`;
   document.head.appendChild(st);
 }
 
@@ -1555,6 +1556,10 @@ function ligneCompacteBureau(e, options){
   const z = document.createElement('span');
   const lo = document.createElement('span');
   b.append(nom, info, z, lo);
+  /* 📍 v1332 — une case de plus, juste après l'étiquette (le centre
+     d'examen des prêts : David, « juste après le nombre d'heures ») */
+  const ap = (typeof options.apresEtiquette === 'function') ? document.createElement('span') : null;
+  if(ap){ b.classList.add('lcC6'); b.appendChild(ap); }
   /* ⚠️ LA LIGNE SE REDIT SANS SE REDESSINER (rafraichirLigne, v1094) */
   const redire = () => {
     const et = (typeof options.etiquette === 'function') ? options.etiquette(e)
@@ -1563,6 +1568,11 @@ function ligneCompacteBureau(e, options){
     z.className = (et && et.t) ? 'lcEt ' + (et.ton || '') : '';
     z.textContent = (et && et.t) || '';
     /* les petites étiquettes bleues/orange, dans UNE case de la grille */
+    if(ap){
+      const a = options.apresEtiquette(e) || '';
+      ap.className = a ? 'lcApres' : '';
+      ap.textContent = a;
+    }
     lo.className = 'lcTags';
     lo.innerHTML = '';
     if(suiviDe(e.eleve).okLoudeac === 'oui'){
