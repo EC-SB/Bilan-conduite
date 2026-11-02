@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:42 — v1332 */
+/* Déployé le 02/11/2026 à 14:59 — v1333 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1312,11 +1312,13 @@ function ligneBureau(e, options){
   info.style.whiteSpace = 'pre-wrap';
   meta.appendChild(info);
 
-  /* 📍 v1328 — « ok pour repasser à Loudéac » se voit partout où il est listé */
-  if(sv.okLoudeac === 'oui'){
+  /* 📍 v1328 — « ok pour l'autre centre » se voit partout où il est listé
+     (v1333 : dans les deux sens, d'après son agence) */
+  const okAutre = etiquetteAutreCentre(e.eleve);
+  if(okAutre){
     const lo = document.createElement('span');
     lo.className = 'lcLoudeac';
-    lo.textContent = '📍 OK pour Loudéac';
+    lo.textContent = okAutre;
     meta.appendChild(lo);
   }
 
@@ -1575,9 +1577,10 @@ function ligneCompacteBureau(e, options){
     }
     lo.className = 'lcTags';
     lo.innerHTML = '';
-    if(suiviDe(e.eleve).okLoudeac === 'oui'){
+    const okAutre = etiquetteAutreCentre(e.eleve);
+    if(okAutre){
       const t = document.createElement('span');
-      t.className = 'lcLoudeac'; t.textContent = '📍 OK Loudéac';
+      t.className = 'lcLoudeac'; t.textContent = okAutre;
       lo.appendChild(t);
     }
     /* 🔗 v1329 — un nom écrit autrement (v1167) se voit sur la ligne ; le
@@ -1632,29 +1635,72 @@ function ligneCompacteBureau(e, options){
   return row;
 }
 
-/* 📍 « OK pour passer à Loudéac » — pour un élève ajourné */
+/* ============================================================
+   🏢 📍 L'AGENCE ET LE CENTRE D'EXAMEN DE BASE — v1333
+
+   David, le 2 novembre : « avec le bouton Drivup on récupère l'agence
+   d'inscription », « dans chaque dossier, partie permis, il faut que l'on
+   puisse dire si c'est un élève de Saint-Brieuc qu'il peut passer son
+   examen à Loudéac et inversement, et que ça suive automatiquement ». Ses
+   réponses au schéma : le centre de base = son agence ; « OK pour
+   l'autre » dans les deux sens, pour tous ; Saint-Brieuc par défaut si
+   l'agence n'est pas connue, et qu'on puisse la changer.
+   « OK Loudéac » (118, v1328) et « OK Saint-Brieuc » (120, v1333) sont
+   deux colonnes du suivi : chacune dit « il veut bien aller LÀ ».
+   ============================================================ */
+function agencePropre(v){
+  const t = (typeof normaliserMot === 'function') ? normaliserMot(v) : String(v || '').toLowerCase();
+  if(/loudeac|loudéac/.test(t)) return 'Loudéac';
+  if(/brieuc/.test(t)) return 'Saint-Brieuc';
+  return '';
+}
+function agenceDe(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  return agencePropre(f && f.agence);
+}
+function centreDeBase(nom){ return agenceDe(nom) || 'Saint-Brieuc'; }
+function autreCentre(c){ return /loud/i.test(c) ? 'Saint-Brieuc' : 'Loudéac'; }
+function champOkCentre(c){ return /loud/i.test(c) ? 'okLoudeac' : 'okSaintBrieuc'; }
+function okPourCentre(nom, c){ return suiviDe(nom)[champOkCentre(c)] === 'oui'; }
+/* L'étiquette bleue : « 📍 OK Loudéac » chez un élève de Saint-Brieuc,
+   « 📍 OK Saint-Brieuc » chez un élève de Loudéac — seulement l'AUTRE. */
+function etiquetteAutreCentre(nom){
+  const a = autreCentre(centreDeBase(nom));
+  return okPourCentre(nom, a) ? '📍 OK ' + a : '';
+}
+
+/* 📍 « OK pour passer aussi à … » — l'autre centre que celui de son agence.
+   (Le nom reste « interrupteurLoudeac » : il est appelé partout depuis la
+   v1328 ; « data-loudeac » aussi.) */
 function interrupteurLoudeac(nom){
-  const s = suiviDe(nom);
+  const base = centreDeBase(nom);
+  const autre = autreCentre(base);
+  const champ = champOkCentre(autre);
   const b = document.createElement('button');
   b.type = 'button';
   b.dataset.loudeac = '1';
+  b.dataset.autreCentre = autre;
   const peindre = (on) => {
     b.className = 'lcSw' + (on ? ' on' : '');
     b.setAttribute('role', 'switch');
     b.setAttribute('aria-checked', on ? 'true' : 'false');
-    b.innerHTML = '<span class="t">📍 OK pour passer à Loudéac<small>' + (on
-      ? 'Il veut bien repasser à Loudéac plutôt qu’à Saint-Brieuc.'
-      : 'De base, il repasse à Saint-Brieuc.') + '</small></span><span class="s"></span>';
+    b.innerHTML = '<span class="t">📍 OK pour passer aussi à ' + autre + '<small>' + (on
+      ? 'Il veut bien passer à ' + autre + ' : il compte pour les deux centres.'
+      : 'De base, il passe à ' + base + (agenceDe(nom) ? ' (son agence).' : ' (agence pas connue).')) +
+      '</small></span><span class="s"></span>';
   };
-  peindre(s.okLoudeac === 'oui');
+  peindre(okPourCentre(nom, autre));
   b.addEventListener('click', async () => {
-    const on = suiviDe(nom).okLoudeac !== 'oui';
+    const on = !okPourCentre(nom, autre);
     b.disabled = true;
     try{
-      await majSuivi(nom, { okLoudeac: on ? 'oui' : '' });
+      const maj = {}; maj[champ] = on ? 'oui' : '';
+      await majSuivi(nom, maj);
       peindre(on);
-      showToast(on ? '📍 ' + nom + ' : OK pour Loudéac ✅' : nom + ' : Saint-Brieuc ✅');
+      showToast(on ? '📍 ' + nom + ' : OK pour ' + autre + ' ✅' : nom + ' : ' + base + ' seulement ✅');
       redessinerBureau();
+      if(typeof dessinerPageEleve === 'function' && typeof elevePageOuverte !== 'undefined' &&
+         elevePageOuverte && normaliserMot(elevePageOuverte) === normaliserMot(nom)) dessinerPageEleve();
     }catch(err){ showToast('Erreur : ' + err.message); }
     b.disabled = false;
   });
@@ -1677,8 +1723,9 @@ function remplirFicheBureau(boite, e, options){
   tete.appendChild(x);
   boite.appendChild(tete);
   if(typeof options.fiche === 'function'){ options.fiche(e, boite); return; }
-  const avecInter = !!suiviDe(e.eleve).nbAjournements;
-  if(avecInter) boite.appendChild(interrupteurLoudeac(e.eleve));
+  /* 📍 v1333 — pour tous les élèves (David : « pour tous »), plus seulement les ajournés */
+  const avecInter = true;
+  boite.appendChild(interrupteurLoudeac(e.eleve));
   const corps = ligneBureau(e, Object.assign({}, options, { compact: false, replier: false }));
   /* v1329 — l'interrupteur dit déjà « OK Loudéac » : l'étiquette ferait
      doublon (et s'étirait sur toute la largeur) */
