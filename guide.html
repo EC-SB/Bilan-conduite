@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1328
+     GUIDE-VERSION: 1329
      ============================================================ -->
 
 <style>
@@ -416,8 +416,8 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1328</strong><br>
-    Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
+  <p class="sous">Guide d'utilisation · <strong>v1329</strong><br>
+    Mis à jour le 2 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
     <div class="titre">Filtrer par rôle</div>
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1328</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1329</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -912,7 +912,7 @@ html{scroll-behavior:smooth}
     </ul>
 
     <h4>Les filtres d'une vue</h4>
-    <p>Plusieurs écrans sont faits de plusieurs listes repliables (<span class="b">⛔ Pas prêts</span>, <span class="b">🤔 À envisager</span>, la moto…). En tête, une rangée de filtres les résume&nbsp;: <span class="b">Tous&nbsp;12</span> puis un bouton par liste non vide, avec son compte. Choisir un filtre n'affiche que cette liste, et l'ouvre. Quand tout est vide, la rangée le dit&nbsp;: <span class="ch">✅ Rien qui attende dans ces N listes.</span></p>
+    <p>Plusieurs écrans sont faits de plusieurs listes repliables (<span class="b">⛔ Pas prêts</span>, <span class="b">🤔 À envisager</span>, la moto…). En tête, une rangée de filtres les résume&nbsp;: <span class="b">Tous&nbsp;12</span> puis un bouton par liste non vide, avec son compte. Choisir un filtre n'affiche que cette liste, et l'ouvre. Quand tout est vide, la rangée le dit&nbsp;: <span class="ch">✅ Rien qui attende dans ces N listes.</span> Dans <span class="b">⛔ Pas prêts</span> et <span class="b">🤔 À envisager</span>, il n'y a pas de «&nbsp;Tous&nbsp;»&nbsp;: <strong>une liste à la fois</strong>, un élève par ligne, sa fiche en fenêtre.</p>
 
     <div class="note piege"><span class="tag">Trois pièges de navigation</span>
       <ul style="margin-bottom:0">
@@ -2619,10 +2619,10 @@ Dernier cours le 12/09/2026 avec Hery
 
   <section id="envisager">
     <h3>🤔 À envisager</h3>
-    <p>Ceux à qui on va pouvoir donner une date. Trois listes, avec la même barre de filtres qu'en Pas prêts.</p>
+    <p>Ceux à qui on va pouvoir donner une date. Trois listes, <strong>une à la fois</strong> (depuis la v1329, comme <a href="#pasprets" class="aller">⛔ Pas prêts</a>)&nbsp;: les puces en tête choisissent la liste, sans « Tous ». On arrive sur <span class="b">🚗 Élèves prêts au permis</span> s'il y a quelqu'un. Chaque élève tient sur <strong>une ligne</strong> avec une étiquette de couleur&nbsp;; un appui ouvre sa fiche en fenêtre, et <span class="b">🔎 Chercher un élève</span> filtre la liste.</p>
 
     <h4>📝 Examens blancs prévus</h4>
-    <p><em>« Ceux dont la date est posée, du plus proche au plus lointain. »</em> Deux sources réunies&nbsp;: les dates posées par le bureau, et <strong>les cours préparés portant le modèle « Examen blanc »</strong>. Un élève dont la date d'examen du permis est déjà posée est exclu&nbsp;: l'examen blanc a joué son rôle.</p>
+    <p><em>« Ceux dont la date est posée, du plus proche au plus lointain. »</em> L'étiquette donne la date&nbsp;: <span class="ch">📝 jeu. 5 nov. · dans 3 j</span> en orange à trois jours ou moins, en vert au-delà, en rouge une fois passée. Deux sources réunies&nbsp;: les dates posées par le bureau, et <strong>les cours préparés portant le modèle « Examen blanc »</strong>. Un élève dont la date d'examen du permis est déjà posée est exclu&nbsp;: l'examen blanc a joué son rôle.</p>
     <p>Un bouton <span class="b">➕ Prévoir un examen blanc</span> ouvre une fenêtre avec élève, date, heure, moniteur, et une case <span class="b">Créer aussi le cours</span>. L'effet écrit la date <strong>prévue</strong> et remet le niveau à vide&nbsp;: prévu n'est pas passé.</p>
     <p>Si la date est <strong>dépassée</strong>, la ligne dit <span class="ch">⚠️ Le … — date dépassée, sa suite ?</span> et trois boutons apparaissent, qui reprennent les conclusions du questionnaire&nbsp;:</p>
     <ul>
@@ -2632,18 +2632,19 @@ Dernier cours le 12/09/2026 avec Hery
     </ul>
 
     <h4>🚗 Élèves prêts au permis</h4>
-    <p><strong>Le cœur de l'onglet.</strong> C'est le vivier dans lequel le bureau pioche quand il obtient des places. Une barre de couleur, à gauche du nom, dit sa boîte.</p>
+    <p><strong>Le cœur de l'onglet.</strong> C'est le vivier dans lequel le bureau pioche quand il obtient des places. La ligne dit <span class="ch">🆕 1er passage</span> ou <span class="ch">🔁 2e repassage</span>, sa boîte (BV / BEA) et la date de la demande. <strong>L'étiquette</strong>&nbsp;: rouge <span class="ch">🚨 Prioritaire absolu</span> / <span class="ch">🔴 Urgent</span> s'il est pressé (ses heures passent alors dans la ligne), rouge <span class="ch">❌ Examen annulé</span>, sinon orange <span class="ch">⏱️ heures à préciser</span>, sinon vert ses heures (<span class="ch">3 + 3h</span>, <span class="ch">plus que les 3h avant examen</span>). <span class="ch">📍 OK Loudéac</span> s'affiche aussi. Au bout de la ligne, <span class="b">🗓️ RDV PERMIS</span> le met dans la liste suivante d'un appui.</p>
     <p>Y figurent ceux dont la note dit « date d'examen à prévoir », ceux dont l'examen a été annulé, ceux qui ont un rendez-vous post-permis fixé mais pas encore fait, <strong>et ceux dont l'examen blanc conclut « 🤔 Pourrait avoir le niveau »</strong> — avec leur mention, pour qu'on sache qu'il reste un doute. Sont exclus ceux qui sont <strong>déjà placés</strong>&nbsp;: une date dans leur fiche, une date dans leurs notes, ou une place dans une session ouverte.</p>
-    <p>Un menu de filtre à sept entrées&nbsp;: <span class="ch">Tous — par priorité</span>, <span class="ch">🆕 Premier passage</span>, <span class="ch">🔁 Repassages</span>, <span class="ch">🔴 Urgents seulement</span>, <span class="ch">Date à prévoir</span>, <span class="ch">❌ Examens annulés</span>, <span class="ch">Sans priorité définie</span>.</p>
-    <p>Si des élèves du vivier sont écartés par un drapeau, un bandeau les nomme&nbsp;: <span class="ch">ℹ️ 2 élève(s) masqué(s) : …</span>, avec <span class="b">↩️ Les remettre dans la liste</span>.</p>
+    <p>Toujours rangée <strong>par priorité</strong>, puis la demande la plus ancienne. Des puces avec leur nombre filtrent&nbsp;: <span class="b">Tous</span>, <span class="b">🆕 Premier passage</span>, <span class="b">🔁 Repassages</span>, <span class="b">🔴 Urgents</span>, <span class="b">⏱️ Heures à préciser</span>, et <span class="b">❌ Examens annulés</span> quand il y en a.</p>
+    <p>Ceux qui sont déjà ailleurs tiennent sur une ligne&nbsp;: <span class="ch">ℹ️ 6 déjà dans 🗓️ RDV PERMIS · 1 retiré de la liste</span>, avec <span class="b">Voir ▸</span> (ouvre RDV PERMIS) et <span class="b">↩️ Les remettre ici</span>. Les noms s'affichent au survol.</p>
 
-    <h5>Les actions</h5>
+    <h5>Sa fiche</h5>
+    <p>Dans l'ordre&nbsp;: le gros bouton <span class="b">🗓️ Mettre dans la liste RDV PERMIS</span>, puis <span class="b">🚦 Priorité</span> en boutons, puis <strong>Son dossier</strong> (⏱️ heures · 📝 Niveau · 📅 Date de permis · ➡️ Envoyer vers…, une seule fois), le tiroir 📅 Disponibilités, et <span class="b">🗑️ Retirer de la liste</span> en petit, en bas à droite. Pour un repassage, l'interrupteur <span class="b">📍 OK pour passer à Loudéac</span> est en tête.</p>
     <div class="tab"><table>
       <thead><tr><th>Action</th><th>Effet</th></tr></thead>
       <tbody>
-        <tr><td><span class="b">☑ Mettre dans la liste RDV PERMIS</span></td><td><strong>Le geste principal.</strong> Bascule l'élève dans la liste suivante. Décocher le ramène ici. Effet immédiat, sans confirmation.</td></tr>
+        <tr><td><span class="b">🗓️ Mettre dans la liste RDV PERMIS</span></td><td><strong>Le geste principal</strong>, dans la fiche ou au bout de la ligne. Bascule l'élève dans la liste suivante, sans confirmation. Pour le ramener&nbsp;: <span class="b">↩️ Les remettre ici</span>, ou <span class="b">✕ Retirer de la liste RDV PERMIS</span> dans sa fiche là-bas.</td></tr>
         <tr><td><span class="b">📅 Date de permis</span></td><td>Le raccourci quand on connaît déjà la date. <strong>Attention&nbsp;: celui-ci n'écrit pas la date dans la fiche de suivi</strong> — il n'envoie que la consigne, et l'élève ne quittera la liste qu'une fois celle-ci relue.</td></tr>
-        <tr><td><span class="b">Menu de priorité</span></td><td>Six niveaux&nbsp;: <span class="ch">— normal —</span>, <span class="ch">🟢 Peut attendre</span>, <span class="ch">🟡 À planifier</span>, <span class="ch">🟠 Assez pressé</span>, <span class="ch">🔴 Urgent</span>, <span class="ch">🚨 Prioritaire absolu</span>.</td></tr>
+        <tr><td><span class="b">🚦 Priorité</span></td><td>Six boutons&nbsp;: <span class="ch">Normal</span>, <span class="ch">🟢 Peut attendre</span>, <span class="ch">🟡 À planifier</span>, <span class="ch">🟠 Assez pressé</span>, <span class="ch">🔴 Urgent</span>, <span class="ch">🚨 Prioritaire absolu</span>.</td></tr>
         <tr><td><span class="b">⏸️ Pas de repassage pour le moment</span></td><td>N'apparaît que si un post-permis est fixé et pas encore fait. Le retire de la liste <strong>sans supprimer son rendez-vous</strong>.</td></tr>
         <tr><td><span class="b">🗑️ Retirer de la liste</span></td><td><em>« Il y reviendra si un moniteur le signale à nouveau. »</em> Solde aussi ses consignes en attente, sans quoi il réapparaîtrait aussitôt. Le message distingue <span class="ch">Retiré de la liste ✅</span> et <span class="ch">Ligne déjà partie — elle ne reviendra plus ✅</span>.</td></tr>
       </tbody>
@@ -2664,17 +2665,17 @@ Dernier cours le 12/09/2026 avec Hery
 
 👤 Hery                                            📋 Copier
    📍 Saint-Brieuc · 12→16 oct. · S42 — 2 élève(s) · 2 jours ouverts
-      Léa Exemple           👤 Hery  📍 Saint-Brieuc  🗓️ S42   📅  ✕
-      Tom Essai  ⏳ attente post-permis              🗓️ à définir  📅  ✕
+      Léa Exemple                        BV  ✅ prêt — date à prendre  ›
+      Tom Essai  ⏳ attente post-permis   BV  ⚠️ à choisir : 🗓️ semaine  ›
    📍 Loudéac · 19→23 oct. · S43 — 1 élève · ⚠️ aucun jour ici
 
 ⚠️ À attribuer
    📍 Saint-Brieuc · 12→16 oct. · S42 — 3 élève(s)   👤 Attribuer les 3</div>
-    <p>La ligne d'un élève porte son nom, puis <strong>trois boutons</strong> — <span class="b">👤</span> qui prend la date · <span class="b">📍</span> le centre · <span class="b">🗓️</span> la semaine à viser — <strong>en orange quand la réponse manque</strong>. Puis <span class="b">📅</span> pour lui donner sa place, et <span class="b">✕</span> pour le renvoyer chez les « prêts au permis ».</p>
+    <p>La ligne d'un élève porte son nom, sa boîte (<span class="ch">BV</span> / <span class="ch">BEA</span>) et <strong>une étiquette</strong> (depuis la v1329)&nbsp;: vert <span class="ch">✅ prêt — date à prendre</span>, ou rouge <span class="ch">⚠️ à choisir : 📍 centre, 👤 qui prend la date, 🗓️ semaine</span> — ce qui manque, en clair. Un appui ouvre sa fiche&nbsp;: <span class="b">Centre d'examen</span>, <span class="b">Qui prend la date</span>, <span class="b">Semaine à viser</span>, <span class="b">📅 Date obtenue</span>, <span class="b">🎓 Lui donner une place d'examen</span>, <span class="b">Boîte</span> (BV / BEA&nbsp;; rappuyer la rend à sa formation) et <span class="b">✕ Retirer de la liste RDV PERMIS</span> en bas.</p>
     <p>Les trois choix se font par <strong>rangées de boutons</strong>&nbsp;: le choix pris est plein, avec un ✓&nbsp;; rappuyer dessus le retire. <strong>Qui prend la date</strong> propose des favoris ⭐, quatre au plus, partagés par toute l'équipe. <strong>Semaine à viser</strong> n'annonce que les jours du centre déjà choisi et range derrière « Autres… » les semaines dont la prise est passée (<span class="ch">· prise passée</span>). Une semaine sans jour ouvert dit <span class="ch">⚠️ aucun jour ici</span>.</p>
     <p><span class="b">⚠️ À attribuer</span> est rangé en dernier&nbsp;: c'est ce qui reste à faire. <span class="b">👤 Attribuer les N</span> les donne tous d'un coup&nbsp;; <span class="b">📋 Copier</span> met la liste d'une personne au format du site des rendez-vous.</p>
-    <div class="note astuce"><span class="tag">Le 📅 ne donne pas une date, il donne une place</span><p>Une date d'examen se prend sur une journée que la préfecture a donnée. La fenêtre <span class="b">🎓 Sa place d'examen</span> liste donc <strong>les places réellement prenables</strong>, dans cet ordre&nbsp;: libres, tenues par un prête-nom, à remplacer. Elle <strong>fait confirmer nommément</strong> avant de déloger quelqu'un — qui repart alors dans RDV Permis. S'il n'y a rien&nbsp;: <em>« Aucune place d'examen prenable à venir… »</em>, et il faut l'ouvrir dans <a href="#sessions" class="aller">🎓 Suivi permis</a>.</p></div>
-    <p>Sous la synthèse, <strong>seuls les dossiers incomplets sont détaillés</strong> — ceux à qui il manque le centre, le moniteur ou la semaine, sous <span class="ch">⏳ À compléter (N)</span>. Si tout est complet&nbsp;: <em>« ✅ Tous les dossiers sont complets. Utilise la synthèse ci-dessus pour saisir les dates obtenues. »</em></p>
+    <div class="note astuce"><span class="tag">🎓 ne donne pas une date, il donne une place</span><p>Une date d'examen se prend sur une journée que la préfecture a donnée. La fenêtre <span class="b">🎓 Sa place d'examen</span> liste donc <strong>les places réellement prenables</strong>, dans cet ordre&nbsp;: libres, tenues par un prête-nom, à remplacer. Elle <strong>fait confirmer nommément</strong> avant de déloger quelqu'un — qui repart alors dans RDV Permis. S'il n'y a rien&nbsp;: <em>« Aucune place d'examen prenable à venir… »</em>, et il faut l'ouvrir dans <a href="#sessions" class="aller">🎓 Suivi permis</a>.</p></div>
+    <p>Chaque élève n'apparaît <strong>qu'une fois</strong>&nbsp;: l'ancien volet « ⏳ À compléter », qui redétaillait les dossiers incomplets sous la synthèse, a laissé la place à l'étiquette rouge et à la fiche.</p>
     <div class="note astuce"><span class="tag">Dans les deux listes à la fois</span><p>Un élève qui attend son <strong>rendez-vous post-permis</strong> peut figurer ici <em>en même temps</em>, avec la pastille <span class="ch">⏳ attente post-permis</span>&nbsp;: on prépare sa place sans attendre, et sa place d'examen se prend après.</p></div>
   </section>
 
@@ -2978,10 +2979,10 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
                        │
                        ▼
    🤔 À ENVISAGER · 🚗 Élèves prêts au permis
-                       │  ☑ Mettre dans la liste RDV PERMIS
+                       │  🗓️ Mettre dans la liste RDV PERMIS
                        ▼
    🤔 À ENVISAGER · 🗓️ Liste RDV PERMIS
-                       │  qui + centre + semaine, puis 📅 sa place
+                       │  qui + centre + semaine, puis 🎓 sa place
                        ▼
    🎓 SUIVI PERMIS · une place dans une session
                        │  📣 prévenu · 📁 dossier vérifié · 💶 payé
