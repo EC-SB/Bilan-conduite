@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 12:22 — v1330 */
+/* Déployé le 02/11/2026 à 14:26 — v1331 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1483,7 +1483,6 @@ function styleLignesCompactes(){
   st.id = 'lcCss';
   st.textContent = `
 .history-item.lc{padding:0!important;display:block!important;border-bottom:1px solid var(--line)}
-.history-item.lc.lcCache,.lcRdv.lcCache,.lcCache{display:none!important}
 .lcL{display:grid;grid-template-columns:minmax(140px,210px) minmax(0,1fr) auto auto 18px;gap:10px;align-items:center;width:100%;margin:0;padding:9px 10px;background:transparent;border:0;border-radius:0;color:var(--cream);text-align:left;font:inherit;font-size:13px;cursor:pointer}
 .lcL:hover,.lcL:focus-visible{background:var(--orange-soft);color:var(--on-accent)}
 .lcL:hover .lcInfo,.lcL:focus-visible .lcInfo{color:var(--on-accent)}
@@ -1532,6 +1531,9 @@ details.volet-liste.volet-seul > summary::after{display:none}
 .lcSw .s{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;flex-shrink:0}
 .lcSw .s:after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}
 .lcSw.on{border-color:#1350A8;background:#E8F0FF;color:#0B0B0B}.lcSw.on .t small{color:#333}.lcSw.on .s{background:#1350A8}.lcSw.on .s:after{left:16px}
+/* v1331 — en dernier, et plus fort que .lcA (display:flex!important) : sinon la
+   recherche ne cachait pas les lignes qui ont un bouton */
+.history-item.lc.lcA.lcCache,.history-item.lc.lcCache,.lcRdv.lcCache,.lcCache{display:none!important}
 @media (max-width:700px){.history-item.lc.lcA{flex-wrap:wrap}.lcA > .lcL{flex:1 1 100%}.lcAct{margin:-4px 0 9px 10px!important}.lcActs{margin:-4px 0 9px 10px}.lcActs .lcAct{margin:0!important}.lcL{grid-template-columns:1fr 18px;row-gap:3px}.lcL > .lcEt{justify-self:start}.lcRdv .n{flex:1 1 calc(100% - 34px)}.lcRdv .lcEt{white-space:normal;border-radius:10px}.lcNom,.lcInfo,.lcEt,.lcL .lcTags{grid-column:1}.lcL > .lcTags{justify-self:start}.lcTags:empty{display:none}.lcInfo{white-space:normal}.lcEt{white-space:normal;border-radius:10px}.lcF{grid-column:2;grid-row:1/5}}`;
   document.head.appendChild(st);
 }
