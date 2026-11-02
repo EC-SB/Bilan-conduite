@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 13:07 — v1307 */
+/* Déployé le 02/11/2026 à 10:49 — v1328 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -283,9 +283,18 @@ async function afficherPostExamen(tous){
           'color:var(--red);border-color:var(--red);';
         bNon.textContent = '❌ Ajourné';
         bNon.addEventListener('click', async () => {
-          if(!await confirmer(x.eleve + " est ajourné ?\n\n" +
-                              "Il passe en attente de son bilan d'examen,\n" +
-                              'puis du rendez-vous post-permis.')) return;
+          /* 📍 v1328 — David : « quand un élève est ajourné, pouvoir dire
+             s'il est OK pour repasser à Loudéac à la place de Saint-Brieuc ».
+             Dans la même confirmation, case déjà cochée s'il l'avait dit. */
+          const zAj = document.createElement('div');
+          zAj.innerHTML = '<div style="margin-bottom:12px;">' + echapper(x.eleve) + ' est ajourné ?<br><br>' +
+            "Il passe en attente de son bilan d'examen,<br>puis du rendez-vous post-permis.</div>" +
+            '<label style="display:flex;gap:9px;align-items:center;text-transform:none;font-size:14px;color:var(--cream);font-weight:600;margin:0;' +
+            'border:1px solid #1350A8;border-radius:11px;padding:9px 11px;">' +
+            '<input type="checkbox" data-ok-loudeac style="width:20px;height:20px;margin:0;"' + (s.okLoudeac === 'oui' ? ' checked' : '') + '>' +
+            '📍 OK pour repasser à Loudéac (au lieu de Saint-Brieuc)</label>';
+          if(!await fenetre(zAj, [{ nom: 'Annuler', valeur: false }, { nom: '❌ Oui, ajourné', valeur: true, principal: true }], 'Confirmation')) return;
+          const okLoudeac = zAj.querySelector('[data-ok-loudeac]').checked ? 'oui' : '';
           bNon.disabled = true;
           try{
             await consignerResultat(x, 'ajourne', iso);
@@ -295,6 +304,9 @@ async function afficherPostExamen(tous){
             const dateAjo = iso || todayLocal();
             await majSuivi(x.eleve, {
               resultat: 'ajourne',
+              okLoudeac: okLoudeac,
+              /* ✉️ v1328 — un nouvel ajournement repart de zéro */
+              rdvPostMessagesLe: '',
               nbAjournements: String(n),
               dateAjournement: dateAjo,
               datePermis: '', aPlanifier: '', retireAPrevoir: '',
@@ -581,11 +593,32 @@ function afficherAttenteBilan(tous){
     return;
   }
 
-  /* Le bilan manquant passe devant */
-  liste.sort((a, b) => {
-    const sa = suiviDe(a.eleve), sb = suiviDe(b.eleve);
-    return (sa.bilanExamen ? 1 : 0) - (sb.bilanExamen ? 1 : 0);
-  });
+  /* 📋 v1328 — CE QUI DEMANDE UN GESTE PASSE DEVANT : bilan à coller,
+     messages à envoyer, RDV Drivup à reprendre, puis l'attente de son
+     rendez-vous, puis les rendez-vous posés. */
+  if(!rdvPostDrivupFrais()){
+    chargerRdvPostDrivup().then(change => {
+      if(change && typeof etatBureau !== 'undefined'){ afficherAttenteBilan(etatBureau.eleves); rafraichirFicheBureau(); }
+    });
+  }
+  liste.sort((a, b) => etapePostPermis(a.eleve).rang - etapePostPermis(b.eleve).rang);
+
+  /* ⚠️ LE BILAN DE L'EXAMEN SE RANGE TOUJOURS EN ARRIVANT — v1094, gardé
+     en v1328. Il se reprenait dans le bloc du rendez-vous, déplié avec la
+     ligne ; la ligne est maintenant compacte et le bloc n'existe qu'à
+     l'ouverture de la fiche. On le reprend donc ici, une fois par élève. */
+  if(typeof reprendreBilanExamen === 'function'){
+    liste.forEach(e => {
+      const sx = suiviDe(e.eleve) || {};
+      const k = normaliserMot(e.eleve);
+      if(sx.bilanExamen || bilansExamenCherches[k]) return;
+      bilansExamenCherches[k] = true;
+      const champ = document.createElement('textarea');
+      reprendreBilanExamen(e.eleve, { champ: champ, encoreLa: () => true })
+        .then(texte => { if(texte) rangerLeBilanRepris(e.eleve, texte); })
+        .catch(() => {});
+    });
+  }
 
   liste.forEach(e => {
     /* ⚠️ LA LIGNE RELIT LA FICHE, ELLE NE LA RETIENT PAS — v1094.
@@ -599,17 +632,13 @@ function afficherAttenteBilan(tous){
 
     zone.appendChild(ligneBureau(e, {
       replier: true,
+      /* 📋 v1328 — une ligne, et sa fiche dans l'ordre où on la fait */
+      compact: true,
+      etiquette: () => etapePostPermis(e.eleve),
+      fiche: (x, boite) => ficheDuPostPermis(x, boite),
       info: () => {
         const s = fiche();
-        const aBilan = !!s.bilanExamen;
-        const aRdv = !!(s.rdvPostDate && s.rdvPostMoniteur);
-        return mentionAjournements(s.nbAjournements, s.dateAjournement) +
-                  (aBilan
-                    ? (aRdv
-                        ? ' · rendez-vous le ' + dateEnToutesLettres(s.rdvPostDate) +
-                          ' avec ' + s.rdvPostMoniteur
-                        : ' · bilan reçu, rendez-vous à fixer')
-                    : " · bilan d'examen à récupérer");
+        return mentionAjournements(s.nbAjournements, s.dateAjournement);
       },
       /* ⚠️ LE BILAN DE L'ÉLÈVE SE LIT SUR LA LIGNE, SANS DÉPLIER —
          étape 1d. C'est la seule façon de voir d'un coup d'œil qui
@@ -648,6 +677,315 @@ function afficherAttenteBilan(tous){
   });
 }
 
+
+/* ============================================================
+   🔁 LE POST-PERMIS DANS L'ORDRE OÙ ON LE FAIT — v1328
+
+   David, le 2 novembre : « pour les post-permis, la première chose que
+   l'on fait c'est coller son bilan, et une fois que l'on a collé son
+   bilan il faut prévoir un pop-up avec des messages que l'on envoie
+   après pour qu'il prenne son rendez-vous ». Ses réponses : le bilan de
+   l'ÉLÈVE ; Messenger (copier) + sa messagerie de l'appli ; il réserve
+   son « Rendez-vous post-permis » sur Drivup, l'appli le lit ; le bilan
+   collé suffit (le moniteur le corrige avec lui au rendez-vous).
+
+   ① 📝 son bilan → ② ✉️ les messages (pop-up) → ③ 📅 son rendez-vous.
+   Les messages : les siens, mot pour mot, modifiables avant chaque
+   envoi, et dans Outils › Ce qu'on écrit (« 🔁 Post-permis — … »).
+   ⚠️ « Le reste » (bilan de l'inspecteur, captures, RDV posé à la main)
+   est le bloc d'avant, blocRdvPost, tel quel.
+   ============================================================ */
+const MESSAGES_POST_PERMIS = [
+  { usage: 'post_permis_rdv', nom: 'Le message', texte: "📜 𝙍𝘿𝙑 𝙋𝙊𝙎𝙏-𝙋𝙀𝙍𝙈𝙄𝙎 :\n🏦 Maintenant que ton bilan est effectué sur messenger, tu dois ACHETER ET PLANIFIER de ton interface élève un \"Rendez vous post permis\" qui se fera au centre de formation avec un(e) moniteur(trice). \n𝘿𝙧𝙞𝙫𝙪𝙥 > 𝙍𝙚́𝙨𝙚𝙧𝙫𝙚𝙧 > 𝙋𝙧𝙖𝙩𝙞𝙦𝙪𝙚 > 𝙋𝙧𝙚𝙨𝙩𝙖𝙩𝙞𝙤𝙣𝙨 𝙋𝙧𝙖𝙩𝙞𝙦𝙪𝙚 > 𝙍𝙚𝙣𝙙𝙚𝙯 𝙫𝙤𝙪𝙨 𝙥𝙤𝙨𝙩 𝙥𝙚𝙧𝙢𝙞𝙨 > 𝘼𝙘𝙝𝙚𝙩𝙚𝙧 > 𝙋𝙡𝙖𝙣𝙞𝙛𝙞𝙚𝙧 𝙢𝙖𝙞𝙣𝙩𝙚𝙣𝙖𝙣𝙩 \n(Si tu es sur Iphone passe par Safari et non par l'appli)\n\n💻 Si tu ne peux pas te déplacer, ce rendez-vous se fera en visio, mais il faut nous prévenir une fois que tu as planifié ton rendez-vous.\n\n💪  𝙏𝙪 𝙙𝙤𝙞𝙨 𝙙𝙚́𝙩𝙖𝙞𝙡𝙡𝙚𝙧 𝙥𝙤𝙞𝙣𝙩 𝙥𝙖𝙧 𝙥𝙤𝙞𝙣𝙩 𝙘𝙤𝙢𝙢𝙚𝙣𝙩 𝙨'𝙚𝙨𝙩 𝙙𝙚́𝙧𝙤𝙪𝙡𝙚́ 𝙩𝙖 𝙘𝙤𝙣𝙙𝙪𝙞𝙩𝙚 :\n- 𝘼̀ 𝙡'𝙚́𝙘𝙧𝙞𝙩 𝙖𝙫𝙖𝙣𝙩 𝙙𝙚 𝙫𝙚𝙣𝙞𝙧 \n- 𝘼̀ 𝙡'𝙤𝙧𝙖𝙡 𝙥𝙚𝙣𝙙𝙖𝙣𝙩 𝙡𝙚 𝙍𝘿𝙑 𝙙𝙖𝙣𝙨 𝙣𝙤𝙩𝙧𝙚 𝙖𝙜𝙚𝙣𝙘𝙚 𝙤𝙪 𝙚𝙣 𝙫𝙞𝙨𝙞𝙤\n𝘿𝙤𝙣𝙘 𝙥𝙧𝙚́𝙥𝙖𝙧𝙚 𝙩𝙤𝙞 𝙗𝙞𝙚𝙣 𝙚𝙣 𝙥𝙧𝙚𝙣𝙖𝙣𝙩 𝙡𝙚 𝙩𝙚𝙢𝙥𝙨 𝙙𝙚 𝙧𝙚𝙡𝙞𝙧𝙚 𝙩𝙤𝙣 𝙗𝙞𝙡𝙖𝙣, 𝙩𝙖 𝙣𝙤𝙩𝙖𝙩𝙞𝙤𝙣 𝙚𝙩 𝙡𝙚 𝙧𝙖𝙥𝙥𝙤𝙧𝙩 𝙙𝙚 𝙩𝙤𝙣 𝙥𝙚𝙧𝙢𝙞𝙨 𝙖𝙫𝙖𝙣𝙩 𝙙𝙚 𝙫𝙚𝙣𝙞𝙧. \n\n🧠 Ce rendez-vous de 30min est là pour COMPRENDRE tes erreurs, ne pas les refaire et ne pas faire perdre une autre place d'examen à notre communauté, 𝙘𝙚𝙨 𝙥𝙡𝙖𝙘𝙚𝙨 𝙚́𝙩𝙖𝙣𝙩 𝙩𝙧𝙚̀𝙨 𝙥𝙧𝙚́𝙘𝙞𝙚𝙪𝙨𝙚𝙨 ! S'il est insuffisant, tu devras en refaire un autre jusqu'à ce que tout soit compris  !\n\nÀ regarder absolument : https://www.facebook.com/share/v/1D9o635bqF/" },
+  { usage: 'post_permis_up', nom: 'La relance « UP »', texte: "♻️ 𝙐𝙋🚗  RDV post-permis\n𝙀𝙣 𝙖𝙩𝙩𝙚𝙣𝙩𝙚 𝙙𝙚 𝙩𝙖 𝙧𝙚𝙥𝙤𝙣𝙨𝙚 𝙤𝙪 𝙙𝙚 𝙡'𝙖𝙘𝙩𝙞𝙤𝙣 𝙦𝙪𝙚 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙧𝙚𝙖𝙡𝙞𝙨𝙚𝙧" }
+];
+function texteDuMessagePostPermis(i){
+  const m = MESSAGES_POST_PERMIS[i];
+  const t = (typeof modelesTexte !== 'undefined' ? modelesTexte : []).find(x => x.usage === m.usage);
+  return (t && String(t.contenu || '').trim()) ? t.contenu : m.texte;
+}
+
+const bilansExamenCherches = {};
+
+/* Les « Rendez-vous post-permis » à venir, lus dans Drivup */
+let rdvPostDrivup = { lu: 0, rdv: [], luLe: '', enCours: null };
+function rdvPostDrivupFrais(){ return Date.now() - rdvPostDrivup.lu < 120000; }
+function cleTrieeDuNom(n){
+  return ((typeof normaliserMot === 'function') ? normaliserMot(n) : String(n || '').toLowerCase())
+    .split(/\s+/).filter(Boolean).sort().join(' ');
+}
+async function chargerRdvPostDrivup(){
+  if(rdvPostDrivup.enCours) return rdvPostDrivup.enCours;
+  rdvPostDrivup.enCours = (async () => {
+    try{
+      const d = await appelPrep({ action: 'postPermisDrivup' });
+      const avant = JSON.stringify(rdvPostDrivup.rdv);
+      rdvPostDrivup.rdv = (d && d.rdv) || [];
+      rdvPostDrivup.luLe = (d && d.luLe) || '';
+      rdvPostDrivup.lu = Date.now();
+      return avant !== JSON.stringify(rdvPostDrivup.rdv);
+    }catch(e){ rdvPostDrivup.lu = Date.now(); return false; }
+    finally{ rdvPostDrivup.enCours = null; }
+  })();
+  return rdvPostDrivup.enCours;
+}
+function rdvDrivupDe(nom){
+  const k = cleTrieeDuNom(nom);
+  return rdvPostDrivup.rdv.find(r => cleTrieeDuNom(r.eleve) === k) || null;
+}
+const jourCourtPP = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] : String(iso || ''); };
+
+/* Où il en est : l'étiquette de sa ligne, et son rang dans la liste */
+function etapePostPermis(nom){
+  const s = suiviDe(nom) || {};
+  const d = rdvDrivupDe(nom);
+  if(!String(s.bilanEleve || '').trim()) return { t: '📝 bilan à coller', ton: 'r', rang: 0 };
+  if(s.rdvPostDate) return { t: '📅 RDV le ' + jourCourtPP(s.rdvPostDate) + (s.rdvPostMoniteur ? ' avec ' + s.rdvPostMoniteur : ''), ton: 'v', rang: 4 };
+  if(d) return { t: '📅 RDV Drivup le ' + jourCourtPP(d.jour) + ' à ' + d.debut + (d.moniteur ? ' avec ' + d.moniteur : '') + ' — à reprendre', ton: 'v', rang: 2 };
+  if(!s.rdvPostMessagesLe) return { t: '✉️ messages à envoyer', ton: 'r', rang: 1 };
+  return { t: '✉️ messages envoyés le ' + String(s.rdvPostMessagesLe).split(' ')[0].slice(0, 5) + ' — en attente de son RDV', ton: 'o', rang: 3 };
+}
+
+function etapeDeFichePP(num, titre, etat){
+  const b = document.createElement('div');
+  b.className = 'ppEtape' + (etat ? ' ' + etat : '');
+  b.innerHTML = '<h4><span class="num">' + (etat === 'fait' ? '✓' : num) + '</span>' + titre + '</h4>';
+  return b;
+}
+function styleFichePP(){
+  if(document.getElementById('ppFicheCss')) return;
+  const st = document.createElement('style');
+  st.id = 'ppFicheCss';
+  st.textContent = `
+.ppEtape{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:9px;font-size:13.5px;line-height:1.5}
+.ppEtape.on{border:2px solid var(--orange)}
+.ppEtape.off{opacity:.6}
+.ppEtape h4{margin:0 0 6px;font-size:14px;display:flex;gap:8px;align-items:center}
+.ppEtape h4 .num{width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--cream);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.ppEtape.on h4 .num,.ppEtape.fait h4 .num{background:var(--orange);color:var(--on-accent)}
+.ppEtape textarea{width:100%;min-height:120px;margin:0 0 6px;font-family:inherit;font-size:13.5px}
+.ppEtape .btn{width:auto;margin:6px 6px 0 0;padding:9px 13px;font-size:13px}
+.ppEtape .gris{color:var(--muted);font-size:12.5px}
+.ppMsg textarea{width:100%;min-height:150px;margin:0 0 4px;font-family:inherit;font-size:13px;line-height:1.5}
+.ppMsg .btn{width:auto;margin:0 6px 10px 0;padding:7px 11px;font-size:12.5px}`;
+  document.head.appendChild(st);
+}
+
+function ficheDuPostPermis(e, boite){
+  styleFichePP();
+  const s = suiviDe(e.eleve) || {};
+  const d = rdvDrivupDe(e.eleve);
+  const aBilan = !!String(s.bilanEleve || '').trim();
+  const sous = document.createElement('div');
+  sous.style.cssText = 'font-size:12.5px;color:var(--muted);margin:-4px 0 10px;';
+  sous.textContent = mentionAjournements(s.nbAjournements, s.dateAjournement) +
+    ' · dernier cours le ' + (e.date || '?') + (e.moniteur ? ' avec ' + e.moniteur : '');
+  boite.appendChild(sous);
+  if(typeof interrupteurLoudeac === 'function') boite.appendChild(interrupteurLoudeac(e.eleve));
+
+  /* ① son bilan */
+  const e1 = etapeDeFichePP(1, '📝 Son bilan', aBilan ? 'fait' : 'on');
+  const zoneBilan = document.createElement('div');
+  const ta = document.createElement('textarea');
+  ta.placeholder = 'Colle ici le bilan qu’il t’a envoyé sur Messenger';
+  ta.value = s.bilanEleve || '';
+  zoneBilan.appendChild(ta);
+  if(typeof galeriePhotosBilan === 'function') zoneBilan.appendChild(galeriePhotosBilan(e.eleve, { champ: ta }));
+  const bB = document.createElement('button');
+  bB.type = 'button'; bB.className = 'btn btn-primary';
+  bB.textContent = aBilan ? '💾 Enregistrer les changements' : '✅ Enregistrer son bilan';
+  bB.dataset.ppBilan = '1';
+  bB.addEventListener('click', async () => {
+    const t = ta.value.trim();
+    if(!t){ showToast('Colle d’abord son bilan.'); ta.focus(); return; }
+    ta.blur();   /* la fiche peut se redessiner : rien n'est en cours de saisie */
+    bB.disabled = true; bB.textContent = 'Enregistrement…';
+    try{
+      await majSuivi(e.eleve, { bilanEleve: t });
+      /* le bilan collé suffit (David, le 2 novembre) : même porte que « ✅ Valider » */
+      if(etatDuBilanEleve(suiviDe(e.eleve)) !== 'valide') await validerLeBilanColle(e.eleve);
+      showToast('Son bilan est enregistré ✅');
+      redessinerBureau();
+      if(!aBilan) ouvrirMessagesPostPermis(e.eleve);
+    }catch(err){ showToast('Erreur : ' + err.message); bB.disabled = false; bB.textContent = '✅ Enregistrer son bilan'; }
+  });
+  zoneBilan.appendChild(bB);
+  if(aBilan){
+    const r = document.createElement('div');
+    r.className = 'gris';
+    r.textContent = 'Il est là' + (s.bilanEleveValideLe ? ' — validé le ' + String(s.bilanEleveValideLe).split(' ')[0] + (s.bilanEleveValidePar ? ' par ' + s.bilanEleveValidePar : '') : '') + '.';
+    const det = document.createElement('details');
+    det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;font-size:13px;margin-top:4px;">Relire ou modifier</summary>';
+    det.appendChild(zoneBilan);
+    e1.append(r, det);
+  }else e1.appendChild(zoneBilan);
+  boite.appendChild(e1);
+
+  /* ② les messages */
+  const e2 = etapeDeFichePP(2, '✉️ Les messages pour qu’il prenne son rendez-vous',
+    s.rdvPostMessagesLe ? 'fait' : (aBilan ? 'on' : 'off'));
+  if(!aBilan){
+    e2.insertAdjacentHTML('beforeend', '<div class="gris">S’ouvrent dès que son bilan est enregistré.</div>');
+  }else{
+    if(s.rdvPostMessagesLe) e2.insertAdjacentHTML('beforeend', '<div>Partis le ' + echapper(s.rdvPostMessagesLe) + '.</div>');
+    const b1 = document.createElement('button');
+    b1.type = 'button'; b1.className = 'btn ' + (s.rdvPostMessagesLe ? 'btn-secondary' : 'btn-primary');
+    b1.textContent = s.rdvPostMessagesLe ? '✉️ Renvoyer les messages' : '✉️ Envoyer les messages';
+    b1.dataset.ppMessages = '1';
+    b1.addEventListener('click', () => ouvrirMessagesPostPermis(e.eleve));
+    e2.appendChild(b1);
+    if(s.rdvPostMessagesLe && !s.rdvPostDate && !d){
+      const b2 = document.createElement('button');
+      b2.type = 'button'; b2.className = 'btn btn-secondary';
+      b2.textContent = '♻️ Relancer (UP)';
+      b2.dataset.ppUp = '1';
+      b2.addEventListener('click', () => ouvrirMessagesPostPermis(e.eleve, true));
+      e2.appendChild(b2);
+    }
+  }
+  boite.appendChild(e2);
+
+  /* ③ son rendez-vous */
+  const e3 = etapeDeFichePP(3, '📅 Son rendez-vous post-permis', s.rdvPostDate ? 'fait' : (d ? 'on' : 'off'));
+  let reste = null;
+  if(s.rdvPostDate){
+    e3.insertAdjacentHTML('beforeend', '<div>Le ' + echapper(dateEnToutesLettres(s.rdvPostDate)) +
+      (s.rdvPostMoniteur ? ' avec ' + echapper(s.rdvPostMoniteur) : '') + (s.rdvPostFait === 'oui' ? ' — ✅ fait' : '') + '.</div>');
+  }else if(d){
+    e3.insertAdjacentHTML('beforeend', '<div>Réservé sur Drivup : <b>le ' + echapper(dateEnToutesLettres(d.jour)) + ' à ' + echapper(d.debut) + '</b>' +
+      (d.moniteur ? ' avec ' + echapper(d.moniteur) : '') + '.</div>');
+    const bR = document.createElement('button');
+    bR.type = 'button'; bR.className = 'btn btn-primary';
+    bR.textContent = '✅ Le reprendre' + (d.moniteur ? ' (prépare le cours de ' + d.moniteur + ')' : '');
+    bR.dataset.ppReprendre = '1';
+    bR.addEventListener('click', () => {
+      if(!reste) return;
+      reste.open = true;
+      const bloc = reste.querySelector('details');
+      if(bloc) bloc.open = true;
+      const dt = reste.querySelector('input[type=date]');
+      const mo = reste.querySelector('select');
+      if(dt){ dt.value = d.jour; dt.dispatchEvent(new Event('change')); }
+      if(mo && d.moniteur){
+        const o = [...mo.options].find(x => normaliserMot(x.value) === normaliserMot(d.moniteur));
+        if(o){ mo.value = o.value; mo.dispatchEvent(new Event('change')); }
+      }
+      const enr = [...reste.querySelectorAll('button')].find(x => /Enregistrer/.test(x.textContent));
+      if(enr){ enr.scrollIntoView({ block: 'center' }); enr.focus(); }
+      showToast('Date et moniteur posés : vérifie, puis « Enregistrer et préparer le cours ».');
+    });
+    e3.appendChild(bR);
+  }else{
+    e3.insertAdjacentHTML('beforeend', '<div class="gris">Il le réserve lui-même sur son espace Drivup : l’appli le lira dans le planning' +
+      (rdvPostDrivup.luLe ? ' (lu le ' + echapper(rdvPostDrivup.luLe) + ')' : '') + '. Pas encore réservé.</div>');
+  }
+  boite.appendChild(e3);
+
+  /* le reste : le bloc d'avant, tel quel */
+  reste = document.createElement('details');
+  reste.style.cssText = 'margin:6px 0 4px;';
+  reste.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text);">' +
+    'Le reste ▸ bilan de l’examen (inspecteur), captures du CEPC, poser le RDV à la main, Envoyer vers…</summary>';
+  const zr = document.createElement('div');
+  zr.style.cssText = 'margin-top:8px;';
+  zr.appendChild(blocRdvPost(e));
+  if(typeof boutonEnvoyerVers === 'function' && aDroit('bureau_permis')){
+    const ev = boutonEnvoyerVers(e.eleve); ev.style.marginTop = '10px'; zr.appendChild(ev);
+  }
+  reste.appendChild(zr);
+  boite.appendChild(reste);
+}
+
+/* ✉️ Le pop-up des messages — à son premier bilan enregistré, ou à la demande */
+async function ouvrirMessagesPostPermis(nom, seulementUp){
+  styleFichePP();
+  /* les textes de Ce qu'on écrit, s'ils ont été retouchés */
+  if(typeof chargerModelesTexte === 'function'){ try{ await chargerModelesTexte(); }catch(e){} }
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(600px,94vw);max-height:92vh;overflow:auto;';
+  const prenom = String(nom || '').split(' ')[0];
+  boite.innerHTML = '<h3>✉️ Pour que ' + echapper(prenom) + ' prenne son rendez-vous</h3>' +
+    '<div style="font-size:12.5px;color:var(--muted);margin:-4px 0 10px;line-height:1.45;">' +
+    (seulementUp ? 'La relance, modifiable avant de partir.' : 'Son bilan est enregistré ✅. Les messages se modifient ici avant de partir') +
+    ' (pour toujours : Outils › Ce qu’on écrit, « 🔁 Post-permis »).</div>';
+  const champs = [];
+  MESSAGES_POST_PERMIS.forEach((m, i) => {
+    if(seulementUp && i === 0) return;
+    const z = document.createElement('div');
+    z.className = 'ppMsg';
+    z.innerHTML = '<label>' + echapper(m.nom) + '</label>';
+    const ta = document.createElement('textarea');
+    ta.value = texteDuMessagePostPermis(i);
+    if(i === 1) ta.style.minHeight = '64px';
+    ta.dataset.ppTexte = String(i);
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'btn btn-secondary';
+    c.textContent = '📋 Copier ce message';
+    c.addEventListener('click', async () => {
+      try{ await navigator.clipboard.writeText(ta.value); showToast('Copié ✅ — colle-le dans Messenger'); }
+      catch(err){ ta.select(); showToast('Sélectionné : Ctrl+C'); }
+    });
+    z.append(ta, c);
+    boite.appendChild(z);
+    champs.push(ta);
+  });
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const m = String((f && f.messenger) || '').trim();
+  const url = m ? (/^https?:\/\//i.test(m) ? m : 'https://m.me/' + m.replace(/^@/, '').replace(/\s+/g, '')) : 'https://www.messenger.com/';
+  const bM = document.createElement('a');
+  bM.href = url; bM.target = '_blank'; bM.rel = 'noopener';
+  bM.className = 'btn btn-secondary';
+  bM.style.cssText = 'display:inline-block;width:auto;margin:0 0 10px;padding:8px 12px;font-size:13px;text-decoration:none;';
+  bM.textContent = m ? '💬 Ouvrir sa conversation Messenger' : '💬 Ouvrir Messenger';
+  boite.appendChild(bM);
+  const lab = document.createElement('label');
+  lab.style.cssText = 'display:flex;gap:8px;align-items:center;text-transform:none;font-size:13.5px;color:var(--cream);font-weight:400;margin:4px 0 0;';
+  lab.innerHTML = '<input type="checkbox" checked style="width:18px;height:18px;margin:0;"> 💬 Les envoyer aussi dans sa messagerie de l’appli';
+  boite.appendChild(lab);
+  const etat = document.createElement('div');
+  etat.style.cssText = 'font-size:12.5px;min-height:16px;margin-top:6px;';
+  boite.appendChild(etat);
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bP = document.createElement('button');
+  bP.className = 'btn btn-secondary'; bP.textContent = 'Plus tard';
+  bP.addEventListener('click', () => fond.remove());
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary'; bOk.textContent = '✅ C’est envoyé';
+  bOk.dataset.ppEnvoye = '1';
+  bOk.addEventListener('click', async () => {
+    bOk.disabled = true;
+    const rates = [];
+    if(lab.querySelector('input').checked){
+      for(const ta of champs){
+        const t = ta.value.trim();
+        if(!t) continue;
+        try{ await appelPrep({ action: 'messageBureauEleve', eleve: nom, texte: t, motif: 'post-permis' }); }
+        catch(err){ rates.push(err.message); break; }
+      }
+    }
+    try{
+      const iso = (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10);
+      await majSuivi(nom, { rdvPostMessagesLe: iso.split('-').reverse().join('/') + ' par ' + ((typeof ACCES !== 'undefined' && ACCES.moniteur) || '') });
+    }catch(err){ rates.push(err.message); }
+    if(rates.length){
+      etat.style.color = 'var(--red)';
+      etat.textContent = '⚠️ ' + rates[0];
+      bOk.disabled = false;
+      return;
+    }
+    showToast(seulementUp ? 'Relance notée ✅' : 'Messages notés comme envoyés ✅');
+    fond.remove();
+    redessinerBureau();
+  });
+  r.append(bP, bOk);
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
 
 /* ============================================================
    📝 LE BILAN ÉCRIT PAR L'ÉLÈVE — étape 1d, côté bureau
@@ -1499,28 +1837,32 @@ function afficherAlertePrise(candidats){
     const lib = libellePrise(p);
     const urgent = lib.urgent;
 
-    const d = document.createElement('div');
-    d.style.cssText = 'border-radius:10px;padding:12px;margin-bottom:8px;font-size:14px;' +
-      'line-height:1.7;border:1px solid ' + (urgent ? 'var(--red)' : 'var(--orange)') + ';' +
+    /* 📋 v1328 — UNE LIGNE PAR DATE (David : le bandeau prenait la moitié
+       de l'écran). Les mêmes informations ; « Voir ▸ » déplie le reste —
+       la date réglée à la main, les présentables, les écartés. */
+    const d = document.createElement('details');
+    d.className = 'prisePlie';
+    d.style.cssText = 'border-radius:10px;padding:7px 12px;margin-bottom:6px;font-size:13px;' +
+      'line-height:1.6;border:1px solid ' + (urgent ? 'var(--red)' : 'var(--orange)') + ';' +
       'background:' + (urgent ? 'var(--warn-bg)' : 'rgba(182,255,14,.08)') + ';';
-
-    d.innerHTML = '<div style="font-weight:700;margin-bottom:4px;">' +
-      (urgent ? '🔔' : '📆') + ' ' + echapper(lib.titre) + '</div>' +
-      '<div>Places de la <strong>' + echapper(lib.periode) + '</strong> — ' +
-      '<strong style="color:var(--orange);">' + echapper(lib.places) +
-      '</strong></div>' +
+    const placesCourt = String(lib.places).replace('nombre de places', 'places');
+    d.innerHTML = '<summary style="cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<b>' + (urgent ? '🔔' : '📆') + ' ' + echapper((t => t.charAt(0).toUpperCase() + t.slice(1))(lib.titre.replace(/^Prise de dates /, '').replace(' — ', ', '))) + '</b>' +
+      '<span style="flex:1;min-width:160px;">prise de dates · ' + echapper(lib.periode.replace(/ \(.*\)$/, '')) + ' · <b>' +
+      eligibles.length + '</b> présentable' + (eligibles.length > 1 ? 's' : '') + ' · ' +
+      '<span style="color:' + (lib.places && /renseigner/.test(lib.places) ? 'var(--red)' : 'var(--accent-text)') + ';font-weight:700;">' + echapper(placesCourt) + '</span></span>' +
+      '<span class="btn btn-secondary" style="width:auto;margin:0;padding:3px 10px;font-size:12px;">Voir ▸</span></summary>' +
+      '<div style="margin-top:6px;">Places de la <strong>' + echapper(lib.periode) + '</strong></div>' +
       (lib.reglee
         ? '<div style="font-size:12px;color:var(--muted);">📌 Date réglée à ' +
           'la main dans 📊 Réglage des places</div>' : '') +
-      '<div style="margin-top:4px;"><strong>' + eligibles.length +
-      '</strong> élève(s) présentable(s)' +
-      (ecartes.length ? ' · <span style="color:var(--muted);">' + ecartes.length +
-        ' écarté(s) pour indisponibilité</span>' : '') + '</div>';
+      (ecartes.length ? '<div style="color:var(--muted);">' + ecartes.length +
+        ' écarté(s) pour indisponibilité</div>' : '');
 
     if(eligibles.length){
-      const det = document.createElement('details');
-      det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;' +
-        'margin-top:6px;">Voir les ' + eligibles.length + ' élèves</summary>';
+      const det = document.createElement('div');
+      det.innerHTML = '<div style="color:var(--accent-text);font-weight:600;' +
+        'margin-top:6px;">Les ' + eligibles.length + ' élèves</div>';
       const l = document.createElement('div');
       l.style.cssText = 'margin-top:6px;font-size:13px;line-height:1.9;';
 
