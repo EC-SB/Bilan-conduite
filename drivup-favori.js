@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 13:46 — v1242 */
+/* Déployé le 02/11/2026 à 14:59 — v1333 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
 
@@ -443,7 +443,10 @@
     return { genre: 'fiche', eleve: {
       id: id, nom: v('nom'), prenom: v('prenom'), email: v('email'), mailPrescripteur: v('mailPrescripteur'),
       neph: v('neph').replace(/\D/g, ''), mobile: v('fakeMobile'), naissance: v('dateNaissance'),
-      formation: formationDeLaFiche(), photo: photoDe(avatar), notes: notes
+      formation: formationDeLaFiche(), photo: photoDe(avatar), notes: notes,
+      /* 🏢 v1333 — l'agence d'inscription, si la fiche la montre (champ ou menu
+         « agence ») ; sinon elle vient de la liste des élèves */
+      agence: v('agence') || propre(((document.querySelector('#agence option:checked, select[name=agence] option:checked') || {}).textContent) || '')
     } };
   }
 
