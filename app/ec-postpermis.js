@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:26 — v1331 */
+/* Déployé le 02/11/2026 à 14:59 — v1333 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -353,19 +353,24 @@ function boutonsDuResultat(x, iso, s){
     /* 📍 v1328 — David : « quand un élève est ajourné, pouvoir dire
        s'il est OK pour repasser à Loudéac à la place de Saint-Brieuc ».
        Dans la même confirmation, case déjà cochée s'il l'avait dit. */
+    /* 📍 v1333 — l'autre centre que celui de son agence (dans les deux sens) */
+    const baseC = (typeof centreDeBase === 'function') ? centreDeBase(x.eleve) : 'Saint-Brieuc';
+    const autreC = (typeof autreCentre === 'function') ? autreCentre(baseC) : 'Loudéac';
+    const champC = (typeof champOkCentre === 'function') ? champOkCentre(autreC) : 'okLoudeac';
+    const okDAvant = s[champC] === 'oui';
     const zAj = document.createElement('div');
     zAj.innerHTML = '<div style="margin-bottom:12px;">' + echapper(x.eleve) + ' est ajourné ?<br><br>' +
       "Il passe en attente de son bilan d'examen,<br>puis du rendez-vous post-permis.</div>" +
       '<label style="display:flex;gap:9px;align-items:center;text-transform:none;font-size:14px;color:var(--cream);font-weight:600;margin:0;' +
       'border:1px solid #1350A8;border-radius:11px;padding:9px 11px;">' +
-      '<input type="checkbox" data-ok-loudeac style="width:20px;height:20px;margin:0;"' + (s.okLoudeac === 'oui' ? ' checked' : '') + '>' +
-      '📍 OK pour repasser à Loudéac (au lieu de Saint-Brieuc)</label>';
+      '<input type="checkbox" data-ok-loudeac style="width:20px;height:20px;margin:0;"' + (okDAvant ? ' checked' : '') + '>' +
+      '📍 OK pour repasser à ' + autreC + ' (au lieu de ' + baseC + ')</label>';
     /* 📷 v1330 — les captures du CEPC se collent ici, au moment du résultat */
     const capAj = blocCaptures(x.eleve, iso);
     capAj.style.marginTop = '12px';
     zAj.appendChild(capAj);
     if(!await fenetre(zAj, [{ nom: 'Annuler', valeur: false }, { nom: '❌ Oui, ajourné', valeur: true, principal: true }], 'Confirmation')) return;
-    const okLoudeac = zAj.querySelector('[data-ok-loudeac]').checked ? 'oui' : '';
+    const okAutreC = zAj.querySelector('[data-ok-loudeac]').checked ? 'oui' : '';
     bNon.disabled = true;
     try{
       await consignerResultat(x, 'ajourne', iso);
@@ -375,7 +380,7 @@ function boutonsDuResultat(x, iso, s){
       const dateAjo = iso || todayLocal();
       await majSuivi(x.eleve, {
         resultat: 'ajourne',
-        okLoudeac: okLoudeac,
+        [champC]: okAutreC,
         /* ✉️ v1328 — un nouvel ajournement repart de zéro */
         rdvPostMessagesLe: '',
         nbAjournements: String(n),
@@ -1956,7 +1961,9 @@ function afficherAlertePrise(candidats){
         b.addEventListener('click', async () => {
           b.disabled = true;
           try{
-            await majSuivi(e.eleve, { aPlanifier: 'oui', retireAPrevoir: '' });
+            await majSuivi(e.eleve, Object.assign({ aPlanifier: 'oui', retireAPrevoir: '' },
+              /* 📍 v1333 — le centre de son agence */
+              (!String(suiviDe(e.eleve).centre || '').trim() && typeof centreDeBase === 'function') ? { centre: centreDeBase(e.eleve) } : {}));
             afficherBureau();
           }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
         });
@@ -1975,7 +1982,9 @@ function afficherAlertePrise(candidats){
         bTous.textContent = 'Enregistrement…';
         try{
           for(const e of eligibles){
-            await majSuivi(e.eleve, { aPlanifier: 'oui', retireAPrevoir: '' });
+            await majSuivi(e.eleve, Object.assign({ aPlanifier: 'oui', retireAPrevoir: '' },
+              /* 📍 v1333 — le centre de son agence */
+              (!String(suiviDe(e.eleve).centre || '').trim() && typeof centreDeBase === 'function') ? { centre: centreDeBase(e.eleve) } : {}));
           }
           showToast(eligibles.length + ' élèves ajoutés ✅');
           afficherBureau();
