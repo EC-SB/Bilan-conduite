@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 10:49 — v1328 */
+/* Déployé le 02/11/2026 à 11:44 — v1329 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -659,7 +659,7 @@ function poserRechercheDuVolet(v){
   r.setAttribute('aria-label', 'Chercher un élève dans cette liste');
   const filtrer = () => {
     const q = (typeof normaliserMot === 'function') ? normaliserMot(r.value) : r.value.toLowerCase();
-    v.querySelectorAll('.history-item[data-eleve]').forEach(l => {
+    v.querySelectorAll('.history-item[data-eleve], .lcRdv[data-eleve]').forEach(l => {
       const n = (typeof normaliserMot === 'function') ? normaliserMot(l.dataset.eleve) : l.dataset.eleve.toLowerCase();
       l.style.display = (!q || n.indexOf(q) !== -1) ? '' : 'none';
     });
