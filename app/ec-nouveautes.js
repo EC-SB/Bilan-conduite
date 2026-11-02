@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 10:49 — v1328 */
+/* Déployé le 02/11/2026 à 11:44 — v1329 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1329,
+    date: 'Lundi 2 novembre 2026',
+    resume: '🤔 À envisager : une liste à la fois, un élève par ligne',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'Prêts au permis',
+        texte: 'On arrive sur cette liste. Une étiquette dit s’il est pressé ou ses heures, les puces filtrent, et 🗓️ RDV PERMIS au bout de la ligne le passe à la suite.' },
+      { emoji: '🗓️',
+        titre: 'Liste RDV PERMIS',
+        texte: 'Plus de petits boutons sans texte : la ligne dit ce qui manque (centre, qui prend la date, semaine) ou « prêt — date à prendre ». Les réglages sont dans sa fiche.' },
+      { emoji: '📝',
+        titre: 'Examens blancs prévus',
+        texte: 'Une ligne avec sa date, en orange à trois jours ou moins.' },
+      { emoji: '👆',
+        titre: 'Des boutons de liste plus gros',
+        texte: 'Les boutons qui choisissent la liste, en haut de chaque vue, sont plus grands et plus faciles à toucher.' }
+    ]
+  },
   {
     version: 1328,
     date: 'Lundi 2 novembre 2026',
