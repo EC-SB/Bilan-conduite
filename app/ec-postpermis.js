@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 10:49 — v1328 */
+/* Déployé le 02/11/2026 à 12:22 — v1330 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -219,10 +219,65 @@ async function afficherPostExamen(tous){
      reposer ici écrirait le même nombre deux fois, et le jour où
      l'un des deux appels changerait, on ne saurait plus lequel fait
      foi. */
+  /* ============================================================
+     🏁 RANGÉS PAR SESSION, UNE LIGNE PAR ÉLÈVE — v1330
+
+     Schéma validé par David le 2 novembre (« c'est tout bon ») : les
+     élèves sous le titre de leur session (« 🏁 Jeudi 29 octobre ·
+     08h30 · Saint-Brieuc · Hery »), une ligne chacun, et les trois
+     réponses SUR la ligne : ✅ Obtenu · ❌ Ajourné · 🚫 Pas passé. Les
+     captures du CEPC passent dans la fenêtre du ✅ et du ❌ (on les
+     colle au moment de donner le résultat) ; un appui sur le nom ouvre
+     sa fiche, qui les a aussi.
+     ============================================================ */
+  const jourLong = iso => {
+    const t = new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  };
+  const groupes = [];
   attente.forEach(e => {
     const s = suiviDe(e.eleve);
     const iso = e._iso || dateFrVersIso(s.datePermis || '');
+    const sess = ((typeof sessionsPermis !== 'undefined' && sessionsPermis) || []).find(x =>
+      x.date === iso && (x.eleves || []).some(p => normaliserMot(p.eleve || '') === normaliserMot(e.eleve)));
+    const cle = sess ? 'S' + sess.id : 'D' + iso + '|' + (s.centre || '');
+    let g = groupes.find(y => y.cle === cle);
+    if(!g){ g = { cle: cle, iso: iso, sess: sess, centre: (sess && sess.centre) || s.centre || '', eleves: [] }; groupes.push(g); }
+    g.eleves.push(e);
+  });
+  groupes.sort((a, b) => String(a.iso).localeCompare(String(b.iso)) ||
+    String((a.sess && a.sess.heureDebut) || '').localeCompare(String((b.sess && b.sess.heureDebut) || '')));
+
+  groupes.forEach(g => {
+    const t = document.createElement('div');
+    t.className = 'teteResultats';
+    t.style.cssText = 'display:flex;gap:8px;align-items:baseline;margin:10px 0 3px;' +
+      'font-size:13px;font-weight:700;color:var(--accent-text);flex-wrap:wrap;';
+    const t1 = document.createElement('span');
+    t1.style.cssText = 'flex:1 1 230px;min-width:0;';
+    t1.textContent = '🏁 ' + [g.iso ? jourLong(g.iso) : 'Date inconnue',
+      g.sess && g.sess.heureDebut ? heureExamenDe(g.sess.heureDebut) : '',
+      g.centre, g.sess && g.sess.moniteur].filter(Boolean).join(' · ');
+    const t2 = document.createElement('span');
+    t2.style.cssText = 'font-size:11.5px;color:var(--muted);';
+    const nj = g.iso ? Math.round((new Date(auj + 'T12:00:00') - new Date(g.iso + 'T12:00:00')) / 864e5) : 0;
+    t2.textContent = g.eleves.length + ' élève' + (g.eleves.length > 1 ? 's' : '') +
+      (nj ? ' · passé il y a ' + nj + ' jour' + (nj > 1 ? 's' : '') : '');
+    t.append(t1, t2);
+    zone.appendChild(t);
+
+    g.eleves.forEach(e => {
+    const s = suiviDe(e.eleve);
+    const iso = e._iso || dateFrVersIso(s.datePermis || '');
     zone.appendChild(ligneBureau(e, {
+      compact: true,
+      infoLigne: x => {
+        const n = parseInt(s.nbAjournements, 10) || 0;
+        const b = String((typeof boiteConnueDe === 'function' && boiteConnueDe(x)) || 'bv').toUpperCase();
+        return (n ? '🔁 ' + (n + 1) + 'e passage' : '1er passage') + ' · ' + b + mentionDesaccord(x, s);
+      },
+      etiquette: () => ({ t: '⚠️ résultat à saisir', ton: 'r' }),
+      actionLigne: x => ({ boutons: [...boutonsDuResultat(x, iso, s).children] }),
       info: x => 'Examen passé le ' + (x._datePermis || s.datePermis || iso) +
                  (s.nbAjournements
                    ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : '') +
@@ -230,216 +285,230 @@ async function afficherPostExamen(tous){
       resume: () => '',
       alerte: () => 'Résultat à saisir',
       actions: (x, boite) => {
-        const r = document.createElement('div');
-        r.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
-
-        const bOk = document.createElement('button');
-        bOk.className = 'btn btn-primary';
-        bOk.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;';
-        bOk.textContent = '✅ Permis obtenu';
-        bOk.addEventListener('click', async () => {
-          /* 🎓 v1301 — la confirmation demande aussi le centre et la note /31 */
-          const rep = await demanderPermisObtenu(x.eleve, iso);
-          if(!rep) return;
-          bOk.disabled = true;
-          try{
-            await consignerResultat(x, 'obtenu', iso, { centre: rep.centre });
-            /* 💬 v1301 — et dans « Suivi examen » : « Nom Prénom - centre -
-               Permis obtenu - note/31 », puis les captures du CEPC */
-            annoncerDansSuiviExamen(x.eleve, 'obtenu', iso, rep);
-            /* Il sort de toutes les listes de suivi */
-            for(const cs of (x.enAttente || [])){
-              try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
-            }
-            await appelPrep({ action:'suiviDelete', eleve: x.eleve });
-
-            $('permisNom').value = x.eleve;
-            if(typeof afficherOnglet === 'function'){
-              afficherOnglet('eleves');
-              afficherVue('eleves', 'permis');
-            }
-            await preparerPermis();
-            afficherBureau();
-            showToast('Messages prêts dans le module permis ✅');
-
-            /* Un permis obtenu en automatique ouvre la passerelle.
-               La question se pose ICI, tout de suite : dans une
-               semaine, plus personne ne saura qu'il vient d'obtenir
-               un B78. Elle ne bloque rien — le permis est déjà
-               enregistré à ce stade. */
-            try{ await proposerPasserelle(x, boiteDePostPermis(x)); }
-            catch(err){ showToast('Passerelle : ' + err.message); }
-          }catch(err){ showToast('Erreur : ' + err.message); bOk.disabled = false; }
-        });
-        r.appendChild(bOk);
-
         /* Les captures du CEPC : elles vous servent à décider ici,
            et suivront jusqu'au rendez-vous post-permis. */
         boite.appendChild(blocCaptures(x.eleve, iso));
-
-        const bNon = document.createElement('button');
-        bNon.className = 'btn btn-secondary';
-        bNon.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;' +
-          'color:var(--red);border-color:var(--red);';
-        bNon.textContent = '❌ Ajourné';
-        bNon.addEventListener('click', async () => {
-          /* 📍 v1328 — David : « quand un élève est ajourné, pouvoir dire
-             s'il est OK pour repasser à Loudéac à la place de Saint-Brieuc ».
-             Dans la même confirmation, case déjà cochée s'il l'avait dit. */
-          const zAj = document.createElement('div');
-          zAj.innerHTML = '<div style="margin-bottom:12px;">' + echapper(x.eleve) + ' est ajourné ?<br><br>' +
-            "Il passe en attente de son bilan d'examen,<br>puis du rendez-vous post-permis.</div>" +
-            '<label style="display:flex;gap:9px;align-items:center;text-transform:none;font-size:14px;color:var(--cream);font-weight:600;margin:0;' +
-            'border:1px solid #1350A8;border-radius:11px;padding:9px 11px;">' +
-            '<input type="checkbox" data-ok-loudeac style="width:20px;height:20px;margin:0;"' + (s.okLoudeac === 'oui' ? ' checked' : '') + '>' +
-            '📍 OK pour repasser à Loudéac (au lieu de Saint-Brieuc)</label>';
-          if(!await fenetre(zAj, [{ nom: 'Annuler', valeur: false }, { nom: '❌ Oui, ajourné', valeur: true, principal: true }], 'Confirmation')) return;
-          const okLoudeac = zAj.querySelector('[data-ok-loudeac]').checked ? 'oui' : '';
-          bNon.disabled = true;
-          try{
-            await consignerResultat(x, 'ajourne', iso);
-            /* 💬 v1274 — et dans « Suivi examen » : le nom, puis les captures du CEPC */
-            annoncerDansSuiviExamen(x.eleve, 'ajourne', iso);
-            const n = (parseInt(s.nbAjournements, 10) || 0) + 1;
-            const dateAjo = iso || todayLocal();
-            await majSuivi(x.eleve, {
-              resultat: 'ajourne',
-              okLoudeac: okLoudeac,
-              /* ✉️ v1328 — un nouvel ajournement repart de zéro */
-              rdvPostMessagesLe: '',
-              nbAjournements: String(n),
-              dateAjournement: dateAjo,
-              datePermis: '', aPlanifier: '', retireAPrevoir: '',
-              toutOk: '', aRemplacer: '', dateADonner: '', fantome: '',
-              /* 💶 📆 v1193 — un repassage se repaie et se replanifie */
-              toutPaye: '', toutPlanifie: '',
-              rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '',
-              bilanExamen: '', suite: '', commentaireMoniteur: '',
-              /* ⚠️ LE BILAN DE L'ÉLÈVE PART AUSSI — étape 1d.
-
-                 Il ne partait pas. La remise à zéro effaçait le bilan
-                 d'examen, le rendez-vous, la suite, le commentaire du
-                 moniteur… et laissait « bilanEleve » intact. Un élève
-                 ajourné une DEUXIÈME fois arrivait donc avec le bilan
-                 qu'il avait écrit la première, et l'écran le comptait
-                 comme reçu : on lui accordait le rendez-vous sans
-                 qu'il ait rien écrit sur l'examen qu'il venait de
-                 rater.
-
-                 Le défaut était inoffensif tant que personne ne
-                 regardait cette colonne. Elle commande maintenant
-                 l'accès au rendez-vous : il devient une porte
-                 ouverte. */
-              bilanEleve: '', bilanEleveEtat: '', bilanEleveLe: '',
-              bilanEleveValidePar: '', bilanEleveValideLe: '',
-              bilanEleveRetour: '', bilanEleveJson: ''
-            });
-            for(const cs of (x.enAttente || [])){
-              try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
-            }
-            await envoyerConsigne(x.eleve, 'permis',
-              'Ajourné le ' + dateEnToutesLettres(dateAjo) + ' — ' +
-              mentionAjournements(n) +
-              " · bilan d'examen et rendez-vous post-permis à prévoir (bureau)");
-            showToast(x.eleve + ' est en attente de son bilan');
-            afficherBureau();
-
-            /* Les quatre messages à lui envoyer : sans ce rappel,
-               ils se faisaient de mémoire. */
-            setTimeout(() => ouvrirMessagesAjourne(x.eleve), 400);
-          }catch(err){ showToast('Erreur : ' + err.message); bNon.disabled = false; }
-        });
-        r.appendChild(bNon);
-
-        /* ------------------------------------------------------
-           IL N'Y EST PAS ALLÉ
-
-           David : « j'ai des élèves qui n'ont pas passé leur
-           permis, il faut que je puisse les enlever ».
-
-           Ni « obtenu » ni « ajourné » : la troisième réponse
-           manquait, et c'est la seule qui soit vraie quand
-           l'examen n'a pas eu lieu. Un ajournement fabriqué à sa
-           place aurait compté un repassage de plus et déclenché
-           tout le suivi post-permis pour rien.
-
-           Sa date s'efface — des deux endroits où elle vit, la
-           fiche de suivi ET la note du dernier cours — et il
-           repart dans les élèves prêts au permis, où le bureau le
-           replacera.
-           ------------------------------------------------------ */
-        const bAbs = document.createElement('button');
-        bAbs.className = 'btn btn-secondary';
-        bAbs.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;';
-        bAbs.textContent = "🚫 Ne l'a pas passé";
-        bAbs.title = "L'examen n'a pas eu lieu : sa date s'efface et il " +
-                     'repart dans les élèves prêts au permis';
-        bAbs.addEventListener('click', async () => {
-          /* ⚠️ SA PLACE AUSSI, PAS SEULEMENT SA DATE.
-
-             Effacer la date sans libérer la place le laissait entre
-             deux listes : « Élèves prêts au permis » voyait sa place
-             et l'écartait, pendant que cette liste-ci, qui lit les
-             sessions passées depuis la v849, continuait de lui
-             réclamer un résultat. Il n'aurait été nulle part —
-             exactement le défaut qu'on venait de réparer.
-
-             Et c'est la vérité : il n'y est pas allé, il ne tenait
-             donc pas cette place. La confirmation le dit. */
-          const place = (typeof placeEnSessionDe === 'function')
-            ? placeEnSessionDe(x.eleve) : null;
-          if(!await confirmer(x.eleve + " n'a pas passé son examen ?\n\n" +
-              "Sa date est effacée et il repart dans « Élèves prêts au " +
-              "permis ».\nAucun repassage n'est compté." +
-              (place ? "\n\nSa place du " + (place.date || '?') +
-                       ' redevient libre.' : ''))) return;
-          bAbs.disabled = true;
-          try{
-            if(place && place.session && place.place){
-              try{
-                /* ⚠️ PAR LA PORTE QUI LIT LA RÉPONSE — v996.
-
-                   Un refus du classeur arrive dans un message par
-                   ailleurs normal. Appelé en direct, il passait
-                   pour une réussite — et le « catch » d'en dessous,
-                   qui dit justement quoi faire, ne servait jamais.
-                   Voir ecrireSurLaPlace dans ec-sessions.js. */
-                await ecrireSurLaPlace({
-                  idSession: place.session.id,
-                  rang: place.place.rang, eleve: '',
-                  prevenu: '', dossierOk: '', remarque: '' });
-                place.place.eleve = '';
-                if(typeof sessionsPermis !== 'undefined') sessionsPermis = [];
-              }catch(e2){
-                /* La place n'a pas pu être libérée : on le DIT, sinon
-                   il repart dans une liste tout en restant coincé
-                   dans l'autre. */
-                showToast('⚠️ Sa place n’a pas pu être libérée — ' +
-                          'vide-la à la main dans la session.');
-              }
-            }
-            await majSuivi(x.eleve, {
-              datePermis: '', aPlanifier: '', retireAPrevoir: '', statut: ''
-            });
-            /* La note du dernier cours annonce encore la
-               convocation, et le bureau ne peut pas la réécrire :
-               c'est la dernière annonce qui fait foi. */
-            await envoyerConsigne(x.eleve, 'permis',
-                                  "Date d'examen à prévoir (bureau)");
-            if(typeof viderCaches === 'function') viderCaches(x.eleve);
-            showToast(x.eleve + ' → prêt au permis ✅');
-            afficherBureau(true);
-          }catch(err){
-            showToast('Erreur : ' + err.message);
-            bAbs.disabled = false;
-          }
-        });
-        r.appendChild(bAbs);
-
-        boite.appendChild(r);
+        boite.appendChild(boutonsDuResultat(x, iso, s));
       }
     }));
+    });
   });
+}
+
+/* 🏁 v1330 — les trois réponses, posées sur la ligne ET dans la fiche :
+   les mêmes boutons, les mêmes gestes (voir afficherPostExamen). */
+function boutonsDuResultat(x, iso, s){
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;';
+  bOk.textContent = '✅ Permis obtenu';
+  bOk.dataset.court = '✅ Obtenu';
+  bOk.addEventListener('click', async () => {
+    /* 🎓 v1301 — la confirmation demande aussi le centre et la note /31 */
+    const rep = await demanderPermisObtenu(x.eleve, iso);
+    if(!rep) return;
+    bOk.disabled = true;
+    try{
+      await consignerResultat(x, 'obtenu', iso, { centre: rep.centre });
+      /* 💬 v1301 — et dans « Suivi examen » : « Nom Prénom - centre -
+         Permis obtenu - note/31 », puis les captures du CEPC */
+      annoncerDansSuiviExamen(x.eleve, 'obtenu', iso, rep);
+      /* Il sort de toutes les listes de suivi */
+      for(const cs of (x.enAttente || [])){
+        try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
+      }
+      await appelPrep({ action:'suiviDelete', eleve: x.eleve });
+
+      $('permisNom').value = x.eleve;
+      if(typeof afficherOnglet === 'function'){
+        afficherOnglet('eleves');
+        afficherVue('eleves', 'permis');
+      }
+      await preparerPermis();
+      afficherBureau();
+      showToast('Messages prêts dans le module permis ✅');
+
+      /* Un permis obtenu en automatique ouvre la passerelle.
+         La question se pose ICI, tout de suite : dans une
+         semaine, plus personne ne saura qu'il vient d'obtenir
+         un B78. Elle ne bloque rien — le permis est déjà
+         enregistré à ce stade. */
+      try{ await proposerPasserelle(x, boiteDePostPermis(x)); }
+      catch(err){ showToast('Passerelle : ' + err.message); }
+    }catch(err){ showToast('Erreur : ' + err.message); bOk.disabled = false; }
+  });
+  r.appendChild(bOk);
+
+
+  const bNon = document.createElement('button');
+  bNon.className = 'btn btn-secondary';
+  bNon.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;' +
+    'color:var(--red);border-color:var(--red);';
+  bNon.textContent = '❌ Ajourné';
+  bNon.dataset.court = '❌ Ajourné';
+  bNon.addEventListener('click', async () => {
+    /* 📍 v1328 — David : « quand un élève est ajourné, pouvoir dire
+       s'il est OK pour repasser à Loudéac à la place de Saint-Brieuc ».
+       Dans la même confirmation, case déjà cochée s'il l'avait dit. */
+    const zAj = document.createElement('div');
+    zAj.innerHTML = '<div style="margin-bottom:12px;">' + echapper(x.eleve) + ' est ajourné ?<br><br>' +
+      "Il passe en attente de son bilan d'examen,<br>puis du rendez-vous post-permis.</div>" +
+      '<label style="display:flex;gap:9px;align-items:center;text-transform:none;font-size:14px;color:var(--cream);font-weight:600;margin:0;' +
+      'border:1px solid #1350A8;border-radius:11px;padding:9px 11px;">' +
+      '<input type="checkbox" data-ok-loudeac style="width:20px;height:20px;margin:0;"' + (s.okLoudeac === 'oui' ? ' checked' : '') + '>' +
+      '📍 OK pour repasser à Loudéac (au lieu de Saint-Brieuc)</label>';
+    /* 📷 v1330 — les captures du CEPC se collent ici, au moment du résultat */
+    const capAj = blocCaptures(x.eleve, iso);
+    capAj.style.marginTop = '12px';
+    zAj.appendChild(capAj);
+    if(!await fenetre(zAj, [{ nom: 'Annuler', valeur: false }, { nom: '❌ Oui, ajourné', valeur: true, principal: true }], 'Confirmation')) return;
+    const okLoudeac = zAj.querySelector('[data-ok-loudeac]').checked ? 'oui' : '';
+    bNon.disabled = true;
+    try{
+      await consignerResultat(x, 'ajourne', iso);
+      /* 💬 v1274 — et dans « Suivi examen » : le nom, puis les captures du CEPC */
+      annoncerDansSuiviExamen(x.eleve, 'ajourne', iso);
+      const n = (parseInt(s.nbAjournements, 10) || 0) + 1;
+      const dateAjo = iso || todayLocal();
+      await majSuivi(x.eleve, {
+        resultat: 'ajourne',
+        okLoudeac: okLoudeac,
+        /* ✉️ v1328 — un nouvel ajournement repart de zéro */
+        rdvPostMessagesLe: '',
+        nbAjournements: String(n),
+        dateAjournement: dateAjo,
+        datePermis: '', aPlanifier: '', retireAPrevoir: '',
+        toutOk: '', aRemplacer: '', dateADonner: '', fantome: '',
+        /* 💶 📆 v1193 — un repassage se repaie et se replanifie */
+        toutPaye: '', toutPlanifie: '',
+        rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '',
+        bilanExamen: '', suite: '', commentaireMoniteur: '',
+        /* ⚠️ LE BILAN DE L'ÉLÈVE PART AUSSI — étape 1d.
+
+           Il ne partait pas. La remise à zéro effaçait le bilan
+           d'examen, le rendez-vous, la suite, le commentaire du
+           moniteur… et laissait « bilanEleve » intact. Un élève
+           ajourné une DEUXIÈME fois arrivait donc avec le bilan
+           qu'il avait écrit la première, et l'écran le comptait
+           comme reçu : on lui accordait le rendez-vous sans
+           qu'il ait rien écrit sur l'examen qu'il venait de
+           rater.
+
+           Le défaut était inoffensif tant que personne ne
+           regardait cette colonne. Elle commande maintenant
+           l'accès au rendez-vous : il devient une porte
+           ouverte. */
+        bilanEleve: '', bilanEleveEtat: '', bilanEleveLe: '',
+        bilanEleveValidePar: '', bilanEleveValideLe: '',
+        bilanEleveRetour: '', bilanEleveJson: ''
+      });
+      for(const cs of (x.enAttente || [])){
+        try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
+      }
+      await envoyerConsigne(x.eleve, 'permis',
+        'Ajourné le ' + dateEnToutesLettres(dateAjo) + ' — ' +
+        mentionAjournements(n) +
+        " · bilan d'examen et rendez-vous post-permis à prévoir (bureau)");
+      showToast(x.eleve + ' est en attente de son bilan');
+      afficherBureau();
+
+      /* Les quatre messages à lui envoyer : sans ce rappel,
+         ils se faisaient de mémoire. */
+      setTimeout(() => ouvrirMessagesAjourne(x.eleve), 400);
+    }catch(err){ showToast('Erreur : ' + err.message); bNon.disabled = false; }
+  });
+  r.appendChild(bNon);
+
+  /* ------------------------------------------------------
+     IL N'Y EST PAS ALLÉ
+
+     David : « j'ai des élèves qui n'ont pas passé leur
+     permis, il faut que je puisse les enlever ».
+
+     Ni « obtenu » ni « ajourné » : la troisième réponse
+     manquait, et c'est la seule qui soit vraie quand
+     l'examen n'a pas eu lieu. Un ajournement fabriqué à sa
+     place aurait compté un repassage de plus et déclenché
+     tout le suivi post-permis pour rien.
+
+     Sa date s'efface — des deux endroits où elle vit, la
+     fiche de suivi ET la note du dernier cours — et il
+     repart dans les élèves prêts au permis, où le bureau le
+     replacera.
+     ------------------------------------------------------ */
+  const bAbs = document.createElement('button');
+  bAbs.className = 'btn btn-secondary';
+  bAbs.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;';
+  bAbs.textContent = "🚫 Ne l'a pas passé";
+  bAbs.dataset.court = '🚫 Pas passé';
+  bAbs.title = "L'examen n'a pas eu lieu : sa date s'efface et il " +
+               'repart dans les élèves prêts au permis';
+  bAbs.addEventListener('click', async () => {
+    /* ⚠️ SA PLACE AUSSI, PAS SEULEMENT SA DATE.
+
+       Effacer la date sans libérer la place le laissait entre
+       deux listes : « Élèves prêts au permis » voyait sa place
+       et l'écartait, pendant que cette liste-ci, qui lit les
+       sessions passées depuis la v849, continuait de lui
+       réclamer un résultat. Il n'aurait été nulle part —
+       exactement le défaut qu'on venait de réparer.
+
+       Et c'est la vérité : il n'y est pas allé, il ne tenait
+       donc pas cette place. La confirmation le dit. */
+    const place = (typeof placeEnSessionDe === 'function')
+      ? placeEnSessionDe(x.eleve) : null;
+    if(!await confirmer(x.eleve + " n'a pas passé son examen ?\n\n" +
+        "Sa date est effacée et il repart dans « Élèves prêts au " +
+        "permis ».\nAucun repassage n'est compté." +
+        (place ? "\n\nSa place du " + (place.date || '?') +
+                 ' redevient libre.' : ''))) return;
+    bAbs.disabled = true;
+    try{
+      if(place && place.session && place.place){
+        try{
+          /* ⚠️ PAR LA PORTE QUI LIT LA RÉPONSE — v996.
+
+             Un refus du classeur arrive dans un message par
+             ailleurs normal. Appelé en direct, il passait
+             pour une réussite — et le « catch » d'en dessous,
+             qui dit justement quoi faire, ne servait jamais.
+             Voir ecrireSurLaPlace dans ec-sessions.js. */
+          await ecrireSurLaPlace({
+            idSession: place.session.id,
+            rang: place.place.rang, eleve: '',
+            prevenu: '', dossierOk: '', remarque: '' });
+          place.place.eleve = '';
+          if(typeof sessionsPermis !== 'undefined') sessionsPermis = [];
+        }catch(e2){
+          /* La place n'a pas pu être libérée : on le DIT, sinon
+             il repart dans une liste tout en restant coincé
+             dans l'autre. */
+          showToast('⚠️ Sa place n’a pas pu être libérée — ' +
+                    'vide-la à la main dans la session.');
+        }
+      }
+      await majSuivi(x.eleve, {
+        datePermis: '', aPlanifier: '', retireAPrevoir: '', statut: ''
+      });
+      /* La note du dernier cours annonce encore la
+         convocation, et le bureau ne peut pas la réécrire :
+         c'est la dernière annonce qui fait foi. */
+      await envoyerConsigne(x.eleve, 'permis',
+                            "Date d'examen à prévoir (bureau)");
+      if(typeof viderCaches === 'function') viderCaches(x.eleve);
+      showToast(x.eleve + ' → prêt au permis ✅');
+      afficherBureau(true);
+    }catch(err){
+      showToast('Erreur : ' + err.message);
+      bAbs.disabled = false;
+    }
+  });
+  r.appendChild(bAbs);
+
+  return r;
 }
 
 
@@ -3394,9 +3463,11 @@ async function demanderPermisObtenu(eleve, iso){
   const ap = document.createElement('div');
   ap.style.cssText = 'font-size:12px;line-height:1.5;border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-top:4px;';
   w.appendChild(ap);
+  /* 📷 v1330 — les captures du CEPC se collent ici, au moment du résultat
+     (David : « c'est tout bon ») : elles partent avec l'annonce. */
   const caps = document.createElement('div');
-  caps.style.cssText = 'font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4;';
-  caps.textContent = '📷 Captures du CEPC : …';
+  caps.style.cssText = 'margin-top:12px;';
+  caps.appendChild(blocCaptures(eleve, iso));
   w.appendChild(caps);
   const peindre = () => {
     ap.innerHTML = '';
@@ -3410,11 +3481,6 @@ async function demanderPermisObtenu(eleve, iso){
   };
   [iC, iN].forEach(i => i.addEventListener('input', peindre));
   peindre();
-  capturesDeLExamenPP(eleve, iso).then(l => {
-    caps.textContent = l.length
-      ? '📷 ' + l.length + ' capture' + (l.length > 1 ? 's' : '') + ' du CEPC partir' + (l.length > 1 ? 'ont' : 'a') + ' avec.'
-      : '📷 Aucune capture du CEPC pour cet examen : ajoute-les d’abord dans « 📷 Captures du CEPC », sous le bouton.';
-  }).catch(() => { caps.textContent = ''; });
   setTimeout(() => { try{ (iC.value ? iN : iC).focus(); }catch(e){} }, 60);
   const ok = await fenetre(w, [
     { nom: 'Annuler', valeur: false },
