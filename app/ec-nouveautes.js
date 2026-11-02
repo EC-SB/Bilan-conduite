@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:50 — v1327 */
+/* Déployé le 02/11/2026 à 10:49 — v1328 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1328,
+    date: 'Lundi 2 novembre 2026',
+    resume: '⛔ Pas prêts : une liste à la fois ; post-permis en 3 étapes',
+    quoi: [
+      { emoji: '📋',
+        titre: 'Une liste à la fois, un élève par ligne',
+        texte: 'Les puces choisissent la liste. Chaque élève tient sur une ligne avec ce qu’il reste à faire ; un appui ouvre sa fiche en fenêtre.' },
+      { emoji: '🔁',
+        titre: 'Post-permis : bilan → messages → rendez-vous',
+        texte: 'Son bilan collé, tes messages s’ouvrent (Messenger + sa messagerie). Son rendez-vous Drivup se lit tout seul.' },
+      { emoji: '📍',
+        titre: 'OK pour Loudéac',
+        texte: 'À « ❌ Ajourné », ou dans sa fiche : il veut bien repasser à Loudéac. Demande le script Google Sheets v254.' }
+    ]
+  },
   {
     version: 1327,
     date: 'Samedi 31 octobre 2026',
