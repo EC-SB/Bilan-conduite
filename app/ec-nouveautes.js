@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:42 — v1332 */
+/* Déployé le 02/11/2026 à 14:59 — v1333 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1333,
+    date: 'Lundi 2 novembre 2026',
+    resume: '🏢 L’agence d’inscription donne le centre d’examen',
+    quoi: [
+      { emoji: '🏢',
+        titre: 'L’agence reprise de Drivup',
+        texte: 'Le favori 📥 reprend l’agence d’inscription ; elle s’affiche en tête du dossier et se change d’un appui (bureau, admins). Pas connue : Saint-Brieuc. Demande le script Google Sheets v255.' },
+      { emoji: '📍',
+        titre: 'Le centre d’examen suit',
+        texte: 'Dossier › 🎓 Permis : son centre (celui de son agence) et « OK pour passer aussi à … », dans les deux sens et pour tous. Il suit dans 🚗 Prêts et pré-remplit 🗓️ RDV PERMIS.' }
+    ]
+  },
   {
     version: 1332,
     date: 'Lundi 2 novembre 2026',
