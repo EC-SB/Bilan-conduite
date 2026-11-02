@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 10:49 — v1328 */
+/* Déployé le 02/11/2026 à 11:44 — v1329 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -215,8 +215,8 @@ function afficherEBPrevus(tous){
   /* Poser un examen blanc à la main : le moniteur a pu le
      convenir de vive voix sans rien saisir. */
   const bAdd = document.createElement('button');
-  bAdd.className = 'btn btn-secondary';
-  bAdd.style.cssText = 'padding:11px;font-size:13px;margin-bottom:10px;';
+  bAdd.className = 'btn btn-secondary lcPetit';   /* v1329 : en petit */
+  if(typeof styleLignesCompactes === 'function') styleLignesCompactes();
   bAdd.textContent = '➕ Prévoir un examen blanc';
   bAdd.addEventListener('click', () => ouvrirExamBlancManuel());
   zone.appendChild(bAdd);
@@ -231,6 +231,25 @@ function afficherEBPrevus(tous){
     return;
   }
 
+  /* 📝 v1329 — une ligne par élève, sa date en étiquette (orange à 3 jours
+     ou moins, rouge passée), la fiche en fenêtre. Schéma validé par David. */
+  const jourCourtEB = iso => new Date(iso + 'T12:00:00')
+    .toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const etiquetteEB = x => {
+    if(!x.iso) return { t: '📝 ' + x.quand, ton: 'v' };
+    const j = Math.round((new Date(x.iso + 'T12:00:00') - new Date(auj + 'T12:00:00')) / 864e5);
+    if(j < 0) return { t: '⚠️ ' + jourCourtEB(x.iso) + ' — date dépassée, sa suite ?', ton: 'r' };
+    const dans = j === 0 ? " · aujourd'hui" : j === 1 ? ' · demain' : j <= 3 ? ' · dans ' + j + ' j' : '';
+    return { t: '📝 ' + jourCourtEB(x.iso) + (x.heure ? ' à ' + x.heure : '') + dans, ton: j <= 3 ? 'o' : 'v' };
+  };
+  const infoLigneEB = (x, e) => {
+    const m = x.moniteur || '';
+    const b = String((typeof boiteConnueDe === 'function' && boiteConnueDe(e)) || 'bv').toUpperCase();
+    return [m ? 'examen blanc avec ' + m : '', b,
+            e.date ? 'dernier cours le ' + String(e.date).slice(0, 5) + (e.moniteur ? ' avec ' + e.moniteur : '') : '']
+      .filter(Boolean).join(' · ');
+  };
+
   liste.forEach(x => {
     const passe = x.iso && x.iso < auj;
 
@@ -239,6 +258,9 @@ function afficherEBPrevus(tous){
     if(x.source === 'bureau'){
       zone.appendChild(ligneBureau(x.fiche, {
         replier: true,
+        compact: true,
+        infoLigne: e => infoLigneEB(x, e),
+        etiquette: () => etiquetteEB(x),
         info: () => (passe ? '⚠️ Le ' : '📅 Le ') + x.quand +
                     (passe ? ' — date dépassée, sa suite ?' : ''),
 
@@ -261,6 +283,9 @@ function afficherEBPrevus(tous){
     if(fiche){
       zone.appendChild(ligneBureau(fiche, {
         replier: true,
+        compact: true,
+        infoLigne: e => infoLigneEB(x, e),
+        etiquette: () => etiquetteEB(x),
         info: () => (passe ? '⚠️ Le ' : '📝 Le ') + x.quand +
                     (x.moniteur ? ' · ' + x.moniteur : '') +
                     (passe ? ' — date dépassée, sa suite ?' : ''),
