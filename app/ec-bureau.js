@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 10:49 — v1328 */
+/* Déployé le 02/11/2026 à 11:44 — v1329 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1483,7 +1483,7 @@ function styleLignesCompactes(){
   st.id = 'lcCss';
   st.textContent = `
 .history-item.lc{padding:0!important;display:block!important;border-bottom:1px solid var(--line)}
-.lcL{display:grid;grid-template-columns:minmax(140px,1.1fr) minmax(160px,1.4fr) auto auto 18px;gap:10px;align-items:center;width:100%;margin:0;padding:9px 10px;background:transparent;border:0;border-radius:0;color:var(--cream);text-align:left;font:inherit;font-size:13px;cursor:pointer}
+.lcL{display:grid;grid-template-columns:minmax(140px,210px) minmax(0,1fr) auto auto 18px;gap:10px;align-items:center;width:100%;margin:0;padding:9px 10px;background:transparent;border:0;border-radius:0;color:var(--cream);text-align:left;font:inherit;font-size:13px;cursor:pointer}
 .lcL:hover,.lcL:focus-visible{background:var(--orange-soft);color:var(--on-accent)}
 .lcL:hover .lcInfo,.lcL:focus-visible .lcInfo{color:var(--on-accent)}
 .lcNom{font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1497,6 +1497,26 @@ function styleLignesCompactes(){
 .lcF{color:var(--muted);font-size:18px;text-align:right}
 .lcL > span{text-align:left;justify-self:start;min-width:0;max-width:100%}
 .lcL > .lcF{justify-self:end}
+.lcL > .lcTags{order:3;display:flex;gap:4px;flex-wrap:wrap;justify-self:end}.lcNomEcrit{color:#A85A00!important;border-color:#E8A23A!important}.lcL > .lcEt{order:4;justify-self:end}.lcL > .lcF{order:5}
+.history-item.lc.lcA{display:flex!important;align-items:center;gap:4px}
+.lcA > .lcL{flex:1;min-width:0}
+.lcAct{width:auto!important;margin:0 8px 0 0!important;padding:5px 9px!important;font-size:12px!important;flex-shrink:0;white-space:nowrap}
+.lcPuces{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+.lcPuces button{width:auto;margin:0;padding:5px 10px;font-size:12px;border-radius:999px}
+.lcPuces button .n{margin-left:6px;font-weight:800}
+.lcMasq{font-size:12px;color:var(--muted);padding:4px 2px 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lcMasq button{width:auto;margin:0;padding:4px 9px;font-size:12px}
+.lcPetit{width:auto!important;margin:0 0 8px!important;padding:6px 11px!important;font-size:12.5px!important}
+.lcLab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px;font-weight:700}
+.lcGros{display:block;width:100%;margin:4px 0 6px!important;padding:11px!important;font-size:14px!important}
+.lcRang{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.lcRang > .btn{width:auto!important;margin:0!important}
+.lcRdv{display:flex;align-items:center;gap:6px;flex-wrap:wrap;row-gap:4px;padding:6px 8px 6px 16px;margin:2px 0;border-radius:8px;cursor:pointer}
+.lcRdv:hover,.lcRdv:focus-visible{background:var(--orange-soft);color:var(--on-accent)}
+.lcRdv .n{flex:1;min-width:0;font-weight:700;font-size:14px}
+.lcType{font-size:11px;font-weight:800;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--muted);flex-shrink:0}
+.lcType.bea{color:#1350A8;border-color:#1350A8}
+.lcRdv .lcF{margin-left:2px}
 .lcRech{display:block;width:100%!important;max-width:420px;box-sizing:border-box;margin:8px 0 8px!important;padding:9px 11px!important;font-size:13.5px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--navy-deep)!important;color:var(--cream)!important}
 .lcVide{font-size:12.5px;color:var(--muted);padding:8px 2px}
 details.volet-liste.volet-seul > summary{pointer-events:none}
@@ -1510,7 +1530,7 @@ details.volet-liste.volet-seul > summary::after{display:none}
 .lcSw .s{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;flex-shrink:0}
 .lcSw .s:after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}
 .lcSw.on{border-color:#1350A8;background:#E8F0FF;color:#0B0B0B}.lcSw.on .t small{color:#333}.lcSw.on .s{background:#1350A8}.lcSw.on .s:after{left:16px}
-@media (max-width:700px){.lcL{grid-template-columns:1fr 18px;row-gap:3px}.lcNom,.lcInfo,.lcEt,.lcL .lcLoudeac{grid-column:1}.lcInfo{white-space:normal}.lcEt{white-space:normal;border-radius:10px}.lcF{grid-column:2;grid-row:1/5}}`;
+@media (max-width:700px){.history-item.lc.lcA{flex-wrap:wrap}.lcA > .lcL{flex:1 1 100%}.lcAct{margin:-4px 0 9px 10px!important}.lcL{grid-template-columns:1fr 18px;row-gap:3px}.lcL > .lcEt{justify-self:start}.lcRdv .n{flex:1 1 calc(100% - 34px)}.lcRdv .lcEt{white-space:normal;border-radius:10px}.lcNom,.lcInfo,.lcEt,.lcL .lcTags{grid-column:1}.lcL > .lcTags{justify-self:start}.lcTags:empty{display:none}.lcInfo{white-space:normal}.lcEt{white-space:normal;border-radius:10px}.lcF{grid-column:2;grid-row:1/5}}`;
   document.head.appendChild(st);
 }
 
@@ -1535,12 +1555,26 @@ function ligneCompacteBureau(e, options){
   const redire = () => {
     const et = (typeof options.etiquette === 'function') ? options.etiquette(e)
       : (options.alerte ? { t: options.alerte(e) ? '⚠️ ' + options.alerte(e) : '', ton: 'r' } : null);
-    info.textContent = String(options.info(e) || '');
+    info.textContent = String((options.infoLigne || options.info)(e) || '');
     z.className = (et && et.t) ? 'lcEt ' + (et.ton || '') : '';
     z.textContent = (et && et.t) || '';
-    const l = suiviDe(e.eleve).okLoudeac === 'oui';
-    lo.className = l ? 'lcLoudeac' : '';
-    lo.textContent = l ? '📍 OK Loudéac' : '';
+    /* les petites étiquettes bleues/orange, dans UNE case de la grille */
+    lo.className = 'lcTags';
+    lo.innerHTML = '';
+    if(suiviDe(e.eleve).okLoudeac === 'oui'){
+      const t = document.createElement('span');
+      t.className = 'lcLoudeac'; t.textContent = '📍 OK Loudéac';
+      lo.appendChild(t);
+    }
+    /* 🔗 v1329 — un nom écrit autrement (v1167) se voit sur la ligne ; le
+       bouton qui le corrige est dans la fiche */
+    if((e.nomsEcrits || []).length){
+      const t = document.createElement('span');
+      t.className = 'lcLoudeac lcNomEcrit';
+      t.textContent = '✏️ aussi écrit « ' + e.nomsEcrits[0] + ' »';
+      t.title = 'Aussi écrit ' + e.nomsEcrits.map(n => '« ' + n + ' »').join(', ') + ' — ouvre la fiche pour corriger';
+      lo.appendChild(t);
+    }
   };
   redire();
   row.rafraichirLigne = redire;
@@ -1549,6 +1583,25 @@ function ligneCompacteBureau(e, options){
   b.appendChild(f);
   b.addEventListener('click', () => ouvrirFicheBureau(e, options, row));
   row.appendChild(b);
+  /* 🗓️ v1329 — un geste de la liste, directement sur la ligne (David :
+     « aussi un petit bouton »). Il est À CÔTÉ du bouton de la ligne, pas
+     dedans : un bouton dans un bouton ne se clique pas. */
+  const act = (typeof options.actionLigne === 'function') ? options.actionLigne(e) : null;
+  if(act){
+    row.classList.add('lcA');
+    const a = document.createElement('button');
+    a.type = 'button';
+    a.className = 'btn btn-secondary lcAct';
+    a.textContent = act.t;
+    if(act.titre) a.title = act.titre;
+    a.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      a.disabled = true;
+      try{ await act.faire(); }
+      catch(err){ showToast('Erreur : ' + err.message); a.disabled = false; }
+    });
+    row.appendChild(a);
+  }
   row.__fiche = { e: e, options: options };
   return row;
 }
@@ -1598,9 +1651,17 @@ function remplirFicheBureau(boite, e, options){
   tete.appendChild(x);
   boite.appendChild(tete);
   if(typeof options.fiche === 'function'){ options.fiche(e, boite); return; }
-  if(suiviDe(e.eleve).nbAjournements) boite.appendChild(interrupteurLoudeac(e.eleve));
+  const avecInter = !!suiviDe(e.eleve).nbAjournements;
+  if(avecInter) boite.appendChild(interrupteurLoudeac(e.eleve));
   const corps = ligneBureau(e, Object.assign({}, options, { compact: false, replier: false }));
+  /* v1329 — l'interrupteur dit déjà « OK Loudéac » : l'étiquette ferait
+     doublon (et s'étirait sur toute la largeur) */
+  if(avecInter) corps.querySelectorAll('.lcLoudeac').forEach(x => x.remove());
   const nomLigne = corps.querySelector('.meta strong');
+  /* le nom est dans le titre : sa barre de boîte, seule, ne dirait rien */
+  const avecBarre = nomLigne && nomLigne.parentNode && nomLigne.parentNode.classList &&
+                    nomLigne.parentNode.classList.contains('ligneAvecBoite');
+  if(avecBarre) nomLigne.parentNode.style.display = 'none';
   if(nomLigne){
     const apres = nomLigne.nextElementSibling;
     if(apres && apres.tagName === 'BUTTON') apres.remove();   /* le 👤 est déjà dans le titre */
@@ -1636,7 +1697,7 @@ function rafraichirFicheBureau(){
   const o = ficheBureauOuverte;
   if(!o || !o.fond.parentNode) return;
   const zone = o.zone ? document.getElementById(o.zone) : null;
-  const row = zone ? [...zone.querySelectorAll('.history-item.lc')].find(r => r.dataset.eleve === o.eleve) : null;
+  const row = zone ? [...zone.querySelectorAll('.history-item.lc, .lcRdv')].find(r => r.dataset.eleve === o.eleve) : null;
   if(!row || !row.__fiche){ fermerFicheBureau(); return; }
   /* une saisie en cours ne se perd pas : on garde la fenêtre telle quelle */
   const a = document.activeElement;
