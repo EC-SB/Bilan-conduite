@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 02/11/2026 à 15:47 — v1334 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -3816,14 +3816,14 @@ function tuilesAac(){
   if(c === null) return null;
 
   return [
-    { cle:'aac:total', lib:'Élèves en AAC', vue:'suiviaac',
+    { cle:'aac:total', lib:'Élèves en AAC', vue:'suiviaac', section:'aac', titre:true,
       valeur:() => ({ n: c.total }) },
-    { cle:'aac:retard', lib:'Rendez-vous en retard', vue:'suiviaac', ton:'urgent',
+    { cle:'aac:retard', lib:'Rendez-vous en retard', vue:'suiviaac', ton:'urgent', section:'aac',
       valeur:() => ({ n: c.rvp1 + c.rvp2,
                       /* Deux lignes, comme demandé : ce ne sont pas
                          les mêmes rendez-vous ni la même échéance. */
                       sous: (c.rvp1 + ' RVP 1') + '\n' + (c.rvp2 + ' RVP 2') }) },
-    { cle:'aac:rvt', lib:'Théoriques à prévoir', vue:'suiviaac', ton:'att',
+    { cle:'aac:rvt', lib:'Théoriques à prévoir', vue:'suiviaac', ton:'att', section:'aac',
       valeur:() => ({ n: c.rvt }) }
   ];
 }
