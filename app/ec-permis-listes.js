@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:42 — v1332 */
+/* Déployé le 02/11/2026 à 14:59 — v1333 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -173,7 +173,9 @@ function ficheSuiviPermis(e){
         /* L'ancien candidat perd sa date, pas sa fiche : ses
            heures, son examen blanc et ses paiements restent. Il
            retourne chez les élèves à replacer. */
-        await majSuivi(e.eleve, { datePermis: '', centre: '',
+        await majSuivi(e.eleve, { datePermis: '',
+                                  /* 📍 v1333 — le centre de son agence, plutôt qu'un vide */
+                                  centre: (typeof centreDeBase === 'function') ? centreDeBase(e.eleve) : '',
                                   statut: '', toutOk: '',
                                   aRemplacer: '', aPlanifier: 'oui' });
 
@@ -429,10 +431,11 @@ function tableauAPlacer(liste){
         ". Sa place d'examen se prend après.";
       l.appendChild(att);
     }
-    if(s.okLoudeac === 'oui'){
+    const okAutre = (typeof etiquetteAutreCentre === 'function') ? etiquetteAutreCentre(e.eleve) : '';
+    if(okAutre){
       const lo = document.createElement('span');
       lo.className = 'lcLoudeac';
-      lo.textContent = '📍 OK Loudéac';
+      lo.textContent = okAutre;
       l.appendChild(lo);
     }
 
@@ -2814,14 +2817,22 @@ function etiquetteDuPret(x){
    nombre d'heures », Saint-Brieuc par défaut ; un « OK Loudéac » le dit
    à côté (et compte dans le filtre 📍 Loudéac). */
 function centreDuPret(x){
-  return String(suiviDe(x.eleve).centre || '').trim() || 'Saint-Brieuc';
+  /* v1333 — celui choisi pour ce passage, sinon celui de son agence */
+  return String(suiviDe(x.eleve).centre || '').trim() ||
+         ((typeof centreDeBase === 'function') ? centreDeBase(x.eleve) : 'Saint-Brieuc');
 }
 function pretPourLoudeac(x){
   return /loud/i.test(centreDuPret(x)) || suiviDe(x.eleve).okLoudeac === 'oui';
 }
+function pretPourSaintBrieuc(x){
+  return /brieuc/i.test(centreDuPret(x)) || suiviDe(x.eleve).okSaintBrieuc === 'oui';
+}
 
 async function mettreDansRdvPermis(nom){
-  await majSuivi(nom, { aPlanifier: 'oui', retireAPrevoir: '' });
+  /* 📍 v1333 — son centre est déjà rempli avec celui de son agence (modifiable) */
+  const maj = { aPlanifier: 'oui', retireAPrevoir: '' };
+  if(!String(suiviDe(nom).centre || '').trim() && typeof centreDeBase === 'function') maj.centre = centreDeBase(nom);
+  await majSuivi(nom, maj);
   showToast(nom + ' → 🗓️ RDV PERMIS ✅');
   redessinerBureau();
 }
@@ -2842,7 +2853,7 @@ function pucesDesPrets(liste, choisi, nAttente){
     ['urgent', '🔴 Urgents', liste.filter(e => String(e.urgence || '') >= '4').length],
     ['heures', '⏱️ Heures à préciser', liste.filter(heuresAPreciser).length],
     /* 📍 v1332 — par centre d'examen (un « OK Loudéac » compte dans les deux) */
-    ['sb', '📍 Saint-Brieuc', liste.filter(e => /brieuc/i.test(centreDuPret(e))).length],
+    ['sb', '📍 Saint-Brieuc', liste.filter(pretPourSaintBrieuc).length],
     ['lo', '📍 Loudéac', liste.filter(pretPourLoudeac).length],
     ['annule', '❌ Examens annulés', liste.filter(e => e.etat && e.etat.permis === 'annule').length]
   ];
@@ -2894,7 +2905,7 @@ function afficherExamensPermis(tous){
   else if(fPer === 'repassage') per = per.filter(e => suiviDe(e.eleve).nbAjournements);
   else if(fPer === 'premier') per = per.filter(e => !suiviDe(e.eleve).nbAjournements);
   else if(fPer === 'heures') per = per.filter(e => heuresAPreciser(e));
-  else if(fPer === 'sb') per = per.filter(e => /brieuc/i.test(centreDuPret(e)));
+  else if(fPer === 'sb') per = per.filter(e => pretPourSaintBrieuc(e));
   else if(fPer === 'lo') per = per.filter(e => pretPourLoudeac(e));
 
   /* Priorité décroissante, puis demande la plus ancienne */
