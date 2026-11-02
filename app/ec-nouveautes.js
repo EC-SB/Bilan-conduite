@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:26 — v1331 */
+/* Déployé le 02/11/2026 à 14:42 — v1332 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1332,
+    date: 'Lundi 2 novembre 2026',
+    resume: '📍 Le centre d’examen des élèves prêts, et son filtre',
+    quoi: [
+      { emoji: '📍',
+        titre: 'Le centre sur la ligne',
+        texte: 'Dans 🚗 Élèves prêts au permis, juste après les heures : Saint-Brieuc par défaut, ou le centre choisi. Les puces 📍 Saint-Brieuc et 📍 Loudéac filtrent (un « OK Loudéac » compte dans les deux).' }
+    ]
+  },
   {
     version: 1331,
     date: 'Lundi 2 novembre 2026',
