@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1327
+     GUIDE-VERSION: 1328
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1327</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1328</strong><br>
     Mis à jour le 28 octobre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1327</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1328</strong>, relu le 28 octobre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -2567,17 +2567,20 @@ Dernier cours le 12/09/2026 avec Hery
 
     <h4>Le bandeau de prise de dates</h4>
     <p>En tête des vues <span class="b">⛔ Pas prêts</span>, <span class="b">🤔 À envisager</span>, <span class="b">📣 Préparation</span> et <span class="b">🏁 Résultats</span>, il n'apparaît que <strong>dans les dix jours</strong> précédant une prise de dates, et passe à <span class="ch">🔔</span> sur fond rouge quand elle est imminente.</p>
-    <div class="ecran">📆 Prise de dates dans 4 jours — mardi 6 octobre
-Places de la 1ʳᵉ quinzaine de novembre — 9 places à prendre
-17 élève(s) présentable(s) · 3 écarté(s) pour indisponibilité
-  ▸ Voir les 17 élèves</div>
-    <p>Sans nombre de places réglé, il le dit (<span class="ch">nombre de places à renseigner</span>) plutôt qu'un faux zéro. En dépliant, chaque nom est précédé de <strong>🔁</strong> (repassage) ou <strong>🆕</strong> (premier passage), avec un bouton <span class="b">→ RDV PERMIS</span>&nbsp;; en bas, <span class="b">📋 Mettre les N dans la liste RDV PERMIS</span> bascule tout le monde d'un coup. Les <strong>écartés</strong> sont listés avec leur raison — <em>« possible seulement à partir du 12 novembre »</em>, <em>« absent du 3 au 14 novembre »</em> — qui vient du bloc <a href="#envisager" class="aller">📅 Disponibilités</a>.</p>
+    <div class="ecran">📆 Dans 4 jours, mardi 6 octobre  prise de dates · 1ʳᵉ quinzaine de novembre · 17 présentables · 9 places à prendre   Voir ▸</div>
+    <p><strong>Une ligne par date</strong> (depuis la v1328)&nbsp;; <span class="b">Voir ▸</span> déplie le reste. Sans nombre de places réglé, il le dit (<span class="ch">places à renseigner</span>, en rouge) plutôt qu'un faux zéro. En dépliant, chaque nom est précédé de <strong>🔁</strong> (repassage) ou <strong>🆕</strong> (premier passage), avec un bouton <span class="b">→ RDV PERMIS</span>&nbsp;; en bas, <span class="b">📋 Mettre les N dans la liste RDV PERMIS</span> bascule tout le monde d'un coup. Les <strong>écartés</strong> sont listés avec leur raison — <em>« possible seulement à partir du 12 novembre »</em>, <em>« absent du 3 au 14 novembre »</em> — qui vient du bloc <a href="#envisager" class="aller">📅 Disponibilités</a>.</p>
     <div class="note astuce"><span class="tag">Quand la préfecture décale</span><p>La règle habituelle — <strong>1<sup>er</sup> et 2<sup>e</sup> mardi du mois précédent</strong> — se corrige au cas par cas&nbsp;: les deux champs <span class="b">prise le</span> du <a href="#reglerplaces" class="aller">réglage des places</a> l'emportent quand ils sont remplis. Le bandeau affiche alors <span class="ch">📌 Date réglée à la main dans 📊 Réglage des places</span>.</p></div>
   </section>
 
   <section id="pasprets">
     <h3>⛔ Pas prêts</h3>
-    <p>Ceux qu'on ne peut pas envoyer à l'examen. <strong>Quatre listes, au même niveau</strong>, et au-dessus d'elles <strong>une barre de filtres qui porte leur compte</strong>&nbsp;: on lit la charge de travail sans rien ouvrir. Choisir un filtre ouvre la liste qu'il désigne&nbsp;; un filtre à zéro ne s'affiche pas.</p>
+    <p>Ceux qu'on ne peut pas envoyer à l'examen. <strong>Quatre listes, une à la fois</strong>&nbsp;: la barre du haut porte leur compte et <strong>choisit la liste affichée</strong> — à l'arrivée, la première qui a quelqu'un (Pas le niveau, puis Attente bilan post-permis, Non planifiable, Pas de repassage). Pas de «&nbsp;Tous&nbsp;» ici&nbsp;: les listes sont longues, on ne les empile plus.</p>
+    <ul>
+      <li><strong>Un élève = une ligne</strong>&nbsp;: son nom, sa situation, <strong>une étiquette de couleur qui dit ce qu'il reste à faire</strong> (rouge&nbsp;: un geste à faire&nbsp;; orange&nbsp;: on attend&nbsp;; vert&nbsp;: c'est posé), <span class="ch">📍 OK Loudéac</span> s'il l'a dit, et <span class="b">›</span>.</li>
+      <li><strong>Un appui sur la ligne ouvre sa fiche en fenêtre</strong>, avec les mêmes boutons qu'avant. Elle se met à jour toute seule après chaque geste, et se ferme quand l'élève quitte la liste.</li>
+      <li><span class="b">🔎 Chercher un élève dans cette liste…</span> en tête de la liste.</li>
+      <li><span class="b">🔄 Actualiser les listes</span> est en petit, en haut à droite&nbsp;: les listes se relisent déjà toutes seules à l'ouverture, puis toutes les 90&nbsp;s.</li>
+    </ul>
 
     <h4>⛔ Examen blanc — pas le niveau</h4>
     <p><em>« Replacer un examen blanc ou fixer un nombre d'heures. »</em> Un bouton <span class="b">➕ Ajouter un élève qui n'a pas le niveau</span> permet d'y entrer quelqu'un à la main, avec la date de l'examen blanc et, facultativement, ce qui a manqué.</p>
@@ -2592,11 +2595,20 @@ Places de la 1ʳᵉ quinzaine de novembre — 9 places à prendre
     </table></div>
 
     <h4>⏳ Attente bilan post-permis</h4>
-    <p><em>« Élèves ajournés&nbsp;: colle leur bilan puis fixe le rendez-vous post-permis. »</em> Les dossiers <strong>bouclés</strong> — bilan d'examen + date + moniteur — sont repliés à part en haut, sous <span class="ch">✅ N rendez-vous déjà organisé(s)</span>, avec un bouton <span class="b">↗️ Reprendre</span>. Les autres sont triés <strong>bilan manquant d'abord</strong>.</p>
-    <p>La fiche contient&nbsp;: <span class="b">📄 Bilan de l'examen officiel</span> (<em>« Le rapport de l'inspecteur »</em> — quand il a déjà été saisi dans un cours, il se reprend tout seul et une ligne le dit), <span class="b">📝 Bilan écrit par l'élève</span>, la <span class="b">Date du rendez-vous</span>, le <span class="b">Moniteur qui le reçoit</span>, les <span class="b">📷 Captures du CEPC</span>, et <span class="b">💾 Enregistrer et préparer le cours</span>.</p>
+    <p><em>« Élèves ajournés&nbsp;: colle leur bilan puis fixe le rendez-vous post-permis. »</em> Les dossiers <strong>bouclés</strong> — bilan d'examen + date + moniteur — sont repliés à part en haut, sous <span class="ch">✅ N rendez-vous déjà organisé(s)</span>, avec un bouton <span class="b">↗️ Reprendre</span>. Les autres sont rangés <strong>par ce qu'il reste à faire</strong>&nbsp;: <span class="ch">📝 bilan à coller</span> → <span class="ch">✉️ messages à envoyer</span> → <span class="ch">📅 RDV Drivup le … — à reprendre</span> → <span class="ch">✉️ messages envoyés le … — en attente de son RDV</span> → <span class="ch">📅 RDV le … avec …</span>.</p>
+    <p><strong>Sa fiche, dans l'ordre où on la fait</strong> (v1328)&nbsp;:</p>
+    <ol class="etapes">
+      <li><strong>📝 Son bilan</strong> — on colle ce qu'il a envoyé sur Messenger (ou ses photos), <span class="b">✅ Enregistrer son bilan</span>. <strong>Le coller suffit</strong>&nbsp;: c'est la même porte que «&nbsp;✅ Valider&nbsp;» (validé par / le, écrits par le serveur)&nbsp;; le moniteur le corrige avec lui au rendez-vous.</li>
+      <li><strong>✉️ Les messages pour qu'il prenne son rendez-vous</strong> — un pop-up s'ouvre tout seul dès le bilan enregistré, avec <strong>les deux messages de l'école</strong> («&nbsp;📜 RDV POST-PERMIS&nbsp;» et la relance «&nbsp;♻️ UP🚗 RDV post-permis&nbsp;»), <strong>modifiables avant de partir</strong>&nbsp;: <span class="b">📋 Copier ce message</span>, <span class="b">💬 Ouvrir sa conversation Messenger</span> (son m.me de sa fiche, sinon messenger.com), la case <span class="b">💬 Les envoyer aussi dans sa messagerie de l'appli</span> (cochée), puis <span class="b">✅ C'est envoyé</span> — la date se note (<span class="ch">Partis le 02/11/2026 par David</span>). Ensuite&nbsp;: <span class="b">✉️ Renvoyer les messages</span> et, tant qu'il n'a pas réservé, <span class="b">♻️ Relancer (UP)</span> (la relance seule). Pour changer les textes une fois pour toutes&nbsp;: Outils › Ce qu'on écrit, «&nbsp;🔁 Post-permis — prendre son rendez-vous&nbsp;» et «&nbsp;🔁 Post-permis — la relance « UP »&nbsp;».</li>
+      <li><strong>📅 Son rendez-vous post-permis</strong> — il le réserve lui-même sur son espace Drivup. L'appli lit les «&nbsp;Rendez-vous post-permis&nbsp;» à venir dans le planning Drivup (celui que le favori 📥 lit)&nbsp;: <span class="ch">Réservé sur Drivup : le jeudi 5 novembre 2026 à 14:00 avec Hery</span> et <span class="b">✅ Le reprendre (prépare le cours de Hery)</span>, qui pose la date et le moniteur dans le bloc d'avant — on vérifie, puis <span class="b">💾 Enregistrer et préparer le cours</span>.</li>
+    </ol>
+    <p><strong>Le reste ▸</strong>, en bas de la fiche, est le bloc d'avant, inchangé. Il contient&nbsp;: <span class="b">📄 Bilan de l'examen officiel</span> (<em>« Le rapport de l'inspecteur »</em> — quand il a déjà été saisi dans un cours, il se reprend tout seul et une ligne le dit), <span class="b">📝 Bilan écrit par l'élève</span>, la <span class="b">Date du rendez-vous</span>, le <span class="b">Moniteur qui le reçoit</span>, les <span class="b">📷 Captures du CEPC</span>, et <span class="b">💾 Enregistrer et préparer le cours</span>.</p>
     <p>Sous le bilan écrit par l'élève, <span class="b">📷 Ajouter</span> joint <strong>des photos</strong> — un élève qui a écrit son bilan à la main et l'a envoyé en photo. On peut aussi coller l'image dans le champ. <strong>Douze au plus par élève.</strong> Le moniteur les voit et en ajoute au rendez-vous, elles se revoient dans le dossier (onglet Permis), et l'élève les retrouve dans son espace.</p>
     <p>Le bouton d'enregistrement a <strong>deux comportements</strong>&nbsp;: sans date ou sans moniteur, il n'enregistre que les deux bilans&nbsp;; avec les deux, il <strong>crée le cours préparé</strong> chez le moniteur, avec le modèle <em>🔁 Rendez-vous post-permis</em>, la note et le bilan officiel, et prévient le moniteur.</p>
     <div class="note piege"><span class="tag">Coller une capture (Ctrl+V)</span><p>Dans la zone <span class="ch">📋 Colle ta capture ici</span> de l'élève, toujours. Ailleurs dans la page, <strong>seulement quand une seule galerie de captures est à l'écran</strong> et qu'on n'est pas en train d'écrire dans un champ (messagerie, note…)&nbsp;; avec plusieurs élèves à l'écran (liste Permis obtenu), l'appli demande de cliquer d'abord la zone de l'élève. Une galerie fermée ou cachée ne reçoit plus rien. Un message dit à qui la capture a été ajoutée&nbsp;: <span class="ch">📷 1 capture ajoutée au CEPC de Léa Martin</span>.</p></div>
+
+    <h4 id="ok-loudeac">📍 OK pour passer à Loudéac</h4>
+    <p>David, le 2 novembre&nbsp;: un élève ajourné peut être <strong>OK pour repasser à Loudéac</strong> au lieu de Saint-Brieuc. Ça se dit <strong>au moment de «&nbsp;❌ Ajourné&nbsp;»</strong> (une case dans la confirmation, cochée s'il l'avait déjà dit), puis à tout moment avec l'interrupteur <span class="b">📍 OK pour passer à Loudéac</span> en haut de sa fiche. Il se lit ensuite sur ses lignes&nbsp;: <span class="ch">📍 OK Loudéac</span> (et <span class="ch">📍 OK pour Loudéac</span> dans les autres listes du bureau).</p>
 
     <h4>🚫 Examen non planifiable</h4>
     <p><em>« Signalé par le moniteur au questionnaire&nbsp;: ce n'est pas une question de niveau, c'est un dossier qui bloque — ANTS, avis médical, pièce manquante. »</em></p>
