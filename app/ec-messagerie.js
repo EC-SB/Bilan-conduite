@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 14:03 — v1321 */
+/* Déployé le 02/11/2026 à 12:22 — v1330 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -311,7 +311,7 @@ function dessinerLaListeMessagerie(){
     v.innerHTML = !conversationsEC.length
       ? "Aucune conversation pour l'instant.<br>Ouvre-en une avec ✏️."
       : (!filtreMessagerie && ongletMsgEC === 'nonlus') ? '🎉 Rien de non lu.<br><span style="font-size:12px;">Tout est lu — le reste est dans « Tout ».</span>'
-      : (!filtreMessagerie && ongletMsgEC === 'permis') ? '🏁 Aucun groupe du permis en cours.<br><span style="font-size:12px;">Ils se créent depuis 🏁 Permis › 📣 Message groupe Messenger.</span>'
+      : (!filtreMessagerie && ongletMsgEC === 'permis') ? '🏁 Aucun groupe du permis en cours.<br><span style="font-size:12px;">Ils se créent depuis 🚗 Permis › 📣 Préparation.</span>'
       : 'Rien ici.';
     sc.appendChild(v);
     return;
