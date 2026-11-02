@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 12:22 — v1330 */
+/* Déployé le 02/11/2026 à 14:26 — v1331 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -605,8 +605,18 @@ const vueActive = {};
 const filtreDeLaVue = {};        /* vue → famille choisie, ou 'tous' */
 
 function voletsDeLaVue(vue){
-  return Array.prototype.slice.call(
+  const l = Array.prototype.slice.call(
     document.querySelectorAll('details[data-vue="' + vue + '"][data-famille]'));
+  /* v1331 — l'ordre des puces peut être écrit sur la barre (« data-ordre ») :
+     les volets n'ont pas à être déplacés dans la page pour autant (David :
+     « ⏳ Attente bilan post-permis, puis pas le niveau, puis non planifiable ») */
+  const barre = document.querySelector('.filtres-vue[data-vue="' + vue + '"][data-ordre]');
+  if(barre){
+    const ordre = String(barre.getAttribute('data-ordre')).trim().split(/\s+/);
+    const rang = v => { const i = ordre.indexOf(v.getAttribute('data-famille')); return i === -1 ? 99 : i; };
+    l.sort((a, b) => rang(a) - rang(b));
+  }
+  return l;
 }
 
 /* Le titre d'un volet, sans son compteur : « ⏳ Attente bilan
