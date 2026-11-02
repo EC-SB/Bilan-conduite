@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 18:27 — v1299 */
+/* Déployé le 02/11/2026 à 10:49 — v1328 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -19,6 +19,13 @@ const USAGES_MODELE = [
     variables:['{eleve}', '{date}', '{moniteur}'] },
   { cle:'post_permis',    nom:'🔁 Rendez-vous post-permis',
     variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
+  /* 🔁 v1328 — les deux messages qui partent une fois son bilan collé
+     (ec-postpermis.js, MESSAGES_POST_PERMIS). Sans modèle écrit ici,
+     ce sont les textes de David, mot pour mot. */
+  { cle:'post_permis_rdv', nom:'🔁 Post-permis — prendre son rendez-vous',
+    variables:[] },
+  { cle:'post_permis_up',  nom:'🔁 Post-permis — la relance « UP »',
+    variables:[] },
   { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
     variables:['{eleve}', '{date}', '{motif}'] },
   { cle:'ecoutes', nom:'😱 Rappel écoutes pédagogiques', variables:[] },
