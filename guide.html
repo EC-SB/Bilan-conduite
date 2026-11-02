@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1333
+     GUIDE-VERSION: 1334
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1333</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1334</strong><br>
     Mis à jour le 2 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1333</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1334</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -904,10 +904,10 @@ html{scroll-behavior:smooth}
     <p>Sur un écran d'au moins 1280&nbsp;px de large, la barre des vues devient une <strong>colonne à gauche</strong>, comme un sommaire. Le bouton <span class="b">⟨</span> en haut de la colonne la <strong>replie</strong>&nbsp;: il ne reste que les emojis, et le nom de chaque écran apparaît en bulle au survol. <span class="b">⟩</span> la déplie. Le choix vaut pour tous les onglets, et il est retenu dans ce navigateur.</p>
 
     <h4>📍 En un coup d'œil</h4>
-    <p>Les onglets <span class="b">🚗 Permis</span> et <span class="b">📓 Suivi</span> commencent par un écran de <strong>tuiles</strong>&nbsp;: un nombre, ce qu'il compte, et parfois une ligne dessous. Dans Permis&nbsp;: les places à prendre, les élèves en attente d'une date, les examens blancs prévus, les élèves prêts sans date, les examens à traiter, un compte par mois de places ouvert, la réussite du mois, les résultats à saisir, les bilans post-permis à faire, les examens blancs « pas le niveau », les examens non planifiables, puis la moto et la remorque. Dans Suivi&nbsp;: les examens blancs et simulateurs à prévoir (avec combien sont déjà prévenus), la conduite supervisée, et le suivi AAC.</p>
+    <p>Les onglets <span class="b">🚗 Permis</span> et <span class="b">📓 Suivi</span> commencent par <strong>un cadre par sujet</strong>, côte à côte sur ordinateur, l'un sous l'autre sur téléphone. Dans chaque cadre, une <strong>ligne</strong> par chose qui attend&nbsp;: ce qu'elle compte (et parfois une précision dessous), le nombre dans une pastille — <strong>rouge</strong> quand c'est urgent, <strong>orange</strong> quand ça patiente, blanche sinon — et la flèche. Dans Permis&nbsp;: les cadres <span class="ch">🚗 Permis B</span>, <span class="ch">🏍️ Moto</span> et <span class="ch">🚚 Remorque</span>. Dans Suivi&nbsp;: <span class="ch">🌙 Simulateurs et examens blancs</span>, <span class="ch">🤝 Conduite supervisée</span> et <span class="ch">🎓 AAC</span>. Le nombre d'élèves d'un cadre s'écrit dans son titre&nbsp;: <span class="ch">🏍️ MOTO · 14 élèves</span>. Les places d'un mois et la réussite du mois ont une <strong>jauge</strong> sous leur nom.</p>
     <ul>
-      <li><strong>Une tuile est un bouton</strong>&nbsp;: elle ouvre l'écran qu'elle compte.</li>
-      <li><strong>Une tuile à zéro ne s'affiche pas</strong>, et une tuile qui mènerait à un écran refusé au compte n'existe pas.</li>
+      <li><strong>Une ligne est un bouton</strong>&nbsp;: elle ouvre l'écran qu'elle compte. Le titre d'un cadre qui porte un nombre d'élèves aussi.</li>
+      <li><strong>Une ligne à zéro ne s'affiche pas</strong>, et une ligne qui mènerait à un écran refusé au compte n'existe pas.</li>
       <li>Elle ne compte rien elle-même&nbsp;: elle relit le compteur de la liste. Si un chiffre est faux, c'est la liste qu'il faut regarder.</li>
     </ul>
 
@@ -2276,15 +2276,15 @@ Ces heures partent de quelle leçon après l'examen blanc ?
 
   <section id="pm-coup">
     <h3>📍 En un coup d'œil — la porte d'entrée des deux onglets</h3>
-    <p>C'est la première vue de chacun des deux onglets&nbsp;: <em>« Ce qui attend, et rien d'autre. Chaque tuile ouvre son écran. »</em> Une tuile est un <strong>bouton</strong>&nbsp;: elle porte un nombre, et un appui ouvre la liste qu'elle compte.</p>
+    <p>C'est la première vue de chacun des deux onglets&nbsp;: <em>« Ce qui attend, et rien d'autre. Chaque tuile ouvre son écran. »</em> Elle est rangée en <strong>cadres</strong> — un par permis dans 🚗 Permis, un par suivi dans 📓 Suivi — côte à côte sur ordinateur, l'un sous l'autre sur téléphone. Chaque «&nbsp;tuile&nbsp;» est une <strong>ligne</strong> du cadre&nbsp;: son nom, parfois une précision dessous, son nombre dans une pastille (rouge = urgent, orange = ça patiente, blanche sinon), et un appui ouvre la liste qu'elle compte. Quand un onglet n'a qu'un seul cadre, il n'a pas de titre et ses lignes passent sur deux colonnes, lues de haut en bas.</p>
     <div class="tab"><table>
       <thead><tr><th>Onglet</th><th>Les tuiles possibles</th></tr></thead>
       <tbody>
-        <tr><td><span class="b">🚗 Permis</span></td><td class="libre"><span class="ch">Places à prendre</span> · <span class="ch">Dans la liste RDV permis</span> (élèves en attente d'une date) · <span class="ch">Examens blancs prévus</span> · <span class="ch">Prêts, sans date</span> · <span class="ch">Examens à traiter</span> · les places du mois · <span class="ch">Réussite du mois</span> · <span class="ch">Résultats à saisir</span> · <span class="ch">Bilans post-permis à faire</span> · <span class="ch">Examens blancs pas le niveau</span> · <span class="ch">Examens non planifiables</span> (ANTS, avis médical, pièce manquante) — puis, sous leur propre titre, celles de la moto (élèves moto, plateau à prévoir, plateaux prévus, circulation à prévoir, circulations prévues, résultats moto à saisir) et de la remorque (élèves remorque, examens prévus, à repasser).</td></tr>
-        <tr><td><span class="b">📓 Suivi</span></td><td class="libre"><span class="ch">Examens blancs à prévoir</span> et <span class="ch">Simulateurs à prévoir</span>, chacune avec, dessous, combien sont déjà prévenus et combien restent à prévenir · <span class="ch">Conduite supervisée</span> · et les tuiles de l'AAC&nbsp;: <span class="ch">Élèves en AAC</span>, <span class="ch">Rendez-vous en retard</span> (avec le détail RVP&nbsp;1 / RVP&nbsp;2), <span class="ch">Théoriques à prévoir</span>.</td></tr>
+        <tr><td><span class="b">🚗 Permis</span></td><td class="libre"><strong>🚗 Permis B</strong>&nbsp;: <span class="ch">Places à prendre</span> · <span class="ch">Dans la liste RDV permis</span> (élèves en attente d'une date) · <span class="ch">Examens blancs prévus</span> · <span class="ch">Prêts, sans date</span> · <span class="ch">Examens à traiter</span> · les places de chaque mois ouvert (<span class="ch">18 / 30</span>, avec sa jauge) · <span class="ch">Réussite du mois</span> (avec sa jauge) · <span class="ch">Résultats à saisir</span> · <span class="ch">Bilans post-permis à faire</span> · <span class="ch">Examens blancs pas le niveau</span> · <span class="ch">Examens non planifiables</span> (ANTS, avis médical, pièce manquante).<br><strong>🏍️ Moto · N élèves</strong>&nbsp;: plateau à prévoir, plateaux prévus, circulation à prévoir, circulations prévues, résultats moto à saisir.<br><strong>🚚 Remorque · N élèves</strong>&nbsp;: examens prévus, à repasser.</td></tr>
+        <tr><td><span class="b">📓 Suivi</span></td><td class="libre"><strong>🌙 Simulateurs et examens blancs</strong>&nbsp;: <span class="ch">Examens blancs à prévoir</span> et <span class="ch">Simulateurs à prévoir</span>, chacune avec, dessous, combien sont déjà prévenus et combien restent à prévenir.<br><strong>🤝 Conduite supervisée · N élèves</strong>&nbsp;: le titre seul, qui ouvre le Suivi CS.<br><strong>🎓 AAC · N élèves</strong>&nbsp;: <span class="ch">Rendez-vous en retard</span> (avec le détail RVP&nbsp;1 / RVP&nbsp;2), <span class="ch">Théoriques à prévoir</span>.</td></tr>
       </tbody>
     </table></div>
-    <div class="note astuce"><span class="tag">Deux règles</span><p><strong>Une tuile à zéro ne s'affiche pas</strong>&nbsp;: un tableau qui montre huit zéros apprend en trois jours qu'il ne sert à rien. Quand rien n'attend, la vue le dit — <span class="ch">✅ Rien qui attende. Les écrans restent accessibles par les boutons au-dessus.</span></p><p><strong>Une tuile qui mènerait à un écran refusé n'existe pas.</strong> Chacun ne voit que les tuiles des écrans auxquels il a droit.</p></div>
+    <div class="note astuce"><span class="tag">Deux règles</span><p><strong>Une tuile à zéro ne s'affiche pas</strong>&nbsp;: un tableau qui montre huit zéros apprend en trois jours qu'il ne sert à rien. Quand rien n'attend, la vue le dit — <span class="ch">✅ Rien qui attende. Les écrans restent accessibles par les boutons au-dessus.</span></p><p><strong>Une tuile qui mènerait à un écran refusé n'existe pas.</strong> Chacun ne voit que les tuiles des écrans auxquels il a droit.</p><p><strong>Le nombre d'élèves d'un cadre est dans son titre</strong> (<span class="ch">🏍️ MOTO · 14 élèves</span>)&nbsp;: il ne demande rien à personne, ce n'est pas une ligne. Masqué dans <span class="b">⚙️ Mes tuiles</span>, il quitte le titre.</p></div>
     <p>Les tuiles <strong>ne comptent rien elles-mêmes</strong>&nbsp;: elles relisent le compteur que chaque liste a posé en se dessinant. Tant qu'une liste ne s'est pas encore dessinée, la vue le dit (<span class="ch">⏳ Cette liste ne s'est pas encore dessinée</span>) plutôt que d'afficher un faux zéro. Le bouton <span class="b">⚙️ Mes tuiles</span> permet de les ranger à son goût — voir <a href="#onglets" class="aller">les onglets</a>.</p>
   </section>
 
