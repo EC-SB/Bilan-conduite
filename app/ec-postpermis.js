@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 12:22 — v1330 */
+/* Déployé le 02/11/2026 à 14:26 — v1331 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -697,53 +697,60 @@ function afficherAttenteBilan(tous){
        dans leur poche. Le bilan rangé une seconde plus tard ne
        changeait donc rien à ce qui était écrit : « bilan d'examen
        manquant » restait affiché au-dessus du bilan. */
-    const fiche = () => suiviDe(e.eleve) || {};
-
-    zone.appendChild(ligneBureau(e, {
-      replier: true,
-      /* 📋 v1328 — une ligne, et sa fiche dans l'ordre où on la fait */
-      compact: true,
-      etiquette: () => etapePostPermis(e.eleve),
-      fiche: (x, boite) => ficheDuPostPermis(x, boite),
-      info: () => {
-        const s = fiche();
-        return mentionAjournements(s.nbAjournements, s.dateAjournement);
-      },
-      /* ⚠️ LE BILAN DE L'ÉLÈVE SE LIT SUR LA LIGNE, SANS DÉPLIER —
-         étape 1d. C'est la seule façon de voir d'un coup d'œil qui
-         doit être relancé : trois élèves en attente, et il faut
-         savoir lequel n'a rien écrit sans ouvrir trois blocs. */
-      resume: () => phraseDuBilanEleve(fiche()),
-      /* L'alerte dit CE QUI MANQUE EN PREMIER. Le bilan d'examen
-         vient du bureau, celui de l'élève vient de lui : il ne sert
-         à rien de réclamer les deux le même jour. */
-      alerte: () => {
-        const s = fiche();
-        const aRdv = !!(s.rdvPostDate && s.rdvPostMoniteur);
-        return !s.bilanExamen ? "Bilan d'examen manquant"
-             : (s.bilanEleveEtat === 'attente' ? 'Bilan élève à valider'
-             : (s.bilanEleveEtat !== 'valide' ? 'Bilan élève à relancer'
-             : (aRdv ? null : 'Rendez-vous à fixer')));
-      },
-      actions: (x, boite) => {
-        /* ⚠️ LE BOUTON N'APPARAÎT QUE S'IL Y A QUELQUE CHOSE À LIRE.
-           Un « 👁️ Lire et valider » sur un bilan vide est un bouton
-           qui dit « il n'a rien envoyé » après le clic — autant le
-           dire avant, et ne pas le mettre. */
-        const sx = suiviDe(x.eleve);
-        if(String(sx.bilanEleve || '').trim()){
-          const b = document.createElement('button');
-          b.className = 'btn btn-secondary';
-          b.style.cssText = 'width:auto;margin:0 0 10px;padding:8px 13px;font-size:13px;';
-          b.textContent = (sx.bilanEleveEtat === 'valide')
-            ? '👁️ Relire son bilan' : '👁️ Lire et valider son bilan';
-          b.addEventListener('click', () => lireEtValiderLeBilan(x.eleve));
-          boite.appendChild(b);
-        }
-        boite.appendChild(blocRdvPost(x));
-      }
-    }));
+    zone.appendChild(ligneBureau(e, optionsAttenteBilan(e)));
   });
+}
+
+/* ⏳ La ligne d'un élève en attente de son bilan post-permis — la même
+   dans ⛔ Pas prêts et dans le raccourci de 🚗 Prêts › 🔁 Repassages
+   (v1331, David : « un raccourci dans repassage ») : même étiquette,
+   même fiche. */
+function optionsAttenteBilan(e){
+  const fiche = () => suiviDe(e.eleve) || {};
+  return {
+  replier: true,
+  /* 📋 v1328 — une ligne, et sa fiche dans l'ordre où on la fait */
+  compact: true,
+  etiquette: () => etapePostPermis(e.eleve),
+  fiche: (x, boite) => ficheDuPostPermis(x, boite),
+  info: () => {
+    const s = fiche();
+    return mentionAjournements(s.nbAjournements, s.dateAjournement);
+  },
+  /* ⚠️ LE BILAN DE L'ÉLÈVE SE LIT SUR LA LIGNE, SANS DÉPLIER —
+     étape 1d. C'est la seule façon de voir d'un coup d'œil qui
+     doit être relancé : trois élèves en attente, et il faut
+     savoir lequel n'a rien écrit sans ouvrir trois blocs. */
+  resume: () => phraseDuBilanEleve(fiche()),
+  /* L'alerte dit CE QUI MANQUE EN PREMIER. Le bilan d'examen
+     vient du bureau, celui de l'élève vient de lui : il ne sert
+     à rien de réclamer les deux le même jour. */
+  alerte: () => {
+    const s = fiche();
+    const aRdv = !!(s.rdvPostDate && s.rdvPostMoniteur);
+    return !s.bilanExamen ? "Bilan d'examen manquant"
+         : (s.bilanEleveEtat === 'attente' ? 'Bilan élève à valider'
+         : (s.bilanEleveEtat !== 'valide' ? 'Bilan élève à relancer'
+         : (aRdv ? null : 'Rendez-vous à fixer')));
+  },
+  actions: (x, boite) => {
+    /* ⚠️ LE BOUTON N'APPARAÎT QUE S'IL Y A QUELQUE CHOSE À LIRE.
+       Un « 👁️ Lire et valider » sur un bilan vide est un bouton
+       qui dit « il n'a rien envoyé » après le clic — autant le
+       dire avant, et ne pas le mettre. */
+    const sx = suiviDe(x.eleve);
+    if(String(sx.bilanEleve || '').trim()){
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;margin:0 0 10px;padding:8px 13px;font-size:13px;';
+      b.textContent = (sx.bilanEleveEtat === 'valide')
+        ? '👁️ Relire son bilan' : '👁️ Lire et valider son bilan';
+      b.addEventListener('click', () => lireEtValiderLeBilan(x.eleve));
+      boite.appendChild(b);
+    }
+    boite.appendChild(blocRdvPost(x));
+  }
+  };
 }
 
 
