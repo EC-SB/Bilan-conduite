@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1330
+     GUIDE-VERSION: 1331
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1330</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1331</strong><br>
     Mis à jour le 2 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1330</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1331</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -2574,7 +2574,7 @@ Dernier cours le 12/09/2026 avec Hery
 
   <section id="pasprets">
     <h3>⛔ Pas prêts</h3>
-    <p>Ceux qu'on ne peut pas envoyer à l'examen. <strong>Quatre listes, une à la fois</strong>&nbsp;: la barre du haut porte leur compte et <strong>choisit la liste affichée</strong> — à l'arrivée, la première qui a quelqu'un (Pas le niveau, puis Attente bilan post-permis, Non planifiable, Pas de repassage). Pas de «&nbsp;Tous&nbsp;» ici&nbsp;: les listes sont longues, on ne les empile plus.</p>
+    <p>Ceux qu'on ne peut pas envoyer à l'examen. <strong>Quatre listes, une à la fois</strong>&nbsp;: la barre du haut porte leur compte et <strong>choisit la liste affichée</strong> — à l'arrivée, la première qui a quelqu'un, dans cet ordre (depuis la v1331)&nbsp;: <span class="b">⏳ Attente bilan post-permis</span>, <span class="b">⛔ Examen blanc — pas le niveau</span>, <span class="b">🚫 Examen non planifiable</span>, <span class="b">⛔ Pas de repassage pour le moment</span>. Pas de «&nbsp;Tous&nbsp;» ici&nbsp;: les listes sont longues, on ne les empile plus.</p>
     <ul>
       <li><strong>Un élève = une ligne</strong>&nbsp;: son nom, sa situation, <strong>une étiquette de couleur qui dit ce qu'il reste à faire</strong> (rouge&nbsp;: un geste à faire&nbsp;; orange&nbsp;: on attend&nbsp;; vert&nbsp;: c'est posé), <span class="ch">📍 OK Loudéac</span> s'il l'a dit, et <span class="b">›</span>.</li>
       <li><strong>Un appui sur la ligne ouvre sa fiche en fenêtre</strong>, avec les mêmes boutons qu'avant. Elle se met à jour toute seule après chaque geste, et se ferme quand l'élève quitte la liste.</li>
@@ -2619,7 +2619,7 @@ Dernier cours le 12/09/2026 avec Hery
 
   <section id="envisager">
     <h3>🤔 À envisager</h3>
-    <p>Ceux à qui on va pouvoir donner une date. Trois listes, <strong>une à la fois</strong> (depuis la v1329, comme <a href="#pasprets" class="aller">⛔ Pas prêts</a>)&nbsp;: les puces en tête choisissent la liste, sans « Tous ». On arrive sur <span class="b">🚗 Élèves prêts au permis</span> s'il y a quelqu'un. Chaque élève tient sur <strong>une ligne</strong> avec une étiquette de couleur&nbsp;; un appui ouvre sa fiche en fenêtre, et <span class="b">🔎 Chercher un élève</span> filtre la liste.</p>
+    <p>Ceux à qui on va pouvoir donner une date. Trois listes, <strong>une à la fois</strong> (depuis la v1329, comme <a href="#pasprets" class="aller">⛔ Pas prêts</a>)&nbsp;: les puces en tête choisissent la liste, sans « Tous », dans cet ordre (v1331)&nbsp;: <span class="b">🚗 Élèves prêts au permis</span>, <span class="b">🗓️ Liste RDV PERMIS</span>, <span class="b">📝 Examens blancs prévus</span>. On arrive sur les prêts s'il y a quelqu'un. Chaque élève tient sur <strong>une ligne</strong> avec une étiquette de couleur&nbsp;; un appui ouvre sa fiche en fenêtre, et <span class="b">🔎 Chercher un élève</span> filtre la liste.</p>
 
     <h4>📝 Examens blancs prévus</h4>
     <p><em>« Ceux dont la date est posée, du plus proche au plus lointain. »</em> L'étiquette donne la date&nbsp;: <span class="ch">📝 jeu. 5 nov. · dans 3 j</span> en orange à trois jours ou moins, en vert au-delà, en rouge une fois passée. Deux sources réunies&nbsp;: les dates posées par le bureau, et <strong>les cours préparés portant le modèle « Examen blanc »</strong>. Un élève dont la date d'examen du permis est déjà posée est exclu&nbsp;: l'examen blanc a joué son rôle.</p>
@@ -2634,6 +2634,7 @@ Dernier cours le 12/09/2026 avec Hery
     <h4>🚗 Élèves prêts au permis</h4>
     <p><strong>Le cœur de l'onglet.</strong> C'est le vivier dans lequel le bureau pioche quand il obtient des places. La ligne dit <span class="ch">🆕 1er passage</span> ou <span class="ch">🔁 2e repassage</span>, sa boîte (BV / BEA) et la date de la demande. <strong>L'étiquette</strong>&nbsp;: rouge <span class="ch">🚨 Prioritaire absolu</span> / <span class="ch">🔴 Urgent</span> s'il est pressé (ses heures passent alors dans la ligne), rouge <span class="ch">❌ Examen annulé</span>, sinon orange <span class="ch">⏱️ heures à préciser</span>, sinon vert ses heures (<span class="ch">3 + 3h</span>, <span class="ch">plus que les 3h avant examen</span>). <span class="ch">📍 OK Loudéac</span> s'affiche aussi. Au bout de la ligne, <span class="b">🗓️ RDV PERMIS</span> le met dans la liste suivante d'un appui.</p>
     <p>Y figurent ceux dont la note dit « date d'examen à prévoir », ceux dont l'examen a été annulé, ceux qui ont un rendez-vous post-permis fixé mais pas encore fait, <strong>et ceux dont l'examen blanc conclut « 🤔 Pourrait avoir le niveau »</strong> — avec leur mention, pour qu'on sache qu'il reste un doute. Sont exclus ceux qui sont <strong>déjà placés</strong>&nbsp;: une date dans leur fiche, une date dans leurs notes, ou une place dans une session ouverte.</p>
+    <div class="note astuce"><span class="tag">⏳ Le raccourci des repassages</span><p>Depuis la v1331, sous les prêts (dans <span class="b">Tous</span> et dans <span class="b">🔁 Repassages</span>), un bloc <span class="ch">⏳ En attente du bilan post-permis · N</span> montre les ajournés qui attendent leur bilan ou leur rendez-vous post-permis&nbsp;: <strong>un seul endroit</strong> pour voir qui on pourra bientôt représenter. <strong>Ils restent dans ⛔ Pas prêts › Attente bilan post-permis</strong>&nbsp;: ce n'est qu'un raccourci, avec les mêmes lignes et la même fiche (bilan → messages → RDV). <span class="b">↗️ Voir dans ⛔ Pas prêts</span> y emmène. Les puces <span class="b">Tous</span> et <span class="b">🔁 Repassages</span> comptent ces personnes aussi&nbsp;; la puce <span class="b">🚗 Élèves prêts au permis</span> de la barre, non.</p></div>
     <p>Toujours rangée <strong>par priorité</strong>, puis la demande la plus ancienne. Des puces avec leur nombre filtrent&nbsp;: <span class="b">Tous</span>, <span class="b">🆕 Premier passage</span>, <span class="b">🔁 Repassages</span>, <span class="b">🔴 Urgents</span>, <span class="b">⏱️ Heures à préciser</span>, et <span class="b">❌ Examens annulés</span> quand il y en a.</p>
     <p>Ceux qui sont déjà ailleurs tiennent sur une ligne&nbsp;: <span class="ch">ℹ️ 6 déjà dans 🗓️ RDV PERMIS · 1 retiré de la liste</span>, avec <span class="b">Voir ▸</span> (ouvre RDV PERMIS) et <span class="b">↩️ Les remettre ici</span>. Les noms s'affichent au survol.</p>
 
