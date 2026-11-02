@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:26 — v1331 */
+/* Déployé le 02/11/2026 à 15:47 — v1334 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -534,7 +534,10 @@ const TUILES = {
       valeur:() => tuileAPrevenir('examblanc') },
     { cle:'simu', lib:'Simulateurs à prévoir',    vue:'simu', ton:'att',
       valeur:() => tuileAPrevenir('simu') },
-    { cpt:'cptCs',   lib:'Conduite supervisée',   vue:'suivics',  ton:'' },
+    /* « Conduite supervisée 12 » compte tous les élèves en CS : il
+       n'attend rien, il passe dans le titre de son cadre — v1334. */
+    { cpt:'cptCs',   lib:'Conduite supervisée',   vue:'suivics',  ton:'',
+      section:'cs', titre:true },
     /* Le suivi AAC en trois briques : combien ils sont, ce qui est
        en retard, ce qu'il reste à organiser. */
     { listes:() => (typeof tuilesAac === 'function') ? tuilesAac() : null }
@@ -902,6 +905,22 @@ const SECTIONS_TUILES = {
   remorque:   '🚚 Remorque'
 };
 
+/* ⚠️ UN ONGLET PEUT NOMMER SES CADRES AUTREMENT — v1334.
+
+   Le cadre sans nom de l'onglet Permis, c'est le permis B. Celui
+   de Suivi, ce sont les simulateurs et les examens blancs : « 3
+   cadres », a répondu David — 🌙 Simulateurs et examens blancs,
+   🤝 Conduite supervisée, 🎓 AAC. */
+const SECTIONS_TUILES_ONGLET = {
+  suivi: { '': '🌙 Simulateurs et examens blancs',
+           cs: '🤝 Conduite supervisée',
+           aac: '🎓 AAC' }
+};
+function nomDeLaSection(onglet, sec){
+  const propre = SECTIONS_TUILES_ONGLET[onglet] || {};
+  return propre[sec] || SECTIONS_TUILES[sec] || sec;
+}
+
 /* ============================================================
    MES TUILES — LE RANGEMENT DE CHACUN (v955)
 
@@ -1142,6 +1161,24 @@ function dessinerTuiles(onglet){
     return;
   }
 
+  /* ============================================================
+     UN CADRE PAR PERMIS — v1334
+
+     David, le 2 novembre 2026, des anciennes tuiles : « moches ».
+     Sur le schéma, il a choisi la proposition B : un cadre par
+     permis (Permis B · Moto · Remorque côte à côte), des lignes
+     comme dans les listes du bureau, le nombre dans une pastille.
+
+     ⚠️ LES TUILES QUI NE FONT QUE COMPTER PASSENT DANS LE TITRE.
+     « Élèves moto 14 » ne demande rien à personne : c'est la taille
+     du cadre, pas une tâche. « Titre du cadre », a répondu David :
+     🏍️ MOTO · 14 élèves. Ces tuiles-là portent « titre: true ».
+
+     Ce qui ne bouge pas : l'ordre de chacun, ⚙️ Mes tuiles (une
+     tuile de titre masquée efface son nombre du titre), le clic qui
+     ouvre l'écran, rouge = urgent et orange = ça patiente.
+     ============================================================ */
+
   /* Les sections, dans l'ordre où elles apparaissent — jamais dans
      un ordre écrit à part, qui finirait par ne plus correspondre. */
   const ordre = [];
@@ -1149,18 +1186,49 @@ function dessinerTuiles(onglet){
     const sec = t.section || '';
     if(ordre.indexOf(sec) === -1) ordre.push(sec);
   });
-  const titrees = ordre.length > 1;
+  /* Un seul cadre : son titre ne distingue rien, il ne fait que
+     prendre une ligne — sauf s'il porte un nombre. */
+  const avecTitre = sec => aVoir.some(x => (x.t.section || '') === sec && x.t.titre);
+  const titrees = ordre.length > 1 || avecTitre(ordre[0]);
   zone.classList.toggle('sections', titrees);
+  zone.classList.toggle('cadres', true);
+  ['n1', 'n2', 'n3'].forEach(c => zone.classList.remove(c));
+  zone.classList.add('n' + Math.min(3, ordre.length));
 
   const grilleDe = {};
   ordre.forEach(sec => {
-    if(!titrees){ grilleDe[sec] = zone; return; }
     const bloc = document.createElement('div');
     bloc.className = 'sectionTuiles';
-    const h = document.createElement('div');
-    h.className = 'titre';
-    h.textContent = SECTIONS_TUILES[sec] || sec;
-    bloc.appendChild(h);
+    bloc.setAttribute('data-section', sec);
+
+    if(titrees){
+      /* Le titre, et le nombre de la tuile « qui ne fait que
+         compter » s'il y en a une — cliquable comme elle. */
+      const tt = aVoir.filter(x => (x.t.section || '') === sec && x.t.titre)[0];
+      const h = document.createElement(tt ? 'button' : 'div');
+      h.className = 'titre';
+      const nom = document.createElement('span');
+      nom.className = 'nomCadre';
+      nom.textContent = nomDeLaSection(onglet, sec);
+      h.appendChild(nom);
+      if(tt){
+        h.type = 'button';
+        h.setAttribute('data-vue-tuile', tt.t.vue);
+        if(tt.t.cle) h.setAttribute('data-tuile', tt.t.cle);
+        const n = tt.v.n;
+        const c = document.createElement('span');
+        c.className = 'nbCadre';
+        c.textContent = ' · ' + (tt.v.texte || (n + ' ' + (tt.t.unite || 'élève') + (n > 1 ? 's' : '')));
+        h.appendChild(c);
+        const fl = document.createElement('span');
+        fl.className = 'fl';
+        fl.textContent = '›';
+        h.appendChild(fl);
+        h.addEventListener('click', () => ouvrirLaTuile(onglet, tt.t));
+      }
+      bloc.appendChild(h);
+    }
+
     const g = document.createElement('div');
     g.className = 'grille';
     bloc.appendChild(g);
@@ -1169,27 +1237,48 @@ function dessinerTuiles(onglet){
   });
 
   aVoir.forEach(({ t, v, liseré }) => {
+    /* La tuile de titre est déjà dans le titre de son cadre. */
+    if(t.titre && titrees) return;
+
     const b = document.createElement('button');
     b.type = 'button';
     const ton = v.ton || t.ton;
     b.className = 'tuile' + (ton ? ' ' + ton : '');
-    /* ⚠️ LE LISERÉ S'AJOUTE AU TON, IL NE LE REMPLACE PAS — il se
-       pose à DROITE, le bord gauche disant déjà l'urgence. Le rouge
-       reste le rouge de tout le monde : « regarde la tuile rouge »
-       doit continuer de marcher d'un écran à l'autre. */
+    /* ⚠️ LE LISERÉ S'AJOUTE AU TON, IL NE LE REMPLACE PAS. Le ton
+       se lit sur la pastille du nombre ; le liseré de chacun, sur
+       le bord gauche de la ligne. Le rouge reste le rouge de tout
+       le monde : « regarde la rouge » marche d'un écran à l'autre. */
     if(liseré) b.style.setProperty('--liseré', liseré);
     b.setAttribute('data-vue-tuile', t.vue);
     if(t.cle) b.setAttribute('data-tuile', t.cle);
-
-    const fl = document.createElement('span');
-    fl.className = 'fl';
-    fl.textContent = '›';
-    b.appendChild(fl);
 
     const lib = document.createElement('span');
     lib.className = 'lib';
     lib.textContent = t.lib;
     b.appendChild(lib);
+
+    const sous = v.sous || t.sous;
+    if(sous){
+      const s = document.createElement('span');
+      s.className = 'sous';
+      s.textContent = sous;
+      b.appendChild(s);
+    }
+
+    /* ⚠️ LA JAUGE — « 18 / 30 », « 72,4 % ». Ces nombres-là ne sont
+       pas des comptes : une barre dit d'un regard où l'on en est.
+       La valeur la donne (0 à 100) ; sans elle, pas de barre. */
+    const j = Number(v.jauge);
+    if(v.jauge !== undefined && v.jauge !== null && isFinite(j)){
+      const jg = document.createElement('span');
+      jg.className = 'jauge';
+      const i = document.createElement('i');
+      i.style.width = Math.max(0, Math.min(100, j)) + '%';
+      jg.appendChild(i);
+      b.appendChild(jg);
+      b.classList.add('aJauge');
+    }
+    if(!sous && !b.classList.contains('aJauge')) b.classList.add('sansSous');
 
     const val = document.createElement('span');
     val.className = 'v';
@@ -1199,13 +1288,10 @@ function dessinerTuiles(onglet){
     val.textContent = v.texte || String(v.n);
     b.appendChild(val);
 
-    const sous = v.sous || t.sous;
-    if(sous){
-      const s = document.createElement('span');
-      s.className = 'sous';
-      s.textContent = sous;
-      b.appendChild(s);
-    }
+    const fl = document.createElement('span');
+    fl.className = 'fl';
+    fl.textContent = '›';
+    b.appendChild(fl);
 
     b.addEventListener('click', () => ouvrirLaTuile(onglet, t));
     (grilleDe[t.section || ''] || zone).appendChild(b);
