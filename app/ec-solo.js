@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 02/11/2026 à 12:22 — v1330 */
 /* ============================================================
    ec-solo.js
    Les messages du permis en solo.
@@ -47,6 +47,9 @@ async function afficherSolo(){
 
   const liste = modelesSolo();
   zone.innerHTML = '';
+  /* 📣 v1330 — le compte de la puce « ✉️ Messages SOLO » */
+  if(typeof majVolet === 'function') majVolet('cptSolo', liste.length);
+  if(typeof majFiltresDeVue === 'function') majFiltresDeVue('preppermis');
 
   if(!liste.length){
     zone.appendChild(soloAucun());
@@ -57,8 +60,49 @@ async function afficherSolo(){
   const principal = liste.find(m => m.principal) || liste[0];
   const autres = liste.filter(m => m !== principal);
 
-  zone.appendChild(blocSoloPrincipal(principal));
-  if(autres.length) zone.appendChild(blocSoloAutres(autres));
+  zone.appendChild(blocSoloEnPuces([principal].concat(autres)));
+}
+
+/* ============================================================
+   ✉️ LES MESSAGES EN PUCES — v1330
+
+   Schéma validé par David le 2 novembre (« c'est tout bon ») : le ⭐
+   en haut et « Les autres messages » dans un menu deviennent UNE
+   rangée de puces ; un appui choisit le message, son texte et
+   📋 Copier sont juste dessous. Le ⭐ reste le premier, choisi en
+   arrivant.
+   ============================================================ */
+let soloChoisi = '';
+
+function blocSoloEnPuces(liste){
+  const d = document.createElement('div');
+  const pu = document.createElement('div');
+  pu.className = 'soloPuces';
+  pu.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 10px;';
+  d.appendChild(pu);
+  const cadre = document.createElement('div');
+  cadre.style.cssText = 'border:1px solid var(--orange);border-radius:12px;padding:12px 13px;';
+  d.appendChild(cadre);
+  if(!liste.some(m => m.titre === soloChoisi)) soloChoisi = liste[0].titre;
+  const montrer = () => {
+    pu.innerHTML = '';
+    liste.forEach((m, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (m.titre === soloChoisi ? 'btn-primary' : 'btn-secondary');
+      b.style.cssText = 'width:auto;margin:0;padding:6px 11px;font-size:12.5px;border-radius:999px;';
+      b.dataset.solo = String(i);
+      b.textContent = (m.principal ? '⭐ ' : '') + (m.titre || ('Message ' + (i + 1)));
+      b.addEventListener('click', () => { soloChoisi = m.titre; montrer(); });
+      pu.appendChild(b);
+    });
+    const m = liste.find(x => x.titre === soloChoisi) || liste[0];
+    cadre.innerHTML = '';
+    cadre.appendChild(zoneTexteSolo(m));
+    cadre.appendChild(boutonCopierSolo(m));
+  };
+  montrer();
+  return d;
 }
 
 
@@ -186,8 +230,8 @@ function soloAucun(){
   d.innerHTML = 'Aucun message pour le moment.<br>' +
     'Écris-les dans <strong>📄 Ce qu’on écrit et envoie (keep)</strong>, en rangeant leur nom ' +
     'sous la catégorie <strong>' + CAT_SOLO + '</strong>.<br>' +
-    'Celui dont le titre commence par <strong>⭐</strong> restera toujours ' +
-    'affiché ; les autres iront dans le menu.';
+    'Celui dont le titre commence par <strong>⭐</strong> passe en premier ; ' +
+    'les autres suivent, en puces.';
 
   if(typeof aDroit === 'function' && aDroit('textes')){
     const b = document.createElement('button');
