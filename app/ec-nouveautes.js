@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:59 — v1333 */
+/* Déployé le 02/11/2026 à 15:47 — v1334 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1334,
+    date: 'Lundi 2 novembre 2026',
+    resume: '📍 En un coup d’œil : un cadre par permis',
+    quoi: [
+      { emoji: '📍',
+        titre: 'Des cadres et des lignes',
+        texte: 'Permis : 🚗 Permis B · 🏍️ Moto · 🚚 Remorque côte à côte. Suivi : 🌙 Simulateurs et examens blancs · 🤝 CS · 🎓 AAC. Une ligne par chose qui attend, le nombre en pastille (rouge urgent, orange ça patiente).' },
+      { emoji: '📊',
+        titre: 'Le nombre d’élèves dans le titre, une jauge pour les places',
+        texte: '« 🏍️ MOTO · 14 élèves » : le compte passe dans le titre du cadre. Les places du mois et la réussite ont une jauge.' }
+    ]
+  },
   {
     version: 1333,
     date: 'Lundi 2 novembre 2026',
