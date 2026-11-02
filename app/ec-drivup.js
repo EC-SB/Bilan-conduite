@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 12:59 — v1290 */
+/* Déployé le 02/11/2026 à 14:59 — v1333 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -942,9 +942,12 @@ const CHAMPS_FICHE_DRIVUP = [
   ['mailPrescripteur', 'mailPrescripteur', 'Mail du prescripteur', true],
   ['naissance', 'naissance', 'Date de naissance', true],
   ['neph', 'neph', 'NEPH', false],
-  ['idDrivup', 'id', 'Id Drivup', false]
+  ['idDrivup', 'id', 'Id Drivup', false],
+  /* 🏢 v1333 — l'agence d'inscription : son centre d'examen de base (David) */
+  ['agence', 'agence', '🏢 Agence d’inscription', true]
 ];
 function memeValeurDrivup(champ, a, b){
+  if(champ === 'agence' && typeof agencePropre === 'function') return agencePropre(a) === agencePropre(b);
   if(champ === 'telephone' || champ === 'neph' || champ === 'idDrivup') return chiffresDrivup(a).slice(-9) === chiffresDrivup(b).slice(-9);
   return sansAccentDrivup(a) === sansAccentDrivup(b);
 }
@@ -952,7 +955,9 @@ function memeValeurDrivup(champ, a, b){
 async function fenetreElevesDrivup(elevesBruts, sorte){
   /* La catégorie Drivup devient notre formation, avant toute
      comparaison : « CA » et « AAC BV » sont la même chose. */
-  const eleves = (elevesBruts || []).map(x => Object.assign({}, x, { formation: formationDeDrivup(x.formation) }));
+  const eleves = (elevesBruts || []).map(x => Object.assign({}, x, { formation: formationDeDrivup(x.formation),
+    /* 🏢 v1333 — « Saint-Brieuc » ou « Loudéac », comme chez nous */
+    agence: (typeof agencePropre === 'function') ? agencePropre(x.agence) : (x.agence || '') }));
   const lu = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const titre = sorte === 'fiche' ? '📥 Reçu de Drivup — une fiche' : '📥 Reçu de Drivup — les élèves';
   const premier = eleves[0] || {};
@@ -1018,7 +1023,7 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
         eleve: nom, idDrivup: chiffresDrivup(x.id), telephone: propreDrivup(x.mobile, 30),
         email: propreDrivup(x.email, 120), formation: propreDrivup(x.formation, 40),
         mailPrescripteur: propreDrivup(x.mailPrescripteur, 120), naissance: propreDrivup(x.naissance, 10),
-        neph: chiffresDrivup(x.neph) } });
+        neph: chiffresDrivup(x.neph), agence: propreDrivup(x.agence, 30) } });
     });
   }
   if(aCompleter.length){
