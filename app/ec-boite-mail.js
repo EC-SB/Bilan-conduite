@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 15:04 — v1339 */
+/* Déployé le 03/11/2026 à 15:45 — v1340 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -41,6 +41,10 @@ let mlVue = 'boite';             /* 'boite' | 'regles' | 'chercher' */
 let mlCherche = '';
 let mlLueLe = 0;
 let mlEnLecture = null;
+/* 📩 v1340 — chaque geste lu / non lu / étiquette d'ici avance ce compteur :
+   une liste demandée AVANT le geste et rendue APRÈS est périmée (elle
+   repeignait « lu » un mail qu'on venait de remettre en non lu) */
+let mlGestes = 0;
 let mlFilOuvert = null;          /* { fil, messages } */
 let mlChoixEleveOuvert = false;  /* « 🔗 Rattacher » déplié en tête du fil */
 let mlCompteNonLus = null;       /* le chiffre de l'onglet (convList) */
@@ -128,7 +132,12 @@ async function mlCharger(silencieux){
   if(mlEnLecture) return mlEnLecture;
   mlEnLecture = (async () => {
     try{
-      const d = await appelPrep({ action: 'mailList', vue: mlVue, mots: mlCherche });
+      let d, avant;
+      for(let essai = 0; essai < 3; essai++){
+        avant = mlGestes;
+        d = await appelPrep({ action: 'mailList', vue: mlVue, mots: mlCherche });
+        if(avant === mlGestes) break;
+      }
       mlFils = (d && d.fils) || [];
       if(d && d.etat) mlEtat = d.etat;
       mlLueLe = Date.now();
@@ -348,7 +357,7 @@ function mlLigne(f){
   if(mlModeChoix){
     const ca = document.createElement('div');
     const pris = mlChoix.has(f.id);
-    ca.className = 'ckCase mlCase' + (pris ? ' pris' : '');
+    ca.className = 'ckCase mlCoche' + (pris ? ' pris' : '');
     ca.textContent = '✓';
     d.appendChild(ca);
     if(pris) d.classList.add('coche');
@@ -407,12 +416,96 @@ function mlLigne(f){
     c.textContent = String(f.nonLus);
     d.appendChild(c);
   }
+  if(!mlModeChoix) d.appendChild(mlGestesAuSurvol(f));
   d.addEventListener('click', () => {
     if(!mlModeChoix){ mlOuvrir(f.id); return; }
     if(mlChoix.has(f.id)) mlChoix.delete(f.id); else mlChoix.add(f.id);
     dessinerLaListeMessagerie();
   });
   return d;
+}
+
+/* 🖱️ v1340 — David : « des boutons rapides au survol dans la liste des
+   mails, avec non lu, les étiquettes ». Sur un écran à souris, la ligne
+   survolée montre 📩 / ✉️ (non lu ↔ lu) et 🏷️ (les étiquettes) ; ouvrir
+   le mail n'est pas nécessaire. Sur le téléphone (pas de survol), rien
+   ne change : ⋯ dans le mail. */
+function mlGestesAuSurvol(f){
+  const b = document.createElement('div');
+  b.className = 'mlSurvol';
+  const bouton = (texte, titre, faire, cle) => {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'mlSurvolB';
+    x.dataset.geste = cle;
+    x.textContent = texte;
+    x.title = titre;
+    x.setAttribute('aria-label', titre);
+    x.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      if(x.disabled) return;
+      x.disabled = true;
+      try{ await faire(x); }catch(e){ mlToast('⚠️ ' + (e.message || e)); }
+      x.disabled = false;
+    });
+    b.appendChild(x);
+  };
+  if(f.nonLus) bouton('✉️', 'Marquer comme lu', () => mlLuDepuisLaListe(f, true), 'lu');
+  else bouton('📩', 'Marquer comme non lu', () => mlLuDepuisLaListe(f, false), 'nonlu');
+  if(mlPeutEcrire()) bouton('🏷️', 'Étiquettes', x => mlEtiquettesDepuisLaListe(f, x), 'etiq');
+  return b;
+}
+/* Le geste part au serveur ; la ligne change tout de suite */
+async function mlLuDepuisLaListe(f, lu){
+  mlGestes++;
+  const avant = f.nonLus;
+  f.nonLus = lu ? 0 : Math.max(1, f.nonLus || 0);
+  mlRecompter();
+  dessinerLaListeMessagerie();
+  try{
+    const r = await appelPrep({ action: 'mailMarquerLot', ids: [f.id], lu: lu });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+  }catch(e){
+    f.nonLus = avant; mlRecompter(); dessinerLaListeMessagerie();
+    throw e;
+  }
+  mlGestes++;
+  if(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id) mlFilOuvert.fil.nonLus = f.nonLus;
+  mlToast(lu ? '✉️ Marqué comme lu' : '📩 Marqué comme non lu');
+}
+function mlEtiquettesDepuisLaListe(f, ancre){
+  const poser = async liste => {
+    mlGestes++;
+    const r = await appelPrep({ action: 'mailMarquer', id: f.id, etiquettes: liste });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+    mlGestes++;
+    if(r.fil){
+      const i = mlFils.findIndex(x => x.id === f.id);
+      if(i !== -1) mlFils[i] = r.fil;
+      if(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id){ mlFilOuvert.fil = r.fil; mlDessinerLeFil(); }
+    }
+    dessinerLaListeMessagerie();
+  };
+  const items = [];
+  const toutes = (mlEtat && mlEtat.etiquettes) || [];
+  if(!toutes.length) items.push({ titre: 'AUCUNE ÉTIQUETTE ENCORE' });
+  toutes.forEach(e => {
+    const pris = (f.etiquettes || []).indexOf(e) !== -1;
+    items.push({ emoji: pris ? '☑️' : '🏷️', texte: e, on: pris, cle: 'etiq', faire: () => {
+      const l = (f.etiquettes || []).slice();
+      const i = l.indexOf(e);
+      if(i === -1) l.push(e); else l.splice(i, 1);
+      return poser(l);
+    } });
+  });
+  if(mlEstAdmin()) items.push({ emoji: '➕', texte: 'Nouvelle étiquette…', faire: async () => {
+    const n = await demander('Le nom de l’étiquette :', '', '🏷️ Nouvelle étiquette');
+    if(!n || !n.trim()) return;
+    const r = await appelPrep({ action: 'mailReglagesPoser', etiquettes: toutes.concat([n.trim()]) });
+    if(r && r.etat) mlEtat = r.etat;
+    await poser((f.etiquettes || []).concat([n.trim()]));
+  } });
+  menuGestesEC(ancre, '🏷️ ' + (f.sujet || mlNomDuFil(f)), items);
 }
 
 /* La barre du choix : combien, tout cocher, ✉️ lus, 📩 non lus */
@@ -443,7 +536,9 @@ function mlBarreDuChoix(){
   if(n){
     const lot = async lu => {
       const ids = Array.from(mlChoix);
+      mlGestes++;
       const r = await appelPrep({ action: 'mailMarquerLot', ids: ids, lu: lu });
+      mlGestes++;
       if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
       mlFils.forEach(f => { if(ids.indexOf(f.id) !== -1) f.nonLus = lu ? 0 : Math.max(1, f.nonLus); });
       mlRecompter();
@@ -480,6 +575,7 @@ async function mlOuvrir(id){
     zone.innerHTML = (typeof htmlAttente === 'function') ? htmlAttente('Ouverture du mail…') : '<div class="empty">Ouverture du mail…</div>';
   }
   let d;
+  mlGestes++;   /* 📩 v1340 — ouvrir, c'est lire : une liste en route est périmée */
   try{ d = await appelPrep({ action: 'mailFil', id: id }); }
   catch(e){ zone.innerHTML = '<div class="empty">⚠️ ' + mlEch(e.message || e) + '</div>'; return; }
   mlFilOuvert = d;
@@ -508,7 +604,9 @@ async function mlRecharger(){
 async function mlMarquer(changement, toast){
   const f = mlFilOuvert && mlFilOuvert.fil;
   if(!f) return;
+  mlGestes++;
   const r = await appelPrep(Object.assign({ action: 'mailMarquer', id: f.id }, changement));
+  mlGestes++;
   if(r && r.fil){
     mlFilOuvert.fil = r.fil;
     const i = mlFils.findIndex(x => x.id === f.id);
