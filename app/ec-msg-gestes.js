@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 17:51 — v1316 */
+/* Déployé le 03/11/2026 à 14:55 — v1338 */
 /* ============================================================
    ec-msg-gestes.js — 🧭 LES GESTES DE LA MESSAGERIE (v1296)
 
@@ -37,7 +37,13 @@ function fermerMenuGestesEC(){ if(menuOuvertEC){ const f = menuOuvertEC; menuOuv
 function menuGestesEC(ancre, titre, items, surFermeture){
   fermerMenuGestesEC();
   const dansTiroir = !!(ancre && ancre.closest && ancre.closest('#msgElvTiroir'));
-  const grand = !dansTiroir && typeof ckLarge === 'function' && ckLarge() && !!(ancre && ancre.closest && ancre.closest('#messagerieZone'));
+  /* ✉️ v1338 — David : dans l'éditeur des mails, les menus (⚡, 🖍️…)
+     s'ouvraient SOUS la fenêtre. Dans une fenêtre, sur un écran assez
+     large, le menu se pose près du bouton, comme dans la messagerie. */
+  const dansUneFenetre = !!(ancre && ancre.closest && ancre.closest('.overlay'));
+  const grand = !dansTiroir && (
+    (typeof ckLarge === 'function' && ckLarge() && !!(ancre && ancre.closest && ancre.closest('#messagerieZone'))) ||
+    (dansUneFenetre && (window.innerWidth || 0) >= 700));
   const voile = document.createElement('div');
   voile.className = 'msgFeuilleVoile' + (grand ? ' clair' : '');
   const f = document.createElement('div');
@@ -64,13 +70,15 @@ function menuGestesEC(ancre, titre, items, surFermeture){
     });
     corps.appendChild(b);
   });
+  if(dansUneFenetre){ voile.classList.add('surFenetre'); f.classList.add('surFenetre'); }
   document.body.appendChild(voile);
   document.body.appendChild(f);
   /* Où se poser : près du bouton (grand) ; en bas de l'écran — ou du
      tiroir, qui fait 400 px — sinon */
   if(grand && ancre){
     const a = ancre.getBoundingClientRect();
-    const L = Math.min(Math.max(8, a.right - 290), window.innerWidth - 298);
+    /* aligné à droite du bouton ; s'il n'y a pas la place, à gauche (v1338) */
+    const L = Math.min(a.right - 290 >= 8 ? a.right - 290 : Math.max(8, a.left), window.innerWidth - 298);
     f.style.left = L + 'px';
     const h = f.offsetHeight;
     if(a.bottom + 6 + h > window.innerHeight - 8 && a.top - 6 - h > 8) f.style.top = (a.top - 6 - h) + 'px';
