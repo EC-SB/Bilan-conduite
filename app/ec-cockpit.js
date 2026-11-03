@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 18:00 — v1298 */
+/* Déployé le 03/11/2026 à 13:55 — v1337 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -42,7 +42,10 @@ const GENRES_CK = {
   oubli:    { rond: '🧤', mot: 'OBJET',    coul: 'var(--ko)',  nom: 'Objets oubliés' },
   groupe:   { rond: '👥', mot: 'GROUPE',   coul: 'var(--kn2)', nom: 'Groupes' },
   interne:  { rond: '🏠', mot: 'ÉQUIPE',   coul: 'var(--kd)',  nom: 'Entre nous' },
-  moniteur: { rond: '👤', mot: 'MONITEUR', coul: 'var(--kn2)', nom: 'Élève ↔ moniteur' }
+  moniteur: { rond: '👤', mot: 'MONITEUR', coul: 'var(--kn2)', nom: 'Élève ↔ moniteur' },
+  /* ✉️ v1337 — les mails de la boîte de l'école (ec-boite-mail.js) :
+     pas une famille de conversations, un type pour les réponses rapides */
+  mail:     { rond: '✉️', mot: 'MAIL',     coul: 'var(--kn2)', nom: 'Mails' }
 };
 
 /* Le rail, dans l'ordre du schéma. « moniteur » n'y paraît que s'il
@@ -334,7 +337,7 @@ function ckPeutSuperviser(){
 const MOTS_DU_RAIL = {
   '': 'Tout', bureau: 'Bureau', vitrine: 'Vitrine', retard: 'Retards', annul: 'Annulations',
   oubli: 'Oublis', groupe: 'Groupes', interne: 'Équipe', moniteur: 'Moniteurs',
-  clos: 'Fermées', supervision: 'Supervision'
+  clos: 'Fermées', supervision: 'Supervision', mail: 'Mails'
 };
 
 function ckDessinerLeRail(){
@@ -444,7 +447,13 @@ function ckPastilles(){
    Un groupe du permis, c'est celui créé depuis une session (le Worker
    le marque « permis »), ou un groupe dont le nom commence par
    « Permis ». */
-const ONGLETS_MSG_EC = [['tout', 'Tout'], ['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['permis', 'Permis']];
+/* ✉️ v1337 — et « ✉️ Mails », la boîte de l'école (ec-boite-mail.js),
+   pour qui a le droit « ✉️ Mails » : le bureau et les administrateurs */
+const ONGLETS_MSG_EC = [['tout', 'Tout'], ['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['permis', 'Permis'], ['mails', '✉️ Mails']];
+function ckOngletsVisibles(){
+  return ONGLETS_MSG_EC.filter(o => o[0] !== 'mails' || (typeof mlOngletVisible === 'function' && mlOngletVisible() &&
+    !(typeof dansLeTiroir === 'function' && dansLeTiroir())));
+}
 function ckEstGroupePermis(c){ return !!c && c.genre === 'groupe' && (Number(c.permis || 0) > 0 || /^\W*permis\b/i.test(String(c.titre || ''))); }
 let ongletMsgEC = (() => { try{ const v = localStorage.getItem('ec_msg_onglet'); return ONGLETS_MSG_EC.some(o => o[0] === v) ? v : 'nonlus'; }catch(e){ return 'nonlus'; } })();
 /* Un fil d'élève, ou un visiteur de la vitrine ; le reste est l'équipe */
@@ -472,12 +481,15 @@ function ckOnglets(){
   const b = document.createElement('div');
   b.className = 'ckpOnglets';
   const base = (conversationsEC || []).filter(c => !c.enSupervision && !Number(c.fermee || 0));
-  ONGLETS_MSG_EC.forEach(([cle, nom]) => {
+  /* ✉️ v1337 — l'onglet des mails n'existe que pour qui y a droit */
+  if(ongletMsgEC === 'mails' && !ckOngletsVisibles().some(o => o[0] === 'mails')) ongletMsgEC = 'nonlus';
+  ckOngletsVisibles().forEach(([cle, nom]) => {
     const x = document.createElement('button');
     x.type = 'button';
     x.className = 'ckpOnglet' + (!filtreMessagerie && ongletMsgEC === cle ? ' on' : '');
     x.dataset.onglet = cle;
-    const n = cle === 'nonlus' ? base.filter(ckNonLu).length : 0;
+    const n = cle === 'nonlus' ? base.filter(ckNonLu).length
+            : (cle === 'mails' && typeof mlCompte === 'function') ? mlCompte() : 0;
     x.innerHTML = nom + (n ? ' <span class="n">' + (n > 99 ? '99+' : n) + '</span>' : '');
     x.addEventListener('click', () => ckChoisirOnglet(cle));
     b.appendChild(x);
@@ -1478,19 +1490,41 @@ function panneauDesModeles(choisir, fermer){
    écrits ici (VITES_CK, VITES_VITRINE_CK). Le Worker ne garde que la
    liste qu'un administrateur a enregistrée.
    ============================================================ */
-const GENRES_RAPIDES = ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe', 'interne', 'moniteur'];
+/* ✉️ v1337 — et « mail » : les réponses rapides de la boîte de l'école */
+const GENRES_RAPIDES = ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe', 'interne', 'moniteur', 'mail'];
 let reponsesRapidesEC = null;        /* null : celles d'origine */
 let reponsesRapidesLues = false;
 
 function reponsesRapidesDOrigine(){
-  const sansVitrine = GENRES_RAPIDES.filter(g => g !== 'vitrine');
+  const sansVitrine = GENRES_RAPIDES.filter(g => g !== 'vitrine' && g !== 'mail');
   return VITES_CK.map(x => ({
     id: x.k, bouton: x.t, message: x.msg || '', sorte: x.k === 'cren' ? 'creneau' : 'message',
     /* le créneau n'avait de sens que dans un fil d'élève */
     genres: x.k === 'cren' ? ['bureau', 'retard', 'annul', 'oubli', 'moniteur'] : sansVitrine.slice()
   })).concat(VITES_VITRINE_CK.map(x => ({ id: 'v' + x.k, bouton: x.t, message: x.msg, sorte: 'message', genres: ['vitrine'] })))
-    .concat(REPONSES_TRAFIC_CK.map(x => JSON.parse(JSON.stringify(x))));
+    .concat(REPONSES_TRAFIC_CK.map(x => JSON.parse(JSON.stringify(x))))
+    .concat(REPONSES_MAILS_CK.map(x => JSON.parse(JSON.stringify(x))));
 }
+/* ✉️ v1337 — les quatre réponses de départ des mails (David : « garde
+   ceux-là et que je puisse en rajouter »). Les mêmes que dans le Worker
+   (REPONSES_MAILS), qui les pose une fois dans une liste déjà enregistrée. */
+const REPONSES_MAILS_CK = [
+  { id: 'mail-recu', bouton: '✅ Bien reçu, on revient vers vous', sorte: 'message', genres: ['mail'],
+    message: 'Bonjour {prénom}, nous avons bien reçu votre message et nous revenons vers vous très rapidement.',
+    html: '<div>Bonjour {prénom},</div><div><br></div><div>Nous avons bien reçu votre message et nous revenons vers vous très rapidement.</div>' },
+  { id: 'mail-appeler', bouton: '📞 Merci d’appeler le bureau', sorte: 'message', genres: ['mail'],
+    message: 'Bonjour {prénom}, le plus simple est de nous appeler au bureau : nous pourrons en parler ensemble.',
+    html: '<div>Bonjour {prénom},</div><div><br></div><div>Le plus simple est de nous appeler au bureau : nous pourrons en parler ensemble.</div>' },
+  { id: 'mail-rdv', bouton: '📅 Votre rendez-vous est confirmé', sorte: 'message', genres: ['mail'],
+    message: 'Bonjour {prénom}, votre rendez-vous est bien confirmé. À très bientôt !',
+    html: '<div>Bonjour {prénom},</div><div><br></div><div>Votre rendez-vous est bien confirmé. À très bientôt !</div>' },
+  { id: 'mail-pieces', bouton: '📄 Pièces à fournir pour l’inscription', sorte: 'message', genres: ['mail'],
+    message: 'Bonjour {prénom}, voici les pièces à nous apporter pour l’inscription : • une pièce d’identité • un justificatif de domicile • …',
+    html: '<div>Bonjour {prénom},</div><div><br></div><div>Voici les <b>pièces à nous apporter</b> pour l’inscription :</div>' +
+          '<ul><li>une pièce d’identité recto verso,</li><li>un justificatif de domicile de moins de 6 mois,</li>' +
+          '<li>une photo d’identité numérique (code e-photo),</li><li>…</li></ul>' +
+          '<div>N’hésitez pas à nous appeler au bureau pour toute question.</div>' }
+];
 /* 🚦 v1274 — David, le 27 octobre : « 3 boutons juste pour cette
    conversation : Bouchons, Accidents, Marquage au sol effacé », dans le
    groupe « Trafic » (reconnu par son nom), chacun avec la position GPS.
@@ -1772,7 +1806,12 @@ function fenetreReponseRapide(x, liste, sauver){
   fond.appendChild(boite);
   const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); };
 
-  boite.insertAdjacentHTML('beforeend', '<h3>' + (neuve ? '➕ Nouvelle réponse rapide' : '✏️ Réponse rapide') + '</h3>');
+  /* ✉️ v1337 — une réponse des mails : un texte MIS EN FORME, et ses
+     pièces jointes (schéma « Les mails dans l'App », validé par David) */
+  const modeMail = (r.genres || []).indexOf('mail') !== -1 && r.sorte !== 'creneau' && typeof mlZoneDEcriture === 'function';
+  r.pj = Array.isArray(r.pj) ? r.pj.slice() : [];
+  let edMail = null;
+  boite.insertAdjacentHTML('beforeend', '<h3>' + (neuve ? '➕ Nouvelle réponse rapide' : '✏️ Réponse rapide') + (modeMail ? ' · ✉️ Mails' : '') + '</h3>');
   const champ = (lib, el) => { const l = document.createElement('label'); l.textContent = lib; boite.append(l, el); return el; };
   const bouton = document.createElement('input');
   bouton.type = 'text'; bouton.maxLength = 60; bouton.value = r.bouton; bouton.id = 'rrBouton';
@@ -1790,7 +1829,7 @@ function fenetreReponseRapide(x, liste, sauver){
     const lm = document.createElement('div');
     lm.className = 'rrLabelLigne';
     const lab = document.createElement('label');
-    lab.textContent = 'Le message envoyé';
+    lab.textContent = modeMail ? 'Le texte du mail' : 'Le message envoyé';
     lm.appendChild(lab);
     const prendre = document.createElement('button');
     prendre.type = 'button';
@@ -1802,12 +1841,33 @@ function fenetreReponseRapide(x, liste, sauver){
       ckModelesCategorie = '';
       const c2 = document.createElement('div');
       c2.className = 'rrModeles';
-      c2.appendChild(panneauDesModeles(t => { message.value = t; c2.remove(); apercu(); }, () => c2.remove()));
+      c2.appendChild(panneauDesModeles(t => {
+        message.value = t;
+        if(edMail) edMail.zone.innerHTML = mlTexteEnHtml(t);
+        c2.remove(); apercu();
+      }, () => c2.remove()));
       lm.after(c2);
     });
     lm.appendChild(prendre);
     boite.appendChild(lm);
-    boite.appendChild(message);
+    if(modeMail){
+      /* l'éditeur des mails, sa barre courte ; 📎 ajoute une pièce jointe */
+      edMail = mlZoneDEcriture({ outils: 'court', surFichier: async (sorte, poser, donne) => {
+        const fichiers = donne ? [donne] : await mlChoisirUnFichier(sorte === 'image');
+        for(const fi of fichiers){
+          try{
+            const p = await mlDeposerUnFichier(fi);
+            if(sorte === 'image' && poser) poser(p);
+            else if(r.pj.length < 3){ r.pj.push({ cle: p.cle, nom: p.nom, type: p.type, taille: p.taille }); dessinerPjRR(); }
+            else if(typeof showToast === 'function') showToast('Trois pièces jointes au plus.');
+          }catch(e){ if(typeof showToast === 'function') showToast('⚠️ ' + (e.message || e)); }
+        }
+      } });
+      edMail.cadre.classList.add('rrEditeur');
+      edMail.zone.id = 'rrTexteMail';
+      edMail.zone.innerHTML = r.html ? mlLiensAbsolus(r.html) : mlTexteEnHtml(r.message || '');
+      boite.appendChild(edMail.cadre);
+    }else boite.appendChild(message);
     /* 🔤 Les mots qui se remplacent : un appui les pose au curseur */
     const mots = document.createElement('div');
     mots.className = 'rrMots';
@@ -1818,7 +1878,9 @@ function fenetreReponseRapide(x, liste, sauver){
       b.className = 'rrMot';
       b.textContent = w.mot;
       b.title = w.dit;
+      b.addEventListener('mousedown', ev => { if(edMail) ev.preventDefault(); });
       b.addEventListener('click', () => {
+        if(edMail){ edMail.remettre(); document.execCommand('insertText', false, w.mot); return; }
         const a = message.selectionStart || message.value.length, z = message.selectionEnd || a;
         message.value = message.value.slice(0, a) + w.mot + message.value.slice(z);
         message.focus();
@@ -1829,6 +1891,27 @@ function fenetreReponseRapide(x, liste, sauver){
     });
     boite.appendChild(mots);
   }
+  /* 📎 les pièces jointes de la réponse (des mails seulement) */
+  const pjRR = document.createElement('div');
+  pjRR.className = 'rrPj';
+  function dessinerPjRR(){
+    pjRR.innerHTML = '';
+    const n = document.createElement('div');
+    n.textContent = '📎 Une pièce jointe ajoutée ici part avec le mail à chaque fois (ex. la liste des pièces en PDF). ' +
+      'Ta signature s’ajoute toute seule dessous.';
+    pjRR.appendChild(n);
+    r.pj.forEach((p, i) => {
+      const c = document.createElement('span');
+      c.className = 'mlAdr mlPj';
+      c.textContent = '📎 ' + p.nom;
+      const x = document.createElement('b');
+      x.textContent = '×';
+      x.addEventListener('click', () => { r.pj.splice(i, 1); dessinerPjRR(); });
+      c.appendChild(x);
+      pjRR.appendChild(c);
+    });
+  }
+  if(modeMail){ dessinerPjRR(); boite.appendChild(pjRR); }
 
   const lt = document.createElement('label');
   lt.textContent = 'Dans quelles conversations';
@@ -1857,7 +1940,7 @@ function fenetreReponseRapide(x, liste, sauver){
   r.titres = Array.isArray(r.titres) ? r.titres.slice() : [];
   const lc = document.createElement('label');
   lc.textContent = 'Ou seulement dans ces conversations';
-  boite.appendChild(lc);
+  if(!modeMail) boite.appendChild(lc);
   const convsZ = document.createElement('div');
   convsZ.className = 'rrChoix rrConvs';
   rrConversationsProposees(r).forEach(o => {
@@ -1884,8 +1967,8 @@ function fenetreReponseRapide(x, liste, sauver){
     v.textContent = 'Ouvre d’abord la messagerie : tes conversations entre vous s’afficheront ici.';
     convsZ.appendChild(v);
   }
-  boite.appendChild(convsZ);
-  if(r.sorte !== 'creneau'){
+  if(!modeMail) boite.appendChild(convsZ);
+  if(r.sorte !== 'creneau' && !modeMail){
     const lp = document.createElement('label');
     lp.className = 'rrPosition';
     const cbp = document.createElement('input');
@@ -1901,7 +1984,7 @@ function fenetreReponseRapide(x, liste, sauver){
   /* L'aperçu : le bouton, et la bulle qui part */
   const ap = document.createElement('div');
   ap.className = 'rrApercu';
-  boite.appendChild(ap);
+  if(!modeMail) boite.appendChild(ap);
   const apercu = () => {
     ap.innerHTML = '<div class="rrApT">Aperçu</div>';
     const p = document.createElement('span');
@@ -1944,6 +2027,14 @@ function fenetreReponseRapide(x, liste, sauver){
   bOk.addEventListener('click', async () => {
     r.bouton = bouton.value.trim();
     if(r.sorte !== 'creneau') r.message = message.value.trim();
+    if(edMail){
+      /* une image du texte se garde par sa clé : le lien signé, lui, expire */
+      const copie = edMail.zone.cloneNode(true);
+      copie.querySelectorAll('img[data-ec-cle]').forEach(im => { im.setAttribute('src', 'ec-cle:' + im.getAttribute('data-ec-cle')); im.removeAttribute('data-ec-cle'); });
+      r.html = copie.innerHTML;
+      r.message = String(edMail.zone.innerText || '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 4000);
+    }
+    if(!r.pj.length) delete r.pj;
     if(!r.bouton){ err.textContent = 'Écris ce que dit le bouton.'; return; }
     if(r.sorte !== 'creneau' && !r.message){ err.textContent = 'Écris le message qu’il envoie.'; return; }
     if(!r.genres.length && !r.convs.length && !r.titres.length){ err.textContent = 'Coche au moins une conversation : sinon le bouton n’apparaît nulle part.'; return; }
@@ -1962,14 +2053,15 @@ function fenetreReponseRapide(x, liste, sauver){
   if(!neuve){
     const bSup = document.createElement('button');
     bSup.className = 'btn btn-secondary';
-    bSup.style.cssText = 'color:var(--red);border-color:var(--red);margin-top:8px;';
+    bSup.style.cssText = 'color:var(--red);border-color:var(--red);' + (modeMail ? '' : 'margin-top:8px;');
     bSup.textContent = '🗑️ Supprimer cette réponse';
     bSup.addEventListener('click', async () => {
       if(!await confirmer('Supprimer « ' + x.bouton + ' » ?', '🗑️ Supprimer', true)) return;
       fermer();
       await sauver(liste.filter(y => y.id !== x.id));
     });
-    boite.appendChild(bSup);
+    /* ✉️ v1337 — sur la même rangée pour une réponse des mails (schéma) */
+    if(modeMail) rang.insertBefore(bSup, bAnn); else boite.appendChild(bSup);
   }
   document.body.appendChild(fond);
   setTimeout(() => bouton.focus(), 60);
