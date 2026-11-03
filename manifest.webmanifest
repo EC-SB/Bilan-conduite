@@ -1,6 +1,6 @@
 {
-  "name": "Bilan de conduite — Évolution Conduites",
-  "short_name": "Bilan",
+  "name": "App Évolution Conduites",
+  "short_name": "EC App",
   "description": "L'outil de l'équipe : cours, bilans, suivi du permis et messagerie.",
   "start_url": "index.html",
   "scope": "./",
