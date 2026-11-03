@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:59 — v1333 */
+/* Déployé le 02/11/2026 à 19:33 — v1335 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -7,7 +7,7 @@
    planning des élèves pour faire les rappels et les prochains
    cours ». Drivup refuse l'accès à son API.
 
-   Le favori « 📥 Bilan de conduite » (drivup-favori.js, à la racine
+   Le favori « 📥 App Évolution » (drivup-favori.js, à la racine
    du site) lit la page Drivup ouverte dans le Chrome du bureau et
    ouvre l'application avec « ?drivup=1 ». Ce module :
 
@@ -29,7 +29,7 @@
      remplie chez nous n'est pas touchée, même si Drivup dit autre
      chose.
 
-   Application Bilan de conduite — Évolution Conduites
+   App Évolution Conduites (anciennement « Bilan de conduite »)
    ============================================================ */
 
 const DRIVUP_ORIGINE = 'https://app.drivup.fr';
@@ -203,7 +203,7 @@ function dessinerBlocDrivup(){
   a.className = 'dvFavori';
   a.id = 'drivupFavori';
   a.href = lienDuFavoriDrivup();
-  a.textContent = '📥 Bilan de conduite';
+  a.textContent = '📥 App Évolution';
   a.title = 'Glisse-moi dans ta barre de favoris';
   a.addEventListener('click', e => {
     e.preventDefault();
@@ -287,7 +287,7 @@ async function poserBandeauDrivupRappels(zone){
   }else{
     if(!peutLireDrivup()) return;
     b.classList.add('vide');
-    t.textContent = 'Le planning Drivup n’a pas encore été lu. Clique le favori « 📥 Bilan de conduite » ' +
+    t.textContent = 'Le planning Drivup n’a pas encore été lu. Clique le favori « 📥 App Évolution » ' +
       'sur le planning d’une agence dans Drivup : les créneaux se rempliront seuls.';
   }
   b.append(ic, t);
