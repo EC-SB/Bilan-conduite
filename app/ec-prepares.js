@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:07 — v1309 */
+/* Déployé le 03/11/2026 à 16:23 — v1341 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -578,6 +578,29 @@ function preparationPrecedenteDe(eleve, avantIso){
    exactement le cas de Mackenzie, 13h puis 17h. Ce garde-fou-là
    protégeait d'un doublon imaginaire et cassait un cas réel.
    ============================================================ */
+/* ⚠️ UNE SÉANCE QUI N'EST PAS UNE LEÇON NE PREND PAS DE RANG — v1341.
+
+   David, le 3 novembre, sur une élève qui venait de passer son examen
+   blanc : la tuile disait « 6ᵉ leçon · 1ʳᵉ après l'examen blanc » et
+   « 4 h + la leçon de veille », alors qu'aucune leçon n'avait eu lieu
+   depuis — la bonne information était 6 + 3. C'était la CARTE DE
+   L'EXAMEN BLANC, restée dans Mes prochains cours, qui se comptait
+   comme une leçon : sa 6ᵉ, et la 1ʳᵉ après lui-même. Les deux heures
+   retirées venaient de là.
+
+   « Un examen blanc n'est jamais compté comme une leçon » (David,
+   30 août) — et pas plus un simulateur, un rendez-vous préalable, un
+   RVP, un post-permis : la même table que la note (leçon de la frise
+   ou pas). La séance handicap reste une leçon. Sans modèle connu (une
+   vieille carte), on ne conclut rien : elle compte, comme avant. */
+function seanceSansRang(c){
+  const ctx = (c && c.contexte && typeof c.contexte === 'object') ? c.contexte
+    : (function(){ try{ return JSON.parse(String((c && c.contexte) || '{}')) || {}; }catch(e){ return {}; } })();
+  const m = String((c && (c.modele || ctx.modele)) || '');
+  if(!m || m === 'handicap' || typeof leconCompteDansLaFrise !== 'function') return false;
+  return !leconCompteDansLaFrise(m);
+}
+
 function preparationsEnAttenteAvant(cours){
   if(!cours || !cours.eleve || typeof coursPreparesDe !== 'function') return 0;
   const id = String(cours.id || '');
@@ -585,6 +608,7 @@ function preparationsEnAttenteAvant(cours){
   coursPreparesDe(cours.eleve).forEach(x => {
     if(x === cours) return;
     if(id && String(x.id || '') === id) return;
+    if(typeof seanceSansRang === 'function' && seanceSansRang(x)) return;   /* v1341 — un examen blanc n'est pas une leçon */
     if(avantDansLaJournee(x, cours)) n++;
   });
   return n;
