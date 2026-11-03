@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1334
+     VERSION APPLICATION : v1335
      VERSION APPS SCRIPT REQUISE : v244
      Mis à jour le : 12/10/2026
 
@@ -24,7 +24,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bilan de conduite — Évolution Conduites</title>
+<title>App Évolution Conduites</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
 <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
 <!-- 🔔 Étape 3 : installable sur l'écran d'accueil, ce qui est la
@@ -6358,6 +6358,124 @@
   .crSig input{ flex:1; min-width:0; }
   .crDossier .btn{ width:auto; margin:0 0 12px; }
   .crPour{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; background:var(--orange-soft); border-radius:10px; padding:8px 12px; margin:10px 0 0; font-size:14px; }
+
+  /* ============================================================
+     🔒 LA PAGE DE CONNEXION — v1335
+
+     Le mélange choisi par David : à gauche (en haut sur téléphone) un
+     panneau noir aux couleurs de l'école avec son logo officiel
+     « fond noir » ; à droite le « Bonjour 👋 » et la date, le prénom
+     retenu en pastille, le pavé numérique.
+
+     ⚠️ TOUT EST ACCROCHÉ À body.surVerrou, posée tant que l'écran de
+     connexion est affiché (un observateur dans la page la tient à
+     jour). Rien de ce qui suit ne touche l'appli une fois connecté.
+     ============================================================ */
+  body.surVerrou .wrap{ max-width:none; padding:0; }
+  body.surVerrou header{ position:fixed; top:14px; right:18px; z-index:20;
+    border:0; margin:0; padding:0; gap:8px; }
+  body.surVerrou header .logo, body.surVerrou header .ec-titre{ display:none; }
+  /* Le ⋯ (le thème, le guide) reste là. Son habit est écrit dans son
+     attribut style, d'où les !important : blanc sur le côté clair,
+     sombre sur le panneau (téléphone) et en thème sombre. */
+  body.surVerrou #plusBtn{ background:#fff !important; color:#111 !important; border-color:var(--line) !important; margin-left:0 !important; }
+  body.surVerrou:not(.clair) #plusBtn{ background:rgba(255,255,255,.06) !important; color:#F4F4F4 !important; border-color:#3A3A3A !important; }
+
+  .cnxCadre{ display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); min-height:100vh; min-height:100dvh; }
+  .cnxPanneau{ position:relative; overflow:hidden; background:#0B0B0B; color:#F4F4F4;
+    padding:56px; display:flex; flex-direction:column; justify-content:center; gap:26px; }
+  body:not(.clair) .cnxPanneau{ background:#12170A; }
+  /* Un grand anneau, à peine visible : le virage du logo, en écho. */
+  .cnxPanneau::after{ content:''; position:absolute; right:-140px; bottom:-140px; width:460px; height:460px;
+    border-radius:50%; border:60px solid rgba(182,255,14,.06); pointer-events:none; }
+  .cnxLogo{ position:relative; z-index:1; display:block; width:100%; max-width:470px; height:auto; }
+  .cnxLieux{ position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:8px; }
+  .cnxLieux span{ font-size:13px; font-weight:700; border:1px solid #333; border-radius:999px; padding:5px 12px; color:#E0E0E0; }
+  .cnxVer{ position:absolute; left:56px; bottom:32px; z-index:1; font-size:12px; color:#8A8A8A; }
+  .cnxVer b{ color:#B6FF0E; }
+
+  #lockView .cnxCarte{ align-self:center; justify-self:center; width:100%; max-width:380px; margin:0;
+    padding:24px; border:0; box-shadow:none; background:transparent; text-align:left; }
+  .cnxJour{ font-size:13px; font-weight:700; color:var(--muted); margin-bottom:2px; min-height:18px; }
+  .cnxJour::first-letter{ text-transform:uppercase; }
+  .cnxBonjour{ font-size:30px; margin:0 0 24px; letter-spacing:-.02em; line-height:1.15; color:var(--cream); }
+  .cnxBonjour .nom{ color:var(--accent-text); }
+
+  .cnxChamp{ position:relative; display:block; margin-bottom:14px; }
+  .cnxChamp::before{ content:attr(data-ico); position:absolute; left:15px; top:50%; transform:translateY(-50%);
+    font-size:17px; opacity:.75; pointer-events:none; }
+  /* ⚠️ LE CHAMP DU CODE ÉTAIT NU. La règle des champs nomme les types
+     un par un, et « password » n'y était pas : bord noir, plus étroit
+     que le prénom, et sur téléphone il dépassait de la carte. */
+  #lockView #identInput, #lockView #codeInput{
+    display:block; width:100%; box-sizing:border-box; margin:0; height:54px;
+    padding:0 16px 0 46px; border-radius:14px; border:1.5px solid var(--line);
+    background:var(--navy); color:var(--cream); font-family:inherit; font-size:17px; text-align:left; }
+  body.clair #lockView #identInput, body.clair #lockView #codeInput{ background:#FBFBF7; }
+  #lockView #codeInput{ letter-spacing:.45em; font-size:22px; }
+  #lockView #codeInput::placeholder{ letter-spacing:.35em; }
+  #lockView #identInput:focus, #lockView #codeInput:focus{ outline:none; border-color:var(--accent-text);
+    box-shadow:0 0 0 4px rgba(182,255,14,.22); }
+  #lockView #codeBtn{ width:100%; height:54px; border-radius:14px; font-size:16px; font-weight:800; margin-top:6px; }
+  #lockView #codeMsg{ text-align:center; }
+
+  .cnxQui{ display:flex; align-items:center; gap:10px; margin:0 0 16px; padding:10px 12px 10px 14px;
+    border:1.5px solid var(--line); border-radius:14px; background:var(--navy-deep); }
+  body.clair .cnxQui{ background:#fff; }
+  .cnxQui[hidden]{ display:none; }
+  .cnxAv{ width:34px; height:34px; border-radius:50%; background:var(--orange); color:var(--on-accent);
+    font-weight:900; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .cnxNom{ font-weight:800; font-size:16px; flex:1; min-width:0; color:var(--cream); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #cnxPasMoi{ font:inherit; font-size:13px; font-weight:700; background:none; border:0; color:var(--accent-text);
+    text-decoration:underline; cursor:pointer; padding:6px 4px; flex-shrink:0; }
+
+  .cnxRonds{ display:flex; justify-content:center; gap:14px; margin:6px 0 18px; }
+  .cnxRonds[hidden], .cnxPave[hidden], .cnxBascule[hidden]{ display:none; }
+  .cnxRonds i{ width:16px; height:16px; border-radius:50%; border:2px solid var(--muted); box-sizing:border-box; }
+  .cnxRonds i.plein{ background:var(--accent-text); border-color:var(--accent-text); }
+  .cnxRonds i.option{ border-style:dashed; opacity:.5; }
+  .cnxRonds i.option.plein{ opacity:1; border-style:solid; }
+  .cnxPave{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:4px 0 14px; }
+  .cnxPave button{ font:inherit; height:58px; border-radius:16px; border:1.5px solid var(--line);
+    background:var(--navy-deep); color:var(--cream); font-size:24px; font-weight:800; cursor:pointer;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+  body.clair .cnxPave button{ background:#fff; }
+  .cnxPave button:active{ transform:scale(.96); }
+  .cnxPave button.eff{ font-size:20px; }
+  .cnxPave button.ok, body.clair .cnxPave button.ok{ background:var(--orange); border-color:var(--orange); color:var(--on-accent); font-size:22px; }
+  /* Avec le pavé, le champ du code et « Se connecter » s'effacent :
+     les ronds montrent la saisie, ✓ envoie. */
+  body.cnxPaveOn #cnxChampCode .cnxChamp, body.cnxPaveOn #lockView #codeBtn{ display:none; }
+  /* « CODE » reste au-dessus des ronds tant qu'il y a aussi le prénom
+     à taper ; avec le prénom retenu, il n'y a plus qu'une chose à
+     faire et l'étiquette ne distingue rien. */
+  body.cnxPaveOn.cnxRetenu #cnxChampCode label{ display:none; }
+  body.cnxRetenu #cnxChampNom{ display:none; }
+  .cnxBascule{ display:block; margin:6px auto 0; font:inherit; font-size:13px; font-weight:700;
+    background:none; border:0; color:var(--muted); text-decoration:underline; cursor:pointer; padding:6px; }
+  .cnxPied{ display:none; margin-top:14px; font-size:12px; color:var(--muted); text-align:center; }
+  .cnxPied b{ color:var(--accent-text); }
+
+  /* Sur téléphone, le panneau devient un bandeau en haut. */
+  @media (max-width:760px){
+    body.surVerrou header{ top:12px; right:12px; }
+    body.surVerrou #plusBtn{ background:rgba(255,255,255,.06) !important; color:#F4F4F4 !important; border-color:#3A3A3A !important; }
+    .cnxCadre{ grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+    .cnxPanneau{ padding:64px 22px 24px; border-radius:0 0 26px 26px; gap:16px; }
+    .cnxPanneau::after{ width:260px; height:260px; border-width:40px; right:-90px; bottom:-120px; }
+    .cnxLogo{ max-width:300px; }
+    .cnxVer{ display:none; }
+    #lockView .cnxCarte{ align-self:start; max-width:460px; padding:24px 20px 30px; }
+    .cnxBonjour{ font-size:26px; margin-bottom:18px; }
+    .cnxPave button{ height:56px; }
+    .cnxPied{ display:block; }
+  }
+  /* Sur un téléphone, le nom de l'appli ne tient pas à côté des
+     boutons : il passait déjà sous 💳. Il reste la tuile EC (le nom
+     est dedans) et la version. */
+  @media (max-width:480px){
+    header h1{ display:none; }
+  }
 </style>
 </head>
 <body>
@@ -6365,8 +6483,8 @@
   <header>
     <div class="logo">EC</div>
     <div class="ec-titre">
-      <h1>Bilan de conduite</h1>
-      <p><span class="ec-lieux">Évolution Conduites — Saint-Brieuc · Loudéac </span><span id="versionAffichee" style="color:var(--accent-text);font-weight:700;">v665</span></p>
+      <h1>App Évolution Conduites</h1>
+      <p><span class="ec-lieux">Saint-Brieuc · Loudéac </span><span id="versionAffichee" style="color:var(--accent-text);font-weight:700;">v665</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -6497,7 +6615,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1334" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1335" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -6580,26 +6698,69 @@
 
   <div id="unsupportedBox"></div>
 
-  <!-- ÉCRAN DE DÉVERROUILLAGE -->
+  <!-- ÉCRAN DE DÉVERROUILLAGE — v1335
+
+       David, le 2 novembre 2026 : « beaucoup plus jolie ». Sur quatre
+       propositions, il a pris un mélange : le panneau aux couleurs de
+       l'école (C) et le « Bonjour 👋 » avec la date (D), son logo
+       officiel « fond noir », le prénom retenu sur l'appareil, et un
+       pavé numérique partout qu'on peut enlever.
+
+       ⚠️ TOUT CE QUI EST NEUF EST EN PLUS, RIEN N'EST INDISPENSABLE.
+       Les deux champs et le bouton restent ceux d'avant, avec les
+       mêmes identifiants : si ec-connexion.js manque, la page reste
+       la connexion d'hier, en plus jolie — le pavé, la date et le
+       prénom retenu ne s'allument que quand le module est là. -->
   <div id="lockView">
-    <div class="card" style="text-align:center;">
-      <div style="font-size:34px;margin-bottom:4px;">🔒</div>
-      <h2 class="section-title" style="text-align:center;">Connexion</h2>
+    <div class="cnxCadre">
+      <div class="cnxPanneau">
+        <img class="cnxLogo" src="logo-fond-noir.webp" alt="Évolution Conduites"
+             width="1280" height="490">
+        <div class="cnxLieux"><span>📍 Saint-Brieuc</span><span>📍 Loudéac</span></div>
+        <div class="cnxVer">App Évolution Conduites · <b class="cnxV"></b></div>
+      </div>
 
-      <!-- Deux informations valent mieux qu'une : un code seul finit
-           par se deviner, un couple beaucoup moins. -->
-      <label for="identInput" style="text-align:left;">Ton prénom</label>
-      <input type="text" id="identInput" autocomplete="username"
-             style="text-align:center;font-size:19px;padding:13px;">
+      <div class="card cnxCarte">
+        <div class="cnxJour" id="cnxJour"></div>
+        <h2 class="cnxBonjour" id="cnxBonjour">Bonjour 👋</h2>
 
-      <label for="codeInput" style="text-align:left;">Code</label>
-      <input type="password" id="codeInput" inputmode="numeric"
-             autocomplete="current-password"
-             maxlength="8" placeholder="••••••"
-             style="text-align:center;letter-spacing:.5em;font-size:24px;padding:14px;">
+        <!-- Le prénom retenu sur cet appareil : une pastille au lieu du champ -->
+        <div class="cnxQui" id="cnxQui" hidden>
+          <span class="cnxAv" id="cnxQuiAv"></span>
+          <span class="cnxNom" id="cnxQuiNom"></span>
+          <button type="button" id="cnxPasMoi">Ce n’est pas moi</button>
+        </div>
 
-      <button class="btn btn-primary" id="codeBtn">Se connecter</button>
-      <div id="codeMsg" style="margin-top:12px;font-size:13px;min-height:18px;color:var(--muted);"></div>
+        <!-- Deux informations valent mieux qu'une : un code seul finit
+             par se deviner, un couple beaucoup moins. -->
+        <div id="cnxChampNom">
+          <label for="identInput">Ton prénom</label>
+          <span class="cnxChamp" data-ico="👤"><input type="text" id="identInput"
+                autocomplete="username" autocapitalize="words" spellcheck="false"></span>
+        </div>
+
+        <div id="cnxChampCode">
+          <label for="codeInput">Code</label>
+          <span class="cnxChamp" data-ico="🔑"><input type="password" id="codeInput"
+                inputmode="numeric" autocomplete="current-password"
+                maxlength="8" placeholder="••••••"></span>
+        </div>
+
+        <!-- Le pavé : six ronds pleins pour un code de six, deux en
+             pointillé parce qu'il peut aller jusqu'à huit. -->
+        <div class="cnxRonds" id="cnxRonds" hidden aria-live="polite"></div>
+        <div class="cnxPave" id="cnxPave" hidden>
+          <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+          <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+          <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+          <button type="button" data-k="eff" class="eff" aria-label="Effacer">⌫</button><button type="button" data-k="0">0</button><button type="button" data-k="ok" class="ok" aria-label="Se connecter">✓</button>
+        </div>
+
+        <button class="btn btn-primary" id="codeBtn">Se connecter</button>
+        <div id="codeMsg" style="margin-top:12px;font-size:13px;min-height:18px;color:var(--muted);"></div>
+        <button type="button" class="cnxBascule" id="cnxBascule" hidden></button>
+        <div class="cnxPied">App Évolution Conduites · <b class="cnxV"></b></div>
+      </div>
     </div>
   </div>
 
@@ -6609,6 +6770,35 @@
      Le bouton Déverrouiller est branché ici, dans la page même :
      aucun module défaillant ne peut l'empêcher de fonctionner.
      ============================================================ */
+  /* ⚠️ « SUR L'ÉCRAN DE CONNEXION » SE LIT SUR L'ÉCRAN, PAS AILLEURS — v1335.
+
+     La page de connexion change la mise en page (le panneau, l'en-tête
+     réduit au ⋯). Elle l'accroche à body.surVerrou, posée tant que
+     #lockView est affiché. Plutôt que de compter sur chaque endroit qui
+     l'ouvre ou le ferme — verrouiller, ouvrirSession, et ceux qu'on
+     écrira demain — on REGARDE l'écran : un observateur suit son
+     attribut style. Écrit ici, dans la page, pour la même raison que le
+     bouton : aucun module manquant ne peut laisser l'appli coincée dans
+     la mise en page de la connexion. */
+  (function(){
+    var lv = document.getElementById('lockView');
+    if(!lv) return;
+    function suivre(){
+      var vu = lv.style.display !== 'none' && getComputedStyle(lv).display !== 'none';
+      document.body.classList.toggle('surVerrou', vu);
+      var v = document.getElementById('versionAffichee');
+      var t = v ? v.textContent : '';
+      var cs = document.querySelectorAll('#lockView .cnxV');
+      for(var i = 0; i < cs.length; i++) cs[i].textContent = t;
+      if(vu && typeof window.preparerConnexion === 'function') window.preparerConnexion();
+    }
+    window.suivreEcranConnexion = suivre;
+    if(window.MutationObserver){
+      new MutationObserver(suivre).observe(lv, { attributes: true, attributeFilter: ['style'] });
+    }
+    suivre();
+  })();
+
   (function(){
     var bouton = document.getElementById('codeBtn');
     var champ  = document.getElementById('codeInput');
@@ -8754,133 +8944,135 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1334"></script>
-<script src="app/ec-modeles.js?v=1334"></script>
-<script src="app/ec-consignes.js?v=1334"></script>
-<script src="app/ec-noyau.js?v=1334"></script>
-<script src="app/ec-vocal.js?v=1334"></script>
+  <script src="app/ec-etat.js?v=1335"></script>
+<script src="app/ec-modeles.js?v=1335"></script>
+<script src="app/ec-consignes.js?v=1335"></script>
+<script src="app/ec-noyau.js?v=1335"></script>
+<!-- 🔒 v1335 — la page de connexion : le pavé, le prénom retenu, le bonjour -->
+<script src="app/ec-connexion.js?v=1335"></script>
+<script src="app/ec-vocal.js?v=1335"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1334"></script>
-<script src="app/ec-lieux.js?v=1334"></script>
-<script src="app/ec-reseau.js?v=1334"></script>
-<script src="app/ec-manuel.js?v=1334"></script>
-<script src="app/ec-verifs-banque.js?v=1334"></script>
-<script src="app/ec-suivi-eleve.js?v=1334"></script>
-<script src="app/ec-verifs.js?v=1334"></script>
-<script src="app/ec-jeu-atelier.js?v=1334"></script>
-<script src="app/ec-fenetres.js?v=1334"></script>
+<script src="app/ec-trajet.js?v=1335"></script>
+<script src="app/ec-lieux.js?v=1335"></script>
+<script src="app/ec-reseau.js?v=1335"></script>
+<script src="app/ec-manuel.js?v=1335"></script>
+<script src="app/ec-verifs-banque.js?v=1335"></script>
+<script src="app/ec-suivi-eleve.js?v=1335"></script>
+<script src="app/ec-verifs.js?v=1335"></script>
+<script src="app/ec-jeu-atelier.js?v=1335"></script>
+<script src="app/ec-fenetres.js?v=1335"></script>
 <!-- 🔑 v1325 — le coin révisions d’un élève : sa carte, la mise en route, le message d’accès -->
-<script src="app/ec-coin-revisions.js?v=1334"></script>
-<script src="app/ec-montage.js?v=1334"></script>
-<script src="app/ec-montage-editeur.js?v=1334"></script>
-<script src="app/ec-montage-fabrique.js?v=1334"></script>
-<script src="app/ec-parcours.js?v=1334"></script>
-<script src="app/ec-questionnaire.js?v=1334"></script>
-<script src="app/ec-permis.js?v=1334"></script>
-<script src="app/ec-prepares.js?v=1334"></script>
-<script src="app/ec-avant-cours.js?v=1334"></script>
-<script src="app/ec-bureau.js?v=1334"></script>
-<script src="app/ec-places.js?v=1334"></script>
-<script src="app/ec-listes.js?v=1334"></script>
-<script src="app/ec-permis-listes.js?v=1334"></script>
-<script src="app/ec-postpermis.js?v=1334"></script>
-<script src="app/ec-textes.js?v=1334"></script>
-<script src="app/ec-import-keep.js?v=1334"></script>
-<script src="app/ec-correction.js?v=1334"></script>
-<script src="app/ec-bilans.js?v=1334"></script>
-<script src="app/ec-fiches.js?v=1334"></script>
-<script src="app/ec-compo.js?v=1334"></script>
-<script src="app/ec-tele.js?v=1334"></script>
-<script src="app/ec-ecran.js?v=1334"></script>
-<script src="app/ec-studio.js?v=1334"></script>
-<script src="app/ec-mep.js?v=1334"></script>
-<script src="app/ec-version.js?v=1334"></script>
-<script src="app/ec-paie.js?v=1334"></script>
-<script src="app/ec-flotte.js?v=1334"></script>
-<script src="app/ec-carrosserie.js?v=1334"></script>
-<script src="app/ec-solo.js?v=1334"></script>
-<script src="app/ec-handicap-pdf.js?v=1334"></script>
-<script src="app/ec-moto.js?v=1334"></script>
-<script src="app/ec-remorque.js?v=1334"></script>
-<script src="app/ec-arriereplan.js?v=1334"></script>
-<script src="app/ec-iadirect.js?v=1334"></script>
-<script src="app/ec-placesbe.js?v=1334"></script>
-<script src="app/ec-codeamenage.js?v=1334"></script>
-<script src="app/ec-financements.js?v=1334"></script>
-<script src="app/ec-eval-aac.js?v=1334"></script>
-<script src="app/ec-postes.js?v=1334"></script>
-<script src="app/ec-tarifs.js?v=1334"></script>
-<script src="app/ec-tarifs-fiches.js?v=1334"></script>
-<script src="app/ec-courriers.js?v=1334"></script>
-<script src="app/ec-formations-docs.js?v=1334"></script>
-<script src="app/ec-formations.js?v=1334"></script>
-<script src="app/ec-formations-signer.js?v=1334"></script>
-<script src="app/ec-formations-suivi.js?v=1334"></script>
-<script src="app/ec-caisse.js?v=1334"></script>
-<script src="app/ec-menage.js?v=1334"></script>
-<script src="app/ec-page-eleve.js?v=1334"></script>
-<script src="app/ec-notes-dossier.js?v=1334"></script>
-<script src="app/ec-renseignements.js?v=1334"></script>
-<script src="app/ec-messagerie.js?v=1334"></script>
-<script src="app/ec-cockpit.js?v=1334"></script>
+<script src="app/ec-coin-revisions.js?v=1335"></script>
+<script src="app/ec-montage.js?v=1335"></script>
+<script src="app/ec-montage-editeur.js?v=1335"></script>
+<script src="app/ec-montage-fabrique.js?v=1335"></script>
+<script src="app/ec-parcours.js?v=1335"></script>
+<script src="app/ec-questionnaire.js?v=1335"></script>
+<script src="app/ec-permis.js?v=1335"></script>
+<script src="app/ec-prepares.js?v=1335"></script>
+<script src="app/ec-avant-cours.js?v=1335"></script>
+<script src="app/ec-bureau.js?v=1335"></script>
+<script src="app/ec-places.js?v=1335"></script>
+<script src="app/ec-listes.js?v=1335"></script>
+<script src="app/ec-permis-listes.js?v=1335"></script>
+<script src="app/ec-postpermis.js?v=1335"></script>
+<script src="app/ec-textes.js?v=1335"></script>
+<script src="app/ec-import-keep.js?v=1335"></script>
+<script src="app/ec-correction.js?v=1335"></script>
+<script src="app/ec-bilans.js?v=1335"></script>
+<script src="app/ec-fiches.js?v=1335"></script>
+<script src="app/ec-compo.js?v=1335"></script>
+<script src="app/ec-tele.js?v=1335"></script>
+<script src="app/ec-ecran.js?v=1335"></script>
+<script src="app/ec-studio.js?v=1335"></script>
+<script src="app/ec-mep.js?v=1335"></script>
+<script src="app/ec-version.js?v=1335"></script>
+<script src="app/ec-paie.js?v=1335"></script>
+<script src="app/ec-flotte.js?v=1335"></script>
+<script src="app/ec-carrosserie.js?v=1335"></script>
+<script src="app/ec-solo.js?v=1335"></script>
+<script src="app/ec-handicap-pdf.js?v=1335"></script>
+<script src="app/ec-moto.js?v=1335"></script>
+<script src="app/ec-remorque.js?v=1335"></script>
+<script src="app/ec-arriereplan.js?v=1335"></script>
+<script src="app/ec-iadirect.js?v=1335"></script>
+<script src="app/ec-placesbe.js?v=1335"></script>
+<script src="app/ec-codeamenage.js?v=1335"></script>
+<script src="app/ec-financements.js?v=1335"></script>
+<script src="app/ec-eval-aac.js?v=1335"></script>
+<script src="app/ec-postes.js?v=1335"></script>
+<script src="app/ec-tarifs.js?v=1335"></script>
+<script src="app/ec-tarifs-fiches.js?v=1335"></script>
+<script src="app/ec-courriers.js?v=1335"></script>
+<script src="app/ec-formations-docs.js?v=1335"></script>
+<script src="app/ec-formations.js?v=1335"></script>
+<script src="app/ec-formations-signer.js?v=1335"></script>
+<script src="app/ec-formations-suivi.js?v=1335"></script>
+<script src="app/ec-caisse.js?v=1335"></script>
+<script src="app/ec-menage.js?v=1335"></script>
+<script src="app/ec-page-eleve.js?v=1335"></script>
+<script src="app/ec-notes-dossier.js?v=1335"></script>
+<script src="app/ec-renseignements.js?v=1335"></script>
+<script src="app/ec-messagerie.js?v=1335"></script>
+<script src="app/ec-cockpit.js?v=1335"></script>
 <!-- 📞 v1183 — les appels : l'écran commun (partagé avec eleve.html), puis l'équipe -->
-<script src="appel-commun.js?v=1334"></script>
-<script src="app/ec-appels.js?v=1334"></script>
-<script src="app/ec-aqui.js?v=1334"></script>
-<script src="app/ec-photos-profil.js?v=1334"></script>
-<script src="app/ec-drivup.js?v=1334"></script>
-<script src="app/ec-bureaux.js?v=1334"></script>
-<script src="app/ec-cbgasoil.js?v=1334"></script>
-<script src="app/ec-loupe.js?v=1334"></script>
-<script src="app/ec-coutsia.js?v=1334"></script>
-<script src="app/ec-evaluation.js?v=1334"></script>
+<script src="appel-commun.js?v=1335"></script>
+<script src="app/ec-appels.js?v=1335"></script>
+<script src="app/ec-aqui.js?v=1335"></script>
+<script src="app/ec-photos-profil.js?v=1335"></script>
+<script src="app/ec-drivup.js?v=1335"></script>
+<script src="app/ec-bureaux.js?v=1335"></script>
+<script src="app/ec-cbgasoil.js?v=1335"></script>
+<script src="app/ec-loupe.js?v=1335"></script>
+<script src="app/ec-coutsia.js?v=1335"></script>
+<script src="app/ec-evaluation.js?v=1335"></script>
 <!-- 👥 v1189 — l’équipe : fiches, papiers, arrêts, et les échéances de l’école -->
-<script src="app/ec-equipe.js?v=1334"></script>
-<script src="app/ec-paiement.js?v=1334"></script>
-<script src="app/ec-aides.js?v=1334"></script>
-<script src="app/ec-salle.js?v=1334"></script>
-<script src="app/ec-durees-examen.js?v=1334"></script>
-<script src="app/ec-msg-gestes.js?v=1334"></script>
-<script src="app/ec-handicap.js?v=1334"></script>
-<script src="app/ec-code.js?v=1334"></script>
-<script src="app/ec-proccorriger.js?v=1334"></script>
-<script src="app/ec-sessions.js?v=1334"></script>
-<script src="app/ec-creneaux.js?v=1334"></script>
-<script src="app/ec-suivi-appels.js?v=1334"></script>
-<script src="app/ec-aac-cs.js?v=1334"></script>
-<script src="app/ec-notifs.js?v=1334"></script>
-<script src="app/ec-ecoutes.js?v=1334"></script>
-<script src="app/ec-ecoutes-presence.js?v=1334"></script>
-<script src="app/ec-todo.js?v=1334"></script>
-<script src="app/ec-taches.js?v=1334"></script>
-<script src="app/ec-memoire.js?v=1334"></script>
-<script src="app/ec-historique.js?v=1334"></script>
-<script src="app/ec-rappels.js?v=1334"></script>
-<script src="app/ec-segments.js?v=1334"></script>
-<script src="app/ec-sms.js?v=1334"></script>
-<script src="app/ec-encours.js?v=1334"></script>
-<script src="app/ec-incidents.js?v=1334"></script>
+<script src="app/ec-equipe.js?v=1335"></script>
+<script src="app/ec-paiement.js?v=1335"></script>
+<script src="app/ec-aides.js?v=1335"></script>
+<script src="app/ec-salle.js?v=1335"></script>
+<script src="app/ec-durees-examen.js?v=1335"></script>
+<script src="app/ec-msg-gestes.js?v=1335"></script>
+<script src="app/ec-handicap.js?v=1335"></script>
+<script src="app/ec-code.js?v=1335"></script>
+<script src="app/ec-proccorriger.js?v=1335"></script>
+<script src="app/ec-sessions.js?v=1335"></script>
+<script src="app/ec-creneaux.js?v=1335"></script>
+<script src="app/ec-suivi-appels.js?v=1335"></script>
+<script src="app/ec-aac-cs.js?v=1335"></script>
+<script src="app/ec-notifs.js?v=1335"></script>
+<script src="app/ec-ecoutes.js?v=1335"></script>
+<script src="app/ec-ecoutes-presence.js?v=1335"></script>
+<script src="app/ec-todo.js?v=1335"></script>
+<script src="app/ec-taches.js?v=1335"></script>
+<script src="app/ec-memoire.js?v=1335"></script>
+<script src="app/ec-historique.js?v=1335"></script>
+<script src="app/ec-rappels.js?v=1335"></script>
+<script src="app/ec-segments.js?v=1335"></script>
+<script src="app/ec-sms.js?v=1335"></script>
+<script src="app/ec-encours.js?v=1335"></script>
+<script src="app/ec-incidents.js?v=1335"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1334"></script>
+<script src="app/ec-messages-perso.js?v=1335"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1334"></script>
-<script src="app/ec-bandeau.js?v=1334"></script>
-<script src="app/ec-stats.js?v=1334"></script>
-<script src="app/ec-messenger.js?v=1334"></script>
-<script src="app/ec-journal.js?v=1334"></script>
-<script src="app/ec-mails.js?v=1334"></script>
-<script src="app/ec-activite.js?v=1334"></script>
-<script src="app/ec-direct.js?v=1334"></script>
-<script src="app/ec-depart.js?v=1334"></script>
+<script src="app/ec-nouveautes.js?v=1335"></script>
+<script src="app/ec-bandeau.js?v=1335"></script>
+<script src="app/ec-stats.js?v=1335"></script>
+<script src="app/ec-messenger.js?v=1335"></script>
+<script src="app/ec-journal.js?v=1335"></script>
+<script src="app/ec-mails.js?v=1335"></script>
+<script src="app/ec-activite.js?v=1335"></script>
+<script src="app/ec-direct.js?v=1335"></script>
+<script src="app/ec-depart.js?v=1335"></script>
 <!-- 📝 v1314 — « Tu dois faire ton bilan » -->
-<script src="app/ec-bilan-eleve.js?v=1334"></script>
-<script src="app/ec-onglets.js?v=1334"></script>
-<script src="app/ec-demarrage.js?v=1334"></script>
+<script src="app/ec-bilan-eleve.js?v=1335"></script>
+<script src="app/ec-onglets.js?v=1335"></script>
+<script src="app/ec-demarrage.js?v=1335"></script>
 
 <script>
 /* ============================================================
@@ -8900,6 +9092,9 @@
     var num = (mod.getAttribute('src').match(/[?&]v=(\d+)/) || [])[1];
     if(!num) return;
     cible.textContent = 'v' + num;
+    /* La page de connexion porte la même version, deux fois. */
+    var cnx = document.querySelectorAll('#lockView .cnxV');
+    for(var k = 0; k < cnx.length; k++) cnx[k].textContent = 'v' + num;
 
     /* ⚠️ ET ON VÉRIFIE QUE LES MODULES SUIVENT — v1120.
 
