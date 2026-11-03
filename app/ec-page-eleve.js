@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:59 — v1333 */
+/* Déployé le 03/11/2026 à 16:23 — v1341 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -927,7 +927,10 @@ function positionDeLEleve(nom, e){
     .sort((a, b) => String(a.date).localeCompare(String(b.date)) ||
                     String(a.heure || '').localeCompare(String(b.heure || '')));
   const examen = tous.find(x => estUnExamenPrepare(x) && String(x.date) >= auj) || null;
-  const siens = tous.filter(x => !estUnExamenPrepare(x));
+  /* v1341 — ni l'examen officiel, ni une séance qui n'est pas une leçon
+     (l'examen blanc d'abord) : voir seanceSansRang, ec-prepares.js */
+  const siens = tous.filter(x => !estUnExamenPrepare(x) &&
+                                 !(typeof seanceSansRang === 'function' && seanceSansRang(x)));
   const prochain = siens.find(x => String(x.date) >= auj) || null;
   const avecExamen = (r) => Object.assign(r, { examen: examen });
   return avecExamen(positionDesLecons(nom, e, auj, siens, prochain));
