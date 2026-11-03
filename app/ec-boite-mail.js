@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 15:45 — v1340 */
+/* Déployé le 03/11/2026 à 16:58 — v1342 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -45,6 +45,169 @@ let mlEnLecture = null;
    une liste demandée AVANT le geste et rendue APRÈS est périmée (elle
    repeignait « lu » un mail qu'on venait de remettre en non lu) */
 let mlGestes = 0;
+
+/* ============================================================
+   🚩 👤 🏷️ LE DRAPEAU, QUI S'EN OCCUPE, LES FILTRES — v1342
+
+   David, le 3 novembre : « des filtres avec les étiquettes dans les
+   mails », « un drapeau pour que ce soit en rouge et qu'on le repère
+   bien quand c'est à traiter », « plusieurs points de couleur pour voir
+   si on attribue une couleur à une personne pour qu'elle s'en occupe ».
+   Ses réponses au schéma :
+     · le 🚩 remplace « ⚠️ Urgent » (même case : Claude le pose là où
+       il posait « urgent ») ;
+     · une couleur par personne, donnée par l'appli ; un administrateur
+       la change et choisit qui est dans la liste (⚙️ Réglages) ;
+     · pas de notification ;
+     · « ✓ Réglé » enlève le drapeau, les ronds restent ;
+     · les filtres en une rangée : Tous · 🚩 · 🔵 Pour moi · 👤 Qui ▾ ·
+       🏷️ Étiquette ▾ (pas toutes les étiquettes en puces).
+   ============================================================ */
+const ML_POUR_COULEURS = {
+  bleu:   { hex: '#2F6FEB', emo: '🔵' }, violet: { hex: '#8B5CF6', emo: '🟣' }, orange: { hex: '#F08A24', emo: '🟠' },
+  vert:   { hex: '#16A34A', emo: '🟢' }, jaune:  { hex: '#D4A106', emo: '🟡' }, brun:   { hex: '#8B5A2B', emo: '🟤' },
+  noir:   { hex: '#3F3F46', emo: '⚫' }
+};
+const mlFiltre = { drap: false, moi: false, qui: '', etiq: '' };
+function mlNormNom(n){ return String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
+function mlPersonnes(){ return (mlEtat && Array.isArray(mlEtat.personnes)) ? mlEtat.personnes : []; }
+function mlPersonne(nom){
+  const k = mlNormNom(nom);
+  const p = mlPersonnes().find(x => mlNormNom(x.nom) === k);
+  return { nom: p ? p.nom : String(nom || ''), couleur: (p && ML_POUR_COULEURS[p.couleur]) ? p.couleur : 'noir', connu: !!p };
+}
+function mlMoi(){ return (typeof ACCES !== 'undefined' && ACCES && (ACCES.moniteur || ACCES.nom)) || ''; }
+function mlEstPour(f, nom){ const k = mlNormNom(nom); return !!k && (f.pour || []).some(x => mlNormNom(x) === k); }
+/* Le rond : la couleur ET l'initiale (la couleur ne parle jamais seule) */
+function mlRond(nom){
+  const p = mlPersonne(nom);
+  const r = document.createElement('span');
+  r.className = 'mlRond';
+  r.style.background = ML_POUR_COULEURS[p.couleur].hex;
+  r.textContent = (p.nom.trim().charAt(0) || '?').toUpperCase();
+  r.title = 'Pour ' + p.nom;
+  r.setAttribute('aria-label', 'Pour ' + p.nom);
+  return r;
+}
+function mlFiltrer(l){
+  return l.filter(f => (!mlFiltre.drap || f.urgent) &&
+                       (!mlFiltre.moi || mlEstPour(f, mlMoi())) &&
+                       (!mlFiltre.qui || (mlFiltre.qui === '∅' ? !(f.pour || []).length : mlEstPour(f, mlFiltre.qui))) &&
+                       (!mlFiltre.etiq || (mlFiltre.etiq === '∅' ? !(f.etiquettes || []).length : (f.etiquettes || []).indexOf(mlFiltre.etiq) !== -1)));
+}
+function mlFiltreActif(){ return !!(mlFiltre.drap || mlFiltre.moi || mlFiltre.qui || mlFiltre.etiq); }
+function mlRangeeDesFiltres(){
+  const r = document.createElement('div');
+  r.className = 'mlFiltres';
+  const tous = mlFils;
+  const puce = (texte, n, on, titre, faire, cle) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ckpOnglet mlFiltreB' + (on ? ' on' : '');
+    b.dataset.filtre = cle;
+    b.title = titre || '';
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.appendChild(document.createTextNode(texte));
+    if(n !== null && n !== undefined){ const c = document.createElement('span'); c.className = 'n'; c.textContent = String(n); b.appendChild(c); }
+    b.addEventListener('click', ev => { ev.stopPropagation(); faire(b); });
+    r.appendChild(b);
+    return b;
+  };
+  const redessiner = () => dessinerLaListeMessagerie();
+  puce('Tous', tous.length, !mlFiltreActif(), 'Tous les mails', () => { mlFiltre.drap = false; mlFiltre.moi = false; mlFiltre.qui = ''; mlFiltre.etiq = ''; redessiner(); }, 'tous');
+  puce('🚩', tous.filter(f => f.urgent).length, mlFiltre.drap, 'Seulement les drapeaux rouges', () => { mlFiltre.drap = !mlFiltre.drap; redessiner(); }, 'drap');
+  const moi = mlMoi();
+  if(moi && mlPersonne(moi).connu){
+    puce(ML_POUR_COULEURS[mlPersonne(moi).couleur].emo + ' Pour moi', tous.filter(f => mlEstPour(f, moi)).length, mlFiltre.moi, 'Ceux dont je m’occupe',
+      () => { mlFiltre.moi = !mlFiltre.moi; if(mlFiltre.moi) mlFiltre.qui = ''; redessiner(); }, 'moi');
+  }
+  const pq = mlFiltre.qui ? (mlFiltre.qui === '∅' ? '∅ Personne dessus ✕' : ML_POUR_COULEURS[mlPersonne(mlFiltre.qui).couleur].emo + ' ' + mlPersonne(mlFiltre.qui).nom + ' ✕') : '👤 Qui ▾';
+  puce(pq, null, !!mlFiltre.qui, 'Voir les mails d’une personne', b => {
+    if(mlFiltre.qui){ mlFiltre.qui = ''; redessiner(); return; }
+    const items = mlPersonnes().map(p => ({ emoji: ML_POUR_COULEURS[p.couleur] ? ML_POUR_COULEURS[p.couleur].emo : '⚫', texte: p.nom + (mlNormNom(p.nom) === mlNormNom(moi) ? ' (moi)' : '') + ' · ' + tous.filter(f => mlEstPour(f, p.nom)).length,
+      faire: () => { mlFiltre.qui = p.nom; mlFiltre.moi = false; redessiner(); } }));
+    items.push({ sep: true }, { emoji: '∅', texte: 'Personne dessus · ' + tous.filter(f => !(f.pour || []).length).length, faire: () => { mlFiltre.qui = '∅'; mlFiltre.moi = false; redessiner(); } });
+    menuGestesEC(b, '👤 Voir seulement…', items);
+  }, 'qui');
+  const pe = mlFiltre.etiq ? (mlFiltre.etiq === '∅' ? '∅ Sans étiquette ✕' : '🏷️ ' + mlFiltre.etiq + ' ✕') : '🏷️ Étiquette ▾';
+  puce(pe, null, !!mlFiltre.etiq, 'Voir les mails d’une étiquette', b => {
+    if(mlFiltre.etiq){ mlFiltre.etiq = ''; redessiner(); return; }
+    const items = ((mlEtat && mlEtat.etiquettes) || []).map(e => ({ emoji: '🏷️', texte: e + ' · ' + tous.filter(f => (f.etiquettes || []).indexOf(e) !== -1).length,
+      faire: () => { mlFiltre.etiq = e; redessiner(); } }));
+    items.push({ sep: true }, { emoji: '∅', texte: 'Sans étiquette · ' + tous.filter(f => !(f.etiquettes || []).length).length, faire: () => { mlFiltre.etiq = '∅'; redessiner(); } });
+    menuGestesEC(b, '🏷️ Voir seulement…', items);
+  }, 'etiq');
+  return r;
+}
+function mlBarreDuFiltre(){
+  const d = document.createElement('div');
+  d.className = 'ckpFiltre mlFiltreBarre';
+  const bouts = [];
+  if(mlFiltre.drap) bouts.push('🚩');
+  if(mlFiltre.moi) bouts.push(ML_POUR_COULEURS[mlPersonne(mlMoi()).couleur].emo + ' Pour moi');
+  if(mlFiltre.qui) bouts.push(mlFiltre.qui === '∅' ? 'Personne dessus' : ML_POUR_COULEURS[mlPersonne(mlFiltre.qui).couleur].emo + ' ' + mlPersonne(mlFiltre.qui).nom);
+  if(mlFiltre.etiq) bouts.push(mlFiltre.etiq === '∅' ? 'Sans étiquette' : '🏷️ ' + mlFiltre.etiq);
+  const t = document.createElement('span');
+  t.textContent = 'Filtré : ' + bouts.join(' + ');
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.textContent = '✕ Retirer';
+  x.addEventListener('click', () => { mlFiltre.drap = false; mlFiltre.moi = false; mlFiltre.qui = ''; mlFiltre.etiq = ''; dessinerLaListeMessagerie(); });
+  d.append(t, x);
+  return d;
+}
+/* 👤 Qui s'en occupe : on coche une ou plusieurs personnes ; le menu se
+   rouvre après chaque coche, pour en mettre une deuxième */
+function mlMenuPourQui(f, ancre, apres){
+  const items = [{ titre: 'POUR QUI ? (UN OU PLUSIEURS)' }];
+  const moi = mlMoi();
+  mlPersonnes().forEach(p => {
+    const pris = mlEstPour(f, p.nom);
+    items.push({ emoji: ML_POUR_COULEURS[p.couleur] ? ML_POUR_COULEURS[p.couleur].emo : '⚫', texte: p.nom + (mlNormNom(p.nom) === mlNormNom(moi) ? ' (moi)' : '') + (pris ? '  ✓' : ''), on: pris, cle: 'pour',
+      faire: async () => {
+        const l = (f.pour || []).filter(x => mlNormNom(x) !== mlNormNom(p.nom));
+        if(!pris) l.push(p.nom);
+        await mlPoserPour(f, l);
+        if(apres) apres();
+        /* la liste s'est redessinée : on rouvre le menu sur le bouton qui l'a remplacé */
+        const a = (ancre && ancre.isConnected) ? ancre
+          : (document.querySelector('.mlIt[data-mail="' + f.id + '"] .mlSurvolB[data-geste="pour"]') ||
+             document.querySelector('#ckpFil .mlPourLigne u') || document.querySelector('#ckpFil .msgPts'));
+        const neuf = mlFils.find(x => x.id === f.id) || (mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id ? mlFilOuvert.fil : f);
+        if(a) mlMenuPourQui(neuf, a, apres);
+      } });
+  });
+  if(!mlPersonnes().length) items.push({ titre: 'LA LISTE EST VIDE : ⋯ › ⚙️ RÉGLAGES DES MAILS' });
+  if((f.pour || []).length) items.push({ sep: true }, { emoji: '✕', texte: 'Personne', faire: async () => { await mlPoserPour(f, []); if(apres) apres(); } });
+  menuGestesEC(ancre, '👤 Qui s’en occupe ?', items);
+}
+async function mlPoserPour(f, liste){
+  mlGestes++;
+  const r = await appelPrep({ action: 'mailMarquer', id: f.id, pour: liste });
+  mlGestes++;
+  if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+  if(r.fil){
+    const i = mlFils.findIndex(x => x.id === f.id);
+    if(i !== -1) mlFils[i] = r.fil;
+    if(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id) mlFilOuvert.fil = r.fil;
+  }
+  dessinerLaListeMessagerie();
+  if(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id) mlDessinerLeFil();
+}
+async function mlDrapeau(f){
+  mlGestes++;
+  const r = await appelPrep({ action: 'mailMarquer', id: f.id, urgent: f.urgent ? 0 : 1 });
+  mlGestes++;
+  if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+  if(r.fil){
+    const i = mlFils.findIndex(x => x.id === f.id);
+    if(i !== -1) mlFils[i] = r.fil;
+    if(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id) mlFilOuvert.fil = r.fil;
+  }
+  mlToast(f.urgent ? 'Drapeau retiré' : '🚩 Drapeau rouge');
+  dessinerLaListeMessagerie();
+  if(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id) mlDessinerLeFil();
+}
 let mlFilOuvert = null;          /* { fil, messages } */
 let mlChoixEleveOuvert = false;  /* « 🔗 Rattacher » déplié en tête du fil */
 let mlCompteNonLus = null;       /* le chiffre de l'onglet (convList) */
@@ -169,7 +332,12 @@ function mlDessinerLaListe(zone){
     x.addEventListener('click', () => { mlVue = 'boite'; mlCherche = ''; mlFils = []; mlLueLe = 0; dessinerLaListeMessagerie(); });
     d.append(t, x);
     zone.appendChild(d);
-  }else zone.appendChild(mlEnteteDeLaListe());
+  }else{
+    zone.appendChild(mlEnteteDeLaListe());
+    /* 🏷️ v1342 — les filtres (sous « Claude ») */
+    if(!mlModeChoix) zone.appendChild(mlRangeeDesFiltres());
+    if(mlFiltreActif()) zone.appendChild(mlBarreDuFiltre());
+  }
 
   if(mlModeChoix) zone.appendChild(mlBarreDuChoix());
   const sc = document.createElement('div');
@@ -206,10 +374,19 @@ function mlDessinerLaListe(zone){
   if(mlVue !== 'boite'){ bloc(mlVue === 'regles' ? '🗄️ RÉGLÉS' : 'TROUVÉS', mlFils); return; }
   const maintenant = Date.now();
   const rappel = f => f.rappelLe > maintenant && !f.nonLus;
-  bloc('⚠️ URGENTS', mlFils.filter(f => f.urgent && !rappel(f)));
-  bloc('NON LUS', mlFils.filter(f => !f.urgent && f.nonLus > 0));
-  bloc('À TRAITER', mlFils.filter(f => !f.urgent && !f.nonLus && !rappel(f)));
-  bloc('⏰ À ME RAPPELER', mlFils.filter(f => !f.urgent && rappel(f)));
+  const vus = mlFiltrer(mlFils);
+  if(!vus.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = 'Aucun mail pour ce filtre.';
+    sc.appendChild(v);
+    return;
+  }
+  /* 🚩 v1342 — le drapeau rouge remplace « ⚠️ Urgent » */
+  bloc('🚩 DRAPEAU ROUGE', vus.filter(f => f.urgent && !rappel(f)));
+  bloc('NON LUS', vus.filter(f => !f.urgent && f.nonLus > 0));
+  bloc('À TRAITER', vus.filter(f => !f.urgent && !f.nonLus && !rappel(f)));
+  bloc('⏰ À ME RAPPELER', vus.filter(f => !f.urgent && rappel(f)));
 }
 
 function mlBarreDuHaut(){
@@ -351,7 +528,7 @@ function mlPuce(texte, classe, titre){
 function mlLigne(f){
   const d = document.createElement('div');
   const ouvert = !!(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id);
-  d.className = 'ckIt mlIt' + (ouvert ? ' on' : '') + (f.nonLus ? ' nlu' : ' lu');
+  d.className = 'ckIt mlIt' + (ouvert ? ' on' : '') + (f.nonLus ? ' nlu' : ' lu') + (f.urgent ? ' drap' : '');
   d.dataset.mail = String(f.id);
   d.title = f.nonLus ? 'Non lu — ouvrir le mail' : 'Lu — ouvrir le mail';
   if(mlModeChoix){
@@ -381,7 +558,16 @@ function mlLigne(f){
   const t = document.createElement('span');
   t.className = 'mono';
   t.textContent = mlHeure(f.dernierLe);
-  h.append(q, t);
+  h.appendChild(q);
+  /* 🚩 👤 v1342 — le drapeau et les ronds, juste avant l'heure */
+  if(f.urgent || (f.pour || []).length){
+    const marques = document.createElement('span');
+    marques.className = 'mlMarques';
+    if(f.urgent){ const fl = document.createElement('span'); fl.className = 'mlDrap'; fl.textContent = '🚩'; fl.title = 'Drapeau rouge'; marques.appendChild(fl); }
+    (f.pour || []).forEach(n => marques.appendChild(mlRond(n)));
+    h.appendChild(marques);
+  }
+  h.appendChild(t);
   m.appendChild(h);
   const s = document.createElement('div');
   s.className = 'ap mlSujet';
@@ -406,7 +592,6 @@ function mlLigne(f){
   else if(f.rattache !== 'non' && f.dernierSens === 'recu') puces.appendChild(mlPuce('❓ À rattacher', 'orange',
     f.propose ? '🤖 Claude propose : ' + f.propose : (f.candidats || []).length ? (f.candidats || []).join(' ou ') + ' ?' : ''));
   (f.etiquettes || []).forEach(e => puces.appendChild(mlPuce('🏷️ ' + e)));
-  if(f.urgent) puces.appendChild(mlPuce('⚠️ Urgent', 'rouge'));
   if(f.rappelLe > Date.now()) puces.appendChild(mlPuce('⏰ ' + (typeof ckQuandRevient === 'function' ? ckQuandRevient(f.rappelLe) : mlDateHeure(f.rappelLe))));
   if(puces.children.length) m.appendChild(puces);
   d.appendChild(m);
@@ -452,7 +637,12 @@ function mlGestesAuSurvol(f){
   };
   if(f.nonLus) bouton('✉️', 'Marquer comme lu', () => mlLuDepuisLaListe(f, true), 'lu');
   else bouton('📩', 'Marquer comme non lu', () => mlLuDepuisLaListe(f, false), 'nonlu');
-  if(mlPeutEcrire()) bouton('🏷️', 'Étiquettes', x => mlEtiquettesDepuisLaListe(f, x), 'etiq');
+  if(mlPeutEcrire()){
+    /* 🚩 👤 v1342 */
+    bouton('🚩', f.urgent ? 'Retirer le drapeau rouge' : 'Drapeau rouge', () => mlDrapeau(f), 'drap');
+    bouton('🏷️', 'Étiquettes', x => mlEtiquettesDepuisLaListe(f, x), 'etiq');
+    bouton('👤', 'Qui s’en occupe ?', x => mlMenuPourQui(f, x), 'pour');
+  }
   return b;
 }
 /* Le geste part au serveur ; la ligne change tout de suite */
@@ -625,6 +815,27 @@ async function mlMarquer(changement, toast){
   if(ckLarge()) dessinerLaListeMessagerie();
 }
 
+function mlLignePour(f){
+  const x = document.createElement('div');
+  x.className = 'mlPourLigne';
+  const l = document.createElement('span');
+  l.className = 'mlPourL';
+  l.textContent = 'Pour :';
+  x.appendChild(l);
+  if((f.pour || []).length){
+    (f.pour || []).forEach(n => { const w = document.createElement('span'); w.className = 'mlPourNom'; w.append(mlRond(n), document.createTextNode(mlPersonne(n).nom)); x.appendChild(w); });
+  }else x.appendChild(Object.assign(document.createElement('span'), { className: 'mlPourL', textContent: 'personne' }));
+  if(mlPeutEcrire()){
+    const u = document.createElement('u');
+    u.textContent = (f.pour || []).length ? 'changer' : 'choisir';
+    u.tabIndex = 0;
+    u.addEventListener('click', ev => { ev.stopPropagation(); mlMenuPourQui(f, u); });
+    u.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); mlMenuPourQui(f, u); } });
+    x.appendChild(u);
+  }
+  return x;
+}
+
 function mlSousTitre(f){
   const s = document.createElement('div');
   s.className = 's mlS';
@@ -667,6 +878,8 @@ function mlEnteteDuFil(large){
   t.className = 't';
   t.textContent = mlNomDuFil(f);
   tt.append(t, mlSousTitre(f));
+  /* 👤 v1342 — « Pour : Ⓜ Maryne · changer » */
+  if((f.pour || []).length || mlPeutEcrire()) tt.appendChild(mlLignePour(f));
   tete.appendChild(tt);
 
   const b = document.createElement('div');
@@ -679,6 +892,8 @@ function mlEnteteDuFil(large){
   const rap = f.rappelLe > Date.now();
   const extras = [];
   if(large){
+    /* 🚩 v1342 — le drapeau, à côté de « Réglé » */
+    if(mlPeutEcrire()) b.appendChild(ckBouton('🚩', f.urgent ? 'Retirer le drapeau rouge' : 'Drapeau rouge', () => mlDrapeau(f).catch(er => mlToast('⚠️ ' + (er.message || er))), 'rond mlDrapB' + (f.urgent ? ' on' : '')));
     if(mlPeutEcrire()) b.appendChild(ckBouton(f.regle ? '↺ Rouvrir' : '✓ Réglé', f.regle ? 'Le remettre dans les mails à traiter' : 'Réglé : il part dans 🗄️ Mails réglés (un nouveau mail le ramène)',
       () => mlMarquer({ regle: f.regle ? 0 : 1 }, f.regle ? '↺ Remis dans les mails à traiter' : '✓ Réglé — rangé dans 🗄️ Mails réglés'), 'regle'));
     b.appendChild(ckBouton('⏰', rap ? 'Retirer le rappel' : 'Me le rappeler demain 9h', () => mlMarquer({ rappel: rap ? 0 : mlDemain9h() }), 'rond' + (rap ? ' on' : '')));
@@ -713,7 +928,8 @@ function mlEnteteDuFil(large){
       await mlMarquer({ etiquettes: (f.etiquettes || []).concat([n.trim()]) });
     } });
     extras.push({ sep: true });
-    extras.push({ emoji: '⚠️', texte: f.urgent ? 'Plus urgent' : 'Marquer urgent', faire: () => mlMarquer({ urgent: f.urgent ? 0 : 1 }) });
+    extras.push({ emoji: '🚩', texte: f.urgent ? 'Retirer le drapeau rouge' : 'Drapeau rouge', cle: 'drap', faire: () => mlDrapeau(f) });
+    extras.push({ emoji: '👤', texte: 'Qui s’en occupe…', cle: 'pour', faire: () => mlMenuPourQui(f, document.querySelector('#ckpFil .msgPts') || pts) });
     extras.push({ emoji: '🔗', texte: f.eleve ? 'Changer d’élève, ou qui écrit' : 'Rattacher à un élève', faire: () => { mlChoixEleveOuvert = true; mlDessinerLeFil(); } });
     if(f.eleve) extras.push({ emoji: '✂️', texte: 'Détacher de ' + f.eleve, faire: () => mlMarquer({ eleve: '' }, 'Détaché') });
     else if(f.rattache !== 'non') extras.push({ emoji: '🚫', texte: 'Pas un élève (ne plus proposer)', faire: () => mlMarquer({ eleve: '' }) });
@@ -735,7 +951,7 @@ function mlEnteteDuFil(large){
   pts.type = 'button';
   pts.className = 'ckBt rond msgPts';
   pts.textContent = '⋯';
-  pts.title = 'Étiquettes, urgent, élève, non lu…';
+  pts.title = 'Drapeau, qui s’en occupe, étiquettes, élève, non lu…';
   pts.addEventListener('click', ev => { ev.stopPropagation(); menuGestesEC(pts, '✉️ Ce mail', extras); });
   boite.appendChild(pts);
   b.appendChild(boite);
@@ -1838,6 +2054,8 @@ async function mlFenetreReglages(){
   fond.appendChild(boite);
   const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); };
   let etiquettes = (e.etiquettes || []).slice(), jamais = (e.jamais || []).slice(), pubs = e.pubs !== false;
+  /* 👤 v1342 — qui est dans « Qui s'en occupe », et sa couleur */
+  let personnes = (e.personnes || []).map(p => ({ nom: p.nom, couleur: p.couleur }));
   const dessiner = () => {
     boite.innerHTML = '<h3>⚙️ Réglages des mails</h3>';
     const info = document.createElement('div');
@@ -1873,6 +2091,69 @@ async function mlFenetreReglages(){
     ajout.addEventListener('keydown', ev => { if(ev.key === 'Enter' && ajout.value.trim()){ ev.preventDefault(); etiquettes.push(ajout.value.trim()); dessiner(); } });
     ze.appendChild(ajout);
     boite.appendChild(ze);
+    const tp = document.createElement('label');
+    tp.textContent = '👤 Qui s’en occupe — la liste et les couleurs';
+    boite.appendChild(tp);
+    const zp = document.createElement('div');
+    zp.className = 'mlPersonnesReg';
+    personnes.forEach((p, i) => {
+      const ligne = document.createElement('div');
+      ligne.className = 'mlPersReg';
+      ligne.dataset.nom = p.nom;
+      const r = mlRond(p.nom);
+      r.style.background = (ML_POUR_COULEURS[p.couleur] || ML_POUR_COULEURS.noir).hex;
+      const n = document.createElement('span');
+      n.className = 'mlPersNom';
+      n.textContent = p.nom;
+      ligne.append(r, n);
+      const pal = document.createElement('span');
+      pal.className = 'mlPalette';
+      Object.keys(ML_POUR_COULEURS).forEach(k => {
+        const c = document.createElement('button');
+        c.type = 'button';
+        c.className = 'mlCouleurB' + (p.couleur === k ? ' on' : '');
+        c.dataset.couleur = k;
+        c.style.background = ML_POUR_COULEURS[k].hex;
+        c.title = k;
+        c.setAttribute('aria-label', 'Couleur ' + k + ' pour ' + p.nom);
+        c.setAttribute('aria-pressed', p.couleur === k ? 'true' : 'false');
+        c.addEventListener('click', () => { p.couleur = k; dessiner(); });
+        pal.appendChild(c);
+      });
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'mlPersRetirer';
+      x.textContent = '✕';
+      x.title = 'Retirer ' + p.nom + ' de la liste';
+      x.addEventListener('click', () => { personnes.splice(i, 1); dessiner(); });
+      ligne.append(pal, x);
+      zp.appendChild(ligne);
+    });
+    /* ajouter quelqu'un de l'équipe (ou un prénom tapé) */
+    const equipe = [];
+    ((typeof comptesActifs !== 'undefined' && comptesActifs) || []).forEach(c => { const n = c && (c.nom || c); if(n && equipe.indexOf(n) === -1) equipe.push(String(n)); });
+    ((typeof moniteursActifs !== 'undefined' && moniteursActifs) || []).forEach(n => { if(n && equipe.indexOf(n) === -1) equipe.push(String(n)); });
+    const libres = equipe.filter(n => !personnes.some(p => mlNormNom(p.nom) === mlNormNom(n))).sort((a, b) => a.localeCompare(b, 'fr'));
+    const ajP = document.createElement('div');
+    ajP.className = 'mlPersAjout';
+    const sel = document.createElement('select');
+    sel.id = 'mlPersAjout';
+    sel.appendChild(new Option('➕ Ajouter quelqu’un…', ''));
+    libres.forEach(n => sel.appendChild(new Option(n, n)));
+    sel.appendChild(new Option('Autre prénom…', '__autre__'));
+    sel.addEventListener('change', async () => {
+      let n = sel.value;
+      if(n === '__autre__') n = (typeof demander === 'function') ? (await demander('Le prénom :', '', '👤 Ajouter quelqu’un') || '') : '';
+      n = String(n || '').trim();
+      if(!n || personnes.some(p => mlNormNom(p.nom) === mlNormNom(n))){ dessiner(); return; }
+      const prises = personnes.map(p => p.couleur);
+      const libre = Object.keys(ML_POUR_COULEURS).find(k => prises.indexOf(k) === -1) || Object.keys(ML_POUR_COULEURS)[personnes.length % 7];
+      personnes.push({ nom: n, couleur: libre });
+      dessiner();
+    });
+    ajP.appendChild(sel);
+    zp.appendChild(ajP);
+    boite.appendChild(zp);
     const t2 = document.createElement('label');
     t2.textContent = 'Jamais à la corbeille (adresses ou @domaines)';
     boite.appendChild(t2);
@@ -1907,7 +2188,7 @@ async function mlFenetreReglages(){
     bOk.addEventListener('click', async () => {
       bOk.disabled = true;
       try{
-        const r = await appelPrep({ action: 'mailReglagesPoser', pubs: pubs, etiquettes: etiquettes, jamais: jamais });
+        const r = await appelPrep({ action: 'mailReglagesPoser', pubs: pubs, etiquettes: etiquettes, jamais: jamais, personnes: personnes });
         if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
         mlEtat = r.etat || mlEtat;
         mlToast('⚙️ Réglages des mails enregistrés');
