@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 13:55 — v1337 */
+/* Déployé le 03/11/2026 à 14:55 — v1338 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -19,7 +19,11 @@
      départ, et on en ajoute ; un appui ouvre l'éditeur ;
    · les pubs et newsletters supprimées (à la corbeille) ;
    · ses mails dans le dossier de l'élève, onglet 💬 Messages.
-   Claude (résumés, étiquettes, réponses proposées) : livraison 2.
+   🤖 v1338 (livraison 2, « je te laisse faire ») : Claude — un
+   interrupteur pour toute l'école, le résumé et les étiquettes à
+   l'arrivée, l'élève proposé, la réponse proposée à l'ouverture,
+   « ☑️ En faire une tâche », « ➕ Créer la fiche », 🤖 ▾ dans l'éditeur.
+   Rien ne part sans quelqu'un de l'équipe.
 
    ⚠️ CE FICHIER NE TOUCHE PAS À LA MESSAGERIE, IL S'Y POSE. La
    liste, l'onglet et les colonnes sont ceux du cockpit
@@ -241,9 +245,10 @@ function mlMenuDeLaListe(ancre){
   const items = [];
   items.push({ emoji: '🔄', texte: 'Relever la boîte maintenant', cle: 'releve', faire: () => mlRelever() });
   items.push({ emoji: '🗄️', texte: 'Mails réglés', on: mlVue === 'regles', cle: 'regles', faire: () => { mlVue = 'regles'; mlFils = []; mlLueLe = 0; dessinerLaListeMessagerie(); } });
-  items.push({ emoji: '🗑️', texte: 'Pubs et newsletters à la corbeille', cle: 'corbeille', faire: () => mlFenetreCorbeille() });
+  items.push({ emoji: '🗑️', texte: 'Corbeille (mails supprimés, pubs)', cle: 'corbeille', faire: () => mlFenetreCorbeille() });
   items.push({ sep: true });
   items.push({ emoji: '✍️', texte: 'Ma signature', cle: 'signature', faire: () => mlFenetreSignature() });
+  items.push({ emoji: '📒', texte: 'Carnet d’adresses', cle: 'carnet', faire: () => mlFenetreCarnet({}) });
   if(mlEstAdmin()){
     items.push({ emoji: '⚙️', texte: 'Réglages des mails', cle: 'reglages', faire: () => mlFenetreReglages() });
     items.push({ emoji: '⚡', texte: 'Régler les réponses rapides', cle: 'rapides', faire: () => { if(typeof rrFiltre !== 'undefined') rrFiltre = 'mail'; ecranReglagesMessagerie(); } });
@@ -268,6 +273,34 @@ function mlEnteteDeLaListe(){
   const d = document.createElement('div');
   d.className = 'mlEntete';
   const e = mlEtat || {};
+  /* 🤖 v1338 — l'interrupteur de Claude, pour toute l'école
+     (administrateurs) ; les autres voient s'il est allumé */
+  if(e.configuree !== false && mlEtat){
+    const lab = document.createElement('label');
+    lab.className = 'mlInter' + (e.claude ? ' on' : '') + (mlEstAdmin() && e.claudeDisponible ? '' : ' fige');
+    lab.id = 'mlClaudeInter';
+    const t = document.createElement('span');
+    t.className = 't';
+    t.textContent = e.claudeDisponible ? '🤖 Claude lit et prépare les réponses' : '🤖 Claude : la clé Anthropic manque au Worker';
+    const sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.innerHTML = '<i></i>';
+    lab.append(t, sw);
+    lab.title = !e.claudeDisponible ? 'ANTHROPIC_API_KEY absente du Worker' :
+      mlEstAdmin() ? (e.claude ? 'Éteindre Claude pour toute l’école' : 'Allumer Claude pour toute l’école') : 'Réglé par un administrateur';
+    lab.addEventListener('click', async ev => {
+      ev.preventDefault();
+      if(!mlEstAdmin() || !e.claudeDisponible) return;
+      try{
+        const r = await appelPrep({ action: 'mailReglagesPoser', claude: !e.claude });
+        if(r && r.etat) mlEtat = r.etat;
+        mlToast(mlEtat.claude ? '🤖 Claude lit les mails qui arrivent' : '🤖 Claude est éteint');
+        dessinerLaListeMessagerie();
+        if(mlFilOuvert){ mlFilOuvert.claude = !!mlEtat.claude; mlDessinerLeFil(); }
+      }catch(er){ mlToast('⚠️ ' + (er.message || er)); }
+    });
+    d.appendChild(lab);
+  }
   if(e.erreur){
     const x = document.createElement('div');
     x.className = 'mlAlerte';
@@ -329,7 +362,14 @@ function mlLigne(f){
   s.className = 'ap mlSujet';
   s.textContent = (f.pj ? '📎 ' : '') + (f.sujet || '(sans objet)');
   m.appendChild(s);
-  if(f.apercu){
+  if(f.resume && f.dernierSens === 'recu'){
+    /* 🤖 v1338 — la ligne de Claude à la place du début du mail */
+    const a = document.createElement('div');
+    a.className = 'ap mlApercu mlResume';
+    a.appendChild(document.createTextNode('🤖 '));
+    mlPoserLeGras(a, f.resume);
+    m.appendChild(a);
+  }else if(f.apercu){
     const a = document.createElement('div');
     a.className = 'ap mlApercu';
     a.textContent = (f.dernierSens === 'envoye' ? (f.webmail ? '↩️ (webmail) ' : '↩️ ') : '') + f.apercu;
@@ -338,7 +378,8 @@ function mlLigne(f){
   const puces = document.createElement('div');
   puces.className = 'mlPuces';
   if(f.eleve) puces.appendChild(mlPuce('🔗 ' + f.eleve, 'eleve'));
-  else if(f.rattache !== 'non' && f.dernierSens === 'recu') puces.appendChild(mlPuce('❓ À rattacher', 'orange', (f.candidats || []).length ? (f.candidats || []).join(' ou ') + ' ?' : ''));
+  else if(f.rattache !== 'non' && f.dernierSens === 'recu') puces.appendChild(mlPuce('❓ À rattacher', 'orange',
+    f.propose ? '🤖 Claude propose : ' + f.propose : (f.candidats || []).length ? (f.candidats || []).join(' ou ') + ' ?' : ''));
   (f.etiquettes || []).forEach(e => puces.appendChild(mlPuce('🏷️ ' + e)));
   if(f.urgent) puces.appendChild(mlPuce('⚠️ Urgent', 'rouge'));
   if(f.rappelLe > Date.now()) puces.appendChild(mlPuce('⏰ ' + (typeof ckQuandRevient === 'function' ? ckQuandRevient(f.rappelLe) : mlDateHeure(f.rappelLe))));
@@ -367,7 +408,7 @@ async function mlOuvrir(id){
   }
   if(typeof ckEcranAPart !== 'undefined') ckEcranAPart = true;
   const autre = !(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === id);
-  if(autre) mlChoixEleveOuvert = false;
+  if(autre){ mlChoixEleveOuvert = false; if(mlReponseClaude && mlReponseClaude.fil !== id) mlReponseClaude = null; }
   const zone = zoneFilMsg();
   if(!zone) return;
   if(autre || !mlFilOuvert){
@@ -511,6 +552,15 @@ function mlEnteteDuFil(large){
     else if(f.rattache !== 'non') extras.push({ emoji: '🚫', texte: 'Pas un élève (ne plus proposer)', faire: () => mlMarquer({ eleve: '' }) });
   }
   extras.push({ emoji: '✉️', texte: 'Marquer comme non lu', faire: async () => { await mlMarquer({ nonLu: 1 }); mlFermerLeFil(); } });
+  if(mlPeutEcrire()) extras.push({ emoji: '🗑️', texte: 'Supprimer cette conversation', danger: true, cle: 'supprimer', faire: () => mlSupprimer(0) });
+  if(mlPeutEcrire() && f.correspondant && !f.eleve){
+    extras.push({ emoji: '📒', texte: 'Garder cette adresse dans le carnet', faire: async () => {
+      const r = await appelPrep({ action: 'mailCarnetPoser', nom: f.nom || '', adresse: f.correspondant });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      mlCarnetDonnees = { carnet: r.carnet || [], eleves: r.eleves || [], recents: r.recents || [] }; mlCarnetLuLe = Date.now();
+      mlToast('📒 ' + (f.nom || f.correspondant) + ' gardé dans le carnet');
+    } });
+  }
 
   const boite = document.createElement('div');
   boite.className = 'msgMenuBoite';
@@ -690,6 +740,16 @@ function mlBulle(m, f){
   h.className = 'h';
   h.textContent = mlHeure(m.quand);
   h.title = mlDateHeure(m.quand);
+  /* 🗑️ v1338 — un message seul, dans une conversation qui en a plusieurs */
+  if(mlPeutEcrire() && f && Number(f.nb || 0) > 1){
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'mlSuppr';
+    x.textContent = '🗑️';
+    x.title = 'Supprimer ce mail';
+    x.addEventListener('click', ev => { ev.stopPropagation(); mlSupprimer(m.id); });
+    h.appendChild(x);
+  }
   b.appendChild(h);
   rang.appendChild(b);
   return rang;
@@ -815,6 +875,9 @@ function mlDessinerLeFil(){
     }
     fil.appendChild(mlBulle(m, mlFilOuvert.fil));
   });
+  /* 🤖 v1338 — ce que Claude a lu, et sa réponse proposée */
+  const boiteClaude = mlBoiteClaude();
+  if(boiteClaude) fil.appendChild(boiteClaude);
   zone.appendChild(fil);
   if(mlPeutEcrire()){
     zone.appendChild(mlVites());
@@ -1057,15 +1120,60 @@ function mlChampAdresses(liste, surChange){
     if(pris){ inp.value = ''; dessiner(); if(surChange) surChange(); }
     return pris;
   };
+  /* 📒 v1338 — en tapant : les élèves (adresse de leur fiche), le carnet,
+     les adresses déjà écrites ; ↑ ↓ et Entrée, ou un clic */
+  const sg = document.createElement('div');
+  sg.className = 'mlSugg';
+  sg.hidden = true;
+  let props = [], choix = 0;
+  const ajouter = o => {
+    if(!o || !o.adresse || liste.some(y => y.adresse === o.adresse)) return;
+    liste.push({ nom: o.nom || '', adresse: o.adresse });
+    inp.value = ''; sg.hidden = true; dessiner(); if(surChange) surChange();
+  };
+  const montrer = () => {
+    props = mlSuggestions(inp.value);
+    sg.innerHTML = '';
+    choix = props.findIndex(o => o.adresse);
+    props.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mlSuggIt' + (i === choix ? ' on' : '');
+      b.disabled = !o.adresse;
+      b.innerHTML = '<span class="i"></span><span class="n"></span><span class="a"></span>';
+      b.querySelector('.i').textContent = ({ eleve: '👤', carnet: '📒', recent: '✉️' })[o.sorte] || '✉️';
+      b.querySelector('.n').textContent = o.nom || o.adresse;
+      b.querySelector('.a').textContent = o.adresse ? (o.nom ? o.adresse : '') + (o.note ? ' · ' + o.note : '') : 'pas d’adresse sur sa fiche';
+      b.addEventListener('mousedown', ev => ev.preventDefault());
+      b.addEventListener('click', () => { ajouter(o); inp.focus(); });
+      sg.appendChild(b);
+    });
+    sg.hidden = !props.length;
+  };
+  inp.addEventListener('input', () => { if(inp.value.trim()) montrer(); else sg.hidden = true; });
+  inp.addEventListener('focus', () => { mlChargerLeCarnet(); });
   inp.addEventListener('keydown', ev => {
-    if(ev.key === 'Enter' || ev.key === ',' || ev.key === ';'){ ev.preventDefault(); prendre(); }
+    if(!sg.hidden && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')){
+      ev.preventDefault();
+      const pas = ev.key === 'ArrowDown' ? 1 : -1;
+      for(let k = 0; k < props.length; k++){ choix = (choix + pas + props.length) % props.length; if(props[choix].adresse) break; }
+      Array.from(sg.children).forEach((b, i) => b.classList.toggle('on', i === choix));
+      return;
+    }
+    if(ev.key === 'Escape' && !sg.hidden){ ev.stopPropagation(); sg.hidden = true; return; }
+    if(ev.key === 'Enter' && !sg.hidden && props[choix] && props[choix].adresse && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(inp.value.trim())){
+      ev.preventDefault(); ajouter(props[choix]); return;
+    }
+    if(ev.key === 'Enter' || ev.key === ',' || ev.key === ';'){ ev.preventDefault(); prendre(); sg.hidden = true; }
     if(ev.key === 'Backspace' && !inp.value && liste.length){ liste.pop(); dessiner(); if(surChange) surChange(); }
   });
-  inp.addEventListener('blur', prendre);
+  inp.addEventListener('blur', () => { prendre(); setTimeout(() => { sg.hidden = true; }, 150); });
   z.addEventListener('click', ev => { if(ev.target === z) inp.focus(); });
   z.appendChild(inp);
+  z.appendChild(sg);
   dessiner();
   z.prendre = prendre;
+  z.ajouter = ajouter;
   return z;
 }
 
@@ -1152,11 +1260,22 @@ async function mlOuvrirLEditeur(opts){
   ccLien.type = 'button';
   ccLien.className = 'mlCcLien';
   ccLien.textContent = 'Cc · Cci';
-  ligne('À', champA, ccLien);
+  /* 📒 v1338 — le carnet : un élève, France Travail, la DDTM… */
+  const carnetLien = document.createElement('button');
+  carnetLien.type = 'button';
+  carnetLien.className = 'mlCcLien mlCarnetLien';
+  carnetLien.textContent = '📒';
+  carnetLien.title = 'Le carnet d’adresses : les élèves, les adresses gardées';
+  carnetLien.addEventListener('click', () => mlFenetreCarnet({ ajouter: o => champA.ajouter(o) }));
+  const plus = document.createElement('span');
+  plus.className = 'mlChampPlus';
+  plus.append(carnetLien, ccLien);
+  ligne('À', champA, plus);
   const champCc = mlChampAdresses(etat.cc, surChange), champCci = mlChampAdresses(etat.cci, surChange);
   const lCc = ligne('Cc', champCc), lCci = ligne('Cci', champCci);
   lCc.hidden = !etat.cc.length; lCci.hidden = !etat.cci.length;
   ccLien.addEventListener('click', () => { lCc.hidden = false; lCci.hidden = false; ccLien.hidden = true; champCc.querySelector('input').focus(); });
+  mlChargerLeCarnet();
   if(etat.cc.length || etat.cci.length) ccLien.hidden = true;
   const sujet = document.createElement('input');
   sujet.type = 'text';
@@ -1210,6 +1329,8 @@ async function mlOuvrirLEditeur(opts){
     if(!items.length) items.push({ emoji: '⚙️', texte: 'Aucune réponse rapide pour les mails', faire: () => {} });
     menuGestesEC(b, '⚡ Réponses rapides', items);
   });
+  /* 🤖 ▾ v1338 — reprendre la réponse proposée, reformuler, corriger */
+  if(mlClaudeAllume()) ed.outil('🤖 ▾', 'Claude : reprendre la réponse proposée, reformuler, corriger les fautes', b => mlMenuClaudeEditeur(b, ed, surChange));
   boite.appendChild(ed.cadre);
   boite.appendChild(pjZone);
 
@@ -1441,8 +1562,9 @@ async function mlFenetreCorbeille(){
   boite.style.maxWidth = 'min(640px, 96vw)';
   fond.appendChild(boite);
   const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); };
-  boite.innerHTML = '<h3>🗑️ Pubs et newsletters</h3><div class="mlAide">Celles qui se déclarent comme telles (un lien « se désabonner », une liste de diffusion). ' +
-    'Elles sont dans la corbeille de la boîte OVH : « ↩️ Remettre » la ramène dans la boîte, et cet expéditeur n’y partira plus jamais. 30 derniers jours.</div>' +
+  boite.innerHTML = '<h3>🗑️ La corbeille</h3><div class="mlAide">Les mails supprimés, et les pubs : celles qui se déclarent comme telles (un lien « se désabonner », une liste de diffusion) ' +
+    'et, Claude allumé, celles qu’il reconnaît comme des pubs (jamais un élève, un parent, un organisme). ' +
+    'Ils sont dans la corbeille de la boîte OVH : « ↩️ Remettre » en ramène un dans la boîte (et l’expéditeur d’une pub n’y partira plus). 30 derniers jours.</div>' +
     '<div class="mlCorbeille">' + ((typeof htmlAttente === 'function') ? htmlAttente('Lecture…') : 'Lecture…') + '</div>';
   const rang = document.createElement('div');
   rang.className = 'btn-row';
@@ -1465,7 +1587,9 @@ async function mlFenetreCorbeille(){
     d.innerHTML = '<div class="g"><b></b><div class="s"></div></div>';
     d.querySelector('b').textContent = p.sujet || '(sans objet)';
     d.querySelector('.s').textContent = (p.deNom ? p.deNom + ' · ' : '') + p.de + ' · ' + mlDateHeure(p.quand) +
-      (p.raison === 'ancienne' ? ' · restée dans la boîte (d’avant l’App)' : '') + (p.remis ? ' · ↩️ remise' : '');
+      (p.raison === 'ancienne' ? ' · restée dans la boîte (d’avant l’App)' : '') + (p.raison === 'claude' ? ' · 🤖 jugée pub par Claude' : '') +
+      (p.raison === 'supprime' ? ' · 🗑️ supprimé' + (p.par ? ' par ' + p.par : '') : '') +
+      (p.remis ? ' · ↩️ remise' : '');
     if(!p.remis && mlPeutEcrire()){
       const b = document.createElement('button');
       b.type = 'button';
@@ -1623,6 +1747,515 @@ function mlOuvrirPartout(id){
   }
   if(typeof filtreMessagerie !== 'undefined') filtreMessagerie = '';
   setTimeout(() => { mlOuvrir(id); }, 250);
+}
+
+/* ------------------------------------------------------------
+   🤖 CLAUDE — v1338 (livraison 2)
+
+   ⚠️ RIEN NE PART SANS NOUS. La réponse proposée s'ouvre dans
+   l'éditeur ; la tâche et la fiche se créent sur un appui ; l'élève
+   proposé se rattache sur un appui. Claude ne voit que ce que cet
+   écran lui envoie de l'appli (« contexte ») : le dossier de l'élève
+   du fil, les créneaux libres lus dans Drivup, les tarifs.
+   ------------------------------------------------------------ */
+let mlReponseClaude = null;      /* { fil, style, texte, enCours, erreur, sources } */
+
+/* « **2 leçons** » → du gras, sans HTML venu d'ailleurs */
+function mlPoserLeGras(el, texte){
+  String(texte || '').split(/(\*\*[^*]+\*\*)/).forEach(x => {
+    if(/^\*\*[^*]+\*\*$/.test(x)){ const b = document.createElement('b'); b.textContent = x.slice(2, -2); el.appendChild(b); }
+    else if(x) el.appendChild(document.createTextNode(x));
+  });
+}
+
+function mlClaudeAllume(){
+  return !!((mlFilOuvert && mlFilOuvert.claude) || (mlEtat && mlEtat.claude));
+}
+
+/* Ce que l'appli sait, pour la réponse : seulement ce qui sert. */
+async function mlContexte(f){
+  const l = [], sources = [];
+  const dernier = ((mlFilOuvert && mlFilOuvert.messages) || []).filter(m => m.sens === 'recu').pop() || {};
+  const tout = ((f.sujet || '') + ' ' + (dernier.texte || '')).toLowerCase();
+  const etiq = (f.etiquettes || []).join(' ').toLowerCase();
+  const essai = fn => { try{ return fn(); }catch(e){ return null; } };
+  if(f.eleve){
+    const v = mlValeursDesMots(f) || {};
+    const fi = essai(() => (typeof ficheDe === 'function') ? ficheDe(f.eleve) : null) || {};
+    l.push('Le fil est rattaché à l’élève ' + f.eleve + (fi.formation ? ' (formation : ' + fi.formation + ')' : '') + '.');
+    if(v.moniteur) l.push('Son moniteur : ' + v.moniteur + '.');
+    l.push(v.prochaincours ? 'Son prochain cours préparé : ' + v.prochaincours + '.' : 'Aucun prochain cours préparé dans l’appli.');
+    if(v.frise) l.push('Sa frise de formation : ' + v.frise + '.');
+    if(v.examenblanc) l.push('Son examen blanc : ' + v.examenblanc + '.');
+    l.push(v.datedexamen ? 'Sa date d’examen du permis : ' + v.datedexamen + '.' : 'Pas de date d’examen du permis dans l’appli.');
+    sources.push('son dossier');
+  }
+  /* les créneaux libres, quand le mail parle d'un cours ou d'une heure */
+  if(/planning/.test(etiq) || /(cours|le[cç]on|cr[ée]neau|heure|horaire|dispo|planning|rendez-vous|rdv|semaine|vacances|lundi|mardi|mercredi|jeudi|vendredi|samedi)/.test(tout)){
+    try{
+      if(typeof chargerCreneaux === 'function' && typeof creneauxCalcules === 'function'){
+        const e = await chargerCreneaux();
+        const cr = creneauxCalcules(e.lecture, e.horaires).filter(c => ['ouvert', 'dispo', 'rien'].indexOf(c.genre) !== -1).slice(0, 30);
+        if(cr.length){
+          l.push('Créneaux de conduite libres (lus dans Drivup) :');
+          cr.forEach(c => l.push('- ' + ((typeof jourLongCreneau === 'function') ? jourLongCreneau(c.jour) : c.jour) + ' de ' +
+            String(c.debut).replace(':', 'h') + ' à ' + String(c.fin).replace(':', 'h') + (c.moniteur ? ' avec ' + c.moniteur : '')));
+          sources.push('créneaux libres lus dans Drivup');
+        }
+      }
+    }catch(e){ /* sans les créneaux */ }
+  }
+  /* les tarifs, quand il est question d'inscription ou de prix */
+  if(/inscription|financement/.test(etiq) || /(tarif|prix|co[uû]t|combien|devis|forfait|inscri|€|euros?)/.test(tout)){
+    try{
+      if(typeof tarifsDuCatalogue === 'function'){
+        const d = await tarifsDuCatalogue();
+        if(d){
+          const eu = n => (Math.round(Number(n) * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €';
+          l.push('Les tarifs de l’école (Outils › Tarifs) :');
+          (d.taux || []).forEach(t => l.push('- ' + t.nom + ' : ' + eu(t.pu) + (t.bea && t.bea.pu && t.bea.pu !== t.pu ? ' (boîte automatique : ' + eu(t.bea.pu) + ')' : '')));
+          (d.fiches || []).filter(x => x.type !== 'grille').slice(0, 40).forEach(x => {
+            const tot = (typeof tfTotalDeLaFiche === 'function') ? essai(() => tfTotalDeLaFiche(d, x)) : null;
+            l.push('- Forfait « ' + (x.titre || x.id) + ' »' + (x.dossier ? ' (' + x.dossier + ')' : '') + (tot ? ' : ' + eu(tot) : ''));
+          });
+          sources.push('vos tarifs');
+        }
+      }
+    }catch(e){ /* sans les tarifs */ }
+  }
+  l.push('Le bureau de l’école : Saint-Brieuc et Loudéac ; on peut appeler le bureau au 09 83 55 56 87.');
+  return { texte: l.join('\n'), sources: sources };
+}
+
+async function mlChargerLaReponse(style, refaire){
+  const f = mlFilOuvert && mlFilOuvert.fil;
+  if(!f) return;
+  mlReponseClaude = { fil: f.id, style: style || 'normal', texte: '', enCours: true, erreur: '', sources: (mlReponseClaude && mlReponseClaude.fil === f.id) ? mlReponseClaude.sources : [] };
+  mlRedessinerLaBoiteClaude();
+  try{
+    const c = await mlContexte(f);
+    if(!mlFilOuvert || mlFilOuvert.fil.id !== f.id) return;
+    mlReponseClaude.sources = c.sources;
+    const r = await appelPrep({ action: 'mailClaudeReponse', id: f.id, style: style || 'normal', refaire: !!refaire, contexte: c.texte });
+    if(!mlReponseClaude || mlReponseClaude.fil !== f.id) return;
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+    mlReponseClaude.enCours = false;
+    mlReponseClaude.texte = r.texte || '';
+    mlReponseClaude.sans = !!r.sansReponse;
+  }catch(e){
+    if(mlReponseClaude && mlReponseClaude.fil === f.id){ mlReponseClaude.enCours = false; mlReponseClaude.erreur = String(e.message || e); }
+  }
+  mlRedessinerLaBoiteClaude();
+}
+
+function mlRedessinerLaBoiteClaude(){
+  const vieille = document.querySelector('#mlFilMsgs .mlClaude');
+  if(!vieille) return;
+  const fil = $('mlFilMsgs');
+  const enBas = fil.scrollHeight - fil.scrollTop - fil.clientHeight < 120;
+  const neuve = mlBoiteClaude();
+  if(neuve) vieille.replaceWith(neuve); else vieille.remove();
+  /* la réponse qui arrive se voit, si on lisait le bas du fil */
+  if(enBas) fil.scrollTop = fil.scrollHeight;
+}
+
+function mlBoutonClaude(texte, titre, faire, principal){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary') + ' mlBtC';
+  b.textContent = texte;
+  if(titre) b.title = titre;
+  b.addEventListener('click', async () => {
+    if(b.disabled) return;
+    b.disabled = true;
+    try{ await faire(b); }catch(e){ mlToast('⚠️ ' + (e.message || e)); }
+    b.disabled = false;
+  });
+  return b;
+}
+
+function mlBoiteClaude(){
+  const F = mlFilOuvert;
+  if(!F || !F.fil || !F.claude) return null;
+  const f = F.fil;
+  const msgs = F.messages || [];
+  const dernier = msgs.filter(m => m.sens === 'recu').pop();
+  if(!dernier) return null;
+  const a = dernier.analyse;
+  const d = document.createElement('div');
+  d.className = 'mlClaude';
+  const t = document.createElement('div');
+  t.className = 'mlClT';
+  t.textContent = '🤖 Claude a lu ce mail';
+  d.appendChild(t);
+  if(!a){
+    const p = document.createElement('div');
+    p.className = 'mlClR';
+    p.textContent = 'Ce mail est arrivé avant que Claude soit allumé, ou il n’a pas encore eu le temps de le lire.';
+    d.appendChild(p);
+    const acts = document.createElement('div');
+    acts.className = 'mlClActs';
+    acts.appendChild(mlBoutonClaude('🤖 Le lire maintenant', '', async () => {
+      const r = await appelPrep({ action: 'mailClaudeLire', id: f.id });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      dernier.analyse = r.analyse;
+      await mlOuvrir(f.id);
+    }));
+    d.appendChild(acts);
+    return d;
+  }
+  const r = document.createElement('div');
+  r.className = 'mlClR';
+  mlPoserLeGras(r, a.resume || '');
+  d.appendChild(r);
+
+  const acts = document.createElement('div');
+  acts.className = 'mlClActs';
+  if(mlPeutEcrire() && !f.eleve && f.propose){
+    acts.appendChild(mlBoutonClaude('🔗 C’est ' + f.propose + ' : rattacher', 'Claude reconnaît cet élève dans le mail — à toi de confirmer',
+      () => mlMarquer({ eleve: f.propose }, '🔗 Rattaché à ' + f.propose)));
+  }
+  if(mlPeutEcrire() && !f.eleve && a.nouvelEleve){
+    const n = ((a.nouvelEleve.prenom || '') + ' ' + (a.nouvelEleve.nom || '')).trim();
+    acts.appendChild(mlBoutonClaude('➕ Créer la fiche de ' + n, 'Une nouvelle fiche élève, et ce mail rejoint son dossier', () => mlCreerLaFiche(n)));
+  }
+  if(a.tache && (typeof aDroit !== 'function' || aDroit('todo'))){
+    acts.appendChild(mlBoutonClaude('☑️ En faire une tâche : « ' + a.tache + ' »', 'Ajoutée à ta journée (☑️ À faire)', async b => {
+      const texte = ('✉️ ' + a.tache + (f.eleve ? ' — ' + f.eleve : f.nom ? ' — ' + f.nom : '')).slice(0, 200);
+      const x = await appelPrep({ action: 'todoJourneeEcrire', quoi: 'ajouter', texte: texte });
+      if(x && x.status === 'error') throw new Error(x.message || 'refusé');
+      b.textContent = '☑️ Ajoutée à ta journée';
+      mlToast('☑️ Ajoutée à ta journée');
+      setTimeout(() => { b.disabled = true; }, 0);
+    }));
+  }
+  if(acts.children.length) d.appendChild(acts);
+
+  /* La réponse proposée */
+  const nous = msgs.length && msgs[msgs.length - 1].sens === 'envoye';
+  if(!mlPeutEcrire()) return d;
+  if(a.repondre === false || nous){
+    const n = document.createElement('div');
+    n.className = 'mlClLab';
+    n.textContent = nous ? '↩️ La dernière réponse est partie : rien à proposer.' : 'Pas de réponse à proposer (notification, ou adresse « ne pas répondre »).';
+    d.appendChild(n);
+    return d;
+  }
+  if(!mlReponseClaude || mlReponseClaude.fil !== f.id){
+    if(a.reponse && (a.reponseStyle || 'normal') === 'normal'){
+      mlReponseClaude = { fil: f.id, style: 'normal', texte: a.reponse, enCours: false, erreur: '', sources: [] };
+    }else setTimeout(() => mlChargerLaReponse('normal'), 0);
+  }
+  const R = (mlReponseClaude && mlReponseClaude.fil === f.id) ? mlReponseClaude : { enCours: true, sources: [] };
+  if(R.sans){
+    const n = document.createElement('div');
+    n.className = 'mlClLab';
+    n.textContent = 'Pas de réponse à proposer (adresse « ne pas répondre »).';
+    d.appendChild(n);
+    return d;
+  }
+  const lab = document.createElement('div');
+  lab.className = 'mlClLab';
+  lab.textContent = 'Réponse proposée' + ((R.sources || []).length ? ' (' + R.sources.join(', ') + ')' : '') + ' — rien ne part sans toi';
+  d.appendChild(lab);
+  const prop = document.createElement('div');
+  prop.className = 'mlClProp' + (R.enCours ? ' attente' : '');
+  prop.textContent = R.enCours ? '⏳ Claude prépare une réponse…' : R.erreur ? '⚠️ ' + R.erreur : R.texte;
+  d.appendChild(prop);
+  const b2 = document.createElement('div');
+  b2.className = 'mlClActs';
+  const pret = !R.enCours && !R.erreur && !!R.texte;
+  const ouvrir = mlBoutonClaude('✏️ L’ouvrir dans l’éditeur', 'Tu relis, tu corriges, tu envoies', () =>
+    mlOuvrirLEditeur({ mode: 'repondre', texteHtml: mlTexteEnHtml(R.texte) }), true);
+  ouvrir.disabled = !pret;
+  b2.appendChild(ouvrir);
+  [['🔄 Une autre', 'autre'], ['✂️ Plus courte', 'courte'], ['🙂 Plus chaleureuse', 'chaleureuse']].forEach(([t, st]) => {
+    const b = mlBoutonClaude(t, '', () => mlChargerLaReponse(st, true));
+    b.disabled = !!R.enCours;
+    b2.appendChild(b);
+  });
+  d.appendChild(b2);
+  return d;
+}
+
+/* ➕ La fiche d'un nouvel élève (une demande d'inscription) */
+async function mlCreerLaFiche(propose){
+  const f = mlFilOuvert && mlFilOuvert.fil;
+  if(!f || typeof choisirEleveConnu !== 'function') return;
+  const nom = await choisirEleveConnu('➕ Créer sa fiche élève',
+    'Son prénom et son nom. L’adresse de la personne qui a écrit est reprise sur la fiche, et ce mail rejoint son dossier.', propose || '');
+  if(!nom) return;
+  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const connu = ((typeof elevesConnus !== 'undefined' && elevesConnus) || []).some(n => norm(n) === norm(nom));
+  if(connu && !await confirmer('« ' + nom + ' » a déjà un dossier.\n\nY rattacher ce mail, sans toucher à sa fiche ?', '🔗 Rattacher')) return;
+  const fiche = { email: f.correspondant || '', remarques: 'Premier contact : mail de ' + (f.nom || f.correspondant) + ' le ' + mlJourDe(f.premierLe || Date.now()) + '.' };
+  if(!connu){
+    const r = await appelPrep(Object.assign({ action: 'ficheSet', eleve: nom }, fiche));
+    if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+    if(typeof elevesConnus !== 'undefined' && Array.isArray(elevesConnus) && elevesConnus.indexOf(nom) === -1) elevesConnus.push(nom);
+  }
+  await mlMarquer({ eleve: nom }, connu ? '🔗 Rattaché au dossier de ' + nom : '➕ Fiche créée pour ' + nom);
+  if(!connu && typeof ouvrirFicheEleve === 'function'){
+    const deja = (typeof ficheDe === 'function' && ficheDe(nom)) || {};
+    ouvrirFicheEleve(nom, Object.assign({}, deja, fiche));
+  }
+}
+
+/* 🤖 ▾ dans l'éditeur : la partie écrite (au-dessus de la signature et
+   de la citation) part chez Claude, et revient retouchée. */
+function mlPartieEcrite(zone){
+  const l = [];
+  for(const n of Array.from(zone.childNodes)){
+    if(n.nodeType === 1 && (n.classList.contains('mlSignature') || n.classList.contains('mlCitation'))) break;
+    l.push(n);
+  }
+  while(l.length && l[l.length - 1].nodeType === 1 && !String(l[l.length - 1].textContent || '').trim() && !l[l.length - 1].querySelector('img')) l.pop();
+  return l;
+}
+function mlMenuClaudeEditeur(ancre, ed, surChange){
+  const items = [];
+  const R = mlReponseClaude && mlFilOuvert && mlFilOuvert.fil && mlReponseClaude.fil === mlFilOuvert.fil.id && mlReponseClaude.texte ? mlReponseClaude : null;
+  if(R) items.push({ emoji: '📥', texte: 'Reprendre la réponse proposée', faire: () => {
+    const parts = mlPartieEcrite(ed.zone);
+    const h = mlTexteEnHtml(R.texte);
+    if(parts.length){ const t = document.createElement('template'); t.innerHTML = h; parts[0].before(t.content); parts.forEach(n => n.remove()); }
+    else ed.zone.insertAdjacentHTML('afterbegin', h);
+    surChange();
+  } });
+  const retouche = (emoji, texte, consigne) => items.push({ emoji, texte, faire: async () => {
+    const parts = mlPartieEcrite(ed.zone);
+    const html = parts.map(n => n.nodeType === 1 ? n.outerHTML : mlEch(n.textContent)).join('');
+    if(!html.replace(/<[^>]+>/g, '').trim()){ mlToast('Écris d’abord quelque chose au-dessus de la signature.'); return; }
+    mlToast('🤖 Claude retouche ton texte…');
+    const r = await appelPrep({ action: 'mailClaudeEditer', html: html, consigne: consigne });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+    const t = document.createElement('template');
+    t.innerHTML = r.html;
+    parts[0].before(t.content);
+    parts.forEach(n => n.remove());
+    surChange();
+    mlToast('🤖 Retouché — ↶ pour revenir');
+  } });
+  retouche('✍️', 'Reformuler (plus clair)', 'reformuler');
+  retouche('✂️', 'Plus court', 'courte');
+  retouche('🙂', 'Plus chaleureux', 'chaleureuse');
+  retouche('🔤', 'Corriger les fautes', 'fautes');
+  menuGestesEC(ancre, '🤖 Claude', items);
+}
+
+/* ------------------------------------------------------------
+   📒 LE CARNET D'ADRESSES — v1338
+
+   David : « dans À il faut que l'on puisse choisir un élève, écrire
+   directement une adresse mail et avoir un carnet d'adresses avec la
+   possibilité de garder des adresses mails sans que ce soit un élève,
+   je pense à France Travail, les différents mails de la DDTM ».
+   ------------------------------------------------------------ */
+let mlCarnetDonnees = null, mlCarnetLuLe = 0, mlCarnetEnLecture = null;
+async function mlChargerLeCarnet(forcer){
+  if(!forcer && mlCarnetDonnees && Date.now() - mlCarnetLuLe < 120000) return mlCarnetDonnees;
+  if(mlCarnetEnLecture) return mlCarnetEnLecture;
+  mlCarnetEnLecture = (async () => {
+    try{
+      const r = await appelPrep({ action: 'mailCarnet' });
+      mlCarnetDonnees = { carnet: (r && r.carnet) || [], eleves: (r && r.eleves) || [], recents: (r && r.recents) || [] };
+      mlCarnetLuLe = Date.now();
+    }catch(e){ mlCarnetDonnees = mlCarnetDonnees || { carnet: [], eleves: [], recents: [] }; }
+    mlCarnetEnLecture = null;
+    return mlCarnetDonnees;
+  })();
+  return mlCarnetEnLecture;
+}
+function mlNormC(t){ return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+/* Ce qui ressemble à ce qu'on tape : le carnet et les élèves d'abord,
+   puis les adresses déjà écrites ; un nom qui COMMENCE par le mot passe devant */
+function mlSuggestions(q){
+  const d = mlCarnetDonnees;
+  const k = mlNormC(q);
+  if(!d || !k) return [];
+  const out = [], vues = {};
+  const tester = (o, sorte) => {
+    if(o.adresse && vues[o.adresse]) return;
+    const texte = mlNormC(o.nom + ' ' + (o.adresse || '') + ' ' + (o.note || ''));
+    if(texte.indexOf(k) === -1) return;
+    if(o.adresse) vues[o.adresse] = true;
+    const debut = mlNormC(o.nom).indexOf(k) === 0 || mlNormC(o.nom).indexOf(' ' + k) !== -1 || mlNormC(o.adresse).indexOf(k) === 0;
+    out.push(Object.assign({ sorte: sorte, rang: (debut ? 0 : 1) + (o.adresse ? 0 : 2) }, o));
+  };
+  d.carnet.forEach(o => tester(o, 'carnet'));
+  d.eleves.forEach(o => tester(o, 'eleve'));
+  d.recents.forEach(o => tester(o, 'recent'));
+  return out.sort((a, b) => a.rang - b.rang).slice(0, 8);
+}
+
+async function mlFenetreCarnet(opts){
+  const o = opts || {};
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal mlFenetre mlCarnet';
+  boite.style.maxWidth = 'min(640px, 96vw)';
+  fond.appendChild(boite);
+  const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); };
+  let filtre = '', cherche = '', edition = null;
+  const ajoutes = [];
+  const dessiner = () => {
+    const d = mlCarnetDonnees || { carnet: [], eleves: [], recents: [] };
+    boite.innerHTML = '<h3>📒 Carnet d’adresses</h3><div class="mlAide">Les élèves (l’adresse de leur fiche), les adresses gardées pour toute l’école ' +
+      '(France Travail, la DDTM, la préfecture…), et celles à qui la boîte a déjà écrit.' + (o.ajouter ? ' Un appui sur ➕ l’ajoute au mail.' : '') + '</div>';
+    const f = document.createElement('div');
+    f.className = 'mlPuces mlCarnetFiltres';
+    [['', 'Tout'], ['carnet', '📒 Carnet · ' + d.carnet.length], ['eleve', '👤 Élèves'], ['recent', '✉️ Déjà écrites']].forEach(([k, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'rrFiltre' + (filtre === k ? ' on' : '');
+      b.textContent = t;
+      b.addEventListener('click', () => { filtre = k; dessiner(); });
+      f.appendChild(b);
+    });
+    boite.appendChild(f);
+    const ch = document.createElement('input');
+    ch.type = 'text';
+    ch.className = 'mlCarnetCherche';
+    ch.placeholder = '🔍 Un nom, une adresse…';
+    ch.value = cherche;
+    ch.addEventListener('input', () => { cherche = ch.value; dessinerListe(); });
+    boite.appendChild(ch);
+    const zl = document.createElement('div');
+    zl.className = 'mlCorbeille mlCarnetListe';
+    boite.appendChild(zl);
+    function dessinerListe(){
+      zl.innerHTML = '';
+      const k = mlNormC(cherche);
+      const vues = {};
+      const lignes = [];
+      const garder = (x, sorte) => {
+        if(filtre && filtre !== sorte) return;
+        if(x.adresse && vues[x.adresse] && sorte === 'recent') return;
+        if(k && mlNormC(x.nom + ' ' + (x.adresse || '') + ' ' + (x.note || '')).indexOf(k) === -1) return;
+        if(x.adresse) vues[x.adresse] = true;
+        lignes.push(Object.assign({ sorte: sorte }, x));
+      };
+      d.carnet.forEach(x => garder(x, 'carnet'));
+      d.eleves.forEach(x => garder(x, 'eleve'));
+      d.recents.forEach(x => garder(x, 'recent'));
+      if(!lignes.length){ zl.innerHTML = '<div class="empty">' + (mlCarnetDonnees ? 'Rien ici.' : 'Lecture du carnet…') + '</div>'; return; }
+      lignes.slice(0, 200).forEach(x => {
+        const l = document.createElement('div');
+        l.className = 'mlPub mlCarnetLigne';
+        l.dataset.sorte = x.sorte;
+        l.innerHTML = '<div class="g"><b></b><div class="s"></div></div>';
+        l.querySelector('b').textContent = ({ eleve: '👤 ', carnet: '📒 ', recent: '✉️ ' })[x.sorte] + (x.nom || x.adresse);
+        l.querySelector('.s').textContent = (x.adresse || 'pas d’adresse sur sa fiche') + (x.note ? ' · ' + x.note : '');
+        if(o.ajouter && x.adresse){
+          const pris = ajoutes.indexOf(x.adresse) !== -1;
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn ' + (pris ? 'btn-secondary' : 'btn-primary');
+          b.textContent = pris ? '✓ Ajouté' : '➕';
+          b.title = 'L’ajouter aux destinataires';
+          b.disabled = pris;
+          b.addEventListener('click', () => { o.ajouter({ nom: x.nom, adresse: x.adresse }); ajoutes.push(x.adresse); dessinerListe(); });
+          l.appendChild(b);
+        }
+        if(mlPeutEcrire() && x.sorte === 'carnet'){
+          const e = document.createElement('button');
+          e.type = 'button'; e.className = 'btn btn-secondary'; e.textContent = '✏️'; e.title = 'Modifier';
+          e.addEventListener('click', () => { edition = Object.assign({}, x); dessiner(); });
+          const s2 = document.createElement('button');
+          s2.type = 'button'; s2.className = 'btn btn-secondary'; s2.textContent = '🗑️'; s2.title = 'Retirer du carnet';
+          s2.addEventListener('click', async () => {
+            if(!await confirmer('Retirer « ' + (x.nom || x.adresse) + ' » du carnet ?', '🗑️ Retirer', true)) return;
+            const r = await appelPrep({ action: 'mailCarnetRetirer', id: x.id });
+            if(r && r.carnet){ mlCarnetDonnees = { carnet: r.carnet, eleves: r.eleves || [], recents: r.recents || [] }; mlCarnetLuLe = Date.now(); }
+            dessiner();
+          });
+          l.append(e, s2);
+        }else if(mlPeutEcrire() && x.sorte === 'recent'){
+          const g = document.createElement('button');
+          g.type = 'button'; g.className = 'btn btn-secondary'; g.textContent = '📒'; g.title = 'La garder dans le carnet';
+          g.addEventListener('click', () => { edition = { nom: x.nom, adresse: x.adresse, note: '' }; dessiner(); });
+          l.appendChild(g);
+        }
+        zl.appendChild(l);
+      });
+    }
+    dessinerListe();
+    /* ➕ une adresse à garder (ou ✏️ celle qu'on modifie) */
+    if(mlPeutEcrire()){
+      if(edition){
+        const fo = document.createElement('div');
+        fo.className = 'mlCarnetForm';
+        fo.innerHTML = '<label>Nom (ce qu’on tape pour la retrouver)</label><input type="text" id="mlCarNom" placeholder="Ex : France Travail Saint-Brieuc">' +
+          '<label>Adresse mail</label><input type="email" id="mlCarAdr" placeholder="prenom.nom@exemple.fr">' +
+          '<label>Note (facultatif)</label><input type="text" id="mlCarNote" placeholder="Ex : conseillère de Lucas, dossiers CPF">';
+        fo.querySelector('#mlCarNom').value = edition.nom || '';
+        fo.querySelector('#mlCarAdr').value = edition.adresse || '';
+        fo.querySelector('#mlCarNote').value = edition.note || '';
+        const r = document.createElement('div');
+        r.className = 'btn-row';
+        const a = document.createElement('button'); a.className = 'btn btn-secondary'; a.textContent = 'Annuler';
+        a.addEventListener('click', () => { edition = null; dessiner(); });
+        const ok = document.createElement('button'); ok.className = 'btn btn-primary'; ok.id = 'mlCarGarder'; ok.textContent = '💾 Garder dans le carnet';
+        ok.addEventListener('click', async () => {
+          ok.disabled = true;
+          try{
+            const x = await appelPrep({ action: 'mailCarnetPoser', id: edition.id || 0, nom: fo.querySelector('#mlCarNom').value,
+              adresse: fo.querySelector('#mlCarAdr').value, note: fo.querySelector('#mlCarNote').value });
+            if(!x || x.status !== 'ok') throw new Error((x && x.message) || 'refusé');
+            mlCarnetDonnees = { carnet: x.carnet || [], eleves: x.eleves || [], recents: x.recents || [] }; mlCarnetLuLe = Date.now();
+            mlToast('📒 Gardée dans le carnet');
+            edition = null; filtre = 'carnet'; dessiner();
+          }catch(e){ ok.disabled = false; mlToast('⚠️ ' + (e.message || e)); }
+        });
+        r.append(a, ok);
+        fo.appendChild(r);
+        boite.appendChild(fo);
+        setTimeout(() => fo.querySelector(edition.nom ? '#mlCarNote' : '#mlCarNom').focus(), 50);
+      }else{
+        const n = document.createElement('button');
+        n.type = 'button';
+        n.className = 'btn btn-secondary mlCarNouv';
+        n.textContent = '➕ Nouvelle adresse dans le carnet';
+        n.addEventListener('click', () => { edition = { nom: '', adresse: '', note: '' }; dessiner(); });
+        boite.appendChild(n);
+      }
+    }
+    const rang = document.createElement('div');
+    rang.className = 'btn-row';
+    const bF = document.createElement('button');
+    bF.className = 'btn btn-primary';
+    bF.textContent = o.ajouter ? '✓ Fini' : 'Fermer';
+    bF.addEventListener('click', fermer);
+    rang.appendChild(bF);
+    boite.appendChild(rang);
+  };
+  dessiner();
+  document.body.appendChild(fond);
+  await mlChargerLeCarnet(true);
+  dessiner();
+}
+
+/* 🗑️ SUPPRIMER — v1338. David : « il me manque pour supprimer un mail ».
+   0 : la conversation entière ; sinon un message. */
+async function mlSupprimer(idMessage){
+  const F = mlFilOuvert;
+  if(!F || !F.fil) return;
+  const f = F.fil;
+  const m = idMessage ? (F.messages || []).find(x => x.id === idMessage) : null;
+  const envoye = m ? m.sens === 'envoye' : (F.messages || []).some(x => x.sens === 'envoye');
+  const quoi = m ? 'ce mail' : 'cette conversation (' + (F.messages || []).length + ' mail' + ((F.messages || []).length > 1 ? 's' : '') + ')';
+  if(!await confirmer('Supprimer ' + quoi + ' ?\n\nLes mails reçus partent à la corbeille de la boîte OVH : ⋯ › 🗑️ Corbeille les remet.' +
+      (envoye ? '\nCe que l’école a envoyé reste dans les « Envoyés » du webmail.' : ''), '🗑️ Supprimer', true)) return;
+  const r = await appelPrep({ action: 'mailSupprimer', id: f.id, message: idMessage || 0 });
+  if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+  mlToast(r.filSupprime ? '🗑️ Conversation supprimée' : '🗑️ Mail supprimé');
+  if(r.filSupprime){
+    mlFils = mlFils.filter(x => x.id !== f.id);
+    mlFermerLeFil();
+  }else await mlOuvrir(f.id);
+  mlLueLe = 0;
+  mlCharger(true);
 }
 
 /* Signale que ce module est bien chargé */
