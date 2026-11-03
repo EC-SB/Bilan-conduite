@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:05 — v1325 */
+/* Déployé le 02/11/2026 à 19:33 — v1335 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -24,7 +24,7 @@
 
    Le Worker fait le reste (voir « LA SALLE DES TABLETTES »).
 
-   Application Bilan de conduite — Évolution Conduites
+   App Évolution Conduites (anciennement « Bilan de conduite »)
    ============================================================ */
 
 const SL = { d: null, groupes: null, minuteur: null, chargeLe: 0 };
@@ -162,7 +162,7 @@ function slDessiner(){
     z.appendChild(ba);
   }
   if(!(d.resa || []).length){
-    z.appendChild(slEl('div', 'empty', 'Rien de lu pour aujourd’hui. Elle arrive avec la lecture du planning d’une agence (favori 📥 Bilan de conduite).'));
+    z.appendChild(slEl('div', 'empty', 'Rien de lu pour aujourd’hui. Elle arrive avec la lecture du planning d’une agence (favori 📥 App Évolution).'));
   }else{
     const bloc = slEl('div', '');
     const fins = {};
