@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:05 — v1325 */
+/* Déployé le 03/11/2026 à 13:55 — v1337 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2102,6 +2102,23 @@ async function ajouterLaBaseAuDossier(d, nom){
   }catch(e){
     d.parties.push({ titre: 'Ses évaluations de départ', lignes: [],
       note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+  }
+  /* ✉️ v1337 — ses mails de la boîte de l'école (rattachés à son dossier) */
+  if(typeof aDroit !== 'function' || aDroit('mails')){
+    try{
+      const r = await appelPrep({ action: 'mailDuDossier', eleve: nom, export: true });
+      const h = ms => ms ? new Date(Number(ms)).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      const lignes = ((r && r.messages) || []).map(x => ({
+        'Le': h(x.quand), 'Sens': x.sens === 'envoye' ? 'envoyé par l’école' + (x.par ? ' (' + x.par + ')' : '') : 'reçu',
+        'De': x.de || '', 'À': x.a || '', 'Objet': x.sujet || '', 'Texte': x.texte || '', 'Pièces jointes': x.pieces || ''
+      }));
+      d.parties.push({ titre: 'Ses mails (boîte de l’école)', lignes: lignes,
+        note: 'Les mails rattachés à son dossier dans l’onglet ✉️ Mails. Ils restent aussi dans la boîte OVH de l’école.' });
+      d.total = (d.total || 0) + lignes.length;
+    }catch(e){
+      d.parties.push({ titre: 'Ses mails (boîte de l’école)', lignes: [],
+        note: '⚠️ Illisible au moment de l’export : ' + String((e && e.message) || e) });
+    }
   }
   /* 🧮 v1285 — ses dossiers d'aides (CPF, Pass'Engagement, points gardés) */
   try{
