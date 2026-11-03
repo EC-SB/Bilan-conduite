@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 11:37 — v1319 */
+/* Déployé le 03/11/2026 à 15:45 — v1340 */
 /* ============================================================
    ec-durees-examen.js — ⏱️ LA DURÉE DES EXAMENS OFFICIELS
 
@@ -182,6 +182,8 @@ function dessinerDureeExamen(bloc, ch){
   const iD = bloc.querySelector('[data-cle="' + cle + '.debut"]'), iF = bloc.querySelector('[data-cle="' + cle + '.fin"]');
   const bD = bloc.querySelector('.dxDebut'), bF = bloc.querySelector('.dxFin'), tot = bloc.querySelector('.dxTotal');
   const compteur = bloc.querySelector('.dxCompteur');
+  /* ⏹️ v1340 — le même arrêt, tout en bas, juste avant « Composer le bilan » */
+  let bas = null;   /* posé dès que la zone est rangée dans la fiche (plus bas) */
   const reglage = () => (typeof ficheEnReglage === 'function') && ficheEnReglage();
   const compter = () => {
     const c = dxContexteFiche();
@@ -206,6 +208,7 @@ function dessinerDureeExamen(bloc, ch){
     bD.className = 'btn ' + (iD.value ? 'btn-secondary' : 'btn-primary') + ' dxDebut';
     bF.className = 'btn ' + (enCours ? 'btn-primary' : 'btn-secondary') + ' dxFin';
     bD.textContent = iD.value ? '↺ Recommencer' : '▶️ Début d’examen';
+    if(bas && bas._bloc === bloc) dxPeindreLeBas(bas, iD.value, iF.value, compteur.textContent, c.jour);
   };
   const signaler = (el) => { el.dispatchEvent(new Event('input', { bubbles: true })); };
   const envoyer = (attente) => {
@@ -224,20 +227,76 @@ function dessinerDureeExamen(bloc, ch){
     signaler(iD); peindre(); envoyer(0);
     if(typeof showToast === 'function') showToast('▶️ Examen commencé à ' + iD.value);
   });
-  bF.addEventListener('click', () => {
+  const finir = () => {
     if(!iD.value){ if(typeof showToast === 'function') showToast('Appuie d’abord sur ▶️ Début d’examen — ou tape l’heure de début.'); iD.focus(); return; }
     iF.value = dxMaintenant();
     signaler(iF); peindre(); envoyer(0);
     if(typeof showToast === 'function') showToast('⏹️ Examen fini : ' + dxPhrase(iD.value, iF.value));
-  });
+  };
+  bF.addEventListener('click', finir);
+  /* la zone n'est rangée dans #manuelChamps qu'après son dessin */
+  Promise.resolve().then(() => { bas = dxLeBoutonDuBas(bloc); if(bas){ bas._finir = finir; peindre(); } });
   [iD, iF].forEach(i => i.addEventListener('change', () => { peindre(); envoyer(800); }));
   /* Une fiche reprise remet les heures sans prévenir ; « en cours depuis »
      avance tout seul : on repeint de temps en temps, tant qu'elle est là */
   peindre();
   const t = setInterval(() => { if(!bloc.isConnected){ clearInterval(t); return; } peindre(); }, 15000);
   /* le compteur, à la seconde, tant que l'examen court */
-  const t2 = setInterval(() => { if(!bloc.isConnected){ clearInterval(t2); return; } if(iD.value && !iF.value) compter(); }, 1000);
+  const t2 = setInterval(() => {
+    if(!bloc.isConnected){ clearInterval(t2); if(bas && bas._bloc === bloc){ bas._bloc = null; bas.style.display = 'none'; } return; }
+    if(iD.value && !iF.value){ compter(); if(bas && bas._bloc === bloc) dxPeindreLeBas(bas, iD.value, iF.value, compteur.textContent, dxContexteFiche().jour); }
+  }, 1000);
   setTimeout(peindre, 400);
+}
+/* ⏹️ v1340 — David, le 3 novembre : « mettre un autre bouton pour
+   arrêter le timer sur les examens officiels tout en bas avant
+   terminer, et sur les examens blanc aussi ». En fin d'examen, on est
+   en bas de la fiche : remonter jusqu'à « 🏁 Examen » pour arrêter le
+   compteur, c'est le moment où on l'oublie.
+
+   Un seul bloc, rangé HORS de #manuelChamps (ce cadre se vide à chaque
+   redessin), juste au-dessus de « 📄 Composer le bilan ». Il ne fait
+   rien par lui-même : il appelle l'arrêt de la zone du haut — mêmes
+   heures, même envoi, même message. Quand la fiche n'a plus de zone
+   « Durée » (autre modèle), il disparaît. */
+function dxLeBoutonDuBas(bloc){
+  if(!bloc.closest || !bloc.closest('#manuelChamps')) return null;
+  const gen = document.getElementById('manuelGen');
+  if(!gen || !gen.parentNode) return null;
+  let bas = document.getElementById('dxFinBas');
+  if(!bas){
+    bas = document.createElement('div');
+    bas.id = 'dxFinBas';
+    bas.className = 'zonePourNous';
+    bas.style.cssText = 'border:1px dashed var(--line);border-radius:12px;padding:12px;margin:0 0 14px;';
+    bas.innerHTML =
+      '<div class="dxBasEtat" style="font-size:14px;font-weight:700;text-align:center;margin-bottom:8px;"></div>' +
+      '<button type="button" class="btn btn-primary dxFinBasBt" style="margin:0;padding:14px;font-size:16px;">⏹️ Fin d’examen</button>';
+    bas.querySelector('.dxFinBasBt').addEventListener('click', () => { if(typeof bas._finir === 'function') bas._finir(); });
+  }
+  if(bas.nextElementSibling !== gen) gen.parentNode.insertBefore(bas, gen);
+  bas._bloc = bloc;
+  bas.style.display = '';
+  return bas;
+}
+function dxPeindreLeBas(bas, debut, fin, compte, jour){
+  const etat = bas.querySelector('.dxBasEtat'), bt = bas.querySelector('.dxFinBasBt');
+  if(debut && fin){
+    etat.textContent = '✅ Examen fini : ' + dxPhrase(debut, fin, jour);
+    etat.style.color = 'var(--accent-text)';
+    bt.className = 'btn btn-secondary dxFinBasBt';
+    bt.textContent = '⏹️ Fin d’examen — remettre à maintenant';
+  }else if(debut){
+    etat.textContent = '⏳ Examen en cours · ' + compte;
+    etat.style.color = 'var(--cream)';
+    bt.className = 'btn btn-primary dxFinBasBt';
+    bt.textContent = '⏹️ Fin d’examen';
+  }else{
+    etat.textContent = '⏱️ Compteur pas lancé — ▶️ Début d’examen est en haut de « 🏁 Examen »';
+    etat.style.color = 'var(--muted)';
+    bt.className = 'btn btn-secondary dxFinBasBt';
+    bt.textContent = '⏹️ Fin d’examen';
+  }
 }
 /* La valeur que lit le bilan : « 10:02|10:34 » */
 function lireDureeExamenFiche(cle){
