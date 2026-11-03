@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 08:24 — v1284 */
+/* Déployé le 03/11/2026 à 16:23 — v1341 */
 /* ============================================================
    ec-todo.js — v1278
    ☑️ La todo list : le bouton à côté du 💬, et son volet.
@@ -174,6 +174,7 @@ function ouvrirTD(vue){
 function fermerTD(){
   const a = $('todoTiroir'), v = $('todoVoile');
   TD.ouvert = false;
+  TD.corbeille = null;   /* v1341 — on revient aux listes à la prochaine ouverture */
   if(a){ a.style.transform = 'translateX(100%)'; a.style.boxShadow = 'none'; }
   if(v) v.style.display = 'none';
 }
@@ -194,6 +195,7 @@ function dessinerTD(){
   z.innerHTML = '';
   if(!d){ z.appendChild(elTD('div', 'empty', 'Lecture…')); return; }
   if(TD.reglage){ dessinerReglageTD(z, d); z.scrollTop = haut; return; }
+  if(TD.corbeille){ dessinerCorbeilleTD(z); return; }
   const ong = elTD('div', 'tdOnglets');
   const reste = (d.quotidien || []).filter(x => !x.faitLe).length;
   [['bureau', '🏢 Bureau · aujourd’hui', reste], ['perso', '👤 Mes listes', 0], ['partage', '👥 Partagées', 0]].forEach(([k, t, n]) => {
@@ -387,6 +389,65 @@ function dessinerListesTD(z, d, vue){
   listes.forEach((l, i) => z.appendChild(carteListeTD(l, d, i === 0 && TD.ouvertes[l.id] === undefined)));
   if(TD.creation === genre) z.appendChild(formListeTD(genre, null));
   else z.appendChild(boutonTD(genre === 'perso' ? '＋ Nouvelle liste perso' : '＋ Nouvelle liste partagée', 'tdNouvelle', '', () => { TD.creation = genre; dessinerTD(); setTimeout(() => { const i = $('todoNomListe'); if(i) i.focus(); }, 30); }));
+  /* 🗑️ v1341 — la corbeille, sous les listes */
+  const nC = Number(d.corbeille) || 0;
+  const bc = boutonTD('🗑️ Corbeille' + (nC ? ' (' + nC + ')' : ''), 'tdLien tdCorbeilleBt', 'Les listes et tâches supprimées, 30 jours', () => ouvrirCorbeilleTD());
+  bc.style.marginTop = '10px';
+  z.appendChild(bc);
+}
+
+/* ============================================================
+   🗑️ LA CORBEILLE — v1341
+
+   David, le 3 novembre : « il faut une corbeille » (Maryne avait
+   supprimé la liste « 🏢 Bureau »). Une liste supprimée, une tâche
+   supprimée, les tâches faites effacées : 30 jours ici, un appui sur
+   « ↩️ Remettre » et tout revient à sa place.
+   ============================================================ */
+async function ouvrirCorbeilleTD(){
+  TD.corbeille = { charge: true, liste: [] };
+  dessinerTD();
+  try{
+    const r = await appelPrep({ action: 'todoCorbeille' });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+    TD.corbeille = { liste: r.corbeille || [], jours: r.jours || 30 };
+  }catch(e){
+    TD.corbeille = { liste: [], erreur: (e && e.message) || String(e) };
+  }
+  if(TD.corbeille) dessinerTD();
+}
+function dessinerCorbeilleTD(z){
+  const C = TD.corbeille;
+  const haut = elTD('div', 'tdCorbeilleHaut');
+  haut.appendChild(boutonTD('‹ Retour', 'tdLien', '', () => { TD.corbeille = null; dessinerTD(); }));
+  z.appendChild(haut);
+  sectionTD(z, '🗑️ Corbeille', '— ' + (C.jours || 30) + ' jours, puis elle se vide');
+  if(C.charge){ z.appendChild(elTD('div', 'tdVide', 'Lecture…')); return; }
+  if(C.erreur){ z.appendChild(elTD('div', 'tdVide', '⚠️ ' + C.erreur)); return; }
+  if(!C.liste.length){ z.appendChild(elTD('div', 'tdVide', 'La corbeille est vide.')); return; }
+  C.liste.forEach(x => {
+    const c = elTD('div', 'tdCorbeilleLigne');
+    c.dataset.id = x.id;
+    const tete = x.quoi === 'liste' ? (x.genre === 'partage' ? '👥 Liste « ' : '👤 Liste « ') + x.nom + ' » · ' + (x.n ? x.n + ' tâche' + (x.n > 1 ? 's' : '') : 'vide')
+               : x.quoi === 'tache' ? '☐ « ' + x.nom + ' » · dans ' + x.liste
+               : '✅ ' + x.nom + ' effacée' + (x.n > 1 ? 's' : '') + ' · dans ' + x.liste;
+    const t = elTD('div', 'tdTexte');
+    t.appendChild(elTD('span', 'tdLibelle', tete));
+    t.appendChild(elTD('div', 'tdSous', 'supprimé' + (x.quoi === 'liste' ? 'e' : '') + ' par ' + (x.par || '?') + ' · ' + quandTD(x.le)));
+    if(x.quoi !== 'tache' && (x.apercu || []).length){
+      t.appendChild(elTD('div', 'tdSous', (x.apercu || []).join(' · ') + (x.n > x.apercu.length ? ' …' : '')));
+    }
+    c.appendChild(t);
+    c.appendChild(boutonTD('↩️ Remettre', 'btn-secondary tdRemettre', 'La remettre à sa place', async (ev, b) => {
+      const d = await agirTD({ action: 'todoRemettre', id: x.id }, b);
+      if(d && d.status === 'ok'){
+        toastTD('↩️ ' + (x.quoi === 'liste' ? 'Liste « ' + x.nom + ' » remise' : 'Remis dans « ' + x.liste + ' »'));
+        C.liste = C.liste.filter(y => y.id !== x.id);
+        dessinerTD();
+      }
+    }));
+    z.appendChild(c);
+  });
 }
 function carteListeTD(l, d, ouvrirParDefaut){
   const ouverte = TD.ouvertes[l.id] !== undefined ? TD.ouvertes[l.id] : ouvrirParDefaut;
@@ -412,11 +473,15 @@ function carteListeTD(l, d, ouvrirParDefaut){
   c.appendChild(ligneAjoutTD('Ajouter à « ' + l.nom + ' »', (t2, b) => agirTD({ action: 'todoItemEcrire', quoi: 'ajouter', liste: l.id, texte: t2 }, b), 'todoAjout_' + l.id));
   const pied = elTD('div', 'tdListePied');
   if(l.items.some(x => x.fait)) pied.appendChild(boutonTD('🧹 Effacer les faites', 'tdLien', '', (ev, b) => agirTD({ action: 'todoListeEcrire', quoi: 'effacerFaites', id: l.id }, b)));
-  if(l.aMoi || (typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin')){
+  const estAdminTD = (typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin');
+  /* 🏢 v1341 — la liste du bureau : seul un administrateur la supprime */
+  const listeDuBureau = l.genre === 'partage' && l.nom === '🏢 Bureau';
+  if(l.aMoi || estAdminTD){
     pied.appendChild(boutonTD(l.genre === 'partage' ? '✏️ Nom et personnes' : '✏️ Renommer', 'tdLien', '', () => { TD.edition = 'liste:' + l.id; dessinerTD(); }));
-    pied.appendChild(boutonTD('🗑️ Supprimer la liste', 'tdLien danger', '', async (ev, b) => {
+    if(!listeDuBureau || estAdminTD) pied.appendChild(boutonTD('🗑️ Supprimer la liste', 'tdLien danger', '', async (ev, b) => {
       if(typeof confirmer === 'function' && !await confirmer('Supprimer la liste « ' + l.nom + ' » et ses ' + l.items.length + ' tâche(s) ?' +
-         (l.genre === 'partage' ? '\n\nElle disparaît aussi chez ' + (l.membres || []).join(', ') + '.' : ''), 'Supprimer', true)) return;
+         (l.genre === 'partage' ? '\n\nElle disparaît aussi chez ' + (l.membres || []).join(', ') + '.' : '') +
+         '\n\nElle reste 30 jours dans 🗑️ Corbeille, en bas des listes.', 'Supprimer', true)) return;
       agirTD({ action: 'todoListeEcrire', quoi: 'supprimer', id: l.id }, b);
     }));
   }else if(l.genre === 'partage'){
