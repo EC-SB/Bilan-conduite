@@ -1,8 +1,8 @@
-/* Déployé le 30/10/2026 à 16:48 — v1314 */
+/* Déployé le 02/11/2026 à 19:33 — v1335 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
-   Application Bilan de conduite — Évolution Conduites
+   App Évolution Conduites (anciennement « Bilan de conduite »)
    ============================================================ */
 
 /* Branche un gestionnaire sans faire tomber le reste du fichier
@@ -2457,6 +2457,12 @@ async function deverrouiller(){
     return;
   }
   const btn = $('codeBtn');
+  /* ⚠️ UN SEUL ESSAI PAR APPUI — v1335. Le bouton est branché deux
+     fois (la connexion de secours dans la page, et ec-noyau) : les deux
+     appelaient deverrouiller, et un code faux comptait DEUX essais
+     contre le blocage de quinze minutes. Le premier appel désactive le
+     bouton avant d'attendre le serveur ; le second s'arrête ici. */
+  if(btn.disabled) return;
   btn.disabled = true;
   btn.textContent = 'Vérification…';
   msg.style.color = 'var(--muted)';
@@ -2482,8 +2488,13 @@ async function deverrouiller(){
           'Patiente, ou passe par un autre réseau.</span>';
       }
       $('codeInput').value = '';
+      if(typeof majRondsCode === 'function') majRondsCode();
       return;
     }
+    /* « On met se souvenir du prénom » — David, v1335. Ce qu'on a tapé
+       (c'est ce que le serveur reconnaît) et le nom qu'il renvoie
+       (c'est ce qu'on affiche). « Ce n'est pas moi » l'oublie. */
+    if(typeof retenirPrenom === 'function') retenirPrenom(ident, data.moniteur);
     ouvrirSession(code, data.moniteur, data.role, true, data.droits,
                 data.emoji, data.genre, data.droitsRegles);
   }catch(e){
@@ -2491,7 +2502,7 @@ async function deverrouiller(){
     msg.textContent = 'Connexion impossible : ' + e.message;
   }finally{
     btn.disabled = false;
-    btn.textContent = 'Déverrouiller';
+    btn.textContent = 'Se connecter';
   }
 }
 
