@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 15:04 — v1339 */
+/* Déployé le 03/11/2026 à 15:45 — v1340 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1340,
+    date: 'Mardi 3 novembre 2026',
+    resume: '⏹️ Fin d’examen en bas de la fiche · 📩 Mails : survol, lus / non lus fiables',
+    quoi: [
+      { emoji: '📩',
+        titre: 'Mails : lu, non lu, ça tient',
+        texte: 'Un mail remis en non lu ne repasse plus en lu tout seul. Le webmail suit tout de suite ; et ce qu’on lit ou remet en non lu dans le webmail se voit dans l’appli à la relève (5 min). Les cases de « Cocher des mails » sont vides au départ.' },
+      { emoji: '🖱️',
+        titre: 'Des boutons au survol',
+        texte: 'Sur ordinateur, survole un mail de la liste : 📩 / ✉️ (non lu ↔ lu) et 🏷️ les étiquettes, sans l’ouvrir.' },
+      { emoji: '⏹️',
+        titre: 'Arrêter le compteur sans remonter',
+        texte: 'Examen officiel et examen blanc : un second ⏹️ Fin d’examen tout en bas, juste avant « Composer le bilan ». Il dit si l’examen court encore, et fait exactement comme celui du haut.' }
+    ]
+  },
   {
     version: 1339,
     date: 'Mardi 3 novembre 2026',
