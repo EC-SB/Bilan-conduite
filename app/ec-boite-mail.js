@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 16:58 — v1342 */
+/* Déployé le 03/11/2026 à 17:22 — v1343 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -345,6 +345,8 @@ function mlDessinerLaListe(zone){
   sc.id = 'mlListe';
   zone.appendChild(sc);
 
+  mlLancerLaReleveAuto();
+  setTimeout(mlReleveAuto, 0);
   if(!mlLueLe || Date.now() - mlLueLe > 45000){
     if(!mlFils.length) sc.innerHTML = (typeof htmlAttente === 'function') ? htmlAttente('Lecture des mails…') : '<div class="empty">Lecture des mails…</div>';
     mlCharger(true);
@@ -447,6 +449,42 @@ function mlMenuDeLaListe(ancre){
     items.push({ emoji: '⚡', texte: 'Régler les réponses rapides', cle: 'rapides', faire: () => { if(typeof rrFiltre !== 'undefined') rrFiltre = 'mail'; ecranReglagesMessagerie(); } });
   }
   if(typeof menuGestesEC === 'function') menuGestesEC(ancre, '✉️ Mails', items);
+}
+
+/* ============================================================
+   ⏱️ LA RELÈVE, PLUS SOUVENT QUAND ON REGARDE — v1343
+
+   David, le 3 novembre : « je suis bloqué depuis 14h23 […] je reçois
+   des mails que j'ai besoin de voir tout de suite, du genre les
+   tickets de paiement ». Le Worker relève toutes les 5 minutes ; tant
+   que l'onglet ✉️ Mails est ouvert (et la page visible), l'appli
+   demande en plus une relève chaque minute. Elle est silencieuse : un
+   nouveau mail apparaît, c'est tout. S'il en reste à relever, la
+   suivante part plus tôt.
+   ============================================================ */
+let mlAutoReleveLe = 0, mlAutoEnCours = false, mlAutoMinuterie = null;
+function mlReleveAuto(){
+  if(mlAutoEnCours || typeof appelPrep !== 'function') return;
+  if(!mlOngletActif() || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return;
+  /* seulement si la liste des mails est à l'écran */
+  const zl = document.getElementById('mlListe');
+  if(!zl || !zl.offsetParent) return;
+  const e = mlEtat || {};
+  if(!mlEtat || e.configuree === false) return;
+  const maintenant = Date.now();
+  if(maintenant - mlAutoReleveLe < 60000) return;
+  if(e.releveLe && maintenant - Number(e.releveLe) < 60000) return;
+  mlAutoReleveLe = maintenant;
+  mlAutoEnCours = true;
+  appelPrep({ action: 'mailReleve' }).then(r => {
+    if(r && r.stats && Number(r.stats.reste) > 0) mlAutoReleveLe = Date.now() - 50000;   /* la suite dans ~10 s */
+    if(r && (r.stats || r.deja)){ mlLueLe = 0; return mlCharger(true); }
+  }).catch(() => {}).finally(() => { mlAutoEnCours = false; });
+}
+function mlLancerLaReleveAuto(){
+  if(mlAutoMinuterie) return;
+  mlAutoMinuterie = setInterval(mlReleveAuto, 15000);
+  if(typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') mlReleveAuto(); });
 }
 
 async function mlRelever(){
