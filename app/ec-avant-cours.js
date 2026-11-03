@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 12:04 — v1261 */
+/* Déployé le 03/11/2026 à 12:10 — v1336 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -345,7 +345,10 @@ function noteAvecResultatExamenBlanc(nom, note){
      « la leçon de veille » ou « les 3h » selon la version qui les a
      écrites. Ce motif accepte les deux, et c'est ce qui permet de
      renommer sans remettre tous les élèves à zéro. */
-  const DEJA = /pas le niveau|plus que (?:les 3h|la le[çc]on de veille)|encore \d+\s*le[çc]on/i;
+  /* 🤔 v1336 — et « pourrait avoir le niveau » : sans lui, la carte disait
+     « … à confirmer — pourrait avoir le niveau — à confirmer au prochain
+     cours » (capture de David, 3 novembre). */
+  const DEJA = /pas le niveau|pourrait avoir le niveau|plus que (?:les 3h|la le[çc]on de veille)|encore \d+\s*le[çc]on/i;
 
   return t.replace(motif, (tout, tete, suite) => {
     const clair = (typeof sansGras === 'function') ? sansGras(tout) : tout;
