@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 10:52 — v1173 */
+/* Déployé le 02/11/2026 à 19:33 — v1335 */
 /* ============================================================
    ec-bureaux.js — 📍 LES BUREAUX : HORAIRES ET RENDEZ-VOUS — v1170
 
@@ -31,7 +31,7 @@
    Droit : « 📍 Horaires et rendez-vous des bureaux » (bureaux) —
    l'admin et le bureau l'ont par leur rôle.
 
-   Application Bilan de conduite — Évolution Conduites
+   App Évolution Conduites (anciennement « Bilan de conduite »)
    ============================================================ */
 
 const BUREAUX_APPLI = {
@@ -288,7 +288,7 @@ function bandeauDesHorairesBureau(e){
     bd.classList.add('vide');
     ic.textContent = '📥';
     t.append(elBureau('b', '', 'Les horaires n’ont pas encore été lus dans Drivup'),
-             elBureau('small', '', 'Clique le favori « 📥 Bilan de conduite » sur le planning d’une agence dans Drivup : ' +
+             elBureau('small', '', 'Clique le favori « 📥 App Évolution » sur le planning d’une agence dans Drivup : ' +
                                     'les créneaux « ' + ((e.bureau && e.bureau.drivup) || 'Bureau …') + ' » des quatre semaines à venir seront repris.'));
   }else{
     const reste = joursEntreBureau(e.aujourdhui, lect.au);
