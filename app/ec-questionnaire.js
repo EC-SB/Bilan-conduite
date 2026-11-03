@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 12:04 — v1261 */
+/* Déployé le 03/11/2026 à 12:10 — v1336 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1681,8 +1681,10 @@ function fondreNotePreparee(neuf, ancien){
   /* « aRenseigner » en fait partie, et pour la même raison : c'est
      un constat du jour où la note s'est écrite, pas un fait sur
      l'élève. Le lendemain, on sait. */
+  /* 🔁 v1336 — « passage en BEA » est dans la note du cours où il a
+     eu lieu ; la fiche et le Suivi le gardent ensuite. */
   const DU_JOUR = ['lecon', 'leconVide', 'avantEB', 'friseEtat', 'entete',
-                   'aRenseigner'];
+                   'aRenseigner', 'passageBEA'];
   const restants = Object.keys(dits)
     .filter(c => !vus[c] && DU_JOUR.indexOf(c) === -1)
     .map(c => dits[c]);
@@ -3282,6 +3284,12 @@ const FAMILLES_NOTE = [
      Cette famille ne parle que du DÉCOMPTE avant l'examen blanc.
      On le lui fait dire : « avant l'examen blanc », pas « avant »
      n'importe quoi. */
+  /* 📅 v1336 — le planning d'avant un nouvel examen blanc (« Pourrait ») :
+     il parle d'examen blanc, il doit donc passer AVANT « examenBlanc »,
+     sinon il prendrait la place de la ligne « EXAMEN BLANC PASSÉ ». */
+  { cle:'planEB',      motif:/^📅\s*(?:\d+\s+le[çc]ons?|des le[çc]ons|examen blanc)\b/i },
+  /* 🔁 v1336 — le passage en BEA : un fait du jour (voir DU_JOUR) */
+  { cle:'passageBEA',  motif:/^🔁\s*PASSAGE EN BEA/i },
   { cle:'avantEB',
     motif:/encore \d+\s+le[çc]ons?\s+avant\s+l['’]?\s*exam(?:en)?\s+blanc/i },
   { cle:'examenBlanc', motif:/examen blanc/i, intention:/à\s*prévoir/i },
