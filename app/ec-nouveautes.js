@@ -1,4 +1,5 @@
-/* Déployé le 03/11/2026 à 16:23 — v1341 */
+
+/* Déployé le 03/11/2026 à 16:58 — v1342 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +51,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1342,
+    date: 'Mardi 3 novembre 2026',
+    resume: '✉️ Mails : 🚩 drapeau rouge · 👤 qui s’en occupe · 🏷️ filtres',
+    quoi: [
+      { emoji: '🚩',
+        titre: 'Le drapeau rouge',
+        texte: 'Il remplace « ⚠️ Urgent » : le mail passe en rouge et monte tout en haut. Un appui sur 🚩, au survol ou dans le mail ouvert ; « ✓ Réglé » l’enlève.' },
+      { emoji: '👤',
+        titre: 'Qui s’en occupe',
+        texte: 'Une couleur par personne : on met un ou plusieurs ronds sur un mail. La liste et les couleurs se règlent dans ⋯ › ⚙️ Réglages des mails.' },
+      { emoji: '🏷️',
+        titre: 'Les filtres',
+        texte: 'Sous « Claude » : Tous · 🚩 · Pour moi · 👤 Qui ▾ · 🏷️ Étiquette ▾, avec leur nombre, et ils se combinent.' }
+    ]
+  },
   {
     version: 1341,
     date: 'Mardi 3 novembre 2026',
