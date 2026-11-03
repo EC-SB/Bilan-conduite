@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1339
+     GUIDE-VERSION: 1340
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1339</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1340</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -583,7 +583,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1339</strong>, relu le 3 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1340</strong>, relu le 3 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1473,6 +1473,7 @@ html{scroll-behavior:smooth}
 
     <h4 id="duree-examen">⏱️ La durée de l'examen</h4>
     <p>À l'examen officiel (en tête de <span class="b">🏁 Examen</span>), à l'examen blanc et dans le module examen blanc du RVP (en tête de <span class="b">Pendant l'examen blanc</span>)&nbsp;: <span class="b">▶️ Début d’examen</span> et <span class="b">⏹️ Fin d’examen</span>, avec <strong>un grand compteur qui avance à la seconde</strong> (<span class="ch">12:10</span>) tant que l'examen court, puis s'arrête sur la durée. Les deux heures restent corrigeables à la main. Les mêmes boutons, avec le compteur, sont sur la fiche gardée en haut de l'écran (<span class="ch">⏱️ 12:10 en cours depuis 09:40</span> · <span class="b">⏹️ Fin d’examen</span>).</p>
+    <p>Sur la fiche d'examen officiel et d'examen blanc, un <strong>second</strong> <span class="b">⏹️ Fin d’examen</span> attend <strong>tout en bas</strong>, juste au-dessus de <span class="b">📄 Composer le bilan</span>&nbsp;: plus besoin de remonter en fin d'examen. Au-dessus, une ligne dit où on en est — <span class="ch">⏱️ Compteur pas lancé — ▶️ Début d’examen est en haut de « 🏁 Examen »</span>, <span class="ch">⏳ Examen en cours · 12:10</span> ou <span class="ch">✅ Examen fini : 32 min (09:40 → 10:12)</span>. Il fait exactement comme celui du haut (mêmes heures, même envoi).</p>
     <p><strong>Jamais à l'élève.</strong> La durée va dans la note interne&nbsp;: <span class="ch">🔒 EXAMEN OFFICIEL · ⏱️ Durée : 32 min (09:40 → 10:12)</span> ou <span class="ch">🔒 EXAMEN BLANC · ⏱️ Durée : …</span>. Seule celle de l'examen officiel part aussi au dossier (Permis), à l'historique et aux <a href="#durees-stats" class="aller">📊 Statistiques › ⏱️ Durée et retard des examens</a> (par inspecteur, par centre, par mois, avec le retard sur l'heure prévue)&nbsp;; celle de l'examen blanc et du RVP reste sur la fiche et dans la note.</p>
 
     <h4>📤 Envoyer la partie avant examen</h4>
@@ -3896,7 +3897,8 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <p>La boîte OVH de l’école, dans l’onglet <span class="b">✉️ Mails</span> de la messagerie. L’appli la <strong>relève toutes les 5 minutes</strong> (la première fois&nbsp;: les 30 derniers jours) et envoie par la même adresse. La boîte reste la vraie&nbsp;: ce qu’on envoie d’ici se range dans ses «&nbsp;Envoyés&nbsp;», et ce qu’on écrit depuis le webmail OVH revient ici, dans le bon fil (<span class="ch">✉️ réponse envoyée depuis le webmail</span>).</p>
     <dl class="defs">
       <div><dt>La liste</dt><dd>Une ligne par conversation&nbsp;: qui, l’objet, le début du dernier message, et des pastilles — <span class="b">🔗 l’élève</span> (rattaché tout seul quand le mail vient de l’adresse de sa fiche), <span class="b">❓ À rattacher</span>, les <span class="b">🏷️ étiquettes</span>, <span class="b">⚠️ Urgent</span>. Rangée en Urgents · Non lus · À traiter · ⏰ À me rappeler. En tête&nbsp;: les pubs supprimées de la semaine et l’heure de la dernière relève.</dd></div>
-      <div><dt>Lus, non lus</dt><dd>Un mail non lu a un trait vert à gauche, un point devant le nom, le nom et l’objet en gras et son chiffre&nbsp;; un mail lu s’éteint d’un cran. <span class="b">⋯ › ☑ Cocher des mails</span>&nbsp;: on coche (ou <span class="b">Tout cocher</span>) puis <span class="b">✉️ Marquer comme lus</span> ou <span class="b">📩 Marquer comme non lus</span>. Le webmail OVH suit à la relève suivante.</dd></div>
+      <div><dt>Lus, non lus</dt><dd>Un mail non lu a un trait vert à gauche, un point devant le nom, le nom et l’objet en gras et son chiffre&nbsp;; un mail lu s’éteint d’un cran. <span class="b">⋯ › ☑ Cocher des mails</span>&nbsp;: on coche (ou <span class="b">Tout cocher</span>) puis <span class="b">✉️ Marquer comme lus</span> ou <span class="b">📩 Marquer comme non lus</span> (une case pas cochée est vide). Le webmail OVH suit <strong>tout de suite</strong>&nbsp;; dans l’autre sens, un mail lu ou remis en non lu <strong>dans le webmail</strong> l’est aussi dans l’appli à la relève suivante (toutes les 5 minutes, ou ⋯ › 🔄 Relever la boîte maintenant).</dd></div>
+      <div><dt>Au survol</dt><dd>Sur ordinateur, la ligne survolée montre deux boutons à droite, sans ouvrir le mail&nbsp;: <span class="b">📩</span> (marquer comme non lu) ou <span class="b">✉️</span> (marquer comme lu), et <span class="b">🏷️</span>, la liste des étiquettes à cocher (<span class="b">➕ Nouvelle étiquette…</span> pour l’administrateur). Sur le téléphone, ces gestes restent dans <span class="b">⋯</span> du mail ouvert.</dd></div>
       <div><dt>Le fil</dt><dd>Les mails en bulles, comme une conversation&nbsp;; l’ancien message cité se replie sous <span class="b">··· le message cité</span>, la mise en forme d’origine s’ouvre par <span class="b">🖼️ Voir le mail tel qu’il a été mis en forme</span>, les pièces jointes se téléchargent. En tête&nbsp;: <span class="b">📇 Son dossier</span> (ou <span class="b">🔗 Rattacher</span>), <span class="b">✓ Réglé</span> (il part dans 🗄️ Mails réglés, une réponse le ramène), <span class="b">⏰</span>, et <span class="b">⋯</span> pour les étiquettes, urgent, changer d’élève, «&nbsp;pas un élève&nbsp;», non lu.</dd></div>
       <div><dt>Répondre</dt><dd><span class="b">↩️ Répondre</span>, <span class="b">↩️ Répondre à tous</span>, <span class="b">↪️ Transférer</span> (et <span class="b">✏️</span> pour un nouveau mail) ouvrent l’éditeur&nbsp;: De, À (en tapant, les élèves — l’adresse de leur fiche —, le carnet et les adresses déjà écrites se proposent&nbsp;; une adresse se tape aussi directement), Cc, Cci, Objet, la mise en forme, 🖼️ une image, 📎 des pièces jointes (10&nbsp;Mo chacune, 15&nbsp;Mo en tout), le mail d’origine cité dessous, ⤢ le plein écran. Le brouillon se garde tout seul&nbsp;; ✕ ferme sans rien perdre.</dd></div>
       <div><dt>✍️ Ma signature</dt><dd>Dans <span class="b">⋯ › ✍️ Ma signature</span>&nbsp;: colle ta signature du webmail OVH et ajoute ton logo PNG. Elle se pose toute seule sous chaque mail&nbsp;; le menu <span class="b">✍️ Signature</span> de l’éditeur en choisit une autre («&nbsp;L’équipe&nbsp;», réglée par un administrateur) ou aucune. Le logo part dans le mail lui-même.</dd></div>
