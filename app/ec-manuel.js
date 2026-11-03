@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 16:48 — v1314 */
+/* Déployé le 03/11/2026 à 12:10 — v1336 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2550,6 +2550,360 @@ function blocVoituretteNiveau(cleNiveau){
   });
   return z;
 }
+/* ============================================================
+   📅 LES VACANCES SCOLAIRES — ZONE B (académie de Rennes) — v1336
+
+   Le planning d'avant un nouvel examen blanc se pose sur les semaines
+   des vacances (David : « des cases à cocher avec les prochaines
+   vacances »). Le départ est le samedi après la classe, la reprise le
+   lundi matin : la 1re semaine va du lundi au samedi qui suivent le
+   départ, la 2e du lundi au samedi d'après.
+
+   ⚠️ À COMPLÉTER CHAQUE ANNÉE, quand le calendrier suivant paraît au
+   Journal officiel. Sans vacances à venir dans la table, il reste
+   « ✏️ Autre (je l'écris) » : le planning marche toujours.
+   Sources : service-public.gouv.fr (2026-2027), arrêté du calendrier
+   2027-2028.
+   ============================================================ */
+const VACANCES_ZONE_B = [
+  { cle:'toussaint-2026', nom:'de la Toussaint', court:'Toussaint', emoji:'🍂', depart:'2026-10-17', reprise:'2026-11-02' },
+  { cle:'noel-2026',      nom:'de Noël',         court:'Noël',      emoji:'🎄', depart:'2026-12-19', reprise:'2027-01-04' },
+  { cle:'hiver-2027',     nom:'d’hiver',         court:'Hiver',     emoji:'❄️', depart:'2027-02-20', reprise:'2027-03-08' },
+  { cle:'printemps-2027', nom:'de printemps',    court:'Printemps', emoji:'🌸', depart:'2027-04-17', reprise:'2027-05-03' },
+  { cle:'ete-2027',       nom:'d’été',           court:'Été',       emoji:'☀️', depart:'2027-07-03', reprise:'2027-09-02' },
+  { cle:'toussaint-2027', nom:'de la Toussaint', court:'Toussaint', emoji:'🍂', depart:'2027-10-23', reprise:'2027-11-08' },
+  { cle:'noel-2027',      nom:'de Noël',         court:'Noël',      emoji:'🎄', depart:'2027-12-18', reprise:'2028-01-03' },
+  { cle:'hiver-2028',     nom:'d’hiver',         court:'Hiver',     emoji:'❄️', depart:'2028-02-05', reprise:'2028-02-21' },
+  { cle:'printemps-2028', nom:'de printemps',    court:'Printemps', emoji:'🌸', depart:'2028-04-08', reprise:'2028-04-24' },
+  { cle:'ete-2028',       nom:'d’été',           court:'Été',       emoji:'☀️', depart:'2028-07-04', reprise:'2028-09-01' }
+];
+function isoPlusJoursEB(iso, n){
+  const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+/* Les semaines proposées : celles des trois prochaines vacances, sans
+   celles déjà finies. Le lundi qui suit le samedi du départ. */
+function semainesDeVacancesEB(aujourdhui){
+  const auj = aujourdhui || (typeof todayLocal === 'function' ? todayLocal() : new Date().toISOString().slice(0, 10));
+  const court = iso => { const d = new Date(iso + 'T12:00:00');
+    return (d.getDate() === 1 ? '1er' : d.getDate()) + ' ' + d.toLocaleDateString('fr-FR', { month: 'short' }); };
+  const out = [];
+  VACANCES_ZONE_B.filter(v => v.reprise > auj).slice(0, 3).forEach(v => {
+    let lundi = isoPlusJoursEB(v.depart, 2);
+    for(let i = 1; i <= 2; i++){
+      const samedi = isoPlusJoursEB(lundi, 5);
+      if(samedi >= auj){
+        const rang = i === 1 ? '1re' : '2e';
+        out.push({ q: v.cle + '-' + i, du: lundi, au: samedi,
+                   lib: 'vacances ' + v.nom + ', ' + rang + ' semaine',
+                   court: v.court + ' sem. ' + i,
+                   option: v.emoji + ' ' + v.court + ' — ' + rang + ' sem. (' +
+                     (lundi.slice(0, 7) === samedi.slice(0, 7) ? court(lundi).split(' ')[0] : court(lundi)) + ' → ' + court(samedi) + ')' });
+      }
+      lundi = isoPlusJoursEB(lundi, 7);
+    }
+  });
+  return out;
+}
+
+/* ============================================================
+   📅 LE BLOC « POURRAIT » — v1336
+
+   Sous les trois réponses du niveau, avec la voiturette : il ne se
+   montre que sur « 🤔 Pourrait » (data-si-niveau, comme les champs du
+   « Oui »). Des étapes « 🚗 Leçons » et « 📝 Examen blanc », autant
+   qu'il en faut et dans l'ordre, puis un texte libre. Tout s'écrit
+   directement dans champsManuels, comme la voiturette : le cadre
+   « Ce qui partira dans le bilan » se refait à chaque appui.
+   ============================================================ */
+function blocPlanningPourrait(cleNiveau){
+  const base = String(cleNiveau || '').replace(/niveau$/, '');
+  const kPlan = base + 'planEB', kTexte = base + 'planTexte';
+  const z = document.createElement('div');
+  z.className = 'planningPourrait';
+  z.setAttribute('data-si-niveau', 'peut');
+  z.style.cssText = 'flex:0 0 100%;margin:12px 0 4px;display:' + (champsManuels[cleNiveau] === 'peut' ? '' : 'none') + ';';
+
+  const lire = () => etapesPlanningEB(champsManuels[kPlan]);
+  const ecrire = l => { champsManuels[kPlan] = JSON.stringify(l); };
+  /* La première fois : une étape « Leçons » à remplir, pour qu'on voie
+     tout de suite quoi faire. Une étape vide n'écrit rien. */
+  if(!lire().length) ecrire([{ t: 'lecons', n: '', q: '' }]);
+
+  const semaines = semainesDeVacancesEB();
+  const t = document.createElement('label');
+  t.textContent = '4 · Le planning avant un nouvel examen blanc';
+  z.appendChild(t);
+  const liste = document.createElement('div');
+  z.appendChild(liste);
+
+  const dessiner = () => {
+    liste.innerHTML = '';
+    const l = lire();
+    l.forEach((e, i) => {
+      const c = document.createElement('div');
+      c.className = 'etapePlanning';
+      c.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;';
+      const h = document.createElement('div');
+      h.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+      const ht = document.createElement('span');
+      ht.style.cssText = 'font-weight:800;font-size:14px;flex:1;';
+      ht.textContent = (i + 1) + ' · ' + (e.t === 'eb' ? '📝 Examen blanc' : '🚗 Leçons');
+      h.appendChild(ht);
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'btn btn-secondary';
+      x.title = 'Retirer cette étape';
+      x.style.cssText = 'width:auto;padding:8px 11px;margin:0;font-size:14px;';
+      x.textContent = '✕';
+      x.addEventListener('click', () => { const m = lire(); m.splice(i, 1); ecrire(m); dessiner(); });
+      h.appendChild(x);
+      c.appendChild(h);
+
+      if(e.t === 'lecons'){
+        const r = document.createElement('div');
+        r.className = 'planLecons';
+        r.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;';
+        [1, 2, 3, 4, 5].forEach(n => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'btn btn-secondary';
+          b.setAttribute('data-n', String(n));
+          const on = String(e.n) === String(n);
+          b.style.cssText = 'width:auto;padding:9px 12px;font-size:15px;margin:0;' +
+            (on ? 'background:var(--orange);border-color:var(--orange);color:#0B0B0B;font-weight:700;' : '');
+          b.textContent = String(n);
+          b.addEventListener('click', () => {
+            const m = lire(); m[i].n = (String(m[i].n) === String(n)) ? '' : String(n); ecrire(m); dessiner();
+          });
+          r.appendChild(b);
+        });
+        const u = document.createElement('span');
+        u.style.cssText = 'font-size:13px;color:var(--muted);';
+        u.textContent = 'leçon(s) de 2h';
+        r.appendChild(u);
+        c.appendChild(r);
+      }
+
+      /* « Quand » au-dessus d'une liste pleine largeur : sur un téléphone,
+         à côté, la semaine et ses dates étaient coupées. */
+      const q = document.createElement('div');
+      q.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+      const ql = document.createElement('span');
+      ql.style.cssText = 'font-size:12px;color:var(--muted);';
+      ql.textContent = 'Quand';
+      q.appendChild(ql);
+      const sel = document.createElement('select');
+      sel.className = 'planQuand';
+      sel.style.cssText = 'margin:0;width:100%;font-size:15px;';
+      const opt = (v, txt) => { const o = document.createElement('option'); o.value = v; o.textContent = txt; sel.appendChild(o); };
+      opt('', '— quand ? —');
+      semaines.forEach(w => opt(w.q, w.option));
+      /* Une semaine choisie avant que la table ne change reste lisible */
+      if(e.q && e.q !== 'autre' && !semaines.some(w => w.q === e.q)) opt(e.q, e.lib || e.q);
+      opt('autre', '✏️ Autre (je l’écris)');
+      sel.value = e.q || '';
+      sel.addEventListener('change', () => {
+        const m = lire(); const w = semaines.find(y => y.q === sel.value);
+        m[i].q = sel.value;
+        if(w){ m[i].lib = w.lib; m[i].court = w.court; m[i].du = w.du; m[i].au = w.au; }
+        else{ delete m[i].lib; delete m[i].court; delete m[i].du; delete m[i].au; }
+        ecrire(m); dessiner();
+      });
+      q.appendChild(sel);
+      c.appendChild(q);
+      if(e.q === 'autre'){
+        const a = document.createElement('input');
+        a.type = 'text'; a.className = 'planAutre';
+        a.placeholder = 'Quand ? (ex. fin janvier, le samedi 9…)';
+        a.style.cssText = 'margin:8px 0 0;';
+        a.value = e.autre || '';
+        a.addEventListener('input', () => { const m = lire(); m[i].autre = a.value; ecrire(m); });
+        c.appendChild(a);
+      }
+      liste.appendChild(c);
+    });
+  };
+  dessiner();
+
+  const ajouts = document.createElement('div');
+  ajouts.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+  [['➕ Des leçons', 'lecons'], ['➕ Un examen blanc', 'eb']].forEach(([lab, type]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn btn-secondary';
+    b.setAttribute('data-ajout', type);
+    b.style.cssText = 'width:auto;margin:0;padding:9px 12px;font-size:14px;';
+    b.textContent = lab;
+    b.addEventListener('click', () => { const m = lire(); m.push(type === 'eb' ? { t: 'eb', q: '' } : { t: 'lecons', n: '', q: '' }); ecrire(m); dessiner(); });
+    ajouts.appendChild(b);
+  });
+  z.appendChild(ajouts);
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.5;margin:6px 0 14px;';
+  aide.textContent = 'Les semaines des trois prochaines vacances scolaires (zone B), mises à jour toutes seules.';
+  z.appendChild(aide);
+
+  const lt = document.createElement('label');
+  lt.textContent = '4 · Le planning prévu — en plus';
+  z.appendChild(lt);
+  const tx = document.createElement('textarea');
+  tx.rows = 2; tx.className = 'planTexte';
+  tx.placeholder = 'Ce qui part aussi dans son bilan, sous le planning.';
+  tx.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);padding:11px 12px;' +
+    'border-radius:10px;font-size:16px;line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
+  tx.value = champsManuels[kTexte] || '';
+  tx.addEventListener('input', () => { champsManuels[kTexte] = tx.value; });
+  z.appendChild(tx);
+  return z;
+}
+
+/* ============================================================
+   🅰️ LES DEUX CASES BEA — v1336
+
+   « Au même endroit que la voiturette » sur un examen blanc (et le
+   rendez-vous pédagogique), et sous « Plus d'écoutes que de
+   conduite » dans tous les cours en BV. Rien pour un élève en BEA —
+   ni pour une passerelle BEA → BV, qui apprend justement la manuelle.
+   ============================================================ */
+function eleveEnBVPourBEA(){
+  const m = ($('modele') && $('modele').value) || '';
+  const nom = ($('studentName') && $('studentName').value.trim()) || '';
+  const f = (typeof formationDe === 'function') ? formationDe(nom) : '';
+  if(/passerelle/i.test(f)) return false;
+  if(/manuelle/.test(m) && !/^simu/.test(m)) return true;
+  if(m === 'examen-blanc' || (typeof surRendezVousPedago === 'function' && surRendezVousPedago())){
+    return (typeof boiteDeLaFormation === 'function') && String(boiteDeLaFormation(f) || '').toUpperCase() === 'BV';
+  }
+  return false;
+}
+function blocBEA(prefixe){
+  if(!eleveEnBVPourBEA()) return null;
+  const p = prefixe || '';
+  const z = document.createElement('div');
+  z.className = 'blocBEA';
+  z.style.cssText = 'flex:0 0 100%;margin:4px 0 12px;';
+  const cas = (cle, txt, aide) => {
+    const w = document.createElement('div');
+    w.style.cssText = 'margin-top:8px;';
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:15px;font-weight:700;' +
+      'text-transform:none;color:var(--cream);margin:0;cursor:pointer;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'beaCase';
+    cb.setAttribute('data-cle', cle);
+    cb.style.cssText = 'width:20px;height:20px;margin:0;flex-shrink:0;';
+    cb.checked = champsManuels[p + cle] === 'oui';
+    cb.addEventListener('change', () => { champsManuels[p + cle] = cb.checked ? 'oui' : ''; });
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(txt));
+    w.appendChild(lab);
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:12px;color:var(--muted);margin:5px 0 0 29px;line-height:1.45;';
+    a.textContent = aide;
+    w.appendChild(a);
+    return w;
+  };
+  z.appendChild(cas('conseilBEA', '🅰️ Nous te conseillons de passer en BEA',
+    'La phrase part dans son bilan, avec le lien Facebook « passer en boîte auto ».'));
+  z.appendChild(cas('passageBEA', '🔁 Passage en BEA',
+    'À l’enregistrement : sa fiche passe en BEA, « 🔁 Passage en BEA le ' + jourCourtBEA() +
+    ' » dans son Suivi et le résumé du cours, un message dans le groupe « Message important », et « 🔁 Ta prochaine leçon sera en BEA. » dans son bilan.'));
+  return z;
+}
+function jourCourtBEA(){
+  const v = ($('lessonDate') && $('lessonDate').value) || (typeof todayLocal === 'function' ? todayLocal() : '');
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : String(v);
+}
+
+/* ------------------------------------------------------------
+   🔁 CE QUE FAIT LE PASSAGE EN BEA, à l'enregistrement du cours.
+   Une fois par cours : la marque « passageBEAFait » empêche de
+   tout refaire si le bilan est recomposé.
+   ------------------------------------------------------------ */
+async function faireLePassageBEA(eleve, prefixe){
+  const p = prefixe || '';
+  if(!eleve || champsManuels[p + 'passageBEA'] !== 'oui') return;
+  if(champsManuels[p + 'passageBEAFait']) return;
+  champsManuels[p + 'passageBEAFait'] = jourCourtBEA();
+  const jour = jourCourtBEA();
+  const soucis = [];
+
+  /* 1. Sa fiche : la formation passe en BEA — par le serveur, pour qu'un
+     moniteur sans le droit « élèves » puisse le faire (seulement ça). */
+  try{
+    const r = await appelPrep({ action: 'passageBEA', eleve: eleve });
+    if(r && r.status === 'ok'){
+      const f = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+      if(f && r.formation) f.formation = r.formation;
+    }else soucis.push('sa fiche (' + ((r && r.message) || 'refusé') + ')');
+  }catch(e){ soucis.push('sa fiche (' + (e.message || e) + ')'); }
+
+  /* 2. Son Suivi : la ligne en tête, sans rien effacer — lu au serveur,
+     et seulement sur une réponse « ok » (la règle de la voiturette). */
+  try{
+    const d = await appelPrep({ action: 'suiviLire', eleve: eleve });
+    if(d && d.status === 'ok'){
+      const texte = String(((d.fiche) || {}).texte || '');
+      const ligne = '🔁 Passage en BEA le ' + jour;
+      const garde = texte.split('\n').filter(l => l.trim() !== ligne).join('\n').trim();
+      await appelPrep({ action: 'suiviTextePoser', eleve: eleve, texte: ligne + (garde ? '\n' + garde : '') });
+      if(typeof rafraichirApresSuiviSE === 'function') rafraichirApresSuiviSE(eleve);
+    }else soucis.push('son Suivi');
+  }catch(e){ soucis.push('son Suivi'); }
+
+  /* 3. Le groupe « Message important » de la messagerie, au nom du
+     moniteur du cours. Le prénom est reconnu : le message entre aussi
+     dans son dossier. */
+  try{
+    const d = await appelPrep({ action: 'convList' });
+    const simple = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const conv = ((d && d.conversations) || []).find(c => (c.genre === 'groupe' || c.genre === 'interne') && !c.eleve &&
+      /^messages? importants?$/.test(simple(c.titre)));
+    if(conv){
+      await appelPrep({ action: 'convEcrire', id: conv.id, texte: '🔁 ' + eleve + ' — passage en BEA ce jour',
+                        suivi: { noms: [eleve] } });
+    }else if(typeof showToast === 'function'){
+      showToast('ℹ️ Tu n’es pas dans le groupe « Message important » : le passage en BEA n’y est pas annoncé.');
+    }
+  }catch(e){ soucis.push('le message important'); }
+
+  if(typeof showToast === 'function'){
+    showToast(soucis.length ? '⚠️ Passage en BEA : à refaire à la main pour ' + soucis.join(', ')
+                            : '🔁 Passage en BEA noté : fiche, Suivi et message important');
+  }
+}
+
+/* 📅 v1336 — « · 📅 2 leçons (Noël sem. 1) → examen blanc → … » au bout de
+   la ligne « EXAMEN BLANC PASSÉ ». L'ancien planning s'en va toujours :
+   un nouvel examen blanc le remplace, ou l'efface s'il n'y en a plus. */
+const RE_SEGMENT_PLANNING = /^📅\s*(?:\d+\s+le[çc]ons?|des le[çc]ons|examen blanc)\b/i;
+function poserPlanningDansLaNote(plan){
+  const zn = $('noteInterne');
+  if(!zn) return;
+  const clair = x => (typeof sansGras === 'function') ? sansGras(x) : x;
+  let lignes = zn.value.split('\n').map(l => l.split(/\s*·\s*/).filter(seg => !RE_SEGMENT_PLANNING.test(clair(seg).trim())).join(' · '))
+    .filter(l => l.trim() !== '');
+  const r = (typeof resumePlanningEB === 'function') ? resumePlanningEB(plan) : '';
+  if(r){
+    const i = lignes.findIndex(l => /EXAMEN BLANC PASS|Examen blanc pass/i.test(clair(l)));
+    if(i !== -1) lignes[i] = lignes[i].replace(/\s+$/, '') + ' · ' + r;
+    else lignes.unshift(r);
+  }
+  zn.value = lignes.join('\n');
+}
+/* 🔁 « PASSAGE EN BEA le mardi 3 novembre 2026 » en tête de la note du jour */
+function poserPassageBEADansLaNote(oui){
+  const zn = $('noteInterne');
+  if(!zn) return;
+  const clair = x => (typeof sansGras === 'function') ? sansGras(x) : x;
+  const sans = zn.value.split('\n').filter(l => !/^🔁\s*PASSAGE EN BEA/i.test(clair(l).trim())).join('\n').trim();
+  if(!oui){ zn.value = sans; return; }
+  const v = ($('lessonDate') && $('lessonDate').value) || '';
+  const jour = (typeof dateEnToutesLettres === 'function' && v) ? dateEnToutesLettres(v) : jourCourtBEA();
+  const g = (typeof grasNote === 'function') ? grasNote('PASSAGE EN BEA') : 'PASSAGE EN BEA';
+  zn.value = '🔁 ' + g + ' le ' + jour + (sans ? '\n' + sans : '');
+}
+
 /* La ligne 🚗 de la note interne (et du Suivi), refaite à chaque bilan */
 function poserVoituretteDansLaNote(prefixe){
   const zn = $('noteInterne');
@@ -5901,6 +6255,11 @@ async function genererBilanManuel(){
     }
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
+    /* 🅰️ v1336 — le conseil / le passage en BEA d'un cours en BV. Sur un
+       examen blanc, ils sont déjà dans le bloc du niveau. */
+    if(modeleCle !== 'examen-blanc' && !surRendezVousPedago() && typeof placerBEADansLeBilan === 'function'){
+      bilan = placerBEADansLeBilan(bilan, champsManuels);
+    }
     if(typeof blocProcedures === 'function'){
       /* 📍 v1219 — où il en est, sous le rappel de sa frise */
       if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
@@ -5983,6 +6342,17 @@ async function genererBilanManuel(){
   if(modeleCle === 'examen-blanc' || surRendezVousPedago()){
     const lv = poserVoituretteDansLaNote(modeleCle === 'examen-blanc' ? '' : 'examenBlanc.');
     if(lv) poserVoituretteAuSuivi(eleve, lv);
+  }
+
+  /* 📅 v1336 — le planning du « Pourrait » dans le résumé court, sur la
+     ligne de l'examen blanc ; et 🔁 le passage en BEA (la ligne de la
+     note, puis la fiche, le Suivi et le message important). */
+  {
+    const pfx = (modeleCle === 'examen-blanc') ? '' : (surRendezVousPedago() ? 'examenBlanc.' : null);
+    if(pfx !== null) poserPlanningDansLaNote(champsManuels[pfx + 'niveau'] === 'peut' ? champsManuels[pfx + 'planEB'] : '');
+    const pB = (pfx !== null) ? pfx : '';
+    poserPassageBEADansLaNote(champsManuels[pB + 'passageBEA'] === 'oui');
+    if(champsManuels[pB + 'passageBEA'] === 'oui') faireLePassageBEA(eleve, pB);
   }
 
   /* ✍️ v1208 — les zones « 🔒 Pour nous seulement » vont dans la note
@@ -7693,6 +8063,12 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       bloc.appendChild(r);
       /* 🚗 v1314 — la voiturette, sous les trois réponses du niveau */
       if(ch.type === 'niveau') bloc.appendChild(blocVoituretteNiveau(ch.cle));
+      /* 🅰️ v1336 — les deux cases BEA (élève en BV), puis le planning du « Pourrait » */
+      if(ch.type === 'niveau'){
+        const bea = blocBEA(ch.cle.replace(/niveau$/, ''));
+        if(bea) bloc.appendChild(bea);
+        bloc.appendChild(blocPlanningPourrait(ch.cle));
+      }
 
     }else if(ch.type === 'rubriques'){
       /* Les neuf rubriques d'erreurs, une zone de texte chacune.
@@ -9098,6 +9474,12 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       return;
     }
     zone.appendChild(bloc);
+    /* 🅰️ v1336 — dans les cours en BV, les deux cases BEA sous
+       « Plus d'écoutes que de conduite » */
+    if(ch.type === 'ok' && /(^|\.)ecoutes$/.test(ch.cle)){
+      const bea = blocBEA(ch.cle.replace(/ecoutes$/, ''));
+      if(bea) zone.appendChild(bea);
+    }
   });
 }
 
