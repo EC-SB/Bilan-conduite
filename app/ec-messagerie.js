@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 12:22 — v1330 */
+/* Déployé le 03/11/2026 à 13:55 — v1337 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -173,6 +173,8 @@ async function afficherMessagerie(silencieux){
        passe par ici : le rond de l'en-tête gardait donc son chiffre
        d'avant la lecture. */
     poserLesComptesMessagerie((d && d.nonLusTotal) || 0);
+    /* ✉️ v1337 — le chiffre de l'onglet des mails voyage avec */
+    if(typeof mlPoserLeCompte === 'function') mlPoserLeCompte(d && d.mailsNonLus);
     /* 🖼️ v1163 — les photos, une fois ; un redessin si elles arrivent */
     if(typeof photosPuisRedessin === 'function') photosPuisRedessin();
   }catch(e){
@@ -200,12 +202,16 @@ async function afficherMessagerie(silencieux){
   if(typeof filNeufEC !== 'undefined' && filNeufEC) return;
   /* ⚙️ v1154 — idem pour l'écran des réglages, 📞 v1155 et le signalement */
   if(reglagesMsgOuvertEC || signalOuvertEC) return;
+  /* ✉️ v1337 — et pour un mail ouvert (sur le téléphone, c'est la même zone) */
+  if(typeof mlFilEstOuvert === 'function' && mlFilEstOuvert()) return;
 
   dessinerLaListeMessagerie();
   if(typeof poursuivreEcrireA === 'function') poursuivreEcrireA();
 }
 
 function dessinerLaListeMessagerie(){
+  /* ✉️ v1337 — sur le téléphone, un mail ouvert occupe la zone de la liste */
+  if(!ckLarge() && typeof mlFilEstOuvert === 'function' && mlFilEstOuvert()) return;
   const large = ckLarge();
   const zone = zoneListeMsg();
   if(!zone) return;
@@ -217,6 +223,15 @@ function dessinerLaListeMessagerie(){
      adressé ; y mêler les conversations des autres, c'est le rendre
      inutilisable le jour où il y en a quarante. */
   if(dansLeTiroir() && filtreMessagerie === 'supervision') filtreMessagerie = '';
+
+  /* ✉️ v1337 — l'onglet « ✉️ Mails » : la boîte de l'école, dessinée par
+     ec-boite-mail.js dans la même colonne (ni recherche des
+     conversations, ni filtres par type : les siens). */
+  if(!filtreMessagerie && ongletMsgEC === 'mails' && !dansLeTiroir() &&
+     typeof mlDessinerLaListe === 'function' && typeof mlOngletVisible === 'function' && mlOngletVisible()){
+    mlDessinerLaListe(zone);
+    return;
+  }
 
   /* 🧭 v1141 : le rail à gauche sur grand écran, des pastilles qui
      passent à la ligne ailleurs. La recherche, ＋ et ☑ tiennent sur
@@ -1005,6 +1020,7 @@ async function viderLesFilsFermes(bouton, ids){
 
 async function ouvrirLeFil(id, viser){
   reglagesMsgOuvertEC = false;   /* ⚙️ v1154 */
+  if(typeof mlOublierLeFil === 'function') mlOublierLeFil();   /* ✉️ v1337 */
   signalOuvertEC = null;         /* 📞 v1155 */
   const large = ckLarge();
   const zone = zoneFilMsg();
@@ -3326,12 +3342,17 @@ async function ongletMessagesEleve(corps, nom){
     : '<div class="empty">Lecture de ses conversations…</div>';
 
   let liste = [];
+  /* ✉️ v1337 — ses mails (la boîte de l'école), lus en même temps,
+     pour qui a le droit « ✉️ Mails » */
+  const sesMails = (typeof mlDuDossier === 'function') ? mlDuDossier(nom) : Promise.resolve([]);
+  let mails = [];
   try{
     /* Le dossier d'un élève montre tout son historique : une
        conversation fermée reste une chose qu'on a échangée avec
        lui, et c'est souvent elle qu'on vient relire. */
     const d = await appelPrep({ action: 'convList', eleve: nom, fermees: 'avec' });
     liste = (d && d.conversations) || [];
+    mails = await sesMails;
   }catch(e){
     corps.innerHTML = '';
     const v = document.createElement('div');
@@ -3349,6 +3370,7 @@ async function ongletMessagesEleve(corps, nom){
   const ch = document.createElement('input');
   ch.type = 'text';
   ch.placeholder = '🔍 Chercher dans ses conversations…';
+  ch.id = 'msgElvChercheDossier';
   ch.addEventListener('keydown', async ev => {
     if(ev.key !== 'Enter') return;
     ev.preventDefault();
@@ -3360,26 +3382,43 @@ async function ongletMessagesEleve(corps, nom){
     try{
       const d = await appelPrep({ action: 'convChercher', mots: mots, eleve: nom });
       const t = (d && d.trouves) || [];
+      /* ✉️ v1337 — la recherche passe aussi dans ses mails */
+      let tm = [];
+      if(mails.length || (typeof mlOngletVisible === 'function' && mlOngletVisible())){
+        try{
+          const r = await appelPrep({ action: 'mailList', vue: 'chercher', mots: mots, sansEtat: true });
+          const cle = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+          tm = ((r && r.fils) || []).filter(f => cle(f.eleve) === cle(nom));
+        }catch(e){ tm = []; }
+      }
       z.innerHTML = '';
-      z.appendChild(sousTitreMessagerie(t.length
-        ? 'Trouvé pour « ' + mots + ' » · ' + t.length + ' message(s)'
+      z.appendChild(sousTitreMessagerie((t.length || tm.length)
+        ? 'Trouvé pour « ' + mots + ' » · ' + t.length + ' message(s)' + (tm.length ? ' · ' + tm.length + ' mail(s)' : '')
         : 'Rien trouvé pour « ' + mots + ' »'));
       t.forEach(x => z.appendChild(ligneTrouveeMessagerie(x, mots)));
+      tm.forEach(f => z.appendChild(mlLigneDuDossier(f)));
     }catch(e){
       z.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
     }
   });
   corps.appendChild(ch);
 
-  if(!liste.length){
+  if(!liste.length && !mails.length){
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = 'Aucune conversation avec ' + echapper(nom) + '.<br>' +
       'Son espace élève ne sait pas encore écrire ici — c’est l’étape 1b.';
     corps.appendChild(v);
   }else{
-    corps.appendChild(sousTitreMessagerie('Ses conversations · ' + liste.length));
-    liste.forEach(c => {
+    /* ✉️ v1337 — conversations et mails ensemble, le plus récent d'abord */
+    const quand = v => { const m = String(v || '').match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+      return m ? new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime() : 0; };
+    const tout = liste.map(c => ({ c: c, t: quand(c.dernierLe) })).concat(mails.map(f => ({ m: f, t: Number(f.dernierLe || 0) })));
+    if(mails.length) tout.sort((a, b) => b.t - a.t);
+    corps.appendChild(sousTitreMessagerie((mails.length ? 'Ses conversations et ses mails · ' : 'Ses conversations · ') + tout.length));
+    tout.forEach(o => {
+      if(o.m){ corps.appendChild(mlLigneDuDossier(o.m)); return; }
+      const c = o.c;
       const l = document.createElement('div');
       l.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
         'padding:9px 11px;margin-bottom:7px;display:flex;gap:9px;align-items:center;';
@@ -3475,6 +3514,8 @@ async function compterLaMessagerie(){
     if(memeDemande) conversationsEC = liste;
     const n = (d && d.nonLusTotal) || 0;
     poserLesComptesMessagerie(n);
+    /* ✉️ v1337 — et celui de l'onglet des mails */
+    if(typeof mlPoserLeCompte === 'function') mlPoserLeCompte(d && d.mailsNonLus);
     /* 🧭 Sur grand écran, la liste est À CÔTÉ du fil : un message qui
        arrive ailleurs doit s'y voir sans qu'on clique. On ne redessine
        QUE la liste — le fil et ce qu'on y tape ne bougent pas. */
