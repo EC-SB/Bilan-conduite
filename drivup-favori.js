@@ -1,6 +1,6 @@
-/* Déployé le 02/11/2026 à 14:59 — v1333 */
+/* Déployé le 02/11/2026 à 19:33 — v1335 */
 /* ============================================================
-   drivup-favori.js — LE FAVORI « 📥 Bilan de conduite »
+   drivup-favori.js — LE FAVORI « 📥 App Évolution » (anciennement « 📥 Bilan de conduite »)
 
    David, le 13 octobre : « récupérer les infos des élèves pour
    éviter d'avoir à écrire sur Drivup et sur notre app, avoir le
@@ -51,7 +51,7 @@
     'font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35);';
   const titre = document.createElement('div');
   titre.style.cssText = 'font-weight:800;margin-bottom:4px;';
-  titre.textContent = '📥 Bilan de conduite';
+  titre.textContent = '📥 App Évolution';
   const texte = document.createElement('div');
   const fermer = document.createElement('button');
   fermer.type = 'button';
@@ -456,7 +456,7 @@
      moniteur, il faut ouvrir une écoute pédagogique dans les cases
      écoutes ». C'est la SEULE chose que ce favori écrit dans Drivup
      (son feu vert, contrat vérifié), et seulement quand l'onglet
-     Bilan de conduite le demande, après qu'on a validé la liste.
+     l’App Évolution Conduites le demande, après qu'on a validé la liste.
 
      ⚠️ ON N'OBÉIT QU'À L'ONGLET DE L'APPLICATION (origine APP), et
      même à lui, on ne fait QUE ça : une prestation d'écoute, dans une
@@ -611,7 +611,7 @@
       }
     }
     await Promise.all([ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier()]);
-    dire('👂 ' + aLire.length + ' cours lus. Choisis dans l’onglet Bilan de conduite.');
+    dire('👂 ' + aLire.length + ' cours lus. Choisis dans l’onglet App Évolution Conduites.');
     repondre({ type: 'drivup-ecoutes-lues', du: du, au: au, ressources: ressources, prestations: prestations,
                evenements: evenements.map(e => { const c = Object.assign({}, e); delete c.agendaInterne; return c; }),
                details: details });
@@ -802,7 +802,7 @@
   /* ---------- Envoyer à l'onglet de l'application ---------- */
   function envoyer(paquet) {
     if (!fen || fen.closed) {
-      finir('⚠️ Chrome a bloqué l’ouverture de Bilan de conduite. Autorise les fenêtres pour app.drivup.fr, puis reclique sur le favori.');
+      finir('⚠️ Chrome a bloqué l’ouverture de l’App Évolution Conduites. Autorise les fenêtres pour app.drivup.fr, puis reclique sur le favori.');
       return;
     }
     paquet.type = 'drivup-donnees';
@@ -815,16 +815,16 @@
       if (ev.data.type === 'drivup-recu') {
         recu = true;
         window.removeEventListener('message', ecoute);
-        finir('✅ Envoyé. Relis et valide dans l’onglet Bilan de conduite.');
+        finir('✅ Envoyé. Relis et valide dans l’onglet App Évolution Conduites.');
       }
     };
     window.addEventListener('message', ecoute);
-    dire('Envoi à Bilan de conduite… (connecte-toi dans l’onglet ouvert si besoin)');
+    dire('Envoi à l’App Évolution Conduites… (connecte-toi dans l’onglet ouvert si besoin)');
     let essais = 0;
     const t = setInterval(() => {
       if (recu || essais++ > 400 || fen.closed) {
         clearInterval(t);
-        if (!recu) finir('⚠️ L’onglet Bilan de conduite n’a pas répondu. Reclique sur le favori.');
+        if (!recu) finir('⚠️ L’onglet App Évolution Conduites n’a pas répondu. Reclique sur le favori.');
         return;
       }
       try { fen.postMessage(paquet, APP); } catch (e) { /* l'onglet charge encore */ }
