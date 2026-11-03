@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 12:10 — v1336 */
+/* Déployé le 03/11/2026 à 13:55 — v1337 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1337,
+    date: 'Mardi 3 novembre 2026',
+    resume: '✉️ Les mails de l’école dans la messagerie',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'L’onglet ✉️ Mails',
+        texte: 'La boîte OVH de l’école, relevée toutes les 5 minutes, en conversations comme la messagerie (bureau et administrateurs). Chaque mail se rattache à l’élève par l’adresse de sa fiche, ou d’un geste — et se retrouve dans son dossier, onglet 💬 Messages.' },
+      { emoji: '✏️',
+        titre: 'Répondre comme dans une vraie boîte mail',
+        texte: 'Répondre, à tous, transférer : De, À, Cc, Cci, objet, mise en forme, images, pièces jointes, le mail cité dessous, brouillon gardé tout seul. Ta signature (⋯ › ✍️ Ma signature) et les ⚡ réponses rapides des mails. Ce qui part d’ici est dans les « Envoyés » du webmail, et l’inverse.' },
+      { emoji: '🗑️',
+        titre: 'Les pubs à la corbeille',
+        texte: 'Les newsletters qui le disent partent à la corbeille de la boîte (jamais l’ANTS ni l’administration). ⋯ › 🗑️ les montre, « ↩️ Remettre » en ramène une.' }
+    ]
+  },
   {
     version: 1336,
     date: 'Mardi 3 novembre 2026',
