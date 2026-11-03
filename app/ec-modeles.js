@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 16:48 — v1314 */
+/* Déployé le 03/11/2026 à 12:10 — v1336 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1113,6 +1113,8 @@ function blocNiveauPermis(ai){
   if(niveau === 'peut'){
     L('𝟰-𝟭👉🤔 𝙏𝙐 𝙋𝙊𝙐𝙍𝙍𝘼𝙄𝙎 𝘼𝙑𝙊𝙄𝙍 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐');
     L("A ce jour tu pourrais avoir le niveau mais je ne peux pas estimer le nombre d'heures qu'il te faut avant un examen. J'en ai aucune idée. Place des heures et des écoutes pédagogiques comme si tu allez passer ton examen, fais toi ton propre planning et préviens nous dès que c'est fait. Car si tu obtiens le niveau tu pourrais avoir une date rapidement.");
+    /* 📅 v1336 — le planning d'avant le nouvel examen blanc, par étapes */
+    lignesPlanningEB(ai).forEach(L);
     L('');
   }else if(niveau === 'non'){
     L('𝟰-𝟭👉𝙉𝙊𝙉❌ 𝙋𝘼𝙎 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐 : 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙘𝙤𝙣𝙩𝙞𝙣𝙪𝙚𝙧 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 !');
@@ -1154,7 +1156,121 @@ function blocNiveauPermis(ai){
     else{ if(P[P.length - 1] !== '') P.push(''); voit.forEach(l => P.push(l)); }
   }
 
+  /* 🅰️ v1336 — le conseil et le passage en BEA, au même endroit que la
+     voiturette : sous le niveau, avant les 💡 Rappels. */
+  const bea = lignesBEADuBilan(ai);
+  if(bea.length){
+    const i = P.indexOf('💡𝙍𝙖𝙥𝙥𝙚𝙡𝙨 : ');
+    if(i !== -1) P.splice(i, 0, ...bea, '');
+    else{ if(P[P.length - 1] !== '') P.push(''); bea.forEach(l => P.push(l)); }
+  }
+
   return P;
+}
+
+/* ============================================================
+   📅 LE PLANNING D'AVANT UN NOUVEL EXAMEN BLANC — v1336
+
+   David, le 3 novembre 2026 : « quand on coche pourrait avoir le
+   niveau il faut pouvoir dire combien de leçons avant un nouvel
+   examen blanc et préciser quand », puis « pouvoir ajouter dans
+   quand une deuxième partie de planning — 2 leçons première semaine
+   des vacances, puis examen blanc, puis 2 autres leçons deuxième
+   semaine ». Et sur le schéma : « part dans son bilan ».
+
+   Le planning est une liste d'ÉTAPES, rangée en JSON dans le champ
+   « planEB » (préfixé dans le rendez-vous pédagogique) :
+     { t:'lecons', n:'2', q:'noel-2026-1', lib:'vacances de Noël, 1re semaine',
+       court:'Noël sem. 1', du:'2026-12-21', au:'2026-12-26' }
+     { t:'eb', q:'autre', autre:'fin janvier' }
+   L'étape garde ses mots et ses dates : le bilan ne dépend pas de la
+   table des vacances, qui changera d'année en année.
+   ============================================================ */
+function etapesPlanningEB(brut){
+  let l = brut;
+  if(typeof l === 'string'){
+    try{ l = JSON.parse(l || '[]'); }catch(e){ l = []; }
+  }
+  return (Array.isArray(l) ? l : []).filter(e => e && (e.t === 'lecons' || e.t === 'eb'));
+}
+/* « du lundi 21 au samedi 26 décembre », « du lundi 28 décembre au samedi 2 janvier » */
+function periodeEnLettresEB(du, au){
+  const d = new Date(String(du) + 'T12:00:00'), a = new Date(String(au) + 'T12:00:00');
+  if(isNaN(d) || isNaN(a)) return '';
+  const j = x => x.toLocaleDateString('fr-FR', { weekday: 'long' }) + ' ' + (x.getDate() === 1 ? '1er' : x.getDate());
+  const m = x => x.toLocaleDateString('fr-FR', { month: 'long' });
+  return 'du ' + j(d) + (m(d) === m(a) ? '' : ' ' + m(d)) + ' au ' + j(a) + ' ' + m(a);
+}
+function quandDeLEtapeEB(e){
+  if(e.q === 'autre') return String(e.autre || '').trim();
+  return String(e.lib || '').trim();
+}
+function lignesPlanningEB(ai){
+  const etapes = etapesPlanningEB(ai && ai.planEB);
+  const texte = String((ai && ai.planTexte) || '').trim();
+  const L = [];
+  let k = 0;
+  etapes.forEach(e => {
+    const quand = quandDeLEtapeEB(e);
+    if(e.t === 'lecons'){
+      const n = parseInt(e.n, 10);
+      if(!n && !quand) return;
+      const per = (e.q && e.q !== 'autre' && e.du && e.au) ? periodeEnLettresEB(e.du, e.au) : '';
+      L.push((++k) + '. ' + (n ? n + ' leçon' + (n > 1 ? 's' : '') + ' de 2h' : 'Des leçons de 2h') +
+             (quand ? ' — ' + quand : '') + (per ? ' (' + per + ')' : ''));
+    }else{
+      L.push((++k) + '. Examen blanc' + (quand ? ' — ' + quand : ''));
+    }
+  });
+  if(!L.length && !texte) return [];
+  return ['📅 𝙏𝙤𝙣 𝙥𝙡𝙖𝙣𝙣𝙞𝙣𝙜 :'].concat(L, texte ? [texte] : []);
+}
+/* Pour le résumé court : « 📅 2 leçons (Noël sem. 1) → examen blanc (Noël sem. 1) → 2 leçons (Noël sem. 2) ».
+   ⚠️ Il commence par « 📅 » puis un nombre de leçons ou « examen blanc » :
+   c'est la famille « planEB » des notes (ec-questionnaire.js). */
+function resumePlanningEB(brut){
+  const bouts = [];
+  etapesPlanningEB(brut).forEach(e => {
+    const quand = e.q === 'autre' ? String(e.autre || '').trim().slice(0, 40) : String(e.court || '').trim();
+    const q = quand ? ' (' + quand + ')' : '';
+    if(e.t === 'lecons'){
+      const n = parseInt(e.n, 10);
+      if(!n && !quand) return;
+      bouts.push((n ? n + ' leçon' + (n > 1 ? 's' : '') : 'des leçons') + q);
+    }else bouts.push('examen blanc' + q);
+  });
+  return bouts.length ? '📅 ' + bouts.join(' → ') : '';
+}
+
+/* ============================================================
+   🅰️ LE CONSEIL BEA ET 🔁 LE PASSAGE EN BEA — v1336
+
+   David : « une case nous te conseillons de passer en BEA pour les
+   élèves en BV, au même endroit que la voiturette, dans tous les
+   cours en BV » — avec le lien Facebook de « passer en boîte auto » ;
+   et une case « Passage en BEA » qui dit à l'élève « ta prochaine
+   leçon sera en BEA ».
+   ============================================================ */
+const LIEN_BOITE_AUTO = 'https://m.facebook.com/groups/963972327360861/permalink/1121120328312726/';
+const PHRASE_CONSEIL_BEA = '🅰️ Nous te conseillons de passer en BEA. Lien explicatif ici : ' + LIEN_BOITE_AUTO;
+const PHRASE_PASSAGE_BEA = '🔁 Ta prochaine leçon sera en BEA.';
+function lignesBEADuBilan(ai){
+  const L = [];
+  if(ai && ai.conseilBEA === 'oui') L.push(PHRASE_CONSEIL_BEA);
+  if(ai && ai.passageBEA === 'oui') L.push(PHRASE_PASSAGE_BEA);
+  return L;
+}
+/* Dans un bilan de cours (pas d'examen blanc) : à la fin, avant le
+   « 💡 Tu n'as pas possibilité de partir en Conduite supervisée ». */
+function placerBEADansLeBilan(bilan, ai){
+  const l = lignesBEADuBilan(ai);
+  if(!l.length) return bilan;
+  const t = String(bilan || '');
+  if(t.indexOf(PHRASE_CONSEIL_BEA) !== -1 || t.indexOf(PHRASE_PASSAGE_BEA) !== -1) return t;
+  const bloc = l.join('\n') + '\n\n';
+  const i = t.indexOf("💡Tu n'as pas possibilité de partir en Conduite supervisée");
+  if(i !== -1) return t.slice(0, i) + bloc + t.slice(i);
+  return t.replace(/\s*$/, '') + '\n\n' + l.join('\n');
 }
 const PHRASE_VOITURETTE = '🚗 Nous te conseillons de partir en voiturette pour t’entraîner, et dès que tu penses avoir le niveau, on refera un examen blanc ou une leçon pour vérifier. ' +
   'Passe au bureau pour que l’on t’explique plus en détail comment ça fonctionne.';
