@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 15:47 — v1334 */
+/* Déployé le 02/11/2026 à 19:33 — v1335 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1335,
+    date: 'Lundi 2 novembre 2026',
+    resume: '🔒 App Évolution Conduites : une nouvelle page de connexion',
+    quoi: [
+      { emoji: '🏷️',
+        titre: 'Le nouveau nom',
+        texte: 'L’appli s’appelle « App Évolution Conduites » (« EC App » sous l’icône du téléphone). Le favori Drivup devient « 📥 App Évolution » : l’ancien marche toujours, le refaire glisser pour voir le nouveau nom.' },
+      { emoji: '🔒',
+        titre: 'La page de connexion',
+        texte: 'Le logo de l’école, « Bonjour 👋 » et la date. Le prénom est retenu sur l’appareil (« Ce n’est pas moi » pour changer). Le code se tape sur un pavé ; « ⌨️ Taper au clavier » l’enlève, et le navigateur s’en souvient.' }
+    ]
+  },
   {
     version: 1334,
     date: 'Lundi 2 novembre 2026',
