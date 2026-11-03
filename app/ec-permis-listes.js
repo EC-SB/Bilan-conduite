@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 15:47 — v1334 */
+/* Déployé le 03/11/2026 à 16:23 — v1341 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2746,6 +2746,9 @@ function pourquoiPasPret(e){
 
   if(et.permis === 'aprevoir' || et.permis === 'annule') return null;
 
+  /* 🅱️ v1341 — un examen blanc « a le niveau » ou « pourrait » : prêt */
+  if(ebVersLesPrets(e)) return null;
+
   /* Un rendez-vous post-permis fixé garde l'élève visible ici : on
      attend ce rendez-vous pour savoir s'il repasse, et sans ça il
      disparaissait de toutes les listes entre-temps. */
@@ -2764,6 +2767,57 @@ function pourquoiPasPret(e){
          'note, ni un message du bureau en attente, ni un rendez-vous ' +
          'post-permis.' };
 }
+
+/* ============================================================
+   🅱️ APRÈS UN EXAMEN BLANC, DIRECTEMENT DANS LES PRÊTS — v1341
+
+   David, le 3 novembre : « à la suite d'un examen blanc il faut que
+   l'élève aille directement dans la liste prêt au permis si c'est ok
+   ou pourrait ». Il était tombé le matin même sur un élève à l'examen
+   blanc validé « 4 + 3 » absent de la liste.
+
+   La cause : seul « plus que les 3h » (ou « date à prévoir » choisie
+   à la main au questionnaire) faisait entrer un élève ici. « A le
+   niveau » avec des heures — le cas le plus courant — et « pourrait »
+   n'y menaient pas.
+
+   Rend 'oui', 'peut' ou '' :
+     · il faut qu'un examen blanc ait EU LIEU (sa date au suivi, ou
+       « passé » dans la note) — « oui » s'est longtemps écrit tout
+       seul à la fin des cours, il ne suffit pas ;
+     · la conclusion vient de resultatExamenBlanc, la porte qui sait
+       déjà que la fiche de suivi gagne sur le bilan ;
+     · après un ajournement, c'est le post-permis qui décide (règles
+       plus bas), pas un examen blanc d'avant ;
+     · un permis obtenu sort de tout.
+   ============================================================ */
+function ebVersLesPrets(e){
+  if(!e) return '';
+  const s = (typeof suiviDe === 'function') ? (suiviDe(e.eleve) || {}) : {};
+  const et = e.etat || {};
+  if(!(et.examBlanc === 'passe' || String(s.ebDate || '').trim())) return '';
+  if(et.examBlanc === 'impossible') return '';
+  if(Number(s.nbAjournements || 0) > 0 || Number(et.repassages || 0) > 0 || s.resultat === 'ajourne') return '';
+  if(s.rdvPostFait === 'oui' || String(s.rdvPostDate || '').trim()) return '';
+  if(typeof examenOfficielDe === 'function'){
+    try{ const x = examenOfficielDe(e.eleve) || {}; if(x.devant && x.devant.cle === 'obtenu') return ''; }catch(err){}
+  }
+  const r = (typeof resultatExamenBlanc === 'function') ? resultatExamenBlanc(e.eleve, et) : null;
+  if(r && r.cle === 'pasleniveau') return '';
+  if(r && r.cle === 'peut') return 'peut';
+  if(r && (r.cle === '3h' || r.cle === 'lecons')) return 'oui';
+  const niv = String(s.ebNiveau || '').toLowerCase();
+  if(niv === 'non') return '';
+  if(niv === 'peut' || et.ebSuite === 'peut') return 'peut';
+  if(et.ebSuite === 'pasleniveau') return '';
+  if(niv === 'oui' || et.ebSuite === 'niveauok' || et.ebSuite === '3h' || et.ebSuite === 'lecons') return 'oui';
+  return '';
+}
+/* 🤔 v1341 — un « pourrait » de la liste */
+function pretPourrait(e){ return ebVersLesPrets(e) === 'peut'; }
+/* 🙈 v1341 — David : « prévoir un filtre pour les cacher ». Visibles par
+   défaut (son choix) ; ce téléphone se souvient du filtre. */
+let pretsSansPourrait = (function(){ try{ return localStorage.getItem('ec_prets_sans_pourrait') === '1'; }catch(e){ return false; } })();
 
 function estPretAuPermis(e){
   return pourquoiPasPret(e) === null;
@@ -2790,6 +2844,7 @@ function masquePretAuPermis(e){
 let filtrePermisChoisi = '';   /* le menu « Tous — par priorité » d'avant, en puces */
 
 function heuresAPreciser(e){
+  if(pretPourrait(e)) return false;   /* v1341 — « pourrait » n'a pas d'heures, c'est sa réponse */
   const r = (typeof heuresQuiComptent === 'function') ? heuresQuiComptent(e.eleve) : { valeur: '' };
   return String(r.valeur) === '';
 }
@@ -2802,7 +2857,7 @@ function infoLigneDuPret(x){
   const dem = x.date ? ' · demandé le ' + String(x.date).slice(0, 5) : '';
   /* pressé : l'étiquette dit la priorité, les heures passent ici */
   const h = (String(x.urgence || '') >= '4' || (x.etat && x.etat.permis === 'annule'))
-    ? ' · ' + motsDeLaReserve(heuresQuiComptent(x.eleve).valeur, false) : '';
+    ? ' · ' + (pretPourrait(x) ? '🤔 pourrait' : motsDeLaReserve(heuresQuiComptent(x.eleve).valeur, false)) : '';
   return rep + ' · ' + boite + dem + h;
 }
 
@@ -2811,6 +2866,8 @@ function etiquetteDuPret(x){
   if(u === '5') return { t: '🚨 Prioritaire absolu', ton: 'r' };
   if(u === '4') return { t: '🔴 Urgent', ton: 'r' };
   if(x.etat && x.etat.permis === 'annule') return { t: '❌ Examen annulé — à reprogrammer', ton: 'r' };
+  /* 🤔 v1341 — « pourrait » à la place du nombre d'heures */
+  if(pretPourrait(x)) return { t: '🤔 Pourrait', ton: 'o' };
   const v = heuresQuiComptent(x.eleve).valeur;
   if(String(v) === '') return { t: '⏱️ heures à préciser', ton: 'o' };
   return { t: motsDeLaReserve(v, false), ton: 'v' };
@@ -2855,6 +2912,7 @@ function pucesDesPrets(liste, choisi, nAttente){
     ['repassage', '🔁 Repassages', nRep + nAttente],
     ['urgent', '🔴 Urgents', liste.filter(e => String(e.urgence || '') >= '4').length],
     ['heures', '⏱️ Heures à préciser', liste.filter(heuresAPreciser).length],
+    ['pourrait', '🤔 Pourrait', liste.filter(pretPourrait).length],
     /* 📍 v1332 — par centre d'examen (un « OK Loudéac » compte dans les deux) */
     ['sb', '📍 Saint-Brieuc', liste.filter(pretPourSaintBrieuc).length],
     ['lo', '📍 Loudéac', liste.filter(pretPourLoudeac).length],
@@ -2874,6 +2932,24 @@ function pucesDesPrets(liste, choisi, nAttente){
     b.addEventListener('click', () => { filtrePermisChoisi = v; redessinerBureau(); });
     z.appendChild(b);
   });
+  /* 🙈 v1341 — cacher les « pourrait », partout dans la liste */
+  const nP = liste.filter(pretPourrait).length;
+  if(nP || pretsSansPourrait){
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'btn ' + (pretsSansPourrait ? 'btn-primary' : 'btn-secondary');
+    c.dataset.cacherPourrait = '1';
+    c.setAttribute('aria-pressed', pretsSansPourrait ? 'true' : 'false');
+    c.textContent = pretsSansPourrait ? '🙈 « Pourrait » cachés (' + nP + ')' : '🙈 Cacher les « pourrait »';
+    c.title = pretsSansPourrait ? 'Les remettre dans la liste' : 'Retirer de la liste les élèves « 🤔 pourrait avoir le niveau »';
+    c.addEventListener('click', () => {
+      pretsSansPourrait = !pretsSansPourrait;
+      try{ localStorage.setItem('ec_prets_sans_pourrait', pretsSansPourrait ? '1' : ''); }catch(e){}
+      if(pretsSansPourrait && filtrePermisChoisi === 'pourrait') filtrePermisChoisi = '';
+      redessinerBureau();
+    });
+    z.appendChild(c);
+  }
   return z;
 }
 
@@ -2908,6 +2984,9 @@ function afficherExamensPermis(tous){
   else if(fPer === 'repassage') per = per.filter(e => suiviDe(e.eleve).nbAjournements);
   else if(fPer === 'premier') per = per.filter(e => !suiviDe(e.eleve).nbAjournements);
   else if(fPer === 'heures') per = per.filter(e => heuresAPreciser(e));
+  else if(fPer === 'pourrait') per = per.filter(e => pretPourrait(e));
+  /* 🙈 v1341 — « pourrait » cachés : partout, sauf sur leur propre puce */
+  if(pretsSansPourrait && fPer !== 'pourrait') per = per.filter(e => !pretPourrait(e));
   else if(fPer === 'sb') per = per.filter(e => pretPourSaintBrieuc(e));
   else if(fPer === 'lo') per = per.filter(e => pretPourLoudeac(e));
 
