@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1336
+     GUIDE-VERSION: 1337
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1336</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1337</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -526,6 +526,7 @@ html{scroll-behavior:smooth}
           <li><a href="#msg-appels">Les appels</a></li>
           <li><a href="#msg-fermer">Supprimer des conversations</a></li>
           <li><a href="#msg-notifs">Notifications et horaires</a></li>
+          <li><a href="#msg-mails">✉️ Les mails de l’école</a></li>
           <li><a href="#msg-reglages">Réglages de la messagerie</a></li>
           <li><a href="#msg-eleve">Ce que voit l'élève</a></li>
         </ol>
@@ -582,7 +583,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1336</strong>, relu le 3 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1337</strong>, relu le 3 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -3887,6 +3888,22 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       </tbody>
     </table></div>
     <div class="note piege"><span class="tag">⚠️ Sur iPhone, ouverte dans Safari ne suffit pas</span><p>Les notifications et la pastille ne marchent que si l'application a été <strong>ajoutée à l'écran d'accueil</strong>.</p></div>
+  </section>
+
+  <section id="msg-mails">
+    <h3>✉️ Les mails de l’école</h3>
+    <div class="qui mini"><span class="lab">Vue</span> <span class="role bureau">Bureau</span><span class="role admin">Admin</span> <span class="ou">— droit <span class="ch">mails</span> («&nbsp;Voir&nbsp;» lit, «&nbsp;Modifier&nbsp;» écrit et range)&nbsp;; les réglages&nbsp;: administrateurs.</span></div>
+    <p>La boîte OVH de l’école, dans l’onglet <span class="b">✉️ Mails</span> de la messagerie. L’appli la <strong>relève toutes les 5 minutes</strong> (la première fois&nbsp;: les 30 derniers jours) et envoie par la même adresse. La boîte reste la vraie&nbsp;: ce qu’on envoie d’ici se range dans ses «&nbsp;Envoyés&nbsp;», et ce qu’on écrit depuis le webmail OVH revient ici, dans le bon fil (<span class="ch">✉️ réponse envoyée depuis le webmail</span>).</p>
+    <dl class="defs">
+      <div><dt>La liste</dt><dd>Une ligne par conversation&nbsp;: qui, l’objet, le début du dernier message, et des pastilles — <span class="b">🔗 l’élève</span> (rattaché tout seul quand le mail vient de l’adresse de sa fiche), <span class="b">❓ À rattacher</span>, les <span class="b">🏷️ étiquettes</span>, <span class="b">⚠️ Urgent</span>. Rangée en Urgents · Non lus · À traiter · ⏰ À me rappeler. En tête&nbsp;: les pubs supprimées de la semaine et l’heure de la dernière relève.</dd></div>
+      <div><dt>Le fil</dt><dd>Les mails en bulles, comme une conversation&nbsp;; l’ancien message cité se replie sous <span class="b">··· le message cité</span>, la mise en forme d’origine s’ouvre par <span class="b">🖼️ Voir le mail tel qu’il a été mis en forme</span>, les pièces jointes se téléchargent. En tête&nbsp;: <span class="b">📇 Son dossier</span> (ou <span class="b">🔗 Rattacher</span>), <span class="b">✓ Réglé</span> (il part dans 🗄️ Mails réglés, une réponse le ramène), <span class="b">⏰</span>, et <span class="b">⋯</span> pour les étiquettes, urgent, changer d’élève, «&nbsp;pas un élève&nbsp;», non lu.</dd></div>
+      <div><dt>Répondre</dt><dd><span class="b">↩️ Répondre</span>, <span class="b">↩️ Répondre à tous</span>, <span class="b">↪️ Transférer</span> ouvrent l’éditeur&nbsp;: De, À, Cc, Cci, Objet, la mise en forme, 🖼️ une image, 📎 des pièces jointes (10&nbsp;Mo chacune, 15&nbsp;Mo en tout), le mail d’origine cité dessous, ⤢ le plein écran. Le brouillon se garde tout seul&nbsp;; ✕ ferme sans rien perdre.</dd></div>
+      <div><dt>✍️ Ma signature</dt><dd>Dans <span class="b">⋯ › ✍️ Ma signature</span>&nbsp;: colle ta signature du webmail OVH et ajoute ton logo PNG. Elle se pose toute seule sous chaque mail&nbsp;; le menu <span class="b">✍️ Signature</span> de l’éditeur en choisit une autre («&nbsp;L’équipe&nbsp;», réglée par un administrateur) ou aucune. Le logo part dans le mail lui-même.</dd></div>
+      <div><dt>⚡ Réponses rapides</dt><dd>Au-dessus de la barre et dans <span class="b">⚡ ▾</span> de l’éditeur. Un appui ouvre l’éditeur avec le texte et la signature&nbsp;: on relit avant d’envoyer. Elles se règlent dans <a href="#msg-reglages" class="aller">⚙️ Réglages › ⚡ Réponses rapides</a>, pastille <span class="b">✉️ Mails</span>&nbsp;: un texte mis en forme, les mots qui se remplacent, jusqu’à trois pièces jointes.</dd></div>
+      <div><dt>🗑️ Les pubs</dt><dd>Celles qui se déclarent comme telles (un lien «&nbsp;se désabonner&nbsp;», une liste de diffusion) partent à la corbeille de la boîte — jamais celles de l’ANTS, de l’administration, de Drivup ou d’OVH. <span class="b">⋯ › 🗑️ Pubs et newsletters</span> les montre&nbsp;; <span class="b">↩️ Remettre</span> en ramène une, et son expéditeur n’y partira plus.</dd></div>
+      <div><dt>Dans le dossier</dt><dd>Onglet <span class="b">💬 Messages</span> de l’élève&nbsp;: <span class="ch">Ses conversations et ses mails</span>, la recherche passe dans les deux. Ses mails sont dans son export RGPD, et partent de l’appli avec son dossier (ils restent dans la boîte OVH).</dd></div>
+      <div><dt>⚙️ Réglages des mails</dt><dd>Administrateurs&nbsp;: les pubs à la corbeille ou non, les étiquettes (Inscription, Planning, Examen, Financement, ANTS / administratif, Réclamation, Autre — on en ajoute), les adresses jamais mises à la corbeille, <span class="b">🔄 Relever maintenant</span>.</dd></div>
+    </dl>
   </section>
 
   <section id="msg-reglages">
