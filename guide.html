@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<title>Guide Bilan de conduite</title>
+<title>Guide App Évolution Conduites</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1334
+     GUIDE-VERSION: 1335
      ============================================================ -->
 
 <style>
@@ -414,9 +414,9 @@ html{scroll-behavior:smooth}
 
   <div class="marque">
     <span class="plaque">EC</span>
-    <span class="nom">Bilan de conduite</span>
+    <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1334</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1335</strong><br>
     Mis à jour le 2 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -582,7 +582,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1334</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1335</strong>, relu le 2 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -609,7 +609,7 @@ html{scroll-behavior:smooth}
 
   <div class="qui"><span class="lab">Ce chapitre s'adresse à</span> <span class="role moniteur">Moniteur</span><span class="role bureau">Bureau</span><span class="role admin">Admin</span></div>
 
-  <p><strong>Bilan de conduite</strong> est l'application interne d'Évolution Conduites. Elle s'ouvre dans un navigateur, à l'adresse <code>app.evolutionconduites.fr</code>. Il n'y a rien à installer&nbsp;; elle peut cependant s'ajouter à l'écran d'accueil d'un téléphone ou d'une tablette, comme une application. Elle est conçue d'abord pour un téléphone, en voiture, à bout de bras — puis pour un ordinateur au bureau.</p>
+  <p><strong>App Évolution Conduites</strong> (anciennement «&nbsp;Bilan de conduite&nbsp;» — elle ne fait plus que les bilans) est l'application interne d'Évolution Conduites. Elle s'ouvre dans un navigateur, à l'adresse <code>app.evolutionconduites.fr</code>. Il n'y a rien à installer&nbsp;; elle peut cependant s'ajouter à l'écran d'accueil d'un téléphone ou d'une tablette, comme une application. Elle est conçue d'abord pour un téléphone, en voiture, à bout de bras — puis pour un ordinateur au bureau.</p>
 
   <p>Elle sert à trois choses, et ces trois choses correspondent à trois métiers&nbsp;:</p>
 
@@ -670,7 +670,7 @@ html{scroll-behavior:smooth}
       <div><dt>Permis BE (« remorque »)</dt><dd>Permet de tracter une remorque lourde. Réservé aux titulaires du permis B. Deux particularités&nbsp;: le code n'est pas à repasser s'il a moins de cinq ans, et <strong>les deux épreuves se passent le même jour</strong> — plateau raté = tout à refaire&nbsp;; plateau réussi mais circulation ratée = seule la circulation se repasse.</dd></div>
       <div><dt>DDTM</dt><dd>La direction départementale qui attribue les créneaux poids-lourd et remorque. Les demandes partent <strong>trois mois à l'avance</strong>.</dd></div>
       <div><dt>ANTS</dt><dd><em>Agence Nationale des Titres Sécurisés</em> — le site de l'État où se fait l'inscription au permis et la demande du titre. L'outil suit qui s'en occupe&nbsp;: <span class="b">Fait par l'élève</span> ou <span class="b">Fait par nous</span>.</dd></div>
-      <div><dt>Drivup · le favori « 📥 Bilan de conduite »</dt><dd><strong>Drivup</strong> est le logiciel de planning et de gestion des élèves de l'école. L'application ne s'y connecte pas&nbsp;: c'est un <strong>favori</strong> posé dans la barre de Chrome qui, cliqué sur une page Drivup, lui envoie ce qu'il y lit — le planning, les fiches des élèves. Rien n'est jamais écrit dans Drivup sans qu'on le demande, et la seule chose qu'il y écrive, sur demande, ce sont les écoutes pédagogiques. Voir le chapitre <a href="#chdrivup" class="aller">Drivup&nbsp;: le favori</a>.</dd></div>
+      <div><dt>Drivup · le favori « 📥 App Évolution »</dt><dd><strong>Drivup</strong> est le logiciel de planning et de gestion des élèves de l'école. L'application ne s'y connecte pas&nbsp;: c'est un <strong>favori</strong> posé dans la barre de Chrome qui, cliqué sur une page Drivup, lui envoie ce qu'il y lit — le planning, les fiches des élèves. Rien n'est jamais écrit dans Drivup sans qu'on le demande, et la seule chose qu'il y écrive, sur demande, ce sont les écoutes pédagogiques. Voir le chapitre <a href="#chdrivup" class="aller">Drivup&nbsp;: le favori</a>.</dd></div>
     </dl>
 
     <h5>L'espace de l'élève</h5>
@@ -723,12 +723,19 @@ html{scroll-behavior:smooth}
 
   <section id="connexion">
     <h3>La connexion</h3>
-    <p>La carte <span class="b">🔒 Connexion</span> demande deux choses&nbsp;:</p>
+    <p>La page de connexion est coupée en deux sur ordinateur&nbsp;: à gauche le logo de l'école et ses deux agences, à droite la date du jour, <span class="ch">Bonjour 👋</span> (<span class="ch">Bonsoir</span> après 18&nbsp;h) et deux choses à donner&nbsp;:</p>
     <ul>
       <li><span class="b">Ton prénom</span> — le prénom du compte, tel qu'il a été créé.</li>
-      <li><span class="b">Code</span> — de 6 à 8 chiffres, clavier numérique.</li>
+      <li><span class="b">Code</span> — de 6 à 8 chiffres.</li>
     </ul>
-    <p>Puis le bouton <span class="b">Se connecter</span>. La touche <strong>Entrée</strong> depuis le prénom passe au code&nbsp;; depuis le code, elle lance la connexion. Le navigateur peut proposer d'enregistrer le prénom et le code, comme pour n'importe quel site.</p>
+    <p>Sur téléphone, le logo passe dans un bandeau en haut. Le menu <span class="b">⋯</span> (thème, guide) reste en haut à droite.</p>
+
+    <h4>Le pavé numérique</h4>
+    <p>Le code se tape sur un <strong>pavé</strong>, comme pour déverrouiller un téléphone&nbsp;: les ronds se remplissent à chaque chiffre (six pleins pour un code de six, deux en pointillé parce qu'il peut aller jusqu'à huit), <span class="b">⌫</span> efface le dernier, <span class="b">✓</span> envoie. Le clavier du téléphone ne s'ouvre pas. Sur un ordinateur, les chiffres du clavier, la touche d'effacement et <strong>Entrée</strong> marchent aussi.</p>
+    <p><span class="b">⌨️ Taper au clavier</span>, sous le pavé, le remplace par le champ et le bouton <span class="b">Se connecter</span> — utile si le navigateur ou le téléphone retient le code. <span class="b">🔢 Pavé numérique</span> le remet. <strong>Ce navigateur s'en souvient.</strong></p>
+
+    <h4>Le prénom retenu</h4>
+    <p>Après une connexion réussie, l'appareil retient le prénom. La fois suivante, la page dit <span class="ch">Bonjour David 👋</span>, le prénom s'affiche en pastille, et il ne reste que le code à taper. Il reste retenu après une déconnexion. <span class="b">Ce n'est pas moi</span>, à droite de la pastille, l'oublie sur cet appareil et remet le champ — à faire sur un téléphone prêté ou l'ordinateur partagé du bureau.</p>
 
     <h4>Ce qui peut s'afficher</h4>
     <div class="tab"><table>
@@ -736,7 +743,7 @@ html{scroll-behavior:smooth}
       <tbody>
         <tr><td class="libre"><span class="ch">Indique ton prénom.</span></td><td>Le champ prénom est vide. Rien n'est envoyé.</td></tr>
         <tr><td class="libre"><span class="ch">Le code compte au moins 6 chiffres.</span></td><td>Code trop court.</td></tr>
-        <tr><td class="libre"><span class="ch">Code incorrect. Encore N essais.</span></td><td>Le couple prénom + code ne correspond à aucun compte. Volontairement, le message ne dit jamais lequel des deux est faux&nbsp;: le préciser permettrait de deviner les prénoms enregistrés. Le champ code se vide, le prénom reste.</td></tr>
+        <tr><td class="libre"><span class="ch">Code incorrect. Encore N essais.</span></td><td>Le couple prénom + code ne correspond à aucun compte. Volontairement, le message ne dit jamais lequel des deux est faux&nbsp;: le préciser permettrait de deviner les prénoms enregistrés. Le code se vide, le prénom reste.</td></tr>
         <tr><td class="libre"><span class="ch">Trop de codes erronés. Acces bloque pendant 15 minutes.</span></td><td>Le huitième échec bloque l'accès pendant quinze minutes.</td></tr>
         <tr><td class="libre"><span class="ch">⏳ Trop de codes erronés. Reessaie dans N minutes.</span></td><td>On réessaie pendant le blocage. Une ligne grise rappelle la règle&nbsp;: <em>« Patiente, ou passe par un autre réseau. »</em></td></tr>
         <tr><td class="libre"><span class="ch">Le service est momentanement indisponible. Reessaie dans un instant.</span></td><td>Le stockage des comptes ne répond pas. Ce n'est pas la faute du code, et aucun échec n'est compté.</td></tr>
@@ -745,8 +752,6 @@ html{scroll-behavior:smooth}
     </table></div>
 
     <div class="note astuce"><span class="tag">Qui est bloqué, exactement</span><p>Le blocage vise <strong>la personne qui se trompe, sur ce réseau</strong>&nbsp;: une monitrice qui se trompe huit fois ne bloque que sa propre ligne, pas toute l'équipe du bureau. Un second compteur, plus large, arrête celui qui essaie des dizaines de codes différents depuis une même adresse.</p><p>Et même pendant un blocage, <strong>un code valable ouvre l'accès</strong> et efface le compteur. Le blocage ne punit que celui qui cherche à deviner.</p></div>
-
-    <div class="note piege"><span class="tag">Piège de libellé</span><p>Après une première tentative, le bouton <span class="b">Se connecter</span> s'appelle <span class="b">Déverrouiller</span> pour le reste de la session. C'est le même bouton.</p></div>
 
     <h4>Les messages gris, à la reconnexion</h4>
     <p>Quand l'application a fermé la session d'elle-même, elle le dit sous le bouton&nbsp;: <span class="ch">Déconnexion du samedi soir — reconnecte-toi.</span>, <span class="ch">Déconnecté après 48 h sans activité.</span>, ou <span class="ch">Mise à jour des accès — retape ton code, une seule fois.</span> Ce dernier apparaît quand la liste des droits a changé depuis la dernière connexion&nbsp;: une seule reconnexion suffit, tout repart du serveur.</p>
@@ -1953,7 +1958,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
   <section id="el-creneaux">
     <h3>🗓️ Créneaux libres</h3>
     <div class="qui mini"><span class="lab">Vue</span> <span class="role bureau">Bureau</span><span class="role admin">Admin</span> <span class="ou">— droit <span class="ch">rappels</span>.</span></div>
-    <p>Les créneaux qu'on peut proposer à un élève qui doit encore planifier ses leçons avant son permis, ou qu'il faut décaler. Ils sont <strong>lus dans Drivup</strong>&nbsp;: la liste se refait à chaque clic du favori «&nbsp;📥 Bilan de conduite&nbsp;» sur le planning d'une agence, pour les quatre semaines à venir et toutes les agences à la fois (<a href="#chdrivup" class="aller">le chapitre Drivup</a>). Rien ne change dans Drivup.</p>
+    <p>Les créneaux qu'on peut proposer à un élève qui doit encore planifier ses leçons avant son permis, ou qu'il faut décaler. Ils sont <strong>lus dans Drivup</strong>&nbsp;: la liste se refait à chaque clic du favori «&nbsp;📥 App Évolution&nbsp;» sur le planning d'une agence, pour les quatre semaines à venir et toutes les agences à la fois (<a href="#chdrivup" class="aller">le chapitre Drivup</a>). Rien ne change dans Drivup.</p>
     <p>En tête, la date de la lecture&nbsp;: <span class="ch">Lu dans Drivup le ven. 23/10 à 9h12 (Maryne) · jusqu'au …</span>. Au-delà de trois jours&nbsp;: <span class="ch">⚠️ Lecture de plus de 3 jours : des cours ont pu être pris depuis.</span></p>
 
     <h4>Six sortes de créneaux</h4>
@@ -2180,7 +2185,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     <p><em>«&nbsp;Les noms proposés dans les listes viennent des bilans déjà saisis. Un élève qui n'a pas encore de bilan n'apparaît donc nulle part. Colle ici ta liste réelle pour qu'ils soient tous proposés.&nbsp;»</em> Pour un élève en particulier, tout se fait dans son dossier&nbsp;: <strong>un appui sur son nom dans la liste</strong> l'ouvre.</p>
 
     <h4>📥 Le favori Drivup</h4>
-    <p>En haut de l'écran, pour les administrateurs et le bureau, le bouton <span class="b">📥 Bilan de conduite</span> à glisser dans la barre de favoris de Chrome. Cliqué ensuite sur une page Drivup, il reprend le planning, les élèves et leurs fiches&nbsp;: un élève nouveau reçoit sa fiche, et pour les autres seules les cases vides se remplissent — rien n'est jamais remplacé. Tout est dans <a href="#chdrivup" class="aller">le chapitre Drivup</a>.</p>
+    <p>En haut de l'écran, pour les administrateurs et le bureau, le bouton <span class="b">📥 App Évolution</span> à glisser dans la barre de favoris de Chrome. Cliqué ensuite sur une page Drivup, il reprend le planning, les élèves et leurs fiches&nbsp;: un élève nouveau reçoit sa fiche, et pour les autres seules les cases vides se remplissent — rien n'est jamais remplacé. Tout est dans <a href="#chdrivup" class="aller">le chapitre Drivup</a>.</p>
 
     <h4>➕ Créer un élève</h4>
     <p>Une fenêtre s'ouvre d'abord&nbsp;: <em>«&nbsp;Vérifie qu'il n'existe pas déjà&nbsp;: les élèves connus sont proposés.&nbsp;»</em> Verdict en direct&nbsp;: <span class="ch">✅ Élève existant</span> ou <span class="ch">⚠️ Nouvel élève</span> avec jusqu'à six noms proches, cliquables. Un doublon sous une autre orthographe couperait son historique en deux.</p>
@@ -2482,7 +2487,7 @@ Ces heures partent de quelle leçon après l'examen blanc ?
   <section id="ecoutes">
     <h3>👂 Écoutes pédagogiques</h3>
     <p><em>« Qui ne réserve pas d'écoutes, et qui réserve sans venir. »</em> Deux listes qui ne parlent pas de la même chose&nbsp;: un élève peut être dans les deux.</p>
-    <div class="note astuce"><span class="tag">Ouvrir les écoutes dans Drivup</span><p>Ouvrir les créneaux d'écoute eux-mêmes ne se fait pas ici, mais depuis le planning de Drivup, avec le favori <span class="b">📥 Bilan de conduite</span> et son bouton <span class="b">👂 Écoutes à ouvrir</span>. Voir <a href="#chdrivup" class="aller">le chapitre Drivup</a>.</p></div>
+    <div class="note astuce"><span class="tag">Ouvrir les écoutes dans Drivup</span><p>Ouvrir les créneaux d'écoute eux-mêmes ne se fait pas ici, mais depuis le planning de Drivup, avec le favori <span class="b">📥 App Évolution</span> et son bouton <span class="b">👂 Écoutes à ouvrir</span>. Voir <a href="#chdrivup" class="aller">le chapitre Drivup</a>.</p></div>
 
     <h4 id="ecoutes-presence">👂 La présence aux écoutes (pointage sur les cours)</h4>
     <ol class="etapes">
@@ -4359,7 +4364,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       <li><span class="b">📚 Formation</span>&nbsp;: intitulé, nature de l’action, dates, durée, lieu, formateur, objectifs, programme, moyens, évaluation. <span class="b">💾 Garder comme modèle</span>.</li>
       <li><span class="b">💶 Prix</span>&nbsp;: <span class="b">📦 un pack</span> ou <span class="b">➕ une prestation</span> de 💰 Tarifs, ou <span class="b">✏️ une ligne à la main</span> (« la garder dans le modèle »), <strong>par salarié</strong> ou <strong>pour le groupe</strong>. Les tarifs sont TTC&nbsp;: le HT s’en déduit, le TTC d’un pack reste exact. Les prix sont <strong>recopiés</strong>&nbsp;: <span class="b">🔄 Reprendre les prix du jour</span> tant que la convention n’est pas signée.</li>
       <li><span class="b">👥 Stagiaires</span>&nbsp;: un par un ou <span class="b">📋 Coller une liste</span> (<span class="ch">Nom ; fonction ; mail</span>)&nbsp;; 👤 ouvre la fiche élève. Les heures faites viennent des feuilles signées (sinon des séances passées, absences retirées).</li>
-      <li><span class="b">📅 Séances</span>&nbsp;: date, horaires, contenu, stagiaires (toucher un nom après la séance note son absence), l’état des signatures (<span class="ch">✅ Signée · 2/2 + formateur</span>), <span class="b">✍️ Faire signer</span>, <span class="b">📄 La feuille</span>, ou <span class="b">🖨️ Feuille de présence</span> à imprimer. Une séance signée ne change plus de date ni d’heure et ne se retire pas. En haut, <span class="ch">📥 Planning Drivup : 3 leçons des salariés pas encore dans le dossier</span>&nbsp;: les leçons des salariés pendant la formation, lues par le favori <span class="b">📥 Bilan de conduite</span>, regroupées par créneau&nbsp;; <span class="b">＋ Ajouter</span> ou <span class="b">＋ Tout ajouter</span>. Une leçon qui a disparu du planning relu est signalée <span class="ch">❗ plus dans le planning Drivup</span>.</li>
+      <li><span class="b">📅 Séances</span>&nbsp;: date, horaires, contenu, stagiaires (toucher un nom après la séance note son absence), l’état des signatures (<span class="ch">✅ Signée · 2/2 + formateur</span>), <span class="b">✍️ Faire signer</span>, <span class="b">📄 La feuille</span>, ou <span class="b">🖨️ Feuille de présence</span> à imprimer. Une séance signée ne change plus de date ni d’heure et ne se retire pas. En haut, <span class="ch">📥 Planning Drivup : 3 leçons des salariés pas encore dans le dossier</span>&nbsp;: les leçons des salariés pendant la formation, lues par le favori <span class="b">📥 App Évolution</span>, regroupées par créneau&nbsp;; <span class="b">＋ Ajouter</span> ou <span class="b">＋ Tout ajouter</span>. Une leçon qui a disparu du planning relu est signalée <span class="ch">❗ plus dans le planning Drivup</span>.</li>
       <li><span class="b">📝 Questionnaires</span>&nbsp;: <strong>avant devis</strong> (l’entreprise&nbsp;: votre questionnaire de pré-devis, avec « Ne sait pas »), <strong>positionnement</strong> (chaque salarié, avant le début&nbsp;: expérience, aisance, attentes, besoins), <strong>satisfaction</strong> (chaque salarié, à la fin) et <strong>satisfaction de l’entreprise</strong>. <span class="b">✉️ Envoyer</span> part par mail avec un lien (la personne répond sur son téléphone, une seule fois)&nbsp;; <span class="b">📱</span> se remplit ici&nbsp;; <span class="b">👁️</span> montre les réponses. La satisfaction a sa synthèse (une barre par point, sur 5), et <span class="b">📄 La synthèse en PDF</span>.</li>
       <li><span class="b">🧾 Rapports</span>&nbsp;: <span class="b">🧠 Écrire les rapports avec l’IA</span> — un rapport par salarié (points forts, axes d’amélioration, conseils, synthèse du formateur) et un rapport à l’entreprise, écrits à partir des <strong>bilans de cours des salariés pendant la formation</strong> et de leur positionnement. On relit, on corrige (tout s’enregistre)&nbsp;; <span class="b">✉️ À chaque salarié</span> envoie à chacun le sien en PDF, <span class="b">✉️ À l’entreprise</span> le rapport global et les rapports individuels.</li>
       <li><span class="b">📄 Documents</span>&nbsp;: devis, programme, convention, lettre pour la demande à l’OPCO, convocations avec le règlement intérieur, feuilles de présence, attestations de fin de formation, certificats de réalisation — sur le papier à en-tête. <span class="b">👁️</span> voir, <span class="b">📄</span> télécharger (une copie se range), <span class="b">✉️</span> envoyer (avec la convention&nbsp;: la case <span class="b">✍️ Avec le bouton « Signer la convention en ligne »</span>)&nbsp;; <span class="b">📨 Convocations aux salariés</span>&nbsp;; <span class="b">📎 Déposer un document signé</span> (convention, accord de l’OPCO, feuille de présence)&nbsp;; <span class="b">📦 Tout le dossier en un PDF</span>.</li>
@@ -4536,7 +4541,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     </ul>
 
     <h4>Les horaires viennent de Drivup</h4>
-    <p>Le favori « 📥 Bilan de conduite », cliqué sur le planning d'une agence dans Drivup, reprend les créneaux « Bureau Loudéac » (ou Saint-Brieuc) <strong>des quatre semaines à venir</strong>. L'écran dit quand ils ont été lus (<span class="ch">Horaires lus dans Drivup le 14/10</span>), et prévient quand il ne reste plus que quelques jours d'horaires connus&nbsp;: au-delà, la page ne propose plus de rendez-vous. Voir <a href="#chdrivup" class="aller">Drivup&nbsp;: le favori</a>.</p>
+    <p>Le favori « 📥 App Évolution », cliqué sur le planning d'une agence dans Drivup, reprend les créneaux « Bureau Loudéac » (ou Saint-Brieuc) <strong>des quatre semaines à venir</strong>. L'écran dit quand ils ont été lus (<span class="ch">Horaires lus dans Drivup le 14/10</span>), et prévient quand il ne reste plus que quelques jours d'horaires connus&nbsp;: au-delà, la page ne propose plus de rendez-vous. Voir <a href="#chdrivup" class="aller">Drivup&nbsp;: le favori</a>.</p>
     <div class="note astuce"><span class="tag">La main l'emporte</span><p><em>« Drivup donne la base ; ce que tu changes ici à la main l'emporte, même si Drivup dit l'inverse. »</em> Un jour retouché porte ✋ et reste comme vous l'avez réglé, jusqu'à <span class="b">↩️ Revenir à Drivup</span>.</p></div>
 
     <h4>Les quatre interrupteurs</h4>
@@ -4711,11 +4716,11 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
   <section id="dv-installer">
     <h3>Installer le favori</h3>
     <ol class="etapes">
-      <li>Ouvrir <span class="b">🔍 Élèves</span> › <span class="b">➕ Ajouter des élèves</span>. Le bloc <span class="b">📥 Depuis Drivup</span> porte un bouton <span class="b">📥 Bilan de conduite</span>.</li>
+      <li>Ouvrir <span class="b">🔍 Élèves</span> › <span class="b">➕ Ajouter des élèves</span>. Le bloc <span class="b">📥 Depuis Drivup</span> porte un bouton <span class="b">📥 App Évolution</span>.</li>
       <li><strong>Glisser ce bouton dans la barre de favoris de Chrome</strong> — une seule fois, par ordinateur. Cliquer dessus dans l'application ne fait rien d'autre que le rappeler.</li>
       <li>Le bloc rappelle ensuite les <strong>dernières lectures</strong>&nbsp;: quoi, quand, par qui.</li>
     </ol>
-    <div class="note piege"><span class="tag">Chrome doit laisser ouvrir l'onglet</span><p>Au clic, le favori ouvre un onglet de l'application. Si Chrome le bloque, le petit cadre du favori le dit&nbsp;: <span class="ch">⚠️ Chrome a bloqué l’ouverture de Bilan de conduite. Autorise les fenêtres pour app.drivup.fr, puis reclique sur le favori.</span> Et si l'application demande la connexion dans l'onglet ouvert, on se connecte&nbsp;: la lecture attend.</p></div>
+    <div class="note piege"><span class="tag">Chrome doit laisser ouvrir l'onglet</span><p>Au clic, le favori ouvre un onglet de l'application. Si Chrome le bloque, le petit cadre du favori le dit&nbsp;: <span class="ch">⚠️ Chrome a bloqué l’ouverture de l’App Évolution Conduites. Autorise les fenêtres pour app.drivup.fr, puis reclique sur le favori.</span> Et si l'application demande la connexion dans l'onglet ouvert, on se connecte&nbsp;: la lecture attend.</p></div>
   </section>
 
   <section id="dv-cliquer">
@@ -4729,7 +4734,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
         <tr><td class="libre">La <strong>fiche d'un élève</strong></td><td>Ce que la liste n'a pas&nbsp;: son mail, sa date de naissance, sa photo, et ses notes internes Drivup.</td></tr>
       </tbody>
     </table></div>
-    <p>Un petit cadre noir s'affiche en bas à droite de la page Drivup&nbsp;: <span class="ch">Lecture du planning… 12 / 30 cours</span>, puis <span class="ch">✅ Envoyé. Relis et valide dans l’onglet Bilan de conduite.</span> Sur une autre page, il répond&nbsp;: <span class="ch">Ouvre dans Drivup le planning d’une agence, de tous les utilisateurs ou d’un moniteur, la liste des élèves, ou la fiche d’un élève, puis reclique sur le favori.</span></p>
+    <p>Un petit cadre noir s'affiche en bas à droite de la page Drivup&nbsp;: <span class="ch">Lecture du planning… 12 / 30 cours</span>, puis <span class="ch">✅ Envoyé. Relis et valide dans l’onglet App Évolution Conduites.</span> Sur une autre page, il répond&nbsp;: <span class="ch">Ouvre dans Drivup le planning d’une agence, de tous les utilisateurs ou d’un moniteur, la liste des élèves, ou la fiche d’un élève, puis reclique sur le favori.</span></p>
     <div class="note"><span class="tag">Il lit, il n'écrit pas</span><p>Le favori ne touche aucun bouton de Drivup et ne lit aucun mot de passe. <strong>Une seule exception</strong>, voulue et encadrée&nbsp;: ouvrir les écoutes pédagogiques, quand vous le lui demandez après avoir validé la liste (voir <a href="#dv-ecoutes" class="aller">plus bas</a>).</p></div>
   </section>
 
@@ -4889,7 +4894,6 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <thead><tr><th>Où</th><th>Le défaut</th><th>Ce qu'on peut faire en attendant</th></tr></thead>
     <tbody>
       <tr><td>Alertes</td><td>Le texte d'aide renvoie encore à «&nbsp;Outils → ⚙️ Accès&nbsp;».</td><td>⚙️ Accès est dans <strong>Gestion</strong>.</td></tr>
-      <tr><td>Connexion</td><td>Le bouton s'appelle «&nbsp;Se connecter&nbsp;», puis «&nbsp;Déverrouiller&nbsp;» après une première tentative.</td><td>Rien&nbsp;: c'est le même bouton.</td></tr>
     </tbody>
   </table></div>
 
