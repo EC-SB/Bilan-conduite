@@ -1,5 +1,4 @@
-
-/* Déployé le 03/11/2026 à 16:58 — v1342 */
+/* Déployé le 03/11/2026 à 17:22 — v1343 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -51,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1343,
+    date: 'Mardi 3 novembre 2026',
+    resume: '⏱️ Les mails arrivent tout de suite · 🏢 la liste Bureau refaite',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'Les mails, sans attendre',
+        texte: 'Onglet ✉️ Mails ouvert : une relève chaque minute. Et un mail qui bloquait la relève (trop lourd, Claude trop long) ne bloque plus les suivants : il arrive « en secours », à ouvrir dans le webmail.' },
+      { emoji: '🏢',
+        titre: 'La liste « 🏢 Bureau » refaite',
+        texte: 'Partie avant la corbeille, elle se refait toute seule à la première ouverture de ☑️ À faire par le bureau ou un administrateur, avec les mêmes personnes.' }
+    ]
+  },
   {
     version: 1342,
     date: 'Mardi 3 novembre 2026',
