@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 12:44 — v1320 */
+/* Déployé le 03/11/2026 à 13:55 — v1337 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -423,6 +423,11 @@ const SECTIONS = [
   /* ☑️ v1278 — la todo list, le bouton à côté du 💬 (ec-todo.js).
      David : « j'ai besoin de choisir qui la voit » : une case par compte. */
   { cle:'todo',             nom:'☑️ À faire (todo list)', onglet:'messagerie' },
+  /* ✉️ v1337 — la boîte mail de l'école (ec-boite-mail.js) : l'onglet
+     « ✉️ Mails » de la messagerie. Bureau et administrateurs par le rôle
+     (David : « que l'adresse OVH, le bureau et les admins le voient »).
+     « Voir » lit ; « Modifier » écrit, règle un fil, rattache un élève. */
+  { cle:'mails',            nom:'✉️ Mails de l’école (la boîte OVH)', onglet:'messagerie' },
   { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
