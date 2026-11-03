@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 14:55 — v1338 */
+/* Déployé le 03/11/2026 à 15:04 — v1339 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -45,6 +45,10 @@ let mlFilOuvert = null;          /* { fil, messages } */
 let mlChoixEleveOuvert = false;  /* « 🔗 Rattacher » déplié en tête du fil */
 let mlCompteNonLus = null;       /* le chiffre de l'onglet (convList) */
 let mlSignaturesLues = null;
+/* ☑️ v1339 — cocher plusieurs mails (lus / non lus en lot) */
+let mlModeChoix = false;
+const mlChoix = new Set();
+function mlRecompter(){ if(mlVue === 'boite') mlCompteNonLus = mlFils.filter(f => !f.regle && f.nonLus > 0).length; }
 
 /* ------------------------------------------------------------
    CE QUE LE COCKPIT DEMANDE
@@ -158,6 +162,7 @@ function mlDessinerLaListe(zone){
     zone.appendChild(d);
   }else zone.appendChild(mlEnteteDeLaListe());
 
+  if(mlModeChoix) zone.appendChild(mlBarreDuChoix());
   const sc = document.createElement('div');
   sc.className = 'ckpScroll';
   sc.id = 'mlListe';
@@ -245,6 +250,8 @@ function mlMenuDeLaListe(ancre){
   const items = [];
   items.push({ emoji: '🔄', texte: 'Relever la boîte maintenant', cle: 'releve', faire: () => mlRelever() });
   items.push({ emoji: '🗄️', texte: 'Mails réglés', on: mlVue === 'regles', cle: 'regles', faire: () => { mlVue = 'regles'; mlFils = []; mlLueLe = 0; dessinerLaListeMessagerie(); } });
+  items.push({ emoji: mlModeChoix ? '✕' : '☑', texte: mlModeChoix ? 'Annuler le choix' : 'Cocher des mails (lus / non lus)', cle: 'choix',
+    faire: () => { mlModeChoix = !mlModeChoix; mlChoix.clear(); dessinerLaListeMessagerie(); } });
   items.push({ emoji: '🗑️', texte: 'Corbeille (mails supprimés, pubs)', cle: 'corbeille', faire: () => mlFenetreCorbeille() });
   items.push({ sep: true });
   items.push({ emoji: '✍️', texte: 'Ma signature', cle: 'signature', faire: () => mlFenetreSignature() });
@@ -335,9 +342,18 @@ function mlPuce(texte, classe, titre){
 function mlLigne(f){
   const d = document.createElement('div');
   const ouvert = !!(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id);
-  d.className = 'ckIt mlIt' + (ouvert ? ' on' : '') + (f.nonLus ? ' nlu' : '');
+  d.className = 'ckIt mlIt' + (ouvert ? ' on' : '') + (f.nonLus ? ' nlu' : ' lu');
   d.dataset.mail = String(f.id);
-  d.title = 'Ouvrir le mail';
+  d.title = f.nonLus ? 'Non lu — ouvrir le mail' : 'Lu — ouvrir le mail';
+  if(mlModeChoix){
+    const ca = document.createElement('div');
+    const pris = mlChoix.has(f.id);
+    ca.className = 'ckCase mlCase' + (pris ? ' pris' : '');
+    ca.textContent = '✓';
+    d.appendChild(ca);
+    if(pris) d.classList.add('coche');
+    d.title = pris ? 'Retirer de la sélection' : 'Ajouter à la sélection';
+  }
   const av = document.createElement('div');
   av.className = 'ckAv' + (f.nonLus ? ' nl' : '');
   av.textContent = mlInitiales(f.nom, f.correspondant);
@@ -377,7 +393,7 @@ function mlLigne(f){
   }
   const puces = document.createElement('div');
   puces.className = 'mlPuces';
-  if(f.eleve) puces.appendChild(mlPuce('🔗 ' + f.eleve, 'eleve'));
+  if(f.eleve) puces.appendChild(mlPuce('🔗 ' + f.eleve + (f.lien === 'parent' ? ' · 👪 parent' : /^autre:/.test(f.lien || '') ? ' · 🧑‍💼 ' + (f.lien.slice(6) || 'autre') : ''), 'eleve'));
   else if(f.rattache !== 'non' && f.dernierSens === 'recu') puces.appendChild(mlPuce('❓ À rattacher', 'orange',
     f.propose ? '🤖 Claude propose : ' + f.propose : (f.candidats || []).length ? (f.candidats || []).join(' ou ') + ' ?' : ''));
   (f.etiquettes || []).forEach(e => puces.appendChild(mlPuce('🏷️ ' + e)));
@@ -391,8 +407,57 @@ function mlLigne(f){
     c.textContent = String(f.nonLus);
     d.appendChild(c);
   }
-  d.addEventListener('click', () => mlOuvrir(f.id));
+  d.addEventListener('click', () => {
+    if(!mlModeChoix){ mlOuvrir(f.id); return; }
+    if(mlChoix.has(f.id)) mlChoix.delete(f.id); else mlChoix.add(f.id);
+    dessinerLaListeMessagerie();
+  });
   return d;
+}
+
+/* La barre du choix : combien, tout cocher, ✉️ lus, 📩 non lus */
+function mlBarreDuChoix(){
+  const b = document.createElement('div');
+  b.className = 'mlChoixBarre';
+  const visibles = mlFils.map(f => f.id);
+  Array.from(mlChoix).forEach(id => { if(visibles.indexOf(id) === -1) mlChoix.delete(id); });
+  const n = mlChoix.size;
+  const t = document.createElement('span');
+  t.className = 'n';
+  t.textContent = n ? n + ' mail' + (n > 1 ? 's' : '') + ' coché' + (n > 1 ? 's' : '') : 'Coche les mails';
+  b.appendChild(t);
+  const petit = (texte, faire, principal) => {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary');
+    x.textContent = texte;
+    x.addEventListener('click', async () => { if(x.disabled) return; x.disabled = true; try{ await faire(); }catch(e){ mlToast('⚠️ ' + (e.message || e)); x.disabled = false; } });
+    b.appendChild(x);
+    return x;
+  };
+  const tous = visibles.length && visibles.every(id => mlChoix.has(id));
+  petit(tous ? 'Tout décocher' : 'Tout cocher (' + visibles.length + ')', () => {
+    if(tous) mlChoix.clear(); else visibles.forEach(id => mlChoix.add(id));
+    dessinerLaListeMessagerie();
+  });
+  if(n){
+    const lot = async lu => {
+      const ids = Array.from(mlChoix);
+      const r = await appelPrep({ action: 'mailMarquerLot', ids: ids, lu: lu });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      mlFils.forEach(f => { if(ids.indexOf(f.id) !== -1) f.nonLus = lu ? 0 : Math.max(1, f.nonLus); });
+      mlRecompter();
+      mlToast((lu ? '✉️ ' : '📩 ') + ids.length + ' mail' + (ids.length > 1 ? 's' : '') + ' marqué' + (ids.length > 1 ? 's' : '') + (lu ? ' comme lu' : ' comme non lu') + (ids.length > 1 ? 's' : ''));
+      mlModeChoix = false; mlChoix.clear();
+      dessinerLaListeMessagerie();
+      mlLueLe = 0; mlCharger(true);
+    };
+    petit('✉️ Marquer comme lu' + (n > 1 ? 's' : ''), () => lot(true), true).dataset.lot = 'lu';
+    petit('📩 Marquer comme non lu' + (n > 1 ? 's' : ''), () => lot(false)).dataset.lot = 'nonlu';
+  }
+  const x = petit('✕', () => { mlModeChoix = false; mlChoix.clear(); dessinerLaListeMessagerie(); });
+  x.title = 'Annuler le choix';
+  return b;
 }
 
 /* ------------------------------------------------------------
@@ -448,8 +513,11 @@ async function mlMarquer(changement, toast){
     mlFilOuvert.fil = r.fil;
     const i = mlFils.findIndex(x => x.id === f.id);
     if(i !== -1) mlFils[i] = r.fil;
+    mlRecompter();
   }
   if(toast) mlToast(toast);
+  /* rattaché (ou détaché) : le choix de l'élève se referme */
+  if(changement.eleve !== undefined || changement.lien !== undefined){ mlChoixEleveOuvert = false; mlNomPropose = ''; }
   if(changement.regle !== undefined && changement.regle){
     mlFils = mlFils.filter(x => x.id !== f.id || mlVue !== 'boite');
     mlFermerLeFil();
@@ -466,7 +534,8 @@ function mlSousTitre(f){
   const span = document.createElement('span');
   if(f.eleve){
     span.className = 'mlLienEleve';
-    span.textContent = '🔗 ' + f.eleve + (f.rattache === 'adresse' ? ' (adresse de sa fiche)' : '') + ' · ';
+    span.textContent = '🔗 ' + f.eleve + (f.rattache === 'adresse' ? ' (adresse de sa fiche)' : '') +
+      (mlLienLisible(f.lien) ? ' · écrit : ' + mlLienLisible(f.lien) : '') + ' · ';
     if(mlPeutEcrire()){
       const u = document.createElement('u');
       u.textContent = 'changer';
@@ -547,7 +616,7 @@ function mlEnteteDuFil(large){
     } });
     extras.push({ sep: true });
     extras.push({ emoji: '⚠️', texte: f.urgent ? 'Plus urgent' : 'Marquer urgent', faire: () => mlMarquer({ urgent: f.urgent ? 0 : 1 }) });
-    extras.push({ emoji: '🔗', texte: f.eleve ? 'Changer d’élève' : 'Rattacher à un élève', faire: () => { mlChoixEleveOuvert = true; mlDessinerLeFil(); } });
+    extras.push({ emoji: '🔗', texte: f.eleve ? 'Changer d’élève, ou qui écrit' : 'Rattacher à un élève', faire: () => { mlChoixEleveOuvert = true; mlDessinerLeFil(); } });
     if(f.eleve) extras.push({ emoji: '✂️', texte: 'Détacher de ' + f.eleve, faire: () => mlMarquer({ eleve: '' }, 'Détaché') });
     else if(f.rattache !== 'non') extras.push({ emoji: '🚫', texte: 'Pas un élève (ne plus proposer)', faire: () => mlMarquer({ eleve: '' }) });
   }
@@ -582,6 +651,15 @@ function mlDemain9h(){
 }
 
 /* 🔗 Rattacher : les élèves proposés (même adresse), puis la recherche */
+/* 👪 v1339 — qui écrit : l'élève, un parent, une autre personne */
+function mlLienLisible(lien){
+  if(lien === 'eleve') return '👤 l’élève';
+  if(lien === 'parent') return '👪 un parent';
+  if(/^autre:/.test(lien || '')) return '🧑‍💼 ' + (lien.slice(6) || 'une autre personne');
+  return '';
+}
+let mlNomPropose = '';            /* le nom posé d'avance dans « 🔗 Rattacher » (Claude) */
+
 function mlChoixDeLEleve(){
   const f = mlFilOuvert.fil;
   const c = document.createElement('div');
@@ -589,27 +667,68 @@ function mlChoixDeLEleve(){
   c.innerHTML = '<div class="l1"><b>🔗 Rattacher ce mail à un élève</b><span class="doux">— il apparaîtra dans son dossier, onglet 💬 Messages</span></div>';
   const pills = document.createElement('div');
   pills.className = 'acts';
-  (f.candidats || []).forEach(n => pills.appendChild(ckBouton('👤 ' + n, 'Même adresse que sa fiche', () => mlMarquer({ eleve: n }, '🔗 Rattaché à ' + n))));
   const inp = document.createElement('input');
   inp.type = 'text';
   inp.placeholder = 'Chercher un élève…';
   inp.className = 'mlChampEleve';
   inp.setAttribute('list', 'mlElevesListe');
+  inp.value = mlNomPropose || f.eleve || '';
   const dl = document.createElement('datalist');
   dl.id = 'mlElevesListe';
   ((typeof tousLesElevesConnus === 'function') ? tousLesElevesConnus() : []).forEach(n => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+  /* les élèves proposés (même adresse, ou reconnus par Claude) remplissent le champ */
+  const proposes = (f.candidats || []).concat(f.propose && (f.candidats || []).indexOf(f.propose) === -1 ? [f.propose] : []);
+  proposes.forEach(n => pills.appendChild(ckBouton('👤 ' + n, f.propose === n ? 'Claude le reconnaît dans le mail' : 'Même adresse que sa fiche',
+    () => { inp.value = n; inp.focus(); })));
+  pills.append(inp, dl);
+  c.appendChild(pills);
+
+  /* Qui écrit ? */
+  let lien = /^autre:/.test(f.lien || '') ? 'autre' : (f.lien || 'eleve');
+  const qui = document.createElement('div');
+  qui.className = 'acts mlQui';
+  const lab = document.createElement('span');
+  lab.className = 'doux';
+  lab.textContent = 'Qui écrit ?';
+  qui.appendChild(lab);
+  const autre = document.createElement('input');
+  autre.type = 'text';
+  autre.className = 'mlChampEleve mlQuiAutre';
+  autre.placeholder = 'Ex : sa conseillère France Travail, son grand-père…';
+  autre.value = /^autre:/.test(f.lien || '') ? f.lien.slice(6) : '';
+  const choix = [['eleve', '👤 L’élève'], ['parent', '👪 Un parent'], ['autre', '🧑‍💼 Autre…']].map(([k, t]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ckBt mlQuiB';
+    b.dataset.lien = k;
+    b.textContent = t;
+    b.addEventListener('click', () => { lien = k; maj(); if(k === 'autre') autre.focus(); });
+    qui.appendChild(b);
+    return b;
+  });
+  qui.appendChild(autre);
+  const maj = () => { choix.forEach(b => b.classList.toggle('on', b.dataset.lien === lien)); autre.hidden = lien !== 'autre'; };
+  maj();
+  c.appendChild(qui);
+
+  const bas = document.createElement('div');
+  bas.className = 'acts';
   const ok = ckBouton('🔗 Rattacher', '', () => {
     const n = inp.value.trim();
     const l = (typeof tousLesElevesConnus === 'function') ? tousLesElevesConnus() : [];
     const vrai = l.find(x => x.toLowerCase() === n.toLowerCase()) || n;
     if(!vrai) return;
-    return mlMarquer({ eleve: vrai }, '🔗 Rattaché à ' + vrai);
+    const valeur = lien === 'autre' ? 'autre:' + autre.value.trim() : lien;
+    mlNomPropose = '';
+    return mlMarquer({ eleve: vrai, lien: valeur }, '🔗 Rattaché à ' + vrai + (mlLienLisible(valeur) ? ' — ' + mlLienLisible(valeur) : ''));
   }, 'p');
+  ok.id = 'mlRattacherOk';
   inp.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); ok.click(); } });
-  pills.append(inp, dl, ok);
-  if(!f.eleve) pills.appendChild(ckBouton('🚫 Pas un élève', 'Ne plus proposer de rattacher ce fil', () => mlMarquer({ eleve: '' })));
-  pills.appendChild(ckBouton('✕', 'Fermer', () => { mlChoixEleveOuvert = false; mlDessinerLeFil(); }, 'rond'));
-  c.appendChild(pills);
+  autre.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); ok.click(); } });
+  bas.appendChild(ok);
+  if(!f.eleve) bas.appendChild(ckBouton('🚫 Pas un élève', 'Ne plus proposer de rattacher ce fil', () => mlMarquer({ eleve: '' })));
+  bas.appendChild(ckBouton('✕', 'Fermer', () => { mlChoixEleveOuvert = false; mlNomPropose = ''; mlDessinerLeFil(); }, 'rond'));
+  c.appendChild(bas);
   setTimeout(() => inp.focus(), 50);
   return c;
 }
@@ -1724,7 +1843,8 @@ function mlLigneDuDossier(f){
   const plus = [f.nb > 1 ? 'mail · ' + f.nb + ' messages' : 'mail · 1 message',
     f.nb > 1 ? (f.premierLe && mlJourDe(f.premierLe) !== mlJourDe(f.dernierLe) && f.dernierSens !== 'envoye' ? 'du ' + mlJourDe(f.premierLe) + ' au ' + mlJourDe(f.dernierLe) : 'dernier le ' + mlDateHeure(f.dernierLe)) : 'le ' + mlDateHeure(f.dernierLe),
     f.webmail ? '✉️ réponse envoyée depuis le webmail' : '',
-    f.rattache === 'adresse' ? 'rattaché par l’adresse de sa fiche' : ''].filter(Boolean).join(' · ');
+    f.rattache === 'adresse' ? 'rattaché par l’adresse de sa fiche' : '',
+    mlLienLisible(f.lien) ? 'écrit : ' + mlLienLisible(f.lien) : ''].filter(Boolean).join(' · ');
   g.innerHTML = '<div style="font-size:13.5px;font-weight:700;' + (f.nonLus ? 'color:var(--warn-text);' : '') + '"></div>' +
     '<div style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:2px;"></div>';
   g.firstChild.textContent = '✉️ ' + (f.sujet || '(sans objet)') + (f.nonLus ? ' · ' + f.nonLus + ' non lu' + (f.nonLus > 1 ? 's' : '') : '');
@@ -1912,8 +2032,8 @@ function mlBoiteClaude(){
   const acts = document.createElement('div');
   acts.className = 'mlClActs';
   if(mlPeutEcrire() && !f.eleve && f.propose){
-    acts.appendChild(mlBoutonClaude('🔗 C’est ' + f.propose + ' : rattacher', 'Claude reconnaît cet élève dans le mail — à toi de confirmer',
-      () => mlMarquer({ eleve: f.propose }, '🔗 Rattaché à ' + f.propose)));
+    acts.appendChild(mlBoutonClaude('🔗 C’est ' + f.propose + ' : rattacher', 'Claude reconnaît cet élève dans le mail — à toi de confirmer, et de dire qui écrit',
+      () => { mlNomPropose = f.propose; mlChoixEleveOuvert = true; mlDessinerLeFil(); }));
   }
   if(mlPeutEcrire() && !f.eleve && a.nouvelEleve){
     const n = ((a.nouvelEleve.prenom || '') + ' ' + (a.nouvelEleve.nom || '')).trim();
