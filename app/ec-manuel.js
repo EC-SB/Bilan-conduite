@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 12:10 — v1336 */
+/* Déployé le 03/11/2026 à 15:45 — v1340 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -7704,6 +7704,9 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
     chargerRemarquesCepc();
   }
   veillerSurLApercuNiveau(zone);
+  /* ⏹️ v1340 — l'arrêt du bas (ec-durees-examen.js) : la zone « Durée »
+     le remontre si la nouvelle fiche en a une */
+  if(zone && zone.id === 'manuelChamps'){ const bas = document.getElementById('dxFinBas'); if(bas){ bas._bloc = null; bas.style.display = 'none'; } }
   champs.forEach(ch => {
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
