@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 19:33 — v1335 */
+/* Déployé le 03/11/2026 à 12:10 — v1336 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1336,
+    date: 'Mardi 3 novembre 2026',
+    resume: '🤔 Le planning du « Pourrait » · 🅰️ 🔁 La BEA',
+    quoi: [
+      { emoji: '📅',
+        titre: 'Examen blanc « Pourrait » : le planning',
+        texte: 'Des étapes 🚗 leçons / 📝 examen blanc, chacune sur une semaine des prochaines vacances (ou ✏️ autre), et un texte libre. Tout part dans son bilan et dans le résumé court.' },
+      { emoji: '🅰️',
+        titre: 'Conseil et passage en BEA',
+        texte: 'Pour un élève en BV (examen blanc, et tous les cours en BV) : « Nous te conseillons de passer en BEA » avec le lien, et « 🔁 Passage en BEA » : sa fiche, son Suivi, le résumé et le groupe Message important suivent.' }
+    ]
+  },
   {
     version: 1335,
     date: 'Lundi 2 novembre 2026',
