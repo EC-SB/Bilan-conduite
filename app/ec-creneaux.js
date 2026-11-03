@@ -1,4 +1,4 @@
-/* Déployé le 22/10/2026 à 11:14 — v1239 */
+/* Déployé le 02/11/2026 à 19:33 — v1335 */
 /* ============================================================
    ec-creneaux.js — 🗓️ LES CRÉNEAUX LIBRES (v1234)
 
@@ -405,7 +405,7 @@ async function afficherCreneauxLibres(){
   const info = document.createElement('div');
   info.style.cssText = 'font-size:12px;color:var(--muted);margin:-4px 0 12px;line-height:1.5;';
   if(!lect){
-    info.textContent = 'Aucune lecture pour l’instant. Ouvre le planning d’une agence dans Drivup et clique le favori « 📥 Bilan de conduite » : les créneaux des quatre semaines à venir arrivent ici.';
+    info.textContent = 'Aucune lecture pour l’instant. Ouvre le planning d’une agence dans Drivup et clique le favori « 📥 App Évolution » : les créneaux des quatre semaines à venir arrivent ici.';
     z.appendChild(info);
     z.appendChild(blocDesHorairesCreneaux([]));
     return;
