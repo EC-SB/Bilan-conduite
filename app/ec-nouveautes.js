@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 13:55 — v1337 */
+/* Déployé le 03/11/2026 à 14:55 — v1338 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1338,
+    date: 'Mardi 3 novembre 2026',
+    resume: '🤖 Claude dans les mails · 📒 Le carnet d’adresses',
+    quoi: [
+      { emoji: '🤖',
+        titre: 'Claude lit les mails qui arrivent',
+        texte: 'Un interrupteur pour toute l’école, en tête de ✉️ Mails. Une ligne de résumé, les étiquettes, ⚠️ urgent, l’élève dont parle le mail (il le propose, tu confirmes), et les pubs à la corbeille.' },
+      { emoji: '✏️',
+        titre: 'Une réponse proposée',
+        texte: 'À l’ouverture d’un mail : une réponse préparée avec ce que l’appli sait (son dossier, les créneaux libres, les tarifs) — ✏️ dans l’éditeur, 🔄 une autre, ✂️ plus courte, 🙂 plus chaleureuse. Et ☑️ En faire une tâche, ➕ Créer la fiche. Rien ne part sans toi.' },
+      { emoji: '📒',
+        titre: 'À : les élèves et un carnet d’adresses',
+        texte: 'En tapant dans À : les élèves (l’adresse de leur fiche), le carnet et les adresses déjà écrites. 📒 Le carnet garde pour toute l’école France Travail, la DDTM… Et les menus de l’éditeur (⚡, 🖍️…) s’ouvrent enfin devant la fenêtre.' },
+      { emoji: '🗑️',
+        titre: 'Supprimer un mail',
+        texte: '⋯ › 🗑️ Supprimer cette conversation, ou 🗑️ à côté de l’heure d’un mail. Il part à la corbeille de la boîte OVH ; ⋯ › 🗑️ Corbeille le remet.' },
+      { emoji: '🔤',
+        titre: '🤖 ▾ dans l’éditeur',
+        texte: 'Reprendre la réponse proposée, reformuler, raccourcir, réchauffer ou corriger les fautes de ce que tu as écrit.' }
+    ]
+  },
   {
     version: 1337,
     date: 'Mardi 3 novembre 2026',
