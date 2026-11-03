@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1342
+     GUIDE-VERSION: 1343
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1342</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1343</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -583,7 +583,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1342</strong>, relu le 3 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1343</strong>, relu le 3 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -3894,9 +3894,10 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
   <section id="msg-mails">
     <h3>✉️ Les mails de l’école</h3>
     <div class="qui mini"><span class="lab">Vue</span> <span class="role bureau">Bureau</span><span class="role admin">Admin</span> <span class="ou">— droit <span class="ch">mails</span> («&nbsp;Voir&nbsp;» lit, «&nbsp;Modifier&nbsp;» écrit et range)&nbsp;; les réglages&nbsp;: administrateurs.</span></div>
-    <p>La boîte OVH de l’école, dans l’onglet <span class="b">✉️ Mails</span> de la messagerie. L’appli la <strong>relève toutes les 5 minutes</strong> (la première fois&nbsp;: les 30 derniers jours) et envoie par la même adresse. La boîte reste la vraie&nbsp;: ce qu’on envoie d’ici se range dans ses «&nbsp;Envoyés&nbsp;», et ce qu’on écrit depuis le webmail OVH revient ici, dans le bon fil (<span class="ch">✉️ réponse envoyée depuis le webmail</span>).</p>
+    <p>La boîte OVH de l’école, dans l’onglet <span class="b">✉️ Mails</span> de la messagerie. L’appli la <strong>relève toutes les 5 minutes</strong>, et <strong>chaque minute tant que l’onglet ✉️ Mails est ouvert</strong> (v1343, sans rien faire&nbsp;: le nouveau mail apparaît)&nbsp;; la première fois, les 30 derniers jours et envoie par la même adresse. La boîte reste la vraie&nbsp;: ce qu’on envoie d’ici se range dans ses «&nbsp;Envoyés&nbsp;», et ce qu’on écrit depuis le webmail OVH revient ici, dans le bon fil (<span class="ch">✉️ réponse envoyée depuis le webmail</span>).</p>
     <dl class="defs">
       <div><dt>La liste</dt><dd>Une ligne par conversation&nbsp;: qui, l’objet, le début du dernier message, et des pastilles — <span class="b">🔗 l’élève</span> (rattaché tout seul quand le mail vient de l’adresse de sa fiche), <span class="b">❓ À rattacher</span>, les <span class="b">🏷️ étiquettes</span>&nbsp;; juste avant l’heure, le <span class="b">🚩</span> et les ronds de couleur de ceux qui s’en occupent. Rangée en 🚩 Drapeau rouge · Non lus · À traiter · ⏰ À me rappeler. En tête&nbsp;: les pubs supprimées de la semaine et l’heure de la dernière relève.</dd></div>
+      <div><dt>Une relève qui ne bloque plus</dt><dd>Depuis la v1343, une relève s’arrête d’elle-même au bout de 35 secondes (la suite à la suivante), Claude n’a que 15 secondes par mail (sinon le mail arrive sans son résumé, Claude le lira plus tard), et un mail sur lequel la relève s’est arrêtée net est repris «&nbsp;en secours&nbsp;»&nbsp;: il arrive avec son expéditeur et son objet et la ligne <span class="ch">⚠️ L’appli n’a pas réussi à lire ce mail en entier… Ouvre-le dans le webmail OVH</span>. Il ne bloque plus les mails qui le suivent.</dd></div>
       <div><dt>Lus, non lus</dt><dd>Un mail non lu a un trait vert à gauche, un point devant le nom, le nom et l’objet en gras et son chiffre&nbsp;; un mail lu s’éteint d’un cran. <span class="b">⋯ › ☑ Cocher des mails</span>&nbsp;: on coche (ou <span class="b">Tout cocher</span>) puis <span class="b">✉️ Marquer comme lus</span> ou <span class="b">📩 Marquer comme non lus</span> (une case pas cochée est vide). Le webmail OVH suit <strong>tout de suite</strong>&nbsp;; dans l’autre sens, un mail lu ou remis en non lu <strong>dans le webmail</strong> l’est aussi dans l’appli à la relève suivante (toutes les 5 minutes, ou ⋯ › 🔄 Relever la boîte maintenant).</dd></div>
       <div><dt>Au survol</dt><dd>Sur ordinateur, la ligne survolée montre ses boutons à droite, sans ouvrir le mail&nbsp;: <span class="b">📩</span> (marquer comme non lu) ou <span class="b">✉️</span> (marquer comme lu), <span class="b">🚩</span> (le drapeau rouge), <span class="b">🏷️</span>, la liste des étiquettes à cocher (<span class="b">➕ Nouvelle étiquette…</span> pour l’administrateur), et <span class="b">👤</span>, «&nbsp;Qui s’en occupe&nbsp;?&nbsp;». Sur le téléphone, ces gestes restent dans <span class="b">⋯</span> du mail ouvert.</dd></div>
       <div><dt>🚩 Drapeau rouge</dt><dd>Depuis la v1342, il remplace «&nbsp;⚠️ Urgent&nbsp;» (les mails déjà urgents l’ont gardé, et Claude le pose là où il posait «&nbsp;urgent&nbsp;»). Le mail passe en rouge — trait à gauche, fond rosé, 🚩 près de l’heure — et monte dans <span class="ch">🚩 DRAPEAU ROUGE</span>, tout en haut. Un appui sur 🚩 (au survol, dans le mail ouvert à côté de <span class="b">✓ Réglé</span>, ou dans <span class="b">⋯</span>) le pose ou le retire&nbsp;; <span class="b">✓ Réglé</span> l’enlève.</dd></div>
