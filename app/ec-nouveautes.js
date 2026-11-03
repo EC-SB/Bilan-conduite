@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 14:55 — v1338 */
+/* Déployé le 03/11/2026 à 15:04 — v1339 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1339,
+    date: 'Mardi 3 novembre 2026',
+    resume: '📩 Mails lus / non lus en lot · 👪 Qui écrit',
+    quoi: [
+      { emoji: '📩',
+        titre: 'Lus et non lus, enfin visibles',
+        texte: 'Un mail non lu : un trait vert, un point, le nom en gras et son chiffre. ⋯ › ☑ Cocher des mails : en marquer plusieurs comme lus ou comme non lus d’un coup (le webmail suit).' },
+      { emoji: '👪',
+        titre: 'Qui écrit : l’élève, un parent, un autre',
+        texte: 'En rattachant un mail à un élève, on dit qui écrit. Ça se voit partout, les mails suivants de la même adresse suivent, et Claude en tient compte.' }
+    ]
+  },
   {
     version: 1338,
     date: 'Mardi 3 novembre 2026',
