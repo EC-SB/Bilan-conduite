@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 15:45 — v1340 */
+/* Déployé le 03/11/2026 à 16:23 — v1341 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1341,
+    date: 'Mardi 3 novembre 2026',
+    resume: '🚗 Examen blanc → Prêts au permis · ⏱️ 6+3 juste après · 🗑️ Corbeille de la todo',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'Dès l’examen blanc, dans les Prêts au permis',
+        texte: '« A le niveau » (quelles que soient les heures) ou « pourrait » : l’élève entre tout seul dans 🚗 Prêts au permis. Un « pourrait » affiche 🤔 Pourrait à la place des heures, et 🙈 Cacher les « pourrait » les retire de la liste.' },
+      { emoji: '⏱️',
+        titre: '6 + 3, c’est 6 + 3',
+        texte: 'La carte de l’examen blanc ne compte plus comme une leçon : juste après l’examen blanc, le dossier dit 6 h + la leçon de veille, pas 4 h.' },
+      { emoji: '🗑️',
+        titre: 'Une corbeille pour ☑️ À faire',
+        texte: 'Une liste, une tâche ou les tâches faites effacées restent 30 jours dans 🗑️ Corbeille (sous les listes) : ↩️ Remettre les remet. La liste 🏢 Bureau ne se supprime que par un administrateur.' }
+    ]
+  },
   {
     version: 1340,
     date: 'Mardi 3 novembre 2026',
