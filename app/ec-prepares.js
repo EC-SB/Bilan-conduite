@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 16:23 — v1341 */
+/* Déployé le 04/11/2026 à 10:14 — v1346 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -60,6 +60,8 @@ const DELAI_ORDINAIRE = 25000;
    On n'y remet pas celles qui valent le délai ordinaire : le même
    nombre écrit à deux endroits finit toujours par n'en suivre qu'un. */
 const ACTIONS_LOURDES = { elevesImport: 90000,
+                          /* 🅿️ v1346 — un contrat de garage en PDF (jusqu'à 10 Mo) */
+                          garagePdf: 90000,
                           /* 💬 v1253 — un morceau de son transcrit par Whisper */
                           videoSousTitres: 60000,
                           /* Vingt-trois feuilles à relire et à réécrire.
