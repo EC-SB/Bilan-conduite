@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 12:01 — v1351 */
+/* Déployé le 04/11/2026 à 12:28 — v1352 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1352,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🧮 Charges fixes : on choisit ce qui compte dans le total',
+    quoi: [
+      { emoji: '🧮',
+        titre: 'Ce qui compte dans le total',
+        texte: 'Gestion › 💶 Charges fixes : dans l’encadré du haut, une case par catégorie. Décoche 💶 Salaires pour avoir les charges fixes sans les salaires. Le réglage est le même pour tous.' },
+      { emoji: '💶',
+        titre: 'Salaires : tout dedans, ou net + charges',
+        texte: '« Tout dedans » : une case par personne, le coût global. « Net + charges à part » : deux cases, le net et les charges, et le tableau les sépare.' }
+    ]
+  },
   {
     version: 1351,
     date: 'Mercredi 4 novembre 2026',
