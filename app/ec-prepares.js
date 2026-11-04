@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:14 — v1346 */
+/* Déployé le 04/11/2026 à 11:28 — v1348 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -62,6 +62,8 @@ const DELAI_ORDINAIRE = 25000;
 const ACTIONS_LOURDES = { elevesImport: 90000,
                           /* 🅿️ v1346 — un contrat de garage en PDF (jusqu'à 10 Mo) */
                           garagePdf: 90000,
+                          /* 🛒 v1348 — le site : lire tous les produits, envoyer un JPG */
+                          wooLire: 60000, wooEnvoyer: 120000,
                           /* 💬 v1253 — un morceau de son transcrit par Whisper */
                           videoSousTitres: 60000,
                           /* Vingt-trois feuilles à relire et à réécrire.
