@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 19:33 — v1335 */
+/* Déployé le 04/11/2026 à 13:36 — v1353 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 App Évolution » (anciennement « 📥 Bilan de conduite »)
 
@@ -785,6 +785,108 @@
     return { du: du, au: au, ressources: ressources, prestations: prestations, evenements: evenements };
   }
 
+  /* ---------- 💰 v1353 — LES PRIX (Paramètres › Prestations, Produits, Formules) ----------
+     David, le 4 novembre : « est-ce que tu peux faire les changements de
+     tarifs sur Drivup aussi ? » — son contrat l'autorise. Relevé dans
+     Drivup ce jour-là : une ligne active a un lien « Modifier »
+     (modification.php?id=…) ; une ligne archivée n'a que « Activer »,
+     on l'ignore. La fiche est un formulaire « form1 » envoyé tel quel
+     (champs « prix » = Tarif de base, « prix_sup » = Tarif supplémentaire). */
+  const PAGES_PRIX = { prestation: '/parametres/prestations/', produit: '/parametres/produits/', formule: '/parametres/formules/' };
+  const nombreDuTexte = t => { const m = String(t || '').replace(/\s/g, '').replace(',', '.').match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
+  async function lireUneListeDePrix(sorte) {
+    const r = await fetch(PAGES_PRIX[sorte], { credentials: 'include' });
+    if (!r.ok) throw new Error('Drivup a répondu ' + r.status + ' pour ' + PAGES_PRIX[sorte]);
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+    const out = [];
+    doc.querySelectorAll('table tbody tr').forEach(tr => {
+      const a = tr.querySelector('a[href*="modification.php?id="]');
+      if (!a) return; /* archivée : seulement « Activer » */
+      const id = ((a.getAttribute('href') || '').match(/id=([A-Za-z0-9_-]+)/) || [])[1] || '';
+      const c = [...tr.cells].map(td => propre(td.textContent));
+      if (!id) return;
+      if (sorte === 'formule') {
+        out.push({ id: id, nom: c[0], prix: nombreDuTexte(c[1]), type: c[2], eleves: nombreDuTexte(c[3]) || 0 });
+      } else if (sorte === 'prestation') {
+        out.push({ id: id, nom: c[1], type: c[2], prix: nombreDuTexte(c[3]), prixSup: nombreDuTexte(c[4]), tva: c[5],
+                   formules: nombreDuTexte(c[6]) || 0, ventes: nombreDuTexte(c[7]) || 0 });
+      } else {
+        out.push({ id: id, nom: c[1], prix: nombreDuTexte(c[2]), prixSup: nombreDuTexte(c[3]), tva: c[4],
+                   formules: nombreDuTexte(c[5]) || 0, ventes: nombreDuTexte(c[6]) || 0 });
+      }
+    });
+    return out;
+  }
+  async function lireLesPrix() {
+    dire('💰 Lecture des prestations…');
+    const prestations = await lireUneListeDePrix('prestation');
+    dire('💰 Lecture des produits…');
+    const produits = await lireUneListeDePrix('produit');
+    dire('💰 Lecture des formules…');
+    const formules = await lireUneListeDePrix('formule');
+    return { genre: 'prix', prestations: prestations, produits: produits, formules: formules };
+  }
+  let prixOccupe = false;
+  const prixEcrit = n => (Math.round(n * 100) % 100 ? (Math.round(n * 100) / 100).toFixed(2) : String(Math.round(n)));
+  async function changerLesPrix(demande, source) {
+    const repondre = m => { try { source.postMessage(m, APP); } catch (e) {} };
+    if (prixOccupe) return;
+    prixOccupe = true;
+    const liste = (Array.isArray(demande.liste) ? demande.liste : []).slice(0, 400);
+    repondre({ type: 'drivup-prix-progression', fait: 0, total: liste.length });
+    try {
+      const resultats = [];
+      let fait = 0;
+      for (const it of liste) {
+        const r = { cle: String(it.cle || ''), ok: false, message: '' };
+        try {
+          const sorte = String(it.sorte || ''), id = String(it.id || ''), prix = Number(it.prix);
+          if (sorte !== 'prestation' && sorte !== 'produit') throw new Error('seulement les prestations et les produits');
+          if (!/^[A-Za-z0-9_-]{1,40}$/.test(id)) throw new Error('fiche inconnue');
+          if (!isFinite(prix) || prix <= 0 || prix > 20000) throw new Error('prix refusé');
+          const url = new URL(PAGES_PRIX[sorte] + 'modification.php?id=' + encodeURIComponent(id), location.origin);
+          const page = await fetch(url.href, { credentials: 'include' });
+          if (!page.ok) throw new Error('Drivup a répondu ' + page.status);
+          const doc = new DOMParser().parseFromString(await page.text(), 'text/html');
+          const form = doc.getElementById('form1') || [...doc.forms].find(f => f.querySelector('[name="prix"]'));
+          if (!form) throw new Error('la fiche Drivup est introuvable');
+          const pb = form.querySelector('[name="prix"]'), ps = form.querySelector('[name="prix_sup"]');
+          if (!pb || !ps) throw new Error('les cases de prix sont introuvables');
+          const avant = nombreDuTexte(pb.value);
+          if (it.avant != null && avant != null && Math.abs(avant - Number(it.avant)) > 0.004)
+            throw new Error('le prix a changé dans Drivup entre-temps (' + prixEcrit(avant) + ' €) : relis la liste');
+          const action = new URL(form.getAttribute('action') || url.href, url.href);
+          if (action.origin !== location.origin || action.pathname !== url.pathname) throw new Error('envoi refusé');
+          const fd = new FormData(form);
+          fd.set('prix', prixEcrit(prix));
+          fd.set('prix_sup', prixEcrit(prix));
+          const envoi = await fetch(action.href, { method: 'POST', body: fd, credentials: 'include' });
+          if (!envoi.ok) throw new Error('Drivup a répondu ' + envoi.status);
+          /* La vérification : on relit la fiche */
+          const relue = new DOMParser().parseFromString(await (await fetch(url.href, { credentials: 'include', cache: 'no-store' })).text(), 'text/html');
+          const f2 = relue.getElementById('form1') || relue;
+          const b2 = nombreDuTexte((f2.querySelector('[name="prix"]') || {}).value);
+          const s2 = nombreDuTexte((f2.querySelector('[name="prix_sup"]') || {}).value);
+          if (b2 === null || Math.abs(b2 - prix) > 0.004 || s2 === null || Math.abs(s2 - prix) > 0.004)
+            throw new Error('envoyé, mais Drivup affiche encore ' + (b2 === null ? '?' : prixEcrit(b2)) + ' €');
+          r.ok = true; r.prix = prix;
+        } catch (e) { r.message = (e && e.message) || String(e); }
+        resultats.push(r);
+        fait++;
+        dire('💰 Prix changés : ' + fait + ' / ' + liste.length);
+        repondre({ type: 'drivup-prix-progression', fait: fait, total: liste.length });
+        await pause(250);
+      }
+      const bons = resultats.filter(x => x.ok).length;
+      dire('💰 ' + bons + ' prix changé(s) dans Drivup sur ' + liste.length + '.');
+      repondre({ type: 'drivup-prix-faits', resultats: resultats });
+    } catch (e) {
+      repondre({ type: 'drivup-prix-erreur', message: (e && e.message) || String(e) });
+    } finally {
+      prixOccupe = false;
+    }
+  }
+
   if (!window.__ecEcoutesBranche) {
     window.__ecEcoutesBranche = true;
     window.addEventListener('message', ev => {
@@ -795,6 +897,8 @@
         });
       } else if (ev.data.type === 'drivup-ecoutes-creer') {
         creerLesEcoutes(ev.data, ev.source);
+      } else if (ev.data.type === 'drivup-prix-changer') {
+        changerLesPrix(ev.data, ev.source);
       }
     });
   }
@@ -854,6 +958,12 @@
           p.creneauxErreur = 'Les créneaux libres n’ont pas pu être lus : ' + (e && e.message ? e.message : e);
         }
         envoyer(p);
+      } else if (/^\/parametres\/(prestations|produits|formules)\/?(index\.php)?$/.test(location.pathname)) {
+        /* 💰 v1353 — les prix : les trois listes, d'où qu'on clique */
+        const p = await lireLesPrix();
+        if (!p.prestations.length && !p.produits.length) return finir('Aucun prix lu : la liste des prestations est vide ?');
+        dire('💰 ' + p.prestations.length + ' prestations, ' + p.produits.length + ' produits, ' + p.formules.length + ' formules lus.');
+        envoyer(p);
       } else if (/\/eleves\/profil\.php/.test(location.pathname) && document.getElementById('nom')) {
         const p = await lireFiche();
         if (!p.eleve.id) return finir('Je ne trouve pas le numéro de cet élève.');
@@ -866,7 +976,7 @@
         envoyer(p);
       } else {
         if (fen && !fen.closed) fen.close();
-        finir('Ouvre dans Drivup le planning d’une agence, de tous les utilisateurs ou d’un moniteur, la liste des élèves, ou la fiche d’un élève, puis reclique sur le favori.');
+        finir('Ouvre dans Drivup le planning d’une agence, de tous les utilisateurs ou d’un moniteur, la liste des élèves, la fiche d’un élève, ou Paramètres › Prestations (pour les prix), puis reclique sur le favori.');
       }
     } catch (e) {
       if (fen && !fen.closed) fen.close();
