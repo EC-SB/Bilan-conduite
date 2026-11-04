@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 15:53 — v1312 */
+/* Déployé le 04/11/2026 à 14:45 — v1354 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -1633,11 +1633,50 @@ function aiEditeurAide(a, k, R, ecrit, sale){
   return ed;
 }
 
+/* ✅ v1354 — « mis à jour sur EDOF », ligne par ligne ou tout d'un coup.
+   Le serveur ne touche que ces lignes ; on reporte ici les mêmes champs,
+   sans perdre ce qui est en cours de modification dans le tableau. */
+function aiEcartEdof(x){
+  const p = aiPrixFormation(x);
+  return p.prix !== null && p.source !== 'perdu' && (x.prixEdof === null || x.prixEdof === undefined || Math.abs(p.prix - Number(x.prixEdof)) > 0.009);
+}
+async function aiEdofFait(liste, bouton){
+  if(bouton) bouton.disabled = true;
+  try{
+    const r = await appelPrep({ action: 'aidesEdofFait', lignes: liste.map(x => ({ id: x.id, prix: aiPrixFormation(x).prix })) });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+    AI.d.reglages = r.reglages; AI.d.majLe = r.majLe; AI.d.majPar = r.majPar;
+    (r.reglages.catalogue || []).forEach(y => {
+      const x = (AI.regl && AI.regl.catalogue || []).find(z => z.id === y.id);
+      if(x && liste.some(l => l.id === y.id)) Object.assign(x, { prixEdof: y.prixEdof, edofPrix: y.edofPrix, edofLe: y.edofLe, edofPar: y.edofPar });
+    });
+    showToast(liste.length > 1 ? '✅ ' + liste.length + ' formations notées à jour sur EDOF' : '✅ Notée à jour sur EDOF');
+    aiDessiner();
+  }catch(e){
+    if(bouton) bouton.disabled = false;
+    showToast('Impossible : ' + ((e && e.message) || e));
+  }
+}
+
 function aiOngletCpf(z, R, ecrit, sale){
-  z.appendChild(aiEl('div', 'aiAide', 'Tes formations en ligne sur Mon compte formation (EDOF). Leur prix vient de 💰 Tarifs (une fiche, ou une prestation × une quantité) et suit tes changements. Le prix écrit sur EDOF, lui, se change sur EDOF : ⚠️ prévient quand les deux diffèrent.')).style.margin = '4px 0 10px';
+  z.appendChild(aiEl('div', 'aiAide', 'Tes formations en ligne sur Mon compte formation (EDOF). Leur prix vient de 💰 Tarifs (une fiche, ou une prestation × une quantité) et suit tes changements. Le prix écrit sur EDOF, lui, se change sur EDOF : ⚠️ prévient quand les deux diffèrent. Une fois changé sur EDOF, touche <b>✅ Fait sur EDOF</b> au bout de la ligne.')).style.margin = '4px 0 10px';
+  /* ✅ v1354 — ce qui reste à faire sur EDOF, et « tout est fait » */
+  const aFaire = (R.catalogue || []).filter(aiEcartEdof);
+  const bandeau = aiEl('div', 'aiEdofBandeau' + (aFaire.length ? '' : ' fait'));
+  bandeau.appendChild(aiEl('span', '', aFaire.length
+    ? '⚠️ <b>' + aFaire.length + ' formation' + (aFaire.length > 1 ? 's' : '') + ' à mettre à jour sur EDOF</b>'
+    : '✅ <b>Tous les prix sont à jour sur EDOF</b>'));
+  if(ecrit && aFaire.length > 1){
+    bandeau.appendChild(aiBouton('✅ Tout est mis à jour sur EDOF (' + aFaire.length + ')', 'btn-primary', async ev => {
+      const b = ev.currentTarget;
+      if(!await confirmer('Noter les ' + aFaire.length + ' formations à jour sur EDOF, avec le prix de 💰 Tarifs ?', '🎓 Formations CPF')) return;
+      aiEdofFait(aFaire, b);
+    }));
+  }
+  z.appendChild(bandeau);
   const tb = aiEl('div', ''); tb.style.overflowX = 'auto';
   const table = aiEl('table', 'aiTable');
-  table.innerHTML = '<tr><th>Permis</th><th>Formation sur EDOF</th><th>Prix (💰 Tarifs)</th><th>Sur EDOF</th><th></th></tr>';
+  table.innerHTML = '<tr><th>Permis</th><th>Formation sur EDOF</th><th>Prix (💰 Tarifs)</th><th>Sur EDOF</th><th>Mis à jour sur EDOF</th><th></th></tr>';
   (R.catalogue || []).forEach((x, k) => {
     const p = aiPrixFormation(x);
     const tr = aiEl('tr', '');
@@ -1647,12 +1686,26 @@ function aiOngletCpf(z, R, ecrit, sale){
     tr.appendChild(aiEl('td', '', (p.prix !== null ? aiEuros(p.prix) : '—') + src)).style.whiteSpace = 'nowrap';
     const ecart = (p.prix !== null && x.prixEdof !== null && x.prixEdof !== undefined && Math.abs(p.prix - Number(x.prixEdof)) > 0.009);
     tr.appendChild(aiEl('td', '', (x.prixEdof !== null && x.prixEdof !== undefined ? aiEuros(x.prixEdof) : '—') + (ecart ? ' <span style="color:var(--warn-text);" title="💰 Tarifs dit autre chose : à corriger sur EDOF">⚠️</span>' : ''))).style.whiteSpace = 'nowrap';
+    /* ✅ v1354 — la case du bout de ligne */
+    const tdE = aiEl('td', 'aiEdofCase');
+    if(aiEcartEdof(x)){
+      if(ecrit){
+        const b = aiBouton('✅ Fait sur EDOF', '', ev => aiEdofFait([x], ev.currentTarget));
+        b.title = 'Je l’ai changé sur EDOF : le prix sur EDOF devient ' + aiEuros(p.prix);
+        tdE.appendChild(b);
+      }else tdE.appendChild(aiEl('span', 'aiEdofReste', '⏳ à faire'));
+      if(x.edofLe) tdE.appendChild(aiEl('div', 'aiEdofQui', 'dernière fois le ' + aiEch(x.edofLe)));
+    }else if(p.prix !== null && p.source !== 'perdu'){
+      tdE.appendChild(aiEl('span', 'aiEdofOk', '✅ à jour'));
+      if(x.edofLe) tdE.appendChild(aiEl('div', 'aiEdofQui', 'le ' + aiEch(x.edofLe) + (x.edofPar ? ' par ' + aiEch(x.edofPar) : '')));
+    }else tdE.appendChild(aiEl('span', 'aiEdofQui', '—'));
+    tr.appendChild(tdE);
     const td = aiEl('td', '');
     td.appendChild(aiBouton(AI.edite === x.id ? '▲' : '✏️', '', () => { AI.edite = AI.edite === x.id ? '' : x.id; aiDessiner(); }));
     tr.appendChild(td);
     table.appendChild(tr);
     if(AI.edite === x.id){
-      const tr2 = aiEl('tr', ''); const td2 = aiEl('td', ''); td2.colSpan = 5;
+      const tr2 = aiEl('tr', ''); const td2 = aiEl('td', ''); td2.colSpan = 6;
       td2.appendChild(aiEditeurFormation(x, k, R, ecrit, sale));
       tr2.appendChild(td2); table.appendChild(tr2);
     }
