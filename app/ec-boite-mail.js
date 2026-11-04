@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 17:22 — v1343 */
+/* Déployé le 03/11/2026 à 17:56 — v1344 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -549,7 +549,19 @@ function mlEnteteDeLaListe(){
   v.addEventListener('click', () => mlFenetreCorbeille());
   l.appendChild(v);
   if(e.releveLe){
-    l.appendChild(document.createTextNode(' · relevée à ' + mlHeure(e.releveLe)));
+    /* 📥 v1344 — ce que la relève a fait, et ce qui attend : une relève
+       qui tourne à vide ne doit plus avoir l'air de marcher */
+    const st = e.stats || {};
+    const vieille = Date.now() - Number(e.releveLe) > 15 * 60000;
+    const r = document.createElement('span');
+    r.className = 'mlReleveInfo' + (vieille ? ' vieille' : '');
+    r.textContent = ' · ' + (vieille ? '⚠️ ' : '') + 'relevée à ' + mlHeure(e.releveLe) +
+      (Number(st.nouveaux) ? ' · ' + st.nouveaux + ' nouveau' + (st.nouveaux > 1 ? 'x' : '') : '') +
+      (Number(st.reste) ? ' · ⏳ ' + st.reste + ' encore à relever' : '') +
+      (Number(st.sautes) || Number(st.secours) ? ' · ⚠️ ' + (Number(st.sautes) + Number(st.secours)) + ' à ouvrir dans le webmail' : '');
+    r.title = 'Dernière relève : ' + (Number(st.nouveaux) || 0) + ' nouveau(x), ' + (Number(st.connus) || 0) + ' déjà là, ' +
+      (Number(st.filet) || 0) + ' rattrapé(s), ' + (Number(st.reste) || 0) + ' en attente' + (vieille ? '\nPlus de 15 minutes : ⋯ › 🔄 Relever la boîte maintenant' : '');
+    l.appendChild(r);
   }
   d.appendChild(l);
   return d;
