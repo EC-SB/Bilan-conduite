@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 19:33 — v1335 */
+/* Déployé le 04/11/2026 à 13:36 — v1353 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -381,6 +381,8 @@ function ouvrirLaFenetreDrivup(p){
   if(p.genre === 'planning' && Array.isArray(p.cours)) return fenetrePlanningDrivup(p);
   if(p.genre === 'eleves' && Array.isArray(p.eleves)) return fenetreElevesDrivup(p.eleves.slice(0, 300), 'liste');
   if(p.genre === 'fiche' && p.eleve) return fenetreElevesDrivup([p.eleve], 'fiche');
+  /* 💰 v1353 — les prix (Paramètres › Prestations, Produits, Formules) */
+  if(p.genre === 'prix' && typeof fenetrePrixDrivup === 'function') return fenetrePrixDrivup(p);
 }
 
 /* ------------------------------------------------------------
