@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 17:56 — v1344 */
+/* Déployé le 04/11/2026 à 09:49 — v1345 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1345,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '💶 Gestion : les charges fixes du mois (administrateurs)',
+    quoi: [
+      { emoji: '💶',
+        titre: 'Les charges fixes',
+        texte: 'Gestion › L’argent, pour les administrateurs : ce qui sort du compte chaque mois, le chiffre d’affaires, et ce qui reste. Les salaires et la TVA se changent chaque mois, ⏸️ met un prélèvement en pause, ✏️ modifie ou supprime (avec une corbeille), et « Lissé sur l’année » répartit les trimestriels et les annuels.' }
+    ]
+  },
   {
     version: 1344,
     date: 'Mardi 3 novembre 2026',
