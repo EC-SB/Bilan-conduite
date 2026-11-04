@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 12:15 — v1181 */
+/* Déployé le 04/11/2026 à 10:14 — v1346 */
 /* ============================================================
    ec-flotte.js
    Le suivi de la flotte.
@@ -167,6 +167,11 @@ async function afficherFlotte(){
   zone.appendChild(zListe);
 
   dessinerListeFlotte();
+
+  /* 🅿️ v1346 — les garages en location, sous les véhicules
+     (ec-garages.js). David : « dans la flotte il faut rajouter la
+     gestion des garages en location ». */
+  if(typeof afficherGarages === 'function') afficherGarages();
 }
 
 
@@ -336,6 +341,9 @@ function ligneVehicule(v){
     '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
       (v.km ? v.km.toLocaleString('fr-FR') + ' km' : 'km à relever') +
       (v.site ? ' · ' + v.site.replace(/</g, '&lt;') : '') +
+      /* 🅿️ v1346 — où il dort */
+      ((typeof garageDuVehicule === 'function' && garageDuVehicule(v.id))
+        ? ' · 🅿️ n° ' + String(garageDuVehicule(v.id).numero).replace(/</g, '&lt;') : '') +
       (v.boite ? ' · ' + v.boite.toUpperCase() : '') +
       (v.carburant ? ' · ' + v.carburant.replace(/</g, '&lt;') : '') +
     '</div>' +
@@ -430,6 +438,16 @@ function ouvrirFicheVehicule(v){
       '</select></div>' +
     '</div>' +
 
+    /* 🅿️ v1346 — où il dort : le même lien que dans la fiche du garage */
+    ((v && typeof GA !== 'undefined' && GA.lu && GA.liste.some(g => g.etat !== 'rendu'))
+      ? '<div class="duo"><div><label for="vGarage">🅿️ Garage</label><select id="vGarage">' +
+          '<option value="">—</option>' +
+          GA.liste.filter(g => g.etat !== 'rendu').map(g => '<option value="' + String(g.id).replace(/"/g, '&quot;') + '">N° ' +
+            String(g.numero).replace(/</g, '&lt;') + ' — ' + String([g.bailleur, g.site].filter(Boolean).join(', ')).replace(/</g, '&lt;') +
+            '</option>').join('') +
+        '</select></div><div class="vNumAide">Où il dort. Le garage le montre aussi dans sa fiche.</div></div>'
+      : '') +
+
     '<label for="vEtat">État</label><select id="vEtat">' +
       '<option value="actif">En service</option>' +
       '<option value="immobilise">⛔ Immobilisé</option>' +
@@ -501,6 +519,10 @@ function ouvrirFicheVehicule(v){
       boite.querySelector('#vCarbChoix').value = carb;
     }
     boite.querySelector('#vSite').value = v.site || '';
+    if(boite.querySelector('#vGarage')){
+      const gv = (typeof garageDuVehicule === 'function') ? garageDuVehicule(v.id) : null;
+      boite.querySelector('#vGarage').value = gv ? gv.id : '';
+    }
     boite.querySelector('#vEtat').value = v.etat || 'actif';
     boite.querySelector('#vCT').value = v.dernierCT || '';
     boite.querySelector('#vAss').value = v.assuranceJusquau || '';
@@ -658,6 +680,15 @@ function ouvrirFicheVehicule(v){
         etat: boite.querySelector('#vEtat').value,
         par: ACCES.moniteur || ''
       });
+      /* 🅿️ v1346 — le garage a changé : on le dit au garage */
+      const sg = boite.querySelector('#vGarage');
+      if(v && sg){
+        const avant = (typeof garageDuVehicule === 'function' && garageDuVehicule(v.id)) ? garageDuVehicule(v.id).id : '';
+        if(sg.value !== avant){
+          try{ prendreGA(await appelPrep({ action: 'garagePlacer', vehicule: v.id, garage: sg.value })); }
+          catch(e){ showToast('Garage non changé : ' + e.message); }
+        }
+      }
       fermerFond(fond);
       showToast(v ? 'Enregistré ✅' : 'Véhicule ajouté ✅');
       afficherFlotte();
