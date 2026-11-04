@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 31/10/2026 à 17:50 — v1327 -->
+<!-- Déployé le 04/11/2026 à 15:07 — v1355 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -855,6 +855,19 @@
     position:absolute; top:-6px; right:-6px; font-style:normal; font-size:16px;
     line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));
   }
+  /* 📝 v1355 — le texte mis en forme des guides */
+  :root{ --trRouge:#FF6B57; --trOrange:#FFB347; --trVert:#9BE15D; --trBleu:#6CB4FF; --trViolet:#C792EA; --trGris:#A3A3A3; }
+  body.clair{ --trRouge:#C62828; --trOrange:#D35400; --trVert:#2E7D32; --trBleu:#1565C0; --trViolet:#7B1FA2; --trGris:#6B7280; }
+  .trC-rouge{ color:var(--trRouge) !important; } .trC-orange{ color:var(--trOrange) !important; } .trC-vert{ color:var(--trVert) !important; }
+  .trC-bleu{ color:var(--trBleu) !important; } .trC-violet{ color:var(--trViolet) !important; } .trC-gris{ color:var(--trGris) !important; }
+  .trT{ font-size:1.25em; font-weight:800; color:var(--cream); }
+  #feuilleParcours .trRendu{ margin:0 0 11px; font-size:15px; line-height:1.6; color:var(--soft); overflow-wrap:anywhere; word-break:break-word; }
+  #feuilleParcours .trRendu ul, #feuilleParcours .trRendu ol{ margin:4px 0 6px; padding-left:24px; }
+  #feuilleParcours .trRendu li{ margin:3px 0; }
+  .trLien{ color:var(--accent-text); font-weight:700; text-decoration:underline; text-underline-offset:2px; }
+  .trRenvoiL{ margin:8px 0; }
+  .trLien.trRenvoi{ display:inline-block; text-decoration:none; border:1.5px solid var(--accent-text); border-radius:12px; padding:9px 14px; }
+  .trPasOuvert{ font-size:12.5px; color:var(--muted); font-weight:400; }
   #feuilleParcours .voile{
     position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80;
   }
@@ -4729,7 +4742,7 @@
       var b = blocs[n] || {};
       var liens = (b.liens && b.liens.length) ? b.liens : (b.lien ? [b.lien] : []);
       if(b.type === 'texte'){
-        mots += String(b.texte || '').split(/\s+/).filter(Boolean).length;
+        mots += trTexteSeul(b.texte).split(/\s+/).filter(Boolean).length;
       }else if(b.type === 'image') images += liens.length;
       /* v1324 — une vidéo pas encore déposée (repère de l'équipe) ne compte pas */
       else if(b.type === 'video'){ if(liens.length) videos++; }
@@ -4812,6 +4825,7 @@
     var sc = f.querySelector('.feuille');
     if(sc) sc.scrollTop = 0;
     brancherLesCarrousels(f);
+    brancherLesRenvois(f);
     brancherLeTracker(f.querySelector('.feuille'));
     dessinerLeBasDeLaFeuille();
   }
@@ -5026,7 +5040,7 @@
           var video = false;
           for(var n = sg.de; n <= sg.a && n < blocs.length; n++){
             var b = blocs[n] || {};
-            if(b.type === 'texte' && b.texte) textes.push(String(b.texte));
+            if(b.type === 'texte' && b.texte) textes.push(trTexteSeul(b.texte));
             else if(b.titre && !/(^|\|)guides\//.test(String(b.titre))) titres.push(String(b.titre));
             if(b.type === 'video' && ((b.liens && b.liens.length) || b.lien)) video = true;
           }
@@ -5099,12 +5113,112 @@
      avant de les envoyer, et une adresse signée expire. Un bloc dont
      le fichier n'a pas été déposé n'a pas de lien : on n'affiche
      rien plutôt qu'un cadre vide. */
+  /* ============================================================
+     📝 v1355 — LE TEXTE MIS EN FORME DES GUIDES
+
+     L'équipe écrit ses textes dans un éditeur (gras, couleurs, puces,
+     emojis, renvois) ; le texte garde des balises courtes que voici,
+     relues une à une — tout le reste est échappé. ⚠️ MÊME RÈGLE QUE
+     app/ec-texte-riche.js (trVersHtml) : les deux restent pareilles.
+     ============================================================ */
+  var TR_COULEURS_E = ['rouge', 'orange', 'vert', 'bleu', 'violet', 'gris'];
+  var TR_CIBLE_E = /^(e:[A-Za-z0-9_-]+::[A-Za-z0-9_-]*|g:[A-Za-z0-9_-]+)$/;
+  function trLigneHtmlE(l){
+    var RE = /\[(\/?)(g|i|s|t|c|lien)(?:=([A-Za-z0-9_:-]+))?\]/g;
+    var OUV = { g: '<b>', i: '<i>', s: '<u>', t: '<span class="trT">' };
+    var FER = { g: '</b>', i: '</i>', s: '</u>', t: '</span>', c: '</span>', lien: '</a>' };
+    var pile = [], h = '', k = 0, m;
+    function ouvrir(x){
+      return x.n === 'c' ? '<span class="trC trC-' + x.v + '">'
+        : x.n === 'lien' ? '<a class="trLien" href="#" data-renvoi="' + echapper(x.v) + '">' : OUV[x.n];
+    }
+    function noms(){ return pile.map(function(x){ return x.n; }); }
+    while((m = RE.exec(l))){
+      h += echapper(l.slice(k, m.index));
+      k = RE.lastIndex;
+      var n = m[2];
+      if(!m[1]){
+        if(n === 'c' && TR_COULEURS_E.indexOf(m[3]) === -1) continue;
+        if(n === 'lien' && (!TR_CIBLE_E.test(m[3] || '') || noms().indexOf('lien') !== -1)) continue;
+        var x = { n: n, v: m[3] || '' };
+        pile.push(x); h += ouvrir(x);
+      }else{
+        var j = noms().lastIndexOf(n);
+        if(j < 0) continue;
+        var dessus = pile.splice(j);
+        for(var q = dessus.length - 1; q >= 0; q--) h += FER[dessus[q].n];
+        dessus.slice(1).forEach(function(y){ pile.push(y); h += ouvrir(y); });
+      }
+    }
+    h += echapper(l.slice(k));
+    for(var q2 = pile.length - 1; q2 >= 0; q2--) h += FER[pile[q2].n];
+    return h;
+  }
+  function trVersHtml(texte){
+    var lignes = String(texte == null ? '' : texte).replace(/\r/g, '').split('\n');
+    var h = '', liste = '';
+    function fermer(){ if(liste){ h += '</' + liste + '>'; liste = ''; } }
+    lignes.forEach(function(l){
+      var puce = l.match(/^\s*[•·▪-]\s+(.*)$/), num = l.match(/^\s*\d{1,3}[.)]\s+(.*)$/);
+      if(puce || num){
+        var t = puce ? 'ul' : 'ol';
+        if(liste !== t){ fermer(); h += '<' + t + '>'; liste = t; }
+        h += '<li>' + trLigneHtmlE((puce || num)[1]) + '</li>';
+        return;
+      }
+      fermer();
+      var seul = /^\s*(\[(g|i|s|t|c=[a-z]+)\])*\[lien=[^\]]+\][^\n]*\[\/lien\](\[\/(g|i|s|t|c)\])*\s*$/.test(l) && (l.match(/\[lien=/g) || []).length === 1;
+      h += '<div' + (seul ? ' class="trRenvoiL"' : '') + '>' +
+        (l.trim() ? trLigneHtmlE(l).replace(seul ? 'class="trLien"' : '\u0000', 'class="trLien trRenvoi"') : '<br>') + '</div>';
+    });
+    fermer();
+    return h;
+  }
+  function trTexteSeul(texte){
+    return String(texte == null ? '' : texte).replace(/\[\/?(g|i|s|t|c|lien)(=[A-Za-z0-9_:-]+)?\]/g, '');
+  }
+  /* 🔗 Un renvoi touché : l'étape s'ouvre, ou le groupe s'affiche */
+  function brancherLesRenvois(zone){
+    var as = zone.querySelectorAll('a[data-renvoi]');
+    for(var i = 0; i < as.length; i++){
+      as[i].addEventListener('click', function(ev){
+        ev.preventDefault();
+        var c = this.getAttribute('data-renvoi') || '';
+        if(c.indexOf('e:') === 0){
+          var cle = c.slice(2);
+          var existe = lesGroupes().some(function(g){
+            return g.etapes.some(function(e){ return segmentsDe(e).some(function(sg){ return e.id + '::' + sg.id === cle; }); });
+          });
+          if(!existe){ alerteRenvoi(this); return; }
+          ouvrirLaFeuille(cle);
+        }else if(c.indexOf('g:') === 0){
+          var gid = c.slice(2);
+          if(!lesGroupes().some(function(g){ return g.id === gid; })){ alerteRenvoi(this); return; }
+          fermerLaFeuille();
+          groupeIci = gid;
+          dessinerLeCorps();
+          var corps = $('parcoursCorps');
+          if(corps && corps.scrollIntoView) corps.scrollIntoView({ block: 'start' });
+        }
+      });
+    }
+  }
+  function alerteRenvoi(a){
+    if(a.getAttribute('data-dit')) return;
+    a.setAttribute('data-dit', '1');
+    var s = document.createElement('span');
+    s.className = 'trPasOuvert';
+    s.textContent = ' (pas encore ouvert pour toi)';
+    a.parentNode.insertBefore(s, a.nextSibling);
+  }
+
   function rendreBloc(b){
     var t = String((b && b.type) || '');
     var titre = String((b && b.titre) || '');
     if(t === 'texte'){
       var txt = String((b && b.texte) || '').trim();
-      return txt ? '<p>' + echapper(txt) + '</p>' : '';
+      /* 📝 v1355 — mis en forme (gras, couleurs, puces, renvois) */
+      return trTexteSeul(txt).trim() || /\[lien=/.test(txt) ? '<div class="trRendu">' + trVersHtml(txt) + '</div>' : '';
     }
     /* Un bloc porte une LISTE depuis la v1036 : une vidéo, un PDF,
        ou plusieurs images qui font un carrousel. */
