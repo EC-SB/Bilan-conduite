@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1352
+     GUIDE-VERSION: 1353
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1352</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1353</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -587,7 +587,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1352</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1353</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -4245,6 +4245,17 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     </ul>
     <div class="note piege"><span class="tag">À faire une fois</span><p>Dans Cloudflare (Worker bilan-proxy › Settings › Variables and Secrets, type Secret)&nbsp;: <span class="b">WC_CLE</span> et <span class="b">WC_SECRET</span> (WooCommerce › Réglages › Avancé › API REST, Lecture/Écriture), puis <span class="b">WP_UTILISATEUR</span> et <span class="b">WP_MOT_DE_PASSE</span> (WordPress › Comptes › Profil › Mots de passe d'application) pour les images.</p></div>
     <div class="note"><span class="tag">Si le site refuse</span><p><span class="b">🔎 Tester la connexion</span> (administrateurs) vérifie la forme des clés (ck_… et cs_…, sans espace, pas inversées), l'adresse où le site répond vraiment (avec ou sans www), puis essaie les trois façons de donner la clé&nbsp;: dans l'adresse, dans l'en-tête, et signée (la seule qui passe quand l'hébergeur ne dit pas à WordPress qu'on est en https). L'appli garde celle qui passe. Chaque refus montre le message exact de WooCommerce. Si c'est un <strong>pare-feu</strong> qui bloque avant WordPress (erreur 403 «&nbsp;pas WordPress&nbsp;»), le test dit lequel quand il le reconnaît (Wordfence, Cloudflare, mod_security d'OVH…) et ce que sa page affiche&nbsp;; l'appli réessaie en se présentant comme un navigateur et retient ce qui passe. Le test essaie aussi d'<strong>écrire</strong> et d'<strong>envoyer un JPG</strong> sur un produit et une image qui n'existent pas&nbsp;: rien ne change sur la boutique. Un envoi raté dit à quelle étape (lire le produit, envoyer le JPG, mettre le prix). Les clés ne s'affichent jamais&nbsp;: seule la fin de la clé client est montrée, comme dans la liste de WooCommerce.</p></div>
+      <h4 id="tarifs-drivup">📥 Drivup</h4>
+    <div class="qui mini"><span class="lab">Relier et changer</span> <span class="role admin">Admin</span> <span class="ou">— ceux qui ont 💰 Tarifs voient l'onglet.</span></div>
+    <p>Drivup ne donne pas accès à son API : c'est le favori <span class="b">📥 App Évolution</span> qui lit et change les prix. Dans Drivup, ouvre <span class="b">Paramètres › Prestations</span> (ou Produits, ou Formules) et clique sur le favori : il lit les trois listes (les archivées sont ignorées) et ouvre la fenêtre <span class="ch">📥 Reçu de Drivup — les prix</span>.</p>
+    <ul>
+      <li><strong>Chaque prix Drivup se relie une fois</strong> à un tarif horaire (BV ou BEA), une prestation ou le total d'une fiche, avec <span class="b">Combien de fois ce prix ?</span> : <span class="b">× ½ (30 min)</span>, <span class="b">× 1 (1 h)</span>, <span class="b">× 2 (2 h)</span> ou <span class="b">Autre</span>. Un prix <span class="ch">pas relié</span> garde le prix de Drivup.</li>
+      <li><span class="b">🪄 Voir et accepter les N liens proposés</span> : l'appli devine d'après le nom (« 30 mn », « 1h », « BEA », « simu », « théorie »…), seulement quand le prix trouvé est à ±25 % de celui de Drivup. On décoche ce qui ne va pas, puis <span class="b">✅ Accepter</span>. Les prix à 0 € et les « - HT » à 0 % ne sont jamais proposés.</li>
+      <li><span class="b">💰 Changer N prix dans Drivup</span> : le favori ouvre chaque fiche cochée, met le prix dans <span class="ch">Tarif de base</span> et <span class="ch">Tarif supplémentaire</span>, clique « Enregistrer les modifications » comme à la main, puis relit la fiche. Un prix changé dans Drivup entre-temps n'est pas touché : la fenêtre le dit.</li>
+      <li><span class="ch">📦 Formules</span> : chaque formule se compare au total d'une fiche, en lecture seule. Drivup les recalcule à partir de leurs prestations.</li>
+      <li>Après un <span class="b">✅ Enregistrer</span> dans 💶 Les prix, la fenêtre <span class="b">👁️ Ce qui change</span> dit combien de prix reliés seront à changer dans Drivup.</li>
+    </ul>
+    <div class="note piege"><span class="tag">Piège</span><p>Dans Drivup, changer le prix d'une prestation change aussi le prix des formules qui la contiennent, et des heures achetées ensuite. L'onglet <span class="b">📥 Drivup</span> montre l'état, mais seul le favori, cliqué dans Drivup, peut changer les prix.</p></div>
   </section>
 
   <!-- ======================= DEMANDES ======================= -->
