@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 11:41 — v1349 */
+/* Déployé le 04/11/2026 à 11:51 — v1350 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1350,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🧱 Le site : l’appli passe mieux les pare-feux',
+    quoi: [
+      { emoji: '🧱',
+        titre: 'Le pare-feu du site',
+        texte: 'Outils › 💰 Tarifs › 🛒 Le site : l’appli se présente au site comme il faut, et si un pare-feu la refuse encore, 🔎 Tester la connexion dit lequel (Wordfence, Cloudflare, OVH…) et ce qu’il a répondu.' }
+    ]
+  },
   {
     version: 1349,
     date: 'Mercredi 4 novembre 2026',
