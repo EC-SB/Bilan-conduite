@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 13:55 — v1337 */
+/* Déployé le 04/11/2026 à 09:49 — v1345 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -215,7 +215,7 @@ const ONGLETS_DROITS = [
    comprises — c'est le genre de geste qu'on fait vite et qu'on
    découvre trois semaines plus tard. La confirmation les nomme. */
 const DROITS_ARGENT = ['caisse', 'paie', 'coutsia', 'encours', 'tarifs',
-                       'financements', 'paiement'];
+                       'financements', 'paiement', 'charges'];
 
 /* Sections de l'application soumises à autorisation */
 const SECTIONS = [
@@ -428,6 +428,11 @@ const SECTIONS = [
      (David : « que l'adresse OVH, le bureau et les admins le voient »).
      « Voir » lit ; « Modifier » écrit, règle un fil, rattache un élève. */
   { cle:'mails',            nom:'✉️ Mails de l’école (la boîte OVH)', onglet:'messagerie' },
+  /* 💶 v1345 — les charges fixes (ec-charges.js), Gestion › L’argent.
+     Administrateurs seuls : la case ne sert qu'à un admin (le Worker
+     vérifie le rôle). Cochée de base pour Chrystel et David seulement
+     (voir chargesDeBase dans le Worker). */
+  { cle:'charges',          nom:'💶 Charges fixes (administrateurs)', onglet:'gestion' },
   { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
