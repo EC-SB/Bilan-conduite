@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1351
+     GUIDE-VERSION: 1352
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1351</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1352</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -587,7 +587,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1351</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1352</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -4785,11 +4785,18 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
         <tr><td>Une case (salaires, TVA à reverser, chiffre d'affaires)</td><td>Le montant de ce mois. Chaque mois reprend celui du mois d'avant&nbsp;: on ne change que ce qui a bougé. Case vidée&nbsp;: le mois d'avant reprend la main.</td></tr>
         <tr><td><span class="ch">à saisir</span></td><td>Une charge variable (Excel Automobiles) ou dont on ne connaît pas encore le montant (la CFE).</td></tr>
         <tr><td><span class="ch">pas ce mois-ci</span></td><td>Un trimestriel ou un annuel qui tombe un autre mois.</td></tr>
-        <tr><td>👥 Social, en gris, <span class="ch">pour mémoire</span></td><td>URSSAF, prévoyance, PAS, retraite, mutuelle&nbsp;: déjà dans le coût global des salaires, ils ne comptent pas deux fois.</td></tr>
+        <tr><td>👥 Social, en gris, <span class="ch">pour mémoire</span></td><td>URSSAF, prévoyance, PAS, retraite, mutuelle&nbsp;: déjà dans le coût global des salaires, ils ne comptent pas deux fois (décochés de base dans le calcul).</td></tr>
         <tr><td><span class="b">⏸️</span> / <span class="b">▶️ Reprendre</span></td><td>En pause à partir du mois affiché&nbsp;: la ligne passe en gris et sort du total. Les mois d'avant ne bougent pas.</td></tr>
         <tr><td><span class="b">✏️</span></td><td>Modifier le libellé, la catégorie, le montant, le rythme, le jour, les mois. <span class="b">🗑️ Supprimer</span> demande <span class="b">Oui, supprimer</span> et envoie la ligne dans la <span class="b">🗑️ Corbeille</span>, en bas, d'où <span class="b">↩️ Remettre</span> la ramène.</td></tr>
       </tbody>
     </table></div>
+    <h4 id="charges-calcul">🧮 Ce qui compte dans le total</h4>
+    <p>Dans l'encadré du haut, une ligne par catégorie avec son montant (du mois, ou lissé)&nbsp;: on <strong>coche ce qui entre dans le total</strong>. Décocher <span class="ch">💶 Salaires</span> donne les charges fixes sans les salaires&nbsp;; ce qui est laissé de côté s'écrit sous <span class="ch">Charges du mois</span> (<span class="ch">sans&nbsp;: Salaires</span>), et sa carte dit <span class="ch">hors total</span>. Ce réglage est <strong>le même pour tous</strong>.</p>
+    <ul>
+      <li><span class="b">Tout dedans</span>&nbsp;: une case par personne, le coût global du bulletin.</li>
+      <li><span class="b">Net + charges à part</span>&nbsp;: deux cases par personne, <span class="ch">net</span> et <span class="ch">+ charges</span>, et leur somme dessous. Le tableau sépare alors <span class="ch">💶 Salaires nets</span> et <span class="ch">🏛️ Charges des salaires</span>, à cocher chacun. Un salaire saisi «&nbsp;tout dedans&nbsp;» garde son montant (<span class="ch">tout dedans&nbsp;: … (sans le détail)</span>) et compte dans les nets tant que les deux cases ne sont pas remplies.</li>
+    </ul>
+    <div class="note piege"><span class="tag">Piège</span><p>Repasser en «&nbsp;tout dedans&nbsp;» et changer une case efface le détail net / charges de ce mois. Cocher <span class="ch">👥 Social</span> avec les salaires compte les cotisations deux fois&nbsp;: l'écran le signale.</p></div>
     <p><span class="b">➕ Ajouter une charge</span>&nbsp;: mensuelle, trimestrielle ou annuelle (on coche les mois du prélèvement), ponctuelle (un mois précis), ou variable. Une charge ajoutée compte à partir du mois affiché.</p>
     <div class="note astuce"><span class="tag">La première fois</span><p>L'écran vide propose <span class="b">📥 Charger la liste de départ</span>&nbsp;: le fichier <span class="ch">charges-depart.json</span> préparé depuis le relevé et les bulletins. Il ne se charge qu'une fois, sur un tableau vide. Les salaires n'étant pas dans le code de l'application, ce fichier ne se met pas sur GitHub.</p></div>
   </section>
