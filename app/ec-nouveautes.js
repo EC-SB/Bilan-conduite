@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 11:51 — v1350 */
+/* Déployé le 04/11/2026 à 12:01 — v1351 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1351,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🛒 Le site : l’envoi des prix et des JPG passe le pare-feu',
+    quoi: [
+      { emoji: '🛒',
+        titre: 'Envoyer au site, même derrière un pare-feu',
+        texte: 'Les prix et les JPG partent sur le site comme un formulaire ordinaire, ce que les pare-feux d’hébergement laissent passer. 🔎 Tester la connexion essaie aussi d’écrire et d’envoyer un JPG, sans rien changer à la boutique, et un échec dit à quelle étape il a eu lieu.' }
+    ]
+  },
   {
     version: 1350,
     date: 'Mercredi 4 novembre 2026',
