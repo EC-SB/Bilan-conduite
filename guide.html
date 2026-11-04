@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1350
+     GUIDE-VERSION: 1351
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1350</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1351</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -587,7 +587,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1350</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1351</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -4244,7 +4244,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       <li><span class="ch">⚠️ L'appli dit …</span>&nbsp;: un écart, avec <span class="b">🛒 Envoyer</span>, ou <span class="b">🛒 Envoyer les écarts au site</span> en bas. Si le site ne répond pas, les prix de l'appli restent enregistrés et l'écart reste affiché.</li>
     </ul>
     <div class="note piege"><span class="tag">À faire une fois</span><p>Dans Cloudflare (Worker bilan-proxy › Settings › Variables and Secrets, type Secret)&nbsp;: <span class="b">WC_CLE</span> et <span class="b">WC_SECRET</span> (WooCommerce › Réglages › Avancé › API REST, Lecture/Écriture), puis <span class="b">WP_UTILISATEUR</span> et <span class="b">WP_MOT_DE_PASSE</span> (WordPress › Comptes › Profil › Mots de passe d'application) pour les images.</p></div>
-    <div class="note"><span class="tag">Si le site refuse</span><p><span class="b">🔎 Tester la connexion</span> (administrateurs) vérifie la forme des clés (ck_… et cs_…, sans espace, pas inversées), l'adresse où le site répond vraiment (avec ou sans www), puis essaie les trois façons de donner la clé&nbsp;: dans l'adresse, dans l'en-tête, et signée (la seule qui passe quand l'hébergeur ne dit pas à WordPress qu'on est en https). L'appli garde celle qui passe. Chaque refus montre le message exact de WooCommerce. Si c'est un <strong>pare-feu</strong> qui bloque avant WordPress (erreur 403 «&nbsp;pas WordPress&nbsp;»), le test dit lequel quand il le reconnaît (Wordfence, Cloudflare, mod_security d'OVH…) et ce que sa page affiche&nbsp;; l'appli réessaie en se présentant comme un navigateur et retient ce qui passe. Les clés ne s'affichent jamais&nbsp;: seule la fin de la clé client est montrée, comme dans la liste de WooCommerce.</p></div>
+    <div class="note"><span class="tag">Si le site refuse</span><p><span class="b">🔎 Tester la connexion</span> (administrateurs) vérifie la forme des clés (ck_… et cs_…, sans espace, pas inversées), l'adresse où le site répond vraiment (avec ou sans www), puis essaie les trois façons de donner la clé&nbsp;: dans l'adresse, dans l'en-tête, et signée (la seule qui passe quand l'hébergeur ne dit pas à WordPress qu'on est en https). L'appli garde celle qui passe. Chaque refus montre le message exact de WooCommerce. Si c'est un <strong>pare-feu</strong> qui bloque avant WordPress (erreur 403 «&nbsp;pas WordPress&nbsp;»), le test dit lequel quand il le reconnaît (Wordfence, Cloudflare, mod_security d'OVH…) et ce que sa page affiche&nbsp;; l'appli réessaie en se présentant comme un navigateur et retient ce qui passe. Le test essaie aussi d'<strong>écrire</strong> et d'<strong>envoyer un JPG</strong> sur un produit et une image qui n'existent pas&nbsp;: rien ne change sur la boutique. Un envoi raté dit à quelle étape (lire le produit, envoyer le JPG, mettre le prix). Les clés ne s'affichent jamais&nbsp;: seule la fin de la clé client est montrée, comme dans la liste de WooCommerce.</p></div>
   </section>
 
   <!-- ======================= DEMANDES ======================= -->
