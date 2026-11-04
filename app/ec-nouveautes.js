@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 11:28 — v1348 */
+/* Déployé le 04/11/2026 à 11:41 — v1349 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1349,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🔎 Le site : la clé WooCommerce passe par où elle peut',
+    quoi: [
+      { emoji: '🔎',
+        titre: 'Tester la connexion au site',
+        texte: 'Outils › 💰 Tarifs › 🛒 Le site : si WooCommerce refuse, 🔎 Tester la connexion dit pourquoi, étape par étape (forme des clés, adresse du site, message exact de WooCommerce). L’appli essaie aussi la clé signée, qui passe chez les hébergeurs où WordPress ne voit pas le https. Administrateurs.' }
+    ]
+  },
   {
     version: 1348,
     date: 'Mercredi 4 novembre 2026',
