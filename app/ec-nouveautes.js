@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 09:49 — v1345 */
+/* Déployé le 04/11/2026 à 10:14 — v1346 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1346,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🅿️ Flotte : les garages en location',
+    quoi: [
+      { emoji: '🅿️',
+        titre: 'Les garages en location',
+        texte: 'Dans 🚗 Flotte, sous les véhicules : chaque garage, ce qu’il y a dedans (véhicules, stockage), ses équipements et son contrat en PDF. Le code du coffre à clé se voit 30 secondes après ton code de l’appli. Dans la fiche d’un véhicule : « 🅿️ Garage », où il dort.' }
+    ]
+  },
   {
     version: 1345,
     date: 'Mercredi 4 novembre 2026',
