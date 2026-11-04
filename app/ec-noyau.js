@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 09:49 — v1345 */
+/* Déployé le 04/11/2026 à 10:43 — v1347 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -217,6 +217,11 @@ const ONGLETS_DROITS = [
 const DROITS_ARGENT = ['caisse', 'paie', 'coutsia', 'encours', 'tarifs',
                        'financements', 'paiement', 'charges'];
 
+/* 🔐 v1347 — CE QUI SE DONNE EXPRÈS. « Tout voir » ou « Tout modifier »
+   sur un onglet ne les donne pas : il faut les choisir une par une
+   (le coffre-fort des mots de passe — schéma validé par David). */
+const SECTIONS_EXPRES = ['coffre'];
+
 /* Sections de l'application soumises à autorisation */
 const SECTIONS = [
   { cle:'prepares',         nom:'📅 Mes prochains cours', onglet:'cours' },
@@ -433,6 +438,11 @@ const SECTIONS = [
      vérifie le rôle). Cochée de base pour Chrystel et David seulement
      (voir chargesDeBase dans le Worker). */
   { cle:'charges',          nom:'💶 Charges fixes (administrateurs)', onglet:'gestion' },
+  /* 🔐 v1347 — le coffre-fort des mots de passe (ec-coffre.js). « Voir » :
+     regarder un mot de passe (avec le code de l'appli) ; « Modifier » :
+     en ajouter, en changer, en retirer. Administrateurs par le rôle ;
+     les autres, la case. Jamais par « Tout voir » (SECTIONS_EXPRES). */
+  { cle:'coffre',           nom:'🔐 Coffre-fort des mots de passe', onglet:'gestion' },
   { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
