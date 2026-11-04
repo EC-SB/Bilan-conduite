@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1344
+     VERSION APPLICATION : v1345
      VERSION APPS SCRIPT REQUISE : v244
      Mis à jour le : 12/10/2026
 
@@ -6716,6 +6716,71 @@
   @media (max-width:480px){
     header h1{ display:none; }
   }
+  /* ============================================================
+     💶 v1345 — LES CHARGES FIXES (ec-charges.js), Gestion › L’argent.
+     La copie du schéma validé par David : le total encadré comme
+     dans 💸 Coûts IA, une carte par catégorie, des cases pour les
+     salaires, la TVA et le chiffre d'affaires.
+     ============================================================ */
+  .chgAuto{ width:auto; margin:0; }
+  .chgMois{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .chgMoisNom{ font-size:16px; min-width:150px; text-align:center; }
+  .chgVide{ flex:1; }
+  .chgTotal{ border:1px solid var(--accent-text); border-radius:12px; padding:13px 14px; margin-bottom:14px; }
+  .chgPetit{ font-size:12px; color:var(--muted); }
+  .chgEspace{ margin:6px 0 12px; line-height:1.5; }
+  .chgLigneTotal{ display:flex; justify-content:space-between; align-items:baseline; gap:9px; margin-top:6px; }
+  .chgGros{ font-size:24px; white-space:nowrap; }
+  .chgTtc{ font-size:12px; font-weight:600; color:var(--muted); }
+  .chgLigneCA{ display:flex; justify-content:space-between; align-items:center; gap:9px; flex-wrap:wrap;
+               margin-top:10px; padding-top:10px; border-top:1px solid var(--line); }
+  .chgCase{ display:flex; align-items:center; gap:6px; }
+  .chgCase .chgSaisie{ width:130px; }
+  .chgReste{ font-size:18px; color:var(--accent-text); white-space:nowrap; }
+  .chgNegatif{ color:var(--red); }
+  .chgPied{ font-size:12px; color:var(--muted); text-align:right; margin-top:6px; line-height:1.5; }
+  .chgErreur{ background:var(--warn-bg); color:var(--warn-text); border-radius:10px; padding:9px 12px;
+              font-size:13px; margin-bottom:12px; }
+  .chgCarte{ border:1px solid var(--line); border-radius:12px; padding:12px 13px; margin-bottom:12px; }
+  .chgTete{ display:flex; justify-content:space-between; gap:9px; font-size:13px; font-weight:800; margin-bottom:8px; }
+  .chgMemoire{ font-weight:600; color:var(--muted); }
+  .chgTete > span:last-child{ white-space:nowrap; }
+  .chgLigne{ display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .chgLigne.chgOuverte{ border-bottom:0; }
+  .chgNom{ flex:1; min-width:0; }
+  .chgLib{ font-weight:600; word-break:break-word; }
+  .chgSous{ font-size:12px; color:var(--muted); }
+  .chgTerne{ opacity:.5; }
+  .chgMontant{ flex:none; min-width:104px; text-align:right; white-space:nowrap; }
+  .chgActions{ flex:none; display:flex; gap:5px; }
+  .chgMini{ width:auto; margin:0; padding:5px 9px; font-size:12px; line-height:1.2; white-space:nowrap; }
+  input[type=text].chgSaisie{ width:104px; margin:0; padding:5px 8px; text-align:right; font-weight:700; font-size:13px; }
+  input[type=text].chgSaisie.chgFaux{ border-color:var(--red); }
+  .chgCadre{ border:1px solid var(--accent-text); border-radius:12px; padding:13px 14px; margin:2px 0 10px; }
+  .chgCadreTitre{ font-size:13px; font-weight:800; margin-bottom:10px; }
+  .chgGrille{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  .chgChamp{ display:block; font-size:12px; color:var(--muted); }
+  .chgChamp input[type=text], .chgChamp select{ margin:4px 0 0; }
+  .chgCadre > .chgChamp{ margin-top:10px; }
+  .chgChampMois{ text-transform:uppercase; letter-spacing:.04em; }
+  .chgChampMois select{ text-transform:none; letter-spacing:0; margin:4px 0 0; }
+  .chgCoches{ display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:6px; }
+  .chgCoche{ display:inline-flex; align-items:center; gap:4px; font-size:12.5px; color:var(--cream);
+             text-transform:none; letter-spacing:0; margin:0; }
+  .chgCocheLongue{ display:flex; margin-top:10px; line-height:1.4; }
+  .chgBoutons{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+  .chgRouge{ color:var(--red); border-color:var(--red); }
+  .chgConfirme{ margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--warn-bg); font-size:13px;
+                display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chgConfirme > span{ flex:1; min-width:200px; }
+  .chgAjout{ margin-top:4px; }
+  .chgCorbeille{ border:1px solid var(--line); border-radius:12px; padding:10px 13px; margin-top:14px; }
+  .chgCorbeille summary{ cursor:pointer; font-size:13px; font-weight:700; }
+  @media (max-width:560px){
+    .chgLigne{ flex-wrap:wrap; }
+    .chgNom{ flex-basis:100%; }
+    .chgMontant{ flex:1; text-align:left; }
+  }
 </style>
 </head>
 <body>
@@ -6855,7 +6920,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1344" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1345" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -8899,6 +8964,14 @@
     </div>
   </div>
 
+  <!-- 💶 v1345 — les charges fixes (ec-charges.js), administrateurs seuls -->
+  <div class="card" data-section="charges" data-vue="charges" data-onglet="gestion">
+    <h2 class="section-title">💶 Charges fixes</h2>
+    <div class="contenu-tiroir">
+      <div id="chargesZone"></div>
+    </div>
+  </div>
+
   <div class="card" data-section="parcours" data-vue="annonces" data-onglet="suivi">
     <h2 class="section-title">📣 Annonces</h2>
     <div class="contenu-tiroir">
@@ -9184,136 +9257,137 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1344"></script>
-<script src="app/ec-modeles.js?v=1344"></script>
-<script src="app/ec-consignes.js?v=1344"></script>
-<script src="app/ec-noyau.js?v=1344"></script>
+  <script src="app/ec-etat.js?v=1345"></script>
+<script src="app/ec-modeles.js?v=1345"></script>
+<script src="app/ec-consignes.js?v=1345"></script>
+<script src="app/ec-noyau.js?v=1345"></script>
 <!-- 🔒 v1335 — la page de connexion : le pavé, le prénom retenu, le bonjour -->
-<script src="app/ec-connexion.js?v=1344"></script>
-<script src="app/ec-vocal.js?v=1344"></script>
+<script src="app/ec-connexion.js?v=1345"></script>
+<script src="app/ec-vocal.js?v=1345"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1344"></script>
-<script src="app/ec-lieux.js?v=1344"></script>
-<script src="app/ec-reseau.js?v=1344"></script>
-<script src="app/ec-manuel.js?v=1344"></script>
-<script src="app/ec-verifs-banque.js?v=1344"></script>
-<script src="app/ec-suivi-eleve.js?v=1344"></script>
-<script src="app/ec-verifs.js?v=1344"></script>
-<script src="app/ec-jeu-atelier.js?v=1344"></script>
-<script src="app/ec-fenetres.js?v=1344"></script>
+<script src="app/ec-trajet.js?v=1345"></script>
+<script src="app/ec-lieux.js?v=1345"></script>
+<script src="app/ec-reseau.js?v=1345"></script>
+<script src="app/ec-manuel.js?v=1345"></script>
+<script src="app/ec-verifs-banque.js?v=1345"></script>
+<script src="app/ec-suivi-eleve.js?v=1345"></script>
+<script src="app/ec-verifs.js?v=1345"></script>
+<script src="app/ec-jeu-atelier.js?v=1345"></script>
+<script src="app/ec-fenetres.js?v=1345"></script>
 <!-- 🔑 v1325 — le coin révisions d’un élève : sa carte, la mise en route, le message d’accès -->
-<script src="app/ec-coin-revisions.js?v=1344"></script>
-<script src="app/ec-montage.js?v=1344"></script>
-<script src="app/ec-montage-editeur.js?v=1344"></script>
-<script src="app/ec-montage-fabrique.js?v=1344"></script>
-<script src="app/ec-parcours.js?v=1344"></script>
-<script src="app/ec-questionnaire.js?v=1344"></script>
-<script src="app/ec-permis.js?v=1344"></script>
-<script src="app/ec-prepares.js?v=1344"></script>
-<script src="app/ec-avant-cours.js?v=1344"></script>
-<script src="app/ec-bureau.js?v=1344"></script>
-<script src="app/ec-places.js?v=1344"></script>
-<script src="app/ec-listes.js?v=1344"></script>
-<script src="app/ec-permis-listes.js?v=1344"></script>
-<script src="app/ec-postpermis.js?v=1344"></script>
-<script src="app/ec-textes.js?v=1344"></script>
-<script src="app/ec-import-keep.js?v=1344"></script>
-<script src="app/ec-correction.js?v=1344"></script>
-<script src="app/ec-bilans.js?v=1344"></script>
-<script src="app/ec-fiches.js?v=1344"></script>
-<script src="app/ec-compo.js?v=1344"></script>
-<script src="app/ec-tele.js?v=1344"></script>
-<script src="app/ec-ecran.js?v=1344"></script>
-<script src="app/ec-studio.js?v=1344"></script>
-<script src="app/ec-mep.js?v=1344"></script>
-<script src="app/ec-version.js?v=1344"></script>
-<script src="app/ec-paie.js?v=1344"></script>
-<script src="app/ec-flotte.js?v=1344"></script>
-<script src="app/ec-carrosserie.js?v=1344"></script>
-<script src="app/ec-solo.js?v=1344"></script>
-<script src="app/ec-handicap-pdf.js?v=1344"></script>
-<script src="app/ec-moto.js?v=1344"></script>
-<script src="app/ec-remorque.js?v=1344"></script>
-<script src="app/ec-arriereplan.js?v=1344"></script>
-<script src="app/ec-iadirect.js?v=1344"></script>
-<script src="app/ec-placesbe.js?v=1344"></script>
-<script src="app/ec-codeamenage.js?v=1344"></script>
-<script src="app/ec-financements.js?v=1344"></script>
-<script src="app/ec-eval-aac.js?v=1344"></script>
-<script src="app/ec-postes.js?v=1344"></script>
-<script src="app/ec-tarifs.js?v=1344"></script>
-<script src="app/ec-tarifs-fiches.js?v=1344"></script>
-<script src="app/ec-courriers.js?v=1344"></script>
-<script src="app/ec-formations-docs.js?v=1344"></script>
-<script src="app/ec-formations.js?v=1344"></script>
-<script src="app/ec-formations-signer.js?v=1344"></script>
-<script src="app/ec-formations-suivi.js?v=1344"></script>
-<script src="app/ec-caisse.js?v=1344"></script>
-<script src="app/ec-menage.js?v=1344"></script>
-<script src="app/ec-page-eleve.js?v=1344"></script>
-<script src="app/ec-notes-dossier.js?v=1344"></script>
-<script src="app/ec-renseignements.js?v=1344"></script>
-<script src="app/ec-messagerie.js?v=1344"></script>
-<script src="app/ec-cockpit.js?v=1344"></script>
-<script src="app/ec-boite-mail.js?v=1344"></script>
+<script src="app/ec-coin-revisions.js?v=1345"></script>
+<script src="app/ec-montage.js?v=1345"></script>
+<script src="app/ec-montage-editeur.js?v=1345"></script>
+<script src="app/ec-montage-fabrique.js?v=1345"></script>
+<script src="app/ec-parcours.js?v=1345"></script>
+<script src="app/ec-questionnaire.js?v=1345"></script>
+<script src="app/ec-permis.js?v=1345"></script>
+<script src="app/ec-prepares.js?v=1345"></script>
+<script src="app/ec-avant-cours.js?v=1345"></script>
+<script src="app/ec-bureau.js?v=1345"></script>
+<script src="app/ec-places.js?v=1345"></script>
+<script src="app/ec-listes.js?v=1345"></script>
+<script src="app/ec-permis-listes.js?v=1345"></script>
+<script src="app/ec-postpermis.js?v=1345"></script>
+<script src="app/ec-textes.js?v=1345"></script>
+<script src="app/ec-import-keep.js?v=1345"></script>
+<script src="app/ec-correction.js?v=1345"></script>
+<script src="app/ec-bilans.js?v=1345"></script>
+<script src="app/ec-fiches.js?v=1345"></script>
+<script src="app/ec-compo.js?v=1345"></script>
+<script src="app/ec-tele.js?v=1345"></script>
+<script src="app/ec-ecran.js?v=1345"></script>
+<script src="app/ec-studio.js?v=1345"></script>
+<script src="app/ec-mep.js?v=1345"></script>
+<script src="app/ec-version.js?v=1345"></script>
+<script src="app/ec-paie.js?v=1345"></script>
+<script src="app/ec-flotte.js?v=1345"></script>
+<script src="app/ec-carrosserie.js?v=1345"></script>
+<script src="app/ec-solo.js?v=1345"></script>
+<script src="app/ec-handicap-pdf.js?v=1345"></script>
+<script src="app/ec-moto.js?v=1345"></script>
+<script src="app/ec-remorque.js?v=1345"></script>
+<script src="app/ec-arriereplan.js?v=1345"></script>
+<script src="app/ec-iadirect.js?v=1345"></script>
+<script src="app/ec-placesbe.js?v=1345"></script>
+<script src="app/ec-codeamenage.js?v=1345"></script>
+<script src="app/ec-financements.js?v=1345"></script>
+<script src="app/ec-eval-aac.js?v=1345"></script>
+<script src="app/ec-postes.js?v=1345"></script>
+<script src="app/ec-tarifs.js?v=1345"></script>
+<script src="app/ec-tarifs-fiches.js?v=1345"></script>
+<script src="app/ec-courriers.js?v=1345"></script>
+<script src="app/ec-formations-docs.js?v=1345"></script>
+<script src="app/ec-formations.js?v=1345"></script>
+<script src="app/ec-formations-signer.js?v=1345"></script>
+<script src="app/ec-formations-suivi.js?v=1345"></script>
+<script src="app/ec-caisse.js?v=1345"></script>
+<script src="app/ec-menage.js?v=1345"></script>
+<script src="app/ec-page-eleve.js?v=1345"></script>
+<script src="app/ec-notes-dossier.js?v=1345"></script>
+<script src="app/ec-renseignements.js?v=1345"></script>
+<script src="app/ec-messagerie.js?v=1345"></script>
+<script src="app/ec-cockpit.js?v=1345"></script>
+<script src="app/ec-boite-mail.js?v=1345"></script>
 <!-- 📞 v1183 — les appels : l'écran commun (partagé avec eleve.html), puis l'équipe -->
-<script src="appel-commun.js?v=1344"></script>
-<script src="app/ec-appels.js?v=1344"></script>
-<script src="app/ec-aqui.js?v=1344"></script>
-<script src="app/ec-photos-profil.js?v=1344"></script>
-<script src="app/ec-drivup.js?v=1344"></script>
-<script src="app/ec-bureaux.js?v=1344"></script>
-<script src="app/ec-cbgasoil.js?v=1344"></script>
-<script src="app/ec-loupe.js?v=1344"></script>
-<script src="app/ec-coutsia.js?v=1344"></script>
-<script src="app/ec-evaluation.js?v=1344"></script>
+<script src="appel-commun.js?v=1345"></script>
+<script src="app/ec-appels.js?v=1345"></script>
+<script src="app/ec-aqui.js?v=1345"></script>
+<script src="app/ec-photos-profil.js?v=1345"></script>
+<script src="app/ec-drivup.js?v=1345"></script>
+<script src="app/ec-bureaux.js?v=1345"></script>
+<script src="app/ec-cbgasoil.js?v=1345"></script>
+<script src="app/ec-loupe.js?v=1345"></script>
+<script src="app/ec-coutsia.js?v=1345"></script>
+<script src="app/ec-charges.js?v=1345"></script>
+<script src="app/ec-evaluation.js?v=1345"></script>
 <!-- 👥 v1189 — l’équipe : fiches, papiers, arrêts, et les échéances de l’école -->
-<script src="app/ec-equipe.js?v=1344"></script>
-<script src="app/ec-paiement.js?v=1344"></script>
-<script src="app/ec-aides.js?v=1344"></script>
-<script src="app/ec-salle.js?v=1344"></script>
-<script src="app/ec-durees-examen.js?v=1344"></script>
-<script src="app/ec-msg-gestes.js?v=1344"></script>
-<script src="app/ec-handicap.js?v=1344"></script>
-<script src="app/ec-code.js?v=1344"></script>
-<script src="app/ec-proccorriger.js?v=1344"></script>
-<script src="app/ec-sessions.js?v=1344"></script>
-<script src="app/ec-creneaux.js?v=1344"></script>
-<script src="app/ec-suivi-appels.js?v=1344"></script>
-<script src="app/ec-aac-cs.js?v=1344"></script>
-<script src="app/ec-notifs.js?v=1344"></script>
-<script src="app/ec-ecoutes.js?v=1344"></script>
-<script src="app/ec-ecoutes-presence.js?v=1344"></script>
-<script src="app/ec-todo.js?v=1344"></script>
-<script src="app/ec-taches.js?v=1344"></script>
-<script src="app/ec-memoire.js?v=1344"></script>
-<script src="app/ec-historique.js?v=1344"></script>
-<script src="app/ec-rappels.js?v=1344"></script>
-<script src="app/ec-segments.js?v=1344"></script>
-<script src="app/ec-sms.js?v=1344"></script>
-<script src="app/ec-encours.js?v=1344"></script>
-<script src="app/ec-incidents.js?v=1344"></script>
+<script src="app/ec-equipe.js?v=1345"></script>
+<script src="app/ec-paiement.js?v=1345"></script>
+<script src="app/ec-aides.js?v=1345"></script>
+<script src="app/ec-salle.js?v=1345"></script>
+<script src="app/ec-durees-examen.js?v=1345"></script>
+<script src="app/ec-msg-gestes.js?v=1345"></script>
+<script src="app/ec-handicap.js?v=1345"></script>
+<script src="app/ec-code.js?v=1345"></script>
+<script src="app/ec-proccorriger.js?v=1345"></script>
+<script src="app/ec-sessions.js?v=1345"></script>
+<script src="app/ec-creneaux.js?v=1345"></script>
+<script src="app/ec-suivi-appels.js?v=1345"></script>
+<script src="app/ec-aac-cs.js?v=1345"></script>
+<script src="app/ec-notifs.js?v=1345"></script>
+<script src="app/ec-ecoutes.js?v=1345"></script>
+<script src="app/ec-ecoutes-presence.js?v=1345"></script>
+<script src="app/ec-todo.js?v=1345"></script>
+<script src="app/ec-taches.js?v=1345"></script>
+<script src="app/ec-memoire.js?v=1345"></script>
+<script src="app/ec-historique.js?v=1345"></script>
+<script src="app/ec-rappels.js?v=1345"></script>
+<script src="app/ec-segments.js?v=1345"></script>
+<script src="app/ec-sms.js?v=1345"></script>
+<script src="app/ec-encours.js?v=1345"></script>
+<script src="app/ec-incidents.js?v=1345"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1344"></script>
+<script src="app/ec-messages-perso.js?v=1345"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1344"></script>
-<script src="app/ec-bandeau.js?v=1344"></script>
-<script src="app/ec-stats.js?v=1344"></script>
-<script src="app/ec-messenger.js?v=1344"></script>
-<script src="app/ec-journal.js?v=1344"></script>
-<script src="app/ec-mails.js?v=1344"></script>
-<script src="app/ec-activite.js?v=1344"></script>
-<script src="app/ec-direct.js?v=1344"></script>
-<script src="app/ec-depart.js?v=1344"></script>
+<script src="app/ec-nouveautes.js?v=1345"></script>
+<script src="app/ec-bandeau.js?v=1345"></script>
+<script src="app/ec-stats.js?v=1345"></script>
+<script src="app/ec-messenger.js?v=1345"></script>
+<script src="app/ec-journal.js?v=1345"></script>
+<script src="app/ec-mails.js?v=1345"></script>
+<script src="app/ec-activite.js?v=1345"></script>
+<script src="app/ec-direct.js?v=1345"></script>
+<script src="app/ec-depart.js?v=1345"></script>
 <!-- 📝 v1314 — « Tu dois faire ton bilan » -->
-<script src="app/ec-bilan-eleve.js?v=1344"></script>
-<script src="app/ec-onglets.js?v=1344"></script>
-<script src="app/ec-demarrage.js?v=1344"></script>
+<script src="app/ec-bilan-eleve.js?v=1345"></script>
+<script src="app/ec-onglets.js?v=1345"></script>
+<script src="app/ec-demarrage.js?v=1345"></script>
 
 <script>
 /* ============================================================
