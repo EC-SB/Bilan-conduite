@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:14 — v1346 */
+/* Déployé le 04/11/2026 à 10:43 — v1347 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1347,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🔐 Gestion : le coffre-fort des mots de passe',
+    quoi: [
+      { emoji: '🔐',
+        titre: 'Le coffre-fort des mots de passe',
+        texte: 'Gestion › L’outil : Vision et les autres logiciels. 👁️ Voir redemande ton code de l’appli et montre le mot de passe 15 secondes. 🎲 en génère un solide, et « ⏳ Pas encore mis dans le logiciel » garde le nouveau et l’ancien jusqu’à « ✅ C’est fait ».' }
+    ]
+  },
   {
     version: 1346,
     date: 'Mercredi 4 novembre 2026',
