@@ -1,4 +1,4 @@
-/* Déployé le 14/10/2026 à 17:46 — v1179 */
+/* Déployé le 04/11/2026 à 11:28 — v1348 */
 /* ============================================================
    ec-tarifs-fiches.js — 💰 LES TARIFS ET LEURS FICHES (v1178)
 
@@ -357,6 +357,8 @@ function tfResume(avant, apres){
 async function tfEnregistrer(bouton){
   if(!tfModifiable || !tfModifie()) return false;
   if(bouton) bouton.disabled = true;
+  /* 🛒 v1348 — ce qu'étaient les prix, pour savoir ce qui part au site */
+  const avantSite = tfData ? tfCopie(tfData) : null;
   try{
     const r = await appelPrep({ action: 'tarifsPoser', base: tfVersion && tfVersion.id,
                                 tarifs: tfBrouillon, quoi: tfResume(tfData, tfBrouillon) });
@@ -366,6 +368,11 @@ async function tfEnregistrer(bouton){
     if(typeof tarifsPrestations !== 'undefined') try{ tarifsPrestations = null; }catch(e){}
     if(typeof showToast === 'function') showToast('Prix enregistrés ✅');
     afficherTarifsFiches();
+    /* 🛒 v1348 — puis le site, tout seul (David : « l'appli s'en occupe
+       toute seule ») ; une panne du site n'annule rien ici */
+    if(avantSite && typeof woApresEnregistrement === 'function'){
+      setTimeout(() => { woApresEnregistrement(avantSite, tfData).catch(() => {}); }, 300);
+    }
     return true;
   }catch(e){
     if(bouton) bouton.disabled = false;
@@ -393,7 +400,9 @@ async function afficherTarifsFiches(){
   z.innerHTML = '';
   const onglets = document.createElement('div');
   onglets.className = 'rrFiltres tfOnglets';
-  [['prix', '💶 Les prix'], ['fiches', '📄 Les fiches'], ['vite', '🖨️ Imprimer vite'], ['devis', '🧾 Devis d’évaluation']].forEach(([k, t]) => {
+  /* 🛒 v1348 — « Le site » : les produits WooCommerce (ec-tarifs-site.js) */
+  [['prix', '💶 Les prix'], ['fiches', '📄 Les fiches'], ['vite', '🖨️ Imprimer vite'], ['devis', '🧾 Devis d’évaluation']]
+    .concat(typeof woOnglet === 'function' ? [['site', '🛒 Le site']] : []).forEach(([k, t]) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'rrFiltre' + (tfOnglet === k ? ' on' : '');
@@ -420,6 +429,7 @@ async function afficherTarifsFiches(){
   if(tfOnglet === 'prix') tfOngletPrix(corps);
   if(tfOnglet === 'fiches') tfOngletFiches(corps);
   if(tfOnglet === 'vite') tfOngletVite(corps);
+  if(tfOnglet === 'site' && typeof woOnglet === 'function') woOnglet(corps);
   if(tfOnglet === 'devis'){
     const aide = document.createElement('div');
     aide.className = 'tfAide';
@@ -484,6 +494,8 @@ function tfFenetreChangements(){
         '<b>' + tfEuros(x.b.global) + '</b></td><td>' +
         (x.b.versement ? (x.neuve ? '' : tfEuros(x.a.versement) + ' → ') + '<b>' + tfEuros(x.b.versement) + '</b>' : '—') + '</td></tr>').join('') +
       '</table></div>' : '<div class="tfAide">Aucun total ne change.</div>') +
+    /* 🛒 v1348 — ce qui partira sur le site */
+    (typeof woApercu === 'function' ? woApercu(tfData, tfBrouillon) : '') +
     '<div class="tfFenBas"><button type="button" class="btn btn-secondary" id="tfChFermer">Revenir</button>' +
     '<button type="button" class="btn btn-primary" id="tfChOk">✅ Enregistrer</button></div>';
   m.querySelector('#tfChFermer').addEventListener('click', fermer);
