@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 13:36 — v1353 */
+/* Déployé le 04/11/2026 à 14:45 — v1354 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1354,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🎓 Formations CPF : « ✅ Fait sur EDOF », ligne par ligne',
+    quoi: [
+      { emoji: '✅',
+        titre: 'Mis à jour sur EDOF',
+        texte: 'Financements › ⚙️ Les aides › 🎓 Formations CPF : au bout de chaque ligne en ⚠️, « ✅ Fait sur EDOF » une fois le prix changé sur EDOF, ou « ✅ Tout est mis à jour sur EDOF » en haut. La ligne garde la date et qui l’a fait ; le bandeau compte ce qui reste.' }
+    ]
+  },
   {
     version: 1353,
     date: 'Mercredi 4 novembre 2026',
