@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 09:49 — v1345 */
+/* Déployé le 04/11/2026 à 10:43 — v1347 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -82,8 +82,9 @@ const SECTIONS_ONGLET = {
   /* 📍 v1170 — « bureaux » : les horaires et rendez-vous des
      bureaux, dans Gestion › L'accueil. */
   /* 💶 v1345 — « charges » : les charges fixes, administrateurs seuls */
+  /* 🔐 v1347 — « coffre » : le coffre-fort des mots de passe */
   gestion: ['ecran', 'flotte', 'carrosserie', 'encours', 'incidents',
-            'menage', 'bureaux', 'admin', 'charges']
+            'menage', 'bureaux', 'admin', 'charges', 'coffre']
 };
 
 let ongletActif = '';
@@ -442,6 +443,8 @@ const VUES = {
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
            ['menage',     '🧹 Ménage',                  'menage',      'L’outil'],
+           /* 🔐 v1347 — David : « dans Gestion avant Accès » */
+           ['coffre',     '🔐 Coffre-fort',             'coffre',      'L’outil'],
            ['admin',      '⚙️ Accès',                  'admin',        'L’outil'],
            /* 💶 v1345 — David : « dans gestion un tableau des coûts
               fixes ». Administrateurs seuls, avec la case de ⚙️ Accès
@@ -2117,6 +2120,7 @@ function reveillerVue(cle){
     menage:     () => afficherMenage(),
     coutsia:    () => afficherCoutsIa(),
     charges:    () => afficherCharges(),
+    coffre:     () => afficherCoffre(),
     paiement:   () => afficherPaiement(),
     placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
