@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:14 — v1346 */
+/* Déployé le 04/11/2026 à 12:28 — v1352 */
 /* ============================================================
    ec-charges.js
    💶 Les charges fixes — Gestion › L’argent (v1345).
@@ -126,6 +126,70 @@ function pauseDepuisCH(L, m){
   return r ? r.du : '';
 }
 function horsTotalCH(L, m){ return L.cat === 'social' || enPauseCH(L, m); }
+
+/* ---------- 🧮 v1352 — le calcul du total ----------
+   David : « ce n'est pas clair les salaires pour Chrystel et elle veut
+   le montant des charges fixes sans les salaires ». Un tableau dans le
+   bloc du total : on coche ce qui compte (le même réglage pour tous),
+   et les salaires se saisissent « tout dedans » (une case, le coût
+   global) ou « net + charges à part » (deux cases). */
+const CH_CALCUL_LIB = {
+  locaux: '🏢 Locaux et emprunts',
+  salCharges: '🏛️ Charges des salaires',
+  social: '👥 Social (URSSAF…) — déjà dans les salaires',
+  impots: '🧾 Impôts',
+  assurances: '🛡️ Assurances',
+  organismes: '📊 Comptable et organismes',
+  services: '🔌 Services et abonnements',
+  vehicules: '🚗 Véhicules',
+  autres: '📦 Autres'
+};
+function calculCH(){ return (CH.data && CH.data.calcul) || { salaires: 'dedans', cats: {} }; }
+function aPartCH(){ return calculCH().salaires === 'apart'; }
+function compteCH(cle){
+  const c = calculCH().cats || {};
+  return (cle in c) ? !!c[cle] : cle !== 'social';
+}
+function libCalculCH(cle){
+  if(cle === 'salaires') return aPartCH() ? '💶 Salaires nets' : '💶 Salaires — coût global';
+  return CH_CALCUL_LIB[cle] || cle;
+}
+/* Une ligne, rangée dans ses « cases du calcul » : un salaire à part se
+   coupe en net + charges ; sans détail, il va entier dans les nets */
+function morceauxCH(L, v){
+  if(L.cat !== 'salaires') return [{ cle: L.cat, v: v }];
+  if(!aPartCH()) return [{ cle: 'salaires', v: v }];
+  if(L.net == null && L.soc == null) return [{ cle: 'salaires', v: v, seul: true }];
+  const net = Number(L.net) || 0, soc = Number(L.soc) || 0, tot = net + soc;
+  const vn = tot ? Math.round(v * net / tot) : 0;
+  return [{ cle: 'salaires', v: vn }, { cle: 'salCharges', v: v - vn }];
+}
+/* Les sommes de chaque case du calcul, ce mois-ci et lissées */
+function sommesCH(lignes, m){
+  const S = {};
+  let seul = 0;
+  const ordre = ['locaux', 'salaires'].concat(aPartCH() ? ['salCharges'] : [], ['social', 'impots', 'assurances', 'organismes', 'services', 'vehicules', 'autres']);
+  ordre.forEach(k => { S[k] = { mois: 0, lisse: 0, n: 0 }; });
+  lignes.forEach(L => {
+    if(enPauseCH(L, m)) return;
+    const a = morceauxCH(L, duMoisCH(L, m)), b = morceauxCH(L, lisseCH(L, m));
+    a.forEach((x, i) => {
+      const k = S[x.cle] ? x.cle : 'autres';
+      S[k].mois += x.v; S[k].lisse += (b[i] ? b[i].v : 0); S[k].n++;
+      if(x.seul) seul += x.v;
+    });
+  });
+  if(aPartCH() && S.salaires.n) S.salCharges.n = Math.max(S.salCharges.n, 1);
+  let total = 0, lisse = 0;
+  ordre.forEach(k => { if(compteCH(k)){ total += S[k].mois; lisse += S[k].lisse; } });
+  return { S, ordre, total, lisse, seul };
+}
+function changerCalculCH(modif, bouton){
+  const c = calculCH();
+  const neuf = { salaires: c.salaires, cats: Object.assign({}, c.cats || {}) };
+  modif(neuf);
+  return agirCharges({ action: 'chargesCalcul', calcul: neuf }, bouton);
+}
 function duMoisCH(L, m){ return tombeCH(L, m) ? (Number(L.val) || 0) : 0; }
 function lisseCH(L, m){
   if(L.rythme === 'ponctuel' || !activeCH(L, m)) return 0;
@@ -217,16 +281,12 @@ function dessinerCharges(){
   z.appendChild(per);
 
   const lignes = CH.data.lignes || [];
-  let total = 0, lisse = 0;
-  lignes.forEach(L => {
-    if(horsTotalCH(L, m)) return;
-    total += duMoisCH(L, m);
-    lisse += lisseCH(L, m);
-  });
-  z.appendChild(blocTotalCH(total, lisse));
+  const calc = sommesCH(lignes, m);
+  z.appendChild(blocTotalCH(calc.total, calc.lisse, calc));
 
   CH_CATS.forEach(([cat, titre]) => {
     const L = lignes.filter(x => x.cat === cat);
+    if(cat === 'salaires' && aPartCH()) titre = '💶 Salaires — net + charges du bulletin';
     if(L.length) z.appendChild(carteCategorieCH(cat, titre, L));
   });
 
@@ -250,7 +310,7 @@ function changerMoisCH(n){
 }
 
 /* Le total, comme dans 💸 Coûts IA */
-function blocTotalCH(total, lisse){
+function blocTotalCH(total, lisse, calc){
   const m = CH.mois, enLisse = CH.vue === 'lisse';
   const t = elCH('div', 'chgTotal');
   t.appendChild(elCH('div', 'chgPetit', enLisse
@@ -258,11 +318,17 @@ function blocTotalCH(total, lisse){
     : 'Ce qui sort du compte en ' + nomDuMoisCH(m) + ' · montants TTC'));
 
   const l1 = elCH('div', 'chgLigneTotal');
-  l1.appendChild(elCH('strong', '', enLisse ? 'Charges lissées par mois' : 'Charges du mois'));
+  const titre = elCH('div', '');
+  titre.appendChild(elCH('strong', '', enLisse ? 'Charges lissées par mois' : 'Charges du mois'));
+  /* ce qui est laissé de côté, dit en clair sous le titre */
+  const sans = calc.ordre.filter(k => k !== 'social' && calc.S[k].n && !compteCH(k)).map(k => libCalculCH(k).replace(/^\S+\s/, '').replace(/ — .*$/, ''));
+  if(sans.length) titre.appendChild(elCH('div', 'chgPetit', 'sans : ' + sans.join(', ')));
+  l1.appendChild(titre);
   const gros = elCH('strong', 'chgGros', eurCH(enLisse ? lisse : total));
   gros.appendChild(elCH('span', 'chgTtc', ' TTC'));
   l1.appendChild(gros);
   t.appendChild(l1);
+  t.appendChild(tableauCalculCH(calc));
 
   /* Le chiffre d'affaires : une case qu'on change chaque mois */
   const l2 = elCH('div', 'chgLigneCA');
@@ -288,9 +354,48 @@ function blocTotalCH(total, lisse){
     ? 'Ce mois-ci : ' + eurRondCH(total)
     : 'Lissé sur 12 mois (trimestriels et annuels répartis) : ' + eurRondCH(lisse) + ' par mois'));
   pied.appendChild(document.createElement('br'));
-  pied.appendChild(document.createTextNode('Les lignes grisées et en pause ne comptent pas dans le total'));
+  pied.appendChild(document.createTextNode('Les lignes en pause et les cases décochées ne comptent pas dans le total'));
   t.appendChild(pied);
   return t;
+}
+
+/* 🧮 Le tableau du calcul : la bascule des salaires, puis une case à
+   cocher par catégorie, avec son montant (du mois ou lissé) */
+function tableauCalculCH(calc){
+  const enLisse = CH.vue === 'lisse';
+  const d = elCH('div', 'chgCalcul');
+  const tete = elCH('div', 'chgCalculTete');
+  tete.appendChild(elCH('span', 'chgCalculTitre', '🧮 Ce qui compte dans le total'));
+  const bas = elCH('span', 'chgBascule');
+  bas.appendChild(elCH('span', 'chgPetit', 'Salaires :'));
+  bas.appendChild(boutonCH('Tout dedans', (aPartCH() ? 'btn-secondary' : 'btn-primary') + ' chgMini',
+    (ev, b) => { if(aPartCH()) changerCalculCH(c => { c.salaires = 'dedans'; }, b); }, 'Une case par personne : le coût global du bulletin'));
+  bas.appendChild(boutonCH('Net + charges à part', (aPartCH() ? 'btn-primary' : 'btn-secondary') + ' chgMini',
+    (ev, b) => { if(!aPartCH()) changerCalculCH(c => { c.salaires = 'apart'; }, b); }, 'Deux cases par personne : le net et les charges'));
+  tete.appendChild(bas);
+  d.appendChild(tete);
+
+  calc.ordre.forEach(k => {
+    const x = calc.S[k];
+    if(!x.n) return;
+    const on = compteCH(k);
+    const l = elCH('label', 'chgCalculLigne' + (on ? '' : ' chgTerne'));
+    const c = elCH('input', '');
+    c.type = 'checkbox'; c.checked = on;
+    c.addEventListener('change', () => { c.disabled = true; changerCalculCH(v => { v.cats[k] = c.checked; }); });
+    l.appendChild(c);
+    l.appendChild(elCH('span', 'chgCalculLib', libCalculCH(k)));
+    l.appendChild(elCH('span', 'chgCalculMt', eurCH(enLisse ? x.lisse : x.mois)));
+    d.appendChild(l);
+  });
+
+  const avert = [];
+  if(compteCH('social') && calc.S.social.n && ((!aPartCH() && compteCH('salaires')) || (aPartCH() && compteCH('salCharges'))))
+    avert.push('⚠️ Le social (URSSAF…) est déjà dans les salaires : coché avec eux, il compte deux fois.');
+  if(aPartCH() && calc.seul && !enLisse)
+    avert.push('⚠️ ' + eurCH(calc.seul) + ' de salaires saisis « tout dedans », sans le détail : comptés dans les salaires nets. Remplis net + charges pour les séparer.');
+  avert.forEach(a => d.appendChild(elCH('div', 'chgCalculAvert', a)));
+  return d;
 }
 
 /* Une carte par catégorie */
@@ -299,11 +404,15 @@ function carteCategorieCH(cat, titre, L){
   const d = elCH('div', 'chgCarte');
   const tete = elCH('div', 'chgTete');
   tete.appendChild(elCH('span', '', titre));
-  if(cat === 'social') tete.appendChild(elCH('span', 'chgMemoire', 'pour mémoire'));
+  const compte = cat === 'salaires' ? (compteCH('salaires') || (aPartCH() && compteCH('salCharges'))) : compteCH(cat);
+  if(cat === 'social' && !compte) tete.appendChild(elCH('span', 'chgMemoire', 'pour mémoire'));
   else {
-    const s = L.filter(x => !horsTotalCH(x, m))
+    const s = L.filter(x => !enPauseCH(x, m))
                .reduce((a, x) => a + (enLisse ? lisseCH(x, m) : duMoisCH(x, m)), 0);
-    tete.appendChild(elCH('span', '', eurCH(s)));
+    const droite = elCH('span', '');
+    if(!compte) droite.appendChild(elCH('span', 'chgMemoire', 'hors total · '));
+    droite.appendChild(document.createTextNode(eurCH(s)));
+    tete.appendChild(droite);
   }
   d.appendChild(tete);
   L.forEach(x => {
@@ -315,7 +424,7 @@ function carteCategorieCH(cat, titre, L){
 
 function ligneCH(L){
   const m = CH.mois, enLisse = CH.vue === 'lisse';
-  const pause = enPauseCH(L, m), gris = L.cat === 'social';
+  const pause = enPauseCH(L, m), gris = L.cat === 'social' && !compteCH('social');
   const terne = pause || gris;
   const l = elCH('div', 'chgLigne' + (CH.edition === L.id ? ' chgOuverte' : ''));
 
@@ -335,7 +444,7 @@ function ligneCH(L){
     sous.push('⏸️ en pause depuis ' + (du.slice(0, 4) === m.slice(0, 4)
       ? CH_MOIS[Number(du.slice(5, 7)) - 1] : nomDuMoisCH(du)));
   }
-  if(gris) sous.push('déjà dans les salaires');
+  if(L.cat === 'social') sous.push('déjà dans les salaires');
   g.appendChild(elCH('div', 'chgSous', sous.join(' · ')));
   l.appendChild(g);
 
@@ -347,6 +456,8 @@ function ligneCH(L){
     else mt.appendChild(elCH('strong', '', eurCH(lisseCH(L, m))));
   }else if(!tombeCH(L, m)){
     mt.appendChild(elCH('span', 'chgPetit', 'pas ce mois-ci'));
+  }else if(L.cat === 'salaires' && aPartCH() && !pause){
+    mt.appendChild(casesSalaireCH(L));
   }else if(aUneCaseCH(L) && !pause){
     mt.appendChild(caseMontantCH(L.id, L.val, L.nom + ' — ' + nomDuMoisCH(m)));
   }else if(L.val == null){
@@ -411,6 +522,49 @@ function caseMontantCH(id, val, nom){
   i.addEventListener('change', envoyer);
   i.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); i.blur(); } });
   return i;
+}
+
+/* 🧮 Un salaire « à part » : le net et les charges, et leur somme.
+   Les deux cases partent ensemble quand on en quitte une. */
+function casesSalaireCH(L){
+  const m = CH.mois;
+  const d = elCH('div', 'chgDeux');
+  const une = (val, nom, mot) => {
+    const w = elCH('label', 'chgDeuxCase');
+    w.appendChild(elCH('span', 'chgPetit', mot));
+    const i = elCH('input', 'chgSaisie');
+    i.type = 'text'; i.inputMode = 'decimal';
+    i.value = (val == null) ? '' : nombreCH(val);
+    i.placeholder = 'à saisir';
+    i.setAttribute('aria-label', L.nom + ' — ' + nom + ' — ' + nomDuMoisCH(m));
+    w.appendChild(i);
+    d.appendChild(w);
+    return i;
+  };
+  const iNet = une(L.net, 'salaire net', 'net');
+  const iSoc = une(L.soc, 'charges', '+ charges');
+  const avant = iNet.value + '|' + iSoc.value;
+  const envoyer = async () => {
+    if(iNet.value.trim() + '|' + iSoc.value.trim() === avant) return;
+    const n = lireEurosCH(iNet.value), c = lireEurosCH(iSoc.value);
+    let faux = false;
+    [[iNet, n], [iSoc, c]].forEach(([i, v]) => {
+      i.classList.toggle('chgFaux', Number.isNaN(v));
+      if(Number.isNaN(v)){ i.title = 'Un montant comme 1 234,56'; faux = true; }
+    });
+    if(faux) return;
+    iNet.disabled = iSoc.disabled = true;
+    await agirCharges({ action: 'chargesMontant', ligne: L.id, net: n, charges: c });
+  };
+  [iNet, iSoc].forEach(i => {
+    i.addEventListener('change', envoyer);
+    i.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); i.blur(); } });
+  });
+  const tot = elCH('div', 'chgPetit chgDeuxTotal');
+  if(L.net == null && L.soc == null) tot.textContent = L.val == null ? '' : 'tout dedans : ' + eurCH(L.val) + ' (sans le détail)';
+  else tot.textContent = '= ' + eurCH(L.val || 0);
+  d.appendChild(tot);
+  return d;
 }
 
 /* ✏️ et ➕ — le même cadre */
