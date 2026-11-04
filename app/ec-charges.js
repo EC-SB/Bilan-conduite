@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 09:49 — v1345 */
+/* Déployé le 04/11/2026 à 10:14 — v1346 */
 /* ============================================================
    ec-charges.js
    💶 Les charges fixes — Gestion › L’argent (v1345).
@@ -326,7 +326,9 @@ function ligneCH(L){
   else {
     sous.push(rythmeLisibleCH(L));
     if(L.jour) sous.push(L.jour);
-    if(L.note) sous.push(L.note);
+    if(L.note && L.lien !== 'garages') sous.push(L.note);
+    /* 🅿️ v1346 — la ligne « Goulard — garages » se calcule */
+    if(L.lien === 'garages') sous.push('🅿️ calculé depuis la Flotte : ' + L.nbGarages + ' garage' + (L.nbGarages > 1 ? 's' : '') + ' × loyer × 3');
   }
   if(pause){
     const du = pauseDepuisCH(L, m);
@@ -355,6 +357,15 @@ function ligneCH(L){
   l.appendChild(mt);
 
   const act = elCH('div', 'chgActions');
+  if(L.lien === 'garages'){
+    act.appendChild(boutonCH('🅿️ Voir les garages', 'btn-secondary chgMini', () => {
+      afficherOnglet('gestion');
+      afficherVue('gestion', 'flotte');
+      setTimeout(() => { const g = $('garagesZone'); if(g) g.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 900);
+    }, 'Les loyers se changent dans la fiche de chaque garage'));
+    l.appendChild(act);
+    return l;
+  }
   if(L.cat !== 'salaires'){
     if(pause){
       act.appendChild(boutonCH('▶️ Reprendre', 'btn-secondary chgMini',
