@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 11:28 — v1348 */
+/* Déployé le 04/11/2026 à 11:41 — v1349 */
 /* ============================================================
    ec-tarifs-site.js
    🛒 Le site — Outils › 💰 Tarifs (v1348).
@@ -121,6 +121,12 @@ async function woOnglet(z){
   relire.type = 'button'; relire.className = 'tfBtn'; relire.textContent = '🔄 Relire les produits du site';
   relire.addEventListener('click', async () => { relire.disabled = true; await woCharger(); afficherTarifsFiches(); });
   tete.appendChild(relire);
+  if(WO.admin && WO.wc && !WO.erreur){
+    const tester = document.createElement('button');
+    tester.type = 'button'; tester.className = 'tfBtn'; tester.textContent = '🔎 Tester la connexion';
+    tester.addEventListener('click', woFenetreTest);
+    tete.appendChild(tester);
+  }
   z.appendChild(tete);
 
   if(!WO.wc){
@@ -133,7 +139,13 @@ async function woOnglet(z){
     return;
   }
   if(WO.erreur){
-    const a = document.createElement('div'); a.className = 'woManque'; a.textContent = '⚠️ ' + WO.erreur; z.appendChild(a);
+    const a = document.createElement('div'); a.className = 'woManque'; a.textContent = '⚠️ ' + WO.erreur;
+    if(WO.admin){
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tfBtn woTestBtn'; b.textContent = '🔎 Tester la connexion';
+      b.addEventListener('click', woFenetreTest);
+      a.appendChild(document.createElement('br')); a.appendChild(b);
+    }
+    z.appendChild(a);
   }
 
   const aide = document.createElement('div');
@@ -282,6 +294,39 @@ function woFenetreSource(p, d){
       afficherTarifsFiches();
     }catch(e){ showToast('Impossible : ' + e.message); ev.target.disabled = false; }
   });
+}
+
+/* 🔎 v1349 — Tester la connexion : chaque étape en clair (le Worker ne
+   renvoie jamais une clé, seulement la fin de la clé client, comme
+   WooCommerce l'affiche dans sa liste). */
+async function woFenetreTest(){
+  const { m, fermer } = tfFenetre();
+  m.innerHTML = '<h3>🔎 La connexion au site</h3><div class="woTest"><div class="tfAide">Test en cours… (jusqu’à une minute)</div></div>' +
+    '<div class="tfFenBas"><button type="button" class="btn btn-secondary" data-x="non">Fermer</button>' +
+    '<button type="button" class="btn btn-primary" data-x="relire" disabled>🔄 Relire les produits</button></div>';
+  m.querySelector('[data-x="non"]').addEventListener('click', fermer);
+  const zone = m.querySelector('.woTest');
+  let r;
+  try{
+    r = await appelPrep({ action: 'wooTester' });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+  }catch(e){ zone.innerHTML = '<div class="woManque">⚠️ ' + woEch(e.message) + '</div>'; return; }
+  zone.innerHTML = '';
+  (r.etapes || []).forEach(x => {
+    const l = document.createElement('div');
+    l.className = 'woEtape ' + (x.ok === true ? 'bon' : x.ok === false ? 'mauvais' : 'note');
+    l.innerHTML = '<span class="woEtapeI">' + (x.ok === true ? '✅' : x.ok === false ? '❌' : 'ℹ️') + '</span>' +
+      '<div><b>' + woEch(x.titre) + '</b><div class="woEtapeD">' + woEch(x.detail) + '</div></div>';
+    zone.appendChild(l);
+  });
+  const fin = document.createElement('div'); fin.className = 'tfAide';
+  fin.innerHTML = r.methode
+    ? '✅ <b>La clé passe.</b> L’appli retient la bonne façon de la donner : tu peux relire les produits.'
+    : '❌ <b>Aucune façon ne passe encore.</b> Le message de WooCommerce ci-dessus dit quoi corriger. Les clés se corrigent dans Cloudflare (Worker bilan-proxy › Settings › Variables and Secrets) — ne les colle jamais dans une conversation.';
+  zone.appendChild(fin);
+  const relire = m.querySelector('[data-x="relire"]');
+  relire.disabled = !r.methode;
+  relire.addEventListener('click', async () => { relire.disabled = true; await woCharger(); fermer(); afficherTarifsFiches(); });
 }
 
 /* 🖼️ Quelle image est la fiche ? */
