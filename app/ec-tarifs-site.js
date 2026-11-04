@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 11:41 — v1349 */
+/* Déployé le 04/11/2026 à 12:01 — v1351 */
 /* ============================================================
    ec-tarifs-site.js
    🛒 Le site — Outils › 💰 Tarifs (v1348).
@@ -320,9 +320,12 @@ async function woFenetreTest(){
     zone.appendChild(l);
   });
   const fin = document.createElement('div'); fin.className = 'tfAide';
-  fin.innerHTML = r.methode
-    ? '✅ <b>La clé passe.</b> L’appli retient la bonne façon de la donner : tu peux relire les produits.'
-    : '❌ <b>Aucune façon ne passe encore.</b> Le message de WooCommerce ci-dessus dit quoi corriger. Les clés se corrigent dans Cloudflare (Worker bilan-proxy › Settings › Variables and Secrets) — ne les colle jamais dans une conversation.';
+  const rouges = (r.etapes || []).filter(x => x.ok === false).length;
+  fin.innerHTML = !r.methode
+    ? '❌ <b>Aucune façon ne passe encore.</b> Le message de WooCommerce ci-dessus dit quoi corriger. Les clés se corrigent dans Cloudflare (Worker bilan-proxy › Settings › Variables and Secrets) — ne les colle jamais dans une conversation.'
+    : rouges
+      ? '⚠️ <b>La clé passe, mais pas tout :</b> les lignes ❌ disent ce qui bloque encore (lire les produits marche, l’envoi peut échouer).'
+      : '✅ <b>Tout passe</b> : lire, écrire les prix et envoyer les JPG. Tu peux relire les produits.';
   zone.appendChild(fin);
   const relire = m.querySelector('[data-x="relire"]');
   relire.disabled = !r.methode;
