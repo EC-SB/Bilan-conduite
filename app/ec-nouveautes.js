@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:43 — v1347 */
+/* Déployé le 04/11/2026 à 11:28 — v1348 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1348,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🛒 Tarifs : les prix et les fiches partent tout seuls sur le site',
+    quoi: [
+      { emoji: '🛒',
+        titre: 'Le site suit les prix',
+        texte: 'Outils › 💰 Tarifs › 🛒 Le site : chaque produit WooCommerce se relie à une fiche, une prestation ou un tarif horaire. À chaque enregistrement des prix, le site reçoit les nouveaux prix, et le JPG de la fiche est remplacé dans la description. Administrateurs.' }
+    ]
+  },
   {
     version: 1347,
     date: 'Mercredi 4 novembre 2026',
