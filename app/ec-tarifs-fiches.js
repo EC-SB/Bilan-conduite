@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 11:28 — v1348 */
+/* Déployé le 04/11/2026 à 13:36 — v1353 */
 /* ============================================================
    ec-tarifs-fiches.js — 💰 LES TARIFS ET LEURS FICHES (v1178)
 
@@ -402,7 +402,9 @@ async function afficherTarifsFiches(){
   onglets.className = 'rrFiltres tfOnglets';
   /* 🛒 v1348 — « Le site » : les produits WooCommerce (ec-tarifs-site.js) */
   [['prix', '💶 Les prix'], ['fiches', '📄 Les fiches'], ['vite', '🖨️ Imprimer vite'], ['devis', '🧾 Devis d’évaluation']]
-    .concat(typeof woOnglet === 'function' ? [['site', '🛒 Le site']] : []).forEach(([k, t]) => {
+    .concat(typeof woOnglet === 'function' ? [['site', '🛒 Le site']] : [])
+    /* 📥 v1353 — « Drivup » : les prix lus par le favori (ec-tarifs-drivup.js) */
+    .concat(typeof dvOnglet === 'function' ? [['drivup', '📥 Drivup']] : []).forEach(([k, t]) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'rrFiltre' + (tfOnglet === k ? ' on' : '');
@@ -430,6 +432,9 @@ async function afficherTarifsFiches(){
   if(tfOnglet === 'fiches') tfOngletFiches(corps);
   if(tfOnglet === 'vite') tfOngletVite(corps);
   if(tfOnglet === 'site' && typeof woOnglet === 'function') woOnglet(corps);
+  if(tfOnglet === 'drivup' && typeof dvOnglet === 'function') dvOnglet(corps);
+  /* 📥 v1353 — lus en silence, pour « 👁️ Ce qui change » */
+  if(typeof dvpPrecharger === 'function') dvpPrecharger();
   if(tfOnglet === 'devis'){
     const aide = document.createElement('div');
     aide.className = 'tfAide';
@@ -496,6 +501,8 @@ function tfFenetreChangements(){
       '</table></div>' : '<div class="tfAide">Aucun total ne change.</div>') +
     /* 🛒 v1348 — ce qui partira sur le site */
     (typeof woApercu === 'function' ? woApercu(tfData, tfBrouillon) : '') +
+    /* 📥 v1353 — et ce qui sera à changer dans Drivup */
+    (typeof dvApercu === 'function' ? dvApercu(tfData, tfBrouillon) : '') +
     '<div class="tfFenBas"><button type="button" class="btn btn-secondary" id="tfChFermer">Revenir</button>' +
     '<button type="button" class="btn btn-primary" id="tfChOk">✅ Enregistrer</button></div>';
   m.querySelector('#tfChFermer').addEventListener('click', fermer);
