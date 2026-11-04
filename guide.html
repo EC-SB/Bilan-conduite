@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1345
+     GUIDE-VERSION: 1346
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1345</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1346</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -560,6 +560,7 @@ html{scroll-behavior:smooth}
       <li><a data-n="10" href="#ch6">La gestion</a>
               <ol>
                 <li><a href="#flotte">Flotte et CB Gasoil</a></li>
+                <li><a href="#garages">Les garages en location</a></li>
                 <li><a href="#signalements">Signalements</a></li>
                 <li><a href="#ge-direct">Les voitures en direct</a></li>
                 <li><a href="#ge-bureaux">Horaires et rendez-vous des bureaux</a></li>
@@ -584,7 +585,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1345</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1346</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -4532,6 +4533,16 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <h5>L'historique des pleins</h5>
     <p>Dans <span class="b">🚗 Flotte</span>, le tiroir <span class="b">⛽ Les CB Gasoil</span> dit où se trouve chaque carte, avec <span class="b">➕ Ajouter une carte</span> et 🗑️, puis <strong>tous les pleins, de tous les mois</strong>&nbsp;: les mois en pastilles (ou <span class="b">Tous les mois</span>), une période <span class="b">Du</span> … <span class="b">Au</span>, et des filtres <span class="b">Véhicule</span> et <span class="b">Moniteur</span> — <span class="b">✕ Effacer les filtres</span> les remet à zéro. Le total s'affiche pour chaque mois et pour la sélection. Le <span class="b">✏️</span> d'un plein le modifie entièrement — date et heure, moniteur, carte, véhicule, montant, litres, kilomètres, remarque — et <span class="b">🗑️ Supprimer</span> le retire.</p>
     <div class="note piege"><span class="tag">Elle traîne&nbsp;?</span><p>Une carte gardée depuis <strong>la veille</strong> — le jour du calendrier, pas vingt-quatre heures — remonte dans <a href="#bandeaujour" class="aller">le bandeau du jour</a>.</p></div>
+
+    <h4 id="garages">🅿️ Les garages en location</h4>
+    <p>Sous les véhicules, la famille <span class="b">🅿️ Garages en location</span>&nbsp;: chaque garage dit son numéro, le bailleur et le site, <strong>ce qu'il y a dedans</strong> (les véhicules de la flotte et le stockage) et ses équipements. Le contrat est signalé par 📄. Les véhicules sortis du parc ne sont plus proposés.</p>
+    <ul>
+      <li><strong>La fiche</strong> (toucher le garage)&nbsp;: numéro, bailleur, site, adresse, état (<span class="b">Rendu</span> le sort de la liste et des charges), ce qu'il y a dedans — un véhicule n'est que dans un garage —, les équipements, une remarque, et le <span class="b">📄 Contrat de location</span>&nbsp;: <span class="b">📄 Voir le contrat</span>, <span class="b">🔁 Remplacer le PDF</span> (10 Mo au plus).</li>
+      <li><strong>Le loyer</strong> (<span class="role admin">Admin</span> seulement)&nbsp;: loyer mensuel TTC et <span class="b">Loué depuis le</span>&nbsp;; le trimestre se calcule (3 × le loyer). La ligne <span class="ch">Goulard — garages</span> des <a href="#charges" class="aller">💶 Charges fixes</a> en est la somme, avec <span class="b">🅿️ Voir les garages</span>.</li>
+      <li><strong>Le coffre à clé</strong>&nbsp;: <span class="b">👁️ Voir le code</span> redemande votre code de l'appli, le montre 30 secondes puis le recache. Trois codes faux&nbsp;: fermé 10 minutes. <span class="b">✏️ Changer</span> le range chiffré. Chaque regard est noté.</li>
+      <li><strong>Dans la fiche d'un véhicule</strong>&nbsp;: le choix <span class="b">🅿️ Garage</span> («&nbsp;où il dort&nbsp;»), le même lien vu de l'autre côté&nbsp;; la ligne du véhicule affiche <span class="ch">🅿️ n° 6</span>.</li>
+    </ul>
+    <div class="note piege"><span class="tag">À faire une fois</span><p>Le code du coffre est chiffré avec le secret <span class="b">COFFRE_CLE</span> du Worker (Cloudflare). Une fois posé, il ne se change plus&nbsp;: les codes rangés deviendraient illisibles.</p></div>
   </section>
 
   <section id="signalements">
