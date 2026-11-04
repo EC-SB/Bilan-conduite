@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 14:45 — v1354 */
+/* Déployé le 04/11/2026 à 15:07 — v1355 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1355,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '📝 Groupes et guides : un vrai éditeur de texte, avec des renvois',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Le texte mis en forme',
+        texte: 'Dans un bloc 📝 Texte d’un guide : gras, italique, souligné, plus grand, listes à puces ou numérotées, six couleurs de texte et des emojis. L’élève le voit tel quel dans Réviser.' },
+      { emoji: '🔗',
+        titre: 'Les renvois',
+        texte: '« 🔗 Renvoi » fait d’un mot un lien vers une étape ou un groupe ; « ➕ Ajouter un renvoi vers une autre étape », sous le texte, ajoute un bouton. Chez l’élève, il ouvre l’étape.' }
+    ]
+  },
   {
     version: 1354,
     date: 'Mercredi 4 novembre 2026',
