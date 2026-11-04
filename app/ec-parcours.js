@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:50 — v1327 */
+/* Déployé le 04/11/2026 à 15:07 — v1355 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -730,7 +730,7 @@ function versEtapesParcours(blocs){
 }
 function blocVideParcours(b){
   if(!b) return true;
-  if(b.type === 'texte') return !String(b.texte || '').trim();
+  if(b.type === 'texte') return !(typeof trTexteSeul === 'function' ? trTexteSeul(b.texte) : String(b.texte || '')).trim();
   if(b.type === 'titre') return !String(b.titre || '').trim();
   return clesDuBloc(b).length === 0;
 }
@@ -743,6 +743,63 @@ function versBlocsParcours(etapes){
   });
   return out;
 }
+/* ============================================================
+   🔗 CHOISIR UN RENVOI — v1355
+
+   David : « il faudra que je puisse faire aussi des renvois à
+   d'autres groupes ou étapes directement dans le texte, et un bouton
+   en dessous qui permet d'ajouter des renvois vers d'autres étapes ».
+   La liste : chaque groupe ouvert, puis chaque étape de ses guides
+   (lus par parcoursList). Une étape ajoutée au guide qu'on écrit
+   apparaît une fois le guide enregistré.
+   Rend { cible: 'e:GUIDE::ÉTAPE' | 'g:GROUPE', nom } ou null.
+   ============================================================ */
+async function choisirRenvoiParcours(){
+  const lignes = [];
+  parcoursGroupes.filter(g => !g.fermeLe).forEach(g => {
+    const nomG = (g.icone ? g.icone + ' ' : '') + (g.nom || 'Groupe');
+    lignes.push({ cible: 'g:' + g.id, nom: nomG, titre: '📚 Le groupe « ' + nomG + ' »', groupe: nomG, sorte: 'g' });
+    guidesDuGroupe(g.id).forEach(gu => {
+      const etapes = (gu.etapes && gu.etapes.length) ? gu.etapes : [{ id: '', titre: gu.titre }];
+      etapes.forEach(et => {
+        const nomE = String(et.titre || gu.titre || 'Étape');
+        lignes.push({ cible: 'e:' + gu.id + '::' + (et.id || ''), nom: nomE,
+                      titre: nomE, sous: (gu.titre || 'Le guide') + (gu.etat && gu.etat !== 'publie' ? ' · ' + gu.etat : ''), groupe: nomG, sorte: 'e' });
+      });
+    });
+  });
+  if(!lignes.length){ showToast('Aucun groupe à qui renvoyer.'); return null; }
+  let choisi = null;
+  const boite = document.createElement('div');
+  boite.innerHTML = '<input type="search" class="woRech" id="pcRenvoiRech" placeholder="🔍 Chercher une étape, un guide, un groupe">' +
+    '<div class="pcRenvoiListe"></div>';
+  const liste = boite.querySelector('.pcRenvoiListe');
+  const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const dessiner = () => {
+    const q = norm(boite.querySelector('#pcRenvoiRech').value);
+    liste.innerHTML = '';
+    let groupe = '';
+    lignes.filter(x => !q || norm(x.titre + ' ' + (x.sous || '') + ' ' + x.groupe).indexOf(q) !== -1).forEach(x => {
+      if(x.groupe !== groupe){
+        groupe = x.groupe;
+        const e = document.createElement('div'); e.className = 'tfEtiq'; e.textContent = groupe; liste.appendChild(e);
+      }
+      const o = document.createElement('button');
+      o.type = 'button';
+      o.className = 'woOpt' + (choisi === x ? ' on' : '');
+      o.innerHTML = echParcours(x.titre) + (x.sous ? '<span class="pcRenvoiSous">' + echParcours(x.sous) + '</span>' : '');
+      o.addEventListener('click', () => { choisi = x; dessiner(); });
+      liste.appendChild(o);
+    });
+    if(!liste.children.length) liste.innerHTML = '<div class="empty">Rien ne correspond.</div>';
+  };
+  boite.querySelector('#pcRenvoiRech').addEventListener('input', dessiner);
+  dessiner();
+  setTimeout(() => { const r = boite.querySelector('#pcRenvoiRech'); if(r) r.focus(); }, 50);
+  const ok = await fenetre(boite, [{ nom: 'Annuler', valeur: false }, { nom: '🔗 Renvoyer ici', valeur: true, principal: true }], '🔗 Renvoyer vers…');
+  return ok && choisi ? { cible: choisi.cible, nom: choisi.nom } : null;
+}
+
 /* Relire UN bloc à l'écran (la même règle que relireLesBlocs) */
 function relireUnBloc(ligne, b){
   if(!ligne || !b) return;
@@ -1185,7 +1242,7 @@ async function ouvrirLeGuide(x, groupe){
           /* Un média : on choisit le fichier tout de suite (même geste) */
           const fi = t.type !== 'texte' && der.querySelector('input[type=file]');
           if(fi) fi.click();
-          const ta = t.type === 'texte' && der.querySelector('textarea');
+          const ta = t.type === 'texte' && (der.querySelector('.trZone') || der.querySelector('textarea'));
           if(ta) ta.focus();
         }
         modifie();
@@ -1265,7 +1322,10 @@ async function ouvrirLeGuide(x, groupe){
       (et && et.titre ? '<b>' + echParcours(et.titre.titre || 'Étape sans nom') + '</b>' +
         (et.titre.facultatif ? '<div class="lg">💤 facultatif</div>' : '') : '');
     ((et && et.contenus) || []).forEach(b => {
-      if(b.type === 'texte'){ if(String(b.texte || '').trim()) h += '<p>' + echParcours(b.texte) + '</p>'; return; }
+      if(b.type === 'texte'){
+        if(String(b.texte || '').trim()) h += (typeof trVersHtml === 'function' ? '<div class="trRendu">' + trVersHtml(b.texte) + '</div>' : '<p>' + echParcours(b.texte) + '</p>');
+        return;
+      }
       const liens = liensDuBloc(b), cles = clesDuBloc(b);
       if(b.type === 'video'){
         h += '<div class="vid">' + (liens[0] ? '<video src="' + echParcours(liens[0]) + '#t=0.5" preload="metadata" muted playsinline></video>' : '') +
@@ -1959,6 +2019,14 @@ function ligneDeBloc(b, i){
       'titre, jusqu\'au prochain, fait une étape que l\'élève coche ' +
       'séparément. Sans aucun titre, le guide ne fait qu\'une seule étape.';
     l.appendChild(aide);
+  }else if(b.type === 'texte' && typeof trEditeur === 'function'){
+    /* 📝 v1355 — un vrai éditeur (David : « des puces, du gras, des
+       couleurs de texte, des emojis »). Il garde la case cachée
+       data-champ="texte", que relireLesBlocs lit comme avant ; la mise
+       en forme y est écrite en balises (ec-texte-riche.js). */
+    const ed = trEditeur(b.texte || '', { placeholder: 'Ce que l\'élève doit lire ici.', choisirRenvoi: choisirRenvoiParcours });
+    ed.style.marginTop = '8px';
+    l.appendChild(ed);
   }else if(b.type === 'texte'){
     const ta = document.createElement('textarea');
     ta.dataset.champ = 'texte';
@@ -2692,7 +2760,7 @@ function apercuDuGuide(titre, blocs){
       bouts.push('── ' + (String(b.titre || '').trim() ||
                           '(étape sans nom)').toUpperCase() + ' ──');
     }else if(b.type === 'texte'){
-      bouts.push(String(b.texte || '').trim() || '(texte vide)');
+      bouts.push((typeof trTexteSeul === 'function' ? trTexteSeul(b.texte) : String(b.texte || '')).trim() || '(texte vide)');
     }else{
       /* ⚠️ ON MONTRE CE QUE L'ÉLÈVE VERRA, pas la clé du fichier.
          « guides/xK3p… » ne veut rien dire pour personne, et un
@@ -3337,7 +3405,8 @@ function remplirLaBulleDuSuivi(bulle, x, ctxS){
 /* « COURS DE LA CO\uD835 » → « COURS DE LA CO… ». Une moitié de lettre
    — ou le « � » qu'elle devient en route — ne s'affiche jamais. */
 function apercuNettoye(texte){
-  const s0 = String(texte || '');
+  /* 📝 v1355 — sans les balises de mise en forme */
+  const s0 = typeof trTexteSeul === 'function' ? trTexteSeul(texte) : String(texte || '');
   let s = '';
   for(let i = 0; i < s0.length; i++){
     const c = s0.charCodeAt(i);
