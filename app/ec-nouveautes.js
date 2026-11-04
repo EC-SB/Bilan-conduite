@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 12:28 — v1352 */
+/* Déployé le 04/11/2026 à 13:36 — v1353 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1353,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '📥 Tarifs : les prix changés dans Drivup par le favori',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Les prix dans Drivup',
+        texte: 'Dans Drivup, Paramètres › Prestations : clique sur le favori. Chaque prix Drivup se relie une fois à un prix de l’appli (🪄 l’appli propose les liens), puis « 💰 Changer N prix dans Drivup » les met à jour, tarif de base et tarif supplémentaire. Les formules se comparent aux fiches. Onglet 📥 Drivup dans Outils › 💰 Tarifs. Administrateurs.' }
+    ]
+  },
   {
     version: 1352,
     date: 'Mercredi 4 novembre 2026',
