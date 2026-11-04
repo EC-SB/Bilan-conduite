@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 19:33 — v1335 */
+/* Déployé le 04/11/2026 à 10:43 — v1347 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1778,7 +1778,9 @@ function panneauDesAcces(u){
       const dedans = SECTIONS.filter(s => s.onglet === ong.cle);
       if(!dedans.length) return;
 
-      const etat = etatDuBloc(dedans, choisis);
+      /* 🔐 v1347 — le coffre-fort ne compte pas dans « Tout voir » */
+      const expresCF = s => typeof SECTIONS_EXPRES !== 'undefined' && SECTIONS_EXPRES.indexOf(s.cle) !== -1;
+      const etat = etatDuBloc(dedans.filter(s => !expresCF(s)), choisis);
       const tous = dedans.length;
 
       const b = document.createElement('details');
@@ -1831,6 +1833,7 @@ function panneauDesAcces(u){
                   '\n\nContinuer ?')) return;
             }
             dedans.forEach(s => {
+              if(expresCF(s)) return;   /* 🔐 se donne une par une */
               if(niveau) choisis[s.cle] = niveau; else delete choisis[s.cle];
             });
             redessiner();
