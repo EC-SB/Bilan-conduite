@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 15:47 — v1334 */
+/* Déployé le 04/11/2026 à 09:49 — v1345 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -81,8 +81,9 @@ const SECTIONS_ONGLET = {
      trouvera cette carte et rien d'autre. */
   /* 📍 v1170 — « bureaux » : les horaires et rendez-vous des
      bureaux, dans Gestion › L'accueil. */
+  /* 💶 v1345 — « charges » : les charges fixes, administrateurs seuls */
   gestion: ['ecran', 'flotte', 'carrosserie', 'encours', 'incidents',
-            'menage', 'bureaux', 'admin']
+            'menage', 'bureaux', 'admin', 'charges']
 };
 
 let ongletActif = '';
@@ -441,7 +442,11 @@ const VUES = {
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
            ['menage',     '🧹 Ménage',                  'menage',      'L’outil'],
-           ['admin',      '⚙️ Accès',                  'admin',        'L’outil']],
+           ['admin',      '⚙️ Accès',                  'admin',        'L’outil'],
+           /* 💶 v1345 — David : « dans gestion un tableau des coûts
+              fixes ». Administrateurs seuls, avec la case de ⚙️ Accès
+              (de base : Chrystel et David). */
+           ['charges',    '💶 Charges fixes',           'charges',     'L’argent']],
 
   /* ============================================================
      💬 LA MESSAGERIE — son onglet, v1074
@@ -1712,6 +1717,10 @@ function construireBarresVues(){
       if(cle === 'activite') return ACCES.role === 'admin';     /* v1147 */
       if(cle === 'direct')  return ACCES.role === 'admin';      /* v1148 */
       if(cle === 'admin')   return ACCES.role === 'admin';
+      /* 💶 v1345 — la case ET le rôle : un bureau à qui on aurait
+         coché la case n'y entre pas (le Worker refuse aussi). */
+      if(cle === 'charges') return ACCES.role === 'admin' &&
+                                   typeof aDroit === 'function' && aDroit('charges');
 
       /* CAISSE · COÛTS IA · COURS NON TERMINÉS · SIGNALEMENTS
 
@@ -2107,6 +2116,7 @@ function reveillerVue(cle){
     caisse:     () => afficherCaisse(),
     menage:     () => afficherMenage(),
     coutsia:    () => afficherCoutsIa(),
+    charges:    () => afficherCharges(),
     paiement:   () => afficherPaiement(),
     placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
