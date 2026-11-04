@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 17:22 — v1343 */
+/* Déployé le 03/11/2026 à 17:56 — v1344 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1344,
+    date: 'Mardi 3 novembre 2026',
+    resume: '📥 Les derniers mails arrivent (relève qui ne tourne plus à vide)',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Les derniers mails, enfin',
+        texte: 'La relève ne relit plus les mails qu’elle a déjà : les nouveaux passent d’abord, et tout ce qui manque des deux derniers jours est rattrapé. En tête de la liste : ce qu’elle a fait, et ce qui attend encore.' }
+    ]
+  },
   {
     version: 1343,
     date: 'Mardi 3 novembre 2026',
