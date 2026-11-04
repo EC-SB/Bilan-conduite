@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1346
+     GUIDE-VERSION: 1347
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1346</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1347</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -567,6 +567,7 @@ html{scroll-behavior:smooth}
                 <li><a href="#ecran">Affichage dynamique</a></li>
                 <li><a href="#encours">Cours non terminés</a></li>
                 <li><a href="#menage">Ménage des dossiers</a></li>
+                <li><a href="#coffre">Le coffre-fort des mots de passe</a></li>
                 <li><a href="#acces">Administration des accès</a></li>
                 <li><a href="#charges">Les charges fixes</a></li>
               </ol>
@@ -585,7 +586,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1346</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1347</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -943,7 +944,7 @@ html{scroll-behavior:smooth}
 
   <section id="roles">
     <h3>Rôles et droits</h3>
-    <p>Il existe <strong>trois rôles</strong>, et <strong>62 sections</strong> réglables une par une dans <span class="b">⚙️ Gestion › ⚙️ Accès</span>.</p>
+    <p>Il existe <strong>trois rôles</strong>, et <strong>63 sections</strong> réglables une par une dans <span class="b">⚙️ Gestion › ⚙️ Accès</span>.</p>
 
     <div class="tab"><table>
       <thead><tr><th>Rôle</th><th>Ce qu'il obtient d'office</th></tr></thead>
@@ -4480,7 +4481,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <tbody>
       <tr><td><strong>Le parc</strong></td><td class="libre"><span class="b">🚗 Flotte</span> · <span class="b">🚨 Signalements</span> · <span class="b">🗺️ En direct</span></td></tr>
       <tr><td><strong>L'accueil</strong></td><td class="libre"><span class="b">📍 Loudéac Horaires et RDV</span> · <span class="b">📍 St-Brieuc Horaires et RDV</span></td></tr>
-      <tr><td><strong>L'outil</strong></td><td class="libre"><span class="b">📺 Affichage</span> · <span class="b">🩹 Cours non terminés</span> · <span class="b">🧹 Ménage</span> · <span class="b">⚙️ Accès</span></td></tr>
+      <tr><td><strong>L'outil</strong></td><td class="libre"><span class="b">📺 Affichage</span> · <span class="b">🩹 Cours non terminés</span> · <span class="b">🧹 Ménage</span> · <span class="b">🔐 Coffre-fort</span> · <span class="b">⚙️ Accès</span></td></tr>
       <tr><td><strong>L'argent</strong></td><td class="libre"><span class="b">💶 Charges fixes</span> — administrateurs seulement</td></tr>
     </tbody>
   </table></div>
@@ -4712,6 +4713,19 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
     <div class="note piege"><span class="tag">Un seul effacement dans tout l'outil</span><p>Ce bouton, celui du <a href="#depart" class="aller">départ de l'auto-école</a> et celui de <a href="#repertoire" class="aller">la liste des élèves</a> font exactement la même chose, et la confirmation énumère ce qui part. Un dossier dont la date est illisible n'est jamais proposé.</p></div>
   </section>
 
+  <section id="coffre">
+    <h3>🔐 Le coffre-fort des mots de passe</h3>
+    <div class="qui mini"><span class="lab">Réservé à</span> <span class="role admin">Admin</span> <span class="ou">— et à ceux dont on coche la case <span class="ch">🔐 Coffre-fort des mots de passe</span> dans ⚙️ Accès. « Tout voir » sur Gestion ne la donne pas&nbsp;: elle se choisit exprès.</span></div>
+    <p>Une carte par logiciel (Vision, Drivup…)&nbsp;: son nom, l'identifiant en clair, le mot de passe en points, qui l'a changé et qui l'a regardé en dernier.</p>
+    <ul>
+      <li><span class="b">👁️ Voir</span> redemande <strong>votre code de l'appli, à chaque fois</strong>. Le mot de passe reste <strong>15 secondes</strong>, avec <span class="b">📋 Copier</span>, puis se recache (<span class="b">🙈</span> pour le cacher tout de suite). Trois codes faux&nbsp;: le coffre se ferme 10 minutes.</li>
+      <li><span class="b">➕ Ajouter un mot de passe</span> et <span class="b">✏️</span>&nbsp;: logiciel, identifiant, note, et le mot de passe — tapé, ou <span class="b">🎲 Générer</span> (12, 16 ou 20 caractères, chiffres, symboles). Le changer ici ne le change pas dans le logiciel.</li>
+      <li><span class="b">⏳ Pas encore mis dans le logiciel</span>&nbsp;: la carte garde le <strong>nouveau ET l'ancien</strong>, chacun avec son 👁️, jusqu'à <span class="b">✅ C'est fait</span>. Ensuite, <span class="b">↩️ Celui d'avant</span> reste consultable (le précédent seulement).</li>
+      <li><span class="b">🕓</span>&nbsp;: qui l'a regardé, copié, changé, et les codes faux. <span class="b">🕓 Tout le journal du coffre</span> en bas de l'écran.</li>
+    </ul>
+    <div class="note piege"><span class="tag">À faire une fois</span><p>Le coffre chiffre avec le secret <span class="b">COFFRE_CLE</span> du Worker (Cloudflare), le même que les codes des garages. Une fois posé, il ne se change plus.</p></div>
+  </section>
+
   <section id="acces">
     <h3>⚙️ Administration des accès</h3>
     <div class="qui mini"><span class="lab">Réservé à</span> <span class="role admin">Admin</span> <span class="ou">— double verrou&nbsp;: le droit ET le rôle.</span></div>
@@ -4739,7 +4753,7 @@ Places A : 2 en 1ʳᵉ quinzaine · 2 en 2ᵉ</div>
       <li>Un aperçu, <span class="b">👁️ Ce que … verra</span>&nbsp;: les onglets en gris n'apparaîtront pas chez lui.</li>
       <li><span class="b">💾 Enregistrer les accès</span>. Rien de coché&nbsp;: <span class="ch">Rien de coché pour David : il ne verra que l'écran d'accueil.</span> — et c'est exact.</li>
     </ul>
-    <p>Il y a aujourd'hui <strong>62 sections</strong> réglables, de <span class="ch">📅 Mes prochains cours</span> à <span class="ch">⚙️ Administration des accès</span>, en passant par le relevé du trajet (<span class="ch">🗺️ Trajet du cours</span>), la boîte du bureau dans la messagerie, <span class="ch">👥 Équipe et échéances</span>, <span class="ch">📍 Horaires et rendez-vous des bureaux</span> ou <span class="ch">✉️ Courriers sur papier à en-tête</span>. Le détail du fonctionnement des droits est au chapitre 2, <a href="#roles" class="aller">Rôles et droits</a>.</p>
+    <p>Il y a aujourd'hui <strong>63 sections</strong> réglables, de <span class="ch">📅 Mes prochains cours</span> à <span class="ch">⚙️ Administration des accès</span>, en passant par le relevé du trajet (<span class="ch">🗺️ Trajet du cours</span>), la boîte du bureau dans la messagerie, <span class="ch">👥 Équipe et échéances</span>, <span class="ch">📍 Horaires et rendez-vous des bureaux</span> ou <span class="ch">✉️ Courriers sur papier à en-tête</span>. Le détail du fonctionnement des droits est au chapitre 2, <a href="#roles" class="aller">Rôles et droits</a>.</p>
 
     <h4>Créer un accès</h4>
     <p>Sous la liste&nbsp;: <span class="b">Nouveau code (6 à 8 chiffres)</span>, <span class="b">Prénom</span>, <span class="b">Émoji du moniteur</span>, <span class="b">Genre</span> et <span class="b">Rôle</span>, puis <span class="b">➕ Créer l'accès</span>. Un code déjà attribué est refusé en nommant son titulaire. L'adresse mail se pose ensuite avec le <span class="b">✉️</span> de la ligne.</p>
