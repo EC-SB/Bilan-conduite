@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 16:23 — v1341 */
+/* Déployé le 05/11/2026 à 08:55 — v1357 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2855,6 +2855,10 @@ function enteteEleve(nom){
   /* 🏢 v1333 — son agence d'inscription (Drivup), juste après : c'est son
      centre d'examen de base */
   if(f && f.eleve) d.appendChild(pastilleAgenceEleve(nom, f));
+  /* 🔑 v1357 — son espace élève, vu de tous les onglets : 🔒 pas
+     d'espace · 🟠 accès pas envoyé · ✉️ envoyé, pas venu · ✅ venu */
+  const pa = (typeof pastilleAccesEleve === 'function') ? pastilleAccesEleve(nom) : null;
+  if(pa) d.appendChild(pa);
   /* 👥 v1308 — deux élèves au même nom : l'appli les confond */
   const hom = pastilleHomonymesEleve(nom);
   if(hom) d.appendChild(hom);
