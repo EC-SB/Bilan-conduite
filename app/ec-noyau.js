@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:43 — v1347 */
+/* Déployé le 04/11/2026 à 17:11 — v1356 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -340,6 +340,10 @@ const SECTIONS = [
   { cle:'messagerie_admin', nom:'💬 Superviser toutes les conversations',
     onglet:'messagerie' },
   { cle:'code',             nom:'🎓 Code (salle et aménagé)', onglet:'eleves' },
+  /* 🎥 v1356 — lancer un cours de code en visio (Élèves › Code) : les
+     élèves cochés le suivent depuis leur espace. Administration et
+     bureau par le rôle ; les autres, la case. */
+  { cle:'visio_code',       nom:'🎥 Cours de code en visio', onglet:'eleves' },
   { cle:'handicap',         nom:'♿ Suivi handicap', onglet:'eleves' },
   { cle:'paiement',         nom:'💳 Paiement en plusieurs fois', onglet:'eleves' },
   { cle:'placesbe',         nom:'🚚 Demande de places BE', onglet:'outils' },
