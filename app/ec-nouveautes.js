@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 09:42 — v1358 */
+/* Déployé le 05/11/2026 à 15:04 — v1359 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1359,
+    date: 'Jeudi 5 novembre 2026',
+    resume: '📚 Venir réviser ses groupes sur les tablettes de la salle',
+    quoi: [
+      { emoji: '📚',
+        titre: 'Je viens réviser',
+        texte: 'Sur l’accueil des tablettes, « 📚 Je viens réviser » : l’élève cherche son nom, tape son jour et mois de naissance, et révise 1 h ses groupes ouverts et le jeu des vérifications, comme chez lui. Celui qui n’a pas fini son cours de salle continue son cours.' },
+      { emoji: '▶',
+        titre: 'Lancée par l’équipe',
+        texte: 'Dans « ▶ Installer un élève », un élève qui a fini la salle (ou sans salle dans sa formation) se voit proposer sa révision, 1 h ou 2 h. Sur « 📺 En ce moment », la tablette dit « 📚 … · révision ».' },
+      { emoji: '📺',
+        titre: 'Vu en salle',
+        texte: 'Ce qu’il coche sur une tablette va dans son parcours, avec « 📺 en salle » sur ses pastilles et « 📺 vu en salle » dans la bulle du suivi des parcours. Et la tablette dit « Jade, ton code », plus « BERNARD ».' }
+    ]
+  },
   {
     version: 1358,
     date: 'Jeudi 5 novembre 2026',
