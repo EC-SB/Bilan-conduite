@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 08:55 — v1357 */
+/* Déployé le 05/11/2026 à 16:49 — v1361 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -744,6 +744,8 @@ async function afficherEspaceEleve(nom, zone){
   zCode.addEventListener('click', montrerCode);
   bCode.addEventListener('click', montrerCode);
   if(suivi) carte.appendChild(suivi.el);
+  /* 🔌 v1361 — fermé à la main : la ligne qui le dit, et l'interrupteur pour rouvrir */
+  else if(!acces.actif && !acces.sorti && typeof ligneEspaceFerme === 'function') carte.appendChild(ligneEspaceFerme(nom, redessiner));
   zone.setAttribute('data-cv-zone', '1');
   zone._redessiner = redessiner;
 
@@ -755,7 +757,8 @@ async function afficherEspaceEleve(nom, zone){
     ? cvBouton('✉️ Renvoyer son accès', 'btn-secondary', () => fenetreAccesEleve(nom, redessiner))
     : cvBouton('✉️ Lui envoyer son accès', 'btn-primary', () => fenetreAccesEleve(nom, redessiner));
   bEnv.dataset.envoyerAcces = '1';
-  bt.appendChild(bEnv);
+  /* 🔌 v1361 — espace fermé à la main : envoyer un accès qui n'ouvre rien n'a pas de sens */
+  if(acces.actif || acces.sorti) bt.appendChild(bEnv);
   /* 👀 v1256 — ouvrir son espace pour le lui montrer. SON CODE NE PASSE
      PAS PAR ICI : le Worker rend un ticket (deux minutes, une seule fois)
      que la page élève échange contre une session de démonstration.
