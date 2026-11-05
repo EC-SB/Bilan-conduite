@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 16:15 — v1360 */
+/* Déployé le 05/11/2026 à 16:49 — v1361 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1361,
+    date: 'Jeudi 5 novembre 2026',
+    resume: '🔌 Fermer l’espace d’un élève d’un interrupteur',
+    quoi: [
+      { emoji: '🔌',
+        titre: 'Au bout d’« Espace ouvert »',
+        texte: 'Dans 🔑 Coin révisions du dossier, un interrupteur ferme son espace (avec une confirmation) : il ne peut plus entrer, mais rien n’est effacé — code, groupes, progression. La carte dit « 🔒 Espace fermé » et le même interrupteur le rouvre.' }
+    ]
+  },
   {
     version: 1360,
     date: 'Jeudi 5 novembre 2026',
