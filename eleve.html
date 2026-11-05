@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 05/11/2026 à 15:04 — v1359 -->
+<!-- Déployé le 05/11/2026 à 16:15 — v1360 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -791,20 +791,37 @@
     flex-shrink:0; border:0; background:transparent; color:var(--muted);
     font-size:16px; padding:8px 9px; cursor:pointer; margin:0; width:auto;
   }
-  .puces{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 6px; }
-  .puces button{
-    flex:0 1 auto; margin:0; width:auto; padding:7px 12px; border-radius:999px;
+  /* 🗂️ v1360 — LES GROUPES EN CARTES (option C, choisie par David).
+     Les puces à pastille rouge se lisaient comme une alerte : une
+     carte par groupe, deux par ligne, avec son avancée. « Tout voir »
+     passe en petit bouton dans l'en-tête. */
+  .grpTete{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin:0 0 8px; }
+  .grpTete > span{ font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .grpTete button{
+    flex:0 0 auto; margin:0; width:auto; padding:5px 11px; border-radius:999px;
     border:1px solid var(--line); background:transparent; color:var(--cream);
-    font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
+    font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
   }
-  .puces button.ici{
-    background:var(--orange); border-color:var(--orange); color:var(--on-accent);
+  .grpTete button.ici{ background:var(--orange); border-color:var(--orange); color:var(--on-accent); }
+  .grpCartes{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 6px; }
+  .grpCarte{
+    display:flex; flex-direction:column; align-items:stretch; text-align:left;
+    margin:0; width:auto; min-width:0; padding:10px 11px; border-radius:14px;
+    border:1px solid var(--line); background:var(--navy-deep); color:var(--cream);
+    font-family:inherit; cursor:pointer;
   }
-  .puces .pastille{
-    display:inline-block; min-width:18px; padding:0 5px; margin-left:5px;
-    border-radius:9px; background:var(--red); color:#fff;
-    font-size:11px; line-height:18px; text-align:center;
+  .grpCarte .ic{ font-size:20px; line-height:1; margin:0 0 6px; }
+  .grpCarte .nom{
+    font-size:13px; font-weight:800; line-height:1.25; margin:0 0 8px; min-height:32px;
+    overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
   }
+  .grpCarte .barre{ display:block; height:5px; border-radius:3px; background:var(--line); overflow:hidden; margin-top:auto; }
+  .grpCarte .barre em{ display:block; height:100%; border-radius:3px; background:var(--accent-text); }
+  .grpCarte .cpt{ font-size:12px; font-weight:600; color:var(--muted); margin-top:5px; }
+  .grpCarte.fini .cpt{ color:var(--accent-text); }
+  .grpCarte.ici{ background:rgba(182,255,14,.10); border:2px solid var(--accent-text); padding:9px 10px; }
+  body.clair .grpCarte.ici{ background:var(--orange-soft); }
+  .grpCarte.ici .cpt{ color:var(--accent-text); }
   .chemin{ padding:4px 0 10px; }
   .chemin .jalon{
     text-align:center; font-size:13px; font-weight:800; color:var(--muted);
@@ -4764,15 +4781,11 @@
     var g = groupesAffiches();
     var html = carteARevoir();
     if(g.tous.length > 1){
-      var resteTout = 0;
-      var puces = g.tous.map(function(gr){
-        var cg = compterLesSegments(gr.etapes);
-        var r = cg.total - cg.vus;
-        resteTout += r;
-        return pucheDeGroupe(gr.id, (gr.icone ? gr.icone + ' ' : '') + gr.nom, r);
-      });
-      html += '<div class="puces">' +
-        pucheDeGroupe(TOUS_LES_GROUPES, 'Tout', resteTout) + puces.join('') + '</div>';
+      var tout = (groupeIci === TOUS_LES_GROUPES);
+      html += '<div class="grpTete"><span>Mes groupes</span>' +
+        '<button type="button" data-groupe="' + echapper(TOUS_LES_GROUPES) + '"' +
+        (tout ? ' class="ici" aria-pressed="true"' : ' aria-pressed="false"') + '>Tout voir</button></div>' +
+        '<div class="grpCartes">' + g.tous.map(carteDeGroupe).join('') + '</div>';
     }
 
     var file = fileDesSegments(g.ici);
@@ -4826,11 +4839,18 @@
     brancherLesOuvertures(corps);
   }
 
-  /* Une puce de groupe, avec ce qui lui reste — ou ✓. */
-  function pucheDeGroupe(id, nom, reste){
-    return '<button type="button" data-groupe="' + echapper(id) + '"' +
-      (id === groupeIci ? ' class="ici"' : '') + '>' + echapper(nom) +
-      (reste ? '<span class="pastille">' + reste + '</span>' : ' ✓') + '</button>';
+  /* 🗂️ v1360 — Une carte de groupe : son icône, son nom, son avancée. */
+  function carteDeGroupe(gr){
+    var cg = compterLesSegments(gr.etapes);
+    var fini = cg.total > 0 && cg.vus >= cg.total;
+    var pc = cg.total ? Math.round(100 * cg.vus / cg.total) : 0;
+    var ici = (gr.id === groupeIci);
+    return '<button type="button" class="grpCarte' + (ici ? ' ici' : '') + (fini ? ' fini' : '') + '"' +
+      ' data-groupe="' + echapper(gr.id) + '" aria-pressed="' + (ici ? 'true' : 'false') + '">' +
+      (gr.icone ? '<span class="ic" aria-hidden="true">' + echapper(gr.icone) + '</span>' : '') +
+      '<span class="nom">' + echapper(gr.nom) + '</span>' +
+      '<span class="barre" aria-hidden="true"><em style="width:' + pc + '%"></em></span>' +
+      '<span class="cpt">' + (fini ? '✓ Fini' : cg.vus + ' / ' + cg.total + ' vus') + '</span></button>';
   }
 
   /* ============================================================
