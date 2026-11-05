@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1355
+     GUIDE-VERSION: 1356
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1355</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1356</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -466,7 +466,7 @@ html{scroll-behavior:smooth}
           <li><a href="#financements">Financements</a></li>
           <li><a href="#paiement">Paiement en plusieurs fois</a></li>
           <li><a href="#handicap">Handicap</a></li>
-          <li><a href="#code">Code</a></li>
+          <li><a href="#code">Code</a> · <a href="#code-visio">en visio</a></li>
           <li><a href="#repertoire">Ajouter des élèves</a></li>
           <li><a href="#permis-obtenu">Permis obtenu</a></li>
           <li><a href="#depart">Départ</a></li>
@@ -587,7 +587,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1355</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1356</strong>, relu le 4 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -2182,6 +2182,26 @@ Ces heures partent de quelle leçon après l'examen blanc ?
     <p>La grille&nbsp;: une colonne <span class="b">Élève</span>, les séances 1 à 12, puis <span class="b">Faites</span>.</p>
     <div class="note danger"><span class="tag">À lire attentivement</span><p><strong>La case porte le nombre de FAUTES, pas le score.</strong> 0 à 3 → vert, 4 à 6 → orange, plus de 6 → rouge. Un <span class="ch">·</span> gris&nbsp;: séance pas faite&nbsp;; une <span class="ch">*</span>&nbsp;: saisie à la main. Une séance repassée garde son meilleur résultat.</p></div>
     <p>Toute case est cliquable&nbsp;: la fenêtre de saisie rappelle le barème et ce que dit le formulaire, montre le nombre de fautes en direct, et <span class="b">🗑️</span> rend la main au formulaire scanné.</p>
+    <p><span class="ch">🎥</span> dans une case&nbsp;: l'élève a suivi cette séance <strong>en visio</strong> (présent dès qu'il a rejoint). Seul, sans chiffre&nbsp;: il était là, mais son questionnaire n'est pas encore arrivé.</p>
+
+    <h4 id="code-visio">🎥 Cours de code en visio</h4>
+    <div class="qui mini"><span class="lab">Droit</span> la case <span class="b">🎥 Cours de code en visio</span> de ⚙️ Accès (administration et bureau d'office)</div>
+    <p>Sous <span class="b">🎯 Quelle séance lancer ?</span>, le tiroir <span class="b">🎥 Cours de code en visio</span>. Les élèves au code suivent le cours depuis leur espace, sur leur téléphone ou leur ordinateur&nbsp;: <strong>ils regardent, sans caméra</strong>, et parlent au début (bonjour, quelle séance).</p>
+    <ol>
+      <li><strong>La séance</strong>&nbsp;: les puces <span class="b">1</span> à <span class="b">12</span> — celle que les élèves ont le moins faite est choisie d'office.</li>
+      <li><strong>Les élèves</strong>&nbsp;: ceux du code de la période, sous le nom de leur fiche, avec <span class="ch">✓ a déjà vu la 4</span> ou <span class="ch">pas encore vu la 4</span>. On coche à chaque fois&nbsp;; <span class="b">Ceux qui n'ont pas vu la 4</span> coche d'un coup, <span class="ch">🔍 Ajouter un élève par son nom…</span> en ajoute un autre. Un nom de formulaire qu'on ne retrouve pas dans les élèves est grisé&nbsp;: <span class="ch">⚠️ pas trouvé dans les élèves</span>. Onze élèves au plus.</li>
+      <li><strong>Le questionnaire de la séance</strong>&nbsp;: le lien du Google Form, lu dans le classeur des séances (ou collé une fois, il est gardé). Les élèves l'ouvrent <strong>à côté du cours</strong>, sans changer de page.</li>
+      <li><strong>L'image et le son</strong>&nbsp;: <span class="b">🎥 Autoriser la caméra et le micro</span> la première fois, puis <span class="b">🎥 Caméra (le boîtier)</span> — le boîtier HDMI se présente comme une webcam, souvent <span class="ch">USB Video</span> —, <span class="b">🔊 Son du boîtier</span> et <span class="b">🎙️ Mon micro</span>, chacun avec son interrupteur&nbsp;: les deux sont mêlés en un seul son. La barre sous les réglages montre le niveau que recevront les élèves. L'aperçu ne s'allume que sur <span class="b">▶ Allumer l'aperçu</span>.</li>
+      <li><span class="b">▶ Lancer la séance 4</span>&nbsp;: le lien arrive dans la messagerie de chaque élève coché (un groupe <span class="ch">🎥 Code en visio — séance 4</span>, en annonce&nbsp;: ils ne s'y écrivent pas et ne voient pas les autres élèves), et l'écran du cours s'ouvre.</li>
+    </ol>
+    <h5>Pendant le cours</h5>
+    <p>L'image du boîtier en grand (<span class="ch">Ce que voient les élèves</span>), et à droite la liste&nbsp;: <span class="ch">là</span>, <span class="ch">pas encore là</span>, <span class="ch">parti</span>, qui parle (surligné) et <span class="ch">✋</span> quand un élève lève la main. En bas&nbsp;: <span class="b">🔊 Son du boîtier</span> · <span class="b">🎙️ Mon micro</span> · <span class="b">🔇 Couper les micros des élèves</span> (puis <span class="b">🎙️ Rouvrir les micros</span>) · <span class="b">➕ Inviter</span> · <span class="b">🔗 Le lien</span> · <span class="b">⏹ Terminer le cours</span> (un second appui confirme). Sur la ligne d'un élève&nbsp;: <span class="b">🔇 Couper</span>, ou <span class="b">🎙️ Parole</span> pour rendre la parole à celui qui lève la main.</p>
+    <p><span class="b">🔗 Le lien</span>&nbsp;: <span class="b">📋 Copier pour Messenger</span> et <span class="b">✉️ Envoyer par mail aux élèves</span> (un mail chacun, à l'adresse de sa fiche). La carte du tiroir garde, tant que le cours dure, <span class="b">▶ Reprendre le cours</span> (page rechargée), <span class="b">📋 Copier le lien</span>, <span class="b">✉️ Envoyer par mail</span> et <span class="b">💬 Le groupe</span>.</p>
+    <div class="note piege"><span class="tag">Piège</span><p><strong>Le lien vaut invitation.</strong> Un élève qui a un espace et le lien (sur Messenger, par exemple) entre dans le cours même s'il n'était pas coché&nbsp;: il apparaît dans ta liste. Un élève <strong>sans espace élève</strong> ne peut pas entrer — l'écran le signale après le lancement.</p></div>
+    <div class="note astuce"><span class="tag">Bon à savoir</span><p>Le cours ne s'arrête pas quand les élèves partent&nbsp;: il s'arrête sur <span class="b">⏹ Terminer le cours</span>, ou deux minutes après que tu as fermé la page sans revenir. Le fil du groupe garde la trace&nbsp;: <span class="ch">🎥 Cours de code — séance 4 terminé · 52 min · 6 élèves : …</span>. Rien n'est enregistré.</p></div>
+    <h5>Côté élève</h5>
+    <p>En haut de son accueil&nbsp;: <span class="ch">TON COURS DE CODE EN VISIO A COMMENCÉ</span> et <span class="b">Rejoindre le cours</span> (le lien ouvre son espace, avec son code s'il n'est pas connecté). Il regarde le cours, avec <span class="b">Micro</span> (ouvert au début, <span class="ch">Coupé par le prof</span> après 🔇), <span class="b">✋ Lever la main</span>, <span class="b">📝 Questionnaire</span> (le Google Form dans un panneau, à côté du cours) et <span class="b">Quitter</span>.</p>
+
     <h4>♿ Code aménagé</h4>
     <p>Une seule session à la fois, dont le nom se change avec <span class="b">✏️</span>. <span class="b">➕ Ajouter un élève</span> demande nom, résultat et remarque. Chaque élève est un tiroir&nbsp;: <span class="b">Souhaite faire la session</span> et les <strong>quatre étapes à cocher</strong> — <span class="b">Demande envoyée</span>, <span class="b">Inscription envoyée à la DDTM</span>, <span class="b">Redevance payée</span>, <span class="b">Inscription validée</span>.</p>
   </section>
