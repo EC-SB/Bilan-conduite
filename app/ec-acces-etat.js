@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 08:55 — v1357 */
+/* Déployé le 05/11/2026 à 16:49 — v1361 */
 /* ============================================================
    ec-acces-etat.js — 🔑 L'ESPACE ÉLÈVE OUVERT À TOUS, ET QUI A
    REÇU SON ACCÈS
@@ -155,6 +155,50 @@ function rafraichirPastilleAcces(){
   document.querySelectorAll('.aePastille').forEach(p => { if(p._remplir) p._remplir(); });
 }
 
+/* ── 🔌 v1361 — fermer / rouvrir son espace, d'un interrupteur ──
+   David : « au bout d'Espace ouvert, un interrupteur pour fermer
+   l'accès ». FERMER N'EFFACE RIEN : son code, ses groupes, sa
+   progression restent ; il ne peut plus entrer, et ça se rouvre du
+   même geste. Un élève parti ou qui a son permis n'en a pas : c'est
+   « ↩️ Il est revenu » qui le rouvre, pas cet interrupteur. */
+function interrupteurEspaceEleve(nom, ouvert, apres){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'aeInter' + (ouvert ? ' on' : '');
+  b.setAttribute('role', 'switch');
+  b.setAttribute('aria-checked', ouvert ? 'true' : 'false');
+  b.setAttribute('aria-label', 'Son espace élève ouvert');
+  b.dataset.interEspace = '1';
+  b.title = ouvert ? 'Fermer son espace' : 'Rouvrir son espace';
+  b.innerHTML = '<span></span>';
+  b.addEventListener('click', async () => {
+    if(ouvert && !await confirmer('Fermer l’espace élève de ' + nom + ' ?\n\n' +
+        'Il ne pourra plus entrer dans son coin révisions.\n\n' +
+        'Rien n’est effacé : son code, ses groupes et sa progression restent, et ça se rouvre du même interrupteur.',
+        '🔒 Fermer son espace')) return;
+    b.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'accesEleveSet', eleve: nom, actif: ouvert ? 'non' : 'oui' });
+      if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+      const a = ACCES_ETAT.parNom[aeNorm(nom)];
+      if(a) a.actif = !ouvert;
+      rafraichirPastilleAcces();
+      showToast(ouvert ? '🔒 Espace fermé ✅' : '🔓 Espace rouvert ✅');
+      if(apres) apres();
+    }catch(e){ showToast('Impossible : ' + e.message); b.disabled = false; }
+  });
+  return b;
+}
+/* La ligne de la carte quand son espace est fermé (pas parti, pas permis) */
+function ligneEspaceFerme(nom, apres){
+  const z = document.createElement('div');
+  z.className = 'aeSuivi';
+  z.innerHTML = '<div class="aeEt attente gris"><span class="i">🔒</span><div class="x"><b>Espace fermé</b>' +
+    '<small>il ne peut plus entrer · rien n’est effacé</small></div></div>';
+  if(aeModifie()) z.firstChild.appendChild(interrupteurEspaceEleve(nom, false, apres));
+  return z;
+}
+
 /* ── le suivi, dans la carte 🔑 Coin révisions ── */
 function suiviAccesCarte(nom, acces, apres){
   const a = ACCES_ETAT.parNom[aeNorm(nom)] || acces || {};
@@ -181,6 +225,8 @@ function suiviAccesCarte(nom, acces, apres){
       '<small>dès sa première connexion, cette ligne passe au vert</small>');
   }
   z.innerHTML = h;
+  /* 🔌 v1361 — au bout d'« Espace ouvert » */
+  if(aeModifie() && !(acces && acces.sorti)) z.firstChild.appendChild(interrupteurEspaceEleve(nom, true, apres));
   if(!compte && aeModifie()){
     const b = document.createElement('button');
     b.type = 'button';
