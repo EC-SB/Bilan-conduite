@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 13:55 — v1337 */
+/* Déployé le 05/11/2026 à 08:55 — v1357 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1210,8 +1210,12 @@ async function afficherRepertoire(recharger){
 
   zone.innerHTML = '<div class="empty">Chargement du répertoire…</div>';
   /* Après une modification, on relit : sinon l'écran continue
-     d'afficher la fiche telle qu'elle était avant l'enregistrement. */
-  if(recharger || !fichesEleves.length) await chargerFiches();
+     d'afficher la fiche telle qu'elle était avant l'enregistrement.
+     🔑 v1357 — et l'état de leur espace élève, en même temps. */
+  await Promise.all([
+    (recharger || !fichesEleves.length) ? chargerFiches() : null,
+    (typeof chargerEtatAcces === 'function') ? chargerEtatAcces(!!recharger) : null
+  ]);
   zone.innerHTML = '';
 
   /* Tous les élèves connus, avec ou sans fiche — la même liste que
@@ -1259,6 +1263,17 @@ async function afficherRepertoire(recharger){
     zone.appendChild(b2);
   }
 
+  /* 🔑 v1357 — « Leur espace élève » : les comptes (qui filtrent la
+     liste), « 🔓 Ouvrir l'espace à tous », « 🔁 nouveaux élèves » */
+  const zAcces = document.createElement('div');
+  zone.appendChild(zAcces);
+  const dessinerAcces = () => {
+    zAcces.innerHTML = '';
+    const c = (typeof cadreAccesRepertoire === 'function')
+      ? cadreAccesRepertoire(noms, () => { dessinerAcces(); dessiner(); }) : null;
+    if(c) zAcces.appendChild(c);
+  };
+
   const rech = document.createElement('input');
   rech.type = 'text';
   rech.placeholder = '🔍 Rechercher un élève, un numéro, une formation';
@@ -1273,7 +1288,8 @@ async function afficherRepertoire(recharger){
 
     /* Le même filtre que la loupe et le dossier : nom, numéro,
        mail, formation, Messenger. */
-    const vus = chercherEleves(rech.value);
+    const vus = chercherEleves(rech.value)
+      .filter(n => typeof filtreAccesPasse !== 'function' || filtreAccesPasse(n));
 
     if(!vus.length){
       liste.innerHTML = '<div class="empty">Aucun élève ne correspond.</div>';
@@ -1296,6 +1312,7 @@ async function afficherRepertoire(recharger){
     }
   }
   rech.addEventListener('input', dessiner);
+  dessinerAcces();
   dessiner();
 }
 
@@ -1341,6 +1358,10 @@ function ligneFicheEleve(nom){
     (f.telephone ? '\ud83d\udcf1 ' + telLisible(f.telephone) : '\ud83d\udcf1 pas de num\u00e9ro') +
     (f.email ? ' \u00b7 \u2709\ufe0f ' + f.email.replace(/</g, '&lt;') : '') +
     '</div>';
+
+  /* 🔑 v1357 — où en est son espace élève : 🔒 🟠 ✉️ ✅ */
+  const ba = (typeof badgeAccesLigne === 'function') ? badgeAccesLigne(nom) : null;
+  if(ba) d.appendChild(ba);
 
   return d;
 }
