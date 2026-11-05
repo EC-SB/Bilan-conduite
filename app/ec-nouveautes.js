@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 17:11 — v1356 */
+/* Déployé le 05/11/2026 à 08:55 — v1357 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1357,
+    date: 'Jeudi 5 novembre 2026',
+    resume: '🔑 L’espace élève ouvert à tous, et qui a reçu son accès',
+    quoi: [
+      { emoji: '🔑',
+        titre: 'Qui a reçu son accès',
+        texte: 'Dans la liste des élèves (Élèves › Ajouter des élèves) et en tête de chaque dossier : 🔒 pas d’espace, 🟠 accès pas envoyé, ✉️ envoyé mais pas encore venu, ✅ venu. Les comptes filtrent la liste. Dans 🔑 Coin révisions : quand, par qui et comment l’accès est parti, et « ✋ Je le lui ai donné » pour Messenger ou de vive voix.' },
+      { emoji: '🔓',
+        titre: 'Ouvrir l’espace à tous',
+        texte: '« 🔓 Ouvrir l’espace à tous ceux qui n’en ont pas » : les élèves qui ont une fiche, sans les partis ni ceux qui ont leur permis, avec ce qu’on ouvre pour leur formation ; leur accès part par mail si tu le veux. Ensuite, l’espace des nouveaux élèves s’ouvre tout seul — l’accès, lui, attend ton appui.' }
+    ]
+  },
   {
     version: 1356,
     date: 'Mercredi 4 novembre 2026',
