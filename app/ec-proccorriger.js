@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:05 — v1325 */
+/* Déployé le 05/11/2026 à 08:55 — v1357 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1615,6 +1615,8 @@ async function ouvrirCodesEleves(){
     try{
       const d = await appelPrep({ action: 'accesElevesList' });
       const liste = (d && d.acces) || [];
+      /* 🔑 v1357 — l'état « accès reçu » de chacun */
+      if(typeof lireEtatAcces === 'function') lireEtatAcces(d);
       catalogue = (d && d.procedures) || [];
       parBoite = (d && d.parBoite) || {};
 
@@ -1637,8 +1639,11 @@ async function ouvrirCodesEleves(){
           '<span style="flex:1;min-width:0;">' +
             '<strong>' + a.eleve.replace(/</g, '&lt;') + '</strong>' +
             '<div style="font-size:11px;color:var(--muted);">' +
-              (a.derniereVisite ? 'vu le ' + a.derniereVisite.replace(/</g, '&lt;')
-                                : 'jamais venu') +
+              ((typeof etatAccesDe === 'function' && etatAccesDe(a.eleve))
+                ? (s => '<span style="color:' + s.coul + ';font-weight:700;">' + s.ico + ' ' +
+                        s.txt.replace(/</g, '&lt;') + '</span>')(etatAccesDe(a.eleve))
+                : (a.derniereVisite ? 'vu le ' + a.derniereVisite.replace(/</g, '&lt;')
+                                    : 'jamais venu')) +
               (a.actif ? '' : ' · accès coupé') +
               (a.perime ? ' · ⏳ code expiré (12 mois sans venir)' : '') +
               (a.langue ? '<br>🌍 ' + nomLangue(a.langue).replace(/</g, '&lt;')
