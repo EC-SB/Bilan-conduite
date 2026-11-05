@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 15:07 — v1355 */
+/* Déployé le 04/11/2026 à 17:11 — v1356 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1356,
+    date: 'Mercredi 4 novembre 2026',
+    resume: '🎥 Le code en visio : lancer un cours, les élèves le suivent depuis leur espace',
+    quoi: [
+      { emoji: '🎥',
+        titre: 'Lancer un cours de code en visio',
+        texte: 'Élèves › 🎓 Code, sous « 🎯 Quelle séance lancer ? » : la séance (1 à 12), les élèves à cocher, la caméra (le boîtier HDMI) avec son aperçu, 🔊 le son du boîtier et 🎙️ ton micro. « ▶ Lancer » met le lien dans leur messagerie ; « 📋 Copier » pour Messenger, « ✉️ Envoyer par mail ».' },
+      { emoji: '✋',
+        titre: 'Pendant le cours',
+        texte: 'L’image en grand, les élèves à côté (là, pas encore là, qui parle, ✋). « 🔇 Couper les micros des élèves », puis « 🎙️ Parole » à celui qui lève la main. Les élèves n’ont pas de caméra ; ils ouvrent le questionnaire de la séance à côté du cours.' },
+      { emoji: '✅',
+        titre: 'La présence',
+        texte: 'Présent dès qu’il a rejoint : 🎥 dans la case de la séance, dans la grille du code. La case « 🎥 Cours de code en visio » est dans ⚙️ Accès.' }
+    ]
+  },
   {
     version: 1355,
     date: 'Mercredi 4 novembre 2026',
