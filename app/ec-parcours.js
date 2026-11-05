@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 15:07 — v1355 */
+/* Déployé le 05/11/2026 à 15:04 — v1359 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -3212,7 +3212,8 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
   const etats = lesSegs.map(sg => {
     const f = segs.length ? (tout ? (fiches[sg.id] || fiches['']) : fiches[sg.id])
                           : (vuLe ? (fiches[''] || { vuLe: vuLe }) : null);
-    return { sg: sg, f: f, vu: !!(f && f.vuLe) || tout || (!segs.length && !!vuLe) };
+    return { sg: sg, f: f, vu: !!(f && f.vuLe) || tout || (!segs.length && !!vuLe),
+             enSalle: !!((l.enSalle || {})[id + '::' + (sg.id || '')]) };   /* 📚 v1359 — « 📺 vu en salle » */
   });
   /* les étapes facultatives se montrent, mais ne comptent pas (v1326) */
   const comptent = etats.some(x => !x.sg.facultatif) ? etats.filter(x => !x.sg.facultatif) : etats;
@@ -3332,6 +3333,8 @@ function remplirLaBulleDuSuivi(bulle, x, ctxS){
     if(f.revuLe && f.revuLe !== f.vuLe){
       l1.appendChild(document.createTextNode(' · dernière le ' + quandCourtParcours(f.revuLe)));
     }
+    /* 📚 v1359 — coché sur une tablette de la salle (cours ou révision) */
+    if(x.enSalle) l1.appendChild(document.createTextNode(' · 📺 vu en salle'));
   }else{
     l1.appendChild(document.createTextNode(x.vu ? ' — vu (guide entier coché)' : ' — pas encore vu'));
   }
