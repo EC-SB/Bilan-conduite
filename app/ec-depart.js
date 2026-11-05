@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:43 — v1347 */
+/* Déployé le 05/11/2026 à 08:55 — v1357 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2298,7 +2298,9 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
    [3200, 'chargerProcEnFond'],
    [3200, 'compterTachesEnFond'],
    [3800, 'chargerFlotteEnFond'],
-   [4200, 'reveillerBandeau']].forEach(([delai, nom]) => {
+   [4200, 'reveillerBandeau'],
+   /* 🔑 v1357 — les nouveaux élèves : leur espace s'ouvre tout seul */
+   [5200, 'veillerLesNouveauxEspaces']].forEach(([delai, nom]) => {
     const f = window[nom];
     /* Une étape absente passait inaperçue : le compte ne se faisait
        jamais, et rien ne le disait. */
