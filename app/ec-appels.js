@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 15:23 — v1183 */
+/* Déployé le 04/11/2026 à 17:11 — v1356 */
 /* ============================================================
    ec-appels.js — 📞 LES APPELS, CÔTÉ ÉQUIPE
 
@@ -189,6 +189,7 @@ async function rejoindreLAppelEC(appelId, genre, titre, sansCamera){
 function carteAppelDuFilEC(f){
   const a = f && f.appel;
   if(!a || a.fini || !appelsPossiblesEC()) return null;
+  if(a.genre === 'cours') return carteCoursDuFilEC(f, a);
   const r = document.createElement('div');
   r.className = 'msgRang';
   r.style.justifyContent = 'center';
@@ -227,6 +228,41 @@ function carteAppelDuFilEC(f){
       b2.innerHTML = AppelEC.ic('tel', 16) + 'Rejoindre sans caméra';
       acts.appendChild(b2);
     }
+  }
+  c.appendChild(acts);
+  r.appendChild(c);
+  return r;
+}
+
+/* 🎥 v1356 — le cours de code en visio, dans son groupe : on le
+   reprend (l'image du boîtier se prépare à nouveau), on ne le
+   « rejoint » pas comme un appel. */
+function carteCoursDuFilEC(f, a){
+  const r = document.createElement('div');
+  r.className = 'msgRang';
+  r.style.justifyContent = 'center';
+  r.id = 'appelCarte';
+  const eleves = (a.gens || []).filter(x => x.genre === 'eleve');
+  const la = eleves.filter(x => x.etat === 'dedans').length;
+  const c = document.createElement('div');
+  c.className = 'ckCarteC';
+  c.style.cssText = 'max-width:420px;width:100%;';
+  c.innerHTML = '<div class="lab" style="display:flex;align-items:center;gap:6px;">' + AppelEC.ic('camera', 14) +
+    'COURS DE CODE EN VISIO · ' + new Date(a.debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</div>' +
+    '<div class="v"></div><div class="e"></div>';
+  c.querySelector('.v').textContent = 'Mené par ' + a.par;
+  c.querySelector('.e').textContent = la + ' élève' + (la > 1 ? 's' : '') + ' en visio sur ' + eleves.length;
+  const acts = document.createElement('div');
+  acts.style.cssText = 'display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;';
+  const ici = AppelEC.enCours() && AppelEC.enCours().appel === a.id;
+  if(ici){
+    const b = ckBouton('', 'Revenir au cours', () => AppelEC.revenir(), 'p');
+    b.innerHTML = AppelEC.ic('agrandir', 16) + 'Revenir au cours';
+    acts.appendChild(b);
+  }else if(typeof visioReprendre === 'function' && typeof aDroit === 'function' && aDroit('visio_code')){
+    const b = ckBouton('', 'Reprendre le cours', () => visioReprendre('', a.id), 'p');
+    b.innerHTML = AppelEC.ic('camera', 18) + 'Reprendre le cours';
+    acts.appendChild(b);
   }
   c.appendChild(acts);
   r.appendChild(c);
