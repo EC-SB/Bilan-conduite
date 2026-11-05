@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 15:04 — v1359 */
+/* Déployé le 05/11/2026 à 16:15 — v1360 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1360,
+    date: 'Jeudi 5 novembre 2026',
+    resume: '🗂️ Espace élève : les groupes du parcours en cartes',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Mes groupes',
+        texte: 'Dans « Mon parcours » de l’élève, chaque groupe a sa carte, deux par ligne : son icône, son nom, une barre d’avancée et « 3 / 17 vus », ou « ✓ Fini ». Plus de pastille rouge. « Tout voir » est le petit bouton à droite de « Mes groupes ». L’icône est celle choisie dans l’éditeur des groupes.' }
+    ]
+  },
   {
     version: 1359,
     date: 'Jeudi 5 novembre 2026',
