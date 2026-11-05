@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 12:10 — v1336 */
+/* Déployé le 05/11/2026 à 09:42 — v1358 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -6142,8 +6142,13 @@ function leconsAvantExamenBlancDuJour(q){
     ? leconsAvantExamenBlanc((q || {}).frise) : null;
   const n = parseInt((q || {}).lecon, 10);
   if(!prevues || isNaN(n) || !n) return null;
-  const reste = prevues - n;
-  return reste > 0 ? reste : 0;
+  /* ⚠️ FRISE DÉPASSÉE : ELLE NE SAIT PLUS — v1358. David, sur une
+     élève à sa 15e leçon pour 5 prévues : il a mis « dans 2 leçons »
+     au ✏️ du questionnaire, et la note disait toujours « la prochaine
+     fois, c'est l'examen blanc » — la frise répondait 0 à sa place.
+     Une frise dépassée n'a plus de décompte : c'est la case qui dit. */
+  if(n > prevues) return null;
+  return prevues - n;
 }
 
 /* ============================================================
@@ -7083,9 +7088,19 @@ function ajouterSuite(etats, permis, mots, q){
        frise, c'est-à-dire du plan de départ ; la date, elle, a été
        posée par quelqu'un. Quand on sait QUAND, on ne raconte plus
        ce qu'on avait prévu. */
-    const q1 = jourEB ? '' : quandEB(n);
+    /* ⚠️ ET LA DATE N'EFFACE PLUS LE NOMBRE DE LEÇONS — v1358. David :
+       « sur la ligne examen blanc réservé, il faut ajouter dans combien
+       de leçons ». Avec une date, le nombre est celui du questionnaire
+       (la case, déjà remplie par le décompte du jour et que le
+       moniteur valide ou corrige au ✏️) : c'est lui qui a été dit, pas
+       la frise de départ que la v936 écartait. */
+    const saisi = (q.examBlancN !== undefined && q.examBlancN !== null && String(q.examBlancN).trim() !== '')
+      ? String(q.examBlancN).trim() : null;
+    /* sans réponse saisie, pas de décompte de frise à côté d'une date (v936) */
+    const nR = jourEB ? saisi : n;
+    const q1 = quandEB(nR);
     etats.push('🅱️ ' + numero + ETAT_EB_RESERVE + jourEB +
-               (q1 ? (parseInt(n, 10) === 0 ? q1 : ' —' + q1) : ''));
+               (q1 ? (parseInt(nR, 10) === 0 ? q1 : ' —' + q1) : ''));
   }else if(q.examBlanc === 'aprevoir'){
     etats.push('🅱️ ' + numero + ETAT_EB_APREVOIR + quandEB(n));
   }else if(q.examBlanc === 'impossible'){
