@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 19:33 — v1335 */
+/* Déployé le 05/11/2026 à 15:04 — v1359 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -44,6 +44,8 @@ function slSiteNom(s){ return s === 'loudeac' ? 'Loudéac' : 'Saint-Brieuc'; }
 function slNorm(s){ return (typeof normaliserMot === 'function') ? normaliserMot(String(s || '')) : String(s || '').toLowerCase().trim(); }
 /* « EXEMPLE Léa » (Drivup) et « Léa Exemple » (sa fiche) : les mêmes mots */
 function slCle(s){ return slNorm(s).split(/[\s-]+/).filter(Boolean).sort().join(' '); }
+/* 📚 v1359 — la clé du Worker (normaliser) : celle de salle_eleves */
+function slCleW(s){ return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 function slFicheDe(nom){
   const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
   if(f) return f;
@@ -136,7 +138,7 @@ function slDessiner(){
   if(!z || !SL.d) return;
   const d = SL.d;
   z.innerHTML = '';
-  z.appendChild(slEl('div', 'slAide', 'Ce qui se passe sur les tablettes de la salle. La première fois, quelqu’un de l’équipe installe l’élève ; ensuite il revient seul (son nom, puis son jour et mois de naissance). Fini : ses groupes s’ouvrent tout seuls dans son espace.'));
+  z.appendChild(slEl('div', 'slAide', 'Ce qui se passe sur les tablettes de la salle. La première fois, quelqu’un de l’équipe installe l’élève ; ensuite il revient seul (son nom, puis son jour et mois de naissance). Fini : ses groupes s’ouvrent tout seuls dans son espace, et il peut revenir les réviser sur une tablette (📚 Je viens réviser).'));
 
   /* ① En ce moment, site par site */
   const sites = ['saint-brieuc', 'loudeac'].filter(s => d.tablettes.some(t => t.site === s));
@@ -231,6 +233,17 @@ function slDessiner(){
 function slCarteTablette(t){
   const s = t.seance;
   const c = slEl('div', 'slTab' + (s ? ' occupee' : ''));
+  /* 📚 v1359 — une révision : ses groupes, comme chez lui */
+  if(s && s.genre === 'revision'){
+    c.innerHTML = '<b>📺 ' + slEch(t.nom) + '</b> · <span class="etat" style="color:var(--accent-text);">📚 ' + slEch(s.eleve) + '</span>' +
+      '<div class="det">révision · depuis ' + slHeure(s.debut) + ' · jusqu’à ' + slHeure(s.finPrevue) +
+      '<br>' + (s.par ? 'lancée par ' + slEch(s.par) : 'revenu seul') + '</div>';
+    if(slPeut()) c.appendChild(slBouton('⏹ Arrêter sa révision', '', async () => {
+      if(!await confirmer('Arrêter la révision de ' + s.eleve + ' sur la ' + t.nom + ' ? Ce qu’il a vu reste noté.', '⏹ Salle des tablettes')) return;
+      try{ SL.d = await appelPrep({ action: 'salleArreter', id: s.id }); slDessiner(); }catch(e){ showToast('Impossible : ' + e.message); }
+    }));
+    return c;
+  }
   if(s){
     const pct = s.total ? Math.round(100 * s.vus / s.total) : 0;
     c.innerHTML = '<b>📺 ' + slEch(t.nom) + '</b> · <span class="etat" style="color:var(--accent-text);">▶ ' + slEch(s.eleve) + '</span>' +
@@ -295,6 +308,8 @@ function slFenetreInstaller(t, nomDepart){
   let choix = null;
   function majEleve(){
     const fi = slFicheDe(ie.value.trim());
+    /* 📚 v1359 — le même élève (le champ perd le focus quand on touche « 2 h ») : on garde ce qui est choisi */
+    if(fi && choix && choix.eleve === fi.eleve) return;
     info.innerHTML = '';
     choix = null;
     bG.disabled = true;
@@ -303,7 +318,10 @@ function slFenetreInstaller(t, nomDepart){
     const gp = slGroupesPour(fi.formation, SL.groupes, (SL.d.programme || {}).groupes);
     const e = (SL.d.eleves || []).find(x => slNorm(x.eleve) === slNorm(fi.eleve));
     choix = { eleve: fi.eleve, formation: fi.formation || '', naissance: fi.naissance || '', salle: gp.salle, ensuite: gp.ensuite, duree: 60 };
-    if(e && e.fini){ info.appendChild(slEl('div', 'slAide', '✅ ' + slEch(fi.eleve) + ' a déjà fini la salle : ses groupes sont ouverts.')); return; }
+    bG.textContent = '▶ Lancer sur la ' + t.nom;
+    /* 📚 v1359 — salle finie, ou rien en salle pour sa formation : il vient réviser */
+    const fini = (e && e.fini) || (SL.d.finisCles || []).indexOf(slCleW(fi.eleve)) !== -1;
+    if(fini || (!gp.salle.length && !(e && !e.fini))){ slRevisionDe(fi, e, fini); return; }
     if(!gp.salle.length){
       info.appendChild(slEl('div', 'slAide', '⚠️ Rien n’est au programme de la salle pour sa formation (' + slEch(fi.formation || 'non renseignée') + ') : 📘 Au programme de la salle, plus bas.'));
       return;
@@ -350,19 +368,55 @@ function slFenetreInstaller(t, nomDepart){
     info.appendChild(zd);
     bG.disabled = false;
   }
+  /* 📚 v1359 — la révision : ses groupes ouverts et le jeu des vérifications, 1 h ou 2 h */
+  function slRevisionDe(fi, e, fini){
+    choix.revision = true; choix.duree = 60;
+    info.appendChild(slEl('div', '', '<div style="font-size:13.5px;line-height:1.9;margin-bottom:10px;">' +
+      (fini ? '✅ <b>A fini la salle</b>' + (e && e.finiLe ? ' le ' + slJour(e.finiLe) : '') + ' : ses groupes sont ouverts.'
+            : '📚 Rien n’attend la salle pour sa formation (' + slEch(fi.formation || 'non renseignée') + ').') +
+      '<br>📚 Il vient réviser : ses groupes ouverts et le jeu des vérifications, comme chez lui.</div>'));
+    const ddmm = (String(fi.naissance || '').match(/^\d{4}-(\d{2})-(\d{2})/) || []);
+    if(ddmm.length){
+      info.appendChild(slEl('div', 'slAide', '🔒 Pour revenir seul réviser : son jour et mois de naissance, <b>' + ddmm[2] + ddmm[1] + '</b> (' + ddmm[2] + '/' + ddmm[1] + '). Dis-le-lui.')).style.marginBottom = '10px';
+    }else{
+      info.appendChild(slEl('label', '', 'Sa date de naissance (son code pour revenir seul réviser)'));
+      const id = slEl('input'); id.type = 'date';
+      id.addEventListener('input', () => { choix.naissance = id.value; });
+      id.addEventListener('change', () => { choix.naissance = id.value; });
+      info.appendChild(id);
+    }
+    const zd = slEl('div', '');
+    const dessinerDuree = (k) => {
+      zd.innerHTML = '';
+      zd.appendChild(slEl('label', '', '⏱️ Sa révision'));
+      const rr = slEl('div', 'tdOnglets');
+      [['60', '1 h'], ['120', '2 h']].forEach(([kk, tt]) => {
+        const b = slEl('button', 'btn tdOnglet' + (kk === k ? ' on' : ''), slEch(tt));
+        b.type = 'button';
+        b.addEventListener('click', () => { choix.duree = Number(kk); dessinerDuree(kk); });
+        rr.appendChild(b);
+      });
+      zd.appendChild(rr);
+    };
+    dessinerDuree('60');
+    info.appendChild(zd);
+    bG.textContent = '📚 Lancer sa révision sur la ' + t.nom;
+    bG.disabled = false;
+  }
   ie.addEventListener('change', majEleve);
   if(nomDepart) majEleve();
   bG.addEventListener('click', async () => {
     if(!choix) return;
+    const avant = bG.textContent;
     bG.disabled = true; bG.textContent = '…';
     try{
       const d = await appelPrep({ action: 'salleInstallerEleve', tablette: t.id, eleve: choix.eleve, formation: choix.formation,
-                                  naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree });
+                                  naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree, revision: choix.revision ? 1 : 0 });
       SL.d = d;
       fermerFond(fond);
-      showToast('▶ ' + choix.eleve + ' démarre sur la ' + t.nom + ' (quelques secondes) ✅');
+      showToast((choix.revision ? '📚 La révision de ' + choix.eleve : '▶ ' + choix.eleve) + ' démarre sur la ' + t.nom + ' (quelques secondes) ✅');
       slDessiner();
-    }catch(e){ bG.disabled = false; bG.textContent = '▶ Lancer sur la ' + t.nom; showToast('Impossible : ' + e.message); }
+    }catch(e){ bG.disabled = false; bG.textContent = avant; showToast('Impossible : ' + e.message); }
   });
   setTimeout(() => { try{ (nomDepart ? bG : ie).focus(); }catch(e){} }, 50);
 }
