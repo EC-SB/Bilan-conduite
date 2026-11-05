@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:59 — v1333 */
+/* Déployé le 05/11/2026 à 09:42 — v1358 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -127,9 +127,18 @@ function analyserNote(note){
   else if((m = t.match(/Examen blanc réservé le ([^—·(]+)/i))){
     r.examBlanc = 'reserve';
     r.examBlancDate = m[1].trim();
+    /* 🅱️ v1358 — « … le mercredi 18 novembre — dans 2 leçons » : le
+       nombre se relit aussi, sinon le ✏️ suivant le perdrait */
+    const k = t.match(/Examen blanc réservé le [^—·(]+—\s*dans (\d+) leçon/i);
+    if(k) r.examBlancN = +k[1];
+    else if(/Examen blanc réservé le [^—·(]+—\s*la prochaine fois, c'est l'examen blanc/i.test(t)) r.examBlancN = 0;
   }
-  else if((m = t.match(/Examen blanc réservé dans (\d+)/i))){ r.examBlanc='reserve'; r.examBlancN=+m[1]; }
-  else if(/La prochaine leçon, c'est l'examen blanc/i.test(t)){ r.examBlanc='reserve'; r.examBlancN=0; }
+  /* 🅱️ v1358 — le questionnaire écrit « réservé — dans 2 leçons » et
+     « réservé — la prochaine fois, c'est l'examen blanc » : le tiret et
+     « fois » ne se relisaient pas, et le nombre se perdait au ✏️ suivant */
+  else if((m = t.match(/Examen blanc réservé\s*—?\s*dans (\d+)/i))){ r.examBlanc='reserve'; r.examBlancN=+m[1]; }
+  else if(/Examen blanc réservé\s*—?\s*la prochaine fois, c'est l'examen blanc/i.test(t) ||
+          /La prochaine leçon, c'est l'examen blanc/i.test(t)){ r.examBlanc='reserve'; r.examBlancN=0; }
   else if(/Examen blanc réservé/i.test(t)) r.examBlanc = 'reserve';
   else if((m = t.match(/Examen blanc à prévoir dans (\d+)/i))){ r.examBlanc='aprevoir'; r.examBlancN=+m[1]; }
   else if(/Examen blanc à prévoir dès la prochaine/i.test(t)){ r.examBlanc='aprevoir'; r.examBlancN=0; }
