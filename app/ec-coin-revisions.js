@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:05 — v1325 */
+/* Déployé le 05/11/2026 à 08:55 — v1357 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -263,6 +263,8 @@ async function cvLire(nom){
     appelPrep({ action: 'parcoursList' }).catch(() => null)
   ]);
   const acces = ((dA && dA.acces) || []).find(x => cvNorm(x.eleve) === cvNorm(nom)) || null;
+  /* 🔑 v1357 — la même lecture tient l'état « accès reçu » à jour */
+  if(typeof lireEtatAcces === 'function') lireEtatAcces(dA);
   const fiche = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
   return {
     nom: nom, acces: acces,
@@ -387,6 +389,11 @@ async function cvEnvoyer(nom, z, adresseDepart){
       faits.push('sa messagerie');
     }catch(e){ rates.push('messagerie : ' + e.message); }
   }
+  /* 🔑 v1357 — noté : « ✉️ accès envoyé le … » dans le répertoire et son dossier */
+  if(faits.length && typeof noterEnvoiAcces === 'function'){
+    await noterEnvoiAcces(nom, faits.map(x => /^mail/.test(x) ? 'mail' : 'messagerie').join(','));
+    if(typeof rafraichirPastilleAcces === 'function') rafraichirPastilleAcces();
+  }
   if(rates.length){ dire('❌ ' + rates.join(' · ') + (faits.length ? ' — parti : ' + faits.join(' et ') : ''), true); return faits.length > 0; }
   showToast('Envoyé : ' + faits.join(' et ') + ' ✅');
   return true;
@@ -415,6 +422,7 @@ function cvBouton(txt, cls, fn){
 
 /* ✉️ « Lui envoyer son accès » — depuis sa carte ou l'écran des Codes */
 async function fenetreAccesEleve(nom, apres){
+  apres = apres || (() => { const z = document.querySelector('[data-cv-zone]'); if(z && z._redessiner) z._redessiner(); });
   const W = cvBoite('✉️ Lui envoyer son accès');
   const att = document.createElement('div');
   att.style.cssText = 'font-size:13px;color:var(--muted);';
@@ -715,9 +723,11 @@ async function afficherEspaceEleve(nom, zone){
   /* ── l'en-tête : état, formation, code ── */
   const t = document.createElement('div');
   t.className = 'cvT';
+  /* 🔑 v1357 — « vu le / jamais venu » passe dans le suivi, juste dessous */
+  const suivi = (typeof suiviAccesCarte === 'function' && acces.actif) ? suiviAccesCarte(nom, acces, redessiner) : null;
   t.innerHTML = '<div class="n"><strong>' + (acces.actif ? '🔓' : '🔒') + ' Coin révisions</strong><small>' +
-      (acces.derniereVisite ? 'vu le ' + cvEch(acces.derniereVisite) : 'jamais venu') +
-      (L.formation ? ' · ' + cvEch(L.formation) : '') +
+      (suivi ? '' : (acces.derniereVisite ? 'vu le ' + cvEch(acces.derniereVisite) : 'jamais venu')) +
+      (L.formation ? (suivi ? '' : ' · ') + cvEch(L.formation) : '') +
       (acces.langue ? ' · 🌍 ' + cvEch(acces.langue) : '') + '</small></div>' +
     /* ⚠️ MASQUÉ, RÉVÉLÉ AU CLIC — le code se demande pour cet élève-là,
        et la demande laisse une trace au journal (accesEleveCode). */
@@ -733,11 +743,17 @@ async function afficherEspaceEleve(nom, zone){
   };
   zCode.addEventListener('click', montrerCode);
   bCode.addEventListener('click', montrerCode);
+  if(suivi) carte.appendChild(suivi.el);
+  zone.setAttribute('data-cv-zone', '1');
+  zone._redessiner = redessiner;
 
   /* ── ✉️ lui envoyer son accès · 👀 lui montrer son espace ── */
   const bt = document.createElement('div');
   bt.className = 'cvBtns';
-  const bEnv = cvBouton('✉️ Lui envoyer son accès', 'btn-primary', () => fenetreAccesEleve(nom));
+  /* déjà parti : on le renvoie, en bouton secondaire */
+  const bEnv = (suivi && suivi.envoye)
+    ? cvBouton('✉️ Renvoyer son accès', 'btn-secondary', () => fenetreAccesEleve(nom, redessiner))
+    : cvBouton('✉️ Lui envoyer son accès', 'btn-primary', () => fenetreAccesEleve(nom, redessiner));
   bEnv.dataset.envoyerAcces = '1';
   bt.appendChild(bEnv);
   /* 👀 v1256 — ouvrir son espace pour le lui montrer. SON CODE NE PASSE
