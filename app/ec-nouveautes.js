@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 08:55 — v1357 */
+/* Déployé le 05/11/2026 à 09:42 — v1358 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1358,
+    date: 'Jeudi 5 novembre 2026',
+    resume: '🅱️ Examen blanc réservé : la date ET dans combien de leçons',
+    quoi: [
+      { emoji: '🅱️',
+        titre: 'Dans combien de leçons',
+        texte: 'La ligne « EXAMEN BLANC RÉSERVÉ le … » dit aussi « — dans 2 leçons », le nombre saisi au ✏️ du questionnaire. Frise dépassée, c’est ce nombre qui compte (la frise ne répond plus « la prochaine fois » à sa place).' }
+    ]
+  },
   {
     version: 1357,
     date: 'Jeudi 5 novembre 2026',
