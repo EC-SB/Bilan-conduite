@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 04/11/2026 à 17:11 — v1356 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -15,6 +15,11 @@
 
 let resultatsEtg = [];
 let baremesEtg = {};
+/* 🎥 v1356 — les liens des Google Forms (lus dans le classeur par
+   Apps Script) et les présences en visio (D1), pour la grille */
+let formulairesEtg = {};
+let presencesVisioEtg = {};
+let presencesVisioListe = [];
 let filtreEleveEtg = '';
 
 /* Ce qu'on montre au chargement : ceux venus dans le dernier
@@ -37,10 +42,20 @@ async function afficherCodeSalle(){
 
   zone.innerHTML = htmlAttente('Lecture des séances de code…');
   try{
-    const d = await appelPrep({ action: 'seancesEtg' });
+    const [d, pv] = await Promise.all([
+      appelPrep({ action: 'seancesEtg' }),
+      appelPrep({ action: 'visioPresences' }).catch(() => null)
+    ]);
     if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
     resultatsEtg = (d && d.resultats) || [];
     baremesEtg = (d && d.baremes) || {};
+    formulairesEtg = (d && d.formulaires) || {};
+    presencesVisioEtg = {};
+    presencesVisioListe = (pv && pv.presences) || [];
+    presencesVisioListe.forEach(p => {
+      const k = motsEleveEtg(p.eleve) + '#' + p.numero;
+      if(!presencesVisioEtg[k] || p.jour > presencesVisioEtg[k]) presencesVisioEtg[k] = p.jour || '?';
+    });
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' +
       String(e.message || e).replace(/</g, '&lt;') + '</div>';
@@ -49,15 +64,24 @@ async function afficherCodeSalle(){
 
   zone.innerHTML = '';
 
-  if(!resultatsEtg.length){
-    zone.innerHTML = '<div class="empty">Aucune séance enregistrée.<br>' +
+  /* 🎥 v1356 — le cours en visio : sa carte sous « 🎯 Quelle séance
+     lancer ? » (en tête quand il n'y a encore aucun résultat) */
+  const visio = (typeof carteVisioCode === 'function' && aDroit('visio_code')) ? carteVisioCode() : null;
+
+  if(!resultatsEtg.length && !presencesVisioListe.length){
+    if(visio) zone.appendChild(visio);
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune séance enregistrée.<br>' +
       '<span style="font-size:12px;">Les résultats arrivent depuis les ' +
-      'formulaires scannés en salle.</span></div>';
+      'formulaires scannés en salle.</span>';
+    zone.appendChild(v);
     return;
   }
 
   /* Quelle séance lancer : celle que le moins d'élèves ont faite */
   zone.appendChild(blocSeanceALancer());
+  if(visio) zone.appendChild(visio);
 
   /* La période : le dernier mois d'abord, tout si on le demande */
   const bp = document.createElement('div');
@@ -99,6 +123,15 @@ async function afficherCodeSalle(){
 }
 
 
+/* 🎥 Un élève, quel que soit l'ordre de ses mots (« Léa Martin » et
+   « MARTIN Léa » : le formulaire et la fiche) */
+function motsEleveEtg(n){
+  return normaliserMot(String(n || '')).split(/\s+/).filter(Boolean).sort().join(' ');
+}
+function presenceVisioEtg(nom, n){
+  return presencesVisioEtg[motsEleveEtg(nom) + '#' + n] || '';
+}
+
 /* La date à partir de laquelle on regarde */
 function debutPeriodeEtg(){
   if(periodeEtg === 'tout') return '';
@@ -138,6 +171,18 @@ function elevesEtg(){
        celui qui compte pour l'élève. */
     const avant = par[cle].seances[r.seance];
     if(!avant || r.fautes < avant.fautes) par[cle].seances[r.seance] = r;
+  });
+
+  /* 🎥 v1356 — venu en visio sans avoir encore rendu de questionnaire :
+     il a sa ligne quand même (sinon sa présence ne se verrait nulle part) */
+  const mots = {};
+  Object.keys(par).forEach(k => { mots[motsEleveEtg(par[k].nom)] = true; });
+  presencesVisioListe.forEach(p => {
+    if(depuis && p.jour && p.jour < depuis) return;
+    const m = motsEleveEtg(p.eleve);
+    if(!m || mots[m]) return;
+    mots[m] = true;
+    par['visio:' + m] = { nom: p.eleve, seances: {} };
   });
 
   return Object.keys(par)
@@ -330,12 +375,15 @@ function dessinerGrilleEtg(){
     for(let n = 1; n <= NB_SEANCES; n++){
       const r = e.seances[n];
       const td = document.createElement('td');
+      const enVisio = presenceVisioEtg(e.nom, n);
+      const jourVisio = enVisio && enVisio !== '?' ? ' le ' + enVisio.split('-').reverse().join('/') : '';
 
       if(!r){
         td.style.cssText = 'padding:5px 3px;text-align:center;' +
           'border-left:1px solid var(--line);color:var(--muted);cursor:pointer;';
-        td.textContent = '·';
-        td.title = 'Séance ' + n + ' — pas encore faite. Appuie pour saisir.';
+        td.textContent = enVisio ? '🎥' : '·';
+        td.title = 'Séance ' + n + (enVisio ? ' — suivie en visio' + jourVisio + ', questionnaire pas encore reçu.'
+                                            : ' — pas encore faite.') + ' Appuie pour saisir.';
         td.addEventListener('click', () => ouvrirSaisieEtg(e.nom, n, null));
       }else{
         faites++;
@@ -351,7 +399,14 @@ function dessinerGrilleEtg(){
           ' · ' + r.fautes + ' faute(s)' +
           (r.date ? ' · ' + r.date.split('-').reverse().join('/') : '') +
           (r.corrige ? ' · saisi à la main' : '') +
+          (enVisio ? ' · 🎥 suivie en visio' + jourVisio : '') +
           '. Appuie pour corriger.';
+        if(enVisio){
+          const sv = document.createElement('sup');
+          sv.textContent = '🎥';
+          sv.style.cssText = 'font-size:8px;margin-left:1px;';
+          td.appendChild(sv);
+        }
         td.addEventListener('click', () => ouvrirSaisieEtg(e.nom, n, r));
       }
       tr.appendChild(td);
@@ -380,7 +435,8 @@ function dessinerGrilleEtg(){
     '<span style="color:var(--red);">plus de 6</span>.<br>' +
     'Appuie sur une case pour corriger un score, ou en saisir un ' +
     'qui ne s\'est pas enregistré. Une étoile signale une saisie ' +
-    'à la main.<br>Une séance repassée garde son meilleur résultat.';
+    'à la main.<br>Une séance repassée garde son meilleur résultat.' +
+    '<br>🎥 : suivie en cours de code en visio (présent dès qu\'il a rejoint).';
   zone.appendChild(aide);
 }
 
