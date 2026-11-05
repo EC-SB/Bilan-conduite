@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 13:36 — v1353 */
+/* Déployé le 04/11/2026 à 17:11 — v1356 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -60,6 +60,8 @@ const DELAI_ORDINAIRE = 25000;
    On n'y remet pas celles qui valent le délai ordinaire : le même
    nombre écrit à deux endroits finit toujours par n'en suivre qu'un. */
 const ACTIONS_LOURDES = { elevesImport: 90000,
+                          /* 🎥 v1356 — un mail par élève, par le serveur de l'école */
+                          visioMail: 90000, visioLancer: 30000,
                           /* 🅿️ v1346 — un contrat de garage en PDF (jusqu'à 10 Mo) */
                           garagePdf: 90000,
                           /* 🛒 v1348 — le site : lire tous les produits, envoyer un JPG */
@@ -118,7 +120,9 @@ const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                       'ecranPhotoPoser',
                       /* ✉️ v1243 — le mail d'un courrier ne part qu'une fois ;
                          une signature ne se dépose qu'une fois */
-                      'courrierFinir', 'courrierImagePoser'];
+                      'courrierFinir', 'courrierImagePoser',
+                      /* 🎥 v1356 — un cours lancé deux fois, des mails partis deux fois */
+                      'visioLancer', 'visioMail'];
 
 /* ⚠️ NE PAS EMPILER UN RAFRAÎCHISSEMENT SUR UN CLASSEUR QUI RÉPOND
    DÉJÀ — v949.
