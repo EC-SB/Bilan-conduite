@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 04/11/2026 à 15:07 — v1355 -->
+<!-- Déployé le 04/11/2026 à 17:11 — v1356 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1554,6 +1554,17 @@
   .ckCarte .row button + button{ background:transparent; color:var(--kt); border-color:var(--kl); }
   .ckCarte .fait{ margin-top:8px; font-weight:800; color:var(--kd); }
   .ckCarte .fait.oui{ color:var(--knt); }
+  /* 🎥 v1356 — le cours de code en visio */
+  .vsAccueil{ border-color:var(--orange); }
+  .vsAccueil .vsLab{ display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.12em; font-weight:800; color:var(--accent-text); }
+  .vsAccueil .vsLab i{ width:9px; height:9px; border-radius:50%; background:#FF5C33; display:inline-block; animation:vsBatE 1.4s infinite; }
+  @keyframes vsBatE{ 50%{ opacity:.3; } }
+  .vsAccueil .vsTitre{ font-size:19px; font-weight:800; margin:6px 0 2px; }
+  .vsAccueil .vsMot{ font-size:13px; color:var(--muted); line-height:1.5; margin:0 0 12px; }
+  .vsAccueil .btn{ margin:0 0 8px; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .vsAccueil .vsLienQ{ display:block; text-align:center; font-size:13px; color:var(--accent-text); padding:6px 0 2px; }
+  .vsAccueil.fini{ border-color:var(--line); }
+  .ckCarte .lab.vsLabFil{ color:var(--accent-text); }
   /* 📞 v1183 — les appels : boutons d'en-tête, cartes, trace */
   .ckTop .rond.apBtEl{ color:var(--accent-text); }
   .ckCarte .lab.apLab{ display:flex; align-items:center; gap:6px; }
@@ -1952,6 +1963,9 @@
     </div>
 
     <div id="ongletAccueil">
+    <!-- 🎥 v1356 — le cours de code en visio : tout en haut quand il a
+         commencé (ou quand on arrive par son lien) -->
+    <div class="card vsAccueil" id="carteVisio" style="display:none;"></div>
     <!-- 📣 Les annonces — v1038, étape 6. En TÊTE de l'accueil :
          « le bureau sera fermé samedi » est exactement ce qu'on veut
          voir en ouvrant l'application, pas au bas d'un défilement. -->
@@ -2171,7 +2185,7 @@
 </div>
 
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
-<script src="appel-commun.js?v=1186"></script>
+<script src="appel-commun.js?v=1356"></script>
 <script>
 (function(){
   'use strict';
@@ -3510,6 +3524,8 @@
     }
     dessinerLesOnglets();
     if(ouvert('messages')) demarrerMessages();
+    /* 🎥 v1356 — le cours de code en visio (le lien, ou un cours en cours) */
+    demarrerVisioEl();
     /* 🎮 v1256 — la partie d'essai s'ouvre sur le jeu */
     if(MODE_ESSAI) allerAOnglet('verifs');
   }
@@ -7341,6 +7357,7 @@
   function carteAppelEl(){
     var a = filEl && filEl.appel;
     if(!a || a.fini || !appelsPossiblesEl()) return '';
+    if(a.genre === 'cours') return carteCoursDuFilEl(a);
     var video = a.genre !== 'vocal';
     var ic = video ? 'camera' : 'tel';
     var gens = a.gens || [];
@@ -7416,6 +7433,8 @@
         if(!a) return;
         var quoi = b.getAttribute('data-ap');
         if(quoi === 'revenir'){ window.AppelEC.revenir(); return; }
+        /* 🎥 un cours de code : on le rejoint en élève qui regarde */
+        if(a.genre === 'cours'){ rejoindreVisioEl('', a.id, b); return; }
         if(quoi === 'non'){
           refuserAppelEl(a.id).then(function(){ if(filEl) dessinerFilEleve(); });
           return;
@@ -7451,6 +7470,139 @@
     appeler({ action: 'eleveAppelsSonnent', eleve: moi.nom, code: moi.code })
       .then(function(d){ verifierLesSonneriesEl((d && d.appels) || []); })
       .catch(function(){});
+  }
+
+  /* ============================================================
+     🎥 LE COURS DE CODE EN VISIO — v1356
+
+     David, le 4 novembre : les élèves au code suivent le cours en
+     visio ; ils regardent (pas de caméra), parlent au début, lèvent
+     la main ✋, et répondent au questionnaire de la séance « sans
+     changer de page ». Le lien arrive dans leur messagerie, sur
+     Messenger ou par mail : « …#visio=v… ». Il ouvre son espace
+     (avec son code s'il n'est pas connecté) et la carte du cours
+     est tout en haut de l'accueil.
+
+     ⚠️ LE LIEN VAUT INVITATION : le Worker l'ajoute au cours s'il
+     n'était pas coché (dans la limite des places).
+     ============================================================ */
+  var VISIO_ADRESSE_EL = '';
+  var visioEl = null;
+  var visioMinuteurEl = 0;
+  var visioErreurEl = '';
+  function lireVisioDeLAdresseEl(){
+    var m = String(location.hash || '').match(/(?:#|&)visio=([a-z0-9]{6,40})(?:&|$)/i);
+    if(m) VISIO_ADRESSE_EL = m[1];
+    return !!m;
+  }
+  lireVisioDeLAdresseEl();
+  window.addEventListener('hashchange', function(){
+    if(lireVisioDeLAdresseEl() && moi && moi.code){
+      try{ allerAOnglet('accueil'); }catch(e){}
+      lireVisioEl();
+    }
+  });
+
+  function demarrerVisioEl(){
+    if(MODE_ESSAI || MODE_SALLE || ACCOMP) return;
+    if(VISIO_ADRESSE_EL){ try{ allerAOnglet('accueil'); }catch(e){} }
+    lireVisioEl();
+    if(!visioMinuteurEl){
+      visioMinuteurEl = setInterval(function(){
+        if(document.hidden || !moi || !moi.code) return;
+        if(window.AppelEC && window.AppelEC.enCours && window.AppelEC.enCours()) return;
+        lireVisioEl();
+      }, 30000);
+    }
+  }
+
+  function lireVisioEl(){
+    if(!moi || !moi.code) return;
+    appeler({ action: 'eleveVisio', eleve: moi.nom, code: moi.code, seance: VISIO_ADRESSE_EL })
+      .then(function(d){ visioEl = d || {}; visioErreurEl = ''; dessinerVisioEl(); })
+      .catch(function(){ /* la carte attendra le prochain tour */ });
+  }
+
+  function dessinerVisioEl(){
+    var z = $('carteVisio');
+    if(!z) return;
+    var v = visioEl && visioEl.visio;
+    var ici = window.AppelEC && window.AppelEC.enCours && window.AppelEC.enCours();
+    z.className = 'card vsAccueil';
+    if(!v){
+      if(visioEl && visioEl.inconnu && VISIO_ADRESSE_EL){
+        z.className += ' fini';
+        z.innerHTML = '<div class="vsLab">🎥 COURS DE CODE EN VISIO</div>' +
+          '<div class="vsMot" style="margin:8px 0 0">Ce lien de cours n’existe pas (ou plus). Demande le nouveau lien à l’auto-école.</div>';
+        z.style.display = '';
+        return;
+      }
+      z.style.display = 'none'; z.innerHTML = '';
+      return;
+    }
+    if(v.fini){
+      if(!VISIO_ADRESSE_EL || VISIO_ADRESSE_EL !== v.seance){ z.style.display = 'none'; z.innerHTML = ''; return; }
+      z.className += ' fini';
+      z.innerHTML = '<div class="vsLab">🎥 COURS DE CODE EN VISIO</div>' +
+        '<div class="vsTitre">Séance ' + echapper(v.numero) + ' : terminée</div>' +
+        '<div class="vsMot">' + (v.present ? 'Tu étais là ✅. ' : '') + 'Merci, à la prochaine séance !</div>' +
+        (v.formulaire ? '<a class="vsLienQ" href="' + echapper(v.formulaire) + '" target="_blank" rel="noopener">📝 Le questionnaire de la séance</a>' : '');
+      z.style.display = '';
+      return;
+    }
+    var dedans = ici && ici.cours;
+    z.innerHTML = '<div class="vsLab"><i></i>TON COURS DE CODE EN VISIO A COMMENCÉ</div>' +
+      '<div class="vsTitre">Séance ' + echapper(v.numero) + (v.par ? ' · avec ' + echapper(v.par) : '') + '</div>' +
+      '<div class="vsMot">Pas de caméra : tu regardes le cours. Ton micro est ouvert au début pour dire bonjour ; ' +
+        'ensuite, lève la main ✋ pour parler.' + (v.formulaire ? ' Le questionnaire s’ouvre à côté du cours.' : '') + '</div>' +
+      '<button type="button" class="btn btn-primary" id="btVisioRejoindre">' +
+        (window.AppelEC ? window.AppelEC.ic(dedans ? 'agrandir' : 'camera', 18) : '') +
+        (dedans ? 'Revenir au cours' : 'Rejoindre le cours') + '</button>' +
+      (visioErreurEl ? '<div class="vsMot" style="color:var(--warn-text);margin:4px 0 0">' + echapper(visioErreurEl) + '</div>' : '') +
+      (!appelsPossiblesEl() ? '<div class="vsMot" style="color:var(--warn-text);margin:4px 0 0">Ce navigateur ne sait pas suivre une visio : ' +
+        'ouvre ce lien avec Chrome ou Safari à jour.</div>' : '');
+    z.style.display = '';
+    var b = $('btVisioRejoindre');
+    if(b) b.addEventListener('click', function(){
+      if(dedans){ window.AppelEC.revenir(); return; }
+      rejoindreVisioEl(v.seance, '', b);
+    });
+  }
+
+  function rejoindreVisioEl(seance, appelId, bouton){
+    if(!appelsPossiblesEl()) return;
+    if(bouton) bouton.disabled = true;
+    appeler({ action: 'eleveVisioBillet', eleve: moi.nom, code: moi.code, seance: seance || '', appel: appelId || '' })
+      .then(function(r){
+        if(bouton) bouton.disabled = false;
+        window.AppelEC.ouvrir({
+          route: RELAIS + '/appel', billet: r.billet, appel: r.appel, genre: 'video',
+          titre: '🎥 Code — séance ' + r.numero, eleve: true, sansCamera: true,
+          cours: { numero: r.numero, questionnaire: r.formulaire || '', par: r.par || '' },
+          surFin: function(){ setTimeout(lireVisioEl, 1500); if(filEl) setTimeout(function(){ if(filEl) rafraichirLeFilEleve(true); }, 1500); }
+        });
+        setTimeout(dessinerVisioEl, 300);
+      })
+      .catch(function(e){
+        if(bouton) bouton.disabled = false;
+        visioErreurEl = (e && e.message) || 'Impossible de rejoindre le cours.';
+        dessinerVisioEl();
+        if(filEl) dire('msgFil', visioErreurEl, 'erreur');
+        lireVisioEl();
+      });
+  }
+
+  /* La carte, dans le groupe de la messagerie */
+  function carteCoursDuFilEl(a){
+    var enCours = window.AppelEC.enCours && window.AppelEC.enCours();
+    var ici = enCours && enCours.appel === a.id;
+    return '<div class="ckCarte" id="apCarteEl" data-appel="' + echapper(a.id) + '" data-genre="video">' +
+      '<div class="lab apLab vsLabFil">' + window.AppelEC.ic('camera', 14) + 'COURS DE CODE EN VISIO</div>' +
+      '<div class="v">' + echapper(a.par ? 'Avec ' + a.par : 'Le cours a commencé') + '</div>' +
+      '<div class="avec">Pas de caméra : tu regardes le cours.</div>' +
+      '<div class="row"><button type="button" class="apBt" data-ap="' + (ici ? 'revenir' : 'oui') + '">' +
+        window.AppelEC.ic(ici ? 'agrandir' : 'camera', 18) + (ici ? 'Revenir au cours' : 'Rejoindre le cours') + '</button></div>' +
+      '</div>';
   }
 
   /* ============================================================
