@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 04/11/2026 à 17:11 — v1356 -->
+<!-- Déployé le 05/11/2026 à 15:04 — v1359 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -276,6 +276,13 @@
   .salleMsg{ font-size:14px; color:var(--warn-text); margin-top:10px; min-height:20px; line-height:1.5; }
   .salleCodeChamp{ text-align:center; letter-spacing:.4em; font-size:28px; }
   .salleBravo{ font-size:24px; font-weight:800; margin:6px 0 12px; }
+  /* 📚 v1359 — réviser en salle */
+  .salleCote{ display:flex; flex-direction:column; gap:18px; min-width:0; }
+  .salleCote .card{ margin:0; }
+  .salleRev{ border:2px solid var(--orange); }
+  .salleRevCarte{ max-width:860px; margin:24px auto; }
+  .salleRevCarte .salleEqChamp{ margin-bottom:14px; }
+  .salleRevPied{ font-size:13.5px; margin-top:14px; }
   .bandeauDemo.salleBandeau{ background:var(--orange); color:var(--on-accent); font-size:15px; font-weight:800; }
   .bandeauDemo.salleBandeau button{ background:#0B0B0B; color:#fff; border-color:#0B0B0B; font-size:14px; }
   .maSalle{ border:2px solid var(--orange); border-radius:14px; padding:14px; margin-bottom:12px; }
@@ -2192,6 +2199,19 @@
 
   var RELAIS = 'https://bilan-proxy.evolutionconduites.workers.dev';
 
+  /* 📚 v1359 — LE PRÉNOM D'UN NOM. Les fiches s'écrivent « NOM Prénom »
+     (« BERNARD Jade ») : le premier mot était le nom de famille
+     (« BERNARD, ton code », « Bonjour BERNARD »). Le premier mot qui
+     n'est pas tout en capitales ; sans capitales du tout, le premier. */
+  function prenomDeLEleve(nom){
+    var m = String(nom || '').trim().split(/\s+/).filter(Boolean);
+    if(!m.length) return '';
+    var capitales = function(w){ return w.length > 1 && w === w.toUpperCase() && w !== w.toLowerCase(); };
+    if(!capitales(m[0])) return m[0];
+    for(var i = 1; i < m.length; i++) if(!capitales(m[i])) return m[i];
+    return m[0];
+  }
+
   var moi = { nom: '', code: '' };
   var procedures = [];
   var demandes = [];
@@ -2377,7 +2397,7 @@
   function salleLire(cle){ try{ return JSON.parse(localStorage.getItem(cle) || 'null'); }catch(e){ return null; } }
   function salleGarder(cle, v){ try{ if(v) localStorage.setItem(cle, JSON.stringify(v)); else localStorage.removeItem(cle); }catch(e){} }
   function salleHeure(ms){ var d = new Date(ms); return d.getHours() + 'h' + ('0' + d.getMinutes()).slice(-2); }
-  function sallePrenom(n){ return String(n || '').trim().split(/\s+/)[0] || ''; }
+  function sallePrenom(n){ return prenomDeLEleve(n); }
 
   /* L'écran de la tablette, par-dessus la page quand il n'y a pas de séance */
   function salleEcran(){
@@ -2392,6 +2412,10 @@
     $('vueConnexion').classList.add('cache');
     $('vueEleve').classList.add('cache');
     var b = $('bandeauDemo'); if(b) b.parentNode.removeChild(b);
+    /* 📚 v1359 — la barre des onglets de la séance (🎬 / 🧰 en révision)
+       ne reste pas sous l'accueil ; la séance suivante la redessine */
+    var lo = $('lesOnglets'); if(lo) lo.style.display = 'none';
+    document.body.classList.remove('avecbarre');
     return e;
   }
   function salleEntete(sous){
@@ -2441,6 +2465,7 @@
   /* ② l'accueil */
   var salleListe = [];
   function salleAccueil(msg){
+    salleRechFin();
     SALLE = null;
     salleGarder(CLE_SEANCE, null);
     if(salleMinuteur){ clearTimeout(salleMinuteur); salleMinuteur = null; }
@@ -2450,11 +2475,17 @@
       '<div class="salleColonnes"><div class="card salleCarte salleGrande"><div class="section-title">👋 Bonjour ! Touche ton nom</div>' +
       '<div class="salleTexte">Tu reviens pour la suite de ton cours de théorie : touche ton nom, puis tape ton <b>jour et ton mois de naissance</b>.</div>' +
       '<div id="salleNoms" class="salleNoms"><div class="empty">⏳ …</div></div></div>' +
+      '<div class="salleCote">' +
+      /* 📚 v1359 — celui qui a fini sa salle vient réviser */
+      '<div class="card salleCarte salleRev"><div class="section-title">📚 Tu as fini ta salle ?</div>' +
+      '<div class="salleTexte">Viens réviser tes groupes ici, au calme : touche le bouton, cherche ton nom, puis ton jour et mois de naissance.</div>' +
+      '<button type="button" class="btn btn-primary" id="salleBtReviser">📚 Je viens réviser</button></div>' +
       '<div class="card salleCarte"><div class="section-title">🆕 La première fois ?</div>' +
       '<div class="salleTexte">Demande à l’équipe de t’installer : ton cours s’ouvrira ici tout seul.</div>' +
       '<button type="button" class="btn btn-primary" id="salleBtEquipe">🔑 L’équipe : installer un élève ici</button>' +
-      '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div></div>';
+      '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div></div></div>';
     $('salleBtEquipe').addEventListener('click', function(){ salleEquipeCode(''); });
+    $('salleBtReviser').addEventListener('click', function(){ salleReviserEcran(); });
     salleVeiller(true);
   }
   function salleVeiller(maintenant){
@@ -2589,6 +2620,8 @@
      (la même règle que la fenêtre de l'appli, ec-salle.js › slGroupesPour) */
   function salleNormE(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
   function salleCleE(t){ return salleNormE(t).split(/[\s-]+/).filter(Boolean).sort().join(' '); }
+  /* 📚 v1359 — la clé du Worker (normaliser) : celle de salle_eleves */
+  function salleNormW(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
   function salleGroupesPourE(formation){
     var f = salleNormE(formation), prog = ((EQUIPE_SALLE.d.programme || {}).groupes) || [];
     var pourLui = function(g){ return (g.formations || []).some(function(x){ return salleNormE(x) === f; }); };
@@ -2630,13 +2663,18 @@
     var choix = null;
     function majEleve(){
       var fi = ficheDe(ie.value.trim());
+      /* 📚 v1359 — le même élève (le champ perd le focus quand on touche « 2 h ») : on garde ce qui est choisi */
+      if(fi && choix && choix.eleve === fi.eleve) return;
       info.innerHTML = ''; choix = null; bG.disabled = true;
       if(!ie.value.trim()) return;
       if(!fi){ info.innerHTML = '<div class="salleTexte">⚠️ Pas de fiche à ce nom : choisis-le dans la liste.</div>'; return; }
       var gp = salleGroupesPourE(fi.formation);
       var ex = (d.eleves || []).find(function(x){ return salleCleE(x.eleve) === salleCleE(fi.eleve); });
       choix = { eleve: fi.eleve, formation: fi.formation || '', naissance: fi.ddmm ? '2000-' + fi.ddmm.slice(2) + '-' + fi.ddmm.slice(0, 2) : '', salle: gp.salle, ensuite: gp.ensuite, duree: 60 };
-      if(ex && ex.fini){ info.innerHTML = '<div class="salleTexte">✅ ' + echapper(fi.eleve) + ' a déjà fini la salle : ses groupes sont ouverts.</div>'; return; }
+      bG.textContent = '▶ Lancer sur cette tablette';
+      /* 📚 v1359 — salle finie, ou rien en salle pour sa formation : il vient réviser */
+      var fini = (ex && ex.fini) || (d.finisCles || []).indexOf(salleNormW(fi.eleve)) !== -1;
+      if(fini || (!gp.salle.length && !(ex && !ex.fini))){ revisionDe(fi, ex, fini); return; }
       if(!gp.salle.length){ info.innerHTML = '<div class="salleTexte">⚠️ Rien n’est au programme de la salle pour sa formation (' + echapper(fi.formation || 'non renseignée') + ').</div>'; return; }
       var l = ['🎓 Sa formation : <b>' + echapper(fi.formation || 'non renseignée') + '</b>',
                '📺 En salle : ' + gp.salle.map(puce).join(''),
@@ -2665,6 +2703,30 @@
       if(dn) dn.addEventListener('input', function(){ choix.naissance = dn.value; });
       bG.disabled = false;
     }
+    /* 📚 v1359 — la révision : ses groupes ouverts et le jeu des vérifications, 1 h ou 2 h */
+    function revisionDe(fi, ex, fini){
+      choix.revision = true; choix.duree = 60;
+      var fj = ex && ex.finiLe ? new Date(Number(ex.finiLe)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '';
+      var h = '<div class="salleEqLignes">' +
+        (fini ? '✅ <b>A fini la salle</b>' + (fj ? ' le ' + fj : '') + ' : ses groupes sont ouverts.'
+              : '📚 Rien n’attend la salle pour sa formation (' + echapper(fi.formation || 'non renseignée') + ').') +
+        '<br>📚 Il vient réviser : ses groupes ouverts et le jeu des vérifications, comme chez lui.</div>';
+      if(fi.ddmm) h += '<div class="salleTexte">🔒 Pour revenir seul réviser : son jour et mois de naissance, <b>' + fi.ddmm + '</b> (' + fi.ddmm.slice(0, 2) + '/' + fi.ddmm.slice(2) + '). Dis-le-lui.</div>';
+      else h += '<label for="salleEqNaiss" class="salleEqLabel">Sa date de naissance (son code pour revenir seul réviser)</label><input type="date" id="salleEqNaiss" class="salleEqChamp">';
+      h += '<div class="salleEqSous">⏱️ Sa révision</div><div class="salleEqPuces" id="salleEqDuree">' + [['60', '1 h'], ['120', '2 h']].map(function(o, i){
+        return '<button type="button" class="salleEqChoix' + (i === 0 ? ' on' : '') + '" data-d="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
+      info.innerHTML = h;
+      info.querySelectorAll('#salleEqDuree button').forEach(function(b){
+        b.addEventListener('click', function(){
+          info.querySelectorAll('#salleEqDuree button').forEach(function(x){ x.classList.toggle('on', x === b); });
+          choix.duree = Number(b.getAttribute('data-d'));
+        });
+      });
+      var dn = $('salleEqNaiss');
+      if(dn) dn.addEventListener('input', function(){ choix.naissance = dn.value; });
+      bG.textContent = '📚 Lancer sa révision sur cette tablette';
+      bG.disabled = false;
+    }
     ie.addEventListener('change', majEleve);
     ie.addEventListener('input', function(){ if(ficheDe(ie.value.trim())) majEleve(); });
     e.querySelectorAll('.salleEqPuces [data-nom]').forEach(function(b){
@@ -2673,18 +2735,22 @@
     $('salleEqAnnuler').addEventListener('click', function(){ salleEquipeFin(''); });
     bG.addEventListener('click', function(){
       if(!choix) return;
-      bG.disabled = true; bG.textContent = '…';
+      bG.disabled = true;
+      var avant = bG.textContent;
+      bG.textContent = '…';
       appelEquipe('/sheets', { action: 'salleInstallerEleve', tablette: t.id, eleve: choix.eleve, formation: choix.formation,
-                               naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree })
-        .then(function(){ salleEquipeFin('▶ ' + choix.eleve + ' : son cours s’ouvre…'); })
-        .catch(function(er){ bG.disabled = false; bG.textContent = '▶ Lancer sur cette tablette'; $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.'; });
+                               naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree, revision: choix.revision ? 1 : 0 })
+        .then(function(){ salleEquipeFin(choix.revision ? '📚 ' + choix.eleve + ' : sa révision s’ouvre…' : '▶ ' + choix.eleve + ' : son cours s’ouvre…'); })
+        .catch(function(er){ bG.disabled = false; bG.textContent = avant; $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.'; });
     });
   }
 
   /* son jour et son mois de naissance */
-  function salleCode(x){
+  function salleCode(x, genre){
+    salleRechFin();
     var e = salleEcran();
     var tape = '';
+    var revision = genre === 'revision';
     e.innerHTML = salleEntete(salleSous()) +
       '<div class="card salleCarte salleMilieu"><div class="section-title">🔒 ' + echapper(sallePrenom(x.eleve)) + ', ton code</div>' +
       '<div class="salleTexte">Ton <b>jour</b> puis ton <b>mois</b> de naissance : « 0903 » pour le 9 mars.</div>' +
@@ -2699,7 +2765,7 @@
     function valider(){
       if(tape.length !== 4){ $('salleMsg').textContent = 'Quatre chiffres : ton jour, puis ton mois.'; return; }
       $('salleMsg').textContent = '⏳ …';
-      appeler({ action: 'salleEntrer', tablette: TABLETTE.jeton, eleve: x.cle, code: tape }).then(function(d){
+      appeler({ action: revision ? 'salleReviser' : 'salleEntrer', tablette: TABLETTE.jeton, eleve: x.cle, code: tape }).then(function(d){
         salleCommencer(d.seance);
       }).catch(function(er){ tape = ''; montrerCases(); $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.'; });
     }
@@ -2713,15 +2779,90 @@
         if(tape.length === 4) valider();
       });
     });
-    $('salleRetour').addEventListener('click', function(){ salleAccueil(''); });
+    $('salleRetour').addEventListener('click', function(){ if(revision) salleReviserEcran(); else salleAccueil(''); });
     montrerCases();
   }
+
+  /* ============================================================
+     📚 RÉVISER EN SALLE — v1359
+
+     David, le 5 novembre : des élèves viennent réviser d'autres groupes
+     sur les tablettes, plutôt que chez eux. Ses réponses au schéma : le
+     bouton puis la recherche par nom ; ses groupes et le jeu des
+     vérifications ; 1 h ; pas de Drivup ; « tout le monde » (celui qui
+     n'a pas fini son cours de salle le continue, à gauche de l'accueil) ;
+     le suivi comme chez lui, avec « 📺 en salle » sur ce qu'il y coche.
+
+     La recherche demande au Worker (deux lettres au moins, douze noms
+     au plus) : aucune liste de tous les élèves n'arrive sur la tablette.
+     Deux minutes sans rien toucher : retour à l'accueil.
+     ============================================================ */
+  var salleRechMinuteur = null, salleRechAttente = null, salleRechN = 0;
+  function salleRechFin(){
+    if(salleRechMinuteur){ clearInterval(salleRechMinuteur); salleRechMinuteur = null; }
+    if(salleRechAttente){ clearTimeout(salleRechAttente); salleRechAttente = null; }
+    salleRechN++;
+  }
+  function salleReviserEcran(){
+    salleRechFin();
+    var e = salleEcran();
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="card salleCarte salleRevCarte"><div class="section-title">📚 Je viens réviser — cherche ton nom</div>' +
+      '<div class="salleTexte">Tape les premières lettres de ton <b>nom</b> ou de ton <b>prénom</b>.</div>' +
+      '<input type="search" id="salleRech" class="salleEqChamp" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Ton nom ou ton prénom">' +
+      '<div id="salleRevNoms" class="salleNoms"></div>' +
+      '<div class="salleTexte salleRevPied">Tu n’es pas dans la liste ? Si tu n’as pas fini ton cours de théorie, touche ton nom sur l’accueil. Sinon, demande à l’équipe.</div>' +
+      '<div id="salleMsg" class="salleMsg"></div>' +
+      '<button type="button" class="btn btn-secondary" id="salleRetour">← Retour</button></div>';
+    var ch = $('salleRech'), z = $('salleRevNoms');
+    function chercher(){
+      var q = ch.value.trim();
+      var n = ++salleRechN;
+      if(q.replace(/[^\p{L}\p{N}]/gu, '').length < 2){ z.innerHTML = ''; $('salleMsg').textContent = ''; return; }
+      z.innerHTML = '<div class="empty">⏳ …</div>';
+      appeler({ action: 'salleChercher', tablette: TABLETTE.jeton, q: q }).then(function(d){
+        if(n !== salleRechN || !$('salleRevNoms')) return;
+        var l = (d && d.eleves) || [];
+        $('salleMsg').textContent = '';
+        if(!l.length){ z.innerHTML = '<div class="empty">Personne à ce nom. Vérifie l’orthographe, ou demande à l’équipe.</div>'; return; }
+        z.innerHTML = '';
+        l.forEach(function(x){
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn btn-secondary salleNom';
+          b.innerHTML = '<span>' + echapper(x.eleve) + '</span><small>' + echapper(x.d || '') + '</small>';
+          b.addEventListener('click', function(){ salleCode(x, 'revision'); });
+          z.appendChild(b);
+        });
+      }).catch(function(er){
+        if(n !== salleRechN) return;
+        if(er && er.tabletteRetiree){ salleGarder(CLE_TABLETTE, null); TABLETTE = null; salleInstaller(er.message); return; }
+        z.innerHTML = '';
+        $('salleMsg').textContent = '⚠️ ' + ((er && er.message) || 'Pas de réseau.');
+      });
+    }
+    ch.addEventListener('input', function(){
+      if(salleRechAttente) clearTimeout(salleRechAttente);
+      salleRechAttente = setTimeout(chercher, 350);
+    });
+    ch.addEventListener('keydown', function(ev){ if(ev.key === 'Enter'){ ev.preventDefault(); chercher(); } });
+    $('salleRetour').addEventListener('click', function(){ salleAccueil(''); });
+    salleDernierAppui = Date.now();
+    salleRechMinuteur = setInterval(function(){
+      if(Date.now() - salleDernierAppui > 2 * 60000) salleAccueil('');
+    }, 5000);
+    setTimeout(function(){ try{ ch.focus(); }catch(er){} }, 50);
+  }
+  /* En séance de cours (et non de révision) : ce qui est propre à la salle */
+  function enCoursDeSalle(){ return !!(SALLE && SALLE.genre !== 'revision'); }
 
   /* ③ la séance : son cours, à son nom */
   function salleCommencer(s){
     if(!s || !s.jeton) return salleAccueil('');
     if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
-    SALLE = { jeton: s.jeton, eleve: s.eleve, finPrevue: Number(s.finPrevue) || (Date.now() + 3600000), vus: s.vus || 0, total: s.total || 0 };
+    salleRechFin();
+    SALLE = { jeton: s.jeton, eleve: s.eleve, finPrevue: Number(s.finPrevue) || (Date.now() + 3600000), vus: s.vus || 0, total: s.total || 0,
+              genre: s.genre === 'revision' ? 'revision' : '' };   /* 📚 v1359 */
     salleFinEnCours = false;
     salleGarder(CLE_SEANCE, SALLE);
     var e = $('salleEcran'); if(e) e.classList.add('cache');
@@ -2741,6 +2882,12 @@
   }
   function salleBandeau(){
     if(!SALLE) return;
+    if(SALLE.genre === 'revision'){
+      poserLeBandeau('📚 ' + (TABLETTE ? TABLETTE.nom + ' · ' : '') + SALLE.eleve + ' · révision · jusqu’à ' + salleHeure(SALLE.finPrevue),
+        '⏹ Je m’arrête', function(){ salleTerminer('lui'); });
+      var br = $('bandeauDemo'); if(br) br.classList.add('salleBandeau');
+      return;
+    }
     poserLeBandeau('📺 ' + (TABLETTE ? TABLETTE.nom + ' · ' : '') + SALLE.eleve +
       (SALLE.total ? ' · ' + SALLE.vus + ' sur ' + SALLE.total + ' vues' : '') +
       ' · jusqu’à ' + salleHeure(SALLE.finPrevue), '⏹ Je m’arrête', function(){ salleTerminer('lui'); });
@@ -2748,7 +2895,8 @@
   }
   /* Après chaque coche : où il en est ; tout vu → le Worker vérifie, et ouvre */
   function salleApresCoche(){
-    if(!SALLE || salleFinEnCours) return;
+    /* 📚 v1359 — en révision : ni compte, ni fin (ses coches vont chez lui) */
+    if(!SALLE || salleFinEnCours || SALLE.genre === 'revision') return;
     var n = compterLesSegments(mesEtapes);
     SALLE.vus = n.vus; SALLE.total = n.total;
     salleGarder(CLE_SEANCE, SALLE);
@@ -2770,7 +2918,8 @@
     salleGarder(CLE_SEANCE, null);
     moi = { nom: '', code: '' };
     mesEtapes = [];
-    salleAccueil(pourquoi === 'heure' ? '⏰ Ton créneau est fini, ' + sallePrenom(s && s.eleve) + ' : tu reprendras là où tu t’es arrêté.'
+    salleAccueil(pourquoi === 'heure' ? (s && s.genre === 'revision' ? '⏰ Ta révision est finie, ' + sallePrenom(s.eleve) + ' : à la prochaine !'
+                                         : '⏰ Ton créneau est fini, ' + sallePrenom(s && s.eleve) + ' : tu reprendras là où tu t’es arrêté.')
                : pourquoi === 'fin' ? '📺 La séance est terminée.'
                : pourquoi === 'erreur' ? '⚠️ ' + (texte || 'Ton cours n’a pas pu s’ouvrir.') + ' Réessaie, ou demande à l’équipe.'
                : s ? '👋 À la prochaine, ' + sallePrenom(s.eleve) + ' : tu reprendras là où tu t’es arrêté.' : '');
@@ -3509,7 +3658,7 @@
   function entrerTout(){
     $('vueConnexion').classList.add('cache');
     $('vueEleve').classList.remove('cache');
-    $('bonjour').textContent = 'Bonjour ' + (moi.nom.split(' ')[0] || '');
+    $('bonjour').textContent = 'Bonjour ' + prenomDeLEleve(moi.nom);   /* 📚 v1359 — « NOM Prénom » → Prénom */
 
     montrer('carteReciter', ouvert('proccorriger'));
     montrer('carteEnvois', ouvert('proccorriger'));
@@ -3640,7 +3789,7 @@
   }
 
   function prenomDeMoi(){
-    return String(moi.nom || '').split(' ')[0];
+    return prenomDeLEleve(moi.nom);   /* 📚 v1359 — « NOM Prénom » → Prénom */
   }
 
 
@@ -4480,14 +4629,14 @@
     var z = $('monParcours');
     var c = $('maSalleEl');
     var fermes = mesFermes || (maSalle && maSalle.ensuite) || [];
-    if(!maSalle && fermes.length && !SALLE && z){
+    if(!maSalle && fermes.length && !enCoursDeSalle() && z){
       /* Sans salle à finir : les groupes ouverts d'abord, les fermés dessous */
       if(!c){ c = document.createElement('div'); c.id = 'maSalleEl'; }
       if(c.previousSibling !== z) z.parentNode.insertBefore(c, z.nextSibling);
       c.innerHTML = '<div class="salleFermesTitre">🔒 Bientôt</div>' + fermes.map(ligneFermee).join('');
       return;
     }
-    if(!maSalle || SALLE || !z){ if(c) c.parentNode.removeChild(c); return; }
+    if(!maSalle || enCoursDeSalle() || !z){ if(c) c.parentNode.removeChild(c); return; }
     if(!c){
       c = document.createElement('div');
       c.id = 'maSalleEl';
@@ -4580,6 +4729,7 @@
     return (e.segments && e.segments.length) ? e.segments
       : [{ id: '', titre: e.titre || 'Le guide', de: 0,
            a: ((e.blocs || []).length - 1), vuLe: e.vuLe || '',
+           enSalle: e.enSalle || 0,       /* 📚 v1359 — « 📺 en salle » */
            attente: e.attente || '' }];   /* ⚡ v1327 — un groupe « sans attente » */
   }
 
@@ -4653,7 +4803,7 @@
         '<span class="rond">' + (vu ? '✓' : (ici ? '▶' : (x.k + 1))) +
           (epingle ? '<i class="pin" aria-label="À revoir">📌</i>' : '') + '</span>' +
         '<span class="lib">' + echapper(x.sg.titre || 'Segment') +
-          '<small>' + echapper(vu ? 'vu le ' + jourDuVu(x.sg.vuLe)
+          '<small>' + echapper(vu ? 'vu le ' + jourDuVu(x.sg.vuLe) + (x.sg.enSalle ? ' · 📺 en salle' : '')   /* 📚 v1359 */
                                   : resumeDuSegment(x.e, x.sg)) +
             (x.sg.facultatif ? ' · <i class="facult">facultatif</i>' : '') + '</small></span>' +
         '</button>';
@@ -5652,6 +5802,7 @@
           (e.segments || []).forEach(function(sg){
             if(sg.id !== String(segment || '')) return;
             sg.vuLe = vu ? ((d && d.quand) || 'à l’instant') : '';
+            sg.enSalle = (vu && SALLE) ? 1 : 0;   /* 📚 v1359 — « 📺 en salle » (le Worker fait de même) */
             if(d && d.revu) sg.revuLe = d.revu;
             if(d && d.vues) sg.vues = d.vues;
           });
