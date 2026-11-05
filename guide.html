@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 1357
+     GUIDE-VERSION: 1358
      ============================================================ -->
 
 <style>
@@ -416,7 +416,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">App Évolution Conduites</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v1357</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v1358</strong><br>
     Mis à jour le 3 novembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -587,7 +587,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1357</strong>, relu le 5 novembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v1358</strong>, relu le 5 novembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1211,7 +1211,7 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">📇 Coordonnées manquantes</span></td><td>Bloc masqué si tout est connu. Sinon&nbsp;: <span class="b">✉️ Adresse mail de l'élève</span> et <span class="b">📇 Dossier ANTS</span>. <em>« Saisies ici, elles rejoignent sa fiche&nbsp;: tous les moniteurs les retrouveront, et son bilan pourra lui être envoyé. »</em></td></tr>
         <tr><td><span class="b">Frise de formation</span></td><td>La frise en clair, avec deux petits champs&nbsp;: <span class="ch">… leçons de 2h + exam blanc + … leçons de 2h + 3h avant examen</span>. Rien n'est pré-rempli. En AAC ou CS, un texte fixe remplace les cases.</td></tr>
         <tr><td><span class="b">C'est la …ème leçon</span></td><td>Pré-rempli avec le rang calculé&nbsp;; <strong>ce que vous tapez l'emporte</strong>. Une seconde case <span class="b">et la …ème après</span> apparaît selon le contexte (après l'examen blanc, après le rendez-vous post-permis, après un examen raté). <strong>Masqué</strong> pour un simulateur, un examen blanc ou un examen officiel.</td></tr>
-        <tr><td><span class="b">Examen blanc</span></td><td>En boutons&nbsp;: <span class="ch">— non évoqué —</span> / <span class="ch">À prévoir</span> / <span class="ch">Réservé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable pour le moment</span>. Ouvre ensuite <span class="b">Quel examen blanc ?</span> (1<sup>er</sup> à 5<sup>e</sup>) et la date.</td></tr>
+        <tr><td><span class="b">Examen blanc</span></td><td>En boutons&nbsp;: <span class="ch">— non évoqué —</span> / <span class="ch">À prévoir</span> / <span class="ch">Réservé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable pour le moment</span>. Ouvre ensuite <span class="b">Quel examen blanc ?</span> (1<sup>er</sup> à 5<sup>e</sup>), la date et <strong>dans combien de leçons</strong>. Réservé avec une date, la ligne de la note dit les deux&nbsp;: <span class="ch">🅱️ 1er EXAMEN BLANC RÉSERVÉ le mercredi 18 novembre 2026 — dans 2 leçons</span>. Le nombre est déjà rempli par la frise (ce qu'il reste avant l'examen blanc)&nbsp;; <strong>frise dépassée</strong>, elle ne sait plus compter&nbsp;: c'est le nombre saisi qui fait foi.</td></tr>
         <tr><td><span class="b">Résultat de l'examen blanc</span></td><td>Apparaît dès qu'on coche <span class="ch">Déjà passé</span>&nbsp;: <span class="ch">✅ A le niveau — heures à préciser</span> / <span class="ch">✅ Plus que les 3h avant examen</span> / <span class="ch">⏳ Encore des leçons avant examen</span> / <span class="ch">🤔 Pourrait avoir le niveau</span> / <span class="ch">⛔ Pas le niveau</span>. Quand le bureau a déjà noté une conclusion, une ligne le dit dessous — <span class="ch">Le bureau a noté ⛔ Pas le niveau le jeudi 8 octobre.</span> — avec <span class="b">Reprendre cette réponse</span>. <strong>Le questionnaire ne la remplit jamais tout seul</strong>&nbsp;: une réponse que personne n'a donnée n'est pas une réponse.</td></tr>
         <tr><td><span class="b">Examen du permis</span></td><td><span class="ch">— pas de date —</span> / <span class="ch">Date à prévoir</span> / <span class="ch">Prévu le…</span> / <span class="ch">Annulé</span> / <span class="ch">Déjà passé — ajourné</span> / <span class="ch">Non planifiable</span>, et <span class="b">Quel passage ?</span> <strong>Le moniteur ne saisit pas la date</strong> — voir juste dessous.</td></tr>
         <tr><td><span class="b">Heures restantes avant l'examen</span></td><td>Un bouton qui <strong>affiche la valeur actuelle</strong> — <span class="ch">⏱️ 4 + 3h</span> — ou <span class="ch">⏱️ Heures à préciser</span>. Au-dessus, en vert, d'où vient ce nombre (ce qui a été dit à l'examen blanc ou au post-permis). Dessous, <span class="b">Ces heures partent de quelle leçon après l'examen blanc&nbsp;?</span> propose chaque leçon — <span class="ch">1ʳᵉ leçon — dès l'examen blanc</span>, <span class="ch">2ᵉ leçon</span>, … — et choisir la leçon met aussitôt à jour ce qui reste. Le nombre décidé ne change pas&nbsp;: seul son point de départ bouge. Voir <a href="#heures-depart" class="aller">D'où partent les heures</a>.</td></tr>
