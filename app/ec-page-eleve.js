@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 08:55 — v1357 */
+/* Déployé le 05/11/2026 à 09:42 — v1358 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -669,9 +669,10 @@ function etapesCroiseesEleve(nom){
   }else if(a.examBlanc === 'reserve'){
     out.push({ ok:null, emoji:'📌',
       txt:'Examen blanc réservé' +
-          (a.examBlancDate ? ' le ' + jourFr(a.examBlancDate)
-            : (a.examBlancN !== null && a.examBlancN !== undefined
-                ? ' dans ' + a.examBlancN + ' leçon(s)' : '')) });
+          (a.examBlancDate ? ' le ' + jourFr(a.examBlancDate) : '') +
+          /* 🅱️ v1358 — la date ET le nombre de leçons (David) */
+          (a.examBlancN !== null && a.examBlancN !== undefined && a.examBlancN !== ''
+            ? (a.examBlancDate ? ' —' : '') + ' dans ' + a.examBlancN + ' leçon(s)' : '') });
   }else if(a.examBlanc === 'impossible'){
     out.push({ ok:false, emoji:'⏳', txt:'Examen blanc non planifiable' });
   }else if(a.examBlanc === 'aprevoir'){
@@ -4610,7 +4611,7 @@ function etatDuPermis(nom){
     if(prevu || annonce === 'reserve' || annonce === 'aprevoir'){
       return { cle:'ebprevu', ton:'', titre:'Où en est son permis',
         gros:'📅 Examen blanc', petit:true,
-        lignes: lignes({ txt: prevu ? 'prévu le ' + prevu
+        lignes: lignes({ txt: prevu ? 'prévu le ' + prevu + (dans ? ' — ' + dans : '')
                                     : (dans || 'à prévoir'), ton:'fort' }) };
     }
   }
