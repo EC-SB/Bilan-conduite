@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 16:49 — v1361 */
+/* Déployé le 06/11/2026 à 09:11 — v1362 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1362,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '🎨 Le RDV post-permis en couleur, et réglable dans le créateur des fiches',
+    quoi: [
+      { emoji: '🎨',
+        titre: 'Trois cadres',
+        texte: 'Sur l’écran du rendez-vous post-permis : le bilan d’examen officiel en vert citron, le bilan de l’élève en bleu (« ÉLÈVE »), tes remarques en vert (« MONITEUR »). Les mêmes cadres partent dans le mail et dans « 📖 Mes leçons ».' },
+      { emoji: '✏️',
+        titre: 'Dans le créateur des fiches',
+        texte: 'La fiche « RDV post-permis » se règle comme les autres (administrateurs) : titres, couleurs, fonds, ordre, zones ajoutées avec ➕, qui partent dans le compte rendu sous la partie du dessus. Rien ne change pour les moniteurs avant « 💾 Publier ».' }
+    ]
+  },
   {
     version: 1361,
     date: 'Jeudi 5 novembre 2026',
