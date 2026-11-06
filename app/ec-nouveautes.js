@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 09:11 — v1362 */
+/* Déployé le 06/11/2026 à 10:20 — v1363 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1363,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '🗂️ Formations : voir l’envoyé / le signé sur la ligne · ⚡ survitesse corrigée',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Ce qui est envoyé / signé, sur la ligne',
+        texte: 'Dans 🔨 Outils › Formations › 📄 Documents, à côté de chaque document, une pastille dit l’état exact — ✉️ Envoyé, ✍️ Signé, ✅ Fait, avec la date. Un clic ouvre l’historique (le plus récent en haut) et la vraie copie rangée : la convention signée par l’entreprise, le devis réellement parti. Plus besoin de descendre tout en bas.' },
+      { emoji: '⚡',
+        titre: 'Alerte de survitesse',
+        texte: 'Correction : l’A3 n°2 n’est plus concerné. L’alerte « Tu as oublié d’enlever l’alerte de survitesse » ne vise plus que le Q3 n°10 et les deux A3 de Loudéac (BV et BEA).' }
+    ]
+  },
   {
     version: 1362,
     date: 'Vendredi 6 novembre 2026',
