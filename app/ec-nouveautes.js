@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 12:14 — v1364 */
+/* Déployé le 06/11/2026 à 15:33 — v1365 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1365,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '🏁 La tuile du permis réclame le résultat du dernier examen blanc · 🔑 les passerelles peuvent enfin se connecter',
+    quoi: [
+      { emoji: '🏁',
+        titre: 'Un examen blanc sans résultat ne passe plus inaperçu',
+        texte: 'Quand le DERNIER examen blanc d’un élève (son bilan) est plus récent que ce qui est écrit dans sa fiche, la tuile « Où en est son permis » affiche « 🏁 Examen blanc à conclure — examen blanc du JJ/MM, résultat à renseigner » au lieu de garder en silence l’ancien. On règle le résultat dans ✏️ Sa route.' },
+      { emoji: '🔑',
+        titre: 'Connexion des élèves en passerelle',
+        texte: 'Un élève dont la fiche porte sa formation après son nom (« Prénom Nom passerelle BV ») ne pouvait plus entrer dans son coin révisions. Il peut maintenant taper juste son prénom-nom ; son code reste la garde.' }
+    ]
+  },
   {
     version: 1364,
     date: 'Vendredi 6 novembre 2026',
