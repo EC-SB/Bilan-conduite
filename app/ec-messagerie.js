@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 16:30 — v1367 */
+/* Déployé le 06/11/2026 à 16:59 — v1369 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -172,7 +172,7 @@ function barreEtiqPourEC(listePourCompte){
    un administrateur peut créer une nouvelle étiquette. */
 function menuEtiquettesConvEC(c, ancre, apres){
   const poser = async (liste) => {
-    try{ await appelPrep({ action: 'convMarquer', id: c.id, etiquettes: liste }); }catch(e){}
+    try{ await appelPrep({ action: 'convEtiqPour', id: c.id, etiquettes: liste }); }catch(e){}
     c.etiquettes = liste;
     const e0 = conversationsEC.find(x => x.id === c.id); if(e0) e0.etiquettes = liste;
     if(apres) apres(); else dessinerLaListeMessagerie();
@@ -203,7 +203,7 @@ function menuEtiquettesConvEC(c, ancre, apres){
 /* Le menu « 👤 Pour » d'une conversation : une ou plusieurs personnes. */
 function menuPourConvEC(c, ancre, apres){
   const poser = async (liste) => {
-    try{ await appelPrep({ action: 'convMarquer', id: c.id, pour: liste }); }catch(e){}
+    try{ await appelPrep({ action: 'convEtiqPour', id: c.id, pour: liste }); }catch(e){}
     c.pour = liste;
     const e0 = conversationsEC.find(x => x.id === c.id); if(e0) e0.pour = liste;
     if(apres) apres(); else dessinerLaListeMessagerie();
@@ -218,7 +218,35 @@ function menuPourConvEC(c, ancre, apres){
     } });
   });
   if((c.pour || []).length) items.push({ sep: true }, { emoji: '✕', texte: 'Personne', faire: () => poser([]) });
+  if(msgEstAdminEtiq()) items.push({ sep: true }, { emoji: '🎨', texte: 'Couleur des personnes…', faire: () => menuCouleursPersonnesEC(ancre, apres) });
   menuGestesEC(ancre, '👤 Qui s’en occupe', items);
+}
+
+/* 🎨 v1369 — régler la couleur de chaque personne (administrateurs). On
+   réutilise les 7 couleurs des mails (ML_POUR_COULEURS) ; le serveur les
+   garde et les renvoie, pour tout le monde et au rechargement. */
+const MSG_COULEURS_ORDRE = ['bleu','violet','orange','vert','jaune','brun','noir'];
+function menuCouleursPersonnesEC(ancre, apres){
+  const items = [{ titre: 'COULEUR DE CHAQUE PERSONNE' }];
+  personnesEC.forEach(p => {
+    items.push({ emoji: msgCoulEmo(p.couleur), texte: p.nom, faire: () => menuChoixCouleurEC(p, ancre, apres) });
+  });
+  menuGestesEC(ancre, '🎨 Couleur des personnes', items);
+}
+function menuChoixCouleurEC(p, ancre, apres){
+  const items = [{ titre: p.nom.toUpperCase() + ' — SA COULEUR' }];
+  MSG_COULEURS_ORDRE.forEach(coul => {
+    const pris = p.couleur === coul;
+    items.push({ emoji: pris ? '✅' : msgCoulEmo(coul), texte: (coul.charAt(0).toUpperCase() + coul.slice(1)), faire: async () => {
+      try{
+        const r = await appelPrep({ action: 'convPersCouleur', nom: p.nom, couleur: coul });
+        if(r && Array.isArray(r.personnes)) personnesEC = r.personnes;
+      }catch(e){}
+      dessinerLaListeMessagerie();
+      if(apres) apres();
+    } });
+  });
+  menuGestesEC(ancre, '🎨 ' + p.nom, items);
 }
 
 /* ↩️ v1180 — le message auquel on est en train de répondre :
