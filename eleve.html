@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 06/11/2026 à 09:11 — v1362 -->
+<!-- Déployé le 06/11/2026 à 12:14 — v1364 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -860,6 +860,37 @@
   .chemin .trait.d{ margin-left:auto; margin-right:26px; }
   .chemin + .ditpartage{ margin:6px 0 0; }
 
+  /* 📚 v1364 — UN CADRE PAR GUIDE, TITRE EN GROS, ET LES MENUS.
+     David : « met moi un cadre autour des guides, le titre du guide
+     en gros, un menu pour aller à un guide (en haut) et un menu par
+     guide pour aller à une étape ». Les étapes à l'intérieur (les
+     ronds du chemin) ne changent pas. */
+  .allerGuide{
+    display:flex; align-items:center; gap:9px; margin:2px 0 14px;
+    background:var(--orange-soft); border:1.5px solid var(--accent-text);
+    border-radius:14px; padding:9px 12px;
+  }
+  .allerGuide .agL{ font-size:14px; font-weight:800; color:var(--on-accent); white-space:nowrap; }
+  .allerGuide select{
+    flex:1; min-width:0; border:0; background:transparent; color:var(--on-accent);
+    font-family:inherit; font-size:13px; font-weight:800; padding:2px; margin:0;
+  }
+  .guideCadre{
+    border:1.5px solid var(--line); border-radius:18px; background:var(--navy-deep);
+    padding:12px 13px 6px; margin:0 0 12px;
+  }
+  .guideCadre .gtete{ display:flex; align-items:center; gap:10px; }
+  .guideCadre .gtitre{ flex:1; min-width:0; font-size:19px; font-weight:800; line-height:1.2; overflow-wrap:anywhere; }
+  .guideCadre .gpct{ font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; }
+  .guideCadre .gtMenu{ margin:8px 0 2px; }
+  .guideCadre .gtMenu select{
+    width:100%; border:1.5px solid var(--accent-text); background:var(--orange-soft);
+    color:var(--on-accent); font-family:inherit; font-size:12.5px; font-weight:800;
+    border-radius:999px; padding:8px 12px; margin:0;
+  }
+  .guideCadre .chemin{ padding:4px 0 0; }
+  .guideCadre .chemin .rond{ background:var(--navy); }
+
   /* Le panneau d'un segment. Centré comme la page sur un écran
      large, au-dessus de la barre des onglets. */
   /* 📌 À revoir — v1222 */
@@ -1005,6 +1036,9 @@
   .res mark, .chemin mark{
     background:var(--orange); color:var(--on-accent); border-radius:3px; padding:0 2px;
   }
+  /* 📚 v1364 — un résultat « guide » (le mot est dans le titre du guide) */
+  .res.resGuide{ border-color:var(--accent-text); background:color-mix(in srgb, var(--orange-soft) 45%, transparent); }
+  .res.resGuide .flag{ display:block; font-size:11.5px; font-weight:800; color:var(--accent-text); margin-top:4px; }
 
   /* 📣 Une annonce — v1038 */
   .annonce{
@@ -4794,36 +4828,69 @@
     var prochain = file.filter(function(x){ return !x.sg.vuLe; })[0];
     var cleIci = prochain ? prochain.cle : '';
 
-    html += '<div class="chemin">';
-    var guidePrec = null;
-    file.forEach(function(x){
-      if(x.e !== guidePrec){
-        guidePrec = x.e;
-        var segs = segmentsQuiComptent(segmentsDe(x.e));
-        var f = segs.filter(function(s){ return !!s.vuLe; }).length;
-        html += '<div class="jalon">' + echapper((x.icone ? x.icone + ' ' : '') +
-          (x.e.titre || 'Le guide') + ' · ' + f + '/' + segs.length) + '</div>';
-      }
-      var droite = (x.k % 2 === 1);
-      var vu = !!x.sg.vuLe;
-      var ici = (x.cle === cleIci);
-      if(x.k > 0) html += '<div class="trait' + (droite ? ' d' : '') + '"></div>';
-      var epingle = estARevoir(x.cle);
-      html += '<button type="button" class="noeud' + (droite ? ' d' : '') +
-        (vu ? ' vu' : '') + (ici ? ' ici' : '') + (epingle ? ' epingle' : '') + '"' +
-        ' data-ouvrir="' + echapper(x.cle) + '"' +
-        ' data-seg="' + echapper(x.cle) + '"' +
-        ' data-guide="' + echapper(x.e.id) + '"' +
-        ' data-segid="' + echapper(x.sg.id) + '">' +
-        '<span class="rond">' + (vu ? '✓' : (ici ? '▶' : (x.k + 1))) +
-          (epingle ? '<i class="pin" aria-label="À revoir">📌</i>' : '') + '</span>' +
-        '<span class="lib">' + echapper(x.sg.titre || 'Segment') +
-          '<small>' + echapper(vu ? 'vu le ' + jourDuVu(x.sg.vuLe) + (x.sg.enSalle ? ' · 📺 en salle' : '')   /* 📚 v1359 */
-                                  : resumeDuSegment(x.e, x.sg)) +
-            (x.sg.facultatif ? ' · <i class="facult">facultatif</i>' : '') + '</small></span>' +
-        '</button>';
+    /* 📚 v1364 — chaque guide dans son cadre, titre en gros, avec son
+       menu « aller à une étape » ; et en haut, le menu « aller à un
+       guide ». Le chemin (les ronds) à l'intérieur ne change pas. */
+    var guides = [];
+    g.ici.forEach(function(gr){
+      (gr.etapes || []).forEach(function(e){ guides.push({ e: e, icone: gr.icone }); });
     });
-    html += '</div>';
+
+    if(guides.length > 1){
+      html += '<div class="allerGuide"><span class="agL">📚 Aller à un guide</span>' +
+        '<select data-aller-guide aria-label="Aller à un guide">' +
+          '<option value="">— choisir —</option>' +
+          '<option value="guide-' + echapper(TOUS_LES_GROUPES) + '">↕ Haut de la page</option>' +
+          guides.map(function(G){
+            var sc = segmentsQuiComptent(segmentsDe(G.e));
+            var f = sc.filter(function(s){ return !!s.vuLe; }).length;
+            return '<option value="guide-' + echapper(G.e.id) + '">' +
+              echapper((G.icone ? G.icone + ' ' : '') + (G.e.titre || 'Le guide') + ' · ' + f + '/' + sc.length) + '</option>';
+          }).join('') +
+        '</select></div>';
+    }
+
+    guides.forEach(function(G){
+      var e = G.e, icone = G.icone;
+      var segs = segmentsDe(e);
+      var sc = segmentsQuiComptent(segs);
+      var faits = sc.filter(function(s){ return !!s.vuLe; }).length;
+      html += '<div class="guideCadre" id="guide-' + echapper(e.id) + '">';
+      html += '<div class="gtete"><span class="gtitre">' +
+        echapper((icone ? icone + ' ' : '') + (e.titre || 'Le guide')) + '</span>' +
+        '<span class="gpct">' + faits + '/' + sc.length + '</span></div>';
+      html += '<div class="gtMenu"><select data-aller-etape aria-label="Aller à une étape de ' + echapper(e.titre || 'ce guide') + '">' +
+          '<option value="">☰ Aller à une étape…</option>' +
+          '<option value="guide-' + echapper(e.id) + '">↕ Haut du guide</option>' +
+          segs.map(function(sg, k){
+            return '<option value="' + echapper(e.id + '::' + sg.id) + '">' +
+              (k + 1) + '. ' + echapper(sg.titre || 'Segment') + '</option>';
+          }).join('') +
+        '</select></div>';
+      html += '<div class="chemin">';
+      segs.forEach(function(sg, k){
+        var cle = e.id + '::' + sg.id;
+        var droite = (k % 2 === 1);
+        var vu = !!sg.vuLe;
+        var ici = (cle === cleIci);
+        var epingle = estARevoir(cle);
+        if(k > 0) html += '<div class="trait' + (droite ? ' d' : '') + '"></div>';
+        html += '<button type="button" class="noeud' + (droite ? ' d' : '') +
+          (vu ? ' vu' : '') + (ici ? ' ici' : '') + (epingle ? ' epingle' : '') + '"' +
+          ' data-ouvrir="' + echapper(cle) + '"' +
+          ' data-seg="' + echapper(cle) + '"' +
+          ' data-guide="' + echapper(e.id) + '"' +
+          ' data-segid="' + echapper(sg.id) + '">' +
+          '<span class="rond">' + (vu ? '✓' : (ici ? '▶' : (k + 1))) +
+            (epingle ? '<i class="pin" aria-label="À revoir">📌</i>' : '') + '</span>' +
+          '<span class="lib">' + echapper(sg.titre || 'Segment') +
+            '<small>' + echapper(vu ? 'vu le ' + jourDuVu(sg.vuLe) + (sg.enSalle ? ' · 📺 en salle' : '')   /* 📚 v1359 */
+                                    : resumeDuSegment(e, sg)) +
+              (sg.facultatif ? ' · <i class="facult">facultatif</i>' : '') + '</small></span>' +
+          '</button>';
+      });
+      html += '</div></div>';
+    });
 
     /* ⚠️ IL DOIT SAVOIR QU'ON MESURE — v1056. Mesurer ce qu'un élève
        regarde est une donnée de plus : ça se dit, sur l'écran même. */
@@ -4838,7 +4905,49 @@
         dessinerLeCorps();
       });
     }
+    /* 📚 v1364 — les menus déroulants : aller à un guide / à une étape */
+    var ag = corps.querySelector('[data-aller-guide]');
+    if(ag) ag.addEventListener('change', function(){
+      var v = this.value; this.value = '';
+      allerAUneCibleDuParcours(v);
+    });
+    var aes = corps.querySelectorAll('[data-aller-etape]');
+    for(var a = 0; a < aes.length; a++){
+      aes[a].addEventListener('change', function(){
+        var v = this.value; this.value = '';
+        allerAUneCibleDuParcours(v);
+      });
+    }
     brancherLesOuvertures(corps);
+  }
+
+  /* 📚 v1364 — un choix de menu : un segment (« guide::segment ») ouvre
+     sa feuille ; un « guide-… » fait défiler jusqu'au cadre du guide
+     (ou en haut de la page pour « guide-* »). */
+  function allerAUneCibleDuParcours(v){
+    if(!v) return;
+    if(v.indexOf('::') !== -1){ ouvrirLaFeuille(v); return; }
+    var corps = $('parcoursCorps');
+    if(v === 'guide-' + TOUS_LES_GROUPES){
+      var haut = $('rechParcours') || corps;
+      if(haut) try{ haut.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){ haut.scrollIntoView(); }
+      return;
+    }
+    var el = document.getElementById(v);
+    if(el) try{ el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){ el.scrollIntoView(); }
+  }
+
+  /* 📚 v1364 — un résultat « guide » de la recherche : on efface la
+     recherche, on montre le bon groupe, et on va au cadre du guide. */
+  function allerAuGuideDepuisRecherche(id){
+    var grp = lesGroupes().filter(function(g){
+      return g.etapes.some(function(e){ return e.id === id; }); })[0];
+    if(grp && groupeIci !== TOUS_LES_GROUPES && groupeIci !== grp.id) groupeIci = grp.id;
+    rechercheIci = '';
+    var champ = $('rechParcours'); if(champ) champ.value = '';
+    dessinerLeCorps();
+    var el = document.getElementById('guide-' + id);
+    if(el) try{ el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){ el.scrollIntoView(); }
   }
 
   /* 🗂️ v1360 — Une carte de groupe : son icône, son nom, son avancée. */
@@ -4910,6 +5019,13 @@
     for(var j = 0; j < bl.length; j++){
       bl[j].addEventListener('click', function(){
         ouvrirLeBilan(Number(this.getAttribute('data-bilan')));
+      });
+    }
+    /* 📚 v1364 — un résultat « guide » envoie au guide */
+    var ag = zone.querySelectorAll('[data-allerguide]');
+    for(var k = 0; k < ag.length; k++){
+      ag[k].addEventListener('click', function(){
+        allerAuGuideDepuisRecherche(this.getAttribute('data-allerguide'));
       });
     }
   }
@@ -5219,8 +5335,18 @@
   function resultatsDeRecherche(){
     var mots = motsCherches();
     var trouves = [];
+    var guidesT = [];   /* 📚 v1364 — les guides dont le TITRE correspond */
     lesGroupes().forEach(function(g){
       g.etapes.forEach(function(e){
+        /* 📚 v1364 — le mot est dans le titre du guide : un résultat
+           qui envoie directement au guide (pas seulement aux étapes). */
+        if(contientTout(normaliser((g.icone ? g.icone + ' ' : '') + (e.titre || '')), mots)){
+          guidesT.push('<button type="button" class="res resGuide" data-allerguide="' + echapper(e.id) + '">' +
+            '<b>' + (g.icone ? echapper(g.icone) + ' ' : '') + extraitSurligne(e.titre || 'Le guide', mots, 0) + '</b>' +
+            '<small>' + echapper('Guide · ' + (g.nom || 'Mon parcours')) + '</small>' +
+            '<span class="flag">→ ouvre le guide</span>' +
+          '</button>');
+        }
         var segs = segmentsDe(e), blocs = e.blocs || [];
         segs.forEach(function(sg, k){
           var textes = [];
@@ -5259,13 +5385,17 @@
         '<span class="ext">' + extraitSurligne(t.replace(/\s+/g, ' '), mots, 130) + '</span></button>');
     });
 
-    var total = trouves.length + bilans.length;
+    var total = guidesT.length + trouves.length + bilans.length;
     var q = echapper(String(rechercheIci).trim());
     if(!total){
       return '<div class="resNb">Rien trouvé pour « ' + q + ' ». Essaie un autre mot.</div>';
     }
     var h = '<div class="resNb">' + total + ' résultat' + (total > 1 ? 's' : '') +
             ' pour « ' + q + ' »</div>';
+    if(guidesT.length){
+      h += '<div class="resSec">📚 Guides · ' + guidesT.length + '</div>' +
+           guidesT.slice(0, 20).join('');
+    }
     if(trouves.length){
       h += '<div class="resSec">🎬 Dans tes guides · ' + trouves.length + '</div>' +
            trouves.slice(0, 40).map(function(x){ return x.html; }).join('');
