@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 06/11/2026 à 12:14 — v1364 -->
+<!-- Déployé le 06/11/2026 à 16:51 — v1368 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -163,6 +163,52 @@
   }
   h1{ font-size:19px; margin:0; font-weight:700; }
   .sous{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+  /* ============================================================
+     ⏳ v1368 — L'ÉCRAN DE CHARGEMENT
+
+     David : « quand un élève se connecte il arrive sur l'accueil,
+     ça reste sur une page blanche, et des élèves repartent en disant
+     que ça ne marche pas. » À la place : la voiture qui avance, aux
+     couleurs de l'espace. Posé plein écran dès le début de la
+     connexion — l'accueil ET la salle des tablettes passent par le
+     même point — et effacé dès que l'accueil est prêt. Un garde-fou
+     l'enlève au bout de 20 s pour ne JAMAIS laisser quelqu'un coincé.
+     ============================================================ */
+  #ecChargement{
+    position:fixed; inset:0; z-index:4000; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:20px;
+    background:var(--navy); color:var(--cream);
+    padding:calc(28px + var(--dessus)) 24px calc(28px + var(--dessous));
+  }
+  #ecChargement.montre{ display:flex; }
+  #ecChargement .chEntete{ display:flex; align-items:center; gap:11px; }
+  #ecChargement .chTitre{ font-size:18px; margin:0; font-weight:700; }
+  #ecChargement .chSous{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .chPiste{
+    width:220px; max-width:78%; height:10px; border-radius:999px;
+    background:var(--navy-deep); border:1px solid var(--line);
+    position:relative; overflow:visible;
+  }
+  .chFill{
+    position:absolute; left:0; top:0; height:100%; border-radius:999px;
+    background:var(--accent-text); width:12%;
+    animation:chAvance 2.4s cubic-bezier(.45,.05,.35,1) infinite;
+  }
+  .chVoiture{
+    position:absolute; top:-16px; left:0; font-size:26px;
+    /* 🚗 l'emoji regarde à gauche : on le retourne (scaleX) pour qu'il
+       avance vers la droite, et non « en marche arrière » */
+    transform:translateX(-50%) scaleX(-1);
+    animation:chRoule 2.4s cubic-bezier(.45,.05,.35,1) infinite;
+  }
+  @keyframes chAvance{ 0%{width:6%} 70%{width:100%} 100%{width:100%;opacity:.15} }
+  @keyframes chRoule{ 0%{left:6%} 70%{left:100%} 70.01%{left:100%} 100%{left:100%;opacity:0} }
+  #ecChargement .chMot{ font-size:14px; color:var(--muted); }
+  .chPoints{ display:flex; gap:6px; }
+  .chPoints i{ width:7px; height:7px; border-radius:50%; background:var(--accent-text); opacity:.3; animation:chResp 1.2s ease-in-out infinite; }
+  .chPoints i:nth-child(2){ animation-delay:.2s } .chPoints i:nth-child(3){ animation-delay:.4s }
+  @keyframes chResp{ 0%,100%{opacity:.25;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
 
   .card{
     background: var(--navy-deep);
@@ -1935,6 +1981,22 @@
 
 <div class="boite">
 
+  <!-- ⏳ v1368 — l'écran de chargement (CSS #ecChargement). Caché par
+       défaut : il ne bloque jamais l'écran d'entrée, il n'apparaît que
+       le temps réel de la connexion. -->
+  <div id="ecChargement" aria-hidden="true">
+    <div class="chEntete">
+      <div class="logo">EC</div>
+      <div><div class="chTitre">Mon coin révisions</div><div class="chSous">Évolution Conduites</div></div>
+    </div>
+    <div class="chPiste">
+      <span class="chVoiture">🚗</span>
+      <span class="chFill"></span>
+    </div>
+    <div class="chMot">Ça charge… un instant</div>
+    <div class="chPoints"><i></i><i></i><i></i></div>
+  </div>
+
   <!-- ===== CONNEXION ===== -->
   <div id="vueConnexion">
     <div class="entete">
@@ -3605,10 +3667,26 @@
      ce que la connexion rapporte : la page redemandait ensuite son
      dossier, son bilan et ses récitations — trois réveils de plus du
      classeur, précisément pour l'élève le plus fidèle. */
+  /* ⏳ v1368 — l'écran de chargement : montré au début de la connexion,
+     enlevé dès l'entrée (ou au bout de 20 s, garde-fou anti-blocage). */
+  var chargeMinuteur = null;
+  function montrerChargement(){
+    var el = $('ecChargement'); if(!el) return;
+    el.classList.add('montre'); el.setAttribute('aria-hidden', 'false');
+    if(chargeMinuteur) clearTimeout(chargeMinuteur);
+    chargeMinuteur = setTimeout(cacherChargement, 20000);
+  }
+  function cacherChargement(){
+    var el = $('ecChargement'); if(!el) return;
+    el.classList.remove('montre'); el.setAttribute('aria-hidden', 'true');
+    if(chargeMinuteur){ clearTimeout(chargeMinuteur); chargeMinuteur = null; }
+  }
+
   function lancerLaConnexion(nom, code, auto){
     var complete = false;
     duDemarrage = null;
     entreeRapide = false;
+    montrerChargement();
 
     appeler({ action: 'eleveEntree', eleve: nom, code: code })
       .then(function(r){
@@ -3646,6 +3724,7 @@
       })
       .catch(function(e){
         complete = true;
+        cacherChargement();   /* ⏳ v1368 — connexion ratée : on enlève l'écran de chargement */
         /* 📺 v1290 — la tablette ne montre jamais l'écran d'entrée */
         if(MODE_SALLE){ if(SALLE && !(e && e.salleFin)) salleTerminer('erreur', e && e.message); return; }
         if(entreeRapide){
@@ -3710,6 +3789,7 @@
 
   /* Ce qui ne dépend que de son nom et de ses modules */
   function entrerTout(){
+    cacherChargement();   /* ⏳ v1368 — l'accueil est prêt, on efface l'écran de chargement */
     $('vueConnexion').classList.add('cache');
     $('vueEleve').classList.remove('cache');
     $('bonjour').textContent = 'Bonjour ' + prenomDeLEleve(moi.nom);   /* 📚 v1359 — « NOM Prénom » → Prénom */
