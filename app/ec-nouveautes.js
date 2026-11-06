@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 16:51 — v1368 */
+/* Déployé le 06/11/2026 à 16:59 — v1369 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1369,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '💬 Messagerie : étiquettes et attributions qui tiennent · 🎨 couleurs des personnes réglables · ✏️ réponses rapides modifiables avant envoi',
+    quoi: [
+      { emoji: '💾',
+        titre: 'Les étiquettes et « qui s’en occupe » tiennent au rechargement',
+        texte: 'Une correction : les étiquettes et les attributions posées sur une conversation n’étaient pas enregistrées — elles disparaissaient dès qu’on rechargeait la page. C’est réglé, elles restent.' },
+      { emoji: '🎨',
+        titre: 'Choisir la couleur de chaque personne',
+        texte: 'Dans 💬 Messagerie, le menu « 👤 Qui s’en occupe » d’une conversation propose « 🎨 Couleur des personnes… » (administrateurs) : on règle la couleur de chacun parmi 7, gardée pour toute l’équipe.' },
+      { emoji: '✏️',
+        titre: 'Réponses rapides : les modifier avant d’envoyer',
+        texte: 'Dans ⚡ Réponses rapides, une option « Les coller dans le texte pour les modifier avant d’envoyer » : la réponse se pose alors dans la zone d’écriture au lieu de partir tout de suite. À rebasculer quand on veut l’envoi direct.' }
+    ]
+  },
   {
     version: 1368,
     date: 'Vendredi 6 novembre 2026',
