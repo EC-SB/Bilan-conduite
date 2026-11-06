@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 06/11/2026 à 12:14 — v1364 */
 /* ============================================================
    ec-courriers.js — ✉️ LES COURRIERS SUR PAPIER À EN-TÊTE (v1243)
 
@@ -84,6 +84,7 @@ const CR_CASES = [
   ['inscription',  '📥', 'Date d’inscription'],
   ['examenDate',   '📅', 'Date d’examen'],
   ['examenHeure',  '🕐', 'Heure de passage'],
+  ['examenPlage',  '📆', 'Plage du jour d’examen'],
   ['examenCentre', '📍', 'Centre d’examen'],
   ['jours',        '📆', 'Jours et heures'],
   ['nbLecons',     '🚗', 'Nombre de leçons'],
@@ -178,7 +179,10 @@ function crPhraseDesJours(jours){
   let annee = '';
   const bouts = l.map(j => {
     const a = j.jour.slice(0, 4);
-    const t = 'le ' + crDateLongue(j.jour, a === annee) + (j.de ? ' de ' + crHeure(j.de) : '') + (j.a ? ' à ' + crHeure(j.a) : '');
+    /* 📆 v1364 — le jour d'examen : la plage de la journée, puis l'heure
+       de passage entre parenthèses. Les autres jours (leçons) inchangés. */
+    const t = 'le ' + crDateLongue(j.jour, a === annee) + (j.de ? ' de ' + crHeure(j.de) : '') + (j.a ? ' à ' + crHeure(j.a) : '') +
+      (j.quoi === 'examen' && j.heure ? ' (passage à ' + crHeure(j.heure) + ')' : '');
     annee = a;
     return t;
   });
@@ -459,6 +463,11 @@ function crValeurCalculee(c, ed){
     case 'inscription': return crDateFr(crJourIso(f.ajoute));
     case 'examenDate':  return ed.examen && ed.examen.date ? crDateLongue(ed.examen.date) : '';
     case 'examenHeure': return ed.examen && ed.examen.heure ? crHeure(ed.examen.heure) : '';
+    /* 📆 v1364 — la plage du jour d'examen (premier qui conduit → fin des permis) */
+    case 'examenPlage': {
+      const je = (ed.jours || []).filter(x => x.quoi === 'examen')[0];
+      return je && je.de && je.a ? 'de ' + crHeure(je.de) + ' à ' + crHeure(je.a) : '';
+    }
     case 'examenCentre':return ed.examen ? String(ed.examen.centre || '') : '';
     case 'jours':       return crPhraseDesJours(ed.jours);
     case 'nbLecons': {
@@ -1256,7 +1265,11 @@ async function crPreparerExamen(ed){
   const debut = crMinutes(s.heureDebut) !== null ? crMinutes(s.heureDebut) : (heures.length ? Math.min(...heures) : null);
   const duree = (typeof dureeSession === 'function') ? dureeSession(s) : 30;
   const fin = heures.length ? Math.ceil((Math.max(...heures) + duree) / 60) * 60 : (debut !== null ? debut + 480 : null);
-  jours.push({ jour: s.date, de: debut !== null ? crHhmm(debut) : '', a: fin !== null ? crHhmm(Math.max(fin, (debut || 0) + 60)) : '', quoi: 'examen' });
+  /* 📆 v1364 — le jour d'examen porte aussi l'heure de passage de l'élève,
+     pour l'écrire À CÔTÉ de la plage de la journée (comme les messages de
+     préparation : du premier qui conduit à la fin de tous les permis). */
+  jours.push({ jour: s.date, de: debut !== null ? crHhmm(debut) : '', a: fin !== null ? crHhmm(Math.max(fin, (debut || 0) + 60)) : '',
+               quoi: 'examen', heure: (ed.examen && ed.examen.heure) ? ed.examen.heure : '' });
   ed.jours = jours;
   ed.joursRepris = true;
 }
@@ -2201,7 +2214,7 @@ async function crConvocationsDeSession(sess){
   }
   const t = crEl('table', 'crTable');
   const tete = crEl('tr', '');
-  ['', 'Élève', 'Civilité', 'Jours repris', 'Mail', 'En-tête'].forEach(h => tete.appendChild(crEl('th', '', h)));
+  ['', 'Élève', 'Civilité', 'Jours repris', 'Mail', 'En-tête', ''].forEach(h => tete.appendChild(crEl('th', '', h)));
   t.appendChild(tete);
   lignes.forEach(l => {
     const tr = crEl('tr', '');
@@ -2217,6 +2230,17 @@ async function crConvocationsDeSession(sess){
     const tdE = crEl('td', '');
     tdE.appendChild(crPuces([['sb', 'SB'], ['lo', 'Loudéac']], l.ed.entete, v => { l.ed.entete = v; }));
     tr.appendChild(tdE);
+    /* ✏️ v1364 — modifier CETTE convocation avant de l'envoyer (le vrai
+       éditeur de courrier, comme l'examen blanc passe par son créateur). */
+    const tdM = crEl('td', '');
+    const bM = crBouton('✏️ Modifier', 'btn-secondary', () => {
+      fen.fermer();
+      ouvrirCourriersPour({ eleve: l.nom, modele: 'convocation' });
+    });
+    bM.style.cssText = 'width:auto;margin:0;padding:4px 9px;font-size:12px;';
+    if(!crPeutEcrire()) bM.disabled = true;
+    tdM.appendChild(bM);
+    tr.appendChild(tdM);
     t.appendChild(tr);
   });
   zone.innerHTML = '';
