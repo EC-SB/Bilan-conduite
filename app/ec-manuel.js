@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 15:45 — v1340 */
+/* Déployé le 06/11/2026 à 09:11 — v1362 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -911,6 +911,38 @@ CHAMPS_MANUELS.rvp = CHAMPS_MANUELS.rvp.concat(
 CHAMPS_MANUELS.conduiteResumeAuto =
   JSON.parse(JSON.stringify(CHAMPS_MANUELS.conduiteResume));
 
+/* ============================================================
+   🎨 LE RENDEZ-VOUS POST-PERMIS DANS LE CRÉATEUR — v1362
+
+   David, le 5 novembre : « je ne peux pas modifier visuellement les
+   bilans post permis, et je voudrais de la couleur sur les cadres pour
+   bien différencier le bilan du moniteur et le bilan de l'élève ». Ses
+   choix sur le schéma : dans le créateur comme l'examen blanc ; bleu
+   pour l'élève, vert pour le moniteur, une autre nuance de vert pour le
+   bilan de l'examen officiel — changeables dans le créateur ; à l'écran
+   ET dans le bilan envoyé (mail, 📖 Mes leçons) ; une zone ajoutée part
+   sous la zone du dessus.
+
+   ⚠️ CES SIX ZONES NE SE DESSINENT PAS ICI. L'écran du rendez-vous a
+   ses champs à lui, écrits dans index.html avec leurs identifiants
+   (#rdvPostEleveBilan…), et tout ce qui le fait vivre les lit par là.
+   Une zone « rdvPost » ne fait que RANGER la partie qui porte sa clé
+   (data-rdv-part) : à sa place, sous son titre, dans son cadre. Dans le
+   créateur, c'est une copie de cette même partie — voir
+   blocRdvPostFiche (ec-prepares.js).
+
+   ⚠️ ELLES CALCULENT : elles se renomment, se déplacent, prennent un
+   fond — elles ne se masquent pas. Sauf la photo de sa feuille. */
+CHAMPS_MANUELS.rdvpost = [
+  { cle:'rdvExamen',     type:'rdvPost', nom:"📄 Bilan d'examen officiel", fond:'#EEFFC2' },
+  { cle:'rdvEleve',      type:'rdvPost', nom:"📝 Bilan écrit par l'élève — corrige-le avec lui", fond:'#D6ECFF', badge:'ÉLÈVE' },
+  { cle:'rdvPhotos',     type:'rdvPost', nom:'📷 Écrit à la main ? Ajoute la photo de sa feuille (ou colle-la dans le champ ci-dessus).',
+    fond:'#D6ECFF', masquable:true },
+  { cle:'rdvMoniteur',   type:'rdvPost', nom:'✍️ Tes remarques et compléments', fond:'#D4F5DF', badge:'MONITEUR' },
+  { cle:'rdvConclusion', type:'rdvPost', nom:'Conclusion — que fait-on ensuite ?' },
+  { cle:'rdvBureau',     type:'rdvPost', nom:'Commentaire pour le bureau' }
+];
+
 
 /* Le préfixe des champs d'examen blanc.
 
@@ -1090,6 +1122,9 @@ function ajoutsDeLaForme(forme){
 const CLES_VERROUILLEES_FICHE = ['heuresAvant', 'bilanElim', 'examen.verifNote', 'estimationTexte'];
 function zoneVerrouilleeFiche(ch){
   if(!ch) return true;
+  /* 🎨 v1362 — les parties du rendez-vous post-permis : toutes tenues,
+     sauf celle qui se dit « masquable » (la photo de sa feuille) */
+  if(ch.type === 'rdvPost') return !ch.masquable;
   const c = String(ch.cle || '').replace(/^examenBlanc\./, '');
   return TYPES_LIBRES_FICHE.indexOf(ch.type) === -1 || CLES_VERROUILLEES_FICHE.indexOf(c) !== -1 ||
          /(^|\.)bilanElim$/.test(c) || !!ch.siNiveau;
@@ -7738,7 +7773,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       planifierMajListes(zone);
     }
 
-    if(ch.type === 'rappelFrise'){
+    /* 🎨 v1362 — une partie du rendez-vous post-permis : rangée ici */
+    if(ch.type === 'rdvPost'){
+      if(typeof blocRdvPostFiche === 'function') blocRdvPostFiche(ch, bloc);
+    }else if(ch.type === 'rappelFrise'){
       /* Sa frise et ses leçons faites : de quoi juger sans
          remonter chercher l'information ailleurs. */
       const frise = (dossierManuel && dossierManuel.frise) ||
