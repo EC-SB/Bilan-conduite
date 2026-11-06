@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 10:00 — v1257 */
+/* Déployé le 06/11/2026 à 09:11 — v1362 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -36,7 +36,8 @@ function modelesDesFiches(){
   if(typeof MODELES === 'undefined' || typeof CHAMPS_MANUELS === 'undefined') return [];
   return Object.keys(MODELES).filter(k => {
     const m = MODELES[k];
-    return m && k !== 'rdv-post' && m.schema !== 'handicap' && Array.isArray(CHAMPS_MANUELS[m.schema]);
+    /* 🎨 v1362 — le rendez-vous post-permis y entre (CHAMPS_MANUELS.rdvpost) */
+    return m && m.schema !== 'handicap' && Array.isArray(CHAMPS_MANUELS[m.schema]);
   }).map(k => ({ cle: k, label: MODELES[k].label, schema: MODELES[k].schema, groupe: MODELES[k].groupe || '' }));
 }
 function champsDeBaseFiche(modeleCle){
@@ -385,6 +386,13 @@ function dessinerFicheDuMoniteur(){
     blocs.forEach(b => b.after(ligneAjoutFiche(b.dataset.zone)));
     zone.querySelectorAll('.cadreFond[data-cadre]').forEach(cd => cd.classList.add('fiCadreEncadre'));
   }
+  /* 🎨 v1362 — le haut de l'écran du rendez-vous ne se règle pas */
+  if(fiS.modele === 'rdv-post'){
+    const n = document.createElement('div');
+    n.className = 'fiFixeRdv';
+    n.textContent = '⚠️ Suivi · 📷 Captures du CEPC — fixes, toujours en haut';
+    zone.insertBefore(n, zone.firstChild);
+  }
   marquerChoixFiche();
   if(cadre) cadre.scrollTop = haut;
 }
@@ -527,7 +535,10 @@ function blocZoneFiche(cle){
                     : '<br>Dans le bilan, ce que le moniteur y met part <b>juste sous la zone du dessus</b>.') + '</div>' +
       (c.type === 'titre' || c.type === 'sousTitre' || c.typeAjout === 'remarques' ? '' :
         '<label class="stCocheL"><input type="checkbox" id="fiPourNous"' + (c.pourNous ? ' checked' : '') + '> 🔒 Pour nous seulement (note interne, jamais à l’élève)</label>') : '') +
-    (verrou ? '<div class="fiVerrouNote">🔒 <b>Une zone qui calcule</b> : elle nourrit le bilan, le suivi ou les listes. Tu peux la <b>renommer</b>, la <b>déplacer</b>, lui donner un <b>fond</b> et retirer son <b>micro</b> — pas la masquer.</div>' : '') +
+    (verrou ? (c.type === 'rdvPost'
+      /* 🎨 v1362 — une partie du rendez-vous post-permis */
+      ? '<div class="fiVerrouNote">🔒 <b>Une partie du rendez-vous</b> : elle nourrit le compte rendu, le suivi et les listes du permis. Tu peux la <b>renommer</b>, la <b>déplacer</b>, lui donner un <b>fond</b> ou une <b>couleur</b> — pas la masquer. Son fond se voit aussi dans le bilan envoyé (mail, 📖 Mes leçons).</div>'
+      : '<div class="fiVerrouNote">🔒 <b>Une zone qui calcule</b> : elle nourrit le bilan, le suivi ou les listes. Tu peux la <b>renommer</b>, la <b>déplacer</b>, lui donner un <b>fond</b> et retirer son <b>micro</b> — pas la masquer.</div>') : '') +
     '<label for="fiNom">Le titre sur la fiche</label><input type="text" id="fiNom" maxlength="120">' +
     (avecAide ? '<label for="fiAide">La petite aide dessous</label><input type="text" id="fiAide" maxlength="240" placeholder="(aucune)">' : '') +
     /* 🅿️ v1236 — le menu des manœuvres ; ▾ une liste ajoutée */
@@ -906,7 +917,7 @@ function remplirCouleursFiche(div, cle, c){
   const r = fiS.forme.zones[cle] || {};
   const cc = r.couleurs || {};
   const titre = c.type === 'titre' || c.type === 'sousTitre';
-  const rangs = [['t', 'Le titre'], ['a', 'La petite aide']].concat(titre ? [] : [['x', 'Ce que le moniteur écrit']]);
+  const rangs = [['t', 'Le titre']].concat(c.type === 'rdvPost' ? [] : [['a', 'La petite aide']]).concat(titre ? [] : [['x', 'Ce que le moniteur écrit']]);
   const pastilles = q => '<div class="stCouleurs" data-q="' + q + '">' +
     '<button type="button" class="mepAuto' + (!cc[q] ? ' on' : '') + '" data-coul="" title="La couleur habituelle">A</button>' +
     COULEURS_TEXTE_FICHE.map(([v, n]) => '<button type="button" class="' + (cc[q] === v ? 'on' : '') + '" data-coul="' + v + '" style="background:' + v + '" title="' + n + '"></button>').join('') +
@@ -1307,7 +1318,9 @@ function blocListeZonesFiche(){
 
 /* ⧉ Copier vers… — en brouillon, sur les modèles choisis */
 function ouvrirCopieFiche(){
-  const autres = modelesDesFiches().filter(m => m.cle !== fiS.modele);
+  /* 🎨 v1362 — le rendez-vous post-permis n'a ses zones avec personne */
+  if(fiS.modele === 'rdv-post'){ showToast('Le RDV post-permis n’a pas d’équivalent : rien à copier.'); return; }
+  const autres = modelesDesFiches().filter(m => m.cle !== fiS.modele && m.cle !== 'rdv-post');
   const moi = MODELES[fiS.modele];
   autres.sort((a, b) => ((b.schema === moi.schema) - (a.schema === moi.schema)) || a.label.localeCompare(b.label, 'fr'));
   const fond = document.createElement('div');
