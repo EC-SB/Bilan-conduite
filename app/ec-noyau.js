@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 17:11 — v1356 */
+/* Déployé le 06/11/2026 à 09:11 — v1362 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1666,20 +1666,52 @@ async function envoyerBilanParMail(eleve, dateCours, texte, suite){
    Le texte reste le même, à la lettre : seule sa couleur change. */
 function htmlDuBilan(texte, couleurs){
   const ech = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const hex = v => /^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : '';
+  /* [texte, couleur, fond, bordure] — 🎨 v1362 : un fond met la ligne
+     dans un cadre (les parties du rendez-vous post-permis) */
   const table = {};
   (Array.isArray(couleurs) ? couleurs : []).forEach(x => {
-    if(Array.isArray(x) && /^#[0-9a-f]{6}$/i.test(String(x[1] || ''))) table[String(x[0]).trim()] = x[1];
+    if(!Array.isArray(x)) return;
+    const c = hex(x[1]), f = hex(x[2]), b = hex(x[3]);
+    if(c || f) table[String(x[0]).trim()] = { c: c, f: f, b: b };
   });
-  const t = Object.keys(table).length
-    ? String(texte || '').split('\n').map(l => {
-        const c = table[l.trim()];
-        return c ? '<span style="color:' + c + ';">' + ech(l) + '</span>' : ech(l);
-      }).join('\n')
-    : ech(texte || '');
-  return '<div style="font-family:-apple-system,BlinkMacSystemFont,' +
+  const tete = '<div style="font-family:-apple-system,BlinkMacSystemFont,' +
     '\'Segoe UI\',Roboto,Arial,sans-serif;font-size:15px;line-height:1.6;' +
-    'color:#14161B;max-width:560px;">' +
-    '<div style="white-space:pre-wrap;">' + t + '</div>';
+    'color:#14161B;max-width:560px;">';
+  if(!Object.keys(table).length) return tete + '<div style="white-space:pre-wrap;">' + ech(texte || '') + '</div>';
+  return tete + blocsDuBilanColore(String(texte || ''), table, ech);
+}
+/* Le texte, ligne à ligne : les lignes d'un même fond qui se suivent
+   (une ligne vide entre deux comprise) forment un seul cadre. */
+function blocsDuBilanColore(texte, table, ech){
+  const lignes = texte.split('\n');
+  const fondDe = i => { const e = table[String(lignes[i]).trim()]; return (e && e.f) ? e : null; };
+  const blocs = [];
+  lignes.forEach((l, i) => {
+    let e = fondDe(i);
+    if(!e && !String(l).trim() && blocs.length && blocs[blocs.length - 1].f){
+      let j = i + 1;
+      while(j < lignes.length && !String(lignes[j]).trim()) j++;
+      const suite = j < lignes.length ? fondDe(j) : null;
+      if(suite && suite.f === blocs[blocs.length - 1].f) e = { f: suite.f };
+    }
+    const f = e ? e.f : '';
+    let der = blocs[blocs.length - 1];
+    if(!der || der.f !== f){ der = { f: f, b: (e && e.b) || '', l: [] }; blocs.push(der); }
+    const x = table[String(l).trim()];
+    der.l.push(x && x.c ? '<span style="color:' + x.c + ';">' + ech(l) + '</span>' : ech(l));
+  });
+  return blocs.map((b, k) => {
+    if(!b.f){
+      /* les blancs qui touchent un cadre : sa marge suffit */
+      let l = b.l.slice();
+      if(k > 0) while(l.length && !l[0].trim()) l.shift();
+      if(k < blocs.length - 1) while(l.length && !l[l.length - 1].trim()) l.pop();
+      return l.length ? '<div style="white-space:pre-wrap;">' + l.join('\n') + '</div>' : '';
+    }
+    return '<div style="white-space:pre-wrap;background:' + b.f + ';border:1px solid ' + (b.b || b.f) +
+      ';border-radius:10px;padding:8px 12px;margin:10px 0;color:#14161B;">' + b.l.join('\n') + '</div>';
+  }).join('');
 }
 
 /* ============================================================
