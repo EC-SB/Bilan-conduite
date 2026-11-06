@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 10:20 — v1363 */
+/* Déployé le 06/11/2026 à 12:14 — v1364 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1364,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '📚 Espace élève : les guides en cadres · ✏️ convocations d’examen modifiables, avec la plage du jour',
+    quoi: [
+      { emoji: '📚',
+        titre: 'Les guides de l’élève, plus clairs',
+        texte: 'Côté élève, dans 🎬 Réviser : chaque guide est dans un cadre avec son titre en gros. Un menu « 📚 Aller à un guide » en haut, un menu « ☰ Aller à une étape » par guide, pour y aller direct. Et la recherche ouvre le guide quand le mot cherché est dans son titre.' },
+      { emoji: '✏️',
+        titre: 'Convocations d’examen',
+        texte: 'Depuis 🎓 Suivi permis, le ✉️ d’une session liste les convocations : « ✏️ Modifier » ouvre celle d’un élève dans l’éditeur pour la retoucher avant l’envoi. Et pour le jour d’examen, la convocation donne la plage de la journée — du premier qui conduit à la fin de tous les permis — avec, entre parenthèses, l’heure de passage de l’élève.' }
+    ]
+  },
   {
     version: 1363,
     date: 'Vendredi 6 novembre 2026',
