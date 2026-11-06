@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 15:51 — v1366 */
+/* Déployé le 06/11/2026 à 16:30 — v1367 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -220,6 +220,7 @@ function menuPourConvEC(c, ancre, apres){
   if((c.pour || []).length) items.push({ sep: true }, { emoji: '✕', texte: 'Personne', faire: () => poser([]) });
   menuGestesEC(ancre, '👤 Qui s’en occupe', items);
 }
+
 /* ↩️ v1180 — le message auquel on est en train de répondre :
    { conv, id, rang, qui, apercu }, ou null. Il appartient à UN fil :
    ouvrir un autre fil l'oublie. */
@@ -611,7 +612,15 @@ function ligneConversationCorps(c, d, enChoix){
   const h = document.createElement('span');
   h.className = 'mono';
   h.textContent = heureCourteMessagerie(c.dernierLe);
-  tete.appendChild(q); tete.appendChild(h);
+  tete.appendChild(q);
+  /* 👤 v1366 — les ronds « pour » juste avant l'heure, toujours visibles */
+  if((c.pour || []).length){
+    const marques = document.createElement('span');
+    marques.className = 'msgMarquesPour';
+    (c.pour || []).forEach(nm => marques.appendChild(msgRondPour(nm)));
+    tete.appendChild(marques);
+  }
+  tete.appendChild(h);
   mi.appendChild(tete);
 
   const ap = document.createElement('div');
@@ -640,11 +649,11 @@ function ligneConversationCorps(c, d, enChoix){
     ? parQui + c.dernierApercu : 'Pas encore de message.'));
   mi.appendChild(ap);
 
-  /* 🏷️ 👤 v1366 — les étiquettes et les ronds « pour » de la conversation */
-  if((c.etiquettes || []).length || (c.pour || []).length){
+  /* 🏷️ v1366 — les étiquettes de la conversation (les ronds « pour »
+     sont dans l'en-tête, près de l'heure) */
+  if((c.etiquettes || []).length){
     const tags = document.createElement('div');
     tags.className = 'msgLigneTags';
-    (c.pour || []).forEach(nm => tags.appendChild(msgRondPour(nm)));
     (c.etiquettes || []).forEach(e => {
       const ch = document.createElement('span');
       ch.className = 'msgEtiqChip';
@@ -744,6 +753,19 @@ function ligneConversationCorps(c, d, enChoix){
     }
     pt('⏰', ckRappelActif(c) ? 'Retirer le rappel' : 'Me la rappeler demain 9h', 'rappel');
     pt('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', 'epingle');
+    /* 🏷️ 👤 v1366 — étiqueter / attribuer au survol, sans ouvrir */
+    const apresV = () => {
+      if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c.id && typeof dessinerLeFil === 'function') dessinerLeFil();
+      dessinerLaListeMessagerie();
+    };
+    const bEt = document.createElement('button');
+    bEt.type = 'button'; bEt.textContent = '🏷️'; bEt.title = 'Étiquettes'; bEt.setAttribute('aria-label', 'Étiquettes');
+    bEt.addEventListener('click', ev => { ev.stopPropagation(); menuEtiquettesConvEC(c, bEt, apresV); });
+    v.appendChild(bEt);
+    const bPr = document.createElement('button');
+    bPr.type = 'button'; bPr.textContent = '👤'; bPr.title = 'Qui s’en occupe ?'; bPr.setAttribute('aria-label', 'Qui s’en occupe ?');
+    bPr.addEventListener('click', ev => { ev.stopPropagation(); menuPourConvEC(c, bPr, apresV); });
+    v.appendChild(bPr);
     d.appendChild(v);
   }
 }
