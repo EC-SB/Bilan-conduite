@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 17:11 — v1356 */
+/* Déployé le 06/11/2026 à 09:11 — v1362 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -4027,6 +4027,321 @@ function blocCepcInterneRdvPost(eleve){
 }
 
 
+/* ============================================================
+   🎨 LA FICHE DU RENDEZ-VOUS POST-PERMIS — v1362
+
+   David, le 5 novembre : « je ne peux pas modifier visuellement les
+   bilans post permis, et je voudrais mettre de la couleur sur les
+   cadres pour bien différencier le bilan du moniteur et le bilan de
+   l'élève ». Ses choix sur le schéma : le rendez-vous entre dans le
+   créateur des fiches, comme l'examen blanc ; bleu pour l'élève, vert
+   pour le moniteur, une autre nuance de vert pour le bilan de l'examen
+   officiel ; à l'écran ET dans le bilan envoyé (mail, 📖 Mes leçons) ;
+   une zone ajoutée part sous la zone du dessus.
+
+   ⚠️ LES CHAMPS NE CHANGENT PAS DE NOM. Ils restent écrits dans
+   index.html, chacun dans sa partie (data-rdv-part) : tout ce qui fait
+   vivre cet écran — la garde, le dépôt, la reprise, l'enregistrement —
+   continue de les lire par leurs identifiants. La fiche publiée ne fait
+   que RANGER ces parties : dans son ordre, sous ses titres, dans ses
+   cadres — par dessinerChampsManuels, la fonction de toutes les fiches.
+   Si le rangement échoue, les parties restent où elles sont : l'écran
+   d'avant.
+
+   ⚠️ ET LE COMPTE RENDU GARDE SES TITRES ET SON ORDRE. La conclusion
+   d'abord, le commentaire pour le bureau en dernier : l'historique
+   (partiesDuRdvPost) et « Mes leçons » (Apps Script) les relisent à
+   cette place-là. Renommer une zone change l'écran, pas le compte rendu.
+   ============================================================ */
+const PARTIES_RDV_POST = ['rdvExamen', 'rdvEleve', 'rdvPhotos', 'rdvMoniteur', 'rdvConclusion', 'rdvBureau'];
+/* Où part ce qu'une zone ajoutée sous chaque partie a reçu */
+const SECTION_RDV_POST = { debut: 'conclusion', rdvConclusion: 'conclusion', rdvExamen: 'examen',
+                           rdvEleve: 'eleve', rdvPhotos: 'eleve', rdvMoniteur: 'moniteur', rdvBureau: 'bureau' };
+let rdvPostChamps = null;
+
+function champsDuRdvPost(){
+  if(typeof CHAMPS_MANUELS === 'undefined' || !Array.isArray(CHAMPS_MANUELS.rdvpost) ||
+     typeof champsAvecForme !== 'function') return null;
+  return champsAvecForme(CHAMPS_MANUELS.rdvpost,
+    (typeof formePublieeDe === 'function') ? formePublieeDe('rdv-post') : null);
+}
+/* La couleur franche d'un fond (le titre, la bordure), et le fond lui-même */
+function fondClairRdvPost(fond){ return fond === 'ardoise' ? '#E8EDF3' : String(fond || ''); }
+function fortDuFondRdvPost(fond){
+  const c = fondClairRdvPost(fond);
+  if(!/^#[0-9a-f]{6}$/i.test(c)) return '';
+  if(typeof FONDS_FICHE !== 'undefined' && FONDS_FICHE[c.toUpperCase()]) return FONDS_FICHE[c.toUpperCase()].fort;
+  return (typeof melangerCouleurFiche === 'function') ? melangerCouleurFiche(c, '#000000', 0.45) : '';
+}
+
+/* Une partie, rangée dans sa zone (appelée par dessinerChampsManuels) */
+function blocRdvPostFiche(ch, bloc){
+  bloc.classList.add('rdvBloc');
+  const vraie = document.querySelector('[data-rdv-part="' + ch.cle + '"]');
+  if(!vraie) return;
+  /* Dans le créateur (réglage ou essai) : une copie, jamais la vraie —
+     la vraie appartient à l'écran du rendez-vous. */
+  const part = window.essaiFicheEnCours ? apercuPartieRdvPost(ch.cle, vraie, ch) : vraie;
+  bloc.appendChild(part);
+
+  /* Le titre de la fiche, et sa couleur : celle choisie, sinon la
+     couleur franche du cadre. Une partie resservie d'un rendez-vous à
+     l'autre repart d'abord de zéro. */
+  const fort = ch.fond ? fortDuFondRdvPost(ch.fond) : '';
+  const lisible = c => (typeof couleurLisibleFiche === 'function') ? couleurLisibleFiche(c) : c;
+  const coulTitre = (ch.couleurs && ch.couleurs.t) || (ch.cle === 'rdvPhotos' ? '' : fort);
+  part.querySelectorAll('.rdvBadge').forEach(x => x.remove());
+  /* la couleur d'origine du texte (celle de la page : var(--cream)) */
+  part.querySelectorAll('textarea').forEach(x => {
+    if(x.dataset.coulOrigine === undefined) x.dataset.coulOrigine = x.style.color || '';
+    x.style.color = x.dataset.coulOrigine;
+  });
+  let titre = null;
+  if(ch.cle === 'rdvExamen'){
+    titre = part.querySelector('summary');
+    if(titre){
+      const n = Array.prototype.find.call(titre.childNodes, x => x.nodeType === 3 && x.textContent.trim());
+      if(n) n.textContent = '\n        ' + ch.nom + ' ';
+    }
+  }else if(ch.cle === 'rdvPhotos'){
+    titre = part.querySelector('.galeriePhotosBilan > div');
+    if(titre && /^📷 Écrit à la main/.test(titre.dataset.origine || titre.textContent)){
+      titre.dataset.origine = titre.dataset.origine || titre.textContent;
+      titre.textContent = ch.nom;
+    }
+  }else{
+    titre = part.querySelector('label');
+    if(titre) titre.textContent = ch.nom;
+  }
+  if(titre){
+    /* sa couleur et sa graisse d'origine (le résumé du bilan d'examen
+       porte la sienne, écrite dans la page) se retrouvent toujours */
+    if(titre.dataset.coulOrigine === undefined){
+      titre.dataset.coulOrigine = titre.style.color || '';
+      titre.dataset.grasOrigine = titre.style.fontWeight || '';
+    }
+    titre.style.color = coulTitre ? lisible(coulTitre) : titre.dataset.coulOrigine;
+    titre.style.fontWeight = (fort && ch.cle !== 'rdvPhotos') ? '800' : titre.dataset.grasOrigine;
+  }
+  /* « ÉLÈVE », « MONITEUR » : seulement dans un cadre */
+  if(ch.badge && fort){
+    const b = document.createElement('span');
+    b.className = 'rdvBadge';
+    b.textContent = ch.badge;
+    b.style.background = fort;
+    part.insertBefore(b, part.firstChild);
+  }
+}
+
+/* La copie d'une partie, pour le créateur : vide, sans identifiants */
+function apercuPartieRdvPost(cle, vraie, ch){
+  const c = vraie.cloneNode(true);
+  const conclusion = c.querySelector('#rdvPostConclusion');
+  const dit = c.querySelector('#rdvPostConclusionDit');
+  const carte = c.querySelector('#rdvPostCarte');
+  const source = c.querySelector('#rdvPostBilanSource');
+  c.removeAttribute('data-rdv-part');
+  c.querySelectorAll('[id]').forEach(x => x.removeAttribute('id'));
+  c.querySelectorAll('[for]').forEach(x => x.removeAttribute('for'));
+  c.querySelectorAll('textarea').forEach(t => { t.value = ''; t.textContent = ''; });
+  if(cle === 'rdvExamen'){
+    const d = c.querySelector('details');
+    if(d) d.open = true;
+    if(source) source.style.display = 'none';
+    if(carte){
+      carte.innerHTML = '';
+      if(typeof boutonCarteDuDernierExamen === 'function'){
+        try{ carte.appendChild(boutonCarteDuDernierExamen(() => '')); }catch(e){}
+      }
+    }
+  }
+  if(cle === 'rdvPhotos'){
+    c.innerHTML = '';
+    const g = document.createElement('div');
+    g.className = 'galeriePhotosBilan';
+    g.style.cssText = 'margin:-6px 0 14px;';
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;';
+    t.textContent = (ch && ch.nom) || '';
+    const tuile = document.createElement('div');
+    tuile.style.cssText = 'position:relative;width:84px;height:84px;border-radius:10px;overflow:hidden;' +
+      'border:1px dashed var(--line);background:var(--navy-deep);display:flex;align-items:center;justify-content:center;' +
+      'color:var(--accent-text);font-size:12.5px;font-weight:700;';
+    tuile.textContent = '📷 Ajouter';
+    g.appendChild(t); g.appendChild(tuile);
+    c.appendChild(g);
+  }
+  if(cle === 'rdvConclusion'){
+    if(conclusion){
+      conclusion.innerHTML = '';
+      if(typeof rangeeBoutons === 'function' && typeof choixConclusionPost === 'function'){
+        try{
+          conclusion.appendChild(rangeeBoutons('', choixConclusionPost(), '', () => {},
+            { autre: '✏️ Autre', surAutre: () => {} }));
+        }catch(e){}
+      }
+    }
+    if(dit){
+      dit.textContent = 'À définir : personne n\'a encore dit ce qu\'on fait ensuite.';
+      dit.style.color = 'var(--muted)';
+    }
+  }
+  return c;
+}
+
+/* À l'ouverture : les parties rangées selon la fiche publiée */
+function arrangerRdvPost(){
+  const fiche = $('rdvPostFiche'), reserve = $('rdvPostParts');
+  if(!fiche || !reserve) return;
+  const remettre = () => {
+    PARTIES_RDV_POST.forEach(k => {
+      const p = document.querySelector('[data-rdv-part="' + k + '"]');
+      if(p) reserve.appendChild(p);
+    });
+    fiche.innerHTML = '';
+  };
+  remettre();
+  rdvPostChamps = null;
+  const champs = champsDuRdvPost();
+  if(!champs || typeof dessinerChampsManuels !== 'function' || window.essaiFicheEnCours) return;
+  /* Les zones ajoutées repartent vides : leurs valeurs vivent dans
+     champsManuels, sous des clés que le rendez-vous d'avant avait aussi. */
+  if(typeof champsManuels !== 'undefined' && champsManuels){
+    champs.forEach(c => { if(c && c.ajout) delete champsManuels[c.cle]; });
+  }
+  try{
+    dessinerChampsManuels(champs, fiche, MODELES['rdv-post'], { manoeuvres: [], frise: '' });
+    /* Une partie qui n'aurait pas trouvé sa zone : on ne bricole pas,
+       on rend l'écran d'avant. */
+    if(PARTIES_RDV_POST.some(k => !fiche.querySelector('[data-rdv-part="' + k + '"]'))) throw new Error('partie absente');
+    rdvPostChamps = champs;
+  }catch(e){
+    console.warn('Fiche du rendez-vous non appliquée :', e);
+    remettre();
+  }
+  /* Ce qu'on tape dans une zone ajoutée est gardé comme le reste */
+  if(!fiche.dataset.garde){
+    fiche.dataset.garde = '1';
+    ['input', 'change', 'click'].forEach(ev => fiche.addEventListener(ev, () => setTimeout(garderRdvPost, 0)));
+  }
+}
+/* La galerie se refait à chaque ouverture : son titre suit la fiche */
+function titrePhotosRdvPost(){
+  const ch = (rdvPostChamps || []).find(c => c && c.cle === 'rdvPhotos');
+  const b = ch && document.querySelector('#rdvPostFiche [data-zone="rdvPhotos"]');
+  if(b && typeof blocRdvPostFiche === 'function'){
+    const part = b.querySelector('[data-rdv-part="rdvPhotos"]');
+    const t = part && part.querySelector('.galeriePhotosBilan > div');
+    if(t && /^📷 Écrit à la main/.test(t.textContent)){
+      t.dataset.origine = t.textContent;
+      t.textContent = ch.nom;
+      const fort = ch.fond ? fortDuFondRdvPost(ch.fond) : '';
+      const c = (ch.couleurs && ch.couleurs.t) || '';
+      if(c) t.style.color = (typeof couleurLisibleFiche === 'function') ? couleurLisibleFiche(c) : c;
+      else if(fort) t.style.color = '';
+    }
+  }
+}
+
+/* ── les zones ajoutées : ce qu'on y a mis, gardé et repris ── */
+function ajoutsRemplisRdvPost(a){
+  return !!(a && typeof a === 'object') && Object.keys(a).some(k =>
+    Array.isArray(a[k]) && a[k].some(v => v && String(v).trim() && String(v) !== '0'));
+}
+function ajoutsDuRdvPost(){ return (rdvPostChamps || []).filter(c => c && c.ajout); }
+function blocAjoutRdvPost(cle){ return document.querySelector('#rdvPostFiche [data-zone="' + String(cle).replace(/"/g, '') + '"]'); }
+function saisiesAjoutsRdvPost(){
+  const out = {};
+  ajoutsDuRdvPost().forEach(c => {
+    const b = blocAjoutRdvPost(c.cle);
+    if(!b) return;
+    out[c.cle] = Array.prototype.map.call(b.querySelectorAll('textarea, input, select'),
+      e => (e.type === 'checkbox' || e.type === 'radio') ? (e.checked ? 1 : 0) : e.value);
+  });
+  return out;
+}
+function replacerAjoutsRdvPost(s){
+  if(!s || typeof s !== 'object') return;
+  ajoutsDuRdvPost().forEach(c => {
+    const b = blocAjoutRdvPost(c.cle), v = s[c.cle];
+    if(!b || !Array.isArray(v)) return;
+    const els = b.querySelectorAll('textarea, input, select');
+    if(els.length !== v.length) return;
+    Array.prototype.forEach.call(els, (e, i) => {
+      if(e.type === 'checkbox' || e.type === 'radio'){
+        if(!!v[i] !== e.checked){ e.checked = !!v[i]; e.dispatchEvent(new Event('change', { bubbles: true })); }
+      }else if(e.type !== 'hidden' && e.type !== 'file' && String(v[i] || '') !== e.value){
+        e.value = String(v[i] || '');
+        e.dispatchEvent(new Event('input', { bubbles: true }));
+        e.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  });
+}
+/* Ce que les zones ajoutées écrivent, rangé par partie du compte rendu */
+function lignesAjoutsRdvPost(){
+  const out = { conclusion: [], examen: [], eleve: [], moniteur: [], bureau: [], couleurs: [] };
+  const champs = rdvPostChamps || [];
+  const ajouts = champs.filter(c => c && c.ajout && !c.cacheFiche);
+  if(!ajouts.length || typeof lignesDesAjoutsFiche !== 'function') return out;
+  try{ if(typeof lireChampsManuels === 'function') lireChampsManuels(ajouts); }catch(e){ console.warn('Zones ajoutées illisibles :', e); }
+  const valeurs = (typeof champsManuels !== 'undefined' && champsManuels) || {};
+  /* chaque zone ajoutée, sous la partie qui la précède */
+  const groupes = {};
+  let ici = 'debut';
+  champs.forEach(c => {
+    if(!c) return;
+    if(!c.ajout){ ici = c.cle; return; }
+    if(c.cacheFiche) return;
+    const sec = c.pourNous ? 'bureau' : (SECTION_RDV_POST[ici] || 'conclusion');
+    (groupes[sec] = groupes[sec] || []).push(c);
+  });
+  Object.keys(groupes).forEach(sec => {
+    /* « pour nous » : elles vont au bureau — lignesDesAjoutsFiche les
+       écarterait, on les lui donne comme des zones ordinaires */
+    const zs = groupes[sec].map(c => c.pourNous ? Object.assign({}, c, { pourNous: false }) : c);
+    out[sec] = lignesDesAjoutsFiche(zs, valeurs);
+    if(sec === 'bureau') return;
+    zs.forEach(c => {
+      const l = (typeof lignesDUnAjoutFiche === 'function') ? lignesDUnAjoutFiche(c, valeurs[c.cle]) : [];
+      if(l.length) out.couleurs.push({ zone: c, lignes: l });
+    });
+  });
+  return out;
+}
+
+/* 🎨 Les lignes du compte rendu et leur cadre, pour le mail et
+   « 📖 Mes leçons » : [texte, couleur, fond, bordure]. Le texte reste
+   un texte simple — Messenger et Drivup le reçoivent sans couleur. */
+function couleursDuRdvPost(textes, ajouts){
+  const out = [];
+  const champs = rdvPostChamps || champsDuRdvPost() || [];
+  const zone = cle => champs.find(c => c && c.cle === cle) || null;
+  const poser = (lignes, ch, titreAussi) => {
+    if(!ch || !lignes.length) return;
+    const cc = (ch.couleurs && ch.couleurs.b) ? ch.couleurs : {};
+    const fond = ch.fond ? fondClairRdvPost(ch.fond) : '';
+    const fort = fond ? fortDuFondRdvPost(ch.fond) : '';
+    const bord = fort && typeof melangerCouleurFiche === 'function' ? melangerCouleurFiche(fort, '#FFFFFF', 0.35) : fort;
+    lignes.forEach((l, i) => {
+      const t = String(l || '').trim();
+      if(!t || out.some(x => x[0] === t)) return;
+      const coul = (i === 0 && titreAussi) ? (cc.t || fort || '') : (cc.x || '');
+      if(coul || fond) out.push([t, coul, fond, bord]);
+    });
+  };
+  const parts = [['rdvConclusion', '', textes.conclusion], ['rdvExamen', "📄 Bilan d'examen officiel", textes.bilanExamen],
+                 ['rdvEleve', "📝 Bilan écrit par l'élève", textes.bilanEleve],
+                 ['rdvMoniteur', '✍️ Remarques et compléments du moniteur', textes.texteMoniteur]];
+  parts.forEach(([cle, titre, texte]) => {
+    const t = String(texte || '').trim();
+    if(!t) return;
+    poser((titre ? [titre] : []).concat(t.split('\n')), zone(cle), !!titre);
+  });
+  ((ajouts && ajouts.couleurs) || []).forEach(x => poser(x.lignes, x.zone, true));
+  return out;
+}
+
 async function ouvrirRdvPost(cours){
   /* ⚠️ UN SEUL COURS OUVERT À LA FOIS — corrigé en v1043.
 
@@ -4103,6 +4418,9 @@ async function ouvrirRdvPost(cours){
     }catch(e){ /* un signalement raté n'arrête pas un rendez-vous */ }
   }
   if(typeof veillerDepotRdvPost === 'function') veillerDepotRdvPost(cours);
+
+  /* 🎨 v1362 — les parties rangées selon la fiche publiée (créateur) */
+  arrangerRdvPost();
 
   $('rdvPostEleve').textContent = cours.eleve || '';
   $('rdvPostInfo').textContent = 'Prévu le ' + libelleDate(cours.date) +
@@ -4236,6 +4554,7 @@ async function ouvrirRdvPost(cours){
   if(zPhotos && typeof galeriePhotosBilan === 'function'){
     zPhotos.innerHTML = '';
     zPhotos.appendChild(galeriePhotosBilan(cours.eleve, { champ: $('rdvPostEleveBilan') }));
+    titrePhotosRdvPost();
   }
   $('rdvPostTexte').value = s.texteMoniteur || '';
 
@@ -4246,6 +4565,7 @@ async function ouvrirRdvPost(cours){
     CHAMPS_RDV_POST.forEach(id => {
       if($(id) && String(garde[id] || '').trim()) $(id).value = garde[id];
     });
+    replacerAjoutsRdvPost(garde.__ajouts);
     if(typeof showToast === 'function'){
       setTimeout(() => showToast('Ce que tu avais tapé est revenu ✅'), 400);
     }
@@ -4445,6 +4765,11 @@ function garderRdvPost(){
   if(!rdvPostEnCours) return;
   const d = { eleve: rdvPostEnCours.eleve, ts: Date.now() };
   CHAMPS_RDV_POST.forEach(id => { if($(id)) d[id] = $(id).value; });
+  /* 🎨 v1362 — et les zones ajoutées par le créateur */
+  if(typeof saisiesAjoutsRdvPost === 'function' && rdvPostChamps){
+    const a = saisiesAjoutsRdvPost();
+    if(ajoutsRemplisRdvPost(a)) d.__ajouts = a;
+  }
   try{ localStorage.setItem(CLE_RDV_POST, JSON.stringify(d)); }catch(e){}
 }
 
@@ -4460,7 +4785,8 @@ function rdvPostGarde(eleve){
     if(!d || !d.eleve) return null;
     if(normaliserMot(d.eleve) !== normaliserMot(eleve || '')) return null;
     if(Date.now() - (d.ts || 0) > 24 * 3600 * 1000) return null;
-    const ecrit = CHAMPS_RDV_POST.some(id => String(d[id] || '').trim());
+    const ecrit = CHAMPS_RDV_POST.some(id => String(d[id] || '').trim()) ||
+                  ajoutsRemplisRdvPost(d.__ajouts);
     return ecrit ? d : null;
   }catch(e){ return null; }
 }
@@ -5083,18 +5409,30 @@ async function completerDepuisLExamenOfficiel(eleve, besoins){
    s'exécute dans un test sans écran.
    ============================================================ */
 function compteRenduDuRdvPost(c){
-  const bout = (titre, texte) => {
+  c = c || {};
+  /* 🎨 v1362 — ce que les zones ajoutées du créateur ont écrit, sous
+     la partie qu'elles suivent (voir lignesAjoutsRdvPost) */
+  const aj = c.ajouts || {};
+  const plus = k => (Array.isArray(aj[k]) ? aj[k] : []).join('\n').trim();
+  const bout = (titre, texte, extra, titreSeul) => {
     const t = String(texte || '').trim();
-    return t ? titre + '\n' + t : '';
+    const x = String(extra || '').trim();
+    if(!t && !x) return '';
+    /* ⚠️ Le titre du bureau sort même vide : c'est à lui qu'on coupe
+       ce qui ne part pas à l'élève (partiesDuRdvPost, Mes leçons). */
+    if(!t) return titreSeul ? titre + '\n' + x : x;
+    return titre + '\n' + t + (x ? '\n\n' + x : '');
   };
+  const avecBureau = (c.commentaire !== undefined);
 
   return [
     '🏁 RENDEZ-VOUS POST-PERMIS',
-    String((c && c.conclusion) || '').trim(),
-    bout("📄 Bilan d'examen officiel", c && c.bilanExamen),
-    bout("📝 Bilan écrit par l'élève", c && c.bilanEleve),
-    bout('✍️ Remarques et compléments du moniteur', c && c.texteMoniteur),
-    bout('💬 Commentaire pour le bureau', c && c.commentaire)
+    String(c.conclusion || '').trim(),
+    plus('conclusion'),
+    bout("📄 Bilan d'examen officiel", c.bilanExamen, plus('examen')),
+    bout("📝 Bilan écrit par l'élève", c.bilanEleve, plus('eleve')),
+    bout('✍️ Remarques et compléments du moniteur', c.texteMoniteur, plus('moniteur')),
+    avecBureau ? bout('💬 Commentaire pour le bureau', c.commentaire, plus('bureau'), true) : ''
   ].filter(x => x).join('\n\n');
 }
 
@@ -5294,6 +5632,26 @@ async function terminerRdvPost(){
        non terminés avec sa dictée, pas disparaître des deux listes
        à la fois.
        ============================================================ */
+    /* 🎨 v1362 — les zones ajoutées par le créateur, et les couleurs
+       des cadres pour le mail et « 📖 Mes leçons » */
+    const ajoutsRdv = lignesAjoutsRdvPost();
+    const jourRdv = rdvPostEnCours.date || todayLocal();
+    const texteHistorique = compteRenduDuRdvPost({
+      conclusion: conclusion,
+      bilanExamen: majs.bilanExamen,
+      bilanEleve: majs.bilanEleve,
+      texteMoniteur: majs.texteMoniteur,
+      commentaire: majs.commentaireMoniteur,
+      ajouts: ajoutsRdv
+    });
+    try{
+      const lignesCoul = couleursDuRdvPost({ conclusion: conclusion, bilanExamen: majs.bilanExamen,
+        bilanEleve: majs.bilanEleve, texteMoniteur: majs.texteMoniteur }, ajoutsRdv);
+      if(typeof couleursBilanCourant !== 'undefined'){
+        couleursBilanCourant = lignesCoul.length ? { eleve: eleve, jour: jourRdv, lignes: lignesCoul } : null;
+      }
+    }catch(e){ console.warn('Couleurs du rendez-vous :', e); }
+
     let ligneEcrite = false;
     try{
       const envoi = await envoyerLigneDeBilan({
@@ -5307,15 +5665,11 @@ async function terminerRdvPost(){
         boite: '', ants: '', manoeuvres: '',
         horodatage: (typeof horodatageLisible === 'function')
           ? horodatageLisible(null) : '',
-        bilan: compteRenduDuRdvPost({
-          conclusion: conclusion,
-          bilanExamen: majs.bilanExamen,
-          bilanEleve: majs.bilanEleve,
-          texteMoniteur: majs.texteMoniteur,
-          commentaire: majs.commentaireMoniteur
-        })
+        bilan: texteHistorique
       });
       ligneEcrite = !!(envoi && envoi.ok);
+      /* 🎨 v1362 — ses cadres dans « 📖 Mes leçons », mail ou pas */
+      if(ligneEcrite && typeof poserCouleursDuBilan === 'function') poserCouleursDuBilan(eleve, jourRdv, texteHistorique);
     }catch(e){
       /* Le suivi est écrit, la décision est prise : on ne perd pas
          le rendez-vous parce que le classeur n'a pas répondu. On le
@@ -5411,7 +5765,8 @@ async function terminerRdvPost(){
       conclusion: conclusion,
       bilanExamen: majs.bilanExamen,
       bilanEleve: majs.bilanEleve,
-      texteMoniteur: majs.texteMoniteur
+      texteMoniteur: majs.texteMoniteur,
+      ajouts: ajoutsRdv
     });
     afficherFinDuRdvPost(eleve, rdvPostEnCours.date || todayLocal(), texteMail);
   }catch(e){
