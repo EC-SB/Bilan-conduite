@@ -875,12 +875,13 @@
     flex:1; min-width:0; border:0; background:transparent; color:var(--on-accent);
     font-family:inherit; font-size:13px; font-weight:800; padding:2px; margin:0;
   }
+  /* 📚 v1364 — cadre dans NOTRE VERT, titre du guide CENTRÉ (David). */
   .guideCadre{
-    border:1.5px solid var(--line); border-radius:18px; background:var(--navy-deep);
+    border:1.5px solid var(--accent-text); border-radius:18px; background:var(--navy-deep);
     padding:12px 13px 6px; margin:0 0 12px;
   }
-  .guideCadre .gtete{ display:flex; align-items:center; gap:10px; }
-  .guideCadre .gtitre{ flex:1; min-width:0; font-size:19px; font-weight:800; line-height:1.2; overflow-wrap:anywhere; }
+  .guideCadre .gtete{ display:flex; align-items:baseline; justify-content:center; gap:8px; flex-wrap:wrap; }
+  .guideCadre .gtitre{ min-width:0; font-size:19px; font-weight:800; line-height:1.2; overflow-wrap:anywhere; text-align:center; }
   .guideCadre .gpct{ font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; }
   .guideCadre .gtMenu{ margin:8px 0 2px; }
   .guideCadre .gtMenu select{
