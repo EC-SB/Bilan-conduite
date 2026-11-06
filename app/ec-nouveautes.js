@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 15:51 — v1366 */
+/* Déployé le 06/11/2026 à 16:51 — v1368 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1368,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '⏳ Espace élève : un écran de chargement (fini la page blanche à la connexion)',
+    quoi: [
+      { emoji: '⏳',
+        titre: 'Un écran de chargement, plus de page blanche',
+        texte: 'À la connexion, l’élève voyait une page blanche le temps que l’accueil se charge — certains repartaient en pensant que ça ne marchait pas. Maintenant un écran aux couleurs de l’espace s’affiche tout de suite : une voiture qui avance avec « Ça charge… un instant ». Il disparaît dès que l’accueil est prêt. Même chose en salle des tablettes, vu le temps de chargement.' }
+    ]
+  },
   {
     version: 1366,
     date: 'Vendredi 6 novembre 2026',
