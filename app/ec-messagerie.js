@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 13:55 — v1337 */
+/* Déployé le 06/11/2026 à 15:51 — v1366 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -77,6 +77,149 @@ function dansLeTiroir(){ return tiroirOuvertEC; }
 
 let conversationsEC = [];
 let filOuvertEC = null;          /* { conv, messages, membres, … } */
+
+/* ============================================================
+   🏷️ 👤 v1366 — ÉTIQUETTES + ATTRIBUTION DES CONVERSATIONS
+
+   David : « sur les messages, comme pour les mails, pouvoir attribuer
+   des conversations à des gens et mettre des étiquettes que je vais
+   créer ». On réutilise l'infra des mails : les couleurs
+   (ML_POUR_COULEURS) et le menu (menuGestesEC), tous deux globaux. Le
+   catalogue d'étiquettes et les personnes arrivent avec convList.
+   ============================================================ */
+let catalogueEtiquettesEC = [];
+let personnesEC = [];
+const filtreEtiqPourEC = { pour: '', etiq: '', moi: false };
+function msgNormNom(n){ return String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+function msgPersonne(nom){
+  const k = msgNormNom(nom);
+  const p = personnesEC.find(x => msgNormNom(x.nom) === k);
+  const coul = (typeof ML_POUR_COULEURS !== 'undefined' && p && ML_POUR_COULEURS[p.couleur]) ? p.couleur : 'noir';
+  return { nom: p ? p.nom : String(nom || ''), couleur: coul, connu: !!p };
+}
+function msgCoulHex(coul){ return (typeof ML_POUR_COULEURS !== 'undefined' && ML_POUR_COULEURS[coul]) ? ML_POUR_COULEURS[coul].hex : '#3F3F46'; }
+function msgCoulEmo(coul){ return (typeof ML_POUR_COULEURS !== 'undefined' && ML_POUR_COULEURS[coul]) ? ML_POUR_COULEURS[coul].emo : '⚫'; }
+/* Le rond : la couleur ET l'initiale (la couleur ne parle jamais seule) */
+function msgRondPour(nom){
+  const p = msgPersonne(nom);
+  const r = document.createElement('span');
+  r.className = 'msgRondPour';
+  r.style.background = msgCoulHex(p.couleur);
+  r.textContent = (p.nom.trim().charAt(0) || '?').toUpperCase();
+  r.title = 'Pour ' + p.nom;
+  r.setAttribute('aria-label', 'Pour ' + p.nom);
+  return r;
+}
+function msgMoiNom(){ return (typeof ACCES !== 'undefined' && ACCES && (ACCES.moniteur || ACCES.nom)) || ''; }
+function msgEstPour(c, nom){ const k = msgNormNom(nom); return !!k && (c.pour || []).some(x => msgNormNom(x) === k); }
+function msgEstAdminEtiq(){ return typeof aDroit === 'function' && aDroit('messagerie_admin'); }
+function msgFiltreEtiqPourActif(){ return !!(filtreEtiqPourEC.pour || filtreEtiqPourEC.etiq || filtreEtiqPourEC.moi); }
+function msgPasseLeFiltreEtiqPour(c){
+  if(filtreEtiqPourEC.moi && !msgEstPour(c, msgMoiNom())) return false;
+  if(filtreEtiqPourEC.pour){
+    if(filtreEtiqPourEC.pour === '∅'){ if((c.pour || []).length) return false; }
+    else if(!msgEstPour(c, filtreEtiqPourEC.pour)) return false;
+  }
+  if(filtreEtiqPourEC.etiq){
+    if(filtreEtiqPourEC.etiq === '∅'){ if((c.etiquettes || []).length) return false; }
+    else if((c.etiquettes || []).indexOf(filtreEtiqPourEC.etiq) === -1) return false;
+  }
+  return true;
+}
+
+/* La rangée de filtres « 👤 Pour » et « 🏷️ Étiquette », comme les mails. */
+function barreEtiqPourEC(listePourCompte){
+  const tous = listePourCompte || conversationsEC.filter(c => !c.enSupervision);
+  const r = document.createElement('div');
+  r.className = 'msgFiltresEtiq';
+  const redessiner = () => dessinerLaListeMessagerie();
+  const puce = (texte, on, titre, faire) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ckpOnglet msgFiltreB' + (on ? ' on' : '');
+    b.title = titre || '';
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.textContent = texte;
+    b.addEventListener('click', ev => { ev.stopPropagation(); faire(b); });
+    r.appendChild(b);
+    return b;
+  };
+  const moi = msgMoiNom();
+  if(moi && msgPersonne(moi).connu){
+    puce(msgCoulEmo(msgPersonne(moi).couleur) + ' Pour moi', filtreEtiqPourEC.moi, 'Les conversations dont je m’occupe',
+      () => { filtreEtiqPourEC.moi = !filtreEtiqPourEC.moi; if(filtreEtiqPourEC.moi) filtreEtiqPourEC.pour = ''; redessiner(); });
+  }
+  const pq = filtreEtiqPourEC.pour ? (filtreEtiqPourEC.pour === '∅' ? '∅ Personne dessus ✕' : msgCoulEmo(msgPersonne(filtreEtiqPourEC.pour).couleur) + ' ' + msgPersonne(filtreEtiqPourEC.pour).nom + ' ✕') : '👤 Pour ▾';
+  puce(pq, !!filtreEtiqPourEC.pour, 'Voir les conversations d’une personne', b => {
+    if(filtreEtiqPourEC.pour){ filtreEtiqPourEC.pour = ''; redessiner(); return; }
+    const items = personnesEC.map(p => ({ emoji: msgCoulEmo(p.couleur), texte: p.nom + (msgNormNom(p.nom) === msgNormNom(moi) ? ' (moi)' : '') + ' · ' + tous.filter(c => msgEstPour(c, p.nom)).length,
+      faire: () => { filtreEtiqPourEC.pour = p.nom; filtreEtiqPourEC.moi = false; redessiner(); } }));
+    items.push({ sep: true }, { emoji: '∅', texte: 'Personne dessus · ' + tous.filter(c => !(c.pour || []).length).length, faire: () => { filtreEtiqPourEC.pour = '∅'; filtreEtiqPourEC.moi = false; redessiner(); } });
+    menuGestesEC(b, '👤 Voir seulement…', items);
+  });
+  const pe = filtreEtiqPourEC.etiq ? (filtreEtiqPourEC.etiq === '∅' ? '∅ Sans étiquette ✕' : '🏷️ ' + filtreEtiqPourEC.etiq + ' ✕') : '🏷️ Étiquette ▾';
+  puce(pe, !!filtreEtiqPourEC.etiq, 'Voir les conversations d’une étiquette', b => {
+    if(filtreEtiqPourEC.etiq){ filtreEtiqPourEC.etiq = ''; redessiner(); return; }
+    const items = (catalogueEtiquettesEC || []).map(e => ({ emoji: '🏷️', texte: e + ' · ' + tous.filter(c => (c.etiquettes || []).indexOf(e) !== -1).length,
+      faire: () => { filtreEtiqPourEC.etiq = e; redessiner(); } }));
+    items.push({ sep: true }, { emoji: '∅', texte: 'Sans étiquette · ' + tous.filter(c => !(c.etiquettes || []).length).length, faire: () => { filtreEtiqPourEC.etiq = '∅'; redessiner(); } });
+    menuGestesEC(b, '🏷️ Voir seulement…', items);
+  });
+  return r;
+}
+
+/* Le menu « 🏷️ étiquettes » d'une conversation : on coche/décoche, et
+   un administrateur peut créer une nouvelle étiquette. */
+function menuEtiquettesConvEC(c, ancre, apres){
+  const poser = async (liste) => {
+    try{ await appelPrep({ action: 'convMarquer', id: c.id, etiquettes: liste }); }catch(e){}
+    c.etiquettes = liste;
+    const e0 = conversationsEC.find(x => x.id === c.id); if(e0) e0.etiquettes = liste;
+    if(apres) apres(); else dessinerLaListeMessagerie();
+  };
+  const items = [{ titre: 'ÉTIQUETTES' }];
+  const toutes = catalogueEtiquettesEC || [];
+  if(!toutes.length) items.push({ titre: 'AUCUNE ÉTIQUETTE ENCORE' });
+  toutes.forEach(e => {
+    const pris = (c.etiquettes || []).indexOf(e) !== -1;
+    items.push({ emoji: pris ? '✅' : '🏷️', texte: e, faire: () => {
+      const l = (c.etiquettes || []).slice();
+      const i = l.indexOf(e);
+      if(i === -1) l.push(e); else l.splice(i, 1);
+      poser(l);
+    } });
+  });
+  if(msgEstAdminEtiq()) items.push({ sep: true }, { emoji: '➕', texte: 'Nouvelle étiquette…', faire: async () => {
+    const n = await demander('Le nom de l’étiquette :', '', '🏷️ Nouvelle étiquette');
+    const nom = String(n || '').replace(/\s+/g, ' ').trim();
+    if(!nom) return;
+    const liste = [...new Set((catalogueEtiquettesEC || []).concat([nom]))];
+    try{ const r = await appelPrep({ action: 'convEtiquettes', etiquettes: liste }); if(r && r.etiquettes) catalogueEtiquettesEC = r.etiquettes; }catch(e){}
+    poser([...new Set((c.etiquettes || []).concat([nom]))]);
+  } });
+  menuGestesEC(ancre, '🏷️ Étiquettes', items);
+}
+
+/* Le menu « 👤 Pour » d'une conversation : une ou plusieurs personnes. */
+function menuPourConvEC(c, ancre, apres){
+  const poser = async (liste) => {
+    try{ await appelPrep({ action: 'convMarquer', id: c.id, pour: liste }); }catch(e){}
+    c.pour = liste;
+    const e0 = conversationsEC.find(x => x.id === c.id); if(e0) e0.pour = liste;
+    if(apres) apres(); else dessinerLaListeMessagerie();
+  };
+  const items = [{ titre: 'POUR QUI ? (UN OU PLUSIEURS)' }];
+  personnesEC.forEach(p => {
+    const pris = msgEstPour(c, p.nom);
+    items.push({ emoji: pris ? '✅' : msgCoulEmo(p.couleur), texte: p.nom + (msgNormNom(p.nom) === msgNormNom(msgMoiNom()) ? ' (moi)' : ''), faire: () => {
+      const l = (c.pour || []).filter(x => msgNormNom(x) !== msgNormNom(p.nom));
+      if(!pris) l.push(p.nom);
+      poser(l);
+    } });
+  });
+  if((c.pour || []).length) items.push({ sep: true }, { emoji: '✕', texte: 'Personne', faire: () => poser([]) });
+  menuGestesEC(ancre, '👤 Qui s’en occupe', items);
+}
 /* ↩️ v1180 — le message auquel on est en train de répondre :
    { conv, id, rang, qui, apercu }, ou null. Il appartient à UN fil :
    ouvrir un autre fil l'oublie. */
@@ -168,6 +311,9 @@ async function afficherMessagerie(silencieux){
     const d = await appelPrep({ action: 'convList',
       fermees: quellesFermeesPour(filtreMessagerie) });
     conversationsEC = (d && d.conversations) || [];
+    /* 🏷️ 👤 v1366 — le catalogue d'étiquettes et les personnes (couleurs) */
+    if(d && Array.isArray(d.etiquettes)) catalogueEtiquettesEC = d.etiquettes;
+    if(d && Array.isArray(d.personnes)) personnesEC = d.personnes;
     /* ⚠️ LES DEUX, PAS UN SEUL — v1085. Celui-ci ne posait que le
        compte de l'onglet. En refermant un fil qu'on vient de lire, on
        passe par ici : le rond de l'en-tête gardait donc son chiffre
@@ -243,6 +389,10 @@ function dessinerLaListeMessagerie(){
   zone.appendChild(ckOnglets());
   const fa = ckFiltreActif();
   if(fa) zone.appendChild(fa);
+  /* 🏷️ 👤 v1366 — les filtres « Pour » / « Étiquette », comme les mails */
+  if(filtreMessagerie !== 'supervision' && !modeChoixMessagerie && (personnesEC.length || (catalogueEtiquettesEC || []).length)){
+    zone.appendChild(barreEtiqPourEC());
+  }
   if(chercheMessagerie){ lancerLaRecherche(chercheMessagerie, true); return; }
 
   if(!dansLeTiroir()){
@@ -267,7 +417,8 @@ function dessinerLaListeMessagerie(){
     : conversationsEC.filter(c => !c.enSupervision &&
         (!filtreMessagerie || filtreMessagerie === 'clos' ||
          c.genre === filtreMessagerie) &&
-        (filtreMessagerie || ckDansLOnglet(c)));
+        (filtreMessagerie || ckDansLOnglet(c)) &&
+        msgPasseLeFiltreEtiqPour(c));
 
   /* ⚠️ LA SÉLECTION NE GARDE QUE CE QUI EST ENCORE À L'ÉCRAN. On
      change de filtre, une ligne cochée disparaît de la vue : la
@@ -488,6 +639,20 @@ function ligneConversationCorps(c, d, enChoix){
   ap.appendChild(document.createTextNode(c.dernierApercu
     ? parQui + c.dernierApercu : 'Pas encore de message.'));
   mi.appendChild(ap);
+
+  /* 🏷️ 👤 v1366 — les étiquettes et les ronds « pour » de la conversation */
+  if((c.etiquettes || []).length || (c.pour || []).length){
+    const tags = document.createElement('div');
+    tags.className = 'msgLigneTags';
+    (c.pour || []).forEach(nm => tags.appendChild(msgRondPour(nm)));
+    (c.etiquettes || []).forEach(e => {
+      const ch = document.createElement('span');
+      ch.className = 'msgEtiqChip';
+      ch.textContent = '🏷️ ' + e;
+      tags.appendChild(ch);
+    });
+    mi.appendChild(tags);
+  }
 
   if(ckRappelActif(c)){
     const m = document.createElement('div');
@@ -1124,6 +1289,29 @@ function dessinerLeFil(){
 
   /* --- 🧭 l'en-tête du cockpit : titre, 📌 ⏰ 📅 ✓ ⓘ ⋯ --- */
   zone.appendChild(ckEnteteDuFil(f, large));
+
+  /* 🏷️ 👤 v1366 — étiquettes + « qui s'en occupe » de CETTE conversation,
+     comme la boîte mail. On ne les propose pas en supervision (lecture). */
+  if(!f.enSupervision){
+    const bt = document.createElement('div');
+    bt.className = 'msgFilEtiq';
+    const apres = () => {
+      if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c.id) dessinerLeFil();
+      dessinerLaListeMessagerie();
+    };
+    const bEt = document.createElement('button');
+    bEt.type = 'button'; bEt.className = 'msgFilEtiqB';
+    bEt.textContent = (c.etiquettes || []).length ? ('🏷️ ' + c.etiquettes.join(' · ')) : '🏷️ Étiquettes';
+    bEt.addEventListener('click', ev => { ev.stopPropagation(); menuEtiquettesConvEC(c, bEt, apres); });
+    bt.appendChild(bEt);
+    const bPr = document.createElement('button');
+    bPr.type = 'button'; bPr.className = 'msgFilEtiqB';
+    if((c.pour || []).length){ bPr.appendChild(document.createTextNode('Pour : ')); (c.pour || []).forEach(nm => bPr.appendChild(msgRondPour(nm))); }
+    else bPr.textContent = '👤 Pour…';
+    bPr.addEventListener('click', ev => { ev.stopPropagation(); menuPourConvEC(c, bPr, apres); });
+    bt.appendChild(bPr);
+    zone.appendChild(bt);
+  }
 
   if(f.enSupervision){
     const s = document.createElement('div');
