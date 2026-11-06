@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 13:55 — v1337 */
+/* Déployé le 06/11/2026 à 16:59 — v1369 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1176,20 +1176,44 @@ function ckFormCreneau(f){
 function ckSuggCachees(){ try{ return localStorage.getItem('ec_msg_sugg_cachees') === '1'; }catch(e){ return false; } }
 function ckCacherSugg(oui){ try{ localStorage.setItem('ec_msg_sugg_cachees', oui ? '1' : '0'); }catch(e){} }
 /* ⚡ toutes les réponses rapides de ce fil, et « Ce qu'on écrit et envoie » */
+/* ✏️ v1369 — l'option « coller dans le texte » des réponses rapides.
+   David : pouvoir modifier la réponse avant de l'envoyer, au lieu qu'elle
+   parte directement. Le choix est gardé sur l'appareil (localStorage) et
+   vaut pour la feuille ⚡ comme pour les boutons en ligne. */
+function collerRapideActif(){ try{ return localStorage.getItem('ec_msg_coller_rapide') === '1'; }catch(e){ return false; } }
+function collerRapideBasculer(v){ try{ localStorage.setItem('ec_msg_coller_rapide', v ? '1' : '0'); }catch(e){} }
+/* On AJOUTE à ce qui est déjà écrit (on ne l'efface pas) : un espace ou un
+   retour à la ligne sépare, selon ce qu'il y a avant. */
+function collerReponseDansTexte(id, ajout){
+  const t0 = document.getElementById('msgElvTexte');
+  let base = t0 ? t0.value : ((typeof brouillonsMessagerie !== 'undefined' && brouillonsMessagerie[id]) || '');
+  const sep = base && !/\s$/.test(base) ? (/\n/.test(base) ? '\n' : ' ') : '';
+  mettreDansLaZoneDEcriture(id, (base || '') + sep + String(ajout || ''));
+}
+
 function ckFeuilleRapides(f, ancre){
   const c = (f && f.conv) || {};
-  const items = [{ titre: 'POUR CETTE CONVERSATION' }];
+  const coller = collerRapideActif();
+  const items = [{ titre: 'POUR CETTE CONVERSATION' + (coller ? ' — ✏️ À MODIFIER AVANT ENVOI' : '') }];
   const tete = /^(\p{Extended_Pictographic}\uFE0F?)\s*/u;
   reponsesRapidesDuFil(c).forEach(x => {
     const m = String(x.bouton).match(tete);
     items.push({ emoji: m ? m[1] : '⚡', texte: m ? String(x.bouton).replace(tete, '') : String(x.bouton), cle: 'rapide', faire: async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
+      /* ✏️ v1369 — mode « coller » : le texte va dans la zone d'écriture
+         (sauf avec la position GPS, qui n'a de sens qu'envoyée). */
+      if(coller && !x.position){ collerReponseDansTexte(c.id, remplirLesMotsRapides(x.message, c)); return; }
       try{
         if(x.position && typeof envoyerMaPositionEC === 'function') await envoyerMaPositionEC(remplirLesMotsRapides(x.message, c));
         else await ckEcrire(f, remplirLesMotsRapides(x.message, c));
       }catch(e){ if(typeof showToast === 'function') showToast('Le message n’est pas parti : ' + (e.message || e)); }
     } });
   });
+  items.push({ sep: true });
+  /* ✏️ v1369 — la bascule : coller pour modifier, ou repasser à l'envoi direct */
+  items.push({ emoji: coller ? '✅' : '✏️',
+    texte: coller ? 'Collées dans le texte (modifiables) — repasser à l’envoi direct' : 'Les coller dans le texte pour les modifier avant d’envoyer',
+    faire: () => { collerRapideBasculer(!coller); ckFeuilleRapides(f, ancre); } });
   items.push({ sep: true });
   items.push({ emoji: '📄', texte: 'Ce qu’on écrit et envoie', cle: 'modeles', faire: () => { ckModelesOuvert = true; ckModelesCategorie = ''; dessinerLeFil(); } });
   if(ckSuggCachees()) items.push({ emoji: '👁️', texte: 'Remettre les suggestions au-dessus de la barre', cle: 'remettre', faire: () => { ckCacherSugg(false); dessinerLeFil(); } });
@@ -1225,6 +1249,12 @@ function ckReponsesRapides(f, petit){
     if(x.position) b.title = 'Envoie ce message avec ta position GPS';
     b.addEventListener('click', async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
+      /* ✏️ v1369 — mode « coller dans le texte » : on remplit la zone
+         d'écriture au lieu d'envoyer (la position reste un envoi). */
+      if(!x.position && typeof collerRapideActif === 'function' && collerRapideActif()){
+        collerReponseDansTexte(c.id, remplirLesMotsRapides(x.message, c));
+        return;
+      }
       b.disabled = true;
       /* 📍 v1274 — avec la position : où c'est, précisément */
       if(x.position && typeof envoyerMaPositionEC === 'function'){
