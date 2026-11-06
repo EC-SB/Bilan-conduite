@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 15:33 — v1365 */
+/* Déployé le 06/11/2026 à 15:51 — v1366 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1366,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '🏷️ 👤 Des étiquettes et « qui s’en occupe » sur les conversations, comme la boîte mail',
+    quoi: [
+      { emoji: '🏷️',
+        titre: 'Des étiquettes sur les conversations',
+        texte: 'Dans 💬 Messagerie, chaque conversation peut porter des étiquettes (de base : Correction procédure, CPF, Prépa permis). On les pose depuis la conversation ouverte ; le filtre « 🏷️ Étiquette » en haut de la liste n’affiche que celles d’une étiquette. Un administrateur crée de nouvelles étiquettes avec « ➕ Nouvelle étiquette ».' },
+      { emoji: '👤',
+        titre: 'Qui s’en occupe',
+        texte: 'On attribue une conversation à une ou plusieurs personnes de l’équipe (un rond de couleur avec l’initiale). Les filtres « 👤 Pour » et « Pour moi » montrent ce qui est sur chacun. Comme pour les mails.' }
+    ]
+  },
   {
     version: 1365,
     date: 'Vendredi 6 novembre 2026',
