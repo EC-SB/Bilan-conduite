@@ -1,4 +1,4 @@
-/* Déployé le 27/10/2026 à 17:38 — v1282 */
+/* Déployé le 06/11/2026 à 10:20 — v1363 */
 /* ============================================================
    ec-formations.js — 💼 LES FORMATIONS ENTREPRISE (v1280)
    Outils › Entreprises › 💼 Formations
@@ -935,7 +935,7 @@ function feListeDocs(x){
   l.push({ cle: 'emargement', emoji: '🧾', nom: 'Feuilles de présence (' + (d.seances || []).length + ')', note: 'signées sur le téléphone du formateur (📅 Séances), ou à imprimer', docs: () => feTrier(d.seances).map(se => feDocument('emargement', x, se)), vide: !(d.seances || []).length, sansMail: true });
   l.push({ cle: 'attestation', emoji: '🎓', nom: 'Attestations de fin de formation (' + sta.length + ')', etat: s.attestations ? 'faites le ' + feDateFr(s.attestations) : '', fait: !!s.attestations,
            docs: () => sta.map(st => feDocument('attestation', x, st)), vide: !sta.length, suivi: 'attestations' });
-  l.push({ cle: 'certificat', emoji: '📜', nom: 'Certificats de réalisation (' + sta.length + ')', etat: s.certificats ? 'faits le ' + feDateFr(s.certificats) : (opco ? 'modèle du ministère du Travail' : 'facultatif sans OPCO'), fait: !!s.certificats,
+  l.push({ cle: 'certificat', emoji: '📜', nom: 'Certificats de réalisation (' + sta.length + ')', note: opco ? 'modèle du ministère du Travail' : 'facultatif sans OPCO', fait: !!s.certificats,
            docs: () => sta.map(st => feDocument('certificat', x, st)), vide: !sta.length, suivi: 'certificats' });
   return l;
 }
@@ -961,15 +961,22 @@ function feOngletDocuments(z, x){
     w.appendChild(s);
     z.appendChild(w);
   }
-  feListeDocs(x).forEach(k => {
+  const lignes = feListeDocs(x);
+  lignes.forEach(k => {
     const c = feEl('div', 'feBoite feDoc');
     c.appendChild(feEl('span', 'feDocEmoji', k.emoji));
     const m = feEl('div', 'feDocTxt');
     m.appendChild(feEl('b', '', k.nom));
-    const det = [k.etat, k.note].filter(Boolean).join(' · ');
-    if(det) m.appendChild(feEl('span', '', det));
+    if(k.note) m.appendChild(feEl('span', '', k.note));
     c.appendChild(m);
-    c.appendChild(feEl('span', 'feDocEtat' + (k.fait ? ' ok' : ''), k.fait ? '✅ fait' : ''));
+    /* 🗂️ v1363 — la pastille d'état, à côté du document : elle dit ce qui
+       est envoyé / signé / fait, et s'ouvre sur l'historique des copies
+       rangées. Vide pour l'instant ; remplie quand le journal arrive. */
+    k._chip = document.createElement('button');
+    k._chip.type = 'button';
+    k._chip.className = 'feDocEtat feChipVide';
+    k._chip.disabled = true;
+    c.appendChild(k._chip);
     const bs = feEl('div', 'feDocBtns');
     if(k.vide) bs.appendChild(feEl('span', 'feAideIn', k.cle === 'emargement' ? 'aucune séance' : 'aucun salarié'));
     else {
@@ -985,8 +992,10 @@ function feOngletDocuments(z, x){
   const h = feEl('div', 'feBoite feHisto', 'Lecture…');
   z.appendChild(h);
   feChargerJournal(x.id).then(j => {
-    h.innerHTML = '';
     const docs = (j && j.docs) || [];
+    /* 🗂️ v1363 — l'état réel de chaque document, d'après ses copies rangées */
+    feMajPastilles(x, lignes, docs);
+    h.innerHTML = '';
     if(!docs.length){ h.textContent = 'Rien encore.'; return; }
     docs.forEach(dc => {
       const l = feEl('div', 'feHistoDoc');
@@ -999,6 +1008,104 @@ function feOngletDocuments(z, x){
       h.appendChild(l);
     });
   });
+}
+/* ============================================================
+   🗂️ v1363 — CE QUI EST ENVOYÉ / SIGNÉ, SUR LA LIGNE DU DOCUMENT
+
+   David : « c'est pas pratique en bas pour voir ce qui est signé ;
+   une pastille à côté de "fait" pour les voir quand c'est envoyé et
+   quand c'est signé ». La pastille lit le JOURNAL des copies rangées
+   (formations_docs) — pas le suivi — pour dire l'état exact, et
+   s'ouvre sur l'historique (le plus récent en haut).
+
+   « signé » se reconnaît au genre autant qu'au commentaire : une
+   convention signée en ligne arrive en « signe », un scan déposé en
+   « depot » mais avec le genre « convention-signee ». Les deux comptent.
+   ============================================================ */
+function feEstSigneDoc(dc){
+  const g = String((dc && dc.genre) || '');
+  return (dc && dc.comment === 'signe') || g === 'convention-signee' ||
+         g === 'emargement-signe' || g.indexOf('emargement:') === 0;
+}
+function feCopiesDoc(docs, cle){
+  return (docs || []).filter(dc => {
+    const g = String((dc && dc.genre) || '');
+    if(cle === 'convention') return g === 'convention' || g === 'convention-signee';
+    if(cle === 'emargement')  return g === 'emargement' || g === 'emargement-signe' || g.indexOf('emargement:') === 0;
+    return g === cle;
+  });
+}
+const FE_MOTS_ETAT = {
+  convention:  { sig: 'Signée',  env: 'Envoyée',  fait: 'Faite'  },
+  convocation: { sig: 'Signées', env: 'Envoyées', fait: 'Faites' },
+  emargement:  { sig: 'Signées', env: 'Envoyées', fait: 'Faites' },
+  attestation: { sig: 'Signées', env: 'Envoyées', fait: 'Faites' },
+  certificat:  { sig: 'Signés',  env: 'Envoyés',  fait: 'Faits'  }
+};
+function feEtatDoc(copies, cle){
+  if(!copies || !copies.length) return null;
+  const m = FE_MOTS_ETAT[cle] || { sig: 'Signé', env: 'Envoyé', fait: 'Fait' };
+  const sig = copies.find(feEstSigneDoc);
+  if(sig) return { k: 'sig', mot: m.sig, quand: sig.quand };
+  const env = copies.find(dc => dc.comment === 'mail');
+  if(env) return { k: 'env', mot: m.env, quand: env.quand };
+  const fa = copies.find(dc => dc.comment === 'pdf' || dc.comment === 'depot') || copies[0];
+  return { k: 'fait', mot: m.fait, quand: fa.quand };
+}
+function feJJMM(ms){ const d = new Date(Number(ms) || 0); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); }
+function feMajPastilles(x, lignes, docs){
+  lignes.forEach(k => {
+    const chip = k._chip;
+    if(!chip) return;
+    chip.onclick = null; chip.disabled = true; chip.innerHTML = '';
+    if(k.vide){ chip.className = 'feDocEtat feChipVide'; return; }
+    const copies = feCopiesDoc(docs, k.cle);
+    const et = feEtatDoc(copies, k.cle);
+    if(!et){ chip.className = 'feDocEtat feChipVide'; chip.textContent = '—'; chip.title = 'Rien d’envoyé ni de rangé'; return; }
+    chip.className = 'feDocEtat feChip feChip-' + et.k;
+    chip.textContent = '👁️ ' + et.mot + ' ' + feJJMM(et.quand);
+    chip.title = 'Voir — ' + copies.length + ' version' + (copies.length > 1 ? 's' : '') + ' rangée' + (copies.length > 1 ? 's' : '');
+    chip.disabled = false;
+    chip.onclick = () => feHistoDoc(x, k, copies);
+  });
+}
+function feHistoDoc(x, k, copies){
+  const fen = feFenetre('🗂️ ' + k.nom.replace(/\s*\(\d+\)/, '') + ' — ce qui a été envoyé');
+  const b = fen.boite;
+  b.appendChild(feAide('Le plus récent en haut. <b>👁️</b> ouvre la copie telle qu’elle a été envoyée, déposée ou signée.'));
+  const l = feEl('div', 'feHisto');
+  (copies || []).forEach(dc => {
+    const li = feEl('div', 'feHistoDoc');
+    const ic = feEstSigneDoc(dc) ? '✍️' : ({ mail: '✉️', pdf: '📄', depot: '📎' })[dc.comment] || '📄';
+    li.appendChild(feEl('span', '', ic));
+    const q = new Date(Number(dc.quand) || 0);
+    const quoi = feEstSigneDoc(dc) ? 'signé' : dc.comment === 'mail' ? 'envoyé' : dc.comment === 'depot' ? 'déposé' : 'rangé';
+    li.appendChild(feEl('span', 'n', dc.nom + ' · ' + quoi + ' le ' + q.toLocaleDateString('fr-FR') +
+      ' à ' + q.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) +
+      (dc.a ? ' → ' + dc.a : '') + (dc.par ? ' — ' + dc.par : '')));
+    li.appendChild(feBouton('👁️', 'feBtnPetit', () => feOuvrirDocRange(dc), 'Ouvrir'));
+    l.appendChild(li);
+  });
+  b.appendChild(l);
+  b.appendChild(feBouton('Fermer', '', fen.fermer));
+}
+async function feOuvrirDocRange(dc){
+  feToast('Ouverture…');
+  try{
+    const r = await appelPrep({ action: 'formationDocLire', id: dc.id });
+    if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'Document illisible');
+    feAfficherB64(r.contenu, r.mime, r.nom);
+  }catch(e){ feToast('⚠️ ' + ((e && e.message) || e)); }
+}
+function feAfficherB64(b64, mime, nom){
+  try{
+    const bin = atob(b64); const o = new Uint8Array(bin.length);
+    for(let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([o], { type: mime || 'application/pdf' }));
+    const w = window.open(url, '_blank');
+    if(!w){ const a = document.createElement('a'); a.href = url; a.download = nom || 'document.pdf'; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  }catch(e){ feToast('⚠️ Affichage impossible.'); }
 }
 async function feGarderPdf(x, k){
   try{
