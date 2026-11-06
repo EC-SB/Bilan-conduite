@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 09:11 — v1362 */
+/* Déployé le 06/11/2026 à 10:20 — v1363 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -1231,7 +1231,7 @@ function choixVoituresFiche(div, choisies, quandChange){
     l.appendChild(document.createTextNode(texte));
     div.appendChild(l);
   };
-  ligne(VOITURES_SURVITESSE, '⚡ Les voitures à alerte de survitesse (Q3 n°10, A3 n°2, A3 BV et BEA de Loudéac)');
+  ligne(VOITURES_SURVITESSE, '⚡ Les voitures à alerte de survitesse (Q3 n°10, A3 BV et BEA de Loudéac)');
   const sep = document.createElement('div');
   sep.className = 'sep';
   div.appendChild(sep);
