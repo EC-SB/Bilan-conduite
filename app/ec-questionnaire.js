@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 09:42 — v1358 */
+/* Déployé le 06/11/2026 à 15:33 — v1365 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -308,9 +308,19 @@ async function chargerDossierEleve(nomEleve){
       }catch(e){ /* suivi non chargé : on ne dira rien plutôt qu'un faux */ }
     }
 
+    /* 🏁 v1365 — la DATE du dernier examen blanc (son bilan), pour que
+       la tuile du permis sache qu'un examen blanc plus récent que la
+       conclusion en fiche attend encore son résultat (David, Ali K.). */
+    const dateDuDernier = (motif) => {
+      for(let k = 0; k < res.length; k++){
+        if(motif.test(String(res[k].type || ''))) return isoDuCours(res[k].date);
+      }
+      return '';
+    };
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
                        marques: marques, caleParUnBilan: caleParUnBilan,
                        leconsDepuisEB: apres(RE_TYPE_EXAMEN_BLANC),
+                       dateDernierEB: dateDuDernier(RE_TYPE_EXAMEN_BLANC),
                        /* Un simulateur dans son historique : il est
                           fait, et personne n'a plus à le cocher. */
                        simuFait: res.some(x => RE_TYPE_SIMU.test(String(x.type || ''))),
