@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 05/11/2026 à 16:15 — v1360 -->
+<!-- Déployé le 06/11/2026 à 09:11 — v1362 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -772,6 +772,8 @@
      foncé en clair, vert vif en sombre — donc son encre est
      var(--navy-deep), qui s'y oppose dans les deux thèmes. « ▶ »
      porte le vert vif des deux côtés, donc var(--on-accent). */
+  /* 🎨 v1362 — un cadre de couleur dans « Mes leçons » (rendez-vous post-permis) */
+  .leconCadre{ border:1px solid; border-radius:10px; padding:8px 12px; margin:10px 0; color:#14161B; }
   .rechP{
     display:flex; align-items:center; gap:8px; margin:0 0 12px;
     background:var(--navy); border:1.5px solid var(--line);
@@ -6104,18 +6106,46 @@
   }
   function texteDeLecon(l, couleurs){
     var j = jourIsoLecon(l.date), table = null;
+    var hex = function(v){ return /^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : ''; };
     (couleurs || []).forEach(function(c){
       if(!c || c.jour !== j || !Array.isArray(c.lignes)) return;
       table = table || {};
       c.lignes.forEach(function(x){
-        if(Array.isArray(x) && /^#[0-9a-f]{6}$/i.test(String(x[1] || ''))) table[String(x[0]).trim()] = x[1];
+        if(!Array.isArray(x)) return;
+        /* 🎨 v1362 — [texte, couleur, fond, bordure] : un fond met la
+           ligne dans un cadre (le rendez-vous post-permis) */
+        var cc = hex(x[1]), f = hex(x[2]), b = hex(x[3]);
+        if(cc || f) table[String(x[0]).trim()] = { c: cc, f: f, b: b };
       });
     });
     if(!table) return echapper(l.bilan || '');
-    return String(l.bilan || '').split('\n').map(function(x){
-      var c = table[x.trim()];
-      return c ? '<span style="color:' + c + ';">' + echapper(x) + '</span>' : echapper(x);
-    }).join('\n');
+    var lignes = String(l.bilan || '').split('\n');
+    var fondDe = function(i){ var e = table[String(lignes[i]).trim()]; return (e && e.f) ? e : null; };
+    var blocs = [];
+    lignes.forEach(function(x, i){
+      var e = fondDe(i);
+      var der = blocs[blocs.length - 1];
+      if(!e && !String(x).trim() && der && der.f){
+        var k = i + 1;
+        while(k < lignes.length && !String(lignes[k]).trim()) k++;
+        var suite = k < lignes.length ? fondDe(k) : null;
+        if(suite && suite.f === der.f) e = { f: suite.f };
+      }
+      var f = e ? e.f : '';
+      if(!der || der.f !== f){ der = { f: f, b: (e && e.b) || '', l: [] }; blocs.push(der); }
+      var t = table[String(x).trim()];
+      der.l.push(t && t.c ? '<span style="color:' + t.c + ';">' + echapper(x) + '</span>' : echapper(x));
+    });
+    if(!blocs.some(function(b){ return b.f; })) return blocs.map(function(b){ return b.l.join('\n'); }).join('\n');
+    return blocs.map(function(b, k){
+      if(!b.f){
+        var li = b.l.slice();
+        if(k > 0) while(li.length && !li[0].trim()) li.shift();
+        if(k < blocs.length - 1) while(li.length && !li[li.length - 1].trim()) li.pop();
+        return li.length ? '<div>' + li.join('\n') + '</div>' : '';
+      }
+      return '<div class="leconCadre" style="background:' + b.f + ';border-color:' + (b.b || b.f) + ';">' + b.l.join('\n') + '</div>';
+    }).join('');
   }
 
   function dessinerLecons(liste, couleurs){
