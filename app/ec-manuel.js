@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 09:11 — v1362 */
+/* Déployé le 06/11/2026 à 10:20 — v1363 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -29,14 +29,18 @@ const PHRASE_VOITURE_APPORTEE =
    voitures est une CONDITION — les deux cases n'apparaissent que
    sur ces voitures-là — et la voiture se lit sur l'écran
    d'accueil, là où le bureau la pose. Examen blanc ET officiel.
+
+   ⚡ v1363 — CORRECTION (David, le 6 novembre) : « je me suis trompé,
+   l'A3 n°2 n'est pas concerné ». L'alerte ne vise plus que le
+   Q3 n°10 et les DEUX A3 de Loudéac (BV et BEA). L'A3 n°2 est retiré
+   de la liste et des phrases.
    ------------------------------------------------------------ */
 const PHRASE_SURVITESSE_OUBLIEE = "Tu as oublié d'enlever l'alerte de survitesse.";
 const PHRASE_SURVITESSE_PENSE   = "Pense à enlever l'alerte de survitesse.";
 
-/* Les quatre voitures, reconnues sur le nom que la flotte leur
-   donne : « Q3 10 », « Q3 n°10 », « A3 2 », « A3 BV Loudéac »,
-   « Audi A3 BEA Loudeac »… Un chiffre se compare EN ENTIER : l'A3
-   12 n'est pas l'A3 2. */
+/* Les trois voitures, reconnues sur le nom que la flotte leur donne :
+   « Q3 10 », « Q3 n°10 », « A3 BV Loudéac », « Audi A3 BEA Loudeac »…
+   ⚡ v1363 — l'A3 n°2 (de Saint-Brieuc) n'en fait plus partie. */
 function voitureAvecAlerteSurvitesse(nom){
   const mots = String(nom || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -48,7 +52,6 @@ function voitureAvecAlerteSurvitesse(nom){
   const q = mots.indexOf('q3') !== -1;
   const loudeac = mots.indexOf('loudeac') !== -1;
   return (q && mots.indexOf('10') !== -1) ||
-         (a && mots.indexOf('2') !== -1) ||
          (a && loudeac && mots.indexOf('bv') !== -1) ||
          (a && loudeac && mots.indexOf('bea') !== -1);
 }
@@ -57,7 +60,7 @@ function voitureAvecAlerteSurvitesse(nom){
    du tiroir Carte SD / Installation / Passager, dans le bilan à la main
    (classe enteteCase) comme dans le bilan oral (classe entCase).
    Décochée d'office ; cachée tant que la voiture du cours n'est pas
-   l'A3 2 ou le Q3 10 (lue sur l'écran d'accueil). Cochée, elle reste
+   le Q3 10 ou une des deux A3 de Loudéac (lue sur l'écran d'accueil). Cochée, elle reste
    visible quelle que soit la voiture : on doit pouvoir la décocher. */
 function caseSurvitesseDuTiroir(classe){
   const l = document.createElement('div');
@@ -73,7 +76,7 @@ function caseSurvitesseDuTiroir(classe){
   const t = document.createElement('div');
   t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.5;word-break:break-word;';
   t.innerHTML = '<strong>⚡ Tu as oublié d’enlever l’alerte de survitesse</strong>' +
-    '<div style="font-size:12px;color:var(--muted);line-height:1.5;">Seulement sur l’A3 2 et le Q3 10 · cochée, la phrase va dans son bilan</div>';
+    '<div style="font-size:12px;color:var(--muted);line-height:1.5;">Seulement sur le Q3 10 et les deux A3 de Loudéac · cochée, la phrase va dans son bilan</div>';
   l.appendChild(t);
   const montrer = oui => { l.style.display = (oui || cb.checked) ? 'flex' : 'none'; };
   cb.addEventListener('change', () => { if(!cb.checked) lireLaVoitureDuCours().then(v => montrer(voitureCorrespond(v, VOITURES_SURVITESSE_TIROIR))); });
