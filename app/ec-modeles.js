@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 12:10 — v1336 */
+/* Déployé le 06/11/2026 à 10:20 — v1363 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -51,10 +51,13 @@ const LIGNES_VLC_VOUS = '🎬 Vous n’arrivez pas à lire les vidéos ? Téléc
 /* ⚡ v1312 — L'ALERTE DE SURVITESSE OUBLIÉE, DANS LE TIROIR DU COURS
    David, le 30 octobre : « dans le tiroir carte SD, installation,
    passager, ajoute une case : tu as oublié d'enlever l'alerte de
-   survitesse, pour A3 2 et Q3 10 ». La case n'apparaît que sur ces deux
+   survitesse, pour A3 2 et Q3 10 ». La case n'apparaît que sur ces
    voitures (ec-manuel.js, caseSurvitesseDuTiroir) ; cochée, sa phrase
-   suit la ligne « /2 points jour du permis ». */
-const VOITURES_SURVITESSE_TIROIR = ['A3 2', 'Q3 10'];
+   suit la ligne « /2 points jour du permis ».
+   ⚡ v1363 — David s'est trompé le 6/11 : l'A3 2 n'est pas concerné.
+   La case suit désormais la MÊME liste que @survitesse (voitureAvec-
+   AlerteSurvitesse) : Q3 10 et les deux A3 de Loudéac. */
+const VOITURES_SURVITESSE_TIROIR = ['@survitesse'];
 const PHRASE_SURVITESSE_TIROIR = "⚡ Tu as oublié d'enlever l'alerte de survitesse.";
 function ligneSurvitesseDuBilan(v){ return v === '✅' ? '\n' + PHRASE_SURVITESSE_TIROIR : ''; }
 
