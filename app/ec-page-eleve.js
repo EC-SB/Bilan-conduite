@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 09:42 — v1358 */
+/* Déployé le 06/11/2026 à 15:33 — v1365 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -4459,6 +4459,27 @@ function etatDuPermis(nom){
   const ebs = [s.ebDate, a.ebDate, a.examBlancDate].filter(Boolean).map(v => ({ v: v, iso: isoEb(v) }));
   ebs.sort((x, y) => String(y.iso).localeCompare(String(x.iso)));
   const quandEb = court(ebs.length ? ebs[0].v : '');
+
+  /* 🏁 v1365 — UN EXAMEN BLANC PLUS RÉCENT QUE LA CONCLUSION EN FICHE.
+     David, sur Ali KHIZRIEV : son 3e examen blanc (26/09) a un bilan,
+     mais son résultat n'a jamais été saisi — la carte montrait en
+     silence le 2e (25 août, « pas le niveau »). Quand le DERNIER
+     examen blanc (son bilan, lu dans le dossier) est postérieur à la
+     date que la conclusion décrit, c'est que personne n'a conclu le
+     plus récent : on le DIT, au lieu de garder l'ancien. */
+  const isoEbEnFiche = ebs.length ? ebs[0].iso : '';
+  let isoEbDuDossier = '';
+  try{
+    const dd = (typeof lireCacheDossier === 'function') ? lireCacheDossier(nom) : null;
+    isoEbDuDossier = (dd && dd.dateDernierEB) || '';
+  }catch(e){ /* dossier non lu : on ne force rien */ }
+  if(isoEbDuDossier && isoEbEnFiche && isoEbDuDossier > isoEbEnFiche){
+    return { cle:'ebarenseigner', ton:'chaud', titre:'Où en est son permis',
+      gros:'🏁 Examen blanc à conclure', petit:true,
+      lignes: lignes(
+        { txt:'examen blanc du ' + court(isoEbDuDossier) + ' — résultat à renseigner', ton:'rouge' },
+        { txt:'à régler dans ✏️ Sa route' }) };
+  }
 
   if(eb && eb.cle === 'pasleniveau'){
     /* 10 — et ça RESTE affiché jusqu'à ce que la conclusion change
