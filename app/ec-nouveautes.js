@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:28 — v1383 */
+/* Déployé le 07/11/2026 à 16:39 — v1384 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1384,
+    date: 'Samedi 7 novembre 2026',
+    resume: '💬 Les gros onglets à icônes et la flèche verte aussi sur tablette et ordinateur · 🏠 le logo EC ramène aux Cours',
+    quoi: [
+      { emoji: '💬',
+        titre: 'La messagerie pareille partout',
+        texte: 'Les grosses pastilles Tout, Non lus, Élèves, Équipe, Permis avec leurs icônes, et la flèche de retour en rond vert, sont maintenant aussi sur la tablette, l’ordinateur et la barre de droite. Quand il y a la place, les cinq tiennent sur une ligne.' },
+      { emoji: '🏠',
+        titre: 'Le logo EC ramène aux Cours',
+        texte: 'Un appui sur le logo EC, en haut à gauche, ramène à l’onglet 🎙️ Cours, d’où qu’on soit.' }
+    ]
+  },
   {
     version: 1383,
     date: 'Samedi 7 novembre 2026',
