@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 14:03 — v1321 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-activite.js
    🎓 Ce que font les élèves dans leur espace — Outils › Mesurer,
@@ -19,7 +19,7 @@ const GESTES_AFFICHES = {
   connexion:     ['🔑', 'connexions',    () => 's’est connecté(e)'],
   bilan:         ['📄', 'bilans',        d => 'a ouvert son bilan' + (d ? ' du ' + d : '')],
   recitation:    ['🎙️', 'recitations',   d => 'a envoyé une récitation' + (d ? ' — « ' + d + ' »' : '')],
-  video:         ['🎬', 'revisions',     d => 'a vu ' + (d ? '« ' + d + ' »' : 'une étape') + ' dans le coin révisions'],
+  video:         ['🎬', 'revisions',     d => 'a vu ' + (d ? '« ' + d + ' »' : 'une étape') + ' dans l’App Évolution Conduites'],
   presence:      ['✋', 'creneaux',      () => 'a confirmé sa présence'],
   message:       ['💬', 'messages',      () => 'a écrit un message'],
   actionrapide:  ['💬', 'messages',      () => 'a écrit au bureau'],
@@ -43,7 +43,7 @@ const FAMILLES_ACTIVITE = [
   ['creneaux',      '📅 Créneaux'],
   ['notifications', '🔔 Notifications'],
   ['recitations',   '🎙️ Récitations'],
-  ['revisions',     '🎬 Coin révisions'],
+  ['revisions',     '🎬 App Évolution Conduites'],
   ['autres',        '• Autres']
 ];
 function gesteAffiche(g){
