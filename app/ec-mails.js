@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 11:53 — v1266 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-mails.js
    ✉️ Les mails envoyés — Outils › Mesurer
@@ -29,7 +29,7 @@ const GENRES_MAIL = [
   ['recitation', '🎙️', 'Récitations reçues',       'récitation',  'récitations'],
   ['rvp',        '👨‍👩‍👧', 'Rendez-vous AAC / CS',     'rendez-vous', 'rendez-vous'],
   ['ecoute',     '🎧', 'Écoutes pédagogiques',     'écoute',      'écoutes'],
-  ['acces',      '🔑', 'Coin révisions (accès)',   'accès',       'accès'],
+  ['acces',      '🔑', 'App Évolution Conduites (accès)',   'accès',       'accès'],
   ['modele',     '📄', 'Messages (modèles)',       'message',     'messages'],
   ['paiement',   '💳', 'Paiement',                 'paiement',    'paiements'],
   ['placesbe',   '🚚', 'Places BE',                'places BE',   'places BE'],
