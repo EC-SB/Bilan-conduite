@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 07/11/2026 à 08:56 — v1373 -->
+<!-- Déployé le 07/11/2026 à 15:41 — v1381 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1671,6 +1671,21 @@
   .vsAccueil .btn{ margin:0 0 8px; display:flex; align-items:center; justify-content:center; gap:8px; }
   .vsAccueil .vsLienQ{ display:block; text-align:center; font-size:13px; color:var(--accent-text); padding:6px 0 2px; }
   .vsAccueil.fini{ border-color:var(--line); }
+  .vsAccueil.vsPrevu .btn[disabled]{ opacity:.5; cursor:default; }
+  .vsAccueil .vsReste{ font-size:13px; font-weight:700; color:var(--accent-text); }
+  /* 📲 v1381 — le bandeau « sur ton écran d'accueil + notifications » */
+  .baAppli{ position:relative; border-color:var(--accent-text); }
+  .baAppli .baT{ font-size:15px; font-weight:800; margin:0 34px 4px 0; }
+  .baAppli .baS{ font-size:12.5px; color:var(--muted); line-height:1.45; margin:0 0 10px; }
+  .baAppli .baL{ display:flex; gap:10px; align-items:center; padding:10px 0; border-top:1px solid var(--line); }
+  .baAppli .baL .baI{ font-size:22px; flex:0 0 auto; }
+  .baAppli .baL .baX{ flex:1; min-width:0; font-size:13px; line-height:1.45; }
+  .baAppli .baL .baX b{ display:block; font-size:13.5px; }
+  .baAppli .baL .baX small{ display:block; color:var(--muted); font-size:12px; }
+  .baAppli .baL .btn{ width:auto; margin:0; padding:8px 14px; font-size:13px; flex:0 0 auto; }
+  .baAppli .baL.fait .baX b::after{ content:' ✓'; color:var(--accent-text); }
+  .baAppli .baFermer{ position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%; border:1px solid var(--line);
+    background:transparent; color:var(--muted); font-size:14px; line-height:1; cursor:pointer; padding:0; margin:0; }
   .ckCarte .lab.vsLabFil{ color:var(--accent-text); }
   /* 📞 v1183 — les appels : boutons d'en-tête, cartes, trace */
   .ckTop .rond.apBtEl{ color:var(--accent-text); }
@@ -2386,6 +2401,9 @@
     <!-- 🎥 v1356 — le cours de code en visio : tout en haut quand il a
          commencé (ou quand on arrive par son lien) -->
     <div class="card vsAccueil" id="carteVisio" style="display:none;"></div>
+    <!-- 📲 v1381 — mets ton espace sur l'écran d'accueil, active les
+         notifications (David, le 7 novembre) : fermé, il revient 7 jours plus tard -->
+    <div class="card baAppli" id="bandeauAppliEl" style="display:none;"></div>
     <!-- 📣 Les annonces — v1038, étape 6. En TÊTE de l'accueil :
          « le bureau sera fermé samedi » est exactement ce qu'on veut
          voir en ouvrant l'application, pas au bas d'un défilement. -->
@@ -4114,6 +4132,12 @@
     if(ouvert('messages')) demarrerMessages();
     /* 🎥 v1356 — le cours de code en visio (le lien, ou un cours en cours) */
     demarrerVisioEl();
+    /* 📲 v1381 — l'écran d'accueil et les notifications : on regarde
+       (sans rien demander), puis le bandeau se dessine */
+    if(!(MODE_SALLE || MODE_ESSAI || ACCOMP)){
+      try{ preparerPousseeEl(); }catch(e){}
+      try{ dessinerBandeauAppliEl(); }catch(e){}
+    }
     /* 🎮 v1256 — la partie d'essai s'ouvre sur le jeu */
     if(MODE_ESSAI) allerAOnglet('verifs');
   }
@@ -8328,6 +8352,12 @@
     var v = visioEl && visioEl.visio;
     var ici = window.AppelEC && window.AppelEC.enCours && window.AppelEC.enCours();
     z.className = 'card vsAccueil';
+    /* 📅 v1381 — rien de lancé : son cours réservé sur Drivup, dès la réservation */
+    var pr = visioEl && visioEl.prevu;
+    if((!v || (v.fini && (!VISIO_ADRESSE_EL || VISIO_ADRESSE_EL !== v.seance))) && pr && !(visioEl && visioEl.inconnu && VISIO_ADRESSE_EL)){
+      dessinerVisioPrevuEl(z, pr);
+      return;
+    }
     if(!v){
       if(visioEl && visioEl.inconnu && VISIO_ADRESSE_EL){
         z.className += ' fini';
@@ -8368,6 +8398,57 @@
     });
   }
 
+  /* 📅 v1381 — « Ton cours de code en visio : aujourd'hui à 18h ».
+     David, le 7 novembre : l'élève n'avait l'information que dans sa
+     messagerie. Le bloc s'affiche dès que le cours est réservé sur
+     Drivup ; le bouton s'allume quand le cours est lancé (la carte
+     se relit toutes les 30 secondes). */
+  var visioPrevuMinuteurEl = 0;
+  function quandDuVisioEl(pr){
+    var d = new Date(pr.jour + 'T12:00:00');
+    var auj = new Date(); auj.setHours(12, 0, 0, 0);
+    var ecart = Math.round((d - auj) / 86400000);
+    var m = String(pr.debut || '').match(/^(\d{1,2}):(\d{2})/);
+    var h = m ? (+m[1]) + 'h' + (m[2] === '00' ? '' : m[2]) : '';
+    var jour = ecart === 0 ? 'Aujourd’hui' : ecart === 1 ? 'Demain'
+      : d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return { texte: jour.charAt(0).toUpperCase() + jour.slice(1) + (h ? ' à ' + h : ''), aujourdhui: ecart === 0, m: m };
+  }
+  function resteAvantVisioEl(pr){
+    var q = quandDuVisioEl(pr);
+    if(!q.aujourdhui || !q.m) return '';
+    var t = new Date(); var d = new Date(); d.setHours(+q.m[1], +q.m[2], 0, 0);
+    var min = Math.round((d - t) / 60000);
+    if(min > 90) return 'dans ' + Math.floor(min / 60) + ' h ' + String(min % 60).padStart(2, '0');
+    if(min > 1) return 'dans ' + min + ' min';
+    if(min >= -1) return 'c’est l’heure';
+    return '';
+  }
+  function dessinerVisioPrevuEl(z, pr){
+    var q = quandDuVisioEl(pr);
+    var reste = resteAvantVisioEl(pr);
+    z.className = 'card vsAccueil vsPrevu';
+    z.innerHTML = '<div class="vsLab">🎥 TON COURS DE CODE EN VISIO</div>' +
+      '<div class="vsTitre">' + echapper(q.texte) + (reste ? ' <small class="vsReste">· ' + echapper(reste) + '</small>' : '') + '</div>' +
+      '<div class="vsMot">Le bouton « Rejoindre le cours » s’allume ici quand le cours commence. ' +
+        'Pas de caméra : tu regardes le cours, et tu peux parler au début.</div>' +
+      '<button type="button" class="btn btn-primary" disabled>' +
+        (window.AppelEC ? window.AppelEC.ic('camera', 18) : '') + 'Rejoindre le cours</button>' +
+      (!appelsPossiblesEl() ? '<div class="vsMot" style="color:var(--warn-text);margin:4px 0 0">Ce navigateur ne sait pas suivre une visio : ' +
+        'ouvre ton espace avec Chrome ou Safari à jour.</div>' : '');
+    z.style.display = '';
+    /* « dans 12 min » se tient à jour sans attendre la relecture */
+    if(!visioPrevuMinuteurEl){
+      visioPrevuMinuteurEl = setInterval(function(){
+        var r = document.querySelector('#carteVisio.vsPrevu .vsReste');
+        var p = visioEl && visioEl.prevu;
+        if(!r || !p){ clearInterval(visioPrevuMinuteurEl); visioPrevuMinuteurEl = 0; return; }
+        var t = resteAvantVisioEl(p);
+        r.textContent = t ? '· ' + t : '';
+      }, 20000);
+    }
+  }
+
   function rejoindreVisioEl(seance, appelId, bouton){
     if(!appelsPossiblesEl()) return;
     if(bouton) bouton.disabled = true;
@@ -8386,7 +8467,20 @@
         if(bouton) bouton.disabled = false;
         visioErreurEl = (e && e.message) || 'Impossible de rejoindre le cours.';
         dessinerVisioEl();
-        if(filEl) dire('msgFil', visioErreurEl, 'erreur');
+        /* ⚠️ v1381 — LE GROUPE DU COURS EST EN ANNONCE : pas de barre
+           d'écriture, donc pas de « msgFil ». L'erreur partait dans le
+           vide et le bouton semblait ne rien faire. Elle se pose sous
+           le bouton, là où on vient d'appuyer. */
+        if(filEl && $('msgFil')) dire('msgFil', visioErreurEl, 'erreur');
+        else if(bouton && bouton.parentNode){
+          var ancien = bouton.parentNode.parentNode && bouton.parentNode.parentNode.querySelector('.apNote.vsErr');
+          if(ancien) ancien.remove();
+          var n = document.createElement('div');
+          n.className = 'apNote vsErr';
+          n.style.color = 'var(--warn-text)';
+          n.textContent = '⚠️ ' + visioErreurEl;
+          (bouton.closest('.ckCarte') || bouton.parentNode).appendChild(n);
+        }
         lireVisioEl();
       });
   }
@@ -10740,6 +10834,15 @@
      là qu'on vient de cliquer, et un message qui apparaît à l'autre
      bout de l'écran passe inaperçu sur un téléphone. */
   function alerterPousseeEl(texte){
+    /* 📲 v1381 — demandé depuis le bandeau de l'accueil : c'est là qu'on regarde */
+    var ba = $('bandeauAppliEl');
+    if(ba && ba.style.display !== 'none' && ongletIci === 'accueil'){
+      var d0 = document.createElement('div');
+      d0.className = 'message erreur';
+      d0.style.marginTop = '8px';
+      d0.textContent = texte;
+      ba.appendChild(d0);
+    }
     var z = $('poussEl');
     if(!z) return;
     var d = document.createElement('div');
@@ -10750,6 +10853,7 @@
   }
 
   function dessinerPousseeEl(){
+    try{ dessinerBandeauAppliEl(); }catch(e){}   /* 📲 v1381 — le bandeau de l'accueil suit */
     var z = $('poussEl');
     if(!z) return;
     if(poussEtatEl === 'absent' || !poussEtatEl){ z.innerHTML = ''; return; }
@@ -10797,6 +10901,126 @@
     if(b) b.addEventListener('click', demanderPousseeEl);
   }
 
+  /* ============================================================
+     📲 SON ESPACE SUR L'ÉCRAN D'ACCUEIL, ET LES NOTIFICATIONS — v1381
+
+     David, le 7 novembre : « sur l'espace élève il faut ajouter un
+     bandeau que l'élève peut fermer qui permet de mettre sur la page
+     d'accueil de son téléphone directement — je sais que certaines
+     versions de Chrome sur Android le proposent directement — et qu'il
+     doive activer les notifications, avec un renvoi direct pour
+     activer ». Fermé avec ✕, il revient 7 jours plus tard tant que ce
+     n'est pas fait ; il s'en va pour de bon quand c'est fait.
+
+     · Chrome sur Android (et sur ordinateur) prévient qu'on PEUT
+       installer (« beforeinstallprompt ») : on garde l'invitation, et
+       le bouton « Ajouter » ouvre la vraie fenêtre de Chrome.
+     · iPhone : aucune page ne peut le faire elle-même. On dit le geste
+       (Partager › Sur l'écran d'accueil) — et sur iPhone, les
+       notifications n'existent qu'une fois l'espace ajouté.
+     · Les notifications : le bouton appelle demanderPousseeEl, le même
+       que celui de la messagerie (la demande part d'un appui, jamais
+       toute seule — voir plus haut).
+     ============================================================ */
+  var invitationInstallEl = null;
+  var installeEl = false;
+  var CLE_BANDEAU_APPLI_EL = 'ec_bandeau_appli_ferme';
+  var BANDEAU_APPLI_REVIENT_MS = 7 * 86400000;
+  window.addEventListener('beforeinstallprompt', function(ev){
+    ev.preventDefault();
+    invitationInstallEl = ev;
+    try{ dessinerBandeauAppliEl(); }catch(e){}
+  });
+  window.addEventListener('appinstalled', function(){
+    invitationInstallEl = null; installeEl = true;
+    try{ dessinerBandeauAppliEl(); }catch(e){}
+  });
+  function iosEl(){
+    var ua = navigator.userAgent || '';
+    return /iPad|iPhone|iPod/.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
+  }
+  function telephoneEl(){ return iosEl() || /Android/i.test(navigator.userAgent || ''); }
+  function espaceInstalleEl(){
+    if(installeEl) return true;
+    try{
+      return window.navigator.standalone === true || !!(window.matchMedia &&
+        (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches ||
+         window.matchMedia('(display-mode: minimal-ui)').matches));
+    }catch(e){ return false; }
+  }
+  function bandeauAppliFermeEl(){
+    try{
+      var t = Number(localStorage.getItem(CLE_BANDEAU_APPLI_EL) || 0);
+      return !!t && Date.now() - t < BANDEAU_APPLI_REVIENT_MS;
+    }catch(e){ return false; }
+  }
+  function dessinerBandeauAppliEl(){
+    var z = $('bandeauAppliEl');
+    if(!z) return;
+    var cacher = function(){ z.style.display = 'none'; z.innerHTML = ''; };
+    if(!moi || !moi.code || MODE_SALLE || MODE_ESSAI || ACCOMP || bandeauAppliFermeEl()) return cacher();
+
+    var inst = espaceInstalleEl();
+    var lignes = [];
+    /* ① l'écran d'accueil */
+    if(!inst && (telephoneEl() || invitationInstallEl)){
+      if(invitationInstallEl){
+        lignes.push({ i: '📲', t: 'Mets ton espace sur ton écran d’accueil',
+          s: 'Il s’ouvre comme une application, d’un seul geste.', bt: 'Ajouter', id: 'btBaInstaller' });
+      }else if(iosEl()){
+        lignes.push({ i: '📲', t: 'Mets ton espace sur ton écran d’accueil',
+          s: 'Touche le bouton Partager <span aria-hidden="true">⬆️</span> (le carré avec la flèche) de ton navigateur, ' +
+             'puis « Sur l’écran d’accueil ». Ouvre ensuite ton espace depuis la nouvelle icône.' });
+      }else{
+        lignes.push({ i: '📲', t: 'Mets ton espace sur ton écran d’accueil',
+          s: 'Ouvre le menu ⋮ de ton navigateur, puis « Ajouter à l’écran d’accueil » ou « Installer l’application ».' });
+      }
+    }
+    /* ② les notifications */
+    var pe = poussEtatEl;
+    if(pe === 'off'){
+      lignes.push({ i: '🔔', t: 'Active les notifications',
+        s: 'Pour savoir quand on t’écrit et quand ton cours de code en visio commence.', bt: poussOccupeEl ? '…' : 'Activer',
+        id: 'btBaNotif', occupe: poussOccupeEl });
+    }else if(pe === 'refuse'){
+      lignes.push({ i: '🔕', t: 'Les notifications sont bloquées',
+        s: 'Touche le cadenas 🔒 à côté de l’adresse, puis Autorisations › Notifications › Autoriser. ' +
+           'Sur Android, aussi : Paramètres › Applications › Chrome › Notifications.' });
+    }else if(pe === 'ecran'){
+      lignes.push({ i: '🔔', t: 'Puis les notifications',
+        s: 'Sur iPhone, elles s’activent une fois ton espace sur l’écran d’accueil : ouvre-le depuis l’icône, ' +
+           'ce bandeau te proposera le bouton.' });
+    }
+    if(!lignes.length) return cacher();
+
+    z.innerHTML = '<button type="button" class="baFermer" id="btBaFermer" aria-label="Fermer" title="Fermer (il reviendra dans 7 jours)">✕</button>' +
+      '<div class="baT">📲 Ton espace, toujours sous la main</div>' +
+      '<div class="baS">Deux réglages à faire une fois sur ce téléphone.</div>' +
+      lignes.map(function(l){
+        return '<div class="baL"><span class="baI">' + l.i + '</span><div class="baX"><b>' + l.t + '</b><small>' + l.s + '</small></div>' +
+          (l.bt ? '<button type="button" class="btn btn-primary" id="' + l.id + '"' + (l.occupe ? ' disabled' : '') + '>' + l.bt + '</button>' : '') +
+          '</div>';
+      }).join('');
+    z.style.display = '';
+    var f = $('btBaFermer');
+    if(f) f.addEventListener('click', function(){
+      try{ localStorage.setItem(CLE_BANDEAU_APPLI_EL, String(Date.now())); }catch(e){}
+      cacher();
+    });
+    var bi = $('btBaInstaller');
+    if(bi) bi.addEventListener('click', function(){
+      var inv = invitationInstallEl;
+      if(!inv) return;
+      bi.disabled = true;
+      Promise.resolve(inv.prompt()).then(function(){ return inv.userChoice; }).then(function(ch){
+        invitationInstallEl = null;
+        if(ch && ch.outcome === 'accepted') installeEl = true;
+      }).catch(function(){ invitationInstallEl = null; }).then(dessinerBandeauAppliEl);
+    });
+    var bn = $('btBaNotif');
+    if(bn) bn.addEventListener('click', function(){ demanderPousseeEl(); });
+  }
+
   /* On clique sur la notification : le service worker dit quel fil
      ouvrir plutôt que de recharger la page — l'espace est peut-être
      ouvert sur une procédure à moitié dictée. */
@@ -10809,6 +11033,8 @@
       /* 📌 v1222 — « à revoir » : l'onglet Réviser */
       if(d && d.quoi === 'ouvrirVue'){
         if(d.vue === 'reviser'){ try{ allerAOnglet('reviser'); }catch(e){} }
+        /* 🎥 v1381 — « Ton cours de code en visio commence » */
+        if(d.vue === 'accueil'){ try{ allerAOnglet('accueil'); lireVisioEl(); }catch(e){} }
         return;
       }
       if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
