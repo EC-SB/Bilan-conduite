@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    ec-activite.js
    🎓 Ce que font les élèves dans leur espace — Outils › Mesurer,
@@ -286,8 +286,9 @@ function envoyerSignePresence(){
   if(typeof ACCES === 'undefined' || !ACCES || !ACCES.code) return;
   if(document.visibilityState !== 'visible') return;
   const ecran = ecranDePresence();
-  /* Un signe par minute, ou tout de suite si l'écran a changé */
-  if(ecran === dernierSignePresence.ecran && Date.now() - dernierSignePresence.quand < 55000) return;
+  /* Un signe toutes les deux minutes, ou tout de suite si l'écran a changé
+     (📉 v1386 — avant : chaque minute ; le Worker garde « en ligne » 5 min) */
+  if(ecran === dernierSignePresence.ecran && Date.now() - dernierSignePresence.quand < 115000) return;
   dernierSignePresence = { quand: Date.now(), ecran: ecran };
   appelPrep({ action: 'presence', ecran: ecran }).catch(() => {});
 }
