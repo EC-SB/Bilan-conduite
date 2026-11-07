@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 11:01 — v1375 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1498,7 +1498,7 @@ function resumeEffacement(d){
   const bouts = [];
   if(d && d.supprimees) bouts.push(d.supprimees + ' bilan(s)');
   if(a.repertoire)   bouts.push('sa fiche du répertoire');
-  if(a.acces)        bouts.push('son accès au coin révisions');
+  if(a.acces)        bouts.push('son accès à l’App Évolution Conduites');
   if(a.recitations)  bouts.push(a.recitations + ' récitation(s)');
   if(a.demandes)     bouts.push(a.demandes + ' procédure(s) demandée(s)');
   if(a.preparations) bouts.push(a.preparations + ' cours préparé(s)');
