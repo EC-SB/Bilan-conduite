@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 14:25 — v1214 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -655,7 +655,7 @@ function veillerBrouillonsServeur(){
        viendrait par-dessus le travail en train de se faire. */
     if(String(texteDicteEnCours()).trim()) return;
     chercherBrouillonsServeur(true);
-  }, 3 * 60 * 1000);
+  }, 10 * 60 * 1000);   /* 📉 v1386 — avant : 3 min. Le retour sur l'appli relit tout de suite. */
 
   document.addEventListener('visibilitychange', () => {
     if(!document.hidden && !String(texteDicteEnCours()).trim()){
