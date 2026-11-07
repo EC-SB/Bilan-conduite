@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:57 — v1385 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1386,
+    date: 'Samedi 7 novembre 2026',
+    resume: '⚡ L’app interroge le serveur trois fois moins souvent, sans rien perdre',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Moins d’allers-retours avec le serveur',
+        texte: 'La CB, le compteur de la messagerie, les à-faire, la présence et les écrans de la salle se rafraîchissent moins souvent. Un message qui arrive avec une notification met à jour le compteur tout de suite, comme avant.' },
+      { emoji: '📺',
+        titre: 'Les télés se reposent la nuit',
+        texte: 'Entre 21 h et 6 h 30, l’écran de la salle ne recharge plus ses données qu’une fois par quart d’heure.' }
+    ]
+  },
   {
     version: 1385,
     date: 'Samedi 7 novembre 2026',
