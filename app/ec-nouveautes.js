@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 20:38 — v1371 */
+/* Déployé le 07/11/2026 à 08:51 — v1372 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1372,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🫧 Espace élève : nouveau graphisme « Liquid Glass » (tablettes comprises) · 🕒 les horaires des bureaux sur l’accueil',
+    quoi: [
+      { emoji: '🫧',
+        titre: 'L’espace élève passe au verre',
+        texte: 'Nouvelle matière pour tout l’espace élève et les tablettes de la salle : des cartes en verre dépoli sur un fond aux halos vert citron, des boutons en capsules, et la barre du bas en capsule flottante avec l’onglet actif en « lentille » lime et des icônes dessinées à la place des emoji. Rien ne change à l’usage : mêmes écrans, mêmes textes, même ordre. Le thème sombre suit la même recette.' },
+      { emoji: '🕒',
+        titre: 'Les horaires des bureaux dans l’espace élève',
+        texte: 'Sur l’accueil, sous « Mon prochain cours », une carte « 🕒 Les bureaux » : son bureau en premier, « ● Ouvert » ou « ○ Fermé » aujourd’hui avec les plages du jour, la semaine dessous et le téléphone. Ce sont les horaires de Gestion › L’accueil (Drivup + vos corrections) — rien à saisir en plus. Pas de lien rendez-vous : les élèves réservent sur Drivup.' }
+    ]
+  },
   {
     version: 1371,
     date: 'Vendredi 6 novembre 2026',
