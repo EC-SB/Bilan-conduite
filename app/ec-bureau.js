@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 13:49 — v1378 */
+/* Déployé le 07/11/2026 à 15:10 — v1380 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1938,6 +1938,8 @@ async function redessinerBureau(){
   }
 
   afficherExamensPermis(tous);
+  /* 📨 v1380 — la vue Relances lit la même liste */
+  if(typeof afficherRelances === 'function') afficherRelances(tous);
 
   /* Le compte de ce qui attend une décision du bureau */
   majAlerteSuivi(tous);
