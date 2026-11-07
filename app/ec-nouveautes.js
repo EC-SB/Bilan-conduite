@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 17:51 — v1386 */
+/* Déployé le 07/11/2026 à 18:09 — v1387 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1387,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🖼 Le logo officiel devient l’icône de l’app, pour l’équipe et pour les élèves',
+    quoi: [
+      { emoji: '🖼',
+        titre: 'Notre logo sur l’écran d’accueil',
+        texte: 'L’icône « EC » est remplacée par le logo Évolution Conduites, sur l’App de l’équipe, l’espace élève et les tablettes de la salle — et dans les signets du navigateur. Sur iPhone, une icône déjà posée ne change pas toute seule : il faut la supprimer et la remettre.' }
+    ]
+  },
   {
     version: 1386,
     date: 'Samedi 7 novembre 2026',
