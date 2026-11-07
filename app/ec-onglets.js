@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 14:40 — v1379 */
+/* Déployé le 07/11/2026 à 15:10 — v1380 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -234,6 +234,8 @@ const VUES = {
      prêt, à envisager, préparé, suivi, résultat. */
   permis: [['pasprets',  '⛔ Pas prêts',        'bureau_permis', 'Le parcours B'],
            ['envisager', '🤔 À envisager',      'bureau_permis', 'Le parcours B'],
+           /* 📨 v1380 — relancer bilan post-permis, RDV post-permis, repassages */
+           ['relances',  '📨 Relances',         'bureau_permis', 'Le parcours B'],
            ['preppermis','📣 Préparation',      'bureau_permis', 'Le parcours B'],
            ['sessions',  '🎓 Suivi permis',     'bureau_permis', 'Le parcours B'],
            ['resultats', '🏁 Résultats',        'bureau_permis', 'Le parcours B'],
@@ -2050,6 +2052,7 @@ function reveillerVue(cle){
     /* ✉️ v1378 — deux vues : le chat et la boîte mail, portées par la même
        carte (data-vues). On bascule « ongletMsgEC », le dessin suit. */
     messagerie: () => { if(typeof ongletMsgEC !== 'undefined' && ongletMsgEC === 'mails'){ let c=''; try{ c=localStorage.getItem('ec_msg_chat')||''; }catch(e){} ongletMsgEC = c && c !== 'mails' ? c : 'nonlus'; } if(typeof afficherMessagerie === 'function') afficherMessagerie(); },
+    relances:   () => (typeof afficherRelances === 'function') && afficherRelances(),
     mails:      () => { if(typeof ongletMsgEC !== 'undefined') ongletMsgEC = 'mails'; if(typeof afficherMessagerie === 'function') afficherMessagerie(); },
     /* Une vue branchée nulle part reste sur « Chargement… » pour
        toujours. Celle-ci relit à chaque arrivée : un objet rendu
