@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 16:49 — v1361 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -135,10 +135,10 @@ async function cvPoserHabitude(formation, h){
   tout[cvNorm(formation)] = { nom: String(formation), modules: h.modules.slice(), questionnaire: !!h.q, groupes: h.groupes.slice() };
   const contenu = JSON.stringify({ formations: tout });
   const rep = await appelPrep({ action: 'modeleSet', id: m ? m.id : '', usage: CV_REGLAGE,
-                                nom: 'Réglage — ce qu’on ouvre par formation (coin révisions)', contenu: contenu });
+                                nom: 'Réglage — ce qu’on ouvre par formation (App Évolution Conduites)', contenu: contenu });
   if(rep && rep.status === 'error') throw new Error(rep.message);
   if(m) m.contenu = contenu;
-  else modelesTexte.push({ id: (rep && rep.id) || '', usage: CV_REGLAGE, nom: 'Réglage — ce qu’on ouvre par formation (coin révisions)', contenu: contenu });
+  else modelesTexte.push({ id: (rep && rep.id) || '', usage: CV_REGLAGE, nom: 'Réglage — ce qu’on ouvre par formation (App Évolution Conduites)', contenu: contenu });
 }
 /* Ce qu'on ouvre d'habitude pour une formation : le réglage des admins,
    sinon la règle de base (les groupes qui la prévoient, sans la salle
@@ -289,7 +289,7 @@ function cvTexteAcces(o){
   l.push('💬 une messagerie pour écrire à l’auto-école' + (cvAllume(E, 'messages_moniteur') ? ' et à ton moniteur' : ''));
   if(cvAllume(E, 'appel_vocal')) l.push('📞 un bouton pour nous appeler' + (cvAllume(E, 'appel_video') ? ', en vocal ou en vidéo' : ''));
   let t = 'Bonjour ' + prenom + ',\n\n' +
-    'Ton espace révisions Évolution Conduites est ouvert :\n' +
+    'Ton App Évolution Conduites est ouverte :\n' +
     String((typeof CONFIG === 'object' && CONFIG.LIEN_ELEVE) || '') + '\n' +
     'Ton nom : ' + o.nom + '\n' +
     'Ton code : ' + o.code + '\n\n' +
@@ -348,7 +348,7 @@ function cvCorpsMail(boite, texte, adresse, actif){
       (actif ? '' : ' <span style="color:var(--muted);">(son espace est fermé)</span>') + '</label>' +
     '<div class="cvEtat" id="cvEtatMail"></div>';
   z.querySelector('#cvA').value = adresse || '';
-  z.querySelector('#cvObjet').value = 'Ton espace révisions — Évolution Conduites';
+  z.querySelector('#cvObjet').value = 'Ton accès à l’App Évolution Conduites';
   z.querySelector('#cvTexte').value = texte;
   boite.appendChild(z);
   return z;
@@ -357,7 +357,7 @@ function cvCorpsMail(boite, texte, adresse, actif){
 async function cvEnvoyer(nom, z, adresseDepart){
   const etat = z.querySelector('#cvEtatMail');
   const a = z.querySelector('#cvA').value.trim();
-  const sujet = z.querySelector('#cvObjet').value.trim() || 'Ton espace révisions — Évolution Conduites';
+  const sujet = z.querySelector('#cvObjet').value.trim() || 'Ton accès à l’App Évolution Conduites';
   const texte = z.querySelector('#cvTexte').value.trim();
   const msg = z.querySelector('#cvMsg').checked;
   const dire = (t, rouge) => { etat.style.color = rouge ? 'var(--red)' : 'var(--muted)'; etat.textContent = t; };
@@ -431,7 +431,7 @@ async function fenetreAccesEleve(nom, apres){
   let L, code, fini, adresse;
   try{
     L = await cvLire(nom);
-    if(!L.acces) throw new Error('il n’a pas encore de coin révisions');
+    if(!L.acces) throw new Error('il n’a pas encore l’App Évolution Conduites');
     [code, fini, adresse] = await Promise.all([codeDeLEleve(nom), cvSalleFinie(nom), cvAdresseDe(nom)]);
   }catch(e){
     att.style.color = 'var(--red)';
@@ -708,7 +708,7 @@ async function afficherEspaceEleve(nom, zone){
 
   /* ── pas encore d'espace : la mise en route ── */
   if(!acces){
-    carte.innerHTML = '<div style="font-size:13px;line-height:1.5;"><strong>🔒 Pas encore de coin révisions</strong>' +
+    carte.innerHTML = '<div style="font-size:13px;line-height:1.5;"><strong>🔒 Pas encore d’App Évolution Conduites</strong>' +
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">Ses vidéos, son prochain cours, ses leçons, la messagerie : tout se règle en trois étapes, et le message part à la fin.</div></div>';
     const b = cvBouton('🧭 Mettre en route son espace', 'btn-primary', () => miseEnRouteCoinRevisions(nom, redessiner));
     b.dataset.miseEnRoute = '1';
@@ -725,7 +725,7 @@ async function afficherEspaceEleve(nom, zone){
   t.className = 'cvT';
   /* 🔑 v1357 — « vu le / jamais venu » passe dans le suivi, juste dessous */
   const suivi = (typeof suiviAccesCarte === 'function' && acces.actif) ? suiviAccesCarte(nom, acces, redessiner) : null;
-  t.innerHTML = '<div class="n"><strong>' + (acces.actif ? '🔓' : '🔒') + ' Coin révisions</strong><small>' +
+  t.innerHTML = '<div class="n"><strong>' + (acces.actif ? '🔓' : '🔒') + ' App Évolution Conduites</strong><small>' +
       (suivi ? '' : (acces.derniereVisite ? 'vu le ' + cvEch(acces.derniereVisite) : 'jamais venu')) +
       (L.formation ? (suivi ? '' : ' · ') + cvEch(L.formation) : '') +
       (acces.langue ? ' · 🌍 ' + cvEch(acces.langue) : '') + '</small></div>' +
@@ -897,20 +897,20 @@ async function afficherEspaceEleve(nom, zone){
   if(acces.sorti === 'permis'){
     const f = document.createElement('span');
     f.style.cssText = 'color:var(--accent-text);font-weight:700;';
-    f.textContent = '🏁 Il a son permis : son coin révisions s’est fermé tout seul.';
+    f.textContent = '🏁 Il a son permis : son App Évolution Conduites s’est fermée toute seule.';
     basC.appendChild(f);
   }else{
     const parti = acces.sorti === 'parti';
     if(parti){
       const q = document.createElement('div');
       q.style.cssText = 'width:100%;font-size:12px;color:var(--warn-text);line-height:1.5;';
-      q.textContent = '🚪 Il a quitté l’auto-école : son coin révisions est fermé. Son dossier, lui, est intact.';
+      q.textContent = '🚪 Il a quitté l’auto-école : son App Évolution Conduites est fermée. Son dossier, lui, est intact.';
       basC.insertBefore(q, basC.firstChild);
     }
     const bD = cvBouton(parti ? '↩️ Il est revenu' : '🚪 Il a quitté l’auto-école', 'cvLien' + (parti ? '' : ' rouge'), async () => {
       if(!parti && !await confirmer(
           'Noter que ' + nom + ' a quitté l’auto-école ?\n\n' +
-          'Son coin révisions se ferme tout de suite : plus de parcours, plus de procédures, plus d’historique.\n\n' +
+          'Son App Évolution Conduites se ferme tout de suite : plus de parcours, plus de procédures, plus d’historique.\n\n' +
           'Son dossier et sa progression RESTENT — ça se défait.')) return;
       bD.disabled = true;
       try{
