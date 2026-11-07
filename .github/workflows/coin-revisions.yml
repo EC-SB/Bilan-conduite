@@ -1,4 +1,4 @@
-# Déployé le 23/10/2026 à 14:43 — v1252
+# Déployé le 07/11/2026 à 16:13 — v1382
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -27,6 +27,7 @@ on:
       - 'eleve.html'
       - 'sw.js'
       - 'manifest-eleve.webmanifest'
+      - 'manifest-salle.webmanifest'   # 📺 v1382 — le raccourci des tablettes
       - 'icone-192.png'
       - 'icone-512.png'
       - 'bureau.html'
@@ -49,7 +50,7 @@ jobs:
           # La page devient « index.html » : l'élève tape
           # eleve.evolutionconduites.fr, sans rien derrière.
           cp eleve.html sortie/index.html
-          cp sw.js manifest-eleve.webmanifest sortie/
+          cp sw.js manifest-eleve.webmanifest manifest-salle.webmanifest sortie/
           # 📞 v1183 — l'écran d'appel : eleve.html le charge à côté d'elle
           cp appel-commun.js sortie/
           # 🎮 v1248 — les 100 questions de vérification : le jeu de la
@@ -82,6 +83,12 @@ jobs:
             || { echo "::error::start_url non corrigé dans le manifeste"; exit 1; }
           python3 -c "import json,sys; json.load(open('sortie/manifest-eleve.webmanifest'))" \
             || { echo "::error::manifeste illisible après correction"; exit 1; }
+          # 📺 v1382 — et celui de la salle des tablettes : « eleve.html?salle=1 »
+          # devient « ./?salle=1 » ici
+          sed -i 's#"start_url": *"eleve.html?salle=1"#"start_url": "./?salle=1"#' \
+            sortie/manifest-salle.webmanifest
+          python3 -c "import json,sys; json.load(open('sortie/manifest-salle.webmanifest'))" \
+            || { echo "::error::manifeste de la salle illisible"; exit 1; }
 
           echo 'eleve.evolutionconduites.fr' > sortie/CNAME
           touch sortie/.nojekyll
