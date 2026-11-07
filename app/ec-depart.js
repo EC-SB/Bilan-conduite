@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 08:55 — v1357 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -288,7 +288,7 @@ async function supprimerDossierEleve(bouton){
   if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
               'TOUT le dossier de ' + eleveAffiche + ' va être effacé : ses ' +
               nbBilansAffiches + ' bilan(s), sa fiche du répertoire (nom, ' +
-              'téléphone, adresse), son accès au coin révisions, ses ' +
+              'téléphone, adresse), son accès à l’App Évolution Conduites, ses ' +
               'récitations, ses cours préparés, ses captures du CEPC, sa ' +
               "fiche de suivi et ses lignes dans le journal des envois.\n\n" +
               "Ce qui reste : sa ligne de résultat d'examen, SANS son nom — " +
