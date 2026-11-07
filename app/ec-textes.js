@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 10:49 — v1328 */
+/* Déployé le 07/11/2026 à 15:10 — v1380 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -26,6 +26,15 @@ const USAGES_MODELE = [
     variables:[] },
   { cle:'post_permis_up',  nom:'🔁 Post-permis — la relance « UP »',
     variables:[] },
+  /* 📨 v1380 — les relances de Permis › Relances (ec-relances.js). Sans
+     modèle écrit ici, ce sont les textes de départ du code. La première
+     ligne « Objet : … » donne l'objet du mail. */
+  { cle:'relance_bilan',     nom:'📨 Relance — bilan post-permis à faire',
+    variables:['{prenom}', '{eleve}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
+  { cle:'relance_rdv',       nom:'📨 Relance — RDV post-permis à réserver',
+    variables:['{prenom}', '{eleve}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
+  { cle:'relance_repassage', nom:'📨 Relance — repassage (leçons à réserver)',
+    variables:['{prenom}', '{eleve}', '{heures}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
   { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
     variables:['{eleve}', '{date}', '{motif}'] },
   { cle:'ecoutes', nom:'😱 Rappel écoutes pédagogiques', variables:[] },
