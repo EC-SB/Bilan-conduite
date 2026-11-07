@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 08:34 — v1159 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    ec-cbgasoil.js
    La CB Gasoil : où elle est, qui l'a, et les pleins faits avec.
@@ -1707,7 +1707,9 @@ function lancerBattementCb(){
     if(typeof reseauEnPause === 'function' && reseauEnPause()) return;
     if(typeof bureauOccupe === 'function' && bureauOccupe()) return;
     rafraichirCbAuto();
-  }, 20000);
+  }, 120000);   /* 📉 v1386 — David, le 7 novembre : Cloudflare prévient que le compte a atteint 75 % des 100 000 appels par jour du plan gratuit. Toutes les 20 s, c'était 180 appels par heure et par écran ouvert —
+                    le quart du compte à lui seul. Deux minutes, et la relecture au retour sur
+                    l'appli : celui qui prend la carte le voit tout de suite chez lui. */
 }
 
 
