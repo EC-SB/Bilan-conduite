@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 11:43 — v1165 */
+/* Déployé le 07/11/2026 à 16:57 — v1385 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -412,7 +412,34 @@ function brancherMenuPlus(){
      ouvert. */
   const ouvert = () => m.style.display !== 'none';
   const fermer = () => { m.style.display = 'none'; };
-  const ouvrir = () => { m.style.display = 'flex'; };
+  /* 📱 v1385 — DANS L'ÉCRAN, TOUJOURS. David, le 7 novembre : « sur
+     téléphone, les 3 points de la barre du haut ouvrent le sous-menu à
+     moitié sur la gauche, je ne vois pas ce qui est écrit ». Sur un
+     téléphone, la barre passe sur deux lignes et le ⋯ se retrouve à
+     gauche : le menu, accroché à son bord droit, débordait de l'écran.
+     Il se pose maintenant sous le bouton, aligné à droite si la place le
+     permet, et jamais au-delà des bords (8 px de marge) ; trop long, il
+     défile. */
+  const placer = () => {
+    if(!ouvert()) return;
+    const r = b.getBoundingClientRect();
+    const larg = window.innerWidth || document.documentElement.clientWidth;
+    const haut = window.innerHeight || document.documentElement.clientHeight;
+    m.style.position = 'fixed';
+    m.style.right = 'auto';
+    m.style.maxWidth = (larg - 16) + 'px';
+    /* mesurée à gauche, là où elle a toute la place : sa largeur ne
+       change plus quand on la pose */
+    m.style.left = '0px';
+    const w = m.offsetWidth;
+    m.style.left = Math.max(8, Math.min(r.right - w, larg - w - 8)) + 'px';
+    m.style.top = Math.round(r.bottom + 8) + 'px';
+    m.style.maxHeight = Math.max(160, haut - r.bottom - 16) + 'px';
+    m.style.overflowY = 'auto';
+  };
+  const ouvrir = () => { m.style.display = 'flex'; placer(); };
+  window.addEventListener('resize', placer);
+  window.addEventListener('scroll', () => { if(ouvert()) fermer(); }, { passive: true });
 
   b.addEventListener('click', e => {
     e.stopPropagation();
