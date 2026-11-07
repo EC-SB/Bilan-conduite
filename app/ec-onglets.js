@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:43 — v1347 */
+/* Déployé le 07/11/2026 à 14:40 — v1379 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -465,8 +465,13 @@ const VUES = {
      trois jours sous les retards du matin. Son droit est
      « messagerie_bureau » et pas « messagerie » : décider qu'une
      écharpe est rendue engage l'école. */
-  messagerie: [['messagerie', '💬 Conversations',    'messagerie',        'Écrire'],
-               ['oublis',     '🧤 Objets oubliés',   'messagerie_bureau', 'Écrire']]
+  messagerie: [['messagerie', '💬 Messagerie',       'messagerie',        ''],
+               /* ✉️ v1378 — le mail devient une vue à part (David, 7/11 :
+                  « deux sous-onglets dans le rail, un messagerie, un mail »).
+                  Avant, la boîte était un onglet de la liste (ongletMsgEC) ;
+                  elle est maintenant une vue de l'onglet Messagerie. */
+               ['mails',      '✉️ Mail',             'mails',             ''],
+               ['oublis',     '🧤 Objets oubliés',   'messagerie_bureau', '']]
 };
 
 /* ============================================================
@@ -2042,7 +2047,10 @@ function reveillerVue(cle){
        ouvert qu'on retrouve en revenant doit montrer ce qui est
        arrivé pendant l'absence : afficherMessagerie relit, et
        rouvre le fil s'il y en avait un. */
-    messagerie: () => (typeof afficherMessagerie === 'function') && afficherMessagerie(),
+    /* ✉️ v1378 — deux vues : le chat et la boîte mail, portées par la même
+       carte (data-vues). On bascule « ongletMsgEC », le dessin suit. */
+    messagerie: () => { if(typeof ongletMsgEC !== 'undefined' && ongletMsgEC === 'mails'){ let c=''; try{ c=localStorage.getItem('ec_msg_chat')||''; }catch(e){} ongletMsgEC = c && c !== 'mails' ? c : 'nonlus'; } if(typeof afficherMessagerie === 'function') afficherMessagerie(); },
+    mails:      () => { if(typeof ongletMsgEC !== 'undefined') ongletMsgEC = 'mails'; if(typeof afficherMessagerie === 'function') afficherMessagerie(); },
     /* Une vue branchée nulle part reste sur « Chargement… » pour
        toujours. Celle-ci relit à chaque arrivée : un objet rendu
        par quelqu'un d'autre il y a deux minutes doit avoir disparu
