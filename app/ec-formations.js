@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 10:20 — v1363 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-formations.js — 💼 LES FORMATIONS ENTREPRISE (v1280)
    Outils › Entreprises › 💼 Formations
@@ -301,6 +301,8 @@ function feDessinerDossier(z, x){
   const m = (FE.d.modeles || []).find(y => y.id === d.modele);
   t.appendChild(feEl('span', 'feDossierQuoi', (m ? m.emoji + ' ' : '') + ((d.formation && d.formation.intitule) || '') + ' · ' + feEffectif(d) + ' salarié' + (feEffectif(d) > 1 ? 's' : '') + ' · ' + (feEstOpco(d) ? ((d.opco && d.opco.nom) || 'OPCO ?') : '🏢 financement direct')));
   t.appendChild(feEl('span', 'feDossierNum', x.numero));
+  /* ✉️ v1382 — un mail libre à tous les salariés, le représentant en Cc */
+  if(!FE.d.restreint) t.appendChild(feBouton('✉️ Écrire aux salariés', 'feBtnPetit feEcrit', () => feMailAuxSalaries(x), 'Un mail à tous les salariés du dossier, le représentant de l’entreprise en copie'));
   t.appendChild(feEl('span', 'feEtatSauve', '')).id = 'feEtat';
   z.appendChild(t);
   z.appendChild(feFrise(d));
@@ -389,6 +391,9 @@ function feOngletResume(z, x){
   a.appendChild(feLigneCoche(s.paye ? 'ok' : 'non', 'Paiement reçu', s.paye ? 'le ' + feDateFr(s.paye.le) + (s.paye.montant ? ' · ' + feEur(s.paye.montant) : '') : o.paiement));
   g.appendChild(a);
   const b = feEl('div');
+  /* 📝 v1382 — le bloc-notes du dossier */
+  b.appendChild(feSous('📝 Bloc-notes'));
+  b.appendChild(feBlocNotes(x));
   b.appendChild(feSous('📌 En bref'));
   const bb = feEl('div', 'feBoite');
   const t = feTotaux(d, o), e = d.entreprise || {};
@@ -408,6 +413,128 @@ function feOngletResume(z, x){
     j.journal.slice(0, 40).forEach(l => hi.appendChild(feEl('div', '', new Date(l.quand).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' · ' + l.texte + (l.par ? ' — ' + l.par : ''))));
   });
 }
+/* ============================================================
+   📝 LE BLOC-NOTES DU DOSSIER — v1382
+
+   David, le 7 novembre : « ajoute un bloc-notes dans Où on en est,
+   avec des cases à cocher si on veut, pour mettre des notes
+   personnelles sur le dossier — ça me permet de dire que j'ai envoyé
+   un mail, que je l'ai eu au tél, etc. ». Une note : un texte, qui
+   l'a écrite et quand ; une case si on la veut (☐ à faire → ☑ fait).
+   Elles vivent dans le dossier (donnees.notes) et s'enregistrent
+   avec lui. La plus récente en haut.
+   ============================================================ */
+const FE_NOTES_VITE = [['✉️', 'Mail envoyé'], ['📞', 'Eu au téléphone'], ['📵', 'Pas de réponse, à rappeler'], ['📎', 'Document reçu']];
+function feQuandNote(ms){
+  const d = new Date(Number(ms) || 0);
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + ' ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function feBlocNotes(x){
+  const d = x.donnees;
+  d.notes = Array.isArray(d.notes) ? d.notes : [];
+  const w = feEl('div', 'feBoite feNotes');
+  const peut = fePeutEcrire();
+  if(peut){
+    const vite = feEl('div', 'feNotesVite');
+    const champ = document.createElement('textarea');
+    champ.rows = 2; champ.className = 'feNoteChamp';
+    champ.placeholder = 'Une note sur le dossier… (« j’ai eu M. Durand au tél, il rappelle lundi »)';
+    FE_NOTES_VITE.forEach(([e, t]) => vite.appendChild(fePuce(e + ' ' + t, false, () => {
+      champ.value = e + ' ' + t + (champ.value.trim() ? ' — ' + champ.value.trim() : ' — ');
+      champ.focus(); champ.setSelectionRange(champ.value.length, champ.value.length);
+    })));
+    w.appendChild(vite);
+    w.appendChild(champ);
+    const bas = feEl('div', 'feNotesBas');
+    const lc = feEl('label', 'feCocheLab');
+    const cb = document.createElement('input'); cb.type = 'checkbox';
+    lc.append(cb, document.createTextNode(' ☐ Avec une case à cocher (à faire)'));
+    const ok = feBouton('＋ Ajouter', 'btn-primary feBtnPetit', () => {
+      const t = champ.value.trim();
+      if(!t){ champ.focus(); return; }
+      d.notes.unshift({ id: feId('n'), texte: t.slice(0, 2000), le: Date.now(), par: FE.d.moi || '', coche: cb.checked ? false : null });
+      champ.value = ''; cb.checked = false;
+      feModifie('📝 note : ' + t.slice(0, 80));
+      dessiner();
+    });
+    champ.addEventListener('keydown', ev => { if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){ ev.preventDefault(); ok.click(); } });
+    bas.append(lc, ok);
+    w.appendChild(bas);
+  }
+  const liste = feEl('div', 'feNotesListe');
+  w.appendChild(liste);
+  const dessiner = () => {
+    liste.innerHTML = '';
+    if(!d.notes.length){ liste.appendChild(feEl('div', 'feNoteVide', 'Pas encore de note.')); return; }
+    d.notes.forEach(n => {
+      const l = feEl('div', 'feNote' + (n.coche === true ? ' faite' : ''));
+      if(n.coche === true || n.coche === false){
+        const c = document.createElement('input'); c.type = 'checkbox'; c.checked = n.coche === true; c.disabled = !peut;
+        c.title = n.coche ? 'Fait' : 'À faire';
+        c.addEventListener('change', () => {
+          n.coche = c.checked; n.cocheLe = c.checked ? Date.now() : 0; n.cochePar = c.checked ? (FE.d.moi || '') : '';
+          feModifie((c.checked ? '☑ ' : '☐ ') + n.texte.slice(0, 80)); dessiner();
+        });
+        l.appendChild(c);
+      }else l.appendChild(feEl('span', 'feNotePuce', '•'));
+      const m = feEl('div', 'feNoteTxt');
+      m.appendChild(feEl('div', 'feNoteT', n.texte));
+      m.appendChild(feEl('div', 'feNoteD', feQuandNote(n.le) + (n.par ? ' · ' + n.par : '') +
+        (n.coche === true && n.cocheLe ? ' · ☑ ' + feQuandNote(n.cocheLe) + (n.cochePar && n.cochePar !== n.par ? ' par ' + n.cochePar : '') : '')));
+      l.appendChild(m);
+      if(peut){
+        const sup = feEl('button', 'feNoteSup', '✕'); sup.type = 'button'; sup.title = 'Retirer cette note';
+        sup.addEventListener('click', async () => {
+          if(typeof confirmer === 'function' && !await confirmer('Retirer cette note ?\n\n« ' + n.texte.slice(0, 120) + ' »', '✕ Retirer', true)) return;
+          d.notes = d.notes.filter(y => y.id !== n.id);
+          feModifie('✕ note retirée'); dessiner();
+        });
+        l.appendChild(sup);
+      }
+      liste.appendChild(l);
+    });
+  };
+  dessiner();
+  return w;
+}
+
+/* ============================================================
+   ✉️ UN MAIL LIBRE AUX SALARIÉS — v1382
+
+   David, le 7 novembre : « envoyer des mails libres à tous les
+   salariés d'un coup, avec le représentant de la société en CC ». On
+   ouvre l'éditeur de la boîte de l'école (✉️ Mail) déjà rempli : À =
+   les salariés qui ont un mail (👥 Stagiaires), Cc = le représentant
+   (🏢 Entreprise). Le reste est celui de la boîte : signature, pièces
+   jointes, réponses rapides, brouillon gardé (un par dossier). Le mail
+   se range dans la boîte de l'école ; le dossier note l'envoi dans son
+   historique.
+   ============================================================ */
+function feMailAuxSalaries(x){
+  const d = x.donnees, e = d.entreprise || {}, f = d.formation || {};
+  if(typeof mlOuvrirLEditeur !== 'function'){ feToast('⚠️ La boîte mail de l’école n’est pas chargée.'); return; }
+  if(typeof niveauDroit === 'function' && niveauDroit('mails') !== 'm'){ feToast('⚠️ Écrire un mail demande « ✉️ Mails » en modification (⚙️ Accès).'); return; }
+  const bon = v => /^[^\s@<>",;]+@[^\s@<>",;]+\.[a-z]{2,}$/i.test(String(v || '').trim());
+  const sta = (d.stagiaires || []).filter(st => st.nom || st.mail);
+  const a = sta.filter(st => bon(st.mail)).map(st => ({ nom: st.nom || '', adresse: String(st.mail).trim().toLowerCase() }));
+  const sans = sta.filter(st => !bon(st.mail)).map(st => st.nom || '?');
+  const cc = bon(e.mail) ? [{ nom: e.signataire || e.nom || '', adresse: String(e.mail).trim().toLowerCase() }] : [];
+  if(!a.length && !cc.length){ feToast('⚠️ Aucune adresse : ni dans 👥 Stagiaires, ni dans 🏢 Entreprise.'); return; }
+  if(sans.length) feToast('⚠️ Sans adresse mail : ' + sans.join(', ') + ' — à compléter dans 👥 Stagiaires.');
+  if(!cc.length) feToast('⚠️ Pas de mail du représentant dans 🏢 Entreprise : pas de copie.');
+  mlOuvrirLEditeur({ mode: 'nouveau', cle: 'formation:' + x.id, titre: '✉️ Aux salariés — ' + (e.nom || 'l’entreprise'),
+    a: a, cc: cc, sujet: (f.intitule || 'Votre formation') + (e.nom ? ' — ' + e.nom : ''),
+    texteHtml: '<div>Bonjour à tous,</div><div><br></div><div><br></div>',
+    apresEnvoi: async (r, envoi) => {
+      FE.attente = x;
+      await feSauverMaintenant('✉️ mail aux salariés « ' + String(envoi.sujet || '').slice(0, 80) + ' » → ' +
+        envoi.a.length + ' salarié' + (envoi.a.length > 1 ? 's' : '') + (envoi.cc.length ? ' (Cc ' + envoi.cc.map(y => y.nom || y.adresse).join(', ') + ')' : ''));
+      delete FE.journal[x.id];
+      if(FE.vue === 'dossier' && FE.id === x.id) feDessiner();
+    } });
+}
+
 async function feChargerJournal(id, force){
   if(FE.journal[id] && !force) return FE.journal[id];
   try{ const r = await appelPrep({ action: 'formationJournal', id: id }); if(r && r.status === 'ok') FE.journal[id] = r; return r; }catch(e){ return null; }
