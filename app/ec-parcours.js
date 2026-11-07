@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 15:04 — v1359 */
+/* Déployé le 06/11/2026 à 17:03 — v1370 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -2796,6 +2796,7 @@ function apercuDuGuide(titre, blocs){
    tout. Rien à l'écran ne le disait — ni chez lui, ni ici.
    ============================================================ */
 let suiviParcours = [];
+let rechercheSuiviParcours = '';   /* 🔍 v1370 — le filtre par nom d'élève du suivi */
 /* Le catalogue des guides — titre, groupe, icône — rangé par
    identifiant. Il arrive UNE fois avec le suivi plutôt que recopié
    chez chacun des deux cents élèves. */
@@ -2894,7 +2895,33 @@ function dessinerSuiviParcours(){
                ' dans deux jours ou moins</b>' : '');
   zone.appendChild(chapeau);
 
-  rangees.forEach(l => zone.appendChild(ligneDuSuiviParcours(l)));
+  /* 🔍 v1370 — David : « il me faut une barre de recherche d'élèves ».
+     Elle filtre la liste par nom, sans accent ni casse. Le chapeau au-dessus
+     garde le compte de TOUS les parcours (la vue d'ensemble). */
+  const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const rech = document.createElement('input');
+  rech.type = 'search';
+  rech.className = 'woRech';
+  rech.placeholder = '🔍 Chercher un élève';
+  rech.value = rechercheSuiviParcours;
+  rech.style.marginBottom = '11px';
+  zone.appendChild(rech);
+
+  const listeBox = document.createElement('div');
+  zone.appendChild(listeBox);
+
+  const peindre = () => {
+    const q = norm(rechercheSuiviParcours);
+    listeBox.innerHTML = '';
+    const vus = q ? rangees.filter(l => norm(l.eleve).indexOf(q) !== -1) : rangees;
+    if(!vus.length){
+      listeBox.innerHTML = '<div class="empty">Aucun élève ne correspond à « ' + echParcours(rechercheSuiviParcours) + ' ».</div>';
+      return;
+    }
+    vus.forEach(l => listeBox.appendChild(ligneDuSuiviParcours(l)));
+  };
+  rech.addEventListener('input', () => { rechercheSuiviParcours = rech.value; peindre(); });
+  peindre();
 }
 
 function ligneDuSuiviParcours(l){
@@ -3274,7 +3301,15 @@ function carteDuGuideSuivi(l, id, g2, ctxS){
     /* 🎬 v1225 — la part de vidéo vraiment regardée (sa meilleure) */
     x.aVideo = (x.sg.blocs || []).some(b => b.type === 'video');
     const pv = ((l.videos || {})[id] || {})[x.sg.id || ''];
-    x.pctVideo = (pv === undefined || pv === null) ? null : Number(pv) || 0;
+    /* 🎬 v1370 — pv est maintenant { pct, le } ; on garde la lecture d'un
+       simple nombre au cas où une réponse plus ancienne traîne en cache. */
+    if(pv && typeof pv === 'object'){
+      x.pctVideo = (pv.pct === undefined || pv.pct === null) ? null : Number(pv.pct) || 0;
+      x.videoLe = Number(pv.le) || 0;
+    }else{
+      x.pctVideo = (pv === undefined || pv === null) ? null : Number(pv) || 0;
+      x.videoLe = 0;
+    }
     const epingle = x.demandes.some(r => !r.vuLe);
     const p = document.createElement('button');
     p.type = 'button';
@@ -3345,7 +3380,8 @@ function remplirLaBulleDuSuivi(bulle, x, ctxS){
     r.className = 'svInfo';
     r.textContent = x.pctVideo === null
       ? '🎬 Vidéo : aucune lecture mesurée'
-      : '🎬 Vidéo regardée à ' + x.pctVideo + ' %' + (x.pctVideo >= 90 ? ' ✓' : '') + ' (sa meilleure fois)';
+      : '🎬 Vidéo regardée à ' + x.pctVideo + ' %' + (x.pctVideo >= 90 ? ' ✓' : '') + ' (sa meilleure fois)' +
+        (x.videoLe ? ' · le ' + quandMsParcours(x.videoLe) : '');
     bulle.appendChild(r);
   }
   /* ↺ v1222 — remis à voir : son histoire reste */
