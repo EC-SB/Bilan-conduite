@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 11:01 — v1375 */
+/* Déployé le 07/11/2026 à 11:10 — v1376 */
 /* ============================================================
    🫧 LE NOUVEAU GRAPHISME « VERRE » (Liquid Glass) — v1374
 
@@ -320,3 +320,9 @@
   window.verreActif = verreActif;
   window.basculerVerre = basculerVerre;
 })();
+
+/* Le garde-fou de ec-noyau.js (verifierModules) compte les <script> de la
+   page et attend que chacun se déclare ici — sans ces deux lignes, le
+   bandeau rouge « Application incomplète » le réclame (David, 07/11). */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-verre.js'] = true;
