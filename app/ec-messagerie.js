@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 16:59 — v1369 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -772,8 +772,8 @@ function ligneConversationCorps(c, d, enChoix){
     if(ckPeutGerer() && !Number(c.fermee || 0)){
       const s = document.createElement('button');
       s.type = 'button';
-      s.textContent = '✓';
-      s.title = 'Réglé : la conversation se ferme et part dans 🗄️ Fermées';
+      s.textContent = '🗄️';
+      s.title = 'Archiver : la conversation part dans 🗄️ Archivées';
       s.setAttribute('aria-label', s.title);
       s.className = 'ckRegleSurvol';
       s.addEventListener('click', ev => { ev.stopPropagation(); ckReglerDeLaListe(c.id); });
@@ -1459,9 +1459,9 @@ function dessinerLeFil(){
       g.textContent = '🔒 Tu lis sans être dedans. Pour répondre : ⋯ → 👥 Participants, ' +
         'et ton arrivée s’inscrit dans le fil.';
     }else if(Number(c.fermee || 0)){
-      g.appendChild(document.createTextNode('🗄️ Conversation fermée · '));
+      g.appendChild(document.createTextNode('🗄️ Conversation archivée · '));
       if(ckPeutGerer() && f.estMembre){
-        g.appendChild(ckBouton('↺ Rouvrir', 'La conversation redevient active', async () => {
+        g.appendChild(ckBouton('↺ Sortir des archives', 'La conversation redevient active', async () => {
           await appelPrep({ action: 'convFermer', id: c.id, fermee: '0' });
           await ouvrirLeFil(c.id);
           afficherMessagerie(true);
@@ -2567,7 +2567,7 @@ function barreDesActionsDuFil(f){
   petit('📤 Exporter', 'Le fil entier en texte, à copier', () => exporterLeFil(f));
 
   if(peutGerer && Number((f.conv || {}).fermee || 0)){
-    petit('↺ Rouvrir', 'La conversation redevient active', async () => {
+    petit('↺ Sortir des archives', 'La conversation redevient active', async () => {
       await appelPrep({ action: 'convFermer', id: f.conv.id, fermee: '0' });
       await ouvrirLeFil(f.conv.id);
       afficherMessagerie(true);
@@ -7176,7 +7176,7 @@ async function choisirUnSegmentARevoirEC(){
     const d = await appelPrep({ action: 'parcoursSegmentsDeLEleve', eleve: eleve });
     guides = (d && d.guides) || [];
   }catch(e){ showToast('Son parcours ne se lit pas : ' + (e.message || e)); return; }
-  if(!guides.length){ showToast('Aucun guide n’est ouvert dans son coin révisions.'); return; }
+  if(!guides.length){ showToast('Aucun guide n’est ouvert dans son App Évolution Conduites.'); return; }
 
   const fond = document.createElement('div');
   fond.className = 'overlay show';
