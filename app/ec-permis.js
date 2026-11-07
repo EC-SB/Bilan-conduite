@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 16:05 — v1065 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-permis.js
    Élève ayant obtenu son permis
@@ -247,7 +247,7 @@ function afficherPermis(nom, dossier){
     a.innerHTML = 'Une fois les messages envoyés et les tâches faites. ' +
       '<strong style="color:var(--cream);">Tout son dossier est effacé</strong> : ' +
       'ses bilans, sa fiche, ses captures du CEPC, ses cours préparés, ' +
-      'ses messages au bureau, son accès au coin révisions, son parcours, ' +
+      'ses messages au bureau, son accès à l’App Évolution Conduites, son parcours, ' +
       "sa place d'examen.<br>" +
       '<strong style="color:var(--accent-text);">Son résultat reste, sans son nom</strong> — ' +
       'ton taux de réussite ne bouge pas.';
@@ -306,7 +306,7 @@ async function cloturerDossierPermis(nom, bouton, nbBilans){
       (nbBilans ? '• ses ' + nbBilans + ' bilan(s)\n' : '') +
       '• sa fiche du répertoire et sa fiche de suivi\n' +
       '• ses captures de CEPC, ses cours préparés, ses messages\n' +
-      '• son accès au coin révisions et son parcours\n' +
+      '• son accès à l’App Évolution Conduites et son parcours\n' +
       "• sa place d'examen\n\n" +
       'Son résultat est conservé SANS son nom : ton taux de ' +
       'réussite ne bouge pas.\n\n' +
