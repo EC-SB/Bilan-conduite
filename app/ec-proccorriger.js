@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 08:55 — v1357 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1552,9 +1552,9 @@ async function ouvrirCodesEleves(){
   boite.className = 'modal';
   boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
 
-  boite.innerHTML = '<h3>🔑 Codes du coin révisions</h3>' +
+  boite.innerHTML = '<h3>🔑 Codes de l’App Évolution Conduites</h3>' +
     '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
-      'L\'élève se connecte à son coin révisions avec son nom et ce ' +
+      'L\'élève se connecte à son App Évolution Conduites avec son nom et ce ' +
       'Il n\'y voit que ses propres envois.</div>' +
 
     '<label for="ceEleve">Donner un accès à</label>' +
@@ -1711,7 +1711,7 @@ async function ouvrirCodesEleves(){
             await appelPrep({
               action: 'mailBilan', genre: 'acces', eleve: a.eleve,
               to: [adresse],
-              sujet: 'Ton coin révisions — Évolution Conduites',
+              sujet: 'Ton accès à l’App Évolution Conduites',
               texte: await messageAcces()
             });
             bMail.textContent = '✅';
@@ -2268,7 +2268,7 @@ async function ouvrirRecitation(rDemandee){
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
   bAnn.addEventListener('click', async () => {
-    /* CHRYSTEL A PERDU UNE CORRECTION ICI.
+    /* DAVID A PERDU UNE CORRECTION ICI.
 
        « J'ai fermé sans envoyer car je veux corriger plus tard, et
        je n'ai plus rien dans le cadre. » Une génération payée, un
