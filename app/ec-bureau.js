@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:10 — v1380 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -2294,7 +2294,8 @@ function lancerActualisationAuto(){
        à Saint-Brieuc pour une carte, et celui qui regarde son bouton
        n'a rien ouvert du tout. C'est justement à lui qu'il faut dire
        qu'elle vient de partir. */
-    if(typeof rafraichirCbAuto === 'function') rafraichirCbAuto();
+    /* 📉 v1386 — la CB a son propre battement (2 min) : la relire ici aussi la doublait */
+    if(typeof rafraichirCbAuto === 'function' && typeof battementCb !== 'undefined' && !battementCb) rafraichirCbAuto();
 
     /* ⚠️ LA MESSAGERIE SE COMPTE ICI, ET PAS DANS SON PROPRE
        BATTEMENT — v1070.
@@ -2306,8 +2307,10 @@ function lancerActualisationAuto(){
        personne ne regarde. Le fil OUVERT, lui, a son propre
        battement de quatre secondes — et seulement tant qu'il est
        ouvert. Voir compterLaMessagerie. */
+    /* 📉 v1386 — et seulement si son propre battement ne tourne pas (il compte déjà) */
     if(typeof compterLaMessagerie === 'function' &&
-       !(typeof unFilEstOuvert === 'function' && unFilEstOuvert())){
+       !(typeof unFilEstOuvert === 'function' && unFilEstOuvert()) &&
+       !(typeof battementCompteMessagerie !== 'undefined' && battementCompteMessagerie)){
       compterLaMessagerie();
     }
     /* ⚠️ LES OBJETS RESTENT ICI, ET PAS SUR LE BATTEMENT COURT DE
@@ -2317,7 +2320,7 @@ function lancerActualisationAuto(){
        minutes sa notification. Les mettre ensemble, c'était doubler
        un appel pour une liste qui ne bouge pas. */
     if(typeof compterLesObjets === 'function') compterLesObjets();
-  }, 90000);   /* toutes les 90 secondes */
+  }, 180000);   /* toutes les 3 minutes — 📉 v1386 (avant : 90 s). Le retour sur l'appli relit tout de suite. */
 }
 
 /* Au retour du réseau, on relance ce qui avait échoué */
