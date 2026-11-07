@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 28/10/2026 à 13:32 — v1291 -->
+<!-- Déployé le 07/11/2026 à 17:00 — v1386 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1462,7 +1462,21 @@ majMeteo();
 setInterval(majMeteo, DELAI_METEO);
 
 chargerContenu();
-setInterval(chargerContenu, DELAI_DONNEES);
+/* 📉 v1386 — LES TÉLÉS ÉCONOMISENT LES APPELS. David, le 7 novembre :
+   Cloudflare prévient que le compte a atteint 75 % des 100 000 appels
+   par jour du plan gratuit. Une télé relisait chaque minute, jour et
+   nuit : 1 440 appels par jour et par écran. Maintenant toutes les
+   2 minutes de 6 h 30 à 21 h, et tous les quarts d'heure la nuit. Le
+   passage en plein écran « Vos cours commencent » se calcule toujours
+   à la minute près (majImminents), sur l'heure gardée au dernier appel. */
+let dernierChargement = Date.now();
+setInterval(() => {
+  const d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+  const jour = m >= 6 * 60 + 30 && m < 21 * 60;
+  if(Date.now() - dernierChargement < (jour ? DELAI_DONNEES * 2 : 15 * 60000) - 1000) return;
+  dernierChargement = Date.now();
+  chargerContenu();
+}, DELAI_DONNEES);
 
 /* Les données arrivent chaque minute, mais le passage en plein
    écran se joue à la minute près : on le recalcule plus souvent,
