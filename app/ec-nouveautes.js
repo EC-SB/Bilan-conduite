@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:10 — v1380 */
+/* Déployé le 07/11/2026 à 15:41 — v1381 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1381,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🎥 Code en visio : « Rejoindre » réparé, les élèves Drivup cochés tout seuls, un bandeau 15 min avant · 📲 l’espace élève sur l’écran d’accueil',
+    quoi: [
+      { emoji: '🛠️',
+        titre: '« Rejoindre le cours » marche',
+        texte: 'Sur le téléphone de l’élève, le bouton du cours en visio ne faisait rien : le serveur refusait la demande. C’est réparé, et la carte du cours s’allume aussi sur l’accueil de son espace. Le bouton « ✉️ Envoyer par mail » de la séance repart aussi.' },
+      { emoji: '📅',
+        titre: 'Les élèves réservés sur Drivup, déjà cochés',
+        texte: 'Le bouton 📥 de Drivup lit maintenant les cours du moniteur « Visio ». Dans Élèves › 🎓 Code, les élèves réservés pour le cours du moment sont cochés tout seuls (« 📅 Drivup 18h »). Un élève réservé mais pas coché entre quand même dans le cours en cours.' },
+      { emoji: '⏰',
+        titre: 'Un bandeau 15 minutes avant (admin et bureau)',
+        texte: '« 🎥 Attention : cours de code en visio à 18h » avec le compteur qui descend, jusqu’à ce que le cours soit lancé. Un appui ouvre la carte du cours avec les élèves cochés ; ✕ le range pour ce cours.' },
+      { emoji: '🔔',
+        titre: 'L’élève est prévenu',
+        texte: 'Sur l’accueil de son espace, dès la réservation : « Ton cours de code en visio : aujourd’hui à 18h · dans 12 min », le bouton s’allume au lancement. Un mail le matin (dès 8 h) et une notification sur son téléphone quand le cours commence.' },
+      { emoji: '📲',
+        titre: 'L’espace élève sur l’écran d’accueil',
+        texte: 'Un bandeau sur l’accueil de l’élève : « Ajouter » à l’écran d’accueil (Chrome sur Android l’ouvre directement, sur iPhone il dit le geste) et « Activer » les notifications. Fermé, il revient 7 jours plus tard tant que ce n’est pas fait.' }
+    ]
+  },
   {
     version: 1380,
     date: 'Samedi 7 novembre 2026',
