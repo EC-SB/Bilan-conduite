@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 13:36 — v1353 */
+/* Déployé le 07/11/2026 à 15:41 — v1381 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -471,6 +471,9 @@ function lignesDuPlanningDrivup(p){
   /* 📺 v1290 — sa théorie (« Cours théorie de la conduite »), pour la
      salle des tablettes : jusqu'où va sa séance, et qui revient aujourd'hui */
   const theorie = [];
+  /* 🎥 v1381 — les cours de code en visio (le moniteur « Visio » de
+     Drivup) : un élève par ligne, pour la carte du cours et le bandeau */
+  const visio = [];
   let horsConduite = 0;
   const ressourcesIgnorees = {};
   (p.cours || []).slice(0, 1500).forEach(c => {
@@ -481,6 +484,15 @@ function lignesDuPlanningDrivup(p){
         const nom = fiche ? fiche.eleve : nomDeLEleveDrivup(x);
         if(nom) theorie.push({ jour: c.jour, debut: c.debut, fin: /^\d{2}:\d{2}$/.test(String(c.fin || '')) ? c.fin : '',
                                agence: agenceDeLaPortee || propreDrivup(c.agence, 60), eleve: nom });
+      });
+    }
+    if(estVisioDrivup(c)){
+      (c.eleves || []).forEach(x => {
+        const fiche = ficheDeLEleveDrivup(x);
+        const nom = fiche ? fiche.eleve : nomDeLEleveDrivup(x);
+        if(nom) visio.push({ jour: c.jour, debut: c.debut, fin: /^\d{2}:\d{2}$/.test(String(c.fin || '')) ? c.fin : '',
+                             agence: agenceDeLaPortee || propreDrivup(c.agence, 60),
+                             moniteurDrivup: propreDrivup(c.moniteurDrivup, 60), eleve: nom });
       });
     }
     if(!coursRetenuDrivup(c)){
@@ -504,7 +516,16 @@ function lignesDuPlanningDrivup(p){
       });
     });
   });
-  return { lignes, horsConduite, ressourcesIgnorees, theorie };
+  return { lignes, horsConduite, ressourcesIgnorees, theorie, visio };
+}
+/* 🎥 v1381 — David : « c'est le moniteur visio ». La colonne Drivup
+   « Visio » (quel que soit le titre du cours), ou un cours de code en
+   visio sous un autre nom. */
+function estVisioDrivup(c){
+  const m = sansAccentDrivup(String(c.moniteurDrivup || ''));
+  if(/\bvisio\b/.test(m)) return true;
+  const t = texteDuCoursDrivup(c);
+  return /\bvisio\b/.test(t) && /\bcode\b|\betg\b/.test(t);
 }
 /* 📺 v1290 — « Cours théorie de la conduite 1h », la colonne « Tablettes » ;
    pas le code, ni la visio */
@@ -679,7 +700,7 @@ async function fenetrePlanningDrivup(p){
   }
   attente.remove();
 
-  const { lignes, horsConduite, ressourcesIgnorees, theorie } = lignesDuPlanningDrivup(p);
+  const { lignes, horsConduite, ressourcesIgnorees, theorie, visio } = lignesDuPlanningDrivup(p);
   const { changes, identiques } = comparerPlanningDrivup(p, lignes, existants);
   const n = k => changes.filter(c => c._etat === k).length;
   const inconnus = changes.filter(c => c._etat === 'inconnu');
@@ -842,6 +863,8 @@ async function fenetrePlanningDrivup(p){
       voitures: voitures,
       /* 📺 v1290 — la théorie, pour la salle des tablettes */
       salle: theorie,
+      /* 🎥 v1381 — le code en visio */
+      visio: visio,
       colonnes: Array.isArray(p.colonnes) ? p.colonnes : undefined
     });
     oublierDrivupRappels();
@@ -858,6 +881,7 @@ async function fenetrePlanningDrivup(p){
     etat.textContent = '✅ Enregistré : ' + ((r && r.nb) || lignes.length) + ' cours' +
       ((r && r.voitures) ? ' · ' + r.voitures + ' numéro(s) de voiture' : '') +
       ((r && r.theorie) ? ' · ' + r.theorie + ' théorie(s) pour la salle des tablettes' : '') +
+      ((r && r.visio) ? ' · ' + r.visio + ' élève(s) en visio code' : '') +
       (fiches.length ? ' · ' + fiches.length + ' fiche(s) créée(s) ou complétée(s)' : '') +
       (ph.posees ? ' · ' + ph.posees + ' photo(s) reprise(s)' : '') +
       (hb.length ? ' · horaires du bureau de ' + hb.join(' et de ') + ' repris' : '') + '.';
