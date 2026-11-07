@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 14:40 — v1379 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -1835,9 +1835,11 @@ async function mlOuvrirLEditeur(opts){
   const recus = msgs.filter(m => m.sens === 'recu');
   const base = o.mode === 'transfert' ? msgs[msgs.length - 1] : (recus[recus.length - 1] || msgs[msgs.length - 1] || null);
   const ecole = String((mlEtat && mlEtat.adresse) || (mlFilOuvert && mlFilOuvert.adresseEcole) || '').toLowerCase();
-  const cle = o.mode === 'nouveau' ? 'nouveau' : o.mode === 'transfert' ? 'transfert:' + (base ? base.id : 0) : 'fil:' + (f ? f.id : 0);
+  /* 💼 v1382 — ouvert d'ailleurs (une formation entreprise) : son propre
+     brouillon (o.cle), ses destinataires (o.a, o.cc), son objet */
+  const cle = o.cle ? String(o.cle) : o.mode === 'nouveau' ? 'nouveau' : o.mode === 'transfert' ? 'transfert:' + (base ? base.id : 0) : 'fil:' + (f ? f.id : 0);
 
-  const etat = { a: [], cc: [], cci: [], sujet: '', pieces: (o.pieces || []).slice(), signature: mlMaCle(), mode: o.mode || 'nouveau' };
+  const etat = { a: (o.a || []).slice(), cc: (o.cc || []).slice(), cci: [], sujet: String(o.sujet || ''), pieces: (o.pieces || []).slice(), signature: mlMaCle(), mode: o.mode || 'nouveau' };
   if(f && base && o.mode !== 'transfert'){
     if(base.sens === 'recu') etat.a.push({ nom: base.deNom || '', adresse: base.de });
     else (base.a || []).forEach(x => etat.a.push(x));
@@ -1865,7 +1867,7 @@ async function mlOuvrirLEditeur(opts){
   const tete = document.createElement('div');
   tete.className = 'mlEdTete';
   const titre = document.createElement('b');
-  titre.textContent = ({ nouveau: '✉️ Nouveau mail', repondre: '✉️ Répondre', tous: '✉️ Répondre à tous', transfert: '↪️ Transférer' })[etat.mode];
+  titre.textContent = o.titre || ({ nouveau: '✉️ Nouveau mail', repondre: '✉️ Répondre', tous: '✉️ Répondre à tous', transfert: '↪️ Transférer' })[etat.mode];
   tete.appendChild(titre);
   const bPlein = document.createElement('button');
   bPlein.type = 'button'; bPlein.className = 'mlOutil'; bPlein.textContent = '⤢'; bPlein.title = 'Plein écran';
@@ -2076,12 +2078,14 @@ async function mlOuvrirLEditeur(opts){
       if(minuterie){ clearTimeout(minuterie); minuterie = null; }
       const r = await appelPrep({ action: 'mailEnvoyer', a: etat.a, cc: etat.cc, cci: etat.cci, sujet: sujet.value.trim(),
         html: copie.innerHTML, pieces: etat.pieces, fil: (f && etat.mode !== 'transfert') ? f.id : 0,
-        repondA: base ? base.id : 0, mode: etat.mode, brouillon: cle, eleve: (f && f.eleve) || '' });
+        repondA: base ? base.id : 0, mode: etat.mode, brouillon: cle, eleve: (f && f.eleve) || o.eleve || '' });
       if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
       sale = false;
       await fermer(false);
       mlToast('📤 Mail envoyé');
       mlLueLe = 0;
+      /* 💼 v1382 — ouvert d'ailleurs : on y reste */
+      if(typeof o.apresEnvoi === 'function'){ try{ await o.apresEnvoi(r, { a: etat.a, cc: etat.cc, sujet: sujet.value.trim() }); }catch(e){} return; }
       if(r.fil && (etat.mode !== 'transfert')) await mlOuvrir(r.fil);
       else { mlCharger(true); if(r.fil) await mlOuvrir(r.fil); }
     }catch(e){
