@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 15:33 — v1365 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -180,7 +180,7 @@ const ONGLETS_ELEVE = [
   /* 📞 v1266 — ses appels (Allo, et ceux notés d'un portable). Voir
      ec-suivi-appels.js. */
   { cle:'appels',   emoji:'📞', titre:'Appels',       section:'appels' },
-  { cle:'acces',    emoji:'🔑', titre:'Coin révisions', section:'acces_eleves' },
+  { cle:'acces',    emoji:'🔑', titre:'App Évolution Conduites', section:'acces_eleves' },
   /* 📝 JUSTE SOUS COIN RÉVISIONS — v1139. David : « ajoute un sous-
      onglet sous Coin révisions, Notes internes ». Il suit le droit du
      dossier : toute l'équipe qui ouvre un dossier lit et écrit ses
@@ -3853,7 +3853,7 @@ function ongletFiche(corps, nom){
 function ongletAcces(corps, nom){
   if(typeof afficherEspaceEleve !== 'function'){
     corps.appendChild(vidDossier(
-      "Le coin révisions n'est pas disponible sur cet écran."));
+      "L’App Évolution Conduites n'est pas disponible sur cet écran."));
     return;
   }
 
