@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -3795,7 +3795,11 @@ async function compterLaMessagerie(){
    recevra au lieu de demander. D'ici là, voilà ce qu'on peut faire
    sans rien dépenser.
    ============================================================ */
-const PAS_COMPTE_MESSAGERIE = 25000;
+/* 📉 v1386 — 60 s au lieu de 25 (moins de la moitié des appels). Ce qui
+   compte pour David, c'est d'être prévenu vite : une notification reçue
+   pendant que l'appli est ouverte relit le compte AUSSITÔT (sw.js le dit
+   à la page, voir ecouterLeServiceWorker). */
+const PAS_COMPTE_MESSAGERIE = 60000;
 let battementCompteMessagerie = null;
 let dernierCompteMessagerie = 0;
 
@@ -8271,6 +8275,8 @@ function ecouterLeServiceWorker(){
   if(!pousseePossible() || !navigator.serviceWorker) return;
   navigator.serviceWorker.addEventListener('message', function(ev){
     const d = ev && ev.data;
+    /* 📉 v1386 — une notification vient d'arriver : la pastille se relit tout de suite */
+    if(d && d.quoi === 'neuf'){ if(typeof compterSiBesoin === 'function') compterSiBesoin(true); return; }
     if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
     try{
       allerALaMessagerie('messagerie');
