@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 07/11/2026 à 16:13 — v1382 -->
+<!-- Déployé le 07/11/2026 à 17:55 — v1386 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2631,7 +2631,7 @@
 </div>
 
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
-<script src="appel-commun.js?v=1356"></script>
+<script src="appel-commun.js?v=1386"></script>
 <script>
 (function(){
   'use strict';
@@ -2831,7 +2831,10 @@
   var CLE_TABLETTE = 'ec_salle_tablette', CLE_SEANCE = 'ec_salle_seance';
   var TABLETTE = null, SALLE = null;
   var salleMinuteur = null, salleVeille = null, salleBattement = null, salleFinEnCours = false, salleDernierAppui = Date.now();
-  var SALLE_VEILLE_MS = 20000, SALLE_VEILLE_LENTE_MS = 60000;
+  /* 📉 v1386 — moins d'appels au Worker (75 % du plafond gratuit atteint) : la liste
+     des noms se relit toutes les minutes, et toutes les 3 min sur une tablette
+     qu'on ne touche plus (avant : 20 s et 1 min) */
+  var SALLE_VEILLE_MS = 60000, SALLE_VEILLE_LENTE_MS = 180000;
 
   function salleLire(cle){ try{ return JSON.parse(localStorage.getItem(cle) || 'null'); }catch(e){ return null; } }
   function salleGarder(cle, v){ try{ if(v) localStorage.setItem(cle, JSON.stringify(v)); else localStorage.removeItem(cle); }catch(e){} }
@@ -3316,7 +3319,7 @@
       if(!SALLE || salleFinEnCours) return;
       appeler({ action: 'salleOu', salle: SALLE.jeton, vus: SALLE.vus, total: SALLE.total })
         .then(function(d){ if(d && d.fin && SALLE) salleTerminer('fin'); }).catch(function(){});
-    }, 60000);
+    }, 120000);   /* 📉 v1386 — toutes les 2 min (avant : 1 min) */
     lancerLaConnexion(s.eleve, 'salle', true);
   }
   function salleBandeau(){
@@ -8331,14 +8334,39 @@
     if(VISIO_ADRESSE_EL){ try{ allerAOnglet('accueil'); }catch(e){} }
     lireVisioEl();
     if(!visioMinuteurEl){
+      /* 📉 v1386 — toutes les 30 s SEULEMENT autour d'un cours visio (le
+         lien, un cours lancé, ou son cours réservé aujourd'hui, de 30 min
+         avant à la fin) ; sinon toutes les 10 min. Chaque espace élève
+         ouvert relisait toutes les 30 s : 120 appels par heure. */
+      var visioDernierLu = Date.now();
       visioMinuteurEl = setInterval(function(){
         if(document.hidden || !moi || !moi.code) return;
         if(window.AppelEC && window.AppelEC.enCours && window.AppelEC.enCours()) return;
+        if(Date.now() - visioDernierLu < (visioAutourDUnCoursEl() ? 29000 : 10 * 60000)) return;
+        visioDernierLu = Date.now();
         lireVisioEl();
       }, 30000);
+      document.addEventListener('visibilitychange', function(){
+        if(!document.hidden && moi && moi.code && Date.now() - visioDernierLu > 60000){ visioDernierLu = Date.now(); lireVisioEl(); }
+      });
     }
   }
 
+  /* 📉 v1386 — y a-t-il de quoi relire souvent ? */
+  function visioAutourDUnCoursEl(){
+    if(VISIO_ADRESSE_EL) return true;
+    var v = visioEl && visioEl.visio;
+    if(v && !v.fini) return true;
+    var pr = visioEl && visioEl.prevu;
+    if(!pr || !pr.debut) return false;
+    var auj = new Date(), p2 = function(n){ return (n < 10 ? '0' : '') + n; };
+    if(pr.jour !== auj.getFullYear() + '-' + p2(auj.getMonth() + 1) + '-' + p2(auj.getDate())) return false;
+    var m = String(pr.debut).match(/^(\d{1,2}):(\d{2})/), f = String(pr.fin || '').match(/^(\d{1,2}):(\d{2})/);
+    if(!m) return false;
+    var maint = auj.getHours() * 60 + auj.getMinutes(), deb = (+m[1]) * 60 + (+m[2]);
+    var fin = f ? (+f[1]) * 60 + (+f[2]) : deb + 60;
+    return maint >= deb - 30 && maint < fin;
+  }
   function lireVisioEl(){
     if(!moi || !moi.code) return;
     appeler({ action: 'eleveVisio', eleve: moi.nom, code: moi.code, seance: VISIO_ADRESSE_EL })
