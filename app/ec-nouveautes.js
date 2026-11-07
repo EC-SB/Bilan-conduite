@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:39 — v1384 */
+/* Déployé le 07/11/2026 à 16:57 — v1385 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1385,
+    date: 'Samedi 7 novembre 2026',
+    resume: '📱 Sur téléphone : la conversation s’ouvre en plein écran et en bas, le menu ⋯ reste dans l’écran',
+    quoi: [
+      { emoji: '💬',
+        titre: 'La conversation s’ouvre comme avant',
+        texte: 'Sur le téléphone, une conversation ouverte reprend tout l’écran : la flèche de retour et le nom en haut, le dernier message en bas, la barre d’écriture dessous. Depuis l’arrivée des sous-onglets Messagerie / Mail, elle restait dans la page.' },
+      { emoji: '⋯',
+        titre: 'Le menu ⋯ du haut reste dans l’écran',
+        texte: 'Il s’ouvrait à moitié hors de l’écran à gauche sur un téléphone : il se pose maintenant sous le bouton, toujours en entier.' },
+      { emoji: '⟨',
+        titre: 'Plus de flèche ⟨ inutile au-dessus des sous-onglets',
+        texte: 'Sur téléphone et tablette, la flèche qui replie le menu de gauche ne s’affiche plus : elle ne sert que sur un grand écran.' }
+    ]
+  },
   {
     version: 1384,
     date: 'Samedi 7 novembre 2026',
