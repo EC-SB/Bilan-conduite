@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 14:03 — v1321 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    📝 « TU DOIS FAIRE TON BILAN » — v1314
 
@@ -88,7 +88,7 @@ function ouLeFaireBE(r){
   const l = [];
   if(r.messenger) l.push('sur Messenger');
   if(r.messagerie) l.push('dans ta messagerie de l’appli (« Le bureau »)');
-  if(r.revisions) l.push('directement dans ton espace révisions (onglet 📝 Bilan)');
+  if(r.revisions) l.push('directement dans ton App Évolution Conduites (onglet 📝 Bilan)');
   if(!l.length) l.push('sur Messenger');
   return l.length === 1 ? l[0] : l.slice(0, -1).join(', ') + ' ou ' + l[l.length - 1];
 }
@@ -397,7 +397,7 @@ function fenetreBE(eleve, opts){
       d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;">⚙️ Où l’élève fait son bilan</summary>' +
         '<div style="font-size:11px;color:var(--muted);margin:6px 0;">Pour tous les élèves, qu’il le fasse ou qu’il le complète. Le mail lui dit où le faire.</div>';
       [['messenger', '💬 Messenger'], ['messagerie', '📱 Sa messagerie de l’appli (« Le bureau ») — la trame y est aussi envoyée'],
-       ['revisions', '📚 Son espace révisions (onglet 📝 Bilan) — il le remplit, il arrive au moniteur dans la messagerie, qui le corrige et le valide']].forEach(([k, lb]) => {
+       ['revisions', '📚 Son App Évolution Conduites (onglet 📝 Bilan) — il le remplit, il arrive au moniteur dans la messagerie, qui le corrige et le valide']].forEach(([k, lb]) => {
         const l = document.createElement('label');
         l.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:14px;text-transform:none;color:var(--cream);margin:6px 0;';
         const cb = document.createElement('input');
@@ -429,7 +429,7 @@ function fenetreBE(eleve, opts){
 
     function dessiner(){
       const rg = reglageBE();
-      const aussi = (rg.messagerie ? ', aussi dans sa messagerie de l’appli' : '') + (rg.revisions ? ' et dans son espace révisions' : '');
+      const aussi = (rg.messagerie ? ', aussi dans sa messagerie de l’appli' : '') + (rg.revisions ? ' et dans son App Évolution Conduites' : '');
       if(choixZone) choixZone.querySelectorAll('button').forEach(b => {
         b.className = b.getAttribute('data-genre') === genre ? 'btn btn-primary' : 'btn btn-secondary';
       });
@@ -499,7 +499,7 @@ async function finirBilanParLEleve(eleve, texte, dateIso, o){
     const tc = o.tc || trameAFaireBC({ date: dateIso, moniteur: o.moniteur || '', modele: o.modele || '' });
     await creerDemandeBC({ eleve: eleve, dateIso: dateIso, moniteur: o.moniteur || ($('monitorName') ? $('monitorName').value.trim() : ''),
                            modele: o.modele || ($('modele') ? $('modele').value : ''), genre: genre, tc: tc, sujet: sujet, texte: texte });
-    if(rg.revisions) dit.push('📚 Il le retrouve dans son espace révisions (onglet 📝 Bilan) ; il t’arrivera dans la messagerie, à valider.');
+    if(rg.revisions) dit.push('📚 Il le retrouve dans son App Évolution Conduites (onglet 📝 Bilan) ; il t’arrivera dans la messagerie, à valider.');
     dit.push('⏰ Pas fait dans 2 jours : rappel et mail renvoyé.');
   }catch(e){ dit.push('⚠️ La demande n’a pas été rangée (pas de relance) : ' + e.message); }
   await fenetre(dit.join('\n'), [{ nom: '🏠 Accueil', valeur: true, principal: true }],
@@ -819,7 +819,7 @@ async function ouvrirBilanCoursEC(id){
   const recu = x.envoyeLe ? new Date(x.envoyeLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(' ', ' à ') : '';
   md.innerHTML = '<h3>' + (comp ? '✍️ Bilan complété par ' : '📝 Bilan écrit par ') + echBE(x.eleve) + '</h3>' +
     '<div style="font-size:12px;color:var(--muted);margin:-4px 0 10px;line-height:1.5;">' +
-    (recu ? 'Reçu le ' + echBE(recu) + ' depuis son espace révisions · ' : '') + 'cours du ' + echBE(ddmm) + (x.moniteur ? ' avec ' + echBE(x.moniteur) : '') + '.</div>';
+    (recu ? 'Reçu le ' + echBE(recu) + ' depuis son App Évolution Conduites · ' : '') + 'cours du ' + echBE(ddmm) + (x.moniteur ? ' avec ' + echBE(x.moniteur) : '') + '.</div>';
   const ta = document.createElement('textarea');
   ta.id = 'bcTexte';
   ta.rows = 14;
