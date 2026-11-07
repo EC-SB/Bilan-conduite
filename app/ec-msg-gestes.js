@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 14:55 — v1338 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-msg-gestes.js — 🧭 LES GESTES DE LA MESSAGERIE (v1296)
 
@@ -157,7 +157,7 @@ function glisserLaLigneEC(el, c, ouvrir){
       try{ el.setPointerCapture(ev.pointerId); }catch(e){}
       fond = document.createElement('div');
       fond.className = 'ckGlisseFond';
-      fond.innerHTML = '<span class="d">⏰ Demain</span><span class="g">' + (peutRegler ? '✓ Réglé' : '') + '</span>';
+      fond.innerHTML = '<span class="d">⏰ Demain</span><span class="g">' + (peutRegler ? '🗄️ Archiver' : '') + '</span>';
       el.parentNode.insertBefore(fond, el);
       const r = el.getBoundingClientRect(), p = el.offsetParent ? el.offsetParent.getBoundingClientRect() : { top: 0, left: 0 };
       fond.style.top = (el.offsetTop) + 'px'; fond.style.left = (el.offsetLeft) + 'px';
