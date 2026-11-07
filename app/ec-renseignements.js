@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 17:05 — v1325 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    📋 RENSEIGNEMENTS ET DISPONIBILITÉS — v1175
 
@@ -568,7 +568,7 @@ function dessinerListeRg(){
     m.className = 'rgListeNom';
     const manque = etat === 'incomplet' ? questionsManquantes(modele, x.reponses).length : 0;
     m.innerHTML = '<b>' + echRg(x.eleve) + '</b><span>' + echRg(
-      x.sansQuestionnaire && etat !== 'complet' ? '🚫 pas de questionnaire pour lui (son coin révisions)'
+      x.sansQuestionnaire && etat !== 'complet' ? '🚫 pas de questionnaire pour lui (son App Évolution Conduites)'
       : etat === 'complet' ? texteQuiQuandRg(x)
       : etat === 'incomplet' ? manque + (manque > 1 ? ' nouvelles questions' : ' nouvelle question') + ' sans réponse · ' + texteQuiQuandRg(x)
       : texteDemandeRg(x)) + '</span>';
