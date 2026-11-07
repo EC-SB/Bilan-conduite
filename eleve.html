@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 07/11/2026 à 08:51 — v1372 -->
+<!-- Déployé le 07/11/2026 à 08:56 — v1373 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2117,6 +2117,161 @@
       linear-gradient(180deg,#F4F4EE 0%,#ECEDE6 100%);
   }
   .chPiste{ background:var(--verre2); border-color:var(--verre-bord); }
+
+  /* ============================================================
+     🫧 LIQUID GLASS — LIVRAISON 2 (v1373) : le dedans des onglets
+
+     La livraison 1 a habillé les cartes, les boutons, l'en-tête et la
+     barre. Ici, ce qui vit À L'INTÉRIEUR de Réviser, Vérifs, Réciter et
+     Écrire : les cartes de groupe, le chemin des pastilles, la recherche,
+     les menus, la feuille d'une étape, le jeu des vérifs, les motifs et
+     minutes d'un message, les bulles, la liste des conversations, la barre
+     d'écriture, les réactions, les émoticônes. Même recette, mêmes
+     variables ; les couleurs qui VEULENT DIRE quelque chose (bon/faux du
+     jeu, urgent en rouge, VI/VE) ne bougent pas.
+     ============================================================ */
+  :root{ --verre-fort:rgba(18,18,18,.80); }
+  body.clair{ --verre-fort:rgba(255,255,255,.74); }
+
+  /* ---------- 🎬 Réviser ---------- */
+  .barre{ background:var(--verre-bord); }
+  .grpTete button{ background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .grpTete button.ici{ background:var(--lentille); border-color:transparent; color:#0B0B0B; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre); }
+  .grpCarte{
+    position:relative; border-radius:18px; background:var(--verre2); border:1px solid var(--verre-bord);
+    -webkit-backdrop-filter:blur(18px) saturate(160%); backdrop-filter:blur(18px) saturate(160%);
+    box-shadow:inset 0 1px 0 var(--verre-reflet), 0 6px 18px var(--verre-ombre);
+  }
+  .grpCarte .barre{ background:var(--verre-bord); }
+  .grpCarte.ici, body.clair .grpCarte.ici{ background:var(--accent-verre); border:2px solid var(--accent-text); }
+  .rechP{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:999px; padding-left:16px;
+    box-shadow:inset 0 1px 0 var(--verre-reflet), inset 0 1px 3px rgba(0,0,0,.04); }
+  .rechP:focus-within{ border-color:var(--accent-text); box-shadow:inset 0 1px 0 var(--verre-reflet), 0 0 0 3px var(--accent-verre); }
+  .allerGuide{ background:var(--accent-verre); border:1px solid rgba(182,255,14,.65); border-radius:999px; padding:9px 16px;
+    box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .allerGuide .agL, .allerGuide select{ color:var(--accent-text); }
+  .guideCadre{
+    position:relative; border-radius:22px; background:var(--verre2); border:1.5px solid var(--accent-text);
+    box-shadow:inset 0 1px 0 var(--verre-reflet), 0 8px 24px var(--verre-ombre);
+  }
+  .chemin .rond{ background:var(--verre2); border:3px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .chemin .noeud.vu .rond{ background:var(--accent-text); border-color:var(--accent-text); color:var(--navy-deep); box-shadow:none; }
+  .chemin .noeud.ici .rond{ background:var(--lentille); border-color:transparent; color:#0B0B0B;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 0 0 6px var(--accent-verre), 0 8px 20px var(--lentille-ombre); }
+  .chemin .trait{ background:var(--verre-bord); }
+  .etape{ border:1px solid var(--verre-bord); border-radius:16px; background:var(--verre2); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .etape .num, .seg .spuce{ background:var(--verre-bord); }
+  .etape .dedans{ border-top-color:var(--verre-bord); }
+  .seg{ border-top-color:var(--verre-bord); }
+  .btpres{ border-radius:999px; background:var(--lentille); color:#0B0B0B;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9), inset 0 -2px 0 rgba(0,0,0,.08), 0 8px 22px var(--lentille-ombre); }
+  .presok, .ditpartage{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:14px; }
+  .res{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:16px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .res.resGuide{ background:var(--accent-verre); border-color:var(--accent-text); }
+  .sousonglets button{ border-radius:999px; background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .sousonglets button.ici{ background:var(--lentille); border-color:transparent; color:#0B0B0B; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre); }
+  .carrousel .points span{ opacity:.9; }
+  /* la feuille d'une étape (plein écran) */
+  #feuilleParcours .voile{ background:rgba(0,0,0,.35); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+  #feuilleParcours .feuille{ background:var(--navy); }
+  #feuilleParcours .fbarre{
+    background:var(--verre-fort); border-bottom:1px solid var(--verre-bord);
+    -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%);
+  }
+  #feuilleParcours .fbarre .fretour{ border-radius:999px; background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  #feuilleParcours .poignee{ background:var(--verre-bord); }
+  #feuilleParcours video, #feuilleParcours img, #feuilleParcours .mvPlace{ border-radius:16px; }
+  #feuilleParcours .basnav button{ border-radius:999px; }
+  #feuilleParcours .basnav .b1, #feuilleParcours .basnav .b0{ background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  #feuilleParcours .basnav .b2{ background:var(--lentille); color:#0B0B0B;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9), inset 0 -2px 0 rgba(0,0,0,.08), 0 8px 22px var(--lentille-ombre); }
+  #feuilleParcours .basnav .b2[disabled]{ background:var(--verre2); color:var(--muted); box-shadow:none; border:1px solid var(--verre-bord); }
+
+  /* ---------- 🧰 Vérifs (le jeu) ---------- */
+  /* le « héros » du jeu garde son fond sombre (texte blanc, barre d'XP lime) :
+     le double sélecteur passe devant le verre clair des cartes */
+  body.clair .jv .jvHero, body:not(.clair) .jv .jvHero{
+    background:linear-gradient(135deg,#14161B,#2A2F1A); color:#fff; border-radius:22px;
+    border:1px solid rgba(255,255,255,.14); -webkit-backdrop-filter:none; backdrop-filter:none;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 10px 30px rgba(0,0,0,.25);
+  }
+  .jv .jvHero::before{ background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent); }
+  .jv .jvMode{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:20px;
+    -webkit-backdrop-filter:blur(18px) saturate(160%); backdrop-filter:blur(18px) saturate(160%);
+    box-shadow:inset 0 1px 0 var(--verre-reflet), 0 6px 18px var(--verre-ombre); }
+  .jv .jvMode.vedette{ background:var(--accent-verre); border-color:rgba(182,255,14,.65); }
+  .jv .jvX{ background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .jv .jvBulle{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:18px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .jv .jvEtapes span{ background:var(--verre-bord); }
+  .jv .jvGrille button{ border-radius:7px; }
+  .jv .jvGrille button:not(.a):not(.m):not(.r){ background:var(--verre-bord); }
+  .jv .jvChoix button{ background:var(--verre2); border:2px solid var(--verre-bord); border-radius:18px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .jv .jvChoix button b{ background:var(--verre-bord); border-radius:999px; }
+  .jv .jvCarte .f{ background:var(--accent-verre); border:2px solid rgba(182,255,14,.65); border-radius:22px;
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .jv .jvCarte .d{ border-radius:22px; }
+  .jv .jvGain{ background:var(--lentille); color:#0B0B0B; box-shadow:0 6px 16px var(--lentille-ombre); }
+
+  /* ---------- 📋 Réciter & 💬 Écrire (motifs, minutes) ---------- */
+  .motifs button{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:18px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .motifs button.urg{ border-color:var(--red); }
+  .minutes button{ border-radius:999px; background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .minutes button.ici{ background:var(--lentille); border-color:transparent; color:#0B0B0B; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre); }
+
+  /* ---------- 💬 Écrire : le fil, les bulles, la liste, la barre ---------- */
+  .fil{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:18px; }
+  .bulle{ border-radius:18px; }
+  .bulle.eux{ background:var(--verre); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet);
+    -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+  .bulle.moi{ background:linear-gradient(180deg,rgba(214,255,110,.92),rgba(182,255,14,.92)); border:1px solid rgba(255,255,255,.65); color:#0B0B0B;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.85), 0 4px 14px var(--lentille-ombre); }
+  .bulle.moi .sig, .bulle.moi .hh{ color:#0B0B0B; opacity:.6; }
+  .convo{ border-bottom-color:var(--verre-bord); }
+  .convo .rond{ background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .convo.nonlu .rond{ background:var(--lentille); border-color:transparent; color:#0B0B0B; box-shadow:0 4px 12px var(--lentille-ombre); }
+  .msgLectBtn{ background:var(--lentille); color:#0B0B0B; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 3px 10px var(--lentille-ombre); }
+  .reac{ background:var(--verre); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet);
+    -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+  .reac.mien{ background:var(--accent-verre); border-color:rgba(182,255,14,.65); color:var(--accent-text); }
+  .reac.mien b{ color:var(--accent-text); opacity:.8; }
+  .reacChoix{ background:var(--verre); border:1px solid var(--verre-bord);
+    -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%);
+    box-shadow:inset 0 1px 0 var(--verre-reflet), 0 10px 30px var(--verre-ombre); }
+  .reacChoix button.on, .emoFam button.on{ background:var(--accent-verre); }
+  .emoBoite{ background:var(--verre); border:1px solid var(--verre-bord); border-radius:18px;
+    -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%);
+    box-shadow:inset 0 1px 0 var(--verre-reflet), 0 8px 24px var(--verre-ombre); }
+  .emoFam{ border-bottom-color:var(--verre-bord); }
+  .emoOutil{ background:var(--verre2); border:1px solid var(--verre-bord); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .emoOutil.on{ background:var(--accent-verre); border-color:rgba(182,255,14,.65); }
+  .zoneEcrire{ background:var(--verre); border:1px solid var(--verre-bord); border-radius:22px;
+    -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%);
+    box-shadow:inset 0 1px 0 var(--verre-reflet), 0 8px 24px var(--verre-ombre); }
+  .zoneEcrire textarea, body.clair .zoneEcrire textarea, body:not(.clair) .zoneEcrire textarea{ background:transparent; border:0; box-shadow:none; border-radius:0; }
+  .zoneEcrire.uneLigneEl .champEl, .ckp .zoneEcrire.uneLigneEl .champEl{ background:var(--verre); border:1px solid var(--verre-bord); border-radius:999px;
+    -webkit-backdrop-filter:blur(18px) saturate(170%); backdrop-filter:blur(18px) saturate(170%); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .docType{ background:var(--verre2); border:1px solid var(--verre-bord); border-radius:12px; }
+  /* le cockpit de la messagerie (.ckp) : sa palette passe au verre, lime seul */
+  .ckp{
+    --kp1:var(--verre); --kp2:var(--verre2); --kl:var(--verre-bord);
+    --kn2:var(--accent-text); --kmoi:rgba(182,255,14,.22); --kmoiB:rgba(182,255,14,.45); --kmoiS:#BFE3A0;
+    --kcarte2:var(--accent-verre); --kcarte2B:rgba(182,255,14,.55);
+  }
+  body.clair .ckp{
+    --kp1:var(--verre); --kp2:var(--verre2); --kl:var(--verre-bord);
+    --kn2:var(--accent-text); --kmoi:linear-gradient(180deg,rgba(214,255,110,.92),rgba(182,255,14,.92)); --kmoiB:rgba(255,255,255,.65); --kmoiS:#3B6900;
+    --kcarte2:var(--accent-verre); --kcarte2B:rgba(182,255,14,.65);
+  }
+  .ckTop .av, .ckTop .rond, .ckLc .rond{ border-radius:999px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .ckTop .av{ background:var(--lentille); color:#0B0B0B; border-color:transparent; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre); }
+  .ckp .ckOrbit button{ border-radius:999px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .ckp .convo.ckLc{ border-radius:18px; -webkit-backdrop-filter:blur(18px) saturate(160%); backdrop-filter:blur(18px) saturate(160%);
+    box-shadow:inset 0 1px 0 var(--verre-reflet), 0 6px 18px var(--verre-ombre); }
+  .ckp .bulle.eux{ -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .ckp .bulle.moi{ box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 4px 14px var(--lentille-ombre); }
+  .ckCarte{ border-radius:18px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
+  .ckCarte .row button{ border-radius:999px; }
+  .ckCarte .row button:first-child{ background:var(--lentille); color:#0B0B0B; border-color:transparent; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre); }
 </style>
 </head>
 <body>
