@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 13:28 — v1377 */
+/* Déployé le 07/11/2026 à 13:49 — v1378 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1378,
+    date: 'Samedi 7 novembre 2026',
+    resume: '📅 Permis : on dit sur chaque élève prêt QUAND le faire passer (mois / semaine) · la liste RDV PERMIS disparaît',
+    quoi: [
+      { emoji: '📅',
+        titre: 'Quand le faire passer, sur la ligne',
+        texte: 'Dans 🚗 Élèves prêts au permis, chaque ligne a un bouton « 📅 Quand ? ». Un appui ouvre les mois (ceux de 📍 Places) et, dans chaque mois, les semaines ouvertes avec leurs places (ex. « 8→12 déc · S50 · 3 SB · 2 LO »), ou « tout le mois ». On peut aussi saisir un autre mois ou une autre semaine à la main. Le bouton affiche ensuite la période choisie.' },
+      { emoji: '🧮',
+        titre: 'Des filtres par période',
+        texte: 'Sous les puces, une rangée « 📅 À faire passer » : Toutes les périodes · chaque mois · Sans période. Un mois choisi déplie ses semaines. La 📊 Répartition des places (par semaine et par centre) est gardée, repliée, en bas de la liste.' },
+      { emoji: '🗑️',
+        titre: 'Fini la liste RDV PERMIS',
+        texte: 'On prend les places d’abord et on indique les élèves bien plus tard : la liste « 🗓️ RDV PERMIS » n’était plus utile, elle est retirée. Les élèves qui y étaient reviennent dans les Prêts, avec leur semaine. La date d’examen se pose toujours depuis la fiche (« 📅 Date de permis »).' }
+    ]
+  },
   {
     version: 1377,
     date: 'Samedi 7 novembre 2026',
