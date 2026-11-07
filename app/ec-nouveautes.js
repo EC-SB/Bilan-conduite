@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 10:58 — v1374 */
+/* Déployé le 07/11/2026 à 11:01 — v1375 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1375,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🔘 Fiche élève › Salle des tablettes : « Déjà vu en salle » devient un interrupteur',
+    quoi: [
+      { emoji: '🔘',
+        titre: 'Un interrupteur à la place du bouton',
+        texte: 'Dans le coin révisions de la fiche, la ligne « Déjà vu en salle (avant l’appli) » est maintenant un interrupteur, texte à gauche et pastille à droite : on comprend tout de suite qu’il se bascule. On le bascule, la question de confirmation s’affiche, et il ne s’allume que si on a dit oui. Une fois les groupes ouverts, il reste allumé et figé, avec la date et qui l’a fait.' }
+    ]
+  },
   {
     version: 1374,
     date: 'Samedi 7 novembre 2026',
