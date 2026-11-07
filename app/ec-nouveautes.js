@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 14:40 — v1379 */
+/* Déployé le 07/11/2026 à 15:10 — v1380 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1380,
+    date: 'Samedi 7 novembre 2026',
+    resume: '📨 Permis › Relances : relancer le bilan post-permis, le RDV post-permis et les repassages, par mail et sur la messagerie',
+    quoi: [
+      { emoji: '📨',
+        titre: 'Une nouvelle vue « Relances » dans Permis',
+        texte: 'Sous « À envisager », trois boutons : 📝 le bilan post-permis pas encore fait, 📅 le RDV post-permis pas encore réservé, 🔁 les repassages (RDV post fait et repassage décidé sans leçon réservée, plus ceux d’À envisager › Repassages). Chaque bouton dit combien d’élèves sont à relancer et quand a eu lieu la dernière relance, et par qui.' },
+      { emoji: '☑️',
+        titre: 'On voit à qui on envoie, et comment',
+        texte: 'La fenêtre liste les élèves avec leurs infos (date de l’examen, centre, ajournements, accès à l’appli, dernière relance). On coche qui on veut, puis on choisit ✉️ Mail (depuis la boîte de l’école, avec ta signature) et/ou 💬 Messagerie de l’appli. Ceux qui ont déjà réservé apparaissent grisés avec la raison.' },
+      { emoji: '✏️',
+        titre: 'Un message modifiable et personnalisé',
+        texte: 'Le message part d’un modèle (Outils › Ce qu’on écrit › « 📨 Relance — … »), qu’on peut retoucher avant l’envoi. {prenom}, {dateexamen}, {centre}… sont remplacés pour chaque élève, avec un aperçu élève par élève. Aucun délai n’est imposé entre deux relances : la date de la dernière est simplement affichée.' }
+    ]
+  },
   {
     version: 1379,
     date: 'Samedi 7 novembre 2026',
