@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 10:44 — v1318 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1885,7 +1885,7 @@ function lienDuSegmentARevoir(x){
 function blocARevoir(){
   const l = segmentsARevoirDuCours();
   if(!l.length) return '';
-  return '\n\n🎬 À revoir dans ton coin révisions :\n' + l.map(x =>
+  return '\n\n🎬 À revoir dans ton App Évolution Conduites :\n' + l.map(x =>
     '• ' + (x.titre || 'Segment') + (x.guideTitre ? ' (' + x.guideTitre + ')' : '') + '\n  ' + lienDuSegmentARevoir(x)
   ).join('\n');
 }
@@ -1915,7 +1915,7 @@ async function dessinerSegmentsARevoir(idZone){
   d.appendChild(s);
   const majTitre = () => {
     const n = choisis.length;
-    s.textContent = '🎬 À revoir dans son coin révisions' + (n ? ' — ' + n + ' choisi' + (n > 1 ? 's' : '') : '');
+    s.textContent = '🎬 À revoir dans son App Évolution Conduites' + (n ? ' — ' + n + ' choisi' + (n > 1 ? 's' : '') : '');
   };
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 4px;line-height:1.5;';
@@ -3091,7 +3091,7 @@ async function poserRecitationsDemandees(eleve){
     '📌 𝗔̀ 𝗥𝗘́𝗖𝗜𝗧𝗘𝗥 𝗔𝗩𝗔𝗡𝗧 𝗟𝗘 𝗣𝗥𝗢𝗖𝗛𝗔𝗜𝗡 𝗖𝗢𝗨𝗥𝗦'];
   noms.forEach(n => bouts.push('• ' + n));
   bouts.push('');
-  bouts.push('Enregistre-toi dans ton coin révisions :');
+  bouts.push('Enregistre-toi dans ton App Évolution Conduites :');
   bouts.push(CONFIG.LIEN_ELEVE);
   bouts.push('Ton nom : ' + eleve);
   bouts.push('Ton code : ' + ((rep && rep.code) || ''));
