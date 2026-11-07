@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 11:01 — v1375 */
+/* Déployé le 07/11/2026 à 11:06 — v1376 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1376,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🔴 Barre des onglets (nouveau graphisme) : le nombre de notifications en tout petit, au-dessus',
+    quoi: [
+      { emoji: '🔴',
+        titre: 'La pastille ne mange plus le nom de l’onglet',
+        texte: 'Sur l’ordinateur, le nombre de notifications recouvrait le nom (« Out37 »). Il passe en tout petit, posé au-dessus du coin de l’onglet ; sur téléphone et tablette, au-dessus de l’icône.' }
+    ]
+  },
   {
     version: 1375,
     date: 'Samedi 7 novembre 2026',
