@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 17:11 — v1356 */
+/* Déployé le 07/11/2026 à 17:00 — v1386 */
 /* ============================================================
    appel-commun.js — 📞 LES APPELS, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -399,7 +399,13 @@
       niveaux(c);
     };
     tour();
-    c.minuteur = setInterval(tour, 2000);
+    /* 📉 v1386 — UN COURS EN VISIO BAT MOINS VITE. Chaque battement est un
+       appel au Worker : dix élèves toutes les 2 s pendant une heure, c'est
+       18 000 appels — près d'un cinquième du plafond gratuit d'une journée.
+       Un élève qui REGARDE bat toutes les 5 s, le prof toutes les 3 s ; un
+       appel ordinaire garde ses 2 s. Le Worker compte un participant parti
+       au bout de 25 s sans signe : la marge reste large. */
+    c.minuteur = setInterval(tour, c.cours ? (c.eleve ? 5000 : 3000) : 2000);
     c.horloge = setInterval(function () { majChrono(c); }, 1000);
   }
 
