@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 08:56 — v1373 */
+/* Déployé le 07/11/2026 à 10:58 — v1374 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1374,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🫧 Notre appli passe au nouveau graphisme « verre » : barre flottante, icônes dessinées, un interrupteur pour revenir en arrière',
+    quoi: [
+      { emoji: '🫧',
+        titre: 'Le nouveau graphisme, de notre côté',
+        texte: 'Même matière que l’espace élève, sans le halo : fond uni, cartes en verre dépoli, boutons en capsule, champs arrondis. La barre des onglets devient une capsule flottante décollée du bord (en bas sur téléphone et tablette ; en haut sur ordinateur, centrée, sans courir sur tout l’écran). Le rail des vues sur tablette paysage et ordinateur est un panneau de verre. Les textes, l’ordre des choses et les quatre couleurs d’action (vocal, enregistrement, main, terminer) ne bougent pas. Le thème sombre a sa version.' },
+      { emoji: '🎨',
+        titre: 'Des icônes dessinées à la place des emoji',
+        texte: 'Dans la barre, chaque onglet a son icône et sa couleur (Outils : une boîte à outils ; Gestion : des curseurs). Partout ailleurs — titres de cartes, sous-menus, onglets du dossier élève, boutons comme « Rechercher », en-tête — l’emoji est remplacé par une icône au trait, qui reprend la couleur de l’emoji d’origine. L’emoji reste dans la page, caché : rien ne change pour ce que l’outil lit.' },
+      { emoji: '🔘',
+        titre: 'Un interrupteur pour revenir à l’ancien graphisme',
+        texte: 'Menu ⋯ › « Nouveau graphisme » : fermé, l’appli reprend exactement son habillage d’avant. Le choix vaut pour l’appareil où on le fait (il est gardé dans le navigateur, pas dans le compte). La ligne « Nouvel écran de cours / revenir à l’ancien » a disparu du menu : le nouvel écran de cours est désormais le seul.' }
+    ]
+  },
   {
     version: 1373,
     date: 'Samedi 7 novembre 2026',
