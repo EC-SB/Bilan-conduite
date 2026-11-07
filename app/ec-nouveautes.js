@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 13:49 — v1378 */
+/* Déployé le 07/11/2026 à 14:40 — v1379 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1379,
+    date: 'Samedi 7 novembre 2026',
+    resume: '✉️ Messagerie : deux vues dans le rail (💬 Messagerie et ✉️ Mail) · la liste des mails allégée et compacte',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Messagerie et Mail séparés, dans le rail',
+        texte: 'En appuyant sur Messagerie, le rail de gauche montre deux vues avec leurs compteurs de non lus : 💬 Messagerie (tes conversations, qui remplace Messenger) et ✉️ Mail (la boîte de l’école). On ne mélange plus les deux. On arrive par défaut sur 💬 Messagerie.' },
+      { emoji: '📥',
+        titre: 'La liste des mails : « À traiter » et « Tout »',
+        texte: 'Dans ✉️ Mail, deux sous-vues : « 📥 À traiter » (les non lus et les drapeaux rouges) et « Tout ». Le bandeau Claude, la ligne des pubs et les filtres (🚩, Pour moi, Qui, Étiquette) descendent dans le ⋯ et un « ⌯ Filtres ▾ », pour rendre la place aux mails.' },
+      { emoji: '≡',
+        titre: 'Des lignes compactes',
+        texte: 'Une ligne par mail (expéditeur · objet), les non lus en gras avec un trait de couleur, le drapeau, les ronds de couleur et le compteur à droite : on voit deux à trois fois plus de mails d’un coup. Un réglage « ≡ Confortable » dans le ⋯ revient aux lignes détaillées (gardé par appareil).' }
+    ]
+  },
   {
     version: 1378,
     date: 'Samedi 7 novembre 2026',
