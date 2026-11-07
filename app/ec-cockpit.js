@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:28 — v1383 */
+/* Déployé le 07/11/2026 à 16:37 — v1384 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -483,9 +483,9 @@ function ckChoisirOnglet(cle){
    Élèves, Équipe, Permis en plus gros, avec des icônes devant ». Il a
    choisi sur le schéma l'option A : de grosses pastilles, l'icône
    dessinée devant le mot, sur deux lignes (3 + 2). Les icônes sont du
-   même trait que celles du rail et de la barre du bas ; elles ne se
-   montrent que sur un téléphone (voir « 📱 v1383 » dans index.html) —
-   le tiroir et l'ordinateur gardent leur rangée fine. */
+   même trait que celles du rail et de la barre du bas. v1384 — David :
+   « oui », aussi sur la tablette et l'ordinateur (voir « 📱 v1383 » dans
+   index.html : une ligne quand la place le permet). */
 const ICONES_ONGLETS_MSG = {
   tout: '<path d="M4 13.5V17a2.5 2.5 0 0 0 2.5 2.5h11A2.5 2.5 0 0 0 20 17v-3.5"/><path d="M4 13.5h4l1.5 2.5h5l1.5-2.5h4M6 13.5 7.5 5.5h9l1.5 8"/>',
   nonlus: '<path d="M14 5H6.5A2.5 2.5 0 0 0 4 7.5v6A2.5 2.5 0 0 0 6.5 16H8v3.5l4-3.5h5.5a2.5 2.5 0 0 0 2.5-2.5V10.5"/><circle cx="18.5" cy="5.5" r="3" fill="currentColor" stroke="none"/>',
