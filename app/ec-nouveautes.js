@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 16:59 — v1369 */
+/* Déployé le 06/11/2026 à 20:38 — v1371 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1371,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '⚡ Messagerie allégée : beaucoup moins de lectures dans la base (alerte de quota Cloudflare)',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'La messagerie consomme beaucoup moins',
+        texte: 'Optimisation invisible mais importante : le petit compteur de messages non lus (qui se rafraîchit tout seul toutes les 90 s, pour chaque personne connectée) relisait à chaque fois TOUTE la table des messages pour repérer les « @mentions ». Il ne regarde plus que les conversations déjà non lues — même résultat, mais des millions de lignes de base de données économisées par jour. Ajout aussi d’un index sur les quotas d’envois des élèves. Rien ne change à l’usage.' }
+    ]
+  },
+  {
+    version: 1370,
+    date: 'Vendredi 6 novembre 2026',
+    resume: '🎬 Suivi du parcours : la date et l’heure de visionnage · 🔍 une barre de recherche d’élèves',
+    quoi: [
+      { emoji: '🕒',
+        titre: 'Quand la vidéo a été regardée',
+        texte: 'Dans le suivi du parcours d’un élève, la bulle d’une étape indique maintenant la date et l’heure de son meilleur visionnage : « 🎬 Vidéo regardée à 35 % (sa meilleure fois) · le 06/11 à 14:12 ».' },
+      { emoji: '🔍',
+        titre: 'Rechercher un élève',
+        texte: 'En haut du suivi du parcours des élèves, une barre de recherche filtre la liste par nom (sans accent ni casse). Le compte du dessus garde la vue d’ensemble de tous les parcours.' }
+    ]
+  },
   {
     version: 1369,
     date: 'Vendredi 6 novembre 2026',
