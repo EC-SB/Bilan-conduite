@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 08:55 — v1357 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2268,7 +2268,7 @@ function pageDossier(d){
     'lui.</p>' +
     '<p style="margin:8px 0 0;"><strong>Ce qui n\'y est pas, ' +
     'volontairement :</strong></p><ul>' +
-    '<li>son <strong>code d\'accès</strong> au coin révisions — c\'est ' +
+    '<li>son <strong>code d\'accès</strong> à l’App Évolution Conduites — c\'est ' +
     'une clé, pas une donnée le concernant ;</li>' +
     '<li>les <strong>noms des salariés</strong> dans le journal — ce ' +
     'sont leurs données, pas les siennes ;</li>' +
