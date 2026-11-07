@@ -1,4 +1,4 @@
-# Déployé le 07/11/2026 à 16:13 — v1382
+# Déployé le 07/11/2026 à 18:15 — v1387
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -30,6 +30,8 @@ on:
       - 'manifest-salle.webmanifest'   # 📺 v1382 — le raccourci des tablettes
       - 'icone-192.png'
       - 'icone-512.png'
+      - 'icone-180.png'            # 🖼 v1387 — l'icône de l'iPhone (logo officiel)
+      - 'icone-maskable-512.png'   # 🖼 v1387 — l'icône ronde d'Android
       - 'bureau.html'
       - 'appel-commun.js'   # 📞 v1183 — l'écran d'appel, partagé avec l'appli
       - 'app/ec-verifs-banque.js'   # 🎮 v1248 — les 100 questions, pour le jeu des vérifications
@@ -62,7 +64,7 @@ jobs:
           # même nom qu'au dépôt principal, à côté de la page (le
           # lecteur va chercher ses polices à côté de lui-même)
           cp app/ec-montage.js app/ec-montage-polices.js sortie/
-          cp icone-192.png icone-512.png sortie/
+          cp icone-192.png icone-512.png icone-180.png icone-maskable-512.png sortie/
 
           # 📍 v1170 — la page des bureaux, derrière le QR code de la
           # vitrine : une adresse par bureau, le même fichier. La page
