@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 17:03 — v1370 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -3690,7 +3690,7 @@ async function blocParcoursDeLEleve(nom){
     z.innerHTML = '<div style="font-size:12.5px;color:var(--muted);' +
       'line-height:1.5;">Aucun groupe du parcours ne lui est ouvert. ' +
       'Ça se coche juste au-dessus, puis il faut ouvrir son ' +
-      '🎬 coin révisions.</div>';
+      '🎬 App Évolution Conduites.</div>';
     return z;
   }
 
@@ -3893,7 +3893,7 @@ function cadreNouvelleAnnonce(){
       const m = document.createElement('div');
       m.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
       m.textContent = 'Elle s\'affichera chez les ' +
-        elevesPourAnnonce.length + ' élèves qui ont un coin révisions ouvert.';
+        elevesPourAnnonce.length + ' élèves qui ont l’App Évolution Conduites ouverte.';
       zoneSel.appendChild(m);
       majEtat = () => {};
       redireBouton();
