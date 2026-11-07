@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:10 — v1380 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -96,7 +96,57 @@ function modeleParDefaut(cle){
   if(cle === 'rappel_financeur' && typeof MODELE_FINANCEUR_DEFAUT !== 'undefined'){
     return MODELE_FINANCEUR_DEFAUT;
   }
-  return '';
+  const d = textesDeDepart().find(x => x.usage === cle);
+  return d ? d.contenu : '';
+}
+
+/* ============================================================
+   📨 LES TEXTES DE DÉPART, POSÉS DANS LA BIBLIOTHÈQUE — v1382
+
+   David, le 7 novembre : « Les messages de départ sont dans Outils ›
+   Ce qu'on écrit… Je ne les retrouve pas ». Ils n'y étaient pas :
+   tant que personne n'avait écrit de fiche pour ces emplacements,
+   l'application prenait son texte de départ (dans le code) et la
+   bibliothèque ne montrait rien.
+
+   À l'ouverture de Ce qu'on écrit, chez quelqu'un qui peut modifier
+   les textes de l'application, chaque emplacement de cette liste sans
+   fiche reçoit la sienne, avec le texte de départ et l'étiquette
+   « 📨 Relances ». Un numéro FIXE par emplacement : deux ouvertures en
+   même temps réécrivent la même ligne au lieu d'en ajouter deux. Une
+   fiche déjà écrite n'est jamais touchée. Les textes ne sont pas
+   recopiés ici : ils vivent dans le module qui s'en sert.
+   ============================================================ */
+function textesDeDepart(){
+  const l = [];
+  if(typeof RL_TYPES !== 'undefined'){
+    Object.keys(RL_TYPES).forEach(k => {
+      const t = RL_TYPES[k];
+      l.push({ usage: t.usage, nom: '📨 Relance — ' + t.titre, contenu: t.defaut, etiquettes: '📨 Relances' });
+    });
+  }
+  if(typeof MESSAGES_POST_PERMIS !== 'undefined'){
+    MESSAGES_POST_PERMIS.forEach(m => l.push({ usage: m.usage, nom: '🔁 Post-permis — ' + m.nom, contenu: m.texte, etiquettes: '📨 Relances' }));
+  }
+  return l;
+}
+let textesDeDepartPoses = false;
+async function poserLesTextesDeDepart(){
+  if(textesDeDepartPoses) return false;
+  if(typeof peutModifier === 'function' && !peutModifier('textes_appli')) return false;
+  textesDeDepartPoses = true;
+  const manquent = textesDeDepart().filter(d => !modelesTexte.some(m => m.usage === d.usage));
+  if(!manquent.length) return false;
+  let pose = 0;
+  for(const d of manquent){
+    try{
+      await appelPrep({ action: 'modeleSet', id: 'mdepart_' + d.usage, usage: d.usage, nom: d.nom,
+                        etiquettes: d.etiquettes, contenu: d.contenu });
+      pose++;
+    }catch(e){ console.warn('Texte de départ non posé :', d.usage, e); }
+  }
+  if(pose){ perimerModeles(); await chargerModelesTexte(true); }
+  return pose > 0;
 }
 
 function nomUsage(cle){
@@ -1305,6 +1355,8 @@ async function afficherModelesTexte(){
                         la place d'une vignette. */
                      chargerRepertoireImages()]);
   dessinerBibliotheque();
+  /* 📨 v1382 — les textes de départ qui manquent, puis on redessine */
+  try{ if(await poserLesTextesDeDepart()) dessinerBibliotheque(); }catch(e){}
 }
 
 function dessinerBibliotheque(){
