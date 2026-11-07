@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 16:59 — v1369 */
+/* Déployé le 07/11/2026 à 14:40 — v1379 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -449,7 +449,9 @@ function ckPastilles(){
    « Permis ». */
 /* ✉️ v1337 — et « ✉️ Mails », la boîte de l'école (ec-boite-mail.js),
    pour qui a le droit « ✉️ Mails » : le bureau et les administrateurs */
-const ONGLETS_MSG_EC = [['tout', 'Tout'], ['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['permis', 'Permis'], ['mails', '✉️ Mails']];
+/* ✉️ v1378 — « Mails » n'est plus un onglet de la liste : c'est une VUE du
+   rail (voir VUES.messagerie). Les chips ne gardent que le chat. */
+const ONGLETS_MSG_EC = [['tout', 'Tout'], ['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['permis', 'Permis']];
 function ckOngletsVisibles(){
   return ONGLETS_MSG_EC.filter(o => o[0] !== 'mails' || (typeof mlOngletVisible === 'function' && mlOngletVisible() &&
     !(typeof dansLeTiroir === 'function' && dansLeTiroir())));
@@ -473,7 +475,7 @@ function ckDansLOnglet(c, onglet){
 }
 function ckChoisirOnglet(cle){
   ongletMsgEC = cle;
-  try{ localStorage.setItem('ec_msg_onglet', cle); }catch(e){}
+  try{ localStorage.setItem('ec_msg_onglet', cle); if(cle !== 'mails') localStorage.setItem('ec_msg_chat', cle); }catch(e){}
   if(filtreMessagerie) ckChoisirFiltre('');
   else dessinerLaListeMessagerie();
 }
