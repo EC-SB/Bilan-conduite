@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 15:04 — v1359 */
+/* Déployé le 07/11/2026 à 11:01 — v1375 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -79,7 +79,15 @@ function slStyle(){
     /* 🔓 v1319 — les quatre choix d'un groupe */
     '.slRegles{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}' +
     '.slRegles .tdOnglet{width:auto;margin:0;}' +
-    '.slRegleGroupe{width:auto;margin:0;padding:6px 8px;font-size:13px;}';
+    '.slRegleGroupe{width:auto;margin:0;padding:6px 8px;font-size:13px;}' +
+    /* 🔘 v1375 — l'interrupteur « Déjà vu en salle » (David : « on comprend
+       pas qu'il faut cliquer dessus » sur le bouton) */
+    '.slInterLigne{display:flex;align-items:center;gap:12px;margin-top:10px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:transparent;color:var(--cream);font:inherit;font-size:13px;text-align:left;width:100%;}' +
+    '.slInterLigne[disabled]{cursor:default;}' +
+    '.slInterLigne .t{flex:1;min-width:0;line-height:1.4;}.slInterLigne .t b{display:block;font-size:13.5px;}.slInterLigne .t small{color:var(--muted);font-size:12px;}' +
+    '.slInter{flex:none;width:46px;height:26px;border-radius:999px;background:#8A8A8A;position:relative;transition:background .2s ease;box-shadow:inset 0 1px 2px rgba(0,0,0,.2);}' +
+    '.slInter::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .2s ease;}' +
+    '.slInter.on{background:#B6FF0E;}.slInter.on::after{left:23px;}';
   document.head.appendChild(s);
 }
 
@@ -665,6 +673,9 @@ async function ligneSalleFiche(nom, zone, o){
   if(e && e.fini){
     c.innerHTML = '<b style="font-size:13px;">📺 Salle des tablettes</b> · <span style="color:var(--accent-text);font-weight:700;">✅ ' +
       (e.deja ? 'déjà vu avant l’appli — groupes ouverts le ' + slJour(e.finiLe) + ' par ' + slEch(e.finiPar || '?') : 'fini le ' + slJour(e.finiLe) + ', ses groupes se sont ouverts') + '</span>';
+    /* 🔘 v1375 — le même interrupteur, allumé et figé : on voit d'un coup
+       d'œil que c'est fait, et pourquoi. */
+    if(e.deja) c.appendChild(slInterrupteur(true, 'Déjà vu en salle (avant l’appli)', 'ses groupes sont ouverts', null));
   }else{
     c.innerHTML = '<b style="font-size:13px;">📺 Salle des tablettes</b> · ' +
       (e ? '<span style="color:var(--accent-text);font-weight:700;">' + (e.total ? e.vus + ' sur ' + e.total + ' vues' : 'installé, pas encore de vue') + '</span>' : '<span style="color:var(--muted);">pas encore commencé</span>');
@@ -679,10 +690,12 @@ async function ligneSalleFiche(nom, zone, o){
        même cochés ici (David : « tous les élèves », élèves d'avant compris) */
     c.appendChild(slEl('div', '', '<div style="color:var(--muted);">🔒 Chez lui, ses groupes restent fermés jusqu’à la fin de la salle, même cochés dans son accès.</div>'));
     }
+    /* 🔘 v1375 — un interrupteur, pas un bouton : David, capture à l'appui,
+       « on comprend pas qu'il faut cliquer dessus ». Éteint tant que rien
+       n'est fait ; on le bascule, la question de confirmation s'affiche,
+       et il ne s'allume que si on a dit oui. */
     if(slPeut() && !sansSalle){
-      const b = slBouton('✅ Déjà vu en salle (avant l’appli) : ouvrir ses groupes', '', () => slDejaVu(nom, zone, c));
-      b.style.marginTop = '8px';
-      c.appendChild(b);
+      c.appendChild(slInterrupteur(false, 'Déjà vu en salle (avant l’appli)', 'basculer pour lui ouvrir ses groupes tout de suite', () => slDejaVu(nom, zone, c)));
     }
   }
   const vieux = zone.querySelector('[data-salle-fiche]');
@@ -690,6 +703,20 @@ async function ligneSalleFiche(nom, zone, o){
   c.setAttribute('data-salle-fiche', '1');
   zone.__salleO = o;
   zone.appendChild(c);
+}
+/* La ligne-interrupteur : un bouton pleine largeur (le doigt tombe
+   dessus n'importe où), le texte à gauche, la pastille à droite. */
+function slInterrupteur(allume, titre, sous, f){
+  const b = slEl('button', 'slInterLigne', '');
+  b.type = 'button';
+  b.setAttribute('role', 'switch');
+  b.setAttribute('aria-checked', allume ? 'true' : 'false');
+  b.innerHTML = '<span class="t"><b></b><small></small></span><span class="slInter' + (allume ? ' on' : '') + '"></span>';
+  b.querySelector('b').textContent = titre;
+  b.querySelector('small').textContent = sous;
+  if(f) b.addEventListener('click', f);
+  else b.disabled = true;
+  return b;
 }
 async function slDejaVu(nom, zone, carte){
   let groupes = [], prog = [];
