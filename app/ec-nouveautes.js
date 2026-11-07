@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 08:51 — v1372 */
+/* Déployé le 07/11/2026 à 08:56 — v1373 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1373,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🫧 Espace élève, livraison 2 : le dedans de Réviser, Vérifs, Réciter et Écrire passe au verre',
+    quoi: [
+      { emoji: '🫧',
+        titre: 'Le verre jusque dans les onglets',
+        texte: 'Après les cartes et la barre (v1372), tout ce qui vit à l’intérieur des onglets suit la même recette : cartes de groupe et chemin des étapes de Réviser, recherche et menus en capsules, feuille d’une étape, jeu des vérifs (modes, questions, réponses), motifs et minutes d’un message, bulles, liste des conversations, barre d’écriture, réactions et émoticônes. Les couleurs qui veulent dire quelque chose (bon/faux du jeu, urgent en rouge) ne bougent pas. Tablettes comprises.' }
+    ]
+  },
   {
     version: 1372,
     date: 'Samedi 7 novembre 2026',
