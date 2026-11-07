@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 09:11 — v1362 */
+/* Déployé le 07/11/2026 à 10:58 — v1374 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -524,8 +524,15 @@ function choixEcranCours(){
 }
 
 function ecranCoursNeuf(){
-  /* Une seule façon de ne PAS l'avoir : l'avoir demandé. */
-  return choixEcranCours() !== 'oui';
+  /* ⚠️ TOUJOURS LE NEUF — v1374.
+
+     David : « il faut enlever le bouton en haut revenir à l'ancien
+     écran de cours ». L'ancien écran n'a plus de porte d'entrée : la
+     ligne du menu ⋯ est retirée de la page, et cette fonction ne lit
+     plus la clé « ec_cours_ancien » (qui dort dans les navigateurs où
+     elle a été posée, sans plus rien commander). On garde la
+     fonction parce que six modules l'appellent : elle répond oui. */
+  return true;
 }
 
 /* La bascule s'offre à tout le monde : c'est le seul moyen de
