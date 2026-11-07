@@ -1,6 +1,6 @@
 {
-  "name": "Mon coin révisions — Évolution Conduites",
-  "short_name": "Révisions",
+  "name": "App Évolution Conduites",
+  "short_name": "Évolution",
   "description": "Ton espace : tes procédures, ton suivi et tes messages avec l'auto-école.",
   "start_url": "eleve.html",
   "scope": "./",
