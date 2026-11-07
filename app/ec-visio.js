@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 17:11 — v1356 */
+/* Déployé le 07/11/2026 à 15:41 — v1381 */
 /* ============================================================
    ec-visio.js — 🎥 LE CODE EN VISIO, CÔTÉ ÉQUIPE
 
@@ -333,6 +333,65 @@ function visioSeanceConseillee(){
 }
 
 /* ============================================================
+   🎥📅 LES COURS VISIO DE DRIVUP — v1381
+
+   David, le 7 novembre : « il faut que nous on voie s'il y a des
+   élèves en visio avec le bouton app depuis Drivup — c'est le moniteur
+   visio — comme ça notre app peut nous proposer directement les
+   élèves ». Le favori 📥 les lit (ec-drivup.js, estVisioDrivup) ; le
+   Worker les rend par cours (visioAVenir), avec les séances lancées
+   aujourd'hui.
+   ============================================================ */
+let visioAVenirEtat = null;      /* { aujourdhui, cours:[{id,jour,debut,fin,eleves}], lancees:[{debut,…}] } */
+let visioAVenirLu = 0;
+let visioAVenirEnCours = null;
+function visioChargerAVenir(force){
+  if(visioAVenirEnCours) return visioAVenirEnCours;
+  if(!force && visioAVenirEtat && Date.now() - visioAVenirLu < 60000) return Promise.resolve(visioAVenirEtat);
+  visioAVenirEnCours = appelPrep({ action: 'visioAVenir' })
+    .then(r => { visioAVenirEtat = r || null; visioAVenirLu = Date.now(); return visioAVenirEtat; })
+    .catch(() => { visioAVenirLu = Date.now(); return visioAVenirEtat; })
+    .then(r => { visioAVenirEnCours = null; return r; });
+  return visioAVenirEnCours;
+}
+function visioJourIci(){
+  const d = new Date(), p2 = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+function visioMinutes(hhmm){
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})/);
+  return m ? (+m[1]) * 60 + (+m[2]) : -1;
+}
+/* L'instant (ms) d'une heure « 18:00 » aujourd'hui */
+function visioInstant(hhmm){
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() + visioMinutes(hhmm) * 60000;
+}
+function visioFinDuCours(c){
+  const f = visioMinutes(c.fin), d = visioMinutes(c.debut);
+  return visioInstant(f > d ? c.fin : c.debut) + (f > d ? 0 : 60 * 60000);
+}
+/* Une séance lancée pour ce cours : de 45 min avant son heure à sa fin */
+function visioCoursLance(c){
+  const t0 = visioInstant(c.debut) - 45 * 60000, t1 = visioFinDuCours(c);
+  const l = (visioAVenirEtat && visioAVenirEtat.lancees) || [];
+  return l.some(x => x.debut >= t0 && x.debut <= t1) ||
+    !!(visioEtat && visioEtat.enCours && visioEtat.enCours.debut >= t0);
+}
+/* Le cours Drivup d'aujourd'hui à préparer maintenant : le premier qui
+   n'est pas fini, ou null */
+function visioCoursDuMoment(){
+  const l = ((visioAVenirEtat && visioAVenirEtat.cours) || []).filter(c => c.jour === visioJourIci());
+  const t = Date.now();
+  return l.find(c => visioFinDuCours(c) > t) || null;
+}
+function visioHeureDite(hhmm){
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})/);
+  return m ? (+m[1]) + 'h' + (m[2] === '00' ? '' : m[2]) : '';
+}
+
+/* ============================================================
    LA CARTE — Élèves › 🎓 Code
    ============================================================ */
 function carteVisioCode(){
@@ -353,7 +412,8 @@ async function visioRafraichir(){
     if(typeof tousLesElevesConnus === 'function' && !tousLesElevesConnus().length && typeof chargerEleves === 'function'){
       try{ await chargerEleves(); }catch(e){}
     }
-    visioEtat = await appelPrep({ action: 'visioLire' });
+    const [etat] = await Promise.all([ appelPrep({ action: 'visioLire' }), visioChargerAVenir(true) ]);
+    visioEtat = etat;
   }catch(e){
     corps.innerHTML = '<div class="vsNote">⚠️ ' + echapper((e && e.message) || e) + '</div>';
     return;
@@ -449,7 +509,22 @@ function visioDessinerLancement(corps){
   }
   z1.appendChild(puces);
 
-  /* 2. Les élèves */
+  /* 2. Les élèves — 📅 v1381 : ceux réservés sur Drivup déjà cochés */
+  const drivup = visioCoursDuMoment();
+  const drivupIci = {};
+  const drivupInconnus = [];
+  if(drivup){
+    drivup.eleves.forEach(n => {
+      const off = visioOfficiel(n);
+      if(!off){ drivupInconnus.push(n); return; }
+      drivupIci[normaliserMot(off)] = true;
+      if(visioChoix.drivupPose !== drivup.id){
+        visioChoix.coches[off] = true;
+        if(visioChoix.ajoutes.indexOf(off) === -1) visioChoix.ajoutes.push(off);
+      }
+    });
+    visioChoix.drivupPose = drivup.id;
+  }
   const cands = visioCandidats();
   const z2 = visioBloc(corps, 'Les élèves', () => {
     const k = Object.keys(visioChoix.coches).filter(x => visioChoix.coches[x]).length;
@@ -463,7 +538,22 @@ function visioDessinerLancement(corps){
   });
   const rAucun = visioBouton('Tout décocher', '', () => { visioChoix.coches = {}; visioDessiner(); });
   raccourcis.append(rPasVue, rAucun);
+  if(drivup){
+    const rD = visioBouton('📅 Les réservés Drivup (' + drivup.eleves.length + ')', '', () => {
+      drivup.eleves.forEach(x => { const off = visioOfficiel(x); if(off) visioChoix.coches[off] = true; });
+      visioDessiner();
+    });
+    raccourcis.insertBefore(rD, rPasVue);
+  }
   z2.appendChild(raccourcis);
+  if(drivup){
+    const nD = document.createElement('div');
+    nD.className = 'vsNote vsDrivup';
+    nD.textContent = '📅 Drivup, aujourd’hui à ' + visioHeureDite(drivup.debut) + ' : ' + drivup.eleves.length + ' élève' +
+      (drivup.eleves.length > 1 ? 's' : '') + ' réservé' + (drivup.eleves.length > 1 ? 's' : '') + ', déjà coché' + (drivup.eleves.length > 1 ? 's' : '') + '.' +
+      (drivupInconnus.length ? ' ⚠️ Pas trouvé' + (drivupInconnus.length > 1 ? 's' : '') + ' dans les élèves : ' + drivupInconnus.join(', ') + '.' : '');
+    z2.appendChild(nD);
+  }
   const liste = document.createElement('div');
   liste.className = 'vsListe';
   if(!cands.length){
@@ -480,8 +570,10 @@ function visioDessinerLancement(corps){
     const b = document.createElement('b');
     b.textContent = e.officiel || e.nom;
     const sm = document.createElement('small');
+    const resa = drivup && e.officiel && drivupIci[normaliserMot(e.officiel)];
     sm.textContent = !e.officiel ? '⚠️ « ' + e.nom + ' » : pas trouvé dans les élèves — ajoute-le par la recherche'
-      : e.seances[n] ? '✓ a déjà vu la ' + n : e.ajoute ? 'ajouté' : 'pas encore vu la ' + n;
+      : (resa ? '📅 Drivup ' + visioHeureDite(drivup.debut) + ' · ' : '') +
+        (e.seances[n] ? '✓ a déjà vu la ' + n : e.ajoute && !resa ? 'ajouté' : 'pas encore vu la ' + n);
     if(e.officiel && e.seances[n]) sm.className = 'vu';
     lab.append(cb, b, sm);
     liste.appendChild(lab);
@@ -709,6 +801,97 @@ function visioDessinerRecentes(corps){
     '<div>Séance ' + x.numero + ' · ' + echapper(String(x.jour || '').split('-').reverse().join('/')) +
     ' · ' + x.presents + ' présent' + (x.presents > 1 ? 's' : '') + ' · ' + echapper(x.par) + '</div>').join('');
   corps.appendChild(z);
+}
+
+/* ============================================================
+   ⏰ « ATTENTION : COURS DE CODE EN VISIO DANS 15 MINUTES » — v1381
+
+   David, le 7 novembre : un bandeau pour l'admin et le bureau, comme
+   celui de la prise des dates d'examen, 15 minutes avant, avec le
+   compteur qui descend. Ses réponses : il reste JUSQU'AU LANCEMENT (le
+   compteur dit « en retard de … » passé l'heure), un appui ouvre
+   Élèves › 🎓 Code avec les élèves Drivup cochés, ✕ le range pour ce
+   cours. Au plus tard, il s'en va à la fin prévue du cours.
+
+   ec-bandeau.js l'appelle à chaque dessin (une fois par minute) ; le
+   compteur se met à jour chaque seconde, tout seul, tant que la carte
+   est à l'écran. Les cours Drivup se relisent au plus une fois par
+   minute près de l'heure, toutes les cinq minutes sinon.
+   ============================================================ */
+const CLE_VISIO_RANGE = 'ec.visioBientot.range';
+let visioMinuteurBandeau = null;
+function visioBandeauPourMoi(){
+  return typeof ACCES === 'object' && ACCES && (ACCES.role === 'admin' || ACCES.role === 'bureau');
+}
+function cartesVisioBientot(){
+  if(!visioBandeauPourMoi()) return [];
+  const proche = visioCoursDuMoment();
+  const pres = proche && visioInstant(proche.debut) - Date.now() < 30 * 60000;
+  const age = Date.now() - visioAVenirLu;
+  if(!visioAVenirEnCours && (!visioAVenirLu || age > (pres ? 60000 : 300000))){
+    visioChargerAVenir(true).then(() => { try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){} });
+  }
+  const c = proche;
+  if(!c) return [];
+  const t = Date.now(), debut = visioInstant(c.debut);
+  if(t < debut - 15 * 60000 || t >= visioFinDuCours(c)) return [];
+  if(visioCoursLance(c)) return [];
+  let range = '';
+  try{ range = localStorage.getItem(CLE_VISIO_RANGE) || ''; }catch(e){}
+  if(range === c.id) return [];
+
+  const carte = document.createElement('div');
+  carte.className = 'vsBientot';
+  carte.style.cssText = 'background:var(--accent-text);color:var(--navy-deep);border-radius:12px;padding:14px 16px;' +
+    'margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;';
+  carte.setAttribute('role', 'button');
+  carte.title = 'Préparer la séance dans Élèves › 🎓 Code';
+  const corps = document.createElement('div');
+  corps.style.cssText = 'flex:1;min-width:0;';
+  const n = c.eleves.length;
+  corps.innerHTML =
+    '<div class="vsBtQuand" style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.75;"></div>' +
+    '<div style="font-size:24px;font-weight:800;line-height:1.15;margin:3px 0 5px;">🎥 Attention : cours de code en visio à ' +
+      echapper(visioHeureDite(c.debut)) + '</div>' +
+    '<div style="font-size:13px;"></div>';
+  corps.lastChild.textContent = n + ' élève' + (n > 1 ? 's' : '') + ' réservé' + (n > 1 ? 's' : '') + ' sur Drivup : ' +
+    c.eleves.slice(0, 6).join(', ') + (n > 6 ? '…' : '') + ' — appuie pour préparer la séance.';
+  carte.appendChild(corps);
+  const quand = corps.querySelector('.vsBtQuand');
+  const majQuand = () => {
+    const r = Math.round((debut - Date.now()) / 1000);
+    const mmss = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    quand.textContent = r > 0 ? '⏳ Dans ' + mmss(r) : r > -60 ? "C'est maintenant" : '⚠️ En retard de ' + Math.floor(-r / 60) + ' min';
+  };
+  majQuand();
+  clearInterval(visioMinuteurBandeau);
+  visioMinuteurBandeau = setInterval(() => {
+    if(!carte.isConnected){ clearInterval(visioMinuteurBandeau); visioMinuteurBandeau = null; return; }
+    majQuand();
+  }, 1000);
+
+  const x = document.createElement('button');
+  x.style.cssText = 'width:auto;padding:6px 11px;font-size:14px;flex:0 0 auto;background:transparent;color:inherit;' +
+    'border:1px solid currentColor;border-radius:8px;cursor:pointer;font-weight:700;opacity:.65;';
+  x.textContent = '✕';
+  x.title = 'Le ranger pour ce cours';
+  x.addEventListener('click', ev => {
+    ev.stopPropagation();
+    try{ localStorage.setItem(CLE_VISIO_RANGE, c.id); }catch(e){}
+    if(typeof dessinerBandeau === 'function') dessinerBandeau();
+  });
+  carte.appendChild(x);
+  carte.addEventListener('click', () => {
+    try{
+      if(typeof afficherOnglet === 'function') afficherOnglet('eleves');
+      if(typeof afficherVue === 'function') afficherVue('eleves', 'code');
+      setTimeout(() => {
+        const v = $('vsCarte');
+        if(v){ v.open = true; v.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      }, 400);
+    }catch(e){}
+  });
+  return [carte];
 }
 
 /* ---------- Petites briques ---------- */
