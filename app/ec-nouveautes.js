@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:41 — v1381 */
+/* Déployé le 07/11/2026 à 16:28 — v1383 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,41 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1383,
+    date: 'Samedi 7 novembre 2026',
+    resume: '📱 Messagerie sur téléphone : de gros onglets avec icônes, une flèche de retour bien visible',
+    quoi: [
+      { emoji: '📱',
+        titre: 'Tout, Non lus, Élèves, Équipe, Permis en plus gros',
+        texte: 'Sur le téléphone, les cinq onglets de la messagerie deviennent de grosses pastilles, avec une icône devant le mot, sur deux lignes. Le nombre de non lus reste à côté.' },
+      { emoji: '⬅️',
+        titre: 'La flèche de retour se voit',
+        texte: 'Dans une conversation ouverte sur le téléphone, la flèche pour revenir à la liste est un gros rond vert en haut à gauche.' }
+    ]
+  },
+  {
+    version: 1382,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🗄️ « Archiver » dans le ⋯ de la messagerie · 📱 l’App Évolution Conduites · 💼 un mail aux salariés et un bloc-notes par dossier',
+    quoi: [
+      { emoji: '🗄️',
+        titre: '« Réglé » devient « Archiver », dans le ⋯',
+        texte: 'Dans une conversation, le bouton « ✓ Réglé » quitte la tête du fil : « 🗄️ Archiver » est en haut du menu ⋯. La liste « Fermées » s’appelle maintenant « 🗄️ Archivées », et « ↺ Sortir des archives » la ramène.' },
+      { emoji: '📱',
+        titre: 'Le coin révisions s’appelle « App Évolution Conduites »',
+        texte: 'Partout : l’espace de l’élève, son icône, l’onglet 🔑 du dossier, les mails d’accès, les messages et le guide.' },
+      { emoji: '✉️',
+        titre: 'Un mail à tous les salariés d’une formation',
+        texte: 'Dans un dossier de formation entreprise, « ✉️ Écrire aux salariés » ouvre l’éditeur de la boîte de l’école : les salariés en destinataires, le représentant de l’entreprise en copie, ta signature, les pièces jointes. L’envoi s’inscrit dans l’historique du dossier.' },
+      { emoji: '📝',
+        titre: 'Un bloc-notes dans « Où on en est »',
+        texte: 'Des notes sur le dossier, avec qui et quand, une case à cocher si on veut (à faire → fait), et des débuts tout prêts : ✉️ Mail envoyé, 📞 Eu au téléphone, 📵 Pas de réponse, 📎 Document reçu.' },
+      { emoji: '📨',
+        titre: 'Les messages des relances dans Ce qu’on écrit',
+        texte: 'Les textes de départ des relances (et ceux du post-permis) se posent tout seuls dans Outils › Ce qu’on écrit, étiquette « 📨 Relances », à la première ouverture. Modifie-les là. Le prénom de l’élève est aussi corrigé (« Léa », pas « MARTIN »).' }
+    ]
+  },
   {
     version: 1381,
     date: 'Samedi 7 novembre 2026',
