@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:10 — v1380 */
+/* Déployé le 07/11/2026 à 16:39 — v1384 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -2290,6 +2290,32 @@ function poserCompteVue(cle, nombre){
 
   majAlerteOnglet(onglet);
 }
+
+/* ============================================================
+   🏠 LE LOGO « EC » RAMÈNE AUX COURS — v1384
+
+   David, le 7 novembre : « si on appuie sur le logo EC en haut de
+   l'écran, ça nous ramène à l'onglet Cours ». Seulement une fois
+   connecté (sur l'écran de connexion il ne fait rien). La barre de
+   droite de la messagerie se referme, et on remonte en haut.
+   ============================================================ */
+(function logoVersLesCours(){
+  const logo = document.querySelector('header .logo');
+  if(!logo) return;
+  logo.setAttribute('role', 'button');
+  logo.setAttribute('tabindex', '0');
+  logo.title = 'Revenir aux cours';
+  logo.style.cursor = 'pointer';
+  const aller = () => {
+    const app = document.getElementById('appView');
+    if(!app || app.style.display === 'none') return;
+    try{ if(typeof dansLeTiroir === 'function' && dansLeTiroir() && typeof fermerTiroirMessagerie === 'function') fermerTiroirMessagerie(); }catch(e){}
+    afficherOnglet('cours');
+    try{ window.scrollTo({ top: 0, behavior: 'smooth' }); }catch(e){ window.scrollTo(0, 0); }
+  };
+  logo.addEventListener('click', aller);
+  logo.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); aller(); } });
+})();
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
