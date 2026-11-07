@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 17:56 — v1344 */
+/* Déployé le 07/11/2026 à 14:40 — v1379 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -215,6 +215,20 @@ let mlSignaturesLues = null;
 /* ☑️ v1339 — cocher plusieurs mails (lus / non lus en lot) */
 let mlModeChoix = false;
 const mlChoix = new Set();
+
+/* ✉️ v1378 — la boîte est devenue une vue à part (rail). Pour voir plus de
+   mails d'un coup (David : « j'ai peur d'en louper »), deux changements :
+   · deux sous-vues « 📥 À traiter » (non lus + drapeaux) et « Tout »,
+   · des lignes COMPACTES par défaut (une par mail), avec un réglage
+     « ≡ Confortable » dans le ⋯ pour revenir aux lignes détaillées.
+   Les deux réglages valent pour CET appareil. */
+let mlSousVue = (function(){ try{ return localStorage.getItem('ec_mail_sousvue') === 'tout' ? 'tout' : 'atraiter'; }catch(e){ return 'atraiter'; } })();
+function mlPoserSousVue(v){ mlSousVue = v; try{ localStorage.setItem('ec_mail_sousvue', v); }catch(e){} dessinerLaListeMessagerie(); }
+let mlCompact = (function(){ try{ return localStorage.getItem('ec_mail_compact') !== 'non'; }catch(e){ return true; } })();
+function mlBasculerCompact(){ mlCompact = !mlCompact; try{ localStorage.setItem('ec_mail_compact', mlCompact ? 'oui' : 'non'); }catch(e){} dessinerLaListeMessagerie(); }
+/* « À traiter » = ce qui attend : les non lus et les drapeaux rouges. Les
+   « ❓ à rattacher » n'y sont PAS (choix de David, 7/11) — ils sont dans Tout. */
+function mlAtraiter(f){ return !!(f.urgent || f.nonLus > 0); }
 function mlRecompter(){ if(mlVue === 'boite') mlCompteNonLus = mlFils.filter(f => !f.regle && f.nonLus > 0).length; }
 
 /* ------------------------------------------------------------
@@ -241,8 +255,11 @@ function mlPoserLeCompte(n){
   if(n === undefined || n === null) return;
   const avant = mlCompteNonLus;
   mlCompteNonLus = Number(n) || 0;
+  mlMajCompteVue();
   if(avant !== null && avant !== mlCompteNonLus && mlOngletActif()) mlCharger(true);
 }
+/* ✉️ v1378 — le chiffre des mails sur le bouton ✉️ Mail du rail */
+function mlMajCompteVue(){ if(typeof poserCompteVue === 'function') poserCompteVue('mails', mlCompte()); }
 function mlOngletActif(){
   return typeof ongletMsgEC !== 'undefined' && ongletMsgEC === 'mails' &&
          (typeof filtreMessagerie === 'undefined' || !filtreMessagerie);
@@ -305,6 +322,7 @@ async function mlCharger(silencieux){
       if(d && d.etat) mlEtat = d.etat;
       mlLueLe = Date.now();
       if(mlVue === 'boite') mlCompteNonLus = mlFils.filter(f => !f.regle && f.nonLus > 0).length;
+      mlMajCompteVue();
     }catch(e){
       if(!silencieux) mlToast('⚠️ Mails : ' + (e.message || e));
       mlLueLe = Date.now();
@@ -319,7 +337,10 @@ async function mlCharger(silencieux){
 function mlDessinerLaListe(zone){
   zone.innerHTML = '';
   if(!(typeof dansLeTiroir === 'function' && dansLeTiroir())) zone.appendChild(mlBarreDuHaut());
-  if(typeof ckOnglets === 'function') zone.appendChild(ckOnglets());
+  /* ✉️ v1378 — plus de chips « Tout/Non lus/…/Mails » ici : le chat et le
+     mail sont désormais DEUX vues du rail. Et le gros bandeau Claude + la
+     ligne des pubs descendent dans le ⋯ : à la place, une seule rangée
+     « 📥 À traiter / Tout » + « Filtres ▾ ». */
 
   if(mlVue !== 'boite'){
     const d = document.createElement('div');
@@ -333,9 +354,7 @@ function mlDessinerLaListe(zone){
     d.append(t, x);
     zone.appendChild(d);
   }else{
-    zone.appendChild(mlEnteteDeLaListe());
-    /* 🏷️ v1342 — les filtres (sous « Claude ») */
-    if(!mlModeChoix) zone.appendChild(mlRangeeDesFiltres());
+    if(!mlModeChoix) zone.appendChild(mlRangeeSousVue());
     if(mlFiltreActif()) zone.appendChild(mlBarreDuFiltre());
   }
 
@@ -368,27 +387,83 @@ function mlDessinerLaListe(zone){
     sc.appendChild(v);
     return;
   }
-  const bloc = (titre, l) => {
-    if(!l.length) return;
-    if(typeof sousTitreMessagerie === 'function') sc.appendChild(sousTitreMessagerie(titre + ' · ' + l.length));
-    l.forEach(f => sc.appendChild(mlLigne(f)));
-  };
-  if(mlVue !== 'boite'){ bloc(mlVue === 'regles' ? '🗄️ RÉGLÉS' : 'TROUVÉS', mlFils); return; }
+  /* une recherche ou « réglés » : liste à plat, pas de sous-vue */
+  if(mlVue !== 'boite'){ mlFils.forEach(f => sc.appendChild(mlLigne(f))); return; }
+
   const maintenant = Date.now();
   const rappel = f => f.rappelLe > maintenant && !f.nonLus;
-  const vus = mlFiltrer(mlFils);
+  let vus = mlFiltrer(mlFils);
+  /* ✉️ v1378 — la sous-vue : « 📥 À traiter » ne garde que les non lus et
+     les drapeaux ; « Tout » montre tout. */
+  if(mlSousVue === 'atraiter') vus = vus.filter(mlAtraiter);
+  /* un ordre clair, sans sous-titres : drapeaux d'abord, puis non lus, puis
+     les rappels à échéance, puis du plus récent au plus ancien */
+  const rang = f => f.urgent ? 0 : (f.nonLus > 0 ? 1 : (rappel(f) ? 2 : 3));
+  vus = vus.slice().sort((a, b) => (rang(a) - rang(b)) || (Number(b.dernierLe || 0) - Number(a.dernierLe || 0)));
   if(!vus.length){
     const v = document.createElement('div');
     v.className = 'empty';
-    v.textContent = 'Aucun mail pour ce filtre.';
+    v.textContent = mlSousVue === 'atraiter' ? '🎉 Rien à traiter — tout est lu.' : 'Aucun mail pour ce filtre.';
     sc.appendChild(v);
     return;
   }
-  /* 🚩 v1342 — le drapeau rouge remplace « ⚠️ Urgent » */
-  bloc('🚩 DRAPEAU ROUGE', vus.filter(f => f.urgent && !rappel(f)));
-  bloc('NON LUS', vus.filter(f => !f.urgent && f.nonLus > 0));
-  bloc('À TRAITER', vus.filter(f => !f.urgent && !f.nonLus && !rappel(f)));
-  bloc('⏰ À ME RAPPELER', vus.filter(f => !f.urgent && rappel(f)));
+  vus.forEach(f => sc.appendChild(mlLigne(f)));
+}
+
+/* ✉️ v1378 — la rangée sous la recherche : [📥 À traiter · Tout] + Filtres ▾ */
+function mlRangeeSousVue(){
+  const r = document.createElement('div');
+  r.className = 'mlSousVue';
+  const seg = document.createElement('div');
+  seg.className = 'mlSeg';
+  const tous = mlFils;
+  const nAtr = tous.filter(mlAtraiter).length;
+  const onglet = (cle, texte, n) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mlSegB' + (mlSousVue === cle ? ' on' : '');
+    b.appendChild(document.createTextNode(texte));
+    const c = document.createElement('span'); c.className = 'b'; c.textContent = String(n); b.appendChild(c);
+    b.addEventListener('click', () => { if(mlSousVue !== cle) mlPoserSousVue(cle); });
+    return b;
+  };
+  seg.appendChild(onglet('atraiter', '📥 À traiter', nAtr));
+  seg.appendChild(onglet('tout', 'Tout', tous.length));
+  r.appendChild(seg);
+  /* Filtres ▾ : 🚩 drapeaux, 👤 pour, 🏷️ étiquette — repliés */
+  const fb = document.createElement('button');
+  fb.type = 'button';
+  fb.className = 'mlFiltresB' + (mlFiltreActif() ? ' on' : '');
+  fb.textContent = '⌯ Filtres' + (mlFiltreActif() ? ' •' : ' ▾');
+  fb.title = 'Drapeaux, qui s’en occupe, étiquettes';
+  fb.addEventListener('click', ev => { ev.stopPropagation(); mlMenuDesFiltres(fb); });
+  r.appendChild(fb);
+  return r;
+}
+
+/* ✉️ v1378 — le menu « Filtres ▾ » reprend l'ancienne rangée (🚩 / Pour moi
+   / Qui / Étiquette) sans occuper la place en permanence. */
+function mlMenuDesFiltres(ancre){
+  const tous = mlFils;
+  const moi = mlMoi();
+  const items = [{ titre: '🔎 VOIR SEULEMENT' }];
+  items.push({ emoji: '🚩', texte: 'Drapeaux rouges · ' + tous.filter(f => f.urgent).length, on: mlFiltre.drap,
+    faire: () => { mlFiltre.drap = !mlFiltre.drap; dessinerLaListeMessagerie(); } });
+  if(moi && mlPersonne(moi).connu){
+    items.push({ emoji: ML_POUR_COULEURS[mlPersonne(moi).couleur].emo, texte: 'Pour moi · ' + tous.filter(f => mlEstPour(f, moi)).length, on: mlFiltre.moi,
+      faire: () => { mlFiltre.moi = !mlFiltre.moi; if(mlFiltre.moi) mlFiltre.qui = ''; dessinerLaListeMessagerie(); } });
+  }
+  mlPersonnes().forEach(p => {
+    if(mlNormNom(p.nom) === mlNormNom(moi)) return;
+    items.push({ emoji: ML_POUR_COULEURS[p.couleur] ? ML_POUR_COULEURS[p.couleur].emo : '⚫', texte: p.nom + ' · ' + tous.filter(f => mlEstPour(f, p.nom)).length, on: mlFiltre.qui === p.nom,
+      faire: () => { mlFiltre.qui = mlFiltre.qui === p.nom ? '' : p.nom; mlFiltre.moi = false; dessinerLaListeMessagerie(); } });
+  });
+  ((mlEtat && mlEtat.etiquettes) || []).forEach(e => {
+    items.push({ emoji: '🏷️', texte: e + ' · ' + tous.filter(f => (f.etiquettes || []).indexOf(e) !== -1).length, on: mlFiltre.etiq === e,
+      faire: () => { mlFiltre.etiq = mlFiltre.etiq === e ? '' : e; dessinerLaListeMessagerie(); } });
+  });
+  if(mlFiltreActif()) items.push({ sep: true }, { emoji: '✕', texte: 'Tout afficher', faire: () => { mlFiltre.drap = false; mlFiltre.moi = false; mlFiltre.qui = ''; mlFiltre.etiq = ''; dessinerLaListeMessagerie(); } });
+  if(typeof menuGestesEC === 'function') menuGestesEC(ancre, '⌯ Filtres', items);
 }
 
 function mlBarreDuHaut(){
@@ -436,6 +511,29 @@ function mlBarreDuHaut(){
 
 function mlMenuDeLaListe(ancre){
   const items = [];
+  const e = mlEtat || {};
+  /* 🤖 v1378 — l'interrupteur de Claude descend ici (il mangeait une grande
+     place en tête de liste). Les admins le basculent ; les autres le voient. */
+  if(e.configuree !== false && mlEtat){
+    const peut = mlEstAdmin() && e.claudeDisponible;
+    const txt = e.claudeDisponible ? ('Claude lit et prépare — ' + (e.claude ? 'allumé' : 'éteint')) : 'Claude : clé Anthropic manquante';
+    if(peut){
+      items.push({ emoji: '🤖', texte: txt, on: !!e.claude, faire: async () => {
+        try{
+          const r = await appelPrep({ action: 'mailReglagesPoser', claude: !e.claude });
+          if(r && r.etat) mlEtat = r.etat;
+          mlToast(mlEtat.claude ? '🤖 Claude lit les mails qui arrivent' : '🤖 Claude est éteint');
+          dessinerLaListeMessagerie();
+          if(mlFilOuvert){ mlFilOuvert.claude = !!mlEtat.claude; mlDessinerLeFil(); }
+        }catch(er){ mlToast('⚠️ ' + (er.message || er)); }
+      } });
+    }else{
+      items.push({ titre: '🤖 ' + txt });
+    }
+  }
+  /* ≡ v1378 — compact (1 ligne) ou confortable (objet + aperçu) */
+  items.push({ emoji: '≡', texte: mlCompact ? 'Affichage confortable (2 lignes)' : 'Affichage compact (1 ligne)', faire: () => mlBasculerCompact() });
+  items.push({ sep: true });
   items.push({ emoji: '🔄', texte: 'Relever la boîte maintenant', cle: 'releve', faire: () => mlRelever() });
   items.push({ emoji: '🗄️', texte: 'Mails réglés', on: mlVue === 'regles', cle: 'regles', faire: () => { mlVue = 'regles'; mlFils = []; mlLueLe = 0; dessinerLaListeMessagerie(); } });
   items.push({ emoji: mlModeChoix ? '✕' : '☑', texte: mlModeChoix ? 'Annuler le choix' : 'Cocher des mails (lus / non lus)', cle: 'choix',
@@ -447,6 +545,13 @@ function mlMenuDeLaListe(ancre){
   if(mlEstAdmin()){
     items.push({ emoji: '⚙️', texte: 'Réglages des mails', cle: 'reglages', faire: () => mlFenetreReglages() });
     items.push({ emoji: '⚡', texte: 'Régler les réponses rapides', cle: 'rapides', faire: () => { if(typeof rrFiltre !== 'undefined') rrFiltre = 'mail'; ecranReglagesMessagerie(); } });
+  }
+  /* la relève et les pubs, en pied (ce que disait la ligne sous « Claude ») */
+  if(e.releveLe || e.pubsSemaine){
+    const n = Number(e.pubsSemaine || 0);
+    const info = (e.pubs === false ? 'Pubs gardées (réglage)' : '🗑️ ' + n + ' pub' + (n > 1 ? 's' : '') + ' supprimée' + (n > 1 ? 's' : '') + ' cette semaine') +
+      (e.releveLe ? ' · relevée à ' + mlHeure(e.releveLe) : '');
+    items.push({ sep: true }, { titre: info });
   }
   if(typeof menuGestesEC === 'function') menuGestesEC(ancre, '✉️ Mails', items);
 }
@@ -575,7 +680,66 @@ function mlPuce(texte, classe, titre){
   return s;
 }
 
+/* ✉️ v1378 — LA LIGNE COMPACTE : une seule ligne par mail (expéditeur · objet),
+   les non lus en gras avec un trait de couleur à gauche, le drapeau, les ronds
+   de couleur et le compteur à droite. On en voit deux à trois fois plus. */
+function mlLigneCompacte(f){
+  const d = document.createElement('div');
+  const ouvert = !!(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id);
+  d.className = 'ckIt mlIt mlCompact' + (ouvert ? ' on' : '') + (f.nonLus ? ' nlu' : ' lu') + (f.urgent ? ' drap' : '');
+  d.dataset.mail = String(f.id);
+  d.title = f.nonLus ? 'Non lu — ouvrir le mail' : 'Lu — ouvrir le mail';
+
+  const av = document.createElement('div');
+  av.className = 'ckAv' + (f.nonLus ? ' nl' : '');
+  av.textContent = mlInitiales(f.nom, f.correspondant);
+  d.appendChild(av);
+
+  const tx = document.createElement('div');
+  tx.className = 'mlcTexte';
+  const de = document.createElement('span');
+  de.className = 'mlcDe';
+  de.textContent = mlNomDuFil(f);
+  const ob = document.createElement('span');
+  ob.className = 'mlcObj';
+  ob.textContent = (f.pj ? '📎 ' : '') + (f.dernierSens === 'envoye' ? '↩️ ' : '') + (f.sujet || '(sans objet)');
+  tx.append(de, ob);
+  d.appendChild(tx);
+
+  const dr = document.createElement('div');
+  dr.className = 'mlcDroite';
+  if(f.eleve){
+    const e = document.createElement('span'); e.className = 'mlcEleve';
+    e.textContent = '🔗 ' + String(f.eleve).split(' ')[0];
+    e.title = '🔗 ' + f.eleve; dr.appendChild(e);
+  }else if(f.rattache !== 'non' && f.dernierSens === 'recu'){
+    const r = document.createElement('span'); r.className = 'mlcRat'; r.textContent = '❓';
+    r.title = f.propose ? '🤖 Claude propose : ' + f.propose : 'À rattacher'; dr.appendChild(r);
+  }
+  if((f.etiquettes || []).length){
+    const et = document.createElement('span'); et.className = 'mlcEtq';
+    et.textContent = '🏷️ ' + (f.etiquettes.length > 1 ? f.etiquettes.length : f.etiquettes[0]);
+    et.title = f.etiquettes.join(', '); dr.appendChild(et);
+  }
+  if(f.urgent || (f.pour || []).length){
+    const m = document.createElement('span'); m.className = 'mlMarques';
+    if(f.urgent){ const fl = document.createElement('span'); fl.className = 'mlDrap'; fl.textContent = '🚩'; m.appendChild(fl); }
+    (f.pour || []).forEach(n => m.appendChild(mlRond(n)));
+    dr.appendChild(m);
+  }
+  const t = document.createElement('span'); t.className = 'mono mlcH'; t.textContent = mlHeure(f.dernierLe);
+  dr.appendChild(t);
+  if(f.nonLus){ const c = document.createElement('b'); c.className = 'ckCpt'; c.textContent = String(f.nonLus); dr.appendChild(c); }
+  d.appendChild(dr);
+
+  d.addEventListener('click', () => mlOuvrir(f.id));
+  return d;
+}
+
 function mlLigne(f){
+  /* ✉️ v1378 — par défaut, la ligne compacte (une par mail) ; sauf en mode
+     « cocher » où la ligne détaillée reste plus lisible. */
+  if(mlCompact && !mlModeChoix) return mlLigneCompacte(f);
   const d = document.createElement('div');
   const ouvert = !!(mlFilOuvert && mlFilOuvert.fil && mlFilOuvert.fil.id === f.id);
   d.className = 'ckIt mlIt' + (ouvert ? ' on' : '') + (f.nonLus ? ' nlu' : ' lu') + (f.urgent ? ' drap' : '');
