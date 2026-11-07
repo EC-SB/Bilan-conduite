@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 11:06 — v1376 */
+/* Déployé le 07/11/2026 à 13:28 — v1377 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1377,
+    date: 'Samedi 7 novembre 2026',
+    resume: '🎨 Nouveau graphisme : le rail des vues (ordinateur et tablette) reçoit enfin ses icônes dessinées',
+    quoi: [
+      { emoji: '🎨',
+        titre: 'Les icônes dans le rail',
+        texte: 'Le panneau des vues sur le côté (ordinateur et tablette paysage) gardait ses emoji : son icône est posée ailleurs que dans les autres boutons, le nouveau graphisme ne la voyait pas. C’est réglé — même icône dessinée et même couleur que partout, y compris rail replié.' }
+    ]
+  },
   {
     version: 1376,
     date: 'Samedi 7 novembre 2026',
