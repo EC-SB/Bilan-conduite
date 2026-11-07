@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 15:23 — v1183 */
+/* Déployé le 07/11/2026 à 17:55 — v1386 */
 /* ============================================================
    🔔 LE SERVICE WORKER — étape 3 de la messagerie
 
@@ -207,6 +207,12 @@ self.addEventListener("push", function (e) {
      pastille posée sans notification visible est interdite par les
      navigateurs, et sur iOS elle ne compterait même pas. */
   e.waitUntil(Promise.all([
+    /* 📉 v1386 — la page ouverte relit sa pastille tout de suite (au lieu
+       d'attendre son battement, passé de 25 s à 60 s pour économiser les
+       appels au Worker) */
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (fenetres) {
+      fenetres.forEach(function (f) { try { f.postMessage({ quoi: "neuf", fil: a.fil || "" }); } catch (err) {} });
+    }),
     lirePastille().then(function (n) { return poserLaPastille(n + 1); }),
     self.registration.showNotification(titre, {
     body: texte,
