@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:30 — v990 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-menage.js
    Ce qu'on garde, et ce qu'on pourrait ne plus garder.
@@ -99,7 +99,7 @@ async function afficherMenage(recharger){
     'voies, pas pour que tu les effaces. Certains commencent tard, ' +
     "d'autres ne viendront jamais.", 'surveille');
 
-  blocMenage(zone, '🎙️ Récitations du coin révisions',
+  blocMenage(zone, '🎙️ Récitations de l’App Évolution Conduites',
     d.recitations,
     'Plus de ' + (r.moisRecitations || 3) + ' mois sans connexion à son ' +
     'espace, <strong>et</strong> aucun cours sur la même période — un élève ' +
@@ -450,7 +450,7 @@ function confirmerDossier(x){
     quoi.push(x.recitations + ' récitation' + (x.recitations > 1 ? 's' : ''));
   }
   quoi.push('sa fiche du répertoire (nom, téléphone, adresse)');
-  quoi.push('son accès au coin révisions');
+  quoi.push('son accès à l’App Évolution Conduites');
   quoi.push('ses cours préparés et ses captures du CEPC');
   quoi.push('sa fiche de suivi');
   quoi.push('ses lignes dans le journal des envois');
@@ -472,7 +472,7 @@ function confirmerRecitations(x){
     '🗑️ Effacer les ' + (x.recitations || '') + ' récitation(s) de ' +
     (x.eleve || '?') + ' ?\n\n' +
     'Son dossier, ses bilans et son accès ne sont PAS touchés : seul le ' +
-    'contenu de son coin révisions part.';
+    'contenu de son App Évolution Conduites part.';
 
   return (typeof confirmer === 'function')
     ? confirmer(message, 'Effacer les récitations', true)
