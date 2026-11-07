@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 16:23 — v1341 */
+/* Déployé le 07/11/2026 à 13:49 — v1378 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1122,6 +1122,9 @@ function dateExamenAVenir(nom){
 
 function afficherRdvPermis(tous){
   const zAP = $('listeAPlacer');
+  /* 📅 v1378 — la liste RDV PERMIS n'existe plus dans la page : si son
+     conteneur a disparu, il n'y a plus rien à dessiner ici. */
+  if(!zAP) return;
 
   const demandes = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
                                     suiviDe(e.eleve).statut !== 'annule');
@@ -2828,7 +2831,10 @@ function estPretAuPermis(e){
    bouton, un élève absent ne se cherche nulle part. */
 function masquePretAuPermis(e){
   const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : {};
-  return s.aPlanifier === 'oui' || s.retireAPrevoir === 'oui';
+  /* 📅 v1378 — « aPlanifier » (l'ancienne liste RDV PERMIS) ne masque
+     plus personne : ces élèves reviennent dans 🚗 Prêts, avec leur
+     période. Seul « retiré de la liste » les écarte encore. */
+  return s.retireAPrevoir === 'oui';
 }
 
 
@@ -2888,14 +2894,254 @@ function pretPourSaintBrieuc(x){
   return /brieuc/i.test(centreDuPret(x)) || suiviDe(x.eleve).okSaintBrieuc === 'oui';
 }
 
-async function mettreDansRdvPermis(nom){
-  /* 📍 v1333 — son centre est déjà rempli avec celui de son agence (modifiable) */
-  const maj = { aPlanifier: 'oui', retireAPrevoir: '' };
+/* ============================================================
+   📅 QUAND LE FAIRE PASSER — LA PÉRIODE D'UN ÉLÈVE PRÊT — v1378
+
+   David, le 7 novembre : « on a changé la manière de fonctionner,
+   maintenant on prend les places et on indique les élèves bien plus
+   tard, donc je n'ai plus besoin de la liste RDV PERMIS ». À la
+   place, sur chaque ligne des 🚗 Prêts, un bouton dit À QUEL MOMENT
+   on veut le faire passer : un mois, et dans ce mois une semaine
+   (celles de 📍 Places, ou une saisie libre), ou « tout le mois ».
+
+   Deux champs du suivi portent le choix :
+     · perMois  — le mois visé, « AAAA-MM » (vide = pas de période)
+     · semaine  — le libellé long d'une semaine de Places, ou un texte
+                  libre, ou vide pour « tout le mois »
+   « semaine » existait déjà (ancienne liste RDV PERMIS) : on le garde
+   tel quel pour que la pose de la date (choisirPlaceExamen) continue
+   de s'y retrouver.
+   ============================================================ */
+let pretsConnus = [];            /* la dernière liste des prêts, pour compter « déjà posés » */
+let filtrePerMois = '';          /* '', 'sans', ou 'AAAA-MM' */
+let filtrePerSem  = '';          /* '', '∅tout', ou le libellé d'une semaine */
+let repartitionOuverte = false;  /* la 📊 Répartition des places, repliée au départ */
+
+function libDeSemaine(w){
+  return libelleSemaine(w) + ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
+}
+function moisDeSemaine(w){ const iso = String(w.du || w.au || ''); return iso.slice(0, 7); }
+function nomDuMoisIso(iso, court){
+  const d = new Date(String(iso || '') + '-15T12:00:00');
+  if(isNaN(d)) return String(iso || '');
+  const s = d.toLocaleDateString('fr-FR', court ? { month: 'short' } : { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function perMoisDe(nom){ return String(suiviDe(nom).perMois || '').trim(); }
+function perSemDe(nom){ return String(suiviDe(nom).semaine || '').trim(); }
+function aUnePeriode(nom){ return !!perMoisDe(nom); }
+
+/* Le libellé court pour le bouton de la ligne : la semaine si elle est
+   connue, sinon « <mois> · tout le mois ». */
+function perLibelleCourt(nom){
+  const sem = perSemDe(nom), mois = perMoisDe(nom);
+  if(sem){
+    const w = toutesSemaines().find(x => memeSemaine(libDeSemaine(x), sem));
+    return w ? semaineCourte(w) : sem.replace(/\s*\(.*\)\s*$/, '');
+  }
+  if(mois) return nomDuMoisIso(mois, false) + ' · tout le mois';
+  return '';
+}
+/* Combien de prêts visent déjà cette semaine (ou ce mois complet) */
+function posesDansPeriode(mois, semLabel){
+  return pretsConnus.filter(e => {
+    if(perMoisDe(e.eleve) !== mois) return false;
+    if(semLabel) return memeSemaine(perSemDe(e.eleve), semLabel);
+    return !perSemDe(e.eleve);
+  }).length;
+}
+
+/* Poser (ou retirer) la période d'un élève, puis redessiner */
+async function poserPeriode(nom, maj){
   if(!String(suiviDe(nom).centre || '').trim() && typeof centreDeBase === 'function') maj.centre = centreDeBase(nom);
+  /* un élève qui reçoit une période n'est plus « retiré de la liste » */
+  if(maj.perMois) maj.retireAPrevoir = '';
   await majSuivi(nom, maj);
-  showToast(nom + ' → 🗓️ RDV PERMIS ✅');
+  await chargerBureau();
   redessinerBureau();
 }
+
+/* ---------- le sélecteur de période, en fenêtre ---------- */
+function ouvrirPeriode(nom){
+  fermerPeriode();
+  const fond = document.createElement('div');
+  fond.className = 'overlay show lcO';
+  fond.id = 'perFond';
+  const boite = document.createElement('div');
+  boite.className = 'modal lcFen perFen';
+  fond.appendChild(boite);
+  fond.addEventListener('click', ev => { if(ev.target === fond) fermerPeriode(); });
+  document.body.appendChild(fond);
+  remplirPeriode(boite, nom);
+}
+function fermerPeriode(){ const f = document.getElementById('perFond'); if(f) f.remove(); }
+
+function remplirPeriode(boite, nom){
+  const sMois = perMoisDe(nom), sSem = perSemDe(nom);
+  boite.innerHTML = '';
+  const tete = document.createElement('div');
+  tete.className = 'perTete';
+  tete.innerHTML = '<strong>📅 ' + (nom) + '</strong><span>le faire passer :</span>';
+  boite.appendChild(tete);
+
+  /* Les mois : ceux de 📍 Places, plus celui déjà choisi s'il manque,
+     triés. On ne garde que les mois encore à venir (mois courant compris). */
+  const moisCourant = (typeof todayLocal === 'function' ? todayLocal() : new Date().toISOString().slice(0, 10)).slice(0, 7);
+  const parMois = {};
+  (typeof placesConfig !== 'undefined' && placesConfig ? placesConfig.mois : []).forEach(m => {
+    if(m.mois && m.mois >= moisCourant) parMois[m.mois] = (m.semaines || []).slice();
+  });
+  if(sMois && !parMois[sMois]) parMois[sMois] = [];
+  const corps = document.createElement('div');
+  corps.className = 'perCorps';
+
+  Object.keys(parMois).sort().forEach(iso => {
+    const bloc = document.createElement('div'); bloc.className = 'perMois';
+    const h = document.createElement('div'); h.className = 'perMoisT'; h.textContent = nomDuMoisIso(iso, false);
+    bloc.appendChild(h);
+    const rang = document.createElement('div'); rang.className = 'lcRang perRang';
+    parMois[iso].slice().sort((a, b) => String(a.du || '').localeCompare(String(b.du || ''))).forEach(w => {
+      const lab = libDeSemaine(w);
+      const actif = !!sSem && memeSemaine(sSem, lab);
+      rang.appendChild(perBouton(semaineCourte(w),
+        [(w.sb || 0) + ' SB · ' + (w.lo || 0) + ' LO', posesDansPeriode(iso, lab) ? posesDansPeriode(iso, lab) + ' posé' : ''].filter(Boolean).join(' · '),
+        actif, () => poserPeriode(nom, { perMois: iso, semaine: lab }).then(fermerPeriode)));
+    });
+    /* tout le mois */
+    const toutActif = iso === sMois && !sSem;
+    rang.appendChild(perBouton('📅 Tout le mois',
+      posesDansPeriode(iso, '') ? posesDansPeriode(iso, '') + ' posé' : '', toutActif,
+      () => poserPeriode(nom, { perMois: iso, semaine: '' }).then(fermerPeriode), 'perTout'));
+    /* une semaine libre dans ce mois */
+    rang.appendChild(perBoutonLibre('➕ Autre semaine…', texte => poserPeriode(nom, { perMois: iso, semaine: texte }).then(fermerPeriode)));
+    bloc.appendChild(rang);
+    corps.appendChild(bloc);
+  });
+  boite.appendChild(corps);
+
+  /* ➕ un autre mois (saisie libre) */
+  const autre = document.createElement('div'); autre.className = 'perAutre';
+  const im = document.createElement('input'); im.type = 'month'; im.className = 'perMoisInput'; if(moisCourant) im.min = moisCourant;
+  const bm = document.createElement('button'); bm.className = 'btn btn-secondary'; bm.textContent = '➕ Ce mois (tout le mois)';
+  bm.addEventListener('click', () => { const v = im.value; if(/^\d{4}-\d{2}$/.test(v)) poserPeriode(nom, { perMois: v, semaine: '' }).then(fermerPeriode); else showToast('Choisis un mois.'); });
+  autre.append(im, bm);
+  boite.appendChild(autre);
+
+  /* pied : pas de période / fermer */
+  const pied = document.createElement('div'); pied.className = 'perPied';
+  if(sMois){
+    const sans = document.createElement('button'); sans.className = 'btn btn-secondary'; sans.textContent = '✕ Pas de période';
+    sans.addEventListener('click', () => poserPeriode(nom, { perMois: '', semaine: '' }).then(fermerPeriode));
+    pied.appendChild(sans);
+  }
+  const fer = document.createElement('button'); fer.className = 'btn btn-secondary'; fer.textContent = 'Fermer';
+  fer.addEventListener('click', fermerPeriode);
+  pied.appendChild(fer);
+  boite.appendChild(pied);
+}
+function perBouton(titre, sous, actif, faire, cls){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn ' + (actif ? 'btn-primary' : 'btn-secondary') + ' perB' + (cls ? ' ' + cls : '');
+  b.innerHTML = '<span class="perBt"></span>' + (sous ? '<small></small>' : '');
+  b.querySelector('.perBt').textContent = titre;
+  if(sous) b.querySelector('small').textContent = sous;
+  b.addEventListener('click', faire);
+  return b;
+}
+function perBoutonLibre(titre, faire){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-secondary perB perLibre';
+  b.textContent = titre;
+  b.addEventListener('click', () => {
+    const t = window.prompt('Semaine à viser (texte libre) :', '');
+    if(t && t.trim()) faire(t.trim());
+  });
+  return b;
+}
+
+/* ---------- la rangée des filtres par période ---------- */
+function rangeePeriodes(liste){
+  const z = document.createElement('div');
+  z.className = 'lcPuces perPuces';
+  const avecMois = {};
+  liste.forEach(e => { const m = perMoisDe(e.eleve); if(m) avecMois[m] = (avecMois[m] || 0) + 1; });
+  const sans = liste.filter(e => !aUnePeriode(e.eleve)).length;
+  const moisTries = Object.keys(avecMois).sort();
+  /* rien à filtrer si tout le monde est sans période et aucun mois posé */
+  if(!moisTries.length && !sans) return z;
+
+  const lab = document.createElement('div'); lab.className = 'lcLab'; lab.textContent = '📅 À faire passer'; z.appendChild(lab);
+  const rang = document.createElement('div'); rang.className = 'lcPuces'; z.appendChild(rang);
+  const puce = (cle, titre, n, actif) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (actif ? 'btn-primary' : 'btn-secondary');
+    b.appendChild(document.createTextNode(titre));
+    const c = document.createElement('span'); c.className = 'n'; c.textContent = String(n); b.appendChild(c);
+    b.addEventListener('click', () => { filtrePerMois = cle; filtrePerSem = ''; redessinerBureau(); });
+    return b;
+  };
+  rang.appendChild(puce('', 'Toutes les périodes', liste.length, !filtrePerMois));
+  moisTries.forEach(m => rang.appendChild(puce(m, nomDuMoisIso(m, false), avecMois[m], filtrePerMois === m)));
+  if(sans) rang.appendChild(puce('sans', 'Sans période', sans, filtrePerMois === 'sans'));
+
+  /* un mois choisi : ses semaines dessous */
+  if(filtrePerMois && filtrePerMois !== 'sans'){
+    const sous = document.createElement('div'); sous.className = 'lcPuces perSem'; z.appendChild(sous);
+    const dansLeMois = liste.filter(e => perMoisDe(e.eleve) === filtrePerMois);
+    const toutMois = dansLeMois.filter(e => !perSemDe(e.eleve)).length;
+    const pSem = (cle, titre, n, actif) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (actif ? 'btn-primary' : 'btn-secondary');
+      b.appendChild(document.createTextNode(titre));
+      const c = document.createElement('span'); c.className = 'n'; c.textContent = String(n); b.appendChild(c);
+      b.addEventListener('click', () => { filtrePerSem = cle; redessinerBureau(); });
+      return b;
+    };
+    sous.appendChild(pSem('', 'Tout le mois (' + nomDuMoisIso(filtrePerMois, false) + ')', dansLeMois.length, !filtrePerSem));
+    /* les semaines de Places pour ce mois */
+    const semVues = {};
+    const mm = (typeof placesConfig !== 'undefined' && placesConfig ? placesConfig.mois : []).find(x => x.mois === filtrePerMois);
+    (mm ? (mm.semaines || []) : []).forEach(w => {
+      const lab2 = libDeSemaine(w);
+      const n = dansLeMois.filter(e => memeSemaine(perSemDe(e.eleve), lab2)).length;
+      semVues[lab2] = 1;
+      if(n) sous.appendChild(pSem(lab2, semaineCourte(w), n, memeSemaine(filtrePerSem, lab2)));
+    });
+    /* une semaine libre déjà utilisée mais absente de Places */
+    const dejaMis = Object.keys(semVues);
+    dansLeMois.forEach(e => {
+      const s = perSemDe(e.eleve);
+      if(s && !dejaMis.some(k => memeSemaine(k, s))){
+        dejaMis.push(s);
+        const n = dansLeMois.filter(x => memeSemaine(perSemDe(x.eleve), s)).length;
+        sous.appendChild(pSem(s, s.replace(/\s*\(.*\)\s*$/, ''), n, memeSemaine(filtrePerSem, s)));
+      }
+    });
+    if(toutMois){
+      /* « tout le mois » explicitement (sans semaine) comme sous-filtre */
+      sous.appendChild(pSem('∅tout', '📅 Mois entier, sans semaine', toutMois, filtrePerSem === '∅tout'));
+    }
+  }
+  return z;
+}
+
+/* ---------- la 📊 répartition des places, gardée ici, repliée ---------- */
+function blocRepartition(liste){
+  const z = document.createElement('div');
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-secondary lcPetit';
+  b.textContent = (repartitionOuverte ? '▾' : '▸') + ' 📊 Répartition des places';
+  b.addEventListener('click', () => { repartitionOuverte = !repartitionOuverte; redessinerBureau(); });
+  z.appendChild(b);
+  if(repartitionOuverte) z.appendChild(tableauAPlacer(liste));
+  return z;
+}
+
 
 function pucesDesPrets(liste, choisi, nAttente){
   /* ⏳ v1331 — « Tous » et « 🔁 Repassages » comptent aussi le raccourci des
@@ -2966,6 +3212,8 @@ function afficherExamensPermis(tous){
      « Tous — par priorité » d'avant), comptées AVANT le filtre */
   const fPer = filtrePermisChoisi || '';
   const tousPer = per.slice();
+  /* 📅 v1378 — la liste connue, pour compter « déjà posés » dans le sélecteur */
+  pretsConnus = tousPer;
   /* ⏳ v1331 — le raccourci des repassages : les ajournés qui attendent
      leur bilan post-permis (ils RESTENT dans ⛔ Pas prêts), ceux qui ne
      sont pas déjà ici (RDV post-permis posé = déjà dans les prêts). */
@@ -2989,6 +3237,14 @@ function afficherExamensPermis(tous){
   if(pretsSansPourrait && fPer !== 'pourrait') per = per.filter(e => !pretPourrait(e));
   else if(fPer === 'sb') per = per.filter(e => pretPourSaintBrieuc(e));
   else if(fPer === 'lo') per = per.filter(e => pretPourLoudeac(e));
+
+  /* 📅 v1378 — puis le filtre par période (mois, puis semaine) */
+  if(filtrePerMois === 'sans') per = per.filter(e => !aUnePeriode(e.eleve));
+  else if(filtrePerMois){
+    per = per.filter(e => perMoisDe(e.eleve) === filtrePerMois);
+    if(filtrePerSem === '∅tout') per = per.filter(e => !perSemDe(e.eleve));
+    else if(filtrePerSem) per = per.filter(e => memeSemaine(perSemDe(e.eleve), filtrePerSem));
+  }
 
   /* Priorité décroissante, puis demande la plus ancienne */
   per.sort((a, b) => {
@@ -3020,34 +3276,27 @@ function afficherExamensPermis(tous){
   zPer.innerHTML = '';
   /* 🗓️ v1329 — les puces, dans la liste (voir filtrePermisChoisi) */
   zPer.appendChild(pucesDesPrets(tousPer, fPer, attenteRacc.length));
+  /* 📅 v1378 — puis le filtre par période (mois / semaine) */
+  zPer.appendChild(rangeePeriodes(tousPer));
+  /* 📊 v1378 — la répartition des places, gardée ici, repliée */
+  zPer.appendChild(blocRepartition(tousPer));
   /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
   boutonAjoutManuel(zPer, 'aprevoir').classList.add('lcPetit');
 
-  /* Un élève écarté par un drapeau doit rester repérable.
-     🗓️ v1329 — sur UNE ligne : combien sont déjà dans RDV PERMIS (Voir ▸
-     y emmène), combien ont été retirés, et de quoi les remettre ici. */
+  /* Un élève retiré de la liste doit rester repérable, et pouvoir
+     y revenir. 📅 v1378 — plus de RDV PERMIS : seuls les « retirés ». */
   if(masques.length){
-    const nRdv = masques.filter(x => suiviDe(x.eleve).aPlanifier === 'oui').length;
-    const nRet = masques.length - nRdv;
+    const nRet = masques.length;
     const m = document.createElement('div');
     m.className = 'lcMasq';
     const t = document.createElement('span');
-    t.textContent = 'ℹ️ ' + [nRdv ? nRdv + ' déjà dans 🗓️ RDV PERMIS' : '',
-                             nRet ? nRet + ' retiré' + (nRet > 1 ? 's' : '') + ' de la liste' : '']
-                            .filter(Boolean).join(' · ');
-    t.title = masques.map(x => x.eleve + (suiviDe(x.eleve).aPlanifier === 'oui'
-      ? ' (dans RDV PERMIS)' : ' (retiré de la liste)')).join('\n');
+    t.textContent = 'ℹ️ ' + nRet + ' retiré' + (nRet > 1 ? 's' : '') + ' de la liste';
+    t.title = masques.map(x => x.eleve + ' (retiré de la liste)').join('\n');
     m.appendChild(t);
-    if(nRdv){
+    if(false){
       const v = document.createElement('button');
       v.className = 'btn btn-secondary';
       v.textContent = 'Voir ▸';
-      v.addEventListener('click', () => {
-        if(typeof filtreDeLaVue !== 'undefined' && typeof majFiltresDeVue === 'function'){
-          filtreDeLaVue.envisager = 'rdvpermis';
-          majFiltresDeVue('envisager');
-        }
-      });
       m.appendChild(v);
     }
     const b = document.createElement('button');
@@ -3098,11 +3347,17 @@ function afficherExamensPermis(tous){
         infoLigne: infoLigneDuPret,
         etiquette: etiquetteDuPret,
         apresEtiquette: x => '📍 ' + centreDuPret(x),
-        actionLigne: x => ({
-          t: '🗓️ RDV PERMIS',
-          titre: 'Mettre ' + x.eleve + ' dans la liste RDV PERMIS',
-          faire: () => mettreDansRdvPermis(x.eleve)
-        }),
+        /* 📅 v1378 — le bouton dit QUAND le faire passer : vide « 📅 Quand ? »,
+           rempli le mois/la semaine. Un appui ouvre le sélecteur. */
+        actionLigne: x => {
+          const lib = perLibelleCourt(x.eleve);
+          return {
+            t: lib ? '📅 ' + lib : '📅 Quand ?',
+            titre: lib ? 'Changer la période de ' + x.eleve : 'Dire quand faire passer ' + x.eleve,
+            classe: lib ? 'perPosee' : '',
+            faire: () => { ouvrirPeriode(x.eleve); return Promise.resolve(); }
+          };
+        },
         /* Demandé par David le 17/09 : la boîte de vitesses se voit
            à côté du nom, sans ouvrir la fiche. C'est la liste où on
            place les examens — et une place BEA ne se donne pas à un
@@ -3130,16 +3385,12 @@ function afficherExamensPermis(tous){
         },
         /* l'urgence se lit dans l'étiquette et dans les boutons 🚦 : plus d'alerte */
         actions: (x, zone) => {
-          /* ① le geste de cette liste */
+          /* ① 📅 v1378 — quand le faire passer (ouvre le sélecteur) */
           const gros = document.createElement('button');
           gros.className = 'btn btn-primary lcGros';
-          gros.dataset.versRdv = '1';
-          gros.textContent = '🗓️ Mettre dans la liste RDV PERMIS';
-          gros.addEventListener('click', async () => {
-            gros.disabled = true;
-            try{ await mettreDansRdvPermis(x.eleve); }
-            catch(err){ showToast('Erreur : ' + err.message); gros.disabled = false; }
-          });
+          const libG = perLibelleCourt(x.eleve);
+          gros.textContent = libG ? '📅 À faire passer : ' + libG + '  ✏️' : '📅 Dire quand le faire passer';
+          gros.addEventListener('click', () => ouvrirPeriode(x.eleve));
           zone.appendChild(gros);
 
           /* ② 🚦 sa priorité, en boutons (le menu « — normal — » sans titre d'avant) */
