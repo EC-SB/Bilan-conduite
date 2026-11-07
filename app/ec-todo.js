@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 16:23 — v1341 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    ec-todo.js — v1278
    ☑️ La todo list : le bouton à côté du 💬, et son volet.
@@ -828,7 +828,9 @@ async function reprendreLesTachesTD(){
      pastille toutes les minutes. */
   setInterval(() => {
     if(typeof ACCES === 'undefined' || !ACCES || !ACCES.code || document.hidden) return;
-    if(TD.ouvert ? Date.now() - TD.charge > 9000 : Date.now() - TD.charge > 60000) chargerTD(false);
+    /* 📉 v1386 — volet ouvert : 20 s ; fermé : la pastille toutes les 5 min (avant : 10 s et 1 min).
+       Ouvrir le volet relit toujours tout de suite. */
+    if(TD.ouvert ? Date.now() - TD.charge > 19000 : Date.now() - TD.charge > 300000) chargerTD(false);
   }, 5000);
   /* un redessin retenu pendant qu'on écrivait se fait en quittant le champ */
   document.addEventListener('focusout', ev => {
