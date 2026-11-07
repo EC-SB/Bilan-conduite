@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 11:10 — v1376 */
+/* Déployé le 07/11/2026 à 13:28 — v1377 */
 /* ============================================================
    🫧 LE NOUVEAU GRAPHISME « VERRE » (Liquid Glass) — v1374
 
@@ -191,11 +191,36 @@
   function glypheDe(emoji){ return EMO2G[emoji] || EMO2G[sansVariante(emoji)] || EMO2G[emoji + '️'] || ''; }
   function couleurDe(emoji){ return EMO_COL[emoji] || EMO_COL[sansVariante(emoji)] || EMO_COL[emoji + '️'] || '#4B5563'; }
 
+  /* Les boutons de la barre des vues (familles + rangées), au rail comme en
+     bas : leur emoji n'est PAS un nœud texte de tête, il vit dans un
+     <span class="logoVue"> (ec-onglets.js le sépare du nom pour pouvoir le
+     garder seul quand le rail se replie). On le traite donc à part : on cache
+     ce span et on pose la .vgl à sa place — l'icône reste là où était le logo,
+     y compris rail replié. */
+  function habillerBoutonVue(el){
+    if(el.getAttribute('data-verre') === '1' && el.querySelector(':scope > .vgl')) return;
+    var logo = el.querySelector(':scope > .logoVue');
+    if(!logo) return false;
+    var t = (logo.textContent || '').trim();
+    var g = glypheDe(t);
+    if(!g || !G[g]) return true;   /* un logo sans glyphe connu : on laisse l'emoji */
+    logo.classList.add('emo');
+    var ic = document.createElement('span');
+    ic.className = 'vgl';
+    ic.style.setProperty('--c', couleurDe(t));
+    ic.innerHTML = svg(g);
+    el.insertBefore(ic, logo);
+    el.setAttribute('data-verre', '1');
+    return true;
+  }
+
   function habillerElement(el){
     /* Déjà fait, et toujours en place : on ne repasse pas. Déjà fait mais
        vidé (un textContent réécrit) : on refait. */
     if(el.getAttribute('data-verre') === '1' && el.querySelector(':scope > .vgl')) return;
     if(el.closest && el.closest('#barreOnglets')) return;
+    /* la barre des vues (rail et bas) : structure logoVue/nomVue, à part */
+    if(el.querySelector && el.querySelector(':scope > .logoVue')){ habillerBoutonVue(el); return; }
     var n = el.firstChild;
     while(n && n.nodeType === 3 && !n.textContent.trim()) n = n.nextSibling;
     if(!n || n.nodeType !== 3) return;
