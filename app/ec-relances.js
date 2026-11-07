@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:10 — v1380 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-relances.js — 📨 LES RELANCES DE L'ONGLET PERMIS — v1380
 
@@ -227,7 +227,10 @@ function rlModele(type){
 }
 function rlRemplir(texte, nom, signature){
   const s = rlSuivi(nom);
-  const prenom = String(nom || '').split(' ')[0];
+  /* v1382 — « MARTIN Léa » → Léa : le premier mot qui n'est pas tout en capitales */
+  const mots = String(nom || '').trim().split(/\s+/).filter(Boolean);
+  const caps = w => w.length > 1 && w === w.toUpperCase() && w !== w.toLowerCase();
+  const prenom = mots.find(w => !caps(w)) || mots[0] || '';
   const dEx = s.dateAjournement || '';
   const dateEx = dEx ? ((typeof dateEnToutesLettres === 'function' && /^\d{4}-\d{2}-\d{2}/.test(dEx)) ? dateEnToutesLettres(dEx) : rlJour(dEx)) : 'ton dernier examen';
   return String(texte || '')
