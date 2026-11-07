@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 09:42 — v1358 */
+/* Déployé le 07/11/2026 à 13:49 — v1378 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1629,7 +1629,7 @@ function ligneCompacteBureau(e, options){
     row.classList.add('lcA');
     const a = document.createElement('button');
     a.type = 'button';
-    a.className = 'btn btn-secondary lcAct';
+    a.className = 'btn btn-secondary lcAct' + (act.classe ? ' ' + act.classe : '');
     a.textContent = act.t;
     if(act.titre) a.title = act.titre;
     a.addEventListener('click', async ev => {
@@ -1637,6 +1637,7 @@ function ligneCompacteBureau(e, options){
       a.disabled = true;
       try{ await act.faire(); }
       catch(err){ showToast('Erreur : ' + err.message); a.disabled = false; }
+      finally{ a.disabled = false; }
     });
     row.appendChild(a);
   }
