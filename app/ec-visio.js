@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:41 — v1381 */
+/* Déployé le 07/11/2026 à 17:51 — v1386 */
 /* ============================================================
    ec-visio.js — 🎥 LE CODE EN VISIO, CÔTÉ ÉQUIPE
 
@@ -828,7 +828,9 @@ function cartesVisioBientot(){
   const proche = visioCoursDuMoment();
   const pres = proche && visioInstant(proche.debut) - Date.now() < 30 * 60000;
   const age = Date.now() - visioAVenirLu;
-  if(!visioAVenirEnCours && (!visioAVenirLu || age > (pres ? 60000 : 300000))){
+  /* 📉 v1386 — aucun cours visio aujourd'hui : un coup d'œil toutes les 15 min suffit */
+  const aujourdhui = ((visioAVenirEtat && visioAVenirEtat.cours) || []).some(c => c.jour === visioJourIci());
+  if(!visioAVenirEnCours && (!visioAVenirLu || age > (pres ? 60000 : aujourdhui ? 300000 : 900000))){
     visioChargerAVenir(true).then(() => { try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){} });
   }
   const c = proche;
