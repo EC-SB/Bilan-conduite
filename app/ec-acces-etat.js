@@ -1,4 +1,4 @@
-/* Déployé le 05/11/2026 à 16:49 — v1361 */
+/* Déployé le 07/11/2026 à 16:13 — v1382 */
 /* ============================================================
    ec-acces-etat.js — 🔑 L'ESPACE ÉLÈVE OUVERT À TOUS, ET QUI A
    REÇU SON ACCÈS
@@ -130,7 +130,7 @@ function pastilleAccesEleve(nom){
   p.type = 'button';
   p.className = 'btn btn-secondary aePastille';
   p.style.display = 'none';
-  p.title = 'Son espace élève — ouvrir 🔑 Coin révisions';
+  p.title = 'Son espace élève — ouvrir 🔑 App Évolution Conduites';
   p.addEventListener('click', () => {
     if(typeof ongletPageEleve !== 'undefined'){
       ongletPageEleve = 'acces';
@@ -173,7 +173,7 @@ function interrupteurEspaceEleve(nom, ouvert, apres){
   b.innerHTML = '<span></span>';
   b.addEventListener('click', async () => {
     if(ouvert && !await confirmer('Fermer l’espace élève de ' + nom + ' ?\n\n' +
-        'Il ne pourra plus entrer dans son coin révisions.\n\n' +
+        'Il ne pourra plus entrer dans son App Évolution Conduites.\n\n' +
         'Rien n’est effacé : son code, ses groupes et sa progression restent, et ça se rouvre du même interrupteur.',
         '🔒 Fermer son espace')) return;
     b.disabled = true;
@@ -432,7 +432,7 @@ async function fenetreOuvrirATous(apres){
         try{
           const texte = cvTexteAcces({ nom: o.eleve, code: o.code, E: p.E, groupes: H.groupes, prog: H.prog, salleFinie: false });
           await appelPrep({ action: 'mailBilan', genre: 'acces', eleve: o.eleve, to: [p.mail],
-                            sujet: 'Ton espace révisions — Évolution Conduites', texte: texte });
+                            sujet: 'Ton accès à l’App Évolution Conduites', texte: texte });
           await noterEnvoiAcces(o.eleve, 'mail');
           mails++;
         }catch(e){ rates.push(o.eleve + ' : ' + e.message); }
