@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:41 — v1398 */
+/* Déployé le 10/11/2026 à 11:56 — v1400 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,35 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1400,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🧊 Espace élève : « Ma voiture en 3D » dans le jeu des vérifications',
+    quoi: [
+      { emoji: '🧊',
+        titre: 'Les vérifications extérieures, sur la voiture en 3D',
+        texte: 'Dans 🧰 Mes vérifs, un nouveau mode : huit questions extérieures, « à revoir » d’abord. L’élève fait le tour de sa voiture (A3 ou Q3, celle qu’il a choisie), ouvre le capot et touche le bon endroit : jauge, bocal du lave-glace, batterie, clignotants côté trottoir, témoin d’usure…' },
+      { emoji: '✅',
+        titre: 'Compté comme les autres modes',
+        texte: 'Juste : +10 XP. Deux erreurs (ou « Je ne sais pas ») : le bon endroit s’allume et la caméra y va, et la question rejoint « À revoir ». 40 des 50 vérifications extérieures s’y jouent ; l’intérieur viendra des photos de David.' }
+    ]
+  },
+  {
+    version: 1399,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🧊 La carrosserie en 3D : on tourne autour de la voiture, on touche pour noter',
+    quoi: [
+      { emoji: '🧊',
+        titre: '« 🗺️ À plat · 🧊 3D » dans 🩹 Carrosserie',
+        texte: 'Pour les A3 et les Q3 : la voiture en volume, qui tourne doucement. Les boutons Conducteur, Passager, Avant, Arrière, Dessus y emmènent d’un geste. Le choix est gardé sur l’appareil.' },
+      { emoji: '🩹',
+        titre: 'Les dommages, en pastilles',
+        texte: 'Chaque dommage est posé sur la carrosserie, à sa couleur (à réparer, réparé, laissé…). Une pastille touchée s’ouvre comme d’habitude ; toucher la carrosserie ailleurs propose d’y noter un dommage.' },
+      { emoji: '🔒',
+        titre: 'Rien ne change dans ce qui est gardé',
+        texte: 'Un dommage noté en 3D est enregistré exactement comme à plat (la vue et sa position) : les vues à plat et l’état des lieux imprimé le montrent au même endroit.' }
+    ]
+  },
   {
     version: 1398,
     date: 'Mardi 10 novembre 2026',
