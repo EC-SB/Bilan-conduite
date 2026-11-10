@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:00 — v1407 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -3563,24 +3563,21 @@ function confirmerFinDeCours(){
     }
     lienMess =
       '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" ' +
-      'class="btn btn-secondary" style="margin-top:10px;padding:13px;font-size:14px;' +
+      'class="btn btn-secondary" style="margin-top:8px;padding:8px 12px;font-size:12.5px;' +
       'text-decoration:none;display:block;text-align:center;">' +
-      '💬 Ouvrir le Messenger de ' + eleve.split(' ')[0] + '</a>';
+      '💬 En secours : ouvrir son Messenger</a>';
   }
 
   boite.insertAdjacentHTML('beforeend',
     '<h3>✅ Bilan enregistré</h3>' +
     '<div style="font-size:15px;line-height:1.6;margin-bottom:6px;">' +
       'Le bilan de <strong>' + (eleve || 'cet élève').replace(/</g, '&lt;') +
-      '</strong> est enregistré et <strong>copié</strong>.<br>' +
-      'Tu peux le coller directement sur son Messenger.' +
+      '</strong> est enregistré : il le retrouve dans son espace (📖 Mes leçons).<br>' +
+      'Envoie-le-lui par mail ci-dessous. Il est aussi <strong>copié</strong>, si tu dois le coller ailleurs.' +
     '</div>' +
-    (mess
-      ? '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
-        '💬 Son Messenger : <strong>' + mess.replace(/</g, '&lt;') + '</strong></div>' + lienMess
-      : '<div style="font-size:12px;color:var(--warn-text);line-height:1.5;margin-top:6px;">' +
-        "⚠️ Aucun Messenger enregistré pour cet élève. Pense à le saisir au " +
-        'démarrage du prochain cours.</div>'));
+    /* 💬 v1409 — Messenger n'est plus qu'un secours (David : « on garde en
+       secours le temps de la transition ») : plus d'alerte s'il manque */
+    (mess ? lienMess : ''));
 
   /* ------------------------------------------------------------
      LE BOUTON D'ENVOI EST TOUJOURS LÀ.
