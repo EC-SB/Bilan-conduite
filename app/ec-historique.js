@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 09:16 — v1222 */
+/* Déployé le 10/11/2026 à 16:00 — v1407 */
 /* ============================================================
    ec-historique.js
    Le cours en train de se faire : on le dit, et on dit qu'il est
@@ -143,6 +143,23 @@ async function envoyerLigneDeBilan(data){
       const l = segmentsARevoirDuCours();
       if(l.length) data.revoirParcours = JSON.stringify(l);
     }catch(e){ /* rien de coché lisible : le bilan part sans */ }
+  }
+  /* 📍 v1407 — LES ÉTAPES DE L'ESPACE ÉLÈVE ÉCRITES DANS LE BILAN (sous une
+     procédure, ou posées avec « 🔗 Lien élève ») s'épinglent aussi 📌 dans
+     son Réviser : même chemin que les « à revoir » cochés, sans doublon. */
+  if(data && data.bilan && typeof liensEleveDuTexte === 'function'){
+    try{
+      let l = [];
+      try{ l = JSON.parse(String(data.revoirParcours || '[]')) || []; }catch(e){ l = []; }
+      const vus = {};
+      l.forEach(x => { if(x && x.guide) vus[x.guide + '::' + (x.segment || '')] = 1; });
+      liensEleveDuTexte(data.bilan).forEach(x => {
+        if(vus[x.cle]) return;
+        vus[x.cle] = 1;
+        l.push({ guide: x.guide, segment: x.segment, titre: x.titre || '' });
+      });
+      if(l.length) data.revoirParcours = JSON.stringify(l.slice(0, 20));
+    }catch(e){ /* un lien illisible : le bilan part quand même */ }
   }
 
   const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
