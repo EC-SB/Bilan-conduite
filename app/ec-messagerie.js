@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 17:51 — v1386 */
+/* Déployé le 10/11/2026 à 09:19 — v1390 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -340,6 +340,8 @@ async function afficherMessagerie(silencieux){
     const d = await appelPrep({ action: 'convList',
       fermees: quellesFermeesPour(filtreMessagerie) });
     conversationsEC = (d && d.conversations) || [];
+    /* 🚗 v1390 — les conversations des véhicules se créent toutes seules */
+    if(typeof assurerLesFilsVehiculesEC === 'function') setTimeout(() => assurerLesFilsVehiculesEC(), 1500);
     /* 🏷️ 👤 v1366 — le catalogue d'étiquettes et les personnes (couleurs) */
     if(d && Array.isArray(d.etiquettes)) catalogueEtiquettesEC = d.etiquettes;
     if(d && Array.isArray(d.personnes)) personnesEC = d.personnes;
@@ -507,6 +509,7 @@ function dessinerLaListeMessagerie(){
       ? "Aucune conversation pour l'instant.<br>Ouvre-en une avec ✏️."
       : (!filtreMessagerie && ongletMsgEC === 'nonlus') ? '🎉 Rien de non lu.<br><span style="font-size:12px;">Tout est lu — le reste est dans « Tout ».</span>'
       : (!filtreMessagerie && ongletMsgEC === 'permis') ? '🏁 Aucun groupe du permis en cours.<br><span style="font-size:12px;">Ils se créent depuis 🚗 Permis › 📣 Préparation.</span>'
+      : (!filtreMessagerie && ongletMsgEC === 'vehicules') ? '🚗 Les conversations des véhicules arrivent…<br><span style="font-size:12px;">Une par véhicule de ⚙️ Gestion › Flotte, créée toute seule.</span>'
       : 'Rien ici.';
     sc.appendChild(v);
     return;
@@ -618,7 +621,9 @@ function ligneConversationCorps(c, d, enChoix){
   const av = document.createElement('div');
   av.className = 'ckAv' + (rouge ? ' rouge' : n ? ' nl' : '');
   /* 🖼️ v1163 — la photo de la personne en face, sinon les initiales */
-  if(typeof poserPhotoDans === 'function') poserPhotoDans(av, clePhotoDuFil(c), ckInitiales(c));
+  /* 🚗 v1390 — un véhicule : le numéro de son garage à la place de la photo */
+  if(c.vehicule && typeof rondVehiculeEC === 'function') rondVehiculeEC(av, c);
+  else if(typeof poserPhotoDans === 'function') poserPhotoDans(av, clePhotoDuFil(c), ckInitiales(c));
   else av.textContent = ckInitiales(c);
   d.appendChild(av);
 
@@ -1372,6 +1377,10 @@ function dessinerLeFil(){
     zone.appendChild(s);
   }
 
+  /* 🚗 v1390 — la conversation d'un véhicule : garage, kilométrage, plaque */
+  const veh = (typeof hautDuFilVehiculeEC === 'function') ? hautDuFilVehiculeEC(f) : null;
+  if(veh) zone.appendChild(veh);
+
   /* --- ⏰ 🧤 le bandeau du retard ou de l'objet --- */
   const pan = ckPanneauDuFil(f, !large);
   if(pan) zone.appendChild(pan);
@@ -1446,6 +1455,9 @@ function dessinerLeFil(){
 
   /* --- 📅 le créneau en cours de rédaction --- */
   if(ckCreneauOuvert && f.peutEcrire && c.eleve) zone.appendChild(ckFormCreneau(f));
+  /* 🚗 v1390 — le petit formulaire d'un geste du véhicule (souci, RDV…) */
+  const fv = (typeof formulaireDuFilVehiculeEC === 'function') ? formulaireDuFilVehiculeEC(f) : null;
+  if(fv) zone.appendChild(fv);
 
   /* --- écrire --- */
   if(f.peutEcrire){
