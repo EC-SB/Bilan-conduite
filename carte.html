@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 11:41 — v1398 -->
+<!-- Déployé le 10/11/2026 à 11:56 — v1400 -->
 <!-- ============================================================
      LE TRAJET DU COURS, EN GRAND — v1002
 
@@ -433,7 +433,7 @@ const nature = (t) => NATURES[t] || NATURES.repere;
     zone3d.innerHTML = '<div class="vide">⏳ La 3D se prépare…</div>';
     try{
       window.CONFIG = window.CONFIG || { WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev' };
-      if(typeof EC3D === 'undefined') await charger('app/ec-3d.js?v=1398');
+      if(typeof EC3D === 'undefined') await charger('app/ec-3d.js?v=1400');
       if(typeof rejouerTrajet3D !== 'function') await charger('app/ec-trajet3d.js?v=1398');
       rejeu = await rejouerTrajet3D(zone3d, { points: points, reperes: reperes, natures: NATURES });
     }catch(e){
