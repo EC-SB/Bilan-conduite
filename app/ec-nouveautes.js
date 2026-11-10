@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 13:14 — v1402 */
+/* Déployé le 10/11/2026 à 13:42 — v1403 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1403,
+    date: 'Mardi 10 novembre 2026',
+    resume: '📷 La 3D : le Q3 scanné par David, et une A3 Sportback redessinée',
+    quoi: [
+      { emoji: '📷',
+        titre: 'Le vrai Q3 de l’école, en 3D',
+        texte: 'Le scan de David (Scaniverse, iPhone) remplace le Q3 dessiné : lettrage, plaque et panneau « Véhicule-école » compris. Nettoyé (sol et abri retirés), remis droit et allégé. Il sert partout : 🧰 Mes vérifs de l’élève (le capot s’ouvre toujours sur le compartiment moteur), la carrosserie en 3D, le parc en direct et le trajet rejoué.' },
+      { emoji: '🚗',
+        titre: 'Une A3 Sportback redessinée',
+        texte: 'En attendant son scan : une carrosserie moulée d’après les cotes de l’A3 Sportback 2020+ (4,34 m, empattement 2,64 m), avec ses vitres, sa calandre, ses feux et ses joints de portes dessinés, sans les marches d’escalier d’avant.' },
+      { emoji: '🎯',
+        titre: 'Le jeu des vérifications vise sur le scan',
+        texte: 'Phares, clignotants, feux, plaques, trappe, balais, pneus… sont des zones posées sur la voiture : on touche le vrai phare du scan, et c’est lui qui s’allume en vert ou en rouge.' }
+    ]
+  },
   {
     version: 1402,
     date: 'Mardi 10 novembre 2026',
