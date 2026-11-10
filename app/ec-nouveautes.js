@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:56 — v1400 */
+/* Déployé le 10/11/2026 à 13:14 — v1402 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,41 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1402,
+    date: 'Mardi 10 novembre 2026',
+    resume: '📝 Espace élève : le bilan post-permis sur le modèle de David, avec son CEPC et le bilan du moniteur · 🎥 la visio du code = la colonne Visio seulement',
+    quoi: [
+      { emoji: '📷',
+        titre: 'Son CEPC et le bilan de son moniteur, au-dessus de son bilan',
+        texte: 'Dans l’onglet Bilan de l’élève ajourné : les captures du CEPC collées au ❌ Ajourné (touchées : en grand), puis le bilan d’examen du moniteur, tel quel, avec son prénom et son émoji — dès le départ.' },
+      { emoji: '📝',
+        titre: 'Ton modèle, ligne à ligne',
+        texte: 'Les 14 lignes du CEPC : « As-tu eu tous les points ? » ✅ Oui / ❌ Non. Non sur une ligne où l’éliminatoire existe : les 3 questions ▶️ ; sur les autres : « Pourquoi ? ». Puis la grille de l’inspecteur (le guide 16 de « Examen pratique du permis de conduire », Mise en pratique) et les 4 questions de la fin, obligatoires. Dans sa fiche, son bilan se lit dans cet ordre.' },
+      { emoji: '🗂️',
+        titre: 'Une icône pour l’onglet Bilan',
+        texte: 'La feuille cochée, au même trait que les autres onglets (fini l’émoji 📝).' },
+      { emoji: '🎥',
+        titre: 'Le bandeau « cours de code en visio » ne se trompe plus de colonne',
+        texte: 'Seule la colonne « Visio » de Drivup compte : un élève réservé en code ETG (salle) n’est plus annoncé en visio, ni dans le bandeau, ni sur son espace, ni dans le mail du matin.' }
+    ]
+  },
+  {
+    version: 1401,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🗺️ Page du trajet : les remarques du bilan en entier, le logo de l’école, un tracé visible de loin',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Ce qu’ont écrit l’inspecteur et le moniteur, comme dans le bilan',
+        texte: 'Sous chaque point de la page du trajet (la liste, la bulle du plan et la fiche de la 3D) : la remarque de l’inspecteur et la réponse du moniteur, sur plusieurs lignes, avec l’émoji du moniteur. Un cours de onze points perdait ses remarques parce que le lien devenait trop long ; il voyage maintenant compacté (trois fois plus court). Les mails déjà envoyés gardent leur ancien lien ; les cours rouverts depuis le dossier ont le nouveau.' },
+      { emoji: '🏠',
+        titre: 'Le logo sur l’auto-école, pour se repérer',
+        texte: 'Les bureaux de Saint-Brieuc et de Loudéac apparaissent avec le logo, sur le plan et dans le rejeu en 3D.' },
+      { emoji: '🧊',
+        titre: 'Le tracé se voit quand on dézoome',
+        texte: 'Dans « Rejouer en 3D », le trait s’élargit quand on s’éloigne et reste au-dessus du plan : on suit le trajet entier même vu de haut. Le trait restant est d’un vert plus franc, le parcouru en vert foncé.' }
+    ]
+  },
   {
     version: 1400,
     date: 'Mardi 10 novembre 2026',
