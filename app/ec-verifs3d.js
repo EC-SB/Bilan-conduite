@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:56 — v1400 */
+/* Déployé le 10/11/2026 à 13:42 — v1403 */
 /* ============================================================
    ec-verifs3d.js — 🧰 LES VÉRIFICATIONS EXTÉRIEURES, EN 3D
 
@@ -70,6 +70,7 @@ function verifs3dQuestions(){ return Object.keys(VERIFS3D_CIBLES).map(Number); }
 
 async function creerVoitureVerifs3D(hote, o){
   await EC3D.charger();
+  if(EC3D.scans) await EC3D.scans(false, 10000);   /* 📷 v1403 — le Q3 scanné */
   const T = EC3D.T;
   hote.innerHTML = '';
   let touche = false, ouvert = false, angle = 0, angleVise = 0;
@@ -98,12 +99,15 @@ async function creerVoitureVerifs3D(hote, o){
     (v.parts[part] || []).forEach(m => {
       if(!m.material) return;
       if(!m.userData.matOrigine){ m.userData.matOrigine = m.material; m.material = m.material.clone(); }
-      if(m.material.emissive){ m.material.emissive = new T.Color(couleur); m.material.emissiveIntensity = 0.9; }
+      /* 📷 v1403 — une ZONE (invisible, posée sur le scan ou sur une pièce
+         dessinée) : elle apparaît, en couleur, le temps de l'éclat */
+      if(m.material.transparent && m.material.opacity < 0.05){ m.material.opacity = 0.62; m.material.color = new T.Color(couleur); m.renderOrder = 4; }
+      else if(m.material.emissive){ m.material.emissive = new T.Color(couleur); m.material.emissiveIntensity = 0.9; }
       else if(m.material.color) m.material.color = new T.Color(couleur);   /* une plaque (sans lumière propre) : on la teinte */
       allumees.push({ m: m, fin: duree ? performance.now() + duree : 0 });
     });
   }
-  function eteindre(m){ if(m.userData.matOrigine){ m.material.dispose(); m.material = m.userData.matOrigine; delete m.userData.matOrigine; } }
+  function eteindre(m){ if(m.userData.matOrigine){ m.material.dispose(); m.material = m.userData.matOrigine; delete m.userData.matOrigine; m.renderOrder = 0; } }
   function toutEteindre(){ allumees.splice(0).forEach(x => eteindre(x.m)); }
 
   /* l'endroit d'une pièce, pour y emmener la caméra */
@@ -140,6 +144,7 @@ async function creerVoitureVerifs3D(hote, o){
       const x = allumees[i];
       if(x.fin && t > x.fin){ eteindre(x.m); allumees.splice(i, 1); }
       else if(!x.fin && x.m.material && x.m.material.emissiveIntensity != null) x.m.material.emissiveIntensity = 0.55 + 0.45 * Math.sin(t / 180);
+      else if(!x.fin && x.m.material && x.m.material.transparent && x.m.userData.matOrigine && x.m.userData.matOrigine.opacity < 0.05) x.m.material.opacity = 0.45 + 0.25 * Math.sin(t / 180);
     }
   });
 
