@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 11:03 — v1394 -->
+<!-- Déployé le 10/11/2026 à 11:56 — v1400 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -12056,6 +12056,8 @@
       else if(jvNbPlacees(voit.id)) mode('voiture', '🚗', 'Ma voiture, en vrai', 'Sur les photos de ta ' + echapper(voit.nom) + ' : fais les gestes dans l’ordre, montre le bon endroit.', 0, true, jvMaVoiture);
     }
     mode('jourj', '🎯', 'Le jour J', 'Une question tirée au sort, lue par l’inspecteur. Tu réponds à voix haute : noté sur 3, comme à l’examen.', 0, !(voit && jvNbPlacees(voit.id)), jvJourJ);
+    /* 🧊 v1400 — les vérifications extérieures, sur une voiture en 3D */
+    if(jv3dPossible()) mode('3d', '🧊', 'Ma voiture en 3D', 'Fais le tour de ' + (voit ? 'ta ' + echapper(voit.nom) : 'la voiture') + ', ouvre le capot, et touche le bon endroit.', 0, false, jvEn3D);
     /* 🚨 v1250 — le bon voyant, sur le tableau de bord de sa voiture */
     var nbVoyants = voit ? jvVoyantsPlaces(voit.id).length : 0;
     if(nbVoyants) mode('voyants', '🚨', 'Le bon voyant', 'Contre la montre, sur le tableau de bord de ta ' + echapper(voit.nom) + (JV.d.voyants.record ? ' · record : ' + JV.d.voyants.record : '') + '.', 0, false, jvBonVoyant);
@@ -12985,6 +12987,145 @@
     jvEntrainement([choix[Math.floor(Math.random() * choix.length)]], 'voiture');
   }
 
+
+  /* ============================================================
+     🧊 MA VOITURE EN 3D — v1400
+
+     David (schéma 3D) : les vérifications sur un modèle qui ressemble
+     à NOS voitures, une A3 et un Q3 (pour l'intérieur : ses photos,
+     plus tard). Huit questions EXTÉRIEURES tirées parmi celles qui se
+     montrent dehors (voir ec-verifs3d.js, la table), « à revoir »
+     d'abord. L'élève tourne autour, ouvre le capot (un appui dessus)
+     et touche le bon endroit. Juste : +10 XP, comme partout. Deux
+     erreurs : on lui montre le bon endroit, et la question revient
+     « à revoir », comme dans les autres modes.
+
+     ⚠️ LA 3D NE SE TÉLÉCHARGE QU'ICI : three.js, puis ec-3d.js et
+     ec-verifs3d.js, à côté de la page (eleve.evolutionconduites.fr,
+     recopiés par coin-revisions.yml) ou dans app/ (le dépôt principal).
+     ============================================================ */
+  function jv3dPossible(){
+    try{ var c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl'))); }
+    catch(e){ return false; }
+  }
+  function jvCharger3D(){
+    var un = function(noms, pret){
+      if(pret()) return Promise.resolve();
+      return new Promise(function(ok, ko){
+        var essais = noms.slice();
+        var essayer = function(){
+          if(!essais.length){ ko(new Error('La 3D n’a pas pu se charger.')); return; }
+          var s = document.createElement('script');
+          s.src = essais.shift();
+          s.onload = function(){ if(pret()) ok(); else essayer(); };
+          s.onerror = function(){ if(s.parentNode) s.remove(); essayer(); };
+          document.head.appendChild(s);
+        };
+        essayer();
+      });
+    };
+    window.CONFIG = window.CONFIG || { WORKER_URL: RELAIS };
+    return un(['ec-3d.js?v=1400', 'app/ec-3d.js?v=1400'], function(){ return typeof EC3D !== 'undefined'; })
+      .then(function(){ return un(['ec-verifs3d.js?v=1400', 'app/ec-verifs3d.js?v=1400'], function(){ return typeof creerVoitureVerifs3D === 'function'; }); })
+      .then(function(){ return EC3D.charger(); });
+  }
+  function jvEn3D(){
+    JV.ronde = '3d';
+    var r = jvRacine();
+    var tete = jvTete(r, '🧊 Ma voiture en 3D');
+    var c0 = jvEl('div', 'card', '<div style="text-align:center;color:var(--muted);padding:30px 0">⏳ La voiture arrive…</div>');
+    r.appendChild(c0);
+    jvCharger3D().then(function(){
+      if(!document.body.contains(r)) return;
+      r.removeChild(c0);
+      jvPartie3D(r, tete);
+    }).catch(function(e){
+      c0.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px 0">' + echapper((e && e.message) || 'La 3D n’a pas pu se charger.') + '</div>';
+      c0.appendChild(jvBouton('🏠 Accueil', 'btn btn-secondary', jvAccueil));
+    });
+  }
+  function jvPartie3D(r, tete){
+    var voit = jvVoiture();
+    /* les questions : celles qui se montrent dehors ; à revoir d'abord, puis les moins sues */
+    var revoir = {};
+    jvARevoir().forEach(function(x){ revoir[x.n] = 1; });
+    var l = verifs3dQuestions().filter(function(n){ return !!jvQuestion(n); });
+    for(var i = l.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = l[i]; l[i] = l[j]; l[j] = t; }
+    l.sort(function(a, b){ return (revoir[b] ? 1 : 0) - (revoir[a] ? 1 : 0) || jvEtat(a, 'v')[0] - jvEtat(b, 'v')[0]; });
+    /* deux formulations de la même vérification : une seule par partie */
+    var vues = {}, tours = [];
+    l.forEach(function(n){ var k = (VERIFS3D_CIBLES[n] || []).join('+'); if(!vues[k] && tours.length < 8){ vues[k] = 1; tours.push(n); } });
+    var bulle = jvEl('div', 'jvBulle', '');
+    r.appendChild(bulle);
+    var c = jvEl('div', 'card');
+    c.style.cssText = 'margin-top:8px;padding:10px';
+    var hote = jvEl('div', '');
+    hote.style.cssText = 'position:relative;overflow:hidden;border-radius:14px;height:min(62vh, 460px);min-height:280px;background:#E9E7E1;touch-action:none';
+    var toast = jvEl('div', 'jvToast', '');
+    c.appendChild(hote);
+    var outils = jvEl('div', 'jvOutils');
+    c.appendChild(outils);
+    var score = jvEl('div', 'jvScore', '');
+    c.appendChild(score);
+    r.appendChild(c);
+    var k = 0, bons = 0, gain = 0, essais = 0, fini = false, voiture = null;
+    var dire = function(t, kk){
+      toast.textContent = t; toast.className = 'jvToast on ' + (kk || '');
+      clearTimeout(toast._t); toast._t = setTimeout(function(){ toast.className = 'jvToast'; }, 1800);
+    };
+    var majScore = function(){ score.textContent = '🏁 ' + bons + ' / ' + tours.length + ' · +' + gain + ' XP'; };
+    var finTour = function(ok){
+      if(fini) return;
+      fini = true;
+      var n = tours[k];
+      jvNoter(n, 'v', ok);
+      if(ok){ bons++; gain += 10; jvBip('ok'); }
+      else{ jvBip('ko'); voiture.montrer(voiture.cibles(n)); dire('👉 C’était ' + (VERIFS3D_NOMS[voiture.cibles(n)[0]] || 'ici'), 'ko'); }
+      majScore();
+      setTimeout(function(){ if(!document.body.contains(r)) return; k++; tour(); }, ok ? 1100 : 2600);
+    };
+    var tour = function(){
+      if(k >= tours.length){ if(voiture) voiture.detruire(); return jvResultat('🧊 Ma voiture en 3D', bons, tours.length, gain, jvEn3D, null, 'vérifications extérieures'); }
+      fini = false; essais = 0;
+      var n = tours[k];
+      var d = jvPartieDemandee(n, 'v');
+      tete.querySelector('.q').textContent = '🧊 En 3D · ' + (k + 1) + ' / ' + tours.length;
+      bulle.innerHTML = '<span class="qui">👮 Question ' + n + ' <span class="jvType VE">VE</span></span>';
+      bulle.appendChild(document.createTextNode(d.q));
+      jvDire(d.q);
+      if(k) voiture.recentrer();
+      outils.innerHTML = '';
+      outils.appendChild(jvBouton('🔧 ' + (voiture.capotOuvert() ? 'Fermer' : 'Ouvrir') + ' le capot', 'btn btn-secondary jvCapot', function(ev){
+        var o2 = !voiture.capotOuvert(); voiture.ouvrirCapot(o2);
+        ev.currentTarget.textContent = '🔧 ' + (o2 ? 'Fermer' : 'Ouvrir') + ' le capot';
+      }));
+      outils.appendChild(jvBouton('🙋 Je ne sais pas', 'btn btn-secondary', function(){ if(!fini){ dire('On regarde ensemble', ''); finTour(false); } }));
+      majScore();
+    };
+    var surPiece = function(part){
+      if(fini) return;
+      var n = tours[k], bonnes = voiture.cibles(n);
+      if(bonnes.indexOf(part) !== -1){ voiture.eclair(part, true); dire('✅ Oui, ' + (VERIFS3D_NOMS[part] || 'c’est ça'), 'ok'); finTour(true); return; }
+      /* le capot fermé : un appui l'ouvre (ce n'est pas une erreur) */
+      if(part === 'capot' && !voiture.capotOuvert()){
+        voiture.ouvrirCapot(true);
+        var bc = outils.querySelector('.jvCapot'); if(bc) bc.textContent = '🔧 Fermer le capot';
+        dire('🔧 Capot ouvert', '');
+        return;
+      }
+      essais++;
+      voiture.eclair(part, false);
+      dire('❌ Ça, c’est ' + (VERIFS3D_NOMS[part] || 'autre chose'), 'ko');
+      if(essais >= 2) setTimeout(function(){ finTour(false); }, 700);
+    };
+    creerVoitureVerifs3D(hote, { modele: voit ? EC3D.modeleDuNom(voit.nom) : 'a3', immat: '', surPiece: surPiece }).then(function(vv){
+      voiture = vv;
+      hote.appendChild(toast);
+      tour();
+    }).catch(function(e){
+      hote.innerHTML = '<div style="padding:30px;text-align:center;color:#64655F">' + echapper((e && e.message) || 'La 3D n’a pas pu se charger.') + '</div>';
+    });
+  }
 
   /* ============================================================
      🚨 LE BON VOYANT — v1250 (livraison ③)
