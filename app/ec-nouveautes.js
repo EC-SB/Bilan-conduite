@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 18:09 — v1387 */
+/* Déployé le 10/11/2026 à 09:19 — v1390 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1390,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🚗 Une conversation par véhicule dans la messagerie, avec le kilométrage et les boutons garage, souci, accident',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'La catégorie « Véhicules »',
+        texte: 'Après « Permis », une conversation de groupe par véhicule de la Flotte, avec toute l’équipe. Le rond montre le numéro du garage où il dort. Le nom se change dans ⋯ › ✏️ Renommer.' },
+      { emoji: '🔢',
+        titre: 'Le kilométrage en haut',
+        texte: 'Touchez-le pour le changer : il va directement dans la fiche du véhicule. Le garage se change au même endroit, et ce qui reste ouvert (souci, rendez-vous) s’affiche dessous.' },
+      { emoji: '⚡',
+        titre: 'Cinq boutons rapides',
+        texte: '⚠️ Signaler un souci, 🔧 RDV garage, 🩹 Carrosserie, 🚨 Accident et 🛞 Pneu crevé (ces deux avec votre position GPS). Le message part dans la conversation ET s’inscrit dans la fiche du véhicule.' }
+    ]
+  },
   {
     version: 1387,
     date: 'Samedi 7 novembre 2026',
