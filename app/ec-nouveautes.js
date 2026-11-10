@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:07 — v1395 */
+/* Déployé le 10/11/2026 à 11:17 — v1396 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1396,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🌐 Mails du site internet : une conversation par personne, plus un seul grand fil',
+    quoi: [
+      { emoji: '🌐',
+        titre: 'Chacun son fil',
+        texte: 'Les mails du formulaire du site arrivaient tous dans la même conversation (même adresse d’envoi, même objet). L’appli lit maintenant qui a rempli le formulaire (son « Répondre à », ou l’adresse écrite dans le mail) : un fil par personne, regroupés seulement quand c’est la même.' },
+      { emoji: '↩️',
+        titre: 'La réponse part à la bonne personne',
+        texte: 'Répondre à un de ces mails écrit à la personne du formulaire, plus à l’adresse du site. Et si son adresse est sur une fiche, le fil se rattache à l’élève.' },
+      { emoji: '🧹',
+        titre: 'Le grand fil d’avant, démêlé',
+        texte: 'Les mails du site déjà reçus sont redistribués tout seuls à la prochaine relève, chacun chez son expéditeur. Ce qui ne dit pas qui l’a envoyé reste où il était.' }
+    ]
+  },
   {
     version: 1395,
     date: 'Mardi 10 novembre 2026',
