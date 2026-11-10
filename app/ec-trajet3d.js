@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:41 — v1398 */
+/* Déployé le 10/11/2026 à 12:16 — v1401 */
 /* ============================================================
    ec-trajet3d.js — 🧊 LE TRAJET DU COURS, REJOUÉ EN 3D
 
@@ -22,8 +22,9 @@
    que dit le bilan s'affiche (thème, l'inspecteur, le moniteur).
 
    Appel : rejouerTrajet3D(hote, { points: [[lat, lon], …],
-   reperes: [{ n, heure, nom, lat, lon, type, theme, insp, mon }],
-   natures: { repere: { icone, couleur, mot }, … } })
+   reperes: [{ n, heure, nom, lat, lon, type, theme, insp, mon, emo }],
+   natures: { repere: { icone, couleur, mot }, … },
+   bureaux: [{ nom, lat, lon }], logo: 'icone-192.png' })
    → { detruire() }. Il faut EC3D (ec-3d.js), chargé avant.
    ============================================================ */
 
@@ -63,26 +64,60 @@ async function rejouerTrajet3D(hote, o){
     return { pos: new T.Vector3().lerpVectors(a, b, t), cap: Math.atan2(-(b.z - a.z), b.x - a.x), i: i };
   };
 
-  /* ---- le ruban : le trait entier en pâle, le parcouru en vert ---- */
-  const ruban = (larg, y, couleur, opacite) => {
-    const pos = [], idx = [];
-    for(let i = 0; i < P.length; i++){
-      const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
-      const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l * larg / 2, nz = dx / l * larg / 2;
-      pos.push(P[i].x + nx, y, P[i].z + nz, P[i].x - nx, y, P[i].z - nz);
-      if(i){ const j = (i - 1) * 2; idx.push(j, j + 1, j + 2, j + 1, j + 3, j + 2); }
-    }
+  /* ---- le ruban : le trait entier en pâle, le parcouru en vert ----
+     ⚠️ v1401 — IL S'ÉLARGIT QUAND ON S'ÉLOIGNE. David : « on ne voit
+     pas bien le tracé quand on est dézoomé ». À cinq mètres de large,
+     le trait disparaissait sous le plan dès qu'on regardait la ville
+     entière (et se battait avec le sol pour la profondeur). Sa largeur
+     suit maintenant la distance de la caméra (quelques pixels à
+     l'écran, au moins), et il se soulève un peu du sol. On ne le
+     refait que quand la largeur change d'un cran (×1,25). */
+  const ruban = (larg, y, couleur, opacite, ordre) => {
+    const idx = [];
+    for(let i = 1; i < P.length; i++){ const j = (i - 1) * 2; idx.push(j, j + 1, j + 2, j + 1, j + 3, j + 2); }
     const geo = new T.BufferGeometry();
-    geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    const attr = new T.Float32BufferAttribute(new Float32Array(P.length * 6), 3);
+    geo.setAttribute('position', attr);
     geo.setIndex(idx);
-    const m = new T.Mesh(geo, new T.MeshBasicMaterial({ color: couleur, side: T.DoubleSide, transparent: opacite < 1, opacity: opacite, depthWrite: false }));
+    const m = new T.Mesh(geo, new T.MeshBasicMaterial({ color: new T.Color(couleur).convertSRGBToLinear(), side: T.DoubleSide, transparent: true, opacity: opacite, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+    m.renderOrder = ordre;   /* le blanc, puis le pâle, puis le parcouru : toujours dans cet ordre */
     scene.scene.add(m);
-    return m;
+    const r = { m: m, geometry: geo, larg0: larg, y0: y, cran: null };
+    r.poser = (lg, hy) => {
+      const a = attr.array;
+      for(let i = 0; i < P.length; i++){
+        const pa = P[Math.max(0, i - 1)], pb = P[Math.min(P.length - 1, i + 1)];
+        const dx = pb.x - pa.x, dz = pb.z - pa.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l * lg / 2, nz = dx / l * lg / 2;
+        a.set([P[i].x + nx, hy, P[i].z + nz, P[i].x - nx, hy, P[i].z - nz], i * 6);
+      }
+      attr.needsUpdate = true;
+      geo.computeBoundingSphere();
+    };
+    r.poser(larg, y);
+    return r;
   };
-  ruban(9 * k, 0.25, 0xFFFFFF, 0.95);
-  ruban(5 * k, 0.35, 0x9FC56A, 0.9);
-  const fait = ruban(5.2 * k, 0.45, 0x3B6900, 1);
+  /* la largeur voulue à cette distance : « px » pixels environ */
+  const largeurA = (px) => scene.r * 0.77 * px / Math.max(300, hote.clientHeight || 600);
+  const rubans = [
+    { r: ruban(10 * k, 0.25, 0xFFFFFF, 0.95, 1), px: 11 },
+    { r: ruban(5.5 * k, 0.35, 0x8DBF4F, 0.95, 2), px: 6 },
+    { r: ruban(5.8 * k, 0.45, 0x3B6900, 1, 3), px: 6.6 }
+  ];
+  const fait = rubans[2].r;
   fait.geometry.setDrawRange(0, 0);
+  function majRubans(){
+    /* un seul soulèvement pour les trois (leur ordre ne change pas) :
+       la profondeur se brouille de loin */
+    const leve = Math.max(1, largeurA(11) / (10 * k));
+    rubans.forEach(x => {
+      const voulu = Math.max(x.r.larg0, largeurA(x.px));
+      const cran = Math.round(Math.log(voulu / x.r.larg0) / Math.log(1.25));
+      if(cran === x.r.cran) return;
+      x.r.cran = cran;
+      x.r.poser(x.r.larg0 * Math.pow(1.25, cran), x.r.y0 * leve);
+    });
+  }
 
   /* départ et arrivée */
   const borne = (p, couleur) => {
@@ -122,6 +157,51 @@ async function rejouerTrajet3D(hote, o){
     poteaux.push({ r: r, rang: rang, nat: nat, groupe: g, d: cum[best], vu: false });
   });
   poteaux.sort((a, b) => a.d - b.d);
+
+  /* ---- 🏠 v1401 — les bureaux, avec le logo, pour se repérer ---- */
+  const bureaux = [];
+  const etiquetteBureau = (nom, img) => {
+    const c = document.createElement('canvas'); c.width = 600; c.height = 190;
+    const g = c.getContext('2d');
+    const police = (t) => t + 'px -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+    const dessiner = () => {
+      g.clearRect(0, 0, 600, 190);
+      g.fillStyle = '#fff'; g.strokeStyle = '#3B6900'; g.lineWidth = 8;
+      const rr = 34, x0 = 4, y0 = 4, x1 = 596, y1 = 186;
+      g.beginPath(); g.moveTo(x0 + rr, y0); g.arcTo(x1, y0, x1, y1, rr); g.arcTo(x1, y1, x0, y1, rr); g.arcTo(x0, y1, x0, y0, rr); g.arcTo(x0, y0, x1, y0, rr); g.closePath(); g.fill(); g.stroke();
+      /* le logo (il porte déjà le nom de l'école) : sa bande utile,
+         sans le blanc au-dessus et au-dessous */
+      if(img && img.complete && img.naturalWidth){
+        const q = img.naturalWidth / 192;
+        g.drawImage(img, 6 * q, 56 * q, 180 * q, 80 * q, 18, 45, 225, 100);
+      }else{ g.fillStyle = '#3B6900'; g.font = 'bold ' + police(34); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Évolution', 130, 76); g.fillText('Conduites', 130, 116); }
+      g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.fillStyle = '#64655F'; g.font = '600 ' + police(34); g.fillText('Bureau de', 262, 66, 320);
+      g.fillStyle = '#3B6900'; g.font = 'bold ' + police(46); g.fillText(String(nom || ''), 262, 122, 320);
+    };
+    dessiner();
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding;
+    if(img && !img.complete) img.addEventListener('load', () => { dessiner(); t.needsUpdate = true; });
+    return t;
+  };
+  let imgLogo = null;
+  if(o.logo){ imgLogo = new Image(); imgLogo.src = o.logo; }
+  (o.bureaux || []).forEach(b => {
+    if(!isFinite(b.lat) || !isFinite(b.lon)) return;
+    const m = EC3D.versMonde(b.lat, b.lon);
+    const g = new T.Group();
+    const h = 22 * k;
+    const mat = new T.MeshBasicMaterial({ color: new T.Color(0x2F5600).convertSRGBToLinear() });
+    const tige = new T.Mesh(new T.CylinderGeometry(0.45 * k, 0.45 * k, h, 8), mat);
+    tige.position.y = h / 2; g.add(tige);
+    const pied = new T.Mesh(new T.CylinderGeometry(1.6 * k, 1.6 * k, 0.4, 20), mat);
+    pied.position.y = 0.2; g.add(pied);
+    const sp = new T.Sprite(new T.SpriteMaterial({ map: etiquetteBureau(b.nom, imgLogo), depthTest: false }));
+    sp.scale.set(28 * k, 28 * 190 / 600 * k, 1); sp.position.y = h + 4.5 * k; sp.renderOrder = 9; g.add(sp);
+    g.position.set(m.x, 0, m.z);
+    scene.scene.add(g);
+    bureaux.push(g);
+  });
 
   /* ---- la voiture (provisoire, comme dans le parc) ---- */
   const v = EC3D.voiture3D({ modele: o.modele || 'a3' });
@@ -185,8 +265,11 @@ async function rejouerTrajet3D(hote, o){
     let h = '<div style="display:flex;gap:9px;align-items:flex-start;"><span style="flex:0 0 auto;min-width:24px;height:24px;border-radius:12px;background:' + nat.couleur +
       ';color:#fff;font-weight:800;font-size:12.5px;display:inline-flex;align-items:center;justify-content:center;">' + ech(r.n) + '</span><div style="flex:1;min-width:0;">' +
       '<b>' + ech(nat.icone) + ' ' + ech(r.theme || r.nom || nat.mot) + '</b>' + (r.heure ? ' <span style="color:#64655F;font-size:12.5px;">· ' + ech(r.heure) + '</span>' : '');
-    if(r.insp) h += '<div style="margin-top:4px;">👨‍✈️ ' + ech(r.insp) + '</div>';
-    if(r.mon) h += '<div style="margin-top:2px;">🔱 ' + ech(r.mon) + '</div>';
+    /* ⚠️ v1401 — TOUT CE QU'ILS ONT ÉCRIT, comme dans le bilan : les
+       lignes gardées, et l'émoji du moniteur (🔱 pour un ancien lien) */
+    const br = v => ech(v).replace(/\n/g, '<br>');
+    if(r.insp) h += '<div style="margin-top:4px;">👨‍✈️ ' + br(r.insp) + '</div>';
+    if(r.mon) h += '<div style="margin-top:2px;">' + ech(r.emo || '🔱') + ' ' + br(r.mon) + '</div>';
     h += '</div><button type="button" aria-label="Fermer" style="border:0;background:none;font-size:18px;cursor:pointer;color:#64655F;padding:0 2px;">✕</button></div>';
     fiche.innerHTML = h;
     fiche.style.display = '';
@@ -251,8 +334,11 @@ async function rejouerTrajet3D(hote, o){
     /* la voiture un peu grossie de loin, pour qu'on la voie */
     v.groupe.scale.setScalar(Math.max(1.6, Math.min(14, scene.r / 60)) * k);
     /* les poteaux aussi : lisibles de loin comme de près */
-    const ep = Math.max(1, Math.min(8, scene.r / 220));
+    const ep = Math.max(1, Math.min(30, scene.r / 220));
     poteaux.forEach(p => p.groupe.scale.setScalar(ep));
+    const eb = Math.max(1, Math.min(40, scene.r / 170));
+    bureaux.forEach(g => g.scale.setScalar(eb));
+    majRubans();
     if(scene.scene.fog){ scene.scene.fog.near = scene.r * 2; scene.scene.fog.far = scene.r * 6; }
     scene.cam.far = scene.r * 8; scene.cam.near = Math.max(0.3, scene.r / 500); scene.cam.updateProjectionMatrix();
     majSol -= dt;
