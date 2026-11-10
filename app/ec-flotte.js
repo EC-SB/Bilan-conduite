@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:14 — v1346 */
+/* Déployé le 10/11/2026 à 09:19 — v1390 */
 /* ============================================================
    ec-flotte.js
    Le suivi de la flotte.
@@ -692,6 +692,8 @@ function ouvrirFicheVehicule(v){
       fermerFond(fond);
       showToast(v ? 'Enregistré ✅' : 'Véhicule ajouté ✅');
       afficherFlotte();
+      /* 🚗 v1390 — un véhicule ajouté (ou vendu) : sa conversation suit */
+      if(typeof assurerLesFilsVehiculesEC === 'function') assurerLesFilsVehiculesEC(true);
     }catch(e){
       showToast('Impossible : ' + e.message);
       bOk.disabled = false;
