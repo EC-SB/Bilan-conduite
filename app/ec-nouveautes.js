@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:00 — v1407 */
+/* Déployé le 10/11/2026 à 16:10 — v1408 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1408,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🔗 Le tableau des liens Facebook : chacun relié à une étape de l’espace élève',
+    quoi: [
+      { emoji: '🔗',
+        titre: 'Outils › Ce qu’on écrit › 🔗 Liens Facebook → élève',
+        texte: 'Tous les liens Facebook de l’appli et des fiches, avec la phrase autour et où ils servent. 💡 Une étape proposée (« ✓ C’est ça »), 📍 Choisir, ou « Laisser Facebook ». ❌ quand l’étape n’existe plus, 🆕 quand quelqu’un en ajoute un dans une fiche.' },
+      { emoji: '🎬',
+        titre: 'Relié une fois, relié partout',
+        texte: 'L’élève reçoit le bouton de son espace à la place du lien Facebook : dans ses bilans (même les anciens), sa messagerie et le mail du bilan. Les liens gardés Facebook se cliquent maintenant dans son espace.' },
+      { emoji: '📄',
+        titre: 'Dans une fiche',
+        texte: '« Les liens de ce texte » dit si chaque lien Facebook est relié, avec « 📍 Relier à une étape » ; une procédure sans étape dont le lien est relié te propose l’étape (« ＋ L’ajouter »).' }
+    ]
+  },
   {
     version: 1407,
     date: 'Mardi 10 novembre 2026',
