@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 14:08 — v1404 */
+/* Déployé le 10/11/2026 à 14:33 — v1405 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1405,
+    date: 'Mardi 10 novembre 2026',
+    resume: '✉️ Ajourné, puis bilan validé : les deux messages partent tout seuls dans sa messagerie de l’appli',
+    quoi: [
+      { emoji: '🚦',
+        titre: '« ❌ Oui, ajourné » envoie la marche à suivre',
+        texte: 'Dans sa conversation « Le bureau », signée de celui qui clique : les étapes (son bilan se fait dans l’appli, onglet 📝 Bilan), avec les boutons « 📝 Faire mon bilan », « Étape 24 » et, s’il n’est pas de Loudéac, l’agence de Loudéac.' },
+      { emoji: '📜',
+        titre: '« ✅ Valider » son bilan envoie le RDV post-permis',
+        texte: 'Le chemin Drivup, avec les boutons « 📅 Réserver mon RDV post-permis » et la vidéo. Même chose quand son bilan est collé depuis Messenger.' },
+      { emoji: '💬',
+        titre: 'Les fenêtres Messenger restent',
+        texte: 'Elles disent en haut que le message est déjà parti dans sa messagerie (ou pourquoi il n’a pas pu partir, par exemple sans messagerie dans son espace).' }
+    ]
+  },
   {
     version: 1404,
     date: 'Mardi 10 novembre 2026',
