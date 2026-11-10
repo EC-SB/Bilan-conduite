@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 10/11/2026 à 16:00 — v1407 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -629,6 +629,8 @@ async function enregistrerModeleTexte(m){
     bilan: m.bilan || '',
     /* 🔘 v1232 — absent = on garde celui du classeur */
     nomBouton: (m.nomBouton === undefined) ? undefined : (m.nomBouton || ''),
+    /* 📍 v1407 — absentes = on garde celles du classeur */
+    etapes: (m.etapes === undefined) ? undefined : (m.etapes || ''),
     contenu: m.contenu || ''
   });
 }
@@ -2545,6 +2547,317 @@ function alerteDesVariables(ancien, neuf, usage){
    vient d'écrire. Relire les cent fiches pour retrouver celle
    qu'on tenait dans la main, c'est un aller-retour de plus à
    chaque frappe d'Enregistrer. */
+/* ============================================================
+   📍 v1407 — LES LIENS VERS L'ESPACE ÉLÈVE
+
+   David, le 10 novembre : « partout où il y a des liens Facebook,
+   prévoir des renvois sur l'espace élève ; quand on parle de procédure
+   ou autre qui concerne des guides, il faudra que ça envoie
+   directement sur le bon guide à la bonne étape », et « si je crée une
+   nouvelle procédure, prévois un bouton pour choisir un guide puis une
+   étape, idem dans Ce qu'on écrit et envoie ».
+
+   · UN SEUL LIEN, CELUI DES « À REVOIR » : l'adresse de son espace +
+     « ?seg=guide::étape ». La page élève en fait un bouton (bilans,
+     messagerie) ; par mail, c'est un lien qui ouvre l'appli à l'étape.
+   · UN SEUL SÉLECTEUR, choisirUneEtapeEleve : groupe › guide › étape,
+     ou un mot cherché. Il sert à la fiche (🔗 Lien élève), aux étapes
+     d'une procédure (📍), et au 👁 d'une procédure pendant le cours.
+   · LE LIEN SUIT L'IDENTIFIANT DE L'ÉTAPE, pas son titre : renommée,
+     elle garde son lien ; déplacée dans un autre guide, la page élève
+     la retrouve par son identifiant (voir etapeDuLienEl dans eleve.html).
+   ============================================================ */
+function baseDuLienEleve(){
+  return String((typeof CONFIG !== 'undefined' && CONFIG.LIEN_ELEVE) || '').split('#')[0].split('?')[0];
+}
+function lienVersEtapeEleve(x){
+  return baseDuLienEleve() + '?seg=' + encodeURIComponent(String(x.guide || '') + '::' + String(x.segment || ''));
+}
+/* La ligne posée dans un texte : « 🎬 Titre : lien » */
+function ligneVersEtapeEleve(x){
+  return '🎬 ' + (String(x.titre || '').trim() || 'Ouvrir dans ton App') + ' : ' + lienVersEtapeEleve(x);
+}
+/* Les liens « ?seg= » d'un texte, dans l'ordre, sans doublon */
+function liensEleveDuTexte(t){
+  const out = [], vus = {};
+  const re = /(?:🎬\s*([^\n]*?)\s*:\s*)?https?:\/\/[^\s?#]*\?seg=([A-Za-z0-9%_:\-.]+)/g;
+  let m;
+  while((m = re.exec(String(t || '')))){
+    let cle = '';
+    try{ cle = decodeURIComponent(m[2]); }catch(e){ cle = m[2]; }
+    const k = cle.split('::');
+    if(!k[0] || vus[cle]) continue;
+    vus[cle] = true;
+    out.push({ cle: cle, guide: k[0], segment: k[1] || '', titre: String(m[1] || '').trim() });
+  }
+  return out;
+}
+/* Les étapes d'une procédure (colonne O) : [{ guide, segment, titre, guideTitre, groupeIcone }] */
+function etapesDeLaFiche(m){
+  let l = m && m.etapes;
+  if(typeof l === 'string'){
+    if(!l.trim()) return [];
+    try{ l = JSON.parse(l); }catch(e){ return []; }
+  }
+  if(!Array.isArray(l)) return [];
+  return l.map(x => ({ guide: String(x.g || x.guide || ''), segment: String(x.s !== undefined ? x.s : (x.segment || '')),
+                       titre: String(x.t || x.titre || ''), guideTitre: String(x.gt || x.guideTitre || ''),
+                       groupeIcone: String(x.gi || x.groupeIcone || '') })).filter(x => x.guide);
+}
+function etapesVersColonne(l){
+  return JSON.stringify((l || []).map(x => ({ g: x.guide, s: x.segment || '', t: x.titre || '', gt: x.guideTitre || '', gi: x.groupeIcone || '' })));
+}
+
+/* Le parcours entier (groupes, guides, étapes), lu une fois par 5 min */
+let parcoursPourLiens = null;
+async function chargerParcoursPourLiens(forcer){
+  if(!forcer && parcoursPourLiens && Date.now() - parcoursPourLiens.t < 5 * 60000) return parcoursPourLiens;
+  const d = await appelPrep({ action: 'parcoursList' });
+  const groupes = ((d && d.groupes) || []).slice().sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+  const guides = ((d && d.guides) || []).slice().sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+  parcoursPourLiens = { t: Date.now(), groupes: groupes, guides: guides };
+  return parcoursPourLiens;
+}
+/* Où mène un lien, d'après le parcours lu : { groupe, guide, etape } ou null */
+function ouMeneLeLienEleve(p, x){
+  if(!p) return null;
+  let guide = p.guides.find(g => g.id === x.guide);
+  let etape = null;
+  if(guide) etape = (guide.etapes || []).find(e => String(e.id || '') === String(x.segment || '')) || null;
+  /* déplacée dans un autre guide : retrouvée par son identifiant */
+  if(x.segment && !etape){
+    p.guides.some(g => { const e = (g.etapes || []).find(y => String(y.id || '') === String(x.segment)); if(e){ guide = g; etape = e; return true; } return false; });
+  }
+  if(!guide) return null;
+  const groupe = p.groupes.find(gr => gr.id === guide.groupe) || null;
+  return { groupe: groupe, guide: guide, etape: x.segment ? etape : { id: '', titre: '📘 Tout le guide' } };
+}
+function cheminDuLienEleve(o){
+  if(!o) return '';
+  return [(o.groupe ? ((o.groupe.icone ? o.groupe.icone + ' ' : '') + o.groupe.nom) : ''), o.guide.titre || '', (o.etape && o.etape.titre) || '']
+    .filter(Boolean).join(' › ');
+}
+
+/* LE SÉLECTEUR — rend { guide, segment, titre, guideTitre, groupeIcone } ou null */
+async function choisirUneEtapeEleve(titre){
+  let p;
+  try{ p = await chargerParcoursPourLiens(); }
+  catch(e){ showToast('Les guides ne se lisent pas : ' + (e.message || e)); return null; }
+  if(!p.guides.length){ showToast('Aucun guide dans le parcours.'); return null; }
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal etElChoix';
+    boite.style.cssText = 'max-width:min(520px, 95vw);max-height:88vh;overflow-y:auto;';
+    boite.innerHTML = '<h3>📍 ' + echapper(titre || 'Lier à l’espace élève') + '</h3>' +
+      '<div class="etElAide">Choisis le groupe, puis le guide, puis l’étape. Ou cherche directement un mot.</div>';
+    const ch = document.createElement('input');
+    ch.type = 'search';
+    ch.placeholder = '🔎 Chercher une étape (ex. : frein à main)…';
+    ch.className = 'etElCherche';
+    boite.appendChild(ch);
+    const fil = document.createElement('div');
+    fil.className = 'etElFil';
+    boite.appendChild(fil);
+    const liste = document.createElement('div');
+    boite.appendChild(liste);
+    const pied = document.createElement('div');
+    pied.className = 'btn-row';
+    const bA = document.createElement('button');
+    bA.type = 'button'; bA.className = 'btn btn-secondary'; bA.textContent = 'Annuler';
+    pied.appendChild(bA);
+    boite.appendChild(pied);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    let fini = false;
+    const finir = (v) => { if(fini) return; fini = true; try{ fermerFond(fond); }catch(e){ fond.remove(); } resolve(v); };
+    bA.addEventListener('click', () => finir(null));
+    fond.addEventListener('click', e => { if(e.target === fond) finir(null); });
+
+    const groupeDe = g => p.groupes.find(gr => gr.id === g.groupe) || null;
+    const iconeDe = g => { const gr = groupeDe(g); return (gr && gr.icone) || ''; };
+    const choisir = (g, e) => finir({ guide: g.id, segment: String((e && e.id) || ''),
+      titre: (e && e.id) ? (e.titre || '') : (g.titre || ''), guideTitre: g.titre || '', groupeIcone: iconeDe(g) });
+    const sans = t => String(t || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    let ici = { groupe: null, guide: null };
+
+    const puce = (t, on, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'etElPuce' + (on ? ' on' : '');
+      b.textContent = t;
+      if(fn) b.addEventListener('click', fn); else b.disabled = true;
+      return b;
+    };
+    const ligne = (html, fn, principal) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary') + ' etElLigne';
+      b.innerHTML = html;
+      b.addEventListener('click', fn);
+      liste.appendChild(b);
+      return b;
+    };
+    const dessiner = () => {
+      liste.textContent = '';
+      fil.textContent = '';
+      const q = sans(ch.value).trim();
+      if(q){
+        /* la recherche : toutes les étapes de tous les guides */
+        fil.appendChild(puce('🔎 Résultats', true));
+        let n = 0;
+        p.guides.forEach(g => {
+          const gr = groupeDe(g);
+          (g.etapes || []).forEach(e => {
+            if(n >= 60) return;
+            const tout = sans((e.titre || '') + ' ' + (g.titre || '') + ' ' + ((gr && gr.nom) || ''));
+            if(q.split(/\s+/).some(m => tout.indexOf(m) === -1)) return;
+            n++;
+            ligne('<span class="etElNom">' + echapper(e.id ? e.titre : '📘 ' + (g.titre || '')) + '<small>' +
+              echapper([(gr ? ((gr.icone ? gr.icone + ' ' : '') + gr.nom) : ''), g.titre].filter(Boolean).join(' › ')) + '</small></span>',
+              () => choisir(g, e));
+          });
+        });
+        if(!n) liste.innerHTML = '<div class="empty">Rien ne correspond.</div>';
+        return;
+      }
+      fil.appendChild(puce('Groupes', !ici.groupe, ici.groupe ? () => { ici = { groupe: null, guide: null }; dessiner(); } : null));
+      if(!ici.groupe){
+        const avecGuides = p.groupes.filter(gr => p.guides.some(g => g.groupe === gr.id));
+        avecGuides.forEach(gr => {
+          const n = p.guides.filter(g => g.groupe === gr.id).length;
+          ligne('<span class="etElIc">' + echapper(gr.icone || '📁') + '</span><span class="etElNom">' + echapper(gr.nom || 'Groupe') +
+            '<small>' + n + ' guide' + (n > 1 ? 's' : '') + (gr.fermeLe ? ' · fermé' : '') + '</small></span><span class="etElFl">›</span>',
+            () => { ici = { groupe: gr, guide: null }; dessiner(); });
+        });
+        return;
+      }
+      fil.appendChild(document.createTextNode('›'));
+      fil.appendChild(puce((ici.groupe.icone ? ici.groupe.icone + ' ' : '') + (ici.groupe.nom || ''), !ici.guide,
+        ici.guide ? () => { ici.guide = null; dessiner(); } : null));
+      if(!ici.guide){
+        p.guides.filter(g => g.groupe === ici.groupe.id).forEach(g => {
+          const n = (g.etapes || []).filter(e => e.id).length;
+          ligne('<span class="etElNom">' + echapper(g.titre || 'Guide') + '<small>' + n + ' étape' + (n > 1 ? 's' : '') +
+            (g.etat === 'publie' ? '' : ' · brouillon') + '</small></span><span class="etElFl">›</span>',
+            () => { ici.guide = g; dessiner(); });
+        });
+        return;
+      }
+      fil.appendChild(document.createTextNode('›'));
+      fil.appendChild(puce(ici.guide.titre || 'Guide', true, null));
+      (ici.guide.etapes || []).filter(e => e.id).forEach(e => ligne(echapper(e.titre || 'Étape'), () => choisir(ici.guide, e)));
+      const tout = document.createElement('div');
+      tout.className = 'etElAide';
+      tout.style.marginTop = '6px';
+      tout.innerHTML = 'Ou le guide entier : ';
+      const a = document.createElement('button');
+      a.type = 'button'; a.className = 'etElLien';
+      a.textContent = '📘 tout « ' + (ici.guide.titre || 'le guide') + ' »';
+      a.addEventListener('click', () => choisir(ici.guide, null));
+      tout.appendChild(a);
+      liste.appendChild(tout);
+    };
+    ch.addEventListener('input', dessiner);
+    dessiner();
+    setTimeout(() => ch.focus(), 40);
+  });
+}
+
+/* ① Le bouton « 🔗 Lien élève » : la ligne de l'étape, au curseur */
+async function insererLienEleveDans(zone){
+  if(!zone) return false;
+  const debut = zone.selectionStart, fin = zone.selectionEnd;
+  const x = await choisirUneEtapeEleve('Insérer un lien vers l’espace élève');
+  if(!x) return false;
+  const v = zone.value;
+  const p = (typeof debut === 'number') ? debut : v.length;
+  const q = (typeof fin === 'number') ? fin : p;
+  const avant = v.slice(0, p), apres = v.slice(q);
+  const t = (avant && !/\n$/.test(avant) ? '\n' : '') + ligneVersEtapeEleve(x) + (apres && !/^\n/.test(apres) ? '\n' : '');
+  zone.value = avant + t + apres;
+  const c = (avant + t).length;
+  try{ zone.focus(); zone.setSelectionRange(c, c); }catch(e){}
+  zone.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+
+/* ② « 🔗 Les liens de ce texte » : où mène chaque lien, et les Facebook */
+async function dessinerLiensDuTexte(z, texte){
+  if(!z) return;
+  const app = liensEleveDuTexte(texte);
+  const fb = (String(texte || '').match(/https?:\/\/(?:www\.|m\.)?(?:facebook\.com|fb\.watch)\/\S+/g) || []);
+  if(!app.length && !fb.length){ z.hidden = true; z.innerHTML = ''; return; }
+  z.hidden = false;
+  let p = null;
+  if(app.length){ try{ p = await chargerParcoursPourLiens(); }catch(e){ p = null; } }
+  let h = '<div class="etElT">🔗 Les liens de ce texte</div>';
+  app.forEach(x => {
+    const o = ouMeneLeLienEleve(p, x);
+    h += '<div class="etElL"><span class="etElIco app">🎬</span><div>' +
+      (o ? '<span class="ok">✅ Vers l’espace élève</span> → ' + echapper(cheminDuLienEleve(o))
+         : (p ? '<span class="ko">❌ Cette étape n’existe plus</span> (« ' + echapper(x.titre || x.cle) + ' ») — l’élève reçoit le guide entier s’il existe encore'
+              : '✅ Vers l’espace élève : ' + echapper(x.titre || x.cle))) + '</div></div>';
+  });
+  fb.forEach(u => {
+    h += '<div class="etElL"><span class="etElIco fb">f</span><div><span class="u">' + echapper(u.replace(/^https?:\/\/(www\.|m\.)?/, '').slice(0, 90)) + '</span><br>' +
+      '<span class="fbMot">📘 Lien Facebook — il se reliera à une étape dans le tableau des liens (prochaine livraison). Tu peux déjà ajouter le lien de l’étape avec « 🔗 Lien élève ».</span></div></div>';
+  });
+  z.innerHTML = h;
+}
+
+/* ③ « 📍 Ses étapes dans l'espace élève » d'une procédure */
+function blocEtapesDeProcedure(liste, opts){
+  const o = opts || {};
+  const z = document.createElement('div');
+  z.className = 'etElBloc';
+  const dessiner = () => {
+    z.innerHTML = '<div class="etElT">📍 Ses étapes dans l’espace élève</div>';
+    if(!liste.length){
+      const v = document.createElement('div');
+      v.className = 'etElAide';
+      v.textContent = o.verrou ? 'Aucune étape liée.' : 'Aucune étape liée : le bilan ne portera que la procédure.';
+      z.appendChild(v);
+    }
+    liste.forEach((x, i) => {
+      const r = document.createElement('div');
+      r.className = 'etElPil';
+      r.innerHTML = '<span class="etElChem">' + echapper((x.groupeIcone ? x.groupeIcone + ' ' : '') + (x.guideTitre || '')) +
+        '<b>' + echapper(x.segment ? (x.titre || 'Étape') : '📘 Tout le guide') + '</b></span>';
+      if(!o.verrou){
+        const bx = document.createElement('button');
+        bx.type = 'button'; bx.className = 'fgb'; bx.textContent = '✕'; bx.title = 'Retirer cette étape';
+        bx.addEventListener('click', () => { liste.splice(i, 1); dessiner(); if(o.surChange) o.surChange(liste); });
+        r.appendChild(bx);
+      }
+      z.appendChild(r);
+    });
+    if(!o.verrou){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = liste.length ? 'fgb etElPlus' : 'etElVide';
+      b.textContent = liste.length ? '＋ Une autre étape' : '📍 Lier à une étape de l’espace élève';
+      b.addEventListener('click', async () => {
+        const x = await choisirUneEtapeEleve('Lier « ' + (o.nom ? o.nom() : 'cette procédure') + ' »');
+        if(!x) return;
+        if(liste.some(y => y.guide === x.guide && String(y.segment || '') === String(x.segment || ''))){ showToast('Elle y est déjà.'); return; }
+        liste.push(x);
+        dessiner();
+        if(o.surChange) o.surChange(liste);
+      });
+      z.appendChild(b);
+      const a = document.createElement('div');
+      a.className = 'etElAide';
+      a.textContent = 'Le moniteur appuie sur la procédure comme d’habitude : elle part entière dans le bilan, et dessous l’élève a un bouton par étape pour l’ouvrir (et elle s’épingle 📌 en tête de son Réviser).';
+      z.appendChild(a);
+    }
+  };
+  dessiner();
+  return z;
+}
+
 function poserModeleEnMemoire(f){
   const s = separerCategorie(f.nom);
   const plein = Object.assign({}, f, { categorie: s.categorie, titre: s.titre });
@@ -2601,11 +2914,15 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
       '<span class="fiEtat" id="mdEtat"></span></div>' +
     /* 🏷️ v1299 — seulement SES catégories, sur une ligne, et « ＋ Catégorie » */
     '<div id="mdEtiq" class="mdCats"></div>' +
+    /* 📍 v1407 — les étapes de l'espace élève d'une procédure */
+    '<div id="mdEtapes"></div>' +
 
     /* 📄 v1299 — LE TEXTE EN ENTIER : la case grandit avec lui (David :
        « je n'ai pas la totalité de ce qui est écrit ») */
     '<textarea id="mdContenu" class="fiTexte" rows="6" ' +
       'placeholder="Écris ton message…"></textarea>' +
+    /* 🔗 v1407 — où mènent les liens du texte */
+    '<div id="mdLiens" class="etElBloc" hidden></div>' +
 
     /* ⚠️ DES ÉTIQUETTES, PAS UNE CATÉGORIE — v958. On coche celles
        qu'on veut, on en crée une en la tapant. Une fiche peut en
@@ -2740,6 +3057,8 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
 
   /* ---- L'état courant, tel qu'il partira ---- */
   let mesEtiquettes = modele ? etiquettesDe(modele) : [];
+  /* 📍 v1407 — ses étapes de l'espace élève (procédure) */
+  const mesEtapesEleve = etapesDeLaFiche(modele);
   /* 📄 v1299 — une fiche neuve créée depuis une catégorie la porte déjà */
   if(!modele && opts && opts.categorie) mesEtiquettes = [opts.categorie];
 
@@ -2759,6 +3078,7 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
       ? g('mdBilan').value : '',
     nomBouton: (g('mdUsage').value === 'procedure' && g('mdNomBouton'))
       ? g('mdNomBouton').value.trim() : '',
+    etapes: (g('mdUsage').value === 'procedure') ? etapesVersColonne(mesEtapesEleve) : '',
     contenu: g('mdContenu').value.trim()
   });
 
@@ -2839,6 +3159,13 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
       if(pied.querySelector('.sup')) pied.insertBefore(bCoul, pied.querySelector('.sup'));
     }
   }
+  /* 🔗 v1407 — « Lien élève » : la ligne d'une étape de l'espace élève,
+     là où est le curseur (toutes les fiches) */
+  if(!verrou){
+    const bLien = geste('🔗 Lien élève', 'Insérer un lien vers une étape de l’espace élève', () => insererLienEleveDans(g('mdContenu')));
+    bLien.dataset.lienEleve = '1';
+    if(pied.querySelector('.sup')) pied.insertBefore(bLien, pied.querySelector('.sup'));
+  }
   /* ⚙️ v1299 — les réglages (où l'appli s'en sert…), d'un bouton */
   const bReg = geste('⚙️ Réglages', 'Où l’appli s’en sert, pour qui…', () => {
     const d = g('mdPlus');
@@ -2862,6 +3189,15 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
     const estProc = (usage === 'procedure');
     if(g('mdBlocBoite')) g('mdBlocBoite').style.display = estProc ? 'block' : 'none';
     if(g('mdBlocIA')) g('mdBlocIA').style.display = estProc ? 'block' : 'none';
+    /* 📍 v1407 — ses étapes de l'espace élève, pour une procédure */
+    if(g('mdEtapes')){
+      g('mdEtapes').innerHTML = '';
+      if(estProc){
+        g('mdEtapes').appendChild(blocEtapesDeProcedure(mesEtapesEleve, {
+          verrou: verrou, nom: () => g('mdNom').value.trim(),
+          surChange: () => { if(typeof moi.aChange === 'function') moi.aChange(); } }));
+      }
+    }
     /* Le bilan à créer n'a de sens que pour un rappel de cours :
        c'est le seul usage qui fabrique un cours. */
     if(g('mdBlocBilan')){
@@ -3126,6 +3462,12 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
   majBoite();
   majVars();
 
+  /* 🔗 v1407 — « Les liens de ce texte », tenus à jour pendant qu'on écrit */
+  let minuterieLiens = null;
+  const majLiens = () => dessinerLiensDuTexte(g('mdLiens'), g('mdContenu').value);
+  g('mdContenu').addEventListener('input', () => { clearTimeout(minuterieLiens); minuterieLiens = setTimeout(majLiens, 500); });
+  majLiens();
+
   /* ⚠️ VERROUILLÉ VEUT DIRE VERROUILLÉ PARTOUT, pas seulement sur
      le crayon : un champ qu'on peut encore remplir laisse croire
      que c'est enregistré. */
@@ -3159,13 +3501,14 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
     ? JSON.stringify({ n: modele.titre || modele.nom || '', c: modele.contenu || '',
                        e: etiquettesDe(modele).join(SEP_ETIQ), u: modele.usage || 'libre',
                        b: modele.boite || '', o: !!modele.ordre,
-                       g: modele.consigne || '', i: modele.bilan || '' })
+                       g: modele.consigne || '', i: modele.bilan || '',
+                       et: (modele.usage === 'procedure') ? etapesVersColonne(etapesDeLaFiche(modele)) : '' })
     : '';
 
   const etatActuel = () => {
     const f = fichePleine();
     return JSON.stringify({ n: f.nom, c: f.contenu, e: f.etiquettes, u: f.usage,
-                            b: f.boite, o: f.ordre, g: f.consigne, i: f.bilan, nb: f.nomBouton });
+                            b: f.boite, o: f.ordre, g: f.consigne, i: f.bilan, nb: f.nomBouton, et: f.etapes });
   };
 
   let enCours = false;
