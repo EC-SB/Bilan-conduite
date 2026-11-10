@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 16/09/2026 à 10:24 — v1012 -->
+<!-- Déployé le 10/11/2026 à 11:41 — v1398 -->
 <!-- ============================================================
      LE TRAJET DU COURS, EN GRAND — v1002
 
@@ -109,6 +109,16 @@
     width:15px; height:15px; box-shadow:0 1px 3px rgba(0,0,0,.3);
   }
   .bout.arrivee{ border-radius:2px; background:#14161B; border-color:#fff; }
+  /* 🧊 v1398 — la bascule Plan / 3D, et la scène */
+  .tete{ display:flex; align-items:flex-start; gap:10px; }
+  .tete > div:first-child{ flex:1 1 auto; min-width:0; }
+  .bascule{ flex:0 0 auto; display:inline-flex; border:1px solid var(--bord); border-radius:999px; padding:3px; background:var(--fond); }
+  .bascule button{ border:0; background:transparent; color:var(--encre); border-radius:999px; padding:6px 11px;
+                   font:700 13px/1.2 inherit; font-family:inherit; cursor:pointer; }
+  .bascule button.on{ background:var(--vert); color:#fff; }
+  #carte3d{ flex:1 1 auto; min-height:300px; position:relative; overflow:hidden; background:#EDEAE2; display:none; }
+  .repere.touchable{ cursor:pointer; }
+  body.en3d .liste{ max-height:26vh; }
   @media (prefers-color-scheme: dark){
     :root{ --fond:#1A1C18; --encre:#F2F2EC; --bord:#33352E; --gris:#A3A49C; }
     header,.liste,.pied{ background:#212319; }
@@ -121,11 +131,20 @@
 <body>
 
 <header>
-  <h1>🗺️ Notre trajet</h1>
-  <div class="chiffres" id="chiffres">—</div>
+  <div class="tete">
+    <div>
+      <h1>🗺️ Notre trajet</h1>
+      <div class="chiffres" id="chiffres">—</div>
+    </div>
+    <div class="bascule" id="bascule" role="tablist" hidden>
+      <button type="button" data-v="plan" class="on" role="tab" aria-selected="true">🗺️ Plan</button>
+      <button type="button" data-v="3d" role="tab" aria-selected="false">🧊 Rejouer en 3D</button>
+    </div>
+  </div>
 </header>
 
 <div id="carte"></div>
+<div id="carte3d"></div>
 <div class="liste" id="liste"></div>
 
 <div class="pied">
@@ -374,6 +393,59 @@ const nature = (t) => NATURES[t] || NATURES.repere;
   }
 
   if(carte && trait) carte.fitBounds(trait.getBounds(), { padding:[28, 28] });
+
+  /* ============================================================
+     🧊 v1398 — LE TRAJET REJOUÉ EN 3D
+
+     David : le trajet rejoué en 3D, pour l'élève (ce lien) et pour
+     l'équipe (qui ouvre cette même page depuis le dossier). Le Plan
+     reste par défaut ; « 🧊 Rejouer en 3D » charge la 3D seulement
+     quand on appuie (three.js, puis ec-3d.js et ec-trajet3d.js, les
+     mêmes que l'application). Rien de plus n'est envoyé : la 3D
+     relit les points de CE lien, comme le plan.
+     ============================================================ */
+  const bascule = document.getElementById('bascule');
+  const zone3d = document.getElementById('carte3d');
+  const zonePlan = document.getElementById('carte');
+  let rejeu = null, enCours = false;
+  const peindre = (en3d) => bascule.querySelectorAll('button').forEach(b => {
+    const on = (b.dataset.v === '3d') === en3d;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  const charger = (src) => new Promise((ok, non) => {
+    const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => non(new Error(src)); document.head.appendChild(s);
+  });
+  const webgl = (() => { try{ const c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl'))); }catch(e){ return false; } })();
+  if(webgl && zonePlan) bascule.hidden = false;
+  async function montrer3D(oui){
+    peindre(oui);
+    document.body.classList.toggle('en3d', !!oui);
+    if(!oui){
+      zone3d.style.display = 'none'; zonePlan.style.display = '';
+      if(rejeu) rejeu.montrer(false);
+      if(carte) setTimeout(() => carte.invalidateSize(), 50);
+      return;
+    }
+    zonePlan.style.display = 'none'; zone3d.style.display = 'block';
+    if(rejeu){ rejeu.montrer(true); return; }
+    if(enCours) return;
+    enCours = true;
+    zone3d.innerHTML = '<div class="vide">⏳ La 3D se prépare…</div>';
+    try{
+      window.CONFIG = window.CONFIG || { WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev' };
+      if(typeof EC3D === 'undefined') await charger('app/ec-3d.js?v=1398');
+      if(typeof rejouerTrajet3D !== 'function') await charger('app/ec-trajet3d.js?v=1398');
+      rejeu = await rejouerTrajet3D(zone3d, { points: points, reperes: reperes, natures: NATURES });
+    }catch(e){
+      zone3d.innerHTML = '<div class="vide">La 3D n’a pas pu se charger (' + ech((e && e.message) || e) + ').<br>Le plan reste là : 🗺️ Plan.</div>';
+    }finally{ enCours = false; }
+  }
+  bascule.querySelectorAll('button').forEach(b => b.addEventListener('click', () => montrer3D(b.dataset.v === '3d')));
+  /* en 3D, une ligne de la liste emmène la voiture à ce point */
+  liste.querySelectorAll('.repere').forEach((ligne, rang) => {
+    ligne.classList.add('touchable');
+    ligne.addEventListener('click', () => { if(rejeu && zone3d.style.display !== 'none') rejeu.ouvrir(rang); });
+  });
 })();
 </script>
 </body>
