@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:36 — v1397 */
+/* Déployé le 10/11/2026 à 11:41 — v1398 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1398,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🧊 Le trajet du cours rejoué en 3D — pour l’élève et pour l’équipe',
+    quoi: [
+      { emoji: '🧊',
+        titre: '« 🧊 Rejouer en 3D » sur la carte du trajet',
+        texte: 'La page du trajet (le lien du mail de l’élève, le 🗺️ des anciens cours du dossier, le tracé de l’examen) a maintenant un bouton : la ville en relief, le tracé au sol, et la voiture qui le parcourt. Le Plan reste par défaut.' },
+      { emoji: '📍',
+        titre: 'Elle s’arrête sur les points de travail',
+        texte: 'À chaque point numéroté, la voiture marque une pause et le point s’affiche : thème, ce qu’a dit l’inspecteur, la remarque du moniteur. Toucher une ligne de la liste y emmène la voiture.' },
+      { emoji: '⏯️',
+        titre: 'Lecture, vitesse, curseur',
+        texte: '▶ / ⏸, ×1 · ×2 · ×4, un curseur pour aller où l’on veut, « 🎥 Suivre la voiture » ou « ⤢ Tout le trajet ». Rejoué à vitesse régulière : ce n’est pas la vitesse de la voiture (aucune vitesse n’est gardée).' }
+    ]
+  },
   {
     version: 1397,
     date: 'Mardi 10 novembre 2026',
