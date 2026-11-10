@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:39 — v1384 */
+/* Déployé le 10/11/2026 à 16:10 — v1408 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -381,6 +381,9 @@ const VUES = {
            ['textes',     '📄 Ce qu’on écrit et envoie (keep)',           'textes',      'Ce qu’on écrit'],
            ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
            ['procedures', '🚦 Procédures',             'procedures',  'Ce qu’on écrit'],
+           /* 🔗 v1408 — David : « partout où il y a des liens Facebook,
+              prévoir des renvois sur l'espace élève » */
+           ['liensfb',    '🔗 Liens Facebook → élève', 'textes',      'Ce qu’on écrit'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
            /* ✉️ v1243 — David : « dans Ce qu'on écrit, un endroit pour
               envoyer des courriers types » */
@@ -2031,6 +2034,7 @@ function reveillerVue(cle){
                         } },
     textes:     () => afficherModelesTexte(),
     procedures: () => afficherProcedures(),
+    liensfb:    () => (typeof afficherLiensFacebook === 'function') && afficherLiensFacebook(),
     bilans:     () => afficherTextesBilan(),
     stats:      () => afficherStats(),
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
