@@ -1,4 +1,4 @@
-/* Déployé le 15/10/2026 à 17:23 — v1186 */
+/* Déployé le 10/11/2026 à 10:30 — v1391 */
 /* ============================================================
    appel-commun.js — 📞 LES APPELS, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -21,6 +21,15 @@
    DEUX connexions vers le SFU — l'une publie son micro et sa caméra,
    l'autre reçoit les pistes des autres. Le Worker ouvre les sessions
    avec la clé du SFU ; le navigateur ne la voit jamais.
+
+   🎥 v1356 — LE MODE « COURS » (le code en visio). Même mécanique,
+   autre écran : l'image du prof en grand (le boîtier HDMI), la liste
+   des élèves à côté chez le prof, ✋ et le questionnaire chez
+   l'élève. Le prof peut couper les micros des élèves et rendre la
+   parole à un seul. L'élève ne publie jamais de caméra. La page qui
+   ouvre le cours donne o.cours ({ numero, questionnaire, gestes,
+   surInviter, surLien }) et, chez le prof, o.flux : l'image du
+   boîtier et le son déjà mêlé (boîtier + micro).
 
    ⚠️ LA VIDÉO SE CHANGE SANS RENÉGOCIER. La connexion qui publie a
    toujours une piste vidéo, vide quand la caméra est coupée :
@@ -110,6 +119,35 @@
     '.aplSonne .choix button{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;color:#E9F1F5;font:inherit;font-size:13px;cursor:pointer;margin:0;padding:0}',
     '.aplSonne .choix i{width:70px;height:70px;border-radius:50%;display:flex;align-items:center;justify-content:center}',
     '.aplSonne .note{font-size:12px;color:#7E8C97;max-width:300px;line-height:1.5}',
+    /* 🎥 le cours */
+    '.aplCours{position:relative;flex:1;min-height:0;display:flex;gap:10px}',
+    '.aplScene{position:relative;flex:1;min-width:0;min-height:0;border-radius:16px;background:#000;border:2px solid #1F2A33;overflow:hidden;display:flex;align-items:center;justify-content:center}',
+    '.aplScene video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}',
+    '.aplScene .attente{color:#9AA7B1;font-size:14px;text-align:center;padding:0 20px;line-height:1.5}',
+    '.aplScene .etiq{position:absolute;left:10px;top:10px;background:rgba(0,0,0,.6);color:#fff;font-size:11.5px;font-weight:700;border-radius:8px;padding:3px 8px;z-index:2}',
+    '.aplPlein{position:absolute;right:10px;top:10px;z-index:3;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:10px;padding:6px 10px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin:0}',
+    '.aplScene:fullscreen{border:0;border-radius:0}.aplScene:-webkit-full-screen{border:0;border-radius:0}',
+    '.aplCote{width:290px;flex-shrink:0;background:#141A20;border:1px solid #1F2A33;border-radius:16px;padding:10px;overflow:auto;min-height:0}',
+    '.aplCote .t{font-size:12px;font-weight:800;color:#9AA7B1;letter-spacing:.06em;margin:2px 4px 8px;display:flex;justify-content:space-between;gap:6px}',
+    '.aplEl{display:flex;align-items:center;gap:9px;padding:7px 6px;border-radius:10px}',
+    '.aplEl.parle{background:rgba(182,255,14,.12)}',
+    '.aplEl .r{width:30px;height:30px;border-radius:50%;background:#E4FFA8;color:#0B0B0B;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}',
+    '.aplEl.absent .r{background:#2A3540;color:#9AA7B1}',
+    '.aplEl .n{flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.aplEl .n small{display:block;font-weight:400;color:#7E8C97;font-size:11px}',
+    '.aplEl .main{font-size:17px;animation:aplMain 1.2s infinite}',
+    '@keyframes aplMain{0%,100%{transform:rotate(0)}50%{transform:rotate(-14deg)}}',
+    '.aplEl button{border:0;border-radius:9px;padding:6px 8px;font:inherit;font-size:11.5px;font-weight:800;cursor:pointer;background:#1F2A33;color:#fff;flex-shrink:0;margin:0}',
+    '.aplEl button.on{background:#B6FF0E;color:#0B0B0B}',
+    '.aplQuest{width:min(470px,46%);flex-shrink:0;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;min-height:0}',
+    '.aplQuest[hidden]{display:none}',
+    '.aplQuest .tete{background:#141A20;color:#E9F1F5;display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:13px;font-weight:700}',
+    '.aplQuest .tete span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.aplQuest .tete a,.aplQuest .tete button{white-space:nowrap;flex-shrink:0;color:#E9F1F5;background:#1F2A33;border:0;border-radius:9px;padding:6px 9px;font:inherit;font-size:12px;cursor:pointer;text-decoration:none;margin:0}',
+    '.aplQuest iframe{flex:1;border:0;width:100%;background:#fff;min-height:0}',
+    '.aplBt .em{font-size:24px;line-height:1;font-style:normal}',
+    '.aplCours .aplMsg{top:54px}',
+    '@media (max-width:640px){.aplCours{flex-direction:column}.aplCote{width:auto;max-height:36%}.aplQuest{position:absolute;inset:0;width:auto;z-index:4}}',
     '@media (max-width:640px){.aplBas{gap:4px;flex-wrap:nowrap}.aplBt{flex:1 1 0;min-width:0;max-width:80px}.aplBt{font-size:11px}.aplBt span{text-align:center;line-height:1.2}.aplBt i{width:52px;height:52px}.aplRond{width:64px;height:64px;font-size:22px}}'
   ].join('\n');
   function poserLeStyle() {
@@ -252,7 +290,13 @@
       titre: o.titre || 'Appel', eleve: !!o.eleve, surFin: o.surFin, tel: telephone(),
       cam: false, micro: true, partage: false, face: 'user', debut: Date.now(),
       etat: null, recus: [], niveaux: {}, fini: false, audios: {}, decroche: 0,
-      son: true, sortie: '', sorties: []
+      son: true, sortie: o.sortie || '', sorties: [],
+      /* 🎥 v1356 — le cours (voir l'en-tête) */
+      cours: o.cours ? {
+        numero: o.cours.numero || 0, questionnaire: o.cours.questionnaire || '', par: o.cours.par || '',
+        gestes: o.cours.gestes || [], surInviter: o.cours.surInviter, surLien: o.cours.surLien, surSon: o.cours.surSon,
+        quest: false, main: false, coupeParProf: false, finSure: 0
+      } : null
     };
     /* La tonalité « ça sonne » de celui qui appelle : le contexte audio
        naît ici, pendant le geste (sinon Safari le laisse muet). */
@@ -262,8 +306,16 @@
     dessinerLEcran(c);
     message(c, 'Connexion…');
 
-    var veutVideo = c.genre === 'video' && !o.sansCamera;
+    var veutVideo = c.genre === 'video' && !o.sansCamera && !(c.cours && c.eleve);
     var md = navigator.mediaDevices;
+    if (o.flux && window.RTCPeerConnection) {
+      /* 🎥 le prof : l'image et le son sont déjà prêts (le boîtier, le mélange) */
+      c.audio = o.flux.getAudioTracks()[0] || null;
+      c.camPiste = o.flux.getVideoTracks()[0] || null;
+      c.cam = !!c.camPiste;
+      majMoi(c);
+      return rejoindreEtPublier(c);
+    }
     if (!md || !md.getUserMedia || !window.RTCPeerConnection) {
       message(c, 'Ce navigateur ne sait pas passer d’appel. Essaie avec Chrome, Safari ou Firefox à jour.');
       setTimeout(function () { terminer(c, true); }, 4000);
@@ -282,15 +334,42 @@
         c.camPiste = flux.getVideoTracks()[0] || null;
         c.cam = !!c.camPiste;
         majMoi(c);
-        return poster(c, 'rejoindre', { cam: c.cam ? 1 : 0 });
+        return rejoindreEtPublier(c);
+      }, function (e) {
+        message(c, (e && e.message) || 'L’appel n’a pas pu démarrer.');
+        setTimeout(function () { terminer(c, true); }, 4000);
       })
+      .then(function () { return c; });
+  }
+
+  /* 🎚️ v1391 — « maxaveragebitrate » dans la réponse : c'est ce que l'autre
+     bout accepte de recevoir, et le navigateur règle son Opus dessus */
+  function opusHaut(sdp) {
+    var m = String(sdp).match(/a=rtpmap:(\d+) opus\/48000/i);
+    if (!m) return sdp;
+    var re = new RegExp('a=fmtp:' + m[1] + ' [^\r\n]*');
+    if (re.test(sdp)) return sdp.replace(re, function (l) { return /maxaveragebitrate/.test(l) ? l : l + ';maxaveragebitrate=128000'; });
+    return sdp.replace(new RegExp('(a=rtpmap:' + m[1] + ' opus\\/48000[^\r\n]*)', 'i'), '$1\r\na=fmtp:' + m[1] + ' maxaveragebitrate=128000');
+  }
+
+  /* Entrer dans l'appel et publier ses pistes (micro, caméra ou boîtier) */
+  function rejoindreEtPublier(c) {
+    return poster(c, 'rejoindre', { cam: c.cam ? 1 : 0 })
       .then(function (d) {
         if (!d || c.fini) return;
         c.etat = d.appel; c.max = d.max || 6;
         var cfg = { bundlePolicy: 'max-bundle', iceServers: d.ice || [{ urls: 'stun:stun.cloudflare.com:3478' }] };
         c.pub = new RTCPeerConnection(cfg);
         c.sub = new RTCPeerConnection(cfg);
-        c.trAudio = c.pub.addTransceiver(c.audio || 'audio', { direction: 'sendonly' });
+        /* 🎚️ v1391 — LE SON DU PROF EN BONNE QUALITÉ. Par défaut, l'Opus
+           d'un appel part à ~32 kb/s, réglé pour la voix : le son d'une
+           vidéo de cours y devient métallique. Le prof d'un cours monte à
+           128 kb/s (ici, et dans la réponse, voir opusHaut). */
+        var profDuCours = !!(c.cours && !c.eleve);
+        try {
+          c.trAudio = c.pub.addTransceiver(c.audio || 'audio', profDuCours
+            ? { direction: 'sendonly', sendEncodings: [{ maxBitrate: 128000 }] } : { direction: 'sendonly' });
+        } catch (e) { c.trAudio = c.pub.addTransceiver(c.audio || 'audio', { direction: 'sendonly' }); }
         c.trVideo = c.pub.addTransceiver(c.camPiste || 'video', { direction: 'sendonly' });
         c.sub.ontrack = function () { dessinerLesTuiles(c); };
         [c.pub, c.sub].forEach(function (pc) {
@@ -307,7 +386,11 @@
                 pistes: [{ mid: c.trAudio.mid, kind: 'audio' }, { mid: c.trVideo.mid, kind: 'video' }]
               });
             })
-            .then(function (r) { return c.pub.setRemoteDescription(r.reponse); })
+            .then(function (r) {
+              var rep = r.reponse;
+              if (profDuCours && rep && rep.sdp) rep = { type: rep.type, sdp: opusHaut(rep.sdp) };
+              return c.pub.setRemoteDescription(rep);
+            })
             .then(function () { message(c, ''); battre(c); });
         });
       })
@@ -327,7 +410,12 @@
         .then(function (d) {
           if (c.fini) return;
           c.etat = d.appel || c.etat;
-          if (d.dehors || (c.etat && c.etat.fini)) { terminer(c, false, c.etat && c.etat.decroche ? '' : 'Personne n’a répondu.'); return; }
+          if (d.dehors || (c.etat && c.etat.fini)) {
+            terminer(c, false, c.cours ? 'Le cours est terminé. Merci, à bientôt !'
+                                       : c.etat && c.etat.decroche ? '' : 'Personne n’a répondu.');
+            return;
+          }
+          if (c.cours) appliquerLaParole(c);
           if (d.aRecevoir) recevoir(c);
           dessinerLesTuiles(c);
         })
@@ -335,7 +423,13 @@
       niveaux(c);
     };
     tour();
-    c.minuteur = setInterval(tour, 2000);
+    /* 📉 v1386 — UN COURS EN VISIO BAT MOINS VITE. Chaque battement est un
+       appel au Worker : dix élèves toutes les 2 s pendant une heure, c'est
+       18 000 appels — près d'un cinquième du plafond gratuit d'une journée.
+       Un élève qui REGARDE bat toutes les 5 s, le prof toutes les 3 s ; un
+       appel ordinaire garde ses 2 s. Le Worker compte un participant parti
+       au bout de 25 s sans signe : la marge reste large. */
+    c.minuteur = setInterval(tour, c.cours ? (c.eleve ? 5000 : 3000) : 2000);
     c.horloge = setInterval(function () { majChrono(c); }, 1000);
   }
 
@@ -393,6 +487,7 @@
 
   /* ---------- L'écran ---------- */
   function dessinerLEcran(c) {
+    if (c.cours) { dessinerLEcranDuCours(c); return; }
     var e = el('div', 'aplEcran');
     e.innerHTML =
       '<div class="aplHaut"><span class="aplPoint"></span>' +
@@ -411,6 +506,7 @@
   }
 
   function dessinerLesBoutons(c) {
+    if (c.cours) { boutonsDuCours(c); return; }
     var bas = c.e.querySelector('.aplBas');
     bas.innerHTML = '';
     var bt = function (cle, icone, lab, cls, faire) {
@@ -454,6 +550,7 @@
      d'un dessin à l'autre : les recréer ferait clignoter l'image. */
   function dessinerLesTuiles(c) {
     if (!c.grille) return;
+    if (c.cours) { dessinerLeCours(c); return; }
     var gens = ((c.etat && c.etat.gens) || []).filter(function (x) { return x.etat === 'dedans'; });
     var moi = null, autres = [];
     gens.forEach(function (x) { if (x.moi) moi = x; else autres.push(x); });
@@ -565,9 +662,12 @@
   }
   function reglerUnSon(c, a) {
     a.muted = !c.son;
-    if (c.sortie && a.setSinkId && a.__sortie !== c.sortie) {
-      a.__sortie = c.sortie;
-      a.setSinkId(c.sortie).catch(function () { a.__sortie = ''; });
+    /* 🔈 v1391 — la sortie choisie, ou celle de l'ordinateur (vide) : on
+       sait aussi revenir à la sortie par défaut */
+    var voulue = c.sortie || '';
+    if (a.setSinkId && (a.__sortie || '') !== voulue) {
+      a.__sortie = voulue;
+      a.setSinkId(voulue).catch(function () { a.__sortie = ''; });
     }
   }
 
@@ -673,6 +773,10 @@
 
   /* ---------- Les gestes ---------- */
   function basculerMicro(c) {
+    if (c.cours && c.cours.coupeParProf) {
+      message(c, '🔇 Le prof a coupé les micros. Lève la main ✋ pour demander la parole.');
+      return;
+    }
     c.micro = !c.micro;
     if (c.audio) c.audio.enabled = c.micro;
     majMoi(c);
@@ -745,6 +849,246 @@
     }, function (e) { l.innerHTML = '<b>' + echap(e.message) + '</b>'; });
   }
 
+  /* ============================================================
+     🎥 LE COURS — v1356
+     ============================================================ */
+  function moiDansLAppel(c) {
+    var g = (c.etat && c.etat.gens) || [];
+    for (var i = 0; i < g.length; i++) if (g[i].moi) return g[i];
+    return null;
+  }
+
+  function dessinerLEcranDuCours(c) {
+    var k = c.cours;
+    var e = el('div', 'aplEcran');
+    e.innerHTML =
+      '<div class="aplHaut"><span class="aplPoint"></span>' +
+        '<div class="aplTitre"><b>' + echap(c.titre) + '</b><span class="aplSous">Cours de code en visio</span></div>' +
+        '<span class="aplChrono">00:00</span>' +
+        '<button type="button" class="aplPetit" data-a="reduire">' + ic('reduire', 16) + 'Réduire</button>' +
+      '</div>' +
+      '<div class="aplCours">' +
+        '<div class="aplScene"><span class="etiq"></span><div class="attente"></div>' +
+          (c.eleve ? '<button type="button" class="aplPlein" data-a="plein" title="En grand (tourne ton téléphone)">⤢ En grand</button>' : '') + '</div>' +
+        (c.eleve ? '' : '<div class="aplCote"></div>') +
+        (k.questionnaire ? '<div class="aplQuest" hidden><div class="tete"><span>📝 Séance ' + echap(k.numero) + '</span>' +
+          '<a href="' + echap(k.questionnaire) + '" target="_blank" rel="noopener">↗ À part</a>' +
+          '<button type="button" data-a="fermerQuest">✕ Revenir au cours</button></div></div>' : '') +
+      '</div>' +
+      '<div class="aplBas"></div>';
+    document.body.appendChild(e);
+    c.e = e;
+    c.grille = e.querySelector('.aplCours');
+    e.querySelector('[data-a="reduire"]').addEventListener('click', function () { reduire(c); });
+    /* ⤢ v1391 — David : « si l'élève a son téléphone en portrait, mon image
+       est coupée ». En grand : le plein écran, et le téléphone passe en
+       paysage (Android) ; sur iPhone, le lecteur plein écran d'Apple, qui
+       tourne avec le téléphone. */
+    var pl = e.querySelector('[data-a="plein"]');
+    if (pl) pl.addEventListener('click', function () { pleinEcranDuCours(c); });
+    var fq = e.querySelector('[data-a="fermerQuest"]');
+    if (fq) fq.addEventListener('click', function () { basculerQuestionnaire(c, false); });
+    boutonsDuCours(c);
+    dessinerLeCours(c);
+  }
+
+  function pleinEcranDuCours(c) {
+    var scene = c.e && c.e.querySelector('.aplScene');
+    if (!scene) return;
+    var d = document;
+    if (d.fullscreenElement || d.webkitFullscreenElement) {
+      try { (d.exitFullscreen || d.webkitExitFullscreen).call(d); } catch (e) {}
+      return;
+    }
+    var v = scene.querySelector('video');
+    var demande = scene.requestFullscreen || scene.webkitRequestFullscreen;
+    if (demande) {
+      try {
+        var p = demande.call(scene);
+        var tourner = function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} };
+        if (p && p.then) p.then(tourner, function () { if (v && v.webkitEnterFullscreen) v.webkitEnterFullscreen(); }); else tourner();
+        return;
+      } catch (e) {}
+    }
+    if (v && v.webkitEnterFullscreen) { try { v.webkitEnterFullscreen(); } catch (e) {} }
+    else message(c, 'Tourne ton téléphone : l’image sera plus grande.');
+  }
+
+  /* L'image du cours : le boîtier du prof (chez lui, son propre aperçu) */
+  function dessinerLeCours(c) {
+    var k = c.cours;
+    var gens = (c.etat && c.etat.gens) || [];
+    var parCle = c.etat && c.etat.parCle;
+    var prof = null;
+    gens.forEach(function (x) { if (x.cle === parCle) prof = x; });
+    var scene = c.e.querySelector('.aplScene');
+    var piste = c.eleve ? (prof && prof.etat === 'dedans' ? pisteDe(c, parCle, 'video') : null) : c.camPiste;
+    var v = scene.querySelector('video');
+    if (piste && piste.readyState !== 'ended') {
+      if (!v) { v = document.createElement('video'); v.autoplay = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.muted = true; scene.insertBefore(v, scene.firstChild); }
+      if (!v.srcObject || v.srcObject.getVideoTracks()[0] !== piste) { v.srcObject = new MediaStream([piste]); try { v.play(); } catch (e) {} }
+    } else if (v) { v.parentNode.removeChild(v); }
+    var att = scene.querySelector('.attente');
+    att.textContent = piste ? '' : (c.eleve
+      ? (prof && prof.etat === 'dedans' ? 'L’image du cours arrive…' : '⏳ ' + (k.par || 'Le prof') + ' arrive, le cours va commencer…')
+      : 'Pas d’image : vérifie le boîtier.');
+    scene.querySelector('.etiq').textContent = c.eleve ? (k.par ? 'Le cours de ' + k.par : 'Le cours') : 'Ce que voient les élèves';
+    scene.querySelector('.etiq').style.display = piste ? '' : 'none';
+
+    /* Le son de chacun (le prof, les élèves qui parlent) */
+    gens.forEach(function (x) { if (!x.moi && x.etat === 'dedans') jouerLeSon(c, x.cle); });
+    Object.keys(c.audios).forEach(function (cl) {
+      if (!gens.some(function (x) { return x.cle === cl && x.etat === 'dedans' && !x.moi; })) {
+        try { c.audios[cl].srcObject = null; c.audios[cl].remove(); } catch (e) {}
+        delete c.audios[cl];
+      }
+    });
+
+    var eleves = gens.filter(function (x) { return x.genre === 'eleve'; });
+    var la = eleves.filter(function (x) { return x.etat === 'dedans'; });
+    var mains = eleves.filter(function (x) { return x.etat === 'dedans' && x.main; });
+    var sous = c.e.querySelector('.aplSous');
+    if (sous) {
+      sous.textContent = c.eleve
+        ? (k.par ? 'avec ' + k.par + ' · ' : '') + la.length + ' élève' + (la.length > 1 ? 's' : '') + ' en visio'
+        : la.length + ' présent' + (la.length > 1 ? 's' : '') + ' sur ' + eleves.length +
+          (mains.length ? ' · ✋ ' + mains.length : '');
+    }
+    if (!c.eleve) dessinerLaListeDuCours(c, eleves);
+    majChrono(c);
+  }
+
+  /* Chez le prof : les élèves, là ou pas encore, qui parle, qui lève la main */
+  function dessinerLaListeDuCours(c, eleves) {
+    var z = c.e.querySelector('.aplCote');
+    if (!z) return;
+    var rang = function (x) { return x.etat === 'dedans' ? (x.main ? 0 : 1) : x.etat === 'invite' ? 2 : 3; };
+    var l = eleves.slice().sort(function (a, b) { return rang(a) - rang(b) || String(a.qui).localeCompare(String(b.qui), 'fr'); });
+    var h = '<div class="t"><span>ÉLÈVES</span><span>' + l.filter(function (x) { return x.etat === 'dedans'; }).length + ' / ' + l.length + '</span></div>';
+    if (!l.length) h += '<div style="font-size:12.5px;color:#9AA7B1;padding:4px">Personne pour l’instant.</div>';
+    l.forEach(function (x) {
+      var dedans = x.etat === 'dedans';
+      var parle = dedans && (c.niveaux[x.cle] || 0) > 0.02 && !x.coupe && x.micro !== 0;
+      var etat = dedans ? (x.coupe ? 'micro coupé' : x.micro === 0 ? 's’est mis en muet' : parle ? 'parle' : 'là')
+               : x.etat === 'invite' ? 'pas encore là' : 'parti';
+      h += '<div class="aplEl' + (dedans ? '' : ' absent') + (parle ? ' parle' : '') + '">' +
+        '<span class="r">' + echap(initiales(x.qui)) + '</span>' +
+        '<span class="n">' + echap(x.qui) + '<small>' + echap(etat) + '</small></span>' +
+        (dedans && x.main ? '<span class="main" title="Lève la main">✋</span>' : '') +
+        (dedans ? '<button type="button" data-parole="' + echap(x.cle) + '" data-ouvrir="' + (x.coupe ? 1 : 0) + '"' +
+          (x.coupe ? ' class="on" title="Lui rendre la parole">🎙️ Parole' : ' title="Couper son micro">🔇 Couper') + '</button>' : '') +
+      '</div>';
+    });
+    if (z.getAttribute('data-h') === h) return;
+    z.setAttribute('data-h', h);
+    z.innerHTML = h;
+    Array.prototype.forEach.call(z.querySelectorAll('[data-parole]'), function (b) {
+      b.addEventListener('click', function () {
+        b.disabled = true;
+        poster(c, 'parole', { cle: b.getAttribute('data-parole'), ouvrir: Number(b.getAttribute('data-ouvrir')) })
+          .then(function (d) { if (d.appel) c.etat = d.appel; dessinerLeCours(c); boutonsDuCours(c); },
+                function (e) { b.disabled = false; message(c, e.message); });
+      });
+    });
+  }
+
+  function boutonsDuCours(c) {
+    var k = c.cours;
+    var bas = c.e.querySelector('.aplBas');
+    bas.innerHTML = '';
+    var bt = function (cle, dedans, lab, cls, faire) {
+      var b = el('button', 'aplBt' + (cls ? ' ' + cls : ''), '<i>' + dedans + '</i><span>' + echap(lab) + '</span>');
+      b.type = 'button'; b.setAttribute('data-a', cle);
+      b.addEventListener('click', faire);
+      bas.appendChild(b);
+    };
+    var em = function (t) { return '<b class="em">' + t + '</b>'; };
+    if (c.eleve) {
+      var coupe = k.coupeParProf;
+      bt('micro', ic('micro', 26, c.micro ? '#1F2A33' : '#3A2A20', !c.micro),
+         coupe ? 'Coupé par le prof' : c.micro ? 'Micro' : 'Micro coupé', c.micro ? '' : 'coupe', function () { basculerMicro(c); });
+      bt('main', em('✋'), k.main ? 'Baisser la main' : 'Lever la main', k.main ? 'on' : '', function () { leverLaMain(c); });
+      if (k.questionnaire) bt('quest', em('📝'), k.quest ? 'Fermer le questionnaire' : 'Questionnaire', k.quest ? 'on' : '', function () { basculerQuestionnaire(c); });
+      bt('son', ic('hp', 26, c.son ? '#1F2A33' : '#3A2A20', !c.son), c.son ? 'Son' : 'Son coupé', c.son ? '' : 'coupe', function () { c.son = !c.son; appliquerLeSon(c); });
+      bt('raccrocher', ic('raccrocher', 28), 'Quitter', 'rouge', function () { terminer(c, true); });
+      return;
+    }
+    (k.gestes || []).forEach(function (g) {
+      var on = !!g.on();
+      var off = typeof g.labOff === 'function' ? g.labOff() : g.labOff;
+      bt(g.cle, em(g.emoji), on ? g.lab : off, on ? '' : 'coupe', function () { g.faire(); boutonsDuCours(c); });
+    });
+    var eleves = ((c.etat && c.etat.gens) || []).filter(function (x) { return x.genre === 'eleve'; });
+    var tousCoupes = eleves.length && eleves.every(function (x) { return x.coupe; });
+    bt('micros', em(tousCoupes ? '🎙️' : '🔇'), tousCoupes ? 'Rouvrir les micros' : 'Couper les micros des élèves', tousCoupes ? 'on' : '', function () {
+      poster(c, tousCoupes ? 'ouvrirTous' : 'couperTous', {})
+        .then(function (d) { if (d.appel) c.etat = d.appel; dessinerLeCours(c); boutonsDuCours(c); },
+              function (e) { message(c, e.message); });
+    });
+    /* ⚙️ v1391 — micro, son du boîtier et haut-parleur, pendant le cours */
+    if (k.surSon) bt('reglageson', em('⚙️'), 'Réglages du son', '', function () { k.surSon(c); });
+    if (k.surInviter) bt('inviter', ic('ajouter', 26), 'Inviter', '', function () { k.surInviter(c); });
+    if (k.surLien) bt('lien', em('🔗'), 'Le lien', '', function () { k.surLien(c); });
+    var sur = k.finSure && Date.now() - k.finSure < 5000;
+    bt('terminer', em('⏹'), sur ? 'Sûr ? Terminer' : 'Terminer le cours', 'rouge', function () {
+      if (!(k.finSure && Date.now() - k.finSure < 5000)) {
+        k.finSure = Date.now();
+        boutonsDuCours(c);
+        setTimeout(function () { if (!c.fini) boutonsDuCours(c); }, 5100);
+        return;
+      }
+      poster(c, 'terminer', {}).catch(function () {}).then(function () { terminer(c, true, 'Cours terminé.'); });
+    });
+  }
+
+  /* L'élève : la parole coupée ou rendue par le prof */
+  function appliquerLaParole(c) {
+    if (!c.eleve || !c.cours) return;
+    var k = c.cours;
+    var moi = moiDansLAppel(c);
+    if (!moi) return;
+    var coupe = !!moi.coupe;
+    var avant = { coupe: k.coupeParProf, main: k.main, micro: c.micro };
+    if (coupe && !k.coupeParProf) {
+      k.coupeParProf = true; c.micro = false;
+      if (c.audio) c.audio.enabled = false;
+      message(c, '🔇 Le prof a coupé les micros. Lève la main ✋ pour demander la parole.');
+    } else if (!coupe && k.coupeParProf) {
+      k.coupeParProf = false; c.micro = true;
+      if (c.audio) c.audio.enabled = true;
+      message(c, '🎙️ ' + (k.par || 'Le prof') + ' te donne la parole.');
+    }
+    k.main = !!moi.main;
+    if (avant.coupe !== k.coupeParProf || avant.main !== k.main || avant.micro !== c.micro) boutonsDuCours(c);
+  }
+
+  function leverLaMain(c) {
+    var k = c.cours;
+    k.main = !k.main;
+    boutonsDuCours(c);
+    if (k.main) message(c, '✋ Main levée : le prof la voit.');
+    poster(c, 'main', { main: k.main ? 1 : 0 }).then(function (d) { if (d.appel) c.etat = d.appel; },
+      function (e) { k.main = !k.main; boutonsDuCours(c); message(c, e.message); });
+  }
+
+  /* 📝 « répondre directement pendant la visio pour ne pas avoir à
+     changer de page » (David) : le Google Form dans un panneau */
+  function basculerQuestionnaire(c, oui) {
+    var k = c.cours;
+    var p = c.e && c.e.querySelector('.aplQuest');
+    if (!p) return;
+    k.quest = oui === undefined ? !k.quest : !!oui;
+    if (k.quest && !p.querySelector('iframe')) {
+      var f = document.createElement('iframe');
+      f.src = k.questionnaire + (k.questionnaire.indexOf('?') === -1 ? '?' : '&') + 'embedded=true';
+      f.setAttribute('title', 'Questionnaire de la séance');
+      f.setAttribute('loading', 'lazy');
+      p.appendChild(f);
+    }
+    p.hidden = !k.quest;
+    boutonsDuCours(c);
+  }
+
   /* ---------- Réduire / revenir ---------- */
   function reduire(c) {
     if (!c.e) return;
@@ -809,7 +1153,15 @@
     revenir: revenir,
     sonner: afficherSonnerie,
     fermerSonnerie: fermerSonnerie,
-    enCours: function () { return courant && !courant.fini ? { appel: courant.appel, titre: courant.titre } : null; },
+    enCours: function () { return courant && !courant.fini ? { appel: courant.appel, titre: courant.titre, cours: !!courant.cours } : null; },
+    /* 🎥 redessiner les boutons du cours (un interrupteur changé par la page) */
+    majCours: function () { if (courant && courant.cours && courant.e) boutonsDuCours(courant); },
+    /* 🔈 v1391 — où l'on entend les autres (vide = la sortie par défaut) */
+    sortie: function (id) {
+      if (!courant || courant.fini) return;
+      courant.sortie = id || '';
+      appliquerLeSon(courant);
+    },
     raccrocher: function () { if (courant) terminer(courant, true); }
   };
 })();
