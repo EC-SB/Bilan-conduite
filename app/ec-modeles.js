@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 10:20 — v1363 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -390,9 +390,9 @@ const SIMU_TXT = {
   cloture:
 '🤓 Si tu as un doute ou que les liens ne fonctionnent pas, demande au bureau de t\'aider à y accéder ! \n' +
 '➡️ Tes procédures sont à apprendre par cœur !   \n' +
-'➡️ As-tu envoyé tes procédures / vidéos d\'entraînements sur Messenger Évolution Conduites ? \n' +
+'➡️ As-tu envoyé tes procédures / vidéos d\'entraînements dans ta messagerie de l\'App Évolution Conduites ? \n' +
 '📢 Rappelles toi, plus tu vas travailler tes groupes, t\'entraîner avant chaque leçon, plus cela sera facile et rapide ! 🏎️\n' +
-'🗨️ Sur Messenger il y a toujours du monde ! Si tu as la moindre question, ou envie de vérifier que tu sais bien tes procédures, ne reste pas seul dans ton coin, demande nous !'
+'🗨️ Dans ta messagerie de l\'App Évolution Conduites il y a toujours du monde ! Si tu as la moindre question, ou envie de vérifier que tu sais bien tes procédures, ne reste pas seul dans ton coin, demande nous !'
 };
 
 /* Compétences simulateur — boîte manuelle (10) */
@@ -405,7 +405,7 @@ const SIMU_COMP_MANUELLE = [
   { cle:'accelerer', titre:'➡️ 𝘼𝘾𝘾𝙀𝙇𝙀𝙍𝙀𝙍, 𝙁𝙍𝙀𝙄𝙉𝙀𝙍, 𝙎\'𝘼𝙍𝙍𝙀𝙏𝙀𝙍', texte:'https://www.facebook.com/share/v/19cLgA4nLY/', nb:4,
     preErreurs:['Dissocie bien tes deux pieds :\n- le frein jusqu\'à 20 pas en dessous (fort au début, puis on relâche dès qu\'on est à 20 km/h en gardant le pied devant)\n-  le pied gauche embraye, tiens, pivote. \n- ensuite on débraye avant de freiner car on est proche du 15km/h en 2nde !'] },
   { cle:'volant', titre:'➡️ 𝙈𝘼𝙉𝙄𝙋𝙐𝙇𝘼𝙏𝙄𝙊𝙉 𝘿𝙐 𝙑𝙊𝙇𝘼𝙉𝙏 𝙀𝙏 𝙏𝙍𝘼𝙅𝙀𝘾𝙏𝙊𝙄𝙍𝙀', texte: SIMU_TXT.volantManuelle, nb:4,
-    preErreurs:['📱 Envoie moi la vidéo de ton entraînement sur la manipulation du volant par Messenger 🚙 Exemple entraînement à domicile sans volant 🚘\nhttps://www.facebook.com/groups/963972327360861/permalink/970393543385406/'] },
+    preErreurs:['📱 Envoie-moi la vidéo de ton entraînement sur la manipulation du volant dans ta messagerie de l\'appli 🚙 Exemple entraînement à domicile sans volant 🚘\nhttps://www.facebook.com/groups/963972327360861/permalink/970393543385406/'] },
   { cle:'vavd', titre:'➡️ 𝙋𝙍𝙊𝘾𝙀𝘿𝙐𝙍𝙀 𝙑𝘼/𝙑𝘿', texte: SIMU_TXT.vavdManuelle, nb:4 },
   { cle:'allureLente', titre:'➡️ 𝙈𝘼𝙉𝙊𝙀𝙐𝙑𝙍𝙀𝙍 𝘼 𝘼𝙇𝙇𝙐𝙍𝙀 𝙇𝙀𝙉𝙏𝙀 (𝙅𝙀𝙐𝙓 𝘿𝙀 𝙋𝙀𝘿𝘼𝙇𝙀𝙎)', texte: SIMU_TXT.allureLenteManuelle, nb:4,
     preErreurs:['Dissocie bien tes deux pieds : pied gauche point d\'équilibre, point d\'attaque, pied droit, accélérateur 1500 tours/min minimum pour ne pas caler'] },
@@ -421,7 +421,7 @@ const SIMU_COMP_AUTO = [
   { cle:'accelerer', titre:'➡️ 𝘼𝘾𝘾𝙀𝙇𝙀𝙍𝙀𝙍, 𝙁𝙍𝙀𝙄𝙉𝙀𝙍, 𝙎\'𝘼𝙍𝙍𝙀𝙏𝙀𝙍', texte:'', nb:4 },
   { cle:'vavd', titre:'➡️ 𝙋𝙍𝙊𝘾𝙀𝘿𝙐𝙍𝙀 𝙑𝘼/𝙑𝘿', texte: SIMU_TXT.vavdAuto, nb:4 },
   { cle:'volant', titre:'➡️ 𝙈𝘼𝙉𝙄𝙋𝙐𝙇𝘼𝙏𝙄𝙊𝙉 𝘿𝙐 𝙑𝙊𝙇𝘼𝙉𝙏', texte: SIMU_TXT.volantManuelle, nb:5,
-    preErreurs:['Envoie moi la vidéo de ton entraînement sur la manipulation du volant par Messenger 🚙 Exemple entraînement à domicile sans volant 🚘\nhttps://www.facebook.com/groups/963972327360861/permalink/970393543385406/'] },
+    preErreurs:['Envoie-moi la vidéo de ton entraînement sur la manipulation du volant dans ta messagerie de l\'appli 🚙 Exemple entraînement à domicile sans volant 🚘\nhttps://www.facebook.com/groups/963972327360861/permalink/970393543385406/'] },
   { cle:'allureLente', titre:'➡️ 𝙈𝘼𝙉𝙊𝙀𝙐𝙑𝙍𝙀𝙍 𝘼 𝘼𝙇𝙇𝙐𝙍𝙀 𝙇𝙀𝙉𝙏𝙀 (𝙅𝙀𝙐𝙓 𝘿𝙀 𝙋𝙀𝘿𝘼𝙇𝙀𝙎)', texte:'', nb:2 },
   { cle:'giratoires', titre:'➡️ 𝙋𝙍𝙊𝘾𝙀𝘿𝙐𝙍𝙀𝙎 𝙂𝙄𝙍𝘼𝙏𝙊𝙄𝙍𝙀𝙎 ', texte: SIMU_TXT.giratoiresAuto, nb:4 },
   { cle:'pad', titre:'➡️ 𝙋𝙍𝙊𝘾𝙀𝘿𝙐𝙍𝙀 𝙋𝘼𝘿', texte: SIMU_TXT.padAuto, nb:4 }
@@ -1764,7 +1764,7 @@ function buildExamen(ai){
   parts.push('- on ne demande pas au moniteur (trice) ce qu\'il ou elle en pense et encore moins sur le parking d\'examen ⚠️');
   parts.push('💡 𝙍𝙖𝙥𝙥𝙚𝙡𝙨 :');
   parts.push('- il faut avoir minimum 20/31 et aucune fautes éliminatoires');
-  parts.push('- ce n\'est pas la peine de nous contacter pour avoir ton résultat, on te contactera dès qu\'on l\'aura par Messenger.');
+  parts.push('- ce n\'est pas la peine de nous contacter pour avoir ton résultat, on te contactera dès qu\'on l\'aura.');
   parts.push('- crée ton compte sur 𝙍𝘿𝙑 𝙋𝙀𝙍𝙈𝙄𝙎 pour télécharger la version PDF de ton résultat :  https://www.service-public.fr/particuliers/vosdroits/R39502.');
   return parts.join('\n');
 }
