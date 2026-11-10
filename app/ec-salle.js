@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 11:01 — v1375 */
+/* Déployé le 10/11/2026 à 10:20 — v1392 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -418,11 +418,14 @@ function slFenetreInstaller(t, nomDepart){
     const avant = bG.textContent;
     bG.disabled = true; bG.textContent = '…';
     try{
+      /* 🔓 v1392 — pas encore d'espace : il s'ouvre en lançant (comme sur la tablette) */
       const d = await appelPrep({ action: 'salleInstallerEleve', tablette: t.id, eleve: choix.eleve, formation: choix.formation,
-                                  naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree, revision: choix.revision ? 1 : 0 });
+                                  naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree, revision: choix.revision ? 1 : 0,
+                                  ouvrir: 1 });
       SL.d = d;
       fermerFond(fond);
-      showToast((choix.revision ? '📚 La révision de ' + choix.eleve : '▶ ' + choix.eleve) + ' démarre sur la ' + t.nom + ' (quelques secondes) ✅');
+      showToast((choix.revision ? '📚 La révision de ' + choix.eleve : '▶ ' + choix.eleve) + ' démarre sur la ' + t.nom + ' (quelques secondes) ✅' +
+                (d && d.espaceOuvert ? ' · 🔓 son espace est ouvert : envoie-lui son code depuis son dossier' : ''));
       slDessiner();
     }catch(e){ bG.disabled = false; bG.textContent = avant; showToast('Impossible : ' + e.message); }
   });
