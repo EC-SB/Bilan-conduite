@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 10:20 — v1392 */
+/* Déployé le 10/11/2026 à 10:33 — v1393 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1393,
+    date: 'Mardi 10 novembre 2026',
+    resume: '↩️ Fiche d’évaluation : un deuxième appui sur ✅ 🍊 ou ❌ efface la rubrique',
+    quoi: [
+      { emoji: '↩️',
+        titre: 'Se raviser sur une rubrique',
+        texte: 'Sur la fiche d’évaluation (boîte manuelle ou automatique), appuyer une deuxième fois sur le ✅, le 🍊 ou le ❌ déjà choisi l’enlève. Le bouton « — » efface toujours aussi, et on passe d’un choix à l’autre d’un seul appui.' }
+    ]
+  },
   {
     version: 1392,
     date: 'Mardi 10 novembre 2026',
