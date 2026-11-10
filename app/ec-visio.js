@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 17:51 — v1386 */
+/* Déployé le 10/11/2026 à 09:38 — v1391 */
 /* ============================================================
    ec-visio.js — 🎥 LE CODE EN VISIO, CÔTÉ ÉQUIPE
 
@@ -32,10 +32,20 @@ let visioAppareils = { cams: [], sons: [], lus: false };
 let visioDernierLancement = null;   /* { sansEspace } du dernier lancement */
 
 /* ---------- Ce qu'on retient de l'appareil (ce navigateur) ---------- */
+/* 🎙️ v1391 — LE MICRO ET LE HAUT-PARLEUR SONT CEUX DE CHROME, PAR DÉFAUT.
+   David, le 10 novembre : « le son est horrible car Chrome ne peut pas
+   choisir quel micro il utilise : notre app passe par-dessus et ça ne
+   fonctionne pas », « je n'entends pas l'élève, l'app ne prend pas les
+   bons micro ou HP ». L'appli devinait un micro (le premier de la liste)
+   et l'imposait à Chrome. Désormais « microId » vide = celui que Chrome
+   utilise (réglé dans Chrome ou Windows), et « sortieId » vide = la sortie
+   de l'ordinateur. On ne choisit un autre appareil que si on le demande.
+   « v: 2 » : les micros devinés par l'ancienne version sont oubliés. */
 function visioMedia(){
   let m = {};
   try{ m = JSON.parse(localStorage.getItem(CLE_VISIO_MEDIA) || '{}') || {}; }catch(e){ m = {}; }
-  return Object.assign({ cam: '', sonBoitierId: '', microId: '', sonBoitier: true, monMicro: true }, m);
+  if(m.v !== 2){ m.microId = ''; m.sortieId = ''; m.v = 2; visioRetenir(Object.assign({ cam: '', sonBoitierId: '', sonBoitier: true, monMicro: true }, m)); }
+  return Object.assign({ cam: '', sonBoitierId: '', microId: '', sortieId: '', sonBoitier: true, monMicro: true }, m);
 }
 function visioRetenir(m){
   try{ localStorage.setItem(CLE_VISIO_MEDIA, JSON.stringify(m)); }catch(e){}
@@ -50,7 +60,8 @@ async function visioListerAppareils(){
   const l = await md.enumerateDevices();
   visioAppareils = {
     cams: l.filter(d => d.kind === 'videoinput'),
-    sons: l.filter(d => d.kind === 'audioinput' && d.deviceId !== 'communications'),
+    sons: l.filter(d => d.kind === 'audioinput' && d.deviceId !== 'communications' && d.deviceId !== 'default'),
+    sorties: l.filter(d => d.kind === 'audiooutput' && d.deviceId !== 'communications' && d.deviceId !== 'default'),
     lus: l.some(d => d.label)
   };
   /* Premier passage : on devine le boîtier */
@@ -64,17 +75,16 @@ async function visioListerAppareils(){
     const b = visioAppareils.sons.find(d => VISIO_BOITIER.test(d.label));
     m.sonBoitierId = b ? b.deviceId : 'aucun'; change = true;
   }
-  if(!m.microId || !visioAppareils.sons.some(d => d.deviceId === m.microId)){
-    const b = visioAppareils.sons.find(d => !VISIO_BOITIER.test(d.label) && d.deviceId !== 'default') ||
-              visioAppareils.sons.find(d => d.deviceId === 'default') || visioAppareils.sons[0];
-    if(b){ m.microId = b.deviceId; change = true; }
-  }
+  /* 🎙️ v1391 — le micro n'est plus deviné : vide = celui de Chrome. Un
+     micro choisi qui a disparu (débranché) repasse à celui de Chrome. */
+  if(m.microId && m.microId !== 'aucun' && !visioAppareils.sons.some(d => d.deviceId === m.microId)){ m.microId = ''; change = true; }
+  if(m.sortieId && !visioAppareils.sorties.some(d => d.deviceId === m.sortieId)){ m.sortieId = ''; change = true; }
   if(change) visioRetenir(m);
   return visioAppareils;
 }
 
 /* ---------- L'image et le son : le boîtier, et le mélange ---------- */
-function visioCleDuFlux(m){ return [m.cam, m.sonBoitierId, m.microId].join('|'); }
+function visioCleDuFlux(m){ return String(m.cam || ''); }
 
 async function visioPreparer(){
   const m = visioMedia();
@@ -95,36 +105,97 @@ async function visioPreparer(){
   }catch(e){
     throw new Error('La caméra (le boîtier) est refusée ou occupée : ferme Messenger, OBS ou l’autre onglet qui l’utilise, puis réessaie.');
   }
-  let sonB = null, sonM = null;
-  if(m.sonBoitierId && m.sonBoitierId !== 'aucun'){
-    try{
-      sonB = await md.getUserMedia({ audio: { deviceId: { exact: m.sonBoitierId },
-        echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-    }catch(e){ sonB = null; }
-  }
-  if(m.microId && m.microId !== m.sonBoitierId){
-    try{
-      sonM = await md.getUserMedia({ audio: { deviceId: { exact: m.microId }, echoCancellation: true, noiseSuppression: true } });
-    }catch(e){ sonM = null; }
-  }
+  const sonB = await visioCapterLeBoitier(m.sonBoitierId);
+  const sonM = await visioCapterLeMicro(m.microId, sonB);
+  /* ⚠️ 48 kHz, LA FRÉQUENCE DE L'OPUS. Un contexte à 44,1 kHz (celle de
+     beaucoup de cartes son) rééchantillonne tout ce qui part : un son
+     métallique de plus. */
   const Ctx = window.AudioContext || window.webkitAudioContext;
-  const ctx = new Ctx();
+  let ctx;
+  try{ ctx = new Ctx({ sampleRate: 48000, latencyHint: 'interactive' }); }catch(e){ ctx = new Ctx(); }
   try{ await ctx.resume(); }catch(e){}
   const dest = ctx.createMediaStreamDestination();
   const gB = ctx.createGain(), gM = ctx.createGain();
   const an = ctx.createAnalyser();
   an.fftSize = 512;
   gB.connect(dest); gM.connect(dest); gB.connect(an); gM.connect(an);
-  if(sonB) ctx.createMediaStreamSource(sonB).connect(gB);
-  if(sonM) ctx.createMediaStreamSource(sonM).connect(gM);
+  const srcB = sonB ? ctx.createMediaStreamSource(sonB) : null;
+  const srcM = sonM ? ctx.createMediaStreamSource(sonM) : null;
+  if(srcB) srcB.connect(gB);
+  if(srcM) srcM.connect(gM);
   const flux = new MediaStream([video.getVideoTracks()[0], dest.stream.getAudioTracks()[0]]);
   visioFx = { flux, ctx, gB, gM, an, sonB: !!sonB, sonM: !!sonM, cle: visioCleDuFlux(m),
-              brut: video.getTracks().concat(sonB ? sonB.getTracks() : [], sonM ? sonM.getTracks() : []) };
+              video: video, fluxB: sonB, fluxM: sonM, srcB: srcB, srcM: srcM,
+              brut: video.getTracks() };
   visioReglerLesGains();
   /* Les noms des appareils n'arrivent qu'après la permission */
   if(!visioAppareils.lus) await visioListerAppareils();
   return visioFx;
 }
+/* 🔊 le son du boîtier : brut (pas de traitement : c'est le son du cours) */
+async function visioCapterLeBoitier(id){
+  if(!id || id === 'aucun') return null;
+  try{
+    return await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: id },
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  }catch(e){ return null; }
+}
+/* 🎙️ mon micro : celui de Chrome si rien n'est choisi (pas de « deviceId »),
+   avec l'anti-écho de Chrome — les élèves sortent par le haut-parleur. */
+async function visioCapterLeMicro(id, fluxBoitier){
+  if(id === 'aucun') return null;
+  const traite = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  let f = null;
+  try{ f = await navigator.mediaDevices.getUserMedia({ audio: id ? Object.assign({ deviceId: { exact: id } }, traite) : traite }); }
+  catch(e){ return null; }
+  /* ⚠️ LE MICRO DE CHROME PEUT ÊTRE… LE BOÎTIER. Le son du cours partirait
+     deux fois, l'un traité, l'autre pas : un écho horrible. On le refuse. */
+  try{
+    const b = fluxBoitier && fluxBoitier.getAudioTracks()[0], mm = f.getAudioTracks()[0];
+    const sb = b && b.getSettings ? b.getSettings() : {}, sm = mm && mm.getSettings ? mm.getSettings() : {};
+    if(b && ((sb.deviceId && sb.deviceId === sm.deviceId) || (sb.groupId && sb.groupId === sm.groupId && VISIO_BOITIER.test(mm.label || '')))){
+      f.getTracks().forEach(t => t.stop());
+      if(typeof showToast === 'function') showToast('🎙️ Le micro de Chrome est le boîtier : choisis ton vrai micro dans ⚙️ Réglages du son.');
+      return null;
+    }
+  }catch(e){}
+  return f;
+}
+/* 🔁 v1391 — CHANGER DE MICRO OU DE SON DU BOÎTIER PENDANT LE COURS.
+   Le son qui part aux élèves est la sortie du mélange : on remplace la
+   source à l'entrée, la piste envoyée ne change pas, les élèves ne voient
+   rien. (Avant, changer de micro ne changeait rien au cours en route.) */
+async function visioChangerLeSon(quoi, id){
+  const m = visioMedia();
+  m[quoi === 'boitier' ? 'sonBoitierId' : 'microId'] = id; visioRetenir(m);
+  if(!visioFx) return;
+  const fx = visioFx;
+  if(quoi === 'boitier'){
+    const nf = await visioCapterLeBoitier(id);
+    if(fx !== visioFx){ if(nf) nf.getTracks().forEach(t => t.stop()); return; }
+    try{ if(fx.srcB) fx.srcB.disconnect(); }catch(e){}
+    if(fx.fluxB) fx.fluxB.getTracks().forEach(t => t.stop());
+    fx.fluxB = nf; fx.srcB = nf ? fx.ctx.createMediaStreamSource(nf) : null; fx.sonB = !!nf;
+    if(fx.srcB) fx.srcB.connect(fx.gB);
+  }else{
+    const nf = await visioCapterLeMicro(id, fx.fluxB);
+    if(fx !== visioFx){ if(nf) nf.getTracks().forEach(t => t.stop()); return; }
+    try{ if(fx.srcM) fx.srcM.disconnect(); }catch(e){}
+    if(fx.fluxM) fx.fluxM.getTracks().forEach(t => t.stop());
+    fx.fluxM = nf; fx.srcM = nf ? fx.ctx.createMediaStreamSource(nf) : null; fx.sonM = !!nf;
+    if(fx.srcM) fx.srcM.connect(fx.gM);
+  }
+  fx.cle = visioCleDuFlux(visioMedia());
+  visioReglerLesGains();
+  if(typeof AppelEC !== 'undefined' && AppelEC.majCours) AppelEC.majCours();
+}
+/* 🔈 où j'entends les élèves : vide = la sortie de l'ordinateur */
+function visioChangerLaSortie(id){
+  const m = visioMedia(); m.sortieId = id || ''; visioRetenir(m);
+  if(typeof AppelEC !== 'undefined' && AppelEC.sortie) AppelEC.sortie(m.sortieId);
+}
+function visioNomAppareil(d, i, lab){ return String((d && d.label) || (lab + ' ' + (i + 1))).replace(/^(Par défaut|Default)\s*-\s*/i, ''); }
+
 function visioReglerLesGains(){
   if(!visioFx) return;
   const m = visioMedia();
@@ -134,6 +205,7 @@ function visioReglerLesGains(){
 function visioArreter(){
   if(!visioFx) return;
   (visioFx.brut || []).forEach(t => { try{ t.stop(); }catch(e){} });
+  [visioFx.fluxB, visioFx.fluxM].forEach(f => { if(f) f.getTracks().forEach(t => { try{ t.stop(); }catch(e){} }); });
   try{ visioFx.flux.getTracks().forEach(t => t.stop()); }catch(e){}
   try{ visioFx.ctx.close(); }catch(e){}
   visioFx = null;
@@ -166,8 +238,10 @@ function visioOuvrirLeCours(seance, billet){
   AppelEC.ouvrir({
     route: routeDesAppelsEC(), billet: billet, appel: seance.appel, genre: 'video',
     titre: '🎥 Code — séance ' + seance.numero, eleve: false, flux: visioFx.flux,
+    sortie: visioMedia().sortieId || '',
     cours: { numero: seance.numero, gestes: visioGestes(),
-             surInviter: (c) => visioPanneauInviter(c, seance), surLien: (c) => visioPanneauLien(c, seance) },
+             surInviter: (c) => visioPanneauInviter(c, seance), surLien: (c) => visioPanneauLien(c, seance),
+             surSon: (c) => visioPanneauSon(c) },
     surFin: () => {
       visioArreter();
       setTimeout(() => { if($('vsCarte')) visioRafraichir(); }, 1200);
@@ -186,6 +260,39 @@ async function visioReprendre(seanceId, appelId){
     visioArreter();
     if(typeof showToast === 'function') showToast('Impossible de reprendre le cours : ' + ((e && e.message) || e));
   }
+}
+
+/* ---------- ⚙️ v1391 — Réglages du son, dans l'écran du cours ---------- */
+async function visioPanneauSon(c){
+  const l = visioPanneauDansLeCours(c, 'son');
+  if(!l) return;
+  l.innerHTML = '<b>⚙️ Réglages du son</b><div style="color:#9AA7B1;font-size:12px">Lecture des appareils…</div>';
+  try{ await visioListerAppareils(); }catch(e){}
+  const m = visioMedia();
+  const ligne = (lab, liste, valeur, defaut, aucun, quand) => {
+    const z = document.createElement('label');
+    z.style.cssText = 'display:block;font-size:12.5px;color:#C9D3DA;margin:8px 0 0';
+    z.textContent = lab;
+    const s = document.createElement('select');
+    s.style.cssText = 'display:block;width:100%;margin-top:4px;background:#1F2A33;color:#fff;border:1px solid #2A3540;border-radius:10px;padding:8px;font:inherit;font-size:13px';
+    s.innerHTML = (defaut ? '<option value="">' + echapper(defaut) + '</option>' : '') + (aucun ? '<option value="aucun">— Aucun</option>' : '') +
+      liste.map((d, i) => '<option value="' + echapper(d.deviceId) + '">' + echapper(visioNomAppareil(d, i, lab)) + '</option>').join('');
+    s.value = valeur || '';
+    s.addEventListener('change', async () => { s.disabled = true; try{ await quand(s.value); }catch(e){} s.disabled = false; });
+    z.appendChild(s);
+    return z;
+  };
+  l.innerHTML = '<b>⚙️ Réglages du son</b>';
+  l.appendChild(ligne('🎙️ Mon micro', visioAppareils.sons.filter(d => d.deviceId !== m.sonBoitierId), m.microId === 'aucun' ? 'aucun' : (m.microId || ''),
+    'Celui de Chrome (par défaut)', true, v => visioChangerLeSon('micro', v)));
+  l.appendChild(ligne('🔊 Son du boîtier', visioAppareils.sons, m.sonBoitierId || 'aucun', '', true, v => visioChangerLeSon('boitier', v)));
+  if('setSinkId' in HTMLMediaElement.prototype){
+    l.appendChild(ligne('🔈 J’entends les élèves sur', visioAppareils.sorties || [], m.sortieId || '', 'La sortie de l’ordinateur (par défaut)', false, v => visioChangerLaSortie(v)));
+  }
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:11.5px;color:#7E8C97;margin-top:10px;line-height:1.45';
+  n.textContent = 'Le changement est immédiat, le cours continue. Si le son du cours passe aussi par les enceintes de la salle, prends un casque : ton micro le reprendrait.';
+  l.appendChild(n);
 }
 
 /* ---------- Dans l'écran du cours : ➕ Inviter, 🔗 Le lien ---------- */
@@ -688,6 +795,11 @@ function visioDessinerMedia(z){
     reg.appendChild(l);
   };
   const changer = (cle) => (v) => {
+    /* 🔁 v1391 — le micro et le son du boîtier se changent sans tout refaire */
+    if(cle === 'microId' || cle === 'sonBoitierId'){
+      visioChangerLeSon(cle === 'microId' ? 'micro' : 'boitier', v).catch(() => {}).then(() => visioDessiner());
+      return;
+    }
     const mm = visioMedia(); mm[cle] = v; visioRetenir(mm);
     visioPreparer().catch(() => {}).then(() => visioDessiner());
   };
@@ -704,8 +816,32 @@ function visioDessinerMedia(z){
   select('🎥 Caméra (le boîtier)', visioAppareils.cams, m.cam, false, changer('cam'));
   select('🔊 Son du boîtier', visioAppareils.sons, m.sonBoitierId || 'aucun', true, changer('sonBoitierId'));
   interrupteur('sonBoitier', 'Envoyer le son du boîtier', m.sonBoitierId && m.sonBoitierId !== 'aucun');
-  select('🎙️ Mon micro', visioAppareils.sons, m.microId, false, changer('microId'));
-  interrupteur('monMicro', 'Envoyer mon micro', true);
+  /* 🎙️ v1391 — par défaut, le micro que Chrome utilise */
+  {
+    const l = document.createElement('label');
+    l.className = 'vsLab';
+    l.textContent = '🎙️ Mon micro';
+    const s = document.createElement('select');
+    s.innerHTML = '<option value="">Celui de Chrome (par défaut)</option><option value="aucun">— Aucun</option>' +
+      visioAppareils.sons.filter(d => d.deviceId !== m.sonBoitierId).map((d, i) => '<option value="' + echapper(d.deviceId) + '">' + echapper(visioNomAppareil(d, i, 'Micro')) + '</option>').join('');
+    s.value = m.microId || '';
+    s.addEventListener('change', () => changer('microId')(s.value));
+    l.appendChild(s);
+    reg.appendChild(l);
+  }
+  interrupteur('monMicro', 'Envoyer mon micro', m.microId !== 'aucun');
+  if('setSinkId' in HTMLMediaElement.prototype && (visioAppareils.sorties || []).length){
+    const l = document.createElement('label');
+    l.className = 'vsLab';
+    l.textContent = '🔈 J’entends les élèves sur';
+    const s = document.createElement('select');
+    s.innerHTML = '<option value="">La sortie de l’ordinateur (par défaut)</option>' +
+      visioAppareils.sorties.map((d, i) => '<option value="' + echapper(d.deviceId) + '">' + echapper(visioNomAppareil(d, i, 'Sortie')) + '</option>').join('');
+    s.value = m.sortieId || '';
+    s.addEventListener('change', () => visioChangerLaSortie(s.value));
+    l.appendChild(s);
+    reg.appendChild(l);
+  }
   const nv = document.createElement('div');
   nv.className = 'vsNiveau';
   nv.innerHTML = '<span></span>';
