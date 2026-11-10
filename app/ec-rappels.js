@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 13:37 — v1308 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -684,13 +684,13 @@ const OPTIONS_RAPPEL = [
           'à tourner le volant chez toi (assiette ou autre), revu la position de la main ' +
           'sur le levier de vitesse comme indiqué sur ton dernier rapport en simulateur ?\n' +
           'Je rappelle que tu peux te filmer en t\'entrainant et que je peux te corriger ' +
-          'gratuitement sur Messenger !' },
+          'gratuitement dans ta messagerie de l\'App Évolution Conduites !' },
   { cle:'1er-bea', nom:'🅰 Premier cours en voiture — boîte automatique',
     texte:"J'espère que tu as bien bossé avant ton 1ᵉʳ cours en voiture : t'es-tu entrainé " +
           'à tourner le volant chez toi (assiette ou autre), revu les erreurs indiquées ' +
           'sur ton dernier rapport en simulateur ?\n' +
           'Je rappelle que tu peux te filmer en t\'entrainant et que je peux te corriger ' +
-          'gratuitement sur Messenger !' }
+          'gratuitement dans ta messagerie de l\'App Évolution Conduites !' }
 ];
 
 /* Les types disponibles : ceux de l'application, plus les vôtres.
