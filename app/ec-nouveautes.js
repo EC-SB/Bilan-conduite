@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:15 — v1409 */
+/* Déployé le 10/11/2026 à 16:40 — v1410 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1410,
+    date: 'Mardi 10 novembre 2026',
+    resume: '⌨️ Les heures du jour du permis se tapent enfin sans galère',
+    quoi: [
+      { emoji: '⌨️',
+        titre: 'Taper une heure',
+        texte: 'On touche la case, tout est sélectionné, on tape 11, 1100, 11:00 ou 11h30. L’heure se garde en quittant la case (Tab, clic ailleurs) ou avec Entrée ; Échap annule ; vidée, elle revient au calcul. Avant, la case se redessinait au premier chiffre et gardait une heure fausse.' },
+      { emoji: '📐',
+        titre: 'Des colonnes alignées',
+        texte: 'Une ligne par élève : le nom, la conduite, l’examen, toujours à la même place ; sur téléphone, l’un sous l’autre.' }
+    ]
+  },
   {
     version: 1409,
     date: 'Mardi 10 novembre 2026',
