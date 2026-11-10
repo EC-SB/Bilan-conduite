@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:03 — v1394 */
+/* Déployé le 10/11/2026 à 11:07 — v1395 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1395,
+    date: 'Mardi 10 novembre 2026',
+    resume: '💰 Mails : joindre nos tarifs en PDF depuis les réponses rapides',
+    quoi: [
+      { emoji: '💰',
+        titre: 'Nos tarifs en pièces jointes',
+        texte: 'Dans un mail ouvert, « 💰 Nos tarifs (PDF) » à côté des réponses rapides (et dans le menu ⚡) : on coche les fiches tarifaires voulues, elles partent en PDF et l’éditeur s’ouvre avec elles et un mot tout prêt.' },
+      { emoji: '📎',
+        titre: 'Aussi dans un mail déjà commencé',
+        texte: 'Dans l’éditeur, ⚡ ▾ › « Joindre nos tarifs en PDF… » ajoute les fiches choisies aux pièces jointes, sans toucher au texte. Dix fiches au plus par mail.' }
+    ]
+  },
   {
     version: 1394,
     date: 'Mardi 10 novembre 2026',
