@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:36 — v1397 */
+/* Déployé le 10/11/2026 à 13:42 — v1403 */
 /* ============================================================
    ec-parc3d.js — 🧊 LE PARC EN DIRECT, EN 3D
 
@@ -86,6 +86,8 @@ async function basculerParc3D(oui){
     if(mot) mot.textContent = '⏳ La 3D se prépare…';
     try{
       await EC3D.charger();
+      /* 📷 v1403 — le Q3 scanné, en version légère (4 s au plus : sinon la voiture dessinée) */
+      if(EC3D.scans) await EC3D.scans(true, 4000);
       creerParc3D(hote);
       parc3d.pret = true;
       if(mot) mot.textContent = '';
