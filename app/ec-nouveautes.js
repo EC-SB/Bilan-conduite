@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 13:42 — v1403 */
+/* Déployé le 10/11/2026 à 14:08 — v1404 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1404,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🚦 Espace élève ajourné : la marche à suivre sur l’accueil, le CEPC en tiroir, « OK Loudéac » coché par l’élève, la carte du RDV post-permis',
+    quoi: [
+      { emoji: '🚦',
+        titre: 'Sur son accueil, ton message après l’ajournement',
+        texte: '« Suite à ton ajournement du … » : les 3 étapes obligatoires et l’avertissement, avec « 📝 Faire mon bilan » qui l’emmène au formulaire, « voir ton CEPC » et l’étape 24 « Vous avez loupé votre examen » (Mise en pratique) à la place du lien Facebook.' },
+      { emoji: '🗂️',
+        titre: 'CEPC et bilan du moniteur dans des tiroirs',
+        texte: 'Dans l’onglet Bilan, une carte « Ton examen » avec deux tiroirs repliés : son CEPC et ton bilan d’examen. Le questionnaire remonte.' },
+      { emoji: '📍',
+        titre: 'Repasser à Loudéac : il répond, la fiche se coche',
+        texte: 'À la fin de son bilan (élèves de Saint-Brieuc) : « Peux-tu repasser ton permis à Loudéac ? ». Oui coche « OK pour passer à Loudéac » dans sa fiche, Non le décoche. Les élèves de Loudéac n’ont pas la question.' },
+      { emoji: '📜',
+        titre: 'La carte « RDV post-permis » quand son bilan est validé',
+        texte: 'Ton message, avec le bouton vers Drivup tant que le rendez-vous n’est pas pris ; dès qu’il est pris (posé par le bureau ou lu dans le planning Drivup), la carte donne sa date. Elle disparaît quand le rendez-vous est fait.' }
+    ]
+  },
   {
     version: 1403,
     date: 'Mardi 10 novembre 2026',
