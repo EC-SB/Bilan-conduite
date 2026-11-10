@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 10/11/2026 à 11:07 — v1395 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -1420,6 +1420,7 @@ function mlVites(){
     ev.stopPropagation();
     const items = [{ titre: 'RÉPONSES RAPIDES DES MAILS' }];
     mlReponsesRapides().forEach(x => items.push({ emoji: '⚡', texte: x.bouton, faire: () => mlRepondreAvec(x) }));
+    if(mlPeutEcrire() && mlPeutJoindreLesTarifs()) items.push({ emoji: '💰', texte: 'Nos tarifs en PDF (je choisis)…', faire: () => mlRepondreAvecLesTarifs() });
     items.push({ sep: true });
     items.push({ emoji: '📄', texte: 'Ce qu’on écrit et envoie', faire: () => mlCarnet() });
     if(mlEstAdmin()) items.push({ emoji: '⚙️', texte: 'Régler les réponses rapides', faire: () => { if(typeof rrFiltre !== 'undefined') rrFiltre = 'mail'; ecranReglagesMessagerie(); } });
@@ -1438,6 +1439,15 @@ function mlVites(){
       b.addEventListener('click', () => mlRepondreAvec(x));
       v.appendChild(b);
     });
+    if(mlPeutJoindreLesTarifs()){
+      const bt = document.createElement('button');
+      bt.type = 'button';
+      bt.className = 'ckVite';
+      bt.textContent = '💰 Nos tarifs (PDF)';
+      bt.title = 'Choisir les fiches tarifaires à joindre en PDF';
+      bt.addEventListener('click', () => mlRepondreAvecLesTarifs());
+      v.appendChild(bt);
+    }
     const bm = document.createElement('button');
     bm.type = 'button';
     bm.className = 'ckVite ckViteModeles';
@@ -1446,6 +1456,53 @@ function mlVites(){
     v.appendChild(bm);
   }
   return v;
+}
+
+/* ============================================================
+   💰 v1395 — NOS TARIFS EN PDF, DANS LES RÉPONSES RAPIDES
+
+   David, le 10 novembre : « dans la messagerie mail, ajoute-moi dans
+   les réponses rapides les tarifs en PDF, et je choisis quels tarifs
+   j'envoie en PJ ». Un bouton de plus à côté des réponses rapides (et
+   dans les menus ⚡) : on coche les fiches (Gestion › 💰 Tarifs), elles
+   sont fabriquées en PDF comme d'habitude, déposées comme une pièce
+   jointe ordinaire, et l'éditeur s'ouvre avec elles et un mot tout
+   prêt. Dans un mail déjà commencé, elles s'ajoutent à ses pièces.
+   Visible pour qui peut lire les tarifs (💰 Tarifs ou 📊 Évaluation).
+   ============================================================ */
+const ML_TEXTE_TARIFS = '<div>Bonjour {prénom},</div><div><br></div>' +
+  '<div>Vous trouverez ci-joint nos tarifs.</div>' +
+  '<div>Nous restons à votre disposition pour toute question.</div>';
+function mlPeutJoindreLesTarifs(){
+  if(typeof tfChoisirDesFiches !== 'function' || typeof tfPdfsDesFiches !== 'function') return false;
+  if(mlEstAdmin()) return true;
+  return typeof aDroit === 'function' && (aDroit('tarifs') || aDroit('evaluation'));
+}
+/* Choisir, fabriquer, déposer : les pièces prêtes pour l'éditeur (ou null) */
+async function mlTarifsEnPieces(){
+  const choix = await tfChoisirDesFiches();
+  if(!choix || !choix.ids.length) return null;
+  const att = (typeof tfAttente === 'function') ? tfAttente('Les tarifs en PDF') : null;
+  try{
+    const pdfs = await tfPdfsDesFiches(choix.d, choix.ids, att ? att.dire : null);
+    const pieces = [];
+    for(let i = 0; i < pdfs.length; i++){
+      if(att) att.dire('📤 ' + (i + 1) + ' / ' + pdfs.length + ' · ' + pdfs[i].nom);
+      const fichier = new File([pdfs[i].blob], pdfs[i].nom, { type: 'application/pdf' });
+      const p = await mlDeposerUnFichier(fichier);
+      pieces.push({ cle: p.cle, nom: p.nom, type: p.type, taille: p.taille });
+    }
+    return pieces;
+  }catch(e){
+    mlToast('⚠️ Tarifs non joints : ' + ((e && e.message) || e));
+    return null;
+  }finally{ if(att) att.fermer(); }
+}
+async function mlRepondreAvecLesTarifs(){
+  const f = mlFilOuvert && mlFilOuvert.fil;
+  const pieces = await mlTarifsEnPieces();
+  if(!pieces) return;
+  mlOuvrirLEditeur({ mode: f ? 'repondre' : 'nouveau', texteHtml: mlRemplirLesMots(ML_TEXTE_TARIFS, f, true), pieces: pieces });
 }
 
 /* « 📄 Ce qu'on écrit et envoie » : la fiche choisie part dans l'éditeur */
@@ -1975,7 +2032,15 @@ async function mlOuvrirLEditeur(opts){
       (x.pj || []).forEach(p => { if(!etat.pieces.some(y => y.cle === p.cle)) etat.pieces.push(Object.assign({}, p)); });
       dessinerPj(); surChange();
     } }));
-    if(!items.length) items.push({ emoji: '⚙️', texte: 'Aucune réponse rapide pour les mails', faire: () => {} });
+    if(!items.length && !mlPeutJoindreLesTarifs()) items.push({ emoji: '⚙️', texte: 'Aucune réponse rapide pour les mails', faire: () => {} });
+    /* 💰 v1395 — les tarifs choisis s'ajoutent aux pièces de CE mail */
+    if(mlPeutJoindreLesTarifs()) items.push({ emoji: '💰', texte: 'Joindre nos tarifs en PDF…', faire: async () => {
+      const pieces = await mlTarifsEnPieces();
+      if(!pieces) return;
+      pieces.forEach(p => { if(!etat.pieces.some(y => y.cle === p.cle)) etat.pieces.push(p); });
+      dessinerPj(); surChange();
+      mlToast('📎 ' + pieces.length + ' fiche' + (pieces.length > 1 ? 's' : '') + ' de tarifs jointe' + (pieces.length > 1 ? 's' : ''));
+    } });
     menuGestesEC(b, '⚡ Réponses rapides', items);
   });
   /* 🤖 ▾ v1338 — reprendre la réponse proposée, reformuler, corriger */
