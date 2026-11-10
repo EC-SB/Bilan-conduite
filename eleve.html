@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 14:08 — v1404 -->
+<!-- Déployé le 10/11/2026 à 14:33 — v1405 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -446,6 +446,8 @@
   .btRgFil{ display:block; width:100%; margin:9px 0 2px; padding:10px 12px; border-radius:12px;
     border:0; background:var(--orange); color:var(--on-accent); font:inherit; font-size:13.5px;
     font-weight:800; cursor:pointer; text-align:center; }
+  a.btRgFil{ text-decoration:none; box-sizing:border-box; }
+  .btRgFil.btPpBis{ background:transparent; color:var(--accent-text, var(--orange)); border:1.5px solid var(--orange); font-weight:700; }
   .rgApercuMot{ font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
 
   .envoi{
@@ -5322,6 +5324,29 @@
     if(b && !$('rgEcran')) ouvrirRenseignements();
   });
 
+  /* ✉️ v1405 — « 📝 Faire mon bilan » et l'étape 24, depuis la bulle de
+     la marche à suivre. L'onglet n'existe que si le serveur attend son
+     bilan : s'il était ouvert avant l'ajournement, on relit d'abord. */
+  document.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-pp-bilan],[data-pp-loupe]');
+    if(!b) return;
+    ev.preventDefault();
+    if(b.hasAttribute('data-pp-loupe')){
+      var g = etapeLoupe(); if(!g) return;
+      try{ allerAOnglet('reviser'); }catch(e){}
+      if(g.cle) ouvrirLaFeuille(g.cle); else allerAuGuideDepuisRecherche(g.guide);
+      return;
+    }
+    var aller = function(){
+      if(!bilanAttendu()){ dire('msgEnvoi', 'Ton bilan n’est plus attendu : il a déjà été validé.', 'info'); return; }
+      try{ allerAOnglet('bilan'); }catch(e){}
+      dessinerMonBilan();
+      var c = $('zoneMonBilan');
+      if(c) try{ c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){}
+    };
+    if(bilanAttendu()) aller(); else chargerMonBilan().then(aller);
+  });
+
   /* 🎬 v1222 — la carte « à revoir » d'une conversation */
   document.addEventListener('click', function(ev){
     var b = ev.target && ev.target.closest && ev.target.closest('[data-revoir-seg]');
@@ -8524,6 +8549,24 @@
       h += '<button type="button" class="btRgFil" data-revoir-seg="' +
            echapper(m.donnees.guide + '::' + (m.donnees.segment || '')) + '">🎬 Ouvrir « ' +
            echapper(m.donnees.titre || 'le segment') + ' »</button>';
+    }
+    /* ✉️ v1405 — la marche à suivre après un ajournement, puis son
+       rendez-vous post-permis : leurs boutons (l'onglet 📝 Bilan,
+       l'étape 24, Drivup, la vidéo, l'agence). Un lien ne se clique
+       pas dans le texte d'une bulle : il devient un bouton. */
+    if((m.motif === 'pp-ajourne' || m.motif === 'pp-rdv') && m.donnees && Array.isArray(m.donnees.boutons)){
+      /* le premier bouton est l'action principale (plein), les autres en contour */
+      m.donnees.boutons.forEach(function(b, i){
+        if(!b || !b.t) return;
+        var cl = 'btRgFil' + (i ? ' btPpBis' : '');
+        if(b.onglet === 'bilan'){
+          h += '<button type="button" class="' + cl + '" data-pp-bilan="1">' + echapper(b.t) + '</button>';
+        }else if(b.etape === 'loupe'){
+          if(etapeLoupe()) h += '<button type="button" class="' + cl + '" data-pp-loupe="1">' + echapper(b.t) + '</button>';
+        }else if(/^https:\/\//i.test(String(b.u || ''))){
+          h += '<a class="' + cl + '" href="' + echapper(b.u) + '" target="_blank" rel="noopener">' + echapper(b.t) + '</a>';
+        }
+      });
     }
     h += '<span class="hh">' +
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
