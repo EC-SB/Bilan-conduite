@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 10:20 — v1363 */
+/* Déployé le 10/11/2026 à 10:33 — v1393 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -8205,7 +8205,14 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         b.setAttribute('data-val', val);
         boutons.push(b);
         b.addEventListener('click', () => {
-          champsManuels[ch.cle + '.statut'] = val;
+          /* ↩️ v1393 — David : « qu'un deuxième appui enlève ». Un second
+             appui sur ✅ 🍊 ou ❌ efface la rubrique (comme les A / B / C
+             de la fiche handicap) ; « — » reste là pour l'effacer aussi.
+             La reprise n'en souffre pas : repeindreBoutonsManuels pose
+             « ' ' » avant de cliquer, donc elle rallume sans éteindre. */
+          const deja = champsManuels[ch.cle + '.statut'];
+          const enleve = val !== '' && deja === val;
+          champsManuels[ch.cle + '.statut'] = enleve ? '' : val;
           boutons.forEach(x => {
             x.style.borderColor = 'var(--line)';
             x.style.background = 'var(--navy)';
@@ -8220,6 +8227,8 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
             '❌': ['var(--red)', '#FFFFFF'],
             '':   ['var(--muted)', '#0B0B0B']
           };
+          /* Enlevée : plus rien d'allumé, la rubrique est vierge */
+          if(enleve) return;
           const [fond, texte] = couleurs[val] || couleurs[''];
           b.style.background = fond;
           b.style.borderColor = fond;
