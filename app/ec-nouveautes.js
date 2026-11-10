@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 14:33 — v1405 */
+/* Déployé le 10/11/2026 à 14:40 — v1406 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1406,
+    date: 'Mardi 10 novembre 2026',
+    resume: '📚 Un long guide s’enregistre : plus de « trop long pour une cellule »',
+    quoi: [
+      { emoji: '📚',
+        titre: 'Les guides longs ne sont plus refusés',
+        texte: 'Quand un guide dépasse une cellule du classeur (beaucoup d’étapes, des vidéos montées), la suite continue dans les colonnes d’à côté et se recolle à la lecture. Pas besoin de le couper en deux.' }
+    ]
+  },
   {
     version: 1405,
     date: 'Mardi 10 novembre 2026',
