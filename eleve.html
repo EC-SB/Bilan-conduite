@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 14:33 — v1405 -->
+<!-- Déployé le 10/11/2026 à 16:00 — v1407 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -447,6 +447,10 @@
     border:0; background:var(--orange); color:var(--on-accent); font:inherit; font-size:13.5px;
     font-weight:800; cursor:pointer; text-align:center; }
   a.btRgFil{ text-decoration:none; box-sizing:border-box; }
+  /* 📍 v1407 — les liens vers une étape */
+  .lienEtapeEl{ display:block; white-space:normal; }
+  .lienEtapeEl .btRgFil{ margin:6px 0 4px; }
+  .etapeFermeeEl{ display:block; font-size:13px; color:var(--muted); line-height:1.45; margin:6px 0 4px; }
   .btRgFil.btPpBis{ background:transparent; color:var(--accent-text, var(--orange)); border:1.5px solid var(--orange); font-weight:700; }
   .rgApercuMot{ font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
 
@@ -5553,8 +5557,14 @@
     var lien = lienDuParcoursDansLAdresse();
     if(lien.vue === 'reviser' || lien.seg){
       try{ allerAOnglet('reviser'); }catch(e){}
-      if(lien.seg){ var cleL = cleDUneEtape(lien.seg); if(cleL) ouvrirLaFeuille(cleL); }
+      if(lien.seg){
+        var cleL = cleDUneEtape(lien.seg);
+        if(cleL) ouvrirLaFeuille(cleL);
+        /* 📍 v1407 — une étape d'un groupe pas encore ouvert pour lui (David) */
+        else dire('msgEnvoi', '🔒 Cette étape n’est pas encore ouverte pour toi : demande au bureau de te l’ouvrir depuis ta messagerie.', 'info');
+      }
     }
+    majLiensEtapesEl(document);
   }
   /* 📚 v1320 — « guide::segment », ou « guide:: » (une étape entière, depuis
      un lieu du parcours) : le premier segment du guide. '' s'il n'est pas
@@ -5562,6 +5572,8 @@
   function cleDUneEtape(seg){
     var p = String(seg || '').split('::'), g = p[0], sg = p[1] || '';
     var e = mesEtapes.filter(function(x){ return x.id === g; })[0];
+    /* 📍 v1407 — une étape déplacée dans un autre guide garde son identifiant */
+    if(!e && sg){ var r = etapeDuLienEl(seg); return (r && r.cle) || ''; }
     if(!e) return '';
     var l = segmentsDe(e);
     var x = l.filter(function(y){ return y.id === sg; })[0] || l[0];
@@ -5998,6 +6010,107 @@
     });
     return x;
   }
+
+  /* ============================================================
+     📍 v1407 — LES LIENS VERS UNE ÉTAPE DEVIENNENT DES BOUTONS
+
+     David, le 10 novembre : la procédure part entière dans son bilan,
+     « et en plus en dessous un bouton qui lie au bon guide à la bonne
+     étape ». Les lignes « 🎬 Titre : …?seg=guide::étape » (bilans,
+     messagerie) deviennent « 🎬 Ouvrir « Titre » ».
+
+     · L'ÉTAPE SE RETROUVE PAR SON IDENTIFIANT : renommée, le bouton
+       prend son titre du jour ; déplacée dans un autre guide, on la
+       retrouve quand même ; supprimée, on ouvre son guide.
+     · PAS ENCORE OUVERTE POUR LUI : « 🔒 pas encore ouvert pour toi »,
+       et « 💬 Demander au bureau de me l'ouvrir » (David : « demande au
+       bureau depuis ta messagerie qu'il te l'ouvre »).
+     · UNE PLACE, PAS UN BOUTON FIGÉ : le texte pose un emplacement
+       (.lienEtapeEl) que majLiensEtapesEl remplit, et remplit de nouveau
+       quand son parcours arrive — un bilan dessiné avant ne reste pas
+       sur « pas encore ouvert ».
+     ============================================================ */
+  /* le retour à la ligne qui suit est mangé : l'emplacement est un bloc */
+  var RE_LIEN_ETAPE_EL = /(?:🎬\s*([^\n<]*?)\s*:\s*)?https?:\/\/[^\s<"?#]*\?seg=([A-Za-z0-9%_:\-.]+)[ \t]*\n?/g;
+  function liensEtapesEnBoutons(html){
+    return String(html || '').replace(RE_LIEN_ETAPE_EL, function(m, lab, k){
+      var cle = k;
+      try{ cle = decodeURIComponent(k); }catch(e){}
+      if(!String(cle).split('::')[0]) return m;
+      return '<span class="lienEtapeEl" data-cle="' + echapper(cle).replace(/"/g, '&quot;') +
+             '" data-titre="' + String(lab || '').replace(/"/g, '&quot;') + '"></span>';
+    });
+  }
+  /* { cle, titre } (une étape), { guide, titre } (son guide), ou null */
+  function etapeDuLienEl(cle){
+    var k = String(cle || '').split('::'), g = k[0], s = k[1] || '';
+    var x = trouverLeSegment(g + '::' + s);
+    if(x) return { cle: x.e.id + '::' + x.sg.id, titre: x.sg.titre || x.e.titre || '' };
+    var t = null;
+    if(s) (mesEtapes || []).forEach(function(e){
+      segmentsDe(e).forEach(function(sg){ if(!t && sg.id === s) t = { cle: e.id + '::' + sg.id, titre: sg.titre || '' }; });
+    });
+    if(t) return t;
+    var e = (mesEtapes || []).filter(function(y){ return y.id === g; })[0];
+    return e ? { guide: g, titre: e.titre || '' } : null;
+  }
+  function majLiensEtapesEl(racine){
+    var l = (racine || document).querySelectorAll('.lienEtapeEl');
+    Array.prototype.forEach.call(l, function(el){
+      var cle = el.getAttribute('data-cle') || '', lab = el.getAttribute('data-titre') || '';
+      var r = etapeDuLienEl(cle);
+      var sig = r ? 'o:' + (r.cle || r.guide) + ':' + r.titre : 'f';
+      if(el.getAttribute('data-etat') === sig) return;
+      el.setAttribute('data-etat', sig);
+      el.innerHTML = r
+        ? '<button type="button" class="btRgFil" data-etape-el="' + echapper(r.cle || '') + '" data-guide-el="' + echapper(r.guide || '') + '">🎬 Ouvrir « ' +
+            echapper(r.titre || lab || 'l’étape') + ' »</button>'
+        : '<span class="etapeFermeeEl">🔒 « ' + echapper(lab || 'Cette étape') + ' » : pas encore ouvert pour toi.' +
+            (ouvert('messages')
+              ? '<button type="button" class="btRgFil btPpBis" data-demander-etape="' + echapper(lab || '').replace(/"/g, '&quot;') + '">💬 Demander au bureau de me l’ouvrir</button>'
+              : ' Demande au bureau de te l’ouvrir.') + '</span>';
+    });
+  }
+  /* Les emplacements posés n'importe où (bilans, bulles) se remplissent seuls */
+  (function(){
+    var prevu = false;
+    try{
+      new MutationObserver(function(){
+        if(prevu) return;
+        prevu = true;
+        requestAnimationFrame(function(){
+          prevu = false;
+          if(document.querySelector('.lienEtapeEl:not([data-etat])')) majLiensEtapesEl(document);
+        });
+      }).observe(document.body || document.documentElement, { childList: true, subtree: true });
+    }catch(e){}
+  })();
+  document.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-etape-el],[data-demander-etape]');
+    if(!b) return;
+    ev.preventDefault();
+    if(b.hasAttribute('data-demander-etape')){
+      var lab = b.getAttribute('data-demander-etape') || '';
+      ouvrirVers('bureau', b);
+      var essais = 0;
+      var poser = setInterval(function(){
+        var t = $('chFilTexte');
+        if(t || ++essais > 40){
+          clearInterval(poser);
+          if(t && !t.value.trim()){
+            t.value = 'Bonjour, pouvez-vous m’ouvrir l’étape « ' + (lab || 'que mon moniteur m’a donnée') + ' » dans mon espace ? Merci 🙂';
+            t.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      }, 150);
+      return;
+    }
+    var cle = b.getAttribute('data-etape-el') || '', g = b.getAttribute('data-guide-el') || '';
+    try{ fermerPleinEcran(); }catch(e){}
+    try{ allerAOnglet('reviser'); }catch(e){}
+    if(cle) ouvrirLaFeuille(cle);
+    else if(g) allerAuGuideDepuisRecherche(g);
+  });
 
   function estARevoir(cle){
     return mesARevoir.some(function(r){ return r.guide + '::' + (r.segment || '') === cle; });
@@ -7320,7 +7433,7 @@
           '<span class="qui">' + echapper(l.moniteur || '') +
             (l.type ? ' · ' + echapper(l.type) : '') + '</span>' +
         '</summary>' +
-        '<div class="texte">' + texteDeLecon(l, couleurs) + '</div>' +
+        '<div class="texte">' + liensEtapesEnBoutons(texteDeLecon(l, couleurs)) + '</div>' +
         blocDesLieux(String(l.date || '')) +
       '</details>';
     }).join('');
@@ -8536,7 +8649,8 @@
         ? '<div class="msgLectMots">' + echapper(m.texte) + '</div>'
         : (m.piece
             ? '<span class="motAvec">' + echapper(m.texte) + '</span>'
-            : echapper(m.texte));
+            /* 📍 v1407 — un lien vers une étape devient un bouton (pas dans ses propres messages) */
+            : (mien ? echapper(m.texte) : liensEtapesEnBoutons(echapper(m.texte))));
     }
     /* 📋 v1175 — la demande de renseignements ouvre le questionnaire */
     if(m.motif === 'renseignements' && modeleRg){
