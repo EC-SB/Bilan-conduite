@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:10 — v1408 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -3032,6 +3032,36 @@ async function chargerLiensFb(forcer){
   tableLiensFb = { t: Date.now(), m: m };
   return m;
 }
+/* 💬 v1409 — LE TEXTE TEL QU'IL PART VERS L'ÉLÈVE, côté appli : les liens
+   Facebook reliés deviennent ceux de son espace (le Worker fait la même
+   chose pour ses bilans, sa messagerie et le mail du bilan). Synchrone :
+   la table est lue en fond, et se relit toutes les dix minutes. */
+function textePourLEleve(t){
+  const s = String(t == null ? '' : t);
+  if(!tableLiensFb || Date.now() - tableLiensFb.t > 600000) chargerLiensFb().catch(() => {});
+  if(!tableLiensFb || (s.indexOf('facebook.com') === -1 && s.indexOf('fb.watch') === -1)) return s;
+  const table = tableLiensFb.m;
+  return s.replace(RE_LIEN_FB_EC, m => {
+    const fin = (m.match(/[.,;:!?)\]]+$/) || [''])[0];
+    const u = fin ? m.slice(0, -fin.length) : m;
+    const r = table[cleDuLienFb(u)];
+    return (r && r.etat === 'relie' && r.guide) ? lienVersEtapeEleve({ guide: r.guide, segment: r.segment || '' }) + fin : m;
+  });
+}
+/* Ce qu'on copie (pour Messenger, un SMS, un mail à la main…) part avec
+   les liens de l'appli : un seul endroit, plutôt que chaque bouton 📋. */
+(function(){
+  try{
+    const c = navigator.clipboard;
+    if(!c || typeof c.writeText !== 'function' || c.__liensEleve) return;
+    const orig = c.writeText.bind(c);
+    c.writeText = t => orig(textePourLEleve(t));
+    c.__liensEleve = 1;
+  }catch(e){ /* la copie reste celle d'avant */ }
+  /* la table, une fois connecté (avant, l'appel est refusé : sans gêne) */
+  setTimeout(() => { chargerLiensFb().catch(() => {}); }, 6000);
+})();
+
 async function poserLienFb(u, etat, x){
   const r = await appelPrep(Object.assign({ action: 'liensFbPoser', url: u, etat: etat }, x ? {
     guide: x.guide, segment: x.segment || '', titre: x.titre || '', guideTitre: x.guideTitre || '', groupeIcone: x.groupeIcone || '' } : {}));
