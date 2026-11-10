@@ -1,4 +1,4 @@
-/* Déployé le 31/10/2026 à 12:44 — v1320 */
+/* Déployé le 10/11/2026 à 12:16 — v1401 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -1788,58 +1788,113 @@ function rafraichirBlocTrajet(t){
    remarque plus longue que deux cents signes est tronquée : le
    texte entier est de toute façon dans le corps du mail, et la page
    sert à SITUER l'erreur, pas à remplacer le bilan. */
-const CARTE_LIEN_MAX = 4000;
-const CARTE_REMARQUE_MAX = 200;
+/* ⚠️ v1401 — LES REMARQUES TIENNENT, MAINTENANT. David, le 10
+   novembre, sur la page d'un cours de onze points : « il me manque
+   ce qu'a écrit le moniteur et l'inspecteur comme dans le bilan ».
+   Le lien dépassait les quatre mille caractères — les accents et les
+   émojis y coûtent jusqu'à douze signes chacun — et repartait donc
+   « nu ». Les repères voyagent désormais COMPACTÉS (« rz » : LZW,
+   puis base64 d'adresse) : onze remarques longues passent de six
+   mille signes à deux mille. Le plafond monte à six mille, et on
+   dégrade par paliers (remarques entières, puis raccourcies, puis
+   sans remarques) au lieu de tout perdre d'un coup.
+   carte.html relit encore l'ancien « r » : les liens déjà envoyés
+   restent bons. */
+const CARTE_LIEN_MAX = 6000;
+const CARTE_REMARQUE_MAX = 400;
+const CARTE_REMARQUE_COURTE = 140;
+
+/* Le saut de ligne d'une remarque voyage en « ¶ » (le lien n'a
+   qu'une ligne) ; la page le redécoupe. */
+const CARTE_SAUT = ' ¶ ';
+
+/* LZW (codes de 9 à 16 bits) + base64 « URL ». Le décodeur est dans
+   carte.html : les deux sont la copie l'un de l'autre, et le test
+   fait écrire l'un et relire l'autre. */
+function compacterPourLien(texte){
+  const o = new TextEncoder().encode(String(texte || ''));
+  if(!o.length) return '';
+  const dict = new Map();
+  let suivant = 256, emis = 0, acc = 0, nb = 0;
+  const sortie = [];
+  const largeur = () => { const n = Math.min(65536, 256 + emis); let w = 9; while(n > (1 << w) && w < 16) w++; return w; };
+  const emettre = (c) => {
+    const w = largeur(); emis++;
+    acc |= c << nb; nb += w;
+    while(nb >= 8){ sortie.push(acc & 255); acc >>>= 8; nb -= 8; }
+  };
+  let cur = o[0];
+  for(let i = 1; i < o.length; i++){
+    const b = o[i], k = cur * 256 + b;
+    const t = dict.get(k);
+    if(t !== undefined){ cur = t; continue; }
+    emettre(cur);
+    if(suivant < 65536) dict.set(k, suivant++);
+    cur = b;
+  }
+  emettre(cur);
+  if(nb > 0) sortie.push(acc & 255);
+  let bin = '';
+  sortie.forEach(x => { bin += String.fromCharCode(x); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
 function lienVersLaCarte(t){
   try{
     if(!t || !t.polyligne) return '';
 
-    const court = (v) => {
-      const s = String(v || '').replace(/[~|]/g, ' ')
-                               .replace(/\s+/g, ' ').trim();
-      return (s.length > CARTE_REMARQUE_MAX)
-        ? s.slice(0, CARTE_REMARQUE_MAX - 1) + '…' : s;
+    const court = (v, max) => {
+      const s = String(v || '').replace(/\r/g, '')
+                               .split('\n').map(x => x.trim()).filter(Boolean).join(CARTE_SAUT)
+                               .replace(/[~|]/g, ' ')
+                               .replace(/[ \t]+/g, ' ').trim();
+      const m = max || CARTE_REMARQUE_MAX;
+      return (s.length > m) ? s.slice(0, m - 1) + '…' : s;
     };
+    const emo = (typeof emojiMoniteur === 'function') ? emojiMoniteur() : '';
 
     /* Les repères : « numéro~heure~nom~lat~lon~nature~thème~
-       inspecteur~moniteur », séparés par des barres. Les coordonnées
-       au dix-millième suffisent pour poser une pastille — dix
-       mètres — et raccourcissent l'adresse d'autant. */
+       inspecteur~moniteur~émoji du moniteur », séparés par des
+       barres. Les coordonnées au dix-millième suffisent pour poser
+       une pastille — dix mètres. */
     /* ⚠️ LA POSITION VIENT DU REPÈRE, PLUS DE LA MÉMOIRE — v1011.
        Elle allait la chercher dans « trajetReperes » par son rang :
        ça marchait pour le cours ouvert, et rendait une carte sans
        pastilles pour un cours relu dans le classeur. Le repère
        porte sa position depuis la v1010 ; on la lit là. */
-    const ecrire = (avecTextes) => (t.reperes || []).map((x) => {
+    const ecrire = (max) => (t.reperes || []).map((x) => {
       const lat = (x.lat === '' || x.lat == null)
         ? '' : Number(x.lat).toFixed(4);
       const lon = (x.lon === '' || x.lon == null)
         ? '' : Number(x.lon).toFixed(4);
-      const base = [x.n, x.heure, court(x.nom), lat, lon,
+      const base = [x.n, x.heure, court(x.nom, 80), lat, lon,
                     x.type || 'repere'];
-      return avecTextes
-        ? base.concat([court(x.theme), court(x.insp), court(x.mon)]).join('~')
+      return max
+        ? base.concat([court(x.theme, 120), court(x.insp, max), court(x.mon, max),
+                       court(x.emo || emo, 12)]).join('~')
         : base.join('~');
     }).join('|');
 
-    const monter = (r) =>
-      'https://app.evolutionconduites.fr/carte.html' +
-      '?t=' + encodeURIComponent(t.polyligne) +
-      '&km=' + encodeURIComponent(String(t.km).replace('.', ',')) +
-      '&min=' + encodeURIComponent(String(t.minutes)) +
-      (trajetAvecQuestions ? '&q=1' : '') +
-      (r ? '&r=' + encodeURIComponent(r) : '');
+    const monter = (r) => {
+      let z = '';
+      try{ z = r ? compacterPourLien(r) : ''; }catch(e){ z = ''; }
+      return 'https://app.evolutionconduites.fr/carte.html' +
+        '?t=' + encodeURIComponent(t.polyligne) +
+        '&km=' + encodeURIComponent(String(t.km).replace('.', ',')) +
+        '&min=' + encodeURIComponent(String(t.minutes)) +
+        (trajetAvecQuestions ? '&q=1' : '') +
+        (z ? '&rz=' + z : (r ? '&r=' + encodeURIComponent(r) : ''));
+    };
 
     /* ⚠️ ON DÉGRADE, ON N'ABANDONNE PAS. Un bilan très bavard ne
-       doit pas coûter la carte entière à l'élève : s'il ne tient pas
-       avec les remarques, il repart sans elles — les pastilles
+       doit pas coûter la carte entière à l'élève : remarques
+       entières, puis raccourcies, puis sans elles — les pastilles
        restent, et le texte est dans le mail juste au-dessus. */
-    const complet = monter(ecrire(true));
-    if(complet.length <= CARTE_LIEN_MAX) return complet;
-
-    const nu = monter(ecrire(false));
-    return (nu.length > CARTE_LIEN_MAX) ? '' : nu;
+    for(const max of [CARTE_REMARQUE_MAX, CARTE_REMARQUE_COURTE, 0]){
+      const l = monter(ecrire(max));
+      if(l.length <= CARTE_LIEN_MAX) return l;
+    }
+    return '';
   }catch(e){
     return '';
   }
@@ -2132,18 +2187,35 @@ function lesPointsDuBilan(texte){
      avant la ligne vide ou les trois questions. */
   const TETES = ['👨‍✈️', '☠️'];
 
+  /* L'émoji de tête d'une ligne (celui du moniteur, 🦁 ou un autre) */
+  const tete = (l) => { const m = clair(l).match(/^[^\p{L}\p{N}\s]+/u); return m ? m[0] : ''; };
+
   let theme = '';
   let dernier = 0;
+  /* ⚠️ v1401 — LA SUITE DE LA RÉPONSE DU MONITEUR. Il peut écrire
+     sur plusieurs lignes ; seule la première était relue, et la
+     page coupait sa réponse. Les lignes qui suivent s'y ajoutent
+     tant qu'elles ne sont ni une ligne vide, ni un titre, ni
+     l'inspecteur, ni une question, ni une NOUVELLE remarque du
+     moniteur (qui commence par son émoji). */
+  let suite = 0, emoSuite = '', bloc = [];
 
   String(texte || '').split('\n').forEach((brute) => {
     const l = String(brute).trim();
-    if(!l){ dernier = 0; return; }
+    if(!l){ dernier = 0; suite = 0; bloc = []; return; }
 
     if(l.indexOf('👉') === 0){          /* 👉 le titre de compétence */
       theme = nettoyer(l);
-      dernier = 0;
+      dernier = 0; suite = 0; bloc = [];
       return;
     }
+    if(suite && trouve[suite] && !numero(l) && l.indexOf('- ') !== 0 &&
+       !TETES.some(e => l.indexOf(e) === 0) && !(emoSuite && l.indexOf(emoSuite) === 0)){
+      const ajout = clair(l).trim();
+      if(ajout) trouve[suite].mon = (trouve[suite].mon ? trouve[suite].mon + '\n' : '') + ajout;
+      return;
+    }
+    suite = 0;
     /* ⚠️ AUCUNE GARDE POUR LES TROIS QUESTIONS. Elles sont toujours
        précédées d'une ligne vide — voir questionsElim — et la ligne
        vide a rendu la main juste au-dessus. J'en avais posé une :
@@ -2152,20 +2224,54 @@ function lesPointsDuBilan(texte){
        garde qu'on croit avoir. */
     const n = numero(l);
 
+    if(l.indexOf('- ') === 0){ bloc = []; dernier = 0; return; }   /* les trois questions */
+
+    /* ⚠️ v1401 — UNE REMARQUE SUR PLUSIEURS LIGNES porte son renvoi
+       sur sa DERNIÈRE ligne (il est collé au bout du texte). Ses
+       premières lignes passent donc avant, sans numéro : on les
+       garde de côté (« bloc ») jusqu'à la ligne numérotée. */
+    const fin = (l) => clair(l).replace(motif, '').trim();
+    const reunir = (liste, derniere) => liste.map((x, i) => i === 0 ? nettoyer(x) : clair(x).trim())
+      .concat([liste.length ? fin(derniere) : nettoyer(derniere)]).filter(Boolean).join('\n');
+
     if(TETES.some(e => l.indexOf(e) === 0)){
-      if(n){ trouve[n] = { theme: theme, insp: nettoyer(l), mon: '' }; dernier = n; }
-      else dernier = 0;
+      dernier = 0;
+      if(n){ trouve[n] = { theme: theme, insp: nettoyer(l), mon: '', emo: '' }; dernier = n; bloc = []; }
+      else bloc = [l];
+      bloc.insp = !n;
       return;
     }
 
     if(dernier && trouve[dernier]){
       trouve[dernier].mon = nettoyer(l);
-      dernier = 0;
+      trouve[dernier].emo = tete(l);
+      suite = dernier; emoSuite = tete(l);
+      dernier = 0; bloc = [];
       return;
     }
-    /* Une erreur sans remarque d'inspecteur porte son renvoi sur la
-       ligne du moniteur : elle compte autant. */
-    if(n) trouve[n] = { theme: theme, insp: '', mon: nettoyer(l) };
+
+    if(n){
+      const avecAvant = bloc.length && !tete(l);
+      if(avecAvant && bloc.insp){
+        /* la fin d'une remarque de l'inspecteur : le moniteur suit */
+        trouve[n] = { theme: theme, insp: reunir(bloc, l), mon: '', emo: '' };
+        dernier = n; bloc = [];
+        return;
+      }
+      /* Une erreur sans remarque d'inspecteur porte son renvoi sur la
+         ligne du moniteur : elle compte autant. */
+      const e = tete(avecAvant ? bloc[0] : l);
+      trouve[n] = { theme: theme, insp: '', mon: reunir(avecAvant ? bloc : [], l), emo: e };
+      suite = n; emoSuite = e;
+      bloc = []; dernier = 0;
+      return;
+    }
+
+    /* une ligne sans numéro : le début d'une remarque dont le renvoi
+       viendra plus bas, ou sa suite. Une ligne qui commence par un
+       émoji est une nouvelle remarque : elle recommence le bloc. */
+    if(tete(l) || !bloc.length){ bloc = [l]; bloc.insp = false; }
+    else bloc.push(l);
     dernier = 0;
   });
 
@@ -2186,6 +2292,7 @@ function verserLeBilanDansLesPoints(p, texte){
     if(!r.theme) r.theme = d.theme;
     if(!r.insp)  r.insp  = d.insp;
     if(!r.mon)   r.mon   = d.mon;
+    if(!r.emo && d.emo) r.emo = d.emo;
   });
   return p;
 }
