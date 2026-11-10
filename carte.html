@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 11:56 — v1400 -->
+<!-- Déployé le 10/11/2026 à 12:16 — v1401 -->
 <!-- ============================================================
      LE TRAJET DU COURS, EN GRAND — v1002
 
@@ -84,7 +84,7 @@
   .heure{ color:var(--gris); font-size:12.5px; flex:0 0 auto; }
   .detail{ padding:0 16px 12px 48px; font-size:13.5px; line-height:1.55;
            border-bottom:1px solid var(--bord); }
-  .dit{ color:var(--encre); margin-bottom:3px; }
+  .dit{ color:var(--encre); margin-bottom:3px; white-space:pre-line; }
   .question{ color:var(--gris); font-size:13px; margin-top:2px; }
   .question:first-of-type{ margin-top:9px; }
   .nom{ color:var(--encre); }
@@ -108,7 +108,9 @@
     border:2.5px solid #3B3B3B; background:#fff; border-radius:50%;
     width:15px; height:15px; box-shadow:0 1px 3px rgba(0,0,0,.3);
   }
-  .bout.arrivee{ border-radius:2px; background:#14161B; border-color:#fff; }
+  .logoBureau{ width:86px; height:36px; border-radius:10px; background:#fff; border:2px solid var(--vert);
+                box-shadow:0 1px 4px rgba(0,0,0,.35); background-repeat:no-repeat; background-position:center 46%; background-size:94px; }
+    .bout.arrivee{ border-radius:2px; background:#14161B; border-color:#fff; }
   /* 🧊 v1398 — la bascule Plan / 3D, et la scène */
   .tete{ display:flex; align-items:flex-start; gap:10px; }
   .tete > div:first-child{ flex:1 1 auto; min-width:0; }
@@ -182,6 +184,43 @@ function decoderPolyligne(str){
   return pts;
 }
 
+/* ⚠️ v1401 — LES REPÈRES ARRIVENT COMPACTÉS (« rz »). Le décodeur est
+   la copie exacte de « compacterPourLien » (ec-trajet.js) : LZW, codes
+   de 9 à 16 bits, en base64 d'adresse. Les anciens liens (« r », en
+   clair) restent lus. */
+function decompacterDuLien(b64){
+  const bin = atob(String(b64 || '').replace(/-/g, '+').replace(/_/g, '/'));
+  const octets = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+  let pos = 0, acc = 0, nb = 0, lus = 0;
+  const largeur = () => { const n = Math.min(65536, 256 + lus); let w = 9; while(n > (1 << w) && w < 16) w++; return w; };
+  const lire = () => {
+    const w = largeur();
+    while(nb < w){ if(pos >= octets.length) return -1; acc |= octets[pos++] << nb; nb += 8; }
+    const c = acc & ((1 << w) - 1); acc >>>= w; nb -= w; lus++;
+    return c;
+  };
+  const dict = [];
+  for(let i = 0; i < 256; i++) dict.push([i]);
+  const out = [];
+  let prec = lire();
+  if(prec < 0) return '';
+  let mot = dict[prec];
+  out.push(...mot);
+  for(;;){
+    const c = lire();
+    if(c < 0) break;
+    let ent;
+    if(c < dict.length) ent = dict[c];
+    else if(c === dict.length) ent = mot.concat([mot[0]]);
+    else break;
+    out.push(...ent);
+    if(dict.length < 65536) dict.push(mot.concat([ent[0]]));
+    mot = ent;
+  }
+  return new TextDecoder().decode(new Uint8Array(out));
+}
+
 /* ⚠️ LA MÊME TABLE QUE LE MODULE — v1004.
 
    « NATURES_DU_POINT » vit dans ec-trajet.js ; la voici une seconde
@@ -205,13 +244,21 @@ const nature = (t) => NATURES[t] || NATURES.repere;
 
   /* Les repères : « numéro~heure~nom », séparés par des barres.
      Le nom peut manquer — un repère non nommé garde son heure. */
-  const reperes = (p.get('r') || '').split('|').filter(Boolean).map(bloc => {
+  let brut = p.get('r') || '';
+  if(p.get('rz')){ try{ brut = decompacterDuLien(p.get('rz')) || brut; }catch(e){ /* l'ancien « r », s'il y est */ } }
+  /* Un saut de ligne voyage en « ¶ » : on le redécoupe ici */
+  const lignes = (v) => String(v || '').split('¶').map(x => x.trim()).join('\n');
+  const reperes = brut.split('|').filter(Boolean).map(bloc => {
     const m = bloc.split('~');
     return { n: m[0] || '', heure: m[1] || '', nom: m[2] || '',
              lat: parseFloat(m[3]), lon: parseFloat(m[4]),
              type: m[5] || 'repere',
-             theme: m[6] || '', insp: m[7] || '', mon: m[8] || '' };
+             theme: m[6] || '', insp: lignes(m[7]), mon: lignes(m[8]),
+             emo: m[9] || '' };
   });
+  /* L'émoji du moniteur, comme dans le bilan (🦁 ou le sien) ; 🔱 pour
+     les liens d'avant la v1401, qui ne le portaient pas. */
+  const emoMon = (r) => r.emo || '🔱';
 
   /* ⚠️ LES TROIS QUESTIONS SONT ICI, PAS DANS LE LIEN — v1006.
      Elles sont les mêmes pour tout le monde et pour toujours : les
@@ -248,8 +295,8 @@ const nature = (t) => NATURES[t] || NATURES.repere;
   function bulleDuPoint(r, nat){
     let h = '<b>' + nat.icone + ' ' + ech(r.theme || r.nom || nat.mot) +
             '</b>' + (r.heure ? ' · ' + ech(r.heure) : '');
-    if(r.insp) h += '<br>👨‍✈️ ' + ech(r.insp);
-    if(r.mon)  h += '<br>🔱 ' + ech(r.mon);
+    if(r.insp) h += '<br>👨‍✈️ ' + ech(r.insp).replace(/\n/g, '<br>');
+    if(r.mon)  h += '<br>' + ech(emoMon(r)) + ' ' + ech(r.mon).replace(/\n/g, '<br>');
     return h;
   }
 
@@ -313,7 +360,7 @@ const nature = (t) => NATURES[t] || NATURES.repere;
       d.appendChild(e);
     };
     ligne('👨‍✈️', r.insp);
-    ligne('🔱', r.mon);
+    ligne(emoMon(r), r.mon);
 
     if(avecQuestions){
       QUESTIONS.forEach(q => {
@@ -395,6 +442,31 @@ const nature = (t) => NATURES[t] || NATURES.repere;
   if(carte && trait) carte.fitBounds(trait.getBounds(), { padding:[28, 28] });
 
   /* ============================================================
+     🏠 v1401 — L'AUTO-ÉCOLE, POUR SE REPÉRER
+
+     David : « met le logo sur l'auto école pour se repérer ». Les
+     deux bureaux sont demandés au Worker (leurs adresses publiques,
+     rien d'autre ; « no-referrer » garde le trajet pour soi). Le
+     logo se pose sur le plan, et le rejeu 3D les reçoit aussi.
+     Injoignable : la page reste la même, sans eux.
+     ============================================================ */
+  const WORKER = 'https://bilan-proxy.evolutionconduites.workers.dev';
+  const LOGO = 'icone-192.png';
+  const bureauxPromis = fetch(WORKER + '/bureaux-geo', { credentials: 'omit' })
+    .then(r => r.ok ? r.json() : { bureaux: [] })
+    .then(j => ((j && j.bureaux) || []).filter(b => isFinite(b.lat) && isFinite(b.lon)))
+    .catch(() => []);
+  if(carte){
+    bureauxPromis.then(liste => liste.forEach(b => {
+      L.marker([b.lat, b.lon], { icon: L.divIcon({ className: '',
+        html: '<div class="logoBureau" style="background-image:url(' + LOGO + ')" title="Évolution Conduites"></div>',
+        iconSize: [86, 36], iconAnchor: [43, 18] }), keyboard: false, zIndexOffset: -100 })
+       .addTo(carte)
+       .bindPopup('<b>🏠 Évolution Conduites</b><br>Bureau de ' + ech(b.nom));
+    }));
+  }
+
+  /* ============================================================
      🧊 v1398 — LE TRAJET REJOUÉ EN 3D
 
      David : le trajet rejoué en 3D, pour l'élève (ce lien) et pour
@@ -433,9 +505,11 @@ const nature = (t) => NATURES[t] || NATURES.repere;
     zone3d.innerHTML = '<div class="vide">⏳ La 3D se prépare…</div>';
     try{
       window.CONFIG = window.CONFIG || { WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev' };
-      if(typeof EC3D === 'undefined') await charger('app/ec-3d.js?v=1400');
-      if(typeof rejouerTrajet3D !== 'function') await charger('app/ec-trajet3d.js?v=1398');
-      rejeu = await rejouerTrajet3D(zone3d, { points: points, reperes: reperes, natures: NATURES });
+      if(typeof EC3D === 'undefined') await charger('app/ec-3d.js?v=1401');
+      if(typeof rejouerTrajet3D !== 'function') await charger('app/ec-trajet3d.js?v=1401');
+      const bureaux = await Promise.race([bureauxPromis, new Promise(ok => setTimeout(() => ok([]), 2500))]);
+      rejeu = await rejouerTrajet3D(zone3d, { points: points, reperes: reperes, natures: NATURES,
+                                              bureaux: bureaux, logo: LOGO });
     }catch(e){
       zone3d.innerHTML = '<div class="vide">La 3D n’a pas pu se charger (' + ech((e && e.message) || e) + ').<br>Le plan reste là : 🗺️ Plan.</div>';
     }finally{ enCours = false; }
