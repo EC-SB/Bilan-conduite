@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:10 — v1408 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1409,
+    date: 'Mardi 10 novembre 2026',
+    resume: '💬 Messenger passe après la messagerie de l’appli (il reste en secours)',
+    quoi: [
+      { emoji: '🚦',
+        titre: '« Corriger cette procédure » sous la vidéo d’un élève',
+        texte: 'Dans la messagerie, sous la vidéo ou le vocal qu’un élève envoie : la procédure part dans Procédures à corriger, déjà remplie (élève, quand, son mot). « 💬 Voir » y ramène.' },
+      { emoji: '💬',
+        titre: 'Ce qu’on dit aux élèves',
+        texte: 'Les bilans, les rappels de cours et le message passerelle disent « dans ta messagerie de l’App Évolution Conduites » à la place de Messenger. Le mail « fais ton bilan » cite l’appli d’abord.' },
+      { emoji: '🔗',
+        titre: 'Ce qu’on copie part avec les liens de l’appli',
+        texte: 'Tout ce que tu copies (pour Messenger, un SMS…) remplace les liens Facebook reliés par ceux de son espace.' },
+      { emoji: '✅',
+        titre: 'Fin de cours',
+        texte: 'La fenêtre « Bilan enregistré » dit qu’il le retrouve dans son espace et propose le mail ; Messenger n’y est plus qu’un petit bouton de secours.' }
+    ]
+  },
   {
     version: 1408,
     date: 'Mardi 10 novembre 2026',
