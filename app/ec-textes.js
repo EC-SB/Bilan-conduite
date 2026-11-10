@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:00 — v1407 */
+/* Déployé le 10/11/2026 à 16:10 — v1408 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -2629,6 +2629,8 @@ function ouMeneLeLienEleve(p, x){
     p.guides.some(g => { const e = (g.etapes || []).find(y => String(y.id || '') === String(x.segment)); if(e){ guide = g; etape = e; return true; } return false; });
   }
   if(!guide) return null;
+  /* 🔗 v1408 — une étape qui n'existe plus n'est pas « relié » : ❌ */
+  if(x.segment && !etape) return null;
   const groupe = p.groupes.find(gr => gr.id === guide.groupe) || null;
   return { groupe: groupe, guide: guide, etape: x.segment ? etape : { id: '', titre: '📘 Tout le guide' } };
 }
@@ -2784,28 +2786,57 @@ async function insererLienEleveDans(zone){
   return true;
 }
 
-/* ② « 🔗 Les liens de ce texte » : où mène chaque lien, et les Facebook */
+/* ② « 🔗 Les liens de ce texte » : où mène chaque lien, et les Facebook
+   (🔗 v1408 — reliés ou non dans le tableau, et « 📍 Relier » d'ici) */
 async function dessinerLiensDuTexte(z, texte){
   if(!z) return;
   const app = liensEleveDuTexte(texte);
-  const fb = (String(texte || '').match(/https?:\/\/(?:www\.|m\.)?(?:facebook\.com|fb\.watch)\/\S+/g) || []);
-  if(!app.length && !fb.length){ z.hidden = true; z.innerHTML = ''; return; }
+  const fbs = liensFbDuTexte(texte);
+  if(!app.length && !fbs.length){ z.hidden = true; z.innerHTML = ''; return; }
   z.hidden = false;
-  let p = null;
-  if(app.length){ try{ p = await chargerParcoursPourLiens(); }catch(e){ p = null; } }
-  let h = '<div class="etElT">🔗 Les liens de ce texte</div>';
+  let p = null, table = {};
+  try{ p = await chargerParcoursPourLiens(); }catch(e){ p = null; }
+  if(fbs.length){ try{ table = await chargerLiensFb(); }catch(e){ table = {}; } }
+  const peut = (typeof peutToucherAuxTextesDeLAppli === 'function') && peutToucherAuxTextesDeLAppli();
+  z.innerHTML = '<div class="etElT">🔗 Les liens de ce texte</div>';
+  const ligne = (ico, html) => {
+    const d = document.createElement('div');
+    d.className = 'etElL';
+    d.innerHTML = '<span class="etElIco ' + (ico === 'f' ? 'fb' : 'app') + '">' + (ico === 'f' ? 'f' : '🎬') + '</span><div>' + html + '</div>';
+    z.appendChild(d);
+    return d.lastElementChild;
+  };
   app.forEach(x => {
     const o = ouMeneLeLienEleve(p, x);
-    h += '<div class="etElL"><span class="etElIco app">🎬</span><div>' +
-      (o ? '<span class="ok">✅ Vers l’espace élève</span> → ' + echapper(cheminDuLienEleve(o))
-         : (p ? '<span class="ko">❌ Cette étape n’existe plus</span> (« ' + echapper(x.titre || x.cle) + ' ») — l’élève reçoit le guide entier s’il existe encore'
-              : '✅ Vers l’espace élève : ' + echapper(x.titre || x.cle))) + '</div></div>';
+    ligne('a', o ? '<span class="ok">✅ Vers l’espace élève</span> → ' + echapper(cheminDuLienEleve(o))
+      : (p ? '<span class="ko">❌ Cette étape n’existe plus</span> (« ' + echapper(x.titre || x.cle) + ' ») — l’élève reçoit son guide s’il existe encore'
+           : '✅ Vers l’espace élève : ' + echapper(x.titre || x.cle)));
   });
-  fb.forEach(u => {
-    h += '<div class="etElL"><span class="etElIco fb">f</span><div><span class="u">' + echapper(u.replace(/^https?:\/\/(www\.|m\.)?/, '').slice(0, 90)) + '</span><br>' +
-      '<span class="fbMot">📘 Lien Facebook — il se reliera à une étape dans le tableau des liens (prochaine livraison). Tu peux déjà ajouter le lien de l’étape avec « 🔗 Lien élève ».</span></div></div>';
+  const vus = {};
+  fbs.forEach(l => {
+    const cle = cleDuLienFb(l.u);
+    if(vus[cle]) return;
+    vus[cle] = 1;
+    const r = table[cle];
+    const u = '<span class="u">' + echapper(l.u.replace(/^https?:\/\/(www\.|m\.)?/, '').slice(0, 90)) + '</span><br>';
+    let html;
+    if(r && r.etat === 'relie') html = u + '<span class="ok">✅ Relié</span> → ' + echapper(cheminFb(p, r)) + '<br><span class="fbMot">L’élève reçoit le bouton de son espace à la place.</span>';
+    else if(r && r.etat === 'garde') html = u + '<span class="fbMot">📘 Gardé tel quel : l’élève garde le lien Facebook.</span>';
+    else html = u + '<span class="ko">⚠️ Lien Facebook pas encore relié</span>';
+    const cont = ligne('f', html);
+    if(peut && !(r && r.etat === 'relie')){
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'fgb'; b.style.marginTop = '5px';
+      b.textContent = '📍 Relier à une étape';
+      b.addEventListener('click', async () => {
+        const x = await choisirUneEtapeEleve('Relier « ' + (l.x || 'ce lien').slice(0, 60) + ' »');
+        if(!x) return;
+        try{ await poserLienFb(l.u, 'relie', x); showToast('Relié ✅ — partout où il apparaît'); dessinerLiensDuTexte(z, texte); }
+        catch(e){ showToast('Pas enregistré : ' + (e.message || e)); }
+      });
+      cont.appendChild(b);
+    }
   });
-  z.innerHTML = h;
 }
 
 /* ③ « 📍 Ses étapes dans l'espace élève » d'une procédure */
@@ -2820,6 +2851,19 @@ function blocEtapesDeProcedure(liste, opts){
       v.className = 'etElAide';
       v.textContent = o.verrou ? 'Aucune étape liée.' : 'Aucune étape liée : le bilan ne portera que la procédure.';
       z.appendChild(v);
+      /* 🔗 v1408 — son lien Facebook est déjà relié dans le tableau : l'étape est proposée */
+      if(!o.verrou && (o.proposees || []).length){
+        o.proposees.forEach(x => {
+          const pr = document.createElement('div');
+          pr.className = 'etElPil';
+          pr.innerHTML = '<span class="etElChem">💡 Son lien Facebook est relié à<b>' + echapper(x.titre || x.guideTitre || 'une étape') + '</b></span>';
+          const ba = document.createElement('button');
+          ba.type = 'button'; ba.className = 'fgb'; ba.textContent = '＋ L’ajouter';
+          ba.addEventListener('click', () => { liste.push(x); o.proposees = []; dessiner(); if(o.surChange) o.surChange(liste); });
+          pr.appendChild(ba);
+          z.appendChild(pr);
+        });
+      }
     }
     liste.forEach((x, i) => {
       const r = document.createElement('div');
@@ -2856,6 +2900,338 @@ function blocEtapesDeProcedure(liste, opts){
   };
   dessiner();
   return z;
+}
+
+/* ============================================================
+   🔗 v1408 — LE TABLEAU DES LIENS FACEBOOK → ESPACE ÉLÈVE
+   (Outils › Ce qu'on écrit › 🔗 Liens Facebook → élève)
+
+   Le schéma validé le 10 novembre : chaque lien Facebook de l'appli et
+   des fiches, avec sa phrase et l'endroit où il sert ; 💡 une étape
+   proposée, ✓ d'un appui ; 📍 choisir ; « Laisser Facebook ». Relié une
+   fois, il l'est partout : c'est le Worker qui le remplace quand le
+   texte part vers l'élève (bilans, messagerie, mail du bilan).
+   · ❌ son étape n'existe plus : seulement ici (David : « seulement ❌
+     dans le tableau »).
+   · 🆕 un lien posé dans une fiche ces 14 derniers jours, pas relié.
+   · LES LIENS DU CODE (modèles de bilan, jour du permis, post-permis…)
+     sont listés ci-dessous, relevés dans le code à la livraison ; ceux
+     des fiches et des messages après ajournement sont lus à l'ouverture.
+   ============================================================ */
+const LIENS_FB_DU_CODE = [
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1205199580138159/", "x": "Écoute pédagogique réservée et pas venu (5 € facturés)", "o": "Rappel des écoutes", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/640345686623554/", "x": "👉 Achète la \"formule complète\" correspondant aux 1, 🕙, 2, 4 du programme sur ton interface élève Drivup.',", "o": "Évaluation AAC", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/969918630099564/", "x": "Installation au poste de conduite", "o": "Bilan à la main · Modèles de bilan · Bilan du cours", "n": 8},
+  {"u": "https://www.facebook.com/groups/864826058258637", "x": "Vérifications (le groupe)", "o": "Bilan à la main · Groupe du jour du permis · Modèles de bilan · Vérifications · Bilan du cours", "n": 10},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1733835153707904/", "x": "…ton livret numérique (ou papier), et montrer l'attestation qui valide tes 1 an minimum, voir vidéo ici", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content?filter=957460364727818&post=1442207386345179", "x": "…nous fournir votre livret de famille ou votre certificat de mariage sur lequel apparaissent vos deux noms)", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/287913635810708/", "x": "💡 Fiche mémoire permis", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970517783372982/", "x": "🚗 Déroulé de l'examen", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1016364328788327/", "x": "🚗 Déroulé de l'examen", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1139464513144974/", "x": "🧘‍♀️ Rester Zen", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970512993373461/", "x": "👌 Centre examen Saint-Brieuc", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content/?filter=957460364727818&post=3113901628719002", "x": "🏬 Centre examen Saint-Brieuc", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1131218613969564/", "x": "☠ Erreurs éliminatoires", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1135349536889805/", "x": "☠ Erreurs éliminatoires", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/", "x": "➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? ✅❌", "o": "Modèles de bilan", "n": 4},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1122235844867841/", "x": "💡Tu n'as pas possibilité de partir en Conduite supervisée ??", "o": "Modèles de bilan", "n": 3},
+  {"u": "https://www.facebook.com/groups/174715876519873/learning_content/?filter=944490172398475&ref=edit_unit", "x": "…dans le groupe Évolution Conduites Guide 7 AAC Conduite accompagnée et CS Conduite supervisée 👨‍👦👩‍👦", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/390459678278824/", "x": "🚙Tout ce qui a été dit pour la conduite accompagnée et la conduite supervisée", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/657680161556773/", "x": "🚙 Entraînement marche arrière", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1674047996586646/", "x": "🚙 Application suivi kilométrique Drivup", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/390459938278798/", "x": "🚙 Guide de l'accompagnateur", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/502944593696998/", "x": "🚙 Les rendez-vous pédagogiques seulement pour la conduite accompagnée", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970408180050609/", "x": "🚙👣Démarrage en côte", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970401240051303/", "x": "🚙👣 Démarrage rapide", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970408626717231/", "x": "🚙👣 Démarrage avec frein à main électrique", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/16TrupekTZ/", "x": "➡️ 🅿️ parking", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1489118334846255/", "x": "…obligé de s'arrêter, on s'arrête un peu avant le cédez le passage, pour se laisser une marge de sécurité ⚠️⚠️", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1505640129860742/", "x": "…obligé de s'arrêter, on s'arrête un peu avant le cédez le passage, pour se laisser une marge de sécurité ⚠️⚠️", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970399350051492/", "x": "…pas la ligne de stop : limite de la chaussée sous le rétro qui arrive en premier sur la ligne de stop 😁.", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970394686718625/", "x": "✋Position de la main sur le levier de vitesse", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970398426718251/", "x": "✋Position de la main sur le levier de vitesse + 6e", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970391620052265/", "x": "✋Position de la main sur le levier de vitesse + 6e + Marche arrière", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/1CFKDFBJy6/", "x": "🙌👣 Synchroniser ses pieds et ses mains", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970400283384732/", "x": "👣Pied trop haut sur l'embrayage", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970395426718551/", "x": "🚙⁉️En quelle vitesse on est ?", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1489146314843457/", "x": "🧠 Cours théorie", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1340937842997639/", "x": "TRAJECTOIRE ➡️ Repère scotch ou araignée bas du pare-brise voir", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1488562401568515/", "x": "➡️ Exercice maison", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1034515243639902/", "x": "On change jamais de voie sans contrôles et clignotants ! Liens groupes", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/327693331832738/", "x": "❤️On apprend la procédure par coeur et en plus de la vidéo", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/287866629148742/", "x": "❤️on met en pratique ici", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970474220044005/", "x": "Et ici", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content/?filter=864853607256126", "x": "❤️ on regarde le guide 14 du groupe Mise en pratique théorie de la conduite lien direct au guide sur pc", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content?filter=1016402715526819&post=726420907962300", "x": "🥇1. On adapte allure🏎️🏁", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content/?filter=3256398961105430", "x": "…apprend par coeur la procédure et on regarde le guide 10 du groupe Mise en pratique théorie de la conduite.", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/100026792825541/videos/663719737864448/", "x": "Adapter vitesse (2nde et 1ère si besoin)", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/evolution.conduites.1/videos/602798227289933", "x": "➡️ Régime de priorité ? (voir vraie règle de la PAD", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content/?filter=1016402715526819&post=391767538630659", "x": "💭Comment la détecter ? Vraie règle de la PAD ? 👀", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/19Df7qy4rv/", "x": "Démarrage en boîte automatique (vidéo 1)", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/19MZYLySxo/", "x": "Démarrage en boîte automatique (vidéo 2)", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970461930045234/", "x": "1👀- on CHERCHE la route 💭Comment la détecter ?", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/287728199162585/", "x": "On apprend par coeur la procédure en entier visible en cliquant sur le lien ici", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/learning_content/?filter=402522386935051", "x": "1. \"GROUPE Evolution Conduites", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content/?filter=1016402715526819", "x": "2. \"COURS THÉORIE DE LA CONDUITE Évolution Conduites", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content", "x": "3. \"MISE EN PRATIQUE THÉORIE DE LA CONDUITE Évolution Conduites", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content", "x": "➡️ Théorie de la conduite", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/19cLgA4nLY/", "x": "➡️ Accélérer, freiner, s’arrêter", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970393543385406/", "x": "…ton entraînement sur la manipulation du volant par Messenger 🚙 Exemple entraînement à domicile sans volant 🚘", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1121120328312726/", "x": "tu peux passer en boite auto si tu es en boite de vitesse et que tu as de gros soucis mécaniques, lien ici", "o": "Modèles de bilan", "n": 3},
+  {"u": "https://www.facebook.com/share/p/18sc7wKjbg/", "x": "Toutes les consignes sont sur le lien", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/96295402436271", "x": "Donc RÉSERVE IMMÉDIATEMENT de ton compte en ligne ⚠️", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1348332705824845/", "x": "Envoie tes vidéos ou vocaux des procédures pour qu’on te corrige gratuitement", "o": "Félicitations / passerelle", "n": 1},
+  {"u": "https://www.facebook.com/share/v/1D9o635bqF/", "x": "…S'il est insuffisant, tu devras en refaire un autre jusqu'à ce que tout soit compris ! À regarder absolument", "o": "Post-permis · Espace élève (post-permis)", "n": 3},
+  {"u": "https://www.facebook.com/share/p/1LuU7SKsEk/", "x": "Clique OBLIGATOIREMENT sur le lien pour savoir comment faire", "o": "Post-permis", "n": 1},
+  {"u": "https://www.facebook.com/share/p/19mwWHfRS4/", "x": "👉 Retrouve la grille de notation de l'inspecteur(trice) ici", "o": "Post-permis", "n": 1},
+  {"u": "https://www.facebook.com/share/p/182tnBsA2C/", "x": "…23 Statistiques mensuelles Examen pratique du permis de conduire dans le groupe Facebook Mise en pratique.", "o": "Post-permis", "n": 1}
+];
+const RE_LIEN_FB_EC = /https?:\/\/(?:[a-z]+\.)?(?:facebook\.com|fb\.watch)\/[A-Za-z0-9\-._~:/?#\[\]@!$&*+,;=%]+/gi;
+/* La clé d'un lien : la même règle que le Worker (cleDuLienFb) */
+function cleDuLienFb(u){
+  let s = String(u || '').trim().replace(/[.,;:!?)\]»]+$/, '');
+  s = s.replace(/^https?:\/\//i, '').replace(/^(www\.|m\.|web\.|mbasic\.)/i, '');
+  const i = s.indexOf('?');
+  let chemin = i === -1 ? s : s.slice(0, i);
+  const q = i === -1 ? '' : s.slice(i + 1);
+  chemin = chemin.replace(/#.*$/, '').replace(/\/+$/, '').toLowerCase();
+  const garde = [];
+  q.replace(/#.*$/, '').split('&').forEach(p => {
+    const j = p.indexOf('=');
+    if(j < 1) return;
+    const k = p.slice(0, j), v = p.slice(j + 1);
+    if(/^(filter|post|story_fbid|id|v)$/i.test(k) && v) garde.push(k.toLowerCase() + '=' + v);
+  });
+  return chemin + (garde.length ? '?' + garde.sort().join('&') : '');
+}
+/* Les liens Facebook d'un texte, avec la phrase qui les précède */
+function liensFbDuTexte(t){
+  const out = [];
+  const lignes = String(t || '').split('\n');
+  lignes.forEach((l, i) => {
+    let m;
+    RE_LIEN_FB_EC.lastIndex = 0;
+    while((m = RE_LIEN_FB_EC.exec(l))){
+      const u = m[0].replace(/[.,;:!?)\]]+$/, '');
+      let ctx = l.slice(0, m.index).replace(/https?:\/\/\S+/g, '').replace(/[\s:–\-]+$/, '').trim();
+      for(let k = i - 1; !ctx && k >= 0 && k > i - 3; k--) ctx = lignes[k].replace(/https?:\/\/\S+/g, '').trim();
+      if(ctx.length > 110){ ctx = ctx.slice(-110); ctx = '…' + ctx.slice(ctx.indexOf(' ') + 1); }
+      out.push({ u: u, x: ctx });
+    }
+  });
+  return out;
+}
+
+/* La table enregistrée (D1), gardée une minute */
+let tableLiensFb = null;
+async function chargerLiensFb(forcer){
+  if(!forcer && tableLiensFb && Date.now() - tableLiensFb.t < 60000) return tableLiensFb.m;
+  const d = await appelPrep({ action: 'liensFbListe' });
+  const m = {};
+  ((d && d.liens) || []).forEach(r => { m[r.cle] = r; });
+  tableLiensFb = { t: Date.now(), m: m };
+  return m;
+}
+async function poserLienFb(u, etat, x){
+  const r = await appelPrep(Object.assign({ action: 'liensFbPoser', url: u, etat: etat }, x ? {
+    guide: x.guide, segment: x.segment || '', titre: x.titre || '', guideTitre: x.guideTitre || '', groupeIcone: x.groupeIcone || '' } : {}));
+  if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+  if(tableLiensFb){
+    const cle = cleDuLienFb(u);
+    if(!etat) delete tableLiensFb.m[cle];
+    else tableLiensFb.m[cle] = Object.assign({ cle: cle, url: u, etat: etat, par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '', le: horodatageCourt() },
+      x ? { guide: x.guide, segment: x.segment || '', titre: x.titre || '', guideTitre: x.guideTitre || '', groupeIcone: x.groupeIcone || '' } : {});
+  }
+  return r;
+}
+
+/* 💡 L'étape dont le titre ressemble à la phrase du lien */
+const MOTS_VIDES_FB = ['avec', 'dans', 'pour', 'tout', 'tous', 'sans', 'mais', 'plus', 'cette', 'votre', 'notre', 'sont', 'est', 'une', 'des', 'les',
+  'sur', 'par', 'que', 'qui', 'quoi', 'ton', 'tes', 'ta', 'ici', 'lien', 'voir', 'video', 'groupe', 'guide', 'evolution', 'conduites', 'facebook'];
+function motsFb(t){
+  return String(t || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length > 3 && MOTS_VIDES_FB.indexOf(w) === -1)
+    .map(w => w.replace(/(s|x)$/, ''));
+}
+function etapeProposeePourFb(p, ctx){
+  if(!p) return null;
+  const mots = motsFb(ctx);
+  if(!mots.length) return null;
+  let mieux = null, score = 0;
+  p.guides.forEach(g => {
+    const mg = motsFb(g.titre);
+    (g.etapes || []).forEach(e => {
+      if(!e.id) return;
+      const me = motsFb(e.titre);
+      let s = 0;
+      mots.forEach(w => { if(me.indexOf(w) !== -1) s += 1; else if(mg.indexOf(w) !== -1) s += 0.4; });
+      if(s > score){ score = s; mieux = { g: g, e: e }; }
+    });
+  });
+  if(!mieux || score < 1.4) return null;
+  const gr = p.groupes.find(x => x.id === mieux.g.groupe) || null;
+  return { guide: mieux.g.id, segment: mieux.e.id, titre: mieux.e.titre || '', guideTitre: mieux.g.titre || '', groupeIcone: (gr && gr.icone) || '' };
+}
+function cheminFb(p, x){
+  const o = ouMeneLeLienEleve(p, x);
+  if(o) return cheminDuLienEleve(o);
+  return [(x.groupeIcone || ''), x.guideTitre || '', x.titre || ''].filter(Boolean).join(' › ');
+}
+/* "dd/MM/yyyy HH:mm" de moins de 14 jours ? */
+function recentFb(maj){
+  const m = String(maj || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if(!m) return false;
+  return (Date.now() - new Date(+m[3], +m[2] - 1, +m[1]).getTime()) < 14 * 86400000;
+}
+
+let filtreLiensFb = 'arelier', chercheLiensFb = '';
+async function afficherLiensFacebook(){
+  const z = $('liensFbZone');
+  if(!z) return;
+  z.innerHTML = '<div class="empty">Lecture des liens…</div>';
+  let table, p = null, reg = {};
+  try{ table = await chargerLiensFb(true); }
+  catch(e){ z.innerHTML = '<div class="message erreur">Lecture impossible : ' + echapper(e.message || e) + '</div>'; return; }
+  try{ p = await chargerParcoursPourLiens(true); }catch(e){ p = null; }
+  try{ await chargerModelesTexte(); }catch(e){}
+  try{ const r = await appelPrep({ action: 'reglagesList' }); reg = (r && r.reglages) || {}; }catch(e){ reg = {}; }
+
+  /* L'inventaire : code, fiches, messages après ajournement, et ce que la table connaît */
+  const liens = {};
+  const ajoute = (u, x, ou, n, neuf) => {
+    const cle = cleDuLienFb(u);
+    if(!/^(facebook\.com|fb\.watch)\//.test(cle) || cle === 'facebook.com/messages') return;
+    const l = liens[cle] = liens[cle] || { cle: cle, u: u, x: '', ou: [], n: 0, neuf: null };
+    if(!l.x && x) l.x = x;
+    if(ou && l.ou.indexOf(ou) === -1) l.ou.push(ou);
+    l.n += n || 1;
+    if(neuf && (!l.neuf || neuf.maj > l.neuf.maj)) l.neuf = neuf;
+  };
+  LIENS_FB_DU_CODE.forEach(c => ajoute(c.u, c.x, c.o, c.n));
+  (modelesTexte || []).forEach(m => liensFbDuTexte(m.contenu).forEach(l =>
+    ajoute(l.u, l.x, 'Fiche « ' + (m.titre || m.nom || 'sans titre') + ' »', 1, recentFb(m.maj) ? { maj: m.maj, par: m.par || '', fiche: m.titre || m.nom || '' } : null)));
+  [['ajourne1', 'Message après ajournement'], ['ajourne3', 'Modèle de bilan post-permis'], ['ajourne4', 'Relance après ajournement']].forEach(([k, nom]) => {
+    if(typeof reg[k] === 'string') liensFbDuTexte(reg[k]).forEach(l => ajoute(l.u, l.x, nom, 1));
+  });
+  Object.keys(table).forEach(k => { if(!liens[k]) ajoute(table[k].url, '', 'Plus utilisé nulle part', 0); });
+
+  const peut = (typeof peutToucherAuxTextesDeLAppli === 'function') && peutToucherAuxTextesDeLAppli();
+  const etatDe = l => {
+    const r = table[l.cle];
+    if(r && r.etat === 'relie') return (p && !ouMeneLeLienEleve(p, r)) ? 'casse' : 'relie';
+    if(r && r.etat === 'garde') return 'garde';
+    return 'arelier';
+  };
+  const tous = Object.values(liens);
+
+  const dessiner = () => {
+    const haut = window.scrollY;
+    const compte = { arelier: 0, relie: 0, garde: 0 };
+    tous.forEach(l => { const e = etatDe(l); compte[e === 'casse' ? 'arelier' : e]++; });
+    z.innerHTML = '';
+    const barre = document.createElement('div');
+    barre.className = 'lfBarre';
+    const ch = document.createElement('input');
+    ch.type = 'search';
+    ch.placeholder = '🔎 Chercher un lien, une phrase, une fiche…';
+    ch.value = chercheLiensFb;
+    ch.addEventListener('input', () => { chercheLiensFb = ch.value; dessinerListe(); });
+    barre.appendChild(ch);
+    [['arelier', '⚠️ À relier'], ['relie', '✅ Reliés'], ['garde', '📘 Gardés Facebook'], ['tous', 'Tous']].forEach(([k, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (filtreLiensFb === k ? 'btn-primary' : 'btn-secondary');
+      b.dataset.lfFiltre = k;
+      b.textContent = t + ' · ' + (k === 'tous' ? tous.length : compte[k]);
+      b.addEventListener('click', () => { filtreLiensFb = k; dessiner(); });
+      barre.appendChild(b);
+    });
+    z.appendChild(barre);
+    const aide = document.createElement('div');
+    aide.className = 'lfAide';
+    aide.textContent = 'Tous les liens Facebook de l’appli et de tes fiches (bilans, procédures, Ce qu’on écrit, messages). ' +
+      'Relie chacun à une étape : partout, l’élève reçoit le bouton de son espace à la place (ses bilans et sa messagerie, même les anciens, et le mail du bilan). ' +
+      'Un lien relié une fois l’est partout où il apparaît.' + (peut ? '' : ' — Relier demande le droit « ⚙️ Textes de l’application ».');
+    z.appendChild(aide);
+    const liste = document.createElement('div');
+    z.appendChild(liste);
+    const dessinerListe = () => {
+      liste.innerHTML = '';
+      const q = String(chercheLiensFb || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+      const vus = tous.filter(l => {
+        const e = etatDe(l);
+        if(filtreLiensFb !== 'tous' && (e === 'casse' ? 'arelier' : e) !== filtreLiensFb) return false;
+        if(!q) return true;
+        const r = table[l.cle] || {};
+        return (l.x + ' ' + l.u + ' ' + l.ou.join(' ') + ' ' + (r.titre || '') + ' ' + (r.guideTitre || ''))
+          .normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().indexOf(q) !== -1;
+      });
+      /* les nouveaux et les cassés d'abord, puis les plus utilisés */
+      const rang = l => (etatDe(l) === 'casse' ? 0 : l.neuf && etatDe(l) === 'arelier' ? 1 : 2);
+      vus.sort((a, b) => rang(a) - rang(b) || b.n - a.n);
+      if(!vus.length){ liste.innerHTML = '<div class="empty">' + (filtreLiensFb === 'arelier' && !q ? 'Tous les liens sont reliés ou gardés 👏' : 'Rien ici.') + '</div>'; return; }
+      vus.forEach(l => liste.appendChild(carteLienFb(l)));
+    };
+    const carteLienFb = (l) => {
+      const e = etatDe(l), r = table[l.cle] || {};
+      const c = document.createElement('div');
+      c.className = 'lfCarte' + (e === 'casse' ? ' casse' : '') + (l.neuf && e === 'arelier' ? ' neuf' : '');
+      c.dataset.lfCle = l.cle;
+      const prop = (e === 'arelier') ? etapeProposeePourFb(p, l.x) : null;
+      let h = '<span class="etElIco fb">f</span><div class="lfCorps">' +
+        '<div class="lfPhrase">' + (l.x ? '« ' + echapper(l.x) + ' »' : '<i>(sans phrase autour)</i>') + '</div>' +
+        '<div class="lfU">' + echapper(l.u.replace(/^https?:\/\/(www\.|m\.)?/, '')) + '</div>' +
+        '<div class="lfOu">📄 ' + echapper(l.ou.join(' · ') || '—') + (l.n > 1 ? ' — ' + l.n + ' fois' : '') + '</div>';
+      if(l.neuf && e === 'arelier') h += '<div class="lfOu">🆕 Ajouté le ' + echapper(String(l.neuf.maj).slice(0, 10)) + (l.neuf.par ? ' par ' + echapper(l.neuf.par) : '') + '</div>';
+      h += '<div class="lfEtat">';
+      if(e === 'relie') h += '<span class="ok">✅ Relié</span> → ' + echapper(cheminFb(p, r));
+      else if(e === 'casse') h += '<span class="ko">❌ Son étape n’existe plus</span> (« ' + echapper(r.titre || '?') + ' ») — l’élève reçoit son guide s’il existe encore';
+      else if(e === 'garde') h += '<span class="garde">📘 Gardé tel quel</span> — l’élève garde le lien Facebook';
+      else h += '<span class="ko">⚠️ Pas encore relié</span>' + (prop ? ' · 💡 Proposé : <b>' + echapper(cheminFb(p, prop)) + '</b>' : '');
+      h += '</div></div>';
+      c.innerHTML = h;
+      const bts = document.createElement('div');
+      bts.className = 'lfBts';
+      const bt = (t, principal, fn) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary');
+        b.textContent = t;
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try{ await fn(); dessiner(); }
+          catch(err){ b.disabled = false; showToast('Pas enregistré : ' + (err.message || err)); }
+        });
+        bts.appendChild(b);
+        return b;
+      };
+      const choisir = async () => {
+        const x = await choisirUneEtapeEleve('Relier « ' + (l.x || 'ce lien').slice(0, 60) + ' »');
+        if(!x) return;
+        await poserLienFb(l.u, 'relie', x);
+        showToast('Relié ✅');
+      };
+      if(peut){
+        if(prop) bt('✓ C’est ça', true, async () => { await poserLienFb(l.u, 'relie', prop); showToast('Relié ✅'); });
+        if(e === 'arelier') bt('📍 Choisir', !prop, choisir);
+        if(e === 'casse') bt('📍 Choisir une autre étape', true, choisir);
+        if(e === 'relie') bt('📍 Changer', false, choisir);
+        if(e === 'garde') bt('📍 Lier à une étape', false, choisir);
+        if(e !== 'garde') bt('Laisser Facebook', false, async () => { await poserLienFb(l.u, 'garde'); showToast('Gardé tel quel'); });
+        if(e === 'relie' || e === 'garde') bt('↩️ Remettre à relier', false, async () => { await poserLienFb(l.u, ''); });
+      }
+      const a = document.createElement('a');
+      a.className = 'btn btn-secondary';
+      a.href = l.u; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = '↗ Voir sur Facebook';
+      bts.appendChild(a);
+      c.querySelector('.lfCorps').appendChild(bts);
+      return c;
+    };
+    dessinerListe();
+    try{ window.scrollTo(0, haut); }catch(e){}
+  };
+  dessiner();
 }
 
 function poserModeleEnMemoire(f){
@@ -3193,9 +3569,22 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
     if(g('mdEtapes')){
       g('mdEtapes').innerHTML = '';
       if(estProc){
-        g('mdEtapes').appendChild(blocEtapesDeProcedure(mesEtapesEleve, {
-          verrou: verrou, nom: () => g('mdNom').value.trim(),
-          surChange: () => { if(typeof moi.aChange === 'function') moi.aChange(); } }));
+        const optsEt = { verrou: verrou, nom: () => g('mdNom').value.trim(),
+          surChange: () => { if(typeof moi.aChange === 'function') moi.aChange(); } };
+        g('mdEtapes').appendChild(blocEtapesDeProcedure(mesEtapesEleve, optsEt));
+        /* 🔗 v1408 — sans étape, mais son lien Facebook est relié : on le propose */
+        if(!verrou && !mesEtapesEleve.length && liensFbDuTexte(g('mdContenu').value).length){
+          chargerLiensFb().then(t => {
+            const vus = {};
+            optsEt.proposees = liensFbDuTexte(g('mdContenu').value).map(l => t[cleDuLienFb(l.u)])
+              .filter(r => r && r.etat === 'relie' && r.guide && !vus[r.guide + '::' + r.segment] && (vus[r.guide + '::' + r.segment] = 1))
+              .map(r => ({ guide: r.guide, segment: r.segment || '', titre: r.titre || '', guideTitre: r.guideTitre || '', groupeIcone: r.groupeIcone || '' }));
+            if(optsEt.proposees.length && !mesEtapesEleve.length && g('mdEtapes')){
+              g('mdEtapes').innerHTML = '';
+              g('mdEtapes').appendChild(blocEtapesDeProcedure(mesEtapesEleve, optsEt));
+            }
+          }).catch(() => {});
+        }
       }
     }
     /* Le bilan à créer n'a de sens que pour un rappel de cours :
