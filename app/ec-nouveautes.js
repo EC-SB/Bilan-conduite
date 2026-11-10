@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:38 — v1391 */
+/* Déployé le 10/11/2026 à 10:20 — v1392 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1392,
+    date: 'Mardi 10 novembre 2026',
+    resume: '📱 Tablette de la salle : ouvrir l’espace d’un élève qui n’en a pas encore, et sa formation enregistrée sur sa fiche',
+    quoi: [
+      { emoji: '🔓',
+        titre: 'Ouvrir son espace depuis la tablette',
+        texte: 'Quand on installe quelqu’un dont l’espace élève n’est pas encore ouvert, la tablette propose « 🔓 Ouvrir son espace et lancer » : l’espace s’ouvre avec les réglages habituels de sa formation, puis il démarre. Un espace fermé est rouvert avec le même code.' },
+      { emoji: '🎓',
+        titre: 'La formation va sur sa fiche',
+        texte: 'Si sa fiche n’a pas de formation, la tablette la demande. Celle qu’on choisit — sur la tablette ou dans la mise en route du coin révisions — est maintenant bien enregistrée sur sa fiche.' },
+      { emoji: '✉️',
+        titre: 'Le code pour la maison',
+        texte: 'Le code de l’espace n’est pas envoyé tout seul : envoyez-le depuis son dossier quand il doit réviser chez lui.' }
+    ]
+  },
   {
     version: 1391,
     date: 'Mardi 10 novembre 2026',
