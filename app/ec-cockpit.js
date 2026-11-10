@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:37 — v1384 */
+/* Déployé le 10/11/2026 à 09:19 — v1390 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -451,7 +451,9 @@ function ckPastilles(){
    pour qui a le droit « ✉️ Mails » : le bureau et les administrateurs */
 /* ✉️ v1378 — « Mails » n'est plus un onglet de la liste : c'est une VUE du
    rail (voir VUES.messagerie). Les chips ne gardent que le chat. */
-const ONGLETS_MSG_EC = [['tout', 'Tout'], ['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['permis', 'Permis']];
+/* 🚗 v1390 — David, le 10 novembre : « ajoute une catégorie après Permis :
+   Véhicule », une conversation de groupe par véhicule (ec-msg-vehicules.js) */
+const ONGLETS_MSG_EC = [['tout', 'Tout'], ['nonlus', 'Non lus'], ['eleves', 'Élèves'], ['equipe', 'Équipe'], ['permis', 'Permis'], ['vehicules', 'Véhicules']];
 function ckOngletsVisibles(){
   return ONGLETS_MSG_EC.filter(o => o[0] !== 'mails' || (typeof mlOngletVisible === 'function' && mlOngletVisible() &&
     !(typeof dansLeTiroir === 'function' && dansLeTiroir())));
@@ -470,6 +472,7 @@ function ckDansLOnglet(c, onglet){
   }
   if(o === 'eleves') return ckEstEleve(c);
   if(o === 'permis') return ckEstGroupePermis(c);
+  if(o === 'vehicules') return !!(c && c.vehicule);
   if(o === 'equipe') return !ckEstEleve(c);
   return true;
 }
@@ -492,6 +495,8 @@ const ICONES_ONGLETS_MSG = {
   eleves: '<path d="m2.5 9 9.5-4 9.5 4-9.5 4z"/><path d="M6.5 11v4.5c0 1.5 2.5 3 5.5 3s5.5-1.5 5.5-3V11M21.5 9v5"/>',
   equipe: '<circle cx="9" cy="8" r="3.2"/><path d="M3 19.5a6 6 0 0 1 12 0"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.5 14.2a5 5 0 0 1 6 5.3"/>',
   permis: '<path d="M4 13.5 5.8 8.6A2 2 0 0 1 7.7 7.2h8.6a2 2 0 0 1 1.9 1.4L20 13.5"/><rect x="3" y="13" width="18" height="5.5" rx="1.8"/><path d="M6 18.5V20M18 18.5V20"/><circle cx="7.5" cy="15.8" r=".9" fill="currentColor" stroke="none"/><circle cx="16.5" cy="15.8" r=".9" fill="currentColor" stroke="none"/>',
+  /* 🚗 v1390 — la voiture de profil, et sa clé */
+  vehicules: '<path d="M3 16v-2.6l1.8-3.9A2 2 0 0 1 6.6 8.3h7.1a2 2 0 0 1 1.5.7L18.5 13l1.7.5a1.4 1.4 0 0 1 .8 1.3V16h-1.8"/><path d="M8.6 16h7.4M4 13.2h15.3"/><circle cx="6.8" cy="16.3" r="1.9"/><circle cx="17.3" cy="16.3" r="1.9"/>',
   retour: '<path d="M19.5 12H5M11 5.5 4.5 12l6.5 6.5"/>'
 };
 function ckIconeTrait(cle, classe){
@@ -616,6 +621,8 @@ function ckSousTitre(f){
     if(v.etat === 'bloquee') return '👋 Vitrine' + (v.nomBureau ? ' de ' + v.nomBureau : '') + ' · 🚫 bloqué';
     return '👋 Vitrine' + (v.nomBureau ? ' de ' + v.nomBureau : '') + ' · au nom du bureau';
   }
+  /* 🚗 v1390 — la conversation d'un véhicule : toute l'équipe */
+  if(c.vehicule) return '🚗 Véhicule · toute l’équipe';
   const g = GENRES_CK[c.genre] || { rond: '💬', nom: 'Conversation' };
   let plus = '';
   if(c.genre === 'bureau') plus = 'au nom du bureau';
@@ -662,6 +669,8 @@ function ckEnteteDuFil(f, large){
     const sansNom = c.genre === 'groupe' || c.genre === 'vitrine';
     const av = rondPhoto(cleP, sansNom ? '' : ckTitreListe(Object.assign({}, c, { membres: f.membres || [] })), 38, 'ckFhAv');
     if(!av.querySelector('img') && !av.textContent) av.textContent = c.genre === 'groupe' ? '👥' : c.genre === 'vitrine' ? '👋' : '💬';
+    /* 🚗 v1390 — le numéro du garage à la place de la photo */
+    if(c.vehicule && typeof rondVehiculeEC === 'function'){ av.innerHTML = ''; rondVehiculeEC(av, c); }
     tete.appendChild(av);
   }
 
@@ -714,6 +723,8 @@ function ckEnteteDuFil(f, large){
     if(f.estMembre) extras.push({ emoji: '⏰', texte: rap ? 'Retirer le rappel' : 'Me la rappeler demain 9h', faire: () => ckMarquer(c.id, 'rappel') });
     extras.push({ emoji: 'ⓘ', texte: c.eleve ? 'Sa fiche' : 'Les infos', faire: () => fiche() });
   }
+  /* 🚗 v1390 — le nom d'une conversation de véhicule se change (David) */
+  if(c.vehicule && f.peutEcrire && typeof renommerVehiculeEC === 'function') extras.push({ emoji: '✏️', texte: 'Renommer la conversation', faire: () => renommerVehiculeEC(f) });
   if(f.estMembre) extras.push({ emoji: '📌', texte: Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', faire: () => ckMarquer(c.id, 'epingle') });
   if(c.eleve && f.peutEcrire && c.genre !== 'groupe'){
     extras.push({ emoji: '📅', texte: 'Proposer un autre créneau', faire: () => { ckCreneauOuvert = !ckCreneauOuvert; dessinerLeFil(); } });
@@ -1263,6 +1274,8 @@ function ckReponsesRapides(f, petit){
   eclair.title = 'Toutes les réponses rapides, et « Ce qu’on écrit et envoie »';
   eclair.addEventListener('click', ev => { ev.stopPropagation(); ckFeuilleRapides(f, eclair); });
   v.appendChild(eclair);
+  /* 🚗 v1390 — les cinq gestes d'une conversation de véhicule, en tête */
+  if(c.vehicule && typeof boutonsGestesVehiculeEC === 'function') boutonsGestesVehiculeEC(f).forEach(b => v.appendChild(b));
   if(!reponsesRapidesLues) chargerReponsesRapides().then(change => { if(change && filOuvertEC) dessinerLeFil(); });
   /* 📱 v1174 — David : « tous, ils passent à la ligne ». Plus de
      coupe à trois sur le téléphone. */
