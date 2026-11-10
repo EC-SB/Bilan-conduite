@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:36 — v1397 */
+/* Déployé le 10/11/2026 à 11:56 — v1400 */
 /* ============================================================
    ec-3d.js — 🧊 LE SOCLE DE LA 3D (three.js)
 
@@ -248,6 +248,9 @@ const EC3D = (function(){
     s.vie = true;
     const pas = (t) => {
       if(!s.vie) return;
+      /* ⚡ v1399 — sa fenêtre est fermée (retirée de la page) : la scène
+         se libère d'elle-même (un téléphone n'a qu'une poignée de 3D) */
+      if(!s.hote.isConnected){ s.detruire(); return; }
       requestAnimationFrame(pas);
       if(s.o.visible && !s.o.visible()) { s.dernier = 0; return; }
       const dt = s.dernier ? Math.min(0.1, (t - s.dernier) / 1000) : 0.016;
@@ -304,8 +307,11 @@ const EC3D = (function(){
     const cxR = 0.85, cxF = 3.53, ra = rw + 0.06, cy = rw;
     const yb = Y(0.24), ang = Math.asin(Math.max(-0.99, Math.min(0.99, (yb - cy) / ra)));
     const sh = new T.Shape();
+    const capot = !!o.capot;
     sh.moveTo(X(0.03), Y(0.30)); sh.lineTo(X(0.0), Y(0.55)); sh.lineTo(X(0.03), Y(0.97)); sh.lineTo(X(0.18), Y(1.01)); sh.lineTo(X(3.25), Y(1.00));
-    sh.quadraticCurveTo(X(3.7), Y(0.97), X(4.05), Y(0.90)); sh.quadraticCurveTo(X(4.32), Y(0.84), X(4.42), Y(0.74));
+    /* 🧰 v1400 — avec un capot qui s'ouvre : la caisse s'arrête sous lui */
+    if(capot){ sh.lineTo(X(3.28), Y(0.74)); sh.lineTo(X(4.26), Y(0.72)); sh.lineTo(X(4.40), Y(0.66)); }
+    else{ sh.quadraticCurveTo(X(3.7), Y(0.97), X(4.05), Y(0.90)); sh.quadraticCurveTo(X(4.32), Y(0.84), X(4.42), Y(0.74)); }
     sh.lineTo(X(4.48), Y(0.60)); sh.lineTo(X(4.47), Y(0.32)); sh.lineTo(X(4.30), yb);
     sh.lineTo(X(cxF) + ra * Math.cos(ang), yb); sh.absarc(X(cxF), cy, ra, ang, PI - ang, false);
     sh.lineTo(X(cxR) + ra * Math.cos(ang), yb); sh.absarc(X(cxR), cy, ra, ang, PI - ang, false);
@@ -360,12 +366,88 @@ const EC3D = (function(){
     if(!o.leger){
       [[1.55], [2.45]].forEach(p => { [-1, 1].forEach(c => { const b = boite(0.16, 0.03, 0.03, mNoir); b.position.set(X(p[0]), Y(0.92), c * (W / 2 + 0.01)); inter.add(nom(b, 'caisse')); }); });
     }
+    /* ============================================================
+       🧰 v1400 — TOUT CE QUE L'INSPECTEUR PEUT DEMANDER DEHORS
+       (o.complet) : clignotants de rétro et arrière, catadioptres,
+       feux de brouillard et de recul, plaques et leur éclairage, trappe,
+       balais, gicleurs, témoins d'usure, hayon, sécurité enfant — et,
+       avec o.capot, le compartiment moteur et le capot qui s'ouvre.
+       Chaque pièce porte son nom (userData.part) : c'est lui que le
+       jeu des vérifications compare à la bonne réponse.
+       ============================================================ */
+    let pivot = null;
+    if(o.complet){
+      const mBlanc = lum(0xF4F4F4, { emissiveIntensity: 0.25 });
+      [-1, 1].forEach(c => {
+        const rp = boite(0.06, 0.035, 0.13, mOrange); rp.position.set(X(3.05) + 0.1, Y(1.06), c * (W / 2 + 0.11)); inter.add(nom(rp, c > 0 ? 'clignoD' : 'clignoG'));
+        const ca = boite(0.085, Y(0.05), 0.11, mOrange); ca.position.set(X(0.025), Y(0.92), c * 0.80 * W / 1.84); inter.add(nom(ca, c > 0 ? 'clignoD' : 'clignoG'));
+        const cat = boite(0.03, 0.05, 0.12, mat(0xB0141C, { roughness: 0.25 })); cat.position.set(X(0.03) - 0.01, Y(0.46), c * 0.80 * W / 1.84); inter.add(nom(cat, 'catadioptre'));
+        /* les gicleurs, au pied du pare-brise */
+        const gi = boite(0.05, 0.025, 0.04, mNoir); gi.position.set(X(3.33), Y(capot ? 0.99 : 0.985), c * 0.22); inter.add(nom(gi, 'gicleur'));
+        /* la sécurité enfant : sur la tranche de la porte arrière */
+        const se = boite(0.03, 0.05, 0.03, mat(0xD3242B)); se.position.set(X(0.99), Y(0.80), c * (W / 2 + 0.008)); inter.add(nom(se, 'securiteEnfant'));
+      });
+      const af = boite(0.04, 0.05, 0.14, mRouge); af.position.set(X(0.02) - 0.01, Y(0.40), -0.52); inter.add(nom(af, 'antibrouillard'));
+      const rc = boite(0.04, 0.05, 0.14, mBlanc); rc.position.set(X(0.02) - 0.01, Y(0.40), 0.52); inter.add(nom(rc, 'recul'));
+      /* les plaques */
+      const tex = (() => {
+        const c = document.createElement('canvas'); c.width = 520; c.height = 110;
+        const g2 = c.getContext('2d');
+        g2.fillStyle = '#fff'; g2.fillRect(0, 0, 520, 110);
+        g2.fillStyle = '#1F4FB5'; g2.fillRect(0, 0, 58, 110); g2.fillRect(462, 0, 58, 110);
+        g2.fillStyle = '#FFD200'; g2.font = 'bold 30px sans-serif'; g2.textAlign = 'center'; g2.fillText('F', 29, 92);
+        g2.fillStyle = '#111'; g2.font = 'bold 74px sans-serif'; g2.fillText(String(o.immat || 'EC-000-AA').slice(0, 10), 260, 82);
+        g2.strokeStyle = '#111'; g2.lineWidth = 6; g2.strokeRect(3, 3, 514, 104);
+        const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; return t;
+      })();
+      const pav = new T.Mesh(new T.PlaneGeometry(0.52, 0.11), new T.MeshBasicMaterial({ map: tex })); pav.rotation.y = PI / 2; pav.position.set(X(4.475) + 0.012, Y(0.46), 0); inter.add(nom(pav, 'plaque'));
+      const par = new T.Mesh(new T.PlaneGeometry(0.52, 0.11), new T.MeshBasicMaterial({ map: tex })); par.rotation.y = -PI / 2; par.position.set(X(0.0) - 0.012, Y(0.62), 0); inter.add(nom(par, 'plaque'));
+      [-0.2, 0.2].forEach(z => { const ep = boite(0.03, 0.02, 0.05, mBlanc); ep.position.set(X(0.0) - 0.02, Y(0.68), z); inter.add(nom(ep, 'eclairagePlaque')); });
+      /* le hayon (le coffre) : la face arrière, entre les feux */
+      const hy = boite(0.02, Y(0.30), Wg - 0.25, mCaisse); hy.position.set(X(0.035) - 0.015, Y(0.80), 0); inter.add(nom(hy, 'hayon'));
+      /* la trappe à carburant : à droite, à l'arrière */
+      const tr = new T.Mesh(new T.PlaneGeometry(0.18, 0.18), mat(0xC2C8CF, { metalness: 0.25, roughness: 0.35, side: T.DoubleSide })); tr.position.set(X(0.55), Y(0.86), W / 2 + 0.005); inter.add(nom(tr, 'trappe'));
+      /* les balais d'essuie-glace */
+      [-0.32, 0.30].forEach(z => { const b = boite(0.03, 0.025, 0.58, mNoir); b.position.set(X(3.17), Y(1.07), z); b.rotation.y = 0.15; inter.add(nom(b, 'balai')); });
+      /* le témoin d'usure : un petit triangle sur le flanc de chaque pneu */
+      roues.forEach((r, i) => {
+        const cote = i % 2 ? 1 : -1;
+        const tw = new T.Mesh(new T.CircleGeometry(0.035, 3), mat(0x4A4D52)); tw.position.set(0, rw * 0.84, cote * 0.121); if(cote < 0) tw.rotation.y = PI;
+        r.add(nom(tw, 'temoinUsure'));
+      });
+      if(capot){
+        const aile = new T.Shape(); aile.moveTo(X(3.28), Y(0.72)); aile.lineTo(X(3.28), Y(0.975)); aile.quadraticCurveTo(X(3.7), Y(0.95), X(4.05), Y(0.875)); aile.quadraticCurveTo(X(4.30), Y(0.82), X(4.40), Y(0.71)); aile.lineTo(X(4.40), Y(0.66)); aile.lineTo(X(4.26), Y(0.72)); aile.lineTo(X(3.28), Y(0.72));
+        [-1, 1].forEach(c => { const m = extruder(aile, 0.10, mCaisse, 0.0); m.position.z = c * (W / 2 - 0.08); inter.add(nom(m, 'caisse')); });
+        const y0 = Y(0.72);
+        const baie = boite(X(0.98), 0.012, W - 0.30, mat(0x2A2E35, { roughness: 0.85 })); baie.position.set(X(3.77), y0 + 0.006, 0); inter.add(nom(baie, 'baie'));
+        const mot = boite(0.46, 0.12, 0.62, mat(0x3B4048, { roughness: 0.6 })); mot.position.set(X(3.84), y0 + 0.06, -0.02); inter.add(nom(mot, 'moteur'));
+        const cache = boite(0.40, 0.016, 0.52, mat(0x22252A, { roughness: 0.5 })); cache.position.set(X(3.84), y0 + 0.128, -0.02); inter.add(nom(cache, 'moteur'));
+        const bh = cyl(0.042, 0.03, mat(0x15171A), 20); bh.position.set(X(3.80), y0 + 0.15, 0.12); inter.add(nom(bh, 'huileRemplissage'));
+        const bhj = cyl(0.03, 0.006, mat(0xF2C200, { emissive: 0x3a2e00 }), 20); bhj.position.set(X(3.80), y0 + 0.168, 0.12); inter.add(nom(bhj, 'huileRemplissage'));
+        const jg = new T.Mesh(new T.TorusGeometry(0.034, 0.010, 8, 22), mat(0xF2C200, { emissive: 0x4a3a00 })); jg.position.set(X(3.66), y0 + 0.165, -0.24); inter.add(nom(jg, 'jauge'));
+        const tige = cyl(0.007, 0.13, mat(0xF2C200)); tige.position.set(X(3.66), y0 + 0.07, -0.24); inter.add(nom(tige, 'jauge'));
+        const vase = boite(0.18, 0.12, 0.14, new T.MeshStandardMaterial({ color: 0xF4F4F0, transparent: true, opacity: 0.55, roughness: 0.2 })); vase.position.set(X(3.47), y0 + 0.07, 0.53 * W / 1.84); inter.add(nom(vase, 'refroidissement'));
+        const rose = boite(0.165, 0.065, 0.125, mat(0xF27BB5, { emissive: 0x501030 })); rose.position.set(X(3.47), y0 + 0.045, 0.53 * W / 1.84); inter.add(nom(rose, 'refroidissement'));
+        const bv = cyl(0.04, 0.03, mat(0x15171A), 18); bv.position.set(X(3.47), y0 + 0.145, 0.53 * W / 1.84); inter.add(nom(bv, 'refroidissement'));
+        const fr = boite(0.10, 0.09, 0.10, new T.MeshStandardMaterial({ color: 0xF0E7C8, transparent: true, opacity: 0.75 })); fr.position.set(X(3.38), y0 + 0.055, -0.52 * W / 1.84); inter.add(nom(fr, 'frein'));
+        const frb = cyl(0.03, 0.03, mat(0xE8C21A), 16); frb.position.set(X(3.38), y0 + 0.115, -0.52 * W / 1.84); inter.add(nom(frb, 'frein'));
+        const lgc = cyl(0.018, 0.06, mat(0x2A2E35)); lgc.position.set(X(4.10), y0 + 0.03, -0.62 * W / 1.84); inter.add(nom(lgc, 'laveGlace'));
+        const lg = cyl(0.042, 0.026, mat(0x2F7DE1, { emissive: 0x0a2050 }), 18); lg.position.set(X(4.10), y0 + 0.07, -0.62 * W / 1.84); inter.add(nom(lg, 'laveGlace'));
+        const bat = boite(0.24, 0.15, 0.17, mat(0x1D1F23)); bat.position.set(X(3.52), y0 + 0.075, -0.22); inter.add(nom(bat, 'batterie'));
+        const bp = boite(0.045, 0.03, 0.045, mat(0xD3242B)); bp.position.set(X(3.58), y0 + 0.165, -0.16); inter.add(nom(bp, 'batterie'));
+        const bm = boite(0.045, 0.03, 0.045, mat(0x111111)); bm.position.set(X(3.46), y0 + 0.165, -0.28); inter.add(nom(bm, 'batterie'));
+        const cs = new T.Shape(); cs.moveTo(X(3.26), Y(1.0)); cs.quadraticCurveTo(X(3.7), Y(0.975), X(4.05), Y(0.905)); cs.quadraticCurveTo(X(4.32), Y(0.845), X(4.43), Y(0.735));
+        cs.lineTo(X(4.41), Y(0.705)); cs.quadraticCurveTo(X(4.30), Y(0.80), X(4.05), Y(0.86)); cs.quadraticCurveTo(X(3.7), Y(0.93), X(3.26), Y(0.955)); cs.lineTo(X(3.26), Y(1.0));
+        const cap = extruder(cs, W - 0.10, mCaisse, 0.02); cap.position.set(-X(3.26), -Y(0.98), 0);
+        pivot = new T.Group(); pivot.position.set(X(3.26), Y(0.98), 0); pivot.add(cap); inter.add(pivot); nom(cap, 'capot');
+      }
+    }
     inter.position.x = -L / 2;
     if(o.ombre !== false){
       const ombre = new T.Mesh(new T.PlaneGeometry(L * 1.35, W * 1.7), new T.MeshBasicMaterial({ map: ombreTexture(), transparent: true, depthWrite: false }));
       ombre.rotation.x = -PI / 2; ombre.position.y = 0.01; g.add(ombre);
     }
-    return { groupe: g, inter: inter, parts: parts, roues: roues, L: L, W: W, H: Y(1.585) };
+    return { groupe: g, inter: inter, parts: parts, roues: roues, pivot: pivot, L: L, W: W, H: Y(1.585) };
   }
   /* A3 ou Q3, d'après le nom de la voiture (« Q3 10 », « A3 2 ») */
   function modeleDuNom(nom){ return /(^|\s)q\s*3|^q\s*\d/i.test(String(nom || '')) ? 'q3' : 'a3'; }
