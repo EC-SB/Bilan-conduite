@@ -1,9 +1,9 @@
-/* Déployé le 05/09/2026 à 11:57 — v885 */
+/* Déployé le 10/11/2026 à 09:19 — v1390 */
 /* ============================================================
    ec-carrosserie.js
    L'état de la carrosserie, véhicule par véhicule.
 
-   Chrystel, le 8 septembre 2026 : « est-ce qu'il serait possible
+   David, le 8 septembre 2026 : « est-ce qu'il serait possible
    d'avoir un modèle 3D de chaque véhicule dans la flotte pour que
    je puisse noter les rayures, les chocs avec les dates et les
    réparations ? »
@@ -22,7 +22,7 @@
    s'imprime. Les loueurs et les experts auto font ainsi depuis
    toujours, et ce n'est pas un hasard.
 
-   Chrystel, le 8 septembre : « à plat, mais je veux les vues à plat
+   David, le 8 septembre : « à plat, mais je veux les vues à plat
    d'AUDI A3 pour les A3 et d'AUDI Q3 pour les Q3 ». Les silhouettes
    sont donc dessinées par gabarit, reconnu au modèle du véhicule —
    et comme un dommage ne dépend pas du dessin, changer une
@@ -322,7 +322,7 @@ const GABARITS = { a3: A3, q3: Q3, deuxroues: DEUX_ROUES, remorque: REMORQUE };
 
 /* ⚠️ LE GABARIT SE DÉDUIT, IL NE S'ENREGISTRE PAS.
 
-   Chrystel : « je veux les vues à plat d'AUDI A3 pour les A3 et
+   David : « je veux les vues à plat d'AUDI A3 pour les A3 et
    d'AUDI Q3 pour les Q3 ». Le modèle est déjà écrit sur la fiche du
    véhicule — « Audi A3 Sportback », « Audi Q3 » — et c'est lui qu'on
    lit. Une colonne de plus serait une seconde vérité à tenir à jour.
@@ -434,7 +434,11 @@ function carteVehiculeCarrosserie(v){
 /* ============================================================
    LE DESSIN D'UN VÉHICULE, ET SES POINTS
    ============================================================ */
-function ouvrirCarrosserie(v){
+/* 🚗 v1390 — ouverte depuis la conversation d'un véhicule (🩹 Carrosserie) :
+   un nouveau dommage enregistré part aussi en message dans la conversation */
+let crApresNouveau = null;
+function ouvrirCarrosserie(v, o){
+  crApresNouveau = (o && typeof o.apresNouveau === 'function') ? o.apresNouveau : null;
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
@@ -813,6 +817,7 @@ function ouvrirDommage(v, d, fondParent, redessiner){
       fermerFond(fond);
       if(typeof redessiner === 'function') redessiner();
       showToast('Enregistré ✅');
+      if(nouveau && typeof crApresNouveau === 'function'){ try{ crApresNouveau(enregistre); }catch(e){} }
     }catch(e){
       showToast('Impossible : ' + e.message);
       bOk.disabled = false;
