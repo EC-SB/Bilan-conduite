@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 12:16 — v1401 -->
+<!-- Déployé le 10/11/2026 à 13:42 — v1403 -->
 <!-- ============================================================
      LE TRAJET DU COURS, EN GRAND — v1002
 
@@ -505,8 +505,8 @@ const nature = (t) => NATURES[t] || NATURES.repere;
     zone3d.innerHTML = '<div class="vide">⏳ La 3D se prépare…</div>';
     try{
       window.CONFIG = window.CONFIG || { WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev' };
-      if(typeof EC3D === 'undefined') await charger('app/ec-3d.js?v=1401');
-      if(typeof rejouerTrajet3D !== 'function') await charger('app/ec-trajet3d.js?v=1401');
+      if(typeof EC3D === 'undefined') await charger('app/ec-3d.js?v=1403');
+      if(typeof rejouerTrajet3D !== 'function') await charger('app/ec-trajet3d.js?v=1403');
       const bureaux = await Promise.race([bureauxPromis, new Promise(ok => setTimeout(() => ok([]), 2500))]);
       rejeu = await rejouerTrajet3D(zone3d, { points: points, reperes: reperes, natures: NATURES,
                                               bureaux: bureaux, logo: LOGO });
