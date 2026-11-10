@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 14:59 — v1333 */
+/* Déployé le 10/11/2026 à 14:33 — v1405 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -417,12 +417,15 @@ function boutonsDuResultat(x, iso, s){
         'Ajourné le ' + dateEnToutesLettres(dateAjo) + ' — ' +
         mentionAjournements(n) +
         " · bilan d'examen et rendez-vous post-permis à prévoir (bureau)");
+      /* ✉️ v1405 — la marche à suivre part dans sa messagerie (la
+         question « Loudéac ? » seulement s'il n'y est pas déjà) */
+      const autoAj = await envoyerMessageAutoPP(x.eleve, 'ajourne', !/loud/i.test(baseC));
       showToast(x.eleve + ' est en attente de son bilan');
       afficherBureau();
 
       /* Les quatre messages à lui envoyer : sans ce rappel,
          ils se faisaient de mémoire. */
-      setTimeout(() => ouvrirMessagesAjourne(x.eleve), 400);
+      setTimeout(() => ouvrirMessagesAjourne(x.eleve, autoAj), 400);
     }catch(err){ showToast('Erreur : ' + err.message); bNon.disabled = false; }
   });
   r.appendChild(bNon);
@@ -884,10 +887,11 @@ function ficheDuPostPermis(e, boite){
     try{
       await majSuivi(e.eleve, { bilanEleve: t });
       /* le bilan collé suffit (David, le 2 novembre) : même porte que « ✅ Valider » */
-      if(etatDuBilanEleve(suiviDe(e.eleve)) !== 'valide') await validerLeBilanColle(e.eleve);
+      const neuf = etatDuBilanEleve(suiviDe(e.eleve)) !== 'valide';
+      if(neuf) await validerLeBilanColle(e.eleve);
       showToast('Son bilan est enregistré ✅');
       redessinerBureau();
-      if(!aBilan) ouvrirMessagesPostPermis(e.eleve);
+      if(!aBilan) ouvrirMessagesPostPermis(e.eleve, false, neuf ? dernierAutoRdv[e.eleve] : undefined);
     }catch(err){ showToast('Erreur : ' + err.message); bB.disabled = false; bB.textContent = '✅ Enregistrer son bilan'; }
   });
   zoneBilan.appendChild(bB);
@@ -978,7 +982,7 @@ function ficheDuPostPermis(e, boite){
 }
 
 /* ✉️ Le pop-up des messages — à son premier bilan enregistré, ou à la demande */
-async function ouvrirMessagesPostPermis(nom, seulementUp){
+async function ouvrirMessagesPostPermis(nom, seulementUp, etatAuto){
   styleFichePP();
   /* les textes de Ce qu'on écrit, s'ils ont été retouchés */
   if(typeof chargerModelesTexte === 'function'){ try{ await chargerModelesTexte(); }catch(e){} }
@@ -992,6 +996,8 @@ async function ouvrirMessagesPostPermis(nom, seulementUp){
     '<div style="font-size:12.5px;color:var(--muted);margin:-4px 0 10px;line-height:1.45;">' +
     (seulementUp ? 'La relance, modifiable avant de partir.' : 'Son bilan est enregistré ✅. Les messages se modifient ici avant de partir') +
     ' (pour toujours : Outils › Ce qu’on écrit, « 🔁 Post-permis »).</div>';
+  /* ✉️ v1405 — le message du rendez-vous part tout seul à la validation */
+  if(!seulementUp) boite.appendChild(noteAutoPP(etatAuto === undefined ? null : etatAuto, 'rdv'));
   const champs = [];
   MESSAGES_POST_PERMIS.forEach((m, i) => {
     if(seulementUp && i === 0) return;
@@ -1024,7 +1030,9 @@ async function ouvrirMessagesPostPermis(nom, seulementUp){
   boite.appendChild(bM);
   const lab = document.createElement('label');
   lab.style.cssText = 'display:flex;gap:8px;align-items:center;text-transform:none;font-size:13.5px;color:var(--cream);font-weight:400;margin:4px 0 0;';
-  lab.innerHTML = '<input type="checkbox" checked style="width:18px;height:18px;margin:0;"> 💬 Les envoyer aussi dans sa messagerie de l’appli';
+  lab.innerHTML = '<input type="checkbox"' + (seulementUp ? ' checked' : '') + ' style="width:18px;height:18px;margin:0;"> 💬 ' +
+    (seulementUp ? 'L’envoyer aussi dans sa messagerie de l’appli'
+                 : 'Les renvoyer aussi dans sa messagerie de l’appli' + (etatAuto === '' ? ' (déjà parti tout seul)' : ''));
   boite.appendChild(lab);
   const etat = document.createElement('div');
   etat.style.cssText = 'font-size:12.5px;min-height:16px;margin-top:6px;';
@@ -1177,6 +1185,8 @@ async function lireEtValiderLeBilan(nom){
   try{
     await appelPrep({ action: 'bilanEleveValider', eleve: nom,
                       etat: quoi, phrase: phrase });
+    /* ✉️ v1405 — validé : le message du rendez-vous part dans sa messagerie */
+    const autoRdv = quoi === 'valide' ? await envoyerMessageAutoPP(nom, 'rdv') : '';
     /* ⚠️ ON RELIT LE SUIVI, ON NE DEVINE PAS. « validé par » et
        « validé le » sont écrits PAR LE SERVEUR : les poser de
        mémoire ici, ce serait afficher une validation que le classeur
@@ -1184,7 +1194,7 @@ async function lireEtValiderLeBilan(nom){
        2 septembre. */
     await chargerBureau(true);
     showToast(quoi === 'valide'
-      ? '✅ Bilan validé — le rendez-vous peut avoir lieu'
+      ? (autoRdv ? '✅ Bilan validé — ' + autoRdv : '✅ Bilan validé — le message du RDV post-permis est parti dans sa messagerie')
       : '↩️ Complément demandé à ' + nom);
     afficherBureau();
   }catch(e){
@@ -1374,10 +1384,14 @@ async function rangerLeBilanRepris(eleve, texte){
    à valider » pour que le bouton « 👁️ Lire et valider » reste la
    sortie de secours. Le pire serait de laisser croire que c'est fait.
    ============================================================ */
+const dernierAutoRdv = {};
 async function validerLeBilanColle(eleve){
   try{
     await appelPrep({ action: 'bilanEleveValider', eleve: eleve,
                       etat: 'valide', phrase: '' });
+    /* ✉️ v1405 — validé : le message du rendez-vous part dans sa messagerie */
+    dernierAutoRdv[eleve] = await envoyerMessageAutoPP(eleve, 'rdv');
+    if(dernierAutoRdv[eleve] && typeof showToast === 'function') showToast(dernierAutoRdv[eleve]);
     /* ⚠️ ON RELIT LE SUIVI, ON NE DEVINE PAS : c'est le serveur qui
        vient d'écrire qui et quand. */
     if(typeof chargerBureau === 'function') await chargerBureau(true);
@@ -2298,6 +2312,120 @@ const MSG_AJOURNE_4 = `♻️ 𝙐𝙋 🚗 Bilan permis
 𝙀𝙣 𝙖𝙩𝙩𝙚𝙣𝙩𝙚 𝙙𝙚 𝙩𝙖 𝙧𝙚𝙥𝙤𝙣𝙨𝙚 𝙤𝙪 𝙙𝙚 𝙡'𝙖𝙘𝙩𝙞𝙤𝙣 𝙦𝙪𝙚 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙧𝙚𝙖𝙡𝙞𝙨𝙚𝙧 💪`;
 
 
+/* ============================================================
+   ✉️ v1405 — LES DEUX MESSAGES QUI PARTENT TOUT SEULS DANS SA MESSAGERIE
+
+   David, le 10 novembre : « quand on met qu'un élève est ajourné il faut
+   que ça lui envoie sur la messagerie le premier message avec un bouton
+   […] et quand on valide le bilan de l'élève il faut qu'il reçoive le
+   deuxième message pour prendre son rendez-vous post-permis. Réécris
+   les messages pour qu'ils comprennent qu'ils doivent le remplir sur
+   l'appli ». Ses réponses : le bouton ouvre l'onglet 📝 Bilan ; c'est
+   celui qui clique qui signe ; les fenêtres Messenger restent, « avec
+   un message qui dit que ça part automatiquement dans sa messagerie ».
+
+   Le gras est celui de ses messages Messenger (𝙜𝙧𝙖𝙨 𝙞𝙩𝙖𝙡𝙞𝙦𝙪𝙚, et 𝗴𝗿𝗮𝘀
+   pour l'avertissement) : **…** et __…__ ci-dessous. Les liens ne se
+   cliquent pas dans une bulle : ils deviennent des boutons.
+   ⚠️ JAMAIS BLOQUANT. Un élève sans messagerie, une coupure : on le
+   dit en une ligne, l'ajournement et la validation sont déjà écrits.
+   ============================================================ */
+function grasPP(t){
+  const conv = (x, maj, min) => x.normalize('NFD').replace(/[A-Za-z0-9]/g, ch => {
+    const c = ch.charCodeAt(0);
+    if(c >= 48 && c <= 57) return String.fromCodePoint(0x1D7EC + c - 48);
+    if(c >= 65 && c <= 90) return String.fromCodePoint(maj + c - 65);
+    return String.fromCodePoint(min + c - 97);
+  });
+  return String(t || '')
+    .replace(/\*\*([\s\S]+?)\*\*/g, (m, x) => conv(x, 0x1D63C, 0x1D656))
+    .replace(/__([\s\S]+?)__/g, (m, x) => conv(x, 0x1D5D4, 0x1D5EE));
+}
+const LIEN_LOUDEAC_PP = 'https://share.google/teMUlLLF55KVarfRR';
+const LIEN_VIDEO_PP = 'https://www.facebook.com/share/v/1D9o635bqF/';
+
+function messageAutoAjourne(nom, avecLoudeac){
+  const prenom = String(nom || '').trim().split(/\s+/)[0] || '';
+  const t = [
+    'Bonjour ' + prenom + ',',
+    '',
+    'J’ai l’indication sur Rendez-vous permis que tu es ajourné(e). Ton CEPC est dans ton espace élève, onglet 📝 Bilan.',
+    'Quelles sont les prochaines étapes ? (⚠️ pas la peine de venir harceler le bureau, suis les étapes qui sont obligatoires et non négociables pour envisager un repassage ⚠️)',
+    '',
+    '1- 📃 Fais **TON PROPRE BILAN** dans ton espace élève, onglet 📝 Bilan (pas sur Messenger) : analyse ce qu’il s’est passé et explique **POURQUOI** tu ne l’as pas obtenu, SELON TOI, TON PROPRE RESSENTI, par rapport AUSSI à l’inspecteur(trice).',
+    'Tu dois **COMPRENDRE** ce qu’il s’est passé, **ÉVACUER** au maximum cet échec et **TROUVER DES SOLUTIONS** pour ne plus les reproduire.',
+    'En haut de l’onglet, tu retrouves ton CEPC (le bilan de l’inspecteur(trice)) et le bilan de ton (ta) moniteur(trice) : sers-t’en.',
+    'Regarde **OBLIGATOIREMENT** l’étape 24 « Vous avez loupé votre examen » pour savoir comment faire (Réviser › Mise en pratique › Examen pratique du permis de conduire).',
+    'Le bilan commence par « As-tu eu tous les points ? », puis te pose les questions point par point.',
+    '⚠️ Tu dois **DÉTAILLER** point par point comment s’est déroulée ta conduite, pour qu’on puisse ENSEMBLE TROUVER DES SOLUTIONS D’AMÉLIORATION RAPIDES ET EFFICACES ! Ne nous fais pas perdre de temps avec un bilan incomplet : ton rendez-vous post-permis n’en sera que décalé, et ton repassage aussi…',
+    '⚠️ **PAS DE BILAN COMPLET = PAS DE RDV POST-PERMIS = PAS DE REPASSAGE** ⚠️',
+    '',
+    '2- 🧑‍🏫 **QUAND** ton bilan sera validé par l’école, tu recevras un message ici pour réserver ton **RDV POST-PERMIS**, au centre de formation **AVEC** un(e) moniteur(trice). Si tu ne peux pas te déplacer, ce rendez-vous peut se faire en visio, mais il faut absolument nous l’indiquer avant.',
+    'Ce rendez-vous dure **30 min**. S’il est insuffisant, tu devras en refaire un autre jusqu’à ce que tout soit compris.',
+    'Tu dois être capable de **COMPRENDRE** tes erreurs pour ne pas les refaire, et ne pas faire perdre à la communauté une autre place d’examen, **ces places étant très précieuses** 🧑‍🏫'
+  ];
+  if(avecLoudeac){
+    t.push('', '3- ❓ Peux-tu repasser ton permis dans notre agence de __Loudéac__ (délai normalement plus court) ? Réponds à la dernière question de ton bilan. Où se trouve l’agence : bouton 📍 ci-dessous.');
+  }
+  t.push('', '☠️ __Toute menace, pression visant à obtenir une place de repassage, ou toute non-remise en question, entraînera automatiquement la remise immédiate du dossier et l’annulation du contrat, sans discussion possible.__ ☠️');
+  const boutons = [{ t: '📝 Faire mon bilan', onglet: 'bilan' },
+                   { t: '🎓 Étape 24 « Vous avez loupé votre examen »', etape: 'loupe' }];
+  if(avecLoudeac) boutons.push({ t: '📍 Où se trouve l’agence de Loudéac', u: LIEN_LOUDEAC_PP });
+  return { texte: grasPP(t.join('\n')), boutons: boutons };
+}
+
+function messageAutoRdvPost(){
+  const t = [
+    '📜 **RDV POST-PERMIS**',
+    '🏦 Ton bilan est validé ! Tu dois maintenant **ACHETER ET PLANIFIER** sur Drivup, depuis ton interface élève, un « Rendez-vous post-permis », qui se fera au centre de formation avec un(e) moniteur(trice) :',
+    '**Drivup > Réserver > Pratique > Prestations Pratique > Rendez-vous post-permis > Acheter > Planifier maintenant**',
+    '(Si tu es sur iPhone, passe par Safari et non par l’appli.)',
+    '',
+    '💻 Si tu ne peux pas te déplacer, ce rendez-vous se fera en visio : préviens-nous ici, dans la messagerie, une fois que tu l’as planifié.',
+    '',
+    '💪 **Tu dois détailler point par point comment s’est déroulée ta conduite :**',
+    '– **à l’écrit : c’est ton bilan, déjà fait dans l’appli ;**',
+    '– **à l’oral, pendant le RDV, dans notre agence ou en visio.**',
+    '**Prépare-toi bien : relis ton bilan, ton CEPC (onglet 📝 Bilan) et le rapport de ton permis avant de venir.**',
+    '',
+    '🧠 Ce rendez-vous de 30 min est là pour COMPRENDRE tes erreurs, ne pas les refaire et ne pas faire perdre une autre place d’examen à notre communauté, **ces places étant très précieuses** ! S’il est insuffisant, tu devras en refaire un autre jusqu’à ce que tout soit compris !',
+    '',
+    '▶️ À regarder absolument : bouton ci-dessous.'
+  ];
+  return { texte: grasPP(t.join('\n')),
+           boutons: [{ t: '📅 Réserver mon RDV post-permis', u: 'https://client.drivup.fr/' },
+                     { t: '▶️ À regarder absolument', u: LIEN_VIDEO_PP }] };
+}
+
+/* rend '' si c'est parti, sinon la phrase à afficher */
+async function envoyerMessageAutoPP(nom, quoi, avecLoudeac){
+  const m = quoi === 'ajourne' ? messageAutoAjourne(nom, avecLoudeac) : messageAutoRdvPost();
+  try{
+    await appelPrep({ action: 'messageBureauEleve', eleve: nom, texte: m.texte,
+                      motif: quoi === 'ajourne' ? 'pp-ajourne' : 'pp-rdv', boutons: m.boutons });
+    return '';
+  }catch(err){
+    const t = String((err && err.message) || err || '');
+    return /messagerie|App Évolution|Messenger suffit/i.test(t)
+      ? 'Pas de messagerie dans son espace élève : envoie-le par Messenger.'
+      : 'Pas parti dans sa messagerie (' + t + ') : envoie-le par Messenger.';
+  }
+}
+function noteAutoPP(etat, quoi){
+  const d = document.createElement('div');
+  d.dataset.ppAuto = '1';
+  const ok = etat === '';
+  d.style.cssText = 'font-size:12.5px;line-height:1.5;border-radius:10px;padding:9px 11px;margin:0 0 12px;' +
+    'border:1px solid ' + (etat === null ? 'var(--line)' : ok ? 'var(--accent-text)' : 'var(--warn-text)') + ';';
+  const quoiTxt = quoi === 'ajourne'
+    ? 'La marche à suivre (envoi 1) part automatiquement dans sa messagerie de l’appli, avec le bouton « 📝 Faire mon bilan ».'
+    : 'Le message du RDV post-permis part automatiquement dans sa messagerie de l’appli, avec le bouton « 📅 Réserver mon RDV post-permis ».';
+  d.innerHTML = '✉️ ' + echapper(quoiTxt) + ' Les envois Messenger ci-dessous restent là au besoin.' +
+    (etat === null ? '' : ok ? '<br><b style="color:var(--accent-text);">✅ Parti dans sa messagerie.</b>'
+                              : '<br><b style="color:var(--warn-text);">⚠️ ' + echapper(etat) + '</b>');
+  return d;
+}
+
 let messagesAjourne = null;
 
 async function chargerMessagesAjourne(){
@@ -2319,7 +2447,7 @@ async function chargerMessagesAjourne(){
 
 /* La fenêtre qui suit l'ajournement : les quatre envois, dans
    l'ordre, avec ce qu'il faut copier à chaque fois. */
-async function ouvrirMessagesAjourne(eleve){
+async function ouvrirMessagesAjourne(eleve, etatAuto){
   await chargerMessagesAjourne();
   await chargerAfaireAjourne();
 
@@ -2334,6 +2462,8 @@ async function ouvrirMessagesAjourne(eleve){
     '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
       'line-height:1.5;">Quatre envois, dans cet ordre. Copie chacun ' +
       'et colle-le sur Messenger.</div>';
+  /* ✉️ v1405 — l'envoi 1 est déjà dans sa messagerie (null : rouverte plus tard) */
+  boite.appendChild(noteAutoPP(etatAuto === undefined ? null : etatAuto, 'ajourne'));
 
   const etape = (n, titre, texte, aide) => {
     const d = document.createElement('details');
