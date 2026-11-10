@@ -1,7 +1,10 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    ec-proccorriger.js
-   Les procédures que les élèves envoient sur Messenger.
+   Les procédures que les élèves envoient — 💬 v1409 : dans leur
+   messagerie de l'appli (bouton « 🚦 Corriger cette procédure » sous
+   leur vidéo ou leur vocal), et encore sur Messenger le temps de la
+   transition.
 
    Le bureau dépose ce qui arrive : le nom, son Messenger, une
    capture d'écran collée. Celle qui corrige les voit s'accumuler
@@ -118,8 +121,8 @@ async function afficherProcCorriger(){
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = 'Aucune procédure en attente.<br>' +
-      '<span style="font-size:12px;">Dépose ici ce que les élèves ' +
-      'envoient sur Messenger.</span>';
+      '<span style="font-size:12px;">Ce que les élèves envoient dans leur messagerie arrive ici ' +
+      'avec « 🚦 Corriger cette procédure » sous leur vidéo ; ce qui arrive encore sur Messenger se dépose avec « ➕ Reçue ».</span>';
     zone.appendChild(v);
     return;
   }
@@ -182,6 +185,18 @@ function ligneProc(x){
     '</div>';
   t.addEventListener('click', () => ouvrirFicheProc(x));
   l.appendChild(t);
+
+  /* 💬 v1409 — venue de sa messagerie : on y retourne d'un appui */
+  const fil = filDeLaProcRecue(x);
+  if(fil){
+    const bv = document.createElement('button');
+    bv.className = 'btn btn-secondary';
+    bv.style.cssText = 'width:auto;padding:8px 11px;font-size:13px;margin:0;flex-shrink:0;';
+    bv.textContent = '💬 Voir';
+    bv.title = 'Ouvrir sa vidéo dans la messagerie';
+    bv.addEventListener('click', ev => { ev.stopPropagation(); if(typeof ouvrirLeFilPartout === 'function') ouvrirLeFilPartout(fil.id, fil.rang); });
+    l.appendChild(bv);
+  }
 
   /* Corriger, ou revenir en arrière */
   const bOk = document.createElement('button');
@@ -2587,7 +2602,26 @@ async function corrigerRecitation(r){
    LA FICHE
    ============================================================ */
 
-async function ouvrirFicheProc(x){
+/* 💬 v1409 — une procédure venue de la messagerie porte, en fin de
+   remarque, « [fil:conversation:rang] » : de quoi rouvrir sa vidéo. */
+function filDeLaProcRecue(x){
+  const m = String((x && x.remarque) || '').match(/\[fil:([A-Za-z0-9_-]+):(\d+)\]/);
+  return m ? { id: m[1], rang: Number(m[2]) || 0 } : null;
+}
+/* 🚦 v1409 — « Corriger cette procédure », sous une vidéo ou un vocal
+   d'élève dans la messagerie : la fiche « Procédure reçue », déjà
+   remplie (David : « oui »). */
+function corrigerUneProcedureDeLaMessagerie(conv, m){
+  const quoi = (m && m.piece && String(m.piece.type || '').indexOf('audio/') === 0) ? '🎤 Vocal' : '🎥 Vidéo';
+  const mot = String((m && m.texte) || '').trim().slice(0, 120);
+  return ouvrirFicheProc(null, {
+    eleve: (conv && conv.eleve) || '',
+    remarque: quoi + ' reçu' + (quoi.indexOf('Vidéo') !== -1 ? 'e' : '') + ' dans sa messagerie le ' + String((m && m.envoyeLe) || '').slice(0, 16) +
+      (mot ? ' — « ' + mot + ' »' : '') + ' [fil:' + ((conv && conv.id) || '') + ':' + Number((m && m.rang) || 0) + ']'
+  });
+}
+
+async function ouvrirFicheProc(x, prerempli){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
@@ -2602,7 +2636,7 @@ async function ouvrirFicheProc(x){
     '<input type="text" id="pcEleve" list="listeEleves" autocomplete="off" ' +
       'placeholder="Prénom et nom">' +
 
-    '<label for="pcMess">Son Messenger</label>' +
+    '<label for="pcMess">Son Messenger (en secours)</label>' +
     '<input type="text" id="pcMess" placeholder="Son nom sur Messenger, ou le lien">' +
 
     '<label for="pcRem">Remarque (facultatif)</label>' +
@@ -2629,6 +2663,12 @@ async function ouvrirFicheProc(x){
       : '';
   };
 
+  /* 🚦 v1409 — venue de la messagerie : l'élève et la remarque sont posés */
+  if(!x && prerempli){
+    boite.querySelector('#pcEleve').value = prerempli.eleve || '';
+    boite.querySelector('#pcRem').value = prerempli.remarque || '';
+    boite.querySelector('#pcMess').placeholder = 'Pas besoin : elle est dans sa messagerie de l’appli';
+  }
   if(x){
     boite.querySelector('#pcEleve').value = x.eleve || '';
     boite.querySelector('#pcMess').value = x.messenger || '';
