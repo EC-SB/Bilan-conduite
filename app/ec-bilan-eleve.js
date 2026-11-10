@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    📝 « TU DOIS FAIRE TON BILAN » — v1314
 
@@ -85,10 +85,12 @@ async function poserReglageBE(r){
 /* Ce que le mail dit : « sur Messenger », « ou dans ta messagerie… »,
    « ou directement dans ton espace révisions » (v1321) */
 function ouLeFaireBE(r){
+  /* 💬 v1409 — l'appli d'abord, Messenger en dernier (David : Messenger
+     reste « en secours le temps de la transition ») */
   const l = [];
-  if(r.messenger) l.push('sur Messenger');
-  if(r.messagerie) l.push('dans ta messagerie de l’appli (« Le bureau »)');
   if(r.revisions) l.push('directement dans ton App Évolution Conduites (onglet 📝 Bilan)');
+  if(r.messagerie) l.push('dans ta messagerie de l’appli (« Le bureau »)');
+  if(r.messenger) l.push('sur Messenger');
   if(!l.length) l.push('sur Messenger');
   return l.length === 1 ? l[0] : l.slice(0, -1).join(', ') + ' ou ' + l[l.length - 1];
 }
@@ -396,7 +398,7 @@ function fenetreBE(eleve, opts){
       d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin-bottom:12px;';
       d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;">⚙️ Où l’élève fait son bilan</summary>' +
         '<div style="font-size:11px;color:var(--muted);margin:6px 0;">Pour tous les élèves, qu’il le fasse ou qu’il le complète. Le mail lui dit où le faire.</div>';
-      [['messenger', '💬 Messenger'], ['messagerie', '📱 Sa messagerie de l’appli (« Le bureau ») — la trame y est aussi envoyée'],
+      [['messenger', '💬 Messenger (en secours, le temps de la transition)'], ['messagerie', '📱 Sa messagerie de l’appli (« Le bureau ») — la trame y est aussi envoyée'],
        ['revisions', '📚 Son App Évolution Conduites (onglet 📝 Bilan) — il le remplit, il arrive au moniteur dans la messagerie, qui le corrige et le valide']].forEach(([k, lb]) => {
         const l = document.createElement('label');
         l.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:14px;text-transform:none;color:var(--cream);margin:6px 0;';
