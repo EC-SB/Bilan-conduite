@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 14:40 — v1406 */
+/* Déployé le 10/11/2026 à 16:00 — v1407 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1407,
+    date: 'Mardi 10 novembre 2026',
+    resume: '📍 Les procédures et les fiches renvoient au bon guide, à la bonne étape de l’espace élève',
+    quoi: [
+      { emoji: '📍',
+        titre: 'Une procédure se lie à ses étapes',
+        texte: 'Dans la procédure (Ce qu’on écrit, Procédures, ou le 👁 pendant le cours) : « 📍 Lier à une étape » — groupe, guide, étape, ou un mot cherché. Une ou plusieurs étapes.' },
+      { emoji: '🚦',
+        titre: 'Pendant le cours, rien ne change',
+        texte: 'On appuie sur la procédure comme avant : elle part entière dans le bilan, et dessous l’élève a un bouton par étape. L’étape s’épingle aussi 📌 en tête de son Réviser.' },
+      { emoji: '🔗',
+        titre: '« 🔗 Lien élève » dans toutes les fiches',
+        texte: 'En bas de chaque fiche de Ce qu’on écrit : il pose le lien d’une étape là où est le curseur. « Les liens de ce texte » dit où chacun mène.' },
+      { emoji: '🎬',
+        titre: 'Chez l’élève : des boutons',
+        texte: 'Dans ses bilans et sa messagerie, « 🎬 Ouvrir « l’étape » ». Une étape d’un groupe pas encore ouvert : « 🔒 pas encore ouvert pour toi », avec « 💬 Demander au bureau de me l’ouvrir ».' }
+    ]
+  },
   {
     version: 1406,
     date: 'Mardi 10 novembre 2026',
