@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:19 — v1390 */
+/* Déployé le 10/11/2026 à 16:15 — v1409 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1899,6 +1899,19 @@ function bulleDuMessage(m, avant, apres){
   /* 📝 v1321 — son bilan de cours : « ✏️ Lire, corriger et valider » (ec-bilan-eleve.js) */
   const bcB = (typeof carteBilanCoursEC === 'function') ? carteBilanCoursEC(m) : null;
   if(bcB) b.appendChild(bcB);
+  /* 🚦 v1409 — sa vidéo (ou son vocal) de procédure : « Corriger cette
+     procédure » la dépose dans Procédures à corriger, déjà remplie */
+  if((videoB || vocal) && m.auteurGenre === 'eleve' && typeof corrigerUneProcedureDeLaMessagerie === 'function' &&
+     typeof aDroit === 'function' && aDroit('proccorriger') &&
+     typeof filOuvertEC !== 'undefined' && filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.eleve){
+    const bp = document.createElement('button');
+    bp.type = 'button';
+    bp.className = 'msgVocEcrire msgProcCorriger';
+    bp.textContent = '🚦 Corriger cette procédure';
+    const conv = filOuvertEC.conv;
+    bp.addEventListener('click', ev => { ev.stopPropagation(); corrigerUneProcedureDeLaMessagerie(conv, m); });
+    b.appendChild(bp);
+  }
 
   /* ⚠️ L'HEURE EST POSÉE APRÈS LE TEXTE, et c'est ce qui la met au
      bout de la DERNIÈRE ligne. Un flottant rencontré après trois
