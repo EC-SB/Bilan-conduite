@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 10:33 — v1393 */
+/* Déployé le 10/11/2026 à 11:03 — v1394 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1394,
+    date: 'Mardi 10 novembre 2026',
+    resume: '⚡ Espace élève : connexion plus rapide, et une barre de chargement qui dit vrai',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Une connexion plus rapide',
+        texte: 'La liste des accès des élèves n’est plus relue dans Google à chaque geste (huit fois par connexion) : elle est gardée une minute. Ce qui accompagne son espace (photos, cours à venir, « à revoir », salle…) se prépare en même temps au lieu de l’un après l’autre.' },
+      { emoji: '🚗',
+        titre: 'La barre suit le vrai chargement',
+        texte: 'Elle avance à chaque partie de son espace qui arrive, affiche le pourcentage, et l’écran ne part qu’une fois tout chargé — plus de barre finie sur un espace encore vide.' },
+      { emoji: '🧘',
+        titre: 'Plus de page qui saute après l’entrée',
+        texte: 'Quelques secondes après l’entrée, l’espace se revérifiait et se redessinait entièrement : il ne se redessine plus que si quelque chose a vraiment changé.' }
+    ]
+  },
   {
     version: 1393,
     date: 'Mardi 10 novembre 2026',
