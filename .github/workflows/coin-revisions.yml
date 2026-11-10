@@ -1,4 +1,4 @@
-# Déployé le 10/11/2026 à 11:56 — v1400
+# Déployé le 10/11/2026 à 13:42 — v1403
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -40,6 +40,7 @@ on:
       - 'app/ec-montage-polices.js' # 🎬 v1252 — ses 5 polices, chargées à la demande
       - 'app/ec-3d.js'              # 🧊 v1400 — la 3D (le jeu des vérifications, « Ma voiture en 3D »)
       - 'app/ec-verifs3d.js'        # 🧊 v1400 — la voiture des vérifications et sa table des questions
+      - 'app/modeles/**'            # 📷 v1403 — les voitures scannées (Q3)
   workflow_dispatch:        # et à la demande, depuis l'onglet Actions
 
 jobs:
@@ -70,6 +71,9 @@ jobs:
           # 🧊 v1400 — la 3D du jeu des vérifications : à côté de la page,
           # même nom qu'au dépôt principal (la page essaie là d'abord)
           cp app/ec-3d.js app/ec-verifs3d.js sortie/
+          # 📷 v1403 — les voitures scannées, dans « modeles » à côté du script
+          mkdir -p sortie/modeles
+          cp app/modeles/*.glb sortie/modeles/
           cp icone-192.png icone-512.png icone-180.png icone-maskable-512.png apple-touch-icon.png sortie/
 
           # 📍 v1170 — la page des bureaux, derrière le QR code de la
