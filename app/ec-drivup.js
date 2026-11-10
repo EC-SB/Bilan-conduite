@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:41 — v1381 */
+/* Déployé le 10/11/2026 à 13:14 — v1402 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -519,13 +519,14 @@ function lignesDuPlanningDrivup(p){
   return { lignes, horsConduite, ressourcesIgnorees, theorie, visio };
 }
 /* 🎥 v1381 — David : « c'est le moniteur visio ». La colonne Drivup
-   « Visio » (quel que soit le titre du cours), ou un cours de code en
-   visio sous un autre nom. */
+   « Visio » (quel que soit le titre du cours).
+   ⚠️ v1402 — ET ELLE SEULE. Le titre comptait aussi (« visio » + « code »
+   ou « ETG ») : le 10 novembre, un élève réservé à 14 h dans la colonne
+   ETG (code en salle) est sorti « en visio » dans le bandeau, parce que
+   l'intitulé du cours de code parle des deux. David : « il n'est pas
+   dans la colonne visio (c'est un moniteur) ». */
 function estVisioDrivup(c){
-  const m = sansAccentDrivup(String(c.moniteurDrivup || ''));
-  if(/\bvisio\b/.test(m)) return true;
-  const t = texteDuCoursDrivup(c);
-  return /\bvisio\b/.test(t) && /\bcode\b|\betg\b/.test(t);
+  return /\bvisio\b/.test(sansAccentDrivup(String(c.moniteurDrivup || '')));
 }
 /* 📺 v1290 — « Cours théorie de la conduite 1h », la colonne « Tablettes » ;
    pas le code, ni la visio */
