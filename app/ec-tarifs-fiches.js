@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 13:36 — v1353 */
+/* Déployé le 10/11/2026 à 11:07 — v1395 */
 /* ============================================================
    ec-tarifs-fiches.js — 💰 LES TARIFS ET LEURS FICHES (v1178)
 
@@ -1338,6 +1338,107 @@ function tfFenetreMail(ids, d){
     }
   });
   setTimeout(() => champ.focus(), 50);
+}
+
+/* ============================================================
+   📎 v1395 — CHOISIR DES FICHES POUR UN MAIL (✉️ Mails)
+
+   David, le 10 novembre : « dans la messagerie mail, ajoute-moi dans
+   les réponses rapides les tarifs en PDF, et je choisis quels tarifs
+   j'envoie en PJ ». Les mêmes miniatures que l'onglet Fiches, les mêmes
+   dossiers en filtre, dix au plus (la règle de l'envoi des tarifs).
+   Rend { d, ids } — ou null si on annule. La fabrication des PDF est
+   celle de toujours (tfPdfDe) : une fiche = un PDF.
+   ============================================================ */
+async function tfChoisirDesFiches(){
+  let d;
+  try{ d = await tfCharger(false); }
+  catch(e){ if(typeof showToast === 'function') showToast('Tarifs illisibles : ' + ((e && e.message) || e)); return null; }
+  if(!d || !(d.fiches || []).length){ if(typeof showToast === 'function') showToast('Aucune fiche tarifaire.'); return null; }
+  return new Promise(res => {
+    const { m, fermer } = tfFenetre('tfFenetre tfLarge');
+    const choisies = new Set();
+    const dossiers = [...new Set(d.fiches.map(f => f.dossier).filter(Boolean))];
+    let dossier = '';
+    let fini = false;
+    const finir = (v) => { if(fini) return; fini = true; fermer(); res(v); };
+    m.innerHTML = '<h3>💰 Nos tarifs en pièces jointes</h3>' +
+      '<div class="tfAide">Coche les fiches à joindre : chacune part en PDF. Dix au plus.</div>' +
+      '<div class="rrFiltres" id="tfPjFiltres"></div>' +
+      '<div class="tfMiniatures" id="tfPjGrille"></div>' +
+      '<div class="tfFenBas"><span class="tfBasMot" id="tfPjMot"></span>' +
+      '<button type="button" class="btn btn-secondary" id="tfPjX">Annuler</button>' +
+      '<button type="button" class="btn btn-primary" id="tfPjOk" disabled>📎 Joindre</button></div>';
+    const mot = m.querySelector('#tfPjMot'), ok = m.querySelector('#tfPjOk');
+    const maj = () => {
+      const n = choisies.size;
+      mot.textContent = n ? n + ' fiche' + (n > 1 ? 's' : '') + ' choisie' + (n > 1 ? 's' : '') : 'Aucune fiche choisie';
+      ok.disabled = !n;
+      ok.textContent = n ? '📎 Joindre ' + n + ' PDF' : '📎 Joindre';
+    };
+    const filtres = () => {
+      const z = m.querySelector('#tfPjFiltres');
+      z.innerHTML = '';
+      z.hidden = !dossiers.length;
+      [''].concat(dossiers).forEach(k => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'rrFiltre' + (dossier === k ? ' on' : '');
+        b.textContent = k || 'Toutes (' + d.fiches.length + ')';
+        b.addEventListener('click', () => { dossier = k; filtres(); grille(); });
+        z.appendChild(b);
+      });
+    };
+    const grille = () => {
+      const g = m.querySelector('#tfPjGrille');
+      g.innerHTML = '';
+      d.fiches.filter(f => !dossier || f.dossier === dossier).forEach(f => {
+        const c = document.createElement('div');
+        c.className = 'tfMini' + (choisies.has(f.id) ? ' choisie' : '');
+        const tot = tfTotaux(d, f);
+        c.innerHTML = '<label class="tfCoche" title="Joindre"><input type="checkbox"' + (choisies.has(f.id) ? ' checked' : '') + '></label>' +
+          '<div class="tfMiniPage" title="Joindre ou retirer"><div class="tfMiniEchelle">' + tfFicheHtml(d, f) + '</div></div>' +
+          '<div class="tfMiniNom">' + tfEch(tfTitre1(f)) + '</div>' +
+          '<div class="tfMiniTot">' + (f.type === 'grille' ? 'TTC et HT' : tfEuros(tot.global) + (tot.versement ? ' · 1er versement ' + tfEuros(tot.versement) : '')) + '</div>';
+        const cb = c.querySelector('input');
+        const poser = (oui) => {
+          if(oui && !choisies.has(f.id) && choisies.size >= 10){
+            cb.checked = false;
+            if(typeof showToast === 'function') showToast('Dix fiches au plus par mail.');
+            return;
+          }
+          if(oui) choisies.add(f.id); else choisies.delete(f.id);
+          cb.checked = oui;
+          c.classList.toggle('choisie', oui);
+          maj();
+        };
+        cb.addEventListener('change', () => poser(cb.checked));
+        /* la miniature entière se touche : sur téléphone, la case est petite */
+        c.querySelector('.tfMiniPage').addEventListener('click', () => poser(!choisies.has(f.id)));
+        g.appendChild(c);
+      });
+      tfAjuster(g);
+      g.querySelectorAll('.tfMiniPage').forEach(p => { p.firstChild.style.transform = 'scale(' + (p.clientWidth / 794) + ')'; });
+    };
+    filtres(); grille(); maj();
+    m.querySelector('#tfPjX').addEventListener('click', () => finir(null));
+    ok.addEventListener('click', () => finir({ d: d, ids: d.fiches.map(f => f.id).filter(id => choisies.has(id)) }));
+    /* fermée autrement (Échap) : c'est un « annuler » */
+    const veille = setInterval(() => { if(!m.isConnected){ clearInterval(veille); finir(null); } }, 400);
+  });
+}
+
+/* Les fiches choisies, en PDF : [{ nom, blob }] — une fiche, un fichier */
+async function tfPdfsDesFiches(d, ids, dire){
+  const out = [];
+  for(let i = 0; i < ids.length; i++){
+    const f = tfFiche(d, ids[i]);
+    if(!f) continue;
+    if(dire) dire((i + 1) + ' / ' + ids.length + ' · ' + tfTitre1(f));
+    const doc = await tfPdfDe(d, [ids[i]]);
+    out.push({ nom: tfNomFichier(f) + '.pdf', blob: doc.output('blob') });
+  }
+  return out;
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
