@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 11:56 — v1400 -->
+<!-- Déployé le 10/11/2026 à 13:14 — v1402 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -3463,33 +3463,66 @@
      l'élève l'écrivait sur Messenger et le bureau le recopiait à la
      main dans sa fiche. Ici, il l'écrit une fois, au bon endroit.
 
-     ⚠️ CETTE LISTE N'EST PAS LA GRILLE DU CEPC, ET C'EST VOULU.
-     « Savoir s'installer et assurer la sécurité à bord »,
-     « Maintenir les espaces de sécurité » : ce sont les mots de
-     l'inspecteur, pas ceux d'un élève de dix-huit ans qui vient de
-     rater. Recopier CEPC_BLOCS ici aurait en plus créé une
-     deuxième liste à tenir d'accord avec la première — la faute qui
-     nous a coûté le plus cher cette semaine. Ce sont deux listes
-     pour deux usages, et personne n'a à les aligner : ce qu'il
-     coche part en TEXTE dans sa fiche, sous le libellé qu'il a lu.
+     (Jusqu'à la v1401, la liste était douze points « à nous », pas
+     la grille du CEPC. David a tranché le 10 novembre : l'élève a
+     désormais son CEPC sous les yeux, juste au-dessus — il répond
+     ligne à ligne sur la grille de l'inspecteur, comme dans le
+     modèle qu'il envoyait sur Messenger. Voir ci-dessous.)
+     ============================================================ */
+  /* ============================================================
+     📝 v1402 — LE BILAN APRÈS L'EXAMEN, SUR LE MODÈLE DE DAVID
+
+     David, le 10 novembre : « pour la partie post permis côté élève
+     ce n'est pas bon du tout : il faut changer l'icône, ajouter les
+     captures d'écran du CEPC et le bilan du moniteur. Pour le bilan
+     de l'élève je te remets le modèle » — celui qu'il envoie sur
+     Messenger. Ses réponses au schéma : la grille de l'inspecteur =
+     Mise en pratique › Examen pratique du permis de conduire › 16
+     Guide évaluation de l'inspecteur ; les statistiques mensuelles,
+     on les retire ; les quatre questions de la fin sont obligatoires ;
+     l'icône A (la feuille cochée) ; le bilan du moniteur se montre
+     dès le départ.
+
+     ⚠️ LES QUATORZE LIGNES SONT CELLES DU CEPC, DANS SON ORDRE. « e » :
+     une faute éliminatoire y est possible (la colonne E de la grille).
+     Ce sont elles, et elles seules, qui demandent les trois questions
+     quand il n'a pas eu tous les points ; les autres demandent
+     seulement « Pourquoi ? ». La MÊME liste est dans l'Apps Script
+     (POINTS_BILAN_ELEVE) : c'est lui qui revérifie à l'envoi, et il
+     ne croit pas le « e » que lui enverrait le téléphone.
      ============================================================ */
   var POINTS_BILAN = [
-    'M’installer et vérifier avant de partir',
-    'Utiliser les commandes de la voiture',
-    'Regarder loin et prendre les informations',
-    'Adapter ma vitesse aux circonstances',
-    'Respecter la signalisation et les règles',
-    'Communiquer avec les autres usagers',
-    'Partager la route (vélos, piétons, bus)',
-    'Garder mes distances de sécurité',
-    'Repérer les situations à risque',
-    'M’adapter quand ça ne se passe pas comme prévu',
-    'Conduire en autonomie, suivre une direction',
-    'Rester calme et courtois'
+    { nom: 'Savoir s’installer et assurer la sécurité à bord', e: false },
+    { nom: 'Effectuer des vérifications du véhicule', e: false },
+    { nom: 'Connaître et utiliser les commandes', e: true },
+    { nom: 'Prendre l’information', e: true },
+    { nom: 'Adapter son allure aux circonstances', e: true },
+    { nom: 'Appliquer la réglementation', e: true },
+    { nom: 'Communiquer avec les autres usagers', e: true },
+    { nom: 'Partager la chaussée', e: true },
+    { nom: 'Maintenir les espaces de sécurité', e: true },
+    { nom: 'Analyse des situations', e: false },
+    { nom: 'Adaptation aux situations', e: false },
+    { nom: 'Conduite autonome', e: false },
+    { nom: 'Conduite économique et respectueuse de l’environnement', e: false },
+    { nom: 'Courtoisie', e: false }
+  ];
+  var TROIS_QUESTIONS = [
+    ['compris', '▶️ Est-ce que tu as compris pourquoi ?'],
+    ['pourquoi', '▶️ Pourquoi tu as fait cette faute ?'],
+    ['solution', '▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?']
+  ];
+  var QUESTIONS_FIN = [
+    ['inspecteur', '👉 Qu’as-tu pensé de l’inspecteur(trice) ?'],
+    ['complique', '👉 Objectivement, est-ce que tu trouves que ce que l’on t’a demandé à l’examen est compliqué ?'],
+    ['long', '👉 Est-ce que tu as trouvé l’examen long ?'],
+    ['stress', '👉 Si tu as été stressé(e), quelles solutions selon toi peux-tu mettre en place pour ne plus subir ce stress ?']
   ];
 
   var monBilan = null;        /* ce que le serveur dit de mon bilan */
-  var mesReponses = [];       /* [{ nom, ok, compris, pourquoi, solution }] */
+  var mesReponses = [];       /* [{ nom, e, ok, compris, pourquoi, solution }] */
+  var mesFin = {};            /* les quatre questions de la fin */
+  var capturesEnCours = false;
 
   function bilanAttendu(){ return !!(monBilan && monBilan.attendu); }
 
@@ -3499,45 +3532,181 @@
       .catch(function(){ monBilan = null; });
   }
 
+  /* ⚠️ LES CAPTURES ARRIVENT À PART. La connexion rapporte son bilan
+     sans les images (elles pèsent) ; on les demande ensuite, et on ne
+     redessine QUE leur carte : redessiner tout le bilan pendant qu'il
+     écrit lui reprendrait le clavier. */
+  function chargerMesCaptures(){
+    if(capturesEnCours || !bilanAttendu() || (monBilan && monBilan.captures)) return;
+    capturesEnCours = true;
+    appeler({ action: 'eleveBilan', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        if(monBilan) monBilan.captures = (d && d.captures) || [];
+        if(monBilan && d && d.bilanMoniteur && !monBilan.bilanMoniteur){
+          monBilan.bilanMoniteur = d.bilanMoniteur; monBilan.moniteur = d.moniteur; monBilan.emoji = d.emoji;
+          var vieux = $('carteBilanMoniteur');
+          if(vieux) vieux.parentNode.replaceChild(carteBilanDuMoniteur(), vieux);
+        }
+      })
+      .catch(function(){ if(monBilan) monBilan.captures = []; })
+      .then(function(){
+        capturesEnCours = false;
+        var vieille = $('carteMesCaptures');
+        if(vieille) vieille.parentNode.replaceChild(carteMesCaptures(), vieille);
+      });
+  }
+
   /* ⚠️ SÉPARÉE DE L'APPEL — v1123, même raison que le dossier : la
      réponse arrive maintenant soit avec la connexion, soit toute
      seule au rafraîchissement, et le dessin doit être le même. */
   function appliquerMonBilan(d){
-        monBilan = d || null;
-        mesReponses = [];
-        /* ⚠️ « IL COMPLÈTE, IL NE RECOMMENCE PAS ». Ce qu'il avait
-           déjà écrit revient tel quel : un formulaire de douze
-           points à retaper pour corriger une phrase est un
-           formulaire qu'on ne renvoie jamais. */
-        var avant = {};
-        try{
-          (JSON.parse(String((d && d.reponses) || '[]')) || []).forEach(function(r){
-            if(r && r.nom) avant[r.nom] = r;
-          });
-        }catch(e){ avant = {}; }
-
-        POINTS_BILAN.forEach(function(nom){
-          var a = avant[nom] || {};
-          mesReponses.push({
-            nom: nom,
-            ok: (a.ok === true || a.ok === false) ? a.ok : null,
-            compris: String(a.compris || ''),
-            pourquoi: String(a.pourquoi || ''),
-            solution: String(a.solution || '')
-          });
-        });
-        dessinerLesOnglets();
-        dessinerMonBilan();
+    monBilan = d || null;
+    mesReponses = [];
+    /* ⚠️ « IL COMPLÈTE, IL NE RECOMMENCE PAS ». Ce qu'il avait déjà
+       écrit revient tel quel. Un bilan rangé avant la v1402 (les
+       douze points d'avant) ne correspond plus à aucune ligne : il
+       repart sur le modèle de David. */
+    var avant = {}, fin = {};
+    try{
+      var brut = JSON.parse(String((d && d.reponses) || '[]'));
+      var liste = Array.isArray(brut) ? brut : ((brut && brut.points) || []);
+      fin = (brut && !Array.isArray(brut) && brut.fin) || {};
+      liste.forEach(function(r){ if(r && r.nom) avant[r.nom] = r; });
+    }catch(e){ avant = {}; fin = {}; }
+    POINTS_BILAN.forEach(function(p){
+      var a = avant[p.nom] || {};
+      mesReponses.push({ nom: p.nom, e: p.e,
+        ok: (a.ok === true || a.ok === false) ? a.ok : null,
+        compris: String(a.compris || ''), pourquoi: String(a.pourquoi || ''), solution: String(a.solution || '') });
+    });
+    mesFin = {};
+    QUESTIONS_FIN.forEach(function(q){ mesFin[q[0]] = String(fin[q[0]] || ''); });
+    dessinerLesOnglets();
+    dessinerMonBilan();
+    if(bilanAttendu() && !(monBilan && monBilan.captures)) chargerMesCaptures();
   }
 
   function cequilManque(){
     var n = 0;
+    var vide = function(s){ return !String(s || '').trim(); };
     mesReponses.forEach(function(r){
       if(r.ok === null){ n++; return; }
       if(r.ok === false &&
-         (!r.compris.trim() || !r.pourquoi.trim() || !r.solution.trim())) n++;
+         (r.e ? (vide(r.compris) || vide(r.pourquoi) || vide(r.solution)) : vide(r.pourquoi))) n++;
     });
+    QUESTIONS_FIN.forEach(function(q){ if(vide(mesFin[q[0]])) n++; });
     return n;
+  }
+
+  var CHAMP_BILAN = 'width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
+    'padding:9px 10px;border-radius:10px;font-size:14px;line-height:1.5;font-family:inherit;resize:vertical;';
+  function zoneDeTexte(valeur, quand){
+    var ta = document.createElement('textarea');
+    ta.rows = 2;
+    ta.value = valeur;
+    ta.style.cssText = CHAMP_BILAN;
+    ta.addEventListener('input', function(){ quand(ta.value); majCompteBilan(); });
+    return ta;
+  }
+
+  /* 📷 ses captures du CEPC : celles que l'école a collées au ❌ Ajourné */
+  function carteMesCaptures(){
+    var caps = (monBilan && monBilan.captures) || null;
+    var c = document.createElement('div');
+    c.className = 'card';
+    c.id = 'carteMesCaptures';
+    c.innerHTML = '<div class="section-title">📷 Mon CEPC</div>' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">' +
+      (!caps ? '⏳ Les captures de ton CEPC arrivent…'
+       : caps.length ? 'Les captures de ton certificat d’examen, telles que l’inspecteur(trice) l’a rempli. ' +
+                       'Touche une capture pour la voir en grand.'
+       : 'L’école n’a pas encore rangé les captures de ton CEPC.') + '</div>';
+    var g = document.createElement('div');
+    g.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;';
+    (caps || []).forEach(function(cap, i){
+      var src = String((cap && cap.image) || '');
+      if(!/^(https:\/\/|data:image\/)/.test(src)) return;
+      var im = document.createElement('img');
+      im.src = src;
+      im.alt = 'Capture ' + (i + 1) + ' de mon CEPC';
+      im.style.cssText = 'width:calc(50% - 4px);height:auto;border-radius:10px;border:1px solid var(--line);' +
+        'cursor:zoom-in;display:block;background:#fff;';
+      im.addEventListener('click', function(){ voirLaPhotoEl(im.src); });
+      g.appendChild(im);
+    });
+    c.appendChild(g);
+    return c;
+  }
+
+  /* 🦁 le bilan d'examen écrit par son moniteur, tel quel (dès le départ) */
+  function carteBilanDuMoniteur(){
+    var t = String((monBilan && monBilan.bilanMoniteur) || '').trim();
+    var c = document.createElement('div');
+    c.className = 'card';
+    c.id = 'carteBilanMoniteur';
+    c.innerHTML = '<div class="section-title">' + echapper((monBilan && monBilan.emoji) || '📋') + ' Le bilan de ' +
+      echapper((monBilan && monBilan.moniteur) || 'ton moniteur') + '</div>';
+    var p = document.createElement('div');
+    p.style.cssText = 'font-size:14.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;' + (t ? '' : 'color:var(--muted);');
+    p.textContent = t || 'Ton moniteur n’a pas encore écrit son bilan de ton examen.';
+    c.appendChild(p);
+    return c;
+  }
+
+  /* 🎓 « 16 Guide évaluation de l'inspecteur » (Mise en pratique ›
+     Examen pratique du permis de conduire), cherché dans SON parcours :
+     un guide qui le dit dans son titre, ou une étape de guide. Absent
+     de son parcours : la phrase dit où il est, sans bouton qui ne
+     mènerait nulle part. */
+  function guideDeLInspecteur(){
+    var nn = function(s){ return normaliser(String(s || '')); };
+    var vise = function(t){ t = nn(t); return /evaluation/.test(t) && /inspect/.test(t); };
+    var trouve = null;
+    (mesEtapes || []).forEach(function(e){
+      if(trouve) return;
+      if(vise(e.titre)){ trouve = { guide: e.id, titre: e.titre, groupe: e.groupeNom || '' }; return; }
+      (e.segments || []).forEach(function(sg){
+        if(!trouve && vise(sg.titre)) trouve = { cle: e.id + '::' + sg.id, titre: sg.titre, groupe: (e.groupeNom ? e.groupeNom + ' › ' : '') + (e.titre || '') };
+      });
+    });
+    return trouve;
+  }
+
+  /* 🎓 la grille de l'inspecteur : le guide, à la place du lien Facebook.
+     Son parcours peut arriver après le bilan : il redessine ce bloc
+     seul (majAideBilan, appelée par dessinerParcours). */
+  function blocAideBilan(){
+    var g = guideDeLInspecteur();
+    var aide = document.createElement('div');
+    aide.id = 'aideBilan';
+    aide.style.cssText = 'margin:16px 0 4px;';
+    aide.innerHTML = '<div style="font-size:15px;font-weight:800;margin-bottom:8px;">🎓 Pour t’aider</div>';
+    if(g){
+      var bg = document.createElement('button');
+      bg.type = 'button';
+      bg.className = 'res resGuide';
+      bg.innerHTML = '<b>👉 La grille de notation de l’inspecteur(trice)</b>' +
+        '<small>' + echapper(g.titre + (g.groupe ? ' · ' + g.groupe : '')) + '</small>' +
+        '<span class="flag">→ ouvre le guide</span>';
+      bg.addEventListener('click', function(){
+        try{ allerAOnglet('reviser'); }catch(e){}
+        if(g.cle) ouvrirLaFeuille(g.cle);
+        else allerAuGuideDepuisRecherche(g.guide);
+      });
+      aide.appendChild(bg);
+    }else{
+      var ph = document.createElement('div');
+      ph.style.cssText = 'font-size:13.5px;line-height:1.5;color:var(--muted);';
+      ph.textContent = '👉 La grille de notation de l’inspecteur(trice) est dans le groupe « Mise en pratique » ' +
+        '(Examen pratique du permis de conduire › 16 Guide évaluation de l’inspecteur).';
+      aide.appendChild(ph);
+    }
+    return aide;
+
+  }
+  function majAideBilan(){
+    var v = $('aideBilan');
+    if(v && v.parentNode) v.parentNode.replaceChild(blocAideBilan(), v);
   }
 
   function dessinerMonBilan(){
@@ -3551,26 +3720,22 @@
     var etat = String((monBilan && monBilan.etat) || '');
 
     /* ⚠️ CE QU'ON LUI DEMANDE DE COMPLÉTER S'AFFICHE AU-DESSUS DU
-       FORMULAIRE, pas dans un message à aller chercher. Il doit le
-       lire au moment exact où il reprend son texte. */
+       FORMULAIRE, pas dans un message à aller chercher. */
     if(etat === 'arefaire' && monBilan.retour){
       var r = document.createElement('div');
       r.className = 'card';
       r.style.cssText = 'border-color:var(--orange);';
-      r.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">' +
-        '↩️ L’école te demande de compléter</div>';
-      var p = document.createElement('div');
-      p.style.cssText = 'font-size:14.5px;line-height:1.6;white-space:pre-wrap;';
-      p.textContent = monBilan.retour;
-      r.appendChild(p);
+      r.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">↩️ L’école te demande de compléter</div>';
+      var pr = document.createElement('div');
+      pr.style.cssText = 'font-size:14.5px;line-height:1.6;white-space:pre-wrap;';
+      pr.textContent = monBilan.retour;
+      r.appendChild(pr);
       z.appendChild(r);
     }
-
     if(etat === 'attente'){
       var a = document.createElement('div');
       a.className = 'card';
-      a.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">' +
-        '📝 Ton bilan est parti</div>' +
+      a.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">📝 Ton bilan est parti</div>' +
         '<div style="font-size:14px;line-height:1.6;color:var(--muted);">' +
         'Envoyé le ' + echapper(monBilan.envoyeLe || '') + '. ' +
         'L’école le lit, et ton rendez-vous sera fixé ensuite. ' +
@@ -3578,24 +3743,37 @@
       z.appendChild(a);
     }
 
+    z.appendChild(carteMesCaptures());
+    z.appendChild(carteBilanDuMoniteur());
+
     var carte = document.createElement('div');
     carte.className = 'card';
-
     var tete = document.createElement('div');
     tete.innerHTML = '<div class="section-title">📝 Mon bilan après l’examen</div>' +
       '<div style="font-size:14px;line-height:1.6;margin-bottom:14px;">' +
-      'Pour chaque point, dis si ça allait ou si tu as eu du mal. ' +
-      'Pour ce qui n’allait pas, on te demande trois choses — c’est ce ' +
-      'dont ton moniteur partira au rendez-vous.</div>';
+      'Regarde ton CEPC au-dessus : pour chaque compétence, dis si tu as eu tous les points. ' +
+      'Sinon, explique-nous — c’est ce dont ton moniteur partira au rendez-vous.</div>';
     carte.appendChild(tete);
+    mesReponses.forEach(function(rep){ carte.appendChild(ligneDuBilan(rep)); });
 
-    mesReponses.forEach(function(rep, i){
-      carte.appendChild(ligneDuBilan(rep, i));
+    carte.appendChild(blocAideBilan());
+
+    /* 💬 ses quatre questions de la fin, obligatoires */
+    var tf = document.createElement('div');
+    tf.style.cssText = 'font-size:15px;font-weight:800;margin:16px 0 4px;';
+    tf.textContent = '💬 Ton examen';
+    carte.appendChild(tf);
+    QUESTIONS_FIN.forEach(function(q){
+      var lab = document.createElement('div');
+      lab.style.cssText = 'font-size:14px;font-weight:700;line-height:1.4;margin:12px 0 5px;';
+      lab.textContent = q[1];
+      carte.appendChild(lab);
+      carte.appendChild(zoneDeTexte(mesFin[q[0]], function(v){ mesFin[q[0]] = v; }));
     });
 
     var cpt = document.createElement('div');
     cpt.id = 'compteBilan';
-    cpt.style.cssText = 'font-size:13px;color:var(--muted);margin:4px 0 12px;';
+    cpt.style.cssText = 'font-size:13px;color:var(--muted);margin:14px 0 12px;';
     carte.appendChild(cpt);
 
     var b = document.createElement('button');
@@ -3616,86 +3794,72 @@
     majCompteBilan();
   }
 
-  function ligneDuBilan(rep, i){
+  function ligneDuBilan(rep){
     var l = document.createElement('div');
-    l.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-      'padding:11px 13px;margin-bottom:9px;';
+    l.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;';
 
     var t = document.createElement('div');
-    t.style.cssText = 'font-size:14.5px;font-weight:700;line-height:1.35;' +
-      'margin-bottom:9px;';
-    t.textContent = (i + 1) + '. ' + rep.nom;
+    t.style.cssText = 'font-size:14.5px;font-weight:800;line-height:1.35;margin-bottom:3px;';
+    t.textContent = '👉 ' + rep.nom + ' ?';
     l.appendChild(t);
+    var q = document.createElement('div');
+    q.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:9px;';
+    q.textContent = 'As-tu eu tous les points ?';
+    l.appendChild(q);
 
     var deux = document.createElement('div');
     deux.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;';
-    [[true, '✅ Ça allait'], [false, '❌ J’ai eu du mal']].forEach(function(paire){
+    [[true, '✅ Oui, j’ai eu tous les points'], [false, '❌ Non, je n’ai pas eu tous les points']].forEach(function(paire){
       var val = paire[0];
       var b = document.createElement('button');
       b.type = 'button';
       var on = (rep.ok === val);
-      /* ⚠️ LA CLASSE DE LA MAISON POUR L'ÉTAT NON CHOISI, pas un fond
-         posé à la main. « btn-secondary » porte déjà transparent +
-         liseré + --cream, dans les deux thèmes — et surtout, un
-         bouton nu prend le fond gris clair du navigateur, sur lequel
-         --cream est invisible en thème sombre. Le bouton choisi, lui,
-         prend l'accent, et sur l'accent on écrit en --on-accent :
-         c'est la leçon de la v915. */
+      /* ⚠️ LA CLASSE DE LA MAISON POUR L'ÉTAT NON CHOISI (voir v915) */
       b.className = on ? '' : 'btn btn-secondary';
-      b.style.cssText = 'display:block;flex:1 1 140px;width:auto;margin:0;' +
-        'padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:700;' +
-        'font-family:inherit;cursor:pointer;' +
-        (on ? 'background:var(--orange-soft);border:1px solid var(--orange);' +
-              'color:var(--on-accent);' : '');
+      b.style.cssText = 'display:block;flex:1 1 140px;width:auto;margin:0;padding:10px 12px;border-radius:10px;' +
+        'font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;line-height:1.3;' +
+        (on ? 'background:var(--orange-soft);border:1px solid var(--orange);color:var(--on-accent);' : '');
       b.textContent = paire[1];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      /* un deuxième appui sur le même bouton enlève le choix */
       b.addEventListener('click', function(){
-        rep.ok = val;
+        rep.ok = (rep.ok === val) ? null : val;
         dessinerMonBilan();
       });
       deux.appendChild(b);
     });
     l.appendChild(deux);
 
-    /* Les trois questions n'apparaissent QUE sur ce qui n'allait
-       pas : douze points fois trois questions, c'est un formulaire
-       que personne ne remplit. */
     if(rep.ok === false){
-      [['compris', 'Est-ce que tu as compris pourquoi ?'],
-       ['pourquoi', 'Pourquoi tu as fait cette faute ?'],
-       ['solution', 'Quelle solution pour ne plus jamais la refaire ?']
-      ].forEach(function(q){
-        var lab = document.createElement('div');
-        lab.style.cssText = 'font-size:12.5px;color:var(--muted);margin:10px 0 4px;';
-        lab.textContent = q[1];
-        l.appendChild(lab);
-
-        var ta = document.createElement('textarea');
-        ta.rows = 2;
-        ta.value = rep[q[0]];
-        ta.style.cssText = 'width:100%;background:var(--navy);border:1px solid ' +
-          'var(--line);color:var(--cream);padding:9px 10px;border-radius:10px;' +
-          'font-size:14px;line-height:1.5;font-family:inherit;resize:vertical;';
-        ta.addEventListener('input', function(){
-          rep[q[0]] = ta.value;
-          majCompteBilan();
+      var lab = function(txt, gras){
+        var x = document.createElement('div');
+        x.style.cssText = gras ? 'font-size:13px;font-weight:700;margin:12px 0 2px;line-height:1.4;'
+                               : 'font-size:13px;color:var(--muted);margin:10px 0 4px;line-height:1.4;';
+        x.textContent = txt;
+        l.appendChild(x);
+      };
+      if(rep.e){
+        lab('❌ Si tu as eu des points en moins ou une faute éliminatoire :', true);
+        TROIS_QUESTIONS.forEach(function(qq){
+          lab(qq[1]);
+          l.appendChild(zoneDeTexte(rep[qq[0]], function(v){ rep[qq[0]] = v; }));
         });
-        l.appendChild(ta);
-      });
+      }else{
+        lab('Pourquoi ?');
+        l.appendChild(zoneDeTexte(rep.pourquoi, function(v){ rep.pourquoi = v; }));
+      }
     }
-
     return l;
   }
 
-  /* ⚠️ LE COMPTE SE MET À JOUR SANS REDESSINER. Redessiner à chaque
-     lettre tapée reprendrait le focus du champ : on ne pourrait
-     plus écrire une phrase entière. */
+  /* ⚠️ LE COMPTE SE MET À JOUR SANS REDESSINER (le clavier reste) */
   function majCompteBilan(){
     var c = $('compteBilan');
     var b = $('btEnvoyerBilan');
     var n = cequilManque();
     if(c){
       c.textContent = n
-        ? 'Il reste ' + n + ' point(s) à remplir — le bilan ne part que complet.'
+        ? 'Il reste ' + n + ' réponse(s) à donner — le bilan ne part que complet.'
         : 'Tout est rempli. Tu peux l’envoyer.';
     }
     if(b) b.disabled = (n > 0);
@@ -3703,11 +3867,13 @@
 
   function envoyerMonBilan(){
     var n = cequilManque();
-    if(n){ dire('msgBilan', 'Il reste ' + n + ' point(s) à remplir.'); return; }
+    if(n){ dire('msgBilan', 'Il reste ' + n + ' réponse(s) à donner.'); return; }
     var b = $('btEnvoyerBilan');
     if(b){ b.disabled = true; b.textContent = 'Envoi…'; }
     appeler({ action: 'eleveBilanEnvoyer', eleve: moi.nom, code: moi.code,
-              reponses: JSON.stringify(mesReponses) })
+              reponses: JSON.stringify({ points: mesReponses.map(function(r){
+                return { nom: r.nom, ok: r.ok, compris: r.compris, pourquoi: r.pourquoi, solution: r.solution }; }),
+                fin: mesFin }) })
       .then(function(){
         dire('msgBilan', '📝 Ton bilan est parti. L’école te répond ensuite.', 'ok');
         return chargerMonBilan();
@@ -3717,7 +3883,6 @@
         if(b){ b.disabled = false; b.textContent = '📨 Envoyer mon bilan'; }
       });
   }
-
 
   /* ============================================================
      📝 MON BILAN DE COURS — v1321
@@ -4486,7 +4651,9 @@
     reviser: '<svg ' + SVG_ONGLET + '><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M10 9.2v5.6l4.6-2.8z" fill="currentColor" stroke="none"/></svg>',
     verifs:  '<svg ' + SVG_ONGLET + '><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8"/><path d="M3 13h18"/><path d="M10.5 13v2M13.5 13v2"/></svg>',
     reciter: '<svg ' + SVG_ONGLET + '><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 3.5h6v2.2H9z"/><path d="M8.5 10.5h7M8.5 13.8h7M8.5 17h4.5"/></svg>',
-    messages:'<svg ' + SVG_ONGLET + '><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.3V16A2.5 2.5 0 0 1 4 13.5z"/><path d="M8.5 9h7M8.5 12.2h4.5"/></svg>'
+    messages:'<svg ' + SVG_ONGLET + '><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.3V16A2.5 2.5 0 0 1 4 13.5z"/><path d="M8.5 9h7M8.5 12.2h4.5"/></svg>',
+    /* 📝 v1402 — David : « il faut changer l'icône » ; il a choisi la A, la feuille cochée */
+    bilan:   '<svg ' + SVG_ONGLET + '><path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5z"/><path d="M14 3.5v5h5"/><path d="M8.8 14.6l2.2 2.2 4.2-4.4"/></svg>'
   };
   var ONGLETS = [
     { cle:'accueil', nom:'🏠 Accueil', emoji:'🏠', court:'Accueil',
@@ -5386,6 +5553,8 @@
     dessinerLeCorps();
     /* Le compte de ce qui reste a changé : la barre le dit. */
     dessinerLesOnglets();
+    /* 📝 v1402 — le guide de l'inspecteur, dans son bilan post-permis */
+    majAideBilan();
   }
 
   /* Le groupe choisi, ou celui qui l'attend. */
