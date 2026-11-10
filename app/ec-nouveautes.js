@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:19 — v1390 */
+/* Déployé le 10/11/2026 à 09:38 — v1391 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1391,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🎥 Visio du code : le micro et le haut-parleur de Chrome, un son plus propre, « ⤢ En grand » pour les élèves',
+    quoi: [
+      { emoji: '🎙️',
+        titre: 'Le micro et le haut-parleur de Chrome',
+        texte: 'L’appli n’impose plus un micro deviné : elle prend celui que Chrome utilise, et vous entendez les élèves sur la sortie de l’ordinateur. Un autre appareil se choisit si besoin.' },
+      { emoji: '⚙️',
+        titre: 'Réglages du son pendant le cours',
+        texte: 'Un bouton dans l’écran du cours : mon micro, le son du boîtier, où j’entends les élèves. Le changement est immédiat, sans couper le cours.' },
+      { emoji: '🎚️',
+        titre: 'Un son plus propre pour les élèves',
+        texte: 'Le son du prof part en meilleure qualité (128 kb/s au lieu de 32), sans rééchantillonnage.' },
+      { emoji: '⤢',
+        titre: '« En grand » chez l’élève',
+        texte: 'Sur le téléphone tenu droit, un bouton met l’image du cours en plein écran, en paysage.' }
+    ]
+  },
   {
     version: 1390,
     date: 'Mardi 10 novembre 2026',
