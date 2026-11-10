@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 10:30 — v1391 -->
+<!-- Déployé le 10/11/2026 à 11:20 — v1392 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -3039,6 +3039,7 @@
         return Promise.all([appelEquipe('/sheets', { action: 'salleLire' }), appelEquipe('/sheets', { action: 'salleFichesTablette' })]);
       }).then(function(r){
         EQUIPE_SALLE.d = r[0]; EQUIPE_SALLE.fiches = r[1].fiches || []; EQUIPE_SALLE.groupes = r[1].groupes || [];
+        EQUIPE_SALLE.formations = r[1].formations || [];
         salleEquipeInstaller();
       }).catch(function(er){
         EQUIPE_SALLE = null; tape = ''; montrer();
@@ -3103,26 +3104,53 @@
       '<div class="salleEqPied">🔑 Ouvert par <b>' + echapper(Q.nom || 'l’équipe') + '</b> · se referme seul au bout de deux minutes sans rien toucher</div></div>';
     var ie = $('salleEqNom'), info = $('salleEqInfo'), bG = $('salleEqLancer');
     var choix = null;
-    function majEleve(){
+    /* 🎓 v1392 — la formation choisie ici (fiche sans formation) : elle part sur sa fiche */
+    var formationIci = {};
+    function saFormation(fi){ return formationIci[fi.eleve] !== undefined ? formationIci[fi.eleve] : (fi.formation || ''); }
+    function choixFormation(fi){
+      if(fi.formation) return '🎓 Sa formation : <b>' + echapper(fi.formation) + '</b>';
+      var v = saFormation(fi);
+      return '<label for="salleEqForm" class="salleEqLabel">🎓 Sa formation <span style="font-weight:400">(pas encore sur sa fiche : elle s’y enregistrera)</span></label>' +
+        '<select id="salleEqForm" class="salleEqChamp"><option value="">— choisis sa formation —</option>' +
+        (Q.formations || []).map(function(f){ return '<option value="' + echapper(f) + '"' + (f === v ? ' selected' : '') + '>' + echapper(f) + '</option>'; }).join('') + '</select>';
+    }
+    function brancherFormation(fi){
+      var sf = $('salleEqForm');
+      if(sf) sf.addEventListener('change', function(){ formationIci[fi.eleve] = sf.value; majEleve(true); });
+    }
+    /* 🔓 v1392 — pas encore d'espace : il s'ouvre en lançant */
+    function noteEspace(fi){
+      return fi.espace === 0 ? '<div class="salleTexte">🔓 <b>Son espace élève n’est pas encore ouvert</b> : il s’ouvre en lançant, avec ce qu’on ouvre d’habitude pour sa formation. Son code pour la maison s’envoie ensuite depuis son dossier.</div>' : '';
+    }
+    function majEleve(force){
       var fi = ficheDe(ie.value.trim());
       /* 📚 v1359 — le même élève (le champ perd le focus quand on touche « 2 h ») : on garde ce qui est choisi */
-      if(fi && choix && choix.eleve === fi.eleve) return;
+      if(force !== true && fi && choix && choix.eleve === fi.eleve) return;
       info.innerHTML = ''; choix = null; bG.disabled = true;
       if(!ie.value.trim()) return;
       if(!fi){ info.innerHTML = '<div class="salleTexte">⚠️ Pas de fiche à ce nom : choisis-le dans la liste.</div>'; return; }
-      var gp = salleGroupesPourE(fi.formation);
+      var forma = saFormation(fi);
+      var gp = salleGroupesPourE(forma);
       var ex = (d.eleves || []).find(function(x){ return salleCleE(x.eleve) === salleCleE(fi.eleve); });
-      choix = { eleve: fi.eleve, formation: fi.formation || '', naissance: fi.ddmm ? '2000-' + fi.ddmm.slice(2) + '-' + fi.ddmm.slice(0, 2) : '', salle: gp.salle, ensuite: gp.ensuite, duree: 60 };
-      bG.textContent = '▶ Lancer sur cette tablette';
+      choix = { eleve: fi.eleve, formation: forma, formationChoisie: (!fi.formation && forma) ? 1 : 0, ouvrir: fi.espace === 0 ? 1 : 0,
+                naissance: fi.ddmm ? '2000-' + fi.ddmm.slice(2) + '-' + fi.ddmm.slice(0, 2) : '', salle: gp.salle, ensuite: gp.ensuite, duree: 60 };
+      bG.textContent = fi.espace === 0 ? '🔓 Ouvrir son espace et lancer' : '▶ Lancer sur cette tablette';
+      /* 🎓 v1392 — sans formation, on la choisit d'abord */
+      if(!forma){
+        info.innerHTML = '<div class="salleEqLignes">' + choixFormation(fi) + '</div>' + noteEspace(fi) +
+          '<div class="salleTexte">Choisis sa formation : elle dit ce qu’il regarde en salle, et ce qui s’ouvre ensuite.</div>';
+        brancherFormation(fi);
+        return;
+      }
       /* 📚 v1359 — salle finie, ou rien en salle pour sa formation : il vient réviser */
       var fini = (ex && ex.fini) || (d.finisCles || []).indexOf(salleNormW(fi.eleve)) !== -1;
       if(fini || (!gp.salle.length && !(ex && !ex.fini))){ revisionDe(fi, ex, fini); return; }
-      if(!gp.salle.length){ info.innerHTML = '<div class="salleTexte">⚠️ Rien n’est au programme de la salle pour sa formation (' + echapper(fi.formation || 'non renseignée') + ').</div>'; return; }
-      var l = ['🎓 Sa formation : <b>' + echapper(fi.formation || 'non renseignée') + '</b>',
+      if(!gp.salle.length){ info.innerHTML = '<div class="salleTexte">⚠️ Rien n’est au programme de la salle pour sa formation (' + echapper(forma || 'non renseignée') + ').</div>'; return; }
+      var l = [choixFormation(fi),
                '📺 En salle : ' + gp.salle.map(puce).join(''),
                '🔓 Puis chez lui : ' + (gp.ensuite.length ? gp.ensuite.map(puce).join('') : 'les groupes de la salle seulement')];
       if(ex) l.push('↩️ Déjà commencé : ' + (ex.total ? ex.vus + ' sur ' + ex.total + ' vues' : 'pas encore de vue') + ' — il reprend là où il s’est arrêté.');
-      var h = '<div class="salleEqLignes">' + l.join('<br>') + '</div>';
+      var h = '<div class="salleEqLignes">' + l.join('<br>') + '</div>' + noteEspace(fi);
       if(fi.ddmm) h += '<div class="salleTexte">🔒 Pour revenir seul : son jour et mois de naissance, <b>' + fi.ddmm + '</b> (' + fi.ddmm.slice(0, 2) + '/' + fi.ddmm.slice(2) + '). Dis-le-lui.</div>';
       else h += '<label for="salleEqNaiss" class="salleEqLabel">Sa date de naissance (son code pour revenir seul)</label><input type="date" id="salleEqNaiss" class="salleEqChamp">';
       /* Combien de temps : sa théorie de Drivup, sinon 1 h */
@@ -3143,16 +3171,17 @@
       });
       var dn = $('salleEqNaiss');
       if(dn) dn.addEventListener('input', function(){ choix.naissance = dn.value; });
+      brancherFormation(fi);
       bG.disabled = false;
     }
     /* 📚 v1359 — la révision : ses groupes ouverts et le jeu des vérifications, 1 h ou 2 h */
     function revisionDe(fi, ex, fini){
       choix.revision = true; choix.duree = 60;
       var fj = ex && ex.finiLe ? new Date(Number(ex.finiLe)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '';
-      var h = '<div class="salleEqLignes">' +
+      var h = '<div class="salleEqLignes">' + (fi.formation ? '' : choixFormation(fi) + '<br>') +
         (fini ? '✅ <b>A fini la salle</b>' + (fj ? ' le ' + fj : '') + ' : ses groupes sont ouverts.'
-              : '📚 Rien n’attend la salle pour sa formation (' + echapper(fi.formation || 'non renseignée') + ').') +
-        '<br>📚 Il vient réviser : ses groupes ouverts et le jeu des vérifications, comme chez lui.</div>';
+              : '📚 Rien n’attend la salle pour sa formation (' + echapper(saFormation(fi) || 'non renseignée') + ').') +
+        '<br>📚 Il vient réviser : ses groupes ouverts et le jeu des vérifications, comme chez lui.</div>' + noteEspace(fi);
       if(fi.ddmm) h += '<div class="salleTexte">🔒 Pour revenir seul réviser : son jour et mois de naissance, <b>' + fi.ddmm + '</b> (' + fi.ddmm.slice(0, 2) + '/' + fi.ddmm.slice(2) + '). Dis-le-lui.</div>';
       else h += '<label for="salleEqNaiss" class="salleEqLabel">Sa date de naissance (son code pour revenir seul réviser)</label><input type="date" id="salleEqNaiss" class="salleEqChamp">';
       h += '<div class="salleEqSous">⏱️ Sa révision</div><div class="salleEqPuces" id="salleEqDuree">' + [['60', '1 h'], ['120', '2 h']].map(function(o, i){
@@ -3166,7 +3195,8 @@
       });
       var dn = $('salleEqNaiss');
       if(dn) dn.addEventListener('input', function(){ choix.naissance = dn.value; });
-      bG.textContent = '📚 Lancer sa révision sur cette tablette';
+      bG.textContent = fi.espace === 0 ? '🔓 Ouvrir son espace et lancer sa révision' : '📚 Lancer sa révision sur cette tablette';
+      brancherFormation(fi);
       bG.disabled = false;
     }
     ie.addEventListener('change', majEleve);
@@ -3181,8 +3211,12 @@
       var avant = bG.textContent;
       bG.textContent = '…';
       appelEquipe('/sheets', { action: 'salleInstallerEleve', tablette: t.id, eleve: choix.eleve, formation: choix.formation,
-                               naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree, revision: choix.revision ? 1 : 0 })
-        .then(function(){ salleEquipeFin(choix.revision ? '📚 ' + choix.eleve + ' : sa révision s’ouvre…' : '▶ ' + choix.eleve + ' : son cours s’ouvre…'); })
+                               naissance: choix.naissance, salle: choix.salle, ensuite: choix.ensuite, duree: choix.duree, revision: choix.revision ? 1 : 0,
+                               ouvrir: choix.ouvrir ? 1 : 0, formationChoisie: choix.formationChoisie ? 1 : 0 })
+        .then(function(rep){
+          var plus = (rep && rep.espaceOuvert ? ' 🔓 Son espace est ouvert.' : '') + (rep && rep.formationEcrite ? ' 🎓 Sa formation est sur sa fiche.' : '');
+          salleEquipeFin((choix.revision ? '📚 ' + choix.eleve + ' : sa révision s’ouvre…' : '▶ ' + choix.eleve + ' : son cours s’ouvre…') + plus);
+        })
         .catch(function(er){ bG.disabled = false; bG.textContent = avant; $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.'; });
     });
   }
