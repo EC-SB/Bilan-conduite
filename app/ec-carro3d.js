@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:56 — v1400 */
+/* Déployé le 10/11/2026 à 13:42 — v1403 */
 /* ============================================================
    ec-carro3d.js — 🧊 LA CARROSSERIE EN 3D
 
@@ -30,6 +30,7 @@ let carro3dCourante = null;
 async function vueCarrosserie3D(hote, v, liste, o){
   if(carro3dCourante){ try{ carro3dCourante.detruire(); }catch(e){} carro3dCourante = null; }
   await EC3D.charger();
+  if(EC3D.scans) await EC3D.scans(false, 10000);   /* 📷 v1403 — le Q3 scanné */
   const T = EC3D.T;
   const modele = (typeof gabaritDuVehicule === 'function' && gabaritDuVehicule(v) === GABARITS.q3) ? 'q3' : 'a3';
   hote.innerHTML = '';
