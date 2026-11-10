@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:17 — v1396 */
+/* Déployé le 10/11/2026 à 11:36 — v1397 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1397,
+    date: 'Mardi 10 novembre 2026',
+    resume: '🧊 Le parc en direct en 3D : bâtiments en relief, voitures qui glissent',
+    quoi: [
+      { emoji: '🧊',
+        titre: 'Le bouton « 🧊 3D »',
+        texte: 'Gestion › Le parc › 🗺️ En direct : le Plan reste par défaut, « 🧊 3D » montre la ville en maquette, bâtiments en relief (BD TOPO de l’IGN). Un doigt déplace, deux doigts tournent, zooment et inclinent.' },
+      { emoji: '🚙',
+        titre: 'Nos voitures, en volume',
+        texte: 'Les A3 et Q3 en blanc, avec la même étiquette qu’à plat. Une nouvelle position : la voiture glisse jusqu’à elle, le nez dans le sens de la marche. Les dernières positions connues sont en transparence.' },
+      { emoji: '🎯',
+        titre: 'Suivre une voiture',
+        texte: 'Touchez une voiture (ou sa ligne dans la liste) : la caméra la suit. « ⤢ Vue d’ensemble » revient sur toutes. Toujours sans vitesse ni historique, et rien de plus demandé aux téléphones.' }
+    ]
+  },
   {
     version: 1396,
     date: 'Mardi 10 novembre 2026',
