@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:19 — v1390 */
+/* Déployé le 10/11/2026 à 11:56 — v1400 */
 /* ============================================================
    ec-carrosserie.js
    L'état de la carrosserie, véhicule par véhicule.
@@ -472,12 +472,59 @@ function corpsCarrosserie(v, fond, redessiner){
     'Touche un point existant pour le relire ou noter sa réparation.';
   z.appendChild(aide);
 
+  const liste = dommagesDe(v.id);
+
+  /* ============================================================
+     🧊 v1399 — « À PLAT · 3D ». David (schéma 3D) : la carrosserie
+     sur un modèle qui ressemble à une A3 ou un Q3. Pour les voitures
+     seulement ; le choix est gardé sur l'appareil. La donnée reste la
+     même (une vue et deux pourcentages) : voir ec-carro3d.js.
+     ============================================================ */
+  const en3dPossible = (g === GABARITS.a3 || g === GABARITS.q3) && typeof vueCarrosserie3D === 'function' &&
+    typeof EC3D === 'object' && EC3D.possible();
+  let en3d = false;
+  try{ en3d = en3dPossible && localStorage.getItem('ec_carro_vue') === '3d'; }catch(e){ en3d = false; }
+  if(en3dPossible){
+    const bas = document.createElement('div');
+    bas.style.cssText = 'display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;margin:0 0 10px;background:var(--navy-deep);';
+    [['plat', '🗺️ À plat'], ['3d', '🧊 3D']].forEach(([cle, txt]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = txt;
+      const on = (cle === '3d') === en3d;
+      b.style.cssText = 'width:auto;margin:0;border:0;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;' +
+        'background:' + (on ? 'var(--orange)' : 'transparent') + ';color:' + (on ? 'var(--on-accent, #0B0B0B)' : 'var(--cream)') + ';';
+      b.addEventListener('click', () => {
+        if((cle === '3d') === en3d) return;
+        try{ localStorage.setItem('ec_carro_vue', cle); }catch(e){}
+        redessiner();
+      });
+      bas.appendChild(b);
+    });
+    z.insertBefore(bas, aide);
+  }
+  if(en3d){
+    aide.textContent = 'Fais tourner la voiture. Touche une pastille pour la relire, ou la carrosserie pour noter un dommage : il s\'enregistre comme sur les vues à plat.';
+    const hote = document.createElement('div');
+    hote.style.cssText = 'position:relative;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#E9E7E1;' +
+      'height:min(420px, 72vw);min-height:280px;margin-bottom:14px;';
+    hote.innerHTML = '<div style="padding:40px;text-align:center;color:#64655F;font-size:13px;">⏳ La 3D se prépare…</div>';
+    z.appendChild(hote);
+    setTimeout(() => {
+      vueCarrosserie3D(hote, v, liste, {
+        ouvrir: d => ouvrirDommage(v, d, fond, redessiner),
+        nouveau: q => ouvrirDommage(v, { vue: q.vue, x: q.x, y: q.y }, fond, redessiner)
+      }).catch(e => {
+        hote.innerHTML = '<div style="padding:30px;text-align:center;color:#64655F;font-size:13px;">La 3D n’a pas pu se charger (' +
+          String((e && e.message) || e).replace(/</g, '&lt;') + '). Repasse « 🗺️ À plat ».</div>';
+      });
+    }, 0);
+  }
+
   /* Les vues, en grille */
   const grille = document.createElement('div');
   grille.style.cssText = 'display:grid;gap:10px;' +
     'grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px;';
-
-  const liste = dommagesDe(v.id);
+  if(en3d) grille.style.display = 'none';
 
   g.vues.forEach(vue => {
     const bloc = document.createElement('div');
