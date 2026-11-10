@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 16:00 — v1407 -->
+<!-- Déployé le 10/11/2026 à 16:10 — v1408 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -6032,7 +6032,16 @@
      ============================================================ */
   /* le retour à la ligne qui suit est mangé : l'emplacement est un bloc */
   var RE_LIEN_ETAPE_EL = /(?:🎬\s*([^\n<]*?)\s*:\s*)?https?:\/\/[^\s<"?#]*\?seg=([A-Za-z0-9%_:\-.]+)[ \t]*\n?/g;
+  /* 🔗 v1408 — un lien Facebook gardé tel quel (pas relié à une étape) se clique */
+  var RE_LIEN_FB_EL = /https?:\/\/(?:[a-z]+\.)?(?:facebook\.com|fb\.watch)\/[A-Za-z0-9\-._~:\/?#\[\]@!$&*+,;=%]+/gi;
   function liensEtapesEnBoutons(html){
+    return liensEtapesSeuls(html).replace(RE_LIEN_FB_EL, function(m){
+      var fin = (m.match(/[.,;:!?)\]]+$/) || [''])[0];
+      var u = fin ? m.slice(0, -fin.length) : m;
+      return '<a href="' + u.replace(/"/g, '%22') + '" target="_blank" rel="noopener">' + u + '</a>' + fin;
+    });
+  }
+  function liensEtapesSeuls(html){
     return String(html || '').replace(RE_LIEN_ETAPE_EL, function(m, lab, k){
       var cle = k;
       try{ cle = decodeURIComponent(k); }catch(e){}
