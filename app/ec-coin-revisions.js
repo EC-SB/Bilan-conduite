@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 10/11/2026 à 10:20 — v1392 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -582,6 +582,18 @@ async function miseEnRouteCoinRevisions(nom, apres){
       try{
         const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom, modules: cvListeModules(S.E), groupes: S.E.groupes.join('|') });
         if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+        /* 🎓 v1392 — David : « quand la formation n'est pas renseignée et qu'on la
+           renseigne, qu'elle s'enregistre bien sur sa fiche ». Elle ne servait
+           qu'à choisir ce qu'on ouvre : elle part maintenant sur sa fiche. */
+        if(S.formation && cvNorm(S.formation) !== cvNorm(L.formation)){
+          try{
+            const rf = await appelPrep({ action: 'ficheSet', eleve: nom, formation: S.formation });
+            if(rf && rf.status === 'error') throw new Error(rf.message || 'refusé');
+            L.formation = S.formation;
+            const fi = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+            if(fi) fi.formation = S.formation;
+          }catch(e){ showToast('Formation non enregistrée sur sa fiche : ' + e.message); }
+        }
         if(rep && rep.code && typeof retenirCodeEleve === 'function') retenirCodeEleve(nom, rep.code);
         if(!L.acces) L.acces = { eleve: nom, actif: true, modules: cvListeModules(S.E), groupes: S.E.groupes.slice() };
         else { L.acces.modules = cvListeModules(S.E); L.acces.groupes = S.E.groupes.slice(); }
