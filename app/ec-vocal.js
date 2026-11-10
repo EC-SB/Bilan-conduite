@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 10/11/2026 à 16:00 — v1407 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1350,8 +1350,15 @@ function blocProcedures(texte){
   });
   if(!liste.length) return '';
 
+  /* 📍 v1407 — sous chaque procédure, ses étapes de l'espace élève : une
+     ligne « 🎬 Titre : lien » par étape, dont la page élève fait un bouton
+     (et que l'enregistrement du bilan épingle 📌 dans son Réviser). David :
+     « ça envoie la procédure complète dans son bilan, et en plus en
+     dessous un bouton qui lie au bon guide à la bonne étape ». */
+  const etapesDe = p => (typeof etapesDeLaFiche === 'function' && typeof ligneVersEtapeEleve === 'function')
+    ? etapesDeLaFiche(p).map(x => '\n' + ligneVersEtapeEleve(x)).join('') : '';
   return '\n\n' + liste.map(p =>
-    '📋 ' + (p.nom || 'Procédure') + '\n' + (p.contenu || '')).join('\n\n');
+    '📋 ' + (p.nom || 'Procédure') + '\n' + String(p.contenu || '').replace(/\s+$/, '') + etapesDe(p)).join('\n\n');
 }
 
 /* ============================================================
@@ -1651,6 +1658,29 @@ function voirLaProcedure(p){
     c.className = 'procVoirConsigne';
     c.textContent = '📌 ' + String(p.consigne).trim();
     boite.appendChild(c);
+  }
+  /* 📍 v1407 — ses étapes de l'espace élève. David : « que je puisse moi
+     le lier, et quand il y a des procédures sans lien, que je puisse lier
+     aussi à ma guise » — d'ici aussi, pendant le cours, pour qui a le
+     droit « ⚙️ Textes de l'application ». Les autres voient la liste. */
+  if(typeof blocEtapesDeProcedure === 'function'){
+    const peut = (typeof peutToucherAuxTextesDeLAppli === 'function') && peutToucherAuxTextesDeLAppli();
+    const liste = etapesDeLaFiche(p);
+    if(peut || liste.length){
+      const be = blocEtapesDeProcedure(liste, { verrou: !peut, nom: () => String(p.titre || p.nom || ''),
+        surChange: async (l) => {
+          const neuve = Object.assign({}, p, { etapes: etapesVersColonne(l) });
+          try{
+            await enregistrerModeleTexte(neuve);
+            p.etapes = neuve.etapes;
+            if(typeof poserModeleEnMemoire === 'function') poserModeleEnMemoire(neuve);
+            if(typeof perimerModeles === 'function') perimerModeles();
+            showToast('Étapes de « ' + String(p.titre || p.nom || '') + ' » enregistrées ✅');
+          }catch(e){ showToast('Pas enregistré : ' + (e.message || e)); }
+        } });
+      be.style.marginTop = '12px';
+      boite.appendChild(be);
+    }
   }
   const imgs = document.createElement('div');
   imgs.className = 'procVoirImages';
@@ -2023,7 +2053,9 @@ function ajouterProcedureAuBilan(){
     .find(x => String(x.id || x.nom) === sel.value);
   if(!p){ showToast('Procédure introuvable.'); return; }
 
-  const bloc = '📋 ' + (p.nom || 'Procédure') + '\n' + (p.contenu || '');
+  /* 📍 v1407 — et ses étapes de l'espace élève, dessous (comme blocProcedures) */
+  const bloc = '📋 ' + (p.nom || 'Procédure') + '\n' + String(p.contenu || '').replace(/\s+$/, '') +
+    ((typeof etapesDeLaFiche === 'function') ? etapesDeLaFiche(p).map(x => '\n' + ligneVersEtapeEleve(x)).join('') : '');
 
   /* Déjà dedans : on ne la met pas deux fois */
   if(zone.value.indexOf(bloc.trim()) !== -1){
