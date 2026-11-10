@@ -1,4 +1,4 @@
-/* Déployé le 21/10/2026 à 10:24 — v1224 */
+/* Déployé le 10/11/2026 à 11:36 — v1397 */
 /* ============================================================
    ec-direct.js
    🗺️ Les voitures en direct — Gestion › Le parc › En direct,
@@ -359,8 +359,13 @@ function dessinerVoituresEnDirect(forcer){
   }
   etatCarteDirect.etats = etats;
 
-  dessinerLeFondDirect(actives, anciennes);
+  /* 🧊 v1397 — la bascule Plan / 3D ; en 3D, la carte à plat ne se
+     dessine pas (ses tuiles ne se chargent pas pour rien) */
+  if(typeof poserBasculeDirect === 'function') poserBasculeDirect();
+  const en3D = typeof parc3d === 'object' && parc3d && parc3d.actif;
+  if(!en3D) dessinerLeFondDirect(actives, anciennes);
   dessinerLaListeDirect(actives, connues);
+  if(en3D && typeof majParc3D === 'function') majParc3D(actives, anciennes);
 }
 
 /* 🏠 Les bureaux connus du Worker (leur adresse, géolocalisée) */
@@ -561,7 +566,7 @@ function dessinerLaListeDirect(actives, connues){
   const zoomer = (cible) => {
     etatCarteDirect.suivie = cible;
     dessinerVoituresEnDirect(true);
-    const cc = $('directCarte');
+    const cc = (typeof parc3d === 'object' && parc3d && parc3d.actif && $('directCarte3D')) || $('directCarte');
     if(cc && cc.scrollIntoView) cc.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   const ligne = (f) => {
