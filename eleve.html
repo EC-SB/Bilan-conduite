@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 13:42 — v1403 -->
+<!-- Déployé le 10/11/2026 à 14:08 — v1404 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -504,6 +504,23 @@
     display:flex; gap:9px; align-items:baseline; font-size:14px;
   }
   .lecon summary::-webkit-details-marker{ display:none; }
+  .lecon summary::after{ content:'▾'; color:var(--muted); font-size:12px; margin-left:4px; }
+  .lecon[open] summary::after{ content:'▴'; }
+  /* 🚦 v1404 — la marche à suivre après un ajournement */
+  .ajCarte{ border-color:var(--orange); }
+  .ajCarte p{ margin:0 0 10px; font-size:14px; line-height:1.6; }
+  .ajEtape{ display:flex; gap:10px; align-items:flex-start; font-size:14px; line-height:1.6; margin:12px 0; }
+  .ajNum{ flex:0 0 auto; width:26px; height:26px; border-radius:13px; background:var(--orange); color:var(--on-accent);
+          font-weight:800; display:inline-flex; align-items:center; justify-content:center; font-size:13px; margin-top:1px; }
+  .ajFort{ font-weight:800; margin:8px 0 2px; letter-spacing:.01em; }
+  .ajBouton{ margin:10px 0 6px; text-align:center; display:block; }
+  .ajCarte a:not(.btn){ color:var(--accent-text, var(--cream)); font-weight:700; }
+  .ajLien{ display:inline-block; font-size:13px; font-weight:700; color:var(--accent-text, var(--cream)); }
+  .ajEtat{ font-size:13px; font-weight:700; margin-top:8px; }
+  .ajEtat.ko{ color:var(--orange); }
+  .ajChemin{ font-weight:800; font-size:13.5px; }
+  .ajPris{ font-size:15px; line-height:1.5; margin:0 0 10px; padding:10px 12px; border-radius:12px; background:var(--orange-soft); color:var(--on-accent); }
+  .ajAvert{ font-size:12.5px; font-weight:800; line-height:1.55; border-top:1px solid var(--line); padding-top:10px; margin-top:6px; }
   .lecon .jour{ flex:1; min-width:0; font-weight:700; }
   .lecon .qui{ font-size:11px; color:var(--muted); flex-shrink:0; }
   .lecon[open] summary .jour{ color:var(--accent-text); }
@@ -2417,6 +2434,9 @@
     <!-- 📣 Les annonces — v1038, étape 6. En TÊTE de l'accueil :
          « le bureau sera fermé samedi » est exactement ce qu'on veut
          voir en ouvrant l'application, pas au bas d'un défilement. -->
+    <!-- 🚦 v1404 — ajourné : la marche à suivre, tout en haut (David, le 10 novembre) -->
+    <div class="card ajCarte" id="carteAjournement" style="display:none;"></div>
+    <div class="card ajCarte" id="carteRdvPost" style="display:none;"></div>
     <div class="card rgCarte" id="carteRenseignements" style="display:none;"></div>
 
     <div class="card" id="carteAnnonces" style="display:none;">
@@ -3552,7 +3572,7 @@
       .then(function(){
         capturesEnCours = false;
         var vieille = $('carteMesCaptures');
-        if(vieille) vieille.parentNode.replaceChild(carteMesCaptures(), vieille);
+        if(vieille){ var etaitOuvert = vieille.open; var neuve = carteMesCaptures(); if(etaitOuvert) neuve.open = true; vieille.parentNode.replaceChild(neuve, vieille); }
       });
   }
 
@@ -3581,8 +3601,11 @@
     });
     mesFin = {};
     QUESTIONS_FIN.forEach(function(q){ mesFin[q[0]] = String(fin[q[0]] || ''); });
+    monAutreAgence = (fin.autreAgence === 'oui' || fin.autreAgence === 'non') ? (fin.autreAgence === 'oui') : null;
     dessinerLesOnglets();
     dessinerMonBilan();
+    dessinerCarteAjournement();
+    dessinerCarteRdvPost();
     if(bilanAttendu() && !(monBilan && monBilan.captures)) chargerMesCaptures();
   }
 
@@ -3595,6 +3618,7 @@
          (r.e ? (vide(r.compris) || vide(r.pourquoi) || vide(r.solution)) : vide(r.pourquoi))) n++;
     });
     QUESTIONS_FIN.forEach(function(q){ if(vide(mesFin[q[0]])) n++; });
+    if(monBilan && monBilan.autreAgence && monAutreAgence === null) n++;
     return n;
   }
 
@@ -3609,18 +3633,32 @@
     return ta;
   }
 
-  /* 📷 ses captures du CEPC : celles que l'école a collées au ❌ Ajourné */
+  /* 📷🦁 v1404 — David : « met dans un tiroir CEPC et bilan moniteur ».
+     Une carte « Ton examen », deux tiroirs repliés (le même que ceux de
+     « Mes leçons ») : il les ouvre quand il en a besoin, et le
+     questionnaire remonte. */
+  function tiroir(id, titre, droite, corps, ouvert){
+    var d = document.createElement('details');
+    d.className = 'lecon'; d.id = id;
+    if(ouvert) d.open = true;
+    var su = document.createElement('summary');
+    su.innerHTML = '<span class="jour">' + titre + '</span><span class="qui">' + echapper(droite || '') + '</span>';
+    d.appendChild(su);
+    corps.style.padding = '11px 13px 13px';
+    corps.style.borderTop = '1px solid var(--line)';
+    d.appendChild(corps);
+    return d;
+  }
+  var cepcOuvertALArrivee = false;
   function carteMesCaptures(){
     var caps = (monBilan && monBilan.captures) || null;
-    var c = document.createElement('div');
-    c.className = 'card';
-    c.id = 'carteMesCaptures';
-    c.innerHTML = '<div class="section-title">📷 Mon CEPC</div>' +
-      '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">' +
-      (!caps ? '⏳ Les captures de ton CEPC arrivent…'
-       : caps.length ? 'Les captures de ton certificat d’examen, telles que l’inspecteur(trice) l’a rempli. ' +
-                       'Touche une capture pour la voir en grand.'
-       : 'L’école n’a pas encore rangé les captures de ton CEPC.') + '</div>';
+    var corps = document.createElement('div');
+    var aide = document.createElement('div');
+    aide.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;';
+    aide.textContent = !caps ? '⏳ Les captures de ton CEPC arrivent…'
+      : caps.length ? 'Ton certificat d’examen, tel que l’inspecteur(trice) l’a rempli. Touche une capture pour la voir en grand.'
+      : 'L’école n’a pas encore rangé les captures de ton CEPC.';
+    corps.appendChild(aide);
     var g = document.createElement('div');
     g.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;';
     (caps || []).forEach(function(cap, i){
@@ -3629,27 +3667,28 @@
       var im = document.createElement('img');
       im.src = src;
       im.alt = 'Capture ' + (i + 1) + ' de mon CEPC';
-      im.style.cssText = 'width:calc(50% - 4px);height:auto;border-radius:10px;border:1px solid var(--line);' +
-        'cursor:zoom-in;display:block;background:#fff;';
+      im.style.cssText = 'width:calc(50% - 4px);height:auto;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;display:block;background:#fff;';
       im.addEventListener('click', function(){ voirLaPhotoEl(im.src); });
       g.appendChild(im);
     });
-    c.appendChild(g);
-    return c;
+    corps.appendChild(g);
+    var t = tiroir('carteMesCaptures', '📷 Mon CEPC', !caps ? '…' : caps.length ? caps.length + ' capture' + (caps.length > 1 ? 's' : '') : 'pas encore', corps, cepcOuvertALArrivee);
+    return t;
   }
-
-  /* 🦁 le bilan d'examen écrit par son moniteur, tel quel (dès le départ) */
   function carteBilanDuMoniteur(){
-    var t = String((monBilan && monBilan.bilanMoniteur) || '').trim();
+    var tx = String((monBilan && monBilan.bilanMoniteur) || '').trim();
+    var p = document.createElement('div');
+    p.style.cssText = 'font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;' + (tx ? '' : 'color:var(--muted);');
+    p.textContent = tx || 'Ton moniteur n’a pas encore écrit son bilan de ton examen.';
+    return tiroir('carteBilanMoniteur', echapper((monBilan && monBilan.emoji) || '📋') + ' Le bilan de ' + echapper((monBilan && monBilan.moniteur) || 'ton moniteur'), tx ? 'à lire' : 'pas encore', p, false);
+  }
+  function carteTonExamen(){
     var c = document.createElement('div');
     c.className = 'card';
-    c.id = 'carteBilanMoniteur';
-    c.innerHTML = '<div class="section-title">' + echapper((monBilan && monBilan.emoji) || '📋') + ' Le bilan de ' +
-      echapper((monBilan && monBilan.moniteur) || 'ton moniteur') + '</div>';
-    var p = document.createElement('div');
-    p.style.cssText = 'font-size:14.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;' + (t ? '' : 'color:var(--muted);');
-    p.textContent = t || 'Ton moniteur n’a pas encore écrit son bilan de ton examen.';
-    c.appendChild(p);
+    c.innerHTML = '<div class="section-title">📋 Ton examen' + (monBilan && monBilan.dateAjournement ? ' du ' + echapper(jourEnClair(monBilan.dateAjournement)) : '') + '</div>' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin:-4px 0 10px;">Sers-toi des deux pour écrire ton bilan.</div>';
+    c.appendChild(carteMesCaptures());
+    c.appendChild(carteBilanDuMoniteur());
     return c;
   }
 
@@ -3707,6 +3746,7 @@
   function majAideBilan(){
     var v = $('aideBilan');
     if(v && v.parentNode) v.parentNode.replaceChild(blocAideBilan(), v);
+    if(typeof dessinerCarteAjournement === 'function') dessinerCarteAjournement();
   }
 
   function dessinerMonBilan(){
@@ -3743,8 +3783,7 @@
       z.appendChild(a);
     }
 
-    z.appendChild(carteMesCaptures());
-    z.appendChild(carteBilanDuMoniteur());
+    z.appendChild(carteTonExamen());
 
     var carte = document.createElement('div');
     carte.className = 'card';
@@ -3771,6 +3810,8 @@
       carte.appendChild(zoneDeTexte(mesFin[q[0]], function(v){ mesFin[q[0]] = v; }));
     });
 
+    if(monBilan && monBilan.autreAgence) carte.appendChild(blocAutreAgence());
+
     var cpt = document.createElement('div');
     cpt.id = 'compteBilan';
     cpt.style.cssText = 'font-size:13px;color:var(--muted);margin:14px 0 12px;';
@@ -3792,6 +3833,161 @@
 
     z.appendChild(carte);
     majCompteBilan();
+  }
+
+  /* 📍 v1404 — « à la fin du bilan, le bouton pour savoir s'il peut
+     passer son examen à Loudéac, et que ça complète directement de notre
+     côté OK Loudéac ». L'AUTRE agence que la sienne (le serveur la dit :
+     monBilan.autreAgence) ; sa réponse part avec le bilan, et le classeur
+     coche « OK pour repasser à … » dans sa fiche. */
+  var monAutreAgence = null;     /* true, false, ou null (pas répondu) */
+  function blocAutreAgence(){
+    var ag = (monBilan && monBilan.autreAgence) || 'Loudéac';
+    var d = document.createElement('div');
+    d.id = 'blocAutreAgence';
+    d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin:16px 0 4px;';
+    d.innerHTML = '<div style="font-size:14.5px;font-weight:800;line-height:1.35;margin-bottom:3px;">📍 Peux-tu repasser ton permis à ' + echapper(ag) + ' ?</div>' +
+      '<div style="font-size:13px;color:var(--muted);margin-bottom:9px;line-height:1.45;">' + (/loud/i.test(ag) ? 'Le délai y est normalement plus court. ' : '') +
+      '<a href="' + LIEN_AGENCE_LOUDEAC + '" target="_blank" rel="noopener">Voir où se trouve l’agence</a></div>';
+    var deux = document.createElement('div');
+    deux.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;';
+    [[true, '✅ Oui, je peux'], [false, '❌ Non']].forEach(function(paire){
+      var b = document.createElement('button');
+      b.type = 'button';
+      var on = (monAutreAgence === paire[0]);
+      b.className = on ? '' : 'btn btn-secondary';
+      b.style.cssText = 'display:block;flex:1 1 120px;width:auto;margin:0;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;' +
+        (on ? 'background:var(--orange-soft);border:1px solid var(--orange);color:var(--on-accent);' : '');
+      b.textContent = paire[1];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.addEventListener('click', function(){
+        monAutreAgence = (monAutreAgence === paire[0]) ? null : paire[0];
+        var v = $('blocAutreAgence'); if(v) v.parentNode.replaceChild(blocAutreAgence(), v);
+        majCompteBilan();
+      });
+      deux.appendChild(b);
+    });
+    d.appendChild(deux);
+    return d;
+  }
+
+  var LIEN_AGENCE_LOUDEAC = 'https://share.google/teMUlLLF55KVarfRR';
+  /* 🎓 « comment faire mon bilan » : l'étape 24 « Vous avez loupé votre
+     examen » (Mise en pratique › Examen pratique du permis de conduire),
+     cherchée dans SON parcours — à la place du lien Facebook (David). */
+  function etapeLoupe(){
+    var vise = function(t){ t = normaliser(String(t || '')); return /loupe/.test(t) && /examen/.test(t); };
+    var trouve = null;
+    (mesEtapes || []).forEach(function(e){
+      if(trouve) return;
+      if(vise(e.titre)){ trouve = { guide: e.id }; return; }
+      (e.segments || []).forEach(function(sg){ if(!trouve && vise(sg.titre)) trouve = { cle: e.id + '::' + sg.id }; });
+    });
+    return trouve;
+  }
+  function lienEtape24(){
+    return etapeLoupe()
+      ? '<a class="ajLien" href="#" data-aj="guide">👉 Comment faire mon bilan (obligatoire) : « Vous avez loupé votre examen »</a>'
+      : '<div class="ajLien" style="font-weight:600;color:var(--muted);">👉 Comment faire mon bilan (obligatoire) : étape 24 « Vous avez loupé votre examen », guide « Examen pratique du permis de conduire », groupe Mise en pratique.</div>';
+  }
+
+  /* ============================================================
+     📜 v1404 — LE RENDEZ-VOUS POST-PERMIS, QUAND LE BILAN EST VALIDÉ
+
+     David : « quand le bilan est validé, une nouvelle carte apparaît »
+     (son message Messenger) ; « tant que le rendez-vous post-permis
+     n'est pas pris, elle reste, avec le bouton vers Drivup ; dès qu'il
+     est pris, tu indiques la date ». Le serveur dit : rdvPost = { date }
+     (posé par le bureau) ou { drivup: { jour, debut } } (lu dans le
+     planning Drivup).
+     ============================================================ */
+  function dessinerCarteRdvPost(){
+    var z = $('carteRdvPost');
+    if(!z) return;
+    var r = monBilan && monBilan.rdvPost;
+    if(!r){ z.style.display = 'none'; z.innerHTML = ''; return; }
+    z.style.display = '';
+    var jour = r.date || (r.drivup && r.drivup.jour) || '';
+    var heure = (!r.date && r.drivup && r.drivup.debut) || '';
+    var moni = r.moniteur || (!r.date && r.drivup && r.drivup.moniteur) || '';
+    /* passé : la carte s'efface (le moniteur coche « fait » après le rendez-vous) */
+    var auj = new Date(); auj = auj.getFullYear() + '-' + ('0' + (auj.getMonth() + 1)).slice(-2) + '-' + ('0' + auj.getDate()).slice(-2);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(jour) && jour < auj){ z.style.display = 'none'; z.innerHTML = ''; return; }
+    var pris = jour ? '<div class="ajPris">📅 Ton rendez-vous post-permis : <b>' + echapper(jourEnClair(jour)) + (heure ? ' à ' + echapper(heure) : '') + '</b>' +
+      (moni ? ' avec ' + echapper(moni) : '') + '.</div>' : '';
+    z.innerHTML =
+      '<div class="section-title">📜 RDV POST-PERMIS</div>' + pris +
+      (jour ? '' :
+      '<p>🏦 Maintenant que ton bilan est validé, tu dois <b>ACHETER ET PLANIFIER</b> de ton interface élève un « Rendez-vous post-permis », qui se fera au centre de formation avec un(e) moniteur(trice).</p>' +
+      '<p class="ajChemin">Drivup › Réserver › Pratique › Prestations Pratique › Rendez-vous post-permis › Acheter › Planifier maintenant</p>' +
+      '<p style="font-size:13px;color:var(--muted);">(Si tu es sur iPhone, passe par Safari et non par l’appli.)</p>' +
+      '<a class="btn btn-primary btReserver ajBouton" href="https://client.drivup.fr/" target="_blank" rel="noopener">📅 Réserver mon RDV post-permis sur Drivup</a>') +
+      '<p>💻 Si tu ne peux pas te déplacer, ce rendez-vous se fera en visio, mais il faut nous prévenir une fois que tu as planifié ton rendez-vous.</p>' +
+      '<p>💪 <b>Tu dois détailler point par point comment s’est déroulée ta conduite :</b><br>– à l’écrit avant de venir ;<br>– à l’oral pendant le RDV, dans notre agence ou en visio.<br>' +
+      '<b>Donc prépare-toi bien en prenant le temps de relire ton bilan, ta notation et le rapport de ton permis avant de venir.</b></p>' +
+      '<p>🧠 Ce rendez-vous de 30 min est là pour <b>COMPRENDRE</b> tes erreurs, ne pas les refaire et ne pas faire perdre une autre place d’examen à notre communauté, <b>ces places étant très précieuses</b> ! S’il est insuffisant, tu devras en refaire un autre jusqu’à ce que tout soit compris !</p>' +
+      '<a class="ajLien" href="https://www.facebook.com/share/v/1D9o635bqF/" target="_blank" rel="noopener">▶️ À regarder absolument</a>';
+  }
+
+  /* ============================================================
+     🚦 v1404 — LA MARCHE À SUIVRE APRÈS UN AJOURNEMENT, SUR L'ACCUEIL
+
+     David, le 10 novembre : son message Messenger, sur l'accueil. Elle
+     s'y lit tant qu'on attend son bilan (ajourné, bilan pas validé) ;
+     l'étape 1 dit où il en est (à faire, parti le…, à compléter).
+     ============================================================ */
+  function dessinerCarteAjournement(){
+    var z = $('carteAjournement');
+    if(!z) return;
+    if(!bilanAttendu()){ z.style.display = 'none'; z.innerHTML = ''; return; }
+    z.style.display = '';
+    var etat = String((monBilan && monBilan.etat) || '');
+    var jour = monBilan && monBilan.dateAjournement ? jourEnClair(monBilan.dateAjournement) : '';
+    var ag = (monBilan && monBilan.autreAgence) || 'Loudéac';
+    var e1 = etat === 'attente' ? '<div class="ajEtat ok">✅ Ton bilan est parti' + (monBilan.envoyeLe ? ' le ' + echapper(monBilan.envoyeLe) : '') + ' : l’école le lit.</div>'
+           : etat === 'arefaire' ? '<div class="ajEtat ko">↩️ L’école te demande de compléter ton bilan.</div>' : '';
+    z.innerHTML =
+      '<div class="section-title">🚦 Suite à ton ajournement' + (jour ? ' du ' + echapper(jour) : '') + '</div>' +
+      '<p>J’ai l’indication sur Rendez-vous permis que tu es ajourné(e) : <a href="#" data-aj="cepc">voir ton CEPC</a>.</p>' +
+      '<p><b>Quelles sont les prochaines étapes ?</b> Pas la peine de venir harceler le bureau : suis les étapes, elles sont <b>obligatoires et non négociables</b> pour envisager un repassage.</p>' +
+      '<div class="ajEtape"><span class="ajNum">1</span><div>' +
+        'Envoie-moi <b>TON PROPRE BILAN</b> sur ton examen : analyse ce qu’il s’est passé et explique-moi <b>POURQUOI</b> tu ne l’as pas obtenu, SELON TOI, TON PROPRE RESSENTI, par rapport AUSSI à l’inspecteur(trice). ' +
+        'Tu dois <b>COMPRENDRE</b> ce qu’il s’est passé, <b>ÉVACUER</b> au maximum cet échec et <b>TROUVER DES SOLUTIONS</b> pour ne plus les reproduire. ' +
+        'Sers-toi du bilan de l’inspecteur(trice) et du bilan de ton (ta) moniteur(trice). ' +
+        'Tu dois <b>DÉTAILLER</b> point par point comment s’est déroulée ta conduite, pour qu’on puisse ENSEMBLE TROUVER DES SOLUTIONS D’AMÉLIORATION RAPIDES ET EFFICACES ! ' +
+        'Ne nous fais pas perdre de temps avec un bilan incomplet : ton rendez-vous post-permis n’en sera que décalé, et ton repassage aussi…' +
+        '<div class="ajFort">PAS DE BILAN COMPLET = PAS DE RDV POST-PERMIS = PAS DE REPASSAGE</div>' + e1 +
+        '<button type="button" class="btn btn-primary ajBouton" data-aj="bilan">📝 ' + (etat === 'attente' ? 'Revoir mon bilan' : etat === 'arefaire' ? 'Compléter mon bilan' : 'Faire mon bilan') + '</button>' +
+        lienEtape24() +
+      '</div></div>' +
+      '<div class="ajEtape"><span class="ajNum">2</span><div>' +
+        'Ensuite, <b>QUAND</b> ton bilan sera effectué, réserve depuis ton compte en ligne un <b>RDV POST-PERMIS</b>, au centre de formation <b>AVEC</b> un(e) moniteur(trice). ' +
+        'Si tu ne peux pas te déplacer, ce rendez-vous peut se faire en visio, mais il faut absolument nous l’indiquer avant. Ce bilan dure <b>30 min</b>. ' +
+        'S’il est insuffisant, tu devras en refaire un autre jusqu’à ce que tout soit compris : travaille, et <b>ENVOIE-NOUS TON PROPRE BILAN COMPLET</b> pour que ton (ta) moniteur(trice) puisse le travailler avant ton rendez-vous. ' +
+        'Tu dois être capable de <b>COMPRENDRE</b> tes erreurs pour ne pas les refaire, et ne pas faire perdre à la communauté une autre place d’examen : <b>ces places sont très précieuses</b>.' +
+      '</div></div>' +
+      (!(monBilan && monBilan.autreAgence) ? '' : '<div class="ajEtape"><span class="ajNum">3</span><div>' +
+        'Dis-nous si tu peux repasser ton permis dans notre agence de <b>' + echapper(ag) + '</b>' + (/loud/i.test(ag) ? ' (délai normalement plus court)' : '') + ' : la question est à la fin de ton bilan. ' +
+        '<a href="' + LIEN_AGENCE_LOUDEAC + '" target="_blank" rel="noopener">Où se trouve l’agence</a>' +
+      '</div></div>') +
+      '<div class="ajAvert">Toute menace, pression visant à obtenir une place de repassage, ou toute non-remise en question, entraînera automatiquement la remise immédiate du dossier et l’annulation du contrat, sans discussion possible.</div>';
+    Array.prototype.forEach.call(z.querySelectorAll('[data-aj]'), function(b){
+      b.addEventListener('click', function(ev){
+        ev.preventDefault();
+        if(b.getAttribute('data-aj') === 'guide'){
+          var g = etapeLoupe(); if(!g) return;
+          try{ allerAOnglet('reviser'); }catch(e){}
+          if(g.cle) ouvrirLaFeuille(g.cle); else allerAuGuideDepuisRecherche(g.guide);
+          return;
+        }
+        cepcOuvertALArrivee = (b.getAttribute('data-aj') === 'cepc');
+        allerAOnglet('bilan');
+        dessinerMonBilan();
+        cepcOuvertALArrivee = false;
+        var cible = $(b.getAttribute('data-aj') === 'cepc' ? 'carteMesCaptures' : 'zoneMonBilan');
+        if(cible) try{ cible.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){}
+      });
+    });
   }
 
   function ligneDuBilan(rep){
@@ -3873,7 +4069,7 @@
     appeler({ action: 'eleveBilanEnvoyer', eleve: moi.nom, code: moi.code,
               reponses: JSON.stringify({ points: mesReponses.map(function(r){
                 return { nom: r.nom, ok: r.ok, compris: r.compris, pourquoi: r.pourquoi, solution: r.solution }; }),
-                fin: mesFin }) })
+                fin: mesFin, autreAgence: monAutreAgence === null ? '' : (monAutreAgence ? 'oui' : 'non') }) })
       .then(function(){
         dire('msgBilan', '📝 Ton bilan est parti. L’école te répond ensuite.', 'ok');
         return chargerMonBilan();
@@ -4660,7 +4856,7 @@
       zone:'ongletAccueil',
       /* Son prochain cours, ce qu'on lui demande, ses leçons, son
          code : tout ce qui se lit sans rien faire. */
-      quand: function(){ return !!modeleRg || ouvert('rappel') || ouvert('historique') ||
+      quand: function(){ return !!modeleRg || bilanAttendu() || !!(monBilan && monBilan.rdvPost) || ouvert('rappel') || ouvert('historique') ||
                                 ouvert('code') || demandes.length > 0 || bilansCoursOuverts().length > 0 ||
                                 mesAnnonces.length > 0; } },
     { cle:'reviser', nom:'🎬 Réviser', emoji:'🎬', court:'Réviser',
