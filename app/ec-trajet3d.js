@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 12:16 — v1401 */
+/* Déployé le 10/11/2026 à 13:42 — v1403 */
 /* ============================================================
    ec-trajet3d.js — 🧊 LE TRAJET DU COURS, REJOUÉ EN 3D
 
@@ -30,6 +30,7 @@
 
 async function rejouerTrajet3D(hote, o){
   await EC3D.charger();
+  if(EC3D.scans) await EC3D.scans(false, 6000);   /* 📷 v1403 — le Q3 scanné */
   const T = EC3D.T, k = EC3D.k;
   const natures = o.natures || {};
   const nature = t => natures[t] || natures.repere || { icone: '📍', couleur: '#3B6900', mot: 'Point de travail' };
