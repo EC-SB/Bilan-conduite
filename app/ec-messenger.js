@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 12:22 — v1330 */
+/* Déployé le 10/11/2026 à 16:40 — v1410 */
 /* ============================================================
    ec-messenger.js
    Générateur du message pour le groupe Messenger « jour du permis ».
@@ -1193,14 +1193,81 @@ async function envoyerHorairesModifies(g, jour, dire){
 }
 
 /* La case d'une heure : remplie, et marquée selon sa source */
-function champHeurePermis(valeur, source, titre, changer){
+/* ============================================================
+   ⌨️ v1410 — TAPER UNE HEURE SANS QUE LA CASE S'ENFUIE
+
+   David, le 10 novembre (capture des heures du jour du permis) :
+   « fonctionne mal pour remplir les horaires, c'est une galère ».
+
+   ⚠️ LA CASE D'HEURE DE CHROME ENVOIE « change » À CHAQUE CHIFFRE :
+   taper « 11:00 » sur « 10:55 », c'est 01:55, puis 11:55, puis 11:00.
+   L'écran enregistrait et SE REDESSINAIT au premier chiffre : la case
+   disparaissait sous le doigt, 01:55 restait enregistré et les
+   chiffres suivants tombaient dans le vide (vérifié dans Chrome). Ses
+   petites cases heures / minutes et son horloge n'aidaient pas.
+
+   Donc une case de texte simple :
+   · on la touche, tout est sélectionné : on tape par-dessus ;
+   · « 11 », « 1100 », « 11:00 », « 11h », « 11h30 », « 930 » : tout se
+     lit (clavier de chiffres sur téléphone) ;
+   · rien ne part pendant qu'on tape : l'heure se garde en QUITTANT la
+     case (Tab, clic ailleurs) ou avec Entrée ; Échap remet celle d'avant ;
+     vidée, la case revient au calcul ;
+   · l'écran redessiné rend la main à la case où l'on était arrivé
+     (« cle »), pour enchaîner les heures au clavier.
+   ============================================================ */
+function lireHeureTapee(t){
+  const v = String(t || '').trim().toLowerCase().replace(/\s+/g, '');
+  if(!v) return '';
+  let h, m;
+  let x = v.match(/^(\d{1,2})[:h.](\d{0,2})$/);
+  /* « 11h3 » se lit 11:30, comme on le dit */
+  if(x){ h = +x[1]; m = x[2] ? (x[2].length === 1 ? +x[2] * 10 : +x[2]) : 0; }
+  else if(/^\d{1,4}$/.test(v)){
+    if(v.length <= 2){ h = +v; m = 0; }
+    else { h = +v.slice(0, v.length - 2); m = +v.slice(-2); }
+  }else return null;
+  if(!(h >= 0 && h < 24 && m >= 0 && m < 60)) return null;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+function champHeurePermis(valeur, source, titre, changer, cle){
   const i = document.createElement('input');
-  i.type = 'time';
+  i.type = 'text';
+  i.inputMode = 'numeric';
+  i.autocomplete = 'off';
+  i.maxLength = 5;
+  i.placeholder = '--:--';
   i.className = 'hPermis' + (source === 'main' ? ' main' : source === 'drivup' ? ' drivup' : '');
-  i.value = versChampHeure(valeur);
-  i.title = titre + (source === 'main' ? ' — tapée à la main' : source === 'drivup' ? ' — reprise de Drivup' : ' — calculée');
+  const depart = versChampHeure(valeur);
+  i.value = depart;
+  if(cle) i.dataset.hCle = cle;
+  i.title = titre + (source === 'main' ? ' — tapée à la main' : source === 'drivup' ? ' — reprise de Drivup' : ' — calculée') +
+    ' (tape 11, 1100 ou 11:00 ; Entrée ou Tab pour la garder, Échap pour annuler)';
   i.setAttribute('aria-label', titre);
-  i.addEventListener('change', () => changer(i.value ? depuisChampHeure(i.value) : ''));
+  let pris = false;
+  const prendre = () => {
+    if(pris) return;
+    const lu = lireHeureTapee(i.value);
+    if(lu === null){
+      i.value = depart;
+      i.classList.add('faux');
+      setTimeout(() => i.classList.remove('faux'), 900);
+      if(typeof showToast === 'function') showToast('Heure illisible : tape par exemple 11, 1100 ou 11:00');
+      return;
+    }
+    if(lu === depart){ i.value = depart; return; }
+    pris = true;
+    i.value = lu;
+    /* après le blur : la case suivante a déjà le focus, le dessin le lui rend */
+    setTimeout(() => changer(lu ? depuisChampHeure(lu) : ''), 0);
+  };
+  i.addEventListener('focus', () => { try{ i.select(); }catch(e){} });
+  i.addEventListener('mouseup', ev => { ev.preventDefault(); });
+  i.addEventListener('blur', prendre);
+  i.addEventListener('keydown', ev => {
+    if(ev.key === 'Enter'){ ev.preventDefault(); prendre(); }
+    else if(ev.key === 'Escape'){ ev.preventDefault(); i.value = depart; i.blur(); }
+  });
   return i;
 }
 
@@ -1650,6 +1717,9 @@ async function afficherMessengerPermis(){
 
     function apercu(){
       lire();
+      /* ⌨️ v1410 — la case où l'on est, retrouvée après le dessin */
+      const ici = document.activeElement && ap.contains(document.activeElement) && document.activeElement.dataset
+        ? document.activeElement.dataset.hCle : '';
       ap.innerHTML = '';
       if(!g.eleves.length){ ap.innerHTML = '<em>Groupe vide</em>'; return; }
       const plan = planDuGroupe(g);
@@ -1679,7 +1749,7 @@ async function afficherMessengerPermis(){
         g.main.rendezVous = v;
         apresUnChangement();
         apercu();
-      }));
+      }, 'rdv'));
       if(plan.pauseDe){
         const pz = document.createElement('span');
         pz.className = 'hPermisBout';
@@ -1694,22 +1764,26 @@ async function afficherMessengerPermis(){
         const rep = (typeof emojisPermis === 'function') ? emojisPermis(s) : '';
         const boite = (s.typeExamen === 'bea') ? '🅰' : (s.typeExamen === 'handicap') ? '♿' : '🅑';
         const l = document.createElement('div');
-        l.className = 'hPermisLigne';
+        l.className = 'hPermisLigne hPermisEleve';
         const qui = document.createElement('span');
         qui.className = 'hPermisQui';
         qui.textContent = (i + 1) + '- ' + boite + (rep ? ' ' + rep : '') + ' ' + e.nom;
         l.appendChild(qui);
         const bout = (texte) => { const x = document.createElement('span'); x.className = 'hPermisBout'; x.textContent = texte; return x; };
         const conduite = bout('conduite ');
-        conduite.appendChild(champHeurePermis(c.conduiteDe, so.conduiteDe, 'Début de la conduite de ' + e.nom, v => changerHeure(e, 'conduiteDe', v)));
+        conduite.appendChild(champHeurePermis(c.conduiteDe, so.conduiteDe, 'Début de la conduite de ' + e.nom, v => changerHeure(e, 'conduiteDe', v), i + ':cDe'));
         conduite.appendChild(document.createTextNode(' à '));
-        conduite.appendChild(champHeurePermis(c.conduiteA, so.conduiteA, 'Fin de la conduite de ' + e.nom, v => changerHeure(e, 'conduiteA', v)));
-        if(so.conduiteDe === 'drivup' || so.conduiteA === 'drivup') conduite.appendChild(document.createTextNode(' 📥'));
+        conduite.appendChild(champHeurePermis(c.conduiteA, so.conduiteA, 'Fin de la conduite de ' + e.nom, v => changerHeure(e, 'conduiteA', v), i + ':cA'));
+        /* ⌨️ v1410 — la place du 📥 est toujours gardée : les colonnes ne bougent pas */
+        const dvI = document.createElement('span');
+        dvI.className = 'hPermisDv';
+        dvI.textContent = (so.conduiteDe === 'drivup' || so.conduiteA === 'drivup') ? '📥' : '';
+        conduite.appendChild(dvI);
         l.appendChild(conduite);
         const examen = bout('examen ');
-        examen.appendChild(champHeurePermis(c.examenDe, so.examenDe, 'Début de l’examen de ' + e.nom, v => changerHeure(e, 'examenDe', v)));
+        examen.appendChild(champHeurePermis(c.examenDe, so.examenDe, 'Début de l’examen de ' + e.nom, v => changerHeure(e, 'examenDe', v), i + ':xDe'));
         examen.appendChild(document.createTextNode(' à '));
-        examen.appendChild(champHeurePermis(c.examenA, so.examenA, 'Fin de l’examen de ' + e.nom, v => changerHeure(e, 'examenA', v)));
+        examen.appendChild(champHeurePermis(c.examenA, so.examenA, 'Fin de l’examen de ' + e.nom, v => changerHeure(e, 'examenA', v), i + ':xA'));
         l.appendChild(examen);
         ap.appendChild(l);
       });
@@ -1722,7 +1796,8 @@ async function afficherMessengerPermis(){
       pied.appendChild(document.createTextNode(
         (dv ? '📥 conduites reprises de Drivup' + (g.drivupLu ? ' (lu le ' + g.drivupLu + ')' : '') + ' · ' : '') +
         (mn ? '✋ en vert : tapé à la main' + (g.mainPar ? ' (' + g.mainPar + ')' : '') + ' · ' : '') +
-        (plan.ajuste ? 'le reste est calculé.' : 'Heures calculées depuis le premier examen : touche une heure pour la changer.')));
+        (plan.ajuste ? 'le reste est calculé.' : 'Heures calculées depuis le premier examen : touche une heure pour la changer.') +
+        ' ⌨️ Tape l’heure, puis Tab (ou Entrée) : elle se garde en quittant la case ; Échap annule.'));
       if(mn){
         const re = document.createElement('button');
         re.type = 'button';
@@ -1738,6 +1813,10 @@ async function afficherMessengerPermis(){
       pied.appendChild(etat);
       ap.appendChild(pied);
       ap.appendChild(annonce);
+      if(ici){
+        const x = ap.querySelector('[data-h-cle="' + ici + '"]');
+        if(x) try{ x.focus(); x.select(); }catch(e){}
+      }
     }
 
     d.querySelectorAll('select').forEach(s => s.addEventListener('change', apercu));
