@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 11:20 — v1392 -->
+<!-- Déployé le 10/11/2026 à 11:03 — v1394 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -205,6 +205,15 @@
   @keyframes chAvance{ 0%{width:6%} 70%{width:100%} 100%{width:100%;opacity:.15} }
   @keyframes chRoule{ 0%{left:6%} 70%{left:100%} 70.01%{left:100%} 100%{left:100%;opacity:0} }
   #ecChargement .chMot{ font-size:14px; color:var(--muted); }
+  /* ⏳ v1394 — LA BARRE SUIT CE QUI ARRIVE VRAIMENT. David : « la barre
+     de chargement n'est pas bonne, elle se finit alors que tout n'est
+     pas encore chargé ». Elle tournait en boucle (une animation) et
+     l'écran partait dès l'entrée rapide, avant son espace. Mesurée :
+     elle avance à chaque réponse attendue, ne touche le bout qu'une
+     fois TOUT arrivé, et l'écran ne part qu'à ce moment-là. */
+  #ecChargement.mesure .chFill{ animation:none; transition:width .25s ease-out; }
+  #ecChargement.mesure .chVoiture{ animation:none; transition:left .25s ease-out; }
+  #ecChargement .chPct{ font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; margin-top:-10px; }
   .chPoints{ display:flex; gap:6px; }
   .chPoints i{ width:7px; height:7px; border-radius:50%; background:var(--accent-text); opacity:.3; animation:chResp 1.2s ease-in-out infinite; }
   .chPoints i:nth-child(2){ animation-delay:.2s } .chPoints i:nth-child(3){ animation-delay:.4s }
@@ -2306,6 +2315,7 @@
       <span class="chFill"></span>
     </div>
     <div class="chMot">Ça charge… un instant</div>
+    <div class="chPct" aria-hidden="true"></div>
     <div class="chPoints"><i></i><i></i><i></i></div>
   </div>
 
@@ -4030,16 +4040,83 @@
   /* ⏳ v1368 — l'écran de chargement : montré au début de la connexion,
      enlevé dès l'entrée (ou au bout de 20 s, garde-fou anti-blocage). */
   var chargeMinuteur = null;
+  /* ⏳ v1394 — ce qu'on attend avant d'enlever l'écran : son entrée, sa
+     connexion complète, puis ce qu'elle déclenche (messages, contexte,
+     bilans de cours, et les replis s'il en faut). La barre avance d'un
+     cran à chaque réponse — doucement entre deux, sans jamais toucher le
+     bout avant la dernière. Les horaires des bureaux, la visio et les
+     notifications ne retiennent personne. */
+  var CHARGE = null;
   function montrerChargement(){
     var el = $('ecChargement'); if(!el) return;
-    el.classList.add('montre'); el.setAttribute('aria-hidden', 'false');
+    el.classList.add('montre', 'mesure'); el.setAttribute('aria-hidden', 'false');
     if(chargeMinuteur) clearTimeout(chargeMinuteur);
     chargeMinuteur = setTimeout(cacherChargement, 20000);
+    if(CHARGE){ clearInterval(CHARGE.tic); clearTimeout(CHARGE.lent); }
+    CHARGE = { attendu: {}, poids: {}, faits: 0, total: 0, connexion: false, vu: 4, tic: null, lent: null };
+    chargeAttendre('entree');
+    chargeAttendre('connexion');
+    chargeMot('On vérifie ton code…');
+    CHARGE.tic = setInterval(chargeAvancer, 120);
+    CHARGE.lent = setTimeout(function(){ if(CHARGE && !CHARGE.connexion) chargeMot('Ton espace se prépare… encore quelques secondes'); }, 4500);
+    chargePeindre();
   }
   function cacherChargement(){
     var el = $('ecChargement'); if(!el) return;
     el.classList.remove('montre'); el.setAttribute('aria-hidden', 'true');
     if(chargeMinuteur){ clearTimeout(chargeMinuteur); chargeMinuteur = null; }
+    if(CHARGE){ clearInterval(CHARGE.tic); clearTimeout(CHARGE.lent); CHARGE = null; }
+  }
+  function chargeMot(t){ var m = document.querySelector('#ecChargement .chMot'); if(m) m.textContent = t; }
+  function chargePeindre(){
+    if(!CHARGE) return;
+    var v = Math.max(0, Math.min(100, CHARGE.vu));
+    var f = document.querySelector('#ecChargement .chFill'), c = document.querySelector('#ecChargement .chVoiture'),
+        n = document.querySelector('#ecChargement .chPct');
+    if(f) f.style.width = v + '%';
+    if(c) c.style.left = v + '%';
+    if(n) n.textContent = Math.round(v) + ' %';
+  }
+  /* Entre deux réponses : on glisse vers ce qui reste, de plus en plus
+     lentement — la barre bouge toujours, mais ne touche jamais le bout
+     tant qu'une réponse manque. Sa connexion complète pèse le plus
+     lourd : c'est elle qui peut prendre quelques secondes. */
+  var POIDS_CHARGE = { connexion: 5 };
+  function chargeAvancer(){
+    if(!CHARGE) return;
+    var reste = CHARGE.total - CHARGE.faits;
+    var cible = Math.min(94, (CHARGE.faits + reste * 0.75) / Math.max(CHARGE.total, 1) * 100);
+    if(cible > CHARGE.vu){ CHARGE.vu += (cible - CHARGE.vu) * 0.035; chargePeindre(); }
+  }
+  function chargeAttendre(nom){
+    if(!CHARGE || CHARGE.attendu[nom] !== undefined) return;
+    CHARGE.attendu[nom] = 0;
+    CHARGE.poids[nom] = POIDS_CHARGE[nom] || 1;
+    CHARGE.total += CHARGE.poids[nom];
+  }
+  /* Une promesse à attendre avant d'enlever l'écran (rien s'il est déjà parti) */
+  function chargeSuivre(nom, p){
+    if(!CHARGE) return p;
+    chargeAttendre(nom);
+    if(p && typeof p.then === 'function'){
+      p.then(function(){ chargeFini(nom); }, function(){ chargeFini(nom); });
+    }else chargeFini(nom);
+    return p;
+  }
+  function chargeFini(nom){
+    if(!CHARGE || CHARGE.attendu[nom] !== 0) return;
+    CHARGE.attendu[nom] = 1; CHARGE.faits += CHARGE.poids[nom] || 1;
+    if(nom === 'entree' && !CHARGE.connexion) chargeMot('On ouvre ton espace…');
+    if(nom === 'connexion'){ CHARGE.connexion = true; if(CHARGE.faits < CHARGE.total) chargeMot('Tes messages et tes cours…'); }
+    var pas = CHARGE.faits / Math.max(CHARGE.total, 1) * 100;
+    if(pas > CHARGE.vu) CHARGE.vu = Math.min(CHARGE.faits >= CHARGE.total && CHARGE.connexion ? 100 : 96, pas);
+    chargePeindre();
+    if(CHARGE.connexion && CHARGE.faits >= CHARGE.total){
+      CHARGE.vu = 100; chargePeindre(); chargeMot('C’est prêt ✅');
+      clearInterval(CHARGE.tic);
+      var c = CHARGE;
+      setTimeout(function(){ if(CHARGE === c) cacherChargement(); }, 300);
+    }
   }
 
   function lancerLaConnexion(nom, code, auto){
@@ -4050,6 +4127,7 @@
 
     appeler({ action: 'eleveEntree', eleve: nom, code: code })
       .then(function(r){
+        chargeFini('entree');   /* ⏳ v1394 */
         if(complete || !r || !r.eleve) return;
         entreeRapide = true;
         moi.nom = r.eleve;
@@ -4058,7 +4136,7 @@
         memoriserLeCode(code);
         entrerTout();
       })
-      .catch(function(){ /* on attend la connexion complète */ });
+      .catch(function(){ chargeFini('entree'); /* on attend la connexion complète */ });
 
     appeler({ action: 'eleveConnexion', eleve: nom, code: code })
       .then(function(d){
@@ -4078,6 +4156,9 @@
         memoriserLeCode(code);
 
         if(entreeRapide) completerLEntree(); else entrer();
+        /* ⏳ v1394 — sa connexion est là ; l'écran attend encore ce qu'elle a lancé */
+        chargeFini('entree');
+        chargeFini('connexion');
         /* ⚡ v1315 — servi depuis sa dernière visite : on redemande au
            classeur, et la page se met à jour quand il répond */
         if(d.depuisCache) rafraichirLaConnexion(nom, code);
@@ -4121,6 +4202,12 @@
     appeler({ action: 'eleveConnexion', eleve: nom, code: code, frais: true })
       .then(function(d){
         if(!d || !moi.nom || moi.code !== code) return;   /* sorti entre-temps */
+        /* ⚡ v1394 — RIEN DE NEUF, RIEN DE REDESSINÉ. Le classeur répond
+           souvent la même chose que la copie de sa dernière visite : tout
+           redessiner quelques secondes après l'entrée faisait sauter la page
+           (et repartir une vidéo commencée) comme si elle chargeait encore.
+           On compare sans les liens signés, qui changent à chaque fois. */
+        if(duDemarrage && empreinteConnexion(d) === empreinteConnexion(duDemarrage)) return;
         procedures = d.procedures || [];
         demandes = d.demandes || [];
         maLangue = d.langue || '';
@@ -4141,6 +4228,17 @@
       });
   }
 
+  /* ⚡ v1394 — ce que dit une connexion, sans ce qui change à chaque appel */
+  function empreinteConnexion(d){
+    try{
+      return JSON.stringify(d, function(k, v){
+        if(k === 'depuisCache' || k === 'frais') return undefined;
+        if(typeof v === 'string' && v.indexOf('jusqua=') !== -1) return v.replace(/[?&]jusqua=[^&]*(&s=[^&]*)?/g, '');
+        return v;
+      });
+    }catch(e){ return String(Math.random()); }
+  }
+
   /* Tout d'un coup : la connexion complète est arrivée la première */
   function entrer(){
     entrerTout();
@@ -4149,7 +4247,8 @@
 
   /* Ce qui ne dépend que de son nom et de ses modules */
   function entrerTout(){
-    cacherChargement();   /* ⏳ v1368 — l'accueil est prêt, on efface l'écran de chargement */
+    /* ⏳ v1394 — l'écran de chargement ne part plus ici : il attend que
+       tout son espace soit arrivé (voir chargeFini). */
     $('vueConnexion').classList.add('cache');
     $('vueEleve').classList.remove('cache');
     $('bonjour').textContent = 'Bonjour ' + prenomDeLEleve(moi.nom);   /* 📚 v1359 — « NOM Prénom » → Prénom */
@@ -4302,17 +4401,17 @@
 
     if(ouvert('proccorriger')){
       if(dem.recitations) appliquerEnvois(dem.recitations, dem.demandes);
-      else chargerEnvois();
+      else chargeSuivre('envois', chargerEnvois());
     }
     /* La messagerie a démarré avec l'entrée (entrerTout) */
 
     /* ⚠️ POUR TOUT LE MONDE, et c'est la réponse qui tranche. Un
        élève qui a son permis reçoit « attendu: false » et ne voit
        jamais l'onglet. */
-    if(dem.bilan) appliquerMonBilan(dem.bilan); else chargerMonBilan();
+    if(dem.bilan) appliquerMonBilan(dem.bilan); else chargeSuivre('bilan', chargerMonBilan());
     /* 📝 v1321 — ses bilans de cours à faire ou à compléter (espace révisions) */
-    chargerMesBilansCours();
-    if(dem.dossier) appliquerDossier(dem.dossier); else chargerDossier();
+    chargeSuivre('bilansCours', chargerMesBilansCours());
+    if(dem.dossier) appliquerDossier(dem.dossier); else chargeSuivre('dossier', chargerDossier());
 
     /* Rien d'ouvert : il ne doit pas rester devant une page nue
        sans savoir pourquoi. */
@@ -6620,7 +6719,7 @@
        quand ni le prochain cours ni l'historique ne sont ouverts,
        c'était priver de « bureau fermé samedi » précisément ceux à
        qui l'on n'a ouvert que les procédures. */
-    appeler({ action: 'eleveDossier', eleve: moi.nom, code: moi.code })
+    return appeler({ action: 'eleveDossier', eleve: moi.nom, code: moi.code })
       .then(appliquerDossier)
       .catch(function(){
         /* Le reste de la page marche : on ne la bloque pas pour
@@ -7163,7 +7262,7 @@
     var z = $('mesEnvois');
     z.innerHTML = '<div class="empty">Chargement…</div>';
 
-    appeler({ action: 'eleveRecitations', eleve: moi.nom, code: moi.code })
+    return appeler({ action: 'eleveRecitations', eleve: moi.nom, code: moi.code })
       .then(function(d){
         appliquerEnvois(d.recitations || [], d.demandes);
       })
@@ -7376,8 +7475,8 @@
   var PAS_FIL = 4000;
 
   function demarrerMessages(){
-    chargerContexteEleve();
-    chargerConversationsEleve();
+    chargeSuivre('contexte', chargerContexteEleve());          /* ⏳ v1394 */
+    chargeSuivre('messages', chargerConversationsEleve());
 
     /* 🔔 Étape 3. « preparerPousseeEl » ne demande RIEN à personne :
        elle regarde si c'est possible, et dessine un bouton ou rien.
@@ -7402,7 +7501,7 @@
   /* Son cours du jour et son moniteur : de quoi préremplir les
      actions rapides sans rien lui redemander. */
   function chargerContexteEleve(){
-    appeler({ action: 'eleveContexte', eleve: moi.nom, code: moi.code })
+    return appeler({ action: 'eleveContexte', eleve: moi.nom, code: moi.code })
       .then(function(d){
         contexteEl = d || null;
         var b = $('btEcrireMoniteur');
@@ -10734,14 +10833,19 @@
     return { endpoint: ab.endpoint, p256dh: c.p256dh || '', auth: c.auth || '' };
   }
 
+  /* ⚡ v1394 — deux demandes partaient ensemble à l'entrée : une seule */
+  var cleEnVolEl = null;
   function clePousseeEl(){
     if(cleEl) return Promise.resolve(cleEl);
-    return appeler({ action: 'elevePousseCle', eleve: moi.nom, code: moi.code })
+    if(cleEnVolEl) return cleEnVolEl;
+    cleEnVolEl = appeler({ action: 'elevePousseCle', eleve: moi.nom, code: moi.code })
       .then(function(d){
         cleEl = (d && d.branche && d.cle) ? d.cle : '';
         return cleEl;
       })
-      .catch(function(){ cleEl = ''; return ''; });
+      .catch(function(){ cleEl = ''; return ''; })
+      .then(function(c){ cleEnVolEl = null; return c; });
+    return cleEnVolEl;
   }
 
   /* ⚠️ LE CHEMIN EST RELATIF. L'espace vit dans un sous-dossier :
