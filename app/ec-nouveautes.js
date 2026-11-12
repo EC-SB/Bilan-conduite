@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 08:55 — v1411 */
+/* Déployé le 12/11/2026 à 12:01 — v1412 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1412,
+    date: 'Jeudi 12 novembre 2026',
+    resume: '💶 Le financement suivi dans l’espace élève, et quatre corrections',
+    quoi: [
+      { emoji: '🔑',
+        titre: 'Les passerelles entrent avec leur prénom et leur nom',
+        texte: 'Plus besoin d’écrire « (Passerelle BV) » derrière : toutes les portes de l’espace reconnaissent le début du nom avec le bon code. Le mail d’accès donne le nom à taper, sans la formation.' },
+      { emoji: '🔔',
+        titre: 'Les notifications de l’espace élève',
+        texte: 'L’autorisation est demandée dès le toucher (certains téléphones refusaient en silence), un ancien abonnement est remplacé tout seul, et si ça échoue, le message reste affiché avec l’étape en cause.' },
+      { emoji: '🚙',
+        titre: 'L’évaluation directement en automatique',
+        texte: 'Élèves › Administratif › Évaluation : on peut taper seulement les heures en automatique ; la manuelle se calcule à l’envers.' },
+      { emoji: '🎓',
+        titre: 'Le CPF dans la fiche',
+        texte: 'Sur la carte du dossier CPF : « Classique » ou « Demandeur d’emploi », les messages et le délai suivent. Et « ➕ Suivre une aide » propose un deuxième dossier CPF.' },
+      { emoji: '💶',
+        titre: 'Le financement dans l’espace élève',
+        texte: 'Une carte « Mon financement » sur son accueil : les étapes de chaque suivi (CPF, Pass’Engagement, permis à 1 €…) et le message de l’étape en cours, celui qu’on lui a envoyé. Après l’entrée en formation : « ✅ Financement CPF » et le montant.' }
+    ]
+  },
   {
     version: 1411,
     date: 'Jeudi 12 novembre 2026',
