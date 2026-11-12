@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 12/11/2026 à 12:01 — v1412 -->
+<!-- Déployé le 12/11/2026 à 14:27 — v1415 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2336,6 +2336,96 @@
   .ckCarte{ border-radius:18px; box-shadow:inset 0 1px 0 var(--verre-reflet); }
   .ckCarte .row button{ border-radius:999px; }
   .ckCarte .row button:first-child{ background:var(--lentille); color:#0B0B0B; border-color:transparent; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre); }
+  /* 📱 v1413 — LA FLÈCHE DE RETOUR DE LA MESSAGERIE : un rond vert
+     (la lentille), comme la flèche de la messagerie de l'équipe. */
+  #btRetourEcole.ckRetourEl{ width:44px; min-width:44px; height:44px; border-radius:50%; padding:0; margin:0; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; font-family:inherit;
+    background:var(--lentille); border:1px solid transparent; color:#0B0B0B;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre); }
+  #btRetourEcole.ckRetourEl:active{ transform:scale(.94); }
+  #btRetourEcole.ckRetourEl svg{ width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2.6;
+    stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+  /* ============================================================
+     🧭 v1415 — LA MESSAGERIE DE L'ÉLÈVE FAÇON MESSENGER
+
+     Le modèle validé par David pour l'équipe (v1414, proposition A),
+     repris ici (« je te laisse faire côté élèves », 12 novembre) :
+     une tête « Messages », les demandes en pastilles, une liste sans
+     cadres, des bulles collées par personne (mes messages en vert
+     plein, le nom écrit une fois), l'heure entre les groupes, et la
+     barre ＋ · le champ avec 😊 · 🎤 · 👍.
+     ============================================================ */
+  body #ongletMessages .elA{ display:flex; flex-direction:column; gap:10px; }
+  body #ongletMessages .elAHaut{ display:flex; flex-direction:column; gap:10px; padding:2px 2px 0; }
+  body #ongletMessages .elATete{ display:flex; align-items:center; gap:12px; margin:0; padding:0; border:none; }
+  body #ongletMessages .elATete .tt{ flex:1; min-width:0; }
+  body #ongletMessages .elATitre{ display:block; font-size:26px; font-weight:900; letter-spacing:-.02em; line-height:1.1; color:var(--kt); }
+  body #ongletMessages .elATete .s{ font-size:12px; color:var(--kd); }
+  body #ongletMessages .elATete .maPhotoEl{ flex-shrink:0; }
+  body #ongletMessages .elATete .maPhotoMot{ display:none; }
+  body #ongletMessages .elARond{ width:40px; height:40px; min-width:40px; border-radius:50%; margin:0; padding:0; display:inline-flex;
+    align-items:center; justify-content:center; cursor:pointer; border:1px solid var(--kl); background:var(--kp2); color:var(--kt);
+    font:inherit; font-size:18px; font-weight:800; flex-shrink:0; }
+  body #ongletMessages .elAPuces{ display:flex; flex-wrap:nowrap; gap:7px; overflow-x:auto; scrollbar-width:none; margin:0; }
+  body #ongletMessages .elAPuces::-webkit-scrollbar{ display:none; }
+  body #ongletMessages .elAPuces button{ flex:0 0 auto; width:auto; height:38px; min-height:0; padding:0 15px; margin:0; border-radius:999px;
+    font:inherit; font-size:14px; font-weight:800; white-space:nowrap; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    border:1px solid var(--kl); background:var(--kp2); color:var(--kt); box-shadow:none; }
+  body #ongletMessages .elAPuces button.urg{ border-color:color-mix(in srgb,var(--kr) 55%,transparent); color:var(--kr); }
+  body #ongletMessages .elAEcrire .elAEcrireB{ background:var(--lentille, var(--kn)); color:#0B0B0B; border-color:transparent;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 4px 12px rgba(150,220,0,.25); }
+  body #ongletMessages .elAEcrire .elAEcrireB + .elAEcrireB{ background:var(--kp2); color:var(--kt); border-color:var(--kn); box-shadow:none; }
+  body #ongletMessages #carteObjetsEl{ margin:0; }
+  /* la liste : sans cadres, comme Messenger */
+  body #ongletMessages #mesConversations{ display:flex; flex-direction:column; }
+  body #ongletMessages .convo.ckLc{ margin:0; padding:9px 6px; border:none; background:transparent; border-radius:16px; box-shadow:none;
+    -webkit-backdrop-filter:none; backdrop-filter:none; gap:12px; }
+  body #ongletMessages .convo.ckLc:active{ background:rgba(127,140,151,.12); }
+  body #ongletMessages .ckLc .rond{ width:52px; height:52px; font-size:22px; border:2px solid var(--kl); background:var(--kp2); box-shadow:none; }
+  body #ongletMessages .ckLc.nonlu .rond{ border-color:var(--kn); }
+  body #ongletMessages .ckLc .qui .q{ font-size:15.5px; font-weight:600; }
+  body #ongletMessages .ckLc .qui .h{ font-size:12px; }
+  body #ongletMessages .ckLc .r2{ display:flex; align-items:center; gap:6px; margin-top:2px; min-width:0; }
+  body #ongletMessages .ckLc .r2 .ap{ flex:1; min-width:0; font-size:13.5px; }
+  body #ongletMessages .ckLc .cpt{ display:inline-flex; position:static; min-width:21px; height:21px; border-radius:11px; padding:0 6px;
+    align-items:center; justify-content:center; background:var(--kn); color:#0B0B0B; font-size:12px; font-weight:800; flex-shrink:0; box-shadow:none; }
+  body #ongletMessages .ckLc.nonlu .qui .q{ font-weight:800; }
+  body #ongletMessages .ckLc.nonlu .qui .h{ color:var(--knt); font-weight:800; }
+  body #ongletMessages .ckLc.nonlu .ap{ color:var(--kt); font-weight:700; }
+  body #ongletMessages .elAPied{ display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+  body #ongletMessages .elAPied .presmot{ margin:0; font-size:12.5px; }
+
+  /* le fil */
+  body #ongletMessages .jourFil{ margin:14px 0 6px; }
+  body #ongletMessages .jourFil span{ border:none; background:transparent; padding:0; font-size:10.5px; letter-spacing:.14em; font-weight:700;
+    color:var(--kd); text-transform:uppercase; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  body #ongletMessages #leFilEleve{ display:flex; flex-direction:column; }
+  body #ongletMessages #leFilEleve > :first-child{ margin-top:auto; }
+  body #ongletMessages .bulle{ border-radius:19px; padding:8px 13px; font-size:15px; line-height:1.36; margin-top:2px; margin-bottom:2px; box-shadow:none; }
+  body #ongletMessages .bulle.pointe{ margin-bottom:8px; }
+  body #ongletMessages .bulle.eux{ background:var(--kp1); border:1px solid var(--kl); color:var(--kt); border-top-left-radius:19px; }
+  body #ongletMessages .bulle.moi{ background:var(--lentille, var(--kn)); border:1px solid transparent; color:#0B0B0B; border-top-right-radius:19px; }
+  body #ongletMessages .bulle.moi a{ color:#0B0B0B; }
+  body #ongletMessages .bulle.moi .sig, body #ongletMessages .bulle.moi .motif{ color:rgba(11,11,11,.65); }
+  body #ongletMessages .bulle.eux.suite{ border-top-left-radius:6px; }
+  body #ongletMessages .bulle.eux:not(.pointe){ border-bottom-left-radius:6px; }
+  body #ongletMessages .bulle.moi.suite{ border-top-right-radius:6px; }
+  body #ongletMessages .bulle.moi:not(.pointe){ border-bottom-right-radius:6px; }
+  body #ongletMessages .bulle.systeme{ background:transparent; border:none; }
+  body #ongletMessages .bulle .sig{ font-size:11.5px; font-weight:700; color:var(--kd); }
+  body #ongletMessages .bulle .hh{ display:none; }
+  body #ongletMessages .bulle.hVue .hh{ display:block; margin-top:4px; font-size:11px; opacity:.7; }
+  body #ongletMessages .bulle.photo, body #ongletMessages .bulle.album{ background:var(--kp1); }
+  body #ongletMessages .bulle.moi.photo, body #ongletMessages .bulle.moi.album{ background:var(--lentille, var(--kn)); }
+  body #ongletMessages .avSlotEl{ margin-bottom:8px; }
+  /* la barre : ＋ · le champ (😊 dedans) · 🎤 · 👍 */
+  body #ongletMessages .zoneEcrire.uneLigneEl .zoneOutils{ gap:6px; align-items:flex-end; }
+  body #ongletMessages .zoneEcrire.uneLigneEl .champEl{ min-height:42px; border-radius:21px; padding:2px 3px 2px 14px; align-items:flex-end; }
+  body #ongletMessages .zoneEcrire.uneLigneEl .champEl .emoOutil{ width:36px; height:36px; margin:0 0 1px; border:none; background:transparent;
+    box-shadow:none; flex-shrink:0; }
+  body #ongletMessages .zoneEcrire.uneLigneEl textarea{ font-size:15.5px; }
+  body #ongletMessages .zoneEcrire.uneLigneEl > .zoneOutils > .envoiIc,
+  body #ongletMessages .zoneEcrire.uneLigneEl > .zoneOutils > .plusEl{ width:40px; height:40px; margin:0 0 1px; }
 </style>
 </head>
 <body>
@@ -2599,20 +2689,23 @@
            des onglets réécrit la classe de celui-ci à chaque bascule. -->
       <div id="zoneEcrireEcole" class="ckp"></div>
 
-      <div id="cartesEcrireEcole" class="ckp">
-        <!-- 🧭 v1141 — le schéma Cockpit : « Écrire à l'école », et
-             les trois demandes en une rangée. Leurs formulaires ne
-             changent pas : chaque bouton ouvre le même écran
-             qu'avant (ecranMotif). -->
-        <div class="card">
-          <div class="ckTop">
-            <div class="av">EC</div>
+      <div id="cartesEcrireEcole" class="ckp elA">
+        <!-- 🧭 v1415 — FAÇON MESSENGER, COMME L'ÉQUIPE (v1414). David, le
+             12 novembre : « je te laisse faire côté élèves ». Une tête
+             « Messages », les trois demandes et « Écrire au bureau / à
+             mon moniteur » en pastilles, puis la liste sans cadres.
+             Les boutons gardent leurs identifiants et leurs écrans :
+             seule la mise en page change. -->
+        <div class="elAHaut">
+          <div class="ckTop elATete">
             <div class="tt">
-              <div class="t">Écrire à l’école</div>
+              <b class="elATitre">Messages</b>
               <div class="s"><span class="ckDot ckPulse"></span>réponse sous 48 heures ouvrées</div>
             </div>
+            <button type="button" class="elARond" id="btMajMessages" title="Recharger les conversations"
+              aria-label="Recharger les conversations">↻</button>
           </div>
-          <div class="ckOrbit">
+          <div class="ckOrbit elAPuces">
             <button type="button" class="urg" data-motif="retard"
               title="Ton moniteur et le bureau le voient tout de suite">⏰ Retard</button>
             <button type="button" data-motif="annul"
@@ -2620,9 +2713,9 @@
             <button type="button" data-motif="oubli"
               title="Dans la voiture — on regarde et on te dit">🧤 Objet</button>
           </div>
-          <div class="presmot">
-            Pour une urgence dans l'heure, appelle le bureau : ici, personne
-            ne décroche la nuit.
+          <div class="elAPuces elAEcrire">
+            <button type="button" class="elAEcrireB" id="btEcrireBureau">🏢 Écrire au bureau</button>
+            <button type="button" class="elAEcrireB" id="btEcrireMoniteur" style="display:none;">👤 Écrire à mon moniteur</button>
           </div>
         </div>
 
@@ -2638,21 +2731,12 @@
           <div id="mesObjetsEl"></div>
         </div>
 
-        <div class="card">
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-            <strong style="flex:1;min-width:0;font-size:15px;">💬 Mes conversations</strong>
-            <button class="btn btn-secondary" id="btMajMessages"
-              style="width:auto;padding:8px 12px;font-size:13px;margin:0;">↻</button>
-          </div>
-          <div id="mesConversations"></div>
-          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;">
-            <button class="btn btn-secondary" id="btEcrireBureau"
-              style="width:auto;flex:1 1 auto;margin:0;padding:11px 13px;font-size:13px;">
-              🏢 Écrire au bureau</button>
-            <button class="btn btn-secondary" id="btEcrireMoniteur"
-              style="width:auto;flex:1 1 auto;margin:0;padding:11px 13px;font-size:13px;
-                     display:none;">
-              👤 Écrire à mon moniteur</button>
+        <div id="mesConversations"></div>
+
+        <div class="elAPied">
+          <div class="presmot">
+            Pour une urgence dans l'heure, appelle le bureau : ici, personne
+            ne décroche la nuit.
           </div>
           <!-- 🔔 Étape 3 : le réglage des notifications de CET
                appareil. Il se remplit tout seul, et reste vide si le
@@ -8261,16 +8345,17 @@
         '<div class="mi">' +
           '<div class="qui"><span class="q">' + echapper(c.qui) + '</span>' +
             '<span class="h">' + echapper(heureCourteEl(c.dernierLe)) + '</span></div>' +
-          '<div class="ap">' +
+          /* 🧭 v1415 — façon Messenger : la pastille au bout de l'aperçu */
+          '<div class="r2"><div class="ap">' +
             (c.dernierApercu
               ? (c.dernierPar && c.dernierPar !== moi.nom
-                  ? echapper(prenomDe(c.dernierPar)) + ' : ' : '') +
+                  ? echapper(prenomDe(c.dernierPar)) + ' : ' : (c.dernierPar === moi.nom ? 'Toi : ' : '')) +
                 echapper(c.dernierApercu)
               : 'Pas encore de message.') +
           '</div>' +
+          (c.nonLus ? '<span class="cpt">' + c.nonLus + '</span>' : '') + '</div>' +
           (eo ? '<div class="etatObj">' + eo.em + ' ' + echapper(eo.mot) + '</div>' : '') +
         '</div>' +
-        (c.nonLus ? '<span class="cpt">' + c.nonLus + '</span>' : '') +
       '</div>';
     }).join('');
 
@@ -8349,8 +8434,7 @@
 
   function enteteRetour(titre, sous){
     return '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">' +
-      '<button type="button" class="btn btn-secondary" id="btRetourEcole" ' +
-        'style="width:auto;margin:0;padding:8px 12px;font-size:14px;">←</button>' +
+      '<button type="button" class="ckRetourEl" id="btRetourEcole" aria-label="Revenir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5M11 5.5 4.5 12l6.5 6.5"/></svg></button>' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="font-size:15px;font-weight:700;">' + echapper(titre) + '</div>' +
         (sous ? '<div style="font-size:11.5px;color:var(--muted);">' +
@@ -8371,7 +8455,8 @@
       : (lu ? '✓✓ lu par ' + (c.genre === 'moniteur' ? echapper(c.qui || 'ton moniteur') : 'le bureau')
             : (dernierMien ? 'envoyé · réponse sous 48 heures ouvrées' : 'réponse sous 48 heures ouvrées'));
     return '<div class="ckTop">' +
-      '<button type="button" class="rond" id="btRetourEcole" aria-label="Revenir">←</button>' +
+      /* 📱 v1413 — la flèche de retour : un rond vert, comme côté équipe */
+      '<button type="button" class="rond ckRetourEl" id="btRetourEcole" aria-label="Revenir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5M11 5.5 4.5 12l6.5 6.5"/></svg></button>' +
       /* 🖼️ v1163 — la photo du fil (groupe, moniteur, bureau) si elle existe */
       (function(){
         var l = conversationsEl.filter(function(x){ return x.id === c.id; })[0];
@@ -8468,17 +8553,45 @@
     }
 
     var jourPose = '';
-    (filEl.messages || []).forEach(function(m, i, tous){
+    /* 🧭 v1415 — FAÇON MESSENGER, comme l'équipe (v1414) : l'heure n'est
+       plus dans les bulles. « Aujourd'hui · 12:31 » en tête du jour, puis
+       l'heure seule quand plus de 20 minutes séparent deux messages ; un
+       toucher sur une bulle montre la sienne. Les bulles d'une même
+       personne se collent, et son nom n'est écrit qu'une fois. */
+    var lesMsgs = filEl.messages || [];
+    var coupeAvant = lesMsgs.map(function(m, i){
+      if(!i || m.de === 'systeme') return false;
+      var p = lesMsgs[i - 1];
+      if(String(p.envoyeLe || '').slice(0, 10) !== String(m.envoyeLe || '').slice(0, 10)) return false;
+      var a = minutesDuMessageEl(p), b = minutesDuMessageEl(m);
+      return a !== null && b !== null && b - a >= 20;
+    });
+    var memeAuteurEl = function(x, y){
+      return !!(x && y && x.de === y.de && x.de !== 'systeme' &&
+        normaliserPhotoEl(x.auteur) === normaliserPhotoEl(y.auteur));
+    };
+    lesMsgs.forEach(function(m, i, tous){
       var jour = String(m.envoyeLe || '').slice(0, 10);
-      if(jour && jour !== jourPose){
+      var heure = String(m.envoyeLe || '').slice(11, 16);
+      var neuf = !!(jour && jour !== jourPose);
+      if(neuf){
         jourPose = jour;
-        h += '<div class="jourFil"><span>' + echapper(jourClairEl(jour)) + '</span></div>';
+        h += '<div class="jourFil"><span>' + echapper(jourClairEl(jour)) + (heure ? ' · ' + echapper(heure) : '') + '</span></div>';
+      }else if(coupeAvant[i]){
+        h += '<div class="jourFil heureFil"><span>' + echapper(heure) + '</span></div>';
       }
       /* 🖼️ v1163 — le rond de l'école devant sa dernière bulle d'une
          suite, comme Messenger. Un changement de jour coupe la suite. */
       var suivant = tous[i + 1];
-      if(suivant && String(suivant.envoyeLe || '').slice(0, 10) !== jour) suivant = null;
-      h += enveloppeEuxEl(m, suivant, bulleEleve(m));
+      if(suivant && (String(suivant.envoyeLe || '').slice(0, 10) !== jour || coupeAvant[i + 1])) suivant = null;
+      var avant = (neuf || coupeAvant[i]) ? null : tous[i - 1];
+      var suite = memeAuteurEl(avant, m), encore = memeAuteurEl(m, suivant);
+      /* le nom : pas dans la conversation avec son moniteur (c'est lui),
+         et seulement sur la première bulle d'une suite */
+      sigBulleEl = !suite && filEl.conv.genre !== 'moniteur';
+      var bu = bulleEleve(m).replace('class="bulle ', 'class="bulle ' + (suite ? 'suite ' : '') + (encore ? '' : 'pointe '));
+      sigBulleEl = true;
+      h += enveloppeEuxEl(m, suivant, bu);
     });
 
     if(!(filEl.messages || []).length){
@@ -8516,20 +8629,22 @@
           '<button type="button" class="emoOutil outilIc plusEl" id="btFilPlus" ' +
             'title="Photo, vidéo, fichier, prévenir le bureau" aria-label="Photo, vidéo, fichier" ' +
             'aria-expanded="false">' + ICONES_EL.plus + '</button>' +
+          /* 🧭 v1415 — comme l'équipe (v1414, choix de David le 12
+             novembre) : ＋, le champ avec 😊 dedans, 🎤, puis 👍 tout au
+             bout, qui devient ➤ dès qu'on écrit (🎤 s'efface alors). */
           '<div class="champEl">' +
             '<textarea id="chFilTexte" rows="1" placeholder="Écris ton message…">' +
               echapper(brouillonsEl[id] || '') + '</textarea>' +
+            '<button type="button" class="emoOutil outilIc" id="btFilEmo" ' +
+              'title="Émoticônes" aria-label="Émoticônes">' + ICONES_EL.emo + '</button>' +
           '</div>' +
-          '<button type="button" class="envoiIc" id="btFilEnvoyer" ' +
-            'aria-label="Envoyer">' + ICONES_EL.pouce + '</button>' +
           (vocalPossibleEl()
             ? '<button type="button" class="envoiIc outilIc" id="btFilVocal" ' +
                 'title="Enregistrer un vocal" aria-label="Enregistrer un vocal">' +
                 ICONES_EL.micro + '</button>'
             : '') +
-          /* 👍 🎤 😊 v1298 — David : « pouce, micro, émoji » */
-          '<button type="button" class="emoOutil outilIc" id="btFilEmo" ' +
-            'title="Émoticônes" aria-label="Émoticônes">' + ICONES_EL.emo + '</button>' +
+          '<button type="button" class="envoiIc" id="btFilEnvoyer" ' +
+            'aria-label="Envoyer">' + ICONES_EL.pouce + '</button>' +
         '</div>' +
       '</div><div id="msgFil"></div>';
     }else{
@@ -8664,6 +8779,14 @@
     carte.addEventListener('pointercancel', fin);
   }
 
+  /* 🧭 v1415 — le nom sur la bulle (voir dessinerFilEleve) */
+  var sigBulleEl = true;
+  /* « jj/mm/aaaa hh:mm » → des minutes, pour l'heure entre deux groupes */
+  function minutesDuMessageEl(m){
+    var t = String((m && m.envoyeLe) || '').slice(11).match(/^(\d{1,2})[:h](\d{2})/);
+    return t ? Number(t[1]) * 60 + Number(t[2]) : null;
+  }
+
   function bulleEleve(m){
     /* 📞 v1183 — la trace d'un appel, avec l'icône dessinée */
     if(m.de === 'systeme' && m.motif === 'appel' && appelsPossiblesEl()){
@@ -8714,7 +8837,7 @@
     var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + aReac + aPhoto +
             (m.cite ? ' aCite' : '') +
             '" data-msg="' + echapper(m.id || '') + '" data-rang="' + Number(m.rang || 0) + '">';
-    if(!mien && m.auteur){
+    if(!mien && m.auteur && sigBulleEl){
       h += '<span class="sig">' + echapper(m.auteur) + '</span>';
     }
     if(m.motif && RONDS_FIL[m.motif]){
@@ -10787,6 +10910,12 @@
       document.querySelectorAll('#leFilEleve .bulle[data-msg]'), function(b){
         var m = parId[b.getAttribute('data-msg')];
         if(m) brancherAppuiLongEl(b, m);
+        /* 🧭 v1415 — un toucher sur une bulle montre son heure */
+        b.title = m ? String(m.envoyeLe || '') : '';
+        b.addEventListener('click', function(ev){
+          if(ev.target.closest('a, button, img, video, audio, input, textarea, .reacs, .citeEl, .msgCite')) return;
+          b.classList.toggle('hVue');
+        });
       });
   }
 
@@ -11263,7 +11392,8 @@
       b.className = 'maPhotoEl';
       b.title = 'Ta photo';
       b.addEventListener('click', ouvrirMaPhotoEl);
-      top.appendChild(b);
+      /* 🧭 v1415 — devant « Messages », comme la photo de Messenger */
+      top.insertBefore(b, top.firstChild);
     }
     b.innerHTML = '<span class="maPhotoCadre">' +
       rondPhotoEl(clePhotoEl('eleve', moi.nom), initialesPhotoEl(moi.nom), 44) +
