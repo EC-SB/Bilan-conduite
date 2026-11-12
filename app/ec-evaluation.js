@@ -1,4 +1,4 @@
-/* Déployé le 16/10/2026 à 17:01 — v1197 */
+/* Déployé le 12/11/2026 à 12:01 — v1412 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -47,6 +47,22 @@ const HEURES_OBLIGATOIRES = 11;
    reste de l'application.
    ============================================================ */
 
+
+/* 🚙 v1412 — LES HEURES SAISIES, DANS UN SENS OU DANS L'AUTRE.
+
+   David, le 12 novembre : « il faut que l'on puisse mettre dans la case
+   BEA d'une évaluation une valeur directement ». Un élève évalué
+   directement en automatique n'a pas d'heures en manuelle : sans elles,
+   l'écran attendait. La manuelle se calcule alors à l'envers de la
+   conversion (13 heures pour 20, quatre heures ajoutées) ; tapée, elle
+   l'emporte, comme l'automatique dans l'autre sens. */
+function heuresSaisiesEval(){
+  const h = Number((($('evHeures') || {}).value)) || 0;
+  const hBea = Number((($('evHeuresBea') || {}).value)) || 0;
+  if(h > 0) return { h: h, hBea: hBea, bvCalcule: false };
+  if(hBea > 0) return { h: Math.max(1, Math.round((hBea - AJOUT_BEA) * CONV_BV / CONV_BEA)), hBea: hBea, bvCalcule: true };
+  return { h: 0, hBea: 0, bvCalcule: false };
+}
 
 /* Tout ce qui découle des heures du simulateur */
 function calculEvaluation(heuresBV, heuresBEA){
@@ -180,8 +196,8 @@ async function afficherEvaluation(){
           'max="60" placeholder="calculé" style="font-size:20px;"></div>' +
     '</div>' +
     '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
-      'line-height:1.5;">Saisis les heures du simulateur à gauche : ' +
-      'l\'automatique se calcule. Tu peux aussi la corriger à droite.</div>' +
+      'line-height:1.5;">Saisis les heures du simulateur dans l\'une des deux cases : ' +
+      'l\'autre se calcule. Évalué directement en automatique ? Tape seulement à droite.</div>' +
 
     /* Le type de formation : l'AAC et la CS ont un programme
        fixe, elles ne se calculent pas. */
@@ -210,9 +226,10 @@ async function afficherEvaluation(){
   const ce = $('evEleve');
 
   /* La manuelle recalcule l'automatique ; corriger l'automatique
-     ne touche pas à la manuelle. */
+     ne touche pas à la manuelle (et, seule, la calcule — v1412). */
   ch.addEventListener('input', () => {
     cb.value = '';
+    cb.placeholder = 'calculé';
     dessinerEvaluation();
   });
   cb.addEventListener('input', dessinerEvaluation);
@@ -412,9 +429,12 @@ function dessinerEvaluation(){
   if(!zone) return;
   dessinerPhotosEval();
 
-  const h = Number($('evHeures').value);
-  const hBea = Number(($('evHeuresBea') || {}).value);
+  const sai = heuresSaisiesEval();
+  const h = sai.h, hBea = sai.hBea;
   zone.innerHTML = '';
+  /* La manuelle calculée s'affiche en clair, comme l'automatique */
+  const chBv = $('evHeures');
+  if(chBv) chBv.placeholder = sai.bvCalcule ? h + ' (calculé)' : 'Ex : 32';
 
   if(etatEval.fait){ zone.appendChild(blocFaitEval()); return; }
 
@@ -707,7 +727,7 @@ async function enregistrerEvaluation(boites){
   if(!x || etatEval.envoi) return;
   const f = ficheExacteEval(nom);
   const type = ($('evType') || {}).value || '';
-  const h = Number($('evHeures').value) || 0;
+  const h = heuresSaisiesEval().h;
   const r = x.r || null;
   etatEval.envoi = true;
   majEnregistrerEval();
