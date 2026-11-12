@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:15 — v1409 */
+/* Déployé le 12/11/2026 à 14:17 — v1414 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -109,6 +109,22 @@ function msgRondPour(nom){
   r.title = 'Pour ' + p.nom;
   r.setAttribute('aria-label', 'Pour ' + p.nom);
   return r;
+}
+/* 🧭 v1414 — une couleur par étiquette, toujours la même (tirée de son
+   nom) : sur la ligne, l'étiquette n'est plus qu'un point de couleur. */
+const COULEURS_ETIQ_EC = ['#F59E0B', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6', '#84CC16'];
+function couleurEtiquetteEC(e){
+  let h = 0;
+  String(e || '').split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) >>> 0; });
+  return COULEURS_ETIQ_EC[h % COULEURS_ETIQ_EC.length];
+}
+function pointEtiquetteEC(e){
+  const p = document.createElement('i');
+  p.className = 'msgAPoint';
+  p.style.background = couleurEtiquetteEC(e);
+  p.title = '🏷️ ' + e;
+  p.setAttribute('aria-label', 'Étiquette ' + e);
+  return p;
 }
 function msgMoiNom(){ return (typeof ACCES !== 'undefined' && ACCES && (ACCES.moniteur || ACCES.nom)) || ''; }
 function msgEstPour(c, nom){ const k = msgNormNom(nom); return !!k && (c.pour || []).some(x => msgNormNom(x) === k); }
@@ -416,14 +432,13 @@ function dessinerLaListeMessagerie(){
      boutons dans son en-tête. */
   /* 🗂️ v1296 — la recherche, ✏️ et ⋯ ; puis les 4 onglets (Non lus ·
      Élèves · Équipe · Tout). Le tiroir a ✏️ et ⋯ dans sa propre tête. */
-  if(!dansLeTiroir()) zone.appendChild(barreDeRechercheMessagerie());
-  zone.appendChild(ckOnglets());
-  const fa = ckFiltreActif();
+  /* 🧭 v1414 — la tête façon Messenger (voir barreDeRechercheMessagerie) :
+     la ligne du haut, la recherche et « Filtres », les pastilles, et les
+     filtres posés. « Pour ▾ » et « Étiquette ▾ » sont dans « Filtres ». */
+  zone.appendChild(barreDeRechercheMessagerie());
+  if(!filtreMessagerie) zone.appendChild(ckOnglets());
+  const fa = pastillesDesFiltresEC();
   if(fa) zone.appendChild(fa);
-  /* 🏷️ 👤 v1366 — les filtres « Pour » / « Étiquette », comme les mails */
-  if(filtreMessagerie !== 'supervision' && !modeChoixMessagerie && (personnesEC.length || (catalogueEtiquettesEC || []).length)){
-    zone.appendChild(barreEtiqPourEC());
-  }
   if(chercheMessagerie){ lancerLaRecherche(chercheMessagerie, true); return; }
 
   if(!dansLeTiroir()){
@@ -520,6 +535,16 @@ function dessinerLaListeMessagerie(){
     sc.appendChild(sousTitreMessagerie(titre + ' · ' + l.length));
     l.forEach(c => sc.appendChild(ligneConversation(c)));
   };
+  /* 🧭 v1414 — UNE SEULE LISTE, COMME MESSENGER. David, le 12 novembre :
+     plus de titres « Non lus » / « Suivies ». Les épinglées en tête, puis
+     tout par date (les non-lus se voient en gras, avec leur pastille), et
+     tout en bas ce qui dort jusqu'à demain (⏰). */
+  const uneListe = () => {
+    const r = ckRangees(liste);
+    const revenus = liste.filter(c => !Number(c.epingle || 0) && !ckRappelActif(c) && ckRevenu(c));
+    r.epinglees.concat(revenus, liste.filter(c => !Number(c.epingle || 0) && !ckRappelActif(c) && !ckRevenu(c)), r.rappels)
+      .forEach(c => sc.appendChild(ligneConversation(c)));
+  };
 
   /* Dans la supervision, « pas encore lu » n'a pas de sens : ce ne
      sont pas des messages qui t'attendent. Un seul titre, qui dit
@@ -534,7 +559,7 @@ function dessinerLaListeMessagerie(){
     sc.appendChild(d);
     return;
   }
-  if(filtreMessagerie === 'clos'){ bloc('🗄️ FERMÉES', liste); return; }
+  if(filtreMessagerie === 'clos'){ liste.forEach(c => sc.appendChild(ligneConversation(c))); return; }
 
   /* 🧭 LES QUATRE RUBRIQUES DU SCHÉMA — v1141. Ce qu'on a épinglé
      d'abord, puis ce qui attend une réponse (les non-lus et les
@@ -542,16 +567,7 @@ function dessinerLaListeMessagerie(){
      jusqu'à demain. Une liste triée par date seule enterre une
      question de mardi sous trois accusés de lecture de vendredi. */
   /* 🗂️ v1296 — « Non lus » : une seule liste, les épinglées d'abord */
-  if(!filtreMessagerie && ongletMsgEC === 'nonlus'){
-    const ep = liste.filter(c => Number(c.epingle || 0)), au = liste.filter(c => !Number(c.epingle || 0));
-    ep.concat(au).forEach(c => sc.appendChild(ligneConversation(c)));
-    return;
-  }
-  const r = ckRangees(liste);
-  bloc('📌 ÉPINGLÉES', r.epinglees);
-  bloc('NON LUS', r.traiter);
-  bloc('SUIVIES', r.suivies);
-  bloc('⏰ À ME RAPPELER', r.rappels);
+  uneListe();
 }
 
 function sousTitreMessagerie(texte, couleur){
@@ -646,13 +662,6 @@ function ligneConversationCorps(c, d, enChoix){
   h.className = 'mono';
   h.textContent = heureCourteMessagerie(c.dernierLe);
   tete.appendChild(q);
-  /* 👤 v1366 — les ronds « pour » juste avant l'heure, toujours visibles */
-  if((c.pour || []).length){
-    const marques = document.createElement('span');
-    marques.className = 'msgMarquesPour';
-    (c.pour || []).forEach(nm => marques.appendChild(msgRondPour(nm)));
-    tete.appendChild(marques);
-  }
   tete.appendChild(h);
   mi.appendChild(tete);
 
@@ -680,21 +689,26 @@ function ligneConversationCorps(c, d, enChoix){
     ? String(c.dernierPar).split(' ')[0] + ' : ' : '';
   ap.appendChild(document.createTextNode(c.dernierApercu
     ? parQui + c.dernierApercu : 'Pas encore de message.'));
-  mi.appendChild(ap);
-
-  /* 🏷️ v1366 — les étiquettes de la conversation (les ronds « pour »
-     sont dans l'en-tête, près de l'heure) */
-  if((c.etiquettes || []).length){
-    const tags = document.createElement('div');
-    tags.className = 'msgLigneTags';
-    (c.etiquettes || []).forEach(e => {
-      const ch = document.createElement('span');
-      ch.className = 'msgEtiqChip';
-      ch.textContent = '🏷️ ' + e;
-      tags.appendChild(ch);
-    });
-    mi.appendChild(tags);
+  /* 🧭 v1414 — la deuxième ligne, façon Messenger : l'aperçu, puis les
+     étiquettes (points de couleur), « pour qui » (ronds) et la pastille
+     des non-lus, à droite. */
+  const r2 = document.createElement('div');
+  r2.className = 'r2';
+  r2.appendChild(ap);
+  if((c.etiquettes || []).length || (c.pour || []).length){
+    const marques = document.createElement('span');
+    marques.className = 'msgMarquesPour';
+    (c.etiquettes || []).forEach(e => marques.appendChild(pointEtiquetteEC(e)));
+    (c.pour || []).forEach(nm => marques.appendChild(msgRondPour(nm)));
+    r2.appendChild(marques);
   }
+  if(n){
+    const cpt = document.createElement('b');
+    cpt.className = 'ckCpt';
+    cpt.textContent = n > 99 ? '99+' : String(n);
+    r2.appendChild(cpt);
+  }
+  mi.appendChild(r2);
 
   if(ckRappelActif(c)){
     const m = document.createElement('div');
@@ -720,7 +734,8 @@ function ligneConversationCorps(c, d, enChoix){
 
   /* Le temps écoulé sur les 48 heures promises, tant qu'il reste
      quelque chose à lire. */
-  if(n && !c.enSupervision){
+  /* 🧭 v1414 — la jauge reste sous les conversations d'élèves (David) */
+  if(n && !c.enSupervision && ckEstEleve(c)){
     const sla = document.createElement('div');
     sla.className = 'ckSla';
     sla.title = 'Temps écoulé sur les 48 h promises';
@@ -733,12 +748,8 @@ function ligneConversationCorps(c, d, enChoix){
 
   d.appendChild(mi);
 
-  if(n){
-    const cpt = document.createElement('b');
-    cpt.className = 'ckCpt';
-    cpt.textContent = n > 99 ? '99+' : String(n);
-    d.appendChild(cpt);
-  }else if(c.ouvertPar && c.ouvertPar.qui && !c.enSupervision){
+  if(n){ /* 🧭 v1414 — la pastille est sur la deuxième ligne (r2) */ }
+  else if(c.ouvertPar && c.ouvertPar.qui && !c.enSupervision){
     /* 👀 v1177 — un autre du bureau l'a ouvert : plus à traiter ici,
        et on sait qui l'a en main. Voir « LA LECTURE PARTAGÉE DU
        BUREAU », dans le Worker. */
@@ -773,15 +784,17 @@ function ligneConversationCorps(c, d, enChoix){
       s.addEventListener('click', ev => { ev.stopPropagation(); ckMarquer(c.id, quoi); });
       v.appendChild(s);
     };
-    /* ✓ v1296 — régler sans ouvrir, au survol aussi */
-    if(ckPeutGerer() && !Number(c.fermee || 0)){
+    /* ● v1414 — David, le 12 novembre : « au survol, enlève archiver et
+       mets plutôt à la place un bouton pour mettre en non lu ». Archiver
+       reste dans ⓘ Infos et dans l'appui long. */
+    if(c.estMembre !== false){
       const s = document.createElement('button');
       s.type = 'button';
-      s.textContent = '🗄️';
-      s.title = 'Archiver : la conversation part dans 🗄️ Archivées';
+      s.textContent = n ? '✓' : '●';
+      s.title = n ? 'Marquer comme lue' : 'Remettre en non lu';
       s.setAttribute('aria-label', s.title);
-      s.className = 'ckRegleSurvol';
-      s.addEventListener('click', ev => { ev.stopPropagation(); ckReglerDeLaListe(c.id); });
+      s.className = 'ckNonLuSurvol';
+      s.addEventListener('click', ev => { ev.stopPropagation(); ckMarquerNonLu(c.id); });
       v.appendChild(s);
     }
     pt('⏰', ckRappelActif(c) ? 'Retirer le rappel' : 'Me la rappeler demain 9h', 'rappel');
@@ -861,17 +874,129 @@ function heureCourteMessagerie(quand){
    LA BARRE DE RECHERCHE
    ------------------------------------------------------------ */
 
-function barreDeRechercheMessagerie(){
-  const l = document.createElement('div');
-  l.className = 'ckpLh';
+/* ============================================================
+   🧭 v1414 — LA TÊTE DE LA LISTE, FAÇON MESSENGER (proposition A)
 
+   David, le 12 novembre 2026 : « je la trouve pas ergonomique, comme
+   on est éloigné de Messenger les moniteurs continuent d'utiliser
+   Messenger ». Il a choisi la proposition A de la maquette :
+     · une ligne : « Discussions | ✉️ | ✋ » (les trois vues de
+       l'onglet, à la place de la barre des vues), ✏️ et ⋯ ;
+     · la recherche, avec un bouton « Filtres » (pour moi, pour qui,
+       étiquette, type, archivées, supervision) ;
+     · une rangée de pastilles (Tout, Non lus, Élèves…) ;
+     · les filtres posés, en pastilles qu'on retire d'un ✕.
+   ============================================================ */
+const ICONES_SEG_EC = {
+  messagerie: '<path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-7l-4.5 3v-3H5A1.5 1.5 0 0 1 3.5 16V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8 10h8M8 13.5h5"/>',
+  mails: '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4.5 7.5 12 13l7.5-5.5"/>',
+  oublis: '<path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11m0-5.5a1.5 1.5 0 0 1 3 0V11m0-4a1.5 1.5 0 0 1 3 0v7.5a5.5 5.5 0 0 1-5.5 5.5h-1A5.5 5.5 0 0 1 6 15.6L4.6 13a1.4 1.4 0 0 1 2.4-1.4L8 13"/>',
+  loupe: '<circle cx="11" cy="11" r="6"/><path d="M15.5 15.5 20 20"/>',
+  filtre: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+  crayon: '<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/>'
+};
+const NOMS_SEG_EC = { messagerie: 'Discussions', mails: 'Mail', oublis: 'Objets oubliés' };
+function icSegEC(cle){ return '<svg class="msgAIc" viewBox="0 0 24 24" aria-hidden="true">' + (ICONES_SEG_EC[cle] || '') + '</svg>'; }
+
+/* Les vues de l'onglet Messagerie que ce compte a (celles de la barre) */
+function vuesDeLaMessagerieEC(){
+  return Array.prototype.map.call(
+    document.querySelectorAll('.barre-vues[data-pour="messagerie"] button[data-vue-cible]'),
+    b => b.getAttribute('data-vue-cible'));
+}
+function segmentMessagerieEC(){
+  const vues = vuesDeLaMessagerieEC();
+  const ici = (typeof vueActive !== 'undefined' && vueActive.messagerie) || 'messagerie';
+  if(vues.length < 2){
+    const t = document.createElement('b');
+    t.className = 'msgATitre';
+    t.textContent = 'Messagerie';
+    return t;
+  }
+  const seg = document.createElement('div');
+  seg.className = 'msgASeg';
+  seg.setAttribute('role', 'tablist');
+  vues.forEach(cle => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = cle === ici ? 'on' : '';
+    b.title = NOMS_SEG_EC[cle] || cle;
+    b.setAttribute('aria-label', b.title);
+    b.setAttribute('aria-selected', cle === ici ? 'true' : 'false');
+    const n = (cle !== 'messagerie' && typeof COMPTES_VUE !== 'undefined') ? Number(COMPTES_VUE[cle] || 0) : 0;
+    b.innerHTML = icSegEC(cle) + (cle === ici ? '<span>' + (NOMS_SEG_EC[cle] || cle) + '</span>' : '') +
+      (n && cle !== ici ? '<i class="n">' + (n > 99 ? '99+' : n) + '</i>' : '');
+    b.addEventListener('click', () => { if(cle !== ici && typeof afficherVue === 'function') afficherVue('messagerie', cle); });
+    seg.appendChild(b);
+  });
+  return seg;
+}
+/* La ligne du haut seule : la boîte mail et les objets oubliés la
+   reprennent, pour revenir aux discussions. */
+function teteSegmentEC(){
+  if(typeof dansLeTiroir === 'function' && dansLeTiroir()) return null;
+  const l = document.createElement('div');
+  l.className = 'msgATete';
+  l.appendChild(segmentMessagerieEC());
+  return l;
+}
+
+function barreDeRechercheMessagerie(){
+  const haut = document.createElement('div');
+  haut.className = 'msgAHaut';
+
+  /* --- la ligne : Discussions | ✉️ | ✋ · ✏️ · ⋯ (pas dans le tiroir,
+     qui a ✏️ et ⋯ dans sa propre tête) --- */
+  if(!dansLeTiroir()){
+    const l = document.createElement('div');
+    l.className = 'msgATete';
+    l.appendChild(segmentMessagerieEC());
+    const sp = document.createElement('span');
+    sp.className = 'sp';
+    l.appendChild(sp);
+    if(peutOuvrirUneConversation()){
+      const n = document.createElement('button');
+      n.type = 'button';
+      n.className = 'msgARond vert';
+      n.innerHTML = '<svg class="msgAIc" viewBox="0 0 24 24" aria-hidden="true">' + ICONES_SEG_EC.crayon + '</svg>';
+      n.title = 'Nouvelle conversation';
+      n.setAttribute('aria-label', n.title);
+      /* ✏️ v1150 — « À qui ? » (ec-aqui.js) : un nom, et le fil s'ouvre */
+      n.addEventListener('click', () => (typeof ecranAQui === 'function')
+        ? ecranAQui() : ecranNouvelleConversation());
+      l.appendChild(n);
+    }
+    if(modeChoixMessagerie){
+      const chx = document.createElement('button');
+      chx.type = 'button';
+      chx.className = 'msgARond on';
+      chx.textContent = '✕';
+      chx.title = 'Annuler le choix';
+      chx.setAttribute('aria-label', chx.title);
+      chx.addEventListener('click', () => { modeChoixMessagerie = false; choixMessagerie.clear(); dessinerLaListeMessagerie(); });
+      l.appendChild(chx);
+    }
+    const pts = document.createElement('button');
+    pts.type = 'button';
+    pts.className = 'msgARond msgListeMenu';
+    pts.id = 'msgListeMenu';
+    pts.textContent = '⋯';
+    pts.title = 'Ma photo, réglages, choisir…';
+    pts.setAttribute('aria-label', pts.title);
+    pts.addEventListener('click', ev => { ev.stopPropagation(); ckMenuDeLaListe(pts); });
+    l.appendChild(pts);
+    haut.appendChild(l);
+  }
+
+  /* --- la recherche, et « Filtres » --- */
   const boite = document.createElement('label');
-  boite.className = 'ckpCherche';
-  boite.innerHTML = '<span aria-hidden="true">🔍</span>';
+  boite.className = 'msgARech';
+  boite.innerHTML = '<svg class="msgAIc" viewBox="0 0 24 24" aria-hidden="true">' + ICONES_SEG_EC.loupe + '</svg>';
   const ch = document.createElement('input');
   ch.type = 'text';
   ch.id = 'msgElvCherche';
   ch.placeholder = 'Un nom, un mot…';
+  ch.setAttribute('aria-label', 'Chercher un nom, un mot');
   ch.value = chercheMessagerie;
   ch.addEventListener('keydown', ev => {
     if(ev.key === 'Enter'){ ev.preventDefault(); lancerLaRecherche(ch.value); }
@@ -900,44 +1025,90 @@ function barreDeRechercheMessagerie(){
     k.textContent = 'Ctrl K';
     boite.appendChild(k);
   }
-  l.appendChild(boite);
+  const nf = nombreDeFiltresEC();
+  const fb = document.createElement('button');
+  fb.type = 'button';
+  fb.className = 'msgAFiltresB' + (nf ? ' on' : '');
+  fb.innerHTML = '<svg class="msgAIc" viewBox="0 0 24 24" aria-hidden="true">' + ICONES_SEG_EC.filtre + '</svg>Filtres' + (nf ? ' · ' + nf : '');
+  fb.title = 'Pour moi, pour qui, étiquette, type, archivées';
+  fb.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); menuDesFiltresEC(fb); });
+  boite.appendChild(fb);
+  haut.appendChild(boite);
+  return haut;
+}
 
-  if(peutOuvrirUneConversation()){
-    const n = document.createElement('button');
-    n.type = 'button';
-    n.className = 'ckBt p';
-    n.textContent = '✏️';
-    n.title = 'Nouvelle conversation';
-    n.setAttribute('aria-label', 'Nouvelle conversation');
-    /* ✏️ v1150 — « À qui ? » (ec-aqui.js) : un nom, et le fil s'ouvre */
-    n.addEventListener('click', () => (typeof ecranAQui === 'function')
-      ? ecranAQui() : ecranNouvelleConversation());
-    l.appendChild(n);
-  }
+/* Combien de filtres sont posés (le type, pour moi, pour qui, l'étiquette) */
+function nombreDeFiltresEC(){
+  return (filtreMessagerie ? 1 : 0) + (filtreEtiqPourEC.moi ? 1 : 0) +
+         (filtreEtiqPourEC.pour ? 1 : 0) + (filtreEtiqPourEC.etiq ? 1 : 0);
+}
 
-  /* ⋯ v1296 — filtrer par type, ma photo, ⚙️ réglages, ☑ choisir,
-     🗑️ vider les fermées : un seul menu (maquette validée). ☑ reste
-     visible tant que le mode choix est ouvert, pour en sortir. */
-  if(modeChoixMessagerie){
-    const chx = document.createElement('button');
-    chx.type = 'button';
-    chx.className = 'ckBt on';
-    chx.textContent = '✕';
-    chx.title = 'Annuler le choix';
-    chx.setAttribute('aria-label', chx.title);
-    chx.addEventListener('click', () => { modeChoixMessagerie = false; choixMessagerie.clear(); dessinerLaListeMessagerie(); });
-    l.appendChild(chx);
+/* « Filtres » : tout ce qui était dans « Pour ▾ », « Étiquette ▾ » et
+   ⋯ › Filtrer par type, en une seule feuille. */
+function menuDesFiltresEC(ancre){
+  const redessiner = () => dessinerLaListeMessagerie();
+  const tous = conversationsEC.filter(c => !c.enSupervision);
+  const items = [];
+  const moi = msgMoiNom();
+  if(moi && msgPersonne(moi).connu){
+    items.push({ emoji: msgCoulEmo(msgPersonne(moi).couleur), texte: 'Pour moi', on: filtreEtiqPourEC.moi, faire: () => {
+      filtreEtiqPourEC.moi = !filtreEtiqPourEC.moi; if(filtreEtiqPourEC.moi) filtreEtiqPourEC.pour = ''; redessiner(); } });
   }
-  const pts = document.createElement('button');
-  pts.type = 'button';
-  pts.className = 'ckBt msgListeMenu';
-  pts.id = 'msgListeMenu';
-  pts.textContent = '⋯';
-  pts.title = 'Filtrer par type, ma photo, réglages…';
-  pts.setAttribute('aria-label', pts.title);
-  pts.addEventListener('click', ev => { ev.stopPropagation(); ckMenuDeLaListe(pts); });
-  l.appendChild(pts);
-  return l;
+  if(personnesEC.length){
+    items.push({ titre: 'POUR QUI' });
+    personnesEC.forEach(p => items.push({ emoji: msgCoulEmo(p.couleur),
+      texte: p.nom + (msgNormNom(p.nom) === msgNormNom(moi) ? ' (moi)' : '') + ' · ' + tous.filter(c => msgEstPour(c, p.nom)).length,
+      on: filtreEtiqPourEC.pour === p.nom,
+      faire: () => { filtreEtiqPourEC.pour = filtreEtiqPourEC.pour === p.nom ? '' : p.nom; filtreEtiqPourEC.moi = false; redessiner(); } }));
+    items.push({ emoji: '∅', texte: 'Personne dessus · ' + tous.filter(c => !(c.pour || []).length).length, on: filtreEtiqPourEC.pour === '∅',
+      faire: () => { filtreEtiqPourEC.pour = filtreEtiqPourEC.pour === '∅' ? '' : '∅'; filtreEtiqPourEC.moi = false; redessiner(); } });
+  }
+  if((catalogueEtiquettesEC || []).length){
+    items.push({ titre: 'ÉTIQUETTE' });
+    (catalogueEtiquettesEC || []).forEach(e => items.push({ emoji: '🏷️', texte: e + ' · ' + tous.filter(c => (c.etiquettes || []).indexOf(e) !== -1).length,
+      on: filtreEtiqPourEC.etiq === e, faire: () => { filtreEtiqPourEC.etiq = filtreEtiqPourEC.etiq === e ? '' : e; redessiner(); } }));
+    items.push({ emoji: '∅', texte: 'Sans étiquette · ' + tous.filter(c => !(c.etiquettes || []).length).length, on: filtreEtiqPourEC.etiq === '∅',
+      faire: () => { filtreEtiqPourEC.etiq = filtreEtiqPourEC.etiq === '∅' ? '' : '∅'; redessiner(); } });
+  }
+  items.push({ titre: 'TYPE DE CONVERSATION' });
+  ckFamillesVisibles().filter(x => x[0]).forEach(x => {
+    const n = ckCompteGenre(x[0]);
+    items.push({ emoji: x[1], texte: x[2] + (n ? ' · ' + n : ''), on: filtreMessagerie === x[0], faire: () => ckChoisirFiltre(x[0]) });
+  });
+  items.push({ sep: true });
+  items.push({ emoji: '🗄️', texte: 'Archivées', on: filtreMessagerie === 'clos', faire: () => ckChoisirFiltre('clos') });
+  if(ckPeutSuperviser() && !dansLeTiroir()) items.push({ emoji: '🔒', texte: 'Supervision', on: filtreMessagerie === 'supervision', faire: () => ckChoisirFiltre('supervision') });
+  if(nombreDeFiltresEC()){
+    items.push({ sep: true }, { emoji: '✕', texte: 'Retirer tous les filtres', faire: () => {
+      filtreEtiqPourEC.moi = false; filtreEtiqPourEC.pour = ''; filtreEtiqPourEC.etiq = '';
+      if(filtreMessagerie) ckChoisirFiltre(''); else redessiner(); } });
+  }
+  menuGestesEC(ancre, 'Filtres', items);
+}
+
+/* Les filtres posés, en pastilles : un ✕ les retire */
+function pastillesDesFiltresEC(){
+  if(!nombreDeFiltresEC()) return null;
+  const r = document.createElement('div');
+  r.className = 'msgAPosees';
+  const puce = (texte, retirer) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'msgAPosee';
+    b.textContent = texte + ' ✕';
+    b.title = 'Retirer ce filtre';
+    b.addEventListener('click', ev => { ev.stopPropagation(); retirer(); });
+    r.appendChild(b);
+  };
+  const redessiner = () => dessinerLaListeMessagerie();
+  if(filtreMessagerie){
+    const f = RAIL_CK.find(x => x[0] === filtreMessagerie);
+    puce(f ? f[1] + ' ' + f[2] : (({ clos: '🗄️ Archivées', supervision: '🔒 Supervision' })[filtreMessagerie] || filtreMessagerie), () => ckChoisirFiltre(''));
+  }
+  if(filtreEtiqPourEC.moi) puce(msgCoulEmo(msgPersonne(msgMoiNom()).couleur) + ' Pour moi', () => { filtreEtiqPourEC.moi = false; redessiner(); });
+  if(filtreEtiqPourEC.pour) puce(filtreEtiqPourEC.pour === '∅' ? '∅ Personne dessus' : '👤 Pour ' + msgPersonne(filtreEtiqPourEC.pour).nom, () => { filtreEtiqPourEC.pour = ''; redessiner(); });
+  if(filtreEtiqPourEC.etiq) puce(filtreEtiqPourEC.etiq === '∅' ? '∅ Sans étiquette' : '🏷️ ' + filtreEtiqPourEC.etiq, () => { filtreEtiqPourEC.etiq = ''; redessiner(); });
+  return r;
 }
 
 async function lancerLaRecherche(mots, deja){
@@ -1345,26 +1516,30 @@ function dessinerLeFil(){
   /* --- 🧭 l'en-tête du cockpit : titre, 📌 ⏰ 📅 ✓ ⓘ ⋯ --- */
   zone.appendChild(ckEnteteDuFil(f, large));
 
-  /* 🏷️ 👤 v1366 — étiquettes + « qui s'en occupe » de CETTE conversation,
-     comme la boîte mail. On ne les propose pas en supervision (lecture). */
-  if(!f.enSupervision){
+  /* 🏷️ 👤 v1366 — étiquettes + « qui s'en occupe » de CETTE conversation.
+     🧭 v1414 — elles ne s'affichent plus que si elles sont posées, en
+     petites pastilles ; on les coche dans ⓘ Infos (un toucher y mène). */
+  if(!f.enSupervision && ((c.etiquettes || []).length || (c.pour || []).length)){
     const bt = document.createElement('div');
-    bt.className = 'msgFilEtiq';
-    const apres = () => {
-      if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c.id) dessinerLeFil();
-      dessinerLaListeMessagerie();
-    };
-    const bEt = document.createElement('button');
-    bEt.type = 'button'; bEt.className = 'msgFilEtiqB';
-    bEt.textContent = (c.etiquettes || []).length ? ('🏷️ ' + c.etiquettes.join(' · ')) : '🏷️ Étiquettes';
-    bEt.addEventListener('click', ev => { ev.stopPropagation(); menuEtiquettesConvEC(c, bEt, apres); });
-    bt.appendChild(bEt);
-    const bPr = document.createElement('button');
-    bPr.type = 'button'; bPr.className = 'msgFilEtiqB';
-    if((c.pour || []).length){ bPr.appendChild(document.createTextNode('Pour : ')); (c.pour || []).forEach(nm => bPr.appendChild(msgRondPour(nm))); }
-    else bPr.textContent = '👤 Pour…';
-    bPr.addEventListener('click', ev => { ev.stopPropagation(); menuPourConvEC(c, bPr, apres); });
-    bt.appendChild(bPr);
+    bt.className = 'msgFilEtiq msgAPosees';
+    (c.etiquettes || []).forEach(e => {
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'msgAPosee';
+      x.appendChild(pointEtiquetteEC(e));
+      x.appendChild(document.createTextNode(e));
+      x.title = 'Étiquettes : dans ⓘ Infos';
+      x.addEventListener('click', () => ckBasculerInfos(f, large));
+      bt.appendChild(x);
+    });
+    (c.pour || []).forEach(nm => {
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'msgAPosee';
+      x.appendChild(msgRondPour(nm));
+      x.appendChild(document.createTextNode('Pour ' + msgPersonne(nm).nom));
+      x.title = 'Qui s’en occupe : dans ⓘ Infos';
+      x.addEventListener('click', () => ckBasculerInfos(f, large));
+      bt.appendChild(x);
+    });
     zone.appendChild(bt);
   }
 
@@ -1408,21 +1583,37 @@ function dessinerLeFil(){
      s'il faut poser la pointe et l'heure. */
   const msgs = (f.messages || []);
   let jourPose = '';
+  /* 🧭 v1414 — où l'heure se pose entre deux messages (plus de 20 min) :
+     décidé d'avance, parce qu'elle coupe aussi le groupe de bulles. */
+  const heureAvant = msgs.map((m, i) => {
+    if(!i || m.auteurGenre === 'systeme') return false;
+    if(String(m.envoyeLe || '').slice(0, 10) !== String(msgs[i - 1].envoyeLe || '').slice(0, 10)) return false;
+    const a = minutesDuMessageEC(msgs[i - 1]), b = minutesDuMessageEC(m);
+    return a !== null && b !== null && b - a >= 20;
+  });
   msgs.forEach((m, i) => {
     const jour = String(m.envoyeLe || '').slice(0, 10);
     const neuf = jour && jour !== jourPose;
+    const heure = String(m.envoyeLe || '').slice(11, 16);
     if(neuf){
       jourPose = jour;
       const j = document.createElement('div');
       j.className = 'msgJour';
       j.innerHTML = '<span></span>';
-      j.firstChild.textContent = jourLisibleMessagerie(jour);
+      /* 🧭 v1414 — « AUJOURD'HUI · 12:31 » : l'heure du premier message */
+      j.firstChild.textContent = jourLisibleMessagerie(jour) + (heure ? ' · ' + heure : '');
+      fil.appendChild(j);
+    }else if(heureAvant[i]){
+      const j = document.createElement('div');
+      j.className = 'msgJour msgHeure';
+      j.innerHTML = '<span></span>';
+      j.firstChild.textContent = heure;
       fil.appendChild(j);
     }
-    const avant = neuf ? null : (msgs[i - 1] || null);
+    const avant = (neuf || heureAvant[i]) ? null : (msgs[i - 1] || null);
     const apres = msgs[i + 1] || null;
     fil.appendChild(bulleDuMessage(m, avant,
-      (apres && String(apres.envoyeLe || '').slice(0, 10) === jour) ? apres : null));
+      (apres && String(apres.envoyeLe || '').slice(0, 10) === jour && !heureAvant[i + 1]) ? apres : null));
     if(Number(m.rang || 0) > rangLuEC) rangLuEC = Number(m.rang || 0);
   });
 
@@ -1710,6 +1901,28 @@ function empreinteDesReactions(d){
    UNE BULLE
    ------------------------------------------------------------ */
 
+/* 🧭 v1414 — le nom de l'auteur sert-il, dans CE fil ? */
+function signatureUtileEC(m){
+  const f = filOuvertEC || {};
+  const c = f.conv || {};
+  if(m.motif === 'bilanMail' || m.motif === 'renseignements') return true;
+  if(c.genre === 'groupe') return true;
+  if(m.auteurGenre === 'eleve') return false;
+  if(c.genre === 'vitrine') return m.auteurGenre === 'user';
+  if(c.genre === 'interne'){
+    const gens = (f.membres || []).filter(x => x.genre === 'user' || x.genre === 'eleve');
+    return gens.length > 2;
+  }
+  /* le fil d'un élève : un message de l'équipe qui n'est pas de moi */
+  return true;
+}
+/* 🧭 v1414 — des minutes depuis « jj/mm/aaaa hh:mm » (pour poser l'heure
+   entre deux groupes de messages éloignés de plus de 20 minutes) */
+function minutesDuMessageEC(m){
+  const t = String((m && m.envoyeLe) || '').slice(11).match(/^(\d{1,2})[:h](\d{2})/);
+  return t ? Number(t[1]) * 60 + Number(t[2]) : null;
+}
+
 function bulleDuMessage(m, avant, apres){
   const moi = normaliserMessagerie(ACCES.moniteur || '');
   const sienne = (m.auteurGenre !== 'systeme') &&
@@ -1804,7 +2017,10 @@ function bulleDuMessage(m, avant, apres){
   /* La signature ne se répète pas dans une suite, et jamais sur ses
      propres bulles : il sait qui il est, et la répéter vole une
      ligne sur un téléphone. */
-  if(!sienne && !suite){
+  /* 🧭 v1414 — le nom seulement là où plusieurs parlent (un groupe, un
+     collègue dans le fil d'un élève) : dans le fil de Camille, ses
+     messages n'ont pas besoin de « Camille Le Bihan · élève ». */
+  if(!sienne && !suite && signatureUtileEC(m)){
     const sig = document.createElement('span');
     sig.className = 'sig';
     sig.textContent = (m.auteur || '') + (m.auteurGenre === 'eleve' ? ' · élève' : '') +
@@ -1924,11 +2140,19 @@ function bulleDuMessage(m, avant, apres){
      Seule la dernière d'une suite la porte : trois heures à la
      minute près sur trois lignes consécutives ne disent rien de
      plus qu'une seule. */
-  if(!encore){
+  /* 🧭 v1414 — façon Messenger : l'heure n'est plus dans les bulles. Elle
+     est entre les groupes de messages (voir dessinerLeFil), au survol, et
+     un toucher sur une bulle l'affiche dessous. */
+  {
     const h = document.createElement('span');
     h.className = 'h';
     h.textContent = String(m.envoyeLe || '').slice(11) || m.envoyeLe || '';
     b.appendChild(h);
+    b.title = String(m.envoyeLe || '');
+    b.addEventListener('click', ev => {
+      if(ev.target.closest('a, button, img, video, audio, input, textarea, .msgReacs, .msgCite')) return;
+      b.classList.toggle('hVue');
+    });
   }
 
   /* 😊 Les réactions — v1086.
@@ -2109,12 +2333,13 @@ function zoneDEcritureDuFil(id){
       envoyerLePouce();
     }
   });
-  l.appendChild(b);
+  /* 👍 🎤 😊 v1298 — David : « pouce, micro, émoji ».
+     🧭 v1414 — David, le 12 novembre, choisit la barre de la maquette A,
+     comme Messenger : ＋, le champ avec 😊 dedans, 🎤, puis 👍 tout au
+     bout — qui devient ➤ dès qu'on écrit (🎤 s'efface alors). */
+  champ.appendChild(emo);
   if(voc) l.appendChild(voc);
-  /* 👍 🎤 😊 v1298 — David : « mets quand même le pouce en rapide avant
-     l'émoji : pouce, micro, émoji ». Champ vide : 👍 🎤 😊 ; dès qu'on
-     écrit : ➤ 😊. Le 😊 sort du champ et reste au bout, toujours. */
-  l.appendChild(emo);
+  l.appendChild(b);
 
   /* ⚠️ LE CHAMP GRANDIT, IL NE DÉFILE PAS. Deux lignes figées
      obligeaient à faire défiler un message de cinq lignes dans une
@@ -4115,6 +4340,9 @@ function dessinerLaListeObjets(){
   const zone = zoneDesObjets();
   if(!zone) return;
   zone.innerHTML = '';
+  /* 🧭 v1414 — « Discussions | ✉️ | ✋ » en tête : la barre des vues
+     de l'onglet est cachée (messagerie façon Messenger) */
+  if(zone.id === 'objetsZone' && typeof teteSegmentEC === 'function'){ const t = teteSegmentEC(); if(t) zone.appendChild(t); }
 
   /* Deux boutons, pas une liste déroulante : il n'y a que deux
      façons de regarder cette liste. */
