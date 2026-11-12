@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:19 — v1390 */
+/* Déployé le 12/11/2026 à 14:17 — v1414 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -126,7 +126,7 @@ function ckBasculerLaColonneFiche(){
 function ckSquelette(){
   const zone = $('messagerieZone');
   if(!zone) return null;
-  zone.classList.remove('ckp', 'ckpEtroit', 'msgEtroit');
+  zone.classList.remove('ckp', 'ckpEtroit', 'msgEtroit', 'msgA');
   let k = null;
   Array.prototype.forEach.call(zone.children, x => {
     if(x.classList && x.classList.contains('ckpLarge')) k = x;
@@ -134,7 +134,7 @@ function ckSquelette(){
   if(!k){
     zone.innerHTML = '';
     k = document.createElement('div');
-    k.className = 'ckp ckpLarge';
+    k.className = 'ckp ckpLarge msgA';   /* 🧭 v1414 — façon Messenger */
     /* 🧭 v1296 — plus de rail : les 4 onglets et ⋯ › Filtrer sont en
        tête de la liste (maquette validée par David le 28 octobre). */
     k.innerHTML = '<div class="ckpListe" id="ckpListe"></div>' +
@@ -169,7 +169,7 @@ function ckAjusterHauteur(k){
    remplacent (liste, puis fil) comme sur un téléphone. */
 function ckEtroit(zone){
   if(!zone) return zone;
-  zone.classList.add('ckp', 'ckpEtroit');
+  zone.classList.add('ckp', 'ckpEtroit', 'msgA');   /* 🧭 v1414 — façon Messenger */
   Array.prototype.slice.call(zone.children).forEach(x => {
     if(x.classList && x.classList.contains('ckpLarge')) x.remove();
   });
@@ -296,6 +296,27 @@ async function ckMarquer(id, quoi){
   }
   dessinerLaListeMessagerie();
   if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === id) dessinerLeFil();
+}
+
+/* ● v1414 — REMETTRE EN NON LU, OU MARQUER COMME LUE. David, le 12
+   novembre : glisser une conversation vers la gauche (téléphone) et le
+   bouton au survol (ordinateur) remettent en non lu, à la place
+   d'« Archiver ». Sur une conversation déjà non lue, le même geste la
+   marque comme lue. */
+async function ckMarquerNonLu(id){
+  const c = (conversationsEC || []).find(x => x.id === id) || null;
+  const nonLue = !!c && (Number(c.nonLus || 0) > 0 || ckRevenu(c));
+  try{ await appelPrep({ action: nonLue ? 'convLu' : 'convNonLu', id: id }); }
+  catch(e){ if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e)); return; }
+  if(c) c.nonLus = nonLue ? 0 : Math.max(1, Number(c.nonLus || 0));
+  /* Une conversation remise en non lu ne reste pas ouverte : elle se
+     relirait aussitôt, et le geste n'aurait rien fait. */
+  if(!nonLue && filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === id){
+    if(typeof fermerLeFil === 'function') fermerLeFil();
+  }
+  try{ poserLesComptesMessagerie(compterLesNonLusEC()); }catch(e){}
+  if(typeof showToast === 'function') showToast(nonLue ? '✓ Marquée comme lue' : '● Remise en non lu');
+  dessinerLaListeMessagerie();
 }
 
 /* Ce qui, dans la liste, se VOIT : qui, combien de non-lus, le
@@ -540,15 +561,9 @@ function ckFiltreActif(){
 }
 /* ⋯ de la liste : filtrer par type, sa photo, les réglages, choisir… */
 function ckMenuDeLaListe(ancre){
+  /* 🧭 v1414 — filtrer par type, Archivées et Supervision sont passés
+     dans « Filtres », à côté de la recherche. */
   const items = [];
-  items.push({ titre: 'FILTRER PAR TYPE' });
-  ckFamillesVisibles().filter(x => x[0]).forEach(x => {
-    const n = ckCompteGenre(x[0]);
-    items.push({ emoji: x[1], texte: x[2] + (n ? ' · ' + n : ''), on: filtreMessagerie === x[0], cle: 'filtre-' + x[0], faire: () => ckChoisirFiltre(x[0]) });
-  });
-  items.push({ emoji: '🗄️', texte: 'Archivées', on: filtreMessagerie === 'clos', cle: 'filtre-clos', faire: () => ckChoisirFiltre('clos') });
-  if(ckPeutSuperviser() && !dansLeTiroir()) items.push({ emoji: '🔒', texte: 'Supervision', on: filtreMessagerie === 'supervision', cle: 'filtre-supervision', faire: () => ckChoisirFiltre('supervision') });
-  items.push({ sep: true });
   if(typeof ouvrirFenetrePhotoProfil === 'function'){
     items.push({ emoji: '🖼️', texte: 'Ma photo', faire: () => ouvrirFenetrePhotoProfil({ cible: 'moi' }) });
   }
@@ -674,8 +689,12 @@ function ckEnteteDuFil(f, large){
     tete.appendChild(av);
   }
 
-  const tt = document.createElement('div');
+  /* 🧭 v1414 — LE NOM OUVRE ⓘ INFOS, comme Messenger (David, 12 novembre :
+     « le menu ⋯ de la conversation rangé dans Infos »). */
+  const tt = document.createElement('button');
+  tt.type = 'button';
   tt.className = 'tt';
+  tt.title = 'Infos de la conversation';
   const t = document.createElement('div');
   t.className = 't';
   t.textContent = (Number(c.epingle || 0) ? '📌 ' : '') +
@@ -690,58 +709,20 @@ function ckEnteteDuFil(f, large){
   s.appendChild(document.createTextNode(ckSousTitre(f)));
   tt.appendChild(t);
   tt.appendChild(s);
+  tt.addEventListener('click', () => ckBasculerInfos(f, large));
   tete.appendChild(tt);
 
+  /* 🧭 v1414 — À DROITE : 📞 (et 🎥 entre collègues, dans boutonAppelDuFilEC)
+     puis ⓘ. Le ⋯, ⏰ et « Archiver » sont dans ⓘ Infos. */
   const b = document.createElement('div');
   b.className = 'b';
-  const clos = Number(c.fermee || 0);
-  const rond = 'rond';
-
-  /* 🧭 v1296 — UNE SEULE TÊTE (maquette validée le 28 octobre) :
-     téléphone et tiroir « ← nom 📞 ⋯ » (et ✕ dans le tiroir) ; grand
-     écran « 📞 ✓ Réglé ⏰ ⓘ ⋯ ». Le reste (📌, 📅, et sur le
-     téléphone ⏰ ✓ ⓘ) est dans ⋯, en tête du menu. */
   const bApp = (typeof boutonAppelDuFilEC === 'function') ? boutonAppelDuFilEC(f) : null;
   if(bApp) b.appendChild(bApp);
-  const rap = ckRappelActif(Object.assign({}, c, { nonLus: 0 }));
-  const peutRegler = !clos && !f.enSupervision && f.estMembre && ckPeutGerer();
-  const extras = [];
-  const fiche = () => {
-    if(large && ckAvecFiche()) ckBasculerLaColonneFiche();
-    else { ckFicheOuverte = !ckFicheOuverte; dessinerLeFil(); }
-  };
-  /* 🗄️ v1382 — David, le 7 novembre : « mets le bouton réglé de la
-     messagerie dans les 3 points et renomme-le en archivé, car réglé ne
-     veut rien dire pour nous ». Plus de bouton dans la tête du fil :
-     « 🗄️ Archiver » est en tête du ⋯, sur tous les écrans. */
-  if(peutRegler) extras.push({ emoji: '🗄️', texte: 'Archiver (elle part dans 🗄️ Archivées)', faire: () => ckRegler(f) });
-  if(large){
-    if(f.estMembre) b.appendChild(ckBouton('⏰', rap ? 'Retirer le rappel' : 'Me la rappeler demain 9h', () => ckMarquer(c.id, 'rappel'), 'rond' + (rap ? ' on' : '')));
-    const ficheVue = ckAvecFiche() ? !ckFicheCachee() : ckFicheOuverte;
-    b.appendChild(ckBouton('ⓘ', ficheVue ? 'Cacher la fiche' : (c.eleve ? 'Sa fiche' : 'Les infos'), () => fiche(), 'rond' + (ficheVue ? ' on' : '')));
-  }else{
-    if(f.estMembre) extras.push({ emoji: '⏰', texte: rap ? 'Retirer le rappel' : 'Me la rappeler demain 9h', faire: () => ckMarquer(c.id, 'rappel') });
-    extras.push({ emoji: 'ⓘ', texte: c.eleve ? 'Sa fiche' : 'Les infos', faire: () => fiche() });
-  }
-  /* 🚗 v1390 — le nom d'une conversation de véhicule se change (David) */
-  if(c.vehicule && f.peutEcrire && typeof renommerVehiculeEC === 'function') extras.push({ emoji: '✏️', texte: 'Renommer la conversation', faire: () => renommerVehiculeEC(f) });
-  if(f.estMembre) extras.push({ emoji: '📌', texte: Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', faire: () => ckMarquer(c.id, 'epingle') });
-  if(c.eleve && f.peutEcrire && c.genre !== 'groupe'){
-    extras.push({ emoji: '📅', texte: 'Proposer un autre créneau', faire: () => { ckCreneauOuvert = !ckCreneauOuvert; dessinerLeFil(); } });
-  }
-
-  /* Le ⋯ : ces gestes-là, puis les actions de barreDesActionsDuFil
-     — une seule liste décide de ce qui existe (v1079). */
-  const boite = document.createElement('div');
-  boite.className = 'msgMenuBoite';
-  const pts = document.createElement('button');
-  pts.type = 'button';
-  pts.className = 'ckBt ' + rond + ' msgPts';
-  pts.textContent = '⋯';
-  pts.title = 'Plus : épingler, participants, exporter…';
-  pts.addEventListener('click', ev => { ev.stopPropagation(); basculerLeMenuDuFil(boite, f, extras); });
-  boite.appendChild(pts);
-  b.appendChild(boite);
+  const ouvert = ckInfosOuvertes(large);
+  const bi = ckBouton('ⓘ', ouvert ? 'Fermer les infos' : 'Infos : épingler, rappel, archiver, étiquettes, participants…', () => ckBasculerInfos(f, large), 'rond msgAInfoB' + (ouvert ? ' on' : ''));
+  bi.innerHTML = '<svg class="ckRetourIc" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>';
+  bi.setAttribute('aria-label', 'Infos');
+  b.appendChild(bi);
   /* Le tiroir n'a plus sa propre tête quand un fil est ouvert : ✕ ici */
   if(!large && typeof dansLeTiroir === 'function' && dansLeTiroir()){
     b.appendChild(ckBouton('✕', 'Fermer la messagerie', () => fermerTiroirMessagerie(), 'rond'));
@@ -749,6 +730,236 @@ function ckEnteteDuFil(f, large){
 
   tete.appendChild(b);
   return tete;
+}
+
+/* ⓘ ouvert ? Colonne de droite sur grand écran, panneau ailleurs. */
+function ckInfosOuvertes(large){
+  return (large && ckAvecFiche()) ? !ckFicheCachee() : ckFicheOuverte;
+}
+function ckBasculerInfos(f, large){
+  if(large && ckAvecFiche()) ckBasculerLaColonneFiche();
+  else { ckFicheOuverte = !ckFicheOuverte; dessinerLeFil(); }
+}
+
+/* ============================================================
+   ⓘ INFOS — v1414 (proposition A, David le 12 novembre 2026)
+
+   Tout ce qui était dans ⋯ et dans les boutons de la tête du fil,
+   en un seul endroit, comme les « infos » d'une conversation
+   Messenger :
+     · qui (photo, nom, type) ;
+     · quatre ou cinq ronds : épingler, rappel, non lu, archiver,
+       exporter ;
+     · la fiche (élève, visiteur…) — ckFicheEclair, telle quelle ;
+     · les étiquettes et « qui s'en occupe », qu'on coche ici ;
+     · les autres gestes (créneau, participants, lui écrire seul,
+       photo du groupe, renommer, supprimer…).
+   Sur ordinateur : la colonne de droite. Tablette : un panneau sur
+   le côté du fil. Téléphone et tiroir : un écran par-dessus le fil.
+   ============================================================ */
+function ckPanneauInfos(f, mode){
+  const c = f.conv || {};
+  const large = mode !== 'plein';
+  const box = document.createElement('div');
+  box.className = 'msgAInfos ' + mode;
+  const fermer = () => {
+    if(mode === 'colonne') ckBasculerLaColonneFiche();
+    else { ckFicheOuverte = false; dessinerLeFil(); }
+  };
+  const apres = () => {
+    if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c.id) dessinerLeFil();
+    dessinerLaListeMessagerie();
+  };
+
+  /* la tête */
+  const tete = document.createElement('div');
+  tete.className = 'msgAInfosT';
+  if(mode === 'plein'){
+    const r = ckBouton('←', 'Revenir à la conversation', fermer, 'rond ckRetour');
+    r.innerHTML = ckIconeTrait('retour', 'ckRetourIc');
+    tete.appendChild(r);
+  }
+  const ti = document.createElement('b');
+  ti.textContent = 'Infos';
+  tete.appendChild(ti);
+  if(mode !== 'plein') tete.appendChild(ckBouton('✕', 'Fermer les infos', fermer, 'rond'));
+  box.appendChild(tete);
+
+  const corps = document.createElement('div');
+  corps.className = 'msgAInfosC';
+  box.appendChild(corps);
+
+  /* qui */
+  const qui = document.createElement('div');
+  qui.className = 'msgAQui';
+  if(typeof rondPhoto === 'function'){
+    const cleP = clePhotoDuFil(c, f.membres || []);
+    const sansNom = c.genre === 'groupe' || c.genre === 'vitrine';
+    const av = rondPhoto(cleP, sansNom ? '' : ckTitreListe(Object.assign({}, c, { membres: f.membres || [] })), 76, 'msgAQuiAv');
+    if(!av.querySelector('img') && !av.textContent) av.textContent = c.genre === 'groupe' ? '👥' : c.genre === 'vitrine' ? '👋' : '💬';
+    if(c.vehicule && typeof rondVehiculeEC === 'function'){ av.innerHTML = ''; rondVehiculeEC(av, c); }
+    qui.appendChild(av);
+  }
+  const nm = document.createElement('b');
+  nm.textContent = ckTitreListe(Object.assign({}, c, { membres: f.membres || [] }));
+  qui.appendChild(nm);
+  const st = document.createElement('span');
+  st.textContent = ckSousTitre(f);
+  qui.appendChild(st);
+  corps.appendChild(qui);
+
+  /* les ronds */
+  const clos = Number(c.fermee || 0);
+  const peutRegler = !clos && !f.enSupervision && f.estMembre && ckPeutGerer();
+  const rap = ckRappelActif(Object.assign({}, c, { nonLus: 0 }));
+  const ronds = document.createElement('div');
+  ronds.className = 'msgARonds';
+  const rond = (emoji, mot, titre, on, faire) => {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = on ? 'on' : '';
+    x.title = titre;
+    x.innerHTML = '<i aria-hidden="true"></i><span></span>';
+    x.firstChild.textContent = emoji;
+    x.lastChild.textContent = mot;
+    x.addEventListener('click', async () => {
+      x.disabled = true;
+      try{ await faire(); }catch(e){ if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e)); }
+      x.disabled = false;
+    });
+    ronds.appendChild(x);
+  };
+  if(f.estMembre){
+    rond('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler', 'Épingler en haut de ma liste', !!Number(c.epingle || 0), () => ckMarquer(c.id, 'epingle'));
+    rond('⏰', rap ? 'Retirer le rappel' : 'Demain 9\u00a0h', 'Me la rappeler demain 9h', rap, () => ckMarquer(c.id, 'rappel'));
+    rond('●', 'Non lu', 'Remettre en non lu (elle repasse en gras dans ta liste)', false, () => ckMarquerNonLu(c.id));
+  }
+  if(peutRegler) rond('🗄️', 'Archiver', 'Archiver : elle part dans 🗄️ Archivées', false, () => ckRegler(f));
+  else if(clos && f.estMembre && ckPeutGerer()) rond('↺', 'Désarchiver', 'La conversation redevient active', false, async () => {
+    await appelPrep({ action: 'convFermer', id: c.id, fermee: '0' });
+    await ouvrirLeFil(c.id);
+    afficherMessagerie(true);
+  });
+  rond('📤', 'Exporter', 'Le fil entier en texte, à copier', false, () => exporterLeFil(f));
+  corps.appendChild(ronds);
+
+  /* la fiche (sans sa photo : elle est juste au-dessus) */
+  const fiche = ckFicheEclair(f);
+  if(fiche){
+    const sec = ckSectionInfos(c.eleve && c.genre !== 'groupe' ? 'Sa fiche' : c.genre === 'vitrine' ? 'Ce visiteur' : 'La conversation');
+    sec.appendChild(fiche);
+    corps.appendChild(sec);
+  }
+
+  /* étiquettes et « qui s'en occupe » */
+  if(!f.enSupervision){
+    const toutes = catalogueEtiquettesEC || [];
+    const se = ckSectionInfos('Étiquettes');
+    const ze = document.createElement('div');
+    ze.className = 'msgAPuces';
+    toutes.forEach(e => {
+      const pris = (c.etiquettes || []).indexOf(e) !== -1;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = pris ? 'on' : '';
+      b.setAttribute('aria-pressed', pris ? 'true' : 'false');
+      b.appendChild(pointEtiquetteEC(e));
+      b.appendChild(document.createTextNode(e));
+      b.addEventListener('click', async () => {
+        const l = (c.etiquettes || []).slice();
+        const k = l.indexOf(e);
+        if(k === -1) l.push(e); else l.splice(k, 1);
+        try{ await appelPrep({ action: 'convEtiqPour', id: c.id, etiquettes: l }); }
+        catch(err){ if(typeof showToast === 'function') showToast('Impossible : ' + (err.message || err)); return; }
+        c.etiquettes = l;
+        const e0 = conversationsEC.find(x => x.id === c.id); if(e0) e0.etiquettes = l;
+        apres();
+      });
+      ze.appendChild(b);
+    });
+    if(msgEstAdminEtiq()){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aj';
+      b.textContent = '➕ Nouvelle';
+      b.addEventListener('click', ev => { ev.stopPropagation(); menuEtiquettesConvEC(c, b, apres); });
+      ze.appendChild(b);
+    }
+    if(!ze.children.length){ const v = document.createElement('span'); v.className = 'vide'; v.textContent = 'Aucune étiquette encore.'; ze.appendChild(v); }
+    se.appendChild(ze);
+    corps.appendChild(se);
+
+    const sp = ckSectionInfos('Qui s’en occupe');
+    const zp = document.createElement('div');
+    zp.className = 'msgAPuces';
+    personnesEC.forEach(pe => {
+      const pris = msgEstPour(c, pe.nom);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = pris ? 'on' : '';
+      b.setAttribute('aria-pressed', pris ? 'true' : 'false');
+      b.appendChild(msgRondPour(pe.nom));
+      b.appendChild(document.createTextNode(pe.nom + (msgNormNom(pe.nom) === msgNormNom(msgMoiNom()) ? ' (moi)' : '')));
+      b.addEventListener('click', async () => {
+        const l = (c.pour || []).filter(x => msgNormNom(x) !== msgNormNom(pe.nom));
+        if(!pris) l.push(pe.nom);
+        try{ await appelPrep({ action: 'convEtiqPour', id: c.id, pour: l }); }
+        catch(err){ if(typeof showToast === 'function') showToast('Impossible : ' + (err.message || err)); return; }
+        c.pour = l;
+        const e0 = conversationsEC.find(x => x.id === c.id); if(e0) e0.pour = l;
+        apres();
+      });
+      zp.appendChild(b);
+    });
+    if(msgEstAdminEtiq()){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aj';
+      b.textContent = '🎨 Couleurs';
+      b.addEventListener('click', ev => { ev.stopPropagation(); menuCouleursPersonnesEC(b, apres); });
+      zp.appendChild(b);
+    }
+    if(zp.children.length){ sp.appendChild(zp); corps.appendChild(sp); }
+  }
+
+  /* les autres gestes : ceux de la tête d'avant, puis ceux de ⋯ */
+  const gestes = [];
+  if(c.eleve && f.peutEcrire && c.genre !== 'groupe'){
+    gestes.push({ emoji: '📅', texte: 'Proposer un autre créneau', faire: () => { ckFicheOuverte = false; ckCreneauOuvert = true; dessinerLeFil(); } });
+  }
+  if(c.vehicule && f.peutEcrire && typeof renommerVehiculeEC === 'function') gestes.push({ emoji: '✏️', texte: 'Renommer la conversation', faire: () => renommerVehiculeEC(f) });
+  Array.prototype.slice.call(barreDesActionsDuFil(f).children).forEach(b => {
+    const tx = String(b.textContent || '').trim();
+    if(/Exporter|Sortir des archives/.test(tx)) return;   /* déjà dans les ronds */
+    const m = tx.match(/^(\S+)\s+(.*)$/);
+    gestes.push({ emoji: m ? m[1] : '•', texte: m ? m[2] : tx, danger: /Supprimer/.test(tx), faire: () => b.click() });
+  });
+  if(gestes.length){
+    const sg = ckSectionInfos('Autres gestes');
+    const l = document.createElement('div');
+    l.className = 'msgAGestes';
+    gestes.forEach(g => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = g.danger ? 'danger' : '';
+      b.innerHTML = '<span class="e" aria-hidden="true"></span><span class="tx"></span>';
+      b.firstChild.textContent = g.emoji;
+      b.lastChild.textContent = g.texte;
+      b.addEventListener('click', () => { try{ const r = g.faire(); if(r && r.catch) r.catch(() => {}); }catch(e){} });
+      l.appendChild(b);
+    });
+    sg.appendChild(l);
+    corps.appendChild(sg);
+  }
+  return box;
+}
+function ckSectionInfos(titre){
+  const s = document.createElement('section');
+  s.className = 'msgASec';
+  const h = document.createElement('h4');
+  h.textContent = titre;
+  s.appendChild(h);
+  return s;
 }
 
 async function ckRegler(f){
@@ -2520,40 +2731,27 @@ function ckDessinerLaFiche(f){
   const x = $('ckpCtx');
   if(!x) return;
   x.innerHTML = '';
-  if(f) x.appendChild(ckFicheEclair(f));
+  /* 🧭 v1414 — la colonne de droite, c'est ⓘ Infos */
+  if(f) x.appendChild(ckPanneauInfos(f, 'colonne'));
 }
 
 /* Sur l'étroit, la fiche s'ouvre en feuille, par-dessus le fil.
    ⚠️ « fixed », et calée sur la zone : dans le tiroir de 400 px une
    feuille de toute la largeur de l'écran recouvrirait l'appli. */
 function ckFeuilleFiche(f, zone){
-  const c = (f && f.conv) || {};
+  /* 🧭 v1414 — ⓘ Infos : un panneau sur le côté du fil (tablette), un
+     écran par-dessus le fil (téléphone, tiroir). Posé DANS la zone,
+     en absolu : il suit le fil, le tiroir et le clavier. */
+  const large = ckLarge();
   const box = document.createElement('div');
-  const r = zone.getBoundingClientRect();
-  const voile = document.createElement('div');
-  voile.className = 'ckVoile';
-  voile.addEventListener('click', () => { ckFicheOuverte = false; dessinerLeFil(); });
-  const fe = document.createElement('div');
-  fe.className = 'ckFeuille';
-  if(r.width){
-    fe.style.left = Math.max(0, r.left) + 'px';
-    fe.style.width = Math.min(r.width, window.innerWidth) + 'px';
+  box.className = 'msgAInfosBoite' + (large ? ' cote' : ' plein');
+  if(large){
+    const voile = document.createElement('div');
+    voile.className = 'msgAInfosVoile';
+    voile.addEventListener('click', () => { ckFicheOuverte = false; dessinerLeFil(); });
+    box.appendChild(voile);
   }
-  const t = document.createElement('div');
-  t.className = 't';
-  t.textContent = 'ⓘ ' + (c.eleve || ckTitreListe(Object.assign({}, c, { membres: f.membres || [] })));
-  const x = ckBouton('✕', 'Fermer', () => { ckFicheOuverte = false; dessinerLeFil(); }, 'rond');
-  t.appendChild(x);
-  fe.appendChild(t);
-  fe.appendChild(ckFicheEclair(f));
-  /* Le créneau, qui n'a pas de place dans l'en-tête du téléphone. */
-  if(c.eleve && f.peutEcrire && c.genre !== 'groupe'){
-    fe.appendChild(ckBouton('📅 Proposer un créneau', '', () => {
-      ckFicheOuverte = false; ckCreneauOuvert = true; dessinerLeFil();
-    }));
-  }
-  box.appendChild(voile);
-  box.appendChild(fe);
+  box.appendChild(ckPanneauInfos(f, large ? 'cote' : 'plein'));
   return box;
 }
 
