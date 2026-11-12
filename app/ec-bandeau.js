@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 15:41 — v1381 */
+/* Déployé le 12/11/2026 à 14:17 — v1414 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -1346,6 +1346,7 @@ function dessinerBandeau(){
   const zone = document.getElementById('bandeauJour');
   if(!zone) return;
   zone.innerHTML = '';
+  poserPastilleEntete(null);
 
   if(!bandeauPret) return;
   planifierLesMessages();
@@ -1395,8 +1396,15 @@ function dessinerBandeau(){
      décidé par les trente lignes en attente serait rouge tous les
      jours, y compris sur un « Aujourd'hui » parfaitement calme. */
   const urgent = duGroupe.some(l => l.urgente);
-  const reduit = !!lireReglageBandeau(CLE_BANDEAU_REDUIT,
-                                      bandeauReplieParDefaut());
+  /* 🧭 v1414 — DANS LA MESSAGERIE, UNE PASTILLE DANS L'EN-TÊTE.
+     David, le 12 novembre (proposition A) : le bandeau se replie en
+     pastille « ⚠️ 4 » pour laisser toute la hauteur aux conversations.
+     Toucher la pastille le déplie ici, ▲ le replie — sans toucher au
+     réglage des autres onglets. */
+  const enMsg = bandeauEnMessagerie();
+  const reduit = enMsg ? !bandeauOuvertEnMsg
+                       : !!lireReglageBandeau(CLE_BANDEAU_REDUIT, bandeauReplieParDefaut());
+
 
   /* ⚠️ LE FOND NE CRIE PAS, LE TEXTE SI.
 
@@ -1412,6 +1420,7 @@ function dessinerBandeau(){
      liseré de gauche. */
   const teinte = { bord: urgent ? 'var(--red)' : 'var(--orange)',
                    fond: 'var(--bandeau-bg)' };
+  poserPastilleEntete(enMsg && reduit ? (comptes.auj || 0) : null, lignes.length, teinte);
 
   if(reduit){
     /* ⚠️ LA PASTILLE DIT « AUJOURD'HUI », ET ELLE DOIT DIRE VRAI.
@@ -1419,6 +1428,7 @@ function dessinerBandeau(){
        d'entre elles n'étaient pas pour aujourd'hui : c'est ce
        chiffre-là qui a fait refermer le bandeau et ne plus le
        rouvrir. */
+    if(enMsg){ if(!importants.length && !rappel) zone.style.display = 'none'; return; }
     zone.appendChild(bandeauReduit(comptes.auj || 0, lignes.length, teinte));
     return;
   }
@@ -1563,6 +1573,28 @@ function titreFamilleBandeau(cle, combien, avecEspace){
   return t;
 }
 
+/* 🧭 v1414 — la pastille du bandeau dans l'en-tête, onglet Messagerie */
+let bandeauOuvertEnMsg = false;
+function bandeauEnMessagerie(){ return document.body.getAttribute('data-onglet') === 'messagerie'; }
+function poserPastilleEntete(aujourdhui, total, teinte){
+  let p = document.getElementById('bandeauPastille');
+  if(aujourdhui === null){ if(p) p.remove(); return; }
+  if(!p){
+    p = document.createElement('button');
+    p.type = 'button';
+    p.id = 'bandeauPastille';
+    p.addEventListener('click', () => { bandeauOuvertEnMsg = true; dessinerBandeau(); });
+    const t = document.querySelector('header .ec-titre');
+    if(t && t.parentNode) t.parentNode.insertBefore(p, t.nextSibling); else return;
+  }
+  const combien = aujourdhui;
+  p.style.borderColor = teinte.bord;
+  p.title = combien ? combien + ' chose' + (combien > 1 ? 's' : '') + ' à voir aujourd’hui' : 'Rien pour aujourd’hui · ' + total + ' en attente';
+  p.setAttribute('aria-label', p.title);
+  p.innerHTML = '<span aria-hidden="true">' + (combien ? '⚠️' : '✅') + '</span><span class="mots">choses à voir</span>' +
+    '<b>' + (combien || total) + '</b><span class="fl" aria-hidden="true">▾</span>';
+}
+
 function bandeauReduit(aujourdhui, total, teinte){
   /* ⚠️ « RIEN POUR AUJOURD'HUI » N'EST PAS « RIEN ». S'il ne reste
      que des choses en attente, la pastille doit le dire — sinon elle
@@ -1622,6 +1654,7 @@ function enteteBandeau(combien){
   red.textContent = '▴';
   red.title = 'Réduire';
   red.addEventListener('click', () => {
+    if(bandeauEnMessagerie()){ bandeauOuvertEnMsg = false; dessinerBandeau(); return; }
     ecrireReglageBandeau(CLE_BANDEAU_REDUIT, true);
     dessinerBandeau();
   });
