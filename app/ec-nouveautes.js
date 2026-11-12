@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 14:17 — v1414 */
+/* Déployé le 12/11/2026 à 14:27 — v1415 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1415,
+    date: 'Jeudi 12 novembre 2026',
+    resume: '💬 La messagerie de l’espace élève, façon Messenger aussi',
+    quoi: [
+      { emoji: '📱',
+        titre: 'Côté élève, le même modèle que l’équipe',
+        texte: 'Dans l’espace élève, onglet 💬 Écrire : une tête « Messages » avec sa photo, les demandes ⏰ Retard, 🚫 Annuler, 🧤 Objet et « Écrire au bureau / à son moniteur » en pastilles, puis ses conversations sans cadres (les non-lues en gras avec leur pastille verte).' },
+      { emoji: '💬',
+        titre: 'Les bulles et la barre',
+        texte: 'Ses messages en vert plein, ceux de l’école collés par personne avec le nom écrit une fois (pas de nom dans la conversation avec son moniteur), l’heure entre les groupes de messages, et la barre ＋, le texte avec 😊 dedans, 🎤, 👍 qui devient ➤.' }
+    ]
+  },
   {
     version: 1414,
     date: 'Jeudi 12 novembre 2026',
