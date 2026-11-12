@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 14:45 — v1354 */
+/* Déployé le 12/11/2026 à 12:01 — v1412 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -156,7 +156,7 @@ async function aiCharger(force){
   AI.enCours = (async () => {
     try{
       const r = await appelPrep({ action: 'aidesLire' });
-      if(r && r.status === 'ok'){ AI.d = r; AI.charge = Date.now(); }
+      if(r && r.status === 'ok'){ AI.d = r; AI.charge = Date.now(); setTimeout(() => { aiPoserLesVuesEleve(); }, 1500); }
       else if(!AI.d) throw new Error((r && (r.message || r.error)) || 'Aides illisibles');
     }finally{ AI.enCours = null; }
     try{ AI.tf = (typeof tarifsDuCatalogue === 'function') ? await tarifsDuCatalogue() : null; }catch(e){ AI.tf = null; }
@@ -1194,13 +1194,19 @@ async function aiCreerDossier(g, type, x){
   if(!g.eleve){ showToast('Indique l’élève d’abord.'); return; }
   const deja = ((AI.d && AI.d.dossiers) || []).find(d => d.type === type && !d.fini && aiNorm(d.eleve) === aiNorm(g.eleve) &&
     (type !== 'suivi' || aiAideDuSuivi(d) === (x.cle === 'p1b' ? 'p1' : x.cle)));
-  if(deja){ showToast('Il a déjà un suivi en cours ✅'); aiAllerAuDossier(deja.id); return; }
+  /* 🎓 v1412 — David : « pouvoir en suivre un autre CPF si besoin d'en
+     faire plusieurs ». Un deuxième dossier CPF s'ouvre, après accord ;
+     les autres aides gardent un seul suivi en cours. */
+  if(deja && type === 'cpf'){
+    if(!await confirmer(g.eleve + ' a déjà un dossier CPF en cours (' + aiOuEnEst(deja) + '). En ouvrir un deuxième ?', 'Dossier CPF', false)) return;
+  }else if(deja){ showToast('Il a déjà un suivi en cours ✅'); aiAllerAuDossier(deja.id); return; }
   const donnees = type === 'cpf'
     ? { formation: g.cpf, formationTitre: x.formation ? x.formation.titre : '', prix: x.prixFormation, lien: x.formation ? x.formation.lien : '',
         de: g.situation === 'de', montant: x.montant, mail: g.mail || '', envois: {} }
     : type === 'suivi'
       ? { aide: x.cle === 'p1b' ? 'p1' : x.cle, montant: x.cle === 'alma' ? (x.reste || 0) : (x.montant || 0), prix: Number(g.prix) || 0, dates: {}, note: '' }
       : { montant: x.montant, dates: {} };
+  donnees.vueEleve = aiVueEleve({ type: type, etape: type === 'cpf' ? 'identite' : '', donnees: donnees, fini: false });
   try{
     const r = await appelPrep({ action: 'aidesDossierSet', eleve: g.eleve, type: type, etape: type === 'cpf' ? 'identite' : '', donnees: donnees });
     if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
@@ -1218,11 +1224,62 @@ function aiAllerAuDossier(id){
     const el = l.find(e => e.offsetParent !== null) || l[0]; if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
 }
 async function aiEnregistrerDossier(x){
+  if(['cpf', 'pe22', 'suivi'].includes(x.type)) (x.donnees = x.donnees || {}).vueEleve = aiVueEleve(x);
   const r = await appelPrep({ action: 'aidesDossierSet', id: x.id, eleve: x.eleve, type: x.type, etape: x.etape, donnees: x.donnees, fini: !!x.fini });
   if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
   const i = AI.d.dossiers.findIndex(d => d.id === x.id);
   if(i >= 0) AI.d.dossiers[i] = r.dossier;
   return r.dossier;
+}
+
+/* ============================================================
+   💶 CE QUE L'ÉLÈVE VOIT DE SON DOSSIER — v1412
+
+   David, le 12 novembre : l'élève suit son financement dans son espace,
+   avec le message de l'étape, jusqu'à l'entrée en formation ; ensuite,
+   « Financement CPF ✅ » et le montant. Ses choix : tous ses suivis,
+   la frise et le message de l'étape en cours.
+
+   ⚠️ ÉCRIT ICI, À CHAQUE ENREGISTREMENT, DANS LE DOSSIER LUI-MÊME
+   (donnees.vueEleve) : les noms des étapes et les messages vivent dans
+   ce fichier ; le Worker ne fait que trier (arrêté, fini, entrée
+   passée). Les dossiers d'avant la v1412 reçoivent la leur à la
+   première lecture des aides (aiPoserLesVuesEleve).
+   ============================================================ */
+function aiVueEleve(x){
+  const d = x.donnees || {};
+  if(x.type === 'cpf'){
+    const i = AI_ETAPES_CPF.findIndex(e => e[0] === x.etape);
+    /* Le message qu'on lui a envoyé à cette étape ; sinon celui de l'étape */
+    const env = (d.envois || {})[x.etape];
+    const message = (env && env.texte) ? env.texte : aiMessageCpf(x, aiCleMessageCpf(x));
+    return { titre: '🎓 Financement CPF', etapes: AI_ETAPES_CPF.map(e => e[1]), ici: Math.max(0, i),
+             montant: Number(d.montant) || 0, message: String(message || ''), dateEntree: d.dateEntree || '' };
+  }
+  if(x.type === 'pe22'){
+    const v = ((aiReglages().aides || []).find(a => a.cle === 'pe22') || {}).valeurs || {};
+    const i = AI_ETAPES_PE.findIndex(e => e[0] === x.etape);
+    return { titre: '🤝 Pass’Engagement', etapes: AI_ETAPES_PE.map(e => e[1]), ici: i + 1,
+             montant: (Number(v.cheques) || 2) * (Number(v.cheque) || 600), message: '' };
+  }
+  const cle = aiAideDuSuivi(x), et = aiEtapesSuivi(cle) || [];
+  return { titre: aiTitreSuivi(cle), etapes: et.map(e => e[1]), ici: et.findIndex(e => e[0] === x.etape) + 1,
+           montant: Number(d.montant) || 0, message: '' };
+}
+/* Les dossiers d'avant : leur vue, posée une fois, sans toucher au reste
+   (ni l'étape, ni « qui a fait quoi »). Un seul passage par session. */
+async function aiPoserLesVuesEleve(){
+  if(AI.vuesPosees || !AI.d) return;
+  if(typeof niveauDroit === 'function' && niveauDroit('financements') !== 'm') return;
+  AI.vuesPosees = true;
+  const manquent = (AI.d.dossiers || []).filter(x => ['cpf', 'pe22', 'suivi'].includes(x.type) && !(x.donnees || {}).vueEleve).slice(0, 60);
+  for(const x of manquent){
+    try{
+      const vue = aiVueEleve(x);
+      const r = await appelPrep({ action: 'aidesDossierSet', id: x.id, eleve: x.eleve, type: x.type, vueSeule: 1, vueEleve: vue });
+      if(r && r.status === 'ok' && r.dossier){ const k = AI.d.dossiers.findIndex(d => d.id === x.id); if(k >= 0) AI.d.dossiers[k] = r.dossier; }
+    }catch(e){ /* la prochaine ouverture réessaiera */ AI.vuesPosees = false; return; }
+  }
 }
 
 function aiDessinerDossiers(){
@@ -1294,6 +1351,17 @@ function aiCarteCpf(x){
   c.appendChild(aiFrise(AI_ETAPES_CPF, x.etape, x.fini));
   if(!AI.dossierOuvert[x.id]) return c;
 
+  /* 📋 v1412 — David : « on ne peut pas suivre un CPF demandeur
+     d'emploi, il faut qu'on puisse dire s'il est demandeur d'emploi
+     directement ici ». Les messages de devis et de validation, et le
+     délai avant l'entrée en formation, suivent ce choix. */
+  if(!x.fini){
+    c.appendChild(aiChoix('💼 Sa situation', [['n', '🏢 Classique'], ['o', '📋 Demandeur d’emploi']], d.de ? 'o' : 'n', async k => {
+      if((k === 'o') === !!d.de) return;
+      d.de = (k === 'o');
+      await aiSauver(x);
+    }, d.de ? 'Abondement France Travail : pas de participation, début ' + ((((aiReglages().aides || []).find(a => a.cle === 'cpf') || {}).valeurs || {}).delaiDE || 30) + ' jours après validation.' : ''));
+  }
   const env = d.envois[x.etape];
   c.appendChild(aiEl('div', 'aiAide', env ? (env.canal === 'messagerie' ? '💬 Message envoyé dans sa messagerie le ' : '✉️ Message envoyé le ') + aiEch(env.le) + (env.par ? ' par ' + aiEch(env.par) : '') + (env.relances ? ' · ♻️ relancé ' + env.relances + ' fois' : '') + ' · ⏳ en attente de son action'
                                         : 'Le message de cette étape n’est pas encore parti.')).style.margin = '0 0 8px';
@@ -1362,7 +1430,7 @@ async function aiEnvoyerMessageCpf(x, texte, relance, canal){
       const e = d.envois[x.etape] || {};
       e.canal = par === 'messagerie' ? 'messagerie' : 'mail';
       if(relance){ e.relances = (e.relances || 0) + 1; e.relanceLe = aiFrDeIso(aiAujourdhui()); }
-      else { e.le = aiFrDeIso(aiAujourdhui()); e.par = aiMoi(); }
+      else { e.le = aiFrDeIso(aiAujourdhui()); e.par = aiMoi(); e.texte = String(texte || '').slice(0, 6000); }
       d.envois[x.etape] = e;
       await aiSauver(x);
     } });
@@ -1989,9 +2057,12 @@ async function ligneAidesFiche(nom, zone, opts){
   r.appendChild(aiBouton('🧮 Ouvrir le générateur', '', () => aiFenetreGenerateur(g)));
   /* ➕ suivre une aide qui n'est pas dans le point gardé (ou sans point gardé) */
   const libres = aiAidesSuivables().filter(a => { const x = aiDossierDeLAide(siens, a.cle); return !x || x.fini; });
+  /* 🎓 v1412 — un CPF en cours n'empêche pas d'en suivre un deuxième */
+  const cpfEnCours = aiDossierDeLAide(siens, 'cpf');
+  if(cpfEnCours && !cpfEnCours.fini && aiAidesSuivables().some(a => a.cle === 'cpf')) libres.push({ cle: 'cpf', emoji: '🎓', nom: 'Un deuxième dossier CPF' });
   const choix = aiEl('div', 'aiChoixSuivi');
   choix.hidden = !(AI.choixSuiviOuvert || {})[n];
-  libres.forEach(a => choix.appendChild(aiBouton(a.emoji + ' ' + a.nom, '', () => { AI.choixSuiviOuvert[n] = false; aiSuivreDepuisLaFiche(gS, a.cle); })));
+  libres.forEach(a => choix.appendChild(aiBouton(a.emoji + ' ' + a.nom, '', () => { (AI.choixSuiviOuvert = AI.choixSuiviOuvert || {})[n] = false; aiSuivreDepuisLaFiche(gS, a.cle); })));
   if(libres.length) r.appendChild(aiBouton('➕ Suivre une aide', 'aiPlusSuivi', () => {
     AI.choixSuiviOuvert = AI.choixSuiviOuvert || {}; AI.choixSuiviOuvert[n] = choix.hidden; choix.hidden = !choix.hidden; }));
   r.appendChild(aiBouton('📤 Lui envoyer ses aides', '', () => { if(!(Number(g.prix) > 0)){ showToast('Indique d’abord le prix de sa formation (🧮 Ouvrir le générateur).'); return; } aiMail(g); }));
