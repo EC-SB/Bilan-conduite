@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 15:47 — v1334 */
+/* Déployé le 12/11/2026 à 08:55 — v1411 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -3880,14 +3880,22 @@ function dessinerListeAac(zone){
   const vus = liste.filter(x => {
     if(filtreAac === 'retard') return x.retard;
     if(filtreAac === 'theorique') return x.rvtManquant;
+    if(filtreAac === 'relances') return !!relanceActiveAac(x);
     if(filtreAac === 'areprogrammer') return x.exam.aReprogrammer;
     if(filtreAac === 'horsparcours') return x.parcoursCle !== '';
     return true;
   });
 
+  /* ✉️ v1411 — le bandeau des relances, au-dessus de la liste, quel
+     que soit le filtre : c'est lui qui les rend visibles. */
+  const bd = bandeauRelancesAac(liste, zone);
+  if(bd) zone.appendChild(bd);
+
   if(!vus.length){
-    zone.innerHTML = '<div class="empty">Personne dans ce filtre — ' +
-      'et c\'est une bonne nouvelle.</div>';
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = 'Personne dans ce filtre — et c\'est une bonne nouvelle.';
+    zone.appendChild(v);
     return;
   }
   vus.forEach(x => zone.appendChild(ligneAac(x)));
@@ -3918,6 +3926,8 @@ function dessinerFiltresAac(liste){
   [['tous', 'Tous', liste.length],
    ['retard', '⚠️ En retard', liste.filter(x => x.retard).length],
    ['theorique', '🗣️ Théorique à faire', liste.filter(x => x.rvtManquant).length],
+   /* ✉️ v1411 — les relances qui attendent quelque chose */
+   ['relances', '✉️ Relances', liste.filter(x => relanceActiveAac(x)).length],
    ['organisation', '🗓️ Organisation théorique', compteOrganisationRvt()],
    ['areprogrammer', '🔁 À reprogrammer',
     liste.filter(x => x.exam.aReprogrammer).length],
@@ -3960,106 +3970,447 @@ function dessinerFiltresAac(liste){
 }
 
 
+/* ============================================================
+   🎓 LA FRISE DU SUIVI AAC — v1411
+
+   David, le 12 novembre 2026 : « quand on fait un mail de relance
+   ça ne s'affiche pas automatiquement sous le rendez-vous qu'on
+   relance, pour le rendez-vous théorique pareil ce n'est pas en
+   dessous du rendez-vous théorique, et les relances ne sont pas
+   assez visibles ».
+
+   Son choix sur le schéma : la FRISE (proposition B). Une case par
+   étape, dans l'ordre où l'élève les vit — Préalable → RVP 1 →
+   Théorique → RVP 2 → Examen —, et tout ce qui concerne l'étape
+   DANS sa case : son état, le 📣 prévenu, la relance, la
+   proposition de théorique, et ses boutons. Plus le bandeau
+   « ✉️ Relances en cours » en haut, et le filtre « ✉️ Relances ».
+
+   Ses réponses : la pastille passe en ambre au bout de 7 jours sans
+   réponse ; « 📌 Fixer la date » fait passer le rendez-vous en
+   « prévu » et la pastille disparaît ; « Corriger », « Il ne
+   validera pas » et « Fausse AAC » restent discrets, à droite du
+   nom ; et l'effet verre s'applique à la frise.
+
+   ⚠️ LA RELANCE EST COUPÉE EN MORCEAUX. Un même mail demande à la
+   fois des disponibilités pour un RVP et quand passer l'examen : la
+   partie RVP va sous le RVP demandé, la partie examen sous
+   l'examen. Chaque morceau s'éteint TOUT SEUL quand son rendez-vous
+   est posé — une date prévue ou faite pour le RVP, une date
+   d'examen pour l'examen. Rien à effacer à la main, et rien à
+   écrire côté serveur : c'est l'état du dossier qui décide.
+   ============================================================ */
+const JOURS_RELANCE_AAC_AMBRE = 7;
+const RDV_POSES_AAC = { prevu: 1, fait: 1, ailleurs: 1, sansobjet: 1 };
+
+/* Le jour, à l'heure de Paris, d'un instant donné en millisecondes. */
+function isoDuJourAac(ms){
+  const d = new Date(ms);
+  if(isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+         '-' + String(d.getDate()).padStart(2, '0');
+}
+function jourCourtAac(iso){
+  const m = String(iso || '').match(/^\d{4}-(\d{2})-(\d{2})/);
+  return m ? m[2] + '/' + m[1] : '';
+}
+function joursDepuisAac(iso){
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const n = Math.round((new Date(auj + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 864e5);
+  return isNaN(n) ? 0 : Math.max(0, n);
+}
+
+/* La relance de l'élève, découpée par rendez-vous — null s'il n'y en
+   a pas. rvp / examen ne sont remplis que tant que la pastille doit
+   se voir. */
+function relanceDecoupeeAac(x){
+  const r = relanceAacDe(x.eleve);
+  if(!r || !r.le) return null;
+  const dem = r.demande || {};
+  const repondu = !!(r.reponduLe && r.reponse);
+  /* La réponse se résume par la même fonction qu'avant ; on range
+     ses morceaux : ce qui n'est pas « Examen → » parle du RVP. */
+  const morceaux = repondu ? String(resumeReponseAac(r) || '').split(' · ') : [];
+  const rvpDemande = (dem.rvp === 'rvp1' || dem.rvp === 'rvp2') ? dem.rvp : '';
+  const exam = (x.exam && x.exam.devant && x.exam.devant.cle) || '';
+  return {
+    le: isoDuJourAac(r.le),
+    par: r.par || '',
+    repondu: repondu,
+    reponduLe: repondu ? isoDuJourAac(r.reponduLe) : '',
+    qui: (r.reponse && r.reponse.qui) || '',
+    rvp: (rvpDemande && x.rdv[rvpDemande] && !RDV_POSES_AAC[x.rdv[rvpDemande].cle]) ? rvpDemande : '',
+    examen: !!dem.examen && exam !== 'prevu' && exam !== 'obtenu',
+    /* Un mail sans aucune demande : un simple rappel des rendez-vous. */
+    rappel: !rvpDemande && !dem.examen,
+    repRvp: morceaux.filter(m => !/^Examen → /.test(m))
+                    .map(m => m.replace(/^(RVP \d|Dispos) → /, '')).join(' · '),
+    repExamen: morceaux.filter(m => /^Examen → /.test(m))
+                       .map(m => m.replace(/^Examen → /, '')).join(' · ')
+  };
+}
+
+/* Une relance qui attend encore quelque chose de nous ou d'eux :
+   c'est elle qui compte dans le bandeau et dans le filtre. */
+function relanceActiveAac(x){
+  const r = relanceDecoupeeAac(x);
+  return (r && (r.rvp || r.examen)) ? r : null;
+}
+
+/* ---------- les pastilles ---------- */
+function pastilleAac(classe, etiquette, texte, titre){
+  const p = document.createElement('div');
+  p.className = 'aacPil ' + classe;
+  const t = document.createElement('span');
+  t.className = 'aacPilT';
+  t.textContent = etiquette;
+  p.appendChild(t);
+  if(texte){
+    const s = document.createElement('span');
+    s.textContent = texte;
+    p.appendChild(s);
+  }
+  if(titre) p.title = titre;
+  return p;
+}
+
+/* La relance, sous le rendez-vous qu'elle relance.
+   Bleue tant qu'on attend, ambre après 7 jours, verte à la réponse. */
+function pastilleRelanceAac(x, rel, quoi, titreRdv){
+  if(rel.repondu){
+    const rep = quoi === 'examen' ? rel.repExamen : rel.repRvp;
+    const p = pastilleAac('aacPilRepondu', '📝 Réponse',
+      jourCourtAac(rel.reponduLe) + (rep ? ' · ' + rep : ''),
+      'Réponse le ' + jourFrCs(rel.reponduLe) + (rel.qui ? ' (' + rel.qui + ')' : '') +
+      ' à la relance du ' + jourFrCs(rel.le));
+    /* La date se fixe d'ici, là où on vient de lire leurs dispos.
+       L'examen, lui, se pose dans Suivi permis : pas de bouton. */
+    if(quoi !== 'examen'){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aacPilBt';
+      b.textContent = '📌 Fixer la date';
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try{ await fixerDateRdvAac(x, quoi, titreRdv); }
+        catch(e){ showToast('Impossible : ' + e.message); }
+        finally{ b.disabled = false; }
+      });
+      p.appendChild(b);
+    }
+    return p;
+  }
+  const n = joursDepuisAac(rel.le);
+  return pastilleAac(n > JOURS_RELANCE_AAC_AMBRE ? 'aacPilVieux' : 'aacPilAttente',
+    '✉️ Relancé', jourCourtAac(rel.le) + ' · ⏳ ' + n + ' j',
+    'Relance envoyée le ' + jourFrCs(rel.le) + (rel.par ? ' par ' + rel.par : '') +
+    ' — sans réponse depuis ' + n + ' jour' + (n > 1 ? 's' : ''));
+}
+
+/* La proposition de théorique (le tour), sous le théorique. Invité et
+   pas encore répondu : la case le dit, sinon on le réinvite en
+   croyant l'avoir oublié. */
+function pastilleTourAac(x){
+  const tour = tourOuvertDe(x.eleve);
+  if(!tour) return null;
+  const moi = (tour.eleves || []).find(e =>
+    normaliserMot(e.eleve) === normaliserMot(x.eleve)) || {};
+  const le = String(tour.creee || '').split(' ')[0];
+  return moi.reponduLe
+    ? pastilleAac('aacPilRepondu', '🗣️ A répondu', '',
+        'A répondu à la proposition du ' + le)
+    : pastilleAac('aacPilAttente', '🗣️ Proposition', le.slice(0, 5) + ' · ⏳',
+        'Proposition envoyée le ' + le + ' — on attend sa réponse');
+}
+
+/* 📣 v1226 — prévenu, dans la case. La ligne rouge reste (son choix). */
+function pastillePrevenuAac(x, cle, e){
+  const pv = cle ? prevenuAac(x, cle) : null;
+  if(!pv || !e || e.cle === 'fait' || e.cle === 'ailleurs') return null;
+  return pastilleAac('aacPilPrevenu', '📣',
+    jourCourtAac(pv.le) + (pv.pour ? ' → ' + jourCourtAac(pv.pour) : ''),
+    'Prévenu le ' + jourFrCs(pv.le) + (pv.par ? ' (' + pv.par + ')' : '') +
+    (pv.pour ? ' — RDV à prévoir pour le ' + jourFrCs(pv.pour) : ''));
+}
+
+/* « 📌 Fixer la date » : la famille a donné ses dispos, on pose le
+   rendez-vous. Date à venir → « prévu » ; date passée ou du jour →
+   « fait » (même règle que la fenêtre de correction). Le lieu est
+   facultatif, comme pour « ✅ Fait ». */
+async function fixerDateRdvAac(x, cle, titre){
+  const iso = await choisirDate(titre + ' — date du rendez-vous',
+                                (x.suivi || {})[cle + 'Date'] || '');
+  if(!iso) return;
+  const ou = await choisirLieuRdv(titre + ' — où aura-t-il lieu ?',
+                                  (x.suivi || {})[cle + 'Lieu'] || '');
+  const maj = {};
+  maj[cle + 'Etat'] = etatDuRdvParSaDate(iso);
+  maj[cle + 'Date'] = iso;
+  if(ou !== null) maj[cle + 'Lieu'] = ou;
+  await majSuivi(x.eleve, maj);
+  showToast('Enregistré ✅');
+  redessinerAacCs();
+}
+
+/* ---------- une case de la frise ---------- */
+function classeCaseAac(e){
+  if(!e) return 'attente';
+  if(e.cle === 'fait' || e.cle === 'ailleurs') return 'fait';
+  if(e.cle === 'prevu') return 'prevu';
+  if(e.retard) return 'retard';
+  if(e.proche) return 'proche';
+  if(e.cle === 'sansobjet') return 'sansobjet';
+  return 'attente';
+}
+function texteCaseAac(e){
+  return String(e.txt || '')
+    .replace(/^EN RETARD — attendu le /, 'EN RETARD depuis le ')
+    .replace(/^fait /, '✅ fait ')
+    .replace(/^prévu /, '📌 prévu ');
+}
+function caseFriseAac(titre, classe, texte, dessous, boutons){
+  const c = document.createElement('div');
+  c.className = 'frEt ' + classe;
+  const t = document.createElement('div');
+  t.className = 'frT';
+  t.textContent = titre;
+  c.appendChild(t);
+  const e = document.createElement('div');
+  e.className = 'frE';
+  e.textContent = texte;
+  c.appendChild(e);
+  dessous.filter(Boolean).forEach(d => c.appendChild(d));
+  const bts = boutons.filter(Boolean);
+  if(bts.length){
+    const z = document.createElement('div');
+    z.className = 'frBts';
+    bts.forEach(b => z.appendChild(b));
+    c.appendChild(z);
+  }
+  return c;
+}
+function petiteLigneAac(texte, couleur){
+  const l = document.createElement('div');
+  l.className = 'frS';
+  if(couleur) l.style.color = couleur;
+  l.textContent = texte;
+  return l;
+}
+
+
 function ligneAac(x){
   const row = document.createElement('div');
-  row.className = 'history-item';
+  row.className = 'history-item ligneAac';
   row.style.cssText = 'flex-direction:column;align-items:stretch;';
   /* Le nom, pour être emmené sur cette ligne-là — voir
      viserLaPersonne. */
   row.dataset.eleve = x.eleve || '';
 
-  const meta = document.createElement('div');
-  meta.className = 'meta';
+  const rel = relanceDecoupeeAac(x);
+  const sit = situationRelanceAac(x);
+  const avecPrealable = !!x.suivi.rvpDate;
+  const attendus = x.parcours.rdvAttendus;
 
-  /* Nom · âge · parcours — les trois choses qu'elle a demandées en
-     tête de ligne : « nom prénom âge formation ». */
+  /* ── L'EN-TÊTE : nom · âge · parcours, et à droite les gestes rares ── */
+  const tete = document.createElement('div');
+  tete.className = 'aacTete';
   const nom = document.createElement('strong');
+  nom.className = 'aacNom';
   nom.textContent = x.eleve +
     (x.age === null ? ' · âge inconnu' : ' · ' + x.age + ' ans') +
     ' · ' + x.parcours.court;
   if(x.age === null) nom.style.color = 'var(--warn-text)';
-  meta.appendChild(nom);
+  tete.appendChild(nom);
   /* 👤 Son dossier — v1134. */
   if(typeof poserDossierApresLeNom === 'function') poserDossierApresLeNom(nom, x.eleve);
 
-  /* LA LIGNE QUI GOUVERNE TOUT : quand l'examen devient possible, et
-     LAQUELLE des deux conditions commande. Une date sans sa raison
-     ne se vérifie pas et ne s'explique pas au téléphone. */
-  const ex = document.createElement('span');
-  if(x.ech.exam.iso){
-    ex.innerHTML = 'Examen possible le <strong>' +
-      jourFrCs(x.ech.exam.iso) + '</strong> <span style="opacity:.75">(' +
-      x.ech.exam.pourquoi + ')</span>';
-  }else{
-    ex.style.color = 'var(--warn-text)';
-    ex.textContent = x.ech.exam.manque === 'naissance'
-      ? "Date d'examen possible inconnue — il manque sa date de naissance"
-      : "Date d'examen possible inconnue — il manque son rendez-vous préalable";
+  const droite = document.createElement('div');
+  droite.className = 'aacGestes';
+  /* Ce qui manque pour compter : bien visible, ce sont eux qui
+     débloquent tout le reste. */
+  if(!x.naissance){
+    droite.appendChild(petitBouton('🎂 Sa date de naissance',
+      "L'âge est une des deux conditions de l'examen", () => naissanceAac(x)));
   }
-  meta.appendChild(ex);
-
-  /* Les quatre rendez-vous, par la même fonction — le préalable
-     compris. Il était dessiné à part, sans style : c'est pour ça
-     qu'il restait gris quand les RVP passaient au vert. */
-  [['① Préalable', x.rdv.prealable, ''], ['② RVP 1', x.rdv.rvp1, 'rvp1'],
-   ['③ RVP 2', x.rdv.rvp2, 'rvp2'], ['🗣️ Théorique', x.rdv.rvt, 'rvt']]
-    .forEach(([titre, e, cle]) => {
-      meta.appendChild(ligneRdvAacCs(titre, e));
-      /* 📣 v1226 — prévenu, dessous : la ligne rouge reste (son choix) */
-      const pv = cle ? prevenuAac(x, cle) : null;
-      if(pv && e && e.cle !== 'fait' && e.cle !== 'ailleurs'){
-        const l = document.createElement('span');
-        l.className = 'prevenuAac';
-        l.style.cssText = 'font-size:12.5px;color:var(--cream);';
-        l.textContent = '📣 Prévenu le ' + jourFrCs(pv.le) + (pv.par ? ' (' + pv.par + ')' : '') +
-          (pv.pour ? ' — RDV à prévoir pour le ' + jourFrCs(pv.pour) : '');
-        meta.appendChild(l);
-      }
-    });
-
-  if(x.eb.txt){
-    const eb = document.createElement('span');
-    eb.style.color = (x.eb.cle === 'date' || x.eb.cle === 'passe')
-      ? 'var(--accent-text)' : '';
-    eb.textContent = x.eb.txt;
-    meta.appendChild(eb);
+  if(avecPrealable){
+    const b = petitBouton('✏️ Corriger',
+      'Changer une date, ou revenir sur un rendez-vous noté par erreur',
+      () => corrigerRendezVous(x));
+    b.classList.add('aacDiscret');
+    droite.appendChild(b);
   }
-
-  lignesExamenOfficiel(x.exam).forEach(l => meta.appendChild(l));
-
-  /* Invité et pas encore répondu : la ligne le dit, sinon on le
-     réinvite en croyant l'avoir oublié. */
-  const tour = tourOuvertDe(x.eleve);
-  if(tour){
-    const moi = (tour.eleves || []).find(e =>
-      normaliserMot(e.eleve) === normaliserMot(x.eleve)) || {};
-    const t = document.createElement('span');
-    t.style.color = moi.reponduLe ? 'var(--accent-text)' : 'var(--muted)';
-    t.textContent = moi.reponduLe
-      ? '🗣️ A répondu à la proposition du ' + (tour.creee || '').split(' ')[0]
-      : '🗣️ Proposition envoyée — on attend sa réponse';
-    meta.appendChild(t);
+  /* LE PARCOURS. Changeable à tout moment — sauf après un examen
+     passé depuis l'abandon : là, c'est définitif, et la ligne dit
+     pourquoi au lieu de laisser un bouton disparaître en silence. */
+  const passe = x.parcoursCle ? examenPasseDepuisAbandon(x) : '';
+  /* Sans préalable, comme avant : rien d'autre que la date qui manque. */
+  if(avecPrealable && !passe){
+    (x.parcoursCle
+      ? [['↩️ Revenir à « à valider »', 'Les rendez-vous faits sont toujours là, les échéances reviennent', '']]
+      : [['🚗 Il ne validera pas', 'Il repart en examen blanc, chemin classique', 'abandonne'],
+         ['👻 Fausse AAC', 'Aucun rendez-vous pédagogique prévu, il attend ses 17 ans', 'fausse']])
+      .forEach(([lib, aide, cle]) => {
+        const b = petitBouton(lib, aide, () => changerParcours(x, cle));
+        b.classList.add('aacDiscret');
+        droite.appendChild(b);
+      });
   }
+  tete.appendChild(droite);
+  row.appendChild(tete);
 
-  /* ✉️ v1228 — la relance, et la réponse de la famille */
-  const rel = ligneRelanceAac(x.eleve);
-  if(rel) meta.appendChild(rel);
-
+  if(passe){
+    row.appendChild(petiteLigneAac('🔒 Examen officiel passé le ' + jourFrCs(passe) +
+      ' : la conduite accompagnée ne peut plus être validée.', 'var(--muted)'));
+  }
   if(x.parcoursCle && x.suivi.parcoursLe){
-    const q = document.createElement('span');
-    q.style.opacity = '.7';
-    q.textContent = x.parcours.long + ' — noté le ' + jourFrCs(x.suivi.parcoursLe);
-    meta.appendChild(q);
+    row.appendChild(petiteLigneAac(x.parcours.long + ' — noté le ' +
+      jourFrCs(x.suivi.parcoursLe), 'var(--muted)'));
+  }
+  /* Un mail sans demande : il n'appartient à aucun rendez-vous, on le
+     dit sous le nom. */
+  if(rel && rel.rappel){
+    const p = pastilleAac('aacPilPrevenu', '✉️ Rappel envoyé', jourCourtAac(rel.le),
+      'Mail de rappel des rendez-vous envoyé le ' + jourFrCs(rel.le) +
+      (rel.par ? ' par ' + rel.par : ''));
+    p.classList.add('aacSousNom');
+    row.appendChild(p);
   }
 
-  row.appendChild(meta);
+  /* ── LA FRISE ── */
+  const fr = document.createElement('div');
+  fr.className = 'frAac';
 
-  const act = document.createElement('div');
-  act.style.cssText = 'display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;';
-  boutonsAac(x, act);
-  if(act.children.length) row.appendChild(act);
+  /* Les boutons d'un rendez-vous, seulement tant qu'il est attendu.
+     Sans date de préalable, rien d'autre ne se propose : tout se
+     compte à partir de là (comme avant). */
+  const boutonsRdv = (titre, cle) => {
+    const e = x.rdv[cle];
+    if(!avecPrealable || !attendus || e.cle === 'fait' || e.cle === 'ailleurs') return [];
+    const pv = prevenuAac(x, cle);
+    const out = [
+      petitBouton('📣 Prévenu', pv
+        ? 'Prévenu le ' + jourFrCs(pv.le) + ' — le prévenir à nouveau, ou retirer'
+        : 'On l’a prévenu de prévoir ce rendez-vous — pour quelle date ?',
+        () => noterPrevenuAac(x, cle, titre)),
+      petitBouton('✅ Fait', 'Noter la date, et où il a eu lieu', () => rdvFaitAac(x, titre, cle))
+    ];
+    if(sit.rvp === cle) out.push(boutonRelanceAac(x, rel && rel.rvp === cle && !rel.repondu));
+    return out;
+  };
+  const relanceSous = (quoi, titre) =>
+    (rel && (quoi === 'examen' ? rel.examen : rel.rvp === quoi))
+      ? pastilleRelanceAac(x, rel, quoi, titre) : null;
 
+  /* ① Préalable */
+  fr.appendChild(caseFriseAac('① Préalable',
+    avecPrealable ? classeCaseAac(x.rdv.prealable) : 'proche',
+    avecPrealable ? texteCaseAac(x.rdv.prealable) : 'date à renseigner',
+    [], avecPrealable ? [] : [petitBouton('📅 Sa date de préalable',
+      'Tout se compte à partir de là', () => prealableAac(x))]));
+
+  /* ② RVP 1 */
+  fr.appendChild(caseFriseAac('② RVP 1', classeCaseAac(x.rdv.rvp1), texteCaseAac(x.rdv.rvp1),
+    [pastillePrevenuAac(x, 'rvp1', x.rdv.rvp1), relanceSous('rvp1', '② RVP 1')],
+    boutonsRdv('② RVP 1', 'rvp1')));
+
+  /* 🗣️ Théorique — la proposition en cours, juste dessous */
+  fr.appendChild(caseFriseAac('🗣️ Théorique', classeCaseAac(x.rdv.rvt), texteCaseAac(x.rdv.rvt),
+    [pastillePrevenuAac(x, 'rvt', x.rdv.rvt), pastilleTourAac(x)],
+    boutonsRdv('🗣️ Théorique', 'rvt')));
+
+  /* ③ RVP 2 */
+  fr.appendChild(caseFriseAac('③ RVP 2', classeCaseAac(x.rdv.rvp2), texteCaseAac(x.rdv.rvp2),
+    [pastillePrevenuAac(x, 'rvp2', x.rdv.rvp2), relanceSous('rvp2', '③ RVP 2')],
+    boutonsRdv('③ RVP 2', 'rvp2')));
+
+  /* 🎓 Examen — LA DATE QUI GOUVERNE TOUT, et LAQUELLE des deux
+     conditions commande. Une date sans sa raison ne se vérifie pas
+     et ne s'explique pas au téléphone. */
+  const dessousEx = [];
+  if(x.ech.exam.iso){
+    dessousEx.push(petiteLigneAac('(' + x.ech.exam.pourquoi + ')', 'var(--muted)'));
+  }
+  lignesExamenOfficiel(x.exam).forEach(l => {
+    const d = petiteLigneAac(l.textContent.replace(/^🎓 /, ''), l.style.color || '');
+    dessousEx.push(d);
+  });
+  if(x.eb.txt){
+    dessousEx.push(petiteLigneAac(x.eb.txt,
+      (x.eb.cle === 'date' || x.eb.cle === 'passe') ? 'var(--accent-text)' : ''));
+  }
+  dessousEx.push(relanceSous('examen', '🎓 Examen'));
+  const classeEx = x.exam.aReprogrammer ? 'retard'
+    : ((x.exam.devant.cle === 'prevu' || x.exam.devant.cle === 'obtenu') ? 'fait'
+      : (x.ech.exam.iso ? 'attente' : 'proche'));
+  /* Les deux RVP faits : la relance ne parle plus que de l'examen,
+     son bouton passe dans cette case. */
+  const btEx = (avecPrealable && attendus && !sit.rvp)
+    ? [boutonRelanceAac(x, rel && rel.examen && !rel.repondu)] : [];
+  fr.appendChild(caseFriseAac('🎓 Examen', classeEx,
+    x.ech.exam.iso ? 'possible le ' + jourFrCs(x.ech.exam.iso)
+      : (x.ech.exam.manque === 'naissance'
+          ? 'date inconnue — il manque sa date de naissance'
+          : 'date inconnue — il manque son rendez-vous préalable'),
+    dessousEx, btEx));
+
+  row.appendChild(fr);
   return row;
+}
+
+/* ✉️ v1228 — le mail de relance, rangé sur le rendez-vous relancé. */
+function boutonRelanceAac(x, encore){
+  const b = petitBouton(encore ? '✉️ Relancer encore' : '✉️ Relancer',
+    'Rappeler les rendez-vous AAC, demander leurs disponibilités et quand passer l’examen',
+    async () => ouvrirRelanceAac(x));
+  b.classList.add('aacRelBt');
+  return b;
+}
+
+
+/* ============================================================
+   ✉️ LE BANDEAU DES RELANCES EN COURS — v1411
+
+   Tout en haut de la liste : qui n'a pas répondu (et depuis
+   combien de jours), qui a répondu et attend sa date. Toucher un
+   nom descend jusqu'à lui.
+   ============================================================ */
+function bandeauRelancesAac(liste, zone){
+  const rels = liste.map(x => [x, relanceActiveAac(x)]).filter(([, r]) => r);
+  if(!rels.length) return null;
+
+  const bd = document.createElement('div');
+  bd.className = 'bdRelAac';
+  const t = document.createElement('span');
+  t.className = 'bdRelT';
+  t.textContent = '✉️ Relances en cours';
+  bd.appendChild(t);
+
+  rels.forEach(([x, r]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    let txt, cl;
+    if(r.repondu){
+      cl = 'rep';
+      txt = '📝 ' + x.eleve + ' — a répondu' + (r.rvp ? ', date à fixer' : '');
+    }else{
+      const n = joursDepuisAac(r.le);
+      cl = n > JOURS_RELANCE_AAC_AMBRE ? 'vieux' : 'att';
+      txt = '⏳ ' + x.eleve + ' — sans réponse depuis ' + n + ' j';
+    }
+    b.className = 'bdRelCh ' + cl;
+    b.textContent = txt;
+    b.addEventListener('click', () => {
+      /* Caché par le filtre en cours : on passe sur « Relances », où
+         il est forcément. */
+      const visible = Array.from(zone.querySelectorAll('[data-eleve]'))
+        .some(l => normaliserMot(l.dataset.eleve) === normaliserMot(x.eleve));
+      if(!visible){ filtreAac = 'relances'; afficherAacCs(); }
+      if(typeof viserLaPersonne === 'function') viserLaPersonne(x.eleve);
+    });
+    bd.appendChild(b);
+  });
+  return bd;
 }
 
 
@@ -4083,6 +4434,51 @@ function examenPasseDepuisAbandon(x){
 }
 
 
+/* LES GESTES DES RENDEZ-VOUS, une seule fois — v1411.
+   La frise du Suivi AAC et « Sa route » du dossier élève
+   (boutonsAac) appellent les mêmes : une même chose écrite à deux
+   endroits, c'est celle qu'on oublie qui finit fausse. */
+async function naissanceAac(x){
+  const iso = await choisirDate('Date de naissance');
+  if(!iso) return;
+  /* On délègue : la fiche appartient à ec-fenetres, et c'est lui qui
+     l'écrit — pour la fiche, pour le dossier élève et pour ici. Un
+     troisième écran qui écrirait sa version, on connaît la suite. */
+  if(!await fixerDateNaissance(x.eleve, iso)) return;
+  showToast('Enregistré ✅');
+  redessinerAacCs();
+}
+
+async function prealableAac(x){
+  const iso = await choisirDate('Rendez-vous préalable');
+  if(!iso) return;
+  await majSuivi(x.eleve, { rvpDate: iso, rvpEtat: 'fait' });
+  showToast('Enregistré ✅');
+  redessinerAacCs();
+}
+
+async function rdvFaitAac(x, titre, cle){
+  const iso = await choisirDate(titre);
+  if(!iso) return;
+
+  /* ⚠️ LE LIEU EST FACULTATIF ICI — David : « facultatif pour les
+     pratiques 1 et 2 ». On note souvent la date après coup, sans
+     forcément se rappeler où. « Passer » ferme la fenêtre sans rien
+     écrire, et la ligne n'affiche rien. */
+  const ou = await choisirLieuRdv(titre + ' — où a-t-il eu lieu ?',
+                                  (x.suivi || {})[cle + 'Lieu'] || '');
+
+  const maj = {};
+  maj[cle + 'Etat'] = 'fait';
+  maj[cle + 'Date'] = iso;
+  if(ou !== null) maj[cle + 'Lieu'] = ou;
+
+  await majSuivi(x.eleve, maj);
+  showToast('Enregistré ✅');
+  redessinerAacCs();
+}
+
+
 function boutonsAac(x, zone){
   const nom = x.eleve;
   const auj = () => (typeof todayLocal === 'function')
@@ -4090,28 +4486,12 @@ function boutonsAac(x, zone){
 
   if(!x.naissance){
     zone.appendChild(petitBouton('🎂 Sa date de naissance',
-      "L'âge est une des deux conditions de l'examen", async () => {
-        const iso = await choisirDate('Date de naissance');
-        if(!iso) return;
-        /* On délègue : la fiche appartient à ec-fenetres, et c'est
-           lui qui l'écrit — pour la fiche, pour le dossier élève et
-           pour ici. Un troisième écran qui écrirait sa version, on
-           connaît la suite. */
-        if(!await fixerDateNaissance(nom, iso)) return;
-        showToast('Enregistré ✅');
-        redessinerAacCs();
-      }));
+      "L'âge est une des deux conditions de l'examen", () => naissanceAac(x)));
   }
 
   if(!x.suivi.rvpDate){
     zone.appendChild(petitBouton('📅 Sa date de préalable',
-      'Tout se compte à partir de là', async () => {
-        const iso = await choisirDate('Rendez-vous préalable');
-        if(!iso) return;
-        await majSuivi(nom, { rvpDate: iso, rvpEtat: 'fait' });
-        showToast('Enregistré ✅');
-        redessinerAacCs();
-      }));
+      'Tout se compte à partir de là', () => prealableAac(x)));
     return;
   }
 
@@ -4126,26 +4506,7 @@ function boutonsAac(x, zone){
       zone.appendChild(petitBouton(pv ? '📣 ' + titre + ' : prévenu le ' + jourFrCs(pv.le) : '📣 ' + titre + ' : prévenu',
         'On l’a prévenu de prévoir ce rendez-vous — pour quelle date ?', () => noterPrevenuAac(x, cle, titre)));
       zone.appendChild(petitBouton('✅ ' + titre + ' fait',
-        'Noter la date, et où il a eu lieu', async () => {
-          const iso = await choisirDate(titre);
-          if(!iso) return;
-
-          /* ⚠️ LE LIEU EST FACULTATIF ICI — David : « facultatif pour
-             les pratiques 1 et 2 ». On note souvent la date après
-             coup, sans forcément se rappeler où. « Passer » ferme la
-             fenêtre sans rien écrire, et la ligne n'affiche rien. */
-          const ou = await choisirLieuRdv(titre + ' — où a-t-il eu lieu ?',
-                                          (x.suivi || {})[cle + 'Lieu'] || '');
-
-          const maj = {};
-          maj[cle + 'Etat'] = 'fait';
-          maj[cle + 'Date'] = iso;
-          if(ou !== null) maj[cle + 'Lieu'] = ou;
-
-          await majSuivi(nom, maj);
-          showToast('Enregistré ✅');
-          redessinerAacCs();
-        }));
+        'Noter la date, et où il a eu lieu', () => rdvFaitAac(x, titre, cle)));
     });
 
   }
@@ -4899,7 +5260,7 @@ function ouvrirRelanceAac(x){
   document.body.appendChild(fond);
 }
 
-/* La ligne sous l'élève : envoyée quand, par qui — et la réponse. */
+/* Le résumé de la réponse — rangé par rendez-vous dans la frise (v1411). */
 const JOURS_AAC = { lun: 'lun.', mar: 'mar.', mer: 'mer.', jeu: 'jeu.', ven: 'ven.', sam: 'sam.' };
 const MOMENTS_AAC = { matin: 'matin', aprem: 'après-midi', soir: 'fin de journée' };
 const VACANCES_AAC = { toussaint: 'Toussaint', noel: 'Noël', hiver: 'hiver', printemps: 'printemps', ete: 'été' };
@@ -4927,25 +5288,4 @@ function resumeReponseAac(r){
     morceaux.push('Examen → ' + t);
   }
   return morceaux.join(' · ');
-}
-
-function ligneRelanceAac(nom){
-  const r = relanceAacDe(nom);
-  if(!r || !r.le) return null;
-  const l = document.createElement('span');
-  l.className = 'relanceAac';
-  l.style.cssText = 'font-size:12.5px;color:var(--cream);line-height:1.5;';
-  /* le jour à l'heure de Paris, pas celui de Greenwich */
-  const jour = ms => { const d = new Date(ms);
-    return jourFrCs(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')); };
-  let t = '✉️ Relance envoyée le ' + jour(r.le) + (r.par ? ' (' + r.par + ')' : '');
-  if(r.reponduLe && r.reponse){
-    t += ' · 📝 Réponse le ' + jour(r.reponduLe) + (r.reponse.qui ? ' (' + r.reponse.qui + ')' : '');
-    const res = resumeReponseAac(r);
-    if(res) t += ' : ' + res;
-  }else if((r.demande || {}).rvp || (r.demande || {}).examen){
-    t += ' · réponse attendue';
-  }
-  l.textContent = t;
-  return l;
 }
