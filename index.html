@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1412
+     VERSION APPLICATION : v1414
      VERSION APPS SCRIPT REQUISE : v263
      Mis à jour le : 12/11/2026
 
@@ -7558,6 +7558,249 @@
     box-shadow:inset 0 1px 0 var(--verre-reflet), 0 8px 22px var(--verre-ombre); }
   body.verre .bdRelAac .bdRelCh{ box-shadow:inset 0 1px 0 var(--verre-reflet); }
 
+
+  /* ============================================================
+     🧭 v1414 — LA MESSAGERIE FAÇON MESSENGER (proposition A)
+
+     David, le 12 novembre 2026 : « je la trouve pas ergonomique, comme
+     on est éloigné de Messenger les moniteurs continuent d'utiliser
+     Messenger ». Sur la maquette, il choisit la proposition A :
+       · la barre des vues (Messagerie, Mail, Objets oubliés) et le titre
+         de la carte s'effacent : « Discussions | ✉️ | ✋ » en tête de liste ;
+       · le bandeau du jour devient une pastille dans l'en-tête, et
+         l'en-tête tient sur une ligne sur le téléphone ;
+       · une liste sans cadres ni rubriques, des bulles sans nom répété,
+         mes messages en vert plein, l'heure entre les groupes ;
+       · ⓘ Infos remplace le ⋯ de la conversation.
+     Tout est rangé sous « .msgA » (posé par ec-cockpit.js) et sous
+     body[data-onglet="messagerie"] (posé par ec-onglets.js).
+     ============================================================ */
+
+  /* --- l'onglet --- */
+  body[data-onglet="messagerie"] .barre-vues[data-pour="messagerie"]{ display:none !important; }
+  body[data-onglet="messagerie"] .card[data-onglet="messagerie"] > h2.section-title{ display:none; }
+  body .card[data-vues~="messagerie"]:has(> #messagerieZone.msgA){ padding:10px; }
+  body .card[data-vues~="messagerie"]:has(> #messagerieZone.msgA.ckpEtroit):not(:has(> #messagerieZone > .ckFh)){ padding:6px 4px; background:transparent;
+    border:none; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
+  body.verre .card[data-vues~="messagerie"]:has(> #messagerieZone.msgA.ckpEtroit > .ckFh){ background:var(--verre-fond, var(--navy)); }
+
+  #bandeauJour:empty{ display:none !important; }
+
+  /* --- la pastille du bandeau, dans l'en-tête --- */
+  #bandeauPastille{ display:none; }
+  body[data-onglet="messagerie"] #bandeauPastille{
+    display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 11px 0 10px; margin:0 0 0 10px;
+    border-radius:999px; border:1.5px solid var(--orange); background:var(--verre, var(--navy-deep));
+    color:var(--cream); font:inherit; font-size:13px; font-weight:700; cursor:pointer; flex-shrink:0; white-space:nowrap;
+  }
+  #bandeauPastille b{ background:var(--orange); color:var(--on-accent, #0B0B0B); border-radius:999px; padding:0 7px; font-size:12px; line-height:18px; }
+  #bandeauPastille .fl{ font-size:10px; }
+  @media (max-width:600px){
+    body[data-onglet="messagerie"] #bandeauPastille{ height:36px; margin:0; padding:0 8px; }
+    body[data-onglet="messagerie"] #bandeauPastille .mots{ display:none; }
+    /* l'en-tête sur une ligne : ni le nom, ni la version, ni 💬 (on y est) */
+    body[data-onglet="messagerie"] header{ flex-wrap:nowrap !important; gap:6px !important; padding-bottom:8px; margin-bottom:6px; }
+    body[data-onglet="messagerie"] header #qui,
+    body[data-onglet="messagerie"] header .ec-titre,
+    body[data-onglet="messagerie"] header #msgElvBtn{ display:none !important; }
+    body[data-onglet="messagerie"] header > button,
+    body[data-onglet="messagerie"] header > a,
+    body[data-onglet="messagerie"] header #plusZone > button{ height:36px !important; min-width:36px !important; margin-left:0 !important; padding:0 7px !important; }
+    body[data-onglet="messagerie"] header > button:not(#cbBtn):not(#procRaccourci),
+    body[data-onglet="messagerie"] header #plusZone > button{ width:36px !important; padding:0 !important; }
+    body[data-onglet="messagerie"] header #plusZone{ margin-left:0 !important; }
+    body[data-onglet="messagerie"] header > button:first-of-type{ margin-left:auto !important; }
+    body[data-onglet="messagerie"] header .logo{ width:36px; height:36px; font-size:14px; border-radius:12px; }
+  }
+
+  /* --- la tête de la liste --- */
+  body .msgA .msgAHaut{ display:flex; flex-direction:column; gap:8px; padding:10px 12px 6px; }
+  body .msgA.ckpEtroit .msgAHaut{ padding:2px 4px 6px; }
+  body .msgATete{ display:flex; align-items:center; gap:8px; min-width:0; }
+  body .msgATete .sp{ flex:1; }
+  body .msgATitre{ font-size:22px; font-weight:900; letter-spacing:-.02em; color:var(--kt, var(--cream)); }
+  body .msgASeg{ display:flex; gap:3px; padding:3px; border-radius:999px; background:var(--kp2, var(--navy));
+    border:1px solid var(--kl, var(--line)); min-width:0; }
+  body .msgASeg button{ display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 8px; margin:0; border:none;
+    border-radius:999px; background:transparent; color:var(--kd, var(--muted)); font:inherit; font-size:14px; font-weight:800;
+    cursor:pointer; white-space:nowrap; position:relative; width:auto; }
+  body .msgASeg button.on{ background:var(--kp1, var(--navy-deep)); color:var(--kt, var(--cream)); padding:0 11px; font-size:13.5px;
+    box-shadow:0 1px 4px rgba(20,22,27,.14); }
+  body .msgASeg button .n{ position:absolute; top:-3px; right:-3px; min-width:17px; height:17px; padding:0 4px; border-radius:9px;
+    background:var(--red, #C33A12); color:#fff; font-size:10.5px; font-style:normal; font-weight:800; line-height:17px; text-align:center; }
+  body .msgAIc{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+  body .msgARond{ width:40px; height:40px; min-width:40px; border-radius:50%; margin:0; padding:0; display:inline-flex; align-items:center;
+    justify-content:center; cursor:pointer; border:1px solid var(--kl, var(--line)); background:var(--kp2, var(--navy));
+    color:var(--kt, var(--cream)); font:inherit; font-size:17px; font-weight:800; flex-shrink:0; }
+  body .msgARond.vert{ background:var(--lentille, var(--kn)); color:#0B0B0B; border-color:transparent;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 4px 12px rgba(150,220,0,.3); }
+  body .msgARond.on{ box-shadow:inset 0 0 0 2px var(--knt, var(--accent-text)); }
+  body .msgA .msgARech{ display:flex; align-items:center; gap:8px; height:42px; margin:0; padding:0 4px 0 13px; border-radius:999px;
+    border:1px solid var(--kl); background:var(--kp2); color:var(--kd); cursor:text; }
+  body .msgA .msgARech input{ flex:1; min-width:0; border:none; outline:none; background:transparent; color:var(--kt);
+    font:inherit; font-size:15px; margin:0; padding:0; height:auto; box-shadow:none; }
+  body .msgA .msgARech input::placeholder{ color:var(--kd); }
+  body .msgAFiltresB{ display:inline-flex; align-items:center; gap:5px; height:34px; padding:0 11px; margin:0; border:none; border-radius:999px;
+    background:transparent; color:var(--kt); font:inherit; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap; width:auto; flex-shrink:0; }
+  body .msgAFiltresB .msgAIc{ width:17px; height:17px; }
+  body .msgAFiltresB:hover{ background:var(--kp1); }
+  body .msgAFiltresB.on{ background:rgba(182,255,14,.28); }
+
+  /* --- les pastilles : une rangée qui glisse --- */
+  body .msgA .ckpOnglets.ckpOngletsMsg{ display:flex !important; flex-wrap:nowrap !important; gap:6px; overflow-x:auto; scrollbar-width:none;
+    padding:2px 12px 8px; margin:0 !important; grid-template-columns:none !important; }
+  body .msgA.ckpEtroit .ckpOnglets.ckpOngletsMsg{ padding:2px 4px 8px; }
+  body .msgA .ckpOnglets.ckpOngletsMsg::-webkit-scrollbar{ display:none; }
+  body .msgA .ckpOngletsMsg .ckpOnglet{ flex:0 0 auto !important; width:auto !important; min-height:0 !important; height:34px; padding:0 14px !important;
+    margin:0; border-radius:999px !important; font-size:14px !important; font-weight:700; gap:6px; display:inline-flex; align-items:center;
+    border:1px solid var(--kl) !important; background:var(--kp2) !important; color:var(--kt) !important; box-shadow:none !important; flex-direction:row !important; }
+  body .msgA .ckpOngletsMsg .ckpOnglet svg{ display:none; }
+  body .msgA .ckpOngletsMsg .ckpOnglet.on{ background:var(--lentille, var(--kn)) !important; color:#0B0B0B !important; border-color:transparent !important; }
+  body .msgA .ckpOngletsMsg .ckpOnglet .n{ position:static !important; background:var(--kn); color:#0B0B0B; border-radius:9px; padding:0 6px;
+    font-size:11.5px; font-weight:800; line-height:18px; min-width:0; height:auto; }
+  body .msgA .ckpOngletsMsg .ckpOnglet.on .n{ background:rgba(0,0,0,.14); }
+  body .msgAPosees{ display:flex; flex-wrap:wrap; gap:6px; padding:0 12px 8px; }
+  body .msgA.ckpEtroit .msgAPosees{ padding:0 4px 8px; }
+  body .msgAPosee{ display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; margin:0; border-radius:999px; width:auto;
+    border:1px solid transparent; background:rgba(182,255,14,.26); color:var(--kt); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  body .msgFilEtiq.msgAPosees{ padding:7px 12px 0; }
+  body .msgFilEtiq .msgAPosee{ height:26px; font-size:12px; background:var(--kp2); border-color:var(--kl); }
+  body .msgAPoint{ display:inline-block; width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+  /* --- une ligne : sans cadre, comme Messenger --- */
+  body .msgA .ckIt{ margin:0 6px !important; padding:8px 8px !important; border:none !important; background:transparent; border-radius:16px !important;
+    box-shadow:none; align-items:center; gap:12px; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+  body .msgA .ckIt:hover{ background:rgba(127,140,151,.10); }
+  body .msgA .ckIt.on{ background:rgba(182,255,14,.24) !important; box-shadow:none !important; }
+  body .msgA .ckIt.coche{ background:var(--kwarn) !important; }
+  body .msgA.ckpEtroit .ckIt{ margin:0 !important; background:transparent !important; }
+  body .msgA .ckIt .ckAv{ width:52px !important; height:52px !important; font-size:16px; border:2px solid var(--kl); background:var(--kp2); }
+  body .msgA .ckIt .ckAv.nl{ border-color:var(--kn); box-shadow:none; }
+  body .msgA .ckIt .ckAv .ckAvMini{ right:-4px; bottom:-3px; }
+  body .msgA .ckIt .h{ align-items:baseline; }
+  body .msgA .ckIt .h strong{ font-size:15.5px; font-weight:600; }
+  body .msgA .ckIt .h span{ font-size:12px; }
+  body .msgA .ckIt .r2{ display:flex; align-items:center; gap:6px; min-width:0; margin-top:2px; }
+  body .msgA .ckIt .r2 .ap{ flex:1; min-width:0; margin:0; font-size:13.5px; }
+  body .msgA .ckIt .r2 .msgMarquesPour{ display:inline-flex; align-items:center; gap:3px; flex-shrink:0; }
+  body .msgA .ckIt .ckCpt{ display:inline-flex !important; min-width:21px; height:21px; border-radius:11px; font-size:12px; font-weight:800; align-self:center; }
+  body .msgA .ckIt.nlu .h strong{ font-weight:800; }
+  body .msgA .ckIt.nlu .h span{ color:var(--knt); font-weight:800; }
+  body .msgA .ckIt.nlu .ap{ color:var(--kt); font-weight:700; }
+  body .msgA .ckIt .ckSla{ margin-top:6px; height:3px; }
+  body .msgA .ckIt .ckSla i{ background:linear-gradient(90deg,#7CC400,#E8850C); }
+  body .msgA .ckIt .ckMarque{ margin-top:3px; }
+  body .msgA .ckVite2{ top:50%; right:8px; transform:translateY(-50%); gap:2px; padding:3px; border-radius:999px; background:var(--kp1);
+    border:1px solid var(--kl); box-shadow:0 6px 18px rgba(20,22,27,.14); }
+  body .msgA .ckVite2 button{ width:30px; height:30px; border-radius:50%; border:none; background:transparent; font-size:14px; }
+  body .msgA .ckVite2 button:hover{ background:var(--kp2); }
+  body .msgA .ckVite2 .ckNonLuSurvol{ color:var(--knt); font-weight:900; }
+  body .msgA.ckpLarge .ckIt:hover .h span{ visibility:visible; }
+  body .msgA .ckpSect{ padding:12px 14px 4px; }
+  body .msgA .ckpScroll{ padding:0 0 10px; }
+
+  /* --- grand écran : la liste, le fil, et ⓘ Infos --- */
+  body .ckp.ckpLarge.msgA{ grid-template-columns:350px minmax(0,1fr) 320px; border-radius:22px; }
+  body .ckp.ckpLarge.msgA.sansFiche{ grid-template-columns:330px minmax(0,1fr); }
+  @media (max-width:1180px){ body .ckp.ckpLarge.msgA.sansFiche{ grid-template-columns:330px minmax(0,1fr); } }
+  body .msgA.ckpLarge .msgARond{ width:38px; height:38px; min-width:38px; }
+  body .msgA .ckpCtx{ padding:0; overflow:hidden; display:flex; flex-direction:column; }
+  body .msgA .ckpFil{ position:relative; }
+
+  /* --- la tête du fil --- */
+  body .msgA .ckFh{ min-height:62px; padding:8px 12px; gap:10px; flex-wrap:nowrap !important; }
+  body .msgA .ckFh.etroit{ padding:0 0 8px; margin-bottom:0; }
+  body .msgA .ckFh .tt{ display:block; flex:1; min-width:0; text-align:left; background:transparent; border:none; padding:0; margin:0; cursor:pointer;
+    color:inherit; font:inherit; width:auto; }
+  body .msgA .ckFh .tt .t{ font-size:16.5px; }
+  body .msgA .ckFh .b{ flex-basis:auto !important; margin-left:0; gap:6px; }
+  body .msgA .ckFh .b .ckBt{ width:40px; min-width:40px; height:40px; border-radius:50%; padding:0; }
+  body .msgA .ckFh .b .ckBt.on{ background:rgba(182,255,14,.28); box-shadow:none; color:var(--kt); }
+  body .msgA .ckFh .msgAInfoB .ckRetourIc{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; }
+
+  /* --- les bulles --- */
+  body .msgA .msgFil{ display:flex; flex-direction:column; }
+  body .msgA .msgFil > :first-child{ margin-top:auto; }
+  body .msgA .msgJour{ margin:14px 0 6px; }
+  body .msgA .msgJour span{ border:none !important; background:transparent !important; padding:0; font-size:10.5px; letter-spacing:.14em;
+    font-weight:700; color:var(--kd); text-transform:uppercase; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  body .msgA .msgB{ border-radius:19px; padding:8px 13px; font-size:15px; line-height:1.36; box-shadow:none; }
+  body .msgA .msgB.lui{ background:var(--kp1) !important; border:1px solid var(--kl) !important; color:var(--kt); }
+  body .msgA .msgB.moi{ background:var(--lentille, var(--kn)) !important; border:1px solid transparent !important; color:#0B0B0B !important; }
+  body .msgA .msgB.moi a{ color:#0B0B0B; }
+  body .msgA .msgB.lui.suite{ border-top-left-radius:6px; }
+  body .msgA .msgB.lui:not(.pointe){ border-bottom-left-radius:6px; }
+  body .msgA .msgB.moi.suite{ border-top-right-radius:6px; }
+  body .msgA .msgB.moi:not(.pointe){ border-bottom-right-radius:6px; }
+  body .msgA .msgB.lui.pointe{ border-bottom-left-radius:19px; }
+  body .msgA .msgB.moi.pointe{ border-bottom-right-radius:19px; }
+  body .msgA .msgB.lui.pointe.suite{ border-top-left-radius:6px; }
+  body .msgA .msgB.moi.pointe.suite{ border-top-right-radius:6px; }
+  body .msgA .msgB .sig{ display:block; font-size:11.5px; font-weight:700; color:var(--kd) !important; margin:0 0 2px; }
+  body .msgA .msgB.moi .motif{ color:rgba(11,11,11,.65) !important; }
+  body .msgA .msgB .h{ display:none; }
+  body .msgA .msgB.hVue .h{ display:block; float:none; margin:4px 0 0; font-size:11px; opacity:.7; text-align:right; }
+  body .msgA .msgB.moi .msgCite{ border-left-color:rgba(11,11,11,.5); background:rgba(11,11,11,.08); color:#0B0B0B; }
+  body .msgA .msgRang{ margin-top:2px; }
+  body .msgA .msgRang.fin{ margin-bottom:8px; }
+  body .msgA .msgAvSlot .phRond{ border:1.5px solid var(--kn); }
+  body .msgA .msgLu{ text-align:right; font-size:11.5px; color:var(--kd); }
+
+  /* --- la barre d'écriture : ＋ · le champ (😊 dedans) · 🎤 · 👍 --- */
+  body .msgA .msgBarre{ border:none !important; background:transparent !important; box-shadow:none !important; padding:4px 0 !important;
+    gap:6px; align-items:flex-end; min-height:0; }
+  body .msgA.ckpLarge .msgBarre{ padding:6px 4px 12px !important; }
+  body .msgA .msgBarre .msgPlus{ width:40px; height:40px; margin:0 0 1px; }
+  body .msgA .msgBarre .msgChamp{ min-height:42px; border-radius:21px; border:1px solid var(--kl); background:var(--kp2); padding:2px 3px 2px 14px;
+    align-items:flex-end; }
+  body .msgA .msgBarre .msgChamp:focus-within{ border-color:var(--kmoiB); }
+  body .msgA .msgBarre .msgChamp textarea{ font-size:15.5px; padding:9px 0; background:transparent; border:none; }
+  body .msgA .msgBarre .msgChamp .msgOutil{ width:36px; height:36px; margin:0 0 1px; }
+  body .msgA .msgBarre > .msgOutil, body .msgA .msgBarre > .msgEnv{ width:40px; height:40px; margin:0 0 1px; }
+
+  /* --- ⓘ Infos --- */
+  body .msgAInfos{ display:flex; flex-direction:column; min-height:0; height:100%; background:var(--kp1); color:var(--kt); }
+  body .msgAInfosT{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--kl); flex-shrink:0; }
+  body .msgAInfosT b{ flex:1; font-size:16px; font-weight:800; }
+  body .msgAInfosT .ckBt{ width:34px; min-width:34px; height:34px; border-radius:50%; padding:0; }
+  body .msgAInfos.plein .msgAInfosT .ckRetour{ width:44px; min-width:44px; height:44px; border-radius:50%; background:var(--lentille, var(--kn));
+    border-color:transparent; color:#0B0B0B; box-shadow:0 2px 10px rgba(0,0,0,.18); }
+  body .msgAInfos.plein .msgAInfosT .ckRetourIc{ width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; }
+  body .msgAInfosC{ flex:1; min-height:0; overflow-y:auto; padding:16px 14px 24px; display:flex; flex-direction:column; gap:16px; }
+  body .msgAQui{ display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; }
+  body .msgAQui .phRond, body .msgAQui .msgAQuiAv{ width:76px !important; height:76px !important; font-size:24px; border:2px solid var(--kn); }
+  body .msgAQui b{ font-size:18px; font-weight:800; }
+  body .msgAQui span{ font-size:12.5px; color:var(--kd); }
+  body .msgARonds{ display:flex; justify-content:center; flex-wrap:wrap; gap:6px 2px; }
+  body .msgARonds button{ display:flex; flex-direction:column; align-items:center; gap:4px; width:54px; margin:0; padding:0; border:none;
+    background:transparent; color:var(--kd); font:inherit; font-size:10.5px; font-weight:700; line-height:1.2; cursor:pointer; text-align:center; }
+  body .msgARonds button i{ width:44px; height:44px; border-radius:50%; display:grid; place-items:center; font-style:normal; font-size:18px;
+    background:var(--kp2); border:1px solid var(--kl); color:var(--kt); }
+  body .msgARonds button.on i{ background:rgba(182,255,14,.3); border-color:var(--kn); }
+  body .msgARonds button:hover i{ border-color:var(--knt); }
+  body .msgASec{ display:flex; flex-direction:column; gap:8px; }
+  body .msgASec h4{ margin:0; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--kd); font-weight:800; }
+  body .msgAInfos .ckFichePhoto{ display:none; }
+  body .msgAInfos .ckFiche{ padding:0; }
+  body .msgAPuces{ display:flex; flex-wrap:wrap; gap:6px; }
+  body .msgAPuces button{ display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 12px; margin:0; width:auto; border-radius:999px;
+    border:1px solid var(--kl); background:var(--kp2); color:var(--kt); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  body .msgAPuces button.on{ background:rgba(182,255,14,.3); border-color:var(--kn); }
+  body .msgAPuces button.aj{ border-style:dashed; color:var(--kd); background:transparent; }
+  body .msgAPuces .vide{ font-size:12.5px; color:var(--kd); }
+  body .msgAGestes{ display:flex; flex-direction:column; }
+  body .msgAGestes button{ display:flex; align-items:center; gap:10px; width:100%; margin:0; padding:10px 8px; border:none; border-radius:12px;
+    background:transparent; color:var(--kt); font:inherit; font-size:14.5px; font-weight:600; text-align:left; cursor:pointer; }
+  body .msgAGestes button:hover{ background:var(--kp2); }
+  body .msgAGestes button.danger{ color:var(--kr); }
+  body .msgAGestes .e{ width:24px; text-align:center; flex-shrink:0; }
+  /* tablette : un panneau sur le côté du fil ; téléphone et tiroir : un écran par-dessus */
+  body .msgA #ckpFil, body #messagerieZone.msgA.ckpEtroit, body #msgElvTiroirCorps.msgA{ position:relative; }
+  body .msgAInfosBoite{ position:absolute; inset:0; z-index:40; }
+  body .msgAInfosBoite.cote .msgAInfosVoile{ position:absolute; inset:0; background:rgba(11,11,11,.18); }
+  body .msgAInfosBoite.cote .msgAInfos{ position:absolute; top:0; right:0; bottom:0; width:min(360px, 92%); border-left:1px solid var(--kl);
+    box-shadow:-12px 0 30px rgba(20,22,27,.16); }
+  body .msgAInfosBoite.plein .msgAInfos{ position:absolute; inset:0; }
 </style>
 </head>
 <body>
@@ -7697,7 +7940,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1412" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1414" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -10072,150 +10315,150 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1412"></script>
-<script src="app/ec-modeles.js?v=1412"></script>
-<script src="app/ec-consignes.js?v=1412"></script>
-<script src="app/ec-noyau.js?v=1412"></script>
+  <script src="app/ec-etat.js?v=1414"></script>
+<script src="app/ec-modeles.js?v=1414"></script>
+<script src="app/ec-consignes.js?v=1414"></script>
+<script src="app/ec-noyau.js?v=1414"></script>
 <!-- 🔒 v1335 — la page de connexion : le pavé, le prénom retenu, le bonjour -->
-<script src="app/ec-connexion.js?v=1412"></script>
-<script src="app/ec-vocal.js?v=1412"></script>
+<script src="app/ec-connexion.js?v=1414"></script>
+<script src="app/ec-vocal.js?v=1414"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1412"></script>
-<script src="app/ec-lieux.js?v=1412"></script>
-<script src="app/ec-reseau.js?v=1412"></script>
-<script src="app/ec-manuel.js?v=1412"></script>
-<script src="app/ec-verifs-banque.js?v=1412"></script>
-<script src="app/ec-suivi-eleve.js?v=1412"></script>
-<script src="app/ec-verifs.js?v=1412"></script>
-<script src="app/ec-jeu-atelier.js?v=1412"></script>
-<script src="app/ec-fenetres.js?v=1412"></script>
+<script src="app/ec-trajet.js?v=1414"></script>
+<script src="app/ec-lieux.js?v=1414"></script>
+<script src="app/ec-reseau.js?v=1414"></script>
+<script src="app/ec-manuel.js?v=1414"></script>
+<script src="app/ec-verifs-banque.js?v=1414"></script>
+<script src="app/ec-suivi-eleve.js?v=1414"></script>
+<script src="app/ec-verifs.js?v=1414"></script>
+<script src="app/ec-jeu-atelier.js?v=1414"></script>
+<script src="app/ec-fenetres.js?v=1414"></script>
 <!-- 🔑 v1325 — le coin révisions d’un élève : sa carte, la mise en route, le message d’accès -->
-<script src="app/ec-coin-revisions.js?v=1412"></script>
-<script src="app/ec-acces-etat.js?v=1412"></script>
-<script src="app/ec-montage.js?v=1412"></script>
-<script src="app/ec-montage-editeur.js?v=1412"></script>
-<script src="app/ec-montage-fabrique.js?v=1412"></script>
-<script src="app/ec-texte-riche.js?v=1412"></script>
-<script src="app/ec-parcours.js?v=1412"></script>
-<script src="app/ec-questionnaire.js?v=1412"></script>
-<script src="app/ec-permis.js?v=1412"></script>
-<script src="app/ec-prepares.js?v=1412"></script>
-<script src="app/ec-avant-cours.js?v=1412"></script>
-<script src="app/ec-bureau.js?v=1412"></script>
-<script src="app/ec-places.js?v=1412"></script>
-<script src="app/ec-listes.js?v=1412"></script>
-<script src="app/ec-permis-listes.js?v=1412"></script>
-<script src="app/ec-postpermis.js?v=1412"></script>
-<script src="app/ec-textes.js?v=1412"></script>
-<script src="app/ec-import-keep.js?v=1412"></script>
-<script src="app/ec-correction.js?v=1412"></script>
-<script src="app/ec-bilans.js?v=1412"></script>
-<script src="app/ec-fiches.js?v=1412"></script>
-<script src="app/ec-compo.js?v=1412"></script>
-<script src="app/ec-tele.js?v=1412"></script>
-<script src="app/ec-ecran.js?v=1412"></script>
-<script src="app/ec-studio.js?v=1412"></script>
-<script src="app/ec-mep.js?v=1412"></script>
-<script src="app/ec-version.js?v=1412"></script>
-<script src="app/ec-paie.js?v=1412"></script>
-<script src="app/ec-flotte.js?v=1412"></script>
-<script src="app/ec-garages.js?v=1412"></script>
-<script src="app/ec-coffre.js?v=1412"></script>
-<script src="app/ec-carrosserie.js?v=1412"></script>
-<script src="app/ec-solo.js?v=1412"></script>
-<script src="app/ec-handicap-pdf.js?v=1412"></script>
-<script src="app/ec-moto.js?v=1412"></script>
-<script src="app/ec-remorque.js?v=1412"></script>
-<script src="app/ec-arriereplan.js?v=1412"></script>
-<script src="app/ec-iadirect.js?v=1412"></script>
-<script src="app/ec-placesbe.js?v=1412"></script>
-<script src="app/ec-codeamenage.js?v=1412"></script>
-<script src="app/ec-financements.js?v=1412"></script>
-<script src="app/ec-eval-aac.js?v=1412"></script>
-<script src="app/ec-postes.js?v=1412"></script>
-<script src="app/ec-tarifs.js?v=1412"></script>
-<script src="app/ec-tarifs-fiches.js?v=1412"></script>
-<script src="app/ec-tarifs-site.js?v=1412"></script>
-<script src="app/ec-tarifs-drivup.js?v=1412"></script>
-<script src="app/ec-courriers.js?v=1412"></script>
-<script src="app/ec-formations-docs.js?v=1412"></script>
-<script src="app/ec-formations.js?v=1412"></script>
-<script src="app/ec-formations-signer.js?v=1412"></script>
-<script src="app/ec-formations-suivi.js?v=1412"></script>
-<script src="app/ec-caisse.js?v=1412"></script>
-<script src="app/ec-menage.js?v=1412"></script>
-<script src="app/ec-page-eleve.js?v=1412"></script>
-<script src="app/ec-notes-dossier.js?v=1412"></script>
-<script src="app/ec-renseignements.js?v=1412"></script>
-<script src="app/ec-messagerie.js?v=1412"></script>
-<script src="app/ec-cockpit.js?v=1412"></script>
-<script src="app/ec-boite-mail.js?v=1412"></script>
+<script src="app/ec-coin-revisions.js?v=1414"></script>
+<script src="app/ec-acces-etat.js?v=1414"></script>
+<script src="app/ec-montage.js?v=1414"></script>
+<script src="app/ec-montage-editeur.js?v=1414"></script>
+<script src="app/ec-montage-fabrique.js?v=1414"></script>
+<script src="app/ec-texte-riche.js?v=1414"></script>
+<script src="app/ec-parcours.js?v=1414"></script>
+<script src="app/ec-questionnaire.js?v=1414"></script>
+<script src="app/ec-permis.js?v=1414"></script>
+<script src="app/ec-prepares.js?v=1414"></script>
+<script src="app/ec-avant-cours.js?v=1414"></script>
+<script src="app/ec-bureau.js?v=1414"></script>
+<script src="app/ec-places.js?v=1414"></script>
+<script src="app/ec-listes.js?v=1414"></script>
+<script src="app/ec-permis-listes.js?v=1414"></script>
+<script src="app/ec-postpermis.js?v=1414"></script>
+<script src="app/ec-textes.js?v=1414"></script>
+<script src="app/ec-import-keep.js?v=1414"></script>
+<script src="app/ec-correction.js?v=1414"></script>
+<script src="app/ec-bilans.js?v=1414"></script>
+<script src="app/ec-fiches.js?v=1414"></script>
+<script src="app/ec-compo.js?v=1414"></script>
+<script src="app/ec-tele.js?v=1414"></script>
+<script src="app/ec-ecran.js?v=1414"></script>
+<script src="app/ec-studio.js?v=1414"></script>
+<script src="app/ec-mep.js?v=1414"></script>
+<script src="app/ec-version.js?v=1414"></script>
+<script src="app/ec-paie.js?v=1414"></script>
+<script src="app/ec-flotte.js?v=1414"></script>
+<script src="app/ec-garages.js?v=1414"></script>
+<script src="app/ec-coffre.js?v=1414"></script>
+<script src="app/ec-carrosserie.js?v=1414"></script>
+<script src="app/ec-solo.js?v=1414"></script>
+<script src="app/ec-handicap-pdf.js?v=1414"></script>
+<script src="app/ec-moto.js?v=1414"></script>
+<script src="app/ec-remorque.js?v=1414"></script>
+<script src="app/ec-arriereplan.js?v=1414"></script>
+<script src="app/ec-iadirect.js?v=1414"></script>
+<script src="app/ec-placesbe.js?v=1414"></script>
+<script src="app/ec-codeamenage.js?v=1414"></script>
+<script src="app/ec-financements.js?v=1414"></script>
+<script src="app/ec-eval-aac.js?v=1414"></script>
+<script src="app/ec-postes.js?v=1414"></script>
+<script src="app/ec-tarifs.js?v=1414"></script>
+<script src="app/ec-tarifs-fiches.js?v=1414"></script>
+<script src="app/ec-tarifs-site.js?v=1414"></script>
+<script src="app/ec-tarifs-drivup.js?v=1414"></script>
+<script src="app/ec-courriers.js?v=1414"></script>
+<script src="app/ec-formations-docs.js?v=1414"></script>
+<script src="app/ec-formations.js?v=1414"></script>
+<script src="app/ec-formations-signer.js?v=1414"></script>
+<script src="app/ec-formations-suivi.js?v=1414"></script>
+<script src="app/ec-caisse.js?v=1414"></script>
+<script src="app/ec-menage.js?v=1414"></script>
+<script src="app/ec-page-eleve.js?v=1414"></script>
+<script src="app/ec-notes-dossier.js?v=1414"></script>
+<script src="app/ec-renseignements.js?v=1414"></script>
+<script src="app/ec-messagerie.js?v=1414"></script>
+<script src="app/ec-cockpit.js?v=1414"></script>
+<script src="app/ec-boite-mail.js?v=1414"></script>
 <!-- 📞 v1183 — les appels : l'écran commun (partagé avec eleve.html), puis l'équipe -->
-<script src="appel-commun.js?v=1412"></script>
-<script src="app/ec-appels.js?v=1412"></script>
-<script src="app/ec-aqui.js?v=1412"></script>
-<script src="app/ec-photos-profil.js?v=1412"></script>
-<script src="app/ec-drivup.js?v=1412"></script>
-<script src="app/ec-bureaux.js?v=1412"></script>
-<script src="app/ec-cbgasoil.js?v=1412"></script>
-<script src="app/ec-loupe.js?v=1412"></script>
-<script src="app/ec-coutsia.js?v=1412"></script>
-<script src="app/ec-charges.js?v=1412"></script>
-<script src="app/ec-evaluation.js?v=1412"></script>
+<script src="appel-commun.js?v=1414"></script>
+<script src="app/ec-appels.js?v=1414"></script>
+<script src="app/ec-aqui.js?v=1414"></script>
+<script src="app/ec-photos-profil.js?v=1414"></script>
+<script src="app/ec-drivup.js?v=1414"></script>
+<script src="app/ec-bureaux.js?v=1414"></script>
+<script src="app/ec-cbgasoil.js?v=1414"></script>
+<script src="app/ec-loupe.js?v=1414"></script>
+<script src="app/ec-coutsia.js?v=1414"></script>
+<script src="app/ec-charges.js?v=1414"></script>
+<script src="app/ec-evaluation.js?v=1414"></script>
 <!-- 👥 v1189 — l’équipe : fiches, papiers, arrêts, et les échéances de l’école -->
-<script src="app/ec-equipe.js?v=1412"></script>
-<script src="app/ec-paiement.js?v=1412"></script>
-<script src="app/ec-aides.js?v=1412"></script>
-<script src="app/ec-salle.js?v=1412"></script>
-<script src="app/ec-durees-examen.js?v=1412"></script>
-<script src="app/ec-msg-gestes.js?v=1412"></script>
-<script src="app/ec-msg-vehicules.js?v=1412"></script>
-<script src="app/ec-handicap.js?v=1412"></script>
-<script src="app/ec-code.js?v=1412"></script>
-<script src="app/ec-visio.js?v=1412"></script>
-<script src="app/ec-proccorriger.js?v=1412"></script>
-<script src="app/ec-sessions.js?v=1412"></script>
-<script src="app/ec-creneaux.js?v=1412"></script>
-<script src="app/ec-suivi-appels.js?v=1412"></script>
-<script src="app/ec-aac-cs.js?v=1412"></script>
-<script src="app/ec-notifs.js?v=1412"></script>
-<script src="app/ec-ecoutes.js?v=1412"></script>
-<script src="app/ec-ecoutes-presence.js?v=1412"></script>
-<script src="app/ec-todo.js?v=1412"></script>
-<script src="app/ec-taches.js?v=1412"></script>
-<script src="app/ec-memoire.js?v=1412"></script>
-<script src="app/ec-historique.js?v=1412"></script>
-<script src="app/ec-rappels.js?v=1412"></script>
-<script src="app/ec-segments.js?v=1412"></script>
-<script src="app/ec-sms.js?v=1412"></script>
-<script src="app/ec-encours.js?v=1412"></script>
-<script src="app/ec-incidents.js?v=1412"></script>
+<script src="app/ec-equipe.js?v=1414"></script>
+<script src="app/ec-paiement.js?v=1414"></script>
+<script src="app/ec-aides.js?v=1414"></script>
+<script src="app/ec-salle.js?v=1414"></script>
+<script src="app/ec-durees-examen.js?v=1414"></script>
+<script src="app/ec-msg-gestes.js?v=1414"></script>
+<script src="app/ec-msg-vehicules.js?v=1414"></script>
+<script src="app/ec-handicap.js?v=1414"></script>
+<script src="app/ec-code.js?v=1414"></script>
+<script src="app/ec-visio.js?v=1414"></script>
+<script src="app/ec-proccorriger.js?v=1414"></script>
+<script src="app/ec-sessions.js?v=1414"></script>
+<script src="app/ec-creneaux.js?v=1414"></script>
+<script src="app/ec-suivi-appels.js?v=1414"></script>
+<script src="app/ec-aac-cs.js?v=1414"></script>
+<script src="app/ec-notifs.js?v=1414"></script>
+<script src="app/ec-ecoutes.js?v=1414"></script>
+<script src="app/ec-ecoutes-presence.js?v=1414"></script>
+<script src="app/ec-todo.js?v=1414"></script>
+<script src="app/ec-taches.js?v=1414"></script>
+<script src="app/ec-memoire.js?v=1414"></script>
+<script src="app/ec-historique.js?v=1414"></script>
+<script src="app/ec-rappels.js?v=1414"></script>
+<script src="app/ec-segments.js?v=1414"></script>
+<script src="app/ec-sms.js?v=1414"></script>
+<script src="app/ec-encours.js?v=1414"></script>
+<script src="app/ec-incidents.js?v=1414"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1412"></script>
+<script src="app/ec-messages-perso.js?v=1414"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1412"></script>
-<script src="app/ec-bandeau.js?v=1412"></script>
-<script src="app/ec-stats.js?v=1412"></script>
-<script src="app/ec-messenger.js?v=1412"></script>
-<script src="app/ec-journal.js?v=1412"></script>
-<script src="app/ec-mails.js?v=1412"></script>
-<script src="app/ec-activite.js?v=1412"></script>
-<script src="app/ec-direct.js?v=1412"></script>
-<script src="app/ec-3d.js?v=1412"></script>
-<script src="app/ec-parc3d.js?v=1412"></script>
-<script src="app/ec-carro3d.js?v=1412"></script>
-<script src="app/ec-depart.js?v=1412"></script>
+<script src="app/ec-nouveautes.js?v=1414"></script>
+<script src="app/ec-bandeau.js?v=1414"></script>
+<script src="app/ec-stats.js?v=1414"></script>
+<script src="app/ec-messenger.js?v=1414"></script>
+<script src="app/ec-journal.js?v=1414"></script>
+<script src="app/ec-mails.js?v=1414"></script>
+<script src="app/ec-activite.js?v=1414"></script>
+<script src="app/ec-direct.js?v=1414"></script>
+<script src="app/ec-3d.js?v=1414"></script>
+<script src="app/ec-parc3d.js?v=1414"></script>
+<script src="app/ec-carro3d.js?v=1414"></script>
+<script src="app/ec-depart.js?v=1414"></script>
 <!-- 📝 v1314 — « Tu dois faire ton bilan » -->
-<script src="app/ec-bilan-eleve.js?v=1412"></script>
-<script src="app/ec-onglets.js?v=1412"></script>
-<script src="app/ec-relances.js?v=1412"></script>
-<script src="app/ec-verre.js?v=1412"></script>
-<script src="app/ec-demarrage.js?v=1412"></script>
+<script src="app/ec-bilan-eleve.js?v=1414"></script>
+<script src="app/ec-onglets.js?v=1414"></script>
+<script src="app/ec-relances.js?v=1414"></script>
+<script src="app/ec-verre.js?v=1414"></script>
+<script src="app/ec-demarrage.js?v=1414"></script>
 
 <script>
 /* ============================================================
