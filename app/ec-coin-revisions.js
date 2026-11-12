@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 10:20 — v1392 */
+/* Déployé le 12/11/2026 à 12:01 — v1412 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -275,6 +275,24 @@ async function cvLire(nom){
   };
 }
 
+/* 🔑 v1412 — LE NOM À TAPER, SANS SA FORMATION.
+
+   David, le 12 novembre : « les accès à l'espace élève pour les
+   passerelles, il faut qu'ils écrivent (Passerelle BV) à la suite de
+   leur nom, alors que ça ne devait plus apparaître dans le mail ». La
+   fiche d'un élève en passerelle porte sa formation après son nom
+   (« Prénom Nom (Passerelle BV) », « Prénom Nom passerelle BV ») : le
+   nom de la fiche ne change pas — il sert partout —, mais celui qu'on
+   lui donne à taper s'arrête au prénom-nom. Le serveur reconnaît le
+   début du nom avec le bon code (v1365, et v1412 pour toutes ses
+   portes). */
+function nomATaperPourLEleve(nom){
+  let t = String(nom || '').trim();
+  for(let i = 0; i < 3; i++) t = t.replace(/\s*\([^()]*\)\s*$/, '').trim();
+  t = t.replace(/\s*[-–—]?\s*passerelle\b.*$/i, '').trim();
+  return t || String(nom || '').trim();
+}
+
 /* ── le message ── */
 function cvTexteAcces(o){
   const E = o.E, prenom = String(o.nom || '').split(' ')[0];
@@ -291,7 +309,7 @@ function cvTexteAcces(o){
   let t = 'Bonjour ' + prenom + ',\n\n' +
     'Ton App Évolution Conduites est ouverte :\n' +
     String((typeof CONFIG === 'object' && CONFIG.LIEN_ELEVE) || '') + '\n' +
-    'Ton nom : ' + o.nom + '\n' +
+    'Ton nom : ' + nomATaperPourLEleve(o.nom) + '\n' +
     'Ton code : ' + o.code + '\n\n' +
     'Tu y trouveras :\n' + l.map(x => '• ' + x).join('\n') + '\n';
   /* 📺 la salle : seulement si un groupe de la salle est coché, et pas finie */
