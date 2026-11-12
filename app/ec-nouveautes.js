@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:40 — v1410 */
+/* Déployé le 12/11/2026 à 08:55 — v1411 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1411,
+    date: 'Jeudi 12 novembre 2026',
+    resume: '🎓 Suivi AAC : une frise par élève, les relances sous leur rendez-vous',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Une case par étape',
+        texte: 'Chaque élève a sa frise : Préalable → RVP 1 → Théorique → RVP 2 → Examen. La couleur de la case dit où il en est (vert fait, rouge en retard, orange à moins de 2 mois, pointillés à prévoir), et ses boutons 📣 Prévenu, ✅ Fait sont dans la case. Corriger, Il ne validera pas, Fausse AAC passent à droite du nom.' },
+      { emoji: '✉️',
+        titre: 'La relance sous le rendez-vous relancé',
+        texte: 'La partie RVP du mail s’affiche dans la case du RVP, la partie examen dans la case Examen, la proposition de théorique dans la case Théorique. Pastille bleue tant qu’on attend, ambre après 7 jours sans réponse, verte à la réponse. Le bouton ✉️ Relancer est sur le rendez-vous concerné.' },
+      { emoji: '📌',
+        titre: 'Fixer la date depuis la réponse',
+        texte: 'Sur une réponse de la famille, « 📌 Fixer la date » pose le rendez-vous (prévu, ou fait si la date est passée) et la pastille s’en va toute seule.' },
+      { emoji: '📬',
+        titre: 'Le bandeau des relances',
+        texte: 'En haut de la liste : qui n’a pas répondu et depuis combien de jours, qui a répondu et attend sa date. Toucher un nom descend jusqu’à lui. Et un filtre « ✉️ Relances » à côté des autres.' }
+    ]
+  },
   {
     version: 1410,
     date: 'Mardi 10 novembre 2026',
