@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:10 — v1408 */
+/* Déployé le 12/11/2026 à 14:17 — v1414 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -117,6 +117,10 @@ function afficherOnglet(cle, memoriser){
   if(!cle) return;
 
   ongletActif = cle;
+  /* 🧭 v1414 — l'onglet ouvert se lit sur le body : la messagerie façon
+     Messenger (proposition A, David le 12 novembre) cache sa barre des
+     vues et replie le bandeau du jour en pastille dans l'en-tête. */
+  document.body.setAttribute('data-onglet', cle);
 
   /* Les blocs des autres onglets se retirent de l'affichage */
   document.querySelectorAll('[data-onglet]').forEach(el => {
@@ -168,6 +172,9 @@ function afficherOnglet(cle, memoriser){
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  /* 🧭 v1414 — le bandeau du jour change de forme dans la messagerie */
+  if(typeof dessinerBandeau === 'function'){ try{ dessinerBandeau(); }catch(e){} }
 
   /* Chaque onglet charge ce dont il a besoin, à son ouverture */
   reveillerOnglet(cle);
