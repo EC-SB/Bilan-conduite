@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:07 — v1395 */
+/* Déployé le 12/11/2026 à 14:17 — v1414 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -336,6 +336,8 @@ async function mlCharger(silencieux){
    choisi : la zone est vide, on la remplit. */
 function mlDessinerLaListe(zone){
   zone.innerHTML = '';
+  /* 🧭 v1414 — « Discussions | ✉️ | ✋ » en tête (messagerie façon Messenger) */
+  if(typeof teteSegmentEC === 'function'){ const t = teteSegmentEC(); if(t) zone.appendChild(t); }
   if(!(typeof dansLeTiroir === 'function' && dansLeTiroir())) zone.appendChild(mlBarreDuHaut());
   /* ✉️ v1378 — plus de chips « Tout/Non lus/…/Mails » ici : le chat et le
      mail sont désormais DEUX vues du rail. Et le gros bandeau Claude + la
