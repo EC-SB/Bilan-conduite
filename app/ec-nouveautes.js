@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 12:01 — v1412 */
+/* Déployé le 12/11/2026 à 14:17 — v1414 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,38 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1414,
+    date: 'Jeudi 12 novembre 2026',
+    resume: '💬 La messagerie de l’équipe, façon Messenger',
+    quoi: [
+      { emoji: '📋',
+        titre: 'La liste dès le haut de l’écran',
+        texte: 'En tête : « Discussions | ✉️ | ✋ » (Mail et Objets oubliés), ✏️ et ⋯. Puis la recherche avec un bouton « Filtres » (pour moi, pour qui, étiquette, type, archivées), et une rangée de pastilles Tout, Non lus, Élèves, Équipe, Permis, Véhicules. Une seule liste, sans cadres ni rubriques : les non-lus en gras avec leur pastille, les étiquettes en points de couleur.' },
+      { emoji: '●',
+        titre: 'Remettre en non lu',
+        texte: 'Sur le téléphone, glisse une conversation vers la gauche ; sur l’ordinateur, le bouton ● au survol (à la place d’Archiver). Glisser à droite garde le rappel de demain 9 h. Archiver est dans l’appui long (ou le clic droit) et dans ⓘ Infos.' },
+      { emoji: 'ⓘ',
+        titre: 'Les infos de la conversation',
+        texte: 'Le ⋯ de la conversation est rangé dans ⓘ Infos (ou toucher le nom) : épingler, rappel, non lu, archiver, exporter, sa fiche, les étiquettes et « qui s’en occupe » à cocher, les participants, proposer un créneau… Sur l’ordinateur c’est la colonne de droite.' },
+      { emoji: '💬',
+        titre: 'Des bulles comme Messenger',
+        texte: 'Mes messages en vert plein, ceux des autres sans cadre et sans le nom répété, l’heure entre les groupes de messages (un toucher sur une bulle montre la sienne). La barre : ＋, le texte avec 😊 dedans, 🎤, puis 👍 qui devient ➤ dès qu’on écrit.' },
+      { emoji: '⚠️',
+        titre: 'Toute la hauteur pour les conversations',
+        texte: 'Dans l’onglet Messagerie, « choses à voir » devient une pastille dans l’en-tête (on la touche pour le déplier), et sur le téléphone l’en-tête tient sur une ligne.' }
+    ]
+  },
+  {
+    version: 1413,
+    date: 'Jeudi 12 novembre 2026',
+    resume: '📱 La flèche de retour de la messagerie élève en vert',
+    quoi: [
+      { emoji: '⬅️',
+        titre: 'La flèche de retour en haut, bien visible',
+        texte: 'Dans la messagerie de l’espace élève (une conversation, ou une demande retard, annulation, oubli), la flèche pour revenir est un rond vert, comme dans la messagerie de l’équipe.' }
+    ]
+  },
   {
     version: 1412,
     date: 'Jeudi 12 novembre 2026',
