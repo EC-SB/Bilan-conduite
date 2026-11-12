@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 12/11/2026 à 14:17 — v1414 */
 /* ============================================================
    ec-msg-gestes.js — 🧭 LES GESTES DE LA MESSAGERIE (v1296)
 
@@ -131,8 +131,12 @@ function toastAvecGesteEC(texte, bouton, faire){
    ← ✓ Réglé (si on peut régler) · → ⏰ me la rappeler demain
    À la souris : un clic ouvre, et ✓ ⏰ 📌 sont au survol.
    ============================================================ */
+/* ● v1414 — David, le 12 novembre : glisser vers la GAUCHE remet en non
+   lu (ou marque comme lue), à la place d'« Archiver ». Archiver est dans
+   ⓘ Infos et dans l'appui long sur la ligne. */
 function glisserLaLigneEC(el, c, ouvrir){
-  const peutRegler = typeof ckPeutGerer === 'function' && ckPeutGerer() && !Number(c.fermee || 0);
+  const peutRegler = typeof ckMarquerNonLu === 'function';
+  const nonLue = Number(c.nonLus || 0) > 0 || (typeof ckRevenu === 'function' && ckRevenu(c));
   el.classList.add('glissable');
   el.addEventListener('click', ev => {
     if(el.dataset.glisse === '1'){ ev.preventDefault(); ev.stopPropagation(); el.dataset.glisse = ''; return; }
@@ -143,13 +147,35 @@ function glisserLaLigneEC(el, c, ouvrir){
     el.style.transition = 'transform .2s'; el.style.transform = '';
     if(fond){ const f = fond; setTimeout(() => f.remove(), 220); fond = null; }
   };
+  /* 🧭 v1414 — l'appui long (doigt) ou le clic droit (souris) ouvre le
+     menu de la conversation : non lu, archiver, rappel, épingler,
+     étiquettes, qui s'en occupe. */
+  let long = null;
+  const finLong = () => { if(long){ clearTimeout(long); long = null; } };
+  el.addEventListener('contextmenu', ev => {
+    if(ev.target.closest('.ckVite2')) return;
+    ev.preventDefault(); finLong(); x0 = null;
+    if(bouge) return;
+    el.dataset.glisse = '1'; setTimeout(() => { el.dataset.glisse = ''; }, 400);
+    menuDeLaLigneEC(c, el);
+  });
   el.addEventListener('pointerdown', ev => {
     if(ev.pointerType === 'mouse' || ev.target.closest('.ckVite2')) return;
     x0 = ev.clientX; y0 = ev.clientY; dx = 0; bouge = false; vertical = false;
+    finLong();
+    long = setTimeout(() => {
+      long = null;
+      if(bouge || vertical || x0 === null) return;
+      x0 = null;
+      el.dataset.glisse = '1'; setTimeout(() => { el.dataset.glisse = ''; }, 600);
+      try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
+      menuDeLaLigneEC(c, el);
+    }, 480);
   });
   el.addEventListener('pointermove', ev => {
     if(x0 === null) return;
     const ddx = ev.clientX - x0, ddy = ev.clientY - y0;
+    if(Math.abs(ddx) > 8 || Math.abs(ddy) > 8) finLong();
     if(!bouge && !vertical && Math.abs(ddy) > 10 && Math.abs(ddy) > Math.abs(ddx)){ vertical = true; x0 = null; return; }
     if(!bouge && Math.abs(ddx) < 12) return;
     if(!bouge){
@@ -157,7 +183,7 @@ function glisserLaLigneEC(el, c, ouvrir){
       try{ el.setPointerCapture(ev.pointerId); }catch(e){}
       fond = document.createElement('div');
       fond.className = 'ckGlisseFond';
-      fond.innerHTML = '<span class="d">⏰ Demain</span><span class="g">' + (peutRegler ? '🗄️ Archiver' : '') + '</span>';
+      fond.innerHTML = '<span class="d">⏰ Demain</span><span class="g">' + (peutRegler ? (nonLue ? '✓ Lue' : '● Non lu') : '') + '</span>';
       el.parentNode.insertBefore(fond, el);
       const r = el.getBoundingClientRect(), p = el.offsetParent ? el.offsetParent.getBoundingClientRect() : { top: 0, left: 0 };
       fond.style.top = (el.offsetTop) + 'px'; fond.style.left = (el.offsetLeft) + 'px';
@@ -169,21 +195,46 @@ function glisserLaLigneEC(el, c, ouvrir){
     if(fond) fond.classList.toggle('gauche', dx < 0);
   });
   const fin = () => {
+    finLong();
     if(x0 === null) return;
     x0 = null;
     if(!bouge) return;
     el.dataset.glisse = '1';
     setTimeout(() => { el.dataset.glisse = ''; }, 400);
     if(dx < -90 && peutRegler){
-      el.style.transition = 'transform .18s'; el.style.transform = 'translateX(-110%)';
-      setTimeout(() => { if(fond) fond.remove(); fond = null; ckReglerDeLaListe(c.id); }, 170);
+      remettre();
+      ckMarquerNonLu(c.id);
       return;
     }
     remettre();
     if(dx > 90 && typeof ckMarquer === 'function') ckMarquer(c.id, 'rappel');
   };
   el.addEventListener('pointerup', fin);
-  el.addEventListener('pointercancel', () => { x0 = null; if(bouge) remettre(); });
+  el.addEventListener('pointercancel', () => { finLong(); x0 = null; if(bouge) remettre(); });
+}
+
+/* 🧭 v1414 — le menu d'une conversation, depuis la liste (appui long,
+   clic droit) : tous les gestes de la ligne, Archiver compris. */
+function menuDeLaLigneEC(c, ancre){
+  const nonLue = Number(c.nonLus || 0) > 0 || (typeof ckRevenu === 'function' && ckRevenu(c));
+  const apres = () => {
+    if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c.id && typeof dessinerLeFil === 'function') dessinerLeFil();
+    dessinerLaListeMessagerie();
+  };
+  const items = [];
+  if(typeof ckMarquerNonLu === 'function') items.push({ emoji: nonLue ? '✓' : '●', texte: nonLue ? 'Marquer comme lue' : 'Remettre en non lu', faire: () => ckMarquerNonLu(c.id) });
+  if(typeof ckPeutGerer === 'function' && ckPeutGerer()){
+    if(!Number(c.fermee || 0)) items.push({ emoji: '🗄️', texte: 'Archiver (elle part dans 🗄️ Archivées)', faire: () => ckReglerDeLaListe(c.id) });
+    else items.push({ emoji: '↺', texte: 'Sortir des archives', faire: async () => {
+      try{ await appelPrep({ action: 'convFermer', id: c.id, fermee: '0' }); }catch(e){ if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e)); return; }
+      afficherMessagerie(true);
+    } });
+  }
+  items.push({ emoji: '⏰', texte: ckRappelActif(c) ? 'Retirer le rappel' : 'Me la rappeler demain 9h', faire: () => ckMarquer(c.id, 'rappel') });
+  items.push({ emoji: '📌', texte: Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', faire: () => ckMarquer(c.id, 'epingle') });
+  items.push({ emoji: '🏷️', texte: 'Étiquettes', faire: () => setTimeout(() => menuEtiquettesConvEC(c, ancre, apres), 0) });
+  items.push({ emoji: '👤', texte: 'Qui s’en occupe', faire: () => setTimeout(() => menuPourConvEC(c, ancre, apres), 0) });
+  menuGestesEC(ancre, (typeof ckTitreListe === 'function' ? ckTitreListe(c) : '') || 'Conversation', items);
 }
 
 /* ============================================================
