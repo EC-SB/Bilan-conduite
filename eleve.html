@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 10/11/2026 à 16:10 — v1408 -->
+<!-- Déployé le 12/11/2026 à 12:01 — v1412 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -495,6 +495,23 @@
   .aVenirC b{ font-weight:800; }
   .aVenirC span{ color:var(--soft); font-size:13px; }
   .aVenirN{ font-size:12px; color:var(--soft); margin-top:8px; line-height:1.45; }
+  /* 💶 v1412 — son financement : où il en est, et le message de l'étape */
+  .fiDos{ padding:10px 0; border-top:1px solid var(--line); }
+  .fiDos:first-child{ border-top:0; padding-top:2px; }
+  .fiT{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; font-size:15px; font-weight:800; }
+  .fiT span{ margin-left:auto; font-size:13px; font-weight:700; color:var(--soft); }
+  .fiFrise{ display:flex; flex-wrap:wrap; gap:6px; margin:9px 0 2px; }
+  .fiPas{ font-size:12px; font-weight:700; border-radius:999px; padding:4px 10px; border:1px solid var(--line); color:var(--muted); }
+  .fiPas.fait{ color:var(--accent-text); border-color:color-mix(in srgb, var(--accent-text) 45%, transparent); background:rgba(182,255,14,.14); }
+  .fiPas.ici{ color:var(--cream); border-color:var(--cream); font-weight:800; }
+  .fiDate{ font-size:13px; color:var(--soft); margin-top:7px; }
+  .fiMsg{ margin-top:9px; }
+  .fiMsg summary{ cursor:pointer; font-size:13.5px; font-weight:800; color:var(--accent-text); }
+  .fiMsg .fiTexte{ white-space:pre-wrap; font-size:13.5px; line-height:1.5; margin-top:8px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); overflow-wrap:anywhere; }
+  .fiMsg .fiTexte a{ color:var(--accent-text); font-weight:700; }
+  .fiCourt{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; padding:8px 0; border-top:1px solid var(--line); font-size:14.5px; font-weight:700; }
+  .fiCourt:first-child{ border-top:0; }
+  .fiCourt span{ margin-left:auto; color:var(--accent-text); font-weight:800; }
 
   /* Son prochain cours */
   .prochain .quand{ font-size:17px; font-weight:800; color:var(--accent-text);
@@ -2471,6 +2488,14 @@
     <div class="card" id="carteDemandes" style="display:none;">
       <div class="section-title">📌 Ce qu'on te demande</div>
       <div id="mesDemandes"></div>
+    </div>
+
+    <!-- 💶 v1412 — son financement (David, le 12 novembre) : où en est son
+         dossier, le message de l'étape, puis « ✅ Financement CPF » et le
+         montant une fois l'entrée en formation passée. -->
+    <div class="card" id="carteFinancements" style="display:none;">
+      <div class="section-title">💶 Mon financement</div>
+      <div id="mesFinancements"></div>
     </div>
 
     <div class="card" id="carteLecons" style="display:none;">
@@ -7166,6 +7191,72 @@
     else { var zp = $('monProchain'); if(zp) zp.innerHTML = ''; montrer('carteProchain', true); }
     if(ouvert('historique')) dessinerLecons((d && d.lecons) || [], (d && d.couleursBilans) || []);
     dessinerMesPhotosBilan((d && d.photosBilan) || []);
+    dessinerMesFinancements((d && d.financements) || []);   /* 💶 v1412 */
+  }
+
+  /* ============================================================
+     💶 SON FINANCEMENT — v1412
+
+     David, le 12 novembre : « quand il y a un financement, il faut que
+     l'élève puisse voir où ça en est avec les messages correspondants,
+     jusqu'à l'entrée en formation ». Ses choix : tous ses suivis (CPF,
+     Pass'Engagement, permis à 1 €…), la frise des étapes et le message
+     de l'étape en cours ; une fois l'entrée en formation passée, juste
+     « Financement CPF ✅ » et le montant. C'est le Worker qui trie (et
+     qui coupe un dossier arrêté) : ici on dessine ce qu'il envoie.
+     ============================================================ */
+  function eurosFi(n){
+    var v = Math.round((Number(n) || 0) * 100) / 100;
+    return v.toLocaleString('fr-FR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }) + ' €';
+  }
+  function texteAvecLiensFi(t){
+    return echapper(String(t || '')).replace(/https?:\/\/[^\s<]+/g, function(u){
+      var fin = (u.match(/[).,;:!?»]+$/) || [''])[0];
+      var lien = fin ? u.slice(0, -fin.length) : u;
+      return '<a href="' + lien + '" target="_blank" rel="noopener">' + lien + '</a>' + fin;
+    });
+  }
+  function dessinerMesFinancements(liste){
+    var z = $('mesFinancements');
+    if(!z) return;
+    z.innerHTML = '';
+    var l = Array.isArray(liste) ? liste : [];
+    montrer('carteFinancements', l.length > 0);
+    var premier = true;
+    l.forEach(function(f){
+      if(!f) return;
+      if(f.court){
+        var c = document.createElement('div');
+        c.className = 'fiCourt';
+        c.innerHTML = '✅ ' + echapper(f.titre || 'Financement') + (f.montant ? '<span>' + eurosFi(f.montant) + '</span>' : '');
+        z.appendChild(c);
+        return;
+      }
+      var d = document.createElement('div');
+      d.className = 'fiDos';
+      var h = '<div class="fiT">' + echapper(f.titre || 'Financement') + (f.montant ? '<span>' + eurosFi(f.montant) + '</span>' : '') + '</div>';
+      var et = Array.isArray(f.etapes) ? f.etapes : [];
+      if(et.length){
+        h += '<div class="fiFrise">' + et.map(function(e, k){
+          var cl = k < f.ici ? 'fait' : (k === f.ici ? 'ici' : '');
+          return '<span class="fiPas ' + cl + '">' + (cl === 'fait' ? '✓ ' : '') + echapper(e) + '</span>';
+        }).join('') + '</div>';
+      }
+      if(/^\d{4}-\d{2}-\d{2}$/.test(String(f.dateEntree || ''))){
+        var de = String(f.dateEntree);
+        h += '<div class="fiDate">📆 Entrée en formation prévue le <b>' + de.slice(8, 10) + '/' + de.slice(5, 7) + '/' + de.slice(0, 4) + '</b></div>';
+      }
+      d.innerHTML = h;
+      if(String(f.message || '').trim()){
+        var m = document.createElement('details');
+        m.className = 'fiMsg';
+        m.open = premier;
+        m.innerHTML = '<summary>📩 Ce que tu dois faire maintenant</summary><div class="fiTexte">' + texteAvecLiensFi(f.message) + '</div>';
+        d.appendChild(m);
+        premier = false;
+      }
+      z.appendChild(d);
+    });
   }
 
   /* 📷 v1211 — LES PHOTOS DE SON BILAN ÉCRIT À LA MAIN. Elles arrivent
@@ -11434,30 +11525,60 @@
     }).catch(function(){ /* muet : la prochaine ouverture réessaiera */ });
   }
 
+  /* 🔔 v1412 — « ACTIVER LES NOTIFICATIONS NE FONCTIONNE PAS ».
+
+     David, le 12 novembre, sur l'espace d'un élève. Trois pièges, tous
+     muets jusqu'ici :
+       · la demande d'autorisation partait APRÈS un appel au serveur
+         (la clé) : Safari, et Chrome sur certains téléphones, ne
+         l'acceptent que sur le geste lui-même — ils refusent sans rien
+         montrer. Elle part maintenant la première, dans le toucher ;
+       · un ancien abonnement, fait avec une autre clé, fait échouer le
+         nouveau (« InvalidStateError ») : on le retire et on réessaie ;
+       · l'erreur s'affichait puis disparaissait au dessin suivant : elle
+         reste maintenant, avec son nom technique, pour qu'on sache quoi
+         corriger. */
   function demanderPousseeEl(){
     if(poussOccupeEl) return;
+    if(!poussPossibleEl()){ alerterPousseeEl('Ce navigateur ne sait pas recevoir de notifications.'); return; }
     poussOccupeEl = true;
+    var etape = 'autorisation';
+    /* ⚠️ D'ABORD, ET TOUT DE SUITE : l'autorisation, dans le geste */
+    var permission;
+    try{
+      permission = (Notification.permission === 'granted') ? Promise.resolve('granted')
+        : new Promise(function(ok){
+            var r = Notification.requestPermission(function(x){ ok(x); });   /* vieux Safari : par rappel */
+            if(r && typeof r.then === 'function') r.then(ok, function(){ ok('default'); });
+          });
+    }catch(e){ permission = Promise.resolve('default'); }
     dessinerPousseeEl();
 
-    clePousseeEl().then(function(cle){
-      if(!cle) throw new Error('Les notifications ne sont pas réglées.');
-      return Notification.requestPermission().then(function(rep){
-        if(rep !== 'granted'){ poussEtatEl = 'refuse'; return null; }
+    permission.then(function(rep){
+      if(rep !== 'granted'){ poussEtatEl = (rep === 'denied') ? 'refuse' : 'off'; return null; }
+      etape = 'clé';
+      return clePousseeEl().then(function(cle){
+        if(!cle) throw new Error('Les notifications ne sont pas encore réglées par l’auto-école.');
+        etape = 'service';
         return swPretEl().then(function(reg){
-          if(!reg) throw new Error('Ton navigateur a refusé.');
-          /* ⚠️ ON ATTEND QU'IL SOIT PRÊT : juste après
-             l'enregistrement il s'installe encore, et s'abonner tout
-             de suite échoue une fois sur deux. */
-          return navigator.serviceWorker.ready.then(function(){
-            return reg.pushManager.getSubscription().then(function(d){
-              return d || reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: cleEnOctetsEl(cle)
+          if(!reg) throw new Error('Ton navigateur n’a pas installé le service des notifications.');
+          return navigator.serviceWorker.ready.then(function(pret){
+            var r2 = pret || reg;
+            etape = 'abonnement';
+            var abonner = function(){ return r2.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: cleEnOctetsEl(cle) }); };
+            return r2.pushManager.getSubscription().then(function(d){
+              if(d) return d;
+              return abonner().catch(function(e){
+                /* Un ancien abonnement d'une autre clé : on le retire, on réessaie */
+                return r2.pushManager.getSubscription().then(function(v){
+                  return v ? v.unsubscribe().then(abonner) : abonner();
+                }).catch(function(){ throw e; });
               });
             });
           });
         }).then(function(ab){
           if(!ab) return;
+          etape = 'enregistrement';
           var c = abonnementClairEl(ab);
           c.action = 'elevePousseAbonner';
           c.eleve = moi.nom; c.code = moi.code;
@@ -11465,11 +11586,10 @@
         });
       });
     }).catch(function(e){
-      /* ⚠️ ON RAPPORTE LE SOUCI, ON NE L'AFFICHE PAS ICI. Le dessin
-         qui suit vide la zone : un message posé avant lui
-         disparaîtrait aussitôt, et le bouton semblerait n'avoir rien
-         fait du tout. */
-      return String(e.message || 'Notifications impossibles.');
+      /* ⚠️ ON RAPPORTE LE SOUCI, ON NE L'AFFICHE PAS ICI : le dessin qui
+         suit vide la zone. */
+      var nom = (e && e.name && e.name !== 'Error') ? ' [' + e.name + ']' : '';
+      return String((e && e.message) || 'Notifications impossibles.') + ' (étape : ' + etape + ')' + nom;
     }).then(function(souci){
       poussOccupeEl = false;
       dessinerPousseeEl();
@@ -11530,7 +11650,10 @@
   /* Le message d'échec se pose DANS la zone 🔔, pas ailleurs : c'est
      là qu'on vient de cliquer, et un message qui apparaît à l'autre
      bout de l'écran passe inaperçu sur un téléphone. */
+  var souciPousseeEl = '';   /* 🔔 v1412 — gardé jusqu'à la prochaine tentative */
   function alerterPousseeEl(texte){
+    souciPousseeEl = '🔔 ' + texte;
+    try{ console.warn('Notifications :', texte); }catch(e){}
     /* 📲 v1381 — demandé depuis le bandeau de l'accueil : c'est là qu'on regarde */
     var ba = $('bandeauAppliEl');
     if(ba && ba.style.display !== 'none' && ongletIci === 'accueil'){
@@ -11715,7 +11838,15 @@
       }).catch(function(){ invitationInstallEl = null; }).then(dessinerBandeauAppliEl);
     });
     var bn = $('btBaNotif');
-    if(bn) bn.addEventListener('click', function(){ demanderPousseeEl(); });
+    if(bn) bn.addEventListener('click', function(){ souciPousseeEl = ''; demanderPousseeEl(); });
+    /* 🔔 v1412 — le souci de la dernière tentative reste lisible */
+    if(souciPousseeEl && pe === 'off'){
+      var ds = document.createElement('div');
+      ds.className = 'message erreur';
+      ds.style.marginTop = '8px';
+      ds.textContent = souciPousseeEl;
+      z.appendChild(ds);
+    }
   }
 
   /* On clique sur la notification : le service worker dit quel fil
