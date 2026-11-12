@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:15 — v1409 */
+/* Déployé le 12/11/2026 à 12:01 — v1412 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -3125,7 +3125,7 @@ async function poserRecitationsDemandees(eleve){
   bouts.push('');
   bouts.push('Enregistre-toi dans ton App Évolution Conduites :');
   bouts.push(CONFIG.LIEN_ELEVE);
-  bouts.push('Ton nom : ' + eleve);
+  bouts.push('Ton nom : ' + ((typeof nomATaperPourLEleve === 'function') ? nomATaperPourLEleve(eleve) : eleve));   /* 🔑 v1412 */
   bouts.push('Ton code : ' + ((rep && rep.code) || ''));
 
   return bouts.join('\n');
