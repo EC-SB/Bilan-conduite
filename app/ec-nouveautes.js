@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 13:12 — v1425 */
+/* Déployé le 13/11/2026 à 14:03 — v1426 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1426,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '📝 Les séances de code dans l’appli : l’élève répond sur son espace (en salle, ou sous l’image en visio), série par série, ses fautes vont dans la grille',
+    quoi: [
+      { emoji: '📝',
+        titre: 'L’élève répond sur son espace',
+        texte: 'Avec la case « 🎓 Suivi du code en salle », l’accueil de son espace a la carte « 📝 Mes séances de code ». Il choisit la séance que tu annonces (réservé ou pas, rien à lancer ni à débloquer), puis chaque série avec son nom de la télé. Il coche les lettres de la question et valide avec ✓ : une question validée ne se change plus. Après la dernière question de la série, ses fautes avec les bonnes réponses, puis « Passer à … ». « Refaire » repart de zéro. Une adresse « …/#seance=5 » ouvre directement la séance 5 (les QR codes arrivent avec la prochaine livraison).' },
+      { emoji: '🎥',
+        titre: 'En visio : sous l’image, plus par-dessus',
+        texte: 'Le bouton 📝 devient « Mes réponses » : la même feuille s’ouvre SOUS l’image du cours, qui reste visible. Si la séance n’a pas encore de corrigé, c’est le Google Form qui revient, lui aussi sous l’image.' },
+      { emoji: '🔑',
+        titre: 'Élèves › 🎓 Code › 🔑 Les corrigés des séances',
+        texte: 'Pour chaque séance : ses séries (renommées comme à la télé) et, pour chaque question, les lettres visibles (＋ / −) et les bonnes en vert. Une question n’est juste que si toutes les bonnes sont cochées et aucune autre. « 📥 Reprendre des Google Forms » lit les 12 formulaires et propose leurs corrigés : tu gardes ceux que tu veux, puis tu corriges au besoin.' },
+      { emoji: '📊',
+        titre: 'La grille du code',
+        texte: 'Les séances faites dans l’appli y arrivent toutes seules : 📱 en salle, 🎥 en visio, « … » pas encore finie (le détail par série au survol). Une séance refaite : c’est désormais la plus récente qui compte. « Léa Martin » (formulaire) et « MARTIN Léa » (fiche) ne font plus qu’une ligne.' }
+    ]
+  },
   {
     version: 1425,
     date: 'Vendredi 13 novembre 2026',
