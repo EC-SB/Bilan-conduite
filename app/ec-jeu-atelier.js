@@ -1,4 +1,4 @@
-/* Déployé le 26/10/2026 à 14:46 — v1271 */
+/* Déployé le 13/11/2026 à 10:14 — v1420 */
 /* ============================================================
    ec-jeu-atelier.js — 📸 L'ATELIER DU JEU DES VÉRIFICATIONS (v1249)
 
@@ -50,6 +50,9 @@ const AT_ALLUMAGES = [['croisement', '💡 Feux de croisement', [26, 82]], ['rou
   ['stop', '🛑 Feux stop (frein)', [46, 90]], ['recul', '↩️ Feux de recul', [44]], ['diurnes', '☀️ Feux diurnes', [52, 92]]];
 /* les endroits où une photo peut montrer des feux allumés */
 const AT_ENDROITS_ALLUMES = ['volant', 'voyants', 'devant', 'arriere', 'cote'];
+/* 🧰 v1420 — les voitures de la V2 (voir ROLES_VOITURE_JEU côté Worker) */
+const AT_ROLES_V2 = [['', '— rien dans la V2 —'], ['bv-sb', 'BV · Saint-Brieuc'], ['bea-sb', 'BEA · Saint-Brieuc (les Q3 habituels)'],
+  ['bea-sb-10', 'BEA · le Q3 n°10'], ['bv-ld', 'BV · Loudéac'], ['bea-ld', 'BEA · Loudéac']];
 const AT = { d: null, voiture: '', endroit: 'volant', etat: '', zone: '', regleN: 0, cheminAussi: {}, regleAussi: {}, allumage: 'croisement', allumageAussi: {}, occupe: false, place: '', ouvert: '', cherche: '', deplacer: '' };
 function atNomAllumage(a){ const x = AT_ALLUMAGES.find(y => y[0] === a); return x ? x[1] : a; }
 function atAllumageDeQuestion(n){ const x = AT_ALLUMAGES.find(y => y[2].indexOf(n) !== -1); return x ? x[0] : ''; }
@@ -677,6 +680,7 @@ async function atAppel(c, bouton){
     const r = await appelPrep(c);
     if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
     AT.d = { reglages: r.reglages, photos: r.photos };
+    if(r.jeu){ AT.jeu = r.jeu; if(typeof VERIFS !== 'undefined') VERIFS.jeu = r.jeu; }
     return r;
   }catch(e){
     showToastVerifs('⚠️ ' + ((e && e.message) || e));
@@ -731,7 +735,9 @@ function atColVoitures(){
     b.type = 'button';
     b.setAttribute('data-voiture', v.id);
     b.appendChild(vqEl('b', '', '🚗 ' + v.nom));
-    b.appendChild(vqEl('small', '', (v.boite ? v.boite + ' · ' : '') + n + ' question(s) placée(s) · ' + AT_ENDROITS.filter(e => atPhotoDe(v.id, e[0])).length + ' photo(s)'));
+    const rv2 = (AT_ROLES_V2.find(x => x[0] === (v.role || '')) || ['', ''])[1];
+    b.appendChild(vqEl('small', '', (v.boite ? v.boite + ' · ' : '') + n + ' question(s) placée(s) · ' + AT_ENDROITS.filter(e => atPhotoDe(v.id, e[0])).length + ' photo(s)' +
+      (v.role ? ' · V2 : ' + rv2 : '')));
     const bar = vqEl('div', 'atBar'); const i = vqEl('i', ''); i.style.width = n + '%'; bar.appendChild(i); b.appendChild(bar);
     b.addEventListener('click', () => { AT.voiture = v.id; AT.zone = ''; atDessiner(); });
     c.appendChild(b);
@@ -755,6 +761,24 @@ function atColVoitures(){
   c.appendChild(f);
   const v = reg.voitures.find(x => x.id === AT.voiture);
   if(v){
+    /* 🧰 v1420 — À QUOI ELLE SERT DANS LA V2. David, le 13 novembre : la
+       voiture de l'élève est « réglée sur BV ou BEA », « il faut qu'il
+       puisse dire s'il a le Q3 10 s'il est en BEA, et à Loudéac la voiture
+       de Loudéac » (une BV et une BEA, des Audi bien plus récentes). On le
+       dit ici, voiture par voiture : le jeu prend la première qui sert. */
+    c.appendChild(vqEl('div', 'vbLab', '🧰 Dans le nouveau jeu (V2), « ' + v.nom + ' » sert à'));
+    const role = vqEl('select', 'vbIn');
+    role.setAttribute('data-role-voiture', v.id);
+    AT_ROLES_V2.forEach(([k, t]) => role.appendChild(new Option(t, k)));
+    role.value = v.role || '';
+    role.addEventListener('change', () => {
+      const r = atCopieReglages();
+      const w = r.voitures.find(x => x.id === v.id);
+      if(!w) return;
+      w.role = role.value;
+      atReglagesPoser(r, null, role.value ? '🧰 ' + v.nom + ' : ' + role.options[role.selectedIndex].text : '🧰 ' + v.nom + ' : rien dans la V2');
+    });
+    c.appendChild(role);
     const ret = vqEl('button', 'atLien', '🗑️ Retirer « ' + v.nom + ' » du jeu'); ret.type = 'button';
     ret.addEventListener('click', async () => {
       if(!await confirmer('Retirer « ' + v.nom + ' » du jeu ? Ses chemins et ses règles partent avec elle ; les photos restent pour les autres voitures.', 'Retirer une voiture', true)) return;
