@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 10:14 — v1420 */
+/* Déployé le 13/11/2026 à 10:57 — v1421 */
 /* ============================================================
    ec-jeu-atelier.js — 📸 L'ATELIER DU JEU DES VÉRIFICATIONS (v1249)
 
@@ -715,6 +715,11 @@ function atCopieReglages(){
 function atDessiner(){
   const z = AT.racine;
   z.innerHTML = '';
+  /* 🧰 v1421 — quatre vues : les photos (comme avant), et ce qui sert au nouveau jeu */
+  z.appendChild(atSousOnglets());
+  if(AT.vue === 'etapes') return atVueEtapes(z);
+  if(AT.vue === 'mots') return atVueMots(z);
+  if(AT.vue === 'pret') return atVuePret(z);
   z.appendChild(vqEl('div', 'vbIntro', 'Pour chaque voiture : une photo par endroit. À droite, 📋 ce qui se place sur la photo affichée, déjà relié à ses questions : touche une ligne, glisse sur la photo, c’est enregistré. Ce qui se montre à plusieurs endroits (les plaques, les clignotants) a une partie par photo. Une question sans rien se joue quand même, en questions-réponses.'));
   const g = vqEl('div', 'atGrille');
   g.appendChild(atColVoitures());
@@ -779,12 +784,20 @@ function atColVoitures(){
       atReglagesPoser(r, null, role.value ? '🧰 ' + v.nom + ' : ' + role.options[role.selectedIndex].text : '🧰 ' + v.nom + ' : rien dans la V2');
     });
     c.appendChild(role);
+    /* ⬇️ v1421 — toutes ses photos, dans un .zip */
+    const nbPh = atPhotos().filter(p => p.voitures.indexOf(v.id) !== -1).length;
+    if(nbPh){
+      const dl = vqEl('button', 'btn btn-secondary atDl', '⬇️ Toutes ses photos (' + nbPh + ', .zip)'); dl.type = 'button';
+      dl.addEventListener('click', () => atTelechargerVoiture(v.id, dl));
+      c.appendChild(dl);
+    }
     const ret = vqEl('button', 'atLien', '🗑️ Retirer « ' + v.nom + ' » du jeu'); ret.type = 'button';
     ret.addEventListener('click', async () => {
       if(!await confirmer('Retirer « ' + v.nom + ' » du jeu ? Ses chemins et ses règles partent avec elle ; les photos restent pour les autres voitures.', 'Retirer une voiture', true)) return;
       const r = atCopieReglages();
       r.voitures = r.voitures.filter(x => x.id !== v.id);
       delete r.chemins[v.id]; delete r.regles[v.id];
+      if(r.etapes) delete r.etapes[v.id];
       AT.voiture = '';
       atReglagesPoser(r, ret, 'Voiture retirée').then(() => { AT.voiture = (atReglages().voitures[0] || {}).id || ''; atRedessiner(); });
     });
@@ -967,7 +980,10 @@ function atColPhoto(){
     if(!await confirmer('Retirer cette photo « ' + atNomEndroit(p.endroit) + ' » ? Elle sert à : ' + (p.voitures.map(atVoitureNom).join(', ') || 'aucune voiture') + '. Ses zones partent avec elle.', 'Retirer une photo', true)) return;
     atAppel({ action: 'jeuPhotoRetirer', id: p.id }, br).then(r => { if(r){ AT.zone = ''; atRedessiner(); } });
   });
-  bas.appendChild(bc); bas.appendChild(br); bas.appendChild(f);
+  /* ⬇️ v1421 — la télécharger */
+  const bd = vqEl('button', 'btn btn-secondary', '⬇️ Télécharger'); bd.type = 'button';
+  bd.addEventListener('click', () => atTelechargerPhoto(p, bd));
+  bas.appendChild(bc); bas.appendChild(bd); bas.appendChild(br); bas.appendChild(f);
   c.appendChild(bas);
   return c;
 }
@@ -1320,3 +1336,766 @@ function atPanneauRegles(v){
 
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-jeu-atelier.js'] = true;
+
+/* ============================================================
+   🗣️ v1421 — LES MOTS ATTENDUS : COPIE de eleve.html (jwNorm,
+   jwThemeGeste, jwChiffres … jwSurligner), renommée atJw… Les deux
+   restent pareilles : le test leur fait vérifier les mêmes réponses.
+   ============================================================ */
+function atJwNorm(t){
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[’'`]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function atJwThemeGeste(q, type){
+  var t = atJwNorm(q);
+  if(/voyant|temoin/.test(t)) return 'voyants';
+  if(/capot|moteur|huile|lave glace|liquide|batterie|refroidissement/.test(t)) return 'capot';
+  if(/\bfeux?\b|clignot|eclair|phare|brouillard|detresse/.test(t)) return 'feux';
+  return type === 'VE' ? 'autour' : 'volant';
+}
+var AT_JW_VIDES = {};
+('les des une dans sur sous par pour pas plus moins tres tout tous toute toutes mais donc car comme avec sans leur leurs lui meme aussi bien ' +
+ 'faire fait faut peut doit afin lors etre avoir sont etait cela cette ceci celui celle ceux elles ils nous vous votre notre quand ou est ont ' +
+ 'son ses sur entre vers chez autre autres tres afin encore deja jamais toujours alors ainsi cest dun dune quil quelle quon ' +
+ 'tel tels telle telles grace avant apres ceci votre vos cette celle doivent devez pouvez peuvent permet permettre').split(' ')
+  .forEach(function(w){ AT_JW_VIDES[w] = 1; });
+var AT_JW_NOMBRES = { zero: 0, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, treize: 13,
+                   quatorze: 14, quinze: 15, seize: 16, vingt: 20, vingts: 20, trente: 30, quarante: 40, cinquante: 50, soixante: 60,
+                   cent: 100, cents: 100, mille: 1000 };
+/* « cent cinquante » → « 150 », « quarante-cinq » → « 45 », « deux » → « 2 »
+   (pas « un » tout seul : c'est aussi un article) */
+function atJwChiffres(t){
+  var m = atJwNorm(t).split(' '), out = [], k = 0;
+  while(k < m.length){
+    if(AT_JW_NOMBRES[m[k]] === undefined){ out.push(m[k]); k++; continue; }
+    var total = 0, cur = 0;
+    while(k < m.length){
+      var w = m[k], v = AT_JW_NOMBRES[w];
+      if(v === undefined){
+        /* « vingt et un », « quarante et un » : le « et un » du milieu */
+        if(w === 'et' && m[k + 1] === 'un' && cur >= 20){ cur += 1; k += 2; continue; }
+        if(w === 'un' && cur >= 20 && cur % 10 === 0){ cur += 1; k++; continue; }
+        break;
+      }
+      if(v === 100) cur = (cur || 1) * 100;
+      else if(v === 1000){ total += (cur || 1) * 1000; cur = 0; }
+      else if(v === 20 && cur > 1 && cur < 10) cur = cur * 20;
+      else cur += v;
+      k++;
+    }
+    out.push(String(total + cur));
+  }
+  return out.join(' ');
+}
+function atJwRacineMot(w){ return /^\d+$/.test(w) ? w : (w.length <= 4 ? w : w.slice(0, Math.min(6, Math.max(4, w.length - 1)))); }
+function atJwMotsDe(t){
+  return atJwChiffres(t).split(' ').filter(function(w){ return w && (/^\d+$/.test(w) || (w.length >= 4 && !AT_JW_VIDES[w])); });
+}
+/* Les mots attendus d'une réponse : les mots qui comptent, sans doublon */
+function atJwMotsAttendus(rep){
+  var vus = {}, out = [], vrai = {};
+  /* le mot tel qu'il est écrit (accents compris), pour le lui montrer */
+  String(rep || '').split(/[\s’'`\-\/,.;:!?()«»"]+/).forEach(function(t){ var k = atJwNorm(t); if(k && !vrai[k]) vrai[k] = t; });
+  atJwMotsDe(rep).forEach(function(w){
+    var r = atJwRacineMot(w);
+    if(vus[r]) return;
+    vus[r] = 1;
+    out.push({ mot: vrai[w] || w, racine: r });
+  });
+  return out.slice(0, 14);
+}
+/* 🧰 v1421 — LES MOTS ATTENDUS, RÉGLÉS PAR DAVID DANS L'ATELIER
+   (🗣️ Les mots de « Je dis ») : un mot ou une expression par ligne — une
+   expression compte quand tous ses mots y sont — et combien il en faut.
+   Sans réglage : les mots tirés de la réponse de la banque.
+   ⚠️ COPIE dans app/ec-jeu-atelier.js (atJw…) : le test les compare. */
+function atJwAttendus(perso, rep){
+  if(perso && Array.isArray(perso.m) && perso.m.length){
+    var l = [];
+    perso.m.forEach(function(e){
+      var r = atJwMotsDe(e).map(atJwRacineMot);
+      if(r.length) l.push({ mot: String(e), racines: r });
+    });
+    if(l.length) return { liste: l, besoin: Math.max(0, Math.min(l.length, Number(perso.b) || 0)) };
+  }
+  return { liste: atJwMotsAttendus(rep).map(function(x){ return { mot: x.mot, racines: [x.racine] }; }), besoin: 0 };
+}
+function atJwMemeMot(a, b){
+  if(a === b) return true;
+  if(/^\d+$/.test(a) || /^\d+$/.test(b)) return false;
+  return a.length >= 4 && b.length >= 4 && (a.indexOf(b) === 0 || b.indexOf(a) === 0);
+}
+function atJwVerifier(rep, dit, perso){
+  var a = atJwAttendus(perso, rep), att = a.liste;
+  var lus = atJwMotsDe(dit).map(atJwRacineMot);
+  var trouves = att.filter(function(x){ return x.racines.every(function(r0){ return lus.some(function(r){ return atJwMemeMot(r0, r); }); }); });
+  var k = att.length;
+  var besoin = a.besoin || (k <= 2 ? k : Math.min(5, Math.ceil(k * 0.5)));
+  return { ok: k > 0 && trouves.length >= besoin, trouves: trouves, manquants: att.filter(function(x){ return trouves.indexOf(x) === -1; }),
+           besoin: besoin, total: k };
+}
+/* La réponse attendue, avec les mots qu'il a dits en vert */
+function atJwSurligner(rep, trouves){
+  var r = [];
+  trouves.forEach(function(x){ (x.racines || [x.racine]).forEach(function(y){ r.push(y); }); });
+  return String(rep || '').split(/(\s+)/).map(function(m){
+    var w = atJwNorm(m).split(' ')[0] || '';
+    var ok = w && r.some(function(x){ return atJwMemeMot(x, atJwRacineMot(w)); });
+    return ok ? '<mark>' + echapper(m) + '</mark>' : echapper(m);
+  }).join('');
+}
+
+
+/* ============================================================
+   🧰 v1421 — LE NOUVEAU JEU (V2), LIVRAISON 2 : CE QUI SE RÈGLE ICI
+
+   David, le 13 novembre (ses réponses à la proposition V2) :
+     · « Je fais » : l'élève fait le geste ÉTAPE PAR ÉTAPE, dans l'ordre —
+       les étapes viennent de ses photos (le chemin de l'endroit, puis ce
+       qu'il montre) ; ici, il les voit geste par geste et corrige celles
+       qui ne vont pas (une étape en plus, une autre dans l'ordre), voiture
+       par voiture, « pareil sur » les autres ;
+     · les appuis : l'élève VOIT ce qui s'allume à chaque appui (d'après
+       💡 Allumer les feux) ; ici, ce que chaque appui allume ;
+     · « Je dis » : il le dit, c'est écrit, et c'est vérifié par les mots
+       attendus, sans IA — ici, il relit et corrige ces mots ;
+     · 📋 ce qui est prêt, voiture par voiture, et ce qui manque ;
+     · ⬇️ télécharger ses photos (« je ne peux pas les récupérer depuis
+       l'appli »).
+   ============================================================ */
+const AT_VUES = [['photos', '📸 Photos et zones'], ['etapes', '🧩 Les étapes des gestes'], ['mots', '🗣️ Les mots de « Je dis »'], ['pret', '📋 Ce qui est prêt']];
+const AT_JW_THEMES = [['capot', '🔧 Sous le capot'], ['feux', '💡 Les feux'], ['voyants', '🚨 Les voyants'], ['volant', '🎛️ Au volant'], ['autour', '🚗 Autour de la voiture']];
+/* l'ordre où l'élève cherche les parties d'une réponse (le même que jvZonesReponse dans eleve.html) */
+const AT_ORDRE_PARTIES = ['volant', 'voyants', 'porte', 'passager', 'portiere', 'sieges', 'capot', 'devant', 'cote', 'arriere', 'coffre', 'roue'];
+/* les endroits où l'élève est déjà : pas d'étape à faire pour y arriver */
+const AT_SANS_CHEMIN = ['volant', 'voyants'];
+
+function atSousOnglets(){
+  const o = vqEl('div', 'atOng atVues');
+  AT_VUES.forEach(([k, t]) => {
+    const b = vqEl('button', 'vbPuce' + ((AT.vue || 'photos') === k ? ' on' : ''), t);
+    b.type = 'button';
+    b.setAttribute('data-at-vue', k);
+    b.setAttribute('aria-pressed', (AT.vue || 'photos') === k ? 'true' : 'false');
+    b.addEventListener('click', () => { AT.vue = k; atDessiner(); try{ AT.racine.scrollIntoView({ block: 'start' }); }catch(e){} });
+    o.appendChild(b);
+  });
+  return o;
+}
+
+/* ---------- Les cartes de la V2, comme les tire eleve.html (jwCatalogue) ---------- */
+function atJwCatalogue(){
+  const cartes = {}, liste = [], cles = {};
+  const champs = { v: 'verif', q: 'qser', s: 'secours' };
+  for(let n = 1; n <= 100; n++){
+    const x = verifsQuestion(n);
+    if(!x) continue;
+    ['v', 'q', 's'].forEach(k => {
+      const d = verifsPartieDemandee(n, champs[k]);
+      if(!d || !d.q) return;
+      const cle = k + '|' + atJwNorm(d.q);
+      let id = cles[cle];
+      if(!id){
+        id = k + n;
+        cles[cle] = id;
+        cartes[id] = { id: id, k: k, n: n, ns: [], q: d.q, r: d.r || '', type: x.type,
+                       m: k === 'v' ? (d.neutre ? (d.depuis || 0) : n) : 0,
+                       theme: k === 'q' ? 'qser' : (k === 's' ? 'secours' : atJwThemeGeste(d.q, x.type)) };
+        liste.push(id);
+      }
+      cartes[id].ns.push(n);
+    });
+  }
+  return { cartes: cartes, liste: liste };
+}
+
+/* ---------- Les étapes d'un geste sur une voiture (comme jwEtapesGeste) ---------- */
+function atResoudre(l){
+  return (l || []).map(s => {
+    const p = atPhotos().find(x => x.id === s.photo);
+    const z = p && p.zones.find(x => x.id === s.zone);
+    return (p && z) ? { photo: p, zone: z } : null;
+  }).filter(Boolean);
+}
+function atPartsReponse(v, m){
+  const l = [];
+  AT_ORDRE_PARTIES.forEach(e => {
+    const p = atPhotoDe(v, e);
+    if(!p) return;
+    p.zones.forEach(z => { if(z.sorte !== 'passage' && (z.questions || []).indexOf(m) !== -1) l.push({ photo: p, zone: z }); });
+  });
+  return l;
+}
+function atEtapesPropres(v, m){ const o = ((atReglages().etapes || {})[v] || {})[String(m)]; return Array.isArray(o) ? o : null; }
+function atAllumageResolu(v, a){
+  return (((atReglages().allumages || {})[v] || {})[a] || []).map(s => {
+    const p = atPhotos().find(x => x.id === s.photo);
+    const z = p && p.zones.find(x => x.id === s.zone);
+    return (p && z) ? { photo: p, zone: z, fois: s.fois || 1 } : null;
+  }).filter(Boolean);
+}
+/* L'état d'un geste : ce que l'élève fera, et ce qui manque.
+   statut : 'pret' · 'verifier' (il se joue, mais quelque chose cloche) · 'faire' (en questions-réponses) */
+function atEtatGeste(v, card){
+  const m = card.m;
+  const out = { mode: 'rien', etapes: [], fin: [], soucis: [], statut: 'faire', endroit: '', propre: false };
+  if(!m){ out.soucis.push('Neutralisée et remplacée par un texte : elle se joue en questions-réponses.'); return out; }
+  const rg = atRegle(v, m);
+  if(rg && rg.mode === 'allumer'){
+    out.mode = 'allumer';
+    const st = atAllumageResolu(v, rg.allumage);
+    st.forEach(s => out.etapes.push({ nom: (s.zone.nom || 'La commande') + (s.fois > 1 ? ' × ' + s.fois : ''), ic: '🔘' }));
+    const cz = atZonesControle(v, m, rg.allumage);
+    out.fin = cz.map(x => ({ nom: x.zone.nom || 'le feu', ic: '👀' }));
+    if(!st.length) out.soucis.push('💡 ' + atNomAllumage(rg.allumage) + ' : pas encore réglé (📸 › 💡 Allumer les feux).');
+    if(!cz.length) out.soucis.push('Pas encore de feu à toucher : sur la photo avec ces feux allumés, dessine 🎯 sur le feu (n° ' + m + ').');
+    out.statut = !st.length ? 'faire' : (cz.length ? 'pret' : 'verifier');
+    out.allumage = rg.allumage;
+    return out;
+  }
+  if(rg){
+    out.mode = rg.mode;
+    out.fin = [{ nom: rg.mode === 'ordi' ? 'Je dis : c’est l’ordinateur de bord' : 'Je dis : il n’y en a pas', ic: '🗣️' }];
+    out.statut = 'pret';
+    return out;
+  }
+  const parts = atPartsReponse(v, m);
+  if(!parts.length){ out.soucis.push('Rien de placé sur cette voiture : dessine la réponse (🎯 n° ' + m + ') sur la bonne photo.'); return out; }
+  out.mode = 'zone';
+  out.endroit = parts[0].photo.endroit;
+  const propre = atEtapesPropres(v, m);
+  out.propre = !!propre;
+  const avant = propre ? atResoudre(propre) : atResoudre(((atReglages().chemins[v] || {})[out.endroit]) || []);
+  avant.forEach(s => out.etapes.push({ nom: s.zone.nom || 'Passage', ic: s.zone.sorte === 'commande' ? '🔘' : '➡️', endroit: s.photo.endroit }));
+  out.fin = parts.map(x => ({ nom: x.zone.nom || 'la réponse', ic: '🎯', endroit: x.photo.endroit }));
+  out.statut = 'pret';
+  if(propre && avant.length < propre.length){ out.soucis.push('Une étape réglée ici n’existe plus (zone ou photo retirée) : revois ses étapes.'); out.statut = 'verifier'; }
+  if(!avant.length && !propre && AT_SANS_CHEMIN.indexOf(out.endroit) === -1){
+    out.soucis.push('Aucune étape avant : l’élève arrive directement sur « ' + atNomEndroit(out.endroit) + ' ». Règle le chemin (📸 › 🧭) ou les étapes de ce geste.');
+    out.statut = 'verifier';
+  }
+  return out;
+}
+function atChipsEtapes(e){
+  const ol = vqEl('ol', 'atChips');
+  e.etapes.forEach(x => ol.appendChild(vqEl('li', '', x.ic + ' ' + x.nom)));
+  e.fin.forEach(x => { const li = vqEl('li', 'fin', x.ic + ' ' + x.nom); ol.appendChild(li); });
+  if(!e.etapes.length && !e.fin.length) ol.appendChild(vqEl('li', 'vide', '🃏 en questions-réponses (carte retournée)'));
+  return ol;
+}
+const AT_STATUTS = { pret: ['✅', 'Prêt'], verifier: ['⚠️', 'À vérifier'], faire: ['✏️', 'À faire'] };
+function atNomCourt(q){ const t = String(q || '').replace(/\s+/g, ' ').trim(); return t.length > 110 ? t.slice(0, 108) + '…' : t; }
+
+/* ---------- Choisir la voiture (les trois vues) ---------- */
+function atPucesVoitures(apres){
+  const d = vqEl('div', 'atEndroits atVoitPuces');
+  atReglages().voitures.forEach(v => {
+    const role = (AT_ROLES_V2.find(x => x[0] === (v.role || '')) || ['', ''])[1];
+    const b = vqEl('button', 'vbPuce' + (v.id === AT.voiture ? ' on' : ''), '🚗 ' + v.nom + (v.role ? ' · ' + role.replace(/\s*\(.*\)$/, '') : ''));
+    b.type = 'button';
+    b.setAttribute('data-voiture-v2', v.id);
+    b.addEventListener('click', () => { AT.voiture = v.id; AT.etapeEdit = null; if(apres) apres(); atDessiner(); });
+    d.appendChild(b);
+  });
+  if(!atReglages().voitures.length) d.appendChild(vqEl('div', 'vbAide', 'Aucune voiture : ajoute-la dans 📸 Photos et zones.'));
+  return d;
+}
+
+/* ============================================================
+   🧩 LES ÉTAPES DES GESTES
+   ============================================================ */
+function atVueEtapes(z){
+  const v = AT.voiture;
+  z.appendChild(vqEl('div', 'vbIntro', 'Ce que l’élève fait dans « Je fais » (le nouveau jeu), geste par geste, sur la voiture choisie : les étapes dans l’ordre, puis ce qu’il montre. Elles viennent de tes photos — le chemin de l’endroit (📸 › 🧭), les feux (📸 › 💡) — et tu peux les changer pour un geste précis.'));
+  z.appendChild(atPucesVoitures());
+  if(!v) return;
+  const cat = atJwCatalogue();
+  const gestes = cat.liste.map(id => cat.cartes[id]).filter(c => c.k === 'v');
+  const etats = {};
+  gestes.forEach(c => { etats[c.id] = atEtatGeste(v, c); });
+  const n = { pret: 0, verifier: 0, faire: 0 };
+  gestes.forEach(c => { n[etats[c.id].statut]++; });
+  z.appendChild(vqEl('div', 'atResume', atVoitureNom(v) + ' : ' + n.pret + ' geste' + (n.pret > 1 ? 's' : '') + ' prêt' + (n.pret > 1 ? 's' : '') + ' sur ' + gestes.length +
+    (n.verifier ? ' · ' + n.verifier + ' à vérifier' : '') + (n.faire ? ' · ' + n.faire + ' en questions-réponses' : '') + '.'));
+  z.appendChild(atPanneauAppuis(v));
+  /* filtres */
+  const f = vqEl('div', 'vbRang atFiltres');
+  const ch = vqEl('input', 'vbCherche'); ch.type = 'text'; ch.placeholder = '🔎 Un numéro ou un mot (« huile », « feux »…)'; ch.value = AT.etapeCherche || ''; ch.setAttribute('data-hors-saisie', '1');
+  f.appendChild(ch);
+  const puces = vqEl('div', 'vbSeg');
+  [['', 'Tous']].concat(AT_JW_THEMES).concat([['@faire', '⚠️ À revoir']]).forEach(([k, t]) => {
+    const b = vqEl('button', 'vbPuce' + ((AT.etapeTheme || '') === k ? ' on' : ''), t); b.type = 'button';
+    b.setAttribute('data-theme-etapes', k);
+    b.addEventListener('click', () => { AT.etapeTheme = k; atDessiner(); });
+    puces.appendChild(b);
+  });
+  f.appendChild(puces);
+  z.appendChild(f);
+  const liste = vqEl('div', 'atGestes');
+  z.appendChild(liste);
+  const dessinerListe = () => {
+    liste.innerHTML = '';
+    const t = atJwNorm(AT.etapeCherche || ''), num = /^\d{1,3}$/.test(t) ? Number(t) : 0;
+    const vus = gestes.filter(c => {
+      if(AT.etapeTheme === '@faire' && etats[c.id].statut === 'pret') return false;
+      if(AT.etapeTheme && AT.etapeTheme !== '@faire' && c.theme !== AT.etapeTheme) return false;
+      if(num) return c.ns.indexOf(num) !== -1;
+      return !t || atJwNorm(c.q).indexOf(t) !== -1;
+    });
+    if(!vus.length) liste.appendChild(vqEl('div', 'vbAide', 'Aucun geste ne correspond.'));
+    vus.forEach(c => liste.appendChild(atLigneGeste(v, c, etats[c.id])));
+  };
+  ch.addEventListener('input', () => { AT.etapeCherche = ch.value; dessinerListe(); });
+  dessinerListe();
+  if(AT.etapeOuvert){
+    const o = liste.querySelector('[data-geste="' + AT.etapeOuvert + '"]');
+    AT.etapeOuvert = '';
+    if(o) setTimeout(() => { try{ o.scrollIntoView({ block: 'center' }); }catch(e){} }, 60);
+  }
+}
+function atLigneGeste(v, c, e){
+  const d = vqEl('div', 'atGeste ' + e.statut);
+  d.setAttribute('data-geste', c.id);
+  const h = vqEl('div', 'atGesteH');
+  const st = AT_STATUTS[e.statut];
+  h.appendChild(vqEl('span', 'st', st[0] + ' ' + st[1]));
+  const t = vqEl('div', 't');
+  t.appendChild(vqEl('b', '', atNomCourt(c.q)));
+  t.appendChild(vqEl('small', '', 'Question' + (c.ns.length > 1 ? 's ' : ' ') + c.ns.join(' · ') + (c.m && c.ns.indexOf(c.m) === -1 ? ' (se joue avec la ' + c.m + ')' : '') +
+    (e.propre ? ' · ✏️ étapes réglées pour ce geste' : '')));
+  h.appendChild(t);
+  d.appendChild(h);
+  d.appendChild(atChipsEtapes(e));
+  e.soucis.forEach(s => d.appendChild(vqEl('div', 'atSouci', s)));
+  const bts = vqEl('div', 'atBtns');
+  const bouton = (txt, quoi) => { const b = vqEl('button', 'btn btn-secondary', txt); b.type = 'button'; b.addEventListener('click', quoi); bts.appendChild(b); return b; };
+  if(e.mode === 'zone') bouton('✏️ Changer les étapes', () => { AT.etapeEdit = { v: v, id: c.id, m: c.m, l: null }; AT.etapesAussi = {}; atDessiner(); });
+  if(e.mode === 'allumer') bouton('💡 Régler les feux', () => { AT.vue = 'photos'; AT.endroit = 'volant'; AT.etat = ''; AT.allumage = e.allumage; AT.allumageEdit = null; atDessiner(); });
+  if(c.m) bouton(e.mode === 'rien' ? '📸 La placer sur une photo' : '🔧 Régler la question ' + c.m, () => {
+    AT.vue = 'photos'; AT.regleN = c.m; AT.regleAussi = {};
+    if(e.endroit){ AT.endroit = e.endroit; AT.etat = ''; }
+    else { const g = { capot: 'capot', feux: 'volant', voyants: 'voyants', volant: 'volant', autour: 'devant' }[c.theme]; if(g){ AT.endroit = g; AT.etat = ''; } }
+    atDessiner();
+  });
+  d.appendChild(bts);
+  if(AT.etapeEdit && AT.etapeEdit.v === v && AT.etapeEdit.id === c.id) d.appendChild(atEditeurEtapes(v, c, e));
+  return d;
+}
+/* Ce que l'élève peut toucher avant de montrer : les passages et les commandes des photos de cette voiture */
+function atTouchables(v){
+  const l = [];
+  AT_ORDRE_PARTIES.forEach(en => {
+    const p = atPhotoDe(v, en);
+    if(p) p.zones.filter(z => z.sorte === 'passage' || z.sorte === 'commande').forEach(z =>
+      l.push({ cle: p.id + ':' + z.id, t: atNomEndroit(en) + ' › ' + (z.sorte === 'commande' ? '🔘 ' : '➡️ ') + (z.nom || 'sans nom') }));
+  });
+  return l;
+}
+function atEditeurEtapes(v, c, e){
+  const b = vqEl('div', 'atP atEdEtapes');
+  const ed = AT.etapeEdit;
+  const touch = atTouchables(v);
+  if(!ed.l){
+    const propre = atEtapesPropres(v, c.m);
+    const base = propre || (((atReglages().chemins[v] || {})[e.endroit]) || []);
+    ed.l = base.map(s => s.photo + ':' + s.zone);
+  }
+  b.appendChild(vqEl('h4', '', '✏️ Les étapes de ce geste — ' + atVoitureNom(v)));
+  if(!touch.length){
+    b.appendChild(vqEl('div', 'vbAide', 'Dessine d’abord, sur les photos de cette voiture, les zones ➡️ « passage » (porte, manette, capot…) ou 🔘 « commande » (contact, bouton…).'));
+  }
+  b.appendChild(vqEl('div', 'vbAide', 'Ce qu’il touche, dans l’ordre, avant de montrer la réponse. Une étape en trop, mal placée ou oubliée : il recommence à cette étape (« pas encore »).'));
+  const ol = vqEl('ol', 'atEtapes');
+  ed.l.forEach((cle, i) => {
+    const li = vqEl('li', '');
+    const sel = vqEl('select', 'vbIn');
+    sel.setAttribute('aria-label', 'Étape ' + (i + 1));
+    touch.forEach(x => sel.appendChild(new Option(x.t, x.cle)));
+    if(!touch.some(x => x.cle === cle)) sel.appendChild(new Option('⚠️ une zone qui n’existe plus', cle));
+    sel.value = cle;
+    sel.addEventListener('change', () => { ed.l[i] = sel.value; });
+    li.appendChild(sel);
+    const mini = (t, quoi, titre) => { const x = vqEl('button', 'atMini', t); x.type = 'button'; x.title = titre; x.setAttribute('aria-label', titre); x.addEventListener('click', quoi); li.appendChild(x); };
+    mini('↑', () => { if(i){ const t = ed.l[i - 1]; ed.l[i - 1] = ed.l[i]; ed.l[i] = t; atDessiner(); } }, 'Monter');
+    mini('↓', () => { if(i < ed.l.length - 1){ const t = ed.l[i + 1]; ed.l[i + 1] = ed.l[i]; ed.l[i] = t; atDessiner(); } }, 'Descendre');
+    mini('✕', () => { ed.l.splice(i, 1); atDessiner(); }, 'Retirer l’étape');
+    ol.appendChild(li);
+  });
+  b.appendChild(ol);
+  if(touch.length){
+    const plus = vqEl('button', 'btn btn-secondary atPlus', '➕ Ajouter une étape'); plus.type = 'button';
+    plus.addEventListener('click', () => { ed.l.push(touch[0].cle); atDessiner(); });
+    b.appendChild(plus);
+  }
+  b.appendChild(vqEl('div', 'atFinEtapes', 'Puis il montre : ' + e.fin.map(x => x.ic + ' ' + x.nom).join(' · ')));
+  b.appendChild(atAussi(v, AT.etapesAussi = AT.etapesAussi || {}, 'Pareil sur :'));
+  const bts = vqEl('div', 'atBtns');
+  const ok = vqEl('button', 'btn btn-primary', '💾 Enregistrer les étapes'); ok.type = 'button';
+  ok.addEventListener('click', () => {
+    const r = atCopieReglages();
+    r.etapes = r.etapes || {};
+    const l = ed.l.map(x => { const [ph, zo] = x.split(':'); return { photo: Number(ph), zone: zo }; });
+    const cibles = [v].concat(Object.keys(AT.etapesAussi).filter(k => AT.etapesAussi[k]));
+    const manque = [];
+    cibles.forEach(x => {
+      r.etapes[x] = r.etapes[x] || {};
+      r.etapes[x][String(c.m)] = l;
+      l.forEach(s => { const p = atPhotos().find(y => y.id === s.photo); if(p && p.voitures.indexOf(x) === -1 && manque.indexOf(x) === -1) manque.push(x); });
+    });
+    AT.etapeOuvert = c.id;
+    atReglagesPoser(r, ok, '🧩 Étapes enregistrées' + (cibles.length > 1 ? ' pour ' + cibles.length + ' voitures' : '')).then(res => {
+      if(res && manque.length) showToastVerifs('⚠️ ' + manque.map(atVoitureNom).join(', ') + ' n’a pas ces photos : coche-la sous les photos, ou règle ses étapes à part.');
+      AT.etapeEdit = null; AT.etapesAussi = {}; atRedessiner();
+    });
+  });
+  bts.appendChild(ok);
+  if(atEtapesPropres(v, c.m)){
+    const re = vqEl('button', 'btn btn-secondary', '↺ Reprendre le chemin de « ' + atNomEndroit(e.endroit) + ' »'); re.type = 'button';
+    re.addEventListener('click', () => {
+      const r = atCopieReglages();
+      if(r.etapes && r.etapes[v]){ delete r.etapes[v][String(c.m)]; if(!Object.keys(r.etapes[v]).length) delete r.etapes[v]; }
+      AT.etapeOuvert = c.id;
+      atReglagesPoser(r, re, '↺ Ce geste reprend le chemin de l’endroit').then(() => { AT.etapeEdit = null; atRedessiner(); });
+    });
+    bts.appendChild(re);
+  }
+  const an = vqEl('button', 'btn btn-secondary', 'Annuler'); an.type = 'button';
+  an.addEventListener('click', () => { AT.etapeEdit = null; atDessiner(); });
+  bts.appendChild(an);
+  b.appendChild(bts);
+  return b;
+}
+/* 💡 LES APPUIS : ce que chaque appui allume, d'après « Allumer les feux »
+   (le même calcul que jwCeQuiSAllume chez l'élève : une suite d'appuis
+   allume les feux dont la suite réglée est exactement celle-là) */
+function atCeQuiSAllume(v, runs){
+  const al = (atReglages().allumages || {})[v] || {}, out = [];
+  if(!runs.length) return out;
+  Object.keys(al).forEach(a => {
+    const st = atAllumageResolu(v, a);
+    if(st.length !== runs.length) return;
+    for(let k = 0; k < st.length; k++){ if(runs[k].cle !== st[k].photo.id + ':' + st[k].zone.id || runs[k].fois !== st[k].fois) return; }
+    out.push(a);
+  });
+  return out;
+}
+function atPanneauAppuis(v){
+  const d = vqEl('details', 'atP atAppuis');
+  const al = (atReglages().allumages || {})[v] || {};
+  const regles = Object.keys(al).filter(a => atAllumageResolu(v, a).length);
+  d.appendChild(vqEl('summary', '', '💡 Les appuis — ce que l’élève voit s’allumer (' + regles.length + ' feu' + (regles.length > 1 ? 'x' : '') + ' réglé' + (regles.length > 1 ? 's' : '') + ')'));
+  if(!regles.length){
+    d.appendChild(vqEl('div', 'vbAide', 'Rien de réglé pour cette voiture : 📸 Photos et zones › 💡 Allumer les feux.'));
+    return d;
+  }
+  d.appendChild(vqEl('div', 'vbAide', 'À chaque appui, l’élève voit ce qui s’allume. Ça vient de 💡 Allumer les feux : 1 appui sur la bague = ce que tu as réglé pour 1 appui.'));
+  const ul = vqEl('ul', 'atAppuisL');
+  AT_ALLUMAGES.forEach(([a, nom]) => {
+    const st = atAllumageResolu(v, a);
+    if(!st.length) return;
+    const li = vqEl('li', '');
+    li.appendChild(vqEl('b', '', nom));
+    li.appendChild(document.createTextNode(' : ' + st.map(s => (s.zone.nom || 'commande') + ' × ' + s.fois).join(', puis ')));
+    /* appui par appui sur la dernière commande */
+    const der = st[st.length - 1], avant = st.slice(0, -1).map(s => ({ cle: s.photo.id + ':' + s.zone.id, fois: s.fois }));
+    const pas = [];
+    for(let k = 1; k <= der.fois; k++){
+      const l = atCeQuiSAllume(v, avant.concat([{ cle: der.photo.id + ':' + der.zone.id, fois: k }]));
+      pas.push(k + ' appui' + (k > 1 ? 's' : '') + ' → ' + (l.length ? l.map(atNomAllumage).join(' + ') : '🌑 rien de réglé'));
+    }
+    li.appendChild(vqEl('small', '', pas.join(' · ')));
+    ul.appendChild(li);
+  });
+  d.appendChild(ul);
+  return d;
+}
+
+/* ============================================================
+   🗣️ LES MOTS DE « JE DIS »
+   ============================================================ */
+function atVueMots(z){
+  z.appendChild(vqEl('div', 'vbIntro', '« Je dis » (le nouveau jeu) : l’élève répond à voix haute, sa réponse s’écrit, et elle est juste quand elle contient assez de mots attendus — sans IA. Ils sont tirés de la réponse de la banque ; corrige-les ici : un mot ou une expression par ligne (une expression compte quand tous ses mots y sont), et combien il en faut.'));
+  const cat = atJwCatalogue();
+  const mots = atReglages().mots || {};
+  const cartes = cat.liste.map(id => cat.cartes[id]).filter(c => c.k !== 'v' && c.r);
+  const f = vqEl('div', 'vbRang atFiltres');
+  const ch = vqEl('input', 'vbCherche'); ch.type = 'text'; ch.placeholder = '🔎 Un numéro ou un mot (« gilet », « PLS »…)'; ch.value = AT.motsCherche || ''; ch.setAttribute('data-hors-saisie', '1');
+  f.appendChild(ch);
+  const puces = vqEl('div', 'vbSeg');
+  const nPerso = cartes.filter(c => mots[c.id]).length;
+  [['', 'Toutes · ' + cartes.length], ['q', '🗣️ Sécurité routière'], ['s', '⛑️ Premiers secours'], ['@perso', '✏️ Modifiées · ' + nPerso]].forEach(([k, t]) => {
+    const b = vqEl('button', 'vbPuce' + ((AT.motsFiltre || '') === k ? ' on' : ''), t); b.type = 'button';
+    b.setAttribute('data-filtre-mots', k);
+    b.addEventListener('click', () => { AT.motsFiltre = k; atDessiner(); });
+    puces.appendChild(b);
+  });
+  f.appendChild(puces);
+  z.appendChild(f);
+  const liste = vqEl('div', 'atGestes');
+  z.appendChild(liste);
+  const dessiner = () => {
+    liste.innerHTML = '';
+    const t = atJwNorm(AT.motsCherche || ''), num = /^\d{1,3}$/.test(t) ? Number(t) : 0;
+    const vus = cartes.filter(c => {
+      if(AT.motsFiltre === '@perso' && !mots[c.id]) return false;
+      if(AT.motsFiltre && AT.motsFiltre !== '@perso' && c.k !== AT.motsFiltre) return false;
+      if(num) return c.ns.indexOf(num) !== -1;
+      return !t || atJwNorm(c.q + ' ' + c.r).indexOf(t) !== -1;
+    });
+    if(!vus.length) liste.appendChild(vqEl('div', 'vbAide', 'Aucune réponse ne correspond.'));
+    vus.forEach(c => liste.appendChild(atLigneMots(c, mots[c.id] || null)));
+  };
+  ch.addEventListener('input', () => { AT.motsCherche = ch.value; dessiner(); });
+  dessiner();
+  if(AT.motsOuvert){
+    const o = liste.querySelector('[data-carte-mots="' + AT.motsOuvert + '"]');
+    AT.motsOuvert = '';
+    if(o) setTimeout(() => { try{ o.scrollIntoView({ block: 'center' }); }catch(e){} }, 60);
+  }
+}
+function atBesoinAuto(k){ return k <= 2 ? k : Math.min(5, Math.ceil(k * 0.5)); }
+function atLigneMots(c, perso){
+  const d = vqEl('div', 'atGeste atMots' + (perso ? ' perso' : ''));
+  d.setAttribute('data-carte-mots', c.id);
+  const h = vqEl('div', 'atGesteH');
+  h.appendChild(vqEl('span', 'st', c.k === 'q' ? '🗣️ Sécurité' : '⛑️ Secours'));
+  const t = vqEl('div', 't');
+  t.appendChild(vqEl('b', '', atNomCourt(c.q)));
+  t.appendChild(vqEl('small', '', 'Question' + (c.ns.length > 1 ? 's ' : ' ') + c.ns.join(' · ') + ' · ' + c.r));
+  h.appendChild(t);
+  d.appendChild(h);
+  const a = atJwAttendus(perso, c.r);
+  const besoin = a.besoin || atBesoinAuto(a.liste.length);
+  const l = vqEl('div', 'atMotsL');
+  a.liste.forEach(x => l.appendChild(vqEl('span', perso ? 'p' : '', x.mot)));
+  d.appendChild(l);
+  d.appendChild(vqEl('div', 'atCompte', (perso ? '✏️ Tes mots' : '🤖 Mots tirés de la réponse') + ' · il en faut ' + besoin + ' sur ' + a.liste.length));
+  const bts = vqEl('div', 'atBtns');
+  const b = vqEl('button', 'btn btn-secondary', '✏️ Modifier les mots'); b.type = 'button';
+  b.addEventListener('click', () => { AT.motsEdit = c.id; atDessiner(); });
+  bts.appendChild(b);
+  d.appendChild(bts);
+  if(AT.motsEdit === c.id) d.appendChild(atEditeurMots(c, perso));
+  return d;
+}
+function atEditeurMots(c, perso){
+  const b = vqEl('div', 'atP atEdMots');
+  const a = atJwAttendus(perso, c.r);
+  b.appendChild(vqEl('div', 'vbLab', 'Les mots attendus — un par ligne (un mot, ou une expression : « gilet jaune »)'));
+  const ta = vqEl('textarea', 'vbIn'); ta.rows = Math.min(12, Math.max(4, a.liste.length + 1));
+  ta.value = a.liste.map(x => x.mot).join('\n');
+  b.appendChild(ta);
+  b.appendChild(vqEl('div', 'vbLab', 'Combien il en faut pour que ce soit juste'));
+  const sel = vqEl('select', 'vbIn');
+  b.appendChild(sel);
+  const lire = () => ta.value.split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 20);
+  const remplir = () => {
+    const k = lire().length, garde = sel.value;
+    sel.innerHTML = '';
+    sel.appendChild(new Option('Automatique (' + atBesoinAuto(k) + ' sur ' + k + ')', '0'));
+    for(let i = 1; i <= k; i++) sel.appendChild(new Option(i + ' sur ' + k + (i === k ? ' (tous)' : ''), String(i)));
+    sel.value = (garde && Number(garde) <= k) ? garde : String(perso && perso.b && perso.b <= k ? perso.b : 0);
+  };
+  remplir();
+  b.appendChild(vqEl('div', 'vbLab', 'Essaie une réponse comme un élève la dirait'));
+  const essai = vqEl('input', 'vbIn'); essai.type = 'text'; essai.placeholder = 'Ex : je mets le gilet et je pose le triangle à 30 mètres'; essai.setAttribute('data-hors-saisie', '1');
+  b.appendChild(essai);
+  const res = vqEl('div', 'atEssai');
+  res.setAttribute('role', 'status');
+  b.appendChild(res);
+  const tester = () => {
+    const dit = essai.value.trim();
+    if(!dit){ res.textContent = ''; res.className = 'atEssai'; return; }
+    const m = lire();
+    const p = m.length ? { m: m, b: Number(sel.value) || 0 } : null;
+    const v = atJwVerifier(c.r, dit, p);
+    res.className = 'atEssai ' + (v.ok ? 'ok' : 'ko');
+    res.textContent = (v.ok ? '✅ Juste' : '❌ Pas encore') + ' — ' + v.trouves.length + ' sur ' + v.total + ' (il en faut ' + v.besoin + ')' +
+      (v.manquants.length ? ' · il manque : ' + v.manquants.map(x => '« ' + x.mot + ' »').join(', ') : '');
+  };
+  ta.addEventListener('input', () => { remplir(); tester(); });
+  sel.addEventListener('change', tester);
+  essai.addEventListener('input', tester);
+  const bts = vqEl('div', 'atBtns');
+  const ok = vqEl('button', 'btn btn-primary', '💾 Enregistrer'); ok.type = 'button';
+  ok.addEventListener('click', () => {
+    const m = lire();
+    if(!m.length){ showToastVerifs('Écris au moins un mot, ou reviens aux mots automatiques.'); return; }
+    const sansMot = m.filter(x => !atJwMotsDe(x).length);
+    if(sansMot.length){ showToastVerifs('⚠️ Trop court pour compter : ' + sansMot.map(x => '« ' + x + ' »').join(', ') + ' (un mot de 4 lettres au moins, ou un nombre).'); return; }
+    const r = atCopieReglages();
+    r.mots = r.mots || {};
+    r.mots[c.id] = { m: m, b: Number(sel.value) || 0 };
+    AT.motsOuvert = c.id;
+    atReglagesPoser(r, ok, '🗣️ Mots enregistrés').then(() => { AT.motsEdit = ''; atRedessiner(); });
+  });
+  bts.appendChild(ok);
+  if(perso){
+    const re = vqEl('button', 'btn btn-secondary', '↺ Revenir aux mots automatiques'); re.type = 'button';
+    re.addEventListener('click', () => {
+      const r = atCopieReglages();
+      if(r.mots) delete r.mots[c.id];
+      AT.motsOuvert = c.id;
+      atReglagesPoser(r, re, '↺ Mots automatiques').then(() => { AT.motsEdit = ''; atRedessiner(); });
+    });
+    bts.appendChild(re);
+  }
+  const an = vqEl('button', 'btn btn-secondary', 'Annuler'); an.type = 'button';
+  an.addEventListener('click', () => { AT.motsEdit = ''; atDessiner(); });
+  bts.appendChild(an);
+  b.appendChild(bts);
+  b.appendChild(vqEl('div', 'vbAide', 'Les petits mots (le, de, pour…) ne comptent pas ; « quarante-cinq » vaut « 45 » ; un mot compte aussi au pluriel ou au féminin (« allumé », « allumés »).'));
+  return b;
+}
+
+/* ============================================================
+   📋 CE QUI EST PRÊT
+   ============================================================ */
+function atVuePret(z){
+  z.appendChild(vqEl('div', 'vbIntro', 'Voiture par voiture : les gestes que l’élève fait sur tes photos dans le nouveau jeu, et pour les autres, ce qui manque. Un geste « à faire » se joue quand même, en questions-réponses.'));
+  const reg = atReglages();
+  const cat = atJwCatalogue();
+  const gestes = cat.liste.map(id => cat.cartes[id]).filter(c => c.k === 'v');
+  /* à quoi servent les voitures */
+  const roles = vqEl('div', 'atP');
+  roles.appendChild(vqEl('h4', '', '🧰 Qui joue sur quelle voiture'));
+  AT_ROLES_V2.filter(x => x[0]).forEach(([k, t]) => {
+    const vs = reg.voitures.filter(v => v.role === k);
+    roles.appendChild(vqEl('div', 'atRole' + (vs.length ? '' : ' manque'), t + ' : ' + (vs.length ? vs.map(v => v.nom).join(', ') : '⚠️ aucune voiture — dis-le sous la voiture, dans 📸 Photos et zones')));
+  });
+  z.appendChild(roles);
+  const g = vqEl('div', 'atPretGrille');
+  reg.voitures.forEach(v => {
+    const n = { pret: 0, verifier: 0, faire: 0 };
+    gestes.forEach(c => { n[atEtatGeste(v.id, c).statut]++; });
+    const photos = atPhotos().filter(p => p.voitures.indexOf(v.id) !== -1);
+    const b = vqEl('div', 'atPretV' + (v.id === AT.voiture ? ' on' : ''));
+    b.appendChild(vqEl('b', '', '🚗 ' + v.nom));
+    b.appendChild(vqEl('small', '', ((AT_ROLES_V2.find(x => x[0] === (v.role || '')) || ['', ''])[1] || 'pas dans la V2') + ' · ' + photos.length + ' photo' + (photos.length > 1 ? 's' : '')));
+    const bar = vqEl('div', 'atBar'); const i = vqEl('i', ''); i.style.width = Math.round(n.pret * 100 / Math.max(1, gestes.length)) + '%'; bar.appendChild(i); b.appendChild(bar);
+    b.appendChild(vqEl('div', 'atPretN', '✅ ' + n.pret + ' prêt' + (n.pret > 1 ? 's' : '') + ' · ⚠️ ' + n.verifier + ' à vérifier · ✏️ ' + n.faire + ' à faire, sur ' + gestes.length));
+    const bts = vqEl('div', 'atBtns');
+    const voir = vqEl('button', 'btn btn-secondary', '🔎 Ce qui manque'); voir.type = 'button';
+    voir.addEventListener('click', () => { AT.voiture = v.id; atDessiner(); });
+    bts.appendChild(voir);
+    const zip = vqEl('button', 'btn btn-secondary', '⬇️ Ses ' + photos.length + ' photos (.zip)'); zip.type = 'button';
+    zip.disabled = !photos.length;
+    zip.addEventListener('click', () => atTelechargerVoiture(v.id, zip));
+    bts.appendChild(zip);
+    b.appendChild(bts);
+    g.appendChild(b);
+  });
+  if(!reg.voitures.length) g.appendChild(vqEl('div', 'vbAide', 'Aucune voiture : ajoute-la dans 📸 Photos et zones.'));
+  z.appendChild(g);
+  const v = AT.voiture;
+  if(!v) return;
+  const manque = vqEl('div', 'atGestes');
+  const aRevoir = gestes.map(c => ({ c: c, e: atEtatGeste(v, c) })).filter(x => x.e.statut !== 'pret');
+  z.appendChild(vqEl('h4', 'atTitreListe', atVoitureNom(v) + ' — ' + (aRevoir.length ? aRevoir.length + ' geste' + (aRevoir.length > 1 ? 's' : '') + ' à compléter' : 'tout est prêt 🎉')));
+  ['verifier', 'faire'].forEach(st => aRevoir.filter(x => x.e.statut === st).forEach(x => {
+    const d = vqEl('div', 'atGeste ' + st);
+    const h = vqEl('div', 'atGesteH');
+    h.appendChild(vqEl('span', 'st', AT_STATUTS[st].join(' ')));
+    const t = vqEl('div', 't'); t.appendChild(vqEl('b', '', atNomCourt(x.c.q))); t.appendChild(vqEl('small', '', 'Question' + (x.c.ns.length > 1 ? 's ' : ' ') + x.c.ns.join(' · '))); h.appendChild(t);
+    d.appendChild(h);
+    x.e.soucis.forEach(s => d.appendChild(vqEl('div', 'atSouci', s)));
+    const b = vqEl('button', 'btn btn-secondary', '🧩 Voir ce geste'); b.type = 'button';
+    b.addEventListener('click', () => { AT.vue = 'etapes'; AT.etapeTheme = ''; AT.etapeCherche = ''; AT.etapeOuvert = x.c.id; atDessiner(); });
+    const bts = vqEl('div', 'atBtns'); bts.appendChild(b); d.appendChild(bts);
+    manque.appendChild(d);
+  }));
+  z.appendChild(manque);
+}
+
+/* ============================================================
+   ⬇️ TÉLÉCHARGER SES PHOTOS — David : « je ne peux pas les récupérer
+   depuis l'appli ». Une photo, ou toutes celles d'une voiture dans un
+   seul fichier .zip (rangé sans compression : ce sont déjà des JPEG).
+   ============================================================ */
+/* ⚠️ Des noms en lettres simples : un nom avec accents ou « — » n'est pas
+   repris par tous les navigateurs (le fichier s'appelait « download ») */
+function atNomFichier(t){
+  return String(t || 'photo').replace(/n°\s*/gi, 'n').replace(/[—–]/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9 ()._,'-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) || 'photo';
+}
+function atExtension(type){ return /png/.test(type) ? '.png' : /webp/.test(type) ? '.webp' : '.jpg'; }
+function atNomDePhoto(p, v){
+  return atNomFichier((v ? atVoitureNom(v) : (p.voitures.map(atVoitureNom).join(', ') || 'sans voiture')) + ' — ' +
+    atNomEndroit(p.endroit).replace(/^\S+\s/, '') + (p.etat ? ' — ' + atNomAllumage(p.etat).replace(/^\S+\s/, '') + ' allumés' : ''));
+}
+async function atLireLaPhoto(p){
+  const r = await fetch(atLien(p));
+  if(!r.ok) throw new Error('photo illisible (' + r.status + ')');
+  return r.blob();
+}
+function atEnregistrer(blob, nom){
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u; a.download = nom; a.style.display = 'none';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 4000);
+}
+async function atTelechargerPhoto(p, bouton){
+  const avant = bouton ? bouton.textContent : '';
+  if(bouton){ bouton.disabled = true; bouton.textContent = '⬇️ …'; }
+  try{
+    const b = await atLireLaPhoto(p);
+    atEnregistrer(b, atNomDePhoto(p, AT.voiture) + atExtension(b.type));
+  }catch(e){ showToastVerifs('⚠️ Téléchargement impossible : ' + ((e && e.message) || e)); }
+  finally{ if(bouton){ bouton.disabled = false; bouton.textContent = avant; } }
+}
+async function atTelechargerVoiture(v, bouton){
+  const photos = atPhotos().filter(p => p.voitures.indexOf(v) !== -1);
+  if(!photos.length) return;
+  const avant = bouton ? bouton.textContent : '';
+  if(bouton) bouton.disabled = true;
+  try{
+    const fichiers = [], pris = {};
+    for(let i = 0; i < photos.length; i++){
+      if(bouton) bouton.textContent = '⬇️ ' + (i + 1) + ' / ' + photos.length + '…';
+      const b = await atLireLaPhoto(photos[i]);
+      let nom = atNomDePhoto(photos[i], v), k = 2;
+      while(pris[nom]) nom = atNomDePhoto(photos[i], v) + ' (' + (k++) + ')';
+      pris[nom] = 1;
+      fichiers.push({ nom: nom + atExtension(b.type), octets: new Uint8Array(await b.arrayBuffer()) });
+    }
+    atEnregistrer(atZip(fichiers), atNomFichier('Photos du jeu — ' + atVoitureNom(v)) + '.zip');
+    showToastVerifs('⬇️ ' + photos.length + ' photo' + (photos.length > 1 ? 's' : '') + ' de ' + atVoitureNom(v));
+  }catch(e){ showToastVerifs('⚠️ Téléchargement impossible : ' + ((e && e.message) || e)); }
+  finally{ if(bouton){ bouton.disabled = false; bouton.textContent = avant; } }
+}
+/* Un .zip sans compression (méthode 0), noms en UTF-8 */
+let AT_CRC = null;
+function atCrc32(o){
+  if(!AT_CRC){ AT_CRC = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); AT_CRC[n] = c >>> 0; } }
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < o.length; i++) c = AT_CRC[(c ^ o[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function atZip(fichiers){
+  const enc = new TextEncoder(), parts = [], centre = [];
+  const d = new Date();
+  const heure = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+  const jour = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+  let pos = 0;
+  fichiers.forEach(f => {
+    const nom = enc.encode(f.nom), crc = atCrc32(f.octets), t = f.octets.length;
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, heure, true); h.setUint16(12, jour, true); h.setUint32(14, crc, true); h.setUint32(18, t, true); h.setUint32(22, t, true);
+    h.setUint16(26, nom.length, true); h.setUint16(28, 0, true);
+    parts.push(h.buffer, nom, f.octets);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, heure, true); c.setUint16(14, jour, true); c.setUint32(16, crc, true); c.setUint32(20, t, true); c.setUint32(24, t, true);
+    c.setUint16(28, nom.length, true); c.setUint16(30, 0, true); c.setUint16(32, 0, true); c.setUint16(34, 0, true); c.setUint16(36, 0, true);
+    c.setUint32(38, 0, true); c.setUint32(42, pos, true);
+    centre.push(c.buffer, nom);
+    pos += 30 + nom.length + t;
+  });
+  const tailleCentre = centre.reduce((s, x) => s + (x.byteLength || x.length), 0);
+  const fin = new DataView(new ArrayBuffer(22));
+  fin.setUint32(0, 0x06054b50, true); fin.setUint16(8, fichiers.length, true); fin.setUint16(10, fichiers.length, true);
+  fin.setUint32(12, tailleCentre, true); fin.setUint32(16, pos, true); fin.setUint16(20, 0, true);
+  return new Blob(parts.concat(centre).concat([fin.buffer]), { type: 'application/zip' });
+}
