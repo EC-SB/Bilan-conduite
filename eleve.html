@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 12/11/2026 à 14:27 — v1415 -->
+<!-- Déployé le 12/11/2026 à 17:02 — v1416 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2426,6 +2426,38 @@
   body #ongletMessages .zoneEcrire.uneLigneEl textarea{ font-size:15.5px; }
   body #ongletMessages .zoneEcrire.uneLigneEl > .zoneOutils > .envoiIc,
   body #ongletMessages .zoneEcrire.uneLigneEl > .zoneOutils > .plusEl{ width:40px; height:40px; margin:0 0 1px; }
+
+  /* ============================================================
+     📖 v1416 — RÉVISER : « GROUPES DE TRAVAIL » / « MES LEÇONS »,
+     et « Ma dernière leçon » sur l'accueil (David, le 12 novembre, B)
+     ============================================================ */
+  .rvSeg{ display:flex; gap:4px; padding:4px; margin:0 0 12px; border-radius:999px;
+    background:var(--verre2, rgba(255,255,255,.06)); border:1px solid var(--verre-bord, var(--line));
+    box-shadow:inset 0 1px 0 var(--verre-reflet, transparent);
+    -webkit-backdrop-filter:blur(18px) saturate(1.6); backdrop-filter:blur(18px) saturate(1.6); }
+  .rvSeg button{ flex:1 1 auto; min-width:0; display:flex; align-items:center; justify-content:center; gap:6px;
+    min-height:44px; margin:0; padding:0 8px; border:none; border-radius:999px; background:transparent;
+    color:var(--muted); font:inherit; font-size:15px; font-weight:800; line-height:1.15; cursor:pointer;
+    white-space:nowrap; -webkit-tap-highlight-color:transparent; }
+  .rvSeg button.ici{ background:var(--lentille, var(--lime)); color:#0B0B0B;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px var(--lentille-ombre, transparent); }
+  .rvSeg button:focus-visible{ outline:2px solid var(--lime); outline-offset:2px; }
+  .rvSeg .nv{ flex:none; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--red);
+    color:#fff; font-size:11px; line-height:18px; font-weight:800; text-align:center; }
+  @media (max-width:360px){ .rvSeg button{ font-size:14px; padding:0 6px; gap:4px; } .rvSeg .ico{ display:none; } }
+  #ongletReviser[data-sous="lecons"] #carteParcours{ display:none !important; }
+  #ongletReviser[data-sous="groupes"] #carteLecons{ display:none !important; }
+  #ongletReviser.avecSeg #carteLecons .lcTete{ display:none !important; }
+
+  .derLecon .nouveau{ display:inline-block; background:var(--red); color:#fff; border-radius:999px;
+    padding:1px 8px; font-size:11px; font-weight:800; margin-left:6px; vertical-align:2px; letter-spacing:0; }
+  .derLecon .l1{ display:flex; flex-wrap:wrap; align-items:baseline; column-gap:8px; row-gap:2px; margin-bottom:6px; }
+  .derLecon .l1 b{ font-size:16px; }
+  .derLecon .l1 span{ color:var(--muted); font-size:13px; }
+  .derLecon .ex{ font-size:14px; line-height:1.5; color:var(--cream); white-space:pre-line; overflow-wrap:anywhere;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:12px; }
+  .derLecon .btn{ margin:0; }
+  .derLecon .btn + .btn{ margin-top:8px; }
 </style>
 </head>
 <body>
@@ -2567,6 +2599,14 @@
       <div class="reserverMot">Tes cours se réservent dans ton espace élève Drivup. Ils apparaissent ici dès que l’auto-école a relu le planning.</div>
     </div>
 
+    <!-- 📖 v1416 — sa dernière leçon (David, le 12 novembre, proposition B) :
+         toutes ses leçons sont parties dans Réviser › Mes leçons, la
+         dernière reste ici, avec « nouveau » tant qu'il ne l'a pas lue. -->
+    <div class="card derLecon" id="carteDerniereLecon" style="display:none;">
+      <div class="section-title">📖 Ma dernière leçon <span class="nouveau" id="dlNouveau" style="display:none;">nouveau</span></div>
+      <div id="maDerniereLecon"></div>
+    </div>
+
     <!-- 🕒 v1372 — les horaires des bureaux (David, le 7 novembre) : son
          bureau en premier, ouvert/fermé aujourd'hui, la semaine dessous.
          Pas de lien rendez-vous : les élèves réservent sur Drivup. -->
@@ -2588,14 +2628,6 @@
       <div id="mesFinancements"></div>
     </div>
 
-    <div class="card" id="carteLecons" style="display:none;">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-        <strong style="flex:1;min-width:0;font-size:15px;">📖 Mes leçons</strong>
-        <span id="cptLecons" style="font-size:12px;color:var(--muted);"></span>
-      </div>
-      <div id="mesLecons"></div>
-    </div>
-
     <!-- 📷 v1211 — son bilan post-permis écrit à la main, en photo :
          ce que l'école a rangé dans son dossier, il le revoit ici. -->
     <div class="card" id="carteMesPhotosBilan" style="display:none;">
@@ -2612,6 +2644,12 @@
     </div><!-- /ongletAccueil -->
 
     <div id="ongletReviser" class="cache">
+    <!-- 📖 v1416 — deux sous-onglets (David, le 12 novembre) : ses groupes
+         et ses leçons. Réviser s'ouvre toujours sur « Groupes de travail ». -->
+    <div class="rvSeg" id="rvSeg" role="tablist" style="display:none;">
+      <button type="button" id="rvGroupes" role="tab" class="ici"><span class="ico">🎓</span> Groupes de travail</button>
+      <button type="button" id="rvLecons" role="tab"><span class="ico">📖</span> Mes leçons</button>
+    </div>
     <!-- 🎓 Son parcours — v1036, étape 4.
          Une seule étape ouverte à la fois : les suivantes attendent.
          C'est ce que faisait déjà un groupe Facebook où l'on ajoute
@@ -2621,6 +2659,14 @@
         <span id="cptParcours" style="font-weight:400;color:var(--muted);
               font-size:12px;"></span></div>
       <div id="monParcours"></div>
+    </div>
+
+    <div class="card" id="carteLecons" style="display:none;">
+      <div class="lcTete" style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <strong style="flex:1;min-width:0;font-size:15px;">📖 Mes leçons</strong>
+        <span id="cptLecons" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="mesLecons"></div>
     </div>
 
     </div><!-- /ongletReviser -->
@@ -4976,7 +5022,9 @@
                                 mesAnnonces.length > 0; } },
     { cle:'reviser', nom:'🎬 Réviser', emoji:'🎬', court:'Réviser',
       zone:'ongletReviser',
-      quand: function(){ return ouvert('parcours'); } },
+      /* 📖 v1416 — ses leçons y vivent aussi : un élève qui n'a que
+         ses leçons a Réviser, avec seulement « Mes leçons ». */
+      quand: function(){ return ouvert('parcours') || ouvert('historique'); } },
     /* 🎮 v1248 — David : « un jeu pour faire travailler les
        vérifications aux élèves directement sur leur espace » ; son
        choix : un onglet à lui. */
@@ -5504,6 +5552,8 @@
   function dessinerLesOnglets(){
     var barre = $('lesOnglets');
     if(!barre) return;
+    /* 📖 v1416 — les deux sous-onglets de Réviser suivent ses modules */
+    try{ brancherLeSousOngletRv(); poserLeSousOngletRv(); }catch(e){}
     var vus = ongletsVisibles();
 
     /* ⚠️ CE QUI RESTE À FAIRE SE COMPTE, ET SE VOIT SANS OUVRIR. Un
@@ -5610,6 +5660,7 @@
     /* Sur l'accueil, la date du jour : elle vaut mieux qu'une
        consigne là où il n'y a rien à faire. */
     var t = SOUS_TITRES_EL[ongletIci];
+    if(ongletIci === 'reviser' && sousRvVu() === 'lecons') t = 'Relis ce que ton moniteur t’a dit.';
     if(t === '' || t === undefined){
       try{
         t = new Date().toLocaleDateString('fr-FR',
@@ -5620,8 +5671,12 @@
     z.textContent = t;
   }
 
-  function allerAOnglet(cle){
+  function allerAOnglet(cle, sous){
     ongletIci = cle;
+    /* 📖 v1416 — David : Réviser « reste sur groupe de travail », même
+       quand un bilan n'est pas lu ; seul « Lire le bilan » (ou un bilan
+       trouvé par la recherche) ouvre « Mes leçons ». */
+    if(cle === 'reviser') choisirSousRv(sous || 'groupes', true);
     dessinerLesOnglets();
     /* 🎮 v1248 — le jeu se charge à sa première ouverture */
     if(cle === 'verifs') jvOuvrir();
@@ -6656,11 +6711,12 @@
     return h;
   }
 
-  /* Un bilan trouvé : on l'ouvre là où il vit, sur l'accueil. */
+  /* Un bilan trouvé : on l'ouvre là où il vit — 📖 v1416, dans
+     Réviser › Mes leçons (il vivait sur l'accueil). */
   function ouvrirLeBilan(i){
     var l = mesLecons[i];
     if(!l) return;
-    allerAOnglet('accueil');
+    allerAOnglet('reviser', 'lecons');
     var ds = document.querySelectorAll('#mesLecons details.lecon');
     var d = ds[i];
     if(!d) return;
@@ -7414,6 +7470,7 @@
         var zp = $('monProchain'); if(zp) zp.innerHTML = '';
         montrer('carteProchain', true);
         montrer('carteLecons', false);
+        montrer('carteDerniereLecon', false);
       });
   }
 
@@ -7593,12 +7650,140 @@
     }).join('');
   }
 
+  /* ============================================================
+     📖 v1416 — RÉVISER : « GROUPES DE TRAVAIL » ET « MES LEÇONS »
+
+     David, le 12 novembre : « mettre mes leçons dans la partie réviser
+     avec deux sous-onglets ». Il a pris la proposition B : la dernière
+     leçon reste sur l'accueil (« nouveau » tant qu'elle n'est pas lue),
+     une pastille sur « Mes leçons » tant qu'un bilan attend, et Réviser
+     s'ouvre TOUJOURS sur « Groupes de travail ».
+
+     ⚠️ LES DEUX BOUTONS N'APPARAISSENT QUE S'IL A LES DEUX. Ses groupes
+     seuls : Réviser comme avant. Ses leçons seules : « Mes leçons »
+     sans boutons. Le choix se lit sur #ongletReviser (data-sous) et
+     c'est la feuille de style qui cache l'autre carte : dessinerParcours
+     et dessinerLecons gardent leur montrer(…, true) sans se gêner.
+
+     ⚠️ « LU » SE GARDE SUR CE TÉLÉPHONE, par élève : la clé de son
+     dernier bilan ouvert. Rien ne part au classeur pour ça (l'école a
+     déjà « a ouvert son bilan du … » par eleveTrace). La première fois,
+     seul le dernier bilan compte comme nouveau : vingt bilans d'avant
+     la v1416 ne s'allument pas tous d'un coup. Ouvert par l'équipe
+     (« montrer seulement »), rien ne se marque.
+     ============================================================ */
+  var sousRvIci = 'groupes';
+  function sousRvVu(){
+    var g = ouvert('parcours'), l = ouvert('historique');
+    if(g && l) return sousRvIci === 'lecons' ? 'lecons' : 'groupes';
+    return l ? 'lecons' : 'groupes';
+  }
+  function choisirSousRv(sous, sansDessin){
+    sousRvIci = (sous === 'lecons') ? 'lecons' : 'groupes';
+    poserLeSousOngletRv();
+    if(!sansDessin) poserLeSousTitreEl();
+  }
+  function poserLeSousOngletRv(){
+    var z = $('ongletReviser');
+    if(!z) return;
+    var deux = ouvert('parcours') && ouvert('historique');
+    var vu = sousRvVu();
+    z.setAttribute('data-sous', vu);
+    z.classList.toggle('avecSeg', deux);
+    montrer('rvSeg', deux);
+    var bg = $('rvGroupes'), bl = $('rvLecons');
+    if(bg){ bg.className = vu === 'groupes' ? 'ici' : ''; bg.setAttribute('aria-selected', vu === 'groupes' ? 'true' : 'false'); }
+    if(bl){
+      bl.className = vu === 'lecons' ? 'ici' : '';
+      bl.setAttribute('aria-selected', vu === 'lecons' ? 'true' : 'false');
+      var n = leconsNonLues();
+      bl.innerHTML = '<span class="ico">📖</span> Mes leçons' + (n ? ' <span class="nv">' + (n > 9 ? '9+' : n) + '</span>' : '');
+      bl.setAttribute('aria-label', 'Mes leçons' + (n ? ' — ' + n + ' bilan' + (n > 1 ? 's' : '') + ' pas encore lu' + (n > 1 ? 's' : '') : ''));
+    }
+  }
+  function brancherLeSousOngletRv(){
+    var bg = $('rvGroupes'), bl = $('rvLecons');
+    if(bg && !bg._branche){ bg._branche = true; bg.addEventListener('click', function(){ choisirSousRv('groupes'); try{ window.scrollTo(0, 0); }catch(e){} }); }
+    if(bl && !bl._branche){ bl._branche = true; bl.addEventListener('click', function(){ choisirSousRv('lecons'); try{ window.scrollTo(0, 0); }catch(e){} }); }
+  }
+
+  function cleDeLecon(l){
+    return [String((l && l.date) || ''), String((l && l.moniteur) || ''), String((l && l.type) || '')].join('|');
+  }
+  function cleLeconsLues(){ return 'ec_lecon_lue:' + normaliser((moi && moi.nom) || ''); }
+  function leconLueGardee(){ try{ return localStorage.getItem(cleLeconsLues()) || ''; }catch(e){ return ''; } }
+  /* Combien de bilans au-dessus du dernier lu (la liste arrive du plus récent au plus ancien) */
+  function leconsNonLues(){
+    if(!mesLecons.length) return 0;
+    var lue = leconLueGardee();
+    if(!lue) return 1;
+    for(var i = 0; i < mesLecons.length; i++){
+      if(cleDeLecon(mesLecons[i]) === lue) return i;
+    }
+    return 1;
+  }
+  function marquerLeconLue(i){
+    if(ACCOMP || !mesLecons[i]) return;
+    /* Un bilan déjà lu ne change rien ; un nouveau marque les nouveaux */
+    if(i >= leconsNonLues()) return;
+    try{ localStorage.setItem(cleLeconsLues(), cleDeLecon(mesLecons[0])); }catch(e){}
+    dessinerDerniereLecon();
+    poserLeSousOngletRv();
+  }
+
+  /* « 10/11/2026 » → « Mardi 10 novembre » (l'année seulement si ce n'est pas celle-ci) */
+  function jourLongDeLecon(t){
+    var JOURS_LONGS_EL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    var MOIS_LONGS_EL = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août',
+                         'septembre', 'octobre', 'novembre', 'décembre'];
+    var m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(!m) return String(t || '');
+    var d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    if(isNaN(d.getTime())) return String(t || '');
+    return JOURS_LONGS_EL[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS_LONGS_EL[d.getMonth()] +
+      (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '');
+  }
+  /* Le début du bilan, en texte simple : sans les lignes de liens ni les blancs */
+  function debutDuBilan(t){
+    var l = String(t || '').split('\n').map(function(x){ return x.replace(/\s+$/, ''); }).filter(function(x){
+      return x.trim() && !/https?:\/\//.test(x);
+    });
+    return l.slice(0, 4).join('\n');
+  }
+
+  function dessinerDerniereLecon(){
+    var z = $('maDerniereLecon');
+    if(!z) return;
+    var l = mesLecons[0];
+    if(!l || !ouvert('historique')){ montrer('carteDerniereLecon', false); return; }
+    montrer('carteDerniereLecon', true);
+    var nv = leconsNonLues() > 0;
+    montrer('dlNouveau', nv);
+    var qui = [String(l.moniteur || '').trim(), String(l.type || '').trim()].filter(Boolean).join(' · ');
+    var ex = debutDuBilan(l.bilan);
+    z.innerHTML =
+      '<div class="l1"><b>' + echapper(jourLongDeLecon(l.date)) + '</b>' +
+        (qui ? '<span>' + echapper(qui) + '</span>' : '') + '</div>' +
+      (ex ? '<div class="ex">' + echapper(ex) + '</div>' : '') +
+      '<button type="button" class="btn btn-primary" id="btLireBilan">📖 Lire le bilan</button>' +
+      (mesLecons.length > 1
+        ? '<button type="button" class="btn btn-secondary" id="btToutesLecons">Toutes mes leçons · ' + mesLecons.length + '</button>'
+        : '');
+    $('btLireBilan').addEventListener('click', function(){ ouvrirLeBilan(0); });
+    var bt = $('btToutesLecons');
+    if(bt) bt.addEventListener('click', function(){ allerAOnglet('reviser', 'lecons'); });
+  }
+
   function dessinerLecons(liste, couleurs){
     /* Gardés pour la recherche de « Réviser » — v1221 */
     mesLecons = liste || [];
     var z = $('mesLecons');
     if(!z) return;
     montrer('carteLecons', true);
+    /* 📖 v1416 — sa dernière leçon sur l'accueil, la pastille de « Mes leçons » */
+    brancherLeSousOngletRv();
+    dessinerDerniereLecon();
+    poserLeSousOngletRv();
 
     var c = $('cptLecons');
     if(c) c.textContent = liste.length
@@ -7626,8 +7811,9 @@
     /* 🎓 v1147 — « a ouvert son bilan du … » : l'école le voit dans
        son suivi. Une fois par bilan et par visite ; rien à attendre
        de la réponse, et un échec ne gêne en rien la lecture. */
-    Array.prototype.forEach.call(z.querySelectorAll('details.lecon'), function(d){
+    Array.prototype.forEach.call(z.querySelectorAll('details.lecon'), function(d, i){
       d.addEventListener('toggle', function(){
+        if(d.open) marquerLeconLue(i);
         if(!d.open || d._signale) return;
         d._signale = true;
         appeler({ action: 'eleveTrace', eleve: moi.nom, code: moi.code,
