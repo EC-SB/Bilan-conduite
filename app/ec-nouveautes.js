@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 17:02 — v1416 */
+/* Déployé le 13/11/2026 à 08:44 — v1419 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,36 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1419,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '✅ Planning permis validé : « tes groupes de travail dans ton espace élève »',
+    quoi: [
+      { emoji: '✏️',
+        titre: 'Plus de « groupes Facebook » dans le message',
+        texte: 'Le message « ✅ TON PLANNING PERMIS EST VALIDÉ ✅ » dit maintenant « révise à fond tes groupes de travail dans ton espace élève » au lieu de « tes groupes Facebook ».' }
+    ]
+  },
+  {
+    version: 1418,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '✅ Suivi permis : le message « Ton planning permis est validé »',
+    quoi: [
+      { emoji: '✅',
+        titre: 'Une fenêtre quand « Tout est OK » se coche',
+        texte: 'Dans 🎓 Suivi permis (la place d’une session) ou la fiche de préparation : quand « ✅ Tout est OK » passe à coché et qu’on enregistre, une fenêtre propose le message « ✅ TON PLANNING PERMIS EST VALIDÉ ✅ ». Deux cases ajoutent « EN ATTENDANT LE RÉSULTAT DE TON EXAMEN BLANC » et/ou « SOUS RÉSERVE D’ÉVOLUTION » après « VALIDÉ ». Puis « 💬 Envoyer dans sa messagerie » (signé de ton nom) ou « 📋 Copier pour Messenger ».' }
+    ]
+  },
+  {
+    version: 1417,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🗺️ Espace élève : la carte du trajet sous ses leçons',
+    quoi: [
+      { emoji: '🗺️',
+        titre: 'Revoir son trajet sur la carte',
+        texte: 'Dans l’espace élève, Réviser › Mes leçons : sous le bilan d’un cours qui a son tracé GPS, un bouton « 🗺️ Revoir mon trajet sur la carte ». Il ouvre la même carte que « Voir le trajet en grand » du mail, avec les points et les remarques du bilan. Les tracés s’effacent au bout de deux mois : le bouton n’apparaît que sous les cours qui l’ont encore.' }
+    ]
+  },
   {
     version: 1416,
     date: 'Jeudi 12 novembre 2026',
