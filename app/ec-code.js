@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:22 — v1427 */
+/* Déployé le 13/11/2026 à 14:28 — v1428 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -1054,23 +1054,29 @@ function chargerQrEtg(){
   });
   return qrLibEtg;
 }
-/* Le rond vert : le numéro en haut, le QR dessous (SVG, net à toutes les tailles) */
+/* Le rond : 🎨 v1428 — David : « c'est un fond blanc avec un liseré vert,
+   fais quelque chose de joli ». Fond blanc, liseré lime, « SÉANCE » et le
+   numéro dans une pastille lime en haut, le QR au milieu, « Scanne-moi »
+   en bas (SVG, net à toutes les tailles). */
 function qrSeanceSvgEtg(n){
   const q = qrcode(0, 'M');
   q.addData(ADRESSE_SEANCE_ETG + n);
   q.make();
   const m = q.getModuleCount();
-  const R = 100, cote = 104, x0 = R - cote / 2, y0 = 74, pas = cote / (m + 2);
+  const cote = 90, x0 = 100 - cote / 2, y0 = 74, pas = cote / m;
   let d = '';
   for(let r = 0; r < m; r++) for(let c = 0; c < m; c++){
-    if(q.isDark(r, c)) d += 'M' + (x0 + (c + 1) * pas).toFixed(3) + ' ' + (y0 + (r + 1) * pas).toFixed(3) + 'h' + pas.toFixed(3) + 'v' + pas.toFixed(3) + 'h-' + pas.toFixed(3) + 'z';
+    if(q.isDark(r, c)) d += 'M' + (x0 + c * pas).toFixed(3) + ' ' + (y0 + r * pas).toFixed(3) + 'h' + pas.toFixed(3) + 'v' + pas.toFixed(3) + 'h-' + pas.toFixed(3) + 'z';
   }
+  const large = String(n).length > 1 ? 50 : 40;
   return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QR code de la séance ' + n + '">' +
-    '<circle cx="100" cy="100" r="98" fill="#B6FF0E" stroke="#0B0B0B" stroke-width="2"/>' +
-    '<text x="100" y="34" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" fill="#0B0B0B" letter-spacing="2">SÉANCE</text>' +
-    '<text x="100" y="66" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="900" fill="#0B0B0B">' + n + '</text>' +
-    '<rect x="' + x0 + '" y="' + y0 + '" width="' + cote + '" height="' + cote + '" rx="6" fill="#FFFFFF"/>' +
-    '<path d="' + d + '" fill="#0B0B0B"/></svg>';
+    '<circle cx="100" cy="100" r="95" fill="#FFFFFF" stroke="#B6FF0E" stroke-width="9"/>' +
+    '<circle cx="100" cy="100" r="88.5" fill="none" stroke="#7FBF00" stroke-width="0.8" stroke-dasharray="2.2 2.6"/>' +
+    '<text x="100" y="33" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="10" font-weight="700" fill="#3B6900" letter-spacing="3">SÉANCE</text>' +
+    '<rect x="' + (100 - large / 2) + '" y="38" width="' + large + '" height="30" rx="15" fill="#B6FF0E"/>' +
+    '<text x="100" y="61" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="23" font-weight="900" fill="#0B0B0B">' + n + '</text>' +
+    '<path d="' + d + '" fill="#0B0B0B"/>' +
+    '<text x="100" y="178" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="7" font-weight="700" fill="#3B6900" letter-spacing="1.6">SCANNE-MOI</text></svg>';
 }
 async function ouvrirQrEtg(){
   const fond = document.createElement('div');
@@ -1086,7 +1092,7 @@ async function ouvrirQrEtg(){
   boite.innerHTML = '<h3>🔳 Les QR codes des séances</h3>' +
     '<div class="cgAide">À imprimer pour l’entrée de la salle. Scanné, il ouvre son espace directement sur la séance (après son code s’il n’est pas connecté sur ce téléphone). Un élève sans la case « 🎓 » voit « demande au bureau ».</div>' +
     '<div class="qrGrille">' + Array.from({ length: 12 }, (_, i) => '<div class="qrUn">' + qrSeanceSvgEtg(i + 1) + '</div>').join('') + '</div>' +
-    '<div class="cgBas"><button type="button" class="btn btn-primary" data-qr="planche">🖨️ Imprimer les 12 sur une page</button>' +
+    '<div class="cgBas"><button type="button" class="btn btn-primary" data-qr="planche">🖨️ Imprimer (6 par page, 2 pages)</button>' +
     '<button type="button" class="btn btn-secondary" data-qr="grands">🖨️ Une séance par page (A4)</button>' +
     '<button type="button" class="btn btn-secondary" data-qr="fermer">Fermer</button></div>';
   boite.querySelector('[data-qr="fermer"]').addEventListener('click', () => fermerFond(fond));
@@ -1096,25 +1102,34 @@ async function ouvrirQrEtg(){
 function imprimerQrEtg(grands){
   const w = window.open('', '_blank');
   if(!w){ showToast('⚠️ Autorise les fenêtres pour imprimer.'); return; }
+  w.document.open();
+  w.document.write(htmlQrEtg(grands, true));
+  w.document.close();
+}
+/* La feuille à imprimer. 🎨 v1428 — David : « 6 QR codes par page, donc
+   sur 2 pages » ; ou une séance par page A4 pour l'entrée de la salle. */
+function htmlQrEtg(grands, imprimer){
   const un = n => grands
     ? '<div class="page grand"><div class="rond">' + qrSeanceSvgEtg(n) + '</div><p class="t">Séance ' + n + '</p><p>Scanne-moi avant d’entrer en salle : ta séance s’ouvre dans ton espace.</p><p class="ec">Évolution Conduites</p></div>'
-    : '<div class="case"><div class="rond">' + qrSeanceSvgEtg(n) + '</div></div>';
-  w.document.open();
-  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>QR codes des séances — Évolution Conduites</title><style>' +
-    '@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#0B0B0B}' +
+    : '<div class="case"><div class="rond">' + qrSeanceSvgEtg(n) + '</div><p>Séance ' + n + '</p></div>';
+  const pages = grands ? Array.from({ length: 12 }, (_, i) => un(i + 1)).join('')
+    : [0, 6].map(k => '<div class="page planche"><div class="tete">Les séances de code · scanne la tienne avant d’entrer en salle<span>Évolution Conduites</span></div>' +
+        Array.from({ length: 6 }, (_, i) => un(k + i + 1)).join('') + '</div>').join('');
+  return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>QR codes des séances — Évolution Conduites</title><style>' +
+    '@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#0B0B0B;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
     '.page{width:210mm;height:297mm;box-sizing:border-box;break-after:page;page-break-after:always;overflow:hidden}' +
     '.page:last-child{break-after:auto;page-break-after:auto}' +
-    '.planche{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);padding:12mm 10mm;gap:6mm}' +
-    '.case{display:flex;align-items:center;justify-content:center}.case .rond{width:60mm;height:60mm}' +
+    '.planche{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:auto repeat(3,1fr);padding:12mm 14mm 10mm;column-gap:8mm;row-gap:4mm}' +
+    '.planche .tete{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.2mm solid #B6FF0E;padding-bottom:3mm;font-size:11pt;font-weight:700}' +
+    '.planche .tete span{font-size:9pt;font-weight:400;color:#555}' +
+    '.case{display:flex;flex-direction:column;align-items:center;justify-content:center}.case .rond{width:74mm;height:74mm}' +
+    '.case p{margin:2mm 0 0;font-size:10pt;font-weight:700;color:#3B6900;letter-spacing:.04em}' +
     '.grand{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20mm}' +
     '.grand .rond{width:165mm;height:165mm}.grand .t{font-size:30pt;font-weight:900;margin:10mm 0 3mm}.grand p{font-size:15pt;margin:0 0 3mm}.grand .ec{font-size:12pt;color:#555;margin-top:8mm}' +
     'svg{width:100%;height:100%;display:block}' +
     '@media screen{body{background:#888}.page{margin:10px auto;box-shadow:0 2px 12px rgba(0,0,0,.4);background:#fff}}' +
-    '</style></head><body>' +
-    (grands ? Array.from({ length: 12 }, (_, i) => un(i + 1)).join('')
-            : '<div class="page planche">' + Array.from({ length: 12 }, (_, i) => un(i + 1)).join('') + '</div>') +
-    '<script>setTimeout(function(){window.focus();window.print();},350);<\/script></body></html>');
-  w.document.close();
+    '</style></head><body>' + pages +
+    (imprimer ? '<script>setTimeout(function(){window.focus();window.print();},350);<\/script>' : '') + '</body></html>';
 }
 
 /* ---------- 🎓 L'ONGLET CODE DU DOSSIER ----------
