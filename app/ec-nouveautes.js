@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 10:14 — v1420 */
+/* Déployé le 13/11/2026 à 10:57 — v1421 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1421,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🧰 Jeu des vérifs V2 : les étapes, les mots de « Je dis », ce qui est prêt, ⬇️ les photos',
+    quoi: [
+      { emoji: '🧩',
+        titre: 'Les étapes des gestes',
+        texte: 'Outils › Vérifications › 📸 Nos voitures › « 🧩 Les étapes des gestes » : pour la voiture choisie, les 64 gestes avec ce que l’élève fait dans l’ordre (le chemin de l’endroit, puis ce qu’il montre), prêt / à vérifier / à faire. « ✏️ Changer les étapes » corrige un geste précis (une étape en plus, retirée, déplacée), « Pareil sur » d’autres voitures. Et « 💡 Les appuis » : ce que chaque appui allume.' },
+      { emoji: '🗣️',
+        titre: 'Les mots de « Je dis »',
+        texte: '« 🗣️ Les mots de « Je dis » » : pour chaque réponse de sécurité routière et de premiers secours, les mots attendus (tirés de la réponse) et combien il en faut. On les change (un mot ou une expression par ligne), et on essaie une phrase comme un élève la dirait.' },
+      { emoji: '📋',
+        titre: 'Ce qui est prêt, et ⬇️ les photos',
+        texte: '« 📋 Ce qui est prêt » : voiture par voiture, les gestes prêts et ce qui manque, et qui joue sur quelle voiture. « ⬇️ Télécharger » sous une photo, et « ⬇️ Toutes ses photos (.zip) » pour une voiture.' }
+    ]
+  },
   {
     version: 1420,
     date: 'Vendredi 13 novembre 2026',
