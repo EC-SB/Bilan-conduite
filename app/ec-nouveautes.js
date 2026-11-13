@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 11:15 — v1422 */
+/* Déployé le 13/11/2026 à 11:29 — v1423 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1423,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '📹 Outils › Tarifs : la grille d’affichage se modifie en entier, avec la mention de vidéosurveillance',
+    quoi: [
+      { emoji: '✏️',
+        titre: 'Toute la grille d’affichage se modifie',
+        texte: 'Outils › Tarifs › 📄 Les fiches › la grille « TARIFS » (📋 Affichage) : le titre, les deux colonnes, leurs tableaux (titre, ↑, ⇄ dans l’autre colonne, 🗑️), chaque ligne (son libellé et d’où vient son prix : une prestation en BV / BEA, ou le total d’une fiche) et les textes du bas. Les prix suivent toujours 💶 Les prix.' },
+      { emoji: '📹',
+        titre: 'La mention de vidéosurveillance en bas',
+        texte: 'À l’ouverture de la grille, le texte « Établissement placé sous vidéosurveillance… » est proposé en bas s’il n’y est pas : à relire, puis ✅ Valider la grille et ✅ Enregistrer. Un texte long s’imprime en petit, comme une mention ; et si la page déborde, tout se resserre pour que le bas ne soit plus coupé.' }
+    ]
+  },
   {
     version: 1422,
     date: 'Vendredi 13 novembre 2026',
