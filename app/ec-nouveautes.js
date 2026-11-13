@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 12:55 — v1424 */
+/* Déployé le 13/11/2026 à 13:12 — v1425 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1425,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '📱 Code en visio : sur iPhone, l’image du cours ne se fige plus en sortant de « En grand »',
+    quoi: [
+      { emoji: '📱',
+        titre: 'L’image repart toute seule en sortant de « En grand »',
+        texte: 'Sur iPhone, quand l’élève quittait le plein écran, l’image du cours restait figée (il n’avait plus que le son) jusqu’à rappuyer sur « En grand » puis ▶. L’iPhone met la vidéo en pause en sortant de son lecteur : elle est maintenant relancée tout de suite, et à chaque pause qu’on n’a pas demandée.' }
+    ]
+  },
   {
     version: 1424,
     date: 'Vendredi 13 novembre 2026',
