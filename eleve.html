@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 13/11/2026 à 13:12 — v1425 -->
+<!-- Déployé le 13/11/2026 à 14:03 — v1426 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2512,6 +2512,105 @@
   .lcCarte .btn{ margin:0; text-decoration:none; display:flex; align-items:center; justify-content:center; min-height:44px; }
   .lcCarte .btn[aria-disabled]{ opacity:.65; }
   .lcCarteVide{ font-size:13px; color:var(--muted); }
+
+  /* ============================================================
+     📝 v1426 — MES SÉANCES DE CODE (voir « MES SÉANCES DE CODE »)
+     ============================================================ */
+  .cdCarte{ border-color:var(--orange); }
+  .cdCarte .cdLab{ font-size:11px; letter-spacing:.12em; font-weight:800; color:var(--accent-text); text-transform:uppercase; }
+  .cdCarte .cdGros{ font-size:21px; font-weight:900; margin:6px 0 2px; }
+  .cdCarte .cdMot{ font-size:13.5px; color:var(--muted); line-height:1.5; margin:0 0 12px; }
+  .cdCarte .btn{ margin:0; }
+  .cdEcran{ position:fixed; inset:0; z-index:90; background:var(--navy); overflow-y:auto; overscroll-behavior:contain;
+    padding:calc(12px + var(--dessus)) calc(16px + var(--adroite)) calc(20px + var(--dessous)) calc(16px + var(--agauche)); }
+  body.cdOuvert{ overflow:hidden; }
+  .cdz{ max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:12px; min-height:100%; color:var(--cream); }
+  .cdz .cdTete{ display:flex; align-items:center; gap:12px; }
+  .cdz .cdRet{ width:46px; height:46px; min-width:46px; border-radius:50%; border:0; margin:0; padding:0; background:var(--lentille, var(--orange));
+    color:#0B0B0B; font-size:26px; font-weight:900; line-height:1; cursor:pointer; }
+  .cdz .cdFerme{ width:40px; height:40px; min-width:40px; border-radius:50%; margin:0 0 0 auto; padding:0; border:1px solid var(--line);
+    background:transparent; color:var(--cream); font-size:16px; cursor:pointer; }
+  .cdz .cdT{ flex:1; min-width:0; }
+  .cdz .cdT b{ display:block; font-size:19px; line-height:1.25; }
+  .cdz .cdT small{ display:block; font-size:13px; color:var(--muted); margin-top:2px; }
+  .cdz .cdBoite{ background:var(--navy-deep); border:1px solid var(--line); border-radius:22px; padding:16px; display:flex; flex-direction:column; gap:14px; }
+  .cdz .cdVide{ color:var(--muted); font-size:14.5px; line-height:1.5; text-align:center; padding:18px 8px; }
+  .cdz .cdNote{ font-size:12.5px; color:var(--muted); line-height:1.5; text-align:center; }
+  .cdz .cdChoix{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+  .cdz .cdChoix button{ height:62px; margin:0; padding:0; border-radius:16px; border:2px solid var(--line); background:var(--navy-deep); color:var(--cream);
+    font:inherit; font-size:20px; font-weight:900; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
+  .cdz .cdChoix button small{ font-size:10.5px; font-weight:700; color:var(--accent-text); }
+  .cdz .cdChoix button.fait{ background:var(--orange-soft); color:#14161B; border-color:transparent; }
+  .cdz .cdChoix button.fait small{ color:#3B6900; }
+  .cdz .cdChoix button.encours{ border-color:var(--orange); }
+  .cdz .cdChoix button.off{ opacity:.4; cursor:default; }
+  .cdz .cdChoix button.off small{ color:var(--muted); }
+  .cdz .cdSerie{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; margin:0; background:var(--navy-deep); color:var(--cream);
+    border:1px solid var(--line); border-radius:16px; padding:12px 14px; font:inherit; cursor:pointer; }
+  .cdz .cdSerie .i{ width:42px; height:42px; min-width:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; background:var(--line); }
+  .cdz .cdSerie.ok .i{ background:var(--orange-soft); color:#2c4d00; }
+  .cdz .cdSerie.go{ border:2px solid var(--orange); }
+  .cdz .cdSerie .t{ flex:1; min-width:0; }
+  .cdz .cdSerie .t b{ display:block; font-size:16px; }
+  .cdz .cdSerie .t small{ color:var(--muted); font-size:13px; }
+  .cdz .cdSerie .d{ font-weight:900; font-size:14px; color:var(--accent-text); white-space:nowrap; }
+  .cdz .cdQn{ text-align:center; font-size:26px; font-weight:900; }
+  .cdz .cdQn small{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); }
+  .cdz .cdLettres{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
+  .cdz .cdLettres.n3{ grid-template-columns:repeat(3, 1fr); }
+  .cdz .cdLettres.n5, .cdz .cdLettres.n6{ grid-template-columns:repeat(3, 1fr); }
+  .cdz .cdLettres button{ height:76px; margin:0; padding:0; border-radius:18px; border:2px solid var(--line); background:var(--navy-deep); color:var(--cream);
+    font:inherit; font-size:32px; font-weight:900; cursor:pointer; }
+  .cdz .cdLettres button.on{ background:var(--lentille, var(--orange)); border-color:var(--orange); color:#0B0B0B; }
+  .cdz .cdRonds{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+  .cdz .cdRonds span{ width:30px; height:30px; border-radius:50%; background:var(--line); color:var(--muted); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .cdz .cdRonds span.r{ background:var(--orange-soft); color:#2c4d00; }
+  .cdz .cdRonds span.ici{ box-shadow:0 0 0 2px var(--accent-text); color:var(--cream); }
+  .cdz .cdValider{ display:flex; align-items:center; justify-content:center; gap:12px; height:64px; margin:auto 0 0; border:0; border-radius:999px;
+    background:var(--lentille, var(--orange)); color:#0B0B0B; font:inherit; font-weight:900; font-size:17px; cursor:pointer; }
+  .cdz .cdValider .coche{ width:42px; height:42px; border-radius:50%; background:#0B0B0B; color:#B6FF0E; display:flex; align-items:center; justify-content:center; font-size:24px; }
+  .cdz .cdValider[disabled]{ opacity:.45; cursor:default; }
+  .cdz .cdErr{ color:var(--warn-text); background:var(--warn-bg); border-radius:12px; padding:9px 12px; font-size:13.5px; }
+  .cdz .cdRes{ text-align:center; gap:4px; }
+  .cdz .cdRes .n{ font-size:64px; font-weight:900; line-height:1; color:var(--accent-text); }
+  .cdz .cdRes .s{ font-size:17px; font-weight:800; }
+  .cdz .cdPastille{ align-self:center; margin-top:8px; border-radius:999px; padding:6px 14px; font-weight:800; font-size:13.5px; background:var(--orange-soft); color:#2c4d00; }
+  .cdz .cdPastille.orange{ background:#FFF1C9; color:#7A5A00; }
+  .cdz .cdPastille.rouge{ background:#FFE3DA; color:#9B2A10; }
+  .cdz .cdQ{ display:flex; gap:10px; align-items:center; background:var(--navy-deep); border:1px solid var(--line); border-radius:14px; padding:9px 12px; font-size:14.5px; }
+  .cdz .cdQ b{ width:40px; height:40px; min-width:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--orange-soft); color:#2c4d00; font-size:13px; }
+  .cdz .cdQ.ko b{ background:#FFE3DA; color:#B4361B; }
+  .cdz .cdQ em{ font-style:normal; color:var(--muted); }
+  .cdz .cdQ .pq{ display:block; font-size:12.5px; color:var(--red); font-weight:700; margin-top:2px; }
+  .cdz .cdBas{ height:54px; margin:auto 0 0; border:0; border-radius:999px; font:inherit; font-weight:900; font-size:16px; cursor:pointer;
+    background:var(--cream); color:var(--navy); }
+  .cdz .cdBas.lime{ background:var(--lentille, var(--orange)); color:#0B0B0B; }
+  .cdz .cdLien{ background:none; border:0; margin:0; padding:6px; font:inherit; font-size:13.5px; font-weight:700; color:var(--accent-text); cursor:pointer; }
+  /* 🎥 sous l'image du cours (appel-commun.js, toujours sombre) : plus serré */
+  .cdz.sombre{ --navy:#0B0F13; --navy-deep:#1A222A; --cream:#E9F1F5; --muted:#9AA7B1; --line:#2A3540; --accent-text:#B6FF0E; --orange-soft:#3B4A1A;
+    --red:#FFB4A0; --warn-text:#FFC9BB; --warn-bg:rgba(255,92,51,.14); gap:9px; min-height:0; color:var(--cream); }
+  .cdz.sombre .cdTete .cdRet{ width:36px; height:36px; min-width:36px; font-size:21px; }
+  .cdz.sombre .cdT b{ font-size:15.5px; }
+  .cdz.sombre .cdT small{ font-size:12px; }
+  .cdz.sombre .cdBoite{ padding:10px; gap:9px; border-radius:16px; }
+  .cdz.sombre .cdQn{ font-size:20px; }
+  .cdz.sombre .cdLettres{ grid-template-columns:repeat(4, 1fr); gap:7px; }
+  .cdz.sombre .cdLettres.n3{ grid-template-columns:repeat(3, 1fr); }
+  .cdz.sombre .cdLettres.n5, .cdz.sombre .cdLettres.n6{ grid-template-columns:repeat(6, 1fr); }
+  .cdz.sombre .cdLettres button{ height:54px; font-size:24px; border-radius:14px; }
+  .cdz.sombre .cdRonds span{ width:24px; height:24px; font-size:10.5px; }
+  .cdz.sombre .cdRonds span.r, .cdz.sombre .cdSerie.ok .i, .cdz.sombre .cdQ b{ color:#D8FF8A; }
+  .cdz.sombre .cdQ.ko b{ background:#3A2A20; color:#FFB4A0; }
+  .cdz.sombre .cdValider{ height:52px; font-size:15px; }
+  .cdz.sombre .cdValider .coche{ width:34px; height:34px; font-size:19px; }
+  .cdz.sombre .cdRes .n{ font-size:44px; }
+  .cdz.sombre .cdSerie{ padding:9px 11px; }
+  .cdz.sombre .cdSerie .i{ width:34px; height:34px; min-width:34px; font-size:15px; }
+  .cdz.sombre .cdPastille{ color:#D8FF8A; }
+  .cdz.sombre .cdPastille.orange{ background:rgba(255,181,71,.16); color:#FFCF85; }
+  .cdz.sombre .cdPastille.rouge{ background:rgba(255,92,51,.16); color:#FFB4A0; }
+  .cdz.sombre .cdBas{ height:46px; font-size:14.5px; }
+  .cdz.sombre .cdNote{ font-size:11.5px; }
 </style>
 </head>
 <body>
@@ -2630,6 +2729,8 @@
     <!-- 📲 v1381 — mets ton espace sur l'écran d'accueil, active les
          notifications (David, le 7 novembre) : fermé, il revient 7 jours plus tard -->
     <div class="card baAppli" id="bandeauAppliEl" style="display:none;"></div>
+    <!-- 📝 v1426 — ses séances de code (David, le 13 novembre) -->
+    <div class="card cdCarte" id="carteCode" style="display:none;"></div>
     <!-- 📣 Les annonces — v1038, étape 6. En TÊTE de l'accueil :
          « le bureau sera fermé samedi » est exactement ce qu'on veut
          voir en ouvrant l'application, pas au bas d'un défilement. -->
@@ -2876,7 +2977,7 @@
 </div>
 
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
-<script src="appel-commun.js?v=1425"></script>
+<script src="appel-commun.js?v=1426"></script>
 <script>
 (function(){
   'use strict';
@@ -4844,6 +4945,8 @@
     if(ouvert('messages')) demarrerMessages();
     /* 🎥 v1356 — le cours de code en visio (le lien, ou un cours en cours) */
     demarrerVisioEl();
+    /* 📝 v1426 — ses séances de code (la carte, ou le QR code d'une séance) */
+    demarrerCodeEl();
     /* 📲 v1381 — l'écran d'accueil et les notifications : on regarde
        (sans rien demander), puis le bandeau se dessine */
     if(!(MODE_SALLE || MODE_ESSAI || ACCOMP)){
@@ -5737,6 +5840,275 @@
     /* On remonte : un onglet ouvert au milieu d'un long défilement
        donne l'impression que rien ne s'est passé. */
     try{ window.scrollTo(0, 0); }catch(e){}
+  }
+
+
+  /* ============================================================
+     📝 MES SÉANCES DE CODE — v1426
+
+     David, le 13 novembre : le questionnaire Google Form « cache
+     l'écran » en visio ; en salle, « l'élève dit quelle séance il voit,
+     répond sur son espace, et ça enregistre le suivi tout seul ». Ses
+     règles : plusieurs séries par séance, avec les noms de la télé ;
+     il valide CHAQUE question (✓) ; ses fautes ne s'affichent qu'après
+     la dernière question de la série, puis un bouton passe à la
+     suivante ; rien à lancer ni à débloquer de notre côté ; une séance
+     refaite repart de zéro.
+
+     · la carte de l'accueil, si on lui a ouvert « 🎓 » (module « code ») ;
+     · l'écran plein (#codeEcran) : choisir · la séance · une question ·
+       la correction d'une série · le résultat ;
+     · le QR code d'une séance amène ici : « #seance=5 » dans l'adresse ;
+     · en visio, le même écran se dessine sous l'image du cours
+       (codeDansVisio, appelé par appel-commun.js).
+     Les fautes se comptent dans le Worker, jamais ici.
+     ============================================================ */
+  var codeEl = null;
+  var codeEnCours = null;
+  var CODE_LETTRES_EL = 'ABCDEF';
+  function codeSeanceDeLAdresse(){
+    var m = String(location.hash || '').match(/(?:#|&)seance=(\d{1,2})(?:&|$)/);
+    var n = m ? Number(m[1]) : 0;
+    return n >= 1 && n <= 12 ? n : 0;
+  }
+  function codeOublierLAdresse(){
+    try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}
+  }
+  function codeLire(seance){
+    if(MODE_ESSAI) return Promise.resolve(null);
+    if(codeEnCours) return codeEnCours;
+    codeEnCours = appeler({ action: 'eleveCode', eleve: moi.nom, code: moi.code, seance: seance || '' })
+      .then(function(r){ codeEnCours = null; codeEl = r || null; return codeEl; },
+            function(e){ codeEnCours = null; throw e; });
+    return codeEnCours;
+  }
+  function codeSeance(n){
+    return (codeEl && codeEl.seances || []).filter(function(s){ return s.numero === n; })[0] || null;
+  }
+  function codeCouleur(f){ return f <= 3 ? 'vert' : f <= 6 ? 'orange' : 'rouge'; }
+  function codeNbFaites(){
+    return (codeEl && codeEl.seances || []).filter(function(s){ return s.prete && s.fini; }).length;
+  }
+  function demarrerCodeEl(){
+    var voulu = codeSeanceDeLAdresse();
+    montrer('carteCode', false);
+    if(MODE_SALLE || MODE_ESSAI) return;
+    if(!ouvert('code') && !voulu) return;
+    codeLire(voulu).then(function(){
+      dessinerCarteCode();
+      if(voulu){
+        codeOublierLAdresse();
+        codeOuvrir(voulu);
+      }
+    }).catch(function(){ dessinerCarteCode(); });
+  }
+  window.addEventListener('hashchange', function(){
+    var n = codeSeanceDeLAdresse();
+    if(n && moi && moi.code){ codeOublierLAdresse(); codeLire(n).then(function(){ codeOuvrir(n); }).catch(function(){}); }
+  });
+  function dessinerCarteCode(){
+    var z = $('carteCode');
+    if(!z) return;
+    if(!codeEl || !codeEl.ouvert || !ouvert('code')){ z.style.display = 'none'; return; }
+    var pretes = codeEl.seances.filter(function(s){ return s.prete; }).length;
+    if(!pretes){ z.style.display = 'none'; return; }
+    z.innerHTML = '<div class="cdLab">📝 Mes séances de code</div>' +
+      '<div class="cdGros">' + codeNbFaites() + ' / 12 faites</div>' +
+      '<div class="cdMot">En salle ou en visio : choisis la séance que le moniteur annonce, et réponds ici à chaque série de questions.</div>' +
+      '<button type="button" class="btn btn-primary" id="btCodeChoisir">📝 Choisir ma séance</button>';
+    z.style.display = '';
+    $('btCodeChoisir').addEventListener('click', function(){ codeOuvrir(0); });
+  }
+
+  /* ---------- L'écran plein ---------- */
+  function codeOuvrir(n){
+    var e = $('codeEcran');
+    if(!e) return;
+    e.style.display = '';
+    document.body.classList.add('cdOuvert');
+    var etat = { numero: n || 0, vue: n ? 'seance' : 'choisir', ou: 'salle', zone: e };
+    if(n && codeEl && !codeEl.ouvert){ etat.vue = 'ferme'; }
+    codeRendre(etat);
+  }
+  function codeFermer(){
+    var e = $('codeEcran');
+    if(e){ e.style.display = 'none'; e.innerHTML = ''; }
+    document.body.classList.remove('cdOuvert');
+    dessinerCarteCode();
+  }
+  /* 🎥 En visio : sous l'image du cours. « secours » rouvre le Google
+     Form si la séance n'est pas encore prête dans l'appli. */
+  function codeDansVisio(zone, numero, secours){
+    zone.innerHTML = '<div class="cdz sombre"><div class="cdVide">⏳ Ta séance se charge…</div></div>';
+    codeLire(numero).then(function(){
+      var s = codeSeance(numero);
+      if(!codeEl || !codeEl.ouvert || !s || !s.prete){
+        if(secours && secours()) return;
+        zone.innerHTML = '<div class="cdz sombre"><div class="cdVide">' +
+          (codeEl && !codeEl.ouvert ? echapper(codeEl.message || '') : 'La séance ' + numero + ' n’est pas encore prête dans l’appli : réponds comme d’habitude.') + '</div></div>';
+        return;
+      }
+      codeRendre({ numero: numero, vue: 'seance', ou: 'visio', zone: zone, visio: true });
+    }).catch(function(e){
+      if(secours && secours()) return;
+      zone.innerHTML = '<div class="cdz sombre"><div class="cdVide">⚠️ ' + echapper((e && e.message) || 'Impossible de charger la séance.') + '</div></div>';
+    });
+  }
+  window.codeDansVisioEl = codeDansVisio;
+
+  function codeRonds(nb, faites, ici){
+    var h = '';
+    for(var i = 0; i < nb; i++) h += '<span class="' + (i < faites ? 'r' : '') + (i === ici ? ' ici' : '') + '">' + (i + 1) + '</span>';
+    return h;
+  }
+  /* La première série pas finie (ou -1) */
+  function codeSerieSuivante(s, apres){
+    for(var i = (apres === undefined ? 0 : apres + 1); i < s.series.length; i++) if(!s.series[i].fini) return i;
+    for(var j = 0; j < s.series.length; j++) if(!s.series[j].fini) return j;
+    return -1;
+  }
+  function codeRendre(etat){
+    var z = etat.zone;
+    var s = etat.numero ? codeSeance(etat.numero) : null;
+    var tete = function(titre, sous, retour){
+      return '<div class="cdTete">' + (retour ? '<button type="button" class="cdRet" data-cd="retour" aria-label="Retour">‹</button>' : '') +
+        '<div class="cdT"><b>' + titre + '</b>' + (sous ? '<small>' + sous + '</small>' : '') + '</div>' +
+        (etat.visio ? '' : '<button type="button" class="cdFerme" data-cd="fermer" aria-label="Fermer">✕</button>') + '</div>';
+    };
+    var h = '';
+    if(etat.vue === 'ferme'){
+      h = tete('📝 Séances de code', '', false) +
+        '<div class="cdBoite cdVide">' + echapper((codeEl && codeEl.message) || 'Les séances de code ne sont pas ouvertes sur ton espace : demande au bureau depuis ta messagerie.') + '</div>';
+    } else if(etat.vue === 'choisir'){
+      h = tete('📝 Quelle séance ?', 'celle que le moniteur annonce', false) + '<div class="cdBoite"><div class="cdChoix">' +
+        codeEl.seances.map(function(x){
+          var cl = !x.prete ? 'off' : x.fini ? 'fait' : x.commencee ? 'encours' : '';
+          var sous = !x.prete ? 'pas prête' : x.fini ? '✓ ' + x.fautes + ' f.' : x.commencee ? 'en cours' : '';
+          return '<button type="button" class="' + cl + '" data-cd="seance" data-n="' + x.numero + '"' + (x.prete ? '' : ' disabled') + '>' + x.numero +
+            (sous ? '<small>' + sous + '</small>' : '') + '</button>';
+        }).join('') + '</div><div class="cdNote">✓ = déjà faite, avec tes fautes. Tu peux refaire une séance.</div></div>';
+    } else if(etat.vue === 'seance'){
+      if(s.fini && !etat.revoir){ etat.vue = 'fin'; return codeRendre(etat); }
+      var ici = codeSerieSuivante(s);
+      var finies = s.series.filter(function(x){ return x.fini; }).length;
+      h = tete('📝 Séance ' + s.numero, finies + ' série' + (finies > 1 ? 's' : '') + ' faite' + (finies > 1 ? 's' : '') + ' sur ' + s.series.length, !etat.visio || etat.revoir) +
+        s.series.map(function(x, i){
+          var cl = x.fini ? 'ok' : (i === ici ? 'go' : '');
+          return '<button type="button" class="cdSerie ' + cl + '" data-cd="serie" data-i="' + i + '"><span class="i">' + (x.fini ? '✓' : (i + 1)) + '</span>' +
+            '<span class="t"><b>' + echapper(x.nom) + '</b><small>' + x.lettres.length + ' question' + (x.lettres.length > 1 ? 's' : '') +
+            (x.fini ? '' : x.faites ? ' · ' + x.faites + ' répondue' + (x.faites > 1 ? 's' : '') : (i === ici ? ' · à toi' : '')) + '</small></span>' +
+            '<span class="d">' + (x.fini ? x.correction.fautes + ' faute' + (x.correction.fautes > 1 ? 's' : '') : '›') + '</span></button>';
+        }).join('') +
+        '<div class="cdNote">Les noms sont ceux de la télé. Entre deux séries, regarde le cours.</div>' +
+        (s.fini ? '<button type="button" class="cdBas lime" data-cd="fin">Voir mon résultat</button>' : '');
+    } else if(etat.vue === 'question'){
+      var se = s.series[etat.serie];
+      var qi = se.faites;
+      var nb = se.lettres[qi] || 4;
+      var choix = etat.choix || '';
+      var lettres = '';
+      for(var k = 0; k < nb; k++){ var L = CODE_LETTRES_EL.charAt(k); lettres += '<button type="button" class="' + (choix.indexOf(L) !== -1 ? 'on' : '') + '" data-cd="lettre" data-l="' + L + '">' + L + '</button>'; }
+      h = tete(echapper(se.nom), 'séance ' + s.numero + ' · question ' + (qi + 1) + ' sur ' + se.lettres.length, true) +
+        '<div class="cdBoite"><div class="cdQn">Question ' + (qi + 1) + '<small>coche toutes les bonnes réponses</small></div>' +
+        '<div class="cdLettres n' + nb + '">' + lettres + '</div>' +
+        '<div class="cdRonds">' + codeRonds(se.lettres.length, qi, qi) + '</div></div>' +
+        (etat.erreur ? '<div class="cdErr">⚠️ ' + echapper(etat.erreur) + '</div>' : '') +
+        '<button type="button" class="cdValider" data-cd="valider"' + (choix && !etat.envoi ? '' : ' disabled') + '><span class="coche">✓</span>' +
+          (etat.envoi ? 'J’envoie…' : 'Valider la question ' + (qi + 1)) + '</button>' +
+        '<div class="cdNote">Une question validée ne se change plus. Tes fautes s’affichent après la question ' + se.lettres.length + '.</div>';
+    } else if(etat.vue === 'correction'){
+      var sc = s.series[etat.serie];
+      var c = sc.correction;
+      var suite = codeSerieSuivante(s, etat.serie);
+      var fautes = c.details.filter(function(d){ return !d.juste; });
+      var justes = c.details.filter(function(d){ return d.juste; });
+      h = tete(echapper(sc.nom) + ' · ta correction', 'séance ' + s.numero + ' · ' + c.fautes + ' faute' + (c.fautes > 1 ? 's' : '') + ' sur ' + c.nb, true) +
+        '<div class="cdBoite cdRes"><div class="n">' + c.fautes + '</div><div class="s">faute' + (c.fautes > 1 ? 's' : '') + ' sur ' + c.nb + '</div></div>' +
+        fautes.map(function(d){
+          return '<div class="cdQ ko"><b>Q' + d.q + '</b><span>Tu as mis <strong>' + (d.mis ? d.mis.split('').join(' ') : '—') + '</strong> <em>· la bonne : ' + d.bonne.split('').join(' ') + '</em>' +
+            '<span class="pq">' + echapper(d.pourquoi) + '</span></span></div>';
+        }).join('') +
+        justes.map(function(d){ return '<div class="cdQ"><b>Q' + d.q + '</b><span>Juste · <em>' + d.bonne.split('').join(' ') + '</em></span></div>'; }).join('') +
+        (suite >= 0 ? '<button type="button" class="cdBas lime" data-cd="serie" data-i="' + suite + '">Passer à ' + echapper(s.series[suite].nom) + ' ›</button>'
+                    : '<button type="button" class="cdBas lime" data-cd="fin">Voir mon résultat</button>');
+    } else if(etat.vue === 'fin'){
+      var coul = codeCouleur(s.fautes);
+      h = tete('📝 Séance ' + s.numero + ' · terminée', s.jour ? s.jour.split('-').reverse().join('/') + (s.ou === 'visio' ? ' · en visio' : ' · en salle') : '', !etat.visio) +
+        '<div class="cdBoite cdRes"><div class="n">' + s.fautes + '</div><div class="s">faute' + (s.fautes > 1 ? 's' : '') + ' sur ' + s.total + '</div>' +
+          '<div class="cdPastille ' + coul + '">' + ({ vert: '🟢 Vert', orange: '🟠 Orange', rouge: '🔴 Rouge' })[coul] + ' · enregistré dans ton suivi</div></div>' +
+        s.series.map(function(x, i){
+          return '<button type="button" class="cdSerie ok" data-cd="voir" data-i="' + i + '"><span class="i">' + (i + 1) + '</span><span class="t"><b>' + echapper(x.nom) + '</b><small>' +
+            x.lettres.length + ' question' + (x.lettres.length > 1 ? 's' : '') + '</small></span><span class="d">' + x.correction.fautes + ' faute' + (x.correction.fautes > 1 ? 's' : '') + '</span></button>';
+        }).join('') +
+        '<div class="cdNote">Appuie sur une série pour revoir tes erreurs.</div>' +
+        '<button type="button" class="cdLien" data-cd="refaire">' + (etat.sur ? '⚠️ Sûr ? Appuie encore : tout repart de zéro' : '↺ Refaire la séance ' + s.numero + ' (repart de zéro)') + '</button>' +
+        (etat.visio ? '' : '<button type="button" class="cdBas lime" data-cd="fermer">Revenir à l’accueil</button>');
+    }
+    z.innerHTML = '<div class="cdz' + (etat.visio ? ' sombre' : '') + '">' + h + '</div>';
+    z.scrollTop = 0;
+    Array.prototype.forEach.call(z.querySelectorAll('[data-cd]'), function(b){
+      b.addEventListener('click', function(){ codeGeste(etat, b); });
+    });
+  }
+  function codeGeste(etat, b){
+    var a = b.getAttribute('data-cd');
+    var s = etat.numero ? codeSeance(etat.numero) : null;
+    if(a === 'fermer'){ codeFermer(); return; }
+    if(a === 'retour'){
+      if(etat.vue === 'question' || etat.vue === 'correction'){ etat.vue = 'seance'; etat.revoir = s && s.fini; }
+      else if(etat.vue === 'seance' && etat.revoir && s && s.fini){ etat.vue = 'fin'; etat.revoir = false; }
+      else if(etat.vue === 'seance' || etat.vue === 'fin'){ if(etat.visio) return; etat.vue = 'choisir'; etat.numero = 0; }
+      etat.choix = ''; etat.erreur = ''; etat.sur = false;
+      codeRendre(etat); return;
+    }
+    if(a === 'seance'){ etat.numero = Number(b.getAttribute('data-n')); etat.vue = 'seance'; etat.revoir = false; codeRendre(etat); return; }
+    if(a === 'serie' || a === 'voir'){
+      etat.serie = Number(b.getAttribute('data-i'));
+      etat.vue = s.series[etat.serie].fini ? 'correction' : 'question';
+      etat.choix = ''; etat.erreur = '';
+      codeRendre(etat); return;
+    }
+    if(a === 'fin'){ etat.vue = 'fin'; etat.revoir = false; codeRendre(etat); return; }
+    if(a === 'lettre'){
+      var L = b.getAttribute('data-l');
+      var c = etat.choix || '';
+      c = c.indexOf(L) !== -1 ? c.replace(L, '') : c + L;
+      etat.choix = CODE_LETTRES_EL.split('').filter(function(x){ return c.indexOf(x) !== -1; }).join('');
+      etat.erreur = '';
+      codeRendre(etat); return;
+    }
+    if(a === 'valider'){
+      if(!etat.choix || etat.envoi) return;
+      var se = s.series[etat.serie];
+      var qi = se.faites;
+      etat.envoi = true; codeRendre(etat);
+      appeler({ action: 'eleveCodeRepondre', eleve: moi.nom, code: moi.code, seance: s.numero, serie: etat.serie, question: qi,
+                lettres: etat.choix, ou: etat.ou })
+        .then(function(r){
+          etat.envoi = false;
+          se.reps.push(etat.choix); se.faites = se.reps.length; etat.choix = '';
+          s.commencee = true; s.fautes = r.fautes; s.total = r.total; s.fini = !!r.fini;
+          if(!s.jour) s.jour = new Date().toISOString().slice(0, 10);
+          if(!s.ou) s.ou = etat.ou;
+          if(r.finie){ se.fini = true; se.correction = r.correction; etat.vue = 'correction'; }
+          codeRendre(etat);
+        }, function(e){
+          etat.envoi = false;
+          etat.erreur = (e && e.message) || 'Pas envoyé : réessaie.';
+          /* Le Worker attend une autre question (une page restée ouverte) : on relit */
+          codeLire(s.numero).then(function(){ codeRendre(etat); }, function(){ codeRendre(etat); });
+        });
+      return;
+    }
+    if(a === 'refaire'){
+      if(!etat.sur){ etat.sur = true; codeRendre(etat); return; }
+      etat.sur = false;
+      appeler({ action: 'eleveCodeRefaire', eleve: moi.nom, code: moi.code, seance: s.numero })
+        .then(function(){ return codeLire(s.numero); })
+        .then(function(){ etat.vue = 'seance'; etat.revoir = false; codeRendre(etat); dessinerCarteCode(); })
+        .catch(function(e){ etat.erreur = (e && e.message) || ''; codeRendre(etat); });
+      return;
+    }
   }
 
 
@@ -9664,7 +10036,9 @@
         window.AppelEC.ouvrir({
           route: RELAIS + '/appel', billet: r.billet, appel: r.appel, genre: 'video',
           titre: '🎥 Code — séance ' + r.numero, eleve: true, sansCamera: true,
-          cours: { numero: r.numero, questionnaire: r.formulaire || '', par: r.par || '' },
+          cours: { numero: r.numero, questionnaire: r.formulaire || '', par: r.par || '',
+                   /* 📝 v1426 — ses réponses dans l'appli, sous l'image du cours */
+                   feuille: function(zone, secours){ codeDansVisio(zone, r.numero, secours); } },
           surFin: function(){ setTimeout(lireVisioEl, 1500); if(filEl) setTimeout(function(){ if(filEl) rafraichirLeFilEleve(true); }, 1500); }
         });
         setTimeout(dessinerVisioEl, 300);
@@ -15232,5 +15606,7 @@
   }catch(e){}
 })();
 </script>
+<!-- 📝 v1426 — l’écran des séances de code -->
+<div id="codeEcran" class="cdEcran" style="display:none;"></div>
 </body>
 </html>
