@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:03 — v1426 */
+/* Déployé le 13/11/2026 à 14:28 — v1428 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,38 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1428,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🔳 Les QR codes des séances : fond blanc, liseré vert, 6 par page',
+    quoi: [
+      { emoji: '🔳',
+        titre: 'Les QR codes redessinés',
+        texte: 'Élèves › 🎓 Code › 🔳 Les QR codes : un rond blanc au liseré vert, « SÉANCE » et son numéro dans une pastille verte en haut, le QR au milieu, « Scanne-moi » en bas. « 🖨️ Imprimer » met 6 QR codes par page (2 pages) ; « Une séance par page » reste pour l’entrée de la salle.' }
+    ]
+  },
+  {
+    version: 1427,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '📝 Code : la séance à lancer d’après Drivup, ✍️ les ardoises, 🔳 les QR codes des séances, l’onglet 🎓 Code du dossier, et où en est chaque élève pendant la visio',
+    quoi: [
+      { emoji: '🎯',
+        titre: 'Quelle séance lancer, d’après Drivup',
+        texte: 'Élèves › 🎓 Code : pour chaque cours de code du jour (la colonne ETG en salle, et la visio), les réservés Drivup et la séance qu’aucun d’eux n’a vue (sinon la moins vue). Une simple info : rien à lancer. Le code en salle se lit avec le favori 📥, comme la visio : relis le planning une fois pour qu’il apparaisse.' },
+      { emoji: '✍️',
+        titre: 'Les ardoises',
+        texte: '« ✍️ Saisir des ardoises » : la séance (proposée d’après les réservés), les élèves du créneau déjà listés (＋ pour en ajouter), et le nombre de fautes de chacun avec − / +. « — » = pas d’ardoise. Tout s’enregistre d’un coup, ✍️ dans la grille ; une ardoise remplace ce qu’il avait fait sur cette séance.' },
+      { emoji: '🔳',
+        titre: 'Les QR codes des séances',
+        texte: 'Un rond vert par séance, le numéro en haut, le QR dessous. À imprimer : les 12 sur une page, ou une séance par page A4 pour l’entrée de la salle. Scanné, il ouvre l’espace de l’élève directement sur la séance.' },
+      { emoji: '🎓',
+        titre: 'L’onglet 🎓 Code du dossier',
+        texte: 'Dans le dossier de l’élève : séances faites, fautes en tout et en moyenne, les 12 cases, puis chaque séance avec sa date, où (📱 salle, 🎥 visio, ✍️ ardoise, 📄 Google Form) et ses fautes série par série. Un appui montre ses réponses, question par question.' },
+      { emoji: '🎥',
+        titre: 'Pendant la visio, ta liste d’élèves',
+        texte: 'Sous chaque nom : la série et où il en est (« Test 2 · 2 / 4 · 1 faute »), puis ses fautes en couleur quand il a fini. Mis à jour toutes les 10 secondes.' }
+    ]
+  },
   {
     version: 1426,
     date: 'Vendredi 13 novembre 2026',
