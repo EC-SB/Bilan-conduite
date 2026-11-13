@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 10:16 — v1303 */
+/* Déployé le 13/11/2026 à 10:14 — v1420 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -320,6 +320,67 @@ function vbOnglets(z){
     o.appendChild(b);
   });
   z.appendChild(o);
+  if(vbEstAdmin()) z.appendChild(vbEtatDuJeu());
+}
+
+/* ============================================================
+   🧰 v1420 — LE JEU SUR L'ESPACE ÉLÈVE : ALLUMÉ OU ÉTEINT, V1 OU V2
+
+   David, le 13 novembre : « avoir l'ancien jeu et le nouveau sur notre
+   app, et on choisit lequel on met en route sur l'espace élève […] un
+   sélecteur on/off et V1 ou V2 ». Éteint : l'onglet 🧰 disparaît pour
+   tous les élèves. Allumé : la case 🧰 de chaque élève décide, comme
+   avant. Chaque version garde sa progression : on peut passer de l'une à
+   l'autre sans rien perdre. Administrateurs seulement.
+   ============================================================ */
+function vbEtatDuJeu(){
+  const bar = vqEl('div', 'vbJeuEtat');
+  bar.setAttribute('data-jeu-etat', '1');
+  const dessiner = () => {
+    const j = VERIFS.jeu;
+    bar.innerHTML = '';
+    bar.appendChild(vqEl('b', '', '🧰 Sur l’espace élève'));
+    if(!j){ bar.appendChild(vqEl('span', 'vbAide', 'lecture…')); return; }
+    const groupe = (liste, actuel, quoi) => {
+      const g = vqEl('div', 'vbSeg');
+      liste.forEach(([v, t]) => {
+        const b = vqEl('button', 'vbPuce' + (v === actuel ? ' on' : ''), t);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', v === actuel ? 'true' : 'false');
+        b.addEventListener('click', () => { if(v !== actuel) quoi(v, b); });
+        g.appendChild(b);
+      });
+      return g;
+    };
+    bar.appendChild(groupe([[true, '⏻ Allumé'], [false, '⭘ Éteint']], j.allume, (v, b) => poser({ allume: v, version: j.version }, b)));
+    bar.appendChild(groupe([['v1', 'V1 · l’ancien jeu'], ['v2', 'V2 · le nouveau']], j.version, (v, b) => poser({ allume: j.allume, version: v }, b)));
+    bar.appendChild(vqEl('span', 'vbAide', j.allume
+      ? 'Les élèves dont la case 🧰 est cochée jouent à la ' + j.version.toUpperCase() + '.'
+      : 'Le jeu est caché pour tous les élèves.'));
+  };
+  const poser = async (jeu, b) => {
+    if(b) b.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'jeuEtatPoser', jeu: jeu });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      VERIFS.jeu = r.jeu;
+      if(typeof AT !== 'undefined' && r.reglages){ AT.d = { reglages: r.reglages, photos: r.photos }; AT.jeu = r.jeu; }
+      showToastVerifs(r.jeu.allume ? '🧰 Le jeu est allumé, en ' + r.jeu.version.toUpperCase() : '🧰 Le jeu est éteint pour les élèves');
+    }catch(e){ showToastVerifs('⚠️ ' + ((e && e.message) || e)); }
+    dessiner();
+  };
+  dessiner();
+  if(!VERIFS.jeu){
+    if(typeof AT !== 'undefined' && AT.jeu){ VERIFS.jeu = AT.jeu; dessiner(); }
+    else appelPrep({ action: 'jeuAtelierLire' }).then(r => {
+      if(r && r.status === 'ok' && r.jeu){
+        VERIFS.jeu = r.jeu;
+        if(typeof AT !== 'undefined' && !AT.d) { AT.d = { reglages: r.reglages, photos: r.photos }; AT.jeu = r.jeu; }
+        if(bar.isConnected) dessiner();
+      }
+    }).catch(() => {});
+  }
+  return bar;
 }
 function vbDessinerEcran(z){
   z.innerHTML = '';
@@ -375,6 +436,16 @@ function vbJouer(z){
   const re = vqEl('button', 'btn btn-secondary', '↺ Recommencer à zéro'); re.type = 'button';
   re.addEventListener('click', () => vbDessinerEcran(z));
   rang.appendChild(re);
+  /* 🧰 v1420 — essayer l'une ou l'autre, quelle que soit celle des élèves */
+  const vs = vqEl('div', 'vbSeg');
+  [['v1', 'V1 · l’ancien jeu'], ['v2', 'V2 · le nouveau']].forEach(([v, t]) => {
+    const b = vqEl('button', 'vbPuce' + ((VERIFS.essaiVersion || (VERIFS.jeu && VERIFS.jeu.version) || 'v1') === v ? ' on' : ''), t);
+    b.type = 'button';
+    b.setAttribute('data-essai-version', v);
+    b.addEventListener('click', () => { VERIFS.essaiVersion = v; vbDessinerEcran(z); });
+    vs.appendChild(b);
+  });
+  rang.appendChild(vs);
   c.appendChild(rang);
   const tel = vqEl('div', 'vbTel');
   tel.innerHTML = '<div class="empty">Chargement du jeu…</div>';
@@ -393,6 +464,7 @@ function vbJouer(z){
       if(!f.isConnected){ window.removeEventListener('message', ecoute); return; }
       if(ev.source !== f.contentWindow || ev.origin !== location.origin) return;
       if(ev.data && ev.data.jvEssaiPret){
+        d.jeu = Object.assign({}, d.jeu || {}, { allume: true, version: VERIFS.essaiVersion || (d.jeu && d.jeu.version) || 'v1' });
         f.contentWindow.postMessage({ jvEssai: d, nom: (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || 'Équipe',
                                       clair: document.body.classList.contains('clair') }, location.origin);
       }
