@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 09:11 — v1362 */
+/* Déployé le 13/11/2026 à 15:58 — v1432 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -4773,6 +4773,91 @@ function garderRdvPost(){
   try{ localStorage.setItem(CLE_RDV_POST, JSON.stringify(d)); }catch(e){}
 }
 
+/* 🩹 v1432 — DAVID : « QUAND ON REPREND UN RENDEZ-VOUS POST-PERMIS QUI A
+   BUGGÉ, ÇA ROUVRE UN BILAN VOCAL AU LIEU DE ROUVRIR LE POST-PERMIS, ET
+   ON NE PEUT PAS LE FINALISER ». Le dépôt sur le serveur ne portait que
+   le MIROIR (du texte à lire) : « ↩️ Reprendre » ne pouvait que le
+   recoller dans la case de la dictée. Il porte maintenant ce que la
+   copie de l'appareil garde déjà (garderRdvPost) — les champs du
+   rendez-vous et les zones du créateur —, marqué « rdvPost », et la
+   reprise rouvre le vrai écran du rendez-vous avec. */
+function ficheRdvPostPourDepot(){
+  if(!rdvPostEnCours) return null;
+  const d = { rdvPost: 1, eleve: rdvPostEnCours.eleve || '', date: rdvPostEnCours.date || '',
+              site: rdvPostEnCours.site || '', moniteur: rdvPostEnCours.moniteur || '', ts: Date.now() };
+  CHAMPS_RDV_POST.forEach(id => { if($(id)) d[id] = $(id).value; });
+  if(typeof saisiesAjoutsRdvPost === 'function' && rdvPostChamps){
+    const a = saisiesAjoutsRdvPost();
+    if(ajoutsRemplisRdvPost(a)) d.__ajouts = a;
+  }
+  const ecrit = CHAMPS_RDV_POST.some(id => String(d[id] || '').trim()) || !!d.__ajouts;
+  return ecrit ? d : null;
+}
+/* La reprise depuis le serveur : on repose la copie, puis on ouvre le
+   rendez-vous — qui la relit lui-même (rdvPostGarde), exactement comme
+   après un onglet fermé sur cet appareil. */
+async function reprendreRdvPostDuBrouillon(fiche, b){
+  const d = Object.assign({}, fiche, { ts: Date.now() });
+  delete d.rdvPost;
+  try{ localStorage.setItem(CLE_RDV_POST, JSON.stringify(d)); }catch(e){}
+  await ouvrirRdvPost({ eleve: fiche.eleve || b.eleve || '', date: fiche.date || b.dateCours || '',
+                        site: fiche.site || b.site || '', moniteur: fiche.moniteur || b.moniteur || '' });
+}
+
+/* 🩹 v1432 — un rendez-vous déposé AVANT la v1432 n'a que son miroir :
+   « Libellé — texte », champ après champ, dans l'ordre de l'écran. On
+   le relit avec les libellés de l'écran pour reposer chaque texte dans
+   sa case (sans écraser ce que l'appareil avait gardé). Ce qui ne se
+   relit pas reste à copier, sous le rendez-vous. */
+function montrerMiroirRdvPost(miroir){
+  const zone = $('rdvPostView');
+  const texte = String(miroir || '');
+  if(!zone || !texte.trim()) return;
+  const champs = [];
+  zone.querySelectorAll('textarea, input[type="text"], input:not([type]), select').forEach(el => {
+    const lab = el.closest('label') || (el.id ? zone.querySelector('label[for="' + el.id + '"]') : null);
+    const titre = lab ? String(lab.textContent || '').trim().slice(0, 60) : '';
+    if(!titre) return;
+    const i = texte.indexOf(titre + ' — ');
+    if(i !== -1) champs.push({ el: el, debut: i, depart: i + titre.length + 3 });
+  });
+  champs.sort((x, y) => x.debut - y.debut);
+  /* Le bilan de l'examen n'a pas d'étiquette : le miroir le porte sans
+     « Libellé — », en tête. Tout ce qui précède le premier libellé est à lui. */
+  const bilan = $('rdvPostBilan');
+  if(bilan && !champs.some(c => c.el === bilan)){
+    const fin = champs.length ? champs[0].debut : texte.length;
+    if(fin > 0) champs.unshift({ el: bilan, debut: 0, depart: 0, finForcee: fin });
+  }
+  let poses = 0;
+  champs.forEach((c, k) => {
+    const fin = c.finForcee || (k + 1 < champs.length ? champs[k + 1].debut : texte.length);
+    const v = texte.slice(c.depart, fin).replace(/\s+$/, '');
+    if(!v || String(c.el.value || '').trim()) return;
+    c.el.value = v;
+    c.el.dispatchEvent(new Event('input', { bubbles: true }));
+    poses++;
+  });
+  if(typeof dessinerConclusionPost === 'function') dessinerConclusionPost();
+  garderRdvPost();
+  if(poses){
+    if(typeof showToast === 'function') setTimeout(() => showToast('Ce qui avait été écrit est revenu dans le rendez-vous ✅'), 500);
+    return;
+  }
+  /* Rien de relisible : le texte à copier, sous le rendez-vous */
+  let box = $('rdvPostMiroir');
+  if(!box){
+    box = document.createElement('details');
+    box.id = 'rdvPostMiroir';
+    box.open = true;
+    box.style.cssText = 'margin:12px 0;border:1px dashed var(--line);border-radius:12px;padding:10px 12px;';
+    zone.appendChild(box);
+  }
+  box.innerHTML = '<summary style="cursor:pointer;font-weight:700;">📋 Ce qui avait été écrit (à recopier)</summary>' +
+    '<textarea readonly style="width:100%;min-height:200px;margin-top:8px;font-size:13px;"></textarea>';
+  box.querySelector('textarea').value = texte;
+}
+
 function oublierRdvPost(){
   try{ localStorage.removeItem(CLE_RDV_POST); }catch(e){}
 }
@@ -5438,6 +5523,8 @@ function compteRenduDuRdvPost(c){
 
 /* ✉️ v1164 — l'encart de fin d'un rendez-vous post-permis */
 function remettreRdvPostAZero(){
+  /* 🩹 v1432 — le texte à recopier d'une reprise ne reste pas sur le suivant */
+  { const m = $('rdvPostMiroir'); if(m) m.remove(); }
   const f = $('rdvPostFin');
   if(f && f.parentNode) f.parentNode.removeChild(f);
   ['rdvPostEnr', 'rdvPostAnnul'].forEach(id => { const b = $(id); if(b) b.style.display = ''; });
