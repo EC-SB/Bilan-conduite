@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 17:51 — v1386 */
+/* Déployé le 13/11/2026 à 15:58 — v1432 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -303,7 +303,7 @@ async function deposerBrouillonServeur(extra){
         const j = JSON.stringify(objet);
         /* Trop grosse pour la cellule : on n'envoie rien plutôt
            qu'un objet coupé — et le classeur garde la précédente. */
-        if(j.length <= 44000) fiche = j;
+        if(j.length <= 220000) fiche = j;   /* 🩹 v1432 — rangée sur plusieurs cellules */
       }
     }
   }catch(e){ /* pas de fiche lisible : la dictée part seule */ }
@@ -1073,6 +1073,8 @@ function ficheDuBrouillon(brut){
     const desSaisies = Array.isArray(o.saisies) &&
       o.saisies.some(x => x && aQuelqueChoseDedans(x.valeur));
     const desChamps = aQuelqueChoseDedans(o.champs);
+    /* 🩹 v1432 — le rendez-vous post-permis : ses champs à lui */
+    if(o.rdvPost) return Object.keys(o).some(k => /^rdvPost[A-Z]/.test(k) && String(o[k] || '').trim()) || o.__ajouts ? o : null;
 
     return (desSaisies || desChamps) ? o : null;
   }catch(e){ return null; }
@@ -1117,6 +1119,30 @@ async function reprendreBrouillonServeur(b){
      même chose que le premier.
      ============================================================ */
   const fiche = ficheDuBrouillon(b.fiche);
+
+  /* 🩹 v1432 — un rendez-vous post-permis se rouvre DANS SON ÉCRAN, pas
+     dans la dictée (David : « ça rouvre un bilan vocal, on ne peut pas
+     le finaliser »). */
+  if(fiche && fiche.rdvPost && typeof reprendreRdvPostDuBrouillon === 'function'){
+    brouillonRepris = b;
+    if($('transcriptBox')) $('transcriptBox').value = '';
+    if(typeof finalTranscript !== 'undefined') finalTranscript = '';
+    if(typeof committedTranscript !== 'undefined') committedTranscript = '';
+    await reprendreRdvPostDuBrouillon(fiche, b);
+    return;
+  }
+  /* Un rendez-vous d'avant la v1432 n'a que son miroir : on ouvre quand
+     même son écran (le texte gardé sur l'appareil, s'il y en a un,
+     revient tout seul), et on laisse le miroir à copier. */
+  if(!fiche && b.modele === 'rdv-post' && typeof ouvrirRdvPost === 'function'){
+    brouillonRepris = b;
+    if($('transcriptBox')) $('transcriptBox').value = '';
+    if(typeof finalTranscript !== 'undefined') finalTranscript = '';
+    if(typeof committedTranscript !== 'undefined') committedTranscript = '';
+    await ouvrirRdvPost({ eleve: b.eleve || '', date: b.dateCours || '', site: b.site || '', moniteur: b.moniteur || '' });
+    if(String(b.transcript || '').trim() && typeof montrerMiroirRdvPost === 'function') montrerMiroirRdvPost(b.transcript);
+    return;
+  }
 
   if(fiche && typeof reprendreBrouillon === 'function'){
     /* Le bureau doit pouvoir le renvoyer au moniteur : c'est cette
