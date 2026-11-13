@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 10:33 — v1393 */
+/* Déployé le 13/11/2026 à 15:58 — v1432 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -5767,17 +5767,21 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
      L'écran du rendez-vous post-permis n'a pas de fiche à
      reposer : il garde le miroir seul. */
   let fiche = '';
-  if(!quelleZone){
-    try{
-      const objet = brouillonManuelActuel();
-      if(objet){
-        const j = JSON.stringify(objet);
-        /* Trop gros pour la cellule : mieux vaut le miroir seul
-           qu'un objet coupé, qui se reposerait de travers. */
-        if(j.length <= 44000) fiche = j;
-      }
-    }catch(e){ /* la fiche voyage si elle peut ; le miroir part toujours */ }
-  }
+  /* 🩹 v1432 — le rendez-vous post-permis porte AUSSI sa fiche (voir
+     ficheRdvPostPourDepot, ec-prepares.js) ; et le plafond passe de
+     44 000 à 220 000 caractères : le Worker la range sur plusieurs
+     cellules (voir FICHE_COLONNES_EN_PLUS). */
+  try{
+    const objet = (quelleZone && quelleZone.id === 'rdvPostView')
+      ? ((typeof ficheRdvPostPourDepot === 'function') ? ficheRdvPostPourDepot() : null)
+      : (!quelleZone ? brouillonManuelActuel() : null);
+    if(objet){
+      const j = JSON.stringify(objet);
+      /* Trop gros même ainsi : mieux vaut le miroir seul
+         qu'un objet coupé, qui se reposerait de travers. */
+      if(j.length <= 220000) fiche = j;
+    }
+  }catch(e){ /* la fiche voyage si elle peut ; le miroir part toujours */ }
 
   /* ⚠️ CE DÉPÔT-CI EST CELUI QUI REVENAIT — v1097. Il part une
      seconde après la dernière frappe, donc parfois une seconde
