@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 11:29 — v1423 */
+/* Déployé le 13/11/2026 à 12:55 — v1424 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1424,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🛤️ Messagerie : un rail sous Tout · Non lus · Élèves · Équipe · Permis · Véhicules pour les faire défiler à la souris',
+    quoi: [
+      { emoji: '🛤️',
+        titre: 'Un rail pour faire défiler les pastilles',
+        texte: 'Sur ordinateur, quand les pastilles Tout · Non lus · Élèves · Équipe · Permis · Véhicules ne tiennent pas en largeur, un rail apparaît dessous : on tire sa poignée, ou on clique sur le rail pour avancer d’un cran. La molette ordinaire (haut / bas) les fait aussi défiler quand la souris est dessus. La rangée garde sa place quand la liste se rafraîchit. Sur téléphone, rien ne change : on glisse au doigt.' }
+    ]
+  },
   {
     version: 1423,
     date: 'Vendredi 13 novembre 2026',
