@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:03 — v1426 */
+/* Déployé le 13/11/2026 à 14:22 — v1427 */
 /* ============================================================
    appel-commun.js — 📞 LES APPELS, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -139,6 +139,7 @@
     '@keyframes aplMain{0%,100%{transform:rotate(0)}50%{transform:rotate(-14deg)}}',
     '.aplEl button{border:0;border-radius:9px;padding:6px 8px;font:inherit;font-size:11.5px;font-weight:800;cursor:pointer;background:#1F2A33;color:#fff;flex-shrink:0;margin:0}',
     '.aplEl button.on{background:#B6FF0E;color:#0B0B0B}',
+    '.aplPg{font-weight:800;color:#C9D4DC}.aplPg.vert{color:#B6FF0E}.aplPg.orange{color:#FFB547}.aplPg.rouge{color:#FF8A70}',
     '.aplQuest{width:min(470px,46%);flex-shrink:0;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;min-height:0}',
     '.aplQuest[hidden]{display:none}',
     '.aplQuest .tete{background:#141A20;color:#E9F1F5;display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:13px;font-weight:700}',
@@ -299,6 +300,7 @@
       cours: o.cours ? {
         numero: o.cours.numero || 0, questionnaire: o.cours.questionnaire || '', par: o.cours.par || '',
         feuille: typeof o.cours.feuille === 'function' ? o.cours.feuille : null,
+        progres: typeof o.cours.progres === 'function' ? o.cours.progres : null,
         gestes: o.cours.gestes || [], surInviter: o.cours.surInviter, surLien: o.cours.surLien, surSon: o.cours.surSon,
         quest: false, main: false, coupeParProf: false, finSure: 0
       } : null
@@ -998,9 +1000,12 @@
       var parle = dedans && (c.niveaux[x.cle] || 0) > 0.02 && !x.coupe && x.micro !== 0;
       var etat = dedans ? (x.coupe ? 'micro coupé' : x.micro === 0 ? 's’est mis en muet' : parle ? 'parle' : 'là')
                : x.etat === 'invite' ? 'pas encore là' : 'parti';
+      /* 📝 v1427 — où il en est de ses réponses (ec-visio.js le lit) */
+      var pg = c.cours.progres ? c.cours.progres(x.qui) : null;
       h += '<div class="aplEl' + (dedans ? '' : ' absent') + (parle ? ' parle' : '') + '">' +
         '<span class="r">' + echap(initiales(x.qui)) + '</span>' +
-        '<span class="n">' + echap(x.qui) + '<small>' + echap(etat) + '</small></span>' +
+        '<span class="n">' + echap(x.qui) + '<small>' + echap(etat) +
+          (pg && pg.texte ? ' · <b class="aplPg ' + echap(pg.couleur || '') + '">' + echap(pg.texte) + '</b>' : '') + '</small></span>' +
         (dedans && x.main ? '<span class="main" title="Lève la main">✋</span>' : '') +
         (dedans ? '<button type="button" data-parole="' + echap(x.cle) + '" data-ouvrir="' + (x.coupe ? 1 : 0) + '"' +
           (x.coupe ? ' class="on" title="Lui rendre la parole">🎙️ Parole' : ' title="Couper son micro">🔇 Couper') + '</button>' : '') +
