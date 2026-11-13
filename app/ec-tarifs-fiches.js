@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:07 — v1395 */
+/* Déployé le 13/11/2026 à 11:29 — v1423 */
 /* ============================================================
    ec-tarifs-fiches.js — 💰 LES TARIFS ET LEURS FICHES (v1178)
 
@@ -90,18 +90,20 @@ const TF_CSS_FICHE = `
 .tfMoitie{ --tf:14px; height:561px; display:flex; flex-direction:column; padding:14px 24px 0; overflow:hidden; border-bottom:1px dashed #bbb; }
 .tfMoitie .tfLogo img{ height:52px; }
 .tfMoitie .tfPied{ font-size:11px; padding:5px 0; margin-bottom:10px; }
-.tfGrille{ padding:22px 26px; display:block; }
-.tfGTitre{ border:1px solid #c8e86b; text-align:center; font-weight:700; padding:10px; font-size:14px; margin-bottom:0; color:#000; }
+.tfGrille{ --tg:1; padding:calc(var(--tg) * 22px) 26px; display:block; }
+.tfGTitre{ border:1px solid #c8e86b; text-align:center; font-weight:700; padding:calc(var(--tg) * 10px); font-size:calc(var(--tg) * 14px); margin-bottom:0; color:#000; }
 .tfGCols{ display:flex; gap:24px; }
 .tfGCols > div{ flex:1; min-width:0; }
-.tfG{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:14px; }
-.tfG td{ border:1px solid #c8e86b; padding:4px 5px; text-align:center; color:#000; }
+.tfG{ width:100%; border-collapse:collapse; font-size:calc(var(--tg) * 11.5px); margin-bottom:calc(var(--tg) * 14px); }
+.tfG td{ border:1px solid #c8e86b; padding:calc(var(--tg) * 4px) 5px; text-align:center; color:#000; }
 .tfG td:first-child{ width:62%; }
 .tfG td + td{ white-space:nowrap; }
-.tfGTete td{ font-weight:700; font-size:11px; padding:8px 5px; }
-.tfGTete td:first-child{ font-size:13px; }
-.tfGPack td{ font-size:13px; }
-.tfGNote{ text-align:center; font-weight:700; font-size:16px; margin-top:22px; color:#000; }
+.tfGTete td{ font-weight:700; font-size:calc(var(--tg) * 11px); padding:calc(var(--tg) * 8px) 5px; }
+.tfGTete td:first-child{ font-size:calc(var(--tg) * 13px); }
+.tfGPack td{ font-size:calc(var(--tg) * 13px); }
+.tfGNote{ text-align:center; font-weight:700; font-size:calc(var(--tg) * 16px); margin-top:calc(var(--tg) * 22px); color:#000; }
+.tfGNote.long{ text-align:left; font-weight:400; font-size:calc(var(--tg) * 11.5px); line-height:1.45; margin-top:calc(var(--tg) * 16px);
+  border-top:1px solid #c8e86b; padding-top:calc(var(--tg) * 10px); }
 `;
 (function(){
   try{
@@ -263,6 +265,13 @@ function tfAjuster(racine){
     boite.style.setProperty('--tf', t + 'px');
     while(t > 8 && c.scrollHeight > c.clientHeight + 1){ t -= 0.5; boite.style.setProperty('--tf', t + 'px'); }
   });
+  /* 📹 v1423 — la grille d'affichage se resserre tant que son bas déborde
+     (David : « il me manque le bas du texte ») */
+  (racine || document).querySelectorAll('.tfGrille').forEach(g => {
+    let k = 1;
+    g.style.setProperty('--tg', '1');
+    while(k > 0.55 && g.scrollHeight > g.clientHeight + 1){ k -= 0.03; g.style.setProperty('--tg', k.toFixed(2)); }
+  });
 }
 
 function tfGrilleHtml(d, f){
@@ -276,7 +285,8 @@ function tfGrilleHtml(d, f){
     }).join('') + '</table>').join('');
   return '<div class="tfA4 tfGrille"><div class="tfGTitre">' + tfEch(f.titre || 'TARIFS') + '</div><div class="tfGCols"><div>' +
     col((f.colonnes || [])[0]) + '</div><div>' + col((f.colonnes || [])[1]) + '</div></div>' +
-    (f.notes || []).map(n => '<div class="tfGNote">' + tfEch(n) + '</div>').join('') + '</div>';
+    /* 📹 v1423 — un texte long (la mention de vidéosurveillance) s'imprime en petit, à gauche, ses lignes gardées */
+    (f.notes || []).map(n => '<div class="tfGNote' + (String(n).length > 120 || /\n/.test(n) ? ' long' : '') + '">' + tfEch(n).replace(/\n/g, '<br>') + '</div>').join('') + '</div>';
 }
 
 /* ── Lire, enregistrer ───────────────────────────────────────── */
@@ -888,6 +898,15 @@ function tfOuvrirFiche(id){
   const orig = tfFiche(d, id);
   if(!orig) return;
   const f = tfCopie(orig);
+  /* 📹 v1423 — la grille d'affichage : le texte de vidéosurveillance que
+     David veut en bas, proposé s'il n'y est pas (à relire, puis valider) */
+  let videoAjoutee = false;
+  if(f.type === 'grille' && ecrit){
+    f.colonnes = Array.isArray(f.colonnes) ? f.colonnes : [];
+    while(f.colonnes.length < 2) f.colonnes.push([]);
+    f.notes = Array.isArray(f.notes) ? f.notes : [];
+    if(!f.notes.some(n => /vid[ée]osurveillance/i.test(n))){ f.notes.push(TF_TEXTE_VIDEO); videoAjoutee = true; }
+  }
   const { m, fermer } = tfFenetre('tfEditeur');
   /* Pour l'aperçu, un jeu de tarifs où la fiche est la copie en cours */
   const apercuDe = () => Object.assign({}, d, { fiches: d.fiches.map(x => x.id === f.id ? f : x) });
@@ -911,7 +930,8 @@ function tfOuvrirFiche(id){
       tfEuros(tfPrix(d, p.id, f.genre)) + '</option>').join('');
     let g = '';
     if(f.type === 'grille'){
-      g = '<div class="tfAide">La grille d’affichage reprend les prix tout seule (TTC et HT). Ses libellés se changent sur demande.</div>';
+      g = ecrit ? tfEdGrilleHtml(d, f, videoAjoutee)
+                : '<div class="tfAide">La grille d’affichage reprend les prix tout seule (TTC et HT). Elle se modifie par un administrateur.</div>';
     }else if(ecrit){
       const dossiers = [...new Set(d.fiches.map(x => x.dossier).filter(Boolean))];
       g += '<div class="tfEdTitre"><label class="tfEtiq">Titre</label><input type="text" data-k="titre" value="' + tfEch(tfTitre1(f)) + '" maxlength="200"></div>' +
@@ -957,11 +977,13 @@ function tfOuvrirFiche(id){
     }else{
       g = '<div class="tfAide">Les fiches se modifient par un administrateur. D’ici, tu peux l’imprimer, la télécharger ou l’envoyer.</div>';
     }
-    m.innerHTML = '<div class="tfEdTete"><b>' + (ecrit && f.type !== 'grille' ? '✏️ ' : '📄 ') + tfEch(tfTitre1(f)) + '</b>' +
+    m.innerHTML = '<div class="tfEdTete"><b>' + (ecrit ? '✏️ ' : '📄 ') + tfEch(tfTitre1(f)) + '</b>' +
       '<span class="tfEdTot"></span><button type="button" class="btn btn-secondary" id="tfEdX">✕</button></div>' +
       '<div class="tfEdCorps"><div class="tfEdGauche">' + g + sorties + '</div>' +
       '<div class="tfEdDroite"><div class="tfEdApercu"><div class="tfEdEchelle"></div></div></div></div>' +
-      '<div class="tfFenBas">' + (ecrit && f.type !== 'grille'
+      '<div class="tfFenBas">' + (ecrit && f.type === 'grille'
+        ? '<button type="button" class="btn btn-secondary" id="tfEdAnn">Annuler</button><button type="button" class="btn btn-primary" id="tfEdOk">✅ Valider la grille</button>'
+        : ecrit
         ? '<button type="button" class="btn btn-secondary tfRouge" id="tfEdSuppr">🗑️ Retirer la fiche</button>' +
           '<button type="button" class="btn btn-secondary" id="tfEdDup">📑 Dupliquer</button>' +
           '<button type="button" class="btn btn-secondary" id="tfEdAnn">Annuler</button><button type="button" class="btn btn-primary" id="tfEdOk">✅ Valider la fiche</button>'
@@ -977,7 +999,8 @@ function tfOuvrirFiche(id){
       if(s === 'jpg') tfTelechargerJpg([f.id], dd());
       if(s === 'mail') tfFenetreMail([f.id], dd());
     }));
-    if(!ecrit || f.type === 'grille') return;
+    if(!ecrit) return;
+    if(f.type === 'grille'){ tfBrancherGrille(m, d, f, dessiner, dessinerApercu, fermer); return; }
 
     const cible = el => {
       if(el.dataset.a !== undefined) {
@@ -1037,6 +1060,111 @@ function tfOuvrirFiche(id){
     });
   };
   dessiner();
+}
+
+/* ============================================================
+   📹 v1423 — LA GRILLE D'AFFICHAGE, MODIFIABLE EN ENTIER
+
+   David, le 13 novembre : « il me manque le bas du texte sur la fiche
+   tarifs à imprimer et afficher dans nos bureaux, et je ne peux pas la
+   modifier. Il faut que je puisse modifier toute la fiche », avec la
+   mention de vidéosurveillance. Le titre, les deux colonnes, leurs
+   tableaux (titre, lignes : libellé et prix), et les textes du bas. Les
+   prix restent ceux de 💶 Les prix (TTC, le HT se calcule) : une ligne
+   dit d'où vient son prix, elle ne le recopie pas.
+   ============================================================ */
+const TF_TEXTE_VIDEO = 'Établissement placé sous vidéosurveillance par Évolution Conduites pour la sécurité des personnes et des biens.\n' +
+  'Les images sont conservées pendant un mois et peuvent être visionnées, en cas d’incident, par le personnel habilité de la société Évolution Conduites et par les forces de l’ordre.\n' +
+  'Pour exercer vos droits Informatique et Libertés, notamment votre droit d’accès aux images qui vous concernent, ou pour toute information sur ce dispositif, ' +
+  'vous pouvez contacter notre délégué à la protection des données (DPO) en écrivant à contact@evolutionconduites.fr';
+function tfSourceDe(v){ v = v || {}; return v.f ? 'f:' + v.f : 'p:' + (v.p || ''); }
+function tfEdGrilleHtml(d, f, videoAjoutee){
+  const optsP = d.prestations.map(p => '<option value="p:' + tfEch(p.id) + '">' + tfEch(p.nom.slice(0, 60)) + '</option>').join('');
+  const optsF = d.fiches.filter(x => x.type !== 'grille').map(x => '<option value="f:' + tfEch(x.id) + '">📄 ' + tfEch(tfTitre1(x).slice(0, 60)) + ' (total de la fiche)</option>').join('');
+  const opts = '<optgroup label="Une prestation">' + optsP + '</optgroup><optgroup label="Le total d’une fiche">' + optsF + '</optgroup>';
+  let g = '<div class="tfAide">Toute la grille se modifie ici. Les prix viennent de <b>💶 Les prix</b> (TTC) ; le HT se calcule. ' +
+    'Une ligne dit seulement d’où vient son prix : il suit tout seul.</div>' +
+    '<div class="tfEdTitre"><label class="tfEtiq">Titre</label><input type="text" data-gk="titre" value="' + tfEch(f.titre || '') + '" maxlength="200"></div>';
+  f.colonnes.forEach((col, ci) => {
+    g += '<div class="tfEdCol"><div class="tfEdColT">' + (ci === 0 ? '⬅️ Colonne de gauche' : '➡️ Colonne de droite') + '</div>';
+    col.forEach((sec, si) => {
+      const at = 'data-c="' + ci + '" data-s="' + si + '"';
+      g += '<div class="tfEdSec"><input type="text" ' + at + ' data-gk="stitre" value="' + tfEch(sec.titre || '') + '" placeholder="Titre du tableau (VOITURE, 2 Roues…)">' +
+        '<button type="button" class="tfMini2" ' + at + ' data-ga="secHaut" title="Monter le tableau">↑</button>' +
+        '<button type="button" class="tfMini2" ' + at + ' data-ga="secAutre" title="Passer dans l’autre colonne">⇄</button>' +
+        '<button type="button" class="tfMini2" ' + at + ' data-ga="secSuppr" title="Retirer le tableau">🗑️</button></div>';
+      (sec.lignes || []).forEach((l, li) => {
+        const v = l[1] || {};
+        const at2 = at + ' data-l="' + li + '"';
+        g += '<div class="tfEdL tfEdGL"><input class="tfEdLib" type="text" ' + at2 + ' data-gk="lib" value="' + tfEch(l[0] || '') + '" placeholder="Ce qui s’affiche">' +
+          '<select ' + at2 + ' data-gk="src" title="D’où vient le prix">' + opts.replace('value="' + tfEch(tfSourceDe(v)) + '"', 'value="' + tfEch(tfSourceDe(v)) + '" selected') + '</select>' +
+          (v.f ? '' : '<select ' + at2 + ' data-gk="g" title="Prix BV ou BEA"><option value="">—</option><option value="BV"' + (v.g === 'BV' ? ' selected' : '') +
+            '>BV</option><option value="BEA"' + (v.g === 'BEA' ? ' selected' : '') + '>BEA</option></select>') +
+          '<span class="tfEdGPrix">' + tfEuros(v.f ? tfTotalDeLaFiche(d, tfFiche(d, v.f) || {}) : tfPrix(d, v.p, v.g)) + '</span>' +
+          '<button type="button" class="tfMini2" ' + at2 + ' data-ga="ligneHaut" title="Monter">↑</button>' +
+          '<button type="button" class="tfMini2" ' + at2 + ' data-ga="ligneSuppr" title="Retirer la ligne">✕</button></div>';
+      });
+      g += '<button type="button" class="tfLienBtn" ' + at + ' data-ga="ligneAjout">➕ Une ligne</button>';
+    });
+    g += '<button type="button" class="tfLienBtn" data-c="' + ci + '" data-ga="secAjout">➕ Un tableau dans cette colonne</button></div>';
+  });
+  g += '<label class="tfEtiq">Les textes du bas (une ligne vide entre deux textes ; un texte long s’imprime en petit, comme une mention)</label>' +
+    '<textarea data-gk="notes" rows="9">' + tfEch((f.notes || []).join('\n\n')) + '</textarea>';
+  if(videoAjoutee) g += '<div class="tfEdAide tfEdNeuf">📹 Le texte de vidéosurveillance vient d’être ajouté en bas : relis-le, puis ✅ Valider la grille et ✅ Enregistrer.</div>';
+  return g;
+}
+function tfBrancherGrille(m, d, f, dessiner, dessinerApercu, fermer){
+  const sec = el => f.colonnes[+el.dataset.c][+el.dataset.s];
+  m.querySelectorAll('[data-gk]').forEach(el => {
+    const ev = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(ev, () => {
+      const k = el.dataset.gk;
+      if(k === 'titre') f.titre = el.value;
+      else if(k === 'notes') f.notes = el.value.replace(/\r/g, '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+      else if(k === 'stitre') sec(el).titre = el.value;
+      else{
+        const l = sec(el).lignes[+el.dataset.l];
+        if(k === 'lib') l[0] = el.value;
+        if(k === 'src'){
+          const [t, id] = el.value.split(':');
+          const avant = l[1] || {};
+          l[1] = t === 'f' ? { f: id } : Object.assign({ p: id }, avant.g ? { g: avant.g } : {});
+          if(!String(l[0] || '').trim()){
+            const x = t === 'f' ? tfFiche(d, id) : tfPrestation(d, id);
+            l[0] = x ? (t === 'f' ? tfTitre1(x) : x.nom.split(' — ')[0]) : '';
+          }
+          dessiner(); return;
+        }
+        if(k === 'g'){ const v = l[1] || (l[1] = {}); if(el.value) v.g = el.value; else delete v.g; dessiner(); return; }
+      }
+      dessinerApercu();
+    });
+  });
+  m.querySelectorAll('[data-ga]').forEach(el => el.addEventListener('click', async () => {
+    const a = el.dataset.ga, ci = +el.dataset.c, si = +el.dataset.s, li = +el.dataset.l;
+    const col = f.colonnes[ci];
+    if(a === 'ligneAjout'){ const p = d.prestations[0]; col[si].lignes.push(['', p ? { p: p.id, g: 'BV' } : {}]); }
+    if(a === 'ligneHaut' && li > 0){ const t = col[si].lignes; [t[li - 1], t[li]] = [t[li], t[li - 1]]; }
+    if(a === 'ligneSuppr') col[si].lignes.splice(li, 1);
+    if(a === 'secAjout') col.push({ titre: '', lignes: [] });
+    if(a === 'secHaut' && si > 0){ [col[si - 1], col[si]] = [col[si], col[si - 1]]; }
+    if(a === 'secAutre'){ const x = col.splice(si, 1)[0]; f.colonnes[ci === 0 ? 1 : 0].push(x); }
+    if(a === 'secSuppr'){
+      if(col[si].lignes.length && typeof confirmer === 'function' &&
+         !await confirmer('Retirer le tableau « ' + (col[si].titre || 'sans titre') + ' » et ses ' + col[si].lignes.length + ' ligne(s) ?', 'Retirer', true)) return;
+      col.splice(si, 1);
+    }
+    dessiner();
+  }));
+  m.querySelector('#tfEdOk').addEventListener('click', () => {
+    f.colonnes.forEach(col => col.forEach(s => s.lignes.forEach(l => {
+      if(!String(l[0] || '').trim()){ const v = l[1] || {}; const x = v.f ? tfFiche(d, v.f) : tfPrestation(d, v.p); l[0] = x ? (v.f ? tfTitre1(x) : x.nom.split(' — ')[0]) : ''; }
+    })));
+    const i = d.fiches.findIndex(x => x.id === f.id);
+    d.fiches[i] = f;
+    fermer();
+    afficherTarifsFiches();
+  });
 }
 
 /* ── 🖨️ Imprimer vite ────────────────────────────────────────── */
