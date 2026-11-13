@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 11:33 — v1260 */
+/* Déployé le 13/11/2026 à 08:42 — v1418 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -2315,6 +2315,10 @@ function ouvrirPlace(p, sess){
       const retire = ancienNom && (!nomSaisi ||
         normaliserMot(ancienNom) !== normaliserMot(nomSaisi));
 
+      /* ✅ v1418 — « Tout est OK » qui PASSE à coché : le message du
+         planning validé s'ouvre après l'enregistrement (lu avant que la
+         mémoire ne prenne les nouvelles cases). */
+      const etaitOk = !!nomSaisi && typeof suiviDe === 'function' && (suiviDe(nomSaisi) || {}).toutOk === 'oui';
       const champsSuivi = nomSaisi ? {
         datePermis: sess.date || '',
         centre: sess.centre || '',
@@ -2376,6 +2380,9 @@ function ouvrirPlace(p, sess){
       fermerFond(fond);
       showToast('Enregistré ✅');
       redessinerSessions();
+      if(champsSuivi && champsSuivi.toutOk === 'oui' && !etaitOk && typeof ouvrirMessagePlanningValide === 'function'){
+        ouvrirMessagePlanningValide(nomSaisi);
+      }
 
       /* ⚠️ LA PLACE D'ABORD, LE SUIVI ENSUITE — ET SURTOUT PAS LES
          DEUX EN MÊME TEMPS.
