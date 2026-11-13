@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 10:30 — v1391 */
+/* Déployé le 13/11/2026 à 13:12 — v1425 */
 /* ============================================================
    appel-commun.js — 📞 LES APPELS, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -914,6 +914,26 @@
     else message(c, 'Tourne ton téléphone : l’image sera plus grande.');
   }
 
+  /* 📱 v1425 — David, le 13 novembre, sur iPhone : « si j'appuie sur En
+     grand et qu'ensuite je coupe En grand, ça freeze : en petit je n'ai
+     que le son ; pour ravoir l'image il faut que je rappuie sur En grand
+     puis sur play ». En sortant de son lecteur plein écran, l'iPhone met
+     la vidéo en pause (le son, lui, passe par un autre lecteur et
+     continue). On la relance dès qu'il en sort, et à chaque mise en pause
+     qu'on n'a pas demandée : l'image du cours est en direct, il n'y a
+     jamais de raison qu'elle reste figée. */
+  function jouer(v) {
+    try { var p = v.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  }
+  function relancerLImage(v) {
+    var plusTard = function () { setTimeout(function () { if (v.isConnected && v.srcObject && v.paused) jouer(v); }, 60); };
+    v.addEventListener('webkitendfullscreen', plusTard);
+    v.addEventListener('webkitpresentationmodechanged', function () { if (v.webkitPresentationMode !== 'fullscreen') plusTard(); });
+    v.addEventListener('pause', plusTard);
+    document.addEventListener('fullscreenchange', plusTard);
+    document.addEventListener('webkitfullscreenchange', plusTard);
+  }
+
   /* L'image du cours : le boîtier du prof (chez lui, son propre aperçu) */
   function dessinerLeCours(c) {
     var k = c.cours;
@@ -925,8 +945,9 @@
     var piste = c.eleve ? (prof && prof.etat === 'dedans' ? pisteDe(c, parCle, 'video') : null) : c.camPiste;
     var v = scene.querySelector('video');
     if (piste && piste.readyState !== 'ended') {
-      if (!v) { v = document.createElement('video'); v.autoplay = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.muted = true; scene.insertBefore(v, scene.firstChild); }
-      if (!v.srcObject || v.srcObject.getVideoTracks()[0] !== piste) { v.srcObject = new MediaStream([piste]); try { v.play(); } catch (e) {} }
+      if (!v) { v = document.createElement('video'); v.autoplay = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.muted = true; scene.insertBefore(v, scene.firstChild); relancerLImage(v); }
+      if (!v.srcObject || v.srcObject.getVideoTracks()[0] !== piste) { v.srcObject = new MediaStream([piste]); jouer(v); }
+      else if (v.paused) jouer(v);
     } else if (v) { v.parentNode.removeChild(v); }
     var att = scene.querySelector('.attente');
     att.textContent = piste ? '' : (c.eleve
