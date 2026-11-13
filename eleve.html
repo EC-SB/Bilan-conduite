@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 12/11/2026 à 17:02 — v1416 -->
+<!-- Déployé le 13/11/2026 à 08:36 — v1417 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2458,6 +2458,12 @@
     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:12px; }
   .derLecon .btn{ margin:0; }
   .derLecon .btn + .btn{ margin-top:8px; }
+
+  /* 🗺️ v1417 — la carte de son trajet, sous le bilan */
+  .lcCarte{ padding:0 13px 13px; }
+  .lcCarte .btn{ margin:0; text-decoration:none; display:flex; align-items:center; justify-content:center; min-height:44px; }
+  .lcCarte .btn[aria-disabled]{ opacity:.65; }
+  .lcCarteVide{ font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -7795,7 +7801,7 @@
       return;
     }
 
-    z.innerHTML = liste.map(function(l){
+    z.innerHTML = liste.map(function(l, i){
       return '<details class="lecon" data-jour="' + echapper(l.date || '') + '">' +
         '<summary>' +
           '<span class="jour">' + echapper(l.date || '') + '</span>' +
@@ -7803,6 +7809,9 @@
             (l.type ? ' · ' + echapper(l.type) : '') + '</span>' +
         '</summary>' +
         '<div class="texte">' + liensEtapesEnBoutons(texteDeLecon(l, couleurs)) + '</div>' +
+        /* 🗺️ v1417 — la carte de son trajet, si le tracé est encore là */
+        (l.trajet ? '<div class="lcCarte" data-carte="' + i + '">' +
+          '<a class="btn btn-secondary lcCarteBt" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">🗺️ Revoir mon trajet sur la carte</a></div>' : '') +
         blocDesLieux(String(l.date || '')) +
       '</details>';
     }).join('');
@@ -7814,6 +7823,7 @@
     Array.prototype.forEach.call(z.querySelectorAll('details.lecon'), function(d, i){
       d.addEventListener('toggle', function(){
         if(d.open) marquerLeconLue(i);
+        if(d.open) preparerLaCarteDeLecon(d, i);
         if(!d.open || d._signale) return;
         d._signale = true;
         appeler({ action: 'eleveTrace', eleve: moi.nom, code: moi.code,
@@ -7823,6 +7833,62 @@
     });
   }
 
+
+  /* ============================================================
+     🗺️ v1417 — « REVOIR LA CARTE AVEC SON TRACÉ EN VOITURE »
+
+     David, le 13 novembre. La carte partait seulement par mail ; la
+     voici sous le bilan de chaque cours qui a encore son tracé (le
+     serveur marque « trajet » : les tracés s'effacent au bout de deux
+     mois). C'est la même page que le « 🔍 Voir le trajet en grand » du
+     mail (carte.html), avec ses points et les remarques du bilan.
+
+     ⚠️ LE LIEN SE PRÉPARE À L'OUVERTURE DU BILAN, PAS À L'APPUI. Un
+     téléphone (iPhone surtout) bloque une page ouverte après une
+     attente : le bouton est donc un vrai lien, prêt avant qu'on le
+     touche. Tant qu'il ne l'est pas, il dit qu'il arrive.
+     ============================================================ */
+  var liensDesCartes = {};
+  function preparerLaCarteDeLecon(d, i){
+    var bloc = d.querySelector('.lcCarte');
+    var l = mesLecons[i];
+    if(!bloc || !l) return;
+    var a = bloc.querySelector('a');
+    var cle = cleDeLecon(l);
+    var poser = function(lien){
+      if(!lien){
+        bloc.innerHTML = '<div class="lcCarteVide">🗺️ La carte de ce cours n’est plus disponible.</div>';
+        return;
+      }
+      a.href = lien;
+      a.removeAttribute('aria-disabled');
+      a.textContent = '🗺️ Revoir mon trajet sur la carte';
+    };
+    if(liensDesCartes[cle] !== undefined){ poser(liensDesCartes[cle]); return; }
+    if(bloc._enCours) return;
+    bloc._enCours = true;
+    a.textContent = '🗺️ La carte se prépare…';
+    if(!a._garde){
+      a._garde = true;
+      a.addEventListener('click', function(ev){ if(a.getAttribute('aria-disabled')) ev.preventDefault(); });
+    }
+    var demande;
+    try{ demande = appeler({ action: 'eleveTrajet', eleve: moi.nom, code: moi.code, date: l.date || '', bilan: String(l.bilan || '') }); }
+    catch(e){ demande = Promise.reject(e); }
+    demande
+      .then(function(r){
+        var lien = (r && /^https:\/\//.test(String(r.lien || ''))) ? String(r.lien) : '';
+        liensDesCartes[cle] = lien;
+        poser(lien);
+      })
+      .catch(function(){
+        a.textContent = '🗺️ La carte ne répond pas — touche pour réessayer';
+        a.removeAttribute('aria-disabled');
+        a.setAttribute('href', '#');
+        a.onclick = function(ev){ ev.preventDefault(); a.onclick = null; a.setAttribute('aria-disabled', 'true'); preparerLaCarteDeLecon(d, i); };
+      })
+      .then(function(){ bloc._enCours = false; });
+  }
 
   /* Sa boîte de vitesses. Une fois choisie, elle ne se change
      plus : c'est au bureau de corriger si besoin. */
