@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 10:57 — v1421 */
+/* Déployé le 13/11/2026 à 11:15 — v1422 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1422,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🧰 Jeu des vérifs V2 : la leçon et la vue du moniteur',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Une question ratée en leçon passe en tête de son jeu',
+        texte: 'Une partie notée ❌ dans le tiroir des questions de vérification (au bilan du cours) part tout de suite dans son jeu : ses cartes passent devant au prochain « ▶️ Continuer », et le numéro devient rose dans sa grille — sans attendre le mail du bilan. Corrigée en ✅ le même jour, elle n’est plus à revoir.' },
+      { emoji: '🧰',
+        titre: 'En leçon : où il en est dans son jeu',
+        texte: 'Dans le tiroir, sous chaque question posée : « 🧰 Dans son jeu — geste : ✅ acquis · QSER : 🟡 en cours · secours : ❌ raté le 12/11 ».' },
+      { emoji: '📈',
+        titre: 'Son jeu V2 dans son dossier',
+        texte: 'Élèves › son dossier › 🔑 Coin révisions : les gestes et les réponses sus, la date de sa dernière séance, ses notes « Comme à l’examen », ce qu’il a à revoir (d’où ça vient : leçon, examen blanc, examen), sa voiture et la grille des 100. L’ancien jeu (V1) reste dessous, replié. Dans Mes prochains cours, la ligne « 🧰 Vérifs » des examens suit la V2.' }
+    ]
+  },
   {
     version: 1421,
     date: 'Vendredi 13 novembre 2026',
