@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:33 — v1429 */
+/* Déployé le 13/11/2026 à 14:59 — v1430 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1430,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🧭 Élèves › 🎓 Code dans l’ordre : la séance à lancer, les 3 boutons, la visio, puis les résultats',
+    quoi: [
+      { emoji: '🧭',
+        titre: 'L’onglet Code remis dans l’ordre',
+        texte: 'D’abord « 🎯 Quelle séance lancer ? », juste en dessous ✍️ Saisir des ardoises · 🔑 Les corrigés · 🔳 Les QR codes, puis le cours de code en visio, et enfin les résultats (période, recherche, grille).' }
+    ]
+  },
   {
     version: 1429,
     date: 'Vendredi 13 novembre 2026',
