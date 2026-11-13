@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:28 — v1428 */
+/* Déployé le 13/11/2026 à 14:33 — v1429 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -36,34 +36,89 @@ const COULEURS_ETG = {
 };
 
 
+/* ⚡ v1429 — DAVID : « L'ONGLET CODE EST TRÈS TRÈS LONG À S'OUVRIR ».
+   Ce qui prend le temps, c'est la lecture des Google Forms par Apps
+   Script (12 feuilles dans un autre classeur). On garde dans ce
+   navigateur la dernière lecture : l'onglet s'affiche tout de suite
+   avec elle, et les formulaires se relisent en arrière-plan — la
+   grille se redessine seule si quelque chose a changé. Les séances
+   faites dans l'appli (D1) sont lues à chaque fois : elles sont rapides. */
+const CLE_CACHE_ETG = 'ec_seances_etg';
+let formsEtgEnCours = null;
+function lireCacheEtg(){
+  try{ const x = JSON.parse(localStorage.getItem(CLE_CACHE_ETG) || 'null'); return (x && x.d && Array.isArray(x.d.resultats)) ? x : null; }
+  catch(e){ return null; }
+}
+function seancesEtgFraiches(){
+  if(formsEtgEnCours) return formsEtgEnCours;
+  formsEtgEnCours = appelPrep({ action: 'seancesEtg' }).then(d => {
+    formsEtgEnCours = null;
+    if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
+    const garde = { resultats: (d && d.resultats) || [], baremes: (d && d.baremes) || {}, formulaires: (d && d.formulaires) || {} };
+    try{ localStorage.setItem(CLE_CACHE_ETG, JSON.stringify({ le: Date.now(), d: garde })); }catch(e){}
+    return garde;
+  }, e => { formsEtgEnCours = null; throw e; });
+  return formsEtgEnCours;
+}
+/* Ce qu'on a lu → les variables de la grille */
+function appliquerSeancesEtg(d, pv, ra){
+  resultatsEtg = ((d && d.resultats) || []).concat(lignesAppEtg((ra && ra.resultats) || []));
+  baremesEtg = (d && d.baremes) || {};
+  formulairesEtg = (d && d.formulaires) || {};
+  presencesVisioEtg = {};
+  presencesVisioListe = (pv && pv.presences) || [];
+  presencesVisioListe.forEach(p => {
+    const k = motsEleveEtg(p.eleve) + '#' + p.numero;
+    if(!presencesVisioEtg[k] || p.jour > presencesVisioEtg[k]) presencesVisioEtg[k] = p.jour || '?';
+  });
+}
+
 async function afficherCodeSalle(){
   const zone = $('codeSousZone') || $('codeZone');
   if(!zone) return;
 
-  zone.innerHTML = htmlAttente('Lecture des séances de code…');
+  const cache = lireCacheEtg();
+  if(!cache) zone.innerHTML = htmlAttente('Lecture des séances de code…');
+  let pv = null, ra = null;
   try{
-    const [d, pv, ra] = await Promise.all([
-      appelPrep({ action: 'seancesEtg' }),
+    const res = await Promise.all([
+      cache ? Promise.resolve(cache.d) : seancesEtgFraiches(),
       appelPrep({ action: 'visioPresences' }).catch(() => null),
       /* 📝 v1426 — les séances faites dans l'appli (salle et visio) */
       appelPrep({ action: 'codeResultats' }).catch(() => null)
     ]);
-    if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
-    resultatsEtg = ((d && d.resultats) || []).concat(lignesAppEtg((ra && ra.resultats) || []));
-    baremesEtg = (d && d.baremes) || {};
-    formulairesEtg = (d && d.formulaires) || {};
-    presencesVisioEtg = {};
-    presencesVisioListe = (pv && pv.presences) || [];
-    presencesVisioListe.forEach(p => {
-      const k = motsEleveEtg(p.eleve) + '#' + p.numero;
-      if(!presencesVisioEtg[k] || p.jour > presencesVisioEtg[k]) presencesVisioEtg[k] = p.jour || '?';
-    });
+    pv = res[1]; ra = res[2];
+    appliquerSeancesEtg(res[0], pv, ra);
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' +
       String(e.message || e).replace(/</g, '&lt;') + '</div>';
     return;
   }
+  dessinerCodeSalleZone(zone);
+  if(!cache) return;
 
+  /* La relecture des formulaires, en arrière-plan */
+  const note = document.createElement('div');
+  note.className = 'cdAide cdMaj';
+  note.textContent = '↻ Relecture des formulaires…';
+  zone.prepend(note);
+  const avant = JSON.stringify(cache.d.resultats);
+  seancesEtgFraiches().then(d => {
+    const ici = $('codeSousZone') || $('codeZone');
+    if(!ici || !ici.isConnected) return;
+    if(JSON.stringify(d.resultats) !== avant){
+      appliquerSeancesEtg(d, pv, ra);
+      const haut = window.scrollY;
+      dessinerCodeSalleZone(ici);
+      try{ window.scrollTo(0, haut); }catch(e){}
+    }else if(note.isConnected){ note.remove(); }
+  }).catch(() => {
+    if(note.isConnected) note.textContent = '⚠️ Les formulaires n’ont pas pu être relus : ce sont ceux de la dernière fois.';
+  });
+}
+
+/* La vue, une fois les résultats lus */
+function dessinerCodeSalleZone(zone){
   zone.innerHTML = '';
 
   /* 🎥 v1356 — le cours en visio : sa carte sous « 🎯 Quelle séance
@@ -101,7 +156,7 @@ async function afficherCodeSalle(){
       b.textContent = nom;
       b.addEventListener('click', () => {
         periodeEtg = cle;
-        afficherCodeSalle();
+        dessinerCodeSalleZone($('codeSousZone') || $('codeZone'));
       });
       bp.appendChild(b);
     });
@@ -1141,7 +1196,8 @@ async function ongletCodeEleve(corps, nom){
   try{
     const [ra, rf] = await Promise.all([
       appelPrep({ action: 'codeEleve', eleve: nom }),
-      (resultatsEtg && resultatsEtg.length) ? Promise.resolve(null) : appelPrep({ action: 'seancesEtg' }).catch(() => null)
+      (resultatsEtg && resultatsEtg.length) ? Promise.resolve(null)
+        : (lireCacheEtg() ? Promise.resolve(lireCacheEtg().d) : seancesEtgFraiches().catch(() => null))
     ]);
     app = (ra && ra.resultats) || [];
     if(rf && rf.resultats){ resultatsEtg = rf.resultats.concat(resultatsEtg.filter(r => r.app)); baremesEtg = rf.baremes || baremesEtg; }
