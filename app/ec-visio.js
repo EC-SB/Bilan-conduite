@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:38 — v1391 */
+/* Déployé le 13/11/2026 à 14:22 — v1427 */
 /* ============================================================
    ec-visio.js — 🎥 LE CODE EN VISIO, CÔTÉ ÉQUIPE
 
@@ -233,6 +233,36 @@ function visioGestes(){
   ];
 }
 
+/* 📝 v1427 — OÙ EN EST CHAQUE ÉLÈVE DE SES RÉPONSES. David : dans la
+   liste du prof, « Test 2 · 2 / 4 », puis ses fautes à la fin. On relit
+   les réponses de la séance du jour toutes les 10 secondes pendant le
+   cours ; appel-commun.js les montre sous chaque nom (cours.progres). */
+let visioProgres = { numero: 0, parMots: {}, minuteur: 0 };
+function visioSuivreLesReponses(numero){
+  clearInterval(visioProgres.minuteur);
+  visioProgres = { numero: numero, parMots: {}, minuteur: 0 };
+  const lire = () => {
+    if(!visioCoursOuvert()){ clearInterval(visioProgres.minuteur); return; }
+    appelPrep({ action: 'codeResultats', seance: numero, jour: todayLocal() }).then(r => {
+      const m = {};
+      ((r && r.resultats) || []).forEach(x => { m[visioMotsDe(x.eleve)] = x; });
+      visioProgres.parMots = m;
+    }).catch(() => {});
+  };
+  lire();
+  visioProgres.minuteur = setInterval(lire, 10000);
+}
+function visioProgresDe(qui){
+  const x = visioProgres.parMots[visioMotsDe(qui)];
+  if(!x || x.ou === 'ardoise') return null;
+  const f = n => n + ' faute' + (n > 1 ? 's' : '');
+  if(x.fini) return { texte: f(x.fautes), couleur: x.fautes <= 3 ? 'vert' : x.fautes <= 6 ? 'orange' : 'rouge' };
+  const s = (x.series || []).find(y => !y.fini && y.faites) || (x.series || []).find(y => !y.fini);
+  const finies = (x.series || []).filter(y => y.fini);
+  const deja = finies.length ? ' · ' + f(finies.reduce((t, y) => t + y.fautes, 0)) : '';
+  return s ? { texte: s.nom + ' · ' + s.faites + ' / ' + s.nb + deja, couleur: '' } : null;
+}
+
 function visioOuvrirLeCours(seance, billet){
   if(typeof AppelEC === 'undefined' || !visioFx) return;
   AppelEC.ouvrir({
@@ -241,12 +271,14 @@ function visioOuvrirLeCours(seance, billet){
     sortie: visioMedia().sortieId || '',
     cours: { numero: seance.numero, gestes: visioGestes(),
              surInviter: (c) => visioPanneauInviter(c, seance), surLien: (c) => visioPanneauLien(c, seance),
-             surSon: (c) => visioPanneauSon(c) },
+             surSon: (c) => visioPanneauSon(c),
+             progres: (qui) => visioProgresDe(qui) },
     surFin: () => {
       visioArreter();
       setTimeout(() => { if($('vsCarte')) visioRafraichir(); }, 1200);
     }
   });
+  visioSuivreLesReponses(seance.numero);
 }
 
 /* Reprendre le cours (page rechargée) : depuis la carte ou depuis le fil */
