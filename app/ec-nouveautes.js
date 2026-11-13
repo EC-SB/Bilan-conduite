@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:28 — v1428 */
+/* Déployé le 13/11/2026 à 14:33 — v1429 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1429,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '⚡ Élèves › 🎓 Code s’ouvre tout de suite',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'L’onglet Code ne fait plus attendre',
+        texte: 'La lecture des Google Forms (12 feuilles) prenait du temps à chaque ouverture. L’onglet s’affiche maintenant tout de suite avec la dernière lecture, et les formulaires se relisent en arrière-plan (« ↻ Relecture des formulaires… ») : la grille se redessine seule s’il y a du nouveau. Changer de période ne relit plus rien. L’onglet 🎓 Code du dossier en profite aussi. Côté Google, les liens des formulaires sont gardés six heures.' }
+    ]
+  },
   {
     version: 1428,
     date: 'Vendredi 13 novembre 2026',
