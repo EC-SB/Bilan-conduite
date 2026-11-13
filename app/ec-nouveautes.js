@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 08:44 — v1419 */
+/* Déployé le 13/11/2026 à 10:14 — v1420 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1420,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🧰 Le jeu des vérifs V2, et le choix V1 / V2 pour l’espace élève',
+    quoi: [
+      { emoji: '🧰',
+        titre: 'Allumé ou éteint, V1 ou V2',
+        texte: 'Outils › Vérifications (administrateurs) : « 🧰 Sur l’espace élève » — ⏻ Allumé / ⭘ Éteint, et V1 (l’ancien jeu) ou V2 (le nouveau). Éteint : l’onglet 🧰 disparaît pour tous les élèves. Allumé : la case 🧰 de chaque élève décide, comme avant. Chaque version garde sa progression. Dans « 🎮 Jouer (essai) », on peut essayer la V1 ou la V2, quelle que soit celle des élèves.' },
+      { emoji: '▶️',
+        titre: 'La V2 : Continuer, Comme à l’examen, les thèmes, la grille',
+        texte: '« ▶️ Continuer » choisit 7 cartes (les ratées en leçon d’abord, puis celles à revoir, puis des nouvelles) ; « 🎲 Comme à l’examen » tire un numéro, noté sur 3. Trois sortes de cartes : J’apprends (les étapes dans l’ordre, avec les photos de l’atelier), Je fais (une étape à la fois sur les photos de sa voiture ; « pas encore » s’il saute une étape ; pour les feux, il voit ce qui s’allume à chaque appui) et Je dis (il répond à voix haute, c’est écrit, et c’est vérifié par les mots attendus ; sans micro, il tape).' },
+      { emoji: '🚗',
+        titre: 'Sa voiture dans la V2',
+        texte: 'Réglée d’après sa boîte (BV / BEA) et son agence (son dernier cours Drivup), avec « Je prends mes cours avec le Q3 n°10 » en BEA à Saint-Brieuc. Dans l’atelier (📸 Nos voitures), chaque voiture a un nouveau choix « Dans le nouveau jeu (V2), elle sert à » : BV ou BEA Saint-Brieuc, le Q3 n°10, BV ou BEA Loudéac.' }
+    ]
+  },
   {
     version: 1419,
     date: 'Vendredi 13 novembre 2026',
