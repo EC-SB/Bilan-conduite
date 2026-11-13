@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 13/11/2026 à 08:36 — v1417 -->
+<!-- Déployé le 13/11/2026 à 10:14 — v1420 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1998,6 +1998,54 @@
   .jv .jvAller .btn.ici{ border-color:#7DBB00; box-shadow:0 0 0 2px rgba(125,187,0,.45); }
   .jv .jvScene.allume::after{ content:''; position:absolute; inset:0; pointer-events:none; box-shadow:inset 0 0 40px rgba(255,214,0,.35); animation:jvAllume .8s ease-out; }
   @keyframes jvAllume{ from{ box-shadow:inset 0 0 120px rgba(255,214,0,.9); } }
+  /* ===== 🧰 LE JEU DES VÉRIFS, VERSION 2 — v1420 ===== */
+  .jv .nvGo{ display:flex; gap:12px; align-items:center; width:100%; border:0; border-radius:20px; padding:16px; margin:0 0 10px; font:inherit; text-align:left; cursor:pointer;
+    background:linear-gradient(180deg,#C6FF3D,#A8F000); color:#14161B; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), inset 0 -2px 0 rgba(0,0,0,.08), 0 10px 24px rgba(150,220,0,.35); }
+  .jv .nvGo:active{ transform:scale(.99); }
+  .jv .nvGo .e{ font-size:34px; } .jv .nvGo b{ display:block; font-size:19px; font-weight:900; letter-spacing:-.01em; }
+  .jv .nvGo small{ display:block; font-size:12.5px; font-weight:600; opacity:.8; margin-top:1px; }
+  .jv .nvGo.b{ background:#14161B; color:#fff; box-shadow:0 8px 20px rgba(20,22,27,.18); border:1px solid rgba(255,255,255,.14); } .jv .nvGo.b small{ color:#C9CCBF; opacity:1; }
+  .jv .nvTheme{ display:flex; align-items:center; gap:10px; width:100%; padding:10px 0; min-height:44px; border:0; border-top:1px solid var(--line); background:transparent;
+    color:var(--cream); font:700 13.5px/1.3 inherit; text-align:left; cursor:pointer; }
+  .jv .card .section-title + .nvTheme{ border-top:0; }
+  .jv .nvTheme .e{ font-size:19px; width:26px; text-align:center; } .jv .nvTheme .n{ flex:1; min-width:0; }
+  .jv .nvTheme .bar{ width:86px; height:8px; border-radius:99px; background:var(--line); overflow:hidden; } .jv .nvTheme .bar i{ display:block; height:100%; background:#8FD400; border-radius:99px; }
+  .jv .nvTheme .c{ width:46px; text-align:right; font-size:12px; color:var(--muted); font-weight:700; }
+  .jv .nvBloc{ border-radius:14px; padding:10px 12px; margin-top:8px; font-size:14px; line-height:1.45; background:var(--navy-deep); border:1px solid var(--line); }
+  .jv .nvBloc b.t{ display:block; font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+  .jv .nvBloc.dit{ background:#14161B; color:#fff; border:0; } .jv .nvBloc.dit b.t{ color:#B6FF0E; }
+  .jv .nvPas{ display:flex; align-items:center; gap:11px; padding:8px 0; border-top:1px solid var(--line); font-size:14.5px; font-weight:700; line-height:1.3; }
+  .jv .jvDoux2 + .nvPas{ border-top:0; }
+  .jv .nvPas > i{ width:26px; height:26px; border-radius:50%; background:#B6FF0E; color:#14161B; display:grid; place-items:center; font-style:normal; font-weight:900; font-size:13px; flex:none; }
+  .jv .nvPas .nvVig, .jv .nvPas .nvVide{ width:62px; height:62px; border-radius:12px; flex:none; background-color:#0E1116; background-repeat:no-repeat; display:grid; place-items:center; font-size:24px; }
+  .jv .nvPas > span:last-child{ flex:1; min-width:0; }
+  .jv .nvPas small{ display:block; font-weight:600; font-size:12px; color:var(--muted); }
+  .jv .nvChemin{ display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 2px; }
+  .jv .nvChemin span{ display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 10px 4px 4px; font-size:12.5px; font-weight:700; background:var(--line); color:var(--muted); }
+  .jv .nvChemin span i{ width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-style:normal; font-weight:900; font-size:12px; background:rgba(0,0,0,.10); }
+  .jv .nvChemin span.ok{ background:rgba(46,139,20,.14); color:#226B13; } .jv .nvChemin span.ok i{ background:#B6FF0E; color:#14161B; }
+  .jv .nvChemin span.ici{ background:#14161B; color:#fff; } .jv .nvChemin span.ici i{ background:#B6FF0E; color:#14161B; }
+  .jv .nvFaux{ margin-top:12px; border:2px solid #E9A58F; background:rgba(195,58,18,.08); border-radius:14px; padding:12px; font-size:14px; line-height:1.45; }
+  .jv .nvFaux b{ display:block; font-size:15px; margin-bottom:4px; color:#8F2E0E; }
+  .jv .nvEffet{ margin-top:10px; border-radius:12px; padding:9px 12px; background:#14161B; color:#fff; font-weight:700; font-size:14px; }
+  .jv .nvEffet small{ color:#B6FF0E; font-weight:800; font-size:11px; letter-spacing:.05em; text-transform:uppercase; display:block; }
+  .jv .nvEffet img{ display:block; width:100%; max-height:140px; object-fit:cover; border-radius:10px; margin-top:8px; }
+  .jv .nvVerso{ border-radius:16px; padding:14px 16px; background:#14161B; color:#fff; font-size:15px; font-weight:600; line-height:1.45; margin-top:12px; }
+  .jv .nvVerso small{ display:block; color:#B6FF0E; font-size:11px; letter-spacing:.05em; text-transform:uppercase; font-weight:800; margin-bottom:4px; }
+  .jv .nvVerso mark{ background:rgba(182,255,14,.28); color:#fff; border-radius:4px; padding:0 2px; }
+  .jv .nvRep{ display:block; width:100%; margin-top:10px; border:2px solid var(--line); border-radius:14px; padding:10px 12px; font:500 15px/1.45 inherit;
+    background:var(--navy-deep); color:var(--cream); resize:vertical; min-height:84px; box-sizing:border-box; }
+  .jv .nvRep:focus{ outline:none; border-color:#7DBB00; }
+  .jv .nvMicroOn{ border-color:#C33A12 !important; color:#C33A12 !important; animation:jvPulseMic 1.2s ease-in-out infinite; }
+  @keyframes jvPulseMic{ 50%{ box-shadow:0 0 0 5px rgba(195,58,18,.18); } }
+  .jv .nvNote{ display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px; font-weight:700; }
+  .jv .card > .nvNote:first-child{ border-top:0; } .jv .nvNote span{ flex:1; } .jv .nvNote em{ font-style:normal; font-weight:900; }
+  .jv .nvTitreOrdre{ font-size:12px; font-weight:800; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; margin-top:14px; margin-bottom:6px; }
+  .jv .nvSegJ{ display:flex; gap:8px; }
+  .jv .nvSegJ .btn{ flex:1; margin:0; min-height:44px; }
+  .jv .nvSegJ .btn.on{ border-color:#7DBB00; box-shadow:0 0 0 2px rgba(125,187,0,.45); background:rgba(182,255,14,.16); }
+  .jv .nvCoche{ display:flex; align-items:center; gap:10px; margin-top:12px; font-weight:700; font-size:14px; text-transform:none; cursor:pointer; }
+  .jv .nvCoche input{ width:20px; height:20px; flex:none; }
   @media (prefers-reduced-motion: reduce){ .jv *{ animation:none !important; transition:none !important; } }
   /* ============================================================
      ⚠️ COUCHÉ — ET CE BLOC EST LE DERNIER DE LA FEUILLE, EXPRÈS.
@@ -12981,7 +13029,7 @@
   function jvOuvrir(){
     var z = $('jvZone');
     if(!z) return;
-    if(JV.pret){ if(!JV.ronde) jvAccueil(); return; }
+    if(JV.pret){ if(!JV.ronde) (jwActif() ? jwAccueil : jvAccueil)(); return; }
     if(JV.enCours) return;
     z.innerHTML = '<div class="card"><div class="empty">Chargement de tes vérifications…</div></div>';
     JV.enCours = Promise.all([
@@ -12995,9 +13043,13 @@
       JV.surch = d.surcharges || {};
       /* 📸 v1249 — nos voitures, leurs photos, chemins et règles */
       JV.at = d.atelier || null;
+      /* 🧰 v1420 — la version que l'équipe a mise en route, et son agence */
+      JV.jeu = d.jeu || { allume: true, version: 'v1' };
+      JV.agence = d.agence || '';
+      JW.cat = null;
       JV.pret = true;
       JV.enCours = null;
-      jvAccueil();
+      (jwActif() ? jwAccueil : jvAccueil)();
       dessinerLesOnglets();
     }).catch(function(e){
       JV.enCours = null;
@@ -13021,6 +13073,7 @@
       try{ var g = JSON.parse(localStorage.getItem('ec_jv_cartes') || 'null'); if(g && g.jour === jvAujourdhui()) faites = Number(g.faites) || 0; }catch(e){}
       return Math.max(0, 5 - faites);
     }
+    if(jwActif()){ try{ return jwAFaire(); }catch(e){ return 0; } }
     faites = JV.d.cartes.jour === jvAujourdhui() ? JV.d.cartes.faites : 0;
     return Math.max(0, 5 - faites);
   }
@@ -13465,6 +13518,7 @@
   function jvAt(){ return JV.at || { reglages: { voitures: [], chemins: {}, regles: {} }, photos: [] }; }
   function jvPhotosDe(v){ return jvAt().photos.filter(function(p){ return p.voitures.indexOf(v) !== -1; }); }
   function jvVoitures(){ return jvAt().reglages.voitures.filter(function(v){ return jvPhotosDe(v.id).length; }); }
+  function jvVoitureParId(id){ return jvVoitures().filter(function(v){ return v.id === id; })[0] || null; }
   function jvVoiture(){
     var id = JV.d && JV.d.voiture;
     return jvVoitures().filter(function(v){ return v.id === id; })[0] || null;
@@ -13529,12 +13583,17 @@
   }
 
   /* La vérification sur les photos de sa voiture */
-  function jvVerifEnVrai(zone, n, fini){
-    var v = JV.d.voiture, voit = jvVoiture();
+  /* 🧰 v1420 — opts.v2 : la même carte, habillée pour la V2 (l'inspecteur
+     dans sa bulle, les étapes en pastilles nommées, « pas encore » quand il
+     saute une étape) ; opts.voiture : la voiture de la V2. Sans opts : la V1
+     telle qu'elle était. */
+  function jvVerifEnVrai(zone, n, fini, opts){
+    opts = opts || {};
+    var v = opts.voiture || JV.d.voiture, voit = opts.voiture ? jvVoitureParId(opts.voiture) : jvVoiture();
     var m = jvCibleVerif(n);
     var x = jvQuestion(n), d = jvPartieDemandee(n, 'v');
     var regle = jvRegle(v, m);
-    if(regle && regle.mode === 'allumer') return jvAllumerEnVrai(zone, n, fini, regle);
+    if(regle && regle.mode === 'allumer') return jvAllumerEnVrai(zone, n, fini, regle, opts);
     var parts = regle ? [] : jvZonesReponse(v, m), rep = parts[0] || null;
     var multi = parts.length > 1, montres = [], ici = null;
     var voyant = /voyant/i.test(d.q || '');
@@ -13549,10 +13608,14 @@
     }
     var fautes = 0, indice = false, i = 0, fait = false;
     var c = jvEl('div', 'card jvPop');
-    c.appendChild(jvEl('span', 'jvPart v', echapper(jvNomPartie('v', x.type)) + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')));
+    c.appendChild(jvEl('span', 'jvPart v', opts.v2 ? (opts.titre || 'Je fais') + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')
+      : echapper(jvNomPartie('v', x.type)) + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')));
     if(d.neutre) c.appendChild(jvEl('div', 'jvNeutre', '⚠️ Cette question est neutralisée' + (d.neutre.pourquoi ? ' (' + echapper(d.neutre.pourquoi) + ')' : '') + ' : l’inspecteur pose celle-ci à la place.'));
-    c.appendChild(jvEl('div', 'jvQ', echapper(d.q)));
-    var barre = etapes.length > 1 ? jvEl('div', 'jvEtapes') : null;
+    if(opts.v2) c.appendChild(jwBulle(d.q));
+    else c.appendChild(jvEl('div', 'jvQ', echapper(d.q)));
+    var pil = (opts.v2 && !regle && etapes.length > 1) ? jvEl('div', 'nvChemin') : null;
+    if(pil) c.appendChild(pil);
+    var barre = (!pil && etapes.length > 1) ? jvEl('div', 'jvEtapes') : null;
     if(barre){ etapes.forEach(function(){ barre.appendChild(document.createElement('span')); }); c.appendChild(barre); }
     var sc = jvEl('div', 'jvScene');
     var lieu = jvEl('span', 'jvLieu', '');
@@ -13627,6 +13690,7 @@
     };
     var majEtape = function(){
       if(barre) Array.prototype.forEach.call(barre.children, function(s, k){ s.className = k < i ? 'f' : (k === i ? 'c' : ''); });
+      if(pil) jwPilules(pil, etapes.map(function(e){ return e.zone.nom || 'Étape'; }), i);
       if(auxParties()){
         var reste = resteAMontrer();
         var bon = reste.filter(function(x){ return x.photo === ici; })[0] || null;
@@ -13727,6 +13791,12 @@
         var p = etapes[i] ? etapes[i].photo : depart;
         var zid = b.getAttribute('data-z');
         z = (p.zones.filter(function(y){ return y.id === zid; })[0]) || null;
+        /* 🧰 v1420 — V2 : il saute une étape (David : « le vrai problème,
+           c'est l'ordre ») — on le lui dit, sans donner la réponse */
+        if(opts.v2 && z && etapes.slice(i + 1).some(function(e){ return e.photo === p && e.zone.id === zid; })){
+          dire('⏳ Pas encore : ' + (z.nom || 'ça') + ' vient après. Qu’est-ce qu’il faut faire avant ?', 'ko');
+          return;
+        }
       }
       dire(z && z.nom ? '❌ Ça, c’est ' + z.nom + '. Essaie encore !' : '🤔 Pas ici…', 'ko');
     });
@@ -13753,8 +13823,9 @@
          part dans « À revoir ».
      ============================================================ */
   var JV_ORDRE_TOUR = ['volant', 'voyants', 'devant', 'cote', 'arriere'];
-  function jvAllumerEnVrai(zone, n, fini, regle){
-    var v = JV.d.voiture, voit = jvVoiture();
+  function jvAllumerEnVrai(zone, n, fini, regle, opts){
+    opts = opts || {};
+    var v = opts.voiture || JV.d.voiture, voit = opts.voiture ? jvVoitureParId(opts.voiture) : jvVoiture();
     var m = jvCibleVerif(n), a = regle.allumage;
     var x = jvQuestion(n), d = jvPartieDemandee(n, 'v');
     var etapes = jvAllumage(v, a);
@@ -13771,9 +13842,11 @@
     etapes.forEach(function(s){ if(vues.indexOf(s.photo) === -1) vues.push(s.photo); });
     var fautes = 0, indice = false, fait = false, phase = 'allumer', faits = [], ici = vues[0], c0 = 0, controles = [];
     var c = jvEl('div', 'card jvPop');
-    c.appendChild(jvEl('span', 'jvPart v', echapper(jvNomPartie('v', x.type)) + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')));
+    c.appendChild(jvEl('span', 'jvPart v', opts.v2 ? (opts.titre || 'Je fais') + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')
+      : echapper(jvNomPartie('v', x.type)) + ' · sur ta ' + echapper(voit ? voit.nom : 'voiture')));
     if(d.neutre) c.appendChild(jvEl('div', 'jvNeutre', '⚠️ Cette question est neutralisée' + (d.neutre.pourquoi ? ' (' + echapper(d.neutre.pourquoi) + ')' : '') + ' : l’inspecteur pose celle-ci à la place.'));
-    c.appendChild(jvEl('div', 'jvQ', echapper(d.q)));
+    if(opts.v2) c.appendChild(jwBulle(d.q));
+    else c.appendChild(jvEl('div', 'jvQ', echapper(d.q)));
     var sc = jvEl('div', 'jvScene');
     var lieu = jvEl('span', 'jvLieu', '');
     var toast = jvEl('div', 'jvToast', '');
@@ -13785,6 +13858,9 @@
     c.appendChild(consigne);
     var tally = jvEl('div', 'jvFait', '');
     c.appendChild(tally);
+    /* 🧰 v1420 — V2 : David, « il voit ce qui s'allume à chaque appui » */
+    var effet = opts.v2 ? jvEl('div', 'nvEffet', '') : null;
+    if(effet){ effet.style.display = 'none'; effet.setAttribute('role', 'status'); c.appendChild(effet); }
     var outils = jvEl('div', 'jvOutils');
     c.appendChild(outils);
     var suite = jvEl('div', '');
@@ -13855,7 +13931,7 @@
       var l = paquets();
       tally.innerHTML = l.length ? 'Tu as fait : ' + l.map(function(p){ return '<b>' + echapper(p.nom) + ' ×' + p.fois + '</b>'; }).join(' puis ') : '';
     };
-    var toutEteindre = function(){ faits = []; direFaits(); if(vues[0] && ici !== vues[0]) montrer(vues[0]); else marquerIndice(); };
+    var toutEteindre = function(){ faits = []; direFaits(); if(effet) jwMontrerEffet(effet, v, []); if(vues[0] && ici !== vues[0]) montrer(vues[0]); else marquerIndice(); };
 
     /* ---------- 1 · allumer ---------- */
     var dessinerAller = function(){
@@ -13894,6 +13970,7 @@
       /* ✅ allumés : la photo avec les feux allumés, vue du volant */
       jvBip('ok');
       phase = 'controle';
+      if(effet) effet.style.display = 'none';
       tally.textContent = '';
       var p0 = allumees.filter(function(p){ return p.endroit === ici.endroit; })[0] || allumees[0];
       if(!cibles.length){ if(p0) montrer(p0, true); return reussi(); }
@@ -13944,6 +14021,7 @@
           var l = paquets();
           dire('🔘 ' + (z.nom || 'Commande') + ' ×' + l[l.length - 1].fois);
           direFaits(); marquerIndice();
+          if(effet) jwMontrerEffet(effet, v, l);
           return;
         }
         secouer();
@@ -14329,6 +14407,766 @@
     majScore();
     tour();
   }
+  /* ============================================================
+     🧰 LE JEU DES VÉRIFS, VERSION 2 — v1420 (livraison 1)
+
+     David, le 12 novembre : « propose-moi un jeu complet, simple et
+     intuitif, comme s'il n'y avait rien encore », puis : « le vrai
+     problème, c'est que les élèves ne savent pas dans quel ORDRE faire
+     les choses ». Ses réponses du 13 novembre :
+       · l'accueil : un gros « ▶️ Continuer » et « 🎲 Comme à l'examen » ;
+       · les appuis : il VOIT ce qui s'allume à chaque appui ;
+       · « Je dis » : il le dit, c'est écrit, et c'est vérifié sans IA
+         (les mots attendus) ; sans micro, il tape sa réponse ;
+       · sa voiture : d'après BV / BEA, « J'ai le Q3 n°10 » en BEA, et
+         celle de Loudéac s'il est à Loudéac ;
+       · ses photos déjà posées dans l'atelier servent telles quelles.
+     L'équipe choisit V1 ou V2 (Outils › Vérifications) : JV.jeu.
+
+     LES CARTES : une par geste (« v12 »), une par réponse de sécurité
+     routière (« q7 »), une par réponse de premiers secours (« s3 ») —
+     les questions qui posent la même chose partagent leur carte (le
+     numéro est celui de la première). Chaque carte : [boîte 0-5, vue
+     le, revient le, réussites, essais, dernière fois juste]. Juste : elle
+     monte d'une boîte et revient 1, 3, 7, 14, 30 jours plus tard ; ratée :
+     boîte 1, demain. SUE à partir de la boîte 3 (trois jours justes).
+
+     Rangées dans JV.d.v2 : la V1 garde sa progression à elle.
+     ============================================================ */
+  var JW = { cat: null };
+  var JW_ATTENTE = [0, 1, 3, 7, 14, 30];
+  var JW_THEMES = [['capot', '🔧', 'Sous le capot'], ['feux', '💡', 'Les feux'], ['voyants', '🚨', 'Les voyants'],
+                   ['volant', '🎛️', 'Au volant'], ['autour', '🚗', 'Autour de la voiture'],
+                   ['qser', '🗣️', 'Sécurité routière'], ['secours', '⛑️', 'Premiers secours']];
+  var JW_ALLUMAGES = { croisement: '💡 Feux de croisement', route: '🔦 Feux de route', position: '🅿️ Feux de position', detresse: '⚠️ Feux de détresse',
+                       clignotant: '➡️ Clignotant', brouillard: '🌫️ Feu de brouillard arrière', stop: '🛑 Feux stop', recul: '↩️ Feux de recul', diurnes: '☀️ Feux diurnes' };
+  function jwActif(){ return !!(JV.jeu && JV.jeu.version === 'v2'); }
+  function jwVide(){ return { c: {}, jour: '', serie: 0, record: 0, seances: 0, ex: { parties: 0, notes: [] }, voiture: { agence: '', boite: '', q310: 0, id: '' } }; }
+  function jwD(){
+    if(!JV.d.v2 || typeof JV.d.v2 !== 'object') JV.d.v2 = jwVide();
+    var d = JV.d.v2, v = jwVide();
+    ['c', 'ex', 'voiture'].forEach(function(k){ if(!d[k] || typeof d[k] !== 'object') d[k] = v[k]; });
+    if(!Array.isArray(d.ex.notes)) d.ex.notes = [];
+    return d;
+  }
+  function jwPlus(iso, j){
+    var d = new Date((iso || jvAujourdhui()) + 'T12:00:00');
+    d.setDate(d.getDate() + j);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function jwNorm(t){
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[’'`]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function jwBulle(q){
+    var b = jvEl('div', 'jvBulle', '<span class="qui">👮 L’inspecteur</span>');
+    b.appendChild(document.createTextNode(q || '—'));
+    return b;
+  }
+  /* Les pastilles des étapes : faites (leur nom), celle-ci (« à toi »), les suivantes (?) */
+  function jwPilules(el, noms, ici){
+    el.innerHTML = noms.map(function(nm, k){
+      var cls = k < ici ? 'ok' : (k === ici ? 'ici' : '');
+      return '<span class="' + cls + '"><i>' + (k + 1) + '</i>' + (k < ici ? echapper(nm) : (k === ici ? 'à toi' : '?')) + '</span>';
+    }).join('');
+  }
+
+  /* ---------- Les cartes, tirées de la banque (avec ses corrections) ---------- */
+  function jwThemeGeste(q, type){
+    var t = jwNorm(q);
+    if(/voyant|temoin/.test(t)) return 'voyants';
+    if(/capot|moteur|huile|lave glace|liquide|batterie|refroidissement/.test(t)) return 'capot';
+    if(/\bfeux?\b|clignot|eclair|phare|brouillard|detresse/.test(t)) return 'feux';
+    return type === 'VE' ? 'autour' : 'volant';
+  }
+  function jwCatalogue(){
+    if(JW.cat) return JW.cat;
+    var cartes = {}, parN = {}, liste = [], cles = {};
+    for(var n = 1; n <= 100; n++){
+      var x = jvQuestion(n);
+      if(!x) continue;
+      parN[n] = {};
+      JV_PARTIES.forEach(function(k){
+        var d = jvPartieDemandee(n, k);
+        if(!d || !d.q) return;
+        var cle = k + '|' + jwNorm(d.q);
+        var id = cles[cle];
+        if(!id){
+          id = k + n;
+          cles[cle] = id;
+          cartes[id] = { id: id, k: k, n: n, ns: [], q: d.q, r: d.r || '', type: x.type,
+                         theme: k === 'q' ? 'qser' : (k === 's' ? 'secours' : jwThemeGeste(d.q, x.type)) };
+          liste.push(id);
+        }
+        cartes[id].ns.push(n);
+        parN[n][k] = id;
+      });
+    }
+    JW.cat = { cartes: cartes, parN: parN, liste: liste };
+    return JW.cat;
+  }
+  function jwEtat(id){ return jwD().c[id] || [0, '', '', 0, 0, 0]; }
+  function jwSue(id){ return jwEtat(id)[0] >= 3; }
+  function jwVue(id){ return !!jwEtat(id)[1]; }
+  function jwDue(id, auj){ var t = jwD().c[id]; return !!t && (!t[2] || t[2] <= auj); }
+  function jwNoter(id, ok){
+    var auj = jvAujourdhui(), d = jwD(), t = jwEtat(id).slice();
+    if(ok){ if(t[1] !== auj || t[0] === 0) t[0] = Math.min(5, t[0] + 1); t[3]++; t[2] = jwPlus(auj, JW_ATTENTE[t[0]]); }
+    else { t[0] = 1; t[2] = jwPlus(auj, 1); }
+    t[4]++; t[1] = auj; t[5] = ok ? 1 : 0;
+    d.c[id] = t;
+    if(d.jour !== auj){
+      d.serie = jvJoursEntre(d.jour, auj) === 1 ? d.serie + 1 : 1;
+      d.jour = auj;
+      d.record = Math.max(d.record || 0, d.serie);
+    }
+    jvSauver();
+  }
+  /* Ce que son moniteur a vu raté (examen blanc, examen, leçon) et qu'il
+     n'a pas encore rejoué juste depuis : ces cartes passent devant */
+  function jwEcole(){
+    var cat = jwCatalogue(), out = {}, rv = (JV.ecole && JV.ecole.revoir) || {};
+    Object.keys(rv).forEach(function(n){
+      var e = rv[n] || {}, p = cat.parN[n];
+      if(!p) return;
+      String(e.parties || 'vqs').split('').forEach(function(k){
+        var id = p[k];
+        if(!id) return;
+        var t = jwEtat(id);
+        if(!(t[1] && e.le && t[1] >= e.le && t[5] === 1)) out[id] = 1;
+      });
+    });
+    return out;
+  }
+  function jwEtatNumero(n, ec){
+    var p = jwCatalogue().parN[n] || {}, ids = JV_PARTIES.map(function(k){ return p[k]; }).filter(Boolean);
+    if(!ids.length) return '';
+    if(ids.some(function(id){ var t = jwEtat(id); return ec[id] || (t[4] > 0 && t[5] === 0); })) return 'r';
+    if(ids.every(jwSue)) return 'm';
+    return ids.some(jwVue) ? 'a' : '';
+  }
+
+  /* ---------- Les cartes d'une séance ---------- */
+  function jwSeance(filtre, max){
+    var cat = jwCatalogue(), auj = jvAujourdhui(), ec = jwEcole();
+    max = max || 7;
+    var ids = cat.liste.filter(function(id){ return !filtre || filtre(cat.cartes[id]); });
+    var ordreK = { v: 0, q: 1, s: 2 };
+    var aRevoir = ids.filter(function(id){ return ec[id]; });
+    var dues = ids.filter(function(id){ return !ec[id] && jwDue(id, auj); }).sort(function(a, b){
+      return (jwEtat(a)[5] - jwEtat(b)[5]) || (jwEtat(a)[2] < jwEtat(b)[2] ? -1 : (jwEtat(a)[2] > jwEtat(b)[2] ? 1 : 0));
+    });
+    var neuves = ids.filter(function(id){ return !jwD().c[id]; }).sort(function(a, b){
+      return (cat.cartes[a].n - cat.cartes[b].n) || (ordreK[cat.cartes[a].k] - ordreK[cat.cartes[b].k]);
+    });
+    var l = aRevoir.concat(dues).slice(0, max);
+    var place = max - l.length;
+    if(l.length) place = Math.min(place, 4);
+    l = l.concat(neuves.slice(0, place));
+    if(!l.length){
+      /* tout est su et rien n'est dû : une révision libre, les moins revues d'abord */
+      l = ids.slice().sort(function(a, b){ return jwEtat(a)[1] < jwEtat(b)[1] ? -1 : 1; }).slice(0, max);
+    }
+    return { ids: l, nouvelles: l.filter(function(id){ return !jwD().c[id] && !ec[id]; }).length };
+  }
+  /* La pastille de l'onglet : ce qui attend aujourd'hui */
+  function jwAFaire(){
+    var cat = jwCatalogue(), auj = jvAujourdhui(), ec = jwEcole(), d = jwD();
+    var dues = cat.liste.filter(function(id){ return ec[id] || jwDue(id, auj); }).length;
+    if(d.jour !== auj && cat.liste.some(function(id){ return !d.c[id]; })) return Math.min(7, Math.max(dues, 7));
+    return Math.min(9, dues);
+  }
+
+  /* ---------- Sa voiture : BV / BEA, son agence, le Q3 n°10 ---------- */
+  function jwChoix(){
+    var p = jwD().voiture;
+    return { agence: p.agence || JV.agence || 'sb',
+             boite: p.boite || (maBoite === 'BEA' ? 'BEA' : (maBoite === 'BV' ? 'BV' : '')),
+             q310: !!p.q310 };
+  }
+  function jwRole(ch){
+    if(ch.boite === 'BEA') return ch.agence === 'ld' ? 'bea-ld' : (ch.q310 ? 'bea-sb-10' : 'bea-sb');
+    return ch.agence === 'ld' ? 'bv-ld' : 'bv-sb';
+  }
+  function jwVoiture(){
+    var ch = jwChoix(), role = jwRole(ch), avec = jvVoitures();
+    var plusPlacee = function(a, b){ return jvNbPlacees(b.id) - jvNbPlacees(a.id); };
+    var l = avec.filter(function(v){ return v.role === role; }).sort(plusPlacee);
+    if(l.length) return l[0];
+    /* Tant que l'atelier ne dit pas à quoi sert chaque voiture : sa voiture
+       de la V1, ou la plus complète de sa boîte */
+    if(!jvAt().reglages.voitures.some(function(v){ return v.role; })){
+      var v1 = jvVoiture();
+      if(v1 && (!ch.boite || !v1.boite || v1.boite === ch.boite)) return v1;
+      return avec.filter(function(v){ return !ch.boite || !v.boite || v.boite === ch.boite; }).sort(plusPlacee)[0] || null;
+    }
+    return null;
+  }
+  function jwNomChoix(ch){
+    return (ch.boite === 'BEA' ? 'Boîte automatique' : (ch.boite === 'BV' ? 'Boîte manuelle' : 'Boîte manuelle ?')) +
+      ' · ' + (ch.agence === 'ld' ? 'Loudéac' : 'Saint-Brieuc') + (ch.boite === 'BEA' && ch.agence !== 'ld' && ch.q310 ? ' · Q3 n°10' : '');
+  }
+  function jwChoisirVoiture(){
+    JV.ronde = 'v2';
+    var r = jvRacine();
+    jwTete(r, '🚗 Ma voiture');
+    var c = jvEl('div', 'card');
+    var ch = jwChoix();
+    c.appendChild(jvEl('div', 'jvDoux2', 'Le jeu te montre les photos de la voiture avec laquelle tu prends tes cours.'));
+    var groupe = function(titre, liste, actuel, quoi){
+      c.appendChild(jvEl('div', 'nvTitreOrdre', titre));
+      var g = jvEl('div', 'nvSegJ');
+      liste.forEach(function(x){
+        var b = jvBouton(x[1], 'btn btn-secondary' + (x[0] === actuel ? ' on' : ''), function(){ quoi(x[0]); });
+        b.setAttribute('aria-pressed', x[0] === actuel ? 'true' : 'false');
+        g.appendChild(b);
+      });
+      c.appendChild(g);
+    };
+    var poser = function(k, val){ jwD().voiture[k] = val; jvSauver(); jwChoisirVoiture(); };
+    groupe('Ton agence', [['sb', 'Saint-Brieuc'], ['ld', 'Loudéac']], ch.agence, function(v){ poser('agence', v); });
+    groupe('Ta boîte', [['BV', 'Manuelle (BV)'], ['BEA', 'Automatique (BEA)']], ch.boite, function(v){ poser('boite', v); });
+    if(ch.boite === 'BEA' && ch.agence !== 'ld'){
+      var lab = jvEl('label', 'nvCoche', '');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = ch.q310;
+      cb.addEventListener('change', function(){ poser('q310', cb.checked ? 1 : 0); });
+      lab.appendChild(cb);
+      lab.appendChild(document.createTextNode('Je prends mes cours avec le Q3 n°10'));
+      c.appendChild(lab);
+    }
+    var v = jwVoiture();
+    c.appendChild(jvEl('div', 'nvBloc', '<b class="t">Ta voiture dans le jeu</b>' + (v ? '🚗 ' + echapper(v.nom) + ' · ' + jvNbPlacees(v.id) + ' gestes sur ses photos'
+      : 'Pas encore de photos pour cette voiture : les gestes s’affichent en texte en attendant.')));
+    var ok = jvBouton('C’est bon →', 'btn btn-primary', jwAccueil);
+    ok.style.marginTop = '12px';
+    c.appendChild(ok);
+    r.appendChild(c);
+  }
+
+  /* ---------- Les petits morceaux d'écran ---------- */
+  function jwTete(r, titre, total, ici, etats){
+    var h = jvEl('div', 'jvHaut');
+    var x = jvBouton('✕', 'jvX', jwAccueil);
+    x.setAttribute('aria-label', 'Quitter');
+    h.appendChild(x);
+    if(total){
+      var e = jvEl('div', 'jvEtapes');
+      e.style.cssText = 'flex:1;margin:0';
+      for(var k = 0; k < total; k++){
+        var s = document.createElement('span');
+        s.className = (etats && etats[k]) || (k === ici ? 'c' : '');
+        e.appendChild(s);
+      }
+      h.appendChild(e);
+    }else h.appendChild(jvEl('b', 'q', titre || ''));
+    r.appendChild(h);
+  }
+  function jwNomTheme(k){ var t = JW_THEMES.filter(function(x){ return x[0] === k; })[0]; return t ? t[2] : ''; }
+  function jwSertA(card){
+    var ns = card.ns.slice(0, 6);
+    return ns.length > 1 ? 'Sert aux questions ' + ns.slice(0, -1).join(', ') + ' et ' + ns[ns.length - 1] + (card.ns.length > 6 ? '…' : '') + '.'
+      : 'Question ' + ns[0] + '.';
+  }
+
+  /* ============================================================
+     🏠 L'ACCUEIL : ▶️ Continuer, 🎲 Comme à l'examen, ses thèmes, la grille
+     ============================================================ */
+  function jwAccueil(){
+    JV.ronde = null;
+    var cat = jwCatalogue(), d = jwD(), r = jvRacine(), ec = jwEcole();
+    var auj = jvAujourdhui();
+    var gestes = cat.liste.filter(function(id){ return cat.cartes[id].k === 'v'; });
+    var reps = cat.liste.filter(function(id){ return cat.cartes[id].k !== 'v'; });
+    var gS = gestes.filter(jwSue).length, rS = reps.filter(jwSue).length;
+    var pct = cat.liste.length ? Math.round((gS + rS) * 100 / cat.liste.length) : 0;
+    var serie = d.jour && jvJoursEntre(d.jour, auj) <= 1 ? d.serie : 0;
+    var v = jwVoiture(), ch = jwChoix();
+    var hero = jvEl('div', 'card jvHero');
+    hero.innerHTML = '<div class="jvLigneH"><span class="jvGros">🧰 Mes vérifs</span><span class="jvFlamme">🔥 ' + serie + ' jour' + (serie > 1 ? 's' : '') + '</span></div>' +
+      '<div class="jvDoux" style="margin-top:2px">' + echapper((v ? v.nom + ' · ' : '') + jwNomChoix(ch)) + '</div>' +
+      '<div class="jvXp"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="jvDoux"><b style="color:#B6FF0E">' + gS + '</b> gestes sus sur ' + gestes.length + ' · <b style="color:#B6FF0E">' + rS + '</b> réponses sur ' + reps.length + '</div>';
+    var son = jvBouton(JV.son ? '🔊' : '🔇', 'jvSon', function(){
+      JV.son = !JV.son;
+      try{ localStorage.setItem('ec_jv_son', JV.son ? '1' : '0'); }catch(e){}
+      son.textContent = JV.son ? '🔊' : '🔇';
+    });
+    son.setAttribute('aria-label', 'Le son et la voix');
+    hero.firstChild.appendChild(son);
+    r.appendChild(hero);
+
+    var s = jwSeance();
+    var dues = s.ids.length - s.nouvelles;
+    var go = jvEl('button', 'nvGo');
+    go.type = 'button';
+    go.setAttribute('data-jw', 'continuer');
+    go.innerHTML = '<span class="e">▶️</span><span><b>Continuer</b><small>' + (s.ids.length ? 'Environ 5 minutes · ' +
+      [s.nouvelles ? s.nouvelles + ' nouvelle' + (s.nouvelles > 1 ? 's' : '') + ' carte' + (s.nouvelles > 1 ? 's' : '') : '',
+       dues ? dues + ' à revoir' : ''].filter(Boolean).join(', ') : 'Tout est à jour 👏') + '</small></span>';
+    go.addEventListener('click', function(){ jwJouer(jwSeance().ids, '▶️ Continuer'); });
+    r.appendChild(go);
+    var ex = jvEl('button', 'nvGo b');
+    ex.type = 'button';
+    ex.setAttribute('data-jw', 'examen');
+    ex.innerHTML = '<span class="e">🎲</span><span><b>Comme à l’examen</b><small>Tire un numéro : les 3 questions, noté sur 3</small></span>';
+    ex.addEventListener('click', jwExamen);
+    r.appendChild(ex);
+
+    /* sa voiture */
+    var cv = jvEl('div', 'card jvVoitCarte');
+    cv.innerHTML = '<div class="jvVoitIc">🚗</div><div style="flex:1;min-width:0"><b></b><small></small></div>';
+    cv.querySelector('b').textContent = v ? 'Ta voiture : ' + v.nom : 'Ta voiture';
+    cv.querySelector('small').textContent = jwNomChoix(ch) + (v ? '' : ' · gestes en texte pour l’instant');
+    var bc = jvBouton('Changer', 'btn btn-secondary', jwChoisirVoiture);
+    bc.style.cssText = 'width:auto;margin:0;padding:8px 12px;font-size:13px';
+    cv.appendChild(bc);
+    r.appendChild(cv);
+
+    /* les thèmes */
+    var th = jvEl('div', 'card');
+    th.innerHTML = '<div class="section-title" style="margin-bottom:4px">📚 Par thème</div>';
+    JW_THEMES.forEach(function(t){
+      var ids = cat.liste.filter(function(id){ return cat.cartes[id].theme === t[0]; });
+      if(!ids.length) return;
+      var su = ids.filter(jwSue).length;
+      var b = jvEl('button', 'nvTheme');
+      b.type = 'button';
+      b.setAttribute('data-theme', t[0]);
+      b.innerHTML = '<span class="e">' + t[1] + '</span><span class="n">' + echapper(t[2]) + '</span><span class="bar"><i style="width:' +
+        Math.round(su * 100 / ids.length) + '%"></i></span><span class="c">' + su + ' / ' + ids.length + '</span>';
+      b.addEventListener('click', function(){
+        jwJouer(jwSeance(function(c){ return c.theme === t[0]; }).ids, t[1] + ' ' + t[2]);
+      });
+      th.appendChild(b);
+    });
+    r.appendChild(th);
+
+    /* la grille des 100 */
+    var g = jvEl('div', 'card');
+    g.innerHTML = '<div class="section-title" style="margin-bottom:8px">📈 Les 100 questions <span style="font-weight:400;color:var(--muted);font-size:12px">· touche un numéro pour le réviser</span></div>';
+    var grille = jvEl('div', 'jvGrille');
+    for(var n = 1; n <= 100; n++){
+      (function(n){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = n;
+        b.className = jwEtatNumero(n, ec);
+        b.setAttribute('aria-label', 'Question ' + n);
+        b.addEventListener('click', function(){
+          var p = cat.parN[n] || {};
+          jwJouer(JV_PARTIES.map(function(k){ return p[k]; }).filter(Boolean), 'Question ' + n);
+        });
+        grille.appendChild(b);
+      })(n);
+    }
+    g.appendChild(grille);
+    g.appendChild(jvEl('div', 'jvLeg', '<span><i style="background:#B6FF0E"></i>sue</span><span><i style="background:#FFE3A3"></i>en cours</span>' +
+      '<span><i style="background:#FFD3C7"></i>ratée (ici ou en leçon)</span><span><i style="background:var(--line)"></i>pas encore vue</span>'));
+    r.appendChild(g);
+    r.appendChild(jvEl('div', 'jvPartage', '👁️ Ta progression est partagée avec ton moniteur — pas avec les autres élèves.'));
+  }
+
+  /* ============================================================
+     ▶️ UNE SÉANCE : les cartes l'une après l'autre
+     ============================================================ */
+  function jwJouer(ids, titre){
+    if(!ids || !ids.length) return jwAccueil();
+    JV.ronde = 'v2';
+    var cat = jwCatalogue(), i = 0, etats = [], bons = 0;
+    var suite = function(){
+      if(i >= ids.length) return jwFin(titre, bons, ids.length, function(){ jwJouer(jwSeance().ids, '▶️ Continuer'); });
+      var r = jvRacine();
+      jwTete(r, titre, ids.length, i, etats);
+      var zone = jvEl('div', '');
+      r.appendChild(zone);
+      var id = ids[i];
+      jwCarte(zone, cat.cartes[id], 'jeu', function(ok){
+        jwNoter(id, ok);
+        etats[i] = ok ? 'f' : 'k';
+        if(ok) bons++;
+        i++;
+        suite();
+      });
+    };
+    suite();
+  }
+  function jwFin(titre, bons, total, encore){
+    var d = jwD();
+    d.seances = (d.seances || 0) + 1;
+    JV.d.parties++;
+    jvSauver();
+    dessinerLesOnglets();
+    var r = jvRacine();
+    jwTete(r, titre);
+    var et = total ? Math.round(bons * 3 / total) : 0;
+    var c = jvEl('div', 'card jvRes');
+    var etoiles = '';
+    for(var k = 0; k < 3; k++) etoiles += '<span' + (k < et ? '' : ' class="non"') + '>⭐</span>';
+    c.innerHTML = '<div class="jvEtoiles">' + etoiles + '</div>' +
+      '<div style="font-size:21px;font-weight:900;margin-top:6px">' + (et === 3 ? 'Parfait !' : (et === 2 ? 'Bien joué !' : (et === 1 ? 'C’est en route !' : 'On s’accroche !'))) + '</div>' +
+      '<div style="color:var(--muted);font-size:13px">' + bons + ' carte' + (bons > 1 ? 's' : '') + ' sur ' + total + ' · les ratées reviennent demain</div>' +
+      '<div class="jvGain">🔥 ' + d.serie + ' jour' + (d.serie > 1 ? 's' : '') + ' de suite</div>';
+    var deux = jvEl('div', 'jvDeux');
+    deux.appendChild(jvBouton('🏠 Accueil', 'btn btn-secondary', jwAccueil));
+    if(encore) deux.appendChild(jvBouton('▶️ Encore 7 cartes', 'btn btn-primary', encore));
+    c.appendChild(deux);
+    r.appendChild(c);
+    if(et === 3){ jvBip('fete'); jvConfettis(); }
+  }
+  function jwCarte(zone, card, mode, fini){
+    if(!card) return fini(false);
+    if(card.k === 'v') return jwGeste(zone, card, mode, fini);
+    return jwDire(zone, card, mode, fini);
+  }
+
+  /* ============================================================
+     1 · J'APPRENDS — le geste, étape par étape, la première fois
+     ============================================================ */
+  /* Les étapes, d'après l'atelier : le chemin (porte, manette, capot…),
+     puis ce qu'il faut montrer ; pour des feux, les commandes et leurs
+     appuis, puis le contrôle. null : rien de placé sur cette voiture. */
+  function jwEtapesGeste(v, n){
+    if(!v || !jvPlacee(v, n)) return null;
+    var m = jvCibleVerif(n), rg = jvRegle(v, m);
+    if(rg && rg.mode === 'allumer'){
+      var l = jvAllumage(v, rg.allumage).map(function(s){
+        return { nom: (s.zone.nom || 'La commande') + (s.fois > 1 ? ' × ' + s.fois : ''), photo: s.photo, zone: s.zone };
+      });
+      var pa = jvPhotoDe(v, 'devant', rg.allumage) || jvPhotoDe(v, 'arriere', rg.allumage) || jvPhotoDe(v, 'cote', rg.allumage);
+      l.push({ nom: 'Je contrôle les feux allumés', photo: pa, zone: null });
+      return l;
+    }
+    if(rg) return [{ nom: rg.mode === 'ordi' ? 'Je dis : c’est l’ordinateur de bord qui l’affiche' : 'Je dis : il n’y en a pas sur cette voiture',
+                     photo: null, zone: null, dit: rg.dire || '' }];
+    var parts = jvZonesReponse(v, m);
+    if(!parts.length) return null;
+    var l2 = jvEtapesDuChemin(v, parts[0].photo.endroit).map(function(s){ return { nom: s.zone.nom || 'Passage', photo: s.photo, zone: s.zone }; });
+    parts.forEach(function(p){ l2.push({ nom: (parts.length > 1 ? 'Je montre ' : '') + (p.zone.nom || 'Je montre'), photo: p.photo, zone: p.zone }); });
+    return l2;
+  }
+  /* La vignette d'une étape : sa photo, centrée sur la zone */
+  function jwVignette(e){
+    if(!e || !e.photo) return '<span class="nvVide">' + (e && e.dit !== undefined ? '🗣️' : '🚗') + '</span>';
+    var u = jvLien(e.photo);
+    if(!u) return '<span class="nvVide">🚗</span>';
+    var z = e.zone;
+    var pos = z ? Math.round(z.x + z.w / 2) + '% ' + Math.round(z.y + z.h / 2) + '%' : '50% 50%';
+    return '<span class="nvVig" style="background-image:url(&quot;' + echapper(u) + '&quot;);background-position:' + pos + ';background-size:' + (z ? '260%' : 'cover') + '"></span>';
+  }
+  function jwApprendre(zone, card, v, suite){
+    var etapes = jwEtapesGeste(v, card.n);
+    var c = jvEl('div', 'card jvPop');
+    c.appendChild(jvEl('span', 'jvPart v', 'J’apprends · ' + echapper(jwNomTheme(card.theme))));
+    c.appendChild(jwBulle(card.q));
+    if(etapes){
+      c.appendChild(jvEl('div', 'jvDoux2', etapes.length > 1 ? etapes.length + ' étapes, toujours dans cet ordre.' : 'Une seule étape.'));
+      etapes.forEach(function(e, k){
+        c.appendChild(jvEl('div', 'nvPas', '<i>' + (k + 1) + '</i>' + jwVignette(e) + '<span>' + echapper(e.nom) + (e.dit ? '<small>' + echapper(e.dit) + '</small>' : '') + '</span>'));
+      });
+    }else{
+      c.appendChild(jvEl('div', 'nvBloc', '<b class="t">Ce que tu fais</b>' + echapper(card.r || 'Ton moniteur te le montre dans la voiture.')));
+    }
+    if(etapes && card.r) c.appendChild(jvEl('div', 'nvBloc dit', '<b class="t">À l’examen</b>' + echapper(card.r)));
+    c.appendChild(jvEl('div', 'jvDoux2', echapper(jwSertA(card))));
+    var b = jvBouton('J’ai compris, je le fais →', 'btn btn-primary', suite);
+    b.style.marginTop = '12px';
+    c.appendChild(b);
+    zone.appendChild(c);
+    jvDire(card.q);
+  }
+
+  /* ============================================================
+     2 · JE FAIS — sur les photos de SA voiture, une étape à la fois
+     ============================================================ */
+  function jwGeste(zone, card, mode, fini){
+    var v = jwVoiture(), vid = v ? v.id : '';
+    var faire = function(){
+      zone.innerHTML = '';
+      jwFaire(zone, card, vid, mode, fini);
+    };
+    if(mode !== 'examen' && !jwD().c[card.id]) return jwApprendre(zone, card, vid, faire);
+    faire();
+  }
+  function jwFaire(zone, card, v, mode, fini){
+    var titre = mode === 'examen' ? 'Je montre' : 'Je fais';
+    if(v && jvPlacee(v, card.n)) return jvVerifEnVrai(zone, card.n, fini, { v2: true, voiture: v, titre: titre });
+    /* Rien de placé sur sa voiture : il le fait dans sa tête, puis retourne la carte */
+    var c = jvEl('div', 'card jvPop');
+    c.appendChild(jvEl('span', 'jvPart v', titre));
+    c.appendChild(jwBulle(card.q));
+    var carte = jvEl('div', 'jvCarte');
+    carte.innerHTML = '<div class="in"><div class="f"><span>👉 Fais-le dans ta tête (ou dans la voiture), étape par étape, en disant ce que tu fais.</span><small>Puis touche la carte pour voir la réponse</small></div>' +
+      '<div class="d"><span>La réponse :</span><b></b></div></div>';
+    carte.querySelector('.d b').textContent = card.r || 'Ton moniteur te le montre dans la voiture.';
+    c.appendChild(carte);
+    var deux = jvEl('div', 'jvDeux');
+    deux.style.display = 'none';
+    var fait = false;
+    var finir = function(ok){ if(fait) return; fait = true; jvBip(ok ? 'ok' : 'ko'); setTimeout(function(){ fini(ok); }, 450); };
+    deux.appendChild(jvBouton('🔁 Je ne savais pas', 'btn btn-secondary', function(){ finir(false); }));
+    deux.appendChild(jvBouton('✅ Je savais', 'btn btn-primary', function(){ finir(true); }));
+    c.appendChild(deux);
+    carte.addEventListener('click', function(){ carte.classList.add('vu'); deux.style.display = 'flex'; });
+    zone.appendChild(c);
+  }
+  /* 💡 Ce qui s'allume, d'après ce qu'il a déjà fait (les allumages réglés
+     pour sa voiture dans l'atelier : la commande, combien d'appuis) */
+  function jwCeQuiSAllume(v, runs){
+    var al = (jvAt().reglages.allumages || {})[v] || {}, out = [];
+    if(!runs || !runs.length) return out;
+    Object.keys(al).forEach(function(a){
+      var st = jvAllumage(v, a);
+      if(st.length !== runs.length) return;
+      for(var k = 0; k < st.length; k++){
+        if(runs[k].cle !== st[k].photo.id + ':' + st[k].zone.id || runs[k].fois !== st[k].fois) return;
+      }
+      out.push(a);
+    });
+    return out;
+  }
+  function jwMontrerEffet(el, v, runs){
+    if(!runs || !runs.length){ el.style.display = 'none'; el.innerHTML = ''; return; }
+    var l = jwCeQuiSAllume(v, runs);
+    var ph = null;
+    l.some(function(a){ ph = jvPhotoDe(v, 'devant', a) || jvPhotoDe(v, 'arriere', a) || jvPhotoDe(v, 'cote', a) || jvPhotoDe(v, 'volant', a); return !!ph; });
+    el.style.display = '';
+    el.innerHTML = '<small>Ce qui s’allume</small>' + (l.length ? l.map(function(a){ return echapper(JW_ALLUMAGES[a] || a); }).join(' · ') : '🌑 Rien ne s’allume') +
+      (ph && jvLien(ph) ? '<img src="' + echapper(jvLien(ph)) + '" alt="">' : '');
+  }
+
+  /* ============================================================
+     3 · JE DIS — à voix haute (c'est écrit), ou tapé ; vérifié par les
+     mots attendus, sans IA (choix de David le 13 novembre)
+     ============================================================ */
+  var JW_VIDES = {};
+  ('les des une dans sur sous par pour pas plus moins tres tout tous toute toutes mais donc car comme avec sans leur leurs lui meme aussi bien ' +
+   'faire fait faut peut doit afin lors etre avoir sont etait cela cette ceci celui celle ceux elles ils nous vous votre notre quand ou est ont ' +
+   'son ses sur entre vers chez autre autres tres afin encore deja jamais toujours alors ainsi cest dun dune quil quelle quon ' +
+   'tel tels telle telles grace avant apres ceci votre vos cette celle doivent devez pouvez peuvent permet permettre').split(' ')
+    .forEach(function(w){ JW_VIDES[w] = 1; });
+  var JW_NOMBRES = { zero: 0, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, treize: 13,
+                     quatorze: 14, quinze: 15, seize: 16, vingt: 20, vingts: 20, trente: 30, quarante: 40, cinquante: 50, soixante: 60,
+                     cent: 100, cents: 100, mille: 1000 };
+  /* « cent cinquante » → « 150 », « quarante-cinq » → « 45 », « deux » → « 2 »
+     (pas « un » tout seul : c'est aussi un article) */
+  function jwChiffres(t){
+    var m = jwNorm(t).split(' '), out = [], k = 0;
+    while(k < m.length){
+      if(JW_NOMBRES[m[k]] === undefined){ out.push(m[k]); k++; continue; }
+      var total = 0, cur = 0;
+      while(k < m.length){
+        var w = m[k], v = JW_NOMBRES[w];
+        if(v === undefined){
+          /* « vingt et un », « quarante et un » : le « et un » du milieu */
+          if(w === 'et' && m[k + 1] === 'un' && cur >= 20){ cur += 1; k += 2; continue; }
+          if(w === 'un' && cur >= 20 && cur % 10 === 0){ cur += 1; k++; continue; }
+          break;
+        }
+        if(v === 100) cur = (cur || 1) * 100;
+        else if(v === 1000){ total += (cur || 1) * 1000; cur = 0; }
+        else if(v === 20 && cur > 1 && cur < 10) cur = cur * 20;
+        else cur += v;
+        k++;
+      }
+      out.push(String(total + cur));
+    }
+    return out.join(' ');
+  }
+  function jwRacineMot(w){ return /^\d+$/.test(w) ? w : (w.length <= 4 ? w : w.slice(0, Math.min(6, Math.max(4, w.length - 1)))); }
+  function jwMotsDe(t){
+    return jwChiffres(t).split(' ').filter(function(w){ return w && (/^\d+$/.test(w) || (w.length >= 4 && !JW_VIDES[w])); });
+  }
+  /* Les mots attendus d'une réponse : les mots qui comptent, sans doublon */
+  function jwMotsAttendus(rep){
+    var vus = {}, out = [], vrai = {};
+    /* le mot tel qu'il est écrit (accents compris), pour le lui montrer */
+    String(rep || '').split(/[\s’'`\-\/,.;:!?()«»"]+/).forEach(function(t){ var k = jwNorm(t); if(k && !vrai[k]) vrai[k] = t; });
+    jwMotsDe(rep).forEach(function(w){
+      var r = jwRacineMot(w);
+      if(vus[r]) return;
+      vus[r] = 1;
+      out.push({ mot: vrai[w] || w, racine: r });
+    });
+    return out.slice(0, 14);
+  }
+  function jwMemeMot(a, b){
+    if(a === b) return true;
+    if(/^\d+$/.test(a) || /^\d+$/.test(b)) return false;
+    return a.length >= 4 && b.length >= 4 && (a.indexOf(b) === 0 || b.indexOf(a) === 0);
+  }
+  function jwVerifier(rep, dit){
+    var att = jwMotsAttendus(rep);
+    var lus = jwMotsDe(dit).map(jwRacineMot);
+    var trouves = att.filter(function(x){ return lus.some(function(r){ return jwMemeMot(x.racine, r); }); });
+    var k = att.length;
+    var besoin = k <= 2 ? k : Math.min(5, Math.ceil(k * 0.5));
+    return { ok: k > 0 && trouves.length >= besoin, trouves: trouves, manquants: att.filter(function(x){ return trouves.indexOf(x) === -1; }),
+             besoin: besoin, total: k };
+  }
+  /* La réponse attendue, avec les mots qu'il a dits en vert */
+  function jwSurligner(rep, trouves){
+    var r = trouves.map(function(x){ return x.racine; });
+    return String(rep || '').split(/(\s+)/).map(function(m){
+      var w = jwNorm(m).split(' ')[0] || '';
+      var ok = w && r.some(function(x){ return jwMemeMot(x, jwRacineMot(w)); });
+      return ok ? '<mark>' + echapper(m) + '</mark>' : echapper(m);
+    }).join('');
+  }
+  function jwDire(zone, card, mode, fini){
+    var c = jvEl('div', 'card jvPop');
+    c.appendChild(jvEl('span', 'jvPart ' + card.k, 'Je dis · ' + (card.k === 'q' ? 'sécurité routière' : 'premiers secours')));
+    c.appendChild(jwBulle(card.q));
+    var Moteur = window.SpeechRecognition || window.webkitSpeechRecognition;
+    c.appendChild(jvEl('div', 'jvConsigne', Moteur ? 'Réponds à voix haute : ta réponse s’écrit ici. Tu peux aussi la taper.' : 'Tape ta réponse.'));
+    var champ = document.createElement('textarea');
+    champ.className = 'nvRep';
+    champ.rows = 3;
+    champ.placeholder = 'Ta réponse…';
+    champ.setAttribute('aria-label', 'Ta réponse');
+    c.appendChild(champ);
+    var etat = jvEl('div', 'jvDoux2', '');
+    etat.setAttribute('role', 'status');
+    c.appendChild(etat);
+    var outils = jvEl('div', 'jvDeux');
+    var reco = null, ecoute = false, acquis = '';
+    var arreter = function(){ ecoute = false; if(reco){ try{ reco.stop(); }catch(e){} } if(bMicro){ bMicro.textContent = '🎤 Répondre à voix haute'; bMicro.classList.remove('nvMicroOn'); } };
+    var bMicro = null;
+    if(Moteur){
+      bMicro = jvBouton('🎤 Répondre à voix haute', 'btn btn-secondary', function(){
+        if(ecoute){ arreter(); return; }
+        try{
+          reco = new Moteur();
+          reco.lang = 'fr-FR';
+          reco.continuous = true;
+          reco.interimResults = true;
+          acquis = champ.value ? champ.value + ' ' : '';
+          reco.onresult = function(ev){
+            var enCours = '';
+            for(var k = ev.resultIndex; k < ev.results.length; k++){
+              var bout = ev.results[k][0].transcript;
+              if(ev.results[k].isFinal) acquis += bout + ' ';
+              else enCours += bout;
+            }
+            champ.value = acquis + enCours;
+          };
+          reco.onerror = function(ev){
+            etat.textContent = ev.error === 'not-allowed' ? 'Le micro est refusé : tape ta réponse.' : 'Le micro s’est arrêté : reprends, ou tape ta réponse.';
+            arreter();
+          };
+          reco.onend = function(){ if(ecoute){ try{ reco.start(); }catch(e){ arreter(); } } };
+          reco.start();
+          ecoute = true;
+          bMicro.textContent = '⏹️ J’ai fini';
+          bMicro.classList.add('nvMicroOn');
+          etat.textContent = 'Je t’écoute…';
+        }catch(e){ etat.textContent = 'Le micro n’a pas démarré : tape ta réponse.'; arreter(); }
+      });
+      outils.appendChild(bMicro);
+    }
+    var bOk = jvBouton('Vérifier ma réponse', 'btn btn-primary', function(){
+      arreter();
+      var dit = champ.value.trim();
+      if(!dit){ etat.textContent = Moteur ? 'Dis ta réponse (🎤) ou tape-la d’abord.' : 'Tape ta réponse d’abord.'; return; }
+      var v = jwVerifier(card.r, dit);
+      outils.style.display = 'none';
+      champ.readOnly = true;
+      etat.textContent = '';
+      var res = jvEl('div', v.ok ? 'jvBravo' : 'nvFaux', '');
+      res.appendChild(jvEl('b', '', v.ok ? '✅ C’est bon !' : '❌ Pas encore.'));
+      if(!v.ok && v.manquants.length) res.appendChild(jvEl('div', '', 'Il manque : ' + v.manquants.slice(0, 6).map(function(x){ return '« ' + echapper(x.mot) + ' »'; }).join(', ') + '.'));
+      c.appendChild(res);
+      c.appendChild(jvEl('div', 'nvVerso', '<small>La réponse</small>' + jwSurligner(card.r, v.trouves)));
+      c.appendChild(jvEl('div', 'jvDoux2', v.ok ? 'Bien : tu as dit l’essentiel.' : 'La carte revient demain.'));
+      var b = jvBouton('Continuer ▶', 'btn btn-primary', function(){ fini(v.ok); });
+      b.style.marginTop = '10px';
+      c.appendChild(b);
+      jvBip(v.ok ? 'ok' : 'ko');
+      setTimeout(function(){ try{ b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }catch(e){} }, 150);
+    });
+    outils.appendChild(bOk);
+    c.appendChild(outils);
+    if(!card.r){
+      /* pas de réponse écrite dans la banque : on retourne la carte, et il dit lui-même */
+      champ.style.display = 'none'; outils.style.display = 'none';
+      return jwFaire(zone, card, '', mode, fini);
+    }
+    zone.appendChild(c);
+    jvDire(card.q);
+  }
+
+  /* ============================================================
+     🎲 COMME À L'EXAMEN — un numéro tiré, ses trois questions, sur 3
+     ============================================================ */
+  function jwExamen(){
+    JV.ronde = 'v2';
+    var cat = jwCatalogue();
+    var n = 1 + Math.floor(Math.random() * 100);
+    var p = cat.parN[n] || {};
+    var r = jvRacine();
+    jwTete(r, '🎲 Comme à l’examen');
+    var c = jvEl('div', 'card');
+    c.style.textAlign = 'center';
+    c.innerHTML = '<div style="color:var(--muted);font-size:13px">Les deux derniers chiffres du compteur…</div><div class="jvTirage"><span class="roule">0</span><span class="roule">0</span></div>';
+    r.appendChild(c);
+    var ch = c.querySelectorAll('.jvTirage span');
+    var tic = setInterval(function(){ Array.prototype.forEach.call(ch, function(x){ if(x.classList.contains('roule')) x.textContent = Math.floor(Math.random() * 10); }); }, 70);
+    var txt = String(n % 100).padStart(2, '0');
+    setTimeout(function(){ ch[0].classList.remove('roule'); ch[0].textContent = txt.charAt(0); }, 800);
+    setTimeout(function(){
+      clearInterval(tic);
+      ch[1].classList.remove('roule');
+      ch[1].textContent = txt.charAt(1);
+      jvBip('ok');
+      var ids = JV_PARTIES.map(function(k){ return p[k]; });
+      var notes = [], i = 0;
+      var suite = function(){
+        if(i >= 3) return jwFinExamen(n, ids, notes);
+        var r2 = jvRacine();
+        jwTete(r2, '', 3, i, notes.map(function(x){ return x ? 'f' : 'k'; }));
+        r2.appendChild(jvEl('div', 'jvDoux2', 'Question ' + n + ' · ' + ['la vérification', 'la sécurité routière', 'les premiers secours'][i]));
+        var zone = jvEl('div', '');
+        r2.appendChild(zone);
+        var id = ids[i];
+        if(!id){ notes.push(false); i++; return suite(); }
+        var card = cat.cartes[id];
+        var fin = function(ok){ jwNoter(id, ok); notes.push(ok); i++; suite(); };
+        if(card.k === 'v') jwFaire(zone, card, (jwVoiture() || {}).id || '', 'examen', fin);
+        else jwDire(zone, card, 'examen', fin);
+      };
+      setTimeout(suite, 700);
+    }, 1400);
+  }
+  function jwFinExamen(n, ids, notes){
+    var d = jwD(), note = notes.filter(Boolean).length;
+    d.ex.parties = (d.ex.parties || 0) + 1;
+    d.ex.notes.push([jvAujourdhui(), n, note]);
+    if(d.ex.notes.length > 20) d.ex.notes = d.ex.notes.slice(-20);
+    JV.d.parties++;
+    jvSauver();
+    dessinerLesOnglets();
+    var cat = jwCatalogue();
+    var r = jvRacine();
+    jwTete(r, '🎲 Comme à l’examen');
+    var c = jvEl('div', 'card jvRes');
+    c.innerHTML = '<div class="jvDoux2" style="margin:0">Question ' + n + '</div><div style="font-size:34px;font-weight:900;letter-spacing:-.02em;margin-top:4px">' + note + ' / 3</div>';
+    r.appendChild(c);
+    var l = jvEl('div', 'card');
+    var noms = ['🔎 Je montre', '🗣️ Sécurité routière', '⛑️ Premiers secours'];
+    ids.forEach(function(id, k){
+      var card = id && cat.cartes[id];
+      l.appendChild(jvEl('div', 'nvNote', '<span>' + noms[k] + (card && card.k === 'v' ? '' : '') + '</span><em style="color:' + (notes[k] ? '#2E8B14' : '#C33A12') + '">' + (notes[k] ? 1 : 0) + ' / 1</em>'));
+    });
+    if(note < 3) l.appendChild(jvEl('div', 'jvDoux2', 'Ce qui est raté revient demain dans « Continuer ».'));
+    var deux = jvEl('div', 'jvDeux');
+    deux.appendChild(jvBouton('🏠 Accueil', 'btn btn-secondary', jwAccueil));
+    deux.appendChild(jvBouton('🎲 Un autre numéro', 'btn btn-primary', jwExamen));
+    l.appendChild(deux);
+    r.appendChild(l);
+    if(note === 3){ jvBip('fete'); jvConfettis(); }
+  }
+
 
 
   ['btTheme1', 'btTheme2'].forEach(function(id){
