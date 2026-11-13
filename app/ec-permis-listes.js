@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 13:49 — v1378 */
+/* Déployé le 13/11/2026 à 08:44 — v1419 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -189,8 +189,11 @@ function ficheSuiviPermis(e){
     });
   }, 0);
 
+  /* ✅ v1418 — « Tout est OK » qui passe à coché : le message du planning validé */
+  let etaitOk = (s.toutOk === 'oui');
   bEnr.addEventListener('click', async () => {
     const g = k => document.getElementById(id + k);
+    const devientOk = !etaitOk && g('ok').checked;
     bEnr.disabled = true;
     bEnr.textContent = 'Enregistrement…';
     try{
@@ -222,6 +225,8 @@ function ficheSuiviPermis(e){
       });
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '✅ Fiche enregistrée.';
+      etaitOk = g('ok').checked;
+      if(devientOk) ouvrirMessagePlanningValide(e.eleve);
       await chargerBureau();
       /* Signal pour la fenêtre, qui se referme d'elle-même */
       f.dataset.enregistre = 'oui';
@@ -5631,3 +5636,115 @@ function memeSemaine(a, b){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-permis-listes.js'] = true;
+
+
+/* ============================================================
+   ✅ v1418 — « TON PLANNING PERMIS EST VALIDÉ »
+
+   David, le 13 novembre : « quand on met que tout est ok sur un suivi
+   permis il me faut un pop up qui envoie ce message », avec deux cases
+   pour ajouter l'une des deux phrases après « VALIDÉ » (avant le ✅),
+   un bouton pour copier et mettre sur Messenger « le temps de la
+   transition », et un bouton pour l'envoyer directement dans la
+   messagerie de l'appli.
+
+   ⚠️ LE TEXTE EST LE SIEN, MOT POUR MOT, avec son gras (les lettres
+   𝗴𝗿𝗮𝘀 de Messenger). Il s'ouvre quand « ✅ Tout est OK » PASSE à
+   coché et que la fiche est enregistrée (la place d'une session, ou la
+   fiche de préparation) — pas à chaque enregistrement d'un élève déjà
+   OK. Rien ne part tout seul : c'est le bouton qui envoie.
+   (v1419 — David : « tes groupes Facebook » devient « tes groupes de
+   travail dans ton espace élève », les groupes y sont maintenant.)
+   ============================================================ */
+const PLANNING_OK_PHRASES = [
+  { cle: 'blanc', libelle: 'En attendant le résultat de ton examen blanc',
+    gras: '𝗘𝗡 𝗔𝗧𝗧𝗘𝗡𝗗𝗔𝗡𝗧 𝗟𝗘 𝗥𝗘́𝗦𝗨𝗟𝗧𝗔𝗧 𝗗𝗘 𝗧𝗢𝗡 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖' },
+  { cle: 'reserve', libelle: 'Sous réserve d’évolution',
+    gras: '𝗦𝗢𝗨𝗦 𝗥𝗘́𝗦𝗘𝗥𝗩𝗘 𝗗\'𝗘́𝗩𝗢𝗟𝗨𝗧𝗜𝗢𝗡' }
+];
+function textePlanningValide(choix){
+  const ajout = PLANNING_OK_PHRASES.filter(p => choix && choix[p.cle]).map(p => ' ' + p.gras).join('');
+  return '✅ 𝗧𝗢𝗡 𝗣𝗟𝗔𝗡𝗡𝗜𝗡𝗚 𝗣𝗘𝗥𝗠𝗜𝗦 𝗘𝗦𝗧 𝗩𝗔𝗟𝗜𝗗𝗘́' + ajout + ' ✅\n' +
+    '📅 Tu peux voir toutes tes heures sur ton planning, depuis ton interface élève Drivup.\n' +
+    '⏳ En attendant l\'examen officiel, place des écoutes pédagogiques, révise à fond tes groupes de travail dans ton espace élève et visionne ta carte SD !';
+}
+
+function ouvrirMessagePlanningValide(eleve){
+  const nom = String(eleve || '').trim();
+  if(!nom) return;
+  const choix = {};
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 95vw);max-height:92vh;overflow-y:auto;';
+  boite.innerHTML = '<h3>✅ Planning permis validé — ' + echapper(nom) + '</h3>' +
+    '<div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      'Ajoute une phrase si besoin, puis envoie-le dans sa messagerie ou copie-le pour Messenger.</div>';
+
+  PLANNING_OK_PHRASES.forEach(p => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
+      'color:var(--cream);margin-bottom:10px;font-weight:400;cursor:pointer;';
+    const c = document.createElement('input');
+    c.type = 'checkbox';
+    c.style.cssText = 'width:19px;height:19px;flex:none;';
+    c.addEventListener('change', () => { choix[p.cle] = c.checked; majApercu(); });
+    l.appendChild(c);
+    l.appendChild(document.createTextNode('Ajouter « ' + p.libelle + ' »'));
+    boite.appendChild(l);
+  });
+
+  const apercu = document.createElement('div');
+  apercu.style.cssText = 'white-space:pre-wrap;font-size:14px;line-height:1.6;padding:12px 13px;margin:6px 0 14px;' +
+    'border:1px solid var(--line);border-radius:12px;background:var(--navy-deep);color:var(--cream);overflow-wrap:anywhere;';
+  boite.appendChild(apercu);
+  const majApercu = () => { apercu.textContent = textePlanningValide(choix); };
+  majApercu();
+
+  const etat = document.createElement('div');
+  etat.style.cssText = 'font-size:13px;line-height:1.5;min-height:0;margin:-4px 0 10px;';
+  boite.appendChild(etat);
+
+  const bEnv = document.createElement('button');
+  bEnv.className = 'btn btn-primary';
+  bEnv.textContent = '💬 Envoyer dans sa messagerie';
+  bEnv.addEventListener('click', async () => {
+    bEnv.disabled = true;
+    bEnv.textContent = 'Envoi…';
+    try{
+      await appelPrep({ action: 'messageBureauEleve', eleve: nom,
+                        texte: textePlanningValide(choix), motif: 'planning-ok' });
+      bEnv.textContent = '✅ Envoyé dans sa messagerie';
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = 'Parti dans sa messagerie de l’appli, signé de ton nom.';
+    }catch(err){
+      const t = String((err && err.message) || err || '');
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = '⚠️ ' + (/messagerie|App Évolution|Messenger suffit/i.test(t)
+        ? 'Pas d’espace élève ouvert pour ' + nom + ' : copie-le pour Messenger.'
+        : 'Pas parti (' + t + ') : réessaie, ou copie-le pour Messenger.');
+      bEnv.disabled = false;
+      bEnv.textContent = '💬 Envoyer dans sa messagerie';
+    }
+  });
+  boite.appendChild(bEnv);
+
+  const bCop = document.createElement('button');
+  bCop.className = 'btn btn-secondary';
+  bCop.style.marginTop = '8px';
+  bCop.textContent = '📋 Copier pour Messenger';
+  bCop.addEventListener('click', () => copierTexte(textePlanningValide(choix), bCop));
+  boite.appendChild(bCop);
+
+  const bFermer = document.createElement('button');
+  bFermer.className = 'btn btn-secondary';
+  bFermer.style.marginTop = '8px';
+  bFermer.textContent = 'Fermer';
+  bFermer.addEventListener('click', () => fermerFond(fond));
+  boite.appendChild(bFermer);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
