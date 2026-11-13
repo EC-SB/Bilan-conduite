@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:03 — v1426 */
+/* Déployé le 13/11/2026 à 14:22 — v1427 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -231,12 +231,18 @@ function blocSeanceALancer(){
   const z = document.createElement('div');
   z.style.cssText = 'margin-top:10px;font-size:13px;line-height:1.6;';
 
+  /* 📝 v1427 — d'abord les cours de code du jour lus dans Drivup */
+  z.appendChild(blocDrivupALancerEtg());
+  const general = document.createElement('div');
+  general.className = 'cdGeneral';
+  z.appendChild(general);
+
   if(jamais.length){
-    z.innerHTML = '<strong>Personne n\'a encore fait :</strong><br>' +
+    general.innerHTML = '<strong>Personne n\'a encore fait :</strong><br>' +
       jamais.map(n => 'séance ' + n).join(' · ');
   }else{
     const t = triees.slice(0, 3);
-    z.innerHTML = '<strong>Les moins vues :</strong><br>' +
+    general.innerHTML = '<strong>Les moins vues :</strong><br>' +
       t.map(x => 'séance ' + x.seance + ' — ' + x.reste +
                  ' élève(s) ne l\'ont pas faite').join('<br>');
   }
@@ -407,19 +413,19 @@ function dessinerGrilleEtg(){
           'color:' + (c.texte || 'inherit') + ';' +
           'font-variant-numeric:tabular-nums;';
         /* Le nombre de fautes : c'est ce qui décide de la couleur */
-        td.textContent = r.fautes + (r.corrige ? '*' : '') + (r.app && !r.fini ? '…' : '');
+        td.textContent = r.fautes + (r.corrige ? '*' : '') + (r.app && !r.fini && r.ou !== 'ardoise' ? '…' : '');
         td.title = 'Séance ' + n + ' — ' + r.score + '/' + r.total +
           ' · ' + r.fautes + ' faute(s)' +
           (r.date ? ' · ' + r.date.split('-').reverse().join('/') : '') +
           (r.corrige ? ' · saisi à la main' : '') +
-          (r.app ? ' · ' + (r.ou === 'visio' ? '🎥 répondu en visio' : '📱 répondu sur son espace') +
+          (r.app ? ' · ' + (r.ou === 'visio' ? '🎥 répondu en visio' : r.ou === 'ardoise' ? '✍️ ardoise saisie au bureau' : '📱 répondu sur son espace') +
                    (r.fini ? '' : ' (pas fini)') + '\n' +
                    (r.series || []).map(x => x.nom + ' : ' + (x.fini ? x.fautes + ' faute(s) sur ' + x.nb : 'pas finie')).join('\n')
                  : (enVisio ? ' · 🎥 suivie en visio' + jourVisio : '')) +
           '. Appuie pour corriger.';
         if(r.app){
           const sa = document.createElement('sup');
-          sa.textContent = r.ou === 'visio' ? '🎥' : '📱';
+          sa.textContent = r.ou === 'visio' ? '🎥' : r.ou === 'ardoise' ? '✍️' : '📱';
           sa.style.cssText = 'font-size:8px;margin-left:1px;';
           td.appendChild(sa);
         }else if(enVisio){
@@ -457,7 +463,7 @@ function dessinerGrilleEtg(){
     'Appuie sur une case pour corriger un score, ou en saisir un ' +
     'qui ne s\'est pas enregistré. Une étoile signale une saisie ' +
     'à la main.<br>Une séance repassée : c\'est la plus récente qui compte.' +
-    '<br>📱 répondu sur son espace, en salle · 🎥 répondu en visio (ou, sans chiffre, présent en visio) · … pas encore fini · ' +
+    '<br>📱 répondu sur son espace, en salle · 🎥 répondu en visio (ou, sans chiffre, présent en visio) · ✍️ ardoise saisie au bureau · … pas encore fini · ' +
     'sans signe : Google Form.';
   zone.appendChild(aide);
 }
@@ -652,24 +658,29 @@ const LETTRES_ETG = 'ABCDEF';
 
 /* Un résultat de l'appli, à la façon d'une ligne de formulaire */
 function lignesAppEtg(liste){
-  return (liste || []).filter(x => (x.series || []).some(s => s.fini)).map(x => {
+  return (liste || []).filter(x => x.ou === 'ardoise' || (x.series || []).some(s => s.fini)).map(x => {
     const fautes = Number(x.fautes || 0), total = Number(x.total || 0);
     return { seance: Number(x.seance), eleve: x.eleve, score: Math.max(0, total - fautes), total: total, fautes: fautes,
              couleur: fautes <= 3 ? 'vert' : fautes <= 6 ? 'orange' : 'rouge', date: x.jour || '', app: true,
-             ou: x.ou, fini: !!x.fini, series: x.series || [] };
+             ou: x.ou, fini: !!x.fini || x.ou === 'ardoise', series: x.series || [] };
   });
 }
 
 function barreCorrigesEtg(){
   const b = document.createElement('div');
-  b.style.cssText = 'display:flex;gap:8px;margin:0 0 12px;';
-  const bt = document.createElement('button');
-  bt.type = 'button';
-  bt.className = 'btn btn-secondary';
-  bt.style.cssText = 'margin:0;flex:1;padding:11px;font-size:13.5px;';
-  bt.textContent = '🔑 Les corrigés des séances';
-  bt.addEventListener('click', () => ouvrirCorrigesEtg());
-  b.appendChild(bt);
+  b.className = 'cdBarre';
+  const bt = (texte, prim, faire) => {
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'btn ' + (prim ? 'btn-primary' : 'btn-secondary');
+    x.textContent = texte;
+    x.addEventListener('click', faire);
+    b.appendChild(x);
+  };
+  /* 📝 v1427 — les ardoises (saisir, c'est modifier), puis les QR codes */
+  if(peutModifier('code')) bt('✍️ Saisir des ardoises', true, () => ouvrirArdoisesEtg());
+  bt('🔑 Les corrigés', false, () => ouvrirCorrigesEtg());
+  bt('🔳 Les QR codes', false, () => ouvrirQrEtg());
   return b;
 }
 
@@ -864,6 +875,318 @@ function dessinerImportEtg(E){
   });
 }
 
+
+/* ============================================================
+   📝 v1427 — LIVRAISON 2 : 🎯 D'APRÈS DRIVUP, ✍️ LES ARDOISES,
+   🔳 LES QR CODES, L'ONGLET 🎓 CODE DU DOSSIER
+   ============================================================ */
+
+/* Ce que chaque élève a déjà fait (toutes périodes), par ses mots */
+function seancesFaitesParMotsEtg(){
+  const m = {};
+  resultatsEtg.forEach(r => {
+    const k = motsEleveEtg(r.eleve);
+    if(!k) return;
+    (m[k] = m[k] || {})[r.seance] = true;
+  });
+  return m;
+}
+/* 🎯 Pour un groupe : les séances qu'aucun n'a vues (dans l'ordre), sinon les moins vues */
+function seancesPourLeGroupeEtg(noms){
+  const faites = seancesFaitesParMotsEtg();
+  const comptes = [];
+  for(let n = 1; n <= NB_SEANCES; n++){
+    const vu = noms.filter(x => (faites[motsEleveEtg(x)] || {})[n]).length;
+    comptes.push({ n: n, vu: vu });
+  }
+  const libres = comptes.filter(c => !c.vu).map(c => c.n);
+  if(libres.length) return { libres: libres, moins: [] };
+  return { libres: [], moins: comptes.slice().sort((a, b) => a.vu - b.vu || a.n - b.n).slice(0, 3) };
+}
+/* La partie Drivup du bloc « 🎯 Quelle séance lancer ? » (remplie à part) */
+function blocDrivupALancerEtg(){
+  const z = document.createElement('div');
+  z.className = 'cdALancer';
+  z.innerHTML = '<div class="cdAide">⏳ Les cours de code du jour dans Drivup…</div>';
+  appelPrep({ action: 'codeAVenir' }).then(r => {
+    const cr = (r && r.creneaux) || [];
+    if(!cr.length){
+      z.innerHTML = '<div class="cdAide">📅 Aucun cours de code réservé aujourd’hui dans Drivup' +
+        (r && r.lu ? ' (planning lu le ' + echapEtg(r.lu) + ')' : ' — relis le planning avec le favori 📥 pour les voir ici') + '.</div>';
+      return;
+    }
+    z.innerHTML = cr.map(c => {
+      const g = seancesPourLeGroupeEtg(c.eleves);
+      const nb = c.eleves.length;
+      const quoi = c.genre === 'visio' ? '🎥 Visio' : '🏫 ETG en salle' + (c.agence ? ' · ' + echapEtg(c.agence) : '');
+      let cons;
+      if(g.libres.length){
+        cons = '<span class="num">' + g.libres[0] + '</span><span><strong>Séance ' + g.libres[0] + '</strong> : ' +
+          (nb > 1 ? 'aucun des ' + nb + ' ne l’a vue' : 'pas encore vue') + '</span>' +
+          (g.libres.length > 1 ? '<span class="aussi">aussi : ' + g.libres.slice(1, 6).join(' · ') + '</span>' : '');
+      }else{
+        cons = '<span class="num">' + g.moins[0].n + '</span><span><strong>Séance ' + g.moins[0].n + '</strong> : la moins vue (' +
+          g.moins[0].vu + ' sur ' + nb + ')</span><span class="aussi">ensuite : ' + g.moins.slice(1).map(x => x.n).join(' · ') + '</span>';
+      }
+      return '<div class="slot"><div class="h">' + quoi + ' · aujourd’hui ' + echapEtg(String(c.debut).replace(':', 'h')) + '</div>' +
+        '<div class="qui">📅 Drivup : ' + nb + ' réservé' + (nb > 1 ? 's' : '') + ' — ' + c.eleves.map(echapEtg).join(' · ') + '</div>' +
+        '<div class="cons">' + cons + '</div></div>';
+    }).join('') + '<div class="cdAide">Tu annonces la séance : chaque élève l’ouvre sur son espace (ou scanne son QR code). Rien à lancer ici.</div>';
+  }).catch(() => { z.innerHTML = ''; });
+  return z;
+}
+
+/* ---------- ✍️ LES ARDOISES ---------- */
+async function ouvrirArdoisesEtg(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal cgEtg';
+  boite.style.cssText = 'max-width:min(500px,96vw);max-height:90vh;overflow-y:auto;';
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const E = { seance: 0, jour: todayLocal(), lignes: [], creneaux: [], ajout: '' };
+  boite.innerHTML = '<h3>✍️ Les ardoises de la séance</h3>' + htmlAttente('Les réservés du jour…');
+  try{
+    const [r, k] = await Promise.all([appelPrep({ action: 'codeAVenir' }), appelPrep({ action: 'codeCorriges' }).catch(() => null)]);
+    E.creneaux = ((r && r.creneaux) || []).filter(c => c.genre === 'salle');
+    /* le total d'une séance : ses questions dans l'appli, sinon le barème */
+    if(k && k.corriges){ corrigesEtg = {}; k.corriges.forEach(c => { corrigesEtg[c.seance] = c; }); }
+  }catch(e){ E.creneaux = []; }
+  /* Les réservés du premier créneau de salle, déjà là */
+  if(E.creneaux.length){
+    E.creneau = 0;
+    E.lignes = E.creneaux[0].eleves.map(n => ({ nom: n, fautes: null }));
+    const g = seancesPourLeGroupeEtg(E.creneaux[0].eleves);
+    E.seance = g.libres[0] || (g.moins[0] && g.moins[0].n) || 0;
+  }
+  dessinerArdoisesEtg(E, fond, boite);
+}
+function totalDeSeanceEtg(n){
+  const c = corrigesEtg[n];
+  if(c && c.donnees && c.donnees.series && c.donnees.series.length) return c.donnees.series.reduce((t, s) => t + s.q.length, 0);
+  return baremesEtg[n] || 10;
+}
+function dessinerArdoisesEtg(E, fond, boite){
+  const n = E.seance;
+  const total = n ? totalDeSeanceEtg(n) : 0;
+  const faites = seancesFaitesParMotsEtg();
+  const noms = (typeof tousLesElevesConnus === 'function') ? tousLesElevesConnus() : [];
+  const pretes = E.lignes.filter(l => l.fautes !== null && l.fautes !== '').length;
+  boite.innerHTML = '<h3>✍️ Les ardoises de la séance</h3>' +
+    '<div class="cgAide">La séance</div><div class="cgPuces">' + Array.from({ length: 12 }, (_, i) =>
+      '<button type="button" data-ar="seance" data-n="' + (i + 1) + '" class="' + (i + 1 === n ? 'on' : '') + '">' + (i + 1) + '</button>').join('') + '</div>' +
+    (E.creneaux.length > 1 ? '<div class="cgSeries">' + E.creneaux.map((c, i) =>
+      '<button type="button" data-ar="creneau" data-i="' + i + '" class="' + (i === E.creneau ? 'on' : '') + '">' + echapEtg(String(c.debut).replace(':', 'h')) +
+      (c.agence ? ' · ' + echapEtg(c.agence) : '') + ' · ' + c.eleves.length + '</button>').join('') + '</div>' : '') +
+    '<label class="cgNom">Date<input type="date" id="arJour" value="' + echapEtg(E.jour) + '"></label>' +
+    (n ? '<div class="cgAide">Séance ' + n + ' · sur ' + total + '. Le nombre de <b>fautes</b> de chacun' +
+      (E.creneaux.length ? ' (les réservés Drivup sont déjà là)' : '') + ' :</div>' : '<div class="cgAide">Choisis d’abord la séance.</div>') +
+    E.lignes.map((l, i) => {
+      const deja = n && (faites[motsEleveEtg(l.nom)] || {})[n];
+      return '<div class="arL' + (l.fautes === null ? ' vide' : '') + '"><span class="n">' + echapEtg(l.nom) +
+        (deja ? '<small>a déjà un résultat pour la ' + n + ' : il sera remplacé</small>' : '') + '</span>' +
+        '<button type="button" data-ar="moins" data-i="' + i + '">−</button><b>' + (l.fautes === null ? '—' : l.fautes) + '</b>' +
+        '<button type="button" data-ar="plus" data-i="' + i + '">+</button>' +
+        '<button type="button" class="x" data-ar="retirer" data-i="' + i + '" title="Retirer">✕</button></div>';
+    }).join('') +
+    '<div class="arAjout"><input type="text" id="arAjout" list="arNoms" placeholder="＋ Ajouter un élève (nom de sa fiche)" value="' + echapEtg(E.ajout) + '">' +
+      '<datalist id="arNoms">' + noms.slice(0, 3000).map(x => '<option value="' + echapEtg(x) + '">').join('') + '</datalist>' +
+      '<button type="button" class="btn btn-secondary" data-ar="ajouter">Ajouter</button></div>' +
+    '<div class="cgAide">« — » : pas d’ardoise (absent), il n’est pas enregistré.</div>' +
+    '<div class="duo" style="margin-top:12px"><button type="button" class="btn btn-secondary" data-ar="fermer">Annuler</button>' +
+    '<button type="button" class="btn btn-primary" data-ar="garder"' + (n && pretes ? '' : ' disabled') + '>💾 Enregistrer ' + pretes + ' ardoise' + (pretes > 1 ? 's' : '') + '</button></div>';
+  const ch = boite.querySelector('#arAjout');
+  ch.addEventListener('input', () => { E.ajout = ch.value; });
+  ch.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ ev.preventDefault(); boite.querySelector('[data-ar="ajouter"]').click(); } });
+  boite.querySelector('#arJour').addEventListener('change', ev => { E.jour = ev.target.value || todayLocal(); });
+  boite.querySelectorAll('[data-ar]').forEach(b => b.addEventListener('click', async () => {
+    const a = b.dataset.ar, i = Number(b.dataset.i);
+    if(a === 'fermer'){ fermerFond(fond); return; }
+    if(a === 'seance') E.seance = Number(b.dataset.n);
+    else if(a === 'creneau'){
+      E.creneau = i;
+      E.lignes = E.creneaux[i].eleves.map(x => ({ nom: x, fautes: null }));
+      const g = seancesPourLeGroupeEtg(E.creneaux[i].eleves);
+      E.seance = g.libres[0] || (g.moins[0] && g.moins[0].n) || E.seance;
+    }
+    else if(a === 'plus'){ const l = E.lignes[i]; l.fautes = l.fautes === null ? 0 : Math.min(totalDeSeanceEtg(E.seance || 1), l.fautes + 1); }
+    else if(a === 'moins'){ const l = E.lignes[i]; l.fautes = (l.fautes === null || l.fautes === 0) ? null : l.fautes - 1; }
+    else if(a === 'retirer') E.lignes.splice(i, 1);
+    else if(a === 'ajouter'){
+      const v = String(E.ajout || '').trim();
+      if(!v) return;
+      const off = (typeof visioOfficiel === 'function' && visioOfficiel(v)) || v;
+      if(!E.lignes.some(l => motsEleveEtg(l.nom) === motsEleveEtg(off))) E.lignes.push({ nom: off, fautes: null });
+      E.ajout = '';
+    }
+    else if(a === 'garder'){
+      const eleves = E.lignes.filter(l => l.fautes !== null).map(l => ({ nom: l.nom, fautes: l.fautes }));
+      if(!E.seance || !eleves.length) return;
+      b.disabled = true;
+      try{
+        const r = await appelPrep({ action: 'codeArdoises', seance: E.seance, jour: E.jour, total: totalDeSeanceEtg(E.seance), eleves: eleves });
+        fermerFond(fond);
+        showToast('✍️ ' + ((r && r.faits) || []).length + ' ardoise(s) enregistrée(s) ✅');
+        if($('codeSousZone')) afficherCodeSalle();
+      }catch(e){ showToast('Impossible : ' + e.message); b.disabled = false; }
+      return;
+    }
+    dessinerArdoisesEtg(E, fond, boite);
+  }));
+}
+
+/* ---------- 🔳 LES QR CODES ----------
+   David : « dans un cercle vert avec le numéro de la séance en haut ».
+   Le QR ouvre son espace sur la séance : « …/#seance=5 ». */
+/* l'adresse de l'espace élève (CONFIG.LIEN_ELEVE, la même que les mails) */
+const ADRESSE_SEANCE_ETG = ((typeof CONFIG !== 'undefined' && CONFIG.LIEN_ELEVE) || 'https://eleve.evolutionconduites.fr/') + '#seance=';
+let qrLibEtg = null;
+function chargerQrEtg(){
+  if(typeof qrcode === 'function') return Promise.resolve();
+  if(qrLibEtg) return qrLibEtg;
+  qrLibEtg = new Promise((ok, ko) => {
+    const s = document.createElement('script');
+    s.src = 'app/qrcode-lib.js?v=' + (typeof VERSION_MODULES !== 'undefined' ? VERSION_MODULES : '1');
+    s.onload = () => ok();
+    s.onerror = () => { qrLibEtg = null; ko(new Error('Le générateur de QR codes ne s’est pas chargé.')); };
+    document.head.appendChild(s);
+  });
+  return qrLibEtg;
+}
+/* Le rond vert : le numéro en haut, le QR dessous (SVG, net à toutes les tailles) */
+function qrSeanceSvgEtg(n){
+  const q = qrcode(0, 'M');
+  q.addData(ADRESSE_SEANCE_ETG + n);
+  q.make();
+  const m = q.getModuleCount();
+  const R = 100, cote = 104, x0 = R - cote / 2, y0 = 74, pas = cote / (m + 2);
+  let d = '';
+  for(let r = 0; r < m; r++) for(let c = 0; c < m; c++){
+    if(q.isDark(r, c)) d += 'M' + (x0 + (c + 1) * pas).toFixed(3) + ' ' + (y0 + (r + 1) * pas).toFixed(3) + 'h' + pas.toFixed(3) + 'v' + pas.toFixed(3) + 'h-' + pas.toFixed(3) + 'z';
+  }
+  return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QR code de la séance ' + n + '">' +
+    '<circle cx="100" cy="100" r="98" fill="#B6FF0E" stroke="#0B0B0B" stroke-width="2"/>' +
+    '<text x="100" y="34" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" fill="#0B0B0B" letter-spacing="2">SÉANCE</text>' +
+    '<text x="100" y="66" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="900" fill="#0B0B0B">' + n + '</text>' +
+    '<rect x="' + x0 + '" y="' + y0 + '" width="' + cote + '" height="' + cote + '" rx="6" fill="#FFFFFF"/>' +
+    '<path d="' + d + '" fill="#0B0B0B"/></svg>';
+}
+async function ouvrirQrEtg(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal cgEtg';
+  boite.style.cssText = 'max-width:min(640px,96vw);max-height:90vh;overflow-y:auto;';
+  boite.innerHTML = '<h3>🔳 Les QR codes des séances</h3>' + htmlAttente('Les QR codes se préparent…');
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  try{ await chargerQrEtg(); }
+  catch(e){ boite.innerHTML = '<h3>🔳 Les QR codes des séances</h3><div class="empty">⚠️ ' + echapEtg(e.message) + '</div>'; return; }
+  boite.innerHTML = '<h3>🔳 Les QR codes des séances</h3>' +
+    '<div class="cgAide">À imprimer pour l’entrée de la salle. Scanné, il ouvre son espace directement sur la séance (après son code s’il n’est pas connecté sur ce téléphone). Un élève sans la case « 🎓 » voit « demande au bureau ».</div>' +
+    '<div class="qrGrille">' + Array.from({ length: 12 }, (_, i) => '<div class="qrUn">' + qrSeanceSvgEtg(i + 1) + '</div>').join('') + '</div>' +
+    '<div class="cgBas"><button type="button" class="btn btn-primary" data-qr="planche">🖨️ Imprimer les 12 sur une page</button>' +
+    '<button type="button" class="btn btn-secondary" data-qr="grands">🖨️ Une séance par page (A4)</button>' +
+    '<button type="button" class="btn btn-secondary" data-qr="fermer">Fermer</button></div>';
+  boite.querySelector('[data-qr="fermer"]').addEventListener('click', () => fermerFond(fond));
+  boite.querySelector('[data-qr="planche"]').addEventListener('click', () => imprimerQrEtg(false));
+  boite.querySelector('[data-qr="grands"]').addEventListener('click', () => imprimerQrEtg(true));
+}
+function imprimerQrEtg(grands){
+  const w = window.open('', '_blank');
+  if(!w){ showToast('⚠️ Autorise les fenêtres pour imprimer.'); return; }
+  const un = n => grands
+    ? '<div class="page grand"><div class="rond">' + qrSeanceSvgEtg(n) + '</div><p class="t">Séance ' + n + '</p><p>Scanne-moi avant d’entrer en salle : ta séance s’ouvre dans ton espace.</p><p class="ec">Évolution Conduites</p></div>'
+    : '<div class="case"><div class="rond">' + qrSeanceSvgEtg(n) + '</div></div>';
+  w.document.open();
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>QR codes des séances — Évolution Conduites</title><style>' +
+    '@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#0B0B0B}' +
+    '.page{width:210mm;height:297mm;box-sizing:border-box;break-after:page;page-break-after:always;overflow:hidden}' +
+    '.page:last-child{break-after:auto;page-break-after:auto}' +
+    '.planche{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);padding:12mm 10mm;gap:6mm}' +
+    '.case{display:flex;align-items:center;justify-content:center}.case .rond{width:60mm;height:60mm}' +
+    '.grand{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20mm}' +
+    '.grand .rond{width:165mm;height:165mm}.grand .t{font-size:30pt;font-weight:900;margin:10mm 0 3mm}.grand p{font-size:15pt;margin:0 0 3mm}.grand .ec{font-size:12pt;color:#555;margin-top:8mm}' +
+    'svg{width:100%;height:100%;display:block}' +
+    '@media screen{body{background:#888}.page{margin:10px auto;box-shadow:0 2px 12px rgba(0,0,0,.4);background:#fff}}' +
+    '</style></head><body>' +
+    (grands ? Array.from({ length: 12 }, (_, i) => un(i + 1)).join('')
+            : '<div class="page planche">' + Array.from({ length: 12 }, (_, i) => un(i + 1)).join('') + '</div>') +
+    '<script>setTimeout(function(){window.focus();window.print();},350);<\/script></body></html>');
+  w.document.close();
+}
+
+/* ---------- 🎓 L'ONGLET CODE DU DOSSIER ----------
+   David : « il faut que pour chaque élève, dans son dossier, on ait son
+   suivi individuel » — dans un onglet à part. */
+async function ongletCodeEleve(corps, nom){
+  corps.innerHTML = htmlAttente('Ses séances de code…');
+  let app = [], forms = [];
+  try{
+    const [ra, rf] = await Promise.all([
+      appelPrep({ action: 'codeEleve', eleve: nom }),
+      (resultatsEtg && resultatsEtg.length) ? Promise.resolve(null) : appelPrep({ action: 'seancesEtg' }).catch(() => null)
+    ]);
+    app = (ra && ra.resultats) || [];
+    if(rf && rf.resultats){ resultatsEtg = rf.resultats.concat(resultatsEtg.filter(r => r.app)); baremesEtg = rf.baremes || baremesEtg; }
+    const m = motsEleveEtg(nom);
+    forms = resultatsEtg.filter(r => !r.app && motsEleveEtg(r.eleve) === m);
+  }catch(e){
+    corps.innerHTML = '<div class="empty">⚠️ ' + echapEtg(e.message || String(e)) + '</div>';
+    return;
+  }
+  /* Par séance, la plus récente (comme la grille) */
+  const par = {};
+  const rang = x => x.corrige ? 2 : x.app ? 1 : 0;
+  const tout = forms.map(r => Object.assign({}, r)).concat(app.filter(x => x.ou === 'ardoise' || (x.series || []).some(s => s.fini)).map(x => ({
+    seance: x.seance, eleve: x.eleve, fautes: x.fautes, total: x.total, date: x.jour, app: true, ou: x.ou, fini: x.fini, series: x.series, par: x.par })));
+  tout.forEach(r => {
+    const a = par[r.seance];
+    if(!a || String(r.date || '') > String(a.date || '') || (String(r.date || '') === String(a.date || '') && rang(r) >= rang(a))) par[r.seance] = r;
+  });
+  const liste = Object.keys(par).map(k => par[k]);
+  const finies = liste.filter(r => !r.app || r.fini || r.ou === 'ardoise');
+  const fautes = finies.reduce((t, r) => t + Number(r.fautes || 0), 0);
+  const der = liste.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
+  const ou = r => r.ou === 'visio' ? '🎥 visio' : r.ou === 'salle' ? '📱 en salle' : r.ou === 'ardoise' ? '✍️ ardoise' : r.corrige ? '✍️ saisi au bureau' : '📄 Google Form';
+  const jourFr = d => d ? String(d).split('-').reverse().join('/') : '';
+  const coul = f => (COULEURS_ETG[f <= 3 ? 'vert' : f <= 6 ? 'orange' : 'rouge'] || {});
+  corps.innerHTML = '';
+  const z = document.createElement('div');
+  z.className = 'dsCode';
+  z.innerHTML =
+    '<div class="l"><div><b>' + finies.length + ' / 12</b><small>séances faites</small></div>' +
+    '<div><b>' + fautes + '</b><small>fautes en tout</small></div>' +
+    '<div><b>' + (finies.length ? (Math.round(fautes / finies.length * 10) / 10).toString().replace('.', ',') : '—') + '</b><small>fautes en moyenne</small></div>' +
+    (der ? '<div><b>' + jourFr(der.date) + '</b><small>dernière : séance ' + der.seance + ' · ' + ou(der) + '</small></div>' : '') + '</div>' +
+    '<div class="rang">' + Array.from({ length: 12 }, (_, i) => {
+      const r = par[i + 1];
+      if(!r) return '<span>·<small>' + (i + 1) + '</small></span>';
+      const c = coul(Number(r.fautes || 0));
+      return '<span style="background:' + (c.fond || 'transparent') + ';color:' + (c.texte || 'inherit') + '">' + r.fautes + (r.app && !r.fini && r.ou !== 'ardoise' ? '…' : '') + '<small>' + (i + 1) + '</small></span>';
+    }).join('') + '</div>' +
+    (liste.length ? '<table class="dsT"><tr><th>Séance</th><th>Quand</th><th>Où</th><th>Par série</th><th>Fautes</th></tr>' +
+      liste.sort((a, b) => b.seance - a.seance).map(r =>
+        '<tr data-s="' + r.seance + '"' + ((r.series || []).some(s => s.details) ? ' class="ouvrable"' : '') + '><td>' + r.seance + '</td><td>' + jourFr(r.date) + '</td><td>' + ou(r) +
+        (r.par ? '<small> · ' + echapEtg(r.par) + '</small>' : '') + '</td><td>' +
+        ((r.series || []).length ? r.series.map(s => echapEtg(s.nom) + ' : ' + (s.fini ? s.fautes : '…')).join(' · ') : '—') + '</td>' +
+        '<td class="f">' + r.fautes + ' / ' + (r.total || baremesEtg[r.seance] || 10) + (r.app && !r.fini && r.ou !== 'ardoise' ? ' (pas fini)' : '') + '</td></tr>').join('') + '</table>' +
+      '<div class="cdAide">Un appui sur une séance faite dans l’appli montre ses réponses, question par question. Une séance refaite repart de zéro : la nouvelle remplace l’ancienne.</div>'
+      : '<div class="empty">Aucune séance de code pour l’instant.</div>');
+  corps.appendChild(z);
+  z.querySelectorAll('tr.ouvrable').forEach(tr => tr.addEventListener('click', () => {
+    const r = par[Number(tr.dataset.s)];
+    const suivant = tr.nextElementSibling;
+    if(suivant && suivant.classList.contains('detail')){ suivant.remove(); return; }
+    const d = document.createElement('tr');
+    d.className = 'detail';
+    d.innerHTML = '<td colspan="5">' + r.series.filter(s => s.details).map(s => '<div class="dsS"><b>' + echapEtg(s.nom) + '</b> · ' + s.fautes + ' faute' + (s.fautes > 1 ? 's' : '') + ' sur ' + s.nb +
+      '<div class="dsQ">' + s.details.map(q => '<span class="' + (q.juste ? 'ok' : 'ko') + '" title="' + (q.juste ? 'Juste' : echapEtg(q.pourquoi)) + '">Q' + q.q + ' ' +
+        (q.mis || '—') + (q.juste ? ' ✓' : ' ✗ ' + q.bonne) + '</span>').join('') + '</div></div>').join('') + '</td>';
+    tr.after(d);
+  }));
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
