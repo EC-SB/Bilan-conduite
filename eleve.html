@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 13/11/2026 à 10:14 — v1420 -->
+<!-- Déployé le 13/11/2026 à 10:57 — v1421 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -13573,6 +13573,20 @@
   }
   function jvNbPlacees(v){ var c = 0; for(var n = 1; n <= 100; n++) if(jvPlacee(v, n)) c++; return c; }
   function jvLien(p){ return p && p.lien ? (p.lien.charAt(0) === '/' ? RELAIS + p.lien : p.lien) : ''; }
+  /* 🧰 v1421 — LES ÉTAPES D'UN GESTE, RÉGLÉES DANS L'ATELIER (V2). David
+     corrige, geste par geste, ce que le chemin de l'endroit ne dit pas
+     (une étape en plus, une autre dans l'ordre) : reglages.etapes[voiture]
+     [question] = les passages et commandes à toucher avant de montrer. Une
+     liste vide veut dire « aucune étape avant ». Sans réglage : le chemin. */
+  function jwCheminPour(v, m, endroit){
+    var o = ((jvAt().reglages.etapes || {})[v] || {})[String(m)];
+    if(!Array.isArray(o)) return jvEtapesDuChemin(v, endroit);
+    return o.map(function(s){
+      var p = jvPhotoParId(s.photo);
+      var z = p && p.zones.filter(function(x){ return x.id === s.zone; })[0];
+      return (p && z) ? { photo: p, zone: z } : null;
+    }).filter(Boolean);
+  }
   function jvEtapesDuChemin(v, endroit){
     var c = (jvAt().reglages.chemins[v] || {})[endroit] || [];
     return c.map(function(s){
@@ -13602,7 +13616,8 @@
     if(regle){
       depart = jvPhotoDe(v, regle.mode === 'ordi' ? 'voyants' : 'volant') || jvPhotoDe(v, 'volant') || jvPhotosDe(v)[0];
     }else{
-      etapes = jvEtapesDuChemin(v, rep.photo.endroit);
+      /* 🧰 v1421 — V2 : les étapes réglées pour CE geste dans l'atelier, sinon le chemin de l'endroit */
+      etapes = opts.v2 ? jwCheminPour(v, m, rep.photo.endroit) : jvEtapesDuChemin(v, rep.photo.endroit);
       etapes.push({ photo: rep.photo, zone: rep.zone, fin: true });
       depart = etapes[0].photo;
     }
@@ -14842,7 +14857,7 @@
                      photo: null, zone: null, dit: rg.dire || '' }];
     var parts = jvZonesReponse(v, m);
     if(!parts.length) return null;
-    var l2 = jvEtapesDuChemin(v, parts[0].photo.endroit).map(function(s){ return { nom: s.zone.nom || 'Passage', photo: s.photo, zone: s.zone }; });
+    var l2 = jwCheminPour(v, m, parts[0].photo.endroit).map(function(s){ return { nom: s.zone.nom || 'Passage', photo: s.photo, zone: s.zone }; });
     parts.forEach(function(p){ l2.push({ nom: (parts.length > 1 ? 'Je montre ' : '') + (p.zone.nom || 'Je montre'), photo: p.photo, zone: p.zone }); });
     return l2;
   }
@@ -14991,23 +15006,40 @@
     });
     return out.slice(0, 14);
   }
+  /* 🧰 v1421 — LES MOTS ATTENDUS, RÉGLÉS PAR DAVID DANS L'ATELIER
+     (🗣️ Les mots de « Je dis ») : un mot ou une expression par ligne — une
+     expression compte quand tous ses mots y sont — et combien il en faut.
+     Sans réglage : les mots tirés de la réponse de la banque.
+     ⚠️ COPIE dans app/ec-jeu-atelier.js (atJw…) : le test les compare. */
+  function jwAttendus(perso, rep){
+    if(perso && Array.isArray(perso.m) && perso.m.length){
+      var l = [];
+      perso.m.forEach(function(e){
+        var r = jwMotsDe(e).map(jwRacineMot);
+        if(r.length) l.push({ mot: String(e), racines: r });
+      });
+      if(l.length) return { liste: l, besoin: Math.max(0, Math.min(l.length, Number(perso.b) || 0)) };
+    }
+    return { liste: jwMotsAttendus(rep).map(function(x){ return { mot: x.mot, racines: [x.racine] }; }), besoin: 0 };
+  }
   function jwMemeMot(a, b){
     if(a === b) return true;
     if(/^\d+$/.test(a) || /^\d+$/.test(b)) return false;
     return a.length >= 4 && b.length >= 4 && (a.indexOf(b) === 0 || b.indexOf(a) === 0);
   }
-  function jwVerifier(rep, dit){
-    var att = jwMotsAttendus(rep);
+  function jwVerifier(rep, dit, perso){
+    var a = jwAttendus(perso, rep), att = a.liste;
     var lus = jwMotsDe(dit).map(jwRacineMot);
-    var trouves = att.filter(function(x){ return lus.some(function(r){ return jwMemeMot(x.racine, r); }); });
+    var trouves = att.filter(function(x){ return x.racines.every(function(r0){ return lus.some(function(r){ return jwMemeMot(r0, r); }); }); });
     var k = att.length;
-    var besoin = k <= 2 ? k : Math.min(5, Math.ceil(k * 0.5));
+    var besoin = a.besoin || (k <= 2 ? k : Math.min(5, Math.ceil(k * 0.5)));
     return { ok: k > 0 && trouves.length >= besoin, trouves: trouves, manquants: att.filter(function(x){ return trouves.indexOf(x) === -1; }),
              besoin: besoin, total: k };
   }
   /* La réponse attendue, avec les mots qu'il a dits en vert */
   function jwSurligner(rep, trouves){
-    var r = trouves.map(function(x){ return x.racine; });
+    var r = [];
+    trouves.forEach(function(x){ (x.racines || [x.racine]).forEach(function(y){ r.push(y); }); });
     return String(rep || '').split(/(\s+)/).map(function(m){
       var w = jwNorm(m).split(' ')[0] || '';
       var ok = w && r.some(function(x){ return jwMemeMot(x, jwRacineMot(w)); });
@@ -15069,7 +15101,7 @@
       arreter();
       var dit = champ.value.trim();
       if(!dit){ etat.textContent = Moteur ? 'Dis ta réponse (🎤) ou tape-la d’abord.' : 'Tape ta réponse d’abord.'; return; }
-      var v = jwVerifier(card.r, dit);
+      var v = jwVerifier(card.r, dit, (jvAt().reglages.mots || {})[card.id]);
       outils.style.display = 'none';
       champ.readOnly = true;
       etat.textContent = '';
