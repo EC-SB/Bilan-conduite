@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 14:17 — v1414 */
+/* Déployé le 13/11/2026 à 12:55 — v1424 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -436,7 +436,11 @@ function dessinerLaListeMessagerie(){
      la ligne du haut, la recherche et « Filtres », les pastilles, et les
      filtres posés. « Pour ▾ » et « Étiquette ▾ » sont dans « Filtres ». */
   zone.appendChild(barreDeRechercheMessagerie());
-  if(!filtreMessagerie) zone.appendChild(ckOnglets());
+  if(!filtreMessagerie){
+    const rangee = ckOnglets();
+    zone.appendChild(rangee);
+    zone.appendChild(railDeDefilementEC(rangee));
+  }
   const fa = pastillesDesFiltresEC();
   if(fa) zone.appendChild(fa);
   if(chercheMessagerie){ lancerLaRecherche(chercheMessagerie, true); return; }
@@ -9378,3 +9382,96 @@ function carteLectureBureau(zone, r, exemple){
 
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-messagerie.js'] = true;
+
+/* ============================================================
+   🛤️ v1424 — UN RAIL SOUS LES PASTILLES
+
+   David, le 13 novembre : « mets un rail pour défiler ici : j'ai une
+   souris avec laquelle je peux décaler vers la droite, mais sans
+   souris qui permet de décaler, c'est compliqué. Sur tél on peut
+   faire défiler avec le doigt. »
+   La rangée Tout · Non lus · Élèves · Équipe · Permis · Véhicules
+   glisse de côté. Sous elle, un rail avec sa poignée :
+   · on attrape la poignée et on la tire ;
+   · un clic sur le rail avance (ou recule) d'une largeur ;
+   · la molette ordinaire (haut / bas) fait défiler la rangée quand la
+     souris est dessus.
+   Le rail ne se montre que s'il reste des pastilles cachées, et
+   seulement avec une souris (au doigt, on glisse — voir index.html,
+   « 🛤️ v1424 »). La rangée garde sa position quand la liste se
+   redessine.
+   ============================================================ */
+let defilementPastillesEC = 0;
+function railDeDefilementEC(rangee){
+  const rail = document.createElement('div');
+  rail.className = 'msgARail rien';
+  rail.setAttribute('aria-hidden', 'true');
+  const pouce = document.createElement('div');
+  pouce.className = 'msgARailPouce';
+  rail.appendChild(pouce);
+
+  const poser = () => {
+    const vu = rangee.clientWidth, tout = rangee.scrollWidth;
+    const reste = tout - vu;
+    if(!vu || reste <= 1){ rail.classList.add('rien'); return; }
+    rail.classList.remove('rien');
+    const large = rail.clientWidth;
+    const p = Math.max(36, Math.round(large * vu / tout));
+    pouce.style.width = p + 'px';
+    pouce.style.transform = 'translateX(' + Math.round((large - p) * (rangee.scrollLeft / reste)) + 'px)';
+  };
+
+  rangee.addEventListener('scroll', () => { defilementPastillesEC = rangee.scrollLeft; poser(); }, { passive: true });
+
+  /* La molette : haut / bas fait glisser de côté, tant qu'il y a de la place */
+  rangee.addEventListener('wheel', e => {
+    if(e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const reste = rangee.scrollWidth - rangee.clientWidth;
+    if(reste <= 1) return;
+    const avant = rangee.scrollLeft;
+    const pas = e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
+    rangee.scrollLeft = Math.max(0, Math.min(reste, avant + pas));
+    if(rangee.scrollLeft !== avant) e.preventDefault();
+  }, { passive: false });
+
+  /* La poignée qu'on tire */
+  let tire = null;
+  pouce.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    tire = { x: e.clientX, depart: rangee.scrollLeft };
+    try { pouce.setPointerCapture(e.pointerId); } catch(_){}
+    rail.classList.add('tire');
+  });
+  pouce.addEventListener('pointermove', e => {
+    if(!tire) return;
+    const course = rail.clientWidth - pouce.offsetWidth;
+    const reste = rangee.scrollWidth - rangee.clientWidth;
+    if(course > 0) rangee.scrollLeft = tire.depart + (e.clientX - tire.x) * reste / course;
+  });
+  const lacher = () => { tire = null; rail.classList.remove('tire'); };
+  pouce.addEventListener('pointerup', lacher);
+  pouce.addEventListener('pointercancel', lacher);
+
+  /* Un clic sur le rail : une largeur vers là où on a cliqué */
+  rail.addEventListener('pointerdown', e => {
+    if(e.target === pouce) return;
+    const b = pouce.getBoundingClientRect();
+    const sens = e.clientX < b.left ? -1 : 1;
+    rangee.scrollBy({ left: sens * Math.max(80, rangee.clientWidth * 0.8), behavior: 'smooth' });
+  });
+
+  if(typeof ResizeObserver === 'function'){
+    const ro = new ResizeObserver(() => {
+      if(!rangee.isConnected){ ro.disconnect(); return; }
+      poser();
+    });
+    ro.observe(rangee);
+    ro.observe(rail);
+  }
+  requestAnimationFrame(() => {
+    if(defilementPastillesEC) rangee.scrollLeft = defilementPastillesEC;
+    poser();
+  });
+  return rail;
+}
