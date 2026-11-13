@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:33 — v1429 */
+/* Déployé le 13/11/2026 à 14:59 — v1430 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -126,8 +126,8 @@ function dessinerCodeSalleZone(zone){
   const visio = (typeof carteVisioCode === 'function' && aDroit('visio_code')) ? carteVisioCode() : null;
 
   if(!resultatsEtg.length && !presencesVisioListe.length){
-    if(visio) zone.appendChild(visio);
     zone.appendChild(barreCorrigesEtg());
+    if(visio) zone.appendChild(visio);
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = 'Aucune séance enregistrée.<br>' +
@@ -137,12 +137,12 @@ function dessinerCodeSalleZone(zone){
     return;
   }
 
-  /* Quelle séance lancer : celle que le moins d'élèves ont faite */
+  /* 🧭 v1430 — David : « d'abord quelle séance lancer, en dessous les 3
+     boutons (ardoises, corrigés, QR codes), en dessous la visio et en
+     dessous les résultats ». */
   zone.appendChild(blocSeanceALancer());
-  if(visio) zone.appendChild(visio);
-
-  /* 📝 v1426 — les corrigés des séances faites dans l'appli */
   zone.appendChild(barreCorrigesEtg());
+  if(visio) zone.appendChild(visio);
 
   /* La période : le dernier mois d'abord, tout si on le demande */
   const bp = document.createElement('div');
