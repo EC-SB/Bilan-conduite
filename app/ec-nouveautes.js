@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 14:27 — v1415 */
+/* Déployé le 12/11/2026 à 17:02 — v1416 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1416,
+    date: 'Jeudi 12 novembre 2026',
+    resume: '📖 Espace élève : « Mes leçons » passe dans Réviser',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Deux boutons en haut de Réviser',
+        texte: 'Dans l’espace élève, onglet Réviser : « 🎓 Groupes de travail » (le parcours, comme avant) et « 📖 Mes leçons » (tous ses bilans). Réviser s’ouvre toujours sur les groupes ; une pastille rouge sur « Mes leçons » tant qu’un bilan n’est pas lu. Un élève qui n’a que ses leçons voit seulement « Mes leçons ».' },
+      { emoji: '🏠',
+        titre: 'Sa dernière leçon reste sur l’accueil',
+        texte: 'Une carte « 📖 Ma dernière leçon » sous le prochain cours : la date, le moniteur, le début du bilan, « nouveau » tant qu’il ne l’a pas lu, « Lire le bilan » (ouvert directement dans Mes leçons) et « Toutes mes leçons ».' },
+      { emoji: '🎬',
+        titre: 'Les boutons d’étapes aussi dans les anciens bilans',
+        texte: 'Sous chaque procédure d’un bilan d’avant, l’élève a maintenant les boutons « 🎬 Ouvrir » vers les étapes que cette procédure porte aujourd’hui (📍 dans Outils › Procédures). Rien n’est réécrit dans le classeur : c’est ajouté à l’affichage.' }
+    ]
+  },
   {
     version: 1415,
     date: 'Jeudi 12 novembre 2026',
