@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:59 — v1430 */
+/* Déployé le 13/11/2026 à 15:45 — v1431 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -1233,30 +1233,93 @@ async function ongletCodeEleve(corps, nom){
     (der ? '<div><b>' + jourFr(der.date) + '</b><small>dernière : séance ' + der.seance + ' · ' + ou(der) + '</small></div>' : '') + '</div>' +
     '<div class="rang">' + Array.from({ length: 12 }, (_, i) => {
       const r = par[i + 1];
-      if(!r) return '<span>·<small>' + (i + 1) + '</small></span>';
+      if(!r) return '<span data-s="' + (i + 1) + '" title="Saisir la séance ' + (i + 1) + '">·<small>' + (i + 1) + '</small></span>';
       const c = coul(Number(r.fautes || 0));
-      return '<span style="background:' + (c.fond || 'transparent') + ';color:' + (c.texte || 'inherit') + '">' + r.fautes + (r.app && !r.fini && r.ou !== 'ardoise' ? '…' : '') + '<small>' + (i + 1) + '</small></span>';
+      return '<span data-s="' + (i + 1) + '" title="Voir ou modifier la séance ' + (i + 1) + '" style="background:' + (c.fond || 'transparent') + ';color:' + (c.texte || 'inherit') + '">' + r.fautes + (r.app && !r.fini && r.ou !== 'ardoise' ? '…' : '') + '<small>' + (i + 1) + '</small></span>';
     }).join('') + '</div>' +
     (liste.length ? '<table class="dsT"><tr><th>Séance</th><th>Quand</th><th>Où</th><th>Par série</th><th>Fautes</th></tr>' +
       liste.sort((a, b) => b.seance - a.seance).map(r =>
-        '<tr data-s="' + r.seance + '"' + ((r.series || []).some(s => s.details) ? ' class="ouvrable"' : '') + '><td>' + r.seance + '</td><td>' + jourFr(r.date) + '</td><td>' + ou(r) +
+        '<tr data-s="' + r.seance + '" class="ouvrable"><td>' + r.seance + '</td><td>' + jourFr(r.date) + '</td><td>' + ou(r) +
         (r.par ? '<small> · ' + echapEtg(r.par) + '</small>' : '') + '</td><td>' +
         ((r.series || []).length ? r.series.map(s => echapEtg(s.nom) + ' : ' + (s.fini ? s.fautes : '…')).join(' · ') : '—') + '</td>' +
         '<td class="f">' + r.fautes + ' / ' + (r.total || baremesEtg[r.seance] || 10) + (r.app && !r.fini && r.ou !== 'ardoise' ? ' (pas fini)' : '') + '</td></tr>').join('') + '</table>' +
-      '<div class="cdAide">Un appui sur une séance faite dans l’appli montre ses réponses, question par question. Une séance refaite repart de zéro : la nouvelle remplace l’ancienne.</div>'
-      : '<div class="empty">Aucune séance de code pour l’instant.</div>');
+      '<div class="cdAide">Appuie sur une séance (une ligne ou une case) pour la voir, la saisir ou la modifier. Une séance refaite repart de zéro : la nouvelle remplace l’ancienne.</div>'
+      : '<div class="empty">Aucune séance de code pour l’instant. Appuie sur une case pour en saisir une.</div>');
   corps.appendChild(z);
-  z.querySelectorAll('tr.ouvrable').forEach(tr => tr.addEventListener('click', () => {
-    const r = par[Number(tr.dataset.s)];
-    const suivant = tr.nextElementSibling;
-    if(suivant && suivant.classList.contains('detail')){ suivant.remove(); return; }
-    const d = document.createElement('tr');
-    d.className = 'detail';
-    d.innerHTML = '<td colspan="5">' + r.series.filter(s => s.details).map(s => '<div class="dsS"><b>' + echapEtg(s.nom) + '</b> · ' + s.fautes + ' faute' + (s.fautes > 1 ? 's' : '') + ' sur ' + s.nb +
-      '<div class="dsQ">' + s.details.map(q => '<span class="' + (q.juste ? 'ok' : 'ko') + '" title="' + (q.juste ? 'Juste' : echapEtg(q.pourquoi)) + '">Q' + q.q + ' ' +
-        (q.mis || '—') + (q.juste ? ' ✓' : ' ✗ ' + q.bonne) + '</span>').join('') + '</div></div>').join('') + '</td>';
-    tr.after(d);
-  }));
+  /* 📝 v1431 — une séance : la voir, la saisir, la modifier, la retirer */
+  const ouvrir = n => ouvrirSeanceDossierEtg(nom, n, par[n] || null, ou, () => ongletCodeEleve(corps, nom));
+  z.querySelectorAll('tr.ouvrable').forEach(tr => tr.addEventListener('click', () => ouvrir(Number(tr.dataset.s))));
+  z.querySelectorAll('.rang span[data-s]').forEach(sp => sp.addEventListener('click', () => ouvrir(Number(sp.dataset.s))));
+}
+
+/* 📝 v1431 — LA FENÊTRE D'UNE SÉANCE, DEPUIS LE DOSSIER. David : « il faut
+   que je puisse appuyer sur la séance pour enregistrer et modifier chaque
+   séance au besoin ». On y voit ce qui est gardé (et ses réponses s'il a
+   répondu dans l'appli) ; « Enregistrer » garde le nombre de fautes et la
+   date (comme une ardoise : ça remplace ce qu'il avait) ; « Retirer »
+   efface ce que l'appli avait gardé. */
+async function ouvrirSeanceDossierEtg(nom, n, r, ou, apres){
+  if(!Object.keys(corrigesEtg).length){
+    try{ const k = await appelPrep({ action: 'codeCorriges' }); ((k && k.corriges) || []).forEach(c => { corrigesEtg[c.seance] = c; }); }catch(e){}
+  }
+  const modif = peutModifier('code');
+  const total = (r && r.total) || totalDeSeanceEtg(n);
+  const E = { fautes: r ? Number(r.fautes || 0) : 0, jour: (r && r.date) || todayLocal(), sur: false };
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal cgEtg';
+  boite.style.cssText = 'max-width:min(480px,96vw);max-height:90vh;overflow-y:auto;';
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const jourFr = d => d ? String(d).split('-').reverse().join('/') : '';
+  const dessiner = () => {
+    const details = r && (r.series || []).filter(s => s.details);
+    boite.innerHTML = '<h3>🎓 Séance ' + n + ' — ' + echapEtg(nom) + '</h3>' +
+      '<div class="cgEtat">' + (r ? 'Gardé : <b>' + r.fautes + ' faute' + (r.fautes > 1 ? 's' : '') + ' sur ' + (r.total || total) + '</b> · ' + jourFr(r.date) + ' · ' + ou(r) +
+        (r.par ? ' <span>· ' + echapEtg(r.par) + '</span>' : '') + (r.app && !r.fini && r.ou !== 'ardoise' ? ' <span>· pas fini</span>' : '')
+        : 'Pas encore faite.') + '</div>' +
+      (details && details.length ? details.map(s => '<div class="dsCode"><div class="dsS"><b>' + echapEtg(s.nom) + '</b> · ' + s.fautes + ' faute' + (s.fautes > 1 ? 's' : '') + ' sur ' + s.nb +
+        '<div class="dsQ">' + s.details.map(q => '<span class="' + (q.juste ? 'ok' : 'ko') + '" title="' + (q.juste ? 'Juste' : echapEtg(q.pourquoi)) + '">Q' + q.q + ' ' +
+        (q.mis || '—') + (q.juste ? ' ✓' : ' ✗ ' + q.bonne) + '</span>').join('') + '</div></div></div>').join('') : '') +
+      (modif ? '<div class="cgAide" style="margin-top:12px">' + (r ? 'Modifier' : 'Saisir') + ' : le nombre de <b>fautes</b> sur ' + total + ', et la date.</div>' +
+        '<div class="arL"><span class="n">Fautes</span><button type="button" data-sd="moins">−</button><b>' + E.fautes + '</b><button type="button" data-sd="plus">+</button></div>' +
+        '<label class="cgNom">Date<input type="date" id="sdJour" value="' + echapEtg(E.jour) + '"></label>' +
+        (r && !r.app ? '<div class="cgAide">Le résultat du Google Form reste dans le classeur ; ce que tu enregistres ici le remplace s’il est plus récent (ou du même jour).</div>' : '') : '') +
+      '<div class="duo" style="margin-top:12px"><button type="button" class="btn btn-secondary" data-sd="fermer">Fermer</button>' +
+      (modif ? '<button type="button" class="btn btn-primary" data-sd="garder">💾 Enregistrer</button>' : '') + '</div>' +
+      (modif && r && r.app ? '<button type="button" class="btn btn-secondary" data-sd="retirer" style="margin-top:8px;color:var(--red);border-color:var(--red)">' +
+        (E.sur ? '⚠️ Sûr ? Appuie encore pour retirer cette séance' : '🗑️ Retirer cette séance') + '</button>' : '');
+    const j = boite.querySelector('#sdJour');
+    if(j) j.addEventListener('change', () => { E.jour = j.value || todayLocal(); });
+    boite.querySelectorAll('[data-sd]').forEach(b => b.addEventListener('click', async () => {
+      const a = b.dataset.sd;
+      if(a === 'fermer'){ fermerFond(fond); return; }
+      if(a === 'plus'){ E.fautes = Math.min(total, E.fautes + 1); dessiner(); return; }
+      if(a === 'moins'){ E.fautes = Math.max(0, E.fautes - 1); dessiner(); return; }
+      if(a === 'garder'){
+        b.disabled = true;
+        try{
+          await appelPrep({ action: 'codeArdoises', seance: n, jour: E.jour, total: total, eleves: [{ nom: nom, fautes: E.fautes }] });
+          fermerFond(fond);
+          showToast('Séance ' + n + ' enregistrée ✅');
+          apres();
+        }catch(e){ showToast('Impossible : ' + e.message); b.disabled = false; }
+        return;
+      }
+      if(a === 'retirer'){
+        if(!E.sur){ E.sur = true; dessiner(); return; }
+        b.disabled = true;
+        try{
+          await appelPrep({ action: 'codeRetirer', eleve: nom, seance: n });
+          fermerFond(fond);
+          showToast('Séance ' + n + ' retirée ✅');
+          apres();
+        }catch(e){ showToast('Impossible : ' + e.message); b.disabled = false; }
+      }
+    }));
+  };
+  dessiner();
 }
 
 /* Signale que ce module est bien chargé */
