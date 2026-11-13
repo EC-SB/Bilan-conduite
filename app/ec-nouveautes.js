@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:59 — v1430 */
+/* Déployé le 13/11/2026 à 15:58 — v1432 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1432,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🩹 Un rendez-vous post-permis repris se rouvre dans son écran, pas en dictée',
+    quoi: [
+      { emoji: '🩹',
+        titre: 'Reprendre un rendez-vous post-permis',
+        texte: '« ↩️ Reprendre » rouvrait un rendez-vous post-permis interrompu comme une dictée, avec tout le texte dans la case du vocal : impossible de le terminer. Le dépôt garde maintenant les champs du rendez-vous, et la reprise rouvre le vrai écran du rendez-vous, chaque texte dans sa case. Un rendez-vous déposé avant cette version se rouvre aussi dans son écran : ce qui avait été écrit est remis dans ses cases (sinon, il est proposé à recopier en dessous).' },
+      { emoji: '📏',
+        titre: 'Les longues fiches ne se perdent plus',
+        texte: 'Une fiche de plus de 44 000 caractères (un long bilan d’inspecteur, par exemple) ne partait pas sur le serveur : seule une copie à lire restait. Elle se range maintenant sur plusieurs cases du classeur (jusqu’à 220 000 caractères).' }
+    ]
+  },
+  {
+    version: 1431,
+    date: 'Vendredi 13 novembre 2026',
+    resume: '🎓 Dossier › Code : un appui sur une séance pour la saisir ou la modifier',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Saisir ou modifier une séance depuis le dossier',
+        texte: 'Dans l’onglet 🎓 Code du dossier, appuie sur une séance (une ligne du tableau ou une des 12 cases, même vide) : ce qui est gardé, ses réponses s’il a répondu dans l’appli, et de quoi enregistrer le nombre de fautes (− / +) et la date. Ça remplace ce qu’il avait sur cette séance. « 🗑️ Retirer » efface une séance gardée par l’appli ; un résultat de Google Form reste dans le classeur, mais ce que tu enregistres le remplace.' }
+    ]
+  },
   {
     version: 1430,
     date: 'Vendredi 13 novembre 2026',
