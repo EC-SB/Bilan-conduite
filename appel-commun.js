@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 13:12 — v1425 */
+/* Déployé le 13/11/2026 à 14:03 — v1426 */
 /* ============================================================
    appel-commun.js — 📞 LES APPELS, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -147,7 +147,11 @@
     '.aplQuest iframe{flex:1;border:0;width:100%;background:#fff;min-height:0}',
     '.aplBt .em{font-size:24px;line-height:1;font-style:normal}',
     '.aplCours .aplMsg{top:54px}',
-    '@media (max-width:640px){.aplCours{flex-direction:column}.aplCote{width:auto;max-height:36%}.aplQuest{position:absolute;inset:0;width:auto;z-index:4}}',
+    /* 📝 v1426 — la feuille de réponses (ou le Google Form) SOUS l'image, plus par-dessus */
+    '.aplFeuille{width:min(470px,46%);flex-shrink:0;background:#0B0F13;border:1px solid #1F2A33;border-radius:16px;overflow:auto;min-height:0;padding:10px;overscroll-behavior:contain}',
+    '.aplFeuille[hidden]{display:none}',
+    '@media (max-width:640px){.aplCours{flex-direction:column}.aplCote{width:auto;max-height:36%}.aplQuest,.aplFeuille{position:relative;inset:auto;width:auto;flex:1;z-index:1}' +
+      '.aplCours.avecPanneau .aplScene{flex:0 0 auto;width:100%;aspect-ratio:16/9;max-height:46%}.aplCours.avecPanneau .aplPlein{top:auto;bottom:8px;right:8px;padding:4px 9px;font-size:11.5px}}',
     '@media (max-width:640px){.aplBas{gap:4px;flex-wrap:nowrap}.aplBt{flex:1 1 0;min-width:0;max-width:80px}.aplBt{font-size:11px}.aplBt span{text-align:center;line-height:1.2}.aplBt i{width:52px;height:52px}.aplRond{width:64px;height:64px;font-size:22px}}'
   ].join('\n');
   function poserLeStyle() {
@@ -294,6 +298,7 @@
       /* 🎥 v1356 — le cours (voir l'en-tête) */
       cours: o.cours ? {
         numero: o.cours.numero || 0, questionnaire: o.cours.questionnaire || '', par: o.cours.par || '',
+        feuille: typeof o.cours.feuille === 'function' ? o.cours.feuille : null,
         gestes: o.cours.gestes || [], surInviter: o.cours.surInviter, surLien: o.cours.surLien, surSon: o.cours.surSon,
         quest: false, main: false, coupeParProf: false, finSure: 0
       } : null
@@ -871,6 +876,7 @@
         '<div class="aplScene"><span class="etiq"></span><div class="attente"></div>' +
           (c.eleve ? '<button type="button" class="aplPlein" data-a="plein" title="En grand (tourne ton téléphone)">⤢ En grand</button>' : '') + '</div>' +
         (c.eleve ? '' : '<div class="aplCote"></div>') +
+        (k.feuille ? '<div class="aplFeuille" hidden></div>' : '') +
         (k.questionnaire ? '<div class="aplQuest" hidden><div class="tete"><span>📝 Séance ' + echap(k.numero) + '</span>' +
           '<a href="' + echap(k.questionnaire) + '" target="_blank" rel="noopener">↗ À part</a>' +
           '<button type="button" data-a="fermerQuest">✕ Revenir au cours</button></div></div>' : '') +
@@ -1029,7 +1035,8 @@
       bt('micro', ic('micro', 26, c.micro ? '#1F2A33' : '#3A2A20', !c.micro),
          coupe ? 'Coupé par le prof' : c.micro ? 'Micro' : 'Micro coupé', c.micro ? '' : 'coupe', function () { basculerMicro(c); });
       bt('main', em('✋'), k.main ? 'Baisser la main' : 'Lever la main', k.main ? 'on' : '', function () { leverLaMain(c); });
-      if (k.questionnaire) bt('quest', em('📝'), k.quest ? 'Fermer le questionnaire' : 'Questionnaire', k.quest ? 'on' : '', function () { basculerQuestionnaire(c); });
+      if (k.feuille) bt('quest', em('📝'), k.quest ? 'Replier mes réponses' : 'Mes réponses', k.quest ? 'on' : '', function () { basculerQuestionnaire(c); });
+      else if (k.questionnaire) bt('quest', em('📝'), k.quest ? 'Fermer le questionnaire' : 'Questionnaire', k.quest ? 'on' : '', function () { basculerQuestionnaire(c); });
       bt('son', ic('hp', 26, c.son ? '#1F2A33' : '#3A2A20', !c.son), c.son ? 'Son' : 'Son coupé', c.son ? '' : 'coupe', function () { c.son = !c.son; appliquerLeSon(c); });
       bt('raccrocher', ic('raccrocher', 28), 'Quitter', 'rouge', function () { terminer(c, true); });
       return;
@@ -1094,11 +1101,35 @@
 
   /* 📝 « répondre directement pendant la visio pour ne pas avoir à
      changer de page » (David) : le Google Form dans un panneau */
+  /* 📝 v1426 — David : « le questionnaire cache l'écran, on ne voit pas
+     les questions ». Ses réponses se donnent maintenant dans l'appli
+     (k.feuille, dessinée par eleve.html), SOUS l'image du cours ; le
+     Google Form ne revient qu'en secours (séance pas encore prête), et
+     lui aussi sous l'image. */
   function basculerQuestionnaire(c, oui) {
     var k = c.cours;
+    var f = c.e && c.e.querySelector('.aplFeuille');
+    if (f && !k.formSecours) {
+      k.quest = oui === undefined ? !k.quest : !!oui;
+      if (k.quest && !f.getAttribute('data-pret')) {
+        f.setAttribute('data-pret', '1');
+        k.feuille(f, function () {
+          if (!k.questionnaire) return false;
+          k.formSecours = true;
+          f.hidden = true;
+          basculerQuestionnaire(c, true);
+          return true;
+        });
+      }
+      f.hidden = !k.quest;
+      if (c.grille) c.grille.classList.toggle('avecPanneau', !!k.quest);
+      boutonsDuCours(c);
+      return;
+    }
     var p = c.e && c.e.querySelector('.aplQuest');
     if (!p) return;
     k.quest = oui === undefined ? !k.quest : !!oui;
+    if (c.grille) c.grille.classList.toggle('avecPanneau', !!k.quest);
     if (k.quest && !p.querySelector('iframe')) {
       var f = document.createElement('iframe');
       f.src = k.questionnaire + (k.questionnaire.indexOf('?') === -1 ? '?' : '&') + 'embedded=true';
