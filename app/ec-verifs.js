@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 10:14 — v1420 */
+/* Déployé le 13/11/2026 à 11:15 — v1422 */
 /* ============================================================
    ec-verifs.js — 🧰 LES QUESTIONS DE VÉRIFICATION (v1246)
 
@@ -760,6 +760,8 @@ async function resumesDuJeu(noms){
   if(manquent.length && typeof appelPrep === 'function'){
     const r = await appelPrep({ action: 'verifsEleves', eleves: manquent });
     const el = (r && r.eleves) || {};
+    /* 🧰 v1422 — la version en route (V1 / V2) vient avec */
+    if(r && r.jeu) VERIFS.jeu = Object.assign({}, VERIFS.jeu || {}, r.jeu);
     manquent.forEach(n => {
       const k = Object.keys(el).find(x => jeuCle(x) === jeuCle(n));
       JEU_CACHE[jeuCle(n)] = { t: Date.now(), r: k ? el[k] : null };
@@ -768,6 +770,72 @@ async function resumesDuJeu(noms){
   const out = {};
   noms.forEach(n => { const c = JEU_CACHE[jeuCle(n)]; out[n] = c ? c.r : null; });
   return out;
+}
+/* ============================================================
+   🧰 v1422 — LA V2 VUE PAR L'ÉQUIPE (livraison 3)
+
+   David, la proposition V2 qu'il a validée : « sur la fiche de l'élève :
+   sa grille des 100, le nombre de gestes et de réponses sus, la date de
+   sa dernière séance, et ses notes « comme à l'examen » ; pas de
+   classement ». Et en leçon, la question qu'on pose montre où il en est
+   dans son jeu. Les cartes se tirent ici comme chez l'élève
+   (atJwCatalogue, ec-jeu-atelier.js) ; le Worker envoie ses cartes
+   telles quelles et ce que l'école a vu raté (leçon, examen blanc,
+   examen).
+   ============================================================ */
+function jeuV2Active(r){ return !!((r && r.v2) || (VERIFS.jeu && VERIFS.jeu.version === 'v2')); }
+function jeuResumeV2(r){
+  if(typeof atJwCatalogue !== 'function') return null;
+  const v2 = (r && r.v2) || { c: {}, ex: { parties: 0, notes: [] }, jour: '', serie: 0 };
+  const cat = atJwCatalogue(), c = v2.c || {};
+  const parN = {};
+  cat.liste.forEach(id => { const x = cat.cartes[id]; x.ns.forEach(n => { (parN[n] = parN[n] || {})[x.k] = id; }); });
+  const etat = id => c[id] || [0, '', '', 0, 0, 0];
+  const sue = id => etat(id)[0] >= 3;
+  /* ce que l'école a vu raté et qu'il n'a pas rejoué juste depuis (comme jwEcole) */
+  const ec = {}, ecDe = {};
+  Object.keys((r && r.ecole) || {}).forEach(n => {
+    const e = r.ecole[n] || {}, p = parN[n];
+    if(!p) return;
+    String(e.parties || 'vqs').split('').forEach(k => {
+      const id = p[k];
+      if(!id) return;
+      const t = etat(id);
+      if(!(t[1] && e.le && t[1] >= e.le && t[5] === 1)){ ec[id] = 1; ecDe[n] = e.de; }
+    });
+  });
+  const gestes = cat.liste.filter(id => id[0] === 'v'), reponses = cat.liste.filter(id => id[0] !== 'v');
+  const grille = [], revoir = [];
+  for(let n = 1; n <= 100; n++){
+    const ids = ['v', 'q', 's'].map(k => (parN[n] || {})[k]).filter(Boolean);
+    let g = '.';
+    if(ids.some(id => ec[id] || (etat(id)[4] > 0 && etat(id)[5] === 0))){ g = 'r'; revoir.push(n); }
+    else if(ids.length && ids.every(sue)) g = 'm';
+    else if(ids.some(id => etat(id)[1])) g = 'a';
+    grille.push(g);
+  }
+  const serieVivante = v2.jour && verifsJoursDepuis(v2.jour) <= 1 ? (v2.serie || 0) : 0;
+  return { cat: cat, parN: parN, etat: etat, ec: ec, ecDe: ecDe,
+           gestesSus: gestes.filter(sue).length, gestes: gestes.length,
+           reponsesSues: reponses.filter(sue).length, reponses: reponses.length,
+           grille: grille.join(''), revoir: revoir, jour: v2.jour || '', serie: serieVivante,
+           ex: v2.ex || { parties: 0, notes: [] }, voiture: v2.voiture || {}, joue: !!(v2.jour || Object.keys(c).length) };
+}
+function verifsJoursDepuis(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return 9999;
+  const a = new Date(iso + 'T12:00:00'), b = new Date(); b.setHours(12, 0, 0, 0);
+  return Math.round((b - a) / 86400000);
+}
+function verifsJourFr(iso){ return /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? iso.split('-').reverse().slice(0, 2).join('/') : ''; }
+/* Une carte de la V2, en mots : acquis, en cours, raté, à revoir, jamais travaillé */
+function jeuMotCarteV2(s, id){
+  if(!id) return '—';
+  const t = s.etat(id);
+  if(s.ec[id]) return '🔁 à revoir';
+  if(t[4] > 0 && t[5] === 0) return '❌ raté le ' + verifsJourFr(t[1]);
+  if(t[0] >= 3) return '✅ acquis';
+  if(t[1]) return '🟡 en cours';
+  return 'jamais travaillé';
 }
 function jeuPhraseRevoir(l){
   if(!l || !l.length) return '';
@@ -787,7 +855,9 @@ function verifsLignesDesCartes(){
       const l = document.createElement('div');
       l.className = 'vqPrep';
       if(!r){ l.dataset.vide = '1'; c.appendChild(l); return; }
-      l.textContent = '🧰 Vérifs : ' + r.maitrisees + '/100 maîtrisées' + (r.revoir.length ? ' · à revoir : ' + jeuPhraseRevoir(r.revoir) : '');
+      const s2 = jeuV2Active(r) ? jeuResumeV2(r) : null;
+      l.textContent = s2 ? '🧰 Vérifs : ' + s2.gestesSus + '/' + s2.gestes + ' gestes · ' + s2.reponsesSues + '/' + s2.reponses + ' réponses' + (s2.revoir.length ? ' · à revoir : ' + jeuPhraseRevoir(s2.revoir) : '')
+        : '🧰 Vérifs : ' + r.maitrisees + '/100 maîtrisées' + (r.revoir.length ? ' · à revoir : ' + jeuPhraseRevoir(r.revoir) : '');
       const m = c.querySelector('.meta') || c;
       m.appendChild(l);
     });
@@ -822,6 +892,57 @@ async function posterVerifsDuDossier(corps, nom){
     zone.appendChild(vqEl('div', 'empty', 'Il n’a pas encore joué. Le jeu s’ouvre avec la case « 🧰 Le jeu des vérifications », plus haut.'));
     return;
   }
+  /* 🧰 v1422 — la V2 d'abord quand elle est en route (ou qu'il y a joué) ; l'ancien jeu dessous, replié */
+  if(jeuV2Active(r)){
+    try{ if(typeof chargerVerifs === 'function') await chargerVerifs(); }catch(e){}
+    const s2 = jeuResumeV2(r);
+    if(s2){
+      t.textContent = '🧰 Son jeu des vérifications — le nouveau jeu (V2)';
+      zone.appendChild(jeuBlocV2(s2));
+      if(r.jour || r.maitrisees){
+        const d = document.createElement('details');
+        d.className = 'vqJeuV1';
+        d.appendChild(vqEl('summary', '', 'L’ancien jeu (V1) : ' + r.maitrisees + '/100 maîtrisées' + (r.jour ? ' · dernier jour joué : ' + r.jour.split('-').reverse().join('/') : '')));
+        const z1 = vqEl('div', '');
+        d.appendChild(z1);
+        zone.appendChild(d);
+        jeuBlocV1(z1, r);
+      }
+      return;
+    }
+  }
+  jeuBlocV1(zone, r);
+}
+function jeuBlocV2(s){
+  const z = vqEl('div', 'vqJeuV2');
+  if(!s.joue) z.appendChild(vqEl('div', 'vbAide', 'Il n’a pas encore joué au nouveau jeu.' + (s.revoir.length ? ' Ce que l’école a vu raté l’attend en tête de son premier « Continuer ».' : '')));
+  const lignes = vqEl('div', 'vqJeuLignes');
+  const ligne = (a, b) => { const d = vqEl('div', 'vqJeuL'); d.appendChild(vqEl('b', '', a)); const sp = vqEl('span', ''); if(typeof b === 'string') sp.textContent = b; else sp.appendChild(b); d.appendChild(sp); lignes.appendChild(d); };
+  ligne('Gestes sus', s.gestesSus + ' / ' + s.gestes);
+  ligne('Réponses sues', s.reponsesSues + ' / ' + s.reponses + ' (sécurité routière et premiers secours)');
+  ligne('Dernière séance', s.jour ? verifsJourFr(s.jour) + (s.serie > 1 ? ' · 🔥 ' + s.serie + ' jours de suite' : '') : 'pas encore');
+  const notes = (s.ex.notes || []).slice(-6).reverse();
+  if(notes.length){
+    const moy = Math.round(notes.reduce((a, x) => a + (Number(x[2]) || 0), 0) * 10 / notes.length) / 10;
+    ligne('Comme à l’examen', notes.map(x => 'n° ' + x[1] + ' : ' + x[2] + '/3 (' + verifsJourFr(x[0]) + ')').join(' · ') + ' — moyenne ' + String(moy).replace('.', ',') + '/3');
+  }else ligne('Comme à l’examen', s.ex.parties ? s.ex.parties + ' partie(s)' : 'pas encore joué');
+  const rv = vqEl('span', '');
+  if(s.revoir.length) s.revoir.forEach(n => {
+    const de = s.ecDe[n];
+    const p = vqEl('span', 'vqJeuPuce', String(n) + (de ? (de === 'cours' ? ' · leçon' : de === 'eb' ? ' · examen blanc' : ' · examen') : ''));
+    rv.appendChild(p);
+  }); else rv.textContent = 'rien 👏';
+  ligne('À revoir', rv);
+  const vo = s.voiture || {};
+  if(vo.boite || vo.agence) ligne('Sa voiture', (vo.boite === 'BEA' ? 'boîte automatique' : 'boîte manuelle') + ' · ' + (vo.agence === 'ld' ? 'Loudéac' : 'Saint-Brieuc') + (vo.q310 ? ' · Q3 n°10' : ''));
+  z.appendChild(lignes);
+  const g = vqEl('div', 'vqJeuGrille');
+  s.grille.split('').forEach((c, i) => g.appendChild(vqEl('i', c === '.' ? '' : c, String(i + 1))));
+  z.appendChild(g);
+  z.appendChild(vqEl('div', 'vbAide', 'Vert : le geste et ses deux réponses sont sus (trois réussites, sur trois jours) · jaune : en cours · rose : à revoir (raté dans le jeu, ou en leçon / à un examen et pas rejoué juste depuis).'));
+  return z;
+}
+function jeuBlocV1(zone, r){
   const lignes = vqEl('div', 'vqJeuLignes');
   const ligne = (a, b) => { const d = vqEl('div', 'vqJeuL'); d.appendChild(vqEl('b', '', a)); const s = vqEl('span', ''); if(typeof b === 'string') s.textContent = b; else s.appendChild(b); d.appendChild(s); lignes.appendChild(d); };
   ligne('Maîtrisées', r.maitrisees + ' / 100');
@@ -836,7 +957,7 @@ async function posterVerifsDuDossier(corps, nom){
   const g = vqEl('div', 'vqJeuGrille');
   String(r.grille || '').split('').forEach((c, i) => { const x = vqEl('i', c === '.' ? '' : c, String(i + 1)); g.appendChild(x); });
   zone.appendChild(g);
-  zone.appendChild(vqEl('div', 'vbAide', 'Vert : maîtrisée (3 réussites, 3 jours) · jaune : en cours · rose : à revoir (ratée dans le jeu, ou à un examen blanc / examen dont le bilan est parti par mail).'));
+  zone.appendChild(vqEl('div', 'vbAide', 'Vert : maîtrisée (3 réussites, 3 jours) · jaune : en cours · rose : à revoir (ratée dans le jeu, ou en leçon, à un examen blanc ou à l’examen, et pas rejouée juste depuis).'));
 }
 
 /* ============================================================
@@ -1079,6 +1200,8 @@ function qvBloc(q, majTitre, o){
   });
   notes.appendChild(tot);
   w.appendChild(notes);
+  /* 🧰 v1422 — où il en est dans son jeu (V2), pour cette question */
+  qvLigneDuJeu(q.n, c);
   /* 📜 déjà posée avant ? */
   const avant = qvDejaPosee(q.n);
   if(avant){
@@ -1088,6 +1211,20 @@ function qvBloc(q, majTitre, o){
   }
   majNote();
   return w;
+}
+function qvLigneDuJeu(n, carte){
+  const nom = ($('studentName') && $('studentName').value || '').trim();
+  if(!nom || typeof resumesDuJeu !== 'function' || !verifsConnecte()) return;
+  resumesDuJeu([nom]).then(res => {
+    const r = res[nom];
+    if(!r || !r.v2 || !carte.isConnected || carte.querySelector('.qvJeu')) return;
+    const s = jeuResumeV2(r);
+    if(!s) return;
+    const p = s.parN[n] || {};
+    const l = vqEl('div', 'qvJeu', '🧰 Dans son jeu — geste : ' + jeuMotCarteV2(s, p.v) + ' · QSER : ' + jeuMotCarteV2(s, p.q) + ' · secours : ' + jeuMotCarteV2(s, p.s));
+    const t = carte.querySelector('.vqTete');
+    if(t && t.parentNode) t.parentNode.insertBefore(l, t.nextSibling); else carte.appendChild(l);
+  }).catch(() => {});
 }
 function qvDeuxLignes(q, k, o){
   o = o || {};
