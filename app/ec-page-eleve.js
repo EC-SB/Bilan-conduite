@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 13/11/2026 à 14:22 — v1427 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -181,6 +181,9 @@ const ONGLETS_ELEVE = [
      ec-suivi-appels.js. */
   { cle:'appels',   emoji:'📞', titre:'Appels',       section:'appels' },
   { cle:'acces',    emoji:'🔑', titre:'App Évolution Conduites', section:'acces_eleves' },
+  /* 🎓 v1427 — son suivi du code (David : « dans son dossier, son suivi
+     individuel », un onglet à part). Voir ongletCodeEleve, ec-code.js. */
+  { cle:'code',     emoji:'🎓', titre:'Code',        section:'code' },
   /* 📝 JUSTE SOUS COIN RÉVISIONS — v1139. David : « ajoute un sous-
      onglet sous Coin révisions, Notes internes ». Il suit le droit du
      dossier : toute l'équipe qui ouvre un dossier lit et écrit ses
@@ -3200,6 +3203,10 @@ function remplirOngletEleve(corps, nom, cle){
     return;
   }
   if(cle === 'acces')       return ongletAcces(corps, nom);
+  if(cle === 'code'){
+    if(typeof ongletCodeEleve === 'function') return ongletCodeEleve(corps, nom);
+    return;
+  }
   if(cle === 'notes'){
     if(typeof ongletNotesDossier === 'function') return ongletNotesDossier(corps, nom);
     corps.appendChild(vidDossier("Les notes internes ne sont pas disponibles sur cet écran."));
