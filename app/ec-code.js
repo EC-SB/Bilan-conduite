@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 17:11 — v1356 */
+/* Déployé le 13/11/2026 à 14:03 — v1426 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -42,12 +42,14 @@ async function afficherCodeSalle(){
 
   zone.innerHTML = htmlAttente('Lecture des séances de code…');
   try{
-    const [d, pv] = await Promise.all([
+    const [d, pv, ra] = await Promise.all([
       appelPrep({ action: 'seancesEtg' }),
-      appelPrep({ action: 'visioPresences' }).catch(() => null)
+      appelPrep({ action: 'visioPresences' }).catch(() => null),
+      /* 📝 v1426 — les séances faites dans l'appli (salle et visio) */
+      appelPrep({ action: 'codeResultats' }).catch(() => null)
     ]);
     if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
-    resultatsEtg = (d && d.resultats) || [];
+    resultatsEtg = ((d && d.resultats) || []).concat(lignesAppEtg((ra && ra.resultats) || []));
     baremesEtg = (d && d.baremes) || {};
     formulairesEtg = (d && d.formulaires) || {};
     presencesVisioEtg = {};
@@ -70,6 +72,7 @@ async function afficherCodeSalle(){
 
   if(!resultatsEtg.length && !presencesVisioListe.length){
     if(visio) zone.appendChild(visio);
+    zone.appendChild(barreCorrigesEtg());
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = 'Aucune séance enregistrée.<br>' +
@@ -82,6 +85,9 @@ async function afficherCodeSalle(){
   /* Quelle séance lancer : celle que le moins d'élèves ont faite */
   zone.appendChild(blocSeanceALancer());
   if(visio) zone.appendChild(visio);
+
+  /* 📝 v1426 — les corrigés des séances faites dans l'appli */
+  zone.appendChild(barreCorrigesEtg());
 
   /* La période : le dernier mois d'abord, tout si on le demande */
   const bp = document.createElement('div');
@@ -154,29 +160,36 @@ function elevesEtg(){
   const vus = {};
   if(depuis){
     resultatsEtg.forEach(r => {
-      if(r.date && r.date >= depuis) vus[normaliserMot(r.eleve || '')] = true;
+      if(r.date && r.date >= depuis) vus[motsEleveEtg(r.eleve || '')] = true;
     });
   }
 
   const par = {};
 
   resultatsEtg.forEach(r => {
-    if(depuis && !vus[normaliserMot(r.eleve || '')]) return;
-    const cle = normaliserMot(r.eleve || '');
+    /* 📝 v1426 — l'élève par ses mots : « Léa Martin » (le formulaire)
+       et « MARTIN Léa » (la fiche, l'appli) sont la même ligne */
+    const cle = motsEleveEtg(r.eleve || '');
     if(!cle) return;
+    if(depuis && !vus[cle]) return;
 
+    /* Le nom de la fiche (celui de l'appli) l'emporte sur celui tapé */
     if(!par[cle]) par[cle] = { nom: r.eleve, seances: {} };
+    else if(r.app) par[cle].nom = r.eleve;
 
-    /* Une séance repassée : on garde le meilleur résultat, c'est
-       celui qui compte pour l'élève. */
+    /* 📝 v1426 — une séance repassée : c'est la PLUS RÉCENTE qui compte
+       (David : « on remet à 0 »). Avant : le meilleur résultat. Le même
+       jour : la saisie du bureau, puis l'appli, puis le formulaire. */
     const avant = par[cle].seances[r.seance];
-    if(!avant || r.fautes < avant.fautes) par[cle].seances[r.seance] = r;
+    const rang = x => x.corrige ? 2 : x.app ? 1 : 0;
+    if(!avant || String(r.date || '') > String(avant.date || '') ||
+       (String(r.date || '') === String(avant.date || '') && rang(r) >= rang(avant))) par[cle].seances[r.seance] = r;
   });
 
   /* 🎥 v1356 — venu en visio sans avoir encore rendu de questionnaire :
      il a sa ligne quand même (sinon sa présence ne se verrait nulle part) */
   const mots = {};
-  Object.keys(par).forEach(k => { mots[motsEleveEtg(par[k].nom)] = true; });
+  Object.keys(par).forEach(k => { mots[k] = true; });
   presencesVisioListe.forEach(p => {
     if(depuis && p.jour && p.jour < depuis) return;
     const m = motsEleveEtg(p.eleve);
@@ -394,14 +407,22 @@ function dessinerGrilleEtg(){
           'color:' + (c.texte || 'inherit') + ';' +
           'font-variant-numeric:tabular-nums;';
         /* Le nombre de fautes : c'est ce qui décide de la couleur */
-        td.textContent = r.fautes + (r.corrige ? '*' : '');
+        td.textContent = r.fautes + (r.corrige ? '*' : '') + (r.app && !r.fini ? '…' : '');
         td.title = 'Séance ' + n + ' — ' + r.score + '/' + r.total +
           ' · ' + r.fautes + ' faute(s)' +
           (r.date ? ' · ' + r.date.split('-').reverse().join('/') : '') +
           (r.corrige ? ' · saisi à la main' : '') +
-          (enVisio ? ' · 🎥 suivie en visio' + jourVisio : '') +
+          (r.app ? ' · ' + (r.ou === 'visio' ? '🎥 répondu en visio' : '📱 répondu sur son espace') +
+                   (r.fini ? '' : ' (pas fini)') + '\n' +
+                   (r.series || []).map(x => x.nom + ' : ' + (x.fini ? x.fautes + ' faute(s) sur ' + x.nb : 'pas finie')).join('\n')
+                 : (enVisio ? ' · 🎥 suivie en visio' + jourVisio : '')) +
           '. Appuie pour corriger.';
-        if(enVisio){
+        if(r.app){
+          const sa = document.createElement('sup');
+          sa.textContent = r.ou === 'visio' ? '🎥' : '📱';
+          sa.style.cssText = 'font-size:8px;margin-left:1px;';
+          td.appendChild(sa);
+        }else if(enVisio){
           const sv = document.createElement('sup');
           sv.textContent = '🎥';
           sv.style.cssText = 'font-size:8px;margin-left:1px;';
@@ -435,8 +456,9 @@ function dessinerGrilleEtg(){
     '<span style="color:var(--red);">plus de 6</span>.<br>' +
     'Appuie sur une case pour corriger un score, ou en saisir un ' +
     'qui ne s\'est pas enregistré. Une étoile signale une saisie ' +
-    'à la main.<br>Une séance repassée garde son meilleur résultat.' +
-    '<br>🎥 : suivie en cours de code en visio (présent dès qu\'il a rejoint).';
+    'à la main.<br>Une séance repassée : c\'est la plus récente qui compte.' +
+    '<br>📱 répondu sur son espace, en salle · 🎥 répondu en visio (ou, sans chiffre, présent en visio) · … pas encore fini · ' +
+    'sans signe : Google Form.';
   zone.appendChild(aide);
 }
 
@@ -611,6 +633,235 @@ async function afficherCode(){
 
   if(vueCode === 'salle') afficherCodeSalle();
   else afficherCodeAmenage();
+}
+
+
+/* ============================================================
+   📝 v1426 — LES SÉANCES DE CODE DANS L'APPLI
+
+   David, le 13 novembre : les élèves répondent sur leur espace
+   (en salle, ou sous l'image du cours en visio), série par série ;
+   le Worker compte les fautes. Ici :
+   · leurs résultats rejoignent la grille (📱 en salle, 🎥 en visio,
+     … pas fini) ;
+   · 🔑 Les corrigés : pour chaque séance, ses séries (renommées comme
+     à la télé), et pour chaque question les lettres visibles et les
+     bonnes. « Reprends-les des Google Forms et je corrige au besoin ».
+   ============================================================ */
+const LETTRES_ETG = 'ABCDEF';
+
+/* Un résultat de l'appli, à la façon d'une ligne de formulaire */
+function lignesAppEtg(liste){
+  return (liste || []).filter(x => (x.series || []).some(s => s.fini)).map(x => {
+    const fautes = Number(x.fautes || 0), total = Number(x.total || 0);
+    return { seance: Number(x.seance), eleve: x.eleve, score: Math.max(0, total - fautes), total: total, fautes: fautes,
+             couleur: fautes <= 3 ? 'vert' : fautes <= 6 ? 'orange' : 'rouge', date: x.jour || '', app: true,
+             ou: x.ou, fini: !!x.fini, series: x.series || [] };
+  });
+}
+
+function barreCorrigesEtg(){
+  const b = document.createElement('div');
+  b.style.cssText = 'display:flex;gap:8px;margin:0 0 12px;';
+  const bt = document.createElement('button');
+  bt.type = 'button';
+  bt.className = 'btn btn-secondary';
+  bt.style.cssText = 'margin:0;flex:1;padding:11px;font-size:13.5px;';
+  bt.textContent = '🔑 Les corrigés des séances';
+  bt.addEventListener('click', () => ouvrirCorrigesEtg());
+  b.appendChild(bt);
+  return b;
+}
+
+let corrigesEtg = {};          /* seance → { donnees:{series}, source, majLe, majPar } (enregistrés) */
+let brouillonsEtg = {};        /* seance → { series } (pas encore enregistrés) */
+function corrigeCompletEtg(d){
+  return !!(d && d.series && d.series.length && d.series.every(s => s.q.length && s.q.every(y => y.b)));
+}
+function copieCorrigeEtg(d){ return JSON.parse(JSON.stringify(d || { series: [] })); }
+
+async function ouvrirCorrigesEtg(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal cgEtg';
+  boite.style.cssText = 'max-width:min(560px,96vw);max-height:90vh;overflow-y:auto;';
+  boite.innerHTML = '<h3>🔑 Les corrigés des séances</h3>' + htmlAttente('Lecture des corrigés…');
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  try{
+    const r = await appelPrep({ action: 'codeCorriges' });
+    corrigesEtg = {};
+    ((r && r.corriges) || []).forEach(c => { corrigesEtg[c.seance] = c; });
+  }catch(e){
+    boite.innerHTML = '<h3>🔑 Les corrigés des séances</h3><div class="empty">⚠️ ' + echapEtg(e.message || String(e)) + '</div>';
+    return;
+  }
+  const E = { seance: 1, serie: 0, fond: fond, boite: boite, import: null };
+  dessinerCorrigesEtg(E);
+}
+function echapEtg(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+
+/* Le corrigé qu'on regarde : le brouillon s'il y en a un */
+function corrigeVuEtg(n){
+  if(brouillonsEtg[n]) return brouillonsEtg[n];
+  return corrigesEtg[n] ? corrigesEtg[n].donnees : { series: [] };
+}
+function brouillonEtg(n){
+  if(!brouillonsEtg[n]) brouillonsEtg[n] = copieCorrigeEtg(corrigesEtg[n] ? corrigesEtg[n].donnees : { series: [] });
+  return brouillonsEtg[n];
+}
+
+function dessinerCorrigesEtg(E){
+  const b = E.boite;
+  const modif = peutModifier('code');
+  if(E.import){ dessinerImportEtg(E); return; }
+  const n = E.seance;
+  const d = corrigeVuEtg(n);
+  if(E.serie >= d.series.length) E.serie = Math.max(0, d.series.length - 1);
+  const s = d.series[E.serie];
+  const enr = corrigesEtg[n];
+  let h = '<h3>🔑 Le corrigé — séance ' + n + '</h3>' +
+    '<div class="cgPuces">' + Array.from({ length: 12 }, (_, i) => {
+      const k = i + 1;
+      const v = corrigeVuEtg(k);
+      const m = brouillonsEtg[k] ? '●' : corrigeCompletEtg(v) ? '✓' : v.series.length ? '⚠' : '';
+      return '<button type="button" data-cg="seance" data-n="' + k + '" class="' + (k === n ? 'on' : '') + '">' + k + (m ? '<small>' + m + '</small>' : '') + '</button>';
+    }).join('') + '</div>' +
+    '<div class="cgEtat">' + (brouillonsEtg[n] ? '● Modifié, pas encore enregistré.'
+      : enr ? (corrigeCompletEtg(enr.donnees) ? '✓ Prêt : les élèves peuvent répondre dans l’appli.' : '⚠ Incomplet : une question sans bonne réponse.') +
+        ' <span>' + (enr.source === 'forms' ? 'Repris du Google Form' : 'Saisi à la main') + (enr.majLe ? ' · ' + echapEtg(enr.majLe) : '') + (enr.majPar ? ' · ' + echapEtg(enr.majPar) : '') + '</span>'
+      : 'Pas encore de corrigé : la séance n’est pas proposée dans l’appli.') + '</div>';
+  h += '<div class="cgSeries">' + d.series.map((x, i) =>
+      '<button type="button" data-cg="serie" data-i="' + i + '" class="' + (i === E.serie ? 'on' : '') + '">' + echapEtg(x.nom) + ' · ' + x.q.length + ' q.</button>').join('') +
+    (modif ? '<button type="button" data-cg="ajSerie" class="aj">＋ Une série</button>' : '') + '</div>';
+  if(s){
+    h += '<label class="cgNom">✏️ Nom à l’écran (celui de la télé)<input type="text" id="cgNom" maxlength="60" value="' + echapEtg(s.nom) + '"' + (modif ? '' : ' disabled') + '></label>' +
+      '<div class="cgAide">Pour chaque question : les lettres visibles à l’écran (＋ / − pour en ajouter ou en retirer) et les bonnes en vert. ' +
+      '<b>Juste seulement si l’élève coche toutes les bonnes et aucune autre.</b></div>' +
+      s.q.map((y, qi) => '<div class="cgQ"><span class="q">Q' + (qi + 1) + '</span><span class="l">' +
+        LETTRES_ETG.slice(0, y.n).split('').map(L => '<button type="button" data-cg="lettre" data-q="' + qi + '" data-l="' + L + '" class="' + (y.b.indexOf(L) !== -1 ? 'on' : '') + '">' + L + '</button>').join('') +
+        '</span>' + (modif ? '<button type="button" class="pm" data-cg="plus" data-q="' + qi + '"' + (y.n >= 6 ? ' disabled' : '') + ' title="Une lettre de plus">＋</button>' +
+          '<button type="button" class="pm" data-cg="moins" data-q="' + qi + '"' + (y.n <= 2 ? ' disabled' : '') + ' title="Une lettre de moins">−</button>' +
+          '<button type="button" class="pm sup" data-cg="supQ" data-q="' + qi + '" title="Retirer la question">✕</button>' : '') +
+        (y.b ? '' : '<span class="manque">pas de bonne</span>') + '</div>').join('') +
+      (modif ? '<div class="cgActions"><button type="button" data-cg="ajQ">＋ Une question</button>' +
+        '<button type="button" data-cg="supSerie" class="rouge">🗑️ Retirer cette série</button></div>' : '');
+  }else{
+    h += '<div class="empty" style="margin:10px 0">Aucune série pour la séance ' + n + '.' + (modif ? ' Ajoute-en une, ou reprends le Google Form.' : '') + '</div>';
+  }
+  h += '<div class="cgBas">' +
+    (modif ? '<button type="button" class="btn btn-secondary" data-cg="importer">📥 Reprendre des Google Forms</button>' : '') +
+    '<div class="duo"><button type="button" class="btn btn-secondary" data-cg="fermer">Fermer</button>' +
+    (modif ? '<button type="button" class="btn btn-primary" data-cg="enregistrer"' + (brouillonsEtg[n] ? '' : ' disabled') + '>💾 Enregistrer la séance ' + n + '</button>' : '') + '</div></div>';
+  b.innerHTML = h;
+  const nom = b.querySelector('#cgNom');
+  if(nom) nom.addEventListener('input', () => {
+    brouillonEtg(n).series[E.serie].nom = nom.value;
+    const t = b.querySelector('.cgSeries button.on');
+    if(t) t.textContent = nom.value + ' · ' + brouillonEtg(n).series[E.serie].q.length + ' q.';
+    const e = b.querySelector('[data-cg="enregistrer"]'); if(e) e.disabled = false;
+    const m = b.querySelector('.cgPuces button.on small'); if(m) m.textContent = '●'; else { const x = b.querySelector('.cgPuces button.on'); if(x) x.insertAdjacentHTML('beforeend', '<small>●</small>'); }
+  });
+  b.querySelectorAll('[data-cg]').forEach(x => x.addEventListener('click', () => gesteCorrigeEtg(E, x)));
+}
+
+async function gesteCorrigeEtg(E, x){
+  const a = x.getAttribute('data-cg');
+  const n = E.seance;
+  if(a === 'fermer'){
+    if(Object.keys(brouillonsEtg).length && !x.dataset.sur){
+      x.dataset.sur = '1';
+      x.textContent = 'Fermer sans enregistrer ?';
+      return;
+    }
+    brouillonsEtg = {};
+    fermerFond(E.fond);
+    if($('codeSousZone')) afficherCodeSalle();
+    return;
+  }
+  if(a === 'seance'){ E.seance = Number(x.dataset.n); E.serie = 0; dessinerCorrigesEtg(E); return; }
+  if(a === 'serie'){ E.serie = Number(x.dataset.i); dessinerCorrigesEtg(E); return; }
+  if(!peutModifier('code')) return;
+  const d = (a === 'importer' || a === 'enregistrer') ? null : brouillonEtg(n);
+  const s = d ? d.series[E.serie] : null;
+  if(a === 'ajSerie'){ d.series.push({ nom: 'Série ' + (d.series.length + 1), q: [{ n: 4, b: '' }] }); E.serie = d.series.length - 1; }
+  else if(a === 'supSerie' && s){
+    if(!x.dataset.sur){ x.dataset.sur = '1'; x.textContent = 'Sûr ? Retirer « ' + s.nom + ' »'; return; }
+    d.series.splice(E.serie, 1); E.serie = Math.max(0, E.serie - 1);
+  }
+  else if(a === 'ajQ' && s){ const der = s.q[s.q.length - 1]; s.q.push({ n: der ? der.n : 4, b: '' }); }
+  else if(a === 'supQ' && s){ s.q.splice(Number(x.dataset.q), 1); }
+  else if(a === 'plus' && s){ const y = s.q[Number(x.dataset.q)]; if(y.n < 6) y.n++; }
+  else if(a === 'moins' && s){ const y = s.q[Number(x.dataset.q)]; if(y.n > 2){ y.n--; y.b = y.b.split('').filter(L => LETTRES_ETG.indexOf(L) < y.n).join(''); } }
+  else if(a === 'lettre' && s){
+    const y = s.q[Number(x.dataset.q)], L = x.dataset.l;
+    y.b = y.b.indexOf(L) !== -1 ? y.b.replace(L, '') : y.b + L;
+    y.b = LETTRES_ETG.split('').filter(l => y.b.indexOf(l) !== -1).join('');
+  }
+  else if(a === 'enregistrer'){
+    const br = brouillonsEtg[n];
+    if(!br) return;
+    x.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'codeCorrigePoser', seance: n, donnees: br, source: 'main' });
+      if(r && r.efface) delete corrigesEtg[n];
+      else corrigesEtg[n] = { seance: n, donnees: r.donnees, source: 'main', majLe: 'à l’instant', majPar: ACCES.moniteur || '' };
+      delete brouillonsEtg[n];
+      showToast(r && r.efface ? 'Corrigé retiré ✅' : r && r.complet ? 'Séance ' + n + ' prête ✅' : 'Enregistré — il manque encore des bonnes réponses');
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  }
+  else if(a === 'importer'){
+    x.disabled = true;
+    x.textContent = '⏳ Lecture des 12 Google Forms…';
+    try{
+      const r = await appelPrep({ action: 'etgCorrigesForms' });
+      if(r && r.status === 'error') throw new Error(r.message || 'Lecture impossible');
+      E.import = { seances: (r && r.seances) || [], coches: {} };
+      E.import.seances.forEach(z => { if(z.series && z.series.length && !corrigesEtg[z.seance]) E.import.coches[z.seance] = true; });
+    }catch(e){ showToast('Impossible : ' + e.message); x.disabled = false; x.textContent = '📥 Reprendre des Google Forms'; return; }
+  }
+  dessinerCorrigesEtg(E);
+}
+
+/* Ce que les Google Forms ont donné : on choisit ce qu'on garde */
+function dessinerImportEtg(E){
+  const b = E.boite;
+  const I = E.import;
+  const nb = Object.keys(I.coches).filter(k => I.coches[k]).length;
+  b.innerHTML = '<h3>📥 Repris des Google Forms</h3>' +
+    '<div class="cgAide">Coche les séances à garder. Une séance qui a déjà un corrigé n’est pas cochée : la cocher le remplace. Tu pourras tout corriger ensuite.</div>' +
+    I.seances.map(z => {
+      const q = (z.series || []).reduce((t, s) => t + s.q.length, 0);
+      const ok = z.series && z.series.length;
+      const avert = !ok ? (z.erreur || 'aucune question trouvée')
+        : [!z.quiz ? 'ce n’est pas un quiz' : '', z.sansBonne ? z.sansBonne + ' question(s) sans bonne réponse' : '', z.tropDeChoix ? z.tropDeChoix + ' question(s) à plus de 6 choix' : '',
+           corrigesEtg[z.seance] ? 'a déjà un corrigé' : ''].filter(Boolean).join(' · ');
+      return '<label class="cgImp' + (ok ? '' : ' off') + '"><input type="checkbox" data-n="' + z.seance + '"' + (I.coches[z.seance] ? ' checked' : '') + (ok ? '' : ' disabled') + '>' +
+        '<span><b>Séance ' + z.seance + '</b>' + (ok ? ' · ' + z.series.length + ' série' + (z.series.length > 1 ? 's' : '') + ' · ' + q + ' questions' : '') +
+        (ok ? '<small>' + z.series.map(s => echapEtg(s.nom) + ' (' + s.q.length + ')').join(' · ') + '</small>' : '') +
+        (avert ? '<small class="av">' + echapEtg(avert) + '</small>' : '') + '</span></label>';
+    }).join('') +
+    '<div class="duo" style="margin-top:12px"><button type="button" class="btn btn-secondary" data-ci="retour">Retour</button>' +
+    '<button type="button" class="btn btn-primary" data-ci="garder"' + (nb ? '' : ' disabled') + '>💾 Garder ' + nb + ' corrigé' + (nb > 1 ? 's' : '') + '</button></div>';
+  b.querySelectorAll('input[type=checkbox]').forEach(c => c.addEventListener('change', () => { I.coches[c.dataset.n] = c.checked; dessinerImportEtg(E); }));
+  b.querySelector('[data-ci="retour"]').addEventListener('click', () => { E.import = null; dessinerCorrigesEtg(E); });
+  b.querySelector('[data-ci="garder"]').addEventListener('click', async ev => {
+    ev.target.disabled = true;
+    let faits = 0;
+    for(const z of I.seances){
+      if(!I.coches[z.seance] || !z.series || !z.series.length) continue;
+      try{
+        const r = await appelPrep({ action: 'codeCorrigePoser', seance: z.seance, donnees: { series: z.series }, source: 'forms' });
+        corrigesEtg[z.seance] = { seance: z.seance, donnees: r.donnees, source: 'forms', majLe: 'à l’instant', majPar: ACCES.moniteur || '' };
+        delete brouillonsEtg[z.seance];
+        faits++;
+      }catch(e){ showToast('Séance ' + z.seance + ' : ' + e.message); }
+    }
+    showToast(faits + ' corrigé' + (faits > 1 ? 's' : '') + ' gardé' + (faits > 1 ? 's' : '') + ' ✅');
+    E.import = null;
+    dessinerCorrigesEtg(E);
+  });
 }
 
 
