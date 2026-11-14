@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 14/11/2026 à 11:37 — v1435 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2525,6 +2525,8 @@ function afficherSqueletteDuCours(choix){
 
   m.comps.forEach(comp => {
     const zc = document.createElement('div');
+    zc.className = 'sqLigne';
+    zc.setAttribute('data-comp', comp.cle);
     zc.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;';
     const h = document.createElement('div');
     h.style.cssText = 'display:flex;gap:8px;align-items:center;';
@@ -2557,6 +2559,126 @@ function afficherSqueletteDuCours(choix){
   zone.style.display = 'block';
   if(choix) remettreSqueletteDuCours(choix);
   majTitreSquelette();
+
+  /* 🕘 v1435 — la dernière fois, sous chaque ligne */
+  const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+  dernierSimuDe(eleve).then(it => poserLaDerniereFois(zone, qui, it)).catch(() => {});
+}
+
+/* ============================================================
+   🕘 LA DERNIÈRE FOIS, SOUS CHAQUE COMPÉTENCE — v1435
+
+   David, le 14 novembre : « afficher sur le cours suivant de l'élève
+   en simu ce qui a été fait la fois [d'avant] dans le tiroir », le
+   tiroir qui, « s'il n'est pas rempli par le moniteur, se remplit
+   automatiquement avec la génération du bilan ». Ses choix : sous
+   chaque ligne, avec les erreurs à corriger.
+
+   ⚠️ ON LIT LE BILAN ENREGISTRÉ, PAS LES CHOIX DU TIROIR. Le bilan du
+   dernier simulateur porte déjà, pour chaque compétence, le choix du
+   moniteur ou, à défaut, celui de l'IA — c'est exactement « rempli
+   par le moniteur, sinon par la génération ». Et c'est aussi ce qui
+   reste juste quand le moniteur corrige le bilan à la main avant de
+   l'envoyer, ou quand le cours d'avant a été fait « à la main ».
+   ============================================================ */
+const LIBELLES_SQUELETTE = { '✅': '✅ Acquis', '🟠': '🟠 En cours', '❌': '❌ À revoir' };
+const cacheDernierSimu = {};
+
+function dateDuBilanEnNombre(it){
+  const m = String((it && it.date) || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? Number(m[3] + m[2] + m[1]) : 0;
+}
+
+function estUnBilanDeSimulateur(it){
+  return /simulateur/i.test(String((it && it.type) || '')) ||
+         String((it && it.bilan) || '').indexOf('𝙨𝙪𝙧 𝙨𝙞𝙢𝙪𝙡𝙖𝙩𝙚𝙪𝙧') !== -1;
+}
+
+/* Le dernier bilan de simulateur de l'élève (gardé 10 minutes) */
+function dernierSimuDe(eleve){
+  const cle = (typeof normaliserMot === 'function') ? normaliserMot(eleve || '') : String(eleve || '').toLowerCase();
+  if(!cle || cle.length < 2 || typeof bilansAnterieurs !== 'function') return Promise.resolve(null);
+  const c = cacheDernierSimu[cle];
+  if(c && Date.now() - c.t < 10 * 60000) return c.p;
+  const p = bilansAnterieurs(eleve).then(liste => {
+    const simus = (liste || []).filter(it => it && it.bilan && estUnBilanDeSimulateur(it));
+    simus.sort((a, b) => (dateDuBilanEnNombre(b) - dateDuBilanEnNombre(a)) ||
+                         String(b.horodatage || '').localeCompare(String(a.horodatage || '')));
+    return simus[0] || null;
+  }).catch(() => null);
+  cacheDernierSimu[cle] = { t: Date.now(), p: p };
+  return p;
+}
+
+/* Ce que le bilan dit d'une compétence : son résultat et ses erreurs
+   (sans les phrases fixes du modèle, les mêmes à chaque bilan) */
+function competenceDansLeBilan(texte, comp){
+  const lignes = String(texte || '').split('\n');
+  const titre = String(comp.titre || '').trim();
+  if(!titre) return null;
+  let i = -1, statut = '';
+  for(let k = 0; k < lignes.length; k++){
+    const l = lignes[k].trim();
+    if(l.indexOf(titre) !== 0) continue;
+    const reste = l.slice(titre.length).trim();
+    if(/^(✅❌🟠)?$/.test(reste)){ i = k; statut = ''; break; }
+    if(reste === '✅' || reste === '❌' || reste === '🟠'){ i = k; statut = reste; break; }
+  }
+  if(i === -1) return null;
+  /* Les erreurs : sous « Erreur(s) à corriger », avant la compétence
+     suivante. ⚠️ PAS « jusqu'au prochain ➡️ » : les textes du modèle
+     ont eux-mêmes des lignes en ➡️ (« si peu de visibilité »…). */
+  const titres = (typeof SIMU_COMP_MANUELLE !== 'undefined' ? SIMU_COMP_MANUELLE : [])
+    .concat(typeof SIMU_COMP_AUTO !== 'undefined' ? SIMU_COMP_AUTO : [])
+    .map(c => String(c.titre || '').trim()).filter(Boolean);
+  let fin = lignes.length;
+  for(let k = i + 1; k < lignes.length; k++){
+    const l = lignes[k].trim();
+    if(l.indexOf('🫱') === 0 || titres.some(t => l.indexOf(t) === 0)){ fin = k; break; }
+  }
+  let j = -1;
+  for(let k = i + 1; k < fin; k++){ if(/^Erreur\(s\) à corriger/.test(lignes[k].trim())){ j = k; break; } }
+  const fixes = (comp.preErreurs || []).map(p => String(p).split('\n')[0].trim());
+  const erreurs = [];
+  if(j !== -1){
+    for(let k = j + 1; k < fin; k++){
+      const l = lignes[k].trim();
+      if(!l) break;
+      if(l.indexOf('❌') !== 0) continue;
+      const e = l.replace(/^❌\s*/, '').trim();
+      if(e && fixes.indexOf(e) === -1) erreurs.push(e);
+    }
+  }
+  return { statut: statut, erreurs: erreurs };
+}
+
+/* Pose « La dernière fois » sous chaque ligne du tiroir */
+function poserLaDerniereFois(zone, qui, it){
+  if(!zone || zone.dataset.cours !== qui) return;     /* un autre élève, entre-temps */
+  zone.querySelectorAll('.sqAvant').forEach(x => x.remove());
+  const m = modeleDuSquelette();
+  if(!m || !it) return;
+  const jour = String(it.date || '').slice(0, 5);
+  m.comps.forEach(comp => {
+    const ligne = zone.querySelector('.sqLigne[data-comp="' + comp.cle + '"]');
+    if(!ligne) return;
+    const r = competenceDansLeBilan(it.bilan, comp);
+    if(!r) return;
+    const d = document.createElement('div');
+    d.className = 'sqAvant';
+    d.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.45;margin-top:6px;';
+    const t = document.createElement('div');
+    t.textContent = 'La dernière fois' + (jour ? ' (' + jour + ')' : '') + ' : ' +
+      (r.statut ? LIBELLES_SQUELETTE[r.statut] : 'non travaillé');
+    d.appendChild(t);
+    r.erreurs.forEach(e => {
+      const x = document.createElement('div');
+      x.style.cssText = 'padding-left:10px;';
+      x.textContent = '❌ ' + e;
+      d.appendChild(x);
+    });
+    ligne.appendChild(d);
+  });
 }
 
 function remettreSqueletteDuCours(choix){
