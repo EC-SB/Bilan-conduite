@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:15 — v1409 */
+/* Déployé le 14/11/2026 à 10:29 — v1433 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1488,6 +1488,10 @@ function buildExamenBlanc(ai, ctx){
       L(emojiMoniteur() + ' ' + m + txt(o.reponse) + (posee ? '' : pt));
     }else if(!posee && pt){
       L(emojiMoniteur() + ' ' + m + 'à revoir' + pt);
+    }else if(!posee){
+      /* ⚠️ v1433 — un ⚠️ posé sans un mot et sans point : même
+         ligne que dans le cadre en direct (ec-manuel.js). */
+      L('⚠️ ' + m + 'Erreur à reprendre');
     }
   };
 
@@ -1729,6 +1733,9 @@ function buildExamen(ai){
                  (posee ? '' : pt));
     }else if(!posee && pt){
       parts.push(emojiMoniteur() + ' ' + m + 'à revoir' + pt);
+    }else if(!posee){
+      /* ⚠️ v1433 — la même ligne que dans les deux autres bilans */
+      parts.push('⚠️ ' + m + 'Erreur à reprendre');
     }
   };
 
