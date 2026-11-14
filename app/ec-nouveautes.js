@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 14:23 — v1439 */
+/* Déployé le 14/11/2026 à 15:08 — v1440 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1440,
+    date: 'Samedi 14 novembre 2026',
+    resume: '🎓 Son code : déjà obtenu, de son côté ou avec nous — et l’onglet Code seulement quand il sert',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Son code, dans son espace',
+        texte: 'Sur la carte de son espace (dossier › App Évolution Conduites) et à l’étape ① de la mise en route : « Il a déjà son code », « Il le fait de son côté » ou « Il le fait avec nous ». Avec nous : on ouvre l’habitude « 🎓 Code avec nous » (seulement le groupe du code, le suivi du code, pas les vérifs). Quand il a son code : sa formation se rouvre et le suivi du code s’éteint. On te demande toujours avant, et « Juste le noter » ne touche à rien d’autre.' },
+      { emoji: '🏷️',
+        titre: 'La pastille « 🎓 Code : … » dans la tête du dossier',
+        texte: 'À côté de sa formation, visible de tous les onglets. Un appui pour changer.' },
+      { emoji: '⚙️',
+        titre: 'L’habitude « 🎓 Code avec nous »',
+        texte: 'En tête de « ⚙️ Ce qu’on ouvre par formation » : tu y coches ton groupe du code et ce qui s’ouvre avec. Ou coche « ⭐ En faire l’habitude » pendant une mise en route.' },
+      { emoji: '📑',
+        titre: 'L’onglet 🎓 Code du dossier',
+        texte: 'Il n’apparaît que si le suivi du code est ouvert dans son espace, ou s’il a des séances enregistrées. Les élèves qui avaient déjà le suivi du code sont « avec nous ».' }
+    ]
+  },
   {
     version: 1439,
     date: 'Samedi 14 novembre 2026',
