@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 14:17 — v1414 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -167,7 +167,9 @@ function afficherOnglet(cle, memoriser){
     b.setAttribute('aria-selected', b.getAttribute('data-cible') === cle ? 'true' : 'false');
   });
 
-  if(memoriser !== false){
+  /* 💬 v1434 — la Messagerie EC ne retient rien : l'onglet retenu est
+     celui de l'App EC (même stockage sur Android) */
+  if(memoriser !== false && !seuleMessagerieEC()){
     try{ localStorage.setItem(CLE_ONGLET, cle); }catch(e){}
   }
 
@@ -220,6 +222,8 @@ function initOnglets(){
 
   let depart = '';
   try{ depart = localStorage.getItem(CLE_ONGLET) || ''; }catch(e){}
+  /* 💬 v1434 — la Messagerie EC s'ouvre sur la messagerie, toujours */
+  if(seuleMessagerieEC() && dispo.indexOf('messagerie') !== -1) depart = 'messagerie';
   if(dispo.indexOf(depart) === -1) depart = dispo[0];
   afficherOnglet(depart, false);
   if(typeof fsAuDemarrage === 'function') fsAuDemarrage();
@@ -2315,18 +2319,147 @@ function poserCompteVue(cle, nombre){
   if(!logo) return;
   logo.setAttribute('role', 'button');
   logo.setAttribute('tabindex', '0');
-  logo.title = 'Revenir aux cours';
+  logo.title = (window.EC_SEULE_MESSAGERIE ? 'Revenir à la messagerie' : 'Revenir aux cours');
   logo.style.cursor = 'pointer';
   const aller = () => {
     const app = document.getElementById('appView');
     if(!app || app.style.display === 'none') return;
     try{ if(typeof dansLeTiroir === 'function' && dansLeTiroir() && typeof fermerTiroirMessagerie === 'function') fermerTiroirMessagerie(); }catch(e){}
-    afficherOnglet('cours');
+    /* 💬 v1434 — dans la Messagerie EC, le logo ramène à la messagerie */
+    afficherOnglet(seuleMessagerieEC() ? 'messagerie' : 'cours');
     try{ window.scrollTo({ top: 0, behavior: 'smooth' }); }catch(e){ window.scrollTo(0, 0); }
   };
   logo.addEventListener('click', aller);
   logo.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); aller(); } });
 })();
+
+/* ============================================================
+   💬 LA MESSAGERIE À PART — v1434
+
+   David, le 14 novembre : « on me demande d'avoir un autre raccourci
+   avec uniquement la messagerie ; je veux la garder dans l'app mais
+   avoir une page à part aussi, qu'avec la messagerie : un lien qu'ils
+   peuvent installer sur leur téléphone ou tablette ». Ses réponses au
+   schéma : pour tout le monde ; « Messagerie EC », l'icône verte à la
+   bulle ; la messagerie demande d'activer les notifications et l'App
+   EC propose de couper les siennes ; un bouton « ↗ Ouvrir l'App EC ».
+
+   ⚠️ CE N'EST PAS UNE DEUXIÈME MESSAGERIE. C'est cette page-ci, en
+   mode « messagerie seule » : messagerie.html renvoie sur
+   index.html?messagerie=1, et la tête de la page (index.html) y pose
+   le manifeste, l'icône et le nom de « Messagerie EC » avant tout le
+   reste. Les mêmes fichiers, la même connexion, les mêmes fils : rien
+   à tenir à jour en double.
+
+   Le mode se lit dans l'adresse (?messagerie=1) et se garde dans
+   sessionStorage — la session de CETTE fenêtre seulement : sur
+   Android, l'App EC et la Messagerie EC partagent leur stockage, et un
+   mode rangé dans localStorage transformerait l'App EC en messagerie.
+   ============================================================ */
+function seuleMessagerieEC(){ return !!window.EC_SEULE_MESSAGERIE; }
+
+/* L'adresse à donner (et celle du QR code) */
+function adresseMessagerieSeuleEC(){
+  try{ return new URL('messagerie.html', location.href).href.split('#')[0]; }
+  catch(e){ return 'messagerie.html'; }
+}
+
+/* ↗ L'App EC, dans une autre fenêtre — « noopener » : la nouvelle
+   fenêtre ne reçoit PAS la session de celle-ci, donc pas le mode. */
+function ouvrirLAppECDepuisLaMessagerie(){
+  const u = new URL('index.html', location.href);
+  u.searchParams.set('app', '1');
+  const f = window.open(u.href, '_blank', 'noopener');
+  if(!f) location.href = u.href;
+}
+
+(function poserLaMessagerieSeule(){
+  if(!seuleMessagerieEC()) return;
+  const tete = document.querySelector('header');
+  if(tete && !tete.querySelector('.msgSeuleTitre')){
+    const logo = tete.querySelector('.logo');
+    const t = document.createElement('div');
+    t.className = 'msgSeuleTitre';
+    t.innerHTML = '<b>💬 Messagerie</b><span>Évolution Conduites</span>';
+    if(logo) logo.after(t); else tete.prepend(t);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'msgSeuleApp';
+    b.id = 'msgSeuleApp';
+    b.innerHTML = '↗&nbsp;<span class="long">Ouvrir l’</span>App EC';
+    b.title = 'Ouvrir l’App Évolution Conduites (cours, élèves, suivi…)';
+    b.addEventListener('click', ouvrirLAppECDepuisLaMessagerie);
+    tete.appendChild(b);
+  }
+  /* Le retour, quand un geste de la messagerie a mené ailleurs (un
+     dossier d'élève…) : sans barre d'onglets, on resterait coincé. */
+  if(!document.getElementById('msgSeuleRetour')){
+    const r = document.createElement('button');
+    r.type = 'button';
+    r.id = 'msgSeuleRetour';
+    r.textContent = '← 💬 Revenir à la messagerie';
+    r.addEventListener('click', () => afficherOnglet('messagerie'));
+    document.body.appendChild(r);
+  }
+})();
+
+/* 📲 Le lien à donner, son QR code, et comment l'installer — dans le
+   ⋯ de la messagerie, que tout le monde a (Outils, non : un moniteur
+   n'y a pas forcément accès). */
+let qrLibMsgEC = null;
+function chargerQrMsgEC(){
+  if(typeof qrcode === 'function') return Promise.resolve();
+  if(qrLibMsgEC) return qrLibMsgEC;
+  qrLibMsgEC = new Promise((ok, ko) => {
+    const s = document.createElement('script');
+    s.src = 'app/qrcode-lib.js?v=' + (typeof VERSION_MODULES !== 'undefined' ? VERSION_MODULES : '1');
+    s.onload = () => ok();
+    s.onerror = () => { qrLibMsgEC = null; ko(new Error('QR code indisponible')); };
+    document.head.appendChild(s);
+  });
+  return qrLibMsgEC;
+}
+function qrSvgMsgEC(texte){
+  const q = qrcode(0, 'M');
+  q.addData(texte);
+  q.make();
+  const m = q.getModuleCount(), bord = 2, n = m + bord * 2;
+  let d = '';
+  for(let r = 0; r < m; r++) for(let c = 0; c < m; c++){
+    if(q.isDark(r, c)) d += 'M' + (c + bord) + ' ' + (r + bord) + 'h1v1h-1z';
+  }
+  return '<svg viewBox="0 0 ' + n + ' ' + n + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QR code de la Messagerie EC" shape-rendering="crispEdges">' +
+    '<rect width="' + n + '" height="' + n + '" fill="#FFFFFF"/><path d="' + d + '" fill="#0B0B0B"/></svg>';
+}
+async function fenetreInstallerMessagerieEC(){
+  const lien = adresseMessagerieSeuleEC();
+  const w = document.createElement('div');
+  w.className = 'msgInstall';
+  w.innerHTML =
+    '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">' +
+      '<img src="icone-msg-192.png" alt="" style="width:52px;height:52px;border-radius:12px;flex-shrink:0;">' +
+      '<div style="font-size:13.5px;line-height:1.45;">La messagerie seule, à installer sur un téléphone ou une tablette. ' +
+      'Elle s’installe à côté de l’App EC, sous le nom <b>Messagerie EC</b>.</div></div>' +
+    '<div class="msgInstallQr" style="width:180px;max-width:70%;margin:0 auto 10px;background:#fff;border-radius:12px;padding:6px;"></div>' +
+    '<div style="font-size:13px;word-break:break-all;text-align:center;margin-bottom:12px;"><b class="msgInstallLien"></b></div>' +
+    '<div style="font-size:13px;line-height:1.55;">' +
+      '<b>iPhone / iPad</b> (Safari) : bouton Partager › <i>Sur l’écran d’accueil</i>.<br>' +
+      '<b>Android</b> (Chrome) : ⋮ › <i>Installer l’application</i> (ou <i>Ajouter à l’écran d’accueil</i>).<br>' +
+      '<span style="color:var(--muted);font-size:12px;">La première fois : prénom + code, comme dans l’app. Puis 🔔 Activer, pour être prévenu.</span></div>';
+  w.querySelector('.msgInstallLien').textContent = lien;
+  chargerQrMsgEC().then(() => {
+    const z = w.querySelector('.msgInstallQr');
+    if(z) z.innerHTML = qrSvgMsgEC(lien);
+  }).catch(() => { const z = w.querySelector('.msgInstallQr'); if(z) z.remove(); });
+  const r = await fenetre(w, [
+    { nom: 'Fermer', valeur: 'non' },
+    { nom: '📋 Copier le lien', valeur: 'copier', principal: true }
+  ], '📲 Installer la Messagerie EC');
+  if(r === 'copier'){
+    try{ await navigator.clipboard.writeText(lien); showToast('Lien copié ✅'); }
+    catch(e){ showToast(lien); }
+  }
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
