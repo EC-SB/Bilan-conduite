@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 14:17 — v1414 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -579,6 +579,10 @@ function ckMenuDeLaListe(ancre){
     if(filtreMessagerie === 'clos') items.push({ emoji: '🗑️', texte: 'Supprimer toutes les fermées', danger: true, cle: 'vider', faire: () => viderLesFilsFermes(null, null) });
   }
   if(dansLeTiroir()) items.push({ emoji: '↗️', texte: 'Ouvrir en grand', faire: () => ouvrirLaMessagerieEnGrand() });
+  /* 💬 v1434 — la Messagerie EC à installer : le lien, son QR code */
+  if(!dansLeTiroir() && typeof fenetreInstallerMessagerieEC === 'function'){
+    items.push({ emoji: '📲', texte: 'Installer la Messagerie EC (lien, QR code)', cle: 'installer', faire: () => fenetreInstallerMessagerieEC() });
+  }
   if(typeof menuGestesEC === 'function') menuGestesEC(ancre, 'Messagerie', items);
 }
 
