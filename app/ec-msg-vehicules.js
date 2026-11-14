@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:19 — v1390 */
+/* Déployé le 14/11/2026 à 12:06 — v1436 */
 /* ============================================================
    ec-msg-vehicules.js — 🚗 LES CONVERSATIONS DES VÉHICULES (v1390)
 
@@ -21,8 +21,8 @@
 
    Le Worker fait le travail (voir « 🚗 LES CONVERSATIONS DES
    VÉHICULES » dans cloudflare-worker.js). Ici : la catégorie, le rond
-   du garage, la barre du haut, les cinq boutons et leurs petits
-   formulaires.
+   du garage, la barre du haut, les boutons et leurs petits
+   formulaires (huit depuis la v1436 : ⛽ plein, 🧽 et 🚿 nettoyages).
    ============================================================ */
 
 const VEH_EC = { infos: {}, lu: {}, enCours: {}, geste: null, gesteConv: '', km: false, nom: false };
@@ -209,14 +209,22 @@ function formNomVehiculeEC(f){
   return z;
 }
 
-/* ---------- ⚡ les cinq boutons ---------- */
+/* ---------- ⚡ les boutons du véhicule ---------- */
+/* ⛽🧽 v1436 — David, le 14 novembre : « il faut ajouter j'ai fait le
+   plein, avec un pop pour mettre le nombre de litres et le coût, et
+   nettoyage intérieur avec la date, et nettoyage extérieur avec la
+   date ». Comme les cinq premiers : le message ET la Flotte. */
 const GESTES_VEH_EC = [
   ['souci', '⚠️ Signaler un souci'],
   ['garage', '🔧 RDV garage'],
   ['carrosserie', '🩹 Carrosserie'],
   ['accident', '🚨 Accident 📍'],
-  ['pneu', '🛞 Pneu crevé 📍']
+  ['pneu', '🛞 Pneu crevé 📍'],
+  ['plein', '⛽ J’ai fait le plein'],
+  ['interieur', '🧽 Nettoyage intérieur'],
+  ['exterieur', '🚿 Nettoyage extérieur']
 ];
+function aujourdhuiIsoVehEC(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function boutonsGestesVehiculeEC(f){
   return GESTES_VEH_EC.map(([cle, nom]) => {
     const b = document.createElement('button');
@@ -276,6 +284,27 @@ function formGesteVehiculeEC(f){
       '<div class="ckNote">Le rendez-vous s’inscrit dans la fiche du véhicule (🏭 Passage au garage, prévu).</div>';
     z.querySelector('.vehJour').value = demainIsoVehEC();
     z.querySelector('.vehHeure').value = '09:00';
+  }else if(cle === 'plein'){
+    z.innerHTML = '<div class="lab">⛽ J’AI FAIT LE PLEIN</div>' +
+      '<div class="ligne"><label>Litres<input type="text" inputmode="decimal" class="vehLitres" placeholder="Ex : 42,5"></label>' +
+      '<label>Coût (€)<input type="text" inputmode="decimal" class="vehCout" placeholder="Ex : 78,20"></label></div>' +
+      '<div class="ckNote vehPrixLitre"></div>' +
+      '<div class="ckNote">Le message part dans la conversation, et le plein s’inscrit dans la fiche du véhicule (⛽ Plein).</div>';
+    const prix = () => {
+      const l = Number(String(z.querySelector('.vehLitres').value).replace(',', '.'));
+      const e = Number(String(z.querySelector('.vehCout').value).replace(',', '.'));
+      z.querySelector('.vehPrixLitre').textContent = (l > 0 && e > 0)
+        ? 'Soit ' + (e / l).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' € le litre.' : '';
+    };
+    z.querySelector('.vehLitres').addEventListener('input', prix);
+    z.querySelector('.vehCout').addEventListener('input', prix);
+    setTimeout(() => { try{ z.querySelector('.vehLitres').focus(); }catch(e){} }, 30);
+  }else if(cle === 'interieur' || cle === 'exterieur'){
+    z.innerHTML = '<div class="lab">' + (cle === 'interieur' ? '🧽 NETTOYAGE INTÉRIEUR' : '🚿 NETTOYAGE EXTÉRIEUR') + '</div>' +
+      '<div class="ligne"><label>Fait le<input type="date" class="vehJour"></label></div>' +
+      '<div class="ckNote">Le message part dans la conversation, et le nettoyage s’inscrit dans la fiche du véhicule (🧽 Nettoyage).</div>';
+    z.querySelector('.vehJour').value = aujourdhuiIsoVehEC();
+    z.querySelector('.vehJour').max = aujourdhuiIsoVehEC();
   }else if(cle === 'carrosserie'){
     z.innerHTML = '<div class="lab">🩹 PROBLÈME DE CARROSSERIE</div>' +
       '<div class="ligne"><label style="flex:1 1 100%">Où, et quoi<textarea rows="2" class="vehTexte" placeholder="Ex : rayure porte arrière côté passager"></textarea></label></div>' +
@@ -292,6 +321,18 @@ function formGesteVehiculeEC(f){
     const q = s => z.querySelector(s);
     const envoi = { action: 'vehGeste', id: c.id, geste: cle, texte: q('.vehTexte') ? q('.vehTexte').value.trim() : '' };
     if(cle === 'garage'){ envoi.date = q('.vehJour').value; envoi.heure = q('.vehHeure').value; envoi.chez = q('.vehChez').value.trim(); }
+    /* ⛽ v1436 — les litres et le coût, obligatoires ; 🧽 la date */
+    if(cle === 'plein'){
+      envoi.litres = q('.vehLitres').value.trim();
+      envoi.cout = q('.vehCout').value.trim().replace(/\s*€$/, '');
+      const ok = v => /^\d+([.,]\d+)?$/.test(String(v).replace(/\s/g, '')) && Number(String(v).replace(/\s/g, '').replace(',', '.')) > 0;
+      if(!ok(envoi.litres)){ q('.vehLitres').focus(); return; }
+      if(!ok(envoi.cout)){ q('.vehCout').focus(); return; }
+    }
+    if(cle === 'interieur' || cle === 'exterieur'){
+      envoi.date = q('.vehJour').value;
+      if(!envoi.date){ q('.vehJour').focus(); return; }
+    }
     if((cle === 'souci' || cle === 'carrosserie') && !envoi.texte){ q('.vehTexte').focus(); return; }
     if(avecPos){
       b.textContent = '📍 Position…';
