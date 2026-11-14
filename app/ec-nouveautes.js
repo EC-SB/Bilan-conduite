@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 12:06 — v1436 */
+/* Déployé le 14/11/2026 à 13:11 — v1437 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1437,
+    date: 'Samedi 14 novembre 2026',
+    resume: '🚗 Les boutons des véhicules dans les réglages des réponses rapides : leur nom et leur ordre',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'Les boutons des véhicules se règlent',
+        texte: 'Dans ⚙️ Réglages de la messagerie › ⚡ Réponses rapides (filtre 🚗 Véhicules), les huit boutons des conversations de véhicules (⚠️ souci, 🔧 garage, 🩹 carrosserie, 🚨 accident, 🛞 pneu, ⛽ plein, 🧽 et 🚿 nettoyages) sont dans la liste : ✏️ pour changer leur nom, ⠿ ou ↑ ↓ pour changer leur ordre, au milieu des autres réponses rapides des véhicules. Ce qu’ils font ne change pas (leur petite fenêtre, le message et la fiche du véhicule) ; ils ne se suppriment pas.' }
+    ]
+  },
   {
     version: 1436,
     date: 'Samedi 14 novembre 2026',
