@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 13:11 — v1437 */
+/* Déployé le 14/11/2026 à 13:57 — v1438 */
 /* ============================================================
    ec-msg-vehicules.js — 🚗 LES CONVERSATIONS DES VÉHICULES (v1390)
 
@@ -45,11 +45,31 @@ async function assurerLesFilsVehiculesEC(force){
 }
 
 /* ---------- le rond : le numéro du garage ---------- */
+/* 🖼️ v1438 — David, le 14 novembre : « quand je change la photo du groupe
+   véhicule, ça ne fonctionne pas ». La photo était bien enregistrée, mais
+   le rond posait toujours le numéro du garage PAR-DESSUS. Maintenant :
+   une photo choisie s'affiche, et le numéro du garage reste lisible dans
+   une petite pastille sur la photo. Sans photo, rien ne change. */
 function rondVehiculeEC(el, c){
+  const cle = (c && c.id && typeof clePhotoProfil === 'function') ? clePhotoProfil('groupe', c.id) : '';
+  const photo = cle && typeof lienPhotoProfil === 'function' && lienPhotoProfil(cle);
+  el.title = c && c.garage ? 'Garage n° ' + c.garage : 'Pas de garage attitré';
+  if(photo && typeof poserPhotoDans === 'function'){
+    el.classList.remove('ckAvVeh', 'sansGarage');
+    el.classList.add('ckAvVehPhoto');
+    poserPhotoDans(el, cle, c && c.garage ? String(c.garage) : '🚗');
+    if(c && c.garage){
+      const g = document.createElement('span');
+      g.className = 'ckAvGarage';
+      g.textContent = String(c.garage);
+      el.appendChild(g);
+    }
+    return;
+  }
+  el.classList.remove('ckAvVehPhoto');
   el.classList.add('ckAvVeh');
   el.textContent = c && c.garage ? String(c.garage) : '🚗';
   el.classList.toggle('sansGarage', !(c && c.garage));
-  el.title = c && c.garage ? 'Garage n° ' + c.garage : 'Pas de garage attitré';
 }
 
 /* ---------- ce que la barre du haut montre ---------- */
