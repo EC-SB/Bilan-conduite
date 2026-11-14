@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 15:58 — v1432 */
+/* Déployé le 14/11/2026 à 10:29 — v1433 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3950,8 +3950,10 @@ function mentionDeLExamen(cours, suivi){
    avec quatorze lignes grises donnerait à croire qu'on a rempli
    une grille de zéros. Rien à dire : rien à l'écran.
    ------------------------------------------------------------ */
-function blocCepcInterneRdvPost(eleve){
-  const c = (typeof cepcInterneDe === 'function') ? cepcInterneDe(eleve) : null;
+function blocCepcInterneRdvPost(eleve, grille, titre, aide){
+  /* 🧾 v1433 — la grille d'un examen précis (relecture du cours), ou
+     la dernière (le rendez-vous post-permis) */
+  const c = grille || ((typeof cepcInterneDe === 'function') ? cepcInterneDe(eleve) : null);
   if(!c) return null;
   if(typeof CEPC_BLOCS === 'undefined') return null;
 
@@ -3962,14 +3964,14 @@ function blocCepcInterneRdvPost(eleve){
   const t = document.createElement('div');
   t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
     'margin-bottom:2px;';
-  t.textContent = '🧾 Notre CEPC — celui du jour de l\'examen';
+  t.textContent = titre || '🧾 Notre CEPC — celui du jour de l\'examen';
   d.appendChild(t);
 
   const a = document.createElement('div');
   a.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.45;' +
     'margin-bottom:8px;';
-  a.textContent = "Ce que le moniteur avait noté. À comparer avec les " +
-    "captures du CEPC de l'inspecteur, juste en dessous.";
+  a.textContent = aide || ("Ce que le moniteur avait noté. À comparer avec les " +
+    "captures du CEPC de l'inspecteur, juste en dessous.");
   d.appendChild(a);
 
   CEPC_BLOCS.forEach(bloc => {
