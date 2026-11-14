@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 13:11 — v1437 */
+/* Déployé le 14/11/2026 à 13:57 — v1438 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1438,
+    date: 'Samedi 14 novembre 2026',
+    resume: '🖼️ La photo d’un groupe véhicule s’affiche, le n° de garage en pastille',
+    quoi: [
+      { emoji: '🖼️',
+        titre: 'La photo des conversations véhicules',
+        texte: 'Changer la photo d’un groupe véhicule (ⓘ › 🖼️ Photo du groupe) ne se voyait pas : le numéro du garage restait posé par-dessus. Maintenant la photo s’affiche dans la liste et en haut de la conversation, et le numéro du garage reste lisible dans une petite pastille sur la photo. Sans photo, c’est le numéro comme avant.' }
+    ]
+  },
   {
     version: 1437,
     date: 'Samedi 14 novembre 2026',
