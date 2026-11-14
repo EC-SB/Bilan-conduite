@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 13:57 — v1438 */
+/* Déployé le 14/11/2026 à 14:23 — v1439 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1439,
+    date: 'Samedi 14 novembre 2026',
+    resume: '📜 La liste des conversations reste où on a cliqué',
+    quoi: [
+      { emoji: '📜',
+        titre: 'La liste ne remonte plus en haut',
+        texte: 'Sur l’ordinateur et la tablette, toucher une conversation dans la liste de gauche (Élèves, Équipe, Véhicules, Tout…) la faisait remonter tout en haut : on ne voyait plus laquelle on avait choisie. Maintenant la liste reste où elle était, la conversation choisie allumée sous le doigt. Changer d’onglet repart d’en haut, comme avant.' }
+    ]
+  },
   {
     version: 1438,
     date: 'Samedi 14 novembre 2026',
