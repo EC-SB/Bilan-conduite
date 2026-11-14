@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 12:16 — v1401 */
+/* Déployé le 14/11/2026 à 10:29 — v1433 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -88,6 +88,15 @@ let carteEnPreparation = null; /* l'image du tracé, lancée d'avance */
    LEUR point — sinon « point 5 sur la carte » finit par montrer le
    point d'à côté. Le rang s'affiche, l'identité se garde. */
 let trajetCompteur = 0;
+
+/* 🅿️ v1433 — LE RELEVÉ RANGÉ PUIS REPRIS. Voir « UN RELEVÉ PAR
+   ÉLÈVE, GARDÉ DANS LE TÉLÉPHONE », plus bas. */
+let trajetPause = 0;          /* ms pendant lesquelles il était rangé */
+let trajetPauseAvant = 0;     /* la part de ces ms d'avant la dernière reprise */
+let trajetRepriseA = 0;       /* quand il a repris après avoir été rangé */
+let trajetGardeA = 0;         /* sa dernière mise à l'abri dans le téléphone */
+let trajetClos = false;       /* son bilan est enregistré : il ne se range plus */
+let trajetNom = '';           /* le nom tel qu'il s'écrit, pour le dire */
 
 /* Un point toutes les cinq secondes suffit à dessiner une route.
    À une seconde, on garde sept fois plus de points pour le même
@@ -328,7 +337,10 @@ function retenirPoint(pos){
     }
     /* Une minute sans rien : le relevé s'est tu, on compte le
        silence. C'est lui qui dira si le trajet est complet. */
-    if((t - avant.t) > TRAJET_SILENCE) trajetPerdu += (t - avant.t);
+    /* 🅿️ v1433 — le temps où le relevé était RANGÉ (une autre fiche
+       ouverte) n'est pas un silence : on compte depuis la reprise. */
+    const depuis = (trajetRepriseA && avant.t < trajetRepriseA) ? trajetRepriseA : avant.t;
+    if((t - depuis) > TRAJET_SILENCE) trajetPerdu += (t - depuis);
   }
 
   trajetPoints.push(p);
@@ -400,6 +412,8 @@ function demarrerTrajet(eleve){
      faire dans ce cours-ci. On l'oublie AVANT de repartir — le
      tracé de l'autre est déjà parti avec son bilan, ou il est
      perdu de toute façon. */
+  /* 🅿️ v1433 — « oublierLeTrajet » le RANGE d'abord pour son élève :
+     voir « UN RELEVÉ PAR ÉLÈVE, GARDÉ DANS LE TÉLÉPHONE ». */
   if(qui && trajetDebut && trajetEleve && trajetEleve !== qui){
     oublierLeTrajet();
   }
@@ -413,7 +427,25 @@ function demarrerTrajet(eleve){
   }
   if(!trajetPossible()) return false;
 
+  /* 🅿️ v1433 — LE SIEN, ARRÊTÉ (bilan composé puis fiche rouverte) OU
+     RANGÉ (une autre fiche ouverte entre-temps, la page rechargée) :
+     on le reprend au lieu de repartir de zéro. */
+  if(qui && trajetDebut && trajetEleve === qui && !trajetClos){
+    garderLeReleve();
+    trajetDebut = 0;
+  }
+  if(qui && !trajetDebut){
+    const g = releveGardeDe(qui);
+    if(g) return reprendreLeReleveGarde(g, eleve);
+  }
+  return demarrerUnNouveauReleve(qui, eleve);
+}
+
+function demarrerUnNouveauReleve(qui, eleve){
   trajetEleve = qui;
+  trajetNom = String(eleve || '').trim();
+  trajetPause = 0; trajetPauseAvant = 0; trajetRepriseA = 0;
+  trajetGardeA = 0; trajetClos = false;
   trajetPoints = [];
   trajetReperes = [];
   trajetDebut = Date.now();
@@ -526,6 +558,8 @@ function poserLaVeilleDuTrajet(){
     trajetVeille = navigator.geolocation.watchPosition(
       (pos) => {
         retenirPoint(pos);
+        /* 🅿️ v1433 — à l'abri dans le téléphone, toutes les 15 s */
+        if(Date.now() - trajetGardeA > 15000) garderLeReleve();
         /* 🗺️ v1148 — la carte du bureau reçoit la dernière position
            (ec-direct.js). Sans vitesse, et rien n'est gardé. */
         if(typeof noterLaPositionPourLeDirect === 'function') noterLaPositionPourLeDirect(pos);
@@ -673,8 +707,14 @@ function arreterTrajet(){
 /* On repart de zéro : après un bilan enregistré, après un
    abandon. Sans ça, le cours suivant hériterait du précédent. */
 function oublierLeTrajet(){
+  /* 🅿️ v1433 — un relevé dont le bilan n'est pas enregistré est
+     RANGÉ pour son élève avant d'être retiré de l'écran. */
+  rangerLeReleve();
   arreterTrajet();
   trajetEleve = '';
+  trajetNom = '';
+  trajetPause = 0; trajetPauseAvant = 0; trajetRepriseA = 0;
+  trajetGardeA = 0; trajetClos = false;
   trajetPoints = [];
   trajetReperes = [];
   trajetDebut = 0;
@@ -706,6 +746,207 @@ function trajetEnCours(){ return trajetVeille !== null; }
    ============================================================ */
 function releveEnCours(){
   return !!trajetDebut && !trajetFin;
+}
+
+
+/* ============================================================
+   🅿️ UN RELEVÉ PAR ÉLÈVE, GARDÉ DANS LE TÉLÉPHONE — v1433
+
+   David, le 14 novembre : à l'examen officiel, les fautes
+   éliminatoires (☠️) « ne se mettent pas sur le tracé », et en
+   relisant le cours de Fabian Molodecki rien n'y était.
+
+   Un matin d'examens, le moniteur passe d'une fiche à l'autre :
+   🎓 Mes examens, la carte d'un autre élève, la fiche reprise après
+   un plantage. Chaque ouverture d'une fiche AU NOM D'UN AUTRE
+   effaçait le relevé en cours (la règle de la v1067, juste dans son
+   but — ne pas donner la route de l'un à l'autre — mais trop
+   brutale) : le tracé de l'examen d'avant et ses ☠️ partaient avec,
+   si son bilan n'était pas encore composé. Et une page rechargée
+   perdait tout, elle aussi.
+
+   Le relevé n'est donc plus effacé : il est RANGÉ, au nom de son
+   élève, et il revient quand sa fiche se rouvre — mêmes points, mêmes
+   repères, mêmes identités (les lignes ☠️ retrouvent leur point).
+
+     · rangé depuis peu (moins de 3 min), ou page rechargée : il
+       reprend tout seul ;
+     · rangé depuis plus longtemps : on demande si son cours continue
+       (▶️ reprendre), s'il est fini (✅ tel quel) ou s'il faut
+       repartir de zéro. Le temps où il était rangé ne compte ni dans
+       la durée du cours ni comme un trou du tracé.
+
+   ⚠️ IL RESTE DANS LE TÉLÉPHONE, comme tout le relevé (voir l'en-tête
+   de ce fichier) : rien ne part sur le réseau. Il s'efface quand le
+   bilan de l'élève est enregistré, et au plus tard le lendemain.
+   ============================================================ */
+const CLE_RELEVES_GARDES = 'ec_releves_gardes';
+const TRAJET_REPRISE_SEULE = 3 * 60000;
+
+function jourDuReleve(){
+  if(typeof todayLocal === 'function'){ try{ return String(todayLocal()); }catch(e){} }
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+
+function lireRelevesGardes(){
+  let o = {};
+  try{ o = JSON.parse(localStorage.getItem(CLE_RELEVES_GARDES) || '{}') || {}; }catch(e){ o = {}; }
+  if(typeof o !== 'object' || Array.isArray(o)) o = {};
+  /* Ceux d'un autre jour s'en vont : un relevé ne se reprend que le jour même */
+  const jour = jourDuReleve();
+  Object.keys(o).forEach(k => { if(!o[k] || o[k].jour !== jour) delete o[k]; });
+  return o;
+}
+
+function ecrireRelevesGardes(o){
+  try{
+    if(Object.keys(o).length) localStorage.setItem(CLE_RELEVES_GARDES, JSON.stringify(o));
+    else localStorage.removeItem(CLE_RELEVES_GARDES);
+    return true;
+  }catch(e){ return false; }
+}
+
+/* Écrit le relevé en cours dans le téléphone, au nom de son élève */
+function garderLeReleve(){
+  if(!trajetDebut || !trajetEleve || trajetClos) return false;
+  const tous = lireRelevesGardes();
+  tous[trajetEleve] = {
+    eleve: trajetEleve, nom: trajetNom, jour: jourDuReleve(),
+    debut: trajetDebut, fin: trajetFin, perdu: trajetPerdu, dernier: trajetDernier,
+    pause: trajetPause, pauseAvant: trajetPauseAvant, reprise: trajetRepriseA,
+    compteur: trajetCompteur, relances: trajetRelances,
+    points: trajetPoints, reperes: trajetReperes, gardeA: Date.now()
+  };
+  trajetGardeA = Date.now();
+  return ecrireRelevesGardes(tous);
+}
+
+function releveGardeDe(qui){
+  const g = lireRelevesGardes()[qui];
+  return (g && Array.isArray(g.points) && g.debut) ? g : null;
+}
+
+function oublierLeReleveGarde(qui){
+  if(!qui) return;
+  const tous = lireRelevesGardes();
+  if(tous[qui]){ delete tous[qui]; ecrireRelevesGardes(tous); }
+}
+
+/* Une autre fiche s'ouvre : le relevé s'arrête et se range */
+function rangerLeReleve(){
+  if(!trajetDebut || !trajetEleve || trajetClos) return false;
+  if(!trajetFin) arreterTrajet();
+  return garderLeReleve();
+}
+
+function reprendreLeReleveGarde(g, eleve){
+  trajetEleve = g.eleve;
+  trajetNom = String(eleve || g.nom || '').trim();
+  trajetPoints = g.points.slice();
+  trajetReperes = (g.reperes || []).slice();
+  trajetDebut = Number(g.debut) || Date.now();
+  trajetFin = Number(g.fin) || 0;
+  trajetPerdu = Number(g.perdu) || 0;
+  trajetDernier = Number(g.dernier) || 0;
+  trajetPause = Number(g.pause) || 0;
+  trajetPauseAvant = Number(g.pauseAvant) || 0;
+  trajetRepriseA = Number(g.reprise) || 0;
+  trajetCompteur = Math.max(Number(g.compteur) || 0,
+    trajetReperes.reduce((m, r) => Math.max(m, Number(r && r.id) || 0), 0));
+  trajetRelances = Number(g.relances) || 0;
+  trajetCacheA = 0; trajetRefus = ''; trajetPanne = '';
+  trajetEcranTenu = null; trajetClos = false;
+  carteEnPreparation = null;
+  trajetGardeA = Number(g.gardeA) || 0;
+
+  /* Une page rechargée en plein cours : il n'a jamais été arrêté, il
+     continue. Le temps sans page est un vrai trou du tracé : il se
+     compte comme tel, il n'est pas caché dans une pause. */
+  if(!trajetFin){ continuerLeReleve(false); return true; }
+
+  /* Rangé depuis peu : il reprend tout seul */
+  if(Date.now() - trajetFin <= TRAJET_REPRISE_SEULE){ continuerLeReleve(true); return true; }
+
+  /* Rangé depuis longtemps : on demande, sans retenir l'ouverture de la fiche */
+  if(typeof dessinerEtatDuTrajet === 'function'){ try{ dessinerEtatDuTrajet(); }catch(e){} }
+  setTimeout(() => { demanderSiLeReleveReprend(); }, 350);
+  return true;
+}
+
+/* Rallume le capteur sur le relevé repris. « enPause » : le temps
+   écoulé depuis son arrêt ne compte ni dans le cours ni comme trou. */
+function continuerLeReleve(enPause){
+  const maintenant = Date.now();
+  if(enPause && trajetFin && maintenant > trajetFin){
+    trajetPauseAvant = trajetPause;
+    trajetPause += (maintenant - trajetFin);
+    trajetRepriseA = maintenant;
+  }
+  trajetFin = 0;
+  if(!poserLaVeilleDuTrajet()) return false;
+  tenirLEcranPourLeTrajet();
+  surveillerLaVeilleDuTrajet();
+  garderLeReleve();
+  if(typeof dessinerEtatDuTrajet === 'function'){ try{ dessinerEtatDuTrajet(); }catch(e){} }
+  return true;
+}
+
+function heureCourteDuReleve(t){
+  const d = new Date(t);
+  return String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0');
+}
+
+async function demanderSiLeReleveReprend(){
+  if(!trajetDebut || !trajetFin || trajetClos) return '';
+  const qui = trajetEleve;
+  const nom = trajetNom || 'cet élève';
+  const m = mesureDuTrajet();
+  const marques = trajetReperes.filter(r => r && r.type && r.type !== 'repere').length;
+  const texte = 'Le relevé GPS de ' + nom + ' a été mis de côté à ' + heureCourteDuReleve(trajetFin) +
+    ', quand une autre fiche a été ouverte' +
+    ' (' + Math.max(1, Math.round(m.releve / 60000)) + ' min de tracé' +
+    (trajetReperes.length ? ', ' + trajetReperes.length + (trajetReperes.length > 1 ? ' points' : ' point') +
+      (marques ? ' dont ' + marques + ' ☠️/⚠️' : '') : '') + ').\n\n' +
+    'Son cours continue maintenant ?';
+  let r = 'fini';
+  if(typeof fenetre === 'function'){
+    try{
+      r = await fenetre(texte, [
+        { nom: '▶️ Oui, reprendre le relevé', valeur: 'reprendre', principal: true },
+        { nom: '✅ Non, il est fini', valeur: 'fini' },
+        { nom: '🆕 Repartir de zéro', valeur: 'zero' }
+      ], '🛰️ Relevé GPS mis de côté');
+    }catch(e){ r = 'fini'; }
+  }
+  /* Entre-temps, une autre fiche a pu s'ouvrir : on ne touche plus à rien */
+  if(trajetEleve !== qui || !trajetDebut) return r;
+  if(r === 'reprendre'){
+    continuerLeReleve(true);
+  }else if(r === 'zero'){
+    oublierLeReleveGarde(qui);
+    const n = trajetNom;
+    trajetClos = true;              /* le vieux relevé ne se range pas */
+    oublierLeTrajet();
+    if(trajetPossible()){
+      demarrerUnNouveauReleve(qui, n);
+      if(typeof montrerLeTrajet === 'function') montrerLeTrajet(true);
+    }
+  }else{
+    if(typeof dessinerEtatDuTrajet === 'function'){ try{ dessinerEtatDuTrajet(); }catch(e){} }
+  }
+  return r;
+}
+
+/* La page passe derrière, ou se ferme : le relevé se met à l'abri */
+if(typeof document !== 'undefined' && document.addEventListener){
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ try{ garderLeReleve(); }catch(e){} }
+  });
+}
+if(typeof window !== 'undefined' && window.addEventListener){
+  window.addEventListener('pagehide', () => { try{ garderLeReleve(); }catch(e){} });
 }
 
 
@@ -774,6 +1015,8 @@ function poserRepere(type, nom){
   vibrer('ok');
 
   oublierLaCarteDuTrajet();
+  /* 🅿️ v1433 — une ☠️ posée en roulant ne se perd plus */
+  garderLeReleve();
   return trajetReperes.length;
 }
 
@@ -842,14 +1085,18 @@ function mesureDuTrajet(){
   if(premier && (premier - trajetDebut) > TRAJET_SILENCE){
     perdu += (premier - trajetDebut);
   }
-  /* Le trou de queue : plus rien ne vient, et le cours dure encore. */
-  if(trajetDernier && (fin - trajetDernier) > TRAJET_SILENCE){
-    perdu += (fin - trajetDernier);
+  /* Le trou de queue : plus rien ne vient, et le cours dure encore.
+     🅿️ v1433 — depuis la reprise, si le relevé a été rangé. */
+  const queue = (trajetRepriseA && trajetDernier < trajetRepriseA) ? trajetRepriseA : trajetDernier;
+  if(trajetDernier && (fin - queue) > TRAJET_SILENCE){
+    perdu += (fin - queue);
   }
 
+  /* 🅿️ v1433 — le temps rangé ne fait partie ni du cours ni du tracé */
+  const pauseDuTrace = (trajetRepriseA && trajetDernier >= trajetRepriseA) ? trajetPause : trajetPauseAvant;
   return {
-    duree: trajetDebut ? (fin - trajetDebut) : 0,   /* le COURS */
-    releve: premier ? (trajetDernier - premier) : 0, /* le TRACÉ */
+    duree: trajetDebut ? Math.max(0, fin - trajetDebut - trajetPause) : 0,   /* le COURS */
+    releve: premier ? Math.max(0, trajetDernier - premier - pauseDuTrace) : 0, /* le TRACÉ */
     perdu: perdu
   };
 }
@@ -1200,6 +1447,7 @@ function changerNatureDuPoint(numero, type, nom){
   r.type = NATURES_DU_POINT[type] ? type : 'repere';
   if(nom !== undefined) r.nom = String(nom || '').trim();
   oublierLaCarteDuTrajet();
+  garderLeReleve();
   return true;
 }
 
@@ -2973,6 +3221,13 @@ function montrerLeTrajetDansLeBilan(){
    agrément en moins, un bilan perdu est deux heures de travail.
    ============================================================ */
 async function enregistrerLeTrajet(meta){
+  /* 🅿️ v1433 — LE BILAN EST ENREGISTRÉ : son relevé ne se range plus
+     et sa copie du téléphone s'efface, tracé joint ou pas. */
+  {
+    const clos = cleDuTrajet((meta || {}).eleve);
+    if(clos) oublierLeReleveGarde(clos);
+    if(!trajetEleve || !clos || trajetEleve === clos) trajetClos = true;
+  }
   /* ⚠️ ON RANGE DÈS QUE ÇA VAUT QUELQUE CHOSE — v1068. « complet »
      décidait de l'écriture : un tracé à 89 % partait à la poubelle
      sans que personne ne le sache. Voir trajetUtilisable. */
