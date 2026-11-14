@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-postes.js
    Le simulateur à plusieurs élèves.
@@ -356,6 +356,11 @@ function retablirEcranPoste(p){
     }
   }
 
+  /* 📋 v1434 — « Le bilan à remplir » : ses choix à lui, ou rien */
+  if(typeof afficherSqueletteDuCours === 'function'){
+    afficherSqueletteDuCours(p.squelette || {});
+  }
+
   /* La fiche véhicule dépend de l'élève : elle se recharge */
   if(typeof afficherFicheDuCours === 'function'){
     try{ afficherFicheDuCours(); }catch(e){}
@@ -406,6 +411,9 @@ function rangerPosteActif(){
     });
     if(Object.keys(coches).length) p.entete = coches;
   }
+
+  /* 📋 v1434 — ce qu'il a choisi dans « Le bilan à remplir » */
+  if(typeof squeletteDuCours === 'function') p.squelette = squeletteDuCours();
 
   if(typeof committedTranscript !== 'undefined'){
     p.committed = committedTranscript;
