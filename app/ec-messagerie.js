@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 14/11/2026 à 14:23 — v1439 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -402,7 +402,32 @@ async function afficherMessagerie(silencieux){
   if(typeof poursuivreEcrireA === 'function') poursuivreEcrireA();
 }
 
+/* 📜 v1439 — LA LISTE RESTE OÙ ON L'A LAISSÉE. David, le 14 novembre :
+   « quand j'appuie sur une conversation à gauche, la liste remonte en
+   haut au lieu de rester où j'ai cliqué ». Ouvrir un fil redessine la
+   liste (pour allumer la ligne choisie) : la colonne qui défile était
+   refaite à neuf, donc repartait d'en haut. On retient où elle en
+   était, et on l'y remet — tant qu'on regarde la MÊME vue (même onglet,
+   même filtre, même recherche). Changer d'onglet repart d'en haut. */
+function vueDeLaListeEC(){
+  let etiq = '';
+  try{ etiq = JSON.stringify(filtreEtiqPourEC || {}); }catch(e){}
+  return [ckLarge() ? 'L' : 'E', (typeof dansLeTiroir === 'function' && dansLeTiroir()) ? 'T' : '',
+    ongletMsgEC, filtreMessagerie || '', chercheMessagerie || '', etiq].join('|');
+}
 function dessinerLaListeMessagerie(){
+  const avant = zoneListeMsg();
+  const vieux = avant && avant.querySelector('.ckpScroll');
+  const vue = vueDeLaListeEC();
+  const garde = (vieux && avant.getAttribute('data-vue') === vue) ? vieux.scrollTop : 0;
+  dessinerLaListeMessagerieIci();
+  const z = zoneListeMsg();
+  if(!z) return;
+  z.setAttribute('data-vue', vue);
+  const sc = z.querySelector('.ckpScroll');
+  if(sc && garde) sc.scrollTop = garde;
+}
+function dessinerLaListeMessagerieIci(){
   /* ✉️ v1337 — sur le téléphone, un mail ouvert occupe la zone de la liste */
   if(!ckLarge() && typeof mlFilEstOuvert === 'function' && mlFilEstOuvert()) return;
   const large = ckLarge();
