@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:22 — v1427 */
+/* Déployé le 14/11/2026 à 15:08 — v1440 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -324,6 +324,10 @@ function ongletsEleveVisibles(){
   const estAdmin = (typeof ACCES !== 'undefined') && ACCES.role === 'admin';
   return ONGLETS_ELEVE.filter(o => {
     if(o.admin) return estAdmin;
+    /* 🎓 v1440 — David : « le sous-onglet code apparaît que quand on a
+       ouvert le suivi code dans son app » — ou qu'il a des séances
+       enregistrées. Voir ongletCodeVisible (ec-coin-revisions.js). */
+    if(o.cle === 'code' && typeof ongletCodeVisible === 'function' && !ongletCodeVisible(elevePageOuverte)) return false;
     return typeof sectionVisible !== 'function' || sectionVisible(o.section);
   });
 }
@@ -2852,6 +2856,11 @@ function enteteEleve(nom){
     p.textContent = f.formation;
     d.appendChild(p);
   }
+
+  /* 🎓 v1440 — « 🎓 Code : avec nous / de son côté / déjà obtenu », juste
+     après la formation (David : la pastille dans la tête du dossier) */
+  const pc = (typeof pastilleCodeEleve === 'function') ? pastilleCodeEleve(nom) : null;
+  if(pc) d.appendChild(pc);
 
   /* 🆔 v1184 — l'id Drivup, juste après la formation : visible sur
      tous les onglets du dossier. */
