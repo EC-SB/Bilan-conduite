@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 10:29 — v1433 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1434,
+    date: 'Samedi 14 novembre 2026',
+    resume: '📋 Simulateur en vocal : le bilan à remplir sous les yeux · 💬 la Messagerie EC à installer à part',
+    quoi: [
+      { emoji: '📋',
+        titre: 'Simulateur BV et BEA en vocal : « Le bilan à remplir »',
+        texte: 'Pendant la dictée d’un simulateur, un volet replié « 📋 Le bilan à remplir » donne les compétences de la fiche « à la main », dans le même ordre (10 en BV, 8 en BEA), avec — non travaillé — / ✅ Acquis / 🟠 En cours / ❌ À revoir. Ce que tu choisis l’emporte sur ce que l’IA aura compris ; laissé sur « non travaillé », c’est l’IA qui décide. Les erreurs restent tirées de la dictée. Aussi sur 🎮 Plusieurs élèves à la fois, chaque élève avec ses choix.' },
+      { emoji: '💬',
+        titre: 'La Messagerie EC, à part',
+        texte: 'Une page avec seulement la messagerie, à installer sur un téléphone ou une tablette sous le nom « Messagerie EC » (icône verte à la bulle). Le lien et son QR code sont dans le ⋯ de la messagerie › 📲 Installer la Messagerie EC. Pour tout le monde, même connexion (prénom + code). En haut, « ↗ Ouvrir l’App EC ». La messagerie reste aussi dans l’App EC, sans changement.' },
+      { emoji: '🔔',
+        titre: 'Pas de notification en double',
+        texte: 'La Messagerie EC propose d’activer les notifications. Si elle est installée sur le même genre d’appareil que l’App EC (un iPhone, par exemple), l’App EC propose une fois de couper les siennes sur ce téléphone, pour que chaque message ne sonne pas deux fois.' }
+    ]
+  },
   {
     version: 1433,
     date: 'Samedi 14 novembre 2026',
