@@ -1,4 +1,4 @@
-/* Déployé le 23/10/2026 à 11:48 — v1251 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-iadirect.js
    🤖 L'IA AU FIL DE L'EAU, ET LE BILAN QUI NE REVIENT PAS — v1209
@@ -521,6 +521,8 @@ async function composerSansIA(){
   const transcript = (typeof finalTranscript !== 'undefined' && finalTranscript) || ($('transcriptBox') && $('transcriptBox').value) || '';
   const donnees = donneesSansIA();
   Object.assign(donnees, (typeof enteteDuCours === 'function') ? enteteDuCours() : {});
+  /* 📋 v1434 — le choix du moniteur dans « Le bilan à remplir » */
+  if(typeof appliquerSqueletteDuCours === 'function') appliquerSqueletteDuCours(donnees);
   if(typeof examenBlancDuCours === 'function') Object.assign(donnees, examenBlancDuCours());
 
   /* Les manœuvres déjà faites, comme le bilan généré les reprend */
