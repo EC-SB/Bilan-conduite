@@ -1,4 +1,4 @@
-/* Déployé le 28/10/2026 à 15:36 — v1295 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -42,6 +42,8 @@ function sauvegarderLocal(force){
       /* Ce que le moniteur a coché pendant le cours : sans ça, un
          plantage lui faisait tout recocher de mémoire. */
       entete: (typeof enteteDuCours === 'function') ? enteteDuCours() : null,
+      /* 📋 v1434 — ce qu'il a choisi dans « Le bilan à remplir » */
+      squelette: (typeof squeletteDuCours === 'function') ? squeletteDuCours() : null,
       /* CE QU'IL A RÉPONDU AU QUESTIONNAIRE.
 
          Une monitrice a rempli « 📋 Compléter les infos » en entier
@@ -494,6 +496,9 @@ function reprendreCours(){
 
   /* Les cases cochées avant le plantage : on les remet dès que les
      panneaux sont dessinés, sinon il n'y a rien à cocher. */
+  if(s.squelette && Object.keys(s.squelette).length && typeof afficherSqueletteDuCours === 'function'){
+    setTimeout(() => { try{ afficherSqueletteDuCours(s.squelette); }catch(e){} }, 0);
+  }
   if(s.entete || (s.fiche && s.fiche.length)){
     (async () => {
       if(typeof afficherEnteteDuCours === 'function') afficherEnteteDuCours();
