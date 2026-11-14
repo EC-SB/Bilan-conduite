@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 12:01 — v1412 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -521,6 +521,8 @@ $('recBtn').addEventListener('click', async () => {
 
   afficherEnteteDuCours();
   afficherFicheDuCours();
+  /* 📋 v1434 — le bilan à remplir, sur un simulateur */
+  afficherSqueletteDuCours();
 
   /* Le bureau voit qui est en cours, sans avoir à appeler */
   if(typeof marquerCoursSignale === 'function') marquerCoursSignale();
@@ -805,6 +807,8 @@ async function lancerLaGeneration(){
 
     /* Le moniteur a le dernier mot sur ce qu'il a coché lui-même */
     Object.assign(donnees, enteteDuCours());
+    /* 📋 v1434 — et sur ce qu'il a choisi dans « Le bilan à remplir » */
+    appliquerSqueletteDuCours(donnees);
 
     /* L'examen blanc noté sous la transcription, s'il y en a eu un.
        Il ne se dicte pas : il se coche, et il arrive ici tel quel. */
@@ -2421,6 +2425,148 @@ function afficherEnteteDuCours(){
 
   zone.appendChild(d);
   zone.style.display = 'block';
+}
+
+/* ============================================================
+   📋 LE BILAN À REMPLIR, SOUS LES YEUX — v1434
+
+   David, le 14 novembre : « sur les bilans de simulateur BV et BEA
+   quand ils sont faits en vocal, il faudrait voir le squelette du
+   bilan manuel pour que les moniteurs se repèrent ». Ses choix sur le
+   schéma : la VERSION B — les mêmes lignes que la fiche « à la main »,
+   avec — non travaillé — / ✅ / 🟠 / ❌ —, le volet REPLIÉ comme les
+   trois autres, et AUSSI sur « 🎮 Plusieurs élèves à la fois ».
+
+   Ce que le moniteur choisit ici l'emporte sur ce que l'IA aura
+   compris (la règle de la case « Carte SD — Installation —
+   Vérifications »). Laissé sur « non travaillé », c'est l'IA qui
+   décide. Les erreurs, elles, restent tirées de la dictée.
+
+   ⚠️ LA LISTE EST CELLE DU MODÈLE (MODELES[…].comps), celle que la
+   fiche « à la main » dessine et que buildSimu écrit : une seule
+   liste, trois usages. Et la classe n'est PAS « compStatut » : la
+   fiche manuelle lit tous les « .compStatut » de la page, et ceux-ci
+   resteraient dans la page, cachés, quand elle s'ouvre.
+   ============================================================ */
+function modeleDuSquelette(){
+  const sel = $('modele');
+  const m = (sel && typeof MODELES === 'object') ? MODELES[sel.value] : null;
+  return (m && m.groupe === 'Simulateur' && Array.isArray(m.comps) && m.comps.length) ? m : null;
+}
+
+/* Ce que le moniteur a choisi : { clé : '✅' | '🟠' | '❌' } */
+function squeletteDuCours(){
+  const zone = $('squeletteCours');
+  if(!zone || zone.style.display === 'none') return {};
+  const out = {};
+  zone.querySelectorAll('.sqStatut').forEach(s => {
+    const cle = s.getAttribute('data-comp');
+    if(cle && s.value) out[cle] = s.value;
+  });
+  return out;
+}
+
+/* Le choix du moniteur passe avant l'IA ; ses erreurs à elle restent */
+function appliquerSqueletteDuCours(donnees){
+  const ch = squeletteDuCours();
+  const cles = Object.keys(ch);
+  if(!donnees || !cles.length) return donnees;
+  const c = (donnees.competences && typeof donnees.competences === 'object') ? donnees.competences : {};
+  cles.forEach(k => {
+    const avant = (c[k] && typeof c[k] === 'object') ? c[k] : {};
+    c[k] = Object.assign({ erreurs: [] }, avant, { statut: ch[k] });
+  });
+  donnees.competences = c;
+  return donnees;
+}
+
+/* Le titre du volet dit combien sont déjà choisies */
+function majTitreSquelette(){
+  const zone = $('squeletteCours');
+  const t = zone ? zone.querySelector('.sqTitre') : null;
+  if(!t) return;
+  const n = zone.querySelectorAll('.sqStatut').length;
+  const faits = [...zone.querySelectorAll('.sqStatut')].filter(s => s.value).length;
+  t.textContent = 'Le bilan à remplir — ' + n + ' compétences' + (faits ? ' · ' + faits + ' choisie' + (faits > 1 ? 's' : '') : '');
+}
+
+/* « choix » : ce qu'il faut remettre (reprise, poste du simulateur) */
+function afficherSqueletteDuCours(choix){
+  const zone = $('squeletteCours');
+  if(!zone) return;
+  const m = modeleDuSquelette();
+  if(!m){ zone.innerHTML = ''; zone.style.display = 'none'; return; }
+
+  /* On ne redessine pas le même cours : le moniteur perdrait ses
+     choix. Un autre élève (poste suivant, cours suivant) ou un autre
+     simulateur repart de zéro : ses choix ne sont pas ceux d'un autre. */
+  const qui = m.label + '|' + (typeof normaliserMot === 'function'
+    ? normaliserMot(($('studentName') && $('studentName').value) || '') : '');
+  if(zone.dataset.cours === qui && zone.querySelector('.sqStatut')){
+    zone.style.display = 'block';
+    if(choix) remettreSqueletteDuCours(choix);
+    return;
+  }
+
+  zone.innerHTML = '';
+  zone.dataset.cours = qui;
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
+  const s = document.createElement('summary');
+  s.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;color:var(--accent-text);';
+  s.innerHTML = '📋 <span class="sqTitre"></span>';
+  d.appendChild(s);
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;';
+  aide.textContent = 'Le même ordre que la fiche « à la main ». Ce que tu choisis ici ' +
+    'l’emporte sur ce que l’IA aura compris ; « non travaillé », c’est l’IA qui décide.';
+  d.appendChild(aide);
+
+  m.comps.forEach(comp => {
+    const zc = document.createElement('div');
+    zc.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;';
+    const h = document.createElement('div');
+    h.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:600;';
+    t.textContent = comp.titre || comp.nom || comp.cle;
+    h.appendChild(t);
+    const sel = document.createElement('select');
+    sel.className = 'sqStatut';
+    sel.setAttribute('data-comp', comp.cle);
+    sel.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:14px;flex-shrink:0;';
+    sel.innerHTML = '<option value="">— non travaillé —</option>' +
+      '<option value="✅">✅ Acquis</option>' +
+      '<option value="🟠">🟠 En cours</option>' +
+      '<option value="❌">❌ À revoir</option>';
+    sel.addEventListener('change', () => {
+      majTitreSquelette();
+      /* gardé tout de suite, comme le reste du cours */
+      if(typeof sauvegarderLocal === 'function'){ try{ sauvegarderLocal(true); }catch(e){} }
+      if(typeof rangerPosteActif === 'function' && typeof postes !== 'undefined' && postes.length){
+        try{ rangerPosteActif(); rangerPostes(); }catch(e){}
+      }
+    });
+    h.appendChild(sel);
+    zc.appendChild(h);
+    d.appendChild(zc);
+  });
+
+  zone.appendChild(d);
+  zone.style.display = 'block';
+  if(choix) remettreSqueletteDuCours(choix);
+  majTitreSquelette();
+}
+
+function remettreSqueletteDuCours(choix){
+  const zone = $('squeletteCours');
+  if(!zone) return;
+  zone.querySelectorAll('.sqStatut').forEach(s => {
+    const v = choix ? choix[s.getAttribute('data-comp')] : '';
+    s.value = v || '';
+  });
+  majTitreSquelette();
 }
 
 const MARQUEURS_REPRISE = [
