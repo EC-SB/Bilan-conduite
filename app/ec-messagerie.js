@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 12:55 — v1424 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -3977,6 +3977,9 @@ async function compterLaMessagerie(){
      typeof ACCES !== 'undefined' && ACCES.code){
     pousseeRepriseFaite = true;
     reprendreLaPoussee();
+    /* 💬 v1434 — le service worker apprend si c'est l'App EC ou la
+       Messagerie EC : une notification touchée rouvre la même */
+    direLeModeAuServiceWorkerEC();
     const filDemande = filDemandeParLAdresse();
     if(filDemande){
       /* La page s'ouvre POUR une notification : on va droit au fil,
@@ -4182,6 +4185,17 @@ function poserLesComptesMessagerie(total){
    Rien ne casse là où elle manque, et on ne prévient de rien : une
    pastille est un confort, jamais une information à elle seule.
    ============================================================ */
+function direLeModeAuServiceWorkerEC(){
+  try{
+    const sw = navigator.serviceWorker;
+    if(!sw) return;
+    sw.ready.then(reg => {
+      const a = reg && reg.active;
+      if(a) a.postMessage({ quoi: 'modeEquipe', messagerie: !!window.EC_SEULE_MESSAGERIE });
+    }).catch(() => {});
+  }catch(e){}
+}
+
 function poserLaPastilleDeLAppli(combien){
   const n = Math.max(0, Number(combien) || 0);
   try{
@@ -8012,6 +8026,8 @@ async function reprendreLaPoussee(){
     });
     await appelPrep(Object.assign({ action: 'poussAbonner' }, abonnementEnClair(ab)));
     pousseeEtatEC = 'on';
+    /* 💬 v1434 — l'App EC et la Messagerie EC sur le même téléphone */
+    if(!window.EC_SEULE_MESSAGERIE) setTimeout(() => { proposerDeCouperLesDoublesEC(); }, 4000);
   }catch(e){ /* muet : on réessaiera au prochain démarrage */ }
 }
 
@@ -8122,6 +8138,8 @@ async function preparerLaPoussee(){
   dessinerLaPoussee();
   /* 🕘 v1185 — ses horaires, pour le bandeau et la fenêtre */
   if(pousseeEtatEC === 'on' && !appareilsLusEC) chargerMesAppareilsEC();
+  /* 💬 v1434 — la Messagerie EC demande à être prévenue */
+  if(pousseeEtatEC === 'off' && window.EC_SEULE_MESSAGERIE) proposerLesNotificationsMessagerieEC();
 }
 
 function dessinerLaPoussee(){
@@ -8190,6 +8208,85 @@ function dessinerLaPoussee(){
   }
 
   zone.appendChild(ligne);
+
+  /* 💬 v1434 — la Messagerie EC est aussi prévenue sur un appareil du
+     même genre : si c'est ce téléphone, chaque message sonnerait deux fois */
+  const double = (pousseeEtatEC === 'on') ? doublonMessagerieEC() : null;
+  if(double){
+    const l2 = document.createElement('div');
+    l2.className = 'msgDoubleNotif';
+    l2.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;' +
+      'border-radius:12px;margin-bottom:10px;background:var(--navy-deep);border:1px solid var(--orange);';
+    const t2 = document.createElement('div');
+    t2.style.cssText = 'flex:1;min-width:170px;font-size:12.5px;line-height:1.45;color:var(--soft);';
+    t2.innerHTML = '📲 La <b>Messagerie EC</b> est aussi prévenue sur ' + echapper(double.appareil.split(' · ')[0]) + '.<br>' +
+      '<span style="color:var(--muted);font-size:11.5px;">Si c’est ce téléphone, coupe les notifications de l’App EC : sinon chaque message sonne deux fois.</span>';
+    l2.appendChild(t2);
+    const b2 = document.createElement('button');
+    b2.className = 'btn btn-secondary';
+    b2.style.cssText = 'width:auto;margin:0;padding:6px 12px;font-size:12px;';
+    b2.textContent = '🔕 Couper ici';
+    b2.addEventListener('click', () => arreterLaPoussee(b2));
+    l2.appendChild(b2);
+    zone.appendChild(l2);
+  }
+}
+
+/* ============================================================
+   💬 LA MESSAGERIE EC ET L'APP EC SUR LE MÊME TÉLÉPHONE — v1434
+
+   David, sur le schéma : « la messagerie demande d'activer les
+   notifications, et l'App EC propose de couper les siennes sur ce
+   téléphone » — d'accord.
+
+   Sur un iPhone, chaque application installée a son propre
+   abonnement : les deux sonneraient. Sur Android, elles partagent le
+   même (même navigateur) : il n'y a rien à couper, et l'appareil n'est
+   pas « un autre ». On ne propose donc que pour un AUTRE abonnement de
+   la même personne, marqué « Messagerie EC », sur le même genre
+   d'appareil (iPhone, iPad, Android…) — et une seule fois.
+   ============================================================ */
+function doublonMessagerieEC(){
+  if(window.EC_SEULE_MESSAGERIE || !Array.isArray(appareilsEC)) return null;
+  const moi = libelleAppareilEC().split(' · ')[0];
+  return appareilsEC.find(a => a && !a.moi && /Messagerie EC/.test(a.appareil || '') &&
+    String(a.appareil || '').split(' · ')[0] === moi) || null;
+}
+
+async function proposerDeCouperLesDoublesEC(){
+  if(window.EC_SEULE_MESSAGERIE || pousseeEtatEC !== 'on') return;
+  if(!appareilsLusEC) await chargerMesAppareilsEC();
+  const d = doublonMessagerieEC();
+  if(!d) return;
+  const cle = 'ec_double_notif_' + d.id;
+  try{ if(localStorage.getItem(cle)) return; localStorage.setItem(cle, '1'); }catch(e){ return; }
+  if(typeof fenetre !== 'function') return;
+  const r = await fenetre('La Messagerie EC est installée sur ' + d.appareil.split(' · ')[0] +
+    ' et reçoit aussi les notifications des messages.\n\nSi c’est ce téléphone, coupe celles de l’App EC : ' +
+    'sinon chaque message sonne deux fois. La Messagerie EC, elle, continue de sonner.', [
+    { nom: 'Ce n’est pas ce téléphone', valeur: 'non' },
+    { nom: '🔕 Couper ici', valeur: 'oui', principal: true }
+  ], '📲 Notifications en double');
+  if(r === 'oui') arreterLaPoussee(null);
+}
+
+/* La Messagerie EC demande à être prévenue — une fois par semaine au
+   plus si on répond « Plus tard » */
+let proposeNotifMsgEC = false;
+async function proposerLesNotificationsMessagerieEC(){
+  if(proposeNotifMsgEC || !window.EC_SEULE_MESSAGERIE) return;
+  proposeNotifMsgEC = true;
+  if(typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+  const cle = 'ec_msg_seule_notif_plus_tard';
+  try{ if(Date.now() - Number(localStorage.getItem(cle) || 0) < 7 * 86400000) return; }catch(e){}
+  if(typeof fenetre !== 'function') return;
+  const r = await fenetre('Pour être prévenu des nouveaux messages sur ce téléphone, même quand la Messagerie EC est fermée, ' +
+    'active les notifications.\n\nÀ faire une fois par téléphone ou tablette.', [
+    { nom: 'Plus tard', valeur: 'non' },
+    { nom: '🔔 Activer', valeur: 'oui', principal: true }
+  ], '🔔 Être prévenu');
+  if(r === 'oui') demanderLaPoussee(null);
+  else{ try{ localStorage.setItem(cle, String(Date.now())); }catch(e){} }
 }
 
 
@@ -8220,7 +8317,8 @@ function libelleAppareilEC(){
     : /Windows/.test(u) ? 'Windows' : /Mac OS X|Macintosh/.test(u) ? 'Mac' : /Linux/.test(u) ? 'Linux' : 'Appareil';
   const nav = /Edg\//.test(u) ? 'Edge' : /SamsungBrowser/.test(u) ? 'Samsung' : /Firefox\//.test(u) ? 'Firefox'
     : /Chrome\//.test(u) ? 'Chrome' : /Safari\//.test(u) ? 'Safari' : 'Navigateur';
-  return sys + ' · ' + nav;
+  /* 💬 v1434 — la Messagerie EC se reconnaît dans « Tes autres appareils » */
+  return sys + ' · ' + nav + (window.EC_SEULE_MESSAGERIE ? ' · Messagerie EC' : '');
 }
 function iconeAppareilEC(a){
   return /iPhone|Android/.test(a || '') ? '📱' : /iPad/.test(a || '') ? '📱' : '💻';
