@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:37 — v1435 */
+/* Déployé le 14/11/2026 à 12:06 — v1436 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1436,
+    date: 'Samedi 14 novembre 2026',
+    resume: '🚗 Conversations des véhicules : ⛽ plein, 🧽 🚿 nettoyages, et leurs réponses rapides à elles',
+    quoi: [
+      { emoji: '⛽',
+        titre: 'J’ai fait le plein',
+        texte: 'Dans la conversation d’un véhicule, « ⛽ J’ai fait le plein » demande le nombre de litres et le coût (le prix au litre se calcule tout seul). Le message part dans la conversation, et le plein s’inscrit dans la fiche du véhicule (⛽ Plein, avec le coût).' },
+      { emoji: '🧽',
+        titre: 'Nettoyage intérieur et extérieur',
+        texte: '« 🧽 Nettoyage intérieur » et « 🚿 Nettoyage extérieur » demandent la date (aujourd’hui par défaut). Le message part, et le nettoyage s’inscrit dans la fiche du véhicule (🧽 Nettoyage).' },
+      { emoji: '🚗',
+        titre: 'Des réponses rapides pour les véhicules',
+        texte: 'Dans ⚙️ Réglages de la messagerie › ⚡ Réponses rapides, un type « 🚗 Véhicules » : une réponse cochée là n’apparaît que dans les conversations des véhicules. Tant qu’aucune n’est cochée « Véhicules », elles gardent les réponses des groupes, comme avant.' }
+    ]
+  },
   {
     version: 1435,
     date: 'Samedi 14 novembre 2026',
