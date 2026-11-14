@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 14/11/2026 à 10:29 — v1433 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -974,6 +974,29 @@ function ouvrirAncienBilan(item, row){
       'font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--accent-text);';
     n.textContent = '📝 ' + item.note;
     bloc.appendChild(n);
+  }
+
+  /* 🧾 v1433 — NOTRE CEPC SOUS LE BILAN DE L'EXAMEN OFFICIEL. David, le
+     14/11 : en relisant le cours, « on ne peut pas voir le CEPC rempli
+     par le moniteur pour faire un comparatif ». Il est pour nous : il
+     n'est jamais dans le bilan de l'élève, il se lit ici. */
+  if(/examen officiel/i.test(String(item.type || '')) &&
+     typeof cepcInterneDuJour === 'function' && typeof blocCepcInterneRdvPost === 'function'){
+    try{
+      const g = cepcInterneDuJour(item.eleve, item.date);
+      const cadre = g && blocCepcInterneRdvPost(item.eleve, g.grille,
+        '🧾 Notre CEPC — pour nous, jamais pour l\'élève',
+        g.ancienne
+          ? 'Le dernier noté pour ' + (item.eleve || 'cet élève') + ' (gardé avant la v1433, sans sa date). ' +
+            'À comparer avec le CEPC de l\'inspecteur.'
+          : 'Ce que le moniteur a noté pendant cet examen. À comparer avec le CEPC de l\'inspecteur.');
+      if(cadre){
+        cadre.classList.add('cepcRelecture');
+        cadre.style.marginTop = '12px';
+        cadre.style.marginBottom = '0';
+        bloc.appendChild(cadre);
+      }
+    }catch(e){ console.warn('Notre CEPC (relecture) :', e); }
   }
 
   const rangee = document.createElement('div');
