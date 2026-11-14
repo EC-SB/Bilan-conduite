@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 12:06 — v1436 */
+/* Déployé le 14/11/2026 à 13:11 — v1437 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1455,6 +1455,8 @@ function ckFeuilleRapides(f, ancre){
     const m = String(x.bouton).match(tete);
     items.push({ emoji: m ? m[1] : '⚡', texte: m ? String(x.bouton).replace(tete, '') : String(x.bouton), cle: 'rapide', faire: async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
+      /* 🚗 v1437 — un bouton du véhicule ouvre sa petite fenêtre */
+      if(x.sorte === 'geste'){ if(typeof ouvrirGesteVehiculeEC === 'function') ouvrirGesteVehiculeEC(f, x.geste); return; }
       /* ✏️ v1369 — mode « coller » : le texte va dans la zone d'écriture
          (sauf avec la position GPS, qui n'a de sens qu'envoyée). */
       if(coller && !x.position){ collerReponseDansTexte(c.id, remplirLesMotsRapides(x.message, c)); return; }
@@ -1492,13 +1494,19 @@ function ckReponsesRapides(f, petit){
   eclair.title = 'Toutes les réponses rapides, et « Ce qu’on écrit et envoie »';
   eclair.addEventListener('click', ev => { ev.stopPropagation(); ckFeuilleRapides(f, eclair); });
   v.appendChild(eclair);
-  /* 🚗 v1390 — les cinq gestes d'une conversation de véhicule, en tête */
-  if(c.vehicule && typeof boutonsGestesVehiculeEC === 'function') boutonsGestesVehiculeEC(f).forEach(b => v.appendChild(b));
+  /* 🚗 v1390 — les gestes d'une conversation de véhicule. ⚠️ v1437 — ils
+     ne sont plus posés ici en dur : ils sont dans la liste des réponses
+     rapides (sorte « geste »), où David change leur nom et leur ordre. */
   if(!reponsesRapidesLues) chargerReponsesRapides().then(change => { if(change && filOuvertEC) dessinerLeFil(); });
   /* 📱 v1174 — David : « tous, ils passent à la ligne ». Plus de
      coupe à trois sur le téléphone. */
   const liste = reponsesRapidesDuFil(c);
   liste.forEach(x => {
+    /* 🚗 v1437 — un geste du véhicule : sa fenêtre (message + Flotte) */
+    if(x.sorte === 'geste'){
+      if(typeof boutonGesteVehiculeEC === 'function') v.appendChild(boutonGesteVehiculeEC(f, x.geste, x.bouton));
+      return;
+    }
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'ckVite';
@@ -1786,15 +1794,29 @@ const GENRES_RAPIDES = ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe
 let reponsesRapidesEC = null;        /* null : celles d'origine */
 let reponsesRapidesLues = false;
 
+/* 🚗 v1437 — les boutons des conversations de véhicules, dans la liste des
+   réponses rapides. David, le 14 novembre : « tu ne me les as pas mis dans
+   les réglages des réponses rapides pour que je puisse changer l'ordre, il
+   faut que je puisse les modifier et changer l'ordre au besoin ». Comme
+   « 📅 Proposer un créneau » : on change leur nom et leur place, pas ce
+   qu'ils font (leur petite fenêtre, le message et la Flotte). */
+function gestesVehiculeDOrigine(){
+  const l = (typeof GESTES_VEH_EC !== 'undefined') ? GESTES_VEH_EC : [];
+  return l.map(([cle, nom]) => ({ id: 'vg-' + cle, bouton: nom, message: '', sorte: 'geste', geste: cle, genres: ['vehicule'] }));
+}
+function nomDuGesteVehicule(cle){
+  const g = ((typeof GESTES_VEH_EC !== 'undefined') ? GESTES_VEH_EC : []).find(x => x[0] === cle);
+  return g ? g[1] : cle;
+}
 function reponsesRapidesDOrigine(){
   const sansVitrine = GENRES_RAPIDES.filter(g => g !== 'vitrine' && g !== 'mail');
-  return VITES_CK.map(x => ({
+  return gestesVehiculeDOrigine().concat(VITES_CK.map(x => ({
     id: x.k, bouton: x.t, message: x.msg || '', sorte: x.k === 'cren' ? 'creneau' : 'message',
     /* le créneau n'avait de sens que dans un fil d'élève */
     genres: x.k === 'cren' ? ['bureau', 'retard', 'annul', 'oubli', 'moniteur'] : sansVitrine.slice()
   })).concat(VITES_VITRINE_CK.map(x => ({ id: 'v' + x.k, bouton: x.t, message: x.msg, sorte: 'message', genres: ['vitrine'] })))
     .concat(REPONSES_TRAFIC_CK.map(x => JSON.parse(JSON.stringify(x))))
-    .concat(REPONSES_MAILS_CK.map(x => JSON.parse(JSON.stringify(x))));
+    .concat(REPONSES_MAILS_CK.map(x => JSON.parse(JSON.stringify(x)))));
 }
 /* ✉️ v1337 — les quatre réponses de départ des mails (David : « garde
    ceux-là et que je puisse en rajouter »). Les mêmes que dans le Worker
@@ -1844,16 +1866,29 @@ function reponsesRapides(){ return vehiculesDansLesReponses(reponsesRapidesEC) |
    porte « 🚗 Véhicules », c'est la liste qui décide. */
 function vehiculesDansLesReponses(liste){
   if(!Array.isArray(liste)) return liste;
-  if(liste.some(x => (x.genres || []).indexOf('vehicule') !== -1)) return liste;
-  return liste.map(x => ((x.genres || []).indexOf('groupe') !== -1)
-    ? Object.assign({}, x, { genres: (x.genres || []).concat('vehicule') }) : x);
+  let l = liste;
+  if(!l.some(x => x.sorte !== 'geste' && (x.genres || []).indexOf('vehicule') !== -1)){
+    l = l.map(x => (x.sorte !== 'geste' && (x.genres || []).indexOf('groupe') !== -1)
+      ? Object.assign({}, x, { genres: (x.genres || []).concat('vehicule') }) : x);
+  }
+  /* 🚗 v1437 — les boutons du véhicule : en tête la première fois, et un
+     bouton qui manquerait (ajouté par une version suivante) se pose après
+     le dernier — ils ne se suppriment pas, ils se renomment et se rangent */
+  const presents = l.filter(x => x.sorte === 'geste').map(x => x.geste);
+  const manquants = gestesVehiculeDOrigine().filter(x => presents.indexOf(x.geste) === -1);
+  if(!manquants.length) return l;
+  if(!presents.length) return manquants.concat(l);
+  let dernier = -1;
+  l.forEach((x, i) => { if(x.sorte === 'geste') dernier = i; });
+  return l.slice(0, dernier + 1).concat(manquants, l.slice(dernier + 1));
 }
 
 /* Celles d'un fil : cochées pour son type, dans l'ordre de la liste.
    Le créneau demande un élève (on ne le propose pas à un groupe). */
 function reponsesRapidesDuFil(c){
   return reponsesRapides().filter(x => reponsePourLeFil(x, c) &&
-    (x.sorte !== 'creneau' || (c.eleve && c.genre !== 'groupe')));
+    (x.sorte !== 'creneau' || (c.eleve && c.genre !== 'groupe')) &&
+    (x.sorte !== 'geste' || !!c.vehicule));
 }
 
 async function chargerReponsesRapides(){
@@ -2006,7 +2041,9 @@ function carteReponsesRapides(){
       m.appendChild(puce);
       const msg = document.createElement('div');
       msg.className = 'rrMessage';
-      msg.textContent = x.sorte === 'creneau' ? '📅 ouvre le formulaire du créneau (n’envoie rien tout seul)' : '« ' + x.message + ' »';
+      msg.textContent = x.sorte === 'creneau' ? '📅 ouvre le formulaire du créneau (n’envoie rien tout seul)'
+        : x.sorte === 'geste' ? '🚗 ouvre la fenêtre « ' + nomDuGesteVehicule(x.geste) + ' » (le message et la fiche du véhicule)'
+        : '« ' + x.message + ' »';
       m.appendChild(msg);
       m.appendChild(rrEtiquettes(x.genres, x));
       l.appendChild(m);
@@ -2124,11 +2161,19 @@ function fenetreReponseRapide(x, liste, sauver){
   champ('Le bouton — ce qu’on voit', bouton);
   const message = document.createElement('textarea');
   message.rows = 4; message.maxLength = 1000; message.value = r.message; message.id = 'rrTexte';
+  const estGeste = r.sorte === 'geste';
   if(r.sorte === 'creneau'){
     const n = document.createElement('div');
     n.className = 'rrNote';
     n.textContent = '📅 Ce bouton ouvre le formulaire « Proposer un créneau » : il n’envoie pas de texte tout seul. ' +
       'Tu changes son nom et les conversations où il apparaît (un fil d’élève seulement).';
+    boite.appendChild(n);
+  }else if(estGeste){
+    /* 🚗 v1437 — un bouton du véhicule : son nom ici, sa place dans la liste */
+    const n = document.createElement('div');
+    n.className = 'rrNote';
+    n.textContent = '🚗 Ce bouton ouvre la fenêtre « ' + nomDuGesteVehicule(r.geste) + ' » dans les conversations des véhicules : ' +
+      'il envoie le message et l’inscrit dans la fiche du véhicule. Tu changes son nom ici, et sa place dans la liste (⠿ ou ↑ ↓).';
     boite.appendChild(n);
   }else{
     const lm = document.createElement('div');
@@ -2220,7 +2265,7 @@ function fenetreReponseRapide(x, liste, sauver){
 
   const lt = document.createElement('label');
   lt.textContent = 'Dans quelles conversations';
-  boite.appendChild(lt);
+  if(!estGeste) boite.appendChild(lt);
   const types = document.createElement('div');
   types.className = 'rrChoix';
   GENRES_RAPIDES.forEach(g => {
@@ -2237,7 +2282,7 @@ function fenetreReponseRapide(x, liste, sauver){
     maj();
     types.appendChild(b);
   });
-  boite.appendChild(types);
+  if(!estGeste) boite.appendChild(types);
 
   /* 📍 v1274 — « la possibilité d'en créer d'autres que l'on peut mettre
      au choix par conversation » (David, le 27 octobre) */
@@ -2245,7 +2290,7 @@ function fenetreReponseRapide(x, liste, sauver){
   r.titres = Array.isArray(r.titres) ? r.titres.slice() : [];
   const lc = document.createElement('label');
   lc.textContent = 'Ou seulement dans ces conversations';
-  if(!modeMail) boite.appendChild(lc);
+  if(!modeMail && !estGeste) boite.appendChild(lc);
   const convsZ = document.createElement('div');
   convsZ.className = 'rrChoix rrConvs';
   rrConversationsProposees(r).forEach(o => {
@@ -2272,8 +2317,8 @@ function fenetreReponseRapide(x, liste, sauver){
     v.textContent = 'Ouvre d’abord la messagerie : tes conversations entre vous s’afficheront ici.';
     convsZ.appendChild(v);
   }
-  if(!modeMail) boite.appendChild(convsZ);
-  if(r.sorte !== 'creneau' && !modeMail){
+  if(!modeMail && !estGeste) boite.appendChild(convsZ);
+  if(r.sorte !== 'creneau' && !estGeste && !modeMail){
     const lp = document.createElement('label');
     lp.className = 'rrPosition';
     const cbp = document.createElement('input');
@@ -2296,7 +2341,7 @@ function fenetreReponseRapide(x, liste, sauver){
     p.className = 'ckVite rrPuce';
     p.textContent = bouton.value.trim() || 'Le bouton';
     ap.appendChild(p);
-    if(r.sorte !== 'creneau'){
+    if(r.sorte !== 'creneau' && !estGeste){
       const bu = document.createElement('div');
       bu.className = 'rrBulle';
       const ex = exemplesDesMotsRapides();
@@ -2331,7 +2376,7 @@ function fenetreReponseRapide(x, liste, sauver){
   bOk.textContent = '💾 Enregistrer';
   bOk.addEventListener('click', async () => {
     r.bouton = bouton.value.trim();
-    if(r.sorte !== 'creneau') r.message = message.value.trim();
+    if(r.sorte !== 'creneau' && !estGeste) r.message = message.value.trim();
     if(edMail){
       /* une image du texte se garde par sa clé : le lien signé, lui, expire */
       const copie = edMail.zone.cloneNode(true);
@@ -2341,7 +2386,7 @@ function fenetreReponseRapide(x, liste, sauver){
     }
     if(!r.pj.length) delete r.pj;
     if(!r.bouton){ err.textContent = 'Écris ce que dit le bouton.'; return; }
-    if(r.sorte !== 'creneau' && !r.message){ err.textContent = 'Écris le message qu’il envoie.'; return; }
+    if(r.sorte !== 'creneau' && !estGeste && !r.message){ err.textContent = 'Écris le message qu’il envoie.'; return; }
     if(!r.genres.length && !r.convs.length && !r.titres.length){ err.textContent = 'Coche au moins une conversation : sinon le bouton n’apparaît nulle part.'; return; }
     if(!r.convs.length) delete r.convs;
     if(!r.titres.length) delete r.titres;
@@ -2355,7 +2400,7 @@ function fenetreReponseRapide(x, liste, sauver){
   });
   rang.append(bAnn, bOk);
   boite.appendChild(rang);
-  if(!neuve){
+  if(!neuve && !estGeste){
     const bSup = document.createElement('button');
     bSup.className = 'btn btn-secondary';
     bSup.style.cssText = 'color:var(--red);border-color:var(--red);' + (modeMail ? '' : 'margin-top:8px;');
