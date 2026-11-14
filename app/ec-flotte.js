@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 09:19 — v1390 */
+/* Déployé le 14/11/2026 à 12:06 — v1436 */
 /* ============================================================
    ec-flotte.js
    Le suivi de la flotte.
@@ -34,6 +34,9 @@ const TYPES_EVENEMENT = [
   { cle:'garage',     nom:'🏭 Passage au garage' },
   { cle:'pneus',      nom:'🛞 Pneumatiques' },
   { cle:'panne',      nom:'⚠️ Problème signalé' },
+  /* ⛽🧽 v1436 — posés depuis la conversation du véhicule (ec-msg-vehicules.js) */
+  { cle:'plein',      nom:'⛽ Plein' },
+  { cle:'nettoyage',  nom:'🧽 Nettoyage' },
   { cle:'accessoire', nom:'📦 Accessoire' },
   { cle:'autre',      nom:'📝 Autre' }
 ];
