@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 12:06 — v1436 */
+/* Déployé le 14/11/2026 à 13:11 — v1437 */
 /* ============================================================
    ec-msg-vehicules.js — 🚗 LES CONVERSATIONS DES VÉHICULES (v1390)
 
@@ -225,16 +225,20 @@ const GESTES_VEH_EC = [
   ['exterieur', '🚿 Nettoyage extérieur']
 ];
 function aujourdhuiIsoVehEC(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+/* ⚠️ v1437 — LEUR NOM ET LEUR ORDRE SONT DANS LES RÉPONSES RAPIDES
+   (sorte « geste », ec-cockpit.js). Cette liste-ci donne les gestes qui
+   existent et leur nom de départ ; la rangée les pose un par un. */
+function boutonGesteVehiculeEC(f, cle, nom){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'ckVite ckViteVeh' + (VEH_EC.geste === cle && VEH_EC.gesteConv === (f.conv || {}).id ? ' on' : '');
+  b.textContent = nom || (GESTES_VEH_EC.find(x => x[0] === cle) || [cle, cle])[1];
+  if(cle === 'accident' || cle === 'pneu') b.title = 'Envoie le message avec ta position GPS, et l’inscrit dans la fiche du véhicule';
+  b.addEventListener('click', () => ouvrirGesteVehiculeEC(f, cle));
+  return b;
+}
 function boutonsGestesVehiculeEC(f){
-  return GESTES_VEH_EC.map(([cle, nom]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'ckVite ckViteVeh' + (VEH_EC.geste === cle && VEH_EC.gesteConv === (f.conv || {}).id ? ' on' : '');
-    b.textContent = nom;
-    if(cle === 'accident' || cle === 'pneu') b.title = 'Envoie le message avec ta position GPS, et l’inscrit dans la fiche du véhicule';
-    b.addEventListener('click', () => ouvrirGesteVehiculeEC(f, cle));
-    return b;
-  });
+  return GESTES_VEH_EC.map(([cle, nom]) => boutonGesteVehiculeEC(f, cle, nom));
 }
 async function ouvrirGesteVehiculeEC(f, cle){
   const c = f.conv || {};
