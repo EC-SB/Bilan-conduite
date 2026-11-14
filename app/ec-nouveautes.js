@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 15:58 — v1432 */
+/* Déployé le 14/11/2026 à 10:29 — v1433 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1433,
+    date: 'Samedi 14 novembre 2026',
+    resume: '☠️ Examen officiel : les éliminatoires vont dans le bilan, sur le tracé, et notre CEPC se relit',
+    quoi: [
+      { emoji: '☠️',
+        titre: 'Une ☠️ sans rien écrire compte',
+        texte: 'À l’examen officiel, la ☠️ n’écrit plus de phrase toute faite : une ☠️ posée sans taper de remarque laissait la ligne vide, et une ligne vide n’était pas gardée. L’erreur disparaissait du bilan, de la fiche gardée et du lien vers son point (seul le E restait sur notre CEPC). Elle est maintenant gardée et écrite dans le bilan sous sa compétence : « ☠️ Erreur éliminatoire · point N sur la carte ». Même chose pour un ⚠️ sans texte (« ⚠️ Erreur à reprendre »), et à l’examen blanc.' },
+      { emoji: '🛰️',
+        titre: 'Le tracé ne se perd plus en passant d’une fiche à l’autre',
+        texte: 'Ouvrir la fiche d’un autre élève (🎓 Mes examens, une autre carte) effaçait le relevé GPS en cours, avec ses ☠️, si le bilan n’était pas encore composé ; une page rechargée aussi. Le relevé est maintenant mis de côté dans le téléphone, au nom de l’élève, et revient quand on rouvre sa fiche. Mis de côté depuis moins de 3 minutes, il reprend tout seul ; depuis plus longtemps, on te demande : ▶️ reprendre (son cours continue), ✅ il est fini, ou 🆕 repartir de zéro. Le temps mis de côté ne compte pas comme un trou. Il s’efface quand le bilan est enregistré.' },
+      { emoji: '🧾',
+        titre: 'Notre CEPC sous le bilan de l’examen',
+        texte: 'Dans le dossier, en relisant le cours d’un examen officiel, notre CEPC (celui du moniteur, jamais envoyé à l’élève) s’affiche sous le bilan, pour le comparer avec celui de l’inspecteur. Chaque examen garde maintenant sa grille à sa date. Pour un examen d’avant cette version, c’est la dernière grille notée qui s’affiche, avec la mention.' }
+    ]
+  },
   {
     version: 1432,
     date: 'Vendredi 13 novembre 2026',
