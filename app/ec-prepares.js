@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 10:29 — v1433 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3722,6 +3722,8 @@ async function chargerPrepareInterne(cours, modeleForce){
      seules les cases cochées à la préparation se voyaient. */
   if(typeof afficherEnteteDuCours === 'function') afficherEnteteDuCours();
   if(typeof afficherFicheDuCours === 'function') afficherFicheDuCours();
+  /* 📋 v1434 — le bilan à remplir, sur un simulateur */
+  if(typeof afficherSqueletteDuCours === 'function') afficherSqueletteDuCours();
 
   /* Le module de cours est en bas de l'onglet : sans ce défilement,
      le moniteur croit qu'il ne s'est rien passé et descend à la
