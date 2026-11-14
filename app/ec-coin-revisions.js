@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 12:01 — v1412 */
+/* Déployé le 14/11/2026 à 15:08 — v1440 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -59,6 +59,43 @@ const CV_SANS_Q_RE = /passerelle|remise|r[ée]gularisation/i;
    remises à niveau ») */
 const CV_SANS_SALLE_RE = /passerelle|remise|moto|\bA1\b|\bA2\b|\bAM\b/i;
 
+/* ============================================================
+   🎓 SON CODE — v1440
+
+   David, le 14 novembre : « dans le dossier élève, le sous-onglet code
+   doit apparaître que quand on a ouvert le suivi code dans son app. Il
+   faudrait aussi une option pour dire que l'élève a déjà son code, fait
+   son code de son côté, ou le code avec nous ; s'il le fait avec nous,
+   quand on ouvre son espace, ça désélectionne tous les groupes sauf le
+   groupe de code, le suivi code sans les vérifs, et je peux en faire
+   une habitude. » Ses réponses au schéma :
+   · A : le choix « 🎓 Son code » à l'étape ① de la mise en route et sur
+     la carte, qui ouvre tout seul ce qu'il faut ; PLUS une pastille
+     « 🎓 Code : … » dans la tête du dossier ;
+   · quand il a son code : on rouvre ce que prévoit sa formation et on
+     éteint le suivi du code ;
+   · l'onglet 🎓 Code reste tant qu'il a des séances enregistrées ;
+   · les élèves déjà ouverts avec le suivi du code allumé sont « avec
+     nous ».
+
+   ⚠️ LE CHOIX S'ÉCRIT DANS SES MODULES (colonne G de ElevesAcces), comme
+   « sans_questionnaire » : code_deja, code_cote ou code_nous. Le Worker
+   et l'espace élève ne lisent que « code » (exactement) : ces clés ne
+   leur ouvrent rien. Sans clé, le suivi du code allumé vaut « avec
+   nous » (réponse 4) — rien à réécrire chez les élèves d'avant.
+   ⚠️ « 🎓 Code avec nous » EST UNE HABITUDE COMME UNE FORMATION, rangée
+   dans le même réglage (reglage_espace_formations) sous ce nom. Aucune
+   formation ne s'appelle ainsi : le Worker (habitudeDeLaFormation) ne
+   la prend jamais pour une formation.
+   ============================================================ */
+const CV_HAB_CODE = '🎓 Code avec nous';
+const CV_CODE_ETATS = [
+  { k: 'deja', mod: 'code_deja', i: '✅', t: 'Il a déjà son code',     d: 'rien à ouvrir pour le code', court: 'déjà obtenu' },
+  { k: 'cote', mod: 'code_cote', i: '🏠', t: 'Il le fait de son côté', d: 'ailleurs, ou en ligne',      court: 'de son côté' },
+  { k: 'nous', mod: 'code_nous', i: '🏫', t: 'Il le fait avec nous',   d: 'en salle ou en visio',       court: 'avec nous' }
+];
+function cvCodeEtatDe(cle){ return CV_CODE_ETATS.find(x => x.k === cle) || null; }
+
 function cvEch(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function cvNorm(t){ return (typeof normaliserMot === 'function') ? normaliserMot(String(t || '')) : String(t || '').trim().toLowerCase(); }
 function cvAdmin(){ return typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin'; }
@@ -115,6 +152,12 @@ function cvStyle(){
 .cvMail input[type=text],.cvMail input[type=email]{width:100%;margin:0 0 8px}
 .cvCoche{display:flex;gap:8px;align-items:center;text-transform:none;font-size:13px;color:var(--cream);margin:8px 0 0;font-weight:400}
 .cvCoche input{width:18px;height:18px;margin:0;flex-shrink:0}
+/* 🎓 v1440 — son code : les trois tuiles, la pastille de la tête du dossier */
+.cvGrilleCode{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.cvCodeCarte{margin-top:4px}
+.cvPastilleCode{width:auto !important;flex:0 0 auto;margin:0 !important;padding:5px 11px !important;font-size:12px !important;font-weight:700;border-radius:999px !important;white-space:nowrap;
+  border:1.5px solid var(--orange) !important;background:transparent !important;color:var(--accent-text) !important}
+.cvPastilleCode.vide{border-color:var(--line) !important;color:var(--muted) !important}
 @media (max-width:520px){.cvGrille{grid-template-columns:minmax(0,1fr)}.cvTu{min-height:0}.cvC{padding:11px 10px}.cvEt span{font-size:11px}}
 
 `;
@@ -156,16 +199,43 @@ function cvHabitudeDe(formation, groupes, prog){
   if(CV_SANS_SALLE_RE.test(f)) gs = gs.filter(g => ((prog && prog.groupes) || []).indexOf(g.id) === -1);
   return { modules: CV_HABITUDE_MODULES.slice(), q: !CV_SANS_Q_RE.test(f), groupes: gs.map(g => g.id), regle: false };
 }
+/* 🎓 v1440 — l'habitude « 🎓 Code avec nous » : le réglage des admins,
+   sinon la règle de base (le groupe dont le nom parle du code, le suivi
+   du code allumé, pas de vérifs). */
+function cvHabitudeDuCode(formation, groupes, prog){
+  const ouverts = (groupes || []).filter(g => !g.fermeLe);
+  const r = cvReglage()[cvNorm(CV_HAB_CODE)];
+  if(r){
+    return { modules: (r.modules || []).filter(k => CV_TUILES.some(t => t.cle === k && !t.fixe && k !== 'questionnaire')),
+             q: r.questionnaire !== false,
+             groupes: (r.groupes || []).filter(id => ouverts.some(g => g.id === id)), regle: true, code: true };
+  }
+  return { modules: CV_HABITUDE_MODULES.concat(['code']), q: !CV_SANS_Q_RE.test(String(formation || '')),
+           groupes: ouverts.filter(g => /\bcode\b/i.test(String(g.nom || ''))).map(g => g.id), regle: false, code: true };
+}
+/* Ce qu'on ouvre d'habitude, d'après sa formation ET son code : « avec
+   nous » prend l'habitude du code ; « déjà » ou « de son côté », celle de
+   sa formation, sans le suivi du code (réponse 2). */
+function cvHabitudePour(formation, codeEtat, groupes, prog){
+  if(codeEtat === 'nous') return cvHabitudeDuCode(formation, groupes, prog);
+  const h = cvHabitudeDe(formation, groupes, prog);
+  if(codeEtat === 'deja' || codeEtat === 'cote') h.modules = h.modules.filter(k => k !== 'code');
+  return h;
+}
 
 /* ── l'état d'un accès ── */
 function cvEtatDeLAcces(acces){
   const brut = String((acces && acces.modules) || '').split(',').map(x => x.trim()).filter(Boolean);
   const connus = CV_TUILES.map(t => t.cle);
+  const cles = CV_CODE_ETATS.map(x => x.mod);
+  const pose = CV_CODE_ETATS.find(x => brut.indexOf(x.mod) !== -1);
   return {
     mods: brut.filter(k => connus.indexOf(k) !== -1 && k !== 'messages'),
     q: brut.indexOf(CV_SANS_Q) === -1,
+    /* 🎓 v1440 — son code ; sans clé, le suivi du code allumé vaut « avec nous » */
+    codeEtat: pose ? pose.k : (brut.indexOf('code') !== -1 ? 'nous' : ''),
     /* une clé qu'on ne connaît pas ici n'est jamais effacée par cet écran */
-    autres: brut.filter(k => connus.indexOf(k) === -1 && k !== CV_SANS_Q && k !== 'aucun'),
+    autres: brut.filter(k => connus.indexOf(k) === -1 && k !== CV_SANS_Q && k !== 'aucun' && cles.indexOf(k) === -1),
     groupes: ((acces && acces.groupes) || []).slice()
   };
 }
@@ -175,7 +245,16 @@ function cvListeModules(E){
   if(E.groupes.length && l.indexOf('parcours') === -1) l.push('parcours');
   (E.autres || []).forEach(k => { if(l.indexOf(k) === -1) l.push(k); });
   if(!E.q) l.push(CV_SANS_Q);
+  /* 🎓 v1440 — son code (le suivi du code allumé sans choix = « avec nous ») */
+  const ce = cvCodeEtatDe(E.codeEtat || (E.mods.indexOf('code') !== -1 ? 'nous' : ''));
+  if(ce) l.push(ce.mod);
   return l.join(',');
+}
+/* L'état « son code » d'un élève d'après la liste des accès déjà lue */
+function codeEtatDeLEleve(nom){
+  if(typeof ACCES_ETAT === 'undefined' || !ACCES_ETAT.parNom) return null;
+  const a = ACCES_ETAT.parNom[(typeof aeNorm === 'function') ? aeNorm(nom) : cvNorm(nom)];
+  return a ? cvEtatDeLAcces(a).codeEtat : null;
 }
 /* Rend false si l'appui est refusé : 🎬 suit ses groupes (v1039) */
 function cvBasculer(E, cle){
@@ -254,6 +333,205 @@ function cvGrilleGroupes(E, groupes, prog, formation, auClic, assistant){
     return v;
   }
   return g;
+}
+
+/* 🎓 v1440 — les trois tuiles « Son code » (une seule allumée) */
+function cvGrilleCode(choisi, auClic){
+  const g = document.createElement('div');
+  g.className = 'cvGrille cvGrilleCode';
+  CV_CODE_ETATS.forEach(x => {
+    const b = cvTuile(x.k === choisi, x.i, x.t, cvEch(x.d));
+    b.setAttribute('role', 'radio');
+    b.dataset.code = x.k;
+    b.addEventListener('click', () => auClic(x.k, b));
+    g.appendChild(b);
+  });
+  return g;
+}
+function cvTitreCode(aide){
+  const h = document.createElement('div');
+  h.className = 'cvH';
+  h.innerHTML = '🎓 Son code' + (aide ? ' <small>· ' + aide + '</small>' : '');
+  return h;
+}
+/* Ce que l'habitude ouvre, en clair (fenêtres de confirmation, étape ①) */
+function cvResumeHabitude(h, groupes, html){
+  const e = html ? cvEch : (t => t);
+  const mods = CV_TUILES.filter(t => !t.fixe && t.cle !== 'questionnaire' && t.cle !== 'verifs' && t.cle !== 'code' && h.modules.indexOf(t.cle) !== -1)
+    .map(t => t.i + ' ' + t.t.toLowerCase().replace(/^ses |^son |^l’|^le /, ''));
+  const gs = (groupes || []).filter(g => h.groupes.indexOf(g.id) !== -1).map(g => e(g.nom));
+  return [
+    '🧩 groupes : ' + (gs.length ? gs.join(' · ') : 'aucun') + (h.code ? ' (tous les autres décochés)' : ''),
+    '🎓 suivi du code : ' + (h.modules.indexOf('code') !== -1 ? 'oui' : 'non') + ' · 🧰 vérifications : ' + (h.modules.indexOf('verifs') !== -1 ? 'oui' : 'non'),
+    (mods.length ? e(mods.join(' · ')) : ''),
+    '📋 questionnaire : ' + (h.q ? 'oui' : 'non')
+  ].filter(Boolean);
+}
+
+/* 🎓 v1440 — CHANGER « SON CODE » (sa carte, la pastille du dossier).
+   « Avec nous » propose d'ouvrir l'habitude du code ; « déjà » ou « de
+   son côté », quand le suivi du code était ouvert, propose de rouvrir sa
+   formation et d'éteindre le suivi. « Juste le noter » ne touche à rien
+   d'autre. Rend true si quelque chose a été enregistré. */
+async function cvChangerSonCode(nom, cle, L){
+  try{
+    if(typeof chargerModelesTexte === 'function') await chargerModelesTexte();
+    L = L || await cvLire(nom);
+  }catch(e){ showToast('Impossible : ' + e.message); return false; }
+  if(!L.acces){ miseEnRouteCoinRevisions(nom, () => cvApresCode(nom)); return false; }
+  const E = cvEtatDeLAcces(L.acces);
+  if(E.codeEtat === cle) return false;
+  const x = cvCodeEtatDe(cle);
+  const h = cvHabitudePour(L.formation, cle, L.groupes, L.prog);
+  let choix = 'noter';
+  if(cle === 'nous'){
+    choix = await fenetre('On ouvre l’habitude « ' + CV_HAB_CODE + ' » :\n\n' + cvResumeHabitude(h, L.groupes).join('\n'),
+      [{ nom: 'Annuler', valeur: '' }, { nom: 'Juste le noter', valeur: 'noter' }, { nom: '🏫 Ouvrir pour le code', valeur: 'ouvrir', principal: true }],
+      x.i + ' ' + x.t);
+  }else if(E.mods.indexOf('code') !== -1 || E.codeEtat === 'nous'){
+    choix = await fenetre('Rouvrir ce que prévoit sa formation' + (L.formation ? ' (« ' + L.formation + ' »)' : '') +
+      ' et éteindre le suivi du code ?\n\n' + cvResumeHabitude(h, L.groupes).join('\n'),
+      [{ nom: 'Annuler', valeur: '' }, { nom: 'Juste le noter', valeur: 'noter' }, { nom: '🧩 Rouvrir sa formation', valeur: 'ouvrir', principal: true }],
+      x.i + ' ' + x.t);
+  }
+  if(!choix) return false;
+  E.codeEtat = cle;
+  if(choix === 'ouvrir'){ E.mods = h.modules.slice(); E.q = h.q; E.groupes = h.groupes.slice(); }
+  try{
+    const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom, modules: cvListeModules(E), groupes: E.groupes.join('|') });
+    if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+  }catch(e){ showToast('Non enregistré : ' + e.message); return false; }
+  L.acces.modules = cvListeModules(E); L.acces.groupes = E.groupes.slice();
+  cvPoserDansLEtat(nom, L.acces.modules, E.groupes);
+  showToast('🎓 Son code : ' + x.court + (choix === 'ouvrir' ? ' — ' + (cle === 'nous' ? 'ouvert pour le code' : 'sa formation rouverte') : '') + ' ✅');
+  cvApresCode(nom);
+  return true;
+}
+/* La liste des accès déjà lue suit ce qu'on vient d'enregistrer (elle a pu
+   être relue depuis : son objet n'est plus forcément celui de la carte) */
+function cvPoserDansLEtat(nom, modules, groupes){
+  if(typeof ACCES_ETAT === 'undefined' || !ACCES_ETAT.parNom) return;
+  const a = ACCES_ETAT.parNom[(typeof aeNorm === 'function') ? aeNorm(nom) : cvNorm(nom)];
+  if(!a) return;
+  a.modules = modules;
+  if(groupes) a.groupes = groupes.slice();
+}
+/* Après un changement : la pastille, l'onglet 🎓 Code, la carte si elle est là */
+function cvApresCode(nom){
+  rafraichirPastilleCode();
+  majOngletCodeDuDossier(nom);
+  const z = document.querySelector('[data-cv-zone]');
+  if(z && z._redessiner) z._redessiner();
+}
+
+/* ============================================================
+   🎓 v1440 — LA PASTILLE « 🎓 Code : … » DANS LA TÊTE DU DOSSIER
+   Vue de tous les onglets. Un appui : les trois choix. Sans espace, elle
+   mène à la mise en route (le choix est à son étape ①).
+   ============================================================ */
+function pastilleCodeEleve(nom){
+  if(typeof aeVoit === 'function' && !aeVoit()) return null;
+  cvStyle();
+  const p = document.createElement('button');
+  p.type = 'button';
+  p.className = 'btn btn-secondary cvPastilleCode';
+  p.style.display = 'none';
+  p.dataset.eleve = nom;
+  const remplir = () => {
+    const a = (typeof ACCES_ETAT !== 'undefined' && ACCES_ETAT.parNom) ? ACCES_ETAT.parNom[aeNorm(nom)] : null;
+    if(!a || !a.actif){ p.style.display = 'none'; return; }
+    const x = cvCodeEtatDe(cvEtatDeLAcces(a).codeEtat);
+    p.style.display = '';
+    p.classList.toggle('vide', !x);
+    p.textContent = '🎓 Code : ' + (x ? x.court : '?');
+    p.title = x ? 'Son code : ' + x.t.toLowerCase() + ' — changer' : 'Son code : pas encore dit — le dire';
+  };
+  p.addEventListener('click', async () => {
+    if(typeof aeModifie === 'function' && !aeModifie()){ showToast('Ton compte ne modifie pas les espaces élèves.'); return; }
+    const a = ACCES_ETAT.parNom[aeNorm(nom)];
+    const actuel = a ? cvEtatDeLAcces(a).codeEtat : '';
+    const cle = await fenetre('Où en est son code ?',
+      [{ nom: 'Annuler', valeur: '' }].concat(CV_CODE_ETATS.map(x => ({ nom: x.i + ' ' + x.t + (x.k === actuel ? ' ✓' : ''), valeur: x.k, principal: x.k === actuel }))),
+      '🎓 Son code — ' + nom);
+    if(cle) await cvChangerSonCode(nom, cle);
+  });
+  p._remplir = remplir;
+  if(typeof ACCES_ETAT !== 'undefined' && ACCES_ETAT.lu) remplir();
+  if(typeof chargerEtatAcces === 'function') chargerEtatAcces().then(remplir);
+  return p;
+}
+function rafraichirPastilleCode(){
+  document.querySelectorAll('.cvPastilleCode').forEach(p => { if(p._remplir) p._remplir(); });
+}
+
+/* ============================================================
+   🎓 v1440 — L'ONGLET 🎓 CODE DU DOSSIER : seulement si le suivi du code
+   est ouvert dans son espace, OU s'il a des séances enregistrées
+   (réponse 3). Les séances se demandent une fois par élève (codeEleve,
+   plus les Google Forms déjà lus sur cet appareil) ; la réponse redessine
+   la rangée des onglets.
+   ============================================================ */
+const CV_SEANCES_CODE = {};
+function cvSuiviCodeOuvert(nom){
+  if(typeof ACCES_ETAT === 'undefined' || !ACCES_ETAT.lu) return null;
+  const a = ACCES_ETAT.parNom[aeNorm(nom)];
+  return !!(a && a.actif !== false && String(a.modules || '').split(',').map(x => x.trim()).indexOf('code') !== -1);
+}
+function ongletCodeVisible(nom){
+  if(!nom) return true;
+  /* qui ne lit pas les espaces élèves : l'onglet reste comme avant */
+  if(typeof aeVoit === 'function' && !aeVoit()) return true;
+  if(typeof sectionVisible === 'function' && !sectionVisible('code')) return false;
+  const ouvert = cvSuiviCodeOuvert(nom);
+  if(ouvert) return true;
+  const k = cvNorm(nom);
+  if(CV_SEANCES_CODE[k] === true) return true;
+  if(ouvert === null && typeof chargerEtatAcces === 'function') chargerEtatAcces().then(() => majOngletCodeDuDossier(nom));
+  if(CV_SEANCES_CODE[k] === undefined || CV_SEANCES_CODE[k] === 'cherche' || ouvert === null){
+    cvChercherLesSeances(nom);
+    /* pas encore su : l'onglet reste si c'est lui qu'on regardait */
+    let regarde = (typeof ongletPageEleve !== 'undefined' && ongletPageEleve) || '';
+    if(!regarde){ try{ regarde = localStorage.getItem('onglet_page_eleve') || ''; }catch(e){} }
+    return regarde === 'code';
+  }
+  return false;
+}
+async function cvChercherLesSeances(nom){
+  const k = cvNorm(nom);
+  if(CV_SEANCES_CODE[k] !== undefined) return;
+  CV_SEANCES_CODE[k] = 'cherche';
+  let oui = false;
+  try{
+    if(typeof chargerEtatAcces === 'function') await chargerEtatAcces();
+    if(cvSuiviCodeOuvert(nom)){ delete CV_SEANCES_CODE[k]; majOngletCodeDuDossier(nom); return; }
+    /* les Google Forms déjà lus sur cet appareil (rien de plus à attendre) */
+    let forms = (typeof resultatsEtg !== 'undefined' && resultatsEtg) || [];
+    if(!forms.length && typeof lireCacheEtg === 'function'){ const c = lireCacheEtg(); forms = (c && c.d && c.d.resultats) || []; }
+    if(typeof motsEleveEtg === 'function'){
+      const m = motsEleveEtg(nom);
+      oui = forms.some(r => !r.app && motsEleveEtg(r.eleve) === m);
+    }
+    if(!oui){
+      const r = await appelPrep({ action: 'codeEleve', eleve: nom });
+      oui = ((r && r.resultats) || []).some(x => x.ou === 'ardoise' || x.fini || (x.series || []).some(s => s.fini));
+    }
+  }catch(e){ oui = false; }
+  CV_SEANCES_CODE[k] = oui;
+  majOngletCodeDuDossier(nom);
+}
+/* Redessine la rangée des onglets du dossier ouvert (le dossier entier si
+   l'onglet qu'on regardait vient de partir) */
+function majOngletCodeDuDossier(nom){
+  if(typeof elevePageOuverte === 'undefined' || !elevePageOuverte || (nom && cvNorm(nom) !== cvNorm(elevePageOuverte))) return;
+  if(typeof ongletsEleveVisibles !== 'function' || typeof barreOngletsEleve !== 'function') return;
+  const zone = document.getElementById('pageEleveDossier');
+  const vieille = zone && zone.querySelector('[data-rail-onglets]');
+  if(!vieille) return;
+  const onglets = ongletsEleveVisibles();
+  const avant = Array.prototype.map.call(vieille.querySelectorAll('[data-onglet-eleve]'), b => b.dataset.ongletEleve).join(',');
+  if(avant === onglets.map(o => o.cle).join(',')) return;
+  if(!onglets.some(o => o.cle === ongletPageEleve)){ if(typeof dessinerPageEleve === 'function') dessinerPageEleve(); return; }
+  vieille.replaceWith(barreOngletsEleve(onglets));
 }
 
 /* ── les lectures ── */
@@ -515,16 +793,21 @@ async function miseEnRouteCoinRevisions(nom, apres){
   }
   const S = { n: 1, formation: L.formation, formationVue: null, habitude: false, repartir: !L.acces,
               E: L.acces ? cvEtatDeLAcces(L.acces) : null, code: '', adresse: null };
+  /* 🎓 v1440 — son code, choisi à l'étape ① */
+  S.codeEtat = S.E ? S.E.codeEtat : '';
+  S.codeVu = null;
 
   const dessinerEtapes = () => {
     etapes.innerHTML = ['① Sa formation', '② Ce qu’il voit', '③ Le message']
       .map((t, i) => '<span class="' + (i + 1 === S.n ? 'on' : (i + 1 < S.n ? 'fait' : '')) + '">' + t + '</span>').join('');
   };
   const appliquerHabitude = () => {
-    const h = cvHabitudeDe(S.formation, L.groupes, L.prog);
+    const h = cvHabitudePour(S.formation, S.codeEtat, L.groupes, L.prog);
     const autres = S.E ? S.E.autres : [];
-    S.E = { mods: h.modules.slice(), q: h.q, groupes: h.groupes.slice(), autres: autres };
+    S.E = { mods: h.modules.slice(), q: h.q, groupes: h.groupes.slice(), autres: autres, codeEtat: S.codeEtat };
   };
+  /* l'habitude qu'on suit : celle du code (« avec nous »), sinon sa formation */
+  const nomHabitude = () => S.codeEtat === 'nous' ? CV_HAB_CODE : S.formation;
 
   const etape1 = () => {
     S.n = 1; dessinerEtapes(); bas.innerHTML = ''; corps.innerHTML = '';
@@ -535,13 +818,39 @@ async function miseEnRouteCoinRevisions(nom, apres){
       '<div style="font-size:14px;line-height:1.55;margin-bottom:10px">Sa formation choisit ce qu’on ouvre d’habitude. Tu ajustes à l’étape suivante.</div>' +
       '<label for="cvForm">Sa formation (de sa fiche)</label>' +
       '<select id="cvForm" style="width:100%;margin:0 0 10px"><option value="">— pas de formation —</option>' + opts.join('') + '</select>' +
-      '<div class="cvNote" id="cvHab" style="margin-top:0"></div>';
+      '<div id="cvCodeZone"></div>' +
+      '<div class="cvNote" id="cvHab" style="margin-top:10px"></div>';
     const sel = corps.querySelector('#cvForm');
     const choisie = liste.find(f => cvNorm(f.cle) === cvNorm(S.formation));
     sel.value = choisie ? choisie.cle : S.formation;
+    /* 🎓 v1440 — « Son code » : trois tuiles, une seule allumée (un appui sur
+       celle qui l'est l'éteint) */
+    const zCode = corps.querySelector('#cvCodeZone');
+    const dessinerCode = () => {
+      zCode.innerHTML = '';
+      zCode.appendChild(cvTitreCode('choisit ce qu’on ouvre'));
+      zCode.appendChild(cvGrilleCode(S.codeEtat, (k) => {
+        S.codeEtat = (S.codeEtat === k) ? '' : k;
+        if(L.acces) S.repartir = true;
+        dessinerCode(); resume();
+      }));
+    };
     const resume = () => {
       const f = sel.value;
-      const h = cvHabitudeDe(f, L.groupes, L.prog);
+      if(S.codeEtat === 'nous'){
+        const hc = cvHabitudePour(f, 'nous', L.groupes, L.prog);
+        corps.querySelector('#cvHab').innerHTML =
+          '<b>Il fait son code avec nous : on ouvre l’habitude « ' + cvEch(CV_HAB_CODE) + ' »</b><br>' +
+          cvResumeHabitude(hc, L.groupes, true).join('<br>') + '<br>' +
+          '<span style="color:var(--muted)">' + (hc.regle ? 'Réglé par un admin.' : 'Règle de base (le groupe qui parle du code).') +
+          (f ? ' Sa formation (' + cvEch(f) + ') reprendra la main quand il aura son code.' : '') + '</span>' +
+          (L.acces ? '<label class="cvCoche" style="margin-top:8px"><input type="checkbox" id="cvRepartir"' + (S.repartir ? ' checked' : '') +
+            '> Repartir de ce qu’on ouvre d’habitude <span style="color:var(--muted)">(sinon, ce qui est ouvert aujourd’hui)</span></label>' : '');
+        const rpc = corps.querySelector('#cvRepartir');
+        if(rpc) rpc.addEventListener('change', () => { S.repartir = rpc.checked; });
+        return;
+      }
+      const h = cvHabitudePour(f, S.codeEtat, L.groupes, L.prog);
       const mods = CV_TUILES.filter(t => t.cle === 'messages' || h.modules.indexOf(t.cle) !== -1)
         .map(t => t.i + ' ' + t.t.toLowerCase().replace(/^ses |^son |^l’/, '')).join(' · ');
       const gs = L.groupes.filter(g => h.groupes.indexOf(g.id) !== -1).map(g => cvEch(g.nom));
@@ -557,12 +866,16 @@ async function miseEnRouteCoinRevisions(nom, apres){
       if(rp) rp.addEventListener('change', () => { S.repartir = rp.checked; });
     };
     sel.addEventListener('change', () => { S.formation = sel.value; if(L.acces){ S.repartir = true; } resume(); });
+    dessinerCode();
     resume();
     bas.appendChild(cvBouton('Annuler', 'btn-secondary', W.fermer));
     const b = cvBouton('Suivant ›', 'btn-primary', () => {
       S.formation = sel.value;
-      if(S.repartir || !S.E || S.formationVue !== null && S.formationVue !== S.formation) appliquerHabitude();
+      if(S.repartir || !S.E || S.formationVue !== null && S.formationVue !== S.formation ||
+         S.codeVu !== null && S.codeVu !== S.codeEtat) appliquerHabitude();
       S.formationVue = S.formation;
+      S.codeVu = S.codeEtat;
+      S.E.codeEtat = S.codeEtat;
       etape2();
     });
     b.dataset.suivant = '1';
@@ -572,6 +885,13 @@ async function miseEnRouteCoinRevisions(nom, apres){
   const etape2 = () => {
     S.n = 2; dessinerEtapes(); bas.innerHTML = ''; corps.innerHTML = '';
     const redessiner = () => etape2();
+    if(S.codeEtat === 'nous'){
+      const n = document.createElement('div');
+      n.className = 'cvNote';
+      n.style.margin = '0 0 10px';
+      n.innerHTML = '🏫 <b>Il fait son code avec nous</b> : tout est pré-réglé par l’habitude « ' + cvEch(CV_HAB_CODE) + ' ». Tu peux encore changer.';
+      corps.appendChild(n);
+    }
     const h1 = document.createElement('div'); h1.className = 'cvH'; h1.style.marginTop = '0'; h1.textContent = 'Ce qu’il trouve dans son espace';
     corps.appendChild(h1);
     corps.appendChild(cvGrilleModules(S.E, (cle) => { if(cvBasculer(S.E, cle)) redessiner(); }));
@@ -583,11 +903,11 @@ async function miseEnRouteCoinRevisions(nom, apres){
       if(S.E.groupes.length && S.E.mods.indexOf('parcours') === -1) S.E.mods.push('parcours');
       redessiner();
     }, true));
-    if(cvAdmin() && S.formation){
+    if(cvAdmin() && nomHabitude()){
       const c = document.createElement('label');
       c.className = 'cvCoche';
       c.style.marginTop = '12px';
-      c.innerHTML = '<input type="checkbox" id="cvHabitude"' + (S.habitude ? ' checked' : '') + '> ⭐ En faire l’habitude pour « ' + cvEch(S.formation) + ' »';
+      c.innerHTML = '<input type="checkbox" id="cvHabitude"' + (S.habitude ? ' checked' : '') + '> ⭐ En faire l’habitude pour « ' + cvEch(nomHabitude()) + ' »';
       c.querySelector('input').addEventListener('change', e => { S.habitude = e.target.checked; });
       corps.appendChild(c);
     }
@@ -614,9 +934,11 @@ async function miseEnRouteCoinRevisions(nom, apres){
         }
         if(rep && rep.code && typeof retenirCodeEleve === 'function') retenirCodeEleve(nom, rep.code);
         if(!L.acces) L.acces = { eleve: nom, actif: true, modules: cvListeModules(S.E), groupes: S.E.groupes.slice() };
-        else { L.acces.modules = cvListeModules(S.E); L.acces.groupes = S.E.groupes.slice(); }
-        if(S.habitude && cvAdmin() && S.formation){
-          try{ await cvPoserHabitude(S.formation, { modules: S.E.mods.filter(k => k !== 'messages'), q: S.E.q, groupes: S.E.groupes }); }
+        else { L.acces.modules = cvListeModules(S.E); L.acces.groupes = S.E.groupes.slice(); cvPoserDansLEtat(nom, L.acces.modules, S.E.groupes); }
+        /* 🎓 v1440 — la pastille « Code » et l'onglet 🎓 Code suivent */
+        if(typeof chargerEtatAcces === 'function') chargerEtatAcces(true).then(() => { rafraichirPastilleCode(); majOngletCodeDuDossier(nom); });
+        if(S.habitude && cvAdmin() && nomHabitude()){
+          try{ await cvPoserHabitude(nomHabitude(), { modules: S.E.mods.filter(k => k !== 'messages'), q: S.E.q, groupes: S.E.groupes }); }
           catch(e){ showToast('Habitude non enregistrée : ' + e.message); }
         }
         S.code = await codeDeLEleve(nom);
@@ -678,15 +1000,19 @@ async function fenetreHabitudesCoinRevisions(formationDepart){
     const d = await appelPrep({ action: 'parcoursList' });
     groupes = (d && d.groupes) || []; prog = (d && d.salle) || prog;
   }catch(e){ corps.innerHTML = '<div style="color:var(--red)">❌ ' + cvEch(e.message) + '</div>'; return; }
-  const liste = (typeof toutesLesFormations === 'function') ? toutesLesFormations() : [];
-  let formation = formationDepart || (liste[0] && liste[0].cle) || '';
+  /* 🎓 v1440 — « 🎓 Code avec nous » en tête : l'habitude de qui fait son code avec nous */
+  const formations = (typeof toutesLesFormations === 'function') ? toutesLesFormations() : [];
+  const liste = [{ cle: CV_HAB_CODE, nom: CV_HAB_CODE }].concat(formations);
+  let formation = formationDepart || (formations[0] && formations[0].cle) || '';
   let E = null;
-  const charger = () => { const h = cvHabitudeDe(formation, groupes, prog); E = { mods: h.modules.slice(), q: h.q, groupes: h.groupes.slice(), autres: [], regle: h.regle }; };
+  const estCode = () => formation === CV_HAB_CODE;
+  const charger = () => { const h = estCode() ? cvHabitudeDuCode('', groupes, prog) : cvHabitudeDe(formation, groupes, prog); E = { mods: h.modules.slice(), q: h.q, groupes: h.groupes.slice(), autres: [], regle: h.regle }; };
   const dessiner = () => {
     corps.innerHTML =
       '<div style="font-size:13px;line-height:1.55;margin-bottom:10px">Ce que la mise en route ouvre d’habitude pour une formation. On ajuste toujours élève par élève ensuite.</div>' +
       '<label for="cvHF">Formation</label><select id="cvHF" style="width:100%;margin:0 0 6px">' +
       liste.map(f => '<option value="' + cvEch(f.cle) + '">' + cvEch(f.nom) + '</option>').join('') + '</select>' +
+      (estCode() ? '<div class="cvNote" style="margin:0 0 6px">🏫 Ce qui s’ouvre quand tu choisis « Il le fait avec nous » dans <b>🎓 Son code</b> : coche ton groupe du code, allume 🎓 le suivi du code. Tous ses autres groupes se décochent.</div>' : '') +
       '<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">' + (E.regle ? '⭐ Réglée.' : 'Pas encore réglée : c’est la règle de base qui s’applique.') + '</div>';
     const sel = corps.querySelector('#cvHF');
     sel.value = formation;
@@ -694,7 +1020,7 @@ async function fenetreHabitudesCoinRevisions(formationDepart){
     const h1 = document.createElement('div'); h1.className = 'cvH'; h1.textContent = 'Ce qu’il trouve dans son espace'; corps.appendChild(h1);
     corps.appendChild(cvGrilleModules(E, (cle) => { if(cvBasculer(E, cle)) dessiner(); }));
     const h2 = document.createElement('div'); h2.className = 'cvH'; h2.textContent = '🧩 Ses groupes'; corps.appendChild(h2);
-    corps.appendChild(cvGrilleGroupes(E, groupes.filter(g => !g.fermeLe), prog, formation, (id) => {
+    corps.appendChild(cvGrilleGroupes(E, groupes.filter(g => !g.fermeLe), prog, estCode() ? '' : formation, (id) => {
       const i = E.groupes.indexOf(id);
       if(i === -1) E.groupes.push(id); else E.groupes.splice(i, 1);
       if(E.groupes.length && E.mods.indexOf('parcours') === -1) E.mods.push('parcours');
@@ -831,7 +1157,10 @@ async function afficherEspaceEleve(nom, zone){
         const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom, modules: cvListeModules(E), groupes: E.groupes.join('|') });
         if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
         acces.modules = cvListeModules(E); acces.groupes = E.groupes.slice();
+        cvPoserDansLEtat(nom, acces.modules, E.groupes);
         etat.style.color = 'var(--accent-text)'; etat.textContent = '✅ Enregistré';
+        /* 🎓 v1440 — l'onglet 🎓 Code suit l'interrupteur du suivi du code */
+        rafraichirPastilleCode(); majOngletCodeDuDossier(nom);
         if(apresOk) apresOk();
       }catch(e){
         Object.assign(E, avant);
@@ -841,7 +1170,16 @@ async function afficherEspaceEleve(nom, zone){
     });
     return file;
   };
-  const copie = () => ({ mods: E.mods.slice(), q: E.q, groupes: E.groupes.slice(), autres: E.autres.slice() });
+  const copie = () => ({ mods: E.mods.slice(), q: E.q, groupes: E.groupes.slice(), autres: E.autres.slice(), codeEtat: E.codeEtat });
+
+  /* ── 🎓 v1440 — son code : un appui change ce qu'on ouvre (on demande avant) ── */
+  if(acces.actif){
+    const zc = document.createElement('div');
+    zc.className = 'cvCodeCarte';
+    zc.appendChild(cvTitreCode('un appui change ce qu’on ouvre (on te demande avant)'));
+    zc.appendChild(cvGrilleCode(E.codeEtat, (k) => cvChangerSonCode(nom, k, L)));
+    carte.appendChild(zc);
+  }
 
   /* ── ce qu'il trouve dans son espace ── */
   const h1 = document.createElement('div');
@@ -861,7 +1199,9 @@ async function afficherEspaceEleve(nom, zone){
   carte.appendChild(zSalle);
   carte.appendChild(etat);
 
-  const habitude = cvHabitudeDe(L.formation, L.groupes, L.prog);
+  /* 🎓 v1440 — « avec nous » : c'est l'habitude du code qu'on remet */
+  const habitude = cvHabitudePour(L.formation, E.codeEtat, L.groupes, L.prog);
+  const nomHab = E.codeEtat === 'nous' ? CV_HAB_CODE : (L.formation || '?');
   const dessinerSalle = () => {
     if(typeof ligneSalleFiche === 'function') ligneSalleFiche(nom, zSalle, { salleCochee: cvSalleCochee(E, L.prog).length > 0 });
   };
@@ -876,12 +1216,12 @@ async function afficherEspaceEleve(nom, zone){
     const n = E.groupes.length;
     h2.innerHTML = '🧩 Ses groupes <small>· ' + (n ? n + ' ouvert' + (n > 1 ? 's' : '') : 'aucun ouvert — c’est toi qui ouvres') + '</small>';
     if(habitude.groupes.length || habitude.regle){
-      const bP = cvBouton('🧩 Ce que prévoit sa formation (' + habitude.groupes.length + ')', 'btn-secondary', async () => {
+      const bP = cvBouton((E.codeEtat === 'nous' ? '🧩 Ce que prévoit « ' + CV_HAB_CODE + ' » (' : '🧩 Ce que prévoit sa formation (') + habitude.groupes.length + ')', 'btn-secondary', async () => {
         const noms = L.groupes.filter(g => habitude.groupes.indexOf(g.id) !== -1).map(g => g.nom);
-        if(!await confirmer('Remettre ce qu’on ouvre d’habitude pour « ' + (L.formation || '?') + ' » ?\n\n' +
+        if(!await confirmer('Remettre ce qu’on ouvre d’habitude pour « ' + nomHab + ' » ?\n\n' +
             '🧩 ' + (noms.length ? noms.join(', ') : 'aucun groupe') + '\n' +
             CV_TUILES.filter(t => !t.fixe && t.cle !== 'questionnaire' && habitude.modules.indexOf(t.cle) !== -1).map(t => t.i + ' ' + t.t).join(' · ') + '\n' +
-            '📋 questionnaire : ' + (habitude.q ? 'oui' : 'non'), '🧩 Ce que prévoit sa formation')) return;
+            '📋 questionnaire : ' + (habitude.q ? 'oui' : 'non'), E.codeEtat === 'nous' ? '🧩 Ce que prévoit « ' + CV_HAB_CODE + ' »' : '🧩 Ce que prévoit sa formation')) return;
         const avant = copie();
         E.mods = habitude.modules.slice(); E.q = habitude.q; E.groupes = habitude.groupes.slice();
         dessinerTuiles();
