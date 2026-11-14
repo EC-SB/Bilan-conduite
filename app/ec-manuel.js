@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 15:58 — v1432 */
+/* Déployé le 14/11/2026 à 10:29 — v1433 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3510,9 +3510,10 @@ function majBilanEliminatoires(){
          affichera : deux textes pour la même erreur. */
       point: d.dataset.point || ''
     };
-    if(!o.inspecteur && !o.reponse) return;
-
     const cat = d.dataset.categorie || d.dataset.moins || d.dataset.grave || '';
+    /* ⚠️ v1433 — une ☠️ ou un ⚠️ sans texte compte aussi : voir
+       « UNE MARQUE SANS TEXTE EST UNE OBSERVATION ». */
+    if(!o.inspecteur && !o.reponse && !cat) return;
 
     if(cat) (par[cat] = par[cat] || []).push(o);
     else sansCategorie.push(o);
@@ -3573,6 +3574,10 @@ function majBilanEliminatoires(){
       bouts.push(emojiMoniteur() + ' ' + m + o.reponse + (posee ? '' : pt));
     }else if(!posee && pt){
       bouts.push(emojiMoniteur() + ' ' + m + 'à revoir' + pt);
+    }else if(!posee){
+      /* ⚠️ v1433 — un ⚠️ posé sans un mot et sans point : la
+         compétence a son titre, la faute doit avoir sa ligne. */
+      bouts.push('⚠️ ' + m + 'Erreur à reprendre');
     }
   };
 
@@ -4761,8 +4766,28 @@ function enregistrerCepcInterne(eleve, cepc){
   });
   if(!Object.keys(propre).length) return;
 
+  /* 🧾 v1433 — ET LA GRILLE DE CHAQUE EXAMEN, À SA DATE. David, le
+     14/11 : en relisant le cours d'examen dans le dossier, « on ne peut
+     pas voir le CEPC rempli par le moniteur pour faire un comparatif ».
+     La case ne gardait que le DERNIER examen, sans dire de quel jour.
+     Les notes restent à la racine (le rendez-vous post-permis les lit
+     telles quelles) ; « __jour » dit leur date, et « __jours » garde
+     celles des examens d'avant — six au plus. */
+  const jour = (typeof dateCourteDuJour === 'function')
+    ? dateCourteDuJour($('lessonDate') ? $('lessonDate').value : '') : '';
+  const avant = cepcInterneBrut(eleve) || {};
+  const jours = (avant.__jours && typeof avant.__jours === 'object') ? Object.assign({}, avant.__jours) : {};
+  if(jour) jours[jour] = Object.assign({}, propre);
+  const garder = Object.keys(jours).sort((a, b) => joursEnNombre(b) - joursEnNombre(a)).slice(0, 6);
+  const tous = Object.assign({}, propre);
+  if(jour) tous.__jour = jour;
+  if(garder.length){
+    tous.__jours = {};
+    garder.forEach(j => { tous.__jours[j] = jours[j]; });
+  }
+
   let texte = '';
-  try{ texte = JSON.stringify(propre); }catch(e){ return; }
+  try{ texte = JSON.stringify(tous); }catch(e){ return; }
 
   /* ⚠️ UN ÉCHEC S'ENTEND. Le bilan est composé, l'écran a changé :
      si la grille n'atteint pas le classeur, le rendez-vous
@@ -4786,16 +4811,47 @@ function enregistrerCepcInterne(eleve, cepc){
    grille inventée. Le cas se signale dans la console, pas à
    l'écran : personne ne peut rien en faire sur le moment. */
 function cepcInterneDe(eleve){
+  /* 🧾 v1433 — les notes seules : « __jour » et « __jours » ne sont pas
+     des lignes du CEPC */
+  const o = cepcInterneBrut(eleve);
+  if(!o) return null;
+  const notes = {};
+  Object.keys(o).forEach(k => { if(k.indexOf('__') !== 0) notes[k] = o[k]; });
+  return Object.keys(notes).length ? notes : null;
+}
+
+function cepcInterneBrut(eleve){
   const s = (typeof suiviDe === 'function') ? (suiviDe(eleve) || {}) : {};
   const t = String(s.cepcInterne || '').trim();
   if(!t) return null;
   try{
     const o = JSON.parse(t);
-    return (o && typeof o === 'object' && Object.keys(o).length) ? o : null;
+    return (o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length) ? o : null;
   }catch(e){
     console.warn('CEPC interne illisible pour ' + eleve + ' :', e);
     return null;
   }
+}
+
+/* « 13/11/2026 » → un nombre qui se trie */
+function joursEnNombre(j){
+  const m = String(j || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? Number(m[3] + m[2] + m[1]) : 0;
+}
+
+/* 🧾 v1433 — notre grille de l'examen de CE jour-là, pour la relecture.
+   « ancienne » : gardée avant la v1433, sans sa date — c'est la
+   dernière enregistrée, on ne sait pas de quel examen. */
+function cepcInterneDuJour(eleve, jour){
+  const o = cepcInterneBrut(eleve);
+  if(!o) return null;
+  const j = String(jour || '').trim();
+  if(o.__jours && o.__jours[j]) return { grille: o.__jours[j], ancienne: false };
+  if(o.__jour){
+    return (o.__jour === j) ? { grille: cepcInterneDe(eleve), ancienne: false } : null;
+  }
+  const g = cepcInterneDe(eleve);
+  return g ? { grille: g, ancienne: true } : null;
 }
 
 
@@ -6028,7 +6084,15 @@ function lireChampsManuels(champsVoulus){
            marque, sinon le brouillon repris ne saurait plus quel
            point de la carte cette ligne désignait. */
         const pt = d.dataset ? (d.dataset.point || '') : '';
-        if(vi || vr){
+        /* ⚠️ UNE MARQUE SANS TEXTE EST UNE OBSERVATION — v1433.
+           David, le 14/11 : à l'examen officiel, la ☠️ ne se mettait
+           ni dans le bilan ni sur le tracé. Depuis la v1300, l'appui
+           n'écrit plus de phrase toute faite dans la ligne : une ☠️
+           posée en roulant, sans rien taper, laissait la ligne VIDE —
+           et une ligne vide n'était pas gardée. Le E restait sur
+           notre CEPC, la faute disparaissait de la fiche, du bilan,
+           du brouillon et du lien vers son point. */
+        if(vi || vr || cat || grave || moins){
           obs.push({ inspecteur: vi, reponse: vr, categorie: cat,
                      grave: grave, moins: moins, mention: ment,
                      point: pt });
