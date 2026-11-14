@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 14/11/2026 à 11:37 — v1435 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1435,
+    date: 'Samedi 14 novembre 2026',
+    resume: '🕘 Simulateur : « la dernière fois » sous chaque compétence du bilan à remplir',
+    quoi: [
+      { emoji: '🕘',
+        titre: 'Ce qui a été fait au simulateur d’avant',
+        texte: 'Dans « 📋 Le bilan à remplir », sous chaque compétence : « La dernière fois (12/11) : ❌ À revoir », avec les erreurs à corriger de ce bilan-là. C’est lu dans le dernier bilan de simulateur de l’élève, tel qu’il a été envoyé : le choix du moniteur, ou ce que l’IA a mis quand il n’avait rien choisi. Un bilan corrigé à la main avant l’envoi compte tel qu’il a été corrigé.' }
+    ]
+  },
   {
     version: 1434,
     date: 'Samedi 14 novembre 2026',
