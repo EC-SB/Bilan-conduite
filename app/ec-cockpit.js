@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 14/11/2026 à 12:06 — v1436 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -45,7 +45,10 @@ const GENRES_CK = {
   moniteur: { rond: '👤', mot: 'MONITEUR', coul: 'var(--kn2)', nom: 'Élève ↔ moniteur' },
   /* ✉️ v1337 — les mails de la boîte de l'école (ec-boite-mail.js) :
      pas une famille de conversations, un type pour les réponses rapides */
-  mail:     { rond: '✉️', mot: 'MAIL',     coul: 'var(--kn2)', nom: 'Mails' }
+  mail:     { rond: '✉️', mot: 'MAIL',     coul: 'var(--kn2)', nom: 'Mails' },
+  /* 🚗 v1436 — les conversations des véhicules : pas une famille de la
+     liste (elles sont « groupe »), un type pour les réponses rapides */
+  vehicule: { rond: '🚗', mot: 'VÉHICULE', coul: 'var(--kn2)', nom: 'Véhicules' }
 };
 
 /* Le rail, dans l'ordre du schéma. « moniteur » n'y paraît que s'il
@@ -358,7 +361,7 @@ function ckPeutSuperviser(){
 const MOTS_DU_RAIL = {
   '': 'Tout', bureau: 'Bureau', vitrine: 'Vitrine', retard: 'Retards', annul: 'Annulations',
   oubli: 'Oublis', groupe: 'Groupes', interne: 'Équipe', moniteur: 'Moniteurs',
-  clos: 'Archivées', supervision: 'Supervision', mail: 'Mails'
+  clos: 'Archivées', supervision: 'Supervision', mail: 'Mails', vehicule: 'Véhicules'
 };
 
 function ckDessinerLeRail(){
@@ -1775,7 +1778,11 @@ function panneauDesModeles(choisir, fermer){
    liste qu'un administrateur a enregistrée.
    ============================================================ */
 /* ✉️ v1337 — et « mail » : les réponses rapides de la boîte de l'école */
-const GENRES_RAPIDES = ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe', 'interne', 'moniteur', 'mail'];
+/* 🚗 v1436 — « vehicule » : David, le 14 novembre, « j'arrive pas à
+   modifier les réponses rapides des conversations véhicules ». Elles
+   étaient des « groupe » comme les autres : on ne pouvait rien leur
+   donner à elles seules. */
+const GENRES_RAPIDES = ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe', 'interne', 'moniteur', 'mail', 'vehicule'];
 let reponsesRapidesEC = null;        /* null : celles d'origine */
 let reponsesRapidesLues = false;
 
@@ -1822,11 +1829,25 @@ function ckNormTitre(t){ return String(t || '').normalize('NFD').replace(/[\u030
 /* 📍 v1274 — un bouton pour un type de conversation, OU pour des
    conversations précises (choisies dans la fenêtre), OU par leur nom */
 function reponsePourLeFil(x, c){
-  if((x.genres || []).indexOf(c.genre) !== -1) return true;
+  /* 🚗 v1436 — une conversation de véhicule a SON type : les réponses
+     cochées « 🚗 Véhicules », pas celles des groupes */
+  const genre = (c && c.vehicule) ? 'vehicule' : c.genre;
+  if((x.genres || []).indexOf(genre) !== -1) return true;
   if(c.id && (x.convs || []).indexOf(c.id) !== -1) return true;
   return !!(c.titre && (x.titres || []).indexOf(ckNormTitre(c.titre)) !== -1);
 }
-function reponsesRapides(){ return reponsesRapidesEC || reponsesRapidesDOrigine(); }
+function reponsesRapides(){ return vehiculesDansLesReponses(reponsesRapidesEC) || reponsesRapidesDOrigine(); }
+
+/* 🚗 v1436 — une liste enregistrée avant ce type ne le connaît pas : les
+   conversations de véhicules gardent alors ce qu'elles avaient (les
+   réponses des groupes), jusqu'à ce qu'on les règle. Dès qu'une réponse
+   porte « 🚗 Véhicules », c'est la liste qui décide. */
+function vehiculesDansLesReponses(liste){
+  if(!Array.isArray(liste)) return liste;
+  if(liste.some(x => (x.genres || []).indexOf('vehicule') !== -1)) return liste;
+  return liste.map(x => ((x.genres || []).indexOf('groupe') !== -1)
+    ? Object.assign({}, x, { genres: (x.genres || []).concat('vehicule') }) : x);
+}
 
 /* Celles d'un fil : cochées pour son type, dans l'ordre de la liste.
    Le créneau demande un élève (on ne le propose pas à un groupe). */
