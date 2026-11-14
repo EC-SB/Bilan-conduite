@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 17:55 — v1386 */
+/* Déployé le 14/11/2026 à 11:00 — v1434 */
 /* ============================================================
    🔔 LE SERVICE WORKER — étape 3 de la messagerie
 
@@ -130,6 +130,27 @@ async function rangerLAdresseDeLaPage(url) {
   } catch (err) { /* stockage refusé : on retombera sur le repli */ }
 }
 
+/* 💬 v1434 — L'APP EC OU LA MESSAGERIE EC. La page dit au démarrage
+   dans quel mode elle tourne (index.html ou index.html?messagerie=1) :
+   une notification touchée, quand rien n'est ouvert, rouvre le même.
+   Sur un iPhone, chaque application installée a son propre service
+   worker, donc sa propre réponse ; sur Android, c'est la dernière
+   ouverte qui l'emporte. */
+const CLE_MODE = "/mode-equipe";
+async function rangerLeModeEquipe(messagerie) {
+  try {
+    const b = await caches.open(BOITE_PAGE);
+    await b.put(CLE_MODE, new Response(messagerie ? "messagerie" : "app"));
+  } catch (err) {}
+}
+async function modeEquipe() {
+  try {
+    const b = await caches.open(BOITE_PAGE);
+    const r = await b.match(CLE_MODE);
+    return r ? (await r.text()).trim() : "";
+  } catch (err) { return ""; }
+}
+
 async function adresseDeLaPage() {
   try {
     const b = await caches.open(BOITE_PAGE);
@@ -148,6 +169,7 @@ async function adresseDeLaPage() {
 self.addEventListener("message", function (e) {
   const d = e.data || {};
   if (d.quoi === "maPage") { e.waitUntil(rangerLAdresseDeLaPage(d.url)); return; }
+  if (d.quoi === "modeEquipe") { e.waitUntil(rangerLeModeEquipe(!!d.messagerie)); return; }
   if (d.quoi !== "pastille") return;
   e.waitUntil(poserLaPastille(d.combien));
 });
@@ -257,8 +279,16 @@ self.addEventListener("notificationclick", function (e) {
       return (page === "eleve.html") ? adresseDeLaPage() : "";
     })
     .then(function (sienne) {
+      /* 💬 v1434 — la page de l'équipe rouvre en Messagerie EC si c'est
+         d'elle que vient l'abonnement */
+      if (sienne || page !== "index.html") return [sienne, ""];
+      return modeEquipe().then(function (m) { return [sienne, m === "messagerie" ? "messagerie=1" : ""]; });
+    })
+    .then(function (r) {
+      const sienne = r[0];
+      const enPlus = r[1] ? ((suite ? "&" : "?") + r[1]) : "";
       const cible = sienne ? (sienne.split("?")[0].split("#")[0] + suite)
-                           : new URL(page + suite, self.registration.scope).href;
+                           : new URL(page + suite + enPlus, self.registration.scope).href;
       return self.clients.matchAll({ type: "window", includeUncontrolled: true })
         .then(function (fenetres) {
           for (let i = 0; i < fenetres.length; i++) {
