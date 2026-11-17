@@ -1,5716 +1,4716 @@
-/* Déployé le 17/11/2026 à 13:33 — v1449 */
+/* Déployé le 17/11/2026 à 13:55 — v1450 */
 /* ============================================================
-   ec-nouveautes.js
-   Ce que l'outil vient de changer, dit à ceux qui s'en servent.
-
-   David, le 12 septembre 2026 : il voulait annoncer cinq
-   nouveautés — le bouton CB, la refonte de l'onglet Cours, le trait
-   de couleur, le rail, les examens — dans un message épinglé. Le
-   message est plafonné à quatre cents caractères, et lever le
-   plafond ne réglait rien : le cadre d'un message important écrit
-   en 20 px gras sur fond rouge, et mille caractères là-dedans font
-   un pavé que personne ne lit jusqu'au bout.
-
-   ⚠️ UN MESSAGE ET UNE NOTE DE VERSION NE SONT PAS LA MÊME CHOSE.
-
-   Un message, c'est David qui parle à l'équipe — « pensez à rendre
-   les clés du 208 ». Il dit UNE chose, il attend parfois une
-   réponse, et il vit dans le classeur parce qu'il est écrit à la
-   main. Une note de version, c'est l'OUTIL qui dit ce qu'il vient
-   de changer : elle en dit cinq, elle n'attend rien de personne, et
-   elle décrit une version précise.
-
-   Deux objets, deux endroits. Le message épinglé ne bouge pas, son
-   plafond non plus — il est juste, pour ce qu'un message doit être.
-
-   ⚠️ ET LES NOTES VIVENT DANS LE CODE, PAS DANS LE CLASSEUR.
-
-   Une note décrit ce qu'une version fait : elle voyage donc AVEC
-   elle. Rien à écrire à la main, rien à administrer, aucune feuille
-   ni colonne de plus — et surtout aucun écart possible entre ce qui
-   est annoncé et ce qui a changé. Mettre l'outil à jour, c'est
-   publier la note.
-
+   ec-textes.js
+   Bibliothèque de modèles de message, rédigés et modifiables
+   depuis l'application, enregistrés dans le classeur.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* ============================================================
-   LES NOTES — LA PLUS RÉCENTE EN PREMIER
-
-   Une entrée par version QUI A QUELQUE CHOSE À DIRE AUX MONITEURS.
-   On livre parfois trois fois dans la journée : une note par
-   livraison ferait du bandeau un décor, et c'est exactement ce
-   qu'on veut éviter.
-
-   · version — le numéro, et il ne sert qu'à savoir si elle a été
-     lue. Il n'est jamais montré : « v974 » ne dit rien à personne.
-   · date    — en toutes lettres, c'est le sous-titre de l'écran.
-   · resume  — une ligne, c'est le sous-titre de la ligne du bandeau.
-   · quoi    — les changements, un par un : un emoji, ce que c'est,
-     et comment ça se comporte.
-   ============================================================ */
-const NOUVEAUTES = [
-  {
-    version: 1449,
-    date: 'Mardi 17 novembre 2026',
-    resume: '🔁 Post-permis : seulement les captures du dernier examen',
-    quoi: [
-      { emoji: '🔁',
-        titre: 'Les anciennes captures ne s’affichent plus au post-permis',
-        texte: 'Le rendez-vous post-permis (sa préparation, son « 🧾 CEPC : N captures », et sa fiche dans Attente bilan post-permis) et les messages d’ajournement ne montrent que les captures du CEPC de son dernier examen (la date de l’ajournement). Les anciennes restent rangées : plus besoin de les retirer une par une.' },
-      { emoji: '⚡',
-        titre: 'Retirer une capture : tout de suite',
-        texte: 'Le ✕ d’une capture la retire de l’écran immédiatement, sans recharger toutes les images. Si le classeur refuse, elle revient à sa place avec un message.' }
-    ]
-  },
-  {
-    version: 1448,
-    date: 'Mardi 17 novembre 2026',
-    resume: '📷 Suivi examen : seulement les captures du CEPC de cet examen',
-    quoi: [
-      { emoji: '📷',
-        titre: 'L’annonce du résultat n’emporte plus les anciennes captures',
-        texte: 'Dans « Suivi examen », « ❌ … — Ajourné » (et « Permis obtenu ») ne part qu’avec les captures du CEPC de cet examen. Celles d’un examen d’avant, même sans date, restent rangées. Si la date d’examen manque, ce sont celles du dernier examen.' }
-    ]
-  },
-  {
-    version: 1447,
-    date: 'Mardi 17 novembre 2026',
-    resume: '🕹️ Évaluation : ce qu’il faut travailler au simulateur · 💾 Carte SD perdue',
-    quoi: [
-      { emoji: '🕹️',
-        titre: 'Évaluation : « À travailler sur le simulateur »',
-        texte: 'Sous « Heures de simulateur », dès que des heures sont tapées : des cases (VA/VD, Passage de vitesse, Giratoire, Volant, PAD). Ce qui est coché part dans le bilan, sous la ligne du simulateur : « 👉 À travailler sur le simulateur : … ».' },
-      { emoji: '✍️',
-        titre: 'Les cases se règlent dans le créateur des fiches',
-        texte: 'Outils › créateur des fiches › Évaluation › zone « 🕹️ À travailler sur le simulateur » : ajouter, renommer, monter, retirer. La même liste pour les deux évaluations, puis « 💾 Publier ».' },
-      { emoji: '💾',
-        titre: 'Carte SD perdue',
-        texte: 'Dans tous les bilans, en petit sous Carte SD : « 💾 Carte perdue ». Cochée, elle reste cochée sur ses bilans suivants (et dans « ⚠️ Suivi de … », dossier compris) jusqu’à ce qu’on la décoche ; Carte SD se décoche et reste décochée, et le bilan écrit « Carte SD : ❌ carte perdue » à la place du rappel.' }
-    ]
-  },
-  {
-    version: 1446,
-    date: 'Mardi 17 novembre 2026',
-    resume: '🧹 Post-permis : le bilan quitte son espace après le RDV, les vieilles captures se cachent',
-    quoi: [
-      { emoji: '🧹',
-        titre: 'RDV post-permis fait : la partie Bilan quitte son espace',
-        texte: 'Dès que son rendez-vous post-permis est noté « fait », l’onglet 📝 Bilan, la carte « 🚦 Suite à ton ajournement » et son CEPC disparaissent de son espace élève. Ils reviennent seulement s’il est à nouveau ajourné.' },
-      { emoji: '📷',
-        titre: 'Repassage : seulement les captures de cet examen',
-        texte: 'Dans Résultats permis (et partout où l’examen a sa date), les captures du CEPC d’un examen précédent sont cachées, avec la mention « 🗂️ N captures d’un examen précédent, cachées ». Rien n’est effacé.' }
-    ]
-  },
-  {
-    version: 1445,
-    date: 'Mardi 17 novembre 2026',
-    resume: '🧩 Tablettes : l’accueil réorganisé',
-    quoi: [
-      { emoji: '🧩',
-        titre: 'Les blocs de l’accueil à leur nouvelle place',
-        texte: 'À gauche : « 🆕 Premier cours de théorie de la conduite » (l’ancien « La première fois ? »), puis « 👋 Bonjour ! Touche ton nom ». À droite : « 📚 Réviser mes groupes de travail » (l’ancien « Tu as fini ta salle ? »), puis « 🎓 Cours en salle ». Tout en bas, sur toute la largeur : « 🎬 Découvre nos formations ».' }
-    ]
-  },
-  {
-    version: 1444,
-    date: 'Mardi 17 novembre 2026',
-    resume: '🔑 Tablettes : arrêter un cours ouvre le clavier en plein écran',
-    quoi: [
-      { emoji: '🔑',
-        titre: '« L’équipe : arrêter » prend tout l’écran',
-        texte: 'Le clavier du code ne s’ouvre plus dans le cadre de la vidéo : il prend toute la tablette, la vidéo reste en pause derrière. « ▶ Reprendre le cours » la relance là où elle était.' }
-    ]
-  },
-  {
-    version: 1443,
-    date: 'Mardi 17 novembre 2026',
-    resume: '📝 Bilan post-permis : bien envoyé, dans la messagerie, à valider ou à compléter',
-    quoi: [
-      { emoji: '📍',
-        titre: 'La question « repasser à Loudéac » ne bloque plus le bilan',
-        texte: 'Sa réponse se perdait à l’envoi : l’élève revoyait « Il reste 1 réponse » et la case « OK Loudéac » ne se cochait pas. Elle part maintenant avec le reste.' },
-      { emoji: '✅',
-        titre: 'L’élève voit que son bilan est bien envoyé',
-        texte: 'Une carte verte en haut de son onglet 📝 Bilan : envoyé le…, en attente de validation par l’école, et le message du RDV arrivera dans sa messagerie. Le formulaire se replie dessous (« ✏️ Revoir ou modifier mon bilan »).' },
-      { emoji: '💬',
-        titre: 'Son bilan arrive dans la messagerie',
-        texte: 'Dès qu’il l’envoie, son bilan est recollé dans sa conversation « Le bureau », en attente de validation : c’est la notification. Sous la bulle : « 👁️ Lire et valider ».' },
-      { emoji: '↩️',
-        titre: 'Lui demander de compléter',
-        texte: 'Dans la fenêtre du bilan (depuis la messagerie, la ligne ou sa fiche) : écris ce qu’il doit compléter, « ↩️ Demander de compléter ». Il le reçoit dans sa messagerie avec le bouton « 📝 Compléter mon bilan », et le retrouve en tête de son onglet.' },
-      { emoji: '✉️',
-        titre: 'Attente bilan post-permis : le message est-il dans sa messagerie ?',
-        texte: 'Sur la ligne et dans sa fiche : « ✉️ bilan demandé dans sa messagerie le … · 👀 lu », « 📲 bilan reçu — à valider » (avec le bouton sur la ligne), ou « ↩️ à compléter ». S’il n’a pas le message, un bouton le lui envoie.' }
-    ]
-  },
-  {
-    version: 1442,
-    date: 'Mardi 17 novembre 2026',
-    resume: '🎓 Cours en salle : un bouton par cours, ses vidéos s’enchaînent',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Un bouton par cours (guide)',
-        texte: 'Sur la tablette, après le code de l’équipe : un bouton par guide (ETM, AM 2 roues…). Un appui, et l’élève ne voit que ce cours : ses vidéos s’enchaînent toutes seules dans l’ordre du guide, sans rien choisir ni sauter. Après la dernière, retour à l’accueil. Un guide sans vidéo a son bouton éteint.' }
-    ]
-  },
-  {
-    version: 1441,
-    date: 'Mardi 17 novembre 2026',
-    resume: '📺 Les présentations et les cours en salle sur les tablettes',
-    quoi: [
-      { emoji: '🎬',
-        titre: 'Sur l’accueil des tablettes : « Découvre nos formations »',
-        texte: 'Un bouton par vidéo de présentation, pour tout le monde, sans code et sans suivi. À la fin, la tablette revient à l’accueil.' },
-      { emoji: '🎓',
-        titre: '« Cours en salle » : l’équipe lance la vidéo',
-        texte: 'Avec ton code de l’appli, les cours rangés par catégorie (ETM, moto, AM, BE, B96…). Le cours se regarde jusqu’au bout : pas d’avance rapide, seule l’équipe peut l’arrêter (avec son code). Rien n’est noté. À la fin, retour à l’accueil.' },
-      { emoji: '📺',
-        titre: 'Ça se range dans Groupes et guides',
-        texte: '✏️ Le groupe › « 📺 Seulement sur les tablettes », en libre ou avec le code de l’équipe. Un guide publié = une catégorie, une étape = un bouton : tu ajoutes, renommes et changes l’ordre comme d’habitude. Ces groupes ne s’ouvrent chez aucun élève.' }
-    ]
-  },
-  {
-    version: 1440,
-    date: 'Samedi 14 novembre 2026',
-    resume: '🎓 Son code : déjà obtenu, de son côté ou avec nous — et l’onglet Code seulement quand il sert',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Son code, dans son espace',
-        texte: 'Sur la carte de son espace (dossier › App Évolution Conduites) et à l’étape ① de la mise en route : « Il a déjà son code », « Il le fait de son côté » ou « Il le fait avec nous ». Avec nous : on ouvre l’habitude « 🎓 Code avec nous » (seulement le groupe du code, le suivi du code, pas les vérifs). Quand il a son code : sa formation se rouvre et le suivi du code s’éteint. On te demande toujours avant, et « Juste le noter » ne touche à rien d’autre.' },
-      { emoji: '🏷️',
-        titre: 'La pastille « 🎓 Code : … » dans la tête du dossier',
-        texte: 'À côté de sa formation, visible de tous les onglets. Un appui pour changer.' },
-      { emoji: '⚙️',
-        titre: 'L’habitude « 🎓 Code avec nous »',
-        texte: 'En tête de « ⚙️ Ce qu’on ouvre par formation » : tu y coches ton groupe du code et ce qui s’ouvre avec. Ou coche « ⭐ En faire l’habitude » pendant une mise en route.' },
-      { emoji: '📑',
-        titre: 'L’onglet 🎓 Code du dossier',
-        texte: 'Il n’apparaît que si le suivi du code est ouvert dans son espace, ou s’il a des séances enregistrées. Les élèves qui avaient déjà le suivi du code sont « avec nous ».' }
-    ]
-  },
-  {
-    version: 1439,
-    date: 'Samedi 14 novembre 2026',
-    resume: '📜 La liste des conversations reste où on a cliqué',
-    quoi: [
-      { emoji: '📜',
-        titre: 'La liste ne remonte plus en haut',
-        texte: 'Sur l’ordinateur et la tablette, toucher une conversation dans la liste de gauche (Élèves, Équipe, Véhicules, Tout…) la faisait remonter tout en haut : on ne voyait plus laquelle on avait choisie. Maintenant la liste reste où elle était, la conversation choisie allumée sous le doigt. Changer d’onglet repart d’en haut, comme avant.' }
-    ]
-  },
-  {
-    version: 1438,
-    date: 'Samedi 14 novembre 2026',
-    resume: '🖼️ La photo d’un groupe véhicule s’affiche, le n° de garage en pastille',
-    quoi: [
-      { emoji: '🖼️',
-        titre: 'La photo des conversations véhicules',
-        texte: 'Changer la photo d’un groupe véhicule (ⓘ › 🖼️ Photo du groupe) ne se voyait pas : le numéro du garage restait posé par-dessus. Maintenant la photo s’affiche dans la liste et en haut de la conversation, et le numéro du garage reste lisible dans une petite pastille sur la photo. Sans photo, c’est le numéro comme avant.' }
-    ]
-  },
-  {
-    version: 1437,
-    date: 'Samedi 14 novembre 2026',
-    resume: '🚗 Les boutons des véhicules dans les réglages des réponses rapides : leur nom et leur ordre',
-    quoi: [
-      { emoji: '🚗',
-        titre: 'Les boutons des véhicules se règlent',
-        texte: 'Dans ⚙️ Réglages de la messagerie › ⚡ Réponses rapides (filtre 🚗 Véhicules), les huit boutons des conversations de véhicules (⚠️ souci, 🔧 garage, 🩹 carrosserie, 🚨 accident, 🛞 pneu, ⛽ plein, 🧽 et 🚿 nettoyages) sont dans la liste : ✏️ pour changer leur nom, ⠿ ou ↑ ↓ pour changer leur ordre, au milieu des autres réponses rapides des véhicules. Ce qu’ils font ne change pas (leur petite fenêtre, le message et la fiche du véhicule) ; ils ne se suppriment pas.' }
-    ]
-  },
-  {
-    version: 1436,
-    date: 'Samedi 14 novembre 2026',
-    resume: '🚗 Conversations des véhicules : ⛽ plein, 🧽 🚿 nettoyages, et leurs réponses rapides à elles',
-    quoi: [
-      { emoji: '⛽',
-        titre: 'J’ai fait le plein',
-        texte: 'Dans la conversation d’un véhicule, « ⛽ J’ai fait le plein » demande le nombre de litres et le coût (le prix au litre se calcule tout seul). Le message part dans la conversation, et le plein s’inscrit dans la fiche du véhicule (⛽ Plein, avec le coût).' },
-      { emoji: '🧽',
-        titre: 'Nettoyage intérieur et extérieur',
-        texte: '« 🧽 Nettoyage intérieur » et « 🚿 Nettoyage extérieur » demandent la date (aujourd’hui par défaut). Le message part, et le nettoyage s’inscrit dans la fiche du véhicule (🧽 Nettoyage).' },
-      { emoji: '🚗',
-        titre: 'Des réponses rapides pour les véhicules',
-        texte: 'Dans ⚙️ Réglages de la messagerie › ⚡ Réponses rapides, un type « 🚗 Véhicules » : une réponse cochée là n’apparaît que dans les conversations des véhicules. Tant qu’aucune n’est cochée « Véhicules », elles gardent les réponses des groupes, comme avant.' }
-    ]
-  },
-  {
-    version: 1435,
-    date: 'Samedi 14 novembre 2026',
-    resume: '🕘 Simulateur : « la dernière fois » sous chaque compétence du bilan à remplir',
-    quoi: [
-      { emoji: '🕘',
-        titre: 'Ce qui a été fait au simulateur d’avant',
-        texte: 'Dans « 📋 Le bilan à remplir », sous chaque compétence : « La dernière fois (12/11) : ❌ À revoir », avec les erreurs à corriger de ce bilan-là. C’est lu dans le dernier bilan de simulateur de l’élève, tel qu’il a été envoyé : le choix du moniteur, ou ce que l’IA a mis quand il n’avait rien choisi. Un bilan corrigé à la main avant l’envoi compte tel qu’il a été corrigé.' }
-    ]
-  },
-  {
-    version: 1434,
-    date: 'Samedi 14 novembre 2026',
-    resume: '📋 Simulateur en vocal : le bilan à remplir sous les yeux · 💬 la Messagerie EC à installer à part',
-    quoi: [
-      { emoji: '📋',
-        titre: 'Simulateur BV et BEA en vocal : « Le bilan à remplir »',
-        texte: 'Pendant la dictée d’un simulateur, un volet replié « 📋 Le bilan à remplir » donne les compétences de la fiche « à la main », dans le même ordre (10 en BV, 8 en BEA), avec — non travaillé — / ✅ Acquis / 🟠 En cours / ❌ À revoir. Ce que tu choisis l’emporte sur ce que l’IA aura compris ; laissé sur « non travaillé », c’est l’IA qui décide. Les erreurs restent tirées de la dictée. Aussi sur 🎮 Plusieurs élèves à la fois, chaque élève avec ses choix.' },
-      { emoji: '💬',
-        titre: 'La Messagerie EC, à part',
-        texte: 'Une page avec seulement la messagerie, à installer sur un téléphone ou une tablette sous le nom « Messagerie EC » (icône verte à la bulle). Le lien et son QR code sont dans le ⋯ de la messagerie › 📲 Installer la Messagerie EC. Pour tout le monde, même connexion (prénom + code). En haut, « ↗ Ouvrir l’App EC ». La messagerie reste aussi dans l’App EC, sans changement.' },
-      { emoji: '🔔',
-        titre: 'Pas de notification en double',
-        texte: 'La Messagerie EC propose d’activer les notifications. Si elle est installée sur le même genre d’appareil que l’App EC (un iPhone, par exemple), l’App EC propose une fois de couper les siennes sur ce téléphone, pour que chaque message ne sonne pas deux fois.' }
-    ]
-  },
-  {
-    version: 1433,
-    date: 'Samedi 14 novembre 2026',
-    resume: '☠️ Examen officiel : les éliminatoires vont dans le bilan, sur le tracé, et notre CEPC se relit',
-    quoi: [
-      { emoji: '☠️',
-        titre: 'Une ☠️ sans rien écrire compte',
-        texte: 'À l’examen officiel, la ☠️ n’écrit plus de phrase toute faite : une ☠️ posée sans taper de remarque laissait la ligne vide, et une ligne vide n’était pas gardée. L’erreur disparaissait du bilan, de la fiche gardée et du lien vers son point (seul le E restait sur notre CEPC). Elle est maintenant gardée et écrite dans le bilan sous sa compétence : « ☠️ Erreur éliminatoire · point N sur la carte ». Même chose pour un ⚠️ sans texte (« ⚠️ Erreur à reprendre »), et à l’examen blanc.' },
-      { emoji: '🛰️',
-        titre: 'Le tracé ne se perd plus en passant d’une fiche à l’autre',
-        texte: 'Ouvrir la fiche d’un autre élève (🎓 Mes examens, une autre carte) effaçait le relevé GPS en cours, avec ses ☠️, si le bilan n’était pas encore composé ; une page rechargée aussi. Le relevé est maintenant mis de côté dans le téléphone, au nom de l’élève, et revient quand on rouvre sa fiche. Mis de côté depuis moins de 3 minutes, il reprend tout seul ; depuis plus longtemps, on te demande : ▶️ reprendre (son cours continue), ✅ il est fini, ou 🆕 repartir de zéro. Le temps mis de côté ne compte pas comme un trou. Il s’efface quand le bilan est enregistré.' },
-      { emoji: '🧾',
-        titre: 'Notre CEPC sous le bilan de l’examen',
-        texte: 'Dans le dossier, en relisant le cours d’un examen officiel, notre CEPC (celui du moniteur, jamais envoyé à l’élève) s’affiche sous le bilan, pour le comparer avec celui de l’inspecteur. Chaque examen garde maintenant sa grille à sa date. Pour un examen d’avant cette version, c’est la dernière grille notée qui s’affiche, avec la mention.' }
-    ]
-  },
-  {
-    version: 1432,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🩹 Un rendez-vous post-permis repris se rouvre dans son écran, pas en dictée',
-    quoi: [
-      { emoji: '🩹',
-        titre: 'Reprendre un rendez-vous post-permis',
-        texte: '« ↩️ Reprendre » rouvrait un rendez-vous post-permis interrompu comme une dictée, avec tout le texte dans la case du vocal : impossible de le terminer. Le dépôt garde maintenant les champs du rendez-vous, et la reprise rouvre le vrai écran du rendez-vous, chaque texte dans sa case. Un rendez-vous déposé avant cette version se rouvre aussi dans son écran : ce qui avait été écrit est remis dans ses cases (sinon, il est proposé à recopier en dessous).' },
-      { emoji: '📏',
-        titre: 'Les longues fiches ne se perdent plus',
-        texte: 'Une fiche de plus de 44 000 caractères (un long bilan d’inspecteur, par exemple) ne partait pas sur le serveur : seule une copie à lire restait. Elle se range maintenant sur plusieurs cases du classeur (jusqu’à 220 000 caractères).' }
-    ]
-  },
-  {
-    version: 1431,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🎓 Dossier › Code : un appui sur une séance pour la saisir ou la modifier',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Saisir ou modifier une séance depuis le dossier',
-        texte: 'Dans l’onglet 🎓 Code du dossier, appuie sur une séance (une ligne du tableau ou une des 12 cases, même vide) : ce qui est gardé, ses réponses s’il a répondu dans l’appli, et de quoi enregistrer le nombre de fautes (− / +) et la date. Ça remplace ce qu’il avait sur cette séance. « 🗑️ Retirer » efface une séance gardée par l’appli ; un résultat de Google Form reste dans le classeur, mais ce que tu enregistres le remplace.' }
-    ]
-  },
-  {
-    version: 1430,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🧭 Élèves › 🎓 Code dans l’ordre : la séance à lancer, les 3 boutons, la visio, puis les résultats',
-    quoi: [
-      { emoji: '🧭',
-        titre: 'L’onglet Code remis dans l’ordre',
-        texte: 'D’abord « 🎯 Quelle séance lancer ? », juste en dessous ✍️ Saisir des ardoises · 🔑 Les corrigés · 🔳 Les QR codes, puis le cours de code en visio, et enfin les résultats (période, recherche, grille).' }
-    ]
-  },
-  {
-    version: 1429,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '⚡ Élèves › 🎓 Code s’ouvre tout de suite',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'L’onglet Code ne fait plus attendre',
-        texte: 'La lecture des Google Forms (12 feuilles) prenait du temps à chaque ouverture. L’onglet s’affiche maintenant tout de suite avec la dernière lecture, et les formulaires se relisent en arrière-plan (« ↻ Relecture des formulaires… ») : la grille se redessine seule s’il y a du nouveau. Changer de période ne relit plus rien. L’onglet 🎓 Code du dossier en profite aussi. Côté Google, les liens des formulaires sont gardés six heures.' }
-    ]
-  },
-  {
-    version: 1428,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🔳 Les QR codes des séances : fond blanc, liseré vert, 6 par page',
-    quoi: [
-      { emoji: '🔳',
-        titre: 'Les QR codes redessinés',
-        texte: 'Élèves › 🎓 Code › 🔳 Les QR codes : un rond blanc au liseré vert, « SÉANCE » et son numéro dans une pastille verte en haut, le QR au milieu, « Scanne-moi » en bas. « 🖨️ Imprimer » met 6 QR codes par page (2 pages) ; « Une séance par page » reste pour l’entrée de la salle.' }
-    ]
-  },
-  {
-    version: 1427,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '📝 Code : la séance à lancer d’après Drivup, ✍️ les ardoises, 🔳 les QR codes des séances, l’onglet 🎓 Code du dossier, et où en est chaque élève pendant la visio',
-    quoi: [
-      { emoji: '🎯',
-        titre: 'Quelle séance lancer, d’après Drivup',
-        texte: 'Élèves › 🎓 Code : pour chaque cours de code du jour (la colonne ETG en salle, et la visio), les réservés Drivup et la séance qu’aucun d’eux n’a vue (sinon la moins vue). Une simple info : rien à lancer. Le code en salle se lit avec le favori 📥, comme la visio : relis le planning une fois pour qu’il apparaisse.' },
-      { emoji: '✍️',
-        titre: 'Les ardoises',
-        texte: '« ✍️ Saisir des ardoises » : la séance (proposée d’après les réservés), les élèves du créneau déjà listés (＋ pour en ajouter), et le nombre de fautes de chacun avec − / +. « — » = pas d’ardoise. Tout s’enregistre d’un coup, ✍️ dans la grille ; une ardoise remplace ce qu’il avait fait sur cette séance.' },
-      { emoji: '🔳',
-        titre: 'Les QR codes des séances',
-        texte: 'Un rond vert par séance, le numéro en haut, le QR dessous. À imprimer : les 12 sur une page, ou une séance par page A4 pour l’entrée de la salle. Scanné, il ouvre l’espace de l’élève directement sur la séance.' },
-      { emoji: '🎓',
-        titre: 'L’onglet 🎓 Code du dossier',
-        texte: 'Dans le dossier de l’élève : séances faites, fautes en tout et en moyenne, les 12 cases, puis chaque séance avec sa date, où (📱 salle, 🎥 visio, ✍️ ardoise, 📄 Google Form) et ses fautes série par série. Un appui montre ses réponses, question par question.' },
-      { emoji: '🎥',
-        titre: 'Pendant la visio, ta liste d’élèves',
-        texte: 'Sous chaque nom : la série et où il en est (« Test 2 · 2 / 4 · 1 faute »), puis ses fautes en couleur quand il a fini. Mis à jour toutes les 10 secondes.' }
-    ]
-  },
-  {
-    version: 1426,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '📝 Les séances de code dans l’appli : l’élève répond sur son espace (en salle, ou sous l’image en visio), série par série, ses fautes vont dans la grille',
-    quoi: [
-      { emoji: '📝',
-        titre: 'L’élève répond sur son espace',
-        texte: 'Avec la case « 🎓 Suivi du code en salle », l’accueil de son espace a la carte « 📝 Mes séances de code ». Il choisit la séance que tu annonces (réservé ou pas, rien à lancer ni à débloquer), puis chaque série avec son nom de la télé. Il coche les lettres de la question et valide avec ✓ : une question validée ne se change plus. Après la dernière question de la série, ses fautes avec les bonnes réponses, puis « Passer à … ». « Refaire » repart de zéro. Une adresse « …/#seance=5 » ouvre directement la séance 5 (les QR codes arrivent avec la prochaine livraison).' },
-      { emoji: '🎥',
-        titre: 'En visio : sous l’image, plus par-dessus',
-        texte: 'Le bouton 📝 devient « Mes réponses » : la même feuille s’ouvre SOUS l’image du cours, qui reste visible. Si la séance n’a pas encore de corrigé, c’est le Google Form qui revient, lui aussi sous l’image.' },
-      { emoji: '🔑',
-        titre: 'Élèves › 🎓 Code › 🔑 Les corrigés des séances',
-        texte: 'Pour chaque séance : ses séries (renommées comme à la télé) et, pour chaque question, les lettres visibles (＋ / −) et les bonnes en vert. Une question n’est juste que si toutes les bonnes sont cochées et aucune autre. « 📥 Reprendre des Google Forms » lit les 12 formulaires et propose leurs corrigés : tu gardes ceux que tu veux, puis tu corriges au besoin.' },
-      { emoji: '📊',
-        titre: 'La grille du code',
-        texte: 'Les séances faites dans l’appli y arrivent toutes seules : 📱 en salle, 🎥 en visio, « … » pas encore finie (le détail par série au survol). Une séance refaite : c’est désormais la plus récente qui compte. « Léa Martin » (formulaire) et « MARTIN Léa » (fiche) ne font plus qu’une ligne.' }
-    ]
-  },
-  {
-    version: 1425,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '📱 Code en visio : sur iPhone, l’image du cours ne se fige plus en sortant de « En grand »',
-    quoi: [
-      { emoji: '📱',
-        titre: 'L’image repart toute seule en sortant de « En grand »',
-        texte: 'Sur iPhone, quand l’élève quittait le plein écran, l’image du cours restait figée (il n’avait plus que le son) jusqu’à rappuyer sur « En grand » puis ▶. L’iPhone met la vidéo en pause en sortant de son lecteur : elle est maintenant relancée tout de suite, et à chaque pause qu’on n’a pas demandée.' }
-    ]
-  },
-  {
-    version: 1424,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🛤️ Messagerie : un rail sous Tout · Non lus · Élèves · Équipe · Permis · Véhicules pour les faire défiler à la souris',
-    quoi: [
-      { emoji: '🛤️',
-        titre: 'Un rail pour faire défiler les pastilles',
-        texte: 'Sur ordinateur, quand les pastilles Tout · Non lus · Élèves · Équipe · Permis · Véhicules ne tiennent pas en largeur, un rail apparaît dessous : on tire sa poignée, ou on clique sur le rail pour avancer d’un cran. La molette ordinaire (haut / bas) les fait aussi défiler quand la souris est dessus. La rangée garde sa place quand la liste se rafraîchit. Sur téléphone, rien ne change : on glisse au doigt.' }
-    ]
-  },
-  {
-    version: 1423,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '📹 Outils › Tarifs : la grille d’affichage se modifie en entier, avec la mention de vidéosurveillance',
-    quoi: [
-      { emoji: '✏️',
-        titre: 'Toute la grille d’affichage se modifie',
-        texte: 'Outils › Tarifs › 📄 Les fiches › la grille « TARIFS » (📋 Affichage) : le titre, les deux colonnes, leurs tableaux (titre, ↑, ⇄ dans l’autre colonne, 🗑️), chaque ligne (son libellé et d’où vient son prix : une prestation en BV / BEA, ou le total d’une fiche) et les textes du bas. Les prix suivent toujours 💶 Les prix.' },
-      { emoji: '📹',
-        titre: 'La mention de vidéosurveillance en bas',
-        texte: 'À l’ouverture de la grille, le texte « Établissement placé sous vidéosurveillance… » est proposé en bas s’il n’y est pas : à relire, puis ✅ Valider la grille et ✅ Enregistrer. Un texte long s’imprime en petit, comme une mention ; et si la page déborde, tout se resserre pour que le bas ne soit plus coupé.' }
-    ]
-  },
-  {
-    version: 1422,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🧰 Jeu des vérifs V2 : la leçon et la vue du moniteur',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Une question ratée en leçon passe en tête de son jeu',
-        texte: 'Une partie notée ❌ dans le tiroir des questions de vérification (au bilan du cours) part tout de suite dans son jeu : ses cartes passent devant au prochain « ▶️ Continuer », et le numéro devient rose dans sa grille — sans attendre le mail du bilan. Corrigée en ✅ le même jour, elle n’est plus à revoir.' },
-      { emoji: '🧰',
-        titre: 'En leçon : où il en est dans son jeu',
-        texte: 'Dans le tiroir, sous chaque question posée : « 🧰 Dans son jeu — geste : ✅ acquis · QSER : 🟡 en cours · secours : ❌ raté le 12/11 ».' },
-      { emoji: '📈',
-        titre: 'Son jeu V2 dans son dossier',
-        texte: 'Élèves › son dossier › 🔑 Coin révisions : les gestes et les réponses sus, la date de sa dernière séance, ses notes « Comme à l’examen », ce qu’il a à revoir (d’où ça vient : leçon, examen blanc, examen), sa voiture et la grille des 100. L’ancien jeu (V1) reste dessous, replié. Dans Mes prochains cours, la ligne « 🧰 Vérifs » des examens suit la V2.' }
-    ]
-  },
-  {
-    version: 1421,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🧰 Jeu des vérifs V2 : les étapes, les mots de « Je dis », ce qui est prêt, ⬇️ les photos',
-    quoi: [
-      { emoji: '🧩',
-        titre: 'Les étapes des gestes',
-        texte: 'Outils › Vérifications › 📸 Nos voitures › « 🧩 Les étapes des gestes » : pour la voiture choisie, les 64 gestes avec ce que l’élève fait dans l’ordre (le chemin de l’endroit, puis ce qu’il montre), prêt / à vérifier / à faire. « ✏️ Changer les étapes » corrige un geste précis (une étape en plus, retirée, déplacée), « Pareil sur » d’autres voitures. Et « 💡 Les appuis » : ce que chaque appui allume.' },
-      { emoji: '🗣️',
-        titre: 'Les mots de « Je dis »',
-        texte: '« 🗣️ Les mots de « Je dis » » : pour chaque réponse de sécurité routière et de premiers secours, les mots attendus (tirés de la réponse) et combien il en faut. On les change (un mot ou une expression par ligne), et on essaie une phrase comme un élève la dirait.' },
-      { emoji: '📋',
-        titre: 'Ce qui est prêt, et ⬇️ les photos',
-        texte: '« 📋 Ce qui est prêt » : voiture par voiture, les gestes prêts et ce qui manque, et qui joue sur quelle voiture. « ⬇️ Télécharger » sous une photo, et « ⬇️ Toutes ses photos (.zip) » pour une voiture.' }
-    ]
-  },
-  {
-    version: 1420,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🧰 Le jeu des vérifs V2, et le choix V1 / V2 pour l’espace élève',
-    quoi: [
-      { emoji: '🧰',
-        titre: 'Allumé ou éteint, V1 ou V2',
-        texte: 'Outils › Vérifications (administrateurs) : « 🧰 Sur l’espace élève » — ⏻ Allumé / ⭘ Éteint, et V1 (l’ancien jeu) ou V2 (le nouveau). Éteint : l’onglet 🧰 disparaît pour tous les élèves. Allumé : la case 🧰 de chaque élève décide, comme avant. Chaque version garde sa progression. Dans « 🎮 Jouer (essai) », on peut essayer la V1 ou la V2, quelle que soit celle des élèves.' },
-      { emoji: '▶️',
-        titre: 'La V2 : Continuer, Comme à l’examen, les thèmes, la grille',
-        texte: '« ▶️ Continuer » choisit 7 cartes (les ratées en leçon d’abord, puis celles à revoir, puis des nouvelles) ; « 🎲 Comme à l’examen » tire un numéro, noté sur 3. Trois sortes de cartes : J’apprends (les étapes dans l’ordre, avec les photos de l’atelier), Je fais (une étape à la fois sur les photos de sa voiture ; « pas encore » s’il saute une étape ; pour les feux, il voit ce qui s’allume à chaque appui) et Je dis (il répond à voix haute, c’est écrit, et c’est vérifié par les mots attendus ; sans micro, il tape).' },
-      { emoji: '🚗',
-        titre: 'Sa voiture dans la V2',
-        texte: 'Réglée d’après sa boîte (BV / BEA) et son agence (son dernier cours Drivup), avec « Je prends mes cours avec le Q3 n°10 » en BEA à Saint-Brieuc. Dans l’atelier (📸 Nos voitures), chaque voiture a un nouveau choix « Dans le nouveau jeu (V2), elle sert à » : BV ou BEA Saint-Brieuc, le Q3 n°10, BV ou BEA Loudéac.' }
-    ]
-  },
-  {
-    version: 1419,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '✅ Planning permis validé : « tes groupes de travail dans ton espace élève »',
-    quoi: [
-      { emoji: '✏️',
-        titre: 'Plus de « groupes Facebook » dans le message',
-        texte: 'Le message « ✅ TON PLANNING PERMIS EST VALIDÉ ✅ » dit maintenant « révise à fond tes groupes de travail dans ton espace élève » au lieu de « tes groupes Facebook ».' }
-    ]
-  },
-  {
-    version: 1418,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '✅ Suivi permis : le message « Ton planning permis est validé »',
-    quoi: [
-      { emoji: '✅',
-        titre: 'Une fenêtre quand « Tout est OK » se coche',
-        texte: 'Dans 🎓 Suivi permis (la place d’une session) ou la fiche de préparation : quand « ✅ Tout est OK » passe à coché et qu’on enregistre, une fenêtre propose le message « ✅ TON PLANNING PERMIS EST VALIDÉ ✅ ». Deux cases ajoutent « EN ATTENDANT LE RÉSULTAT DE TON EXAMEN BLANC » et/ou « SOUS RÉSERVE D’ÉVOLUTION » après « VALIDÉ ». Puis « 💬 Envoyer dans sa messagerie » (signé de ton nom) ou « 📋 Copier pour Messenger ».' }
-    ]
-  },
-  {
-    version: 1417,
-    date: 'Vendredi 13 novembre 2026',
-    resume: '🗺️ Espace élève : la carte du trajet sous ses leçons',
-    quoi: [
-      { emoji: '🗺️',
-        titre: 'Revoir son trajet sur la carte',
-        texte: 'Dans l’espace élève, Réviser › Mes leçons : sous le bilan d’un cours qui a son tracé GPS, un bouton « 🗺️ Revoir mon trajet sur la carte ». Il ouvre la même carte que « Voir le trajet en grand » du mail, avec les points et les remarques du bilan. Les tracés s’effacent au bout de deux mois : le bouton n’apparaît que sous les cours qui l’ont encore.' }
-    ]
-  },
-  {
-    version: 1416,
-    date: 'Jeudi 12 novembre 2026',
-    resume: '📖 Espace élève : « Mes leçons » passe dans Réviser',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Deux boutons en haut de Réviser',
-        texte: 'Dans l’espace élève, onglet Réviser : « 🎓 Groupes de travail » (le parcours, comme avant) et « 📖 Mes leçons » (tous ses bilans). Réviser s’ouvre toujours sur les groupes ; une pastille rouge sur « Mes leçons » tant qu’un bilan n’est pas lu. Un élève qui n’a que ses leçons voit seulement « Mes leçons ».' },
-      { emoji: '🏠',
-        titre: 'Sa dernière leçon reste sur l’accueil',
-        texte: 'Une carte « 📖 Ma dernière leçon » sous le prochain cours : la date, le moniteur, le début du bilan, « nouveau » tant qu’il ne l’a pas lu, « Lire le bilan » (ouvert directement dans Mes leçons) et « Toutes mes leçons ».' },
-      { emoji: '🎬',
-        titre: 'Les boutons d’étapes aussi dans les anciens bilans',
-        texte: 'Sous chaque procédure d’un bilan d’avant, l’élève a maintenant les boutons « 🎬 Ouvrir » vers les étapes que cette procédure porte aujourd’hui (📍 dans Outils › Procédures). Rien n’est réécrit dans le classeur : c’est ajouté à l’affichage.' }
-    ]
-  },
-  {
-    version: 1415,
-    date: 'Jeudi 12 novembre 2026',
-    resume: '💬 La messagerie de l’espace élève, façon Messenger aussi',
-    quoi: [
-      { emoji: '📱',
-        titre: 'Côté élève, le même modèle que l’équipe',
-        texte: 'Dans l’espace élève, onglet 💬 Écrire : une tête « Messages » avec sa photo, les demandes ⏰ Retard, 🚫 Annuler, 🧤 Objet et « Écrire au bureau / à son moniteur » en pastilles, puis ses conversations sans cadres (les non-lues en gras avec leur pastille verte).' },
-      { emoji: '💬',
-        titre: 'Les bulles et la barre',
-        texte: 'Ses messages en vert plein, ceux de l’école collés par personne avec le nom écrit une fois (pas de nom dans la conversation avec son moniteur), l’heure entre les groupes de messages, et la barre ＋, le texte avec 😊 dedans, 🎤, 👍 qui devient ➤.' }
-    ]
-  },
-  {
-    version: 1414,
-    date: 'Jeudi 12 novembre 2026',
-    resume: '💬 La messagerie de l’équipe, façon Messenger',
-    quoi: [
-      { emoji: '📋',
-        titre: 'La liste dès le haut de l’écran',
-        texte: 'En tête : « Discussions | ✉️ | ✋ » (Mail et Objets oubliés), ✏️ et ⋯. Puis la recherche avec un bouton « Filtres » (pour moi, pour qui, étiquette, type, archivées), et une rangée de pastilles Tout, Non lus, Élèves, Équipe, Permis, Véhicules. Une seule liste, sans cadres ni rubriques : les non-lus en gras avec leur pastille, les étiquettes en points de couleur.' },
-      { emoji: '●',
-        titre: 'Remettre en non lu',
-        texte: 'Sur le téléphone, glisse une conversation vers la gauche ; sur l’ordinateur, le bouton ● au survol (à la place d’Archiver). Glisser à droite garde le rappel de demain 9 h. Archiver est dans l’appui long (ou le clic droit) et dans ⓘ Infos.' },
-      { emoji: 'ⓘ',
-        titre: 'Les infos de la conversation',
-        texte: 'Le ⋯ de la conversation est rangé dans ⓘ Infos (ou toucher le nom) : épingler, rappel, non lu, archiver, exporter, sa fiche, les étiquettes et « qui s’en occupe » à cocher, les participants, proposer un créneau… Sur l’ordinateur c’est la colonne de droite.' },
-      { emoji: '💬',
-        titre: 'Des bulles comme Messenger',
-        texte: 'Mes messages en vert plein, ceux des autres sans cadre et sans le nom répété, l’heure entre les groupes de messages (un toucher sur une bulle montre la sienne). La barre : ＋, le texte avec 😊 dedans, 🎤, puis 👍 qui devient ➤ dès qu’on écrit.' },
-      { emoji: '⚠️',
-        titre: 'Toute la hauteur pour les conversations',
-        texte: 'Dans l’onglet Messagerie, « choses à voir » devient une pastille dans l’en-tête (on la touche pour le déplier), et sur le téléphone l’en-tête tient sur une ligne.' }
-    ]
-  },
-  {
-    version: 1413,
-    date: 'Jeudi 12 novembre 2026',
-    resume: '📱 La flèche de retour de la messagerie élève en vert',
-    quoi: [
-      { emoji: '⬅️',
-        titre: 'La flèche de retour en haut, bien visible',
-        texte: 'Dans la messagerie de l’espace élève (une conversation, ou une demande retard, annulation, oubli), la flèche pour revenir est un rond vert, comme dans la messagerie de l’équipe.' }
-    ]
-  },
-  {
-    version: 1412,
-    date: 'Jeudi 12 novembre 2026',
-    resume: '💶 Le financement suivi dans l’espace élève, et quatre corrections',
-    quoi: [
-      { emoji: '🔑',
-        titre: 'Les passerelles entrent avec leur prénom et leur nom',
-        texte: 'Plus besoin d’écrire « (Passerelle BV) » derrière : toutes les portes de l’espace reconnaissent le début du nom avec le bon code. Le mail d’accès donne le nom à taper, sans la formation.' },
-      { emoji: '🔔',
-        titre: 'Les notifications de l’espace élève',
-        texte: 'L’autorisation est demandée dès le toucher (certains téléphones refusaient en silence), un ancien abonnement est remplacé tout seul, et si ça échoue, le message reste affiché avec l’étape en cause.' },
-      { emoji: '🚙',
-        titre: 'L’évaluation directement en automatique',
-        texte: 'Élèves › Administratif › Évaluation : on peut taper seulement les heures en automatique ; la manuelle se calcule à l’envers.' },
-      { emoji: '🎓',
-        titre: 'Le CPF dans la fiche',
-        texte: 'Sur la carte du dossier CPF : « Classique » ou « Demandeur d’emploi », les messages et le délai suivent. Et « ➕ Suivre une aide » propose un deuxième dossier CPF.' },
-      { emoji: '💶',
-        titre: 'Le financement dans l’espace élève',
-        texte: 'Une carte « Mon financement » sur son accueil : les étapes de chaque suivi (CPF, Pass’Engagement, permis à 1 €…) et le message de l’étape en cours, celui qu’on lui a envoyé. Après l’entrée en formation : « ✅ Financement CPF » et le montant.' }
-    ]
-  },
-  {
-    version: 1411,
-    date: 'Jeudi 12 novembre 2026',
-    resume: '🎓 Suivi AAC : une frise par élève, les relances sous leur rendez-vous',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Une case par étape',
-        texte: 'Chaque élève a sa frise : Préalable → RVP 1 → Théorique → RVP 2 → Examen. La couleur de la case dit où il en est (vert fait, rouge en retard, orange à moins de 2 mois, pointillés à prévoir), et ses boutons 📣 Prévenu, ✅ Fait sont dans la case. Corriger, Il ne validera pas, Fausse AAC passent à droite du nom.' },
-      { emoji: '✉️',
-        titre: 'La relance sous le rendez-vous relancé',
-        texte: 'La partie RVP du mail s’affiche dans la case du RVP, la partie examen dans la case Examen, la proposition de théorique dans la case Théorique. Pastille bleue tant qu’on attend, ambre après 7 jours sans réponse, verte à la réponse. Le bouton ✉️ Relancer est sur le rendez-vous concerné.' },
-      { emoji: '📌',
-        titre: 'Fixer la date depuis la réponse',
-        texte: 'Sur une réponse de la famille, « 📌 Fixer la date » pose le rendez-vous (prévu, ou fait si la date est passée) et la pastille s’en va toute seule.' },
-      { emoji: '📬',
-        titre: 'Le bandeau des relances',
-        texte: 'En haut de la liste : qui n’a pas répondu et depuis combien de jours, qui a répondu et attend sa date. Toucher un nom descend jusqu’à lui. Et un filtre « ✉️ Relances » à côté des autres.' }
-    ]
-  },
-  {
-    version: 1410,
-    date: 'Mardi 10 novembre 2026',
-    resume: '⌨️ Les heures du jour du permis se tapent enfin sans galère',
-    quoi: [
-      { emoji: '⌨️',
-        titre: 'Taper une heure',
-        texte: 'On touche la case, tout est sélectionné, on tape 11, 1100, 11:00 ou 11h30. L’heure se garde en quittant la case (Tab, clic ailleurs) ou avec Entrée ; Échap annule ; vidée, elle revient au calcul. Avant, la case se redessinait au premier chiffre et gardait une heure fausse.' },
-      { emoji: '📐',
-        titre: 'Des colonnes alignées',
-        texte: 'Une ligne par élève : le nom, la conduite, l’examen, toujours à la même place ; sur téléphone, l’un sous l’autre.' }
-    ]
-  },
-  {
-    version: 1409,
-    date: 'Mardi 10 novembre 2026',
-    resume: '💬 Messenger passe après la messagerie de l’appli (il reste en secours)',
-    quoi: [
-      { emoji: '🚦',
-        titre: '« Corriger cette procédure » sous la vidéo d’un élève',
-        texte: 'Dans la messagerie, sous la vidéo ou le vocal qu’un élève envoie : la procédure part dans Procédures à corriger, déjà remplie (élève, quand, son mot). « 💬 Voir » y ramène.' },
-      { emoji: '💬',
-        titre: 'Ce qu’on dit aux élèves',
-        texte: 'Les bilans, les rappels de cours et le message passerelle disent « dans ta messagerie de l’App Évolution Conduites » à la place de Messenger. Le mail « fais ton bilan » cite l’appli d’abord.' },
-      { emoji: '🔗',
-        titre: 'Ce qu’on copie part avec les liens de l’appli',
-        texte: 'Tout ce que tu copies (pour Messenger, un SMS…) remplace les liens Facebook reliés par ceux de son espace.' },
-      { emoji: '✅',
-        titre: 'Fin de cours',
-        texte: 'La fenêtre « Bilan enregistré » dit qu’il le retrouve dans son espace et propose le mail ; Messenger n’y est plus qu’un petit bouton de secours.' }
-    ]
-  },
-  {
-    version: 1408,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🔗 Le tableau des liens Facebook : chacun relié à une étape de l’espace élève',
-    quoi: [
-      { emoji: '🔗',
-        titre: 'Outils › Ce qu’on écrit › 🔗 Liens Facebook → élève',
-        texte: 'Tous les liens Facebook de l’appli et des fiches, avec la phrase autour et où ils servent. 💡 Une étape proposée (« ✓ C’est ça »), 📍 Choisir, ou « Laisser Facebook ». ❌ quand l’étape n’existe plus, 🆕 quand quelqu’un en ajoute un dans une fiche.' },
-      { emoji: '🎬',
-        titre: 'Relié une fois, relié partout',
-        texte: 'L’élève reçoit le bouton de son espace à la place du lien Facebook : dans ses bilans (même les anciens), sa messagerie et le mail du bilan. Les liens gardés Facebook se cliquent maintenant dans son espace.' },
-      { emoji: '📄',
-        titre: 'Dans une fiche',
-        texte: '« Les liens de ce texte » dit si chaque lien Facebook est relié, avec « 📍 Relier à une étape » ; une procédure sans étape dont le lien est relié te propose l’étape (« ＋ L’ajouter »).' }
-    ]
-  },
-  {
-    version: 1407,
-    date: 'Mardi 10 novembre 2026',
-    resume: '📍 Les procédures et les fiches renvoient au bon guide, à la bonne étape de l’espace élève',
-    quoi: [
-      { emoji: '📍',
-        titre: 'Une procédure se lie à ses étapes',
-        texte: 'Dans la procédure (Ce qu’on écrit, Procédures, ou le 👁 pendant le cours) : « 📍 Lier à une étape » — groupe, guide, étape, ou un mot cherché. Une ou plusieurs étapes.' },
-      { emoji: '🚦',
-        titre: 'Pendant le cours, rien ne change',
-        texte: 'On appuie sur la procédure comme avant : elle part entière dans le bilan, et dessous l’élève a un bouton par étape. L’étape s’épingle aussi 📌 en tête de son Réviser.' },
-      { emoji: '🔗',
-        titre: '« 🔗 Lien élève » dans toutes les fiches',
-        texte: 'En bas de chaque fiche de Ce qu’on écrit : il pose le lien d’une étape là où est le curseur. « Les liens de ce texte » dit où chacun mène.' },
-      { emoji: '🎬',
-        titre: 'Chez l’élève : des boutons',
-        texte: 'Dans ses bilans et sa messagerie, « 🎬 Ouvrir « l’étape » ». Une étape d’un groupe pas encore ouvert : « 🔒 pas encore ouvert pour toi », avec « 💬 Demander au bureau de me l’ouvrir ».' }
-    ]
-  },
-  {
-    version: 1406,
-    date: 'Mardi 10 novembre 2026',
-    resume: '📚 Un long guide s’enregistre : plus de « trop long pour une cellule »',
-    quoi: [
-      { emoji: '📚',
-        titre: 'Les guides longs ne sont plus refusés',
-        texte: 'Quand un guide dépasse une cellule du classeur (beaucoup d’étapes, des vidéos montées), la suite continue dans les colonnes d’à côté et se recolle à la lecture. Pas besoin de le couper en deux.' }
-    ]
-  },
-  {
-    version: 1405,
-    date: 'Mardi 10 novembre 2026',
-    resume: '✉️ Ajourné, puis bilan validé : les deux messages partent tout seuls dans sa messagerie de l’appli',
-    quoi: [
-      { emoji: '🚦',
-        titre: '« ❌ Oui, ajourné » envoie la marche à suivre',
-        texte: 'Dans sa conversation « Le bureau », signée de celui qui clique : les étapes (son bilan se fait dans l’appli, onglet 📝 Bilan), avec les boutons « 📝 Faire mon bilan », « Étape 24 » et, s’il n’est pas de Loudéac, l’agence de Loudéac.' },
-      { emoji: '📜',
-        titre: '« ✅ Valider » son bilan envoie le RDV post-permis',
-        texte: 'Le chemin Drivup, avec les boutons « 📅 Réserver mon RDV post-permis » et la vidéo. Même chose quand son bilan est collé depuis Messenger.' },
-      { emoji: '💬',
-        titre: 'Les fenêtres Messenger restent',
-        texte: 'Elles disent en haut que le message est déjà parti dans sa messagerie (ou pourquoi il n’a pas pu partir, par exemple sans messagerie dans son espace).' }
-    ]
-  },
-  {
-    version: 1404,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🚦 Espace élève ajourné : la marche à suivre sur l’accueil, le CEPC en tiroir, « OK Loudéac » coché par l’élève, la carte du RDV post-permis',
-    quoi: [
-      { emoji: '🚦',
-        titre: 'Sur son accueil, ton message après l’ajournement',
-        texte: '« Suite à ton ajournement du … » : les 3 étapes obligatoires et l’avertissement, avec « 📝 Faire mon bilan » qui l’emmène au formulaire, « voir ton CEPC » et l’étape 24 « Vous avez loupé votre examen » (Mise en pratique) à la place du lien Facebook.' },
-      { emoji: '🗂️',
-        titre: 'CEPC et bilan du moniteur dans des tiroirs',
-        texte: 'Dans l’onglet Bilan, une carte « Ton examen » avec deux tiroirs repliés : son CEPC et ton bilan d’examen. Le questionnaire remonte.' },
-      { emoji: '📍',
-        titre: 'Repasser à Loudéac : il répond, la fiche se coche',
-        texte: 'À la fin de son bilan (élèves de Saint-Brieuc) : « Peux-tu repasser ton permis à Loudéac ? ». Oui coche « OK pour passer à Loudéac » dans sa fiche, Non le décoche. Les élèves de Loudéac n’ont pas la question.' },
-      { emoji: '📜',
-        titre: 'La carte « RDV post-permis » quand son bilan est validé',
-        texte: 'Ton message, avec le bouton vers Drivup tant que le rendez-vous n’est pas pris ; dès qu’il est pris (posé par le bureau ou lu dans le planning Drivup), la carte donne sa date. Elle disparaît quand le rendez-vous est fait.' }
-    ]
-  },
-  {
-    version: 1403,
-    date: 'Mardi 10 novembre 2026',
-    resume: '📷 La 3D : le Q3 scanné par David, et une A3 Sportback redessinée',
-    quoi: [
-      { emoji: '📷',
-        titre: 'Le vrai Q3 de l’école, en 3D',
-        texte: 'Le scan de David (Scaniverse, iPhone) remplace le Q3 dessiné : lettrage, plaque et panneau « Véhicule-école » compris. Nettoyé (sol et abri retirés), remis droit et allégé. Il sert partout : 🧰 Mes vérifs de l’élève (le capot s’ouvre toujours sur le compartiment moteur), la carrosserie en 3D, le parc en direct et le trajet rejoué.' },
-      { emoji: '🚗',
-        titre: 'Une A3 Sportback redessinée',
-        texte: 'En attendant son scan : une carrosserie moulée d’après les cotes de l’A3 Sportback 2020+ (4,34 m, empattement 2,64 m), avec ses vitres, sa calandre, ses feux et ses joints de portes dessinés, sans les marches d’escalier d’avant.' },
-      { emoji: '🎯',
-        titre: 'Le jeu des vérifications vise sur le scan',
-        texte: 'Phares, clignotants, feux, plaques, trappe, balais, pneus… sont des zones posées sur la voiture : on touche le vrai phare du scan, et c’est lui qui s’allume en vert ou en rouge.' }
-    ]
-  },
-  {
-    version: 1402,
-    date: 'Mardi 10 novembre 2026',
-    resume: '📝 Espace élève : le bilan post-permis sur le modèle de David, avec son CEPC et le bilan du moniteur · 🎥 la visio du code = la colonne Visio seulement',
-    quoi: [
-      { emoji: '📷',
-        titre: 'Son CEPC et le bilan de son moniteur, au-dessus de son bilan',
-        texte: 'Dans l’onglet Bilan de l’élève ajourné : les captures du CEPC collées au ❌ Ajourné (touchées : en grand), puis le bilan d’examen du moniteur, tel quel, avec son prénom et son émoji — dès le départ.' },
-      { emoji: '📝',
-        titre: 'Ton modèle, ligne à ligne',
-        texte: 'Les 14 lignes du CEPC : « As-tu eu tous les points ? » ✅ Oui / ❌ Non. Non sur une ligne où l’éliminatoire existe : les 3 questions ▶️ ; sur les autres : « Pourquoi ? ». Puis la grille de l’inspecteur (le guide 16 de « Examen pratique du permis de conduire », Mise en pratique) et les 4 questions de la fin, obligatoires. Dans sa fiche, son bilan se lit dans cet ordre.' },
-      { emoji: '🗂️',
-        titre: 'Une icône pour l’onglet Bilan',
-        texte: 'La feuille cochée, au même trait que les autres onglets (fini l’émoji 📝).' },
-      { emoji: '🎥',
-        titre: 'Le bandeau « cours de code en visio » ne se trompe plus de colonne',
-        texte: 'Seule la colonne « Visio » de Drivup compte : un élève réservé en code ETG (salle) n’est plus annoncé en visio, ni dans le bandeau, ni sur son espace, ni dans le mail du matin.' }
-    ]
-  },
-  {
-    version: 1401,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🗺️ Page du trajet : les remarques du bilan en entier, le logo de l’école, un tracé visible de loin',
-    quoi: [
-      { emoji: '📝',
-        titre: 'Ce qu’ont écrit l’inspecteur et le moniteur, comme dans le bilan',
-        texte: 'Sous chaque point de la page du trajet (la liste, la bulle du plan et la fiche de la 3D) : la remarque de l’inspecteur et la réponse du moniteur, sur plusieurs lignes, avec l’émoji du moniteur. Un cours de onze points perdait ses remarques parce que le lien devenait trop long ; il voyage maintenant compacté (trois fois plus court). Les mails déjà envoyés gardent leur ancien lien ; les cours rouverts depuis le dossier ont le nouveau.' },
-      { emoji: '🏠',
-        titre: 'Le logo sur l’auto-école, pour se repérer',
-        texte: 'Les bureaux de Saint-Brieuc et de Loudéac apparaissent avec le logo, sur le plan et dans le rejeu en 3D.' },
-      { emoji: '🧊',
-        titre: 'Le tracé se voit quand on dézoome',
-        texte: 'Dans « Rejouer en 3D », le trait s’élargit quand on s’éloigne et reste au-dessus du plan : on suit le trajet entier même vu de haut. Le trait restant est d’un vert plus franc, le parcouru en vert foncé.' }
-    ]
-  },
-  {
-    version: 1400,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🧊 Espace élève : « Ma voiture en 3D » dans le jeu des vérifications',
-    quoi: [
-      { emoji: '🧊',
-        titre: 'Les vérifications extérieures, sur la voiture en 3D',
-        texte: 'Dans 🧰 Mes vérifs, un nouveau mode : huit questions extérieures, « à revoir » d’abord. L’élève fait le tour de sa voiture (A3 ou Q3, celle qu’il a choisie), ouvre le capot et touche le bon endroit : jauge, bocal du lave-glace, batterie, clignotants côté trottoir, témoin d’usure…' },
-      { emoji: '✅',
-        titre: 'Compté comme les autres modes',
-        texte: 'Juste : +10 XP. Deux erreurs (ou « Je ne sais pas ») : le bon endroit s’allume et la caméra y va, et la question rejoint « À revoir ». 40 des 50 vérifications extérieures s’y jouent ; l’intérieur viendra des photos de David.' }
-    ]
-  },
-  {
-    version: 1399,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🧊 La carrosserie en 3D : on tourne autour de la voiture, on touche pour noter',
-    quoi: [
-      { emoji: '🧊',
-        titre: '« 🗺️ À plat · 🧊 3D » dans 🩹 Carrosserie',
-        texte: 'Pour les A3 et les Q3 : la voiture en volume, qui tourne doucement. Les boutons Conducteur, Passager, Avant, Arrière, Dessus y emmènent d’un geste. Le choix est gardé sur l’appareil.' },
-      { emoji: '🩹',
-        titre: 'Les dommages, en pastilles',
-        texte: 'Chaque dommage est posé sur la carrosserie, à sa couleur (à réparer, réparé, laissé…). Une pastille touchée s’ouvre comme d’habitude ; toucher la carrosserie ailleurs propose d’y noter un dommage.' },
-      { emoji: '🔒',
-        titre: 'Rien ne change dans ce qui est gardé',
-        texte: 'Un dommage noté en 3D est enregistré exactement comme à plat (la vue et sa position) : les vues à plat et l’état des lieux imprimé le montrent au même endroit.' }
-    ]
-  },
-  {
-    version: 1398,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🧊 Le trajet du cours rejoué en 3D — pour l’élève et pour l’équipe',
-    quoi: [
-      { emoji: '🧊',
-        titre: '« 🧊 Rejouer en 3D » sur la carte du trajet',
-        texte: 'La page du trajet (le lien du mail de l’élève, le 🗺️ des anciens cours du dossier, le tracé de l’examen) a maintenant un bouton : la ville en relief, le tracé au sol, et la voiture qui le parcourt. Le Plan reste par défaut.' },
-      { emoji: '📍',
-        titre: 'Elle s’arrête sur les points de travail',
-        texte: 'À chaque point numéroté, la voiture marque une pause et le point s’affiche : thème, ce qu’a dit l’inspecteur, la remarque du moniteur. Toucher une ligne de la liste y emmène la voiture.' },
-      { emoji: '⏯️',
-        titre: 'Lecture, vitesse, curseur',
-        texte: '▶ / ⏸, ×1 · ×2 · ×4, un curseur pour aller où l’on veut, « 🎥 Suivre la voiture » ou « ⤢ Tout le trajet ». Rejoué à vitesse régulière : ce n’est pas la vitesse de la voiture (aucune vitesse n’est gardée).' }
-    ]
-  },
-  {
-    version: 1397,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🧊 Le parc en direct en 3D : bâtiments en relief, voitures qui glissent',
-    quoi: [
-      { emoji: '🧊',
-        titre: 'Le bouton « 🧊 3D »',
-        texte: 'Gestion › Le parc › 🗺️ En direct : le Plan reste par défaut, « 🧊 3D » montre la ville en maquette, bâtiments en relief (BD TOPO de l’IGN). Un doigt déplace, deux doigts tournent, zooment et inclinent.' },
-      { emoji: '🚙',
-        titre: 'Nos voitures, en volume',
-        texte: 'Les A3 et Q3 en blanc, avec la même étiquette qu’à plat. Une nouvelle position : la voiture glisse jusqu’à elle, le nez dans le sens de la marche. Les dernières positions connues sont en transparence.' },
-      { emoji: '🎯',
-        titre: 'Suivre une voiture',
-        texte: 'Touchez une voiture (ou sa ligne dans la liste) : la caméra la suit. « ⤢ Vue d’ensemble » revient sur toutes. Toujours sans vitesse ni historique, et rien de plus demandé aux téléphones.' }
-    ]
-  },
-  {
-    version: 1396,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🌐 Mails du site internet : une conversation par personne, plus un seul grand fil',
-    quoi: [
-      { emoji: '🌐',
-        titre: 'Chacun son fil',
-        texte: 'Les mails du formulaire du site arrivaient tous dans la même conversation (même adresse d’envoi, même objet). L’appli lit maintenant qui a rempli le formulaire (son « Répondre à », ou l’adresse écrite dans le mail) : un fil par personne, regroupés seulement quand c’est la même.' },
-      { emoji: '↩️',
-        titre: 'La réponse part à la bonne personne',
-        texte: 'Répondre à un de ces mails écrit à la personne du formulaire, plus à l’adresse du site. Et si son adresse est sur une fiche, le fil se rattache à l’élève.' },
-      { emoji: '🧹',
-        titre: 'Le grand fil d’avant, démêlé',
-        texte: 'Les mails du site déjà reçus sont redistribués tout seuls à la prochaine relève, chacun chez son expéditeur. Ce qui ne dit pas qui l’a envoyé reste où il était.' }
-    ]
-  },
-  {
-    version: 1395,
-    date: 'Mardi 10 novembre 2026',
-    resume: '💰 Mails : joindre nos tarifs en PDF depuis les réponses rapides',
-    quoi: [
-      { emoji: '💰',
-        titre: 'Nos tarifs en pièces jointes',
-        texte: 'Dans un mail ouvert, « 💰 Nos tarifs (PDF) » à côté des réponses rapides (et dans le menu ⚡) : on coche les fiches tarifaires voulues, elles partent en PDF et l’éditeur s’ouvre avec elles et un mot tout prêt.' },
-      { emoji: '📎',
-        titre: 'Aussi dans un mail déjà commencé',
-        texte: 'Dans l’éditeur, ⚡ ▾ › « Joindre nos tarifs en PDF… » ajoute les fiches choisies aux pièces jointes, sans toucher au texte. Dix fiches au plus par mail.' }
-    ]
-  },
-  {
-    version: 1394,
-    date: 'Mardi 10 novembre 2026',
-    resume: '⚡ Espace élève : connexion plus rapide, et une barre de chargement qui dit vrai',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'Une connexion plus rapide',
-        texte: 'La liste des accès des élèves n’est plus relue dans Google à chaque geste (huit fois par connexion) : elle est gardée une minute. Ce qui accompagne son espace (photos, cours à venir, « à revoir », salle…) se prépare en même temps au lieu de l’un après l’autre.' },
-      { emoji: '🚗',
-        titre: 'La barre suit le vrai chargement',
-        texte: 'Elle avance à chaque partie de son espace qui arrive, affiche le pourcentage, et l’écran ne part qu’une fois tout chargé — plus de barre finie sur un espace encore vide.' },
-      { emoji: '🧘',
-        titre: 'Plus de page qui saute après l’entrée',
-        texte: 'Quelques secondes après l’entrée, l’espace se revérifiait et se redessinait entièrement : il ne se redessine plus que si quelque chose a vraiment changé.' }
-    ]
-  },
-  {
-    version: 1393,
-    date: 'Mardi 10 novembre 2026',
-    resume: '↩️ Fiche d’évaluation : un deuxième appui sur ✅ 🍊 ou ❌ efface la rubrique',
-    quoi: [
-      { emoji: '↩️',
-        titre: 'Se raviser sur une rubrique',
-        texte: 'Sur la fiche d’évaluation (boîte manuelle ou automatique), appuyer une deuxième fois sur le ✅, le 🍊 ou le ❌ déjà choisi l’enlève. Le bouton « — » efface toujours aussi, et on passe d’un choix à l’autre d’un seul appui.' }
-    ]
-  },
-  {
-    version: 1392,
-    date: 'Mardi 10 novembre 2026',
-    resume: '📱 Tablette de la salle : ouvrir l’espace d’un élève qui n’en a pas encore, et sa formation enregistrée sur sa fiche',
-    quoi: [
-      { emoji: '🔓',
-        titre: 'Ouvrir son espace depuis la tablette',
-        texte: 'Quand on installe quelqu’un dont l’espace élève n’est pas encore ouvert, la tablette propose « 🔓 Ouvrir son espace et lancer » : l’espace s’ouvre avec les réglages habituels de sa formation, puis il démarre. Un espace fermé est rouvert avec le même code.' },
-      { emoji: '🎓',
-        titre: 'La formation va sur sa fiche',
-        texte: 'Si sa fiche n’a pas de formation, la tablette la demande. Celle qu’on choisit — sur la tablette ou dans la mise en route du coin révisions — est maintenant bien enregistrée sur sa fiche.' },
-      { emoji: '✉️',
-        titre: 'Le code pour la maison',
-        texte: 'Le code de l’espace n’est pas envoyé tout seul : envoyez-le depuis son dossier quand il doit réviser chez lui.' }
-    ]
-  },
-  {
-    version: 1391,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🎥 Visio du code : le micro et le haut-parleur de Chrome, un son plus propre, « ⤢ En grand » pour les élèves',
-    quoi: [
-      { emoji: '🎙️',
-        titre: 'Le micro et le haut-parleur de Chrome',
-        texte: 'L’appli n’impose plus un micro deviné : elle prend celui que Chrome utilise, et vous entendez les élèves sur la sortie de l’ordinateur. Un autre appareil se choisit si besoin.' },
-      { emoji: '⚙️',
-        titre: 'Réglages du son pendant le cours',
-        texte: 'Un bouton dans l’écran du cours : mon micro, le son du boîtier, où j’entends les élèves. Le changement est immédiat, sans couper le cours.' },
-      { emoji: '🎚️',
-        titre: 'Un son plus propre pour les élèves',
-        texte: 'Le son du prof part en meilleure qualité (128 kb/s au lieu de 32), sans rééchantillonnage.' },
-      { emoji: '⤢',
-        titre: '« En grand » chez l’élève',
-        texte: 'Sur le téléphone tenu droit, un bouton met l’image du cours en plein écran, en paysage.' }
-    ]
-  },
-  {
-    version: 1390,
-    date: 'Mardi 10 novembre 2026',
-    resume: '🚗 Une conversation par véhicule dans la messagerie, avec le kilométrage et les boutons garage, souci, accident',
-    quoi: [
-      { emoji: '🚗',
-        titre: 'La catégorie « Véhicules »',
-        texte: 'Après « Permis », une conversation de groupe par véhicule de la Flotte, avec toute l’équipe. Le rond montre le numéro du garage où il dort. Le nom se change dans ⋯ › ✏️ Renommer.' },
-      { emoji: '🔢',
-        titre: 'Le kilométrage en haut',
-        texte: 'Touchez-le pour le changer : il va directement dans la fiche du véhicule. Le garage se change au même endroit, et ce qui reste ouvert (souci, rendez-vous) s’affiche dessous.' },
-      { emoji: '⚡',
-        titre: 'Cinq boutons rapides',
-        texte: '⚠️ Signaler un souci, 🔧 RDV garage, 🩹 Carrosserie, 🚨 Accident et 🛞 Pneu crevé (ces deux avec votre position GPS). Le message part dans la conversation ET s’inscrit dans la fiche du véhicule.' }
-    ]
-  },
-  {
-    version: 1387,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🖼 Le logo officiel devient l’icône de l’app, pour l’équipe et pour les élèves',
-    quoi: [
-      { emoji: '🖼',
-        titre: 'Notre logo sur l’écran d’accueil',
-        texte: 'L’icône « EC » est remplacée par le logo Évolution Conduites, sur l’App de l’équipe, l’espace élève et les tablettes de la salle — et dans les signets du navigateur. Sur iPhone, une icône déjà posée ne change pas toute seule : il faut la supprimer et la remettre.' }
-    ]
-  },
-  {
-    version: 1386,
-    date: 'Samedi 7 novembre 2026',
-    resume: '⚡ L’app interroge le serveur trois fois moins souvent, sans rien perdre',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'Moins d’allers-retours avec le serveur',
-        texte: 'La CB, le compteur de la messagerie, les à-faire, la présence et les écrans de la salle se rafraîchissent moins souvent. Un message qui arrive avec une notification met à jour le compteur tout de suite, comme avant.' },
-      { emoji: '📺',
-        titre: 'Les télés se reposent la nuit',
-        texte: 'Entre 21 h et 6 h 30, l’écran de la salle ne recharge plus ses données qu’une fois par quart d’heure.' }
-    ]
-  },
-  {
-    version: 1385,
-    date: 'Samedi 7 novembre 2026',
-    resume: '📱 Sur téléphone : la conversation s’ouvre en plein écran et en bas, le menu ⋯ reste dans l’écran',
-    quoi: [
-      { emoji: '💬',
-        titre: 'La conversation s’ouvre comme avant',
-        texte: 'Sur le téléphone, une conversation ouverte reprend tout l’écran : la flèche de retour et le nom en haut, le dernier message en bas, la barre d’écriture dessous. Depuis l’arrivée des sous-onglets Messagerie / Mail, elle restait dans la page.' },
-      { emoji: '⋯',
-        titre: 'Le menu ⋯ du haut reste dans l’écran',
-        texte: 'Il s’ouvrait à moitié hors de l’écran à gauche sur un téléphone : il se pose maintenant sous le bouton, toujours en entier.' },
-      { emoji: '⟨',
-        titre: 'Plus de flèche ⟨ inutile au-dessus des sous-onglets',
-        texte: 'Sur téléphone et tablette, la flèche qui replie le menu de gauche ne s’affiche plus : elle ne sert que sur un grand écran.' }
-    ]
-  },
-  {
-    version: 1384,
-    date: 'Samedi 7 novembre 2026',
-    resume: '💬 Les gros onglets à icônes et la flèche verte aussi sur tablette et ordinateur · 🏠 le logo EC ramène aux Cours',
-    quoi: [
-      { emoji: '💬',
-        titre: 'La messagerie pareille partout',
-        texte: 'Les grosses pastilles Tout, Non lus, Élèves, Équipe, Permis avec leurs icônes, et la flèche de retour en rond vert, sont maintenant aussi sur la tablette, l’ordinateur et la barre de droite. Quand il y a la place, les cinq tiennent sur une ligne.' },
-      { emoji: '🏠',
-        titre: 'Le logo EC ramène aux Cours',
-        texte: 'Un appui sur le logo EC, en haut à gauche, ramène à l’onglet 🎙️ Cours, d’où qu’on soit.' }
-    ]
-  },
-  {
-    version: 1383,
-    date: 'Samedi 7 novembre 2026',
-    resume: '📱 Messagerie sur téléphone : de gros onglets avec icônes, une flèche de retour bien visible',
-    quoi: [
-      { emoji: '📱',
-        titre: 'Tout, Non lus, Élèves, Équipe, Permis en plus gros',
-        texte: 'Sur le téléphone, les cinq onglets de la messagerie deviennent de grosses pastilles, avec une icône devant le mot, sur deux lignes. Le nombre de non lus reste à côté.' },
-      { emoji: '⬅️',
-        titre: 'La flèche de retour se voit',
-        texte: 'Dans une conversation ouverte sur le téléphone, la flèche pour revenir à la liste est un gros rond vert en haut à gauche.' }
-    ]
-  },
-  {
-    version: 1382,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🗄️ « Archiver » dans le ⋯ de la messagerie · 📱 l’App Évolution Conduites · 💼 un mail aux salariés et un bloc-notes par dossier',
-    quoi: [
-      { emoji: '🗄️',
-        titre: '« Réglé » devient « Archiver », dans le ⋯',
-        texte: 'Dans une conversation, le bouton « ✓ Réglé » quitte la tête du fil : « 🗄️ Archiver » est en haut du menu ⋯. La liste « Fermées » s’appelle maintenant « 🗄️ Archivées », et « ↺ Sortir des archives » la ramène.' },
-      { emoji: '📱',
-        titre: 'Le coin révisions s’appelle « App Évolution Conduites »',
-        texte: 'Partout : l’espace de l’élève, son icône, l’onglet 🔑 du dossier, les mails d’accès, les messages et le guide.' },
-      { emoji: '✉️',
-        titre: 'Un mail à tous les salariés d’une formation',
-        texte: 'Dans un dossier de formation entreprise, « ✉️ Écrire aux salariés » ouvre l’éditeur de la boîte de l’école : les salariés en destinataires, le représentant de l’entreprise en copie, ta signature, les pièces jointes. L’envoi s’inscrit dans l’historique du dossier.' },
-      { emoji: '📝',
-        titre: 'Un bloc-notes dans « Où on en est »',
-        texte: 'Des notes sur le dossier, avec qui et quand, une case à cocher si on veut (à faire → fait), et des débuts tout prêts : ✉️ Mail envoyé, 📞 Eu au téléphone, 📵 Pas de réponse, 📎 Document reçu.' },
-      { emoji: '📨',
-        titre: 'Les messages des relances dans Ce qu’on écrit',
-        texte: 'Les textes de départ des relances (et ceux du post-permis) se posent tout seuls dans Outils › Ce qu’on écrit, étiquette « 📨 Relances », à la première ouverture. Modifie-les là. Le prénom de l’élève est aussi corrigé (« Léa », pas « MARTIN »).' }
-    ]
-  },
-  {
-    version: 1381,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🎥 Code en visio : « Rejoindre » réparé, les élèves Drivup cochés tout seuls, un bandeau 15 min avant · 📲 l’espace élève sur l’écran d’accueil',
-    quoi: [
-      { emoji: '🛠️',
-        titre: '« Rejoindre le cours » marche',
-        texte: 'Sur le téléphone de l’élève, le bouton du cours en visio ne faisait rien : le serveur refusait la demande. C’est réparé, et la carte du cours s’allume aussi sur l’accueil de son espace. Le bouton « ✉️ Envoyer par mail » de la séance repart aussi.' },
-      { emoji: '📅',
-        titre: 'Les élèves réservés sur Drivup, déjà cochés',
-        texte: 'Le bouton 📥 de Drivup lit maintenant les cours du moniteur « Visio ». Dans Élèves › 🎓 Code, les élèves réservés pour le cours du moment sont cochés tout seuls (« 📅 Drivup 18h »). Un élève réservé mais pas coché entre quand même dans le cours en cours.' },
-      { emoji: '⏰',
-        titre: 'Un bandeau 15 minutes avant (admin et bureau)',
-        texte: '« 🎥 Attention : cours de code en visio à 18h » avec le compteur qui descend, jusqu’à ce que le cours soit lancé. Un appui ouvre la carte du cours avec les élèves cochés ; ✕ le range pour ce cours.' },
-      { emoji: '🔔',
-        titre: 'L’élève est prévenu',
-        texte: 'Sur l’accueil de son espace, dès la réservation : « Ton cours de code en visio : aujourd’hui à 18h · dans 12 min », le bouton s’allume au lancement. Un mail le matin (dès 8 h) et une notification sur son téléphone quand le cours commence.' },
-      { emoji: '📲',
-        titre: 'L’espace élève sur l’écran d’accueil',
-        texte: 'Un bandeau sur l’accueil de l’élève : « Ajouter » à l’écran d’accueil (Chrome sur Android l’ouvre directement, sur iPhone il dit le geste) et « Activer » les notifications. Fermé, il revient 7 jours plus tard tant que ce n’est pas fait.' }
-    ]
-  },
-  {
-    version: 1380,
-    date: 'Samedi 7 novembre 2026',
-    resume: '📨 Permis › Relances : relancer le bilan post-permis, le RDV post-permis et les repassages, par mail et sur la messagerie',
-    quoi: [
-      { emoji: '📨',
-        titre: 'Une nouvelle vue « Relances » dans Permis',
-        texte: 'Sous « À envisager », trois boutons : 📝 le bilan post-permis pas encore fait, 📅 le RDV post-permis pas encore réservé, 🔁 les repassages (RDV post fait et repassage décidé sans leçon réservée, plus ceux d’À envisager › Repassages). Chaque bouton dit combien d’élèves sont à relancer et quand a eu lieu la dernière relance, et par qui.' },
-      { emoji: '☑️',
-        titre: 'On voit à qui on envoie, et comment',
-        texte: 'La fenêtre liste les élèves avec leurs infos (date de l’examen, centre, ajournements, accès à l’appli, dernière relance). On coche qui on veut, puis on choisit ✉️ Mail (depuis la boîte de l’école, avec ta signature) et/ou 💬 Messagerie de l’appli. Ceux qui ont déjà réservé apparaissent grisés avec la raison.' },
-      { emoji: '✏️',
-        titre: 'Un message modifiable et personnalisé',
-        texte: 'Le message part d’un modèle (Outils › Ce qu’on écrit › « 📨 Relance — … »), qu’on peut retoucher avant l’envoi. {prenom}, {dateexamen}, {centre}… sont remplacés pour chaque élève, avec un aperçu élève par élève. Aucun délai n’est imposé entre deux relances : la date de la dernière est simplement affichée.' }
-    ]
-  },
-  {
-    version: 1379,
-    date: 'Samedi 7 novembre 2026',
-    resume: '✉️ Messagerie : deux vues dans le rail (💬 Messagerie et ✉️ Mail) · la liste des mails allégée et compacte',
-    quoi: [
-      { emoji: '🗂️',
-        titre: 'Messagerie et Mail séparés, dans le rail',
-        texte: 'En appuyant sur Messagerie, le rail de gauche montre deux vues avec leurs compteurs de non lus : 💬 Messagerie (tes conversations, qui remplace Messenger) et ✉️ Mail (la boîte de l’école). On ne mélange plus les deux. On arrive par défaut sur 💬 Messagerie.' },
-      { emoji: '📥',
-        titre: 'La liste des mails : « À traiter » et « Tout »',
-        texte: 'Dans ✉️ Mail, deux sous-vues : « 📥 À traiter » (les non lus et les drapeaux rouges) et « Tout ». Le bandeau Claude, la ligne des pubs et les filtres (🚩, Pour moi, Qui, Étiquette) descendent dans le ⋯ et un « ⌯ Filtres ▾ », pour rendre la place aux mails.' },
-      { emoji: '≡',
-        titre: 'Des lignes compactes',
-        texte: 'Une ligne par mail (expéditeur · objet), les non lus en gras avec un trait de couleur, le drapeau, les ronds de couleur et le compteur à droite : on voit deux à trois fois plus de mails d’un coup. Un réglage « ≡ Confortable » dans le ⋯ revient aux lignes détaillées (gardé par appareil).' }
-    ]
-  },
-  {
-    version: 1378,
-    date: 'Samedi 7 novembre 2026',
-    resume: '📅 Permis : on dit sur chaque élève prêt QUAND le faire passer (mois / semaine) · la liste RDV PERMIS disparaît',
-    quoi: [
-      { emoji: '📅',
-        titre: 'Quand le faire passer, sur la ligne',
-        texte: 'Dans 🚗 Élèves prêts au permis, chaque ligne a un bouton « 📅 Quand ? ». Un appui ouvre les mois (ceux de 📍 Places) et, dans chaque mois, les semaines ouvertes avec leurs places (ex. « 8→12 déc · S50 · 3 SB · 2 LO »), ou « tout le mois ». On peut aussi saisir un autre mois ou une autre semaine à la main. Le bouton affiche ensuite la période choisie.' },
-      { emoji: '🧮',
-        titre: 'Des filtres par période',
-        texte: 'Sous les puces, une rangée « 📅 À faire passer » : Toutes les périodes · chaque mois · Sans période. Un mois choisi déplie ses semaines. La 📊 Répartition des places (par semaine et par centre) est gardée, repliée, en bas de la liste.' },
-      { emoji: '🗑️',
-        titre: 'Fini la liste RDV PERMIS',
-        texte: 'On prend les places d’abord et on indique les élèves bien plus tard : la liste « 🗓️ RDV PERMIS » n’était plus utile, elle est retirée. Les élèves qui y étaient reviennent dans les Prêts, avec leur semaine. La date d’examen se pose toujours depuis la fiche (« 📅 Date de permis »).' }
-    ]
-  },
-  {
-    version: 1377,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🎨 Nouveau graphisme : le rail des vues (ordinateur et tablette) reçoit enfin ses icônes dessinées',
-    quoi: [
-      { emoji: '🎨',
-        titre: 'Les icônes dans le rail',
-        texte: 'Le panneau des vues sur le côté (ordinateur et tablette paysage) gardait ses emoji : son icône est posée ailleurs que dans les autres boutons, le nouveau graphisme ne la voyait pas. C’est réglé — même icône dessinée et même couleur que partout, y compris rail replié.' }
-    ]
-  },
-  {
-    version: 1376,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🔴 Barre des onglets (nouveau graphisme) : le nombre de notifications en tout petit, au-dessus',
-    quoi: [
-      { emoji: '🔴',
-        titre: 'La pastille ne mange plus le nom de l’onglet',
-        texte: 'Sur l’ordinateur, le nombre de notifications recouvrait le nom (« Out37 »). Il passe en tout petit, posé au-dessus du coin de l’onglet ; sur téléphone et tablette, au-dessus de l’icône.' }
-    ]
-  },
-  {
-    version: 1375,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🔘 Fiche élève › Salle des tablettes : « Déjà vu en salle » devient un interrupteur',
-    quoi: [
-      { emoji: '🔘',
-        titre: 'Un interrupteur à la place du bouton',
-        texte: 'Dans le coin révisions de la fiche, la ligne « Déjà vu en salle (avant l’appli) » est maintenant un interrupteur, texte à gauche et pastille à droite : on comprend tout de suite qu’il se bascule. On le bascule, la question de confirmation s’affiche, et il ne s’allume que si on a dit oui. Une fois les groupes ouverts, il reste allumé et figé, avec la date et qui l’a fait.' }
-    ]
-  },
-  {
-    version: 1374,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🫧 Notre appli passe au nouveau graphisme « verre » : barre flottante, icônes dessinées, un interrupteur pour revenir en arrière',
-    quoi: [
-      { emoji: '🫧',
-        titre: 'Le nouveau graphisme, de notre côté',
-        texte: 'Même matière que l’espace élève, sans le halo : fond uni, cartes en verre dépoli, boutons en capsule, champs arrondis. La barre des onglets devient une capsule flottante décollée du bord (en bas sur téléphone et tablette ; en haut sur ordinateur, centrée, sans courir sur tout l’écran). Le rail des vues sur tablette paysage et ordinateur est un panneau de verre. Les textes, l’ordre des choses et les quatre couleurs d’action (vocal, enregistrement, main, terminer) ne bougent pas. Le thème sombre a sa version.' },
-      { emoji: '🎨',
-        titre: 'Des icônes dessinées à la place des emoji',
-        texte: 'Dans la barre, chaque onglet a son icône et sa couleur (Outils : une boîte à outils ; Gestion : des curseurs). Partout ailleurs — titres de cartes, sous-menus, onglets du dossier élève, boutons comme « Rechercher », en-tête — l’emoji est remplacé par une icône au trait, qui reprend la couleur de l’emoji d’origine. L’emoji reste dans la page, caché : rien ne change pour ce que l’outil lit.' },
-      { emoji: '🔘',
-        titre: 'Un interrupteur pour revenir à l’ancien graphisme',
-        texte: 'Menu ⋯ › « Nouveau graphisme » : fermé, l’appli reprend exactement son habillage d’avant. Le choix vaut pour l’appareil où on le fait (il est gardé dans le navigateur, pas dans le compte). La ligne « Nouvel écran de cours / revenir à l’ancien » a disparu du menu : le nouvel écran de cours est désormais le seul.' }
-    ]
-  },
-  {
-    version: 1373,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🫧 Espace élève, livraison 2 : le dedans de Réviser, Vérifs, Réciter et Écrire passe au verre',
-    quoi: [
-      { emoji: '🫧',
-        titre: 'Le verre jusque dans les onglets',
-        texte: 'Après les cartes et la barre (v1372), tout ce qui vit à l’intérieur des onglets suit la même recette : cartes de groupe et chemin des étapes de Réviser, recherche et menus en capsules, feuille d’une étape, jeu des vérifs (modes, questions, réponses), motifs et minutes d’un message, bulles, liste des conversations, barre d’écriture, réactions et émoticônes. Les couleurs qui veulent dire quelque chose (bon/faux du jeu, urgent en rouge) ne bougent pas. Tablettes comprises.' }
-    ]
-  },
-  {
-    version: 1372,
-    date: 'Samedi 7 novembre 2026',
-    resume: '🫧 Espace élève : nouveau graphisme « Liquid Glass » (tablettes comprises) · 🕒 les horaires des bureaux sur l’accueil',
-    quoi: [
-      { emoji: '🫧',
-        titre: 'L’espace élève passe au verre',
-        texte: 'Nouvelle matière pour tout l’espace élève et les tablettes de la salle : des cartes en verre dépoli sur un fond aux halos vert citron, des boutons en capsules, et la barre du bas en capsule flottante avec l’onglet actif en « lentille » lime et des icônes dessinées à la place des emoji. Rien ne change à l’usage : mêmes écrans, mêmes textes, même ordre. Le thème sombre suit la même recette.' },
-      { emoji: '🕒',
-        titre: 'Les horaires des bureaux dans l’espace élève',
-        texte: 'Sur l’accueil, sous « Mon prochain cours », une carte « 🕒 Les bureaux » : son bureau en premier, « ● Ouvert » ou « ○ Fermé » aujourd’hui avec les plages du jour, la semaine dessous et le téléphone. Ce sont les horaires de Gestion › L’accueil (Drivup + vos corrections) — rien à saisir en plus. Pas de lien rendez-vous : les élèves réservent sur Drivup.' }
-    ]
-  },
-  {
-    version: 1371,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '⚡ Messagerie allégée : beaucoup moins de lectures dans la base (alerte de quota Cloudflare)',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'La messagerie consomme beaucoup moins',
-        texte: 'Optimisation invisible mais importante : le petit compteur de messages non lus (qui se rafraîchit tout seul toutes les 90 s, pour chaque personne connectée) relisait à chaque fois TOUTE la table des messages pour repérer les « @mentions ». Il ne regarde plus que les conversations déjà non lues — même résultat, mais des millions de lignes de base de données économisées par jour. Ajout aussi d’un index sur les quotas d’envois des élèves. Rien ne change à l’usage.' }
-    ]
-  },
-  {
-    version: 1370,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '🎬 Suivi du parcours : la date et l’heure de visionnage · 🔍 une barre de recherche d’élèves',
-    quoi: [
-      { emoji: '🕒',
-        titre: 'Quand la vidéo a été regardée',
-        texte: 'Dans le suivi du parcours d’un élève, la bulle d’une étape indique maintenant la date et l’heure de son meilleur visionnage : « 🎬 Vidéo regardée à 35 % (sa meilleure fois) · le 06/11 à 14:12 ».' },
-      { emoji: '🔍',
-        titre: 'Rechercher un élève',
-        texte: 'En haut du suivi du parcours des élèves, une barre de recherche filtre la liste par nom (sans accent ni casse). Le compte du dessus garde la vue d’ensemble de tous les parcours.' }
-    ]
-  },
-  {
-    version: 1369,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '💬 Messagerie : étiquettes et attributions qui tiennent · 🎨 couleurs des personnes réglables · ✏️ réponses rapides modifiables avant envoi',
-    quoi: [
-      { emoji: '💾',
-        titre: 'Les étiquettes et « qui s’en occupe » tiennent au rechargement',
-        texte: 'Une correction : les étiquettes et les attributions posées sur une conversation n’étaient pas enregistrées — elles disparaissaient dès qu’on rechargeait la page. C’est réglé, elles restent.' },
-      { emoji: '🎨',
-        titre: 'Choisir la couleur de chaque personne',
-        texte: 'Dans 💬 Messagerie, le menu « 👤 Qui s’en occupe » d’une conversation propose « 🎨 Couleur des personnes… » (administrateurs) : on règle la couleur de chacun parmi 7, gardée pour toute l’équipe.' },
-      { emoji: '✏️',
-        titre: 'Réponses rapides : les modifier avant d’envoyer',
-        texte: 'Dans ⚡ Réponses rapides, une option « Les coller dans le texte pour les modifier avant d’envoyer » : la réponse se pose alors dans la zone d’écriture au lieu de partir tout de suite. À rebasculer quand on veut l’envoi direct.' }
-    ]
-  },
-  {
-    version: 1368,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '⏳ Espace élève : un écran de chargement (fini la page blanche à la connexion)',
-    quoi: [
-      { emoji: '⏳',
-        titre: 'Un écran de chargement, plus de page blanche',
-        texte: 'À la connexion, l’élève voyait une page blanche le temps que l’accueil se charge — certains repartaient en pensant que ça ne marchait pas. Maintenant un écran aux couleurs de l’espace s’affiche tout de suite : une voiture qui avance avec « Ça charge… un instant ». Il disparaît dès que l’accueil est prêt. Même chose en salle des tablettes, vu le temps de chargement.' }
-    ]
-  },
-  {
-    version: 1366,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '🏷️ 👤 Des étiquettes et « qui s’en occupe » sur les conversations, comme la boîte mail',
-    quoi: [
-      { emoji: '🏷️',
-        titre: 'Des étiquettes sur les conversations',
-        texte: 'Dans 💬 Messagerie, chaque conversation peut porter des étiquettes (de base : Correction procédure, CPF, Prépa permis). On les pose depuis la conversation ouverte ; le filtre « 🏷️ Étiquette » en haut de la liste n’affiche que celles d’une étiquette. Un administrateur crée de nouvelles étiquettes avec « ➕ Nouvelle étiquette ».' },
-      { emoji: '👤',
-        titre: 'Qui s’en occupe',
-        texte: 'On attribue une conversation à une ou plusieurs personnes de l’équipe (un rond de couleur avec l’initiale). Les filtres « 👤 Pour » et « Pour moi » montrent ce qui est sur chacun. Comme pour les mails.' }
-    ]
-  },
-  {
-    version: 1365,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '🏁 La tuile du permis réclame le résultat du dernier examen blanc · 🔑 les passerelles peuvent enfin se connecter',
-    quoi: [
-      { emoji: '🏁',
-        titre: 'Un examen blanc sans résultat ne passe plus inaperçu',
-        texte: 'Quand le DERNIER examen blanc d’un élève (son bilan) est plus récent que ce qui est écrit dans sa fiche, la tuile « Où en est son permis » affiche « 🏁 Examen blanc à conclure — examen blanc du JJ/MM, résultat à renseigner » au lieu de garder en silence l’ancien. On règle le résultat dans ✏️ Sa route.' },
-      { emoji: '🔑',
-        titre: 'Connexion des élèves en passerelle',
-        texte: 'Un élève dont la fiche porte sa formation après son nom (« Prénom Nom passerelle BV ») ne pouvait plus entrer dans son coin révisions. Il peut maintenant taper juste son prénom-nom ; son code reste la garde.' }
-    ]
-  },
-  {
-    version: 1364,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '📚 Espace élève : les guides en cadres · ✏️ convocations d’examen modifiables, avec la plage du jour',
-    quoi: [
-      { emoji: '📚',
-        titre: 'Les guides de l’élève, plus clairs',
-        texte: 'Côté élève, dans 🎬 Réviser : chaque guide est dans un cadre avec son titre en gros. Un menu « 📚 Aller à un guide » en haut, un menu « ☰ Aller à une étape » par guide, pour y aller direct. Et la recherche ouvre le guide quand le mot cherché est dans son titre.' },
-      { emoji: '✏️',
-        titre: 'Convocations d’examen',
-        texte: 'Depuis 🎓 Suivi permis, le ✉️ d’une session liste les convocations : « ✏️ Modifier » ouvre celle d’un élève dans l’éditeur pour la retoucher avant l’envoi. Et pour le jour d’examen, la convocation donne la plage de la journée — du premier qui conduit à la fin de tous les permis — avec, entre parenthèses, l’heure de passage de l’élève.' }
-    ]
-  },
-  {
-    version: 1363,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '🗂️ Formations : voir l’envoyé / le signé sur la ligne · ⚡ survitesse corrigée',
-    quoi: [
-      { emoji: '🗂️',
-        titre: 'Ce qui est envoyé / signé, sur la ligne',
-        texte: 'Dans 🔨 Outils › Formations › 📄 Documents, à côté de chaque document, une pastille dit l’état exact — ✉️ Envoyé, ✍️ Signé, ✅ Fait, avec la date. Un clic ouvre l’historique (le plus récent en haut) et la vraie copie rangée : la convention signée par l’entreprise, le devis réellement parti. Plus besoin de descendre tout en bas.' },
-      { emoji: '⚡',
-        titre: 'Alerte de survitesse',
-        texte: 'Correction : l’A3 n°2 n’est plus concerné. L’alerte « Tu as oublié d’enlever l’alerte de survitesse » ne vise plus que le Q3 n°10 et les deux A3 de Loudéac (BV et BEA).' }
-    ]
-  },
-  {
-    version: 1362,
-    date: 'Vendredi 6 novembre 2026',
-    resume: '🎨 Le RDV post-permis en couleur, et réglable dans le créateur des fiches',
-    quoi: [
-      { emoji: '🎨',
-        titre: 'Trois cadres',
-        texte: 'Sur l’écran du rendez-vous post-permis : le bilan d’examen officiel en vert citron, le bilan de l’élève en bleu (« ÉLÈVE »), tes remarques en vert (« MONITEUR »). Les mêmes cadres partent dans le mail et dans « 📖 Mes leçons ».' },
-      { emoji: '✏️',
-        titre: 'Dans le créateur des fiches',
-        texte: 'La fiche « RDV post-permis » se règle comme les autres (administrateurs) : titres, couleurs, fonds, ordre, zones ajoutées avec ➕, qui partent dans le compte rendu sous la partie du dessus. Rien ne change pour les moniteurs avant « 💾 Publier ».' }
-    ]
-  },
-  {
-    version: 1361,
-    date: 'Jeudi 5 novembre 2026',
-    resume: '🔌 Fermer l’espace d’un élève d’un interrupteur',
-    quoi: [
-      { emoji: '🔌',
-        titre: 'Au bout d’« Espace ouvert »',
-        texte: 'Dans 🔑 Coin révisions du dossier, un interrupteur ferme son espace (avec une confirmation) : il ne peut plus entrer, mais rien n’est effacé — code, groupes, progression. La carte dit « 🔒 Espace fermé » et le même interrupteur le rouvre.' }
-    ]
-  },
-  {
-    version: 1360,
-    date: 'Jeudi 5 novembre 2026',
-    resume: '🗂️ Espace élève : les groupes du parcours en cartes',
-    quoi: [
-      { emoji: '🗂️',
-        titre: 'Mes groupes',
-        texte: 'Dans « Mon parcours » de l’élève, chaque groupe a sa carte, deux par ligne : son icône, son nom, une barre d’avancée et « 3 / 17 vus », ou « ✓ Fini ». Plus de pastille rouge. « Tout voir » est le petit bouton à droite de « Mes groupes ». L’icône est celle choisie dans l’éditeur des groupes.' }
-    ]
-  },
-  {
-    version: 1359,
-    date: 'Jeudi 5 novembre 2026',
-    resume: '📚 Venir réviser ses groupes sur les tablettes de la salle',
-    quoi: [
-      { emoji: '📚',
-        titre: 'Je viens réviser',
-        texte: 'Sur l’accueil des tablettes, « 📚 Je viens réviser » : l’élève cherche son nom, tape son jour et mois de naissance, et révise 1 h ses groupes ouverts et le jeu des vérifications, comme chez lui. Celui qui n’a pas fini son cours de salle continue son cours.' },
-      { emoji: '▶',
-        titre: 'Lancée par l’équipe',
-        texte: 'Dans « ▶ Installer un élève », un élève qui a fini la salle (ou sans salle dans sa formation) se voit proposer sa révision, 1 h ou 2 h. Sur « 📺 En ce moment », la tablette dit « 📚 … · révision ».' },
-      { emoji: '📺',
-        titre: 'Vu en salle',
-        texte: 'Ce qu’il coche sur une tablette va dans son parcours, avec « 📺 en salle » sur ses pastilles et « 📺 vu en salle » dans la bulle du suivi des parcours. Et la tablette dit « Jade, ton code », plus « BERNARD ».' }
-    ]
-  },
-  {
-    version: 1358,
-    date: 'Jeudi 5 novembre 2026',
-    resume: '🅱️ Examen blanc réservé : la date ET dans combien de leçons',
-    quoi: [
-      { emoji: '🅱️',
-        titre: 'Dans combien de leçons',
-        texte: 'La ligne « EXAMEN BLANC RÉSERVÉ le … » dit aussi « — dans 2 leçons », le nombre saisi au ✏️ du questionnaire. Frise dépassée, c’est ce nombre qui compte (la frise ne répond plus « la prochaine fois » à sa place).' }
-    ]
-  },
-  {
-    version: 1357,
-    date: 'Jeudi 5 novembre 2026',
-    resume: '🔑 L’espace élève ouvert à tous, et qui a reçu son accès',
-    quoi: [
-      { emoji: '🔑',
-        titre: 'Qui a reçu son accès',
-        texte: 'Dans la liste des élèves (Élèves › Ajouter des élèves) et en tête de chaque dossier : 🔒 pas d’espace, 🟠 accès pas envoyé, ✉️ envoyé mais pas encore venu, ✅ venu. Les comptes filtrent la liste. Dans 🔑 Coin révisions : quand, par qui et comment l’accès est parti, et « ✋ Je le lui ai donné » pour Messenger ou de vive voix.' },
-      { emoji: '🔓',
-        titre: 'Ouvrir l’espace à tous',
-        texte: '« 🔓 Ouvrir l’espace à tous ceux qui n’en ont pas » : les élèves qui ont une fiche, sans les partis ni ceux qui ont leur permis, avec ce qu’on ouvre pour leur formation ; leur accès part par mail si tu le veux. Ensuite, l’espace des nouveaux élèves s’ouvre tout seul — l’accès, lui, attend ton appui.' }
-    ]
-  },
-  {
-    version: 1356,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🎥 Le code en visio : lancer un cours, les élèves le suivent depuis leur espace',
-    quoi: [
-      { emoji: '🎥',
-        titre: 'Lancer un cours de code en visio',
-        texte: 'Élèves › 🎓 Code, sous « 🎯 Quelle séance lancer ? » : la séance (1 à 12), les élèves à cocher, la caméra (le boîtier HDMI) avec son aperçu, 🔊 le son du boîtier et 🎙️ ton micro. « ▶ Lancer » met le lien dans leur messagerie ; « 📋 Copier » pour Messenger, « ✉️ Envoyer par mail ».' },
-      { emoji: '✋',
-        titre: 'Pendant le cours',
-        texte: 'L’image en grand, les élèves à côté (là, pas encore là, qui parle, ✋). « 🔇 Couper les micros des élèves », puis « 🎙️ Parole » à celui qui lève la main. Les élèves n’ont pas de caméra ; ils ouvrent le questionnaire de la séance à côté du cours.' },
-      { emoji: '✅',
-        titre: 'La présence',
-        texte: 'Présent dès qu’il a rejoint : 🎥 dans la case de la séance, dans la grille du code. La case « 🎥 Cours de code en visio » est dans ⚙️ Accès.' }
-    ]
-  },
-  {
-    version: 1355,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '📝 Groupes et guides : un vrai éditeur de texte, avec des renvois',
-    quoi: [
-      { emoji: '📝',
-        titre: 'Le texte mis en forme',
-        texte: 'Dans un bloc 📝 Texte d’un guide : gras, italique, souligné, plus grand, listes à puces ou numérotées, six couleurs de texte et des emojis. L’élève le voit tel quel dans Réviser.' },
-      { emoji: '🔗',
-        titre: 'Les renvois',
-        texte: '« 🔗 Renvoi » fait d’un mot un lien vers une étape ou un groupe ; « ➕ Ajouter un renvoi vers une autre étape », sous le texte, ajoute un bouton. Chez l’élève, il ouvre l’étape.' }
-    ]
-  },
-  {
-    version: 1354,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🎓 Formations CPF : « ✅ Fait sur EDOF », ligne par ligne',
-    quoi: [
-      { emoji: '✅',
-        titre: 'Mis à jour sur EDOF',
-        texte: 'Financements › ⚙️ Les aides › 🎓 Formations CPF : au bout de chaque ligne en ⚠️, « ✅ Fait sur EDOF » une fois le prix changé sur EDOF, ou « ✅ Tout est mis à jour sur EDOF » en haut. La ligne garde la date et qui l’a fait ; le bandeau compte ce qui reste.' }
-    ]
-  },
-  {
-    version: 1353,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '📥 Tarifs : les prix changés dans Drivup par le favori',
-    quoi: [
-      { emoji: '📥',
-        titre: 'Les prix dans Drivup',
-        texte: 'Dans Drivup, Paramètres › Prestations : clique sur le favori. Chaque prix Drivup se relie une fois à un prix de l’appli (🪄 l’appli propose les liens), puis « 💰 Changer N prix dans Drivup » les met à jour, tarif de base et tarif supplémentaire. Les formules se comparent aux fiches. Onglet 📥 Drivup dans Outils › 💰 Tarifs. Administrateurs.' }
-    ]
-  },
-  {
-    version: 1352,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🧮 Charges fixes : on choisit ce qui compte dans le total',
-    quoi: [
-      { emoji: '🧮',
-        titre: 'Ce qui compte dans le total',
-        texte: 'Gestion › 💶 Charges fixes : dans l’encadré du haut, une case par catégorie. Décoche 💶 Salaires pour avoir les charges fixes sans les salaires. Le réglage est le même pour tous.' },
-      { emoji: '💶',
-        titre: 'Salaires : tout dedans, ou net + charges',
-        texte: '« Tout dedans » : une case par personne, le coût global. « Net + charges à part » : deux cases, le net et les charges, et le tableau les sépare.' }
-    ]
-  },
-  {
-    version: 1351,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🛒 Le site : l’envoi des prix et des JPG passe le pare-feu',
-    quoi: [
-      { emoji: '🛒',
-        titre: 'Envoyer au site, même derrière un pare-feu',
-        texte: 'Les prix et les JPG partent sur le site comme un formulaire ordinaire, ce que les pare-feux d’hébergement laissent passer. 🔎 Tester la connexion essaie aussi d’écrire et d’envoyer un JPG, sans rien changer à la boutique, et un échec dit à quelle étape il a eu lieu.' }
-    ]
-  },
-  {
-    version: 1350,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🧱 Le site : l’appli passe mieux les pare-feux',
-    quoi: [
-      { emoji: '🧱',
-        titre: 'Le pare-feu du site',
-        texte: 'Outils › 💰 Tarifs › 🛒 Le site : l’appli se présente au site comme il faut, et si un pare-feu la refuse encore, 🔎 Tester la connexion dit lequel (Wordfence, Cloudflare, OVH…) et ce qu’il a répondu.' }
-    ]
-  },
-  {
-    version: 1349,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🔎 Le site : la clé WooCommerce passe par où elle peut',
-    quoi: [
-      { emoji: '🔎',
-        titre: 'Tester la connexion au site',
-        texte: 'Outils › 💰 Tarifs › 🛒 Le site : si WooCommerce refuse, 🔎 Tester la connexion dit pourquoi, étape par étape (forme des clés, adresse du site, message exact de WooCommerce). L’appli essaie aussi la clé signée, qui passe chez les hébergeurs où WordPress ne voit pas le https. Administrateurs.' }
-    ]
-  },
-  {
-    version: 1348,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🛒 Tarifs : les prix et les fiches partent tout seuls sur le site',
-    quoi: [
-      { emoji: '🛒',
-        titre: 'Le site suit les prix',
-        texte: 'Outils › 💰 Tarifs › 🛒 Le site : chaque produit WooCommerce se relie à une fiche, une prestation ou un tarif horaire. À chaque enregistrement des prix, le site reçoit les nouveaux prix, et le JPG de la fiche est remplacé dans la description. Administrateurs.' }
-    ]
-  },
-  {
-    version: 1347,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🔐 Gestion : le coffre-fort des mots de passe',
-    quoi: [
-      { emoji: '🔐',
-        titre: 'Le coffre-fort des mots de passe',
-        texte: 'Gestion › L’outil : Vision et les autres logiciels. 👁️ Voir redemande ton code de l’appli et montre le mot de passe 15 secondes. 🎲 en génère un solide, et « ⏳ Pas encore mis dans le logiciel » garde le nouveau et l’ancien jusqu’à « ✅ C’est fait ».' }
-    ]
-  },
-  {
-    version: 1346,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '🅿️ Flotte : les garages en location',
-    quoi: [
-      { emoji: '🅿️',
-        titre: 'Les garages en location',
-        texte: 'Dans 🚗 Flotte, sous les véhicules : chaque garage, ce qu’il y a dedans (véhicules, stockage), ses équipements et son contrat en PDF. Le code du coffre à clé se voit 30 secondes après ton code de l’appli. Dans la fiche d’un véhicule : « 🅿️ Garage », où il dort.' }
-    ]
-  },
-  {
-    version: 1345,
-    date: 'Mercredi 4 novembre 2026',
-    resume: '💶 Gestion : les charges fixes du mois (administrateurs)',
-    quoi: [
-      { emoji: '💶',
-        titre: 'Les charges fixes',
-        texte: 'Gestion › L’argent, pour les administrateurs : ce qui sort du compte chaque mois, le chiffre d’affaires, et ce qui reste. Les salaires et la TVA se changent chaque mois, ⏸️ met un prélèvement en pause, ✏️ modifie ou supprime (avec une corbeille), et « Lissé sur l’année » répartit les trimestriels et les annuels.' }
-    ]
-  },
-  {
-    version: 1344,
-    date: 'Mardi 3 novembre 2026',
-    resume: '📥 Les derniers mails arrivent (relève qui ne tourne plus à vide)',
-    quoi: [
-      { emoji: '📥',
-        titre: 'Les derniers mails, enfin',
-        texte: 'La relève ne relit plus les mails qu’elle a déjà : les nouveaux passent d’abord, et tout ce qui manque des deux derniers jours est rattrapé. En tête de la liste : ce qu’elle a fait, et ce qui attend encore.' }
-    ]
-  },
-  {
-    version: 1343,
-    date: 'Mardi 3 novembre 2026',
-    resume: '⏱️ Les mails arrivent tout de suite · 🏢 la liste Bureau refaite',
-    quoi: [
-      { emoji: '⏱️',
-        titre: 'Les mails, sans attendre',
-        texte: 'Onglet ✉️ Mails ouvert : une relève chaque minute. Et un mail qui bloquait la relève (trop lourd, Claude trop long) ne bloque plus les suivants : il arrive « en secours », à ouvrir dans le webmail.' },
-      { emoji: '🏢',
-        titre: 'La liste « 🏢 Bureau » refaite',
-        texte: 'Partie avant la corbeille, elle se refait toute seule à la première ouverture de ☑️ À faire par le bureau ou un administrateur, avec les mêmes personnes.' }
-    ]
-  },
-  {
-    version: 1342,
-    date: 'Mardi 3 novembre 2026',
-    resume: '✉️ Mails : 🚩 drapeau rouge · 👤 qui s’en occupe · 🏷️ filtres',
-    quoi: [
-      { emoji: '🚩',
-        titre: 'Le drapeau rouge',
-        texte: 'Il remplace « ⚠️ Urgent » : le mail passe en rouge et monte tout en haut. Un appui sur 🚩, au survol ou dans le mail ouvert ; « ✓ Réglé » l’enlève.' },
-      { emoji: '👤',
-        titre: 'Qui s’en occupe',
-        texte: 'Une couleur par personne : on met un ou plusieurs ronds sur un mail. La liste et les couleurs se règlent dans ⋯ › ⚙️ Réglages des mails.' },
-      { emoji: '🏷️',
-        titre: 'Les filtres',
-        texte: 'Sous « Claude » : Tous · 🚩 · Pour moi · 👤 Qui ▾ · 🏷️ Étiquette ▾, avec leur nombre, et ils se combinent.' }
-    ]
-  },
-  {
-    version: 1341,
-    date: 'Mardi 3 novembre 2026',
-    resume: '🚗 Examen blanc → Prêts au permis · ⏱️ 6+3 juste après · 🗑️ Corbeille de la todo',
-    quoi: [
-      { emoji: '🚗',
-        titre: 'Dès l’examen blanc, dans les Prêts au permis',
-        texte: '« A le niveau » (quelles que soient les heures) ou « pourrait » : l’élève entre tout seul dans 🚗 Prêts au permis. Un « pourrait » affiche 🤔 Pourrait à la place des heures, et 🙈 Cacher les « pourrait » les retire de la liste.' },
-      { emoji: '⏱️',
-        titre: '6 + 3, c’est 6 + 3',
-        texte: 'La carte de l’examen blanc ne compte plus comme une leçon : juste après l’examen blanc, le dossier dit 6 h + la leçon de veille, pas 4 h.' },
-      { emoji: '🗑️',
-        titre: 'Une corbeille pour ☑️ À faire',
-        texte: 'Une liste, une tâche ou les tâches faites effacées restent 30 jours dans 🗑️ Corbeille (sous les listes) : ↩️ Remettre les remet. La liste 🏢 Bureau ne se supprime que par un administrateur.' }
-    ]
-  },
-  {
-    version: 1340,
-    date: 'Mardi 3 novembre 2026',
-    resume: '⏹️ Fin d’examen en bas de la fiche · 📩 Mails : survol, lus / non lus fiables',
-    quoi: [
-      { emoji: '📩',
-        titre: 'Mails : lu, non lu, ça tient',
-        texte: 'Un mail remis en non lu ne repasse plus en lu tout seul. Le webmail suit tout de suite ; et ce qu’on lit ou remet en non lu dans le webmail se voit dans l’appli à la relève (5 min). Les cases de « Cocher des mails » sont vides au départ.' },
-      { emoji: '🖱️',
-        titre: 'Des boutons au survol',
-        texte: 'Sur ordinateur, survole un mail de la liste : 📩 / ✉️ (non lu ↔ lu) et 🏷️ les étiquettes, sans l’ouvrir.' },
-      { emoji: '⏹️',
-        titre: 'Arrêter le compteur sans remonter',
-        texte: 'Examen officiel et examen blanc : un second ⏹️ Fin d’examen tout en bas, juste avant « Composer le bilan ». Il dit si l’examen court encore, et fait exactement comme celui du haut.' }
-    ]
-  },
-  {
-    version: 1339,
-    date: 'Mardi 3 novembre 2026',
-    resume: '📩 Mails lus / non lus en lot · 👪 Qui écrit',
-    quoi: [
-      { emoji: '📩',
-        titre: 'Lus et non lus, enfin visibles',
-        texte: 'Un mail non lu : un trait vert, un point, le nom en gras et son chiffre. ⋯ › ☑ Cocher des mails : en marquer plusieurs comme lus ou comme non lus d’un coup (le webmail suit).' },
-      { emoji: '👪',
-        titre: 'Qui écrit : l’élève, un parent, un autre',
-        texte: 'En rattachant un mail à un élève, on dit qui écrit. Ça se voit partout, les mails suivants de la même adresse suivent, et Claude en tient compte.' }
-    ]
-  },
-  {
-    version: 1338,
-    date: 'Mardi 3 novembre 2026',
-    resume: '🤖 Claude dans les mails · 📒 Le carnet d’adresses',
-    quoi: [
-      { emoji: '🤖',
-        titre: 'Claude lit les mails qui arrivent',
-        texte: 'Un interrupteur pour toute l’école, en tête de ✉️ Mails. Une ligne de résumé, les étiquettes, ⚠️ urgent, l’élève dont parle le mail (il le propose, tu confirmes), et les pubs à la corbeille.' },
-      { emoji: '✏️',
-        titre: 'Une réponse proposée',
-        texte: 'À l’ouverture d’un mail : une réponse préparée avec ce que l’appli sait (son dossier, les créneaux libres, les tarifs) — ✏️ dans l’éditeur, 🔄 une autre, ✂️ plus courte, 🙂 plus chaleureuse. Et ☑️ En faire une tâche, ➕ Créer la fiche. Rien ne part sans toi.' },
-      { emoji: '📒',
-        titre: 'À : les élèves et un carnet d’adresses',
-        texte: 'En tapant dans À : les élèves (l’adresse de leur fiche), le carnet et les adresses déjà écrites. 📒 Le carnet garde pour toute l’école France Travail, la DDTM… Et les menus de l’éditeur (⚡, 🖍️…) s’ouvrent enfin devant la fenêtre.' },
-      { emoji: '🗑️',
-        titre: 'Supprimer un mail',
-        texte: '⋯ › 🗑️ Supprimer cette conversation, ou 🗑️ à côté de l’heure d’un mail. Il part à la corbeille de la boîte OVH ; ⋯ › 🗑️ Corbeille le remet.' },
-      { emoji: '🔤',
-        titre: '🤖 ▾ dans l’éditeur',
-        texte: 'Reprendre la réponse proposée, reformuler, raccourcir, réchauffer ou corriger les fautes de ce que tu as écrit.' }
-    ]
-  },
-  {
-    version: 1337,
-    date: 'Mardi 3 novembre 2026',
-    resume: '✉️ Les mails de l’école dans la messagerie',
-    quoi: [
-      { emoji: '✉️',
-        titre: 'L’onglet ✉️ Mails',
-        texte: 'La boîte OVH de l’école, relevée toutes les 5 minutes, en conversations comme la messagerie (bureau et administrateurs). Chaque mail se rattache à l’élève par l’adresse de sa fiche, ou d’un geste — et se retrouve dans son dossier, onglet 💬 Messages.' },
-      { emoji: '✏️',
-        titre: 'Répondre comme dans une vraie boîte mail',
-        texte: 'Répondre, à tous, transférer : De, À, Cc, Cci, objet, mise en forme, images, pièces jointes, le mail cité dessous, brouillon gardé tout seul. Ta signature (⋯ › ✍️ Ma signature) et les ⚡ réponses rapides des mails. Ce qui part d’ici est dans les « Envoyés » du webmail, et l’inverse.' },
-      { emoji: '🗑️',
-        titre: 'Les pubs à la corbeille',
-        texte: 'Les newsletters qui le disent partent à la corbeille de la boîte (jamais l’ANTS ni l’administration). ⋯ › 🗑️ les montre, « ↩️ Remettre » en ramène une.' }
-    ]
-  },
-  {
-    version: 1336,
-    date: 'Mardi 3 novembre 2026',
-    resume: '🤔 Le planning du « Pourrait » · 🅰️ 🔁 La BEA',
-    quoi: [
-      { emoji: '📅',
-        titre: 'Examen blanc « Pourrait » : le planning',
-        texte: 'Des étapes 🚗 leçons / 📝 examen blanc, chacune sur une semaine des prochaines vacances (ou ✏️ autre), et un texte libre. Tout part dans son bilan et dans le résumé court.' },
-      { emoji: '🅰️',
-        titre: 'Conseil et passage en BEA',
-        texte: 'Pour un élève en BV (examen blanc, et tous les cours en BV) : « Nous te conseillons de passer en BEA » avec le lien, et « 🔁 Passage en BEA » : sa fiche, son Suivi, le résumé et le groupe Message important suivent.' }
-    ]
-  },
-  {
-    version: 1335,
-    date: 'Lundi 2 novembre 2026',
-    resume: '🔒 App Évolution Conduites : une nouvelle page de connexion',
-    quoi: [
-      { emoji: '🏷️',
-        titre: 'Le nouveau nom',
-        texte: 'L’appli s’appelle « App Évolution Conduites » (« EC App » sous l’icône du téléphone). Le favori Drivup devient « 📥 App Évolution » : l’ancien marche toujours, le refaire glisser pour voir le nouveau nom.' },
-      { emoji: '🔒',
-        titre: 'La page de connexion',
-        texte: 'Le logo de l’école, « Bonjour 👋 » et la date. Le prénom est retenu sur l’appareil (« Ce n’est pas moi » pour changer). Le code se tape sur un pavé ; « ⌨️ Taper au clavier » l’enlève, et le navigateur s’en souvient.' }
-    ]
-  },
-  {
-    version: 1334,
-    date: 'Lundi 2 novembre 2026',
-    resume: '📍 En un coup d’œil : un cadre par permis',
-    quoi: [
-      { emoji: '📍',
-        titre: 'Des cadres et des lignes',
-        texte: 'Permis : 🚗 Permis B · 🏍️ Moto · 🚚 Remorque côte à côte. Suivi : 🌙 Simulateurs et examens blancs · 🤝 CS · 🎓 AAC. Une ligne par chose qui attend, le nombre en pastille (rouge urgent, orange ça patiente).' },
-      { emoji: '📊',
-        titre: 'Le nombre d’élèves dans le titre, une jauge pour les places',
-        texte: '« 🏍️ MOTO · 14 élèves » : le compte passe dans le titre du cadre. Les places du mois et la réussite ont une jauge.' }
-    ]
-  },
-  {
-    version: 1333,
-    date: 'Lundi 2 novembre 2026',
-    resume: '🏢 L’agence d’inscription donne le centre d’examen',
-    quoi: [
-      { emoji: '🏢',
-        titre: 'L’agence reprise de Drivup',
-        texte: 'Le favori 📥 reprend l’agence d’inscription ; elle s’affiche en tête du dossier et se change d’un appui (bureau, admins). Pas connue : Saint-Brieuc. Demande le script Google Sheets v255.' },
-      { emoji: '📍',
-        titre: 'Le centre d’examen suit',
-        texte: 'Dossier › 🎓 Permis : son centre (celui de son agence) et « OK pour passer aussi à … », dans les deux sens et pour tous. Il suit dans 🚗 Prêts et pré-remplit 🗓️ RDV PERMIS.' }
-    ]
-  },
-  {
-    version: 1332,
-    date: 'Lundi 2 novembre 2026',
-    resume: '📍 Le centre d’examen des élèves prêts, et son filtre',
-    quoi: [
-      { emoji: '📍',
-        titre: 'Le centre sur la ligne',
-        texte: 'Dans 🚗 Élèves prêts au permis, juste après les heures : Saint-Brieuc par défaut, ou le centre choisi. Les puces 📍 Saint-Brieuc et 📍 Loudéac filtrent (un « OK Loudéac » compte dans les deux).' }
-    ]
-  },
-  {
-    version: 1331,
-    date: 'Lundi 2 novembre 2026',
-    resume: 'L’ordre des listes, et les repassages en un seul endroit',
-    quoi: [
-      { emoji: '⛔',
-        titre: 'Pas prêts',
-        texte: 'Dans cet ordre : ⏳ Attente bilan post-permis, ⛔ Examen blanc — pas le niveau, 🚫 Non planifiable, ⛔ Pas de repassage.' },
-      { emoji: '🤔',
-        titre: 'À envisager',
-        texte: 'Dans cet ordre : 🚗 Élèves prêts au permis, 🗓️ Liste RDV PERMIS, 📝 Examens blancs prévus.' },
-      { emoji: '🔁',
-        titre: 'Repassages : aussi ceux qui attendent leur bilan',
-        texte: 'Sous les prêts, un raccourci vers les ajournés en attente du bilan post-permis (ils restent dans ⛔ Pas prêts), avec la même fiche.' }
-    ]
-  },
-  {
-    version: 1330,
-    date: 'Lundi 2 novembre 2026',
-    resume: '📣 Préparation et 🏁 Résultats : une ligne par session, par élève',
-    quoi: [
-      { emoji: '📣',
-        titre: 'Préparation',
-        texte: 'Toutes les sessions à venir, rangées par date, une ligne chacune (groupe à créer / créé). Un appui l’ouvre en fenêtre : ① horaires, ② messages, ③ groupe de la messagerie.' },
-      { emoji: '✉️',
-        titre: 'Messages SOLO en puces',
-        texte: 'Un appui choisit le message, son texte et 📋 Copier sont dessous.' },
-      { emoji: '🏁',
-        titre: 'Résultats',
-        texte: 'Rangés par session, une ligne par élève avec ✅ Obtenu · ❌ Ajourné · 🚫 Pas passé. Les captures du CEPC se collent dans la fenêtre du résultat.' }
-    ]
-  },
-  {
-    version: 1329,
-    date: 'Lundi 2 novembre 2026',
-    resume: '🤔 À envisager : une liste à la fois, un élève par ligne',
-    quoi: [
-      { emoji: '🚗',
-        titre: 'Prêts au permis',
-        texte: 'On arrive sur cette liste. Une étiquette dit s’il est pressé ou ses heures, les puces filtrent, et 🗓️ RDV PERMIS au bout de la ligne le passe à la suite.' },
-      { emoji: '🗓️',
-        titre: 'Liste RDV PERMIS',
-        texte: 'Plus de petits boutons sans texte : la ligne dit ce qui manque (centre, qui prend la date, semaine) ou « prêt — date à prendre ». Les réglages sont dans sa fiche.' },
-      { emoji: '📝',
-        titre: 'Examens blancs prévus',
-        texte: 'Une ligne avec sa date, en orange à trois jours ou moins.' },
-      { emoji: '👆',
-        titre: 'Des boutons de liste plus gros',
-        texte: 'Les boutons qui choisissent la liste, en haut de chaque vue, sont plus grands et plus faciles à toucher.' }
-    ]
-  },
-  {
-    version: 1328,
-    date: 'Lundi 2 novembre 2026',
-    resume: '⛔ Pas prêts : une liste à la fois ; post-permis en 3 étapes',
-    quoi: [
-      { emoji: '📋',
-        titre: 'Une liste à la fois, un élève par ligne',
-        texte: 'Les puces choisissent la liste. Chaque élève tient sur une ligne avec ce qu’il reste à faire ; un appui ouvre sa fiche en fenêtre.' },
-      { emoji: '🔁',
-        titre: 'Post-permis : bilan → messages → rendez-vous',
-        texte: 'Son bilan collé, tes messages s’ouvrent (Messenger + sa messagerie). Son rendez-vous Drivup se lit tout seul.' },
-      { emoji: '📍',
-        titre: 'OK pour Loudéac',
-        texte: 'À « ❌ Ajourné », ou dans sa fiche : il veut bien repasser à Loudéac. Demande le script Google Sheets v254.' }
-    ]
-  },
-  {
-    version: 1327,
-    date: 'Samedi 31 octobre 2026',
-    resume: '⚡ Un groupe entier sans attente',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'Sans attente sur tout le groupe',
-        texte: 'Dans ✏️ Le groupe : l’élève coche « ✓ Vu » tout de suite à chaque étape, vidéos comprises. Une étape réglée à part garde son temps.' }
-    ]
-  },
-  {
-    version: 1326,
-    date: 'Samedi 31 octobre 2026',
-    resume: '⏱️ Étapes : temps de lecture, facultatives, réservées à certains',
-    quoi: [
-      { emoji: '⏱️',
-        titre: 'Le temps de lecture d’une étape',
-        texte: 'Dans le guide, ⚙️ Régler sur l’étape : automatique, sans attente, ou un temps fixe (10 s à 5 min).' },
-      { emoji: '💤',
-        titre: 'Une étape facultative',
-        texte: 'Éteins « 📊 Compte dans sa progression » : l’élève la voit, peut l’ignorer, et elle ne compte pas.' },
-      { emoji: '🔒',
-        titre: 'Réservée à certains élèves',
-        texte: '« Seulement certains élèves » ferme l’étape à tous ; ajoute un ou plusieurs élèves. Les autres ne la voient pas. Demande le script Google Sheets v253.' }
-    ]
-  },
-  {
-    version: 1325,
-    date: 'Samedi 31 octobre 2026',
-    resume: '🔑 Coin révisions : mise en route en 3 étapes, message juste',
-    quoi: [
-      { emoji: '🧭',
-        titre: 'Mettre en route son espace',
-        texte: 'La première fois : sa formation, ce qu’il voit (des interrupteurs déjà réglés), le message. Ensuite, sa carte.' },
-      { emoji: '✉️',
-        titre: 'Le message dit ce qui est ouvert',
-        texte: 'Ses groupes par leur nom, la salle seulement si la théorie est cochée. Il se modifie avant de partir, et part aussi dans sa messagerie.' },
-      { emoji: '📋',
-        titre: 'Le questionnaire, un interrupteur',
-        texte: 'Allumé pour tous, sauf passerelles, remises à niveau et régularisations. Éteint : ni questionnaire, ni relance.' },
-      { emoji: '⚙️',
-        titre: 'Ce qu’on ouvre par formation',
-        texte: 'Les admins règlent, formation par formation, les modules, les groupes et le questionnaire. Passerelles, motos et remises à niveau ne font pas la salle.' }
-    ]
-  },
-  {
-    version: 1324,
-    date: 'Samedi 31 octobre 2026',
-    resume: '📁 Guides et étapes changent de groupe ; le vide est gardé',
-    quoi: [
-      { emoji: '📁',
-        titre: 'Changer un guide de groupe',
-        texte: 'Dans le guide : ⋯ › 📁 Changer de groupe. Il se range à la fin de l’autre groupe.' },
-      { emoji: '↪️',
-        titre: 'Déplacer une étape',
-        texte: 'Le ↪️ d’une étape l’envoie, avec tout son contenu, dans un autre guide (de n’importe quel groupe) ou dans un nouveau guide.' },
-      { emoji: '🎬',
-        titre: 'Une vidéo pas encore tournée reste là',
-        texte: 'Tout s’enregistre, même un bloc sans fichier : un repère en attendant. Chez l’élève, il ne montre rien.' }
-    ]
-  },
-  {
-    version: 1323,
-    date: 'Samedi 31 octobre 2026',
-    resume: '🎬 Groupes et guides refaits : par étapes, tout s’enregistre seul',
-    quoi: [
-      { emoji: '🧩',
-        titre: 'Groupes en onglets, guides en cartes',
-        texte: 'Chaque carte dit ses étapes, son état et les fichiers qui manquent.' },
-      { emoji: '🎬',
-        titre: 'Un guide se compose par étapes',
-        texte: 'Sur l’ordinateur : le sommaire, l’étape, et ce que voit l’élève. Au téléphone : les étapes en cartes. « 📋 Plusieurs d’un coup » crée toutes les étapes en une fois ; ce qu’on ajoute arrive dans l’étape.' },
-      { emoji: '⬇️',
-        titre: 'Plusieurs fichiers d’un coup',
-        texte: 'Glisse tes vidéos, images et PDF dans une étape : un bloc par fichier.' },
-      { emoji: '💾',
-        titre: 'Plus de bouton « Enregistrer »',
-        texte: 'Le guide s’enregistre tout seul ; publié, il change chez l’élève tout de suite (sauf ce qui est encore vide).' }
-    ]
-  },
-  {
-    version: 1322,
-    date: 'Samedi 31 octobre 2026',
-    resume: '📚 Repères de lieu : les vidéos jusqu’à l’étape',
-    quoi: [
-      { emoji: '🎬',
-        titre: 'Une vidéo, c’est une étape',
-        texte: 'Dans un lieu, « Ajouter une vidéo » liste les étapes de chaque guide : l’élève revoit exactement la bonne partie.' },
-      { emoji: '🧭',
-        titre: 'Les flèches des sens',
-        texte: 'Plus grandes, sous « 🧭 Un texte par sens » ; la légende du plan ne les annonce plus quand il n’y a qu’un texte.' }
-    ]
-  },
-  {
-    version: 1321,
-    date: 'Samedi 31 octobre 2026',
-    resume: '✍️ L’élève fait ou complète son bilan, dans son espace',
-    quoi: [
-      { emoji: '✍️',
-        titre: 'L’élève complète ton bilan',
-        texte: 'Sous « Copier, enregistrer et terminer » : ton bilan part avec des ✍️ sous chaque catégorie écrite, toutes les catégories vides, les manœuvres et « à retravailler ». Le cours est validé tout de suite.' },
-      { emoji: '📝',
-        titre: 'L’élève doit faire ou compléter son bilan',
-        texte: 'La fenêtre du cours, renommée : « Il fait son bilan » (la trame vide) ou « Il complète ton bilan ».' },
-      { emoji: '📚',
-        titre: 'Dans son espace révisions',
-        texte: 'Réglage allumé : il le remplit dans l’onglet 📝 Bilan, il arrive dans la messagerie avec « ✏️ Lire, corriger et valider » ; la version validée remplace le bilan dans son dossier. Relance à 2 jours.' }
-    ]
-  },
-  {
-    version: 1320,
-    date: 'Samedi 31 octobre 2026',
-    resume: '📚 Le 📍 Repère connaît les lieux du parcours',
-    quoi: [
-      { emoji: '📍',
-        titre: 'Le bouton Repère connaît les lieux',
-        texte: 'Il prévient 100 m avant un lieu connu, dans ton sens. Un appui : le texte du lieu va dans ta dictée (plusieurs lieux : tu choisis ; aucun : « juste un travail pour l’élève » ou « ➕ Nouveau lieu ici »).' },
-      { emoji: '📚',
-        titre: 'Outils › Repères de lieu',
-        texte: 'La base des lieux : par une adresse ou des coordonnées GPS, un rayon, un texte par sens, des photos et des vidéos. Tout le monde crée et modifie.' },
-      { emoji: '🎬',
-        titre: 'Dans le bilan et chez l’élève',
-        texte: 'Le texte du lieu se pose sous son repère ; le mail et l’espace élève montrent ses photos et un « 🎬 Revoir » par vidéo.' }
-    ]
-  },
-  {
-    version: 1319,
-    date: 'Samedi 31 octobre 2026',
-    resume: '🔑 Installer depuis la tablette · 🔓 Ouverture des groupes · 📊 Statistiques',
-    quoi: [
-      { emoji: '🔑',
-        titre: 'Installer un élève depuis la tablette',
-        texte: 'Sur l’accueil de la tablette : « 🔑 L’équipe : installer un élève ici », ton code de l’appli, puis la même fenêtre que dans l’appli — la théorie du jour, les élèves déjà commencés, et la recherche parmi tous les élèves. Le code n’est jamais gardé.' },
-      { emoji: '🔓',
-        titre: 'Quand chaque groupe s’ouvre chez l’élève',
-        texte: 'Élèves › 📺 Salle des tablettes › 📘 Au programme : pour chaque groupe, En salle puis chez lui, Chez lui après la salle, Après un groupe (dès 80 % vu) ou Tout de suite. L’élève voit pourquoi un groupe est fermé.' },
-      { emoji: '📊',
-        titre: 'Statistiques : durée et retard des examens',
-        texte: 'Outils › « Réussite » devient « 📊 Statistiques » : Taux de réussite, et Durée et retard des examens (retard sur l’heure de 🎓 Suivi permis, à l’heure = à 2 minutes près, par inspecteur, centre, mois). Un élève effacé reste compté : « Examen de 08h30 du 21/10/2026 ».' }
-    ]
-  },
-  {
-    version: 1318,
-    date: 'Samedi 31 octobre 2026',
-    resume: '📺 Raccourci de la salle · 📅 Réserver sur Drivup · 📱 Réviser en plein écran',
-    quoi: [
-      { emoji: '📺',
-        titre: 'Le raccourci de la tablette rouvre la salle',
-        texte: 'Un raccourci Chrome fait depuis la salle des tablettes rouvre la salle, plus l’espace révisions. Les raccourcis déjà faits sur une tablette installée y repartent aussi.' },
-      { emoji: '📅',
-        titre: 'Réserver ses cours sur Drivup',
-        texte: 'Dans l’espace élève, « Mon prochain cours » a un bouton « 📅 Réserver mes cours sur Drivup » qui ouvre client.drivup.fr.' },
-      { emoji: '📱',
-        titre: 'Réviser : une partie prend tout l’écran',
-        texte: 'Une partie ouverte couvre l’écran entier, avec « ‹ Retour » en haut. Et un élève qui a commencé la salle sans la finir ne voit plus aucun groupe chez lui : ils restent 🔒 jusqu’à la fin de la salle.' },
-      { emoji: '🎙️',
-        titre: '« Reprendre l’enregistrement » au téléphone',
-        texte: 'En pause, le bouton descend juste au-dessus de la transcription, et y reste jusqu’à la fin du cours.' },
-      { emoji: '📈',
-        titre: 'La liste des candidats du taux de réussite',
-        texte: 'Les noms ne s’affichent plus un mot par ligne : le crayon reprend sa place à droite.' }
-    ]
-  },
-  {
-    version: 1317,
-    date: 'Samedi 31 octobre 2026',
-    resume: '🧮 Le stockage de Cloudflare ménagé',
-    quoi: [
-      { emoji: '🧮',
-        titre: 'Moins de lectures chez Cloudflare',
-        texte: 'Les comptes de l’équipe sont gardés quelques secondes en mémoire, et les codes faux sont comptés dans la base. L’application ne risque plus d’être coupée en fin de journée par la limite gratuite.' }
-    ]
-  },
-  {
-    version: 1316,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '📱 Messagerie au téléphone réparée · 🚨 « Urgent » dans le Suivi',
-    quoi: [
-      { emoji: '📱',
-        titre: 'La messagerie au téléphone',
-        texte: 'L’appui long ne fait plus disparaître le message : le menu reste ouvert, avec 📋 Copier. Les photos s’ouvrent en grand devant le fil, et la barre reste au-dessus du clavier.' },
-      { emoji: '🚨',
-        titre: 'Urgent : ajouter une leçon',
-        texte: 'Dans « ⚠️ Suivi de … » : avant son examen (ou avant l’examen blanc). Cochée, elle prévient le bureau dans « Message important ».' }
-    ]
-  },
-  {
-    version: 1315,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '⚡ Espace élève plus rapide · 📺 groupes fermés avant la salle',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'L’espace élève s’ouvre tout de suite',
-        texte: 'Il affiche ce que l’élève avait à sa dernière visite, puis se met à jour dès que le classeur répond. Les textes de « Réviser » ne débordent plus sur le côté.' },
-      { emoji: '📺',
-        titre: 'Les groupes après la salle, pour tous',
-        texte: 'Un élève qui n’a pas fini la salle des tablettes ne voit aucun groupe chez lui, même cochés. Élèves d’avant : « Déjà vu en salle : ouvrir ses groupes » dans sa fiche.' }
-    ]
-  },
-  {
-    version: 1314,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '📝 « Tu dois faire ton bilan » · 🚗 Voiturette à l’examen blanc',
-    quoi: [
-      { emoji: '📝',
-        titre: 'Tu dois faire ton bilan',
-        texte: 'Sous « Composer le bilan » et sous le bouton rouge (classique et AAC, BEA et BV) : le cours est validé sans bilan à composer, l’élève reçoit la trame à remplir. Son dossier › Cours : on colle ce qu’il a écrit.' },
-      { emoji: '🚗',
-        titre: 'Voiturette, à l’examen blanc',
-        texte: 'Sous « Niveau permis ? » : la case Voiturette (heures avant de partir, formation AM). La phrase va dans son bilan ; la formation AM dans l’historique des cours et le Suivi.' }
-    ]
-  },
-  {
-    version: 1313,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '⚡ L’alerte de survitesse dans le tiroir Carte SD (A3 2 et Q3 10)',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'L’alerte de survitesse oubliée',
-        texte: 'Dans le tiroir « Carte SD — Installation — Vérifications » (à la main et à l’oral), sur l’A3 2 et le Q3 10 : la case « Tu as oublié d’enlever l’alerte de survitesse ». Cochée, la phrase va dans son bilan.' }
-    ]
-  },
-  {
-    version: 1312,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '✕ Annuler une écoute du jour · 🗺️ Infographie CPF – Employeur',
-    quoi: [
-      { emoji: '✕',
-        titre: 'Annuler une écoute d’aujourd’hui',
-        texte: 'Suivi › 👂 Écoutes, « Écoutes d’aujourd’hui » : ✕ Annuler (le créneau ou un élève). Elle disparaît des cours des moniteurs et de l’affichage ; on choisit de prévenir l’élève ou non.' },
-      { emoji: '🗺️',
-        titre: 'Co-financement CPF – Employeur',
-        texte: 'Dans 💶 Financements, sous « Un message CPF, sans dossier » : l’infographie étape par étape (élève, auto-école, employeur). Son lien se copie pour l’envoyer à un employeur.' }
-    ]
-  },
-  {
-    version: 1311,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '🅱️ La tuile suit le dernier examen blanc · 👂 écoutes plus rapides',
-    quoi: [
-      { emoji: '🅱️',
-        titre: 'Le dernier examen blanc',
-        texte: 'Un examen blanc « pas le niveau » ou « pourrait » met à jour sa date et sa conclusion dans le dossier ; la tuile « Où en est son permis » prend le plus récent.' },
-      { emoji: '👂',
-        titre: 'Les écoutes s’ouvrent plus vite',
-        texte: 'La liste des écoutes se lit directement dans le classeur, sans attendre Apps Script.' }
-    ]
-  },
-  {
-    version: 1310,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '📞 Le suivi des appels : une fiche par numéro, comme Allo',
-    quoi: [
-      { emoji: '📞',
-        titre: 'Une fiche par numéro',
-        texte: 'À gauche les numéros (le plus récent en haut), à droite la fiche : 📞 Rappeler, Rattacher, Écrire, Ce qui s’est passé, et tout l’historique du numéro en fil. Les filtres restent les mêmes.' },
-      { emoji: '👤',
-        titre: 'Dans le dossier aussi',
-        texte: 'L’onglet 📞 Appels de l’élève montre le même fil, avec une pastille par numéro (lui, un proche).' }
-    ]
-  },
-  {
-    version: 1309,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '👥 Homonymes et 👤 bilan au bon élève · 👂 écoutes du jour · ⚠️ suivi au post-permis',
-    quoi: [
-      { emoji: '👥',
-        titre: 'Deux élèves au même nom',
-        texte: 'Le dossier le signale ; un appui donne à l’un son nom à lui, avec son année de naissance (« Lucas Martin 2007 ») ou son id Drivup.' },
-      { emoji: '👤',
-        titre: 'Ce bilan n’est pas le sien',
-        texte: 'Dans l’historique, 👤 passe un bilan au bon élève, le lui envoie, et prévient celui qui l’a reçu à tort (bureau et administrateurs).' },
-      { emoji: '👂',
-        titre: 'Les écoutes d’aujourd’hui',
-        texte: 'Dans le suivi des écoutes : chaque élève du jour, ce qu’ont pointé les moniteurs, et ✅ Là / 🚫 Pas là pour le bureau.' },
-      { emoji: '⚠️',
-        titre: 'Suivi de l’élève au post-permis',
-        texte: 'Le rendez-vous post-permis a le tiroir « ⚠️ Suivi de … » : pas d’écoutes, pas les groupes, ce qu’il faut savoir, la messagerie.' }
-    ]
-  },
-  {
-    version: 1308,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '👂 Écoutes sur la télé · 🎓 une carte au permis · 🖼️ photos collées',
-    quoi: [
-      { emoji: '👂',
-        titre: 'Les écoutes sur la télé',
-        texte: 'Dans « Vos cours commencent », les élèves en écoute se mettent dans la carte de leur voiture (« ta voiture n’est pas connue » ne reste que s’il n’y a vraiment aucun cours). Le rappel d’écoute de 17h retrouve aussi la voiture.' },
-      { emoji: '🎓',
-        titre: 'Une carte par élève le jour du permis',
-        texte: 'Un 2e rappel pour un élève qui a déjà sa carte d’examen ne crée pas de 2e carte (et on le dit) ; la carte de conduite en double du même jour se retire toute seule.' },
-      { emoji: '👨‍✈️',
-        titre: 'L’inspecteur repris',
-        texte: 'Choisi sur un élève, il se met tout seul sur les fiches d’examen suivantes du jour.' },
-      { emoji: '🖼️',
-        titre: 'Coller plusieurs photos',
-        texte: 'Dans la messagerie, une capture collée attend au-dessus du champ : on colle les suivantes, puis ➤ envoie tout en un message.' }
-    ]
-  },
-  {
-    version: 1307,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '📋 Les captures du CEPC ne se collent plus chez le mauvais élève',
-    quoi: [
-      { emoji: '📋',
-        titre: 'Coller une capture du CEPC',
-        texte: 'Une image collée dans la messagerie ou pour un autre élève n’atterrit plus dans le CEPC du dernier élève ouvert. Hors de la zone « Colle ta capture ici », le collage ne marche que si un seul élève est à l’écran, et un message dit à qui la capture est allée.' }
-    ]
-  },
-  {
-    version: 1306,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '🔔 Rappels Drivup qui se remplissent seuls · ↩️ appels liés à leur rappel',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Jour de permis',
-        texte: 'Les élèves de la session viennent à l’heure du premier, type « rappel permis voiture », avec la pause de la préparation permis. Mes prochains cours prend l’heure réelle de conduite (9h10, 10h05…).' },
-      { emoji: '🔗',
-        titre: 'Cours enchaînés, moto, simulateur',
-        texte: 'Deux cours qui se suivent chez le même moniteur : un seul rappel. Moto : type de la famille Moto, sans voiture. Simulateur : sans voiture.' },
-      { emoji: '☑️',
-        titre: 'Les mentions cochées toutes seules',
-        texte: '1re leçon : carte SD + premier cours BV/BEA. Veille d’examen : carte d’identité. Après le permis : le moniteur peut avoir du retard.' },
-      { emoji: '🚗',
-        titre: 'Voitures attitrées',
-        texte: 'Sans numéro dans Drivup, la voiture du moniteur : A3 pour un élève BV, Q3 pour un BEA.' },
-      { emoji: '↩️',
-        titre: 'Les appels liés',
-        texte: 'Dans 📞 Suivi des appels, l’appel reçu montre « Rappelé à 11:38 par David », et le rappel « Rappel de l’appel de 10:55 ».' }
-    ]
-  },
-  {
-    version: 1305,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '📞 « Rappeler » sur chaque appel du suivi, demande de rappel ou non',
-    quoi: [
-      { emoji: '📞',
-        titre: 'Rappeler, d’un appui',
-        texte: 'Dans 📞 Suivi des appels (et l’onglet Appels du dossier), chaque appel dont on a le numéro a son bouton « 📞 Rappeler », même sans demande de rappel.' }
-    ]
-  },
-  {
-    version: 1304,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '🖼️ Plusieurs photos dans un message · 🎉 le permis obtenu en un bloc',
-    quoi: [
-      { emoji: '🖼️',
-        titre: 'Plusieurs photos d’un coup',
-        texte: '＋ › Choisir une photo : prends-en jusqu’à 10. Elles partent dans un seul message, en mosaïque, avec ce que tu as tapé. L’élève les voit pareil.' },
-      { emoji: '🎉',
-        titre: 'Le permis obtenu, en un seul bloc',
-        texte: 'Dans « Suivi examen » : le texte et les captures du CEPC dans la même bulle, avec des cotillons en fond. Un ajourné aussi, en un bloc (sans cotillons).' }
-    ]
-  },
-  {
-    version: 1303,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '🎓 Carte d’un examen prévu épurée · 🧰 deux lignes sous chaque vérification',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'La carte d’un élève qui a son examen',
-        texte: 'Dans 📅 Mes prochains cours : la ligne verte, juste dessous la ligne rouge, le post-permis s’il a déjà été ajourné, puis le 📌. Plus de frise ni d’examen blanc.' },
-      { emoji: '🧰',
-        titre: 'Les deux lignes sous chaque question',
-        texte: 'Examen officiel, examen blanc, RVP : la réponse de l’élève (à l’officiel, avec ce qu’a dit l’inspecteur) et ton commentaire, toujours visibles, même avant ✅ ❌.' }
-    ]
-  },
-  {
-    version: 1302,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '🎓 Examens enchaînés : la bonne fiche se rouvre, et ⚠️ retire bien le point',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'La fiche d’examen, pas la dictée',
-        texte: 'Après « 📤 Envoyer la partie avant examen », l’élève choisi dans « 👤 Enchaîner » (un autre, ou un ✅ déjà envoyé) rouvre SA fiche d’examen officiel, avec ce qui y était rempli.' },
-      { emoji: '⚠️',
-        titre: 'Le point se retire sur une fiche reprise',
-        texte: 'Une fiche gardée puis reprise garde d’où vient chaque note du CEPC : ⚠️ + « ➖ Oui, enlever un point » retire bien le point. Une note mise à la main reste la tienne.' }
-    ]
-  },
-  {
-    version: 1301,
-    date: 'Vendredi 30 octobre 2026',
-    resume: '🎓 Permis obtenu : centre, note /31 et captures dans « Suivi examen »',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Permis obtenu, annoncé en entier',
-        texte: '« ✅ Permis obtenu » demande le centre et la note du CEPC (déjà remplis si on les connaît). « Suivi examen » reçoit « Nom Prénom - centre - Permis obtenu - 27/31 », puis les captures du CEPC.' }
-    ]
-  },
-  {
-    version: 1300,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '⏱️ Compteur d’examen, 🧰 vérifications comme en cours, ➕ un élève en salle',
-    quoi: [
-      { emoji: '➕',
-        titre: 'Un élève en salle sans réservation',
-        texte: 'Salle des tablettes : « ➕ Un élève présent, pas réservé sur Drivup ». Il rejoint la théorie du jour, la tablette le propose ; ✕ le retire.' },
-      { emoji: '☠️',
-        titre: 'Examen officiel : plus de phrases toutes faites',
-        texte: 'Après ☠️ ou ⚠️ et la ligne du CEPC, plus de liste de phrases : le E, ou directement la question du point, qui se retire bien sur le CEPC.' },
-      { emoji: '🧰',
-        titre: 'Les vérifications comme en cours',
-        texte: 'Examen officiel, examen blanc et RVP : le numéro, ✅ ❌ par partie, la réponse et le commentaire ; la note et le CEPC se font tout seuls.' },
-      { emoji: '⏱️',
-        titre: 'Un compteur pendant l’examen',
-        texte: 'Il avance à la seconde. ▶️ Début / ⏹️ Fin aussi à l’examen blanc et au RVP : la durée va dans la note interne, jamais à l’élève.' }
-    ]
-  },
-  {
-    version: 1299,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '📄 Ce qu’on écrit et envoie : trois colonnes, la fiche en entier',
-    quoi: [
-      { emoji: '📄',
-        titre: 'La fiche en entier',
-        texte: 'Sur l’ordinateur : catégories · liste · la fiche ouverte à droite, tout le texte visible. Elle s’enregistre toute seule. Sur le téléphone : en plein écran.' },
-      { emoji: '🏷️',
-        titre: 'Les catégories d’une fiche sur une ligne',
-        texte: 'Seulement les siennes, ✕ pour en retirer une, « ＋ Catégorie » pour chercher, cocher ou créer. À gauche, « Filtrer les catégories… ».' },
-      { emoji: '🖼️',
-        titre: 'Plus simple',
-        texte: '« 🖼️ Ajouter une image » au lieu du grand cadre, l’explication derrière ⓘ, et l’avertissement ⛔ dans la fenêtre ✏️ d’une catégorie.' }
-    ]
-  },
-  {
-    version: 1298,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '🏁 Messagerie : Tout · Non lus · Élèves · Équipe · Permis, et 👍 🎤 😊',
-    quoi: [
-      { emoji: '🏁',
-        titre: 'Un onglet Permis',
-        texte: 'Les onglets dans cet ordre : Tout · Non lus · Élèves · Équipe · Permis. « Permis » ne montre que les groupes du jour du permis.' },
-      { emoji: '👍',
-        titre: 'Le pouce revient',
-        texte: 'La barre d’écriture : ➕, le champ, puis 👍 🎤 😊. Dès qu’on écrit : ➤ 😊. Pareil dans l’espace élève.' }
-    ]
-  },
-  {
-    version: 1297,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '➕ Suivre une aide depuis le dossier, et les conditions d’une aide ajoutée',
-    quoi: [
-      { emoji: '➕',
-        titre: 'Suivre un financement depuis le dossier',
-        texte: 'Onglet 💶 Financement : sur chaque aide du point gardé, « ➕ Suivre » (ou « 📒 où il en est › »). « ➕ Suivre une aide » pour les autres. Les suivis en cours s’y cochent directement.' },
-      { emoji: '👥',
-        titre: 'Les conditions d’une aide ajoutée',
-        texte: '⚙️ Les aides › une aide ajoutée (IRP Auto…) : 👥 pour qui, ❓ une question oui / non que le générateur pose, 💶 jusqu’à. Conditions remplies : ✅ Possible.' },
-      { emoji: '🛠️',
-        titre: 'Apprenti, alternant',
-        texte: 'La situation « Apprenti » s’appelle désormais « Apprenti, alternant ».' }
-    ]
-  },
-  {
-    version: 1296,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '🧭 Messagerie refondue : Non lus · Élèves · Équipe · Tout, barre ➕ 😊 🎤',
-    quoi: [
-      { emoji: '🗂️',
-        titre: 'Quatre onglets en haut de la liste',
-        texte: 'Non lus · Élèves · Équipe · Tout, sur tous les écrans. « Non lus » montre aussi les rappels ⏰ revenus. Les types (retards, oublis, fermées, supervision…) sont dans ⋯ › Filtrer par type.' },
-      { emoji: '⋯',
-        titre: 'Une seule tête de conversation',
-        texte: 'Sur téléphone et dans la barre de droite : ← le nom, 📞 et ⋯. Sur grand écran : 📞 ✓ Réglé ⏰ ⓘ ⋯. Épingler, proposer un créneau, participants… sont dans ⋯.' },
-      { emoji: '➕',
-        titre: 'Une barre d’écriture plus simple',
-        texte: '➕ (photo, vidéo, fichier, réponses rapides, ce qu’on écrit), le champ avec 😊, puis ➤ ou 🎤. Les réponses rapides tiennent sur une ligne, ✕ pour les cacher.' },
-      { emoji: '👆',
-        titre: 'Des gestes au doigt',
-        texte: 'Sur le téléphone, glisser une conversation vers la gauche la règle, vers la droite la rappelle demain 9 h. Même présentation côté élève.' }
-    ]
-  },
-  {
-    version: 1295,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '⏱️ Examen officiel : ▶️ début, ⏹️ fin, la durée pour nous seulement',
-    quoi: [
-      { emoji: '⏱️',
-        titre: 'La durée de l’examen officiel',
-        texte: 'En haut de « 🏁 Examen » sur la fiche : ▶️ Début d’examen et ⏹️ Fin d’examen. Les heures se corrigent à la main si un bouton a été oublié.' },
-      { emoji: '📌',
-        titre: 'Sans rouvrir la fiche',
-        texte: 'Les fiches d’examen gardées en haut de l’écran ont aussi leur bouton ▶️ / ⏹️ : on enchaîne les élèves.' },
-      { emoji: '🔒',
-        titre: 'Pour nous, jamais pour l’élève',
-        texte: 'La durée va dans la note interne, le dossier élève › Permis, l’historique des leçons, et Permis › Résultats (moyenne par centre et par inspecteur). Le bilan de l’élève ne la dit jamais.' }
-    ]
-  },
-  {
-    version: 1294,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '📒 Ses aides et leur suivi dans l’onglet 💶 Financement du dossier',
-    quoi: [
-      { emoji: '📒',
-        titre: 'Dans son dossier élève',
-        texte: 'L’onglet 💶 Financement montre le point gardé en entier, les envois et le suivi de chaque aide — plus seulement la fenêtre de sa fiche.' }
-    ]
-  },
-  {
-    version: 1293,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '📌 Un suivi pour chaque aide : permis à 1 €, Mission locale, employeur…',
-    quoi: [
-      { emoji: '📌',
-        titre: 'Suivre chaque aide choisie',
-        texte: 'Sur la carte d’une aide : « ➕ Suivre ». Permis à 1 € (contrat → banque → accord → fonds), Mission locale, Agefiph, employeur / OPCO, commune, ALMA : on coche chaque étape, la date s’y met.' },
-      { emoji: '🔔',
-        titre: 'Un rappel quand rien ne bouge',
-        texte: 'Dix jours sans nouvelle étape : une ligne au bandeau, avec la prochaine étape attendue.' },
-      { emoji: '📒',
-        titre: 'Dans sa fiche',
-        texte: '« 📒 Le suivi » montre chaque aide suivie, où il en est, les étapes datées, le montant et la note.' }
-    ]
-  },
-  {
-    version: 1292,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '💬 Aides en messagerie · 🏢 employeur / OPCO · 💶 prix du devis · 📒 suivi en fiche',
-    quoi: [
-      { emoji: '💬',
-        titre: 'Dans sa messagerie',
-        texte: 'Ses aides, un message CPF ou un message de son dossier CPF : « 💬 », relu puis envoyé dans sa conversation « Le bureau ».' },
-      { emoji: '🏢',
-        titre: 'Un salarié du privé : son employeur ou son OPCO',
-        texte: 'Proposé d’office (à voir), sauf s’il travaille dans la fonction publique.' },
-      { emoji: '💶',
-        titre: 'Le prix : le devis de son évaluation',
-        texte: 'Plus le pack d’office. Sans devis, le prix reste vide : on le tape ou on choisit son forfait — sans lui, pas de résultat.' },
-      { emoji: '📒',
-        titre: 'Le suivi dans sa fiche',
-        texte: '« Garder dans sa fiche » montre le point en entier dans sa partie financement, avec tout ce qui lui a été envoyé et ses dossiers.' }
-    ]
-  },
-  {
-    version: 1291,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '👂 Les élèves en écoute sur « Vos cours commencent », dans la carte de leur voiture',
-    quoi: [
-      { emoji: '👂',
-        titre: 'Les écoutes pédagogiques sur la télé',
-        texte: 'Dans la carte de la voiture annoncée la veille (sinon de sa boîte). Déjà pointé par le moniteur : il ne s’affiche plus. Sans voiture : « passe voir le bureau ».' },
-      { emoji: '✏️',
-        titre: 'Dans le constructeur',
-        texte: '⏰ Vos cours commencent : sous l’élève ou en bas de la carte, le mot, la couleur, la ligne « sans voiture ». Les cours à venir : une case, coupée d’origine.' }
-    ]
-  },
-  {
-    version: 1290,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '📺 La salle des tablettes : le cours de théorie à son nom, ses groupes à la fin',
-    quoi: [
-      { emoji: '📺',
-        titre: 'La salle des tablettes',
-        texte: 'Élèves › Au quotidien. La 1re fois, quelqu’un de l’équipe l’installe sur une tablette ; ensuite il revient seul (son nom + jour et mois de naissance). Fini : ses groupes s’ouvrent tout seuls.' },
-      { emoji: '🔒',
-        titre: 'Chez lui, le cours de la salle attend',
-        texte: 'Tant qu’il ne l’a pas fini en salle, son espace dit « se regarde en salle des tablettes » et où il en est.' },
-      { emoji: '✅',
-        titre: 'Les élèves d’avant',
-        texte: 'Dans sa fiche : « Déjà vu en salle (avant l’appli) : ouvrir ses groupes ».' },
-      { emoji: '🔑',
-        titre: 'Installer une tablette',
-        texte: 'Administrateurs : un code à six chiffres à taper sur salle.html. La théorie du jour est lue avec le planning Drivup.' }
-    ]
-  },
-  {
-    version: 1289,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '🔗 Formation CPF : celle juste au-dessus du prix · 🏦 « Permis à 1 € »',
-    quoi: [
-      { emoji: '🔗',
-        titre: 'La formation CPF proposée est celle juste au-dessus de son prix',
-        texte: 'Pour la voiture, en BV ou en BEA, peu importe. La liste montre toutes les formations du catalogue, rangées par catégorie.' },
-      { emoji: '🏦',
-        titre: '« Permis à 1 € » au lieu de « Prêt à 0 % »',
-        texte: 'Dans le total du générateur et sur la feuille imprimée.' }
-    ]
-  },
-  {
-    version: 1288,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '✉️ Un message CPF sans ouvrir de dossier',
-    quoi: [
-      { emoji: '✉️',
-        titre: 'Les messages CPF, sans dossier',
-        texte: '💶 Financements, sous le générateur : un élève, sa formation, sa situation, le message — rempli avec le prix et le lien, à relire puis envoyer. Rien n’est noté.' }
-    ]
-  },
-  {
-    version: 1287,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '📣 @ mentionner un membre de la conversation',
-    quoi: [
-      { emoji: '📣',
-        titre: 'Mentionner quelqu’un avec @',
-        texte: 'Tape « @ » : la liste des membres s’ouvre, un appui (ou Entrée) écrit le nom. La personne reçoit « 📣 … t’a mentionné », et un @ marque la conversation tant qu’elle ne l’a pas lue.' }
-    ]
-  },
-  {
-    version: 1286,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '🔔 Notifications avec la conversation et l’aperçu · 😀 qui a réagi · 📆 cours à venir',
-    quoi: [
-      { emoji: '🔔',
-        titre: 'Les notifications disent la conversation et le début du message',
-        texte: '« 💬 Léa Morvan ↔ le bureau — Léa Morvan : Je serai en retard… ». L’aperçu seulement à qui peut lire ce fil aujourd’hui.' },
-      { emoji: '😀',
-        titre: 'Qui a réagi',
-        texte: 'Un appui sur les réactions sous une bulle donne la liste : 👍 Paula, 👍 Hery…' },
-      { emoji: '💬',
-        titre: 'La conversation s’ouvre en bas',
-        texte: 'Dans le volet de droite aussi, même quand les photos arrivent après ; et si tu étais remonté lire, un message qui arrive ne te fait plus sauter.' },
-      { emoji: '📆',
-        titre: 'Les cours à venir dans l’espace élève',
-        texte: 'Sous « Mon prochain cours » : ses cours et ses écoutes pédagogiques lus dans le planning Drivup.' }
-    ]
-  },
-  {
-    version: 1285,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '🧮 Les aides d’un élève : CPF, permis à 1 €, Pass’Engagement, Mission locale',
-    quoi: [
-      { emoji: '🧮',
-        titre: 'Quelles aides pour cet élève ?',
-        texte: 'Dans 💶 Financements : ce qu’il peut avoir selon son âge, son permis et sa situation, ce qui reste à payer (et en ALMA), et un mail à relire avant de l’envoyer.' },
-      { emoji: '🎓',
-        titre: 'Les dossiers CPF avec tes messages',
-        texte: 'De l’identité numérique à la sortie de formation : le bon message à chaque étape, le lien de sa formation, et le rappel du jour d’entrée.' },
-      { emoji: '🤝',
-        titre: 'Le Pass’Engagement',
-        texte: 'Attestation, code débloqué, 1er chèque, suite débloquée, 2e chèque : chaque étape datée, et rien sans l’attestation.' },
-      { emoji: '⚙️',
-        titre: 'Le tableau des aides',
-        texte: 'Les aides, tes formations CPF (prix suivis dans 💰 Tarifs), les Missions locales et tes messages : les administrateurs les changent quand la loi change.' }
-    ]
-  },
-  {
-    version: 1284,
-    date: 'Mercredi 28 octobre 2026',
-    resume: '☑️ Ma journée reprend la veille · 📷 CEPC nets · 🚫 moto pas passé · 🗺️ tracé',
-    quoi: [
-      { emoji: '☑️',
-        titre: 'Ce qui n’est pas coché revient le lendemain',
-        texte: 'Dans Ma journée, une ligne pas cochée revient en tête le lendemain (↩️ d’hier). Dans Tous les jours, ce qui est fait descend en bas.' },
-      { emoji: '📷',
-        titre: 'Les captures du CEPC restent nettes',
-        texte: 'Elles gardent jusqu’à 2 400 px au lieu d’être écrasées. Celles déjà déposées restent floues : les redéposer pour les avoir nettes.' },
-      { emoji: '🚫',
-        titre: 'Moto : « Ne l’a pas passé »',
-        texte: 'Au plateau comme à la circulation : la date s’efface, aucun résultat n’est noté et le passage ne compte pas.' },
-      { emoji: '🗺️',
-        titre: 'Le tracé de l’examen au post-permis',
-        texte: 'À côté du bilan d’examen officiel, 🗺️ Tracé de l’examen ouvre la carte du trajet du dernier examen, avec le bilan du moniteur.' }
-    ]
-  },
-  {
-    version: 1283,
-    date: 'Mardi 27 octobre 2026',
-    resume: '💼 Formations : Drivup, questionnaires, rapports par l’IA, alertes et BPF',
-    quoi: [
-      { emoji: '📥',
-        titre: 'Les séances lues dans Drivup',
-        texte: 'Dans 📅 Séances, les leçons des salariés pendant la formation (lues par le favori) : ＋ Ajouter, et ❗ si une leçon a disparu du planning.' },
-      { emoji: '📝',
-        titre: 'Les questionnaires Qualiopi',
-        texte: 'Avant devis, positionnement, satisfaction des salariés et de l’entreprise : envoyés par mail avec un lien, ou remplis dans l’appli (le moniteur à la séance). Avec la synthèse.' },
-      { emoji: '🧾',
-        titre: 'Les rapports écrits par l’IA',
-        texte: 'Un rapport par salarié et un rapport à l’entreprise, à partir des bilans de cours. Les alertes vont dans le bandeau et 🔔 Alertes ; 📊 BPF donne les chiffres du bilan pédagogique et financier.' }
-    ]
-  },
-  {
-    version: 1282,
-    date: 'Mardi 27 octobre 2026',
-    resume: '✍️ Formations : feuilles de présence signées sur téléphone, convention en ligne',
-    quoi: [
-      { emoji: '✍️',
-        titre: 'Faire signer la feuille de présence',
-        texte: 'Le formateur fait signer chaque salarié du doigt (🚫 Absent s’il n’est pas là), puis signe en dernier : depuis 💼 Formations ou depuis la carte de son cours. La feuille signée part toute seule dans le dossier.' },
-      { emoji: '👤',
-        titre: 'Tous les moniteurs, sans case',
-        texte: 'Un moniteur voit les formations dont il est le formateur (séances, stagiaires), et « ✍️ Séance non prévue » pour faire signer une séance qui n’était pas posée.' },
-      { emoji: '📨',
-        titre: 'La convention signée en ligne',
-        texte: 'Le mail de la convention porte un bouton : l’entreprise signe, un code par mail confirme que c’est elle, le dossier avance tout seul et la convention signée revient en PDF. Et ⚙️ L’organisme s’enregistre sur téléphone.' }
-    ]
-  },
-  {
-    version: 1281,
-    date: 'Mardi 27 octobre 2026',
-    resume: '☑️ À faire : partage avec tout le monde, mise à jour toute seule, conditions, images',
-    quoi: [
-      { emoji: '🔁',
-        titre: 'Plus besoin de rafraîchir',
-        texte: 'Le volet ☑️ se relit tout seul toutes les 10 secondes quand il est ouvert. Les listes se partagent aussi avec Chrystel et David.' },
-      { emoji: '⚡',
-        titre: 'Une tâche sous condition',
-        texte: 'Dans ⚙️, « Seulement s’il y a… » une des tuiles de l’appli : la tâche n’apparaît que s’il y a quelque chose, avec le nombre (« Faire les post-permis voiture (3) »).' },
-      { emoji: '🖼️',
-        titre: 'Des images sur les tâches',
-        texte: 'Dans une tâche de liste : « 🖼️ Importer une image » ou Ctrl+V. Aussi : « 🙋 Je reprends » une tâche prise par un autre, ⠿ pour ranger, et les lignes cochées de Ma journée descendent en bas.' }
-    ]
-  },
-  {
-    version: 1280,
-    date: 'Mardi 27 octobre 2026',
-    resume: '💼 Les formations entreprise : dossiers, prix, documents, suivi du financement',
-    quoi: [
-      { emoji: '💼',
-        titre: 'Outils › Entreprises › 💼 Formations',
-        texte: 'Un dossier par formation, avec ou sans OPCO, et sa frise : devis, convention, demande et accord OPCO, formation, attestations, facture, paiement. « ⚠️ À faire maintenant » dit ce qui bloque.' },
-      { emoji: '💶',
-        titre: 'Le prix depuis 💰 Tarifs',
-        texte: 'Un pack ou une prestation de 💰 Tarifs, ou une ligne à la main ; par salarié ou pour le groupe. Les prix sont recopiés au devis.' },
-      { emoji: '📄',
-        titre: 'Les documents sur l’en-tête',
-        texte: 'Devis, programme, convention, lettre pour l’OPCO, convocations, règlement intérieur, feuilles de présence, attestations, certificats de réalisation : en PDF, envoyés par mail.' }
-    ]
-  },
-  {
-    version: 1279,
-    date: 'Mardi 27 octobre 2026',
-    resume: '🙋 « C’est moi » sur les tâches de tous les jours',
-    quoi: [
-      { emoji: '🙋',
-        titre: 'Dire qui s’en occupe',
-        texte: 'Dans ☑️ › 🏢 Bureau, « 🙋 C’est moi » sur une tâche de tous les jours : elle passe dans ta journée, et les autres lisent « 🙋 David s’en occupe » tant qu’elle n’est pas cochée.' },
-      { emoji: '☑️',
-        titre: 'Cochée une fois, cochée partout',
-        texte: 'Cochée dans « Ma journée » ou dans « Tous les jours », elle l’est des deux côtés. ↩️ pour la rendre.' }
-    ]
-  },
-  {
-    version: 1278,
-    date: 'Mardi 27 octobre 2026',
-    resume: '☑️ La todo list : le bureau du jour, Ma journée, des listes perso et partagées',
-    quoi: [
-      { emoji: '☑️',
-        titre: 'Un bouton à côté du 💬',
-        texte: 'Il ouvre « À faire ». Qui le voit se choisit dans ⚙️ Accès (case « ☑️ À faire »).' },
-      { emoji: '🏢',
-        titre: 'Le bureau, chaque jour',
-        texte: 'Les tâches de tous les jours, décochées chaque matin à 6h (« ⚠️ pas fait hier » si oubliée), et « Ma journée » où chacun dit ce qu’il fait.' },
-      { emoji: '👥',
-        titre: 'Listes perso et partagées',
-        texte: 'Avec une date, une personne, une note. Les ✅ Tâches du bureau sont reprises dans « 🏢 Bureau ». Une notification seulement quand on t’attribue une tâche.' }
-    ]
-  },
-  {
-    version: 1277,
-    date: 'Mardi 27 octobre 2026',
-    resume: '👂 La présence aux écoutes : pointage, absences, rappels',
-    quoi: [
-      { emoji: '👂',
-        titre: 'Qui est dans ta voiture ?',
-        texte: 'Sur la carte du cours d’aujourd’hui, les élèves en écoute à cette heure (lus par le favori) : on coche ceux qui sont dans la voiture, ou « Personne avec moi ».' },
-      { emoji: '❓',
-        titre: 'Les pas venus, 30 min après',
-        texte: '« ❓ Pas venu(e) ? » avec « ✉️ Envoyer l’absence » (mail + message) et « ↩️ Était là ». Rien ne part si un cours de l’heure n’a pas pointé. Ils entrent dans « 🚫 Pas venu en écoute ».' },
-      { emoji: '⏰',
-        titre: 'Les rappels d’écoute à 17h',
-        texte: 'La veille, avec où attend la voiture (cour intérieure ou devant, d’après les rappels de cours). À retirer ou à annuler dans Suivi › 👂 Écoutes. Interrupteurs pour les administrateurs.' }
-    ]
-  },
-  {
-    version: 1276,
-    date: 'Mardi 27 octobre 2026',
-    resume: '🕘 Appels relus tout seuls · 🗑️ suppression visible · 📌 l’élève se choisit en écrivant',
-    quoi: [
-      { emoji: '🕘',
-        titre: 'Les appels arrivent sans « Relire »',
-        texte: 'Si le déclencheur des 5 minutes manque, l’appli relance Allo elle-même dès qu’elle est ouverte, et l’écran du suivi se relit toutes les 2 minutes.' },
-      { emoji: '🗑️',
-        titre: 'Un message supprimé se voit tout de suite',
-        texte: '« 🚫 Message supprimé » apparaît sans recharger la page, chez tout le monde (élèves compris).' },
-      { emoji: '📌',
-        titre: 'On choisit l’élève en écrivant',
-        texte: 'Au-dessus de la barre : ✕ retire un élève, plusieurs élèves du même prénom se choisissent d’un appui. « David » (un collègue et un élève) : proposé, rangé seulement si on touche l’élève.' },
-      { emoji: '⚠️',
-        titre: 'Rouge = une case cochée',
-        texte: 'Le tiroir « Suivi de … » n’est plus rouge pour un simple message ou un texte.' }
-    ]
-  },
-  {
-    version: 1275,
-    date: 'Mardi 27 octobre 2026',
-    resume: '📌 Les prénoms reconnus dans « Message important »',
-    quoi: [
-      { emoji: '📌',
-        titre: 'Le prénom seul est reconnu',
-        texte: 'Même quand l’élève est écrit « GUIVARCH Lena » (Drivup) : « Lena » suffit, et c’est la même élève que « Lena Guivarch ». Un titre qui contient « important » (ou « suivi » et « exam ») est lu d’office.' },
-      { emoji: '👀',
-        titre: 'On voit à qui ira le message',
-        texte: 'Pendant qu’on tape : « Ira dans le suivi de : 📌 Lena Guivarch ». Les messages déjà envoyés sans étiquette se rangent à l’ouverture du fil.' }
-    ]
-  },
-  {
-    version: 1274,
-    date: 'Mardi 27 octobre 2026',
-    resume: '🎤 Les vocaux des autres écrits · 📍 Trafic · 📣 Suivi examen',
-    quoi: [
-      { emoji: '🎤',
-        titre: 'Le texte sous les vocaux des autres',
-        texte: 'Un vocal sans texte s’écrit à l’ouverture du fil (moins de 30 jours), et ce texte reste pour tout le monde. Plus ancien : « ✍️ Écrire ce qui est dit » sous la bulle.' },
-      { emoji: '📍',
-        titre: 'Ma position, et « Trafic »',
-        texte: '＋ › Ma position envoie l’adresse avec Google Maps et Waze. Dans « Trafic » : 🚗 Bouchons, 💥 Accidents, 🚧 Marquage au sol effacé, envoyés avec la position. Un bouton rapide peut maintenant être réservé à une conversation précise.' },
-      { emoji: '📣',
-        titre: 'Le résultat dans « Suivi examen »',
-        texte: 'Reçu : « ✅ Nom — Reçu ». Ajourné : « ❌ Nom — Ajourné » et les captures du CEPC de cet examen (à coller avant de cliquer).' }
-    ]
-  },
-  {
-    version: 1273,
-    date: 'Mardi 27 octobre 2026',
-    resume: '⚠️ « Suivi de … » : le tiroir, la messagerie, le dossier',
-    quoi: [
-      { emoji: '⚠️',
-        titre: 'Le tiroir « Suivi de … »',
-        texte: 'Au-dessus des questions de vérification : 🎧 pas d’écoutes (le texte part dans le bilan), 👥 pas les groupes (❌ dans le bilan), un texte libre, ses repères et les messages qui parlent de lui. Rouge quand il y a quelque chose à savoir ; un bilan ❌ coche tout seul.' },
-      { emoji: '📌',
-        titre: 'Les élèves dans « Message important »',
-        texte: 'Dans « Message important » et « Suivi examen », le prénom d’un élève (ou « mon élève actuel », ou une réponse) range le message dans son suivi ; sa fiche s’affiche à droite. Plusieurs élèves du même prénom : on choisit. D’autres conversations dans ⚙️ Réglages.' },
-      { emoji: '👤',
-        titre: 'Dans le dossier élève',
-        texte: 'L’onglet « ⚠️ Suivi » en tête, et un résumé rouge au-dessus des tuiles quand il y a quelque chose à savoir.' }
-    ]
-  },
-  {
-    version: 1272,
-    date: 'Mardi 27 octobre 2026',
-    resume: '🎤 Vocaux écrits · 👁️ repères · 🧰 réponses des vérifs',
-    quoi: [
-      { emoji: '🎤',
-        titre: 'Le texte des vocaux revient',
-        texte: 'Dans la messagerie, si rien ne s’est écrit pendant que tu parlais (iPhone, appli installée…), à ■ ou à ➤ l’appli fait écrire le vocal : « ✍️ J’écris ce que tu as dit… », puis le texte, corrigeable.' },
-      { emoji: '👁️',
-        titre: 'Le repère de l’élève, et un seul 🚗',
-        texte: 'Un 👁️ au bout de chaque manœuvre : son repère à lui, gardé pour les cours suivants et mis dans son bilan le jour où il est écrit. Pour un élève venu d’ailleurs, un seul 🚗 en dernier coche tout ; on en retire une en touchant son 🚗.' },
-      { emoji: '🧰',
-        titre: 'Les questions de vérification',
-        texte: 'Les ✅ ❌ — au bout de chaque ligne ; dessous, la réponse de l’élève et ton commentaire, dans son bilan ; et « 📜 Déjà posées » avec la date, le moniteur, la note et ses réponses.' },
-      { emoji: '🎬',
-        titre: 'VLC sous la Carte SD',
-        texte: 'Dans tous les bilans : télécharger VLC si les vidéos ne se lisent pas, et regarder sa carte SD en salle des tablettes.' }
-    ]
-  },
-  {
-    version: 1271,
-    date: 'Lundi 26 octobre 2026',
-    resume: '🧤 Jeu des vérifs : côté passager, portière et sièges arrière',
-    quoi: [
-      { emoji: '🧤',
-        titre: 'Trois photos de plus',
-        texte: 'Dans l’atelier, trois nouveaux endroits : « 🧤 Côté passager, boîte à gants ouverte » (l’airbag passager, 37 et 87), « 🚪 Portière arrière ouverte » (la sécurité enfant, 42 et 88) et « 💺 Sièges arrière » (les attaches Isofix, 61). Ces trois lignes y sont déjà rangées, et le chemin (sortir par la porte) se remplit tout seul.' }
-    ]
-  },
-  {
-    version: 1270,
-    date: 'Lundi 26 octobre 2026',
-    resume: '🔎 Jeu des vérifs : tout se place sur n’importe quelle photo',
-    quoi: [
-      { emoji: '🔎',
-        titre: 'Tout ce qui reste à placer',
-        texte: 'Dans l’atelier, sous la liste de la photo, « 🔎 Autre chose sur cette photo ? » cherche par mot ou par numéro dans tout ce qui n’est pas encore placé. « ＋ ici » le range sur la photo affichée et on le dessine aussitôt.' },
-      { emoji: '📍',
-        titre: 'Pas sur cette photo',
-        texte: '« 📍 Pas sur cette photo… » range une ligne sur un autre endroit d’un toucher. Et chaque ligne écrit la question en clair, pour voir tout de suite si elle va avec la photo.' }
-    ]
-  },
-  {
-    version: 1269,
-    date: 'Lundi 26 octobre 2026',
-    resume: '📄 Suivi des appels : le résumé complet, et écrire sur chaque appel',
-    quoi: [
-      { emoji: '📄',
-        titre: 'Le résumé complet de l’appel',
-        texte: 'Sous chaque appel, « 📄 Résumé complet de l’appel » déplie tout ce qu’Allo a écrit (le titre, les détails, la prochaine étape). Il est aussi dans « Ce qui s’est passé ».' },
-      { emoji: '✉️',
-        titre: 'Écrire, et copier',
-        texte: '« ✉️ Écrire » est sur chaque appel, même non rattaché, et dans « Ce qui s’est passé ». L’adresse se modifie, « 📄 Le résumé de l’appel » remplit un message tout prêt, et « 📋 Copier le texte » permet de le coller sur Messenger ou ailleurs.' }
-    ]
-  },
-  {
-    version: 1268,
-    date: 'Lundi 26 octobre 2026',
-    resume: '📋 Jeu des vérifs : les zones se placent depuis une liste',
-    quoi: [
-      { emoji: '📋',
-        titre: 'L’atelier du jeu : « À placer sur cette photo »',
-        texte: 'Pour chaque photo, la liste de ce qu’on y trouve, déjà reliée aux bonnes questions : on touche une ligne, on glisse sur la photo, c’est enregistré. Une zone se déplace en la glissant et s’agrandit par son coin. Les chemins (porte → poignée → capot) se remplissent tout seuls.' },
-      { emoji: '🔢',
-        titre: 'Tout montrer, dans l’ordre qu’on veut',
-        texte: 'Dans le jeu, une question à plusieurs endroits demande tout : les plaques devant ET derrière, les clignotants côté trottoir devant, sur le côté et derrière. L’élève fait le tour de la voiture, dans l’ordre qu’il veut.' }
-    ]
-  },
-  {
-    version: 1266,
-    date: 'Lundi 26 octobre 2026',
-    resume: '📞 Le suivi des appels d’Allo, et l’historique dans le dossier',
-    quoi: [
-      { emoji: '📞',
-        titre: 'Élèves › Au quotidien › Suivi des appels',
-        texte: 'Les appels et SMS du 02 21 65 24 24 arrivent tout seuls (relus toutes les 5 minutes) : joint, message laissé, répondeur, pas de réponse, accueil IA. En haut, ⏰ ce qu’il faut rappeler. Un appel se range dans le dossier de l’élève dont c’est le numéro ; sinon, « 🔗 Rattacher » (un parent peut être gardé comme proche).' },
-      { emoji: '✏️',
-        titre: 'Ce qui s’est passé',
-        texte: 'Ce qu’Allo a détecté est déjà posé ; on corrige si besoin, on choisit « à rappeler » aujourd’hui, demain ou un autre jour, on ajoute une note — avec ton nom. Quand le rappel est fait, le tag « A rappeller » s’enlève aussi dans Allo.' },
-      { emoji: '✉️',
-        titre: 'Envoyer depuis le suivi',
-        texte: 'Un mail, un message dans la messagerie ou un Messenger (copié puis ouvert), à partir d’un modèle de « Ce qu’on écrit » si on veut : ce qui est parti reste écrit sous l’appel.' },
-      { emoji: '👤',
-        titre: 'L’onglet 📞 Appels du dossier',
-        texte: 'Tout l’historique des appels de l’élève et de ses proches, et « ➕ Noter un appel » passé d’un portable personnel. « 📞 Tout rappeler » envoie les rappels du jour dans la file d’appels d’Allo.' }
-    ]
-  },
-  {
-    version: 1265,
-    date: 'Samedi 24 octobre 2026',
-    resume: '🔀 Les catégories se rangent enfin en les glissant',
-    quoi: [
-      { emoji: '🔀',
-        titre: 'Glisser une catégorie',
-        texte: 'Dans « Ce qu’on écrit et envoie (keep) », on attrape une catégorie (au doigt : par sa poignée ⠿), un trait montre où elle va, on lâche : elle se pose là, tout de suite — même tout en bas. Au clavier : Alt + ↑ / ↓.' },
-      { emoji: '📁',
-        titre: 'Une fiche lâchée sur une catégorie',
-        texte: 'Glisser une fiche sur une catégorie l’y range (elle garde ses autres catégories) ; sur « 🔒 Privé », elle devient privée.' }
-    ]
-  },
-  {
-    version: 1264,
-    date: 'Samedi 24 octobre 2026',
-    resume: '👁 Voir une procédure avant de la joindre au bilan',
-    quoi: [
-      { emoji: '👁',
-        titre: 'Un œil sur chaque procédure',
-        texte: 'Dans « 📋 Procédures à joindre au bilan », le 👁 collé à droite de chaque procédure ouvre son contenu dans une fenêtre : son texte, sa consigne et ses images. Regarder ne la coche pas.' }
-    ]
-  },
-  {
-    version: 1263,
-    date: 'Samedi 24 octobre 2026',
-    resume: '📥 Import Keep : on trie par libellé, puis fiche par fiche',
-    quoi: [
-      { emoji: '🏷️',
-        titre: 'D’abord les libellés Keep',
-        texte: 'Chaque libellé, avec son nombre de fiches, « Va dans » : une catégorie de l’appli, ➕ une nouvelle, 🔒 privée, 📭 sans catégorie ou 🚫 ne pas importer. Au départ tout est « ⏳ à décider » : rien n’est créé sans vous.' },
-      { emoji: '📝',
-        titre: 'Puis fiche par fiche, si besoin',
-        texte: 'Toucher un libellé montre ses fiches, 50 par 50 ; chacune suit son libellé tant qu’on ne la change pas. Les choix sont gardés sur l’appareil, l’import s’arrête et reprend sans rien doubler.' },
-      { emoji: '🖼️',
-        titre: 'Les photos des fiches hors du classeur',
-        texte: 'Les nouvelles images des fiches vont dans l’espace de stockage de l’école (liens qui expirent), pour ne pas alourdir le classeur. La bibliothèque montre ses fiches 80 par 80.' }
-    ]
-  },
-  {
-    version: 1262,
-    date: 'Samedi 24 octobre 2026',
-    resume: '📥 Les fiches Google Keep entrent dans « Ce qu’on écrit et envoie (keep) »',
-    quoi: [
-      { emoji: '📄',
-        titre: '« Modèles messages » s’appelle « Ce qu’on écrit et envoie (keep) »',
-        texte: 'Outils › Ce qu’on écrit : c’est l’outil qui remplace Keep. Dans la messagerie, le bouton s’appelle « 📄 Ce qu’on écrit et envoie ».' },
-      { emoji: '📥',
-        titre: 'Importer ses fiches Keep',
-        texte: 'Le bouton « 📥 Keep » : on dépose le zip de Google Takeout, chaque fiche s’affiche avec sa couleur, on choisit sa catégorie (pré-remplie avec le libellé Keep, ou « ➕ Nouvelle catégorie… »), puis on importe. Photos et listes à cocher suivent ; la corbeille reste dans Keep ; une fiche déjà là arrive décochée.' }
-    ]
-  },
-  {
-    version: 1261,
-    date: 'Samedi 24 octobre 2026',
-    resume: '🎯 La phrase verte se choisit, pour l’élève',
-    quoi: [
-      { emoji: '✏️',
-        titre: 'Toucher la phrase verte pour la choisir',
-        texte: 'Sur la carte de 📅 Mes prochains cours, ou pendant le cours sous « 📋 Compléter les infos » : 🤖 Automatique, 🎓 C’est la leçon de veille, ⏱️ Plus que les 3h, ⏳ Il reste des heures, 📍 Seulement où il en est, ou ✍️ Ma phrase. Le moniteur du cours, le bureau et les administrateurs peuvent choisir.' },
-      { emoji: '✋',
-        titre: 'Pour l’élève, jusqu’à « ↩️ Automatique »',
-        texte: 'Le choix suit l’élève de cours en cours, avec la mention « ✋ Choisie par … » sous la phrase. « Il reste des heures » se décompte tout seul à chaque leçon. Le bilan (« 📍 Où tu en es ») suit le choix. Le jour de l’examen, la phrase dit toujours l’examen.' },
-      { emoji: '✍️',
-        titre: 'Ma phrase, avec des infos qui se remplissent',
-        texte: 'Des boutons ajoutent [Où il en est], [Date de l’examen], [Jours avant l’examen], [Heures restantes], [Passage]… : elles se remplissent toutes seules à chaque cours. Une info que l’appli ne connaît pas s’affiche « ? ».' }
-    ]
-  },
-  {
-    version: 1260,
-    date: 'Samedi 24 octobre 2026',
-    resume: '✅ Suivi permis : les trois cases de la préparation se cochent ensemble',
-    quoi: [
-      { emoji: '✅',
-        titre: 'Les trois cases se tiennent',
-        texte: 'Dans la fiche d’une place (🎓 Suivi permis) : cocher « ✅ Tout est OK » coche « 💶 Tout est payé » et « 📆 Tout est planifié » ; cocher ces deux-là coche « Tout est OK » ; décocher l’une des deux le décoche.' }
-    ]
-  },
-  {
-    version: 1259,
-    date: 'Samedi 24 octobre 2026',
-    resume: '🎯 La phrase verte suit les heures, pas seulement le dernier cours préparé',
-    quoi: [
-      { emoji: '🎯',
-        titre: 'La veille, quand les heures le disent',
-        texte: 'Un cours dans les 3 jours avant l’examen n’est plus annoncé « leçon de veille » juste parce que c’est le dernier cours préparé : quand les heures sont connues, la phrase verte suit les heures (« Plus que les 3h avant examen »), sauf si l’examen est le lendemain. Sans heures connues (AAC), rien ne change.' }
-    ]
-  },
-  {
-    version: 1258,
-    date: 'Samedi 24 octobre 2026',
-    resume: '🎯 La phrase verte ne dit plus « leçon de veille » quatre jours trop tôt',
-    quoi: [
-      { emoji: '🎯',
-        titre: 'Une réserve dépassée n’est pas la veille',
-        texte: 'Quand les heures avant l’examen sont dépassées de plus d’une leçon, la phrase verte dit « Plus que les 3h avant examen » au lieu de « C’est la leçon de veille ». La veille reste dite pour le dernier cours prévu dans les 3 jours avant l’examen, ou pour la leçon juste après la réserve — comme la tuile du dossier.' }
-    ]
-  },
-  {
-    version: 1257,
-    date: 'Samedi 24 octobre 2026',
-    resume: '📘 Le guide refait pour la v1257, et cinq petites erreurs corrigées',
-    quoi: [
-      { emoji: '📘',
-        titre: 'Le guide d’utilisation est à jour',
-        texte: 'Menu ⋯ › Guide : douze chapitres, dont trois nouveaux — le parcours et l’espace élève, les vérifications et leur jeu, Drivup et le favori 📥.' },
-      { emoji: '📝',
-        titre: 'Un examen blanc prévu n’est plus « passé »',
-        texte: '« Fixer la date », « ➕ Prévoir un examen blanc », « Changer la date » et « 📅 Planifier » (CS et dossier) écrivent maintenant la date prévue : « Sa route » ne dit plus « passé le » une date à venir. Et un examen blanc planifié depuis la CS ou le dossier est enfin relu comme prévu dans les listes.' },
-      { emoji: '🧹',
-        titre: 'Des libellés remis d’aplomb',
-        texte: '« Ajouter une date » : le bouton dit « 📌 Enregistrer » ou « 📅 Enregistrer la date » selon la situation. L’aide des alertes envoie vers Gestion › ⚙️ Accès.' }
-    ]
-  },
-  {
-    version: 1256,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '👀 Montrer son espace à un élève · 🎮 jouer au jeu des vérifications de notre côté',
-    quoi: [
-      { emoji: '👀',
-        titre: 'Ouvrir l’espace d’un élève pour le lui montrer',
-        texte: 'Dans son dossier, onglet 🔑 Coin révisions : « 👀 Ouvrir son espace pour le lui montrer ». Son espace s’ouvre dans un nouvel onglet, comme il le voit, sans taper son code. C’est une démonstration : rien ne part ni ne s’enregistre à son nom (ni message, ni récitation, ni progression, ni dernière visite). « ✕ Terminer » la ferme ; elle s’arrête seule au bout de deux heures. Chaque ouverture est notée au journal.' },
-      { emoji: '🎮',
-        titre: 'Outils › Vérifications › 🎮 Jouer (essai)',
-        texte: 'Le vrai jeu, dans un téléphone, avec nos voitures et leurs photos, pour le tester. Rien n’est gardé : « ↺ Recommencer à zéro » ou rouvrir l’onglet repart de zéro.' }
-    ]
-  },
-  {
-    version: 1255,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '💡 Jeu des vérifications : allumer les feux, puis faire le tour',
-    quoi: [
-      { emoji: '💡',
-        titre: 'L’élève allume lui-même les feux',
-        texte: 'Au volant de SA voiture, il touche la bonne commande le bon nombre de fois (la bague : deux crans), puis une autre si besoin, et dit « C’est allumé ». Un appui de trop ou la mauvaise commande : on lui dit ce qu’il a fait, tout s’éteint, et la question part dans « À revoir ».' },
-      { emoji: '🚶',
-        titre: 'Puis il fait le tour de la voiture',
-        texte: 'Il sort par la porte et touche les feux allumés sur la vraie photo, devant et derrière.' },
-      { emoji: '📸',
-        titre: 'Dans l’atelier (Outils › Vérifications)',
-        texte: 'Pour chaque vue, « 💡 Les feux sur cette photo » accueille la photo avec tel feu allumé ; une nouvelle sorte de zone, 🔘 « commande » ; le panneau « 💡 Allumer les feux » (quelles commandes, combien d’appuis, pour quelles voitures) ; et la règle « L’allumer, puis contrôler » question par question.' }
-    ]
-  },
-  {
-    version: 1254,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '📱 Vidéos au téléphone : plein écran entier, sous-titres à leur taille',
-    quoi: [
-      { emoji: '🖥️',
-        titre: 'Le plein écran montre toute la vidéo',
-        texte: 'Debout ou couché, la vidéo prend la plus grande taille qui tient dans l’écran du téléphone, sans rien couper.' },
-      { emoji: '💬',
-        titre: 'Des sous-titres qui ne cachent plus l’image',
-        texte: 'Deux lignes au plus (une longue phrase se découpe et défile), une taille bornée même en plein écran, et toujours au-dessus du copyright.' }
-    ]
-  },
-  {
-    version: 1253,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '🙈 Le flou, 💬 les sous-titres, 🎞️ le vrai fichier MP4',
-    quoi: [
-      { emoji: '🙈',
-        titre: 'Flouter une plaque ou un visage',
-        texte: 'Onglet « 🙈 Flou » de l’éditeur : un rectangle ou un rond, que tu poses sur l’image. Si ça bouge, redéplace-le à chaque changement de direction : chaque place devient un point de passage, et entre deux la zone glisse toute seule.' },
-      { emoji: '🎞️',
-        titre: 'Une vidéo floutée se fabrique',
-        texte: 'Sur l’ordinateur du bureau (Chrome ou Edge) : la vidéo est refaite avec tout son montage dans l’image, le flou compris. La vidéo d’origine est effacée à l’enregistrement du guide : la plaque n’existe plus nulle part.' },
-      { emoji: '💬',
-        titre: 'Les sous-titres automatiques',
-        texte: 'Onglet « 💬 Sous-titres » : la reconnaissance vocale écrit ce qui est dit, avec les temps. Tu relis, tu corriges, tu réécoutes une phrase (▶). Chez l’élève, le bouton « CC » les affiche.' },
-      { emoji: '📥',
-        titre: 'Télécharger en MP4',
-        texte: 'Sur une vidéo montée, « 🎞️ Télécharger en MP4 » fabrique le vrai fichier (H.264, que tous les téléphones lisent), sous-titres incrustés : pour Messenger ou un envoi.' }
-    ]
-  },
-  {
-    version: 1252,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '🎬 Monter une vidéo de guide sans logiciel de montage',
-    quoi: [
-      { emoji: '🎬',
-        titre: 'Un éditeur avant le dépôt',
-        texte: 'Dans un bloc « 🎬 Vidéo » d’un guide, choisir la vidéo ouvre l’éditeur : ton squelette se monte tout seul autour (avertissement, titre, copyright, roue, générique). Coupe le début, la fin ou un passage au milieu, puis « 💾 Enregistrer le montage » — ou « Déposer sans montage ».' },
-      { emoji: '🏷️',
-        titre: 'Textes, polices, couleurs',
-        texte: 'Des textes posés sur l’image au moment voulu, que tu fais glisser (ou flèches du clavier) ; 6 polices, 4 tailles, 6 couleurs et 🎨 la tienne, 4 fonds. Le copyright se place à 6 endroits, dont en bas au milieu.' },
-      { emoji: '🔊',
-        titre: 'Le son, et plusieurs vidéos',
-        texte: 'Couper le son d’un passage, ajouter une musique (libre de droits), mettre jusqu’à 4 vidéos bout à bout. La vidéo d’origine n’est jamais touchée : « 🎬 Modifier le montage » à tout moment.' },
-      { emoji: '🦴',
-        titre: 'Outils › Ce qu’on écrit › 🎬 Squelette des vidéos',
-        texte: 'L’avertissement, le copyright, le générique, les transitions, le style maison des textes et les polices de l’école, réglés une fois (administrateurs). Chez l’élève : le début se passe dès la 2ᵉ fois, et les 90 % ne comptent que la vidéo elle-même.' }
-    ]
-  },
-  {
-    version: 1251,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '🧰 Les questions de vérification se posent pendant le cours',
-    quoi: [
-      { emoji: '🧰',
-        titre: 'Un tiroir « Questions de vérification »',
-        texte: 'Sous les procédures, au vocal et au bilan à la main, pour la conduite et l’AAC : tu tapes le n°, la question s’affiche (réponses derrière 👁️), tu en poses autant que tu veux.' },
-      { emoji: '✅',
-        titre: 'Noter partie par partie',
-        texte: 'Vérification, QSER, premiers secours : ✅ ou ❌, la note sur 3 se fait toute seule. « — » = pas demandée.' },
-      { emoji: '📄',
-        titre: 'Tout part dans le bilan',
-        texte: 'Chaque question avec ses réponses, ✅ ❌ et sa note, puis le total. Une partie ❌ revient « à revoir » dans le jeu de l’élève.' },
-      { emoji: '🎙️',
-        titre: 'À la voix aussi',
-        texte: '« Question 12 » dit pendant l’enregistrement la pose toute seule. La case « Question n° / Note sur 3 » de l’en-tête est remplacée par un rappel.' }
-    ]
-  },
-  {
-    version: 1250,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '🚨 Le bon voyant : contre la montre, sur le tableau de bord de sa voiture',
-    quoi: [
-      { emoji: '🚨',
-        titre: 'Le bon voyant',
-        texte: 'Dans le jeu des élèves : « touche le voyant qui… », 15 secondes par voyant, une série ⚡ qui multiplie les points, et un record à battre. Sur la photo « Voyants allumés » de SA voiture.' },
-      { emoji: '🖥️',
-        titre: 'Quand le voyant n’existe pas',
-        texte: 'Si tu as réglé la question « c’est l’ordinateur de bord » pour sa voiture dans l’atelier, c’est la case 🖥️ qu’il doit toucher.' },
-      { emoji: '📸',
-        titre: 'Pour qu’il apparaisse',
-        texte: 'Dépose la photo « Voyants allumés » de la voiture dans l’atelier, et dessine une zone 🎯 sur chaque voyant avec les numéros de ses questions (15 et 75 pour la pression d’huile, 23 pour la batterie…).' }
-    ]
-  },
-  {
-    version: 1249,
-    date: 'Vendredi 23 octobre 2026',
-    resume: '📸 L’atelier du jeu : nos voitures, nos photos, leurs chemins',
-    quoi: [
-      { emoji: '📸',
-        titre: 'L’atelier (administrateurs)',
-        texte: 'Outils › 🧰 Vérifications › « 📸 Nos voitures » : les voitures du jeu, une photo par endroit (au volant, porte ouverte, devant, capot ouvert…), et des zones dessinées au doigt. Une photo peut servir à plusieurs voitures.' },
-      { emoji: '🧭',
-        titre: 'Le chemin, dans l’ordre',
-        texte: 'Par voiture et par endroit, les gestes dans l’ordre (ex. : la porte, puis la manette du capot, puis le capot) — et « Appliquer aussi à » d’autres voitures en un clic.' },
-      { emoji: '🔧',
-        titre: 'Question par question',
-        texte: 'La montrer sur la photo, « il n’y en a pas : à dire » (ex. hauteur des feux automatique), ou « c’est l’ordinateur de bord » — « Même chose pour » plusieurs voitures.' },
-      { emoji: '🚗',
-        titre: 'Chez l’élève : « Ma voiture, en vrai »',
-        texte: 'Il choisit sa voiture, et fait les gestes sur SES photos. S’il se trompe, on lui dit ce qu’il a touché.' }
-    ]
-  },
-  {
-    version: 1248,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '🎮 Le jeu des vérifications arrive dans l’espace des élèves',
-    quoi: [
-      { emoji: '🧰',
-        titre: 'Un onglet « Vérifs » pour l’élève',
-        texte: 'Il s’ouvre élève par élève, dans 🔑 Coin révisions : case « 🧰 Le jeu des vérifications ». Le jour J, Cartes éclair, À revoir, et la grille des 100 questions.' },
-      { emoji: '📝',
-        titre: 'Les questions ratées reviennent',
-        texte: 'Un examen blanc, un examen ou un cours dont la question de vérification est ratée : quand le bilan part par mail, la question revient « à revoir » dans son jeu.' },
-      { emoji: '👀',
-        titre: 'Sa progression',
-        texte: 'Dans son dossier (🔑, sous son parcours), et sur la carte d’un examen blanc ou d’un examen dans Mes prochains cours : ce qu’il maîtrise sur 100, et ce qu’il a à revoir.' }
-    ]
-  },
-  {
-    version: 1247,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '✏️ Courriers : tailles, couleurs, listes — un vrai traitement de texte',
-    quoi: [
-      { emoji: '🔠',
-        titre: 'Taille et style de ligne',
-        texte: 'Choisis la taille (8 à 72) ou un style tout prêt : Titre, Sous-titre, Petit texte. A− et A+ font un cran.' },
-      { emoji: '🎨',
-        titre: 'Couleur et surligneur',
-        texte: 'Une palette de couleurs pour le texte (et « Autre couleur… »), et un surligneur. Le PDF garde les mêmes couleurs.' },
-      { emoji: '📋',
-        titre: 'Listes et retraits',
-        texte: 'Listes à puces ou numérotées, sous-listes, retrait d’une ligne, barré, annuler et rétablir.' }
-    ]
-  },
-  {
-    version: 1246,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '🧰 Les questions de vérification s’affichent sous leur numéro',
-    quoi: [
-      { emoji: '📖',
-        titre: 'La question sous son numéro',
-        texte: 'Examen blanc, RVP, examen officiel et en-tête des cours : tape le numéro, la vérification (VI ou VE), la QSER et les 1ers secours s’affichent. Les réponses sont derrière « 👁️ Voir les réponses ».' },
-      { emoji: '⚠️',
-        titre: 'Les questions neutralisées',
-        texte: 'Les 1ers secours des questions 11, 18, 59, 76 et 97 (PLS) sont barrés : la fiche montre la question suivante, celle que pose l’inspecteur.' },
-      { emoji: '📝',
-        titre: 'Dans le bilan',
-        texte: 'Sous le numéro de la question, le bilan écrit les questions posées et leurs réponses.' },
-      { emoji: '🧰',
-        titre: 'La banque des questions',
-        texte: 'Outils › Ce qu’on écrit › Vérifications : les 100 questions, à chercher et à imprimer. Les administrateurs peuvent corriger une question, ou la neutraliser et la remplacer.' },
-      { emoji: '🅿️',
-        titre: 'La manœuvre et l’arrêt de précision',
-        texte: 'La liste des manœuvres se referme à chaque coche, et « Arrêt de précision faite » n’est plus cochée d’office.' }
-    ]
-  },
-  {
-    version: 1245,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '✏️ Courriers : écrire comme dans Word, et des images',
-    quoi: [
-      { emoji: '✏️',
-        titre: 'On écrit sur toute la page',
-        texte: 'Le courrier vierge ne faisait qu’une ligne : on touche maintenant n’importe où sur la page pour écrire, et une page vide dit « Écris ton courrier ici… ».' },
-      { emoji: '🅱️',
-        titre: 'La barre d’écriture, comme dans Word',
-        texte: 'Gras, italique, souligné, à gauche, centré, à droite, justifié, et « retirer la mise en forme » ; Ctrl+B, Ctrl+I, Ctrl+U marchent aussi. Le PDF reprend tout à l’identique.' },
-      { emoji: '🖼️',
-        titre: 'Des images dans un courrier',
-        texte: '« 🖼️ Ajouter une image », ou copier-coller (Ctrl+V, ou appui long › Coller) : une photo, un plan, une capture, posée sur la page comme une signature. « ✨ Retirer le fond blanc » au choix. Une image posée dans un modèle revient sur chaque courrier.' },
-      { emoji: '📋',
-        titre: 'Les signatures et tampons se collent aussi',
-        texte: 'Dans ✍️ Signatures et tampons, à côté du bouton : « 📋 Ou colle l’image ici ».' }
-    ]
-  },
-  {
-    version: 1244,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '✉️ Courriers : une session d’un coup, relance, carnet, messagerie, signature',
-    quoi: [
-      { emoji: '✉️',
-        titre: 'Les convocations de toute une session',
-        texte: '🎓 Suivi permis : le ✉️ d’une session prépare la convocation de chaque élève (ses jours, l’en-tête de son agence, son numéro). Un envoi pour tous, ou un seul PDF pour imprimer la pile.' },
-      { emoji: '💶',
-        titre: '« ✉️ Relance » à côté de « Il doit de l’argent »',
-        texte: 'Elle ouvre la relance de paiement de l’élève, le reste à payer déjà écrit.' },
-      { emoji: '📇',
-        titre: 'Le carnet d’adresses',
-        texte: 'Employeurs, lycées, mission locale… : leur adresse se pose dans la fenêtre de l’enveloppe, et leur mail est proposé à l’envoi.' },
-      { emoji: '💬',
-        titre: 'Le courrier aussi dans sa messagerie',
-        texte: 'En envoyant, « Aussi dans sa messagerie » dépose le PDF dans son fil « Le bureau » (s’il a son espace élève) — même sans adresse mail.' },
-      { emoji: '✍️',
-        titre: 'L’élève signe sur la tablette',
-        texte: '« ✍️ Faire signer » : il signe au doigt, sa signature se pose sur la page et ne sert qu’à ce courrier.' }
-    ]
-  },
-  {
-    version: 1243,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '✉️ Les courriers sur papier à en-tête',
-    quoi: [
-      { emoji: '✉️',
-        titre: 'Outils › Ce qu’on écrit › ✉️ Courriers',
-        texte: 'Un courrier vierge (l’en-tête et le pied de page), la convocation à l’examen, et des attestations prêtes (inscription, formation, réussite, restitution du dossier, relance de paiement). On choisit l’élève : son nom, Monsieur/Madame, « convoqué/convoquée », sa catégorie et ses jours d’examen se remplissent seuls. On relit sur la vraie page, puis 📄 PDF, 🖨️ impression ou ✉️ mail.' },
-      { emoji: '📍',
-        titre: 'Saint-Brieuc ou Loudéac',
-        texte: 'L’en-tête suit l’agence de l’élève et se change d’un toucher. Le Siret est au pied des deux.' },
-      { emoji: '✍️',
-        titre: 'Signatures et tampons (administrateurs)',
-        texte: 'Une photo de la signature ou du tampon : le fond blanc est retiré, l’image se pose par-dessus le texte et se glisse où l’on veut, se règle en taille et se tourne.' },
-      { emoji: '🔢',
-        titre: 'Un numéro par courrier, et l’onglet ✉️ Courriers du dossier',
-        texte: 'Chaque courrier fait reçoit « EC-2026-0001 » écrit au bas de la page, se retrouve par la recherche, et se range dans le dossier de l’élève avec son PDF.' }
-    ]
-  },
-  {
-    version: 1242,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '👂 Les écoutes aussi depuis « Tous les utilisateurs »',
-    quoi: [
-      { emoji: '👂',
-        titre: 'Écoutes à ouvrir, toutes agences',
-        texte: 'Le bouton « 👂 Écoutes à ouvrir » apparaît aussi quand le favori a lu le planning « Tous les utilisateurs » : les cours de Saint-Brieuc vont en BEA ou BV, ceux de Loudéac dans la colonne « Ecoute », dans la même liste à valider.' }
-    ]
-  },
-  {
-    version: 1241,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '📥 Le favori marche sur « Tous les utilisateurs »',
-    quoi: [
-      { emoji: '📥',
-        titre: 'Le planning de toutes les agences d’un coup',
-        texte: 'Sur le planning Drivup « Tous les utilisateurs », le favori ne dit plus « je ne reconnais pas ce planning » : il lit Saint-Brieuc et Loudéac ensemble, chaque cours garde son agence, et un cours disparu de Drivup est marqué « Annulé » dans l’une comme dans l’autre. Les horaires des bureaux et les créneaux libres suivent aussi.' }
-    ]
-  },
-  {
-    version: 1240,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '🔁 Les nouvelles zones à leur place sur une fiche déjà réglée',
-    quoi: [
-      { emoji: '🔁',
-        titre: 'Arrêt de précision et « Après la manœuvre » à leur place',
-        texte: 'Sur une fiche réglée avant leur arrivée, ces zones tombaient tout en bas de la fiche. Elles se rangent maintenant derrière leur voisine d’origine : avant la manœuvre, et juste sous Autonomie (dans le cadre).' },
-      { emoji: '➖',
-        titre: 'Le point retiré après la manœuvre tient',
-        texte: 'Un ⚠️ posé ailleurs ne le rend plus ; la note « … /2 » de l’installation dans le bilan le suit aussi, avec « (−1 après la manœuvre) ».' }
-    ]
-  },
-  {
-    version: 1239,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '🗓️ Créneaux libres : toutes les agences d’un coup, trous d’1h à part',
-    quoi: [
-      { emoji: '🗓️',
-        titre: 'Toutes les agences à chaque lecture',
-        texte: 'Le favori « 📥 » lit maintenant le planning de toutes les agences, quel que soit celui qui est ouvert (Saint-Brieuc, Loudéac ou « Tous les utilisateurs ») : un cours posé à Loudéac n’est plus pris pour un trou à Saint-Brieuc.' },
-      { emoji: '⏳',
-        titre: 'Les trous d’1h, dans leur filtre',
-        texte: 'Élèves › 🗓️ Créneaux libres : « ⏳ Trous d’1h » est une pastille à part, à côté de « ⬜ Rien d’ouvert » (qui garde les créneaux de 2h et « libre après son permis »).' }
-    ]
-  },
-  {
-    version: 1238,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '🎯 Arrêt de précision et 🔁 après la manœuvre sur les examens ; 📦 cadres sans limite',
-    quoi: [
-      { emoji: '🎯',
-        titre: 'L’arrêt de précision, avant la manœuvre',
-        texte: 'Examen blanc, examen officiel et RVP : « 🅿️ Manœuvre : Arrêt de précision » avec ses lignes Remarque de l’inspecteur / Explication (☠️ ⚠️, ➕ Ajouter une ligne), dans le cadre gris. « faite », cochée d’office, le compte dans la fiche des manœuvres de l’élève.' },
-      { emoji: '🔁',
-        titre: 'Passager et voyants revus après la manœuvre',
-        texte: 'Sous Autonomie, deux cases ✅ ❌ : chaque ❌ enlève 1 point à « Savoir s’installer et assurer la sécurité à bord » sur le CEPC, même si c’était bon avant la manœuvre. Le bilan porte « 🔁 Après la manœuvre : Passager … · Voyants … ».' },
-      { emoji: '📦',
-        titre: 'Des cadres de toute taille',
-        texte: 'Dans le créateur de fiches : « ➕ » dans un cadre (même sous sa dernière zone) y ajoute la zone ; le cadre se règle avec « Il commence à / Il finit à » ; pour encadrer, on peut aussi toucher les noms dans « 🧩 Les zones ».' },
-      { emoji: '👨‍✈️',
-        titre: 'Deux nouveaux types dans « ➕ Ajouter ici » (examens)',
-        texte: '« 👨‍✈️ Remarques de l’inspecteur + explications », avec la mention qui part dans le bilan et le nombre de lignes ; « ✅❌ Trois états qui enlèvent des points au CEPC », avec la ligne du CEPC et 1 à 3 points.' }
-    ]
-  },
-  {
-    version: 1237,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '🗓️ Créneaux de 2h, simulateurs repérés, plusieurs manœuvres, CEPC gardé',
-    quoi: [
-      { emoji: '🗓️',
-        titre: 'Les créneaux libres, comme on les propose',
-        texte: 'Quand rien n’est ouvert, la journée d’un moniteur se propose par créneaux de 2h (8h-10h, 10h-12h, 13h-15h, 15h-17h, 17h-19h) ; un créneau à moitié pris garde son trou d’1h ; après un permis, de l’heure de fin (trajet retour compris) à 2h après. ' +
-               'Une note sur sa colonne (« .LOUDÉAC »…) compte comme occupée. « 1h dispo » écrit dans Drivup a sa pastille « ✍️ Dispo écrite ».' },
-      { emoji: '🕹️',
-        titre: 'Le simulateur avec moniteur à 1 place, enfin repéré',
-        texte: 'Il était manqué : Drivup n’écrit pas de places pour un seul inscrit. Il apparaît maintenant avec son intitulé (« (Passerelle) » quand c’en est un) et la séance notée sur la colonne (« 3 », « 3-4 »).' },
-      { emoji: '🅿️',
-        titre: 'Plusieurs manœuvres à l’examen',
-        texte: 'Le menu « Manœuvre : … » de l’examen blanc, de l’examen officiel et du RVP se coche : au moins 2 manœuvres. Le bilan porte une ligne par manœuvre, et chacune compte dans la fiche des manœuvres de l’élève.' },
-      { emoji: '🧾',
-        titre: '« Examen non mené à son terme » garde le CEPC',
-        texte: 'La case ne vide plus la grille : on la remplit et on la modifie. Le bouton « 🧹 Vider le CEPC et le griser », dessous, la vide (un second appui rend les notes). Dans le bilan : les notes portées, et la mention à la place du total.' }
-    ]
-  },
-  {
-    version: 1236,
-    date: 'Jeudi 22 octobre 2026',
-    resume: '✍️ Créateur de fiches : menu des manœuvres, listes déroulantes, couleurs',
-    quoi: [
-      { emoji: '🅿️',
-        titre: 'Le menu des manœuvres se règle à la main',
-        texte: 'Dans le créateur de fiches, touche la zone « 🅿️ Manœuvre : … » : « 📋 Les choix du menu » permet d’ajouter, renommer, monter ou retirer une manœuvre. Une seule liste pour l’examen blanc, l’examen officiel et le RVP ; elle part aux moniteurs avec « 💾 Publier ». La fiche des manœuvres de l’élève ne change pas.' },
-      { emoji: '▾',
-        titre: 'Des listes déroulantes où tu veux',
-        texte: '« ➕ Ajouter ici » › « ▾ Liste déroulante » : tes propres choix, ou une liste de l’appli (manœuvres, voitures, moniteurs, centres d’examen, procédures, formations). Chaque choix peut écrire sa phrase dans le bilan, faire apparaître des zones (cachées tant qu’on ne le prend pas, et leur texte ne part pas), ou compter la manœuvre faite dans sa fiche. « Plusieurs choix possibles » met des cases dans la liste.' },
-      { emoji: '🎨',
-        titre: 'La couleur des textes',
-        texte: 'Sur chaque zone : la couleur du titre, de la petite aide et de ce que le moniteur écrit. « Aussi dans le bilan » les fait passer dans le mail et dans « 📖 Mes leçons » de l’élève (la copie pour Messenger reste sans couleur).' }
-    ]
-  },
-  {
-    version: 1235,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '🕹️ Simulateur à 1 place dans les créneaux libres, et 🚫 pour en retirer',
-    quoi: [
-      { emoji: '🕹️',
-        titre: 'Le simulateur avec moniteur où il reste une place',
-        texte: 'Élèves › 🗓️ Créneaux libres montre aussi les séances de simulateur avec moniteur où un seul élève est inscrit (1/2), avec la séance telle qu’elle est écrite dans Drivup (« séance 3 et 4 »…) et qui y est déjà.' },
-      { emoji: '🚫',
-        titre: 'Ne pas proposer un créneau',
-        texte: 'Le bouton 🚫 sur une ligne la retire de la liste et de la fenêtre « Proposer » (rien ne change dans Drivup). Les créneaux retirés sont rangés en bas de la liste, avec ↩️ Remettre.' }
-    ]
-  },
-  {
-    version: 1234,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '🗓️ Créneaux libres lus dans Drivup, à proposer aux élèves',
-    quoi: [
-      { emoji: '🗓️',
-        titre: 'Les créneaux libres, au même endroit',
-        texte: 'Élèves › 🗓️ Créneaux libres : les cours ouverts sans élève, les « Résa » et les moments où un moniteur n’a rien d’ouvert sur ses horaires (⚙️ réglables par moniteur), sur les 4 semaines à venir — avec « 👥 À placer » : les permis prévus dont le planning n’est pas fait. ' +
-               'La liste se met à jour à chaque clic du favori « 📥 » sur le planning d’une agence.' },
-      { emoji: '📋',
-        titre: 'Proposer des créneaux depuis 🎓 Suivi permis',
-        texte: 'Le bouton « 🗓️ Créneaux libres » (en haut, et sous « 📆 Il doit planifier ») ouvre une fenêtre triée pour l’élève (avant son permis, dans sa boîte) : on coche, puis 📋 copier le message ou 💬 l’envoyer dans sa messagerie.' }
-    ]
-  },
-  {
-    version: 1232,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '🔘 Procédures du cours : noms courts, gras, une couleur par boîte',
-    quoi: [
-      { emoji: '🔘',
-        titre: 'Les procédures se lisent d’un coup d’œil pendant le cours',
-        texte: 'Dans « 📋 Procédures à joindre au bilan », les procédures sont rangées par boîte (BEA, BV, BEA et BV), avec une couleur par boîte, et leur nom est raccourci tout seul (plus de « Procédures BEA › » ni de « (boîte à embrayage…) »). ' +
-               'Pour choisir le nom vous-même : Ce qu’on écrit › Procédures › la fiche › « 🔘 Nom sur le bouton », avec **gras** où vous voulez. Le bilan garde le nom complet.' }
-    ]
-  },
-  {
-    version: 1229,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '👂 Drivup : ouvrir les écoutes pédagogiques depuis le favori',
-    quoi: [
-      { emoji: '👂',
-        titre: 'Les écoutes pédagogiques ouvertes pour vous dans Drivup',
-        texte: 'Sur le planning d’une agence, cliquez le favori « 📥 Bilan de conduite », puis « 👂 Écoutes à ouvrir » : la liste des cours de conduite des semaines à venir (4 par défaut, réglable), chacun avec sa colonne (BEA ou BV d’après la voiture, « Ecoute » pour Loudéac) et sa prestation (1h, 1h30 pour un examen blanc, 2h…). ' +
-               'Les 1ers cours, préalables, RVP (mémo Drivup ou Suivi AAC), simulateurs et examens sont écartés — on peut en recocher un. Vous validez, le favori remplit le formulaire « Planifier » de Drivup pour chacune, puis vérifie qu’elle y est.' }
-    ]
-  },
-  {
-    version: 1228,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '✉️ Suivi AAC : le mail de relance des rendez-vous, et la réponse de la famille',
-    quoi: [
-      { emoji: '✉️',
-        titre: 'Le mail de relance AAC, depuis l’app',
-        texte: 'Suivi AAC › « ✉️ Mail de relance » : la fenêtre montre où en est l’élève, ses adresses (le prescripteur se tape là s’il manque, et s’enregistre dans sa fiche), et ce qu’on demande — ses disponibilités pour le prochain RVP pratique, et « quand passer l’examen » (une case à cocher ou non, à chaque envoi). ' +
-               'Le mail reprend votre texte des 3 rendez-vous en entier, avec « ✅ fait le … » ou « ⏳ à prévoir » sur chaque titre, et reste modifiable avant l’envoi.' },
-      { emoji: '📝',
-        titre: 'La famille répond en quelques appuis',
-        texte: 'Le lien du mail ouvre une page : jours × matin / après-midi / fin de journée, et pour l’examen « dès que possible », « peu importe », une semaine précise ou des vacances scolaires. La réponse s’écrit sous l’élève : « ✉️ Relance envoyée le … · 📝 Réponse le … ».' }
-    ]
-  },
-  {
-    version: 1227,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '⚡ Espace élève : on entre tout de suite, le reste arrive derrière',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'Entrer dans l’espace élève sans attendre',
-        texte: 'Le nom et le code se vérifient maintenant en direct (moins d’une seconde) : la page s’ouvre, la messagerie démarre, et le parcours, les leçons et les procédures arrivent derrière (« ⏳ … se charge »). ' +
-               'L’élève qui revient sur son téléphone (code gardé) ne déclenche plus trois réveils du classeur en plus.' }
-    ]
-  },
-  {
-    version: 1226,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '📣 Suivi AAC : « prévenu » pour prévoir un rendez-vous, avec la date visée',
-    quoi: [
-      { emoji: '📣',
-        titre: 'Prévenu pour prévoir le rendez-vous',
-        texte: 'Sur chaque rendez-vous pas encore fait (RVP 1, RVP 2, théorique), « 📣 … : prévenu » : on choisit la date visée, le jour et qui a prévenu se notent tout seuls. ' +
-               'La ligne « EN RETARD » reste, et dessous : « 📣 Prévenu le 21/10 (David) — RDV à prévoir pour le 15/11 ». Un nouvel appui permet de prévenir à nouveau ou de retirer.' }
-    ]
-  },
-  {
-    version: 1225,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '🎬 « ✓ Vu » ne se donne plus sans avoir vu : % de vidéo regardée et « Passer »',
-    quoi: [
-      { emoji: '🎬',
-        titre: 'Une vidéo se valide en la regardant',
-        texte: 'Côté élève, « ✓ Vu » reste grisé (« ▶ Vidéo · 35 % ») jusqu’à 90 % des secondes VRAIMENT lues : sauter à la fin ne compte pas, revoir un passage ne compte pas deux fois. ' +
-               'Pour un texte, « ✓ Vu » attend le temps de lecture (compte à rebours). « Passer › » avance sans rien valider.' },
-      { emoji: '📊',
-        titre: 'Le % de vidéo regardée, côté bureau',
-        texte: 'Dans le parcours d’un élève, la pastille porte « 🎬 35 % » tant que la vidéo n’est pas vue à 90 %, et la bulle dit « Vidéo regardée à 35 % (sa meilleure fois) ». ' +
-               'Avant cette version rien n’était mesuré : « aucune lecture mesurée ».' }
-    ]
-  },
-  {
-    version: 1224,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '🗺️ En direct : la dernière position connue de chaque voiture, et 🏠 revenue au bureau',
-    quoi: [
-      { emoji: '📍',
-        titre: 'La dernière position connue',
-        texte: 'Une voiture qui n’envoie plus rien garde sur la carte une bulle grise « dernière position » avec la date et l’heure. ' +
-               'UN seul point par voiture est gardé, remplacé à chaque signal, sans historique ni vitesse. Les moniteurs le lisent sur leur ligne de trajet.' },
-      { emoji: '🏠',
-        titre: 'Revenue au bureau',
-        texte: 'Le bouton « 🏠 Revenue au bureau » (Saint-Brieuc ou Loudéac) efface sa dernière position. Elle passe aussi toute seule « au bureau » quand elle s’arrête à moins de 150 m de l’un d’eux.' },
-      { emoji: '🚗',
-        titre: 'Toutes les voitures, et ce qu’on sait d’elles',
-        texte: 'La liste sous la carte montre toute la flotte : 📡 en direct, 📍 dernière position, 🏠 au bureau ou ❔ inconnue ; qui l’a en ce moment et son prochain cours (d’après le planning). ' +
-               'Un appui sur une ligne zoome sur la voiture — ou sur son bureau.' }
-    ]
-  },
-  {
-    version: 1223,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '🎬 Chaque segment d’un guide a enfin son identifiant : 📌, ↺ et « vu » visent le bon',
-    quoi: [
-      { emoji: '🎯',
-        titre: 'Un segment = un segment',
-        texte: 'L’éditeur ne donnait pas d’identifiant aux « 🏷️ Titres d’étape » : tous les segments d’un guide n’en faisaient qu’un. ' +
-               'Épingler un segment les épinglait tous, la carte « À revoir » ouvrait le premier, et lire un segment cochait tout le guide. ' +
-               'Chaque titre a maintenant le sien, sans rien republier.' }
-    ]
-  },
-  {
-    version: 1222,
-    date: 'Mercredi 21 octobre 2026',
-    resume: '📌 « À revoir » pour un élève, ↺ remettre à voir, et les heures supp dans L’équipe',
-    quoi: [
-      { emoji: '⏫',
-        titre: 'L’équipe › Heures : les heures supplémentaires',
-        texte: 'Normales et à 25 % du mois, ce qui reste des mois d’avant, la récup à prendre, et la décision une fois le mois clôturé — le calcul même de 💶 Paie. ' +
-               'Un interrupteur 👁️ décide si la personne les voit dans Ma fiche (caché au départ).' },
-      { emoji: '↺',
-        titre: 'Remettre à voir, pour un élève',
-        texte: 'Dans son parcours (Parcours des élèves ou son dossier) : ↺ sur un segment (dans sa bulle), sur un guide, ou sur tout un groupe. ' +
-               'La pastille repasse à voir chez nous et chez lui ; sa première date et son nombre de fois sont gardés et repartent s’il le revoit.' },
-      { emoji: '📌',
-        titre: 'Lui demander de revoir un segment — trois façons',
-        texte: 'Depuis son parcours (bulle d’un segment › 📌, avec un mot si on veut) ; pendant le cours (tiroir « 🎬 À revoir dans son coin révisions », sous les procédures : ils partent en fin de bilan avec un lien) ; ' +
-               'ou dans une conversation avec lui (＋ › À revoir : une carte qu’il touche pour ouvrir le segment). ' +
-               'Chez lui, ça s’épingle en tête de « Réviser » avec une notification, et ça s’éteint tout seul quand il l’a relu — on voit « revu le … ».' }
-    ]
-  },
-  {
-    version: 1221,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🎬 « Réviser » devient un chemin, avec une recherche ; parcours lisible au bureau',
-    quoi: [
-      { emoji: '🎬',
-        titre: 'Espace élève : « Réviser » en chemin',
-        texte: 'Une pastille ronde par segment, le long d’un chemin : ✓ ce qui est vu, ▶ le prochain à voir, un numéro pour la suite, avec le temps qu’il demande. ' +
-               'Un appui ouvre le segment dans un panneau qui monte du bas, avec « ✓ Vu — Suivant › ». Les puces en haut filtrent par groupe, ou « Tout ».' },
-      { emoji: '🔎',
-        titre: 'Une barre de recherche',
-        texte: 'L’élève tape « stop », « créneau », « huile »… et retrouve tout ce qui en parle dans ses guides et dans ses bilans, mots surlignés. Sans accents ni majuscules ; un appui ouvre le segment ou le bilan.' },
-      { emoji: '🎓',
-        titre: 'Bureau : le parcours d’un élève en pastilles',
-        texte: 'Une carte par guide, une pastille par segment (verte et « 4× » s’il l’a vu, grise sinon). Touche une pastille : quand il l’a vu, combien de fois, et ce que le segment contient. ' +
-               'Fini les noms de fichiers en guise de titre et le « � » en fin d’aperçu.' }
-    ]
-  },
-  {
-    version: 1220,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🎬 Espace élève : les vidéos du parcours reviennent, et « vu » veut dire lu',
-    quoi: [
-      { emoji: '🎬',
-        titre: 'Les vidéos, images et PDF du parcours s’affichent',
-        texte: 'Depuis que l’espace élève charge tout en une fois, les fichiers du parcours arrivaient sans leur lien : l’élève ne voyait que le texte. Ils sont de nouveau là dès l’ouverture.' },
-      { emoji: '👁️',
-        titre: 'Un segment n’est « vu » que s’il a été lu',
-        texte: 'Ouvrir un groupe ne valide plus tout ce qui est à l’écran. Un seul segment à la fois, le premier en partant du haut, le temps de le lire ' +
-               '(selon sa longueur, ses images, ses documents) ; un segment vide ne se valide jamais tout seul. Les vidéos : 90 % regardés, comme avant.' }
-    ]
-  },
-  {
-    version: 1219,
-    date: 'Mardi 20 octobre 2026',
-    resume: '📍 Le bilan dit à l’élève où il en est dans sa frise',
-    quoi: [
-      { emoji: '📍',
-        titre: '« Où tu en es », sous le rappel de la frise',
-        texte: 'Chaque bilan d’élève dit maintenant où il en est : « 5ème leçon faite sur 7 → il te reste 2 leçons de 2h avant ton examen blanc », ' +
-               '« examen blanc fait ✅ → il te reste 4h de leçons, puis les 3h avant ton examen », « rendez-vous post-permis fait → … ». ' +
-               'Les mêmes chiffres que la phrase verte du moniteur, et rien quand on ne sait pas.' },
-      { emoji: '⚠️',
-        titre: '« ATTENTION : ce nombre peut changer selon ton évolution »',
-        texte: 'Toujours en dessous quand il y a un nombre — pas pour la leçon de veille ni pour l’ajournement.' }
-    ]
-  },
-  {
-    version: 1218,
-    date: 'Mardi 20 octobre 2026',
-    resume: '⚖️ L’IA n’adoucit plus une faute grave',
-    quoi: [
-      { emoji: '⚖️',
-        titre: 'Une faute grave reste grave',
-        texte: 'L’IA ne peut plus écrire « ce n’est pas grave », « un peu », « légèrement »… pour une faute, sauf si le moniteur l’a dit lui-même. ' +
-               'Stop non marqué, feu rouge, refus de priorité, sens interdit, ligne continue, vitesse excessive, intervention du moniteur : ' +
-               'écrits comme graves, avec la mention « éliminatoire à l’examen ». La règle part avec chaque bilan, même si les consignes ont été réécrites.' }
-    ]
-  },
-  {
-    version: 1217,
-    date: 'Mardi 20 octobre 2026',
-    resume: '📏 Plus de « découpe-le en deux bilans » : l’IA a deux fois plus de place',
-    quoi: [
-      { emoji: '📏',
-        titre: 'Un cours dense passe en un seul bilan',
-        texte: 'L’IA réfléchit avant d’écrire, et cette réflexion prenait toute la place réservée au bilan : sur un cours dense, ' +
-               'elle rendait un bilan vide (« arrêt : max_tokens »). Elle a maintenant deux fois plus de place, et si ça ne suffit pas, ' +
-               'elle reprend toute seule avec quatre fois plus. On ne paie que ce qu’elle écrit.' },
-      { emoji: '✍️',
-        titre: 'La correction du cours aussi',
-        texte: 'Chaque partie de la correction a la même place, et reprend avec plus de place si elle a été coupée.' }
-    ]
-  },
-  {
-    version: 1216,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🎯 La phrase verte reste visible pendant tout le cours',
-    quoi: [
-      { emoji: '🎯',
-        titre: 'Où il en est, pendant tout le cours',
-        texte: 'La phrase verte de la carte (« 5ème leçon — plus que 2 leçons », « C’est la leçon de veille… », « 🏁 Ajourné le … ») ' +
-               's’affiche aussi sous « 📋 Compléter les infos », pour tous les élèves, pendant tout le cours.' },
-      { emoji: '🚗',
-        titre: '« Permis le … » au lieu du 📅',
-        texte: 'Dans la ligne sous « 📋 Compléter les infos », la date d’examen se lit « Permis le 22/10/2026 ».' }
-    ]
-  },
-  {
-    version: 1215,
-    date: 'Mardi 20 octobre 2026',
-    resume: '✍️ Fini les « Correction incomplète » pour une phrase sans point',
-    quoi: [
-      { emoji: '✍️',
-        titre: 'La correction du cours n’est plus refusée à tort',
-        texte: 'Une partie de dictée se coupe souvent au milieu d’une phrase : l’IA la rendait corrigée mais sans point final, et l’application ' +
-               'la croyait coupée — trois essais, puis « ⚠️ Correction incomplète » et le texte brut. C’est maintenant l’IA qui dit si elle a fini : ' +
-               'une vraie coupure est toujours repérée, une phrase sans point ne l’est plus.' }
-    ]
-  },
-  {
-    version: 1214,
-    date: 'Mardi 20 octobre 2026',
-    resume: '⏳ Pendant la génération du bilan, rien d’autre à l’écran',
-    quoi: [
-      { emoji: '⏳',
-        titre: 'Plus de « Y revenir » pendant la génération',
-        texte: 'Le bandeau « ⏸ EN PAUSE … Y revenir » se cache sur l’écran « Génération du bilan en cours… » : on y est déjà. Il revient dès qu’on quitte cet écran.' },
-      { emoji: '🚫',
-        titre: 'Plus de « Commencer un autre cours » pendant la génération',
-        texte: 'Un second cours ouvert pendant que le bilan du premier s’écrit mélangeait les deux. Si l’IA tarde, « ✍️ Envoyer sans la partie IA » reste la sortie.' }
-    ]
-  },
-  {
-    version: 1213,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🔘 Procédures et fiche véhicule en boutons, procédures triées par boîte',
-    quoi: [
-      { emoji: '🕹️',
-        titre: 'Les procédures de la bonne boîte',
-        texte: 'Cours en BV : les procédures BV, et BEA et BV. Cours en BEA : les procédures BEA, et BEA et BV. Plus de BE sur la voiture. ' +
-               'Pour un examen blanc, un RVP ou un examen officiel, la boîte vient de la formation ; un élève en remorque voit ses procédures BE. ' +
-               'Les autres restent à portée de main, dans « Les autres procédures (pas pour cette boîte) ». L’IA ne reçoit plus que celles de la boîte.' },
-      { emoji: '🔘',
-        titre: 'Des boutons qui passent en vert',
-        texte: 'Les procédures à joindre et la fiche véhicule (pendant le cours et sur le bilan à la main) se touchent comme des boutons. ' +
-               'Une manœuvre touchée passe en vert avec ton émoji, à côté de ceux des moniteurs qui l’ont déjà faite. ' +
-               'Pour un élève venu d’une autre auto-école, le petit 🚗 à droite se colore en bleu.' },
-      { emoji: '☑',
-        titre: 'Ou les cases, comme avant',
-        texte: '« 🔘 Boutons | ☑ Cases » en haut de chaque tiroir : ton choix est gardé sur ton téléphone, pour les deux.' }
-    ]
-  },
-  {
-    version: 1212,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🔁 La carte d’un RDV post-permis, 👥 les cours des autres en boutons',
-    quoi: [
-      { emoji: '🏁',
-        titre: 'Un RDV post-permis parle du post-permis',
-        texte: 'En tête de sa carte, le résultat : « 🏁 Ajourné le … — 1er repassage ». Dessous, la sortie d’examen (inspecteur, heures demandées, ' +
-               'le mot pour l’équipe) et les captures du CEPC. La veille, la frise, l’examen blanc, le simulateur et « pas de date d’examen » n’y sont plus.' },
-      { emoji: '👥',
-        titre: 'Les cours des autres moniteurs, d’un appui',
-        texte: 'La case et la liste déroulante sont remplacées par une rangée de boutons : « 👤 Mes cours », « 👥 Tous », ' +
-               'puis un bouton par moniteur avec son émoji et son nombre de cours.' },
-      { emoji: '🗓️',
-        titre: 'Plus de « veille » d’un examen passé',
-        texte: 'Après un ajournement, la date de l’examen raté ne fait plus annoncer « C’est la leçon de veille de l’examen » sur les cours suivants.' }
-    ]
-  },
-  {
-    version: 1211,
-    date: 'Mardi 20 octobre 2026',
-    resume: '📋 Procédures cochées, 🅿️ manœuvre d’examen, 🚗 phrases par voiture, 📷 bilan en photo',
-    quoi: [
-      { emoji: '📋',
-        titre: 'Les procédures, cochées pendant le cours',
-        texte: 'En vocal, sous la fiche véhicule : « 📋 Procédures à joindre au bilan ». Sur un bilan à la main (et ceux qui ne se font qu’à la main), ' +
-               'juste sous « 📍 Repère ici », avant « Composer le bilan ». Ce qui est coché part en fin de bilan, comme une procédure demandée à voix haute — jamais deux fois.' },
-      { emoji: '🅿️',
-        titre: 'Manœuvre : … (examen blanc et officiel)',
-        texte: 'Le titre de la partie manœuvre est une liste : le moniteur choisit la manœuvre faite. Les remarques disent « Manœuvre : Créneau · … », ' +
-               'le bilan porte « 🅿️ Manœuvre : … » avec l’émoji du moniteur, et elle compte sur la fiche véhicule de l’élève.' },
-      { emoji: '🚗',
-        titre: 'Les spécificités des véhicules, dans le créateur de fiches',
-        texte: 'Une case à cocher ou une zone entière peut être réservée à certaines voitures de la flotte : le moniteur ne la voit que si c’est la voiture du cours. ' +
-               'Les deux cases de la survitesse sont maintenant des cases comme les autres (« ⚡ voitures à alerte de survitesse »). « 👁️ Essayer » permet de choisir la voiture.' },
-      { emoji: '📷',
-        titre: 'Le bilan post-permis écrit à la main, en photo',
-        texte: 'Sous « 📝 Bilan écrit par l’élève » : « 📷 Ajouter » (ou coller l’image dans le champ). Le moniteur les voit et en ajoute au rendez-vous, ' +
-               'elles sont dans le dossier (onglet Permis), et l’élève les retrouve dans son espace. Douze au plus par élève.' }
-    ]
-  },
-  {
-    version: 1210,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🤖 Refaire avec l’IA un bilan envoyé sans la partie IA',
-    quoi: [
-      { emoji: '🤖',
-        titre: 'Refaire avec l’IA',
-        texte: 'Un bilan parti sans la partie IA le dit dans le dossier de l’élève (📚 Cours) et dans « 🩹 Cours non terminés » : ' +
-               '« 🤖 Refaire avec l’IA » renvoie la dictée gardée à l’IA. Le moniteur du cours, le bureau et les admins peuvent le faire.' },
-      { emoji: '📨',
-        titre: 'Il remplace celui envoyé sans IA',
-        texte: 'Le moniteur relit, corrige, puis « 📨 Renvoyer à l’élève » : la même ligne est remplacée (son historique se met à jour) et un mail ' +
-               '« 📄 Ton bilan complet du cours du … » lui part. La dictée s’efface à ce moment-là.' },
-      { emoji: '📤',
-        titre: 'Refait par le bureau',
-        texte: 'Si ce n’est pas le moniteur du cours qui le refait, le bilan part chez lui pour relecture (« 🤖 Un bilan refait avec l’IA t’attend — à relire et renvoyer à l’élève ») : ' +
-               'c’est lui qui le renvoie à l’élève.' }
-    ]
-  },
-  {
-    version: 1209,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🤖 Un bilan IA ne peut plus attendre sans fin',
-    quoi: [
-      { emoji: '📶',
-        titre: 'La génération qu’on voit avancer',
-        texte: 'Le bilan s’écrit au fil de l’eau : le nombre de mots écrits, le temps écoulé et le temps habituel s’affichent, et l’écran reste allumé. ' +
-               'Une connexion qui meurt (réseau, veille du téléphone) est relancée toute seule, une fois.' },
-      { emoji: '⏱️',
-        titre: 'Au bout de 6 minutes, le moniteur choisit',
-        texte: '« 🔁 Relancer la génération » ou « ✍️ Envoyer sans la partie IA » : le bilan habituel, avec la dictée en clair, et les rubriques qu’il coche ' +
-               'remplies à la main. La génération continue en fond pendant ce temps. Le bureau reçoit une notification.' },
-      { emoji: '✍️',
-        titre: 'La dictée gardée',
-        texte: 'Un bilan envoyé sans IA garde sa dictée : elle apparaît dans « 🩹 Cours non terminés › ✍️ Envoyés sans la partie IA ». ' +
-               '« 🤖 Refaire avec l’IA » arrive à la prochaine livraison.' },
-      { emoji: '💸',
-        titre: 'Le seuil, réglable, et les durées mesurées',
-        texte: 'Outils › Argent › 💸 Coûts IA : le seuil d’alerte (administrateurs), le temps habituel, les plus longues, les échecs ; chaque ligne du détail porte sa durée.' }
-    ]
-  },
-  {
-    version: 1208,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🔒 Une zone ajoutée peut rester « pour nous seulement »',
-    quoi: [
-      { emoji: '🔒',
-        titre: 'Pour nous seulement',
-        texte: 'Dans le 🎨 créateur de fiches, une zone ajoutée peut être cochée « 🔒 Pour nous seulement » : ce que le moniteur y met part dans la ' +
-               'note interne du cours, jamais dans le bilan de l’élève. Sur sa fiche, le moniteur voit « 🔒 Pour nous seulement — ne part pas à l’élève ».' }
-    ]
-  },
-  {
-    version: 1207,
-    date: 'Mardi 20 octobre 2026',
-    resume: '➕ Créateur de fiches : ajouter, retirer et encadrer des zones',
-    quoi: [
-      { emoji: '➕',
-        titre: 'Ajouter une zone entre deux autres',
-        texte: 'Dans le 🎨 créateur de fiches, « ➕ » entre deux zones : titre de partie, sous-titre en couleur, cadre de texte (avec ou sans 🎙️), ' +
-               'ligne courte, cases à cocher seules, ✅❌—, oui/non, note de 0 à 3. 🗑️ retire une zone ajoutée ; les zones d’origine, elles, se masquent.' },
-      { emoji: '📝',
-        titre: 'Dans le bilan, juste sous la zone du dessus',
-        texte: 'Ce que le moniteur met dans une zone ajoutée part dans le bilan juste sous la zone qui la précède sur la fiche, sans toucher au reste. ' +
-               'Si rien n’est écrit au-dessus, en fin de sa partie. Une zone laissée vide ne laisse rien.' },
-      { emoji: '📦',
-        titre: 'Encadrer plusieurs zones d’un même fond',
-        texte: '« 📦 Encadrer » : touche la première zone, puis la dernière — un seul cadre, dont tu choisis la couleur et la force.' }
-    ]
-  },
-  {
-    version: 1206,
-    date: 'Mardi 20 octobre 2026',
-    resume: '🎨 Le créateur des fiches « bilan à la main » : fonds, cases, micros',
-    quoi: [
-      { emoji: '🎨',
-        titre: 'Régler la fiche que voit le moniteur',
-        texte: 'Outils › Ce qu’on écrit › Modèles de bilan › « 🎨 Créateur de fiches » (administrateurs) : la vraie fiche au milieu, ' +
-               'tu touches une zone pour changer son titre, son aide, son fond (9 couleurs, Léger / Franc / Très visible), son micro 🎙️, ' +
-               'ses cases à cocher. 🧩 Les zones : l’ordre (↑ ↓) et masquer (👁️).' },
-      { emoji: '☑',
-        titre: 'Des cases à cocher qui écrivent une phrase',
-        texte: 'Un libellé court pour le moniteur, la phrase qui s’écrit dans le cadre (en tête ou à la fin), cochée d’office ou non. ' +
-               'Les cases d’origine se modifient aussi.' },
-      { emoji: '💾',
-        titre: 'Brouillon, essai, publication',
-        texte: 'Tout part dans un brouillon ; « 👁️ Essayer comme un moniteur » ; « 💾 Publier » l’envoie à tous ; « ⧉ Copier vers… » reporte ' +
-               'sur d’autres modèles ; « ↺ Comme avant » remet la fiche d’origine. Une fiche déjà commencée garde sa forme jusqu’à la fin du cours.' }
-    ]
-  },
-  {
-    version: 1205,
-    date: 'Samedi 17 octobre 2026',
-    resume: '🖼️ Tes propres décors fixes dans les thèmes, glissés sur la télé',
-    quoi: [
-      { emoji: '🖼️',
-        titre: 'Tes décors fixes',
-        texte: 'Dans le studio d’un thème › ✨ L’animation › « ➕ Ajouter un décor (PNG) » : choisis une image, glisse-la sur la télé ' +
-               'en petit, tire le coin ◢ pour sa taille. Une place pour l’accueil, une pour la vitrine. Ils passent derrière les cours, ' +
-               'le QR et la météo.' },
-      { emoji: '✂️',
-        titre: 'Les PNG détourés restent détourés',
-        texte: 'Une image avec du transparent (décor, petite image animée « Ta photo ») garde sa transparence au lieu d’arriver sur un fond noir.' }
-    ]
-  },
-  {
-    version: 1204,
-    date: 'Samedi 17 octobre 2026',
-    resume: '📐 Le QR se place et se dimensionne en le glissant sur la télé',
-    quoi: [
-      { emoji: '📐',
-        titre: 'Le QR, où tu veux et de la taille que tu veux',
-        texte: '⚙️ Réglages › 🔳 QR code › « 📐 Le placer sur la télé » : la vraie page de la télé en petit, tu glisses l’encart, ' +
-               'tu tires le coin ◢ pour l’agrandir, 💾. Une place pour l’accueil, une pour la vitrine, la même pour toutes les diapositives. ' +
-               '« ↺ En bas à droite » le remet comme avant.' },
-      { emoji: '🖥️',
-        titre: 'Les aperçus toujours à jour',
-        texte: 'Les télés en petit d’Affichage ne montrent plus une ancienne version de l’écran après une mise à jour.' }
-    ]
-  },
-  {
-    version: 1203,
-    date: 'Samedi 17 octobre 2026',
-    resume: '🔳 Le QR posé par-dessus les diapositives ; la vitrine sans l’en-tête de l’accueil',
-    quoi: [
-      { emoji: '🔳',
-        titre: 'Le QR code ne prend plus de colonne',
-        texte: 'Les diapositives gardent toute la largeur : l’encart du QR est posé dessus, en transparence. Le code lui-même reste ' +
-               'noir sur son carré blanc, pour que les téléphones le lisent.' },
-      { emoji: '🪟',
-        titre: 'La vitrine en mise en page',
-        texte: 'Le nom, la date, la météo et l’heure de l’accueil ne s’affichent plus en haut à gauche de la vitrine : sa date, son heure ' +
-               'et sa météo sont dans son bloc « La météo, la date et l’heure ».' }
-    ]
-  },
-  {
-    version: 1202,
-    date: 'Samedi 17 octobre 2026',
-    resume: '🏁 Le résultat du post-permis visible dans le dossier de l’élève',
-    quoi: [
-      { emoji: '🏁',
-        titre: 'Le post-permis, lisible sans ouvrir le compte rendu',
-        texte: 'Dans Élèves › dossier › 📚 Cours, la ligne « RDV post-permis » dit ce qui a été décidé (« 4 + 3h avant repassage », ' +
-               '« ⛔ Pas de repassage »…) et, en 🔒, le commentaire pour le bureau. Visible pour l’équipe seulement.' },
-      { emoji: '🔒',
-        titre: 'Le commentaire pour le bureau reste chez nous',
-        texte: 'Il ne part plus quand on renvoie le bilan d’un post-permis par ✉️, et n’apparaît plus dans « Mes leçons » de l’élève.' }
-    ]
-  },
-  {
-    version: 1201,
-    date: 'Samedi 17 octobre 2026',
-    resume: '🖥️ Placer les blocs des télés, « Vos cours commencent », et les thèmes des saisons',
-    quoi: [
-      { emoji: '🧩',
-        titre: 'La mise en page des télés',
-        texte: '⚙️ Réglages › « Mises en page » : ✏️ ouvre la vraie page de la télé en petit. Glisse un bloc (météo, heure, ' +
-               'cours à venir, QR…) pour le déplacer, tire un coin pour sa taille, change son fond, sa forme, son texte, ou masque-le d’un 👁️. ' +
-               'Une mise en page par écran (accueil, vitrine) ; « D’origine » remet l’écran d’avant.' },
-      { emoji: '⏰',
-        titre: '« Vos cours commencent » à ton goût',
-        texte: 'Dans le même studio, l’onglet ⏰ : les titres, ce qu’il y a derrière (voile, couleur ou photo), les cartes, ' +
-               'l’heure en pastille, avec ou sans moniteur et véhicule. Le QR se retire pendant cet écran.' },
-      { emoji: '🍂',
-        titre: 'Les thèmes des saisons et des fêtes',
-        texte: 'Dix thèmes (automne, Halloween, Noël, hiver, Nouvel An, Saint-Valentin, printemps, Pâques, été, 14 juillet) changent ' +
-               'les couleurs et font tomber ou monter de petites images, chacun à ses dates. Ils sont allumés : 🍂 l’automne est déjà sur les télés. ' +
-               'Un appui en coupe un, ou tous avec « Thèmes automatiques ». ✏️ change ses images (même ta photo), ses couleurs, ses dates.' }
-    ]
-  },
-  {
-    version: 1200,
-    date: 'Samedi 17 octobre 2026',
-    resume: '📚 La photothèque de l’école, dans le studio de diapositives',
-    quoi: [
-      { emoji: '📚',
-        titre: 'Les photos de l’école, gardées une fois',
-        texte: 'Dans le studio, « 📷 Photo » (et le fond en photo) propose de prendre une photo, d’en choisir une, ou de piocher ' +
-               'dans la photothèque : véhicules, bureaux, événements. Coche « ➕ Garder dans la photothèque » en ajoutant une photo ' +
-               'pour la retrouver dans les prochaines diapositives.' },
-      { emoji: '⋯',
-        titre: 'Ranger la photothèque',
-        texte: 'Le ⋯ d’une photo la renomme, la change de rangement ou la retire. La retirer ne l’enlève pas des diapositives qui s’en servent.' }
-    ]
-  },
-  {
-    version: 1199,
-    date: 'Samedi 17 octobre 2026',
-    resume: '🎨 Le studio : créer ses diapositives dans l’appli, et les transitions',
-    quoi: [
-      { emoji: '🎨',
-        titre: 'Créer une diapositive, comme dans Canva',
-        texte: 'Dans 📺 Affichage › 🖼️ Diapositives, « ➕ Nouvelle diapositive » propose d’abord 🎨 Créer une diapositive : on part ' +
-               'd’un des sept modèles, puis on touche un élément pour le modifier, on le glisse, on tire un coin pour l’agrandir. ' +
-               'Textes, photos, pastilles, pictogrammes, QR code, logo, formes, n’importe quelle couleur. Les zones hachurées montrent ' +
-               'la place du planning et du QR sur la télé ; l’accueil et la vitrine ont chacun leur rangement.' },
-      { emoji: '⭐',
-        titre: 'Tes propres modèles',
-        texte: '« ⭐ Garder comme modèle » range une diapositive dans « ⭐ Tes modèles ». Et « ⧉ » repart d’une diapositive déjà faite.' },
-      { emoji: '✨',
-        titre: 'Les transitions',
-        texte: 'Dans ⚙️ Réglages : fondu, glisser, monter, zoom, volet ou au hasard, rapide, normale ou lente. Une diapositive du ' +
-               'studio peut avoir la sienne, et ses éléments peuvent arriver un par un.' },
-      { emoji: '🩹',
-        titre: 'Un texte défilant reste un texte défilant',
-        texte: 'Rouvert pour être modifié, il repassait en « diapositive du carrousel » sans qu’on le demande. Corrigé, comme pour une vidéo.' }
-    ]
-  },
-  {
-    version: 1198,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '📺 Affichage repensé, et le QR de Saint-Brieuc sur les écrans',
-    quoi: [
-      { emoji: '📺',
-        titre: 'La page Affichage, en trois onglets',
-        texte: 'En arrivant : 📅 Planning. Un seul planning pour tous les jours (Aujourd’hui, Demain, ou un autre jour), une carte par cours ' +
-               'avec des puces à toucher pour le moniteur, le véhicule et le lieu. Les cours passés et retirés sont repliés en bas. ' +
-               'Les aperçus des deux télés se replient (repliés sur le téléphone).' },
-      { emoji: '⠿',
-        titre: 'Le carrousel se range en glissant',
-        texte: 'Dans 🖼️ Diapositives, attrapez ⠿ et glissez la diapositive à sa place : l’ordre est enregistré. ' +
-               'Ce qui est toujours à l’écran (défilant, fond, texte fixe) est à part ; les diapositives en pause ou terminées sont repliées.' },
-      { emoji: '🔳',
-        titre: 'Le QR code de Saint-Brieuc sur les télés',
-        texte: 'Un encart fixe en bas à droite, avec sa phrase ; le carrousel se resserre pour ne rien cacher. Un interrupteur par écran ' +
-               'et la phrase dans ⚙️ Réglages. Il ne s’affiche que si la page publique de Saint-Brieuc est ouverte.' }
-    ]
-  },
-  {
-    version: 1197,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '🆕 Un élève créé par l’évaluation se retrouve tout de suite',
-    quoi: [
-      { emoji: '🆕',
-        titre: 'Plus d’attente après une évaluation',
-        texte: 'Quand l’évaluation crée l’élève, la liste des élèves de l’appareil est relue aussitôt : la recherche du dossier ' +
-               'et les champs à suggestions le trouvent tout de suite, sans attendre le prochain démarrage.' }
-    ]
-  },
-  {
-    version: 1196,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '📷 Évaluation : la photo du simulateur juste sous « Formation »',
-    quoi: [
-      { emoji: '📷',
-        titre: 'La photo d’abord',
-        texte: 'Élèves › Administratif › Évaluation : les photos du résultat du simulateur sont juste sous « Formation », ' +
-               'et se prennent avant même de taper le nombre d’heures.' }
-    ]
-  },
-  {
-    version: 1195,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '🪪 L’équipe : photo, adresse, portable, mail et RIB sur la fiche',
-    quoi: [
-      { emoji: '🖼️',
-        titre: 'La photo de la messagerie, sur la fiche',
-        texte: 'La même photo que dans 💬 : en tête de la fiche et dans la liste de l’équipe. 📷 pour la changer — la sienne ' +
-               'dans Ma fiche, celle de tout le monde pour un administrateur. Changée ici, elle change dans la messagerie.' },
-      { emoji: '🪪',
-        titre: 'Un onglet Coordonnées',
-        texte: 'Adresse, portable, adresse mail (la même que dans ⚙️ Accès : on la change d’un côté, elle change de l’autre) ' +
-               'et le RIB, déposé en photo ou PDF. Chaque ligne a son interrupteur 👁️ ; ce qui est allumé, la personne le voit et peut le corriger.' }
-    ]
-  },
-  {
-    version: 1194,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '👁️ L’équipe : un interrupteur par ligne pour ce que chacun voit de sa fiche',
-    quoi: [
-      { emoji: '👁️',
-        titre: 'Ce que chacun voit dans « Ma fiche »',
-        texte: 'Outils › 👥 Équipe, fiche d’une personne : un interrupteur au bout de chaque papier, absence, bloc d’heures ' +
-               'et résultat. Tout est caché au départ ; ce qu’on allume apparaît dans sa fiche (⋯ › 👤 Ma fiche). ' +
-               'Ce qu’elle dépose elle-même reste visible tant que ça attend. Elle n’est alertée que de ce qu’on lui montre.' },
-      { emoji: '🏥',
-        titre: 'Médecine du travail : seulement si on l’ajoute',
-        texte: 'Elle n’est plus attendue d’office sur les fiches. On l’ajoute avec « ➕ Ajouter un papier » quand on veut la suivre.' }
-    ]
-  },
-  {
-    version: 1193,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '💶 Tout est payé · 📆 Tout est planifié dans Suivi permis',
-    quoi: [
-      { emoji: '💶',
-        titre: 'Deux cases dans « Sa préparation »',
-        texte: '🎓 Suivi permis, fiche de la place : 💶 Tout est payé et 📆 Tout est planifié. Tant qu’elles ne sont pas ' +
-               'cochées, 💶 et 📆 suivent le prénom sur la session fermée, et « Il doit de l’argent » / « Il doit planifier ' +
-               'encore des choses » s’écrivent dessous quand elle est ouverte.' },
-      { emoji: '✅',
-        titre: 'Vert seulement avec « Tout est OK »',
-        texte: 'Un élève ne passe au vert que si « Tout est OK — il peut passer » est coché. Sinon il reste orange, ' +
-               'avec « à valider » quand plus rien ne manque.' }
-    ]
-  },
-  {
-    version: 1192,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '💬 Suivi permis : c’est la bulle elle-même qui passe au vert',
-    quoi: [
-      { emoji: '💬',
-        titre: 'Une bulle verte, sans rond derrière',
-        texte: 'Dans 🎓 Suivi permis, la bulle du groupe est grise tant qu’il n’est pas fait, et devient verte une fois fait.' }
-    ]
-  },
-  {
-    version: 1191,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '🔴 ELEVE PAS PREVENU sur la ligne d’examen · 💬 bulle verte',
-    quoi: [
-      { emoji: '🔴',
-        titre: 'Sur la ligne rouge de 📅 Mes prochains cours',
-        texte: 'Au bout de « EXAMEN OFFICIEL PRÉVU LE … » : ELEVE PAS PREVENU tant que le 📣 n’est pas coché ' +
-               'dans 🎓 Suivi permis, ou ELEVE FANTOME / ELEVE A REMPLACER selon sa fiche. Coché, la mention s’en va. ' +
-               'L’étiquette qui l’écrivait en dessous est retirée.' },
-      { emoji: '💬',
-        titre: 'La bulle du groupe, en vert',
-        texte: 'Dans 🎓 Suivi permis, un appui sur la bulle 💬 la passe au vert : groupe fait. ' +
-               'Elle passe au vert toute seule quand le groupe de la messagerie de la session existe.' }
-    ]
-  },
-  {
-    version: 1190,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '📣 Messenger permis reprend toutes les dates de 🎓 Suivi permis',
-    quoi: [
-      { emoji: '📣',
-        titre: 'Plus de date oubliée',
-        texte: 'Messenger permis montre chaque session à venir de 🎓 Suivi permis, avec ses élèves. ' +
-               'Une date déplacée, un repassage ou un ancien « annulé » sur la fiche faisaient disparaître des élèves, ' +
-               'parfois une date entière : c’est la session qui décide maintenant.' }
-    ]
-  },
-  {
-    version: 1189,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '👤 Ma fiche : tes papiers et tes arrêts, avec un rappel avant chaque échéance',
-    quoi: [
-      { emoji: '👤',
-        titre: 'Ma fiche',
-        texte: '⋯ › 👤 Ma fiche : ton autorisation d’enseigner, ton certificat médical, ton permis, la médecine du travail, ' +
-               'avec leurs dates. Tu y déposes un papier ou un arrêt de travail (photo ou PDF) ; l’administration le valide.' },
-      { emoji: '🔔',
-        titre: 'Prévenu avant l’échéance',
-        texte: 'Une notification et un mail 4 mois puis 2 mois avant la fin d’un de tes papiers, et une ligne 📄 dans le bandeau.' },
-      { emoji: '👥',
-        titre: 'Outils › L’équipe (administrateurs)',
-        texte: '👥 Équipe : la fiche de chacun (papiers, absences, cours donnés, résultats). La liste et 💶 Paie se suivent : ' +
-               'une personne créée, renommée ou partie d’un côté l’est aussi de l’autre. Une copie d’arrêt se joint aussi depuis la Paie. ' +
-               '🏫 L’école : agrément, réactualisation de l’exploitant, label, Qualiopi, garantie financière, avec les fenêtres d’audit. ' +
-               'Accès : ⚙️ › « 👥 Équipe et échéances ».' }
-    ]
-  },
-  {
-    version: 1188,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '👤 Dans un groupe, le nom d’un élève ouvre son dossier',
-    quoi: [
-      { emoji: '👤',
-        titre: 'Des noms qui mènent au dossier',
-        texte: 'Dans 💬 Messagerie, fiche d’un groupe (à droite, ou ⓘ sur le téléphone) : touche le nom d’un élève ' +
-               'pour ouvrir son dossier. L’équipe et la boîte du bureau restent écrites comme avant.' }
-    ]
-  },
-  {
-    version: 1187,
-    date: 'Vendredi 16 octobre 2026',
-    resume: '🦊 L’émoji de chaque moniteur revient sur la fiche véhicule des bilans AAC',
-    quoi: [
-      { emoji: '🦊',
-        titre: 'Les manœuvres faites avec un collègue',
-        texte: 'Sur la fiche véhicule des bilans AAC, une manœuvre faite avec un autre moniteur porte son émoji, ' +
-               'et plus seulement ✅. Prévu le 10 octobre, il ne s’affichait jamais : c’est réparé.' }
-    ]
-  },
-  {
-    version: 1186,
-    date: 'Jeudi 15 octobre 2026',
-    resume: '📞 Appels vocaux et vidéo dans la messagerie',
-    quoi: [
-      { emoji: '📞',
-        titre: 'Appeler depuis un fil',
-        texte: 'Le combiné en tête du fil ouvre « Appeler — qui sonne ? » : tous les membres du fil sont cochés, ' +
-               'tu décoches qui ne doit pas sonner (6 personnes au plus). Puis Appel vidéo, Appel vocal ou 📅 Plus tard.' },
-      { emoji: '🔔',
-        titre: 'Tu entends que ça sonne',
-        texte: 'Tant que personne n’a décroché : « Ça sonne chez … » à l’écran, et la tonalité d’un vrai téléphone. ' +
-               'Tout s’arrête dès que quelqu’un répond.' },
-      { emoji: '🔇',
-        titre: 'Couper le micro, couper le son',
-        texte: 'Micro et Haut-parleur, côte à côte, en vocal comme en vidéo. En vocal, si le téléphone le permet, ' +
-               'Haut-parleur propose aussi « À l’oreille ».' },
-      { emoji: '🔽',
-        titre: 'Réduire',
-        texte: 'L’appel continue dans une pastille en haut à droite, et l’appli reste utilisable (dossier, bilan…). ' +
-               '« Revenir » rouvre l’appel. Sur ordinateur, « Partager l’écran » montre un bilan pendant qu’on en parle.' },
-      { emoji: '🔑',
-        titre: 'Un élève n’appelle que si on le lui ouvre',
-        texte: 'Deux interrupteurs dans l’onglet 🔑 de sa fiche : vocal, vidéo. Fermés par défaut. ' +
-               'Rien n’est enregistré : ni le son, ni l’image.' }
-    ]
-  },
-  {
-    version: 1185,
-    date: 'Jeudi 15 octobre 2026',
-    resume: '🕘 Tes notifications sonnent aux heures que tu choisis, appareil par appareil',
-    quoi: [
-      { emoji: '🕘',
-        titre: 'Tes heures, par appareil',
-        texte: 'Dans 💬 Messagerie, sur le bandeau des notifications : 🕘 Horaires. Plusieurs créneaux par jour, ' +
-               'un réglage par téléphone ou ordinateur. Un appareil qu’on active reprend les heures d’un autre des tiens.' },
-      { emoji: '📋',
-        titre: 'Le résumé au retour',
-        texte: 'En dehors de tes heures, rien ne sonne : un seul résumé arrive au début de ton créneau suivant.' },
-      { emoji: '🚨',
-        titre: 'Ce qui sonne quand même',
-        texte: 'Tu coches ce qui doit passer à toute heure. Au départ : les retards et les annulations.' },
-      { emoji: '🌴',
-        titre: 'Pause jusqu’au…',
-        texte: 'Vacances, jour férié : 🌴 Mettre en pause jusqu’à une date et une heure, puis « Reprendre maintenant » quand tu veux.' }
-    ]
-  },
-  {
-    version: 1184,
-    date: 'Jeudi 15 octobre 2026',
-    resume: '📊 L’évaluation de départ arrive dans le dossier de l’élève, avec sa frise et ses photos',
-    quoi: [
-      { emoji: '📊',
-        titre: 'Élèves › Administratif › 📊 Évaluation',
-        texte: 'Tu tapes le nom de l’élève : l’appli le trouve, ou le crée (nom, téléphone et mail obligatoires). ' +
-               'L’évaluation se range dans son dossier, onglet 📊 Évaluation.' },
-      { emoji: '🚗',
-        titre: '« Il part en » BV ou BEA',
-        texte: 'Le choix de la boîte pose la bonne frise toute seule, et le bon montant dans son dossier. ' +
-               'AAC et CS : le forfait du pack de 💰 Tarifs. Si une formation ou une frise existe déjà, l’appli demande si on remplace.' },
-      { emoji: '📷',
-        titre: 'Les photos du simulateur',
-        texte: 'Prendre une photo ou la choisir dans la galerie : elles restent dans son dossier.' },
-      { emoji: '🆔',
-        titre: 'L’Id Drivup en tête du dossier',
-        texte: 'À côté de la formation, visible partout dans le dossier : il distingue les homonymes. ' +
-               'Le bureau et les administrateurs le corrigent à la main si l’import s’est trompé.' }
-    ]
-  },
-  {
-    version: 1182,
-    date: 'Jeudi 15 octobre 2026',
-    resume: '🚗 Les rappels reprennent la voiture et le simulateur depuis Drivup',
-    quoi: [
-      { emoji: '🚗',
-        titre: 'La voiture du planning Drivup',
-        texte: 'Les numéros posés en haut du planning (« .1 », « .7 ») remplissent la voiture du rappel. ' +
-               'La correspondance se règle dans la fiche du véhicule (Flotte), case « N° Drivup ».' },
-      { emoji: '🖥️',
-        titre: 'Le type de leçon',
-        texte: 'Conduite, examen blanc et simulateur avec moniteur sont lus dans le titre du cours Drivup. ' +
-               'Pré-rempli dans le rappel, et toujours modifiable.' },
-      { emoji: '🆔',
-        titre: 'La pièce d’identité',
-        texte: 'Dans Mes prochains cours, à côté du 🆔 : « DOIT DEPOSER SA PIECE D’IDENTITE AU BUREAU ».' }
-    ]
-  },
-  {
-    version: 1180,
-    date: 'Jeudi 15 octobre 2026',
-    resume: '↩️ Répondre à un message précis, comme sur Messenger',
-    quoi: [
-      { emoji: '↩️',
-        titre: 'Trois façons de répondre',
-        texte: 'Appui long sur la bulle puis ↩️, glisser la bulle vers la droite, ou ↩️ au survol sur ordinateur. ' +
-               'Le message cité s’affiche au-dessus de ta réponse.' },
-      { emoji: '👆',
-        titre: 'Remonter au message',
-        texte: 'Toucher la citation remonte au message d’origine dans le fil. Les élèves peuvent répondre de la même façon.' }
-    ]
-  },
-  {
-    version: 1179,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '💰 Tarifs : un prix changé met tout à jour',
-    quoi: [
-      { emoji: '💰',
-        titre: 'Outils › Argent › 💰 Tarifs',
-        texte: 'Les prix, les fiches, Imprimer vite, et le devis d’évaluation. Un tarif unitaire changé met à jour ' +
-               'toutes les fiches et tous les totaux.' },
-      { emoji: '🖨️',
-        titre: 'Imprimer, envoyer',
-        texte: 'Impression PDF, export JPG pour le site, plusieurs PDF par mail, et des boutons d’impression rapide. ' +
-               'La fenêtre des boutons a un ✕ en haut et défile sur les petits écrans.' }
-    ]
-  },
-  {
-    version: 1177,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '👀 Le bureau partage sa lecture : un fil ouvert par l’un s’éteint chez les autres',
-    quoi: [
-      { emoji: '👀',
-        titre: 'Un seul point à éteindre',
-        texte: 'Quand quelqu’un du bureau ou un administrateur ouvre un fil bureau, vitrine, retard, annulation, ' +
-               'oubli ou groupe, le point s’éteint chez les autres du bureau. La liste affiche « 👀 » et le prénom à la place.' },
-      { emoji: '🎯',
-        titre: 'Les moniteurs gardent le leur',
-        texte: '« Vu par » ne change pas : il ne montre que ceux qui ont vraiment ouvert. Un nouveau message rallume ' +
-               'le point chez tout le monde. Les options se règlent dans ⚙️ de la messagerie (administrateurs).' }
-    ]
-  },
-  {
-    version: 1176,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '☠️ Les remarques du CEPC s’écrivent d’un appui à l’examen',
-    quoi: [
-      { emoji: '☠️',
-        titre: 'Après la ligne du CEPC, la remarque',
-        texte: 'Examen blanc et examen officiel : après ☠️ ou ⚠️ et le choix de la ligne, la liste des remarques de cette ligne ' +
-               's’ouvre. Un appui l’écrit dans « Remarque de l’inspecteur » ; tu la complètes ensuite sur la ligne ou dans le bilan.' },
-      { emoji: '✍️',
-        titre: 'Écrire directement',
-        texte: 'Le premier bouton ferme la liste et met le curseur dans la ligne.' },
-      { emoji: '➕',
-        titre: 'La liste de toute l’équipe',
-        texte: 'Une remarque qui manque se crée d’un geste et rejoint la liste de tous. « ✏️ Modifier la liste » pour corriger ' +
-               'ou retirer. Les plus utilisées remontent en haut. La liste marche aussi sans réseau.' }
-    ]
-  },
-  {
-    version: 1175,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '📋 Les renseignements et disponibilités des élèves remplacent le Google Form',
-    quoi: [
-      { emoji: '📋',
-        titre: 'Dans l’espace élève',
-        texte: 'Le questionnaire « Mes renseignements et disponibilités » s’ouvre tout seul tant qu’il n’est pas rempli ' +
-               '(« Plus tard » le remet au lendemain). Les réponses arrivent dans 📇 Fiche, sous 🪑 Poste de conduite.' },
-      { emoji: '👥',
-        titre: '👥 Élèves › 📋 Renseignements',
-        texte: 'Qui n’a pas répondu, demandé quand, relancé combien de fois. 📨 le lui demande dans sa messagerie ; ' +
-               'une relance part toute seule (3 jours après sa première visite, puis tous les 7 jours, 3 fois au plus).' },
-      { emoji: '✏️',
-        titre: 'Remplir avec lui',
-        texte: 'Depuis sa fiche, au bureau ou au téléphone : le même questionnaire, avec ses réponses.' },
-      { emoji: '🛠️',
-        titre: 'Le questionnaire se modifie (administrateurs)',
-        texte: 'Catégories, questions, textes de la carte et relances. Une question obligatoire ajoutée est redemandée ' +
-               'à ceux qui avaient tout rempli. 📥 reprend les réponses du Google Form (fichier CSV).' }
-    ]
-  },
-  {
-    version: 1174,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '⚡ Les réponses rapides se règlent, et 📄 Modèles messages s’ouvre depuis le fil',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'Le gestionnaire des réponses rapides',
-        texte: '⚙️ de la messagerie › ⚡ Réponses rapides (administrateurs) : changer le texte d’un bouton et son message, ' +
-               'en créer, choisir les conversations où il apparaît (Bureau, Vitrine, Retards…), et l’ordre par ⠿ ou ↑ ↓.' },
-      { emoji: '🔤',
-        titre: 'Des mots qui se remplacent',
-        texte: '{prénom}, {nom}, {moi}, {bureau}, {moniteur}, {prochain cours}, {frise}, {examen blanc}, {date d’examen} : ' +
-               '« Bonjour {prénom} » part en « Bonjour Léa ».' },
-      { emoji: '📄',
-        titre: 'Modèles messages depuis le fil',
-        texte: 'Au bout des réponses rapides : catégorie, puis fiche — son texte arrive dans la zone d’écriture, mots ' +
-               'remplacés, à relire avant d’envoyer. Plus de copier-coller.' },
-      { emoji: '📱',
-        titre: 'Tous les boutons sur le téléphone',
-        texte: 'Ils passent à la ligne au lieu d’être coupés à trois.' }
-    ]
-  },
-  {
-    version: 1173,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '🔄 Plus besoin de recharger : sessions et horaires des bureaux se mettent à jour seuls',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Suivi permis se relit tout seul',
-        texte: 'Un élève posé sur une place (depuis la place, son dossier ou la liste RDV Permis) apparaît dans ' +
-               '🎓 Suivi permis sans recharger la page.' },
-      { emoji: '📍',
-        titre: 'Les horaires repris de Drivup apparaissent tout de suite',
-        texte: 'Après le favori, l’écran Loudéac / St-Brieuc Horaires et RDV montre les nouvelles ouvertures sans recharger.' },
-      { emoji: '🔴',
-        titre: 'La vitrine : « le bureau vous a répondu »',
-        texte: 'Sur la page du QR code, « Reprendre la discussion » porte le nombre de réponses du bureau pas encore lues, ' +
-               'et la page le dit.' }
-    ]
-  },
-  {
-    version: 1172,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '✋ Préparation permis : les heures du groupe se changent à la main',
-    quoi: [
-      { emoji: '✋',
-        titre: 'Message groupe Messenger : toutes les heures à la main',
-        texte: 'Le rendez-vous, et pour chaque élève le début et la fin de sa conduite et de son examen : touche une ' +
-               'case et tape l’heure. Elle passe en vert et ne bouge plus ; elle est gardée avec la session, sur tous ' +
-               'les appareils. ↩️ revient au calcul.' },
-      { emoji: '📥',
-        titre: 'Les conduites reprises de Drivup',
-        texte: 'Si le favori a lu le planning du jour, les conduites prennent ses heures (cases en pointillés). ' +
-               'Le rendez-vous, les écoutes et la pause suivent.' },
-      { emoji: '🕐',
-        titre: '« Horaires modifiés » dans le groupe 💬',
-        texte: 'Si le groupe de la messagerie est déjà créé, changer une heure y envoie « 🕐 Horaires modifiés » avec ' +
-               'les nouvelles heures, 20 secondes après la dernière retouche (ou tout de suite avec « Envoyer maintenant »).' },
-      { emoji: '🧹',
-        titre: 'Plus de « Sans session »',
-        texte: 'Un élève qui n’est plus dans une session n’apparaît plus ici : les groupes sont les sessions de 🎓 Suivi permis.' }
-    ]
-  },
-  {
-    version: 1171,
-    date: 'Mercredi 14 octobre 2026',
-    resume: '👋 La vitrine : les passants écrivent au bureau depuis le QR code',
-    quoi: [
-      { emoji: '💬',
-        titre: 'Écrire au bureau, depuis la page du QR code',
-        texte: 'Un bouton « 💬 Écrire au bureau » sur la page de la vitrine : prénom, téléphone, mail et message. ' +
-               'La discussion arrive dans 💬 Messagerie › 👋 Vitrine, avec l’étiquette « VITRINE · LOUDÉAC ». ' +
-               'Tu réponds au nom du bureau : en direct si sa page est ouverte, par mail sinon.' },
-      { emoji: '🔗',
-        titre: 'Rattacher, créer sa fiche, bloquer',
-        texte: 'Dans la fiche ⓘ : 📞 l’appeler, ➕ créer sa fiche élève, 🔗 rattacher la discussion au dossier d’un ' +
-               'élève (elle devient son fil « Le bureau »), 🔒 clore ou 🚫 bloquer. Tant qu’elle n’est pas rattachée, ' +
-               'rien du dossier n’est dit : n’importe qui peut écrire sous le nom d’un autre.' },
-      { emoji: '🔘',
-        titre: 'Un quatrième interrupteur par bureau',
-        texte: 'Gestion › Loudéac / St-Brieuc Horaires et RDV › « 💬 Discussion en direct ». Coupé au départ : ' +
-               'à toi de l’allumer. Les discussions sont effacées un mois après le dernier message.' }
-    ]
-  },
-  {
-    version: 1170,
-    date: 'Mardi 13 octobre 2026',
-    resume: '📍 Les bureaux : horaires et rendez-vous en ligne, avec un QR code en vitrine',
-    quoi: [
-      { emoji: '📍',
-        titre: 'Gestion › Loudéac / St-Brieuc Horaires et RDV',
-        texte: 'Les ouvertures de chaque bureau, qui le tient, les rendez-vous à venir, et l’affiche de la ' +
-               'vitrine à imprimer : un QR code qui mène à la page du bureau (ouvert ou fermé maintenant, ' +
-               'les horaires, et un rendez-vous de 30 minutes).' },
-      { emoji: '📥',
-        titre: 'Les horaires viennent de Drivup',
-        texte: 'Le favori, cliqué sur le planning d’une agence, reprend les créneaux « Bureau Loudéac » des ' +
-               'quatre semaines à venir. ✏️ un jour, ➕ ouvrir un autre jour ou 🔒 fermer aujourd’hui : ce qui ' +
-               'est changé à la main l’emporte sur Drivup, jusqu’à ↩️.' },
-      { emoji: '📅',
-        titre: 'Les rendez-vous',
-        texte: 'Confirmation et rappel la veille par mail pour le visiteur ; notification et mail pour le bureau, ' +
-               'les administrateurs et la personne du jour. Un jour qui ferme avec des rendez-vous : tu choisis, ' +
-               'un par un, annuler et prévenir ou t’en occuper.' },
-      { emoji: '✉️',
-        titre: 'Ton adresse mail dans ⚙️ Accès',
-        texte: 'Chaque compte a maintenant une case ✉️ : c’est là qu’arrivent les rendez-vous pris au bureau.' }
-    ]
-  },
-  {
-    version: 1168,
-    date: 'Mardi 13 octobre 2026',
-    resume: '📥 Drivup : les bonnes heures, la formation, la photo et les notes',
-    quoi: [
-      { emoji: '🕐',
-        titre: 'Les heures exactes',
-        texte: 'Les cours lus dans Drivup arrivaient deux heures trop tard (8 h devenait 10 h). Ils arrivent ' +
-               'maintenant à l’heure affichée dans Drivup.' },
-      { emoji: '⏳',
-        titre: 'La lecture se voit tout de suite',
-        texte: 'L’onglet de l’appli montre la lecture en cours (cours lus / total), un peu plus rapide. La ' +
-               'fenêtre tient dans l’écran : on fait défiler, et « Enregistrer » reste en bas.' },
-      { emoji: '🎓',
-        titre: 'La formation reprise',
-        texte: 'La catégorie Drivup devient notre formation : B → BV, B (BEA) → BEA, CA → AAC BV, ' +
-               'CS → CS BV, BEA -> B → Passerelle… Une case déjà remplie chez nous ne change pas.' },
-      { emoji: '📷',
-        titre: 'La photo et les notes internes',
-        texte: 'La photo Drivup arrive pour un élève qui n’en a pas (fiche et planning). Sur la fiche d’un ' +
-               'élève, ses notes internes Drivup passent dans 📝 Notes internes de son dossier, en ' +
-               'Administratif, avec leur auteur et leur date — sans jamais en doubler une.' }
-    ]
-  },
-  {
-    version: 1167,
-    date: 'Mardi 13 octobre 2026',
-    resume: '🔗 Plus de doublons dans les élèves prêts au permis',
-    quoi: [
-      { emoji: '🔗',
-        titre: 'Un nom presque pareil est le même élève',
-        texte: 'Un nom mal écrit dans un bilan ou un message (un tiret bas, une lettre oubliée, les mots dans ' +
-               'l’autre ordre) est rattaché à la fiche de l’élève, quand une seule fiche lui ressemble. ' +
-               'Il ne fait plus de doublon, et l’élève retrouve sa place sur sa session d’examen.' },
-      { emoji: '✏️',
-        titre: 'Le corriger pour de bon',
-        texte: 'La ligne dit « Aussi écrit … » : le bouton « 🔗 C’est le même élève : corriger » réécrit ' +
-               'le mauvais nom dans le classeur.' }
-    ]
-  },
-  {
-    version: 1166,
-    date: 'Mardi 13 octobre 2026',
-    resume: '📥 Le planning et les fiches élèves arrivent de Drivup',
-    quoi: [
-      { emoji: '📥',
-        titre: 'Le favori « Bilan de conduite »',
-        texte: 'Dans ➕ Ajouter des élèves, glisse le bouton « 📥 Bilan de conduite » dans ta barre de favoris ' +
-               'Chrome. Clique-le ensuite sur une page Drivup (planning d’une agence ou d’un moniteur, liste ' +
-               'des élèves, fiche d’un élève) : l’appli montre ce qui change et attend que tu valides. Rien ' +
-               'n’est écrit dans Drivup. Réservé aux administrateurs et au bureau.' },
-      { emoji: '🔔',
-        titre: 'Les rappels déjà remplis',
-        texte: 'Une fois le planning lu, les créneaux des rappels montrent l’élève et la séance de chaque cours ' +
-               'Drivup, « 📥 à envoyer » ou « ✉️ envoyé ». Un appui remplit l’élève, l’heure et le type ; ' +
-               'après un envoi, le cours suivant se choisit tout seul.' },
-      { emoji: '🪪',
-        titre: 'Les fiches se complètent',
-        texte: 'Un élève nouveau dans Drivup reçoit sa fiche. Pour les autres, seules les cases vides chez nous ' +
-               'se remplissent (mobile, mail, formation, date de naissance, NEPH) : rien n’est jamais remplacé.' }
-    ]
-  },
-  {
-    version: 1165,
-    date: 'Mardi 13 octobre 2026',
-    resume: '🖼️ Les photos dans la recherche d’élèves',
-    quoi: [
-      { emoji: '🔍',
-        titre: 'Tu le reconnais avant de lire son nom',
-        texte: 'Dans la loupe en haut et dans la recherche du dossier élève, la photo de l’élève ' +
-               'remplace ses initiales quand il en a une. Sans photo, les initiales restent.' }
-    ]
-  },
-  {
-    version: 1164,
-    date: 'Mardi 13 octobre 2026',
-    resume: '✉️ Le bilan du rendez-vous post-permis part par mail',
-    quoi: [
-      { emoji: '✉️',
-        titre: 'À la fin d’un post-permis',
-        texte: 'Après « Terminer », l’écran reste ouvert : « ✉️ Envoyer le bilan par mail » envoie à ' +
-               'l’élève la conclusion, le bilan de son examen, le sien et tes remarques. Le commentaire ' +
-               'pour le bureau ne part pas. « ← Revenir à mes cours » referme l’écran.' }
-    ]
-  },
-  {
-    version: 1163,
-    date: 'Mardi 13 octobre 2026',
-    resume: '🖼️ Les photos à la place des initiales',
-    quoi: [
-      { emoji: '🖼️',
-        titre: 'Ta photo, en rond',
-        texte: 'Dans la messagerie, « Moi » en haut (sur le téléphone : la pastille « Moi » devant ' +
-               '« Tout ») : prends une photo ou choisis-en une, elle remplace tes initiales pour toute ' +
-               'l’équipe. Sans photo, les initiales restent, en rond elles aussi.' },
-      { emoji: '💬',
-        titre: 'Partout où l’on voit quelqu’un',
-        texte: 'Dans la liste, en haut du fil, sur la fiche à droite, et devant les bulles comme sur ' +
-               'Messenger. La photo de l’élève est aussi en tête de son dossier et sur sa carte dans Mes ' +
-               'prochains cours. Les élèves choisissent la leur dans leur espace.' },
-      { emoji: '🔑',
-        titre: 'Qui change quoi',
-        texte: 'Chacun la sienne ; le bureau la photo d’un groupe (⋯ ou la fiche du groupe) ; les ' +
-               'administrateurs toutes les photos, et celle du bureau dans ⚙️ Réglages de la messagerie.' }
-    ]
-  },
-  {
-    version: 1162,
-    date: 'Mardi 13 octobre 2026',
-    resume: '🎓 Les sessions d’examen s’enregistrent tout de suite',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'Créer ou modifier une session, sans attendre',
-        texte: 'La fenêtre se ferme dès l’appui et la session est déjà dans la liste, marquée « ⏳ ' +
-               'enregistrement… » le temps que le classeur confirme. Tout part en un seul envoi — la ' +
-               'session, ses places, ses élèves et leurs dates — et seul ce qui change est réécrit : ' +
-               'changer le moniteur ne touche plus aux élèves. Un élève remplacé ou effacé repart dans ' +
-               'RDV Permis. En cas de refus, la fenêtre revient avec ce que tu avais tapé.' },
-      { emoji: '🔢',
-        titre: 'Les places et le centre en pastilles',
-        texte: 'Nombre de places : 1 · 2 · 3 · 4 · ⌨️ Autre, 3 d’avance. Centre : Saint-Brieuc · ' +
-               'Loudéac · ⌨️ Autre.' },
-      { emoji: '🟪',
-        titre: 'Loudéac (ou ailleurs) en violet',
-        texte: 'Une session hors Saint-Brieuc a un cadre violet très clair dans 🎓 Suivi permis, et sa ' +
-               'fenêtre aussi, avec le centre en pastille à côté du titre.' }
-    ]
-  },
-  {
-    version: 1161,
-    date: 'Mardi 13 octobre 2026',
-    resume: '📎 Les pièces jointes, et la barre façon Messenger',
-    quoi: [
-      { emoji: '＋',
-        titre: 'La barre d’écriture : 🎤, ＋, 🙂',
-        texte: 'Le micro reste seul en premier. Le ＋ ouvre cinq gestes directs : prendre une ' +
-               'photo, choisir une photo, filmer, choisir une vidéo, joindre un fichier. Sur un ' +
-               'ordinateur, « Prendre une photo » utilise la webcam. Les icônes sont dessinées dans ' +
-               'la couleur de l’appli, et le pouce n’a plus de pastille : il devient l’avion dès ' +
-               'qu’on écrit. L’espace élève a la même barre.' },
-      { emoji: '📎',
-        titre: 'Envoyer un PDF, un Word ou un Excel',
-        texte: 'Jusqu’à 10 Mo, dans les deux sens : les élèves aussi (10 fichiers par jour). La ' +
-               'bulle montre le type, le nom et le poids ; un PDF s’ouvre dans un onglet, un Word ' +
-               'ou un Excel se télécharge. Un fichier à macros est refusé, en le disant.' }
-    ]
-  },
-  {
-    version: 1160,
-    date: 'Mardi 13 octobre 2026',
-    resume: '🎓 Les fiches d’examen se retrouvent toutes seules',
-    quoi: [
-      { emoji: '↩️',
-        titre: 'La carte reprend la fiche commencée',
-        texte: 'Dans Mes prochains cours, la carte d’un élève dont la fiche d’examen est commencée le ' +
-               'dit (« 📤 Avant examen envoyé à 09h40 — sa fiche t’attend ») et son bouton devient ' +
-               '« ↩️ Reprendre sa fiche d’examen » : la fiche revient avec tout ce qui était rempli, ' +
-               'au lieu d’une fiche vide. Après « Fermer », la liste revient tout de suite, sans recharger.' },
-      { emoji: '🎓',
-        titre: 'Mes examens, en haut de la fiche',
-        texte: 'En haut d’une fiche d’examen officiel, les élèves du même bloc (même session du Suivi ' +
-               'permis, ou à défaut même jour et même centre), dans l’ordre des passages : 📤 avant ' +
-               'examen envoyé, 📝 commencée, ⏳ pas encore ouverte, ✍️ celle qu’on a sous les yeux. Un ' +
-               'appui passe d’une fiche à l’autre en gardant la première. Un moniteur qui a deux blocs ' +
-               'dans la journée ne voit que celui de l’élève.' }
-    ]
-  },
-  {
-    version: 1159,
-    date: 'Mardi 13 octobre 2026',
-    resume: '⛽ L’historique des pleins, avec ses filtres',
-    quoi: [
-      { emoji: '⛽',
-        titre: 'Tous les pleins, de tous les mois',
-        texte: 'Dans 🚗 Suivi de la flotte › ⛽ Les CB Gasoil : les mois en pastilles (ou « Tous les ' +
-               'mois »), une période du … au …, et les filtres par véhicule et par moniteur, avec le ' +
-               'total de chaque mois et de la sélection. ✏️ modifie tout un plein — date et heure, ' +
-               'moniteur, carte, véhicule, montant, litres, km, remarque — et 🗑️ le supprime.' }
-    ]
-  },
-  {
-    version: 1158,
-    date: 'Mardi 13 octobre 2026',
-    resume: '📲 La leçon de veille AAC : Drivup, le livret, l’inspecteur',
-    quoi: [
-      { emoji: '📲',
-        titre: 'La leçon de veille d’un élève en AAC',
-        texte: 'Sur son dernier cours avant l’examen (dans les 3 jours), la carte de Mes prochains ' +
-               'cours rappelle de vérifier son application Drivup : l’accès à son livret, et ce qu’il ' +
-               'doit présenter à l’inspecteur. Le moniteur du cours le voit aussi en message important ' +
-               'dans son bandeau, de l’heure du cours à 2 h après. La phrase et ses deux ' +
-               'interrupteurs se règlent dans 🎓 Suivi AAC.' }
-    ]
-  },
-  {
-    version: 1156,
-    date: 'Lundi 12 octobre 2026',
-    resume: '🎓 Le dossier suit la veille de l’examen',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'La veille de l’examen, dans le dossier',
-        texte: 'Un examen préparé n’est plus compté comme une leçon : « Prochaine : mar. 13 oct. — ' +
-               '🎓 examen officiel à 14h15 · Loudéac ». Et « Avant l’examen » se décompte aussi pour ' +
-               'les élèves dont les bilans n’écrivent pas « Xᵉ après l’examen blanc » (AAC) ou dont ' +
-               'la leçon attend encore son bilan : « Plus que les 3h », puis « ✅ Tout est fait » ' +
-               'une fois la leçon de veille passée.' }
-    ]
-  },
-  {
-    version: 1155,
-    date: 'Lundi 12 octobre 2026',
-    resume: '📞 Retard ou annulation reçus au téléphone · 👤 écrire seul à un élève',
-    quoi: [
-      { emoji: '📞',
-        titre: 'Un élève prévient au téléphone',
-        texte: 'Dans la messagerie, filtre ⏰ « ＋ Signaler un retard » ou filtre 🚫 « ＋ Signaler une ' +
-               'annulation ». On choisit l’élève (et les minutes, ou le jour) : son cours est retrouvé, ' +
-               'son moniteur entre dans la conversation et le reçoit sur son téléphone, comme si ' +
-               'l’élève l’avait signalé lui-même.' },
-      { emoji: '👤',
-        titre: 'Écrire seul à un élève',
-        texte: 'Dans une conversation où le bureau est avec l’élève, le ⋯ propose « 👤 Lui écrire ' +
-               'seul » : ta conversation à deux avec lui, sans le bureau.' }
-    ]
-  },
-  {
-    version: 1154,
-    date: 'Lundi 12 octobre 2026',
-    resume: '📄 Un mot dans la messagerie quand le bilan part',
-    quoi: [
-      { emoji: '📄',
-        titre: 'Le bilan est parti : l’élève le sait aussi dans sa messagerie',
-        texte: 'Quand tu envoies le bilan par mail en fin de cours, le bureau lui écrit dans son ' +
-               'fil « Le bureau » : « 📄 Ton bilan du cours du … vient de partir par mail. Tu le ' +
-               'retrouves aussi ici, dans ton espace : 🏠 Accueil › 📖 Mes leçons. » Ça se règle ' +
-               'pour toute l’école dans ⚙️ de la messagerie (administrateurs).' }
-    ]
-  },
-  {
-    version: 1150,
-    date: 'Lundi 12 octobre 2026',
-    resume: '✏️ Écrire en deux gestes · 💾 la carte SD oubliée',
-    quoi: [
-      { emoji: '✏️',
-        titre: 'Écrire à quelqu’un, en deux gestes',
-        texte: 'Le ＋ de la messagerie demande seulement « À qui ? » : tes récents et tes élèves ' +
-               'du jour sont déjà là. Tu touches un nom et le fil s’ouvre, prêt à écrire — ou la ' +
-               'conversation qui existe déjà. « Signé : 🏢 Le bureau · 👤 Moi seul » se règle ' +
-               'au-dessus de la barre. Et dans « Rechercher partout », la première ligne est ' +
-               '« ✏️ Écrire à … ».' },
-      { emoji: '💾',
-        titre: 'La carte SD oubliée',
-        texte: 'L’élève dit dans quelle voiture et avec quel moniteur : un groupe s’ouvre avec ' +
-               'le moniteur et le bureau. Trois raccourcis : « 💾 Elle est au bureau », « 🚗 Pas ' +
-               'dans la voiture », « 🤝 Elle est rendue » — le moniteur du groupe peut les toucher ' +
-               'lui-même. Et dans 🧤 Objets, « ＋ Ouvrir un oubli » quand c’est nous qui la trouvons.' }
-    ]
-  },
-  {
-    version: 1148,
-    date: 'Lundi 12 octobre 2026',
-    resume: '🗺️ Les voitures en direct',
-    quoi: [
-      { emoji: '📡',
-        titre: 'Ta position pendant le cours',
-        texte: 'Si tu as le relevé du trajet, la position de ta voiture part au bureau toutes ' +
-               'les 30 s pendant le cours, page ouverte — la ligne du trajet affiche ' +
-               '« 📡 position partagée ». Seule la dernière position est gardée, en mémoire, ' +
-               'et elle s’efface 2 min après : rien n’est enregistré, aucune vitesse.' },
-      { emoji: '🗺️',
-        titre: 'La carte des voitures',
-        texte: 'Gestion › Le parc › En direct (administrateurs) : les voitures en cours sur le ' +
-               'Plan IGN, avec le moniteur et le dernier signal. « 📍 Centrer » amène la carte ' +
-               'sur l’une d’elles.' }
-    ]
-  },
-  {
-    version: 1147,
-    date: 'Lundi 12 octobre 2026',
-    resume: '📊 Le journal en direct · 🎓 l’activité des élèves',
-    quoi: [
-      { emoji: '📊',
-        titre: 'Le journal, en direct',
-        texte: 'Outils › Journal (administrateurs) : 🟢 qui est en ligne et sur quel écran, ' +
-               'puis chaque action au fil de l’eau — bilans, dossiers ouverts, cours, mails, ' +
-               'SMS, paie, flotte… La liste se met à jour toute seule ; gardée 6 mois.' },
-      { emoji: '🎓',
-        titre: 'Ce que font les élèves dans leur espace',
-        texte: 'Outils › Activité des élèves : connexions, bilans ouverts, messages, créneaux, ' +
-               'notifications — le geste, jamais le contenu. Et dans le dossier de chacun, ' +
-               'onglet 🔑 Accès, sa dernière venue. Gardé 12 mois.' }
-    ]
-  },
-  {
-    version: 1146,
-    date: 'Lundi 12 octobre 2026',
-    resume: 'Outils › Mesurer : ✉️ tous les mails envoyés',
-    quoi: [
-      { emoji: '✉️',
-        titre: 'Les mails envoyés',
-        texte: 'Dans Outils › Mesurer (administrateurs) : chaque mail parti de l’appli — bilan, ' +
-               'rappel, correction, évaluation… — avec l’élève, le destinataire, qui l’a envoyé ' +
-               'et s’il est bien parti. Les échecs ressortent en rouge avec leur motif. On touche ' +
-               'une ligne pour relire le texte (gardé 3 mois ; la ligne reste 12 mois).' }
-    ]
-  },
-  {
-    version: 1145,
-    date: 'Lundi 12 octobre 2026',
-    resume: 'L’équipe et l’Argent passent dans Outils · heures des messages épinglés',
-    quoi: [
-      { emoji: '🔨',
-        titre: 'Outils se range autrement',
-        texte: 'Dans l’ordre : Mesurer · L’équipe (Messages internes, SMS, Tâches, Alertes) · ' +
-               'Argent (Caisse, Coûts IA, Paie, Tarifs) · Demandes · Ce qu’on écrit. Gestion ' +
-               'garde le parc et l’outil. Les droits ne changent pas.' },
-      { emoji: '⏰',
-        titre: 'Une heure de début et de fin pour les messages épinglés',
-        texte: 'Dans 📨 Messages internes, « À partir du » et « Jusqu’au » prennent une heure : ' +
-               'le message apparaît et disparaît à l’heure dite, sans recharger.' },
-      { emoji: '📋',
-        titre: 'Évaluations : plus de lignes Messenger / Drivup',
-        texte: 'Le bilan d’évaluation ne demande plus « Envoyé par Messenger ? » ni « Envoyé ' +
-               'par Drivup ? » : tout part par mail.' }
-    ]
-  },
-  {
-    version: 1144,
-    date: 'Lundi 12 octobre 2026',
-    resume: 'Examens : deux cases pour l’alerte de survitesse',
-    quoi: [
-      { emoji: '🚗',
-        titre: 'L’alerte de survitesse',
-        texte: 'Sur le Q3 n°10, l’A3 n°2 et les deux A3 de Loudéac, deux cases de plus sous ' +
-               'l’installation (examen blanc et examen officiel) : « Tu as oublié d’enlever ' +
-               'l’alerte de survitesse. » et « Pense à enlever l’alerte de survitesse. ». La ' +
-               'voiture est celle que le bureau a posée sur l’écran d’accueil.' }
-    ]
-  },
-  {
-    version: 1143,
-    date: 'Lundi 12 octobre 2026',
-    resume: 'Évaluations : micros, cadre « Autre », leçons et aperçu du bilan',
-    quoi: [
-      { emoji: '🎙️',
-        titre: 'Un micro sur chaque rubrique',
-        texte: 'De « Manipulation commandes » à « Contrôles », chaque cadre a son 🎙️ au bout ' +
-               'de la ligne.' },
-      { emoji: '✏️',
-        titre: 'Un cadre « Autre »',
-        texte: 'Juste après Contrôles, pour ce qui ne rentre dans aucune rubrique. Rempli, il ' +
-               's’écrit dans le bilan ; vide, il n’écrit rien.' },
-      { emoji: '🕙',
-        titre: 'Les heures et les leçons remplissent le bilan',
-        texte: 'Heures de simulateur, leçons avant et après examen blanc : les ❓ du bilan se ' +
-               'remplissent tout seuls, en leçons et en heures (« 8 séances de 2 heures (16h) »), ' +
-               'avec le TOTAL. En BV, la ligne « Si passage en BEA » se calcule aussi.' },
-      { emoji: '👁️',
-        titre: 'Un aperçu à retoucher avant de composer',
-        texte: 'De l’estimation à la fin du contrat : ce que tu y retouches part tel quel dans ' +
-               'le bilan. « ↺ Recalculer » le remet d’après les cases.' },
-      { emoji: '📝',
-        titre: 'Fin d’évaluation : tes notes, rien d’autre',
-        texte: 'Le questionnaire « Après ce cours » d’une évaluation ne demande plus que tes ' +
-               'notes. Ce que le dossier savait déjà reste en place.' }
-    ]
-  },
-  {
-    version: 1142,
-    date: 'Lundi 12 octobre 2026',
-    resume: 'Examens : case « vérifications », cadre Manœuvre/Autonomie, micro au curseur',
-    quoi: [
-      { emoji: '🧰',
-        titre: 'Une case pour les vérifications',
-        texte: 'Sous la remarque des vérifications (examen blanc et examen officiel) : ' +
-               '« Tu n’as pas bossé tes vérifications : ça rapporte 3 points le jour de ' +
-               'l’examen, donc bosse-les à fond ! ». Cochée, la phrase s’écrit dans le cadre.' },
-      { emoji: '🅿️',
-        titre: 'Manœuvre et Autonomie dans un cadre',
-        texte: 'Les deux parties sont réunies sur un fond gris bleuté : on voit où elles ' +
-               'commencent et où reprend la suite.' },
-      { emoji: '🎙️',
-        titre: 'Le micro écrit là où tu as cliqué',
-        texte: 'Dans le bilan à la main, la dictée s’écrit à l’endroit du curseur — après ' +
-               '« ce que je te PROPOSE : » par exemple — et plus à la fin du cadre. Sans clic ' +
-               'dans le cadre, elle va à la fin, comme avant.' }
-    ]
-  },
-  {
-    version: 1141,
-    date: 'Lundi 12 octobre 2026',
-    resume: 'Nouvelle messagerie : 📌 épingler, ⏰ rappeler demain, retards et créneaux',
-    quoi: [
-      { emoji: '🧭',
-        titre: 'Une nouvelle messagerie',
-        texte: 'Sur ordinateur : les familles à gauche, les conversations, le fil, et à droite ' +
-               'la fiche de l’élève (sa leçon, son prochain cours, son permis, ses notes internes). ' +
-               'Sur téléphone et dans la bulle 💬 : la liste, puis le fil, et ⓘ pour la fiche. ' +
-               'Les couleurs suivent le thème de l’appli.' },
-      { emoji: '📌',
-        titre: 'Épingler, et ⏰ « me la rappeler demain »',
-        texte: 'Au survol d’une conversation ou en haut du fil. C’est à toi seul : ce que tu ' +
-               'épingles ou remets à demain ne bouge que dans ta liste. Une conversation remise ' +
-               'revient d’elle-même à 9 h — ou plus tôt si l’élève réécrit.' },
-      { emoji: '⏰',
-        titre: 'Les retards',
-        texte: 'Le fil d’un retard montre le cours, le moniteur prévenu, et si l’alerte a été ' +
-               'vue. « Relancer » la renvoie sur son téléphone ; quand le cours n’a pas été ' +
-               'trouvé, « Prévenir un moniteur » fait entrer celui que tu choisis.' },
-      { emoji: '📅',
-        titre: 'Proposer un créneau',
-        texte: '« 📅 Décaler » envoie à l’élève une carte « ✓ Ça me va / Autre ». Sa réponse ' +
-               's’écrit dans le fil : c’est toi qui reportes le cours dans le planning.' },
-      { emoji: '✓',
-        titre: 'Réglé',
-        texte: '« ✓ Réglé » ferme la conversation et l’écrit dans le fil ; elle part dans 🗄️ ' +
-               'Fermées. Les objets oubliés se règlent dans leur bandeau 🧤.' }
-    ]
-  },
-  {
-    version: 1139,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Notes internes dans le dossier élève, et 💬 ouvert à tous les élèves',
-    quoi: [
-      { emoji: '📝',
-        titre: 'Notes internes',
-        texte: 'Un nouvel onglet du dossier élève, sous Coin révisions. On y écrit des notes ' +
-               'classées Administratif, Pédagogique ou Sensible, datées et signées, avec un ' +
-               'filtre par catégorie. Toute l’équipe les lit ; seul leur auteur ou un ' +
-               'administrateur les modifie ou les supprime. L’élève ne les voit jamais.' },
-      { emoji: '💬',
-        titre: 'Écrire au bureau, pour tous les élèves',
-        texte: 'Tout élève qui a un accès au coin révisions peut écrire au bureau, sans case ' +
-               'à cocher. Écrire à son moniteur reste au cas par cas.' }
-    ]
-  },
-  {
-    version: 1138,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Le résultat de l’examen blanc dit la même chose partout',
-    quoi: [
-      { emoji: '🅱️',
-        titre: 'La fiche de suivi gagne',
-        texte: 'Quand le résultat réglé dans Sa route (« pourrait », « pas le niveau ») ' +
-               'ne dit pas la même chose que le dernier bilan, c’est la fiche qui s’affiche, ' +
-               'dans la tuile comme dans Sa route. « Pourrait avoir le niveau » s’écrit aussi ' +
-               'dans le message au moniteur, et les bilans suivants ne recopient plus ' +
-               'l’ancienne conclusion.' }
-    ]
-  },
-  {
-    version: 1137,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Places et sessions d’examen : un nouvel écran, en cartes',
-    quoi: [
-      { emoji: '📊',
-        titre: 'Les mois côte à côte',
-        texte: 'Dans 🎓 Suivi permis, chaque mois est une carte : ce qu’il reste à prévoir ' +
-               'en grand, une jauge des places prises, puis une case par semaine avec ses ' +
-               'jours ouverts et son nombre d’examens.' },
-      { emoji: '🎓',
-        titre: 'Les sessions rangées par semaine',
-        texte: 'Une carte par session, qui montre déjà qui passe, à quelle heure et où il en ' +
-               'est. Un appui l’ouvre en grand, avec les mêmes boutons qu’avant.' }
-    ]
-  },
-  {
-    version: 1136,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Le groupe du permis : tu coches ce qui part',
-    quoi: [
-      { emoji: '☑️',
-        titre: 'Une case par message',
-        texte: 'Dans l’encadré « 💬 Le groupe dans la messagerie », chaque message composé ' +
-               'et la vidéo ont leur case. Au départ : le message du groupe, les rappels ' +
-               'du centre de la session et la vidéo sont cochés ; les plannings des 2 h de ' +
-               'veille ne le sont pas, à toi de cocher la bonne version. Le bouton dit ' +
-               'combien de messages partent.' },
-      { emoji: '🧠',
-        titre: 'Les rappels avant examen — Saint-Brieuc sont revenus',
-        texte: 'Ils sont toujours proposés, à côté de ceux de Loudéac. Les messages ' +
-               '« Permis solo » n’entrent plus dans les messages du groupe.' }
-    ]
-  },
-  {
-    version: 1135,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Le groupe du jour du permis se crée dans la messagerie, depuis Préparation',
-    quoi: [
-      { emoji: '💬',
-        titre: 'Un groupe par session, en un appui',
-        texte: 'Dans Permis › 📣 Préparation, compose les messages d’une session, ' +
-               'retouche-les si besoin, puis « 💬 Créer le groupe ». Il réunit les élèves, ' +
-               'le moniteur et la boîte du bureau, reçoit les messages tels qu’écrits, ' +
-               'puis la vidéo. Son nom : « Permis jeudi 15 octobre - Chloé, Alice, ' +
-               'Bruno - 1 BEA 2 BV - Hery ». La case « 💬 Groupe fait » se coche toute seule.' },
-      { emoji: '🔄',
-        titre: 'Il suit la session',
-        texte: 'Un élève ajouté ou retiré dans 🎓 Suivi permis entre ou sort du groupe, ' +
-               'et le nom suit, comme le moniteur. Si les horaires changent, le groupe ' +
-               'reçoit « 🕐 Horaires modifiés » avec le nouveau planning.' },
-      { emoji: '🎬',
-        titre: 'La vidéo du jour du permis, déposée une fois',
-        texte: 'En haut de Préparation. Chaque groupe la reçoit en dernier message, sans ' +
-               'la recopier. Pour Messenger, « 📋 Copier le lien de la vidéo » donne un ' +
-               'lien qui marche jusqu’au lendemain de l’examen au soir.' }
-    ]
-  },
-  {
-    version: 1134,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Un petit bonhomme à côté du nom ouvre le dossier de l’élève',
-    quoi: [
-      { emoji: '👤',
-        titre: 'Le dossier en un appui',
-        texte: 'Juste après le nom d’un élève, une petite silhouette — la même que ' +
-               'sur Drivup — ouvre son dossier. Dans Mes prochains cours (la carte de ' +
-               'droite), toutes les listes du bureau, la liste RDV permis, les places ' +
-               'de Suivi permis, le message de groupe Messenger, l’AAC et la conduite ' +
-               'supervisée. Elle n’apparaît que pour ceux qui ont accès au dossier élève.' }
-    ]
-  },
-  {
-    version: 1133,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Message groupe Messenger : les groupes sont les sessions de Suivi permis',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Une session = un groupe',
-        texte: '« 📣 Message groupe Messenger » reprenait un ancien découpage qui ne ' +
-               'bougeait plus. Il prend maintenant les sessions de 🎓 Suivi permis : ' +
-               'un groupe par session, nommé « 13h15 · Saint-Brieuc · Hery », avec ' +
-               'son ordre de passage et son heure en premier examen.' },
-      { emoji: '⚠️',
-        titre: '« Sans session »',
-        texte: 'Un élève qui a la date mais n’est dans aucune session apparaît dans ' +
-               'un groupe à part, pour qu’on le place dans Suivi permis.' }
-    ]
-  },
-  {
-    version: 1132,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'Mes prochains cours : la ligne de l’examen dit les heures qui restent vraiment',
-    quoi: [
-      { emoji: '⏱️',
-        titre: '« encore 4h + 3h » se met à jour',
-        texte: 'Sur la carte d’un cours, la ligne « Examen officiel prévu le … » ' +
-               'gardait le nombre d’heures du jour où le cours avait été préparé. ' +
-               'Elle le recalcule maintenant à chaque affichage, avec le même calcul ' +
-               'que les tuiles du dossier : ce qui restera après ce cours-là.' }
-    ]
-  },
-  {
-    version: 1131,
-    date: 'Samedi 10 octobre 2026',
-    resume: 'La fiche véhicule de l’AAC porte enfin l’émoji du moniteur',
-    quoi: [
-      { emoji: '🦉',
-        titre: 'AAC : la même fiche que la conduite',
-        texte: 'Les manœuvres dites ou cochées pendant un cours AAC prennent ' +
-               'ton émoji, à côté de ceux des cours d’avant, et le commentaire ' +
-               'reste au bout de la ligne : « MALD 🦋 — Reste débrayée… ». ' +
-               'Avant, le bilan AAC ignorait les cases cochées.' },
-      { emoji: '📜',
-        titre: 'Les anciens bilans AAC comptent',
-        texte: 'Une manœuvre commentée dans un ancien bilan AAC compte comme ' +
-               'travaillée, avec l’émoji du moniteur de ce bilan. La fiche ' +
-               'se reconstitue dès le prochain cours.' },
-      { emoji: '🚗',
-        titre: 'Boîte automatique : la fiche ne repart plus de zéro',
-        texte: 'En dictée, un cours en boîte automatique ne relisait plus les ' +
-               'bilans d’avant : les marques des cours précédents disparaissaient, ' +
-               'et la dictée n’était plus remise au propre. Les marques perdues ' +
-               'reviennent au prochain bilan.' }
-    ]
-  },
-  {
-    version: 1130,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Dossier élève : rendez-vous AAC et « Où il en est » se corrigent sur place',
-    quoi: [
-      { emoji: '🤝',
-        titre: 'Les rendez-vous AAC se posent depuis « Sa route »',
-        texte: 'Toucher une ligne de rendez-vous ouvre une petite fenêtre pour ce ' +
-               'rendez-vous-là : la date, et le lieu pour les RVP et le théorique. ' +
-               'Une date passée le note « fait », une date à venir « prévu ». ' +
-               'Avant, la ligne emmenait vers la liste AAC.' },
-      { emoji: '🔢',
-        titre: '« Où il en est » se corrige même sans cours préparé',
-        texte: 'La correction s’écrit dans son dernier bilan (seul le chiffre ' +
-               'change), ou sur son dernier cours s’il attend encore son bilan. ' +
-               'Toutes les listes suivent. Si un bilan plus ancien annonce déjà ' +
-               'plus de leçons, l’outil le dit avec sa date au lieu d’écrire pour rien.' }
-    ]
-  },
-  {
-    version: 1129,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Les heures avant l’examen partent de la leçon que tu choisis',
-    quoi: [
-      { emoji: '⏱️',
-        titre: 'Une option par leçon',
-        texte: '« Ces heures partent de quand ? » n’offrait que deux choix : ' +
-               'dès l’examen blanc, ou aujourd’hui. La question devient « Ces ' +
-               'heures partent de quelle leçon après l’examen blanc ? » et propose ' +
-               'chaque leçon : 1ʳᵉ, 2ᵉ, 3ᵉ… Pareil dans le questionnaire et dans ' +
-               '« Sa route » du dossier, et pour le post-permis.' },
-      { emoji: '👀',
-        titre: 'Le bouton suit ton choix',
-        texte: 'Dans le questionnaire, choisir la leçon met aussitôt à jour ce ' +
-               'qui reste (« 2 + 3h »). Le nombre décidé ne change pas : seul son ' +
-               'point de départ bouge.' },
-      { emoji: '📝',
-        titre: '« Sa route » dit la bonne leçon',
-        texte: 'La ligne des heures écrivait « à partir de la 1ʳᵉ leçon » quand ' +
-               'les heures commençaient à la 2ᵉ. Elle dit maintenant la même leçon ' +
-               'que le menu.' }
-    ]
-  },
-  {
-    version: 1128,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Dossier élève : chaque tuile du haut parle d’un seul moment',
-    quoi: [
-      { emoji: '🔢',
-        titre: '« Où il en est » dit ce qu’il a fait',
-        texte: 'Elle affichait le rang du cours préparé — demain. Elle dit ' +
-               'maintenant ce qu’il a fait (« 16ᵉ · 1ʳᵉ après l’examen ' +
-               'blanc »), et dessous ce qui vient : « Prochaine : sam. 10 oct. — ' +
-               'sa 17ᵉ, 2ᵉ après l’examen blanc ». Quand un cours est préparé, ' +
-               'un appui sur la tuile corrige ses deux cases, comme sur la carte.' },
-      { emoji: '🎓',
-        titre: '« Où en est son permis » dit ce qui a été décidé',
-        texte: 'Sous la date d’examen : « ✅ A le niveau — 4h + la leçon de ' +
-               'veille ». Elle affichait le décompte, « plus que les 3h », qui se ' +
-               'lisait comme si l’examen blanc n’avait demandé que 3h.' },
-      { emoji: '⏱️',
-        titre: '« Avant l’examen » dit ce qui reste',
-        texte: 'Elle montrait le nombre tel qu’il avait été dit, jamais ' +
-               'décompté. Elle dit maintenant ce qui reste — « 2 h + la leçon de ' +
-               'veille » — avec les mêmes chiffres que les listes du bureau, et ' +
-               'précise « en comptant son cours du … » quand le cours préparé est ' +
-               'déjà compté.' }
-    ]
-  },
-  {
-    version: 1127,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Les types de séance des rappels se rangent par famille, dans ton ordre',
-    quoi: [
-      { emoji: '🚗',
-        titre: 'Cinq familles, un emoji devant chaque type',
-        texte: 'Voiture 🚗, moto 🏍️, remorque 🚛, voiturette 🚙, scooter 🛵. Le menu ' +
-               '« Type de séance » des rappels les groupe, et chaque ligne porte ' +
-               'l’emoji de sa famille — même menu fermé, on voit ce qui est choisi.' },
-      { emoji: '⚙️',
-        titre: 'Un bouton « Ranger » à côté du menu',
-        texte: 'Il ouvre la liste de tous tes types : un menu pour la famille de ' +
-               'chacun, deux flèches pour l’ordre. Un type pas encore classé ' +
-               'arrive avec une famille proposée d’après son titre, marquée ' +
-               '« proposé » — rien n’est gardé avant « Enregistrer ».' },
-      { emoji: '🔤',
-        titre: 'Les accents reviennent dans le menu',
-        texte: '« Cours Loudéac » s’affichait « Cours Loudeac ».' }
-    ]
-  },
-  {
-    version: 1126,
-    date: 'Vendredi 9 octobre 2026',
-    resume: '« Modifier la préparation » : des titres, un rail, et plus aucun tiroir',
-    quoi: [
-      { emoji: '🧭',
-        titre: 'Un rail en haut, qui dit où l’on est',
-        texte: 'Élève · Parcours · Examen blanc · Permis · Rendez-vous · Fiche · ' +
-               'Notes. Il reste collé en haut quand on descend, la pastille du ' +
-               'sujet en cours s’allume, et un appui y amène. Un ⚠️ marque le ' +
-               'sujet qui a un trou — un examen blanc passé sans résultat, une ' +
-               'frise ou une formation manquante.' },
-      { emoji: '📑',
-        titre: 'Sept vrais titres qui se lisent',
-        texte: 'À la place de vingt petits libellés gris du même poids, chaque ' +
-               'sujet a son titre, et à droite ce qu’il dit déjà : « ven. 30 oct. ' +
-               '· 1er passage », « 18 / 19 cochées ». On lit l’écran en lisant ' +
-               'les titres. Les questions, elles, n’ont pas changé.' },
-      { emoji: '🦉',
-        titre: 'La fiche véhicule ne défile plus dans la page',
-        texte: 'Son cadre de 240 px qui défilait à l’intérieur de la fenêtre a ' +
-               'disparu : la liste se déplie. Les manœuvres qui restent ont leur ' +
-               'ligne en tête ; celles déjà validées se serrent dessous, toujours ' +
-               'visibles. Le « ▸ Voir les manœuvres restantes » du haut est parti ' +
-               'aussi : les restantes sont nommées sur la ligne.' }
-    ]
-  },
-  {
-    version: 1125,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Les rappels de cours en quatre étapes, et les deux mails sous les yeux',
-    quoi: [
-      { emoji: '💶',
-        titre: 'Le financeur reçoit un vrai courrier',
-        texte: 'Sans modèle « financeur » à soi, le mail des missions locales ' +
-               'disait « Lieu de rendez-vous : Ta voiture sera dans la cour… ! », ' +
-               'en gras et en tutoyant — la phrase écrite pour l’élève. Il dit ' +
-               'maintenant « cour intérieure de l’auto-école », et le type de ' +
-               'séance s’écrit en lettres normales.' },
-      { emoji: '🔔',
-        titre: 'Quatre étapes, dans l’ordre d’une série',
-        texte: 'La série (jour, moniteur, véhicule), posée une fois ; les ' +
-               'créneaux du moniteur ; ce cours ; ce qui part. Les mêmes champs ' +
-               'qu’avant, rangés comme on fait les rappels d’une journée.' },
-      { emoji: '🕐',
-        titre: 'La journée du moniteur en pastilles',
-        texte: '08h ✓ Tom, 10h ce cours, 13h libre… Un appui choisit l’heure. ' +
-               'Après un envoi, le créneau prévenu prend son ✓ et le suivant ' +
-               's’allume : on voit où on en est sans passer par l’historique.' },
-      { emoji: '✉️',
-        titre: 'On relit exactement ce qui part',
-        texte: 'Les deux mails sont montrés, avec leur objet, la règle des ' +
-               '48 heures et le bouton « Je serai présent ». L’adresse se ' +
-               'change dans la ligne « À », pour ce cours seulement — et elle ' +
-               'se recharge à chaque nouvel élève. Les « +248 caractères » du ' +
-               'temps du SMS ont disparu.' }
-    ]
-  },
-  {
-    version: 1124,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'La tuile du permis voit enfin l’examen blanc qu’on vient de poser',
-    quoi: [
-      { emoji: '📅',
-        titre: 'Un examen blanc posé depuis la fiche de route se voit en haut',
-        texte: 'On posait « prévu le 6 novembre » sur la ligne 📝 de Sa route, ' +
-               'et la tuile du haut continuait d’afficher « rien de noté ». ' +
-               'Elle ne regardait pas la colonne que cette ligne venait ' +
-               'd’écrire, et elle ne connaissait pas le mot « réservé » que ' +
-               'pose le bureau. Les deux lisent maintenant la même chose, et ' +
-               'avec les mêmes mots : « prévu le… ».' },
-      { emoji: '🌙',
-        titre: 'La date du simulateur se pose depuis Sa route',
-        texte: 'La ligne 🌙 renvoyait au répertoire sans rien dire, et elle ' +
-               'affichait « à prévoir » alors que l’avertissement juste ' +
-               'au-dessus annonçait la date enregistrée. Elle lit maintenant ' +
-               'la fiche de suivi d’abord, et un appui ouvre le calendrier ' +
-               'sur place — la même porte que le bouton de l’onglet Permis, ' +
-               'pas une seconde. Une date passée se lit « fait le », une date ' +
-               'à venir « prévu le ».' }
-    ]
-  },
-  {
-    version: 1123,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Le coin révisions s\u2019ouvre en un seul aller-retour au lieu de trois',
-    quoi: [
-      { emoji: '⚡',
-        titre: 'Trois réveils du classeur ramenés à un',
-        texte: 'En ouvrant son coin révisions, l\u2019élève déclenchait trois ' +
-               'allers-retours vers le classeur : sa connexion, puis son ' +
-               'dossier, son bilan et ses récitations. Or le réveil du ' +
-               'classeur coûte à lui seul une dizaine de secondes, et les ' +
-               'trois portes refaisaient en plus la même lecture de la ' +
-               'feuille des accès. Tout part maintenant avec la connexion : ' +
-               'une vague, une lecture. Rien à faire côté élève.' },
-      { emoji: '🛟',
-        titre: 'Et ça tient même si le classeur est en retard',
-        texte: 'Si le script Apps Script déployé est plus ancien que la page, ' +
-               'celle-ci redemande ce qui manque, exactement comme avant. ' +
-               'Une accélération qui casse quand les deux moitiés ne sont pas ' +
-               'déployées ensemble n\u2019en est pas une.' }
-    ]
-  },
-  {
-    version: 1122,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Le coin révisions a sa propre adresse : eleve.evolutionconduites.fr',
-    quoi: [
-      { emoji: '🔑',
-        titre: 'Une adresse à lui',
-        texte: 'Les élèves n\u2019ont plus à taper l\u2019adresse de l\u2019application ' +
-               'du bureau suivie d\u2019un nom de fichier : c\u2019est ' +
-               'eleve.evolutionconduites.fr, et rien d\u2019autre. Le lien part ' +
-               'déjà sous cette forme dans le message d\u2019accès, dans les ' +
-               'procédures à réciter, dans le rappel vocal et dans le mail de ' +
-               'correction envoyé par le classeur.' },
-      { emoji: '🔔',
-        titre: 'Les notifications ouvrent la bonne page',
-        texte: 'Sur la nouvelle adresse, la page du coin révisions s\u2019appelle ' +
-               'autrement : un clic sur une notification serait tombé sur une ' +
-               'page introuvable. La page dit maintenant où elle vit à son ' +
-               'démarrage, et la notification s\u2019y rend. Rien à faire côté ' +
-               'élève — la première ouverture répare.' },
-      { emoji: '🏠',
-        titre: 'L\u2019ancienne adresse marche toujours',
-        texte: 'Aucun élève n\u2019est coupé. Ceux qui ont déjà l\u2019icône du coin ' +
-               'révisions sur leur écran d\u2019accueil continuent comme avant ; ' +
-               'ceux qui passent à la nouvelle se reconnectent une fois.' }
-    ]
-  },
-  {
-    version: 1121,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Le dossier élève refait : trois tuiles, « Sa route », et plus de crayons',
-    quoi: [
-      { emoji: '🧭',
-        titre: 'Un onglet « Sa route », en premier',
-        texte: 'La fiche de route n\u2019est plus au-dessus des onglets : elle ' +
-               'a le sien, et c\u2019est celui qui s\u2019ouvre. Le résumé d\u2019état qui ' +
-               'la doublait a disparu — les deux disaient les mêmes phrases ' +
-               'à dix centimètres d\u2019écart, l\u2019un en lecture, l\u2019autre en ' +
-               'écriture. Un fait n\u2019est plus écrit qu\u2019à un seul endroit.' },
-      { emoji: '🎯',
-        titre: 'Trois tuiles en haut du dossier',
-        texte: 'Où il en est, où en est son permis, ce qui lui reste avant ' +
-               'l\u2019examen. La tuile du milieu est celle du permis, qui change ' +
-               'selon la situation. Et celle de droite se tait quand la ' +
-               'précédente a déjà dit les heures : elle montre alors son ' +
-               'prochain cours.' },
-      { emoji: '👆',
-        titre: 'Plus de colonne de crayons',
-        texte: 'Sept crayons identiques qui faisaient sept choses ' +
-               'différentes. La ligne entière est maintenant la cible, avec ' +
-               'un chevron discret, et l\u2019explication est écrite sous elle au ' +
-               'lieu d\u2019être une infobulle — qui n\u2019existe pas sur tablette.' },
-      { emoji: '📂',
-        titre: 'Ce qui manque se compte au lieu de s\u2019étaler',
-        texte: 'Les lignes non renseignées se replient en une seule ligne ' +
-               'qui les NOMME : « 4 choses non renseignées — date d\u2019examen, ' +
-               'ajournements, post-permis, simulateur ». On n\u2019ouvre que si ' +
-               'ça nous concerne. En dessous de trois, rien ne se replie.' },
-      { emoji: '🗂️',
-        titre: 'Les onglets en rail, et trois actions à portée',
-        texte: 'Au-delà de 1280 px les onglets passent en colonne à gauche, ' +
-               'comme un sommaire ; en dessous ils se replient sur plusieurs ' +
-               'lignes. Et l\u2019en-tête porte enfin de quoi appeler, écrire, et ' +
-               'voir son prochain cours — avec le numéro cliquable depuis sa ' +
-               'propre ligne dans la fiche.' },
-      { emoji: '📅',
-        titre: 'Toutes les dates du dossier en français',
-        texte: '« sam. 3 oct. » au lieu de « 03/10/2026 », et l\u2019année ' +
-               'seulement quand ce n\u2019est pas l\u2019année en cours. Dix-huit ' +
-               'endroits en profitent : ils passaient déjà tous par la même ' +
-               'porte, il suffisait de la corriger.' }
-    ]
-  },
-  {
-    version: 1120,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Le numéro de version ne peut plus mentir, et le coin révisions a son adresse',
-    quoi: [
-      { emoji: '🔢',
-        titre: 'Le badge de version dit la vérité',
-        texte: 'Le numéro à côté du titre lisait un morceau de la page ' +
-               'd\u2019accueil. Mettre la page en ligne sans le dossier des ' +
-               'modules affichait donc la version neuve au-dessus de ' +
-               'l\u2019ancienne application, sans un mot — on croyait être à ' +
-               'jour et on ne l\u2019était pas. Les modules portent maintenant ' +
-               'leur propre numéro : s\u2019ils ne concordent pas, le badge ' +
-               'passe en rouge et dit lequel est en retard.' },
-      { emoji: '🔑',
-        titre: 'Le coin révisions sur sa propre adresse',
-        texte: 'eleve.evolutionconduites.fr. L\u2019ancienne adresse continue ' +
-               'de fonctionner aussi longtemps qu\u2019on veut : un élève qui a ' +
-               'déjà l\u2019icône sur son écran d\u2019accueil n\u2019a rien à faire. ' +
-               'Ceux qui passent à la nouvelle se reconnectent une fois.' }
-    ]
-  },
-  {
-    version: 1119,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Le dossier élève se lit en français, et les onglets ne défilent plus',
-    quoi: [
-      { emoji: '📋',
-        titre: 'L\u2019onglet Questionnaire écrit en français',
-        texte: 'Il affichait « Examen blanc · passe », « ebNiveau · non », ' +
-               '« 2025-08-06 ». Les réponses sont maintenant nommées, ' +
-               'traduites et datées en français, et rangées par sujet — ' +
-               'l\u2019examen blanc, l\u2019examen du permis, les rendez-vous, le ' +
-               'poste de conduite — au lieu d\u2019être triées par ordre ' +
-               'alphabétique. Les mots viennent du questionnaire lui-même : ' +
-               'les deux écrans ne peuvent plus se contredire.' },
-      { emoji: '🗂️',
-        titre: 'Les dix onglets d\u2019un dossier tiennent à l\u2019écran',
-        texte: 'La rangée défilait horizontalement : sur téléphone, Handicap ' +
-               'et RGPD étaient hors de l\u2019écran et rien ne le disait. Elle ' +
-               'passe à la ligne, tout est visible d\u2019un coup.' },
-      { emoji: '🧭',
-        titre: 'La frise ne s\u2019écrase plus contre son libellé',
-        texte: 'Dans la fiche, la frise et les remarques se lisent maintenant ' +
-               'sous leur titre, sur toute la largeur. Et les deux cases du ' +
-               'poste de conduite portent leur nom au lieu d\u2019être deux ' +
-               'carrés gris : on lit ce qui est coché sans avoir à deviner.' },
-      { emoji: '🅱️',
-        titre: 'Le résultat d\u2019examen blanc que le bureau connaît déjà',
-        texte: 'Quand tu prépares un cours et que le bureau a noté « pas le ' +
-               'niveau » ou « pourrait », le questionnaire te le dit sous le ' +
-               'sélecteur, avec un bouton pour reprendre la réponse. Il ne ' +
-               'la remplit pas tout seul : une réponse que personne n\u2019a ' +
-               'donnée n\u2019est pas une réponse.' }
-    ]
-  },
-  {
-    version: 1118,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Une tuile en tête du dossier qui dit où en est l\u2019élève',
-    quoi: [
-      { emoji: '🎓',
-        titre: 'Où en est son permis, en un coup d\u2019œil',
-        texte: 'En tête de l\u2019onglet Permis d\u2019un dossier élève, un encart ' +
-               'qui change de sens selon l\u2019élève. Dix-sept situations : permis ' +
-               'obtenu, date prise, place à remplacer, examen annulé, ajourné sans ' +
-               'rendez-vous post-permis, post-permis prévu puis fait avec sa suite, ' +
-               'les cinq états de l\u2019examen blanc, les rendez-vous d\u2019un AAC, et ' +
-               '« rien de noté » qui ouvre la saisie. On ne voit que celle qui ' +
-               'compte : un élève ajourné n\u2019affiche plus son examen blanc, c\u2019est ' +
-               'son post-permis qui parle.' },
-      { emoji: '⛔',
-        titre: 'Une date prise ne cache plus un « pas le niveau »',
-        texte: 'Quand un élève a une date d\u2019examen ET un examen blanc conclu ' +
-               '« pas le niveau » ou « pourrait », la date reste en vedette mais ' +
-               'l\u2019avertissement se lit en rouge juste dessous. Il disparaît de ' +
-               'lui-même dès que la conclusion change.' },
-      { emoji: '📅',
-        titre: 'Des dates qui se lisent',
-        texte: 'Les dates de la tuile s\u2019écrivent « ven. 18 déc. » au lieu de ' +
-               '« 2026-12-18 », et l\u2019année ne s\u2019affiche que si ce n\u2019est pas ' +
-               'l\u2019année en cours. Les noms de mois viennent du système, donc ' +
-               '« déc. » et « sept. » s\u2019abrègent correctement.' }
-    ]
-  },
-  {
-    version: 1117,
-    date: 'Vendredi 9 octobre 2026',
-    resume: 'Les numéros réparés, la boîte qui ne se contredit plus, et « pourrait »',
-    quoi: [
-      { emoji: '📱',
-        titre: 'Les numéros qui avaient perdu leur zéro',
-        texte: 'Certains numéros s’affichaient « 749045808 » : le zéro de ' +
-               'tête saute en passant par le classeur, qui lit un numéro ' +
-               'comme un nombre. Pire, le bouton 💬 pointait alors sur un ' +
-               'numéro qui n’existe pas. L’outil rend son zéro tout seul, ' +
-               'à l’affichage comme au SMS, et range les numéros sous une ' +
-               'seule forme quand on enregistre une fiche. Rien à ' +
-               'retoucher : les fiches déjà saisies se réparent d’elles-mêmes.' },
-      { emoji: '⚙️',
-        titre: 'La boîte ne se choisit plus, elle se lit',
-        texte: 'Dans un cours préparé, la carte du haut disait « BEA » et ' +
-               'le sélecteur du bas « BV — boîte manuelle », pour le même ' +
-               'élève. Le sélecteur devinait la boîte d’après le TYPE DE ' +
-               'BILAN : sept types sur dix-sept n’en portent pas dans leur ' +
-               'nom, et tous les sept répondaient « manuelle ». La boîte ' +
-               'vient maintenant de la formation, et de nulle part ailleurs. ' +
-               'Pour la changer, on change la formation.' },
-      { emoji: '🤔',
-        titre: 'Pourrait avoir le niveau',
-        texte: 'Troisième réponse au résultat de l’examen blanc, entre ' +
-               '« a le niveau » et « pas le niveau ». Elle s’écrit dans la ' +
-               'note, se relit au cours suivant, et l’élève reste dans ' +
-               '« 🤔 Élèves prêts au permis » avec sa mention. Le bouton ' +
-               '« 🤔 Pourrait » du bilan écrit à la main existait déjà mais ' +
-               'ne concluait rien : il conclut.' }
-    ]
-  },
-  {
-    version: 1110,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Supprimer un message, et vider les conversations fermées',
-    quoi: [
-      { emoji: '🗑️',
-        titre: 'Retirer un message qu’on vient d’envoyer',
-        texte: 'Appui long sur ta bulle, puis 🗑️. Le message part, sa photo ' +
-               'ou son vocal sont effacés du stockage, et il sort de la ' +
-               'recherche. Il reste une ligne « 🚫 Message supprimé » — sans ' +
-               'elle, les réponses d’après ne voudraient plus rien dire. ' +
-               '⚠️ Chacun ne retire que LES SIENS, et un élève ne peut pas ' +
-               'retirer ce qu’il a écrit : c’est souvent ce qui compte le ' +
-               'jour d’un désaccord avec une famille. Pas de délai.' },
-      { emoji: '🧹',
-        titre: 'Vider les conversations fermées, pour de bon',
-        texte: 'Sur l’onglet 🗄️ Fermées, un bouton « Tout supprimer » pour ' +
-               'les administrateurs. Il COMPTE d’abord — combien de ' +
-               'conversations, de messages, de fichiers — et il les nomme, ' +
-               'avant de demander confirmation. Ensuite tout part : les ' +
-               'messages, les lectures, les participants, les objets ' +
-               'oubliés, et les photos, vocaux et vidéos du stockage. ' +
-               '⚠️ Rien ne se retrouve après.' }
-    ]
-  },
-  {
-    version: 1109,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Les vidéos dans la messagerie',
-    quoi: [
-      { emoji: '🎥',
-        titre: 'Filmer une manœuvre et l’envoyer',
-        texte: 'Le bouton 🎥, à côté du micro, demande d’abord : filmer, ou ' +
-               'choisir une vidéo déjà prise. On filme avec la caméra ' +
-               'arrière et le compte à rebours sous les yeux — ❚❚ met en ' +
-               'pause, ■ arrête sans envoyer, on se regarde, puis ➤. À 30 ' +
-               'secondes ça s’arrête tout seul, sans envoyer.' },
-      { emoji: '📶',
-        titre: 'Réglée pour partir d’un bord de route',
-        texte: '640×480 et un débit bridé : trente secondes font environ ' +
-               '3 Mo, ça passe en 4G de voiture-école. Une vidéo choisie ' +
-               'dans la galerie est refusée au-delà de 12 Mo — le téléphone ' +
-               'l’a filmée trop grande, il faut la refaire depuis ' +
-               'l’application.' },
-      { emoji: '🎓',
-        titre: 'Les élèves aussi, cinq par jour',
-        texte: 'Même bouton dans leur espace, avec leur propre compte — une ' +
-               'vidéo n’entame pas leur quota de vocaux. Dans la bulle, la ' +
-               'vidéo se lit sur place avec sa durée, et ⤢ en haut à droite ' +
-               'l’ouvre en grand. Le doigt sur l’image met en pause, comme ' +
-               'partout.' }
-    ]
-  },
-  {
-    version: 1108,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Copier un message, coller une capture d’écran',
-    quoi: [
-      { emoji: '📋',
-        titre: 'Copier le texte d’un message',
-        texte: 'L’appui long sur une bulle ouvre le menu des émoticônes, et ' +
-               '📋 s’y ajoute tout au bout : le texte part dans le ' +
-               'presse-papiers. ⚠️ C’est ce menu qui empêchait de copier — ' +
-               'l’appui long et le clic droit sont les deux gestes par ' +
-               'lesquels on sélectionne du texte, et les réactions les ' +
-               'avaient pris. Ça marche aussi sur la transcription d’un ' +
-               'vocal, et dans un fil qu’on ne fait que surveiller.' },
-      { emoji: '🖼️',
-        titre: 'Et coller une capture d’écran dans le champ',
-        texte: 'Une image copiée (Ctrl+V, ou « Coller » sur téléphone) part ' +
-               'directement comme photo. Plus besoin de l’enregistrer sur le ' +
-               'disque pour la rouvrir ensuite par 📷. Le texte, lui, se ' +
-               'collait déjà tout seul.' }
-    ]
-  },
-  {
-    version: 1107,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'La pastille rouge sur l’icône de l’application',
-    quoi: [
-      { emoji: '🔴',
-        titre: 'Le nombre de messages non lus sur l’icône',
-        texte: 'L’icône de l’application sur l’écran d’accueil porte ' +
-               'maintenant le nombre de messages qui t’attendent. Il monte à ' +
-               'chaque notification reçue application fermée, et il se remet ' +
-               'au bon chiffre dès que tu ouvres — même si tu as lu les ' +
-               'messages ailleurs entre-temps. Il disparaît quand tout est lu.' },
-      { emoji: '📱',
-        titre: '⚠️ Sur iPhone et sur ordinateur seulement',
-        texte: 'Android ne sait pas faire : le système y met un point tout ' +
-               'seul tant qu’une notification n’est pas lue dans le volet, et ' +
-               'ce point part dès qu’on la balaie. Ce n’est pas une panne et ' +
-               'il n’y a rien à régler — aucun navigateur Android ne propose ' +
-               'de compteur. Sur iPhone, il faut que l’application soit ' +
-               'ajoutée à l’écran d’accueil et les notifications autorisées.' }
-    ]
-  },
-  {
-    version: 1106,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Le départ des heures s’enregistre vraiment depuis le questionnaire',
-    quoi: [
-      { emoji: '⏱️',
-        titre: 'La réponse atteint enfin le suivi',
-        texte: 'La question « Ces heures partent de quand ? » était bien posée ' +
-               'dans le questionnaire, mais depuis une préparation personne ne ' +
-               'portait ta réponse jusqu’à la fiche de l’élève : elle restait ' +
-               'dans le cours. Ça marchait depuis le dossier, pas depuis « mes ' +
-               'prochains cours ». C’est réglé — par le crayon d’un cours ' +
-               'préparé comme à la création.' },
-      { emoji: '🔒',
-        titre: 'Et ton nombre d’heures ne bouge pas',
-        texte: '⚠️ Important : le questionnaire affiche ce qu’il RESTE, la ' +
-               'fiche affiche ce qui a été DÉCIDÉ. Quand tu réponds « depuis ' +
-               'la charnière » depuis le questionnaire, seul le point de ' +
-               'départ est corrigé — le nombre décidé reste intact. Sinon 6h ' +
-               'devenues 4h seraient décomptées une seconde fois.' }
-    ]
-  },
-  {
-    version: 1105,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Le départ des heures se corrige aussi depuis le questionnaire',
-    quoi: [
-      { emoji: '⏱️',
-        titre: 'La question est maintenant dans tes prochains cours',
-        texte: 'Sous « Heures restantes avant l’examen », le questionnaire ' +
-               'demande à son tour « Ces heures partent de quand ? » — depuis ' +
-               'la charnière, ou à partir d’aujourd’hui. Plus besoin d’ouvrir ' +
-               'le dossier de l’élève : c’est pendant le cours qu’on s’aperçoit ' +
-               'que le compte ne colle pas, et un aller-retour par le dossier, ' +
-               'c’est un détour qu’on ne fait pas — donc un chiffre faux qui ' +
-               'reste. Elle ne s’affiche que si elle a deux réponses, et elle ' +
-               'dit de combien la réserve serait déjà entamée.' }
-    ]
-  },
-  {
-    version: 1104,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Tu peux dire d’où partent les heures avant l’examen',
-    quoi: [
-      { emoji: '⏱️',
-        titre: 'Les heures d’un post-permis se décomptent depuis le post-permis',
-        texte: 'Quand tu posais un nombre d’heures sur la fiche d’un élève qui ' +
-               'a eu un rendez-vous post-permis (ou un ajournement), l’outil ' +
-               'retenait toujours « il reste ça À PARTIR D’AUJOURD’HUI » — sans ' +
-               'jamais demander. Si tu recopiais ce que le rendez-vous avait ' +
-               'évalué, les leçons déjà faites depuis n’étaient pas déduites : ' +
-               'Mohammad restait à 4h + 3h alors qu’il ne lui restait que les ' +
-               '3h. La question se pose maintenant pour toutes les charnières, ' +
-               'pas seulement pour l’examen blanc.' },
-      { emoji: '✏️',
-        titre: 'Et tu peux le corriger après coup',
-        texte: 'Clique sur la ligne des heures dans la fiche : la fenêtre ' +
-               's’ouvre sur ce qui est ENREGISTRÉ — « depuis le post-permis » ' +
-               'ou « à partir d’aujourd’hui » — et tu changes. Deux clics pour ' +
-               'rattraper un repère posé de travers, au lieu de tout retaper. ' +
-               'La fiche écrit le repère en toutes lettres, pour que le ' +
-               'chiffre affiché reste vérifiable d’un coup d’œil.' }
-    ]
-  },
-  {
-    version: 1103,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Le téléphone vibre quand un départ est refusé',
-    quoi: [
-      { emoji: '📳',
-        titre: 'Un départ refusé se sent, en plus de se voir',
-        texte: 'Trois signes le disaient déjà à l’écran — le champ qui ' +
-               'rougit, l’écran qui y descend, le bouton qui dit ce qui ' +
-               'manque. Mais le téléphone est souvent sur son support et les ' +
-               'yeux sur la route : il vibre maintenant, deux impulsions ' +
-               'courtes. Une seule, plus franche, quand un repère est posé ' +
-               'pendant le trajet — un refus et une réussite ne doivent pas ' +
-               'se sentir pareil.' },
-      { emoji: '💾',
-        titre: 'Le bilan des éliminatoires se sauve tout de suite',
-        texte: 'Quand l’outil compose tout seul le bilan des éliminatoires ' +
-               'd’un examen blanc, il attendait la sauvegarde suivante — et ' +
-               'si le moniteur ne touchait plus à rien, elle ne venait pas. ' +
-               'Un onglet fermé entre-temps emportait le texte. Il part ' +
-               'maintenant à la seconde où il est écrit.' }
-    ]
-  },
-  {
-    version: 1102,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Deux cours à venir ne portent plus le même numéro de leçon',
-    quoi: [
-      { emoji: '🔢',
-        titre: 'Un cours qui attend son bilan compte quand même',
-        texte: 'Le compte des leçons vient des bilans. Tant qu’un cours n’a ' +
-               'pas été fait, il n’a pas de bilan — et deux cours à venir ' +
-               'pour le même élève recevaient donc le même chiffre : ' +
-               'Mackenzie annonçait « 16ème » à 13h ET à 17h. Chaque cours ' +
-               'déjà préparé devant celui qu’on regarde compte maintenant ' +
-               'pour une leçon : 16 à 13h, 17 à 17h, et la 1ère puis la 2ème ' +
-               'après l’examen blanc. Deux leçons le même jour sont deux ' +
-               'leçons.' },
-      { emoji: '⏱️',
-        titre: 'Et les heures avant l’examen se décomptent enfin',
-        texte: '« 6h + 3h » prescrites au rendez-vous post-permis, c’est une ' +
-               'réserve, et une réserve se consomme : à la 1ère leçon après ' +
-               'il reste 4h + 3h, à la 2ème 2h + 3h, à la 3ème plus que les ' +
-               '3h. C’était la règle depuis des semaines — la fonction qui ' +
-               'devait faire la soustraction n’avait jamais été écrite, et ' +
-               'la carte repartait de la réserve pleine tous les matins. ' +
-               'Quand le repère et la charnière ne parlent pas de la même ' +
-               'chose, rien n’est décompté plutôt qu’un chiffre inventé.' }
-    ]
-  },
-  {
-    version: 1101,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Les vocaux : on peut enfin s’arrêter sans envoyer',
-    quoi: [
-      { emoji: '⏹',
-        titre: 'Arrêter, s’écouter, puis décider',
-        texte: 'Il n’y avait que deux sorties — jeter, ou envoyer. ■ arrête ' +
-               'maintenant l’enregistrement sans rien envoyer : le micro se ' +
-               'coupe, le vocal s’écoute sur place, le texte se corrige, et ' +
-               'il ne part que si tu appuies sur ➤. À deux minutes (une pour ' +
-               'un élève) c’est pareil : ça s’arrête, ça n’envoie plus tout ' +
-               'seul.' },
-      { emoji: '⏸',
-        titre: 'Et une pause, quand on est coupé en plein milieu',
-        texte: '❚❚ met en pause, ▶ reprend — le compteur s’arrête vraiment, ' +
-               'une pause de trente secondes ne mange plus trente secondes de ' +
-               'ton temps de parole. Le point rouge s’éteint et l’onde se ' +
-               'couche : on voit que rien ne s’enregistre.' },
-      { emoji: '🖼️',
-        titre: 'Plus de vignette « Photo » cassée au-dessus des vocaux',
-        texte: 'Un vocal s’affichait avec une image cassée par-dessus le ' +
-               'lecteur, et c’est elle qui déclenchait le bandeau rouge ' +
-               '« Erreur au chargement » en bas de l’écran. Les deux ont ' +
-               'disparu. Au passage, ce bandeau ne s’affiche plus pour une ' +
-               'photo qui met du temps à venir — seulement quand quelque ' +
-               'chose est vraiment cassé.' }
-    ]
-  },
-  {
-    version: 1100,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Le numéro de leçon se remet à jour tout seul, pour de bon',
-    quoi: [
-      { emoji: '🔢',
-        titre: 'Le rang écrit dans le dernier bilan fait enfin loi',
-        texte: 'Un cours créé par un rappel annonçait parfois un numéro très ' +
-               'en dessous de la réalité — « 3ème leçon » pour un élève qui en ' +
-               'est à sa 25ème. La cause : quand un bilan dit « 2ème leçon ' +
-               'après le post-permis (24ème au total) », le serveur lisait le 2 ' +
-               'et ne voyait jamais le 24. Il le lit maintenant, et la carte du ' +
-               'lendemain reprend bien celle de la veille. Rien à retaper : ' +
-               'les cartes se corrigent toutes seules au prochain chargement.' },
-      { emoji: '📈',
-        titre: 'Et un bilan abîmé ne fait plus reculer un élève',
-        texte: 'Un rang ne recule jamais : une leçon faite reste faite. Si un ' +
-               'bilan annonce un numéro plus bas qu’un bilan plus ancien — ça ' +
-               'arrive quand une note a été mal écrite — c’est le plus élevé ' +
-               'qui est retenu, au lieu du plus récent. ⚠️ Revers de la ' +
-               'médaille : un numéro tapé TROP HAUT par erreur ne se rattrape ' +
-               'plus tout seul. Il faut corriger ce bilan-là, ou taper le rang ' +
-               'à la main sur la carte — la main l’emporte toujours.' }
-    ]
-  },
-  {
-    version: 1098,
-    date: 'Jeudi 8 octobre 2026',
-    resume: 'Les messages vocaux, avec ce qui est dit écrit en dessous',
-    quoi: [
-      { emoji: '🎤',
-        titre: 'Les vocaux dans la messagerie',
-        texte: 'Le micro, à gauche du champ : on appuie, on parle, on envoie. ' +
-               'Deux minutes au maximum, avec le compte à rebours sous les ' +
-               'yeux — il passe en rouge dans les dix dernières secondes, et à ' +
-               'deux minutes pile l’enregistrement s’arrête tout seul sans ' +
-               'rien perdre. ✕ annule, ➤ envoie.' },
-      { emoji: '📝',
-        titre: 'Et ce que tu dis s’écrit pendant que tu parles',
-        texte: 'Le texte apparaît sous le compteur au fur et à mesure, et tu ' +
-               'peux le corriger avant d’envoyer — la reconnaissance écrit ' +
-               '« Hery » en « Erri » une fois sur trois. Il part AVEC le vocal : ' +
-               'dans la bulle, dans l’aperçu de la liste, et surtout dans la ' +
-               'recherche. C’est tout l’intérêt : dans trois mois, on retrouve ' +
-               'un vocal en cherchant un mot, sans réécouter quarante ' +
-               'messages. ⚠️ Sur iPhone, Safari ne sait pas le faire : le ' +
-               'vocal part sans texte, et la bulle le dit.' },
-      { emoji: '▶️',
-        titre: 'Les écouter, et plus vite si besoin',
-        texte: 'Un bouton, une barre où l’on peut se déplacer pour réécouter ' +
-               'une phrase, et ×1 / ×1,5 / ×2 à droite — la vitesse se garde ' +
-               'd’un vocal à l’autre. Un seul se lit à la fois : deux voix en ' +
-               'même temps dans une voiture, on ne comprend ni l’une ni ' +
-               'l’autre.' },
-      { emoji: '🎓',
-        titre: 'Les élèves aussi, une minute et cinq par jour',
-        texte: 'Même bouton dans leur espace, avec leur propre compte à ' +
-               'rebours. Cinq vocaux par jour : au-delà, le micro s’éteint ' +
-               'jusqu’au lendemain et le lui dit. Leurs 10 photos par jour ' +
-               'restent de leur côté, les deux comptes sont séparés.' }
-    ]
-  },
-  {
-    version: 1090,
-    date: 'Mercredi 7 octobre 2026',
-    resume: 'Les notifications, les réactions, les photos, le bandeau refait',
-    quoi: [
-      { emoji: '🔔',
-        titre: 'Ton téléphone te prévient des nouveaux messages',
-        texte: 'À faire UNE fois par appareil : onglet « 💬 Messagerie », ' +
-               'la bande en haut, bouton « Activer ». Ensuite ton téléphone ' +
-               'sonne quand on t’écrit, même application fermée — et quand ' +
-               'quelqu’un réagit à ce que tu as écrit. La notification dit ' +
-               'QUI écrit, jamais ce qui est écrit : un téléphone posé sur ' +
-               'une table ne doit pas raconter la conversation. On appuie ' +
-               'dessus, le bon fil s’ouvre. Et pour l’avoir comme une vraie ' +
-               'application, « Ajouter à l’écran d’accueil » depuis le ' +
-               'navigateur — sur iPhone c’est obligatoire pour que les ' +
-               'notifications arrivent.' },
-      { emoji: '👍',
-        titre: 'Les réactions sur un message',
-        texte: 'Appui long sur une bulle : les six émoji de Messenger ' +
-               'apparaissent — 👍 ❤️ 😂 😮 😢 🙏. On appuie, c’est posé, et la ' +
-               'personne est prévenue sur son téléphone. On réappuie sur le ' +
-               'même, c’est retiré. Les pastilles se comptent sous la ' +
-               'bulle : « 👍 6 », pas six pouces à la file. Les élèves y ont ' +
-               'droit aussi, depuis leur page.' },
-      { emoji: '✈️',
-        titre: 'Le bouton d’envoi devient un pouce quand tu n’écris rien',
-        texte: 'Champ vide : le bouton montre 👍 et envoie un pouce d’un ' +
-               'seul geste — « c’est noté », sans taper. Dès que tu tapes ' +
-               'une lettre, il redevient un avion. À côté, 🙂 ouvre les ' +
-               'émoticônes, rangées par familles, qui s’insèrent là où est ' +
-               'le curseur et pas à la fin du texte.' },
-      { emoji: '📷',
-        titre: 'Les photos dans la messagerie',
-        texte: 'Le bouton 📷 à côté du champ : appareil photo ou galerie. ' +
-               'La photo est réduite SUR TON TÉLÉPHONE avant de partir — ' +
-               'elle arrive vite même en 4G, et ça lui retire au passage le ' +
-               'lieu où elle a été prise, qui voyage normalement avec. On ' +
-               'tape dessus pour la voir en grand. Les élèves peuvent en ' +
-               'envoyer aussi : un permis, un justificatif, un papier ' +
-               'd’auto-école — dix par jour au maximum, pour que la ' +
-               'messagerie ne devienne pas un album.' },
-      { emoji: '🔢',
-        titre: 'Le « 1 » de la messagerie s’en va quand tu as lu',
-        texte: 'Il restait collé sur l’onglet alors que le message était ' +
-               'ouvert et que l’expéditeur voyait déjà l’accusé de lecture. ' +
-               'Il se recompte maintenant à chaque fil ouvert, y compris ' +
-               'quand tu lis depuis le tiroir.' },
-      { emoji: '🔐',
-        titre: 'Ouvrir une conversation sans voir celles des autres',
-        texte: 'Pour écrire à quelqu’un, « Messagerie : Modifier » suffit ' +
-               'désormais — le bouton ✏️ est là, dans la liste comme dans le ' +
-               'tiroir. Avant, il fallait mettre « Superviser », qui donne ' +
-               'en plus la lecture des conversations de toute l’école : ce ' +
-               'n’était pas le même droit, et ça n’a plus rien à voir. ' +
-               '« Superviser » reste réservé à ceux qui doivent vraiment ' +
-               'tout lire.' },
-      { emoji: '📄',
-        titre: 'Le bilan de l’examen officiel revient tout seul',
-        texte: 'Dans « Attente bilan post-permis », le champ « Bilan de ' +
-               'l’examen officiel » arrivait vide alors que la ligne en ' +
-               'dessous affirmait l’avoir repris : il est de nouveau rempli ' +
-               'avec le bilan du jour de l’examen, et la ligne dit de quel ' +
-               'examen et de quel moniteur il vient. S’il n’y a rien à ' +
-               'reprendre, elle le dit au lieu de faire semblant.' },
-      { emoji: '🏁',
-        titre: 'Et ce que tu as noté à la sortie de l’examen aussi',
-        texte: 'L’inspecteur, les heures avant repassage, la case « pas de ' +
-               'repassage pour le moment » et ta note pour l’équipe : tout ' +
-               'cela s’affiche maintenant en haut du rendez-vous post-permis, ' +
-               'sous « 🏁 À la sortie de l’examen ». Le cadre existait, mais ' +
-               'il cherchait ces informations là où elles ne sont pas : elles ' +
-               'voyagent dans la note du bilan d’examen, et c’est de là ' +
-               'qu’elles arrivent désormais. Les heures demandées et le ' +
-               '« pas de repassage » se posent même tout seuls dans la ' +
-               'conclusion — tu gardes le dernier mot, ce que tu as choisi ' +
-               'n’est jamais écrasé. La carte du cours, elle, porte ces ' +
-               'mêmes lignes à la place du rapport d’examen entier qui s’y ' +
-               'déroulait — et quand le bureau fixe le rendez-vous, c’est ' +
-               'TON cours de ce jour-là qui devient le rendez-vous, au lieu ' +
-               'd’un deuxième cours posé à côté.' },
-      { emoji: '🗂️',
-        titre: 'Le bandeau ne dit plus tout d’un coup',
-        texte: 'Il affichait quarante-sept lignes au-dessus du premier ' +
-               'cours de la journée, et plus personne ne l’ouvrait. ' +
-               'Maintenant : « Aujourd’hui » d’abord, « Cette semaine » et ' +
-               '« En attente » à un clic avec leur compte — rien n’est ' +
-               'caché, c’est juste rangé. Tu ne vois que TES élèves, ceux de ' +
-               'tes prochains cours, avec un bouton « 🏫 Toute l’école » ' +
-               'quand tu veux regarder le reste ; le bureau voit tout. Un ' +
-               'élève qui a deux choses à prévoir fait UNE ligne, pas deux. ' +
-               'Et une fois la case « prévenu » cochée dans le suivi, la ' +
-               'ligne disparaît toute seule — plus besoin de la barrer à la ' +
-               'main.' }
-    ]
-  },
-  {
-    version: 1015,
-    date: 'Jeudi 17 septembre 2026',
-    resume: 'Le tiroir « Démarrer un cours », la loupe, le numéro de leçon',
-    quoi: [
-      { emoji: '➕',
-        titre: 'Démarrer un cours est rangé dans un tiroir',
-        texte: 'Il était sous « Mes prochains cours » et se confondait avec ' +
-               'eux : on tapait dedans sans mettre le nom. Il est maintenant ' +
-               'fermé, et il s’appelle « Démarrer un cours qui n’est pas ' +
-               'dans la liste ». Ton cours EST dans la liste ? Démarre-le de ' +
-               'là : il s’ouvre en plein écran, avec un « ← Mes cours » pour ' +
-               'revenir. Et s’il manque le nom, le prénom, le type de bilan ' +
-               'ou la date, le bouton te montre lequel au lieu de ne rien ' +
-               'faire.' },
-      { emoji: '🔍',
-        titre: 'La loupe s’ouvre sur la liste des élèves',
-        texte: 'On appuie dessus : le clavier est là et les noms sont déjà ' +
-               'affichés. On tape sur un nom, on est dans son dossier — plus ' +
-               'de bouton « Ouvrir son dossier » à viser derrière. La ' +
-               'formation est indiquée à droite de chaque nom. Elle trouve ' +
-               'aussi les ÉCRANS : tape « écoutes », « remorque », « caisse » ' +
-               '— elle t’y emmène, et elle te dit dans quel onglet c’était.' },
-      { emoji: '🗺️',
-        titre: 'Le trajet se revoit dans le bilan rangé',
-        texte: 'Le bouton du dossier élève rouvre la carte AVEC ses points ' +
-               'numérotés et l’explication sous chacun, comme au moment du ' +
-               'cours. Les erreurs sans compétence ont retrouvé leur ' +
-               '« point N sur la carte », qu’elles perdaient dans le mail ' +
-               'd’examen blanc.' },
-      { emoji: '🏁',
-        titre: 'Le rendez-vous post-permis laisse sa trace',
-        texte: 'Il restait dans « Cours non terminés » une fois terminé, ' +
-               'et on ne le retrouvait nulle part : seul le résultat ' +
-               'remontait au bureau. Il écrit maintenant son compte rendu ' +
-               "dans l'historique des cours — conclusion, bilan " +
-               "d'examen, ce que l'élève a écrit, tes remarques — et il " +
-               'sort de la liste des cours non terminés. Il ne compte pas ' +
-               'comme une leçon.' },
-      { emoji: '🔢',
-        titre: 'Le numéro de leçon, enfin le même partout',
-        texte: 'La petite case sous la date d’examen et la phrase verte ' +
-               '« encore N leçons » disent le même chiffre, et il descend à ' +
-               'chaque cours. Un rang que tu as corrigé à la main TIENT : ' +
-               'l’outil repart de lui et compte les leçons qui ont suivi, ' +
-               'sur tous les écrans — avant, le même élève pouvait afficher ' +
-               'deux numéros différents selon l’écran ouvert. Les élèves en ' +
-               'conduite supervisée et ceux qui ont déjà passé le permis ' +
-               'comptent sur leurs heures de repassage, pas sur celles ' +
-               'd’avant.' },
-      { emoji: '👨‍👩‍👦',
-        titre: '⚠️ Certains numéros vont descendre, et c’est voulu',
-        texte: 'Le RVP 1 et le RVP 2 se passent assis, en salle, avec ' +
-               'l’accompagnateur : ce ne sont pas des leçons de conduite. Le ' +
-               'classeur les comptait quand même. Un élève en conduite ' +
-               'accompagnée qui a fait ses deux rendez-vous était annoncé ' +
-               'deux leçons plus loin qu’il ne l’est. C’est le chiffre juste ' +
-               'qui arrive, rien ne s’est perdu.' }
-    ]
-  },
-  {
-    version: 974,
-    date: 'Vendredi 12 septembre 2026',
-    resume: 'Le bouton CB, l’onglet Cours, les examens',
-    quoi: [
-      { emoji: '💳',
-        titre: 'Le bouton CB, à côté de la loupe',
-        texte: 'Il dit qui a la carte gasoil : gris au bureau, doré quand ' +
-               'c’est toi, rouge dès qu’elle est dehors — avec l’initiale ' +
-               'de chaque carte. On la prend, on la passe à quelqu’un, on ' +
-               'la repose en indiquant le véhicule du plein. Dès le ' +
-               'lendemain, elle est en retard et te le dit.' },
-      { emoji: '🎨',
-        titre: 'Le trait de couleur à côté de l’heure',
-        texte: 'Il dit la boîte du cours : vert pour une manuelle, magenta ' +
-               'pour une automatique. Le simulateur et l’examen blanc ont ' +
-               'les leurs.' },
-      { emoji: '📱',
-        titre: 'L’onglet Cours refait',
-        texte: 'Sur téléphone, le cours du moment est seul en haut — ' +
-               '« dans 10 min », « en cours » — et tout le reste de la ' +
-               'journée tient dans un tiroir qu’on déplie. Sur tablette, ' +
-               'les vues passent dans un rail à gauche, qui se replie en ' +
-               'icônes pour rendre la place à la carte.' },
-      { emoji: '🏁',
-        titre: 'Examen blanc et examen officiel',
-        texte: 'MANŒUVRE et AUTONOMIE s’ajoutent sous les vérifications, ' +
-               'avec les boutons 💀 et ⚠️ ; l’autonomie retire des points ' +
-               'par demi-crans. Installation, passager et voyants donnent ' +
-               'la note sur 2. Et avant de générer, le texte de la partie 4 ' +
-               's’affiche : tu peux le corriger.' }
-    ]
-  }
+/* Les emplacements où un modèle peut être utilisé.
+   Chaque usage annonce les variables qu'il sait remplacer. */
+const USAGES_MODELE = [
+  { cle:'permis_jour',    nom:'📣 Groupe Messenger — planning du jour',
+    variables:['{date}', '{centre}', '{rendezvous}', '{liste}', '{note}'] },
+  { cle:'permis_rappels', nom:'📌 Groupe Messenger — rappels avant examen',
+    variables:[] },
+  { cle:'permis_obtenu',  nom:'🎓 Élève ayant obtenu son permis',
+    variables:['{eleve}', '{date}'] },
+  { cle:'examen_blanc',   nom:'📝 Examen blanc — message à l\'élève',
+    variables:['{eleve}', '{date}', '{moniteur}'] },
+  { cle:'post_permis',    nom:'🔁 Rendez-vous post-permis',
+    variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
+  /* 🔁 v1328 — les deux messages qui partent une fois son bilan collé
+     (ec-postpermis.js, MESSAGES_POST_PERMIS). Sans modèle écrit ici,
+     ce sont les textes de David, mot pour mot. */
+  { cle:'post_permis_rdv', nom:'🔁 Post-permis — prendre son rendez-vous',
+    variables:[] },
+  { cle:'post_permis_up',  nom:'🔁 Post-permis — la relance « UP »',
+    variables:[] },
+  /* 🚦 v1450 — David : « où est-ce que je peux changer ce texte ? » (la
+     carte de l'accueil de l'espace élève après un ajournement). Le texte de
+     départ vit dans ec-postpermis.js (CARTE_AJOURNEMENT_DEFAUT) ; le Worker
+     le donne à l'élève (b.texteCarte). Sa mise en forme : AIDE_CARTE_AJ. */
+  { cle:'carte_ajournement', nom:'🚦 Espace élève — carte « Suite à ton ajournement »',
+    variables:['{cepc}', '{agence}'] },
+  /* 🚦 v1450 — le message Messenger de la fenêtre « 📤 À envoyer à … »
+     (ec-postpermis.js, MSG_AJOURNE_APP) */
+  { cle:'ajourne_app', nom:'❌ Ajourné — le message Messenger (bilan dans l’appli)',
+    variables:[] },
+  /* 📨 v1380 — les relances de Permis › Relances (ec-relances.js). Sans
+     modèle écrit ici, ce sont les textes de départ du code. La première
+     ligne « Objet : … » donne l'objet du mail. */
+  { cle:'relance_bilan',     nom:'📨 Relance — bilan post-permis à faire',
+    variables:['{prenom}', '{eleve}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
+  { cle:'relance_rdv',       nom:'📨 Relance — RDV post-permis à réserver',
+    variables:['{prenom}', '{eleve}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
+  { cle:'relance_repassage', nom:'📨 Relance — repassage (leçons à réserver)',
+    variables:['{prenom}', '{eleve}', '{heures}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
+  { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
+    variables:['{eleve}', '{date}', '{motif}'] },
+  { cle:'ecoutes', nom:'😱 Rappel écoutes pédagogiques', variables:[] },
+  { cle:'permis_planning', nom:'🚨 Planning formation avant permis',
+    variables:['{veille}', '{permis}', '{moniteur}', '{centre}', '{liste}'] },
+  { cle:'rappel_cours',   nom:'🔔 Rappel de cours par mail — élève',
+    variables:['{jour}', '{voiture}', '{emplacement}', '{mentions}',
+               '{note}', '{prenom}', '{eleve}',
+               '{date}', '{datecourte}', '{heure}', '{heure+2h}',
+               '{duree}', '{moniteur}', '{site}', '{lien}'] },
+  { cle:'rappel_financeur', nom:'💶 Rappel de cours par mail — financeur',
+    variables:['{eleve}', '{prenom}', '{date}', '{datecourte}', '{heure}',
+               '{typeseance}', '{emplacement}', '{voiture}', '{moniteur}',
+               '{moniteurligne}', '{note}', '{mention48h}'] },
+  { cle:'procedure',      nom:'🚦 Procédure de conduite',
+    variables:[] },
+  /* ⚠️ {prenom} EST DANS LA LISTE — v959. envoyerFicheParMail le
+     remplit depuis toujours ; il manquait ici, donc il n'était ni
+     proposé au bouton, ni reconnu par l'alerte qui prévient qu'une
+     variable vient d'être retirée. Une liste qui ne dit pas tout ce
+     que l'autre remplit, c'est encore le même fait à deux
+     endroits. */
+  { cle:'libre',          nom:'📄 Texte libre',
+    variables:['{prenom}', '{eleve}', '{date}'] }
 ];
 
-/* ⚠️ LA MARQUE DE LECTURE VIT DANS LE NAVIGATEUR — comme les
-   réglages du bandeau, qui sont déjà là. Chacun lit pour lui, sans
-   toucher à celui des autres, et il n'y a rien à administrer.
+/* ⚠️ UNE NOUVELLE FICHE EST UN TEXTE LIBRE — v958.
 
-   Le revers est assumé, et c'est le même qu'aujourd'hui : un
-   téléphone neuf, ou un navigateur nettoyé, reverra la dernière
-   note une fois. C'est le prix de ne rien avoir à gérer — et relire
-   une note n'a jamais fait de mal à personne. */
-const CLE_NOUVEAUTES_LUES = 'nouveautes_lues';
+   Les onze premiers usages sont des EMPLACEMENTS : l'application va
+   y chercher un texte et un seul. Le menu s'ouvrait sur le premier
+   d'entre eux (« Groupe Messenger — planning du jour »), si bien
+   qu'une fiche créée sans y penser se posait dessus. Avec cent
+   fiches à saisir, c'est cent chances de déplacer un texte que
+   l'application utilise vraiment.
 
-function derniereNouveaute(){
-  return NOUVEAUTES.length ? NOUVEAUTES[0] : null;
+   Un seul endroit écrit ce menu, et il connaît son défaut. */
+function optionsUsage(defaut){
+  return USAGES_MODELE.map(u =>
+    '<option value="' + u.cle + '"' +
+    (u.cle === (defaut || 'libre') ? ' selected' : '') + '>' +
+    u.nom + '</option>').join('');
 }
 
-function versionNouveauteLue(){
+/* Ce qu'il faut savoir des heures calculées, dit là où on écrit
+   le modèle plutôt que dans un guide qu'on ne relit jamais. */
+const AIDE_HEURES =
+  '<code>{date}</code> donne « dimanche 23 août », ' +
+  '<code>{datecourte}</code> donne « 23/08 » — calculés depuis ' +
+  'le champ <em>Quand</em>.<br>' +
+  'Les heures se calculent depuis celle du cours : ' +
+  '<code>{heure+2h}</code>, <code>{heure+1h30}</code>, ' +
+  '<code>{heure+45min}</code>. Le signe moins recule.<br>' +
+  'Un cours à 13h donne « 13h à {heure+2h} » → <strong>13h à 15h</strong>.';
+
+/* Un modèle de départ pour les usages qui en ont un. Le texte
+   n'est pas recopié ici : il vit dans le module qui l'utilise,
+   sinon les deux finiraient par diverger sans qu'on le voie. */
+const AIDE_CARTE_AJ = '🚦 <b>Comment l’écrire</b> (l’élève la voit sur l’accueil de son espace, sous « 🚦 Suite à ton ajournement du … ») :<br>' +
+  '• une ligne vide = un nouveau paragraphe ; <code>**mot**</code> = en gras ;<br>' +
+  '• <code>1-</code>, <code>2-</code>, <code>3-</code> en début de paragraphe = une étape numérotée ; ' +
+  'la 1<sup>re</sup> reçoit toute seule où en est son bilan, le bouton « 📝 Faire mon bilan » et le lien de l’étape 24 ;<br>' +
+  '• une ligne qui commence par <code>!!</code> = la ligne en gros (« PAS DE BILAN COMPLET… ») ;<br>' +
+  '• l’étape qui contient <code>{agence}</code> ne s’affiche qu’aux élèves qui peuvent repasser ailleurs (avec le lien « Où se trouve l’agence ») ;<br>' +
+  '• <code>{cepc}</code> = le lien « voir ton CEPC » ; ce qui suit la dernière étape s’écrit en petit, comme un avertissement.';
+function modeleParDefaut(cle){
+  if(cle === 'rappel_financeur' && typeof MODELE_FINANCEUR_DEFAUT !== 'undefined'){
+    return MODELE_FINANCEUR_DEFAUT;
+  }
+  const d = textesDeDepart().find(x => x.usage === cle);
+  return d ? d.contenu : '';
+}
+
+/* ============================================================
+   📨 LES TEXTES DE DÉPART, POSÉS DANS LA BIBLIOTHÈQUE — v1382
+
+   David, le 7 novembre : « Les messages de départ sont dans Outils ›
+   Ce qu'on écrit… Je ne les retrouve pas ». Ils n'y étaient pas :
+   tant que personne n'avait écrit de fiche pour ces emplacements,
+   l'application prenait son texte de départ (dans le code) et la
+   bibliothèque ne montrait rien.
+
+   À l'ouverture de Ce qu'on écrit, chez quelqu'un qui peut modifier
+   les textes de l'application, chaque emplacement de cette liste sans
+   fiche reçoit la sienne, avec le texte de départ et l'étiquette
+   « 📨 Relances ». Un numéro FIXE par emplacement : deux ouvertures en
+   même temps réécrivent la même ligne au lieu d'en ajouter deux. Une
+   fiche déjà écrite n'est jamais touchée. Les textes ne sont pas
+   recopiés ici : ils vivent dans le module qui s'en sert.
+   ============================================================ */
+function textesDeDepart(){
+  const l = [];
+  if(typeof RL_TYPES !== 'undefined'){
+    Object.keys(RL_TYPES).forEach(k => {
+      const t = RL_TYPES[k];
+      l.push({ usage: t.usage, nom: '📨 Relance — ' + t.titre, contenu: t.defaut, etiquettes: '📨 Relances' });
+    });
+  }
+  if(typeof MESSAGES_POST_PERMIS !== 'undefined'){
+    MESSAGES_POST_PERMIS.forEach(m => l.push({ usage: m.usage, nom: '🔁 Post-permis — ' + m.nom, contenu: m.texte, etiquettes: '📨 Relances' }));
+  }
+  if(typeof MSG_AJOURNE_APP !== 'undefined'){
+    l.push({ usage: 'ajourne_app', nom: '❌ Ajourné — le message Messenger (bilan dans l’appli)', contenu: MSG_AJOURNE_APP, etiquettes: '📨 Relances' });
+  }
+  if(typeof CARTE_AJOURNEMENT_DEFAUT !== 'undefined'){
+    l.push({ usage: 'carte_ajournement', nom: '🚦 Espace élève — carte « Suite à ton ajournement »', contenu: CARTE_AJOURNEMENT_DEFAUT, etiquettes: '📨 Relances' });
+  }
+  return l;
+}
+let textesDeDepartPoses = false;
+async function poserLesTextesDeDepart(){
+  if(textesDeDepartPoses) return false;
+  if(typeof peutModifier === 'function' && !peutModifier('textes_appli')) return false;
+  textesDeDepartPoses = true;
+  const manquent = textesDeDepart().filter(d => !modelesTexte.some(m => m.usage === d.usage));
+  if(!manquent.length) return false;
+  let pose = 0;
+  for(const d of manquent){
+    try{
+      await appelPrep({ action: 'modeleSet', id: 'mdepart_' + d.usage, usage: d.usage, nom: d.nom,
+                        etiquettes: d.etiquettes, contenu: d.contenu });
+      pose++;
+    }catch(e){ console.warn('Texte de départ non posé :', d.usage, e); }
+  }
+  if(pose){ perimerModeles(); await chargerModelesTexte(true); }
+  return pose > 0;
+}
+
+function nomUsage(cle){
+  const u = USAGES_MODELE.find(x => x.cle === cle);
+  return u ? u.nom : cle;
+}
+
+/* ============================================================
+   CATÉGORIES LIBRES
+   Les emplacements techniques (jour du permis, rappels…) restent
+   fixes : l'application sait où les utiliser. Les catégories,
+   elles, servent au rangement et sont créées librement.
+   ============================================================ */
+/* ⚠️ CETTE FONCTION NE SERT PLUS QU'À RELIRE LE PASSÉ — v958.
+
+   Jusqu'ici la catégorie était rangée DANS le nom (« Permis ›
+   Félicitations »), faute de colonne à elle : une fonction la
+   collait devant, celle-ci la redécoupait. Le même fait à
+   deux endroits, et c'est toujours le même prix : une fiche ne
+   pouvait être que dans UNE catégorie, et la renommer la
+   déménageait sans prévenir.
+
+   Les étiquettes ont maintenant leur colonne. Ce découpage reste
+   pour les textes déjà écrits : la catégorie qu'il retrouve devient
+   leur première étiquette (voir etiquettesDe), une fois, sans rien
+   ressaisir. Rien ne la réécrit plus jamais dans un nom —
+   assemblerNom a été supprimée pour que ce soit impossible. */
+function separerCategorie(nom){
+  const i = String(nom || '').indexOf(' › ');
+  if(i === -1) return { categorie: '', titre: String(nom || '') };
+  return { categorie: nom.slice(0, i).trim(), titre: nom.slice(i + 3).trim() };
+}
+
+let modelesTexte = [];
+
+/* Les modèles changent rarement : les relire à chaque ouverture
+   d'un onglet Outils faisait attendre pour rien. */
+let modelesLusA = 0;
+const MODELES_FRAIS = 5 * 60 * 1000;   /* cinq minutes */
+
+async function chargerModelesTexte(forcer){
+  /* Déjà en mémoire et récents : on rend la main aussitôt */
+  if(!forcer && modelesTexte.length &&
+     (Date.now() - modelesLusA) < MODELES_FRAIS){
+    return modelesTexte;
+  }
+
   try{
-    return parseInt(localStorage.getItem(CLE_NOUVEAUTES_LUES), 10) || 0;
-  }catch(e){ return 0; }
+    const d = await appelPrep({ action: 'modeleList' });
+    modelesTexte = ((d && d.modeles) || []).map(m => {
+      const s = separerCategorie(m.nom);
+      return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
+    });
+    modelesLusA = Date.now();
+  }catch(e){
+    console.warn('Modèles indisponibles :', e);
+  }
+  return modelesTexte;
 }
 
-function marquerNouveautesLues(){
-  const d = derniereNouveaute();
-  if(!d) return;
-  try{ localStorage.setItem(CLE_NOUVEAUTES_LUES, String(d.version)); }
-  catch(e){ /* navigation privée : elle se remontrera, tant pis */ }
+
+/* Une modification les périme : le prochain écran relira. */
+function perimerModeles(){
+  modelesLusA = 0;
 }
 
-/* Y a-t-il quelque chose à annoncer ? Rien en mémoire vaut « jamais
-   lu » : un appareil neuf ne doit pas rater la note en cours. */
-function aDesNouveautesNonLues(){
-  const d = derniereNouveaute();
-  return !!d && versionNouveauteLue() < d.version;
+/* ------------------------------------------------------------
+   LES BILANS QU'UN RAPPEL PEUT CRÉER
+
+   Le catalogue des modèles de bilan, groupé comme il l'est
+   partout ailleurs. Il n'est PAS recopié : il est lu dans MODELES,
+   la seule liste qui existe. Une seconde liste à tenir d'accord
+   finirait par proposer un bilan disparu, ou par en cacher un
+   nouveau.
+
+   Les paires « — Boîte automatique » / « — Boîte manuelle » sont
+   toutes deux proposées : ce qui est choisi n'est qu'un point de
+   départ, modeleDansLaBoite prend ensuite la version qui
+   correspond à la fiche de l'élève.
+   ------------------------------------------------------------ */
+function optionsBilanDuRappel(){
+  const ech = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  let h = '<option value="">— d\'après la fiche de l\'élève —</option>';
+  if(typeof MODELES === 'undefined') return h;
+
+  const groupes = {};
+  Object.keys(MODELES).forEach(cle => {
+    const m = MODELES[cle] || {};
+    if(!m.label) return;
+    (groupes[m.groupe || 'Autres'] =
+      groupes[m.groupe || 'Autres'] || []).push({ cle: cle, label: m.label });
+  });
+
+  Object.keys(groupes).forEach(g => {
+    h += '<optgroup label="' + ech(g) + '">';
+    groupes[g].forEach(o => {
+      h += '<option value="' + ech(o.cle) + '">' + ech(o.label) + '</option>';
+    });
+    h += '</optgroup>';
+  });
+  return h;
 }
 
-/* 🆕 v1187 — TOUTES les notes pas encore lues, pas seulement la
-   dernière. Dix livraisons sans note (v1177 → v1186) : n'ouvrir que
-   la plus récente, c'était cacher les appels sous le son des appels,
-   et l'évaluation, les horaires, Tarifs… dans « précédentes », où
-   personne ne va. Un appareil neuf (rien en mémoire) ne voit que la
-   dernière : il n'a pas à rattraper soixante notes. */
-function nouveautesNonLues(){
-  const lue = versionNouveauteLue();
-  if(!lue) return NOUVEAUTES.slice(0, 1);
-  return NOUVEAUTES.filter(n => n.version > lue);
+
+/* Le premier modèle enregistré pour cet usage, s'il en existe un */
+function modelePour(usage){
+  return modelesTexte.find(m => m.usage === usage) || null;
+}
+
+/* Remplace les {variables} par leurs valeurs.
+   Une variable absente disparaît, plutôt que de laisser {truc} dans le texte. */
+function appliquerModele(contenu, valeurs){
+  let t = String(contenu || '');
+
+  /* Les heures décalées d'abord : {heure+2h} vaut l'heure du cours
+     plus deux heures. Sans cela, {heure} serait remplacé le premier
+     et le décalage n'aurait plus de base. */
+  t = calculerHeuresDecalees(t, (valeurs || {}).heure);
+
+  Object.keys(valeurs || {}).forEach(k => {
+    t = t.split('{' + k + '}').join(String(valeurs[k] === undefined ? '' : valeurs[k]));
+  });
+  /* Nettoyage des variables non fournies */
+  t = t.replace(/\{[a-zA-Zéèêàçùî_]+\}/g, '');
+  return t;
 }
 
 
 /* ============================================================
-   LA LIGNE DU BANDEAU
+   LES HEURES CALCULÉES
 
-   Elle se range dans la table des familles comme les autres — voir
-   FAMILLES_BANDEAU dans ec-bandeau.js — et disparaît dès qu'elle
-   est lue. Le bandeau existe pour qu'on voie SANS CHERCHER : une
-   ligne qui reste après lecture devient un décor, et c'est tout le
-   bandeau qu'on cesse de lire.
+   Un cours se découpe en tranches. Plutôt que de réécrire les
+   horaires à chaque rappel, on les fait dériver de l'heure de
+   début :
+
+     1- {heure} à {heure+2h} circulation
+     2- {heure+2h} à {heure+3h} examen blanc
+
+   Un cours à 13h donne « 13h à 15h », puis « 15h à 16h ».
+   Les formes acceptées : +2h, +1h30, +45min, et le signe moins
+   pour reculer.
    ============================================================ */
-function lignesNouveautes(){
-  if(!aDesNouveautesNonLues()) return [];
+function calculerHeuresDecalees(texte, heureDebut){
+  const base = minutesDeLHeure(heureDebut);
 
-  const d = derniereNouveaute();
-  const nl = nouveautesNonLues();
-  const n = nl.reduce((t, x) => t + (x.quoi || []).length, 0);
+  /* Pas d'heure de départ : on efface les décalages plutôt que
+     de laisser « {heure+2h} » dans un message envoyé. */
+  if(base === null){
+    return String(texte).replace(/\{heure\s*[+-][^}]*\}/gi, '');
+  }
 
-  return [{
-    id: 'nouveautes:' + d.version,
-    famille: 'nouveautes',
-    emoji: '🆕',
-    texte: 'Du nouveau dans l’outil — ' + n + ' changement' +
-           (n > 1 ? 's' : ''),
-    sous: nl.length > 1 ? nl.map(x => x.resume).filter(Boolean).slice(0, 3).join(' · ') + (nl.length > 3 ? ' …' : '')
-                        : (d.resume || ''),
-    urgente: false,
-    action: ouvrirNouveautes,
-    actionTexte: 'Lire'
-  }];
+  return String(texte).replace(
+    /\{heure\s*([+-])\s*([^}]+)\}/gi,
+    (tout, signe, duree) => {
+      const m = minutesDeLaDuree(duree);
+      if(m === null) return '';
+      const total = base + (signe === '-' ? -m : m);
+      return heureLisible(total);
+    }
+  );
+}
+
+/* « 13:00 », « 13h00 » ou « 13h » en minutes depuis minuit */
+function minutesDeLHeure(v){
+  const s = String(v || '').trim();
+  if(!s) return null;
+  const m = s.match(/^(\d{1,2})\s*[h:]\s*(\d{0,2})/);
+  if(!m) return null;
+  return Number(m[1]) * 60 + (Number(m[2]) || 0);
+}
+
+/* « 2h », « 1h30 », « 45min », « 90 » en minutes */
+function minutesDeLaDuree(v){
+  const s = String(v || '').trim().toLowerCase().replace(/\s+/g, '');
+  if(!s) return null;
+
+  let m = s.match(/^(\d+)h(\d{1,2})?$/);
+  if(m) return Number(m[1]) * 60 + (Number(m[2]) || 0);
+
+  m = s.match(/^(\d+)(?:min|m)$/);
+  if(m) return Number(m[1]);
+
+  m = s.match(/^(\d+)$/);
+  if(m) return Number(m[1]);
+
+  return null;
+}
+
+/* « 15h » plutôt que « 15h00 » : c'est ainsi qu'on écrit une heure
+   ronde dans un message. */
+function heureLisible(minutes){
+  let t = minutes % (24 * 60);
+  if(t < 0) t += 24 * 60;
+  const h = Math.floor(t / 60);
+  const m = t % 60;
+  return m ? (h + 'h' + String(m).padStart(2, '0')) : (h + 'h');
+}
+
+
+/* ---------- Interface de gestion ---------- */
+
+/* ------------------------------------------------------------
+   QUELS DOSSIERS SONT OUVERTS
+
+   L'écran se redessine à chaque modification — un texte
+   enregistré, un dossier vidé, un import. Rouvrir tous les
+   dossiers à chaque fois oblige à tout refermer pour retrouver
+   celui sur lequel on travaillait.
+
+   Les dossiers ouverts sont donc retenus sur ce poste. Fermés par
+   défaut : le nombre de textes s'affiche sur chaque dossier, on
+   n'a besoin d'ouvrir que celui qu'on veut modifier.
+   ------------------------------------------------------------ */
+const CLE_DOSSIERS_TEXTES = 'ec_textes_dossiers';
+
+/* ============================================================
+   LES ÉTIQUETTES — LE PRINCIPE DE KEEP (v958)
+
+   David, le 11 septembre 2026 : « il faut prévoir qu'une fiche soit
+   dans plusieurs catégories et que je puisse la changer de
+   catégorie. Tout sur le même principe que Keep. »
+
+   ⚠️ DES ÉTIQUETTES, PAS DES DOSSIERS. Une fiche n'est pas DANS une
+   catégorie : elle en PORTE autant qu'on veut, et on en ajoute ou
+   on en retire sans rien déplacer. C'est toute la différence, et
+   c'est ce qui fait qu'on ne range jamais « mal ».
+
+   ⚠️ ET LES ANCIENNES CATÉGORIES NE SE RETAPENT PAS. Elles vivaient
+   DANS le titre — « Permis › Félicitations », un bricolage assumé,
+   « faute de colonne dédiée ». Elles deviennent la première
+   étiquette de leur fiche, toutes seules, sans rien ressaisir et
+   sans rien perdre : le titre garde sa forme d'origine tant que
+   personne ne le réécrit.
+   ============================================================ */
+
+/* Celles qui existent dès le premier jour — les carnets de David.
+   On peut en créer d'autres, elles n'ont rien de particulier. */
+const ETIQUETTES_DEPART = ['📥 Inscription', '🎓 Code', '🚗 Conduite',
+                           '🏁 Permis', '🏍️ Moto', '🚚 Remorque',
+                           '💶 Financement', '👥 Groupes'];
+
+/* Le séparateur, le même que celui du classeur. */
+const SEP_ETIQ = ' · ';
+
+function decouperEtiquettes(txt){
+  return String(txt || '').split('·')
+    .map(x => x.trim()).filter(Boolean)
+    .filter((x, i, t) => t.indexOf(x) === i);
+}
+
+/* Les étiquettes d'une fiche : celles de sa colonne, plus son
+   ancienne catégorie si elle n'y figure pas encore. */
+function etiquettesDe(m){
+  const l = decouperEtiquettes((m || {}).etiquettes);
+  const vieille = String((m || {}).categorie || '').trim();
+  if(vieille && l.indexOf(vieille) === -1) l.unshift(vieille);
+  return l;
+}
+
+/* ============================================================
+   LA CATÉGORIE PRIVÉE — CELLE DE CHACUN
+
+   David : « est-ce que tu peux ajouter une catégorie privée par
+   utilisateur, où chacun met ce qu'il veut, et que les admins
+   peuvent voir ».
+
+   ⚠️ PAS UNE SECONDE BIBLIOTHÈQUE. Une fiche privée est une fiche
+   comme une autre, avec une catégorie de plus : « prive:David ».
+   Un second stockage aurait voulu dire une seconde recherche, un
+   second import, une seconde liste à tenir d'accord — et le jour où
+   quelqu'un veut partager une de ses fiches, un déménagement au
+   lieu d'un clic.
+
+   Ce que ça change : les fiches privées des AUTRES ne s'affichent
+   pas. Un administrateur les voit toutes, avec le nom de leur
+   propriétaire écrit dessus — « que les admins peuvent voir »
+   veut dire voir, pas voir sans le savoir.
+   ============================================================ */
+const PREFIXE_PRIVE = 'prive:';
+
+function marqueurPriveDe(m){
+  return etiquettesDe(m).find(e => e.indexOf(PREFIXE_PRIVE) === 0) || '';
+}
+
+function proprietairePrive(m){
+  const t = marqueurPriveDe(m);
+  return t ? t.slice(PREFIXE_PRIVE.length).trim() : '';
+}
+
+function maMarquePrivee(){
+  const nom = (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur)
+    ? String(ACCES.moniteur).trim() : '';
+  return nom ? PREFIXE_PRIVE + nom : '';
+}
+
+function cestMoi(nom){
+  const a = (typeof normaliserMot === 'function')
+    ? normaliserMot(nom) : String(nom || '').toLowerCase();
+  const moi = (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur)
+    ? ACCES.moniteur : '';
+  const b = (typeof normaliserMot === 'function')
+    ? normaliserMot(moi) : String(moi).toLowerCase();
+  return !!a && a === b;
+}
+
+/* Un administrateur voit le privé de tout le monde. Les autres ne
+   voient que le leur. */
+function jeVoisToutLePrive(){
+  return (typeof aDroit === 'function') ? aDroit('admin') : true;
+}
+
+function jePeuxVoir(m){
+  const p = proprietairePrive(m);
+
+  /* Ma propre fiche privée, toujours. Celle d'un autre, seulement
+     si je suis administrateur. */
+  if(p && cestMoi(p)) return true;
+  if(p && !jeVoisToutLePrive()) return false;
+
+  /* ⚠️ UNE FICHE SE VOIT PAR LE CARNET OÙ ELLE EST RANGÉE. Elle en
+     a souvent plusieurs : il suffit qu'UN d'entre eux me soit
+     ouvert. Exiger qu'ils le soient tous reviendrait à cacher une
+     fiche « Conduite » parce qu'elle est aussi dans
+     « Financement » — on ne comprendrait pas pourquoi elle manque
+     dans un carnet où elle est pourtant rangée. */
+  const cats = categoriesDe(m);
+  if(!cats.length) return true;
+  return cats.some(jeVoisLaCategorie);
+}
+
+/* ============================================================
+   QUI VOIT QUELLE CATÉGORIE
+
+   David : « et qu'on puisse choisir qui voit quelle catégorie
+   aussi », puis « pour les admins, en haut, tu mets sous une roue
+   crantée, comme ça on choisit directement ici, par catégorie, qui
+   voit quelle catégorie ».
+
+   Une seule table, dans les réglages partagés : la catégorie, et
+   les noms qui la voient. Vide — ou absente — veut dire TOUT LE
+   MONDE, et c'est le cas de toutes les catégories tant que personne
+   n'a rien coché. Un réglage qui commence par tout fermer est un
+   réglage qu'on découvre en s'apercevant qu'il manque la moitié de
+   l'écran.
+   ============================================================ */
+const CLE_ACCES_CATEG = 'categories:acces';
+let accesCategories = null;
+
+async function chargerAccesCategories(){
+  if(accesCategories) return accesCategories;
+  accesCategories = {};
+  if(typeof chargerReglagesPartages !== 'function') return accesCategories;
+  try{
+    const r = await chargerReglagesPartages(false);
+    const brut = String(r[CLE_ACCES_CATEG] || '').trim();
+    if(brut) accesCategories = JSON.parse(brut) || {};
+  }catch(e){ accesCategories = {}; }
+  return accesCategories;
+}
+
+async function enregistrerAccesCategories(table){
+  accesCategories = table || {};
+  if(typeof ecrireReglagePartage !== 'function') return;
+  await ecrireReglagePartage(CLE_ACCES_CATEG, JSON.stringify(accesCategories));
+}
+
+function quiVoitLaCategorie(cat){
+  const l = (accesCategories || {})[cat];
+  return Array.isArray(l) ? l : [];
+}
+
+function jeVoisLaCategorie(cat){
+  const l = quiVoitLaCategorie(cat);
+  if(!l.length) return true;              /* personne de coché = tout le monde */
+  if(jeVoisToutLePrive()) return true;    /* un administrateur voit tout */
+  return l.some(cestMoi);
+}
+
+/* ⚠️ LA POPULATION DE L'ÉCRAN S'ÉCRIT ICI, UNE FOIS. Les compteurs
+   du rail et la liste des fiches doivent parler des mêmes fiches :
+   deux filtres, et le rail annonce douze fiches dans un carnet qui
+   en montre neuf. */
+function fichesVisibles(){
+  return (modelesTexte || []).filter(jePeuxVoir);
+}
+
+/* ============================================================
+   ⚠️ LES ÉTIQUETTES TECHNIQUES NE SONT PAS DES CARNETS — v969
+
+   Deux étiquettes ne nomment pas un carnet de l'école : « prive:
+   David », qui dit à qui est la fiche, et « couleur:jaune », qui
+   dit de quelle couleur elle est. Elles voyagent dans la même
+   colonne que les autres — c'est tout leur intérêt, il n'y a
+   qu'une liste à tenir — mais elles ne se rangent pas, ne se
+   renomment pas, et n'apparaissent ni sur la carte ni dans le rail
+   des catégories.
+
+   Leurs préfixes sont NOMMÉS ici, une fois. Le marqueur privé
+   avait son filtre écrit à la main ; la couleur en aurait demandé
+   un deuxième, et la troisième un troisième — jusqu'au jour où
+   l'un des trois manquerait quelque part, et où « couleur:jaune »
+   s'afficherait comme un carnet.
+   ============================================================ */
+const PREFIXE_COULEUR = 'couleur:';
+const PREFIXES_TECHNIQUES = [PREFIXE_PRIVE, PREFIXE_COULEUR];
+
+function estEtiquetteTechnique(e){
+  const t = String(e || '');
+  return PREFIXES_TECHNIQUES.some(p => t.indexOf(p) === 0);
+}
+
+/* Les catégories d'une fiche : ses étiquettes, moins les
+   techniques. */
+function categoriesDe(m){
+  return etiquettesDe(m).filter(e => !estEtiquetteTechnique(e));
+}
+
+/* ============================================================
+   LA COULEUR DE LA FICHE — COMME KEEP — v969
+
+   David, le 11 puis le 12 septembre : « mettre en place comme Keep
+   sur les fiches de modèles messages des palettes de couleur pour
+   le fond de la fiche, que des couleurs pastels ». Et, le 12, sur
+   le rangement : « A » — la couleur appartient à la fiche, elle est
+   donc la même pour toute l'école.
+
+   ⚠️ HUIT NOMS, PAS SEIZE VALEURS. La table ne contient que les
+   clés : les teintes vivent dans la feuille de style, en deux jeux,
+   un clair et un sombre. Écrire « #FBF4CF » ici en ferait la
+   troisième version de la même couleur — et le jour où le thème
+   sombre change, c'est celle-ci qu'on oublierait.
+   ============================================================ */
+const COULEURS_FICHE = [
+  { cle:'jaune',  nom:'Jaune'  },
+  { cle:'orange', nom:'Orange' },
+  { cle:'rouge',  nom:'Rouge'  },
+  { cle:'rose',   nom:'Rose'   },
+  { cle:'violet', nom:'Violet' },
+  { cle:'bleu',   nom:'Bleu'   },
+  { cle:'menthe', nom:'Menthe' },
+  { cle:'vert',   nom:'Vert'   }
+];
+
+function couleurDeLaFiche(m){
+  const t = etiquettesDe(m).find(e => e.indexOf(PREFIXE_COULEUR) === 0) || '';
+  const cle = t ? t.slice(PREFIXE_COULEUR.length).trim() : '';
+  /* Une couleur qu'on ne connaît pas ne teinte rien : une valeur
+     tapée à la main dans le classeur ne doit pas peindre une fiche
+     d'une couleur qui n'existe pas dans la feuille de style. */
+  return COULEURS_FICHE.some(c => c.cle === cle) ? cle : '';
+}
+
+/* ============================================================
+   ⚠️ ENREGISTRER UNE FICHE — PAR UNE SEULE PORTE — v969
+
+   « modeleSet » écrit la LIGNE ENTIÈRE du classeur : un champ
+   oublié dans la charge utile ne reste pas tel qu'il était, il
+   s'efface. Le commentaire de la boucle de renommage le disait
+   déjà — et pourtant la charge était recopiée à la main à trois
+   endroits. La quatrième copie, c'était la quatrième occasion
+   d'oublier un champ, et cette faute-là ne se voit qu'après, dans
+   le classeur, sur la fiche de quelqu'un d'autre.
+
+   Elle s'écrit donc ici, une fois. Ajouter une colonne au modèle,
+   c'est désormais l'ajouter à UN endroit.
+   ============================================================ */
+async function enregistrerModeleTexte(m){
+  return appelPrep({
+    action: 'modeleSet',
+    id: m.id,
+    usage: m.usage || 'libre',
+    nom: m.titre || m.nom,
+    etiquettes: m.etiquettes || '',
+    boite: m.boite || '',
+    ordre: !!m.ordre,
+    consigne: m.consigne || '',
+    bilan: m.bilan || '',
+    /* 🔘 v1232 — absent = on garde celui du classeur */
+    nomBouton: (m.nomBouton === undefined) ? undefined : (m.nomBouton || ''),
+    /* 📍 v1407 — absentes = on garde celles du classeur */
+    etapes: (m.etapes === undefined) ? undefined : (m.etapes || ''),
+    contenu: m.contenu || ''
+  });
+}
+
+/* Poser une couleur, ou la retirer avec une clé vide. La fiche
+   n'en porte jamais deux : on remplace. */
+async function poserCouleurFiche(m, cle){
+  if(!m) return;
+  const garde = etiquettesDe(m).filter(e => e.indexOf(PREFIXE_COULEUR) !== 0);
+  if(cle) garde.push(PREFIXE_COULEUR + cle);
+
+  const avant = m.etiquettes;
+  m.etiquettes = garde.join(SEP_ETIQ);
+
+  try{
+    await enregistrerModeleTexte(m);
+  }catch(e){
+    /* L'écriture a échoué : la fiche reprend sa couleur d'avant.
+       La laisser peinte à l'écran ferait croire que c'est
+       enregistré. */
+    m.etiquettes = avant;
+    if(typeof showToast === 'function') showToast('Couleur non enregistrée');
+    throw e;
+  }
+}
+
+/* ============================================================
+   LES IMAGES D'UNE FICHE — v970
+
+   David, le 12 septembre : « images seulement, dans le classeur.
+   On réutilise ce qui existe : ça marche demain, aucun
+   redéploiement. Un PDF collé est refusé avec un message clair. »
+   Plusieurs images par fiche, une vignette dans l'aperçu de la
+   carte, et le mail comme le 📋 ne portent que le TEXTE.
+
+   ⚠️ ON NE CHARGE JAMAIS UNE IMAGE QU'ON NE VA PAS MONTRER.
+
+   Une image pèse jusqu'à 45 Ko. Charger celles de cent fiches à
+   l'ouverture de l'onglet, ce serait plusieurs mégaoctets pour voir
+   trois vignettes — et l'onglet le plus rapide de l'outil
+   deviendrait le plus lent. Trois temps, une seule porte :
+
+     · le RÉPERTOIRE à l'ouverture — qui a des images et combien,
+       quelques kilo-octets, aucune image ;
+     · la PREMIÈRE image des cartes qui arrivent à l'écran, par
+       petits lots ;
+     · TOUTES les images d'une fiche quand on l'ouvre.
+   ============================================================ */
+const MAX_VIGNETTES_CARTE = 2;
+const LOT_VIGNETTES = 6;
+
+/* ⚠️ UNE SEULE PHRASE POUR TOUS LES REFUS. Nommer le PDF et
+   oublier le document Word, c'était deux règles à tenir d'accord.
+   La règle est « ce n'est pas une image », et elle dit la sortie :
+   un refus qui n'indique pas quoi faire fait recommencer trois
+   fois. */
+const REFUS_NON_IMAGE = 'Seules les images se rangent dans une fiche. ' +
+  'Pour un PDF, fais une capture d’écran de la page et colle l’image.';
+
+/* 📥 v1262 — une image rangée dans le compartiment arrive en lien
+   signé (« /parcours/fichier?… ») : il se demande au Worker. */
+function srcImageFiche(v){
+  const t = String(v || '');
+  if(t.charAt(0) !== '/') return t;
+  const base = String((typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL) || '').replace(/\/$/, '');
+  return base + t;
+}
+
+function estUnFichierImage(f){
+  return !!(f && f.type && String(f.type).indexOf('image/') === 0);
+}
+
+let compteImagesFiches = {};       /* {idFiche: nombre} — le répertoire */
+const imagesRecues = {};           /* {idFiche: [{id, image}]} */
+const ficheToutesImagesLues = {};  /* {idFiche: true} quand on les a toutes */
+
+async function chargerRepertoireImages(){
+  try{
+    const d = await appelPrep({ action: 'ficheImages' });
+    compteImagesFiches = (d && d.compte) || {};
+  }catch(e){
+    /* Une porte muette ne doit pas retenir la bibliothèque : on
+       dessine les fiches sans vignette, et le texte est là. */
+    console.warn('Images des fiches :', e);
+    compteImagesFiches = {};
+  }
+  return compteImagesFiches;
+}
+
+function ficheADesImages(id){
+  return (compteImagesFiches[String(id)] || 0) > 0;
+}
+
+/* « premiere » : une seule image par fiche, celle de la vignette.
+   Sans elle, toutes — ce qu'il faut quand on ouvre la fiche. */
+async function chargerImagesDeFiches(ids, premiere){
+  const voulues = (ids || []).map(x => String(x || '')).filter(x => x);
+  if(!voulues.length) return;
+
+  const d = await appelPrep({ action: 'ficheImages', fiches: voulues,
+                              premiere: !!premiere });
+  if(d && d.compte) compteImagesFiches = d.compte;
+  const recu = (d && d.images) || {};
+
+  voulues.forEach(f => {
+    /* Un lot de vignettes ne doit pas remplacer une fiche déjà lue
+       en entier par sa première image seule. */
+    if(premiere && ficheToutesImagesLues[f]) return;
+    imagesRecues[f] = recu[f] || [];
+    if(!premiere) ficheToutesImagesLues[f] = true;
+  });
+}
+
+async function retirerToutesLesImagesDeLaFiche(id){
+  const f = String(id || '');
+  if(!f || !ficheADesImages(f)) return;
+  try{
+    await chargerImagesDeFiches([f], false);
+    const liste = imagesRecues[f] || [];
+    for(let i = 0; i < liste.length; i++){
+      await appelPrep({ action: 'ficheImageDelete', id: liste[i].id });
+    }
+    delete imagesRecues[f];
+    delete ficheToutesImagesLues[f];
+    delete compteImagesFiches[f];
+  }catch(e){
+    /* Une image orpheline ne se retrouve plus : on le dit. */
+    console.warn('Images de la fiche supprimée :', e);
+  }
+}
+
+/* ------------------------------------------------------------
+   LA BANDE DE VIGNETTES DE LA CARTE
+
+   Elle ne s'affiche que si le répertoire dit qu'il y a quelque
+   chose : une fiche sans image est, au pixel près, la carte
+   d'avant — aucune place vide réservée, aucun ⊕ à vide.
+   ------------------------------------------------------------ */
+function bandeDeVignettes(m){
+  if(!ficheADesImages(m.id)) return null;
+
+  const z = document.createElement('div');
+  z.className = 'ficheVues';
+  z.dataset.fiche = m.id;
+
+  const dessiner = () => {
+    z.innerHTML = '';
+    const liste = imagesRecues[m.id] || [];
+    const total = compteImagesFiches[m.id] || liste.length;
+
+    if(!liste.length){
+      /* La place est gardée pendant que l'image arrive : sans elle,
+         la carte grandit sous le doigt au moment où on appuie. */
+      const c = document.createElement('span');
+      c.className = 'creuxVue';
+      z.appendChild(c);
+      return;
+    }
+
+    liste.slice(0, MAX_VIGNETTES_CARTE).forEach(im => {
+      const i = document.createElement('img');
+      i.src = srcImageFiche(im.image);
+      i.alt = '';
+      z.appendChild(i);
+    });
+
+    const reste = total - Math.min(liste.length, MAX_VIGNETTES_CARTE);
+    if(reste > 0){
+      const p = document.createElement('span');
+      p.className = 'deplusVue';
+      p.textContent = '+' + reste;
+      z.appendChild(p);
+    }
+  };
+
+  dessiner();
+  z.__redessiner = dessiner;
+  return z;
+}
+
+/* ⚠️ UNE SEULE SENTINELLE, ET UNE DEMANDE PAR LOT.
+
+   Un observateur par carte, c'est cent observateurs ; une demande
+   par carte, c'est cent allers-retours. On regarde ce qui arrive à
+   l'écran, on empile les numéros, et on demande par six. */
+let sentinelleVignettes = null;
+let vignettesAttendues = [];
+let vignettesEnRoute = false;
+
+function veillerSurLesVignettes(){
+  if(typeof IntersectionObserver !== 'function') return;
+
+  if(!sentinelleVignettes){
+    sentinelleVignettes = new IntersectionObserver(entrees => {
+      entrees.forEach(e => {
+        if(!e.isIntersecting) return;
+        sentinelleVignettes.unobserve(e.target);
+        const f = e.target.dataset.fiche;
+        if(f && !imagesRecues[f] && vignettesAttendues.indexOf(f) === -1){
+          vignettesAttendues.push(f);
+        }
+      });
+      viderLaFileDesVignettes();
+    }, { rootMargin: '200px' });
+  }
+
+  document.querySelectorAll('#textesZone .ficheVues').forEach(z => {
+    if(imagesRecues[z.dataset.fiche]) return;
+    sentinelleVignettes.observe(z);
+  });
+}
+
+async function viderLaFileDesVignettes(){
+  if(vignettesEnRoute || !vignettesAttendues.length) return;
+  vignettesEnRoute = true;
+  try{
+    while(vignettesAttendues.length){
+      const lot = vignettesAttendues.splice(0, LOT_VIGNETTES);
+      try{ await chargerImagesDeFiches(lot, true); }
+      catch(e){ console.warn('Vignettes :', e); continue; }
+      lot.forEach(f => {
+        document.querySelectorAll(
+          '#textesZone .ficheVues[data-fiche="' + f + '"]')
+          .forEach(z => { if(z.__redessiner) z.__redessiner(); });
+      });
+    }
+  }finally{ vignettesEnRoute = false; }
+}
+
+/* ⚠️ L'ORDRE DES ÉTIQUETTES EST RANGÉ, PAS DEVINÉ — David : « j'ai
+   besoin de modifier l'ordre des catégories aussi par un cliquer
+   glisser ». Il vit dans les réglages partagés : c'est l'ordre de
+   l'école, pas celui d'un appareil. */
+const CLE_ORDRE_ETIQ = 'etiquettes:ordre';
+let ordreEtiquettes = null;
+
+async function chargerOrdreEtiquettes(){
+  if(ordreEtiquettes) return ordreEtiquettes;
+  if(typeof chargerReglagesPartages !== 'function'){
+    ordreEtiquettes = ETIQUETTES_DEPART.slice();
+    return ordreEtiquettes;
+  }
+  try{
+    const r = await chargerReglagesPartages(false);
+    const l = decouperEtiquettes(r[CLE_ORDRE_ETIQ]);
+    ordreEtiquettes = l.length ? l : ETIQUETTES_DEPART.slice();
+  }catch(e){ ordreEtiquettes = ETIQUETTES_DEPART.slice(); }
+  return ordreEtiquettes;
+}
+
+async function enregistrerOrdreEtiquettes(liste){
+  ordreEtiquettes = liste.slice();
+  if(typeof ecrireReglagePartage !== 'function') return;
+  await ecrireReglagePartage(CLE_ORDRE_ETIQ, liste.join(SEP_ETIQ));
+}
+
+/* Toutes celles qui existent : l'ordre rangé d'abord, puis celles
+   qu'une fiche porte sans qu'on les ait rangées — jamais perdues,
+   simplement à la fin. */
+function toutesLesEtiquettes(){
+  const vues = [];
+  /* categoriesDe, pas etiquettesDe : un marqueur « prive:David »
+     n'est pas un carnet de l'école et n'a rien à faire dans le
+     rail des catégories. */
+  (modelesTexte || []).forEach(m => categoriesDe(m).forEach(e => {
+    if(vues.indexOf(e) === -1) vues.push(e);
+  }));
+
+  const rangees = (ordreEtiquettes || ETIQUETTES_DEPART).slice();
+  const out = rangees.slice();
+  vues.forEach(e => { if(out.indexOf(e) === -1) out.push(e); });
+  return out;
+}
+
+/* ============================================================
+   L'ORDRE DES FICHES — CELUI DE CHACUN
+
+   David : « je dois aussi pouvoir changer l'ordre des fiches à
+   l'intérieur des catégories par un cliquer-glisser, et que cet
+   ordre soit valable par utilisateur ».
+
+   ⚠️ UN SEUL ORDRE PAR PERSONNE, PAS UN PAR ÉTIQUETTE. Une fiche
+   porte plusieurs étiquettes : un rangement par étiquette lui
+   donnerait plusieurs places à la fois, et la même fiche déplacée
+   dans un carnet n'aurait pas bougé dans l'autre — impossible à
+   comprendre, et deux listes à tenir d'accord. Avec un ordre
+   unique, filtrer un carnet garde l'ordre relatif : ranger à
+   l'intérieur d'une étiquette marche exactement comme il le
+   demande, et le résultat est le même partout.
+
+   Il vit dans les réglages partagés, sous le nom de la personne —
+   la même clé que « Mes tuiles ». Ce n'est pas l'ordre de l'école,
+   c'est le sien.
+   ============================================================ */
+function cleOrdreFiches(){
+  const nom = (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur)
+    ? String(ACCES.moniteur) : '';
+  const simple = nom.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ').trim();
+  return simple ? 'fiches:' + simple : '';
+}
+
+let ordreFiches = null;
+
+function decouperIds(txt){
+  return String(txt || '').split('|')
+    .map(x => x.trim()).filter(Boolean)
+    .filter((x, i, t) => t.indexOf(x) === i);
+}
+
+async function chargerOrdreFiches(){
+  if(ordreFiches) return ordreFiches;
+  const cle = cleOrdreFiches();
+  if(!cle || typeof chargerReglagesPartages !== 'function'){
+    ordreFiches = [];
+    return ordreFiches;
+  }
+  try{
+    const r = await chargerReglagesPartages(false);
+    ordreFiches = decouperIds(r[cle]);
+  }catch(e){ ordreFiches = []; }
+  return ordreFiches;
+}
+
+async function enregistrerOrdreFiches(liste){
+  ordreFiches = liste.slice();
+  const cle = cleOrdreFiches();
+  if(!cle || typeof ecrireReglagePartage !== 'function') return;
+  await ecrireReglagePartage(cle, liste.join('|'));
+}
+
+/* Les fiches rangées : celles qu'on a placées d'abord, dans l'ordre
+   voulu ; les autres derrière, par titre. Une fiche neuve ne va donc
+   pas se perdre au milieu, et une fiche supprimée ne laisse pas de
+   trou. */
+function fichesRangees(liste){
+  const rang = {};
+  (ordreFiches || []).forEach((id, i) => { rang[id] = i; });
+
+  return liste.slice().sort((a, b) => {
+    const ra = rang[a.id], rb = rang[b.id];
+    if(ra !== undefined && rb !== undefined) return ra - rb;
+    if(ra !== undefined) return -1;
+    if(rb !== undefined) return 1;
+    return String(a.titre || a.nom).localeCompare(String(b.titre || b.nom), 'fr');
+  });
+}
+
+/* ⚠️ ON RANGE SUR LA LISTE ENTIÈRE, PAS SUR CE QUI EST AFFICHÉ.
+
+   Déplacer une fiche pendant qu'une recherche cache les trois
+   quarts des autres ne doit pas effacer leur place : ce qui est
+   masqué n'a pas déménagé. On part donc de toutes les fiches,
+   rangées comme elles le sont, et on n'y bouge que celle qu'on
+   tient. */
+async function bougerFiche(id, devant, apres){
+  if(!id || !devant || id === devant) return;
+
+  const tout = fichesRangees(modelesTexte || []).map(m => m.id);
+  const de = tout.indexOf(id), vers = tout.indexOf(devant);
+  if(de === -1 || vers === -1 || de === vers) return;
+
+  const [pris] = tout.splice(de, 1);
+  /* ⚠️ AVANT OU APRÈS, SELON OÙ ON LÂCHE — v961. On posait toujours
+     AVANT la carte visée : impossible de mettre une fiche en
+     dernier, il n'y avait aucune carte derrière laquelle viser. Et
+     sur trois colonnes, « avant » veut dire une ligne plus haut,
+     ce qui n'est pas ce qu'on croit faire. La position du doigt
+     tranche : première moitié de la carte, on passe devant ;
+     seconde moitié, on passe derrière. */
+  const ou = tout.indexOf(devant);
+  tout.splice(apres ? ou + 1 : ou, 0, pris);
+
+  /* 📥 v1265 — ON NE GARDE QUE LE DÉBUT RANGÉ. Avec les milliers de
+     fiches de Keep, la liste entière ne tiendrait plus dans une case
+     du classeur (50 000 caractères) : on garde jusqu'à la dernière
+     fiche déjà rangée ou déplacée — les autres suivent par titre,
+     comme avant. */
+  const dejaRangees = new Set(ordreFiches || []);
+  let fin = 0;
+  tout.forEach((x, i) => { if(dejaRangees.has(x) || x === id || x === devant) fin = i + 1; });
+  const garde = tout.slice(0, fin);
+
+  ordreFiches = garde;
+  dessinerListeFiches(true);
+  try{
+    await enregistrerOrdreFiches(garde);
+  }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+}
+
+/* Le voisin dans ce qui est AFFICHÉ : les flèches du téléphone
+   doivent déplacer d'un cran visible, pas d'un cran invisible. */
+async function glisserFicheDUnCran(m, sens){
+  const vues = fichesAffichees().map(x => x.id);
+  const i = vues.indexOf(m.id);
+  const j = i + sens;
+  if(i === -1 || j < 0 || j >= vues.length) return;
+  /* ⚠️ DESCENDRE, C'EST PASSER DERRIÈRE LE VOISIN — v961. Sans ce
+     « après », la flèche ↓ posait la fiche DEVANT celui d'en
+     dessous, c'est-à-dire exactement là où elle était déjà : le
+     bouton ne faisait rien, et rien ne le disait. */
+  await bougerFiche(m.id, vues[j], sens > 0);
+}
+
+
+/* ============================================================
+   CHERCHER PARTOUT
+
+   David : « une barre de recherche qui cherche partout ». Le titre,
+   le texte ET les étiquettes — sans accents ni majuscules, sinon
+   « eval » ne trouverait pas « ÉVAL ». Plusieurs mots se cumulent :
+   « inscription simu » ne garde que les fiches qui portent les deux.
+   ============================================================ */
+function sansAccents(s){
+  return String(s || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function fichePorte(m, mots){
+  if(!mots.length) return true;
+  const foin = sansAccents((m.titre || m.nom) + ' ' + (m.contenu || '') + ' ' +
+                           etiquettesDe(m).join(' ') + ' ' + nomUsage(m.usage));
+  return mots.every(mot => foin.indexOf(mot) !== -1);
+}
+
+/* Ce qui correspond, surligné dans l'aperçu : on doit voir POURQUOI
+   une fiche est là. */
+function surligner(texte, mots){
+  const brut = String(texte || '');
+  if(!mots.length) return brut.replace(/</g, '&lt;');
+
+  const sans = sansAccents(brut);
+  const marques = [];
+  mots.forEach(mot => {
+    let i = sans.indexOf(mot);
+    while(i !== -1){ marques.push([i, i + mot.length]); i = sans.indexOf(mot, i + 1); }
+  });
+  if(!marques.length) return brut.replace(/</g, '&lt;');
+
+  marques.sort((a, b) => a[0] - b[0]);
+  let out = '', fin = 0;
+  marques.forEach(([d, f]) => {
+    if(d < fin) return;
+    out += brut.slice(fin, d).replace(/</g, '&lt;') +
+           '<mark>' + brut.slice(d, f).replace(/</g, '&lt;') + '</mark>';
+    fin = f;
+  });
+  return out + brut.slice(fin).replace(/</g, '&lt;');
+}
+
+
+/* L'étiquette choisie et la recherche en cours : elles survivent au
+   redessin, sinon chaque modification renverrait tout en haut. */
+let etiquetteChoisie = '';
+let rechercheFiches = '';
+/* 📄 v1299 — LA REFONTE VALIDÉE PAR DAVID (« tu peux coder comme ça,
+   c'est nickel ») : sur un écran large, trois colonnes — les
+   catégories (filtrables), la liste des fiches, la fiche ouverte EN
+   ENTIER à droite ; sur un téléphone, un bouton « 🏷️ … ▾ » pour les
+   catégories, la liste, et la fiche en plein écran. */
+let filtreCategories = '';
+let ficheOuverteId = '';          /* la fiche ouverte à droite (écran large) */
+let railCible = null;              /* le rail dessiné ailleurs (la feuille du téléphone) */
+const LARGEUR_TROIS_COLONNES = 860;
+function bibliothequeLarge(){
+  const z = $('textesZone');
+  return !!z && (z.clientWidth || 0) >= LARGEUR_TROIS_COLONNES;
+}
+
+
+/* ============================================================
+   COPIER — TOUT, OU CE QU'ON VEUT
+
+   David : « la copie de ce que l'on veut, pas par paragraphe ». On
+   ouvre donc le texte, on sélectionne ce qu'on veut à la main, et
+   un bouton copie la sélection. Sur un téléphone, la sélection se
+   fait avec les poignées du système : c'est le seul geste qui
+   marche partout, et il n'impose aucune découpe au texte.
+   ============================================================ */
+async function copierDansLePressePapier(txt){
+  try{
+    await navigator.clipboard.writeText(txt);
+    return true;
+  }catch(e){
+    /* Les navigateurs anciens, et les pages non sécurisées. */
+    try{
+      const z = document.createElement('textarea');
+      z.value = txt;
+      z.style.cssText = 'position:fixed;left:-9999px;';
+      document.body.appendChild(z);
+      z.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(z);
+      return ok;
+    }catch(e2){ return false; }
+  }
+}
+
+function ouvrirCopieMorceau(m){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(640px, 94vw);max-height:88vh;overflow-y:auto;';
+  fond.appendChild(boite);
+  fond.addEventListener('click', e => { if(e.target === fond) fermerFond(fond); });
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>✂️ ' + (m.titre || m.nom).replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">' +
+      'Sélectionne ce que tu veux — un mot, une phrase, trois paragraphes — ' +
+      'puis appuie sur <strong>Copier la sélection</strong>. Sans rien ' +
+      'sélectionner, c’est toute la fiche qui part.</div>');
+
+  const txt = document.createElement('div');
+  txt.style.cssText = 'white-space:pre-wrap;font-size:14px;line-height:1.6;' +
+    'border:1px solid var(--line);border-radius:10px;padding:12px;' +
+    'background:var(--navy);user-select:text;-webkit-user-select:text;';
+  txt.textContent = m.contenu || '';
+  boite.appendChild(txt);
+
+  const pied = document.createElement('div');
+  pied.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;';
+
+  const bSel = document.createElement('button');
+  bSel.className = 'btn btn-primary';
+  bSel.style.cssText = 'flex:1;min-width:150px;padding:10px;font-size:13px;margin:0;';
+  bSel.textContent = '📋 Copier la sélection';
+  bSel.addEventListener('click', async () => {
+    const sel = String(window.getSelection ? window.getSelection().toString() : '').trim();
+    const quoi = sel || (m.contenu || '');
+    const ok = await copierDansLePressePapier(quoi);
+    showToast(ok ? (sel ? 'Morceau copié ✅' : 'Fiche entière copiée ✅')
+                 : 'Copie impossible sur cet appareil');
+    if(ok) fermerFond(fond);
+  });
+  pied.appendChild(bSel);
+
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => fermerFond(fond));
+  pied.appendChild(bF);
+
+  boite.appendChild(pied);
+  document.body.appendChild(fond);
+}
+
+
+/* ============================================================
+   ENVOYER UNE FICHE PAR MAIL
+
+   Un seul destinataire pour commencer — « un seul », a répondu
+   David. Les variables se remplissent comme partout ailleurs :
+   appliquerModele est la seule fonction qui sache le faire, et
+   elle n'est pas recopiée ici.
+   ============================================================ */
+/* ⚠️ UNE ADRESSE SE TAPE AUSSI À LA MAIN — v959.
+
+   David : « dans l'envoi par mail il faut qu'on puisse taper une
+   adresse mail à la main aussi ».
+
+   Avant, il fallait d'abord DÉSIGNER UN ÉLÈVE : l'adresse n'était
+   qu'une conséquence de sa fiche. Un accompagnateur, un financeur,
+   un parent, un collègue — personne d'autre qu'un élève inscrit ne
+   pouvait recevoir une fiche.
+
+   Une seule fenêtre, donc, avec les deux : l'adresse, toujours
+   visible et toujours modifiable, et un bouton qui va la chercher
+   dans la fiche d'un élève quand c'en est un. Le prénom vient avec,
+   parce que c'est lui qui remplit {prenom} — et une adresse tapée
+   à la main sans prénom enverrait « Bonjour , ». */
+function choisirDestinataireMail(titre, propose){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(460px, 94vw);';
+    fond.appendChild(boite);
+
+    boite.insertAdjacentHTML('beforeend',
+      '<h3>' + String(titre || '✉️ Envoyer').replace(/</g, '&lt;') + '</h3>' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+        'margin-bottom:12px;">Tape l’adresse, ou reprends celle d’un élève.' +
+      '</div>' +
+      '<label for="dmAdresse">Adresse du destinataire</label>' +
+      /* ⚠️ LARGEUR POSÉE ICI : la feuille de style habille les
+         champs texte, pas les champs « email » — celui-ci repartait
+         à la largeur du navigateur, deux fois plus étroit que celui
+         du dessous. */
+      '<input type="email" id="dmAdresse" autocomplete="off" ' +
+        'style="width:100%;" placeholder="prenom.nom@exemple.fr">' +
+      '<label for="dmNom">Son prénom ou son nom <span style="opacity:.6;' +
+        'text-transform:none;font-weight:400;">— remplit {prenom} et ' +
+        '{eleve}</span></label>' +
+      '<input type="text" id="dmNom" autocomplete="off" ' +
+        'placeholder="Facultatif">');
+
+    const g = id => boite.querySelector('#' + id);
+    if(propose) g('dmNom').value = String(propose);
+
+    const bEleve = document.createElement('button');
+    bEleve.type = 'button';
+    bEleve.className = 'btn btn-secondary';
+    bEleve.style.cssText = 'width:100%;padding:9px;font-size:13px;margin:0 0 12px;';
+    bEleve.textContent = '📇 Reprendre l’adresse d’un élève';
+    bEleve.addEventListener('click', async () => {
+      if(typeof choisirEleveConnu !== 'function'){
+        showToast('La liste des élèves n’est pas chargée.');
+        return;
+      }
+      const nom = await choisirEleveConnu('📇 Quel élève ?',
+        'Son adresse est reprise de sa fiche.', g('dmNom').value.trim());
+      if(!nom) return;
+      g('dmNom').value = nom;
+      const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+      const mail = (f && f.email) || '';
+      if(mail) g('dmAdresse').value = mail;
+      else showToast('Aucune adresse dans la fiche de ' + nom + ' — tape-la.');
+      g('dmAdresse').focus();
+    });
+    boite.appendChild(bEleve);
+
+    const msg = document.createElement('div');
+    msg.style.cssText = 'font-size:13px;min-height:16px;margin-bottom:4px;';
+    boite.appendChild(msg);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Annuler';
+    bAnn.addEventListener('click', () => { fermerFond(fond); resolve(null); });
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = '✉️ Continuer';
+    rangee.appendChild(bAnn); rangee.appendChild(bOk);
+    boite.appendChild(rangee);
+
+    bOk.addEventListener('click', () => {
+      const adresse = g('dmAdresse').value.trim();
+      /* ⚠️ ON REGARDE L'ADRESSE AVANT DE PARTIR. Une faute de frappe
+         part sans erreur visible et n'arrive jamais : c'est le
+         genre de message dont on découvre trois jours plus tard
+         qu'il n'a pas été reçu. */
+      if(!/^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(adresse)){
+        msg.style.color = 'var(--warn-text)';
+        msg.textContent = adresse ? 'Cette adresse ne ressemble pas à une adresse.'
+                                  : 'Il faut une adresse.';
+        g('dmAdresse').focus();
+        return;
+      }
+      fermerFond(fond);
+      resolve({ adresse: adresse, nom: g('dmNom').value.trim() });
+    });
+
+    fond.addEventListener('click', e => {
+      if(e.target === fond){ fermerFond(fond); resolve(null); }
+    });
+
+    document.body.appendChild(fond);
+    setTimeout(() => g('dmAdresse').focus(), 60);
+  });
+}
+
+async function envoyerFicheParMail(m){
+  const qui = await choisirDestinataireMail(
+    '✉️ Envoyer « ' + (m.titre || m.nom) + ' »');
+  if(!qui) return;
+
+  const nom = qui.nom;
+
+  /* Le texte, variables remplacées : {prenom}, {eleve}, {date}… */
+  const texte = (typeof appliquerModele === 'function')
+    ? appliquerModele(m.contenu || '', {
+        eleve: nom,
+        prenom: String(nom).split(' ')[0],
+        date: (typeof dateEnToutesLettres === 'function' &&
+               typeof todayLocal === 'function')
+          ? dateEnToutesLettres(todayLocal()) : ''
+      })
+    : (m.contenu || '');
+
+  /* ⚠️ UN « Bonjour , » NE PART PAS SANS QU'ON L'AIT VOULU. Le
+     prénom est facultatif : il faut donc le dire quand le texte en
+     réclame un et qu'il n'y en a pas. */
+  if(!nom && /\{(prenom|eleve)\}/.test(m.contenu || '')){
+    if(!await confirmer('Ce texte attend un prénom, et tu n’en as pas mis : ' +
+        'le message partira avec un blanc à la place.\n\nEnvoyer quand même ?')){
+      return;
+    }
+  }
+
+  /* L'objet : la porte commune de saisie, pas une fenêtre de plus. */
+  const sujet = await demander('Objet du message — ce que le destinataire ' +
+    'verra comme titre.', (m.titre || m.nom), '✉️ Envoyer la fiche');
+  if(sujet === null) return;
+
+  try{
+    await appelPrep({ action: 'mailBilan', to: [qui.adresse], genre: 'modele', eleve: nom || '',
+                      sujet: sujet || (m.titre || m.nom), texte: texte });
+    showToast('Envoyé à ' + qui.adresse + ' ✅');
+  }catch(e){
+    showToast('Impossible : ' + e.message);
+  }
 }
 
 
 /* ============================================================
    L'ÉCRAN
    ============================================================ */
-function ouvrirNouveautes(){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
+async function afficherModelesTexte(){
+  const zone = $('textesZone');
+  if(!zone) return;
 
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(560px, 96vw);max-height:92vh;' +
-    'overflow-y:auto;';
+  zone.innerHTML = '<div class="empty">Chargement des fiches…</div>';
+  await Promise.all([chargerModelesTexte(), chargerOrdreEtiquettes(),
+                     chargerOrdreFiches(), chargerAccesCategories(),
+                     /* Le répertoire des images : quelques kilo-octets,
+                        aucune image. Il dit aux cartes s'il faut garder
+                        la place d'une vignette. */
+                     chargerRepertoireImages()]);
+  dessinerBibliotheque();
+  /* 📨 v1382 — les textes de départ qui manquent, puis on redessine */
+  try{ if(await poserLesTextesDeDepart()) dessinerBibliotheque(); }catch(e){}
+}
 
-  const d = derniereNouveaute();
-  if(!d){
-    boite.innerHTML = '<div class="empty">Rien à raconter pour le moment.</div>';
-  }else{
-    const nl = nouveautesNonLues();
-    const aLire = nl.length ? nl : [d];
-    aLire.forEach((n, i) => boite.appendChild(blocNouveaute(n, aLire.length > 1 ? i : -1)));
-    const avant = NOUVEAUTES.slice(aLire.length);
-    if(avant.length) boite.appendChild(voletNouveautesPrecedentes(avant));
+function dessinerBibliotheque(){
+  const zone = $('textesZone');
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  /* ---- La barre du haut : chercher, créer ---- */
+  const barre = document.createElement('div');
+  barre.className = 'biblioBarre';
+
+  const champ = document.createElement('input');
+  champ.type = 'search';
+  champ.placeholder = '🔎 Chercher dans ' + modelesTexte.length + ' fiche' +
+    (modelesTexte.length > 1 ? 's' : '') + '…';
+  champ.value = rechercheFiches;
+  /* ⚠️ SA LARGEUR EST DANS LA FEUILLE DE STYLE, PAS ICI — v958. Une
+     largeur écrite sur l'élément gagne contre la règle du téléphone,
+     et le bouton d'import se retrouvait seul sur une ligne. */
+  champ.addEventListener('input', () => {
+    rechercheFiches = champ.value;
+    dessinerListeFiches();
+  });
+  barre.appendChild(champ);
+
+  const bNouveau = document.createElement('button');
+  bNouveau.className = 'btn btn-primary';
+  bNouveau.style.cssText = 'width:auto;padding:9px 14px;font-size:13px;margin:0;';
+  bNouveau.textContent = '➕ Nouvelle fiche';
+  bNouveau.addEventListener('click', () => ouvrirLaFiche(null));
+  barre.appendChild(bNouveau);
+
+  const bImport = document.createElement('button');
+  bImport.className = 'btn btn-secondary';
+  bImport.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+  bImport.textContent = '📥';
+  bImport.title = 'Coller plusieurs fiches d’un coup';
+  bImport.addEventListener('click', ouvrirImportModeles);
+  barre.appendChild(bImport);
+
+  /* 📥 v1262 — David : « récupérer toutes mes fiches Keep », une
+     catégorie par fiche (ec-import-keep.js). */
+  if(typeof ouvrirImportKeep === 'function'){
+    const bKeep = document.createElement('button');
+    bKeep.className = 'btn btn-secondary';
+    bKeep.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bKeep.textContent = '📥 Keep';
+    bKeep.title = 'Importer mes fiches Google Keep (le zip de Google Takeout)';
+    bKeep.setAttribute('data-import-keep', '1');
+    bKeep.addEventListener('click', ouvrirImportKeep);
+    barre.appendChild(bKeep);
   }
 
+  /* ⚙️ Qui voit quelle catégorie — réservé aux administrateurs :
+     eux seuls peuvent lire la liste des comptes, et eux seuls ont à
+     décider de ce que voient les autres. */
+  if(jeVoisToutLePrive()){
+    const bReg = document.createElement('button');
+    bReg.className = 'btn btn-secondary';
+    bReg.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bReg.textContent = '⚙️';
+    bReg.title = 'Qui voit quelle catégorie';
+    bReg.addEventListener('click', ouvrirQuiVoitQuoi);
+    barre.appendChild(bReg);
+  }
+
+  /* ⓘ v1299 — l'explication de l'écran, rangée derrière un bouton */
+  const bInfo = document.createElement('button');
+  bInfo.className = 'btn btn-secondary biblioInfo';
+  bInfo.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+  bInfo.textContent = 'ⓘ';
+  bInfo.title = 'À quoi sert cet écran';
+  bInfo.addEventListener('click', () => {
+    const i = $('textesInfo');
+    if(i){ i.hidden = !i.hidden; bInfo.classList.toggle('on', !i.hidden); }
+  });
+  barre.appendChild(bInfo);
+
+  zone.appendChild(barre);
+
+  /* ---- Le corps ---- */
+  const corps = document.createElement('div');
+  const large = bibliothequeLarge();
+  corps.className = 'biblioCorps ' + (large ? 'trois' : 'etroit');
+  if(large){
+    corps.innerHTML =
+      '<div class="biblioCol colEtiq"><div class="biblioColT"><span>Catégories</span><span class="n" id="biblioNbCat"></span></div>' +
+        '<input type="search" class="biblioFiltreCat" placeholder="Filtrer les catégories…">' +
+        '<div class="biblioEtiq"></div></div>' +
+      '<div class="biblioCol colFiches"><div class="biblioColT"><span id="biblioTitreListe"></span><span class="n" id="biblioNbFiches"></span></div>' +
+        '<div class="biblioFiches enListe"></div></div>' +
+      '<div class="biblioLecture" id="biblioLecture"></div>';
+  }else{
+    corps.innerHTML = '<button type="button" class="btn btn-secondary biblioCatBtn" id="biblioCatBtn"></button>' +
+      '<div class="biblioFiches enListe"></div>';
+  }
+  zone.appendChild(corps);
+  const fc = corps.querySelector('.biblioFiltreCat');
+  if(fc){
+    fc.value = filtreCategories;
+    fc.addEventListener('input', () => { filtreCategories = fc.value; dessinerRailEtiquettes(); });
+  }
+  const cb = corps.querySelector('#biblioCatBtn');
+  if(cb) cb.addEventListener('click', ouvrirFeuilleCategories);
+
+  dessinerRailEtiquettes();
+  dessinerListeFiches();
+  if(large){
+    const m = ficheOuverteId ? (modelesTexte || []).find(x => x.id === ficheOuverteId) : null;
+    if(m) ouvrirEditeurModele(m, null, { dans: $('biblioLecture') });
+    else videLaLecture();
+  }
+  /* Le passage d'une présentation à l'autre (rotation, fenêtre) :
+     ⚠️ comparé à la DERNIÈRE présentation dessinée, pas à la première */
+  window.__ecBiblioLarge = large;
+  if(!window.__ecBiblioTaille){
+    let t = null;
+    window.__ecBiblioTaille = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const z = $('textesZone');
+        if(!z || !z.clientWidth || !z.querySelector('.biblioCorps')) return;
+        if(bibliothequeLarge() !== window.__ecBiblioLarge) dessinerBibliotheque();
+      }, 250);
+    };
+    window.addEventListener('resize', window.__ecBiblioTaille);
+  }
+}
+
+/* La colonne de droite, quand aucune fiche n'est ouverte */
+function videLaLecture(){
+  const z = $('biblioLecture');
+  if(!z) return;
+  ficheOuverteId = '';
+  z.innerHTML = '<div class="biblioVide">📄 Choisis une fiche dans la liste :<br>elle s’ouvre ici, en entier.</div>';
+}
+
+/* Ouvrir une fiche : à droite sur un écran large, en plein écran
+   sinon. ⚠️ CE QUI EST OUVERT S'ENREGISTRE D'ABORD — changer de fiche
+   ne doit rien perdre. */
+async function ouvrirLaFiche(m){
+  const z = $('biblioLecture');
+  const categorie = m ? '' : (etiquetteChoisie === '*prive*' ? (maMarquePrivee() || '') : (etiquetteChoisie === '*sans*' ? '' : etiquetteChoisie));
+  if(z && bibliothequeLarge()){
+    if(window.__ficheEnLigne && !(await window.__ficheEnLigne.quitter())) return;
+    ficheOuverteId = m ? m.id : '';
+    document.querySelectorAll('#textesZone .ficheTexte').forEach(c => c.classList.toggle('ouverte', !!m && c.dataset.fiche === m.id));
+    ouvrirEditeurModele(m, null, { dans: z, categorie: categorie });
+    return;
+  }
+  ouvrirEditeurModele(m, null, { categorie: categorie });
+}
+
+/* 📱 La feuille des catégories (téléphone) : le même rail, filtrable */
+function ouvrirFeuilleCategories(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show feuilleCats';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.innerHTML = '<div class="fcTete"><b>Catégories</b><button type="button" class="fgb" aria-label="Fermer">✕</button></div>' +
+    '<input type="search" class="biblioFiltreCat" placeholder="Filtrer les catégories…">' +
+    '<div class="biblioEtiq dansFeuille"></div>';
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const fermer = () => { railCible = null; fermerFond(fond); dessinerRailEtiquettes(); };
+  boite.querySelector('.fcTete button').addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+  const fc = boite.querySelector('.biblioFiltreCat');
+  fc.value = filtreCategories;
+  fc.addEventListener('input', () => { filtreCategories = fc.value; dessinerRailEtiquettes(); });
+  railCible = boite.querySelector('.biblioEtiq');
+  railCible.__fermer = fermer;
+  dessinerRailEtiquettes();
+}
+
+/* ⚠️ LE RAIL SE RANGE À LA SOURIS — et les flèches restent pour le
+   téléphone, où glisser déplacerait la page. Même règle que pour
+   les tuiles : deux façons d'y toucher, un seul rangement. */
+function dessinerRailEtiquettes(){
+  /* 📄 v1299 — le titre des colonnes et le bouton du téléphone suivent */
+  majTitresBibliotheque();
+  const rail = (railCible && document.body.contains(railCible)) ? railCible : document.querySelector('#textesZone .biblioEtiq');
+  if(!rail) return;
+  rail.innerHTML = '';
+  const filtre = sansAccents(filtreCategories || '').trim();
+
+  /* Les mêmes fiches que la liste : sinon le rail annonce douze
+     fiches dans un carnet qui en montre neuf. */
+  const vues = fichesVisibles();
+  const compte = e => vues.filter(m => categoriesDe(m).indexOf(e) !== -1).length;
+  const sans = vues.filter(m => !categoriesDe(m).length).length;
+  const prives = vues.filter(m => proprietairePrive(m)).length;
+
+  const ligne = (cle, nom, n, rangeable) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'etqLigne' + (etiquetteChoisie === cle ? ' on' : '');
+    b.dataset.cat = cle;
+    b.innerHTML = '<span class="nom">' + nom.replace(/</g, '&lt;') + '</span>' +
+                  '<span class="n">' + n + '</span>';
+    b.addEventListener('click', () => {
+      if(b.dataset.vientDeGlisser) return;
+      etiquetteChoisie = (etiquetteChoisie === cle) ? '' : cle;
+      /* 📱 dans la feuille du téléphone : choisir, c'est refermer */
+      if(rail.__fermer){ rail.__fermer(); dessinerListeFiches(); return; }
+      dessinerRailEtiquettes();
+      dessinerListeFiches();
+    });
+    /* ⚠️ LE CRAYON EST DANS LA LIGNE, PAS DERRIÈRE UN GESTE CACHÉ.
+       Un clic long ou un clic droit ne s'invente pas, et ne marche
+       pas pareil sur téléphone. */
+    if(rangeable){
+      const cr = document.createElement('span');
+      cr.className = 'etqCrayon';
+      cr.textContent = '✏️';
+      cr.title = 'Renommer ou supprimer cette catégorie';
+      cr.addEventListener('click', e => {
+        e.stopPropagation();
+        ouvrirCategorie(cle);
+      });
+      b.appendChild(cr);
+
+      b.dataset.etq = cle;
+      /* 🔀 v1265 — au pointeur (souris ET doigt), plus par le glisser
+         du navigateur : voir glisserUneCategorie */
+      const pg = document.createElement('span');
+      pg.className = 'etqPoignee';
+      pg.textContent = '⠿';
+      pg.setAttribute('aria-hidden', 'true');
+      b.insertBefore(pg, b.firstChild);
+      b.title = 'Glisser pour ranger (ou Alt + ↑ / ↓)';
+      glisserUneCategorie(rail, b, cle);
+    }
+    /* 📁 v1265 — une fiche lâchée sur une catégorie s'y range (ce que
+       le guide promettait, et que rien ne faisait) */
+    if(cle !== '' && cle !== '*sans*') recevoirUneFiche(b, cle);
+    rail.appendChild(b);
+    return b;
+  };
+
+  if(!filtre) ligne('', '🏷️ Toutes', vues.length, false);
+
+  /* ⚠️ LE PRIVÉ EST TOUJOURS LÀ, MÊME VIDE — c'est un endroit où
+     poser quelque chose, pas un compte à afficher. Une catégorie
+     qui n'apparaît qu'une fois remplie ne se remplit jamais. */
+  if(!filtre) ligne('*prive*',
+        jeVoisToutLePrive() ? '🔒 Privé (tout le monde)' : '🔒 Mon privé',
+        prives, false);
+  if(!filtre) rail.appendChild(Object.assign(document.createElement('div'), { className: 'etqSep' }));
+
+  const lesCats = toutesLesEtiquettes().filter(jeVoisLaCategorie);
+  const nb = $('biblioNbCat'); if(nb) nb.textContent = lesCats.length;
+  const gardees = lesCats.filter(e => !filtre || sansAccents(e).indexOf(filtre) !== -1);
+  /* Filtrées : on ne range pas (l'ordre n'aurait plus de sens) */
+  gardees.forEach(e => ligne(e, e, compte(e), !filtre));
+  if(filtre && !gardees.length){
+    rail.appendChild(Object.assign(document.createElement('div'), { className: 'etqRien', textContent: 'Aucune catégorie de ce nom.' }));
+  }
+  if(filtre) return;
+  rail.appendChild(Object.assign(document.createElement('div'), { className: 'etqSep' }));
+
+  /* ⚠️ « SANS CATÉGORIE » NE SE SUPPRIME PAS ET NE SE RANGE PAS —
+     David : « faire une catégorie qu'on ne peut pas supprimer, avec
+     comme nom sans catégorie ». C'est là que tombent les fiches
+     d'une catégorie qu'on efface. Elle n'existe pas dans le
+     classeur : elle est le fait de n'en avoir aucune, ce qui est
+     précisément ce qui la rend indestructible. */
+  ligne('*sans*', '📭 Sans catégorie', sans, false);
+}
+
+/* Le titre de la colonne des fiches, et le bouton des catégories du téléphone */
+function nomDeLaCategorieChoisie(){
+  return etiquetteChoisie === '*prive*' ? (jeVoisToutLePrive() ? '🔒 Privé (tout le monde)' : '🔒 Mon privé')
+       : etiquetteChoisie === '*sans*' ? '📭 Sans catégorie'
+       : etiquetteChoisie || '🏷️ Toutes';
+}
+function majTitresBibliotheque(){
+  const n = fichesAffichees().length;
+  const t = $('biblioTitreListe'); if(t) t.textContent = nomDeLaCategorieChoisie();
+  const c = $('biblioNbFiches'); if(c) c.textContent = n;
+  const b = $('biblioCatBtn');
+  if(b){
+    b.innerHTML = '<span class="nom"></span><span class="n"></span><span class="fl">▾</span>';
+    b.querySelector('.nom').textContent = nomDeLaCategorieChoisie();
+    b.querySelector('.n').textContent = n;
+  }
+}
+
+let glisseEtq = '';
+
+/* Les comptes de l'école, lus une fois : c'est la porte
+   d'administration qui les connaît, et elle n'est ouverte qu'aux
+   administrateurs — les seuls qui règlent cet écran. */
+let comptesConnus = null;
+
+async function chargerComptes(){
+  if(comptesConnus) return comptesConnus;
+  comptesConnus = [];
+  if(typeof appelAdmin !== 'function') return comptesConnus;
+  try{
+    const d = await appelAdmin({ action: 'list' });
+    comptesConnus = (d.utilisateurs || []).map(u => u.nom).filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'fr'));
+  }catch(e){ comptesConnus = []; }
+  return comptesConnus;
+}
+
+/* ============================================================
+   ⚙️ QUI VOIT QUELLE CATÉGORIE — LE PANNEAU DES ADMINISTRATEURS
+
+   David : « pour les admins, en haut, tu mets sous une roue
+   crantée, comme ça on choisit directement ici, par catégorie, qui
+   voit quelle catégorie ».
+
+   Un seul écran pour toute la table : régler carnet par carnet,
+   depuis chaque carnet, obligerait à en ouvrir douze pour savoir
+   qui voit quoi — et c'est justement la question qu'on se pose en
+   arrivant ici.
+   ============================================================ */
+async function ouvrirQuiVoitQuoi(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 96vw);max-height:90vh;overflow-y:auto;';
+  fond.appendChild(boite);
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>⚙️ Qui voit quelle catégorie</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:14px;">Personne de coché = <strong>tout le monde ' +
+      'la voit</strong>. Coche des noms pour la réserver à ces ' +
+      'personnes-là. Les administrateurs voient tout, dans tous les ' +
+      'cas.</div>');
+
+  const zone = document.createElement('div');
+  zone.textContent = 'Chargement des comptes…';
+  zone.style.cssText = 'font-size:13px;color:var(--muted);';
+  boite.appendChild(zone);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => fermerFond(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  document.body.appendChild(fond);
+
+  const gens = await chargerComptes();
+  /* Une table de travail : on ne touche à la vraie qu'au moment
+     d'enregistrer, sinon annuler ne voudrait plus rien dire. */
+  const table = JSON.parse(JSON.stringify(accesCategories || {}));
+
+  zone.textContent = '';
+  if(!gens.length){
+    zone.textContent = 'Impossible de lire la liste des comptes. ' +
+      'Cette fenêtre est réservée aux administrateurs.';
+    return;
+  }
+
+  toutesLesEtiquettes().forEach(cat => {
+    const bloc = document.createElement('div');
+    bloc.style.cssText = 'border-top:1px solid var(--line);padding:10px 0;';
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:6px;';
+    bloc.appendChild(t);
+
+    const chips = document.createElement('div');
+    chips.className = 'mdEtiq';
+    bloc.appendChild(chips);
+
+    const majTitre = () => {
+      const l = table[cat] || [];
+      t.textContent = cat + ' — ' + (l.length
+        ? l.join(', ')
+        : 'tout le monde');
+    };
+
+    gens.forEach(nom => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const dedans = () => (table[cat] || []).indexOf(nom) !== -1;
+      const peindre = () => { b.className = 'mdEtq' + (dedans() ? ' on' : ''); };
+      b.textContent = nom;
+      peindre();
+      b.addEventListener('click', () => {
+        const l = (table[cat] || []).slice();
+        const i = l.indexOf(nom);
+        if(i === -1) l.push(nom); else l.splice(i, 1);
+        /* Une liste vide, c'est « tout le monde » : on retire la
+           clé plutôt que de garder un tableau vide qui voudrait
+           dire la même chose sous une autre forme. */
+        if(l.length) table[cat] = l; else delete table[cat];
+        peindre();
+        majTitre();
+      });
+      chips.appendChild(b);
+    });
+
+    majTitre();
+    zone.appendChild(bloc);
+  });
+
+  bOk.addEventListener('click', async () => {
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await enregistrerAccesCategories(table);
+      fermerFond(fond);
+      showToast('Enregistré ✅');
+      dessinerRailEtiquettes();
+      dessinerListeFiches();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
+    }
+  });
+}
+
+/* ============================================================
+   UNE CATÉGORIE : LA RENOMMER, OU LA SUPPRIMER
+
+   David : « je ne peux pas supprimer de catégorie ! et si elle a
+   des fiches à l'intérieur, faire une catégorie qu'on ne peut pas
+   supprimer avec comme nom sans catégorie ».
+
+   ⚠️ SUPPRIMER UNE CATÉGORIE NE SUPPRIME AUCUNE FICHE. Elle n'a
+   jamais été qu'un mot écrit sur des fiches : on l'efface de
+   celles qui le portent, et elles tombent dans « 📭 Sans
+   catégorie » — qui n'existe pas dans le classeur, qui est le fait
+   de n'en avoir aucune, et qui est donc indestructible par
+   construction.
+   ============================================================ */
+function ouvrirCategorie(cat){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(460px, 94vw);';
+  fond.appendChild(boite);
+  fond.addEventListener('click', e => { if(e.target === fond) fermerFond(fond); });
+
+  const dedans = (modelesTexte || [])
+    .filter(m => categoriesDe(m).indexOf(cat) !== -1).length;
+
+  boite.insertAdjacentHTML('beforeend',
+    /* ⛔ v1299 — l'avertissement de David, là où on modifie (il était
+       en haut de l'écran) */
+    '<div class="biblioStop">⛔ INTERDICTION DE MODIFIER LES CATÉGORIES SANS LOGO ' +
+      'DEVANT — SOUS RISQUE DE CASSER L’OUTIL</div>' +
+    '<h3>🏷️ ' + cat.replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:12px;">' + (dedans
+        ? dedans + ' fiche' + (dedans > 1 ? 's' : '') + ' dans cette catégorie.'
+        : 'Aucune fiche dans cette catégorie.') + '</div>' +
+    '<label for="catNom">Nom de la catégorie</label>' +
+    '<input type="text" id="catNom" style="width:100%;">');
+
+  const g = id => boite.querySelector('#' + id);
+  g('catNom').value = cat;
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'font-size:13px;min-height:16px;margin-bottom:4px;';
+  boite.appendChild(msg);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => fermerFond(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '✓ Renommer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  bOk.addEventListener('click', async () => {
+    const neuf = g('catNom').value.trim();
+    if(!neuf || neuf === cat){ fermerFond(fond); return; }
+    if(neuf.indexOf('·') !== -1){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Le « · » sépare les catégories : il ne peut pas être dans un nom.';
+      return;
+    }
+    bOk.disabled = true;
+    bOk.textContent = 'Renommage…';
+    fermerFond(fond);
+    await renommerEtiquette(cat, neuf);
+  });
+
+  /* Discret, en bas, à part : c'est le seul geste qu'on ne
+     rattrape pas. Même règle que la suppression d'une fiche. */
   const pied = document.createElement('div');
-  pied.className = 'nvPied';
+  pied.style.cssText = 'margin-top:14px;padding-top:10px;' +
+    'border-top:1px solid var(--line);';
+  const bSup = document.createElement('button');
+  bSup.type = 'button';
+  bSup.className = 'fgb sup fgPetit';
+  bSup.style.marginLeft = '0';
+  bSup.textContent = '✕ Supprimer la catégorie';
+  bSup.addEventListener('click', async () => {
+    const quoi = dedans
+      ? 'Supprimer la catégorie « ' + cat + ' » ?\n\nSes ' + dedans +
+        ' fiche' + (dedans > 1 ? 's' : '') + ' ne ' +
+        (dedans > 1 ? 'sont' : 'est') + ' pas supprimée' +
+        (dedans > 1 ? 's' : '') + ' : ' + (dedans > 1 ? 'elles passent' : 'elle passe') +
+        ' dans « 📭 Sans catégorie ».'
+      : 'Supprimer la catégorie « ' + cat + ' » ?';
+    if(!await confirmer(quoi)) return;
+    bSup.disabled = true;
+    fermerFond(fond);
+    await supprimerEtiquette(cat);
+  });
+  pied.appendChild(bSup);
+  boite.appendChild(pied);
+
+  document.body.appendChild(fond);
+  setTimeout(() => g('catNom').focus(), 60);
+}
+
+/* ============================================================
+   RENOMMER UNE ÉTIQUETTE
+
+   David : « je peux pas renommer une catégorie, il faut que ce
+   soit possible ».
+
+   ⚠️ UNE ÉTIQUETTE N'EXISTE NULLE PART EN PROPRE : elle n'est que
+   le mot écrit sur les fiches qui la portent. La renommer, c'est
+   donc réécrire ces fiches-là — et l'ordre rangé par-dessus. Une
+   seule des deux, et l'ancien nom revient par l'autre bout à la
+   première relecture.
+
+   Les fiches qui ne la portent pas ne sont pas touchées : on ne
+   réécrit que ce qui change.
+   ============================================================ */
+/* On déplace, on n'échange pas : glisser la dernière en tête ne
+   doit pas envoyer la première tout en bas. */
+/* ============================================================
+   🔀 RANGER LES CATÉGORIES — v1265
+
+   David, capture du rail à l'appui : « le déplacement en cliquer
+   glisser ne fonctionne pas bien du tout ». Il avait raison, trois
+   fois :
+     · le rail se redessinait AVANT que le nouvel ordre soit posé :
+       l'écran montrait toujours le déplacement d'avant (le premier
+       glisser ne faisait rien, le deuxième montrait le premier…) ;
+     · descendre posait la catégorie APRÈS la cible, monter AVANT,
+       sous un trait toujours dessiné au-dessus ;
+     · le glisser du navigateur sur un bouton ne part pas sur Firefox,
+       ni au doigt.
+   Désormais : on attrape la ligne (la poignée ⠿ au doigt), un trait
+   montre où elle va se poser, entre deux lignes ou tout en bas, et on
+   lâche. Au clavier : Alt + ↑ / ↓. L'ordre est posé, PUIS dessiné.
+   ============================================================ */
+async function rangerEtiquette(quoi, avant){
+  /* « avant » : la catégorie devant laquelle elle se pose ; vide, elle
+     va tout à la fin */
+  const l = toutesLesEtiquettes();
+  const de = l.indexOf(quoi);
+  if(de === -1 || quoi === avant) return;
+  const [pris] = l.splice(de, 1);
+  const ou = avant ? l.indexOf(avant) : -1;
+  if(ou === -1) l.push(pris); else l.splice(ou, 0, pris);
+  ordreEtiquettes = l.slice();
+  dessinerRailEtiquettes();
+  const r = document.querySelector('#textesZone .etqLigne[data-etq="' + String(quoi).replace(/["\\]/g, '\\$&') + '"]');
+  if(r) r.classList.add('posee');
+  try{
+    await enregistrerOrdreEtiquettes(l);
+  }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+}
+function glisserUneCategorie(rail, b, cle){
+  let depart = null, enCours = false, trait = null, cibleAvant = undefined, idPointeur = null;
+  const lignes = () => [...rail.querySelectorAll('.etqLigne[data-etq]')];
+  const horizontal = () => getComputedStyle(rail).flexDirection === 'row';
+  const viser = ev => {
+    const h = horizontal();
+    const autres = lignes().filter(x => x !== b);
+    let avant = null;
+    for(const x of autres){
+      const r = x.getBoundingClientRect();
+      const milieu = h ? r.left + r.width / 2 : r.top + r.height / 2;
+      if((h ? ev.clientX : ev.clientY) < milieu){ avant = x; break; }
+    }
+    cibleAvant = avant ? avant.dataset.etq : '';
+    /* le trait : au-dessus de la ligne visée, ou sous la dernière */
+    const ref = avant || autres[autres.length - 1];
+    if(!ref){ trait.style.display = 'none'; return; }
+    const rr = ref.getBoundingClientRect(), rz = rail.getBoundingClientRect();
+    trait.style.display = '';
+    if(h){
+      trait.className = 'etqTrait vertical';
+      trait.style.left = ((avant ? rr.left - 4 : rr.right + 2) - rz.left + rail.scrollLeft) + 'px';
+      trait.style.top = (rr.top - rz.top) + 'px'; trait.style.height = rr.height + 'px'; trait.style.width = '';
+    }else{
+      trait.className = 'etqTrait';
+      trait.style.top = ((avant ? rr.top - 2 : rr.bottom + 1) - rz.top + rail.scrollTop) + 'px';
+      trait.style.left = '0px'; trait.style.width = rz.width + 'px'; trait.style.height = '';
+    }
+    /* au bord : on fait défiler */
+    if(h){
+      if(ev.clientX < rz.left + 30) rail.scrollLeft -= 12; else if(ev.clientX > rz.right - 30) rail.scrollLeft += 12;
+    }else{
+      if(ev.clientY < 60) window.scrollBy(0, -14); else if(ev.clientY > window.innerHeight - 60) window.scrollBy(0, 14);
+    }
+  };
+  const finir = async ev => {
+    const etait = enCours;
+    enCours = false; depart = null;
+    try{ if(idPointeur !== null) b.releasePointerCapture(idPointeur); }catch(e){}
+    idPointeur = null;
+    document.body.classList.remove('etqGlisse');
+    if(trait) trait.remove();
+    trait = null;
+    b.classList.remove('prise');
+    if(!etait) return;
+    /* le clic qui suit un glisser ne choisit pas la catégorie */
+    b.dataset.vientDeGlisser = '1';
+    setTimeout(() => { delete b.dataset.vientDeGlisser; }, 50);
+    if(ev && ev.type === 'pointerup' && cibleAvant !== undefined && cibleAvant !== cle){
+      const l = lignes().map(x => x.dataset.etq);
+      const i = l.indexOf(cle);
+      /* déjà à cet endroit : rien */
+      if(!(cibleAvant === (l[i + 1] || ''))) await rangerEtiquette(cle, cibleAvant);
+    }
+    cibleAvant = undefined;
+  };
+  b.addEventListener('pointerdown', ev => {
+    if(ev.button !== 0 || ev.target.closest('.etqCrayon')) return;
+    /* au doigt, seulement par la poignée : sinon on ne pourrait plus
+       faire défiler le rail */
+    if(ev.pointerType !== 'mouse' && !ev.target.closest('.etqPoignee')) return;
+    depart = { x: ev.clientX, y: ev.clientY };
+    idPointeur = ev.pointerId;
+    try{ b.setPointerCapture(ev.pointerId); }catch(e){}
+    if(ev.pointerType !== 'mouse') ev.preventDefault();
+  });
+  b.addEventListener('pointermove', ev => {
+    if(!depart) return;
+    if(!enCours){
+      if(Math.abs(ev.clientX - depart.x) + Math.abs(ev.clientY - depart.y) < 6) return;
+      enCours = true;
+      b.classList.add('prise');
+      document.body.classList.add('etqGlisse');
+      if(getComputedStyle(rail).position === 'static') rail.style.position = 'relative';
+      trait = document.createElement('div');
+      trait.className = 'etqTrait';
+      rail.appendChild(trait);
+    }
+    ev.preventDefault();
+    viser(ev);
+  });
+  b.addEventListener('pointerup', finir);
+  b.addEventListener('pointercancel', finir);
+  b.addEventListener('click', ev => {
+    if(b.dataset.vientDeGlisser){ ev.stopImmediatePropagation(); ev.preventDefault(); }
+  }, true);
+  b.addEventListener('keydown', async ev => {
+    if(!ev.altKey || (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown' && ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight')) return;
+    ev.preventDefault();
+    const l = toutesLesEtiquettes();
+    const i = l.indexOf(cle);
+    const monte = ev.key === 'ArrowUp' || ev.key === 'ArrowLeft';
+    if(monte && i > 0) await rangerEtiquette(cle, l[i - 1]);
+    else if(!monte && i !== -1 && i < l.length - 1) await rangerEtiquette(cle, l[i + 2] || '');
+    const r = document.querySelector('#textesZone .etqLigne[data-etq="' + String(cle).replace(/["\\]/g, '\\$&') + '"]');
+    if(r) r.focus();
+  });
+}
+
+/* 📁 Une fiche lâchée sur une catégorie : elle y est rangée (elle
+   garde les autres). Sur « 🔒 Privé », elle devient privée. */
+function recevoirUneFiche(b, cle){
+  b.addEventListener('dragover', e => {
+    if(!glisseFiche) return;
+    e.preventDefault();
+    b.classList.add('depot');
+  });
+  b.addEventListener('dragleave', e => { if(!b.contains(e.relatedTarget)) b.classList.remove('depot'); });
+  b.addEventListener('drop', async e => {
+    if(!glisseFiche) return;
+    e.preventDefault();
+    b.classList.remove('depot');
+    const m = (modelesTexte || []).find(x => x.id === glisseFiche);
+    glisseFiche = '';
+    if(!m) return;
+    const cat = cle === '*prive*' ? maMarquePrivee() : cle;
+    if(!cat) return;
+    const l = etiquettesDe(m);
+    if(l.indexOf(cat) !== -1){ showToast('Elle y est déjà.'); return; }
+    const avant = m.etiquettes;
+    m.etiquettes = l.concat([cat]).join(SEP_ETIQ);
+    try{
+      await enregistrerModeleTexte(m);
+      showToast('📁 « ' + (m.titre || m.nom) + ' » rangée dans ' + (cle === '*prive*' ? '🔒 privé' : cle));
+    }catch(err){
+      m.etiquettes = avant;
+      showToast('Pas rangée : ' + ((err && err.message) || err));
+    }
+    dessinerRailEtiquettes();
+    dessinerListeFiches(true);
+  });
+}
+
+/* ⚠️ « QUELLES FICHES SONT À L'ÉCRAN » NE S'ÉCRIT QU'ICI — v959.
+
+   Le dessin le savait, les flèches de déplacement avaient besoin
+   de le savoir aussi, et un second filtre aurait fini par ne plus
+   dire la même chose que le premier. C'est le défaut de ce dossier
+   depuis le début. */
+function fichesAffichees(){
+  const mots = sansAccents(rechercheFiches).split(/\s+/).filter(Boolean);
+  let liste = fichesVisibles().filter(m => fichePorte(m, mots));
+  if(etiquetteChoisie === '*prive*'){
+    liste = liste.filter(m => proprietairePrive(m));
+  }else if(etiquetteChoisie === '*sans*'){
+    liste = liste.filter(m => !categoriesDe(m).length);
+  }else if(etiquetteChoisie){
+    liste = liste.filter(m => categoriesDe(m).indexOf(etiquetteChoisie) !== -1);
+  }
+  return fichesRangees(liste);
+}
+
+/* ⚠️ RENOMMER ET SUPPRIMER SONT LE MÊME GESTE — v961.
+
+   Une catégorie n'existe nulle part en propre : elle n'est que le
+   mot écrit sur les fiches qui la portent. La renommer, c'est
+   réécrire ces fiches-là ; la supprimer, c'est réécrire les mêmes
+   en retirant le mot. Deux fonctions auraient fini par ne plus
+   traiter pareil les fiches d'avant les catégories, ou par oublier
+   l'une des deux listes rangées.
+
+   Les fiches qui ne la portent pas ne sont pas touchées : on ne
+   réécrit que ce qui change. */
+async function reecrireCategorie(ancien, neuf){
+  const touchees = (modelesTexte || [])
+    .filter(m => categoriesDe(m).indexOf(ancien) !== -1);
+
+  /* L'ordre rangé d'abord : il se range même si aucune fiche ne la
+     porte encore — une catégorie créée puis renommée avant usage.
+     Et une seule des deux, c'est l'ancien nom qui revient par
+     l'autre bout à la première relecture. */
+  const ordre = toutesLesEtiquettes()
+    .map(e => (e === ancien ? neuf : e))
+    .filter(Boolean)
+    .filter((e, i, l) => l.indexOf(e) === i);
+
+  /* La table « qui voit quoi » suit le nom, sinon la restriction
+     resterait accrochée à un carnet qui n'existe plus — et le
+     nouveau serait ouvert à tous sans que personne l'ait décidé. */
+  const acces = JSON.parse(JSON.stringify(accesCategories || {}));
+  if(acces[ancien] !== undefined){
+    if(neuf) acces[neuf] = acces[ancien];
+    delete acces[ancien];
+  }
+
+  showToast((neuf ? 'Renommage… ' : 'Suppression… ') + touchees.length +
+            ' fiche' + (touchees.length > 1 ? 's' : ''));
+
+  let rates = 0;
+
+  /* Quatre à la fois : une centaine de fiches à la queue leu leu se
+     compterait en minutes, et toutes d'un coup noierait la porte. */
+  for(let i = 0; i < touchees.length; i += 4){
+    const paquet = touchees.slice(i, i + 4).map(async m => {
+      const liste = etiquettesDe(m)
+        .map(e => (e === ancien ? neuf : e))
+        .filter(Boolean)
+        .filter((e, k, l) => l.indexOf(e) === k);
+      try{
+        /* ⚠️ ON RENVOIE LA FICHE ENTIÈRE : « modeleSet » écrit la
+           ligne complète, et un champ oublié s'effacerait dans le
+           classeur. C'est pour ça que la charge utile s'écrit à un
+           seul endroit — enregistrerModeleTexte. Le titre part sans
+           son ancien préfixe de catégorie : elle est déjà dans la
+           liste ci-dessus. */
+        await enregistrerModeleTexte(
+          Object.assign({}, m, { etiquettes: liste.join(SEP_ETIQ) }));
+        poserModeleEnMemoire(Object.assign({}, m, {
+          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ), categorie: ''
+        }));
+      }catch(e){ rates++; }
+    });
+    await Promise.all(paquet);
+  }
+
+  try{ await enregistrerOrdreEtiquettes(ordre); }catch(e){ rates++; }
+  try{ await enregistrerAccesCategories(acces); }catch(e){ rates++; }
+
+  if(etiquetteChoisie === ancien) etiquetteChoisie = neuf || '';
+  perimerModeles();
+  dessinerRailEtiquettes();
+  dessinerListeFiches();
+
+  showToast(rates
+    ? '⚠️ ' + (neuf ? 'Renommée' : 'Supprimée') + ', sauf ' + rates +
+      ' fiche(s) — droit ou réseau'
+    : (neuf ? '🏷️ Renommée sur ' : '🗑️ Retirée de ') + touchees.length +
+      ' fiche' + (touchees.length > 1 ? 's' : ''));
+}
+
+async function renommerEtiquette(ancien, neuf){
+  if(!neuf || neuf === ancien) return;
+  await reecrireCategorie(ancien, neuf);
+}
+
+/* Les fiches ne sont pas supprimées : elles tombent dans
+   « 📭 Sans catégorie ». */
+async function supprimerEtiquette(cat){
+  await reecrireCategorie(cat, '');
+}
+
+/* 📥 v1262 — PAR PAQUETS DE 80. Avec les fiches Keep de David
+   (6 888), dessiner toutes les cartes d'un coup figeait l'écran ;
+   la recherche, elle, cherche toujours dans toutes. */
+const PAQUET_FICHES = 80;
+let fichesMontrees = PAQUET_FICHES;
+function dessinerListeFiches(suite){
+  const zone = document.querySelector('#textesZone .biblioFiches');
+  if(!zone) return;
+  if(suite !== true) fichesMontrees = PAQUET_FICHES;
+  zone.innerHTML = '';
+
+  const mots = sansAccents(rechercheFiches).split(/\s+/).filter(Boolean);
+  const liste = fichesAffichees();
+
+  if(!liste.length){
+    majTitresBibliotheque();
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = (modelesTexte || []).length
+      ? 'Aucune fiche ne correspond.'
+      : 'Aucune fiche enregistrée.<br><span style="font-size:12px;">' +
+        'Ajoute ici les messages que tu envoies souvent.</span>';
+    zone.appendChild(v);
+    return;
+  }
+
+  majTitresBibliotheque();
+  liste.slice(0, fichesMontrees).forEach(m => zone.appendChild(carteDeFiche(m, mots)));
+  if(liste.length > fichesMontrees){
+    const reste = liste.length - fichesMontrees;
+    const plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'btn btn-secondary biblioPlus';
+    plus.textContent = 'Afficher ' + Math.min(PAQUET_FICHES, reste) + ' fiches de plus (' + reste + ' restantes)';
+    plus.addEventListener('click', () => { fichesMontrees += PAQUET_FICHES; dessinerListeFiches(true); });
+    zone.appendChild(plus);
+  }
+
+  /* Les vignettes se remplissent quand leur carte arrive à
+     l'écran : la liste ne paie que ce qu'on regarde. */
+  veillerSurLesVignettes();
+}
+
+let glisseFiche = '';
+
+/* ============================================================
+   LA PALETTE — UNE SEULE À L'ÉCRAN, ET ELLE SE REFERME
+
+   Comme dans Keep : la pastille 🎨 des gestes du bas la déplie
+   sous la fiche. Huit couleurs, et un ✕ pour rendre la fiche à son
+   fond d'origine — sans lui, une couleur posée par erreur ne se
+   retire plus.
+
+   ⚠️ ET LA FICHE SE PEINT AVANT QUE LE CLASSEUR RÉPONDE. Attendre
+   l'aller-retour pour voir la couleur, c'est croire qu'on a raté
+   son geste et appuyer une deuxième fois. Si l'écriture échoue,
+   poserCouleurFiche rend la couleur d'avant et le dit.
+   ============================================================ */
+function fermerPalettes(sauf){
+  document.querySelectorAll('#textesZone .palFiche').forEach(p => {
+    if(p !== sauf) p.remove();
+  });
+}
+
+function basculerPalette(carte, m, bouton){
+  const ouverte = carte.querySelector('.palFiche');
+  fermerPalettes();
+  if(ouverte) return;
+
+  const pal = document.createElement('div');
+  pal.className = 'palFiche';
+
+  const actuelle = couleurDeLaFiche(m);
+
+  const pastille = (cle, nom) => {
+    const s = document.createElement('button');
+    s.type = 'button';
+    /* « fgb » aussi : un clic sur la palette ne doit pas ouvrir la
+       fiche — c'est la classe que le clic de la carte regarde. */
+    s.className = 'fgb pastFiche' + (cle === actuelle ? ' choisie' : '');
+    if(cle) s.dataset.couleur = cle;
+    else s.textContent = '✕';
+    s.title = nom;
+    s.addEventListener('click', async () => {
+      fermerPalettes();
+      /* On peint tout de suite, on enregistre ensuite. */
+      if(cle) carte.dataset.couleur = cle; else delete carte.dataset.couleur;
+      try{ await poserCouleurFiche(m, cle); }
+      catch(e){
+        const revenue = couleurDeLaFiche(m);
+        if(revenue) carte.dataset.couleur = revenue;
+        else delete carte.dataset.couleur;
+      }
+    });
+    return s;
+  };
+
+  pal.appendChild(pastille('', 'Aucune couleur'));
+  COULEURS_FICHE.forEach(c => pal.appendChild(pastille(c.cle, c.nom)));
+
+  carte.appendChild(pal);
+  if(bouton && bouton.scrollIntoView){
+    try{ pal.scrollIntoView({ block:'nearest' }); }catch(e){}
+  }
+}
+
+function carteDeFiche(m, mots){
+  const d = document.createElement('div');
+  d.className = 'ficheTexte';
+  /* La couleur est un NOM, pas une teinte : les seize valeurs —
+     huit couleurs, deux thèmes — vivent dans la feuille de style. */
+  const coul = couleurDeLaFiche(m);
+  if(coul) d.dataset.couleur = coul;
+
+  /* ⚠️ UN CLIC SUR LA CARTE OUVRE LA FICHE — v959. David : « je veux
+     le texte en entier pour pouvoir changer directement dessus sans
+     avoir forcément à appuyer sur le bouton crayon, il me faut la
+     même chose que Keep ». Le crayon disparaît : c'était un geste de
+     plus, cent fois par jour. Les autres gestes restent en bas de
+     carte, et ils ne doivent pas ouvrir la fiche au passage. */
+  d.tabIndex = 0;
+  if(m.id === ficheOuverteId) d.classList.add('ouverte');
+  d.addEventListener('click', e => {
+    if(e.target.closest('.fgb')) return;
+    ouvrirLaFiche(m);
+  });
+  d.addEventListener('keydown', e => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ouvrirLaFiche(m); }
+  });
+
+  /* ⚠️ ON GLISSE LA CARTE, ET LES FLÈCHES RESTENT POUR LE TÉLÉPHONE
+     — même règle que le rail des étiquettes et que « Mes tuiles » :
+     glisser déplacerait la page sous le doigt. Deux façons d'y
+     toucher, un seul rangement. */
+  d.draggable = true;
+  d.dataset.fiche = m.id;
+  d.addEventListener('dragstart', e => {
+    glisseFiche = m.id; d.classList.add('prise');
+    try{ e.dataTransfer.effectAllowed = 'move'; }catch(err){}
+  });
+  d.addEventListener('dragend', () => {
+    glisseFiche = '';
+    document.querySelectorAll('#textesZone .ficheTexte')
+      .forEach(x => x.classList.remove('prise', 'cible'));
+  });
+  /* De quel côté de la carte le doigt est-il ? Sur une seule
+     colonne on regarde le haut et le bas, sur plusieurs la gauche
+     et la droite — c'est là que se trouve le voisin suivant. */
+  const apresLaCarte = e => {
+    const r = d.getBoundingClientRect();
+    const enColonne = (d.parentElement || {}).clientWidth < r.width * 1.6;
+    return enColonne ? (e.clientY > r.top + r.height / 2)
+                     : (e.clientX > r.left + r.width / 2);
+  };
+
+  d.addEventListener('dragover', e => {
+    if(!glisseFiche || glisseFiche === m.id) return;
+    e.preventDefault();
+    d.classList.remove('cible', 'cibleApres');
+    d.classList.add(apresLaCarte(e) ? 'cibleApres' : 'cible');
+  });
+  d.addEventListener('dragleave', () => d.classList.remove('cible', 'cibleApres'));
+  d.addEventListener('drop', async e => {
+    e.preventDefault();
+    const apres = apresLaCarte(e);
+    d.classList.remove('cible', 'cibleApres');
+    if(!glisseFiche || glisseFiche === m.id) return;
+    await bougerFiche(glisseFiche, m.id, apres);
+  });
+
+  const t = document.createElement('div');
+  t.className = 'ft';
+  t.innerHTML = surligner(m.titre || m.nom, mots);
+  d.appendChild(t);
+
+  const u = document.createElement('div');
+  u.className = 'fu';
+  u.textContent = nomUsage(m.usage) + (m.maj ? ' · ' + m.maj : '');
+  d.appendChild(u);
+
+  const p = document.createElement('div');
+  p.className = 'fp';
+  p.innerHTML = surligner(m.contenu || '', mots);
+  d.appendChild(p);
+
+  /* ⚠️ SOUS L'APERÇU, AU-DESSUS DES ÉTIQUETTES — v970. Le texte
+     reste ce qu'on lit en premier : l'image l'illustre, elle ne le
+     remplace pas. */
+  const vues = bandeDeVignettes(m);
+  if(vues) d.appendChild(vues);
+
+  const etq = categoriesDe(m);
+  const proprio = proprietairePrive(m);
+  if(etq.length || proprio){
+    const z = document.createElement('div');
+    z.className = 'fe';
+    /* ⚠️ LE CADENAS DIT À QUI. Un administrateur qui voit les fiches
+       privées de son équipe doit savoir de qui elles sont : voir
+       sans le savoir, ce n'est pas voir. */
+    if(proprio){
+      const c = document.createElement('span');
+      c.className = 'fetq prive';
+      c.textContent = cestMoi(proprio) ? '🔒 Privé' : '🔒 ' + proprio;
+      z.appendChild(c);
+    }
+    etq.forEach(e => {
+      const s = document.createElement('span');
+      s.className = 'fetq';
+      s.textContent = e;
+      z.appendChild(s);
+    });
+    d.appendChild(z);
+  }
+
+  const g = document.createElement('div');
+  g.className = 'fg';
+
+  const geste = (txt, titre, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'fgb';
+    b.textContent = txt;
+    b.title = titre;
+    b.addEventListener('click', fn);
+    g.appendChild(b);
+    return b;
+  };
+
+  /* Les deux flèches ne s'affichent que sous 760 px : sur un
+     ordinateur, on glisse. */
+  const bHaut = geste('↑', 'Monter cette fiche',
+                      () => glisserFicheDUnCran(m, -1));
+  const bBas = geste('↓', 'Descendre cette fiche',
+                     () => glisserFicheDUnCran(m, 1));
+  bHaut.classList.add('fgTel');
+  bBas.classList.add('fgTel');
+
+  geste('📋', 'Copier toute la fiche', async () => {
+    const ok = await copierDansLePressePapier(m.contenu || '');
+    showToast(ok ? 'Fiche copiée ✅' : 'Copie impossible sur cet appareil');
+  });
+  geste('✂️', 'Copier un morceau', () => ouvrirCopieMorceau(m));
+  geste('✉️', 'Envoyer par mail', () => envoyerFicheParMail(m));
+  geste('🎨', 'Couleur de la fiche', ev => basculerPalette(d, m, ev.currentTarget));
+
+  /* ⚠️ PAS DE SUPPRESSION SUR LA CARTE — v959. David : « enlève le
+     bouton de suppression directement sur la fiche, en petit
+     uniquement quand elle est ouverte, en bas ». Avec cent cartes
+     serrées, une croix rouge à portée de pouce est une fiche perdue
+     un jour ou l'autre ; ouverte, on sait ce qu'on supprime. */
+
+  d.appendChild(g);
+  return d;
+}
+
+/* ============================================================
+   LA FICHE OUVERTE — ON ÉCRIT DEDANS, COMME DANS KEEP
+
+   David, le 11 septembre : « je veux le texte en entier pour
+   pouvoir changer directement dessus sans avoir forcément à
+   appuyer sur le bouton crayon, il me faut la même chose que
+   Keep ».
+
+   Donc : un clic n'importe où sur la carte ouvre la fiche, le
+   titre et le texte sont des champs qu'on modifie sur place, et
+   fermer enregistre. Pas de bouton « Enregistrer » — il n'y en a
+   pas dans Keep, et c'est un geste de moins cent fois par jour.
+
+   ⚠️ ET C'EST LE MÊME ÉDITEUR QU'AVANT, PAS UN SECOND.
+
+   La tentation était d'ajouter une « ouverture rapide » à côté de
+   l'éditeur existant. Deux écrans pour une même fiche, c'est le
+   péché de ce dossier : celui qu'on oublie de tenir à jour finit
+   par écrire de travers. Les réglages techniques — l'usage, la
+   boîte, les consignes de l'IA, le bilan — sont simplement rangés
+   sous « ⚙️ Réglages », dépliés d'office là où ils comptent.
+   ============================================================ */
+
+/* ⚠️ LA FICHE PORTE SON NUMÉRO AVANT DE PARTIR — v959.
+
+   Une fiche neuve partait sans numéro, et le classeur lui en
+   fabriquait un À CHAQUE FOIS qu'il recevait la demande. Un appel
+   renvoyé après un délai dépassé — ce qui arrivait tout le temps,
+   l'écriture réveillant Apps Script — ajoutait donc une SECONDE
+   ligne. C'est la règle déjà posée pour les liens de cours :
+   reconnaître avant d'écrire. Ici on fait mieux, on donne le nom
+   d'abord : une demande renvoyée se réécrit sur elle-même. */
+function nouvelIdModele(){
+  return 'm' + Date.now() + Math.floor(Math.random() * 1000);
+}
+
+/* Un texte dont l'application se sert toute seule. Les procédures
+   en font partie : elles nourrissent la correction. */
+function estTexteDeLAppli(m){
+  const u = String((m || {}).usage || 'libre');
+  return u !== '' && u !== 'libre';
+}
+
+function peutToucherAuxTextesDeLAppli(){
+  if(typeof peutModifier !== 'function') return true;
+  return peutModifier('textes_appli');
+}
+
+/* ------------------------------------------------------------
+   CE QUI PART DANS LE MESSAGE — ET CE QUI N'Y ARRIVERA JAMAIS
+
+   David : « ma crainte c'est que quelqu'un modifie un texte type
+   qui sert aux rappels et casse les rappels ». Le droit ci-dessus
+   dit QUI peut y toucher ; ces deux fonctions disent ce qui vient
+   d'être cassé, à celui qui a le droit et qui se trompe quand
+   même.
+
+   Une variable retirée ne se voit nulle part : le rappel continue
+   de partir, simplement sans le lien vers le bilan. On le dit
+   AVANT d'enregistrer, en la nommant.
+   ------------------------------------------------------------ */
+function variablesDuTexte(t){
+  return (String(t || '').match(/\{[^{}\s]+\}/g) || [])
+    .filter((x, i, l) => l.indexOf(x) === i);
+}
+
+function variablesConnues(usage){
+  const u = USAGES_MODELE.find(x => x.cle === usage);
+  return u ? u.variables : [];
+}
+
+/* Rend la phrase à montrer, ou '' si rien à signaler. */
+function alerteDesVariables(ancien, neuf, usage){
+  const connues = variablesConnues(usage);
+  const avant = variablesDuTexte(ancien);
+  const apres = variablesDuTexte(neuf);
+
+  const parties = [];
+
+  /* Celles qui étaient là, qui comptent, et qui n'y sont plus. */
+  const perdues = avant.filter(v => connues.indexOf(v) !== -1 &&
+                                    apres.indexOf(v) === -1);
+  if(perdues.length){
+    parties.push('Tu as retiré ' + perdues.join(', ') + ' : ' +
+      (perdues.length > 1 ? 'ces éléments ne seront plus remplis'
+                          : 'cet élément ne sera plus rempli') +
+      ' dans le message envoyé.');
+  }
+
+  /* Une variable inventée ou mal orthographiée part telle quelle :
+     l'élève reçoit « {lein} » au milieu de sa phrase. On ne le dit
+     que là où l'outil remplit lui-même — ailleurs, des accolades
+     dans un texte sont un texte. */
+  if(estTexteDeLAppli({ usage: usage })){
+    const inconnues = apres.filter(v => connues.indexOf(v) === -1);
+    if(inconnues.length){
+      parties.push(inconnues.join(', ') +
+        (inconnues.length > 1 ? ' ne correspondent à rien' : ' ne correspond à rien') +
+        ' : ' + (inconnues.length > 1 ? 'ils partiront' : 'il partira') +
+        ' tels quels dans le message.');
+    }
+  }
+
+  return parties.join('\n\n');
+}
+
+/* ⚠️ APRÈS L'ENREGISTREMENT, ON NE RELIT PAS TOUT — v959.
+
+   La liste est déjà en mémoire et on sait exactement ce qu'on
+   vient d'écrire. Relire les cent fiches pour retrouver celle
+   qu'on tenait dans la main, c'est un aller-retour de plus à
+   chaque frappe d'Enregistrer. */
+/* ============================================================
+   📍 v1407 — LES LIENS VERS L'ESPACE ÉLÈVE
+
+   David, le 10 novembre : « partout où il y a des liens Facebook,
+   prévoir des renvois sur l'espace élève ; quand on parle de procédure
+   ou autre qui concerne des guides, il faudra que ça envoie
+   directement sur le bon guide à la bonne étape », et « si je crée une
+   nouvelle procédure, prévois un bouton pour choisir un guide puis une
+   étape, idem dans Ce qu'on écrit et envoie ».
+
+   · UN SEUL LIEN, CELUI DES « À REVOIR » : l'adresse de son espace +
+     « ?seg=guide::étape ». La page élève en fait un bouton (bilans,
+     messagerie) ; par mail, c'est un lien qui ouvre l'appli à l'étape.
+   · UN SEUL SÉLECTEUR, choisirUneEtapeEleve : groupe › guide › étape,
+     ou un mot cherché. Il sert à la fiche (🔗 Lien élève), aux étapes
+     d'une procédure (📍), et au 👁 d'une procédure pendant le cours.
+   · LE LIEN SUIT L'IDENTIFIANT DE L'ÉTAPE, pas son titre : renommée,
+     elle garde son lien ; déplacée dans un autre guide, la page élève
+     la retrouve par son identifiant (voir etapeDuLienEl dans eleve.html).
+   ============================================================ */
+function baseDuLienEleve(){
+  return String((typeof CONFIG !== 'undefined' && CONFIG.LIEN_ELEVE) || '').split('#')[0].split('?')[0];
+}
+function lienVersEtapeEleve(x){
+  return baseDuLienEleve() + '?seg=' + encodeURIComponent(String(x.guide || '') + '::' + String(x.segment || ''));
+}
+/* La ligne posée dans un texte : « 🎬 Titre : lien » */
+function ligneVersEtapeEleve(x){
+  return '🎬 ' + (String(x.titre || '').trim() || 'Ouvrir dans ton App') + ' : ' + lienVersEtapeEleve(x);
+}
+/* Les liens « ?seg= » d'un texte, dans l'ordre, sans doublon */
+function liensEleveDuTexte(t){
+  const out = [], vus = {};
+  const re = /(?:🎬\s*([^\n]*?)\s*:\s*)?https?:\/\/[^\s?#]*\?seg=([A-Za-z0-9%_:\-.]+)/g;
+  let m;
+  while((m = re.exec(String(t || '')))){
+    let cle = '';
+    try{ cle = decodeURIComponent(m[2]); }catch(e){ cle = m[2]; }
+    const k = cle.split('::');
+    if(!k[0] || vus[cle]) continue;
+    vus[cle] = true;
+    out.push({ cle: cle, guide: k[0], segment: k[1] || '', titre: String(m[1] || '').trim() });
+  }
+  return out;
+}
+/* Les étapes d'une procédure (colonne O) : [{ guide, segment, titre, guideTitre, groupeIcone }] */
+function etapesDeLaFiche(m){
+  let l = m && m.etapes;
+  if(typeof l === 'string'){
+    if(!l.trim()) return [];
+    try{ l = JSON.parse(l); }catch(e){ return []; }
+  }
+  if(!Array.isArray(l)) return [];
+  return l.map(x => ({ guide: String(x.g || x.guide || ''), segment: String(x.s !== undefined ? x.s : (x.segment || '')),
+                       titre: String(x.t || x.titre || ''), guideTitre: String(x.gt || x.guideTitre || ''),
+                       groupeIcone: String(x.gi || x.groupeIcone || '') })).filter(x => x.guide);
+}
+function etapesVersColonne(l){
+  return JSON.stringify((l || []).map(x => ({ g: x.guide, s: x.segment || '', t: x.titre || '', gt: x.guideTitre || '', gi: x.groupeIcone || '' })));
+}
+
+/* Le parcours entier (groupes, guides, étapes), lu une fois par 5 min */
+let parcoursPourLiens = null;
+async function chargerParcoursPourLiens(forcer){
+  if(!forcer && parcoursPourLiens && Date.now() - parcoursPourLiens.t < 5 * 60000) return parcoursPourLiens;
+  const d = await appelPrep({ action: 'parcoursList' });
+  const groupes = ((d && d.groupes) || []).slice().sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+  const guides = ((d && d.guides) || []).slice().sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+  parcoursPourLiens = { t: Date.now(), groupes: groupes, guides: guides };
+  return parcoursPourLiens;
+}
+/* Où mène un lien, d'après le parcours lu : { groupe, guide, etape } ou null */
+function ouMeneLeLienEleve(p, x){
+  if(!p) return null;
+  let guide = p.guides.find(g => g.id === x.guide);
+  let etape = null;
+  if(guide) etape = (guide.etapes || []).find(e => String(e.id || '') === String(x.segment || '')) || null;
+  /* déplacée dans un autre guide : retrouvée par son identifiant */
+  if(x.segment && !etape){
+    p.guides.some(g => { const e = (g.etapes || []).find(y => String(y.id || '') === String(x.segment)); if(e){ guide = g; etape = e; return true; } return false; });
+  }
+  if(!guide) return null;
+  /* 🔗 v1408 — une étape qui n'existe plus n'est pas « relié » : ❌ */
+  if(x.segment && !etape) return null;
+  const groupe = p.groupes.find(gr => gr.id === guide.groupe) || null;
+  return { groupe: groupe, guide: guide, etape: x.segment ? etape : { id: '', titre: '📘 Tout le guide' } };
+}
+function cheminDuLienEleve(o){
+  if(!o) return '';
+  return [(o.groupe ? ((o.groupe.icone ? o.groupe.icone + ' ' : '') + o.groupe.nom) : ''), o.guide.titre || '', (o.etape && o.etape.titre) || '']
+    .filter(Boolean).join(' › ');
+}
+
+/* LE SÉLECTEUR — rend { guide, segment, titre, guideTitre, groupeIcone } ou null */
+async function choisirUneEtapeEleve(titre){
+  let p;
+  try{ p = await chargerParcoursPourLiens(); }
+  catch(e){ showToast('Les guides ne se lisent pas : ' + (e.message || e)); return null; }
+  if(!p.guides.length){ showToast('Aucun guide dans le parcours.'); return null; }
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal etElChoix';
+    boite.style.cssText = 'max-width:min(520px, 95vw);max-height:88vh;overflow-y:auto;';
+    boite.innerHTML = '<h3>📍 ' + echapper(titre || 'Lier à l’espace élève') + '</h3>' +
+      '<div class="etElAide">Choisis le groupe, puis le guide, puis l’étape. Ou cherche directement un mot.</div>';
+    const ch = document.createElement('input');
+    ch.type = 'search';
+    ch.placeholder = '🔎 Chercher une étape (ex. : frein à main)…';
+    ch.className = 'etElCherche';
+    boite.appendChild(ch);
+    const fil = document.createElement('div');
+    fil.className = 'etElFil';
+    boite.appendChild(fil);
+    const liste = document.createElement('div');
+    boite.appendChild(liste);
+    const pied = document.createElement('div');
+    pied.className = 'btn-row';
+    const bA = document.createElement('button');
+    bA.type = 'button'; bA.className = 'btn btn-secondary'; bA.textContent = 'Annuler';
+    pied.appendChild(bA);
+    boite.appendChild(pied);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    let fini = false;
+    const finir = (v) => { if(fini) return; fini = true; try{ fermerFond(fond); }catch(e){ fond.remove(); } resolve(v); };
+    bA.addEventListener('click', () => finir(null));
+    fond.addEventListener('click', e => { if(e.target === fond) finir(null); });
+
+    const groupeDe = g => p.groupes.find(gr => gr.id === g.groupe) || null;
+    const iconeDe = g => { const gr = groupeDe(g); return (gr && gr.icone) || ''; };
+    const choisir = (g, e) => finir({ guide: g.id, segment: String((e && e.id) || ''),
+      titre: (e && e.id) ? (e.titre || '') : (g.titre || ''), guideTitre: g.titre || '', groupeIcone: iconeDe(g) });
+    const sans = t => String(t || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    let ici = { groupe: null, guide: null };
+
+    const puce = (t, on, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'etElPuce' + (on ? ' on' : '');
+      b.textContent = t;
+      if(fn) b.addEventListener('click', fn); else b.disabled = true;
+      return b;
+    };
+    const ligne = (html, fn, principal) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary') + ' etElLigne';
+      b.innerHTML = html;
+      b.addEventListener('click', fn);
+      liste.appendChild(b);
+      return b;
+    };
+    const dessiner = () => {
+      liste.textContent = '';
+      fil.textContent = '';
+      const q = sans(ch.value).trim();
+      if(q){
+        /* la recherche : toutes les étapes de tous les guides */
+        fil.appendChild(puce('🔎 Résultats', true));
+        let n = 0;
+        p.guides.forEach(g => {
+          const gr = groupeDe(g);
+          (g.etapes || []).forEach(e => {
+            if(n >= 60) return;
+            const tout = sans((e.titre || '') + ' ' + (g.titre || '') + ' ' + ((gr && gr.nom) || ''));
+            if(q.split(/\s+/).some(m => tout.indexOf(m) === -1)) return;
+            n++;
+            ligne('<span class="etElNom">' + echapper(e.id ? e.titre : '📘 ' + (g.titre || '')) + '<small>' +
+              echapper([(gr ? ((gr.icone ? gr.icone + ' ' : '') + gr.nom) : ''), g.titre].filter(Boolean).join(' › ')) + '</small></span>',
+              () => choisir(g, e));
+          });
+        });
+        if(!n) liste.innerHTML = '<div class="empty">Rien ne correspond.</div>';
+        return;
+      }
+      fil.appendChild(puce('Groupes', !ici.groupe, ici.groupe ? () => { ici = { groupe: null, guide: null }; dessiner(); } : null));
+      if(!ici.groupe){
+        const avecGuides = p.groupes.filter(gr => p.guides.some(g => g.groupe === gr.id));
+        avecGuides.forEach(gr => {
+          const n = p.guides.filter(g => g.groupe === gr.id).length;
+          ligne('<span class="etElIc">' + echapper(gr.icone || '📁') + '</span><span class="etElNom">' + echapper(gr.nom || 'Groupe') +
+            '<small>' + n + ' guide' + (n > 1 ? 's' : '') + (gr.fermeLe ? ' · fermé' : '') + '</small></span><span class="etElFl">›</span>',
+            () => { ici = { groupe: gr, guide: null }; dessiner(); });
+        });
+        return;
+      }
+      fil.appendChild(document.createTextNode('›'));
+      fil.appendChild(puce((ici.groupe.icone ? ici.groupe.icone + ' ' : '') + (ici.groupe.nom || ''), !ici.guide,
+        ici.guide ? () => { ici.guide = null; dessiner(); } : null));
+      if(!ici.guide){
+        p.guides.filter(g => g.groupe === ici.groupe.id).forEach(g => {
+          const n = (g.etapes || []).filter(e => e.id).length;
+          ligne('<span class="etElNom">' + echapper(g.titre || 'Guide') + '<small>' + n + ' étape' + (n > 1 ? 's' : '') +
+            (g.etat === 'publie' ? '' : ' · brouillon') + '</small></span><span class="etElFl">›</span>',
+            () => { ici.guide = g; dessiner(); });
+        });
+        return;
+      }
+      fil.appendChild(document.createTextNode('›'));
+      fil.appendChild(puce(ici.guide.titre || 'Guide', true, null));
+      (ici.guide.etapes || []).filter(e => e.id).forEach(e => ligne(echapper(e.titre || 'Étape'), () => choisir(ici.guide, e)));
+      const tout = document.createElement('div');
+      tout.className = 'etElAide';
+      tout.style.marginTop = '6px';
+      tout.innerHTML = 'Ou le guide entier : ';
+      const a = document.createElement('button');
+      a.type = 'button'; a.className = 'etElLien';
+      a.textContent = '📘 tout « ' + (ici.guide.titre || 'le guide') + ' »';
+      a.addEventListener('click', () => choisir(ici.guide, null));
+      tout.appendChild(a);
+      liste.appendChild(tout);
+    };
+    ch.addEventListener('input', dessiner);
+    dessiner();
+    setTimeout(() => ch.focus(), 40);
+  });
+}
+
+/* ① Le bouton « 🔗 Lien élève » : la ligne de l'étape, au curseur */
+async function insererLienEleveDans(zone){
+  if(!zone) return false;
+  const debut = zone.selectionStart, fin = zone.selectionEnd;
+  const x = await choisirUneEtapeEleve('Insérer un lien vers l’espace élève');
+  if(!x) return false;
+  const v = zone.value;
+  const p = (typeof debut === 'number') ? debut : v.length;
+  const q = (typeof fin === 'number') ? fin : p;
+  const avant = v.slice(0, p), apres = v.slice(q);
+  const t = (avant && !/\n$/.test(avant) ? '\n' : '') + ligneVersEtapeEleve(x) + (apres && !/^\n/.test(apres) ? '\n' : '');
+  zone.value = avant + t + apres;
+  const c = (avant + t).length;
+  try{ zone.focus(); zone.setSelectionRange(c, c); }catch(e){}
+  zone.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+
+/* ② « 🔗 Les liens de ce texte » : où mène chaque lien, et les Facebook
+   (🔗 v1408 — reliés ou non dans le tableau, et « 📍 Relier » d'ici) */
+async function dessinerLiensDuTexte(z, texte){
+  if(!z) return;
+  const app = liensEleveDuTexte(texte);
+  const fbs = liensFbDuTexte(texte);
+  if(!app.length && !fbs.length){ z.hidden = true; z.innerHTML = ''; return; }
+  z.hidden = false;
+  let p = null, table = {};
+  try{ p = await chargerParcoursPourLiens(); }catch(e){ p = null; }
+  if(fbs.length){ try{ table = await chargerLiensFb(); }catch(e){ table = {}; } }
+  const peut = (typeof peutToucherAuxTextesDeLAppli === 'function') && peutToucherAuxTextesDeLAppli();
+  z.innerHTML = '<div class="etElT">🔗 Les liens de ce texte</div>';
+  const ligne = (ico, html) => {
+    const d = document.createElement('div');
+    d.className = 'etElL';
+    d.innerHTML = '<span class="etElIco ' + (ico === 'f' ? 'fb' : 'app') + '">' + (ico === 'f' ? 'f' : '🎬') + '</span><div>' + html + '</div>';
+    z.appendChild(d);
+    return d.lastElementChild;
+  };
+  app.forEach(x => {
+    const o = ouMeneLeLienEleve(p, x);
+    ligne('a', o ? '<span class="ok">✅ Vers l’espace élève</span> → ' + echapper(cheminDuLienEleve(o))
+      : (p ? '<span class="ko">❌ Cette étape n’existe plus</span> (« ' + echapper(x.titre || x.cle) + ' ») — l’élève reçoit son guide s’il existe encore'
+           : '✅ Vers l’espace élève : ' + echapper(x.titre || x.cle)));
+  });
+  const vus = {};
+  fbs.forEach(l => {
+    const cle = cleDuLienFb(l.u);
+    if(vus[cle]) return;
+    vus[cle] = 1;
+    const r = table[cle];
+    const u = '<span class="u">' + echapper(l.u.replace(/^https?:\/\/(www\.|m\.)?/, '').slice(0, 90)) + '</span><br>';
+    let html;
+    if(r && r.etat === 'relie') html = u + '<span class="ok">✅ Relié</span> → ' + echapper(cheminFb(p, r)) + '<br><span class="fbMot">L’élève reçoit le bouton de son espace à la place.</span>';
+    else if(r && r.etat === 'garde') html = u + '<span class="fbMot">📘 Gardé tel quel : l’élève garde le lien Facebook.</span>';
+    else html = u + '<span class="ko">⚠️ Lien Facebook pas encore relié</span>';
+    const cont = ligne('f', html);
+    if(peut && !(r && r.etat === 'relie')){
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'fgb'; b.style.marginTop = '5px';
+      b.textContent = '📍 Relier à une étape';
+      b.addEventListener('click', async () => {
+        const x = await choisirUneEtapeEleve('Relier « ' + (l.x || 'ce lien').slice(0, 60) + ' »');
+        if(!x) return;
+        try{ await poserLienFb(l.u, 'relie', x); showToast('Relié ✅ — partout où il apparaît'); dessinerLiensDuTexte(z, texte); }
+        catch(e){ showToast('Pas enregistré : ' + (e.message || e)); }
+      });
+      cont.appendChild(b);
+    }
+  });
+}
+
+/* ③ « 📍 Ses étapes dans l'espace élève » d'une procédure */
+function blocEtapesDeProcedure(liste, opts){
+  const o = opts || {};
+  const z = document.createElement('div');
+  z.className = 'etElBloc';
+  const dessiner = () => {
+    z.innerHTML = '<div class="etElT">📍 Ses étapes dans l’espace élève</div>';
+    if(!liste.length){
+      const v = document.createElement('div');
+      v.className = 'etElAide';
+      v.textContent = o.verrou ? 'Aucune étape liée.' : 'Aucune étape liée : le bilan ne portera que la procédure.';
+      z.appendChild(v);
+      /* 🔗 v1408 — son lien Facebook est déjà relié dans le tableau : l'étape est proposée */
+      if(!o.verrou && (o.proposees || []).length){
+        o.proposees.forEach(x => {
+          const pr = document.createElement('div');
+          pr.className = 'etElPil';
+          pr.innerHTML = '<span class="etElChem">💡 Son lien Facebook est relié à<b>' + echapper(x.titre || x.guideTitre || 'une étape') + '</b></span>';
+          const ba = document.createElement('button');
+          ba.type = 'button'; ba.className = 'fgb'; ba.textContent = '＋ L’ajouter';
+          ba.addEventListener('click', () => { liste.push(x); o.proposees = []; dessiner(); if(o.surChange) o.surChange(liste); });
+          pr.appendChild(ba);
+          z.appendChild(pr);
+        });
+      }
+    }
+    liste.forEach((x, i) => {
+      const r = document.createElement('div');
+      r.className = 'etElPil';
+      r.innerHTML = '<span class="etElChem">' + echapper((x.groupeIcone ? x.groupeIcone + ' ' : '') + (x.guideTitre || '')) +
+        '<b>' + echapper(x.segment ? (x.titre || 'Étape') : '📘 Tout le guide') + '</b></span>';
+      if(!o.verrou){
+        const bx = document.createElement('button');
+        bx.type = 'button'; bx.className = 'fgb'; bx.textContent = '✕'; bx.title = 'Retirer cette étape';
+        bx.addEventListener('click', () => { liste.splice(i, 1); dessiner(); if(o.surChange) o.surChange(liste); });
+        r.appendChild(bx);
+      }
+      z.appendChild(r);
+    });
+    if(!o.verrou){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = liste.length ? 'fgb etElPlus' : 'etElVide';
+      b.textContent = liste.length ? '＋ Une autre étape' : '📍 Lier à une étape de l’espace élève';
+      b.addEventListener('click', async () => {
+        const x = await choisirUneEtapeEleve('Lier « ' + (o.nom ? o.nom() : 'cette procédure') + ' »');
+        if(!x) return;
+        if(liste.some(y => y.guide === x.guide && String(y.segment || '') === String(x.segment || ''))){ showToast('Elle y est déjà.'); return; }
+        liste.push(x);
+        dessiner();
+        if(o.surChange) o.surChange(liste);
+      });
+      z.appendChild(b);
+      const a = document.createElement('div');
+      a.className = 'etElAide';
+      a.textContent = 'Le moniteur appuie sur la procédure comme d’habitude : elle part entière dans le bilan, et dessous l’élève a un bouton par étape pour l’ouvrir (et elle s’épingle 📌 en tête de son Réviser).';
+      z.appendChild(a);
+    }
+  };
+  dessiner();
+  return z;
+}
+
+/* ============================================================
+   🔗 v1408 — LE TABLEAU DES LIENS FACEBOOK → ESPACE ÉLÈVE
+   (Outils › Ce qu'on écrit › 🔗 Liens Facebook → élève)
+
+   Le schéma validé le 10 novembre : chaque lien Facebook de l'appli et
+   des fiches, avec sa phrase et l'endroit où il sert ; 💡 une étape
+   proposée, ✓ d'un appui ; 📍 choisir ; « Laisser Facebook ». Relié une
+   fois, il l'est partout : c'est le Worker qui le remplace quand le
+   texte part vers l'élève (bilans, messagerie, mail du bilan).
+   · ❌ son étape n'existe plus : seulement ici (David : « seulement ❌
+     dans le tableau »).
+   · 🆕 un lien posé dans une fiche ces 14 derniers jours, pas relié.
+   · LES LIENS DU CODE (modèles de bilan, jour du permis, post-permis…)
+     sont listés ci-dessous, relevés dans le code à la livraison ; ceux
+     des fiches et des messages après ajournement sont lus à l'ouverture.
+   ============================================================ */
+const LIENS_FB_DU_CODE = [
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1205199580138159/", "x": "Écoute pédagogique réservée et pas venu (5 € facturés)", "o": "Rappel des écoutes", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/640345686623554/", "x": "👉 Achète la \"formule complète\" correspondant aux 1, 🕙, 2, 4 du programme sur ton interface élève Drivup.',", "o": "Évaluation AAC", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/969918630099564/", "x": "Installation au poste de conduite", "o": "Bilan à la main · Modèles de bilan · Bilan du cours", "n": 8},
+  {"u": "https://www.facebook.com/groups/864826058258637", "x": "Vérifications (le groupe)", "o": "Bilan à la main · Groupe du jour du permis · Modèles de bilan · Vérifications · Bilan du cours", "n": 10},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1733835153707904/", "x": "…ton livret numérique (ou papier), et montrer l'attestation qui valide tes 1 an minimum, voir vidéo ici", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content?filter=957460364727818&post=1442207386345179", "x": "…nous fournir votre livret de famille ou votre certificat de mariage sur lequel apparaissent vos deux noms)", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/287913635810708/", "x": "💡 Fiche mémoire permis", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970517783372982/", "x": "🚗 Déroulé de l'examen", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1016364328788327/", "x": "🚗 Déroulé de l'examen", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1139464513144974/", "x": "🧘‍♀️ Rester Zen", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970512993373461/", "x": "👌 Centre examen Saint-Brieuc", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content/?filter=957460364727818&post=3113901628719002", "x": "🏬 Centre examen Saint-Brieuc", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1131218613969564/", "x": "☠ Erreurs éliminatoires", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1135349536889805/", "x": "☠ Erreurs éliminatoires", "o": "Groupe du jour du permis", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/", "x": "➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? ✅❌", "o": "Modèles de bilan", "n": 4},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1122235844867841/", "x": "💡Tu n'as pas possibilité de partir en Conduite supervisée ??", "o": "Modèles de bilan", "n": 3},
+  {"u": "https://www.facebook.com/groups/174715876519873/learning_content/?filter=944490172398475&ref=edit_unit", "x": "…dans le groupe Évolution Conduites Guide 7 AAC Conduite accompagnée et CS Conduite supervisée 👨‍👦👩‍👦", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/390459678278824/", "x": "🚙Tout ce qui a été dit pour la conduite accompagnée et la conduite supervisée", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/657680161556773/", "x": "🚙 Entraînement marche arrière", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1674047996586646/", "x": "🚙 Application suivi kilométrique Drivup", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/390459938278798/", "x": "🚙 Guide de l'accompagnateur", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/502944593696998/", "x": "🚙 Les rendez-vous pédagogiques seulement pour la conduite accompagnée", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970408180050609/", "x": "🚙👣Démarrage en côte", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970401240051303/", "x": "🚙👣 Démarrage rapide", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970408626717231/", "x": "🚙👣 Démarrage avec frein à main électrique", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/16TrupekTZ/", "x": "➡️ 🅿️ parking", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1489118334846255/", "x": "…obligé de s'arrêter, on s'arrête un peu avant le cédez le passage, pour se laisser une marge de sécurité ⚠️⚠️", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1505640129860742/", "x": "…obligé de s'arrêter, on s'arrête un peu avant le cédez le passage, pour se laisser une marge de sécurité ⚠️⚠️", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970399350051492/", "x": "…pas la ligne de stop : limite de la chaussée sous le rétro qui arrive en premier sur la ligne de stop 😁.", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970394686718625/", "x": "✋Position de la main sur le levier de vitesse", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970398426718251/", "x": "✋Position de la main sur le levier de vitesse + 6e", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970391620052265/", "x": "✋Position de la main sur le levier de vitesse + 6e + Marche arrière", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/1CFKDFBJy6/", "x": "🙌👣 Synchroniser ses pieds et ses mains", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970400283384732/", "x": "👣Pied trop haut sur l'embrayage", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970395426718551/", "x": "🚙⁉️En quelle vitesse on est ?", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1489146314843457/", "x": "🧠 Cours théorie", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1340937842997639/", "x": "TRAJECTOIRE ➡️ Repère scotch ou araignée bas du pare-brise voir", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1488562401568515/", "x": "➡️ Exercice maison", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1034515243639902/", "x": "On change jamais de voie sans contrôles et clignotants ! Liens groupes", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/327693331832738/", "x": "❤️On apprend la procédure par coeur et en plus de la vidéo", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/287866629148742/", "x": "❤️on met en pratique ici", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970474220044005/", "x": "Et ici", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content/?filter=864853607256126", "x": "❤️ on regarde le guide 14 du groupe Mise en pratique théorie de la conduite lien direct au guide sur pc", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content?filter=1016402715526819&post=726420907962300", "x": "🥇1. On adapte allure🏎️🏁", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content/?filter=3256398961105430", "x": "…apprend par coeur la procédure et on regarde le guide 10 du groupe Mise en pratique théorie de la conduite.", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/100026792825541/videos/663719737864448/", "x": "Adapter vitesse (2nde et 1ère si besoin)", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/evolution.conduites.1/videos/602798227289933", "x": "➡️ Régime de priorité ? (voir vraie règle de la PAD", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content/?filter=1016402715526819&post=391767538630659", "x": "💭Comment la détecter ? Vraie règle de la PAD ? 👀", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/19Df7qy4rv/", "x": "Démarrage en boîte automatique (vidéo 1)", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/19MZYLySxo/", "x": "Démarrage en boîte automatique (vidéo 2)", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970461930045234/", "x": "1👀- on CHERCHE la route 💭Comment la détecter ?", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/147379309864142/permalink/287728199162585/", "x": "On apprend par coeur la procédure en entier visible en cliquant sur le lien ici", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/174715876519873/learning_content/?filter=402522386935051", "x": "1. \"GROUPE Evolution Conduites", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content/?filter=1016402715526819", "x": "2. \"COURS THÉORIE DE LA CONDUITE Évolution Conduites", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/learning_content", "x": "3. \"MISE EN PRATIQUE THÉORIE DE LA CONDUITE Évolution Conduites", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/147379309864142/learning_content", "x": "➡️ Théorie de la conduite", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/share/v/19cLgA4nLY/", "x": "➡️ Accélérer, freiner, s’arrêter", "o": "Modèles de bilan", "n": 1},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/970393543385406/", "x": "…ton entraînement sur la manipulation du volant par Messenger 🚙 Exemple entraînement à domicile sans volant 🚘", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/963972327360861/permalink/1121120328312726/", "x": "tu peux passer en boite auto si tu es en boite de vitesse et que tu as de gros soucis mécaniques, lien ici", "o": "Modèles de bilan", "n": 3},
+  {"u": "https://www.facebook.com/share/p/18sc7wKjbg/", "x": "Toutes les consignes sont sur le lien", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/96295402436271", "x": "Donc RÉSERVE IMMÉDIATEMENT de ton compte en ligne ⚠️", "o": "Modèles de bilan", "n": 2},
+  {"u": "https://www.facebook.com/groups/174715876519873/permalink/1348332705824845/", "x": "Envoie tes vidéos ou vocaux des procédures pour qu’on te corrige gratuitement", "o": "Félicitations / passerelle", "n": 1},
+  {"u": "https://www.facebook.com/share/v/1D9o635bqF/", "x": "…S'il est insuffisant, tu devras en refaire un autre jusqu'à ce que tout soit compris ! À regarder absolument", "o": "Post-permis · Espace élève (post-permis)", "n": 3},
+  {"u": "https://www.facebook.com/share/p/1LuU7SKsEk/", "x": "Clique OBLIGATOIREMENT sur le lien pour savoir comment faire", "o": "Post-permis", "n": 1},
+  {"u": "https://www.facebook.com/share/p/19mwWHfRS4/", "x": "👉 Retrouve la grille de notation de l'inspecteur(trice) ici", "o": "Post-permis", "n": 1},
+  {"u": "https://www.facebook.com/share/p/182tnBsA2C/", "x": "…23 Statistiques mensuelles Examen pratique du permis de conduire dans le groupe Facebook Mise en pratique.", "o": "Post-permis", "n": 1}
+];
+const RE_LIEN_FB_EC = /https?:\/\/(?:[a-z]+\.)?(?:facebook\.com|fb\.watch)\/[A-Za-z0-9\-._~:/?#\[\]@!$&*+,;=%]+/gi;
+/* La clé d'un lien : la même règle que le Worker (cleDuLienFb) */
+function cleDuLienFb(u){
+  let s = String(u || '').trim().replace(/[.,;:!?)\]»]+$/, '');
+  s = s.replace(/^https?:\/\//i, '').replace(/^(www\.|m\.|web\.|mbasic\.)/i, '');
+  const i = s.indexOf('?');
+  let chemin = i === -1 ? s : s.slice(0, i);
+  const q = i === -1 ? '' : s.slice(i + 1);
+  chemin = chemin.replace(/#.*$/, '').replace(/\/+$/, '').toLowerCase();
+  const garde = [];
+  q.replace(/#.*$/, '').split('&').forEach(p => {
+    const j = p.indexOf('=');
+    if(j < 1) return;
+    const k = p.slice(0, j), v = p.slice(j + 1);
+    if(/^(filter|post|story_fbid|id|v)$/i.test(k) && v) garde.push(k.toLowerCase() + '=' + v);
+  });
+  return chemin + (garde.length ? '?' + garde.sort().join('&') : '');
+}
+/* Les liens Facebook d'un texte, avec la phrase qui les précède */
+function liensFbDuTexte(t){
+  const out = [];
+  const lignes = String(t || '').split('\n');
+  lignes.forEach((l, i) => {
+    let m;
+    RE_LIEN_FB_EC.lastIndex = 0;
+    while((m = RE_LIEN_FB_EC.exec(l))){
+      const u = m[0].replace(/[.,;:!?)\]]+$/, '');
+      let ctx = l.slice(0, m.index).replace(/https?:\/\/\S+/g, '').replace(/[\s:–\-]+$/, '').trim();
+      for(let k = i - 1; !ctx && k >= 0 && k > i - 3; k--) ctx = lignes[k].replace(/https?:\/\/\S+/g, '').trim();
+      if(ctx.length > 110){ ctx = ctx.slice(-110); ctx = '…' + ctx.slice(ctx.indexOf(' ') + 1); }
+      out.push({ u: u, x: ctx });
+    }
+  });
+  return out;
+}
+
+/* La table enregistrée (D1), gardée une minute */
+let tableLiensFb = null;
+async function chargerLiensFb(forcer){
+  if(!forcer && tableLiensFb && Date.now() - tableLiensFb.t < 60000) return tableLiensFb.m;
+  const d = await appelPrep({ action: 'liensFbListe' });
+  const m = {};
+  ((d && d.liens) || []).forEach(r => { m[r.cle] = r; });
+  tableLiensFb = { t: Date.now(), m: m };
+  return m;
+}
+/* 💬 v1409 — LE TEXTE TEL QU'IL PART VERS L'ÉLÈVE, côté appli : les liens
+   Facebook reliés deviennent ceux de son espace (le Worker fait la même
+   chose pour ses bilans, sa messagerie et le mail du bilan). Synchrone :
+   la table est lue en fond, et se relit toutes les dix minutes. */
+function textePourLEleve(t){
+  const s = String(t == null ? '' : t);
+  if(!tableLiensFb || Date.now() - tableLiensFb.t > 600000) chargerLiensFb().catch(() => {});
+  if(!tableLiensFb || (s.indexOf('facebook.com') === -1 && s.indexOf('fb.watch') === -1)) return s;
+  const table = tableLiensFb.m;
+  return s.replace(RE_LIEN_FB_EC, m => {
+    const fin = (m.match(/[.,;:!?)\]]+$/) || [''])[0];
+    const u = fin ? m.slice(0, -fin.length) : m;
+    const r = table[cleDuLienFb(u)];
+    return (r && r.etat === 'relie' && r.guide) ? lienVersEtapeEleve({ guide: r.guide, segment: r.segment || '' }) + fin : m;
+  });
+}
+/* Ce qu'on copie (pour Messenger, un SMS, un mail à la main…) part avec
+   les liens de l'appli : un seul endroit, plutôt que chaque bouton 📋. */
+(function(){
+  try{
+    const c = navigator.clipboard;
+    if(!c || typeof c.writeText !== 'function' || c.__liensEleve) return;
+    const orig = c.writeText.bind(c);
+    c.writeText = t => orig(textePourLEleve(t));
+    c.__liensEleve = 1;
+  }catch(e){ /* la copie reste celle d'avant */ }
+  /* la table, une fois connecté (avant, l'appel est refusé : sans gêne) */
+  setTimeout(() => { chargerLiensFb().catch(() => {}); }, 6000);
+})();
+
+async function poserLienFb(u, etat, x){
+  const r = await appelPrep(Object.assign({ action: 'liensFbPoser', url: u, etat: etat }, x ? {
+    guide: x.guide, segment: x.segment || '', titre: x.titre || '', guideTitre: x.guideTitre || '', groupeIcone: x.groupeIcone || '' } : {}));
+  if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+  if(tableLiensFb){
+    const cle = cleDuLienFb(u);
+    if(!etat) delete tableLiensFb.m[cle];
+    else tableLiensFb.m[cle] = Object.assign({ cle: cle, url: u, etat: etat, par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '', le: horodatageCourt() },
+      x ? { guide: x.guide, segment: x.segment || '', titre: x.titre || '', guideTitre: x.guideTitre || '', groupeIcone: x.groupeIcone || '' } : {});
+  }
+  return r;
+}
+
+/* 💡 L'étape dont le titre ressemble à la phrase du lien */
+const MOTS_VIDES_FB = ['avec', 'dans', 'pour', 'tout', 'tous', 'sans', 'mais', 'plus', 'cette', 'votre', 'notre', 'sont', 'est', 'une', 'des', 'les',
+  'sur', 'par', 'que', 'qui', 'quoi', 'ton', 'tes', 'ta', 'ici', 'lien', 'voir', 'video', 'groupe', 'guide', 'evolution', 'conduites', 'facebook'];
+function motsFb(t){
+  return String(t || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length > 3 && MOTS_VIDES_FB.indexOf(w) === -1)
+    .map(w => w.replace(/(s|x)$/, ''));
+}
+function etapeProposeePourFb(p, ctx){
+  if(!p) return null;
+  const mots = motsFb(ctx);
+  if(!mots.length) return null;
+  let mieux = null, score = 0;
+  p.guides.forEach(g => {
+    const mg = motsFb(g.titre);
+    (g.etapes || []).forEach(e => {
+      if(!e.id) return;
+      const me = motsFb(e.titre);
+      let s = 0;
+      mots.forEach(w => { if(me.indexOf(w) !== -1) s += 1; else if(mg.indexOf(w) !== -1) s += 0.4; });
+      if(s > score){ score = s; mieux = { g: g, e: e }; }
+    });
+  });
+  if(!mieux || score < 1.4) return null;
+  const gr = p.groupes.find(x => x.id === mieux.g.groupe) || null;
+  return { guide: mieux.g.id, segment: mieux.e.id, titre: mieux.e.titre || '', guideTitre: mieux.g.titre || '', groupeIcone: (gr && gr.icone) || '' };
+}
+function cheminFb(p, x){
+  const o = ouMeneLeLienEleve(p, x);
+  if(o) return cheminDuLienEleve(o);
+  return [(x.groupeIcone || ''), x.guideTitre || '', x.titre || ''].filter(Boolean).join(' › ');
+}
+/* "dd/MM/yyyy HH:mm" de moins de 14 jours ? */
+function recentFb(maj){
+  const m = String(maj || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if(!m) return false;
+  return (Date.now() - new Date(+m[3], +m[2] - 1, +m[1]).getTime()) < 14 * 86400000;
+}
+
+let filtreLiensFb = 'arelier', chercheLiensFb = '';
+async function afficherLiensFacebook(){
+  const z = $('liensFbZone');
+  if(!z) return;
+  z.innerHTML = '<div class="empty">Lecture des liens…</div>';
+  let table, p = null, reg = {};
+  try{ table = await chargerLiensFb(true); }
+  catch(e){ z.innerHTML = '<div class="message erreur">Lecture impossible : ' + echapper(e.message || e) + '</div>'; return; }
+  try{ p = await chargerParcoursPourLiens(true); }catch(e){ p = null; }
+  try{ await chargerModelesTexte(); }catch(e){}
+  try{ const r = await appelPrep({ action: 'reglagesList' }); reg = (r && r.reglages) || {}; }catch(e){ reg = {}; }
+
+  /* L'inventaire : code, fiches, messages après ajournement, et ce que la table connaît */
+  const liens = {};
+  const ajoute = (u, x, ou, n, neuf) => {
+    const cle = cleDuLienFb(u);
+    if(!/^(facebook\.com|fb\.watch)\//.test(cle) || cle === 'facebook.com/messages') return;
+    const l = liens[cle] = liens[cle] || { cle: cle, u: u, x: '', ou: [], n: 0, neuf: null };
+    if(!l.x && x) l.x = x;
+    if(ou && l.ou.indexOf(ou) === -1) l.ou.push(ou);
+    l.n += n || 1;
+    if(neuf && (!l.neuf || neuf.maj > l.neuf.maj)) l.neuf = neuf;
+  };
+  LIENS_FB_DU_CODE.forEach(c => ajoute(c.u, c.x, c.o, c.n));
+  (modelesTexte || []).forEach(m => liensFbDuTexte(m.contenu).forEach(l =>
+    ajoute(l.u, l.x, 'Fiche « ' + (m.titre || m.nom || 'sans titre') + ' »', 1, recentFb(m.maj) ? { maj: m.maj, par: m.par || '', fiche: m.titre || m.nom || '' } : null)));
+  [['ajourne1', 'Message après ajournement'], ['ajourne3', 'Modèle de bilan post-permis'], ['ajourne4', 'Relance après ajournement']].forEach(([k, nom]) => {
+    if(typeof reg[k] === 'string') liensFbDuTexte(reg[k]).forEach(l => ajoute(l.u, l.x, nom, 1));
+  });
+  Object.keys(table).forEach(k => { if(!liens[k]) ajoute(table[k].url, '', 'Plus utilisé nulle part', 0); });
+
+  const peut = (typeof peutToucherAuxTextesDeLAppli === 'function') && peutToucherAuxTextesDeLAppli();
+  const etatDe = l => {
+    const r = table[l.cle];
+    if(r && r.etat === 'relie') return (p && !ouMeneLeLienEleve(p, r)) ? 'casse' : 'relie';
+    if(r && r.etat === 'garde') return 'garde';
+    return 'arelier';
+  };
+  const tous = Object.values(liens);
+
+  const dessiner = () => {
+    const haut = window.scrollY;
+    const compte = { arelier: 0, relie: 0, garde: 0 };
+    tous.forEach(l => { const e = etatDe(l); compte[e === 'casse' ? 'arelier' : e]++; });
+    z.innerHTML = '';
+    const barre = document.createElement('div');
+    barre.className = 'lfBarre';
+    const ch = document.createElement('input');
+    ch.type = 'search';
+    ch.placeholder = '🔎 Chercher un lien, une phrase, une fiche…';
+    ch.value = chercheLiensFb;
+    ch.addEventListener('input', () => { chercheLiensFb = ch.value; dessinerListe(); });
+    barre.appendChild(ch);
+    [['arelier', '⚠️ À relier'], ['relie', '✅ Reliés'], ['garde', '📘 Gardés Facebook'], ['tous', 'Tous']].forEach(([k, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (filtreLiensFb === k ? 'btn-primary' : 'btn-secondary');
+      b.dataset.lfFiltre = k;
+      b.textContent = t + ' · ' + (k === 'tous' ? tous.length : compte[k]);
+      b.addEventListener('click', () => { filtreLiensFb = k; dessiner(); });
+      barre.appendChild(b);
+    });
+    z.appendChild(barre);
+    const aide = document.createElement('div');
+    aide.className = 'lfAide';
+    aide.textContent = 'Tous les liens Facebook de l’appli et de tes fiches (bilans, procédures, Ce qu’on écrit, messages). ' +
+      'Relie chacun à une étape : partout, l’élève reçoit le bouton de son espace à la place (ses bilans et sa messagerie, même les anciens, et le mail du bilan). ' +
+      'Un lien relié une fois l’est partout où il apparaît.' + (peut ? '' : ' — Relier demande le droit « ⚙️ Textes de l’application ».');
+    z.appendChild(aide);
+    const liste = document.createElement('div');
+    z.appendChild(liste);
+    const dessinerListe = () => {
+      liste.innerHTML = '';
+      const q = String(chercheLiensFb || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+      const vus = tous.filter(l => {
+        const e = etatDe(l);
+        if(filtreLiensFb !== 'tous' && (e === 'casse' ? 'arelier' : e) !== filtreLiensFb) return false;
+        if(!q) return true;
+        const r = table[l.cle] || {};
+        return (l.x + ' ' + l.u + ' ' + l.ou.join(' ') + ' ' + (r.titre || '') + ' ' + (r.guideTitre || ''))
+          .normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().indexOf(q) !== -1;
+      });
+      /* les nouveaux et les cassés d'abord, puis les plus utilisés */
+      const rang = l => (etatDe(l) === 'casse' ? 0 : l.neuf && etatDe(l) === 'arelier' ? 1 : 2);
+      vus.sort((a, b) => rang(a) - rang(b) || b.n - a.n);
+      if(!vus.length){ liste.innerHTML = '<div class="empty">' + (filtreLiensFb === 'arelier' && !q ? 'Tous les liens sont reliés ou gardés 👏' : 'Rien ici.') + '</div>'; return; }
+      vus.forEach(l => liste.appendChild(carteLienFb(l)));
+    };
+    const carteLienFb = (l) => {
+      const e = etatDe(l), r = table[l.cle] || {};
+      const c = document.createElement('div');
+      c.className = 'lfCarte' + (e === 'casse' ? ' casse' : '') + (l.neuf && e === 'arelier' ? ' neuf' : '');
+      c.dataset.lfCle = l.cle;
+      const prop = (e === 'arelier') ? etapeProposeePourFb(p, l.x) : null;
+      let h = '<span class="etElIco fb">f</span><div class="lfCorps">' +
+        '<div class="lfPhrase">' + (l.x ? '« ' + echapper(l.x) + ' »' : '<i>(sans phrase autour)</i>') + '</div>' +
+        '<div class="lfU">' + echapper(l.u.replace(/^https?:\/\/(www\.|m\.)?/, '')) + '</div>' +
+        '<div class="lfOu">📄 ' + echapper(l.ou.join(' · ') || '—') + (l.n > 1 ? ' — ' + l.n + ' fois' : '') + '</div>';
+      if(l.neuf && e === 'arelier') h += '<div class="lfOu">🆕 Ajouté le ' + echapper(String(l.neuf.maj).slice(0, 10)) + (l.neuf.par ? ' par ' + echapper(l.neuf.par) : '') + '</div>';
+      h += '<div class="lfEtat">';
+      if(e === 'relie') h += '<span class="ok">✅ Relié</span> → ' + echapper(cheminFb(p, r));
+      else if(e === 'casse') h += '<span class="ko">❌ Son étape n’existe plus</span> (« ' + echapper(r.titre || '?') + ' ») — l’élève reçoit son guide s’il existe encore';
+      else if(e === 'garde') h += '<span class="garde">📘 Gardé tel quel</span> — l’élève garde le lien Facebook';
+      else h += '<span class="ko">⚠️ Pas encore relié</span>' + (prop ? ' · 💡 Proposé : <b>' + echapper(cheminFb(p, prop)) + '</b>' : '');
+      h += '</div></div>';
+      c.innerHTML = h;
+      const bts = document.createElement('div');
+      bts.className = 'lfBts';
+      const bt = (t, principal, fn) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary');
+        b.textContent = t;
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try{ await fn(); dessiner(); }
+          catch(err){ b.disabled = false; showToast('Pas enregistré : ' + (err.message || err)); }
+        });
+        bts.appendChild(b);
+        return b;
+      };
+      const choisir = async () => {
+        const x = await choisirUneEtapeEleve('Relier « ' + (l.x || 'ce lien').slice(0, 60) + ' »');
+        if(!x) return;
+        await poserLienFb(l.u, 'relie', x);
+        showToast('Relié ✅');
+      };
+      if(peut){
+        if(prop) bt('✓ C’est ça', true, async () => { await poserLienFb(l.u, 'relie', prop); showToast('Relié ✅'); });
+        if(e === 'arelier') bt('📍 Choisir', !prop, choisir);
+        if(e === 'casse') bt('📍 Choisir une autre étape', true, choisir);
+        if(e === 'relie') bt('📍 Changer', false, choisir);
+        if(e === 'garde') bt('📍 Lier à une étape', false, choisir);
+        if(e !== 'garde') bt('Laisser Facebook', false, async () => { await poserLienFb(l.u, 'garde'); showToast('Gardé tel quel'); });
+        if(e === 'relie' || e === 'garde') bt('↩️ Remettre à relier', false, async () => { await poserLienFb(l.u, ''); });
+      }
+      const a = document.createElement('a');
+      a.className = 'btn btn-secondary';
+      a.href = l.u; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = '↗ Voir sur Facebook';
+      bts.appendChild(a);
+      c.querySelector('.lfCorps').appendChild(bts);
+      return c;
+    };
+    dessinerListe();
+    try{ window.scrollTo(0, haut); }catch(e){}
+  };
+  dessiner();
+}
+
+function poserModeleEnMemoire(f){
+  const s = separerCategorie(f.nom);
+  const plein = Object.assign({}, f, { categorie: s.categorie, titre: s.titre });
+  const i = (modelesTexte || []).findIndex(x => String(x.id) === String(f.id));
+  if(i === -1) modelesTexte.push(plein);
+  else modelesTexte[i] = Object.assign({}, modelesTexte[i], plein);
+  return plein;
+}
+
+function retirerModeleDeLaMemoire(id){
+  const i = (modelesTexte || []).findIndex(x => String(x.id) === String(id));
+  if(i !== -1) modelesTexte.splice(i, 1);
+}
+
+
+function ouvrirEditeurModele(modele, usageImpose, opts){
+  /* 📄 v1299 — « dans » : la fiche s'ouvre dans la colonne de droite de
+     la bibliothèque (écran large), et s'enregistre toute seule. Sinon,
+     la fenêtre d'avant — en plein écran sur un téléphone. */
+  const enLigne = !!(opts && opts.dans);
+  const fond = document.createElement('div');
+  fond.className = enLigne ? 'ficheLecture' : 'overlay show ficheFond';
+  const boite = document.createElement('div');
+  boite.className = enLigne ? 'ficheOuverte enLigne' : 'modal ficheOuverte';
+  if(!enLigne) boite.style.cssText = 'max-width:min(680px, 96vw);max-height:92vh;overflow-y:auto;';
+  if(modele && couleurDeLaFiche(modele)) boite.dataset.couleur = couleurDeLaFiche(modele);
+  const moi = {};
+  /* fermer la fenêtre — ou, en ligne, vider la colonne */
+  const quitterLaVue = () => {
+    if(enLigne){ if(window.__ficheEnLigne === moi) window.__ficheEnLigne = null; videLaLecture(); }
+    else fermerFond(fond);
+  };
+
+  /* Une fiche neuve est libre par construction : c'est le réglage
+     d'usage qui la rendra technique, et il est verrouillé plus bas
+     si la main qui la tient n'en a pas le droit. */
+  const verrou = !peutToucherAuxTextesDeLAppli() &&
+                 (estTexteDeLAppli(modele) || usageImpose === 'procedure');
+
+  const ech = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  boite.insertAdjacentHTML('beforeend',
+    (verrou
+      ? '<div class="fiVerrou">🔒 Ce texte est utilisé par l’application. ' +
+        'Tu peux le lire et le copier ; sa modification demande le droit ' +
+        '« ⚙️ Textes de l’application ».</div>'
+      : '') +
+
+    '<div class="fiTete"><input type="text" id="mdNom" class="fiTitre" ' +
+      'placeholder="Titre de la fiche" value="' +
+      ech(modele ? (modele.titre || modele.nom) : '') + '">' +
+      '<span class="fiEtat" id="mdEtat"></span></div>' +
+    /* 🏷️ v1299 — seulement SES catégories, sur une ligne, et « ＋ Catégorie » */
+    '<div id="mdEtiq" class="mdCats"></div>' +
+    /* 📍 v1407 — les étapes de l'espace élève d'une procédure */
+    '<div id="mdEtapes"></div>' +
+
+    /* 📄 v1299 — LE TEXTE EN ENTIER : la case grandit avec lui (David :
+       « je n'ai pas la totalité de ce qui est écrit ») */
+    '<textarea id="mdContenu" class="fiTexte" rows="6" ' +
+      'placeholder="Écris ton message…"></textarea>' +
+    /* 🔗 v1407 — où mènent les liens du texte */
+    '<div id="mdLiens" class="etElBloc" hidden></div>' +
+
+    /* ⚠️ DES ÉTIQUETTES, PAS UNE CATÉGORIE — v958. On coche celles
+       qu'on veut, on en crée une en la tapant. Une fiche peut en
+       porter plusieurs, et en changer sans être déplacée. */
+    /* ⚠️ LE MOT EST CELUI DE DAVID — v961. Il dit « catégorie »
+       depuis le premier jour ; l'écran disait « étiquette ». Deux
+       mots pour une seule chose, et une consigne écrite avec l'un
+       n'est pas suivie sur l'autre. */
+    /* ⚠️ LES IMAGES, ENTRE LE TEXTE ET LES CATÉGORIES — v970. Elles
+       illustrent le texte : elles se lisent juste après lui, pas
+       après les réglages. */
+    '<div id="mdGalerie" class="galFiche"></div>' +
+    /* 🖼️ v1299 — un bouton au lieu du grand cadre ; coller (Ctrl+V) et
+       glisser une image marchent toujours */
+    '<div id="mdColler" class="zCollerFiche petit" tabindex="0">' +
+      '<span class="fgb">🖼️ Ajouter une image</span>' +
+      '<span class="aide">ou colle-la (Ctrl+V), ou fais-la glisser ici</span>' +
+    '</div>' +
+    '<div id="mdEtatImg" class="etatImg"></div>' +
+    '<input type="file" id="mdFichierImg" accept="image/*" multiple ' +
+      'style="display:none;">' +
+
+
+    /* Les réglages techniques, rangés : on ne tombe plus dessus en
+       venant corriger une faute de frappe. */
+    '<details id="mdPlus" class="fiPlus">' +
+    '<summary>⚙️ Réglages</summary>' +
+    '<label for="mdUsage">Où sera-t-il utilisé ?</label>' +
+    '<select id="mdUsage">' + optionsUsage(usageImpose) + '</select>' +
+    '<div id="mdVars" style="font-size:12px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.6;"></div>' +
+
+    /* Une procédure ne vaut pas pour toutes les formations : le
+       point de patinage n'existe pas en automatique, et l'attelage
+       ne concerne que la remorque. */
+    '<div id="mdBlocBoite" style="display:none;">' +
+      '<label for="mdBoite">Pour qui ?</label>' +
+      '<select id="mdBoite">' +
+        '<option value="">🚗 Voiture — BEA et BV</option>' +
+        '<option value="bea">🚗 BEA seulement — boîte automatique</option>' +
+        '<option value="bv">🚗 BV seulement — boîte manuelle</option>' +
+        '<option value="BE">🚚 Remorque — permis BE</option>' +
+      '</select>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+        'line-height:1.5;">Un élève en remorque ne voit que les ' +
+        'procédures BE, et lui seul les voit.</div>' +
+      /* 🔘 v1232 — le nom sur le bouton, pendant le cours (choix ③ de David) */
+      '<label for="mdNomBouton">🔘 Nom sur le bouton (pendant le cours)</label>' +
+      '<input type="text" id="mdNomBouton" maxlength="80" autocomplete="off" ' +
+        'placeholder="ex. : 🔴 **Giratoire**">' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.5;">' +
+        'Court, pour s’y retrouver d’un coup d’œil. Mets **entre deux étoiles** ce qui ' +
+        'doit être en gras. Vide : le titre, raccourci tout seul.</div>' +
+      '<div id="mdNomBoutonApercu" style="margin:0 0 12px;"></div>' +
+    '</div>' +
+
+    /* Comment l'IA doit corriger CELLE-CI.
+
+       Ces consignes ne peuvent pas vivre dans le texte au-dessus :
+       ce texte est ce que l'élève apprend, et ce à quoi l'IA
+       compare. Une ligne « à réciter dans l'ordre » glissée dedans
+       serait lue par l'élève comme une étape de la procédure, et
+       comparée comme telle. */
+    '<div id="mdBlocIA" style="display:none;border:1px solid var(--line);' +
+      'border-radius:12px;padding:12px;margin-bottom:12px;">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:3px;">' +
+        '✨ Comment l\'IA doit corriger celle-ci</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;' +
+        'line-height:1.5;">Vaut pour la correction automatique comme ' +
+        'pour le bouton ✨. Laisse vide si rien de particulier.</div>' +
+
+      '<label style="display:flex;align-items:flex-start;gap:9px;padding:4px 0;' +
+        'font-size:14px;text-transform:none;margin:0 0 10px;font-weight:400;' +
+        'cursor:pointer;color:var(--cream);">' +
+        '<input type="checkbox" id="mdOrdre" ' +
+          'style="width:18px;height:18px;flex-shrink:0;margin-top:2px;">' +
+        '<span style="flex:1;min-width:0;">L\'ordre des étapes compte' +
+          '<div style="font-size:11px;color:var(--muted);line-height:1.4;">' +
+            'Une étape hors de sa place est comptée comme une erreur. ' +
+            'Pour un déroulé ; pas pour un inventaire de vérifications.' +
+          '</div></span>' +
+      '</label>' +
+
+      '<label for="mdConsigne">Autre consigne (facultatif)</label>' +
+      '<textarea id="mdConsigne" rows="3" ' +
+        'placeholder="Ex : exige les mots exacts du référentiel. ' +
+          'Ou : ne pénalise pas le vocabulaire approximatif." ' +
+        'style="width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:14px;' +
+        'line-height:1.5;font-family:inherit;resize:vertical;margin:0;"></textarea>' +
+    '</div>' +
+
+    /* ⚠️ CE MENU REMPLACE UNE DEVINETTE.
+
+       Les types de séance des rappels sont ces textes-ci : l'outil
+       n'en fournit aucun d'origine. Le bilan à créer était donc
+       DEVINÉ d'après le titre écrit à la main — « Permis voiture »
+       ne tombait dans aucune règle et repartait en conduite
+       ordinaire, donc en BEA d'après la fiche. Signalé quinze fois,
+       et chaque correction de la devinette en cassait une autre.
+
+       Le titre ne décide plus. Le texte le DIT, une fois. */
+    '<div id="mdBlocBilan" style="display:none;border:1px solid var(--line);' +
+      'border-radius:12px;padding:12px;margin-bottom:12px;">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:3px;">' +
+        '📄 Le bilan que ce rappel doit créer</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;' +
+        'line-height:1.5;">Le cours ajouté à « Mes prochains cours » ' +
+        'portera ce bilan-là. <strong>La boîte suit l\'élève</strong> : ' +
+        'choisis la famille, l\'outil prend la version automatique ou ' +
+        'manuelle selon sa fiche.</div>' +
+      '<select id="mdBilan">' + optionsBilanDuRappel() + '</select>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 0;' +
+        'line-height:1.5;">Laissé sur « d\'après la fiche de l\'élève », ' +
+        'c\'est sa formation qui décide — ce qu\'il faut pour une leçon de ' +
+        'conduite ordinaire, et ce qu\'il ne faut pas pour un examen.' +
+      '</div>' +
+    '</div>' +
+    '</details>');
+
+  const g = id => boite.querySelector('#' + id);
+  g('mdContenu').value = (modele && modele.contenu) || '';
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:4px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  /* ---- Les gestes, en pied de fiche ---- */
+  const pied = document.createElement('div');
+  pied.className = 'fiPied';
+  boite.appendChild(pied);
+
+  /* ---- L'état courant, tel qu'il partira ---- */
+  let mesEtiquettes = modele ? etiquettesDe(modele) : [];
+  /* 📍 v1407 — ses étapes de l'espace élève (procédure) */
+  const mesEtapesEleve = etapesDeLaFiche(modele);
+  /* 📄 v1299 — une fiche neuve créée depuis une catégorie la porte déjà */
+  if(!modele && opts && opts.categorie) mesEtiquettes = [opts.categorie];
+
+  const fichePleine = () => ({
+    id: modele ? modele.id : idDeCetteFiche,
+    usage: g('mdUsage').value,
+    nom: g('mdNom').value.trim(),
+    titre: g('mdNom').value.trim(),
+    etiquettes: mesEtiquettes.join(SEP_ETIQ),
+    boite: (g('mdUsage').value === 'procedure' && g('mdBoite'))
+      ? g('mdBoite').value : '',
+    ordre: (g('mdUsage').value === 'procedure' && g('mdOrdre'))
+      ? g('mdOrdre').checked : false,
+    consigne: (g('mdUsage').value === 'procedure' && g('mdConsigne'))
+      ? g('mdConsigne').value.trim() : '',
+    bilan: (g('mdUsage').value === 'rappel_cours' && g('mdBilan'))
+      ? g('mdBilan').value : '',
+    nomBouton: (g('mdUsage').value === 'procedure' && g('mdNomBouton'))
+      ? g('mdNomBouton').value.trim() : '',
+    etapes: (g('mdUsage').value === 'procedure') ? etapesVersColonne(mesEtapesEleve) : '',
+    contenu: g('mdContenu').value.trim()
+  });
+
+  /* Le numéro est posé ICI, une fois, et ne change plus : c'est lui
+     qui rend un appel renvoyé inoffensif. */
+  const idDeCetteFiche = modele ? modele.id : nouvelIdModele();
+
+  const geste = (txt, titre, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'fgb';
+    b.textContent = txt;
+    b.title = titre;
+    b.addEventListener('click', fn);
+    pied.appendChild(b);
+    return b;
+  };
+
+  if(modele){
+    geste('📋', 'Copier toute la fiche', async () => {
+      const ok = await copierDansLePressePapier(g('mdContenu').value);
+      showToast(ok ? 'Fiche copiée ✅' : 'Copie impossible sur cet appareil');
+    });
+    geste('✂️', 'Copier un morceau', () => ouvrirCopieMorceau(fichePleine()));
+    geste('✉️', 'Envoyer par mail', () => envoyerFicheParMail(fichePleine()));
+    if(!verrou){
+      const bSup = geste('✕ Supprimer', 'Supprimer cette fiche', async () => {
+        if(!await confirmer('Supprimer la fiche « ' +
+            (g('mdNom').value.trim() || 'sans titre') + ' » ?')) return;
+        bSup.disabled = true;
+        try{
+          /* ⚠️ LES IMAGES PARTENT AVANT LA FICHE — v970. Après, on
+             ne saurait plus lesquelles lui appartenaient : une
+             image sans fiche, personne ne la retrouve jamais pour
+             la retirer. C'est déjà ce qu'on fait des captures quand
+             on supprime le dossier d'un élève. */
+          await retirerToutesLesImagesDeLaFiche(modele.id);
+          await appelPrep({ action: 'modeleDelete', id: modele.id,
+                            usage: modele.usage || 'libre' });
+          retirerModeleDeLaMemoire(modele.id);
+          perimerModeles();
+          supprimee = true;
+          quitterLaVue();
+          showToast('Fiche supprimée');
+          redessiner();
+        }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+      });
+      /* Discret et à part : c'est le seul geste qu'on ne rattrape
+         pas, il n'a rien à faire au milieu des autres. */
+      bSup.classList.add('sup', 'fgPetit');
+      bSup.textContent = '🗑️ Supprimer';
+    }
+    /* 🎨 v1299 — la couleur, depuis la fiche ouverte */
+    if(!verrou){
+      const bCoul = geste('🎨', 'Couleur de la fiche', () => {
+        const ouverte = boite.querySelector('.palFiche');
+        if(ouverte){ ouverte.remove(); return; }
+        const pal = document.createElement('div');
+        pal.className = 'palFiche';
+        const actuelle = couleurDeLaFiche(modele);
+        [{ cle: '', nom: 'Aucune couleur' }].concat(COULEURS_FICHE).forEach(c => {
+          const x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'fgb pastFiche' + (c.cle === actuelle ? ' choisie' : '');
+          if(c.cle) x.dataset.couleur = c.cle; else x.textContent = '✕';
+          x.title = c.nom;
+          x.addEventListener('click', async () => {
+            pal.remove();
+            if(c.cle) boite.dataset.couleur = c.cle; else delete boite.dataset.couleur;
+            try{ await poserCouleurFiche(modele, c.cle); dessinerListeFiches(); }
+            catch(e){ const r = couleurDeLaFiche(modele); if(r) boite.dataset.couleur = r; else delete boite.dataset.couleur; }
+          });
+          pal.appendChild(x);
+        });
+        pied.parentNode.insertBefore(pal, pied);
+      });
+      /* l'ordre du schéma validé : 📋 ✂️ ✉️ 🎨 ⚙️ … 🗑️ */
+      if(pied.querySelector('.sup')) pied.insertBefore(bCoul, pied.querySelector('.sup'));
+    }
+  }
+  /* 🔗 v1407 — « Lien élève » : la ligne d'une étape de l'espace élève,
+     là où est le curseur (toutes les fiches) */
+  if(!verrou){
+    const bLien = geste('🔗 Lien élève', 'Insérer un lien vers une étape de l’espace élève', () => insererLienEleveDans(g('mdContenu')));
+    bLien.dataset.lienEleve = '1';
+    if(pied.querySelector('.sup')) pied.insertBefore(bLien, pied.querySelector('.sup'));
+  }
+  /* ⚙️ v1299 — les réglages (où l'appli s'en sert…), d'un bouton */
+  const bReg = geste('⚙️ Réglages', 'Où l’appli s’en sert, pour qui…', () => {
+    const d = g('mdPlus');
+    if(!d) return;
+    d.open = !d.open;
+    if(d.open) try{ d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }catch(e){}
+  });
+  if(pied.querySelector('.sup')) pied.insertBefore(bReg, pied.querySelector('.sup'));
+
+  const bFermer = document.createElement('button');
+  bFermer.className = 'btn btn-primary';
+  bFermer.style.cssText = 'width:auto;padding:8px 16px;font-size:13px;margin:0 0 0 auto;';
+  bFermer.textContent = '✓ Fermer';
+  /* en ligne, pas de « Fermer » : la fiche s'enregistre toute seule */
+  if(!enLigne) pied.appendChild(bFermer);
+  let supprimee = false;
+
+  /* ---- Les blocs qui n'ont de sens que pour certains usages ---- */
+  const majBoite = () => {
+    const usage = g('mdUsage').value;
+    const estProc = (usage === 'procedure');
+    if(g('mdBlocBoite')) g('mdBlocBoite').style.display = estProc ? 'block' : 'none';
+    if(g('mdBlocIA')) g('mdBlocIA').style.display = estProc ? 'block' : 'none';
+    /* 📍 v1407 — ses étapes de l'espace élève, pour une procédure */
+    if(g('mdEtapes')){
+      g('mdEtapes').innerHTML = '';
+      if(estProc){
+        const optsEt = { verrou: verrou, nom: () => g('mdNom').value.trim(),
+          surChange: () => { if(typeof moi.aChange === 'function') moi.aChange(); } };
+        g('mdEtapes').appendChild(blocEtapesDeProcedure(mesEtapesEleve, optsEt));
+        /* 🔗 v1408 — sans étape, mais son lien Facebook est relié : on le propose */
+        if(!verrou && !mesEtapesEleve.length && liensFbDuTexte(g('mdContenu').value).length){
+          chargerLiensFb().then(t => {
+            const vus = {};
+            optsEt.proposees = liensFbDuTexte(g('mdContenu').value).map(l => t[cleDuLienFb(l.u)])
+              .filter(r => r && r.etat === 'relie' && r.guide && !vus[r.guide + '::' + r.segment] && (vus[r.guide + '::' + r.segment] = 1))
+              .map(r => ({ guide: r.guide, segment: r.segment || '', titre: r.titre || '', guideTitre: r.guideTitre || '', groupeIcone: r.groupeIcone || '' }));
+            if(optsEt.proposees.length && !mesEtapesEleve.length && g('mdEtapes')){
+              g('mdEtapes').innerHTML = '';
+              g('mdEtapes').appendChild(blocEtapesDeProcedure(mesEtapesEleve, optsEt));
+            }
+          }).catch(() => {});
+        }
+      }
+    }
+    /* Le bilan à créer n'a de sens que pour un rappel de cours :
+       c'est le seul usage qui fabrique un cours. */
+    if(g('mdBlocBilan')){
+      g('mdBlocBilan').style.display = (usage === 'rappel_cours') ? 'block' : 'none';
+    }
+  };
+  g('mdUsage').addEventListener('change', majBoite);
+
+  if(modele && modele.boite && g('mdBoite')) g('mdBoite').value = modele.boite;
+  /* 🔘 v1232 — le nom sur le bouton, et son aperçu tel que le moniteur le verra */
+  if(g('mdNomBouton')){
+    if(modele) g('mdNomBouton').value = modele.nomBouton || '';
+    const apercu = () => {
+      const z = g('mdNomBoutonApercu');
+      if(!z || typeof boutonDApercuProcedure !== 'function') return;
+      z.innerHTML = '';
+      z.appendChild(boutonDApercuProcedure({ nom: g('mdNom').value, titre: g('mdNom').value,
+        nomBouton: g('mdNomBouton').value, boite: g('mdBoite') ? g('mdBoite').value : '' }));
+    };
+    ['mdNomBouton', 'mdNom'].forEach(id => { if(g(id)) g(id).addEventListener('input', apercu); });
+    if(g('mdBoite')) g('mdBoite').addEventListener('change', apercu);
+    apercu();
+  }
+  if(modele && g('mdOrdre')) g('mdOrdre').checked = !!modele.ordre;
+  if(modele && g('mdConsigne')) g('mdConsigne').value = modele.consigne || '';
+  if(modele && g('mdBilan')){
+    /* Un bilan disparu du catalogue ne doit pas se transformer en
+       « d'après la fiche » sans le dire : le menu le garde, marqué. */
+    const sel = g('mdBilan');
+    const v = String(modele.bilan || '');
+    if(v && ![...sel.options].some(o => o.value === v)){
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = '⚠️ ' + v + ' — ce bilan n\'existe plus';
+      sel.appendChild(o);
+    }
+    sel.value = v;
+  }
+
+  fond.appendChild(boite);
+  if(enLigne){
+    opts.dans.innerHTML = '';
+    opts.dans.appendChild(fond);
+    window.__ficheEnLigne = moi;
+  }else document.body.appendChild(fond);
+
+  /* Rappel des variables disponibles, avec insertion en un appui */
+  const majVars = () => {
+    const u = USAGES_MODELE.find(x => x.cle === g('mdUsage').value);
+    const z = g('mdVars');
+    z.innerHTML = 'Variables disponibles — appuie pour insérer :<br>';
+    (u ? u.variables : []).forEach(v => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:4px 8px;font-size:12px;margin:4px 4px 0 0;';
+      b.textContent = v;
+      b.addEventListener('click', () => {
+        const t = g('mdContenu');
+        const p = t.selectionStart || t.value.length;
+        t.value = t.value.slice(0, p) + v + t.value.slice(p);
+        t.focus();
+      });
+      z.appendChild(b);
+    });
+
+    /* Un usage qui a un modèle de départ le propose : sans ça, on
+       se retrouve devant une zone vide sans savoir quoi y écrire. */
+    const dep = modeleParDefaut(g('mdUsage').value);
+    if(dep){
+      const bd = document.createElement('button');
+      bd.type = 'button';
+      bd.className = 'btn btn-secondary';
+      bd.style.cssText = 'width:100%;padding:8px;font-size:12px;margin:9px 0 0;';
+      bd.textContent = '📋 Partir du modèle proposé';
+      bd.title = "Écrit dans la zone ci-dessus le texte utilisé par défaut";
+      bd.addEventListener('click', async () => {
+        const t = g('mdContenu');
+        if(t.value.trim() &&
+           !await confirmer('Remplacer ce que tu as écrit par le modèle proposé ?')) return;
+        t.value = dep;
+        t.focus();
+      });
+      z.appendChild(bd);
+
+      const info = document.createElement('div');
+      info.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
+        'line-height:1.5;';
+      info.textContent = "Tant que tu n'enregistres aucun modèle pour cet usage, " +
+        "c'est ce texte-là qui part.";
+      z.appendChild(info);
+    }
+
+    /* 🚦 v1450 — la mise en forme de la carte de l'espace élève */
+    if(u && u.cle === 'carte_ajournement'){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;' +
+        'line-height:1.6;border-top:1px solid var(--line);padding-top:8px;';
+      a.innerHTML = AIDE_CARTE_AJ;
+      z.appendChild(a);
+    }
+    /* L'aide des heures, seulement là où elle sert */
+    if(u && u.variables.some(v => v.indexOf('{heure') === 0)){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;' +
+        'line-height:1.6;border-top:1px solid var(--line);padding-top:8px;';
+      a.innerHTML = '🕐 ' + AIDE_HEURES;
+      z.appendChild(a);
+    }
+  };
+  g('mdUsage').addEventListener('change', majVars);
+
+  /* ⚠️ L'USAGE EST POSÉ AVANT QUE LES BLOCS SOIENT CALCULÉS.
+
+     « Je fais comment pour les rappels qui sont déjà créés ? Je
+     n'ai pas le bouton, et je vais pas m'amuser à tous les
+     recréer. » majBoite() décidait ce qui s'affiche d'après un
+     usage pas encore écrit — donc toujours « libre » — et le menu
+     du bilan restait invisible sur tout texte déjà écrit. */
+  if(modele) g('mdUsage').value = modele.usage || 'libre';
+  if(usageImpose){
+    g('mdUsage').value = usageImpose;
+    g('mdUsage').disabled = true;
+    g('mdUsage').style.opacity = '.6';
+  }
+
+  /* Les réglages s'ouvrent d'office là où ils décident de quelque
+     chose : une fiche libre n'a rien à y régler. */
+  if(g('mdPlus')) g('mdPlus').open = (g('mdUsage').value !== 'libre');
+
+  /* ---- Les catégories de cette fiche ----
+     🏷️ v1299 — David : « la partie catégorie est énorme ». La fiche ne
+     montre plus que SES catégories, sur une ligne (✕ pour en retirer
+     une) ; « ＋ Catégorie » ouvre une recherche : on tape, on coche,
+     ou on crée. La puce « 🔒 Privé » reste une puce comme les autres. */
+  let choixOuvert = false, choixTexte = '';
+  const dessinerEtiq = () => {
+    const z = g('mdEtiq');
+    if(!z) return;
+    z.innerHTML = '';
+    const marque = marqueurPriveDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) });
+    const proprio = marque ? marque.slice(PREFIXE_PRIVE.length).trim() : '';
+    const mienne = maMarquePrivee();
+    const lab = document.createElement('span');
+    lab.className = 'mdLab';
+    lab.textContent = '🏷️';
+    z.appendChild(lab);
+    if(marque){
+      const p = document.createElement('span');
+      p.className = 'mdPuce prive';
+      p.textContent = cestMoi(proprio) ? '🔒 Privé' : '🔒 Privé — ' + proprio;
+      p.title = 'Visible de toi seul, et des administrateurs';
+      if(!verrou){
+        const x = document.createElement('button');
+        x.type = 'button'; x.textContent = '✕'; x.title = 'Ne plus la garder privée';
+        x.addEventListener('click', () => { mesEtiquettes.splice(mesEtiquettes.indexOf(marque), 1); aChange(); dessinerEtiq(); });
+        p.appendChild(x);
+      }
+      z.appendChild(p);
+    }
+    categoriesDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) }).forEach(e => {
+      const p = document.createElement('span');
+      p.className = 'mdPuce';
+      p.dataset.cat = e;
+      p.appendChild(document.createTextNode(e));
+      if(!verrou){
+        const x = document.createElement('button');
+        x.type = 'button'; x.textContent = '✕'; x.title = 'Retirer de « ' + e + ' »';
+        x.addEventListener('click', () => { const i = mesEtiquettes.indexOf(e); if(i !== -1) mesEtiquettes.splice(i, 1); aChange(); dessinerEtiq(); });
+        p.appendChild(x);
+      }
+      z.appendChild(p);
+    });
+    if(verrou) return;
+    if(!marque && mienne){
+      const bp = document.createElement('button');
+      bp.type = 'button';
+      bp.className = 'mdPlusCat discret';
+      bp.textContent = '🔒 Privé';
+      bp.title = 'La rendre privée : visible de toi seul, et des administrateurs';
+      bp.addEventListener('click', () => { mesEtiquettes.unshift(mienne); aChange(); dessinerEtiq(); });
+      z.appendChild(bp);
+    }
+    const plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'mdPlusCat';
+    plus.id = 'mdEtiqAdd';
+    plus.textContent = '＋ Catégorie';
+    plus.addEventListener('click', ev => { ev.stopPropagation(); choixOuvert = !choixOuvert; choixTexte = ''; dessinerEtiq(); });
+    z.appendChild(plus);
+    if(choixOuvert) z.appendChild(choixDesCategories());
+  };
+  /* La recherche des catégories : cocher, décocher, créer */
+  const choixDesCategories = () => {
+    const box = document.createElement('div');
+    box.className = 'mdChoix';
+    box.addEventListener('click', ev => ev.stopPropagation());
+    const champ = document.createElement('input');
+    champ.type = 'text';
+    champ.id = 'mdEtiqNeuve';
+    champ.placeholder = 'Chercher ou créer une catégorie…';
+    champ.autocomplete = 'off';
+    champ.value = choixTexte;
+    box.appendChild(champ);
+    const liste = document.createElement('div');
+    liste.className = 'mdChoixListe';
+    box.appendChild(liste);
+    const creer = document.createElement('button');
+    creer.type = 'button';
+    creer.className = 'mdChoixCree';
+    box.appendChild(creer);
+    const toutes = () => {
+      const t = toutesLesEtiquettes().filter(jeVoisLaCategorie);
+      categoriesDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) }).forEach(e => { if(t.indexOf(e) === -1) t.push(e); });
+      return t;
+    };
+    const sansEmoji = e => sansAccents(String(e).replace(/^[^\p{L}\d]+/u, '')).trim();
+    const remplir = () => {
+      const q = sansAccents(champ.value).trim();
+      const l = toutes().filter(e => !q || sansAccents(e).indexOf(q) !== -1);
+      liste.innerHTML = '';
+      l.forEach(e => {
+        const pris = mesEtiquettes.indexOf(e) !== -1;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'mdChoixL' + (pris ? ' pris' : '');
+        b.dataset.cat = e;
+        b.innerHTML = '<span class="cc">' + (pris ? '✓' : '') + '</span><span class="nom"></span><span class="n"></span>';
+        b.querySelector('.nom').textContent = e;
+        b.querySelector('.n').textContent = (modelesTexte || []).filter(m => categoriesDe(m).indexOf(e) !== -1).length;
+        b.addEventListener('click', () => {
+          const i = mesEtiquettes.indexOf(e);
+          if(i === -1) mesEtiquettes.push(e); else mesEtiquettes.splice(i, 1);
+          choixTexte = champ.value; aChange(); dessinerEtiq();
+        });
+        liste.appendChild(b);
+      });
+      if(!l.length) liste.innerHTML = '<div class="mdChoixRien">Aucune catégorie de ce nom.</div>';
+      const v = champ.value.trim();
+      const existe = toutes().some(e => sansAccents(e) === q || sansEmoji(e) === q);
+      creer.hidden = !v || existe;
+      creer.textContent = '➕ Créer « ' + v + ' »';
+    };
+    const creerLa = () => {
+      const v = champ.value.trim();
+      if(!v) return;
+      if(mesEtiquettes.indexOf(v) === -1) mesEtiquettes.push(v);
+      choixTexte = ''; aChange(); dessinerEtiq();
+    };
+    creer.addEventListener('click', creerLa);
+    champ.addEventListener('input', remplir);
+    champ.addEventListener('keydown', e => {
+      if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); choixOuvert = false; dessinerEtiq(); return; }
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      const l = liste.querySelectorAll('.mdChoixL');
+      if(!creer.hidden) creerLa();
+      else if(l.length === 1) l[0].click();
+    });
+    remplir();
+    setTimeout(() => { champ.focus(); const n = champ.value.length; try{ champ.setSelectionRange(n, n); }catch(e){} }, 0);
+    return box;
+  };
+  /* un clic ailleurs referme la recherche */
+  boite.addEventListener('click', () => { if(choixOuvert){ choixOuvert = false; dessinerEtiq(); } });
+  /* ce qui a bougé s'enregistre (en ligne) */
+  const aChange = () => { if(typeof moi.aChange === 'function') moi.aChange(); };
+  dessinerEtiq();
+
+  majBoite();
+  majVars();
+
+  /* 🔗 v1407 — « Les liens de ce texte », tenus à jour pendant qu'on écrit */
+  let minuterieLiens = null;
+  const majLiens = () => dessinerLiensDuTexte(g('mdLiens'), g('mdContenu').value);
+  g('mdContenu').addEventListener('input', () => { clearTimeout(minuterieLiens); minuterieLiens = setTimeout(majLiens, 500); });
+  majLiens();
+
+  /* ⚠️ VERROUILLÉ VEUT DIRE VERROUILLÉ PARTOUT, pas seulement sur
+     le crayon : un champ qu'on peut encore remplir laisse croire
+     que c'est enregistré. */
+  if(verrou){
+    ['mdNom', 'mdContenu', 'mdConsigne'].forEach(k => {
+      if(g(k)) g(k).readOnly = true;
+    });
+    ['mdUsage', 'mdBoite', 'mdOrdre', 'mdBilan', 'mdEtiqNeuve', 'mdEtiqAdd']
+      .forEach(k => { if(g(k)) g(k).disabled = true; });
+    boite.querySelectorAll('.mdEtq').forEach(b => { b.disabled = true; });
+  }
+
+  const redessiner = () => {
+    if(usageImpose === 'procedure' && typeof afficherProcedures === 'function'){
+      afficherProcedures();
+    }else{
+      dessinerRailEtiquettes();
+      dessinerListeFiches();
+    }
+  };
+
+  /* ------------------------------------------------------------
+     FERMER, C'EST ENREGISTRER
+
+     Il n'y a pas de bouton « Enregistrer » : on ferme, et c'est
+     écrit. Rien ne part si rien n'a changé — et une fiche neuve
+     laissée vide n'est pas créée, sans quoi un clic sur ➕ suivi
+     d'un clic à côté fabriquerait une fiche fantôme.
+     ------------------------------------------------------------ */
+  let depart = modele
+    ? JSON.stringify({ n: modele.titre || modele.nom || '', c: modele.contenu || '',
+                       e: etiquettesDe(modele).join(SEP_ETIQ), u: modele.usage || 'libre',
+                       b: modele.boite || '', o: !!modele.ordre,
+                       g: modele.consigne || '', i: modele.bilan || '',
+                       et: (modele.usage === 'procedure') ? etapesVersColonne(etapesDeLaFiche(modele)) : '' })
+    : '';
+
+  const etatActuel = () => {
+    const f = fichePleine();
+    return JSON.stringify({ n: f.nom, c: f.contenu, e: f.etiquettes, u: f.usage,
+                            b: f.boite, o: f.ordre, g: f.consigne, i: f.bilan, nb: f.nomBouton, et: f.etapes });
+  };
+
+  let enCours = false;
+  let ficheEnregistree = !!modele;
+  let quelqueChoseAEteEcrit = false;
+
+  /* ⚠️ ENREGISTRER ET FERMER SONT DEUX GESTES, PAS UN SEUL — v970.
+
+     Coller une image dans une fiche neuve doit d'abord la faire
+     EXISTER : sans quoi l'image se range sous un numéro que le
+     classeur ne connaît pas, et personne ne la retrouve jamais
+     pour la retirer. L'écriture est donc sortie du bouton — mais
+     elle reste LA MÊME, pas une seconde : deux endroits qui
+     enregistrent une fiche, c'est le péché de ce dossier.
+
+     Rend « false » quand la fiche n'est pas en état d'être écrite,
+     et laisse remonter l'erreur quand c'est le classeur qui a
+     refusé — l'appelant sait quoi en dire. */
+  async function enregistrerLaFiche(){
+    const f = fichePleine();
+
+    if(!f.nom){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Donne un titre à la fiche.';
+      g('mdNom').focus();
+      return false;
+    }
+    if(!f.contenu){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Le texte est vide.';
+      g('mdContenu').focus();
+      return false;
+    }
+
+    /* ⚠️ CE QUI NE SERA PLUS REMPLI SE DIT AVANT, PAS APRÈS. */
+    const alerte = alerteDesVariables((modele && modele.contenu) || '',
+                                      f.contenu, f.usage);
+    if(alerte && !await confirmer('⚠️ ' + alerte + '\n\nEnregistrer quand même ?')){
+      return false;
+    }
+
+    const r = await appelPrep(Object.assign({ action: 'modeleSet' }, f));
+
+    /* Le classeur peut avoir fabriqué le numéro lui-même par la
+       voie de secours : c'est le sien qui fait foi. */
+    const enregistree = Object.assign({}, f,
+      { id: (r && r.id) || f.id, maj: horodatageCourt() });
+
+    poserModeleEnMemoire(enregistree);
+    perimerModeles();
+    ficheEnregistree = true;
+    quelqueChoseAEteEcrit = true;
+    /* Ce qui vient d'être écrit devient le point de comparaison :
+       refermer sans rien toucher ne réécrira pas. */
+    depart = etatActuel();
+    return true;
+  }
+
+  async function fermer(){
+    if(enCours) return;
+    if(verrou){ fermerFond(fond); return; }
+
+    const f = fichePleine();
+
+    /* Une fiche neuve sans rien dedans ne se crée pas. */
+    if(!ficheEnregistree && !f.nom && !f.contenu){
+      fermerFond(fond);
+      if(quelqueChoseAEteEcrit) redessiner();
+      return;
+    }
+
+    /* Rien n'a bougé : on ferme sans rien écrire. Les images, elles,
+       sont déjà parties — la liste doit quand même se redessiner
+       pour montrer la vignette. */
+    if(depart && etatActuel() === depart){
+      fermerFond(fond);
+      if(quelqueChoseAEteEcrit) redessiner();
+      return;
+    }
+
+    enCours = true;
+    bFermer.disabled = true;
+    bFermer.textContent = 'Enregistrement…';
+    try{
+      if(!await enregistrerLaFiche()){
+        enCours = false;
+        bFermer.disabled = false;
+        bFermer.textContent = '✓ Fermer';
+        return;
+      }
+      fermerFond(fond);
+      showToast('Enregistré ✅');
+      redessiner();
+    }catch(e){
+      enCours = false;
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + e.message;
+      bFermer.disabled = false;
+      bFermer.textContent = '✓ Fermer';
+    }
+  }
+
+  /* ------------------------------------------------------------
+     LES IMAGES DE CETTE FICHE — v970
+
+     Trois façons d'en ajouter, ce sont exactement celles du CEPC
+     dans le rendez-vous post-permis : Ctrl+V n'importe où dans la
+     fiche ouverte, glisser-déposer sur la zone en pointillés, et
+     appuyer dessus pour ouvrir le sélecteur de l'appareil — celle
+     du téléphone, où il n'y a ni Ctrl+V ni glisser.
+     ------------------------------------------------------------ */
+  const galerie = g('mdGalerie');
+  const zColler = g('mdColler');
+  const etatImg = g('mdEtatImg');
+  const champImg = g('mdFichierImg');
+
+  const direImg = (txt, couleur) => {
+    if(!etatImg) return;
+    etatImg.style.color = couleur || 'var(--muted)';
+    etatImg.textContent = txt || '';
+  };
+
+  function dessinerGalerie(){
+    if(!galerie) return;
+    const liste = imagesRecues[idDeCetteFiche] || [];
+    galerie.innerHTML = '';
+
+    liste.forEach((im, i) => {
+      const v = document.createElement('div');
+      v.className = 'vigFiche';
+
+      const img = document.createElement('img');
+      img.src = srcImageFiche(im.image);
+      img.alt = '';
+      img.title = 'Image ' + (i + 1) + ' — appuie pour agrandir';
+      img.addEventListener('click', () => {
+        if(typeof agrandirImage === 'function'){
+          agrandirImage(srcImageFiche(im.image), g('mdNom').value.trim());
+        }
+      });
+      v.appendChild(img);
+
+      if(!verrou){
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'xVig';
+        x.textContent = '✕';
+        x.title = 'Retirer cette image';
+        x.addEventListener('click', async ev => {
+          ev.stopPropagation();
+          if(!await confirmer('Retirer cette image ?')) return;
+          try{
+            await appelPrep({ action: 'ficheImageDelete', id: im.id });
+            quelqueChoseAEteEcrit = true;
+            await chargerImagesDeFiches([idDeCetteFiche], false);
+            dessinerGalerie();
+            direImg('');
+          }catch(e){ direImg('Erreur : ' + e.message, 'var(--warn-text)'); }
+        });
+        v.appendChild(x);
+      }
+
+      galerie.appendChild(v);
+    });
+  }
+
+  /* Ce qu'on a déjà — la vignette de la carte — s'affiche tout de
+     suite ; les autres arrivent juste après. */
+  if(ficheADesImages(idDeCetteFiche)){
+    dessinerGalerie();
+    chargerImagesDeFiches([idDeCetteFiche], false)
+      .then(dessinerGalerie)
+      .catch(e => console.warn('Images de la fiche :', e));
+  }
+
+  async function ajouterDesImages(fichiers){
+    const tous = Array.prototype.slice.call(fichiers || []);
+    if(!tous.length) return;
+
+    /* ⚠️ LE REFUS SE FAIT AVANT QUE QUOI QUE CE SOIT PARTE. Rien
+       n'est écrit dans le classeur : il n'y a donc rien à nettoyer.
+       La porte du Worker refuse pareil, de son côté — une parade
+       posée chez le seul appelant est une parade qu'on oublie. */
+    const bonnes = tous.filter(estUnFichierImage);
+    if(bonnes.length !== tous.length) direImg(REFUS_NON_IMAGE, 'var(--warn-text)');
+    if(!bonnes.length) return;
+
+    /* ⚠️ LA FICHE DOIT EXISTER AVANT SON IMAGE. */
+    if(!ficheEnregistree){
+      let ok = false;
+      try{ ok = await enregistrerLaFiche(); }
+      catch(e){ direImg('Erreur : ' + e.message, 'var(--warn-text)'); return; }
+      if(!ok){
+        direImg('Donne un titre et un texte : la fiche s’enregistre, ' +
+                'puis l’image se range dedans.', 'var(--warn-text)');
+        return;
+      }
+    }
+
+    let faites = 0;
+    for(let i = 0; i < bonnes.length; i++){
+      direImg('Image ' + (i + 1) + ' sur ' + bonnes.length + '…');
+      try{
+        /* 📷 v1284 — les images des fiches vont dans R2 (v1262) : nettes */
+        const donnees = await (typeof compresserImageNette === 'function' ? compresserImageNette : compresserImage)(bonnes[i]);
+        await appelPrep({ action: 'ficheImageAdd',
+                          fiche: idDeCetteFiche, image: donnees });
+        faites++;
+      }catch(e){
+        direImg('Image ' + (i + 1) + ' : ' + e.message, 'var(--warn-text)');
+      }
+    }
+
+    if(!faites) return;
+    quelqueChoseAEteEcrit = true;
+    try{ await chargerImagesDeFiches([idDeCetteFiche], false); }
+    catch(e){ console.warn('Images de la fiche :', e); }
+    dessinerGalerie();
+    direImg('✅ ' + faites + ' image' + (faites > 1 ? 's' : '') +
+            ' ajoutée' + (faites > 1 ? 's' : ''), 'var(--accent-text)');
+  }
+
+  if(verrou && zColler) zColler.style.display = 'none';
+
+  if(zColler && !verrou){
+    zColler.addEventListener('click', () => { if(champImg) champImg.click(); });
+
+    if(champImg){
+      champImg.addEventListener('change', async () => {
+        await ajouterDesImages(champImg.files);
+        champImg.value = '';
+      });
+    }
+
+    /* ⚠️ UN SEUL ÉCOUTEUR DE COLLAGE À LA FOIS — c'est la faute
+       déjà faite sur le CEPC et déjà corrigée : un écouteur posé
+       sur le document à chaque ouverture de fenêtre, et la
+       troisième image arrivait en trois exemplaires. Celui-ci
+       remplace le précédent, et se sait inutile dès que sa fenêtre
+       n'est plus là. */
+    const surCollage = async ev => {
+      if(!document.body.contains(zColler)) return;
+      /* en ligne, la fiche reste à l'écran pendant qu'on fait autre
+         chose : une image collée ailleurs ne doit pas y atterrir */
+      if(enLigne && !(boite.contains(ev.target) || boite.contains(document.activeElement))) return;
+
+      const items = (ev.clipboardData && ev.clipboardData.items) || [];
+      const fichiers = [];
+      for(let i = 0; i < items.length; i++){
+        if(items[i].kind !== 'file') continue;
+        const f = items[i].getAsFile();
+        if(f) fichiers.push(f);
+      }
+
+      /* Aucun fichier : c'est un collage de TEXTE, et il doit
+         continuer d'arriver dans la zone de saisie. */
+      if(!fichiers.length) return;
+
+      ev.preventDefault();
+      await ajouterDesImages(fichiers);
+    };
+
+    if(window.__ecCollageFiche){
+      document.removeEventListener('paste', window.__ecCollageFiche);
+    }
+    window.__ecCollageFiche = surCollage;
+    document.addEventListener('paste', surCollage);
+
+    ['dragenter', 'dragover'].forEach(n => {
+      zColler.addEventListener(n, ev => {
+        ev.preventDefault();
+        zColler.classList.add('survol');
+      });
+    });
+    ['dragleave', 'drop'].forEach(n => {
+      zColler.addEventListener(n, ev => {
+        ev.preventDefault();
+        zColler.classList.remove('survol');
+      });
+    });
+    zColler.addEventListener('drop', async ev => {
+      const f = (ev.dataTransfer && ev.dataTransfer.files) || [];
+      if(f.length) await ajouterDesImages(f);
+    });
+  }
+
+  /* 📄 v1299 — LE TEXTE EN ENTIER : la case prend la hauteur du texte,
+     elle ne défile jamais à l'intérieur */
+  const grandir = () => {
+    const t = g('mdContenu');
+    if(!t) return;
+    t.style.height = 'auto';
+    t.style.height = Math.max(160, t.scrollHeight + 2) + 'px';
+  };
+  g('mdContenu').addEventListener('input', grandir);
+  setTimeout(grandir, 0);
+  if(typeof ResizeObserver === 'function'){
+    let largeur = 0;
+    /* ⚠️ dans une image suivante, jamais pendant la mesure : sinon le
+       navigateur crie « ResizeObserver loop » et l'appli l'affiche */
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        if(!document.body.contains(boite)){ ro.disconnect(); return; }
+        if(boite.clientWidth !== largeur){ largeur = boite.clientWidth; grandir(); }
+      });
+    });
+    ro.observe(boite);
+  }
+
+  if(!enLigne){
+    bFermer.addEventListener('click', fermer);
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+    fond.addEventListener('keydown', e => { if(e.key === 'Escape') fermer(); });
+  }else{
+    /* ------------------------------------------------------------
+       EN LIGNE : ÇA S'ENREGISTRE TOUT SEUL — v1299
+
+       Pas de « Fermer » dans la colonne de droite : on tape, et une
+       seconde après, c'est écrit (« ✓ Enregistré » en haut). Changer
+       de fiche enregistre d'abord ce qui est ouvert. Ce qui demande
+       une confirmation (une variable de l'appli retirée) attend ce
+       moment-là, plutôt que d'interrompre la frappe.
+       ------------------------------------------------------------ */
+    const etat = g('mdEtat');
+    const dire = (t, c) => { if(etat){ etat.textContent = t || ''; etat.style.color = c || ''; } };
+    if(modele && !verrou) dire('✓ Enregistré');
+    if(verrou) dire('🔒 Lecture seule');
+    let minuterie = null;
+    const sauver = async (silencieux) => {
+      clearTimeout(minuterie);
+      if(verrou || supprimee) return true;
+      const f = fichePleine();
+      if(!ficheEnregistree && !f.nom && !f.contenu) return true;
+      if(depart && etatActuel() === depart) return true;
+      if(!f.nom || !f.contenu){
+        if(silencieux){ dire(!f.nom ? '✍️ Un titre, et elle s’enregistre' : '✍️ Le texte, et elle s’enregistre', 'var(--muted)'); return false; }
+        return await enregistrerLaFiche().catch(() => false);
+      }
+      if(silencieux && alerteDesVariables((modele && modele.contenu) || '', f.contenu, f.usage)){
+        dire('⚠️ à confirmer en changeant de fiche', 'var(--warn-text)');
+        return false;
+      }
+      if(enCours) return false;
+      enCours = true;
+      dire('Enregistrement…', 'var(--muted)');
+      try{
+        const ok = await enregistrerLaFiche();
+        enCours = false;
+        if(!ok){ dire(''); return false; }
+        msg.textContent = '';
+        dire('✓ Enregistré');
+        if(!modele){ modele = (modelesTexte || []).find(m => m.id === idDeCetteFiche) || null; }
+        ficheOuverteId = idDeCetteFiche;
+        dessinerRailEtiquettes();
+        dessinerListeFiches();
+        return true;
+      }catch(e){
+        enCours = false;
+        dire('⚠️ Pas enregistré : ' + e.message, 'var(--warn-text)');
+        return false;
+      }
+    };
+    moi.aChange = () => { if(verrou) return; dire('…', 'var(--muted)'); clearTimeout(minuterie); minuterie = setTimeout(() => sauver(true), 1000); };
+    boite.addEventListener('input', ev => { if(ev.target && ev.target.id === 'mdEtiqNeuve') return; moi.aChange(); });
+    boite.addEventListener('change', ev => { if(ev.target && ev.target.id === 'mdEtiqNeuve') return; moi.aChange(); });
+    g('mdContenu').addEventListener('blur', () => { if(minuterie) sauver(true); });
+    g('mdNom').addEventListener('blur', () => { if(minuterie) sauver(true); });
+    /* changer de fiche : ce qui est ouvert s'enregistre, confirmation comprise */
+    moi.quitter = async () => {
+      if(!document.body.contains(boite)) return true;
+      const ok = await sauver(false);
+      if(!ok && !supprimee){
+        const f = fichePleine();
+        if(!ficheEnregistree && !(f.nom && f.contenu)){
+          /* une fiche neuve à moitié écrite : on demande */
+          return await confirmer('Cette fiche neuve n’a pas encore de ' + (!f.nom ? 'titre' : 'texte') + ' : elle ne sera pas créée. Continuer ?');
+        }
+        return false;
+      }
+      return true;
+    };
+  }
+
+  setTimeout(() => {
+    const cible = modele ? g('mdContenu') : g('mdNom');
+    if(cible && !verrou && (!enLigne || !modele)) cible.focus();
+  }, 60);
+}
+
+/* La date telle que le classeur l'écrit, pour que la carte
+   n'attende pas une relecture pour se mettre à jour. */
+function horodatageCourt(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() +
+         ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+
+
+/* ============================================================
+   PROCÉDURES DE CONDUITE
+   Les mêmes fiches, présentées à part : c'est ce que les
+   moniteurs consultent et ce qui sert aux corrections.
+   ============================================================ */
+async function afficherProcedures(){
+  const zone = $('proceduresZone');
+  if(!zone) return;
+
+  zone.innerHTML = htmlAttente('Chargement des procédures…');
+  await chargerModelesTexte();
+  const liste = (modelesTexte || []).filter(m => m.usage === 'procedure')
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+
+  zone.innerHTML = '';
 
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
-  b.textContent = '✅ J’ai lu';
-  b.addEventListener('click', () => {
-    /* ⚠️ ON MARQUE, PUIS ON FERME, PUIS ON REDESSINE. Fermer d'abord
-       et marquer ensuite, c'est laisser la ligne revenir au premier
-       redessin — et donner l'impression que le bouton n'a rien
-       fait. */
-    marquerNouveautesLues();
-    fermerFond(fond);
-    if(typeof dessinerBandeau === 'function') dessinerBandeau();
+  b.style.marginBottom = '12px';
+  b.textContent = '➕ Nouvelle procédure';
+  b.addEventListener('click', () => ouvrirEditeurModele(null, 'procedure'));
+  zone.appendChild(b);
+
+  /* Recherche, car la liste va s'allonger */
+  if(liste.length > 4){
+    const rech = document.createElement('input');
+    rech.type = 'text';
+    rech.placeholder = '🔍 Filtrer les procédures';
+    rech.style.marginBottom = '10px';
+    rech.addEventListener('input', () => {
+      const q = normaliserMot(rech.value);
+      zone.querySelectorAll('[data-procedure]').forEach(el => {
+        const ok = !q || normaliserMot(el.getAttribute('data-procedure')).indexOf(q) !== -1;
+        el.style.display = ok ? '' : 'none';
+      });
+    });
+    zone.appendChild(rech);
+  }
+
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune procédure enregistrée.<br>' +
+      '<span style="font-size:12px;">Ajoute ici tes procédures : giratoire, priorité à droite, ' +
+      "créneau… Elles serviront aux corrections d'erreur et resteront consultables par tous.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  liste.forEach(m => {
+    const d = document.createElement('details');
+    d.setAttribute('data-procedure', m.nom);
+    d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+      'margin-bottom:8px;';
+
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;color:var(--cream);' +
+      'list-style:none;';
+    /* Pour qui elle est : sans ce repère, on ne sait pas d'un coup
+       d'œil laquelle est réservée à la remorque. */
+    const pourQui = String(m.boite || '').toUpperCase();
+    const marque = /(^|[^A-Z])BE([^A-Z]|$)/.test(pourQui) ? ' 🚚'
+      : (pourQui === 'BEA' ? ' 🅰️'
+      : (pourQui === 'BV' ? ' 🅼' : ''));
+
+    som.textContent = '🚦 ' + m.nom + marque;
+    som.title = marque === ' 🚚' ? 'Remorque — permis BE seulement'
+      : (marque === ' 🅰️' ? 'Boîte automatique seulement'
+      : (marque === ' 🅼' ? 'Boîte manuelle seulement' : 'Toutes les voitures'));
+    d.appendChild(som);
+
+    const corps = document.createElement('div');
+    corps.style.cssText = 'margin-top:8px;font-size:15px;line-height:1.6;white-space:pre-wrap;';
+    corps.textContent = m.contenu;
+    d.appendChild(corps);
+
+    /* Les consignes de correction, visibles sans ouvrir Modifier :
+       elles changent la façon dont l'élève est jugé, et devoir
+       entrer dans l'éditeur pour savoir ce qui s'applique revient
+       à ne pas le savoir. */
+    if(m.ordre || String(m.consigne || '').trim()){
+      const ia = document.createElement('div');
+      ia.style.cssText = 'margin-top:10px;border:1px solid var(--line);' +
+        'border-radius:10px;padding:9px 11px;font-size:13px;line-height:1.5;';
+
+      const th = document.createElement('div');
+      th.style.cssText = 'font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+      th.textContent = '✨ Correction par l\'IA';
+      ia.appendChild(th);
+
+      if(m.ordre){
+        const o = document.createElement('div');
+        o.style.cssText = 'color:var(--cream);';
+        o.textContent = '☑️ L\'ordre des étapes compte';
+        ia.appendChild(o);
+      }
+
+      const libre = String(m.consigne || '').trim();
+      if(libre){
+        const c = document.createElement('div');
+        c.style.cssText = 'color:var(--muted);white-space:pre-wrap;' +
+          (m.ordre ? 'margin-top:4px;' : '');
+        c.textContent = libre;
+        ia.appendChild(c);
+      }
+
+      d.appendChild(ia);
+    }
+
+    const pied = document.createElement('div');
+    pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;';
+    pied.textContent = (m.maj ? 'modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '');
+    d.appendChild(pied);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+    const bCop = document.createElement('button');
+    bCop.className = 'btn btn-secondary';
+    bCop.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
+    bCop.textContent = '📋 Copier';
+    bCop.addEventListener('click', () => {
+      navigator.clipboard.writeText(m.contenu).then(
+        () => showToast('Procédure copiée ✅'),
+        () => showToast('Copie impossible'));
+    });
+    r.appendChild(bCop);
+
+    const bMod = document.createElement('button');
+    bMod.className = 'btn btn-secondary';
+    bMod.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bMod.textContent = '✏️ Modifier';
+    bMod.addEventListener('click', () => ouvrirEditeurModele(m, 'procedure'));
+    r.appendChild(bMod);
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
+      'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '✕';
+    bSup.title = 'Supprimer';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer la procédure « ' + m.nom + ' » ?')) return;
+      bSup.disabled = true;
+      try{
+        await appelPrep({ action: 'modeleDelete', id: m.id });
+          perimerModeles();
+        showToast('Procédure supprimée');
+        afficherProcedures();
+      }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+    });
+    r.appendChild(bSup);
+
+    d.appendChild(r);
+    zone.appendChild(d);
   });
-  pied.appendChild(b);
-  boite.appendChild(pied);
+}
+
+
+/* ============================================================
+   IMPORT EN MASSE
+   Coller ses modèles un par un est décourageant quand on en a
+   quinze. On les colle tous, séparés par une ligne de titre.
+   ============================================================ */
+const SEPARATEUR_AIDE =
+  'Sépare tes modèles par une ligne contenant seulement le titre entre === :\n\n' +
+  '=== RDV accompagnateur ===\n' +
+  'Bonjour 😁\n' +
+  "N'OUBLIE PAS LA FORMATION DE TON ACCOMPAGNATEUR {jour}…\n\n" +
+  '=== RDV préalable ===\n' +
+  'Bonjour 😁\n…';
+
+/* Découpe un texte collé en plusieurs modèles */
+function decouperModeles(brut){
+  const lignes = String(brut || '').split('\n');
+  const out = [];
+  let courant = null;
+
+  lignes.forEach(l => {
+    /* Une ligne de titre : === Nom === ou ___ Nom ___ */
+    const m = l.match(/^\s*(?:=|_){2,}\s*(.+?)\s*(?:=|_){2,}\s*$/);
+    if(m && m[1].length >= 2){
+      if(courant) out.push(courant);
+      courant = { titre: m[1].trim(), lignes: [] };
+      return;
+    }
+    if(courant) courant.lignes.push(l);
+  });
+  if(courant) out.push(courant);
+
+  return out
+    .map(x => ({ titre: x.titre, contenu: x.lignes.join('\n').trim() }))
+    /* ⚠️ UN TEXTE COURT RESTE UN TEXTE — v958. Le seuil était à dix
+       caractères : « Merci 🙂 » ou « À demain ! » disparaissaient du
+       lot sans un mot, et on ne s'en aperçoit qu'en les cherchant
+       plus tard. Seul un titre sans rien dessous est écarté. */
+    .filter(x => x.contenu.length > 0);
+}
+
+async function ouvrirImportModeles(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 95vw);max-height:92vh;overflow-y:auto;';
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>📥 Importer plusieurs textes</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">' +
+      'Colle tous tes modèles d\'un coup. Sépare-les par une ligne de titre ' +
+      'entre <strong>===</strong>, comme dans l\'exemple.</div>' +
+    /* ⚠️ UNE ÉTIQUETTE, PAS UNE CATÉGORIE COLLÉE AU TITRE — v958. Et
+       la liste proposée est la vraie : « listeCategories » n'a
+       jamais existé nulle part, ce menu ne s'ouvrait donc jamais. */
+    '<label for="imCat">🏷️ Catégorie à poser sur tout le lot</label>' +
+    '<input type="text" id="imCat" list="imEtiqConnues" ' +
+      'placeholder="Ex : 📥 Inscription — laisse vide pour ne rien poser">' +
+    '<datalist id="imEtiqConnues">' +
+      toutesLesEtiquettes().map(e =>
+        '<option value="' + e.replace(/"/g, '&quot;') + '"></option>').join('') +
+    '</datalist>' +
+    '<label for="imUsage">Usage de ces textes</label>' +
+    '<select id="imUsage">' + optionsUsage('libre') + '</select>' +
+    '<label for="imTexte">Tes modèles</label>');
+
+  const zone = document.createElement('textarea');
+  zone.id = 'imTexte';
+  zone.rows = 14;
+  zone.placeholder = SEPARATEUR_AIDE;
+  zone.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:14px;' +
+    'line-height:1.55;font-family:inherit;resize:vertical;margin-bottom:8px;';
+  boite.appendChild(zone);
+
+  const apercu = document.createElement('div');
+  apercu.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;' +
+    'margin-bottom:12px;min-height:18px;';
+  boite.appendChild(apercu);
+
+  zone.addEventListener('input', () => {
+    const t = decouperModeles(zone.value);
+    apercu.innerHTML = t.length
+      ? '✅ ' + t.length + ' modèle(s) reconnu(s) :<br>' +
+        t.map(x => '• ' + x.titre.replace(/</g, '&lt;') +
+          ' <span style="opacity:.7;">(' + x.contenu.length + ' caractères)</span>').join('<br>')
+      : (zone.value.trim()
+          ? '⚠️ Aucun titre entre === trouvé. Ajoute une ligne <strong>=== Nom ===</strong> ' +
+            'avant chaque modèle.'
+          : '');
+  });
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => fermerFond(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '📥 Importer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  /* ⚠️ ICI TRAÎNAIT UN MORCEAU DE L'ÉDITEUR — v958.
+
+     Onze lignes recopiées de ouvrirEditeurModele cherchaient la
+     case d'usage de l'éditeur, et une variable qui n'existe pas dans
+     cette fenêtre. La fenêtre d'import tombait donc à l'ouverture,
+     avant d'avoir rien montré : le bouton 📥 ne faisait rien du
+     tout. C'est le même code à deux endroits, une fois de plus — et
+     c'est la porte par laquelle cent fiches doivent entrer.
+
+     Le choix de boîte ne concerne que les procédures et se fait
+     dans l'éditeur, fiche par fiche : il n'a rien à faire ici. */
 
   fond.appendChild(boite);
   document.body.appendChild(fond);
 
-  /* Fermer sans lire ne marque rien : on n'a pas dit qu'on avait lu. */
-  fond.addEventListener('click', e => { if(e.target === fond) fermerFond(fond); });
-  fond.addEventListener('keydown', e => {
-    if(e.key === 'Escape') fermerFond(fond);
-  });
-}
+  bOk.addEventListener('click', async () => {
+    const liste = decouperModeles(zone.value);
+    if(!liste.length){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Aucun modèle reconnu. Vérifie les lignes de titre.';
+      return;
+    }
 
-/* rang : -1 = une seule note (comme avant) ; 0, 1, 2… = plusieurs
-   notes à lire d'affilée — le grand titre une fois, puis chaque note
-   avec son résumé, pour qu'on sache de quoi elle parle. */
-function blocNouveaute(n, rang){
-  const z = document.createElement('div');
-  const plusieurs = typeof rang === 'number' && rang >= 0;
+    const cat = boite.querySelector('#imCat').value.trim();
+    const usage = boite.querySelector('#imUsage').value;
 
-  if(!plusieurs || rang === 0){
-    const t = document.createElement('div');
-    t.className = 'nvTitre';
-    t.textContent = '🆕 Du nouveau dans l’outil';
-    z.appendChild(t);
-  }
-  if(plusieurs){
-    z.style.marginTop = rang ? '18px' : '';
-    const r = document.createElement('div');
-    r.className = 'nvResume';
-    r.style.cssText = 'font-weight:800;font-size:15px;margin-top:' + (rang ? '0' : '8px') + ';';
-    r.textContent = n.resume || '';
-    z.appendChild(r);
-  }
+    bOk.disabled = true;
+    let ok = 0;
+    const rates = [];
+    for(let i = 0; i < liste.length; i++){
+      bOk.textContent = 'Import ' + (i + 1) + ' sur ' + liste.length + '…';
+      try{
+        /* L'import périme le cache : les nouveaux textes doivent
+           paraître aussitôt. */
+        perimerModeles();
+        /* ⚠️ CHAQUE FICHE PORTE SON NUMÉRO AVANT DE PARTIR — v959.
+           Sans lui, un appel renvoyé après un délai dépassé ajoute
+           une seconde ligne ; sur un lot de cent, ça se compte en
+           dizaines de doublons qu'on trie ensuite à la main. */
+        await appelPrep({ action: 'modeleSet', id: nouvelIdModele(),
+                          usage: usage,
+                          nom: liste[i].titre,
+                          etiquettes: cat,
+                          contenu: liste[i].contenu });
+        ok++;
+      }catch(e){ rates.push(liste[i].titre + ' : ' + e.message); }
+    }
 
-  const dt = document.createElement('div');
-  dt.className = 'nvDate';
-  dt.textContent = n.date || '';
-  z.appendChild(dt);
-
-  (n.quoi || []).forEach(c => {
-    const l = document.createElement('div');
-    l.className = 'nvItem';
-
-    const e = document.createElement('div');
-    e.className = 'em';
-    e.textContent = c.emoji || '•';
-    l.appendChild(e);
-
-    const corps = document.createElement('div');
-    corps.className = 'corps';
-
-    const q = document.createElement('div');
-    q.className = 'quoi';
-    q.textContent = c.titre || '';
-    corps.appendChild(q);
-
-    const p = document.createElement('div');
-    p.className = 'comment';
-    p.textContent = c.texte || '';
-    corps.appendChild(p);
-
-    l.appendChild(corps);
-    z.appendChild(l);
+    fermerFond(fond);
+    showToast(ok + ' modèle(s) importé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+    if(rates.length) await informer('Modèles non importés :\n\n' + rates.join('\n'));
+    afficherModelesTexte();
   });
 
-  return z;
+  setTimeout(() => zone.focus(), 100);
 }
 
-/* Les précédentes, repliées : une note lue n'est pas perdue —
-   quelqu'un revient de congés, ou veut relire comment marche le
-   bouton CB. */
-function voletNouveautesPrecedentes(liste){
-  const d = document.createElement('details');
-  d.className = 'volet-liste';
-  d.style.marginTop = '12px';
 
-  const s = document.createElement('summary');
-  s.textContent = '📜 Les versions précédentes';
-  d.appendChild(s);
+/* Supprime tous les textes d'un dossier, en une fois */
+async function viderDossier(nom, liste, bouton){
+  if(!await confirmer('Supprimer les ' + liste.length + ' texte(s) du dossier « ' +
+      nom + '» ?\n\n' +
+      liste.slice(0, 8).map(m => '• ' + (m.titre || m.nom)).join('\n') +
+      (liste.length > 8 ? '\n• … et ' + (liste.length - 8) + ' autre(s)' : '') +
+      '\n\nCette action est irréversible.')) return;
 
-  liste.forEach(n => d.appendChild(blocNouveaute(n)));
-  return d;
+  bouton.disabled = true;
+  const initial = bouton.textContent;
+  let ok = 0;
+  const rates = [];
+
+  for(let i = 0; i < liste.length; i++){
+    bouton.textContent = (i + 1) + '/' + liste.length;
+    try{
+      await appelPrep({ action: 'modeleDelete', id: liste[i].id });
+      ok++;
+    }catch(e){ rates.push((liste[i].titre || liste[i].nom) + ' : ' + e.message); }
+  }
+
+  showToast(ok + ' texte(s) supprimé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+  if(rates.length) await informer('Textes non supprimés :\n\n' + rates.join('\n'));
+  bouton.textContent = initial;
+  afficherModelesTexte();
 }
-
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-nouveautes.js'] = true;
+window.EC_MODULES['ec-textes.js'] = true;
