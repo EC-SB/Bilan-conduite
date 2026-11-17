@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 14:17 — v1414 */
+/* Déployé le 17/11/2026 à 15:44 — v1453 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -1630,6 +1630,89 @@ const ML_COULEURS = ['#16180F', '#C33A12', '#E8590C', '#A86A00', '#3B6900', '#0E
 const ML_SURLIGNE = ['#FFF3A3', '#D7F7A8', '#C6F0F2', '#FFD9C7', '#E8D9FF', 'transparent'];
 const ML_EMOJIS = ['🙂', '😊', '👍', '🙏', '👋', '✅', '📅', '📞', '🚗', '🎉', '⚠️', '📄', '💶', '⏰', '📍', '❤️'];
 
+/* 🎨 v1453 — UNE VRAIE PALETTE. David : « je ne connais pas les codes par
+   cœur, il faut que j'aie une vraie palette de couleurs » — « pareil pour le
+   surlignage, je n'ai que des codes HEX ». Le menu montrait « ● #C33A12 » :
+   un rond noir et un code. Maintenant : des pastilles de la couleur, son nom
+   au survol, et « 🎨 Autre couleur… » pour toutes les autres. */
+const ML_PALETTE_TEXTE = [
+  ['#000000', 'Noir'], ['#16180F', 'Encre'], ['#434343', 'Anthracite'], ['#666666', 'Gris foncé'],
+  ['#999999', 'Gris'], ['#B7B7B7', 'Gris clair'], ['#D9D9D9', 'Gris perle'], ['#FFFFFF', 'Blanc'],
+  ['#E02020', 'Rouge'], ['#E8590C', 'Orange'], ['#BF9000', 'Or'], ['#2E7D32', 'Vert'],
+  ['#0E7C86', 'Turquoise'], ['#1565C0', 'Bleu'], ['#6B3FA0', 'Violet'], ['#C2185B', 'Rose'],
+  ['#8B1A1A', 'Bordeaux'], ['#8B4513', 'Brun'], ['#6B6B00', 'Olive'], ['#1B5E20', 'Vert sapin'],
+  ['#0B5560', 'Bleu pétrole'], ['#1F3864', 'Bleu marine'], ['#4A148C', 'Prune'], ['#880E4F', 'Framboise'],
+  ['#E06666', 'Corail'], ['#F6B26B', 'Abricot'], ['#F1C232', 'Jaune'], ['#93C47D', 'Vert tendre'],
+  ['#76A5AF', 'Vert d’eau'], ['#6FA8DC', 'Bleu ciel'], ['#8E7CC3', 'Lavande'], ['#C27BA0', 'Rose poudré']
+];
+const ML_PALETTE_SURLIGNE = [
+  ['#FFF59D', 'Jaune'], ['#FFFF00', 'Jaune fluo'], ['#E6FFB3', 'Citron vert'], ['#D7F7A8', 'Vert pomme'],
+  ['#B9F6CA', 'Vert menthe'], ['#C6F0F2', 'Turquoise'], ['#BBDEFB', 'Bleu ciel'], ['#E8D9FF', 'Lavande'],
+  ['#FFD1DC', 'Rose'], ['#FFD9C7', 'Saumon'], ['#FFCCBC', 'Pêche'], ['#FFE0B2', 'Orange clair'],
+  ['#F5E6C8', 'Sable'], ['#D1C4E9', 'Lilas'], ['#EEEEEE', 'Gris clair'], ['#E0E0E0', 'Gris']
+];
+/* La palette s'ouvre dans la même petite fenêtre que les autres menus
+   (menuGestesEC : à côté du bouton, ✕ et Échap la ferment). opts :
+   { aucune: 'Sans surlignage' } ajoute la pastille qui retire, { actuelle } entoure la dernière. */
+function mlPalette(ancre, titre, liste, choisir, opts){
+  const o = opts || {};
+  const fermer = menuGestesEC(ancre, titre, []);
+  const f = Array.from(document.querySelectorAll('.msgFeuille')).pop();
+  if(!f) return;
+  f.classList.add('mlPalFeuille');
+  const corps = f.querySelector('.fC');
+  const nom = document.createElement('div');
+  nom.className = 'mlPalNom';
+  nom.textContent = 'Choisis une couleur';
+  const grille = document.createElement('div');
+  grille.className = 'mlPal';
+  const prendre = c => { fermer(); choisir(c); };
+  liste.forEach(([c, n]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mlPastille' + (o.actuelle && o.actuelle.toLowerCase() === c.toLowerCase() ? ' on' : '');
+    b.style.background = c;
+    b.title = n;
+    b.setAttribute('aria-label', n);
+    b.dataset.couleur = c;
+    const dire = () => { nom.textContent = n; };
+    b.addEventListener('mouseenter', dire);
+    b.addEventListener('focus', dire);
+    b.addEventListener('mousedown', ev => ev.preventDefault());
+    b.addEventListener('click', ev => { ev.stopPropagation(); prendre(c); });
+    grille.appendChild(b);
+  });
+  corps.append(grille, nom);
+  const bas = document.createElement('div');
+  bas.className = 'mlPalBas';
+  if(o.aucune){
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'btn btn-secondary mlPalAucune';
+    x.textContent = '✕ ' + o.aucune;
+    x.addEventListener('mousedown', ev => ev.preventDefault());
+    x.addEventListener('click', ev => { ev.stopPropagation(); prendre('transparent'); });
+    bas.appendChild(x);
+  }
+  const lab = document.createElement('label');
+  lab.className = 'mlPalAutre';
+  lab.textContent = '🎨 Autre couleur… ';
+  const i = document.createElement('input');
+  i.type = 'color';
+  i.value = (o.actuelle && /^#[0-9a-f]{6}$/i.test(o.actuelle)) ? o.actuelle : liste[0][0];
+  i.addEventListener('change', () => prendre(i.value));
+  lab.appendChild(i);
+  bas.appendChild(lab);
+  corps.appendChild(bas);
+  /* la place prise maintenant qu'elle est remplie : elle reste dans l'écran */
+  if(f.classList.contains('pop')){
+    const r = f.getBoundingClientRect();
+    if(r.bottom > window.innerHeight - 8) f.style.top = Math.max(8, window.innerHeight - r.height - 8) + 'px';
+  }
+  const premiere = grille.querySelector('.mlPastille.on') || grille.querySelector('.mlPastille');
+  if(premiere) setTimeout(() => premiere.focus(), 0);
+}
+
 /* La barre de mise en forme et la zone d'écriture, pour l'éditeur, la
    signature et les réponses rapides. options : { outils, surChange, surFichier } */
 function mlZoneDEcriture(options){
@@ -1678,8 +1761,18 @@ function mlZoneDEcriture(options){
   if(outils === 'tout') bt('<s>B</s>', 'Barré', () => faire('strikeThrough'));
   sep();
   bt('Aa ▾', 'Taille', b => choix(b, 'Taille', [['Petit', 2], ['Normal', 3], ['Grand', 5], ['Très grand', 6]].map(([t, v]) => ({ emoji: 'Aa', texte: t, faire: () => faire('fontSize', v) }))));
-  bt('<span style="border-bottom:3px solid #E8590C;">A</span> ▾', 'Couleur du texte', b => choix(b, 'Couleur du texte', ML_COULEURS.map(c => ({ emoji: '●', texte: c, faire: () => faire('foreColor', c) }))));
-  bt('🖍️ ▾', 'Surligner', b => choix(b, 'Surligner', ML_SURLIGNE.map(c => ({ emoji: c === 'transparent' ? '✕' : '▮', texte: c === 'transparent' ? 'Sans surlignage' : c, faire: () => faire('hiliteColor', c) }))));
+  /* 🎨 v1453 — de vraies pastilles (mlPalette) ; le trait sous le bouton
+     prend la dernière couleur choisie */
+  let derniereCouleur = '#E8590C', dernierSurligne = '#FFF59D';
+  bt('<span class="mlBtA" style="border-bottom:3px solid #E8590C;">A</span> ▾', 'Couleur du texte', b => mlPalette(b, '🎨 Couleur du texte', ML_PALETTE_TEXTE, c => {
+    faire('foreColor', c);
+    derniereCouleur = c;
+    const s = b.querySelector('.mlBtA'); if(s) s.style.borderBottomColor = c;
+  }, { actuelle: derniereCouleur }));
+  bt('<span class="mlBtA" style="border-bottom:3px solid #FFF59D;">🖍️</span> ▾', 'Surligner', b => mlPalette(b, '🖍️ Surligner', ML_PALETTE_SURLIGNE, c => {
+    faire('hiliteColor', c);
+    if(c !== 'transparent'){ dernierSurligne = c; const s = b.querySelector('.mlBtA'); if(s) s.style.borderBottomColor = c; }
+  }, { actuelle: dernierSurligne, aucune: 'Sans surlignage' }));
   sep();
   bt('• ≡', 'Liste à puces', () => faire('insertUnorderedList'));
   bt('1. ≡', 'Liste numérotée', () => faire('insertOrderedList'));
@@ -1721,6 +1814,138 @@ function mlZoneDEcriture(options){
     }
   });
   return { cadre, barre, zone, outil: bt, sep, faire, remettre };
+}
+
+/* ============================================================
+   📝 CE QU'ON ÉCRIT DANS UN MAIL — v1453
+
+   Les fiches de Outils › Ce qu'on écrit (celles qu'il a le droit de
+   voir, rangées comme là-bas), à chercher par mot ou par catégorie. Un
+   appui pose le texte là où est le curseur :
+   · {prenom}, {eleve}… remplis quand le mail est lié à un élève ; dans
+     un mail neuf ils restent visibles, à remplacer à la main ;
+   · une première ligne « Objet : … » devient l'objet du mail (si
+     l'objet est vide) ; sinon l'objet vide prend le titre de la fiche.
+   Les fiches qui ne sont pas du texte (réglages en JSON) ne sont pas
+   proposées.
+   ============================================================ */
+function mlFichesCeQuOnEcrit(){
+  const toutes = (typeof fichesVisibles === 'function') ? fichesVisibles() : ((typeof modelesTexte !== 'undefined' && modelesTexte) || []);
+  const rangees = (typeof fichesRangees === 'function') ? fichesRangees(toutes.slice()) : toutes;
+  return rangees.filter(m => m && String(m.contenu || '').trim() && !/^\s*[\[{]/.test(String(m.contenu)));
+}
+function mlTexteDeLaFiche(m, fil){
+  let t = String(m.contenu || '').replace(/\r/g, '');
+  let objet = '';
+  const o = t.match(/^\s*Objet\s*:\s*(.+)\n?/i);
+  if(o){ objet = o[1].trim(); t = t.slice(o[0].length).replace(/^\n+/, ''); }
+  if(fil && (fil.eleve || fil.nom)){
+    t = mlRemplirLesMots(t, fil, false);
+    if(objet) objet = mlRemplirLesMots(objet, fil, false);
+  }
+  return { texte: t, objet: objet };
+}
+async function mlFenetreCeQuOnEcrit(o){
+  try{
+    await Promise.all([
+      typeof chargerModelesTexte === 'function' ? chargerModelesTexte() : null,
+      typeof chargerAccesCategories === 'function' ? chargerAccesCategories() : null,
+      typeof chargerOrdreEtiquettes === 'function' ? chargerOrdreEtiquettes() : null,
+      typeof chargerOrdreFiches === 'function' ? chargerOrdreFiches() : null
+    ].map(p => Promise.resolve(p).catch(() => null)));
+  }catch(e){}
+  const fiches = mlFichesCeQuOnEcrit();
+  const fond = document.createElement('div');
+  fond.className = 'overlay show mlCqeFond';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);';
+  fond.appendChild(boite);
+  boite.innerHTML = '<h3 style="margin-top:0;">📝 Ce qu’on écrit</h3>' +
+    '<div style="font-size:12.5px;color:var(--muted);margin:-4px 0 10px;line-height:1.45;">Touche une fiche : son texte se met dans le mail, là où est le curseur. ' +
+    (o.fil && (o.fil.eleve || o.fil.nom) ? '{prenom} et les autres mots se remplissent.' : 'Mail neuf : remplace {prenom} et les autres mots à la main.') + '</div>';
+  const champ = document.createElement('input');
+  champ.type = 'search';
+  champ.className = 'mlCqeChamp';
+  champ.placeholder = '🔎 Chercher dans ' + fiches.length + ' fiche' + (fiches.length > 1 ? 's' : '') + '…';
+  const cats = document.createElement('div');
+  cats.className = 'mlCqeCats';
+  const liste = document.createElement('div');
+  liste.className = 'mlCqeListe';
+  boite.append(champ, cats, liste);
+  const pied = document.createElement('div');
+  pied.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.type = 'button'; bF.className = 'btn btn-secondary'; bF.textContent = 'Fermer';
+  pied.appendChild(bF);
+  boite.appendChild(pied);
+  const fermer = () => { document.removeEventListener('keydown', echap, true); fond.remove(); };
+  const echap = ev => { if(ev.key === 'Escape'){ ev.stopPropagation(); fermer(); } };
+  document.addEventListener('keydown', echap, true);
+  bF.addEventListener('click', fermer);
+  fond.addEventListener('click', ev => { if(ev.target === fond) fermer(); });
+
+  const catsDe = m => (typeof categoriesDe === 'function') ? categoriesDe(m) : (m.categorie ? [m.categorie] : []);
+  const ordreCats = (typeof toutesLesEtiquettes === 'function') ? toutesLesEtiquettes() : [];
+  const presentes = [];
+  fiches.forEach(m => catsDe(m).forEach(c => { if(presentes.indexOf(c) === -1) presentes.push(c); }));
+  presentes.sort((a, b) => {
+    const ia = ordreCats.indexOf(a), ib = ordreCats.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.localeCompare(b, 'fr');
+  });
+  let cat = '';
+  const sansAcc = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const dessinerCats = () => {
+    cats.innerHTML = '';
+    [['', 'Toutes']].concat(presentes.map(c => [c, c])).forEach(([v, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (cat === v ? 'btn-primary' : 'btn-secondary');
+      b.textContent = t;
+      b.addEventListener('click', () => { cat = v; dessinerCats(); dessiner(); });
+      cats.appendChild(b);
+    });
+    cats.hidden = !presentes.length;
+  };
+  const dessiner = () => {
+    const mots = sansAcc(champ.value).split(/\s+/).filter(Boolean);
+    const l = fiches.filter(m => (!cat || catsDe(m).indexOf(cat) !== -1) &&
+      mots.every(w => sansAcc((m.titre || m.nom) + ' ' + catsDe(m).join(' ') + ' ' + m.contenu).indexOf(w) !== -1));
+    liste.innerHTML = '';
+    if(!l.length){
+      const v = document.createElement('div');
+      v.className = 'empty';
+      v.textContent = fiches.length ? 'Aucune fiche ne correspond.' : 'Aucune fiche dans Ce qu’on écrit.';
+      liste.appendChild(v);
+      return;
+    }
+    l.forEach(m => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mlCqeFiche';
+      const t = document.createElement('b'); t.textContent = m.titre || m.nom || 'Sans titre';
+      const c = document.createElement('small'); c.textContent = catsDe(m).join(' · ');
+      const a = document.createElement('span'); a.textContent = String(m.contenu || '').replace(/\s+/g, ' ').slice(0, 220);
+      b.append(t);
+      if(c.textContent) b.append(c);
+      b.append(a);
+      b.addEventListener('click', () => {
+        const x = mlTexteDeLaFiche(m, o.fil);
+        fermer();
+        o.ed.remettre();
+        document.execCommand('insertHTML', false, mlTexteEnHtml(x.texte));
+        if(o.sujet && !String(o.sujet.value || '').trim()) o.sujet.value = x.objet || (m.titre || m.nom || '');
+        if(o.surChange) o.surChange();
+        mlToast('📝 « ' + (m.titre || m.nom) + ' » ajouté au mail');
+      });
+      liste.appendChild(b);
+    });
+  };
+  champ.addEventListener('input', dessiner);
+  dessinerCats();
+  dessiner();
+  document.body.appendChild(fond);
+  setTimeout(() => champ.focus(), 50);
 }
 
 /* Un fichier choisi → déposé (mailPiece) → { cle, nom, type, taille, lien } */
@@ -2045,6 +2270,10 @@ async function mlOuvrirLEditeur(opts){
     } });
     menuGestesEC(b, '⚡ Réponses rapides', items);
   });
+  /* 📝 v1453 — David : « ajoute le bouton Ce qu'on écrit, ce qu'on envoie,
+     pour avoir les mails préfaits qui sont déjà là » */
+  ed.outil('📝 Ce qu’on écrit', 'Les fiches de Outils › Ce qu’on écrit : la choisir la met dans le mail', () =>
+    mlFenetreCeQuOnEcrit({ ed: ed, fil: f, sujet: sujet, surChange: surChange }));
   /* 🤖 ▾ v1338 — reprendre la réponse proposée, reformuler, corriger */
   if(mlClaudeAllume()) ed.outil('🤖 ▾', 'Claude : reprendre la réponse proposée, reformuler, corriger les fautes', b => mlMenuClaudeEditeur(b, ed, surChange));
   boite.appendChild(ed.cadre);
