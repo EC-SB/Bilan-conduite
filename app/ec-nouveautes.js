@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 14:53 — v1451 */
+/* Déployé le 17/11/2026 à 15:15 — v1452 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1452,
+    date: 'Mardi 17 novembre 2026',
+    resume: '♻️ Le « Up » après un ajournement, 🗑️ supprimer un post-permis, 🎬 le bon lien du bilan',
+    quoi: [
+      { emoji: '♻️',
+        titre: 'Le « Up » sous le premier message Messenger',
+        texte: 'Après « ❌ Ajourné », la fenêtre « 📤 À envoyer à … » montre aussi le « Up », sous le premier message, avec son propre « 📋 Copier ». Dans Ce qu’on écrit, sa fiche se range dans « ❌ Ajourné — le « Up » Messenger (2e message) ». Une 2e fiche « ❌ Ajourné — le message Messenger » s’affiche aussi en dessous.' },
+      { emoji: '🗑️',
+        titre: 'Supprimer un post-permis',
+        texte: 'Dans la fiche d’un élève de ⏳ Attente bilan post-permis (admin) : « 🗑️ Supprimer le post-permis ». Tout part : l’ajournement (fiche de suivi et 🏁 Résultats), le bilan de l’examen, son bilan, les captures du CEPC de cet examen, les messages post-permis de sa messagerie, le RDV post-permis et son cours préparé. Sa fiche reste. Et quand tu supprimes une session où des élèves ont été notés ajournés, l’appli te demande si elle efface aussi leur post-permis.' },
+      { emoji: '🎬',
+        titre: 'Le bon lien pour faire son bilan',
+        texte: 'Un « 🔗 Lien élève » vers une étape mis dans la carte « 🚦 Suite à ton ajournement » remplace le lien « Vous avez loupé votre examen » : sur la carte (sous « 📝 Faire mon bilan », sans l’adresse brute) et dans la marche à suivre envoyée dans sa messagerie (un bouton « 🎬 Ouvrir … »).' }
+    ]
+  },
   {
     version: 1451,
     date: 'Mardi 17 novembre 2026',
