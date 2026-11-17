@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 10:32 — v1443 */
+/* Déployé le 17/11/2026 à 12:42 — v1446 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -3235,6 +3235,11 @@ function ecouterCollageCepc(){
   document.addEventListener('paste', surCollageCepc);
 }
 
+/* 📷 v1446 — la date d'une capture, comparable : « 2026-11-10 », « 10/11/2026 » → « 2026-11-10 » */
+function isoDeCapturePP(v){
+  const t = String(v || '').trim(), m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : t.slice(0, 10);
+}
 function blocCaptures(eleve, dateExamen){
   const d = document.createElement('div');
   d.style.cssText = 'margin-bottom:12px;';
@@ -3255,13 +3260,31 @@ function blocCaptures(eleve, dateExamen){
 
   async function dessiner(){
     galerie.innerHTML = '<div style="font-size:12px;color:var(--muted);">Chargement…</div>';
-    const liste = await chargerCaptures(eleve);
+    let liste = await chargerCaptures(eleve);
+    /* 📷 v1446 — David : « quand on a un repassage dans Résultats permis, il
+       faut enlever les anciennes captures ». Avec la date de l'examen, on ne
+       montre que les siennes ; celles d'un examen d'avant restent rangées
+       (rien n'est effacé), juste cachées. */
+    let cachees = 0;
+    if(dateExamen){
+      const jour = isoDeCapturePP(dateExamen);
+      const avant = liste.length;
+      liste = liste.filter(c => isoDeCapturePP(c.dateExamen) === jour);
+      cachees = avant - liste.length;
+    }
     galerie.innerHTML = '';
+    if(cachees){
+      const n = document.createElement('div');
+      n.className = 'capCachees';
+      n.style.cssText = 'font-size:11px;color:var(--muted);width:100%;';
+      n.textContent = '🗂️ ' + cachees + ' capture' + (cachees > 1 ? 's' : '') + ' d’un examen précédent, cachée' + (cachees > 1 ? 's' : '') + '.';
+      galerie.appendChild(n);
+    }
 
     if(!liste.length){
       const v = document.createElement('div');
       v.style.cssText = 'font-size:12px;color:var(--muted);';
-      v.textContent = 'Aucune capture pour le moment.';
+      v.textContent = dateExamen ? 'Aucune capture pour cet examen.' : 'Aucune capture pour le moment.';
       galerie.appendChild(v);
       return;
     }
