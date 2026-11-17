@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 10:20 — v1363 */
+/* Déployé le 17/11/2026 à 13:15 — v1447 */
 /* ============================================================
    ec-fiches.js
    ✍️ Le créateur des fiches « bilan à la main » — v1206
@@ -78,6 +78,8 @@ async function ouvrirCreateurFiches(modeleCle){
     forme: null, choix: '', cadre: '', encadre: null, format: 'tel', essai: false, feuille: '', minuteur: null, enCours: null,
     /* 🅿️ v1236 — le menu des manœuvres, commun à trois fiches */
     menu: null, minuteurMenu: null,
+    /* 🕹️ v1447 — les cases « à travailler sur le simulateur » (évaluation) */
+    simu: null, minuteurSimu: null,
     sauve: {
       champsManuels: champsManuels, champsDessinesCourants: (typeof champsDessinesCourants !== 'undefined') ? champsDessinesCourants : null,
       dossierManuel: (typeof dossierManuel !== 'undefined') ? dossierManuel : null,
@@ -85,6 +87,7 @@ async function ouvrirCreateurFiches(modeleCle){
     }
   };
   chargerMenuFiche();
+  chargerSimuFiche();
   chargerFormeFiche();
   coquilleFiche();
   dessinerCreateurFiche();
@@ -113,6 +116,29 @@ async function enregistrerMenuFiche(maintenant){
     if(fiS){ majFichesDepuis(r); if(!maintenant) dessinerEtatFiche(); }
   }catch(e){ showToast('Menu des manœuvres non enregistré : ' + e.message); }
 }
+/* 🕹️ v1447 — la liste du simulateur : son brouillon à elle, comme le menu */
+function chargerSimuFiche(){
+  const f = fiS.brouillons[CLE_LISTE_SIMU] || fiS.publiees[CLE_LISTE_SIMU];
+  fiS.simu = nettoyerListeSimu(f).liste;
+}
+function changerSimuFiche(fn){
+  if(!fiS.simu.length) fiS.simu = LISTE_SIMU_ECOLE.slice();
+  fn(fiS.simu);
+  fiS.simu = nettoyerListeSimu({ liste: fiS.simu }).liste;
+  dessinerFicheDuMoniteur();
+  dessinerPanneauFiche();
+  clearTimeout(fiS.minuteurSimu);
+  fiS.minuteurSimu = setTimeout(() => enregistrerSimuFiche(), 1000);
+  dessinerEtatFiche('…');
+}
+async function enregistrerSimuFiche(maintenant){
+  if(!fiS || !fiS.minuteurSimu) return;
+  clearTimeout(fiS.minuteurSimu); fiS.minuteurSimu = null;
+  try{
+    const r = await appelPrep({ action: 'ficheManuellePoser', modele: CLE_LISTE_SIMU, forme: JSON.stringify({ v: 1, liste: fiS.simu }), publier: '0' });
+    if(fiS){ majFichesDepuis(r); if(!maintenant) dessinerEtatFiche(); }
+  }catch(e){ showToast('Liste du simulateur non enregistrée : ' + e.message); }
+}
 /* 🚗 les listes « Les voitures » emportent la Flotte du moment */
 function voituresDesListesFiche(){
   if(!fiS || !Array.isArray(fiS.flotte) || !fiS.flotte.length) return;
@@ -128,6 +154,7 @@ async function fermerCreateurFiche(){
   fiS.fermeture = true;
   await enregistrerBrouillonFiche(true);
   await enregistrerMenuFiche(true);
+  await enregistrerSimuFiche(true);
   window.essaiFicheEnCours = false;
   const s = fiS.sauve;
   champsManuels = s.champsManuels;
@@ -250,6 +277,12 @@ async function actionFiche(a){
         r = await appelPrep({ action: 'ficheManuellePoser', modele: CLE_MENU_MANOEUVRES, forme: JSON.stringify({ v: 1, liste: fiS.menu }), publier: '1' });
         majFichesDepuis(r);
       }
+      /* 🕹️ v1447 — la liste du simulateur en brouillon part avec */
+      await enregistrerSimuFiche(true);
+      if(fiS.brouillons[CLE_LISTE_SIMU]){
+        r = await appelPrep({ action: 'ficheManuellePoser', modele: CLE_LISTE_SIMU, forme: JSON.stringify({ v: 1, liste: fiS.simu }), publier: '1' });
+        majFichesDepuis(r);
+      }
       dessinerEtatFiche();
       showToast('Publiée ✅ — les moniteurs l’ont à leur prochain bilan');
     }catch(e){ showToast('Impossible : ' + e.message); }
@@ -328,6 +361,7 @@ function dessinerEtatFiche(enCours){
   else if(publie) t = '✅ Publiée' + (i.publieLe ? ' le ' + echFiche(i.publieLe) : '') + (i.publiePar ? ' par ' + echFiche(i.publiePar) : '') + ' — c’est celle des moniteurs';
   else t = 'Fiche d’origine — chaque changement part dans un brouillon, rien ne change pour les moniteurs avant « 💾 Publier »';
   if(!enCours && fiS.brouillons[CLE_MENU_MANOEUVRES]) t += ' · 🅿️ <b>menu des manœuvres</b> : brouillon pas encore publié';
+  if(!enCours && fiS.brouillons[CLE_LISTE_SIMU]) t += ' · 🕹️ <b>cases du simulateur</b> : brouillon pas encore publié';
   e.innerHTML = t;
 }
 
@@ -543,6 +577,7 @@ function blocZoneFiche(cle){
     (avecAide ? '<label for="fiAide">La petite aide dessous</label><input type="text" id="fiAide" maxlength="240" placeholder="(aucune)">' : '') +
     /* 🅿️ v1236 — le menu des manœuvres ; ▾ une liste ajoutée */
     (c.choixManoeuvre ? '<div id="fiMenu"></div>' : '') +
+    (c.type === 'simuTravail' ? '<div id="fiSimu"></div>' : '') +
     (ajout && c.type === 'liste' ? '<div id="fiListe"></div>' : '') +
     /* 🎯 v1238 — des remarques : leur mention, leur nombre de lignes ;
        ➖ une case trois états : les points qu'elle enlève au CEPC */
@@ -659,6 +694,8 @@ function blocZoneFiche(cle){
   if(ca) ca.addEventListener('click', () => ouvrirCaseFiche(cle, -1));
   const fm = z.querySelector('#fiMenu');
   if(fm) remplirMenuFiche(fm);
+  const fsi = z.querySelector('#fiSimu');
+  if(fsi) remplirSimuFiche(fsi);
   const fl = z.querySelector('#fiListe');
   if(fl && aj) remplirListeFiche(fl, cle, aj);
   const fr = z.querySelector('#fiRemarques');
@@ -720,6 +757,62 @@ function remplirMenuFiche(div){
     fiS.menu = [];
     clearTimeout(fiS.minuteurMenu);
     fiS.minuteurMenu = setTimeout(() => enregistrerMenuFiche(), 300);
+    dessinerFicheDuMoniteur(); dessinerPanneauFiche();
+  });
+}
+
+/* ============================================================
+   🕹️ v1447 — LES CASES « À TRAVAILLER SUR LE SIMULATEUR »
+
+   David, le 17 novembre : « que je puisse en enlever, et en ajouter au
+   besoin dans le constructeur ». Départ : VA/VD, Passage de vitesse,
+   Giratoire, Volant, PAD. Les deux évaluations (manuelle, auto) ont
+   la même liste.
+   ============================================================ */
+function remplirSimuFiche(div){
+  const liste = listeDuSimuATravailler();
+  const perso = fiS.simu.length > 0;
+  div.innerHTML = '<label>☑ Les cases (' + liste.length + ')</label>' +
+    '<div class="stPetit" style="margin:-2px 0 6px;">Elles s’affichent sous « Heures de simulateur » dès que le moniteur tape des heures. ' +
+      'La <b>même liste</b> pour les deux évaluations' + (perso ? ', réglée à la main' : ' : la liste de départ') + '. ' +
+      'Dans le bilan : « 👉 À travailler sur le simulateur : … », sous la ligne du simulateur.</div>' +
+    '<div class="fiCases"></div>' +
+    '<div class="stChips"><button type="button" class="btn btn-secondary fiPetitBtn" id="fiSimuAjout">➕ Ajouter une case</button>' +
+      (perso ? '<button type="button" class="btn btn-secondary fiPetitBtn" id="fiSimuOrigine">↺ La liste de départ</button>' : '') + '</div>';
+  const g = div.querySelector('.fiCases');
+  liste.forEach((m, i) => {
+    const l = document.createElement('div');
+    l.className = 'fiCase';
+    l.innerHTML = '<div class="q"><b></b></div>' +
+      (i > 0 ? '<button type="button" class="btn btn-secondary" data-sm="haut" title="Monter">↑</button>' : '') +
+      '<button type="button" class="btn btn-secondary" data-sm="modifier" title="Renommer">✏️</button>' +
+      '<button type="button" class="btn btn-secondary" data-sm="retirer" title="Retirer">✕</button>';
+    l.querySelector('b').textContent = m;
+    const h = l.querySelector('[data-sm="haut"]');
+    if(h) h.addEventListener('click', () => changerSimuFiche(t => { const x = t[i - 1]; t[i - 1] = t[i]; t[i] = x; }));
+    l.querySelector('[data-sm="modifier"]').addEventListener('click', async () => {
+      const n = await demander('Le nouveau nom de la case « ' + m + ' » :', m, '✏️ Renommer');
+      if(n == null || !String(n).trim()) return;
+      changerSimuFiche(t => { t[i] = String(n).trim(); });
+    });
+    l.querySelector('[data-sm="retirer"]').addEventListener('click', async () => {
+      if(liste.length <= 1){ showToast('Il reste au moins une case.'); return; }
+      if(!await confirmer('Retirer la case « ' + m + ' » ?')) return;
+      changerSimuFiche(t => { t.splice(i, 1); });
+    });
+    g.appendChild(l);
+  });
+  div.querySelector('#fiSimuAjout').addEventListener('click', async () => {
+    const n = await demander('La case à ajouter (à la fin de la liste) :', '', '➕ Ajouter une case');
+    if(n == null || !String(n).trim()) return;
+    changerSimuFiche(t => { t.push(String(n).trim()); });
+  });
+  const o = div.querySelector('#fiSimuOrigine');
+  if(o) o.addEventListener('click', async () => {
+    if(!await confirmer('Remettre la liste de départ (VA/VD, Passage de vitesse, Giratoire, Volant, PAD) ?')) return;
+    fiS.simu = [];
+    clearTimeout(fiS.minuteurSimu);
+    fiS.minuteurSimu = setTimeout(() => enregistrerSimuFiche(), 300);
     dessinerFicheDuMoniteur(); dessinerPanneauFiche();
   });
 }
