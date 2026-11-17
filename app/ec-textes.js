@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:15 — v1409 */
+/* Déployé le 17/11/2026 à 13:55 — v1450 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -25,6 +25,16 @@ const USAGES_MODELE = [
   { cle:'post_permis_rdv', nom:'🔁 Post-permis — prendre son rendez-vous',
     variables:[] },
   { cle:'post_permis_up',  nom:'🔁 Post-permis — la relance « UP »',
+    variables:[] },
+  /* 🚦 v1450 — David : « où est-ce que je peux changer ce texte ? » (la
+     carte de l'accueil de l'espace élève après un ajournement). Le texte de
+     départ vit dans ec-postpermis.js (CARTE_AJOURNEMENT_DEFAUT) ; le Worker
+     le donne à l'élève (b.texteCarte). Sa mise en forme : AIDE_CARTE_AJ. */
+  { cle:'carte_ajournement', nom:'🚦 Espace élève — carte « Suite à ton ajournement »',
+    variables:['{cepc}', '{agence}'] },
+  /* 🚦 v1450 — le message Messenger de la fenêtre « 📤 À envoyer à … »
+     (ec-postpermis.js, MSG_AJOURNE_APP) */
+  { cle:'ajourne_app', nom:'❌ Ajourné — le message Messenger (bilan dans l’appli)',
     variables:[] },
   /* 📨 v1380 — les relances de Permis › Relances (ec-relances.js). Sans
      modèle écrit ici, ce sont les textes de départ du code. La première
@@ -92,6 +102,13 @@ const AIDE_HEURES =
 /* Un modèle de départ pour les usages qui en ont un. Le texte
    n'est pas recopié ici : il vit dans le module qui l'utilise,
    sinon les deux finiraient par diverger sans qu'on le voie. */
+const AIDE_CARTE_AJ = '🚦 <b>Comment l’écrire</b> (l’élève la voit sur l’accueil de son espace, sous « 🚦 Suite à ton ajournement du … ») :<br>' +
+  '• une ligne vide = un nouveau paragraphe ; <code>**mot**</code> = en gras ;<br>' +
+  '• <code>1-</code>, <code>2-</code>, <code>3-</code> en début de paragraphe = une étape numérotée ; ' +
+  'la 1<sup>re</sup> reçoit toute seule où en est son bilan, le bouton « 📝 Faire mon bilan » et le lien de l’étape 24 ;<br>' +
+  '• une ligne qui commence par <code>!!</code> = la ligne en gros (« PAS DE BILAN COMPLET… ») ;<br>' +
+  '• l’étape qui contient <code>{agence}</code> ne s’affiche qu’aux élèves qui peuvent repasser ailleurs (avec le lien « Où se trouve l’agence ») ;<br>' +
+  '• <code>{cepc}</code> = le lien « voir ton CEPC » ; ce qui suit la dernière étape s’écrit en petit, comme un avertissement.';
 function modeleParDefaut(cle){
   if(cle === 'rappel_financeur' && typeof MODELE_FINANCEUR_DEFAUT !== 'undefined'){
     return MODELE_FINANCEUR_DEFAUT;
@@ -127,6 +144,12 @@ function textesDeDepart(){
   }
   if(typeof MESSAGES_POST_PERMIS !== 'undefined'){
     MESSAGES_POST_PERMIS.forEach(m => l.push({ usage: m.usage, nom: '🔁 Post-permis — ' + m.nom, contenu: m.texte, etiquettes: '📨 Relances' }));
+  }
+  if(typeof MSG_AJOURNE_APP !== 'undefined'){
+    l.push({ usage: 'ajourne_app', nom: '❌ Ajourné — le message Messenger (bilan dans l’appli)', contenu: MSG_AJOURNE_APP, etiquettes: '📨 Relances' });
+  }
+  if(typeof CARTE_AJOURNEMENT_DEFAUT !== 'undefined'){
+    l.push({ usage: 'carte_ajournement', nom: '🚦 Espace élève — carte « Suite à ton ajournement »', contenu: CARTE_AJOURNEMENT_DEFAUT, etiquettes: '📨 Relances' });
   }
   return l;
 }
@@ -3710,6 +3733,14 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
       z.appendChild(info);
     }
 
+    /* 🚦 v1450 — la mise en forme de la carte de l'espace élève */
+    if(u && u.cle === 'carte_ajournement'){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;' +
+        'line-height:1.6;border-top:1px solid var(--line);padding-top:8px;';
+      a.innerHTML = AIDE_CARTE_AJ;
+      z.appendChild(a);
+    }
     /* L'aide des heures, seulement là où elle sert */
     if(u && u.variables.some(v => v.indexOf('{heure') === 0)){
       const a = document.createElement('div');
