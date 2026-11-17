@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 17/11/2026 à 13:33 — v1449 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1112,6 +1112,8 @@ function blocPostPermisDeLaCarte(cours){
     ligneCepc.style.color = 'var(--muted)';
     ligneCepc.textContent = '🧾 CEPC…';
     chargerCaptures(nom).then(l => {
+      /* 🔁 v1449 — le compte de son dernier examen, pas de toutes ses captures */
+      if(Array.isArray(l) && typeof capturesDuMemeExamenPP === 'function') l = capturesDuMemeExamenPP(l, dateDExamenPP(nom));
       capturesPostPermis[cle] = Array.isArray(l) ? l.length : 0;
       poserCepc(capturesPostPermis[cle]);
     }).catch(() => poserCepc(null));
@@ -4466,7 +4468,8 @@ async function ouvrirRdvPost(cours){
   if(notre) zc.appendChild(notre);
 
   /* Les captures du CEPC, déposées par le bureau ou ajoutées ici */
-  zc.appendChild(blocCaptures(cours.eleve, ''));
+  /* 🔁 v1449 — celles de son dernier examen seulement (pas les anciennes) */
+  zc.appendChild(blocCaptures(cours.eleve, (typeof dateDExamenPP === 'function') ? dateDExamenPP(cours.eleve) : ''));
 
   /* ------------------------------------------------------------
      LE BILAN DE L'EXAMEN OFFICIEL, REPRIS TOUT SEUL — v924
