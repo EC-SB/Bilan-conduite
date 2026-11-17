@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 15:08 — v1440 */
+/* Déployé le 17/11/2026 à 10:05 — v1442 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,32 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1442,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🎓 Cours en salle : un bouton par cours, ses vidéos s’enchaînent',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Un bouton par cours (guide)',
+        texte: 'Sur la tablette, après le code de l’équipe : un bouton par guide (ETM, AM 2 roues…). Un appui, et l’élève ne voit que ce cours : ses vidéos s’enchaînent toutes seules dans l’ordre du guide, sans rien choisir ni sauter. Après la dernière, retour à l’accueil. Un guide sans vidéo a son bouton éteint.' }
+    ]
+  },
+  {
+    version: 1441,
+    date: 'Mardi 17 novembre 2026',
+    resume: '📺 Les présentations et les cours en salle sur les tablettes',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Sur l’accueil des tablettes : « Découvre nos formations »',
+        texte: 'Un bouton par vidéo de présentation, pour tout le monde, sans code et sans suivi. À la fin, la tablette revient à l’accueil.' },
+      { emoji: '🎓',
+        titre: '« Cours en salle » : l’équipe lance la vidéo',
+        texte: 'Avec ton code de l’appli, les cours rangés par catégorie (ETM, moto, AM, BE, B96…). Le cours se regarde jusqu’au bout : pas d’avance rapide, seule l’équipe peut l’arrêter (avec son code). Rien n’est noté. À la fin, retour à l’accueil.' },
+      { emoji: '📺',
+        titre: 'Ça se range dans Groupes et guides',
+        texte: '✏️ Le groupe › « 📺 Seulement sur les tablettes », en libre ou avec le code de l’équipe. Un guide publié = une catégorie, une étape = un bouton : tu ajoutes, renommes et changes l’ordre comme d’habitude. Ces groupes ne s’ouvrent chez aucun élève.' }
+    ]
+  },
   {
     version: 1440,
     date: 'Samedi 14 novembre 2026',
