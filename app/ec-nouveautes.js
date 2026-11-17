@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:31 — v1448 */
+/* Déployé le 17/11/2026 à 13:33 — v1449 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1449,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🔁 Post-permis : seulement les captures du dernier examen',
+    quoi: [
+      { emoji: '🔁',
+        titre: 'Les anciennes captures ne s’affichent plus au post-permis',
+        texte: 'Le rendez-vous post-permis (sa préparation, son « 🧾 CEPC : N captures », et sa fiche dans Attente bilan post-permis) et les messages d’ajournement ne montrent que les captures du CEPC de son dernier examen (la date de l’ajournement). Les anciennes restent rangées : plus besoin de les retirer une par une.' },
+      { emoji: '⚡',
+        titre: 'Retirer une capture : tout de suite',
+        texte: 'Le ✕ d’une capture la retire de l’écran immédiatement, sans recharger toutes les images. Si le classeur refuse, elle revient à sa place avec un message.' }
+    ]
+  },
   {
     version: 1448,
     date: 'Mardi 17 novembre 2026',
