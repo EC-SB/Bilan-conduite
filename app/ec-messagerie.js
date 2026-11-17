@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 14:23 — v1439 */
+/* Déployé le 17/11/2026 à 10:32 — v1443 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -2144,6 +2144,9 @@ function bulleDuMessage(m, avant, apres){
   /* 📝 v1321 — son bilan de cours : « ✏️ Lire, corriger et valider » (ec-bilan-eleve.js) */
   const bcB = (typeof carteBilanCoursEC === 'function') ? carteBilanCoursEC(m) : null;
   if(bcB) b.appendChild(bcB);
+  /* 💬 v1443 — son bilan post-permis : « 👁️ Lire et valider » (ec-postpermis.js) */
+  const ppB = (typeof carteBilanPPEC === 'function') ? carteBilanPPEC(m) : null;
+  if(ppB) b.appendChild(ppB);
   /* 🚦 v1409 — sa vidéo (ou son vocal) de procédure : « Corriger cette
      procédure » la dépose dans Procédures à corriger, déjà remplie */
   if((videoB || vocal) && m.auteurGenre === 'eleve' && typeof corrigerUneProcedureDeLaMessagerie === 'function' &&
