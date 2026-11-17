@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 14:33 — v1405 */
+/* Déployé le 17/11/2026 à 10:32 — v1443 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -720,6 +720,10 @@ function optionsAttenteBilan(e){
   /* 📋 v1328 — une ligne, et sa fiche dans l'ordre où on la fait */
   compact: true,
   etiquette: () => etapePostPermis(e.eleve),
+  /* 📲 v1443 — reçu de son appli : le geste est sur la ligne */
+  actionLigne: () => etatDuBilanEleve(fiche()) === 'attente' && String(fiche().bilanEleve || '').trim()
+    ? { t: '👁️ Lire et valider', titre: 'Lire son bilan, le valider ou lui demander de compléter', faire: () => lireEtValiderLeBilan(e.eleve) }
+    : null,
   fiche: (x, boite) => ficheDuPostPermis(x, boite),
   info: () => {
     const s = fiche();
@@ -792,7 +796,7 @@ function texteDuMessagePostPermis(i){
 const bilansExamenCherches = {};
 
 /* Les « Rendez-vous post-permis » à venir, lus dans Drivup */
-let rdvPostDrivup = { lu: 0, rdv: [], luLe: '', enCours: null };
+let rdvPostDrivup = { lu: 0, rdv: [], luLe: '', enCours: null, demandes: [] };
 function rdvPostDrivupFrais(){ return Date.now() - rdvPostDrivup.lu < 120000; }
 function cleTrieeDuNom(n){
   return ((typeof normaliserMot === 'function') ? normaliserMot(n) : String(n || '').toLowerCase())
@@ -803,11 +807,13 @@ async function chargerRdvPostDrivup(){
   rdvPostDrivup.enCours = (async () => {
     try{
       const d = await appelPrep({ action: 'postPermisDrivup' });
-      const avant = JSON.stringify(rdvPostDrivup.rdv);
+      const avant = JSON.stringify([rdvPostDrivup.rdv, rdvPostDrivup.demandes]);
       rdvPostDrivup.rdv = (d && d.rdv) || [];
       rdvPostDrivup.luLe = (d && d.luLe) || '';
+      /* ✉️ v1443 — ce qui est dans sa messagerie (marche à suivre, à compléter) */
+      rdvPostDrivup.demandes = (d && d.demandes) || [];
       rdvPostDrivup.lu = Date.now();
-      return avant !== JSON.stringify(rdvPostDrivup.rdv);
+      return avant !== JSON.stringify([rdvPostDrivup.rdv, rdvPostDrivup.demandes]);
     }catch(e){ rdvPostDrivup.lu = Date.now(); return false; }
     finally{ rdvPostDrivup.enCours = null; }
   })();
@@ -819,11 +825,39 @@ function rdvDrivupDe(nom){
 }
 const jourCourtPP = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] : String(iso || ''); };
 
+/* ✉️ v1443 — David : « dans Attente bilan post-permis, il faut la
+   notification qui dit que le message pour faire son bilan est sur sa
+   messagerie ». Le dernier message « 🚦 marche à suivre » (ou « ↩️ à
+   compléter ») de SON fil, depuis son dernier ajournement ; null sinon.
+   « le » est « jj/mm/aaaa hh:mm » ; « lu » : il a ouvert son fil depuis. */
+function demandePPDe(nom, motif){
+  const k = cleTrieeDuNom(nom);
+  const s = suiviDe(nom) || {};
+  const iso = String(s.dateAjournement || '').match(/^(\d{4})-(\d{2})-(\d{2})/) ||
+              String(s.dateAjournement || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  let depuis = 0;
+  if(iso) depuis = (iso[1].length === 4 ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : new Date(+iso[3], +iso[2] - 1, +iso[1])).getTime();
+  return (rdvPostDrivup.demandes || []).find(x => x.motif === motif && x.rang >= depuis && cleTrieeDuNom(x.eleve) === k) || null;
+}
+const jourDuMessagePP = le => String(le || '').slice(0, 5);
+const luPP = x => x.lu ? ' · 👀 lu' : ' · pas encore lu';
+
 /* Où il en est : l'étiquette de sa ligne, et son rang dans la liste */
 function etapePostPermis(nom){
   const s = suiviDe(nom) || {};
   const d = rdvDrivupDe(nom);
-  if(!String(s.bilanEleve || '').trim()) return { t: '📝 bilan à coller', ton: 'r', rang: 0 };
+  const etat = etatDuBilanEleve(s);
+  if(!String(s.bilanEleve || '').trim()){
+    const dm = demandePPDe(nom, 'pp-ajourne');
+    return dm ? { t: '✉️ bilan demandé dans sa messagerie le ' + jourDuMessagePP(dm.le) + luPP(dm), ton: 'o', rang: 0 }
+              : { t: '📝 bilan à coller', ton: 'r', rang: 0 };
+  }
+  /* 📲 v1443 — reçu de son appli : c'est à nous de jouer */
+  if(etat === 'attente') return { t: '📲 bilan reçu' + (s.bilanEleveLe ? ' le ' + String(s.bilanEleveLe).slice(0, 5) : '') + ' — à valider', ton: 'r', rang: 0 };
+  if(etat === 'arefaire'){
+    const dc = demandePPDe(nom, 'pp-completer');
+    return { t: '↩️ à compléter — demandé' + (dc ? ' dans sa messagerie le ' + jourDuMessagePP(dc.le) + luPP(dc) : ''), ton: 'o', rang: 0 };
+  }
   if(s.rdvPostDate) return { t: '📅 RDV le ' + jourCourtPP(s.rdvPostDate) + (s.rdvPostMoniteur ? ' avec ' + s.rdvPostMoniteur : ''), ton: 'v', rang: 4 };
   if(d) return { t: '📅 RDV Drivup le ' + jourCourtPP(d.jour) + ' à ' + d.debut + (d.moniteur ? ' avec ' + d.moniteur : '') + ' — à reprendre', ton: 'v', rang: 2 };
   if(!s.rdvPostMessagesLe) return { t: '✉️ messages à envoyer', ton: 'r', rang: 1 };
@@ -855,6 +889,69 @@ function styleFichePP(){
   document.head.appendChild(st);
 }
 
+/* 📲 v1443 — en tête de l'étape ① : où en est son bilan, côté appli.
+   Pas envoyé : le message « faire mon bilan » est-il dans sa messagerie
+   (et l'a-t-il lu) ? Reçu : lire et valider, ou demander de compléter.
+   À compléter : ce qu'on lui a demandé, et s'il l'a lu. */
+function etatDuBilanPP(nom, s, aBilan, etat){
+  const z = document.createElement('div');
+  z.className = 'ppAppli';
+  const ligne = (html, ton) => {
+    const d = document.createElement('div');
+    d.style.cssText = 'margin:0 0 6px;' + (ton === 'r' ? 'color:var(--warn-text);font-weight:700;' : ton === 'v' ? 'color:var(--accent-text);font-weight:700;' : '');
+    d.innerHTML = html;
+    z.appendChild(d);
+    return d;
+  };
+  const bouton = (t, principal, faire) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary');
+    b.textContent = t;
+    b.addEventListener('click', async () => { b.disabled = true; try{ await faire(); } finally{ b.disabled = false; } });
+    z.appendChild(b);
+    return b;
+  };
+  if(!aBilan){
+    const dm = demandePPDe(nom, 'pp-ajourne');
+    if(dm){
+      ligne('✉️ Le message pour faire son bilan est dans sa messagerie depuis le <b>' + echapper(dm.le) + '</b>' +
+            (dm.lu ? ' — 👀 <b>lu</b>.' : ' — <b>pas encore lu</b>.'), 'v');
+      ligne('<span class="gris">Il le fait dans son appli, onglet 📝 Bilan. Quand il l’envoie, il arrive dans sa conversation « Le bureau » de la messagerie, à valider.</span>');
+    }else{
+      ligne('⚠️ Le message pour faire son bilan n’est pas dans sa messagerie' +
+            (rdvPostDrivup.lu ? '.' : ' (pas encore vérifié).'), 'r');
+      bouton('✉️ Le lui envoyer dans sa messagerie', false, async () => {
+        const base = (typeof centreDeBase === 'function') ? centreDeBase(nom) : '';
+        const err = await envoyerMessageAutoPP(nom, 'ajourne', !/loud/i.test(base));
+        if(err){ await informer(err); return; }
+        showToast('✉️ Parti dans sa messagerie');
+        rdvPostDrivup.lu = 0;
+        await chargerRdvPostDrivup();
+        if(typeof redessinerBureau === 'function') redessinerBureau();
+        if(typeof rafraichirFicheBureau === 'function') rafraichirFicheBureau();
+      });
+    }
+    return z;
+  }
+  if(etat === 'attente'){
+    ligne('📲 Reçu depuis son appli' + (s.bilanEleveLe ? ' le <b>' + echapper(s.bilanEleveLe) + '</b>' : '') +
+          ' — ⏳ <b>à valider</b>. Il est aussi dans sa conversation « Le bureau » de la messagerie.', 'r');
+    bouton('👁️ Lire et valider', true, () => lireEtValiderLeBilan(nom));
+    bouton('↩️ Demander de compléter', false, () => lireEtValiderLeBilan(nom, { completer: true }));
+    return z;
+  }
+  if(etat === 'arefaire'){
+    ligne('↩️ Complément demandé' + (s.bilanEleveRetour ? ' : « ' + echapper(s.bilanEleveRetour) + ' »' : '') +
+          ' — il le reprend dans son appli.', 'r');
+    const dc = demandePPDe(nom, 'pp-completer');
+    if(dc) ligne('✉️ Dans sa messagerie depuis le <b>' + echapper(dc.le) + '</b>' + (dc.lu ? ' — 👀 <b>lu</b>.' : ' — <b>pas encore lu</b>.'), 'v');
+    bouton('👁️ Relire son bilan', false, () => lireEtValiderLeBilan(nom));
+    return z;
+  }
+  return z;
+}
+
 function ficheDuPostPermis(e, boite){
   styleFichePP();
   const s = suiviDe(e.eleve) || {};
@@ -868,7 +965,12 @@ function ficheDuPostPermis(e, boite){
   if(typeof interrupteurLoudeac === 'function') boite.appendChild(interrupteurLoudeac(e.eleve));
 
   /* ① son bilan */
-  const e1 = etapeDeFichePP(1, '📝 Son bilan', aBilan ? 'fait' : 'on');
+  /* 📲 v1443 — envoyé de son appli mais pas encore validé : l'étape reste
+     « à faire » (c'est à nous de le lire), et les messages attendent */
+  const etatB = etatDuBilanEleve(s);
+  const enAttenteDeNous = aBilan && (etatB === 'attente' || etatB === 'arefaire');
+  const e1 = etapeDeFichePP(1, '📝 Son bilan', (aBilan && !enAttenteDeNous) ? 'fait' : 'on');
+  e1.appendChild(etatDuBilanPP(e.eleve, s, aBilan, etatB));
   const zoneBilan = document.createElement('div');
   const ta = document.createElement('textarea');
   ta.placeholder = 'Colle ici le bilan qu’il t’a envoyé sur Messenger';
@@ -898,19 +1000,29 @@ function ficheDuPostPermis(e, boite){
   if(aBilan){
     const r = document.createElement('div');
     r.className = 'gris';
-    r.textContent = 'Il est là' + (s.bilanEleveValideLe ? ' — validé le ' + String(s.bilanEleveValideLe).split(' ')[0] + (s.bilanEleveValidePar ? ' par ' + s.bilanEleveValidePar : '') : '') + '.';
+    if(!enAttenteDeNous) r.textContent = 'Il est là' + (s.bilanEleveValideLe ? ' — validé le ' + String(s.bilanEleveValideLe).split(' ')[0] + (s.bilanEleveValidePar ? ' par ' + s.bilanEleveValidePar : '') : '') + '.';
     const det = document.createElement('details');
-    det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;font-size:13px;margin-top:4px;">Relire ou modifier</summary>';
+    det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;font-size:13px;margin-top:4px;">' +
+      (enAttenteDeNous ? 'Le modifier à la main' : 'Relire ou modifier') + '</summary>';
     det.appendChild(zoneBilan);
     e1.append(r, det);
+  }else if(demandePPDe(e.eleve, 'pp-ajourne')){
+    /* il le fait dans son appli : coller reste possible, replié */
+    const det = document.createElement('details');
+    det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;font-size:13px;margin-top:4px;">' +
+      'Il l’a fait sur Messenger ? Le coller ici</summary>';
+    det.appendChild(zoneBilan);
+    e1.appendChild(det);
   }else e1.appendChild(zoneBilan);
   boite.appendChild(e1);
 
   /* ② les messages */
   const e2 = etapeDeFichePP(2, '✉️ Les messages pour qu’il prenne son rendez-vous',
-    s.rdvPostMessagesLe ? 'fait' : (aBilan ? 'on' : 'off'));
-  if(!aBilan){
-    e2.insertAdjacentHTML('beforeend', '<div class="gris">S’ouvrent dès que son bilan est enregistré.</div>');
+    s.rdvPostMessagesLe ? 'fait' : ((aBilan && !enAttenteDeNous) ? 'on' : 'off'));
+  if(!aBilan || enAttenteDeNous){
+    e2.insertAdjacentHTML('beforeend', '<div class="gris">' + (aBilan
+      ? 'Le message du RDV post-permis part tout seul dans sa messagerie quand tu valides son bilan.'
+      : 'S’ouvrent dès que son bilan est enregistré.') + '</div>');
   }else{
     if(s.rdvPostMessagesLe) e2.insertAdjacentHTML('beforeend', '<div>Partis le ' + echapper(s.rdvPostMessagesLe) + '.</div>');
     const b1 = document.createElement('button');
@@ -1125,7 +1237,11 @@ function phraseDuBilanEleve(s){
    d'attente, on lit, on décide, on revient. Un écran à soi, c'était
    un endroit de plus à retrouver pour un geste qui dure vingt
    secondes. */
-async function lireEtValiderLeBilan(nom){
+/* opts.completer : on vient de « ↩️ Demander de compléter » (le champ
+   prend la main) ; opts.depuisMessagerie : la bulle de la messagerie —
+   on ne redessine pas les listes du bureau qu'on n'a pas sous les yeux */
+async function lireEtValiderLeBilan(nom, opts){
+  opts = opts || {};
   const s = suiviDe(nom);
   const texte = String(s.bilanEleve || '').trim();
   if(!texte){
@@ -1155,9 +1271,14 @@ async function lireEtValiderLeBilan(nom){
   t.textContent = texte;
   boite.appendChild(t);
 
+  const lab = document.createElement('div');
+  lab.style.cssText = 'font-size:12.5px;font-weight:700;margin:0 0 4px;';
+  lab.textContent = '↩️ À compléter ? Écris-lui quoi : il le reçoit dans sa messagerie, avec le bouton « 📝 Compléter mon bilan ».';
+  boite.appendChild(lab);
   const mot = document.createElement('textarea');
   mot.rows = 2;
   mot.placeholder = 'Ce qu’il doit compléter (seulement si tu lui redemandes)';
+  if(opts.completer) setTimeout(() => { try{ mot.focus(); mot.scrollIntoView({ block: 'center' }); }catch(e){} }, 80);
   mot.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
     'color:var(--cream);padding:10px;border-radius:10px;font-size:14px;' +
     'line-height:1.5;font-family:inherit;resize:vertical;';
@@ -1179,24 +1300,28 @@ async function lireEtValiderLeBilan(nom){
   if(quoi === 'arefaire' && !phrase){
     await informer('Dis-lui ce qu’il doit compléter : sans ça, il relit le même ' +
                    'formulaire sans savoir quoi changer.');
-    return lireEtValiderLeBilan(nom);
+    return lireEtValiderLeBilan(nom, Object.assign({}, opts, { completer: true }));
   }
 
   try{
     await appelPrep({ action: 'bilanEleveValider', eleve: nom,
                       etat: quoi, phrase: phrase });
-    /* ✉️ v1405 — validé : le message du rendez-vous part dans sa messagerie */
-    const autoRdv = quoi === 'valide' ? await envoyerMessageAutoPP(nom, 'rdv') : '';
+    /* ✉️ v1405 — validé : le message du rendez-vous part dans sa messagerie ;
+       ↩️ v1443 — à compléter : ce qu'il doit compléter aussi (David : « un
+       endroit pour lui dire de compléter au besoin ») */
+    const auto = await envoyerMessageAutoPP(nom, quoi === 'valide' ? 'rdv' : 'completer', false, phrase);
     /* ⚠️ ON RELIT LE SUIVI, ON NE DEVINE PAS. « validé par » et
        « validé le » sont écrits PAR LE SERVEUR : les poser de
        mémoire ici, ce serait afficher une validation que le classeur
        n'a peut-être pas écrite — la faute d'Axel Hinault, le
        2 septembre. */
     await chargerBureau(true);
+    if(quoi === 'arefaire'){ rdvPostDrivup.lu = 0; try{ await chargerRdvPostDrivup(); }catch(e){} }
     showToast(quoi === 'valide'
-      ? (autoRdv ? '✅ Bilan validé — ' + autoRdv : '✅ Bilan validé — le message du RDV post-permis est parti dans sa messagerie')
-      : '↩️ Complément demandé à ' + nom);
-    afficherBureau();
+      ? (auto ? '✅ Bilan validé — ' + auto : '✅ Bilan validé — le message du RDV post-permis est parti dans sa messagerie')
+      : (auto ? '↩️ Complément demandé — ' + auto : '↩️ Complément demandé : parti dans sa messagerie'));
+    if(!opts.depuisMessagerie) afficherBureau();
+    if(typeof rafraichirFicheBureau === 'function') rafraichirFicheBureau();
   }catch(e){
     await informer('Impossible : ' + (e.message || e));
   }
@@ -2397,12 +2522,30 @@ function messageAutoRdvPost(){
                      { t: '▶️ À regarder absolument', u: LIEN_VIDEO_PP }] };
 }
 
+/* ↩️ v1443 — « ton bilan est à compléter », avec la phrase du bureau */
+function messageAutoCompleter(nom, phrase){
+  const prenom = String(nom || '').trim().split(/\s+/)[0] || '';
+  const t = [
+    'Bonjour ' + prenom + ',',
+    '',
+    '↩️ **TON BILAN POST-PERMIS EST À COMPLÉTER**',
+    '',
+    'Ce qu’il faut compléter :',
+    '« ' + String(phrase || '').trim() + ' »',
+    '',
+    'Reprends-le dans ton espace élève, onglet 📝 Bilan : ce que tu as déjà écrit est gardé. Complète-le, puis renvoie-le.',
+    '⚠️ **PAS DE BILAN COMPLET = PAS DE RDV POST-PERMIS = PAS DE REPASSAGE** ⚠️'
+  ];
+  return { texte: grasPP(t.join('\n')), boutons: [{ t: '📝 Compléter mon bilan', onglet: 'bilan' }] };
+}
+
 /* rend '' si c'est parti, sinon la phrase à afficher */
-async function envoyerMessageAutoPP(nom, quoi, avecLoudeac){
-  const m = quoi === 'ajourne' ? messageAutoAjourne(nom, avecLoudeac) : messageAutoRdvPost();
+async function envoyerMessageAutoPP(nom, quoi, avecLoudeac, phrase){
+  const m = quoi === 'ajourne' ? messageAutoAjourne(nom, avecLoudeac)
+          : quoi === 'completer' ? messageAutoCompleter(nom, phrase) : messageAutoRdvPost();
   try{
     await appelPrep({ action: 'messageBureauEleve', eleve: nom, texte: m.texte,
-                      motif: quoi === 'ajourne' ? 'pp-ajourne' : 'pp-rdv', boutons: m.boutons });
+                      motif: quoi === 'ajourne' ? 'pp-ajourne' : quoi === 'completer' ? 'pp-completer' : 'pp-rdv', boutons: m.boutons });
     return '';
   }catch(err){
     const t = String((err && err.message) || err || '');
@@ -3971,5 +4114,59 @@ function galeriePhotosBilan(nom, opts){
   z._recharger = charger;
   dessiner();
   charger();
+  return z;
+}
+
+/* ============================================================
+   💬 v1443 — SON BILAN POST-PERMIS DANS LA MESSAGERIE
+
+   David : « il nous faut la notification qui nous dit qu'un élève a
+   envoyé son bilan, dans la conversation de la messagerie où tu recolles
+   son bilan, en attente de validation ». Le Worker le pose dans son fil
+   « Le bureau », en son nom (motif « pp-bilan ») ; sous la bulle, l'état
+   tel que le suivi le dit, et la même fenêtre que dans ⏳ Attente bilan
+   post-permis : ✅ Valider, ou ↩️ Demander de compléter.
+   ============================================================ */
+function carteBilanPPEC(m){
+  if(!m || m.motif !== 'pp-bilan' || m.auteurGenre !== 'eleve' || Number(m.supprime || 0)) return null;
+  const nom = String(m.auteur || '').trim();
+  if(!nom) return null;
+  const z = document.createElement('div');
+  z.className = 'ppCarteEC';
+  z.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;padding:8px 10px;' +
+    'border:1px solid var(--line);border-radius:10px;background:var(--navy);';
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1 1 160px;font-size:13px;font-weight:700;line-height:1.35;';
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'width:auto;margin:0;padding:8px 12px;font-size:13px;';
+  const peut = typeof aDroit !== 'function' || aDroit('bureau_permis');
+  const maj = () => {
+    const charge = typeof etatBureau !== 'undefined' && Array.isArray(etatBureau.suivi) && etatBureau.suivi.length;
+    const s = charge ? (suiviDe(nom) || {}) : null;
+    const et = s ? etatDuBilanEleve(s) : 'attente';
+    t.textContent = et === 'valide'
+      ? '✅ Bilan post-permis validé' + (s.bilanEleveValidePar ? ' par ' + s.bilanEleveValidePar : '')
+      : et === 'arefaire' ? '↩️ Bilan post-permis · complément demandé'
+      : '📝 Bilan post-permis · ⏳ en attente de validation';
+    b.textContent = et === 'attente' ? '👁️ Lire et valider' : '👁️ Relire';
+    b.className = 'btn ' + (et === 'attente' ? 'btn-primary' : 'btn-secondary');
+  };
+  maj();
+  b.addEventListener('click', async ev => {
+    ev.stopPropagation();
+    b.disabled = true;
+    try{
+      /* le suivi relu : il vient peut-être de l'envoyer */
+      try{ await chargerBureau(true); }
+      catch(err){ showToast('Le suivi ne répond pas : ' + ((err && err.message) || err)); return; }
+      maj();
+      await lireEtValiderLeBilan(nom, { depuisMessagerie: true });
+      maj();
+    }finally{ b.disabled = false; }
+  });
+  z.appendChild(t);
+  if(peut) z.appendChild(b);
   return z;
 }
