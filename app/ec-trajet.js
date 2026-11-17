@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 10:29 — v1433 */
+/* Déployé le 17/11/2026 à 14:53 — v1451 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -2542,7 +2542,87 @@ function verserLeBilanDansLesPoints(p, texte){
     if(!r.mon)   r.mon   = d.mon;
     if(!r.emo && d.emo) r.emo = d.emo;
   });
+  rattacherParCompetence(p.reperes, texte);
   return p;
+}
+
+/* ============================================================
+   🗺️ v1451 — SANS RENVOI, PAR COMPÉTENCE
+
+   David, le 17 novembre, sur un examen officiel : « pourquoi je ne vois
+   pas ce qu'ont dit l'inspecteur et le moniteur directement sur la
+   carte ? ». Ce bilan n'avait aucun « · point N sur la carte » (fiche
+   rouverte avant de composer) : la carte ne savait pas quelle remarque
+   allait avec quel point. Son choix : « rattacher par compétence ».
+
+   Un point ☠️ / ⚠️ qui n'a rien reçu par son renvoi prend, dans l'ordre,
+   les remarques SANS renvoi écrites sous sa compétence (« 👉 Maintenir les
+   espaces de sécurité ») : le 1er point de la compétence ← la 1re
+   remarque, etc. Une remarque qui a son renvoi n'est jamais redonnée.
+   ⚠️ La même règle est dans le Worker (lienVersLaCarteDeLEleve), pour la
+   carte de l'espace élève.
+   ============================================================ */
+function cleCompetenceCarte(t){
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function remarquesSansRenvoiParCompetence(texte){
+  const motif = motifDuRenvoiAuPoint();
+  const clair = (s) => (typeof sansGras === 'function') ? sansGras(String(s || '')) : String(s || '');
+  const nettoyer = (l) => clair(l).replace(motif, '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  const tete = (l) => { const m = clair(l).match(/^[^\p{L}\p{N}\s]+/u); return m ? m[0] : ''; };
+  const TETES = ['👨‍✈️', '☠️'];
+  const out = {};
+  /* lie : '' · 'insp' (une ligne de l'inspecteur qui a son renvoi : la
+     suivante est la réponse du moniteur) · 'mon' (cette réponse : ses
+     lignes sans émoji la continuent) */
+  let theme = '', cur = null, lie = '';
+  const retirer = (x) => { const t = out[theme] || []; const i = t.indexOf(x); if(i !== -1) t.splice(i, 1); };
+  String(texte || '').split('\n').forEach((brute) => {
+    const l = String(brute).trim();
+    if(!l){ cur = null; lie = ''; return; }
+    if(l.indexOf('👉') === 0){ theme = cleCompetenceCarte(nettoyer(l)); cur = null; lie = ''; return; }
+    if(!theme || l.indexOf('- ') === 0){ cur = null; lie = ''; return; }
+    const avecRenvoi = motif.test(clair(l));
+    if(TETES.some(e => l.indexOf(e) === 0)){
+      cur = avecRenvoi ? null : { insp: nettoyer(l), mon: '', emo: '' };
+      lie = avecRenvoi ? 'insp' : '';
+      if(cur) (out[theme] = out[theme] || []).push(cur);
+      return;
+    }
+    if(lie === 'insp'){ lie = 'mon'; return; }
+    if(lie === 'mon'){ if(tete(l)) lie = ''; else return; }
+    if(avecRenvoi){
+      /* le renvoi au bout d'une remarque sur plusieurs lignes : elle est liée */
+      if(cur && !tete(l)){ retirer(cur); lie = 'insp'; }
+      else lie = 'mon';
+      cur = null;
+      return;
+    }
+    if(cur && !cur.mon && cur.insp && !tete(l)){ cur.insp += '\n' + clair(l).trim(); return; }
+    if(cur && !cur.mon){ cur.mon = nettoyer(l); cur.emo = tete(l); return; }
+    if(cur && cur.mon && !tete(l)){ cur.mon += '\n' + clair(l).trim(); return; }
+    /* une remarque du moniteur seule (sans ligne de l'inspecteur) */
+    cur = { insp: '', mon: nettoyer(l), emo: tete(l) };
+    (out[theme] = out[theme] || []).push(cur);
+  });
+  return out;
+}
+function rattacherParCompetence(reperes, texte){
+  const l = (reperes || []).filter(r => r && (r.type === 'elim' || r.type === 'attention') && String(r.nom || '').trim());
+  if(!l.length) return 0;
+  const reste = remarquesSansRenvoiParCompetence(texte);
+  let n = 0;
+  l.slice().sort((a, b) => Number(a.n) - Number(b.n)).forEach(r => {
+    if(String(r.insp || '').trim() || String(r.mon || '').trim()) return;
+    const k = cleCompetenceCarte(r.nom);
+    const d = (reste[k] || []).shift();
+    if(!d) return;
+    if(!r.theme) r.theme = String(r.nom).trim();
+    r.insp = d.insp; r.mon = d.mon;
+    if(!r.emo && d.emo) r.emo = d.emo;
+    n++;
+  });
+  return n;
 }
 
 /* Ce que le mail reçoit : l'image, et le HTML qui la montre.
