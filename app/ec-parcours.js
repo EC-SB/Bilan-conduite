@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 17/11/2026 à 09:30 — v1441 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -310,6 +310,8 @@ function dessinerParcours(){
     const n = guidesDuGroupe(x.id).length;
     b.innerHTML = echParcours((x.icone ? x.icone + ' ' : '') + x.nom) + ' <small>' + n + '</small>' +
       ((parcoursOptions[x.id] || {}).sansAttente ? ' <span title="Sans attente : il coche « ✓ Vu » tout de suite">⚡</span>' : '') +
+      /* 📺 v1441 — un groupe des tablettes */
+      ((parcoursOptions[x.id] || {}).tablettes ? ' <span title="Seulement sur les tablettes">📺</span>' : '') +
       (x.fermeLe ? ' <small>· fermé</small>' : '');
     b.addEventListener('click', () => { parcoursGroupeOuvert = x.id; dessinerParcours(); });
     ong.appendChild(b);
@@ -335,9 +337,12 @@ function dessinerParcours(){
   const aide = document.createElement('div');
   aide.className = 'pcAide';
   const publies = liste.filter(x => x.etat === 'publie').length;
+  const tab = (parcoursOptions[g.id] || {}).tablettes;
   aide.textContent = (liste.length ? liste.length + ' guide' + (liste.length > 1 ? 's' : '') + ' · ' + publies + ' publié' + (publies > 1 ? 's' : '') + ' — ' : '') +
     (g.fermeLe ? 'groupe fermé le ' + g.fermeLe + ' (rouvre-le dans ✏️ Le groupe). ' : '') +
-    'Attrape ⠿ pour changer l’ordre chez l’élève · un appui ouvre le guide.';
+    (tab ? '📺 seulement sur les tablettes (' + (tab === 'code' ? 'avec le code de l’équipe' : 'en libre') +
+           ') : un guide publié = une catégorie, une étape = un bouton. Attrape ⠿ pour changer l’ordre sur la tablette · un appui ouvre le guide.'
+         : 'Attrape ⠿ pour changer l’ordre chez l’élève · un appui ouvre le guide.');
   zone.appendChild(aide);
 
   const grille = document.createElement('div');
@@ -397,6 +402,12 @@ function poserLeStyleDuParcours(){
     '.pcOnglets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}' +
     '.pcOnglets .btn{width:auto;margin:0;padding:9px 13px;font-size:13px;min-height:40px}' +
     '.pcPointille{border-style:dashed!important}' +
+    /* 📺 v1441 — en libre / avec le code */
+    '.pcModesT{display:flex;gap:6px;margin:-4px 0 14px;flex-wrap:wrap}' +
+    '.pcModeT{flex:1 1 150px;text-align:left;border:1px solid var(--line);border-radius:12px;padding:8px 11px;background:transparent;color:var(--cream);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin:0;width:auto}' +
+    '.pcModeT small{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px}' +
+    '.pcModeT.on{background:var(--orange);border-color:var(--orange);color:var(--on-accent)}' +
+    '.pcModeT.on small{color:var(--on-accent);opacity:.8}' +
     '.pcAide{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5}' +
     '.pcGrille{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}' +
     '.pcCarteG{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;min-height:118px;cursor:pointer;background:var(--navy-deep)}' +
@@ -560,6 +571,69 @@ async function ouvrirLeGroupe(g){
     cadre.appendChild(sw);
   }
 
+  /* ============================================================
+     📺 SEULEMENT SUR LES TABLETTES — v1441
+
+     David, le 17 novembre : les vidéos de présentation des formations
+     (en libre) et les cours en salle ETM, AM, moto, BE, B96 (avec le
+     code de l'équipe), sur l'accueil des tablettes, sans suivi. Ses
+     réponses au schéma : rangés dans Groupes et guides. Un groupe 📺 ne
+     s'ouvre chez aucun élève : ses formations et ⚡ ne servent pas, on
+     les cache. Enregistré au Worker (parcoursGroupeOptions, tablettes) ;
+     pour un groupe neuf, après sa création.
+     ============================================================ */
+  poserLeStyleDuParcours();
+  let tabletteChoisie = (g && (parcoursOptions[g.id] || {}).tablettes) || '';
+  const swT = document.createElement('button');
+  swT.type = 'button';
+  swT.dataset.tablettes = '1';
+  swT.style.marginBottom = '10px';
+  const modes = document.createElement('div');
+  modes.className = 'pcModesT';
+  const lab = cadre.querySelector('label[for="pgIcone"]');
+  const labF = Array.prototype.find.call(cadre.querySelectorAll('label'), l => /formations/.test(l.textContent));
+  cadre.insertBefore(swT, labF);
+  cadre.insertBefore(modes, labF);
+  const enregistrerTablettes = async (valeur) => {
+    if(neuf){ tabletteChoisie = valeur; peindreT(); return; }
+    const avant = tabletteChoisie;
+    tabletteChoisie = valeur; peindreT();
+    swT.disabled = true;
+    try{
+      const rep = await appelPrep({ action: 'parcoursGroupeOptions', id: g.id, tablettes: valeur || 'non' });
+      if(rep && rep.status === 'error') throw new Error(rep.message || 'refusé');
+      parcoursOptions = (rep && rep.options) || parcoursOptions;
+      showToast(valeur ? '📺 ' + (valeur === 'code' ? 'Sur les tablettes, avec le code de l’équipe ✅' : 'Sur les tablettes, en libre ✅')
+                       : 'Ce n’est plus un groupe des tablettes ✅');
+    }catch(e){ tabletteChoisie = avant; peindreT(); showToast('Impossible : ' + e.message); }
+    swT.disabled = false;
+  };
+  const peindreT = () => {
+    const on = !!tabletteChoisie;
+    swT.className = 'pcSw' + (on ? ' on' : '');
+    swT.setAttribute('role', 'switch');
+    swT.setAttribute('aria-checked', on ? 'true' : 'false');
+    swT.innerHTML = '<span class="t">📺 Seulement sur les tablettes<small>' + (on
+      ? 'Jamais dans l’espace des élèves. Sur l’accueil des tablettes : un guide publié = une catégorie, une étape = un bouton. Rien n’est noté.'
+      : 'Pour des vidéos à lancer sur les tablettes de la salle (présentations, cours en salle), sans les ouvrir aux élèves.') + '</small></span><span class="s"></span>';
+    modes.innerHTML = '';
+    modes.style.display = on ? '' : 'none';
+    [['libre', '🎬 En libre', 'tout le monde, sans code'], ['code', '🔑 Avec le code de l’équipe', 'l’équipe lance la vidéo']].forEach(([v, t, d]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pcModeT' + (tabletteChoisie === v ? ' on' : '');
+      b.dataset.modeTablettes = v;
+      b.innerHTML = t + '<small>' + d + '</small>';
+      b.addEventListener('click', () => { if(tabletteChoisie !== v) enregistrerTablettes(v); });
+      modes.appendChild(b);
+    });
+    /* un groupe des tablettes n'a ni formations ni ⚡ */
+    [labF, cadre.querySelector('#pgFormations'), cadre.querySelector('#pgFormations') && cadre.querySelector('#pgFormations').nextElementSibling,
+     cadre.querySelector('[data-sans-attente]')].forEach(x => { if(x) x.style.display = on ? 'none' : ''; });
+  };
+  swT.addEventListener('click', () => enregistrerTablettes(tabletteChoisie ? '' : 'libre'));
+  void lab;
+
   const zf = cadre.querySelector('#pgFormations');
   const choisies = (g && g.formations) ? g.formations.slice() : [];
 
@@ -591,6 +665,7 @@ async function ouvrirLeGroupe(g){
   bOk.className = 'btn btn-primary';
   bOk.style.cssText = 'padding:11px;font-size:13px;';
   bOk.textContent = neuf ? '✅ Créer le groupe' : '✅ Enregistrer';
+  setTimeout(peindreT, 0);
   cadre.appendChild(bOk);
 
   if(!neuf){
@@ -666,6 +741,13 @@ async function ouvrirLeGroupe(g){
       });
       showToast(neuf ? 'Groupe créé ✅' : 'Groupe enregistré ✅');
       if(neuf && rep && rep.id) parcoursGroupeOuvert = rep.id;
+      /* 📺 v1441 — un groupe neuf des tablettes : l'option se pose une fois créé */
+      if(neuf && tabletteChoisie){
+        try{
+          const ro = await appelPrep({ action: 'parcoursGroupeOptions', id: (rep && rep.id) || idPose, tablettes: tabletteChoisie });
+          parcoursOptions = (ro && ro.options) || parcoursOptions;
+        }catch(e){ showToast('Groupe créé, mais pas encore marqué 📺 : ' + e.message); }
+      }
       afficherParcours();
     }catch(e){ showToast('Impossible : ' + e.message); bOk.disabled = false; }
   });
