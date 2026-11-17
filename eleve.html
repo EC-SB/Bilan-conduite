@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/11/2026 à 10:32 — v1443 -->
+<!-- Déployé le 17/11/2026 à 11:37 — v1444 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -356,8 +356,10 @@
   .salleBarre .piste{ flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.35); position:relative; overflow:hidden; }
   .salleBarre .piste i{ position:absolute; left:0; top:0; bottom:0; width:0; background:#B6FF0E; }
   .salleLecteurNote{ font-size:14px; color:var(--muted); margin-top:12px; line-height:1.5; }
-  .salleStopFond{ position:absolute; inset:0; background:rgba(0,0,0,.82); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; }
-  .salleStopFond .card{ max-width:420px; width:92%; margin:0; padding:18px; }
+  /* 🔑 v1444 — David : « le code apparaît dans le lecteur de vidéo ». Le clavier
+     prend toute la tablette, la vidéo (en pause) est cachée derrière. */
+  .salleStopFond{ position:fixed; inset:0; z-index:9000; background:var(--navy, #0b0f14); display:flex; overflow:auto; padding:20px 0; }
+  .salleStopFond .card{ max-width:420px; width:92%; margin:auto; padding:18px; }
   .salleStopFond .salleClavier .btn{ min-height:54px; font-size:21px; }
   .bandeauDemo.salleBandeau{ background:var(--orange); color:var(--on-accent); font-size:15px; font-weight:800; }
   .bandeauDemo.salleBandeau button{ background:#0B0B0B; color:#fff; border-color:#0B0B0B; font-size:14px; }
@@ -3594,6 +3596,7 @@
       SALLE_LECTURE = false;
       try{ v.pause(); v.removeAttribute('src'); v.load(); }catch(er){}
       salleGarderLEcran(false);
+      salleFermerLeClavierStop();
       salleAccueil(texte || '');
     }
     v.addEventListener('ended', function(){
@@ -3647,10 +3650,12 @@
     $('salleStop').addEventListener('click', function(){ salleArreterLeCours(v, function(){ finir('⏹️ Cours arrêté par l’équipe.'); }); });
     v.play().catch(function(){ peindre(); });
   }
-  /* 🔑 arrêter un cours : le code de l'équipe, par-dessus la vidéo (en pause) */
+  /* 🔑 arrêter un cours : le code de l'équipe, en plein écran (v1444), la vidéo en pause derrière */
+  function salleFermerLeClavierStop(){
+    Array.prototype.forEach.call(document.querySelectorAll('.salleStopFond'), function(x){ x.parentNode && x.parentNode.removeChild(x); });
+  }
   function salleArreterLeCours(v, arreter){
-    var z = $('salleVideo');
-    if(!z || z.querySelector('.salleStopFond')) return;
+    if(!$('salleVideo') || document.querySelector('.salleStopFond')) return;
     var reprendre = !v.paused;
     try{ v.pause(); }catch(er){}
     if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(er){} }
@@ -3663,7 +3668,7 @@
         return '<button type="button" class="btn ' + (k === '✓' ? 'btn-primary' : 'btn-secondary') + '" data-k="' + k + '">' + k + '</button>'; }).join('') + '</div>' +
       '<div class="salleMsg" id="salleMsgStop"></div>' +
       '<button type="button" class="btn btn-secondary" id="salleReprendre">▶ Reprendre le cours</button></div>';
-    z.appendChild(f);
+    document.body.appendChild(f);
     function montrer(){
       var n = Math.max(6, tape.length);
       f.querySelector('#salleCodeStop').innerHTML = Array.apply(null, Array(n)).map(function(_, i){
