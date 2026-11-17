@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/11/2026 à 11:37 — v1444 -->
+<!-- Déployé le 17/11/2026 à 12:36 — v1445 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -341,6 +341,10 @@
   /* 📺 v1441 — les vidéos des tablettes : présentations (en libre), cours en salle (code de l'équipe) */
   .salleGauche{ display:flex; flex-direction:column; gap:18px; min-width:0; }
   .salleGauche .card{ margin:0; }
+  /* 🧩 v1445 — « Découvre nos formations » sur toute la largeur, sous les colonnes ;
+     pas de vide sous le bouton d'installation quand il n'y a rien à dire */
+  .salleLarge{ margin:18px 0 0; }
+  .salleInstaller #salleMsg:empty{ min-height:0; margin:0; }
   .salleVidSous{ font-size:15px; font-weight:800; margin:12px 0 8px; }
   .salleCats{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px 18px; margin-top:8px; }
   .salleCats .salleNom{ width:100%; }
@@ -3292,27 +3296,32 @@
     if(salleBattement){ clearInterval(salleBattement); salleBattement = null; }
     var e = salleEcran();
     e.innerHTML = salleEntete(salleSous()) +
-      '<div class="salleColonnes"><div class="salleGauche"><div class="card salleCarte salleGrande"><div class="section-title">👋 Bonjour ! Touche ton nom</div>' +
-      '<div class="salleTexte">Tu reviens pour la suite de ton cours de théorie : touche ton nom, puis tape ton <b>jour et ton mois de naissance</b>.</div>' +
-      '<div id="salleNoms" class="salleNoms"><div class="empty">⏳ …</div></div></div>' +
-      /* 📺 v1441 — les présentations, en libre (cachée tant qu'il n'y a rien) */
-      '<div class="card salleCarte" id="sallePres" style="display:none"><div class="section-title">🎬 Découvre nos formations</div>' +
-      '<div class="salleTexte">Des vidéos pour découvrir l’auto-école et ses formations. Touche une vidéo pour la regarder.</div>' +
-      '<div id="sallePresListe"></div></div></div>' +
-      '<div class="salleCote">' +
-      /* 📚 v1359 — celui qui a fini sa salle vient réviser */
-      '<div class="card salleCarte salleRev"><div class="section-title">📚 Tu as fini ta salle ?</div>' +
-      '<div class="salleTexte">Viens réviser tes groupes ici, au calme : touche le bouton, cherche ton nom, puis ton jour et mois de naissance.</div>' +
-      '<button type="button" class="btn btn-primary" id="salleBtReviser">📚 Je viens réviser</button></div>' +
-      '<div class="card salleCarte"><div class="section-title">🆕 La première fois ?</div>' +
+      /* 🧩 v1445 — la disposition de David : à gauche « Premier cours de
+         théorie de la conduite » puis « Bonjour ! Touche ton nom » ; à droite
+         « Réviser mes groupes de travail » puis « Cours en salle » ; « Découvre
+         nos formations » tout en bas, sur toute la largeur */
+      '<div class="salleColonnes"><div class="salleGauche">' +
+      '<div class="card salleCarte salleInstaller"><div class="section-title">🆕 Premier cours de théorie de la conduite</div>' +
       '<div class="salleTexte">Demande à l’équipe de t’installer : ton cours s’ouvrira ici tout seul.</div>' +
       '<button type="button" class="btn btn-primary" id="salleBtEquipe">🔑 L’équipe : installer un élève ici</button>' +
       '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div>' +
+      '<div class="card salleCarte salleGrande"><div class="section-title">👋 Bonjour ! Touche ton nom</div>' +
+      '<div class="salleTexte">Tu reviens pour la suite de ton cours de théorie : touche ton nom, puis tape ton <b>jour et ton mois de naissance</b>.</div>' +
+      '<div id="salleNoms" class="salleNoms"><div class="empty">⏳ …</div></div></div>' +
+      '</div><div class="salleCote">' +
+      /* 📚 v1359 — celui qui a fini sa salle vient réviser */
+      '<div class="card salleCarte salleRev"><div class="section-title">📚 Réviser mes groupes de travail</div>' +
+      '<div class="salleTexte">Viens réviser tes groupes ici, au calme : touche le bouton, cherche ton nom, puis ton jour et mois de naissance.</div>' +
+      '<button type="button" class="btn btn-primary" id="salleBtReviser">📚 Je viens réviser</button></div>' +
       /* 📺 v1441 — les cours en salle, lancés par l'équipe */
       '<div class="card salleCarte"><div class="section-title">🎓 Cours en salle</div>' +
       '<div class="salleTexte">ETM, moto, AM, BE, B96 : l’équipe lance la vidéo du cours avec son code.</div>' +
       '<button type="button" class="btn btn-secondary" id="salleBtCours">🎓 L’équipe : lancer un cours</button></div>' +
-      '</div></div>';
+      '</div></div>' +
+      /* 📺 v1441 — les présentations, en libre (cachée tant qu'il n'y a rien) */
+      '<div class="card salleCarte salleLarge" id="sallePres" style="display:none"><div class="section-title">🎬 Découvre nos formations</div>' +
+      '<div class="salleTexte">Des vidéos pour découvrir l’auto-école et ses formations. Touche une vidéo pour la regarder.</div>' +
+      '<div id="sallePresListe"></div></div>';
     $('salleBtEquipe').addEventListener('click', function(){ salleEquipeCode(''); });
     $('salleBtCours').addEventListener('click', function(){ salleEquipeCode('', 'cours'); });
     salleDessinerPres();
