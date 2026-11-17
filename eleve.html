@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/11/2026 à 09:30 — v1441 -->
+<!-- Déployé le 17/11/2026 à 10:05 — v1442 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -3512,30 +3512,30 @@
     var cats = [];
     ((d && d.groupes) || []).forEach(function(g){ (g.guides || []).forEach(function(x){ cats.push(x); }); });
     e.innerHTML = salleEntete(salleSous()) +
-      '<div class="card salleCarte"><div class="section-title salleLecteurTete"><span class="t">🎓 Cours en salle — touche la vidéo à lancer</span>' +
+      '<div class="card salleCarte"><div class="section-title salleLecteurTete"><span class="t">🎓 Cours en salle — touche le cours à lancer</span>' +
       '<button type="button" class="btn btn-secondary" id="salleRetour">← Retour</button></div>' +
       '<div class="salleTexte" style="font-size:14px;color:var(--muted);">Ouvert par ' + echapper((EQUIPE_SALLE && EQUIPE_SALLE.nom) || 'l’équipe') +
-      ' · se referme tout seul après deux minutes sans rien toucher (la vidéo lancée, elle, continue).</div>' +
-      (cats.length ? '<div class="salleCats" id="salleCats"></div>'
+      ' · l’élève ne verra que ce cours : ses vidéos s’enchaînent, puis retour à l’accueil. Se referme tout seul après deux minutes sans rien toucher.</div>' +
+      (cats.length ? '<div class="salleNoms" id="salleCats"></div>'
                    : '<div class="empty">Aucun cours pour l’instant : dans l’appli, Suivi › 🎬 Groupes et guides, un groupe « 📺 Seulement sur les tablettes » avec le code de l’équipe, et ses guides publiés.</div>') +
       '</div>';
     $('salleRetour').addEventListener('click', function(){ salleEquipeFin(''); });
+    /* 🎓 v1442 — David : « des boutons qui envoient directement vers chaque
+       guide, et quand j'appuie, l'élève ne peut voir que ce guide ». Ses
+       réponses : les vidéos du guide s'enchaînent toutes seules (il ne
+       choisit rien, ne saute rien), puis retour à l'accueil. */
     var z = $('salleCats');
     cats.forEach(function(x){
-      var col = document.createElement('div');
-      var t = document.createElement('div'); t.className = 'salleVidSous'; t.style.marginTop = '6px'; t.textContent = x.titre;
-      col.appendChild(t);
-      if(!(x.videos || []).length){
-        var v0 = document.createElement('div'); v0.className = 'empty'; v0.style.padding = '10px'; v0.textContent = 'Pas encore de vidéo.';
-        col.appendChild(v0);
-      }else{
-        var l = document.createElement('div'); l.className = 'salleCatListe';
-        x.videos.forEach(function(v){
-          l.appendChild(salleBoutonVideo(v.titre, '', function(){ salleLecteur({ titre: '🎓 ' + x.titre + ' · ' + v.titre, lien: v.lien, libre: false }); }));
-        });
-        col.appendChild(l);
-      }
-      z.appendChild(col);
+      var n = (x.videos || []).length;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary salleNom';
+      b.dataset.guide = x.id;
+      b.innerHTML = '<span>🎓 ' + echapper(x.titre) + '</span><small>' +
+        (n ? '▶ ' + n + ' vidéo' + (n > 1 ? 's' : '') + ' à la suite' : 'Pas encore de vidéo') + '</small>';
+      if(!n) b.disabled = true;
+      else b.addEventListener('click', function(){ salleLecteur({ guide: x.titre, liste: x.videos, libre: false }); });
+      z.appendChild(b);
     });
   }
   function salleDuree(s){
@@ -3550,8 +3550,15 @@
       if(!oui && salleVerrouEcran){ salleVerrouEcran.release().catch(function(){}); salleVerrouEcran = null; }
     }catch(er){}
   }
-  /* La vidéo en grand. o = { titre, lien, libre } */
+  /* La vidéo en grand. o = { titre, lien, libre } — ou, pour un cours,
+     { guide, liste: [{ titre, lien }], libre: false } : les vidéos du guide
+     s'enchaînent dans l'ordre, et rien d'autre ne se voit (v1442). */
   function salleLecteur(o){
+    var liste = o.liste || [{ titre: o.titre, lien: o.lien }], rang = 0;
+    var titreDe = function(i){
+      if(!o.liste) return o.titre;
+      return '🎓 ' + o.guide + ' · ' + liste[i].titre + (liste.length > 1 ? ' (' + (i + 1) + '/' + liste.length + ')' : '');
+    };
     if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
     /* le code de l'équipe est oublié : la fenêtre de deux minutes ne coupe pas le cours */
     if(salleEquipeMinuteur){ clearInterval(salleEquipeMinuteur); salleEquipeMinuteur = null; }
@@ -3560,7 +3567,7 @@
     SALLE_LECTURE = true;
     var e = salleEcran();
     e.innerHTML = salleEntete(salleSous()) +
-      '<div class="card salleCarte salleLecteurCarte"><div class="section-title salleLecteurTete"><span class="t">' + echapper(o.titre) + '</span>' +
+      '<div class="card salleCarte salleLecteurCarte"><div class="section-title salleLecteurTete"><span class="t" id="salleTitreVid">' + echapper(titreDe(0)) + '</span>' +
       (o.libre ? '<button type="button" class="btn btn-secondary" id="salleRetour">← Retour à l’accueil</button>'
                : '<button type="button" class="btn btn-secondary" id="salleStop">🔑 L’équipe : arrêter</button>') + '</div>' +
       '<div class="salleVideo" id="salleVideo"><video id="salleVid" playsinline preload="auto"' + (o.libre ? ' controls' : '') + '></video>' +
@@ -3568,9 +3575,10 @@
         '<span class="piste"><i id="sallePiste"></i></span><button type="button" id="salleGrand" aria-label="En grand">⛶</button></div>') +
       '</div><div class="salleLecteurNote">' + (o.libre
         ? 'À la fin de la vidéo, la tablette revient toute seule à l’accueil.'
-        : 'Le cours se regarde jusqu’au bout : seule l’équipe peut l’arrêter. Rien n’est noté. À la fin, la tablette revient à l’accueil.') + '</div></div>';
+        : 'Le cours se regarde jusqu’au bout' + (liste.length > 1 ? ', les vidéos s’enchaînent toutes seules' : '') +
+          ' : seule l’équipe peut l’arrêter. Rien n’est noté. À la fin, la tablette revient à l’accueil.') + '</div></div>';
     var v = $('salleVid');
-    v.src = o.lien;
+    v.src = liste[0].lien;
     var fini = false, vu = 0;
     function finir(texte){
       if(fini) return; fini = true;
@@ -3579,7 +3587,20 @@
       salleGarderLEcran(false);
       salleAccueil(texte || '');
     }
-    v.addEventListener('ended', function(){ finir(o.libre ? '' : '✅ Cours terminé.'); });
+    v.addEventListener('ended', function(){
+      if(fini) return;
+      /* la suivante du guide, toute seule ; après la dernière, l'accueil */
+      if(rang + 1 < liste.length){
+        rang++; vu = 0;
+        var t = $('salleTitreVid'); if(t) t.textContent = titreDe(rang);
+        var n = document.querySelector('.salleLecteurNote');
+        if(n && /ne se lit pas/.test(n.textContent)) n.textContent = 'Le cours se regarde jusqu’au bout, les vidéos s’enchaînent toutes seules : seule l’équipe peut l’arrêter. Rien n’est noté. À la fin, la tablette revient à l’accueil.';
+        v.src = liste[rang].lien;
+        v.play().catch(function(){});
+        return;
+      }
+      finir(o.libre ? '' : '✅ Cours terminé.');
+    });
     v.addEventListener('error', function(){
       if(fini) return;
       var n = document.querySelector('.salleLecteurNote');
