@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:55 — v1450 */
+/* Déployé le 17/11/2026 à 14:53 — v1451 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1451,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🗺️ Ce qu’ont dit l’inspecteur et le moniteur sur la carte, et 🔗 les étapes des guides',
+    quoi: [
+      { emoji: '🗺️',
+        titre: 'La carte montre l’inspecteur et le moniteur, même sans renvoi',
+        texte: 'Quand le bilan d’examen n’a pas de « · point N sur la carte » (fiche rouverte, par exemple), chaque point ☠️ ou ⚠️ reçoit la remarque de sa compétence (👉 …), dans l’ordre des points : la 1re remarque de « Maintenir les espaces de sécurité » va au 1er point de cette compétence, la 2e au suivant. Les remarques qui ont leur renvoi restent à leur point. Vaut aussi pour « Revoir mon trajet » de l’élève, y compris les bilans déjà envoyés.' },
+      { emoji: '🔗',
+        titre: '« 🔗 Lien élève » : les étapes de chaque guide',
+        texte: 'Dans Ce qu’on écrit, le choix d’un lien vers une étape ne bloque plus sur « 0 étape » : le guide affiche « étapes à l’ouverture » et, en le touchant, ses étapes se chargent.' }
+    ]
+  },
   {
     version: 1450,
     date: 'Mardi 17 novembre 2026',
