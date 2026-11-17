@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 17/11/2026 à 13:15 — v1447 */
 /* ============================================================
    ec-iadirect.js
    🤖 L'IA AU FIL DE L'EAU, ET LE BILAN QUI NE REVIENT PAS — v1209
@@ -340,7 +340,7 @@ function relancerGenerationIA(){
    signature — avec ce qu'il a rempli, à la place où l'IA l'aurait mis.
    ============================================================ */
 const TYPES_HORS_SANS_IA = ['titre', 'sousTitre', 'entete', 'envoiAvant', 'rappelFrise', 'apercuNiveau', 'apercuEval',
-                            'photo', 'nonMene', 'nombreEval'];
+                            'photo', 'nonMene', 'nombreEval', 'simuTravail'];
 let sansIA = null;
 
 function rubriquesSansIA(modele){
@@ -542,6 +542,8 @@ async function composerSansIA(){
                                       transcript: aere, note: $('noteInterne').value.trim() });
   if(typeof sansEcoutes === 'function' && sansEcoutes({ note: $('noteInterne').value })) bilan += '\n\n' + rappelEcoutes();
   if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
+  /* 💾 v1447 — carte SD perdue : « ❌ carte perdue » à la place du rappel */
+  if(typeof carteSDPerdueDansLeBilan === 'function') bilan = carteSDPerdueDansLeBilan(bilan);
   /* 📍 v1219 — où il en est, sous le rappel de sa frise */
   if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
   if(typeof blocProcedures === 'function') bilan += blocProcedures(transcript);
