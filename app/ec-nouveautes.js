@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 12:42 — v1446 */
+/* Déployé le 17/11/2026 à 13:15 — v1447 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1447,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🕹️ Évaluation : ce qu’il faut travailler au simulateur · 💾 Carte SD perdue',
+    quoi: [
+      { emoji: '🕹️',
+        titre: 'Évaluation : « À travailler sur le simulateur »',
+        texte: 'Sous « Heures de simulateur », dès que des heures sont tapées : des cases (VA/VD, Passage de vitesse, Giratoire, Volant, PAD). Ce qui est coché part dans le bilan, sous la ligne du simulateur : « 👉 À travailler sur le simulateur : … ».' },
+      { emoji: '✍️',
+        titre: 'Les cases se règlent dans le créateur des fiches',
+        texte: 'Outils › créateur des fiches › Évaluation › zone « 🕹️ À travailler sur le simulateur » : ajouter, renommer, monter, retirer. La même liste pour les deux évaluations, puis « 💾 Publier ».' },
+      { emoji: '💾',
+        titre: 'Carte SD perdue',
+        texte: 'Dans tous les bilans, en petit sous Carte SD : « 💾 Carte perdue ». Cochée, elle reste cochée sur ses bilans suivants (et dans « ⚠️ Suivi de … », dossier compris) jusqu’à ce qu’on la décoche ; Carte SD se décoche et reste décochée, et le bilan écrit « Carte SD : ❌ carte perdue » à la place du rappel.' }
+    ]
+  },
   {
     version: 1446,
     date: 'Mardi 17 novembre 2026',
