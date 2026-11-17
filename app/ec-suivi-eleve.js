@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 17:51 — v1316 */
+/* Déployé le 17/11/2026 à 13:15 — v1447 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -84,6 +84,8 @@ function rafraichirApresSuiviSE(nom){
   const k = normSE(nom == null ? eleveDuCoursSE() : nom);
   document.querySelectorAll('.oeilRepere').forEach(b => { if(typeof b._peindre === 'function') b._peindre(); });
   document.querySelectorAll('.suiviVivant').forEach(x => { if((!k || x.dataset.suiviDe === k) && typeof x._maj === 'function') x._maj(); });
+  /* 💾 v1447 — les cases « Carte perdue » sous Carte SD (l'élève du cours) */
+  document.querySelectorAll('.cartePerdueSE').forEach(x => { if(typeof x._maj === 'function') x._maj(); });
   if(k === normSE(eleveDuCoursSE())) appliquerCasesAuxLignesSE();
   /* pas pendant qu'on écrit une réponse : le champ perdrait la main */
   const a = document.activeElement;
@@ -291,7 +293,13 @@ const CASES_SUIVI_SE = [
      si pas d'examen prévu ; quand un moniteur coche, un message part
      automatiquement dans Message important pour que le bureau ait
      l'information ». Pas de ligne du bilan derrière (champ vide). */
-  { k: 'urgent', t: '🚨 Urgent : ajouter une leçon', s: '', court: '🚨 leçon à ajouter', champ: '' }
+  { k: 'urgent', t: '🚨 Urgent : ajouter une leçon', s: '', court: '🚨 leçon à ajouter', champ: '' },
+  /* 💾 v1447 — David, le 17 novembre : « sous Carte SD, une case carte
+     perdue : cochée, elle reste cochée sur tous ses futurs bilans jusqu'à
+     ce qu'on la décoche, et la case Carte SD se décoche et reste
+     décochée ». Elle vit ici (gardée d'un cours à l'autre, pour tous) ;
+     sous Carte SD, c'est la même case (caseCartePerdueSE). */
+  { k: 'cartePerdue', t: '💾 Carte SD perdue', s: 'sur tous ses bilans : Carte SD décochée, « ❌ carte perdue » à la place du rappel', court: '💾 carte perdue', champ: '' }
 ];
 /* « avant son examen du 12/11 » s'il a une date d'examen à venir,
    « avant l'examen blanc » sinon */
@@ -334,6 +342,89 @@ async function prevenirLeBureauUrgentSE(nom){
 }
 function suiviCaseSE(k, nom){ const d = suiviSE(nom); return !!(d && d.fiche && d.fiche[k]); }
 
+/* ============================================================
+   💾 v1447 — CARTE SD PERDUE, SOUS « CARTE SD » DANS TOUS LES BILANS
+
+   La même case que celle du tiroir « ⚠️ Suivi de … » (gardée au Worker,
+   suivi_eleve.cartePerdue). « controle.poser(on) » règle la case Carte SD
+   de l'écran : cochée → Carte SD décochée et bloquée ; décochée → Carte
+   SD rendue et recochée (✅, comme d'habitude).
+   ⚠️ data-hors-saisie : elle n'est pas une saisie de la fiche (les
+   saisies se replacent par leur rang).
+   ============================================================ */
+function cartePerdueSE(nom){ return suiviCaseSE('cartePerdue', nom); }
+function caseCartePerdueSE(controle){
+  const l = document.createElement('label');
+  l.className = 'cartePerdueSE';
+  l.style.cssText = 'display:flex;gap:7px;align-items:center;margin:2px 0 4px 27px;font-size:12px;font-weight:600;' +
+    'text-transform:none;color:var(--muted);cursor:pointer;letter-spacing:0;';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.setAttribute('data-hors-saisie', '1');
+  cb.style.cssText = 'width:15px;height:15px;margin:0;flex-shrink:0;';
+  const t = document.createElement('span');
+  t.textContent = '💾 Carte perdue';
+  const sous = document.createElement('small');
+  sous.style.cssText = 'font-weight:400;opacity:.85;';
+  l.append(cb, t, sous);
+  let pose = false;   /* la case Carte SD est-elle tenue par nous ? */
+  const appliquer = (on, parLui) => {
+    try{ if(controle && typeof controle.poser === 'function') controle.poser(on, parLui); }catch(e){}
+    pose = on;
+  };
+  l._maj = () => {
+    const nom = eleveDuCoursSE();
+    if(nom.length < 3){ l.style.display = 'none'; return; }
+    l.style.display = '';
+    const d = suiviSE(nom);
+    if(!d){ cb.checked = false; cb.disabled = true; sous.textContent = ''; chargerSuiviSE(nom); return; }
+    cb.disabled = false;
+    const on = !!(d.fiche && d.fiche.cartePerdue);
+    cb.checked = on;
+    sous.textContent = on ? '· gardée sur ses prochains bilans' : '';
+    l.style.color = on ? 'var(--red)' : 'var(--muted)';
+    if(on) appliquer(true, false);
+    else if(pose) appliquer(false, false);
+  };
+  cb.addEventListener('change', async () => {
+    const nom = eleveDuCoursSE();
+    const on = cb.checked;
+    cb.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'suiviCasePoser', eleve: nom, cle: 'cartePerdue', on: on });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      poserDonneesSE(nom, r);
+      appliquer(on, true);
+      rafraichirApresSuiviSE(nom);
+      if(typeof showToast === 'function') showToast(on ? '💾 Carte perdue : gardée sur ses prochains bilans' : '💾 Carte SD retrouvée');
+    }catch(e){
+      cb.checked = !on;
+      if(typeof showToast === 'function') showToast('⚠️ Pas enregistré : ' + (e.message || e));
+    }finally{ cb.disabled = false; }
+  });
+  /* après les valeurs par défaut de la fiche (✅ posé au premier tour) */
+  setTimeout(l._maj, 40);
+  return l;
+}
+/* Les deux sortes de case Carte SD : une case à cocher (tiroir du cours,
+   en-tête de la fiche) ou les trois boutons ✅ ❌ — de la fiche */
+function controleCaseCarteSE(cb){
+  return { poser: (on, parLui) => {
+    if(!cb) return;
+    if(on){ cb.checked = false; cb.disabled = true; }
+    else{ cb.disabled = false; cb.checked = true; }   /* on l'avait décochée : elle revient ✅ */
+  } };
+}
+function controleBoutonsCarteSE(rangee){
+  return { poser: (on, parLui) => {
+    if(!rangee) return;
+    const bs = Array.prototype.slice.call(rangee.querySelectorAll('button[data-val]'));
+    const prendre = v => { const b = bs.find(x => x.getAttribute('data-val') === v); if(b){ b.disabled = false; b.click(); } };
+    if(on){ prendre(''); bs.forEach(b => { b.disabled = true; b.style.opacity = '.45'; }); }
+    else{ bs.forEach(b => { b.disabled = false; b.style.opacity = ''; }); prendre('✅'); }
+  } };
+}
+
 function dateDuMessageSE(t){
   const m = String(t || '').match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
   return m ? new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 12), +(m[5] || 0)) : null;
@@ -350,7 +441,7 @@ function quandCourtSE(t){
 function aSavoirSE(d){
   if(!d) return false;
   const f = d.fiche || {};
-  return !!(f.ecoutes || f.groupes || f.urgent);
+  return !!(f.ecoutes || f.groupes || f.urgent || f.cartePerdue);
 }
 /* Quelque chose à lire (sans rouge) : un texte, ou un message de la semaine */
 function aQuelqueChoseSE(d){
