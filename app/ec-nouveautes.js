@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:15 — v1447 */
+/* Déployé le 17/11/2026 à 13:31 — v1448 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1448,
+    date: 'Mardi 17 novembre 2026',
+    resume: '📷 Suivi examen : seulement les captures du CEPC de cet examen',
+    quoi: [
+      { emoji: '📷',
+        titre: 'L’annonce du résultat n’emporte plus les anciennes captures',
+        texte: 'Dans « Suivi examen », « ❌ … — Ajourné » (et « Permis obtenu ») ne part qu’avec les captures du CEPC de cet examen. Celles d’un examen d’avant, même sans date, restent rangées. Si la date d’examen manque, ce sont celles du dernier examen.' }
+    ]
+  },
   {
     version: 1447,
     date: 'Mardi 17 novembre 2026',
