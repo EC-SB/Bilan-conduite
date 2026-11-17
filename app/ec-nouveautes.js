@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 15:15 — v1452 */
+/* Déployé le 17/11/2026 à 15:44 — v1453 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1453,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🎨 Une vraie palette dans les mails, et 📝 Ce qu’on écrit dans le mail',
+    quoi: [
+      { emoji: '🎨',
+        titre: 'Couleur du texte et surlignage : de vraies couleurs',
+        texte: 'Dans un mail, « A ▾ » et « 🖍️ ▾ » ouvrent une palette de pastilles (32 couleurs de texte, 16 de surlignage), avec le nom de la couleur au survol, « ✕ Sans surlignage » et « 🎨 Autre couleur… » pour toutes les autres. Plus de codes à connaître. Le trait sous le bouton prend la dernière couleur choisie.' },
+      { emoji: '📝',
+        titre: '« 📝 Ce qu’on écrit » dans un mail',
+        texte: 'Un bouton dans la barre du mail ouvre les fiches de Outils › Ce qu’on écrit, avec la recherche et les catégories. Touche une fiche : son texte se met là où est le curseur. {prenom} et les autres mots se remplissent si le mail est lié à un élève. Une première ligne « Objet : … » devient l’objet du mail s’il est vide (sinon, le titre de la fiche).' }
+    ]
+  },
   {
     version: 1452,
     date: 'Mardi 17 novembre 2026',
