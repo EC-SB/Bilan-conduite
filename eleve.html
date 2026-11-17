@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/11/2026 à 13:55 — v1450 -->
+<!-- Déployé le 17/11/2026 à 15:15 — v1452 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -4531,6 +4531,24 @@
     });
     return trouve;
   }
+  /* 🎬 v1452 — le lien vers une étape écrit dans le texte de la carte (le
+     premier) : { cle, titre, reste } — reste = le texte sans sa ligne */
+  function lienEtapeDeLaCarte(texte){
+    var re = /^[^\n]*?(?:🎬\s*([^\n]*?)\s*:\s*)?https?:\/\/[^\s<"?#]*\?seg=([A-Za-z0-9%_:\-.]+)[^\n]*(?:\n|$)/m;
+    var m = String(texte || '').match(re);
+    if(!m) return null;
+    var cle = m[2];
+    try{ cle = decodeURIComponent(cle); }catch(e){}
+    if(!String(cle).split('::')[0]) return null;
+    return { cle: cle, titre: String(m[1] || '').trim(), reste: String(texte).replace(m[0], '') };
+  }
+  function lienBilanChoisi(l){
+    var r = etapeDuLienEl(l.cle);
+    var titre = (r && r.titre) || l.titre || 'l’étape à regarder';
+    return r
+      ? '<a class="ajLien" href="#" data-aj="etape" data-cle="' + echapper(l.cle).replace(/"/g, '&quot;') + '">👉 Comment faire mon bilan (obligatoire) : « ' + echapper(titre) + ' »</a>'
+      : '<div class="ajLien" style="font-weight:600;color:var(--muted);">👉 Comment faire mon bilan (obligatoire) : « ' + echapper(titre) + ' », dans Réviser.</div>';
+  }
   function lienEtape24(){
     return etapeLoupe()
       ? '<a class="ajLien" href="#" data-aj="guide">👉 Comment faire mon bilan (obligatoire) : « Vous avez loupé votre examen »</a>'
@@ -4648,14 +4666,29 @@
     var e1 = etat === 'attente' ? '<div class="ajEtat ok">✅ Ton bilan est bien envoyé' + (monBilan.envoyeLe ? ' (le ' + echapper(monBilan.envoyeLe) + ')' : '') + ' · ⏳ en attente de validation par l’école.</div>'
            : etat === 'arefaire' ? '<div class="ajEtat ko">↩️ L’école te demande de compléter ton bilan.</div>' : '';
     var texte = String((monBilan && monBilan.texteCarte) || '').trim() || CARTE_AJ_DEFAUT_EL;
+    /* 🎬 v1452 — David : « c'est pas le bon lien, c'est le lien que j'ai mis
+       en dessous qui est bon » (« 🎬 Rapport Post Permis en cas d'échec à
+       l'examen : …?seg=… », posé avec 🔗 Lien élève dans Ce qu'on écrit).
+       Un lien vers une étape écrit dans le texte REMPLACE le lien
+       automatique de l'étape 24, à sa place (sous « 📝 Faire mon bilan »),
+       et sa ligne quitte le texte — l'adresse brute ne s'affiche plus, et
+       l'étape qui la suit garde son numéro. */
+    var lienChoisi = lienEtapeDeLaCarte(texte);
+    if(lienChoisi) texte = lienChoisi.reste;
     z.innerHTML =
       '<div class="section-title">🚦 Suite à ton ajournement' + (jour ? ' du ' + echapper(jour) : '') + '</div>' +
       corpsCarteAjournement(texte, { ag: ag, autreAgence: !!(monBilan && monBilan.autreAgence), e1: e1,
         bouton: '<button type="button" class="btn btn-primary ajBouton" data-aj="bilan">📝 ' + (etat === 'attente' ? 'Revoir mon bilan' : etat === 'arefaire' ? 'Compléter mon bilan' : 'Faire mon bilan') + '</button>',
-        lien24: lienEtape24() });
+        lien24: lienChoisi ? lienBilanChoisi(lienChoisi) : lienEtape24() });
     Array.prototype.forEach.call(z.querySelectorAll('[data-aj]'), function(b){
       b.addEventListener('click', function(ev){
         ev.preventDefault();
+        if(b.getAttribute('data-aj') === 'etape'){
+          var r = etapeDuLienEl(b.getAttribute('data-cle') || ''); if(!r) return;
+          try{ allerAOnglet('reviser'); }catch(e){}
+          if(r.cle) ouvrirLaFeuille(r.cle); else allerAuGuideDepuisRecherche(r.guide);
+          return;
+        }
         if(b.getAttribute('data-aj') === 'guide'){
           var g = etapeLoupe(); if(!g) return;
           try{ allerAOnglet('reviser'); }catch(e){}
