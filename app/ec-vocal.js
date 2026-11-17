@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:37 — v1435 */
+/* Déployé le 17/11/2026 à 13:15 — v1447 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -836,6 +836,8 @@ async function lancerLaGeneration(){
 
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
+    /* 💾 v1447 — carte SD perdue : « ❌ carte perdue » à la place du rappel */
+    if(typeof carteSDPerdueDansLeBilan === 'function') bilan = carteSDPerdueDansLeBilan(bilan);
     /* Les procédures réclamées à la voix, recopiées en fin de bilan */
     /* 📍 v1219 — où il en est, sous le rappel de sa frise */
     if(typeof avecOuTuEnEsDuCours === 'function') bilan = avecOuTuEnEsDuCours(bilan);
@@ -2395,6 +2397,8 @@ function afficherEnteteDuCours(){
     l.appendChild(t);
 
     d.appendChild(l);
+    /* 💾 v1447 — « Carte perdue », en petit sous Carte SD */
+    if(cle === 'carteSD' && typeof caseCartePerdueSE === 'function') d.appendChild(caseCartePerdueSE(controleCaseCarteSE(cb)));
   });
   /* ⚡ v1312 — l'alerte de survitesse oubliée (A3 2 et Q3 10 seulement) */
   if(typeof caseSurvitesseDuTiroir === 'function') d.appendChild(caseSurvitesseDuTiroir('entCase'));
