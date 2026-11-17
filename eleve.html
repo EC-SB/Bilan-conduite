@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 13/11/2026 à 14:22 — v1427 -->
+<!-- Déployé le 17/11/2026 à 09:30 — v1441 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -338,6 +338,27 @@
   .salleRevCarte{ max-width:860px; margin:24px auto; }
   .salleRevCarte .salleEqChamp{ margin-bottom:14px; }
   .salleRevPied{ font-size:13.5px; margin-top:14px; }
+  /* 📺 v1441 — les vidéos des tablettes : présentations (en libre), cours en salle (code de l'équipe) */
+  .salleGauche{ display:flex; flex-direction:column; gap:18px; min-width:0; }
+  .salleGauche .card{ margin:0; }
+  .salleVidSous{ font-size:15px; font-weight:800; margin:12px 0 8px; }
+  .salleCats{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px 18px; margin-top:8px; }
+  .salleCats .salleNom{ width:100%; }
+  .salleCatListe{ display:flex; flex-direction:column; gap:8px; }
+  .salleLecteurCarte{ max-width:1100px; margin:0 auto; }
+  .salleLecteurTete{ display:flex; align-items:center; gap:10px; }
+  .salleLecteurTete .t{ flex:1; min-width:0; }
+  .salleLecteurTete .btn{ width:auto; margin:0; padding:10px 18px; }
+  .salleVideo{ position:relative; border-radius:16px; overflow:hidden; background:#000; aspect-ratio:16/9; max-height:72vh; margin:0 auto; }
+  .salleVideo video{ width:100%; height:100%; display:block; background:#000; }
+  .salleBarre{ position:absolute; left:0; right:0; bottom:0; padding:12px 16px; background:linear-gradient(transparent,rgba(0,0,0,.75)); color:#fff; display:flex; align-items:center; gap:14px; font-size:15px; }
+  .salleBarre button{ background:transparent; border:0; color:#fff; font-size:22px; min-width:44px; min-height:44px; cursor:pointer; padding:0; margin:0; width:auto; }
+  .salleBarre .piste{ flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.35); position:relative; overflow:hidden; }
+  .salleBarre .piste i{ position:absolute; left:0; top:0; bottom:0; width:0; background:#B6FF0E; }
+  .salleLecteurNote{ font-size:14px; color:var(--muted); margin-top:12px; line-height:1.5; }
+  .salleStopFond{ position:absolute; inset:0; background:rgba(0,0,0,.82); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; }
+  .salleStopFond .card{ max-width:420px; width:92%; margin:0; padding:18px; }
+  .salleStopFond .salleClavier .btn{ min-height:54px; font-size:21px; }
   .bandeauDemo.salleBandeau{ background:var(--orange); color:var(--on-accent); font-size:15px; font-weight:800; }
   .bandeauDemo.salleBandeau button{ background:#0B0B0B; color:#fff; border-color:#0B0B0B; font-size:14px; }
   .maSalle{ border:2px solid var(--orange); border-radius:14px; padding:14px; margin-bottom:12px; }
@@ -3260,9 +3281,13 @@
     if(salleBattement){ clearInterval(salleBattement); salleBattement = null; }
     var e = salleEcran();
     e.innerHTML = salleEntete(salleSous()) +
-      '<div class="salleColonnes"><div class="card salleCarte salleGrande"><div class="section-title">👋 Bonjour ! Touche ton nom</div>' +
+      '<div class="salleColonnes"><div class="salleGauche"><div class="card salleCarte salleGrande"><div class="section-title">👋 Bonjour ! Touche ton nom</div>' +
       '<div class="salleTexte">Tu reviens pour la suite de ton cours de théorie : touche ton nom, puis tape ton <b>jour et ton mois de naissance</b>.</div>' +
       '<div id="salleNoms" class="salleNoms"><div class="empty">⏳ …</div></div></div>' +
+      /* 📺 v1441 — les présentations, en libre (cachée tant qu'il n'y a rien) */
+      '<div class="card salleCarte" id="sallePres" style="display:none"><div class="section-title">🎬 Découvre nos formations</div>' +
+      '<div class="salleTexte">Des vidéos pour découvrir l’auto-école et ses formations. Touche une vidéo pour la regarder.</div>' +
+      '<div id="sallePresListe"></div></div></div>' +
       '<div class="salleCote">' +
       /* 📚 v1359 — celui qui a fini sa salle vient réviser */
       '<div class="card salleCarte salleRev"><div class="section-title">📚 Tu as fini ta salle ?</div>' +
@@ -3271,16 +3296,24 @@
       '<div class="card salleCarte"><div class="section-title">🆕 La première fois ?</div>' +
       '<div class="salleTexte">Demande à l’équipe de t’installer : ton cours s’ouvrira ici tout seul.</div>' +
       '<button type="button" class="btn btn-primary" id="salleBtEquipe">🔑 L’équipe : installer un élève ici</button>' +
-      '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div></div></div>';
+      '<div id="salleMsg" class="salleMsg">' + echapper(msg || '') + '</div></div>' +
+      /* 📺 v1441 — les cours en salle, lancés par l'équipe */
+      '<div class="card salleCarte"><div class="section-title">🎓 Cours en salle</div>' +
+      '<div class="salleTexte">ETM, moto, AM, BE, B96 : l’équipe lance la vidéo du cours avec son code.</div>' +
+      '<button type="button" class="btn btn-secondary" id="salleBtCours">🎓 L’équipe : lancer un cours</button></div>' +
+      '</div></div>';
     $('salleBtEquipe').addEventListener('click', function(){ salleEquipeCode(''); });
+    $('salleBtCours').addEventListener('click', function(){ salleEquipeCode('', 'cours'); });
+    salleDessinerPres();
+    sallePresLire();
     $('salleBtReviser').addEventListener('click', function(){ salleReviserEcran(); });
     salleVeiller(true);
   }
   function salleVeiller(maintenant){
     if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
-    if(SALLE || !TABLETTE) return;
+    if(SALLE || !TABLETTE || SALLE_LECTURE) return;
     var faire = function(){
-      if(SALLE || !TABLETTE) return;
+      if(SALLE || !TABLETTE || SALLE_LECTURE) return;
       if(document.hidden){ salleVeille = setTimeout(faire, SALLE_VEILLE_LENTE_MS); return; }
       appeler({ action: 'salleAccueil', tablette: TABLETTE.jeton }).then(function(d){
         if(SALLE) return;
@@ -3357,14 +3390,15 @@
         return d;
       }); });
   }
-  function salleEquipeCode(msg){
+  function salleEquipeCode(msg, but){
     if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
     salleEquipeVeiller();
     var e = salleEcran();
     var tape = '';
     e.innerHTML = salleEntete(salleSous()) +
       '<div class="card salleCarte salleMilieu"><div class="section-title">🔑 L’équipe : ton code</div>' +
-      '<div class="salleTexte">Le code avec lequel tu ouvres l’application de l’auto-école. <b>Cache l’écran</b> : l’élève ne doit pas le voir.</div>' +
+      '<div class="salleTexte">' + (but === 'cours' ? 'Pour lancer un cours en salle : le' : 'Le') +
+        ' code avec lequel tu ouvres l’application de l’auto-école. <b>Cache l’écran</b> : l’élève ne doit pas le voir.</div>' +
       '<div id="salleCodeEquipe" class="salleCases" aria-live="polite"></div>' +
       '<div class="salleClavier">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '←', '0', '✓'].map(function(k){
         return '<button type="button" class="btn ' + (k === '✓' ? 'btn-primary' : 'btn-secondary') + '" data-k="' + k + '">' + k + '</button>'; }).join('') + '</div>' +
@@ -3380,6 +3414,18 @@
       $('salleMsg').textContent = '⏳ …';
       e.querySelectorAll('.salleClavier button').forEach(function(b){ b.disabled = true; });
       EQUIPE_SALLE = { code: tape };
+      /* 📺 v1441 — les cours en salle : ses vidéos, avec son code */
+      if(but === 'cours'){
+        appelEquipe('/auth', {}).then(function(a){
+          EQUIPE_SALLE.nom = a.moniteur || '';
+          return appelEquipe('/sheets', { action: 'salleVideosEquipe' });
+        }).then(function(d){ salleCoursEcran(d); }).catch(function(er){
+          EQUIPE_SALLE = null; tape = ''; montrer();
+          e.querySelectorAll('.salleClavier button').forEach(function(b){ b.disabled = false; });
+          $('salleMsg').textContent = (er && er.message) || 'Impossible pour le moment.';
+        });
+        return;
+      }
       appelEquipe('/auth', {}).then(function(a){
         EQUIPE_SALLE.nom = a.moniteur || '';
         return Promise.all([appelEquipe('/sheets', { action: 'salleLire' }), appelEquipe('/sheets', { action: 'salleFichesTablette' })]);
@@ -3405,6 +3451,216 @@
     $('salleRetour').addEventListener('click', function(){ salleEquipeFin(''); });
     montrer();
   }
+  /* ============================================================
+     📺 LES VIDÉOS DES TABLETTES — v1441
+
+     David, le 17 novembre : les vidéos de présentation des formations
+     (un bouton sur l'accueil, sans suivi, sans prouver que c'est nous)
+     et les cours en salle ETM, AM, moto, BE, B96 (l'équipe prouve que
+     c'est elle, puis un bouton par vidéo, par catégorie ; pas de suivi,
+     c'est du one shot). Ses réponses au schéma : rangées dans Groupes et
+     guides (groupes 📺) ; sur les tablettes des deux sites ; à la fin
+     d'un cours, retour à l'accueil — « mais il faut bien que l'élève ait
+     fini de voir ce qu'il faut ».
+
+     ⚠️ UN COURS SE REGARDE JUSQU'AU BOUT. Pas de barre où l'on avance,
+     pas de « retour » libre : seule l'équipe l'arrête, avec son code.
+     Le code de l'équipe est oublié dès que la vidéo part (la fenêtre de
+     deux minutes ne coupe donc jamais un cours). Une présentation, elle,
+     se regarde comme on veut.
+     ⚠️ RIEN N'EST NOTÉ, ni l'élève, ni ce qui a été vu : le Worker ne
+     reçoit que la demande de la liste (videosDesTablettes).
+     ============================================================ */
+  var SALLE_PRES = null, SALLE_PRES_LU = 0, SALLE_LECTURE = false;
+  function sallePresLire(){
+    if(!TABLETTE || (SALLE_PRES && Date.now() - SALLE_PRES_LU < 30 * 60000)) return;
+    appeler({ action: 'salleVideos', tablette: TABLETTE.jeton }).then(function(d){
+      SALLE_PRES = (d && d.groupes) || []; SALLE_PRES_LU = Date.now();
+      salleDessinerPres();
+    }).catch(function(){ /* la carte reste cachée */ });
+  }
+  function salleBoutonVideo(titre, prefixe, faire){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary salleNom';
+    b.innerHTML = '<span>' + echapper((prefixe || '') + titre) + '</span><small>▶ Lancer la vidéo</small>';
+    b.addEventListener('click', faire);
+    return b;
+  }
+  function salleDessinerPres(){
+    var c = $('sallePres'), z = $('sallePresListe');
+    if(!c || !z || !SALLE_PRES) return;
+    var guides = [];
+    SALLE_PRES.forEach(function(g){ (g.guides || []).forEach(function(x){ if((x.videos || []).length) guides.push(x); }); });
+    if(!guides.length){ c.style.display = 'none'; return; }
+    z.innerHTML = '';
+    guides.forEach(function(x){
+      if(guides.length > 1){ var t = document.createElement('div'); t.className = 'salleVidSous'; t.textContent = x.titre; z.appendChild(t); }
+      var l = document.createElement('div');
+      l.className = 'salleNoms';
+      x.videos.forEach(function(v){
+        l.appendChild(salleBoutonVideo(v.titre, '🎬 ', function(){ salleLecteur({ titre: '🎬 ' + v.titre, lien: v.lien, libre: true }); }));
+      });
+      z.appendChild(l);
+    });
+    c.style.display = '';
+  }
+  /* 🎓 les cours en salle, par catégorie (après le code de l'équipe) */
+  function salleCoursEcran(d){
+    salleEquipeVeiller();
+    var e = salleEcran();
+    var cats = [];
+    ((d && d.groupes) || []).forEach(function(g){ (g.guides || []).forEach(function(x){ cats.push(x); }); });
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="card salleCarte"><div class="section-title salleLecteurTete"><span class="t">🎓 Cours en salle — touche la vidéo à lancer</span>' +
+      '<button type="button" class="btn btn-secondary" id="salleRetour">← Retour</button></div>' +
+      '<div class="salleTexte" style="font-size:14px;color:var(--muted);">Ouvert par ' + echapper((EQUIPE_SALLE && EQUIPE_SALLE.nom) || 'l’équipe') +
+      ' · se referme tout seul après deux minutes sans rien toucher (la vidéo lancée, elle, continue).</div>' +
+      (cats.length ? '<div class="salleCats" id="salleCats"></div>'
+                   : '<div class="empty">Aucun cours pour l’instant : dans l’appli, Suivi › 🎬 Groupes et guides, un groupe « 📺 Seulement sur les tablettes » avec le code de l’équipe, et ses guides publiés.</div>') +
+      '</div>';
+    $('salleRetour').addEventListener('click', function(){ salleEquipeFin(''); });
+    var z = $('salleCats');
+    cats.forEach(function(x){
+      var col = document.createElement('div');
+      var t = document.createElement('div'); t.className = 'salleVidSous'; t.style.marginTop = '6px'; t.textContent = x.titre;
+      col.appendChild(t);
+      if(!(x.videos || []).length){
+        var v0 = document.createElement('div'); v0.className = 'empty'; v0.style.padding = '10px'; v0.textContent = 'Pas encore de vidéo.';
+        col.appendChild(v0);
+      }else{
+        var l = document.createElement('div'); l.className = 'salleCatListe';
+        x.videos.forEach(function(v){
+          l.appendChild(salleBoutonVideo(v.titre, '', function(){ salleLecteur({ titre: '🎓 ' + x.titre + ' · ' + v.titre, lien: v.lien, libre: false }); }));
+        });
+        col.appendChild(l);
+      }
+      z.appendChild(col);
+    });
+  }
+  function salleDuree(s){
+    s = Math.max(0, Math.floor(s || 0));
+    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    return (h ? h + ':' + ('0' + m).slice(-2) : m) + ':' + ('0' + x).slice(-2);
+  }
+  var salleVerrouEcran = null;
+  function salleGarderLEcran(oui){
+    try{
+      if(oui && navigator.wakeLock && !salleVerrouEcran) navigator.wakeLock.request('screen').then(function(l){ salleVerrouEcran = l; }).catch(function(){});
+      if(!oui && salleVerrouEcran){ salleVerrouEcran.release().catch(function(){}); salleVerrouEcran = null; }
+    }catch(er){}
+  }
+  /* La vidéo en grand. o = { titre, lien, libre } */
+  function salleLecteur(o){
+    if(salleVeille){ clearTimeout(salleVeille); salleVeille = null; }
+    /* le code de l'équipe est oublié : la fenêtre de deux minutes ne coupe pas le cours */
+    if(salleEquipeMinuteur){ clearInterval(salleEquipeMinuteur); salleEquipeMinuteur = null; }
+    EQUIPE_SALLE = null;
+    /* ⚠️ pendant la vidéo, l'accueil ne se relit pas (une séance qui s'ouvrirait ici couperait le cours) */
+    SALLE_LECTURE = true;
+    var e = salleEcran();
+    e.innerHTML = salleEntete(salleSous()) +
+      '<div class="card salleCarte salleLecteurCarte"><div class="section-title salleLecteurTete"><span class="t">' + echapper(o.titre) + '</span>' +
+      (o.libre ? '<button type="button" class="btn btn-secondary" id="salleRetour">← Retour à l’accueil</button>'
+               : '<button type="button" class="btn btn-secondary" id="salleStop">🔑 L’équipe : arrêter</button>') + '</div>' +
+      '<div class="salleVideo" id="salleVideo"><video id="salleVid" playsinline preload="auto"' + (o.libre ? ' controls' : '') + '></video>' +
+      (o.libre ? '' : '<div class="salleBarre"><button type="button" id="sallePlay" aria-label="Pause">❚❚</button><span id="salleTemps">0:00</span>' +
+        '<span class="piste"><i id="sallePiste"></i></span><button type="button" id="salleGrand" aria-label="En grand">⛶</button></div>') +
+      '</div><div class="salleLecteurNote">' + (o.libre
+        ? 'À la fin de la vidéo, la tablette revient toute seule à l’accueil.'
+        : 'Le cours se regarde jusqu’au bout : seule l’équipe peut l’arrêter. Rien n’est noté. À la fin, la tablette revient à l’accueil.') + '</div></div>';
+    var v = $('salleVid');
+    v.src = o.lien;
+    var fini = false, vu = 0;
+    function finir(texte){
+      if(fini) return; fini = true;
+      SALLE_LECTURE = false;
+      try{ v.pause(); v.removeAttribute('src'); v.load(); }catch(er){}
+      salleGarderLEcran(false);
+      salleAccueil(texte || '');
+    }
+    v.addEventListener('ended', function(){ finir(o.libre ? '' : '✅ Cours terminé.'); });
+    v.addEventListener('error', function(){
+      if(fini) return;
+      var n = document.querySelector('.salleLecteurNote');
+      if(n) n.innerHTML = '⚠️ La vidéo ne se lit pas (réseau, ou lien périmé). ' + (o.libre ? 'Reviens à l’accueil et relance-la.' : 'L’équipe peut l’arrêter et la relancer.');
+    });
+    salleGarderLEcran(true);
+    if(o.libre){
+      $('salleRetour').addEventListener('click', function(){ finir(''); });
+      v.play().catch(function(){});
+      return;
+    }
+    /* ⚠️ un cours : pas d'avance rapide, pas de retour libre */
+    var zt = $('salleTemps'), zp = $('sallePiste');
+    v.addEventListener('timeupdate', function(){
+      if(fini) return;
+      if(!v.seeking && v.currentTime > vu) vu = v.currentTime;
+      zt.textContent = salleDuree(v.currentTime) + (isFinite(v.duration) ? ' / ' + salleDuree(v.duration) : '');
+      if(isFinite(v.duration) && v.duration > 0) zp.style.width = Math.min(100, v.currentTime / v.duration * 100) + '%';
+    });
+    v.addEventListener('seeking', function(){ if(!fini && v.currentTime > vu + 1) v.currentTime = vu; });
+    v.addEventListener('ratechange', function(){ if(v.playbackRate !== 1) v.playbackRate = 1; });
+    var bp = $('sallePlay');
+    function peindre(){ bp.textContent = v.paused ? '▶' : '❚❚'; bp.setAttribute('aria-label', v.paused ? 'Lecture' : 'Pause'); }
+    v.addEventListener('play', peindre); v.addEventListener('pause', peindre);
+    bp.addEventListener('click', function(){ if(v.paused) v.play().catch(function(){}); else v.pause(); });
+    v.addEventListener('click', function(){ if(v.paused) v.play().catch(function(){}); else v.pause(); });
+    $('salleGrand').addEventListener('click', function(){
+      var z = $('salleVideo');
+      try{
+        if(document.fullscreenElement) document.exitFullscreen();
+        else if(z.requestFullscreen) z.requestFullscreen();
+        else if(v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+      }catch(er){}
+    });
+    $('salleStop').addEventListener('click', function(){ salleArreterLeCours(v, function(){ finir('⏹️ Cours arrêté par l’équipe.'); }); });
+    v.play().catch(function(){ peindre(); });
+  }
+  /* 🔑 arrêter un cours : le code de l'équipe, par-dessus la vidéo (en pause) */
+  function salleArreterLeCours(v, arreter){
+    var z = $('salleVideo');
+    if(!z || z.querySelector('.salleStopFond')) return;
+    var reprendre = !v.paused;
+    try{ v.pause(); }catch(er){}
+    if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(er){} }
+    var f = document.createElement('div');
+    f.className = 'salleStopFond';
+    var tape = '';
+    f.innerHTML = '<div class="card"><div class="section-title">🔑 L’équipe : arrêter le cours</div>' +
+      '<div id="salleCodeStop" class="salleCases"></div>' +
+      '<div class="salleClavier">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '←', '0', '✓'].map(function(k){
+        return '<button type="button" class="btn ' + (k === '✓' ? 'btn-primary' : 'btn-secondary') + '" data-k="' + k + '">' + k + '</button>'; }).join('') + '</div>' +
+      '<div class="salleMsg" id="salleMsgStop"></div>' +
+      '<button type="button" class="btn btn-secondary" id="salleReprendre">▶ Reprendre le cours</button></div>';
+    z.appendChild(f);
+    function montrer(){
+      var n = Math.max(6, tape.length);
+      f.querySelector('#salleCodeStop').innerHTML = Array.apply(null, Array(n)).map(function(_, i){
+        return '<span class="' + (i < tape.length ? 'plein' : '') + '">' + (i < tape.length ? '•' : '') + '</span>'; }).join('');
+    }
+    function fermer(){ f.parentNode && f.parentNode.removeChild(f); if(reprendre) v.play().catch(function(){}); }
+    function valider(){
+      if(tape.length < 4){ f.querySelector('#salleMsgStop').textContent = 'Ton code de l’appli, en entier.'; return; }
+      f.querySelector('#salleMsgStop').textContent = '⏳ …';
+      fetch(RELAIS + '/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: tape }) })
+        .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ if(!r.ok || (d && d.error)) throw new Error((d && d.error) || 'Code refusé'); return d; }); })
+        .then(function(){ arreter(); })
+        .catch(function(er){ tape = ''; montrer(); f.querySelector('#salleMsgStop').textContent = (er && er.message) || 'Code refusé.'; });
+    }
+    f.querySelectorAll('.salleClavier button').forEach(function(b){
+      b.addEventListener('click', function(){
+        var k = b.getAttribute('data-k');
+        if(k === '←') tape = tape.slice(0, -1);
+        else if(k === '✓') return valider();
+        else if(tape.length < 12) tape += k;
+        montrer();
+      });
+    });
+    f.querySelector('#salleReprendre').addEventListener('click', fermer);
+    montrer();
+  }
+
   /* Sa formation : ce qui se regarde en salle, et ce qui s'ouvrira ensuite
      (la même règle que la fenêtre de l'appli, ec-salle.js › slGroupesPour) */
   function salleNormE(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
