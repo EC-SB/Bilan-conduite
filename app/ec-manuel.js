@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 10:29 — v1433 */
+/* Déployé le 17/11/2026 à 13:15 — v1447 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -395,6 +395,11 @@ const CHAMPS_MANUELS = {
        remet en nombre de leçons »). Le bilan écrit leçons ET heures. */
     { cle:'simuHeures',  type:'nombreEval', nom:'Heures de simulateur',
       unite:'h', entete:'🕙 Estimation' },
+    /* 🕹️ v1447 — David, le 17 novembre : « si le moniteur remplit des
+       heures sur simulateur avec moniteur, en dessous des cases à cocher
+       de ce qu'il faudra travailler sur le simulateur », la liste réglée
+       dans le créateur des fiches. Visible seulement avec des heures. */
+    { cle:'simuTravail', type:'simuTravail', nom:'🕹️ À travailler sur le simulateur', marque:true },
     { cle:'leconsAvant', type:'nombreEval', nom:'Leçons avant examen blanc',
       unite:'leçons', enHeures:true },
     { cle:'leconsApres', type:'nombreEval', nom:'Leçons après examen blanc',
@@ -5960,6 +5965,10 @@ function lireChampsManuels(champsVoulus){
         if(cb.checked && c && c.phrase) phrases.push(String(c.phrase));
       });
       champsManuels[ch.cle] = phrases.join('\n');
+    }else if(ch.type === 'simuTravail'){
+      /* 🕹️ v1447 — les cases cochées, une par ligne ; rien sans heures */
+      const l = casesSimuCochees();
+      if(l.length && heuresSimuSaisies()) champsManuels[ch.cle] = l.join('\n'); else delete champsManuels[ch.cle];
     }else if(ch.type === 'liste'){
       /* ▾ v1236 — le ou les choix pris, un par ligne */
       const zl = document.querySelector('[data-zone="' + String(ch.cle).replace(/"/g, '') + '"]');
@@ -6361,6 +6370,8 @@ async function genererBilanManuel(){
     }
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
+    /* 💾 v1447 — carte SD perdue : « ❌ carte perdue » à la place du rappel */
+    if(typeof carteSDPerdueDansLeBilan === 'function') bilan = carteSDPerdueDansLeBilan(bilan);
     /* 🅰️ v1336 — le conseil / le passage en BEA d'un cours en BV. Sur un
        examen blanc, ils sont déjà dans le bloc du niveau. */
     if(modeleCle !== 'examen-blanc' && !surRendezVousPedago() && typeof placerBEADansLeBilan === 'function'){
@@ -7463,6 +7474,75 @@ function dessinerNombreEval(ch, bloc){
   i._majConversion = maj;
 }
 
+/* ============================================================
+   🕹️ v1447 — CE QU'IL FAUDRA TRAVAILLER SUR LE SIMULATEUR
+   Sous « Heures de simulateur » de l'évaluation : une case par sujet.
+   La liste se règle dans le créateur des fiches (zone « 🕹️ À travailler
+   sur le simulateur »), rangée comme le menu des manœuvres sous son nom
+   à elle (« liste-simu ») : brouillon, puis « 💾 Publier ».
+   ⚠️ data-hors-saisie : les saisies de la fiche se replacent par leur
+   rang ; ces cases gardent leur état dans champsManuels.
+   ============================================================ */
+const CLE_LISTE_SIMU = 'liste-simu';
+const LISTE_SIMU_ECOLE = ['VA/VD', 'Passage de vitesse', 'Giratoire', 'Volant', 'PAD'];
+function nettoyerListeSimu(f){ return { v: 1, liste: textesFiche(f && f.liste, 40, 60) }; }
+function listeDuSimuATravailler(){
+  if(typeof fiS !== 'undefined' && fiS && Array.isArray(fiS.simu)) return fiS.simu.length ? fiS.simu : LISTE_SIMU_ECOLE.slice();
+  const f = (typeof formesFiches !== 'undefined' && formesFiches) ? formesFiches[CLE_LISTE_SIMU] : null;
+  const l = f ? nettoyerListeSimu(f).liste : [];
+  return l.length ? l : LISTE_SIMU_ECOLE.slice();
+}
+function heuresSimuSaisies(){
+  const el = document.getElementById(idChamp('simuHeures'));
+  const n = nombreDeLEval(el ? el.value : (champsManuels && champsManuels.simuHeures));
+  return n !== null && n > 0;
+}
+function casesSimuCochees(){
+  return Array.prototype.map.call(document.querySelectorAll('.simuTravailCase:checked'), x => x.value);
+}
+function dessinerSimuTravail(ch, bloc){
+  bloc.classList.add('simuTravailBloc');
+  bloc.style.cssText = 'margin:-2px 0 12px;padding:9px 11px;border:1px dashed var(--line);border-radius:10px;';
+  const l = document.createElement('label');
+  l.textContent = ch.nom;
+  l.style.cssText = 'margin:0 0 2px;';
+  bloc.appendChild(l);
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11.5px;color:var(--muted);margin:0 0 6px;line-height:1.4;';
+  a.textContent = ch.aide || 'Coche ce qu’il faudra travailler pendant ses heures de simulateur : ça part dans son bilan, sous la ligne du simulateur.';
+  bloc.appendChild(a);
+  const g = document.createElement('div');
+  g.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 14px;';
+  const deja = String((champsManuels && champsManuels[ch.cle]) || '').split('\n').map(x => x.trim()).filter(Boolean);
+  listeDuSimuATravailler().forEach(item => {
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;align-items:center;gap:7px;margin:0;font-size:14.5px;text-transform:none;color:var(--cream);' +
+      'letter-spacing:0;cursor:pointer;padding:4px 0;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'simuTravailCase';
+    cb.value = item;
+    cb.checked = deja.indexOf(item) !== -1;
+    cb.setAttribute('data-hors-saisie', '1');
+    cb.style.cssText = 'width:18px;height:18px;margin:0;flex-shrink:0;';
+    cb.addEventListener('change', () => {
+      const v = casesSimuCochees();
+      if(v.length) champsManuels[ch.cle] = v.join('\n'); else delete champsManuels[ch.cle];
+      majApercuEval();
+      if(typeof planifierSauvegardeManuelle === 'function') planifierSauvegardeManuelle();
+    });
+    lab.append(cb, document.createTextNode(item));
+    g.appendChild(lab);
+  });
+  bloc.appendChild(g);
+  /* Sans heures, la zone se cache — sauf dans le créateur, pour la régler */
+  bloc._majVisible = () => {
+    const createur = typeof fiS !== 'undefined' && fiS && !fiS.essai;
+    bloc.style.display = (createur || heuresSimuSaisies()) ? '' : 'none';
+  };
+  bloc._majVisible();
+}
+
 function dessinerApercuEval(ch, bloc){
   const l = document.createElement('label');
   l.textContent = ch.nom;
@@ -7524,7 +7604,9 @@ function majApercuEval(){
     return el ? el.value : champsManuels[cle];
   };
   const ai = { simuHeures: lire('simuHeures'), leconsAvant: lire('leconsAvant'),
-               leconsApres: lire('leconsApres') };
+               leconsApres: lire('leconsApres'), simuTravail: casesSimuCochees().join('\n') };
+  /* 🕹️ v1447 — les cases du simulateur : visibles avec des heures */
+  document.querySelectorAll('.simuTravailBloc').forEach(b => { if(typeof b._majVisible === 'function') b._majVisible(); });
 
   const aLaMain = !!champsManuels.estimationMain;
   if(!aLaMain){
@@ -8341,6 +8423,9 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
     }else if(ch.type === 'nombreEval'){
       dessinerNombreEval(ch, bloc);
 
+    }else if(ch.type === 'simuTravail'){
+      dessinerSimuTravail(ch, bloc);
+
     }else if(ch.type === 'apercuEval'){
       dessinerApercuEval(ch, bloc);
 
@@ -8416,6 +8501,14 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         r.appendChild(b);
       });
       bloc.appendChild(r);
+      /* 💾 v1447 — « Carte perdue », en petit sous Carte SD (gardée d'un bilan à l'autre) */
+      if(/(^|\.)carteSD$/.test(ch.cle) && typeof caseCartePerdueSE === 'function'){
+        bloc.style.flexWrap = 'wrap';
+        const cp = caseCartePerdueSE(controleBoutonsCarteSE(r));
+        cp.style.flexBasis = '100%';
+        cp.style.marginLeft = '0';
+        bloc.appendChild(cp);
+      }
 
     }else if(ch.type === 'manoeuvres'){
       const liste = BLOC.ficheListeConduite;
@@ -9079,6 +9172,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         'tes cours sont filmés, par une caméra avant et une arrière, avec le son ' +
         'et les conseils des moniteurs, pour revoir tout ton cours de conduite, ' +
         'avant de revenir à ton prochain cours).');
+      /* 💾 v1447 — « Carte perdue », en petit sous Carte SD */
+      if(typeof caseCartePerdueSE === 'function'){
+        z.appendChild(caseCartePerdueSE(controleCaseCarteSE(z.querySelector('.enteteCase[data-cle="carteSD"]'))));
+      }
       ligneCase('installation', '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣',
         'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
       ligneCase('passager', '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧', '');
