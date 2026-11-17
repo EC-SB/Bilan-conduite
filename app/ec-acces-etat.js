@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 17/11/2026 à 09:30 — v1441 */
 /* ============================================================
    ec-acces-etat.js — 🔑 L'ESPACE ÉLÈVE OUVERT À TOUS, ET QUI A
    REÇU SON ACCÈS
@@ -314,7 +314,7 @@ async function aeHabitudes(){
   let groupes = [], prog = { groupes: [], regles: {} };
   try{
     const d = await appelPrep({ action: 'parcoursList' });
-    groupes = (d && d.groupes) || [];
+    groupes = ((d && d.groupes) || []).filter(g => !g.tablettes);   /* 📺 v1441 — jamais chez un élève */
     prog = (d && d.salle) || prog;
   }catch(e){}
   return { groupes: groupes, prog: prog };
