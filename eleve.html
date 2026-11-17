@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/11/2026 à 10:05 — v1442 -->
+<!-- Déployé le 17/11/2026 à 10:32 — v1443 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -562,6 +562,15 @@
   .ajLien{ display:inline-block; font-size:13px; font-weight:700; color:var(--accent-text, var(--cream)); }
   .ajEtat{ font-size:13px; font-weight:700; margin-top:8px; }
   .ajEtat.ko{ color:var(--orange); }
+  /* ✅ v1443 — le bilan post-permis bien envoyé */
+  .bilanParti{ border:2px solid var(--orange) !important; background:rgba(182,255,14,.10); }
+  body.clair .bilanParti{ background:var(--orange-soft); }
+  .bilanParti.neuf{ animation:bpArrive .6s ease-out; }
+  @keyframes bpArrive{ from{ transform:scale(.97); opacity:.4; } to{ transform:none; opacity:1; } }
+  .bpTete{ font-size:18px; font-weight:800; margin-bottom:8px; }
+  .bpLigne{ font-size:14px; line-height:1.55; margin:4px 0; }
+  .bpPetit{ font-size:12.5px; color:var(--muted); line-height:1.5; margin-top:8px; }
+  .bilanPlie > summary{ cursor:pointer; font-size:15px; font-weight:800; padding:2px 0; }
   .ajChemin{ font-weight:800; font-size:13.5px; }
   .ajPris{ font-size:15px; line-height:1.5; margin:0 0 10px; padding:10px 12px; border-radius:12px; background:var(--orange-soft); color:var(--on-accent); }
   .ajAvert{ font-size:12.5px; font-weight:800; line-height:1.55; border-top:1px solid var(--line); padding-top:10px; margin-top:6px; }
@@ -4363,17 +4372,28 @@
       pr.style.cssText = 'font-size:14.5px;line-height:1.6;white-space:pre-wrap;';
       pr.textContent = monBilan.retour;
       r.appendChild(pr);
+      var pr2 = document.createElement('div');
+      pr2.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px;';
+      pr2.textContent = 'Ce que tu avais écrit est gardé : complète ci-dessous, puis « 📨 Renvoyer mon bilan complété ».';
+      r.appendChild(pr2);
       z.appendChild(r);
     }
+    /* ✅ v1443 — David : « il faut que ce soit plus clair pour que l'élève
+       sache que son bilan est bien envoyé ». Une carte verte, en haut, qui
+       dit ce qui est fait, ce qu'on attend, et où arrivera la suite. */
     if(etat === 'attente'){
       var a = document.createElement('div');
-      a.className = 'card';
-      a.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">📝 Ton bilan est parti</div>' +
-        '<div style="font-size:14px;line-height:1.6;color:var(--muted);">' +
-        'Envoyé le ' + echapper(monBilan.envoyeLe || '') + '. ' +
-        'L’école le lit, et ton rendez-vous sera fixé ensuite. ' +
-        'Tu peux encore le modifier tant qu’il n’est pas validé.</div>';
+      a.className = 'card bilanParti' + (bilanJusteEnvoye ? ' neuf' : '');
+      a.id = 'carteBilanParti';
+      var msg = ouvert('messages');
+      a.innerHTML = '<div class="bpTete">✅ Ton bilan est bien envoyé</div>' +
+        '<div class="bpLigne">📨 Envoyé' + (monBilan.envoyeLe ? ' le <b>' + echapper(monBilan.envoyeLe) + '</b>' : '') + '.</div>' +
+        '<div class="bpLigne">⏳ <b>En attente de validation</b> par l’école : rien d’autre à faire pour l’instant.</div>' +
+        (msg ? '<div class="bpLigne">💬 Tu le retrouves aussi dans ta messagerie (💬 Écrire), conversation « Le bureau ».</div>' : '') +
+        '<div class="bpLigne">📜 Quand il sera validé, tu recevras un message' + (msg ? ' dans ta messagerie' : '') + ' pour réserver ton RDV post-permis.</div>' +
+        '<div class="bpPetit">Tu peux encore le modifier tant qu’il n’est pas validé : « ✏️ Revoir ou modifier mon bilan », plus bas.</div>';
       z.appendChild(a);
+      bilanJusteEnvoye = null;
     }
 
     z.appendChild(carteTonExamen());
@@ -4413,9 +4433,14 @@
     var b = document.createElement('button');
     b.className = 'btn btn-primary';
     b.id = 'btEnvoyerBilan';
-    b.textContent = '📨 Envoyer mon bilan';
+    b.textContent = etat === 'attente' ? '📨 Renvoyer mon bilan modifié'
+                  : etat === 'arefaire' ? '📨 Renvoyer mon bilan complété' : '📨 Envoyer mon bilan';
     b.addEventListener('click', envoyerMonBilan);
     carte.appendChild(b);
+    var bas = document.createElement('div');
+    bas.id = 'msgBilanBas';
+    bas.style.cssText = 'margin-top:8px;';
+    carte.appendChild(bas);
 
     var d = document.createElement('div');
     d.className = 'ditpartage';
@@ -4424,9 +4449,23 @@
       'avant le rendez-vous, et vous le reprenez ensemble.';
     carte.appendChild(d);
 
-    z.appendChild(carte);
+    /* ✅ v1443 — parti : le formulaire se replie sous la carte verte (il
+       reste là pour le modifier). Un appui sur Oui / Non redessine tout :
+       le repli garde son état. */
+    if(etat === 'attente'){
+      var pl = document.createElement('details');
+      pl.className = 'card bilanPlie';
+      pl.open = !!bilanModifOuvert;
+      pl.innerHTML = '<summary>✏️ Revoir ou modifier mon bilan</summary>';
+      carte.className = '';
+      carte.style.cssText = 'margin-top:12px;';
+      pl.appendChild(carte);
+      pl.addEventListener('toggle', function(){ bilanModifOuvert = pl.open; });
+      z.appendChild(pl);
+    }else z.appendChild(carte);
     majCompteBilan();
   }
+  var bilanModifOuvert = false;
 
   /* 📍 v1404 — « à la fin du bilan, le bouton pour savoir s'il peut
      passer son examen à Loudéac, et que ça complète directement de notre
@@ -4537,7 +4576,7 @@
     var etat = String((monBilan && monBilan.etat) || '');
     var jour = monBilan && monBilan.dateAjournement ? jourEnClair(monBilan.dateAjournement) : '';
     var ag = (monBilan && monBilan.autreAgence) || 'Loudéac';
-    var e1 = etat === 'attente' ? '<div class="ajEtat ok">✅ Ton bilan est parti' + (monBilan.envoyeLe ? ' le ' + echapper(monBilan.envoyeLe) : '') + ' : l’école le lit.</div>'
+    var e1 = etat === 'attente' ? '<div class="ajEtat ok">✅ Ton bilan est bien envoyé' + (monBilan.envoyeLe ? ' (le ' + echapper(monBilan.envoyeLe) + ')' : '') + ' · ⏳ en attente de validation par l’école.</div>'
            : etat === 'arefaire' ? '<div class="ajEtat ko">↩️ L’école te demande de compléter ton bilan.</div>' : '';
     z.innerHTML =
       '<div class="section-title">🚦 Suite à ton ajournement' + (jour ? ' du ' + echapper(jour) : '') + '</div>' +
@@ -4654,22 +4693,45 @@
     if(b) b.disabled = (n > 0);
   }
 
+  /* ✅ v1443 — David : « ça lui dit qu'il n'a pas tout complété, la case
+     Loudéac bug ». ⚠️ LA RÉPONSE « LOUDÉAC » PARTAIT À CÔTÉ DE « fin » :
+     le classeur ne lit que fin.autreAgence, la perdait, et au retour le
+     compteur disait « Il reste 1 réponse » sur un bilan bien parti. Elle
+     part maintenant DANS fin, avec les quatre questions de la fin. */
+  var bilanJusteEnvoye = null;   /* { fil } juste après l'envoi : la carte verte s'allume */
   function envoyerMonBilan(){
     var n = cequilManque();
     if(n){ dire('msgBilan', 'Il reste ' + n + ' réponse(s) à donner.'); return; }
     var b = $('btEnvoyerBilan');
+    var libelle = b ? b.textContent : '📨 Envoyer mon bilan';
     if(b){ b.disabled = true; b.textContent = 'Envoi…'; }
+    var fin = {};
+    Object.keys(mesFin).forEach(function(k){ fin[k] = mesFin[k]; });
+    fin.autreAgence = monAutreAgence === null ? '' : (monAutreAgence ? 'oui' : 'non');
     appeler({ action: 'eleveBilanEnvoyer', eleve: moi.nom, code: moi.code,
               reponses: JSON.stringify({ points: mesReponses.map(function(r){
                 return { nom: r.nom, ok: r.ok, compris: r.compris, pourquoi: r.pourquoi, solution: r.solution }; }),
-                fin: mesFin, autreAgence: monAutreAgence === null ? '' : (monAutreAgence ? 'oui' : 'non') }) })
-      .then(function(){
-        dire('msgBilan', '📝 Ton bilan est parti. L’école te répond ensuite.', 'ok');
-        return chargerMonBilan();
+                fin: fin }) })
+      .then(function(r){
+        dire('msgBilan', '');
+        bilanJusteEnvoye = { fil: !!(r && r.fil) };
+        /* parti : on le dit tout de suite, sans attendre la relecture */
+        if(monBilan){ monBilan.etat = 'attente'; monBilan.envoyeLe = (r && r.envoyeLe) || monBilan.envoyeLe || ''; monBilan.retour = ''; }
+        bilanModifOuvert = false;
+        dessinerMonBilan();
+        dessinerCarteAjournement();
+        var c = $('carteBilanParti');
+        if(c) try{ c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){}
+        if(ouvert('messages') && typeof chargerConversationsEleve === 'function'){ try{ chargerConversationsEleve(); }catch(e){} }
+        /* la relecture : seulement si elle répond (un échec ne vide pas l'onglet) */
+        return appeler({ action: 'eleveBilan', eleve: moi.nom, code: moi.code })
+          .then(function(d){ if(d && d.status !== 'error') appliquerMonBilan(Object.assign({ captures: monBilan && monBilan.captures }, d)); })
+          .catch(function(){});
       })
       .catch(function(e){
-        dire('msgBilan', e.message || 'Envoi impossible.', 'erreur');
-        if(b){ b.disabled = false; b.textContent = '📨 Envoyer mon bilan'; }
+        /* l'erreur se lit LÀ OÙ IL A APPUYÉ (le haut de l'onglet est loin) */
+        dire('msgBilanBas', '⚠️ Pas envoyé : ' + (e.message || 'envoi impossible.'), 'erreur');
+        if(b){ b.disabled = false; b.textContent = libelle; }
       });
   }
 
@@ -6067,9 +6129,13 @@
       barre.appendChild(b);
     });
 
+    /* ⚠️ v1443 — LE « display:none » POSÉ PAR LE CAS « UN SEUL ONGLET »
+       RESTAIT COLLÉ : passé à deux onglets (son bilan qui arrive après la
+       connexion), la zone gardait son style et l'onglet 📝 Bilan s'ouvrait
+       VIDE. La classe « cache » suffit à cacher : on rend le style. */
     ONGLETS.forEach(function(o){
       var z = $(o.zone);
-      if(z) z.className = (o.cle === ongletIci) ? '' : 'cache';
+      if(z){ z.className = (o.cle === ongletIci) ? '' : 'cache'; z.style.display = ''; }
     });
   }
 
@@ -9840,7 +9906,8 @@
        rendez-vous post-permis : leurs boutons (l'onglet 📝 Bilan,
        l'étape 24, Drivup, la vidéo, l'agence). Un lien ne se clique
        pas dans le texte d'une bulle : il devient un bouton. */
-    if((m.motif === 'pp-ajourne' || m.motif === 'pp-rdv') && m.donnees && Array.isArray(m.donnees.boutons)){
+    /* ↩️ v1443 — « à compléter » (pp-completer) et son bilan envoyé (pp-bilan) aussi */
+    if((m.motif === 'pp-ajourne' || m.motif === 'pp-rdv' || m.motif === 'pp-completer' || m.motif === 'pp-bilan') && m.donnees && Array.isArray(m.donnees.boutons)){
       /* le premier bouton est l'action principale (plein), les autres en contour */
       m.donnees.boutons.forEach(function(b, i){
         if(!b || !b.t) return;
