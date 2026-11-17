@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 15:44 — v1453 */
+/* Déployé le 17/11/2026 à 16:51 — v1454 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1454,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🗂️ Des onglets dans l’appli : ouvrir un écran sans quitter celui où l’on est',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Ouvrir dans un onglet',
+        texte: 'Clic molette, Ctrl + clic, ou clic droit › « 🗂️ Ouvrir dans un onglet » sur un écran de la barre du haut, une vue du rail, un élève, une conversation, « Ouvrir son dossier »… Sur la tablette : appui long. L’onglet s’ajoute dans la rangée « Ouverts », sous la barre du haut, et tu restes où tu es.' },
+      { emoji: '↔️',
+        titre: 'Passer de l’un à l’autre',
+        texte: 'Chaque onglet garde l’écran, la vue, l’élève et l’onglet de son dossier, la conversation ou le mail, et l’endroit où tu avais défilé. ✕ (ou le clic molette sur l’onglet) le ferme, ＋ en ouvre un autre au même endroit. 8 au plus : le plus ancien se ferme tout seul. Tu les retrouves en rouvrant l’appli, sur le même appareil.' },
+      { emoji: '📱',
+        titre: 'Sur le téléphone',
+        texte: 'La rangée devient un bouton « 🗂️ » en haut, qui liste les onglets. Un clic normal se comporte comme avant. Les boutons qui font une action (Envoyer, Enregistrer, Supprimer…) ne s’ouvrent jamais dans un onglet.' }
+    ]
+  },
   {
     version: 1453,
     date: 'Mardi 17 novembre 2026',
