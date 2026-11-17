@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 11:37 — v1444 */
+/* Déployé le 17/11/2026 à 12:36 — v1445 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1445,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🧩 Tablettes : l’accueil réorganisé',
+    quoi: [
+      { emoji: '🧩',
+        titre: 'Les blocs de l’accueil à leur nouvelle place',
+        texte: 'À gauche : « 🆕 Premier cours de théorie de la conduite » (l’ancien « La première fois ? »), puis « 👋 Bonjour ! Touche ton nom ». À droite : « 📚 Réviser mes groupes de travail » (l’ancien « Tu as fini ta salle ? »), puis « 🎓 Cours en salle ». Tout en bas, sur toute la largeur : « 🎬 Découvre nos formations ».' }
+    ]
+  },
   {
     version: 1444,
     date: 'Mardi 17 novembre 2026',
