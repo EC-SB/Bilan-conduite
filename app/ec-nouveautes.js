@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 10:32 — v1443 */
+/* Déployé le 17/11/2026 à 11:37 — v1444 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1444,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🔑 Tablettes : arrêter un cours ouvre le clavier en plein écran',
+    quoi: [
+      { emoji: '🔑',
+        titre: '« L’équipe : arrêter » prend tout l’écran',
+        texte: 'Le clavier du code ne s’ouvre plus dans le cadre de la vidéo : il prend toute la tablette, la vidéo reste en pause derrière. « ▶ Reprendre le cours » la relance là où elle était.' }
+    ]
+  },
   {
     version: 1443,
     date: 'Mardi 17 novembre 2026',
