@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:55 — v1450 */
+/* Déployé le 17/11/2026 à 15:15 — v1452 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -572,6 +572,103 @@ async function annulerRdvPostOrganise(nom, bouton){
 
 
 /* ============================================================
+   🗑️ SUPPRIMER UN POST-PERMIS — v1452
+
+   David : « il faut aussi que je puisse supprimer des bilans post-permis
+   quand j'annule des sessions passées : j'ai fait des tests avec Maryne
+   Criquet et David EDom, mais ils restent bloqués dans Attente
+   post-permis ». La cause : supprimer une session efface la date
+   d'examen, pas le résultat « ajourné » — or c'est lui seul qui range un
+   élève dans ⏳ Attente bilan (afficherAttenteBilan).
+
+   Ses choix du 17/11 : TOUT EFFACER — le résultat ajourné (sa fiche de
+   suivi ET la ligne des 🏁 Résultats), la date d'ajournement, le bilan
+   d'examen, le bilan de l'élève, les captures de CET examen, les
+   messages post-permis de sa messagerie, le RDV post-permis et son cours
+   préparé. L'élève sort du post-permis ; sa fiche reste. Un bouton dans
+   sa fiche d'Attente bilan (admin), et la question posée quand on
+   supprime une session passée (ec-sessions.js).
+   ⚠️ « commentaireMoniteur », « fairePoint » et le CEPC de notre moniteur
+   (cepcInterne) ne bougent pas : ils ne sont pas à l'ajournement.
+   ============================================================ */
+async function effacerLePostPermis(nom){
+  const s = suiviDe(nom) || {};
+  const iso = jourIsoPP(s.dateAjournement);
+  const fait = { resultat: false, captures: 0, messages: 0, cours: false };
+
+  /* 1. son cours préparé de RDV post-permis */
+  try{
+    const d = await appelPrep({ action: 'prepList' });
+    const prep = ((d && d.preparations) || []).find(x =>
+      normaliserMot(x.eleve || '') === normaliserMot(nom) && x.modele === 'rdv-post');
+    if(prep && typeof supprimerPreparation === 'function'){ await supprimerPreparation(prep); fait.cours = true; }
+  }catch(err){ /* sans la liste, on efface le reste */ }
+
+  /* 2. les captures du CEPC de CET examen (pas celles d'un autre) */
+  try{
+    const caps = capturesDuMemeExamenPP(await chargerCaptures(nom), iso);
+    for(const c of caps){
+      if(!c || !c.id) continue;
+      await appelPrep({ action: 'captureDelete', id: c.id, eleve: nom });
+      fait.captures++;
+    }
+  }catch(err){ /* la suite quand même */ }
+
+  /* 3. les messages post-permis de sa messagerie (marche à suivre,
+        à compléter, son bilan, le RDV) depuis l'examen */
+  try{
+    let depuis = 0;
+    if(iso){ const m = iso.split('-'); depuis = new Date(+m[0], +m[1] - 1, +m[2]).getTime(); }
+    const d = await appelPrep({ action: 'postPermisEffacerMessages', eleve: nom, depuis: depuis });
+    fait.messages = Number((d && d.masques) || 0);
+  }catch(err){ /* pas de messagerie : rien à effacer */ }
+
+  /* 4. la ligne « ajourné » des 🏁 Résultats — seulement à SA date */
+  if(iso){
+    try{
+      const d = await appelPrep({ action: 'resultatAnnuler', eleve: nom, dateExamen: iso, remettre: '' });
+      fait.resultat = !!(d && d.efface && d.efface.resultat);
+    }catch(err){ /* la fiche de suivi suffit à le sortir de la liste */ }
+  }
+
+  /* 5. sa fiche de suivi — en dernier : c'est elle qui le sort de la
+        liste, et resultatAnnuler vient d'y remettre une date */
+  const n = Math.max(0, (Number(s.nbAjournements) || 0) - 1);
+  await majSuivi(nom, {
+    resultat: '', nbAjournements: n ? String(n) : '', dateAjournement: '', datePermis: '',
+    bilanExamen: '', cepcImage: '', texteMoniteur: '', suite: '', heuresRepassage: '',
+    rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '', rdvPostMessagesLe: '',
+    bilanEleve: '', bilanEleveEtat: '', bilanEleveLe: '', bilanEleveValidePar: '',
+    bilanEleveValideLe: '', bilanEleveRetour: '', bilanEleveJson: ''
+  });
+  if(typeof viderCaches === 'function') viderCaches(nom);
+  return fait;
+}
+async function supprimerLePostPermis(nom, bouton){
+  const s = suiviDe(nom) || {};
+  if(!await confirmer(
+      'Supprimer le post-permis de ' + nom + ' ?\n\n' +
+      'Effacé : son ajournement' + (s.dateAjournement ? ' du ' + dateEnToutesLettres(jourIsoPP(s.dateAjournement) || s.dateAjournement) : '') +
+      ' (fiche de suivi et 🏁 Résultats), le bilan de l’examen, son bilan, les captures du CEPC de cet examen, ' +
+      'les messages post-permis de sa messagerie, le RDV post-permis et son cours préparé.\n\n' +
+      'Il sort du post-permis. Sa fiche reste. On ne peut pas revenir en arrière.',
+      '🗑️ Supprimer le post-permis', true)) return false;
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+  try{
+    await effacerLePostPermis(nom);
+    showToast(nom + ' — post-permis supprimé 🗑️');
+    document.querySelectorAll('.overlay.show').forEach(o => { if(o.querySelector('[data-pp-supprimer]')) fermerFond(o); });
+    if(typeof afficherBureau === 'function') await afficherBureau(true);
+    return true;
+  }catch(err){
+    await informer('Suppression impossible : ' + err.message);
+    if(bouton){ bouton.disabled = false; bouton.textContent = '🗑️ Supprimer le post-permis'; }
+    return false;
+  }
+}
+
+
+/* ============================================================
    2. EN ATTENTE DU BILAN D'EXAMEN
    Ajournés dont le bilan ou le rendez-vous manque encore.
    ============================================================ */
@@ -1091,6 +1188,19 @@ function ficheDuPostPermis(e, boite){
   }
   reste.appendChild(zr);
   boite.appendChild(reste);
+
+  /* 🗑️ v1452 — tout effacer (un test, une session annulée) : admin seulement */
+  if(typeof ACCES !== 'undefined' && ACCES.role === 'admin'){
+    const bS = document.createElement('button');
+    bS.type = 'button';
+    bS.className = 'btn btn-secondary';
+    bS.dataset.ppSupprimer = '1';
+    bS.style.cssText = 'width:auto;margin:12px 0 2px;padding:8px 13px;font-size:12.5px;color:var(--red);border-color:var(--red);';
+    bS.textContent = '🗑️ Supprimer le post-permis';
+    bS.title = 'Effacer l’ajournement et tout le post-permis (test, session annulée) — sa fiche reste';
+    bS.addEventListener('click', () => supprimerLePostPermis(e.eleve, bS));
+    boite.appendChild(bS);
+  }
 }
 
 /* ✉️ Le pop-up des messages — à son premier bilan enregistré, ou à la demande */
@@ -2498,6 +2608,16 @@ function texteAjourneAppPP(){
   const t = (typeof modelesTexte !== 'undefined' ? modelesTexte : []).find(x => x.usage === 'ajourne_app');
   return (t && String(t.contenu || '').trim()) ? t.contenu : MSG_AJOURNE_APP;
 }
+/* ♻️ v1452 — les messages Messenger en plus, sous le premier : les fiches
+   « ❌ Ajourné — le « Up » Messenger » de Ce qu'on écrit, et une 2e fiche
+   « ❌ Ajourné — le message Messenger » s'il en a créé une (seule la
+   première sert de message principal). */
+function textesAjourneUpPP(){
+  const l = (typeof modelesTexte !== 'undefined' ? modelesTexte : []).filter(x => x && String(x.contenu || '').trim());
+  const principal = l.find(x => x.usage === 'ajourne_app');
+  return l.filter(x => x.usage === 'ajourne_up' || (x.usage === 'ajourne_app' && x !== principal))
+    .map(x => ({ nom: String(x.nom || '').trim(), contenu: String(x.contenu) }));
+}
 /* 🚦 v1450 — LA CARTE « SUITE À TON AJOURNEMENT » DE L'ESPACE ÉLÈVE, modifiable
    dans Outils › Ce qu'on écrit (« 🚦 Espace élève — carte … »). David : « dès
    le départ ça ne va pas : c'est écrit envoie-nous, alors qu'il faut qu'il
@@ -2519,8 +2639,20 @@ const CARTE_AJOURNEMENT_DEFAUT = [
 ].join('\n');
 const LIEN_VIDEO_PP = 'https://www.facebook.com/share/v/1D9o635bqF/';
 
+/* 🎬 v1452 — David : « c'est pas le bon lien, c'est le lien que j'ai mis en
+   dessous qui est bon » : le lien vers une étape posé dans la carte « 🚦
+   Suite à ton ajournement » (Ce qu'on écrit, « 🎬 Titre : …?seg=… »)
+   remplace l'étape 24 — sur la carte (eleve.html) ET dans la marche à
+   suivre envoyée dans sa messagerie (ici). { titre, url } ou null. */
+function lienBilanAjournePP(){
+  const f = (typeof modelesTexte !== 'undefined' ? modelesTexte : []).find(x => x && x.usage === 'carte_ajournement' && String(x.contenu || '').trim());
+  const m = String((f && f.contenu) || '').match(/(?:🎬\s*([^\n]*?)\s*:\s*)?(https?:\/\/[^\s<"?#]*\?seg=[A-Za-z0-9%_:\-.]+)/);
+  if(!m) return null;
+  return { titre: String(m[1] || '').trim() || 'L’étape pour faire ton bilan', url: m[2] };
+}
 function messageAutoAjourne(nom, avecLoudeac){
   const prenom = String(nom || '').trim().split(/\s+/)[0] || '';
+  const lien = lienBilanAjournePP();
   const t = [
     'Bonjour ' + prenom + ',',
     '',
@@ -2530,7 +2662,9 @@ function messageAutoAjourne(nom, avecLoudeac){
     '1- 📃 Fais **TON PROPRE BILAN** dans ton espace élève, onglet 📝 Bilan (pas sur Messenger) : analyse ce qu’il s’est passé et explique **POURQUOI** tu ne l’as pas obtenu, SELON TOI, TON PROPRE RESSENTI, par rapport AUSSI à l’inspecteur(trice).',
     'Tu dois **COMPRENDRE** ce qu’il s’est passé, **ÉVACUER** au maximum cet échec et **TROUVER DES SOLUTIONS** pour ne plus les reproduire.',
     'En haut de l’onglet, tu retrouves ton CEPC (le bilan de l’inspecteur(trice)) et le bilan de ton (ta) moniteur(trice) : sers-t’en.',
-    'Regarde **OBLIGATOIREMENT** l’étape 24 « Vous avez loupé votre examen » pour savoir comment faire (Réviser › Mise en pratique › Examen pratique du permis de conduire).',
+    lien
+      ? 'Regarde **OBLIGATOIREMENT** « ' + lien.titre + ' » pour savoir comment faire :\n🎬 ' + lien.titre + ' : ' + lien.url
+      : 'Regarde **OBLIGATOIREMENT** l’étape 24 « Vous avez loupé votre examen » pour savoir comment faire (Réviser › Mise en pratique › Examen pratique du permis de conduire).',
     'Le bilan commence par « As-tu eu tous les points ? », puis te pose les questions point par point.',
     '⚠️ Tu dois **DÉTAILLER** point par point comment s’est déroulée ta conduite, pour qu’on puisse ENSEMBLE TROUVER DES SOLUTIONS D’AMÉLIORATION RAPIDES ET EFFICACES ! Ne nous fais pas perdre de temps avec un bilan incomplet : ton rendez-vous post-permis n’en sera que décalé, et ton repassage aussi…',
     '⚠️ **PAS DE BILAN COMPLET = PAS DE RDV POST-PERMIS = PAS DE REPASSAGE** ⚠️',
@@ -2543,8 +2677,10 @@ function messageAutoAjourne(nom, avecLoudeac){
     t.push('', '3- ❓ Peux-tu repasser ton permis dans notre agence de __Loudéac__ (délai normalement plus court) ? Réponds à la dernière question de ton bilan. Où se trouve l’agence : bouton 📍 ci-dessous.');
   }
   t.push('', '☠️ __Toute menace, pression visant à obtenir une place de repassage, ou toute non-remise en question, entraînera automatiquement la remise immédiate du dossier et l’annulation du contrat, sans discussion possible.__ ☠️');
-  const boutons = [{ t: '📝 Faire mon bilan', onglet: 'bilan' },
-                   { t: '🎓 Étape 24 « Vous avez loupé votre examen »', etape: 'loupe' }];
+  /* 🎬 v1452 — avec le lien de la carte, l'étape s'ouvre par la ligne
+     « 🎬 … : …?seg= » du texte (sa page en fait un bouton « 🎬 Ouvrir … ») */
+  const boutons = [{ t: '📝 Faire mon bilan', onglet: 'bilan' }];
+  if(!lien) boutons.push({ t: '🎓 Étape 24 « Vous avez loupé votre examen »', etape: 'loupe' });
   if(avecLoudeac) boutons.push({ t: '📍 Où se trouve l’agence de Loudéac', u: LIEN_LOUDEAC_PP });
   return { texte: grasPP(t.join('\n')), boutons: boutons };
 }
@@ -2591,6 +2727,8 @@ function messageAutoCompleter(nom, phrase){
 
 /* rend '' si c'est parti, sinon la phrase à afficher */
 async function envoyerMessageAutoPP(nom, quoi, avecLoudeac, phrase){
+  /* 🎬 v1452 — la carte de Ce qu'on écrit donne le lien de l'étape */
+  if(quoi === 'ajourne' && typeof chargerModelesTexte === 'function'){ try{ await chargerModelesTexte(); }catch(e){} }
   const m = quoi === 'ajourne' ? messageAutoAjourne(nom, avecLoudeac)
           : quoi === 'completer' ? messageAutoCompleter(nom, phrase) : messageAutoRdvPost();
   try{
@@ -2664,48 +2802,62 @@ async function ouvrirMessagesAjourne(eleve, etatAuto){
      tiroir, et tu remplaces par juste celui-là, visible directement » (le
      message « Suite à ton ajournement… fais ton bilan dans l'appli »,
      modifiable dans Ce qu'on écrit). */
-  const msg = texteAjourneAppPP();
-  const zm = document.createElement('div');
-  zm.style.cssText = 'border:2px solid var(--orange);border-radius:12px;padding:10px 12px;margin-bottom:12px;';
-  zm.innerHTML = '<div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:8px;">💬 Le message à copier sur Messenger</div>';
-  const tm = document.createElement('div');
-  tm.className = 'ajMsgApp';
-  tm.style.cssText = 'font-size:12.5px;line-height:1.55;white-space:pre-wrap;max-height:260px;overflow-y:auto;' +
-    'padding:9px 10px;background:var(--navy);border-radius:9px;margin-bottom:9px;';
-  tm.textContent = msg;
-  zm.appendChild(tm);
-  const rm = document.createElement('div');
-  rm.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
-  const bc = document.createElement('button');
-  bc.type = 'button';
-  bc.className = 'btn btn-primary';
-  bc.style.cssText = 'width:auto;padding:11px 14px;font-size:13px;margin:0;';
-  bc.textContent = '📋 Copier le message';
-  bc.dataset.ajCopier = '1';
-  bc.addEventListener('click', async () => {
-    try{
-      await navigator.clipboard.writeText(msg);
-      bc.textContent = '✅ Copié';
-      showToast('Copié ✅ — colle-le dans Messenger');
-      setTimeout(() => { bc.textContent = '📋 Copier le message'; }, 2500);
-    }catch(e){ showToast('Copie impossible'); }
-  });
-  rm.appendChild(bc);
+  /* ♻️ v1452 — David : « il faut que j'ajoute un deuxième message à copier
+     sur Messenger suite ajournement, le Up que j'ai créé dans Ce qu'on
+     écrit, mais il n'apparaît pas ». Il se met SOUS le premier, chacun
+     avec son « 📋 Copier » (son choix du 17/11). */
   const fiM = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
   const mM = String((fiM && fiM.messenger) || '').trim();
-  const aM = document.createElement('a');
-  aM.href = mM ? (/^https?:\/\//i.test(mM) ? mM : 'https://m.me/' + mM.replace(/^@/, '').replace(/\s+/g, '')) : 'https://www.messenger.com/';
-  aM.target = '_blank'; aM.rel = 'noopener';
-  aM.className = 'btn btn-secondary';
-  aM.style.cssText = 'display:inline-block;width:auto;margin:0;padding:11px 14px;font-size:13px;text-decoration:none;';
-  aM.textContent = mM ? '💬 Ouvrir sa conversation Messenger' : '💬 Ouvrir Messenger';
-  rm.appendChild(aM);
-  zm.appendChild(rm);
-  const am = document.createElement('div');
-  am.style.cssText = 'font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;';
-  am.textContent = 'Pour le changer : Outils › Ce qu’on écrit › « ❌ Ajourné — le message Messenger (bilan dans l’appli) ».';
-  zm.appendChild(am);
-  boite.appendChild(zm);
+  const lienMessenger = () => {
+    const aM = document.createElement('a');
+    aM.href = mM ? (/^https?:\/\//i.test(mM) ? mM : 'https://m.me/' + mM.replace(/^@/, '').replace(/\s+/g, '')) : 'https://www.messenger.com/';
+    aM.target = '_blank'; aM.rel = 'noopener';
+    aM.className = 'btn btn-secondary';
+    aM.style.cssText = 'display:inline-block;width:auto;margin:0;padding:11px 14px;font-size:13px;text-decoration:none;';
+    aM.textContent = mM ? '💬 Ouvrir sa conversation Messenger' : '💬 Ouvrir Messenger';
+    return aM;
+  };
+  const blocMessenger = (titre, msg, aide, premier) => {
+    const zm = document.createElement('div');
+    zm.style.cssText = 'border:2px solid var(--orange);border-radius:12px;padding:10px 12px;margin-bottom:12px;';
+    zm.innerHTML = '<div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:8px;">' + echapper(titre) + '</div>';
+    const tm = document.createElement('div');
+    tm.className = premier ? 'ajMsgApp' : 'ajMsgApp ajMsgUp';
+    tm.style.cssText = 'font-size:12.5px;line-height:1.55;white-space:pre-wrap;max-height:260px;overflow-y:auto;' +
+      'padding:9px 10px;background:var(--navy);border-radius:9px;margin-bottom:9px;';
+    tm.textContent = msg;
+    zm.appendChild(tm);
+    const rm = document.createElement('div');
+    rm.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+    const bc = document.createElement('button');
+    bc.type = 'button';
+    bc.className = 'btn btn-primary';
+    bc.style.cssText = 'width:auto;padding:11px 14px;font-size:13px;margin:0;';
+    bc.textContent = '📋 Copier le message';
+    bc.dataset.ajCopier = '1';
+    bc.addEventListener('click', async () => {
+      try{
+        await navigator.clipboard.writeText(msg);
+        bc.textContent = '✅ Copié';
+        showToast('Copié ✅ — colle-le dans Messenger');
+        setTimeout(() => { bc.textContent = '📋 Copier le message'; }, 2500);
+      }catch(e){ showToast('Copie impossible'); }
+    });
+    rm.appendChild(bc);
+    if(premier) rm.appendChild(lienMessenger());
+    zm.appendChild(rm);
+    const am = document.createElement('div');
+    am.style.cssText = 'font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;';
+    am.textContent = aide;
+    zm.appendChild(am);
+    boite.appendChild(zm);
+  };
+  const ups = textesAjourneUpPP();
+  blocMessenger(ups.length ? '💬 1. Le message à copier sur Messenger' : '💬 Le message à copier sur Messenger',
+    texteAjourneAppPP(),
+    'Pour le changer : Outils › Ce qu’on écrit › « ❌ Ajourné — le message Messenger (bilan dans l’appli) ».', true);
+  ups.forEach((u, i) => blocMessenger('💬 ' + (i + 2) + '. ' + (u.nom || 'Le « Up »'), u.contenu,
+    'Pour le changer : Outils › Ce qu’on écrit › « ' + (u.nom || 'Up') + ' ».', false));
 
   /* les quatre envois d'avant, rangés dans un tiroir */
   const tiroir = document.createElement('details');
