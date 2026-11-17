@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/11/2026 à 12:36 — v1445 -->
+<!-- Déployé le 17/11/2026 à 13:55 — v1450 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -4582,6 +4582,61 @@
      s'y lit tant qu'on attend son bilan (ajourné, bilan pas validé) ;
      l'étape 1 dit où il en est (à faire, parti le…, à compléter).
      ============================================================ */
+  /* 🚦 v1450 — LE TEXTE DE LA CARTE, MODIFIABLE PAR L'ÉCOLE
+     David : « où est-ce que je peux changer ce texte ? Dès le départ ça ne
+     va pas : c'est écrit envoie-nous, alors qu'il faut qu'il le fasse
+     directement dans l'appli ». Le texte vient de Outils › Ce qu'on écrit
+     (« 🚦 Espace élève — carte … », monBilan.texteCarte, posé par le Worker) ;
+     sinon celui-ci, la copie de secours de CARTE_AJOURNEMENT_DEFAUT
+     (ec-postpermis.js). Mise en forme : **gras**, « 1- » une étape, « !! »
+     la ligne en gros, {cepc}, {agence} ; après la dernière étape, en petit. */
+  var CARTE_AJ_DEFAUT_EL = [
+    'J’ai l’indication sur Rendez-vous permis que tu es ajourné(e) : {cepc}.',
+    '**Quelles sont les prochaines étapes ?** Pas la peine de venir harceler le bureau : suis les étapes, elles sont **obligatoires et non négociables** pour envisager un repassage.',
+    '',
+    '1- Fais **TON PROPRE BILAN directement ici, dans l’onglet 📝 Bilan** (pas sur Messenger) : analyse ce qu’il s’est passé et explique **POURQUOI** tu ne l’as pas obtenu, SELON TOI, TON PROPRE RESSENTI, par rapport AUSSI à l’inspecteur(trice). Tu dois **COMPRENDRE** ce qu’il s’est passé, **ÉVACUER** au maximum cet échec et **TROUVER DES SOLUTIONS** pour ne plus les reproduire. Sers-toi de ton CEPC et du bilan de ton (ta) moniteur(trice), en haut de l’onglet. Tu dois **DÉTAILLER** point par point comment s’est déroulée ta conduite, pour qu’on puisse ENSEMBLE TROUVER DES SOLUTIONS D’AMÉLIORATION RAPIDES ET EFFICACES ! Ne nous fais pas perdre de temps avec un bilan incomplet : ton rendez-vous post-permis n’en sera que décalé, et ton repassage aussi…',
+    '!! PAS DE BILAN COMPLET = PAS DE RDV POST-PERMIS = PAS DE REPASSAGE',
+    '',
+    '2- Quand ton bilan est **validé par l’école**, tu reçois un message dans ta messagerie de l’appli pour réserver ton **RDV POST-PERMIS**, au centre de formation **AVEC** un(e) moniteur(trice). Si tu ne peux pas te déplacer, ce rendez-vous peut se faire en visio, mais il faut absolument nous l’indiquer avant. Ce rendez-vous dure **30 min**. S’il est insuffisant, tu devras en refaire un autre jusqu’à ce que tout soit compris. Tu dois être capable de **COMPRENDRE** tes erreurs pour ne pas les refaire, et ne pas faire perdre à la communauté une autre place d’examen : **ces places sont très précieuses**.',
+    '',
+    '3- Dis-nous si tu peux repasser ton permis dans notre agence de **{agence}** (délai normalement plus court) : la question est à la fin de ton bilan.',
+    '',
+    'Toute menace, pression visant à obtenir une place de repassage, ou toute non-remise en question, entraînera automatiquement la remise immédiate du dossier et l’annulation du contrat, sans discussion possible.'
+  ].join('\n');
+  function ligneCarteAj(t, ag){
+    return echapper(t)
+      .replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>')
+      .replace(/\{cepc\}/g, '<a href="#" data-aj="cepc">voir ton CEPC</a>')
+      .replace(/\{agence\}/g, echapper(ag));
+  }
+  function corpsCarteAjournement(texte, o){
+    var blocs = String(texte || '').replace(/\r/g, '').split(/\n\s*\n/).map(function(b){ return b.replace(/^\s+|\s+$/g, ''); }).filter(Boolean);
+    var estEtape = function(b){ return /^\d+\s*[-.)]\s+/.test(b); };
+    var derniere = -1, premiere = -1;
+    blocs.forEach(function(b, i){ if(estEtape(b)){ derniere = i; if(premiere === -1) premiere = i; } });
+    var h = '', n = 0;
+    blocs.forEach(function(b, i){
+      if(estEtape(b)){
+        var agence = /\{agence\}/.test(b);
+        if(agence && !o.autreAgence) return;
+        n++;
+        var lignes = b.replace(/^\d+\s*[-.)]\s+/, '').split('\n');
+        var dedans = lignes.map(function(l){
+          return /^\s*!!/.test(l) ? '<div class="ajFort">' + ligneCarteAj(l.replace(/^\s*!!\s*/, ''), o.ag) + '</div>' : ligneCarteAj(l, o.ag);
+        }).join('<br>').replace(/<br>(<div class="ajFort">)/g, '$1').replace(/(<\/div>)<br>/g, '$1');
+        if(i === premiere) dedans += o.e1 + o.bouton + o.lien24;
+        if(agence) dedans += ' <a href="' + LIEN_AGENCE_LOUDEAC + '" target="_blank" rel="noopener">Où se trouve l’agence</a>';
+        h += '<div class="ajEtape"><span class="ajNum">' + n + '</span><div>' + dedans + '</div></div>';
+      }else if(derniere !== -1 && i > derniere){
+        h += '<div class="ajAvert">' + ligneCarteAj(b, o.ag).replace(/\n/g, '<br>') + '</div>';
+      }else{
+        h += '<p>' + ligneCarteAj(b, o.ag).replace(/\n/g, '<br>') + '</p>';
+      }
+    });
+    /* une fiche sans étape : le bouton du bilan reste là */
+    if(premiere === -1) h += '<div>' + o.e1 + o.bouton + o.lien24 + '</div>';
+    return h;
+  }
   function dessinerCarteAjournement(){
     var z = $('carteAjournement');
     if(!z) return;
@@ -4592,31 +4647,12 @@
     var ag = (monBilan && monBilan.autreAgence) || 'Loudéac';
     var e1 = etat === 'attente' ? '<div class="ajEtat ok">✅ Ton bilan est bien envoyé' + (monBilan.envoyeLe ? ' (le ' + echapper(monBilan.envoyeLe) + ')' : '') + ' · ⏳ en attente de validation par l’école.</div>'
            : etat === 'arefaire' ? '<div class="ajEtat ko">↩️ L’école te demande de compléter ton bilan.</div>' : '';
+    var texte = String((monBilan && monBilan.texteCarte) || '').trim() || CARTE_AJ_DEFAUT_EL;
     z.innerHTML =
       '<div class="section-title">🚦 Suite à ton ajournement' + (jour ? ' du ' + echapper(jour) : '') + '</div>' +
-      '<p>J’ai l’indication sur Rendez-vous permis que tu es ajourné(e) : <a href="#" data-aj="cepc">voir ton CEPC</a>.</p>' +
-      '<p><b>Quelles sont les prochaines étapes ?</b> Pas la peine de venir harceler le bureau : suis les étapes, elles sont <b>obligatoires et non négociables</b> pour envisager un repassage.</p>' +
-      '<div class="ajEtape"><span class="ajNum">1</span><div>' +
-        'Envoie-moi <b>TON PROPRE BILAN</b> sur ton examen : analyse ce qu’il s’est passé et explique-moi <b>POURQUOI</b> tu ne l’as pas obtenu, SELON TOI, TON PROPRE RESSENTI, par rapport AUSSI à l’inspecteur(trice). ' +
-        'Tu dois <b>COMPRENDRE</b> ce qu’il s’est passé, <b>ÉVACUER</b> au maximum cet échec et <b>TROUVER DES SOLUTIONS</b> pour ne plus les reproduire. ' +
-        'Sers-toi du bilan de l’inspecteur(trice) et du bilan de ton (ta) moniteur(trice). ' +
-        'Tu dois <b>DÉTAILLER</b> point par point comment s’est déroulée ta conduite, pour qu’on puisse ENSEMBLE TROUVER DES SOLUTIONS D’AMÉLIORATION RAPIDES ET EFFICACES ! ' +
-        'Ne nous fais pas perdre de temps avec un bilan incomplet : ton rendez-vous post-permis n’en sera que décalé, et ton repassage aussi…' +
-        '<div class="ajFort">PAS DE BILAN COMPLET = PAS DE RDV POST-PERMIS = PAS DE REPASSAGE</div>' + e1 +
-        '<button type="button" class="btn btn-primary ajBouton" data-aj="bilan">📝 ' + (etat === 'attente' ? 'Revoir mon bilan' : etat === 'arefaire' ? 'Compléter mon bilan' : 'Faire mon bilan') + '</button>' +
-        lienEtape24() +
-      '</div></div>' +
-      '<div class="ajEtape"><span class="ajNum">2</span><div>' +
-        'Ensuite, <b>QUAND</b> ton bilan sera effectué, réserve depuis ton compte en ligne un <b>RDV POST-PERMIS</b>, au centre de formation <b>AVEC</b> un(e) moniteur(trice). ' +
-        'Si tu ne peux pas te déplacer, ce rendez-vous peut se faire en visio, mais il faut absolument nous l’indiquer avant. Ce bilan dure <b>30 min</b>. ' +
-        'S’il est insuffisant, tu devras en refaire un autre jusqu’à ce que tout soit compris : travaille, et <b>ENVOIE-NOUS TON PROPRE BILAN COMPLET</b> pour que ton (ta) moniteur(trice) puisse le travailler avant ton rendez-vous. ' +
-        'Tu dois être capable de <b>COMPRENDRE</b> tes erreurs pour ne pas les refaire, et ne pas faire perdre à la communauté une autre place d’examen : <b>ces places sont très précieuses</b>.' +
-      '</div></div>' +
-      (!(monBilan && monBilan.autreAgence) ? '' : '<div class="ajEtape"><span class="ajNum">3</span><div>' +
-        'Dis-nous si tu peux repasser ton permis dans notre agence de <b>' + echapper(ag) + '</b>' + (/loud/i.test(ag) ? ' (délai normalement plus court)' : '') + ' : la question est à la fin de ton bilan. ' +
-        '<a href="' + LIEN_AGENCE_LOUDEAC + '" target="_blank" rel="noopener">Où se trouve l’agence</a>' +
-      '</div></div>') +
-      '<div class="ajAvert">Toute menace, pression visant à obtenir une place de repassage, ou toute non-remise en question, entraînera automatiquement la remise immédiate du dossier et l’annulation du contrat, sans discussion possible.</div>';
+      corpsCarteAjournement(texte, { ag: ag, autreAgence: !!(monBilan && monBilan.autreAgence), e1: e1,
+        bouton: '<button type="button" class="btn btn-primary ajBouton" data-aj="bilan">📝 ' + (etat === 'attente' ? 'Revoir mon bilan' : etat === 'arefaire' ? 'Compléter mon bilan' : 'Faire mon bilan') + '</button>',
+        lien24: lienEtape24() });
     Array.prototype.forEach.call(z.querySelectorAll('[data-aj]'), function(b){
       b.addEventListener('click', function(ev){
         ev.preventDefault();
