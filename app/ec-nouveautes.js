@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 12:36 — v1445 */
+/* Déployé le 17/11/2026 à 12:42 — v1446 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1446,
+    date: 'Mardi 17 novembre 2026',
+    resume: '🧹 Post-permis : le bilan quitte son espace après le RDV, les vieilles captures se cachent',
+    quoi: [
+      { emoji: '🧹',
+        titre: 'RDV post-permis fait : la partie Bilan quitte son espace',
+        texte: 'Dès que son rendez-vous post-permis est noté « fait », l’onglet 📝 Bilan, la carte « 🚦 Suite à ton ajournement » et son CEPC disparaissent de son espace élève. Ils reviennent seulement s’il est à nouveau ajourné.' },
+      { emoji: '📷',
+        titre: 'Repassage : seulement les captures de cet examen',
+        texte: 'Dans Résultats permis (et partout où l’examen a sa date), les captures du CEPC d’un examen précédent sont cachées, avec la mention « 🗂️ N captures d’un examen précédent, cachées ». Rien n’est effacé.' }
+    ]
+  },
   {
     version: 1445,
     date: 'Mardi 17 novembre 2026',
