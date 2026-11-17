@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 10:20 — v1392 */
+/* Déployé le 17/11/2026 à 09:30 — v1441 */
 /* ============================================================
    📺 LA SALLE DES TABLETTES — v1290 (côté équipe)
 
@@ -95,7 +95,7 @@ function slStyle(){
 async function slGroupes(force){
   if(!SL.groupes || force){
     const d = await appelPrep({ action: 'parcoursList' });
-    SL.groupes = (d && d.groupes) || [];
+    SL.groupes = ((d && d.groupes) || []).filter(g => !g.tablettes);   /* 📺 v1441 — les groupes des tablettes ne s'installent pas */
   }
   return SL.groupes;
 }
