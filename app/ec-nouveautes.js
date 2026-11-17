@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 10:05 — v1442 */
+/* Déployé le 17/11/2026 à 10:32 — v1443 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1443,
+    date: 'Mardi 17 novembre 2026',
+    resume: '📝 Bilan post-permis : bien envoyé, dans la messagerie, à valider ou à compléter',
+    quoi: [
+      { emoji: '📍',
+        titre: 'La question « repasser à Loudéac » ne bloque plus le bilan',
+        texte: 'Sa réponse se perdait à l’envoi : l’élève revoyait « Il reste 1 réponse » et la case « OK Loudéac » ne se cochait pas. Elle part maintenant avec le reste.' },
+      { emoji: '✅',
+        titre: 'L’élève voit que son bilan est bien envoyé',
+        texte: 'Une carte verte en haut de son onglet 📝 Bilan : envoyé le…, en attente de validation par l’école, et le message du RDV arrivera dans sa messagerie. Le formulaire se replie dessous (« ✏️ Revoir ou modifier mon bilan »).' },
+      { emoji: '💬',
+        titre: 'Son bilan arrive dans la messagerie',
+        texte: 'Dès qu’il l’envoie, son bilan est recollé dans sa conversation « Le bureau », en attente de validation : c’est la notification. Sous la bulle : « 👁️ Lire et valider ».' },
+      { emoji: '↩️',
+        titre: 'Lui demander de compléter',
+        texte: 'Dans la fenêtre du bilan (depuis la messagerie, la ligne ou sa fiche) : écris ce qu’il doit compléter, « ↩️ Demander de compléter ». Il le reçoit dans sa messagerie avec le bouton « 📝 Compléter mon bilan », et le retrouve en tête de son onglet.' },
+      { emoji: '✉️',
+        titre: 'Attente bilan post-permis : le message est-il dans sa messagerie ?',
+        texte: 'Sur la ligne et dans sa fiche : « ✉️ bilan demandé dans sa messagerie le … · 👀 lu », « 📲 bilan reçu — à valider » (avec le bouton sur la ligne), ou « ↩️ à compléter ». S’il n’a pas le message, un bouton le lui envoie.' }
+    ]
+  },
   {
     version: 1442,
     date: 'Mardi 17 novembre 2026',
