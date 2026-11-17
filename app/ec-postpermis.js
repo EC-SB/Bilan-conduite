@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 12:42 — v1446 */
+/* Déployé le 17/11/2026 à 13:31 — v1448 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -3235,11 +3235,6 @@ function ecouterCollageCepc(){
   document.addEventListener('paste', surCollageCepc);
 }
 
-/* 📷 v1446 — la date d'une capture, comparable : « 2026-11-10 », « 10/11/2026 » → « 2026-11-10 » */
-function isoDeCapturePP(v){
-  const t = String(v || '').trim(), m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : t.slice(0, 10);
-}
 function blocCaptures(eleve, dateExamen){
   const d = document.createElement('div');
   d.style.cssText = 'margin-bottom:12px;';
@@ -3267,9 +3262,9 @@ function blocCaptures(eleve, dateExamen){
        (rien n'est effacé), juste cachées. */
     let cachees = 0;
     if(dateExamen){
-      const jour = isoDeCapturePP(dateExamen);
       const avant = liste.length;
-      liste = liste.filter(c => isoDeCapturePP(c.dateExamen) === jour);
+      /* v1448 — la même règle que l'annonce de Suivi examen */
+      liste = capturesDuMemeExamenPP(liste, dateExamen);
       cachees = avant - liste.length;
     }
     galerie.innerHTML = '';
@@ -3726,9 +3721,43 @@ function texteAnnoncePermisObtenu(eleve, centre, note){
     .filter(Boolean).join(' - ');
 }
 /* Les captures de CET examen (celles mises dans « 📷 Captures du CEPC ») */
+/* 📷 v1448 — David : « ça a envoyé toutes les anciennes captures de CEPC et
+   pas que les siennes » (l'annonce « ❌ … — Ajourné » de Suivi examen). Une
+   capture sans date passait toujours, et sans date d'examen connue, toutes
+   passaient. Maintenant : le jour de la capture, c'est sa date d'examen, ou
+   à défaut le jour où elle a été déposée (son numéro « c » + l'heure) ;
+   l'examen, c'est la date connue, ou à défaut le dernier jour des captures.
+   Une capture datée d'un autre examen, ou déposée avant cet examen, reste
+   rangée (rien n'est effacé). */
+function jourIsoPP(t){
+  t = String(t || '').trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : '';
+}
+function jourDeDepotPP(c){
+  const m = String((c && c.id) || '').match(/^c(\d{12,})$/);
+  if(!m) return '';
+  const d = new Date(Number(m[1]));
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+function capturesDuMemeExamenPP(liste, iso){
+  const l = (liste || []).filter(Boolean);
+  const jourDe = c => jourIsoPP(c.dateExamen) || jourDeDepotPP(c);
+  let ref = jourIsoPP(iso);
+  if(!ref) l.forEach(c => { const j = jourDe(c); if(j > ref) ref = j; });
+  if(!ref) return l;
+  return l.filter(c => {
+    const d = jourIsoPP(c.dateExamen);
+    if(d) return d === ref;
+    const j = jourDeDepotPP(c);
+    return !!j && j >= ref;
+  });
+}
 async function capturesDeLExamenPP(eleve, iso){
-  return (await chargerCaptures(eleve))
-    .filter(c => c && /^data:image\//.test(c.image || '') && (!iso || !c.dateExamen || memeJourPP(c.dateExamen, iso)));
+  return capturesDuMemeExamenPP((await chargerCaptures(eleve))
+    .filter(c => c && /^data:image\//.test(c.image || '')), iso);
 }
 async function demanderPermisObtenu(eleve, iso){
   const s = (typeof suiviDe === 'function') ? (suiviDe(eleve) || {}) : {};
