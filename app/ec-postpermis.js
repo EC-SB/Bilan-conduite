@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:33 — v1449 */
+/* Déployé le 17/11/2026 à 13:55 — v1450 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -2467,6 +2467,56 @@ function grasPP(t){
     .replace(/__([\s\S]+?)__/g, (m, x) => conv(x, 0x1D5D4, 0x1D5EE));
 }
 const LIEN_LOUDEAC_PP = 'https://share.google/teMUlLLF55KVarfRR';
+/* 🚦 v1450 — LE MESSAGE MESSENGER APRÈS UN AJOURNEMENT (David, le 17/11 :
+   « c'est bon, mets-le aussi dans Ce qu'on écrit »). Il remplace les quatre
+   envois d'avant, rangés dans un tiroir de la fenêtre « 📤 À envoyer à … ». */
+const MSG_AJOURNE_APP = [
+  'Bonjour 👋',
+  '',
+  '🚦 𝗦𝘂𝗶𝘁𝗲 𝗮̀ 𝘁𝗼𝗻 𝗮𝗷𝗼𝘂𝗿𝗻𝗲𝗺𝗲𝗻𝘁, tu dois faire ton 𝗯𝗶𝗹𝗮𝗻 𝗽𝗼𝘀𝘁-𝗽𝗲𝗿𝗺𝗶𝘀 avant de pouvoir envisager un repassage.',
+  '',
+  '📲 𝗧𝗼𝗻 𝗔𝗽𝗽 𝗘́𝘃𝗼𝗹𝘂𝘁𝗶𝗼𝗻 𝗖𝗼𝗻𝗱𝘂𝗶𝘁𝗲𝘀 𝗲𝘀𝘁 𝗼𝘂𝘃𝗲𝗿𝘁𝗲 !',
+  '• Si tu viens de la recevoir : ton lien, ton nom et ton code sont dans tes mails (regarde aussi dans les spams).',
+  '• Si tu l\'avais déjà : connecte-toi avec ton nom et ton code habituels.',
+  '',
+  '📝 𝗧𝗼𝗻 𝗯𝗶𝗹𝗮𝗻 𝗽𝗼𝘀𝘁-𝗽𝗲𝗿𝗺𝗶𝘀 𝘀𝗲 𝗳𝗮𝗶𝘁 𝗗𝗜𝗥𝗘𝗖𝗧𝗘𝗠𝗘𝗡𝗧 𝗗𝗔𝗡𝗦 𝗟\'𝗔𝗣𝗣, onglet 📝 Bilan (𝗽𝗹𝘂𝘀 𝘀𝘂𝗿 𝗠𝗲𝘀𝘀𝗲𝗻𝗴𝗲𝗿).',
+  'Tu y trouves :',
+  '✅ ton CEPC (le bilan de l\'inspecteur·trice) et le bilan de ton moniteur·trice : sers-t\'en !',
+  '✅ les questions point par point, à remplir jusqu\'au bout',
+  '✅ l\'étape 24 « Vous avez loupé votre examen » pour t\'aider (Réviser › Mise en pratique)',
+  '',
+  'Quand tu l\'envoies, tu vois « ✅ Ton bilan est bien envoyé » : l\'école le lit, puis tu reçois un message dans ta messagerie de l\'appli pour réserver ton 𝗥𝗗𝗩 𝗣𝗢𝗦𝗧-𝗣𝗘𝗥𝗠𝗜𝗦.',
+  'S\'il manque quelque chose, on te demande de le compléter dans l\'appli : ce que tu as déjà écrit est gardé.',
+  '',
+  '⚠️ 𝗣𝗔𝗦 𝗗𝗘 𝗕𝗜𝗟𝗔𝗡 𝗖𝗢𝗠𝗣𝗟𝗘𝗧 = 𝗣𝗔𝗦 𝗗𝗘 𝗥𝗗𝗩 𝗣𝗢𝗦𝗧-𝗣𝗘𝗥𝗠𝗜𝗦 = 𝗣𝗔𝗦 𝗗𝗘 𝗥𝗘𝗣𝗔𝗦𝗦𝗔𝗚𝗘 ⚠️',
+  '',
+  'Pas de mail, ou code perdu ? Écris-nous ici et on te le renvoie.',
+  '',
+  'Évolution Conduites'
+].join('\n');
+function texteAjourneAppPP(){
+  const t = (typeof modelesTexte !== 'undefined' ? modelesTexte : []).find(x => x.usage === 'ajourne_app');
+  return (t && String(t.contenu || '').trim()) ? t.contenu : MSG_AJOURNE_APP;
+}
+/* 🚦 v1450 — LA CARTE « SUITE À TON AJOURNEMENT » DE L'ESPACE ÉLÈVE, modifiable
+   dans Outils › Ce qu'on écrit (« 🚦 Espace élève — carte … »). David : « dès
+   le départ ça ne va pas : c'est écrit envoie-nous, alors qu'il faut qu'il
+   comprenne qu'il doit le faire directement dans l'appli ». Texte validé le
+   17/11. ⚠️ La même copie de secours est dans eleve.html (CARTE_AJ_DEFAUT_EL) :
+   elle ne sert que tant que la fiche n'existe pas dans Ce qu'on écrit. */
+const CARTE_AJOURNEMENT_DEFAUT = [
+  'J’ai l’indication sur Rendez-vous permis que tu es ajourné(e) : {cepc}.',
+  '**Quelles sont les prochaines étapes ?** Pas la peine de venir harceler le bureau : suis les étapes, elles sont **obligatoires et non négociables** pour envisager un repassage.',
+  '',
+  '1- Fais **TON PROPRE BILAN directement ici, dans l’onglet 📝 Bilan** (pas sur Messenger) : analyse ce qu’il s’est passé et explique **POURQUOI** tu ne l’as pas obtenu, SELON TOI, TON PROPRE RESSENTI, par rapport AUSSI à l’inspecteur(trice). Tu dois **COMPRENDRE** ce qu’il s’est passé, **ÉVACUER** au maximum cet échec et **TROUVER DES SOLUTIONS** pour ne plus les reproduire. Sers-toi de ton CEPC et du bilan de ton (ta) moniteur(trice), en haut de l’onglet. Tu dois **DÉTAILLER** point par point comment s’est déroulée ta conduite, pour qu’on puisse ENSEMBLE TROUVER DES SOLUTIONS D’AMÉLIORATION RAPIDES ET EFFICACES ! Ne nous fais pas perdre de temps avec un bilan incomplet : ton rendez-vous post-permis n’en sera que décalé, et ton repassage aussi…',
+  '!! PAS DE BILAN COMPLET = PAS DE RDV POST-PERMIS = PAS DE REPASSAGE',
+  '',
+  '2- Quand ton bilan est **validé par l’école**, tu reçois un message dans ta messagerie de l’appli pour réserver ton **RDV POST-PERMIS**, au centre de formation **AVEC** un(e) moniteur(trice). Si tu ne peux pas te déplacer, ce rendez-vous peut se faire en visio, mais il faut absolument nous l’indiquer avant. Ce rendez-vous dure **30 min**. S’il est insuffisant, tu devras en refaire un autre jusqu’à ce que tout soit compris. Tu dois être capable de **COMPRENDRE** tes erreurs pour ne pas les refaire, et ne pas faire perdre à la communauté une autre place d’examen : **ces places sont très précieuses**.',
+  '',
+  '3- Dis-nous si tu peux repasser ton permis dans notre agence de **{agence}** (délai normalement plus court) : la question est à la fin de ton bilan.',
+  '',
+  'Toute menace, pression visant à obtenir une place de repassage, ou toute non-remise en question, entraînera automatiquement la remise immédiate du dossier et l’annulation du contrat, sans discussion possible.'
+].join('\n');
 const LIEN_VIDEO_PP = 'https://www.facebook.com/share/v/1D9o635bqF/';
 
 function messageAutoAjourne(nom, avecLoudeac){
@@ -2593,6 +2643,8 @@ async function chargerMessagesAjourne(){
 async function ouvrirMessagesAjourne(eleve, etatAuto){
   await chargerMessagesAjourne();
   await chargerAfaireAjourne();
+  /* 🚦 v1450 — le message Messenger de Ce qu'on écrit, s'il a été retouché */
+  if(typeof chargerModelesTexte === 'function'){ try{ await chargerModelesTexte(); }catch(e){} }
 
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -2603,10 +2655,67 @@ async function ouvrirMessagesAjourne(eleve, etatAuto){
   boite.innerHTML = '<h3>📤 À envoyer à ' +
     String(eleve).replace(/</g, '&lt;') + '</h3>' +
     '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
-      'line-height:1.5;">Quatre envois, dans cet ordre. Copie chacun ' +
-      'et colle-le sur Messenger.</div>';
+      'line-height:1.5;">Un seul message à copier sur Messenger : il lui dit que ' +
+      'son bilan se fait dans son App Évolution Conduites.</div>';
   /* ✉️ v1405 — l'envoi 1 est déjà dans sa messagerie (null : rouverte plus tard) */
   boite.appendChild(noteAutoPP(etatAuto === undefined ? null : etatAuto, 'ajourne'));
+
+  /* 🚦 v1450 — David : « ce qu'on copiait sur Messenger, tu les mets dans un
+     tiroir, et tu remplaces par juste celui-là, visible directement » (le
+     message « Suite à ton ajournement… fais ton bilan dans l'appli »,
+     modifiable dans Ce qu'on écrit). */
+  const msg = texteAjourneAppPP();
+  const zm = document.createElement('div');
+  zm.style.cssText = 'border:2px solid var(--orange);border-radius:12px;padding:10px 12px;margin-bottom:12px;';
+  zm.innerHTML = '<div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:8px;">💬 Le message à copier sur Messenger</div>';
+  const tm = document.createElement('div');
+  tm.className = 'ajMsgApp';
+  tm.style.cssText = 'font-size:12.5px;line-height:1.55;white-space:pre-wrap;max-height:260px;overflow-y:auto;' +
+    'padding:9px 10px;background:var(--navy);border-radius:9px;margin-bottom:9px;';
+  tm.textContent = msg;
+  zm.appendChild(tm);
+  const rm = document.createElement('div');
+  rm.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+  const bc = document.createElement('button');
+  bc.type = 'button';
+  bc.className = 'btn btn-primary';
+  bc.style.cssText = 'width:auto;padding:11px 14px;font-size:13px;margin:0;';
+  bc.textContent = '📋 Copier le message';
+  bc.dataset.ajCopier = '1';
+  bc.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(msg);
+      bc.textContent = '✅ Copié';
+      showToast('Copié ✅ — colle-le dans Messenger');
+      setTimeout(() => { bc.textContent = '📋 Copier le message'; }, 2500);
+    }catch(e){ showToast('Copie impossible'); }
+  });
+  rm.appendChild(bc);
+  const fiM = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+  const mM = String((fiM && fiM.messenger) || '').trim();
+  const aM = document.createElement('a');
+  aM.href = mM ? (/^https?:\/\//i.test(mM) ? mM : 'https://m.me/' + mM.replace(/^@/, '').replace(/\s+/g, '')) : 'https://www.messenger.com/';
+  aM.target = '_blank'; aM.rel = 'noopener';
+  aM.className = 'btn btn-secondary';
+  aM.style.cssText = 'display:inline-block;width:auto;margin:0;padding:11px 14px;font-size:13px;text-decoration:none;';
+  aM.textContent = mM ? '💬 Ouvrir sa conversation Messenger' : '💬 Ouvrir Messenger';
+  rm.appendChild(aM);
+  zm.appendChild(rm);
+  const am = document.createElement('div');
+  am.style.cssText = 'font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;';
+  am.textContent = 'Pour le changer : Outils › Ce qu’on écrit › « ❌ Ajourné — le message Messenger (bilan dans l’appli) ».';
+  zm.appendChild(am);
+  boite.appendChild(zm);
+
+  /* les quatre envois d'avant, rangés dans un tiroir */
+  const tiroir = document.createElement('details');
+  tiroir.className = 'ajAnciens';
+  tiroir.style.cssText = 'border:1px dashed var(--line);border-radius:11px;padding:8px 10px;margin-bottom:10px;';
+  tiroir.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);">📦 Les anciens envois Messenger (4) — au besoin</summary>';
+  const dansTiroir = document.createElement('div');
+  dansTiroir.style.marginTop = '9px';
+  tiroir.appendChild(dansTiroir);
+  boite.appendChild(tiroir);
 
   const etape = (n, titre, texte, aide) => {
     const d = document.createElement('details');
@@ -2652,12 +2761,11 @@ async function ouvrirMessagesAjourne(eleve, etatAuto){
     }
 
     d.appendChild(z);
-    boite.appendChild(d);
+    dansTiroir.appendChild(d);
     return d;
   };
 
-  const d1 = etape(1, 'La marche à suivre', messagesAjourne.m1);
-  d1.open = true;
+  etape(1, 'La marche à suivre', messagesAjourne.m1);
 
   /* ⚠️ LES CAPTURES SE MONTRENT ICI, ELLES NE SE DÉCRIVENT PAS.
 
