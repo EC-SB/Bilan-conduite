@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 14:53 — v1451 */
+/* Déployé le 17/11/2026 à 15:15 — v1452 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -35,6 +35,12 @@ const USAGES_MODELE = [
   /* 🚦 v1450 — le message Messenger de la fenêtre « 📤 À envoyer à … »
      (ec-postpermis.js, MSG_AJOURNE_APP) */
   { cle:'ajourne_app', nom:'❌ Ajourné — le message Messenger (bilan dans l’appli)',
+    variables:[] },
+  /* ♻️ v1452 — David : « un deuxième message à copier sur Messenger suite
+     ajournement, le Up » : sous le premier dans la fenêtre « 📤 À envoyer
+     à … » (ec-postpermis.js, textesAjourneUpPP). Plusieurs fiches : dans
+     l'ordre, l'une sous l'autre. */
+  { cle:'ajourne_up', nom:'❌ Ajourné — le « Up » Messenger (2e message)',
     variables:[] },
   /* 📨 v1380 — les relances de Permis › Relances (ec-relances.js). Sans
      modèle écrit ici, ce sont les textes de départ du code. La première
@@ -105,7 +111,9 @@ const AIDE_HEURES =
 const AIDE_CARTE_AJ = '🚦 <b>Comment l’écrire</b> (l’élève la voit sur l’accueil de son espace, sous « 🚦 Suite à ton ajournement du … ») :<br>' +
   '• une ligne vide = un nouveau paragraphe ; <code>**mot**</code> = en gras ;<br>' +
   '• <code>1-</code>, <code>2-</code>, <code>3-</code> en début de paragraphe = une étape numérotée ; ' +
-  'la 1<sup>re</sup> reçoit toute seule où en est son bilan, le bouton « 📝 Faire mon bilan » et le lien de l’étape 24 ;<br>' +
+  'la 1<sup>re</sup> reçoit toute seule où en est son bilan, le bouton « 📝 Faire mon bilan » et le lien « 👉 Comment faire mon bilan » ;<br>' +
+  '• ce lien, c’est l’étape 24 « Vous avez loupé votre examen »… sauf si tu mets un <b>🔗 Lien élève</b> vers une étape dans le texte : c’est alors lui ' +
+  '(sur la carte, et dans la marche à suivre envoyée dans sa messagerie), et sa ligne ne s’affiche pas en double ;<br>' +
   '• une ligne qui commence par <code>!!</code> = la ligne en gros (« PAS DE BILAN COMPLET… ») ;<br>' +
   '• l’étape qui contient <code>{agence}</code> ne s’affiche qu’aux élèves qui peuvent repasser ailleurs (avec le lien « Où se trouve l’agence ») ;<br>' +
   '• <code>{cepc}</code> = le lien « voir ton CEPC » ; ce qui suit la dernière étape s’écrit en petit, comme un avertissement.';
