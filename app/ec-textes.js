@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:55 — v1450 */
+/* Déployé le 17/11/2026 à 14:53 — v1451 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -2631,6 +2631,20 @@ function etapesVersColonne(l){
   return JSON.stringify((l || []).map(x => ({ g: x.guide, s: x.segment || '', t: x.titre || '', gt: x.guideTitre || '', gi: x.groupeIcone || '' })));
 }
 
+/* 🔗 v1451 — les étapes d'un guide qui n'en a pas reçu (le classeur, quand la
+   lecture rapide du Worker lui a passé la main, ne les donnait pas) : lues
+   dans le guide lui-même, avec la même règle d'identifiant (« t » + rang). */
+async function etapesDuGuidePourLien(g){
+  if(!g || (Array.isArray(g.etapes) && g.etapes.length)) return (g && g.etapes) || [];
+  try{
+    const d = await appelPrep({ action: 'parcoursGuide', id: g.id });
+    const blocs = (d && d.guide && Array.isArray(d.guide.blocs)) ? d.guide.blocs : [];
+    let rang = 0;
+    g.etapes = blocs.filter(b => b && String(b.type || '') === 'titre')
+      .map(b => { rang++; return { id: String(b.id || '') || ('t' + rang), titre: String(b.titre || '').trim() || 'Segment sans nom' }; });
+  }catch(e){ if(!Array.isArray(g.etapes)) g.etapes = []; }
+  return g.etapes;
+}
 /* Le parcours entier (groupes, guides, étapes), lu une fois par 5 min */
 let parcoursPourLiens = null;
 async function chargerParcoursPourLiens(forcer){
@@ -2765,9 +2779,12 @@ async function choisirUneEtapeEleve(titre){
       if(!ici.guide){
         p.guides.filter(g => g.groupe === ici.groupe.id).forEach(g => {
           const n = (g.etapes || []).filter(e => e.id).length;
-          ligne('<span class="etElNom">' + echapper(g.titre || 'Guide') + '<small>' + n + ' étape' + (n > 1 ? 's' : '') +
+          /* 🔗 v1451 — sans « etapes » (réponse du classeur), on ne dit pas « 0 » :
+             elles se lisent à l'ouverture du guide */
+          ligne('<span class="etElNom">' + echapper(g.titre || 'Guide') + '<small>' +
+            (Array.isArray(g.etapes) ? n + ' étape' + (n > 1 ? 's' : '') : 'étapes à l’ouverture') +
             (g.etat === 'publie' ? '' : ' · brouillon') + '</small></span><span class="etElFl">›</span>',
-            () => { ici.guide = g; dessiner(); });
+            async () => { await etapesDuGuidePourLien(g); ici.guide = g; dessiner(); });
         });
         return;
       }
