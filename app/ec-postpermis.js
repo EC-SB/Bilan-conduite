@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:31 — v1448 */
+/* Déployé le 17/11/2026 à 13:33 — v1449 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -1584,7 +1584,7 @@ function blocRdvPost(e){
 
   /* Les captures du CEPC, ajoutables ici si ça n'a pas été fait
      au moment de la saisie du résultat. */
-  f.appendChild(blocCaptures(e.eleve, dateFrVersIso(s.datePermis || '')));
+  f.appendChild(blocCaptures(e.eleve, dateDExamenPP(e.eleve)));
 
   const bEnr = document.createElement('button');
   bEnr.className = 'btn btn-primary';
@@ -3129,7 +3129,8 @@ function galerieCapturesAcopier(eleve){
   zone.innerHTML = '<div style="font-size:12px;color:var(--muted);">Chargement…</div>';
 
   (async () => {
-    const liste = await chargerCaptures(eleve);
+    /* v1449 — seulement celles de son dernier examen */
+    const liste = capturesDuMemeExamenPP(await chargerCaptures(eleve), dateDExamenPP(eleve));
     zone.innerHTML = '';
 
     /* L'absence se dit, et elle dit où aller. Un cadre vide
@@ -3260,13 +3261,11 @@ function blocCaptures(eleve, dateExamen){
        faut enlever les anciennes captures ». Avec la date de l'examen, on ne
        montre que les siennes ; celles d'un examen d'avant restent rangées
        (rien n'est effacé), juste cachées. */
-    let cachees = 0;
-    if(dateExamen){
-      const avant = liste.length;
-      /* v1448 — la même règle que l'annonce de Suivi examen */
-      liste = capturesDuMemeExamenPP(liste, dateExamen);
-      cachees = avant - liste.length;
-    }
+    /* v1448 — la même règle que l'annonce de Suivi examen ; v1449 — et
+       sans date (post-permis) : celles du dernier examen */
+    const avant = liste.length;
+    liste = capturesDuMemeExamenPP(liste, dateExamen);
+    const cachees = avant - liste.length;
     galerie.innerHTML = '';
     if(cachees){
       const n = document.createElement('div');
@@ -3306,10 +3305,31 @@ function blocCaptures(eleve, dateExamen){
       x.addEventListener('click', async (ev) => {
         ev.stopPropagation();
         if(!await confirmer('Retirer cette capture ?')) return;
-        try{
-          await appelPrep({ action: 'captureDelete', id: cap.id, eleve: eleve });
-          dessiner();
-        }catch(e){ showToast('Erreur : ' + e.message); }
+        /* ⚡ v1449 — David : « le rechargement à chaque fois qu'on enlève une
+           capture est insupportable ». Elle part de l'écran TOUT DE SUITE ;
+           le classeur l'efface derrière. Plus de relecture de toutes les
+           images (c'était ça, l'attente). Un refus la remet à sa place. */
+        const place = vig.nextSibling;
+        vig.remove();
+        const vide = () => {
+          let v = galerie.querySelector('.capVide');
+          const reste = galerie.querySelectorAll('img').length;
+          if(!reste && !v){
+            v = document.createElement('div');
+            v.className = 'capVide';
+            v.style.cssText = 'font-size:12px;color:var(--muted);';
+            v.textContent = dateExamen ? 'Aucune capture pour cet examen.' : 'Aucune capture pour le moment.';
+            galerie.appendChild(v);
+          }else if(reste && v) v.remove();
+        };
+        vide();
+        appelPrep({ action: 'captureDelete', id: cap.id, eleve: eleve })
+          .then(r => { if(r && r.status === 'error') throw new Error(r.message || 'refusé'); })
+          .catch(e => {
+            galerie.insertBefore(vig, place && place.parentNode === galerie ? place : null);
+            vide();
+            showToast('Capture pas retirée : ' + ((e && e.message) || e));
+          });
       });
       vig.appendChild(x);
 
@@ -3754,6 +3774,15 @@ function capturesDuMemeExamenPP(liste, iso){
     const j = jourDeDepotPP(c);
     return !!j && j >= ref;
   });
+}
+/* 🔁 v1449 — David : « il faut que ce soit valable aussi pour le post-permis,
+   je suis en train de toutes les enlever une par une ». La date de SON
+   dernier examen : celle de l'ajournement (le permis, lui, est vidé à
+   l'ajournement), sinon celle du permis ; '' → le dernier jour des captures. */
+function dateDExamenPP(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  return jourIsoPP(s.dateAjournement) || jourIsoPP(s.datePermis) ||
+    ((typeof dateFrVersIso === 'function' && s.datePermis) ? jourIsoPP(dateFrVersIso(s.datePermis)) : '');
 }
 async function capturesDeLExamenPP(eleve, iso){
   return capturesDuMemeExamenPP((await chargerCaptures(eleve))
