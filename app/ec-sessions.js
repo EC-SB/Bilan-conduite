@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 08:42 — v1418 */
+/* Déployé le 17/11/2026 à 15:15 — v1452 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1302,12 +1302,39 @@ function remplirPlaces(zone, sess){
             dedans.join(', ') + '.\n\nLeur date d\'examen est effacée et ' +
             'ils repartent dans la liste RDV Permis.'
           : ''))) return;
+    /* 🗑️ v1452 — David : « il faut aussi que je puisse supprimer des
+       bilans post-permis quand j'annule des sessions passées » (ses tests
+       restaient dans ⏳ Attente bilan : la date s'effaçait, pas
+       l'ajournement). Ceux qui ont été notés ajournés SUR CETTE SESSION :
+       on demande, et « oui » efface tout leur post-permis
+       (effacerLePostPermis, ec-postpermis.js). Admin seulement. */
+    const ajournes = (typeof effacerLePostPermis === 'function' && typeof ACCES !== 'undefined' &&
+                      ACCES.role === 'admin' && sess.date)
+      ? dedans.filter(n => {
+          const s = (typeof suiviDe === 'function' ? suiviDe(n) : null) || {};
+          return s.resultat === 'ajourne' && jourIsoPP(s.dateAjournement) === String(sess.date).slice(0, 10);
+        })
+      : [];
+    let effacerPP = false;
+    if(ajournes.length){
+      const q = await fenetre(
+        (ajournes.length > 1 ? ajournes.join(', ') + ' ont été notés ajournés' : ajournes[0] + ' a été noté ajourné') +
+        ' sur cette session.\n\nEffacer aussi leur post-permis ? Leur ajournement, les bilans, les captures de cet examen, ' +
+        'les messages post-permis de leur messagerie et leur RDV post-permis. Leur fiche reste.',
+        [{ nom: 'Annuler', valeur: '' },
+         { nom: 'Non, les garder', valeur: 'non' },
+         { nom: '🗑️ Oui, tout effacer', valeur: 'oui', principal: true }],
+        'Leur post-permis');
+      if(!q) return;
+      effacerPP = q === 'oui';
+    }
     try{
       /* Les fiches AVANT la suppression : si une écriture échoue, la
          session existe encore et personne n'est perdu — on
          recommence. Dans l'autre sens, une suppression réussie
          suivie d'une écriture ratée laissait un élève avec une date
          d'examen et aucune session, invisible partout. */
+      if(effacerPP) for(const nom of ajournes) await effacerLePostPermis(nom);
       for(const nom of dedans) await rendreALaListeRdvPermis(nom, sess.date || '');
 
       await appelPrep({ action: 'sessionDelete', id: sess.id });
