@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 10:29 — v1433 */
+/* Déployé le 17/11/2026 à 13:15 — v1447 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -567,14 +567,19 @@ function basDuBilanEval(ai, avecBea){
   const total = (s === null || av === null || ap === null) ? null
     : 3 + s + av * 2 + 1 + 1 + 1.5 + ap * 2 + 3;
 
-  const parts = [
-    remplirLesQuestionsDeLEval(EVAL_HEURES, [
-      c(s), c(av), av === null ? null : c(av * 2),
-      c(ap), ap === null ? null : c(ap * 2),
-      total === null ? null : heuresDeLEval(total)
-    ]),
-    ''
-  ];
+  let heures = remplirLesQuestionsDeLEval(EVAL_HEURES, [
+    c(s), c(av), av === null ? null : c(av * 2),
+    c(ap), ap === null ? null : c(ap * 2),
+    total === null ? null : heuresDeLEval(total)
+  ]);
+  /* 🕹️ v1447 — ce qu'il faudra travailler sur le simulateur (David :
+     « des cases à cocher ») : sous la ligne du simulateur, avec des heures */
+  const travail = String((ai && ai.simuTravail) || '').split('\n').map(x => x.trim()).filter(Boolean);
+  if(travail.length && s !== null && s > 0){
+    heures = heures.replace(/(🕙 𝗦𝗜𝗠𝗨𝗟𝗔𝗧𝗘𝗨𝗥 𝗔𝗩𝗘𝗖 𝗠𝗢𝗡𝗜𝗧𝗘𝗨𝗥 :[^\n]*)/,
+      (m) => m + '\n👉 À travailler sur le simulateur : ' + travail.join(' · '));
+  }
+  const parts = [heures, ''];
   if(avecBea){
     parts.push(remplirLesQuestionsDeLEval(EVAL_LIGNE_BEA, [
       s === null ? null : chiffreDeLEval(simulateurSiBea(s)) + ' ',
@@ -2217,6 +2222,30 @@ function pasEcoutesPedagogiques(){
    ligne qui le motive. S'il réapparaît plus bas — repris par l'IA
    dans son résumé, ou hérité d'un modèle de texte — on ne garde que
    la première occurrence. */
+/* 💾 v1447 — CARTE SD PERDUE (case « Carte perdue » sous Carte SD,
+   gardée dans « ⚠️ Suivi de … »). David : le bilan écrit « Carte SD :
+   ❌ carte perdue », sans le rappel (« N'oublie pas de la regarder… »)
+   ni VLC. Un seul passage, sur le bilan composé : les quinze modèles
+   écrivent leur Carte SD chacun à sa façon (𝘾𝙖𝙧𝙩𝙚 𝙎𝘿, 𝟭-𝟭. 𝗖𝗮𝗿𝘁𝗲 𝗦𝗗,
+   Carte SD…), suivie des mêmes lignes de rappel. */
+const ETIQUETTES_CARTE_SD = ['𝘾𝙖𝙧𝙩𝙚 𝙎𝘿', '𝟭-𝟭. 𝗖𝗮𝗿𝘁𝗲 𝗦𝗗', 'Carte SD'];
+const RE_RAPPEL_CARTE_SD = /N'oublie pas de la regarder|Rappel, tous tes cours sont filmés|VLC|ta carte SD ici|votre carte SD ici/i;
+function carteSDPerdueDansLeBilan(bilan, nom){
+  if(!(typeof cartePerdueSE === 'function' && cartePerdueSE(nom))) return bilan;
+  const lignes = String(bilan || '').split('\n');
+  for(let i = 0; i < lignes.length; i++){
+    const t = lignes[i].trim();
+    const et = ETIQUETTES_CARTE_SD.find(e => t.indexOf(e) === 0 && !/^Carte SD\s*[—-]/.test(t));
+    if(!et) continue;
+    lignes[i] = et + ' : ❌ carte perdue';
+    let j = i + 1;
+    while(j < lignes.length && j <= i + 5 && RE_RAPPEL_CARTE_SD.test(lignes[j])) j++;
+    lignes.splice(i + 1, j - i - 1);
+    break;
+  }
+  return lignes.join('\n');
+}
+
 function unSeulRappelEcoutes(bilan){
   const t = String(bilan || '');
   const debut = "Tu ne réserves pas d'écoutes pédagogiques";
