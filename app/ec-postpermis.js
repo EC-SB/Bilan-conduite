@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 15:15 — v1452 */
+/* Déployé le 18/11/2026 à 14:48 — v1468 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -918,7 +918,18 @@ async function chargerRdvPostDrivup(){
 }
 function rdvDrivupDe(nom){
   const k = cleTrieeDuNom(nom);
-  return rdvPostDrivup.rdv.find(r => cleTrieeDuNom(r.eleve) === k) || null;
+  const siens = rdvPostDrivup.rdv.filter(r => cleTrieeDuNom(r.eleve) === k);
+  /* ⚠️ v1468 — le prochain d'abord ; sinon le dernier PASSÉ depuis son
+     ajournement (« passe ») : tenu sur Drivup, jamais repris dans
+     l'appli. Avant, le lendemain, il redevenait « pas encore réservé ». */
+  const avenir = siens.find(r => !r.passe);
+  if(avenir) return avenir;
+  const s = (typeof suiviDe === 'function' && suiviDe(nom)) || {};
+  const m = String(s.dateAjournement || '').match(/^(\d{4}-\d{2}-\d{2})/) ||
+            String(s.dateAjournement || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  const depuis = !m ? '' : (m.length === 2 ? m[1] : m[3] + '-' + m[2] + '-' + m[1]);
+  const passes = siens.filter(r => r.passe && (!depuis || String(r.jour) >= depuis));
+  return passes.length ? passes[passes.length - 1] : null;
 }
 const jourCourtPP = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] : String(iso || ''); };
 
@@ -956,6 +967,7 @@ function etapePostPermis(nom){
     return { t: '↩️ à compléter — demandé' + (dc ? ' dans sa messagerie le ' + jourDuMessagePP(dc.le) + luPP(dc) : ''), ton: 'o', rang: 0 };
   }
   if(s.rdvPostDate) return { t: '📅 RDV le ' + jourCourtPP(s.rdvPostDate) + (s.rdvPostMoniteur ? ' avec ' + s.rdvPostMoniteur : ''), ton: 'v', rang: 4 };
+  if(d && d.passe) return { t: '✅ RDV Drivup du ' + jourCourtPP(d.jour) + (d.moniteur ? ' avec ' + d.moniteur : '') + ' passé — à noter comme fait', ton: 'v', rang: 2 };
   if(d) return { t: '📅 RDV Drivup le ' + jourCourtPP(d.jour) + ' à ' + d.debut + (d.moniteur ? ' avec ' + d.moniteur : '') + ' — à reprendre', ton: 'v', rang: 2 };
   if(!s.rdvPostMessagesLe) return { t: '✉️ messages à envoyer', ton: 'r', rang: 1 };
   return { t: '✉️ messages envoyés le ' + String(s.rdvPostMessagesLe).split(' ')[0].slice(0, 5) + ' — en attente de son RDV', ton: 'o', rang: 3 };
@@ -1145,6 +1157,24 @@ function ficheDuPostPermis(e, boite){
   if(s.rdvPostDate){
     e3.insertAdjacentHTML('beforeend', '<div>Le ' + echapper(dateEnToutesLettres(s.rdvPostDate)) +
       (s.rdvPostMoniteur ? ' avec ' + echapper(s.rdvPostMoniteur) : '') + (s.rdvPostFait === 'oui' ? ' — ✅ fait' : '') + '.</div>');
+  }else if(d && d.passe){
+    /* ✅ v1468 — tenu sur Drivup, jamais repris ici : le noter en un geste */
+    e3.insertAdjacentHTML('beforeend', '<div>Il a eu lieu sur Drivup : <b>le ' + echapper(dateEnToutesLettres(d.jour)) + (d.debut ? ' à ' + echapper(d.debut) : '') + '</b>' +
+      (d.moniteur ? ' avec ' + echapper(d.moniteur) : '') + ', mais il n’est pas noté comme fait dans l’appli.</div>');
+    const bF = document.createElement('button');
+    bF.type = 'button'; bF.className = 'btn btn-primary';
+    bF.textContent = '✅ Le noter comme fait';
+    bF.dataset.ppFait = '1';
+    bF.addEventListener('click', async () => {
+      bF.disabled = true;
+      try{
+        await majSuivi(e.eleve, { rdvPostDate: d.jour, rdvPostMoniteur: d.moniteur || '', rdvPostFait: 'oui' });
+        showToast('✅ Rendez-vous post-permis noté comme fait. La suite décidée se met dans « Le reste ».');
+        if(typeof redessinerBureau === 'function') redessinerBureau();
+        if(typeof rafraichirFicheBureau === 'function') rafraichirFicheBureau();
+      }catch(err){ bF.disabled = false; showToast('⚠️ ' + ((err && err.message) || err)); }
+    });
+    e3.appendChild(bF);
   }else if(d){
     e3.insertAdjacentHTML('beforeend', '<div>Réservé sur Drivup : <b>le ' + echapper(dateEnToutesLettres(d.jour)) + ' à ' + echapper(d.debut) + '</b>' +
       (d.moniteur ? ' avec ' + echapper(d.moniteur) : '') + '.</div>');
