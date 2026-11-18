@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:15 — v1447 */
+/* Déployé le 18/11/2026 à 09:19 — v1457 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3131,7 +3131,7 @@ function ajouterObservationManuelle(zone, valeurs){
     'background:rgba(255,255,255,.05);';
   /* L explication aussi : le bilan la reprend */
   rep.addEventListener('input', surSaisie);
-  r.appendChild(rep);
+  /* ⚠️ v1457 — le champ se pose APRÈS ☠️ et ⚠️ : voir plus bas */
 
   const bMort = document.createElement('button');
   bMort.type = 'button';
@@ -3313,6 +3313,12 @@ function ajouterObservationManuelle(zone, valeurs){
     else if(texteRem) ecrireLaRemarqueCepc(insp, texteRem);
   });
   r.appendChild(bGrave);
+
+  /* ☠️ ⚠️ EN DÉBUT DE LIGNE — v1457. David, le 18 novembre : « mettre
+     les boutons tête de mort et attention en début de ligne plutôt
+     qu'à la fin ». Ils sont posés dans la ligne AVANT le champ de
+     l'explication ; le micro reste au bout. */
+  r.appendChild(rep);
 
   /* ⚠️ LE MICRO EN DERNIER, ET DANS LES DEUX LIGNES AU MÊME ENDROIT
      — v1066. Mis avant ☠️ et ⚠️, il aurait été à hauteur du champ
