@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/11/2026 à 10:57 — v1461 -->
+<!-- Déployé le 18/11/2026 à 11:17 — v1462 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2864,6 +2864,8 @@
 
     <!-- 🎮 v1248 — le jeu des vérifications (module « verifs ») -->
     <div id="ongletVerifs" class="cache"><div id="jvZone"></div></div>
+    <!-- 🚦 v1462 — « Mon code » : le jeu du code, pour ceux qui font le code avec nous -->
+    <div id="ongletCodeJeu" class="cache"><div id="cjZone"></div></div>
 
     <div id="ongletReciter" class="cache">
     <div class="card" id="carteReciter">
@@ -3015,7 +3017,9 @@
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
 <script src="appel-commun.js?v=1427"></script>
 <!-- ☕ v1456 — un défi du coin café (le même jeu que l’appli de l’équipe) -->
-<script src="cafe-commun.js?v=1461"></script>
+<script src="cafe-commun.js?v=1462"></script>
+<!-- 🚦 v1462 — « Mon code », le jeu du code (le même fichier sert à l'atelier de l'appli) -->
+<script src="code-commun.js?v=1462"></script>
 <script>
 (function(){
   'use strict';
@@ -3110,10 +3114,20 @@
   var ACCOMP = null;
   var CLE_ACCOMP = 'ec_accompagne';
   var TICKET_ACCOMP = (location.hash.match(/(?:#|&)accompagner=([0-9a-f]{48})(?:&|$)/) || [])[1] || '';
-  var MODE_ESSAI = /[?&]essai=jeu(?:&|$)/.test(location.search);
+  var MODE_ESSAI = /[?&]essai=(?:jeu|code)(?:&|$)/.test(location.search);
+  /* 🚦 v1462 — la partie d'essai du jeu du code (l'atelier de l'appli) */
+  var MODE_ESSAI_CODE = /[?&]essai=code(?:&|$)/.test(location.search);
+  var ESSAI_CODE = null;
   var ESSAI = null, ESSAI_NOM = '';
   function reponseDEssai(c){
     var a = c && c.action;
+    if(MODE_ESSAI_CODE){
+      if(a === 'eleveEntree') return { status: 'ok', eleve: ESSAI_NOM, modules: '' };
+      if(a === 'eleveConnexion') return { status: 'ok', eleve: ESSAI_NOM, modules: '', procedures: [], demandes: [], langues: [],
+        recitations: [], dossier: { status: 'ok', annonces: [], lecons: [], parcours: { etapes: [] } } };
+      if(a === 'eleveCodeJeu') return { status: 'ok', ouvert: true, donnees: null, contenu: (ESSAI_CODE && ESSAI_CODE.contenu) || null, images: (ESSAI_CODE && ESSAI_CODE.images) || {} };
+      return { status: 'ok', essai: true };
+    }
     if(a === 'eleveEntree') return { status: 'ok', eleve: ESSAI_NOM, modules: 'verifs' };
     if(a === 'eleveConnexion') return { status: 'ok', eleve: ESSAI_NOM, modules: 'verifs', procedures: [], demandes: [], langues: [],
       recitations: [], dossier: { status: 'ok', annonces: [], lecons: [], parcours: { etapes: [] } } };
@@ -3177,8 +3191,13 @@
     window.addEventListener('message', function(ev){
       if(ev.origin !== location.origin || ev.source !== parent) return;
       var m = ev.data || {};
-      if(!m.jvEssai || ESSAI) return;
-      ESSAI = m.jvEssai;
+      if(MODE_ESSAI_CODE){
+        if(!m.cjEssai || ESSAI) return;
+        ESSAI = ESSAI_CODE = m.cjEssai;
+      } else {
+        if(!m.jvEssai || ESSAI) return;
+        ESSAI = m.jvEssai;
+      }
       ESSAI_NOM = String(m.nom || 'Équipe');
       if(typeof m.clair === 'boolean') appliquerTheme(m.clair);
       poserLeBandeau('🧪 Partie d’essai — rien n’est gardé.');
@@ -5378,7 +5397,7 @@
       try{ dessinerBandeauAppliEl(); }catch(e){}
     }
     /* 🎮 v1256 — la partie d'essai s'ouvre sur le jeu */
-    if(MODE_ESSAI) allerAOnglet('verifs');
+    if(MODE_ESSAI) allerAOnglet(MODE_ESSAI_CODE ? 'code' : 'verifs');
   }
 
   /* ============================================================
@@ -5587,6 +5606,8 @@
   var ONGLET_ICONES = {
     accueil: '<svg ' + SVG_ONGLET + '><path d="M3.5 11.2 12 4l8.5 7.2"/><path d="M5.5 10v9a1 1 0 0 0 1 1h3.7v-5.2h3.6V20h3.7a1 1 0 0 0 1-1v-9"/></svg>',
     reviser: '<svg ' + SVG_ONGLET + '><rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M10 9.2v5.6l4.6-2.8z" fill="currentColor" stroke="none"/></svg>',
+    /* 🚦 v1462 — le feu tricolore du jeu du code */
+    code:    '<svg ' + SVG_ONGLET + '><rect x="8" y="2.8" width="8" height="18.4" rx="3.2"/><circle cx="12" cy="7.2" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="12" cy="16.8" r="1.25"/></svg>',
     verifs:  '<svg ' + SVG_ONGLET + '><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8"/><path d="M3 13h18"/><path d="M10.5 13v2M13.5 13v2"/></svg>',
     reciter: '<svg ' + SVG_ONGLET + '><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 3.5h6v2.2H9z"/><path d="M8.5 10.5h7M8.5 13.8h7M8.5 17h4.5"/></svg>',
     messages:'<svg ' + SVG_ONGLET + '><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.3V16A2.5 2.5 0 0 1 4 13.5z"/><path d="M8.5 9h7M8.5 12.2h4.5"/></svg>',
@@ -5612,6 +5633,13 @@
     { cle:'verifs', nom:'🧰 Vérifs', emoji:'🧰', court:'Vérifs',
       zone:'ongletVerifs',
       quand: function(){ return ouvert('verifs'); } },
+    /* 🚦 v1462 — David : « un jeu pour le code pour les élèves qui font
+       le code avec nous », dans « un nouvel onglet ». Avec nous = le
+       suivi du code ouvert, sans « déjà son code » ni « de son côté »
+       (🎓 Son code, v1440). */
+    { cle:'code', nom:'🚦 Code', emoji:'🚦', court:'Code',
+      zone:'ongletCodeJeu',
+      quand: function(){ return codeJeuOuvert(); } },
     { cle:'reciter', nom:'📋 Réciter', emoji:'📋', court:'Réciter',
       zone:'ongletReciter',
       quand: function(){ return ouvert('proccorriger'); } },
@@ -6126,6 +6154,20 @@
     if(parent && parent !== window) parent.postMessage({ rgPret: 1 }, location.origin);
   }
 
+  function codeJeuOuvert(){
+    if(MODE_ESSAI_CODE) return true;
+    if(!window.CodeEC || MODE_SALLE || SALLE) return false;
+    return ouvert('code') && !ouvert('code_deja') && !ouvert('code_cote');
+  }
+  function cjOuvrir(){
+    if(!window.CodeEC) return;
+    window.CodeEC.ouvrir({
+      zone: $('cjZone'),
+      appeler: function(quoi, d){
+        return appeler(Object.assign({ action: quoi === 'lire' ? 'eleveCodeJeu' : 'eleveCodeJeuPoser', eleve: moi.nom, code: moi.code }, d || {}));
+      }
+    });
+  }
   function ongletsVisibles(){
     return ONGLETS.filter(function(o){ return o.quand(); });
   }
@@ -6235,6 +6277,7 @@
     reviser:  'Regarde les étapes dans l’ordre, à ton rythme.',
     reciter:  'Choisis une procédure, puis récite-la ou écris-la.',
     verifs:   'Entraîne-toi aux 100 questions de l’examen.',
+    code:     'Entraîne-toi pour le code, 5 minutes par jour.',
     messages: 'Réponse sous 48 heures ouvrées.',
     bilan:    'Raconte ton examen : c’est ce qui ouvre ton rendez-vous.'
   };
@@ -6265,6 +6308,8 @@
     dessinerLesOnglets();
     /* 🎮 v1248 — le jeu se charge à sa première ouverture */
     if(cle === 'verifs') jvOuvrir();
+    /* 🚦 v1462 — le jeu du code aussi */
+    if(cle === 'code') cjOuvrir();
     /* On remonte : un onglet ouvert au milieu d'un long défilement
        donne l'impression que rien ne s'est passé. */
     try{ window.scrollTo(0, 0); }catch(e){}
