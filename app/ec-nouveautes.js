@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:27 — v1459 */
+/* Déployé le 18/11/2026 à 10:39 — v1460 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1460,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '📰 Coin café : les actualités par filtre, la météo et ton horoscope',
+    quoi: [
+      { emoji: '📰',
+        titre: 'Infos et horoscope',
+        texte: 'Dans le coin café, le bouton « 📰 Infos et horoscope » : les actualités par filtre (Monde, France, Saint-Brieuc · Loudéac, Auto-école et route, Sport), lues dans les flux RSS des journaux. Le titre, la source et l’heure ; un appui ouvre l’article sur le site du journal. « ↻ Relire » va chercher les dernières.' },
+      { emoji: '🔮',
+        titre: 'Ton horoscope',
+        texte: 'Choisis ton signe une fois : il s’affiche en grand à chaque visite, les 11 autres sont dessous (un appui pour les ouvrir). Il vient du flux de Mon Horoscope du Jour.' },
+      { emoji: '⛅',
+        titre: 'La météo de Saint-Brieuc et Loudéac',
+        texte: 'Le temps qu’il fait, les 3 prochains jours, et un mot pour la route quand il le faut (chaussée mouillée, brouillard, verglas, rafales).' }
+    ]
+  },
   {
     version: 1459,
     date: 'Mercredi 18 novembre 2026',
