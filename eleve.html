@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/11/2026 à 15:15 — v1452 -->
+<!-- Déployé le 17/11/2026 à 18:40 — v1456 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -3014,6 +3014,8 @@
 
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
 <script src="appel-commun.js?v=1427"></script>
+<!-- ☕ v1456 — un défi du coin café (le même jeu que l’appli de l’équipe) -->
+<script src="cafe-commun.js?v=1456"></script>
 <script>
 (function(){
   'use strict';
@@ -10268,6 +10270,43 @@
     });
   }
 
+  /* ============================================================
+     ☕ LE COIN CAFÉ — v1456
+
+     David, le 17 novembre : on peut défier un élève depuis le coin
+     café de l'appli (un élève, lui, ne défie jamais un moniteur), et
+     « rien ne doit apparaître » : AUCUNE TRACE. Le défi s'ouvre ici,
+     par-dessus son espace, le temps de jouer ; puis il disparaît —
+     rien dans son accueil, ses messages, son dossier, et le Worker
+     efface la partie deux minutes après la fin. Le jeu lui-même est
+     dans cafe-commun.js (le même que l'équipe).
+
+     ⚠️ JAMAIS EN DÉMONSTRATION (l'équipe qui regarde son espace), NI
+     SUR LA TABLETTE DE LA SALLE, NI DANS L'ESSAI DU JEU DES VÉRIFS.
+     ============================================================ */
+  function brancherLeCafeEl(){
+    if(!window.CafeEC) return;
+    window.CafeEC.brancher({
+      mode: 'eleve',
+      pret: function(){ return !!(moi && moi.code && moi.nom) && !ACCOMP && !MODE_SALLE && !SALLE && !MODE_ESSAI; },
+      moi: function(){ return { nom: moi.nom }; },
+      appeler: function(quoi, d){
+        var corps = {};
+        for(var k in (d || {})) if(Object.prototype.hasOwnProperty.call(d, k)) corps[k] = d[k];
+        corps.action = (quoi === 'agir') ? 'eleveCafeAgir' : 'eleveCafe';
+        corps.eleve = moi.nom; corps.code = moi.code;
+        return fetch(RELAIS + '/eleve', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps)
+        }).then(function(r){ return r.json(); }).then(function(x){
+          if(x && x.error) throw new Error(x.error);
+          return x;
+        });
+      },
+      classes: { fond: 'overlayEl', boite: 'boiteEl', titreTag: 'div', titre: 'titreEl' }
+    });
+  }
+  brancherLeCafeEl();
+
   function chercherLesSonneriesEl(){
     if(!moi || !moi.code) return;
     appeler({ action: 'eleveAppelsSonnent', eleve: moi.nom, code: moi.code })
@@ -13094,6 +13133,8 @@
         if(d.vue === 'reviser'){ try{ allerAOnglet('reviser'); }catch(e){} }
         /* 🎥 v1381 — « Ton cours de code en visio commence » */
         if(d.vue === 'accueil'){ try{ allerAOnglet('accueil'); lireVisioEl(); }catch(e){} }
+        /* ☕ v1456 — « David te défie au chifoumi » */
+        if(d.vue === 'cafe'){ try{ if(window.CafeEC) window.CafeEC.aLaUne(); }catch(e){} }
         return;
       }
       if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
