@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 11:17 — v1462 */
+/* Déployé le 18/11/2026 à 11:54 — v1463 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,34 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1463,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '🚦 « Mon code » : les pièges, la question à la loupe, le bon chiffre, les conseils — et un bloc pour l’ouvrir ou le fermer',
+    quoi: [
+      { emoji: '🔓',
+        titre: 'Un bloc « 🚦 Le jeu du code » dans « Ce qu’il trouve dans son espace »',
+        texte: 'Dans le dossier d’un élève (onglet 🔑, et à la mise en route), juste après « Suivi du code en salle ». Il est allumé tout seul pour qui fait son code avec nous. Un appui le ferme (« fermé par toi ») ; un autre le rouvre. Tu peux aussi l’ouvrir à un élève qui ne fait pas son code avec nous (« ouvert par toi »). Si tu changes « 🎓 Son code » ou l’interrupteur du suivi du code, le jeu revient sur « tout seul ».' },
+      { emoji: '🪤',
+        titre: 'Les pièges : vrai ou faux',
+        texte: '23 affirmations tirées du « MÉMO TESTS DE CODE » du groupe Code (je peux / je dois, BNP et BN, les trois 50, 2 × 3 et 3 × 2, le trottoir bateau, l’ordre de passage…). L’élève répond vrai ou faux, puis lit l’explication. Une carte ratée revient le lendemain.' },
+      { emoji: '🔍',
+        titre: 'La question à la loupe',
+        texte: 'L’élève touche le ou les mots qui changent tout (dois, constante, diminue, le, ne… pas…) avant de lire pourquoi. Deux mots touchés à côté, et la carte est ratée. 12 questions écrites pour le jeu : celles des vidéos viennent de séries du commerce, je ne les ai pas reprises.' },
+      { emoji: '🔢',
+        titre: 'Le bon chiffre',
+        texte: '16 questions à trois choix (distance d’arrêt, temps de réaction, alcool, points, vitesses, triangle…), avec l’astuce pour retenir le bon.' },
+      { emoji: '📝',
+        titre: 'Les conseils pour l’examen, et une séance du jour mélangée',
+        texte: 'Une page « Conseils pour l’examen » reprend la fin du mémo (examens blancs, stylet, carte d’identité, dossier ANTS…). La séance du jour mélange maintenant 4 panneaux, 2 pièges, 1 question à la loupe et 1 chiffre ; « À revoir » rassemble les cartes ratées des quatre jeux.' },
+      { emoji: '✏️',
+        titre: 'Tout se corrige dans l’atelier',
+        texte: 'Élèves › 🎓 Code › « 🚦 Le jeu du code » a quatre onglets de plus : 🪤 Les pièges, 🔍 La loupe, 🔢 Les chiffres, 📝 Les conseils. Chaque carte se corrige (le texte, vrai ou faux, les choix, le bon, l’explication), se cache, s’ajoute, se supprime ou se remet comme au départ. Pour la loupe, mets entre accolades les mots à toucher : « Je {dois} allumer… ». Relis surtout les chiffres et les réponses : c’est moi qui les ai écrits.' },
+      { emoji: '⏳',
+        titre: 'La suite',
+        texte: 'L’œil du conducteur (des scènes où l’élève touche les indices) et « Qui passe ? », puis le suivi dans le dossier de l’élève.' }
+    ]
+  },
   {
     version: 1462,
     date: 'Mercredi 18 novembre 2026',
