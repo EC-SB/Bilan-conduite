@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 11:17 — v1462 */
+/* Déployé le 18/11/2026 à 11:54 — v1463 */
 /* ============================================================
    code-commun.js — 🚦 « MON CODE », LE JEU DU CODE
 
@@ -17,6 +17,16 @@
    LIVRAISON 1 (v1462) : l'accueil, la séance du jour, le memory,
    l'abécédaire, les fiches, « à revoir », et l'atelier de l'équipe
    (app/ec-code-jeu.js) qui corrige tout ce qui est écrit ici.
+
+   LIVRAISON 2 (v1463) : 🪤 les pièges (vrai ou faux), 🔍 la question à
+   la loupe (toucher les mots qui changent tout), 🔢 le bon chiffre, et
+   📝 les conseils pour l'examen. Les pièges viennent du « MÉMO TESTS
+   DE CODE » de l'école (groupe Code › Divers), que David m'a laissé
+   lire le 18 novembre : ses 16 premiers points sont devenus des
+   cartes, les 7 derniers la page des conseils. Les questions
+   projetées dans ses vidéos viennent de séries du commerce : elles ne
+   sont pas reprises, les exemples d'ici sont écrits pour le jeu. La
+   séance du jour mélange maintenant les quatre sortes de cartes.
 
    Ce fichier est chargé par l'espace élève (eleve.html : le jeu) ET
    par l'appli (index.html : l'atelier, qui lit la liste de base et les
@@ -232,6 +242,93 @@
   ];
 
   /* ============================================================
+     🪤 v1463 — LES CARTES DES TROIS AUTRES JEUX
+
+     k : la clé · e : l'explication (le piège, l'astuce).
+     PIÈGES   — t : l'affirmation · v : vraie (1) ou fausse (0).
+     LOUPE    — q : la question, les mots qui changent tout entre
+                accolades : « Je {dois} allumer… ».
+     CHIFFRES — q : la question · c : trois choix · b : le bon (0, 1, 2).
+     Les numéros « mémo n° » renvoient au MÉMO TESTS DE CODE de l'école.
+     ============================================================ */
+  var PIEGES = [
+    { k: 'toutcocher', v: 0, t: 'Dans une question à plusieurs réponses, toutes les réponses proposées peuvent être bonnes en même temps.', e: 'Il y a toujours au moins une réponse fausse : ne coche jamais tout. (mémo n° 1)' },
+    { k: 'imagedabord', v: 1, t: 'Avant de lire la question, je regarde l’image en entier.', e: 'L’image d’abord : tableau de bord, rétros, panneaux, panonceaux, marquage au sol, feux, piétons. (mémo n° 2)' },
+    { k: 'deuxquestions', v: 1, t: 'Quand il y a deux questions sur le même écran, il faut une réponse pour chacune.', e: 'Question 1 : A ou B. Question 2 : C ou D. Une réponse oubliée, et toute la question est fausse. (mémo n° 3)' },
+    { k: 'brouillardavant', v: 0, t: 'Par temps de brouillard, je DOIS allumer mes feux de brouillard avant.', e: 'Je PEUX, je ne dois pas : les feux de brouillard avant ne sont jamais obligatoires. « Je peux » et « je dois », ce n’est pas la même question. (mémo n° 4)' },
+    { k: 'pluiearriere', v: 0, t: 'Sous une forte pluie, j’allume mon feu de brouillard arrière.', e: 'Arrière = BN : Brouillard et Neige seulement. Sous la pluie, il éblouit ceux qui me suivent. (mémo n° 14)' },
+    { k: 'pluieavant', v: 1, t: 'Sous une forte pluie, je peux allumer mes feux de brouillard avant.', e: 'Avant = BNP : Brouillard, Neige, forte Pluie. « Les parents vont à la banque BNP, les enfants mangent des BN. » (mémo n° 14)' },
+    { k: 'constante', v: 0, t: 'Dans un tunnel où le panneau impose 150 m, je dois garder une distance CONSTANTE de 150 m avec le véhicule devant moi.', e: '150 m est un MINIMUM, pas une distance constante. Attention aux adjectifs : un seul mot rend la phrase fausse. (mémo n° 7)' },
+    { k: 'mouille', v: 0, t: 'Sur une route mouillée, ma distance de freinage diminue.', e: 'Elle AUGMENTE. « Augmente » ou « diminue » : lis le verbe deux fois avant de répondre. (mémo n° 6)' },
+    { k: 'champvision', v: 1, t: 'Plus je roule vite, plus mon champ de vision diminue.', e: 'À grande vitesse, je ne vois plus bien sur les côtés. Ici « diminue » est le bon mot. (mémo n° 6)' },
+    { k: 'probatoire02', v: 1, t: 'En permis probatoire, conduire avec 0,20 g d’alcool par litre de sang me fait perdre 6 points.', e: '6 points, c’est tout le capital de la première année. Pour les sanctions, pense au plus lourd, sans tomber dans l’excès. (mémo n° 5)' },
+    { k: 'stups', v: 0, t: 'Conduire après avoir pris des stupéfiants : je risque un retrait de 3 points.', e: 'C’est 6 points, et c’est un délit. La Sécurité routière veut toujours « le plus » : le plus de points, d’amende, de peine. (mémo n° 5)' },
+    { k: 'verre', v: 0, t: 'Il faut environ une demi-heure pour éliminer un verre d’alcool.', e: 'Compte plutôt 1 h 30 à 2 h par verre. Rien ne l’accélère : ni le café, ni l’eau, ni le sport. Choisis toujours le plus long. (mémo n° 5)' },
+    { k: 'bateau', v: 0, t: 'Un trottoir abaissé (un « bateau ») devant une sortie de garage est une intersection où s’applique la priorité à droite.', e: 'Non : celui qui sort d’un accès privé ou d’un trottoir abaissé cède le passage. En théorie, ce n’est jamais une intersection. (mémo n° 8)' },
+    { k: 'questionfausse', v: 1, t: 'À l’examen, une seule erreur dans une question rend toute la question fausse.', e: '40 questions, 5 fausses admises : il faut 35 sur 40. (mémo n° 9)' },
+    { k: 'retour', v: 0, t: 'À l’examen, si je doute, je peux revenir plus tard sur la question.', e: 'Pas de retour en arrière : je réponds, puis je passe à la suivante sans y repenser. On zappe. (mémo n° 9)' },
+    { k: 'leplus', v: 0, t: 'Quand on me demande LE plus grand danger, je peux cocher deux réponses.', e: '« LE » : une seule réponse. « LES » : plusieurs. (mémo n° 10)' },
+    { k: 'aac', v: 1, t: 'Après la conduite accompagnée (AAC), la période probatoire dure 2 ans.', e: 'AAC : 2 ans, 3 points de plus par an sans infraction (2 × 3). Permis B classique : 3 ans, 2 points par an (3 × 2). (mémo n° 11)' },
+    { k: 'bclassique', v: 0, t: 'Avec un permis B classique, je gagne 3 points par an pendant la période probatoire.', e: 'Permis B classique : 3 ans, 2 points par an (3 × 2). C’est l’AAC qui donne 3 points par an, pendant 2 ans. (mémo n° 11)' },
+    { k: 'nuit', v: 1, t: 'La nuit, il y a moins d’accidents que le jour, mais ils sont plus graves.', e: 'Moins de circulation, donc moins d’accidents, mais plus souvent mortels : la règle des 2/3 – 1/3. (mémo n° 12)' },
+    { k: 'trois50', v: 1, t: 'Avec 50 m de visibilité, je ne dépasse pas 50 km/h, même sur autoroute.', e: 'La règle des trois 50 : 50 m de visibilité = 50 km/h au plus = 50 m de distance de sécurité, sur n’importe quelle route. (mémo n° 13)' },
+    { k: 'sensinverse', v: 0, t: 'Une voiture est garée face à moi, de mon côté de la rue : je suis forcément dans un sens unique.', e: 'Une voiture garée en sens inverse indique une rue à double sens. Dans un sens unique, toutes sont garées dans mon sens. (mémo n° 15)' },
+    { k: 'agent', v: 1, t: 'Le feu est rouge, mais un agent me fait signe de passer : je passe.', e: 'L’ordre de passage : 1. les forces de l’ordre, 2. les feux, 3. les panneaux, 4. la priorité à droite, 5. le marquage au sol. (mémo n° 16)' },
+    { k: 'feupanneau', v: 0, t: 'Le feu est vert, avec un panneau STOP posé sous le feu : je dois marquer l’arrêt.', e: 'Le feu qui fonctionne passe avant le panneau. Le panneau ne compte que si le feu est éteint ou clignote à l’orange. (mémo n° 16)' }
+  ];
+  var LOUPE = [
+    { k: 'doispeux', q: 'Pour tourner à gauche à cette intersection, je {dois} céder le passage aux véhicules d’en face. Je {peux} m’avancer dans l’intersection.', e: '« Je dois » : c’est obligatoire. « Je peux » : c’est autorisé, pas obligé. Et il y a 2 questions en une : une réponse par phrase.' },
+    { k: 'brouillard', q: 'Par temps de brouillard, je {dois} allumer mes feux de brouillard avant.', e: '« Je dois » : est-ce obligatoire ? Non, ils ne le sont jamais. Avec « je peux », la réponse serait oui.' },
+    { k: 'constante', q: 'Dans ce tunnel, je garde une distance {constante} de 150 m avec le véhicule qui me précède.', e: 'Un adjectif change tout : 150 m est une distance minimum, pas constante.' },
+    { k: 'diminue', q: 'Sur une chaussée mouillée, la distance de freinage {diminue}.', e: 'Le verbe : augmente ou diminue ? Ici elle augmente, donc la phrase est fausse.' },
+    { k: 'ledanger', q: 'Quel est {le} plus grand danger dans cette situation ?', e: '« Le » : une seule réponse attendue. Avec « les dangers », il en faudrait plusieurs.' },
+    { k: 'nepas', q: 'Dans cette situation, je {ne} peux {pas} dépasser le cycliste.', e: 'Une négation retourne la réponse : relis la phrase en te demandant « est-ce interdit ? ».' },
+    { k: 'stationner', q: 'Devant cette entrée de garage, je peux m’arrêter. Je peux {stationner}.', e: 'L’arrêt (je reste près du volant, le temps de déposer quelqu’un) et le stationnement ne sont pas la même chose.' },
+    { k: 'aumoins', q: 'Sur cette route, je dois rouler {au moins} à 80 km/h.', e: '« Au moins » ou « au plus » : une limitation est un maximum, jamais un minimum.' },
+    { k: 'uniquement', q: 'Je ralentis {uniquement} parce qu’il pleut.', e: '« Uniquement », « toujours », « jamais » : ces mots rendent souvent la phrase fausse. Y a-t-il une autre raison sur l’image ?' },
+    { k: 'quidonc', q: 'Le conducteur de la voiture {blanche} doit céder le passage.', e: 'De qui parle la question : de moi, ou d’un autre véhicule ? Repère-le sur l’image avant de répondre.' },
+    { k: 'apres', q: '{Après} ce panneau, la vitesse est limitée à 70 km/h.', e: '« Avant », « après », « à partir de » : la règle commence au panneau, pas avant.' },
+    { k: 'obligatoirement', q: 'Pour dépasser ce tracteur, je dois {obligatoirement} klaxonner.', e: '« Obligatoirement » transforme un conseil en obligation : le klaxon est permis hors agglomération, pas obligatoire.' }
+  ];
+  var CHIFFRES = [
+    { k: 'arret50', q: 'Route sèche, bons freins : à 50 km/h, il me faut environ combien de mètres pour m’arrêter ?', c: ['10 m', '25 m', '50 m'], b: 1, e: 'Je multiplie le chiffre des dizaines par lui-même : 5 × 5 = 25 m. Sur route mouillée, j’ajoute la moitié.' },
+    { k: 'arret90', q: 'Route sèche : quelle est à peu près ma distance d’arrêt à 90 km/h ?', c: ['45 m', '81 m', '130 m'], b: 1, e: '9 × 9 = 81 m. À 130 km/h : 13 × 13 = 169 m.' },
+    { k: 'reaction', q: 'Quel est le temps de réaction d’un conducteur en forme ?', c: ['1 dixième de seconde', '1 seconde', '3 secondes'], b: 1, e: 'Environ 1 seconde. Avec la fatigue, l’alcool ou le téléphone, il s’allonge.' },
+    { k: 'reaction90', q: 'À 90 km/h, quelle distance je parcours pendant ma seconde de réaction ?', c: ['9 m', '27 m', '90 m'], b: 1, e: 'Je multiplie le chiffre des dizaines par 3 : 9 × 3 = 27 m.' },
+    { k: 'securite130', q: 'À 130 km/h, quelle distance de sécurité dois-je garder avec le véhicule devant moi ?', c: ['39 m', '78 m', '130 m'], b: 1, e: '2 secondes : je multiplie le chiffre des dizaines par 6. 13 × 6 = 78 m, soit 2 traits de la bande d’arrêt d’urgence.' },
+    { k: 'alcoolprob', q: 'En permis probatoire, à partir de quel taux d’alcool dans le sang suis-je en infraction ?', c: ['0,2 g/l', '0,5 g/l', '0,8 g/l'], b: 0, e: '0,2 g/l : autant dire zéro verre. Après la période probatoire : 0,5 g/l.' },
+    { k: 'points', q: 'Combien de points sur mon permis le jour où je l’obtiens ?', c: ['6', '8', '12'], b: 0, e: '6 points au départ, 12 à la fin de la période probatoire si je n’ai commis aucune infraction.' },
+    { k: 'probatoire', q: 'Combien de temps dure la période probatoire après un permis B classique ?', c: ['1 an', '2 ans', '3 ans'], b: 2, e: '3 ans, 2 points de plus par an (3 × 2). Après l’AAC : 2 ans, 3 points par an (2 × 3).' },
+    { k: 'autoprob', q: 'En permis probatoire, quelle est ma vitesse maximale sur autoroute ?', c: ['100 km/h', '110 km/h', '130 km/h'], b: 1, e: 'Probatoire : 110 sur autoroute, 100 sur route à chaussées séparées, 80 sur route.' },
+    { k: 'autopluie', q: 'Hors période probatoire, quelle est la vitesse maximale sur autoroute quand il pleut ?', c: ['90 km/h', '110 km/h', '130 km/h'], b: 1, e: 'Sous la pluie : 110 au lieu de 130, 100 au lieu de 110, 80 sur route.' },
+    { k: 'visibilite', q: 'La visibilité est inférieure à 50 m : quelle vitesse maximale ?', c: ['30 km/h', '50 km/h', '70 km/h'], b: 1, e: 'La règle des trois 50 : 50 m de visibilité = 50 km/h au plus = 50 m de distance de sécurité, partout.' },
+    { k: 'examen', q: 'À l’examen du code, combien de questions fausses sont admises sur 40 ?', c: ['3', '5', '8'], b: 1, e: '5 fausses admises : il faut 35 bonnes réponses sur 40.' },
+    { k: 'triangle', q: 'À quelle distance au moins je pose le triangle de présignalisation ?', c: ['10 m', '30 m', '100 m'], b: 1, e: '30 m au moins, et visible à 100 m. Je mets d’abord mon gilet, avant de sortir.' },
+    { k: 'danger150', q: 'Hors agglomération, à quelle distance avant le danger un panneau triangulaire est-il posé ?', c: ['50 m', '150 m', '500 m'], b: 1, e: 'Environ 150 m hors agglomération, 50 m en ville : le temps de ralentir.' },
+    { k: 'ralentisseur', q: 'À quelle vitesse au plus je franchis un ralentisseur ?', c: ['30 km/h', '50 km/h', '70 km/h'], b: 0, e: '30 km/h au plus.' },
+    { k: 'nuitaccidents', q: 'Quelle part des accidents a lieu la nuit ?', c: ['1/3', '1/2', '2/3'], b: 0, e: 'La règle des 2/3 – 1/3 du mémo : 1/3 des accidents la nuit, 2/3 le jour, mais ils sont bien plus graves la nuit.' }
+  ];
+  /* 📝 les conseils d'organisation et pour l'examen (mémo n° 17 à 23) */
+  var CONSEILS = [
+    'Fais des tests en ligne régulièrement, au calme et sans bruit, et note tes erreurs pour ne plus les refaire.',
+    'Fais des examens blancs dans la salle des tablettes : réserve ton accès sur ton compte en ligne, c’est illimité.',
+    'Si tu as du mal avec la tablette, tu as le droit d’utiliser un stylet, y compris le jour de l’examen. Ne pose pas ta paume sur l’écran.',
+    'Note tes questions et tes difficultés pendant les cours en salle : elles préparent les cours « à la carte ».',
+    'Tu peux refaire les séances de code en salle autant que tu veux, ou demander un cours sur mesure.',
+    'Concentration : la plupart des erreurs sont des erreurs d’inattention.',
+    'Pour l’examen : vérifie que ton dossier ANTS est enregistré et validé.',
+    'Pour l’examen : ta carte d’identité est obligatoire.',
+    'Pour l’examen : arrive un peu en avance. Toute absence est facturée par l’opérateur.',
+    'Zen et détendu.'
+  ];
+  var TYPES = {
+    pieges: { ic: '🪤', nom: 'Les pièges', sous: 'Vrai ou faux ?', pre: 'g:', base: PIEGES, n: 7 },
+    loupe: { ic: '🔍', nom: 'La question à la loupe', sous: 'Le mot qui change tout', pre: 'l:', base: LOUPE, n: 4 },
+    chiffres: { ic: '🔢', nom: 'Le bon chiffre', sous: 'Distances, vitesses, alcool', pre: 'n:', base: CHIFFRES, n: 6 }
+  };
+  var ORDRE_TYPES = ['pieges', 'loupe', 'chiffres'];
+
+  /* ============================================================
      LE JEU
      ============================================================ */
   var O = null;                 /* ce que la page a donné : { zone, appeler, prenom } */
@@ -266,12 +363,47 @@
   }
   var PAR_BASE = {};
   PANNEAUX.forEach(function (p) { PAR_BASE[p.k] = p; });
+  /* 🪤 v1463 — les cartes d'un jeu : la base, puis les corrections de David */
+  function fusionnerCartes(type, contenu) {
+    var T = TYPES[type], src = (contenu && contenu.cartes && contenu.cartes[type]) || {};
+    var mod = src.mod || {}, liste = [], vus = {};
+    T.base.forEach(function (x) {
+      var c = mod[x.k] || {}, o = { k: x.k, base: true, modifie: Object.keys(c).length > 0, cache: !!c.cache, e: c.e !== undefined ? c.e : x.e };
+      if (type === 'pieges') { o.t = c.t || x.t; o.v = c.v !== undefined ? (c.v ? 1 : 0) : x.v; }
+      else o.q = c.q || x.q;
+      if (type === 'chiffres') { o.c = (c.c && c.c.length === 3) ? c.c : x.c; o.b = c.b !== undefined ? c.b : x.b; }
+      vus[x.k] = true;
+      liste.push(o);
+    });
+    (src.ajouts || []).forEach(function (x) {
+      if (!x || !x.cle || vus[x.cle]) return;
+      vus[x.cle] = true;
+      liste.push({ k: x.cle, ajoute: true, cache: !!x.cache, e: x.e || '', t: x.t || '', v: x.v ? 1 : 0, q: x.q || '', c: x.c || [], b: x.b || 0 });
+    });
+    return liste;
+  }
+  function conseilsDe(contenu) {
+    var t = contenu && typeof contenu.conseils === 'string' ? contenu.conseils : '';
+    return t.trim() ? t.split('\n').filter(function (l) { return l.trim(); }) : CONSEILS.slice();
+  }
+  var CARTES = { pieges: [], loupe: [], chiffres: [] }, PARC = { pieges: {}, loupe: {}, chiffres: {} }, LES_CONSEILS = [];
   function poserContenu(contenu, images) {
     var f = fusionner(contenu, images);
     IMAGES = f.images;
     LISTE = f.liste.filter(function (p) { return !p.cache && p.n && p.m; });
     PAR = {};
     LISTE.forEach(function (p) { PAR[p.k] = p; });
+    ORDRE_TYPES.forEach(function (type) {
+      CARTES[type] = fusionnerCartes(type, contenu).filter(function (x) {
+        if (x.cache) return false;
+        if (type === 'pieges') return !!x.t;
+        if (type === 'loupe') return /\{[^{}]+\}/.test(x.q || '');
+        return !!x.q && x.c && x.c.length === 3;
+      });
+      PARC[type] = {};
+      CARTES[type].forEach(function (x) { PARC[type][x.k] = x; });
+    });
+    LES_CONSEILS = conseilsDe(contenu);
   }
   /* le dessin d'un panneau : son image si David en a mis une, sinon le dessin */
   function dessin(p, images) {
@@ -297,6 +429,9 @@
   function connu(k) { return carte(k)[0] >= 3; }
   function due(k) { var c = carte(k); return c[1] > 0 && c[1] <= jourN(); }
   function nbConnus(f) { return LISTE.filter(function (p) { return (!f || p.f === f) && connu(p.k); }).length; }
+  /* 🪤 v1463 — une carte d'un autre jeu se range sous « g: », « l: », « n: » + sa clé */
+  function idDe(type, k) { return type === 'p' ? k : TYPES[type].pre + k; }
+  function nbSus(type) { return CARTES[type].filter(function (x) { return connu(idDe(type, x.k)); }).length; }
   function niveau() {
     var n = 0;
     for (var i = 0; i < NIVEAUX.length; i++) if (D.xp >= NIVEAUX[i][0]) n = i;
@@ -368,7 +503,23 @@
     '.jv .cjStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}' +
     '.jv .cjStats div{border-radius:14px;padding:10px 4px;background:var(--verre2,var(--navy-deep));border:1px solid var(--verre-bord,var(--line));text-align:center;font-size:11.5px;font-weight:700;color:var(--muted)}' +
     '.jv .cjStats b{display:block;font-size:20px;color:var(--cream)}' +
-    '.jv .cjSeries{display:flex;flex-direction:column;gap:8px;margin-top:10px}';
+    '.jv .cjSeries{display:flex;flex-direction:column;gap:8px;margin-top:10px}' +
+    /* 🪤 v1463 — les pièges, la loupe, le bon chiffre, les conseils */
+    '.jv .cjVF{border-radius:22px;padding:22px 18px;margin-top:12px;min-height:130px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(135deg,rgba(182,255,14,.2),var(--verre2,var(--navy-deep)));border:2px solid #B6E35A;font-size:18px;font-weight:800;line-height:1.4;text-align:center;color:var(--cream)}' +
+    '.jv .cjVF small{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:8px}' +
+    '.jv .cjDeux{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}' +
+    '.jv .cjDeux button,.jv .cjTrois button{margin:0;width:auto;min-height:0;height:auto;border-radius:16px;font-family:inherit;font-weight:900;line-height:1.2;border:2px solid var(--verre-bord,var(--line));background:var(--verre2,var(--navy-deep));color:var(--cream);cursor:pointer}' +
+    '.jv .cjDeux button{padding:14px 6px;font-size:16px}' +
+    '.jv .cjTrois{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}' +
+    '.jv .cjTrois button{padding:16px 4px;font-size:18px;overflow-wrap:anywhere}' +
+    '.jv .cjDeux button.bon,.jv .cjTrois button.bon{border-color:#2E8B14;background:rgba(46,139,20,.14)}' +
+    '.jv .cjDeux button.faux,.jv .cjTrois button.faux{border-color:#C33A12;background:rgba(195,58,18,.10);opacity:.7}' +
+    '.jv .cjEnonce{border-radius:18px;padding:14px 12px;margin-top:10px;background:var(--verre2,var(--navy-deep));border:1px solid var(--verre-bord,var(--line));line-height:2.5}' +
+    '.jv .cjEnonce .m{display:inline-block;margin:0;width:auto;min-height:0;height:auto;border-radius:9px;padding:4px 7px;border:1.5px dashed var(--verre-bord,#C9CCBF);background:transparent;color:var(--cream);font-family:inherit;font-size:16px;font-weight:700;line-height:1.3;cursor:pointer}' +
+    '.jv .cjEnonce .p{font-size:16px;font-weight:700;color:var(--cream);margin-left:2px}' +
+    '.jv .cjEnonce .m.cle{background:#B6FF0E;color:#14161B;border:1.5px solid #14161B;font-weight:900}' +
+    '.jv .cjEnonce .m.non{border:1.5px solid #D0491F;color:#D0491F;text-decoration:line-through}' +
+    '.jv .cjConseils{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:14.5px;line-height:1.45;color:var(--cream)}';
   function poserLeStyle() {
     if (document.getElementById('cjStyle')) return;
     var s = document.createElement('style');
@@ -421,7 +572,6 @@
   /* ============================================================
      ① L'ACCUEIL
      ============================================================ */
-  function aRevoir() { return LISTE.filter(function (p) { return due(p.k); }); }
   function accueil() {
     var j = ecran('');
     var nv = niveau(), total = LISTE.length, su = nbConnus();
@@ -430,20 +580,25 @@
       '<div class="jvDoux" style="margin-top:2px">Niveau ' + nv.n + ' · ' + esc(nv.nom) + ' · ' + D.xp + ' XP</div>' +
       '<div class="jvXp"><i style="width:' + nv.pct + '%"></i></div>' +
       '<div class="jvDoux"><b style="color:#B6FF0E">' + su + '</b> panneau' + (su > 1 ? 'x' : '') + ' connu' + (su > 1 ? 's' : '') + ' sur ' + total +
-      (nv.reste ? ' · encore ' + nv.reste + ' XP avant le niveau ' + (nv.n + 1) : '') + '</div>'));
-    var go = el('button', 'nvGo', '<span class="e">▶️</span><span><b>Ma séance du jour</b><small>5 minutes : 8 panneaux à reconnaître, les ratés d’abord</small></span>');
+      ' · <b style="color:#B6FF0E">' + nbSus('pieges') + '</b> piège' + (nbSus('pieges') > 1 ? 's' : '') + ' déjoué' + (nbSus('pieges') > 1 ? 's' : '') + ' sur ' + CARTES.pieges.length + '</div>'));
+    var go = el('button', 'nvGo', '<span class="e">▶️</span><span><b>Ma séance du jour</b><small>5 minutes : des panneaux, des pièges, une question à la loupe, un chiffre</small></span>');
     go.type = 'button';
     go.setAttribute('data-cj-mode', 'seance');
     go.addEventListener('click', function () { seance(false); });
     j.appendChild(go);
     j.appendChild(el('div', 'cjSous', 'Les jeux'));
     var g = el('div', 'cjModes');
-    var r = aRevoir().length;
+    var r = toutesDues().length;
     mode(g, '🃏', 'Memory des panneaux', 'Le panneau et ce qu’il veut dire', 0, choisirMemory);
     mode(g, '🔤', 'L’abécédaire', 'Tous les panneaux, expliqués', 0, function () { abecedaire(); });
+    ORDRE_TYPES.forEach(function (type) {
+      var T = TYPES[type];
+      if (CARTES[type].length) mode(g, T.ic, T.nom, T.sous, 0, function () { seance(false, type); });
+    });
     mode(g, '🔁', 'À revoir', r ? r + ' carte' + (r > 1 ? 's reviennent' : ' revient') + ' aujourd’hui' : 'Rien à revoir 👏', r, function () { seance(true); });
+    if (LES_CONSEILS.length) mode(g, '📝', 'Conseils pour l’examen', 'Le mémo de l’auto-école', 0, conseils);
     j.appendChild(g);
-    j.appendChild(el('div', 'cjNote', 'Bientôt ici : 👀 L’œil du conducteur, 🔍 La question à la loupe, 🪤 Les pièges, 🚦 Qui passe ? et 🔢 Le bon chiffre.'));
+    j.appendChild(el('div', 'cjNote', 'Bientôt ici : 👀 L’œil du conducteur et 🚦 Qui passe ?'));
     var c = el('div', 'card', '<div class="section-title" style="margin-bottom:4px">📈 Où j’en suis</div>');
     FAMILLES.forEach(function (f) {
       var t = LISTE.filter(function (p) { return p.f === f[0]; }).length;
@@ -454,7 +609,27 @@
       b.addEventListener('click', function () { abecedaire(f[0]); });
       c.appendChild(b);
     });
+    ORDRE_TYPES.forEach(function (type) {
+      var T = TYPES[type], t = CARTES[type].length;
+      if (!t) return;
+      var n = nbSus(type);
+      var b = el('button', 'nvTheme', '<span class="e">' + T.ic + '</span><span class="n">' + esc(T.nom) + '</span><span class="bar"><i style="width:' + Math.round(100 * n / t) + '%"></i></span><span class="c">' + n + '/' + t + '</span>');
+      b.type = 'button';
+      b.addEventListener('click', function () { seance(false, type); });
+      c.appendChild(b);
+    });
     j.appendChild(c);
+  }
+  /* 📝 v1463 — les conseils du mémo (n° 17 à 23) : à lire, rien à gagner */
+  function conseils() {
+    var j = ecran('');
+    haut(j, '📝 Conseils pour l’examen');
+    var c = el('div', 'card', '<div class="section-title" style="margin-bottom:6px">Le mémo de l’auto-école</div>');
+    var l = el('ul', 'cjConseils');
+    LES_CONSEILS.forEach(function (t) { l.appendChild(el('li', '', esc(t))); });
+    c.appendChild(l);
+    j.appendChild(c);
+    bouton(j, 'Retour', accueil, true);
   }
 
   /* ============================================================
@@ -486,20 +661,47 @@
      ③ LA SÉANCE DU JOUR (et « à revoir ») : reconnaître les panneaux
      ============================================================ */
   var S = null;
-  function seance(revoirSeul) {
-    var dues = melanger(aRevoir());
-    var neufs = melanger(LISTE.filter(function (p) { return carte(p.k)[1] === 0; }));
-    var autres = melanger(LISTE.filter(function (p) { return carte(p.k)[1] > jourN(); }))
-      .sort(function (a, b) { return carte(a.k)[0] - carte(b.k)[0]; });
-    var l = revoirSeul ? dues.slice(0, 12) : dues.concat(neufs).concat(autres).slice(0, 8);
+  /* Les cartes d'une sorte, dans l'ordre où elles doivent sortir :
+     celles qui reviennent aujourd'hui, les jamais vues, puis les autres
+     (les moins sues d'abord). « p » = les panneaux. */
+  function pioche(type) {
+    var l = type === 'p' ? LISTE : CARTES[type], j = jourN();
+    var id = function (x) { return idDe(type, x.k); };
+    var dues = melanger(l.filter(function (x) { return due(id(x)); }));
+    var neufs = melanger(l.filter(function (x) { return carte(id(x))[1] === 0; }));
+    var autres = melanger(l.filter(function (x) { return carte(id(x))[1] > j; })).sort(function (a, b) { return carte(id(a))[0] - carte(id(b))[0]; });
+    return { dues: dues, suite: neufs.concat(autres) };
+  }
+  function toutesDues() {
+    var out = [];
+    ['p'].concat(ORDRE_TYPES).forEach(function (t) { pioche(t).dues.forEach(function (x) { out.push({ t: t, k: x.k }); }); });
+    return out;
+  }
+  /* seance(false)        : la séance du jour, mélangée
+     seance(true)         : « à revoir », tout ce qui revient aujourd'hui
+     seance(false, type)  : un seul jeu (pieges, loupe, chiffres) */
+  function seance(revoirSeul, type) {
+    var l = [];
+    var prendre = function (t, n) {
+      var p = pioche(t);
+      p.dues.concat(p.suite).slice(0, n).forEach(function (x) { l.push({ t: t, k: x.k }); });
+    };
+    if (revoirSeul) l = melanger(toutesDues()).slice(0, 12);
+    else if (type) prendre(type, TYPES[type].n);
+    else {
+      /* 4 panneaux, 2 pièges, 1 loupe, 1 chiffre ; s'il manque une sorte, des panneaux à la place */
+      prendre('pieges', 2); prendre('loupe', 1); prendre('chiffres', 1);
+      prendre('p', 8 - l.length);
+      l = melanger(l);
+    }
     if (!l.length) {
       var j = ecran('');
-      haut(j, '🔁 À revoir');
+      haut(j, revoirSeul ? '🔁 À revoir' : '▶️ Ma séance du jour');
       j.appendChild(el('div', 'card cjBilan', '<div class="g">👏</div><h3>Rien à revoir</h3><p>Les cartes ratées reviennent le lendemain. Lance ta séance du jour.</p>'));
       bouton(j, 'Retour', accueil, true);
       return;
     }
-    S = { l: l, i: 0, bons: 0, rates: [], titre: revoirSeul ? '🔁 À revoir' : '▶️ Ma séance du jour', xp0: D.xp };
+    S = { l: l, i: 0, bons: 0, rates: [], titre: revoirSeul ? '🔁 À revoir' : (type ? TYPES[type].ic + ' ' + TYPES[type].nom : '▶️ Ma séance du jour'), xp0: D.xp };
     question();
   }
   function leurres(p, n) {
@@ -513,28 +715,38 @@
     });
     return out.slice(0, n);
   }
+  /* Ce qui suit une réponse, pour toutes les sortes de cartes */
+  function apresReponse(j, id, ok, html, fichePanneau) {
+    vibrer(ok ? 12 : 60);
+    noter(id, ok);
+    if (ok) S.bons++; else S.rates.push(S.l[S.i]);
+    j.appendChild(el('div', ok ? 'nvVerso' : 'nvFaux', html));
+    if (!ok && fichePanneau) bouton(j, 'Voir la fiche', function () { fiche(fichePanneau, S.titre, S.i, S.l.length, function () { S.i++; question(); }, 'Continuer'); }, true);
+    var suite = bouton(j, S.i + 1 >= S.l.length ? 'Voir mon résultat' : 'Suivant', function () { S.i++; question(); });
+    try { suite.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+  }
   function question() {
     if (S.i >= S.l.length) { finSeance(); return; }
-    var p = S.l[S.i];
+    var x = S.l[S.i];
     var j = ecran('');
     haut(j, S.titre, S.i, S.l.length);
+    j.setAttribute('data-cj-type', x.t);
+    if (x.t === 'pieges') { questionPiege(j, PARC.pieges[x.k]); return; }
+    if (x.t === 'loupe') { questionLoupe(j, PARC.loupe[x.k]); return; }
+    if (x.t === 'chiffres') { questionChiffre(j, PARC.chiffres[x.k]); return; }
+    var p = PAR[x.k];
+    if (!p) { S.i++; question(); return; }
     var sens = Math.random() < 0.5;      /* le panneau → son sens, ou le sens → son panneau */
     var repondu = false, suite = null;
     var repondre = function (b, k, tous) {
       if (repondu) return;
       repondu = true;
       var ok = k === p.k;
-      vibrer(ok ? 12 : 60);
       tous.forEach(function (x) { x.b.disabled = true; if (x.k === p.k) x.b.className += ' bon'; });
       if (!ok) b.className += ' faux';
-      noter(p.k, ok);
-      if (ok) S.bons++; else S.rates.push(p.k);
-      j.appendChild(el('div', ok ? 'nvVerso' : 'nvFaux', ok
+      apresReponse(j, p.k, ok, ok
         ? '<small>✅ Oui · +10 XP</small>' + esc(p.a || p.m)
-        : '<b>❌ C’était « ' + esc(p.n) + ' »</b>' + esc(p.m) + '. Cette carte revient demain.'));
-      if (!ok) bouton(j, 'Voir la fiche', function () { fiche(p.k, S.titre, S.i, S.l.length, function () { S.i++; question(); }, 'Continuer'); }, true);
-      suite = bouton(j, S.i + 1 >= S.l.length ? 'Voir mon résultat' : 'Suivant', function () { S.i++; question(); });
-      try { suite.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+        : '<b>❌ C’était « ' + esc(p.n) + ' »</b>' + esc(p.m) + '. Cette carte revient demain.', p.k);
     };
     var choix = melanger([p].concat(leurres(p, sens ? 2 : 3)));
     var tous = [];
@@ -567,6 +779,112 @@
     j.setAttribute('data-cj-sens', sens ? 'sens' : 'panneau');
     tous.forEach(function (x) { x.b.setAttribute('data-cj-k', x.k); });
   }
+  /* 🪤 un piège : vrai ou faux, puis le piège expliqué */
+  function questionPiege(j, c) {
+    if (!c) { S.i++; question(); return; }
+    j.appendChild(el('div', 'cjVF', '<small>Vrai ou faux ?</small>' + esc(c.t)));
+    var z = el('div', 'cjDeux'), fait = false, bts = [];
+    [[0, '❌ Faux'], [1, '✅ Vrai']].forEach(function (x) {
+      var b = el('button', '', x[1]);
+      b.type = 'button';
+      b.setAttribute('data-cj-k', x[0] ? 'vrai' : 'faux');
+      bts.push(b);
+      b.addEventListener('click', function () {
+        if (fait) return;
+        fait = true;
+        var ok = (c.v ? 1 : 0) === x[0];
+        bts.forEach(function (y, i) { y.disabled = true; if (i === (c.v ? 1 : 0)) y.className = 'bon'; });
+        if (!ok) b.className = 'faux';
+        apresReponse(j, idDe('pieges', c.k), ok, ok
+          ? '<small>✅ ' + (c.v ? 'Vrai' : 'Faux') + ', bien vu · +10 XP</small>' + esc(c.e)
+          : '<b>🪤 Piège : c’était ' + (c.v ? 'vrai' : 'faux') + '</b>' + esc(c.e) + ' Cette carte revient demain.');
+      });
+      z.appendChild(b);
+    });
+    j.appendChild(z);
+    j.setAttribute('data-cj-bonne', c.v ? 'vrai' : 'faux');
+  }
+  /* 🔍 la loupe : toucher les mots qui changent tout (entre accolades dans « q ») */
+  function motsDe(q) {
+    /* colle : écrit sans espace après le morceau d'avant (« {stationner}. »,
+       « l’{arrêt} ») · ponct : de la ponctuation seule, qui ne se touche pas */
+    var out = [], s = String(q || ''), re = /\{([^{}]+)\}|[^\s{}]+/g, m, fin = 0;
+    while ((m = re.exec(s))) {
+      var colle = out.length > 0 && m.index === fin;
+      if (m[1] !== undefined) out.push({ t: m[1].replace(/\s+/g, ' ').trim(), cle: true, colle: colle });
+      else out.push({ t: m[0], cle: false, colle: colle, ponct: !/[0-9A-Za-zÀ-ÿ]/.test(m[0]) });
+      fin = re.lastIndex;
+    }
+    return out;
+  }
+  function questionLoupe(j, c) {
+    if (!c) { S.i++; question(); return; }
+    var mots = motsDe(c.q), total = mots.filter(function (m) { return m.cle; }).length;
+    var trouves = 0, erreurs = 0, fini = false;
+    var b = bulle(j, 'Avant de répondre', 'Touche ' + (total > 1 ? 'les ' + total + ' mots qui changent' : 'le mot qui change') + ' tout.<span class="cjCompte" style="display:block;font-size:13px;font-weight:600;color:var(--muted)"></span>');
+    var compte = b.querySelector('.cjCompte');
+    if (total > 1) compte.textContent = '0 trouvé sur ' + total;
+    var z = el('div', 'cjEnonce');
+    var finir = function (ok) {
+      if (fini) return;
+      fini = true;
+      [].forEach.call(z.querySelectorAll('button'), function (m) { m.disabled = true; if (m.getAttribute('data-cle') === '1') m.className = 'm cle'; });
+      apresReponse(j, idDe('loupe', c.k), ok, ok
+        ? '<small>✅ Bien lu · +10 XP</small>' + esc(c.e)
+        : '<b>🔍 Les mots à repérer sont en vert</b>' + esc(c.e) + ' Cette carte revient demain.');
+    };
+    mots.forEach(function (m, i) {
+      if (i && !m.colle) z.appendChild(document.createTextNode(' '));
+      if (m.ponct) { z.appendChild(el('span', 'p', esc(m.t))); return; }
+      var x = el('button', 'm', esc(m.t));
+      x.type = 'button';
+      x.setAttribute('data-cle', m.cle ? '1' : '0');
+      x.addEventListener('click', function () {
+        if (fini || x.className !== 'm') return;
+        if (m.cle) {
+          x.className = 'm cle';
+          trouves++;
+          vibrer(10);
+          compte.textContent = trouves + ' trouvé' + (trouves > 1 ? 's' : '') + ' sur ' + total;
+          if (trouves >= total) finir(true);
+        } else {
+          x.className = 'm non';
+          erreurs++;
+          vibrer(40);
+          if (erreurs >= 2) finir(false);
+        }
+      });
+      z.appendChild(x);
+    });
+    j.appendChild(z);
+    j.appendChild(el('div', 'cjNote', 'Deux mots touchés à côté, et la carte est ratée.'));
+    j.setAttribute('data-cj-bonne', 'loupe');
+  }
+  /* 🔢 le bon chiffre : trois choix, puis l'astuce pour le retenir */
+  function questionChiffre(j, c) {
+    if (!c) { S.i++; question(); return; }
+    bulle(j, 'Le bon chiffre', esc(c.q));
+    var z = el('div', 'cjTrois'), fait = false, bts = [];
+    c.c.forEach(function (t, i) {
+      var b = el('button', '', esc(t));
+      b.type = 'button';
+      b.setAttribute('data-cj-k', String(i));
+      bts.push(b);
+      b.addEventListener('click', function () {
+        if (fait) return;
+        fait = true;
+        var ok = i === Number(c.b);
+        bts.forEach(function (y, n) { y.disabled = true; if (n === Number(c.b)) y.className = 'bon'; });
+        if (!ok) b.className = 'faux';
+        apresReponse(j, idDe('chiffres', c.k), ok, ok
+          ? '<small>✅ Oui · +10 XP · l’astuce à retenir</small>' + esc(c.e)
+          : '<b>❌ C’était ' + esc(c.c[Number(c.b)]) + '</b>' + esc(c.e) + ' Cette carte revient demain.');
+      });
+      z.appendChild(b);
+    });
+    j.appendChild(z);
+    j.setAttribute('data-cj-bonne', String(c.b));
+  }
   function finSeance() {
     D.seances++;
     jouerAujourdhui();
@@ -576,19 +894,26 @@
     var tout = S.bons === S.l.length;
     j.appendChild(el('div', 'card cjBilan', '<div class="g">' + (tout ? '🏆' : (S.bons >= S.l.length / 2 ? '💪' : '🌱')) + '</div><h3>' + S.bons + ' sur ' + S.l.length + '</h3>' +
       '<p>' + (tout ? 'Sans faute !' : (S.rates.length + ' carte' + (S.rates.length > 1 ? 's reviennent' : ' revient') + ' demain.')) + '</p>' +
-      '<div class="cjStats"><div><b>+' + (D.xp - S.xp0) + '</b>XP</div><div><b>🔥 ' + D.serie + '</b>jour' + (D.serie > 1 ? 's' : '') + ' de suite</div><div><b>' + nbConnus() + '/' + LISTE.length + '</b>connus</div></div>'));
+      '<div class="cjStats"><div><b>+' + (D.xp - S.xp0) + '</b>XP</div><div><b>🔥 ' + D.serie + '</b>jour' + (D.serie > 1 ? 's' : '') + ' de suite</div><div><b>' + (nbConnus() + nbSus('pieges') + nbSus('loupe') + nbSus('chiffres')) + '/' + (LISTE.length + CARTES.pieges.length + CARTES.loupe.length + CARTES.chiffres.length) + '</b>cartes sues</div></div>'));
     if (S.rates.length) {
       var c = el('div', 'card', '<div class="section-title" style="margin-bottom:8px">À revoir</div>');
       var g = el('div', 'cjAbc');
-      S.rates.forEach(function (k) {
-        var p = PAR[k];
+      var autres = el('ul', 'cjConseils');
+      S.rates.forEach(function (x) {
+        if (x.t !== 'p') {
+          var k = PARC[x.t][x.k];
+          if (k) autres.appendChild(el('li', '', TYPES[x.t].ic + ' ' + esc(x.t === 'pieges' ? k.t : String(k.q).replace(/[{}]/g, ''))));
+          return;
+        }
+        var p = PAR[x.k];
         if (!p) return;
         var b = el('button', '', dessin(p) + esc(p.n));
         b.type = 'button';
-        b.addEventListener('click', function () { fiche(k, 'À revoir', 0, 0, finSeanceRetour, 'Retour'); });
+        b.addEventListener('click', function () { fiche(x.k, 'À revoir', 0, 0, finSeanceRetour, 'Retour'); });
         g.appendChild(b);
       });
-      c.appendChild(g);
+      if (g.firstChild) c.appendChild(g);
+      if (autres.firstChild) c.appendChild(autres);
       j.appendChild(c);
     }
     bouton(j, 'Terminer', accueil);
@@ -763,6 +1088,10 @@
     FAMILLES: FAMILLES,
     fusionner: fusionner,
     dessin: dessin,
+    /* 🪤 v1463 — les cartes de base et leur fusion, pour l'atelier */
+    TYPES: TYPES,
+    fusionnerCartes: fusionnerCartes,
+    conseilsDe: conseilsDe,
     /* la page ouvre l'onglet : { zone, appeler(quoi, données) → promesse } */
     ouvrir: function (o) {
       O = o;
@@ -781,6 +1110,6 @@
       });
     },
     oublier: function () { charge = false; D = null; clearTimeout(minuteur); },
-    _etat: function () { return { D: D, liste: LISTE, S: S, M: M }; }
+    _etat: function () { return { D: D, liste: LISTE, S: S, M: M, cartes: CARTES, conseils: LES_CONSEILS }; }
   };
 })();
