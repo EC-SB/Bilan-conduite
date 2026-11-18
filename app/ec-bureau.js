@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 17:51 — v1386 */
+/* Déployé le 18/11/2026 à 14:48 — v1468 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -856,7 +856,25 @@ function marquePlaceExamen(nom){
 async function majSuivi(eleve, champs){
   const s = suiviDe(eleve);
 
-  const rep = await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
+  /* ⚠️ v1468 — ON N'ENVOIE QUE CE QUI CHANGE.
+
+     On envoyait la fiche ENTIÈRE (« s », ce que CET écran avait en
+     mémoire) plus les cases changées. Le 14/11, Chrystel termine le
+     rendez-vous post-permis de Yacouba Barry à 12:29 ; à 12:31, David
+     lui donne sa place d'examen depuis un écran ouvert le matin — et
+     la fiche du matin a écrasé le rendez-vous. Le Worker et le classeur
+     gardent désormais tout ce qui n'est pas envoyé (voir
+     enregistrerSuiviRapide).
+
+     Avec une date d'examen, son centre et son type partent aussi : le
+     classeur s'en sert pour placer l'élève sur la bonne session. */
+  const envoi = Object.assign({}, champs);
+  if(Object.prototype.hasOwnProperty.call(envoi, 'datePermis') && s){
+    ['centre', 'typeExamen'].forEach(k => {
+      if(!Object.prototype.hasOwnProperty.call(envoi, k) && s[k]) envoi[k] = s[k];
+    });
+  }
+  const rep = await appelPrep(Object.assign({ action:'suiviSet' }, envoi, {
     eleve: eleve, par: ACCES.moniteur || ''
   }));
 
