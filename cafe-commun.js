@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:39 — v1460 */
+/* Déployé le 18/11/2026 à 10:57 — v1461 */
 /* ============================================================
    cafe-commun.js — ☕ LE COIN CAFÉ, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -36,6 +36,12 @@
    v1460 — « 📰 Infos et horoscope » : les actualités par filtre, la
    météo et l'horoscope, lus par le Worker dans des flux RSS. Voir
    « LES INFOS ».
+
+   v1461 — David : une catégorie « Infos et horoscope » dans le coin
+   café, comme « Défier l'équipe » et « Jeux solo », avec trois
+   boutons (Horoscope, Infos, Météo) ; plus de texte pour tous les
+   horoscopes (jour, semaine, mois, saison) et le résumé entier des
+   articles, pas seulement le titre.
 
    ⚠️ ÉCRIT EN ES5 (var, function), comme eleve.html et
    appel-commun.js : les vieux téléphones des élèves lisent la page
@@ -164,7 +170,7 @@
     '.cfInfo > div{min-width:0;flex:1}' +
     '.cfInfo b{display:block;font-size:14px;line-height:1.3}' +
     '.cfInfo small{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;font-weight:600}' +
-    '.cfInfo p{margin:4px 0 0;font-size:12.5px;line-height:1.4;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+    '.cfInfo p{margin:5px 0 0;font-size:13px;line-height:1.45;color:var(--cream);opacity:.82}' +
     '.cfInfosPied{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;font-size:12px;color:var(--muted)}' +
     '.cfInfosPied button{width:auto;margin:0;min-height:0;height:auto;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--navy-deep,#fff);color:var(--cream);font:inherit;font-weight:700;font-size:12px;cursor:pointer}' +
     '.cfAide a{color:inherit;text-decoration:underline}' +
@@ -178,7 +184,13 @@
     '.cfHoro .tete .e{font-size:34px}' +
     '.cfHoro .tete small{display:block;font-size:12px;font-weight:600;color:var(--muted)}' +
     '.cfHoro p{margin:10px 0 0;font-size:14.5px;line-height:1.55;color:var(--cream)}' +
-    '.cfHoro .bas{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}' +
+    '.cfHoro .bas{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}' +
+    '.cfHoroParts .part{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}' +
+    '.cfHoroParts .part:first-child{border-top:0;padding-top:0}' +
+    '.cfHoroParts .part > b{display:block;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}' +
+    '.cfHoroParts .part p{margin:3px 0 0;font-size:14.5px;line-height:1.55;color:var(--cream)}' +
+    '.cfHoroParts .suite{font-weight:800;font-size:13px;color:inherit;white-space:nowrap}' +
+    '.cfHoroL .cfHoroParts .part p{font-size:13.5px}' +
     '.cfHoro .suite{font-weight:800;font-size:13px;color:var(--cream)}' +
     '.cfHoro .changer{width:auto;margin:0;min-height:0;height:auto;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--navy-deep,#fff);color:var(--muted);font:inherit;font-weight:700;font-size:12px;cursor:pointer}' +
     '.cfHoroL{border:1px solid var(--line);border-radius:12px;background:var(--navy-deep,#fff);margin-top:6px}' +
@@ -628,16 +640,26 @@
       });
       f.corps.appendChild(gs);
     }
+    /* 📰 v1461 — David : « sépare infos et horoscope dans une catégorie,
+       comme Défier l'équipe et Jeux solo, avec chacun son bouton
+       (Horoscope, Infos, Météo) ». */
+    f.corps.appendChild(lab('Infos et horoscope'));
+    var gi = el('div', 'cfGrille');
+    [['horoscope', '🔮', 'Horoscope', 'ton signe : jour, semaine, mois'],
+     ['infos', '📰', 'Infos', 'monde, France, Saint-Brieuc, route, sport'],
+     ['meteo', '⛅', 'Météo', 'Saint-Brieuc et Loudéac']].forEach(function (x) {
+      var b = el('button', 'cfJeu', '<span class="e">' + x[1] + '</span>' + esc(x[2]) + '<small>' + esc(x[3]) + '</small>');
+      b.type = 'button';
+      b.setAttribute('data-infos', x[0]);
+      b.addEventListener('click', function () { ouvrirInfos(x[0]); });
+      gi.appendChild(b);
+    });
+    f.corps.appendChild(gi);
     var ec = el('div', '');
     ec.id = 'cfEnCours';
     f.corps.appendChild(ec);
     dessinerEnCours();
     var deux = el('div', 'cfDeux');
-    /* 📰 v1460 — les infos : actualités, horoscope, météo */
-    var bi = el('button', '', '📰 Infos et horoscope<small>actus, météo, ton signe</small>');
-    bi.type = 'button';
-    bi.addEventListener('click', function () { ouvrirInfos(); });
-    deux.appendChild(bi);
     var bp = el('button', '', '🏆 Palmarès');
     bp.type = 'button';
     bp.addEventListener('click', ouvrirPalmares);
@@ -2444,8 +2466,11 @@
      (gardé sur cet appareil), il s'affiche en grand, les 11 autres
      dessous.
      ============================================================ */
-  var FILTRES_INFOS = [['horoscope', '🔮 Horoscope'], ['monde', '🌍 Monde'], ['france', '🇫🇷 France'],
-    ['local', '📍 Saint-Brieuc · Loudéac'], ['route', '🚗 Auto-école et route'], ['sport', '⚽ Sport'], ['meteo', '⛅ Météo']];
+  /* 📰 v1461 — trois fenêtres : l'horoscope, les infos (avec leurs
+     filtres), la météo. Chacune a son bouton dans le coin café. */
+  var FILTRES_ACTUS = [['monde', '🌍 Monde'], ['france', '🇫🇷 France'],
+    ['local', '📍 Saint-Brieuc · Loudéac'], ['route', '🚗 Auto-école et route'], ['sport', '⚽ Sport']];
+  var TITRES_INFOS = { horoscope: '🔮 L’horoscope', infos: '📰 Les infos', meteo: '⛅ La météo' };
   var infosLues = {};           /* filtre → dernière réponse, le temps de la page */
   function memo(cle, val) {
     try {
@@ -2454,27 +2479,31 @@
     } catch (e) {}
     return '';
   }
-  var filtreInfos = '';
-  function ouvrirInfos(relire) {
+  var filtreActus = '', genreInfos = 'infos', vueInfos = '';
+  function ouvrirInfos(genre, relire) {
     if (!O || O.mode !== 'equipe') return;
-    if (!filtreInfos) filtreInfos = memo('ec_cafe_infos') || 'horoscope';
-    if (!FILTRES_INFOS.some(function (x) { return x[0] === filtreInfos; })) filtreInfos = 'horoscope';
-    var f = fenetre('infos', '📰 Les infos du coin café', 600);
-    f.corps.appendChild(chips(FILTRES_INFOS, filtreInfos, function (k) { filtreInfos = k; memo('ec_cafe_infos', k); ouvrirInfos(); }));
+    genreInfos = TITRES_INFOS[genre] ? genre : 'infos';
+    var f = fenetre('infos', TITRES_INFOS[genreInfos], 600);
+    if (genreInfos === 'infos') {
+      if (!filtreActus) filtreActus = memo('ec_cafe_infos') || 'monde';
+      if (!FILTRES_ACTUS.some(function (x) { return x[0] === filtreActus; })) filtreActus = 'monde';
+      f.corps.appendChild(chips(FILTRES_ACTUS, filtreActus, function (k) { filtreActus = k; memo('ec_cafe_infos', k); ouvrirInfos('infos'); }));
+    }
     var z = el('div', 'cfInfos');
     f.corps.appendChild(z);
     f.bas.appendChild(bouton('Retour', false, ouvrirCoin));
-    var filtre = filtreInfos;
+    var filtre = genreInfos === 'infos' ? filtreActus : genreInfos;
+    vueInfos = filtre;
     var r0 = infosLues[filtre];
     if (r0 && !relire && Date.now() - r0._lu < 5 * 60000) { dessinerInfos(z, r0); return; }
-    z.innerHTML = '<div class="cfEtat">Un instant, je lis les journaux…</div>';
+    z.innerHTML = '<div class="cfEtat">' + (genreInfos === 'meteo' ? 'Un instant, je regarde le ciel…' : (genreInfos === 'horoscope' ? 'Un instant, je lis les astres…' : 'Un instant, je lis les journaux…')) + '</div>';
     appeler('infos', { filtre: filtre, relire: relire ? 1 : 0 }).then(function (r) {
       r._lu = Date.now();
       infosLues[filtre] = r;
-      if (!F || F.ecran !== 'infos' || filtreInfos !== filtre) return;
+      if (!F || F.ecran !== 'infos' || vueInfos !== filtre) return;
       dessinerInfos(z, r);
     }).catch(function (e) {
-      if (!F || F.ecran !== 'infos' || filtreInfos !== filtre) return;
+      if (!F || F.ecran !== 'infos' || vueInfos !== filtre) return;
       z.innerHTML = '';
       z.appendChild(el('div', 'cfEtat', '⚠️ ' + esc(e.message || e)));
     });
@@ -2498,7 +2527,7 @@
   }
   function dessinerInfos(z, r) {
     z.innerHTML = '';
-    if (r.ancien) z.appendChild(el('div', 'cfAide cfAncien', '⚠️ Les journaux ne répondent pas pour l’instant : voici la lecture de ' + heureDe(r.quand) + '.'));
+    if (r.ancien) z.appendChild(el('div', 'cfAide cfAncien', '⚠️ Pas de réponse pour l’instant : voici la lecture de ' + heureDe(r.quand) + '.'));
     if (r.filtre === 'horoscope') dessinerHoroscope(z, r);
     else if (r.filtre === 'meteo') dessinerMeteo(z, r);
     else dessinerArticles(z, r);
@@ -2507,11 +2536,14 @@
     var maj = el('span', '', 'Mis à jour à ' + heureDe(r.quand || Date.now()));
     var rl = el('button', '', '↻ Relire');
     rl.type = 'button';
-    rl.addEventListener('click', function () { delete infosLues[r.filtre]; ouvrirInfos(true); });
+    rl.addEventListener('click', function () { delete infosLues[r.filtre]; ouvrirInfos(genreInfos, true); });
     pied.appendChild(maj);
     pied.appendChild(rl);
     z.appendChild(pied);
-    var src = (r.sources || []).map(function (s) { return esc(s.nom) + (s.ok ? '' : ' (muet)'); });
+    /* une ligne par nom : « muet » seulement si aucun de ses flux n'a répondu */
+    var parNom = {}, noms = [];
+    (r.sources || []).forEach(function (s) { if (!(s.nom in parNom)) { parNom[s.nom] = false; noms.push(s.nom); } if (s.ok) parNom[s.nom] = true; });
+    var src = noms.map(function (n) { return esc(n) + (parNom[n] ? '' : ' (muet)'); });
     if (src.length) z.appendChild(el('div', 'cfAide', 'Sources : ' + src.join(' · ') + '.'));
   }
   function dessinerArticles(z, r) {
@@ -2554,12 +2586,26 @@
       z.appendChild(g);
       return;
     }
+    /* 🔮 v1461 — « plus de texte, pour tous les horoscopes » : le jour,
+       la semaine, le mois et la saison, tels que le flux les donne. Un
+       texte que le site a coupé garde son « Lire la suite ». */
+    var parties = function (s) {
+      var l = (s.parties && s.parties.length) ? s.parties : (s.texte ? [{ quoi: 'jour', titre: 'Aujourd’hui', texte: s.texte, lien: s.lien, coupe: true }] : []);
+      var b = el('div', 'cfHoroParts');
+      l.forEach(function (x) {
+        var p = el('div', 'part', '<b>' + esc(x.titre) + '</b><p>' + esc(x.texte) + '</p>');
+        if (x.lien && x.coupe) p.lastChild.appendChild(document.createTextNode(' '));
+        if (x.lien && x.coupe) p.lastChild.appendChild(lienExterne(x.lien, 'suite', 'Lire la suite ↗'));
+        b.appendChild(p);
+      });
+      return b;
+    };
     var c = el('div', 'cfHoro');
     c.appendChild(el('div', 'tete', '<span class="e">' + esc(S.e) + '</span><div>' + esc(S.nom) +
       '<small>' + esc(S.ok && S.date ? 'Horoscope du ' + jourDit(S.date) : S.dates) + '</small></div>'));
-    c.appendChild(el('p', '', S.ok ? esc(S.texte) : 'Pas d’horoscope pour l’instant : le site ne répond pas.'));
+    if (S.ok) c.appendChild(parties(S));
+    else c.appendChild(el('p', '', 'Pas d’horoscope pour l’instant : le site ne répond pas.'));
     var bas = el('div', 'bas');
-    if (S.ok && S.lien) bas.appendChild(lienExterne(S.lien, 'suite', 'Lire la suite ↗'));
     var ch = el('button', 'changer', 'Changer de signe');
     ch.type = 'button';
     ch.addEventListener('click', function () { memo('ec_cafe_signe', null); dessinerInfos(z, r); });
@@ -2571,8 +2617,8 @@
       if (s.cle === S.cle) return;
       var d = el('details', 'cfHoroL');
       d.appendChild(el('summary', '', '<span class="e">' + esc(s.e) + '</span>' + esc(s.nom) + '<small>' + esc(s.dates) + '</small>'));
-      var p = el('div', 'txt', s.ok ? esc(s.texte) : 'Pas d’horoscope pour l’instant.');
-      if (s.ok && s.lien) { p.appendChild(document.createTextNode(' ')); p.appendChild(lienExterne(s.lien, '', 'Lire la suite ↗')); }
+      var p = el('div', 'txt');
+      if (s.ok) p.appendChild(parties(s)); else p.textContent = 'Pas d’horoscope pour l’instant.';
       d.appendChild(p);
       z.appendChild(d);
     });
