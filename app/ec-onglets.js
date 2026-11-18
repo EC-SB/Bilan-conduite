@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:27 — v1467 */
+/* Déployé le 18/11/2026 à 15:51 — v1470 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -2055,7 +2055,9 @@ function reveillerVue(cle){
     direct:     () => ACCES.role === 'admin' && typeof afficherVoituresEnDirect === 'function' && afficherVoituresEnDirect(),
     admin:      () => { chargerUtilisateurs();
                         /* 🖥️ v1467 — les ordinateurs des salles (ec-salle-code.js) */
-                        if(typeof chargerPostesSalle === 'function') chargerPostesSalle(); },
+                        if(typeof chargerPostesSalle === 'function') chargerPostesSalle();
+                        /* 📊 v1470 — ce qui interroge le serveur (ec-conso.js) */
+                        if(typeof chargerConsoServeur === 'function') chargerConsoServeur(); },
     eleves:     () => afficherRepertoire(),
     /* Le dossier se redessine seul quand on y revient : le nom
        ouvert est en mémoire, et tout ce qu'il montre aussi. Une vue
