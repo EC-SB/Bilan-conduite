@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 15:51 — v1470 */
+/* Déployé le 18/11/2026 à 16:32 — v1471 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1471,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '📉 Moins de requêtes au serveur : la question préalable du navigateur n’est plus reposée à chaque appel',
+    quoi: [
+      { emoji: '📉',
+        titre: 'Près de deux fois moins de requêtes',
+        texte: 'Avant chaque envoi au serveur, le navigateur demandait d’abord la permission, et ne s’en souvenait que 5 secondes : presque chaque appel en comptait deux dans la limite de Cloudflare. La mesure de la v1470 l’a montré dès la première heure. Le navigateur s’en souvient maintenant (2 h sur Chrome et Android, 10 min sur iPhone).' }
+    ]
+  },
   {
     version: 1470,
     date: 'Mercredi 18 novembre 2026',
