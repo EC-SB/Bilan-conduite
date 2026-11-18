@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 17/11/2026 à 17:12 — v1455 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -169,7 +169,7 @@ function afficherOnglet(cle, memoriser){
 
   /* 💬 v1434 — la Messagerie EC ne retient rien : l'onglet retenu est
      celui de l'App EC (même stockage sur Android) */
-  if(memoriser !== false && !seuleMessagerieEC()){
+  if(memoriser !== false && !seuleMessagerieEC() && !window.EC_COTE){   /* ◫ v1455 — le panneau d'à côté non plus */
     try{ localStorage.setItem(CLE_ONGLET, cle); }catch(e){}
   }
 
@@ -2015,7 +2015,8 @@ function afficherVue(onglet, cle){
     });
   }
 
-  try{ localStorage.setItem('vue_' + onglet, cle); }catch(e){}
+  /* ◫ v1455 — le panneau d'à côté ne change pas la vue retenue de l'appli */
+  if(!window.EC_COTE){ try{ localStorage.setItem('vue_' + onglet, cle); }catch(e){} }
   reveillerVue(cle);
 
   /* ⚠️ RIEN À DIRE AU BANDEAU — v965. La v963 le redessinait d'ici
