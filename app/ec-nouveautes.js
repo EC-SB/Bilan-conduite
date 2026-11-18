@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 18:53 — v1456 */
+/* Déployé le 18/11/2026 à 09:19 — v1457 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1457,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '☠️ ⚠️ En début de ligne dans les remarques de l’inspecteur',
+    quoi: [
+      { emoji: '☠️',
+        titre: 'Les boutons ☠️ et ⚠️ en début de ligne',
+        texte: 'Dans les remarques de l’inspecteur et leurs explications, les boutons ☠️ (erreur éliminatoire) et ⚠️ (à reprendre) sont maintenant au début de la ligne « Explication ou correction », avant le texte. Le micro reste au bout.' }
+    ]
+  },
   {
     version: 1456,
     date: 'Mardi 17 novembre 2026',
