@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 13:08 — v1466 */
+/* Déployé le 18/11/2026 à 14:27 — v1467 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1467,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '🖥️ L’ordinateur de la salle de code : la page des visios, sans se connecter',
+    quoi: [
+      { emoji: '🖥️',
+        titre: 'Installé une fois, il s’ouvre tout seul',
+        texte: 'Sur l’ordinateur de la salle (Saint-Brieuc ou Loudéac), ouvrir app.evolutionconduites.fr/?poste=1 : un admin choisit la salle et tape son prénom et son code, une seule fois. Ensuite la page s’ouvre seule sur Élèves › 🎓 Code, sans le reste de l’appli : quelle séance lancer, ardoises, corrigés, QR codes, la visio et la grille.' },
+      { emoji: '🔑',
+        titre: 'Le code de chacun pour agir',
+        texte: 'Lancer ou reprendre une visio, saisir des ardoises, renseigner une séance, modifier un corrigé : on tape son code. Il n’est pas gardé — l’ordinateur se referme après 2 minutes sans rien toucher, et une visio lancée continue.' },
+      { emoji: '⚙️',
+        titre: 'Gestion › Accès › 🖥️ Les ordinateurs des salles',
+        texte: 'La liste des ordinateurs installés, et « Retirer » : il ne s’ouvre plus, il faudra le réinstaller. Réservé aux admins.' }
+    ]
+  },
   {
     version: 1466,
     date: 'Mercredi 18 novembre 2026',
