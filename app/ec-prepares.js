@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:33 — v1449 */
+/* Déployé le 18/11/2026 à 14:27 — v1467 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -206,7 +206,12 @@ async function appelPrep(corps){
       }
     }
 
-    throw new Error(rep && rep.error ? rep.error : 'HTTP ' + r.status);
+    /* 🖥️ v1467 — l'ordinateur de la salle de code : « tape ton code »,
+       « retiré ». Voir ec-salle-code.js. */
+    const err = new Error(rep && rep.error ? rep.error : 'HTTP ' + r.status);
+    if(rep && rep.codeRequis) err.codeRequis = true;
+    if(rep && rep.posteRetire) err.posteRetire = true;
+    throw err;
   }
 
   return rep;
