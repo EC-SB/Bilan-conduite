@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 18/11/2026 à 10:26 — v1459 */
 /* ============================================================
    🔔 LE SERVICE WORKER — étape 3 de la messagerie
 
@@ -219,6 +219,26 @@ self.addEventListener("push", function (e) {
         fenetres.forEach(function (f) {
           try { f.postMessage({ quoi: "appel", appel: String(a.appel), fil: a.fil || "" }); } catch (err) {}
         });
+      })
+    ]));
+    return;
+  }
+
+  /* ☕ v1459 — UN DÉFI DU COIN CAFÉ. David : « je n'ai qu'une notif et
+     pas de pop-up qui apparaît pour jouer ». La page ouverte est
+     prévenue tout de suite (elle relit le coin café et ouvre
+     l'invitation — ou, pendant un cours, pose un petit bandeau qui ne
+     coupe rien : voir cafe-commun.js). Ce n'est pas un message non
+     lu : la pastille ne bouge pas. */
+  if (a.vue === "cafe") {
+    e.waitUntil(Promise.all([
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (fenetres) {
+        fenetres.forEach(function (f) { try { f.postMessage({ quoi: "cafe" }); } catch (err) {} });
+      }),
+      self.registration.showNotification(titre, {
+        body: texte, icon: ICONE, badge: ICONE,
+        tag: a.tag || "cafe", renotify: true,
+        data: { fil: "", page: a.page || "index.html", vue: "cafe" }
       })
     ]));
     return;
