@@ -1,6 +1,6 @@
-/* Déployé le 18/11/2026 à 11:54 — v1463 */
+/* Déployé le 18/11/2026 à 12:18 — v1464 */
 /* ============================================================
-   ec-code-jeu.js — v1463
+   ec-code-jeu.js — v1464
    🚦 L'ATELIER DU JEU DU CODE (« Mon code », dans l'espace élève)
 
    David, le 18 novembre : « je pré-remplis, tu corriges » — puis :
@@ -28,6 +28,18 @@
    se supprime, se remet comme au départ. Les cartes de base viennent du
    « MÉMO TESTS DE CODE » de l'école : si j'en ai mal recopié une,
    David la corrige ici.
+
+   👀 🚦 v1464 — LES IMAGES À TOUCHER. « L'œil du conducteur » et « Qui
+   passe ? » sont des dessins faits par l'appli (David : « je te laisse
+   chercher ou faire des schémas »). Deux onglets de plus, où chaque
+   image se corrige : la remplacer par une photo (réduite ici à 900 px),
+   poser et déplacer les ronds que l'élève doit toucher (on choisit un
+   rond dans la liste, puis on touche l'image), les agrandir, les
+   renommer, changer leur ordre — pour « Qui passe ? », l'ordre de la
+   liste EST l'ordre de passage —, corriger les explications, cacher,
+   ajouter une image, tout remettre comme au départ. Les ronds se
+   mesurent en pour cent de l'image : ils tiennent sur un dessin comme
+   sur une photo, à toutes les tailles d'écran.
 
    Élèves › 🎓 Code › « 🚦 Le jeu du code ». Voir : droit « code »,
    modifier : droit « code » en écriture (comme les corrigés).
@@ -82,6 +94,25 @@ function cjStyle(){
     '.cjaChoix input[type=radio]{width:19px;height:19px;flex:none;margin:0}' +
     '.cjaChoix input[type=text]{flex:1;min-width:0}' +
     '.cjaForm textarea.haut{min-height:300px}' +
+    /* 👀 🚦 v1464 — les images à toucher */
+    '.cjaLigne .d.sc{flex:0 0 92px;width:92px;height:auto;border-radius:8px;overflow:hidden;line-height:0}.cjaLigne .d.sc svg,.cjaLigne .d.sc img{width:100%;height:auto}' +
+    '.cjaScene{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);line-height:0;cursor:crosshair;background:#DCEBF5;-webkit-user-select:none;user-select:none;touch-action:manipulation}' +
+    '.cjaScene svg,.cjaScene img{display:block;width:100%;height:auto;pointer-events:none}' +
+    '.cjaScene .cjRond{position:absolute;height:0;border-radius:50%;box-sizing:content-box;pointer-events:none;box-shadow:0 0 0 2.5px #B6FF0E,0 0 0 4.5px rgba(0,0,0,.45)}' +
+    '.cjaScene .cjRond.actif{box-shadow:0 0 0 3.5px #FF8A00,0 0 0 6px rgba(0,0,0,.55)}' +
+    '.cjaScene .cjRond i{position:absolute;right:-7px;top:-7px;width:21px;height:21px;border-radius:50%;background:#B6FF0E;color:#14161B;font-style:normal;font-size:12px;font-weight:900;line-height:21px;text-align:center;box-shadow:0 0 0 1.5px #14161B}' +
+    '.cjaScene .cjRond.actif i{background:#FF8A00}' +
+    '.cjaSceneVide{padding:34px 12px;text-align:center;font-size:13.5px;line-height:1.45;color:var(--muted);border:1px dashed var(--line);border-radius:14px}' +
+    '.cjaImgBtns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px}.cjaImgBtns .btn{width:auto;margin:0}' +
+    '.cjaRondL{border:1px solid var(--line);border-radius:12px;padding:8px;margin:0 0 6px}' +
+    '.cjaRondL.actif{border-color:#FF8A00;box-shadow:0 0 0 1px #FF8A00}' +
+    '.cjaRondL .h{display:flex;gap:6px;align-items:center;flex-wrap:wrap}' +
+    '.cjaRondL .h input[type=text]{flex:1 1 calc(100% - 44px);min-width:0;margin:0}' +
+    '.cjaRondL .h button{flex:none;width:34px;height:34px;min-height:0;margin:0;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--navy-deep);color:var(--cream);font:inherit;font-weight:800;font-size:14px;cursor:pointer}' +
+    '.cjaRondL .h button.num{border-radius:50%;background:#B6FF0E;color:#14161B;border-color:#14161B}' +
+    '.cjaRondL.actif .h button.num{background:#FF8A00}' +
+    '.cjaRondL .h button:disabled{opacity:.35;cursor:default}' +
+    '.cjaRondL textarea{min-height:46px !important;margin-top:6px !important}' +
     '.cjaCadre{width:390px;max-width:100%;height:min(720px,70vh);border:1px solid var(--line);border-radius:22px;background:#fff}';
   document.head.appendChild(s);
 }
@@ -144,10 +175,11 @@ async function ouvrirAtelierCodeJeu(){
 }
 function cjDessiner(corps){
   corps.innerHTML = '';
-  corps.appendChild(cjEl('p', 'cjaNote', 'Le jeu « 🚦 Mon code » s’ouvre tout seul dans l’App des élèves qui font le code avec nous (dans le dossier d’un élève, le bloc « 🚦 Le jeu du code » l’ouvre ou le ferme). Il est pré-rempli : ici, tu corriges ce qui ne va pas (un texte, un dessin, un panneau, un piège, une question, un chiffre, un conseil — en trop, faux, ou qui manque). Les élèves voient la correction à leur prochaine ouverture.' +
+  corps.appendChild(cjEl('p', 'cjaNote', 'Le jeu « 🚦 Mon code » s’ouvre tout seul dans l’App des élèves qui font le code avec nous (dans le dossier d’un élève, le bloc « 🚦 Le jeu du code » l’ouvre ou le ferme). Il est pré-rempli : ici, tu corriges ce qui ne va pas (un texte, un dessin, un panneau, un piège, une question, un chiffre, une image, un conseil — en trop, faux, ou qui manque). Les élèves voient la correction à leur prochaine ouverture.' +
     (CJ.majLe ? ' <b>Dernière correction : ' + cjEch(CJ.majLe) + (CJ.par ? ', par ' + cjEch(CJ.par) : '') + '.</b>' : '')));
   const seg = cjEl('div', 'cjaSeg');
   [['panneaux', '🚸 Les panneaux'], ['pieges', CJ_CARTES.pieges.onglet], ['loupe', CJ_CARTES.loupe.onglet], ['chiffres', CJ_CARTES.chiffres.onglet],
+   ['oeil', CJ_CARTES.oeil.onglet], ['passe', CJ_CARTES.passe.onglet],
    ['conseils', '📝 Les conseils'], ['essai', '▶️ Essayer le jeu']].forEach(([k, t]) => {
     const b = cjEl('button', CJ.onglet === k ? 'on' : '', t);
     b.type = 'button';
@@ -159,6 +191,7 @@ function cjDessiner(corps){
   const z = cjEl('div', '');
   corps.appendChild(z);
   if(CJ.onglet === 'essai') cjDessinerEssai(z);
+  else if(CJ_CARTES[CJ.onglet] && CJ_CARTES[CJ.onglet].scene) cjDessinerScenes(z, corps, CJ.onglet);
   else if(CJ_CARTES[CJ.onglet]) cjDessinerCartes(z, corps, CJ.onglet);
   else if(CJ.onglet === 'conseils') cjDessinerConseils(z, corps);
   else cjDessinerPanneaux(z, corps);
@@ -209,8 +242,10 @@ function cjDessinerPanneaux(z, corps){
   dessiner();
 }
 
-/* Une image choisie : réduite ici (320 px), pour rester légère */
-function cjReduireImage(fichier){
+/* Une image choisie : réduite ici, pour rester légère — 320 px pour un
+   panneau, 900 px pour la photo d'une scène (👀 v1464), en JPEG si le
+   navigateur ne sait pas faire de WebP (une photo en PNG pèserait trop). */
+function cjReduireImage(fichier, grand){
   return new Promise((ok, ko) => {
     if(!fichier || !/^image\//.test(fichier.type)){ ko(new Error('Ce fichier n’est pas une image.')); return; }
     const lecteur = new FileReader();
@@ -219,16 +254,19 @@ function cjReduireImage(fichier){
       const im = new Image();
       im.onerror = () => ko(new Error('Image illisible.'));
       im.onload = () => {
-        const max = 320, k = Math.min(1, max / Math.max(im.width, im.height));
-        const c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(im.width * k));
-        c.height = Math.max(1, Math.round(im.height * k));
-        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        let d = '';
-        try{ d = c.toDataURL('image/webp', 0.9); }catch(e){ d = ''; }
-        if(d.indexOf('data:image/webp') !== 0) d = c.toDataURL('image/png');
-        if(d.length > 380000){ ko(new Error('Cette image est trop lourde, même réduite.')); return; }
-        ok(d);
+        const essais = grand ? [[900, 0.82], [720, 0.72], [560, 0.62]] : [[320, 0.9]];
+        for(const [max, q] of essais){
+          const k = Math.min(1, max / Math.max(im.width, im.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(im.width * k));
+          c.height = Math.max(1, Math.round(im.height * k));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          let d = '';
+          try{ d = c.toDataURL('image/webp', q); }catch(e){ d = ''; }
+          if(d.indexOf('data:image/webp') !== 0) d = grand ? c.toDataURL('image/jpeg', q) : c.toDataURL('image/png');
+          if(d.length <= 380000){ ok(d); return; }
+        }
+        ko(new Error('Cette image est trop lourde, même réduite.'));
       };
       im.src = lecteur.result;
     };
@@ -394,7 +432,14 @@ const CJ_CARTES = {
   loupe: { onglet: '🔍 La loupe', ajouter: '＋ Ajouter une question', cherche: '🔍 Chercher une question…', une: 'question',
            aide: 'L’élève touche les mots qui changent tout (en vert ici) avant de lire l’explication.' },
   chiffres: { onglet: '🔢 Les chiffres', ajouter: '＋ Ajouter un chiffre', cherche: '🔍 Chercher un chiffre…', une: 'question',
-              aide: 'Une question, trois choix, puis l’astuce pour retenir le bon.' }
+              aide: 'Une question, trois choix, puis l’astuce pour retenir le bon.' },
+  /* 👀 🚦 v1464 — les images à toucher (scene) : min = le nombre de ronds qu'il faut */
+  oeil: { onglet: '👀 L’œil', scene: true, min: 1, ajouter: '＋ Ajouter une image', cherche: '🔍 Chercher une image…',
+          ronds: 'Les indices à toucher', unRond: 'indice', plusRond: '＋ Ajouter un indice', fin: 'La conclusion, montrée à la fin (« Donc : … »)',
+          aide: 'Une image : l’élève touche tout ce qu’un conducteur doit voir. Chaque rond est un indice.' },
+  passe: { onglet: '🚦 Qui passe ?', scene: true, min: 2, ajouter: '＋ Ajouter un carrefour', cherche: '🔍 Chercher un carrefour…',
+           ronds: 'Les véhicules, dans l’ordre où ils passent', unRond: 'véhicule', plusRond: '＋ Ajouter un véhicule', fin: 'Pourquoi, montré à la fin',
+           aide: 'Un carrefour vu d’en haut : l’élève touche les véhicules dans l’ordre où ils passent. L’ordre de la liste est l’ordre de passage.' }
 };
 function cjCartes(type){ return window.CodeEC.fusionnerCartes(type, CJ.contenu); }
 function cjBloc(type){
@@ -585,6 +630,295 @@ function cjEditerCarte(type, cle, apres){
           const a = { cle: cleN, e: v.e };
           if(type === 'pieges'){ a.t = v.texte; a.v = v.v; } else a.q = v.texte;
           if(type === 'chiffres'){ a.c = v.c; a.b = v.b; }
+          if(v.cache) a.cache = 1;
+          const i = bloc.ajouts.findIndex(y => y.cle === cleN);
+          if(i === -1) bloc.ajouts.push(a); else bloc.ajouts[i] = a;
+        }
+      });
+    });
+    bo.setAttribute('data-cja-enregistrer', '1');
+  }
+  boite.appendChild(rang);
+}
+
+/* ============================================================
+   👀 🚦 v1464 — LES IMAGES À TOUCHER
+   ============================================================ */
+function cjImagesDuMoment(){ return Object.assign({}, CJ.images, CJ.neuves); }
+function cjDessinerScenes(z, corps, type){
+  const K = CJ_CARTES[type];
+  const barre = cjEl('div', 'cjaBarre');
+  const r = cjEl('input', '');
+  r.type = 'search';
+  r.id = 'cjaCherche';
+  r.placeholder = K.cherche;
+  r.value = CJ.cherche;
+  barre.appendChild(r);
+  if(cjPeutModifier()){
+    const ba = cjEl('button', 'btn btn-secondary', K.ajouter);
+    ba.type = 'button';
+    ba.setAttribute('data-cja-ajouter', type);
+    ba.addEventListener('click', () => cjEditerScene(type, null, () => cjDessiner(corps)));
+    barre.appendChild(ba);
+  }
+  z.appendChild(barre);
+  const liste = cjEl('div', '');
+  z.appendChild(liste);
+  const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const dessiner = () => {
+    liste.innerHTML = '';
+    const q = norm(CJ.cherche).trim();
+    const toutes = cjCartes(type);
+    const vues = toutes.filter(x => !q || norm(x.n + ' ' + x.q + ' ' + x.e + ' ' + x.z.map(y => y.t + ' ' + y.e).join(' ')).indexOf(q) !== -1);
+    const nbMod = toutes.filter(x => x.modifie || x.ajoute).length;
+    liste.appendChild(cjEl('div', 'cjaNote', K.aide + ' ' + vues.length + ' image' + (vues.length > 1 ? 's' : '') +
+      (nbMod ? ' · ' + nbMod + ' corrigée' + (nbMod > 1 ? 's' : '') + ' ou ajoutée' + (nbMod > 1 ? 's' : '') : '') + '. Touche une image pour la corriger.'));
+    vues.forEach(x => {
+      const b = cjEl('button', 'cjaLigne carte' + (x.cache ? ' cache' : ''),
+        '<span class="d sc">' + window.CodeEC.imageScene(x, CJ.images) + '</span><span class="t">' + cjEch(x.n) +
+        '<small>' + x.z.length + ' ' + K.unRond + (x.z.length > 1 ? 's' : '') + ' : ' + cjEch(x.z.map(y => y.t).join(' · ')) + '</small></span>' +
+        (x.cache ? '<span class="cjaPuce g">🙈 cachée</span>' : '') +
+        (x.ajoute ? '<span class="cjaPuce">＋ ajoutée</span>' : (x.modifie ? '<span class="cjaPuce">✏️ corrigée</span>' : '')));
+      b.type = 'button';
+      b.setAttribute('data-cja-c', x.k);
+      b.addEventListener('click', () => cjEditerScene(type, x.k, () => cjDessiner(corps)));
+      liste.appendChild(b);
+    });
+    if(!vues.length) liste.appendChild(cjEl('div', 'empty', 'Aucune image.'));
+  };
+  r.addEventListener('input', () => { CJ.cherche = r.value; dessiner(); });
+  dessiner();
+}
+
+/* Une image à corriger (cle = null : une image à ajouter) */
+function cjEditerScene(type, cle, apres){
+  const peut = cjPeutModifier(), K = CJ_CARTES[type], oeil = type === 'oeil';
+  const x = cle ? cjCartes(type).find(y => y.k === cle) : { k: '', n: '', q: '', e: '', s: '', vb: '', image: '', z: [], cache: false, ajoute: true, neuf: true };
+  if(!x) return;
+  const base = cle ? ((window.CodeEC.TYPES[type].base || []).find(y => y.k === cle) || null) : null;
+  let image = x.image || '';
+  let ronds = x.z.map(r => ({ x: r.x, y: r.y, r: r.r, t: r.t, e: r.e || '' }));
+  let actif = ronds.length ? 0 : -1;
+  const fond = cjEl('div', 'overlay show');
+  fond.setAttribute('data-cja-fiche', '1');
+  const boite = cjEl('div', 'modal');
+  boite.style.cssText = 'max-width:min(620px, 96vw);max-height:92vh;overflow-y:auto;';
+  boite.innerHTML = '<h3>' + (x.neuf ? K.ajouter : '✏️ ' + cjEch(x.n)) + '</h3>';
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); };
+  const etat = cjEl('div', 'cjaEtat');
+  const dire = (t, rouge) => { etat.style.color = rouge ? 'var(--red)' : 'var(--muted)'; etat.textContent = t; };
+
+  /* ── l'image et ses ronds ── */
+  const scene = cjEl('div', '');
+  boite.appendChild(scene);
+  const aide = cjEl('p', 'cjaNote', '');
+  aide.style.margin = '6px 0 0';
+  boite.appendChild(aide);
+  const dessinerScene = () => {
+    const html = window.CodeEC.imageScene({ s: x.s, vb: x.vb, image: image }, cjImagesDuMoment());
+    if(!html){
+      scene.className = 'cjaSceneVide';
+      scene.textContent = 'Choisis d’abord une photo : tu poseras les ronds dessus.';
+      aide.textContent = '';
+      return;
+    }
+    scene.className = 'cjaScene';
+    scene.id = 'cjaScene';
+    scene.innerHTML = html + ronds.map((r, i) => window.CodeEC.rond(r, i + 1, i === actif ? 'actif' : '')).join('');
+    aide.textContent = !peut ? '' : (actif === -1 ? 'Ajoute un ' + K.unRond + ' : son rond se pose au milieu, puis touche l’image là où il doit aller.'
+      : 'Touche l’image pour poser le rond n° ' + (actif + 1) + ' (en orange). Pour en déplacer un autre, touche d’abord son numéro dans la liste.');
+  };
+  scene.addEventListener('click', ev => {
+    if(!peut || actif === -1 || scene.className !== 'cjaScene') return;
+    const b = scene.getBoundingClientRect();
+    ronds[actif].x = Math.round(Math.min(100, Math.max(0, (ev.clientX - b.left) / b.width * 100)) * 10) / 10;
+    ronds[actif].y = Math.round(Math.min(100, Math.max(0, (ev.clientY - b.top) / b.height * 100)) * 10) / 10;
+    dire('');
+    dessinerScene();
+  });
+
+  /* ── la photo à la place du dessin ── */
+  const fi = cjEl('input', '');
+  fi.type = 'file';
+  fi.accept = 'image/*';
+  fi.style.display = 'none';
+  fi.id = 'cjaFichier';
+  const bts = cjEl('div', 'cjaImgBtns');
+  const bi = cjEl('button', 'btn btn-secondary', x.s ? '🖼️ Remplacer le dessin par une photo' : '🖼️ Choisir la photo');
+  bi.type = 'button';
+  bi.addEventListener('click', () => fi.click());
+  const br = cjEl('button', 'btn btn-secondary', '↩︎ Revenir au dessin');
+  br.type = 'button';
+  const majBr = () => { br.style.display = (image && x.s) ? '' : 'none'; };
+  br.addEventListener('click', () => { image = ''; majBr(); dessinerScene(); });
+  fi.addEventListener('change', async () => {
+    try{
+      dire('⏳ Préparation de la photo…');
+      const donnee = await cjReduireImage(fi.files && fi.files[0], true);
+      const id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      CJ.neuves[id] = donnee;
+      image = id;
+      majBr(); dessinerScene();
+      dire(ronds.length ? 'Photo posée : replace maintenant les ronds dessus.' : '');
+    }catch(e){ dire('❌ ' + (e.message || e), true); }
+    fi.value = '';
+  });
+  if(peut){ bts.appendChild(bi); bts.appendChild(br); bts.appendChild(fi); boite.appendChild(bts); }
+  majBr();
+
+  /* ── les textes ── */
+  const f = cjEl('div', 'cjaForm');
+  const champ = (id, lib, val, long) => {
+    const l = cjEl('label', '', cjEch(lib));
+    l.setAttribute('for', id);
+    f.appendChild(l);
+    const c = cjEl(long ? 'textarea' : 'input', '');
+    if(!long) c.type = 'text';
+    c.id = id;
+    c.value = val || '';
+    c.disabled = !peut;
+    f.appendChild(c);
+    return c;
+  };
+  const cTitre = champ('cjaTitre', oeil ? 'Le titre de l’image' : 'Le titre (la situation : « Je suis au stop »)', x.n);
+  const cConsigne = oeil ? null : champ('cjaConsigne', 'La consigne (qui va où)', x.q || 'Chacun va tout droit. Touche les véhicules dans l’ordre où ils passent.', true);
+  f.appendChild(cjEl('label', '', cjEch(K.ronds)));
+  const zR = cjEl('div', '');
+  zR.id = 'cjaRonds';
+  f.appendChild(zR);
+  /* ce qui est écrit dans la liste revient dans « ronds » avant de la redessiner */
+  const lire = () => {
+    zR.querySelectorAll('.cjaRondL').forEach(l => {
+      const r = ronds[Number(l.dataset.i)];
+      if(!r) return;
+      r.t = l.querySelector('input').value;
+      const e = l.querySelector('textarea');
+      if(e) r.e = e.value;
+    });
+  };
+  const dessinerRonds = () => {
+    zR.innerHTML = '';
+    ronds.forEach((r, i) => {
+      const l = cjEl('div', 'cjaRondL' + (i === actif ? ' actif' : ''));
+      l.dataset.i = i;
+      const h = cjEl('div', 'h');
+      const bouton = (t, titre, cls, faire, eteint) => {
+        const b = cjEl('button', cls || '', t);
+        b.type = 'button';
+        b.title = titre;
+        b.setAttribute('aria-label', titre);
+        b.disabled = !peut || !!eteint;
+        b.addEventListener('click', () => { lire(); faire(); dessinerRonds(); dessinerScene(); });
+        h.appendChild(b);
+        return b;
+      };
+      bouton(String(i + 1), 'Choisir le rond n° ' + (i + 1) + ' pour le poser sur l’image', 'num', () => { actif = i; });
+      const nom = cjEl('input', '');
+      nom.type = 'text';
+      nom.value = r.t;
+      nom.disabled = !peut;
+      nom.maxLength = 120;
+      nom.placeholder = oeil ? 'Au loin : le panneau 50' : 'La voiture rouge';
+      nom.setAttribute('aria-label', 'Le nom du rond n° ' + (i + 1));
+      nom.addEventListener('focus', () => { if(actif !== i){ lire(); actif = i; zR.querySelectorAll('.cjaRondL').forEach(y => y.classList.toggle('actif', Number(y.dataset.i) === i)); dessinerScene(); } });
+      h.appendChild(nom);
+      bouton('↑', 'Le monter dans la liste', '', () => { ronds.splice(i - 1, 0, ronds.splice(i, 1)[0]); actif = i - 1; }, i === 0);
+      bouton('↓', 'Le descendre dans la liste', '', () => { ronds.splice(i + 1, 0, ronds.splice(i, 1)[0]); actif = i + 1; }, i === ronds.length - 1);
+      bouton('−', 'Rond plus petit', '', () => { r.r = Math.max(2, Math.round((r.r - 1) * 10) / 10); actif = i; }, r.r <= 2);
+      bouton('＋', 'Rond plus grand', '', () => { r.r = Math.min(40, Math.round((r.r + 1) * 10) / 10); actif = i; }, r.r >= 40);
+      bouton('🗑', 'Enlever ce rond', '', () => { ronds.splice(i, 1); actif = ronds.length ? Math.min(i, ronds.length - 1) : -1; });
+      l.appendChild(h);
+      if(oeil){
+        const e = cjEl('textarea', '');
+        e.value = r.e;
+        e.disabled = !peut;
+        e.placeholder = 'Ce que cet indice m’apprend';
+        e.setAttribute('aria-label', 'L’explication du rond n° ' + (i + 1));
+        l.appendChild(e);
+      }
+      zR.appendChild(l);
+    });
+    if(peut && ronds.length < 8){
+      const ba = cjEl('button', 'btn btn-secondary', K.plusRond);
+      ba.type = 'button';
+      ba.style.cssText = 'width:auto;margin:2px 0 0;';
+      ba.setAttribute('data-cja-plus-rond', '1');
+      ba.addEventListener('click', () => { lire(); ronds.push({ x: 50, y: 50, r: oeil ? 6 : 9, t: '', e: '' }); actif = ronds.length - 1; dessinerRonds(); dessinerScene(); });
+      zR.appendChild(ba);
+    }
+  };
+  const cExpl = champ('cjaExpl', K.fin, x.e, true);
+  const lc = cjEl('label', 'cjaCoche', '<input type="checkbox" id="cjaCache"' + (x.cache ? ' checked' : '') + (peut ? '' : ' disabled') + '> 🙈 La cacher : elle ne sort plus dans le jeu');
+  lc.style.marginTop = '14px';
+  f.appendChild(lc);
+  boite.appendChild(f);
+  boite.appendChild(etat);
+  f.addEventListener('input', () => dire(''));
+  dessinerRonds();
+  dessinerScene();
+
+  const rang = cjEl('div', 'btn-row');
+  rang.style.marginTop = '12px';
+  const bt = (t, cls, faire) => { const b = cjEl('button', 'btn ' + cls, t); b.type = 'button'; b.addEventListener('click', faire); rang.appendChild(b); return b; };
+  bt(peut ? 'Annuler' : 'Fermer', 'btn-secondary', fermer);
+  const poser = async (changer) => {
+    const avant = JSON.stringify(CJ.contenu);
+    try{
+      changer();
+      dire('⏳ Enregistrement…');
+      await cjEnregistrer();
+      fermer();
+      if(typeof showToast === 'function') showToast('Jeu du code corrigé ✅');
+      if(apres) apres();
+    }catch(e){
+      CJ.contenu = JSON.parse(avant);
+      dire('❌ ' + (e.message || e), true);
+    }
+  };
+  if(peut && base && x.modifie){
+    bt('↩︎ Tout remettre comme au départ', 'btn-secondary', () => poser(() => { delete cjBloc(type).mod[x.k]; }));
+  }
+  if(peut && x.ajoute && !x.neuf){
+    bt('🗑️ Supprimer', 'btn-secondary', async () => {
+      const oui = (typeof confirmer === 'function') ? await confirmer('Supprimer « ' + x.n + ' » du jeu ?', 'Supprimer', true) : true;
+      if(oui) poser(() => { const b = cjBloc(type); b.ajouts = b.ajouts.filter(y => y.cle !== x.k); });
+    });
+  }
+  if(peut){
+    const bo = bt('💾 Enregistrer', 'btn-primary', () => {
+      lire();
+      const propre = t => String(t || '').replace(/\s+/g, ' ').trim();
+      const v = { n: propre(cTitre.value), q: cConsigne ? propre(cConsigne.value) : '', e: propre(cExpl.value), cache: boite.querySelector('#cjaCache').checked };
+      const z = ronds.map(r => oeil ? { x: r.x, y: r.y, r: r.r, t: propre(r.t), e: propre(r.e) } : { x: r.x, y: r.y, r: r.r, t: propre(r.t) });
+      if(!v.n){ dire('Il lui faut un titre.', true); return; }
+      if(!base && !image){ dire('Choisis sa photo.', true); return; }
+      if(z.length < K.min){ dire(oeil ? 'Il faut au moins un indice.' : 'Il faut au moins deux véhicules.', true); return; }
+      const sansNom = z.findIndex(r => !r.t);
+      if(sansNom !== -1){ dire('Le rond n° ' + (sansNom + 1) + ' n’a pas de nom.', true); return; }
+      if(oeil){
+        const sansExpl = z.findIndex(r => !r.e);
+        if(sansExpl !== -1){ dire('Écris l’explication du rond n° ' + (sansExpl + 1) + '.', true); return; }
+      }
+      if(!v.e){ dire(oeil ? 'Écris la conclusion : ce que le conducteur fait.' : 'Écris pourquoi ils passent dans cet ordre.', true); return; }
+      poser(() => {
+        const bloc = cjBloc(type);
+        if(base){
+          /* seulement ce qui diffère de la base */
+          const pareil = r => oeil ? { x: r.x, y: r.y, r: r.r, t: r.t, e: r.e || '' } : { x: r.x, y: r.y, r: r.r, t: r.t };
+          const m = {};
+          if(v.n !== base.n) m.n = v.n;
+          if(!oeil && v.q !== (base.q || '')) m.q = v.q;
+          if(v.e !== base.e) m.e = v.e;
+          if(JSON.stringify(z) !== JSON.stringify(base.z.map(pareil))) m.z = z;
+          if(image) m.image = image;
+          if(v.cache) m.cache = 1;
+          if(Object.keys(m).length) bloc.mod[base.k] = m; else delete bloc.mod[base.k];
+        } else {
+          const cleN = x.neuf ? ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)) : x.k;
+          const a = { cle: cleN, n: v.n, e: v.e, image: image, z: z };
+          if(!oeil) a.q = v.q;
           if(v.cache) a.cache = 1;
           const i = bloc.ajouts.findIndex(y => y.cle === cleN);
           if(i === -1) bloc.ajouts.push(a); else bloc.ajouts[i] = a;
