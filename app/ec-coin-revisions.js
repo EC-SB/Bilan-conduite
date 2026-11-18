@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 11:54 — v1463 */
+/* Déployé le 18/11/2026 à 12:31 — v1465 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -527,7 +527,9 @@ const CV_SEANCES_CODE = {};
 function cvSuiviCodeOuvert(nom){
   if(typeof ACCES_ETAT === 'undefined' || !ACCES_ETAT.lu) return null;
   const a = ACCES_ETAT.parNom[aeNorm(nom)];
-  return !!(a && a.actif !== false && String(a.modules || '').split(',').map(x => x.trim()).indexOf('code') !== -1);
+  /* 🚦 v1465 — ou le jeu du code, ouvert par l'équipe sans le suivi du code (« jeu_code ») */
+  const m = String((a && a.modules) || '').split(',').map(x => x.trim());
+  return !!(a && a.actif !== false && (m.indexOf('code') !== -1 || m.indexOf(CV_JEU_OUI) !== -1));
 }
 function ongletCodeVisible(nom){
   if(!nom) return true;
