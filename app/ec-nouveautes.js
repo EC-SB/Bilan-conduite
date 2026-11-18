@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:07 — v1458 */
+/* Déployé le 18/11/2026 à 10:27 — v1459 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1459,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '✉️ Le mail d’accès a un vrai lien et un bouton · ☕ le défi s’affiche, sans couper un cours',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Le mail d’accès à l’appli',
+        texte: 'Dans le mail « Ton accès à l’App Évolution Conduites », l’adresse de l’appli est maintenant un lien qu’on touche (plus besoin de la copier-coller), comme celle de Drivup. Et un grand bouton « 📱 Ouvrir mon App Évolution Conduites » attend en bas du mail. Le texte reste celui que tu as relu ou modifié avant l’envoi.' },
+      { emoji: '☕',
+        titre: 'Le défi s’affiche tout de suite',
+        texte: 'Quand quelqu’un te défie au coin café et que l’appli est ouverte, l’invitation apparaît aussitôt (la notification la réveille), y compris dans la Messagerie EC seule.' },
+      { emoji: '⏸️',
+        titre: 'Jamais pendant un cours',
+        texte: 'Pendant un cours en route, un appel ou la visio, rien ne s’ouvre en grand : un petit bandeau en bas (« David te défie au chifoumi · Jouer ✕ »), au-dessus des onglets, sans son ni vibration. « Jouer » ouvre la partie, « ✕ » la laisse dans le coin café. Toucher la notification, elle, ouvre la partie.' },
+      { emoji: '🤖',
+        titre: 'Le morpion de l’ordinateur Fort',
+        texte: 'Il gagne dès qu’il le peut : il lui arrivait de laisser passer une victoire immédiate pour la prendre un coup plus tard.' }
+    ]
+  },
   {
     version: 1458,
     date: 'Mercredi 18 novembre 2026',
