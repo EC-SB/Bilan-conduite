@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 15:45 — v1431 */
+/* Déployé le 18/11/2026 à 11:17 — v1462 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -736,6 +736,8 @@ function barreCorrigesEtg(){
   if(peutModifier('code')) bt('✍️ Saisir des ardoises', true, () => ouvrirArdoisesEtg());
   bt('🔑 Les corrigés', false, () => ouvrirCorrigesEtg());
   bt('🔳 Les QR codes', false, () => ouvrirQrEtg());
+  /* 🚦 v1462 — « Mon code », le jeu des élèves : l'atelier où David le corrige (ec-code-jeu.js) */
+  if(typeof ouvrirAtelierCodeJeu === 'function') bt('🚦 Le jeu du code', false, () => ouvrirAtelierCodeJeu());
   return b;
 }
 
