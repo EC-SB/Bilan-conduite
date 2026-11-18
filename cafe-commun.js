@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:26 — v1459 */
+/* Déployé le 18/11/2026 à 10:39 — v1460 */
 /* ============================================================
    cafe-commun.js — ☕ LE COIN CAFÉ, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -32,6 +32,10 @@
    notification prévient la page ouverte (sw.js), qui relit tout de
    suite ; et pendant un cours, l'invitation arrive en bandeau, sans
    rien couper. Voir « PENDANT UN COURS, UN BANDEAU ».
+
+   v1460 — « 📰 Infos et horoscope » : les actualités par filtre, la
+   météo et l'horoscope, lus par le Worker dans des flux RSS. Voir
+   « LES INFOS ».
 
    ⚠️ ÉCRIT EN ES5 (var, function), comme eleve.html et
    appel-commun.js : les vieux téléphones des élèves lisent la page
@@ -152,6 +156,50 @@
     '.cfBandeau .non{padding:5px 8px;background:transparent;color:rgba(255,255,255,.75);font-size:15px;line-height:1}' +
     '@keyframes cfBandeauIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}' +
     '@media (max-width:560px){.cfBandeau{left:12px;right:12px;max-width:none}}' +
+    /* 📰 v1460 — les infos */
+    '.cfInfos{margin-top:12px}' +
+    '.cfInfo{display:flex;gap:11px;align-items:flex-start;padding:10px 11px;border:1px solid var(--line);border-radius:13px;background:var(--navy-deep,#fff);color:var(--cream);text-decoration:none;margin-top:7px}' +
+    '.cfInfo:hover{border-color:#B6FF0E}' +
+    '.cfInfo .im{flex:0 0 76px;width:76px;height:56px;object-fit:cover;border-radius:9px;background:var(--line)}' +
+    '.cfInfo > div{min-width:0;flex:1}' +
+    '.cfInfo b{display:block;font-size:14px;line-height:1.3}' +
+    '.cfInfo small{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;font-weight:600}' +
+    '.cfInfo p{margin:4px 0 0;font-size:12.5px;line-height:1.4;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+    '.cfInfosPied{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;font-size:12px;color:var(--muted)}' +
+    '.cfInfosPied button{width:auto;margin:0;min-height:0;height:auto;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--navy-deep,#fff);color:var(--cream);font:inherit;font-weight:700;font-size:12px;cursor:pointer}' +
+    '.cfAide a{color:inherit;text-decoration:underline}' +
+    '.cfAncien{color:var(--orange,#C2410C)}' +
+    '.cfSignes{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px;margin-top:9px}' +
+    '.cfSignes button{margin:0;width:auto;min-height:0;height:auto;padding:9px 6px;border:1px solid var(--line);border-radius:13px;background:var(--navy-deep,#fff);color:var(--cream);font:inherit;font-weight:800;font-size:13px;cursor:pointer;text-align:center}' +
+    '.cfSignes button .e,.cfHoro .e,.cfHoroL .e{display:block;font-size:24px;line-height:1.1}' +
+    '.cfSignes button small{display:block;font-weight:500;font-size:10.5px;color:var(--muted);margin-top:2px}' +
+    '.cfHoro{padding:14px;border-radius:16px;background:linear-gradient(160deg,rgba(182,255,14,.22),rgba(182,255,14,.05));border:1px solid rgba(150,220,0,.45)}' +
+    '.cfHoro .tete{display:flex;gap:11px;align-items:center;font-size:18px;font-weight:800;color:var(--cream)}' +
+    '.cfHoro .tete .e{font-size:34px}' +
+    '.cfHoro .tete small{display:block;font-size:12px;font-weight:600;color:var(--muted)}' +
+    '.cfHoro p{margin:10px 0 0;font-size:14.5px;line-height:1.55;color:var(--cream)}' +
+    '.cfHoro .bas{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}' +
+    '.cfHoro .suite{font-weight:800;font-size:13px;color:var(--cream)}' +
+    '.cfHoro .changer{width:auto;margin:0;min-height:0;height:auto;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--navy-deep,#fff);color:var(--muted);font:inherit;font-weight:700;font-size:12px;cursor:pointer}' +
+    '.cfHoroL{border:1px solid var(--line);border-radius:12px;background:var(--navy-deep,#fff);margin-top:6px}' +
+    '.cfHoroL summary{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;font-weight:800;font-size:13.5px;color:var(--cream);list-style:none}' +
+    '.cfHoroL summary::-webkit-details-marker{display:none}' +
+    '.cfHoroL summary .e{font-size:19px}' +
+    '.cfHoroL summary small{font-weight:500;font-size:11.5px;color:var(--muted);margin-left:auto}' +
+    '.cfHoroL .txt{padding:0 12px 11px;font-size:13.5px;line-height:1.5;color:var(--cream)}' +
+    '.cfHoroL .txt a{font-weight:800;color:inherit}' +
+    '.cfMeteo{padding:12px 13px;border:1px solid var(--line);border-radius:15px;background:var(--navy-deep,#fff);margin-top:8px}' +
+    '.cfMeteo .tete{display:flex;gap:11px;align-items:center;font-size:16px;font-weight:800;color:var(--cream)}' +
+    '.cfMeteo .tete > div{flex:1;min-width:0}' +
+    '.cfMeteo .tete .e{font-size:32px}' +
+    '.cfMeteo .tete small{display:block;font-size:12px;font-weight:600;color:var(--muted)}' +
+    '.cfMeteo .tete .t{font-size:30px;font-weight:800}' +
+    '.cfMeteo .conseil{margin-top:9px;padding:7px 10px;border-radius:10px;background:rgba(242,183,5,.16);font-size:12.5px;font-weight:700;color:var(--cream)}' +
+    '.cfMeteo .jours{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}' +
+    '.cfMeteo .j{text-align:center;padding:7px 4px;border-radius:11px;background:var(--navy,#F0F1EA)}' +
+    '.cfMeteo .j small{display:block;font-size:11px;color:var(--muted);font-weight:700;text-transform:capitalize}' +
+    '.cfMeteo .j .e{display:block;font-size:22px;margin:2px 0}' +
+    '.cfMeteo .j b{font-size:13px;color:var(--cream)}' +
     '.cfDeux{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}' +
     '.cfDeux button{flex:1 1 140px;margin:0;width:auto;min-height:0;height:auto;padding:9px 10px;border:1px solid var(--line);border-radius:12px;font:inherit;font-weight:700;font-size:13px;background:var(--navy-deep,#fff);color:var(--cream);cursor:pointer}' +
     '.cfDeux button.adm{border-style:dashed}' +
@@ -437,11 +485,12 @@
       Object.keys(parties).forEach(function (id) { if (!gardes[id] && parties[id].etat !== 'encours') delete parties[id]; });
       if (F && F.ecran === 'coin') dessinerEnCours();
       if (!F) ouvrirCeQuiAttend(l);
+      else if (F.ecran === 'infos') ouvrirCeQuiAttend(l, false, true);   /* 📰 on lit : un bandeau, pas une fenêtre */
       planifierFond(l.some(function (p) { return p.etat === 'invite' || p.etat === 'encours'; }) ? 8000 : 20000);
     }).catch(function () { enCours = false; planifierFond(30000); });
   }
   /* Une invitation pour moi, ou une partie qui a commencé : on l'ouvre */
-  function ouvrirCeQuiAttend(l, force) {
+  function ouvrirCeQuiAttend(l, force, bandeauSeul) {
     var p = null;
     for (var i = 0; i < l.length && !p; i++) {
       var x = l[i];
@@ -455,7 +504,7 @@
     /* ⏸️ v1459 — pendant un cours (ou un appel), pas de fenêtre : un
        bandeau. Et une invitation montrée en bandeau le reste, même le
        cours fini : la fenêtre ne surgit pas au moment du bilan. */
-    if (!force && (enBandeau[p.id] || occupe())) { montrerBandeau(p); return; }
+    if (!force && (bandeauSeul || enBandeau[p.id] || occupe())) { montrerBandeau(p); return; }
     cacherBandeau();
     ouvrirPartie(p.id);
   }
@@ -584,6 +633,11 @@
     f.corps.appendChild(ec);
     dessinerEnCours();
     var deux = el('div', 'cfDeux');
+    /* 📰 v1460 — les infos : actualités, horoscope, météo */
+    var bi = el('button', '', '📰 Infos et horoscope<small>actus, météo, ton signe</small>');
+    bi.type = 'button';
+    bi.addEventListener('click', function () { ouvrirInfos(); });
+    deux.appendChild(bi);
     var bp = el('button', '', '🏆 Palmarès');
     bp.type = 'button';
     bp.addEventListener('click', ouvrirPalmares);
@@ -2376,6 +2430,175 @@
         if (O.confirmer) O.confirmer('Arrêter « ' + t.nom + ' » ? Les matchs en cours s’arrêtent.', 'Arrêter le tournoi').then(function (ok) { if (ok) faire(); }); else faire();
       }, true));
     }
+  }
+
+  /* ============================================================
+     📰 v1460 — LES INFOS : ACTUALITÉS, HOROSCOPE, MÉTÉO
+
+     David, le 18 novembre : « rajoute-moi l'horoscope, les actualités
+     monde, France, Saint-Brieuc, auto-école etc. par filtre ». Le
+     Worker lit les flux RSS des journaux (et Open-Meteo pour la
+     météo) et garde sa lecture pour toute l'équipe ; ici, on montre :
+     des titres, la source, l'heure, et un appui ouvre l'article sur le
+     site du journal. L'horoscope : chacun choisit son signe une fois
+     (gardé sur cet appareil), il s'affiche en grand, les 11 autres
+     dessous.
+     ============================================================ */
+  var FILTRES_INFOS = [['horoscope', '🔮 Horoscope'], ['monde', '🌍 Monde'], ['france', '🇫🇷 France'],
+    ['local', '📍 Saint-Brieuc · Loudéac'], ['route', '🚗 Auto-école et route'], ['sport', '⚽ Sport'], ['meteo', '⛅ Météo']];
+  var infosLues = {};           /* filtre → dernière réponse, le temps de la page */
+  function memo(cle, val) {
+    try {
+      if (val === undefined) return localStorage.getItem(cle) || '';
+      if (val === null) localStorage.removeItem(cle); else localStorage.setItem(cle, val);
+    } catch (e) {}
+    return '';
+  }
+  var filtreInfos = '';
+  function ouvrirInfos(relire) {
+    if (!O || O.mode !== 'equipe') return;
+    if (!filtreInfos) filtreInfos = memo('ec_cafe_infos') || 'horoscope';
+    if (!FILTRES_INFOS.some(function (x) { return x[0] === filtreInfos; })) filtreInfos = 'horoscope';
+    var f = fenetre('infos', '📰 Les infos du coin café', 600);
+    f.corps.appendChild(chips(FILTRES_INFOS, filtreInfos, function (k) { filtreInfos = k; memo('ec_cafe_infos', k); ouvrirInfos(); }));
+    var z = el('div', 'cfInfos');
+    f.corps.appendChild(z);
+    f.bas.appendChild(bouton('Retour', false, ouvrirCoin));
+    var filtre = filtreInfos;
+    var r0 = infosLues[filtre];
+    if (r0 && !relire && Date.now() - r0._lu < 5 * 60000) { dessinerInfos(z, r0); return; }
+    z.innerHTML = '<div class="cfEtat">Un instant, je lis les journaux…</div>';
+    appeler('infos', { filtre: filtre, relire: relire ? 1 : 0 }).then(function (r) {
+      r._lu = Date.now();
+      infosLues[filtre] = r;
+      if (!F || F.ecran !== 'infos' || filtreInfos !== filtre) return;
+      dessinerInfos(z, r);
+    }).catch(function (e) {
+      if (!F || F.ecran !== 'infos' || filtreInfos !== filtre) return;
+      z.innerHTML = '';
+      z.appendChild(el('div', 'cfEtat', '⚠️ ' + esc(e.message || e)));
+    });
+  }
+  function quandDit(d) {
+    if (!d) return '';
+    var m = Math.round((Date.now() - d) / 60000);
+    if (m < 1) return 'à l’instant';
+    if (m < 60) return 'il y a ' + m + ' min';
+    if (m < 24 * 60) return 'il y a ' + Math.round(m / 60) + ' h';
+    var x = new Date(d);
+    return 'le ' + ('0' + x.getDate()).slice(-2) + '/' + ('0' + (x.getMonth() + 1)).slice(-2);
+  }
+  function heureDe(d) { var x = new Date(d); return ('0' + x.getHours()).slice(-2) + ':' + ('0' + x.getMinutes()).slice(-2); }
+  function lienExterne(href, cls, html) {
+    var a = el('a', cls, html);
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    return a;
+  }
+  function dessinerInfos(z, r) {
+    z.innerHTML = '';
+    if (r.ancien) z.appendChild(el('div', 'cfAide cfAncien', '⚠️ Les journaux ne répondent pas pour l’instant : voici la lecture de ' + heureDe(r.quand) + '.'));
+    if (r.filtre === 'horoscope') dessinerHoroscope(z, r);
+    else if (r.filtre === 'meteo') dessinerMeteo(z, r);
+    else dessinerArticles(z, r);
+    /* le pied : quand, relire, d'où ça vient */
+    var pied = el('div', 'cfInfosPied');
+    var maj = el('span', '', 'Mis à jour à ' + heureDe(r.quand || Date.now()));
+    var rl = el('button', '', '↻ Relire');
+    rl.type = 'button';
+    rl.addEventListener('click', function () { delete infosLues[r.filtre]; ouvrirInfos(true); });
+    pied.appendChild(maj);
+    pied.appendChild(rl);
+    z.appendChild(pied);
+    var src = (r.sources || []).map(function (s) { return esc(s.nom) + (s.ok ? '' : ' (muet)'); });
+    if (src.length) z.appendChild(el('div', 'cfAide', 'Sources : ' + src.join(' · ') + '.'));
+  }
+  function dessinerArticles(z, r) {
+    var l = r.articles || [];
+    if (!l.length) { z.appendChild(el('div', 'cfEtat', 'Rien de neuf pour l’instant.')); return; }
+    l.forEach(function (a) {
+      var c = lienExterne(a.l, 'cfInfo', '');
+      if (a.i) {
+        var im = el('img', 'im');
+        im.alt = '';
+        im.loading = 'lazy';
+        im.referrerPolicy = 'no-referrer';
+        im.onerror = function () { if (im.parentNode) im.parentNode.removeChild(im); };
+        im.src = a.i;
+        c.appendChild(im);
+      }
+      c.appendChild(el('div', '', '<b>' + esc(a.t) + '</b><small>' + esc([a.s, quandDit(a.d)].filter(Boolean).join(' · ')) + '</small>' +
+        (a.r ? '<p>' + esc(a.r) + '</p>' : '')));
+      z.appendChild(c);
+    });
+  }
+  function jourDit(d) {
+    try { return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); } catch (e) { return ''; }
+  }
+  function dessinerHoroscope(z, r) {
+    var l = r.signes || [];
+    var moi = memo('ec_cafe_signe');
+    var S = null;
+    l.forEach(function (s) { if (s.cle === moi) S = s; });
+    if (!S) {
+      z.appendChild(lab('Ton signe ?'));
+      z.appendChild(el('div', 'cfAide', 'Choisis-le une fois : il s’affichera en premier à chaque visite (sur cet appareil).'));
+      var g = el('div', 'cfSignes');
+      l.forEach(function (s) {
+        var b = el('button', '', '<span class="e">' + esc(s.e) + '</span>' + esc(s.nom) + '<small>' + esc(s.dates) + '</small>');
+        b.type = 'button';
+        b.addEventListener('click', function () { memo('ec_cafe_signe', s.cle); dessinerInfos(z, r); });
+        g.appendChild(b);
+      });
+      z.appendChild(g);
+      return;
+    }
+    var c = el('div', 'cfHoro');
+    c.appendChild(el('div', 'tete', '<span class="e">' + esc(S.e) + '</span><div>' + esc(S.nom) +
+      '<small>' + esc(S.ok && S.date ? 'Horoscope du ' + jourDit(S.date) : S.dates) + '</small></div>'));
+    c.appendChild(el('p', '', S.ok ? esc(S.texte) : 'Pas d’horoscope pour l’instant : le site ne répond pas.'));
+    var bas = el('div', 'bas');
+    if (S.ok && S.lien) bas.appendChild(lienExterne(S.lien, 'suite', 'Lire la suite ↗'));
+    var ch = el('button', 'changer', 'Changer de signe');
+    ch.type = 'button';
+    ch.addEventListener('click', function () { memo('ec_cafe_signe', null); dessinerInfos(z, r); });
+    bas.appendChild(ch);
+    c.appendChild(bas);
+    z.appendChild(c);
+    z.appendChild(lab('Les autres signes'));
+    l.forEach(function (s) {
+      if (s.cle === S.cle) return;
+      var d = el('details', 'cfHoroL');
+      d.appendChild(el('summary', '', '<span class="e">' + esc(s.e) + '</span>' + esc(s.nom) + '<small>' + esc(s.dates) + '</small>'));
+      var p = el('div', 'txt', s.ok ? esc(s.texte) : 'Pas d’horoscope pour l’instant.');
+      if (s.ok && s.lien) { p.appendChild(document.createTextNode(' ')); p.appendChild(lienExterne(s.lien, '', 'Lire la suite ↗')); }
+      d.appendChild(p);
+      z.appendChild(d);
+    });
+    z.appendChild(el('div', 'cfAide', 'Horoscope : <a href="https://www.mon-horoscope-du-jour.com/" target="_blank" rel="noopener noreferrer">Mon Horoscope du Jour</a>.'));
+  }
+  function degres(x) { return (x === null || x === undefined || isNaN(Number(x))) ? '–' : Math.round(Number(x)) + '°'; }
+  function dessinerMeteo(z, r) {
+    var l = r.villes || [];
+    l.forEach(function (v) {
+      var c = el('div', 'cfMeteo');
+      if (!v.ok) { c.appendChild(el('div', 'tete', '<div>' + esc(v.nom) + '<small>la météo ne répond pas</small></div>')); z.appendChild(c); return; }
+      var m = v.maintenant || {};
+      c.appendChild(el('div', 'tete', '<span class="e">' + esc(m.e) + '</span><div>' + esc(v.nom) +
+        '<small>' + esc(m.lib) + ' · ressenti ' + degres(m.ressenti) + ' · vent ' + Math.round(Number(m.vent) || 0) + ' km/h' +
+        (Number(m.rafales) >= 40 ? ' (rafales ' + Math.round(Number(m.rafales)) + ')' : '') + '</small></div><b class="t">' + degres(m.t) + '</b>'));
+      if (v.conseil) c.appendChild(el('div', 'conseil', esc(v.conseil)));
+      var j = el('div', 'jours');
+      (v.jours || []).forEach(function (x, i) {
+        var nom = i === 0 ? 'Aujourd’hui' : (i === 1 ? 'Demain' : (function () { try { return new Date(x.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long' }); } catch (e) { return x.date; } })());
+        j.appendChild(el('div', 'j', '<small>' + esc(nom) + '</small><span class="e">' + esc(x.e) + '</span><b>' + degres(x.min) + ' / ' + degres(x.max) + '</b><small>' +
+          (Number(x.pluie) > 0 ? '💧 ' + Math.round(Number(x.pluie)) + ' %' : 'sec') + '</small>'));
+      });
+      c.appendChild(j);
+      z.appendChild(c);
+    });
+    z.appendChild(el('div', 'cfAide', 'Météo : <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>.'));
   }
 
   /* ============================================================
