@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 11:54 — v1463 */
+/* Déployé le 18/11/2026 à 12:18 — v1464 */
 /* ============================================================
    code-commun.js — 🚦 « MON CODE », LE JEU DU CODE
 
@@ -27,6 +27,14 @@
    projetées dans ses vidéos viennent de séries du commerce : elles ne
    sont pas reprises, les exemples d'ici sont écrits pour le jeu. La
    séance du jour mélange maintenant les quatre sortes de cartes.
+
+   LIVRAISON 3 (v1464) : 👀 l'œil du conducteur (une image, l'élève
+   touche tout ce qu'un conducteur doit voir) et 🚦 qui passe ? (un
+   carrefour vu d'en haut, l'élève touche les véhicules dans l'ordre où
+   ils passent). Les images sont dessinées ici ; David les remplace par
+   ses photos et replace les ronds dans l'atelier. La séance du jour
+   compte maintenant 10 cartes : 4 panneaux, 2 pièges, 1 loupe,
+   1 chiffre, 1 image, 1 carrefour.
 
    Ce fichier est chargé par l'espace élève (eleve.html : le jeu) ET
    par l'appli (index.html : l'atelier, qui lit la liste de base et les
@@ -329,6 +337,259 @@
   var ORDRE_TYPES = ['pieges', 'loupe', 'chiffres'];
 
   /* ============================================================
+     👀 🚦 v1464 — LES SCÈNES DE « L'ŒIL DU CONDUCTEUR » ET DE « QUI PASSE ? »
+
+     David, le 18 novembre : « je te laisse chercher (les photos) ou faire
+     des schémas, je veux en faire le moins possible de mon côté » — et :
+     « il faut que je puisse modifier si tu as fait des erreurs sur les
+     photos, les schémas, les réponses ». Les scènes sont donc DESSINÉES
+     ici (aucune photo prise sur internet : je n'en ai pas les droits) ;
+     dans l'atelier, David remplace un dessin par sa photo et replace les
+     ronds dessus.
+
+     Une scène : k (clé) · n (titre) · q (la consigne, « Qui passe ? »
+     seulement) · s (le dessin) · vb (son cadre) · z (les ronds à toucher)
+     · e (la conclusion). Un rond : x, y (son centre) et r (son rayon), en
+     POUR CENT de la largeur et de la hauteur de l'image — la même mesure
+     pour un dessin et pour une photo ; t (son nom) ; e (son explication,
+     « L'œil » seulement). Pour « Qui passe ? », l'ordre des ronds EST
+     l'ordre de passage.
+     ============================================================ */
+  var PSVG = {};
+  PANNEAUX.forEach(function (p) { PSVG[p.k] = p.s; });
+  /* un panneau planté dans une scène : centre (cx, cy), taille t, mât de hauteur m (0 = sans) */
+  function scPan(k, cx, cy, t, m) {
+    return (m ? '<rect x="' + (cx - 1.5) + '" y="' + cy + '" width="3" height="' + m + '" fill="#70757C"/>' : '') +
+      '<g transform="translate(' + (cx - t / 2) + ' ' + (cy - t / 2) + ') scale(' + (t / 100) + ')">' + (PSVG[k] || '') + '</g>';
+  }
+
+  /* ---------- vue du conducteur (360 × 226) ---------- */
+  var VC = '0 0 360 226';
+  function vcVille() {
+    return '<rect width="360" height="226" fill="#A9D0EF"/><rect y="96" width="360" height="56" fill="#DCEBF5"/>' +
+      '<rect x="0" y="34" width="96" height="110" fill="#C9B8A3"/><rect x="10" y="48" width="18" height="22" fill="#7C8FA3"/><rect x="38" y="48" width="18" height="22" fill="#7C8FA3"/><rect x="66" y="48" width="18" height="22" fill="#7C8FA3"/><rect x="10" y="84" width="18" height="22" fill="#7C8FA3"/><rect x="38" y="84" width="18" height="22" fill="#7C8FA3"/><rect x="66" y="84" width="18" height="22" fill="#7C8FA3"/>' +
+      '<rect x="96" y="64" width="52" height="80" fill="#B9A58E"/><rect x="104" y="76" width="12" height="16" fill="#6F8296"/><rect x="126" y="76" width="12" height="16" fill="#6F8296"/>' +
+      '<rect x="262" y="26" width="98" height="118" fill="#D4C4AE"/><rect x="274" y="42" width="20" height="24" fill="#7C8FA3"/><rect x="306" y="42" width="20" height="24" fill="#7C8FA3"/><rect x="274" y="82" width="20" height="24" fill="#7C8FA3"/><rect x="306" y="82" width="20" height="24" fill="#7C8FA3"/><rect x="336" y="42" width="20" height="24" fill="#7C8FA3"/>' +
+      '<rect x="216" y="70" width="46" height="74" fill="#BFAE98"/>' +
+      '<polygon points="0,226 0,150 150,118 210,118 360,150 360,226" fill="#8D8F92"/>';
+  }
+  function vcCampagne(pluie) {
+    return '<rect width="360" height="226" fill="' + (pluie ? '#9FA9B3' : '#A9D0EF') + '"/><rect y="84" width="360" height="40" fill="' + (pluie ? '#BCC4CB' : '#DCEBF5') + '"/>' +
+      '<path d="M0 122 Q60 92 130 116 Q200 96 270 114 Q320 100 360 118 V150 H0 Z" fill="' + (pluie ? '#6E8C66' : '#7DAE5C') + '"/>' +
+      '<polygon points="0,226 0,138 150,118 210,118 360,138 360,226" fill="' + (pluie ? '#5F8457' : '#8BBF66') + '"/>' +
+      '<g fill="' + (pluie ? '#3F6A45' : '#4F8A45') + '"><circle cx="40" cy="112" r="16"/><circle cx="62" cy="118" r="11"/><circle cx="318" cy="108" r="17"/><circle cx="238" cy="110" r="9"/></g>' +
+      '<g fill="#6B4A2B"><rect x="38" y="124" width="4" height="14"/><rect x="316" y="122" width="4" height="16"/></g>';
+  }
+  /* la chaussée et sa ligne : 'continue', 'discontinue' ou '' */
+  function vcRoute(ligne, mouillee) {
+    var s = '<polygon points="60,226 166,118 194,118 300,226" fill="' + (mouillee ? '#3D4148' : '#4C4F55') + '"/>';
+    if (ligne === 'continue') s += '<polygon points="176,226 179,118 181,118 184,226" fill="#EDEDED" opacity=".9"/>';
+    if (ligne === 'discontinue') s += '<g fill="#EDEDED" opacity=".9"><polygon points="179.4,122 180.6,122 180.9,129 179.1,129"/><polygon points="178.9,136 181.1,136 181.6,147 178.4,147"/><polygon points="178,158 182,158 182.8,175 177.2,175"/><polygon points="176.8,190 183.2,190 184,212 176,212"/></g>';
+    return s;
+  }
+  function vcPassage() {
+    return '<g fill="#F4F4F4"><polygon points="120,166 132,166 126,176 113,176"/><polygon points="142,166 154,166 150,176 137,176"/><polygon points="164,166 176,166 174,176 161,176"/><polygon points="186,166 198,166 200,176 187,176"/><polygon points="208,166 220,166 225,176 212,176"/><polygon points="230,166 242,166 250,176 237,176"/></g>';
+  }
+  /* le rétroviseur intérieur : 'rien', 'moto', 'pres' (une voiture collée), 'loin' (une voiture au loin) */
+  function vcRetro(quoi) {
+    var s = '<rect x="138" y="6" width="84" height="26" rx="8" fill="#15171B"/><rect x="142" y="9" width="76" height="20" rx="5" fill="#A9C2D6"/><rect x="142" y="21" width="76" height="8" rx="3" fill="#6B6E73"/>';
+    if (quoi === 'moto') s += '<circle cx="180" cy="15.5" r="3" fill="#111"/><rect x="176.5" y="17.5" width="7" height="7" rx="2" fill="#111"/><circle cx="180" cy="26" r="2.6" fill="#111"/><circle cx="180" cy="19" r="1.2" fill="#FFE27A"/>';
+    if (quoi === 'pres') s += '<rect x="158" y="11" width="44" height="18" rx="4" fill="#3A3F47"/><rect x="163" y="12.5" width="34" height="7" rx="2" fill="#8FA9BD"/><circle cx="163.5" cy="24" r="2.3" fill="#FFF3B0"/><circle cx="196.5" cy="24" r="2.3" fill="#FFF3B0"/><rect x="172" y="23" width="16" height="3" rx="1" fill="#15171B"/>';
+    if (quoi === 'loin') s += '<rect x="174" y="18" width="12" height="7" rx="2" fill="#C8372D"/><rect x="175.5" y="16" width="9" height="4" rx="1.5" fill="#8FA9BD"/><circle cx="175.5" cy="23.5" r=".9" fill="#FFF3B0"/><circle cx="184.5" cy="23.5" r=".9" fill="#FFF3B0"/>';
+    return s;
+  }
+  /* la planche de bord, le compteur, le volant */
+  function vcBord(v) {
+    return '<path d="M0 226 V196 Q180 172 360 196 V226 Z" fill="#191B20"/>' +
+      '<circle cx="118" cy="205" r="21" fill="#0E1013" stroke="#3A3D44" stroke-width="2"/><text x="118" y="208" font-size="13" font-weight="800" text-anchor="middle" font-family="Arial" fill="#fff">' + v + '</text><text x="118" y="218" font-size="5.5" text-anchor="middle" font-family="Arial" fill="#9AA0A6">km/h</text>' +
+      '<path d="M190 226 Q190 190 232 190 Q274 190 274 226" fill="none" stroke="#2B2E35" stroke-width="9"/>';
+  }
+  /* un piéton debout : (x, y) = le dessus de sa tête, k = sa taille */
+  function vcPieton(x, y, k, c) {
+    return '<g transform="translate(' + x + ' ' + y + ') scale(' + k + ')"><circle cx="0" cy="5" r="5" fill="#E8B48A"/><rect x="-5" y="10" width="10" height="17" rx="3" fill="' + c + '"/><rect x="-4" y="26" width="3.5" height="12" fill="#2B2D31"/><rect x=".5" y="26" width="3.5" height="12" fill="#2B2D31"/></g>';
+  }
+  /* une voiture garée, vue de côté */
+  function vcGaree(x, y, c, c2) {
+    return '<rect x="' + x + '" y="' + y + '" width="46" height="18" rx="5" fill="' + c + '"/><rect x="' + (x + 8) + '" y="' + (y - 9) + '" width="28" height="12" rx="4" fill="' + c2 + '"/><circle cx="' + (x + 10) + '" cy="' + (y + 19) + '" r="5" fill="#222"/><circle cx="' + (x + 36) + '" cy="' + (y + 19) + '" r="5" fill="#222"/>';
+  }
+  /* une voiture qui arrive en face : (x, y) = le milieu du bas, k = sa taille */
+  function vcEnFace(x, y, k, c) {
+    return '<g transform="translate(' + x + ' ' + y + ') scale(' + k + ')"><rect x="-13" y="-17" width="26" height="15" rx="3" fill="' + c + '"/><rect x="-10" y="-25" width="20" height="10" rx="3" fill="' + c + '"/><rect x="-8" y="-23.5" width="16" height="7" rx="2" fill="#BFD9EC"/><circle cx="-9" cy="-8" r="2.2" fill="#FFF3B0"/><circle cx="9" cy="-8" r="2.2" fill="#FFF3B0"/><rect x="-11" y="-3" width="5" height="4" fill="#222"/><rect x="6" y="-3" width="5" height="4" fill="#222"/></g>';
+  }
+  /* un cycliste vu de dos : (x, y) = le bas de sa roue */
+  function vcCycliste(x, y, k) {
+    return '<g transform="translate(' + x + ' ' + y + ') scale(' + k + ')"><ellipse cx="0" cy="-9" rx="2.2" ry="9" fill="none" stroke="#1B1D21" stroke-width="2"/><rect x="-1" y="-22" width="2" height="8" fill="#1B1D21"/><path d="M-6 -22 Q0 -40 6 -22 Z" fill="#F2B705"/><rect x="-6.5" y="-24" width="13" height="4" rx="2" fill="#23262B"/><circle cx="0" cy="-41" r="4.6" fill="#E8B48A"/><path d="M-5 -42 Q0 -50 5 -42 Z" fill="#D33A2C"/><rect x="-7" y="-12" width="3" height="5" fill="#23262B"/><rect x="4" y="-12" width="3" height="5" fill="#23262B"/></g>';
+  }
+  /* un bus vu de l'arrière, à son arrêt : (x, y) = son coin haut gauche */
+  function vcBus(x, y) {
+    return '<rect x="' + x + '" y="' + y + '" width="62" height="62" rx="6" fill="#F4F1E8" stroke="#8C8F94"/><rect x="' + (x + 6) + '" y="' + (y + 7) + '" width="50" height="22" rx="3" fill="#6F8FA8"/>' +
+      '<rect x="' + x + '" y="' + (y + 38) + '" width="62" height="8" fill="#2F7D5B"/><text x="' + (x + 31) + '" y="' + (y + 36) + '" font-size="7" font-weight="800" text-anchor="middle" font-family="Arial" fill="#2B2D31">BUS</text>' +
+      '<rect x="' + (x + 14) + '" y="' + (y + 49) + '" width="9" height="6" rx="1.5" fill="#C92A1E"/><rect x="' + (x + 39) + '" y="' + (y + 49) + '" width="9" height="6" rx="1.5" fill="#C92A1E"/>' +
+      '<rect x="' + (x + 6) + '" y="' + (y + 60) + '" width="10" height="7" rx="2" fill="#1B1D21"/><rect x="' + (x + 46) + '" y="' + (y + 60) + '" width="10" height="7" rx="2" fill="#1B1D21"/>' +
+      /* ses clignotants, aux bords : le gauche est allumé */
+      '<rect x="' + (x + 51) + '" y="' + (y + 49) + '" width="8" height="6" rx="1.5" fill="#8A5A00"/>' +
+      '<circle cx="' + (x + 7) + '" cy="' + (y + 52) + '" r="9" fill="#FFB000" opacity=".35"/><rect x="' + (x + 3) + '" y="' + (y + 49) + '" width="8" height="6" rx="1.5" fill="#FFB000" stroke="#fff" stroke-width=".8"/>';
+  }
+  /* un feu tricolore : c = 'r', 'o' ou 'v' */
+  function vcFeu(x, y, c) {
+    return '<rect x="' + (x - 1.5) + '" y="' + (y + 38) + '" width="3" height="42" fill="#70757C"/><rect x="' + (x - 8) + '" y="' + y + '" width="16" height="40" rx="4" fill="#15171B" stroke="#F1D35B" stroke-width="1.5"/>' +
+      '<circle cx="' + x + '" cy="' + (y + 8) + '" r="4.6" fill="' + (c === 'r' ? '#FF3B30' : '#4A1D1A') + '"/><circle cx="' + x + '" cy="' + (y + 20) + '" r="4.6" fill="' + (c === 'o' ? '#FFB000' : '#4A3A12') + '"/><circle cx="' + x + '" cy="' + (y + 32) + '" r="4.6" fill="' + (c === 'v' ? '#34C759' : '#173A22') + '"/>' +
+      (c === 'o' ? '<circle cx="' + x + '" cy="' + (y + 20) + '" r="8" fill="#FFB000" opacity=".28"/>' : '');
+  }
+  function vcPluie() {
+    var s = '<g stroke="#E8F1F8" stroke-width="1.2" stroke-linecap="round" opacity=".55">';
+    for (var i = 0; i < 26; i++) { var x = (i * 47) % 360, y = (i * 29) % 150 + 6; s += '<line x1="' + x + '" y1="' + y + '" x2="' + (x - 4) + '" y2="' + (y + 11) + '"/>'; }
+    return s + '</g>';
+  }
+  /* un rond, donné dans les mesures du dessin, rendu en pour cent */
+  function zVC(x, y, r, t, e) { return { x: Math.round(x / 3.6 * 10) / 10, y: Math.round(y / 2.26 * 10) / 10, r: Math.round(r / 3.6 * 10) / 10, t: t, e: e }; }
+
+  var OEIL = [
+    { k: 'ville50', n: 'En ville', vb: VC,
+      s: vcVille() + vcRoute('continue') + vcPassage() + vcGaree(66, 150, '#B7372C', '#8E2A22') + vcPieton(262, 138, 1, '#2F6FE0') + scPan('l50', 292.5, 92, 26, 60) + vcRetro('moto') + vcBord(60),
+      z: [zVC(292.5, 92, 17, 'Au loin : le panneau 50', 'La limitation, c’est la première chose à chercher.'),
+          zVC(262, 158, 23, 'Devant moi : un piéton au bord du passage', 'Il s’apprête à traverser : je dois le laisser passer.'),
+          zVC(180, 19, 17, 'Le rétroviseur : une moto derrière moi', 'Si je freine fort, elle est juste derrière : je freine tôt et en douceur.'),
+          zVC(118, 205, 24, 'Mon compteur : 60 km/h', 'Je roule à 60 dans une zone à 50.')],
+      e: 'Donc : je ralentis tout de suite, et je laisse passer le piéton.' },
+    { k: 'ecole', n: 'Près d’une école', vb: VC,
+      s: vcVille() + vcRoute('continue') +
+         /* l'enfant, à moitié caché derrière la voiture garée */
+         vcPieton(118, 136, .8, '#E05A2F') + vcGaree(66, 150, '#3E7CB1', '#2C5C86') +
+         /* le ballon qui roule sur la chaussée */
+         '<circle cx="152" cy="166" r="7" fill="#F4F4F4" stroke="#1B1D21" stroke-width="1.2"/><path d="M146 164 Q152 158 158 164 M147 169 Q152 174 157 169" fill="none" stroke="#D33A2C" stroke-width="1.6"/>' +
+         scPan('enfants', 292.5, 94, 30, 58) + vcRetro('rien') + vcBord(50),
+      z: [zVC(292.5, 95, 19, 'Au loin : le panneau « enfants »', 'Un endroit fréquenté par des enfants : je m’attends à en voir surgir.'),
+          zVC(152, 166, 14, 'Devant moi : un ballon roule sur la chaussée', 'Un ballon ne roule jamais seul : quelqu’un va courir derrière.'),
+          zVC(118, 146, 15, 'Devant moi : un enfant derrière la voiture garée', 'Il ne me voit pas, et les voitures garées me le cachent presque.'),
+          zVC(118, 205, 24, 'Mon compteur : 50 km/h', '50 est permis ici, mais ce n’est pas une vitesse adaptée devant une école.')],
+      e: 'Donc : je freine franchement, prêt à m’arrêter avant le ballon.' },
+    { k: 'feuorange', n: 'Le feu passe à l’orange', vb: VC,
+      s: vcVille() + vcRoute('continue') +
+         /* la ligne d'arrêt du feu, encore loin */
+         '<polygon points="181,140 181,144 222,144 218,140" fill="#F4F4F4"/>' +
+         vcFeu(244, 60, 'o') + vcRetro('pres') + vcBord(50),
+      z: [zVC(244, 80, 20, 'Au loin : le feu vient de passer à l’orange', 'Orange veut dire arrêt, comme le rouge. Une seule exception : si je ne peux plus m’arrêter sans danger.'),
+          zVC(200, 142, 18, 'Devant moi : la ligne d’arrêt est encore loin', 'J’ai largement la place de m’arrêter avant elle.'),
+          zVC(180, 19, 17, 'Le rétroviseur : une voiture me suit de très près', 'Je freine tôt et progressivement : mes feux stop la préviennent.'),
+          zVC(118, 205, 24, 'Mon compteur : 50 km/h', 'À 50 km/h, il me faut environ 25 m pour m’arrêter : c’est possible ici.')],
+      e: 'Donc : je m’arrête au feu, en freinant en douceur. Je n’accélère pas pour « passer à l’orange ».' },
+    { k: 'virage', n: 'Sur route, sous la pluie', vb: VC,
+      s: vcCampagne(true) + vcRoute('continue', true) +
+         /* une flaque, sur ma voie */
+         '<ellipse cx="214" cy="172" rx="22" ry="5" fill="#8FA9BD" opacity=".75"/><ellipse cx="208" cy="171" rx="9" ry="1.6" fill="#DCEBF5" opacity=".8"/>' +
+         scPan('vird', 268, 104, 30, 46) + vcPluie() + vcRetro('rien') + vcBord(80),
+      z: [zVC(268, 105, 19, 'Au loin : le panneau « virage à droite »', 'Un danger est annoncé environ 150 m avant : je ralentis avant le virage, pas dedans.'),
+          zVC(180, 150, 15, 'Devant moi : la ligne continue', 'Interdit de la franchir ou de la chevaucher : aucun dépassement ici.'),
+          zVC(214, 172, 20, 'Devant moi : la chaussée est mouillée', 'Sous la pluie, mes pneus accrochent moins et ma distance de freinage augmente.'),
+          zVC(118, 205, 24, 'Mon compteur : 80 km/h', 'Le maximum autorisé n’est pas la bonne vitesse : avec la pluie et le virage, c’est trop.')],
+      e: 'Donc : je lâche l’accélérateur avant le virage, et je reste bien dans ma voie.' },
+    { k: 'cycliste', n: 'Un cycliste devant moi', vb: VC,
+      s: vcCampagne(false) + vcRoute('discontinue') + vcEnFace(169, 138, .8, '#F4F4F4') + vcCycliste(212, 172, .78) + vcRetro('loin') + vcBord(70),
+      z: [zVC(212, 152, 21, 'Devant moi : un cycliste', 'Pour le dépasser, je dois laisser 1,50 m hors agglomération (1 m en ville).'),
+          zVC(169, 128, 16, 'Au loin : une voiture arrive en face', 'Pas la place de dépasser le cycliste maintenant.'),
+          zVC(180, 19, 17, 'Le rétroviseur : une voiture, loin derrière', 'En ralentissant tôt, je la préviens avec mes feux stop.'),
+          zVC(118, 205, 24, 'Mon compteur : 70 km/h', 'J’arrive bien plus vite que le vélo : il faut ralentir dès maintenant.')],
+      e: 'Donc : je ralentis et je reste derrière le cycliste jusqu’à ce que la voie d’en face soit libre.' },
+    { k: 'bus', n: 'Un bus à son arrêt', vb: VC,
+      s: vcVille() + vcRoute('continue') + vcPassage() +
+         /* le piéton qui sort de devant le bus : on ne voit que sa moitié */
+         vcPieton(213, 137, .95, '#8E44AD') + vcBus(226, 112) +
+         scPan('passpietons', 304, 96, 26, 56) + vcRetro('rien') + vcBord(40),
+      z: [zVC(233, 164, 11, 'Devant moi : le bus a mis son clignotant gauche', 'En agglomération, je dois laisser un bus quitter son arrêt.'),
+          zVC(210, 150, 13, 'Devant moi : un piéton sort de devant le bus', 'Un bus à l’arrêt cache souvent quelqu’un qui traverse.'),
+          zVC(304, 96, 17, 'Au loin : le panneau « passage pour piétons »', 'Il m’indique où les piétons traversent : juste devant le bus.'),
+          zVC(118, 205, 24, 'Mon compteur : 40 km/h', 'Trop vite pour longer un bus à l’arrêt : je dois pouvoir m’arrêter net.')],
+      e: 'Donc : je ralentis fort, je laisse le bus repartir et je surveille l’avant du bus.' }
+  ];
+
+  /* ---------- vue d'en haut (340 × 300) ---------- */
+  var VH = '0 0 340 300';
+  function vhCroix() {
+    return '<rect width="340" height="300" fill="#7DAE5C"/><rect x="125" y="0" width="90" height="300" fill="#55585E"/><rect x="0" y="105" width="340" height="90" fill="#55585E"/>' +
+      '<g stroke="#EDEDED" stroke-width="2.5" stroke-dasharray="12 10"><line x1="170" y1="0" x2="170" y2="100"/><line x1="170" y1="200" x2="170" y2="300"/><line x1="0" y1="150" x2="120" y2="150"/><line x1="220" y1="150" x2="340" y2="150"/></g>';
+  }
+  /* une voiture vue d'en haut : rot = 0 quand elle monte l'image */
+  function vhAuto(x, y, rot, c) {
+    return '<g transform="translate(' + x + ' ' + y + ') rotate(' + rot + ')"><rect x="-13" y="-22" width="26" height="44" rx="7" fill="' + c + '" stroke="rgba(0,0,0,.4)"/><rect x="-10" y="-14" width="20" height="10" rx="3" fill="#CFE8FF"/><rect x="-10" y="8" width="20" height="7" rx="2.5" fill="#CFE8FF" opacity=".7"/></g>';
+  }
+  function vhCamion(x, y, rot, c, gyro) {
+    return '<g transform="translate(' + x + ' ' + y + ') rotate(' + rot + ')"><rect x="-15" y="-31" width="30" height="62" rx="5" fill="' + c + '" stroke="rgba(0,0,0,.4)"/><rect x="-13" y="-31" width="26" height="16" rx="4" fill="' + (gyro ? '#8E1B12' : '#2F6FE0') + '"/><rect x="-10" y="-28" width="20" height="7" rx="2" fill="#CFE8FF"/>' +
+      (gyro ? '<rect x="-9" y="-14" width="18" height="5" rx="2" fill="#2F8CFF"/><g stroke="#2F8CFF" stroke-width="2.4" stroke-linecap="round"><line x1="-19" y1="-12" x2="-27" y2="-14"/><line x1="19" y1="-12" x2="27" y2="-14"/><line x1="-17" y1="-19" x2="-24" y2="-25"/><line x1="17" y1="-19" x2="24" y2="-25"/></g>' : '') + '</g>';
+  }
+  function vhNom(t, x, y) { return '<text x="' + x + '" y="' + y + '" font-size="11" font-weight="800" text-anchor="middle" font-family="Arial" fill="#fff" stroke="#2B2D31" stroke-width="3" paint-order="stroke">' + t + '</text>'; }
+  /* le chemin de chacun, en pointillé, et sa pointe */
+  function vhFleche(d, px, py, rot) {
+    return '<path d="' + d + '" fill="none" stroke="#FFE27A" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 7"/><polygon points="0,-6 5,4 -5,4" fill="#FFE27A" transform="translate(' + px + ' ' + py + ') rotate(' + rot + ')"/>';
+  }
+  /* un panneau posé au bord de la route, sur un rond blanc */
+  function vhPan(k, x, y) { return '<circle cx="' + x + '" cy="' + y + '" r="17" fill="#fff" opacity=".92"/>' + scPan(k, x, y, 27, 0); }
+  function vhFeuVert(x, y) { return '<rect x="' + (x - 8) + '" y="' + (y - 18) + '" width="16" height="36" rx="5" fill="#15171B" stroke="#fff" stroke-width="1.5"/><circle cx="' + x + '" cy="' + (y - 10) + '" r="3.6" fill="#4A1D1A"/><circle cx="' + x + '" cy="' + y + '" r="3.6" fill="#4A3A12"/><circle cx="' + x + '" cy="' + (y + 10) + '" r="4.2" fill="#34C759"/>'; }
+  function zVH(x, y, r, t) { return { x: Math.round(x / 3.4 * 10) / 10, y: Math.round(y / 3 * 10) / 10, r: Math.round(r / 3.4 * 10) / 10, t: t }; }
+  var MOI = '#2F6FE0';
+  var TOUT_DROIT = 'Chacun va tout droit. Touche les véhicules dans l’ordre où ils passent.';
+
+  var PASSE = [
+    { k: 'troisdroite', n: 'Intersection sans panneau', q: TOUT_DROIT, vb: VH,
+      s: vhCroix() + vhCamion(149, 45, 180, '#E9E9E9') + vhNom('Le camion', 92, 62) + vhFleche('M149 84 V100', 149, 103, 180) +
+         vhAuto(288, 128, -90, '#D43A2F') + vhNom('La voiture rouge', 282, 170) + vhFleche('M258 128 H236', 232, 128, -90) +
+         vhAuto(192, 262, 0, MOI) + vhNom('Moi', 232, 268) + vhFleche('M192 232 V210', 192, 206, 0),
+      z: [zVH(149, 45, 34, 'Le camion'), zVH(288, 128, 30, 'La voiture rouge'), zVH(192, 262, 30, 'Moi')],
+      e: 'Sans panneau, c’est la priorité à droite. La voiture rouge est à ma droite : elle passe avant moi. Mais le camion est à sa droite à elle : il passe en premier.' },
+    { k: 'gauche', n: 'Intersection sans panneau', q: TOUT_DROIT, vb: VH,
+      s: vhCroix() + vhAuto(52, 172, 90, '#2E9E5B') + vhNom('La voiture verte', 60, 212) + vhFleche('M82 172 H104', 108, 172, 90) +
+         vhAuto(192, 262, 0, MOI) + vhNom('Moi', 232, 268) + vhFleche('M192 232 V210', 192, 206, 0),
+      z: [zVH(192, 262, 30, 'Moi'), zVH(52, 172, 30, 'La voiture verte')],
+      e: 'Elle arrive par ma gauche : c’est elle qui me doit la priorité. La priorité à droite ne vaut que pour ceux qui viennent de MA droite. Je passe, en vérifiant qu’elle ralentit bien.' },
+    { k: 'stop', n: 'Je suis au stop', q: 'Je vais tout droit, elle aussi. Touche les véhicules dans l’ordre où ils passent.', vb: VH,
+      s: vhCroix() + '<rect x="171" y="198" width="43" height="5" fill="#F4F4F4"/>' + vhPan('stop', 238, 216) +
+         vhAuto(52, 172, 90, '#2E9E5B') + vhNom('La voiture verte', 60, 212) + vhFleche('M82 172 H104', 108, 172, 90) +
+         vhAuto(192, 262, 0, MOI) + vhNom('Moi', 150, 268) + vhFleche('M192 232 V212', 192, 208, 0),
+      z: [zVH(52, 172, 30, 'La voiture verte'), zVH(192, 262, 30, 'Moi')],
+      e: 'Au stop, je m’arrête toujours, même s’il n’y a personne. Puis je laisse passer tous les véhicules de l’autre route, qu’ils viennent de droite ou de gauche.' },
+    { k: 'cedez', n: 'Je suis sur une route prioritaire', q: TOUT_DROIT, vb: VH,
+      s: vhCroix() + vhPan('prio', 238, 216) + vhPan('cedez', 238, 86) +
+         '<g fill="#F4F4F4"><polygon points="218,108 226,108 222,116"/><polygon points="218,120 226,120 222,128"/><polygon points="218,132 226,132 222,140"/></g>' +
+         vhAuto(288, 128, -90, '#D43A2F') + vhNom('La voiture rouge', 282, 170) + vhFleche('M258 128 H240', 236, 128, -90) +
+         vhAuto(192, 262, 0, MOI) + vhNom('Moi', 150, 268) + vhFleche('M192 232 V210', 192, 206, 0),
+      z: [zVH(192, 262, 30, 'Moi'), zVH(288, 128, 30, 'La voiture rouge')],
+      e: 'Elle est à ma droite, mais elle a un cédez-le-passage, et moi le panneau de route prioritaire : le panneau passe avant la priorité à droite. Je passe en premier, sans la forcer si elle n’a pas ralenti.' },
+    { k: 'tournegauche', n: 'Intersection sans panneau', q: 'Je tourne à gauche, elle va tout droit. Touche les véhicules dans l’ordre où ils passent.', vb: VH,
+      s: vhCroix() + vhAuto(149, 45, 180, '#F2B705') + vhNom('La voiture jaune', 78, 50) + vhFleche('M149 76 V100', 149, 104, 180) +
+         vhAuto(192, 262, 0, MOI) + vhNom('Moi', 232, 268) + vhFleche('M192 232 V170 Q192 128 150 128 H124', 120, 128, -90),
+      z: [zVH(149, 45, 30, 'La voiture jaune'), zVH(192, 262, 30, 'Moi')],
+      e: 'Quand je tourne à gauche, je coupe la route de ceux qui arrivent en face : je leur cède le passage, puis je tourne.' },
+    { k: 'pieton', n: 'Mon feu est vert', q: 'Je tourne à droite. Touche dans l’ordre où chacun passe.', vb: VH,
+      s: vhCroix() + vhFeuVert(238, 220) +
+         '<g fill="#F4F4F4"><rect x="226" y="108" width="20" height="8"/><rect x="226" y="122" width="20" height="8"/><rect x="226" y="136" width="20" height="8"/><rect x="226" y="150" width="20" height="8"/><rect x="226" y="164" width="20" height="8"/><rect x="226" y="178" width="20" height="8"/></g>' +
+         /* le piéton, vu d'en haut, engagé sur le passage */
+         '<ellipse cx="236" cy="166" rx="9" ry="5.5" fill="#8E44AD"/><circle cx="236" cy="166" r="4.2" fill="#E8B48A"/>' + vhNom('Le piéton', 286, 170) + vhFleche('M236 156 V140', 236, 136, 0) +
+         vhAuto(192, 262, 0, MOI) + vhNom('Moi', 150, 268) + vhFleche('M192 232 V200 Q192 172 216 172', 220, 172, 90),
+      z: [zVH(236, 166, 22, 'Le piéton'), zVH(192, 262, 30, 'Moi')],
+      e: 'Mon feu est vert, mais en tournant je coupe un passage pour piétons. Le piéton engagé passe avant moi : je m’arrête pour le laisser finir de traverser.' },
+    { k: 'giratoire', n: 'J’arrive à un giratoire', q: 'Elle tourne déjà sur l’anneau. Touche les véhicules dans l’ordre où ils passent.', vb: VH,
+      s: '<rect width="340" height="300" fill="#7DAE5C"/><rect x="134" y="0" width="72" height="300" fill="#55585E"/><rect x="0" y="114" width="340" height="72" fill="#55585E"/>' +
+         '<circle cx="170" cy="150" r="92" fill="#55585E"/><circle cx="170" cy="150" r="40" fill="#8BBF66" stroke="#EDEDED" stroke-width="3"/><circle cx="170" cy="150" r="14" fill="#4F8A45"/>' +
+         '<g stroke="#EDEDED" stroke-width="2.5" stroke-dasharray="12 10"><line x1="170" y1="246" x2="170" y2="300"/><line x1="170" y1="0" x2="170" y2="54"/><line x1="0" y1="150" x2="74" y2="150"/><line x1="266" y1="150" x2="340" y2="150"/></g><path d="M172 243 H206" stroke="#EDEDED" stroke-width="3" stroke-dasharray="6 5" fill="none"/>' +
+         vhPan('cedez', 232, 262) + vhPan('giratoire', 232, 222) +
+         /* elle tourne dans le sens inverse des aiguilles d'une montre : elle arrive par ma gauche */
+         vhAuto(113, 196, 142, '#E67E22') + vhNom('La voiture orange', 62, 250) + vhFleche('M128 214 Q146 228 166 228', 171, 228, 90) +
+         vhAuto(189, 272, 0, MOI) + vhNom('Moi', 150, 290) + vhFleche('M189 244 V234', 189, 248, 0),
+      z: [zVH(113, 196, 30, 'La voiture orange'), zVH(189, 272, 28, 'Moi')],
+      e: 'À l’entrée d’un giratoire, je cède le passage à ceux qui tournent déjà sur l’anneau : ils arrivent par ma gauche. J’entre quand la place est libre.' },
+    { k: 'pompiers', n: 'Mon feu est vert', q: 'Sirène et gyrophare. Chacun va tout droit. Touche les véhicules dans l’ordre où ils passent.', vb: VH,
+      s: vhCroix() + vhFeuVert(238, 220) + vhCamion(56, 172, 90, '#D4261B', true) + vhNom('Les pompiers', 60, 214) + vhFleche('M92 172 H106', 110, 172, 90) +
+         vhAuto(192, 262, 0, MOI) + vhNom('Moi', 150, 268) + vhFleche('M192 232 V210', 192, 206, 0),
+      z: [zVH(56, 172, 34, 'Les pompiers'), zVH(192, 262, 30, 'Moi')],
+      e: 'Un véhicule prioritaire en intervention (gyrophare et sirène) passe avant tout le monde, même si mon feu est vert. Je m’arrête et je lui laisse le passage.' }
+  ];
+
+  /* scene : la carte est une image avec des ronds · min : le nombre de ronds qu'il lui faut */
+  TYPES.oeil = { ic: '👀', nom: 'L’œil du conducteur', sous: 'Regarder l’image, vraiment', pre: 'o:', base: OEIL, n: 3, scene: true, min: 1 };
+  TYPES.passe = { ic: '🚦', nom: 'Qui passe ?', sous: 'Les priorités, vues d’en haut', pre: 'q:', base: PASSE, n: 5, scene: true, min: 2 };
+  ORDRE_TYPES.push('oeil', 'passe');
+
+  /* ============================================================
      LE JEU
      ============================================================ */
   var O = null;                 /* ce que la page a donné : { zone, appeler, prenom } */
@@ -364,7 +625,41 @@
   var PAR_BASE = {};
   PANNEAUX.forEach(function (p) { PAR_BASE[p.k] = p; });
   /* 🪤 v1463 — les cartes d'un jeu : la base, puis les corrections de David */
+  /* 👀 v1464 — les ronds d'une scène, propres : un centre, un rayon, un nom */
+  function rondsPropres(z) {
+    return (Array.isArray(z) ? z : []).filter(function (r) {
+      return r && isFinite(Number(r.x)) && isFinite(Number(r.y)) && Number(r.r) > 0 && String(r.t || '').trim();
+    }).map(function (r) { return { x: Number(r.x), y: Number(r.y), r: Number(r.r), t: String(r.t), e: String(r.e || '') }; });
+  }
+  function fusionnerScenes(type, contenu) {
+    var T = TYPES[type], src = (contenu && contenu.cartes && contenu.cartes[type]) || {};
+    var mod = src.mod || {}, liste = [], vus = {};
+    T.base.forEach(function (x) {
+      var c = mod[x.k] || {}, z = rondsPropres(c.z);
+      liste.push({ k: x.k, base: true, modifie: Object.keys(c).length > 0, cache: !!c.cache, n: c.n || x.n, q: c.q || x.q || '',
+                   e: c.e !== undefined ? c.e : x.e, s: x.s, vb: x.vb, image: c.image || '', z: z.length ? z : x.z });
+      vus[x.k] = true;
+    });
+    (src.ajouts || []).forEach(function (x) {
+      if (!x || !x.cle || vus[x.cle]) return;
+      vus[x.cle] = true;
+      liste.push({ k: x.cle, ajoute: true, cache: !!x.cache, n: x.n || '', q: x.q || '', e: x.e || '', s: '', vb: '', image: x.image || '', z: rondsPropres(x.z) });
+    });
+    return liste;
+  }
+  /* l'image d'une scène : la photo de David s'il en a mis une, sinon le dessin */
+  function imageScene(x, images) {
+    var im = x && x.image && (images || IMAGES)[x.image];
+    if (im) return '<img alt="" src="' + esc(im) + '">';
+    if (x && x.s) return '<svg viewBox="' + esc(x.vb) + '" aria-hidden="true">' + x.s + '</svg>';
+    return '';
+  }
+  /* un rond posé sur l'image, en pour cent (le même calcul pour un dessin et une photo) */
+  function rondSur(z, n, cls) {
+    return '<span class="cjRond' + (cls ? ' ' + cls : '') + '" style="left:' + z.x + '%;top:' + z.y + '%;width:' + (2 * z.r) + '%;padding-bottom:' + (2 * z.r) + '%;margin-left:-' + z.r + '%;margin-top:-' + z.r + '%">' + (n ? '<i>' + n + '</i>' : '') + '</span>';
+  }
   function fusionnerCartes(type, contenu) {
+    if (TYPES[type].scene) return fusionnerScenes(type, contenu);
     var T = TYPES[type], src = (contenu && contenu.cartes && contenu.cartes[type]) || {};
     var mod = src.mod || {}, liste = [], vus = {};
     T.base.forEach(function (x) {
@@ -386,7 +681,7 @@
     var t = contenu && typeof contenu.conseils === 'string' ? contenu.conseils : '';
     return t.trim() ? t.split('\n').filter(function (l) { return l.trim(); }) : CONSEILS.slice();
   }
-  var CARTES = { pieges: [], loupe: [], chiffres: [] }, PARC = { pieges: {}, loupe: {}, chiffres: {} }, LES_CONSEILS = [];
+  var CARTES = { pieges: [], loupe: [], chiffres: [], oeil: [], passe: [] }, PARC = { pieges: {}, loupe: {}, chiffres: {}, oeil: {}, passe: {} }, LES_CONSEILS = [];
   function poserContenu(contenu, images) {
     var f = fusionner(contenu, images);
     IMAGES = f.images;
@@ -396,6 +691,8 @@
     ORDRE_TYPES.forEach(function (type) {
       CARTES[type] = fusionnerCartes(type, contenu).filter(function (x) {
         if (x.cache) return false;
+        /* une scène : une image (la photo, sinon le dessin) et assez de ronds */
+        if (TYPES[type].scene) return !!x.n && x.z.length >= TYPES[type].min && !!(x.s || (x.image && IMAGES[x.image]));
         if (type === 'pieges') return !!x.t;
         if (type === 'loupe') return /\{[^{}]+\}/.test(x.q || '');
         return !!x.q && x.c && x.c.length === 3;
@@ -519,7 +816,30 @@
     '.jv .cjEnonce .p{font-size:16px;font-weight:700;color:var(--cream);margin-left:2px}' +
     '.jv .cjEnonce .m.cle{background:#B6FF0E;color:#14161B;border:1.5px solid #14161B;font-weight:900}' +
     '.jv .cjEnonce .m.non{border:1.5px solid #D0491F;color:#D0491F;text-decoration:line-through}' +
-    '.jv .cjConseils{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:14.5px;line-height:1.45;color:var(--cream)}';
+    '.jv .cjConseils{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:14.5px;line-height:1.45;color:var(--cream)}' +
+    /* 👀 🚦 v1464 — les images à toucher */
+    '.jv .cjScene{position:relative;margin-top:10px;border-radius:18px;overflow:hidden;border:1px solid var(--verre-bord,var(--line));line-height:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none;background:#DCEBF5}' +
+    '.jv .cjScene.fini{cursor:default}' +
+    '.jv .cjScene svg,.jv .cjScene img{display:block;width:100%;height:auto;pointer-events:none}' +
+    '.jv .cjRond{position:absolute;height:0;border-radius:50%;box-sizing:content-box;pointer-events:none;box-shadow:0 0 0 3px #B6FF0E,0 0 0 5px rgba(0,0,0,.45)}' +
+    '.jv .cjRond.rate{box-shadow:0 0 0 3px #FF5A36,0 0 0 5px rgba(0,0,0,.45)}' +
+    '.jv .cjRond i{position:absolute;right:-7px;top:-7px;width:21px;height:21px;border-radius:50%;background:#B6FF0E;color:#14161B;font-style:normal;font-size:12px;font-weight:900;line-height:21px;text-align:center;box-shadow:0 0 0 1.5px #14161B}' +
+    '.jv .cjRond.rate i{background:#FF5A36;color:#fff}' +
+    '.jv .cjCroix{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:rgba(20,22,27,.72);color:#FF8A6B;font-size:13px;font-weight:900;line-height:22px;text-align:center;pointer-events:none}' +
+    '.jv .cjMethode{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:10px}' +
+    '.jv .cjMethode div{border-radius:12px;padding:6px 2px;text-align:center;font-size:11px;font-weight:800;line-height:1.2;color:var(--cream);background:var(--verre2,var(--navy-deep));border:1px solid var(--verre-bord,var(--line))}' +
+    '.jv .cjMethode b{display:block;font-size:15px}' +
+    '.jv .cjIndices{margin-top:10px;padding:6px 14px}' +
+    '.jv .cjIndices .l{display:flex;gap:10px;align-items:flex-start;padding:9px 0;font-size:14px;line-height:1.4;color:var(--cream)}' +
+    '.jv .cjIndices .l + .l{border-top:1px solid var(--verre-bord,var(--line))}' +
+    '.jv .cjIndices .l i{flex:none;width:24px;height:24px;border-radius:50%;background:#B6FF0E;color:#14161B;font-style:normal;font-size:13px;font-weight:900;line-height:24px;text-align:center}' +
+    '.jv .cjIndices .l i.rate{background:#D0491F;color:#fff}' +
+    '.jv .cjIndices .l b{display:block;font-weight:800}' +
+    '.jv .cjOrdre{display:flex;gap:8px;margin-top:10px}' +
+    '.jv .cjOrdre div{flex:1 1 0;min-width:0;border-radius:14px;padding:8px 4px;text-align:center;border:2px dashed var(--verre-bord,#C9CCBF);font-size:13px;font-weight:700;line-height:1.25;color:var(--muted);overflow-wrap:anywhere}' +
+    '.jv .cjOrdre div b{display:block;font-size:12px;color:var(--muted)}' +
+    '.jv .cjOrdre div.ok{border:2px solid #2E8B14;background:rgba(46,139,20,.14);color:var(--cream)}' +
+    '.jv .cjOrdre div.dit{border:2px solid #D0491F;background:rgba(195,58,18,.10);color:var(--cream)}';
   function poserLeStyle() {
     if (document.getElementById('cjStyle')) return;
     var s = document.createElement('style');
@@ -581,7 +901,7 @@
       '<div class="jvXp"><i style="width:' + nv.pct + '%"></i></div>' +
       '<div class="jvDoux"><b style="color:#B6FF0E">' + su + '</b> panneau' + (su > 1 ? 'x' : '') + ' connu' + (su > 1 ? 's' : '') + ' sur ' + total +
       ' · <b style="color:#B6FF0E">' + nbSus('pieges') + '</b> piège' + (nbSus('pieges') > 1 ? 's' : '') + ' déjoué' + (nbSus('pieges') > 1 ? 's' : '') + ' sur ' + CARTES.pieges.length + '</div>'));
-    var go = el('button', 'nvGo', '<span class="e">▶️</span><span><b>Ma séance du jour</b><small>5 minutes : des panneaux, des pièges, une question à la loupe, un chiffre</small></span>');
+    var go = el('button', 'nvGo', '<span class="e">▶️</span><span><b>Ma séance du jour</b><small>5 minutes : panneaux, pièges, loupe, chiffre, une image, un carrefour</small></span>');
     go.type = 'button';
     go.setAttribute('data-cj-mode', 'seance');
     go.addEventListener('click', function () { seance(false); });
@@ -598,7 +918,6 @@
     mode(g, '🔁', 'À revoir', r ? r + ' carte' + (r > 1 ? 's reviennent' : ' revient') + ' aujourd’hui' : 'Rien à revoir 👏', r, function () { seance(true); });
     if (LES_CONSEILS.length) mode(g, '📝', 'Conseils pour l’examen', 'Le mémo de l’auto-école', 0, conseils);
     j.appendChild(g);
-    j.appendChild(el('div', 'cjNote', 'Bientôt ici : 👀 L’œil du conducteur et 🚦 Qui passe ?'));
     var c = el('div', 'card', '<div class="section-title" style="margin-bottom:4px">📈 Où j’en suis</div>');
     FAMILLES.forEach(function (f) {
       var t = LISTE.filter(function (p) { return p.f === f[0]; }).length;
@@ -679,7 +998,7 @@
   }
   /* seance(false)        : la séance du jour, mélangée
      seance(true)         : « à revoir », tout ce qui revient aujourd'hui
-     seance(false, type)  : un seul jeu (pieges, loupe, chiffres) */
+     seance(false, type)  : un seul jeu (pieges, loupe, chiffres, oeil, passe) */
   function seance(revoirSeul, type) {
     var l = [];
     var prendre = function (t, n) {
@@ -689,9 +1008,9 @@
     if (revoirSeul) l = melanger(toutesDues()).slice(0, 12);
     else if (type) prendre(type, TYPES[type].n);
     else {
-      /* 4 panneaux, 2 pièges, 1 loupe, 1 chiffre ; s'il manque une sorte, des panneaux à la place */
-      prendre('pieges', 2); prendre('loupe', 1); prendre('chiffres', 1);
-      prendre('p', 8 - l.length);
+      /* 4 panneaux, 2 pièges, 1 loupe, 1 chiffre, 1 image, 1 carrefour ; s'il manque une sorte, des panneaux à la place */
+      prendre('pieges', 2); prendre('loupe', 1); prendre('chiffres', 1); prendre('oeil', 1); prendre('passe', 1);
+      prendre('p', 10 - l.length);
       l = melanger(l);
     }
     if (!l.length) {
@@ -734,6 +1053,8 @@
     if (x.t === 'pieges') { questionPiege(j, PARC.pieges[x.k]); return; }
     if (x.t === 'loupe') { questionLoupe(j, PARC.loupe[x.k]); return; }
     if (x.t === 'chiffres') { questionChiffre(j, PARC.chiffres[x.k]); return; }
+    if (x.t === 'oeil') { questionOeil(j, PARC.oeil[x.k]); return; }
+    if (x.t === 'passe') { questionPasse(j, PARC.passe[x.k]); return; }
     var p = PAR[x.k];
     if (!p) { S.i++; question(); return; }
     var sens = Math.random() < 0.5;      /* le panneau → son sens, ou le sens → son panneau */
@@ -885,6 +1206,134 @@
     j.appendChild(z);
     j.setAttribute('data-cj-bonne', String(c.b));
   }
+  /* ============================================================
+     👀 🚦 v1464 — TOUCHER L'IMAGE
+     ============================================================ */
+  /* où le doigt s'est posé, en pour cent de l'image */
+  function toucheDe(boite, ev) {
+    var r = boite.getBoundingClientRect();
+    return { x: (ev.clientX - r.left) / r.width * 100, y: (ev.clientY - r.top) / r.height * 100, w: r.width, h: r.height };
+  }
+  /* le rond touché : le plus proche parmi ceux où le doigt est dedans
+     (avec une marge : un doigt n'est pas une souris). -1 : à côté. */
+  function rondTouche(z, t) {
+    var mieux = -1, dm = 1e9;
+    z.forEach(function (r, i) {
+      var dx = (t.x - r.x) / 100 * t.w, dy = (t.y - r.y) / 100 * t.h, d = Math.sqrt(dx * dx + dy * dy);
+      if (d <= Math.max(r.r / 100 * t.w * 1.15, 22) && d < dm) { dm = d; mieux = i; }
+    });
+    return mieux;
+  }
+  function poserRond(boite, z, n, cls) { var d = document.createElement('div'); d.innerHTML = rondSur(z, n, cls); boite.appendChild(d.firstChild); }
+  /* 👀 l'œil du conducteur : toucher tout ce qu'il faut voir ; trois touches à côté, et c'est fini */
+  var OEIL_A_COTE = 3;
+  function questionOeil(j, c) {
+    if (!c) { S.i++; question(); return; }
+    var total = c.z.length, vus = {}, nbVus = 0, aCote = 0, fini = false;
+    var b = bulle(j, 'Regarde bien l’image', 'Touche tout ce qu’un conducteur doit voir.<span class="cjCompte" style="display:block;font-size:13px;font-weight:600;color:var(--muted)"></span>');
+    var compte = b.querySelector('.cjCompte');
+    var dire = function () {
+      var reste = OEIL_A_COTE - aCote;
+      compte.textContent = nbVus + ' indice' + (nbVus > 1 ? 's' : '') + ' sur ' + total + ' · encore ' + reste + ' touche' + (reste > 1 ? 's' : '') + ' à côté permise' + (reste > 1 ? 's' : '');
+    };
+    dire();
+    j.appendChild(el('div', 'cjMethode', '<div><b>①</b>Au loin</div><div><b>②</b>Devant moi</div><div><b>③</b>Les rétros</div><div><b>④</b>Mon compteur</div>'));
+    var boite = el('div', 'cjScene', imageScene(c));
+    boite.setAttribute('data-cj-scene', c.k);
+    j.appendChild(boite);
+    var liste = el('div', 'card cjIndices');
+    liste.style.display = 'none';
+    j.appendChild(liste);
+    var ligne = function (i, rate) {
+      var z = c.z[i];
+      liste.style.display = '';
+      liste.appendChild(el('div', 'l', '<i' + (rate ? ' class="rate"' : '') + '>' + (i + 1) + '</i><span><b>' + esc(z.t) + '</b>' + (rate ? 'Tu ne l’avais pas vu. ' : '') + esc(z.e) + '</span>'));
+    };
+    var bFin = null;
+    var finir = function () {
+      if (fini) return;
+      fini = true;
+      boite.className += ' fini';
+      if (bFin && bFin.parentNode) bFin.parentNode.removeChild(bFin);
+      c.z.forEach(function (z, i) { if (!vus[i]) { poserRond(boite, z, i + 1, 'rate'); ligne(i, true); } });
+      var ok = nbVus === total, manque = total - nbVus;
+      compte.textContent = nbVus + ' indice' + (nbVus > 1 ? 's' : '') + ' vu' + (nbVus > 1 ? 's' : '') + ' sur ' + total;
+      apresReponse(j, idDe('oeil', c.k), ok, ok
+        ? '<small>✅ Tout vu · +10 XP</small>' + esc(c.e)
+        : '<b>👀 Il manquait ' + manque + ' indice' + (manque > 1 ? 's' : '') + ' (en rouge)</b>' + esc(c.e) + ' Cette image revient demain.');
+    };
+    boite.addEventListener('click', function (ev) {
+      if (fini) return;
+      var t = toucheDe(boite, ev), i = rondTouche(c.z, t);
+      if (i !== -1 && vus[i]) return;                 /* déjà trouvé : ni bon ni mauvais */
+      if (i === -1) {
+        aCote++;
+        vibrer(40);
+        var x = el('span', 'cjCroix', '✕');
+        x.style.left = t.x + '%'; x.style.top = t.y + '%';
+        boite.appendChild(x);
+        dire();
+        if (aCote >= OEIL_A_COTE) finir();
+        return;
+      }
+      vus[i] = true; nbVus++;
+      vibrer(10);
+      poserRond(boite, c.z[i], i + 1, '');
+      ligne(i, false);
+      dire();
+      if (nbVus >= total) finir();
+    });
+    bFin = bouton(j, 'Je ne vois rien d’autre', finir, true);
+    j.setAttribute('data-cj-bonne', 'oeil');
+  }
+  /* 🚦 qui passe ? : toucher les véhicules dans l'ordre où ils passent */
+  function rangDit(i) { return i === 0 ? '1er' : (i + 1) + 'e'; }
+  function questionPasse(j, c) {
+    if (!c) { S.i++; question(); return; }
+    var total = c.z.length, rang = 0, fini = false, places = {};
+    bulle(j, c.n, esc(c.q || 'Touche les véhicules dans l’ordre où ils passent.'));
+    var boite = el('div', 'cjScene', imageScene(c));
+    boite.setAttribute('data-cj-scene', c.k);
+    j.appendChild(boite);
+    var ordre = el('div', 'cjOrdre'), cases = [];
+    c.z.forEach(function (z, i) {
+      var d = el('div', '', '<b>' + rangDit(i) + '</b><span>' + (i === 0 ? 'Touche le premier' : (i === total - 1 ? 'Touche le dernier' : 'Touche le suivant')) + '</span>');
+      cases.push(d);
+      ordre.appendChild(d);
+    });
+    j.appendChild(ordre);
+    var finir = function (ok, faux) {
+      if (fini) return;
+      fini = true;
+      boite.className += ' fini';
+      if (!ok) {
+        /* on montre le bon ordre : les ronds numérotés, les cases remplies */
+        [].forEach.call(boite.querySelectorAll('.cjRond,.cjCroix'), function (x) { boite.removeChild(x); });
+        c.z.forEach(function (z, i) {
+          poserRond(boite, z, i + 1, i === faux ? 'rate' : '');
+          cases[i].className = i < rang ? 'ok' : 'dit';
+          cases[i].querySelector('span').textContent = z.t;
+        });
+      }
+      apresReponse(j, idDe('passe', c.k), ok, ok
+        ? '<small>✅ Le bon ordre · +10 XP · pourquoi</small>' + esc(c.e)
+        : '<b>🚦 L’ordre : ' + c.z.map(function (z, i) { return (i + 1) + '. ' + esc(z.t); }).join(' · ') + '</b>' + esc(c.e) + ' Ce carrefour revient demain.');
+    };
+    boite.addEventListener('click', function (ev) {
+      if (fini) return;
+      var i = rondTouche(c.z, toucheDe(boite, ev));
+      if (i === -1 || places[i]) return;                /* à côté, ou déjà placé : rien */
+      if (i !== rang) { vibrer(60); finir(false, i); return; }
+      places[i] = true;
+      vibrer(10);
+      poserRond(boite, c.z[i], rang + 1, '');
+      cases[rang].className = 'ok';
+      cases[rang].querySelector('span').textContent = c.z[i].t;
+      rang++;
+      if (rang >= total) finir(true);
+    });
+    j.setAttribute('data-cj-bonne', 'passe');
+  }
   function finSeance() {
     D.seances++;
     jouerAujourdhui();
@@ -894,7 +1343,7 @@
     var tout = S.bons === S.l.length;
     j.appendChild(el('div', 'card cjBilan', '<div class="g">' + (tout ? '🏆' : (S.bons >= S.l.length / 2 ? '💪' : '🌱')) + '</div><h3>' + S.bons + ' sur ' + S.l.length + '</h3>' +
       '<p>' + (tout ? 'Sans faute !' : (S.rates.length + ' carte' + (S.rates.length > 1 ? 's reviennent' : ' revient') + ' demain.')) + '</p>' +
-      '<div class="cjStats"><div><b>+' + (D.xp - S.xp0) + '</b>XP</div><div><b>🔥 ' + D.serie + '</b>jour' + (D.serie > 1 ? 's' : '') + ' de suite</div><div><b>' + (nbConnus() + nbSus('pieges') + nbSus('loupe') + nbSus('chiffres')) + '/' + (LISTE.length + CARTES.pieges.length + CARTES.loupe.length + CARTES.chiffres.length) + '</b>cartes sues</div></div>'));
+      '<div class="cjStats"><div><b>+' + (D.xp - S.xp0) + '</b>XP</div><div><b>🔥 ' + D.serie + '</b>jour' + (D.serie > 1 ? 's' : '') + ' de suite</div><div><b>' + ORDRE_TYPES.reduce(function (n, t) { return n + nbSus(t); }, nbConnus()) + '/' + ORDRE_TYPES.reduce(function (n, t) { return n + CARTES[t].length; }, LISTE.length) + '</b>cartes sues</div></div>'));
     if (S.rates.length) {
       var c = el('div', 'card', '<div class="section-title" style="margin-bottom:8px">À revoir</div>');
       var g = el('div', 'cjAbc');
@@ -902,7 +1351,7 @@
       S.rates.forEach(function (x) {
         if (x.t !== 'p') {
           var k = PARC[x.t][x.k];
-          if (k) autres.appendChild(el('li', '', TYPES[x.t].ic + ' ' + esc(x.t === 'pieges' ? k.t : String(k.q).replace(/[{}]/g, ''))));
+          if (k) autres.appendChild(el('li', '', TYPES[x.t].ic + ' ' + esc(TYPES[x.t].scene ? k.n : (x.t === 'pieges' ? k.t : String(k.q).replace(/[{}]/g, '')))));
           return;
         }
         var p = PAR[x.k];
@@ -1092,6 +1541,9 @@
     TYPES: TYPES,
     fusionnerCartes: fusionnerCartes,
     conseilsDe: conseilsDe,
+    /* 👀 v1464 — l'image d'une scène et un rond posé dessus, pour l'atelier */
+    imageScene: imageScene,
+    rond: rondSur,
     /* la page ouvre l'onglet : { zone, appeler(quoi, données) → promesse } */
     ouvrir: function (o) {
       O = o;
