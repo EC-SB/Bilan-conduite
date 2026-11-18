@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 15:01 — v1469 */
+/* Déployé le 18/11/2026 à 15:51 — v1470 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1470,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '📊 Ce qui interroge le serveur : la mesure, pour réduire',
+    quoi: [
+      { emoji: '📊',
+        titre: 'Gestion › Accès › 📊 Ce qui interroge le serveur',
+        texte: 'Cloudflare a prévenu : 75 % de la limite de 100 000 requêtes par jour. Le serveur compte maintenant chaque requête, par écran et par action, et cette partie les range de la plus coûteuse à la moins coûteuse, avec le rythme heure par heure et l’estimation par jour. Réservé aux admins.' }
+    ]
+  },
   {
     version: 1469,
     date: 'Mercredi 18 novembre 2026',
