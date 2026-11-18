@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:39 — v1460 */
+/* Déployé le 18/11/2026 à 10:57 — v1461 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1461,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '☕ Coin café : Horoscope, Infos et Météo ont chacun leur bouton, avec plus de texte',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Une catégorie « Infos et horoscope »',
+        texte: 'Dans le coin café, sous « Jeux solo », une nouvelle catégorie avec trois boutons : 🔮 Horoscope, 📰 Infos et ⛅ Météo. Chacun ouvre sa fenêtre. Les filtres (Monde, France, Saint-Brieuc · Loudéac, Auto-école et route, Sport) sont dans « Infos ».' },
+      { emoji: '🔮',
+        titre: 'Plus de texte pour tous les horoscopes',
+        texte: 'Pour ton signe comme pour les 11 autres : aujourd’hui, cette semaine, ce mois-ci et cette saison. Quand le site coupe son texte, « Lire la suite » mène à la fin sur son site.' },
+      { emoji: '📰',
+        titre: 'Les infos : le résumé, pas juste le titre',
+        texte: 'Chaque article montre le résumé que le journal donne (2 à 4 lignes), en entier. Pour Saint-Brieuc, Loudéac et l’auto-école, une nouvelle source (Bing Actualités) apporte un résumé là où il n’y avait que le titre. L’article complet reste sur le site du journal : un appui l’ouvre.' }
+    ]
+  },
   {
     version: 1460,
     date: 'Mercredi 18 novembre 2026',
