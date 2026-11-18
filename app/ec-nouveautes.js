@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 11:54 — v1463 */
+/* Déployé le 18/11/2026 à 12:18 — v1464 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,31 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1464,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '🚦 « Mon code » : l’œil du conducteur et « Qui passe ? », avec leurs images à corriger dans l’atelier',
+    quoi: [
+      { emoji: '👀',
+        titre: 'L’œil du conducteur',
+        texte: 'Une image vue du volant : l’élève touche tout ce qu’un conducteur doit voir (au loin, devant moi, les rétros, mon compteur). Chaque indice trouvé s’entoure et s’explique ; trois touches à côté et l’image est finie, les indices manqués passent en rouge. Six images dessinées pour commencer : en ville, près d’une école, le feu orange, la pluie, un cycliste, un bus à son arrêt.' },
+      { emoji: '🚦',
+        titre: 'Qui passe ?',
+        texte: 'Un carrefour vu d’en haut : l’élève touche les véhicules dans l’ordre où ils passent, puis lit pourquoi. Huit carrefours : priorité à droite (à trois, et le piège de la voiture qui vient de gauche), stop, cédez-le-passage, tourner à gauche, le piéton quand je tourne au feu vert, le giratoire, les pompiers.' },
+      { emoji: '🖼️',
+        titre: 'Tu remplaces mes dessins par tes photos',
+        texte: 'Ce sont des dessins faits par l’appli, pas des photos : je n’ai pas le droit de reprendre celles d’internet. Dans l’atelier (Élèves › 🎓 Code › « 🚦 Le jeu du code »), onglets « 👀 L’œil » et « 🚦 Qui passe ? » : « Remplacer le dessin par une photo », puis touche un numéro dans la liste et touche l’image pour y poser son rond. « − » et « ＋ » changent sa taille, « ↑ » « ↓ » son rang.' },
+      { emoji: '✏️',
+        titre: 'Tout le reste se corrige aussi',
+        texte: 'Le titre, le nom et l’explication de chaque rond, la conclusion, la consigne d’un carrefour. Pour « Qui passe ? », l’ordre de la liste est l’ordre de passage : si je me suis trompé, remonte ou descends un véhicule. Tu peux cacher une image, en ajouter une avec ta photo, ou tout remettre comme au départ.' },
+      { emoji: '▶️',
+        titre: 'La séance du jour passe à 10 cartes',
+        texte: '4 panneaux, 2 pièges, 1 question à la loupe, 1 chiffre, 1 image et 1 carrefour. « À revoir » rassemble les cartes ratées des six jeux.' },
+      { emoji: '⏳',
+        titre: 'La suite',
+        texte: 'Le suivi du jeu dans le dossier de l’élève (onglet 🎓 Code) : où il en est, ce qu’il rate.' }
+    ]
+  },
   {
     version: 1463,
     date: 'Mercredi 18 novembre 2026',
