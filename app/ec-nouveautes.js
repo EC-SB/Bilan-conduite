@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 09:19 — v1457 */
+/* Déployé le 18/11/2026 à 10:07 — v1458 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1458,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '☕ Coin café : contre l’ordinateur, des jeux solo, et la course se gagne en tapant',
+    quoi: [
+      { emoji: '🤖',
+        titre: 'Contre l’ordinateur',
+        texte: 'Dans le coin café, l’onglet « 🤖 L’ordinateur » : tous les jeux à plusieurs (sauf la courte paille), en Facile, Moyen ou Fort. La partie commence tout de suite. Ses scores sont à part dans le palmarès : ils ne comptent pas entre collègues.' },
+      { emoji: '🏎️',
+        titre: 'La course se gagne en tapant',
+        texte: 'Chaque appui sur « 👆 TAPE ! » (ou la barre d’espace) fait avancer ta voiture : 50 appuis pour franchir la ligne, le plus rapide gagne. Le podium donne les temps.' },
+      { emoji: '🕹️',
+        titre: 'Des jeux solo',
+        texte: 'Le démineur (facile, moyen, difficile), le Memory des panneaux (6, 8 ou 12 paires de panneaux du code), le serpent (ramasser les plots), 2048 et le Sudoku du jour (la même grille pour toute l’équipe, seule ta première fois compte). Les records de chacun sont dans le palmarès, visibles par toute l’équipe.' }
+    ]
+  },
   {
     version: 1457,
     date: 'Mercredi 18 novembre 2026',
