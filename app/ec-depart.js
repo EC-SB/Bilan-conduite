@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 17:12 — v1455 */
+/* Déployé le 18/11/2026 à 14:27 — v1467 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2381,6 +2381,9 @@ function lancerSurveillanceSession(){
 
 /* Reprend la session mémorisée, après vérification du code */
 async function reprendreSession(){
+  /* 🖥️ v1467 — L'ORDINATEUR DE LA SALLE DE CODE (?poste=1) : pas de
+     session personnelle, sa clé à lui. Voir ec-salle-code.js. */
+  if(window.EC_POSTE && typeof posteDemarrer === 'function') return posteDemarrer();
   /* ◫ v1455 — DANS LE PANNEAU D'À CÔTÉ, la session est celle de l'appli
      qui l'a ouvert, telle quelle : pas de deuxième vérification du code
      (elle vient d'être faite), et surtout pas de « mode réduit » si le
@@ -2485,6 +2488,8 @@ function ouvrirSessionDegradee(s){
 
 /* ---------- Déverrouillage ---------- */
 async function deverrouiller(){
+  /* 🖥️ v1467 — sur l'ordinateur de la salle, ce bouton l'installe */
+  if(window.EC_POSTE && typeof posteInstallerDepuisLaPage === 'function') return posteInstallerDepuisLaPage();
   const code = $('codeInput').value.trim();
   const ident = $('identInput') ? $('identInput').value.trim() : '';
   const msg = $('codeMsg');
