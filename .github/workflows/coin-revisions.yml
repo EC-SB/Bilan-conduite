@@ -1,4 +1,4 @@
-# Déployé le 10/11/2026 à 13:42 — v1403
+# Déployé le 18/11/2026 à 12:42 — v1465
 # ============================================================
 #  PUBLIER LE COIN RÉVISIONS SUR SON PROPRE DOMAINE
 #
@@ -35,6 +35,9 @@ on:
       - 'apple-touch-icon.png'     # 🖼 v1388 — l'adresse que l'iPhone essaie tout seul
       - 'bureau.html'
       - 'appel-commun.js'   # 📞 v1183 — l'écran d'appel, partagé avec l'appli
+      - 'cafe-commun.js'    # ☕ v1465 — le coin café (eleve.html le charge depuis la v1456)
+      - 'code-commun.js'    # 🚦 v1465 — le jeu du code « Mon code » (depuis la v1462)
+      - '.github/workflows/coin-revisions.yml'   # 🔁 v1465 — et cette action elle-même : la changer republie
       - 'app/ec-verifs-banque.js'   # 🎮 v1248 — les 100 questions, pour le jeu des vérifications
       - 'app/ec-montage.js'         # 🎬 v1252 — le lecteur des vidéos montées du parcours
       - 'app/ec-montage-polices.js' # 🎬 v1252 — ses 5 polices, chargées à la demande
@@ -59,6 +62,12 @@ jobs:
           cp sw.js manifest-eleve.webmanifest manifest-salle.webmanifest sortie/
           # 📞 v1183 — l'écran d'appel : eleve.html le charge à côté d'elle
           cp appel-commun.js sortie/
+          # ☕ 🚦 v1465 — le coin café et le jeu du code : eleve.html les
+          # charge à côté d'elle depuis les v1456 et v1462, mais cette
+          # action ne les recopiait pas — l'onglet « Code » et le coin café
+          # manquaient chez les élèves (constaté le 18 novembre). Même nom
+          # qu'au dépôt principal, à la racine, comme appel-commun.js.
+          cp cafe-commun.js code-commun.js sortie/
           # 🎮 v1248 — les 100 questions de vérification : le jeu de la
           # page élève les charge à côté d'elle (une seule source, recopiée)
           # (à la racine, sous « verifs-banque.js » : le dossier app/ de
