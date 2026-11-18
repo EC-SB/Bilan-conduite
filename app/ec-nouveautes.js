@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:48 — v1468 */
+/* Déployé le 18/11/2026 à 15:01 — v1469 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1469,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '✏️ Une réponse rapide peut se coller dans le texte, à compléter avant d’envoyer · 📱 sa fenêtre tient dans l’écran',
+    quoi: [
+      { emoji: '✏️',
+        titre: '« Se colle dans le texte », réponse par réponse',
+        texte: 'Dans ⚙️ Régler les réponses rapides, chaque réponse a sa case « ✏️ Se colle dans le texte » : au lieu de partir tout de suite, son texte va dans la zone d’écriture, on le complète ou on le modifie, puis on envoie. Le réglage vaut pour toute l’équipe ; le bouton a alors un contour en pointillés. L’ancien choix du menu ⚡ (téléphone par téléphone) est remplacé par cette case.' },
+      { emoji: '📱',
+        titre: 'La fenêtre d’une réponse rapide',
+        texte: 'Elle tient dans la hauteur de l’écran et défile à l’intérieur (le titre et « Supprimer » ne sortent plus de l’écran) ; sur téléphone, elle prend toute la largeur.' }
+    ]
+  },
   {
     version: 1468,
     date: 'Mercredi 18 novembre 2026',
