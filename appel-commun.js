@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:22 — v1427 */
+/* Déployé le 18/11/2026 à 14:48 — v1468 */
 /* ============================================================
    appel-commun.js — 📞 LES APPELS, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -100,6 +100,13 @@
     '.aplBt.coupe i{background:#3A2A20;color:#FFB4A0}',
     '.aplBt.rouge i{background:#E5484D;color:#fff}',
     '.aplBt[disabled]{opacity:.5;cursor:default}',
+    /* 🎙️ v1468 — l'état se lit sous chaque interrupteur : vert ouvert, rouge coupé */
+    '.aplBt i{position:relative}',
+    '.aplBt small{display:block;font-size:10.5px;font-weight:800;margin-top:-3px;letter-spacing:.01em}',
+    '.aplBt.actif i{box-shadow:0 0 0 3px #3DD68C}.aplBt.actif small{color:#3DD68C}',
+    '.aplBt.coupe i{box-shadow:0 0 0 3px #E5484D}.aplBt.coupe small{color:#FF8A75}',
+    '.aplBt.moitie i{box-shadow:0 0 0 3px #FFB547}.aplBt.moitie small{color:#FFB547}',
+    '.aplBt .bulle{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;border-radius:999px;background:#E5484D;color:#fff;font-size:11px;font-weight:800;font-style:normal;display:flex;align-items:center;justify-content:center;padding:0 5px;box-sizing:border-box}',
     '.aplMsg{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(20,26,32,.95);border:1px solid #1F2A33;border-radius:12px;padding:8px 12px;font-size:13px;z-index:5;max-width:90%;text-align:center}',
     '.aplListe{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:#141A20;border:1px solid #1F2A33;border-radius:14px;padding:10px;z-index:6;min-width:240px;max-width:92%}',
     '.aplListe b{display:block;font-size:13px;margin:0 0 6px}',
@@ -147,11 +154,28 @@
     '.aplQuest .tete a,.aplQuest .tete button{white-space:nowrap;flex-shrink:0;color:#E9F1F5;background:#1F2A33;border:0;border-radius:9px;padding:6px 9px;font:inherit;font-size:12px;cursor:pointer;text-decoration:none;margin:0}',
     '.aplQuest iframe{flex:1;border:0;width:100%;background:#fff;min-height:0}',
     '.aplBt .em{font-size:24px;line-height:1;font-style:normal}',
+    /* 💬 v1468 — le chat écrit du cours */
+    '.aplCote{display:flex;flex-direction:column}',
+    '.aplGens{flex:0 1 auto;overflow:auto;min-height:0}',
+    '.aplChat{display:flex;flex-direction:column;min-height:0}',
+    '.aplCote .aplChat{flex:1 1 auto;min-height:170px;border-top:1px solid #1F2A33;margin-top:8px;padding-top:8px}',
+    '.aplCours > .aplChat{width:min(380px,40%);flex-shrink:0;background:#141A20;border:1px solid #1F2A33;border-radius:16px;padding:10px}',
+    '.aplCours > .aplChat[hidden]{display:none}',
+    '.aplChat .t{font-size:12px;font-weight:800;color:#9AA7B1;letter-spacing:.06em;margin:2px 4px 6px}',
+    '.aplChat .aide{font-size:11.5px;color:#7E8C97;margin:0 4px 6px;line-height:1.4}',
+    '.aplChat .l{flex:1;min-height:40px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:2px}',
+    '.aplChat .m{background:#1F2A33;color:#E9F1F5;border-radius:12px;padding:6px 9px;font-size:13px;line-height:1.35;max-width:92%;align-self:flex-start;overflow-wrap:anywhere}',
+    '.aplChat .m.moi{background:#B6FF0E;color:#0B0B0B;align-self:flex-end}',
+    '.aplChat .m b{display:block;font-size:11px;color:#9AA7B1;margin-bottom:1px}.aplChat .m.moi b{color:#3B4A0A}',
+    '.aplChat .vide{font-size:12px;color:#7E8C97;padding:4px}',
+    '.aplChat form{display:flex;gap:6px;margin:8px 0 0}',
+    '.aplChat input{flex:1;min-width:0;border:1px solid #2A3540;background:#0B0F13;color:#E9F1F5;border-radius:10px;padding:9px 10px;font:inherit;font-size:15px;margin:0}',
+    '.aplChat form button{border:0;border-radius:10px;padding:0 12px;background:#B6FF0E;color:#0B0B0B;font:inherit;font-weight:800;font-size:13px;cursor:pointer;margin:0}',
     '.aplCours .aplMsg{top:54px}',
     /* 📝 v1426 — la feuille de réponses (ou le Google Form) SOUS l'image, plus par-dessus */
     '.aplFeuille{width:min(470px,46%);flex-shrink:0;background:#0B0F13;border:1px solid #1F2A33;border-radius:16px;overflow:auto;min-height:0;padding:10px;overscroll-behavior:contain}',
     '.aplFeuille[hidden]{display:none}',
-    '@media (max-width:640px){.aplCours{flex-direction:column}.aplCote{width:auto;max-height:36%}.aplQuest,.aplFeuille{position:relative;inset:auto;width:auto;flex:1;z-index:1}' +
+    '@media (max-width:640px){.aplCours{flex-direction:column}.aplCote{width:auto;max-height:46%}.aplQuest,.aplFeuille,.aplCours > .aplChat{position:relative;inset:auto;width:auto;flex:1;z-index:1}' +
       '.aplCours.avecPanneau .aplScene{flex:0 0 auto;width:100%;aspect-ratio:16/9;max-height:46%}.aplCours.avecPanneau .aplPlein{top:auto;bottom:8px;right:8px;padding:4px 9px;font-size:11.5px}}',
     '@media (max-width:640px){.aplBas{gap:4px;flex-wrap:nowrap}.aplBt{flex:1 1 0;min-width:0;max-width:80px}.aplBt{font-size:11px}.aplBt span{text-align:center;line-height:1.2}.aplBt i{width:52px;height:52px}.aplRond{width:64px;height:64px;font-size:22px}}'
   ].join('\n');
@@ -302,8 +326,10 @@
         feuille: typeof o.cours.feuille === 'function' ? o.cours.feuille : null,
         progres: typeof o.cours.progres === 'function' ? o.cours.progres : null,
         gestes: o.cours.gestes || [], surInviter: o.cours.surInviter, surLien: o.cours.surLien, surSon: o.cours.surSon,
-        quest: false, main: false, coupeParProf: false, finSure: 0
-      } : null
+        quest: false, main: false, coupeParProf: false, finSure: 0, chat: false
+      } : null,
+      /* 💬 v1468 — le chat écrit du cours */
+      chat: { msgs: [], vus: {}, depuis: 0, nonLus: 0 }
     };
     /* La tonalité « ça sonne » de celui qui appelle : le contexte audio
        naît ici, pendant le geste (sinon Safari le laisse muet). */
@@ -367,7 +393,6 @@
         c.etat = d.appel; c.max = d.max || 6;
         var cfg = { bundlePolicy: 'max-bundle', iceServers: d.ice || [{ urls: 'stun:stun.cloudflare.com:3478' }] };
         c.pub = new RTCPeerConnection(cfg);
-        c.sub = new RTCPeerConnection(cfg);
         /* 🎚️ v1391 — LE SON DU PROF EN BONNE QUALITÉ. Par défaut, l'Opus
            d'un appel part à ~32 kb/s, réglé pour la voix : le son d'une
            vidéo de cours y devient métallique. Le prof d'un cours monte à
@@ -378,12 +403,11 @@
             ? { direction: 'sendonly', sendEncodings: [{ maxBitrate: 128000 }] } : { direction: 'sendonly' });
         } catch (e) { c.trAudio = c.pub.addTransceiver(c.audio || 'audio', { direction: 'sendonly' }); }
         c.trVideo = c.pub.addTransceiver(c.camPiste || 'video', { direction: 'sendonly' });
-        c.sub.ontrack = function () { dessinerLesTuiles(c); };
-        [c.pub, c.sub].forEach(function (pc) {
-          pc.onconnectionstatechange = function () {
-            if (pc.connectionState === 'failed') message(c, 'La connexion a lâché. Raccroche et rappelle si ça ne revient pas.');
-          };
-        });
+        c.cfg = cfg;
+        brancherLaReception(c);
+        c.pub.onconnectionstatechange = function () {
+          if (c.pub.connectionState === 'failed') message(c, 'La connexion a lâché. Raccroche et rappelle si ça ne revient pas.');
+        };
         return c.enFile(function () {
           return c.pub.createOffer()
             .then(function (offre) { return c.pub.setLocalDescription(offre); })
@@ -413,10 +437,13 @@
     if (c.fini) return;
     var tour = function () {
       if (c.fini) return;
-      poster(c, 'pouls', { cam: c.cam ? 1 : 0, micro: c.micro ? 1 : 0, partage: c.partage ? 1 : 0 })
+      var corpsPouls = { cam: c.cam ? 1 : 0, micro: c.micro ? 1 : 0, partage: c.partage ? 1 : 0 };
+      if (c.cours) corpsPouls.chatDepuis = c.chat.depuis;
+      poster(c, 'pouls', corpsPouls)
         .then(function (d) {
           if (c.fini) return;
           c.etat = d.appel || c.etat;
+          if (d.chat) recevoirLeChat(c, d.chat, true);
           if (d.dehors || (c.etat && c.etat.fini)) {
             terminer(c, false, c.cours ? 'Le cours est terminé. Merci, à bientôt !'
                                        : c.etat && c.etat.decroche ? '' : 'Personne n’a répondu.');
@@ -440,19 +467,51 @@
     c.horloge = setInterval(function () { majChrono(c); }, 1000);
   }
 
+  /* ⚠️ v1468 — LA CONNEXION QUI REÇOIT SE REFAIT, SANS RACCROCHER.
+     David, le 18/11 : « Cloudflare Realtime a refusé (session_error) :
+     Session appears to be disconnected » quand Maryne est arrivée, trois
+     minutes après le début du cours. Le Worker ouvre alors une session
+     neuve (« nouvelleSub ») ; ici, on jette l'ancienne connexion et on en
+     ouvre une autre. Si c'est la nôtre qui lâche, on demande une session
+     neuve (« neuve »). */
+  function brancherLaReception(c) {
+    var pc = new RTCPeerConnection(c.cfg);
+    c.sub = pc;
+    pc.ontrack = function () { dessinerLesTuiles(c); };
+    pc.onconnectionstatechange = function () {
+      if (c.fini || c.sub !== pc) return;
+      if (pc.connectionState === 'failed') { c.subNeuve = true; recevoir(c); }
+    };
+  }
   function recevoir(c) {
     if (c.recoit) return;
     c.recoit = true;
+    var neuve = !!c.subNeuve;
+    c.subNeuve = false;
+    var rate = false;
     c.enFile(function () {
-      return poster(c, 'recevoir', {}).then(function (d) {
+      return poster(c, 'recevoir', neuve ? { neuve: 1 } : {}).then(function (d) {
+        if (d.nouvelleSub) {
+          var vieille = c.sub;
+          brancherLaReception(c);
+          try { if (vieille) vieille.close(); } catch (e) {}
+        }
         c.recus = d.recus || [];
         if (!d.renego || !d.offre) return;
         return c.sub.setRemoteDescription(d.offre)
           .then(function () { return c.sub.createAnswer(); })
           .then(function (rep) { return c.sub.setLocalDescription(rep); })
-          .then(function () { return poster(c, 'renegocier', { reponse: { type: 'answer', sdp: c.sub.localDescription.sdp } }); });
+          .then(function () { return poster(c, 'renegocier', { reponse: { type: 'answer', sdp: c.sub.localDescription.sdp } }); })
+          .then(function (r) { if (r && r.aRefaire) { rate = true; c.subNeuve = true; } });
+      }).catch(function (e) {
+        /* un refus de session : on retente une fois avec une session neuve */
+        if (!neuve && /disconnect|session_error/i.test(String((e && e.message) || ''))) { rate = true; c.subNeuve = true; return; }
+        throw e;
       });
-    }).then(function () { c.recoit = false; dessinerLesTuiles(c); }, function () { c.recoit = false; });
+    }).then(function () {
+      c.recoit = false; dessinerLesTuiles(c);
+      if (rate && !c.fini) setTimeout(function () { recevoir(c); }, 800);
+    }, function () { c.recoit = false; });
   }
 
   /* La piste reçue d'une personne : celle du transceiver de ce « mid » */
@@ -877,7 +936,7 @@
       '<div class="aplCours">' +
         '<div class="aplScene"><span class="etiq"></span><div class="attente"></div>' +
           (c.eleve ? '<button type="button" class="aplPlein" data-a="plein" title="En grand (tourne ton téléphone)">⤢ En grand</button>' : '') + '</div>' +
-        (c.eleve ? '' : '<div class="aplCote"></div>') +
+        (c.eleve ? htmlDuChat(c) : '<div class="aplCote"><div class="aplGens"></div>' + htmlDuChat(c) + '</div>') +
         (k.feuille ? '<div class="aplFeuille" hidden></div>' : '') +
         (k.questionnaire ? '<div class="aplQuest" hidden><div class="tete"><span>📝 Séance ' + echap(k.numero) + '</span>' +
           '<a href="' + echap(k.questionnaire) + '" target="_blank" rel="noopener">↗ À part</a>' +
@@ -896,8 +955,92 @@
     if (pl) pl.addEventListener('click', function () { pleinEcranDuCours(c); });
     var fq = e.querySelector('[data-a="fermerQuest"]');
     if (fq) fq.addEventListener('click', function () { basculerQuestionnaire(c, false); });
+    brancherLeChat(c);
     boutonsDuCours(c);
     dessinerLeCours(c);
+  }
+
+  /* ---------- 💬 v1468 — LE CHAT ÉCRIT DU COURS ----------
+     David : « il faut ajouter un chat texte si jamais on n'entend pas les
+     élèves ». Chez le prof, sous la liste des élèves, toujours ouvert ;
+     chez l'élève, le bouton « 💬 Écrire », à côté de l'image. L'élève
+     écrit au prof ; la réponse du prof part à tous. Les messages arrivent
+     avec le battement (toutes les 3 s chez le prof, 5 s chez l'élève). */
+  function htmlDuChat(c) {
+    return '<div class="aplChat"' + (c.eleve ? ' hidden' : '') + '>' +
+      '<div class="t">💬 ' + (c.eleve ? 'ÉCRIRE AU PROF' : 'MESSAGES ÉCRITS') + '</div>' +
+      '<div class="aide">' + (c.eleve ? 'On ne t’entend pas ? Écris ici : le prof le lit tout de suite.'
+                                      : 'Si tu n’entends pas un élève, il peut t’écrire ici. Ta réponse part à tous les élèves.') + '</div>' +
+      '<div class="l"></div>' +
+      '<form><input type="text" maxlength="500" enterkeyhint="send" autocomplete="off" placeholder="' + (c.eleve ? 'Ton message au prof…' : 'Répondre à tous…') + '"><button type="submit">Envoyer</button></form>' +
+    '</div>';
+  }
+  function brancherLeChat(c) {
+    var z = c.e && c.e.querySelector('.aplChat');
+    if (!z) return;
+    var f = z.querySelector('form'), ch = z.querySelector('input');
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var texte = String(ch.value || '').trim();
+      if (!texte || f.getAttribute('data-envoi')) return;
+      f.setAttribute('data-envoi', '1');
+      poster(c, 'ecrire', { texte: texte, chatDepuis: c.chat.depuis }).then(function (d) {
+        ch.value = '';
+        if (d.chat) recevoirLeChat(c, d.chat, false);
+      }, function (e) { message(c, 'Message pas parti : ' + ((e && e.message) || e)); })
+        .then(function () { f.removeAttribute('data-envoi'); });
+    });
+    dessinerLeChat(c);
+  }
+  function recevoirLeChat(c, liste, prevenir) {
+    var neufs = [];
+    (liste || []).forEach(function (m) {
+      if (c.chat.vus[m.id]) return;
+      c.chat.vus[m.id] = true;
+      c.chat.msgs.push(m);
+      if (m.id > c.chat.depuis) c.chat.depuis = m.id;
+      if (!m.moi) neufs.push(m);
+    });
+    if (c.chat.msgs.length > 200) c.chat.msgs = c.chat.msgs.slice(-200);
+    if (!neufs.length && !(liste || []).length) return;
+    dessinerLeChat(c);
+    if (prevenir && neufs.length) {
+      var dernier = neufs[neufs.length - 1];
+      var vu = !c.eleve || (c.cours && c.cours.chat);
+      if (!vu) { c.chat.nonLus += neufs.length; boutonsDuCours(c); }
+      message(c, '💬 ' + (dernier.qui || '') + ' : ' + String(dernier.texte || '').slice(0, 140));
+    }
+  }
+  function dessinerLeChat(c) {
+    var z = c.e && c.e.querySelector('.aplChat .l');
+    if (!z) return;
+    var bas = z.scrollHeight - z.scrollTop - z.clientHeight < 40;
+    var h = c.chat.msgs.length ? '' : '<div class="vide">' + (c.eleve ? 'Pas encore de message.' : 'Aucun message pour l’instant.') + '</div>';
+    c.chat.msgs.forEach(function (m) {
+      var d = new Date(m.rang || 0);
+      var deux = function (n) { return (n < 10 ? '0' : '') + n; };
+      var heure = m.rang ? deux(d.getHours()) + ':' + deux(d.getMinutes()) : '';
+      h += '<div class="m' + (m.moi ? ' moi' : '') + '"><b>' + echap(m.moi ? 'Toi' : (m.qui || '') + (m.equipe && c.eleve ? ' · prof' : '')) +
+           (heure ? ' · ' + heure : '') + '</b>' + echap(m.texte) + '</div>';
+    });
+    if (z.getAttribute('data-h') === h) return;
+    z.setAttribute('data-h', h);
+    z.innerHTML = h;
+    if (bas || c.chat.msgs.length && c.chat.msgs[c.chat.msgs.length - 1].moi) z.scrollTop = z.scrollHeight;
+  }
+  function basculerLeChat(c, oui) {
+    var k = c.cours;
+    var z = c.e && c.e.querySelector('.aplCours > .aplChat');
+    if (!z) return;
+    k.chat = oui === undefined ? !k.chat : !!oui;
+    z.hidden = !k.chat;
+    if (k.chat) {
+      c.chat.nonLus = 0;
+      var l = z.querySelector('.l'); if (l) l.scrollTop = l.scrollHeight;
+      var ch = z.querySelector('input'); if (ch && !c.tel) { try { ch.focus(); } catch (e) {} }
+    }
+    if (c.grille) c.grille.classList.toggle('avecPanneau', !!(k.quest || k.chat));
+    boutonsDuCours(c);
   }
 
   function pleinEcranDuCours(c) {
@@ -983,13 +1126,20 @@
         : la.length + ' présent' + (la.length > 1 ? 's' : '') + ' sur ' + eleves.length +
           (mains.length ? ' · ✋ ' + mains.length : '');
     }
-    if (!c.eleve) dessinerLaListeDuCours(c, eleves);
+    if (!c.eleve) {
+      dessinerLaListeDuCours(c, eleves);
+      /* 🎙️ v1468 — l'état des micros des élèves change avec le battement :
+         le bouton du bas suit (avant, il gardait celui de son dernier dessin) */
+      var ouv = la.filter(function (x) { return !x.coupe && x.micro !== 0; }).length;
+      var cleMicros = la.length + '/' + ouv + '/' + (eleves.length && eleves.every(function (x) { return x.coupe; }) ? 1 : 0);
+      if (c.cleMicros !== cleMicros) { c.cleMicros = cleMicros; if (c.e.querySelector('.aplBas')) boutonsDuCours(c); }
+    }
     majChrono(c);
   }
 
   /* Chez le prof : les élèves, là ou pas encore, qui parle, qui lève la main */
   function dessinerLaListeDuCours(c, eleves) {
-    var z = c.e.querySelector('.aplCote');
+    var z = c.e.querySelector('.aplCote .aplGens') || c.e.querySelector('.aplCote');
     if (!z) return;
     var rang = function (x) { return x.etat === 'dedans' ? (x.main ? 0 : 1) : x.etat === 'invite' ? 2 : 3; };
     var l = eleves.slice().sort(function (a, b) { return rang(a) - rang(b) || String(a.qui).localeCompare(String(b.qui), 'fr'); });
@@ -998,7 +1148,7 @@
     l.forEach(function (x) {
       var dedans = x.etat === 'dedans';
       var parle = dedans && (c.niveaux[x.cle] || 0) > 0.02 && !x.coupe && x.micro !== 0;
-      var etat = dedans ? (x.coupe ? 'micro coupé' : x.micro === 0 ? 's’est mis en muet' : parle ? 'parle' : 'là')
+      var etat = dedans ? (x.coupe ? '🔇 micro coupé' : x.micro === 0 ? '🔇 s’est mis en muet' : parle ? '🎙️ parle' : '🎙️ micro ouvert')
                : x.etat === 'invite' ? 'pas encore là' : 'parti';
       /* 📝 v1427 — où il en est de ses réponses (ec-visio.js le lit) */
       var pg = c.cours.progres ? c.cours.progres(x.qui) : null;
@@ -1028,8 +1178,13 @@
     var k = c.cours;
     var bas = c.e.querySelector('.aplBas');
     bas.innerHTML = '';
-    var bt = function (cle, dedans, lab, cls, faire) {
-      var b = el('button', 'aplBt' + (cls ? ' ' + cls : ''), '<i>' + dedans + '</i><span>' + echap(lab) + '</span>');
+    /* 🎙️ v1468 — David : « les boutons en bas ne sont pas clairs, on ne
+       sait pas si le micro des élèves est ouvert ou pas ». Chaque
+       interrupteur dit son état sous son nom (« ● ouvert » en vert,
+       « ● coupé » en rouge), et son rond a la même couleur. */
+    var bt = function (cle, dedans, lab, cls, faire, etat, bulle) {
+      var b = el('button', 'aplBt' + (cls ? ' ' + cls : ''), '<i>' + dedans + (bulle ? '<em class="bulle">' + bulle + '</em>' : '') + '</i><span>' + echap(lab) +
+        (etat ? '<small>' + echap(etat) + '</small>' : '') + '</span>');
       b.type = 'button'; b.setAttribute('data-a', cle);
       b.addEventListener('click', faire);
       bas.appendChild(b);
@@ -1038,7 +1193,10 @@
     if (c.eleve) {
       var coupe = k.coupeParProf;
       bt('micro', ic('micro', 26, c.micro ? '#1F2A33' : '#3A2A20', !c.micro),
-         coupe ? 'Coupé par le prof' : c.micro ? 'Micro' : 'Micro coupé', c.micro ? '' : 'coupe', function () { basculerMicro(c); });
+         'Mon micro', c.micro ? 'actif' : 'coupe', function () { basculerMicro(c); },
+         coupe ? '● coupé par le prof' : c.micro ? '● ouvert' : '● coupé');
+      bt('chat', em('💬'), k.chat ? 'Fermer' : 'Écrire', k.chat ? 'on' : '', function () { basculerLeChat(c); }, '',
+         c.chat.nonLus ? String(Math.min(9, c.chat.nonLus)) : '');
       bt('main', em('✋'), k.main ? 'Baisser la main' : 'Lever la main', k.main ? 'on' : '', function () { leverLaMain(c); });
       if (k.feuille) bt('quest', em('📝'), k.quest ? 'Replier mes réponses' : 'Mes réponses', k.quest ? 'on' : '', function () { basculerQuestionnaire(c); });
       else if (k.questionnaire) bt('quest', em('📝'), k.quest ? 'Fermer le questionnaire' : 'Questionnaire', k.quest ? 'on' : '', function () { basculerQuestionnaire(c); });
@@ -1049,15 +1207,23 @@
     (k.gestes || []).forEach(function (g) {
       var on = !!g.on();
       var off = typeof g.labOff === 'function' ? g.labOff() : g.labOff;
-      bt(g.cle, em(g.emoji), on ? g.lab : off, on ? '' : 'coupe', function () { g.faire(); boutonsDuCours(c); });
+      /* « Pas de micro » : il n'y a rien à ouvrir ni à couper */
+      var absent = !on && /^Pas d/.test(String(off || ''));
+      bt(g.cle, em(g.emoji), absent ? off : g.lab, on ? 'actif' : 'coupe', function () { g.faire(); boutonsDuCours(c); },
+         absent ? '● aucun' : on ? '● ouvert' : '● coupé');
     });
     var eleves = ((c.etat && c.etat.gens) || []).filter(function (x) { return x.genre === 'eleve'; });
+    var la = eleves.filter(function (x) { return x.etat === 'dedans'; });
     var tousCoupes = eleves.length && eleves.every(function (x) { return x.coupe; });
-    bt('micros', em(tousCoupes ? '🎙️' : '🔇'), tousCoupes ? 'Rouvrir les micros' : 'Couper les micros des élèves', tousCoupes ? 'on' : '', function () {
+    var ouverts = la.filter(function (x) { return !x.coupe && x.micro !== 0; }).length;
+    var etatMicros = !la.length ? (tousCoupes ? '● coupés' : '● personne') : tousCoupes ? '● coupés'
+      : ouverts === la.length ? '● ouverts' : '● ' + ouverts + ' ouvert' + (ouverts > 1 ? 's' : '') + ' sur ' + la.length;
+    bt('micros', em(tousCoupes ? '🔇' : '🎙️'), 'Micros des élèves',
+       tousCoupes ? 'coupe' : !la.length ? '' : ouverts === la.length ? 'actif' : 'moitie', function () {
       poster(c, tousCoupes ? 'ouvrirTous' : 'couperTous', {})
         .then(function (d) { if (d.appel) c.etat = d.appel; dessinerLeCours(c); boutonsDuCours(c); },
               function (e) { message(c, e.message); });
-    });
+    }, etatMicros + (tousCoupes ? ' · rouvrir' : ' · couper'));
     /* ⚙️ v1391 — micro, son du boîtier et haut-parleur, pendant le cours */
     if (k.surSon) bt('reglageson', em('⚙️'), 'Réglages du son', '', function () { k.surSon(c); });
     if (k.surInviter) bt('inviter', ic('ajouter', 26), 'Inviter', '', function () { k.surInviter(c); });
@@ -1127,14 +1293,14 @@
         });
       }
       f.hidden = !k.quest;
-      if (c.grille) c.grille.classList.toggle('avecPanneau', !!k.quest);
+      if (c.grille) c.grille.classList.toggle('avecPanneau', !!(k.quest || k.chat));
       boutonsDuCours(c);
       return;
     }
     var p = c.e && c.e.querySelector('.aplQuest');
     if (!p) return;
     k.quest = oui === undefined ? !k.quest : !!oui;
-    if (c.grille) c.grille.classList.toggle('avecPanneau', !!k.quest);
+    if (c.grille) c.grille.classList.toggle('avecPanneau', !!(k.quest || k.chat));
     if (k.quest && !p.querySelector('iframe')) {
       var f = document.createElement('iframe');
       f.src = k.questionnaire + (k.questionnaire.indexOf('?') === -1 ? '?' : '&') + 'embedded=true';
