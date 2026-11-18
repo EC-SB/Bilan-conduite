@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:57 — v1461 */
+/* Déployé le 18/11/2026 à 11:17 — v1462 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1462,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '🚦 « Mon code » : un jeu pour le code dans l’App des élèves, et son atelier pour le corriger',
+    quoi: [
+      { emoji: '🚦',
+        titre: 'Un onglet « Code » pour les élèves qui font le code avec nous',
+        texte: 'Dans leur App, un nouvel onglet « 🚦 Code », sur le principe du jeu des vérifs : un niveau, des points, une série de jours. Il s’ouvre tout seul pour ceux dont « 🎓 Son code » est « avec nous » ; pas pour ceux qui ont déjà leur code ou le font de leur côté.' },
+      { emoji: '🃏',
+        titre: 'Les panneaux : memory, abécédaire, séance du jour',
+        texte: '64 panneaux avec leur fiche (ce qu’il dit, ce que je fais, à ne pas confondre). Le memory associe le panneau et ce qu’il veut dire. L’abécédaire les range par forme ou de A à Z, avec une recherche. La séance du jour fait reconnaître 8 panneaux en 5 minutes : une carte ratée revient le lendemain, puis 3, 7 et 21 jours après.' },
+      { emoji: '✏️',
+        titre: 'Tu corriges tout dans l’atelier',
+        texte: 'Élèves › 🎓 Code › « 🚦 Le jeu du code » : touche un panneau pour changer son nom, ses textes, son faux jumeau ; remplacer son dessin par une image ; le cacher ; en ajouter un ; ou tout remettre comme au départ. « ▶️ Essayer le jeu » montre le jeu tel que l’élève le voit, avec tes corrections. Corriger demande le droit de modifier « Code ».' },
+      { emoji: '⏳',
+        titre: 'La suite arrive',
+        texte: 'Les pièges, la question à la loupe, le bon chiffre, l’œil du conducteur et « Qui passe ? » viennent dans les prochaines livraisons, corrigeables de la même façon.' }
+    ]
+  },
   {
     version: 1461,
     date: 'Mercredi 18 novembre 2026',
