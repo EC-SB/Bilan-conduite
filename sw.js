@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:26 — v1459 */
+/* Déployé le 18/11/2026 à 14:48 — v1468 */
 /* ============================================================
    🔔 LE SERVICE WORKER — étape 3 de la messagerie
 
@@ -307,8 +307,16 @@ self.addEventListener("notificationclick", function (e) {
     .then(function (r) {
       const sienne = r[0];
       const enPlus = r[1] ? ((suite ? "&" : "?") + r[1]) : "";
+      /* ⚠️ v1468 — SUR LE SITE DES ÉLÈVES, « eleve.html » N'EXISTE PAS.
+         David, le 18/11 : « quand un élève appuie sur la notif, ça lui
+         ouvre une page 404 ». eleve.evolutionconduites.fr sert la page des
+         élèves à sa racine (coin-revisions.yml copie eleve.html en
+         index.html) : quand son adresse n'était pas (ou plus) rangée,
+         on ouvrait « …/eleve.html », qui n'y est pas. */
+      const chezLesEleves = /^https?:\/\/eleve\./i.test(self.registration.scope);
+      const pageVraie = (page === "eleve.html" && chezLesEleves) ? "" : page;
       const cible = sienne ? (sienne.split("?")[0].split("#")[0] + suite)
-                           : new URL(page + suite + enPlus, self.registration.scope).href;
+                           : new URL(pageVraie + suite + enPlus, self.registration.scope).href;
       return self.clients.matchAll({ type: "window", includeUncontrolled: true })
         .then(function (fenetres) {
           for (let i = 0; i < fenetres.length; i++) {
