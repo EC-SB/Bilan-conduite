@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:07 — v1458 */
+/* Déployé le 18/11/2026 à 10:26 — v1459 */
 /* ============================================================
    cafe-commun.js — ☕ LE COIN CAFÉ, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -27,6 +27,11 @@
    tous les jeux à plusieurs sauf la courte paille ; cinq jeux solo
    (démineur, Memory des panneaux, serpent, 2048, Sudoku du jour) et
    leurs records. Voir « LES JEUX SOLO » plus bas.
+
+   v1459 — David : « je n'ai qu'une notif et pas de pop-up ». La
+   notification prévient la page ouverte (sw.js), qui relit tout de
+   suite ; et pendant un cours, l'invitation arrive en bandeau, sans
+   rien couper. Voir « PENDANT UN COURS, UN BANDEAU ».
 
    ⚠️ ÉCRIT EN ES5 (var, function), comme eleve.html et
    appel-commun.js : les vieux téléphones des élèves lisent la page
@@ -137,6 +142,16 @@
     '.cfLigne > div{min-width:0;flex:1}' +
     '.cfLigne small{display:block;font-weight:500;color:var(--muted);font-size:12px}' +
     '.cfLigne .go{flex:0 0 auto;width:auto;margin:0;min-height:0;height:auto;padding:6px 12px;border-radius:999px;border:0;background:linear-gradient(180deg,#D8FF6A,#B6FF0E);font:inherit;font-size:12.5px;font-weight:800;color:#111;cursor:pointer}' +
+    /* ⏸️ v1459 — le bandeau d'un défi reçu pendant un cours */
+    '.cfBandeau{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9990;display:flex;align-items:center;gap:10px;max-width:min(360px,calc(100vw - 24px));padding:9px 10px 9px 12px;border-radius:14px;background:#14161B;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.28);font:700 13.5px/1.3 Inter,system-ui,sans-serif;animation:cfBandeauIn .25s ease-out}' +
+    '.cfBandeau .ic{font-size:20px;flex:0 0 auto}' +
+    '.cfBandeau > div{min-width:0;flex:1}' +
+    '.cfBandeau small{display:block;font-weight:500;font-size:11.5px;color:rgba(255,255,255,.7)}' +
+    '.cfBandeau button{flex:0 0 auto;width:auto;margin:0;min-height:0;height:auto;border:0;border-radius:999px;font:inherit;cursor:pointer}' +
+    '.cfBandeau .go{padding:7px 13px;background:linear-gradient(180deg,#D8FF6A,#B6FF0E);color:#111;font-size:12.5px;font-weight:800}' +
+    '.cfBandeau .non{padding:5px 8px;background:transparent;color:rgba(255,255,255,.75);font-size:15px;line-height:1}' +
+    '@keyframes cfBandeauIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}' +
+    '@media (max-width:560px){.cfBandeau{left:12px;right:12px;max-width:none}}' +
     '.cfDeux{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}' +
     '.cfDeux button{flex:1 1 140px;margin:0;width:auto;min-height:0;height:auto;padding:9px 10px;border:1px solid var(--line);border-radius:12px;font:inherit;font-weight:700;font-size:13px;background:var(--navy-deep,#fff);color:var(--cream);cursor:pointer}' +
     '.cfDeux button.adm{border-style:dashed}' +
@@ -426,7 +441,7 @@
     }).catch(function () { enCours = false; planifierFond(30000); });
   }
   /* Une invitation pour moi, ou une partie qui a commencé : on l'ouvre */
-  function ouvrirCeQuiAttend(l) {
+  function ouvrirCeQuiAttend(l, force) {
     var p = null;
     for (var i = 0; i < l.length && !p; i++) {
       var x = l[i];
@@ -436,8 +451,91 @@
       else if (x.etat === 'encours' && moi.rep === 'oui' && !reduits[x.id]) p = x;
       else if (x.etat === 'invite' && x.par && x.par.cle === x.moi && O.mode === 'equipe' && !reduits[x.id] && !vus[x.id] && !plusTard[x.id]) { /* il attend : on ne rouvre pas tout seul */ }
     }
-    if (p) ouvrirPartie(p.id);
+    if (!p) { cacherBandeau(); return; }
+    /* ⏸️ v1459 — pendant un cours (ou un appel), pas de fenêtre : un
+       bandeau. Et une invitation montrée en bandeau le reste, même le
+       cours fini : la fenêtre ne surgit pas au moment du bilan. */
+    if (!force && (enBandeau[p.id] || occupe())) { montrerBandeau(p); return; }
+    cacherBandeau();
+    ouvrirPartie(p.id);
   }
+
+  /* ============================================================
+     ⏸️ v1459 — PENDANT UN COURS, UN BANDEAU ET PAS UNE FENÊTRE
+
+     David, le 18 novembre : « je n'ai qu'une notif et pas de pop-up
+     qui apparaît pour jouer — attention, si on met un pop-up il ne
+     faut pas que ça coupe un cours ». La page dit si elle est
+     occupée (O.occupe : un cours en route, un appel, la visio) ; si
+     oui, l'invitation arrive dans un petit bandeau en bas, qui ne
+     prend ni l'écran ni le clavier : « Jouer » ouvre la partie, « ✕ »
+     la remet à plus tard (elle reste dans le coin café). Rien ne
+     sonne, rien ne vibre.
+     ============================================================ */
+  var bandeau = null, bandeauId = '', enBandeau = {};
+  function occupe() { try { return !!(O && O.occupe && O.occupe()); } catch (e) { return false; } }
+  function cacherBandeau() {
+    if (bandeau && bandeau.parentNode) bandeau.parentNode.removeChild(bandeau);
+    bandeau = null; bandeauId = '';
+  }
+  function montrerBandeau(p) {
+    enBandeau[p.id] = true;
+    var J = JEUX[p.jeu] || { nom: p.jeu, ic: '🎲', au: '', max: 2 };
+    var moi = joueur(p, p.moi) || {};
+    var invite = p.etat === 'invite' && moi.rep === '?';
+    var titre = invite
+      ? (p.tournoi ? '🏟️ Ton match ' + J.au : prenom(p.par && p.par.nom) + (J.max > 2 ? ' t’invite ' : ' te défie ') + J.au)
+      : 'Ta partie ' + (J.au ? J.au.replace(/^(au|à la|à|aux) /, 'de ') : '') + ' continue';
+    var sous = invite ? 'quand tu veux · rien ne s’ouvre pendant ton cours' : 'reprends-la quand tu veux';
+    var cle = p.id + '|' + titre;
+    if (bandeau && bandeauId === cle) { placerBandeau(); return; }
+    cacherBandeau();
+    bandeau = el('div', 'cfBandeau', '<span class="ic">' + esc(J.ic) + '</span><div>' + esc(titre) + '<small>' + esc(sous) + '</small></div>');
+    bandeau.setAttribute('role', 'status');
+    bandeau.setAttribute('data-cafe-bandeau', p.id);
+    bandeauId = cle;
+    var go = el('button', 'go', invite ? 'Jouer' : 'Reprendre');
+    go.type = 'button';
+    go.addEventListener('click', function () { var id = p.id; cacherBandeau(); delete plusTard[id]; delete reduits[id]; ouvrirPartie(id); });
+    var non = el('button', 'non', '✕');
+    non.type = 'button';
+    non.title = 'Plus tard (la partie reste dans le coin café)';
+    non.setAttribute('aria-label', 'Plus tard');
+    non.addEventListener('click', function () { if (invite) plusTard[p.id] = true; else reduits[p.id] = true; cacherBandeau(); });
+    bandeau.appendChild(go);
+    bandeau.appendChild(non);
+    document.body.appendChild(bandeau);
+    placerBandeau();
+  }
+  /* ⚠️ AU-DESSUS DE LA BARRE DU BAS. Sur un téléphone, les onglets
+     (Cours, Élèves, Gestion ; ceux de l'espace élève) sont collés en
+     bas de l'écran : posé dessus, le bandeau les cachait — on ne
+     pouvait plus changer d'écran pendant le cours. On cherche ce qui
+     est fixé en bas, et on se pose juste au-dessus. */
+  function placerBandeau() {
+    if (!bandeau) return;
+    var bas = 0;
+    bandeau.style.pointerEvents = 'none';
+    bandeau.style.visibility = 'hidden';
+    try {
+      [[0.5, 6], [0.15, 6], [0.85, 6], [0.5, 24], [0.15, 24], [0.85, 24], [0.5, 48]].forEach(function (pt) {
+        var e = document.elementFromPoint(window.innerWidth * pt[0], window.innerHeight - pt[1]);
+        while (e && e !== document.body && e !== document.documentElement) {
+          var cs = window.getComputedStyle(e);
+          if (cs.position === 'fixed' || cs.position === 'sticky') {
+            var r = e.getBoundingClientRect();
+            if (r.top > window.innerHeight / 2) bas = Math.max(bas, window.innerHeight - r.top);
+            break;
+          }
+          e = e.parentElement;
+        }
+      });
+    } catch (e) {}
+    bandeau.style.pointerEvents = '';
+    bandeau.style.visibility = '';
+    bandeau.style.bottom = bas ? Math.round(bas + 8) + 'px' : '';
+  }
+  window.addEventListener('resize', function () { placerBandeau(); });
 
   /* ============================================================
      ☕ LE COIN CAFÉ (l'équipe)
@@ -700,6 +798,7 @@
   function ouvrirPartie(id) {
     var p = parties[id];
     if (!p) return;
+    cacherBandeau();
     var f = fenetre('jeu', '', 480);
     f.id = id;
     montrerPartie(p);
@@ -2336,13 +2435,13 @@
         var l = (r && r.parties) || [];
         l.forEach(function (p) { parties[p.id] = p; delete plusTard[p.id]; delete reduits[p.id]; });
         if (F) fermer(true);
-        ouvrirCeQuiAttend(l);
+        ouvrirCeQuiAttend(l, true);   /* on a touché la notification : on l'ouvre, même pendant un cours */
         if (!F && O.mode === 'equipe') ouvrirCoin();
       }).catch(function () {});
     },
     porteCachee: porteCachee,
     ouvrirPartie: function (id) { ouvrirPartie(id); },
-    fermer: function () { fermer(true); parties = {}; },
+    fermer: function () { fermer(true); cacherBandeau(); parties = {}; enBandeau = {}; },
     _etat: function () { return { F: F && { ecran: F.ecran, id: F.id }, parties: parties, ecart: ecart }; }
   };
 })();
