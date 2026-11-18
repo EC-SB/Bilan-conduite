@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 18:53 — v1456 */
+/* Déployé le 18/11/2026 à 10:07 — v1458 */
 /* ============================================================
    ec-coin-cafe.js — v1456
    ☕ LE COIN CAFÉ, CÔTÉ ÉQUIPE : LES DEUX PORTES CACHÉES
@@ -26,8 +26,9 @@
   if(typeof window.CafeEC === 'undefined') return;
 
   const ACTIONS = { etat: 'cafeEtat', agir: 'cafeAgir', lancer: 'cafeLancer', palmares: 'cafePalmares',
-                    tournoiLancer: 'cafeTournoiLancer', tournoiArreter: 'cafeTournoiArreter' };
-  const GESTES = { agir: 1, lancer: 1, tournoiLancer: 1, tournoiArreter: 1 };
+                    tournoiLancer: 'cafeTournoiLancer', tournoiArreter: 'cafeTournoiArreter',
+                    record: 'cafeRecord' };   /* 🏅 v1458 — le résultat d'un jeu solo */
+  const GESTES = { agir: 1, lancer: 1, tournoiLancer: 1, tournoiArreter: 1, record: 1 };
 
   function pret(){
     if(window.EC_COTE) return false;
