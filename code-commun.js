@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:31 — v1465 */
+/* Déployé le 18/11/2026 à 13:08 — v1466 */
 /* ============================================================
    code-commun.js — 🚦 « MON CODE », LE JEU DU CODE
 
@@ -766,6 +766,8 @@
 
   /* ---------- le style (ce qui n'est pas déjà dans le jeu des vérifs) ---------- */
   var CSS =
+    /* 🚧 v1466 — « en développement, ce n'est pas la version finale » (David) */
+    '.jv .jvTravaux{border-radius:14px;padding:9px 12px;margin:0 0 10px;background:#FFE89A;color:#3A2A00;border:1px solid #E8C44A;font-size:13px;line-height:1.4}.jv .jvTravaux b{font-weight:800;color:#3A2A00}' +
     '.jv .cjModes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 12px}.jv .cjModes .jvMode{margin:0}' +
     '.jv .cjSous{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 2px 8px}' +
     '.jv .cjNote{font-size:12.5px;color:var(--muted);line-height:1.45;margin:2px 2px 12px}' +
@@ -956,6 +958,11 @@
   function accueil() {
     var j = ecran('');
     var nv = niveau(), total = LISTE.length, su = nbConnus();
+    /* 🚧 v1466 — David : il n'est pas fini, on le dit en haut de l'accueil */
+    var tr = el('div', 'jvTravaux', '🚧 <b>Jeu en cours de développement</b> : ce n’est pas la version finale.');
+    tr.setAttribute('role', 'note');
+    tr.setAttribute('data-cj-travaux', '1');
+    j.appendChild(tr);
     j.appendChild(el('div', 'card jvHero',
       '<div class="jvLigneH"><span class="jvGros">🚦 Mon code</span><span class="jvFlamme">🔥 ' + D.serie + ' jour' + (D.serie > 1 ? 's' : '') + '</span></div>' +
       '<div class="jvDoux" style="margin-top:2px">Niveau ' + nv.n + ' · ' + esc(nv.nom) + ' · ' + D.xp + ' XP</div>' +
