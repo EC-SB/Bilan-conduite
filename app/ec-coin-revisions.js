@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 09:30 — v1441 */
+/* Déployé le 18/11/2026 à 11:54 — v1463 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -89,6 +89,37 @@ const CV_SANS_SALLE_RE = /passerelle|remise|moto|\bA1\b|\bA2\b|\bAM\b/i;
    la prend jamais pour une formation.
    ============================================================ */
 const CV_HAB_CODE = '🎓 Code avec nous';
+/* ============================================================
+   🚦 LE JEU DU CODE (« Mon code ») — v1463
+
+   David, le 18 novembre : « mets-moi le bloc pour ouvrir ou fermer dans
+   ce qu'il trouve dans son espace, pour que je puisse fermer si besoin ;
+   quand c'est code avec nous, il est ouvert automatiquement. »
+
+   Le jeu s'ouvre TOUT SEUL chez qui fait son code avec nous (le suivi du
+   code allumé, sans « déjà » ni « de son côté ») : rien ne s'écrit pour
+   ça. La tuile 🚦, posée juste après « Suivi du code en salle », n'écrit
+   une clé dans ses modules (colonne G de ElevesAcces) que quand David
+   va CONTRE cette règle :
+     · sans_jeu_code : fermé alors qu'il s'ouvrirait tout seul ;
+     · jeu_code      : ouvert alors qu'il resterait fermé.
+   Le Worker (codeJeuOuvertPour) et l'espace élève (codeJeuOuvert) lisent
+   ces deux clés AVANT la règle. Changer « 🎓 Son code » ou l'interrupteur
+   du suivi du code remet le jeu sur « tout seul ».
+   La tuile ne paraît que pour un élève (E.jeu existe) : le réglage des
+   habitudes par formation n'en a pas.
+   ============================================================ */
+const CV_JEU = 'jeucode';
+const CV_JEU_OUI = 'jeu_code';
+const CV_JEU_NON = 'sans_jeu_code';
+function cvJeuCodeAuto(E){ return E.mods.indexOf('code') !== -1 && E.codeEtat !== 'deja' && E.codeEtat !== 'cote'; }
+function cvJeuCodeOuvert(E){ return E.jeu === 'oui' ? true : (E.jeu === 'non' ? false : cvJeuCodeAuto(E)); }
+function cvJeuCodeDit(E){
+  const auto = cvJeuCodeAuto(E);
+  if(E.jeu === 'oui' && !auto) return 'ouvert par toi';
+  if(E.jeu === 'non' && auto) return 'fermé par toi';
+  return auto ? 'ouvert tout seul : il fait son code avec nous' : 'fermé — il s’ouvre tout seul pour le code avec nous';
+}
 const CV_CODE_ETATS = [
   { k: 'deja', mod: 'code_deja', i: '✅', t: 'Il a déjà son code',     d: 'rien à ouvrir pour le code', court: 'déjà obtenu' },
   { k: 'cote', mod: 'code_cote', i: '🏠', t: 'Il le fait de son côté', d: 'ailleurs, ou en ligne',      court: 'de son côté' },
@@ -234,8 +265,10 @@ function cvEtatDeLAcces(acces){
     q: brut.indexOf(CV_SANS_Q) === -1,
     /* 🎓 v1440 — son code ; sans clé, le suivi du code allumé vaut « avec nous » */
     codeEtat: pose ? pose.k : (brut.indexOf('code') !== -1 ? 'nous' : ''),
+    /* 🚦 v1463 — le jeu du code : '' = tout seul, 'oui' / 'non' = David a choisi */
+    jeu: brut.indexOf(CV_JEU_OUI) !== -1 ? 'oui' : (brut.indexOf(CV_JEU_NON) !== -1 ? 'non' : ''),
     /* une clé qu'on ne connaît pas ici n'est jamais effacée par cet écran */
-    autres: brut.filter(k => connus.indexOf(k) === -1 && k !== CV_SANS_Q && k !== 'aucun' && cles.indexOf(k) === -1),
+    autres: brut.filter(k => connus.indexOf(k) === -1 && k !== CV_SANS_Q && k !== 'aucun' && cles.indexOf(k) === -1 && k !== CV_JEU_OUI && k !== CV_JEU_NON),
     groupes: ((acces && acces.groupes) || []).slice()
   };
 }
@@ -248,6 +281,9 @@ function cvListeModules(E){
   /* 🎓 v1440 — son code (le suivi du code allumé sans choix = « avec nous ») */
   const ce = cvCodeEtatDe(E.codeEtat || (E.mods.indexOf('code') !== -1 ? 'nous' : ''));
   if(ce) l.push(ce.mod);
+  /* 🚦 v1463 — le jeu du code : une clé seulement quand David va contre la règle */
+  if(E.jeu === 'oui' && !cvJeuCodeAuto(E)) l.push(CV_JEU_OUI);
+  if(E.jeu === 'non' && cvJeuCodeAuto(E)) l.push(CV_JEU_NON);
   return l.join(',');
 }
 /* L'état « son code » d'un élève d'après la liste des accès déjà lue */
@@ -259,18 +295,26 @@ function codeEtatDeLEleve(nom){
 /* Rend false si l'appui est refusé : 🎬 suit ses groupes (v1039) */
 function cvBasculer(E, cle){
   if(cle === 'questionnaire'){ E.q = !E.q; return true; }
+  /* 🚦 v1463 — le jeu du code : on ne retient le choix que s'il va contre la règle */
+  if(cle === CV_JEU){
+    const veut = !cvJeuCodeOuvert(E);
+    E.jeu = veut === cvJeuCodeAuto(E) ? '' : (veut ? 'oui' : 'non');
+    return true;
+  }
   const on = E.mods.indexOf(cle) !== -1;
   if(cle === 'parcours' && on && E.groupes.length){
     showToast('🎬 suit ses groupes : décoche d’abord ses groupes.');
     return false;
   }
   if(on) E.mods = E.mods.filter(k => k !== cle); else E.mods.push(cle);
+  /* 🚦 v1463 — le jeu du code suit de nouveau le suivi du code */
+  if(cle === 'code' && E.jeu !== undefined) E.jeu = '';
   /* 📞 la vidéo emporte le vocal, et l'inverse */
   if(cle === 'appel_video' && !on && E.mods.indexOf('appel_vocal') === -1) E.mods.push('appel_vocal');
   if(cle === 'appel_vocal' && on) E.mods = E.mods.filter(k => k !== 'appel_video');
   return true;
 }
-function cvAllume(E, cle){ return cle === 'messages' ? true : cle === 'questionnaire' ? E.q : E.mods.indexOf(cle) !== -1; }
+function cvAllume(E, cle){ return cle === 'messages' ? true : cle === 'questionnaire' ? E.q : cle === CV_JEU ? cvJeuCodeOuvert(E) : E.mods.indexOf(cle) !== -1; }
 
 /* Les groupes de la salle parmi les siens */
 function cvSalleCochee(E, prog){ return E.groupes.filter(id => ((prog && prog.groupes) || []).indexOf(id) !== -1); }
@@ -294,6 +338,13 @@ function cvGrilleModules(E, auClic){
     if(t.fixe) b.setAttribute('aria-disabled', 'true');
     else b.addEventListener('click', () => auClic(t.cle, b));
     g.appendChild(b);
+    /* 🚦 v1463 — le jeu du code, juste après le suivi du code (pour un élève seulement) */
+    if(t.cle === 'code' && E.jeu !== undefined){
+      const j = cvTuile(cvJeuCodeOuvert(E), '🚦', 'Le jeu du code', cvEch(cvJeuCodeDit(E)), false);
+      j.dataset.tuile = CV_JEU;
+      j.addEventListener('click', () => auClic(CV_JEU, j));
+      g.appendChild(j);
+    }
   });
   return g;
 }
@@ -396,6 +447,7 @@ async function cvChangerSonCode(nom, cle, L){
   }
   if(!choix) return false;
   E.codeEtat = cle;
+  E.jeu = '';      /* 🚦 v1463 — le jeu du code suit de nouveau son code */
   if(choix === 'ouvrir'){ E.mods = h.modules.slice(); E.q = h.q; E.groupes = h.groupes.slice(); }
   try{
     const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom, modules: cvListeModules(E), groupes: E.groupes.join('|') });
@@ -582,6 +634,7 @@ function cvTexteAcces(o){
   if(cvAllume(E, 'historique')) l.push('📖 l’historique de tes leçons, avec le bilan de chaque cours');
   if(cvAllume(E, 'proccorriger')) l.push('📋 tes procédures à réciter, corrigées par l’équipe');
   if(cvAllume(E, 'code')) l.push('🎓 le suivi de tes séances de code');
+  if(E.jeu !== undefined && cvJeuCodeOuvert(E)) l.push('🚦 « Mon code », un jeu pour t’entraîner au code');
   if(cvAllume(E, 'verifs')) l.push('🧰 le jeu des vérifications');
   l.push('💬 une messagerie pour écrire à l’auto-école' + (cvAllume(E, 'messages_moniteur') ? ' et à ton moniteur' : ''));
   if(cvAllume(E, 'appel_vocal')) l.push('📞 un bouton pour nous appeler' + (cvAllume(E, 'appel_video') ? ', en vocal ou en vidéo' : ''));
@@ -805,7 +858,7 @@ async function miseEnRouteCoinRevisions(nom, apres){
   const appliquerHabitude = () => {
     const h = cvHabitudePour(S.formation, S.codeEtat, L.groupes, L.prog);
     const autres = S.E ? S.E.autres : [];
-    S.E = { mods: h.modules.slice(), q: h.q, groupes: h.groupes.slice(), autres: autres, codeEtat: S.codeEtat };
+    S.E = { mods: h.modules.slice(), q: h.q, groupes: h.groupes.slice(), autres: autres, codeEtat: S.codeEtat, jeu: '' };   /* 🚦 v1463 */
   };
   /* l'habitude qu'on suit : celle du code (« avec nous »), sinon sa formation */
   const nomHabitude = () => S.codeEtat === 'nous' ? CV_HAB_CODE : S.formation;
@@ -876,6 +929,7 @@ async function miseEnRouteCoinRevisions(nom, apres){
          S.codeVu !== null && S.codeVu !== S.codeEtat) appliquerHabitude();
       S.formationVue = S.formation;
       S.codeVu = S.codeEtat;
+      if(S.E.codeEtat !== S.codeEtat) S.E.jeu = '';      /* 🚦 v1463 */
       S.E.codeEtat = S.codeEtat;
       etape2();
     });
@@ -1171,7 +1225,7 @@ async function afficherEspaceEleve(nom, zone){
     });
     return file;
   };
-  const copie = () => ({ mods: E.mods.slice(), q: E.q, groupes: E.groupes.slice(), autres: E.autres.slice(), codeEtat: E.codeEtat });
+  const copie = () => ({ mods: E.mods.slice(), q: E.q, groupes: E.groupes.slice(), autres: E.autres.slice(), codeEtat: E.codeEtat, jeu: E.jeu });
 
   /* ── 🎓 v1440 — son code : un appui change ce qu'on ouvre (on demande avant) ── */
   if(acces.actif){
