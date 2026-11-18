@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 11:00 — v1434 */
+/* Déployé le 17/11/2026 à 17:12 — v1455 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2381,6 +2381,23 @@ function lancerSurveillanceSession(){
 
 /* Reprend la session mémorisée, après vérification du code */
 async function reprendreSession(){
+  /* ◫ v1455 — DANS LE PANNEAU D'À CÔTÉ, la session est celle de l'appli
+     qui l'a ouvert, telle quelle : pas de deuxième vérification du code
+     (elle vient d'être faite), et surtout pas de « mode réduit » si le
+     serveur tarde. Ouverte une fois la page posée. */
+  if(window.EC_COTE){
+    try{
+      const pa = window.parent && window.parent !== window && window.parent.ACCES;
+      if(pa && pa.code){
+        const a = JSON.parse(JSON.stringify(pa));
+        const ouvrir = () => ouvrirSession(a.code, a.moniteur, a.role, false, a.droits,
+                                           a.emoji, a.genre, a.droitsRegles);
+        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ouvrir, { once: true });
+        else setTimeout(ouvrir, 0);
+        return true;
+      }
+    }catch(e){ console.warn('Panneau d’à côté :', e); }
+  }
   const s = lireSession();
   if(!s){
     /* Dire pourquoi : sans explication, on croit à une panne. */
