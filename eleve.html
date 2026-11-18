@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/11/2026 à 12:31 — v1465 -->
+<!-- Déployé le 18/11/2026 à 13:08 — v1466 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1901,6 +1901,9 @@
 
   /* ===== 🎮 LE JEU DES VÉRIFICATIONS — v1248 ===== */
   .jv{ font-size:14px; line-height:1.4; }
+  /* 🚧 v1466 — David : « ajoute un message sur les deux jeux, qu'ils sont en développement, ce n'est pas la version finale » */
+  .jv .jvTravaux{ border-radius:14px; padding:9px 12px; margin:0 0 10px; background:#FFE89A; color:#3A2A00; border:1px solid #E8C44A; font-size:13px; line-height:1.4; }
+  .jv .jvTravaux b{ font-weight:800; color:#3A2A00; }
   .jv .jvHero{ background:linear-gradient(135deg,#14161B,#2A2F1A); color:#fff; border:0; position:relative; overflow:hidden; }
   .jv .jvHero .jvGros{ font-size:21px; font-weight:900; letter-spacing:-.01em; }
   .jv .jvHero .jvDoux{ color:#C9CCBF; font-size:12.5px; }
@@ -3017,9 +3020,9 @@
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
 <script src="appel-commun.js?v=1427"></script>
 <!-- ☕ v1456 — un défi du coin café (le même jeu que l’appli de l’équipe) -->
-<script src="cafe-commun.js?v=1465"></script>
+<script src="cafe-commun.js?v=1466"></script>
 <!-- 🚦 v1462 — « Mon code », le jeu du code (le même fichier sert à l'atelier de l'appli) -->
-<script src="code-commun.js?v=1465"></script>
+<script src="code-commun.js?v=1466"></script>
 <!-- 🧯 v1465 — LE FILET DES FICHIERS PARTAGÉS. L'espace élève est servi
      par son propre site (eleve.evolutionconduites.fr) : s'il y manque
      cafe-commun.js ou code-commun.js, le coin café et l'onglet « Code »
@@ -3027,8 +3030,8 @@
      fichiers n'y étaient pas). On va alors les chercher sur le site de
      l'appli, où ils sont toujours. -->
 <script>
-  if(!window.CafeEC) document.write('<script src="https://app.evolutionconduites.fr/cafe-commun.js?v=1465"><\/script>');
-  if(!window.CodeEC) document.write('<script src="https://app.evolutionconduites.fr/code-commun.js?v=1465"><\/script>');
+  if(!window.CafeEC) document.write('<script src="https://app.evolutionconduites.fr/cafe-commun.js?v=1466"><\/script>');
+  if(!window.CodeEC) document.write('<script src="https://app.evolutionconduites.fr/code-commun.js?v=1466"><\/script>');
 </script>
 <script>
 (function(){
@@ -13997,6 +14000,8 @@
     if(quoi) b.addEventListener('click', quoi);
     return b;
   }
+  /* 🚧 v1466 — en haut de l'accueil du jeu : il n'est pas fini */
+  function jvEnTravaux(){ var b = jvEl('div', 'jvTravaux', '🚧 <b>Jeu en cours de développement</b> : ce n’est pas la version finale.'); b.setAttribute('role', 'note'); b.setAttribute('data-jv-travaux', '1'); return b; }
   function jvRacine(){
     var z = $('jvZone');
     z.innerHTML = '';
@@ -14031,6 +14036,7 @@
     son.title = 'Le son et la voix';
     son.setAttribute('aria-label', 'Le son et la voix');
     hero.firstChild.appendChild(son);
+    r.appendChild(jvEnTravaux());
     r.appendChild(hero);
 
     var modes = jvEl('div', 'jvModes');
@@ -15614,6 +15620,7 @@
     });
     son.setAttribute('aria-label', 'Le son et la voix');
     hero.firstChild.appendChild(son);
+    r.appendChild(jvEnTravaux());
     r.appendChild(hero);
 
     var s = jwSeance();
