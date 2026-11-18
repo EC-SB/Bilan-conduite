@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 11:17 — v1462 */
+/* Déployé le 18/11/2026 à 12:31 — v1465 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -1252,6 +1252,115 @@ async function ongletCodeEleve(corps, nom){
   const ouvrir = n => ouvrirSeanceDossierEtg(nom, n, par[n] || null, ou, () => ongletCodeEleve(corps, nom));
   z.querySelectorAll('tr.ouvrable').forEach(tr => tr.addEventListener('click', () => ouvrir(Number(tr.dataset.s))));
   z.querySelectorAll('.rang span[data-s]').forEach(sp => sp.addEventListener('click', () => ouvrir(Number(sp.dataset.s))));
+  /* 📈 v1465 — et le jeu « Mon code », sous ses séances */
+  const zj = document.createElement('div');
+  corps.appendChild(zj);
+  blocJeuCodeDossier(zj, nom);
+}
+
+/* ============================================================
+   📈 v1465 — « MON CODE » DANS LE DOSSIER (livraison 4 du jeu du code)
+
+   Sous ses séances : est-ce que le jeu est ouvert dans son espace, où il
+   en est (niveau, série, séances), ce qu'il sait jeu par jeu et famille
+   par famille, et ce qu'il rate le plus — de quoi savoir quoi reprendre
+   avec lui en salle. Le calcul est celui du jeu (CodeEC.bilan, dans
+   code-commun.js) : une carte « sue » ici l'est aussi chez lui.
+   ============================================================ */
+function jeuCodeStyle(){
+  if(document.getElementById('jcdStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'jcdStyle';
+  s.textContent =
+    '.jcd{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}' +
+    '.jcd h4{margin:0 0 4px;font-size:15px;font-weight:800}' +
+    '.jcd .etat{font-size:12.5px;color:var(--muted);line-height:1.5;margin:0 0 10px}' +
+    '.jcd .etat b{color:var(--cream)}' +
+    '.jcd .jeux{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;margin:4px 0 12px}' +
+    '.jcd .jeu{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:2px 8px;align-items:center;font-size:13px}' +
+    '.jcd .jeu .n{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.jcd .jeu .c{font-weight:800;font-variant-numeric:tabular-nums}' +
+    '.jcd .jeu .barre{grid-column:2/4;height:6px;border-radius:99px;background:var(--line);overflow:hidden}' +
+    '.jcd .jeu .barre i{display:block;height:100%;background:#7CC400;border-radius:99px}' +
+    '.jcd .jeu small{grid-column:2/4;color:var(--muted);font-size:11px}' +
+    '.jcd .sous{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}' +
+    '.jcd .rates{display:flex;flex-direction:column;gap:6px}' +
+    '.jcd .rate{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:7px 10px;font-size:13px;line-height:1.35}' +
+    '.jcd .rate .d{flex:0 0 34px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px}' +
+    '.jcd .rate .d svg,.jcd .rate .d img{width:34px;height:34px;object-fit:contain;display:block}' +
+    '.jcd .rate .t{flex:1;min-width:0}' +
+    '.jcd .rate .t small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}' +
+    '.jcd .rate .k{flex:none;font-size:11px;font-weight:800;border-radius:99px;padding:3px 8px;white-space:nowrap;background:rgba(208,73,31,.14);color:#C33A12}' +
+    '.jcd .rate .k.su{background:rgba(46,139,20,.15);color:#2E7A14}' +
+    '.jcd .rate .k.du{background:rgba(255,176,0,.2);color:#8A5A00}' +
+    'body:not(.clair) .jcd .rate .k{color:#FF8A6B}body:not(.clair) .jcd .rate .k.su{color:#9BE36A}body:not(.clair) .jcd .rate .k.du{color:#FFC94D}' +
+    '.jcd .plus{margin-top:6px;width:auto}';
+  document.head.appendChild(s);
+}
+/* Le jeu est-il ouvert dans son espace ? La même règle que l'espace
+   élève, lue dans la liste des accès déjà chargée (🔑). */
+function jeuCodeOuvertDansSonEspace(nom){
+  if(typeof ACCES_ETAT === 'undefined' || !ACCES_ETAT.lu || typeof cvEtatDeLAcces !== 'function' || typeof cvJeuCodeOuvert !== 'function') return null;
+  const a = ACCES_ETAT.parNom[(typeof aeNorm === 'function') ? aeNorm(nom) : String(nom).toLowerCase()];
+  if(!a) return { ouvert: false, dit: 'il n’a pas encore d’espace' };
+  if(a.actif === false) return { ouvert: false, dit: 'son espace est fermé' };
+  const E = cvEtatDeLAcces(a);
+  return { ouvert: cvJeuCodeOuvert(E), dit: cvJeuCodeDit(E) };
+}
+async function blocJeuCodeDossier(zone, nom){
+  jeuCodeStyle();
+  zone.className = 'jcd';
+  zone.setAttribute('data-jcd', '1');
+  if(!window.CodeEC || typeof window.CodeEC.bilan !== 'function'){ zone.innerHTML = '<h4>🚦 Mon code — le jeu</h4><div class="cdAide">Le jeu n’est pas chargé : recharge l’appli.</div>'; return; }
+  zone.innerHTML = '<h4>🚦 Mon code — le jeu</h4><div class="cdAide">⏳ Ce qu’il a fait dans le jeu…</div>';
+  let r;
+  try{
+    if(typeof chargerEtatAcces === 'function') await chargerEtatAcces().catch(() => null);
+    r = await appelPrep({ action: 'codeJeuEleve', eleve: nom });
+    if(!r || r.status === 'error') throw new Error((r && r.message) || 'le jeu ne répond pas');
+  }catch(e){
+    zone.innerHTML = '<h4>🚦 Mon code — le jeu</h4><div class="cdAide">⚠️ ' + echapEtg(e.message || String(e)) + '</div>';
+    return;
+  }
+  const B = window.CodeEC.bilan(r.donnees, r.contenu, r.images);
+  const o = jeuCodeOuvertDansSonEspace(nom);
+  const jourFr = d => d ? String(d).slice(0, 10).split('-').reverse().join('/') : '';
+  const quand = B.depuis === null ? '' : B.depuis === 0 ? 'aujourd’hui' : B.depuis === 1 ? 'hier' : 'il y a ' + B.depuis + ' jours';
+  let h = '<h4>🚦 Mon code — le jeu</h4>' +
+    '<div class="etat">' + (o === null ? '' : (o.ouvert ? '✅ <b>Ouvert dans son espace</b>' : '⛔ <b>Fermé dans son espace</b>') + ' · ' + echapEtg(o.dit) + '. Ça se règle dans l’onglet 🔑, « Ce qu’il trouve dans son espace ».') + '</div>';
+  if(B.jamais){
+    h += '<div class="empty" data-jcd-jamais="1">Il n’a pas encore joué.</div>';
+    zone.innerHTML = h;
+    return;
+  }
+  h += '<div class="dsCode"><div class="l">' +
+    '<div><b>Niveau ' + B.niveau.n + '</b><small>' + echapEtg(B.niveau.nom) + ' · ' + B.xp + ' XP</small></div>' +
+    '<div><b>' + (B.serie ? '🔥 ' + B.serie + ' jour' + (B.serie > 1 ? 's' : '') : '—') + '</b><small>de suite' + (B.record > 1 ? ' · record ' + B.record : '') + '</small></div>' +
+    '<div><b>' + B.seances + '</b><small>partie' + (B.seances > 1 ? 's' : '') + ' finie' + (B.seances > 1 ? 's' : '') + '</small></div>' +
+    '<div><b>' + B.sus + ' / ' + B.total + '</b><small>cartes sues</small></div>' +
+    '<div><b>' + (quand || '—') + '</b><small>dernière fois' + (r.majLe ? ' · ' + echapEtg(jourFr(r.majLe)) : '') + '</small></div>' +
+    '</div></div>';
+  const ligne = (ic, nom, sus, total, sous) => '<div class="jeu"><span>' + ic + '</span><span class="n">' + echapEtg(nom) + '</span><span class="c">' + sus + '/' + total + '</span>' +
+    '<span class="barre"><i style="width:' + (total ? Math.round(100 * sus / total) : 0) + '%"></i></span>' + (sous ? '<small>' + sous + '</small>' : '') + '</div>';
+  h += '<div class="sous">Ce qu’il sait, jeu par jeu</div><div class="jeux" data-jcd-jeux="1">' +
+    B.jeux.map(g => ligne(g.ic, g.nom, g.sus, g.total, g.vus ? g.vus + ' déjà vue' + (g.vus > 1 ? 's' : '') : 'pas encore joué')).join('') + '</div>';
+  h += '<div class="sous">Les panneaux, famille par famille</div><div class="jeux">' + B.familles.map(f => ligne(f.ic, f.nom, f.sus, f.total, '')).join('') + '</div>';
+  if(B.memory.length) h += '<div class="cdAide">🃏 Memory, ses records : ' + B.memory.map(m => echapEtg(m.nom) + ' en ' + m.coups + ' coups').join(' · ') + '.</div>';
+  h += '<div class="cdAide">📖 ' + B.fiches + ' fiche' + (B.fiches > 1 ? 's' : '') + ' de panneau lue' + (B.fiches > 1 ? 's' : '') + ' · 🔁 ' + B.aRevoir + ' carte' + (B.aRevoir > 1 ? 's' : '') + ' à revoir aujourd’hui.</div>';
+  const aTravailler = B.rates.filter(x => !x.su);
+  h += '<div class="sous">Ce qu’il rate le plus</div>';
+  if(!B.rates.length) h += '<div class="cdAide">Rien de raté pour l’instant. 👏</div>';
+  else{
+    h += '<div class="rates" data-jcd-rates="1">' + B.rates.map((x, i) =>
+      '<div class="rate"' + (i >= 8 ? ' data-jcd-cache="1" style="display:none"' : '') + '><span class="d">' + (x.html || x.ic) + '</span>' +
+      '<span class="t">' + echapEtg(x.titre) + '<small>' + x.ic + ' ' + echapEtg(B.jeux.find(g => g.cle === x.type).nom) + ' · raté ' + x.ratees + ' fois · réussi ' + x.bonnes + ' fois</small></span>' +
+      '<span class="k' + (x.su ? ' su' : (x.du ? ' du' : '')) + '">' + (x.su ? 'sue depuis' : (x.du ? 'à revoir' : 'à retravailler')) + '</span></div>').join('') + '</div>';
+    if(B.rates.length > 8) h += '<button type="button" class="btn btn-secondary plus" data-jcd-plus="1">Voir les ' + (B.rates.length - 8) + ' autres</button>';
+    if(aTravailler.length) h += '<div class="cdAide">« À retravailler » : ratée et pas encore sue. « À revoir » : elle revient aujourd’hui dans son jeu. « Sue depuis » : ratée un jour, réussie trois fois de suite depuis.</div>';
+  }
+  zone.innerHTML = h;
+  const plus = zone.querySelector('[data-jcd-plus]');
+  if(plus) plus.addEventListener('click', () => { zone.querySelectorAll('[data-jcd-cache]').forEach(x => { x.style.display = ''; }); plus.remove(); });
 }
 
 /* 📝 v1431 — LA FENÊTRE D'UNE SÉANCE, DEPUIS LE DOSSIER. David : « il faut
