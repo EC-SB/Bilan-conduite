@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/11/2026 — v1458 -->
+<!-- Déployé le 18/11/2026 à 10:26 — v1459 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -3015,7 +3015,7 @@
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
 <script src="appel-commun.js?v=1427"></script>
 <!-- ☕ v1456 — un défi du coin café (le même jeu que l’appli de l’équipe) -->
-<script src="cafe-commun.js?v=1458"></script>
+<script src="cafe-commun.js?v=1459"></script>
 <script>
 (function(){
   'use strict';
@@ -10289,6 +10289,8 @@
     window.CafeEC.brancher({
       mode: 'eleve',
       pret: function(){ return !!(moi && moi.code && moi.nom) && !ACCOMP && !MODE_SALLE && !SALLE && !MODE_ESSAI; },
+      /* ⏸️ v1459 — un appel ou le cours de code en visio : un bandeau, pas une fenêtre */
+      occupe: function(){ try{ return !!(window.AppelEC && window.AppelEC.enCours && window.AppelEC.enCours()); }catch(e){ return false; } },
       moi: function(){ return { nom: moi.nom }; },
       appeler: function(quoi, d){
         var corps = {};
@@ -13128,6 +13130,8 @@
       var d = ev && ev.data;
       /* 📞 v1183 — un appel qui sonne pendant que la page est ouverte */
       if(d && d.quoi === 'appel'){ chercherLesSonneriesEl(); return; }
+      /* ☕ v1459 — un défi du coin café vient d'arriver : relu tout de suite */
+      if(d && d.quoi === 'cafe'){ try{ if(window.CafeEC) window.CafeEC.relire(); }catch(e){} return; }
       /* 📌 v1222 — « à revoir » : l'onglet Réviser */
       if(d && d.quoi === 'ouvrirVue'){
         if(d.vue === 'reviser'){ try{ allerAOnglet('reviser'); }catch(e){} }
