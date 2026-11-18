@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:18 — v1464 */
+/* Déployé le 18/11/2026 à 12:31 — v1465 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1465,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '🚦 « Mon code » dans le dossier de l’élève, et l’onglet Code qui manquait dans l’App des élèves',
+    quoi: [
+      { emoji: '📈',
+        titre: 'Où en est l’élève dans « Mon code »',
+        texte: 'Dans son dossier, onglet 🎓 Code, sous ses séances : est-ce que le jeu est ouvert dans son espace, son niveau, ses jours de suite, ses parties, ses cartes sues, la dernière fois qu’il a joué ; puis ce qu’il sait jeu par jeu et famille par famille de panneaux, ses records au memory.' },
+      { emoji: '🎯',
+        titre: 'Ce qu’il rate le plus',
+        texte: 'Les cartes qu’il a ratées, la plus ratée d’abord, avec le nombre de ratés et de réussites : « à retravailler », « à revoir » (elle revient aujourd’hui dans son jeu) ou « sue depuis ». De quoi savoir quoi reprendre avec lui en salle.' },
+      { emoji: '🧯',
+        titre: 'L’onglet « Code » manquait dans l’App des élèves',
+        texte: 'Le site de l’App des élèves (eleve.evolutionconduites.fr) n’avait pas les fichiers cafe-commun.js et code-commun.js : sans eux, pas d’onglet « Code » ni de coin café chez l’élève. L’App des élèves va maintenant les chercher sur le site de l’appli quand ils lui manquent.' },
+      { emoji: '🔑',
+        titre: 'Le jeu ouvert à la main fait paraître l’onglet 🎓 Code du dossier',
+        texte: 'Quand tu ouvres « 🚦 Le jeu du code » à un élève qui n’a pas le suivi du code, l’onglet 🎓 Code de son dossier paraît aussi, pour voir où il en est.' }
+    ]
+  },
   {
     version: 1464,
     date: 'Mercredi 18 novembre 2026',
