@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 13:11 — v1437 */
+/* Déployé le 18/11/2026 à 15:01 — v1469 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1433,10 +1433,15 @@ function ckCacherSugg(oui){ try{ localStorage.setItem('ec_msg_sugg_cachees', oui
 /* ⚡ toutes les réponses rapides de ce fil, et « Ce qu'on écrit et envoie » */
 /* ✏️ v1369 — l'option « coller dans le texte » des réponses rapides.
    David : pouvoir modifier la réponse avant de l'envoyer, au lieu qu'elle
-   parte directement. Le choix est gardé sur l'appareil (localStorage) et
-   vaut pour la feuille ⚡ comme pour les boutons en ligne. */
-function collerRapideActif(){ try{ return localStorage.getItem('ec_msg_coller_rapide') === '1'; }catch(e){ return false; } }
-function collerRapideBasculer(v){ try{ localStorage.setItem('ec_msg_coller_rapide', v ? '1' : '0'); }catch(e){} }
+   parte directement.
+   ⚠️ v1469 — ELLE SE RÈGLE RÉPONSE PAR RÉPONSE, DANS LES RÉGLAGES. David :
+   « je t'avais demandé dans les réglages des réponses rapides une option
+   pour que la réponse se colle dans le bloc de texte ». Elle était dans le
+   menu ⚡, téléphone par téléphone, pour toutes à la fois : il ne l'a pas
+   trouvée. Chaque réponse a maintenant sa case « ✏️ Se colle dans le
+   texte » (x.coller), pour toute l'équipe. L'ancien choix de l'appareil
+   n'est plus lu. La position GPS, elle, part toujours directement. */
+function collerCetteReponse(x){ return !!(x && x.coller && !x.position && x.sorte !== 'creneau' && x.sorte !== 'geste'); }
 /* On AJOUTE à ce qui est déjà écrit (on ne l'efface pas) : un espace ou un
    retour à la ligne sépare, selon ce qu'il y a avant. */
 function collerReponseDansTexte(id, ajout){
@@ -1448,29 +1453,23 @@ function collerReponseDansTexte(id, ajout){
 
 function ckFeuilleRapides(f, ancre){
   const c = (f && f.conv) || {};
-  const coller = collerRapideActif();
-  const items = [{ titre: 'POUR CETTE CONVERSATION' + (coller ? ' — ✏️ À MODIFIER AVANT ENVOI' : '') }];
+  const items = [{ titre: 'POUR CETTE CONVERSATION' }];
   const tete = /^(\p{Extended_Pictographic}\uFE0F?)\s*/u;
   reponsesRapidesDuFil(c).forEach(x => {
     const m = String(x.bouton).match(tete);
-    items.push({ emoji: m ? m[1] : '⚡', texte: m ? String(x.bouton).replace(tete, '') : String(x.bouton), cle: 'rapide', faire: async () => {
+    items.push({ emoji: m ? m[1] : '⚡', texte: (m ? String(x.bouton).replace(tete, '') : String(x.bouton)) + (collerCetteReponse(x) ? ' ✏️' : ''), cle: 'rapide', faire: async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
       /* 🚗 v1437 — un bouton du véhicule ouvre sa petite fenêtre */
       if(x.sorte === 'geste'){ if(typeof ouvrirGesteVehiculeEC === 'function') ouvrirGesteVehiculeEC(f, x.geste); return; }
       /* ✏️ v1369 — mode « coller » : le texte va dans la zone d'écriture
          (sauf avec la position GPS, qui n'a de sens qu'envoyée). */
-      if(coller && !x.position){ collerReponseDansTexte(c.id, remplirLesMotsRapides(x.message, c)); return; }
+      if(collerCetteReponse(x)){ collerReponseDansTexte(c.id, remplirLesMotsRapides(x.message, c)); return; }
       try{
         if(x.position && typeof envoyerMaPositionEC === 'function') await envoyerMaPositionEC(remplirLesMotsRapides(x.message, c));
         else await ckEcrire(f, remplirLesMotsRapides(x.message, c));
       }catch(e){ if(typeof showToast === 'function') showToast('Le message n’est pas parti : ' + (e.message || e)); }
     } });
   });
-  items.push({ sep: true });
-  /* ✏️ v1369 — la bascule : coller pour modifier, ou repasser à l'envoi direct */
-  items.push({ emoji: coller ? '✅' : '✏️',
-    texte: coller ? 'Collées dans le texte (modifiables) — repasser à l’envoi direct' : 'Les coller dans le texte pour les modifier avant d’envoyer',
-    faire: () => { collerRapideBasculer(!coller); ckFeuilleRapides(f, ancre); } });
   items.push({ sep: true });
   items.push({ emoji: '📄', texte: 'Ce qu’on écrit et envoie', cle: 'modeles', faire: () => { ckModelesOuvert = true; ckModelesCategorie = ''; dessinerLeFil(); } });
   if(ckSuggCachees()) items.push({ emoji: '👁️', texte: 'Remettre les suggestions au-dessus de la barre', cle: 'remettre', faire: () => { ckCacherSugg(false); dessinerLeFil(); } });
@@ -1512,11 +1511,13 @@ function ckReponsesRapides(f, petit){
     b.className = 'ckVite';
     b.textContent = x.bouton;
     if(x.position) b.title = 'Envoie ce message avec ta position GPS';
+    /* ✏️ v1469 — se colle dans le texte : à compléter avant d'envoyer */
+    if(collerCetteReponse(x)){ b.classList.add('ckViteColle'); b.title = 'Se colle dans le texte : complète-le ou modifie-le, puis envoie'; }
     b.addEventListener('click', async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
       /* ✏️ v1369 — mode « coller dans le texte » : on remplit la zone
          d'écriture au lieu d'envoyer (la position reste un envoi). */
-      if(!x.position && typeof collerRapideActif === 'function' && collerRapideActif()){
+      if(collerCetteReponse(x)){
         collerReponseDansTexte(c.id, remplirLesMotsRapides(x.message, c));
         return;
       }
@@ -1930,6 +1931,12 @@ function rrEtiquettes(genres, x){
     t.textContent = '📍 avec la position';
     d.appendChild(t);
   }
+  if(collerCetteReponse(x)){
+    const t = document.createElement('span');
+    t.className = 'rrType rrPos';
+    t.textContent = '✏️ se colle dans le texte';
+    d.appendChild(t);
+  }
   if(!d.children.length){
     const t = document.createElement('span');
     t.className = 'rrType vide';
@@ -2325,9 +2332,34 @@ function fenetreReponseRapide(x, liste, sauver){
     cbp.type = 'checkbox';
     cbp.id = 'rrPosition';
     cbp.checked = !!r.position;
-    cbp.addEventListener('change', () => { r.position = cbp.checked; apercu(); });
     lp.appendChild(cbp);
     lp.appendChild(document.createTextNode(' 📍 Joindre ma position GPS (où c’est, précisément)'));
+    /* ✏️ v1469 — David : la réponse se colle dans le bloc de texte, pour la
+       compléter ou la modifier avant d'envoyer. Pas avec la position : un
+       message avec la position GPS part toujours tel quel. */
+    const lc2 = document.createElement('label');
+    lc2.className = 'rrPosition';
+    const cbc = document.createElement('input');
+    cbc.type = 'checkbox';
+    cbc.id = 'rrColler';
+    cbc.checked = !!r.coller && !r.position;
+    const aideC = document.createElement('small');
+    aideC.style.cssText = 'display:block;color:var(--muted);font-weight:400;font-size:12px;margin:-4px 0 10px 28px;line-height:1.4;';
+    aideC.textContent = 'Au lieu de partir tout de suite, le texte va dans la zone d’écriture : on le complète ou on le modifie, puis on appuie sur Envoyer.';
+    cbc.addEventListener('change', () => {
+      r.coller = cbc.checked;
+      if(cbc.checked){ r.position = false; cbp.checked = false; }
+      apercu();
+    });
+    cbp.addEventListener('change', () => {
+      r.position = cbp.checked;
+      if(cbp.checked){ r.coller = false; cbc.checked = false; }
+      apercu();
+    });
+    lc2.appendChild(cbc);
+    lc2.appendChild(document.createTextNode(' ✏️ Se colle dans le texte (à compléter ou modifier avant d’envoyer)'));
+    boite.appendChild(lc2);
+    boite.appendChild(aideC);
     boite.appendChild(lp);
   }
 
@@ -2347,6 +2379,13 @@ function fenetreReponseRapide(x, liste, sauver){
       const ex = exemplesDesMotsRapides();
       bu.textContent = remplirLesMotsRapides(message.value.trim(), null, Object.assign({ eleve: ex.nom }, ex)) || 'Le message envoyé';
       ap.appendChild(bu);
+      if(r.coller && !r.position){
+        const n = document.createElement('div');
+        n.className = 'rrApT';
+        n.style.marginTop = '6px';
+        n.textContent = '✏️ Ce texte se colle dans la zone d’écriture : rien ne part avant d’appuyer sur Envoyer.';
+        ap.appendChild(n);
+      }
       if(/\{/.test(message.value)){
         const n = document.createElement('div');
         n.className = 'rrApT';
@@ -2391,6 +2430,7 @@ function fenetreReponseRapide(x, liste, sauver){
     if(!r.convs.length) delete r.convs;
     if(!r.titres.length) delete r.titres;
     if(!r.position) delete r.position;
+    if(!r.coller || r.position) delete r.coller;
     bOk.disabled = true;
     const n = liste.slice();
     if(neuve){ r.id = 'r' + Date.now().toString(36); n.push(r); }
