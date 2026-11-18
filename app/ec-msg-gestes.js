@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 16:51 — v1454 */
+/* Déployé le 17/11/2026 à 17:12 — v1455 */
 /* ============================================================
    ec-msg-gestes.js — 🧭 LES GESTES DE LA MESSAGERIE (v1296)
 
@@ -226,6 +226,10 @@ function menuDeLaLigneEC(c, ancre){
      ligne a déjà son menu (appui long, clic droit), il y prend place */
   if(typeof otAjouter === 'function' && typeof otPossible === 'function' && otPossible()){
     items.push({ emoji: '🗂️', texte: 'Ouvrir dans un onglet', faire: () => otAjouter({ onglet: 'messagerie', vue: 'messagerie', conv: c.id }, false) });
+    /* ◫ v1455 — et à côté, sur le grand écran du bureau */
+    if(typeof otCotePossible === 'function' && otCotePossible()){
+      items.push({ emoji: '◫', texte: 'Ouvrir à côté', faire: () => otOuvrirACote({ onglet: 'messagerie', vue: 'messagerie', conv: c.id }) });
+    }
   }
   if(typeof ckMarquerNonLu === 'function') items.push({ emoji: nonLue ? '✓' : '●', texte: nonLue ? 'Marquer comme lue' : 'Remettre en non lu', faire: () => ckMarquerNonLu(c.id) });
   if(typeof ckPeutGerer === 'function' && ckPeutGerer()){
