@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:27 — v1467 */
+/* Déployé le 18/11/2026 à 14:48 — v1468 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1468,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '🔁 Une fiche de suivi n’efface plus ce qu’un autre vient d’écrire · 🎥 la visio de code : réception réparée, état des micros, chat écrit',
+    quoi: [
+      { emoji: '🔁',
+        titre: 'Deux personnes sur la même fiche',
+        texte: 'Une modification de la fiche de suivi n’envoie plus que ce qui change : le reste de la fiche reste tel qu’il est. Le 14/11, une place d’examen donnée deux minutes après le rendez-vous post-permis de Yacouba Barry avait effacé ce rendez-vous.' },
+      { emoji: '📅',
+        titre: 'Le rendez-vous post-permis passé sur Drivup',
+        texte: 'Un rendez-vous tenu sur Drivup mais jamais repris dans l’appli n’est plus « pas encore réservé » le lendemain : « ✅ RDV Drivup passé — à noter comme fait », et un bouton « ✅ Le noter comme fait ». La date « lu le … » du planning est aussi la bonne.' },
+      { emoji: '🎥',
+        titre: 'La visio de code',
+        texte: 'Plus d’erreur « Cloudflare Realtime a refusé (session_error) » à l’arrivée d’un élève : la réception se refait toute seule. Sous chaque bouton, son état en couleur (« ● ouvert » vert, « ● coupé » rouge), dont « Micros des élèves ». Un chat écrit : l’élève écrit au prof (« 💬 Écrire »), le prof le lit sous la liste des élèves et répond à tous. Toucher la notification n’ouvre plus une page 404.' }
+    ]
+  },
   {
     version: 1467,
     date: 'Mercredi 18 novembre 2026',
