@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:31 — v1465 */
+/* Déployé le 18/11/2026 à 13:08 — v1466 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1466,
+    date: 'Mercredi 18 novembre 2026',
+    resume: '🚧 Les deux jeux des élèves disent qu’ils sont en développement',
+    quoi: [
+      { emoji: '🚧',
+        titre: '« Jeu en cours de développement »',
+        texte: 'En haut de l’accueil des deux jeux de l’App des élèves (🚦 Code et 🧰 Vérifs), un bandeau jaune : « Jeu en cours de développement : ce n’est pas la version finale. » Il paraît aussi dans « ▶️ Essayer le jeu » des ateliers.' }
+    ]
+  },
   {
     version: 1465,
     date: 'Mercredi 18 novembre 2026',
