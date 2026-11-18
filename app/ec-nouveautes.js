@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 16:51 — v1454 */
+/* Déployé le 17/11/2026 à 18:53 — v1456 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,41 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1456,
+    date: 'Mardi 17 novembre 2026',
+    resume: '☕ Le coin café : des petits jeux cachés, à jouer entre collègues',
+    quoi: [
+      { emoji: '☕',
+        titre: 'Deux portes cachées',
+        texte: 'Garde le doigt (ou le clic) 2 secondes sur le logo « EC » en haut à gauche : un anneau vert se remplit et le coin café s’ouvre. Ou tape « café » dans la loupe 🔍.' },
+      { emoji: '🎲',
+        titre: 'Huit jeux',
+        texte: 'Chifoumi, pile ou face, la course de voitures (chacun mise sur sa voiture, de 2 à 8 joueurs), feu vert, courte paille, créneau parfait, morpion et le juste chiffre. Tu choisis qui tu défies, en combien de manches (au meilleur de 3 par défaut), le temps par coup (écoulé, le coup part au hasard) et un gage. L’invitation arrive chez l’autre tout de suite, même pendant un cours, ou par une notification.' },
+      { emoji: '🏆',
+        titre: 'Le palmarès et le tournoi',
+        texte: 'Un classement par jeu, visible par toute l’équipe. Un administrateur lance un tournoi : il choisit les joueurs et le jeu de chaque tour, l’appli tire le tableau.' },
+      { emoji: '🎓',
+        titre: 'Défier un élève',
+        texte: 'En ouvrant le coin café, choisis « Défier un élève » : le défi s’ouvre dans son App le temps de jouer, puis disparaît. Rien dans son dossier, ses messages ni le palmarès. Un élève ne peut pas défier un moniteur.' }
+    ]
+  },
+  {
+    version: 1455,
+    date: 'Mardi 17 novembre 2026',
+    resume: '◫ Le côte à côte sur le grand écran, et ✋ les onglets qu’on déplace',
+    quoi: [
+      { emoji: '◫',
+        titre: 'Ouvrir à côté',
+        texte: 'Sur le grand écran du bureau, clic droit › « ◫ Ouvrir à côté » (ou Maj + clic molette, ou Ctrl + Maj + clic) : l’endroit s’ouvre dans un panneau à droite, et l’écran où tu es reste à gauche. Par exemple la messagerie à gauche et le dossier de l’élève à droite : la colonne « Infos » de la messagerie se range d’elle-même. Dans le panneau, tout marche comme dans l’appli.' },
+      { emoji: '⤢',
+        titre: 'Le panneau',
+        texte: '⤢ le met en grand (l’écran d’avant reste un onglet), 🗂️ en fait un onglet, ✕ le ferme. La poignée sur son bord gauche règle sa largeur (double-clic : la largeur de départ). Il revient quand tu rouvres l’appli. Ce que tu changes dans le panneau se voit à gauche au prochain chargement de cet écran. Sur la tablette et le téléphone, « à côté » devient un onglet.' },
+      { emoji: '✋',
+        titre: 'Déplacer les onglets',
+        texte: 'Attrape un onglet de la rangée « Ouverts » et pose-le où tu veux. Glissé vers la droite de l’écran, sous la rangée, il passe à côté. Sur le téléphone, on les déplace de la même façon dans la liste du bouton 🗂️. Clic droit sur un onglet : ◫ Mettre à côté, ✕ Fermer, ✕ Fermer les autres.' }
+    ]
+  },
   {
     version: 1454,
     date: 'Mardi 17 novembre 2026',
