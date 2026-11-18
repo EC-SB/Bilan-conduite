@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:18 — v1464 */
+/* Déployé le 18/11/2026 à 12:31 — v1465 */
 /* ============================================================
    code-commun.js — 🚦 « MON CODE », LE JEU DU CODE
 
@@ -35,6 +35,10 @@
    ses photos et replace les ronds dans l'atelier. La séance du jour
    compte maintenant 10 cartes : 4 panneaux, 2 pièges, 1 loupe,
    1 chiffre, 1 image, 1 carrefour.
+
+   LIVRAISON 4 (v1465) : le suivi dans le dossier de l'élève
+   (🎓 Code). CodeEC.bilan() fait le compte pour l'équipe avec les
+   mêmes règles que le jeu (une carte « sue » = 3 bonnes de suite).
 
    Ce fichier est chargé par l'espace élève (eleve.html : le jeu) ET
    par l'appli (index.html : l'atelier, qui lit la liste de base et les
@@ -682,6 +686,15 @@
     return t.trim() ? t.split('\n').filter(function (l) { return l.trim(); }) : CONSEILS.slice();
   }
   var CARTES = { pieges: [], loupe: [], chiffres: [], oeil: [], passe: [] }, PARC = { pieges: {}, loupe: {}, chiffres: {}, oeil: {}, passe: {} }, LES_CONSEILS = [];
+  /* une carte qui peut sortir dans le jeu : pas cachée, et complète */
+  function carteValable(type, x, images) {
+    if (x.cache) return false;
+    /* une scène : une image (la photo, sinon le dessin) et assez de ronds */
+    if (TYPES[type].scene) return !!x.n && x.z.length >= TYPES[type].min && !!(x.s || (x.image && (images || {})[x.image]));
+    if (type === 'pieges') return !!x.t;
+    if (type === 'loupe') return /\{[^{}]+\}/.test(x.q || '');
+    return !!x.q && x.c && x.c.length === 3;
+  }
   function poserContenu(contenu, images) {
     var f = fusionner(contenu, images);
     IMAGES = f.images;
@@ -689,14 +702,7 @@
     PAR = {};
     LISTE.forEach(function (p) { PAR[p.k] = p; });
     ORDRE_TYPES.forEach(function (type) {
-      CARTES[type] = fusionnerCartes(type, contenu).filter(function (x) {
-        if (x.cache) return false;
-        /* une scène : une image (la photo, sinon le dessin) et assez de ronds */
-        if (TYPES[type].scene) return !!x.n && x.z.length >= TYPES[type].min && !!(x.s || (x.image && IMAGES[x.image]));
-        if (type === 'pieges') return !!x.t;
-        if (type === 'loupe') return /\{[^{}]+\}/.test(x.q || '');
-        return !!x.q && x.c && x.c.length === 3;
-      });
+      CARTES[type] = fusionnerCartes(type, contenu).filter(function (x) { return carteValable(type, x, IMAGES); });
       PARC[type] = {};
       CARTES[type].forEach(function (x) { PARC[type][x.k] = x; });
     });
@@ -729,12 +735,13 @@
   /* 🪤 v1463 — une carte d'un autre jeu se range sous « g: », « l: », « n: » + sa clé */
   function idDe(type, k) { return type === 'p' ? k : TYPES[type].pre + k; }
   function nbSus(type) { return CARTES[type].filter(function (x) { return connu(idDe(type, x.k)); }).length; }
-  function niveau() {
+  function niveauDe(xp) {
     var n = 0;
-    for (var i = 0; i < NIVEAUX.length; i++) if (D.xp >= NIVEAUX[i][0]) n = i;
+    for (var i = 0; i < NIVEAUX.length; i++) if (xp >= NIVEAUX[i][0]) n = i;
     var suiv = NIVEAUX[n + 1];
-    return { n: n + 1, nom: NIVEAUX[n][1], reste: suiv ? suiv[0] - D.xp : 0, pct: suiv ? Math.round(100 * (D.xp - NIVEAUX[n][0]) / (suiv[0] - NIVEAUX[n][0])) : 100 };
+    return { n: n + 1, nom: NIVEAUX[n][1], reste: suiv ? suiv[0] - xp : 0, pct: suiv ? Math.round(100 * (xp - NIVEAUX[n][0]) / (suiv[0] - NIVEAUX[n][0])) : 100 };
   }
+  function niveau() { return niveauDe(D.xp); }
   function jouerAujourdhui() {
     var j = jourN();
     if (D.jour === j) return;
@@ -887,6 +894,60 @@
     b.setAttribute('data-cj-mode', t);
     b.addEventListener('click', faire);
     g.appendChild(b);
+  }
+
+  /* ============================================================
+     📈 v1465 — LE BILAN D'UN ÉLÈVE, POUR L'ÉQUIPE (dossier › 🎓 Code)
+     David : la livraison 4, « le suivi dans le dossier ». Rien ne
+     s'affiche ici : on rend des chiffres, l'appli de l'équipe les dessine.
+     ============================================================ */
+  function bilan(d0, contenu, images, aujourdhui) {
+    var d = propre(d0), j = aujourdhui || jourN();
+    images = images || {};
+    var c = function (k) { var x = d.c[k]; return Array.isArray(x) ? x : [0, 0, 0, 0]; };
+    var pan = fusionner(contenu, images).liste.filter(function (p) { return !p.cache && p.n && p.m; });
+    var jeux = [], rates = [], dues = 0, joues = 0;
+    var suivre = function (type, liste, titre, html) {
+      var T = type === 'p' ? { ic: '🚸', nom: 'Les panneaux' } : TYPES[type];
+      var g = { cle: type, ic: T.ic, nom: T.nom, total: liste.length, sus: 0, vus: 0 };
+      liste.forEach(function (x) {
+        var k = type === 'p' ? x.k : TYPES[type].pre + x.k, e = c(k);
+        if (e[2] + e[3] > 0) { g.vus++; joues++; }
+        if (e[0] >= 3) g.sus++;
+        if (e[1] > 0 && e[1] <= j) dues++;
+        if (e[3] > 0) rates.push({ type: type, k: x.k, ic: T.ic, titre: titre(x), html: html ? html(x) : '', bonnes: e[2], ratees: e[3], boite: e[0], su: e[0] >= 3, du: e[1] > 0 && e[1] <= j });
+      });
+      jeux.push(g);
+    };
+    suivre('p', pan, function (p) { return p.n; }, function (p) { return dessin(p, images); });
+    ORDRE_TYPES.forEach(function (type) {
+      suivre(type, fusionnerCartes(type, contenu).filter(function (x) { return carteValable(type, x, images); }), function (x) {
+        if (type === 'pieges') return x.t + ' (' + (x.v ? 'vrai' : 'faux') + ')';
+        if (type === 'loupe') return String(x.q).replace(/[{}]/g, '');
+        if (type === 'chiffres') return x.q + ' → ' + (x.c[Number(x.b)] || '');
+        return x.n;
+      });
+    });
+    var familles = FAMILLES.map(function (f) {
+      var l = pan.filter(function (p) { return p.f === f[0]; });
+      return { f: f[0], ic: f[1], nom: f[2], total: l.length, sus: l.filter(function (p) { return c(p.k)[0] >= 3; }).length };
+    }).filter(function (f) { return f.total; });
+    /* ce qu'il rate le plus : le plus de ratés, puis le moins de réussites ; les cartes déjà sues après */
+    rates.sort(function (a, b) { return (a.su - b.su) || (b.ratees - a.ratees) || (a.bonnes - b.bonnes); });
+    var memory = FAMILLES.filter(function (f) { return d.mem[f[0]]; }).map(function (f) { return { ic: f[1], nom: f[2], coups: d.mem[f[0]] }; });
+    if (d.mem.melange) memory.push({ ic: '🎲', nom: 'Le grand mélange', coups: d.mem.melange });
+    var nv = niveauDe(d.xp);
+    return {
+      jamais: !d0 || (!joues && !d.seances && !d.xp),
+      xp: d.xp, niveau: nv, seances: d.seances,
+      /* la série ne compte que s'il a joué hier ou aujourd'hui */
+      serie: d.jour && j - d.jour <= 1 ? d.serie : 0, record: d.record,
+      depuis: d.jour ? j - d.jour : null,
+      fiches: Object.keys(d.vus || {}).length,
+      cartesJouees: joues, aRevoir: dues,
+      sus: jeux.reduce(function (n, g) { return n + g.sus; }, 0), total: jeux.reduce(function (n, g) { return n + g.total; }, 0),
+      jeux: jeux, familles: familles, rates: rates, memory: memory
+    };
   }
 
   /* ============================================================
@@ -1544,6 +1605,8 @@
     /* 👀 v1464 — l'image d'une scène et un rond posé dessus, pour l'atelier */
     imageScene: imageScene,
     rond: rondSur,
+    /* 📈 v1465 — où en est un élève, pour son dossier */
+    bilan: bilan,
     /* la page ouvre l'onglet : { zone, appeler(quoi, données) → promesse } */
     ouvrir: function (o) {
       O = o;
