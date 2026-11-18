@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 10:07 — v1458 */
+/* Déployé le 18/11/2026 à 10:26 — v1459 */
 /* ============================================================
    ec-coin-cafe.js — v1456
    ☕ LE COIN CAFÉ, CÔTÉ ÉQUIPE : LES DEUX PORTES CACHÉES
@@ -19,8 +19,20 @@
    une appli oubliée sur un ordinateur. Seuls les gestes (lancer,
    jouer, répondre) comptent comme de l'activité.
 
-   ⚠️ RIEN DANS LE PANNEAU D'À CÔTÉ (?cote=1) NI DANS LA MESSAGERIE
-   SEULE : une seule fenêtre doit sonner, celle de l'appli.
+   ⚠️ RIEN DANS LE PANNEAU D'À CÔTÉ (?cote=1) : une seule fenêtre
+   doit sonner, celle de l'appli.
+
+   v1459 — David : « je n'ai qu'une notif et pas de pop-up qui
+   apparaît pour jouer — attention, si on met un pop-up il ne faut
+   pas que ça coupe un cours ».
+   - La Messagerie EC seule ouvre aussi le coin café : c'est elle
+     que la notification rouvre quand l'abonnement vient d'elle, et
+     elle ne montrait rien.
+   - La notification prévient la page (sw.js, « cafe ») : la relecture
+     part tout de suite, sans attendre ses 20 secondes.
+   - « occupe » : un cours en route (coursEnRoute, la seule source de
+     l'appli), un appel ou la visio en cours. L'invitation arrive
+     alors dans un petit bandeau en bas, jamais en fenêtre.
    ============================================================ */
 (function(){
   if(typeof window.CafeEC === 'undefined') return;
@@ -32,7 +44,6 @@
 
   function pret(){
     if(window.EC_COTE) return false;
-    if(typeof seuleMessagerieEC === 'function' && seuleMessagerieEC()) return false;
     return !!(typeof ACCES !== 'undefined' && ACCES && ACCES.code && ACCES.moniteur);
   }
   async function appeler(quoi, donnees){
@@ -54,6 +65,12 @@
       throw e;
     }finally{ clearTimeout(t); }
   }
+  /* ⏸️ v1459 — un cours, un appel, la visio : rien ne s'ouvre en grand */
+  function occupe(){
+    try{ if(typeof coursEnRoute === 'function' && coursEnRoute()) return true; }catch(e){}
+    try{ if(typeof AppelEC !== 'undefined' && AppelEC.enCours && AppelEC.enCours()) return true; }catch(e){}
+    return false;
+  }
   function comptes(){
     try{ if(typeof comptesActifs !== 'undefined' && Array.isArray(comptesActifs)) return comptesActifs; }catch(e){}
     return [];
@@ -70,6 +87,7 @@
     mode: 'equipe',
     appeler: appeler,
     pret: pret,
+    occupe: occupe,
     moi: () => ({ nom: (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur) || '' }),
     admin: () => !!(typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin'),
     comptes: comptes,
@@ -125,6 +143,8 @@
     navigator.serviceWorker.addEventListener('message', ev => {
       const d = ev && ev.data;
       if(d && d.quoi === 'ouvrirVue' && d.vue === 'cafe') ouvrirQuandPret(0);
+      /* ☕ v1459 — un défi vient d'arriver : on relit tout de suite */
+      if(d && d.quoi === 'cafe' && pret()) CafeEC.relire();
     });
   }
 
