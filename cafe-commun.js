@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 18:53 — v1456 */
+/* Déployé le 18/11/2026 à 10:07 — v1458 */
 /* ============================================================
    cafe-commun.js — ☕ LE COIN CAFÉ, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -19,6 +19,14 @@
    fenêtre de l'appli d'un côté, celle de l'espace élève de l'autre),
    et dit qui est là. Le Worker tient le jeu (voir « LE COIN CAFÉ »
    dans cloudflare-worker.js) : ici, on montre et on envoie les coups.
+
+   v1458 — David, le 18 novembre : « ajoute un démineur dans le coin
+   café et d'autres jeux solo, sur la course en fait il faut qu'on
+   appuie, et qu'on puisse jouer contre l'ordinateur ». La course se
+   gagne en tapant ; « 🤖 L'ordinateur » (Facile, Moyen, Fort) joue
+   tous les jeux à plusieurs sauf la courte paille ; cinq jeux solo
+   (démineur, Memory des panneaux, serpent, 2048, Sudoku du jour) et
+   leurs records. Voir « LES JEUX SOLO » plus bas.
 
    ⚠️ ÉCRIT EN ES5 (var, function), comme eleve.html et
    appel-commun.js : les vieux téléphones des élèves lisent la page
@@ -65,7 +73,8 @@
   /* ---------- petites aides ---------- */
   function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function maintenant() { return Date.now() + ecart; }
-  function initiale(nom) { var m = String(nom || '?').trim().split(/\s+/); return (m.length > 1 && /^[A-ZÉÈ]{2,}$/.test(m[0]) ? m[1].charAt(0) : m[0].charAt(0)).toUpperCase(); }
+  function initiale(nom) {
+    if (/^L’ordinateur$/.test(String(nom || ''))) return '🤖'; var m = String(nom || '?').trim().split(/\s+/); return (m.length > 1 && /^[A-ZÉÈ]{2,}$/.test(m[0]) ? m[1].charAt(0) : m[0].charAt(0)).toUpperCase(); }
   function prenom(nom) {
     var m = String(nom || '').trim().split(/\s+/);
     /* « MARTIN Léa » → « Léa » ; « David » → « David » */
@@ -115,7 +124,7 @@
     '.cfChamp{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font:inherit;font-size:14px;background:var(--navy-deep,#fff);color:var(--cream);margin:0}' +
     '.cfBas{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}' +
     '.cfBas .btn{flex:1 1 120px;min-width:0;margin:0}' +
-    '.cfMode{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border-radius:14px;background:var(--navy,#F0F1EA);border:1px solid var(--line);margin-bottom:12px}' +
+    '.cfMode{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px;border-radius:14px;background:var(--navy,#F0F1EA);border:1px solid var(--line);margin-bottom:12px}' +
     '.cfMode button{margin:0;min-height:0;height:auto;padding:9px 6px;border-radius:11px;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:800;font-size:13.5px;cursor:pointer;width:auto}' +
     '.cfMode button.on{background:var(--navy-deep,#fff);color:var(--cream);box-shadow:0 2px 6px rgba(0,0,0,.08)}' +
     '.cfGrille{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}' +
@@ -243,6 +252,45 @@
     '@keyframes cfTombe{to{transform:translateY(110vh) rotate(540deg);opacity:.9}}' +
     '.cfAnneau{position:fixed;z-index:99998;pointer-events:none;border-radius:50%}' +
     '.cfAnneau svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}' +
+    /* 🕹️ v1458 — les jeux solo */
+    '.cfSolo{margin-top:10px}' +
+    '.cfSoloBarre{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:700;font-size:14px;margin:0 0 10px}' +
+    '.cfSoloBarre button{width:auto;margin:0;min-height:0;height:auto;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--navy-deep,#fff);color:var(--cream);font:inherit;font-weight:700;font-size:13px;cursor:pointer}' +
+    '.cfSoloBarre button.on{background:linear-gradient(180deg,#D8FF6A,#B6FF0E);color:#111;border-color:transparent}' +
+    '.cfDem{display:grid;gap:2px;margin:0 auto;user-select:none;-webkit-user-select:none;touch-action:manipulation}' +
+    '.cfDem div{aspect-ratio:1/1;border-radius:5px;background:linear-gradient(180deg,#E9ECE3,#D3D7CC);box-shadow:inset 0 -2px 0 rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(11px,2.6vw,16px);cursor:pointer;color:#111;line-height:1}' +
+    '.cfDem div.ouv{background:var(--navy-deep,#fff);box-shadow:none;border:1px solid var(--line);cursor:default}' +
+    '.cfDem div.dr{background:#FFF1D6}' +
+    '.cfDem div.boum{background:#FF5C33}' +
+    '.cfDem .n1{color:#1E5BC6}.cfDem .n2{color:#2E8B14}.cfDem .n3{color:#D52B1E}.cfDem .n4{color:#5B2A86}.cfDem .n5{color:#8A3B12}.cfDem .n6{color:#0E7C7B}.cfDem .n7{color:#111}.cfDem .n8{color:#666}' +
+    '.cfMem{display:grid;gap:8px}' +
+    '.cfCarte{position:relative;aspect-ratio:3/4;margin:0;width:auto;height:auto;min-height:0;padding:0;border-radius:12px;border:1px solid var(--line);background:linear-gradient(160deg,#D8FF6A,#8FD400);cursor:pointer;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.08)}' +
+    '.cfCarte .dos{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:rgba(0,0,0,.45);letter-spacing:.05em}' +
+    '.cfCarte .face{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--navy-deep,#fff);padding:6px}' +
+    '.cfCarte .face svg{width:72%;height:auto;max-height:70%}' +
+    '.cfCarte .face small{font-size:9.5px;font-weight:700;color:var(--muted);text-align:center;line-height:1.15;display:none}' +
+    '.cfCarte.vue .face,.cfCarte.ok .face{display:flex}' +
+    '.cfCarte.ok{border:2px solid #B6FF0E;cursor:default}' +
+    '.cfCarte.ok .face small{display:block}' +
+    '.cfSerp{position:relative;margin:0 auto;width:max-content;border-radius:14px;overflow:hidden;touch-action:none}' +
+    '.cfSerp canvas{display:block}' +
+    '.cfSurCadre{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)}' +
+    '.cfSurCadre .cfGros{width:auto;padding:14px 26px}' +
+    '.cfFleches{display:grid;grid-template-columns:repeat(3,56px);gap:6px;justify-content:center;margin:10px auto 0}' +
+    '.cfFleches button{height:48px;margin:0;min-height:0;width:auto;padding:0;border-radius:12px;border:1px solid var(--line);background:var(--navy-deep,#fff);font-size:18px;color:var(--cream);cursor:pointer;touch-action:manipulation}' +
+    '.cfTuiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px;border-radius:14px;background:#BBADA0;max-width:340px;margin:0 auto;touch-action:none}' +
+    '.cfTuiles div{aspect-ratio:1/1;border-radius:8px;background:rgba(238,228,218,.35);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(18px,6vw,30px);color:#776E65}' +
+    '.cfTuiles .v2{background:#EEE4DA}.cfTuiles .v4{background:#EDE0C8}.cfTuiles .v8{background:#F2B179;color:#fff}.cfTuiles .v16{background:#F59563;color:#fff}' +
+    '.cfTuiles .v32{background:#F67C5F;color:#fff}.cfTuiles .v64{background:#F65E3B;color:#fff}.cfTuiles .v128{background:#EDCF72;color:#fff;font-size:clamp(16px,5vw,26px)}' +
+    '.cfTuiles .v256{background:#EDCC61;color:#fff;font-size:clamp(16px,5vw,26px)}.cfTuiles .v512{background:#EDC850;color:#fff;font-size:clamp(16px,5vw,26px)}' +
+    '.cfTuiles .v1024{background:#EDC53F;color:#fff;font-size:clamp(13px,4vw,22px)}.cfTuiles .v2048,.cfTuiles .v4096{background:#B6FF0E;color:#111;font-size:clamp(13px,4vw,22px)}' +
+    '.cfSdk{display:grid;grid-template-columns:repeat(9,1fr);max-width:360px;margin:0 auto;border:2px solid var(--cream);border-radius:6px;overflow:hidden;user-select:none;-webkit-user-select:none}' +
+    '.cfSdk div{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:clamp(14px,4.4vw,20px);font-weight:700;color:#1E5BC6;border-right:1px solid var(--line);border-bottom:1px solid var(--line);cursor:pointer;background:var(--navy-deep,#fff)}' +
+    '.cfSdk div.bd{border-right:2px solid var(--cream)}.cfSdk div.bb{border-bottom:2px solid var(--cream)}' +
+    '.cfSdk div.donne{color:var(--cream);font-weight:800}' +
+    '.cfSdk div.meme{background:#F3FFE0}.cfSdk div.sel{background:#D8FF6A}.cfSdk div.faux{color:#D52B1E}' +
+    '.cfPad{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-width:360px;margin:10px auto 0}' +
+    '.cfPad button{height:44px;margin:0;min-height:0;width:auto;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--navy-deep,#fff);font:inherit;font-size:18px;font-weight:800;color:var(--cream);cursor:pointer;touch-action:manipulation}' +
     '@media (prefers-reduced-motion:reduce){.cfPiece.tourne,.cfCotillons i{animation:none}}';
 
   function poserLeStyle() {
@@ -257,6 +305,7 @@
      LA FENÊTRE : celle de la page (l'appli ou l'espace élève)
      ============================================================ */
   function fermer(sansRelire) {
+    stopSolo();
     if (!F) return;
     var f = F;
     F = null;
@@ -274,6 +323,7 @@
     fermer();
   }
   function fenetre(ecran, titre, largeur) {
+    stopSolo();
     var garde = F && F.fond && F.fond.parentNode ? F : null;
     if (!garde) {
       var fond = el('div', O.classes.fond);
@@ -287,7 +337,7 @@
       boite.appendChild(t); boite.appendChild(corps); boite.appendChild(bas);
       fond.appendChild(boite);
       document.body.appendChild(fond);
-      fond.addEventListener('click', function (e) { if (e.target === fond && F && F.ecran !== 'jeu' && F.ecran !== 'invite') fermer(); });
+      fond.addEventListener('click', function (e) { if (e.target === fond && F && F.ecran !== 'jeu' && F.ecran !== 'invite' && F.ecran !== 'solo') fermer(); });
       document.addEventListener('keydown', echap, true);
       garde = F = { fond: fond, boite: boite, titre: t, corps: corps, bas: bas };
     }
@@ -398,7 +448,7 @@
     var f = fenetre('coin', '☕ Le coin café', 560);
     var mode = el('div', 'cfMode');
     mode.setAttribute('role', 'tablist');
-    [['equipe', '👥 Défier l’équipe'], ['eleve', '🎓 Défier un élève']].forEach(function (m) {
+    [['equipe', '👥 L’équipe'], ['eleve', '🎓 Un élève'], ['ordi', '🤖 L’ordinateur']].forEach(function (m) {
       var b = el('button', modeDefi === m[0] ? 'on' : '', esc(m[1]));
       b.type = 'button';
       b.setAttribute('role', 'tab');
@@ -406,17 +456,31 @@
       mode.appendChild(b);
     });
     f.corps.appendChild(mode);
-    f.corps.appendChild(lab('Les jeux'));
+    f.corps.appendChild(lab(modeDefi === 'ordi' ? 'Contre l’ordinateur' : (modeDefi === 'eleve' ? 'Défier un élève' : 'Défier l’équipe')));
     var g = el('div', 'cfGrille');
     ORDRE.forEach(function (k) {
       var J = JEUX[k];
-      if (modeDefi === 'eleve' && !J.eleve) return;
-      var b = el('button', 'cfJeu', '<span class="e">' + J.e + '</span>' + esc(J.nom) + '<small>' + esc(modeDefi === 'eleve' && J.max > 2 ? 'en duel avec l’élève' : J.s) + '</small>');
+      if (modeDefi !== 'equipe' && !J.eleve) return;   /* ni élève ni ordinateur à la courte paille */
+      var sous = modeDefi === 'eleve' && J.max > 2 ? 'en duel avec l’élève' : (modeDefi === 'ordi' ? 'Facile, Moyen ou Fort' : J.s);
+      var b = el('button', 'cfJeu', '<span class="e">' + J.e + '</span>' + esc(J.nom) + '<small>' + esc(sous) + '</small>');
       b.type = 'button';
       b.addEventListener('click', function () { preparerDefi(k); });
       g.appendChild(b);
     });
     f.corps.appendChild(g);
+    /* 🕹️ v1458 — les jeux solo (pas pour un élève : il n'a pas le coin café) */
+    if (modeDefi !== 'eleve') {
+      f.corps.appendChild(lab('Jeux solo'));
+      var gs = el('div', 'cfGrille');
+      ORDRE_SOLO.forEach(function (k) {
+        var S = SOLO[k];
+        var b = el('button', 'cfJeu', '<span class="e">' + S.e + '</span>' + esc(S.nom) + '<small>' + esc(S.s) + '</small>');
+        b.type = 'button';
+        b.addEventListener('click', function () { ouvrirSolo(k); });
+        gs.appendChild(b);
+      });
+      f.corps.appendChild(gs);
+    }
     var ec = el('div', '');
     ec.id = 'cfEnCours';
     f.corps.appendChild(ec);
@@ -483,7 +547,50 @@
     choixDefi.mode = depuis ? depuis.mode : modeDefi;
     dessinerDefi();
   }
+  /* 🤖 v1458 — contre l'ordinateur : son niveau, les manches, le temps */
+  var NIVEAUX = [['facile', '🙂 Facile'], ['moyen', '😐 Moyen'], ['fort', '😈 Fort']];
+  function dessinerDefiOrdi() {
+    var c = choixDefi, J = JEUX[c.jeu];
+    c.niveau = c.niveau || 'moyen';
+    var f = fenetre('defi', J.ic + ' ' + J.nom + ' — contre l’ordinateur', 480);
+    f.corps.appendChild(lab('Son niveau'));
+    f.corps.appendChild(chips(NIVEAUX, c.niveau, function (v) { c.niveau = v; dessinerDefi(); }));
+    var aides = {
+      chifoumi: 'Facile joue au hasard ; Moyen joue contre ce que tu joues le plus ; Fort lit tes habitudes.',
+      pileface: 'Au pile ou face, l’ordinateur ne peut pas tricher : c’est le hasard à tous les niveaux.',
+      course: 'Il tape à sa vitesse : Facile 4,6 appuis par seconde, Moyen 6,4, Fort 8,2.',
+      feuvert: 'Ses réflexes : Facile vers 0,5 s, Moyen vers 0,35 s, Fort vers 0,24 s.',
+      creneau: 'Facile s’arrête souvent loin du trait (et touche parfois le mur), Fort presque dessus.',
+      morpion: 'Facile joue au hasard ; Moyen gagne ou bloque quand il peut ; Fort ne perd jamais.',
+      chiffre: 'Facile répond au hasard ; Moyen tombe à 20 près ; Fort à 7 près.'
+    };
+    f.corps.appendChild(el('div', 'cfAide', esc(aides[c.jeu] || '')));
+    if (c.jeu === 'course') {
+      f.corps.appendChild(lab('Ta voiture'));
+      var vz = el('div', 'cfVoitures');
+      NOMS_V.slice(0, 4).forEach(function (v, i) {
+        var b = el('button', 'cfV' + (c.voiture === v ? ' on' : ''), voiture(v, String(i + 1)) + '<div>La ' + esc(v) + '<small>' + (c.voiture === v ? 'à toi' : 'libre') + '</small></div>');
+        b.type = 'button';
+        b.addEventListener('click', function () { c.voiture = v; dessinerDefi(); });
+        vz.appendChild(b);
+      });
+      f.corps.appendChild(vz);
+    }
+    if (J.manches) {
+      f.corps.appendChild(lab(c.jeu === 'course' ? 'En combien de courses' : 'En combien de manches'));
+      f.corps.appendChild(chips([[1, '1 seule'], [3, 'Au meilleur de 3'], [5, 'Au meilleur de 5'], [7, 'Au meilleur de 7']], c.manches, function (v) { c.manches = v; dessinerDefi(); }));
+    }
+    if (J.temps) {
+      f.corps.appendChild(lab('Temps pour jouer chaque coup'));
+      f.corps.appendChild(chips(TEMPS, c.temps, function (v) { c.temps = v; dessinerDefi(); }));
+    }
+    f.bas.appendChild(bouton('Retour', false, function () { modeDefi = 'ordi'; ouvrirCoin(); }));
+    var go = bouton('🤖 Jouer', true, lancer);
+    go.id = 'cfLancer';
+    f.bas.appendChild(go);
+  }
   function dessinerDefi() {
+    if (choixDefi && choixDefi.mode === 'ordi') { dessinerDefiOrdi(); return; }
     var c = choixDefi, J = JEUX[c.jeu];
     var f = fenetre('defi', J.ic + ' ' + J.nom + (J.max > 2 ? '' : ' — un duel'), J.max > 2 ? 560 : 480);
     var moi = O.moi();
@@ -579,7 +686,9 @@
     var c = choixDefi;
     var b = document.getElementById('cfLancer');
     if (b) b.disabled = true;
-    appeler('lancer', { jeu: c.jeu, joueurs: c.mode === 'eleve' ? [] : c.joueurs, eleve: c.mode === 'eleve' ? c.eleve : '', manches: c.manches, temps: c.temps, gage: c.gage, voiture: c.voiture })
+    appeler('lancer', c.mode === 'ordi'
+      ? { jeu: c.jeu, ordi: c.niveau || 'moyen', manches: c.manches, temps: c.temps, voiture: c.voiture }
+      : { jeu: c.jeu, joueurs: c.mode === 'eleve' ? [] : c.joueurs, eleve: c.mode === 'eleve' ? c.eleve : '', manches: c.manches, temps: c.temps, gage: c.gage, voiture: c.voiture })
       .then(function (r) {
         if (r && r.partie) { parties[r.partie.id] = r.partie; ouvrirPartie(r.partie.id); }
       }).catch(function (e) { if (b) b.disabled = false; toast('⚠️ ' + (e.message || e)); });
@@ -635,7 +744,7 @@
     F.bas.innerHTML = '';
     F.boite.style.maxWidth = 'min(' + (p.jeu === 'course' ? 560 : 480) + 'px, 94vw)';
     var adv = autres(p);
-    var titreDuel = adv.length === 1 && actifs(p).length === 2 ? '⚔️ ' + prenom(moi.nom) + ' contre ' + prenom(adv[0].nom) : J.ic + ' ' + J.nom;
+    var titreDuel = adv.length === 1 && actifs(p).length === 2 ? '⚔️ ' + prenom(moi.nom) + ' contre ' + (adv[0].bot ? 'l’ordinateur · ' + nomNiveau(adv[0].niveau) : prenom(adv[0].nom)) : J.ic + ' ' + J.nom;
     if (p.tournoi && p.tournoi.nom) titreDuel = '🏟️ ' + p.tournoi.nom;
     if (p.etat === 'invite' && moi.rep === '?') { F.titre.textContent = p.tournoi ? '🏟️ ' + (p.tournoi.nom || 'Tournoi') : (J.max > 2 ? J.ic + ' ' + J.nom : '⚔️ Un duel'); dessinerInvitation(p); return; }
     if (p.etat === 'invite') { F.titre.textContent = J.ic + ' ' + J.nom; dessinerAttente(p); return; }
@@ -784,7 +893,17 @@
       if (a.length > 2) c.appendChild(tableauScores(p));
     }
     if (p.tournoi) c.appendChild(el('div', 'cfAide', '🏟️ ' + esc(p.tournoi.nom || 'Tournoi') + ' : ' + (p.gagnant ? esc(nomDe(p, p.gagnant)) + ' passe au tour suivant.' : '')));
-    if (!p.eleve && O.mode === 'equipe') {
+    var botF = p.joueurs.filter(function (j) { return j.bot; })[0];
+    if (botF && O.mode === 'equipe') {
+      var palo = el('div', '');
+      c.appendChild(palo);
+      appeler('palmares', {}).then(function (r) {
+        var l = ((r && r.ordi && r.ordi[p.jeu]) || []).filter(function (x) { return x.cle === p.moi; });
+        if (!l.length) return;
+        palo.appendChild(lab('Toi contre l’ordinateur · ' + J.nom));
+        palo.appendChild(tableOrdi(l, true));
+      }).catch(function () {});
+    } else if (!p.eleve && O.mode === 'equipe') {
       var palm = el('div', '');
       c.appendChild(palm);
       appeler('palmares', {}).then(function (r) {
@@ -804,6 +923,14 @@
     var autresNoms = p.joueurs.filter(function (j) { return j.cle !== p.moi && j.rep !== 'non' && !j.eleve; }).map(function (j) { return j.nom; });
     var eleve = p.joueurs.filter(function (j) { return j.eleve; }).map(function (j) { return j.nom; })[0] || '';
     var moi = joueur(p, p.moi) || {};
+    var bot = p.joueurs.filter(function (j) { return j.bot; })[0];
+    if (bot) {
+      appeler('lancer', { jeu: p.jeu, ordi: bot.niveau || 'moyen', manches: p.reglages.manches, temps: p.reglages.temps, voiture: moi.voiture || 'bleue' })
+        .then(function (r) { if (r && r.partie) { parties[r.partie.id] = r.partie; ouvrirPartie(r.partie.id); } })
+        .catch(function (e) { toast('⚠️ ' + (e.message || e)); });
+      return;
+    }
+    autresNoms = autresNoms.filter(function (n) { return n !== 'L’ordinateur'; });
     appeler('lancer', { jeu: p.jeu, joueurs: eleve ? [] : autresNoms, eleve: eleve, manches: p.reglages.manches, temps: p.reglages.temps, gage: p.reglages.gage, voiture: moi.voiture || 'bleue' })
       .then(function (r) { if (r && r.partie) { parties[r.partie.id] = r.partie; ouvrirPartie(r.partie.id); } })
       .catch(function (e) { toast('⚠️ ' + (e.message || e)); });
@@ -979,7 +1106,12 @@
         c.appendChild(el('div', 'cfBravo', '🏁'));
         verdict(p, c, 'La ' + (joueur(p, ordre[0]) || {}).voiture + ' gagne la course ' + s.manche + ' !');
         c.appendChild(pod);
-        if (ordre.length > 3) c.appendChild(el('div', 'cfAide', ordre.slice(3).map(function (k, i) { return (i + 4) + 'e : ' + nomDe(p, k); }).join(' · ')).cloneNode(true));
+        /* les temps : ceux qui ont franchi la ligne, et les appuis des autres */
+        var tps = s.derniere.d.temps || {}, ap = s.derniere.d.appuis || {};
+        c.appendChild(el('div', 'cfAide', esc(ordre.map(function (k, i) {
+          return (i + 1) + (i ? 'e' : 'er') + ' ' + nomDe(p, k) + ' : ' + (tps[k] ? (tps[k] / 1000).toFixed(2).replace('.', ',') + ' s' : (ap[k] || 0) + ' appuis');
+        }).join(' · '))));
+        c.lastChild.style.textAlign = 'center';
         c.appendChild(tableauScores(p));
         return;
       }
@@ -995,8 +1127,36 @@
       var dec = el('div', 'cfDecompte', '');
       piste.appendChild(dec);
       c.appendChild(piste);
-      var et = etatTexte(c, '🏁 Les voitures avancent toutes seules, au hasard : on regarde et on crie !');
-      F.anim = { genre: 'course', p: p, piste: piste, dec: dec, et: et };
+      /* 🏎️ v1458 — David : « en fait il faut qu'on appuie ». Chaque
+         appui fait avancer SA voiture ; le compte part au Worker
+         plusieurs fois par seconde (pas à chaque appui : un doigt rapide
+         en ferait dix requêtes). La barre d'espace marche aussi. */
+      var moiJ = joueur(p, p.moi);
+      var b = null;
+      if (moiJ && moiJ.rep === 'oui') {
+        b = el('button', 'cfGros', 'Prêts ?');
+        b.type = 'button';
+        b.disabled = true;
+        b.style.marginTop = '10px';
+        c.appendChild(b);
+      }
+      var et = etatTexte(c, moiJ && moiJ.rep === 'oui' ? 'Tape le plus vite possible (ou la barre d’espace) : chaque appui fait avancer ta voiture.' : 'La course…');
+      F.anim = { genre: 'course', p: p, piste: piste, dec: dec, et: et, b: b, n: (s.appuis && s.appuis[p.moi]) || 0, envoye: (s.appuis && s.appuis[p.moi]) || 0, affiche: {}, minuteur: 0 };
+      if (b) {
+        var taper = function (ev) {
+          if (ev) ev.preventDefault();
+          var A = F && F.anim;
+          if (!A || A.genre !== 'course' || A.p.id !== p.id) return;
+          var q = parties[p.id];
+          if (!q || !q.s || q.s.phase !== 'course' || maintenant() < q.s.depart || A.n >= q.s.but) return;
+          A.n++;
+          if (A.n >= q.s.but) envoyerAppuis(true);
+          else if (!A.minuteur) A.minuteur = setTimeout(function () { envoyerAppuis(false); }, 220);
+        };
+        b.addEventListener('pointerdown', taper);
+        b.addEventListener('click', function (ev) { ev.preventDefault(); });
+        F.anim.taper = taper;
+      }
       c.appendChild(tableauScores(p));
     },
 
@@ -1172,6 +1332,18 @@
     }
   };
 
+  /* 🏎️ le compte d'appuis part au Worker (regroupé) */
+  function envoyerAppuis(force) {
+    var A = F && F.anim;
+    if (!A || A.genre !== 'course') return;
+    clearTimeout(A.minuteur);
+    A.minuteur = 0;
+    if (A.n === A.envoye && !force) return;
+    var n = A.n, id = A.p.id;
+    A.envoye = n;
+    appeler('agir', { id: id, quoi: 'jouer', n: n }).then(function (r) { if (r && r.partie) recevoir([r.partie]); }).catch(function () {});
+  }
+
   /* ---------- ce qui bouge : le temps, la course, le feu, le créneau ---------- */
   function animer() {
     if (rafVivant) return;
@@ -1189,7 +1361,31 @@
       var A = F.anim;
       if (A && A.p && parties[A.p.id] && parties[A.p.id].s) {
         var s = A.p.s;
-        if (A.genre === 'course') {
+        if (A.genre === 'course' && A.p.s.but) {
+          var q2 = parties[A.p.id] || A.p, s2 = q2.s || s;
+          var avant2 = s.depart - t;
+          A.dec.textContent = avant2 > 0 ? String(Math.ceil(avant2 / 1000)) : (avant2 > -700 ? 'Partez !' : '');
+          if (A.b && s2.phase === 'course') {
+            if (avant2 > 0) { A.b.disabled = true; A.b.textContent = 'Prêts ?'; A.b.classList.remove('vert'); }
+            else if (A.n >= s.but) { A.b.disabled = true; A.b.textContent = '🏁 Arrivé !'; A.b.classList.remove('vert'); }
+            else { A.b.disabled = false; A.b.textContent = '👆 TAPE ! ' + A.n + ' / ' + s.but; A.b.classList.add('vert'); }
+          }
+          var larg2 = A.piste.clientWidth - 34 - 72;
+          var cars2 = A.piste.querySelectorAll('.car');
+          for (var k2 = 0; k2 < cars2.length; k2++) {
+            var cle2 = cars2[k2].getAttribute('data-cle');
+            var but = s.but || 50, vise;
+            if (cle2 === A.p.moi && A.b) vise = A.n;
+            else if (s2.vitesses && s2.vitesses[cle2] && !(s2.arrivees && s2.arrivees[cle2])) vise = Math.min(but, Math.max(0, (t - s.depart) / 1000 * s2.vitesses[cle2]));
+            else vise = (s2.appuis && s2.appuis[cle2]) || 0;
+            var dejaA = A.affiche[cle2] || 0;
+            var pos2 = dejaA + (vise - dejaA) * 0.35;
+            A.affiche[cle2] = pos2;
+            cars2[k2].style.transform = 'translateX(' + Math.round(Math.min(1, pos2 / but) * larg2) + 'px)';
+          }
+          var arr2 = s2.arrivees ? Object.keys(s2.arrivees) : [];
+          if (arr2.length) A.et.textContent = '🏁 ' + arr2.map(function (k3) { return k3 === A.p.moi ? 'Tu as' : nomDe(A.p, k3) + ' a'; }).join(', ') + ' franchi la ligne !';
+        } else if (A.genre === 'course') {
           var avant = s.depart - t;
           A.dec.textContent = avant > 0 ? String(Math.ceil(avant / 1000)) : (avant > -700 ? 'Partez !' : '');
           var largeur = A.piste.clientWidth - 34 - 72;
@@ -1249,9 +1445,677 @@
   }
 
   /* ============================================================
+     🕹️ LES JEUX SOLO — v1458
+
+     David, le 18 novembre : « ajoute un démineur dans le coin café
+     et d'autres jeux solo » ; ses choix : le démineur, le Memory des
+     panneaux, le serpent, 2048 et le Sudoku (une grille par jour).
+     Tout se joue dans la page ; seul le résultat part au Worker
+     (cafeRecord), qui garde le meilleur de chacun — visible par
+     toute l'équipe, à part du classement des duels.
+     ============================================================ */
+  var SOLO = {
+    demineur: { nom: 'Démineur', e: '💣', s: 'facile, moyen ou difficile', niveaux: [['facile', 'Facile'], ['moyen', 'Moyen'], ['difficile', 'Difficile']] },
+    memory: { nom: 'Memory des panneaux', e: '🚸', s: 'retrouver les paires', niveaux: [['facile', '6 paires'], ['moyen', '8 paires'], ['difficile', '12 paires']] },
+    serpent: { nom: 'Le serpent', e: '🐍', s: 'ramasser les plots', niveaux: null },
+    '2048': { nom: '2048', e: '🔢', s: 'glisser les tuiles', niveaux: null },
+    sudoku: { nom: 'Sudoku du jour', e: '✏️', s: 'une grille par jour', niveaux: [['facile', 'Facile'], ['moyen', 'Moyen'], ['difficile', 'Difficile']] }
+  };
+  var ORDRE_SOLO = ['demineur', 'memory', 'serpent', '2048', 'sudoku'];
+  var niveauSolo = {};
+  var soloStop = null;            /* arrête les minuteurs et les écouteurs du jeu en cours */
+  var soloTouche = null;          /* le clavier, pour le jeu en cours */
+
+  function stopSolo() {
+    if (soloStop) { try { soloStop(); } catch (e) {} }
+    soloStop = null;
+    soloTouche = null;
+  }
+  function deuxChiffres(n) { return (n < 10 ? '0' : '') + n; }
+  function minSec(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + deuxChiffres(s % 60); }
+  function formatRecord(jeu, v) {
+    if (jeu === 'demineur') return (v / 10).toFixed(1).replace('.', ',') + ' s';
+    if (jeu === 'memory') { var c = Math.floor(v / 10000); return c + ' coup' + (c > 1 ? 's' : '') + ' · ' + minSec(v % 10000); }
+    if (jeu === 'serpent') return v + ' plot' + (v > 1 ? 's' : '');
+    if (jeu === '2048') return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' points';
+    if (jeu === 'sudoku') return minSec(v);
+    return String(v);
+  }
+
+  function ouvrirSolo(jeu, niveau) {
+    var S = SOLO[jeu];
+    if (!S) return;
+    if (niveau) niveauSolo[jeu] = niveau;
+    var n = S.niveaux ? (niveauSolo[jeu] || S.niveaux[0][0]) : '';
+    var f = fenetre('solo', S.e + ' ' + S.nom, jeu === 'demineur' && n === 'difficile' ? 560 : 480);
+    if (S.niveaux) f.corps.appendChild(chips(S.niveaux, n, function (v) { ouvrirSolo(jeu, v); }));
+    var zone = el('div', 'cfSolo');
+    f.corps.appendChild(zone);
+    var message = el('div', 'cfEtat', '');
+    f.corps.appendChild(message);
+    var recs = el('div', '');
+    f.corps.appendChild(recs);
+    var montrerRecords = function () {
+      appeler('palmares', {}).then(function (r) {
+        if (!F || F.ecran !== 'solo') return;
+        var l = (r && r.records && r.records[jeu] && r.records[jeu][n]) || [];
+        recs.innerHTML = '';
+        if (!l.length) return;
+        recs.appendChild(lab('Les records de l’équipe' + (S.niveaux ? ' · ' + S.niveaux.filter(function (x) { return x[0] === n; })[0][1] : '')));
+        recs.appendChild(tableRecords(jeu, l, 5));
+      }).catch(function () {});
+    };
+    var finir = function (valeur, texte) {
+      message.innerHTML = '<b>' + esc(texte) + '</b>';
+      if (!(valeur > 0)) return;
+      appeler('record', { jeu: jeu, niveau: n, valeur: valeur }).then(function (r) {
+        var t = r.premier ? '🏅 Ton premier score' : (r.record ? '🏅 Nouveau record ! (avant : ' + formatRecord(jeu, r.ancien) + ')' : 'Ton record : ' + formatRecord(jeu, r.meilleur));
+        message.innerHTML = '<b>' + esc(texte) + '</b><br>' + esc(t + ' · ' + r.rang + (r.rang === 1 ? 'er' : 'e') + ' de l’équipe');
+        if (r.record || r.premier) cotillons();
+        montrerRecords();
+      }).catch(function () {});
+    };
+    var jeux = { demineur: jeuDemineur, memory: jeuMemory, serpent: jeuSerpent, '2048': jeu2048, sudoku: jeuSudoku };
+    var lancerJeu = function () {
+      stopSolo();
+      zone.innerHTML = '';
+      message.textContent = '';
+      soloStop = jeux[jeu](zone, n, finir, message);
+    };
+    lancerJeu();
+    montrerRecords();
+    f.bas.appendChild(bouton('Retour', false, function () { ouvrirCoin(); }));
+    if (jeu !== 'sudoku') f.bas.appendChild(bouton('🔄 Nouvelle partie', true, lancerJeu));
+  }
+  function tableRecords(jeu, l, combien) {
+    var t = el('table', 'cfPalm');
+    var med = ['🥇', '🥈', '🥉'];
+    l.slice(0, combien || 50).forEach(function (x, i) {
+      t.appendChild(el('tr', '', '<td>' + (med[i] || (i + 1) + '.') + ' ' + esc(x.nom) + '</td><td>' + esc(formatRecord(jeu, x.valeur)) + '</td>'));
+    });
+    return t;
+  }
+  function chrono(cible) {
+    var t0 = 0, fin = 0, m = 0;
+    return {
+      lancer: function () { if (t0) return; t0 = Date.now(); m = setInterval(function () { cible.textContent = '⏱️ ' + minSec((Date.now() - t0) / 1000); }, 250); },
+      arreter: function () { if (!fin && t0) fin = Date.now(); clearInterval(m); return t0 ? (fin - t0) : 0; },
+      ms: function () { return t0 ? Date.now() - t0 : 0; }
+    };
+  }
+  /* le doigt qui glisse : haut, bas, gauche, droite */
+  function glisser(cible, faire) {
+    var x0 = 0, y0 = 0, dedans = false;
+    cible.addEventListener('touchstart', function (e) { var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; dedans = true; }, { passive: true });
+    cible.addEventListener('touchmove', function (e) { if (dedans) e.preventDefault(); }, { passive: false });
+    cible.addEventListener('touchend', function (e) {
+      if (!dedans) return;
+      dedans = false;
+      var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+      faire(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'd' : 'g') : (dy > 0 ? 'b' : 'h'));
+    });
+  }
+  function fleches(faire) {
+    var z = el('div', 'cfFleches');
+    [['', ''], ['h', '▲'], ['', ''], ['g', '◀'], ['b', '▼'], ['d', '▶']].forEach(function (x) {
+      if (!x[0]) { z.appendChild(el('span', '')); return; }
+      var b = el('button', '', x[1]);
+      b.type = 'button';
+      b.addEventListener('pointerdown', function (e) { e.preventDefault(); faire(x[0]); });
+      z.appendChild(b);
+    });
+    return z;
+  }
+  var TOUCHES = { ArrowUp: 'h', ArrowDown: 'b', ArrowLeft: 'g', ArrowRight: 'd', z: 'h', s: 'b', q: 'g', d: 'd', w: 'h', a: 'g' };
+
+  /* ---------- 💣 LE DÉMINEUR ---------- */
+  function jeuDemineur(zone, niveau, finir, message) {
+    var cfg = { facile: [9, 9, 10], moyen: [12, 12, 24], difficile: [16, 16, 48] }[niveau] || [9, 9, 10];
+    var L = cfg[0], H = cfg[1], M = cfg[2], N = L * H;
+    var mines = null, vu = [], drap = [], fini = false, modeDrapeau = false;
+    var barre = el('div', 'cfSoloBarre', '<span>💣 <b>' + M + '</b></span><span class="t">⏱️ 0:00</span>');
+    var bd = el('button', '', '🚩 Drapeau');
+    bd.type = 'button';
+    bd.addEventListener('click', function () { modeDrapeau = !modeDrapeau; bd.className = modeDrapeau ? 'on' : ''; });
+    barre.appendChild(bd);
+    zone.appendChild(barre);
+    var ch = chrono(barre.querySelector('.t'));
+    var g = el('div', 'cfDem');
+    g.style.gridTemplateColumns = 'repeat(' + L + ', 1fr)';
+    g.style.maxWidth = (L * 34) + 'px';
+    var cases = [];
+    for (var i = 0; i < N; i++) { var c = el('div', ''); c.setAttribute('data-i', String(i)); cases.push(c); g.appendChild(c); vu.push(false); drap.push(false); }
+    zone.appendChild(g);
+    zone.appendChild(el('div', 'cfAide', 'Appui long (ou clic droit, ou 🚩) pour poser un drapeau. Toucher un chiffre entouré de ses drapeaux ouvre le reste.'));
+    zone.lastChild.style.textAlign = 'center';
+    function voisins(i) {
+      var x = i % L, y = Math.floor(i / L), r = [];
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        var nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < L && ny < H) r.push(ny * L + nx);
+      }
+      return r;
+    }
+    function compte(i) { return voisins(i).filter(function (j) { return mines[j]; }).length; }
+    function poser(i0) {
+      mines = [];
+      for (var k = 0; k < N; k++) mines.push(false);
+      var interdit = voisins(i0).concat([i0]);
+      var place = 0;
+      while (place < M) {
+        var j = Math.floor(Math.random() * N);
+        if (mines[j] || interdit.indexOf(j) !== -1) continue;
+        mines[j] = true; place++;
+      }
+    }
+    function peindre(i) {
+      var c = cases[i];
+      if (vu[i]) {
+        var n = mines[i] ? -1 : compte(i);
+        c.className = 'ouv' + (n > 0 ? ' n' + n : '');
+        c.textContent = mines[i] ? '💣' : (n || '');
+      } else {
+        c.className = drap[i] ? 'dr' : '';
+        c.textContent = drap[i] ? '🚩' : '';
+      }
+    }
+    function majCompte() { barre.querySelector('b').textContent = String(M - drap.filter(Boolean).length); }
+    function ouvrir(i) {
+      if (vu[i] || drap[i]) return;
+      var pile = [i];
+      while (pile.length) {
+        var k = pile.pop();
+        if (vu[k] || drap[k]) continue;
+        vu[k] = true; peindre(k);
+        if (!mines[k] && compte(k) === 0) voisins(k).forEach(function (j) { if (!vu[j]) pile.push(j); });
+      }
+    }
+    function perdu(i) {
+      fini = true; ch.arreter();
+      for (var k = 0; k < N; k++) if (mines[k]) { vu[k] = true; drap[k] = false; peindre(k); }
+      cases[i].className += ' boum';
+      vibrer(80);
+      message.innerHTML = '<b>💥 Perdu ! « Nouvelle partie » pour recommencer.</b>';
+    }
+    function verifier() {
+      var ouverts = vu.filter(Boolean).length;
+      if (ouverts === N - M) {
+        fini = true;
+        var ds = Math.max(1, Math.round(ch.arreter() / 100));
+        for (var k = 0; k < N; k++) if (mines[k]) { drap[k] = true; peindre(k); }
+        finir(ds, '🎉 Déminé en ' + formatRecord('demineur', ds) + ' !');
+      }
+    }
+    function jouer(i, drapeau) {
+      if (fini) return;
+      if (drapeau) { if (vu[i]) return; drap[i] = !drap[i]; peindre(i); majCompte(); return; }
+      if (!mines) { poser(i); ch.lancer(); }
+      if (vu[i]) {
+        /* le chiffre entouré de ses drapeaux : on ouvre le reste */
+        var v = voisins(i);
+        if (v.filter(function (j) { return drap[j]; }).length !== compte(i)) return;
+        for (var a = 0; a < v.length; a++) { var j = v[a]; if (!drap[j] && !vu[j]) { if (mines[j]) { perdu(j); return; } ouvrir(j); } }
+        verifier();
+        return;
+      }
+      if (drap[i]) return;
+      if (mines[i]) { perdu(i); return; }
+      ouvrir(i);
+      verifier();
+    }
+    var long = 0, longFait = false;
+    g.addEventListener('pointerdown', function (e) {
+      var c = e.target.closest ? e.target.closest('[data-i]') : null;
+      if (!c) return;
+      longFait = false;
+      clearTimeout(long);
+      long = setTimeout(function () { longFait = true; vibrer(15); jouer(Number(c.getAttribute('data-i')), true); }, 420);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (n) { g.addEventListener(n, function () { clearTimeout(long); }); });
+    g.addEventListener('click', function (e) {
+      var c = e.target.closest ? e.target.closest('[data-i]') : null;
+      if (!c || longFait) { longFait = false; return; }
+      jouer(Number(c.getAttribute('data-i')), modeDrapeau);
+    });
+    g.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      var c = e.target.closest ? e.target.closest('[data-i]') : null;
+      if (c && !longFait) jouer(Number(c.getAttribute('data-i')), true);
+      longFait = false;
+    });
+    return function () { ch.arreter(); clearTimeout(long); };
+  }
+
+  /* ---------- 🚸 LE MEMORY DES PANNEAUX ---------- */
+  var PANNEAUX = [
+    ['stop', 'Stop', '<polygon points="30,4 70,4 96,30 96,70 70,96 30,96 4,70 4,30" fill="#D52B1E" stroke="#fff" stroke-width="4"/><text x="50" y="60" font-size="26" font-weight="800" fill="#fff" text-anchor="middle" font-family="Arial">STOP</text>'],
+    ['sens', 'Sens interdit', '<circle cx="50" cy="50" r="46" fill="#D52B1E" stroke="#fff" stroke-width="3"/><rect x="18" y="42" width="64" height="16" fill="#fff"/>'],
+    ['cedez', 'Cédez le passage', '<polygon points="4,8 96,8 50,92" fill="#fff" stroke="#D52B1E" stroke-width="10" stroke-linejoin="round"/>'],
+    ['danger', 'Danger', '<polygon points="50,6 96,90 4,90" fill="#fff" stroke="#D52B1E" stroke-width="9" stroke-linejoin="round"/><rect x="46" y="36" width="8" height="30" fill="#111"/><rect x="46" y="72" width="8" height="8" fill="#111"/>'],
+    ['l30', 'Limité à 30', '<circle cx="50" cy="50" r="44" fill="#fff" stroke="#D52B1E" stroke-width="10"/><text x="50" y="64" font-size="40" font-weight="800" fill="#111" text-anchor="middle" font-family="Arial">30</text>'],
+    ['l50', 'Limité à 50', '<circle cx="50" cy="50" r="44" fill="#fff" stroke="#D52B1E" stroke-width="10"/><text x="50" y="64" font-size="40" font-weight="800" fill="#111" text-anchor="middle" font-family="Arial">50</text>'],
+    ['l90', 'Limité à 90', '<circle cx="50" cy="50" r="44" fill="#fff" stroke="#D52B1E" stroke-width="10"/><text x="50" y="64" font-size="40" font-weight="800" fill="#111" text-anchor="middle" font-family="Arial">90</text>'],
+    ['stat', 'Stationnement interdit', '<circle cx="50" cy="50" r="44" fill="#1E5BC6" stroke="#D52B1E" stroke-width="10"/><line x1="20" y1="20" x2="80" y2="80" stroke="#D52B1E" stroke-width="10"/>'],
+    ['arret', 'Arrêt et stationnement interdits', '<circle cx="50" cy="50" r="44" fill="#1E5BC6" stroke="#D52B1E" stroke-width="10"/><line x1="20" y1="20" x2="80" y2="80" stroke="#D52B1E" stroke-width="10"/><line x1="80" y1="20" x2="20" y2="80" stroke="#D52B1E" stroke-width="10"/>'],
+    ['prio', 'Route prioritaire', '<polygon points="50,3 97,50 50,97 3,50" fill="#fff" stroke="#333" stroke-width="2"/><polygon points="50,20 80,50 50,80 20,50" fill="#F5C400"/>'],
+    ['finprio', 'Fin de route prioritaire', '<polygon points="50,3 97,50 50,97 3,50" fill="#fff" stroke="#333" stroke-width="2"/><polygon points="50,20 80,50 50,80 20,50" fill="#F5C400"/><line x1="26" y1="74" x2="74" y2="26" stroke="#111" stroke-width="8"/>'],
+    ['droit', 'Tout droit obligatoire', '<circle cx="50" cy="50" r="46" fill="#1E5BC6" stroke="#fff" stroke-width="3"/><rect x="44" y="34" width="12" height="44" fill="#fff"/><polygon points="50,14 70,38 30,38" fill="#fff"/>']
+  ];
+  function panneau(i) { return '<svg viewBox="0 0 100 100" aria-hidden="true">' + PANNEAUX[i][2] + '</svg>'; }
+  function jeuMemory(zone, niveau, finir) {
+    var paires = { facile: 6, moyen: 8, difficile: 12 }[niveau] || 6;
+    var choix = [];
+    for (var i = 0; i < PANNEAUX.length; i++) choix.push(i);
+    choix.sort(function () { return Math.random() - 0.5; });
+    choix = choix.slice(0, paires);
+    var jeu = choix.concat(choix).sort(function () { return Math.random() - 0.5; });
+    var barre = el('div', 'cfSoloBarre', '<span>🔁 <b>0</b> coup</span><span class="t">⏱️ 0:00</span><span>✅ <i>0</i> / ' + paires + '</span>');
+    zone.appendChild(barre);
+    var ch = chrono(barre.querySelector('.t'));
+    var g = el('div', 'cfMem');
+    g.style.gridTemplateColumns = 'repeat(' + (paires === 12 ? 6 : 4) + ', 1fr)';
+    var cartes = [];
+    var ouvertes = [], trouvees = 0, coups = 0, bloque = false, fin = false, attente = 0;
+    jeu.forEach(function (k, i) {
+      var b = el('button', 'cfCarte', '<span class="dos">EC</span><span class="face">' + panneau(k) + '<small>' + esc(PANNEAUX[k][1]) + '</small></span>');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Carte ' + (i + 1));
+      b.addEventListener('click', function () {
+        if (bloque || fin || b.classList.contains('vue') || b.classList.contains('ok')) return;
+        ch.lancer();
+        b.classList.add('vue');
+        ouvertes.push(i);
+        if (ouvertes.length < 2) return;
+        coups++;
+        barre.querySelector('b').textContent = String(coups);
+        barre.querySelector('b').nextSibling.textContent = coups > 1 ? ' coups' : ' coup';
+        var a = ouvertes[0], c = ouvertes[1];
+        ouvertes = [];
+        if (jeu[a] === jeu[c]) {
+          cartes[a].classList.add('ok'); cartes[c].classList.add('ok');
+          trouvees++;
+          barre.querySelector('i').textContent = String(trouvees);
+          if (trouvees === paires) {
+            fin = true;
+            var secs = Math.round(ch.arreter() / 1000);
+            finir(coups * 10000 + Math.min(9999, secs), '🎉 Toutes les paires en ' + coups + ' coups et ' + minSec(secs) + ' !');
+          }
+        } else {
+          bloque = true;
+          attente = setTimeout(function () { cartes[a].classList.remove('vue'); cartes[c].classList.remove('vue'); bloque = false; }, 850);
+        }
+      });
+      cartes.push(b);
+      g.appendChild(b);
+    });
+    zone.appendChild(g);
+    return function () { ch.arreter(); clearTimeout(attente); };
+  }
+
+  /* ---------- 🐍 LE SERPENT ---------- */
+  function jeuSerpent(zone, niveau, finir, message) {
+    var N = 15;
+    var barre = el('div', 'cfSoloBarre', '<span>🔺 <b>0</b> plot</span><span class="vit">🚗 vitesse 1</span>');
+    zone.appendChild(barre);
+    var cadre = el('div', 'cfSerp');
+    var cv = document.createElement('canvas');
+    cadre.appendChild(cv);
+    var go = el('button', 'cfGros vert', '▶️ Jouer');
+    go.type = 'button';
+    var surCadre = el('div', 'cfSurCadre');
+    surCadre.appendChild(go);
+    cadre.appendChild(surCadre);
+    zone.appendChild(cadre);
+    var dir = 'd', prochaine = 'd', corps = [], plot = null, score = 0, enJeu = false, minuteur = 0, pas = 170;
+    var taille = Math.min(360, Math.max(240, (zone.clientWidth || 340) - 8));
+    var dpr = window.devicePixelRatio || 1;
+    cv.width = taille * dpr; cv.height = taille * dpr;
+    cv.style.width = taille + 'px'; cv.style.height = taille + 'px';
+    var cx = cv.getContext('2d');
+    cx.scale(dpr, dpr);
+    var c = taille / N;
+    function placerPlot() {
+      var libre;
+      do { libre = { x: Math.floor(Math.random() * N), y: Math.floor(Math.random() * N) }; }
+      while (corps.some(function (p) { return p.x === libre.x && p.y === libre.y; }));
+      plot = libre;
+    }
+    function dessiner() {
+      cx.fillStyle = '#3B3F45'; cx.fillRect(0, 0, taille, taille);
+      cx.strokeStyle = 'rgba(255,255,255,.06)';
+      for (var i = 1; i < N; i++) { cx.beginPath(); cx.moveTo(i * c, 0); cx.lineTo(i * c, taille); cx.stroke(); cx.beginPath(); cx.moveTo(0, i * c); cx.lineTo(taille, i * c); cx.stroke(); }
+      if (plot) {
+        cx.fillStyle = '#F07D1A';
+        cx.beginPath(); cx.moveTo(plot.x * c + c / 2, plot.y * c + 3); cx.lineTo(plot.x * c + c - 3, plot.y * c + c - 3); cx.lineTo(plot.x * c + 3, plot.y * c + c - 3); cx.closePath(); cx.fill();
+        cx.fillStyle = '#fff'; cx.fillRect(plot.x * c + c * 0.32, plot.y * c + c * 0.55, c * 0.36, c * 0.12);
+      }
+      corps.forEach(function (p, i) {
+        cx.fillStyle = i === 0 ? '#8FD400' : '#B6FF0E';
+        var m = i === 0 ? 1 : 2;
+        cx.fillRect(p.x * c + m, p.y * c + m, c - 2 * m, c - 2 * m);
+      });
+      if (corps.length) {
+        var h = corps[0];
+        cx.fillStyle = '#111';
+        cx.beginPath(); cx.arc(h.x * c + c * 0.35, h.y * c + c * 0.38, c * 0.09, 0, 7); cx.arc(h.x * c + c * 0.65, h.y * c + c * 0.38, c * 0.09, 0, 7); cx.fill();
+      }
+    }
+    function tourner(d) {
+      var oppose = { h: 'b', b: 'h', g: 'd', d: 'g' };
+      if (enJeu && d !== oppose[dir]) prochaine = d;
+    }
+    function tic() {
+      if (!enJeu) return;
+      if (document.hidden) { minuteur = setTimeout(tic, 300); return; }
+      dir = prochaine;
+      var h = corps[0];
+      var n = { x: h.x + (dir === 'd' ? 1 : dir === 'g' ? -1 : 0), y: h.y + (dir === 'b' ? 1 : dir === 'h' ? -1 : 0) };
+      var mange = plot && n.x === plot.x && n.y === plot.y;
+      var queue = mange ? corps : corps.slice(0, -1);
+      if (n.x < 0 || n.y < 0 || n.x >= N || n.y >= N || queue.some(function (p) { return p.x === n.x && p.y === n.y; })) {
+        enJeu = false;
+        vibrer(80);
+        dessiner();
+        go.textContent = '🔄 Rejouer';
+        surCadre.style.display = '';
+        if (score > 0) finir(score, '💥 Fin de la partie : ' + score + ' plot' + (score > 1 ? 's' : '') + ' ramassé' + (score > 1 ? 's' : '') + '.');
+        else message.innerHTML = '<b>💥 Perdu ! Rejoue pour ramasser des plots.</b>';
+        return;
+      }
+      corps.unshift(n);
+      if (mange) {
+        score++;
+        barre.querySelector('b').textContent = String(score);
+        barre.querySelector('b').nextSibling.textContent = score > 1 ? ' plots' : ' plot';
+        pas = Math.max(75, 170 - score * 5);
+        barre.querySelector('.vit').textContent = '🚗 vitesse ' + (1 + Math.floor((170 - pas) / 19));
+        placerPlot();
+      } else corps.pop();
+      dessiner();
+      minuteur = setTimeout(tic, pas);
+    }
+    function demarrer() {
+      corps = [{ x: 7, y: 7 }, { x: 6, y: 7 }, { x: 5, y: 7 }];
+      dir = 'd'; prochaine = 'd'; score = 0; pas = 170;
+      barre.querySelector('b').textContent = '0';
+      message.textContent = '';
+      placerPlot();
+      enJeu = true;
+      surCadre.style.display = 'none';
+      dessiner();
+      minuteur = setTimeout(tic, pas);
+    }
+    go.addEventListener('click', demarrer);
+    glisser(cadre, tourner);
+    zone.appendChild(fleches(tourner));
+    zone.appendChild(el('div', 'cfAide', 'Les flèches du clavier, un glissé du doigt, ou les flèches ci-dessus.'));
+    zone.lastChild.style.textAlign = 'center';
+    soloTouche = function (ev) { var d = TOUCHES[ev.key]; if (d && enJeu) { ev.preventDefault(); tourner(d); } };
+    dessiner();
+    return function () { enJeu = false; clearTimeout(minuteur); };
+  }
+
+  /* ---------- 🔢 2048 ---------- */
+  function jeu2048(zone, niveau, finir, message) {
+    var g = [], score = 0, fin = false, gagne = false;
+    for (var i = 0; i < 16; i++) g.push(0);
+    var barre = el('div', 'cfSoloBarre', '<span>⭐ <b>0</b> points</span><span class="max">🔝 2</span>');
+    zone.appendChild(barre);
+    var plateau = el('div', 'cfTuiles');
+    zone.appendChild(plateau);
+    function ajouter() {
+      var libres = [];
+      g.forEach(function (v, i) { if (!v) libres.push(i); });
+      if (!libres.length) return;
+      g[libres[Math.floor(Math.random() * libres.length)]] = Math.random() < 0.9 ? 2 : 4;
+    }
+    function dessiner() {
+      plateau.innerHTML = '';
+      var max = 0;
+      g.forEach(function (v) {
+        max = Math.max(max, v);
+        plateau.appendChild(el('div', 'v' + Math.min(v, 4096), v ? String(v) : ''));
+      });
+      barre.querySelector('b').textContent = String(score);
+      barre.querySelector('.max').textContent = '🔝 ' + max;
+      if (max >= 2048 && !gagne) { gagne = true; message.innerHTML = '<b>🎉 2048 ! Continue pour faire mieux.</b>'; cotillons(); }
+    }
+    function ligne(l) {
+      var t = l.filter(Boolean), out = [];
+      for (var i = 0; i < t.length; i++) {
+        if (t[i] === t[i + 1]) { out.push(t[i] * 2); score += t[i] * 2; i++; }
+        else out.push(t[i]);
+      }
+      while (out.length < 4) out.push(0);
+      return out;
+    }
+    function bouger(d) {
+      if (fin) return;
+      var avant = g.join(',');
+      for (var k = 0; k < 4; k++) {
+        var idx = [];
+        for (var j = 0; j < 4; j++) {
+          if (d === 'g') idx.push(k * 4 + j);
+          else if (d === 'd') idx.push(k * 4 + 3 - j);
+          else if (d === 'h') idx.push(j * 4 + k);
+          else idx.push((3 - j) * 4 + k);
+        }
+        var r = ligne(idx.map(function (i) { return g[i]; }));
+        idx.forEach(function (i, n) { g[i] = r[n]; });
+      }
+      if (g.join(',') === avant) return;
+      ajouter();
+      dessiner();
+      if (bloque()) {
+        fin = true;
+        finir(score, '🧱 Plus de coup possible : ' + formatRecord('2048', score) + '.');
+      }
+    }
+    function bloque() {
+      for (var i = 0; i < 16; i++) {
+        if (!g[i]) return false;
+        if (i % 4 < 3 && g[i] === g[i + 1]) return false;
+        if (i < 12 && g[i] === g[i + 4]) return false;
+      }
+      return true;
+    }
+    ajouter(); ajouter(); dessiner();
+    glisser(plateau, bouger);
+    zone.appendChild(fleches(bouger));
+    zone.appendChild(el('div', 'cfAide', 'Les flèches du clavier, un glissé du doigt, ou les flèches ci-dessus. Deux tuiles pareilles se rejoignent.'));
+    zone.lastChild.style.textAlign = 'center';
+    soloTouche = function (ev) { var d = TOUCHES[ev.key]; if (d) { ev.preventDefault(); bouger(d); } };
+    return function () { fin = true; };
+  }
+
+  /* ---------- ✏️ LE SUDOKU DU JOUR ----------
+     Une grille par jour et par niveau, LA MÊME POUR TOUTE L'ÉQUIPE :
+     elle se tire avec la date comme graine. Elle se fait une fois sur
+     cet appareil (gardée dans le navigateur) ; seule la première fois
+     qu'on la finit compte pour le record — la refaire, on la connaît. */
+  function graine(t) {
+    var h = 1779033703 ^ t.length;
+    for (var i = 0; i < t.length; i++) { h = Math.imul(h ^ t.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+    return function () {
+      h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return ((h ^= h >>> 16) >>> 0) / 4294967296;
+    };
+  }
+  function sdkPossibles(g, i) {
+    var r = Math.floor(i / 9), c = i % 9, pris = 0;
+    for (var k = 0; k < 9; k++) { pris |= 1 << g[r * 9 + k]; pris |= 1 << g[k * 9 + c]; }
+    var br = r - r % 3, bc = c - c % 3;
+    for (var y = 0; y < 3; y++) for (var x = 0; x < 3; x++) pris |= 1 << g[(br + y) * 9 + bc + x];
+    return pris;
+  }
+  function sdkCompter(g, limite) {
+    var best = -1, bestN = 10, bestM = 0;
+    for (var i = 0; i < 81; i++) {
+      if (g[i]) continue;
+      var m = sdkPossibles(g, i), n = 0;
+      for (var v = 1; v <= 9; v++) if (!(m & (1 << v))) n++;
+      if (n < bestN) { bestN = n; best = i; bestM = m; if (n === 0) return 0; }
+    }
+    if (best === -1) return 1;
+    var total = 0;
+    for (var w = 1; w <= 9 && total < limite; w++) {
+      if (bestM & (1 << w)) continue;
+      g[best] = w;
+      total += sdkCompter(g, limite - total);
+      g[best] = 0;
+    }
+    return total;
+  }
+  function sdkRemplir(g, rnd) {
+    for (var i = 0; i < 81; i++) {
+      if (g[i]) continue;
+      var m = sdkPossibles(g, i), l = [];
+      for (var v = 1; v <= 9; v++) if (!(m & (1 << v))) l.push(v);
+      for (var k = l.length - 1; k > 0; k--) { var j = Math.floor(rnd() * (k + 1)); var x = l[k]; l[k] = l[j]; l[j] = x; }
+      for (var a = 0; a < l.length; a++) { g[i] = l[a]; if (sdkRemplir(g, rnd)) return true; }
+      g[i] = 0;
+      return false;
+    }
+    return true;
+  }
+  function sdkGrille(jour, niveau) {
+    var cle = 'cafe_sudoku:' + jour + ':' + niveau;
+    try { var d = JSON.parse(localStorage.getItem(cle) || 'null'); if (d && d.g && d.s) return d; } catch (e) {}
+    var rnd = graine('EC-sudoku-' + jour + '-' + niveau);
+    var sol = []; for (var i = 0; i < 81; i++) sol.push(0);
+    sdkRemplir(sol, rnd);
+    var g = sol.slice();
+    var ordre = []; for (var k = 0; k < 81; k++) ordre.push(k);
+    for (var q = 80; q > 0; q--) { var j = Math.floor(rnd() * (q + 1)); var x = ordre[q]; ordre[q] = ordre[j]; ordre[j] = x; }
+    var vise = { facile: 40, moyen: 32, difficile: 26 }[niveau] || 40;
+    var restent = 81;
+    for (var n = 0; n < 81 && restent > vise; n++) {
+      var p = ordre[n], garde = g[p];
+      g[p] = 0;
+      if (sdkCompter(g.slice(), 2) !== 1) g[p] = garde; else restent--;
+    }
+    var out = { g: g, s: sol };
+    try { localStorage.setItem(cle, JSON.stringify(out)); } catch (e) {}
+    return out;
+  }
+  function jourDeParis() {
+    try { return new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }); } catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+  function jeuSudoku(zone, niveau, finir, message) {
+    var jour = jourDeParis();
+    var G = sdkGrille(jour, niveau);
+    var cleJeu = 'cafe_sudoku_jeu:' + jour + ':' + niveau;
+    var etat = null;
+    try { etat = JSON.parse(localStorage.getItem(cleJeu) || 'null'); } catch (e) {}
+    if (!etat || !etat.v) etat = { v: G.g.slice(), ecoule: 0, fait: false, temps: 0 };
+    var v = etat.v, choisie = -1, debut = Date.now(), fini = etat.fait;
+    var jj = jour.split('-');
+    var barre = el('div', 'cfSoloBarre', '<span>📅 Grille du ' + jj[2] + '/' + jj[1] + '</span><span class="t">⏱️ ' + minSec(etat.ecoule) + '</span>');
+    zone.appendChild(barre);
+    var g = el('div', 'cfSdk');
+    var cases = [];
+    for (var i = 0; i < 81; i++) {
+      var c = el('div', '');
+      c.setAttribute('data-i', String(i));
+      if ((i % 9) % 3 === 2 && i % 9 !== 8) c.className = 'bd';
+      if (Math.floor(i / 9) % 3 === 2 && Math.floor(i / 9) !== 8) c.className += ' bb';
+      cases.push(c);
+      g.appendChild(c);
+    }
+    zone.appendChild(g);
+    var pad = el('div', 'cfPad');
+    for (var n = 1; n <= 10; n++) {
+      (function (n) {
+        var b = el('button', '', n === 10 ? '⌫' : String(n));
+        b.type = 'button';
+        b.addEventListener('click', function () { poser(n === 10 ? 0 : n); });
+        pad.appendChild(b);
+      })(n);
+    }
+    zone.appendChild(pad);
+    function ecoule() { return fini ? etat.temps : etat.ecoule + Math.round((Date.now() - debut) / 1000); }
+    var m = setInterval(function () { if (!fini) barre.querySelector('.t').textContent = '⏱️ ' + minSec(ecoule()); }, 500);
+    function garder() { etat.v = v; etat.ecoule = ecoule(); try { localStorage.setItem(cleJeu, JSON.stringify(etat)); } catch (e) {} }
+    function conflit(i) {
+      if (!v[i]) return false;
+      var r = Math.floor(i / 9), c2 = i % 9, br = r - r % 3, bc = c2 - c2 % 3;
+      for (var k = 0; k < 9; k++) {
+        if (r * 9 + k !== i && v[r * 9 + k] === v[i]) return true;
+        if (k * 9 + c2 !== i && v[k * 9 + c2] === v[i]) return true;
+        var j = (br + Math.floor(k / 3)) * 9 + bc + k % 3;
+        if (j !== i && v[j] === v[i]) return true;
+      }
+      return false;
+    }
+    function peindre() {
+      var meme = choisie >= 0 ? v[choisie] : 0;
+      cases.forEach(function (c, i) {
+        c.textContent = v[i] ? String(v[i]) : '';
+        c.classList.toggle('donne', !!G.g[i]);
+        c.classList.toggle('sel', i === choisie);
+        c.classList.toggle('meme', !!meme && v[i] === meme && i !== choisie);
+        c.classList.toggle('faux', !G.g[i] && conflit(i));
+      });
+    }
+    function poser(n) {
+      if (fini || choisie < 0 || G.g[choisie]) return;
+      v[choisie] = n;
+      peindre();
+      garder();
+      for (var i = 0; i < 81; i++) if (v[i] !== G.s[i]) return;
+      fini = true;
+      etat.temps = ecoule();
+      var dejaFait = etat.fait;
+      etat.fait = true;
+      garder();
+      if (dejaFait) message.innerHTML = '<b>✅ Grille finie.</b>';
+      else finir(Math.max(1, etat.temps), '🎉 Grille finie en ' + minSec(etat.temps) + ' !');
+    }
+    g.addEventListener('click', function (e) {
+      var c = e.target.closest ? e.target.closest('[data-i]') : null;
+      if (!c) return;
+      choisie = Number(c.getAttribute('data-i'));
+      peindre();
+    });
+    soloTouche = function (ev) {
+      if (/^[1-9]$/.test(ev.key)) { ev.preventDefault(); poser(Number(ev.key)); return; }
+      if (ev.key === 'Backspace' || ev.key === 'Delete' || ev.key === '0') { ev.preventDefault(); poser(0); return; }
+      var d = TOUCHES[ev.key];
+      if (d && /^Arrow/.test(ev.key)) {
+        ev.preventDefault();
+        if (choisie < 0) choisie = 0;
+        else choisie = d === 'd' ? Math.min(80, choisie + 1) : d === 'g' ? Math.max(0, choisie - 1) : d === 'b' ? Math.min(80, choisie + 9) : Math.max(0, choisie - 9);
+        peindre();
+      }
+    };
+    if (fini) message.innerHTML = '<b>✅ Grille du jour déjà finie en ' + minSec(etat.temps) + '. La prochaine arrive demain.</b>';
+    else zone.appendChild(el('div', 'cfAide', 'La même grille pour toute l’équipe aujourd’hui. Touche une case, puis un chiffre. Seule ta première fois compte.'));
+    if (zone.lastChild.className === 'cfAide') zone.lastChild.style.textAlign = 'center';
+    peindre();
+    return function () { if (!fini) garder(); clearInterval(m); };
+  }
+
+  /* ============================================================
      🏆 LE PALMARÈS, un classement par jeu
      ============================================================ */
   var jeuPalmares = 'chifoumi';
+  function nomNiveau(n) { return n === 'facile' ? 'Facile' : n === 'fort' ? 'Fort' : 'Moyen'; }
+  /* 🤖 contre l'ordinateur : une ligne par personne, ses scores par niveau */
+  function tableOrdi(l, sansNom) {
+    var parQui = {};
+    l.forEach(function (x) { (parQui[x.cle] = parQui[x.cle] || { nom: x.nom, n: {} }).n[x.niveau] = x; });
+    var t = el('table', 'cfPalm');
+    Object.keys(parQui).forEach(function (k) {
+      var q = parQui[k];
+      var d = ['facile', 'moyen', 'fort'].filter(function (n) { return q.n[n]; }).map(function (n) {
+        return (n === 'facile' ? '🙂 ' : n === 'fort' ? '😈 ' : '😐 ') + q.n[n].victoires + ' – ' + q.n[n].defaites;
+      }).join(' · ');
+      t.appendChild(el('tr', '', '<td>' + (sansNom ? 'Gagnées – perdues' : esc(q.nom)) + '</td><td>' + esc(d) + '</td>'));
+    });
+    return t;
+  }
   function tablePalmares(jeu, l) {
     var t = el('table', 'cfPalm');
     var med = ['🥇', '🥈', '🥉'];
@@ -1271,12 +2135,26 @@
       if (!F || F.ecran !== 'palmares') return;
       z.innerHTML = '';
       var pal = (r && r.palmares) || {};
-      z.appendChild(chips(ORDRE.map(function (k) { return [k, JEUX[k].ic + ' ' + JEUX[k].nom]; }), jeuPalmares, function (k) { jeuPalmares = k; ouvrirPalmares(); }));
-      var l = pal[jeuPalmares] || [];
-      if (jeuPalmares === 'paille') l = l.slice().sort(function (a, b) { return a.defaites - b.defaites || b.victoires - a.victoires; });
-      z.appendChild(lab(JEUX[jeuPalmares].nom));
-      if (l.length) z.appendChild(tablePalmares(jeuPalmares, l));
-      else z.appendChild(el('div', 'cfAide', 'Personne n’y a encore joué.'));
+      z.appendChild(chips(ORDRE.map(function (k) { return [k, JEUX[k].ic + ' ' + JEUX[k].nom]; }).concat(ORDRE_SOLO.map(function (k) { return [k, SOLO[k].e + ' ' + SOLO[k].nom]; })), jeuPalmares, function (k) { jeuPalmares = k; ouvrirPalmares(); }));
+      if (SOLO[jeuPalmares]) {
+        /* 🏅 un jeu solo : les records, niveau par niveau */
+        var S = SOLO[jeuPalmares], rec = (r && r.records && r.records[jeuPalmares]) || {};
+        (S.niveaux || [['', '']]).forEach(function (nv) {
+          z.appendChild(lab('🏅 ' + S.nom + (nv[1] ? ' · ' + nv[1] : '')));
+          var lr = rec[nv[0]] || [];
+          if (lr.length) z.appendChild(tableRecords(jeuPalmares, lr, 10));
+          else z.appendChild(el('div', 'cfAide', 'Pas encore de record.'));
+        });
+      } else {
+        var l = pal[jeuPalmares] || [];
+        if (jeuPalmares === 'paille') l = l.slice().sort(function (a, b) { return a.defaites - b.defaites || b.victoires - a.victoires; });
+        z.appendChild(lab(JEUX[jeuPalmares].nom + ' · entre collègues'));
+        if (l.length) z.appendChild(tablePalmares(jeuPalmares, l));
+        else z.appendChild(el('div', 'cfAide', 'Personne n’y a encore joué.'));
+        /* 🤖 contre l'ordinateur : à part */
+        var lo = (r && r.ordi && r.ordi[jeuPalmares]) || [];
+        if (lo.length) { z.appendChild(lab('🤖 Contre l’ordinateur')); z.appendChild(tableOrdi(lo)); }
+      }
       var ts = (r && r.tournois) || [];
       if (ts.length) {
         z.appendChild(lab('Les tournois'));
@@ -1439,6 +2317,14 @@
       poserLeStyle();
       planifierFond(4000);
       document.addEventListener('visibilitychange', function () { if (!document.hidden) planifierFond(600); });
+      /* la barre d'espace (ou Entrée) tape pendant la course */
+      document.addEventListener('keydown', function (ev) {
+        /* 🕹️ le clavier du jeu solo ouvert (pas quand on écrit dans un champ) */
+        if (soloTouche && F && F.ecran === 'solo' && !(ev.target && /INPUT|TEXTAREA/.test(ev.target.tagName))) { soloTouche(ev); return; }
+        var A = F && F.anim;
+        if (!A || A.genre !== 'course' || !A.taper || ev.repeat) return;
+        if (ev.key === ' ' || ev.key === 'Enter') A.taper(ev);
+      });
     },
     ouvrir: function () { ouvrirCoin(); },
     relire: function () { planifierFond(50); },
