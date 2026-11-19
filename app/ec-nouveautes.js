@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 12:51 — v1478 */
+/* Déployé le 19/11/2026 à 13:06 — v1479 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1479,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🔑 « App Évolution Conduites » dans le dossier d’un élève s’ouvre plus vite, et presque tous les écrans lisent D1',
+    quoi: [
+      { emoji: '🔑',
+        titre: 'L’onglet de l’espace élève, dans son dossier',
+        texte: 'Mesuré : sa liste attendait 1,5 s parce qu’elle relisait le contenu de tous les textes types (4 Mo) pour n’en garder que les noms. Elle ne lit plus que ce qui sert, et depuis D1.' },
+      { emoji: '🪞',
+        titre: 'Presque tous les écrans lisent D1',
+        texte: 'Une quarantaine de lectures (fiches, réglages, procédures, récitations, parcours, CB, flotte, paie, mails, incidents, résultats, salle…) passent par les copies dans D1 au lieu de Google.' }
+    ]
+  },
   {
     version: 1478,
     date: 'Jeudi 19 novembre 2026',
