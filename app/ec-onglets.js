@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 15:51 — v1470 */
+/* Déployé le 19/11/2026 à 11:42 — v1474 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -2056,6 +2056,8 @@ function reveillerVue(cle){
     admin:      () => { chargerUtilisateurs();
                         /* 🖥️ v1467 — les ordinateurs des salles (ec-salle-code.js) */
                         if(typeof chargerPostesSalle === 'function') chargerPostesSalle();
+                        /* 🗄️ v1474 — la base de l'appli (ec-base.js) */
+                        if(typeof chargerBaseServeur === 'function') chargerBaseServeur();
                         /* 📊 v1470 — ce qui interroge le serveur (ec-conso.js) */
                         if(typeof chargerConsoServeur === 'function') chargerConsoServeur(); },
     eleves:     () => afficherRepertoire(),
