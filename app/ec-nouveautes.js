@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 14:37 — v1484 */
+/* Déployé le 19/11/2026 à 14:43 — v1485 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1485,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '✋ Dans l’App Évolution Conduites : « je serai là », la coche du parcours et le bilan post-permis ne passent plus par le classeur',
+    quoi: [
+      { emoji: '✋',
+        titre: '« Je serai là » et la coche d’une étape',
+        texte: 'Les deux gestes les plus fréquents des élèves dans leur espace passaient par le classeur, et faisaient relire tout le classeur à toute l’appli à chaque fois. Ils sont directs, avec les mêmes règles (vérifiés à l’identique avec le classeur).' },
+      { emoji: '📝',
+        titre: 'Le bilan post-permis de l’élève',
+        texte: 'La page de son bilan après un ajournement, avec les captures de son dernier examen, s’ouvre sans passer par le classeur.' }
+    ]
+  },
   {
     version: 1484,
     date: 'Jeudi 19 novembre 2026',
