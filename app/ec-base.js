@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 17:09 — v1499 */
+/* Déployé le 19/11/2026 à 17:33 — v1501 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -144,8 +144,16 @@ const BASE_FEUILLES_D1 = [
   { action: 'basePreparations', classe: 'basePreparations', titre: '🗓️ Les cours préparés', nom: 'Cours préparés', mot: 'les cours préparés', unite: 'cours préparé', pluriel: true,
     aide: 'Les prochains cours de chaque moniteur, leur ordre dans la journée, à qui ils sont attribués. Même chemin.' },
   { action: 'baseConsignes', classe: 'baseConsignes', titre: '📌 Les messages aux moniteurs', nom: 'Messages', mot: 'les messages aux moniteurs', unite: 'message', pluriel: true,
-    aide: 'Ce que le bureau laisse au moniteur sur un élève, et s’il l’a traité. Même chemin.' }
+    aide: 'Ce que le bureau laisse au moniteur sur un élève, et s’il l’a traité. Même chemin.' },
+  /* 🔑🔗 v1501 — étape 3, suite : les accès des élèves et les liens de cours */
+  { action: 'baseAcces', classe: 'baseAcces', titre: '🔑 Les accès des élèves', nom: 'Accès des élèves', mot: 'les accès des élèves', unite: 'accès', pluriel: true,
+    aide: 'Le code de chaque élève pour son espace, sa dernière connexion, ce qu’il voit. Lus à chaque connexion d’un élève : ' +
+          'ils viennent de D1, sont recopiés dans la feuille Google juste après chaque changement et comparés chaque nuit vers 3 h.' },
+  { action: 'baseLiens', classe: 'baseLiens', titre: '🔗 Les liens de cours', nom: 'Liens de cours', mot: 'les liens de cours', unite: 'lien', pluriel: true,
+    aide: 'Les liens envoyés aux élèves par mail pour confirmer ou annuler un cours, et ce qu’ils en ont fait. Même chemin.' }
 ];
+/* « 3 accès », « 2 liens » : un mot déjà fini par s ou x ne prend pas de s de plus */
+function uniteBase(def, k){ return def.unite + (k > 1 && !/[sx]$/.test(def.unite) ? 's' : ''); }
 const baseFeuilleArmee = {};
 function chargerBaseRepertoire(quoi){ return chargerBaseFeuilleD1(BASE_FEUILLES_D1[0], quoi); }
 function chargerBaseBilans(quoi){ return chargerBaseFeuilleD1(BASE_FEUILLES_D1[1], quoi); }
@@ -178,8 +186,8 @@ async function chargerBaseFeuilleD1(def, quoi){
   let html = titre + '<div class="cdAide">' + ech(def.aide) + '</div>';
   if(d.actif){
     html += '<div class="baseEtat baseOk"><b>✅ ' + ech(def.nom) + ' : dans D1</b>' +
-      '<small>depuis le ' + ech(baseQuand(d.depuis)) + ' · ' + n.toLocaleString('fr-FR') + ' ' + def.unite + (n > 1 ? 's' : '') + ' · ' +
-      (d.attente ? '⏳ ' + d.attente + ' ' + def.unite + (d.attente > 1 ? 's' : '') + ' en route vers la feuille' : 'tout est recopié dans la feuille') + '</small></div>';
+      '<small>depuis le ' + ech(baseQuand(d.depuis)) + ' · ' + n.toLocaleString('fr-FR') + ' ' + uniteBase(def, n) + ' · ' +
+      (d.attente ? '⏳ ' + d.attente + ' ' + uniteBase(def, d.attente) + ' en route vers la feuille' : 'tout est recopié dans la feuille') + '</small></div>';
   }else{
     const pl = def.unite === 'bilan' || def.pluriel;
     const fem = def.unite === 'session' || def.unite === 'place';
