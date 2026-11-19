@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 15:24 — v1488 */
+/* Déployé le 19/11/2026 à 15:34 — v1489 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1489,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📝 Les séances de code saisies à la main comptent dans l’espace élève · 📇 plus rien du répertoire par Apps Script',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Séances de code : l’espace élève suit',
+        texte: 'Une séance enregistrée à la main (ardoise, depuis le dossier ou la grille) compte maintenant dans « Mes séances de code » de l’élève, avec ses fautes, comme dans son dossier.' },
+      { emoji: '📇',
+        titre: 'Le répertoire sans Apps Script',
+        texte: 'Renommer un élève, supprimer un dossier, l’import, « parti de l’école », retirer une fiche et le rattrapage des formations passent directement, sans attendre le classeur.' }
+    ]
+  },
   {
     version: 1488,
     date: 'Jeudi 19 novembre 2026',
