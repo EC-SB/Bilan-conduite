@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/11/2026 à 14:48 — v1468 -->
+<!-- Déployé le 19/11/2026 à 15:34 — v1489 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -6376,7 +6376,8 @@
   }
   function codeCouleur(f){ return f <= 3 ? 'vert' : f <= 6 ? 'orange' : 'rouge'; }
   function codeNbFaites(){
-    return (codeEl && codeEl.seances || []).filter(function(s){ return s.prete && s.fini; }).length;
+    /* 📝 v1489 — une ardoise saisie au bureau compte aussi */
+    return (codeEl && codeEl.seances || []).filter(function(s){ return (s.prete && s.fini) || !!s.ardoise; }).length;
   }
   function demarrerCodeEl(){
     var voulu = codeSeanceDeLAdresse();
@@ -6399,7 +6400,7 @@
     var z = $('carteCode');
     if(!z) return;
     if(!codeEl || !codeEl.ouvert || !ouvert('code')){ z.style.display = 'none'; return; }
-    var pretes = codeEl.seances.filter(function(s){ return s.prete; }).length;
+    var pretes = codeEl.seances.filter(function(s){ return s.prete || s.ardoise; }).length;
     if(!pretes){ z.style.display = 'none'; return; }
     z.innerHTML = '<div class="cdLab">📝 Mes séances de code</div>' +
       '<div class="cdGros">' + codeNbFaites() + ' / 12 faites</div>' +
@@ -6471,8 +6472,10 @@
     } else if(etat.vue === 'choisir'){
       h = tete('📝 Quelle séance ?', 'celle que le moniteur annonce', false) + '<div class="cdBoite"><div class="cdChoix">' +
         codeEl.seances.map(function(x){
-          var cl = !x.prete ? 'off' : x.fini ? 'fait' : x.commencee ? 'encours' : '';
-          var sous = !x.prete ? 'pas prête' : x.fini ? '✓ ' + x.fautes + ' f.' : x.commencee ? 'en cours' : '';
+          /* 📝 v1489 — faite au bureau (ardoise) : ✓ et ses fautes ; il peut la refaire si elle est prête */
+          var auBureau = !x.fini && !x.commencee && x.ardoise;
+          var cl = auBureau ? 'fait' : !x.prete ? 'off' : x.fini ? 'fait' : x.commencee ? 'encours' : '';
+          var sous = auBureau ? '✓ ' + x.ardoise.fautes + ' f.' : !x.prete ? 'pas prête' : x.fini ? '✓ ' + x.fautes + ' f.' : x.commencee ? 'en cours' : '';
           return '<button type="button" class="' + cl + '" data-cd="seance" data-n="' + x.numero + '"' + (x.prete ? '' : ' disabled') + '>' + x.numero +
             (sous ? '<small>' + sous + '</small>' : '') + '</button>';
         }).join('') + '</div><div class="cdNote">✓ = déjà faite, avec tes fautes. Tu peux refaire une séance.</div></div>';
