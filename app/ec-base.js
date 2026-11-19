@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 15:44 — v1490 */
+/* Déployé le 19/11/2026 à 16:40 — v1497 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -115,7 +115,7 @@ async function chargerBaseServeur(quoi){
     }
     chargerBaseServeur(q);
   }));
-  if(!quoi){ chargerBaseRepertoire(); chargerBaseBilans(); chargerBaseEleve(); }
+  if(!quoi){ chargerBaseRepertoire(); chargerBaseBilans(); chargerBaseArchive(); chargerBaseEleve(); }
 }
 
 /* ============================================================
@@ -212,6 +212,61 @@ async function chargerBaseFeuilleD1(def, quoi){
     }
     chargerBaseFeuilleD1(def, q);
   }));
+}
+
+/* ============================================================
+   📄 v1497 — L'ARCHIVE D'UN DOSSIER : GOOGLE DRIVE OU CLOUDFLARE
+
+   David, le 19/11 : « choix A avec une option pour la B si ça va plus
+   vite sur Cloudflare », « une case dans Gestion › Accès ». Décochée
+   (par défaut) : Apps Script archive dans Google Drive, comme avant.
+   Cochée : l'archive se fait dans Cloudflare, plus vite, et se
+   retrouve ici (un lien neuf à chaque ouverture). Si Cloudflare
+   échoue, Google Drive prend le relais tout seul.
+   ============================================================ */
+async function chargerBaseArchive(quoi, cle){
+  const z = document.getElementById('baseZone');
+  if(!z) return;
+  let b = z.querySelector('.baseArchive');
+  if(!b){
+    b = document.createElement('div'); b.className = 'baseArchive';
+    const avant = z.querySelector('.baseBilans') || z.querySelector('.baseCorps');
+    if(avant && avant.nextSibling) z.insertBefore(b, avant.nextSibling); else z.appendChild(b);
+  }
+  const ech = (v) => (typeof echapper === 'function') ? echapper(v) : String(v == null ? '' : v);
+  const titre = '<div class="baseTitre">📄 L’archive d’un dossier</div>';
+  if(quoi === 'lien'){
+    try{
+      const r = await appelPrep({ action:'baseArchive', quoi:'lien', cle: cle });
+      if(r && r.lien) window.open(/^https?:/.test(r.lien) ? r.lien : CONFIG.WORKER_URL + r.lien, '_blank', 'noopener');
+    }catch(e){ if(typeof showToast === 'function') showToast('⚠️ ' + ((e && e.message) || e)); }
+    return;
+  }
+  b.querySelectorAll('input,button').forEach(x => { x.disabled = true; });
+  let d;
+  try{ d = await appelPrep(Object.assign({ action:'baseArchive' }, quoi ? { quoi: quoi } : {})); }
+  catch(e){ b.innerHTML = titre + '<div class="cdAide">⚠️ ' + ech((e && e.message) || e) + '</div>'; return; }
+  let html = titre +
+    '<div class="cdAide">Avant d’effacer un dossier (passerelle BEA → BV), l’appli en garde une copie complète. ' +
+    'Décochée : elle part dans Google Drive par Apps Script, comme avant. Cochée : elle se fait dans Cloudflare, plus vite, ' +
+    'et se retrouve ci-dessous. Si Cloudflare n’y arrive pas, Google Drive prend le relais tout seul.</div>' +
+    '<label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:8px 0;cursor:pointer;text-transform:none;letter-spacing:normal;color:var(--cream);font-weight:600;">' +
+    '<input type="checkbox" class="baseArchiveCase" style="width:18px;height:18px;margin:0;flex-shrink:0;"' + (d.cloudflare ? ' checked' : '') + '>' +
+    '<span>☁️ Archiver dans Cloudflare plutôt que dans Google Drive</span></label>' +
+    (d.le ? '<div class="cdAide">' + (d.cloudflare ? 'Cochée' : 'Décochée') + ' le ' + ech(baseQuand(d.le)) + (d.par ? ' par ' + ech(d.par) : '') + '</div>' : '');
+  const l = d.archives || [];
+  if(l.length){
+    html += '<div class="baseListe">' + l.map(x => '<div class="baseLigne"><span class="baseTexte"><b>' + ech(x.eleve) + '</b> · ' +
+      ech(baseQuand(x.le)) + ' · ' + Number(x.lignes || 0).toLocaleString('fr-FR') + ' ligne(s)' +
+      '<small>' + ech(x.fichier) + (x.par ? ' — ' + ech(x.par) : '') + '</small></span>' +
+      '<button type="button" class="btn btn-secondary" data-archive="' + ech(x.cle) + '" style="width:auto;margin:0 0 0 8px;padding:6px 12px;font-size:13px;">📄 Télécharger</button></div>').join('') + '</div>';
+  }else if(d.cloudflare){
+    html += '<div class="cdAide">Aucune archive dans Cloudflare pour l’instant.</div>';
+  }
+  b.innerHTML = html;
+  const c = b.querySelector('.baseArchiveCase');
+  if(c) c.addEventListener('change', () => chargerBaseArchive(c.checked ? 'cloudflare' : 'drive'));
+  b.querySelectorAll('[data-archive]').forEach(x => x.addEventListener('click', () => chargerBaseArchive('lien', x.dataset.archive)));
 }
 
 /* ============================================================
