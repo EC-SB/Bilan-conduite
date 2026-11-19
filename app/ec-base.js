@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 17:33 — v1501 */
+/* Déployé le 19/11/2026 à 17:43 — v1502 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -150,7 +150,15 @@ const BASE_FEUILLES_D1 = [
     aide: 'Le code de chaque élève pour son espace, sa dernière connexion, ce qu’il voit. Lus à chaque connexion d’un élève : ' +
           'ils viennent de D1, sont recopiés dans la feuille Google juste après chaque changement et comparés chaque nuit vers 3 h.' },
   { action: 'baseLiens', classe: 'baseLiens', titre: '🔗 Les liens de cours', nom: 'Liens de cours', mot: 'les liens de cours', unite: 'lien', pluriel: true,
-    aide: 'Les liens envoyés aux élèves par mail pour confirmer ou annuler un cours, et ce qu’ils en ont fait. Même chemin.' }
+    aide: 'Les liens envoyés aux élèves par mail pour confirmer ou annuler un cours, et ce qu’ils en ont fait. Même chemin.' },
+  /* 📚 v1502 — le coin révisions : groupes, guides, ce que les élèves ont vu */
+  { action: 'baseGroupesParcours', classe: 'baseGroupesParcours', titre: '🗂️ Les groupes du coin révisions', nom: 'Groupes', mot: 'les groupes', unite: 'groupe', pluriel: true,
+    aide: 'Les groupes du coin révisions (nom, icône, formations, ordre, fermé ou non). Lus et écrits dans D1, recopiés dans la feuille ' +
+          'Google juste après chaque changement, comparés chaque nuit vers 3 h.' },
+  { action: 'baseGuides', classe: 'baseGuides', titre: '📘 Les guides du coin révisions', nom: 'Guides', mot: 'les guides', unite: 'guide', pluriel: true,
+    aide: 'Les guides et tout leur contenu (textes, vidéos, photos, étapes). Même chemin.' },
+  { action: 'baseParcoursVu', classe: 'baseParcoursVu', titre: '👁️ Ce que les élèves ont vu', nom: 'Ce que les élèves ont vu', mot: 'ce que les élèves ont vu', unite: 'ligne',
+    aide: 'Chaque guide ou étape vu par un élève (vu le, revu le, nombre de vues, remis à voir). Écrit à chaque « ✓ Vu » d’un élève. Même chemin.' }
 ];
 /* « 3 accès », « 2 liens » : un mot déjà fini par s ou x ne prend pas de s de plus */
 function uniteBase(def, k){ return def.unite + (k > 1 && !/[sx]$/.test(def.unite) ? 's' : ''); }
@@ -190,7 +198,7 @@ async function chargerBaseFeuilleD1(def, quoi){
       (d.attente ? '⏳ ' + d.attente + ' ' + uniteBase(def, d.attente) + ' en route vers la feuille' : 'tout est recopié dans la feuille') + '</small></div>';
   }else{
     const pl = def.unite === 'bilan' || def.pluriel;
-    const fem = def.unite === 'session' || def.unite === 'place';
+    const fem = def.fem || def.unite === 'session' || def.unite === 'place';
     html += '<div class="baseEtat"><b>⏸️ ' + ech(def.nom) + ' : encore lu' + (fem ? 'e' : '') + (pl ? 's' : '') + ' dans la feuille Google</b>' +
       '<small>' + (pl ? (fem ? 'Elles passeront' : 'Ils passeront') : 'Il passera') + ' dans D1 cette nuit vers 3 h, ou tout de suite avec le bouton. Rien ne change pour l’équipe.</small></div>';
   }
