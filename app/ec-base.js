@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 12:08 — v1475 */
+/* Déployé le 19/11/2026 à 12:44 — v1477 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -167,6 +167,22 @@ async function chargerBaseEleve(quoi){
     '<button type="button" class="btn baseRetour" data-eleve="comparer"' + (enCours ? ' disabled' : '') + '>🔍 Comparer avec Apps Script</button>' +
     (d.actif ? '<button type="button" class="btn baseRetour" data-eleve="eteindre">⏸️ Éteindre</button>'
              : '<button type="button" class="btn btn-primary" data-eleve="allumer">⚡ Allumer</button>') + '</div>';
+  /* 🪞 v1477 — les feuilles gardées dans D1 (plus lues chez Google à chaque fois) */
+  const mi = (d.miroirs && d.miroirs.plages) || [];
+  if(mi.length){
+    const parFeuille = {};
+    mi.forEach(x => {
+      const f = String(x.plage).split('!')[0].replace(/^'|'$/g, '');
+      const p = parFeuille[f] = parFeuille[f] || { ko: 0, quand: 0 };
+      p.ko += x.ko; p.quand = Math.max(p.quand, x.quand);
+    });
+    const noms = Object.keys(parFeuille).sort();
+    html += '<div class="baseTitre">🪞 Feuilles lues dans D1</div>' +
+      '<div class="cdAide">Copiées depuis Google, et relues seulement quand elles changent (ou au bout d’une minute). ' +
+      'Écrites dans Google comme avant.</div><div class="baseListe">' +
+      noms.map(f => '<div class="baseLigne"><span class="baseTexte"><b>' + ech(f) + '</b> · ' + parFeuille[f].ko.toLocaleString('fr-FR') + ' Ko' +
+        '<small>copiée le ' + ech(baseQuand(parFeuille[f].quand)) + '</small></span></div>').join('') + '</div>';
+  }
   b.innerHTML = html;
   b.querySelectorAll('[data-eleve]').forEach(x => x.addEventListener('click', () => {
     if(x.dataset.eleve === 'comparer') comparerBaseEleve();
