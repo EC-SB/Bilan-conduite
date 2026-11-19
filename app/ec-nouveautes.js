@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 17:09 — v1499 */
+/* Déployé le 19/11/2026 à 17:11 — v1500 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1500,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🚨 « Urgent : ajouter une leçon » demande une confirmation avant de prévenir le bureau',
+    quoi: [
+      { emoji: '🚨',
+        titre: 'Urgent : ajouter une leçon',
+        texte: 'Cocher la case ouvre d’abord une question (« Ajouter une leçon à … ? Le bureau sera prévenu tout de suite »). « Annuler » la décoche, rien ne part au bureau. Décocher ne demande rien.' }
+    ]
+  },
   {
     version: 1499,
     date: 'Jeudi 19 novembre 2026',
