@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:19 — v1494 */
+/* Déployé le 19/11/2026 à 16:27 — v1495 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1495,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🧾 Gestion et 🧰 Outils sans Apps Script : ALMA, CB gasoil, réglages, incidents, alertes, dictée, règles de l’IA, annonces, écran d’accueil, séances de code',
+    quoi: [
+      { emoji: '🧾',
+        titre: 'Gestion',
+        texte: 'Les paiements ALMA, la correction d’un plein de la CB gasoil, les réglages des places, l’effacement des incidents et les alertes masquées ne passent plus par le classeur.' },
+      { emoji: '🧰',
+        titre: 'Outils',
+        texte: 'Les mots mal entendus par la dictée, les règles de l’IA, les annonces aux élèves, les diapos et le planning de l’écran d’accueil, l’image d’une tâche, l’effacement d’un modèle et la correction d’un score de séance de code : directs aussi.' },
+      { emoji: '🔒',
+        titre: 'Effacer un texte de l’application',
+        texte: 'Un modèle utilisé par l’application (rappel de cours, procédure…) ne s’efface plus qu’avec le droit « ⚙️ Textes de l’application », comme pour le modifier.' }
+    ]
+  },
   {
     version: 1494,
     date: 'Jeudi 19 novembre 2026',
