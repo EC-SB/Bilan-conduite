@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 13:40 — v1481 */
+/* Déployé le 19/11/2026 à 13:54 — v1482 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1482,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '⚡ Les notes du dossier passent dans D1, et « Ce qu’on écrit » ne se recharge plus en entier',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Les notes internes du dossier, dans D1',
+        texte: 'Mesuré : chaque note (lire, écrire, modifier) passait par le classeur, 4 secondes la fois. Elles vivent maintenant dans D1 ; la feuille reste leur copie de secours. Ouvrir un dossier et reprendre les notes d’une fiche Drivup ne les attend plus.' },
+      { emoji: '📥',
+        titre: 'Créer un dossier depuis Drivup',
+        texte: 'Le répertoire est lu dans sa copie D1, puis la liste des fiches, les notes et la photo partent en même temps au lieu de l’une après l’autre.' },
+      { emoji: '📄',
+        titre: '« Ce qu’on écrit et envoie »',
+        texte: 'Les 1 405 fiches (5 Mo) étaient renvoyées à chaque ouverture. L’appareil les garde maintenant : si rien n’a changé, le serveur répond en une ligne. Et toutes les réponses du serveur partent compressées (5 Mo deviennent 1,2 Mo).' }
+    ]
+  },
   {
     version: 1481,
     date: 'Jeudi 19 novembre 2026',
