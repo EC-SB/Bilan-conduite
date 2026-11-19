@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 12:44 — v1477 */
+/* Déployé le 19/11/2026 à 12:51 — v1478 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -182,6 +182,15 @@ async function chargerBaseEleve(quoi){
       'Écrites dans Google comme avant.</div><div class="baseListe">' +
       noms.map(f => '<div class="baseLigne"><span class="baseTexte"><b>' + ech(f) + '</b> · ' + parFeuille[f].ko.toLocaleString('fr-FR') + ' Ko' +
         '<small>copiée le ' + ech(baseQuand(parFeuille[f].quand)) + '</small></span></div>').join('') + '</div>';
+  }
+  /* 🔎 v1478 — les appels à Apps Script qui font tout relire (ceux à sortir d'Apps Script en premier) */
+  const qui = (d.miroirs && d.miroirs.qui) || [];
+  if(qui.length){
+    html += '<div class="baseTitre">🔎 Ce qui passe encore par Apps Script</div>' +
+      '<div class="cdAide">Chacun de ces appels peut écrire dans Google : toutes les copies sont alors relues. ' +
+      'Ce sont les prochains à faire passer par D1.</div><div class="baseListe">' +
+      qui.slice(0, 15).map(x => '<div class="baseLigne"><span class="baseTexte"><b>' + ech(x.action) + '</b> · ' +
+        x.n.toLocaleString('fr-FR') + ' fois<small>dernier le ' + ech(baseQuand(x.le)) + '</small></span></div>').join('') + '</div>';
   }
   b.innerHTML = html;
   b.querySelectorAll('[data-eleve]').forEach(x => x.addEventListener('click', () => {
