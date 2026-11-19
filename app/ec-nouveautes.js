@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 13:18 — v1480 */
+/* Déployé le 19/11/2026 à 13:40 — v1481 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1481,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🤝 Aide aux réponses : coller le message d’un élève ou d’un parent, Claude prépare la réponse',
+    quoi: [
+      { emoji: '🤝',
+        titre: 'Aide aux réponses (Outils › Ce qu’on écrit)',
+        texte: 'On colle un mail, un message Messenger ou d’une messagerie internet : l’appli reconnaît l’élève et qui écrit (lui, sa mère, son père…), on peut corriger. Claude prépare la réponse avec ce que dit son dossier ; ce qu’il ne trouve pas est surligné en jaune, à vérifier. Bureau et administrateurs.' },
+      { emoji: '💬',
+        titre: 'Parler avec Claude',
+        texte: 'Sous la réponse, on lui pose une question sur l’élève ou on lui demande une modification : ce qu’il change apparaît en vert. Boutons : autre version, plus court, plus chaleureux, plus formel, traduire.' },
+      { emoji: '✉️',
+        titre: 'Rien ne part tout seul',
+        texte: '« Envoyer par mail » ouvre l’éditeur de la boîte mail, rempli ; « Dans sa messagerie » la pose dans son fil avec le bureau ; « Copier » pour Messenger. Les dernières réponses restent dans la liste, pour les rouvrir.' }
+    ]
+  },
   {
     version: 1480,
     date: 'Jeudi 19 novembre 2026',
