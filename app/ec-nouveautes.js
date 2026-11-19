@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:49 — v1498 */
+/* Déployé le 19/11/2026 à 17:09 — v1499 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1499,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🗄️ Étape 3 : sessions, places, cours préparés et messages aux moniteurs dans D1 · 🧹 trois derniers appels cachés à Apps Script retirés',
+    quoi: [
+      { emoji: '🗄️',
+        titre: 'Quatre feuilles de plus dans D1',
+        texte: 'Les sessions d’examen, leurs places, les cours préparés et les messages aux moniteurs se lisent et s’écrivent dans D1, comme le suivi, le répertoire et les bilans. La feuille Google reste la sauvegarde, recopiée juste après chaque changement. Elles basculent cette nuit vers 3 h, ou tout de suite avec leur bouton dans Gestion › Accès › 🗄️.' },
+      { emoji: '🧹',
+        titre: 'Plus d’appels cachés à Apps Script',
+        texte: 'Le ménage horaire des cours préparés, le placement d’un élève dans sa session quand sa fiche de suivi change, et la ligne du coût de chaque génération de l’IA se font maintenant sans Apps Script.' },
+      { emoji: '🎫',
+        titre: 'Une place passée garde son élève',
+        texte: 'Quand la date d’examen d’un élève change, ses places à venir se libèrent, mais celle d’une session déjà passée reste : c’est l’historique. Apps Script l’effaçait parfois, et pouvait laisser l’élève dans deux sessions à la fois.' }
+    ]
+  },
   {
     version: 1498,
     date: 'Jeudi 19 novembre 2026',
