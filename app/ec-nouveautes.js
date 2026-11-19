@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 11:42 — v1474 */
+/* Déployé le 19/11/2026 à 12:08 — v1475 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1475,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '⚡ L’espace élève peut s’ouvrir sans Apps Script (à allumer après vérification)',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'L’espace élève en une seconde',
+        texte: 'Son ouverture attendait Apps Script : une douzaine de secondes, chez l’élève, sur les tablettes et en démonstration. Cloudflare sait maintenant construire son espace lui-même, avec les mêmes règles.' },
+      { emoji: '🔍',
+        titre: 'Comparé avant d’être allumé',
+        texte: 'Gestion › Accès › 🗄️ La base de l’appli : « 🔍 Comparer avec Apps Script » vérifie élève par élève que les deux donnent exactement la même chose (rien n’est noté à leur nom). Puis « ⚡ Allumer » ; « ⏸️ Éteindre » remet Apps Script d’un appui.' }
+    ]
+  },
   {
     version: 1474,
     date: 'Jeudi 19 novembre 2026',
