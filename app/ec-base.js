@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 12:51 — v1478 */
+/* Déployé le 19/11/2026 à 14:37 — v1484 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -178,8 +178,9 @@ async function chargerBaseEleve(quoi){
     });
     const noms = Object.keys(parFeuille).sort();
     html += '<div class="baseTitre">🪞 Feuilles lues dans D1</div>' +
-      '<div class="cdAide">Copiées depuis Google, et relues seulement quand elles changent (ou au bout d’une minute). ' +
-      'Écrites dans Google comme avant.</div><div class="baseListe">' +
+      '<div class="cdAide">Copiées depuis Google, et relues seulement quand elles changent (ou au bout d’un quart d’heure). ' +
+      'Écrites dans Google comme avant. Si quelqu’un a modifié une feuille à la main dans Google : ' +
+      '<button type="button" class="btn btn-secondary" data-eleve="relire" style="width:auto;margin:6px 0 0;padding:6px 12px;font-size:13px;">🔄 Tout relire depuis Google</button></div><div class="baseListe">' +
       noms.map(f => '<div class="baseLigne"><span class="baseTexte"><b>' + ech(f) + '</b> · ' + parFeuille[f].ko.toLocaleString('fr-FR') + ' Ko' +
         '<small>copiée le ' + ech(baseQuand(parFeuille[f].quand)) + '</small></span></div>').join('') + '</div>';
   }
