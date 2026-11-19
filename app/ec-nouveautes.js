@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 12:32 — v1476 */
+/* Déployé le 19/11/2026 à 12:44 — v1477 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1477,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🪞 Les feuilles se lisent dans D1 : moins d’attente, et la limite de Google n’est plus atteinte',
+    quoi: [
+      { emoji: '🪞',
+        titre: 'Les feuilles lues dans D1',
+        texte: 'Les feuilles que lisent l’espace élève et le bureau (bilans, accès, répertoire, parcours, annonces, consignes…) sont copiées dans D1 et relues chez Google seulement quand elles changent, ou au bout d’une minute. Elles restent écrites dans Google comme avant. Gestion › Accès › 🗄️ montre lesquelles et depuis quand.' },
+      { emoji: '⏱️',
+        titre: 'Le temps de chaque étape',
+        texte: 'Chaque réponse du serveur dit maintenant combien de temps a pris chaque étape : ce qui ralentit se mesure au lieu de se deviner.' }
+    ]
+  },
   {
     version: 1476,
     date: 'Jeudi 19 novembre 2026',
