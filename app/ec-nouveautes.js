@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:02 — v1492 */
+/* Déployé le 19/11/2026 à 16:13 — v1493 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1493,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📋 L’onglet Suivi sans Apps Script : handicap, financements, code aménagé, écoutes pédagogiques, tâches du départ',
+    quoi: [
+      { emoji: '♿',
+        titre: 'Handicap et code aménagé',
+        texte: 'Les cases, les dates, la session, l’ajout et la suppression d’une ligne s’écrivent directement dans le classeur du bureau — comme une saisie à la main : une date reste une date, une case reste une case.' },
+      { emoji: '💶',
+        titre: 'Financements Pôle emploi et Région',
+        texte: 'Nouveau dossier, échéances, remboursement et suppression : directs aussi. Si Google refuse l’écriture, rien n’est écrit et le classeur prend le relais, comme avant.' },
+      { emoji: '👂',
+        titre: 'Écoutes et départ',
+        texte: 'Les écoutes pédagogiques (signaler, retirer) et les tâches cochées au départ d’un élève ne passent plus par le classeur.' }
+    ]
+  },
   {
     version: 1492,
     date: 'Jeudi 19 novembre 2026',
