@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 15:06 — v1487 */
+/* Déployé le 19/11/2026 à 15:24 — v1488 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1488,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📇 Le répertoire des élèves passe dans D1, comme le suivi',
+    quoi: [
+      { emoji: '📇',
+        titre: 'Les fiches des élèves dans D1',
+        texte: 'Téléphone, mail, formation, agence, id Drivup : toutes les fiches du répertoire se lisent et s’écrivent dans la base de Cloudflare, sans attendre Google. Chaque changement est recopié dans la feuille juste après, et les deux sont comparées chaque nuit.' },
+      { emoji: '🗄️',
+        titre: 'Gestion › Accès',
+        texte: 'Un bloc « 📇 Le répertoire des élèves » sous celui du suivi : où en est la bascule, les sauvegardes, et le retour à la feuille. La bascule se fait seule cette nuit vers 3 h, ou tout de suite au bouton.' }
+    ]
+  },
   {
     version: 1487,
     date: 'Jeudi 19 novembre 2026',
