@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:48 — v1468 */
+/* Déployé le 19/11/2026 à 16:40 — v1497 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -3785,7 +3785,8 @@ function parcoursDe(e){
 
    ⚠️ L'ORDRE EST LA SEULE CHOSE QUI PROTÈGE ICI.
 
-     1. ARCHIVER — le dossier complet part sur le Drive.
+     1. ARCHIVER — le dossier complet part sur le Drive (ou dans
+        Cloudflare, si la case de Gestion › Accès › 🗄️ est cochée — v1497).
      2. DUPLIQUER — la fiche passerelle est créée.
      3. EFFACER — et seulement alors.
 
@@ -3823,7 +3824,7 @@ async function proposerPasserelle(x, boite){
       'Duplication de fiche en passerelle BEA → BV ?\n\n' +
       nom + ' vient d’obtenir son permis en automatique.\n\n' +
       '✅ Une fiche « ' + nouveau + ' » est créée, en passerelle.\n' +
-      '📄 Son dossier complet est archivé sur le Drive.\n' +
+      '📄 Son dossier complet est archivé (Google Drive, ou Cloudflare selon Gestion › Accès › 🗄️).\n' +
       '🗑️ Puis son dossier BEA est effacé — bilans, suivi, cours à ' +
       'venir, captures.\n\n' +
       'L’effacement est DÉFINITIF, et n’a lieu que si l’archive ' +
@@ -3870,7 +3871,7 @@ async function proposerPasserelle(x, boite){
     await informer('Sa fiche passerelle n’a pas pu être créée.\n\n' +
       'Détail : ' + (e && e.message ? e.message : e) + '\n\n' +
       "RIEN n'a été effacé — son dossier BEA est intact. " +
-      'L’archive, elle, est déjà sur le Drive.', 'Passerelle');
+      'L’archive, elle, est déjà faite.', 'Passerelle');
     return;
   }
 
@@ -3892,7 +3893,8 @@ async function proposerPasserelle(x, boite){
     (rates.length ? '⚠️ Passage en passerelle — effacement INCOMPLET'
                   : '✅ ' + nom + ' est passé en passerelle') + '\n\n' +
     '📄 Archive : ' + archive.fichier + ' (' + archive.lignes + ' ligne(s))\n' +
-    '   ' + archive.lien + '\n\n' +
+    '   ' + archive.lien + '\n' +
+    (archive.ou === 'cloudflare' ? '   (lien valable 7 jours — l’archive reste dans Gestion › Accès › 🗄️)\n' : '') + '\n' +
     '✅ Fiche créée : ' + nouveau + '\n\n' +
     (rates.length
       ? "🗑️ N'a PAS pu être effacé : " + rates.join(', ') +
