@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 14:47 — v1486 */
+/* Déployé le 19/11/2026 à 15:06 — v1487 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1487,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🎓 Tout l’onglet Permis est direct : places d’examen, sessions, bilan post-permis, captures CEPC, résultats annulés',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Places et sessions d’examen',
+        texte: 'Poser, retirer ou échanger un élève, créer, modifier ou supprimer une session : plus d’attente du classeur (4 secondes la fois). La date d’examen part sur la fiche de suivi dans la base, comme avant.' },
+      { emoji: '🛡️',
+        titre: 'Jamais rejoué',
+        texte: 'Si une écriture s’interrompt en route, l’appli le dit au lieu de la refaire ailleurs : un échange de places rejoué, c’était l’échange défait.' },
+      { emoji: '📷',
+        titre: 'Bilan, captures, résultats',
+        texte: 'Valider le bilan post-permis, ajouter ou supprimer une capture CEPC, annuler un résultat et effacer les messages d’un élève sont directs aussi.' }
+    ]
+  },
   {
     version: 1486,
     date: 'Jeudi 19 novembre 2026',
