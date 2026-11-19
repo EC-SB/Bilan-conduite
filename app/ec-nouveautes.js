@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 14:43 — v1485 */
+/* Déployé le 19/11/2026 à 14:47 — v1486 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1486,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '✉️ Les rappels de cours, le journal des SMS, les dépôts de caisse et l’ordre des cours préparés ne passent plus par le classeur',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Les rappels de cours',
+        texte: 'Chaque rappel écrivait deux fois par le classeur (le lien « je serai là », puis le journal des envois), 4 secondes la fois. Les deux sont directs, avec les mêmes lignes.' },
+      { emoji: '🗂️',
+        titre: 'Cours préparés et caisse',
+        texte: 'Réattribuer un cours préparé, changer leur ordre et enregistrer un dépôt de caisse sont directs aussi.' }
+    ]
+  },
   {
     version: 1485,
     date: 'Jeudi 19 novembre 2026',
