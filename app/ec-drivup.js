@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 14:22 — v1427 */
+/* Déployé le 19/11/2026 à 13:54 — v1482 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -1191,20 +1191,29 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
       crees += (rep && rep.crees) || 0;
       completees += (rep && rep.completees) || 0;
     }
-    if(typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
-    /* 📝 les notes, une par une, comme on les écrirait à la main */
+    /* ⚡ v1482 — la liste des fiches, les notes et la photo EN MÊME TEMPS, et
+       non plus l'une après l'autre. Les notes vivent dans D1 : 0,1 s chacune
+       au lieu de 4 s par Apps Script (mesuré le 19/11). Elles restent une
+       par une entre elles, comme on les écrirait à la main. */
+    const relire = (typeof chargerFiches === 'function') ? chargerFiches().catch(() => {}) : Promise.resolve();
     let notesEcrites = 0;
-    for(const c of notes){
-      const rep = await appelPrep({ action: 'notesDossierSet', eleve: c.nom, categorie: 'adm',
-                                    texte: texteDeLaNoteDrivup(c.n), jour: jourDeLaNoteDrivup(c.n) });
-      if(rep && rep.status !== 'error') notesEcrites++;
-    }
-    /* 📷 la photo, s'il n'en a pas */
+    const ecrireLesNotes = (async () => {
+      for(const c of notes){
+        try{
+          const rep = await appelPrep({ action: 'notesDossierSet', eleve: c.nom, categorie: 'adm',
+                                        texte: texteDeLaNoteDrivup(c.n), jour: jourDeLaNoteDrivup(c.n) });
+          if(rep && rep.status !== 'error') notesEcrites++;
+        }catch(e){ /* les autres continuent */ }
+      }
+    })();
+    /* 📷 la photo, s'il n'en a pas — la fiche vient d'être créée : son nom est connu */
     let ph = { posees: 0 };
-    if(photoFiche){
+    const laPhoto = photoFiche ? (async () => {
+      await relire;
       const nomPhoto = (ficheDeLEleveDrivup(premier) || {}).eleve || nomDeLEleveDrivup(premier);
       ph = await reprendreLesPhotosDrivup([{ eleve: nomPhoto, url: premier.photo }], true);
-    }
+    })() : Promise.resolve();
+    await Promise.all([relire, ecrireLesNotes, laPhoto]);
     if(typeof afficherRepertoire === 'function' && $('repertoireListe')) afficherRepertoire().catch(() => {});
     ok.style.display = 'none';
     non.disabled = false;
