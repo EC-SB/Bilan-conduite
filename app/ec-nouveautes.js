@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 09:43 — v1473 */
+/* Déployé le 19/11/2026 à 11:42 — v1474 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1474,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🗄️ La fiche de suivi des élèves passe dans la base de Cloudflare (D1)',
+    quoi: [
+      { emoji: '🗄️',
+        titre: 'Le suivi des élèves ne passe plus par Google',
+        texte: 'La fiche de suivi (dates d’examen, rendez-vous post-permis, restes à payer…) est maintenant lue et écrite dans D1, la base de Cloudflare : un enregistrement répond tout de suite, sans attendre Google. Chaque changement est recopié dans la feuille Google quelques secondes après.' },
+      { emoji: '💾',
+        titre: 'Une sauvegarde chaque nuit, et au bouton',
+        texte: 'Chaque nuit vers 3 h, la base et la feuille Google sont comparées et réalignées. Gestion › Accès › 🗄️ La base de l’appli : l’état, le journal des sauvegardes, « 💾 Sauvegarder maintenant », et « ↩️ Revenir à la feuille » si quelque chose n’allait pas.' }
+    ]
+  },
   {
     version: 1473,
     date: 'Jeudi 19 novembre 2026',
