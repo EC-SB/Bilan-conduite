@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 13:54 — v1482 */
+/* Déployé le 19/11/2026 à 14:31 — v1483 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1483,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🚗 Démarrer un cours et la liste des cours en cours passent dans D1 ; le lien de cours du mail répond tout de suite',
+    quoi: [
+      { emoji: '🚗',
+        titre: 'Les cours en cours, dans D1',
+        texte: 'Démarrer un cours passait par le classeur (4 secondes) et faisait tout relire à l’appli : c’était l’action la plus fréquente à le faire. Démarrer, finir, retirer de la liste et lister vivent maintenant dans D1 ; la feuille EnCours reste la copie de secours. Un bilan enregistré retire aussi le cours de la liste.' },
+      { emoji: '🔗',
+        titre: 'Le lien de cours envoyé par mail',
+        texte: 'La page du cours et le bouton « je serai là » ne passent plus par le classeur.' },
+      { emoji: '🗜️',
+        titre: 'Les réponses du serveur compressées',
+        texte: 'Elles ne l’étaient pas encore (mesuré après la v1482) : c’est corrigé.' }
+    ]
+  },
   {
     version: 1482,
     date: 'Jeudi 19 novembre 2026',
