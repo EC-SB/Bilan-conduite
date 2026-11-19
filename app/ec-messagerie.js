@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 10:32 — v1443 */
+/* Déployé le 19/11/2026 à 09:43 — v1473 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -38,7 +38,8 @@ const PAS_MESSAGERIE = 4000;
 
 /* Le même plafond que côté Worker : mieux vaut le dire avant
    l'envoi qu'après le refus. */
-const MAX_TEXTE_MESSAGERIE = 4000;
+/* ✍️ v1473 — 20 000 caractères (David : « débloque ça »), le même nombre que le Worker */
+const MAX_TEXTE_MESSAGERIE = 20000;
 
 /* Ce qu'on montre en tête d'un fil, par genre. Le titre d'un fil
    d'élève n'est pas enregistré : il se compose du nom et du genre,
