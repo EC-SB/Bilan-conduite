@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 15:15 — v1452 */
+/* Déployé le 19/11/2026 à 13:54 — v1482 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -218,24 +218,74 @@ let modelesTexte = [];
 let modelesLusA = 0;
 const MODELES_FRAIS = 5 * 60 * 1000;   /* cinq minutes */
 
+/* ⚡ v1482 — LA LISTE RESTE SUR L'APPAREIL. 1 405 fiches, 5 Mo, relues à
+   chaque ouverture (mesuré le 19/11). L'appareil les garde (IndexedDB)
+   avec leur empreinte ; le Worker répond « inchangé » en une ligne quand
+   rien n'a bougé, et la liste entière seulement quand une fiche a changé.
+   Rien n'est jamais montré de plus vieux que ce que dit le Worker. */
+let modelesEmpreinte = '', modelesBruts = null, modelesEnCours = null;
+function mtBase(){
+  return new Promise((ok, ko) => {
+    try{
+      const r = indexedDB.open('ec-modeles', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('k');
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => ko(r.error);
+    }catch(e){ ko(e); }
+  });
+}
+async function mtLire(){
+  try{
+    const db = await mtBase();
+    return await new Promise(ok => {
+      const q = db.transaction('k').objectStore('k').get('liste');
+      q.onsuccess = () => ok(q.result || null);
+      q.onerror = () => ok(null);
+    });
+  }catch(e){ return null; }
+}
+async function mtGarder(v){
+  try{ const db = await mtBase(); db.transaction('k', 'readwrite').objectStore('k').put(v, 'liste'); }catch(e){}
+}
+
 async function chargerModelesTexte(forcer){
   /* Déjà en mémoire et récents : on rend la main aussitôt */
   if(!forcer && modelesTexte.length &&
      (Date.now() - modelesLusA) < MODELES_FRAIS){
     return modelesTexte;
   }
-
-  try{
-    const d = await appelPrep({ action: 'modeleList' });
-    modelesTexte = ((d && d.modeles) || []).map(m => {
-      const s = separerCategorie(m.nom);
-      return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
-    });
-    modelesLusA = Date.now();
-  }catch(e){
-    console.warn('Modèles indisponibles :', e);
-  }
-  return modelesTexte;
+  /* plusieurs écrans qui demandent en même temps : une seule demande */
+  if(modelesEnCours && !forcer) return modelesEnCours;
+  /* forcer (une fiche vient de changer) : la demande d'avant ne compte pas */
+  if(modelesEnCours){ try{ await modelesEnCours; }catch(e){} }
+  modelesEnCours = (async () => {
+    try{
+      if(!modelesBruts){
+        const g = await mtLire();
+        if(g && g.empreinte && Array.isArray(g.modeles)){ modelesBruts = g.modeles; modelesEmpreinte = g.empreinte; }
+      }
+      const d = await appelPrep(modelesBruts && modelesEmpreinte
+        ? { action: 'modeleList', empreinte: modelesEmpreinte } : { action: 'modeleList' });
+      let liste;
+      if(d && d.inchange && modelesBruts) liste = modelesBruts;
+      else{
+        liste = (d && d.modeles) || [];
+        modelesBruts = liste;
+        modelesEmpreinte = (d && d.empreinte) || '';
+        if(modelesEmpreinte) mtGarder({ empreinte: modelesEmpreinte, modeles: liste });
+      }
+      modelesTexte = liste.map(m => {
+        const s = separerCategorie(m.nom);
+        return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
+      });
+      modelesLusA = Date.now();
+    }catch(e){
+      console.warn('Modèles indisponibles :', e);
+    }
+    return modelesTexte;
+  })();
+  const enCours = modelesEnCours;
+  try{ return await enCours; }finally{ if(modelesEnCours === enCours) modelesEnCours = null; }
 }
 
 
