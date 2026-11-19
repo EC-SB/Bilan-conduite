@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 08:38 — v1472 */
+/* Déployé le 19/11/2026 à 09:43 — v1473 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1473,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '✍️ Messages de 20 000 caractères dans la messagerie (au lieu de 4 000)',
+    quoi: [
+      { emoji: '✍️',
+        titre: 'Des messages plus longs',
+        texte: 'Un message de la messagerie peut maintenant faire 20 000 caractères (une dizaine de pages) au lieu de 4 000, pour l’équipe comme pour les élèves.' }
+    ]
+  },
   {
     version: 1472,
     date: 'Jeudi 19 novembre 2026',
