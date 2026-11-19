@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:27 — v1495 */
+/* Déployé le 19/11/2026 à 16:34 — v1496 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1496,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📖 Les dernières lectures sans Apps Script : séances de code, journal, bilans récents, dépôts, coût de l’IA, dossier RGPD',
+    quoi: [
+      { emoji: '🧠',
+        titre: 'L’onglet Code',
+        texte: 'Les résultats des séances se lisent directement dans le classeur des formulaires. Seuls les liens des douze formulaires passent encore par Apps Script, une fois toutes les six heures.' },
+      { emoji: '📜',
+        titre: 'Journal, bilans récents, dépôts, coût de l’IA',
+        texte: 'Lus directement, avec les mêmes filtres et les mêmes alertes qu’avant.' },
+      { emoji: '🔒',
+        titre: 'Le dossier RGPD d’un élève',
+        texte: 'Il se rassemble directement, en une seule lecture du classeur. L’état d’un cours non terminé (repris, écarté) aussi.' }
+    ]
+  },
   {
     version: 1495,
     date: 'Jeudi 19 novembre 2026',
