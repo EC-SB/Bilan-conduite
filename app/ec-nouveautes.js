@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 17:33 — v1501 */
+/* Déployé le 19/11/2026 à 17:43 — v1502 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1502,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📚 Étape 3, suite : les groupes, les guides et ce que les élèves ont vu (coin révisions) dans D1',
+    quoi: [
+      { emoji: '📚',
+        titre: 'Le coin révisions dans D1',
+        texte: 'Les groupes, les guides (avec tout leur contenu) et ce que chaque élève a vu se lisent et s’écrivent dans D1, puis sont recopiés dans la feuille Google juste après. L’espace élève ne relit plus ces trois feuilles chez Google à chaque ouverture, et un « ✓ Vu » coché par un élève s’enregistre dans D1.' },
+      { emoji: '🗄️',
+        titre: 'Trois blocs de plus dans Gestion › Accès › 🗄️',
+        texte: '« 🗂️ Les groupes du coin révisions », « 📘 Les guides du coin révisions » et « 👁️ Ce que les élèves ont vu », avec les mêmes boutons que les autres. Ils basculent seuls la nuit vers 3 h, ou tout de suite au bouton.' }
+    ]
+  },
   {
     version: 1501,
     date: 'Jeudi 19 novembre 2026',
