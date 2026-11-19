@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 15:55 — v1491 */
+/* Déployé le 19/11/2026 à 16:02 — v1492 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1492,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🗄️ La bascule des bilans réparée · 👩‍🎓 réciter, le bilan post-permis de l’élève, les corrections et l’atelier du parcours sans Apps Script',
+    quoi: [
+      { emoji: '🗄️',
+        titre: 'La bascule des bilans',
+        texte: 'Elle échouait (« Unable to parse range ») : la feuille était demandée sur quarante colonnes alors qu’elle en a moins. Elle se lit maintenant entière, par son nom, quelle que soit sa largeur — le répertoire aussi.' },
+      { emoji: '🎙️',
+        titre: 'Réciter et corriger',
+        texte: 'La récitation de l’élève, le mail au bureau, la correction par l’IA et la validation d’une correction (avec le mail à l’élève) ne passent plus par le classeur.' },
+      { emoji: '📝',
+        titre: 'Le bilan post-permis de l’élève',
+        texte: 'Son envoi s’écrit directement dans sa fiche de suivi, avec les mêmes vérifications (il ne part que complet).' },
+      { emoji: '🧭',
+        titre: 'L’atelier du parcours',
+        texte: 'Groupes, guides, leur ordre et « remettre à voir » : directs aussi.' }
+    ]
+  },
   {
     version: 1491,
     date: 'Jeudi 19 novembre 2026',
