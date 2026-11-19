@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 10:43 — v1347 */
+/* Déployé le 19/11/2026 à 13:18 — v1480 */
 /* ============================================================
    ec-coffre.js
    🔐 Le coffre-fort des mots de passe — Gestion › L'outil (v1347).
@@ -108,7 +108,7 @@ function boutonCF(texte, titre, quoi, cls){
 
 function carteCF(l){
   const c = document.createElement('div');
-  c.className = 'cfCarte' + (l.enAttente ? ' cfAttente' : '');
+  c.className = 'cofCarte' + (l.enAttente ? ' cfAttente' : '');   /* v1480 — « cfCarte » est aussi la carte du memory du coin café (cafe-commun.js), dont le style écrasait celui-ci */
   const tete = document.createElement('div');
   tete.className = 'cfTete';
   tete.innerHTML = '<strong>' + htmlCF(l.logiciel) + '</strong>' +
