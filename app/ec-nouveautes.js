@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 16:32 — v1471 */
+/* Déployé le 19/11/2026 à 08:38 — v1472 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1472,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '💬 La messagerie s’affiche de nouveau (« too many SQL variables »)',
+    quoi: [
+      { emoji: '💬',
+        titre: 'La messagerie qui ne s’affichait plus',
+        texte: 'Avec plus de 100 conversations dans la liste, la messagerie affichait « Messagerie indisponible : D1_ERROR: too many SQL variables ». La base refuse plus de 100 éléments par question : le serveur pose maintenant ses questions par lots de 90.' }
+    ]
+  },
   {
     version: 1471,
     date: 'Mercredi 18 novembre 2026',
