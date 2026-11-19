@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 14:37 — v1484 */
+/* Déployé le 19/11/2026 à 15:24 — v1488 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -115,7 +115,89 @@ async function chargerBaseServeur(quoi){
     }
     chargerBaseServeur(q);
   }));
-  if(!quoi) chargerBaseEleve();
+  if(!quoi){ chargerBaseRepertoire(); chargerBaseEleve(); }
+}
+
+/* ============================================================
+   📇 v1488 — LE RÉPERTOIRE DES ÉLÈVES DANS D1 (étape 3)
+
+   La feuille Eleves (téléphone, mail, formation, agence, id Drivup…)
+   passe dans D1 comme le suivi : même état, mêmes boutons, mêmes
+   sauvegardes. La bascule se fait d'elle-même la première nuit, ou
+   tout de suite au bouton.
+   ============================================================ */
+let baseRepertoireArme = false;
+async function chargerBaseRepertoire(quoi){
+  const z = document.getElementById('baseZone');
+  if(!z) return;
+  let b = z.querySelector('.baseRepertoire');
+  if(!b){
+    b = document.createElement('div'); b.className = 'baseRepertoire';
+    const corps = z.querySelector('.baseCorps');
+    if(corps && corps.nextSibling) z.insertBefore(b, corps.nextSibling); else z.appendChild(b);
+  }
+  const ech = (v) => (typeof echapper === 'function') ? echapper(v) : String(v == null ? '' : v);
+  const titre = '<div class="baseTitre">📇 Le répertoire des élèves</div>';
+  if(quoi){
+    b.querySelectorAll('button').forEach(x => { x.disabled = true; });
+    const m = b.querySelector('.baseMsg');
+    if(m) m.textContent = quoi === 'revenir' ? '⏳ Retour à la feuille…' : '⏳ Sauvegarde en cours — quelques secondes…';
+  }
+  let d;
+  try{ d = await appelPrep(Object.assign({ action:'baseRepertoire' }, quoi ? { quoi: quoi } : {})); }
+  catch(e){
+    if(quoi){ try{ d = await appelPrep({ action:'baseRepertoire' }); d.erreur = (e && e.message) || String(e); }catch(e2){ d = null; } }
+    if(!d){ b.innerHTML = titre + '<div class="cdAide">⚠️ ' + ech((e && e.message) || e) + '</div>'; return; }
+  }
+  baseRepertoireArme = false;
+  let html = titre + '<div class="cdAide">Les fiches des élèves (téléphone, mail, formation, agence, id Drivup…). Comme le suivi : lues et écrites dans D1, ' +
+    'recopiées dans la feuille Google juste après chaque changement, comparées chaque nuit vers 3 h.</div>';
+  if(d.actif){
+    html += '<div class="baseEtat baseOk"><b>✅ Répertoire : dans D1</b>' +
+      '<small>depuis le ' + ech(baseQuand(d.depuis)) + ' · ' + Number(d.fiches || 0).toLocaleString('fr-FR') + ' fiches · ' +
+      (d.attente ? '⏳ ' + d.attente + ' fiche' + (d.attente > 1 ? 's' : '') + ' en route vers la feuille' : 'tout est recopié dans la feuille') + '</small></div>';
+  }else{
+    html += '<div class="baseEtat"><b>⏸️ Le répertoire est encore lu dans la feuille Google</b>' +
+      '<small>Il passera dans D1 cette nuit vers 3 h, ou tout de suite avec le bouton. Rien ne change pour l’équipe.</small></div>';
+  }
+  const msg = d.erreur ? '⚠️ ' + d.erreur : (d.message || '');
+  html += '<div class="baseMsg' + (d.erreur ? ' baseKo' : '') + '">' + ech(msg) + '</div>';
+  html += '<div class="baseBoutons">' +
+    '<button type="button" class="btn btn-primary" data-rep="sauvegarder">' + (d.actif ? '💾 Sauvegarder maintenant' : '🗄️ Basculer maintenant') + '</button>' +
+    (d.actif ? '<button type="button" class="btn baseRetour" data-rep="revenir">↩️ Revenir à la feuille</button>' : '') + '</div>';
+  const sv = d.sauvegardes || [];
+  if(sv.length){
+    html += '<div class="baseListe">';
+    sv.slice(0, 6).forEach(x => {
+      const ic = x.etat === 'ok' ? '✅' : x.etat === 'partiel' ? '⚠️' : x.etat === 'echec' ? '❌' : '⏳';
+      const duree = (x.fin && x.debut) ? Math.max(1, Math.round((x.fin - x.debut) / 1000)) + ' s' : '';
+      html += '<div class="baseLigne"><span class="baseIc">' + ic + '</span><span class="baseTexte"><b>' + ech(baseQuand(x.debut)) +
+        '</b> · ' + ech(baseMotif(x)) + (duree ? ' · ' + duree : '') + '<small>' + ech(x.detail || '') + '</small></span></div>';
+    });
+    html += '</div>';
+  }
+  const ec = d.ecarts || [];
+  if(ec.length){
+    html += '<div class="cdAide">Cases changées dans la feuille par autre chose que l’appli : c’est la feuille qui a été gardée.</div><div class="baseListe">';
+    ec.slice(0, 20).forEach(x => {
+      html += '<div class="baseLigne"><span class="baseTexte"><b>' + ech(x.eleve) + '</b> · ' + ech(x.champ) + ' · ' + ech(baseQuand(x.le)) +
+        '<small>' + ech(x.sens) + ' : « ' + ech(x.base || '(vide)') + ' » → « ' + ech(x.feuille || '(vide)') + ' »</small></span></div>';
+    });
+    html += '</div>';
+  }
+  b.innerHTML = html;
+  b.querySelectorAll('[data-rep]').forEach(x => x.addEventListener('click', () => {
+    const q = x.dataset.rep;
+    if(q === 'revenir' && !baseRepertoireArme){
+      baseRepertoireArme = true;
+      x.textContent = '↩️ Oui, revenir à la feuille';
+      x.classList.add('baseArme');
+      const m = b.querySelector('.baseMsg');
+      if(m) m.textContent = 'L’appli relira et écrira le répertoire dans Google, plus lentement, comme avant. Appuie encore pour confirmer.';
+      return;
+    }
+    chargerBaseRepertoire(q);
+  }));
 }
 
 /* ============================================================
