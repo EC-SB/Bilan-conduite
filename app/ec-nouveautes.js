@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 17:11 — v1500 */
+/* Déployé le 19/11/2026 à 17:33 — v1501 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1501,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🗄️ Étape 3, suite : les accès des élèves et les liens de cours dans D1',
+    quoi: [
+      { emoji: '🔑',
+        titre: 'Les accès des élèves dans D1',
+        texte: 'Le code, la dernière visite, les modules et les groupes de chaque espace élève se lisent et s’écrivent dans D1, puis sont recopiés dans la feuille Google juste après. Un code changé ou un espace fermé dans l’appli vaut tout de suite à la connexion de l’élève. Une modification faite à la main dans la feuille est reprise en cinq à dix minutes. Gestion › Accès › 🗄️ montre un bloc « 🔑 Les accès des élèves », avec les mêmes boutons que les autres.' },
+      { emoji: '🔗',
+        titre: 'Les liens de cours dans D1',
+        texte: 'Les liens « je serai là » envoyés par mail se créent, s’ouvrent et se confirment depuis D1. Le ménage des vieux liens (au-delà de 6 000, on revient à 5 000) se fait des deux côtés à la fois. Gestion › Accès › 🗄️ montre un bloc « 🔗 Les liens de cours ».' }
+    ]
+  },
   {
     version: 1500,
     date: 'Jeudi 19 novembre 2026',
