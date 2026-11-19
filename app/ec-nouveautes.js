@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 12:44 — v1477 */
+/* Déployé le 19/11/2026 à 12:51 — v1478 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1478,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '⚡ L’espace élève ne relit plus les 10 Mo de textes : seulement ses cours',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Seulement ses cours',
+        texte: 'Mesuré après la v1477 : construire son espace prenait encore 3 s, parce que le texte de TOUS les bilans (6 Mo) et de tous les textes types (4 Mo) était relu pour un seul élève. Il ne relit plus que le texte de ses propres cours.' },
+      { emoji: '🔎',
+        titre: 'Ce qui passe encore par Apps Script',
+        texte: 'Gestion › Accès › 🗄️ montre les appels qui passent encore par Apps Script et combien de fois : ce sont les prochains à faire passer par D1.' }
+    ]
+  },
   {
     version: 1477,
     date: 'Jeudi 19 novembre 2026',
