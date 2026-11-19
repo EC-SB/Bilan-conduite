@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:40 — v1497 */
+/* Déployé le 19/11/2026 à 16:49 — v1498 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1498,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📊 Les statistiques du coin café, pour David : qui joue à quoi, combien de fois, combien de temps',
+    quoi: [
+      { emoji: '📊',
+        titre: 'Les statistiques du coin café',
+        texte: 'Un bouton « 📊 Statistiques » à côté du palmarès, visible par David seul : par personne et par jeu, le nombre de parties et le temps passé, puis le total par jeu et jour par jour — aujourd’hui, 7 jours, 30 jours ou tout.' },
+      { emoji: '⏱️',
+        titre: 'Ce qui est compté',
+        texte: 'Une partie à plusieurs compte pour chaque joueur, du départ à la fin (contre l’ordinateur à part). Un jeu solo compte le temps passé page ouverte, une heure au plus. Les parties avec un élève ne laissent aucune trace. Le compte démarre avec cette version.' }
+    ]
+  },
   {
     version: 1497,
     date: 'Jeudi 19 novembre 2026',
