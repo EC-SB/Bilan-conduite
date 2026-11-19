@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:15 — v1447 */
+/* Déployé le 19/11/2026 à 17:11 — v1500 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -527,6 +527,22 @@ function contenuSuiviSE(nom, x){
     t.innerHTML = '<b>' + c.t + '</b><br><small>' + echSE(sous) + (qui ? ' · ' + echSE(qui) : '') + '</small>';
     l.appendChild(t);
     cb.addEventListener('change', async () => {
+      /* 🚨 v1500 — DAVID, LE 19/11 : « ajoute un pop de confirmation avant
+         d'envoyer le message, un moniteur s'est trompé et ne voulait pas
+         cocher cette case, sauf qu'on a eu l'alerte au bureau direct ».
+         Cocher « Urgent » prévient le bureau tout de suite : on demande
+         d'abord. Décocher ne prévient personne : pas de question. */
+      if(c.k === 'urgent' && cb.checked){
+        cb.disabled = true;
+        let oui = true;
+        if(typeof confirmer === 'function'){
+          try{
+            oui = await confirmer('🚨 Ajouter une leçon à ' + nom + ' ' + quandUrgentSE(nom) + ' ?\n\n' +
+              'Le bureau sera prévenu tout de suite dans « Message important ».', 'Urgent : ajouter une leçon');
+          }catch(e){ oui = false; }
+        }
+        if(!oui){ cb.checked = false; cb.disabled = false; return; }
+      }
       cb.disabled = true;
       try{
         const r = await appelPrep({ action: 'suiviCasePoser', eleve: nom, cle: c.k, on: cb.checked });
