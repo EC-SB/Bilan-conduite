@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:34 — v1465 */
+/* Déployé le 19/11/2026 à 16:49 — v1498 */
 /* ============================================================
    cafe-commun.js — ☕ LE COIN CAFÉ, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -491,6 +491,12 @@
     enCours = true;
     appeler('etat', {}).then(function (r) {
       enCours = false;
+      /* 📊 v1498 — l'onglet des statistiques : David seul (le serveur le dit) */
+      if (r && r.statistiques !== undefined) {
+        var avant = statsVisibles;
+        statsVisibles = !!r.statistiques;
+        if (!avant && statsVisibles && F && F.ecran === 'coin') ouvrirCoin();
+      }
       var l = (r && r.parties) || [];
       var gardes = {};
       l.forEach(function (p) { gardes[p.id] = true; parties[p.id] = p; });
@@ -664,6 +670,12 @@
     bp.type = 'button';
     bp.addEventListener('click', ouvrirPalmares);
     deux.appendChild(bp);
+    if (statsVisibles && O.mode === 'equipe') {
+      var bs = el('button', 'adm', '📊 Statistiques<small>toi seul</small>');
+      bs.type = 'button';
+      bs.addEventListener('click', function () { ouvrirStats(); });
+      deux.appendChild(bs);
+    }
     if (O.admin && O.admin()) {
       var bt = el('button', 'adm', '🏟️ Lancer un tournoi<small>administrateurs</small>');
       bt.type = 'button';
@@ -1645,7 +1657,34 @@
     if (soloStop) { try { soloStop(); } catch (e) {} }
     soloStop = null;
     soloTouche = null;
+    finirSession();
   }
+
+  /* 📊 v1498 — LE TEMPS PASSÉ À UN JEU SOLO, pour les statistiques de
+     David. Compté page visible seulement (un onglet oublié ne compte
+     pas), envoyé quand on quitte la partie : nouvelle partie, retour,
+     fermeture. Le serveur ne garde qu'une heure au plus, et rien sous
+     5 secondes. */
+  var session = null;             /* { jeu, debut (0 = page cachée), cumul } */
+  function debutSession(jeu) {
+    finirSession();
+    session = { jeu: jeu, debut: document.hidden ? 0 : Date.now(), cumul: 0 };
+  }
+  function finirSession() {
+    if (!session) return;
+    var x = session;
+    session = null;
+    var ms = x.cumul + (x.debut ? Date.now() - x.debut : 0);
+    var sec = Math.round(ms / 1000);
+    if (sec < 5 || !O || O.mode !== 'equipe') return;
+    appeler('temps', { jeu: x.jeu, secondes: Math.min(sec, 3600) }).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!session) return;
+    if (document.hidden) { if (session.debut) { session.cumul += Date.now() - session.debut; session.debut = 0; } }
+    else if (!session.debut) session.debut = Date.now();
+  });
+  window.addEventListener('pagehide', function () { finirSession(); });
   function deuxChiffres(n) { return (n < 10 ? '0' : '') + n; }
   function minSec(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + deuxChiffres(s % 60); }
   function formatRecord(jeu, v) {
@@ -1696,6 +1735,7 @@
       zone.innerHTML = '';
       message.textContent = '';
       soloStop = jeux[jeu](zone, n, finir, message);
+      debutSession(jeu);   /* 📊 v1498 */
     };
     lancerJeu();
     montrerRecords();
@@ -2343,6 +2383,97 @@
           z.appendChild(ligne);
         });
       }
+    }).catch(function (e) { z.innerHTML = '<div class="cfEtat">⚠️ ' + esc(e.message || e) + '</div>'; });
+  }
+  /* ============================================================
+     📊 v1498 — LES STATISTIQUES (David seul)
+
+     David, le 19/11 : « un onglet statistiques visible que par moi du
+     coin café, avec le nombre de fois joué par personne par jeu, le
+     temps passé par jeu ». Par personne, puis par jeu, puis jour par
+     jour, sur la période choisie. Le serveur refuse les autres.
+     ============================================================ */
+  var periodeStats = 7;
+  var statsVisibles = false;
+  function dureeDite(s) {
+    s = Math.max(0, Math.round(Number(s) || 0));
+    if (s < 60) return s + ' s';
+    var m = Math.round(s / 60);
+    if (m < 60) return m + ' min';
+    return Math.floor(m / 60) + ' h ' + deuxChiffres(m % 60);
+  }
+  function nomDuJeu(k) {
+    var ordi = /:ordi$/.test(k), b = k.replace(/:ordi$/, '');
+    var J = JEUX[b], S = SOLO[b];
+    var t = J ? J.ic + ' ' + J.nom : S ? S.e + ' ' + S.nom : b;
+    return t + (ordi ? ' (🤖 ordi)' : '');
+  }
+  function jourDitCourt(j) {
+    var m = String(j || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return j;
+    var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    var noms = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+    return noms[d.getDay()] + ' ' + m[3] + '/' + m[2];
+  }
+  function ouvrirStats() {
+    var f = fenetre('stats', '📊 Les statistiques du coin café', 560);
+    f.corps.appendChild(chips([[1, 'Aujourd’hui'], [7, '7 jours'], [30, '30 jours'], [0, 'Tout']], periodeStats,
+      function (v) { periodeStats = Number(v); ouvrirStats(); }));
+    var z = el('div', '', '<div class="cfEtat">Un instant…</div>');
+    f.corps.appendChild(z);
+    f.bas.appendChild(bouton('Retour', false, ouvrirCoin));
+    appeler('stats', { jours: periodeStats }).then(function (r) {
+      if (!F || F.ecran !== 'stats') return;
+      z.innerHTML = '';
+      var l = (r && r.lignes) || [];
+      if (!l.length) {
+        z.appendChild(el('div', 'cfAide', 'Personne n’a joué sur cette période.' + (r && r.debut ? '' : ' Les parties se comptent depuis la v1498 ; avant, rien n’était noté.')));
+        return;
+      }
+      /* par personne : le total, puis jeu par jeu */
+      var gens = {};
+      l.forEach(function (x) {
+        var g = gens[x.cle] = gens[x.cle] || { nom: x.nom, parties: 0, secondes: 0, jeux: [] };
+        g.parties += x.parties; g.secondes += x.secondes; g.jeux.push(x);
+      });
+      var ordre = Object.keys(gens).sort(function (a, b) { return gens[b].secondes - gens[a].secondes || gens[b].parties - gens[a].parties; });
+      z.appendChild(lab('Par personne'));
+      ordre.forEach(function (k) {
+        var g = gens[k];
+        var t = el('table', 'cfPalm');
+        t.appendChild(el('tr', '', '<td><b>' + esc(prenom(g.nom) || g.nom) + '</b></td><td>' + g.parties + ' partie' + (g.parties > 1 ? 's' : '') + ' · ' + esc(dureeDite(g.secondes)) + '</td>'));
+        g.jeux.sort(function (a, b) { return b.secondes - a.secondes || b.parties - a.parties; }).forEach(function (x) {
+          t.appendChild(el('tr', '', '<td style="padding-left:18px;font-weight:400">' + esc(nomDuJeu(x.jeu)) + '</td><td style="font-weight:600">' +
+            x.parties + ' · ' + esc(dureeDite(x.secondes)) + '</td>'));
+        });
+        z.appendChild(t);
+      });
+      /* par jeu : toute l'équipe */
+      var jeux = {};
+      l.forEach(function (x) {
+        var j = jeux[x.jeu] = jeux[x.jeu] || { parties: 0, secondes: 0, gens: 0 };
+        j.parties += x.parties; j.secondes += x.secondes; j.gens += 1;
+      });
+      z.appendChild(lab('Par jeu'));
+      var tj = el('table', 'cfPalm');
+      Object.keys(jeux).sort(function (a, b) { return jeux[b].secondes - jeux[a].secondes || jeux[b].parties - jeux[a].parties; }).forEach(function (k) {
+        var j = jeux[k];
+        tj.appendChild(el('tr', '', '<td>' + esc(nomDuJeu(k)) + '<br><small style="color:var(--muted);font-weight:400">' + j.gens + ' joueur' + (j.gens > 1 ? 's' : '') + '</small></td><td>' +
+          j.parties + ' partie' + (j.parties > 1 ? 's' : '') + ' · ' + esc(dureeDite(j.secondes)) + '</td>'));
+      });
+      z.appendChild(tj);
+      /* jour par jour */
+      var pj = (r && r.parJour) || [];
+      if (pj.length > 1) {
+        z.appendChild(lab('Jour par jour'));
+        var td = el('table', 'cfPalm');
+        pj.forEach(function (x) {
+          td.appendChild(el('tr', '', '<td>' + esc(jourDitCourt(x.jour)) + '</td><td>' + x.parties + ' partie' + (x.parties > 1 ? 's' : '') + ' · ' + esc(dureeDite(x.secondes)) + '</td>'));
+        });
+        z.appendChild(td);
+      }
+      z.appendChild(el('div', 'cfAide', 'Comptées depuis le ' + esc(jourDitCourt(r.debut)) + '. Une partie à plusieurs compte pour chaque joueur, du départ à la fin ; ' +
+        'un jeu solo, le temps passé page ouverte (une heure au plus). Les parties avec un élève ne laissent aucune trace, ici non plus.'));
     }).catch(function (e) { z.innerHTML = '<div class="cfEtat">⚠️ ' + esc(e.message || e) + '</div>'; });
   }
   function trouverNom(t, cle) {
