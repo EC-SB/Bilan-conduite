@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:40 — v1497 */
+/* Déployé le 19/11/2026 à 17:09 — v1499 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -115,7 +115,7 @@ async function chargerBaseServeur(quoi){
     }
     chargerBaseServeur(q);
   }));
-  if(!quoi){ chargerBaseRepertoire(); chargerBaseBilans(); chargerBaseArchive(); chargerBaseEleve(); }
+  if(!quoi){ BASE_FEUILLES_D1.forEach(def => chargerBaseFeuilleD1(def)); chargerBaseArchive(); chargerBaseEleve(); }
 }
 
 /* ============================================================
@@ -134,7 +134,17 @@ const BASE_FEUILLES_D1 = [
           'recopiées dans la feuille Google juste après chaque changement, comparées chaque nuit vers 3 h.' },
   { action: 'baseBilans', classe: 'baseBilans', titre: '📚 Les bilans de cours', nom: 'Bilans', mot: 'les bilans', unite: 'bilan',
     aide: 'Tous les bilans de cours (le texte, la note interne, les manœuvres…). Lus et écrits dans D1, recopiés dans la feuille ' +
-          'Google juste après chaque changement, comparés chaque nuit vers 3 h.' }
+          'Google juste après chaque changement, comparés chaque nuit vers 3 h.' },
+  /* 🗄️ v1499 — étape 3 : quatre feuilles de plus, même moteur, mêmes boutons */
+  { action: 'baseSessions', classe: 'baseSessions', titre: '📅 Les sessions d’examen', nom: 'Sessions', mot: 'les sessions', unite: 'session', pluriel: true,
+    aide: 'Les journées d’examen (date, centre, moniteur, boîte). Lues et écrites dans D1, recopiées dans la feuille Google juste après ' +
+          'chaque changement, comparées chaque nuit vers 3 h.' },
+  { action: 'basePlaces', classe: 'basePlaces', titre: '🎫 Les places des sessions', nom: 'Places', mot: 'les places', unite: 'place', pluriel: true,
+    aide: 'Qui passe à quelle heure, prévenu, dossier OK, remarque. Même chemin que les sessions.' },
+  { action: 'basePreparations', classe: 'basePreparations', titre: '🗓️ Les cours préparés', nom: 'Cours préparés', mot: 'les cours préparés', unite: 'cours préparé', pluriel: true,
+    aide: 'Les prochains cours de chaque moniteur, leur ordre dans la journée, à qui ils sont attribués. Même chemin.' },
+  { action: 'baseConsignes', classe: 'baseConsignes', titre: '📌 Les messages aux moniteurs', nom: 'Messages', mot: 'les messages aux moniteurs', unite: 'message', pluriel: true,
+    aide: 'Ce que le bureau laisse au moniteur sur un élève, et s’il l’a traité. Même chemin.' }
 ];
 const baseFeuilleArmee = {};
 function chargerBaseRepertoire(quoi){ return chargerBaseFeuilleD1(BASE_FEUILLES_D1[0], quoi); }
@@ -171,8 +181,10 @@ async function chargerBaseFeuilleD1(def, quoi){
       '<small>depuis le ' + ech(baseQuand(d.depuis)) + ' · ' + n.toLocaleString('fr-FR') + ' ' + def.unite + (n > 1 ? 's' : '') + ' · ' +
       (d.attente ? '⏳ ' + d.attente + ' ' + def.unite + (d.attente > 1 ? 's' : '') + ' en route vers la feuille' : 'tout est recopié dans la feuille') + '</small></div>';
   }else{
-    html += '<div class="baseEtat"><b>⏸️ ' + ech(def.nom) + ' : encore lu' + (def.unite === 'bilan' ? 's' : '') + ' dans la feuille Google</b>' +
-      '<small>' + (def.unite === 'bilan' ? 'Ils passeront' : 'Il passera') + ' dans D1 cette nuit vers 3 h, ou tout de suite avec le bouton. Rien ne change pour l’équipe.</small></div>';
+    const pl = def.unite === 'bilan' || def.pluriel;
+    const fem = def.unite === 'session' || def.unite === 'place';
+    html += '<div class="baseEtat"><b>⏸️ ' + ech(def.nom) + ' : encore lu' + (fem ? 'e' : '') + (pl ? 's' : '') + ' dans la feuille Google</b>' +
+      '<small>' + (pl ? (fem ? 'Elles passeront' : 'Ils passeront') : 'Il passera') + ' dans D1 cette nuit vers 3 h, ou tout de suite avec le bouton. Rien ne change pour l’équipe.</small></div>';
   }
   const msg = d.erreur ? '⚠️ ' + d.erreur : (d.message || '');
   html += '<div class="baseMsg' + (d.erreur ? ' baseKo' : '') + '">' + ech(msg) + '</div>';
@@ -230,7 +242,8 @@ async function chargerBaseArchive(quoi, cle){
   let b = z.querySelector('.baseArchive');
   if(!b){
     b = document.createElement('div'); b.className = 'baseArchive';
-    const avant = z.querySelector('.baseBilans') || z.querySelector('.baseCorps');
+    const derniere = BASE_FEUILLES_D1[BASE_FEUILLES_D1.length - 1];
+    const avant = z.querySelector('.' + derniere.classe) || z.querySelector('.baseCorps');
     if(avant && avant.nextSibling) z.insertBefore(b, avant.nextSibling); else z.appendChild(b);
   }
   const ech = (v) => (typeof echapper === 'function') ? echapper(v) : String(v == null ? '' : v);
