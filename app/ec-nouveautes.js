@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 14:31 — v1483 */
+/* Déployé le 19/11/2026 à 14:37 — v1484 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1484,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🔑 Les accès à l’App Évolution Conduites ne passent plus par le classeur, et les écrans lisent D1 bien plus souvent',
+    quoi: [
+      { emoji: '🔑',
+        titre: 'Ouvrir, fermer, nouveau code',
+        texte: 'Ouvrir ou fermer l’espace d’un élève, lui donner un nouveau code ou créer son accès passaient encore par le classeur (4 secondes). C’est direct, avec les mêmes règles.' },
+      { emoji: '🪞',
+        titre: 'Les feuilles lues dans D1 servent un quart d’heure',
+        texte: 'Tout ce qui écrit passe par le serveur et fait relire ce qui a changé : les écrans n’ont plus besoin de relire Google chaque minute. Si quelqu’un modifie une feuille à la main dans Google : Gestion › Accès › 🗄️ « 🔄 Tout relire depuis Google ».' }
+    ]
+  },
   {
     version: 1483,
     date: 'Jeudi 19 novembre 2026',
