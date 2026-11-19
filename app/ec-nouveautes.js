@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 13:06 — v1479 */
+/* Déployé le 19/11/2026 à 13:18 — v1480 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1480,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🔐 La page du coffre-fort s’affiche de nouveau normalement',
+    quoi: [
+      { emoji: '🔐',
+        titre: 'Le coffre-fort réparé',
+        texte: 'Les fiches du coffre-fort prenaient le style des cartes du memory du coin café (même nom de style) : des cartes immenses, sans marges. Elles ont retrouvé le leur.' }
+    ]
+  },
   {
     version: 1479,
     date: 'Jeudi 19 novembre 2026',
