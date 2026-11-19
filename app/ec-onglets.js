@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 11:42 — v1474 */
+/* Déployé le 19/11/2026 à 13:40 — v1481 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -402,6 +402,10 @@ const VUES = {
               questions de vérification, que je puisse modifier » */
            ['verifs',     '🧰 Vérifications',          'bilans',      'Ce qu’on écrit'],
            ['courriers',  '✉️ Courriers',               'courriers',   'Ce qu’on écrit'],
+           /* 🤝 v1481 — David : « un endroit où on peut coller les mails des
+              parents ou des élèves et que tu nous aides à y répondre ».
+              Bureau et admins seulement (voir construireBarresVues). */
+           ['aidereponses', '🤝 Aide aux réponses',     'mails',       'Ce qu’on écrit'],
            /* 🎬 v1252 — David : « le squelette » de ses vidéos (début,
               copyright, générique, transitions, style des textes,
               polices de l'école), réglé une fois pour l'école. Le
@@ -1738,6 +1742,8 @@ function construireBarresVues(){
     const dispo = VUES[onglet].filter(([cle, , section]) => {
       if(cle === 'journal') return ACCES.role === 'admin';
       if(cle === 'mails')   return ACCES.role === 'admin';      /* v1146 */
+      /* 🤝 v1481 — bureau et admins : « ✉️ Mails » ne suffit pas à un moniteur */
+      if(cle === 'aidereponses') return typeof amPeut === 'function' ? amPeut() : ACCES.role === 'admin';
       if(cle === 'activite') return ACCES.role === 'admin';     /* v1147 */
       if(cle === 'direct')  return ACCES.role === 'admin';      /* v1148 */
       if(cle === 'admin')   return ACCES.role === 'admin';
@@ -2110,6 +2116,7 @@ function reveillerVue(cle){
     ecole:      () => (typeof afficherEcole === 'function') && afficherEcole(),
     /* ✉️ v1243 */
     courriers:  () => (typeof afficherCourriers === 'function') && afficherCourriers(),
+    aidereponses: () => (typeof afficherAideReponses === 'function') && afficherAideReponses(),
     /* 💼 v1280 */
     formations: () => (typeof afficherFormations === 'function') && afficherFormations(),
     /* 🧰 v1246 */
