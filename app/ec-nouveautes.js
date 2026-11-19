@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:34 — v1496 */
+/* Déployé le 19/11/2026 à 16:40 — v1497 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1497,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📄 L’archive d’un dossier : Google Drive, ou Cloudflare d’une case (Gestion › Accès › 🗄️)',
+    quoi: [
+      { emoji: '☁️',
+        titre: 'Une case pour archiver dans Cloudflare',
+        texte: 'Gestion › Accès › 🗄️ : décochée (par défaut), l’archive d’un dossier avant effacement part dans Google Drive comme avant. Cochée, elle se fait dans Cloudflare, plus vite. Si Cloudflare n’y arrive pas, Google Drive prend le relais tout seul.' },
+      { emoji: '📄',
+        titre: 'Les archives retrouvées',
+        texte: 'Celles faites dans Cloudflare sont listées sous la case, avec « 📄 Télécharger » : un lien neuf à chaque fois. Le fichier est le même qu’avant, tableau par tableau.' }
+    ]
+  },
   {
     version: 1496,
     date: 'Jeudi 19 novembre 2026',
