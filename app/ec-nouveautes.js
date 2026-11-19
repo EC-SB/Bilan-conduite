@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:13 — v1493 */
+/* Déployé le 19/11/2026 à 16:19 — v1494 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1494,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📚 La bascule des bilans réparée pour de bon · 🚗 l’onglet Permis sans Apps Script : places BE, places perdues',
+    quoi: [
+      { emoji: '📚',
+        titre: 'La bascule des bilans',
+        texte: 'Elle cherchait une feuille nommée « Bilans » : la vôtre porte un autre nom. Elle prend maintenant la bonne, celle que toute l’appli lit déjà pour les bilans.' },
+      { emoji: '🚛',
+        titre: 'Les demandes de places BE',
+        texte: 'La liste, l’envoi du mois, les places obtenues, la remarque et la suppression ne passent plus par le classeur.' },
+      { emoji: '🕳️',
+        titre: 'Les places perdues',
+        texte: 'L’écran de réparation se calcule directement : places vidées qui gardent leurs marques, élèves dont la fiche dit une date sans place, et les modifications du journal des sept derniers jours.' }
+    ]
+  },
   {
     version: 1493,
     date: 'Jeudi 19 novembre 2026',
