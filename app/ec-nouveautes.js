@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 15:34 — v1489 */
+/* Déployé le 19/11/2026 à 15:55 — v1491 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,38 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1491,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '👩‍🎓 Onglet Élèves et espace élève : récitations, demandes, procédures à corriger, codes d’accès sans Apps Script',
+    quoi: [
+      { emoji: '👩‍🎓',
+        titre: 'Côté élève',
+        texte: 'Ses récitations et ses demandes, le texte d’une procédure et le choix de sa boîte de vitesses ne passent plus par le classeur.' },
+      { emoji: '📋',
+        titre: 'Côté équipe',
+        texte: 'Demander des récitations, marquer une demande faite, les procédures à corriger, retirer une récitation, le code d’un espace élève ou le retirer : directs, sans attendre le classeur.' },
+      { emoji: '🧹',
+        titre: 'Un oubli corrigé',
+        texte: 'Les demandes de récitation d’un élève suivent maintenant son renommage et partent avec la suppression de son dossier (la feuille était mal nommée dans la liste).' }
+    ]
+  },
+  {
+    version: 1490,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '📚 Les bilans de cours passent dans D1, comme le suivi et le répertoire',
+    quoi: [
+      { emoji: '📚',
+        titre: 'Les bilans dans D1',
+        texte: 'Tous les bilans de cours se lisent et s’écrivent dans la base de Cloudflare : la recherche, le dossier, les notes internes, les corrections ne relisent plus la feuille Google. Chaque changement y est recopié juste après, et les deux sont comparées chaque nuit.' },
+      { emoji: '🗑️',
+        titre: 'Supprimer un bilan',
+        texte: 'La dernière écriture des bilans qui passait par Apps Script est directe, avec la même vérification (la ligne doit être celle de l’élève).' },
+      { emoji: '🗄️',
+        titre: 'Gestion › Accès',
+        texte: 'Un bloc « 📚 Les bilans de cours » sous celui du répertoire. La bascule se fait seule cette nuit vers 3 h, ou tout de suite au bouton.' }
+    ]
+  },
   {
     version: 1489,
     date: 'Jeudi 19 novembre 2026',
