@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 11:42 — v1474 */
+/* Déployé le 19/11/2026 à 12:08 — v1475 */
 /* ============================================================
    ec-base.js — v1474
    🗄️ LA BASE DE L'APPLI (Gestion › Accès, admins)
@@ -115,6 +115,84 @@ async function chargerBaseServeur(quoi){
     }
     chargerBaseServeur(q);
   }));
+  if(!quoi) chargerBaseEleve();
+}
+
+/* ============================================================
+   ⚡ v1475 — L'ESPACE ÉLÈVE SANS APPS SCRIPT (étape 2)
+
+   Le Worker sait construire lui-même la connexion de l'espace élève
+   (12 s chez Apps Script, mesurées le 19/11 en démonstration). Avant
+   de l'allumer, « 🔍 Comparer avec Apps Script » demande les deux
+   réponses pour chaque élève qui a un accès ouvert, cinq par cinq
+   (rien n'est noté à leur nom), et montre chaque différence.
+   ============================================================ */
+let baseEleveComparaison = null;   /* { faits, total, egaux, ecarts: [] } */
+
+async function chargerBaseEleve(quoi){
+  const z = document.getElementById('baseZone');
+  if(!z) return;
+  let b = z.querySelector('.baseEleve');
+  if(!b){ b = document.createElement('div'); b.className = 'baseEleve'; z.appendChild(b); }
+  const ech = (v) => (typeof echapper === 'function') ? echapper(v) : String(v == null ? '' : v);
+  b.querySelectorAll('button').forEach(x => { x.disabled = true; });
+  let d;
+  try{ d = await appelPrep(Object.assign({ action:'baseEleve' }, quoi ? { quoi: quoi } : {})); }
+  catch(e){ b.innerHTML = '<div class="baseTitre">⚡ L’espace élève sans Apps Script</div><div class="cdAide">⚠️ ' + ech((e && e.message) || e) + '</div>'; return; }
+
+  let html = '<div class="baseTitre">⚡ L’espace élève sans Apps Script</div>' +
+    '<div class="cdAide">Son ouverture attendait Apps Script (une douzaine de secondes). Cloudflare sait maintenant construire son espace ' +
+    'lui-même, en une seconde, avec les mêmes règles. Avant d’allumer, la comparaison vérifie élève par élève que les deux donnent exactement la même chose.</div>' +
+    '<div class="baseEtat' + (d.actif ? ' baseOk' : '') + '"><b>' + (d.actif ? '✅ Allumé : l’espace élève ne passe plus par Apps Script' : '⏸️ Éteint : l’espace élève passe encore par Apps Script') + '</b>' +
+    (d.le ? '<small>' + (d.actif ? 'allumé' : 'éteint') + ' le ' + ech(baseQuand(d.le)) + (d.par ? ' par ' + ech(d.par) : '') + '</small>' : '') + '</div>';
+  const c = baseEleveComparaison;
+  if(c){
+    const fini = c.faits >= c.total;
+    html += '<div class="baseMsg' + (c.ecarts.length ? ' baseKo' : '') + '">' +
+      (fini ? (c.ecarts.length ? '⚠️ ' + c.ecarts.length + ' élève(s) sur ' + c.total + ' avec une différence.'
+                               : '✅ ' + c.total + ' élèves comparés : tout est identique.')
+            : '⏳ Comparaison : ' + c.faits + ' / ' + c.total + ' élèves…') + '</div>';
+    if(c.ecarts.length){
+      html += '<div class="baseListe">';
+      c.ecarts.slice(0, 30).forEach(x => {
+        const l = (x.differences || []).slice(0, 6).map(y => ech(y.ou) + ' : Apps Script « ' + ech(String(y.appsScript).slice(0, 80)) + ' » · ici « ' + ech(String(y.ici).slice(0, 80)) + ' »').join('<br>');
+        html += '<div class="baseLigne"><span class="baseIc">⚠️</span><span class="baseTexte"><b>' + ech(x.eleve) + '</b>' +
+          '<small>' + (x.erreur ? ech(x.erreur) : l) + '</small></span></div>';
+      });
+      html += '</div>';
+    }
+  }
+  const enCours = c && c.faits < c.total;
+  html += '<div class="baseBoutons">' +
+    '<button type="button" class="btn baseRetour" data-eleve="comparer"' + (enCours ? ' disabled' : '') + '>🔍 Comparer avec Apps Script</button>' +
+    (d.actif ? '<button type="button" class="btn baseRetour" data-eleve="eteindre">⏸️ Éteindre</button>'
+             : '<button type="button" class="btn btn-primary" data-eleve="allumer">⚡ Allumer</button>') + '</div>';
+  b.innerHTML = html;
+  b.querySelectorAll('[data-eleve]').forEach(x => x.addEventListener('click', () => {
+    if(x.dataset.eleve === 'comparer') comparerBaseEleve();
+    else chargerBaseEleve(x.dataset.eleve);
+  }));
+}
+
+async function comparerBaseEleve(){
+  baseEleveComparaison = { faits: 0, total: 1, egaux: 0, ecarts: [] };
+  chargerBaseEleve();
+  let depuis = 0;
+  try{
+    for(let tour = 0; tour < 100 && depuis !== null; tour++){
+      const r = await appelPrep({ action:'baseEleve', quoi:'comparer', depuis: depuis });
+      const c = baseEleveComparaison;
+      c.total = r.total || 0;
+      (r.resultats || []).forEach(x => { c.faits++; if(x.egal) c.egaux++; else c.ecarts.push(x); });
+      depuis = r.suivant;
+      if(depuis === null) c.faits = c.total;
+      chargerBaseEleve();
+    }
+  }catch(e){
+    baseEleveComparaison.ecarts.push({ eleve: '—', erreur: 'Comparaison interrompue : ' + ((e && e.message) || e) });
+    baseEleveComparaison.faits = baseEleveComparaison.total;
+    chargerBaseEleve();
+  }
 }
 
 /* Signale que ce module est bien chargé */
