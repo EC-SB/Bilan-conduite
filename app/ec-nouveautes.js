@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 12:08 — v1475 */
+/* Déployé le 19/11/2026 à 12:32 — v1476 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1476,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '⚡ Espace élève sans Apps Script : comparé sur les 84 élèves, la dernière différence corrigée',
+    quoi: [
+      { emoji: '🔍',
+        titre: 'Comparé élève par élève',
+        texte: 'Les 84 élèves qui ont un accès ouvert ont été comparés : 73 identiques, et 11 avec une seule différence (l’heure de « bilan validé le », coupée côté Cloudflare). C’est corrigé. Cloudflare garde aussi les feuilles 30 secondes, pour ne pas dépasser la limite de lectures de Google.' }
+    ]
+  },
   {
     version: 1475,
     date: 'Jeudi 19 novembre 2026',
