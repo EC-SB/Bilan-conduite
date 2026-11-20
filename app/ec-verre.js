@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 13:28 — v1377 */
+/* Déployé le 20/11/2026 à 13:43 — v1514 */
 /* ============================================================
    🫧 LE NOUVEAU GRAPHISME « VERRE » (Liquid Glass) — v1374
 
@@ -270,7 +270,8 @@
   /* L'en-tête : ☑️ tâches, 💬 messagerie, 🔓 déconnexion — leur emoji est le
      premier nœud texte, suivi d'une pastille : même recette. */
   function habillerLEntete(){
-    ['todoBtn', 'msgElvBtn', 'logoutBtn', 'procRaccourci', 'cbBtn', 'loupeBtn'].forEach(function(id){
+    /* 📞 v1514 — le téléphone d'Allo, à côté de la messagerie */
+    ['todoBtn', 'msgElvBtn', 'telBtn', 'logoutBtn', 'procRaccourci', 'cbBtn', 'loupeBtn'].forEach(function(id){
       var b = document.getElementById(id);
       if(!b || b.querySelector(':scope > .vgl')) return;
       var n = b.firstChild;
