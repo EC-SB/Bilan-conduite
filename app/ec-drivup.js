@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 15:45 — v1516 */
+/* Déployé le 20/11/2026 à 16:03 — v1517 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -1025,6 +1025,147 @@ function memeValeurDrivup(champ, a, b){
   return sansAccentDrivup(a) === sansAccentDrivup(b);
 }
 
+/* ============================================================
+   🪪 v1517 — LES INFOS DU DOSSIER, REPRISES DE DRIVUP
+
+   David, le 20 novembre : « comment tu récupères les NEPH et les
+   responsables légaux qui sont dans Infos complémentaires ? Il est hors
+   de question que je fasse élève par élève. » Les onglets de la fiche
+   Drivup (Coordonnées, Infos complémentaires, Formule & Permis) donnent
+   l'adresse, la ville de naissance, le NEPH et le prescripteur — son
+   responsable légal (mineur seulement, et pas une société).
+
+   · la fiche d'un élève : le favori les apporte avec elle ;
+   · la liste (par 100) : on demande au serveur ce qui est VIDE chez les
+     élèves déjà dans l'appli, puis le favori lit en arrière-plan les
+     seules fiches Drivup utiles, et tout arrive dans la même fenêtre.
+   Une case déjà remplie chez nous n'est jamais remplacée.
+   ============================================================ */
+const LIBELLES_INFOS_DRIVUP = { genre: 'Genre', naissance: 'Naissance', neph: 'NEPH', naissLieu: 'Lieu de naissance', adresse: 'Adresse',
+  rlNom: 'Responsable légal', rlAdresse: 'son adresse', rlNaissance: 'sa naissance', rlTel: 'son téléphone', rlMail: 'son mail' };
+const CLES_INFOS_DRIVUP = Object.keys(LIBELLES_INFOS_DRIVUP);
+function ageDrivup(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return null;
+  const auj = new Date();
+  let a = auj.getFullYear() - +m[1];
+  if(auj.getMonth() + 1 < +m[2] || (auj.getMonth() + 1 === +m[2] && auj.getDate() < +m[3])) a--;
+  return a >= 0 && a < 130 ? a : null;
+}
+function valeursDuDossierDrivup(c, mineur){
+  const v = {};
+  if(!c) return v;
+  /* la civilité → le genre des accords du bilan (David) */
+  const civ = sansAccentDrivup(c.civilite);
+  if(/^(madame|mademoiselle|mme|mlle)/.test(civ)) v.genre = 'F';
+  else if(/^(monsieur|mr)/.test(civ)) v.genre = 'M';
+  const adr = (a, comp, cp, ville) => [[a, comp].filter(Boolean).join(', '), [cp, ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  if(c.villeNaissance){
+    const pays = c.paysNaissance && sansAccentDrivup(c.paysNaissance) !== 'france' ? c.paysNaissance : '';
+    v.naissLieu = [c.villeNaissance + (c.departementNaissance ? ' (' + c.departementNaissance + ')' : ''), pays].filter(Boolean).join(', ');
+  }
+  if(c.adresse && c.ville) v.adresse = adr(c.adresse, c.complementAdresse, c.codePostal, c.ville);
+  if(chiffresDrivup(c.neph).length === 12) v.neph = chiffresDrivup(c.neph);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(String(c.dateNaissance || ''))) v.naissance = c.dateNaissance;
+  /* le prescripteur = son responsable légal : une personne (pas une société), et seulement pour un mineur */
+  if(mineur !== false && c.nomPrescripteur && !c.societePrescripteur){
+    v.rlNom = c.nomPrescripteur;
+    if(c.adressePrescripteur && c.villePrescripteur) v.rlAdresse = adr(c.adressePrescripteur, '', c.cpPrescripteur, c.villePrescripteur);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(String(c.naissancePrescripteur || ''))) v.rlNaissance = c.naissancePrescripteur;
+    if(c.mobilePrescripteur || c.telephonePrescripteur) v.rlTel = c.mobilePrescripteur || c.telephonePrescripteur;
+    if(c.mailPrescripteur) v.rlMail = c.mailPrescripteur;
+  }
+  return v;
+}
+async function chargerInfosDuDossierDrivup(z, sorte, premier, existants, nouveaux, casesInfos){
+  const titre = document.createElement('div');
+  titre.className = 'dvJour';
+  titre.textContent = '🪪 Infos du dossier — Coordonnées, Infos complémentaires, Formule & Permis (dans les cases vides)';
+  z.appendChild(titre);
+  const dire = (t) => { const v = document.createElement('div'); v.className = 'dvPli'; v.textContent = t; z.appendChild(v); return v; };
+  /* ce qui est vide chez nous */
+  let vides = {};
+  const noms = existants.map(e => e.fiche.eleve);
+  if(noms.length){
+    try{
+      const r = await appelPrep({ action: 'ficheInfosVides', eleves: noms });
+      vides = (r && r.eleves) || {};
+    }catch(e){ dire('⚠️ Les infos du dossier ne se lisent pas : ' + (e.message || e)); return; }
+  }
+  const mineurDe = (nom, c) => {
+    const v = vides[nom];
+    if(v && v.mineur !== null && v.mineur !== undefined) return v.mineur;
+    const a = ageDrivup(c && c.dateNaissance);
+    return a === null ? null : a < 18;
+  };
+  /* les fiches Drivup à lire : la fiche ouverte, ou celles des élèves à qui il manque quelque chose */
+  let comp = {};
+  if(sorte === 'fiche'){
+    if(premier.complements) comp[chiffresDrivup(premier.id)] = premier.complements;
+  }else{
+    const utiles = existants.filter(e => {
+      const v = vides[e.fiche.eleve];
+      if(!v || !chiffresDrivup(e.x.id)) return false;
+      return v.vides.some(k => (k === 'neph' ? !chiffresDrivup(e.x.neph) : (k.indexOf('rl') === 0 ? v.mineur !== false : true)));
+    });
+    if(utiles.length){
+      const barre = document.createElement('div');
+      barre.className = 'dvBarre';
+      barre.innerHTML = '<span></span>';
+      const t = dire('Lecture de ' + utiles.length + ' fiche(s) dans Drivup…');
+      z.insertBefore(barre, t);
+      try{
+        envoyerADrivup({ type: 'drivup-fiches-lire', ids: utiles.map(e => chiffresDrivup(e.x.id)) });
+        const d = await attendreDeDrivup('drivup-fiches-lues', p => {
+          if(p.total) barre.firstChild.style.width = Math.min(100, Math.round((p.fait || 0) * 100 / p.total)) + '%';
+          if(p.texte) t.textContent = p.texte;
+        }, 600000);
+        comp = (d && d.fiches) || {};
+        barre.remove(); t.remove();
+      }catch(e){
+        barre.remove();
+        t.textContent = '⚠️ ' + (e.message || e) + ' — le reste est quand même proposé ci-dessus.';
+        return;
+      }
+    }
+  }
+  const lignes = existants.map(e => ({ x: e.x, nom: e.fiche.eleve, vv: (vides[e.fiche.eleve] || { vides: [] }).vides }))
+    .concat(sorte === 'fiche' ? nouveaux.map(n => ({ x: n.x, nom: n.nom, vv: CLES_INFOS_DRIVUP })) : []);
+  lignes.forEach(({ x, nom, vv }) => {
+    const c = comp[chiffresDrivup(x.id)];
+    if(!c) return;
+    const tout = valeursDuDossierDrivup(c, mineurDe(nom, c));
+    const valeurs = {};
+    Object.keys(tout).forEach(k => {
+      if(vv.indexOf(k) === -1) return;
+      /* déjà proposés plus haut (la fiche lue, ou la colonne NEPH de la liste) */
+      if(k === 'neph' && chiffresDrivup(x.neph)) return;
+      if(k === 'naissance' && propreDrivup(x.naissance)) return;
+      valeurs[k] = tout[k];
+    });
+    if(!Object.keys(valeurs).length) return;
+    const l = document.createElement('label');
+    l.className = 'dvL';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = true;
+    const qui = document.createElement('span');
+    qui.className = 'dvQui';
+    const b = document.createElement('b');
+    b.textContent = nom;
+    const sp = document.createElement('span');
+    sp.textContent = Object.keys(valeurs).map(k => LIBELLES_INFOS_DRIVUP[k] + ' : ' +
+      (k === 'genre' ? (valeurs[k] === 'F' ? 'Elle' : 'Il') : /^\d{4}-\d{2}-\d{2}$/.test(valeurs[k]) ? valeurs[k].split('-').reverse().join('/') : valeurs[k])).join(' · ');
+    qui.append(b, sp);
+    const et = document.createElement('span');
+    et.className = 'dvEt neuf';
+    et.textContent = '➕ ' + Object.keys(valeurs).length;
+    l.append(cb, rondDrivup(nom), qui, et);
+    z.appendChild(l);
+    casesInfos.push({ cb, eleve: nom, valeurs });
+  });
+  if(!casesInfos.length) dire('✅ Rien à reprendre : ce que Drivup a est déjà chez nous (ou Drivup ne l’a pas).');
+}
+
 async function fenetreElevesDrivup(elevesBruts, sorte){
   /* La catégorie Drivup devient notre formation, avant toute
      comparaison : « CA » et « AAC BV » sont la même chose. */
@@ -1039,13 +1180,18 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
     : 'La liste des élèves de Drivup · ' + eleves.length + ' élève(s) lu(s) à ' + lu;
   const f = cadreDrivup(titre, sous);
 
-  const nouveaux = [], aCompleter = [], plies = [];
-  let differences = 0, aJour = 0;
+  const nouveaux = [], aCompleter = [], plies = [], existants = [];
+  let differences = 0, aJour = 0, ignores = 0;
   eleves.forEach(x => {
     const nom = nomDeLEleveDrivup(x);
     if(!nom) return;
     const fiche = ficheDeLEleveDrivup(x);
-    if(!fiche){ nouveaux.push({ x, nom }); return; }
+    /* ⚠️ v1517 — DEPUIS LA LISTE, SEULEMENT CEUX QUI SONT DÉJÀ DANS L'APPLI.
+       David, le 20 novembre : « il ne faut reprendre que ceux qui sont déjà
+       dans l'app, car je les ajoute quand ils ont commencé leur formation ».
+       Une fiche se crée depuis la fiche Drivup de l'élève, plus depuis la liste. */
+    if(!fiche){ if(sorte === 'fiche') nouveaux.push({ x, nom }); else ignores++; return; }
+    existants.push({ x, fiche });
     const montres = [], caches = [];
     CHAMPS_FICHE_DRIVUP.forEach(([chez, dv, lib, montre]) => {
       const leur = propreDrivup(x[dv], 120);
@@ -1139,6 +1285,12 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
       .filter(Boolean).join(' · ');
     f.boite.appendChild(v);
   }
+  if(ignores){
+    const v = document.createElement('div');
+    v.className = 'dvPli';
+    v.textContent = ignores + ' élève(s) de Drivup pas encore dans l’appli : laissé(s) de côté. Une fiche se crée depuis la fiche Drivup de l’élève, quand il commence sa formation.';
+    f.boite.appendChild(v);
+  }
   if(!nouveaux.length && !aCompleter.length && !pliees.length){
     const v = document.createElement('div');
     v.className = 'dvPli';
@@ -1197,18 +1349,26 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
     f.boite.appendChild(v);
   }
 
+  /* 🪪 v1517 — les infos du dossier (Coordonnées, Infos complémentaires, Formule & Permis) */
+  const casesInfos = [];
+  const zInfos = document.createElement('div');
+  f.boite.appendChild(zInfos);
+  await chargerInfosDuDossierDrivup(zInfos, sorte, premier, existants, nouveaux, casesInfos);
+
   const nbN = nouveaux.length, nbC = aCompleter.length;
   const libelle = sorte === 'fiche'
     ? (nbN ? '✅ Créer sa fiche' : '✅ Compléter sa fiche')
     : '✅ ' + [nbN ? 'Créer ' + nbN + ' fiche' + (nbN > 1 ? 's' : '') : '',
-               nbC + pliees.length ? 'compléter ' + (nbC + pliees.length) : ''].filter(Boolean).join(' · ');
-  const aFaire = nbN || nbC || pliees.length || casesNotes.length || (sorte === 'fiche' && premier.photo);
+               nbC + pliees.length ? 'compléter ' + (nbC + pliees.length) : '',
+               casesInfos.length ? '🪪 ' + casesInfos.length + ' dossier' + (casesInfos.length > 1 ? 's' : '') : ''].filter(Boolean).join(' · ');
+  const aFaire = nbN || nbC || pliees.length || casesNotes.length || casesInfos.length || (sorte === 'fiche' && premier.photo);
   const libelleFinal = (sorte === 'fiche' && !nbN && !nbC && !pliees.length && aFaire) ? '✅ Reprendre' : libelle;
   const r = boutonsDrivup(f.boite, aFaire ? libelleFinal : '✅ Fermer', async (etat, ok, non) => {
     const fiches = cases.filter(c => c.cb.checked).map(c => c.fiche).concat(pliees);
     const notes = casesNotes.filter(c => c.cb.checked);
     const photoFiche = sorte === 'fiche' && premier.photo;
-    if(!fiches.length && !notes.length && !photoFiche){ f.fermer(); return; }
+    const infos = casesInfos.filter(c => c.cb.checked);
+    if(!fiches.length && !notes.length && !photoFiche && !infos.length){ f.fermer(); return; }
     let crees = 0, completees = 0;
     for(let i = 0; i < fiches.length; i += 200){
       const rep = await appelPrep({ action: 'drivupFiches', fiches: fiches.slice(i, i + 200) });
@@ -1238,13 +1398,26 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
       ph = await reprendreLesPhotosDrivup([{ eleve: nomPhoto, url: premier.photo }], true);
     })() : Promise.resolve();
     await Promise.all([relire, ecrireLesNotes, laPhoto]);
-    await rafraichirApresDrivup(false);
+    /* 🪪 v1517 — les infos du dossier, dans les cases vides seulement (après la
+       fiche : une fiche créée à l'instant doit exister) */
+    let infosEcrites = 0, infosEleves = 0;
+    for(let i = 0; i < infos.length; i += 25){
+      etat.textContent = '🪪 Infos du dossier… ' + Math.min(i + 25, infos.length) + ' / ' + infos.length;
+      try{
+        const rep = await appelPrep({ action: 'ficheInfosDrivup', fiches: infos.slice(i, i + 25).map(c => ({ eleve: c.eleve, valeurs: c.valeurs })) });
+        infosEcrites += (rep && rep.cases) || 0;
+        infosEleves += (rep && rep.eleves) || 0;
+      }catch(e){ /* les suivants continuent */ }
+    }
+    if(typeof FI_CACHE !== 'undefined') Object.keys(FI_CACHE).forEach(k => delete FI_CACHE[k]);
+    await rafraichirApresDrivup(!!infos.length);
     ok.style.display = 'none';
     non.disabled = false;
     non.textContent = 'Fermer';
     etat.style.color = '';
     etat.textContent = '✅ ' + crees + ' fiche(s) créée(s) · ' + completees + ' complétée(s)' +
       (notesEcrites ? ' · ' + notesEcrites + ' note(s) interne(s) reprise(s)' : '') +
+      (infosEcrites ? ' · 🪪 ' + infosEcrites + ' info(s) du dossier pour ' + infosEleves + ' élève(s)' : '') +
       (ph.posees ? ' · photo reprise' : '') + '.';
   }, f.fermer);
   if(!aFaire) r.non.style.display = 'none';
