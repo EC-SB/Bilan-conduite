@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:49 — v1513 */
+/* Déployé le 20/11/2026 à 13:43 — v1514 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -21,7 +21,7 @@
    · l'onglet 📞 Appels du dossier de l'élève ;
    · la ligne « ⏰ à rappeler » du bandeau du bureau.
 
-   Le Worker relit Allo toutes les 5 minutes : voir « LE SUIVI DES
+   Le Worker relit Allo toutes les 2 minutes (v1514) : voir « LE SUIVI DES
    APPELS » dans cloudflare-worker.js. Rien du son n'est gardé : ▶
    demande à Allo un lien d'une heure, et seulement pour le bureau et
    les administrateurs (son choix).
@@ -243,16 +243,20 @@ function dessinerSuiviAppels(){
 
   const hr = apEl('div', 'axHudR');
   if(apPeutTout()){
-    const bR = apEl('button', 'axB', '⟳ Relire');
+    /* ⏱️ v1514 — David : « remettre le bouton relire maintenant ». Son
+       nom d'avant, en toutes lettres : « ⟳ Relire » ne se lisait pas. */
+    const bR = apEl('button', 'axB', '🔄 Relire maintenant');
     bR.type = 'button';
-    bR.title = 'Relire Allo maintenant';
-    bR.addEventListener('click', async () => { bR.disabled = true; bR.textContent = '⟳ Lecture…'; await afficherSuiviAppels(true, true); });
+    bR.title = 'Relire Allo tout de suite, sans attendre les 2 minutes';
+    bR.addEventListener('click', async () => { bR.disabled = true; bR.textContent = '🔄 Lecture…'; await afficherSuiviAppels(true, true); });
     hr.appendChild(bR);
     const nDuJour = tous.filter(a => apEnAttente(a) && a.rappelLe <= auj && a.numero).length;
     const bT = apEl('button', 'axB', '📞 Tout rappeler ');
     bT.type = 'button';
     bT.appendChild(apEl('b', '', String(nDuJour)));
-    bT.title = 'Envoie les numéros à rappeler aujourd’hui (et en retard) dans la file d’appels d’Allo';
+    bT.title = (typeof telToutRappeler === 'function')
+      ? 'Enchaîne les numéros à rappeler aujourd’hui (et en retard) dans le téléphone de l’appli'
+      : 'Envoie les numéros à rappeler aujourd’hui (et en retard) dans la file d’appels d’Allo';
     bT.disabled = !nDuJour;
     bT.addEventListener('click', () => toutRappelerAvecAllo(bT));
     hr.appendChild(bT);
@@ -318,14 +322,10 @@ function dessinerSuiviAppels(){
   hud.appendChild(kpis);
   ax.appendChild(hud);
 
-  /* 🕘 v1275 — le déclencheur des 5 minutes de Cloudflare ne tourne pas :
-     l'appli relit quand même dès qu'elle est ouverte, mais pas la nuit */
-  const admin = typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin';
-  if(admin && E.cle && !E.erreur && (!E.cron || Date.now() - E.cron > 20 * 60000)){
-    ax.appendChild(apEl('div', 'apCron', '🕘 Le déclencheur « toutes les 5 minutes » du Worker ' +
-      (E.cron ? 'ne s’est plus déclenché depuis le ' + new Date(E.cron).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ne s’est jamais déclenché') +
-      ' : l’appli relit Allo quand elle est ouverte. Pour qu’il tourne aussi appli fermée : Cloudflare › ce Worker › Settings › Trigger Events › ajouter le Cron « */5 * * * * ».'));
-  }
+  /* 🕘 v1514 — le bandeau « le déclencheur ne s'est jamais déclenché » est
+     parti : David a posé le Cron de 2 minutes le 20 novembre, et il a
+     demandé de l'enlever. Si Allo ne répond plus, c'est le bandeau rouge
+     juste en dessous qui le dit. */
   if(!E.cle || E.erreur){
     ax.appendChild(apEl('div', 'apErreur', '⚠️ ' + (!E.cle ? 'Clé Allo absente du Worker (ALLO_API_KEY ou ALLO_CLE_APPELS).' : E.erreur)));
   }
@@ -382,7 +382,7 @@ function dessinerSuiviAppels(){
 
   const liste = cherche.filter(a => apCorrespond(a, E.filtre));
   if(!liste.length){
-    ax.appendChild(apEl('div', 'empty', tous.length ? 'Aucun appel pour ce filtre.' : 'Aucun appel pour le moment. Les appels arrivent ici dans les 5 minutes.'));
+    ax.appendChild(apEl('div', 'empty', tous.length ? 'Aucun appel pour ce filtre.' : 'Aucun appel pour le moment. Les appels arrivent ici dans les 2 minutes.'));
     return;
   }
   /* ④ 📞 v1309 — UNE FICHE PAR NUMÉRO (David, sur le schéma : « comme
@@ -1277,6 +1277,17 @@ async function ecouterAppel(a){
    ============================================================ */
 async function toutRappelerAvecAllo(bouton){
   const auj = suiviAppelsEC.aujourdhui || apAujourdhui();
+  /* 📞 v1514 — dans le téléphone de l'appli (son choix) : la file d'Allo
+     s'enchaîne sans quitter l'écran. Un numéro, une fois ; le plus
+     ancien d'abord. */
+  if(typeof telToutRappeler === 'function'){
+    const vus = {};
+    const liste = (suiviAppelsEC.appels || []).filter(a => apEnAttente(a) && a.rappelLe <= auj && a.numero)
+      .slice().sort((x, y) => Number(x.quand || 0) - Number(y.quand || 0))
+      .filter(a => { if(vus[a.numero]) return false; vus[a.numero] = 1; return true; });
+    if(liste.length) telToutRappeler(liste);
+    return;
+  }
   const n = new Set((suiviAppelsEC.appels || []).filter(a => apEnAttente(a) && a.rappelLe <= auj && a.numero).map(a => a.numero)).size;
   if(!await confirmer('Envoyer ' + n + ' numéro' + (n > 1 ? 's' : '') + ' à rappeler (aujourd’hui et en retard) dans la file d’appels d’Allo ?\n\n' +
                       'Ensuite, dans Allo, ouvre le Power Dialer pour les enchaîner.', '📞 Tout rappeler')) return;
@@ -1837,7 +1848,7 @@ function apRelireSiVisible(forcer){
 setInterval(() => apRelireSiVisible(false), 30000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden) apRelireSiVisible(false); });
 
-/* Au démarrage, puis toutes les 5 minutes (le rythme de la relecture d'Allo) */
+/* Au démarrage, puis toutes les 2 minutes (le rythme de la relecture d'Allo, v1514) */
 (function(){
   let n = 0;
   const essayer = () => {
@@ -1845,7 +1856,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden) apRel
     if(++n < 240) setTimeout(essayer, 1000);
   };
   setTimeout(essayer, 3500);
-  setInterval(() => { if(typeof ACCES !== 'undefined' && ACCES && ACCES.code) chargerARappeler(); }, 5 * 60000);
+  setInterval(() => { if(typeof ACCES !== 'undefined' && ACCES && ACCES.code) chargerARappeler(); }, 2 * 60000);
 })();
 
 /* Signale que ce module est bien chargé */
