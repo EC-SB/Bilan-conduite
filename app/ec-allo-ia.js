@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:49 — v1513 */
+/* Déployé le 20/11/2026 à 15:45 — v1516 */
 /* ============================================================
    ec-allo-ia.js — v1511
    🤖 L'IA D'ALLO BRANCHÉE SUR L'APPLI
@@ -147,7 +147,8 @@ function dessinerAlloIa(){
   z.appendChild(alloEtatDuBranchement(E));
 
   const ong = alloEl('div', 'alOnglets');
-  [['dire', '✅ Ce qu’elle peut dire'], ['consignes', '📜 Ses consignes'], ['versions', '🕘 Versions']].forEach(([k, t]) => {
+  /* 🪪 v1516 — « 📋 Les infos à demander » : la liste pour tous (ec-fiche-infos.js) */
+  [['dire', '✅ Ce qu’elle peut dire'], ['consignes', '📜 Ses consignes'], ['infos', '📋 Les infos à demander'], ['versions', '🕘 Versions']].forEach(([k, t]) => {
     const b = alloEl('button', alloIaSous === k ? 'on' : '', t);
     b.type = 'button';
     b.setAttribute('aria-pressed', alloIaSous === k ? 'true' : 'false');
@@ -156,6 +157,7 @@ function dessinerAlloIa(){
   });
   z.appendChild(ong);
   if(alloIaSous === 'consignes') z.appendChild(alloConsignes(E));
+  else if(alloIaSous === 'infos' && typeof alloFicheInfos === 'function') z.appendChild(alloFicheInfos());
   else if(alloIaSous === 'versions') z.appendChild(alloVersions(E));
   else z.appendChild(alloCeQuElleDit(E));
 }
@@ -500,7 +502,8 @@ function dessinerAlloDossier(){
    ============================================================ */
 /* 📞 v1513 — un geste par ligne, avec son heure (schéma du Suivi des
    appels redessiné, validé le 20/11) */
-const ICONES_IA_ALLO = { debut_appel: '🔎', message: '✉️', signaler_retard: '⏰', laisser_demande: '📝', renvoyer_acces: '📧', creneaux_libres: '🗓️', horaires_agences: '🏢' };
+const ICONES_IA_ALLO = { debut_appel: '🔎', message: '✉️', signaler_retard: '⏰', laisser_demande: '📝', renvoyer_acces: '📧', creneaux_libres: '🗓️', horaires_agences: '🏢',
+  noter_renseignement: '🪪', documents: '📎' };   /* 🪪 v1516 */
 function blocIaAllo(a){
   const l = (a && Array.isArray(a.ia)) ? a.ia.filter(x => x && x.resume) : [];
   if(!l.length) return null;
