@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 16:03 — v1517 */
+/* Déployé le 20/11/2026 à 17:08 — v1519 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -1042,7 +1042,18 @@ function memeValeurDrivup(champ, a, b){
    Une case déjà remplie chez nous n'est jamais remplacée.
    ============================================================ */
 const LIBELLES_INFOS_DRIVUP = { genre: 'Genre', naissance: 'Naissance', neph: 'NEPH', naissLieu: 'Lieu de naissance', adresse: 'Adresse',
-  rlNom: 'Responsable légal', rlAdresse: 'son adresse', rlNaissance: 'sa naissance', rlTel: 'son téléphone', rlMail: 'son mail' };
+  rlNom: 'Responsable légal', rlAdresse: 'son adresse', rlNaissance: 'sa naissance', rlTel: 'son téléphone', rlMail: 'son mail',
+  /* 📚 v1519 — Examens › Obtention du code (la date, le mandat), Formule & Permis › dernier permis */
+  dateCode: 'Code obtenu le', datePermis: 'Permis obtenu le', mandat: 'Mandat' };
+const MANDATS_DRIVUP_EC = { actif: '✅ actif', importe: '✅ trouvé sur RdvPermis', aucun: '❌ aucun', sansNeph: '❌ pas de NEPH dans Drivup' };
+/* « 15/03/2019 » ou « 2019-03-15 » → « 2019-03-15 » */
+function isoDrivup(v){
+  const t = String(v || '').trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : '';
+}
 const CLES_INFOS_DRIVUP = Object.keys(LIBELLES_INFOS_DRIVUP);
 function ageDrivup(iso){
   const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -1067,6 +1078,11 @@ function valeursDuDossierDrivup(c, mineur){
   if(c.adresse && c.ville) v.adresse = adr(c.adresse, c.complementAdresse, c.codePostal, c.ville);
   if(chiffresDrivup(c.neph).length === 12) v.neph = chiffresDrivup(c.neph);
   if(/^\d{4}-\d{2}-\d{2}$/.test(String(c.dateNaissance || ''))) v.naissance = c.dateNaissance;
+  /* 📚 v1519 — la date du code, celle du dernier permis, le mandat (le Worker
+     ne garde que ce qui s'applique : pas de date du code pour une passerelle) */
+  if(isoDrivup(c.dateCode)) v.dateCode = isoDrivup(c.dateCode);
+  if(isoDrivup(c.dateDernierPermis)) v.datePermis = isoDrivup(c.dateDernierPermis);
+  if(MANDATS_DRIVUP_EC[c.mandat]) v.mandat = c.mandat;
   /* le prescripteur = son responsable légal : une personne (pas une société), et seulement pour un mineur */
   if(mineur !== false && c.nomPrescripteur && !c.societePrescripteur){
     v.rlNom = c.nomPrescripteur;
@@ -1129,9 +1145,9 @@ async function chargerInfosDuDossierDrivup(z, sorte, premier, existants, nouveau
       }
     }
   }
-  const lignes = existants.map(e => ({ x: e.x, nom: e.fiche.eleve, vv: (vides[e.fiche.eleve] || { vides: [] }).vides }))
+  const lignes = existants.map(e => ({ x: e.x, nom: e.fiche.eleve, vv: (vides[e.fiche.eleve] || { vides: [] }).vides, ma: (vides[e.fiche.eleve] || {}).mandat || '' }))
     .concat(sorte === 'fiche' ? nouveaux.map(n => ({ x: n.x, nom: n.nom, vv: CLES_INFOS_DRIVUP })) : []);
-  lignes.forEach(({ x, nom, vv }) => {
+  lignes.forEach(({ x, nom, vv, ma }) => {
     const c = comp[chiffresDrivup(x.id)];
     if(!c) return;
     const tout = valeursDuDossierDrivup(c, mineurDe(nom, c));
@@ -1141,6 +1157,7 @@ async function chargerInfosDuDossierDrivup(z, sorte, premier, existants, nouveau
       /* déjà proposés plus haut (la fiche lue, ou la colonne NEPH de la liste) */
       if(k === 'neph' && chiffresDrivup(x.neph)) return;
       if(k === 'naissance' && propreDrivup(x.naissance)) return;
+      if(k === 'mandat' && ma === tout[k]) return;   /* 📚 v1519 — le mandat n'a pas changé */
       valeurs[k] = tout[k];
     });
     if(!Object.keys(valeurs).length) return;
@@ -1154,7 +1171,7 @@ async function chargerInfosDuDossierDrivup(z, sorte, premier, existants, nouveau
     b.textContent = nom;
     const sp = document.createElement('span');
     sp.textContent = Object.keys(valeurs).map(k => LIBELLES_INFOS_DRIVUP[k] + ' : ' +
-      (k === 'genre' ? (valeurs[k] === 'F' ? 'Elle' : 'Il') : /^\d{4}-\d{2}-\d{2}$/.test(valeurs[k]) ? valeurs[k].split('-').reverse().join('/') : valeurs[k])).join(' · ');
+      (k === 'genre' ? (valeurs[k] === 'F' ? 'Elle' : 'Il') : k === 'mandat' ? MANDATS_DRIVUP_EC[valeurs[k]] : /^\d{4}-\d{2}-\d{2}$/.test(valeurs[k]) ? valeurs[k].split('-').reverse().join('/') : valeurs[k])).join(' · ');
     qui.append(b, sp);
     const et = document.createElement('span');
     et.className = 'dvEt neuf';
