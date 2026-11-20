@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:18 — v1508 */
+/* Déployé le 20/11/2026 à 16:47 — v1518 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -89,7 +89,10 @@ const ACTIONS_LOURDES = { elevesImport: 90000,
                           ecranPhotoPoser: 60000,
                           /* ✉️ v1243 — un courrier en PDF (et son mail), une
                              signature déposée */
-                          courrierFinir: 60000, courrierImagePoser: 60000 };
+                          courrierFinir: 60000, courrierImagePoser: 60000,
+                          /* 💥 v1518 — le constat (Flotte, carrosserie, deux fils),
+                             puis ses photos, dix par dix, depuis le bord de la route */
+                          constatEnvoyer: 60000, constatPhotos: 120000 };
 /* ⚠️ CELLES QU'ON NE RECOMMENCE JAMAIS.
 
    « eleveRenommer » y manquait, et ça s'est vu au premier usage : le
@@ -122,7 +125,9 @@ const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                          une signature ne se dépose qu'une fois */
                       'courrierFinir', 'courrierImagePoser',
                       /* 🎥 v1356 — un cours lancé deux fois, des mails partis deux fois */
-                      'visioLancer', 'visioMail'];
+                      'visioLancer', 'visioMail',
+                      /* 💥 v1518 — rejoués, un constat ou des photos partiraient deux fois */
+                      'constatEnvoyer', 'constatPhotos'];
 
 /* ⚠️ NE PAS EMPILER UN RAFRAÎCHISSEMENT SUR UN CLASSEUR QUI RÉPOND
    DÉJÀ — v949.
