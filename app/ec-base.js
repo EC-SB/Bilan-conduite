@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:13 — v1505 */
+/* Déployé le 20/11/2026 à 10:48 — v1506 */
 /* ============================================================
    ec-base.js — v1503 (v1474 pour la première version)
    🗄️ LA BASE DE L'APPLI — Gestion › L'outil › 🗄️ Base (admins)
@@ -70,6 +70,12 @@ const BASE_FAMILLES = [
       aide: 'Les fiches des élèves (téléphone, mail, formation, agence, id Drivup…).' },
     { action: 'baseAcces', logo: '🔑', nom: 'Accès à leur espace', mot: 'les accès des élèves', unite: 'accès',
       aide: 'Le code de chaque élève pour son espace, sa dernière connexion, ce qu’il voit. Lus à chaque connexion d’un élève.' } ] },
+  /* 🎙️📝 v1506 */
+  { nom: 'Procédures', feuilles: [
+    { action: 'baseRecitations', logo: '🎙️', nom: 'Récitations', mot: 'les récitations', unite: 'récitation',
+      aide: 'Ce que chaque élève a récité, la correction, la note, la traduction, qui l’a validée.' },
+    { action: 'baseDemandes', logo: '📝', nom: 'Demandes de récitation', mot: 'les demandes de récitation', unite: 'demande',
+      aide: 'Les procédures demandées à chaque élève, la consigne, faite ou en attente.' } ] },
   { nom: 'Cours', feuilles: [
     { action: 'baseBilans', logo: '📚', nom: 'Bilans de cours', mot: 'les bilans', unite: 'bilan',
       aide: 'Tous les bilans de cours (le texte, la note interne, les manœuvres…).' },
@@ -90,7 +96,10 @@ const BASE_FAMILLES = [
     { action: 'baseGuides', logo: '📘', nom: 'Guides', mot: 'les guides', unite: 'guide',
       aide: 'Les guides et tout leur contenu (textes, vidéos, photos, étapes).' },
     { action: 'baseParcoursVu', logo: '👁️', nom: 'Ce que les élèves ont vu', mot: 'ce que les élèves ont vu', unite: 'ligne',
-      aide: 'Chaque guide ou étape vu par un élève (vu le, revu le, nombre de vues, remis à voir).' } ] }
+      aide: 'Chaque guide ou étape vu par un élève (vu le, revu le, nombre de vues, remis à voir).' },
+    /* 📣 v1506 */
+    { action: 'baseAnnonces', logo: '📣', nom: 'Annonces', mot: 'les annonces', unite: 'annonce',
+      aide: 'Les annonces de l’espace élève (le texte, pour qui, quand la retirer).' } ] }
 ];
 const BASE_TOUTES = [].concat.apply([], BASE_FAMILLES.map(f => f.feuilles));
 const bEtat = {};          /* action → dernière réponse du serveur */
