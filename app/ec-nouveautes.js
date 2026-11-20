@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 14:54 — v1515 */
+/* Déployé le 20/11/2026 à 15:45 — v1516 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1516,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🪪 La fiche en lignes (sans fenêtre), « Mes infos » dans l’espace élève, et la passerelle qui garde la fiche',
+    quoi: [
+      { emoji: '🪪',
+        titre: 'Sa fiche, directement dans l’onglet',
+        texte: 'Plus de fenêtre « Modifier la fiche » : touche une ligne pour la remplir ou la corriger. Lieu de naissance, adresse, date du code, NEPH et responsable légal y sont, ce qui manque est en orange. 📞 coché : l’IA d’Allo le demande au prochain appel.' },
+      { emoji: '📇',
+        titre: 'Le NEPH et les documents suivent le dossier ANTS',
+        texte: 'Fait par nous : « il manque des documents » ou « en cours à l’ANTS », et la liste des documents. Fait par l’élève : il nous donne son numéro dès qu’il l’a.' },
+      { emoji: '🧑‍🎓',
+        titre: '« Mes infos » dans l’espace élève',
+        texte: 'Un rond 🪪 à côté du thème, et un cadre sur l’accueil seulement s’il manque quelque chose. Une case vide qu’il remplit arrive « à vérifier » ; un changement attend ✅ Accepter dans sa fiche ; le bureau est prévenu dans son fil.' },
+      { emoji: '📋',
+        titre: 'Gestion › L’IA d’Allo › Les infos à demander',
+        texte: 'Deux interrupteurs par ligne : ce que l’élève voit à compléter, et ce que l’IA peut demander. On y ajoute aussi des infos ou des documents pour tout le monde.' },
+      { emoji: '🔀',
+        titre: 'La passerelle garde sa fiche',
+        texte: 'Même nom, photo, lien Drivup, NEPH, téléphone et mail gardés ; ses groupes fermés, et « 🔓 Ouvrir le groupe Passerelle » quand il a payé. Deux fiches pour le même élève : « 🧩 Réunir les deux fiches ». Après un import Drivup, plus besoin de F5.' }
+    ]
+  },
   {
     version: 1515,
     date: 'Vendredi 20 novembre 2026',
