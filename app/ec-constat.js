@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:37 — v1520 */
+/* Déployé le 20/11/2026 à 17:48 — v1521 */
 /* ============================================================
    💥 LE CONSTAT AMIABLE — v1518, v1520 (Outils › 💥 Constat amiable)
 
@@ -258,10 +258,15 @@ function caDessinObjet(o){
       '<path d="M -34 -31 L -34 31 M 34 -31 L 34 31 M -31 -34 L 31 -34 M -31 34 L 31 34" stroke="#fff" stroke-width="3" fill="none"/>';
   }
   if(t === 'rGiratoire'){
+    /* 🔄 v1521 — David : « quand on met un giratoire, il faut qu'on puisse
+       choisir le nombre de branches » : de 2 à 8, réparties tout autour
+       (on tourne le giratoire pour les orienter). */
+    const n = caBranchesGiratoire(o);
+    const angles = Array.from({ length: n }, (_, i) => Math.round(i * 360 / n));
     let s = '';
-    [0, 90, 180, 270].forEach(a => { s += '<g transform="rotate(' + a + ')">' + '<path d="M 98 0 L 190 0" stroke="' + CA_BORD + '" stroke-width="64" fill="none"/></g>'; });
+    angles.forEach(a => { s += '<g transform="rotate(' + a + ')">' + '<path d="M 98 0 L 190 0" stroke="' + CA_BORD + '" stroke-width="64" fill="none"/></g>'; });
     s += '<circle r="70" fill="none" stroke="' + CA_BORD + '" stroke-width="64"/>';
-    [0, 90, 180, 270].forEach(a => { s += '<g transform="rotate(' + a + ')"><path d="M 90 0 L 190 0" stroke="' + CA_ROUTE + '" stroke-width="60" fill="none"/><path d="M 106 0 L 190 0" stroke="#fff" stroke-width="2" stroke-dasharray="12 10" fill="none"/></g>'; });
+    angles.forEach(a => { s += '<g transform="rotate(' + a + ')"><path d="M 90 0 L 190 0" stroke="' + CA_ROUTE + '" stroke-width="60" fill="none"/><path d="M 106 0 L 190 0" stroke="#fff" stroke-width="2" stroke-dasharray="12 10" fill="none"/></g>'; });
     s += '<circle r="70" fill="none" stroke="' + CA_ROUTE + '" stroke-width="60"/><circle r="38" fill="#DDEFD2" stroke="' + CA_BORD + '" stroke-width="2"/>';
     return s;
   }
@@ -292,6 +297,7 @@ function caDessinObjet(o){
   if(em) return '<text text-anchor="middle" dominant-baseline="central" font-size="30">' + em + '</text>';
   return '';
 }
+function caBranchesGiratoire(o){ const n = Math.round(Number(o && o.n)); return n >= 2 && n <= 8 ? n : 4; }
 function caOrdreObjet(o){ return /^r/.test(o.t) ? 0 : (o.t === 'passage' ? 1 : (o.t === 'texte' ? 4 : (/^auto/.test(o.t) ? 3 : 2))); }
 function caDessinTrait(tr){
   if(tr.t === 'crayon') return '<path d="' + caEsc(tr.d) + '" fill="none" stroke="#0B3D91" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -299,14 +305,22 @@ function caDessinTrait(tr){
   return '';
 }
 /* Tout le croquis : avec « marquer », chaque objet porte son numéro (l'outil) */
-function caCroquisContenu(cq, marquer, choisi){
+function caCroquisContenu(cq, marquer, choisi, choisiT){
   const objets = (cq.objets || []).map((o, i) => ({ o: o, i: i })).sort((a, b) => caOrdreObjet(a.o) - caOrdreObjet(b.o) || a.i - b.i);
   let s = '';
   const un = (x) => '<g' + (marquer ? ' data-oid="' + x.i + '" class="caObj' + (choisi === x.i ? ' choisi' : '') + '"' : '') +
     ' transform="translate(' + (+x.o.x || 0) + ' ' + (+x.o.y || 0) + ') rotate(' + (+x.o.r || 0) + ') scale(' + (+x.o.s || 1) + ')">' +
     caDessinObjet(x.o) + (marquer && choisi === x.i ? '<circle r="' + (/^r/.test(x.o.t) ? 30 : 26) + '" fill="none" stroke="#9BD400" stroke-width="3" stroke-dasharray="6 4"/>' : '') + '</g>';
   objets.filter(x => caOrdreObjet(x.o) <= 1).forEach(x => { s += un(x); });
-  (cq.traits || []).forEach(tr => { s += caDessinTrait(tr); });
+  (cq.traits || []).forEach((tr, i) => {
+    if(!marquer){ s += caDessinTrait(tr); return; }
+    /* 🗑️ v1521 — un trait se touche aussi (une bande large invisible), pour l'effacer seul */
+    const zone = tr.t === 'crayon' ? '<path d="' + caEsc(tr.d) + '" fill="none" stroke="transparent" stroke-width="18" stroke-linecap="round"/>'
+      : '<line x1="' + tr.x1 + '" y1="' + tr.y1 + '" x2="' + tr.x2 + '" y2="' + tr.y2 + '" stroke="transparent" stroke-width="18"/>';
+    const halo = choisiT === i ? (tr.t === 'crayon' ? '<path d="' + caEsc(tr.d) + '" fill="none" stroke="#C6F432" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>'
+      : '<line x1="' + tr.x1 + '" y1="' + tr.y1 + '" x2="' + tr.x2 + '" y2="' + tr.y2 + '" stroke="#C6F432" stroke-width="10" stroke-linecap="round"/>') : '';
+    s += '<g data-tid="' + i + '" class="caTrait">' + halo + caDessinTrait(tr) + zone + '</g>';
+  });
   objets.filter(x => caOrdreObjet(x.o) > 1).forEach(x => { s += un(x); });
   return s;
 }
@@ -902,7 +916,7 @@ const CA_ROUTES = [['rDroite', '━', 'Route droite'], ['rCourbeD', '↱', 'Cour
   ['rCarrefour', '✚', 'Carrefour'], ['rT', '┳', 'Carrefour en T'], ['rGiratoire', '◎', 'Giratoire'], ['rParking', '🅿️', 'Places de stationnement']];
 function caEditeurCroquis(){
   const cq = CA.r.croquis;
-  const E = { objets: JSON.parse(JSON.stringify(cq.objets || [])), traits: JSON.parse(JSON.stringify(cq.traits || [])), outil: 'main', choisi: -1, hist: [], trace: null, glisse: null };
+  const E = { objets: JSON.parse(JSON.stringify(cq.objets || [])), traits: JSON.parse(JSON.stringify(cq.traits || [])), outil: 'main', choisi: -1, choisiT: -1, hist: [], trace: null, glisse: null };
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const b = document.createElement('div');
@@ -923,7 +937,10 @@ function caEditeurCroquis(){
     '</div>' +
     '<div class="caEdChoix" hidden>' + bouton('caEdMini', '⟲', 'Tourner à gauche', ' data-ed="tg"') + bouton('caEdMini', '⟳', 'Tourner à droite', ' data-ed="td"') +
       bouton('caEdMini', '↻ 90°', 'Un quart de tour', ' data-ed="t90"') + bouton('caEdMini', '➖', 'Plus petit', ' data-ed="moins"') + bouton('caEdMini', '➕', 'Plus grand', ' data-ed="plus"') +
-      bouton('caEdMini caEdTxt', '✏️ Texte', 'Changer le texte', ' data-ed="texte"') + bouton('caEdMini', '🗑️', 'Retirer', ' data-ed="retirer"') + '</div>' +
+      '<span class="caEdSep"></span>' +
+      bouton('caEdMini caEdTxt', '✏️ Texte', 'Changer le texte', ' data-ed="texte"') +
+      '<span class="caEdBr">' + bouton('caEdMini', '−', 'Une branche de moins', ' data-ed="brMoins"') + '<b class="caEdBrN"></b>' + bouton('caEdMini', '+', 'Une branche de plus', ' data-ed="brPlus"') + '</span>' +
+      bouton('caEdMini caEdSuppr', '🗑️ Effacer la sélection', 'Effacer ce qui est choisi (touche Suppr)', ' data-ed="retirer"') + '</div>' +
     '<div class="caEdCadre"><svg id="caEdSvg" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg"></svg></div>' +
     '<div class="caEdDit">✋ Glisse les voitures, routes et panneaux ; touche-les pour les tourner ou les grossir. ✏️ Dessine à la main, ➡️ trace le sens des voitures, 🔤 écris le nom des rues.</div>';
   fond.appendChild(b);
@@ -932,11 +949,16 @@ function caEditeurCroquis(){
   const garder = () => { E.hist.push(JSON.stringify({ o: E.objets, t: E.traits })); if(E.hist.length > 50) E.hist.shift(); };
   const dessiner = () => {
     svg.innerHTML = '<defs><marker id="caFl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0B3D91"/></marker></defs>' +
-      '<rect width="800" height="400" fill="#F7FAFD"/>' + caQuadrillage(800, 400, 40) + caCroquisContenu(E, true, E.choisi) +
+      '<rect width="800" height="400" fill="#F7FAFD"/>' + caQuadrillage(800, 400, 40) + caCroquisContenu(E, true, E.choisi, E.choisiT) +
       (E.trace ? (E.trace.t === 'crayon' ? caDessinTrait({ t: 'crayon', d: E.trace.d }) : caDessinTrait(E.trace)) : '');
     b.querySelectorAll('[data-outil]').forEach(x => x.classList.toggle('on', x.getAttribute('data-outil') === E.outil));
     const ch = b.querySelector('.caEdChoix');
-    ch.hidden = E.choisi < 0 || !E.objets[E.choisi];
+    const unTrait = E.choisiT >= 0 && !!E.traits[E.choisiT];
+    ch.hidden = !unTrait && (E.choisi < 0 || !E.objets[E.choisi]);
+    /* un trait choisi : seulement l'effacer */
+    ch.querySelectorAll('.caEdMini:not(.caEdSuppr), .caEdSep').forEach(x => { x.style.display = unTrait ? 'none' : ''; });
+    const br = b.querySelector('.caEdBr'), gir = E.objets[E.choisi] && E.objets[E.choisi].t === 'rGiratoire';
+    if(br){ br.style.display = gir ? '' : 'none'; if(gir) br.querySelector('.caEdBrN').textContent = caBranchesGiratoire(E.objets[E.choisi]) + ' branches'; }
     const txt = b.querySelector('.caEdTxt');
     if(txt) txt.style.display = (E.objets[E.choisi] && E.objets[E.choisi].t === 'texte') ? '' : 'none';
     svg.style.cursor = E.outil === 'main' ? 'grab' : 'crosshair';
@@ -949,7 +971,13 @@ function caEditeurCroquis(){
   svg.addEventListener('pointerdown', e => {
     const [x, y] = pt(e);
     if(E.outil === 'main'){
+      const gt = e.target.closest('[data-tid]');
       const g = e.target.closest('[data-oid]');
+      /* un objet passe avant un trait qu'il recouvre, un trait avant une route */
+      if(gt && !(g && !/^r/.test((E.objets[Number(g.getAttribute('data-oid'))] || {}).t || ''))){
+        E.choisiT = Number(gt.getAttribute('data-tid')); E.choisi = -1; dessiner(); return;
+      }
+      E.choisiT = -1;
       if(!g){ E.choisi = -1; dessiner(); return; }
       const i = Number(g.getAttribute('data-oid'));
       E.choisi = i;
@@ -993,7 +1021,7 @@ function caEditeurCroquis(){
   };
   svg.addEventListener('pointerup', fin);
   svg.addEventListener('pointercancel', () => { E.glisse = null; E.trace = null; dessiner(); });
-  b.querySelectorAll('[data-outil]').forEach(x => x.addEventListener('click', () => { E.outil = x.getAttribute('data-outil'); if(E.outil !== 'main') E.choisi = -1; dessiner(); }));
+  b.querySelectorAll('[data-outil]').forEach(x => x.addEventListener('click', () => { E.outil = x.getAttribute('data-outil'); if(E.outil !== 'main'){ E.choisi = -1; E.choisiT = -1; } dessiner(); }));
   b.querySelectorAll('[data-ajout]').forEach(x => x.addEventListener('click', () => {
     const t = x.getAttribute('data-ajout');
     garder();
@@ -1002,9 +1030,23 @@ function caEditeurCroquis(){
     if(deja !== -1){ E.objets[deja].x = 400; E.objets[deja].y = 200; E.choisi = deja; }
     else { E.objets.push({ t: t, x: 400, y: 200, r: 0, s: /^r/.test(t) ? 0.8 : 1 }); E.choisi = E.objets.length - 1; }
     E.outil = 'main';
+    E.choisiT = -1;
     dessiner();
   }));
-  const fermer = () => fermerFond(fond);
+  /* 🗑️ v1521 — David : « un bouton effacer la sélection pour supprimer un seul objet facilement » */
+  const effacerChoix = () => {
+    if(E.choisiT >= 0 && E.traits[E.choisiT]){ garder(); E.traits.splice(E.choisiT, 1); E.choisiT = -1; }
+    else if(E.choisi >= 0 && E.objets[E.choisi]){ garder(); E.objets.splice(E.choisi, 1); E.choisi = -1; }
+    dessiner();
+  };
+  const clavier = (e) => {
+    if(!document.body.contains(b)){ document.removeEventListener('keydown', clavier); return; }
+    if(e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if(document.querySelectorAll('.overlay.show').length > 1) return;   /* la fenêtre du texte est ouverte */
+    if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); effacerChoix(); }
+  };
+  document.addEventListener('keydown', clavier);
+  const fermer = () => { document.removeEventListener('keydown', clavier); fermerFond(fond); };
   b.querySelectorAll('[data-ed]').forEach(x => x.addEventListener('click', async () => {
     const g = x.getAttribute('data-ed'), o = E.objets[E.choisi];
     if(g === 'fermer') return fermer();
@@ -1015,10 +1057,11 @@ function caEditeurCroquis(){
     }
     if(g === 'annuler'){
       const h = E.hist.pop();
-      if(h){ const v = JSON.parse(h); E.objets = v.o; E.traits = v.t; E.choisi = -1; }
+      if(h){ const v = JSON.parse(h); E.objets = v.o; E.traits = v.t; if(E.choisi >= E.objets.length) E.choisi = -1; if(E.choisiT >= E.traits.length) E.choisiT = -1; }
       return dessiner();
     }
-    if(g === 'vider'){ garder(); E.objets = caModeleCroquis('vide'); E.traits = []; E.choisi = -1; return dessiner(); }
+    if(g === 'vider'){ garder(); E.objets = caModeleCroquis('vide'); E.traits = []; E.choisi = -1; E.choisiT = -1; return dessiner(); }
+    if(g === 'retirer') return effacerChoix();
     if(!o) return;
     garder();
     if(g === 'tg') o.r = ((o.r || 0) - 15 + 360) % 360;
@@ -1026,7 +1069,11 @@ function caEditeurCroquis(){
     if(g === 't90') o.r = ((o.r || 0) + 90) % 360;
     if(g === 'moins') o.s = Math.max(0.3, Math.round((o.s || 1) * 0.85 * 100) / 100);
     if(g === 'plus') o.s = Math.min(3, Math.round((o.s || 1) * 1.18 * 100) / 100);
-    if(g === 'retirer'){ E.objets.splice(E.choisi, 1); E.choisi = -1; }
+    if(g === 'brMoins' || g === 'brPlus'){
+      const n = caBranchesGiratoire(o) + (g === 'brPlus' ? 1 : -1);
+      if(n < 2 || n > 8){ E.hist.pop(); showToast(n < 2 ? 'Deux branches au moins.' : 'Huit branches au plus.'); }
+      else o.n = n;
+    }
     if(g === 'texte'){ const t = await ecrire(o.txt); if(t) o.txt = t; else E.hist.pop(); }
     dessiner();
   }));
