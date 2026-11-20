@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 20/11/2026 à 10:13 — v1505 -->
+<!-- Déployé le 20/11/2026 à 15:45 — v1516 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-ILC4+3O9q9VAcu620+Dx2GN6bNMZFP2yNbe9Vu5h8a0='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-6CaNsWNUWKcmmFrUpUlLs6hT65/YZ5/iLhOepf6vkYo='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -422,6 +422,27 @@
     padding:calc(14px + var(--dessus)) calc(14px + var(--adroite))
             0 calc(14px + var(--agauche));
   }
+  /* 🪪 v1516 — MES INFOS : le rond en haut (pastille s'il manque quelque chose), l'écran */
+  .miRond{ position:relative; }
+  .miRond.miManque::after{ content:""; position:absolute; top:1px; right:1px; width:10px; height:10px; border-radius:50%;
+    background:#EA580C; box-shadow:0 0 0 2px var(--navy); }
+  .miCarte{ border-color:#EA580C; }
+  .miL{ display:flex; gap:10px; align-items:flex-start; padding:11px 0 0; }
+  .miL + .miL{ border-top:1px solid var(--line); margin-top:11px; }
+  .miK{ font-size:12px; color:var(--muted); font-weight:700; }
+  .miV{ font-size:14.5px; font-weight:700; margin-top:2px; overflow-wrap:anywhere; white-space:pre-wrap; }
+  .miV.miStatut{ font-weight:600; font-size:13.5px; line-height:1.5; }
+  .miRien{ color:var(--muted); font-weight:400; }
+  .miG{ flex:1; min-width:0; }
+  .miChange{ flex-shrink:0; border:1px solid var(--line); background:transparent; color:var(--cream); border-radius:999px; padding:6px 11px;
+    font:inherit; font-size:12px; font-weight:700; width:auto; margin:0; min-height:0; cursor:pointer; }
+  .miVide .miK::after{ content:" · à compléter"; color:#EA580C; }
+  .miVide input, .miVide textarea, .miOuvert input, .miOuvert textarea{ margin:7px 0 0; }
+  .miBtns{ display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
+  .miBtns .btn{ width:auto; margin:0; padding:9px 14px; font-size:13px; }
+  .miEnvoye{ margin-top:6px; font-size:12px; line-height:1.45; padding:7px 10px; border-radius:10px; background:rgba(124,58,237,.08); border:1px solid rgba(124,58,237,.3); }
+  .miAide{ font-size:12px; color:var(--muted); line-height:1.5; margin-top:5px; }
+  #miMot .message{ margin:0 0 12px; }
   .rgBoite{ max-width:600px; margin:0 auto; }
   .rgTete{ display:flex; gap:10px; align-items:center; margin-bottom:6px; }
   .rgTete h2{ flex:1; min-width:0; font-size:17px; margin:0; line-height:1.3; }
@@ -2768,6 +2789,8 @@
            c'est un rond de 38 px à côté du pouce et qu'un appui par
            erreur lui ferait retaper son code. -->
       <div class="boutentete">
+        <!-- 🪪 v1516 — Mes infos : à côté du thème (David, le 20 novembre) -->
+        <button class="rondentete miRond" id="btMesInfos" type="button" title="Mes infos" aria-label="Mes infos" style="display:none;">🪪</button>
         <button class="rondentete" id="btTheme2" title="Changer de thème">🌙</button>
         <button class="rondentete" id="btSortir" title="Se déconnecter">⏻</button>
       </div>
@@ -2788,6 +2811,8 @@
     <!-- 🚦 v1404 — ajourné : la marche à suivre, tout en haut (David, le 10 novembre) -->
     <div class="card ajCarte" id="carteAjournement" style="display:none;"></div>
     <div class="card ajCarte" id="carteRdvPost" style="display:none;"></div>
+    <!-- 🪪 v1516 — Mes infos : le cadre seulement s'il y a des choses à compléter -->
+    <div class="card rgCarte miCarte" id="carteMesInfos" style="display:none;"></div>
     <div class="card rgCarte" id="carteRenseignements" style="display:none;"></div>
 
     <div class="card" id="carteAnnonces" style="display:none;">
@@ -5523,6 +5548,223 @@
      avant : l'accueil ne l'attend pas. Pas de lien rendez-vous : ils
      réservent sur Drivup.
      ============================================================ */
+  /* ============================================================
+     🪪 MES INFOS — v1516
+
+     David, le 20 novembre : « on peut ajouter sur l'espace élève mes
+     infos où l'élève voit ses infos ; il peut signaler un changement,
+     et si c'est vide il peut compléter, et ça nous prévient » — mais
+     « absolument pas » dans le questionnaire. Puis : « un logo en haut
+     à côté du changement de thème, et le cadre seulement s'il y a des
+     choses à compléter ».
+
+     · une case vide qu'il remplit part tout de suite dans sa fiche
+       (« à vérifier » côté équipe) ;
+     · une case remplie qu'il change attend la validation de l'équipe ;
+     · le bureau est prévenu dans son fil (s'il a la messagerie) ;
+     · le NEPH : si on fait son dossier ANTS, il lit où on en est ; s'il
+       le fait, il nous le donne dès qu'il l'a ;
+     · les documents : seulement ceux qu'on lui a demandés, et seulement
+       quand on fait son dossier ANTS.
+     Ce qui peut lui être demandé se règle dans Gestion › L'IA d'Allo ›
+     📋 Les infos à demander. Voir « SA FICHE » dans le Worker.
+     ============================================================ */
+  var mesInfos = null;
+  var mesInfosLuesLe = 0;
+  (function(){
+    var r = document.getElementById('btMesInfos');
+    if(r) r.addEventListener('click', function(){ ouvrirMesInfos(); });
+  })();
+  function chargerMesInfos(forcer){
+    if(SALLE || MODE_SALLE) return;
+    if(MODE_ESSAI && !window.__ESSAI_MI) return;
+    if(!forcer && Date.now() - mesInfosLuesLe < 5 * 60000 && mesInfos) return;
+    mesInfosLuesLe = Date.now();
+    var p = (MODE_ESSAI && window.__ESSAI_MI) ? Promise.resolve(window.__ESSAI_MI)
+          : appeler({ action: 'eleveMesInfos', eleve: moi.nom, code: moi.code });
+    p.then(function(d){
+      if(!d || !Array.isArray(d.groupes)) return;
+      mesInfos = d;
+      montrerMesInfos();
+      var e = $('miEcran');
+      if(e) dessinerMesInfos(e);
+    }).catch(function(){ /* sans ses infos, l'accueil reste entier */ });
+  }
+  function aCompleterMi(d){
+    d = d || mesInfos;
+    return d ? (Number(d.manque) || 0) + (Number(d.docsN) || 0) : 0;
+  }
+  function montrerMesInfos(){
+    var d = mesInfos;
+    var n = aCompleterMi(d);
+    /* le rond 🪪, à côté du thème : toujours là, une pastille s'il manque quelque chose */
+    var rond = $('btMesInfos');
+    if(rond){
+      rond.style.display = d ? '' : 'none';
+      rond.classList.toggle('miManque', n > 0);
+      rond.title = n ? 'Mes infos — ' + n + ' à compléter' : 'Mes infos';
+      rond.setAttribute('aria-label', rond.title);
+    }
+    /* le cadre de l'accueil : seulement s'il y a des choses à compléter */
+    var c = $('carteMesInfos');
+    if(!c) return;
+    if(!d || !n){ c.style.display = 'none'; c.innerHTML = ''; return; }
+    var m = Number(d.manque) || 0, k = Number(d.docsN) || 0;
+    var titre = 'Mes infos · ' + [m ? m + ' à compléter' : '', k ? k + ' document' + (k > 1 ? 's' : '') + ' à envoyer' : ''].filter(Boolean).join(', ');
+    c.innerHTML = '<div class="rgHaut"><span class="rgIc">🪪</span><div class="rgQuoi"><div class="rgTitre">' + echapper(titre) + '</div>' +
+      '<div class="rgPourquoi">Ce que l’auto-école a sur toi pour ton dossier du permis. Complète ce qui manque, et dis-nous si quelque chose a changé.</div></div></div>' +
+      '<button type="button" class="btn btn-primary" id="btCarteMesInfos">🪪 Voir mes infos</button>';
+    c.style.display = 'block';
+    $('btCarteMesInfos').addEventListener('click', ouvrirMesInfos);
+  }
+  function jourMi(ms){
+    if(!ms) return '';
+    try{ return new Date(ms).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' }); }catch(e){ return ''; }
+  }
+  function ouvrirMesInfos(){
+    if($('miEcran')) return;
+    var e = document.createElement('div');
+    e.className = 'rgEcran';
+    e.id = 'miEcran';
+    e.setAttribute('role', 'dialog');
+    e.setAttribute('aria-label', 'Mes infos');
+    document.body.appendChild(e);
+    document.body.style.overflow = 'hidden';
+    dessinerMesInfos(e);
+    chargerMesInfos(true);
+  }
+  function fermerMesInfos(){
+    var e = $('miEcran');
+    if(e && e.parentNode) e.parentNode.removeChild(e);
+    document.body.style.overflow = '';
+    var r = $('btMesInfos');
+    if(r) try{ r.focus(); }catch(x){}
+  }
+  function typeChampMi(t){ return t === 'date' ? 'date' : (t === 'tel' ? 'tel' : (t === 'mail' ? 'email' : 'text')); }
+  function champMi(l, valeur){
+    if(l.long) return '<textarea rows="2" data-mi="' + echA(l.k) + '" aria-label="' + echA(l.titre) + '" placeholder="' + echA(l.aide || '') + '">' + echapper(valeur || '') + '</textarea>';
+    return '<input type="' + typeChampMi(l.type) + '" data-mi="' + echA(l.k) + '" aria-label="' + echA(l.titre) + '"' +
+      (l.type === 'neph' ? ' inputmode="numeric" placeholder="12 chiffres"' : '') +
+      ' value="' + echA(valeur || '') + '">';
+  }
+  function dessinerMesInfos(e){
+    var d = mesInfos;
+    var h = '<div class="rgBoite">' +
+      '<div class="rgTete"><h2>🪪 Mes infos</h2><button type="button" class="rgX" id="miFermer" title="Fermer" aria-label="Fermer">✕</button></div>' +
+      '<p class="rgIntro">Ce que l’auto-école a sur toi pour ton dossier du permis. Une case vide : complète-la, elle part tout de suite dans ton dossier. ' +
+        'Quelque chose a changé : dis-le, le bureau le corrige.</p>' +
+      (ACCOMP ? '<div class="rgErreur">👀 Démonstration : rien n’est envoyé au nom de l’élève.</div>' : '') +
+      '<div id="miMot" role="status"></div>';
+    if(!d){
+      h += '<div class="rgSection"><div class="rgPhrase">Lecture de tes infos…</div></div>';
+    }else{
+      (d.groupes || []).forEach(function(g){
+        if(g.id === 'responsable') return;
+        h += sectionMi(g);
+      });
+      if((d.docs || []).length){
+        h += '<div class="rgSection"><div class="rgST">📎 Les documents à nous envoyer</div>' +
+          '<div class="rgPhrase">Pour ton dossier du permis. Envoie-les par mail à ' + echapper(d.mail || '') + (d.messagerie ? ', ou dans ta messagerie.' : '.') + '</div><div>' +
+          d.docs.map(function(x){
+            return '<div class="miL"><div class="miG"><div class="miV">' + echapper(x.titre) + '</div>' +
+              (x.demandeLe ? '<div class="miAide">Demandé le ' + echapper(jourMi(x.demandeLe)) + '</div>' : '') + '</div></div>';
+          }).join('') +
+          (d.messagerie ? '<div class="miBtns" style="margin-top:12px"><button type="button" class="btn btn-primary" id="miMessagerie">💬 Les envoyer dans ma messagerie</button></div>' : '') +
+          '</div></div>';
+      }
+      (d.groupes || []).forEach(function(g){ if(g.id === 'responsable') h += sectionMi(g); });
+    }
+    h += '</div><div class="rgBas"><div class="rgBoite"><button type="button" class="btn btn-secondary rgPlusTard" id="miBas">Fermer</button></div></div>';
+    var haut = e.scrollTop;
+    e.innerHTML = h;
+    e.scrollTop = haut;
+    $('miFermer').addEventListener('click', fermerMesInfos);
+    $('miBas').addEventListener('click', fermerMesInfos);
+    var bm = $('miMessagerie');
+    if(bm) bm.addEventListener('click', function(){ fermerMesInfos(); try{ allerAOnglet('messages'); }catch(x){} });
+    [].forEach.call(e.querySelectorAll('[data-mi-changer]'), function(b){
+      b.addEventListener('click', function(){ ouvrirChangementMi(b.getAttribute('data-mi-changer')); });
+    });
+    [].forEach.call(e.querySelectorAll('[data-mi-envoyer]'), function(b){
+      b.addEventListener('click', function(){ envoyerMi(b.getAttribute('data-mi-envoyer'), b); });
+    });
+    [].forEach.call(e.querySelectorAll('[data-mi]'), function(i){
+      i.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter' && i.tagName !== 'TEXTAREA'){ ev.preventDefault(); envoyerMi(i.getAttribute('data-mi')); }
+      });
+    });
+  }
+  function ligneMi(l){
+    if(l.statut){
+      return '<div class="miL"><div class="miG"><div class="miK">' + echapper(l.titre) + '</div>' +
+        '<div class="miV miStatut">' + echapper(l.statut) + '</div></div></div>';
+    }
+    if(l.vide && l.peutRemplir && !l.envoye){
+      return '<div class="miL miVide" data-ligne="' + echA(l.k) + '"><div class="miG"><div class="miK">' + echapper(l.titre) + '</div>' +
+        (l.aide && !l.long ? '<div class="miAide">' + echapper(l.aide) + '</div>' : '') + champMi(l, '') +
+        '<div class="miBtns"><button type="button" class="btn btn-primary" data-mi-envoyer="' + echA(l.k) + '">✅ Envoyer</button></div></div></div>';
+    }
+    return '<div class="miL" data-ligne="' + echA(l.k) + '"><div class="miG"><div class="miK">' + echapper(l.titre) + '</div>' +
+      '<div class="miV">' + (l.valeur ? echapper(l.valeur) : '<span class="miRien">—</span>') + '</div>' +
+      (l.envoye ? '<div class="miEnvoye">⏳ Envoyé le ' + echapper(jourMi(l.envoye.le)) + ' : « ' + echapper(l.envoye.valeur) + ' ». Le bureau vérifie.</div>' : '') +
+      '<div class="miOuvrir"></div></div>' +
+      (l.peutChanger ? '<button type="button" class="miChange" data-mi-changer="' + echA(l.k) + '">✏️ Ça a changé</button>' : '') + '</div>';
+  }
+  function sectionMi(g){
+    return '<div class="rgSection"><div class="rgST">' + echapper(g.titre) + '</div>' +
+      (g.phrase ? '<div class="rgPhrase">' + echapper(g.phrase) + '</div>' : '') +
+      '<div>' + (g.lignes || []).map(ligneMi).join('') + '</div></div>';
+  }
+  function ligneMiDe(k){
+    var x = null;
+    ((mesInfos && mesInfos.groupes) || []).forEach(function(g){ (g.lignes || []).forEach(function(l){ if(l.k === k) x = l; }); });
+    return x;
+  }
+  function ouvrirChangementMi(k){
+    var l = ligneMiDe(k);
+    var z = document.querySelector('#miEcran [data-ligne="' + k + '"]');
+    if(!l || !z) return;
+    var o = z.querySelector('.miOuvrir');
+    var b = z.querySelector('.miChange');
+    if(b) b.style.display = 'none';
+    z.classList.add('miOuvert');
+    var valeur = l.type === 'date' ? '' : (l.envoye ? l.envoye.valeur : l.valeur);
+    o.innerHTML = champMi(l, valeur) +
+      '<div class="miBtns"><button type="button" class="btn btn-primary" data-mi-envoyer="' + echA(k) + '">📨 Envoyer au bureau</button>' +
+      '<button type="button" class="btn btn-secondary" data-mi-annuler="1">Annuler</button></div>' +
+      '<div class="miAide">Le bureau le change dans ton dossier, puis tu le vois ici.</div>';
+    o.querySelector('[data-mi-envoyer]').addEventListener('click', function(ev){ envoyerMi(k, ev.currentTarget); });
+    o.querySelector('[data-mi-annuler]').addEventListener('click', function(){ dessinerMesInfos($('miEcran')); });
+    var i = o.querySelector('[data-mi]');
+    i.addEventListener('keydown', function(ev){ if(ev.key === 'Enter' && i.tagName !== 'TEXTAREA'){ ev.preventDefault(); envoyerMi(k); } });
+    try{ i.focus(); }catch(x){}
+  }
+  function envoyerMi(k, bouton){
+    var e = $('miEcran');
+    var i = e && e.querySelector('[data-mi="' + k + '"]');
+    if(!i) return;
+    var v = String(i.value || '').trim();
+    var l = ligneMiDe(k) || { titre: '' };
+    if(!v){ dire('miMot', 'Écris ' + (l.titre ? '« ' + l.titre.toLowerCase() + ' »' : 'la réponse') + ' avant d’envoyer.', 'erreur'); try{ i.focus(); }catch(x){} return; }
+    if(bouton) bouton.disabled = true;
+    var vide = !!(l.vide && l.peutRemplir);
+    var p = (MODE_ESSAI && window.__ESSAI_MI) ? Promise.resolve({ status: 'ok', demo: true })
+          : appeler({ action: 'eleveMesInfosPoser', eleve: moi.nom, code: moi.code, k: k, valeur: v });
+    p.then(function(d){
+      if(d && d.demo){ dire('miMot', '👀 Démonstration : rien n’est envoyé.', 'attente'); if(bouton) bouton.disabled = false; return; }
+      if(!d || !Array.isArray(d.groupes)) throw new Error('Réponse inattendue');
+      mesInfos = d;
+      montrerMesInfos();
+      dessinerMesInfos(e);
+      dire('miMot', vide ? '✅ C’est dans ton dossier. Merci !' : '📨 Envoyé au bureau : il vérifie, puis tu le verras ici.', 'ok');
+      try{ e.scrollTop = 0; }catch(x){}
+    }).catch(function(err){
+      if(bouton) bouton.disabled = false;
+      dire('miMot', '⚠️ ' + ((err && err.message) || 'Ça n’est pas parti. Réessaie.'), 'erreur');
+      try{ e.scrollTop = 0; }catch(x){}
+    });
+  }
+
   var bureauxLusLe = 0;
   var JOURS_COURTS_BX = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   var JOURS_LONGS_BX = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
@@ -5606,6 +5848,7 @@
     dessinerLesOnglets();
     ouvrirRenseignementsSiBesoin();
     chargerLesBureaux();   /* 🕒 v1372 — après l'entrée, sans la retarder */
+    chargerMesInfos();     /* 🪪 v1516 — Mes infos : le rond en haut, le cadre s'il manque quelque chose */
 
     /* ============================================================
        ⚠️ UNE SEULE VAGUE VERS LE CLASSEUR — v1123
