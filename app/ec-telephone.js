@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:08 — v1519 */
+/* Déployé le 20/11/2026 à 17:37 — v1520 */
 /* ============================================================
    ec-telephone.js — v1514 — LE TÉLÉPHONE D'ALLO DANS L'APPLI
 
@@ -103,7 +103,7 @@ function telEnvoyer(type, payload){
     telCharger();
     return;
   }
-  TEL.iframe.contentWindow.postMessage(m, TEL_ORIGINE);
+  TEL.iframe.contentWindow.postMessage(m, telOrigine());
 }
 
 /* Le téléphone se charge une fois, et reste chargé : réduire ou fermer
@@ -128,45 +128,56 @@ function telInit(){
   clearInterval(TEL.minuteurInit);
   const go = () => {
     if(TEL.pret || !TEL.iframe || ++n > 20){ clearInterval(TEL.minuteurInit); return; }
-    try{ TEL.iframe.contentWindow.postMessage({ source: 'allo-host', type: 'init', payload: {} }, TEL_ORIGINE); }catch(e){}
+    try{ TEL.iframe.contentWindow.postMessage({ source: 'allo-host', type: 'init', payload: {} }, '*'); }catch(e){}
   };
   go();
   TEL.minuteurInit = setInterval(go, 1000);
 }
 
+/* ⚠️ v1520 — L'ORIGINE D'ALLO N'EST PAS FORCÉMENT CELLE QU'ON A CHARGÉE.
+   David : « le bandeau ne reprend pas l'appel ». Le téléphone peut
+   s'ouvrir sur une autre adresse d'Allo (un sous-domaine de
+   withallo.com) : ses messages étaient alors ignorés. On accepte
+   withallo.com et ses sous-domaines, en https, et SEULEMENT de la
+   fenêtre du téléphone ; on lui répond à l'adresse qu'il a vraiment. */
+const TEL_ORIGINES = /^https:\/\/([a-z0-9-]+\.)*withallo\.com$/;
+function telOrigine(){ return TEL.origine || TEL_ORIGINE; }
 window.addEventListener('message', e => {
-  if(e.origin !== TEL_ORIGINE) return;
+  if(!TEL_ORIGINES.test(String(e.origin || ''))) return;
   if(!TEL.iframe || e.source !== TEL.iframe.contentWindow) return;
   const d = e.data;
   if(!d || typeof d !== 'object' || d.source !== 'allo-dialer' || typeof d.type !== 'string') return;
+  TEL.origine = e.origin;
+  telNoterMessage(d.type, d.payload || {});
+  try{ telSuivreAppel(d.type, d.payload || {}); }catch(x){ console.warn('Téléphone Allo (bandeau) :', x); }
   try{ telEvenement(d.type, d.payload || {}); }catch(x){ console.warn('Téléphone Allo :', x); }
 });
+/* Les derniers messages du téléphone (leur nom et leurs champs, sans les
+   valeurs) : de quoi comprendre une panne sans rien enregistrer d'un appel */
+function telNoterMessage(type, p){
+  try{
+    const l = JSON.parse(localStorage.getItem('ec_tel_journal') || '[]');
+    l.push({ le: Date.now(), type: type, champs: Object.keys(p || {}).join(',') });
+    localStorage.setItem('ec_tel_journal', JSON.stringify(l.slice(-40)));
+  }catch(e){}
+}
 
 function telEvenement(type, p){
   if(type === 'ready'){
     TEL.pret = true;
     clearInterval(TEL.minuteurInit);
     const l = TEL.attente.splice(0);
-    l.forEach(m => { try{ TEL.iframe.contentWindow.postMessage(m, TEL_ORIGINE); }catch(e){} });
+    l.forEach(m => { try{ TEL.iframe.contentWindow.postMessage(m, telOrigine()); }catch(e){} });
     telMajBouton();
     return;
   }
   if(type === 'login'){ TEL.connecte = true; telMajBouton(); return; }
   if(type === 'logout'){ TEL.connecte = false; telMajBouton(); return; }
-  if(type === 'incoming_call'){ telAppelNouveau(p.call_id, p.from, 'entrant'); return telEntrant(p); }
+  if(type === 'incoming_call') return telEntrant(p);
   if(type === 'outgoing_call'){
     if(TEL.qui && telE164(p.to) === TEL.qui.numero) TEL.qui.callId = p.call_id;
-    telAppelNouveau(p.call_id, p.to, 'sortant');
     return;
   }
-  /* 📞 v1519 — le bandeau et la fenêtre volante suivent l'appel en cours */
-  if(type === 'call_answered') telAppelEtat(p.call_id, 'ligne');
-  if(type === 'call_ended') telAppelEtat(p.call_id, 'fini', p.duration);
-  if(type === 'power_dialer.call_ringing' || type === 'power_dialer.call_started'){
-    if(p.call_id) telAppelNouveau(p.call_id, p.contact && p.contact.phone_number, 'sortant', p.contact && [p.contact.name, p.contact.last_name].filter(Boolean).join(' '));
-  }
-  if(type === 'power_dialer.call_answered') telAppelEtat(p.call_id, 'ligne');
-  if(type === 'power_dialer.call_ended') telAppelEtat(p.call_id, 'fini', p.duration);
   if(type === 'call_answered'){
     if(TEL.carte && TEL.carte.callId === p.call_id){ TEL.carte.etat = 'ligne'; TEL.carte.debut = Date.now(); telDessinerCarte(); telTitreFin(); }
     return;
@@ -210,34 +221,92 @@ function telAppelNom(a){
   if(TEL.qui && TEL.qui.numero === n && !TEL.qui.chargement) return telNomDe(TEL.qui);
   return telJoli(n);
 }
+/* ⚠️ v1520 — LE BANDEAU SUIT TOUT CE QUI RESSEMBLE À UN APPEL. David : il
+   restait sur « Appuie sur Appeler », même après avoir raccroché, jusqu'à
+   F5. Un message au nom un peu différent, ou sans numéro d'appel, était
+   ignoré. On lit donc le NOM du message (sortant, entrant, décroché, fini),
+   et un appel sans numéro d'appel se suit quand même. */
+function telIdAppel(p){ return String((p && (p.call_id || p.callId || (p.call && (p.call.id || p.call.call_id)))) || ''); }
+function telSuivreAppel(type, p){
+  const t = String(type).toLowerCase();
+  if(/session|queued|state|paused|resumed|error|start_blocked|^ready$|^login|^logout/.test(t)) return;
+  const id = telIdAppel(p);
+  const fin = /(ended|hangup|hung_up|completed|failed|rejected|missed|cancel|terminated|disconnected|declined)/.test(t);
+  const decroche = !fin && /(answered|connected|accepted|in_progress)/.test(t);
+  const entrant = !fin && !decroche && /incoming/.test(t);
+  const sortant = !fin && !decroche && /(outgoing|call_started|call_ringing|dialing|ringing)/.test(t);
+  if(entrant) telAppelNouveau(id, p.from || p.phone_number || p.number, 'entrant');
+  else if(sortant){
+    const c = p.contact || {};
+    telAppelNouveau(id, p.to || p.phone_number || p.number || c.phone_number, 'sortant', [c.name, c.last_name].filter(Boolean).join(' '));
+    /* on vient d'appuyer sur « Appeler » dans le téléphone : la fenêtre volante peut s'ouvrir */
+    telVolanteOuvrir();
+  }else if(decroche){
+    if(!TEL.appel || TEL.appel.etat === 'fini') telAppelNouveau(id, p.to || p.from, 'sortant');
+    telAppelEtat(id, 'ligne');
+    /* décroché d'un appui dans le téléphone : la fenêtre volante s'ouvre (David : « au-dessus de toutes les fenêtres ») */
+    telVolanteOuvrir();
+  }else if(fin) telAppelEtat(id, 'fini', p.duration);
+}
 function telAppelNouveau(callId, numero, sens, nom){
-  if(!callId) return;
+  const a = TEL.appel;
+  const num = telE164(numero) || String(numero || '') || (TEL.attendu && TEL.attendu.numero) || '';
   TEL.attendu = null;
-  if(TEL.appel && TEL.appel.callId === callId) return;
-  TEL.appel = { callId: callId, numero: telE164(numero) || String(numero || ''), sens: sens, etat: 'sonne', quand: Date.now(), debut: 0, nom: nom || '' };
+  clearTimeout(TEL.attenduFin);
+  if(a && a.etat !== 'fini' && (a.callId === callId || !callId || a.sansId)){
+    if(callId && a.sansId){ a.callId = callId; a.sansId = false; }
+    if(num && !a.numero) a.numero = num;
+    telBandeau();
+    return;
+  }
+  TEL.appel = { callId: callId || '', sansId: !callId, numero: num, sens: sens, etat: 'sonne', quand: Date.now(), debut: 0, nom: nom || '' };
   clearTimeout(TEL.appelFin);
+  TEL.bandeauFerme = false;
   telBandeau();
 }
 function telAppelEtat(callId, etat, duree){
   const a = TEL.appel;
-  if(!a || a.callId !== callId) return;
-  a.etat = etat;
-  if(etat === 'ligne') a.debut = Date.now();
   if(etat === 'fini'){
-    a.duree = Number(duree) || 0;
+    /* un appel fini efface aussi « Appuie sur Appeler » */
+    if(TEL.attendu){ TEL.attendu = null; clearTimeout(TEL.attenduFin); }
+    if(!a){ telBandeau(); setTimeout(() => { if(!TEL.appel && !TEL.attendu) telVolanteFermer(); }, 1500); return; }
+  }
+  if(!a || (callId && a.callId && !a.sansId && a.callId !== callId)) return;
+  if(callId && a.sansId){ a.callId = callId; a.sansId = false; }
+  a.etat = etat;
+  if(etat === 'ligne' && !a.debut) a.debut = Date.now();
+  if(etat === 'fini'){
+    a.duree = Number(duree) || (a.debut ? Math.round((Date.now() - a.debut) / 1000) : 0);
     clearTimeout(TEL.appelFin);
     TEL.appelFin = setTimeout(() => {
       if(TEL.appel === a){ TEL.appel = null; telBandeau(); telVolanteFermer(); }
-    }, 4000);
+    }, a.raccroche ? 1500 : 4000);
   }
   telBandeau();
 }
 function telRaccrocher(){
   const a = TEL.appel;
-  if(!a || !a.callId || a.etat === 'fini') return;
-  telEnvoyer('hangup', { call_id: a.callId });
-  a.raccroche = true;
+  if(a && a.etat !== 'fini'){
+    telEnvoyer('hangup', a.callId && !a.sansId ? { call_id: a.callId } : {});
+    a.raccroche = true;
+    /* si Allo ne dit pas « fini », le bandeau ne reste pas pour autant */
+    clearTimeout(TEL.raccrocheFin);
+    TEL.raccrocheFin = setTimeout(() => { if(TEL.appel === a && a.etat !== 'fini') telAppelEtat(a.callId, 'fini'); }, 3000);
+  }else if(TEL.attendu){
+    telEnvoyer('hangup', {});
+    telBandeauFermer();
+    return;
+  }
   telBandeau();
+}
+/* ✕ : le bandeau et la fenêtre s'en vont (un nouvel appel les ramène) */
+function telBandeauFermer(){
+  TEL.attendu = null;
+  clearTimeout(TEL.attenduFin);
+  if(TEL.appel && TEL.appel.etat === 'fini') TEL.appel = null;
+  TEL.bandeauFerme = true;
+  telBandeau();
+  telVolanteFermer();
 }
 /* Le contenu, le même pour le bandeau et la fenêtre volante (doc : le document où il se dessine) */
 function telAppelContenu(doc, volante){
@@ -248,7 +317,7 @@ function telAppelContenu(doc, volante){
   const t = el('span', 'tlBdTxt');
   const nom = telAppelNom(a);
   let ligne1 = '', ligne2 = '';
-  if(a.attendu){ ligne1 = '📞 ' + nom; ligne2 = 'Appuie sur « Appeler » dans le téléphone'; }
+  if(a.attendu){ ligne1 = '📞 ' + nom; ligne2 = 'Appeler : dans le téléphone'; }
   else if(a.etat === 'fini'){ ligne1 = '✅ Appel terminé'; ligne2 = nom + (a.duree ? ' · ' + telDuree(a.duree) : ''); }
   else if(a.etat === 'ligne'){ ligne1 = '🟢 En ligne · ' + telDuree((Date.now() - a.debut) / 1000); ligne2 = nom; }
   else if(a.sens === 'entrant'){ ligne1 = '📲 Appel de ' + nom; ligne2 = 'Décroche dans le téléphone'; }
@@ -260,15 +329,17 @@ function telAppelContenu(doc, volante){
   if(!volante && telPipPossible() && a.etat !== 'fini') z.appendChild(bouton('tlBdIc', '⧉', 'Fenêtre volante, au-dessus de Drivup et des autres fenêtres', () => telVolanteOuvrir()));
   if(!volante) z.appendChild(bouton('tlBdIc', '📞', 'Ouvrir le téléphone', () => telOuvrir()));
   if(volante) z.appendChild(bouton('tlBdIc', '↩', 'Revenir sur l’appli', () => { try{ window.focus(); }catch(e){} telOuvrir(); }));
-  if(!a.attendu && a.callId && a.etat !== 'fini'){
+  if(a.etat !== 'fini'){
     z.appendChild(bouton('tlBdRouge', a.raccroche ? '…' : (a.etat === 'sonne' && a.sens === 'entrant' ? '🔴 Refuser' : '🔴 Raccrocher'),
       'Couper l’appel', telRaccrocher));
   }
+  z.appendChild(bouton('tlBdIc tlBdX', '✕', 'Fermer ce bandeau', telBandeauFermer));
   return z;
 }
 function telBandeau(){
   let b = document.getElementById('telBandeau');
-  const a = TEL.appel || TEL.attendu;
+  const a = (TEL.bandeauFerme && !(TEL.appel && TEL.appel.etat !== 'fini')) ? null : (TEL.appel || TEL.attendu);
+  if(a) TEL.bandeauFerme = false;
   if(!a){
     if(b) b.remove();
     document.body.classList.remove('tlEnAppel');
@@ -276,12 +347,47 @@ function telBandeau(){
     telVolanteDessiner();
     return;
   }
-  if(!b){ b = document.createElement('div'); b.id = 'telBandeau'; b.className = 'tlBandeau'; b.setAttribute('role', 'status'); document.body.appendChild(b); }
+  if(!b){ b = document.createElement('div'); b.id = 'telBandeau'; b.className = 'tlBandeau'; b.setAttribute('role', 'status'); document.body.appendChild(b); telBandeauGlisser(b); }
   b.innerHTML = '';
   b.appendChild(telAppelContenu(document, false));
+  b.title = 'Glisse-le où tu veux (double-clic : à sa place de départ)';
+  telBandeauPlace(b);
   document.body.classList.add('tlEnAppel');
   if(!TEL.bandeauTic) TEL.bandeauTic = setInterval(() => { if(TEL.appel && TEL.appel.etat === 'ligne'){ telBandeau(); } }, 1000);
   telVolanteDessiner();
+}
+/* 📞 v1520 — David : « c'est celui-là que je veux pouvoir bouger ». On le
+   prend par son texte et on le pose où on veut ; sa place est gardée. */
+function telBandeauPlace(b){
+  let p = null;
+  try{ p = JSON.parse(localStorage.getItem('ec_tel_bandeau') || 'null'); }catch(e){ p = null; }
+  if(!p || !isFinite(p.x) || !isFinite(p.y)){ b.style.left = ''; b.style.top = ''; b.style.bottom = ''; b.style.transform = ''; return; }
+  const w = b.offsetWidth || 300, h = b.offsetHeight || 56;
+  b.style.left = Math.max(4, Math.min(window.innerWidth - w - 4, p.x)) + 'px';
+  b.style.top = Math.max(4, Math.min(window.innerHeight - h - 4, p.y)) + 'px';
+  b.style.bottom = 'auto';
+  b.style.transform = 'none';
+}
+function telBandeauGlisser(b){
+  let d = null;
+  b.addEventListener('pointerdown', e => {
+    if(e.target.closest('button')) return;
+    const r = b.getBoundingClientRect();
+    d = { dx: e.clientX - r.left, dy: e.clientY - r.top, id: e.pointerId };
+    try{ b.setPointerCapture(e.pointerId); }catch(x){}
+    b.classList.add('glisse');
+    e.preventDefault();
+  });
+  b.addEventListener('pointermove', e => {
+    if(!d || e.pointerId !== d.id) return;
+    const x = e.clientX - d.dx, y = e.clientY - d.dy;
+    try{ localStorage.setItem('ec_tel_bandeau', JSON.stringify({ x: x, y: y })); }catch(x2){}
+    telBandeauPlace(b);
+  });
+  const fin = () => { d = null; b.classList.remove('glisse'); };
+  b.addEventListener('pointerup', fin);
+  b.addEventListener('pointercancel', fin);
+  b.addEventListener('dblclick', e => { if(e.target.closest('button')) return; try{ localStorage.removeItem('ec_tel_bandeau'); }catch(x){} telBandeauPlace(b); });
 }
 const TEL_PIP_CSS = 'html,body{margin:0;height:100%;background:#0E1410;color:#EAF2E2;font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}' +
   'body{display:flex;align-items:center;padding:10px 12px;box-sizing:border-box}' +
