@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 13:54 — v1482 */
+/* Déployé le 20/11/2026 à 15:45 — v1516 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -71,7 +71,30 @@ function ficheDeLEleveDrivup(x){
   const cle = cleNomDrivup(nomDeLEleveDrivup(x));
   if(!cle) return null;
   const memes = fiches.filter(g => cleNomDrivup(g.eleve) === cle);
-  return memes.length === 1 ? memes[0] : null;
+  if(memes.length) return memes.length === 1 ? memes[0] : null;
+  /* 🔀 v1516 — une ancienne fiche passerelle porte un suffixe : « Prénom Nom
+     (Passerelle BV) ». Drivup la nomme « Prénom Nom » : sans ce
+     rapprochement, l'import en créait une seconde (Anaelle, le 27/10). */
+  const pass = fiches.filter(g => typeof sansSuffixePasserelleEC === 'function' &&
+    sansSuffixePasserelleEC(g.eleve) !== String(g.eleve || '').trim() && cleNomDrivup(sansSuffixePasserelleEC(g.eleve)) === cle);
+  return pass.length === 1 ? pass[0] : null;
+}
+
+/* 🔄 v1516 — APRÈS UN IMPORT, TOUT SE REDESSINE (David : « il faut encore
+   que je fasse F5 pour voir les modifications »). Les fiches étaient bien
+   relues, mais seul le répertoire se repeignait : le dossier ouvert, le
+   bureau, les photos restaient comme avant l'import. */
+async function rafraichirApresDrivup(relire){
+  try{ if(typeof viderCaches === 'function') viderCaches(); }catch(e){}
+  await Promise.all([
+    relire && typeof chargerFiches === 'function' ? chargerFiches() : null,
+    typeof chargerPhotosProfil === 'function' ? chargerPhotosProfil(true) : null
+  ].filter(Boolean).map(p => Promise.resolve(p).catch(() => null)));
+  [() => (typeof repeindreLesPhotos === 'function') && repeindreLesPhotos(),
+   () => (typeof afficherRepertoire === 'function' && $('repertoireListe')) && afficherRepertoire(false),
+   () => (typeof redessinerBureau === 'function') && redessinerBureau(),
+   () => (typeof elevePageOuverte !== 'undefined' && elevePageOuverte && typeof dessinerPageEleve === 'function') && dessinerPageEleve()
+  ].forEach(f => { try{ const r = f(); if(r && r.catch) r.catch(() => {}); }catch(e){ console.warn('Après Drivup :', e); } });
 }
 
 /* « ChrystelAnQn » → Chrystel ; « JJacques » → Jean-Jacques ; « BEA »,
@@ -893,6 +916,7 @@ async function fenetrePlanningDrivup(p){
     if(fiches.length && typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
     /* 3 · les photos de ceux qui n'en ont pas — v1168 */
     const ph = await reprendreLesPhotosDrivup(lignes.map(l => ({ eleve: l.eleve, url: (l._x || {}).photo })));
+    await rafraichirApresDrivup(false);   /* 🔄 v1516 — sans F5 */
     /* 4 · 📍 v1170 — les horaires des bureaux */
     const hb = bureauxLus.length && typeof poserLesBureauxDrivup === 'function'
       ? await poserLesBureauxDrivup(bureauxLus) : [];
@@ -1214,7 +1238,7 @@ async function fenetreElevesDrivup(elevesBruts, sorte){
       ph = await reprendreLesPhotosDrivup([{ eleve: nomPhoto, url: premier.photo }], true);
     })() : Promise.resolve();
     await Promise.all([relire, ecrireLesNotes, laPhoto]);
-    if(typeof afficherRepertoire === 'function' && $('repertoireListe')) afficherRepertoire().catch(() => {});
+    await rafraichirApresDrivup(false);
     ok.style.display = 'none';
     non.disabled = false;
     non.textContent = 'Fermer';
