@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 19/11/2026 à 15:34 — v1489 -->
+<!-- Déployé le 20/11/2026 à 10:00 — v1504 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2650,6 +2650,17 @@
   .cdz.sombre .cdPastille.rouge{ background:rgba(255,92,51,.16); color:#FFB4A0; }
   .cdz.sombre .cdBas{ height:46px; font-size:14.5px; }
   .cdz.sombre .cdNote{ font-size:11.5px; }
+  /* 🤖 v1504 — la vérification « c'est bien une personne » : invisible tant
+     que Cloudflare ne demande rien ; la carte n'apparaît que pour la case */
+  #ecHumain{ position:fixed; inset:0; z-index:100000; display:flex; align-items:center; justify-content:center; padding:16px;
+             background:rgba(10,12,6,.45); opacity:0; pointer-events:none; transition:opacity .15s ease; }
+  #ecHumain.pret{ display:flex; }
+  #ecHumain.voir{ opacity:1; pointer-events:auto; }
+  #ecHumain .ecHumainBoite{ max-width:380px; width:100%; text-align:center; padding:18px 16px; }
+  #ecHumain .ecHumainT{ font-weight:800; font-size:17px; margin:0 0 6px; }
+  #ecHumain .ecHumainS{ font-size:14px; line-height:1.45; opacity:.8; margin:0 0 12px; }
+  #ecHumain .ecHumainW{ display:flex; justify-content:center; min-height:65px; }
+  #ecHumain .ecHumainM{ font-size:13px; margin-top:8px; min-height:18px; }
 </style>
 </head>
 <body>
@@ -3436,7 +3447,7 @@
     }, 5000);
   }
   function appelEquipe(chemin, corps){
-    return fetch(RELAIS + chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    return fetch(RELAIS + chemin, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       body: JSON.stringify(Object.assign({ code: EQUIPE_SALLE ? EQUIPE_SALLE.code : '' }, corps)) })
       .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){
         if(!r.ok || (d && d.error)) throw new Error((d && (d.error || d.message)) || ('Refusé (' + r.status + ')'));
@@ -3721,7 +3732,7 @@
     function valider(){
       if(tape.length < 4){ f.querySelector('#salleMsgStop').textContent = 'Ton code de l’appli, en entier.'; return; }
       f.querySelector('#salleMsgStop').textContent = '⏳ …';
-      fetch(RELAIS + '/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: tape }) })
+      fetch(RELAIS + '/auth', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ code: tape }) })
         .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ if(!r.ok || (d && d.error)) throw new Error((d && d.error) || 'Code refusé'); return d; }); })
         .then(function(){ arreter(); })
         .catch(function(er){ tape = ''; montrer(); f.querySelector('#salleMsgStop').textContent = (er && er.message) || 'Code refusé.'; });
@@ -4101,17 +4112,104 @@
     setTimeout(finir, 3 * 60000);
   }
 
-  function appeler(corps){
+  /* ============================================================
+     🤖 v1504 — « C'EST BIEN UNE PERSONNE » (Cloudflare Turnstile)
+
+     David, le 20/11 : vérifier que c'est bien un humain sur l'espace
+     élève — à la connexion seulement, invisible le plus souvent, les
+     tablettes de la salle et l'ordinateur de la salle de code dispensés.
+
+     Le Worker ne vérifie plus un code sans un LAISSEZ-PASSER : on
+     l'obtient une fois (Cloudflare regarde que c'est une personne,
+     le plus souvent sans rien demander), il vaut deux mois sur cet
+     appareil. Sans lui, le Worker répond « humain » : on fait la
+     vérification, puis on renvoie l'appel. Deux appels qui partent
+     ensemble (l'entrée et la connexion) n'en font qu'une.
+     ============================================================ */
+  var CLE_PASSE = 'ec_passe';
+  function lirePasse(){ try{ return localStorage.getItem(CLE_PASSE) || ''; }catch(e){ return ''; } }
+  function garderPasse(p){ try{ if(p) localStorage.setItem(CLE_PASSE, p); else localStorage.removeItem(CLE_PASSE); }catch(e){} }
+  var humainEnCours = null;
+  function chargerTurnstile(){
+    if(window.turnstile) return Promise.resolve(window.turnstile);
+    return new Promise(function(ok, non){
+      var s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      s.async = true;
+      s.onload = function(){ var n = 0; (function attendre(){ if(window.turnstile) ok(window.turnstile); else if(n++ > 50) non(new Error('Vérification indisponible.')); else setTimeout(attendre, 100); })(); };
+      s.onerror = function(){ non(new Error('La vérification ne se charge pas : vérifie ta connexion internet.')); };
+      document.head.appendChild(s);
+    });
+  }
+  /* La carte n'apparaît que si Cloudflare a besoin d'une case à cocher */
+  function carteHumain(){
+    var c = document.getElementById('ecHumain');
+    if(!c){
+      c = document.createElement('div');
+      c.id = 'ecHumain';
+      c.innerHTML = '<div class="ecHumainBoite card"><div class="ecHumainT">🔒 Une petite vérification</div>' +
+        '<div class="ecHumainS">Coche la case pour montrer que tu es bien une personne. Ça ne te sera plus demandé avant longtemps sur ce téléphone.</div>' +
+        '<div class="ecHumainW"></div><div class="ecHumainM"></div></div>';
+      document.body.appendChild(c);
+    }
+    return c;
+  }
+  function obtenirHumain(nom, code, cle){
+    if(humainEnCours) return humainEnCours;
+    humainEnCours = new Promise(function(ok, non){
+      var c = carteHumain(), w = c.querySelector('.ecHumainW'), m = c.querySelector('.ecHumainM');
+      var fini = false, id = null;
+      function finir(err){
+        if(fini) return; fini = true;
+        try{ if(id !== null && window.turnstile) window.turnstile.remove(id); }catch(e){}
+        c.classList.remove('voir'); c.classList.remove('pret');
+        if(err) non(err); else ok();
+      }
+      c.classList.add('pret'); m.textContent = ''; w.innerHTML = '';
+      chargerTurnstile().then(function(ts){
+        id = ts.render(w, {
+          sitekey: cle, language: 'fr', appearance: 'interaction-only', theme: 'light',
+          'before-interactive-callback': function(){ c.classList.add('voir'); },
+          'after-interactive-callback': function(){ m.textContent = 'Merci, un instant…'; },
+          callback: function(jeton){
+            fetch(RELAIS + '/eleve', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+              body: JSON.stringify({ action: 'eleveHumain', eleve: nom, code: code, humain: jeton }) })
+              .then(function(r){ return r.json().catch(function(){ return {}; }); })
+              .then(function(d){
+                if(d && d.passe){ garderPasse(d.passe); finir(); return; }
+                if(d && d.status === 'ok' && !d.error){ finir(); return; }   /* vérification coupée côté école */
+                finir(new Error((d && (d.error || d.message)) || 'Vérification refusée.'));
+              })
+              .catch(function(){ finir(new Error('Le serveur ne répond pas : réessaie dans un instant.')); });
+          },
+          'error-callback': function(){ c.classList.add('voir'); m.textContent = '⚠️ La vérification n’a pas marché. Recharge la page et réessaie.'; setTimeout(function(){ finir(new Error('Vérification impossible : recharge la page.')); }, 4000); return true; },
+          'expired-callback': function(){ try{ window.turnstile.reset(id); }catch(e){} }
+        });
+      }).catch(finir);
+    });
+    humainEnCours.then(function(){ humainEnCours = null; }, function(){ humainEnCours = null; });
+    return humainEnCours;
+  }
+
+  function appeler(corps, dejaHumain){
     if(MODE_ESSAI) return Promise.resolve(reponseDEssai(corps));
+    var depart = corps;
     if(ACCOMP) corps = Object.assign({}, corps, { accompagne: ACCOMP.session });
     /* 📺 v1290 — pendant une séance de la salle, son jeton de séance */
     if(SALLE && !corps.salle) corps = Object.assign({}, corps, { salle: SALLE.jeton });
+    /* 🤖 v1504 — son laissez-passer (rien pour la salle ni la démonstration de l'équipe) */
+    if(!corps.salle && !corps.accompagne && lirePasse()) corps = Object.assign({}, corps, { passe: lirePasse() });
+    /* 🔁 v1504 — en texte : le navigateur n'a plus à demander la permission avant chaque appel */
     return fetch(RELAIS + '/eleve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       body: JSON.stringify(corps)
     }).then(function(r){ return r.json(); })
       .then(function(d){
+        if(d && d.humain && d.cle && !dejaHumain && !corps.salle && !corps.accompagne){
+          garderPasse('');
+          return obtenirHumain(depart.eleve, depart.code, d.cle).then(function(){ return appeler(depart, true); });
+        }
         if(d && d.error){
           var er = new Error(d.error);
           /* 📺 la séance est finie (heure, arrêtée par l'équipe) : retour à l'accueil */
@@ -10361,12 +10459,8 @@
         for(var k in (d || {})) if(Object.prototype.hasOwnProperty.call(d, k)) corps[k] = d[k];
         corps.action = (quoi === 'agir') ? 'eleveCafeAgir' : 'eleveCafe';
         corps.eleve = moi.nom; corps.code = moi.code;
-        return fetch(RELAIS + '/eleve', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps)
-        }).then(function(r){ return r.json(); }).then(function(x){
-          if(x && x.error) throw new Error(x.error);
-          return x;
-        });
+        /* 🤖 v1504 — par « appeler » : son laissez-passer part avec */
+        return appeler(corps);
       },
       classes: { fond: 'overlayEl', boite: 'boiteEl', titreTag: 'div', titre: 'titreEl' }
     });
