@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 20/11/2026 à 11:42 — v1510 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1787,7 +1787,16 @@ function verifierModules(){
     if(vus[n] === 1 && !charges[n]) manquants.push(n);
   });
 
-  if(!manquants.length && !doubles.length) return;
+  /* 🩹 v1510 — le bandeau d'avant s'en va dès que tout est là */
+  const avant = document.getElementById('bandeauModules');
+  if(!manquants.length && !doubles.length){ if(avant) avant.remove(); return; }
+  if(avant) avant.remove();
+  /* Encore en route : on regarde de nouveau dans cinq secondes (une
+     connexion lente peut finir d'arriver après le premier regard). */
+  if(manquants.length && !doubles.length && (verifierModules._essais = (verifierModules._essais || 0) + 1) < 4){
+    setTimeout(verifierModules, 5000);
+    if(verifierModules._essais < 2) return;
+  }
 
   let dit = '';
   if(doubles.length){
@@ -1805,6 +1814,7 @@ function verifierModules(){
   }
 
   const z = document.createElement('div');
+  z.id = 'bandeauModules';
   z.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;' +
     'background:#B3261E;color:#fff;padding:14px 16px;font-size:14px;line-height:1.5;' +
     'font-family:inherit;box-shadow:0 2px 12px rgba(0,0,0,.4);';
@@ -1813,8 +1823,20 @@ function verifierModules(){
   console.error('Modules non chargés :', manquants, '— appelés deux fois :', doubles);
 }
 
-/* On laisse le temps aux derniers scripts d'arriver */
-setTimeout(verifierModules, 2500);
+/* On laisse le temps aux derniers scripts d'arriver.
+
+   🩹 v1510 — APRÈS LE CHARGEMENT DE LA PAGE, PAS AU BOUT DE 2,5 S.
+   David, le 20/11 : « application incomplète » à chaque mise à jour,
+   sur un fichier pourtant en ligne, et le bandeau restait jusqu'à F5.
+   Mesuré chez lui : après une mise à jour, les 140 fichiers se
+   rechargent l'un après l'autre et la page met 6 s à finir ;
+   ec-caisse.js arrivait vers 2,5 s, juste après le regard. On regarde
+   donc quand la page a fini de charger (« load » : tous les scripts sont
+   là ou ont échoué), on regarde encore ensuite, et le bandeau s'en va
+   tout seul si le fichier finit par arriver. */
+function lancerVerifierModules(){ setTimeout(verifierModules, 800); }
+if(document.readyState === 'complete') lancerVerifierModules();
+else window.addEventListener('load', lancerVerifierModules, { once: true });
 
 
 /* ============================================================
