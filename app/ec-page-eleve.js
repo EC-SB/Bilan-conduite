@@ -1,4 +1,4 @@
-/* Déployé le 14/11/2026 à 15:08 — v1440 */
+/* Déployé le 20/11/2026 à 12:19 — v1511 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -180,6 +180,9 @@ const ONGLETS_ELEVE = [
   /* 📞 v1266 — ses appels (Allo, et ceux notés d'un portable). Voir
      ec-suivi-appels.js. */
   { cle:'appels',   emoji:'📞', titre:'Appels',       section:'appels' },
+  /* 🤖 v1511 — ce que l'IA d'Allo peut dire de lui, ses messages pour
+     lui ou ses proches, ce qu'elle dirait aujourd'hui (ec-allo-ia.js) */
+  { cle:'allo',     emoji:'🤖', titre:'IA d’Allo',    section:'appels' },
   { cle:'acces',    emoji:'🔑', titre:'App Évolution Conduites', section:'acces_eleves' },
   /* 🎓 v1427 — son suivi du code (David : « dans son dossier, son suivi
      individuel », un onglet à part). Voir ongletCodeEleve, ec-code.js. */
@@ -3209,6 +3212,10 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'messages')    return ongletMessagesEleve(corps, nom);
   if(cle === 'appels'){
     if(typeof ongletAppelsEleve === 'function') return ongletAppelsEleve(corps, nom);
+    return;
+  }
+  if(cle === 'allo'){
+    if(typeof ongletAlloIaEleve === 'function') return ongletAlloIaEleve(corps, nom);
     return;
   }
   if(cle === 'acces')       return ongletAcces(corps, nom);
