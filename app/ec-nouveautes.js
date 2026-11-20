@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 18:16 — v1503 */
+/* Déployé le 20/11/2026 à 10:00 — v1504 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1504,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🤖 Espace élève : vérification « c’est bien une personne » à la connexion · 🔁 un tiers de requêtes en moins',
+    quoi: [
+      { emoji: '🤖',
+        titre: 'C’est bien une personne',
+        texte: 'À la connexion de l’espace élève, Cloudflare vérifie que c’est une personne et pas un robot qui essaie des codes. Le plus souvent l’élève ne voit rien ; une case n’apparaît que si Cloudflare a un doute. Son téléphone garde ensuite un laissez-passer deux mois. Les tablettes de la salle et l’ordinateur de la salle de code ne sont pas concernés. Ça s’allume quand les clés Cloudflare Turnstile sont posées dans le Worker, et ça s’éteint d’un geste dans Gestion › 🗄️ Base › Réglages.' },
+      { emoji: '🔁',
+        titre: 'Plus de demande de permission avant chaque appel',
+        texte: 'Les appels de l’appli, de l’espace élève et des pages publiques partent directement au serveur, sans la vérification préalable du navigateur (les « OPTIONS », 38 % des requêtes). La sécurité ne change pas : le serveur vérifie toujours le code de chacun à chaque appel.' }
+    ]
+  },
   {
     version: 1503,
     date: 'Jeudi 19 novembre 2026',
