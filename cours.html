@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 02/09/2026 à 12:35 — v804 -->
+<!-- Déployé le 20/11/2026 à 10:00 — v1504 -->
 <!-- ============================================================
      CONFIRMATION DE PRÉSENCE — Évolution Conduites
 
@@ -164,7 +164,7 @@ function confirmer(c, manuel){
 function envoyerConfirmation(){
   return fetch(PROXY + '/cours', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body: JSON.stringify({ c: jeton, confirmer: true })
   }).then(function(r){ return r.json(); });
 }
