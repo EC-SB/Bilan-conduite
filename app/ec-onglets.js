@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 13:40 — v1481 */
+/* Déployé le 19/11/2026 à 18:16 — v1503 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -466,6 +466,9 @@ const VUES = {
            /* 🔐 v1347 — David : « dans Gestion avant Accès » */
            ['coffre',     '🔐 Coffre-fort',             'coffre',      'L’outil'],
            ['admin',      '⚙️ Accès',                  'admin',        'L’outil'],
+           /* 🗄️ v1503 — David : « la mettre dans un sous onglet dans
+              gestion plutôt que dans accès ». Administrateurs seuls. */
+           ['base',       '🗄️ Base',                   'admin',        'L’outil'],
            /* 💶 v1345 — David : « dans gestion un tableau des coûts
               fixes ». Administrateurs seuls, avec la case de ⚙️ Accès
               (de base : Chrystel et David). */
@@ -1747,6 +1750,7 @@ function construireBarresVues(){
       if(cle === 'activite') return ACCES.role === 'admin';     /* v1147 */
       if(cle === 'direct')  return ACCES.role === 'admin';      /* v1148 */
       if(cle === 'admin')   return ACCES.role === 'admin';
+      if(cle === 'base')    return ACCES.role === 'admin';      /* v1503 */
       /* 💶 v1345 — la case ET le rôle : un bureau à qui on aurait
          coché la case n'y entre pas (le Worker refuse aussi). */
       if(cle === 'charges') return ACCES.role === 'admin' &&
@@ -2062,10 +2066,9 @@ function reveillerVue(cle){
     admin:      () => { chargerUtilisateurs();
                         /* 🖥️ v1467 — les ordinateurs des salles (ec-salle-code.js) */
                         if(typeof chargerPostesSalle === 'function') chargerPostesSalle();
-                        /* 🗄️ v1474 — la base de l'appli (ec-base.js) */
-                        if(typeof chargerBaseServeur === 'function') chargerBaseServeur();
-                        /* 📊 v1470 — ce qui interroge le serveur (ec-conso.js) */
-                        if(typeof chargerConsoServeur === 'function') chargerConsoServeur(); },
+                        /* 🗄️ v1503 — la base de l'appli et ce qui interroge le
+                           serveur ont leur propre vue : « base », juste après */ },
+    base:       () => ACCES.role === 'admin' && typeof chargerBaseServeur === 'function' && chargerBaseServeur(),
     eleves:     () => afficherRepertoire(),
     /* Le dossier se redessine seul quand on y revient : le nom
        ouvert est en mémoire, et tout ce qu'il montre aussi. Une vue
