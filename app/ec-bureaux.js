@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 19:33 — v1335 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-bureaux.js — 📍 LES BUREAUX : HORAIRES ET RENDEZ-VOUS — v1170
 
@@ -814,8 +814,10 @@ function imprimerAfficheBureau(id){
     '.appel{font-size:11.6mm;font-weight:900;line-height:1.15;margin:11.6mm 16mm 0;max-width:170mm;}' +
     '</style></head><body><div class="a4"><div class="qr">' + qr + '</div>' +
     '<div class="appel">📱 Scannez pour connaître nos heures d’ouverture</div></div>' +
-    '<script>setTimeout(function(){window.print();},300);<\/script></body></html>');
+    '</body></html>');
   w.document.close();
+  /* 🔒 v1505 — l'impression se lance d'ici : la règle des scripts (Content-Security-Policy) refuse un script écrit dans la fenêtre */
+  setTimeout(() => { try{ w.focus(); w.print(); }catch(e){} }, 300);
 }
 
 /* ------------------------------------------------------------
