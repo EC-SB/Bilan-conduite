@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:42 — v1510 */
+/* Déployé le 20/11/2026 à 12:19 — v1511 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1511,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '📞 L’IA d’Allo branchée sur l’appli : elle sait qui appelle, suit tes consignes, renvoie l’accès, prend les demandes et les retards',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Gestion › L’IA d’Allo',
+        texte: 'Ce qu’elle peut dire et faire pour tous les élèves (case par case), tes consignes (elles lui arrivent au début de chaque appel, ce qu’elle sait déjà dans Allo reste), et les versions d’avant, qu’on remet d’un geste. Le guide pour la brancher dans Allo est en haut de l’écran.' },
+      { emoji: '🤖',
+        titre: 'Un onglet « IA d’Allo » dans chaque dossier',
+        texte: 'Comme pour tous, Oui ou Non pour son prochain cours, son dernier bilan, son code, ses heures, sa date d’examen, le reste à payer et le renvoi de son accès ; des messages pour l’élève ou ses proches (une fois, jusqu’à une date ou sans fin) ; et ce qu’elle dirait aujourd’hui.' },
+      { emoji: '⏰',
+        titre: 'Elle prévient d’un retard, laisse les demandes, renvoie l’accès',
+        texte: 'Un retard annoncé au téléphone arrive au moniteur du cours et au bureau, comme s’il venait de l’App de l’élève. Une demande arrive dans la messagerie du bureau. L’accès part par mail, à l’adresse de sa fiche. Pour annuler, elle dit d’écrire sur la messagerie. Jamais de résultat d’examen, de note interne ni de code d’accès.' },
+      { emoji: '📋',
+        titre: 'Ce qu’elle a fait, sur chaque appel',
+        texte: 'Dans 📞 Suivi des appels et l’onglet Appels du dossier, chaque appel pris par l’IA dit ce qu’elle a lu, dit et fait.' }
+    ]
+  },
   {
     version: 1510,
     date: 'Vendredi 20 novembre 2026',
