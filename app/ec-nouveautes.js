@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:37 — v1520 */
+/* Déployé le 20/11/2026 à 17:48 — v1521 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1521,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🔄 Constat amiable : le giratoire a le nombre de branches qu’on veut, et « Effacer la sélection » pour retirer un seul objet',
+    quoi: [
+      { emoji: '🔄',
+        titre: 'Le nombre de branches du giratoire',
+        texte: 'Dans l’outil du croquis, touche le giratoire : « − 4 branches + », de 2 à 8, réparties tout autour. On le tourne pour orienter les branches.' },
+      { emoji: '🗑️',
+        titre: 'Effacer la sélection',
+        texte: 'Touche un objet (voiture, route, panneau, texte) ou un trait (crayon, flèche), puis « 🗑️ Effacer la sélection » : lui seul s’efface. Sur ordinateur, la touche Suppr fait pareil ; ↩ le remet.' },
+      { emoji: '✏️',
+        titre: 'L’outil du croquis plus grand sur ordinateur',
+        texte: 'Il prend maintenant toute la largeur de l’écran ; ↩ garde ce qu’on avait choisi.' }
+    ]
+  },
   {
     version: 1520,
     date: 'Vendredi 20 novembre 2026',
