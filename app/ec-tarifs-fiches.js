@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 11:29 — v1423 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-tarifs-fiches.js — 💰 LES TARIFS ET LEURS FICHES (v1178)
 
@@ -1282,11 +1282,15 @@ function tfImprimer(ids, d){
     '@media screen{body{background:#888}.page{margin:10px auto;box-shadow:0 2px 12px rgba(0,0,0,.4);background:#fff}}' +
     TF_CSS_FICHE + '</style></head><body>' +
     ids.map(id => '<div class="page">' + tfFicheHtml(d, tfFiche(d, id), true) + '</div>').join('') +
-    '<script>' + tfAjuster.toString() + ';' +
-    /* 794 px font 210 mm à 96 ppp : on ajuste quand même à la page réelle */
-    'document.querySelectorAll(".page").forEach(function(p){var a=p.firstChild;var k=p.clientWidth/794;if(Math.abs(k-1)>0.005)a.style.transform="scale("+k+")";});' +
-    'tfAjuster(document);setTimeout(function(){window.focus();window.print();},350);<\/script></body></html>');
+    '</body></html>');
   w.document.close();
+  /* 🔒 v1505 — l'impression se lance d'ici : la règle des scripts (Content-Security-Policy) refuse un script écrit dans la fenêtre */
+  try{
+    /* 794 px font 210 mm à 96 ppp : on ajuste quand même à la page réelle */
+    w.document.querySelectorAll('.page').forEach(p => { const a = p.firstChild; const k = p.clientWidth / 794; if(a && Math.abs(k - 1) > 0.005) a.style.transform = 'scale(' + k + ')'; });
+    tfAjuster(w.document);
+  }catch(e){ /* la fiche reste à sa taille */ }
+  setTimeout(() => { try{ w.focus(); w.print(); }catch(e){} }, 350);
 }
 
 /* Les bibliothèques ne se chargent qu'au premier PDF ou JPG : la même
