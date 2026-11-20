@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:18 — v1508 */
+/* Déployé le 20/11/2026 à 11:31 — v1509 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1509,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🗄️ Presque tout le classeur passe dans la base rapide ; trois gestes ne passent plus par Apps Script',
+    quoi: [
+      { emoji: '🗄️',
+        titre: 'Dix-sept feuilles de plus dans la base',
+        texte: 'Les réglages de l’appli, les lieux, les corrections de la dictée, les règles de l’IA, le planning des écrans, les places BE, les résultats (voiture, moto et remorque), les scores de code corrigés, les écoutes, les rendez-vous pédagogiques et les réponses des familles, les dépôts en banque, les signalements, les SMS et mails envoyés, les coûts de l’IA et les brouillons de bilan. Elles basculent seules la nuit prochaine (Gestion › 🗄️ Base). Google garde une copie à jour.' },
+      { emoji: '⚡',
+        titre: 'Sans Apps Script',
+        texte: 'Supprimer un dépôt en banque, poser l’heure d’un cours sur les écrans, et la réponse d’une famille au rendez-vous pédagogique se font maintenant directement, sans attendre le classeur.' }
+    ]
+  },
   {
     version: 1508,
     date: 'Vendredi 20 novembre 2026',
