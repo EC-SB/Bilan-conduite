@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 17:43 — v1502 */
+/* Déployé le 19/11/2026 à 18:16 — v1503 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1503,
+    date: 'Jeudi 19 novembre 2026',
+    resume: '🗄️ La base de l’appli a son propre écran (Gestion › 🗄️ Base) : des interrupteurs, trois sous-onglets, et la consommation Cloudflare',
+    quoi: [
+      { emoji: '🗄️',
+        titre: 'Gestion › L’outil › 🗄️ Base',
+        texte: 'La base de l’appli quitte ⚙️ Accès pour son propre bouton, réservé aux administrateurs. Trois sous-onglets en haut : 📖 Ce qui est lu, 📊 Ce qui interroge le serveur, ☁️ Consommation Cloudflare.' },
+      { emoji: '📖',
+        titre: 'Une ligne et un interrupteur par feuille',
+        texte: 'Les feuilles sont rangées par famille (Élèves, Cours, Examens, Coin révisions), chacune sur une ligne : son nombre, son état (À jour, en route, coupée, écarts) et son interrupteur. Toucher la ligne la déplie : les sauvegardes, les écarts, 💾. « Tout sauvegarder » les fait toutes d’un coup. Les feuilles encore dans Google sont rangées en bas, repliées.' },
+      { emoji: '✂️',
+        titre: 'Coupé reste coupé',
+        texte: 'Couper une feuille (retour à la feuille Google) demande une confirmation, et elle reste coupée : la nuit ne la rallume plus, seul l’interrupteur la remet dans D1. Les administrateurs reçoivent une notification au moment de la coupure, puis chaque matin à 9 h tant qu’une feuille reste coupée. Toucher la notification ouvre l’écran.' },
+      { emoji: '☁️',
+        titre: 'Ce qu’on consomme chez Cloudflare',
+        texte: 'Requêtes, temps de calcul, D1, KV, messagerie en direct et R2 : ce qui est utilisé ce mois-ci sur ce que le forfait inclut, où on sera à la fin du mois à ce rythme, et ce que ça coûterait en plus. Toucher une ligne montre le détail jour par jour. Il faut un jeton Cloudflare en lecture seule : l’écran explique comment le créer.' }
+    ]
+  },
   {
     version: 1502,
     date: 'Jeudi 19 novembre 2026',
