@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:40 — v1497 */
+/* Déployé le 20/11/2026 à 12:37 — v1512 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -324,8 +324,8 @@ function boutonsDuResultat(x, iso, s){
 
       $('permisNom').value = x.eleve;
       if(typeof afficherOnglet === 'function'){
-        afficherOnglet('eleves');
-        afficherVue('eleves', 'permis');
+        afficherOnglet('permis');
+        afficherVue('permis', 'permis');
       }
       await preparerPermis();
       afficherBureau();
