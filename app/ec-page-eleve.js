@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:38 — v1512 */
+/* Déployé le 20/11/2026 à 15:45 — v1516 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -3688,84 +3688,30 @@ function echecDossier(corps, e){
    📇 FICHE — zéro appel réseau
    ============================================================ */
 function ongletFiche(corps, nom){
-  const f = (typeof ficheDe === 'function') ? (ficheDe(nom) || {}) : null;
+  const f = (typeof ficheDe === 'function') ? (ficheDe(nom) || null) : null;
 
+  /* 🪪 v1516 — SA FICHE, EN LIGNES (ec-fiche-infos.js).
+
+     David, le 20 novembre : « on ne peut pas mettre les lignes
+     directement plutôt qu'un pop-up ? Comme ça on voit directement ce
+     qu'il manque — quand on l'ouvre, on a son app en premier puis ses
+     aides avant d'avoir les infos dont on a besoin. » Le tableau et le
+     bouton « ✏️ Modifier la fiche » sont partis : chaque ligne se
+     remplit sur place. La fenêtre reste pour CRÉER une fiche. */
   if(!f){
-    corps.appendChild(vidDossier(
-      "Aucune fiche au répertoire pour cet élève."));
-  }else{
-    /* ⚠️ v1118 — UNE VALEUR LONGUE NE TIENT PAS À DROITE D'UN
-       LIBELLÉ.
-
-       David, le 9 octobre, capture à l'appui : la frise de Clarisse
-       — « 3 leçons de 2h + exam blanc + 2 leçons de 2h (4h) + 3h
-       avant examen », soixante-dix caractères — écrasait son
-       libellé contre le bord gauche et se cassait n'importe où.
-       Toutes les lignes étaient en « libellé à gauche, valeur à
-       droite », ce qui va très bien pour un numéro et pas du tout
-       pour une phrase.
-
-       Le troisième terme dit si la valeur va EN DESSOUS. Il est
-       posé ici, par champ, et pas calculé sur la longueur : une
-       frise courte reste une frise, et son emplacement ne doit pas
-       changer d'un élève à l'autre. */
-    const champs = [
-      ['📱 Téléphone', f.telephone
-        ? ((typeof telLisible === 'function') ? telLisible(f.telephone) : f.telephone)
-        : ''],
-      ['✉️ Mail', f.email],
-      ['✉️ Prescripteur', f.mailPrescripteur],
-      ['💬 Messenger', f.messenger],
-      ['📇 Dossier ANTS', f.ants === 'nous' ? 'Fait par nous'
-        : (f.ants === 'eleve' ? "Fait par l'élève" : '')],
-      ['🧭 Frise', f.frise, true],
-      ['📝 Remarques', f.remarques, true]
-    ].filter(x => String(x[1] || '').trim());
-
-    if(!champs.length){
-      corps.appendChild(vidDossier(
-        'Sa fiche est vide : ni numéro, ni mail, ni formation.'));
-    }else{
-      const t = document.createElement('div');
-      t.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
-        'padding:4px 12px;';
-      champs.forEach(([k, v, dessous], i) => {
-        const l = document.createElement('div');
-        l.style.cssText = (dessous ? 'display:block;'
-                                   : 'display:flex;gap:12px;' +
-                                     'justify-content:space-between;') +
-          'padding:9px 0;font-size:13.5px;line-height:1.5;' +
-          (i ? 'border-top:1px solid var(--line);' : '');
-        const a = document.createElement('span');
-        a.style.cssText = 'color:var(--muted);flex-shrink:0;' +
-          (dessous ? 'display:block;' : '');
-        a.textContent = k;
-        const b = document.createElement('span');
-        b.style.cssText = 'min-width:0;word-break:break-word;' +
-          (dessous ? 'display:block;margin-top:2px;' : 'text-align:right;');
-        b.textContent = v;
-        l.appendChild(a); l.appendChild(b);
-
-        /* ⚠️ LE NUMÉRO SE COMPOSE DEPUIS SA LIGNE — v1121, planche
-           du 9 octobre. Un numéro affiché qu'il faut recopier dans
-           le téléphone est un numéro à moitié affiché. Les deux
-           gestes sont là où on le lit, pas en haut de l'écran. */
-        if(k.indexOf('Téléphone') !== -1 && typeof telPourLien === 'function'){
-          [['💬', 'sms:', 'Envoyer un SMS'],
-           ['📞', 'tel:', 'Appeler']].forEach(([em, proto, titre]) => {
-            const g = document.createElement('a');
-            g.href = proto + telPourLien(f.telephone);
-            g.title = titre + ' ' + nom;
-            g.style.cssText = 'margin-left:9px;text-decoration:none;' +
-              'font-size:14px;flex:0 0 auto;';
-            g.textContent = em;
-            b.appendChild(g);
-          });
-        }
-        t.appendChild(l);
-      });
-      corps.appendChild(t);
+    corps.appendChild(vidDossier("Aucune fiche au répertoire pour cet élève."));
+    if(typeof ouvrirFicheEleve === 'function' && ((typeof peutModifier !== 'function') || peutModifier('eleves'))){
+      const b = document.createElement('button');
+      b.className = 'btn btn-primary';
+      b.style.cssText = 'margin-top:10px;padding:12px;font-size:14px;';
+      b.textContent = '✏️ Créer sa fiche';
+      b.addEventListener('click', () => ouvrirFicheEleve(nom, {}));
+      /* 🔀 une fiche passerelle mise de côté et pas recréée : on la recrée */
+      const r = (typeof boutonRecreerPasserelle === 'function') ? boutonRecreerPasserelle(nom, () => dessinerPageEleve()) : null;
+      corps.appendChild(r || b);
     }
+  }else if(typeof carteFicheInfos === 'function'){
+    carteFicheInfos(corps, nom);
   }
 
   /* LE POSTE DE CONDUITE, QUI SE COCHE SANS OUVRIR LA FICHE.
@@ -3811,39 +3757,6 @@ function ongletFiche(corps, nom){
      David. Voir ec-renseignements.js. */
   if(typeof cadreRenseignements === 'function') cadreRenseignements(corps, nom);
 
-  const rangee = document.createElement('div');
-  rangee.style.cssText = 'display:flex;gap:8px;margin-top:12px;';
-
-  /* La modification passe par la fenêtre du répertoire, telle
-     quelle : c'est elle qui sait enregistrer, et elle le sait
-     depuis longtemps. */
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'flex:1;margin:0;padding:12px;font-size:14px;';
-  b.textContent = '✏️ Modifier la fiche';
-  b.addEventListener('click', () => {
-    if(typeof ouvrirFicheEleve !== 'function'){
-      showToast("Le répertoire n'est pas disponible sur cet écran.");
-      return;
-    }
-    ouvrirFicheEleve(nom, (typeof ficheDe === 'function') ? ficheDe(nom) : null);
-  });
-  rangee.appendChild(b);
-
-  /* Lui écrire, s'il a un numéro. */
-  if(f && f.telephone && typeof telPourLien === 'function'){
-    const s = document.createElement('a');
-    s.href = 'sms:' + telPourLien(f.telephone);
-    s.className = 'btn btn-secondary';
-    s.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:12px 14px;' +
-      'font-size:15px;text-decoration:none;display:inline-flex;' +
-      'align-items:center;';
-    s.textContent = '💬';
-    s.title = 'Envoyer un SMS à ' + nom;
-    rangee.appendChild(s);
-  }
-
-  corps.appendChild(rangee);
 }
 
 
@@ -5059,6 +4972,19 @@ async function zonePasserelleEleve(corps, nom, refaire){
   /* Proposer un effacement définitif à qui ne peut que regarder,
      c'est promettre ce que le serveur refusera. */
   if(typeof peutModifier === 'function' && !peutModifier('eleves')) return;
+
+  /* 🔀 v1516 — déjà en passerelle : le groupe à ouvrir quand il a payé,
+     et les deux fiches à réunir s'il en a encore deux */
+  if(typeof ligneGroupePasserelle === 'function'){
+    const lp = ligneGroupePasserelle(nom, refaire, true);
+    const lr = (typeof ligneReunirPasserelle === 'function') ? ligneReunirPasserelle(nom, true) : null;
+    if(lp || lr){
+      corps.appendChild(sousTitreDossier('Passerelle BEA → BV'));
+      if(lp) corps.appendChild(lp);
+      if(lr) corps.appendChild(lr);
+      return;
+    }
+  }
 
   const boite = (typeof boiteDe === 'function')
     ? String(boiteDe(nom) || '').toLowerCase() : '';
