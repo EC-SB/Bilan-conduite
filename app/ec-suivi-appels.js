@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 13:43 — v1514 */
+/* Déployé le 20/11/2026 à 15:45 — v1516 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -189,7 +189,8 @@ function apCorrespond(a, filtre){
 const AP_COULEUR_EC = { joint: 'ok', message: 'info', repondeur: 'warn', pas_reponse: 'warn', manque: 'bad', ia: 'ia', sms: 'neutre' };
 function apCouleurEC(a){ return AP_COULEUR_EC[a && a.statut] || 'neutre'; }
 /* Les gestes de l'IA, en icône (le journal du Worker les nomme par outil) */
-const AP_ICONE_IA_EC = { debut_appel: '🔎', message: '✉️', signaler_retard: '⏰', laisser_demande: '📝', renvoyer_acces: '📧', creneaux_libres: '🗓️', horaires_agences: '🏢' };
+const AP_ICONE_IA_EC = { debut_appel: '🔎', message: '✉️', signaler_retard: '⏰', laisser_demande: '📝', renvoyer_acces: '📧', creneaux_libres: '🗓️', horaires_agences: '🏢',
+  noter_renseignement: '🪪', documents: '📎' };   /* 🪪 v1516 */
 function apIlYaEC(ms){
   const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
   if(m < 1) return 'à l’instant';
