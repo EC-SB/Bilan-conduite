@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 18:16 — v1503 */
+/* Déployé le 20/11/2026 à 10:00 — v1504 */
 /* ============================================================
    ec-base.js — v1503 (v1474 pour la première version)
    🗄️ LA BASE DE L'APPLI — Gestion › L'outil › 🗄️ Base (admins)
@@ -165,7 +165,7 @@ function bLigneReglage(cle, logo, nom, sous, on, puce, detail){
   return '<div class="bsL' + (ouvert ? ' ouvert' : '') + '" data-r="' + cle + '">' +
     '<div class="bsTete"><button type="button" class="bsOuvrir" aria-expanded="' + ouvert + '">' +
     '<span class="bsLogo">' + logo + '</span><span class="bsNom"><b>' + bEch(nom) + '</b><small>' + bEch(sous) + '</small></span>' +
-    puce + '<span class="bsChev" aria-hidden="true">›</span></button>' + bInter(on, nom, !!bTravail[cle] || (cle === 'eleve' ? !bReglages.eleve : !bReglages.archive)) + '</div>' +
+    puce + '<span class="bsChev" aria-hidden="true">›</span></button>' + bInter(on, nom, !!bTravail[cle] || (cle === 'archive' ? !bReglages.archive : !bReglages.eleve) || (cle === 'humain' && !(bReglages.eleve && bReglages.eleve.humain && bReglages.eleve.humain.pret))) + '</div>' +
     (ouvert ? '<div class="bsDetail">' + detail + '</div>' : '') + '</div>';
 }
 function bDetailEleve(){
@@ -186,6 +186,22 @@ function bDetailEleve(){
   }
   const enCours = c && c.faits < c.total;
   return h + '<div class="baseBoutons"><button type="button" class="btn baseRetour" data-comparer' + (enCours ? ' disabled' : '') + '>🔍 Comparer avec Apps Script</button></div>';
+}
+/* 🤖 v1504 — la vérification « c'est bien une personne » à la connexion de l'espace élève */
+function bDetailHumain(){
+  const hu = (bReglages.eleve && bReglages.eleve.humain) || {};
+  let h = '<div class="cdAide">À la connexion de l’espace élève, Cloudflare vérifie que c’est bien une personne et pas un robot qui essaie des codes. ' +
+    'Le plus souvent l’élève ne voit rien ; une case « Je suis humain » n’apparaît que si Cloudflare a un doute. Ensuite, son téléphone garde un laissez-passer ' +
+    'deux mois. Les tablettes de la salle et l’ordinateur de la salle de code ne sont pas concernés.</div>';
+  if(!hu.pret){
+    h += '<div class="baseMsg baseKo">🔑 Il manque les clés de Cloudflare Turnstile dans le Worker.</div>' +
+      '<ol class="bsEtapes"><li>Sur Cloudflare : <b>Turnstile</b> › <b>Add widget</b>. Nom : « Espace élève ». Hostnames : <b>eleve.evolutionconduites.fr</b> et <b>app.evolutionconduites.fr</b>. ' +
+      'Widget Mode : <b>Managed</b>.</li><li>Dans le Worker <b>bilan-proxy</b> › Settings › Variables and Secrets : <b>TURNSTILE_SITE_KEY</b> (la « Site Key ») ' +
+      'et <b>TURNSTILE_SECRET</b> (la « Secret Key », en <i>Secret</i>).</li><li>Reviens ici : la ligne s’allume toute seule.</li></ol>';
+  }else if(hu.le){
+    h += '<div class="cdAide">' + (hu.coupe ? 'Éteinte' : 'Rallumée') + ' le ' + bEch(baseQuand(hu.le)) + (hu.par ? ' par ' + bEch(hu.par) : '') + '</div>';
+  }
+  return h;
 }
 function bDetailArchive(){
   const ar = bReglages.archive || {};
@@ -229,6 +245,13 @@ function bDessinerLu(corps){
       !el ? 'Lecture…' : el.erreur ? el.erreur : el.actif ? 'allumé le ' + baseQuand(el.le) + (el.par ? ' par ' + el.par : '') : 'éteint : l’espace élève attend Apps Script (une douzaine de secondes)',
       !!(el && el.actif), el && !el.erreur ? (el.actif ? '<span class="bsPuce ok">Allumé</span>' : '<span class="bsPuce feuille">Éteint</span>') : '<span class="bsPuce">…</span>',
       bDetailEleve()) +
+    bLigneReglage('humain', '🤖', 'Vérifier que c’est bien une personne',
+      !el ? 'Lecture…' : el.erreur ? el.erreur : !(el.humain && el.humain.pret) ? 'pas encore en place : il manque les clés Cloudflare (touche la ligne)'
+        : el.humain.coupe ? 'éteinte : la connexion de l’espace élève ne demande rien' : 'à la connexion de l’espace élève, le plus souvent sans rien demander',
+      !!(el && el.humain && el.humain.pret && !el.humain.coupe),
+      !el || el.erreur ? '<span class="bsPuce">…</span>' : !(el.humain && el.humain.pret) ? '<span class="bsPuce route">Clés manquantes</span>'
+        : el.humain.coupe ? '<span class="bsPuce feuille">Éteinte</span>' : '<span class="bsPuce ok">Allumée</span>',
+      bDetailHumain()) +
     bLigneReglage('archive', '📄', 'Archiver un dossier dans Cloudflare',
       !ar ? 'Lecture…' : ar.erreur ? ar.erreur : ar.cloudflare ? (ar.archives || []).length + ' archive' + ((ar.archives || []).length > 1 ? 's' : '') + ' dans Cloudflare' : 'éteint : l’archive part dans Google Drive, comme avant',
       !!(ar && ar.cloudflare), ar && !ar.erreur ? (ar.cloudflare ? '<span class="bsPuce ok">Cloudflare</span>' : '<span class="bsPuce feuille">Google Drive</span>') : '<span class="bsPuce">…</span>',
@@ -303,6 +326,14 @@ async function bReglage(cle){
     if(on && !(await confirmer('L’espace élève repassera par Apps Script : une douzaine de secondes à chaque ouverture.', '⏸️ Éteindre l’espace élève sans Apps Script ?', true))) return;
     bTravail.eleve = '…'; bDessiner();
     try{ bReglages.eleve = await appelPrep({ action: 'baseEleve', quoi: on ? 'eteindre' : 'allumer' }); }
+    catch(e){ if(typeof showToast === 'function') showToast('⚠️ ' + baseErreur(e)); }
+  }else if(cle === 'humain'){
+    const hu = (bReglages.eleve && bReglages.eleve.humain) || {};
+    if(!hu.pret){ bOuvert.humain = true; bDessiner(); return; }
+    const on = !hu.coupe;
+    if(on && !(await confirmer('La connexion de l’espace élève ne vérifiera plus que c’est une personne. Le compteur d’essais par adresse reste en place.', '⏸️ Éteindre la vérification ?', true))) return;
+    bTravail.humain = '…'; bDessiner();
+    try{ bReglages.eleve = await appelPrep({ action: 'baseEleve', quoi: on ? 'humainEteindre' : 'humainAllumer' }); }
     catch(e){ if(typeof showToast === 'function') showToast('⚠️ ' + baseErreur(e)); }
   }else{
     const on = !!(bReglages.archive && bReglages.archive.cloudflare);
