@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 16:03 — v1517 */
+/* Déployé le 20/11/2026 à 17:08 — v1519 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 App Évolution » (anciennement « 📥 Bilan de conduite »)
 
@@ -454,8 +454,28 @@
       civilitePrescripteur: v('civilitePrescripteur'), nomPrescripteur: v('nomPrescripteur'), societePrescripteur: v('societePrescripteur'),
       adressePrescripteur: v('adressePrescripteur'), cpPrescripteur: v('cpPrescripteur'), villePrescripteur: v('villePrescripteur'),
       naissancePrescripteur: v('naissancePrescripteur'), mobilePrescripteur: v('fakeMobilePrescripteur'),
-      telephonePrescripteur: v('telephonePrescripteur'), mailPrescripteur: v('mailPrescripteur')
+      telephonePrescripteur: v('telephonePrescripteur'), mailPrescripteur: v('mailPrescripteur'),
+      /* 🚗 v1519 — Formule & Permis › dernier permis (la date d'une régularisation, d'une passerelle) */
+      dateDernierPermis: v('dateDernierPermis'), dernierPermisObtenu: v('dernierPermisObtenu')
     };
+  }
+  /* 📚 v1519 — l'onglet Examens de la fiche (examens_eleve.php) : « Obtention du
+     code » (sa date) et le bandeau du mandat RdvPermis. Ses états, relevés le
+     20 novembre : 3 = mandat actif, 2 = trouvé sur RdvPermis et importé,
+     1 = aucun mandat, 5 = pas de NEPH (pas de mandat possible). */
+  const MANDATS_DRIVUP = { 3: 'actif', 2: 'importe', 1: 'aucun', 5: 'sansNeph' };
+  function examenDuDoc(d) {
+    const dc = d.querySelector('input[name="date_code"], input#date_code');
+    const b = d.getElementById('bandeauMandat');
+    const etat = b ? Number((String(b.className).match(/etat-(\d+)/) || [])[1] || 0) : 0;
+    return { dateCode: propre(dc && dc.value), mandat: MANDATS_DRIVUP[etat] || '' };
+  }
+  async function examenDeLEleve(id) {
+    try {
+      const r = await fetch('/eleves/examens_eleve.php?eleve=' + encodeURIComponent(id), { credentials: 'same-origin' });
+      if (!r.ok) return {};
+      return examenDuDoc(new DOMParser().parseFromString(await r.text(), 'text/html'));
+    } catch (e) { return {}; }
   }
 
   /* 🪪 v1517 — les fiches lues en arrière-plan, à la demande de
@@ -480,7 +500,7 @@
             const r = await fetch('/eleves/profil.php?eleve=' + encodeURIComponent(id), { credentials: 'same-origin' });
             if (r.ok) {
               const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
-              if (doc.getElementById('nom')) out[id] = complementsDuProfil(doc);
+              if (doc.getElementById('nom')) out[id] = Object.assign(complementsDuProfil(doc), await examenDeLEleve(id));
             }
           } catch (e) { /* une fiche illisible : les autres continuent */ }
           fait++;
@@ -515,7 +535,7 @@
       neph: v('neph').replace(/\D/g, ''), mobile: v('fakeMobile'), naissance: v('dateNaissance'),
       formation: formationDeLaFiche(), photo: photoDe(avatar), notes: notes,
       /* 🪪 v1517 — adresse, ville de naissance, responsable légal (prescripteur), NEPH */
-      complements: complementsDuProfil(document),
+      complements: Object.assign(complementsDuProfil(document), id ? await examenDeLEleve(id) : {}),
       /* 🏢 v1333 — l'agence d'inscription, si la fiche la montre (champ ou menu
          « agence ») ; sinon elle vient de la liste des élèves */
       agence: v('agence') || propre(((document.querySelector('#agence option:checked, select[name=agence] option:checked') || {}).textContent) || '')
