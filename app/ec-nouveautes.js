@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 16:47 — v1518 */
+/* Déployé le 20/11/2026 à 17:08 — v1519 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1519,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '📞 Raccrocher sans revenir sur l’appli (bandeau + fenêtre volante), la fiche d’une passerelle ou d’une régularisation, le mandat, et les 12 séances de code',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Raccrocher depuis Drivup',
+        texte: 'Pendant un appel, un bandeau en haut de l’appli (sur téléphone : en bas) avec 🔴 Raccrocher. Et une petite fenêtre volante, toujours au-dessus des autres fenêtres (Drivup compris) : elle s’ouvre quand on appelle depuis l’appli, ou avec ⧉ dans le bandeau. Un appel qui arrive se refuse aussi d’ici.' },
+      { emoji: '🚗',
+        titre: 'Passerelle et régularisation : la date du permis',
+        texte: 'Dans la fiche, « 📚 Code obtenu le » laisse la place à « 🚗 Permis obtenu le » : pour une passerelle, la date du permis BEA (le « permis obtenu » de son ancienne fiche) ; pour une régularisation, la date du dernier permis, reprise de Drivup.' },
+      { emoji: '⏳',
+        titre: 'Code : « en cours d’apprentissage », et le mandat',
+        texte: '« Code obtenu le » peut dire « ⏳ En cours d’apprentissage ». Le favori Drivup lit aussi Examens › Obtention du code : la date, et le mandat RdvPermis (✅ actif, ou ❌ aucun / NEPH manquant), affiché au bout de la ligne.' },
+      { emoji: '✅',
+        titre: 'Ses 12 séances de code',
+        texte: 'Dossier › 🎓 Code, pour les élèves qui font le code avec nous : « ✅ A fait ses 12 séances » ferme « 📝 Mes séances de code » dans son espace (proposé quand l’appli en compte 12) ; « 🔁 Rouvrir ses séances » les remet.' }
+    ]
+  },
   {
     version: 1518,
     date: 'Vendredi 20 novembre 2026',
