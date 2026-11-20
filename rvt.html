@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 09/09/2026 à 11:49 — v897 -->
+<!-- Déployé le 20/11/2026 à 10:00 — v1504 -->
 <!-- ============================================================
      RENDEZ-VOUS PÉDAGOGIQUE — VOS DISPONIBILITÉS
      Évolution Conduites
@@ -361,7 +361,7 @@ function envoyer(){
 
   fetch(PROXY + '/rvt', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body: JSON.stringify({ r: jeton, reponses: etat.reponses,
                            accompagnateur: etat.accompagnateur,
                            repond: etat.repond })
