@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 15:45 — v1516 */
+/* Déployé le 20/11/2026 à 16:03 — v1517 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1517,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '📥 Le favori Drivup reprend le dossier (NEPH, responsable légal, adresse, lieu de naissance, civilité) et le tableau par élève',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Le favori lit les onglets de la fiche Drivup',
+        texte: 'Coordonnées (adresse, ville de naissance, civilité pour le genre du bilan), Infos complémentaires (le prescripteur devient le responsable légal d’un mineur) et Formule & Permis (NEPH). Seules les cases vides chez nous se remplissent.' },
+      { emoji: '💯',
+        titre: 'Depuis la liste des élèves, par 100',
+        texte: 'Le favori lit lui-même, en arrière-plan, la fiche Drivup des élèves déjà dans l’appli à qui il manque quelque chose. Les élèves pas encore dans l’appli sont laissés de côté.' },
+      { emoji: '👥',
+        titre: 'Le tableau par élève',
+        texte: 'Gestion › L’IA d’Allo › 📋 Les infos à demander › 👥 Par élève : ce qui manque à chaque élève en formation ; un nom ouvre sa fiche, ☑️ fait tout demander par l’IA.' },
+      { emoji: '🪪',
+        titre: 'Le NEPH s’écrit d’affilée',
+        texte: 'Sans espaces, comme sur les papiers de l’ANTS.' }
+    ]
+  },
   {
     version: 1516,
     date: 'Vendredi 20 novembre 2026',
