@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:00 — v1504 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-base.js — v1503 (v1474 pour la première version)
    🗄️ LA BASE DE L'APPLI — Gestion › L'outil › 🗄️ Base (admins)
@@ -190,9 +190,9 @@ function bDetailEleve(){
 /* 🤖 v1504 — la vérification « c'est bien une personne » à la connexion de l'espace élève */
 function bDetailHumain(){
   const hu = (bReglages.eleve && bReglages.eleve.humain) || {};
-  let h = '<div class="cdAide">À la connexion de l’espace élève, Cloudflare vérifie que c’est bien une personne et pas un robot qui essaie des codes. ' +
-    'Le plus souvent l’élève ne voit rien ; une case « Je suis humain » n’apparaît que si Cloudflare a un doute. Ensuite, son téléphone garde un laissez-passer ' +
-    'deux mois. Les tablettes de la salle et l’ordinateur de la salle de code ne sont pas concernés.</div>';
+  let h = '<div class="cdAide">À la connexion de l’espace élève et de l’appli de l’équipe, Cloudflare vérifie que c’est bien une personne et pas un robot qui essaie des codes. ' +
+    'Le plus souvent on ne voit rien ; une case « Je suis humain » n’apparaît que si Cloudflare a un doute. Ensuite, l’appareil garde un laissez-passer ' +
+    'deux mois pour ce code. Les tablettes de la salle et l’ordinateur de la salle de code ne sont pas concernés.</div>';
   if(!hu.pret){
     h += '<div class="baseMsg baseKo">🔑 Il manque les clés de Cloudflare Turnstile dans le Worker.</div>' +
       '<ol class="bsEtapes"><li>Sur Cloudflare : <b>Turnstile</b> › <b>Add widget</b>. Nom : « Espace élève ». Hostnames : <b>eleve.evolutionconduites.fr</b> et <b>app.evolutionconduites.fr</b>. ' +
@@ -247,7 +247,7 @@ function bDessinerLu(corps){
       bDetailEleve()) +
     bLigneReglage('humain', '🤖', 'Vérifier que c’est bien une personne',
       !el ? 'Lecture…' : el.erreur ? el.erreur : !(el.humain && el.humain.pret) ? 'pas encore en place : il manque les clés Cloudflare (touche la ligne)'
-        : el.humain.coupe ? 'éteinte : la connexion de l’espace élève ne demande rien' : 'à la connexion de l’espace élève, le plus souvent sans rien demander',
+        : el.humain.coupe ? 'éteinte : les connexions ne demandent rien' : 'à la connexion de l’espace élève et de l’appli de l’équipe, le plus souvent sans rien demander',
       !!(el && el.humain && el.humain.pret && !el.humain.coupe),
       !el || el.erreur ? '<span class="bsPuce">…</span>' : !(el.humain && el.humain.pret) ? '<span class="bsPuce route">Clés manquantes</span>'
         : el.humain.coupe ? '<span class="bsPuce feuille">Éteinte</span>' : '<span class="bsPuce ok">Allumée</span>',
@@ -331,7 +331,7 @@ async function bReglage(cle){
     const hu = (bReglages.eleve && bReglages.eleve.humain) || {};
     if(!hu.pret){ bOuvert.humain = true; bDessiner(); return; }
     const on = !hu.coupe;
-    if(on && !(await confirmer('La connexion de l’espace élève ne vérifiera plus que c’est une personne. Le compteur d’essais par adresse reste en place.', '⏸️ Éteindre la vérification ?', true))) return;
+    if(on && !(await confirmer('Les connexions (espace élève et appli de l’équipe) ne vérifieront plus que c’est une personne. Le compteur d’essais par adresse reste en place.', '⏸️ Éteindre la vérification ?', true))) return;
     bTravail.humain = '…'; bDessiner();
     try{ bReglages.eleve = await appelPrep({ action: 'baseEleve', quoi: on ? 'humainEteindre' : 'humainAllumer' }); }
     catch(e){ if(typeof showToast === 'function') showToast('⚠️ ' + baseErreur(e)); }
