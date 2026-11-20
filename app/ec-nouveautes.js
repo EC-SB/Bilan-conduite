@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:48 — v1506 */
+/* Déployé le 20/11/2026 à 11:05 — v1507 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1507,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🗄️ La flotte, la CB gasoil, ALMA et la paie passent dans la base rapide',
+    quoi: [
+      { emoji: '🧾',
+        titre: 'Les feuilles de gestion dans la base',
+        texte: 'Les véhicules, leurs événements, la carrosserie, la CB gasoil, les paiements ALMA et les six feuilles de la paie se lisent et s’écrivent maintenant dans la base de Cloudflare : Gestion répond plus vite. Google garde une copie à jour. Elles basculent seules la nuit prochaine, ou tout de suite par Gestion › 🗄️ Base (familles Flotte, Caisse et Paie).' }
+    ]
+  },
   {
     version: 1506,
     date: 'Vendredi 20 novembre 2026',
