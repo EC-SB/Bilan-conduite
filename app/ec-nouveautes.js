@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:00 — v1504 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1505,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🤖 La vérification « c’est bien une personne » aussi pour l’équipe · 🔒 le navigateur refuse tout script qui ne vient pas de l’appli',
+    quoi: [
+      { emoji: '🤖',
+        titre: 'Pour l’équipe aussi',
+        texte: 'La connexion de l’appli de l’équipe passe par la même vérification que l’espace élève : le plus souvent rien à faire, une case seulement si Cloudflare a un doute, puis un laissez-passer deux mois sur l’appareil. Un ordinateur du bureau garde ceux des cinq derniers codes. L’ordinateur de la salle de code et les tablettes de la salle en sont dispensés. Même interrupteur dans Gestion › 🗄️ Base › Réglages.' },
+      { emoji: '🔒',
+        titre: 'Aucun script étranger',
+        texte: 'L’appli et l’espace élève disent au navigateur de n’exécuter que leurs propres scripts (et ceux de Cloudflare). Même si un texte piégé se glissait quelque part, il ne pourrait rien faire. Les fenêtres d’impression lancent maintenant l’impression depuis l’appli.' }
+    ]
+  },
   {
     version: 1504,
     date: 'Vendredi 20 novembre 2026',
