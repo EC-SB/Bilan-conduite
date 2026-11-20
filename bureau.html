@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 14/10/2026 à 10:52 — v1173 -->
+<!-- Déployé le 20/11/2026 à 10:00 — v1504 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -291,7 +291,7 @@
     return r.json();
   }
   async function ecrire(corps){
-    var r = await fetch(RELAIS + '/bureau', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    var r = await fetch(RELAIS + '/bureau', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                                               body: JSON.stringify(corps) });
     return r.json();
   }
