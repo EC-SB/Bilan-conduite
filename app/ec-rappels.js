@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:15 — v1409 */
+/* Déployé le 20/11/2026 à 11:18 — v1508 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -907,8 +907,13 @@ async function remplirChoixVehicule(){
   const sel = $('rapVehicule');
   if(!sel) return;
 
-  const liste = (await chargerFlotteRappel())
+  let liste = (await chargerFlotteRappel())
     .filter(v => v.etat !== 'vendu' && v.categorie !== 'remorque');
+  /* ⇅ v1508 — dans l'ordre rangé par l'équipe ; les autres, dans l'ordre de la Flotte */
+  if(typeof chargerOrdreEquipe === 'function'){
+    await chargerOrdreEquipe();
+    liste = trierOrdreEquipe('voitures', liste, v => v.nom);
+  }
 
   if(!liste.length){
     sel.innerHTML = '<option value="">— aucun véhicule enregistré —</option>';
@@ -938,6 +943,61 @@ async function remplirChoixVehicule(){
     if(encore) sel.value = memo;
   }
   majChampsVehicule();
+}
+
+/* ============================================================
+   ⇅ RANGER LES MONITEURS ET LES VOITURES — v1508
+
+   David, le 20/11 : « dans rappels de cours que je puisse modifier
+   l'ordre des moniteurs et des voitures ». Ses choix : en glissant,
+   pour toute l'équipe, et l'ordre des moniteurs est le même que dans
+   📅 Mes prochains cours (voir ORDRE_EQUIPE, ec-prepares.js).
+   Les deux menus se rangent sur place : ce qui était choisi le reste.
+   ============================================================ */
+function trierMenuRappel(sel, quoi){
+  if(!sel || typeof trierOrdreEquipe !== 'function') return;
+  const opts = [...sel.options];
+  const fixes = opts.filter(o => !o.value || o.value === 'autre');
+  const ranges = trierOrdreEquipe(quoi, opts.filter(o => o.value && o.value !== 'autre'), o => o.value);
+  const garde = sel.value;
+  const debut = fixes.filter(o => !o.value), fin = fixes.filter(o => o.value === 'autre');
+  debut.concat(ranges, fin).forEach(o => sel.appendChild(o));
+  sel.value = garde;
+}
+async function dessinerOrdreRappel(z){
+  z.innerHTML = '<div class="rapOrdreAide">Glisse un nom pour le déplacer. L’ordre vaut pour toute l’équipe, ' +
+    'et celui des moniteurs est aussi celui de 📅 Mes prochains cours.</div>' +
+    '<h4>👤 Moniteurs</h4><div class="rapOrdreListe" id="rapOrdreMon">Lecture…</div>' +
+    '<h4>🚗 Voitures</h4><div class="rapOrdreListe" id="rapOrdreVoit">Lecture…</div>';
+  await chargerOrdreEquipe(true);
+  if(typeof chargerMoniteurs === 'function' && (typeof moniteursActifs === 'undefined' || !moniteursActifs.length)){
+    try{ await chargerMoniteurs(); }catch(e){}
+  }
+  const mons = trierOrdreEquipe('moniteurs', ((typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || []).slice(), m => m);
+  const voits = trierOrdreEquipe('voitures', (await chargerFlotteRappel())
+    .filter(v => v.etat !== 'vendu' && v.categorie !== 'remorque'), v => v.nom).map(v => v.nom);
+  const remplir = (id, noms, quoi, menu) => {
+    const l = z.querySelector('#' + id);
+    if(!l) return;
+    l.innerHTML = '';
+    if(!noms.length){ l.textContent = quoi === 'voitures' ? 'Aucune voiture dans la Flotte.' : 'Aucun moniteur.'; return; }
+    noms.forEach(n => {
+      const s = document.createElement('span');
+      s.className = 'ordreRangeable';
+      s.dataset.ordre = n;
+      s.textContent = n;
+      l.appendChild(s);
+    });
+    glisserPourRanger(l, '.ordreRangeable', async cles => {
+      await enregistrerOrdreEquipe(quoi, cles);
+      trierMenuRappel($(menu), quoi);
+      /* Mes prochains cours suit, s'il est déjà dessiné */
+      const r = $('prepQuiBoutons');
+      if(quoi === 'moniteurs' && r){ r._signature = ''; if(typeof afficherPrepares === 'function') afficherPrepares(false); }
+    });
+  };
+  remplir('rapOrdreMon', mons, 'moniteurs', 'rapMoniteur');
+  remplir('rapOrdreVoit', voits, 'voitures', 'rapVehicule');
 }
 
 /* Le champ caché que lisent le SMS et l'affichage */
@@ -1147,6 +1207,27 @@ async function afficherRappelManuel(){
     'Sans moniteur, le rappel part sans créer de cours.';
   gauche.appendChild(aideMon);
 
+  /* ⇅ v1508 — l'ordre des moniteurs et des voitures des deux menus,
+     rangé en glissant, pour toute l'équipe (David, le 20/11) */
+  const bOrdre = document.createElement('button');
+  bOrdre.type = 'button';
+  bOrdre.id = 'rapOrdreBouton';
+  bOrdre.className = 'btn btn-secondary';
+  bOrdre.style.cssText = 'width:auto;padding:4px 10px;font-size:12px;margin:2px 0 10px;';
+  bOrdre.textContent = '⇅ Ranger les moniteurs et les voitures';
+  bOrdre.setAttribute('aria-expanded', 'false');
+  const zOrdre = document.createElement('div');
+  zOrdre.id = 'rapOrdre';
+  zOrdre.className = 'rapOrdre';
+  zOrdre.hidden = true;
+  bOrdre.addEventListener('click', () => {
+    zOrdre.hidden = !zOrdre.hidden;
+    bOrdre.setAttribute('aria-expanded', zOrdre.hidden ? 'false' : 'true');
+    if(!zOrdre.hidden) dessinerOrdreRappel(zOrdre);
+  });
+  gauche.appendChild(bOrdre);
+  gauche.appendChild(zOrdre);
+
   /* ── 2 · LES CRÉNEAUX ──────────────────────────────────────
      La journée du moniteur. L'écran la chargeait déjà pour deviner
      où est la voiture (planningDuJourRappels) ; il la montre. */
@@ -1322,7 +1403,10 @@ async function afficherRappelManuel(){
          (typeof moniteursActifs === 'undefined' || !moniteursActifs.length)){
         await chargerMoniteurs();
       }
-      const liste = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+      /* ⇅ v1508 — dans l'ordre de l'équipe (celui du planning de David) */
+      if(typeof chargerOrdreEquipe === 'function') await chargerOrdreEquipe();
+      const brute = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+      const liste = (typeof trierOrdreEquipe === 'function') ? trierOrdreEquipe('moniteurs', brute, m => m) : brute;
       if(!liste.length) throw new Error('liste vide');
 
       selMon.innerHTML = '<option value="">— ne pas créer le cours —</option>' +
@@ -1940,6 +2024,8 @@ function voitureDuCoursDrivupRappel(c, voitures, flotte, boite){
 
 async function voitureDepuisDrivupRappel(c, eleve){
   if(!c || !c.jour) return;
+  /* 🏠 v1508 — à Loudéac, la voiture suit la boîte de l'élève (voir appliquerLoudeacRappel) */
+  if(typeof estLoudeacDr === 'function' && estLoudeacDr(c)) return;
   const dv = (typeof drivupDuJourRappels === 'function') ? await drivupDuJourRappels(c.jour) : null;
   const voitures = (dv && dv.voitures) || [];
   const flotte = await chargerFlotteRappel();
@@ -2270,6 +2356,45 @@ function estLaVeilleDr(eleve, jourIso){
   }catch(e){ return false; }
 }
 
+/* ============================================================
+   🏠 LES COURS DE LOUDÉAC — v1508
+
+   David, le 20/11 : « quand c'est des cours sur Loudéac il faut mettre
+   dans type de séance Cours - Loudéac et le véhicule soit A3 BEA
+   Loudéac si c'est un cours en BEA et A3 BV Loudéac si c'est un cours
+   en BV ». Un cours est à Loudéac quand le planning Drivup le dit
+   (l'agence, ou le titre du cours). Pas pour un examen, un examen
+   blanc, le simulateur ni la moto, qui gardent leurs règles. La boîte
+   est celle de l'élève (sa formation) ; inconnue, la voiture ne
+   bouge pas et on le dit. Tout reste modifiable avant d'envoyer.
+   ============================================================ */
+function estLoudeacDr(c){
+  return !!c && /loudeac/.test(normaliserMot(String(c.agence || '')) + ' ' + libDr(c));
+}
+function motsRappel(t){ return normaliserMot(String(t || '')).replace(/[^a-z0-9]+/g, ' ').trim(); }
+async function appliquerLoudeacRappel(c, eleve){
+  if(!estLoudeacDr(c) || estSimuDr(c) || estMotoDr(c) || estBlocExamenDr(c)) return;
+  const lib = libDr(c);
+  if(c.examen || /examen/.test(lib)) return;
+  /* le type « Cours - Loudéac » (le titre exact d'abord) */
+  const exact = o => motsRappel(titreAfficheRappel(o.textContent)) === 'cours loudeac';
+  const proche = o => { const t = motsRappel(titreAfficheRappel(o.textContent)); return /\bcours\b/.test(t) && /\bloudeac\b/.test(t) && !/examen|blanc|simu|permis|moto|1er|premier/.test(t); };
+  const tousTypes = $('rapType') ? [...$('rapType').options] : [];
+  const pose = tousTypes.some(exact) ? choisirTypeRappelDr(exact) : choisirTypeRappelDr(proche);
+  if(pose) reglesPoseesRappel.type = $('rapType').value;
+  else showToast('🏠 Cours à Loudéac : aucun type de séance « Cours - Loudéac » dans la liste.');
+  /* la voiture, d'après la boîte de l'élève */
+  const b = boiteDeLEleveRappel(eleve || c.eleve);
+  if(!b){ showToast('🏠 Cours à Loudéac : boîte de l’élève inconnue, choisis la voiture.'); return; }
+  const voulue = b === 'bva' ? 'a3 bea loudeac' : 'a3 bv loudeac';
+  await chargerFlotteRappel();
+  const sel = $('rapVehicule');
+  const o = sel ? [...sel.options].find(x => x.value && motsRappel(x.value) === voulue) : null;
+  if(!o){ showToast('🏠 Aucune voiture « ' + (b === 'bva' ? 'A3 BEA Loudéac' : 'A3 BV Loudéac') + ' » dans la Flotte.'); return; }
+  if(o.disabled){ showToast('🏠 ' + o.value + ' est indisponible dans la Flotte : choisis une autre voiture.'); return; }
+  vehiculeRappel(o.value);
+}
+
 /* Après le remplissage d'un créneau Drivup : les règles */
 async function appliquerReglesRappel(c, eleve){
   heureCoursRappel = null;
@@ -2296,6 +2421,9 @@ async function appliquerReglesRappel(c, eleve){
       o => { const n = normaliserMot(titreAfficheRappel(o.textContent)); return mots.filter(m => n.indexOf(m) !== -1).length; })) reglesPoseesRappel.type = $('rapType').value;
   }
   if(estSimuDr(c) || estMotoDr(c)) vehiculeRappel('');
+  /* 🏠 v1508 — un cours de conduite à Loudéac */
+  if(!p) await appliquerLoudeacRappel(c, eleve);
+  if(ticket !== ticketReglesRappel) return;
   if(apresUnPermisDr(c)) cocherOptionRappel('retard');
   const suites = suitesDeChaineDr(c);
   if(suites.length) suitesARappel = suites;
