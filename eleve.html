@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 20/11/2026 à 10:00 — v1504 -->
+<!-- Déployé le 20/11/2026 à 10:13 — v1505 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-ILC4+3O9q9VAcu620+Dx2GN6bNMZFP2yNbe9Vu5h8a0='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -3447,8 +3448,9 @@
     }, 5000);
   }
   function appelEquipe(chemin, corps){
+    /* 🤖 v1505 — le jeton de la tablette : la salle est dispensée de la vérification « personne » */
     return fetch(RELAIS + chemin, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(Object.assign({ code: EQUIPE_SALLE ? EQUIPE_SALLE.code : '' }, corps)) })
+      body: JSON.stringify(Object.assign({ code: EQUIPE_SALLE ? EQUIPE_SALLE.code : '', jetonTablette: (typeof TABLETTE !== 'undefined' && TABLETTE && TABLETTE.jeton) || '' }, corps)) })
       .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){
         if(!r.ok || (d && d.error)) throw new Error((d && (d.error || d.message)) || ('Refusé (' + r.status + ')'));
         if(d && d.status === 'error') throw new Error(d.message || 'Refusé');
@@ -3732,7 +3734,7 @@
     function valider(){
       if(tape.length < 4){ f.querySelector('#salleMsgStop').textContent = 'Ton code de l’appli, en entier.'; return; }
       f.querySelector('#salleMsgStop').textContent = '⏳ …';
-      fetch(RELAIS + '/auth', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ code: tape }) })
+      fetch(RELAIS + '/auth', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ code: tape, jetonTablette: (typeof TABLETTE !== 'undefined' && TABLETTE && TABLETTE.jeton) || '' }) })
         .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ if(!r.ok || (d && d.error)) throw new Error((d && d.error) || 'Code refusé'); return d; }); })
         .then(function(){ arreter(); })
         .catch(function(er){ tape = ''; montrer(); f.querySelector('#salleMsgStop').textContent = (er && er.message) || 'Code refusé.'; });
