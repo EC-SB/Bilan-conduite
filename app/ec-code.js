@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:31 — v1465 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -1162,6 +1162,7 @@ function imprimerQrEtg(grands){
   w.document.open();
   w.document.write(htmlQrEtg(grands, true));
   w.document.close();
+  setTimeout(() => { try{ w.focus(); w.print(); }catch(e){} }, 350);
 }
 /* La feuille à imprimer. 🎨 v1428 — David : « 6 QR codes par page, donc
    sur 2 pages » ; ou une séance par page A4 pour l'entrée de la salle. */
@@ -1186,7 +1187,7 @@ function htmlQrEtg(grands, imprimer){
     'svg{width:100%;height:100%;display:block}' +
     '@media screen{body{background:#888}.page{margin:10px auto;box-shadow:0 2px 12px rgba(0,0,0,.4);background:#fff}}' +
     '</style></head><body>' + pages +
-    (imprimer ? '<script>setTimeout(function(){window.focus();window.print();},350);<\/script>' : '') + '</body></html>';
+    '</body></html>';   /* 🔒 v1505 — l'impression se lance d'ici : la règle des scripts (Content-Security-Policy) refuse un script écrit dans la fenêtre */
 }
 
 /* ---------- 🎓 L'ONGLET CODE DU DOSSIER ----------
