@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:19 — v1511 */
+/* Déployé le 20/11/2026 à 12:37 — v1512 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -28,7 +28,7 @@ const SECTIONS_ONGLET = {
      mot : un droit qui ne mène nulle part est pire qu'un droit
      refusé. */
   cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart',
+  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'depart',
           /* 📞 v1266 — le suivi des appels */
           'appels',
           /* 📺 v1290 — la salle des tablettes */
@@ -43,7 +43,8 @@ const SECTIONS_ONGLET = {
      est du suivi quotidien, pas du réglage. */
   suivi:  ['bureau_simu', 'bureau_examblanc', 'suivi_aac_cs', 'ecoutes',
            'parcours'],
-  permis: ['bureau_permis', 'bureau_places'],
+  /* 🪪 v1512 — « permis » (l'élève qui a obtenu son permis) vit ici */
+  permis: ['bureau_permis', 'bureau_places', 'permis'],
   /* ⚠️ SANS CETTE LIGNE, L'ONGLET N'APPARAÎT JAMAIS — v1074. C'est
      cette table qui dit quel droit ouvre quel onglet : un onglet
      déclaré dans ONGLETS_DROITS mais absent d'ici existe dans le
@@ -250,6 +251,11 @@ const VUES = {
            ['preppermis','📣 Préparation',      'bureau_permis', 'Le parcours B'],
            ['sessions',  '🎓 Suivi permis',     'bureau_permis', 'Le parcours B'],
            ['resultats', '🏁 Résultats',        'bureau_permis', 'Le parcours B'],
+           /* 🪪 v1512 — « Permis obtenu » a quitté Élèves pour son sous-onglet
+              à lui (David : « je le mettrais bien dans permis directement »),
+              juste après les résultats : c'est la suite du parcours. 🪪 et
+              non 🎓 : le logo du rail replié doit rester unique. */
+           ['permis',    '🪪 Permis obtenu',    'permis',        'Le parcours B'],
            ['moto',      '🏍️ Moto',            'bureau_permis', 'Les autres permis'],
            ['remorque',  '🚚 Remorque',         'bureau_permis', 'Les autres permis']],
   /* LE SUIVI CS ET LE SUIVI AAC SONT DANS SUIVI, ET SÉPARÉS.
@@ -303,11 +309,15 @@ const VUES = {
   /* ⚠️ LA MESSAGERIE EST PARTIE DANS SON PROPRE ONGLET — v1074.
      Elle était ici, juste après le dossier. Voir la clé
      « messagerie » plus bas, et ONGLETS_DROITS. */
+  /* ⚠️ v1512 — L'ORDRE DE DAVID, le 20 novembre : le Code et
+     l'Évaluation passent « Au quotidien », juste sous le dossier ; les
+     Renseignements et l'Historique des leçons passent en
+     « Administratif » ; « Permis obtenu » quitte ce rail pour son
+     propre sous-onglet dans 🚗 Permis (voir plus haut). */
   eleves: [['dossier',    '👤 Dossier élève',         'eleves',      'Au quotidien'],
-           /* 📋 v1175 — qui n'a pas rempli ses renseignements, et le
-              questionnaire lui-même (administrateurs). */
-           ['renseignements', '📋 Renseignements',   'eleves',      'Au quotidien'],
-           ['recherche',  '📚 Historique des leçons', 'recherche',   'Au quotidien'],
+           /* 🎓 v1427 — le code (ec-code.js) */
+           ['code',       '🎓 Code',                   'code',        'Au quotidien'],
+           ['evaluation', '📊 Évaluation',            'evaluation',  'Au quotidien'],
            ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
            /* 📞 v1266 — le suivi des appels d'Allo (choix de David : sous les rappels) */
            ['appels',     '📞 Suivi des appels',      'appels',      'Au quotidien'],
@@ -317,29 +327,23 @@ const VUES = {
            ['salle',      '📺 Salle des tablettes',   'salle',       'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
 
-           ['evaluation', '📊 Évaluation',            'evaluation',  'Administratif'],
            ['financements','💶 Financements',         'financements','Administratif'],
            /* ⚠️ IL A CHANGÉ D'ONGLET — v957. David : « paiement en
               plusieurs fois, mets-le dans élèves administratif ».
               Et derrière les financements : c'est une façon de
               payer, elle se lit à la suite des autres. */
            ['paiement',   '💳 Paiement en plusieurs fois', 'paiement', 'Administratif'],
+           /* 📋 v1175 — qui n'a pas rempli ses renseignements, et le
+              questionnaire lui-même (administrateurs). */
+           ['renseignements', '📋 Renseignements',   'eleves',      'Administratif'],
+           ['recherche',  '📚 Historique des leçons', 'recherche',   'Administratif'],
            ['handicap',   '♿ Handicap',               'handicap',    'Administratif'],
-           ['code',       '🎓 Code',                   'code',        'Administratif'],
 
            /* Le répertoire est devenu ce qu'il restait de lui une
               fois que tout le per-élève est parti dans le dossier :
               l'import, la création, et la liste pour vérifier
               qu'un import a bien atterri. */
            ['eleves',     '➕ Ajouter des élèves',     'eleves',      'Entrées et sorties'],
-           /* ⚠️ 🪪 ET NON 🎓 — v962. « 🎓 Code » portait déjà ce
-              logo-là dans le MÊME rail. Tant que le nom s'écrivait
-              à côté, la confusion se rattrapait ; replié, le rail
-              ne montre plus que le logo, et deux boutons
-              identiques l'un au-dessus de l'autre ne se
-              distinguent plus du tout. La carte qu'on remet, donc,
-              plutôt que le chapeau du diplôme. */
-           ['permis',     '🪪 Permis obtenu',         'permis',      'Entrées et sorties'],
            ['depart',     '🚪 Départ',                'depart',      'Entrées et sorties']],
   /* Ce qui sert au quotidien pédagogique */
   /* Trois familles : ce qu'on MESURE, ce qu'on ÉCRIT une fois pour
