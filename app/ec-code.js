@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 14:54 — v1515 */
+/* Déployé le 20/11/2026 à 17:08 — v1519 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -1296,10 +1296,85 @@ async function ongletCodeEleve(corps, nom){
   const ouvrir = n => ouvrirSeanceDossierEtg(nom, n, par[n] || null, ou, () => ongletCodeEleve(corps, nom));
   z.querySelectorAll('tr.ouvrable').forEach(tr => tr.addEventListener('click', () => ouvrir(Number(tr.dataset.s))));
   z.querySelectorAll('.rang span[data-s]').forEach(sp => sp.addEventListener('click', () => ouvrir(Number(sp.dataset.s))));
+  /* ✅ v1519 — ses 12 séances faites : fermer « Mes séances de code » dans son espace */
+  const z12 = document.createElement('div');
+  corps.appendChild(z12);
+  blocDouzeSeancesCode(z12, nom, finies.length);
   /* 📈 v1465 — et le jeu « Mon code », sous ses séances */
   const zj = document.createElement('div');
   corps.appendChild(zj);
   blocJeuCodeDossier(zj, nom);
+}
+
+/* ============================================================
+   ✅ v1519 — SES 12 SÉANCES FAITES
+
+   David, le 20 novembre : « une option dans les dossiers élèves, pour ceux
+   qui font avec nous, pour valider que l'élève a fait ses 12 séances ; une
+   fois les 12 faites, on enlève Mes séances de code de l'espace élève, et un
+   autre bouton pour rouvrir si l'élève veut les refaire. » Son choix : à la
+   main, mais proposé quand l'appli compte 12 séances.
+
+   ⚠️ UNE CLÉ DE PLUS DANS SES MODULES (« code_fini », colonne G de
+   ElevesAcces), à côté de « code » : rien d'autre ne bouge. Il reste « avec
+   nous », le jeu du code reste ouvert, l'onglet 🎓 Code aussi. Le Worker
+   (codeOuvertPourLEleve) et l'espace élève ferment seulement ses séances ;
+   une séance en visio où il entre reste ouverte.
+   ============================================================ */
+const CODE_FINI_MOD = 'code_fini';
+function modulesDeLAccesEtg(a){ return String((a && a.modules) || '').split(',').map(x => x.trim()).filter(Boolean); }
+async function accesFraisEtg(nom){
+  const dA = await appelPrep({ action: 'accesElevesList' });
+  if(typeof lireEtatAcces === 'function') lireEtatAcces(dA);
+  const n = x => (typeof normaliserMot === 'function') ? normaliserMot(String(x || '')) : String(x || '').trim().toLowerCase();
+  return ((dA && dA.acces) || []).find(x => n(x.eleve) === n(nom)) || null;
+}
+async function blocDouzeSeancesCode(z, nom, faites){
+  let a = null;
+  try{ a = await accesFraisEtg(nom); }catch(e){ return; }
+  if(!a) return;
+  const m = modulesDeLAccesEtg(a);
+  const fini = m.indexOf(CODE_FINI_MOD) !== -1;
+  const avecNous = m.indexOf('code') !== -1 && m.indexOf('code_deja') === -1 && m.indexOf('code_cote') === -1;
+  if(!fini && !avecNous) return;
+  const peut = typeof niveauDroit !== 'function' || niveauDroit('acces_eleves') === 'm' || niveauDroit('eleves') === 'm';
+  z.className = 'dsDouze' + (fini ? ' fini' : (faites >= 12 ? ' pret' : ''));
+  z.innerHTML = '';
+  const t = document.createElement('div');
+  t.className = 'dsDouzeT';
+  t.innerHTML = fini
+    ? '<b>✅ Ses 12 séances sont validées</b><small>« 📝 Mes séances de code » est fermé dans son espace (le jeu du code reste ouvert).</small>'
+    : (faites >= 12
+      ? '<b>🎉 ' + Math.min(faites, 12) + ' / 12 : ses 12 séances sont faites</b><small>Valide-les pour fermer « 📝 Mes séances de code » dans son espace.</small>'
+      : '<b>Ses 12 séances</b><small>' + faites + ' / 12 faites. Quand elles sont toutes faites, valide-les : « 📝 Mes séances de code » se ferme dans son espace.</small>');
+  z.appendChild(t);
+  if(!peut) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn ' + (fini || faites < 12 ? 'btn-secondary' : 'btn-primary');
+  b.textContent = fini ? '🔁 Rouvrir ses séances' : '✅ A fait ses 12 séances';
+  b.addEventListener('click', async () => {
+    if(b.disabled) return;
+    if(!fini && faites < 12 && typeof confirmer === 'function' &&
+       !await confirmer('L’appli ne compte que ' + faites + ' séance(s) sur 12 pour ' + nom + '.\n\nValider quand même ses 12 séances ? « 📝 Mes séances de code » se fermera dans son espace.', '✅ Valider')) return;
+    b.disabled = true;
+    try{
+      const frais = await accesFraisEtg(nom);
+      if(!frais) throw new Error('son espace n’existe plus');
+      let mods = modulesDeLAccesEtg(frais).filter(x => x !== CODE_FINI_MOD);
+      if(!fini) mods.push(CODE_FINI_MOD);
+      const groupes = Array.isArray(frais.groupes) ? frais.groupes.join('|') : String(frais.groupes || '');
+      const r = await appelPrep({ action: 'accesEleveSet', eleve: nom, modules: mods.join(','), groupes: groupes });
+      if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+      if(typeof cvPoserDansLEtat === 'function') cvPoserDansLEtat(nom, mods.join(','), Array.isArray(frais.groupes) ? frais.groupes : []);
+      if(typeof showToast === 'function') showToast(fini ? '🔁 Ses séances de code sont rouvertes dans son espace' : '✅ 12 séances validées : ses séances de code sont fermées dans son espace');
+      blocDouzeSeancesCode(z, nom, faites);
+    }catch(e){
+      b.disabled = false;
+      if(typeof showToast === 'function') showToast('Non enregistré : ' + (e.message || e));
+    }
+  });
+  z.appendChild(b);
 }
 
 /* ============================================================
