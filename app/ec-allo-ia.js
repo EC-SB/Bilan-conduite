@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:38 — v1512 */
+/* Déployé le 20/11/2026 à 12:49 — v1513 */
 /* ============================================================
    ec-allo-ia.js — v1511
    🤖 L'IA D'ALLO BRANCHÉE SUR L'APPLI
@@ -498,16 +498,28 @@ function dessinerAlloDossier(){
    pendant cet appel (même numéro, pendant l'appel) — voir
    gestesAlloIaDesAppels. Rien n'est recalculé ici.
    ============================================================ */
+/* 📞 v1513 — un geste par ligne, avec son heure (schéma du Suivi des
+   appels redessiné, validé le 20/11) */
+const ICONES_IA_ALLO = { debut_appel: '🔎', message: '✉️', signaler_retard: '⏰', laisser_demande: '📝', renvoyer_acces: '📧', creneaux_libres: '🗓️', horaires_agences: '🏢' };
 function blocIaAllo(a){
   const l = (a && Array.isArray(a.ia)) ? a.ia.filter(x => x && x.resume) : [];
   if(!l.length) return null;
   const vus = {};
-  const bouts = [];
-  l.forEach(x => { if(vus[x.resume]) return; vus[x.resume] = 1; bouts.push(x.resume + (x.ok === false ? ' ⚠️' : '')); });
-  const d = alloEl('div', 'alIa');
-  d.appendChild(document.createTextNode('🤖 '));
-  d.appendChild(alloEl('b', '', 'Ce que l’IA d’Allo a fait'));
-  d.appendChild(document.createTextNode(' · ' + bouts.join(' · ')));
+  const d = alloEl('div', 'alIa axIa');
+  const t = alloEl('div', 'axIaT');
+  t.append(alloEl('span', 'axDot ia'), document.createTextNode('L’IA D’ALLO PENDANT CET APPEL'));
+  d.appendChild(t);
+  const ol = document.createElement('ol');
+  l.forEach(x => {
+    if(vus[x.resume]) return;
+    vus[x.resume] = 1;
+    const li = alloEl('li', x.ok === false ? 'ko' : '');
+    li.appendChild(alloEl('span', 'axIaI', ICONES_IA_ALLO[x.outil] || '🤖'));
+    li.appendChild(alloEl('span', '', String(x.resume).replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, '') + (x.ok === false ? ' ⚠️' : '')));
+    li.appendChild(alloEl('span', 'axIaH', x.le ? new Date(x.le).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }) : ''));
+    ol.appendChild(li);
+  });
+  d.appendChild(ol);
   return d;
 }
 
