@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 12:01 — v1412 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -1158,8 +1158,10 @@ function aiImprimer(g){
     '<h2>✅ Possibles</h2><table>' + lignes(L.filter(x => x.etat === 'oui')) + '</table>' +
     '<h2>🟠 À voir</h2><table>' + lignes(L.filter(x => x.etat === 'voir')) + '</table>' +
     '<p style="font-size:12px;color:#555;margin-top:24px;">Si tout est accordé. Évolution Conduites — le ' + aiFrDeIso(aiAujourdhui()) + '.</p>' +
-    '<script>setTimeout(function(){print();},300);<\/script></body></html>');
+    '</body></html>');
   w.document.close();
+  /* 🔒 v1505 — l'impression se lance d'ici : la règle des scripts (Content-Security-Policy) refuse un script écrit dans la fenêtre */
+  setTimeout(() => { try{ w.focus(); w.print(); }catch(e){} }, 300);
 }
 
 async function aiGarder(g){
