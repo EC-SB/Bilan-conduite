@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2062,6 +2062,9 @@ async function editerDossierEleve(nom, bouton){
       onglet.document.open();
       onglet.document.write(page);
       onglet.document.close();
+      /* 🔒 v1505 — l'impression se lance d'ici : la règle des scripts (Content-Security-Policy) refuse un script écrit dans la fenêtre */
+      const bi = onglet.document.querySelector('.ecImprimer');
+      if(bi) bi.addEventListener('click', () => onglet.print());
     }else{
       /* Fenêtre bloquée : on ne fait pas semblant. */
       await informer("Le navigateur a bloqué l'ouverture de l'onglet. " +
@@ -2277,7 +2280,7 @@ function pageDossier(d){
     (mentions ? '</ul><p style="margin:8px 0 0;"><strong>À signaler :' +
      '</strong></p><ul>' + mentions : '') +
     '</ul>' +
-    '<p style="margin:10px 0 0;"><button onclick="window.print()">' +
+    '<p style="margin:10px 0 0;"><button type="button" class="ecImprimer">' +
     '🖨️ Imprimer / enregistrer en PDF</button></p></div>' +
     corps +
     '</body></html>';
