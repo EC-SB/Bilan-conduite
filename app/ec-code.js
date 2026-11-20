@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:13 — v1505 */
+/* Déployé le 20/11/2026 à 14:54 — v1515 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -392,6 +392,17 @@ function dessinerGrilleEtg(){
     const n = normaliserMot(e.nom);
     return mots.every(m => n.indexOf(m) !== -1);
   });
+  /* ⬆️ v1515 — David, le 20 novembre : « dans ce tableau mets en haut les
+     dernières réponses ». Le plus récent (une séance rendue, ou une
+     présence en visio) d'abord ; le même jour, par nom. */
+  const dernierEtg = e => {
+    let d = '';
+    Object.keys(e.seances || {}).forEach(n => { const x = String((e.seances[n] || {}).date || ''); if(x > d) d = x; });
+    const m = motsEleveEtg(e.nom);
+    (presencesVisioListe || []).forEach(p => { if(motsEleveEtg(p.eleve) === m && String(p.jour || '') > d) d = String(p.jour || ''); });
+    return d;
+  };
+  eleves.sort((a, b) => dernierEtg(b).localeCompare(dernierEtg(a)) || String(a.nom).localeCompare(String(b.nom), 'fr'));
 
   if(!eleves.length){
     zone.innerHTML = '<div class="empty">Aucun élève ne correspond.' +
@@ -948,17 +959,35 @@ function seancesFaitesParMotsEtg(){
   });
   return m;
 }
-/* 🎯 Pour un groupe : les séances qu'aucun n'a vues (dans l'ordre), sinon les moins vues */
-function seancesPourLeGroupeEtg(noms){
+/* 🎯 Pour un groupe : les séances qu'aucun n'a vues (dans l'ordre), sinon les moins vues.
+   ✅ v1515 — David : « Thanh a fait ses 12 séances » ; on lui proposait la
+   séance 1, « la moins vue ». Celui qui a fait ses 12 ne compte plus pour le
+   choix : il est dit à part (finis), et un groupe où tous les ont faites
+   n'a plus de séance à lancer. Une séance « pas finie » compte (son choix). */
+function seancesPourLeGroupeEtg(nomsTous){
   const faites = seancesFaitesParMotsEtg();
+  const douze = x => Object.keys(faites[motsEleveEtg(x)] || {}).filter(n => n >= 1 && n <= NB_SEANCES).length >= NB_SEANCES;
+  const finis = nomsTous.filter(douze);
+  const noms = nomsTous.filter(x => !douze(x));
+  if(!noms.length) return { libres: [], moins: [], finis: finis, tousFinis: true };
   const comptes = [];
   for(let n = 1; n <= NB_SEANCES; n++){
     const vu = noms.filter(x => (faites[motsEleveEtg(x)] || {})[n]).length;
     comptes.push({ n: n, vu: vu });
   }
   const libres = comptes.filter(c => !c.vu).map(c => c.n);
-  if(libres.length) return { libres: libres, moins: [] };
-  return { libres: [], moins: comptes.slice().sort((a, b) => a.vu - b.vu || a.n - b.n).slice(0, 3) };
+  if(libres.length) return { libres: libres, moins: [], finis: finis, nb: noms.length };
+  return { libres: [], moins: comptes.slice().sort((a, b) => a.vu - b.vu || a.n - b.n).slice(0, 3), finis: finis, nb: noms.length };
+}
+/* ⏱️ v1515 — David : « enlève une fois qu'ils ont fait la séance : au bout
+   de 15 minutes, c'est bon ». Un cours du jour reste affiché jusqu'à
+   15 minutes après son début. */
+function coursEncoreALancerEtg(c){
+  const m = String((c && c.debut) || '').match(/^(\d{1,2})[:h](\d{2})/);
+  if(!m) return true;
+  const maintenant = new Date();
+  const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
+  return minutes < Number(m[1]) * 60 + Number(m[2]) + 15;
 }
 /* La partie Drivup du bloc « 🎯 Quelle séance lancer ? » (remplie à part) */
 function blocDrivupALancerEtg(){
@@ -966,7 +995,12 @@ function blocDrivupALancerEtg(){
   z.className = 'cdALancer';
   z.innerHTML = '<div class="cdAide">⏳ Les cours de code du jour dans Drivup…</div>';
   appelPrep({ action: 'codeAVenir' }).then(r => {
-    const cr = (r && r.creneaux) || [];
+    const tous = (r && r.creneaux) || [];
+    const cr = tous.filter(coursEncoreALancerEtg);
+    if(tous.length && !cr.length){
+      z.innerHTML = '<div class="cdAide">✅ Les cours de code du jour sont lancés : plus rien à annoncer.</div>';
+      return;
+    }
     if(!cr.length){
       z.innerHTML = '<div class="cdAide">📅 Aucun cours de code réservé aujourd’hui dans Drivup' +
         (r && r.lu ? ' (planning lu le ' + echapEtg(r.lu) + ')' : ' — relis le planning avec le favori 📥 pour les voir ici') + '.</div>';
@@ -977,13 +1011,19 @@ function blocDrivupALancerEtg(){
       const nb = c.eleves.length;
       const quoi = c.genre === 'visio' ? '🎥 Visio' : '🏫 ETG en salle' + (c.agence ? ' · ' + echapEtg(c.agence) : '');
       let cons;
-      if(g.libres.length){
+      const nbChoix = g.nb || nb;
+      const dits = g.finis && g.finis.length
+        ? '<span class="aussi">✅ ' + g.finis.map(echapEtg).join(' · ') + (g.finis.length > 1 ? ' ont fait leurs' : ' a fait ses') + ' 12 séances</span>' : '';
+      if(g.tousFinis){
+        cons = '<span class="num">✓</span><span><strong>' + (nb > 1 ? 'Ils ont fait leurs 12 séances' : g.finis.map(echapEtg).join('') + ' a fait ses 12 séances') +
+          '</strong> : rien à lui proposer</span>';
+      }else if(g.libres.length){
         cons = '<span class="num">' + g.libres[0] + '</span><span><strong>Séance ' + g.libres[0] + '</strong> : ' +
-          (nb > 1 ? 'aucun des ' + nb + ' ne l’a vue' : 'pas encore vue') + '</span>' +
-          (g.libres.length > 1 ? '<span class="aussi">aussi : ' + g.libres.slice(1, 6).join(' · ') + '</span>' : '');
+          (nbChoix > 1 ? 'aucun des ' + nbChoix + ' ne l’a vue' : 'pas encore vue') + '</span>' +
+          (g.libres.length > 1 ? '<span class="aussi">aussi : ' + g.libres.slice(1, 6).join(' · ') + '</span>' : '') + dits;
       }else{
         cons = '<span class="num">' + g.moins[0].n + '</span><span><strong>Séance ' + g.moins[0].n + '</strong> : la moins vue (' +
-          g.moins[0].vu + ' sur ' + nb + ')</span><span class="aussi">ensuite : ' + g.moins.slice(1).map(x => x.n).join(' · ') + '</span>';
+          g.moins[0].vu + ' sur ' + nbChoix + ')</span><span class="aussi">ensuite : ' + g.moins.slice(1).map(x => x.n).join(' · ') + '</span>' + dits;
       }
       return '<div class="slot"><div class="h">' + quoi + ' · aujourd’hui ' + echapEtg(String(c.debut).replace(':', 'h')) + '</div>' +
         '<div class="qui">📅 Drivup : ' + nb + ' réservé' + (nb > 1 ? 's' : '') + ' — ' + c.eleves.map(echapEtg).join(' · ') + '</div>' +
@@ -1220,7 +1260,10 @@ async function ongletCodeEleve(corps, nom){
     if(!a || String(r.date || '') > String(a.date || '') || (String(r.date || '') === String(a.date || '') && rang(r) >= rang(a))) par[r.seance] = r;
   });
   const liste = Object.keys(par).map(k => par[k]);
-  const finies = liste.filter(r => !r.app || r.fini || r.ou === 'ardoise');
+  /* ✅ v1515 — David : « Thanh a fait ses 12 séances ». Une séance commencée
+     et rendue compte, même « pas finie » (son choix) : la mention reste dans
+     la liste. Avant, elle sortait du compte (11/12). */
+  const finies = liste;
   const fautes = finies.reduce((t, r) => t + Number(r.fautes || 0), 0);
   const der = liste.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
   const ou = r => r.ou === 'visio' ? '🎥 visio' : r.ou === 'salle' ? '📱 en salle' : r.ou === 'ardoise' ? '✍️ ardoise' : r.corrige ? '✍️ saisi au bureau' : '📄 Google Form';
