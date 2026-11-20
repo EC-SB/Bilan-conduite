@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 13:43 — v1514 */
+/* Déployé le 20/11/2026 à 14:54 — v1515 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1515,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🎓 Le code : les dernières réponses en haut, les séances déjà lancées s’effacent, 12 séances faites = plus rien à proposer',
+    quoi: [
+      { emoji: '⬆️',
+        titre: 'Le tableau des séances : le plus récent en haut',
+        texte: 'Élèves › 🎓 Code : l’élève qui vient de rendre une séance (ou d’être en visio) passe en tête du tableau.' },
+      { emoji: '⏱️',
+        titre: '« Quelle séance lancer ? » s’efface tout seul',
+        texte: 'Un cours de code du jour disparaît 15 minutes après son début : il est lancé.' },
+      { emoji: '✅',
+        titre: 'Les 12 séances faites',
+        texte: 'Une séance commencée et rendue compte, même « pas finie » (la mention reste à côté). Un élève qui a fait ses 12 n’a plus de séance proposée : c’est écrit « a fait ses 12 séances ».' }
+    ]
+  },
   {
     version: 1514,
     date: 'Vendredi 20 novembre 2026',
