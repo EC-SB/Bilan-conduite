@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 15:45 — v1516 */
+/* Déployé le 20/11/2026 à 16:03 — v1517 */
 /* ============================================================
    ec-fiche-infos.js — v1516 — SA FICHE, EN LIGNES
 
@@ -545,6 +545,7 @@ let alloFiEtat = null;
 function alloFicheInfos(){
   const w = fiEl('div', '');
   w.id = 'alloFiZone';
+  if(alloFiVue === 'eleves'){ chargerTableauFi(w); return w; }
   if(alloFiEtat) dessinerAlloFicheInfos(w, alloFiEtat);
   else w.appendChild(fiEl('div', 'empty', 'Lecture de la liste…'));
   chargerAlloFicheInfos(w);
@@ -556,7 +557,7 @@ async function chargerAlloFicheInfos(w, corps, bravo){
     if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
     alloFiEtat = d;
     const z = document.getElementById('alloFiZone') || w;
-    dessinerAlloFicheInfos(z, d);
+    if(alloFiVue !== 'eleves') dessinerAlloFicheInfos(z, d);
     if(bravo) fiToast(typeof bravo === 'function' ? bravo(d) : bravo);
   }catch(e){
     if(!corps){ w.innerHTML = ''; w.appendChild(fiEl('div', 'empty', '⚠️ ' + (e.message || e))); }
@@ -565,6 +566,7 @@ async function chargerAlloFicheInfos(w, corps, bravo){
 }
 function dessinerAlloFicheInfos(w, d){
   w.innerHTML = '';
+  w.appendChild(ongletsAlloFi(w));   /* 👥 v1517 — par info, ou par élève */
   const intro = fiEl('div', 'crIntro');
   intro.append(document.createTextNode('Ce qu’on peut demander aux élèves pour leur dossier du permis. Deux interrupteurs par ligne : '),
     fiEl('b', '', '🧑‍🎓 Mes infos'), document.createTextNode(' — l’élève la voit « à compléter » dans son espace s’il en manque ; '),
@@ -651,6 +653,174 @@ function dessinerAlloFicheInfos(w, d){
   bloc.appendChild(f);
   bloc.appendChild(fiEl('div', 'amMeta', 'Comptés parmi les ' + (d.eleves || 0) + ' élèves qui ont un espace ouvert ; le responsable légal, parmi ceux dont on sait qu’ils sont mineurs.'));
   w.appendChild(bloc);
+}
+
+
+/* ============================================================
+   👥 v1517 — LE TABLEAU PAR ÉLÈVE
+
+   David, le 20 novembre : « ou alors tu me fais un tableau avec les
+   élèves et ce qu'il manque ». Une ligne par élève en formation (fiche
+   sans « Parti le »), une colonne par info du dossier. Toucher un nom
+   ouvre sa fiche ; ☑️ fait demander par l'IA d'Allo tout ce qui lui
+   manque.
+   ============================================================ */
+let alloFiVue = 'infos';
+let alloFiTableau = null;
+const alloFiFiltre = { texte: '', manque: true };
+function ongletsAlloFi(w){
+  const o = fiEl('div', 'alOnglets fiVues');
+  [['infos', '📋 Par info'], ['eleves', '👥 Par élève']].forEach(([k, t]) => {
+    const b = fiBouton(alloFiVue === k ? 'on' : '', t, '', () => {
+      alloFiVue = k;
+      if(k === 'eleves') chargerTableauFi(w);
+      else if(alloFiEtat) dessinerAlloFicheInfos(w, alloFiEtat);
+    });
+    b.setAttribute('aria-pressed', alloFiVue === k ? 'true' : 'false');
+    o.appendChild(b);
+  });
+  return o;
+}
+async function chargerTableauFi(w, bravo){
+  if(!alloFiTableau){ w.innerHTML = ''; w.appendChild(ongletsAlloFi(w)); w.appendChild(fiEl('div', 'empty', 'Lecture des élèves…')); }
+  else dessinerTableauFi(w, alloFiTableau);
+  try{
+    const d = await appelPrep({ action: 'ficheInfosTableau' });
+    if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+    alloFiTableau = d;
+    if(alloFiVue === 'eleves') dessinerTableauFi(document.getElementById('alloFiZone') || w, d);
+    if(bravo) fiToast(bravo);
+  }catch(e){
+    if(!alloFiTableau){ w.innerHTML = ''; w.appendChild(ongletsAlloFi(w)); w.appendChild(fiEl('div', 'empty', '⚠️ ' + (e.message || e))); }
+    else fiToast('⚠️ ' + (e.message || e));
+  }
+}
+const FI_COLONNES_TABLEAU = [
+  ['naissance', '🎂', 'Date de naissance'], ['naissLieu', '📍', 'Lieu de naissance'], ['adresse', '🏠', 'Adresse'],
+  ['neph', '🪪', 'NEPH'], ['dateCode', '📚', 'Code obtenu le']
+];
+const FI_RESP = ['rlNom', 'rlAdresse', 'rlNaissance', 'rlTel', 'rlMail'];
+const FI_DOCS_TAB = ['ephoto', 'justifDomicile', 'attestHeberg', 'idHebergeant', 'identite', 'assr2', 'jdc', 'dernierPermis'];
+function manquesFi(l){
+  return Object.keys(l.cases).filter(k => l.cases[k] === 'manque' || l.cases[k] === 'demande');
+}
+function caseFi(etat, titre){
+  const td = fiEl('td', 'c fiCel');
+  const s = fiEl('span', 'fiEt ' + (etat || 'na'));
+  s.textContent = etat === 'ok' ? '✓' : etat === 'verif' ? '✓?' : etat === 'demande' ? '📞' : etat === 'manque' ? '✕' : '—';
+  s.title = titre + ' : ' + (etat === 'ok' ? 'dans sa fiche' : etat === 'verif' ? 'à vérifier' : etat === 'demande' ? 'manque — l’IA d’Allo le demande' :
+    etat === 'manque' ? 'manque' : 'ne s’applique pas');
+  td.appendChild(s);
+  return td;
+}
+function dessinerTableauFi(w, d){
+  w.innerHTML = '';
+  w.appendChild(ongletsAlloFi(w));
+  w.appendChild(fiEl('div', 'crIntro', 'Les élèves en formation (fiche sans « Parti le ») et ce qui manque à leur dossier. ✓ dans sa fiche · ✓? à vérifier · 📞 manque, l’IA d’Allo le demande · ✕ manque · — ne s’applique pas. ' +
+    'Toucher un nom ouvre sa fiche ; ☑️ fait demander par l’IA tout ce qui lui manque. Pour reprendre ce que Drivup a déjà : le favori, depuis la liste des élèves de Drivup.'));
+  const barre = fiEl('div', 'fiBarre');
+  const rech = document.createElement('input');
+  rech.type = 'search'; rech.placeholder = '🔍 Chercher un élève'; rech.value = alloFiFiltre.texte;
+  rech.setAttribute('aria-label', 'Chercher un élève');
+  const lab = fiEl('label', 'fiCoche');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox'; cb.checked = alloFiFiltre.manque;
+  lab.append(cb, document.createTextNode(' Seulement ceux à qui il manque quelque chose'));
+  const compte = fiEl('span', 'gsN', '');
+  barre.append(rech, lab, compte);
+  w.appendChild(barre);
+  const bloc = fiEl('div', 'amBloc gsBloc');
+  const defile = fiEl('div', 'gsDefile');
+  const tab = fiEl('table', 'gsT fiTab');
+  const th = document.createElement('thead');
+  const tr0 = document.createElement('tr');
+  const enTete = (t, titre) => { const x = fiEl('th', '', t); if(titre) x.title = titre; tr0.appendChild(x); };
+  enTete('Élève');
+  FI_COLONNES_TABLEAU.forEach(([, em, titre]) => enTete(em, titre));
+  enTete('👪', 'Responsable légal (mineur)');
+  enTete('📎', 'Documents (dossier ANTS fait par nous)');
+  enTete('📇', 'Dossier ANTS');
+  enTete('');
+  th.appendChild(tr0);
+  tab.appendChild(th);
+  const tb = document.createElement('tbody');
+  tab.appendChild(tb);
+  defile.appendChild(tab);
+  bloc.appendChild(defile);
+  w.appendChild(bloc);
+  const norm = t => (typeof normaliserMot === 'function') ? normaliserMot(String(t || '')) : String(t || '').toLowerCase();
+  const peut = fiPeut();
+  const remplir = () => {
+    tb.innerHTML = '';
+    const q = norm(alloFiFiltre.texte);
+    const lignes = (d.lignes || []).filter(l => (!q || norm(l.eleve).indexOf(q) !== -1) && (!alloFiFiltre.manque || manquesFi(l).length))
+      .sort((a, b) => manquesFi(b).length - manquesFi(a).length || String(a.eleve).localeCompare(String(b.eleve), 'fr'));
+    compte.textContent = lignes.length + ' élève' + (lignes.length > 1 ? 's' : '') + ' sur ' + (d.lignes || []).length;
+    lignes.slice(0, 400).forEach(l => {
+      const tr = document.createElement('tr');
+      const t1 = fiEl('td', 'fiNom');
+      const a = fiBouton('anLien', l.eleve, 'Ouvrir sa fiche', () => {
+        if(typeof ouvrirPageEleve !== 'function') return;
+        ouvrirPageEleve(l.eleve);
+        setTimeout(() => { if(typeof choisirOngletEleve === 'function') choisirOngletEleve('fiche'); }, 60);
+      });
+      t1.appendChild(a);
+      t1.appendChild(fiEl('small', '', [l.formation, l.age !== null && l.age !== undefined ? l.age + ' ans' : 'âge inconnu',
+        l.propositions ? '✏️ ' + l.propositions + ' changement(s) signalé(s)' : ''].filter(Boolean).join(' · ')));
+      tr.appendChild(t1);
+      FI_COLONNES_TABLEAU.forEach(([k, , titre]) => tr.appendChild(caseFi(l.cases[k], titre)));
+      /* le responsable légal, en une case */
+      const rl = FI_RESP.map(k => l.cases[k]);
+      const tdR = fiEl('td', 'c fiCel');
+      if(rl.every(x => x === 'na' || !x)) tdR.appendChild(fiEl('span', 'fiEt na', '—'));
+      else{
+        const n = rl.filter(x => x === 'manque' || x === 'demande').length;
+        const s = fiEl('span', 'fiEt ' + (n ? (rl.some(x => x === 'demande') ? 'demande' : 'manque') : 'ok'), n ? (5 - n) + '/5' : '✓');
+        s.title = 'Responsable légal : ' + (n ? (5 - n) + ' info(s) sur 5 dans sa fiche' : 'complet') + (l.mineur === null ? ' (âge inconnu)' : '');
+        tdR.appendChild(s);
+      }
+      tr.appendChild(tdR);
+      /* les documents */
+      const tdD = fiEl('td', 'c fiCel');
+      if(l.ants === 'nous'){
+        const docs = FI_DOCS_TAB.map(k => l.cases[k]).filter(Boolean);
+        const recus = docs.filter(x => x === 'ok').length;
+        const s = fiEl('span', 'fiEt ' + (recus === docs.length ? 'ok' : (docs.some(x => x === 'demande') ? 'demande' : 'manque')), recus + '/' + docs.length);
+        s.title = 'Documents reçus : ' + recus + ' sur ' + docs.length;
+        tdD.appendChild(s);
+      }else tdD.appendChild(fiEl('span', 'fiEt na', l.ants === 'eleve' ? 'élève' : '—'));
+      tr.appendChild(tdD);
+      const tdA = fiEl('td', 'c fiCel');
+      tdA.appendChild(fiEl('span', 'fiEt ' + (l.ants ? 'ok' : 'manque'), l.ants === 'nous' ? 'nous' : l.ants === 'eleve' ? 'élève' : '?'));
+      tdA.firstChild.title = 'Dossier ANTS : ' + (l.ants === 'nous' ? 'fait par nous' : l.ants === 'eleve' ? 'fait par l’élève' : 'non renseigné');
+      tr.appendChild(tdA);
+      const tdB = fiEl('td', 'c');
+      const aDemander = Object.keys(l.cases).some(k => l.cases[k] === 'manque' && FI_DOCS_TAB.indexOf(k) === -1);
+      if(peut && aDemander){
+        const b = fiBouton('alPetit', '☑️', 'Faire demander par l’IA d’Allo tout ce qui manque à ' + l.eleve, async () => {
+          b.disabled = true;
+          try{
+            const r = await appelPrep({ action: 'ficheInfosPoser', eleve: l.eleve, geste: 'cocherManque' });
+            if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+            chargerTableauFi(w, '☑️ ' + l.eleve + ' : ce qui manque est demandé');
+          }catch(e){ b.disabled = false; fiToast('⚠️ ' + (e.message || e)); }
+        });
+        tdB.appendChild(b);
+      }
+      tr.appendChild(tdB);
+      tb.appendChild(tr);
+    });
+    if(!lignes.length){
+      const tr = document.createElement('tr');
+      const td = fiEl('td', '', alloFiFiltre.manque ? '✅ Personne : rien ne manque.' : 'Aucun élève.');
+      td.colSpan = 11;
+      tr.appendChild(td);
+      tb.appendChild(tr);
+    }
+  };
+  rech.addEventListener('input', () => { alloFiFiltre.texte = rech.value; remplir(); });
+  cb.addEventListener('change', () => { alloFiFiltre.manque = cb.checked; remplir(); });
+  remplir();
 }
 
 /* Signale que ce module est bien chargé */
