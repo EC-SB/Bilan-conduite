@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:37 — v1512 */
+/* Déployé le 20/11/2026 à 16:47 — v1518 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -100,6 +100,8 @@ function ongletsDisponibles(){
     /* ✍️ v1282 — un moniteur formateur d'une formation entreprise :
        Outils, pour 💼 Formations seulement (ec-formations-signer.js) */
     if(o === 'outils' && window.FE_FORMATEUR) return true;
+    /* 💥 v1518 — tous les moniteurs (droit « cours ») : le constat amiable */
+    if(o === 'outils' && typeof aDroit === 'function' && aDroit('cours')) return true;
     return SECTIONS_ONGLET[o].some(s => typeof aDroit === 'function' && aDroit(s));
   });
 }
@@ -110,6 +112,15 @@ function majOngletsVisibles(){
   const dispo = ongletsDisponibles();
   barre.querySelectorAll('.onglet').forEach(b => { b.hidden = (dispo.indexOf(b.getAttribute('data-cible')) === -1); });
   barre.style.display = (dispo.length > 1) ? 'flex' : 'none';
+  /* 💥 v1518 — « formateur » arrive après les barres : 💼 Formations en dépend.
+     Les boutons refaits gardent la vue ouverte allumée. */
+  if(typeof construireBarresVues === 'function'){
+    construireBarresVues();
+    Object.keys(vueActive).forEach(o => {
+      const bv = document.querySelector('.barre-vues[data-pour="' + o + '"]');
+      if(bv) bv.querySelectorAll('button[data-vue-cible]').forEach(x => x.classList.toggle('actif', x.getAttribute('data-vue-cible') === vueActive[o]));
+    });
+  }
 }
 
 function afficherOnglet(cle, memoriser){
@@ -405,6 +416,10 @@ const VUES = {
            /* 🧰 v1246 — David : « un endroit, la base de données des
               questions de vérification, que je puisse modifier » */
            ['verifs',     '🧰 Vérifications',          'bilans',      'Ce qu’on écrit'],
+           /* 💥 v1518 — David : « une aide pour remplir un constat amiable
+              avec un modèle de ce que le moniteur doit remplir ». Tous les
+              moniteurs (droit « cours »). */
+           ['constat',    '💥 Constat amiable',        'cours',       'Ce qu’on écrit'],
            ['courriers',  '✉️ Courriers',               'courriers',   'Ce qu’on écrit'],
            /* 🤝 v1481 — David : « un endroit où on peut coller les mails des
               parents ou des élèves et que tu nous aides à y répondre ».
@@ -1759,6 +1774,9 @@ function construireBarresVues(){
       if(cle === 'admin')   return ACCES.role === 'admin';
       if(cle === 'base')    return ACCES.role === 'admin';      /* v1503 */
       if(cle === 'allo')    return ACCES.role === 'admin';      /* v1511 */
+      /* 💥 v1518 — Outils s'ouvre à tous les moniteurs pour le constat :
+         💼 Formations reste à ceux qui l'avaient (le droit, ou formateur) */
+      if(cle === 'formations' && typeof aDroit === 'function' && !aDroit('formations')) return !!window.FE_FORMATEUR;
       /* 💶 v1345 — la case ET le rôle : un bureau à qui on aurait
          coché la case n'y entre pas (le Worker refuse aussi). */
       if(cle === 'charges') return ACCES.role === 'admin' &&
@@ -2128,6 +2146,8 @@ function reveillerVue(cle){
     ecole:      () => (typeof afficherEcole === 'function') && afficherEcole(),
     /* ✉️ v1243 */
     courriers:  () => (typeof afficherCourriers === 'function') && afficherCourriers(),
+    /* 💥 v1518 */
+    constat:    () => (typeof afficherConstat === 'function') && afficherConstat(),
     aidereponses: () => (typeof afficherAideReponses === 'function') && afficherAideReponses(),
     /* 💼 v1280 */
     formations: () => (typeof afficherFormations === 'function') && afficherFormations(),
@@ -2147,6 +2167,8 @@ function reveillerVue(cle){
     flotte:     () => {
       const peut = c => typeof aDroit !== 'function' || aDroit(c);
       if(peut('flotte') && typeof afficherFlotte === 'function') afficherFlotte();
+      /* 🛡️ v1518 — l'assurance des voitures, reprise dans le constat amiable */
+      if(peut('flotte') && typeof afficherAssuranceFlotte === 'function') afficherAssuranceFlotte();
       if(peut('carrosserie') && typeof afficherCarrosserie === 'function'){
         afficherCarrosserie();
       }
