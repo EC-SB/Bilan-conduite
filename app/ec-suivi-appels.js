@@ -1,4 +1,4 @@
-/* Déployé le 30/10/2026 à 14:51 — v1310 */
+/* Déployé le 20/11/2026 à 12:19 — v1511 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -432,6 +432,8 @@ function ligneAppelEC(a, o){
     }
     c.appendChild(r);
   }
+  /* 🤖 v1511 — ce que l'IA d'Allo a fait pendant cet appel (ec-allo-ia.js) */
+  if(typeof blocIaAllo === 'function'){ const ia = blocIaAllo(a); if(ia) c.appendChild(ia); }
   /* 📄 v1269 — le résumé complet de l'appel, à déplier */
   if(a.source === 'allo' && a.genre === 'CALL'){
     const bloc = document.createElement('div');
