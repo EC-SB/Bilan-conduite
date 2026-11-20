@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:37 — v1512 */
+/* Déployé le 20/11/2026 à 12:49 — v1513 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1513,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '📞 Le Suivi des appels redessiné : un poste de contrôle en direct, la part de l’IA d’Allo, un fil chronologique',
+    quoi: [
+      { emoji: '📡',
+        titre: 'Un poste de contrôle en haut',
+        texte: 'En direct : la ligne d’Allo, l’état de l’IA d’Allo, Relire, Tout rappeler, Noter un appel, et quatre compteurs — à rappeler (dont en retard), appels du jour heure par heure, pris par l’IA (retards, demandes, accès renvoyés), non rattachés. Toucher un compteur filtre la liste.' },
+      { emoji: '🧭',
+        titre: 'La recherche, la période en boutons, les filtres en pastilles',
+        texte: 'Aujourd’hui · Semaine · 30 j · 3 mois · 1 an, et un filtre « 🤖 Pris par l’IA ».' },
+      { emoji: '🕘',
+        titre: 'Chaque numéro en fil chronologique',
+        texte: 'Dans la liste, un rond à la couleur du dernier appel et les gestes de l’IA en icônes. Dans la fiche, un point par appel sur la ligne du temps, sa durée, et sous chaque appel pris par l’IA, ce qu’elle a fait, geste par geste, avec l’heure. Le bouton 👤 Dossier ouvre son dossier. L’onglet Appels du dossier prend la même allure.' }
+    ]
+  },
   {
     version: 1512,
     date: 'Vendredi 20 novembre 2026',
