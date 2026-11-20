@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:18 — v1508 */
+/* Déployé le 20/11/2026 à 11:31 — v1509 */
 /* ============================================================
    ec-base.js — v1503 (v1474 pour la première version)
    🗄️ LA BASE DE L'APPLI — Gestion › L'outil › 🗄️ Base (admins)
@@ -84,12 +84,30 @@ const BASE_FAMILLES = [
     { action: 'baseConsignes', logo: '📌', nom: 'Messages aux moniteurs', mot: 'les messages aux moniteurs', unite: 'message',
       aide: 'Ce que le bureau laisse au moniteur sur un élève, et s’il l’a traité.' },
     { action: 'baseLiens', logo: '🔗', nom: 'Liens de cours', mot: 'les liens de cours', unite: 'lien',
-      aide: 'Les liens envoyés aux élèves par mail pour confirmer un cours, et ce qu’ils en ont fait.' } ] },
+      aide: 'Les liens envoyés aux élèves par mail pour confirmer un cours, et ce qu’ils en ont fait.' },
+    /* 🧹 v1509 */
+    { action: 'baseBrouillons', logo: '📝', nom: 'Brouillons de bilan', mot: 'les brouillons de bilan', unite: 'brouillon',
+      aide: 'Le bilan du cours qu’on vient d’enregistrer, avant que l’IA le mette au propre. Relue une fois l’heure.' },
+    { action: 'baseEcoutes', logo: '👂', nom: 'Écoutes pédagogiques', mot: 'les écoutes pédagogiques', unite: 'écoute',
+      aide: 'Les écoutes notées depuis Drivup.' } ] },
   { nom: 'Examens', feuilles: [
     { action: 'baseSessions', logo: '📅', nom: 'Sessions d’examen', mot: 'les sessions', unite: 'session',
       aide: 'Les journées d’examen (date, centre, moniteur, boîte).' },
     { action: 'basePlaces', logo: '🎫', nom: 'Places des sessions', mot: 'les places', unite: 'place',
-      aide: 'Qui passe à quelle heure, prévenu, dossier OK, remarque.' } ] },
+      aide: 'Qui passe à quelle heure, prévenu, dossier OK, remarque.' },
+    /* 🧹 v1509 */
+    { action: 'baseResultats', logo: '🏁', nom: 'Résultats d’examen', mot: 'les résultats d’examen', unite: 'résultat',
+      aide: 'Chaque résultat de permis voiture (le taux de réussite).' },
+    { action: 'baseResultats2r', logo: '🏍️', nom: 'Résultats moto et remorque', mot: 'les résultats moto et remorque', unite: 'résultat',
+      aide: 'Une ligne par épreuve moto ou BE passée.' },
+    { action: 'basePlacesBE', logo: '🚛', nom: 'Places BE', mot: 'les places BE', unite: 'place',
+      aide: 'Les places d’examen remorque demandées et obtenues.' },
+    { action: 'baseRvtTours', logo: '📆', nom: 'Rendez-vous pédagogiques', mot: 'les propositions de rendez-vous pédagogique', unite: 'proposition',
+      aide: 'Les créneaux proposés aux familles, la date limite, le créneau retenu.' },
+    { action: 'baseRvtReponses', logo: '🙋', nom: 'Réponses des familles', mot: 'les réponses des familles', unite: 'réponse',
+      aide: 'Ce que chaque famille a répondu à une proposition, avec son lien.' },
+    { action: 'baseEtgCorrections', logo: '🧮', nom: 'Scores de code corrigés', mot: 'les scores de code corrigés', unite: 'score',
+      aide: 'Les scores de séance de code corrigés à la main.' } ] },
   { nom: 'Coin révisions', feuilles: [
     { action: 'baseGroupesParcours', logo: '🗂️', nom: 'Groupes', mot: 'les groupes', unite: 'groupe',
       aide: 'Les groupes du coin révisions (nom, icône, formations, ordre, fermé ou non).' },
@@ -112,7 +130,10 @@ const BASE_FAMILLES = [
     { action: 'baseCbGasoil', logo: '⛽', nom: 'CB gasoil', mot: 'la CB gasoil', unite: 'ligne',
       aide: 'Qui a pris la carte, quand elle est revenue, et les pleins.' },
     { action: 'baseAlma', logo: '💳', nom: 'Paiements ALMA', mot: 'les paiements ALMA', unite: 'paiement',
-      aide: 'Les paiements en plusieurs fois proposés aux élèves, demande faite ou non.' } ] },
+      aide: 'Les paiements en plusieurs fois proposés aux élèves, demande faite ou non.' },
+    /* 🧹 v1509 */
+    { action: 'baseDepots', logo: '🏦', nom: 'Dépôts en banque', mot: 'les dépôts en banque', unite: 'dépôt',
+      aide: 'Chaque dépôt : liquide, billets, chèques, total. Relue une fois l’heure.' } ] },
   { nom: 'Paie', feuilles: [
     { action: 'basePaieSalaries', logo: '👥', nom: 'Salariés', mot: 'les salariés', unite: 'salarié',
       aide: 'Base hebdomadaire, heures par jour, jours travaillés, report.' },
@@ -141,7 +162,26 @@ const BASE_FAMILLES = [
     { action: 'baseEcran', logo: '📺', nom: 'Écrans d’accueil', mot: 'les diapositives des écrans', unite: 'diapositive',
       aide: 'Les diapositives des écrans d’accueil. Relue une fois l’heure (les images pèsent lourd).' },
     { action: 'baseConfig', logo: '⚙️', nom: 'Réglages des places', mot: 'les réglages des places', unite: 'réglage',
-      aide: 'Les places d’examen ouvertes et leurs réglages.' } ] }
+      aide: 'Les places d’examen ouvertes et leurs réglages.' },
+    /* 🧹 v1509 */
+    { action: 'baseEcranPlanning', logo: '🗓️', nom: 'Planning des écrans', mot: 'le planning des écrans', unite: 'ligne',
+      aide: 'Les cours du jour affichés sur les écrans d’accueil.' } ] },
+  /* 🧹 v1509 — les réglages et les journaux */
+  { nom: 'Réglages et journaux', feuilles: [
+    { action: 'baseReglages', logo: '🎛️', nom: 'Réglages de l’appli', mot: 'les réglages de l’appli', unite: 'réglage',
+      aide: 'Les réglages de l’appli (et l’ordre des moniteurs et des voitures).' },
+    { action: 'baseReglesIA', logo: '📏', nom: 'Règles de l’IA', mot: 'les règles de l’IA', unite: 'règle',
+      aide: 'Les règles dictées à l’IA pour écrire les bilans.' },
+    { action: 'baseCorrections', logo: '🗣️', nom: 'Corrections de la dictée', mot: 'les corrections de la dictée', unite: 'correction',
+      aide: 'Ce que la dictée entend mal, et ce qu’il faut écrire à la place.' },
+    { action: 'baseLieux', logo: '📍', nom: 'Lieux', mot: 'les lieux', unite: 'lieu',
+      aide: 'Les lieux de rendez-vous et de cours.' },
+    { action: 'baseIncidents', logo: '🚨', nom: 'Signalements', mot: 'les signalements', unite: 'signalement',
+      aide: 'Les erreurs remontées par l’appli et les comptes rendus du ménage. Relue une fois l’heure.' },
+    { action: 'baseCoutsIA', logo: '🤖', nom: 'Coûts de l’IA', mot: 'les coûts de l’IA', unite: 'ligne',
+      aide: 'Le coût de chaque génération. Relue une fois l’heure.' },
+    { action: 'baseSms', logo: '💬', nom: 'SMS et mails envoyés', mot: 'les SMS et mails envoyés', unite: 'envoi',
+      aide: 'Le journal des envois. Relue une fois l’heure.' } ] }
 ];
 const BASE_TOUTES = [].concat.apply([], BASE_FAMILLES.map(f => f.feuilles));
 const bEtat = {};          /* action → dernière réponse du serveur */
