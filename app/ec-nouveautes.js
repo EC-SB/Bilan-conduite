@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:05 — v1507 */
+/* Déployé le 20/11/2026 à 11:18 — v1508 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1508,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '⇅ L’ordre des moniteurs et des voitures se range en glissant · 🏠 les rappels de Loudéac · 🗄️ le bureau dans la base rapide',
+    quoi: [
+      { emoji: '⇅',
+        titre: 'L’ordre des moniteurs, comme le planning',
+        texte: 'Dans 📅 Mes prochains cours, fais glisser un bouton de moniteur pour le changer de place. L’ordre vaut pour toute l’équipe, et c’est aussi celui du menu des moniteurs des rappels. Dans « 👥 Tous », les cours d’une journée se rangent par moniteur, dans cet ordre.' },
+      { emoji: '🚗',
+        titre: 'L’ordre des voitures des rappels',
+        texte: 'Dans Rappels de cours, « ⇅ Ranger les moniteurs et les voitures » : fais glisser les noms. Les deux menus suivent tout de suite, pour toute l’équipe.' },
+      { emoji: '🏠',
+        titre: 'Les cours de Loudéac',
+        texte: 'Un cours de conduite que le planning Drivup place à Loudéac prend le type « Cours - Loudéac » et la voiture A3 BEA Loudéac (élève en boîte automatique) ou A3 BV Loudéac (boîte manuelle). Les examens, examens blancs, le simulateur et la moto gardent leurs règles. Tout reste modifiable avant d’envoyer.' },
+      { emoji: '🗄️',
+        titre: 'Le bureau dans la base',
+        texte: 'Les tâches, les tâches de départ, les alertes masquées, le message épinglé et ses lectures, les écrans d’accueil et les réglages des places passent dans la base de Cloudflare (Gestion › 🗄️ Base, famille Bureau). Ils basculent seuls la nuit prochaine.' }
+    ]
+  },
   {
     version: 1507,
     date: 'Vendredi 20 novembre 2026',
