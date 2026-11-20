@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:49 — v1513 */
+/* Déployé le 20/11/2026 à 13:43 — v1514 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1514,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '📞 Le téléphone d’Allo dans l’appli, la barre du haut allégée, les appels relus toutes les 2 minutes',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Appeler sans quitter l’appli',
+        texte: 'Le bouton 📞 en haut ouvre le téléphone d’Allo (dans Chrome ou Edge ; chacun s’y connecte une fois avec son compte Allo). Tout « 📞 Rappeler » et tout numéro de l’appli y compose le numéro : il ne reste qu’à appuyer. « Tout rappeler » enchaîne les rappels du jour.' },
+      { emoji: '🪪',
+        titre: 'Qui appelle, avant de décrocher',
+        texte: 'Un appel qui arrive ouvre la carte de l’appelant : son prochain cours, un rappel qui attend, ce que l’IA d’Allo a fait aujourd’hui, les messages posés pour lui, et son dossier d’un appui. Les administrateurs choisissent qui reçoit les appels (⚙️ dans le téléphone) : personne au départ.' },
+      { emoji: '⋯',
+        titre: 'La barre du haut allégée',
+        texte: 'La CB Gasoil passe dans le ⋯, avec une pastille par carte (verte au bureau, dorée si tu l’as, rouge chez quelqu’un) et un point rouge sur le ⋯ quand une carte est sortie depuis hier. Sur téléphone et tablette, « À faire », ton nom et « Se déconnecter » y passent aussi.' },
+      { emoji: '⏱️',
+        titre: 'Les appels relus toutes les 2 minutes',
+        texte: 'Le bouton « 🔄 Relire maintenant » est revenu en haut du Suivi des appels, et la ligne sur le déclencheur est partie.' }
+    ]
+  },
   {
     version: 1513,
     date: 'Vendredi 20 novembre 2026',
