@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 11:56 — v1400 */
+/* Déployé le 20/11/2026 à 10:13 — v1505 */
 /* ============================================================
    ec-carrosserie.js
    L'état de la carrosserie, véhicule par véhicule.
@@ -996,7 +996,7 @@ function imprimerEtatDesLieux(v){
     '<p class="sous">' + echap(v.modele || g.nom) +
       (v.immat ? ' · ' + echap(v.immat) : '') +
       ' · au ' + echap(jourLettres) + ' · Évolution Conduites</p>' +
-    '<p><button onclick="window.print()">🖨️ Imprimer / enregistrer en PDF</button></p>' +
+    '<p><button type="button" class="ecImprimer">🖨️ Imprimer / enregistrer en PDF</button></p>' +
     '<div class="vues">' + vues + '</div>' +
     '<table><tr><th>Type</th><th>Où</th><th>Détail</th><th>Constaté</th>' +
     '<th>État</th></tr>' + lignes + '</table>' +
@@ -1006,6 +1006,9 @@ function imprimerEtatDesLieux(v){
   if(!f){ showToast('Autorise les fenêtres pour imprimer.'); return; }
   f.document.write(html);
   f.document.close();
+  /* 🔒 v1505 — l'impression se lance d'ici : la règle des scripts (Content-Security-Policy) refuse un script écrit dans la fenêtre */
+  const bi = f.document.querySelector('.ecImprimer');
+  if(bi) bi.addEventListener('click', () => f.print());
 }
 
 
