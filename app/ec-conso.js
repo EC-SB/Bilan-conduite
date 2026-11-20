@@ -1,7 +1,8 @@
-/* Déployé le 18/11/2026 à 15:51 — v1470 */
+/* Déployé le 19/11/2026 à 18:16 — v1503 */
 /* ============================================================
    ec-conso.js — v1470
-   📊 CE QUI INTERROGE LE SERVEUR (Gestion › Accès, admins)
+   📊 CE QUI INTERROGE LE SERVEUR (Gestion › 🗄️ Base, admins — v1503 : dessiné
+   par ec-base.js, ce module ne garde que les noms lisibles, nomConso)
 
    David, le 18 novembre : Cloudflare prévient « 75 % de la limite de
    100 000 requêtes par jour » — « mesure ce qui consomme le plus et
@@ -28,7 +29,12 @@ const CONSO_NOMS = {
   'POST /sheets · cafeEtat': '☕ Coin café',
   'GET /tuile': '🗺️ Cartes : les tuiles du fond de carte',
   'GET /ws': '⚡ Messagerie en direct : connexion',
-  'POST /auth': '🔑 Connexions et vérifications de code'
+  'POST /auth': '🔑 Connexions et vérifications de code',
+  /* 🗄️ v1503 — les plus fréquents du 19/11 qui n'avaient pas de nom */
+  'OPTIONS /sheets': '🔁 Le navigateur vérifie avant chaque appel (OPTIONS)',
+  'POST /sheets · todoTout': '☑️ Todo list : relecture',
+  'POST /sheets · convDirect': '💬 Messagerie : en direct',
+  'POST /eleve · eleveVideoVue': '🎓 Espace élève : une vidéo regardée'
 };
 function nomConso(cle){
   if(CONSO_NOMS[cle]) return CONSO_NOMS[cle];
