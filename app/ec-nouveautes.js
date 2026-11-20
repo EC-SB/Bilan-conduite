@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:31 — v1509 */
+/* Déployé le 20/11/2026 à 11:42 — v1510 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1510,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '⚡ L’appli se charge en 1 s au lieu de 6 · plus de faux « Application incomplète » · les écarts de la base, chacun chez soi',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Un démarrage cinq fois plus rapide',
+        texte: 'Depuis la v1505, le navigateur chargeait les 140 fichiers de l’appli l’un après l’autre (6 secondes sur la page de connexion après chaque mise à jour). Ils partent maintenant tous ensemble.' },
+      { emoji: '🩹',
+        titre: 'Plus de faux « Application incomplète »',
+        texte: 'Le bandeau rouge regardait trop tôt, avant la fin du chargement : il nommait un fichier pourtant en ligne et restait jusqu’à F5. Il attend maintenant la fin du chargement, et s’en va seul si le fichier finit par arriver.' },
+      { emoji: '🗄️',
+        titre: 'La base : les écarts et les feuilles vides',
+        texte: 'Dans Gestion › 🗄️ Base, un écart ne s’affiche plus que sur sa feuille (il apparaissait sur quatre). Une feuille vraiment vide (aucune annonce, aucun dommage, aucune tâche de départ) peut maintenant basculer.' }
+    ]
+  },
   {
     version: 1509,
     date: 'Vendredi 20 novembre 2026',
