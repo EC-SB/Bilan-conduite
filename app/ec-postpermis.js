@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:37 — v1512 */
+/* Déployé le 20/11/2026 à 15:45 — v1516 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -3787,23 +3787,89 @@ function parcoursDe(e){
 
      1. ARCHIVER — le dossier complet part sur le Drive (ou dans
         Cloudflare, si la case de Gestion › Accès › 🗄️ est cochée — v1497).
-     2. DUPLIQUER — la fiche passerelle est créée.
+     2. METTRE DE CÔTÉ — sa fiche (la ligne entière), son accès, sa
+        photo, ses infos du dossier (v1516 : elle garde son nom).
      3. EFFACER — et seulement alors.
+     4. RECRÉER — sa fiche au même nom, en passerelle.
 
    Chaque étape ne se fait que si la précédente a réussi. Une
    archive ratée arrête tout : mieux vaut un dossier qui prend de la
-   place qu'un dossier perdu. Et la duplication passe AVANT
-   l'effacement, sinon un échec de création laisserait l'élève sans
-   rien du tout.
+   place qu'un dossier perdu. Et la mise de côté passe AVANT
+   l'effacement : un échec de la recréation se rattrape avec ce qui
+   est gardé dans la page (« 🔁 Réessayer »).
 
-   La confirmation dit ce qui va partir, et le nom qu'il portera.
+   La confirmation dit ce qui va partir, et ce qui est gardé.
    ============================================================ */
 const FORMATION_PASSERELLE = 'Passerelle BEA→BV';
 
-/* Le nom de la seconde fiche. Même forme que « ➕ Une autre
-   formation pour cet élève » : le suffixe entre parenthèses. */
+/* L'ancien nom de la seconde fiche (« ➕ Une autre formation » s'en sert
+   toujours, et les fiches passerelle d'avant la v1516 le portent). */
 function nomFichePasserelle(nom){
   return String(nom || '').trim() + ' (Passerelle BV)';
+}
+/* 🔀 v1516 — « Prénom Nom (Passerelle BV) » → « Prénom Nom » */
+function sansSuffixePasserelleEC(nom){
+  return String(nom || '').replace(/\s*\(?\s*passerelle(\s+b\s*e?\s*a?\s*(→|->)?\s*b?\s*v?)?\s*\)?\s*$/i, '').trim();
+}
+function estEnPasserelle(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  return !!f && (String(f.formation || '') === FORMATION_PASSERELLE || /passerelle\s*bea/i.test(String(f.formation || '')));
+}
+
+/* ⚠️ v1516 — LA FICHE GARDE SON NOM.
+
+   David, le 20 novembre : l'import Drivup recréait « Prénom Nom » à côté
+   de « Prénom Nom (Passerelle BV) », qui n'avait ni la photo ni le lien
+   Drivup. Ses choix : la fiche passerelle garde le MÊME NOM, sans
+   suffixe, et reprend tout (photo, lien Drivup, NEPH, naissance,
+   téléphone, mail, son espace avec le même code) ; ses groupes sont
+   fermés, et on ouvre le groupe Passerelle dans son dossier quand il a
+   payé.
+
+   L'effacement du dossier BEA emporte sa fiche (même nom) : on la
+   SAUVE donc avant (passerelleSauver), et on la RECRÉE après
+   (passerelleRestaurer). La sauvegarde reste dans la page tant que la
+   fiche n'est pas recréée : un échec se rattrape sans rien perdre. */
+const SAUVEGARDES_PASSERELLE = {};
+const CLE_SAUVEGARDE_PASSERELLE = 'ec_passerelle_';
+/* L'onglet Fiche d'un élève sans fiche : sa fiche passerelle mise de côté, à recréer */
+function boutonRecreerPasserelle(nom, apres){
+  let x = null;
+  try{ x = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE_PASSERELLE + normaliserMot(nom)) || 'null'); }catch(e){ x = null; }
+  const sv = SAUVEGARDES_PASSERELLE[nom] || (x && x.sauvegarde);
+  if(!sv) return null;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'margin-top:10px;padding:12px;font-size:14px;';
+  b.textContent = '🔁 Recréer sa fiche passerelle (mise de côté' + (x && x.le ? ' le ' + new Date(x.le).toLocaleDateString('fr-FR') : '') + ')';
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    const r = await recreerFichePasserelle(nom, sv);
+    if(r){ showToast('✅ Fiche passerelle recréée'); await rafraichirApresPasserelle(nom); if(typeof apres === 'function') apres(); }
+    else b.disabled = false;
+  });
+  return b;
+}
+async function recreerFichePasserelle(nom, sauvegarde){
+  for(;;){
+    try{
+      const r = await appelPrep({ action: 'passerelleRestaurer', eleve: nom, sauvegarde: sauvegarde, mode: 'creer',
+        formation: FORMATION_PASSERELLE,
+        remarques: 'Passerelle après permis BEA obtenu — dossier BEA archivé le ' + new Date().toLocaleDateString('fr-FR') });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'réponse inattendue');
+      delete SAUVEGARDES_PASSERELLE[nom];
+      try{ localStorage.removeItem(CLE_SAUVEGARDE_PASSERELLE + normaliserMot(nom)); }catch(x){}
+      return r;
+    }catch(e){
+      SAUVEGARDES_PASSERELLE[nom] = sauvegarde;
+      /* et dans le navigateur : une page rechargée la retrouve (onglet Fiche) */
+      try{ localStorage.setItem(CLE_SAUVEGARDE_PASSERELLE + normaliserMot(nom), JSON.stringify({ nom: nom, le: Date.now(), sauvegarde: sauvegarde })); }catch(x){}
+      const encore = await confirmer('Sa fiche passerelle n’a pas pu être recréée.\n\nDétail : ' + (e && e.message ? e.message : e) +
+        '\n\nTout ce qu’elle contenait est gardé sur cet ordinateur : réessaie maintenant, ou plus tard depuis son dossier (onglet Fiche).', '🔁 Réessayer');
+      if(!encore) return null;
+    }
+  }
 }
 
 async function proposerPasserelle(x, boite){
@@ -3818,17 +3884,15 @@ async function proposerPasserelle(x, boite){
      ce que le serveur refusera. */
   if(typeof peutModifier === 'function' && !peutModifier('eleves')) return;
 
-  const nouveau = nomFichePasserelle(nom);
-
   if(!await confirmer(
-      'Duplication de fiche en passerelle BEA → BV ?\n\n' +
+      'Passage en passerelle BEA → BV ?\n\n' +
       nom + ' vient d’obtenir son permis en automatique.\n\n' +
-      '✅ Une fiche « ' + nouveau + ' » est créée, en passerelle.\n' +
+      '✅ Sa fiche garde son nom et passe en « ' + FORMATION_PASSERELLE + ' » : photo, lien Drivup, NEPH, ' +
+      'date de naissance, téléphone, mail et son espace (même code) sont gardés.\n' +
       '📄 Son dossier complet est archivé (Google Drive, ou Cloudflare selon Gestion › Accès › 🗄️).\n' +
-      '🗑️ Puis son dossier BEA est effacé — bilans, suivi, cours à ' +
-      'venir, captures.\n\n' +
-      'L’effacement est DÉFINITIF, et n’a lieu que si l’archive ' +
-      'a bien été écrite.')) return;
+      '🗑️ Puis son dossier BEA est effacé — bilans, suivi, cours à venir, captures.\n' +
+      '🔒 Ses groupes sont fermés : tu ouvriras le groupe Passerelle dans son dossier quand il aura payé.\n\n' +
+      'L’effacement est DÉFINITIF, et n’a lieu que si l’archive a bien été écrite.')) return;
 
   const dire = t => showToast(t);
 
@@ -3840,8 +3904,7 @@ async function proposerPasserelle(x, boite){
   }catch(e){
     await informer('Le dossier de ' + nom + " n'a PAS pu être archivé.\n\n" +
       'Détail : ' + (e && e.message ? e.message : e) + '\n\n' +
-      "RIEN n'a été effacé, et aucune fiche n'a été créée. " +
-      'Recommence, ou fais-le à la main depuis 🔒 RGPD.', 'Passerelle');
+      "RIEN n'a été effacé. Recommence, ou fais-le à la main depuis 🔒 RGPD.", 'Passerelle');
     return;
   }
   if(!archive || archive.status !== 'ok' || !archive.lien){
@@ -3851,31 +3914,20 @@ async function proposerPasserelle(x, boite){
     return;
   }
 
-  /* ---- 2. LA FICHE PASSERELLE ---- */
-  dire('Création de sa fiche passerelle…');
-  const f = (typeof ficheDe === 'function') ? (ficheDe(nom) || {}) : {};
+  /* ---- 2. CE QUE SA FICHE GARDE ---- */
+  dire('Sa fiche est mise de côté…');
+  let sauvegarde;
   try{
-    await appelPrep({
-      action: 'ficheSet',
-      eleve: nouveau,
-      telephone: f.telephone || '',
-      email: f.email || '',
-      formation: FORMATION_PASSERELLE,
-      messenger: f.messenger || '',
-      site: f.site || '',
-      remarques: 'Passerelle après permis BEA obtenu — dossier BEA archivé le ' +
-                 new Date().toLocaleDateString('fr-FR'),
-      par: ACCES.moniteur || ''
-    });
+    sauvegarde = await appelPrep({ action: 'passerelleSauver', eleve: nom });
+    if(!sauvegarde || sauvegarde.status !== 'ok') throw new Error((sauvegarde && sauvegarde.message) || 'réponse inattendue');
   }catch(e){
-    await informer('Sa fiche passerelle n’a pas pu être créée.\n\n' +
-      'Détail : ' + (e && e.message ? e.message : e) + '\n\n' +
-      "RIEN n'a été effacé — son dossier BEA est intact. " +
-      'L’archive, elle, est déjà faite.', 'Passerelle');
+    await informer('Sa fiche n’a pas pu être mise de côté.\n\nDétail : ' + (e && e.message ? e.message : e) +
+      "\n\nRIEN n'a été effacé — son dossier BEA est intact. L’archive, elle, est déjà faite.", 'Passerelle');
     return;
   }
+  SAUVEGARDES_PASSERELLE[nom] = sauvegarde;
 
-  /* ---- 3. L'EFFACEMENT, EN DERNIER ---- */
+  /* ---- 3. L'EFFACEMENT DU DOSSIER BEA ---- */
   dire('Effacement du dossier BEA…');
   let bilan = null;
   try{
@@ -3884,18 +3936,22 @@ async function proposerPasserelle(x, boite){
     bilan = { faits: [], rates: ['tout (' + (e && e.message ? e.message : e) + ')'] };
   }
 
-  if(typeof chargerEleves === 'function') await chargerEleves();
-  if(typeof afficherRepertoire === 'function') afficherRepertoire(true);
-  if(typeof afficherBureau === 'function') afficherBureau(true);
+  /* ---- 4. SA FICHE, RECRÉÉE AU MÊME NOM ---- */
+  dire('Sa fiche passerelle…');
+  const rf = await recreerFichePasserelle(nom, sauvegarde);
+
+  await rafraichirApresPasserelle(nom);
 
   const rates = (bilan && bilan.rates) || [];
   await informer(
-    (rates.length ? '⚠️ Passage en passerelle — effacement INCOMPLET'
-                  : '✅ ' + nom + ' est passé en passerelle') + '\n\n' +
+    (rates.length || !rf ? '⚠️ Passage en passerelle — INCOMPLET'
+                         : '✅ ' + nom + ' est passé en passerelle') + '\n\n' +
     '📄 Archive : ' + archive.fichier + ' (' + archive.lignes + ' ligne(s))\n' +
     '   ' + archive.lien + '\n' +
     (archive.ou === 'cloudflare' ? '   (lien valable 7 jours — l’archive reste dans Gestion › Accès › 🗄️)\n' : '') + '\n' +
-    '✅ Fiche créée : ' + nouveau + '\n\n' +
+    (rf ? '✅ Sa fiche : ' + nom + ' — ' + FORMATION_PASSERELLE + ((rf.fait || []).length ? ' (' + rf.fait.join(', ') + ')' : '') + '\n' +
+          '🔓 Quand il aura payé : « Ouvrir le groupe Passerelle », dans son dossier.\n\n'
+        : '⚠️ Sa fiche n’a PAS été recréée. Tout ce qu’elle contenait est gardé sur cet ordinateur : dans son dossier, onglet Fiche, « 🔁 Recréer sa fiche passerelle ».\n\n') +
     (rates.length
       ? "🗑️ N'a PAS pu être effacé : " + rates.join(', ') +
         '.\nCe qui est parti : ' + (((bilan && bilan.faits) || []).join(' · ') || 'rien') +
@@ -3903,6 +3959,186 @@ async function proposerPasserelle(x, boite){
       : '🗑️ Dossier BEA effacé : ' +
         (((bilan && bilan.faits) || []).join(' · ') || 'rien à retirer')),
     'Passerelle BEA → BV');
+}
+
+/* Tout ce qui montre sa fiche se relit et se redessine (sans F5) */
+async function rafraichirApresPasserelle(nom){
+  if(typeof viderCaches === 'function') viderCaches(nom);
+  await Promise.all([
+    (typeof chargerFiches === 'function') ? chargerFiches() : null,
+    (typeof chargerEleves === 'function') ? chargerEleves() : null,
+    (typeof chargerPhotosProfil === 'function') ? chargerPhotosProfil(true) : null
+  ].filter(Boolean).map(p => Promise.resolve(p).catch(() => null)));
+  [() => (typeof repeindreLesPhotos === 'function') && repeindreLesPhotos(),
+   () => (typeof afficherRepertoire === 'function') && afficherRepertoire(true),
+   () => (typeof afficherBureau === 'function') && afficherBureau(true),
+   () => (typeof dessinerPageEleve === 'function') && dessinerPageEleve()
+  ].forEach(f => { try{ f(); }catch(e){ console.warn('Après la passerelle :', e); } });
+}
+
+/* 🔓 v1516 — « Ouvrir le groupe Passerelle », quand il a payé.
+   Les groupes = ceux que « ⚙️ Ce qu'on ouvre par formation » prévoit pour
+   la formation passerelle (Gestion, ou l'onglet App de son dossier). */
+function ligneGroupePasserelle(nom, apres, pourPermis){
+  if(!estEnPasserelle(nom)) return null;
+  if(typeof cvLire !== 'function' || typeof cvHabitudeDe !== 'function') return null;
+  const peut = (typeof peutModifier !== 'function') || peutModifier('eleves');
+  const z = document.createElement('div');
+  z.className = pourPermis ? 'pgLigne pgPermis' : 'anLigne anFixe pgLigne';
+  const k = document.createElement('span');
+  k.className = 'anK';
+  k.textContent = '🔓 Groupe Passerelle';
+  const v = document.createElement('span');
+  v.className = 'anV';
+  v.textContent = '…';
+  z.append(k, v);
+  (async () => {
+    let L;
+    try{ L = await cvLire(nom); }catch(e){ v.textContent = '⚠️ ' + (e.message || e); return; }
+    const h = cvHabitudeDe(FORMATION_PASSERELLE, L.groupes, L.prog);
+    const noms = h.groupes.map(id => { const g = (L.groupes || []).find(x => x.id === id); return g ? cvNomGroupe(g) : id; });
+    if(!h.groupes.length){
+      v.textContent = 'aucun groupe prévu pour « ' + FORMATION_PASSERELLE + ' » : règle-le dans ⚙️ Ce qu’on ouvre par formation.';
+      v.classList.add('muet');
+      return;
+    }
+    if(!L.acces){
+      v.textContent = 'son espace n’est pas ouvert : ouvre-le d’abord (onglet App Évolution Conduites).';
+      v.classList.add('muet');
+      return;
+    }
+    const E = cvEtatDeLAcces(L.acces);
+    const manquants = h.groupes.filter(id => E.groupes.indexOf(id) === -1);
+    if(!manquants.length){
+      v.textContent = '✅ ouvert : ' + noms.join(', ');
+      return;
+    }
+    v.textContent = '🔒 fermé — à ouvrir quand il a payé (' + noms.join(', ') + ')';
+    if(!peut) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-primary pgBouton';
+    b.textContent = '🔓 Ouvrir le groupe Passerelle';
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if(!await confirmer('Ouvrir à ' + nom + ' : ' + noms.join(', ') + ' ?\n\nÀ faire quand il a payé sa passerelle.', '🔓 Ouvrir')) return;
+      b.disabled = true;
+      try{
+        E.groupes = E.groupes.concat(manquants);
+        const r = await appelPrep({ action: 'accesEleveSet', eleve: nom, modules: cvListeModules(E), groupes: E.groupes.join('|') });
+        if(r && r.status === 'error') throw new Error(r.message);
+        if(typeof cvPoserDansLEtat === 'function') cvPoserDansLEtat(nom, cvListeModules(E), E.groupes);
+        showToast('🔓 Groupe Passerelle ouvert à ' + nom);
+        v.textContent = '✅ ouvert : ' + noms.join(', ');
+        b.remove();
+        if(typeof apres === 'function') apres();
+      }catch(err){ b.disabled = false; showToast('⚠️ ' + (err.message || err)); }
+    });
+    z.appendChild(b);
+  })();
+  return z;
+}
+
+/* 🧩 v1516 — DEUX FICHES POUR LE MÊME ÉLÈVE (Anaelle, le 20 novembre).
+   « Prénom Nom (Passerelle BV) » (créée au passage en passerelle, avec
+   son dossier) et « Prénom Nom » (recréée par l'import Drivup, avec la
+   photo et le lien Drivup). Le bouton garde la fiche passerelle, lui
+   donne ce qui lui manque, retire l'autre, puis lui rend le nom sans
+   suffixe. */
+function deuxFichesPasserelle(nom){
+  const fiches = (typeof fichesEleves !== 'undefined' && fichesEleves) || [];
+  const n = normaliserMot(nom);
+  const base = sansSuffixePasserelleEC(nom);
+  if(normaliserMot(base) !== n){
+    const autre = fiches.find(f => normaliserMot(f.eleve) === normaliserMot(base));
+    return autre ? { pass: nom, base: autre.eleve } : null;
+  }
+  const pass = fiches.find(f => normaliserMot(f.eleve) !== n && normaliserMot(sansSuffixePasserelleEC(f.eleve)) === n);
+  return pass ? { pass: pass.eleve, base: nom } : null;
+}
+function ligneReunirPasserelle(nom, pourPermis){
+  const x = deuxFichesPasserelle(nom);
+  if(!x) return null;
+  const admin = typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin';
+  const z = document.createElement('div');
+  z.className = pourPermis ? 'pgLigne pgPermis pgAlerte' : 'anLigne anFixe pgLigne pgAlerte';
+  const k = document.createElement('span');
+  k.className = 'anK';
+  k.textContent = '🧩 Deux fiches';
+  const v = document.createElement('span');
+  v.className = 'anV';
+  v.textContent = '« ' + x.pass + ' » et « ' + x.base + ' » sont le même élève. ' +
+    (admin ? 'Réunir : la fiche passerelle est gardée, prend la photo et le lien Drivup de l’autre, puis s’appelle « ' + x.base + ' ».'
+           : 'Un administrateur peut les réunir.');
+  z.append(k, v);
+  if(admin){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-primary pgBouton';
+    b.textContent = '🧩 Réunir les deux fiches';
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      b.disabled = true;
+      await reunirFichesPasserelle(x.pass, x.base);
+      b.disabled = false;
+    });
+    z.appendChild(b);
+  }
+  return z;
+}
+async function reunirFichesPasserelle(pass, base){
+  if(!await confirmer('Réunir les deux fiches ?\n\n' +
+      '✅ « ' + pass + ' » est gardée, avec son dossier.\n' +
+      '📷 Elle prend la photo, le lien Drivup et les cases vides (NEPH, naissance, mail…) de « ' + base + ' ».\n' +
+      '📄 « ' + base + ' » est archivée, puis effacée (ses cours éventuels partent avec elle).\n' +
+      '✏️ Puis « ' + pass + ' » est renommée « ' + base + ' ».', '🧩 Réunir', true)) return;
+  const dire = t => showToast(t);
+  dire('Archivage de « ' + base + ' »…');
+  let archive;
+  try{
+    archive = await appelPrep({ action: 'archiverDossier', eleve: base });
+    if(!archive || archive.status !== 'ok' || !archive.lien) throw new Error((archive && archive.message) || 'réponse inattendue');
+  }catch(e){
+    await informer('« ' + base + ' » n’a PAS pu être archivée.\n\nDétail : ' + (e && e.message ? e.message : e) + "\n\nRIEN n'a été changé.", 'Réunir');
+    return;
+  }
+  let sauvegarde;
+  try{
+    sauvegarde = await appelPrep({ action: 'passerelleSauver', eleve: base });
+    if(!sauvegarde || sauvegarde.status !== 'ok') throw new Error((sauvegarde && sauvegarde.message) || 'réponse inattendue');
+  }catch(e){
+    await informer('« ' + base + ' » n’a pas pu être mise de côté.\n\nDétail : ' + (e && e.message ? e.message : e) + "\n\nRIEN n'a été effacé.", 'Réunir');
+    return;
+  }
+  dire('Effacement de « ' + base + ' »…');
+  const bilan = await supprimerEleveComplet(base, t => dire(base + ' — ' + t)).catch(e => ({ faits: [], rates: ['tout (' + (e.message || e) + ')'] }));
+  if(bilan.rates && bilan.rates.length){
+    await informer('« ' + base + ' » n’a pas été entièrement effacée : ' + bilan.rates.join(', ') + '.\n\nRien d’autre n’a été changé : recommence.', 'Réunir');
+    return;
+  }
+  dire('Renommage…');
+  let nomFinal = base;
+  try{
+    const r = await appelPrep({ action: 'eleveRenommer', ancien: pass, nouveau: base, eleve: base });
+    if(r && r.status === 'error') throw new Error(r.message);
+  }catch(e){
+    nomFinal = pass;
+    showToast('⚠️ Le renommage n’a pas pu se faire : ' + (e.message || e));
+  }
+  let rc = null;
+  try{
+    rc = await appelPrep({ action: 'passerelleRestaurer', eleve: nomFinal, sauvegarde: sauvegarde, mode: 'completer' });
+    if(!rc || rc.status !== 'ok') throw new Error((rc && rc.message) || 'réponse inattendue');
+  }catch(e){
+    SAUVEGARDES_PASSERELLE[nomFinal] = sauvegarde;
+    showToast('⚠️ La photo et le lien Drivup n’ont pas été repris : ' + (e.message || e));
+  }
+  await rafraichirApresPasserelle(nomFinal);
+  if(typeof ouvrirPageEleve === 'function') ouvrirPageEleve(nomFinal);
+  await informer('✅ Les deux fiches sont réunies : « ' + nomFinal + ' ».\n\n' +
+    (rc && (rc.fait || []).length ? '📷 ' + rc.fait.join(', ') + '\n' : '') +
+    '📄 Archive de l’autre : ' + archive.fichier + '\n   ' + archive.lien +
+    (nomFinal !== base ? '\n\n⚠️ Le renommage a échoué : renomme-la avec ✏️ Nom, en haut du dossier.' : ''), 'Réunir');
 }
 
 
