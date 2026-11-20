@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 18:16 — v1503 */
+/* Déployé le 20/11/2026 à 12:19 — v1511 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -466,6 +466,9 @@ const VUES = {
            /* 🔐 v1347 — David : « dans Gestion avant Accès » */
            ['coffre',     '🔐 Coffre-fort',             'coffre',      'L’outil'],
            ['admin',      '⚙️ Accès',                  'admin',        'L’outil'],
+           /* 🤖 v1511 — l'IA d'Allo : ce qu'elle dit, ses consignes, ses
+              versions (ec-allo-ia.js). Administrateurs seuls. */
+           ['allo',       '📞 L’IA d’Allo',             'admin',        'L’outil'],
            /* 🗄️ v1503 — David : « la mettre dans un sous onglet dans
               gestion plutôt que dans accès ». Administrateurs seuls. */
            ['base',       '🗄️ Base',                   'admin',        'L’outil'],
@@ -1751,6 +1754,7 @@ function construireBarresVues(){
       if(cle === 'direct')  return ACCES.role === 'admin';      /* v1148 */
       if(cle === 'admin')   return ACCES.role === 'admin';
       if(cle === 'base')    return ACCES.role === 'admin';      /* v1503 */
+      if(cle === 'allo')    return ACCES.role === 'admin';      /* v1511 */
       /* 💶 v1345 — la case ET le rôle : un bureau à qui on aurait
          coché la case n'y entre pas (le Worker refuse aussi). */
       if(cle === 'charges') return ACCES.role === 'admin' &&
@@ -2069,6 +2073,7 @@ function reveillerVue(cle){
                         /* 🗄️ v1503 — la base de l'appli et ce qui interroge le
                            serveur ont leur propre vue : « base », juste après */ },
     base:       () => ACCES.role === 'admin' && typeof chargerBaseServeur === 'function' && chargerBaseServeur(),
+    allo:       () => ACCES.role === 'admin' && typeof chargerAlloIa === 'function' && chargerAlloIa(),
     eleves:     () => afficherRepertoire(),
     /* Le dossier se redessine seul quand on y revient : le nom
        ouvert est en mémoire, et tout ce qu'il montre aussi. Une vue
