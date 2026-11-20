@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:48 — v1506 */
+/* Déployé le 20/11/2026 à 11:05 — v1507 */
 /* ============================================================
    ec-base.js — v1503 (v1474 pour la première version)
    🗄️ LA BASE DE L'APPLI — Gestion › L'outil › 🗄️ Base (admins)
@@ -99,7 +99,33 @@ const BASE_FAMILLES = [
       aide: 'Chaque guide ou étape vu par un élève (vu le, revu le, nombre de vues, remis à voir).' },
     /* 📣 v1506 */
     { action: 'baseAnnonces', logo: '📣', nom: 'Annonces', mot: 'les annonces', unite: 'annonce',
-      aide: 'Les annonces de l’espace élève (le texte, pour qui, quand la retirer).' } ] }
+      aide: 'Les annonces de l’espace élève (le texte, pour qui, quand la retirer).' } ] },
+  /* 🧾 v1507 — les feuilles de gestion */
+  { nom: 'Flotte', feuilles: [
+    { action: 'baseFlotte', logo: '🚗', nom: 'Véhicules', mot: 'les véhicules', unite: 'véhicule',
+      aide: 'Chaque véhicule (immatriculation, kilométrage, contrôle technique, révision, assurance, indisponibilités).' },
+    { action: 'baseFlotteEvenements', logo: '🔧', nom: 'Événements de la flotte', mot: 'les événements de la flotte', unite: 'événement',
+      aide: 'Les révisions, CT, relevés de kilométrage et passages au garage.' },
+    { action: 'baseCarrosserie', logo: '🩹', nom: 'Carrosserie', mot: 'la carrosserie', unite: 'dommage',
+      aide: 'Les dommages de chaque véhicule, avec leur photo. Relue une fois l’heure (les photos pèsent lourd).' } ] },
+  { nom: 'Caisse', feuilles: [
+    { action: 'baseCbGasoil', logo: '⛽', nom: 'CB gasoil', mot: 'la CB gasoil', unite: 'ligne',
+      aide: 'Qui a pris la carte, quand elle est revenue, et les pleins.' },
+    { action: 'baseAlma', logo: '💳', nom: 'Paiements ALMA', mot: 'les paiements ALMA', unite: 'paiement',
+      aide: 'Les paiements en plusieurs fois proposés aux élèves, demande faite ou non.' } ] },
+  { nom: 'Paie', feuilles: [
+    { action: 'basePaieSalaries', logo: '👥', nom: 'Salariés', mot: 'les salariés', unite: 'salarié',
+      aide: 'Base hebdomadaire, heures par jour, jours travaillés, report.' },
+    { action: 'basePaieSemaines', logo: '🗓', nom: 'Semaines', mot: 'les semaines de paie', unite: 'semaine',
+      aide: 'Les heures de chaque salarié, semaine par semaine.' },
+    { action: 'basePaieAbsences', logo: '🏖️', nom: 'Absences', mot: 'les absences', unite: 'absence',
+      aide: 'Congés, maladie et autres absences, transmises ou non.' },
+    { action: 'basePaieGasoil', logo: '🛢️', nom: 'Gasoil avancé', mot: 'le gasoil avancé par les salariés', unite: 'ligne',
+      aide: 'Le gasoil payé par un salarié, remboursé ou non.' },
+    { action: 'basePaieRattachement', logo: '📎', nom: 'Semaines rattachées', mot: 'les semaines rattachées à un mois', unite: 'semaine',
+      aide: 'Une semaine à cheval sur deux mois, rattachée à l’un des deux.' },
+    { action: 'basePaieCloture', logo: '🔒', nom: 'Mois clos', mot: 'les mois de paie clos', unite: 'clôture',
+      aide: 'Les heures arrêtées de chaque salarié pour un mois clos.' } ] }
 ];
 const BASE_TOUTES = [].concat.apply([], BASE_FAMILLES.map(f => f.feuilles));
 const bEtat = {};          /* action → dernière réponse du serveur */
