@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:19 — v1511 */
+/* Déployé le 20/11/2026 à 12:37 — v1512 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1512,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🧭 Le rail des élèves remis dans l’ordre de David · 🪪 Permis obtenu passe dans 🚗 Permis',
+    quoi: [
+      { emoji: '🧭',
+        titre: 'Le rail des élèves, dans un nouvel ordre',
+        texte: 'Au quotidien : Dossier élève, Code, Évaluation, Rappels de cours, Suivi des appels, Créneaux libres, Salle des tablettes, Procédures. Administratif : Financements, Paiement en plusieurs fois, Renseignements, Historique des leçons, Handicap. Entrées et sorties : Ajouter des élèves, Départ.' },
+      { emoji: '🪪',
+        titre: 'Permis obtenu a son sous-onglet dans 🚗 Permis',
+        texte: 'Juste après 🏁 Résultats : c’est la suite du parcours. Il n’est plus dans le rail des élèves.' }
+    ]
+  },
   {
     version: 1511,
     date: 'Vendredi 20 novembre 2026',
