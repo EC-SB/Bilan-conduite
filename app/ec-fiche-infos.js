@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 16:03 — v1517 */
+/* Déployé le 20/11/2026 à 17:08 — v1519 */
 /* ============================================================
    ec-fiche-infos.js — v1516 — SA FICHE, EN LIGNES
 
@@ -138,9 +138,12 @@ function dessinerFicheInfos(c, nom, d){
 
   /* ---- Pour le permis ---- */
   c.appendChild(fiEl('div', 'anGroupe', 'Pour le permis'));
-  ['naissance', 'naissLieu', 'adresse', 'neph', 'dateCode'].forEach(k => {
+  /* 🚗 v1519 — passerelle ou régularisation : la date du permis à la place de celle du code */
+  const dejaPermis = /passerelle|r[ée]gularisation/i.test(String(f.formation || ''));
+  ['naissance', 'naissLieu', 'adresse', 'neph', 'dateCode', 'datePermis'].forEach(k => {
     const l = ligneDe(k);
     if(!l && d) return;
+    if(l ? l.applicable === false : (k === 'dateCode' ? dejaPermis : (k === 'datePermis' ? !dejaPermis : false))) return;
     c.appendChild(ligneInfoFi(c, nom, d, l || { k: k, titre: FI_TITRES_EC[k], genre: 'info', type: FI_TYPES_EC[k] || 'texte', valeur: k === 'naissance' ? fiNaissanceLisible(f.naissance) : (k === 'neph' ? String(f.neph || '') : ''), brut: '', attente: !d },
       { ants: ants, prenom: prenom, elle: elle, peut: peut }));
   });
@@ -246,8 +249,24 @@ function dessinerFicheInfos(c, nom, d){
 }
 
 const FI_TITRES_EC = { naissance: '🎂 Date de naissance', naissLieu: '📍 Lieu de naissance', adresse: '🏠 Adresse', neph: '🪪 NEPH', dateCode: '📚 Code obtenu le',
+  datePermis: '🚗 Permis obtenu le',
   rlNom: '👤 Nom et prénom', rlAdresse: '🏠 Son adresse', rlNaissance: '🎂 Sa date de naissance', rlTel: '📱 Son téléphone', rlMail: '✉️ Son mail' };
-const FI_TYPES_EC = { naissance: 'date', dateCode: 'date', rlNaissance: 'date', neph: 'neph', rlTel: 'tel', rlMail: 'mail' };
+const FI_TYPES_EC = { naissance: 'date', dateCode: 'date', datePermis: 'date', rlNaissance: 'date', neph: 'neph', rlTel: 'tel', rlMail: 'mail' };
+/* 📚 v1519 — le mandat RdvPermis, lu par le favori dans Drivup › Examens */
+function fiMandat(m){
+  const s = fiEl('span', 'fiMandat ' + (/^✅/.test(m.texte || '') ? 'ok' : 'ko'), m.texte || '');
+  if(m.le) s.title = 'Lu dans Drivup (Examens › Obtention du code) le ' + fiJour(m.le);
+  return s;
+}
+/* ⏳ « En cours d'apprentissage » (David) : à la place de la date du code */
+function fiEnCours(c, nom, l, o){
+  const e = fiEl('span', 'anEtat');
+  const b = fiBouton(l.enCours ? 'on' : '', '⏳ En cours d’apprentissage', l.enCours ? 'Toucher pour retirer' : 'Il apprend le code : rien à demander pour l’instant',
+    o.peut ? () => poserFicheInfos(c, nom, { geste: 'codeEnCours', on: !l.enCours }, l.enCours ? '📚 Plus « en cours »' : '⏳ En cours d’apprentissage') : null);
+  b.disabled = !o.peut;
+  e.appendChild(b);
+  return e;
+}
 function fiNaissanceLisible(iso){
   if(!iso) return '';
   const a = fiAge(iso);
@@ -290,6 +309,10 @@ function ligneInfoFi(c, nom, d, l, o){
   if(l.valeur){
     v.appendChild(document.createTextNode(l.valeur));
     v.appendChild(fiVerif(c, nom, l.verif, l.k, o.prenom, o.peut));
+  }else if(l.k === 'dateCode' && !l.attente){
+    /* 📚 v1519 — pas de date : « manque », ou « en cours d'apprentissage » */
+    if(!l.enCours) v.appendChild(fiEl('span', 'anManque', 'manque'));
+    v.appendChild(fiEnCours(c, nom, l, o));
   }else if(l.attente){
     v.classList.add('muet'); v.textContent = '…';
   }else if(l.k === 'neph' && o.ants === 'eleve'){
@@ -309,6 +332,8 @@ function ligneInfoFi(c, nom, d, l, o){
       v.appendChild(e);
     }
   }
+  if(l.k === 'dateCode' && l.mandat) v.appendChild(fiMandat(l.mandat));
+  if(l.k === 'datePermis' && l.aide && !l.valeur && !l.attente) v.appendChild(fiEl('span', 'anPar', ' · ' + l.aide));
   z.appendChild(v);
   if(l.propose){
     /* ce que l'élève a signalé : juste au-dessus de sa ligne */
@@ -697,7 +722,7 @@ async function chargerTableauFi(w, bravo){
 }
 const FI_COLONNES_TABLEAU = [
   ['naissance', '🎂', 'Date de naissance'], ['naissLieu', '📍', 'Lieu de naissance'], ['adresse', '🏠', 'Adresse'],
-  ['neph', '🪪', 'NEPH'], ['dateCode', '📚', 'Code obtenu le']
+  ['neph', '🪪', 'NEPH'], ['dateCode', '📚', 'Code obtenu le'], ['datePermis', '🚗', 'Permis obtenu le (passerelle, régularisation)']
 ];
 const FI_RESP = ['rlNom', 'rlAdresse', 'rlNaissance', 'rlTel', 'rlMail'];
 const FI_DOCS_TAB = ['ephoto', 'justifDomicile', 'attestHeberg', 'idHebergeant', 'identite', 'assr2', 'jdc', 'dernierPermis'];
