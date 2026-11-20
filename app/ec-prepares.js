@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:27 — v1467 */
+/* Déployé le 20/11/2026 à 11:18 — v1508 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -927,6 +927,124 @@ function cleFiltreMoniteur(nom){
   const n = normaliserMot(String(nom || '').trim());
   return n || '?';
 }
+
+/* ============================================================
+   ⇅ L'ORDRE DE L'ÉQUIPE — v1508
+
+   David, le 20/11 : « que je puisse déplacer les moniteurs en haut
+   pour qu'ils soient dans le même ordre que mon planning », ici et
+   dans les rappels, et l'ordre des voitures des rappels. Ses choix :
+   UN ordre pour toute l'équipe, le MÊME dans les deux écrans, rangé
+   en GLISSANT. Il vit dans les réglages de l'appli (ordreMoniteurs,
+   ordreVoitures) ; la porte ordreEquipeSet l'écrit.
+
+   Un nom absent de l'ordre se range après ceux qui y sont, dans
+   l'ordre d'avant (l'alphabet pour les moniteurs, la Flotte pour
+   les voitures) : un nouveau moniteur apparaît en bas, à sa place
+   par défaut, jusqu'à ce qu'on le range.
+   ============================================================ */
+const ORDRE_EQUIPE = { moniteurs: [], voitures: [], lu: 0, enVol: null };
+function listeOrdreEquipe(v){
+  try{ const l = JSON.parse(String(v || '[]')); return Array.isArray(l) ? l.map(x => normaliserMot(String(x || '').trim())).filter(Boolean) : []; }
+  catch(e){ return []; }
+}
+function chargerOrdreEquipe(frais){
+  if(!frais && ORDRE_EQUIPE.lu && Date.now() - ORDRE_EQUIPE.lu < 60000) return Promise.resolve(ORDRE_EQUIPE);
+  if(ORDRE_EQUIPE.enVol) return ORDRE_EQUIPE.enVol;
+  ORDRE_EQUIPE.enVol = appelPrep({ action: 'reglagesList' }).then(d => {
+    const r = (d && d.reglages) || {};
+    ORDRE_EQUIPE.moniteurs = listeOrdreEquipe(r.ordreMoniteurs);
+    ORDRE_EQUIPE.voitures = listeOrdreEquipe(r.ordreVoitures);
+    ORDRE_EQUIPE.lu = Date.now();
+    return ORDRE_EQUIPE;
+  }).catch(() => ORDRE_EQUIPE).then(x => { ORDRE_EQUIPE.enVol = null; return x; });
+  return ORDRE_EQUIPE.enVol;
+}
+/* La place d'un nom dans l'ordre (les absents : après tout le monde) */
+function rangOrdreEquipe(quoi, nom){
+  const i = (ORDRE_EQUIPE[quoi] || []).indexOf(normaliserMot(String(nom || '').trim()));
+  return i === -1 ? 1e6 : i;
+}
+/* Trie une liste selon l'ordre ; à égalité, l'ordre d'arrivée */
+function trierOrdreEquipe(quoi, liste, nomDe){
+  return liste.map((x, i) => ({ x: x, i: i })).sort((a, b) =>
+    (rangOrdreEquipe(quoi, nomDe(a.x)) - rangOrdreEquipe(quoi, nomDe(b.x))) || (a.i - b.i)).map(o => o.x);
+}
+async function enregistrerOrdreEquipe(quoi, noms){
+  const vus = noms.map(n => normaliserMot(String(n || '').trim())).filter(Boolean);
+  /* ⚠️ CEUX QU'ON NE VOIT PAS ICI GARDENT LEUR PLACE. La rangée de Mes
+     prochains cours ne montre ni « moi » ni les moniteurs sans cours :
+     on range ceux qu'on voit DANS les places qu'ils occupaient, les
+     autres ne bougent pas. */
+  const complet = (ORDRE_EQUIPE[quoi] || []).slice();
+  vus.forEach(n => { if(complet.indexOf(n) === -1) complet.push(n); });
+  const places = [];
+  complet.forEach((n, i) => { if(vus.indexOf(n) !== -1) places.push(i); });
+  places.forEach((p, k) => { complet[p] = vus[k]; });
+  /* tout de suite à l'écran */
+  ORDRE_EQUIPE[quoi] = complet;
+  try{
+    await appelPrep({ action: 'ordreEquipeSet', quoi: quoi, ordre: complet });
+    ORDRE_EQUIPE.lu = Date.now();
+    showToast(quoi === 'voitures' ? '⇅ Ordre des voitures enregistré pour toute l’équipe'
+                                  : '⇅ Ordre des moniteurs enregistré pour toute l’équipe');
+  }catch(e){
+    showToast('⚠️ L’ordre n’a pas été enregistré : ' + ((e && e.message) || e));
+  }
+}
+
+/* GLISSER POUR RANGER — à la souris comme au doigt.
+   Les éléments du conteneur qui répondent à `selecteur` se déplacent
+   en les faisant glisser (au-delà de 6 px ; en deçà, c'est un appui
+   ordinaire, qui garde son clic). Au lâcher, `fin(cles)` reçoit les
+   data-ordre dans le nouvel ordre. Au doigt, seul le glissement de
+   côté range : glisser vers le bas fait défiler la page, comme avant. */
+function glisserPourRanger(conteneur, selecteur, fin){
+  if(!conteneur || conteneur._glisser) return;
+  conteneur._glisser = true;
+  let tenu = null, depart = null, bouge = false, avantOrdre = '';
+  const cles = () => [...conteneur.querySelectorAll(selecteur)].map(e => e.dataset.ordre);
+  conteneur.addEventListener('pointerdown', ev => {
+    const el = ev.target.closest(selecteur);
+    if(!el || !conteneur.contains(el) || (ev.button !== undefined && ev.button !== 0)) return;
+    tenu = el; depart = { x: ev.clientX, y: ev.clientY, id: ev.pointerId }; bouge = false;
+    avantOrdre = cles().join('|');
+  });
+  conteneur.addEventListener('pointermove', ev => {
+    if(!tenu || !depart || ev.pointerId !== depart.id) return;
+    if(!bouge){
+      if(Math.abs(ev.clientX - depart.x) + Math.abs(ev.clientY - depart.y) < 6) return;
+      bouge = true;
+      try{ tenu.setPointerCapture(ev.pointerId); }catch(e){}
+      tenu.classList.add('ordreTenu');
+      conteneur.classList.add('ordreEnCours');
+    }
+    ev.preventDefault();
+    const sous = document.elementFromPoint(ev.clientX, ev.clientY);
+    const cible = sous && sous.closest ? sous.closest(selecteur) : null;
+    if(!cible || cible === tenu || !conteneur.contains(cible)) return;
+    const r = cible.getBoundingClientRect();
+    /* une ligne large (liste en colonne) : le haut ou le bas ; un bouton (rangée) : la gauche ou la droite */
+    const apres = r.width > r.height * 4 ? ev.clientY > r.top + r.height / 2 : ev.clientX > r.left + r.width / 2;
+    cible.parentNode.insertBefore(tenu, apres ? cible.nextSibling : cible);
+  });
+  const lacher = ev => {
+    if(!tenu || !depart || (ev && ev.pointerId !== depart.id)) return;
+    const etait = bouge, el = tenu;
+    tenu = null; depart = null; bouge = false;
+    el.classList.remove('ordreTenu');
+    conteneur.classList.remove('ordreEnCours');
+    if(!etait) return;
+    /* le clic qui suit un glissement ne choisit rien */
+    const stop = e => { e.stopPropagation(); e.preventDefault(); };
+    el.addEventListener('click', stop, { capture: true, once: true });
+    setTimeout(() => el.removeEventListener('click', stop, { capture: true }), 400);
+    const apres = cles();
+    if(apres.join('|') !== avantOrdre) fin(apres);
+  };
+  conteneur.addEventListener('pointerup', lacher);
+  conteneur.addEventListener('pointercancel', lacher);
+}
 function dessinerFiltreMoniteurs(){
   const z = $('prepQuiBoutons');
   if(!z) return;
@@ -937,8 +1055,10 @@ function dessinerFiltreMoniteurs(){
     compte[k] = (compte[k] || 0) + 1;
     if(!noms[k]) noms[k] = String(x.moniteur || '').trim();
   });
-  const autres = Object.keys(compte).filter(k => k !== moi && k !== '?')
-    .sort((a, b) => noms[a].localeCompare(noms[b], 'fr'));
+  /* ⇅ v1508 — dans l'ordre de l'équipe (celui du planning de David), l'alphabet pour les autres */
+  const autres = trierOrdreEquipe('moniteurs',
+    Object.keys(compte).filter(k => k !== moi && k !== '?').sort((a, b) => noms[a].localeCompare(noms[b], 'fr')),
+    k => noms[k]);
   if(compte['?']) autres.push('?');
   const miens = prepares.filter(x => !x.moniteur || normaliserMot(x.moniteur) === moi).length;
 
@@ -964,6 +1084,12 @@ function dessinerFiltreMoniteurs(){
     x.className = 'btn ' + (b.cle === choisi ? 'btn-primary' : 'btn-secondary');
     x.setAttribute('aria-pressed', b.cle === choisi ? 'true' : 'false');
     x.dataset.qui = b.cle;
+    /* ⇅ v1508 — un moniteur se range en le faisant glisser */
+    if(b.cle && b.cle !== '*' && b.cle !== '?'){
+      x.dataset.ordre = noms[b.cle];
+      x.classList.add('ordreRangeable');
+      x.title = 'Glisse pour changer l’ordre des moniteurs (pour toute l’équipe)';
+    }
     x.textContent = b.texte + ' · ' + b.n;
     x.addEventListener('click', () => {
       if(filtrePrepares === b.cle && b.cle !== '') return;
@@ -972,6 +1098,17 @@ function dessinerFiltreMoniteurs(){
     });
     z.appendChild(x);
   });
+
+  /* ⇅ v1508 — glisser un moniteur range l'équipe ; l'ordre se lit une fois la minute */
+  glisserPourRanger(z, '.ordreRangeable', cles => {
+    enregistrerOrdreEquipe('moniteurs', cles);
+    z._signature = '';
+    afficherPrepares(false);
+  });
+  if(!ORDRE_EQUIPE.lu && !dessinerFiltreMoniteurs._ordre){
+    dessinerFiltreMoniteurs._ordre = true;
+    chargerOrdreEquipe().then(() => { z._signature = ''; afficherPrepares(false); });
+  }
 
   /* Les émojis de l'équipe arrivent une fois par session : la rangée
      se repeint quand ils sont là. */
@@ -1508,9 +1645,19 @@ async function afficherPrepares(recharger, silencieux){
   /* Sans ordre posé, on départage par l'heure de création : deux
      cours à 999 se seraient rangés au hasard, et la flèche semblait
      ne rien faire. */
+  /* ⇅ v1508 — « 👥 Tous » : dans une journée, les moniteurs dans
+     l'ordre de l'équipe (celui du planning), chacun avec ses cours
+     dans SON ordre. Sans ordre rangé, rien ne change. */
+  const parMoniteur = tousMoniteurs && filtrePrepares === '*' || (!moi && !filtrePrepares);
+  const ordreRange = parMoniteur && ORDRE_EQUIPE.moniteurs.length > 0;
   liste.sort((a, b) => {
     const d = String(a.date || '').localeCompare(String(b.date || ''));
     if(d !== 0) return d;
+    if(ordreRange){
+      const m = (rangOrdreEquipe('moniteurs', a.moniteur) - rangOrdreEquipe('moniteurs', b.moniteur)) ||
+                cleFiltreMoniteur(a.moniteur).localeCompare(cleFiltreMoniteur(b.moniteur), 'fr');
+      if(m !== 0) return m;
+    }
     const oa = a.ordre || 0;
     const ob = b.ordre || 0;
     if(oa && ob) return oa - ob;
