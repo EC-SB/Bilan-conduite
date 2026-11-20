@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:13 — v1505 */
+/* Déployé le 20/11/2026 à 10:48 — v1506 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1506,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🗄️ Les récitations, les demandes de récitation et les annonces passent dans la base rapide',
+    quoi: [
+      { emoji: '🎙️',
+        titre: 'Trois feuilles de plus dans la base',
+        texte: 'Les récitations des procédures, les demandes de récitation et les annonces de l’espace élève se lisent et s’écrivent maintenant dans la base de Cloudflare, comme les bilans et les guides : l’espace élève s’ouvre plus vite. Google garde une copie à jour. Elles basculent seules la nuit prochaine, ou tout de suite par Gestion › 🗄️ Base (familles Procédures et Coin révisions).' }
+    ]
+  },
   {
     version: 1505,
     date: 'Vendredi 20 novembre 2026',
