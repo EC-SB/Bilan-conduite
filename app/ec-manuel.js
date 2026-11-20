@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 09:19 — v1457 */
+/* Déployé le 20/11/2026 à 10:00 — v1504 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2418,8 +2418,9 @@ async function ouvrirBilanManuel(){
   const info = $('manuelInfo');
   const frise = dossier.frise || extraireFrise($('noteInterne').value);
   const versionApp = (document.querySelector('.version') || {}).textContent || '';
-  info.innerHTML = '<strong>' + (eleve || '') + '</strong> · ' + modele.label +
-    (versionApp ? ' · <span style="color:var(--muted);">' + versionApp + '</span>' : '') +
+  /* 🔒 v1504 — le nom passe par echapper : il peut venir de Drivup */
+  info.innerHTML = '<strong>' + echapper(eleve || '') + '</strong> · ' + echapper(modele.label) +
+    (versionApp ? ' · <span style="color:var(--muted);">' + echapper(versionApp) + '</span>' : '') +
     (frise ? '<br>Frise reprise : ' + frise.replace(/</g,'&lt;') : '') +
     ((dossier.manoeuvres || []).length
       ? '<br>' + dossier.manoeuvres.length + ' manœuvre(s) déjà validée(s), reprises automatiquement'
