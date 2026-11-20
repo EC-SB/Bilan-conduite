@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:08 — v1519 */
+/* Déployé le 20/11/2026 à 17:37 — v1520 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,31 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1520,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '💥 Constat amiable sans papier (signé sur l’écran, copie par mail), un vrai outil de croquis, la photo seule, une question sur une case — et le bandeau d’appel qui suit vraiment l’appel',
+    quoi: [
+      { emoji: '📱',
+        titre: 'Pas de constat papier ? On le fait sur l’écran',
+        texte: 'Outils › 💥 Constat amiable › « Pas de constat papier » : on remplit aussi le côté de l’autre véhicule (assuré, voiture, assurance, conducteur), les deux conducteurs signent sur l’écran, et l’autre reçoit sa copie en PDF (le modèle européen) par le mail de l’école, le bureau aussi.' },
+      { emoji: '✏️',
+        titre: 'Un vrai outil pour le croquis',
+        texte: 'Des routes toutes faites (droite, courbes, carrefour, carrefour en T, giratoire, places de stationnement), les voitures A et B, moto, camion, vélo, piéton, les panneaux (stop, cédez le passage, feu, sens interdit, passage piéton, priorité à droite) : tout se glisse, se tourne, se grossit. Et le crayon, les flèches, le texte.' },
+      { emoji: '📷',
+        titre: 'Juste envoyer la photo du constat',
+        texte: 'Il est déjà rempli et signé : la voiture, et on l’envoie au bureau, sans rien remplir.' },
+      { emoji: '❓',
+        titre: 'Une question sur une case',
+        texte: 'On touche la case du constat : ce qu’il faut y écrire, et ce que l’appli sait déjà. « 💬 Demander au bureau » envoie la question.' },
+      { emoji: '🛡️',
+        titre: 'Comme sur le vrai constat',
+        texte: 'L’assuré a son téléphone ou mail ; l’agence d’assurance a son nom, son adresse, son pays, son téléphone (Gestion › Flotte › 🛡️) ; la remorque (BE) ; ta date de naissance et ce qui manque à ta fiche se remplissent. Sur place : les photos de la plaque et du permis de l’autre conducteur.' },
+      { emoji: '📞',
+        titre: 'Le bandeau d’appel suit l’appel',
+        texte: 'Il passe bien à « en ligne » puis s’en va après l’appel ; 🔴 Raccrocher et ✕ sont toujours là. On le glisse où on veut (double-clic : à sa place). La fenêtre volante, au-dessus de toutes les fenêtres, s’ouvre aussi quand on appelle ou décroche dans le téléphone.' }
+    ]
+  },
   {
     version: 1519,
     date: 'Vendredi 20 novembre 2026',
