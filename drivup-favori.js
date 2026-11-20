@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 13:36 — v1353 */
+/* Déployé le 20/11/2026 à 16:03 — v1517 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 App Évolution » (anciennement « 📥 Bilan de conduite »)
 
@@ -16,6 +16,12 @@
      sur un cours) ;
    · la liste des élèves — les lignes affichées ;
    · la fiche d'un élève — ce que la liste n'a pas (mail, naissance) ;
+   · 🪪 v1517 — dans la fiche, les onglets Coordonnées (adresse, ville
+     de naissance), Infos complémentaires (le prescripteur = son
+     responsable légal) et Formule & Permis (NEPH) ; et depuis la liste,
+     quand l'onglet de l'application le demande, les fiches des élèves
+     déjà dans l'application à qui il manque quelque chose (David :
+     « hors de question que je fasse élève par élève ») ;
    · 📍 v1170 — depuis le planning d'une agence, les créneaux
      « Bureau Loudéac » / « Bureau Saint Brieuc » des quatre semaines
      à venir : les horaires d'ouverture des bureaux, pour les seuls
@@ -427,6 +433,70 @@
     });
   }
 
+  /* 🪪 v1517 — LES INFOS DU DOSSIER, DANS LA FICHE DRIVUP.
+     Les onglets de la fiche (Coordonnées, Infos complémentaires,
+     Formule & Permis) sont tous dans la page profil.php (la civilité
+     donne le genre des accords du bilan) : on lit leurs
+     champs par leur identifiant (relevés le 20 novembre). Rien n'est
+     touché. Le même lecteur sert pour la fiche ouverte et pour les
+     fiches lues en arrière-plan depuis la liste. */
+  function complementsDuProfil(d) {
+    const v = id => {
+      const e = d.getElementById(id);
+      if (!e) return '';
+      if (e.tagName === 'SELECT') { const o = e.options[e.selectedIndex]; return propre(o && o.value ? o.textContent : ''); }
+      return propre(e.value != null ? e.value : e.getAttribute('value'));
+    };
+    return {
+      civilite: v('civilite'), adresse: v('adresse'), complementAdresse: v('complementAdresse'), codePostal: v('codePostal'), ville: v('ville'),
+      dateNaissance: v('dateNaissance'), villeNaissance: v('villeNaissance'), departementNaissance: v('departementNaissance'),
+      paysNaissance: v('paysNaissance'), neph: v('neph').replace(/\D/g, ''),
+      civilitePrescripteur: v('civilitePrescripteur'), nomPrescripteur: v('nomPrescripteur'), societePrescripteur: v('societePrescripteur'),
+      adressePrescripteur: v('adressePrescripteur'), cpPrescripteur: v('cpPrescripteur'), villePrescripteur: v('villePrescripteur'),
+      naissancePrescripteur: v('naissancePrescripteur'), mobilePrescripteur: v('fakeMobilePrescripteur'),
+      telephonePrescripteur: v('telephonePrescripteur'), mailPrescripteur: v('mailPrescripteur')
+    };
+  }
+
+  /* 🪪 v1517 — les fiches lues en arrière-plan, à la demande de
+     l'application (depuis la liste des élèves) : trois à la fois, en
+     LECTURE seulement (la même page que quand on ouvre la fiche). */
+  let fichesOccupe = false;
+  async function lireLesFiches(demande, source) {
+    const repondre = m => { try { source.postMessage(m, APP); } catch (e) {} };
+    if (fichesOccupe) return repondre({ type: 'drivup-ecoutes-erreur', message: 'Une lecture des fiches est déjà en cours dans Drivup.' });
+    fichesOccupe = true;
+    try {
+      const ids = (Array.isArray(demande.ids) ? demande.ids : []).map(x => String(x).replace(/\D/g, '')).filter(Boolean).slice(0, 300);
+      const out = {};
+      let fait = 0;
+      repondre({ type: 'drivup-ecoutes-progression', fait: 0, total: ids.length, texte: 'Lecture des fiches dans Drivup…' });
+      dire('🪪 Lecture de ' + ids.length + ' fiche(s)…');
+      const file = ids.slice();
+      const travail = async () => {
+        while (file.length) {
+          const id = file.shift();
+          try {
+            const r = await fetch('/eleves/profil.php?eleve=' + encodeURIComponent(id), { credentials: 'same-origin' });
+            if (r.ok) {
+              const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+              if (doc.getElementById('nom')) out[id] = complementsDuProfil(doc);
+            }
+          } catch (e) { /* une fiche illisible : les autres continuent */ }
+          fait++;
+          repondre({ type: 'drivup-ecoutes-progression', fait: fait, total: ids.length, texte: 'Fiches lues dans Drivup : ' + fait + ' / ' + ids.length });
+        }
+      };
+      await Promise.all([travail(), travail(), travail()]);
+      dire('🪪 ' + Object.keys(out).length + ' fiche(s) lue(s).');
+      repondre({ type: 'drivup-fiches-lues', fiches: out });
+    } catch (e) {
+      repondre({ type: 'drivup-ecoutes-erreur', message: (e && e.message) || String(e) });
+    } finally {
+      fichesOccupe = false;
+    }
+  }
+
   async function lireFiche() {
     const v = id => propre((document.getElementById(id) || {}).value);
     const id = (new URLSearchParams(location.search).get('eleve') || '').replace(/\D/g, '');
@@ -444,6 +514,8 @@
       id: id, nom: v('nom'), prenom: v('prenom'), email: v('email'), mailPrescripteur: v('mailPrescripteur'),
       neph: v('neph').replace(/\D/g, ''), mobile: v('fakeMobile'), naissance: v('dateNaissance'),
       formation: formationDeLaFiche(), photo: photoDe(avatar), notes: notes,
+      /* 🪪 v1517 — adresse, ville de naissance, responsable légal (prescripteur), NEPH */
+      complements: complementsDuProfil(document),
       /* 🏢 v1333 — l'agence d'inscription, si la fiche la montre (champ ou menu
          « agence ») ; sinon elle vient de la liste des élèves */
       agence: v('agence') || propre(((document.querySelector('#agence option:checked, select[name=agence] option:checked') || {}).textContent) || '')
@@ -899,6 +971,8 @@
         creerLesEcoutes(ev.data, ev.source);
       } else if (ev.data.type === 'drivup-prix-changer') {
         changerLesPrix(ev.data, ev.source);
+      } else if (ev.data.type === 'drivup-fiches-lire') {
+        lireLesFiches(ev.data, ev.source);   /* 🪪 v1517 */
       }
     });
   }
