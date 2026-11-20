@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:42 — v1510 */
+/* Déployé le 20/11/2026 à 12:37 — v1512 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -264,7 +264,7 @@ const SECTIONS = [
   { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen', onglet:'permis' },
   { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)', onglet:'permis' },
   { cle:'bureau_messages',  nom:'📨 Messages internes', onglet:'outils' },
-  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis', onglet:'eleves' },
+  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis', onglet:'permis' },
   { cle:'textes',           nom:'📄 Ce qu’on écrit et envoie (keep)', onglet:'outils' },
   /* ⚠️ DEUX DROITS POUR UN SEUL ÉCRAN — v959.
 
