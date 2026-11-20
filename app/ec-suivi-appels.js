@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:38 — v1512 */
+/* Déployé le 20/11/2026 à 12:49 — v1513 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -147,7 +147,8 @@ async function afficherSuiviAppels(recharger, relire){
         appels: (d && d.appels) || [], synchro: Number((d && d.synchro) || 0), erreur: (d && d.erreur) || '',
         cron: Number((d && d.cron) || 0), lu: Date.now(),
         cle: !(d && d.cle === false), peutEcouter: !!(d && d.peutEcouter),
-        aujourdhui: (d && d.aujourdhui) || apAujourdhui(), depuis: Number((d && d.depuis) || 0), charge: true
+        aujourdhui: (d && d.aujourdhui) || apAujourdhui(), depuis: Number((d && d.depuis) || 0), charge: true,
+        ia: (d && d.ia) || null
       });
       aRappelerEC = { appels: suiviAppelsEC.appels.filter(apEnAttente), aujourdhui: suiviAppelsEC.aujourdhui, lu: true };
       if(typeof dessinerBandeau === 'function') try{ dessinerBandeau(); }catch(e){}
@@ -171,6 +172,38 @@ function apCorrespond(a, filtre){
   return a.statut === filtre;
 }
 
+/* ============================================================
+   📞 v1513 — L'ÉCRAN REDESSINÉ (schéma validé par David le 20/11 :
+   « un truc futuriste »). Rien ne change dans ce qu'il fait — les
+   mêmes compteurs, la même recherche, la même période, les mêmes
+   gestes et les mêmes filtres — seulement leur forme :
+   ① le poste de contrôle, toujours sombre : « en direct », la ligne
+      d'Allo, l'état de l'IA d'Allo, les trois gestes et quatre
+      compteurs (dont la courbe heure par heure du jour et ce que
+      l'IA a pris) ;
+   ② la recherche et la période en boutons ;
+   ③ les filtres en pastilles ;
+   ④ la file des numéros et la fiche, en fil chronologique.
+   ============================================================ */
+/* La couleur d'un appel : son résultat */
+const AP_COULEUR_EC = { joint: 'ok', message: 'info', repondeur: 'warn', pas_reponse: 'warn', manque: 'bad', ia: 'ia', sms: 'neutre' };
+function apCouleurEC(a){ return AP_COULEUR_EC[a && a.statut] || 'neutre'; }
+/* Les gestes de l'IA, en icône (le journal du Worker les nomme par outil) */
+const AP_ICONE_IA_EC = { debut_appel: '🔎', message: '✉️', signaler_retard: '⏰', laisser_demande: '📝', renvoyer_acces: '📧', creneaux_libres: '🗓️', horaires_agences: '🏢' };
+function apIlYaEC(ms){
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if(m < 1) return 'à l’instant';
+  if(m < 60) return 'il y a ' + m + ' min';
+  if(m < 48 * 60) return 'il y a ' + Math.round(m / 60) + ' h';
+  return 'le ' + new Date(ms).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' });
+}
+function apEl(tag, cls, texte){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(texte !== undefined && texte !== null) e.textContent = texte;
+  return e;
+}
+
 function dessinerSuiviAppels(){
   const zone = $('suiviAppelsZone');
   if(!zone) return;
@@ -186,136 +219,178 @@ function dessinerSuiviAppels(){
   }) : tous;
 
   zone.innerHTML = '';
+  const ax = apEl('div', 'ax');
+  zone.appendChild(ax);
 
-  /* L'en-tête : d'où ça vient, quand c'était relu */
-  const intro = document.createElement('div');
-  intro.className = 'apIntro';
-  const quand = E.synchro ? new Date(E.synchro).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-  intro.innerHTML = 'Tous les appels et SMS du 02 21 65 24 24 (Allo), relus toutes les 5 minutes' +
-    (quand ? ' — dernière lecture le ' + apEsc(quand) : '') + '. Un appel se range tout seul dans le dossier de l’élève dont c’est le numéro ; sinon, « 🔗 Rattacher ».' +
-    (E.depuis ? ' <span style="opacity:.8">Suivi commencé le ' + apEsc(new Date(E.depuis).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })) + '.</span>' : '');
-  zone.appendChild(intro);
+  /* ① LE POSTE DE CONTRÔLE */
+  const hud = apEl('section', 'axHud');
+  const hl = apEl('div', 'axHudL');
+  const live = apEl('span', 'axLive');
+  live.append(apEl('span', 'axDot'), document.createTextNode('EN DIRECT'));
+  hl.appendChild(live);
+  const ligne = apEl('span', 'axLigne');
+  ligne.innerHTML = '02 21 65 24 24 · <b>Allo</b>' + (E.synchro ? ' · relu ' + apEsc(apIlYaEC(E.synchro)) : '') +
+    (E.depuis ? ' · suivi depuis le ' + apEsc(new Date(E.depuis).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })) : '');
+  hl.appendChild(ligne);
+  const ia = E.ia || {};
+  const etatIa = apEl('span', 'axIaEtat' + (ia.cle && ia.dernier ? '' : ' gris'));
+  etatIa.append(apEl('span', 'axDot ia'), document.createTextNode(
+    ia.cle && ia.dernier ? '🤖 IA d’Allo en ligne · branchée sur l’appli · dernier appel ' + apIlYaEC(ia.dernier)
+    : ia.cle ? '🤖 IA d’Allo : clé posée, Allo n’a pas encore appelé l’appli'
+    : '🤖 IA d’Allo pas encore branchée (Gestion › L’IA d’Allo)'));
+  hl.appendChild(etatIa);
+  hud.appendChild(hl);
+
+  const hr = apEl('div', 'axHudR');
+  if(apPeutTout()){
+    const bR = apEl('button', 'axB', '⟳ Relire');
+    bR.type = 'button';
+    bR.title = 'Relire Allo maintenant';
+    bR.addEventListener('click', async () => { bR.disabled = true; bR.textContent = '⟳ Lecture…'; await afficherSuiviAppels(true, true); });
+    hr.appendChild(bR);
+    const nDuJour = tous.filter(a => apEnAttente(a) && a.rappelLe <= auj && a.numero).length;
+    const bT = apEl('button', 'axB', '📞 Tout rappeler ');
+    bT.type = 'button';
+    bT.appendChild(apEl('b', '', String(nDuJour)));
+    bT.title = 'Envoie les numéros à rappeler aujourd’hui (et en retard) dans la file d’appels d’Allo';
+    bT.disabled = !nDuJour;
+    bT.addEventListener('click', () => toutRappelerAvecAllo(bT));
+    hr.appendChild(bT);
+  }
+  if(apPeutTout() || (typeof aDroit === 'function' && aDroit('appels'))){
+    const bN = apEl('button', 'axB', '＋ Noter un appel');
+    bN.type = 'button';
+    bN.title = 'Noter un appel passé d’un autre téléphone';
+    bN.addEventListener('click', () => ouvrirNoterUnAppel(''));
+    hr.appendChild(bN);
+  }
+  hud.appendChild(hr);
+
+  /* les quatre compteurs */
+  const nRappel = tous.filter(apEnAttente).length;
+  const nRetard = tous.filter(a => apEnAttente(a) && a.rappelLe < auj).length;
+  const duJour = tous.filter(a => a.jour === auj && a.genre !== 'SMS');
+  const iaJour = duJour.filter(a => a.statut === 'ia');
+  const gestes = [].concat(...iaJour.map(a => a.ia || [])).filter(x => x.ok !== false);
+  const nb = o => gestes.filter(x => x.outil === o).length;
+  const nSeuls = tous.filter(a => !a.eleve && !a.pasEleve).length;
+  const kpis = apEl('div', 'axKpis');
+  const kpi = (cls, n, titre, sous, filtre) => {
+    const b = apEl('button', 'axKpi ' + cls);
+    b.type = 'button';
+    b.append(apEl('span', 'axKpiN', String(n)), apEl('span', 'axKpiT', titre));
+    if(sous) b.appendChild(apEl('span', 'axKpiS', sous));
+    b.addEventListener('click', () => { E.filtre = filtre; dessinerSuiviAppels(); });
+    kpis.appendChild(b);
+    return b;
+  };
+  kpi('rouge', nRappel, 'À rappeler', nRetard ? 'dont ' + nRetard + ' en retard' : 'rien en retard', 'rappel');
+  /* la courbe du jour, heure par heure (8 h → 19 h), et la part de l'IA */
+  const kj = kpi('lime', duJour.length, 'Appels aujourd’hui', '', 'tous');
+  const heures = [];
+  for(let h = 8; h <= 19; h++) heures.push({ h: h, n: 0, ia: 0 });
+  duJour.forEach(a => { const x = heures.find(y => y.h === parseInt(String(a.heure || '').slice(0, 2), 10)); if(x){ x.n++; if(a.statut === 'ia') x.ia++; } });
+  const max = Math.max(1, ...heures.map(x => x.n));
+  const hNow = Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false }).format(new Date()));
+  const graph = apEl('span', 'axGraph');
+  const bars = apEl('span', 'axBars');
+  bars.setAttribute('aria-hidden', 'true');
+  heures.forEach(x => {
+    const s = apEl('span', 'axBar' + (x.h === hNow ? ' now' : ''));
+    s.title = x.h + ' h : ' + x.n + ' appel' + (x.n > 1 ? 's' : '') + (x.ia ? ' dont ' + x.ia + ' pris par l’IA' : '');
+    const i = apEl('i');
+    i.style.height = Math.max(x.n ? 14 : 4, Math.round(x.n / max * 100)) + '%';
+    s.appendChild(i);
+    if(x.ia){ const j = apEl('i', 'ia'); j.style.height = Math.round(x.ia / max * 100) + '%'; s.appendChild(j); }
+    bars.appendChild(s);
+  });
+  const axe = apEl('span', 'axAxe');
+  axe.append(apEl('span', '', '8 h'), apEl('span', '', '13 h'), apEl('span', '', '19 h'));
+  const leg = apEl('span', 'axLeg');
+  leg.append(apEl('i'), document.createTextNode('tous '), apEl('i', 'ia'), document.createTextNode('pris par l’IA'));
+  graph.append(bars, axe, leg);
+  kj.appendChild(graph);
+  const ce = [nb('signaler_retard') && ('⏰ ' + nb('signaler_retard') + ' retard' + (nb('signaler_retard') > 1 ? 's' : '')),
+              nb('laisser_demande') && ('📝 ' + nb('laisser_demande') + ' demande' + (nb('laisser_demande') > 1 ? 's' : '')),
+              nb('renvoyer_acces') && ('📧 ' + nb('renvoyer_acces') + ' accès')].filter(Boolean).join(' · ');
+  kpi('ia', iaJour.length, 'Pris par l’IA', 'aujourd’hui · ' + (ce || 'rien à signaler'), 'ia');
+  kpi('gris', nSeuls, 'Non rattachés', 'à ranger d’un geste', 'seuls');
+  hud.appendChild(kpis);
+  ax.appendChild(hud);
+
   /* 🕘 v1275 — le déclencheur des 5 minutes de Cloudflare ne tourne pas :
      l'appli relit quand même dès qu'elle est ouverte, mais pas la nuit */
   const admin = typeof ACCES !== 'undefined' && ACCES && ACCES.role === 'admin';
   if(admin && E.cle && !E.erreur && (!E.cron || Date.now() - E.cron > 20 * 60000)){
-    const w = document.createElement('div');
-    w.className = 'apCron';
-    w.textContent = '🕘 Le déclencheur « toutes les 5 minutes » du Worker ' +
+    ax.appendChild(apEl('div', 'apCron', '🕘 Le déclencheur « toutes les 5 minutes » du Worker ' +
       (E.cron ? 'ne s’est plus déclenché depuis le ' + new Date(E.cron).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ne s’est jamais déclenché') +
-      ' : l’appli relit Allo quand elle est ouverte. Pour qu’il tourne aussi appli fermée : Cloudflare › ce Worker › Settings › Trigger Events › ajouter le Cron « */5 * * * * ».';
-    zone.appendChild(w);
+      ' : l’appli relit Allo quand elle est ouverte. Pour qu’il tourne aussi appli fermée : Cloudflare › ce Worker › Settings › Trigger Events › ajouter le Cron « */5 * * * * ».'));
   }
   if(!E.cle || E.erreur){
-    const err = document.createElement('div');
-    err.className = 'apErreur';
-    err.textContent = '⚠️ ' + (!E.cle ? 'Clé Allo absente du Worker (ALLO_API_KEY ou ALLO_CLE_APPELS).' : E.erreur);
-    zone.appendChild(err);
+    ax.appendChild(apEl('div', 'apErreur', '⚠️ ' + (!E.cle ? 'Clé Allo absente du Worker (ALLO_API_KEY ou ALLO_CLE_APPELS).' : E.erreur)));
   }
 
-  /* Les tuiles */
-  const semaine = apPlusJours(auj, -6);
-  const nRappel = tous.filter(apEnAttente).length;
-  const nSeuls = tous.filter(a => !a.eleve && !a.pasEleve).length;
-  const nAuj = tous.filter(a => a.jour === auj && a.genre !== 'SMS').length;
-  const nRep = tous.filter(a => a.jour >= semaine && (a.statut === 'repondeur' || a.statut === 'pas_reponse')).length;
-  const tuiles = document.createElement('div');
-  tuiles.className = 'apTuiles';
-  [[nRappel, '⏰ À rappeler', 'rappel', nRappel ? 'rouge' : ''], [nSeuls, '❓ Numéros non rattachés', 'seuls', ''],
-   [nAuj, '📞 Appels aujourd’hui', 'tous', ''], [nRep, '📵 Répondeurs cette semaine', 'repondeur', '']].forEach(([n, t, f, c]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'apTuile' + (c ? ' ' + c : '');
-    b.innerHTML = '<b>' + n + '</b><span>' + apEsc(t) + '</span>';
-    b.addEventListener('click', () => { E.filtre = f; dessinerSuiviAppels(); });
-    tuiles.appendChild(b);
-  });
-  zone.appendChild(tuiles);
-
-  /* La barre : chercher, la période, les gestes */
-  const barre = document.createElement('div');
-  barre.className = 'apBarre';
+  /* ② LA RECHERCHE ET LA PÉRIODE */
+  const cmd = apEl('div', 'axCmd');
+  const lab = apEl('label', 'axCherche');
+  lab.appendChild(apEl('span', '', '🔎'));
   const champ = document.createElement('input');
   champ.type = 'text';
   champ.inputMode = 'search';
   champ.className = 'apCherche';
-  champ.placeholder = '🔎 Un nom, un numéro, un mot du résumé…';
+  champ.placeholder = 'Un nom, un numéro, un mot du résumé…';
+  champ.setAttribute('aria-label', 'Chercher un appel');
   champ.value = E.cherche || '';
   champ.addEventListener('input', () => {
     E.cherche = champ.value;
     const pos = champ.selectionStart;
     dessinerSuiviAppels();
-    const c2 = zone.querySelector('.apBarre input.apCherche');
+    const c2 = zone.querySelector('input.apCherche');
     if(c2){ c2.focus(); try{ c2.setSelectionRange(pos, pos); }catch(e){} }
   });
-  barre.appendChild(champ);
-  const periode = document.createElement('select');
-  periode.className = 'apPeriode';
-  [[1, '📅 Aujourd’hui'], [7, '📅 Cette semaine'], [31, '📅 30 jours'], [92, '📅 3 mois'], [366, '📅 1 an']].forEach(([v, t]) => {
-    const o = document.createElement('option'); o.value = v; o.textContent = t; if(Number(E.jours) === v) o.selected = true; periode.appendChild(o);
+  lab.appendChild(champ);
+  cmd.appendChild(lab);
+  const seg = apEl('div', 'axSeg');
+  seg.setAttribute('role', 'group');
+  seg.setAttribute('aria-label', 'Période');
+  [[1, 'Aujourd’hui'], [7, 'Semaine'], [31, '30 j'], [92, '3 mois'], [366, '1 an']].forEach(([v, t]) => {
+    const on = Number(E.jours) === v;
+    const b = apEl('button', on ? 'on' : '', t);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.addEventListener('click', () => { if(on) return; E.jours = v; afficherSuiviAppels(true); });
+    seg.appendChild(b);
   });
-  periode.addEventListener('change', () => { E.jours = Number(periode.value) || 7; afficherSuiviAppels(true); });
-  barre.appendChild(periode);
-  zone.appendChild(barre);
+  cmd.appendChild(seg);
+  ax.appendChild(cmd);
 
-  if(apPeutTout() || (typeof aDroit === 'function' && aDroit('appels'))){
-    const gestes = document.createElement('div');
-    gestes.className = 'apGestes';
-    if(apPeutTout()){
-      const bR = document.createElement('button');
-      bR.className = 'btn btn-secondary apBtn';
-      bR.textContent = '🔄 Relire maintenant';
-      bR.addEventListener('click', async () => { bR.disabled = true; bR.textContent = '🔄 Lecture…'; await afficherSuiviAppels(true, true); });
-      gestes.appendChild(bR);
-      const nDuJour = tous.filter(a => apEnAttente(a) && a.rappelLe <= auj && a.numero).length;
-      const bT = document.createElement('button');
-      bT.className = 'btn btn-secondary apBtn';
-      bT.textContent = '📞 Tout rappeler (' + nDuJour + ')';
-      bT.title = 'Envoie les numéros à rappeler aujourd’hui (et en retard) dans la file d’appels d’Allo';
-      bT.disabled = !nDuJour;
-      bT.addEventListener('click', () => toutRappelerAvecAllo(bT));
-      gestes.appendChild(bT);
-    }
-    const bN = document.createElement('button');
-    bN.className = 'btn btn-secondary apBtn';
-    bN.textContent = '➕ Noter un appel passé d’un autre téléphone';
-    bN.addEventListener('click', () => ouvrirNoterUnAppel(''));
-    gestes.appendChild(bN);
-    zone.appendChild(gestes);
-  }
-
-  /* Les filtres, avec leur compte — seulement ceux qui ont quelque chose */
-  const filtres = document.createElement('div');
-  filtres.className = 'apFiltres';
-  const choix = [['tous', 'Tous'], ['rappel', '⏰ À rappeler'], ['joint', '✅ Joint'], ['message', '📩 Message laissé'],
-    ['repondeur', '📵 Répondeur'], ['pas_reponse', '🔕 Pas de réponse'], ['manque', '📲 Appel manqué'],
-    ['mail', '✉️ Mail envoyé'], ['ia', '🤖 Accueil IA'], ['sms', '💬 SMS'], ['seuls', '❓ Non rattachés']];
-  choix.forEach(([f, t]) => {
+  /* ③ LES FILTRES, avec leur compte — seulement ceux qui ont quelque chose */
+  const chips = apEl('div', 'axChips');
+  [['tous', 'Tous'], ['rappel', '⏰ À rappeler'], ['ia', '🤖 Pris par l’IA'], ['joint', '✅ Joint'], ['message', '📩 Message laissé'],
+   ['repondeur', '📵 Répondeur'], ['pas_reponse', '🔕 Pas de réponse'], ['manque', '📲 Manqué'],
+   ['mail', '✉️ Mail envoyé'], ['sms', '💬 SMS'], ['seuls', '❓ Non rattachés']].forEach(([f, t]) => {
     const n = cherche.filter(a => apCorrespond(a, f)).length;
     if(f !== 'tous' && !n && E.filtre !== f) return;
-    const b = document.createElement('button');
+    const b = apEl('button', 'axChip' + (E.filtre === f ? ' on' : '') + (f === 'ia' ? ' ia' : '') + (f === 'rappel' ? ' rouge' : ''), t + ' ');
     b.type = 'button';
-    b.className = 'btn pastilleVue ' + (E.filtre === f ? 'btn-primary' : 'btn-secondary');
-    b.textContent = t + ' · ' + n;
+    b.setAttribute('aria-pressed', E.filtre === f ? 'true' : 'false');
+    b.appendChild(apEl('b', '', String(n)));
     b.addEventListener('click', () => { E.filtre = f; dessinerSuiviAppels(); });
-    filtres.appendChild(b);
+    chips.appendChild(b);
   });
-  zone.appendChild(filtres);
+  ax.appendChild(chips);
 
   const liste = cherche.filter(a => apCorrespond(a, E.filtre));
   if(!liste.length){
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.textContent = tous.length ? 'Aucun appel pour ce filtre.' : 'Aucun appel pour le moment. Les appels arrivent ici dans les 5 minutes.';
-    zone.appendChild(v);
+    ax.appendChild(apEl('div', 'empty', tous.length ? 'Aucun appel pour ce filtre.' : 'Aucun appel pour le moment. Les appels arrivent ici dans les 5 minutes.'));
     return;
   }
-  /* 📞 v1309 — UNE FICHE PAR NUMÉRO (David, sur le schéma : « comme
+  /* ④ 📞 v1309 — UNE FICHE PAR NUMÉRO (David, sur le schéma : « comme
      Allo », une fiche par numéro, le plus récent en haut, tous les
      filtres gardés). À gauche les numéros qui ont au moins un appel
      du filtre ; à droite la fiche du numéro choisi, avec TOUT son
      historique en fil. */
-  zone.appendChild(blocNumerosEC(tous, liste, auj));
+  ax.appendChild(blocNumerosEC(tous, liste, auj));
 }
 
 /* Une ligne d'appel — l'écran du suivi et le dossier (o.dossier) */
@@ -1351,7 +1426,7 @@ const apDossierEC = { eleve: '', appels: null, proches: [], filtre: 'tous', corp
 
 async function ongletAppelsEleve(corps, nom){
   apDossierEC.corps = corps;
-  corps.classList.add('apDossier');
+  corps.classList.add('apDossier', 'ax');
   if(apDossierEC.eleve !== nom){ apDossierEC.eleve = nom; apDossierEC.appels = null; apDossierEC.filtre = 'tous'; }
   corps.innerHTML = '<div class="empty">Chargement des appels…</div>';
   try{
@@ -1536,21 +1611,30 @@ function blocNumerosEC(tous, liste, auj){
     r.type = 'button';
     r.className = 'fxR' + (g.cle === FX_EC.cle ? ' on' : '');
     r.dataset.cle = g.cle;
+    /* 📞 v1513 — le rond prend la couleur du dernier résultat */
     const av = document.createElement('span');
-    av.className = 'fxAv' + (qui.inconnu ? ' inc' : '');
-    av.textContent = qui.inconnu ? '❓' : (apInitialesEC(qui.nom.replace(/^🏷️\s*/, '')) || '👤');
+    av.className = 'fxAv axAv ' + apCouleurEC(der) + (qui.inconnu ? ' inc' : '');
+    av.appendChild(apEl('span', '', qui.inconnu ? '?' : (apInitialesEC(qui.nom.replace(/^🏷️\s*/, '')) || '👤')));
     const m = document.createElement('span');
     m.className = 'fxM';
-    const n = document.createElement('span'); n.className = 'fxN'; n.textContent = qui.nom + (qui.proche ? ' · 👪 ' + qui.proche : '');
+    const n = document.createElement('span'); n.className = 'fxN'; n.textContent = qui.nom;
+    if(qui.proche) n.appendChild(apEl('em', '', ' 👪 ' + qui.proche));
     const so = document.createElement('span'); so.className = 'fxS'; so.textContent = apPhraseEC(der);
     m.append(n, so);
+    /* 🤖 ce que l'IA a fait ce jour-là sur ce numéro, en icônes */
+    const ges = [].concat(...g.appels.filter(a => a.jour === der.jour).map(a => a.ia || []))
+      .filter(x => x.outil !== 'debut_appel' && x.outil !== 'message' && x.ok !== false);
+    const icones = Array.from(new Set(ges.map(x => AP_ICONE_IA_EC[x.outil] || '🤖')));
+    const etiq = apEl('span', 'axRowT');
+    if(icones.length) etiq.appendChild(apEl('span', 'axIaMini', '🤖 ' + icones.join(' ')));
     const h = document.createElement('span');
     h.className = 'fxH';
     h.appendChild(document.createTextNode(apQuandCourtEC(der, auj)));
     const attend = g.appels.some(apEnAttente);
     const lien = !attend && der.sens !== 'out' ? apLiensEC.get(der.id) : (der.sens === 'out' ? apLiensEC.get(der.id) : null);
-    if(attend){ const b = document.createElement('span'); b.className = 'fxBad'; b.textContent = '⏰ à rappeler'; h.appendChild(b); }
-    else if(lien){ const b = document.createElement('span'); b.className = 'fxBad ok'; b.textContent = '↩️ rappelé'; h.appendChild(b); }
+    if(attend){ const b = document.createElement('span'); b.className = 'fxBad'; b.textContent = '⏰ à rappeler'; etiq.appendChild(b); }
+    else if(lien){ const b = document.createElement('span'); b.className = 'fxBad ok'; b.textContent = '↩️ rappelé'; etiq.appendChild(b); }
+    if(etiq.children.length) m.appendChild(etiq);
     r.append(av, m, h);
     r.addEventListener('click', () => { FX_EC.cle = g.cle; FX_EC.fiche = true; dessinerSuiviAppels(); });
     gauche.appendChild(r);
@@ -1575,13 +1659,13 @@ function ficheNumeroEC(g, tousDuNumero, o){
   tete.className = 'fxFh';
   if(!o.dossier){
     const ret = document.createElement('button');
-    ret.type = 'button'; ret.className = 'fxB fxRet'; ret.textContent = '← Retour';
+    ret.type = 'button'; ret.className = 'fxB fxRet'; ret.textContent = '← Tous les appels';
     ret.addEventListener('click', () => { FX_EC.fiche = false; dessinerSuiviAppels(); });
-    tete.appendChild(ret);
+    f.appendChild(ret);   /* 📞 v1513 — au-dessus de l'en-tête, comme sur le schéma */
   }
   const av = document.createElement('span');
-  av.className = 'fxAv' + (qui.inconnu ? ' inc' : '');
-  av.textContent = qui.inconnu ? '❓' : (apInitialesEC(qui.nom.replace(/^🏷️\s*/, '')) || '👤');
+  av.className = 'fxAv axAv grand ' + apCouleurEC(der) + (qui.inconnu ? ' inc' : '');
+  av.appendChild(apEl('span', '', qui.inconnu ? '?' : (apInitialesEC(qui.nom.replace(/^🏷️\s*/, '')) || '👤')));
   tete.appendChild(av);
   const id = document.createElement('div');
   id.className = 'fxId';
@@ -1625,6 +1709,13 @@ function ficheNumeroEC(g, tousDuNumero, o){
     const dAppel = appels.slice().reverse().find(a => a.genre !== 'SMS');
     if(dAppel) bouton('✏️ Ce qui s’est passé', () => ouvrirCeQuiSestPasse(dAppel));
   }
+  /* 📞 v1513 — son dossier, d'un geste (sur le schéma) */
+  if(qui.eleve && !o.dossier && typeof ouvrirPageEleve === 'function'){
+    const b = apEl('button', 'fxB', '👤 Dossier');
+    b.type = 'button';
+    b.addEventListener('click', () => { ouvrirPageEleve(qui.eleve); if(typeof choisirOngletEleve === 'function') choisirOngletEleve('appels'); });
+    act.appendChild(b);
+  }
   tete.appendChild(act);
   f.appendChild(tete);
   /* où on en est */
@@ -1652,15 +1743,32 @@ function ficheNumeroEC(g, tousDuNumero, o){
       fil.appendChild(Object.assign(document.createElement('div'), { className: 'fxDj',
         textContent: (a.jour === auj ? 'Aujourd’hui — ' : a.jour === hier ? 'Hier — ' : '') + apJourLong(a.jour) }));
     }
-    const bu = document.createElement('div');
-    bu.className = 'fxBu' + (a.sens === 'out' ? ' out' : '') + (apEnAttente(a) ? ' attend' : '');
+    /* 📞 v1513 — un appel = un point sur la ligne du temps, à la couleur
+       de son résultat ; en tête, le sens, l'heure, la durée et ses
+       pastilles ; dessous, une barre de durée (10 min = pleine), puis la
+       ligne d'appel d'avant (résumé, IA, résumé complet, envois, gestes) */
+    const bu = document.createElement('article');
+    bu.className = 'fxBu axEv ' + apCouleurEC(a) + (a.sens === 'out' ? ' out' : '') + (apEnAttente(a) ? ' attend' : '');
     bu.dataset.id = a.id;
+    bu.appendChild(apEl('span', 'axNoeud'));
+    const tete2 = apEl('div', 'axEvH');
     const t = document.createElement('div');
     t.className = 'fxT';
-    t.textContent = (a.genre === 'SMS' ? (a.sens === 'out' ? '💬 SMS envoyé' : '💬 SMS reçu') : (a.sens === 'out' ? '↗️ Vous avez appelé' : '↙️ Appel reçu')) +
+    t.textContent = (a.genre === 'SMS' ? (a.sens === 'out' ? '💬 SMS envoyé' : '💬 SMS reçu') : (a.sens === 'out' ? '↗ Appel sortant' : '↙ Appel reçu')) +
       ' · ' + (a.heure || '') + (a.genre === 'SMS' || !Number(a.duree) ? '' : ' · ' + apDuree(a.duree));
-    bu.appendChild(t);
-    bu.appendChild(ligneAppelEC(a, { dossier: true, auj: auj, bulle: true }));
+    tete2.appendChild(t);
+    bu.appendChild(tete2);
+    const ligneA = ligneAppelEC(a, { dossier: true, auj: auj, bulle: true });
+    const etats = ligneA.querySelector('.apEtats');
+    if(etats) tete2.appendChild(etats);
+    if(a.genre !== 'SMS' && Number(a.duree) > 0){
+      const d = apEl('div', 'axDuree');
+      const i = apEl('i');
+      i.style.width = Math.min(100, Math.round(Number(a.duree) / 600 * 100)) + '%';
+      d.appendChild(i);
+      bu.appendChild(d);
+    }
+    bu.appendChild(ligneA);
     fil.appendChild(bu);
   });
   f.appendChild(fil);
