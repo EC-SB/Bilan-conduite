@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 16:03 — v1517 */
+/* Déployé le 20/11/2026 à 16:47 — v1518 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1518,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '💥 Outils › Constat amiable : treize questions, le constat qui se remplit tout seul, et l’envoi au bureau avec les photos',
+    quoi: [
+      { emoji: '💥',
+        titre: 'Le constat amiable, une question à la fois',
+        texte: 'Outils › 💥 Constat amiable, pour tous les moniteurs. Le constat dessiné à côté se remplit case par case ; à la fin, on le recopie sur le constat papier. L’école, la voiture, l’assurance et le moniteur (le conducteur) sont déjà écrits, l’élève est cité dans les observations.' },
+      { emoji: '📱',
+        titre: 'Lire case par case',
+        texte: 'Au téléphone, au bord de la route : « Case 6 — … », en gros, puis « Case suivante → ». Les réponses restent dans le téléphone le temps de recopier.' },
+      { emoji: '📷',
+        titre: 'Envoyer le constat au bureau',
+        texte: 'La photo du constat signé (si on veut), et des photos en plus autant qu’on veut. Elles vont dans le fil de la voiture, un message part au bureau avec la date limite pour l’assureur (5 jours ouvrés), et un dégât s’ajoute à la carrosserie.' },
+      { emoji: '🛡️',
+        titre: 'L’assurance des voitures',
+        texte: 'Gestion › Flotte : l’assureur, le contrat, la carte verte, l’agence, une fois pour toutes. Le constat les reprend (case 8).' }
+    ]
+  },
   {
     version: 1517,
     date: 'Vendredi 20 novembre 2026',
