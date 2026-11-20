@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:05 — v1507 */
+/* Déployé le 20/11/2026 à 11:18 — v1508 */
 /* ============================================================
    ec-base.js — v1503 (v1474 pour la première version)
    🗄️ LA BASE DE L'APPLI — Gestion › L'outil › 🗄️ Base (admins)
@@ -125,7 +125,23 @@ const BASE_FAMILLES = [
     { action: 'basePaieRattachement', logo: '📎', nom: 'Semaines rattachées', mot: 'les semaines rattachées à un mois', unite: 'semaine',
       aide: 'Une semaine à cheval sur deux mois, rattachée à l’un des deux.' },
     { action: 'basePaieCloture', logo: '🔒', nom: 'Mois clos', mot: 'les mois de paie clos', unite: 'clôture',
-      aide: 'Les heures arrêtées de chaque salarié pour un mois clos.' } ] }
+      aide: 'Les heures arrêtées de chaque salarié pour un mois clos.' } ] },
+  /* 🏢 v1508 — le bureau */
+  { nom: 'Bureau', feuilles: [
+    { action: 'baseTaches', logo: '☑️', nom: 'Tâches', mot: 'les tâches du bureau', unite: 'tâche',
+      aide: 'Les tâches du bureau, avec leur capture. Relue une fois l’heure (les images pèsent lourd).' },
+    { action: 'baseDepartTaches', logo: '🧳', nom: 'Tâches de départ', mot: 'les tâches de départ des élèves', unite: 'élève',
+      aide: 'Ce qu’il reste à faire quand un élève part.' },
+    { action: 'baseNotifsMasquees', logo: '🔕', nom: 'Alertes masquées', mot: 'les alertes masquées', unite: 'alerte',
+      aide: 'Les alertes que le bureau a masquées, élève par élève.' },
+    { action: 'baseMessagesBandeau', logo: '📌', nom: 'Messages épinglés', mot: 'les messages épinglés', unite: 'message',
+      aide: 'Le message épinglé en haut de l’appli, pour qui, de quand à quand.' },
+    { action: 'baseMessagesVus', logo: '👀', nom: 'Lectures des messages', mot: 'qui a lu les messages épinglés', unite: 'lecture',
+      aide: 'Qui a vu chaque message épinglé, et quand.' },
+    { action: 'baseEcran', logo: '📺', nom: 'Écrans d’accueil', mot: 'les diapositives des écrans', unite: 'diapositive',
+      aide: 'Les diapositives des écrans d’accueil. Relue une fois l’heure (les images pèsent lourd).' },
+    { action: 'baseConfig', logo: '⚙️', nom: 'Réglages des places', mot: 'les réglages des places', unite: 'réglage',
+      aide: 'Les places d’examen ouvertes et leurs réglages.' } ] }
 ];
 const BASE_TOUTES = [].concat.apply([], BASE_FAMILLES.map(f => f.feuilles));
 const bEtat = {};          /* action → dernière réponse du serveur */
