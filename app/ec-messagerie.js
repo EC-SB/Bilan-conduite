@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:58 — v1527 */
+/* Déployé le 21/11/2026 à 14:19 — v1533 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -2551,6 +2551,12 @@ function fragmentAvecMentionsEC(texte){
     .sort((a, b) => b.length - a.length);
   /* 🔗 v1527 — les liens du texte se touchent (ec-liens.js) */
   const texteEC = s => (typeof noeudsAvecLiensEC === 'function') ? noeudsAvecLiensEC(s) : document.createTextNode(s);
+  /* ✍️ v1533 — un texte mis en forme (Ce qu'on écrit) : gras, couleurs… ; les @ et les liens dans chaque morceau */
+  if(typeof aDesBalisesEC === 'function' && aDesBalisesEC(t)){
+    let moiDedans = false;
+    const frag2 = noeudsMisEnFormeEC(t, morceau => { const r = fragmentAvecMentionsEC(morceau); if(r.moi) moiDedans = true; return r.frag; });
+    return { frag: frag2, moi: moiDedans };
+  }
   if(t.indexOf('@') === -1 || !noms.length){
     frag.appendChild(texteEC(t));
     return { frag: frag, moi: false };
