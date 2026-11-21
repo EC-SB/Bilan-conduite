@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 14:55 — v1535 */
+/* Déployé le 21/11/2026 à 15:24 — v1537 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,35 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1537,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📆 Le planning relu pour tous les élèves en formation, même avec un cours dans 8 semaines',
+    quoi: [
+      { emoji: '📆',
+        titre: 'Tous les élèves en formation',
+        texte: 'La lecture automatique relit la fiche › Plannings de chaque élève qui a son numéro Drivup, n’est pas parti et n’a pas son permis, même sans cours dans les quatre semaines. Les jamais lus et les plus anciens d’abord, une fois par jour.' },
+      { emoji: '📱',
+        titre: 'Tous ses cours à venir dans son espace',
+        texte: '« Mes cours à venir » montre tout ce que sa fiche Drivup montre, même dans 8 semaines (avant : 30 jours).' }
+    ]
+  },
+  {
+    version: 1536,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📆 Le planning de chaque élève, comme sa fiche Drivup : dans son dossier et dans son espace',
+    quoi: [
+      { emoji: '📆',
+        titre: 'Un onglet « Planning » dans le dossier',
+        texte: 'Ses cours à venir, passés et annulés, comme dans sa fiche Drivup › Plannings : le numéro de la leçon (« 10e Conduite… »), la durée, le moniteur ou la colonne d’écoute, qui a annulé et si c’est excusé. Relu à l’ouverture du dossier, et « ↻ Relire dans Drivup ».' },
+      { emoji: '🌙',
+        titre: 'Relu tout seul, sans ouvrir les dossiers',
+        texte: 'La lecture automatique de l’extension relit chaque jour le planning de tous les élèves en formation (20 à chaque passage), et tout de suite celui d’un élève dont un cours vient de bouger.' },
+      { emoji: '📱',
+        titre: 'Dans l’espace élève, la même chose que Drivup',
+        texte: '« Mes cours à venir » vient de sa fiche Drivup, avec le numéro de la leçon, et « 📜 Mes cours passés » s’ajoute dessous. L’IA d’Allo et « Annuler un cours » voient la même liste.' }
+    ]
+  },
   {
     version: 1535,
     date: 'Samedi 21 novembre 2026',
