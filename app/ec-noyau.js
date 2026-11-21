@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 12:37 — v1512 */
+/* Déployé le 21/11/2026 à 13:03 — v1530 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -205,7 +205,9 @@ const ONGLETS_DROITS = [
      QUELQU'UN NOUS PARLE — ce n'est pas la même façon d'arriver. */
   { cle:'messagerie', nom:'💬 Messagerie' },
   { cle:'outils',  nom:'🔨 Outils' },
-  { cle:'gestion', nom:'⚙️ Gestion' }
+  { cle:'gestion', nom:'⚙️ Gestion' },
+  /* 📥 v1530 — David : « met le à part dans les accès » */
+  { cle:'drivup',  nom:'📥 Drivup' }
 ];
 
 /* ⚠️ LES DROITS QUI TOUCHENT À L'ARGENT, NOMMÉS UNE FOIS.
@@ -447,7 +449,11 @@ const SECTIONS = [
      en ajouter, en changer, en retirer. Administrateurs par le rôle ;
      les autres, la case. Jamais par « Tout voir » (SECTIONS_EXPRES). */
   { cle:'coffre',           nom:'🔐 Coffre-fort des mots de passe', onglet:'gestion' },
-  { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
+  { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' },
+  /* 📥 v1530 — à part (David, le 21/11). Voir : l'onglet et Drivup à côté
+     des dossiers et des rappels ; modifier : en plus, lire Drivup en
+     arrière-plan (l'extension, le favori). Admin et bureau par le rôle. */
+  { cle:'drivup',           nom:'📥 Drivup (voir : l’onglet et Drivup à côté des dossiers · modifier : lire Drivup en arrière-plan)', onglet:'drivup' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
      C'était un droit d'essai, temporaire par construction : il
