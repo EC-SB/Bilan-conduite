@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:03 — v1530 */
+/* Déployé le 21/11/2026 à 15:12 — v1536 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -877,6 +877,138 @@ function poserBoutonDrivupDossier(){
   const p = $('dvPanneau');
   if(p && p.dataset.pour === 'dossier' && id && p.dataset.cle !== nom) ouvrirPanneauDrivupEleve(nom, id);
 }
+/* ============================================================
+   📆 v1536 — LE PLANNING DE L'ÉLÈVE, LU DANS SA FICHE DRIVUP
+
+   David, le 21/11 : « rajouter planning dans le dossier élève avec les
+   cours à venir et les cours passés, qui se relit avec ce qu'il y a dans
+   Drivup, fiche de l'élève, l'onglet planning, comme ça l'élève voit sur
+   Drivup et sur son app la même chose ». Ses choix : les trois volets
+   comme Drivup (à venir, passés, annulés, avec le numéro de la leçon) ;
+   relu à l'ouverture du dossier, et chaque jour pour les élèves en
+   formation (lectureDeVeilleDrivup, ec-drivup.js) ; l'espace élève prend
+   ses cours à venir et passés de cette lecture (le Worker).
+   L'extension lit la page Plannings de sa fiche, sans rien y toucher.
+   ============================================================ */
+let filePlanningsDv = Promise.resolve();
+/* Une lecture à la fois : la réponse de l'extension n'a pas d'étiquette */
+function lirePlanningsDrivup(liste){
+  const t = filePlanningsDv.then(() => lirePlanningsDrivupMaintenant(liste));
+  filePlanningsDv = t.catch(() => {});
+  return t;
+}
+async function lirePlanningsDrivupMaintenant(liste){
+  const l = (liste || []).map(x => ({ id: chiffresDrivup(x && x.id), eleve: String((x && x.eleve) || '').trim() })).filter(x => x.id && x.eleve).slice(0, 40);
+  if(!l.length) return { n: 0, plannings: {} };
+  if(!extDrivupPresente()) throw new Error('L’extension « App EC · Drivup » n’est pas sur cet ordinateur.');
+  versExtDrivup({ type: 'drivup-plannings-lire', ids: l.map(x => x.id) });
+  let d;
+  try{ d = await attendreDeDrivup('drivup-plannings-lus', null, 300000); }
+  catch(e){
+    if(/ne sait pas encore/.test(String(e && e.message))) throw new Error('Mets à jour l’extension « App EC · Drivup » (1.5.0) pour lire le planning de l’élève.');
+    throw e;
+  }
+  const lus = (d && d.plannings) || {};
+  const aPoser = l.filter(x => lus[x.id]).map(x => Object.assign({}, lus[x.id], { eleve: x.eleve, idDrivup: x.id }));
+  let n = 0;
+  for(let i = 0; i < aPoser.length; i += 3){
+    const r = await appelPrep({ action: 'drivupPlanningsPoser', plannings: aPoser.slice(i, i + 3) });
+    n += (r && r.n) || 0;
+  }
+  return { n: n, plannings: lus };
+}
+
+const PLANNING_DV = { volet: 'venir' };
+const MOIS_COURTS_DV = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+function jourCourtDv(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return iso || '';
+  const j = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+  return j + ' ' + Number(m[3]) + ' ' + MOIS_COURTS_DV[+m[2] - 1] + (m[1] !== String(new Date().getFullYear()) ? ' ' + m[1] : '');
+}
+function rangDv(n){ return n ? n + (n === 1 ? 'er' : 'e') + ' · ' : ''; }
+function emojiDuCoursDv(x){
+  const t = String((x && x.prestation) || '').toLowerCase(), r = String((x && x.ressource) || '').toLowerCase();
+  if(/écoute|ecoute/.test(t) || /ecoute|écoute/.test(r)) return '👂';
+  if(/simulateur/.test(t)) return '🕹️';
+  if(/visio/.test(t)) return '🎥';
+  if(/\betg\b|code/.test(t)) return '📝';
+  if(/tablette|théorie|theorie/.test(t)) return '📺';
+  if(/examen/.test(t) && !/blanc/.test(t)) return '🏁';
+  return '🚗';
+}
+
+async function ongletPlanningEleve(corps, nom){
+  const c = carteDv(corps, '📆', 'Planning', 'Ce que montre sa fiche Drivup › Plannings : ses cours à venir, passés et annulés. ' +
+    'C’est aussi ce que l’élève voit dans son espace.');
+  const etat = elDv('div', 'dvNote', 'Lecture…');
+  etat.style.margin = '2px 0 8px';
+  const barre = elDv('div', '');
+  barre.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px;align-items:center;';
+  const liste = elDv('div', '');
+  c.append(etat, barre, liste);
+  const f = typeof ficheDe === 'function' ? ficheDe(nom) : null;
+  const id = chiffresDrivup(f && f.idDrivup);
+  let pl = null;
+  const dessiner = () => {
+    if(!c.isConnected) return;
+    barre.textContent = '';
+    liste.textContent = '';
+    const ext = extDrivupPresente() && typeof peutLireDrivup === 'function' && peutLireDrivup();
+    etat.textContent = pl ? '📥 Lu dans Drivup ' + ilYADv(pl.luLe) + ' (' + new Date(pl.luLe).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(':', 'h') + ')'
+      : !id ? 'Pas encore relié à Drivup : son numéro Drivup manque dans sa fiche.'
+      : ext ? 'Pas encore lu dans Drivup.' : 'Pas encore lu dans Drivup : il faut un ordinateur avec l’extension « App EC · Drivup » et le droit « 📥 Drivup ».';
+    const volets = [['venir', 'À venir', pl ? pl.venir : []], ['passes', 'Passés', pl ? pl.passes : []], ['annules', 'Annulés', pl ? pl.annules : []]];
+    volets.forEach(([cle, titre, l]) => {
+      const b = elDv('button', 'btn btn-secondary', titre + ' (' + l.length + ')');
+      b.type = 'button';
+      b.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:7px 12px;font-size:13px;border-radius:999px;' +
+        (PLANNING_DV.volet === cle ? 'background:var(--orange);color:var(--on-accent);border-color:var(--orange);font-weight:700;' : '');
+      b.addEventListener('click', () => { PLANNING_DV.volet = cle; dessiner(); });
+      barre.appendChild(b);
+    });
+    if(id && ext){
+      const r = elDv('button', 'btn btn-secondary', '↻ Relire dans Drivup');
+      r.type = 'button';
+      r.style.cssText = 'width:auto;flex:0 0 auto;margin:0 0 0 auto;padding:7px 12px;font-size:13px;';
+      r.addEventListener('click', () => relire(true));
+      barre.appendChild(r);
+    }
+    if(!pl) return;
+    const l = (volets.find(v => v[0] === PLANNING_DV.volet) || volets[0])[2];
+    if(!l.length){ liste.appendChild(noteDv(PLANNING_DV.volet === 'venir' ? 'Aucun cours à venir dans Drivup.' : PLANNING_DV.volet === 'passes' ? 'Aucun cours passé.' : 'Aucun cours annulé.')); return; }
+    const ordre = PLANNING_DV.volet === 'venir' ? l : l.slice().sort((a, b) => (b.jour + b.debut).localeCompare(a.jour + a.debut));
+    ordre.forEach(x => {
+      const h = String(x.debut || '').replace(':', 'h');
+      const sous = [jourCourtDv(x.jour), x.duree ? dureeDv(x.duree) : '', x.ressource || ''].filter(Boolean).join(' · ') +
+        (x.annulePar ? ' — ' + x.annulePar : '');
+      const etatL = PLANNING_DV.volet === 'annules' ? 'annule' : PLANNING_DV.volet === 'venir' ? 'neuf' : '';
+      const puce = PLANNING_DV.volet === 'annules' ? (x.excuse || 'Annulé') : PLANNING_DV.volet === 'venir' ? 'À venir' : 'Fait';
+      liste.appendChild(ligneDv(h, rondTexteDv(emojiDuCoursDv(x)), rangDv(x.rang) + (x.prestation || 'Cours'), sous, etatL, puce));
+    });
+  };
+  const relire = async (force) => {
+    if(!id || !extDrivupPresente() || !(typeof peutLireDrivup === 'function' && peutLireDrivup())) return;
+    if(!force && pl && Date.now() - pl.luLe < 10 * 60000) return;
+    etat.textContent = '📥 Lecture de sa fiche Drivup › Plannings…';
+    try{
+      await lirePlanningsDrivup([{ id: id, eleve: nom }]);
+      const r = await appelPrep({ action: 'drivupPlanningEleve', eleve: nom });
+      pl = (r && r.planning) || pl;
+      dessiner();
+    }catch(e){
+      dessiner();
+      etat.textContent = '⚠️ ' + ((e && e.message) || e) + (pl ? ' — voici la dernière lecture.' : '');
+    }
+  };
+  try{
+    const r = await appelPrep({ action: 'drivupPlanningEleve', eleve: nom });
+    pl = (r && r.planning) || null;
+  }catch(e){ pl = null; }
+  dessiner();
+  relire(false);
+}
+
 /* ⚠️ APRÈS TOUS LES SCRIPTS : ec-onglets.js est chargé après ce module,
    et sa déclaration « function afficherOnglet » remplacerait l'habillage. */
 function habillerPourDrivup(){
