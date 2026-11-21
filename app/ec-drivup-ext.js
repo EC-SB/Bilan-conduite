@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:37 — v1542 */
+/* Déployé le 21/11/2026 à 16:54 — v1543 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -109,7 +109,9 @@ const SORTES_DV = {
   cours_prepare:  { puce: '📅 Préparé tout seul', cls: 'neuf',  famille: 'planning' },
   cours_moniteur: { puce: '🔁 Moniteur changé',   cls: 'bouge', famille: 'planning' },
   /* 🔗 v1542 — la suite d'un cours enchaîné, retirée */
-  cours_enchaine: { puce: '🔗 Cours enchaîné',    cls: 'annule', famille: 'planning' }
+  cours_enchaine: { puce: '🔗 Cours enchaîné',    cls: 'annule', famille: 'planning' },
+  /* 🗑️ v1543 — un cours qui n'est plus dans Drivup, retiré des prochains cours et de l'Affichage */
+  cours_retire:   { puce: '🗑️ Cours retiré',      cls: 'annule', famille: 'planning' }
 };
 const FAMILLES_DV = [['planning', '📆', 'Planning'], ['notes', '📝', 'Notes'], ['neph', '🆔', 'NEPH'], ['mandats', '✅', 'Mandats'], ['ecoutes', '👂', 'Écoutes'], ['dossiers', '🆕', 'Dossiers']];
 const JOURS_DV = [[1, 'Lun'], [2, 'Mar'], [3, 'Mer'], [4, 'Jeu'], [5, 'Ven'], [6, 'Sam'], [0, 'Dim']];
