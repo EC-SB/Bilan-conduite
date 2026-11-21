@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:42 — v1526 */
+/* Déployé le 21/11/2026 à 11:58 — v1527 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1527,
+    date: 'Samedi 21 novembre 2026',
+    resume: '🔗 Des hyperliens dans Ce qu’on écrit, et « Lien élève » vers n’importe où',
+    quoi: [
+      { emoji: '🔗',
+        titre: 'Les hyperliens',
+        texte: 'Dans une fiche de « Ce qu’on écrit et envoie », sélectionne un mot puis « 🔗 Lien » et colle l’adresse : le mot devient cliquable dans le mail, dans la messagerie et dans l’espace élève. Copié, il devient « mot (adresse) ».' },
+      { emoji: '🧭',
+        titre: '« 🔗 Lien élève » vers n’importe où',
+        texte: 'Au moment d’insérer : une page de l’espace élève (Accueil, Réviser, Vérifs, Code, Réciter, Écrire, Mon bilan), une étape d’un guide comme avant, ou un écran de l’App équipe (un onglet, sa vue, le dossier d’un élève). Dans l’App, un lien vers l’App y emmène sans recharger.' }
+    ]
+  },
   {
     version: 1526,
     date: 'Samedi 21 novembre 2026',
