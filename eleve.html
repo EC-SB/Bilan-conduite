@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/11/2026 à 14:19 — v1533 -->
+<!-- Déployé le 21/11/2026 à 14:55 — v1535 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-WDsnepfN4Nw9md9OCzIpQTc0MiFDwcprIMqRzbuJ5o4='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-kh4oOZbAcKfiBquzmVVa+VyQXLAjGkuNYL04hEYldTk='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -540,6 +540,9 @@
             color:var(--soft); margin:6px 0 6px; }
   .aVenirL{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; }
   .aVenirE{ font-size:18px; line-height:1.3; }
+  /* 🎨 v1535 — les dessins des cours, à la place des emoji */
+  .aVenirE .aVenirI{ width:22px; height:22px; display:block; margin-top:1px; }
+  .icSpriteBoite{ position:absolute; width:0; height:0; overflow:hidden; }
   .aVenirC{ flex:1; min-width:0; display:flex; flex-direction:column; font-size:14px; line-height:1.45; }
   .aVenirC b{ font-weight:800; }
   .aVenirC span{ color:var(--soft); font-size:13px; }
@@ -8832,6 +8835,28 @@
      se répète pas dessous.
      ============================================================ */
   var mesAVenir = null;
+  /* 🎨 v1535 — LES DESSINS DES COURS. David, le 21/11 : « change les icônes
+     devant, dessine une tablette dans le même style et un simulateur de
+     conduite » (choix A + A), le simulateur de nuit, la prévention des
+     risques avec un accident à l'écran, un enseignant à côté du simulateur
+     avec moniteur (absent la nuit et en prévention des risques), et les
+     autres signes dessinés aussi. Un dessin s'affiche pareil sur tous les
+     téléphones ; posé une fois dans la page, repris par <use>. */
+  var ICONES_SORTES = { salle:1, simu:1, simu_moniteur:1, simu_nuit:1, simu_risques:1, simu_nuit_risques:1,
+                        conduite:1, examen:1, etg:1, visio:1, ecoute:1 };
+  var ICONES_COURS_SVG = '<svg class="icSprite" width="0" height="0" aria-hidden="true" focusable="false"><defs><linearGradient id="icCadre" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D9D4E6"/><stop offset="1" stop-color="#9F98B6"/></linearGradient><linearGradient id="icEcran" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5FD0FF"/><stop offset="1" stop-color="#1C84E3"/></linearGradient><linearGradient id="icNuit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B3F8F"/><stop offset="1" stop-color="#16184A"/></linearGradient><linearGradient id="icMarine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5C57A8"/><stop offset="1" stop-color="#2C2860"/></linearGradient><linearGradient id="icRose" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF7A9A"/><stop offset="1" stop-color="#E8335E"/></linearGradient><linearGradient id="icRoute" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6C6F86"/><stop offset="1" stop-color="#43465C"/></linearGradient><linearGradient id="icPeau" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD9BF"/><stop offset="1" stop-color="#F0A77C"/></linearGradient><linearGradient id="icFeu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE45C"/><stop offset="1" stop-color="#FF8A1F"/></linearGradient><clipPath id="icDrapeau"><path d="M8.5 4.5 C13 2.5 17 7 22 5 C25 4 27 4.5 28.5 5.5 V18 C27 17 25 16.5 22 17.5 C17 19.5 13 15 8.5 17 Z"/></clipPath><symbol id="ic-salle" viewBox="0 0 32 32"><rect x="1.5" y="6" width="29" height="20.5" rx="4" fill="url(#icCadre)"/><rect x="1.5" y="6" width="29" height="20.5" rx="4" fill="none" stroke="#7E7796" stroke-opacity=".55"/><rect x="4" y="8.5" width="22.5" height="15.5" rx="2" fill="url(#icEcran)"/><path d="M12.5 24 L14.8 13.5 H16 L18.8 24 Z" fill="url(#icRoute)"/><rect x="15.15" y="15" width=".7" height="2" fill="#fff"/><rect x="15.05" y="19" width=".9" height="2.6" fill="#fff"/><path d="M4 8.5 H15 L8 16 L4 19 Z" fill="#fff" fill-opacity=".22"/><circle cx="28.4" cy="16.25" r="1" fill="#6E6788"/></symbol><g id="icPosteJour"><rect x="3" y="2.5" width="26" height="15.5" rx="2.6" fill="url(#icCadre)"/><rect x="4.8" y="4.3" width="22.4" height="11.9" rx="1.5" fill="url(#icEcran)"/><path d="M13 16.2 L15.3 7.5 H16.7 L19 16.2 Z" fill="url(#icRoute)"/><rect x="15.65" y="9" width=".7" height="1.8" fill="#fff"/><rect x="15.6" y="12.3" width=".8" height="2.4" fill="#fff"/><path d="M4.8 4.3 H13 L7.5 10 L4.8 12 Z" fill="#fff" fill-opacity=".22"/></g><g id="icPosteNuit"><rect x="3" y="2.5" width="26" height="15.5" rx="2.6" fill="url(#icCadre)"/><rect x="4.8" y="4.3" width="22.4" height="11.9" rx="1.5" fill="url(#icNuit)"/><path d="M13 16.2 L15.3 7.5 H16.7 L19 16.2 Z" fill="#2E3150"/><rect x="15.65" y="9" width=".7" height="1.8" fill="#FFE27A"/><rect x="15.6" y="12.3" width=".8" height="2.4" fill="#FFE27A"/><path d="M24.6 6.2 A2.6 2.6 0 1 0 25.4 10.6 A2.1 2.1 0 1 1 24.6 6.2 Z" fill="#FFD84D"/><circle cx="8" cy="6.8" r=".5" fill="#fff"/><circle cx="10.6" cy="9" r=".4" fill="#fff"/></g><g id="icVolant"><circle cx="16" cy="23.5" r="7.2" fill="none" stroke="url(#icMarine)" stroke-width="3"/><path d="M9.2 22.6 H22.8 M16 23.5 V30.2" stroke="url(#icMarine)" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="23.3" r="2.5" fill="url(#icRose)"/><path d="M10.5 19.6 A7.2 7.2 0 0 1 15 16.4" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1" stroke-linecap="round"/></g><g id="icAccident"><path d="M15.6 6.2 L17 8.6 L19.6 7.6 L19.2 10.3 L21.8 11.2 L19.6 12.8 L20.8 15.2 L18 14.6 L16.9 16.2 L15.8 14.6 L13 15.2 L14.2 12.8 L12 11.2 L14.6 10.3 L14.2 7.6 L16.8 8.6 Z" fill="url(#icFeu)" stroke="#E8561F" stroke-width=".5" stroke-linejoin="round"/><g transform="rotate(-18 10 13)"><rect x="6" y="11" width="7" height="3.6" rx="1.2" fill="url(#icRose)"/><rect x="7.6" y="9.4" width="3.8" height="2.2" rx=".8" fill="#E8335E"/><circle cx="7.6" cy="14.7" r=".9" fill="#2C2860"/><circle cx="11.6" cy="14.7" r=".9" fill="#2C2860"/></g><g transform="rotate(14 23 13)"><rect x="19.4" y="11.2" width="7" height="3.6" rx="1.2" fill="#FFFFFF"/><rect x="20.9" y="9.6" width="3.8" height="2.2" rx=".8" fill="#E6E3F0"/><circle cx="21" cy="14.9" r=".9" fill="#2C2860"/><circle cx="25" cy="14.9" r=".9" fill="#2C2860"/></g></g><g id="icPosteAccidentJour"><rect x="3" y="2.5" width="26" height="15.5" rx="2.6" fill="url(#icCadre)"/><rect x="4.8" y="4.3" width="22.4" height="11.9" rx="1.5" fill="url(#icEcran)"/><rect x="4.8" y="12.8" width="22.4" height="3.4" fill="url(#icRoute)"/><use href="#icAccident"/></g><g id="icPosteAccidentNuit"><rect x="3" y="2.5" width="26" height="15.5" rx="2.6" fill="url(#icCadre)"/><rect x="4.8" y="4.3" width="22.4" height="11.9" rx="1.5" fill="url(#icNuit)"/><rect x="4.8" y="12.8" width="22.4" height="3.4" fill="#2E3150"/><path d="M25.4 5.4 A1.9 1.9 0 1 0 26 8.6 A1.5 1.5 0 1 1 25.4 5.4 Z" fill="#FFD84D"/><use href="#icAccident"/></g><symbol id="ic-simu" viewBox="0 0 32 32"><use href="#icPosteJour"/><use href="#icVolant"/></symbol><symbol id="ic-simu_nuit" viewBox="0 0 32 32"><use href="#icPosteNuit"/><use href="#icVolant"/></symbol><symbol id="ic-simu_risques" viewBox="0 0 32 32"><use href="#icPosteAccidentJour"/><use href="#icVolant"/></symbol><symbol id="ic-simu_nuit_risques" viewBox="0 0 32 32"><use href="#icPosteAccidentNuit"/><use href="#icVolant"/></symbol><symbol id="ic-simu_moniteur" viewBox="0 0 32 32"><g transform="translate(-1.5 1.6) scale(.86)"><use href="#icPosteJour"/><use href="#icVolant"/></g><circle cx="27" cy="16.4" r="3.3" fill="url(#icPeau)"/><path d="M24 15.6 C24 12.6 30 12.6 30 15.4 C28.6 14.4 25.6 14.2 24 15.6 Z" fill="#6B4A3A"/><path d="M22 30.5 V25.5 C22 22.4 24.2 20.6 27 20.6 C29.8 20.6 32 22.4 32 25.5 V30.5 Z" fill="url(#icMarine)"/><path d="M27 20.6 L25.6 23.4 L27 30.5 L28.4 23.4 Z" fill="#B6FF0E"/></symbol><symbol id="ic-conduite" viewBox="0 0 32 32"><path d="M7.5 13 L10 6.8 C10.5 5.6 11.4 5 12.7 5 H19.3 C20.6 5 21.5 5.6 22 6.8 L24.5 13 Z" fill="url(#icRose)"/><path d="M9.8 12.4 L11.6 7.6 C11.9 6.9 12.4 6.6 13.1 6.6 H18.9 C19.6 6.6 20.1 6.9 20.4 7.6 L22.2 12.4 Z" fill="url(#icEcran)"/><path d="M11.6 7.6 C11.9 6.9 12.4 6.6 13.1 6.6 H16 L12.3 12.4 H9.8 Z" fill="#fff" fill-opacity=".28"/><rect x="3.5" y="12.4" width="25" height="10.6" rx="3.6" fill="url(#icRose)"/><rect x="5" y="25.5" width="5" height="4.5" rx="1.4" fill="url(#icMarine)"/><rect x="22" y="25.5" width="5" height="4.5" rx="1.4" fill="url(#icMarine)"/><rect x="3.5" y="20.5" width="25" height="5.6" rx="2.4" fill="#C9234F"/><circle cx="8.3" cy="17" r="2.2" fill="#FFF3B0"/><circle cx="23.7" cy="17" r="2.2" fill="#FFF3B0"/><rect x="12" y="19.4" width="8" height="2.6" rx="1" fill="#2C2860" fill-opacity=".75"/><path d="M5.2 14.2 H26.8" stroke="#fff" stroke-opacity=".35" stroke-width="1" stroke-linecap="round"/></symbol><symbol id="ic-examen" viewBox="0 0 32 32"><rect x="6.4" y="3" width="2.4" height="27.5" rx="1.2" fill="url(#icMarine)"/><g clip-path="url(#icDrapeau)"><rect x="8" y="2" width="21" height="18" fill="#fff"/><path d="M8 2h4v4H8zM16 2h4v4h-4zM24 2h4v4h-4zM12 6h4v4h-4zM20 6h4v4h-4zM28 6h4v4h-4zM8 10h4v4H8zM16 10h4v4h-4zM24 10h4v4h-4zM12 14h4v4h-4zM20 14h4v4h-4zM28 14h4v4h-4z" fill="#2C2860"/></g><path d="M8.5 4.5 C13 2.5 17 7 22 5 C25 4 27 4.5 28.5 5.5 V18 C27 17 25 16.5 22 17.5 C17 19.5 13 15 8.5 17 Z" fill="none" stroke="#2C2860" stroke-opacity=".5" stroke-width=".8"/><circle cx="7.6" cy="2.8" r="1.8" fill="url(#icRose)"/></symbol><symbol id="ic-etg" viewBox="0 0 32 32"><rect x="14.8" y="20" width="2.4" height="10.5" rx="1" fill="url(#icMarine)"/><path d="M16 2.6 C16.9 2.6 17.6 3.1 18 3.8 L28.6 21.6 C29.4 23 28.4 24.6 26.8 24.6 H5.2 C3.6 24.6 2.6 23 3.4 21.6 L14 3.8 C14.4 3.1 15.1 2.6 16 2.6 Z" fill="url(#icRose)"/><path d="M16 7.6 L25.2 22.4 H6.8 Z" fill="#fff"/><rect x="14.9" y="11.6" width="2.2" height="6.4" rx="1.1" fill="#2C2860"/><circle cx="16" cy="20.2" r="1.25" fill="#2C2860"/><path d="M14 3.8 C14.4 3.1 15.1 2.6 16 2.6 L8 16 L6.4 15 Z" fill="#fff" fill-opacity=".3"/></symbol><symbol id="ic-visio" viewBox="0 0 32 32"><rect x="2" y="8.5" width="20" height="15" rx="3.6" fill="url(#icMarine)"/><path d="M22 14 L29 9.8 C29.7 9.4 30.5 9.9 30.5 10.7 V21.3 C30.5 22.1 29.7 22.6 29 22.2 L22 18 Z" fill="url(#icMarine)"/><circle cx="11" cy="16" r="5" fill="url(#icEcran)"/><circle cx="11" cy="16" r="5" fill="none" stroke="#D9D4E6" stroke-width="1.2"/><circle cx="9.4" cy="14.4" r="1.4" fill="#fff" fill-opacity=".6"/><circle cx="18.6" cy="11.6" r="1.5" fill="url(#icRose)"/><path d="M4 10.5 H17" stroke="#fff" stroke-opacity=".25" stroke-width="1" stroke-linecap="round"/></symbol><symbol id="ic-ecoute" viewBox="0 0 32 32"><path d="M17 2.5 C10.6 2.5 6.5 7.2 6.5 13 C6.5 16.4 8 18.4 9.6 20.2 C11 21.8 11.4 23.4 11.4 25.2 C11.4 28 13.4 30 16.2 30 C19.4 30 21.4 27.8 21.6 25 C21.8 22.8 23 21.4 24.6 19.6 C26.4 17.6 27.5 15.4 27.5 12.6 C27.5 7 23 2.5 17 2.5 Z" fill="url(#icPeau)"/><path d="M12 12.6 C12 9.4 14.4 7.4 17.2 7.4 C20.4 7.4 22.4 9.8 22.4 12.6 C22.4 15 20.6 16 19.4 17.4 C18.4 18.6 18.6 20.4 17.4 21" fill="none" stroke="#C97A55" stroke-width="2" stroke-linecap="round"/><path d="M15.4 14.4 C15.4 12.8 16.4 12 17.4 12" fill="none" stroke="#C97A55" stroke-width="1.6" stroke-linecap="round"/><path d="M10 9 C11.2 6 13.6 4.4 16.4 4.2" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.2" stroke-linecap="round"/></symbol></defs></svg>';
+  function poserIconesCours(){
+    if(document.getElementById('icSpriteBoite')) return;
+    var d = document.createElement('div');
+    d.id = 'icSpriteBoite';
+    d.className = 'icSpriteBoite';
+    d.setAttribute('aria-hidden', 'true');
+    d.innerHTML = ICONES_COURS_SVG;
+    document.body.appendChild(d);
+  }
+  function iconeCours(sorte){
+    return '<svg class="aVenirI" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#ic-' + sorte + '"/></svg>';
+  }
   function heureAVenir(x){
     var h = function(t){ return String(t || '').replace(':', 'h'); };
     return h(x.debut) + (x.fin ? '–' + h(x.fin) : '');
@@ -8840,10 +8865,22 @@
     var av = mesAVenir;
     if(!z || !av) return;
     var deja = (p && p.jour) ? String(p.jour).slice(0, 10) + ' ' + String(p.heure || '').replace(/\D/g, '').slice(0, 4) : '';
+    /* ⏱️ v1534 — commencé depuis 15 minutes : plus « à venir » (David, le 21/11),
+       même sur ce que la page gardait de sa dernière visite */
+    var pasParti = function(x){
+      var m = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date());
+      var p2 = {}; m.forEach(function(q){ p2[q.type] = q.value; });
+      var auj = p2.year + '-' + p2.month + '-' + p2.day, min = (Number(p2.hour) % 24) * 60 + Number(p2.minute);
+      var j = String(x.jour || '').slice(0, 10);
+      if(j !== auj) return j > auj;
+      var h = String(x.debut || '').match(/(\d{1,2})\D?(\d{2})/);
+      return !h || (Number(h[1]) * 60 + Number(h[2]) + 15) > min;
+    };
     var cours = (av.cours || []).filter(function(x){
-      return (x.jour + ' ' + String(x.debut || '').replace(/\D/g, '')) !== deja;
+      return pasParti(x) && (x.jour + ' ' + String(x.debut || '').replace(/\D/g, '')) !== deja;
     });
-    var ecoutes = av.ecoutes || [];
+    var ecoutes = (av.ecoutes || []).filter(pasParti);
     if(!cours.length && !ecoutes.length) return;
     var w = document.createElement('div');
     w.className = 'aVenir';
@@ -8853,19 +8890,21 @@
         '<span>' + echapper(quoi) + (sous ? ' · ' + echapper(sous) : '') + '</span></span></div>';
     };
     var html = '';
+    poserIconesCours();
     if(cours.length){
       html += '<div class="aVenirT">📆 ' + (p && p.jour ? 'Ensuite' : 'Mes cours à venir') + '</div>' +
         cours.map(function(x){
-          /* 🚫 v1522 — chaque sorte de cours a son signe */
-          var em = { examen:'🏁', simu_moniteur:'🕹️', simu:'🕹️', simu_nuit:'🌙', simu_nuit_risques:'🌙', simu_risques:'🕹️',
-                     salle:'📺', etg:'📝', visio:'🎥' }[x.sorte] || (x.examen ? '🏁' : '🚗');
-          return ligne(em, x.examen ? 'Examen' : (x.libelle || 'Cours de conduite'), x,
+          /* 🎨 v1535 — chaque sorte de cours a son dessin (David, le 21/11 :
+             tablette, simulateur, simulateur avec son enseignant, de nuit,
+             prévention des risques avec un accident à l'écran, et les autres) */
+          var s = ICONES_SORTES[x.sorte] ? x.sorte : (x.examen ? 'examen' : 'conduite');
+          return ligne(iconeCours(s), x.examen ? 'Examen' : (x.libelle || 'Cours de conduite'), x,
                        x.moniteur ? 'avec ' + x.moniteur : '');
         }).join('');
     }
     if(ecoutes.length){
       html += '<div class="aVenirT">👂 Mes écoutes pédagogiques</div>' +
-        ecoutes.map(function(x){ return ligne('👂', 'Écoute pédagogique', x, x.agence); }).join('');
+        ecoutes.map(function(x){ return ligne(iconeCours('ecoute'), 'Écoute pédagogique', x, x.agence); }).join('');
     }
     html += '<div class="aVenirN">Lu dans le planning de l’auto-école. Un changement ? Écris au bureau.</div>';
     w.innerHTML = html;
