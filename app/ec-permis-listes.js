@@ -1,4 +1,4 @@
-/* Déployé le 13/11/2026 à 08:44 — v1419 */
+/* Déployé le 21/11/2026 à 17:47 — v1544 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -87,12 +87,22 @@ function ficheSuiviPermis(e){
       'border:1px solid var(--line);color:var(--cream);padding:10px;border-radius:10px;' +
       'font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
 
-    '<div class="pleine-largeur">' +
-    '<label for="' + id + 'res">Réservations faites sur le planning</label>' +
-    '<textarea id="' + id + 'res" rows="2" placeholder="Ex : 10/09 14h-16h et 11/09 9h-12h" ' +
-      'style="width:100%;background:var(--navy-deep);border:1px solid var(--line);color:var(--cream);' +
-      'padding:10px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
-    '</div>';
+    /* 📅 v1544 — les réservations : le bloc à calendrier de la fiche d'une
+       place (ec-sessions.js), le même ici (David, le 21 novembre) */
+    '<div class="pleine-largeur" id="' + id + 'resa"></div>';
+
+  /* 📅 v1544 — tout planifié : c'est posé sur le planning, le bloc se tait */
+  const blocResa = blocReservationsPermis({
+    etat: etatResaPermis(Object.assign({}, s, { toutPlanifie: '' })),
+    texte: s.reservations || '',
+    datePermis: isoDuPermis((e.etat && e.etat.permisDate) || s.datePermis || '')
+  });
+  {
+    const z = f.querySelector('#' + id + 'resa');
+    if(s.toutPlanifie === 'oui'){
+      z.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--accent-text);margin:0 0 14px;">📆 Tout est planifié — les réservations sont posées.</div>';
+    }else z.appendChild(blocResa);
+  }
 
   const bEnr = document.createElement('button');
   bEnr.className = 'btn btn-primary pleine-largeur';
@@ -118,7 +128,6 @@ function ficheSuiviPermis(e){
     if(g('l1')) g('l1').value = s.lecons1h || '';
     if(g('acc')) g('acc').checked = (s.accompagnement === 'oui');
     if(g('aut')) g('aut').value = s.autre || '';
-    if(g('res')) g('res').value = s.reservations || '';
     /* ═══ v1023 : LA MÊME RÈGLE QUE PARTOUT AILLEURS.
        Elle était recopiée ici, et une troisième fois plus bas pour
        les places. Elle vit maintenant dans boiteConnueDe() — et le
@@ -211,7 +220,8 @@ function ficheSuiviPermis(e){
         lecons1h: g('l1').value.trim(),
         accompagnement: g('acc').checked ? 'oui' : '',
         autre: g('aut').value.trim(),
-        reservations: g('res').value.trim(),
+        /* 📅 v1544 — tout planifié : on ne touche pas à ce qui est posé */
+        ...(s.toutPlanifie === 'oui' ? {} : blocResa.valeurs()),
         typeExamen: g('typ').value,
         autoEcole: g('ae').value.trim(),
         fantome: g('fan').checked ? 'oui' : '',
@@ -3631,7 +3641,12 @@ function emojisPermis(s){
   const e = [];
   if(s.fairePoint === 'oui')  e.push('❓');   /* point à faire au prochain cours */
   if(doitDeLArgent(s))        e.push('💰');   /* reste à payer */
-  if(aPlanifier(s))           e.push('📆');   /* leçons à poser sur le planning */
+  /* 📅 v1544 — 📆 réservations à faire, 🗓️ (dessiné en calendrier orange
+     à l'écran) faites, 🙋 il les pose lui-même ; rien quand tout est planifié */
+  const resa = (typeof etatResaPermis === 'function') ? etatResaPermis(s) : (aPlanifier(s) ? 'afaire' : '');
+  if(resa === 'afaire')       e.push('📆');
+  else if(resa === 'faite')   e.push(typeof MARQUE_RESA_FAITE !== 'undefined' ? MARQUE_RESA_FAITE : '🗓️');
+  else if(resa === 'eleve')   e.push('🙋');
   if(s.aRemplacer === 'oui')  e.push('🔄');   /* place à remplacer */
   if(s.fantome === 'oui')     e.push('👻');   /* place fantôme */
   if(s.dateADonner === 'oui') e.push('🏫');   /* à donner à une autre auto-école */
@@ -3660,7 +3675,8 @@ function legendePermis(){
   d.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.7;' +
     'padding:6px 2px 10px;';
   d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose<br>' +
-    '❓ faire le point · 💰 reste à payer · 📆 leçons à planifier · ' +
+    '❓ faire le point · 💰 reste à payer · 📆 réservations à faire · ' +
+    (typeof calendrierOrangeSvg === 'function' ? calendrierOrangeSvg(13) : '🗓️') + ' réservations faites · 🙋 il pose lui-même ses heures · ' +
     '🔄 place à remplacer · 👻 fantôme · 🏫 à donner · 🔁 repassage<br>' +
     'Nom <span style="color:var(--muted);font-weight:700;">gris</span> = fantôme · ' +
     '<span style="color:#E8A33D;font-weight:700;">orange</span> = à remplacer · ' +
@@ -3805,6 +3821,7 @@ function apercuPermisPrevus(prevus){
       const rep = document.createElement('span');
       rep.style.cssText = 'flex-shrink:0;font-size:14px;letter-spacing:1px;';
       rep.textContent = emojisPermis(s);
+      if(typeof calendrierOrangeDans === 'function') calendrierOrangeDans(rep);
       l.appendChild(rep);
 
       const etat = document.createElement('span');
@@ -3883,7 +3900,8 @@ function ouvrirFichePermis(e){
     (s.moniteurDate ? ' · ' + s.moniteurDate.replace(/</g, '&lt;') : '') + '</div>' +
     (emojisPermis(s)
       ? '<div style="font-size:16px;margin-top:4px;letter-spacing:2px;">' +
-        emojisPermis(s) + (s.toutOk === 'oui' ? ' ✅' : ' ⚠️') + '</div>'
+        (typeof calendrierOrangeSvg === 'function' ? emojisPermis(s).replace(/🗓️?/g, calendrierOrangeSvg(16)) : emojisPermis(s)) +
+        (s.toutOk === 'oui' ? ' ✅' : ' ⚠️') + '</div>'
       : '<div style="font-size:16px;margin-top:4px;">' +
         (s.toutOk === 'oui' ? '✅' : '⚠️') + '</div>');
   tete.appendChild(titre);
