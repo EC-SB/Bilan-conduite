@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:48 — v1521 */
+/* Déployé le 20/11/2026 à 19:32 — v1522 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1522,
+    date: 'Vendredi 20 novembre 2026',
+    resume: '🌙 Le planning Drivup lu sur 4 semaines et relu tout seul toutes les heures ; l’élève dit quel cours il annule',
+    quoi: [
+      { emoji: '📆',
+        titre: 'Le favori lit quatre semaines',
+        texte: 'Sur le planning d’une agence ou de « Tous les utilisateurs », le favori lit d’aujourd’hui à quatre semaines, quel que soit le jour affiché. Les simulateurs sans moniteur, la salle des tablettes, le code et les écoutes arrivent aussi dans « Mes cours à venir » de l’élève.' },
+      { emoji: '🌙',
+        titre: 'Le mode veille',
+        texte: 'Dans la fenêtre du planning reçu : « 🌙 Mettre en veille ». Tant que l’onglet Drivup et l’onglet App EC restent ouverts, le planning se relit toutes les heures (7 h – 20 h, lundi → samedi) et s’enregistre seul, puis les fiches Drivup de 30 élèves au plus sont relues pour compléter les cases vides. Le bandeau en bas dit ce qui a été fait ; ↻ relit tout de suite. Le choix est gardé : le clic du matin sur le favori la relance.' },
+      { emoji: '🚫',
+        titre: 'Annuler un cours : lequel',
+        texte: 'Côté élève, « Annuler un cours » demande lequel : conduite, simulateur avec moniteur, de nuit, prévention des risques, écoute, salle des tablettes, et le code en salle pour ceux qui le font avec nous. Ses prochains cours sont proposés, sinon il donne le jour et l’heure. À moins de 48 h, une conduite ou un simulateur avec moniteur demande « J’ai compris, ce cours sera facturé » ; le bureau voit « 💶 À facturer » dans le titre.' }
+    ]
+  },
   {
     version: 1521,
     date: 'Vendredi 20 novembre 2026',
