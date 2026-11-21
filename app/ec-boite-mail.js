@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:58 — v1527 */
+/* Déployé le 21/11/2026 à 14:19 — v1533 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -1546,7 +1546,9 @@ function mlLiensAbsolus(h){
 function mlTexteEnHtml(t){
   /* 🔗 v1527 — [mot](adresse) : le mot devient un lien */
   const lier = h => (typeof liensMdEnHtml === 'function') ? liensMdEnHtml(h) : h;
-  return String(t || '').split('\n').map(l => '<div>' + (l.trim() ? lier(mlEch(l)) : '<br>') + '</div>').join('');
+  /* ✍️ v1533 — et la mise en forme de Ce qu'on écrit (gras, couleurs…) */
+  const forme = h => (typeof balisesEnHtmlEC === 'function') ? balisesEnHtmlEC(h) : h;
+  return String(t || '').split('\n').map(l => '<div>' + (l.trim() ? lier(forme(mlEch(l))) : '<br>') + '</div>').join('');
 }
 function mlRepondreAvec(x){
   const f = mlFilOuvert && mlFilOuvert.fil;
