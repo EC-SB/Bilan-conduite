@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 14:36 — v1534 */
+/* Déployé le 21/11/2026 à 15:24 — v1537 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -531,6 +531,11 @@ async function lectureDeVeilleDrivup(p, parExtension){
     if(parExtension && (complete || bouges.size)){
       try{ notes = await notesDeVeilleDrivup(parts.lignes, complete ? bouges : bouges, !complete); }catch(e){ VEILLE_DV.erreurIci = 'notes : ' + ((e && e.message) || e); }
     }
+    /* 📆 v1536 — le planning de leur fiche Drivup : chaque jour pour les élèves
+       en formation (un cours lu), tout de suite pour ceux dont un cours a bougé */
+    if(parExtension){
+      try{ await planningsDeVeilleDrivup(p, bouges); }catch(e){ VEILLE_DV.erreurIci = 'plannings : ' + ((e && e.message) || e); }
+    }
     VEILLE_DV.journal = { le: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h'),
                           cours: (r && r.nb) || parts.lignes.length, changes: changes, inconnus: inconnus, fiches: fiches, notes: notes,
                           nouveau: (r && r.nouveau) || 0, affichage: (r && r.affichage) || 0, passe: p.passe || 'complete',
@@ -704,6 +709,57 @@ async function notesDeVeilleDrivup(lignes, bouges, seulementBouges){
     n += (r && r.reprises) || 0;
   }
   return n;
+}
+
+/* 📆 v1536 — LE PLANNING DE LEUR FICHE DRIVUP, UNE FOIS PAR JOUR. David, le
+   21/11 : relu « à l'ouverture du dossier et la nuit » pour les élèves en
+   formation. L'extension ne lit que si un onglet de l'App est ouvert : le
+   tour du jour se fait donc par petits paquets (20 élèves à chaque lecture
+   du planning, toutes les 15 minutes), la nuit si un ordinateur reste
+   allumé avec l'App, sinon dans la journée. Ceux dont un cours a bougé
+   passent d'abord, même déjà lus aujourd'hui.
+   📆 v1537 — TOUS LES ÉLÈVES EN FORMATION, pas seulement ceux qui ont un
+   cours dans les quatre semaines lues. David : « un élève qui a un cours
+   dans 8 semaines le verra sur Drivup et pas sur notre app ». La liste vient
+   du Worker (drivupPlanningsAFaire : fiche avec son numéro Drivup, ni partie,
+   ni permis), avec la dernière lecture de chacun, d'où qu'elle vienne : les
+   jamais lus et les plus anciens d'abord. */
+const PLANNINGS_DV_CLE = 'ec_plannings_drivup';
+const PLANNINGS_DV = { liste: null, lue: 0 };
+async function planningsDeVeilleDrivup(p, bouges){
+  if(typeof extDrivupPresente !== 'function' || !extDrivupPresente() || typeof lirePlanningsDrivup !== 'function') return 0;
+  const auj = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+  const jourDe = t => t ? new Date(Number(t)).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }) : '';
+  let lus = {};
+  try{ lus = JSON.parse(localStorage.getItem(PLANNINGS_DV_CLE) || '{}') || {}; }catch(e){ lus = {}; }
+  /* les élèves en formation (relu au plus toutes les 20 minutes) */
+  if(!PLANNINGS_DV.liste || Date.now() - PLANNINGS_DV.lue > 20 * 60000){
+    try{
+      const r = await appelPrep({ action: 'drivupPlanningsAFaire' });
+      if(r && Array.isArray(r.eleves)){ PLANNINGS_DV.liste = r.eleves; PLANNINGS_DV.lue = Date.now(); }
+    }catch(e){ /* sans la liste : ceux du planning lu */ }
+  }
+  /* ⚠️ un tableau, pas les clés d'un objet : des numéros comme clés se rangent par ordre croissant */
+  const nomDe = {}, luDe = {}, ordre = [];
+  (PLANNINGS_DV.liste || []).forEach(x => { const id = chiffresDrivup(x && x.idDrivup); if(id && x.eleve && !nomDe[id]){ nomDe[id] = x.eleve; luDe[id] = jourDe(x.luLe); ordre.push(id); } });
+  const duPlanning = [];
+  (p.cours || []).forEach(c => (c.eleves || []).forEach(x => {
+    const id = chiffresDrivup(x && x.id);
+    if(!id) return;
+    if(!nomDe[id]){ const f = ficheDeLEleveDrivup(x); if(f && f.eleve) nomDe[id] = f.eleve; else return; }
+    duPlanning.push(id);
+  }));
+  const dejaLu = id => lus[id] === auj || luDe[id] === auj;
+  const dAbord = [...new Set(duPlanning)].filter(id => bouges && bouges.has(id));
+  /* la liste du Worker est déjà rangée : jamais lus, puis les plus anciens */
+  const ensuite = [...new Set(ordre.concat(duPlanning))].filter(id => nomDe[id] && !dejaLu(id) && dAbord.indexOf(id) === -1);
+  const aLire = dAbord.concat(ensuite).slice(0, 20);
+  if(!aLire.length) return 0;
+  const r = await lirePlanningsDrivup(aLire.map(id => ({ id: id, eleve: nomDe[id] })));
+  Object.keys((r && r.plannings) || {}).forEach(id => { lus[id] = auj; });
+  Object.keys(lus).forEach(id => { if(lus[id] < auj) delete lus[id]; });
+  try{ localStorage.setItem(PLANNINGS_DV_CLE, JSON.stringify(lus)); }catch(e){}
+  return (r && r.n) || 0;
 }
 
 function montrerLaLectureDrivup(fait, total){
