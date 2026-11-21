@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 19:32 — v1522 */
+/* Déployé le 21/11/2026 à 10:42 — v1523 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -411,7 +411,7 @@ function etatDeLaVeilleDrivup(d){
 function dessinerLaVeilleDrivup(){
   document.querySelectorAll('.dvVeille').forEach(z => remplirBlocVeilleDrivup(z));
   let b = $('dvVeilleBandeau');
-  if(!VEILLE_DV.actif){ if(b) b.remove(); return; }
+  if(!VEILLE_DV.actif || VEILLE_DV.parExtension){ if(b) b.remove(); return; }
   if(!b){
     b = document.createElement('div');
     b.id = 'dvVeilleBandeau';
@@ -475,12 +475,14 @@ function remplirBlocVeilleDrivup(z){
 }
 
 /* Une lecture de veille : tout s'enregistre, puis les fiches */
-async function lectureDeVeilleDrivup(p){
+async function lectureDeVeilleDrivup(p, parExtension){
   if(!p || p.genre !== 'planning' || !Array.isArray(p.cours)) return;
   if(VEILLE_DV.dernier === p.luA || VEILLE_DV.enCours) return;   /* le même paquet, renvoyé */
   VEILLE_DV.dernier = p.luA;
   VEILLE_DV.enCours = true;
-  VEILLE_DV.actif = true;
+  /* 📥 v1523 — l'extension n'a pas de bandeau : elle se suit dans Gestion › 📥 Drivup */
+  VEILLE_DV.parExtension = !!parExtension;
+  if(!parExtension) VEILLE_DV.actif = true;
   VEILLE_DV.erreurIci = '';
   dessinerLaVeilleDrivup();
   try{
@@ -490,19 +492,32 @@ async function lectureDeVeilleDrivup(p){
     if(typeof chargerMoniteurs === 'function' && !((typeof moniteursActifs !== 'undefined') && moniteursActifs.length)) await chargerMoniteurs().catch(() => {});
     const parts = lignesDuPlanningDrivup(p);
     let changes = 0, inconnus = 0;
+    const bouges = new Set();
     try{
       const ex = await appelPrep({ action: 'drivupPlanning', du: p.du, au: p.au });
       const c = comparerPlanningDrivup(p, parts.lignes.map(l => Object.assign({}, l)), (ex && ex.cours) || []);
       changes = c.changes.filter(x => x._etatCours !== 'pareil').length;
       inconnus = new Set(c.changes.filter(x => x._etat === 'inconnu').map(x => cleNomDrivup(x.eleve))).size;
+      c.changes.filter(x => x._etatCours === 'bouge' || x._etatCours === 'neuf').forEach(x => { if(chiffresDrivup(x.idEleve)) bouges.add(chiffresDrivup(x.idEleve)); });
     }catch(e){ /* le compte manquera, l'enregistrement se fait */ }
     const { r } = await enregistrerPlanningDrivup(p, parts, false);
     if(p.creneaux && typeof enregistrerLesCreneauxDrivup === 'function') await enregistrerLesCreneauxDrivup(p.creneaux).catch(() => {});
     if(typeof enregistrerLesEcoutesReserveesDrivup === 'function') await enregistrerLesEcoutesReserveesDrivup(p).catch(() => {});
-    let fiches = 0;
-    try{ fiches = await fichesDeVeilleDrivup(parts.lignes); }catch(e){ VEILLE_DV.erreurIci = 'fiches : ' + ((e && e.message) || e); }
+    /* 📥 v1523 — les fiches et les notes : à chaque lecture complète (la
+       lecture de la semaine, plus fréquente, ne fait que le planning) ;
+       les notes aussi pour un élève dont un cours vient de bouger */
+    let fiches = 0, notes = 0;
+    const complete = p.passe !== 'semaine';
+    if(complete){
+      try{ fiches = await fichesDeVeilleDrivup(parts.lignes); }catch(e){ VEILLE_DV.erreurIci = 'fiches : ' + ((e && e.message) || e); }
+    }
+    if(parExtension && (complete || bouges.size)){
+      try{ notes = await notesDeVeilleDrivup(parts.lignes, complete ? bouges : bouges, !complete); }catch(e){ VEILLE_DV.erreurIci = 'notes : ' + ((e && e.message) || e); }
+    }
     VEILLE_DV.journal = { le: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h'),
-                          cours: (r && r.nb) || parts.lignes.length, changes: changes, inconnus: inconnus, fiches: fiches };
+                          cours: (r && r.nb) || parts.lignes.length, changes: changes, inconnus: inconnus, fiches: fiches, notes: notes,
+                          nouveau: (r && r.nouveau) || 0, affichage: (r && r.affichage) || 0, passe: p.passe || 'complete' };
+    if(typeof apresLectureExtDrivup === 'function') apresLectureExtDrivup(VEILLE_DV.journal);
   }catch(e){
     VEILLE_DV.erreurIci = (e && e.message) || String(e);
   }finally{
@@ -533,7 +548,8 @@ async function fichesDeVeilleDrivup(lignes){
   const choisies = fiches.filter(manque)
     .sort((a, b) => ((enCours[b.eleve] ? 1 : 0) - (enCours[a.eleve] ? 1 : 0)) ||
                     ((lus[chiffresDrivup(a.idDrivup)] || 0) - (lus[chiffresDrivup(b.idDrivup)] || 0)))
-    .slice(0, VEILLE_FICHES_MAX);
+    .slice(0, (typeof EXT_DV !== 'undefined' && EXT_DV.reglages && EXT_DV.reglages.rythmes && EXT_DV.reglages.rythmes.fiches != null)
+      ? Number(EXT_DV.reglages.rythmes.fiches) : VEILLE_FICHES_MAX);
   if(!choisies.length) return 0;
   envoyerADrivup({ type: 'drivup-fiches-lire', ids: choisies.map(f => chiffresDrivup(f.idDrivup)) });
   const d = await attendreDeDrivup('drivup-fiches-lues', null, 600000);
@@ -575,6 +591,42 @@ async function fichesDeVeilleDrivup(lignes){
     if(typeof FI_CACHE !== 'undefined') Object.keys(FI_CACHE).forEach(k => delete FI_CACHE[k]);
   }
   return Math.min(n, choisies.length);
+}
+
+/* 📝 v1523 — LES NOTES INTERNES, PAR L'EXTENSION. Les élèves qui ont un
+   cours dans les 14 jours, une fois par jour ; celui dont un cours vient
+   de bouger, tout de suite. Le Worker ne garde que les notes neuves et
+   les range dans 🗂️ Administratif (choix de David : « rangées seules »). */
+const NOTES_DV_CLE = 'ec_notes_drivup';
+async function notesDeVeilleDrivup(lignes, bouges, seulementBouges){
+  if(typeof extDrivupPresente !== 'function' || !extDrivupPresente()) return 0;
+  const auj = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+  const d14 = new Date(Date.now() + 14 * 86400000).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+  let lus = {};
+  try{ lus = JSON.parse(localStorage.getItem(NOTES_DV_CLE) || '{}') || {}; }catch(e){ lus = {}; }
+  const nomDe = {};
+  (lignes || []).forEach(l => {
+    const f = l._fiche;
+    const id = chiffresDrivup((f && f.idDrivup) || l.idEleve);
+    if(!f || !id || l.jour > d14) return;
+    nomDe[id] = f.eleve;
+  });
+  const ids = Object.keys(nomDe).filter(id => (bouges && bouges.has(id)) || (!seulementBouges && lus[id] !== auj)).slice(0, 80);
+  if(!ids.length) return 0;
+  versExtDrivup({ type: 'drivup-notes-lire', ids: ids });
+  const d = await attendreDeDrivup('drivup-notes-lues', null, 300000);
+  ids.forEach(id => { lus[id] = auj; });
+  Object.keys(lus).forEach(id => { if(lus[id] < auj && !nomDe[id]) delete lus[id]; });
+  try{ localStorage.setItem(NOTES_DV_CLE, JSON.stringify(lus)); }catch(e){}
+  const notes = Object.keys((d && d.notes) || {}).filter(id => nomDe[id] && (d.notes[id] || []).length)
+    .map(id => ({ idDrivup: id, eleve: nomDe[id], items: d.notes[id] }));
+  if(!notes.length) return 0;
+  let n = 0;
+  for(let i = 0; i < notes.length; i += 40){
+    const r = await appelPrep({ action: 'drivupNotesPoser', notes: notes.slice(i, i + 40) });
+    n += (r && r.reprises) || 0;
+  }
+  return n;
 }
 
 function montrerLaLectureDrivup(fait, total){
@@ -2000,6 +2052,11 @@ function calculerEcoutesDrivup(d, ctx){
    LA FENÊTRE — lire, choisir, ouvrir
    ------------------------------------------------------------ */
 function envoyerADrivup(m){
+  /* 📥 v1523 — l'onglet Drivup du favori d'abord ; sinon l'extension
+     « App EC · Drivup » (elle lit les fiches et les notes internes) */
+  const extSait = /^(drivup-fiches-lire|drivup-notes-lire)$/.test(String(m && m.type));
+  const parOpener = window.opener && !window.opener.closed && m.type !== 'drivup-notes-lire';
+  if(!parOpener && extSait && typeof extDrivupPresente === 'function' && extDrivupPresente()){ versExtDrivup(m); return; }
   if(!window.opener || window.opener.closed) throw new Error('L’onglet Drivup est fermé : reclique sur le favori depuis le planning de l’agence.');
   window.opener.postMessage(m, DRIVUP_ORIGINE);
 }
@@ -2013,7 +2070,9 @@ function attendreDeDrivup(type, surProgression, delai){
     const t = setTimeout(() => { fin(); ko(new Error('Drivup ne répond plus. Recharge le planning Drivup et reclique sur le favori.')); }, delai || 180000);
     const t0 = setTimeout(() => { fin(); ko(new Error('Le favori ne répond pas dans l’onglet Drivup : reclique sur le favori depuis le planning de l’agence, puis recommence.')); }, 20000);
     function ecoute(ev){
-      if(ev.origin !== DRIVUP_ORIGINE || !ev.data) return;
+      /* 📥 v1523 — ou l'extension, par la page elle-même (pont.js) */
+      const deLExtension = ev.source === window && ev.data && ev.data.ecExt === 1 && !ev.data.demandeId;
+      if((ev.origin !== DRIVUP_ORIGINE && !deLExtension) || !ev.data) return;
       if(ev.data.type === 'drivup-ecoutes-progression'){ clearTimeout(t0); if(surProgression) surProgression(ev.data); return; }
       if(ev.data.type === 'drivup-ecoutes-erreur'){ fin(); ko(new Error(ev.data.message || 'erreur dans Drivup')); return; }
       if(ev.data.type !== type) return;
