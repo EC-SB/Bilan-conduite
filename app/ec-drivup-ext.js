@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:42 — v1526 */
+/* Déployé le 21/11/2026 à 12:53 — v1529 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -472,7 +472,167 @@ function adresseDv(){
   a.poser = chemin => { a.lastChild.textContent = 'app.drivup.fr' + String(chemin).split('?')[0]; };
   return a;
 }
+/* ============================================================
+   🗂️ v1528 — PLUSIEURS PAGES DRIVUP DANS LE MÊME CADRE, ET SA TAILLE
+
+   David, le 21 novembre : « quand j'appuie sur un lien dans l'iframe
+   pour ouvrir dans un nouvel onglet, il faut qu'il s'ouvre dans un
+   nouvel onglet directement en haut de l'iframe, pour avoir plusieurs
+   pages de Drivup au même endroit » — l'extension (cadre.js) envoie ces
+   liens ici ; une rangée d'onglets apparaît en haut du cadre dès qu'il y
+   en a deux. « Que je modifie la taille de l'iframe » : la hauteur (une
+   poignée en bas), le zoom (− 100 % +), la largeur (la poignée du côté,
+   v1526) — gardés sur cet ordinateur.
+   ============================================================ */
+const MULTIS_DV = new Set();
+const DV_ZOOM_CLE = 'ec_dv_zoom';
+function zoomDv(){
+  let z = 100;
+  try{ z = parseInt(localStorage.getItem(DV_ZOOM_CLE) || '100', 10) || 100; }catch(e){}
+  return Math.max(50, Math.min(150, z));
+}
+function poserZoomDv(z){
+  z = Math.max(50, Math.min(150, Math.round(z / 10) * 10));
+  try{ if(z === 100) localStorage.removeItem(DV_ZOOM_CLE); else localStorage.setItem(DV_ZOOM_CLE, String(z)); }catch(e){}
+  MULTIS_DV.forEach(m => m.zoom(z));
+  document.querySelectorAll('.dvZoomVal').forEach(e => { e.textContent = z + ' %'; });
+}
+function boutonsZoomDv(){
+  const g = elDv('span', 'dvZoomBoutons');
+  const moins = elDv('button', 'btn btn-secondary', '−'); moins.type = 'button'; moins.title = 'Réduire (voir plus de Drivup)';
+  const val = elDv('button', 'btn btn-secondary dvZoomVal', zoomDv() + ' %'); val.type = 'button'; val.title = 'Revenir à 100 %';
+  const plus = elDv('button', 'btn btn-secondary', '+'); plus.type = 'button'; plus.title = 'Agrandir';
+  moins.addEventListener('click', () => poserZoomDv(zoomDv() - 10));
+  plus.addEventListener('click', () => poserZoomDv(zoomDv() + 10));
+  val.addEventListener('click', () => poserZoomDv(100));
+  g.append(moins, val, plus);
+  return g;
+}
+function nomDePageDv(u, titre){
+  const t = String(titre || '').replace(/\s*-\s*Drivup.*$/i, '').replace(/\s+/g, ' ').trim();
+  if(t) return t.slice(0, 28);
+  try{ const x = new URL(u); return (x.pathname.split('/').filter(Boolean).pop() || 'Drivup').replace(/\.php$/, '').replace(/_/g, ' ').slice(0, 28); }catch(e){ return 'Drivup'; }
+}
+/* Un cadre Drivup à onglets : le premier suit les raccourcis, les autres
+   viennent des liens « nouvel onglet » de Drivup */
+function multiCadreDv(titre, surAdresse){
+  const el = elDv('div', 'dvMulti');
+  const bande = elDv('div', 'dvOnglets');
+  bande.hidden = true;
+  const vues = elDv('div', 'dvVues');
+  el.append(bande, vues);
+  const onglets = [];
+  let actif = null, n = 0;
+  const m = { el: el, onglets: onglets };
+  const choisir = o => {
+    actif = o;
+    onglets.forEach(x => { x.boite.hidden = x !== o; x.bouton.classList.toggle('on', x === o); x.bouton.setAttribute('aria-selected', String(x === o)); });
+    if(surAdresse) surAdresse(o.src);
+  };
+  const dessinerBande = () => { bande.hidden = onglets.length < 2; };
+  const creer = (src, nom, fermable) => {
+    const o = { id: ++n, src: src, nom: nom || 'Drivup' };
+    o.boite = elDv('div', 'dvZoom');
+    o.ifr = document.createElement('iframe');
+    o.ifr.className = 'dvCadre';
+    o.ifr.title = (titre || 'Drivup') + (fermable ? ' — ' + o.nom : '');
+    o.ifr.setAttribute('referrerpolicy', 'no-referrer');
+    /* l'App se présente au cadre : l'extension sait alors que ses liens viennent ici */
+    o.ifr.addEventListener('load', () => { try{ o.ifr.contentWindow.postMessage({ ecCadreApp: 1 }, DRIVUP_ORIGINE); }catch(e){} });
+    o.ifr.src = src;
+    o.boite.appendChild(o.ifr);
+    vues.appendChild(o.boite);
+    o.bouton = elDv('button', 'dvOng');
+    o.bouton.type = 'button';
+    o.bouton.setAttribute('role', 'tab');
+    o.etiquette = elDv('span', 'dvOngNom', o.nom);
+    o.bouton.appendChild(o.etiquette);
+    o.bouton.title = o.nom;
+    o.bouton.addEventListener('click', ev => { if(ev.target.closest('.dvOngX')) return; choisir(o); });
+    if(fermable){
+      const x = elDv('span', 'dvOngX', '✕');
+      x.setAttribute('role', 'button'); x.title = 'Fermer cet onglet';
+      x.addEventListener('click', () => {
+        const i = onglets.indexOf(o);
+        onglets.splice(i, 1); o.boite.remove(); o.bouton.remove();
+        if(actif === o) choisir(onglets[Math.max(0, i - 1)]);
+        dessinerBande();
+      });
+      o.bouton.appendChild(x);
+    }
+    bande.appendChild(o.bouton);
+    onglets.push(o);
+    dessinerBande();
+    choisir(o);
+    return o;
+  };
+  m.aller = src => {
+    if(!onglets.length){ creer(src, 'Drivup', false); return; }
+    const o = onglets[0];
+    o.src = src; o.ifr.src = src;
+    choisir(o);
+  };
+  m.ouvrir = (src, nom) => {
+    if(onglets.length >= 8){ if(typeof showToast === 'function') showToast('8 pages Drivup au plus : ferme un onglet.'); return null; }
+    return creer(src, nomDePageDv(src, nom), true);
+  };
+  m.actif = () => actif;
+  m.recharger = () => { if(actif){ actif.ifr.src = actif.ifr.src; } };
+  m.zoom = z => el.style.setProperty('--dv-zoom', String(z / 100));
+  m.possede = w => onglets.find(o => o.ifr.contentWindow === w) || null;
+  m.ici = (o, url, t) => {
+    o.src = url;
+    const nom = nomDePageDv(url, t);
+    o.nom = nom; o.etiquette.textContent = nom; o.bouton.title = nom;
+    if(o === actif && surAdresse) surAdresse(url);
+  };
+  m.zoom(zoomDv());
+  MULTIS_DV.add(m);
+  return m;
+}
+/* Ce que l'extension dit depuis un cadre : un lien « nouvel onglet », ou la page où il est */
+window.addEventListener('message', ev => {
+  if(ev.origin !== DRIVUP_ORIGINE || !ev.data || ev.data.ecDrivup !== 1) return;
+  const u = String(ev.data.url || '');
+  if(u.indexOf(DRIVUP_ORIGINE + '/') !== 0) return;
+  for(const m of [...MULTIS_DV]){
+    if(!m.el.isConnected){ MULTIS_DV.delete(m); continue; }
+    const o = m.possede(ev.source);
+    if(!o) continue;
+    if(ev.data.type === 'onglet') m.ouvrir(u, ev.data.titre);
+    else if(ev.data.type === 'ici') m.ici(o, u, ev.data.titre);
+    return;
+  }
+});
+/* La hauteur : une poignée en bas (double-clic : la hauteur de départ) */
+function poigneeHauteurDv(carte, cle, surFin){
+  const pg = elDv('div', 'dvPoigneeH');
+  pg.title = 'Glisser pour régler la hauteur (double-clic : la hauteur de départ)';
+  pg.setAttribute('aria-hidden', 'true');
+  pg.appendChild(elDv('i'));
+  pg.addEventListener('pointerdown', ev => {
+    if(ev.button !== 0) return;
+    ev.preventDefault();
+    const pid = ev.pointerId;
+    try{ pg.setPointerCapture(pid); }catch(e){}
+    document.body.classList.add('dvTireH');
+    const h0 = carte.getBoundingClientRect().height, y0 = ev.clientY;
+    const bouge = e => { if(e.pointerId === pid) carte.style.height = Math.max(260, Math.round(h0 + e.clientY - y0)) + 'px'; };
+    const fin = e => {
+      if(e.pointerId !== pid) return;
+      pg.removeEventListener('pointermove', bouge); pg.removeEventListener('pointerup', fin); pg.removeEventListener('pointercancel', fin);
+      document.body.classList.remove('dvTireH');
+      try{ localStorage.setItem(cle, String(Math.round(carte.getBoundingClientRect().height))); }catch(e){}
+    };
+    pg.addEventListener('pointermove', bouge); pg.addEventListener('pointerup', fin); pg.addEventListener('pointercancel', fin);
+  });
+  pg.addEventListener('dblclick', () => { try{ localStorage.removeItem(cle); }catch(e){} carte.style.height = ''; if(surFin) surFin(); });
+  return pg;
+}
+function hauteurGardeeDv(cle){ let h = 0; try{ h = parseInt(localStorage.getItem(cle) || '0', 10) || 0; }catch(e){} return h >= 260 ? h : 0; }
+
 let drivupOngletPret = false;
+let dvOngletMulti = null;
 function ouvrirOngletDrivup(){
   const z = $('drivupOngletZone');
   if(!z) return;
@@ -481,16 +641,13 @@ function ouvrirOngletDrivup(){
   z.innerHTML = '';
   /* v1525 — David : « mets les boutons Planning etc. en dessous, au plus
      bas, pour que je voie plus Drivup » : une seule rangée fine sous le
-     cadre (raccourcis, adresse, ↻, ↗), et la carte va jusqu'en bas de l'écran. */
+     cadre (raccourcis, adresse, zoom, ↻, ↗), et la carte va jusqu'en bas de l'écran. */
   const barre = elDv('div', 'dvCadreBarre dvCadreBas');
-  const cadre = document.createElement('iframe');
-  cadre.className = 'dvCadre';
-  cadre.title = 'Drivup';
-  cadre.setAttribute('referrerpolicy', 'no-referrer');
   const adresse = adresseDv();
+  const multi = multiCadreDv('Drivup', u => adresse.poser(String(u).replace(DRIVUP_ORIGINE, '')));
+  dvOngletMulti = multi;
   const aller = (chemin, b) => {
-    cadre.src = DRIVUP_ORIGINE + chemin;
-    adresse.poser(chemin);
+    multi.aller(DRIVUP_ORIGINE + chemin);
     barre.querySelectorAll('.dvRac').forEach(x => { x.className = 'btn btn-secondary dvRac'; });
     if(b) b.className = 'btn btn-primary dvRac';
   };
@@ -503,18 +660,21 @@ function ouvrirOngletDrivup(){
   });
   barre.appendChild(adresse);
   barre.appendChild(elDv('span', 'dvCadreEsp', ''));
+  barre.appendChild(boutonsZoomDv());
   const rel = elDv('button', 'btn btn-secondary', '↻');
   rel.type = 'button'; rel.title = 'Recharger';
-  rel.addEventListener('click', () => { try{ cadre.contentWindow.location.reload(); }catch(e){ cadre.src = cadre.src; } });
+  rel.addEventListener('click', () => multi.recharger());
   const out = elDv('button', 'btn btn-secondary', '↗ Ouvrir dans un onglet');
   out.type = 'button';
-  out.addEventListener('click', () => window.open(cadre.src || DRIVUP_ORIGINE, '_blank', 'noopener'));
+  out.addEventListener('click', () => { const o = multi.actif(); window.open((o && o.src) || DRIVUP_ORIGINE, '_blank', 'noopener'); });
   barre.append(rel, out);
   if(!extDrivupPresente()){
     const n = elDv('div', 'dvNote dvCadreSans', '🧩 Sans l’extension « App EC · Drivup » sur cet ordinateur, Drivup ne garde pas ta connexion dans l’App : il demandera de se connecter. Installe l’extension (Gestion › 📥 Drivup), ou « ↗ Ouvrir dans un onglet ».');
     z.appendChild(n);
   }
-  z.append(cadre, barre);
+  const carte = z.closest('.dvOngletCarte');
+  z.append(multi.el, barre);
+  if(carte && !carte.querySelector('.dvPoigneeH')) carte.appendChild(poigneeHauteurDv(carte, 'ec_dv_hauteur', ajusterOngletDrivup));
   ajusterOngletDrivup();
 }
 /* La carte Drivup prend toute la hauteur qui reste sous elle, jusqu'en bas
@@ -528,6 +688,9 @@ function ajusterOngletDrivup(){
     const r = nav.getBoundingClientRect();
     if(r.top > window.innerHeight / 2) bas += window.innerHeight - r.top;
   }
+  /* v1528 — une hauteur réglée à la poignée l'emporte */
+  const gardee = hauteurGardeeDv('ec_dv_hauteur');
+  if(gardee){ c.style.height = gardee + 'px'; return; }
   const haut = c.getBoundingClientRect().top + window.scrollY;
   c.style.height = Math.max(300, Math.round(window.innerHeight - haut - bas)) + 'px';
 }
@@ -579,13 +742,11 @@ function ouvrirPanneauDrivup(o){
   const x = elDv('button', 'btn btn-secondary', '✕'); x.type = 'button'; x.title = 'Fermer'; x.setAttribute('aria-label', 'Fermer le panneau Drivup');
   tete.append(t, grand, x);
   const ongl = elDv('div', 'dvPanneauOnglets');
-  const cadre = document.createElement('iframe');
-  cadre.className = 'dvCadre'; cadre.title = o.titre; cadre.setAttribute('referrerpolicy', 'no-referrer');
   const adresse = adresseDv();
+  const multi = multiCadreDv(o.titre, u => adresse.poser(String(u).replace(DRIVUP_ORIGINE, '')));
   const aller = (n, chemin, b) => {
     if(o.garderOnglet) o.garderOnglet(n);
-    cadre.src = DRIVUP_ORIGINE + chemin;
-    adresse.poser(chemin);
+    multi.aller(DRIVUP_ORIGINE + chemin);
     ongl.querySelectorAll('button').forEach(y => { y.className = 'btn btn-secondary'; });
     if(b) b.className = 'btn btn-primary';
   };
@@ -596,15 +757,19 @@ function ouvrirPanneauDrivup(o){
     ongl.appendChild(b);
     if(n === choisi) aller(n, chemin, b);
   });
-  grand.addEventListener('click', () => window.open(cadre.src, '_blank', 'noopener'));
+  grand.addEventListener('click', () => { const a = multi.actif(); window.open((a && a.src) || DRIVUP_ORIGINE, '_blank', 'noopener'); });
+  tete.insertBefore(boutonsZoomDv(), grand);
   x.addEventListener('click', fermerPanneauDrivupEleve);
   const corps = elDv('div', 'dvPanneauCorps');
   corps.append(adresse);
   if(!extDrivupPresente()) corps.appendChild(elDv('div', 'dvNote dvCadreSans', '🧩 Sans l’extension sur cet ordinateur, Drivup demandera de se connecter ici : « ↗ » l’ouvre dans un onglet.'));
-  corps.appendChild(cadre);
+  corps.appendChild(multi.el);
   p.append(poignee, tete);
   if(o.onglets.length > 1) p.appendChild(ongl);
   p.appendChild(corps);
+  p.appendChild(poigneeHauteurDv(p, 'ec_dv_panneau_h'));
+  const hp = hauteurGardeeDv('ec_dv_panneau_h');
+  if(hp) p.style.height = hp + 'px';
   /* pour changer l'adresse sans tout refaire (les rappels : un autre jour) */
   p.changer = (titre, sousTexte, chemin) => {
     p.querySelector('.dvPanneauTitre b').textContent = titre;
