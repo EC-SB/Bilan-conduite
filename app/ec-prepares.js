@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 16:47 — v1518 */
+/* Déployé le 21/11/2026 à 16:37 — v1542 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -697,7 +697,9 @@ function coursPreparesDe(eleve){
    même dont on sort. */
 const RIEN_DU_COURS_PRECEDENT = ['jeton', 'repondu', 'repondule', 'lecon',
                                  'leconMain', 'sansBilan', 'premierCours',
-                                 'modele', 'leconsFaites', 'aRenseigner'];
+                                 'modele', 'leconsFaites', 'aRenseigner',
+                                 /* 🔗 v1542 — la fin d'un cours enchaîné */
+                                 'finEnchaine', 'enchaines'];
 
 function etatDuCoursPrecedent(cours){
   if(!cours || !cours.eleve) return null;
@@ -1787,11 +1789,16 @@ async function afficherPrepares(recharger, silencieux){
 
     const retard = (typeof etatRetard === 'function') ? etatRetard(cours) : null;
 
+    /* 🔗 v1542 — un cours enchaîné dit jusqu'où il va */
+    const ench = finEnchaineDuCours(cours);
     nom.innerHTML =
       (h ? '<div class="heure" style="font-size:19px;font-weight:800;' +
            'color:var(--accent-text);line-height:1.2;' +
            (trait ? '--trait:' + trait + ';' : '') + '">' +
            h.replace(':', 'h') + '</div>' : '') +
+      (h && ench ? '<div class="enchaine" style="font-size:12px;font-weight:700;color:var(--soft);line-height:1.5;" ' +
+           'title="Un seul cours : le moniteur enchaîne">jusqu’à ' + ench.fin.replace(':', 'h') +
+           ' · ' + ench.n + ' cours enchaînés</div>' : '') +
       (presence ? '<div class="presence" data-jeton="' + jetonDuCours(cours) +
            '" style="font-size:12px;font-weight:600;color:' +
            presence.couleur + ';line-height:1.5;" title="' +
@@ -6384,6 +6391,19 @@ function repereDeNote(cours){
            texte: debut.indexOf('🆔') !== -1 ? "DOIT DEPOSER SA PIECE D'IDENTITE AU BUREAU" : '' };
 }
 
+
+/* 🔗 v1542 — la fin d'un cours enchaîné (plusieurs créneaux Drivup, un
+   seul cours dans l'App), lue dans son contexte : { fin, n } ou null */
+function finEnchaineDuCours(cours){
+  const c = cours && cours.contexte;
+  const cx = (c && typeof c === 'object') ? c : (() => { try{ return JSON.parse(c || '{}'); }catch(e){ return {}; } })();
+  const fin = String((cx && cx.finEnchaine) || '');
+  const n = Number((cx && cx.enchaines) || 0);
+  if(!/^\d{2}:\d{2}$/.test(fin) || n < 2) return null;
+  const h = heureDeLaPreparation(cours);
+  if(h && fin <= h) return null;
+  return { fin: fin, n: n };
+}
 
 function heureDeLaPreparation(cours){
   const t = String((cours && cours.note) || '');
