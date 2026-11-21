@@ -1,4 +1,4 @@
-/* Déployé le 24/10/2026 à 14:28 — v1262 */
+/* Déployé le 21/11/2026 à 14:19 — v1533 */
 /* ============================================================
    ec-correction.js
    Signaler une erreur du moniteur dans un bilan et la remplacer
@@ -109,7 +109,8 @@ async function ouvrirCorrectionMoniteur(){
   if(sel){
     sel.addEventListener('change', () => {
       if(sel.value === '') return;
-      zone.value = procedures[parseInt(sel.value, 10)].contenu || '';
+      /* ✍️ v1533 — la référence de la correction : le texte, sans la mise en forme */
+      zone.value = (typeof liensMdEnTexte === 'function' ? liensMdEnTexte(procedures[parseInt(sel.value, 10)].contenu || '') : (procedures[parseInt(sel.value, 10)].contenu || ''));
     });
   }
 
