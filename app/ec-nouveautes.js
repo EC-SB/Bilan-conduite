@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:58 — v1527 */
+/* Déployé le 21/11/2026 à 12:47 — v1529 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,35 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1529,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📦 Les captures, les tracés GPS et les procédures à corriger rangés dans Cloudflare',
+    quoi: [
+      { emoji: '🛰️',
+        titre: 'Les tracés GPS entiers',
+        texte: 'Le tracé d’un cours est maintenant rangé dans Cloudflare, plus dans une case de la feuille Google : un long cours n’est plus coupé, la carte le montre en entier. Rien ne change pour le relevé ni pour la carte envoyée à l’élève.' },
+      { emoji: '📷',
+        titre: 'Les captures aussi',
+        texte: 'Les captures des procédures à corriger rejoignent celles du CEPC dans Cloudflare : elles s’affichent comme avant. Supprimer une procédure ou le dossier d’un élève efface aussi ses captures et ses tracés.' },
+      { emoji: '📦',
+        titre: 'Pour les administrateurs : Gestion › 🗄️ Base',
+        texte: 'Nouvelle famille « Images et tracés ». « 📦 Ranger dans R2 » déménage ce qui est encore dans les feuilles, lot par lot (laisse l’écran ouvert ; interrompu, ça reprend). Ensuite seulement Captures, Procédures à corriger et Tracés GPS passent dans D1 : tant qu’elles sont lourdes, leur interrupteur refuse et le dit.' }
+    ]
+  },
+  {
+    version: 1528,
+    date: 'Samedi 21 novembre 2026',
+    resume: '🗂️ Plusieurs pages Drivup dans le même cadre, et sa taille se règle (hauteur, zoom)',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Des onglets dans le cadre Drivup',
+        texte: 'Un lien de Drivup qui s’ouvrirait dans un nouvel onglet (ou Ctrl+clic, clic molette) s’ouvre en onglet en haut du cadre : plusieurs pages Drivup au même endroit, ✕ pour en fermer une. Il faut l’extension 1.3.0.' },
+      { emoji: '↕️',
+        titre: 'La hauteur et le zoom',
+        texte: 'Sous le cadre, une poignée pour régler la hauteur (double-clic : jusqu’en bas de l’écran), et « − 100 % + » pour voir plus ou moins grand ce que Drivup affiche. Gardés sur cet ordinateur. La largeur se règle toujours par la poignée du côté.' }
+    ]
+  },
   {
     version: 1527,
     date: 'Samedi 21 novembre 2026',
