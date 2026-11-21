@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:03 — v1530 */
+/* Déployé le 21/11/2026 à 13:15 — v1531 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1531,
+    date: 'Samedi 21 novembre 2026',
+    resume: '👂 Les écoutes en trop proposées à la suppression, et « NON » en face des 1ers cours',
+    quoi: [
+      { emoji: '🗑️',
+        titre: 'Les écoutes vides en trop',
+        texte: 'Une écoute vide (personne d’inscrit), à venir, qui ne sert aucun cours qui en a besoin, est proposée à la suppression : un cours sans élève, déplacé ou annulé, un 1er cours, un cours d’1h, ou un cours de l’autre côté (BEA / BV). Avant, un seul cours d’élève à la même heure, quel qu’il soit, suffisait à la garder.' },
+      { emoji: '🚫',
+        titre: '« NON » en face d’un 1er cours',
+        texte: 'Pour une première leçon en voiture, la liste propose de poser le rendez-vous « NON » dans la colonne d’écoute en face (BEA ou BV, « Ecoute » à Loudéac), comme une écoute : coché, et fait tout seul si « toute seule » est allumé. Il faut l’extension 1.4.0.' }
+    ]
+  },
   {
     version: 1530,
     date: 'Samedi 21 novembre 2026',
