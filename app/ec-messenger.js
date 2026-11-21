@@ -1,4 +1,4 @@
-/* Déployé le 10/11/2026 à 16:40 — v1410 */
+/* Déployé le 21/11/2026 à 17:47 — v1544 */
 /* ============================================================
    ec-messenger.js
    Générateur du message pour le groupe Messenger « jour du permis ».
@@ -1592,6 +1592,8 @@ async function afficherMessengerPermis(){
         bte + (reperes ? ' ' + reperes : '') + ' ' +
         e.nom.replace(/</g, '&lt;') +
         (sv.toutOk === 'oui' ? ' ✅' : ' ⚠️');
+      /* 📅 v1544 — réservations faites : le calendrier orange */
+      if(typeof calendrierOrangeSvg === 'function') n.innerHTML = n.innerHTML.replace(/🗓\uFE0F?/g, calendrierOrangeSvg(14));
       n.title = sv.toutOk === 'oui' ? 'Dossier prêt' : 'Il manque quelque chose';
       l.appendChild(n);
       /* 👤 Son dossier — v1134. */
@@ -1768,6 +1770,7 @@ async function afficherMessengerPermis(){
         const qui = document.createElement('span');
         qui.className = 'hPermisQui';
         qui.textContent = (i + 1) + '- ' + boite + (rep ? ' ' + rep : '') + ' ' + e.nom;
+        if(typeof calendrierOrangeDans === 'function') calendrierOrangeDans(qui);
         l.appendChild(qui);
         const bout = (texte) => { const x = document.createElement('span'); x.className = 'hPermisBout'; x.textContent = texte; return x; };
         const conduite = bout('conduite ');
