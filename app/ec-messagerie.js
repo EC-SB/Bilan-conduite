@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 09:43 — v1473 */
+/* Déployé le 21/11/2026 à 11:58 — v1527 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -2549,8 +2549,10 @@ function fragmentAvecMentionsEC(texte){
   const noms = ((filOuvertEC && filOuvertEC.membres) || [])
     .filter(x => x && x.qui && x.genre !== 'boite').map(x => String(x.qui))
     .sort((a, b) => b.length - a.length);
+  /* 🔗 v1527 — les liens du texte se touchent (ec-liens.js) */
+  const texteEC = s => (typeof noeudsAvecLiensEC === 'function') ? noeudsAvecLiensEC(s) : document.createTextNode(s);
   if(t.indexOf('@') === -1 || !noms.length){
-    frag.appendChild(document.createTextNode(t));
+    frag.appendChild(texteEC(t));
     return { frag: frag, moi: false };
   }
   const echap = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2558,7 +2560,7 @@ function fragmentAvecMentionsEC(texte){
   const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
   let i = 0, x, pourMoi = false;
   while((x = re.exec(t))){
-    if(x.index > i) frag.appendChild(document.createTextNode(t.slice(i, x.index)));
+    if(x.index > i) frag.appendChild(texteEC(t.slice(i, x.index)));
     const s = document.createElement('span');
     s.className = 'msgMention';
     s.textContent = x[0];
@@ -2566,7 +2568,7 @@ function fragmentAvecMentionsEC(texte){
     frag.appendChild(s);
     i = x.index + x[0].length;
   }
-  if(i < t.length) frag.appendChild(document.createTextNode(t.slice(i)));
+  if(i < t.length) frag.appendChild(texteEC(t.slice(i)));
   return { frag: frag, moi: pourMoi };
 }
 
