@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:15 — v1531 */
+/* Déployé le 21/11/2026 à 13:55 — v1532 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1532,
+    date: 'Samedi 21 novembre 2026',
+    resume: '👂 Écoutes : les « NON » au bon endroit, le tutorat compte, et les écoutes avec élèves sans cours signalées',
+    quoi: [
+      { emoji: '🚫',
+        titre: 'Les « NON » : seulement où il faut',
+        texte: 'En face d’un 1er cours et d’un RDV pédagogique ; jamais pour une passerelle (elle prend une écoute, en BV), jamais pour un cours d’1h. Un 10e cours n’est plus pris pour un 1er : les leçons de chaque élève sont chargées avant le calcul.' },
+      { emoji: '👥',
+        titre: 'Le tutorat',
+        texte: 'Un « Tutorat » posé dans une colonne d’écoute tient la place de l’écoute du cours en face : 2 élèves sont déjà à l’arrière, aucune écoute n’est ouverte pour ce cours.' },
+      { emoji: '⚠️',
+        titre: 'Des élèves inscrits, sans cours',
+        texte: 'En tête de la liste des écoutes : celles où des élèves sont inscrits mais qu’aucun cours ne prend (annulé, déplacé…). Rien ne se fait tout seul : on prévient les élèves, ou on remet un cours en face.' },
+      { emoji: '✍️',
+        titre: 'Ce qu’on écrit : l’écran ne saute plus',
+        texte: 'En écrivant une fiche, Entrée ou une correction au milieu du texte ne fait plus remonter la page : on garde sous les yeux ce qu’on écrit, et en écrivant tout en bas, la page suit.' }
+    ]
+  },
   {
     version: 1531,
     date: 'Samedi 21 novembre 2026',
