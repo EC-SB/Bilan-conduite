@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:08 — v1519 */
+/* Déployé le 20/11/2026 à 19:32 — v1522 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 App Évolution » (anciennement « 📥 Bilan de conduite »)
 
@@ -165,14 +165,97 @@
   }
 
   /* ---------- Le planning ---------- */
-  async function lirePlanning() {
+
+  /* 📆 v1522 — QUATRE SEMAINES, QUEL QUE SOIT LE JOUR AFFICHÉ.
+     David, le 20 novembre : « est-ce que le favori lit bien tous les
+     cours ? sinon il faut qu'il les lise tous et les mette dans les
+     cours à venir de l'élève ». Le calendrier de la page ne tient que
+     la semaine à l'écran : sur le planning d'une agence ou de « Tous
+     les utilisateurs », on redemande à Drivup son propre flux, semaine
+     par semaine, d'aujourd'hui (ou du premier jour affiché, s'il est
+     avant) à quatre semaines plus tard (ou au dernier jour affiché, s'il
+     est après). Lecture seule, la même adresse que la page.
+
+     ⚠️ UN COURS DÉJÀ OUVERT N'EST PAS ROUVERT. Savoir quel élève est sur
+     un cours demande d'ouvrir son détail : on garde, dans cette page,
+     le détail de chaque cours avec ce qui le décrit (heure, colonne,
+     prestation, nombre d'élèves) ; tant que rien de ça ne bouge, on
+     reprend le détail gardé. Le mode veille relit ainsi toutes les
+     heures sans tout rouvrir. */
+  const SEMAINES_PLANNING = 4;
+  const detailsGardes = window.__ecDetailsGardes || (window.__ecDetailsGardes = {});
+  const signatureDuCours = e => [e.start, e.end, e.res, e.title, e.props.nbrEleve, e.props.clientName,
+                                 e.props.typeRdv, e.props.agendaInterne, e.props.examen].map(x => String(x == null ? '' : x)).join('|');
+  const aujourdhuiParis = () => new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+
+  /* Le nom des colonnes que la page n'affiche pas (l'autre agence) */
+  async function nomsDesColonnes(noms, ids) {
+    const manquent = ids.filter(id => id && !noms[id]);
+    if (!manquent.length) return;
+    try {
+      const u = new URL('/planning/data/FCIO_semaine_resources.php', location.href);
+      u.searchParams.set('monitors', manquent.join(','));
+      u.searchParams.set('_', String(Date.now()));
+      const l = await (await fetch(u.href, { credentials: 'include' })).json();
+      (Array.isArray(l) ? l : ((l && l.resources) || [])).forEach(x => { if (x && x.id != null) noms[String(x.id)] = propre(x.title); });
+    } catch (e) { /* le nom manquera, le cours reste */ }
+  }
+
+  /* Les cours de la période, au même format que ceux du calendrier */
+  async function coursDesSemaines(cal, du, au) {
+    const flux = fluxDuPlanning() || (surTousLesUtilisateurs() ? '/planning/data/FCIO_agence_events.php' : '');
+    if (!flux) throw new Error('Le flux du planning est introuvable : recharge la page Drivup, puis reclique sur le favori.');
+    const noms = {};
+    (cal && cal.getResources ? cal.getResources() : []).forEach(r => { noms[String(r.id)] = propre(r.title); });
+    const vus = {}, bruts = [];
+    const n = Math.ceil((Date.parse(au) - Date.parse(du)) / (7 * 86400000)) + 1;
+    for (let k = 0; k < n; k++) {
+      const u = new URL(flux, location.href);
+      u.searchParams.set('date', jourPlus(du, 7 * k));
+      u.searchParams.set('_', String(Date.now()));
+      const r = await fetch(u.href, { credentials: 'include', cache: 'no-store' });
+      let l;
+      try { l = await r.json(); } catch (e) { throw new Error('Drivup ne répond plus comme prévu : es-tu toujours connecté à Drivup ?'); }
+      (Array.isArray(l) ? l : ((l && l.events) || [])).forEach(e => {
+        if (!e || e.id == null || vus[e.id]) return;
+        vus[e.id] = true;
+        bruts.push(e);
+      });
+      await pause(60);
+    }
+    await nomsDesColonnes(noms, [...new Set(bruts.map(e => String(e.resourceId || '')))]);
+    return bruts.map(e => ({
+      id: String(e.id), start: String(e.start || ''), end: String(e.end || ''), title: e.title,
+      props: Object.assign({}, e, e.extendedProps || {}), res: noms[String(e.resourceId || '')] || ''
+    })).filter(e => { const j = jourDuTexte(e.start); return j && j >= du && j <= au && heureDuTexte(e.start); });
+  }
+
+  async function lirePlanning(opts) {
+    const o = opts || {};
+    const parler = t => { if (!o.veille) dire(t); };
     const cal = window.__FC_CAL;
-    const tous = cal.getEvents().filter(e => jourDuTexte(e.startStr) && heureDuTexte(e.startStr));
-    const jours = tous.map(e => jourDuTexte(e.startStr)).sort();
+    const affiches = cal.getEvents().filter(e => jourDuTexte(e.startStr) && heureDuTexte(e.startStr));
+    const jours = affiches.map(e => jourDuTexte(e.startStr)).sort();
     const duUrl = new URLSearchParams(location.search).get('date') || '';
-    const du = /^\d{4}-\d{2}-\d{2}$/.test(duUrl) ? duUrl : (jours[0] || '');
+    let du = /^\d{4}-\d{2}-\d{2}$/.test(duUrl) ? duUrl : (jours[0] || '');
     let au = jours.length ? jours[jours.length - 1] : du;
     if (au < du) au = du;
+    /* 📆 v1522 — l'agence et « Tous les utilisateurs » : quatre semaines.
+       Le planning d'un moniteur seul garde ce qu'il affiche. */
+    const surPlusieurs = /\/planning\/(agence|tous_les_utilisateurs)\.php/.test(location.pathname);
+    let tous;
+    if (surPlusieurs) {
+      const auj = aujourdhuiParis();
+      du = du && du < auj ? du : auj;
+      const loin = jourPlus(auj, 7 * SEMAINES_PLANNING - 1);
+      au = au && au > loin ? au : loin;
+      if (au > jourPlus(du, 62)) au = jourPlus(du, 62);
+      parler('Lecture du planning, du ' + du.split('-').reverse().join('/') + ' au ' + au.split('-').reverse().join('/') + '…');
+      tous = await coursDesSemaines(cal, du, au);
+    } else {
+      tous = affiches.map(e => ({ id: String(e.id), start: e.startStr, end: e.endStr, title: e.title,
+        props: e.extendedProps || {}, res: ((e.getResources ? e.getResources() : []).map(r => propre(r.title)))[0] || '' }));
+    }
     if (!du) throw new Error('aucun cours dans ce planning');
 
     let porteeGenre = 'agence', porteeValeur = '';
@@ -205,62 +288,71 @@
     tous.forEach(e => {
       const m = propre(e.title).match(/^[.·•]\s*(\d{1,3})$/);
       if (!m) return;
-      const res = (e.getResources ? e.getResources() : []).map(r => propre(r.title));
-      if (!res[0]) return;
-      voitures.push({ jour: jourDuTexte(e.startStr), heure: heureDuTexte(e.startStr),
-                      moniteurDrivup: res[0], numero: String(Number(m[1])) });
+      if (!e.res) return;
+      voitures.push({ jour: jourDuTexte(e.start), heure: heureDuTexte(e.start),
+                      moniteurDrivup: e.res, numero: String(Number(m[1])) });
     });
     /* Les colonnes lues : une voiture retirée dans Drivup doit
        s'effacer chez nous, mais seulement pour ces moniteurs-là. */
-    const colonnes = (cal.getResources ? cal.getResources() : []).map(r => propre(r.title)).filter(Boolean);
+    const colonnes = [...new Set((cal.getResources ? cal.getResources() : []).map(r => propre(r.title))
+      .concat(tous.map(e => e.res)).filter(Boolean))];
 
     const avecEleves = tous.filter(e => {
-      const p = e.extendedProps || {};
+      const p = e.props || {};
       return Number(p.nbrEleve) > 0 || p.clientName || (p.examen && p.examen !== '0');
     });
     const ignores = tous.length - avecEleves.length;
 
     const cours = [];
-    let fait = 0, rates = 0;
+    let fait = 0, rates = 0, reutilises = 0;
     const file = avecEleves.slice();
     async function ouvrier() {
       while (file.length) {
         const e = file.shift();
-        const p = e.extendedProps || {};
-        const res = (e.getResources ? e.getResources() : []).map(r => propre(r.title));
+        const p = e.props || {};
         let d = { libelle: propre(e.title), eleves: [] };
-        try { d = await lireDetail(e); } catch (err) { rates++; }
-        if (!d.eleves.length && p.clientName) {
-          d.eleves = [{ id: '', nom: propre(p.clientName), prenom: '', formation: '', mobile: '' }];
+        /* 📆 v1522 — le détail gardé, tant que le cours n'a pas bougé */
+        const sig = signatureDuCours(e);
+        const garde = detailsGardes[e.id];
+        if (garde && garde.sig === sig) { d = garde.d; reutilises++; }
+        else {
+          try { d = await lireDetail({ id: e.id, extendedProps: p }); detailsGardes[e.id] = { sig: sig, d: d }; }
+          catch (err) { rates++; }
         }
+        const eleves = (d.eleves || []).length ? d.eleves.slice()
+          : (p.clientName ? [{ id: '', nom: propre(p.clientName), prenom: '', formation: '', mobile: '' }] : []);
         cours.push({
           id: String(e.id),
-          jour: jourDuTexte(e.startStr),
-          debut: heureDuTexte(e.startStr),
-          fin: heureDuTexte(e.endStr),
+          jour: jourDuTexte(e.start),
+          debut: heureDuTexte(e.start),
+          fin: heureDuTexte(e.end),
           agence: propre(p.address),
-          moniteurDrivup: res[0] || '',
+          moniteurDrivup: e.res || '',
           titre: propre(e.title).slice(0, 140),
           libelle: d.libelle || propre(e.title).slice(0, 140),
           examen: !!(p.examen && p.examen !== '0'),
-          eleves: d.eleves
+          eleves: eleves
         });
         fait++;
-        dire('Lecture du planning… ' + fait + ' / ' + avecEleves.length + ' cours');
+        parler('Lecture du planning… ' + fait + ' / ' + avecEleves.length + ' cours');
         /* L'onglet de l'application suit la lecture — v1168 : David
            voyait un onglet vide pendant trente secondes. */
-        if (fait % 3 === 0 || fait === avecEleves.length) {
+        if (!o.veille && (fait % 3 === 0 || fait === avecEleves.length)) {
           envoyerAuFil({ type: 'drivup-progression', fait: fait, total: avecEleves.length });
         }
         /* Six à la fois, une courte pause : vite, sans rafale. */
-        await new Promise(r => setTimeout(r, 40));
+        if (!(garde && garde.sig === sig)) await new Promise(r => setTimeout(r, 40));
       }
     }
     await Promise.all([ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier(), ouvrier()]);
     cours.sort((a, b) => (a.jour + a.debut).localeCompare(b.jour + b.debut));
+    /* Le ménage des détails gardés : les cours qui ne sont plus lus */
+    const lus = {};
+    tous.forEach(e => { lus[e.id] = true; });
+    Object.keys(detailsGardes).forEach(id => { if (!lus[id] && Object.keys(detailsGardes).length > 3000) delete detailsGardes[id]; });
     return { genre: 'planning', porteeGenre, porteeValeur, du, au, cours,
-             ignores: Math.max(0, ignores - voitures.length), detailsRates: rates,
-             voitures, colonnes };
+             ignores: Math.max(0, ignores - voitures.length), detailsRates: rates, detailsGardes: reutilises,
+             voitures, colonnes, quatreSemaines: surPlusieurs };
   }
 
   /* ---------- 📍 Les horaires des bureaux — v1170 ----------
@@ -500,7 +592,12 @@
             const r = await fetch('/eleves/profil.php?eleve=' + encodeURIComponent(id), { credentials: 'same-origin' });
             if (r.ok) {
               const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
-              if (doc.getElementById('nom')) out[id] = Object.assign(complementsDuProfil(doc), await examenDeLEleve(id));
+              if (doc.getElementById('nom')) {
+                out[id] = Object.assign(complementsDuProfil(doc), await examenDeLEleve(id));
+                /* 🌙 v1522 — le mobile et le mail, pour compléter sa fiche (mode veille) */
+                const v = n => { const e = doc.getElementById(n); return propre(e ? (e.value != null ? e.value : e.getAttribute('value')) : ''); };
+                out[id].fiche = { email: v('email'), mobile: v('fakeMobile'), mailPrescripteur: v('mailPrescripteur') };
+              }
             }
           } catch (e) { /* une fiche illisible : les autres continuent */ }
           fait++;
@@ -979,6 +1076,142 @@
     }
   }
 
+  /* ============================================================
+     🌙 v1522 — LE MODE VEILLE
+
+     David, le 20 novembre : « on a le bouton favori mais il n'y a pas un
+     moyen pour que ça lise tout seul le planning régulièrement dans la
+     journée ». Son choix : sur un ordinateur du bureau, l'onglet Drivup
+     (planning d'une agence ou de tous les utilisateurs) et l'onglet App
+     EC restent ouverts ; un clic le matin, puis le favori relit TOUT
+     SEUL toutes les heures, de 7 h à 20 h, du lundi au samedi, et
+     l'onglet App EC enregistre sans demander de valider. Puis : « il
+     faut aussi que le mode veille relise les dossiers élèves Drivup pour
+     mettre à jour au besoin » — c'est l'onglet App EC qui demande,
+     après chaque lecture, les fiches à relire (lireLesFiches, plus haut).
+
+     ⚠️ LECTURE SEULE, COMME UN CLIC. La veille ne fait que ce que fait
+     le favori quand on le clique (planning, créneaux libres) ; elle
+     n'ouvre aucune écoute et ne touche à rien dans Drivup.
+
+     ⚠️ ELLE S'ARRÊTE AVEC LA PAGE. Recharger la page Drivup, la fermer,
+     ou que Drivup déconnecte : plus de veille. Le choix est gardé dans
+     ce navigateur : le prochain clic sur le favori la relance seul.
+     ============================================================ */
+  const VEILLE_CLE = 'ecVeilleDrivup';
+  const heureDeParis = () => {
+    const t = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Paris' });
+    return { jour: t.slice(0, 10), h: +t.slice(11, 13), m: +t.slice(14, 16), js: new Date(t.slice(0, 10) + 'T12:00:00').getDay() };
+  };
+  /* L'heure de veille en cours : « 2026-11-20 14 », ou rien la nuit et le dimanche */
+  const creneauDeVeille = x => (x.js >= 1 && x.js <= 6 && x.h >= 7 && x.h <= 20) ? x.jour + ' ' + x.h : '';
+  const prochaineVeille = () => {
+    const x = heureDeParis();
+    if (x.js >= 1 && x.js <= 6 && x.h < 7) return '7h00';
+    if (x.js >= 1 && x.js <= 6 && x.h < 20) return (x.h + 1) + 'h00';
+    return (x.js === 6 || x.js === 0) ? 'lundi 7h00' : 'demain 7h00';
+  };
+  const veilleVoulue = () => { try { return localStorage.getItem(VEILLE_CLE) === '1'; } catch (e) { return false; } };
+
+  function creerLaVeille() {
+    const V = { actif: false, occupe: false, derniere: '', minuteur: null, etat: { le: '', nb: 0, erreur: '' } };
+    const prevenir = () => {
+      const f = window.__ecFenetre;
+      try { if (f && !f.closed) f.postMessage({ type: 'drivup-veille-etat', actif: V.actif, occupe: V.occupe, etat: V.etat, prochaine: prochaineVeille() }, APP); } catch (e) {}
+    };
+    function badge() {
+      let b = document.getElementById('ecVeilleBadge');
+      if (!V.actif) { if (b) b.remove(); return; }
+      if (!b) {
+        b = document.createElement('div');
+        b.id = 'ecVeilleBadge';
+        b.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:2147483646;max-width:360px;background:#111;color:#fff;' +
+          'border:2px solid #B6FF0E;border-radius:999px;padding:7px 8px 7px 14px;display:flex;align-items:center;gap:8px;' +
+          'font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.35);';
+        const t = document.createElement('span');
+        t.className = 'ecVeilleT';
+        const r = document.createElement('button');
+        r.type = 'button'; r.textContent = '↻'; r.title = 'Relire maintenant';
+        r.style.cssText = 'background:#B6FF0E;color:#111;border:0;border-radius:999px;width:28px;height:28px;font-weight:800;cursor:pointer;';
+        r.addEventListener('click', () => passe());
+        const x = document.createElement('button');
+        x.type = 'button'; x.textContent = 'Arrêter'; x.title = 'Arrêter le mode veille';
+        x.style.cssText = 'background:none;color:#fff;border:1px solid #666;border-radius:999px;padding:4px 10px;cursor:pointer;font:inherit;';
+        x.addEventListener('click', () => V.arreter());
+        b.append(t, r, x);
+        document.body.appendChild(b);
+      }
+      b.style.borderColor = V.etat.erreur ? '#E5484D' : '#B6FF0E';
+      b.querySelector('.ecVeilleT').textContent = V.occupe ? '🌙 Veille : lecture en cours…'
+        : V.etat.erreur ? '🌙 ⚠️ ' + V.etat.erreur
+        : '🌙 Veille' + (V.etat.le ? ' · lu à ' + V.etat.le + (V.etat.nb ? ' (' + V.etat.nb + ' séances)' : '') : '') + ' · prochaine ' + prochaineVeille();
+    }
+    function envoyerEnVeille(paquet) {
+      return new Promise((ok, ko) => {
+        const f = window.__ecFenetre;
+        if (!f || f.closed) return ko(new Error('l’onglet App EC est fermé : reclique sur le favori'));
+        paquet.type = 'drivup-donnees';
+        paquet.version = 1;
+        paquet.veille = true;
+        paquet.luA = new Date().toISOString();
+        let n = 0, fini = false;
+        const ecoute = ev => {
+          if (ev.origin !== APP || !ev.data || ev.data.type !== 'drivup-recu') return;
+          fini = true; clearInterval(t); window.removeEventListener('message', ecoute); ok();
+        };
+        window.addEventListener('message', ecoute);
+        const t = setInterval(() => {
+          if (fini) return;
+          if (n++ > 40 || f.closed) { clearInterval(t); window.removeEventListener('message', ecoute); ko(new Error('l’onglet App EC ne répond pas')); return; }
+          try { f.postMessage(paquet, APP); } catch (e) {}
+        }, 1500);
+        try { f.postMessage(paquet, APP); } catch (e) {}
+      });
+    }
+    async function passe() {
+      if (!V.actif || V.occupe) return;
+      if (!window.__FC_CAL || typeof window.__FC_CAL.getEvents !== 'function') return;
+      V.occupe = true; badge(); prevenir();
+      const le = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h');
+      try {
+        const p = await lirePlanning({ veille: true });
+        try { const c = await lireLesCreneaux(); if (c) p.creneaux = c; }
+        catch (e) { p.creneauxErreur = 'Les créneaux libres n’ont pas pu être lus : ' + (e && e.message ? e.message : e); }
+        await envoyerEnVeille(p);
+        V.etat = { le: le, nb: p.cours.length, erreur: '' };
+      } catch (e) {
+        V.etat = { le: le, nb: 0, erreur: (e && e.message) || String(e) };
+      } finally {
+        V.occupe = false; badge(); prevenir();
+      }
+    }
+    V.passe = passe;
+    V.demarrer = function (dejaLu) {
+      try { localStorage.setItem(VEILLE_CLE, '1'); } catch (e) {}
+      if (!V.actif) {
+        V.actif = true;
+        /* Une lecture vient d'être faite (le clic) : la suivante à l'heure d'après */
+        V.derniere = dejaLu ? creneauDeVeille(heureDeParis()) : '';
+        V.minuteur = setInterval(() => {
+          const c = creneauDeVeille(heureDeParis());
+          if (c && c !== V.derniere) { V.derniere = c; passe(); }
+        }, 30000);
+        if (dejaLu) V.etat = { le: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h'), nb: V.etat.nb || 0, erreur: '' };
+      }
+      badge(); prevenir();
+    };
+    V.arreter = function () {
+      try { localStorage.removeItem(VEILLE_CLE); } catch (e) {}
+      V.actif = false;
+      if (V.minuteur) clearInterval(V.minuteur);
+      V.minuteur = null;
+      badge(); prevenir();
+    };
+    V.prevenir = prevenir;
+    return V;
+  }
+  const veille = window.__ecVeille || (window.__ecVeille = creerLaVeille());
+
   if (!window.__ecEcoutesBranche) {
     window.__ecEcoutesBranche = true;
     window.addEventListener('message', ev => {
@@ -993,6 +1226,14 @@
         changerLesPrix(ev.data, ev.source);
       } else if (ev.data.type === 'drivup-fiches-lire') {
         lireLesFiches(ev.data, ev.source);   /* 🪪 v1517 */
+      } else if (ev.data.type === 'drivup-veille') {
+        /* 🌙 v1522 — le mode veille, mis en route ou arrêté depuis l'onglet App EC */
+        const V = window.__ecVeille;
+        if (!V) return;
+        if (ev.data.on === true) V.demarrer(true);
+        else if (ev.data.on === false) V.arreter();
+        else if (ev.data.maintenant) V.passe();
+        else V.prevenir();
       }
     });
   }
@@ -1034,7 +1275,9 @@
       if (window.__FC_CAL && typeof window.__FC_CAL.getEvents === 'function') {
         dire('Lecture du planning…');
         const p = await lirePlanning();
-        dire(p.cours.length + ' cours lus.');
+        dire(p.cours.length + ' cours lus' + (p.quatreSemaines ? ' (jusqu’au ' + p.au.split('-').reverse().join('/') + ')' : '') + '.');
+        /* 🌙 v1522 — le mode veille : son état part avec la lecture */
+        p.veilleActive = !!(veille.actif || veilleVoulue());
         /* 📍 v1170 — les horaires des bureaux, en plus */
         try {
           const b = await lireLesBureaux();
@@ -1052,6 +1295,8 @@
           p.creneauxErreur = 'Les créneaux libres n’ont pas pu être lus : ' + (e && e.message ? e.message : e);
         }
         envoyer(p);
+        /* 🌙 v1522 — choisi une fois dans ce navigateur : il repart seul au clic */
+        if (veilleVoulue() && /\/planning\/(agence|tous_les_utilisateurs)\.php/.test(location.pathname)) veille.demarrer(true);
       } else if (/^\/parametres\/(prestations|produits|formules)\/?(index\.php)?$/.test(location.pathname)) {
         /* 💰 v1353 — les prix : les trois listes, d'où qu'on clique */
         const p = await lireLesPrix();
