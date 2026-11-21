@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 15:57 — v1539 */
+/* Déployé le 21/11/2026 à 16:14 — v1540 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1540,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📞 Le suivi des appels : le dernier appel en haut, ou en bas, au choix de chacun',
+    quoi: [
+      { emoji: '⬆️',
+        titre: 'Le dernier appel en premier',
+        texte: 'Dans la fiche d’un numéro, l’appel le plus récent est maintenant en haut : on descend pour lire les précédents. Deux boutons au-dessus du fil, « ⬆️ Le dernier en premier » et « ⬇️ Le dernier en dernier », remettent l’ancien ordre si on le préfère.' },
+      { emoji: '👤',
+        titre: 'Un réglage à soi, pour tous les appels',
+        texte: 'Le choix vaut pour toutes les fiches d’appels et suit la personne d’un appareil à l’autre : chacun garde son ordre.' }
+    ]
+  },
   {
     version: 1539,
     date: 'Samedi 21 novembre 2026',
