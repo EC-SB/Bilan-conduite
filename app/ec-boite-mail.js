@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 15:44 — v1453 */
+/* Déployé le 21/11/2026 à 11:58 — v1527 */
 /* ============================================================
    ec-boite-mail.js — ✉️ LA BOÎTE MAIL DE L'ÉCOLE — v1337
 
@@ -1544,7 +1544,9 @@ function mlLiensAbsolus(h){
   return String(h || '').replace(/(src|href)=(["'])\/parcours\//g, '$1=$2' + mlLien('/parcours/'));
 }
 function mlTexteEnHtml(t){
-  return String(t || '').split('\n').map(l => '<div>' + (l.trim() ? mlEch(l) : '<br>') + '</div>').join('');
+  /* 🔗 v1527 — [mot](adresse) : le mot devient un lien */
+  const lier = h => (typeof liensMdEnHtml === 'function') ? liensMdEnHtml(h) : h;
+  return String(t || '').split('\n').map(l => '<div>' + (l.trim() ? lier(mlEch(l)) : '<br>') + '</div>').join('');
 }
 function mlRepondreAvec(x){
   const f = mlFilOuvert && mlFilOuvert.fil;
