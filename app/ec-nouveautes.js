@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 14:19 — v1533 */
+/* Déployé le 21/11/2026 à 14:36 — v1534 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1534,
+    date: 'Samedi 21 novembre 2026',
+    resume: '👂 Écoutes Drivup : les passerelles, le tutorat et les écoutes avec élèves mieux lus',
+    quoi: [
+      { emoji: '🔁',
+        titre: 'Les passerelles reconnues',
+        texte: 'Un cours d’un élève « BEA -> B » dans Drivup (« Conduite en Audi A3 … (Passerelle) ») est une passerelle : il prend une écoute en BV, jamais de « NON » en face, et son écoute n’est plus proposée à la suppression.' },
+      { emoji: '👥',
+        titre: 'Le tutorat protège le planning',
+        texte: 'Un « Tutorat » posé dans une colonne d’écoute n’est plus jamais dans les écoutes vides à supprimer : il garde la place d’une écoute.' },
+      { emoji: '⚠️',
+        titre: 'Écoutes avec élèves : signalées seulement sans cours en face',
+        texte: 'Une écoute où des élèves sont inscrits n’est signalée que s’il n’y a aucun cours de conduite avec un élève en face (BEA ou BV). Et quand deux écoutes peuvent servir un cours, c’est celle où un élève est inscrit qui le sert : la vide est celle en trop.' }
+    ]
+  },
   {
     version: 1533,
     date: 'Samedi 21 novembre 2026',
