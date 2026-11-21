@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:06 — v1524 */
+/* Déployé le 21/11/2026 à 11:42 — v1526 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -25,7 +25,9 @@
 
 const EXT_DV = { present: false, version: '', reglages: null, poste: '', etat: null };
 function extDrivupPresente(){
-  return EXT_DV.present || document.documentElement.hasAttribute('data-ec-ext-drivup');
+  if(EXT_DV.present || document.documentElement.hasAttribute('data-ec-ext-drivup')) return true;
+  /* v1526 — l'App ouverte « à côté » (dans un cadre de l'App) : l'extension est dans la page autour */
+  try{ return window.parent !== window && !!(window.parent.EXT_DV && window.parent.EXT_DV.present); }catch(e){ return false; }
 }
 function versExtDrivup(m){ window.postMessage(Object.assign({ ecVersExt: 1 }, m), location.origin); }
 function repondreExtDrivup(id, m){ window.postMessage(Object.assign({ ecVersExt: 1, reponseA: id }, m), location.origin); }
@@ -101,9 +103,10 @@ const SORTES_DV = {
   neph:         { puce: '🆔 NEPH arrivé',   cls: 'neuf',   famille: 'neph' },
   mandat:       { puce: '✅ Mandat pris',   cls: 'neuf',   famille: 'mandats' },
   ecoute_ouverte:   { puce: '👂 Écoute ouverte',   cls: 'neuf',   famille: 'ecoutes' },
-  ecoute_supprimee: { puce: '👂 Écoute supprimée', cls: 'annule', famille: 'ecoutes' }
+  ecoute_supprimee: { puce: '👂 Écoute supprimée', cls: 'annule', famille: 'ecoutes' },
+  dossier:      { puce: '🆕 Dossier créé',  cls: 'neuf',   famille: 'dossiers' }
 };
-const FAMILLES_DV = [['planning', '📆', 'Planning'], ['notes', '📝', 'Notes'], ['neph', '🆔', 'NEPH'], ['mandats', '✅', 'Mandats'], ['ecoutes', '👂', 'Écoutes']];
+const FAMILLES_DV = [['planning', '📆', 'Planning'], ['notes', '📝', 'Notes'], ['neph', '🆔', 'NEPH'], ['mandats', '✅', 'Mandats'], ['ecoutes', '👂', 'Écoutes'], ['dossiers', '🆕', 'Dossiers']];
 const JOURS_DV = [[1, 'Lun'], [2, 'Mar'], [3, 'Mer'], [4, 'Jeu'], [5, 'Ven'], [6, 'Sam'], [0, 'Dim']];
 /* la flèche verte des titres (le glyphe « drivup » de ec-verre.js) */
 const GLYPHE_DV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
@@ -331,6 +334,9 @@ function dessinerRythmesDv(z, etat){
     'neuf', '📝 ' + pl(auj.note || 0, 'nouvelle', 'nouvelles')));
   c.appendChild(ligneDv(dureeDv(r.complet), rondTexteDv('🪪'), 'Les fiches', r.fiches + ' élèves au plus par lecture, pour les cases vides chez nous (adresse, code, responsable légal…)',
     'neuf', '🪪 ' + pl((j.fiches && j.fiches.n) || 0, 'complétée', 'complétées')));
+  /* 🆕 v1525 */
+  c.appendChild(ligneDv(dureeDv(r.semaine), rondTexteDv('🆕'), 'Les nouveaux élèves', 'Un cours dans Drivup et pas de dossier chez nous : son dossier est créé tout seul, avec sa fiche Drivup',
+    'neuf', '🆕 ' + pl(auj.dossier || 0, 'créé', 'créés')));
   c.appendChild(noteDv('Rien n’est écrit dans Drivup. Ce qui n’a pas changé ne réécrit rien dans la base : seuls les changements partent.'));
   if(etat.estAdmin) editeurRythmesDv(c, r);
 }
@@ -456,8 +462,8 @@ function jourDrivupIso(){ return new Date().toLocaleDateString('fr-CA', { timeZo
 const DRIVUP_RACCOURCIS = [
   ['📆 Planning Saint-Brieuc', () => '/planning/agence.php?agence=1&date=' + jourDrivupIso() + '&day=1'],
   ['📆 Planning Loudéac', () => '/planning/agence.php?agence=3&date=' + jourDrivupIso() + '&day=1'],
-  ['👥 Élèves', () => '/eleves/'],
-  ['💶 Paiements', () => '/tresorerie/encaissement.php']
+  ['👥 Élèves', () => '/eleves/']
+  /* v1525 — David : « enlève le bouton paiement » */
 ];
 /* La bande d'adresse au-dessus du cadre : le point vert et l'adresse */
 function adresseDv(){
@@ -473,7 +479,10 @@ function ouvrirOngletDrivup(){
   if(drivupOngletPret && z.querySelector('iframe')) return;
   drivupOngletPret = true;
   z.innerHTML = '';
-  const barre = elDv('div', 'dvCadreBarre');
+  /* v1525 — David : « mets les boutons Planning etc. en dessous, au plus
+     bas, pour que je voie plus Drivup » : une seule rangée fine sous le
+     cadre (raccourcis, adresse, ↻, ↗), et la carte va jusqu'en bas de l'écran. */
+  const barre = elDv('div', 'dvCadreBarre dvCadreBas');
   const cadre = document.createElement('iframe');
   cadre.className = 'dvCadre';
   cadre.title = 'Drivup';
@@ -492,6 +501,7 @@ function ouvrirOngletDrivup(){
     barre.appendChild(b);
     if(i === 0) aller(chemin(), b);
   });
+  barre.appendChild(adresse);
   barre.appendChild(elDv('span', 'dvCadreEsp', ''));
   const rel = elDv('button', 'btn btn-secondary', '↻');
   rel.type = 'button'; rel.title = 'Recharger';
@@ -500,46 +510,87 @@ function ouvrirOngletDrivup(){
   out.type = 'button';
   out.addEventListener('click', () => window.open(cadre.src || DRIVUP_ORIGINE, '_blank', 'noopener'));
   barre.append(rel, out);
-  z.append(barre, adresse);
   if(!extDrivupPresente()){
     const n = elDv('div', 'dvNote dvCadreSans', '🧩 Sans l’extension « App EC · Drivup » sur cet ordinateur, Drivup ne garde pas ta connexion dans l’App : il demandera de se connecter. Installe l’extension (Gestion › 📥 Drivup), ou « ↗ Ouvrir dans un onglet ».');
     z.appendChild(n);
   }
-  z.appendChild(cadre);
+  z.append(cadre, barre);
+  ajusterOngletDrivup();
 }
+/* La carte Drivup prend toute la hauteur qui reste sous elle, jusqu'en bas
+   de l'écran (moins la barre des onglets quand elle est en bas, au téléphone). */
+function ajusterOngletDrivup(){
+  const c = document.querySelector('.dvOngletCarte');
+  if(!c || !c.offsetParent) return;
+  let bas = 10;
+  const nav = $('barreOnglets');
+  if(nav && getComputedStyle(nav).display !== 'none'){   /* fixe : pas d'offsetParent */
+    const r = nav.getBoundingClientRect();
+    if(r.top > window.innerHeight / 2) bas += window.innerHeight - r.top;
+  }
+  const haut = c.getBoundingClientRect().top + window.scrollY;
+  c.style.height = Math.max(300, Math.round(window.innerHeight - haut - bas)) + 'px';
+}
+window.addEventListener('resize', () => { if(typeof ongletActif !== 'undefined' && ongletActif === 'drivup') ajusterOngletDrivup(); });
 
 /* ============================================================
-   LE PANNEAU À CÔTÉ DU DOSSIER DE L'ÉLÈVE
+   LE PANNEAU À CÔTÉ — du dossier de l'élève, et (v1526) des rappels
+   de cours. David, le 21 novembre : « que je puisse régler la largeur
+   de chaque fenêtre » → une poignée à glisser entre les deux, la
+   largeur gardée sur cet ordinateur ; double-clic : la largeur de
+   départ. « Le même principe dans Rappels de cours, avec la bonne
+   journée sur le planning en fonction de ce qu'on choisit sur le
+   rappel » → le planning « Tous les utilisateurs » du jour choisi
+   dans « Quand », qui suit quand on le change.
    ============================================================ */
 const DRIVUP_ONGLETS_ELEVE = [['Fiche', '/eleves/profil.php'], ['Examens', '/eleves/examens_eleve.php'], ['Notes internes', '/eleves/notes_internes.php'],
                               ['Planning', '/eleves/plannings.php'], ['Paiements', '/eleves/releveDeCompteNf.php']];
 let dvOngletEleve = 'Fiche';
-function ouvrirPanneauDrivupEleve(nom, idDrivup, quel){
+const DV_LARGEUR_CLE = 'ec_dv_panneau_l';
+function largeurPanneauDv(){
+  let l = 560;
+  try{ l = parseInt(localStorage.getItem(DV_LARGEUR_CLE) || '560', 10) || 560; }catch(e){}
+  return l;
+}
+function bornerPanneauDv(l){
+  const av = $('appView');
+  const max = Math.max(380, ((av && av.getBoundingClientRect().width) || window.innerWidth) - 380);
+  return Math.round(Math.max(360, Math.min(max, l)));
+}
+function poserLargeurPanneauDv(l){ document.documentElement.style.setProperty('--dv-l', bornerPanneauDv(l) + 'px'); }
+
+/* o : { pour, titre, sous, onglets: [[nom, chemin complet]], quel, garderOnglet } */
+function ouvrirPanneauDrivup(o){
   fermerPanneauDrivupEleve();
-  quel = quel || dvOngletEleve;
-  /* Comme le schéma : une carte à droite du dossier, dans la grille de l'App */
   const p = elDv('aside', 'card dvPanneau');
   p.id = 'dvPanneau';
-  p.setAttribute('aria-label', 'Drivup — ' + nom);
+  p.dataset.pour = o.pour;
+  p.dataset.cle = o.cle || '';
+  p.setAttribute('aria-label', o.titre);
+  const poignee = elDv('div', 'dvPoignee');
+  poignee.title = 'Glisser pour régler la largeur (double-clic : la largeur de départ)';
+  poignee.setAttribute('aria-hidden', 'true');
+  poignee.appendChild(elDv('i'));
   const tete = elDv('div', 'dvPanneauTete');
   const t = elDv('div', 'dvPanneauTitre');
-  t.append(elDv('b', '', '📥 Drivup — ' + nom), elDv('span', '', 'sa fiche Drivup, à côté de son dossier'));
+  const sous = elDv('span', '', o.sous || '');
+  t.append(elDv('b', '', o.titre), sous);
   const grand = elDv('button', 'btn btn-secondary', '↗'); grand.type = 'button'; grand.title = 'Ouvrir dans un onglet';
   const x = elDv('button', 'btn btn-secondary', '✕'); x.type = 'button'; x.title = 'Fermer'; x.setAttribute('aria-label', 'Fermer le panneau Drivup');
   tete.append(t, grand, x);
   const ongl = elDv('div', 'dvPanneauOnglets');
   const cadre = document.createElement('iframe');
-  cadre.className = 'dvCadre'; cadre.title = 'Drivup — ' + nom; cadre.setAttribute('referrerpolicy', 'no-referrer');
+  cadre.className = 'dvCadre'; cadre.title = o.titre; cadre.setAttribute('referrerpolicy', 'no-referrer');
   const adresse = adresseDv();
   const aller = (n, chemin, b) => {
-    dvOngletEleve = n;
-    cadre.src = DRIVUP_ORIGINE + chemin + '?eleve=' + encodeURIComponent(idDrivup);
+    if(o.garderOnglet) o.garderOnglet(n);
+    cadre.src = DRIVUP_ORIGINE + chemin;
     adresse.poser(chemin);
     ongl.querySelectorAll('button').forEach(y => { y.className = 'btn btn-secondary'; });
-    b.className = 'btn btn-primary';
+    if(b) b.className = 'btn btn-primary';
   };
-  const choisi = DRIVUP_ONGLETS_ELEVE.some(o => o[0] === quel) ? quel : 'Fiche';
-  DRIVUP_ONGLETS_ELEVE.forEach(([n, chemin]) => {
+  const choisi = o.onglets.some(z => z[0] === o.quel) ? o.quel : o.onglets[0][0];
+  o.onglets.forEach(([n, chemin]) => {
     const b = elDv('button', 'btn btn-secondary', n); b.type = 'button';
     b.addEventListener('click', () => aller(n, chemin, b));
     ongl.appendChild(b);
@@ -551,10 +602,53 @@ function ouvrirPanneauDrivupEleve(nom, idDrivup, quel){
   corps.append(adresse);
   if(!extDrivupPresente()) corps.appendChild(elDv('div', 'dvNote dvCadreSans', '🧩 Sans l’extension sur cet ordinateur, Drivup demandera de se connecter ici : « ↗ » l’ouvre dans un onglet.'));
   corps.appendChild(cadre);
-  p.append(tete, ongl, corps);
+  p.append(poignee, tete);
+  if(o.onglets.length > 1) p.appendChild(ongl);
+  p.appendChild(corps);
+  /* pour changer l'adresse sans tout refaire (les rappels : un autre jour) */
+  p.changer = (titre, sousTexte, chemin) => {
+    p.querySelector('.dvPanneauTitre b').textContent = titre;
+    sous.textContent = sousTexte || '';
+    p.setAttribute('aria-label', titre);
+    aller('', chemin, null);
+  };
+  poignee.addEventListener('pointerdown', ev => {
+    if(ev.button !== 0) return;
+    ev.preventDefault();
+    const pid = ev.pointerId;
+    try{ poignee.setPointerCapture(pid); }catch(e){}
+    document.body.classList.add('dvTire');
+    const depart = p.getBoundingClientRect().width, x0 = ev.clientX;
+    const bouge = e => { if(e.pointerId === pid) poserLargeurPanneauDv(depart + (x0 - e.clientX)); };
+    const fin = e => {
+      if(e.pointerId !== pid) return;
+      poignee.removeEventListener('pointermove', bouge);
+      poignee.removeEventListener('pointerup', fin);
+      poignee.removeEventListener('pointercancel', fin);
+      document.body.classList.remove('dvTire');
+      const l = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--dv-l'), 10);
+      try{ if(l) localStorage.setItem(DV_LARGEUR_CLE, String(l)); }catch(e){}
+    };
+    poignee.addEventListener('pointermove', bouge);
+    poignee.addEventListener('pointerup', fin);
+    poignee.addEventListener('pointercancel', fin);
+  });
+  poignee.addEventListener('dblclick', () => {
+    try{ localStorage.removeItem(DV_LARGEUR_CLE); }catch(e){}
+    poserLargeurPanneauDv(560);
+  });
+  poserLargeurPanneauDv(largeurPanneauDv());
   const av = $('appView') || document.body;
   av.appendChild(p);
   document.body.classList.add('avecPanneauDrivup');
+  return p;
+}
+window.addEventListener('resize', () => { if($('dvPanneau')) poserLargeurPanneauDv(largeurPanneauDv()); });
+
+function ouvrirPanneauDrivupEleve(nom, idDrivup, quel){
+  return ouvrirPanneauDrivup({ pour: 'dossier', cle: nom, titre: '📥 Drivup — ' + nom, sous: 'sa fiche Drivup, à côté de son dossier',
+    onglets: DRIVUP_ONGLETS_ELEVE.map(([n, c]) => [n, c + '?eleve=' + encodeURIComponent(idDrivup)]),
+    quel: quel || dvOngletEleve, garderOnglet: n => { if(n) dvOngletEleve = n; } });
 }
 function fermerPanneauDrivupEleve(){
   const p = $('dvPanneau');
@@ -562,6 +656,39 @@ function fermerPanneauDrivupEleve(){
   document.body.classList.remove('avecPanneauDrivup');
 }
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && $('dvPanneau')) fermerPanneauDrivupEleve(); });
+
+/* ---------- 🔔 Rappels de cours : le planning du jour choisi ---------- */
+function jourDesRappelsDv(){
+  const v = $('rapJour') ? $('rapJour').value : '';
+  try{ return (typeof dateDuRappel === 'function') ? dateDuRappel(v) : ''; }catch(e){ return ''; }
+}
+function cheminRappelsDv(jour){ return '/planning/tous_les_utilisateurs.php?date=' + jour + '&day=1'; }
+function titreRappelsDv(jour){ return '📥 Drivup — ' + (typeof dateLisibleDrivup === 'function' ? dateLisibleDrivup(jour) : jour); }
+function ouvrirPanneauDrivupRappels(){
+  const jour = jourDesRappelsDv() || new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+  return ouvrirPanneauDrivup({ pour: 'rappels', cle: jour, titre: titreRappelsDv(jour), sous: 'le planning « Tous les utilisateurs » du jour du rappel',
+    onglets: [['Tous les utilisateurs', cheminRappelsDv(jour)]] });
+}
+/* « Quand » change : le planning suit */
+document.addEventListener('change', e => {
+  if(!e.target || e.target.id !== 'rapJour') return;
+  const p = $('dvPanneau');
+  if(!p || p.dataset.pour !== 'rappels') return;
+  const jour = jourDesRappelsDv();
+  if(!jour || jour === p.dataset.cle) return;
+  p.dataset.cle = jour;
+  p.changer(titreRappelsDv(jour), 'le planning « Tous les utilisateurs » du jour du rappel', cheminRappelsDv(jour));
+});
+function poserBoutonDrivupRappels(){
+  if(typeof peutLireDrivup !== 'function' || !peutLireDrivup()) return;
+  const h = document.querySelector('[data-vue="rappels"] h2.section-title');
+  if(!h || h.querySelector('.dvBtnDossier')) return;
+  const b = elDv('button', 'btn btn-primary dvBtnDossier', '📥 Drivup');
+  b.type = 'button';
+  b.title = 'Le planning Drivup du jour du rappel, à côté';
+  b.addEventListener('click', () => { const p = $('dvPanneau'); if(p && p.dataset.pour === 'rappels') fermerPanneauDrivupEleve(); else ouvrirPanneauDrivupRappels(); });
+  h.appendChild(b);
+}
 
 /* Le bouton « 📥 Drivup » dans la tête du dossier */
 function poserBoutonDrivupDossier(){
@@ -583,7 +710,7 @@ function poserBoutonDrivupDossier(){
   b.onclick = () => ouvrirPanneauDrivupEleve(nom, id);
   /* le panneau ouvert suit l'élève affiché */
   const p = $('dvPanneau');
-  if(p && id && p.getAttribute('aria-label') !== 'Drivup — ' + nom) ouvrirPanneauDrivupEleve(nom, id);
+  if(p && p.dataset.pour === 'dossier' && id && p.dataset.cle !== nom) ouvrirPanneauDrivupEleve(nom, id);
 }
 /* ⚠️ APRÈS TOUS LES SCRIPTS : ec-onglets.js est chargé après ce module,
    et sa déclaration « function afficherOnglet » remplacerait l'habillage. */
@@ -601,7 +728,12 @@ function habillerPourDrivup(){
     window.afficherOnglet = function(cle){
       const r = avantO.apply(this, arguments);
       try{
-        if(typeof ongletActif !== 'undefined' && ongletActif === 'drivup') ouvrirOngletDrivup();
+        if(typeof ongletActif !== 'undefined' && ongletActif === 'drivup'){
+          ouvrirOngletDrivup();
+          window.scrollTo(0, 0);
+          setTimeout(ajusterOngletDrivup, 60);
+          setTimeout(ajusterOngletDrivup, 600);
+        }
         if(typeof ongletActif !== 'undefined' && ongletActif !== 'eleves') fermerPanneauDrivupEleve();
       }catch(e){}
       return r;
@@ -611,13 +743,18 @@ function habillerPourDrivup(){
     const avantV = afficherVue;
     window.afficherVue = function(onglet, cle){
       const r = avantV.apply(this, arguments);
-      try{ if(onglet === 'eleves' && cle !== 'dossier') fermerPanneauDrivupEleve(); }catch(e){}
+      try{
+        const p = $('dvPanneau');
+        if(onglet === 'eleves' && p && cle !== p.dataset.pour) fermerPanneauDrivupEleve();
+        if(onglet === 'eleves' && cle === 'rappels') poserBoutonDrivupRappels();
+      }catch(e){}
       return r;
     };
   }
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', habillerPourDrivup);
 else habillerPourDrivup();
+document.addEventListener('DOMContentLoaded', () => setTimeout(poserBoutonDrivupRappels, 3000));
 versExtDrivup({ type: 'ext?' });
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-drivup-ext.js'] = true;
