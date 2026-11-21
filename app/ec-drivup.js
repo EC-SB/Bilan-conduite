@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:06 — v1524 */
+/* Déployé le 21/11/2026 à 11:28 — v1525 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -490,6 +490,11 @@ async function lectureDeVeilleDrivup(p, parExtension){
     if(!peutLireDrivup()) throw new Error('réservé aux administrateurs et au bureau');
     if(typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
     if(typeof chargerMoniteurs === 'function' && !((typeof moniteursActifs !== 'undefined') && moniteursActifs.length)) await chargerMoniteurs().catch(() => {});
+    /* 🆕 v1525 — les élèves qui ont un cours dans Drivup et pas de dossier chez nous */
+    let dossiers = { crees: [], lues: {} };
+    if(parExtension){
+      try{ dossiers = await dossiersDeVeilleDrivup(p); }catch(e){ VEILLE_DV.erreurIci = 'dossiers : ' + ((e && e.message) || e); }
+    }
     const parts = lignesDuPlanningDrivup(p);
     let changes = 0, inconnus = 0;
     const bouges = new Set();
@@ -508,15 +513,16 @@ async function lectureDeVeilleDrivup(p, parExtension){
        les notes aussi pour un élève dont un cours vient de bouger */
     let fiches = 0, notes = 0;
     const complete = p.passe !== 'semaine';
-    if(complete){
-      try{ fiches = await fichesDeVeilleDrivup(parts.lignes); }catch(e){ VEILLE_DV.erreurIci = 'fiches : ' + ((e && e.message) || e); }
+    if(complete || dossiers.crees.length){
+      try{ fiches = await fichesDeVeilleDrivup(parts.lignes, dossiers, !complete); }catch(e){ VEILLE_DV.erreurIci = 'fiches : ' + ((e && e.message) || e); }
     }
     if(parExtension && (complete || bouges.size)){
       try{ notes = await notesDeVeilleDrivup(parts.lignes, complete ? bouges : bouges, !complete); }catch(e){ VEILLE_DV.erreurIci = 'notes : ' + ((e && e.message) || e); }
     }
     VEILLE_DV.journal = { le: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h'),
                           cours: (r && r.nb) || parts.lignes.length, changes: changes, inconnus: inconnus, fiches: fiches, notes: notes,
-                          nouveau: (r && r.nouveau) || 0, affichage: (r && r.affichage) || 0, passe: p.passe || 'complete' };
+                          nouveau: (r && r.nouveau) || 0, affichage: (r && r.affichage) || 0, passe: p.passe || 'complete',
+                          dossiers: dossiers.crees.length };
     if(typeof apresLectureExtDrivup === 'function') apresLectureExtDrivup(VEILLE_DV.journal);
     /* 👂 v1524 — les écoutes « toute seule », après une lecture complète (sans faire attendre l'extension) */
     if(parExtension && complete && typeof EXT_DV !== 'undefined' && EXT_DV.reglages && EXT_DV.reglages.ecoutesAuto && typeof ecoutesAutoDrivup === 'function'){
@@ -532,8 +538,58 @@ async function lectureDeVeilleDrivup(p, parExtension){
 
 /* Les fiches à relire : il en manque quelque chose chez nous, elles ont
    un id Drivup ; ceux qui ont un cours d'abord, puis les plus anciennes */
-async function fichesDeVeilleDrivup(lignes){
-  const fiches = ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).filter(f => chiffresDrivup(f.idDrivup) && f.eleve);
+/* 🆕 v1525 — DÈS QU'UN ÉLÈVE A UN COURS DANS DRIVUP, IL A SON DOSSIER.
+
+   David, le 21 novembre : « dès qu'un élève a un cours de planifié et
+   qu'il n'est pas sur l'app il faut l'ajouter dans l'app automatiquement
+   en récupérant toutes les infos de Drivup » — même pour une évaluation
+   (« on remplit tout par l'app »). Tous les cours lus, quels qu'ils soient
+   (conduite, simulateur, évaluation, code, examen) : un élève avec son
+   numéro Drivup et sans dossier chez nous (ni par ce numéro, ni par son
+   nom dans un ordre ou l'autre — le Worker revérifie). Sa fiche Drivup
+   est lue par l'extension : son nom tel que Drivup l'écrit, son mobile,
+   son mail ; le reste (adresse, naissance, NEPH, mandat…) suit avec les
+   fiches, tout de suite. */
+const DOSSIERS_DV_MAX = 60;
+async function dossiersDeVeilleDrivup(p){
+  const out = { crees: [], lues: {} };
+  if(typeof extDrivupPresente !== 'function' || !extDrivupPresente()) return out;
+  const inconnus = {};
+  (p.cours || []).forEach(c => (c.eleves || []).forEach(x => {
+    const id = chiffresDrivup(x && x.id);
+    if(!id || inconnus[id] || ficheDeLEleveDrivup(x)) return;
+    inconnus[id] = { id: id, x: x, agence: propreDrivup(c.agence, 60) };
+  }));
+  const liste = Object.keys(inconnus).slice(0, DOSSIERS_DV_MAX).map(k => inconnus[k]);
+  if(!liste.length) return out;
+  envoyerADrivup({ type: 'drivup-fiches-lire', ids: liste.map(e => e.id) });
+  const d = await attendreDeDrivup('drivup-fiches-lues', null, 600000);
+  out.lues = (d && d.fiches) || {};
+  const fiches = [];
+  liste.forEach(e => {
+    const lu = out.lues[e.id] || {}, f = lu.fiche || {};
+    const nom = propreDrivup([f.prenom, f.nom].filter(Boolean).join(' '), 80) || (e.x.nom ? nomDeLEleveDrivup(e.x) : '');
+    if(!nom) return;          /* un examen sans fiche lisible : on ne devine pas l'ordre nom / prénom */
+    fiches.push({ eleve: nom, idDrivup: e.id, telephone: propreDrivup(f.mobile || e.x.mobile, 30), email: propreDrivup(f.email, 120),
+                  mailPrescripteur: propreDrivup(f.mailPrescripteur, 120), formation: formationDeDrivup(e.x.formation),
+                  neph: chiffresDrivup(lu.neph), naissance: /^\d{4}-\d{2}-\d{2}$/.test(String(lu.dateNaissance || '')) ? lu.dateNaissance : '',
+                  agence: e.agence });
+  });
+  if(!fiches.length) return out;
+  const r = await appelPrep({ action: 'drivupFiches', fiches: fiches, parExtension: true });
+  out.crees = (r && r.noms) || [];
+  if(out.crees.length && typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
+  return out;
+}
+
+async function fichesDeVeilleDrivup(lignes, dossiers, seulementNouveaux){
+  /* 🆕 v1525 — les dossiers qu'on vient de créer passent d'abord, tous, et
+     leur fiche Drivup déjà lue n'est pas relue */
+  const neufs = {};
+  ((dossiers && dossiers.crees) || []).forEach(n => { neufs[n] = true; });
+  const dejaLues = (dossiers && dossiers.lues) || {};
+  const fiches = ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).filter(f => chiffresDrivup(f.idDrivup) && f.eleve)
+    .filter(f => !seulementNouveaux || neufs[f.eleve]);
   if(!fiches.length) return 0;
   let lus = {};
   try{ lus = JSON.parse(localStorage.getItem(VEILLE_FICHES_CLE) || '{}') || {}; }catch(e){ lus = {}; }
@@ -549,15 +605,20 @@ async function fichesDeVeilleDrivup(lignes){
     const infos = !!(v && v.vides.some(k => k.indexOf('rl') === 0 ? v.mineur !== false : true));
     return infos || !propreDrivup(f.telephone) || !propreDrivup(f.email);
   };
-  const choisies = fiches.filter(manque)
+  const nouveaux = fiches.filter(f => neufs[f.eleve] && manque(f));
+  const choisies = nouveaux.concat(fiches.filter(f => !neufs[f.eleve] && manque(f))
     .sort((a, b) => ((enCours[b.eleve] ? 1 : 0) - (enCours[a.eleve] ? 1 : 0)) ||
                     ((lus[chiffresDrivup(a.idDrivup)] || 0) - (lus[chiffresDrivup(b.idDrivup)] || 0)))
     .slice(0, (typeof EXT_DV !== 'undefined' && EXT_DV.reglages && EXT_DV.reglages.rythmes && EXT_DV.reglages.rythmes.fiches != null)
-      ? Number(EXT_DV.reglages.rythmes.fiches) : VEILLE_FICHES_MAX);
+      ? Number(EXT_DV.reglages.rythmes.fiches) : VEILLE_FICHES_MAX));
   if(!choisies.length) return 0;
-  envoyerADrivup({ type: 'drivup-fiches-lire', ids: choisies.map(f => chiffresDrivup(f.idDrivup)) });
-  const d = await attendreDeDrivup('drivup-fiches-lues', null, 600000);
-  const comp = (d && d.fiches) || {};
+  const aLire = choisies.map(f => chiffresDrivup(f.idDrivup)).filter(id => !dejaLues[id]);
+  let comp = Object.assign({}, dejaLues);
+  if(aLire.length){
+    envoyerADrivup({ type: 'drivup-fiches-lire', ids: aLire });
+    const d = await attendreDeDrivup('drivup-fiches-lues', null, 600000);
+    comp = Object.assign(comp, (d && d.fiches) || {});
+  }
   const quand = Date.now();
   choisies.forEach(f => { lus[chiffresDrivup(f.idDrivup)] = quand; });
   try{ localStorage.setItem(VEILLE_FICHES_CLE, JSON.stringify(lus)); }catch(e){}
