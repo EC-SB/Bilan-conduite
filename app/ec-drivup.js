@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:08 — v1519 */
+/* Déployé le 20/11/2026 à 19:32 — v1522 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -218,8 +218,8 @@ function dessinerBlocDrivup(){
   const d = document.createElement('div');
   d.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px;';
   d.textContent = 'Ouvre dans Drivup la liste des élèves (100 par page), la fiche d’un élève ou le planning ' +
-    'd’une agence, puis clique sur le favori : ce qui est affiché arrive ici, et tu valides. ' +
-    'Rien n’est écrit dans Drivup.';
+    'd’une agence (lu sur 4 semaines à partir d’aujourd’hui), puis clique sur le favori : ce qui est lu arrive ici, et tu valides. ' +
+    'Sur le planning, « 🌙 Mettre en veille » le relit ensuite tout seul toutes les heures. Rien n’est écrit dans Drivup.';
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
   const a = document.createElement('a');
@@ -329,10 +329,25 @@ function dateLisibleDrivup(iso){
    été ouvert par le favori (« ?drivup=1 »)
    ------------------------------------------------------------ */
 function ecouterLeFavoriDrivup(){
-  if(!/[?&]drivup=1\b/.test(location.search)) return;
-  let recu = false;
+  /* 🌙 v1522 — l'onglet ouvert par le favori le reste après un F5 (la
+     veille continue d'y arriver) : on le note pour cet onglet seulement */
+  let duFavori = /[?&]drivup=1\b/.test(location.search);
+  try{
+    if(duFavori) sessionStorage.setItem('ec_onglet_drivup', '1');
+    else duFavori = sessionStorage.getItem('ec_onglet_drivup') === '1';
+  }catch(e){}
+  if(!duFavori) return;
+  const premier = /[?&]drivup=1\b/.test(location.search);
+  let recu = !premier;
   window.addEventListener('message', ev => {
     if(ev.origin !== DRIVUP_ORIGINE || !ev.data) return;
+    /* 🌙 v1522 — le mode veille : son état, et ses lectures de chaque heure */
+    if(ev.data.type === 'drivup-veille-etat'){ etatDeLaVeilleDrivup(ev.data); return; }
+    if(ev.data.type === 'drivup-donnees' && ev.data.veille){
+      try{ ev.source.postMessage({ type: 'drivup-recu' }, DRIVUP_ORIGINE); }catch(e){}
+      lectureDeVeilleDrivup(ev.data);
+      return;
+    }
     /* La lecture avance, dans Drivup : on le montre tout de suite —
        v1168, l'onglet restait vide une demi-minute. */
     if(ev.data.type === 'drivup-progression'){
@@ -352,6 +367,214 @@ function ecouterLeFavoriDrivup(){
     if(recu || !window.opener || n++ > 200){ clearInterval(t); return; }
     try{ window.opener.postMessage({ type: 'drivup-pret' }, DRIVUP_ORIGINE); }catch(e){}
   }, 600);
+  /* 🌙 après un F5 : on redemande à la veille où elle en est */
+  if(!premier){
+    try{ if(window.opener && !window.opener.closed) window.opener.postMessage({ type: 'drivup-veille' }, DRIVUP_ORIGINE); }catch(e){}
+  }
+}
+
+/* ============================================================
+   🌙 LE MODE VEILLE — v1522
+
+   David, le 20 novembre : le planning lu tout seul dans la journée ;
+   son choix : l'onglet Drivup et cet onglet restent ouverts sur un
+   ordinateur du bureau, un clic le matin, puis toutes les heures de 7 h
+   à 20 h (lundi → samedi) le favori relit et ICI on enregistre sans
+   demander. Puis : « il faut aussi que le mode veille relise les
+   dossiers élèves Drivup pour mettre à jour au besoin ».
+
+   Ce que fait une lecture de veille, comme un « Enregistrer » :
+   · le planning (cours, voitures, théorie, visio, code, simulateurs) ;
+   · les créneaux libres, les écoutes réservées ;
+   · puis les fiches Drivup de 30 élèves au plus (ceux qui ont un cours
+     dans le planning d'abord, puis ceux relus il y a le plus longtemps),
+     dont il manque quelque chose chez nous : on COMPLÈTE, on ne remplace
+     jamais une case remplie (la règle de David depuis le 13 octobre) ;
+     le mandat RdvPermis, lui, suit Drivup.
+   Ce qu'elle ne fait pas : créer une fiche (il les ajoute quand
+   l'élève commence), changer les horaires des bureaux (un rendez-vous
+   peut être touché : ça se décide au clic), ouvrir des écoutes.
+   ============================================================ */
+const VEILLE_DV = { actif: false, occupe: false, etat: {}, prochaine: '', dernier: '', journal: null, enCours: false };
+const VEILLE_FICHES_CLE = 'ec_veille_fiches';
+const VEILLE_FICHES_MAX = 30;
+
+function etatDeLaVeilleDrivup(d){
+  VEILLE_DV.actif = !!d.actif;
+  VEILLE_DV.occupe = !!d.occupe;
+  VEILLE_DV.etat = d.etat || {};
+  VEILLE_DV.prochaine = String(d.prochaine || '');
+  dessinerLaVeilleDrivup();
+}
+
+/* Le bandeau, en bas de cet onglet, tant que la veille tourne */
+function dessinerLaVeilleDrivup(){
+  document.querySelectorAll('.dvVeille').forEach(z => remplirBlocVeilleDrivup(z));
+  let b = $('dvVeilleBandeau');
+  if(!VEILLE_DV.actif){ if(b) b.remove(); return; }
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'dvVeilleBandeau';
+    b.className = 'dvVeilleBandeau';
+    b.setAttribute('role', 'status');
+    document.body.appendChild(b);
+  }
+  b.classList.toggle('ko', !!(VEILLE_DV.etat.erreur || VEILLE_DV.erreurIci));
+  b.textContent = '';
+  const t = document.createElement('span');
+  const j = VEILLE_DV.journal;
+  t.textContent = VEILLE_DV.occupe || VEILLE_DV.enCours ? '🌙 Veille Drivup : lecture en cours…'
+    : VEILLE_DV.etat.erreur ? '🌙 Veille Drivup : ⚠️ ' + VEILLE_DV.etat.erreur
+    : VEILLE_DV.erreurIci ? '🌙 Veille Drivup : ⚠️ ' + VEILLE_DV.erreurIci
+    : '🌙 Veille Drivup' + (j ? ' · lu à ' + j.le + ' : ' + j.cours + ' cours' + (j.changes ? ', ' + j.changes + ' changement' + (j.changes > 1 ? 's' : '') : ', rien de neuf') +
+        (j.fiches ? ' · 🪪 ' + j.fiches + ' fiche' + (j.fiches > 1 ? 's' : '') + ' complétée' + (j.fiches > 1 ? 's' : '') : '') +
+        (j.inconnus ? ' · ❓ ' + j.inconnus + ' élève' + (j.inconnus > 1 ? 's' : '') + ' pas encore chez nous' : '') : '') +
+      ' · prochaine ' + (VEILLE_DV.prochaine || '—');
+  const r = document.createElement('button');
+  r.type = 'button';
+  r.className = 'dvVeilleB';
+  r.textContent = '↻';
+  r.title = 'Relire maintenant';
+  r.addEventListener('click', () => { try{ envoyerADrivup({ type: 'drivup-veille', maintenant: true }); }catch(e){ if(typeof showToast === 'function') showToast(e.message, 'error'); } });
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'dvVeilleB';
+  x.textContent = 'Arrêter';
+  x.addEventListener('click', () => { try{ envoyerADrivup({ type: 'drivup-veille', on: false }); }catch(e){ VEILLE_DV.actif = false; dessinerLaVeilleDrivup(); } });
+  b.append(t, r, x);
+}
+
+/* Le bloc de la fenêtre du planning : la mettre en route ou l'arrêter */
+function blocVeilleDrivup(actif){
+  if(actif) VEILLE_DV.actif = true;
+  const z = document.createElement('div');
+  z.className = 'dvVeille';
+  remplirBlocVeilleDrivup(z);
+  return z;
+}
+function remplirBlocVeilleDrivup(z){
+  z.textContent = '';
+  const t = document.createElement('div');
+  t.className = 'dvVeilleT';
+  const b = document.createElement('b');
+  b.textContent = VEILLE_DV.actif ? '🌙 Mode veille en route' : '🌙 Mode veille';
+  const sp = document.createElement('span');
+  sp.textContent = VEILLE_DV.actif
+    ? 'Le planning et les fiches se relisent seuls toutes les heures, de 7 h à 20 h, du lundi au samedi, et s’enregistrent sans rien demander. Laisse cet onglet et l’onglet Drivup ouverts.'
+    : 'Relire tout seul toutes les heures, de 7 h à 20 h, du lundi au samedi, et enregistrer sans demander. Il faut laisser cet onglet et l’onglet Drivup ouverts sur cet ordinateur.';
+  t.append(b, sp);
+  const bt = document.createElement('button');
+  bt.type = 'button';
+  bt.className = VEILLE_DV.actif ? 'btn btn-secondary' : 'btn btn-primary';
+  bt.textContent = VEILLE_DV.actif ? 'Arrêter' : '🌙 Mettre en veille';
+  bt.addEventListener('click', () => {
+    try{ envoyerADrivup({ type: 'drivup-veille', on: !VEILLE_DV.actif }); }
+    catch(e){ if(typeof showToast === 'function') showToast(e.message, 'error'); }
+  });
+  z.append(t, bt);
+}
+
+/* Une lecture de veille : tout s'enregistre, puis les fiches */
+async function lectureDeVeilleDrivup(p){
+  if(!p || p.genre !== 'planning' || !Array.isArray(p.cours)) return;
+  if(VEILLE_DV.dernier === p.luA || VEILLE_DV.enCours) return;   /* le même paquet, renvoyé */
+  VEILLE_DV.dernier = p.luA;
+  VEILLE_DV.enCours = true;
+  VEILLE_DV.actif = true;
+  VEILLE_DV.erreurIci = '';
+  dessinerLaVeilleDrivup();
+  try{
+    if(!(ACCES && ACCES.code)) throw new Error('connecte-toi dans cet onglet pour que la veille enregistre');
+    if(!peutLireDrivup()) throw new Error('réservé aux administrateurs et au bureau');
+    if(typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
+    if(typeof chargerMoniteurs === 'function' && !((typeof moniteursActifs !== 'undefined') && moniteursActifs.length)) await chargerMoniteurs().catch(() => {});
+    const parts = lignesDuPlanningDrivup(p);
+    let changes = 0, inconnus = 0;
+    try{
+      const ex = await appelPrep({ action: 'drivupPlanning', du: p.du, au: p.au });
+      const c = comparerPlanningDrivup(p, parts.lignes.map(l => Object.assign({}, l)), (ex && ex.cours) || []);
+      changes = c.changes.filter(x => x._etatCours !== 'pareil').length;
+      inconnus = new Set(c.changes.filter(x => x._etat === 'inconnu').map(x => cleNomDrivup(x.eleve))).size;
+    }catch(e){ /* le compte manquera, l'enregistrement se fait */ }
+    const { r } = await enregistrerPlanningDrivup(p, parts, false);
+    if(p.creneaux && typeof enregistrerLesCreneauxDrivup === 'function') await enregistrerLesCreneauxDrivup(p.creneaux).catch(() => {});
+    if(typeof enregistrerLesEcoutesReserveesDrivup === 'function') await enregistrerLesEcoutesReserveesDrivup(p).catch(() => {});
+    let fiches = 0;
+    try{ fiches = await fichesDeVeilleDrivup(parts.lignes); }catch(e){ VEILLE_DV.erreurIci = 'fiches : ' + ((e && e.message) || e); }
+    VEILLE_DV.journal = { le: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }).replace(':', 'h'),
+                          cours: (r && r.nb) || parts.lignes.length, changes: changes, inconnus: inconnus, fiches: fiches };
+  }catch(e){
+    VEILLE_DV.erreurIci = (e && e.message) || String(e);
+  }finally{
+    VEILLE_DV.enCours = false;
+    dessinerLaVeilleDrivup();
+  }
+}
+
+/* Les fiches à relire : il en manque quelque chose chez nous, elles ont
+   un id Drivup ; ceux qui ont un cours d'abord, puis les plus anciennes */
+async function fichesDeVeilleDrivup(lignes){
+  const fiches = ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).filter(f => chiffresDrivup(f.idDrivup) && f.eleve);
+  if(!fiches.length) return 0;
+  let lus = {};
+  try{ lus = JSON.parse(localStorage.getItem(VEILLE_FICHES_CLE) || '{}') || {}; }catch(e){ lus = {}; }
+  const enCours = {};
+  (lignes || []).forEach(l => { if(l._fiche) enCours[l._fiche.eleve] = true; });
+  const vides = {};
+  for(let i = 0; i < fiches.length; i += 300){
+    const r = await appelPrep({ action: 'ficheInfosVides', eleves: fiches.slice(i, i + 300).map(f => f.eleve) });
+    Object.assign(vides, (r && r.eleves) || {});
+  }
+  const manque = f => {
+    const v = vides[f.eleve];
+    const infos = !!(v && v.vides.some(k => k.indexOf('rl') === 0 ? v.mineur !== false : true));
+    return infos || !propreDrivup(f.telephone) || !propreDrivup(f.email);
+  };
+  const choisies = fiches.filter(manque)
+    .sort((a, b) => ((enCours[b.eleve] ? 1 : 0) - (enCours[a.eleve] ? 1 : 0)) ||
+                    ((lus[chiffresDrivup(a.idDrivup)] || 0) - (lus[chiffresDrivup(b.idDrivup)] || 0)))
+    .slice(0, VEILLE_FICHES_MAX);
+  if(!choisies.length) return 0;
+  envoyerADrivup({ type: 'drivup-fiches-lire', ids: choisies.map(f => chiffresDrivup(f.idDrivup)) });
+  const d = await attendreDeDrivup('drivup-fiches-lues', null, 600000);
+  const comp = (d && d.fiches) || {};
+  const quand = Date.now();
+  choisies.forEach(f => { lus[chiffresDrivup(f.idDrivup)] = quand; });
+  try{ localStorage.setItem(VEILLE_FICHES_CLE, JSON.stringify(lus)); }catch(e){}
+  const infos = [], base = [];
+  choisies.forEach(f => {
+    const c = comp[chiffresDrivup(f.idDrivup)];
+    if(!c) return;
+    const v = vides[f.eleve] || { vides: [] };
+    const tout = valeursDuDossierDrivup(c, v.mineur === null || v.mineur === undefined ? (ageDrivup(c.dateNaissance) === null ? null : ageDrivup(c.dateNaissance) < 18) : v.mineur);
+    const valeurs = {};
+    Object.keys(tout).forEach(k => {
+      if(v.vides.indexOf(k) === -1) return;
+      if(k === 'mandat' && v.mandat === tout[k]) return;
+      valeurs[k] = tout[k];
+    });
+    if(Object.keys(valeurs).length) infos.push({ eleve: f.eleve, valeurs: valeurs });
+    /* le mobile, le mail : dans les cases vides de sa fiche seulement */
+    const ff = { eleve: f.eleve };
+    const lu = c.fiche || {};
+    if(!propreDrivup(f.telephone) && propreDrivup(lu.mobile)) ff.telephone = propreDrivup(lu.mobile, 30);
+    if(!propreDrivup(f.email) && propreDrivup(lu.email)) ff.email = propreDrivup(lu.email, 120);
+    if(!propreDrivup(f.mailPrescripteur) && propreDrivup(lu.mailPrescripteur)) ff.mailPrescripteur = propreDrivup(lu.mailPrescripteur, 120);
+    if(Object.keys(ff).length > 1) base.push(ff);
+  });
+  let n = 0;
+  if(base.length){
+    const r = await appelPrep({ action: 'drivupFiches', fiches: base });
+    n += (r && r.completees) || 0;
+  }
+  for(let i = 0; i < infos.length; i += 25){
+    const r = await appelPrep({ action: 'ficheInfosDrivup', fiches: infos.slice(i, i + 25) });
+    n += (r && r.eleves) || 0;
+  }
+  if(base.length || infos.length){
+    if(typeof FI_CACHE !== 'undefined') Object.keys(FI_CACHE).forEach(k => delete FI_CACHE[k]);
+  }
+  return Math.min(n, choisies.length);
 }
 
 function montrerLaLectureDrivup(fait, total){
@@ -500,6 +723,10 @@ function lignesDuPlanningDrivup(p){
   /* 📝 v1427 — le code en salle (la colonne « ETG ») : qui est réservé,
      pour « 🎯 Quelle séance lancer ? » */
   const etg = [];
+  /* 🕹️ v1522 — les simulateurs sans moniteur de l'appli (nuit, risques,
+     autonomie…) : pas de rappel, mais dans « Mes cours à venir » de
+     l'élève, et proposés quand il annule (David, le 20 novembre) */
+  const autres = [];
   let horsConduite = 0;
   const ressourcesIgnorees = {};
   (p.cours || []).slice(0, 1500).forEach(c => {
@@ -531,6 +758,15 @@ function lignesDuPlanningDrivup(p){
       });
     }
     if(!coursRetenuDrivup(c)){
+      if(/simulateur/.test(texteDuCoursDrivup(c)) && !estTheorieDrivup(c) && !estVisioDrivup(c) && !estEtgSalleDrivup(c) && !c.examen){
+        (c.eleves || []).forEach(x => {
+          const fiche = ficheDeLEleveDrivup(x);
+          const nom = fiche ? fiche.eleve : nomDeLEleveDrivup(x);
+          if(nom) autres.push({ jour: c.jour, debut: c.debut, fin: /^\d{2}:\d{2}$/.test(String(c.fin || '')) ? c.fin : '',
+                                agence: agenceDeLaPortee || propreDrivup(c.agence, 60),
+                                moniteurDrivup: propreDrivup(c.moniteurDrivup, 60), eleve: nom, libelle: libelleGardeDrivup(c) });
+        });
+      }
       horsConduite++;
       if(c.moniteurDrivup) ressourcesIgnorees[c.moniteurDrivup] = (ressourcesIgnorees[c.moniteurDrivup] || 0) + 1;
       return;
@@ -551,7 +787,7 @@ function lignesDuPlanningDrivup(p){
       });
     });
   });
-  return { lignes, horsConduite, ressourcesIgnorees, theorie, visio, etg };
+  return { lignes, horsConduite, ressourcesIgnorees, theorie, visio, etg, autres };
 }
 /* 📝 v1427 — le code en salle : la colonne « ETG » de Drivup (pas la
    visio, qui est sa propre colonne, ni la théorie des tablettes) */
@@ -720,6 +956,70 @@ function ligneDeChangementDrivup(c){
   return l;
 }
 
+/* 💾 v1522 — ENREGISTRER UNE LECTURE DU PLANNING : le bouton de la
+   fenêtre, et le mode veille (sans fenêtre). « creer » : la fenêtre crée
+   la fiche d'un élève inconnu ; la veille ne crée personne (David, le 20
+   novembre : « je les ajoute quand ils ont commencé leur formation ») et
+   ne fait que relier l'id Drivup d'une fiche existante. */
+async function enregistrerPlanningDrivup(p, parts, creer){
+  const { lignes, theorie, visio, etg, autres } = parts;
+  const portee = propreDrivup(p.porteeValeur, 60);
+  const genre = p.porteeGenre === 'moniteur' ? 'moniteur' : p.porteeGenre === 'tous' ? 'tous' : 'agence';
+  const du = String(p.du || ''), au = String(p.au || '');
+  const voitures = voituresDuPlanningDrivup(p);
+  /* 1 · les fiches d'abord : un cours doit pointer vers quelqu'un */
+  const fiches = [];
+  const vus = {};
+  lignes.forEach(l => {
+    const x = l._x || {};
+    const id = chiffresDrivup(x.id);
+    const cle = id || cleNomDrivup(l.eleve);
+    if(vus[cle]) return;
+    vus[cle] = true;
+    if(l._fiche){
+      if(id && chiffresDrivup(l._fiche.idDrivup) !== id) fiches.push({ eleve: l._fiche.eleve, idDrivup: id });
+      return;
+    }
+    /* Un examen ne dit pas l'ordre nom / prénom : pas de fiche
+       inventée à partir de lui. */
+    if(x.complet && !x.nom) return;
+    if(!creer) return;
+    fiches.push({ eleve: l.eleve, idDrivup: id, telephone: propreDrivup(x.mobile, 30),
+                  formation: formationDeDrivup(x.formation) });
+  });
+  if(fiches.length){
+    for(let i = 0; i < fiches.length; i += 200){
+      await appelPrep({ action: 'drivupFiches', fiches: fiches.slice(i, i + 200) });
+    }
+  }
+  /* 2 · le planning de la portée, en entier */
+  const r = await appelPrep({
+    action: 'drivupPlanningPoser', porteeGenre: genre, porteeValeur: portee, du: du, au: au,
+    cours: lignes.map(l => ({ id: l.id, jour: l.jour, debut: l.debut, fin: l.fin, agence: l.agence,
+      moniteur: l.moniteur, moniteurDrivup: l.moniteurDrivup, eleve: l.eleve, idEleve: l.idEleve,
+      libelle: l.libelle, examen: l.examen })),
+    /* 🚗 v1181 — les numéros de voiture, et les colonnes lues */
+    voitures: voitures,
+    /* 📺 v1290 — la théorie, pour la salle des tablettes */
+    salle: theorie,
+    /* 🎥 v1381 — le code en visio */
+    visio: visio,
+    /* 📝 v1427 — le code en salle */
+    etg: etg,
+    /* 🕹️ v1522 — les simulateurs sans moniteur, pour ses cours à venir */
+    autres: autres || [],
+    colonnes: Array.isArray(p.colonnes) ? p.colonnes : undefined
+  });
+  oublierDrivupRappels();
+  if(fiches.length && typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
+  /* 3 · les photos de ceux qui n'en ont pas — v1168 */
+  const ph = await reprendreLesPhotosDrivup(lignes.map(l => ({ eleve: l.eleve, url: (l._x || {}).photo })));
+  /* 🔄 v1516 — sans F5. 🌙 v1522 — mais pas en veille : quelqu'un travaille
+     peut-être dans cet onglet, on ne lui redessine pas l'écran sous les doigts */
+  if(creer) await rafraichirApresDrivup(false);
+  return { r, fiches, ph };
+}
+
 async function fenetrePlanningDrivup(p){
   const portee = propreDrivup(p.porteeValeur, 60);
   const genre = p.porteeGenre === 'moniteur' ? 'moniteur' : p.porteeGenre === 'tous' ? 'tous' : 'agence';
@@ -743,7 +1043,7 @@ async function fenetrePlanningDrivup(p){
   }
   attente.remove();
 
-  const { lignes, horsConduite, ressourcesIgnorees, theorie, visio, etg } = lignesDuPlanningDrivup(p);
+  const { lignes, horsConduite, ressourcesIgnorees, theorie, visio, etg, autres } = lignesDuPlanningDrivup(p);
   const { changes, identiques } = comparerPlanningDrivup(p, lignes, existants);
   const n = k => changes.filter(c => c._etat === k).length;
   const inconnus = changes.filter(c => c._etat === 'inconnu');
@@ -805,6 +1105,10 @@ async function fenetrePlanningDrivup(p){
     be.textContent = '👂 Écoutes à ouvrir (' + semainesDesEcoutesDrivup() + ' sem.)';
     be.addEventListener('click', () => fenetreEcoutesDrivup(du));
     f.boite.appendChild(be);
+  }
+  /* 🌙 v1522 — le mode veille (agence ou « Tous les utilisateurs », lus sur quatre semaines) */
+  if((genre === 'agence' || genre === 'tous') && p.quatreSemaines && window.opener && !window.opener.closed){
+    f.boite.appendChild(blocVeilleDrivup(!!p.veilleActive));
   }
 
   if(!changes.length){
@@ -872,51 +1176,7 @@ async function fenetrePlanningDrivup(p){
   const libelle = (aEcrire ? '✅ Enregistrer ' + (aEcrire > 1 ? 'les ' + aEcrire + ' changements' : 'le changement')
                            : '✅ Noter la lecture') + (bureauxLus.length ? ' et les horaires' : '');
   boutonsDrivup(f.boite, libelle, async (etat, ok, non) => {
-    /* 1 · les fiches d'abord : un cours doit pointer vers quelqu'un */
-    const fiches = [];
-    const vus = {};
-    lignes.forEach(l => {
-      const x = l._x || {};
-      const id = chiffresDrivup(x.id);
-      const cle = id || cleNomDrivup(l.eleve);
-      if(vus[cle]) return;
-      vus[cle] = true;
-      if(l._fiche){
-        if(id && chiffresDrivup(l._fiche.idDrivup) !== id) fiches.push({ eleve: l._fiche.eleve, idDrivup: id });
-        return;
-      }
-      /* Un examen ne dit pas l'ordre nom / prénom : pas de fiche
-         inventée à partir de lui. */
-      if(x.complet && !x.nom) return;
-      fiches.push({ eleve: l.eleve, idDrivup: id, telephone: propreDrivup(x.mobile, 30),
-                    formation: formationDeDrivup(x.formation) });
-    });
-    if(fiches.length){
-      for(let i = 0; i < fiches.length; i += 200){
-        await appelPrep({ action: 'drivupFiches', fiches: fiches.slice(i, i + 200) });
-      }
-    }
-    /* 2 · le planning de la portée, en entier */
-    const r = await appelPrep({
-      action: 'drivupPlanningPoser', porteeGenre: genre, porteeValeur: portee, du: du, au: au,
-      cours: lignes.map(l => ({ id: l.id, jour: l.jour, debut: l.debut, fin: l.fin, agence: l.agence,
-        moniteur: l.moniteur, moniteurDrivup: l.moniteurDrivup, eleve: l.eleve, idEleve: l.idEleve,
-        libelle: l.libelle, examen: l.examen })),
-      /* 🚗 v1181 — les numéros de voiture, et les colonnes lues */
-      voitures: voitures,
-      /* 📺 v1290 — la théorie, pour la salle des tablettes */
-      salle: theorie,
-      /* 🎥 v1381 — le code en visio */
-      visio: visio,
-      /* 📝 v1427 — le code en salle */
-      etg: etg,
-      colonnes: Array.isArray(p.colonnes) ? p.colonnes : undefined
-    });
-    oublierDrivupRappels();
-    if(fiches.length && typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
-    /* 3 · les photos de ceux qui n'en ont pas — v1168 */
-    const ph = await reprendreLesPhotosDrivup(lignes.map(l => ({ eleve: l.eleve, url: (l._x || {}).photo })));
-    await rafraichirApresDrivup(false);   /* 🔄 v1516 — sans F5 */
+    const { r, fiches, ph } = await enregistrerPlanningDrivup(p, { lignes, theorie, visio, etg, autres }, true);
     /* 4 · 📍 v1170 — les horaires des bureaux */
     const hb = bureauxLus.length && typeof poserLesBureauxDrivup === 'function'
       ? await poserLesBureauxDrivup(bureauxLus) : [];
