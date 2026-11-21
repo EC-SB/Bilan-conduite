@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 13:43 — v1514 */
+/* Déployé le 21/11/2026 à 10:42 — v1523 */
 /* ============================================================
    🫧 LE NOUVEAU GRAPHISME « VERRE » (Liquid Glass) — v1374
 
@@ -68,6 +68,8 @@
     megaphone:'<path d="M4 10v4h3l7 4V6l-7 4z"/><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M7 14v4.5h2.5"/>',
     tele:'<rect x="3" y="5" width="18" height="12.5" rx="2.5"/><path d="M8.5 21h7M12 17.5V21"/>',
     boite_arrivee:'<path d="M4 13.5V17a2.5 2.5 0 0 0 2.5 2.5h11A2.5 2.5 0 0 0 20 17v-3.5"/><path d="M4 13.5h4l1.5 2.5h5l1.5-2.5h4M12 4v8M9 9.5l3 3 3-3"/>',
+    /* 📥 v1523 — l'onglet Drivup (le glyphe du schéma « Drivup dans l'App ») */
+    drivup:'<path d="M12 3.5v10.5"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M4.5 15.5v2.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2.5"/>',
     boite_depart:'<path d="M4 13.5V17a2.5 2.5 0 0 0 2.5 2.5h11A2.5 2.5 0 0 0 20 17v-3.5"/><path d="M4 13.5h4l1.5 2.5h5l1.5-2.5h4M12 12V4M9 6.5l3-3 3 3"/>',
     ecole:'<path d="M4 20V9l8-5 8 5v11"/><path d="M4 20h16M10 20v-4.5h4V20M9 12h2M13 12h2"/>',
     banque:'<path d="m3 9 9-5 9 5z"/><path d="M5 9v8M9.5 9v8M14.5 9v8M19 9v8M3 20h18"/>',
@@ -174,7 +176,8 @@
     permis:     { g:'voiture',  c:'#C96A00' },
     messagerie: { g:'bulle',    c:'#0E7C86' },
     outils:     { g:'mallette', c:'#8A5A00' },
-    gestion:    { g:'curseurs', c:'#3F3F46' }
+    gestion:    { g:'curseurs', c:'#3F3F46' },
+    drivup:     { g:'drivup',   c:'#3F3F46' }
   };
 
   /* ---------- l'habillage ---------- */
@@ -203,11 +206,14 @@
     if(!logo) return false;
     var t = (logo.textContent || '').trim();
     var g = glypheDe(t);
+    /* 📥 v1523 — Gestion › Drivup : la flèche verte du schéma, pas la boîte d'arrivée */
+    var drivup = el.getAttribute('data-vue-cible') === 'drivup';
+    if(drivup) g = 'drivup';
     if(!g || !G[g]) return true;   /* un logo sans glyphe connu : on laisse l'emoji */
     logo.classList.add('emo');
     var ic = document.createElement('span');
     ic.className = 'vgl';
-    ic.style.setProperty('--c', couleurDe(t));
+    ic.style.setProperty('--c', drivup ? '#16A34A' : couleurDe(t));
     ic.innerHTML = svg(g);
     el.insertBefore(ic, logo);
     el.setAttribute('data-verre', '1');
