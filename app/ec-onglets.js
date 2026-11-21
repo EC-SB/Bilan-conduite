@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 10:42 — v1523 */
+/* Déployé le 21/11/2026 à 13:03 — v1530 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -87,8 +87,8 @@ const SECTIONS_ONGLET = {
   gestion: ['ecran', 'flotte', 'carrosserie', 'encours', 'incidents',
             'menage', 'bureaux', 'admin', 'charges', 'coffre'],
   /* 📥 v1523 — l'onglet « Drivup » : la vraie page Drivup dans un cadre
-     (ec-drivup-ext.js). Pas de droit à lui : ceux qui lisent Drivup
-     (peutLireDrivup), voir ongletsDisponibles. Dernier, pour n'être
+     (ec-drivup-ext.js). 📥 v1530 — son droit à lui, « drivup » (voir
+     peutVoirDrivup et ongletsDisponibles). Dernier, pour n'être
      jamais l'onglet ouvert par défaut. */
   drivup: []
 };
@@ -102,7 +102,8 @@ function ongletsDisponibles(){
        les accès et le journal, qui ne dépendent d'aucun droit. */
     if(o === 'gestion' && ACCES.role === 'admin') return true;
     if(o === 'outils' && ACCES.role === 'admin') return true;
-    if(o === 'drivup') return typeof peutLireDrivup === 'function' && peutLireDrivup();
+    /* 📥 v1530 — son droit à lui (« 📥 Drivup » dans ⚙️ Accès), « voir » suffit */
+    if(o === 'drivup') return typeof peutVoirDrivup === 'function' && peutVoirDrivup();
     /* ✍️ v1282 — un moniteur formateur d'une formation entreprise :
        Outils, pour 💼 Formations seulement (ec-formations-signer.js) */
     if(o === 'outils' && window.FE_FORMATEUR) return true;
