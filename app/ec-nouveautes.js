@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 10:42 — v1523 */
+/* Déployé le 21/11/2026 à 11:06 — v1524 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1524,
+    date: 'Samedi 21 novembre 2026',
+    resume: '👂 L’extension ouvre et supprime les écoutes pédagogiques : une liste à valider, ou toute seule',
+    quoi: [
+      { emoji: '👂',
+        titre: 'Les écoutes, par l’extension',
+        texte: 'Gestion › 📥 Drivup › 👂 « Écoutes à ouvrir et à supprimer » : la même liste que le favori, sans onglet Drivup ouvert. On coche, on valide : l’extension remplit « Planifier » dans Drivup, puis relit le planning pour vérifier.' },
+      { emoji: '⏱️',
+        titre: '2h + 2h à la suite : une écoute de 4h',
+        texte: 'Deux cours de 2h qui se suivent, avec le même moniteur et le même élève, prennent une seule écoute de 4h. Sans colonne libre sur 4h, ce sont deux écoutes de 2h.' },
+      { emoji: '🗑️',
+        titre: 'Les écoutes vides se suppriment',
+        texte: 'Une écoute où personne n’est inscrit, à venir, sans plus aucun cours d’élève en face (le cours a été déplacé ou annulé) est proposée à la suppression. Jamais un « NON », jamais une écoute avec un élève : tout est revérifié dans Drivup juste avant. La toute première se fait à la main, une seule.' },
+      { emoji: '🤖',
+        titre: 'Toute seule',
+        texte: 'Un administrateur peut allumer « toute seule » : à chaque lecture complète, l’extension ouvre ce qui serait coché, et supprime les écoutes vides une fois qu’une première suppression a été vérifiée. Tout est noté dans « 🔔 Du nouveau dans Drivup ».' }
+    ]
+  },
   {
     version: 1523,
     date: 'Samedi 21 novembre 2026',
