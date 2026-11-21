@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/11/2026 à 14:55 — v1535 -->
+<!-- Déployé le 21/11/2026 à 15:12 — v1536 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-kh4oOZbAcKfiBquzmVVa+VyQXLAjGkuNYL04hEYldTk='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-p64QjFE7LwZxfH862yvYpZqLXkQ/2pm8wOH4wMtH4PA='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -556,6 +556,12 @@
   @media (max-width:380px){ .annAutreChamps{ grid-template-columns:1fr; } }
   .annFacture b{ font-weight:800; }
   .aVenirN{ font-size:12px; color:var(--soft); margin-top:8px; line-height:1.45; }
+  /* 📆 v1536 — ses cours passés, repliés */
+  .aVenirPasses{ margin-top:6px; }
+  .aVenirPasses > summary{ cursor:pointer; list-style:none; }
+  .aVenirPasses > summary::-webkit-details-marker{ display:none; }
+  .aVenirPasses > summary::after{ content:' ▸'; }
+  .aVenirPasses[open] > summary::after{ content:' ▾'; }
   /* 💶 v1412 — son financement : où il en est, et le message de l'étape */
   .fiDos{ padding:10px 0; border-top:1px solid var(--line); }
   .fiDos:first-child{ border-top:0; padding-top:2px; }
@@ -8677,6 +8683,7 @@
     dessinerLesOnglets();
     if(ouvert('parcours')) poserLeParcours(d && d.parcours);
     mesAVenir = (d && d.aVenir) || null;
+    mesPasses = (d && d.coursPasses) || null;
     if(ouvert('rappel')) dessinerProchain(d && d.prochain);
     else { var zp = $('monProchain'); if(zp) zp.innerHTML = ''; montrer('carteProchain', true); }
     if(ouvert('historique')) dessinerLecons((d && d.lecons) || [], (d && d.couleursBilans) || []);
@@ -8835,6 +8842,7 @@
      se répète pas dessous.
      ============================================================ */
   var mesAVenir = null;
+  var mesPasses = null;   /* 📆 v1536 — ses cours passés (sa fiche Drivup) */
   /* 🎨 v1535 — LES DESSINS DES COURS. David, le 21/11 : « change les icônes
      devant, dessine une tablette dans le même style et un simulateur de
      conduite » (choix A + A), le simulateur de nuit, la prévention des
@@ -8861,9 +8869,11 @@
     var h = function(t){ return String(t || '').replace(':', 'h'); };
     return h(x.debut) + (x.fin ? '–' + h(x.fin) : '');
   }
+  /* 📆 v1536 — le numéro de la leçon, comme sa fiche Drivup (« 10e Conduite… ») */
+  function quoiAvecRang(x, quoi){ return (x && x.rang) ? (x.rang === 1 ? '1er ' : x.rang + 'e ') + quoi : quoi; }
   function dessinerAVenir(z, p){
-    var av = mesAVenir;
-    if(!z || !av) return;
+    var av = mesAVenir || { cours: [], ecoutes: [] };
+    if(!z || (!mesAVenir && !mesPasses)) return;
     var deja = (p && p.jour) ? String(p.jour).slice(0, 10) + ' ' + String(p.heure || '').replace(/\D/g, '').slice(0, 4) : '';
     /* ⏱️ v1534 — commencé depuis 15 minutes : plus « à venir » (David, le 21/11),
        même sur ce que la page gardait de sa dernière visite */
@@ -8881,7 +8891,8 @@
       return pasParti(x) && (x.jour + ' ' + String(x.debut || '').replace(/\D/g, '')) !== deja;
     });
     var ecoutes = (av.ecoutes || []).filter(pasParti);
-    if(!cours.length && !ecoutes.length) return;
+    var passes = (mesPasses && mesPasses.cours) || [];
+    if(!cours.length && !ecoutes.length && !passes.length) return;
     var w = document.createElement('div');
     w.className = 'aVenir';
     var ligne = function(emoji, quoi, x, sous){
@@ -8898,13 +8909,22 @@
              tablette, simulateur, simulateur avec son enseignant, de nuit,
              prévention des risques avec un accident à l'écran, et les autres) */
           var s = ICONES_SORTES[x.sorte] ? x.sorte : (x.examen ? 'examen' : 'conduite');
-          return ligne(iconeCours(s), x.examen ? 'Examen' : (x.libelle || 'Cours de conduite'), x,
+          return ligne(iconeCours(s), x.examen ? 'Examen' : quoiAvecRang(x, x.libelle || 'Cours de conduite'), x,
                        x.moniteur ? 'avec ' + x.moniteur : '');
         }).join('');
     }
     if(ecoutes.length){
       html += '<div class="aVenirT">👂 Mes écoutes pédagogiques</div>' +
-        ecoutes.map(function(x){ return ligne(iconeCours('ecoute'), 'Écoute pédagogique', x, x.agence); }).join('');
+        ecoutes.map(function(x){ return ligne(iconeCours('ecoute'), quoiAvecRang(x, 'Écoute pédagogique'), x, x.agence); }).join('');
+    }
+    /* 📆 v1536 — SES COURS PASSÉS, comme sa fiche Drivup › Plannings (David,
+       le 21/11 : « l'élève voit sur Drivup et sur son app la même chose ») */
+    if(passes.length){
+      html += '<details class="aVenirPasses"><summary class="aVenirT">📜 Mes cours passés (' + passes.length + ')</summary>' +
+        passes.map(function(x){
+          var s = ICONES_SORTES[x.sorte] ? x.sorte : 'conduite';
+          return ligne(iconeCours(s), quoiAvecRang(x, x.libelle || 'Cours'), x, x.moniteur ? 'avec ' + x.moniteur : '');
+        }).join('') + '</details>';
     }
     html += '<div class="aVenirN">Lu dans le planning de l’auto-école. Un changement ? Écris au bureau.</div>';
     w.innerHTML = html;
