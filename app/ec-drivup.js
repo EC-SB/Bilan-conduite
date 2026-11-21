@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 15:57 — v1539 */
+/* Déployé le 21/11/2026 à 16:37 — v1542 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -745,15 +745,70 @@ async function preparationsDeVeilleDrivup(p, parts){
   const preps = ((d && d.preparations) || []).filter(x => x && x.date >= auj);
   const prepsDe = (eleve, jour) => preps.filter(x => nom(x.eleve) === nom(eleve) && x.date === jour);
   const leconsDe = (eleve, jour) => lecons.filter(l => nom(l.eleve) === nom(eleve) && l.jour === jour);
-  let reattribues = 0, prepares = 0;
+  /* ⚠️ « nPrepares », pas « prepares » : ce nom-là est la liste des cours
+     de l'écran, et le cacher ici rendait muettes les mises à jour d'écran
+     plus bas (v1539). */
+  let reattribues = 0, nPrepares = 0, retires = 0;
   const vus = {}, journal = [];
   const dateDite = j => (typeof dateLisibleDrivup === 'function' ? dateLisibleDrivup(j) : j);
+  /* 🔗 v1542 — LES COURS ENCHAÎNÉS NE FONT QU'UN. David, le 21/11 : « quand
+     un élève a 2h d'affilée de simulateur, crée qu'un seul cours à l'heure
+     du premier, et pareil pour l'affichage : le moniteur ne refait pas un
+     autre cours à la fin de l'heure, il enchaîne sur le même cours dans
+     l'app ». Ses choix : pour tous les cours ; « 16h00 → 18h00 · 2 cours
+     enchaînés » ; les suites déjà créées en double s'en vont toutes seules
+     (pas une fiche commencée). La chaîne : même élève, même moniteur, le
+     jour même, le suivant commence quand l'autre finit (5 min de jeu) — la
+     règle du rappel unique (debutDeChaineDr). */
+  const chaine = chaineDesCoursDrivup(lecons, nom, minDe);
   for(const l of lecons){
     const cle = nom(l.eleve) + '|' + l.jour + '|' + l.debut;
     if(vus[cle]) continue;
     vus[cle] = 1;
-    const ps = prepsDe(l.eleve, l.jour), ls = leconsDe(l.eleve, l.jour);
+    const ch = chaine.get(l);
+    /* les leçons du jour comptent sans leurs suites : une chaîne = un cours */
+    const ps = prepsDe(l.eleve, l.jour), ls = leconsDe(l.eleve, l.jour).filter(x => { const c = chaine.get(x); return !c || c.tete === x; });
+    /* une suite : jamais un cours à elle ; son double, s'il existe, s'en va */
+    if(ch && ch.tete !== l){
+      const double = ps.find(x => heureNote(x.note) === l.debut);
+      const tetePrete = ps.some(x => heureNote(x.note) === ch.tete.debut);
+      if(double && tetePrete && double.id && double.modele !== 'examen-officiel' &&
+         !(typeof ficheCommenceeDe === 'function' && ficheCommenceeDe(double.eleve, double.modele))){
+        try{
+          const r = await appelPrep({ action: 'prepDelete', id: double.id });
+          if(!r || r.status !== 'error'){
+            retires++;
+            preps.splice(preps.indexOf(double), 1);
+            if(typeof prepares !== 'undefined' && Array.isArray(prepares)){
+              const i = prepares.findIndex(y => String(y.id) === String(double.id));
+              if(i !== -1) prepares.splice(i, 1);
+            }
+            journal.push({ sorte: 'cours_enchaine', eleve: l.eleve, titre: '🔗 Cours enchaîné : le double retiré',
+                           detail: dateDite(l.jour) + ' ' + l.debut.replace(':', 'h') + ' · suite du cours de ' + ch.tete.debut.replace(':', 'h') + ' avec ' + l.moniteur });
+          }
+        }catch(e){ /* la prochaine lecture réessaiera */ }
+      }
+      continue;
+    }
     const pr = ps.find(x => heureNote(x.note) === l.debut) || (ps.length === 1 && ls.length === 1 ? ps[0] : null);
+    /* 🔗 la tête d'une chaîne déjà préparée (par le rappel d'avant la
+       v1542, ou une chaîne qui s'est allongée) : elle apprend sa fin */
+    if(pr && ch && pr.id && pr.modele !== 'examen-officiel'){
+      const cx = (typeof contexteEnObjet === 'function' ? contexteEnObjet(pr.contexte) : null) || {};
+      if(cx.finEnchaine !== ch.fin || Number(cx.enchaines || 0) !== ch.n){
+        try{
+          const neuf = Object.assign({}, cx, { finEnchaine: ch.fin, enchaines: ch.n });
+          await appelPrep({ action: 'prepAdd', id: pr.id, date: pr.date, eleve: pr.eleve, modele: pr.modele || '',
+                            modeleLabel: pr.modeleLabel || '', site: pr.site || '', note: pr.note || '',
+                            contexte: JSON.stringify(neuf), moniteur: pr.moniteur || l.moniteur });
+          pr.contexte = neuf;
+          if(typeof prepares !== 'undefined' && Array.isArray(prepares)){
+            const m = prepares.find(y => String(y.id) === String(pr.id));
+            if(m) m.contexte = neuf;
+          }
+        }catch(e){ /* la prochaine lecture réessaiera */ }
+      }
+    }
     /* le moniteur a changé dans Drivup : le cours préparé suit */
     if(pr){
       if(nom(pr.moniteur) !== nom(l.moniteur) && pr.modele !== 'examen-officiel'){
@@ -778,6 +833,7 @@ async function preparationsDeVeilleDrivup(p, parts){
     const heuresPreparees = ps.map(x => heureNote(x.note));
     if(ps.length >= ls.length || heuresPreparees.indexOf(l.debut) !== -1) continue;
     const details = { heure: l.debut, options: [], jeton: '', lieu: '' };
+    if(ch){ details.fin = ch.fin; details.enchaines = ch.n; }
     const t = typeDuCoursPourRappelDrivup(l);
     if(t){ details.type = t.cle; details.titreType = t.titre; }
     if(!/simulateur/.test(sansAccentDrivup(l.libelle || ''))){
@@ -789,15 +845,48 @@ async function preparationsDeVeilleDrivup(p, parts){
     try{
       const ok = await preparerDepuisRappel(l.eleve, auj, l.moniteur, details);
       if(ok){
-        prepares++;
+        nPrepares++;
         journal.push({ sorte: 'cours_prepare', eleve: l.eleve, titre: '📅 Cours du jour préparé tout seul',
-                       detail: 'aujourd’hui ' + l.debut.replace(':', 'h') + ' avec ' + l.moniteur + (details.vehicule ? ' · ' + details.vehicule : '') + ' (ajouté dans Drivup après les rappels)' });
+                       detail: 'aujourd’hui ' + l.debut.replace(':', 'h') + (ch ? ' → ' + ch.fin.replace(':', 'h') : '') + ' avec ' + l.moniteur + (details.vehicule ? ' · ' + details.vehicule : '') + ' (ajouté dans Drivup après les rappels)' });
         preps.push({ id: '', eleve: l.eleve, date: auj, note: '🕐 ' + l.debut.replace(':', 'h'), moniteur: l.moniteur });
       }
     }catch(e){ /* la prochaine lecture réessaiera */ }
   }
   if(journal.length){ try{ await appelPrep({ action: 'drivupJournal', entrees: journal }); }catch(e){ /* le journal manquera */ } }
-  return { prepares: prepares, reattribues: reattribues };
+  if(retires && typeof afficherPrepares === 'function'){ try{ afficherPrepares(); }catch(e){} }
+  return { prepares: nPrepares, reattribues: reattribues, retires: retires };
+}
+/* 🔗 v1542 — les chaînes de cours : chaque cours d'une chaîne (même élève,
+   même moniteur, même jour, sans coupure de plus de 5 min) → { tete, fin,
+   n }. Un cours seul n'est pas dans la carte. */
+function chaineDesCoursDrivup(lecons, nom, minDe){
+  const carte = new Map();
+  const groupes = {};
+  (lecons || []).forEach(l => {
+    if(!l || l.examen || minDe(l.debut) === null || minDe(l.fin) === null) return;
+    const k = nom(l.eleve) + '|' + nom(l.moniteur) + '|' + l.jour;
+    (groupes[k] = groupes[k] || []).push(l);
+  });
+  Object.keys(groupes).forEach(k => {
+    const g = groupes[k].slice().sort((a, b) => minDe(a.debut) - minDe(b.debut));
+    let bloc = [];
+    const fermer = () => {
+      if(bloc.length > 1){
+        const fin = bloc[bloc.length - 1].fin;
+        const v = { tete: bloc[0], fin: ('0' + fin).slice(-5), n: bloc.length };
+        bloc.forEach(x => carte.set(x, v));
+      }
+      bloc = [];
+    };
+    g.forEach(l => {
+      const der = bloc[bloc.length - 1];
+      if(der && minDe(l.debut) === minDe(der.debut)) return; /* le même créneau lu deux fois */
+      if(der && minDe(l.debut) - minDe(der.fin) >= 0 && minDe(l.debut) - minDe(der.fin) <= 5) bloc.push(l);
+      else { fermer(); bloc = [l]; }
+    });
+    fermer();
+  });
+  return carte;
 }
 /* Le type de séance d'un cours lu dans Drivup, comme « Rappels de cours »
    le choisit (typeDepuisDrivupRappel) : examen blanc, simulateur ou
