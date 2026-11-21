@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:48 — v1468 */
+/* Déployé le 21/11/2026 à 17:47 — v1544 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1335,6 +1335,8 @@ function ligneBureau(e, options){
 
   const info = document.createElement('span');
   info.textContent = options.info(e);
+  /* 📅 v1544 — le repère « réservations faites » devient le calendrier orange */
+  if(typeof calendrierOrangeDans === 'function') calendrierOrangeDans(info);
   /* Une note sur une seconde ligne doit rester lisible */
   info.style.whiteSpace = 'pre-wrap';
   meta.appendChild(info);
@@ -1429,6 +1431,7 @@ function ligneBureau(e, options){
 
   function redireLaLigne(){
     info.textContent = options.info(e);
+    if(typeof calendrierOrangeDans === 'function') calendrierOrangeDans(info);
 
     if(options.resume){
       const r = String(options.resume(e) || '');
