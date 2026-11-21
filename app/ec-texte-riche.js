@@ -1,4 +1,4 @@
-/* Déployé le 04/11/2026 à 15:07 — v1355 */
+/* Déployé le 21/11/2026 à 14:19 — v1533 */
 /* ============================================================
    ec-texte-riche.js — 📝 LE TEXTE MIS EN FORME (v1355)
 
@@ -44,24 +44,54 @@ const TR_EMOJIS = ['✅', '❌', '⚠️', '❗', '❓', '💡', '📌', '👉',
   '👀', '🪞', '🖐️', '🦶', '🧠', '💪', '👍', '👏', '🙂', '😊', '😉', '😅', '🤔', '🎉',
   '⭐', '🎯', '🔥', '🏁', '📅', '⏰', '⏱️', '📝', '📄', '🎬', '🔴', '🟠', '🟡', '🟢', '🔵', '⚫'];
 
+/* ✍️ v1533 — le surligné : quatre fonds, chacun avec sa nuance claire
+   (thème clair, mails, copier-coller) et sombre (le texte y reste clair) */
+const TR_FONDS = [
+  ['jaune', 'Jaune', '#FFF176', '#6B5A00'],
+  ['vert', 'Vert', '#C8F7C5', '#1F5E2A'],
+  ['bleu', 'Bleu', '#BBDEFB', '#173E66'],
+  ['rose', 'Rose', '#F8BBD0', '#6E1F3E']
+];
+const TR_BALISES_RE = /\[\/?(g|i|s|t|p|c|f|lien)(=[A-Za-z0-9_:-]+)?\]/;
+function trEstMisEnForme(t){ return TR_BALISES_RE.test(String(t || '')); }
+function trSombre(){ return !(document.body && document.body.classList.contains('clair')); }
 function trEch(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 /* ── Les balises → du HTML sûr (la même règle que eleve.html) ── */
 const TR_CIBLE = /^(e:[A-Za-z0-9_-]+::[A-Za-z0-9_-]*|g:[A-Za-z0-9_-]+)$/;
-function trLigneHtml(l){
-  const RE = /\[(\/?)(g|i|s|t|c|lien)(?:=([A-Za-z0-9_:-]+))?\]/g;
-  const OUV = { g: '<b>', i: '<i>', s: '<u>', t: '<span class="trT">' };
-  const FER = { g: '</b>', i: '</i>', s: '</u>', t: '</span>', c: '</span>', lien: '</a>' };
+/* ✍️ v1533 — Ce qu'on écrit passe aussi par ici : « [mot](https://…) »
+   (le lien de la v1527) devient un vrai lien, et deux balises de plus :
+   [p]plus petit[/p], [f=jaune]surligné[/f]. « enLigne » : le HTML d'un
+   mail ou du copier-coller, sans nos classes (les styles dans la balise,
+   les couleurs du thème clair). */
+function trLigneHtml(l, opts){
+  const enLigne = !!(opts && opts.enLigne);
+  const RE = /\[(\/?)(g|i|s|t|p|c|f|lien)(?:=([A-Za-z0-9_:-]+))?\]|\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)/g;
+  const OUV = enLigne
+    ? { g: '<b>', i: '<i>', s: '<u>', t: '<span style="font-size:1.25em;font-weight:800">', p: '<span style="font-size:.85em">' }
+    : { g: '<b>', i: '<i>', s: '<u>', t: '<span class="trT">', p: '<span class="trP">' };
+  const FER = { g: '</b>', i: '</i>', s: '</u>', t: '</span>', p: '</span>', c: '</span>', f: '</span>', lien: enLigne ? '</span>' : '</a>' };
   const pile = [];
   let h = '', k = 0, m;
-  const ouvrir = x => x.n === 'c' ? '<span class="trC trC-' + x.v + '">'
-    : x.n === 'lien' ? '<a class="trLien" href="#" data-renvoi="' + trEch(x.v) + '">' : OUV[x.n];
+  const ouvrir = x => {
+    if(x.n === 'c'){ const c = TR_COULEURS.find(y => y[0] === x.v); return enLigne ? '<span style="color:' + c[2] + '">' : '<span class="trC trC-' + x.v + '">'; }
+    if(x.n === 'f'){ const f = TR_FONDS.find(y => y[0] === x.v); return enLigne ? '<span style="background:' + f[2] + ';padding:0 2px;border-radius:3px">' : '<span class="trF trF-' + x.v + '">'; }
+    if(x.n === 'lien') return enLigne ? '<span style="font-weight:700">' : '<a class="trLien" href="#" data-renvoi="' + trEch(x.v) + '">';
+    return OUV[x.n];
+  };
   while((m = RE.exec(l))){
     h += trEch(l.slice(k, m.index));
     k = RE.lastIndex;
+    if(m[5]){
+      const u = trEch(m[5]);
+      h += '<a href="' + u + '" target="_blank" rel="noopener noreferrer"' +
+        (enLigne ? ' style="color:#1a56db;text-decoration:underline">' : ' class="trUrl" data-url="' + u + '">') + trEch(m[4]) + '</a>';
+      continue;
+    }
     const n = m[2];
     if(!m[1]){
       if(n === 'c' && !TR_COULEURS.some(c => c[0] === m[3])) continue;
+      if(n === 'f' && !TR_FONDS.some(c => c[0] === m[3])) continue;
       if(n === 'lien' && !TR_CIBLE.test(m[3] || '')) continue;
       if(n === 'lien' && pile.some(x => x.n === 'lien')) continue;
       const x = { n: n, v: m[3] || '' };
@@ -78,29 +108,39 @@ function trLigneHtml(l){
   for(let q = pile.length - 1; q >= 0; q--) h += FER[pile[q].n];
   return h;
 }
-function trVersHtml(texte){
+function trVersHtml(texte, opts){
+  const enLigne = !!(opts && opts.enLigne);
   const lignes = String(texte == null ? '' : texte).replace(/\r/g, '').split('\n');
   let h = '', liste = '';
   const fermer = () => { if(liste){ h += '</' + liste + '>'; liste = ''; } };
   lignes.forEach((l, i) => {
-    const puce = l.match(/^\s*[•·▪-]\s+(.*)$/), num = l.match(/^\s*\d{1,3}[.)]\s+(.*)$/);
+    const puce = l.match(/^\s*[•·▪-]\s+(.*)$/), num = l.match(/^\s*(\d{1,3})[.)]\s+(.*)$/);
     if(puce || num){
       const t = puce ? 'ul' : 'ol';
-      if(liste !== t){ fermer(); h += '<' + t + '>'; liste = t; }
-      h += '<li>' + trLigneHtml((puce || num)[1]) + '</li>';
+      /* ✍️ v1533 — une liste numérotée garde SON premier numéro (« 2. Kopilote » reste 2) */
+      if(liste !== t){ fermer(); h += '<' + t + (num && Number(num[1]) !== 1 ? ' start="' + Number(num[1]) + '"' : '') + (enLigne ? ' style="margin:4px 0;padding-left:24px"' : '') + '>'; liste = t; }
+      h += '<li>' + trLigneHtml(puce ? puce[1] : num[2], opts) + '</li>';
       return;
     }
     fermer();
     /* une ligne qui n'est qu'un renvoi : un bouton */
     const seul = /^\s*(\[(g|i|s|t|c=[a-z]+)\])*\[lien=[^\]]+\][^\n]*\[\/lien\](\[\/(g|i|s|t|c)\])*\s*$/.test(l) && (l.match(/\[lien=/g) || []).length === 1;
-    h += '<div' + (seul ? ' class="trRenvoiL"' : '') + '>' + (l.trim() ? trLigneHtml(l).replace(seul ? 'class="trLien"' : '\u0000', 'class="trLien trRenvoi"') : '<br>') + '</div>';
+    h += '<div' + (seul && !enLigne ? ' class="trRenvoiL"' : '') + '>' + (l.trim() ? trLigneHtml(l, opts).replace(seul && !enLigne ? 'class="trLien"' : '\u0000', 'class="trLien trRenvoi"') : '<br>') + '</div>';
   });
   fermer();
   return h;
 }
 /* Le texte sans ses balises : aperçus, suivi */
 function trTexteSeul(texte){
-  return String(texte == null ? '' : texte).replace(/\[\/?(g|i|s|t|c|lien)(=[A-Za-z0-9_:-]+)?\]/g, '');
+  return String(texte == null ? '' : texte).replace(/\[\/?(g|i|s|t|p|c|f|lien)(=[A-Za-z0-9_:-]+)?\]/g, '');
+}
+/* ✍️ v1533 — pour un SMS, Messenger, un aperçu : sans balises, et « mot (adresse) » */
+function trTexteBrut(texte){
+  return trTexteSeul(texte).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)/g, '$1 ($2)');
+}
+/* … et pour chercher ou montrer un extrait : le mot du lien seul */
+function trTexteLu(texte){
+  return trTexteSeul(texte).replace(/\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)/g, '$1');
 }
 
 /* ── Le HTML de l'éditeur → les balises ── */
@@ -125,6 +165,26 @@ function trCouleurDe(css){
   }));
   return d0 < 9000 ? mieux : '';
 }
+function trFondDe(css){
+  if(!css) return '';
+  const nom = String(css).trim().toLowerCase();
+  if(nom === 'transparent' || /rgba\([^)]*,\s*0\s*\)/.test(nom)) return '';
+  const rvb = s => {
+    let m = String(s).match(/rgba?\(\s*(\d+)\D+(\d+)\D+(\d+)/);
+    if(m) return [+m[1], +m[2], +m[3]];
+    m = String(s).match(/^#?([0-9a-f]{6})$/i);
+    if(m) return [0, 2, 4].map(k => parseInt(m[1].slice(k, k + 2), 16));
+    return null;
+  };
+  const a = rvb(nom);
+  if(!a) return '';
+  let mieux = '', d0 = 1e9;
+  TR_FONDS.forEach(c => [c[2], c[3]].forEach(x => {
+    const b = rvb(x); const d = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+    if(d < d0){ d0 = d; mieux = c[0]; }
+  }));
+  return d0 < 9000 ? mieux : '';
+}
 function trDepuisHtml(racine){
   const lignes = [];
   let cur = null;
@@ -140,8 +200,10 @@ function trDepuisHtml(racine){
     if(t === 'U') g.s = true;
     if(/^H[1-4]$/.test(t)) g.t = true;
     if(el.classList && el.classList.contains('trT')) g.t = true;
-    if(t === 'FONT' && Number(el.getAttribute('size')) >= 4) g.t = true;
+    if(el.classList && el.classList.contains('trP')) g.p = true;
+    if(t === 'FONT' && Number(el.getAttribute('size')) >= 4){ g.t = true; g.p = false; }
     if(t === 'FONT' && el.getAttribute('size') && Number(el.getAttribute('size')) <= 3) g.t = false;
+    if(t === 'FONT' && el.getAttribute('size')) g.p = Number(el.getAttribute('size')) <= 2;
     const fw = String(st.fontWeight || '');
     if(fw === 'bold' || Number(fw) >= 600) g.g = true;
     if(fw === 'normal' || (Number(fw) && Number(fw) < 600)) g.g = false;
@@ -149,8 +211,8 @@ function trDepuisHtml(racine){
     if(/underline/.test(String(st.textDecoration || st.textDecorationLine || ''))) g.s = true;
     const fs = String(st.fontSize || '');
     if(fs){
-      const px = /px$/.test(fs) ? parseFloat(fs) : /em$/.test(fs) ? parseFloat(fs) * 15 : /^(large|x-large|xx-large)$/.test(fs) ? 20 : 0;
-      if(px) g.t = px >= 17;
+      const px = /px$/.test(fs) ? parseFloat(fs) : /em$/.test(fs) ? parseFloat(fs) * 15 : /^(large|x-large|xx-large)$/.test(fs) ? 20 : /^(small|x-small|xx-small)$/.test(fs) ? 11 : 0;
+      if(px){ g.t = px >= 17; g.p = px <= 13; }
     }
     let c = '';
     const cls = el.classList ? [...el.classList].find(x => /^trC-/.test(x)) : '';
@@ -159,6 +221,18 @@ function trDepuisHtml(racine){
     else if(st.color) c = trCouleurDe(st.color);
     if(c && TR_COULEURS.some(x => x[0] === c)) g.c = c;
     else if(st.color || (t === 'FONT' && el.getAttribute('color'))) g.c = '';
+    /* ✍️ v1533 — le surligné */
+    let fond = '';
+    const clsF = el.classList ? [...el.classList].find(x => /^trF-/.test(x)) : '';
+    if(clsF) fond = clsF.slice(4);
+    else if(st.backgroundColor) fond = trFondDe(st.backgroundColor);
+    if(fond && TR_FONDS.some(x => x[0] === fond)) g.f = fond;
+    else if(st.backgroundColor) g.f = '';
+    /* ✍️ v1533 — un lien vers une adresse : [mot](adresse) */
+    if(t === 'A' && !el.getAttribute('data-renvoi')){
+      const u = String(el.getAttribute('data-url') || el.getAttribute('href') || '');
+      if(/^https?:\/\/\S+$/i.test(u)) g.url = u.replace(/\)/g, '%29');
+    }
     /* 🔗 un renvoi : <a data-renvoi> */
     const cible = el.getAttribute && el.getAttribute('data-renvoi');
     if(cible && TR_CIBLE.test(cible)) g.lien = cible;
@@ -181,8 +255,11 @@ function trDepuisHtml(racine){
     }
     if(tag === 'UL' || tag === 'OL'){
       finir();
+      const debut = tag === 'OL' ? (parseInt(n.getAttribute('start'), 10) || 1) : 0;
+      const avant = lignes.length;
       [...n.childNodes].forEach(c => parcourir(c, f, tag === 'UL' ? 'ul' : 'ol'));
       finir();
+      if(tag === 'OL' && lignes[avant]) lignes[avant].debut = debut;
       return;
     }
     const f2 = fmtDe(n, f);
@@ -197,7 +274,7 @@ function trDepuisHtml(racine){
     [...n.childNodes].forEach(c => parcourir(c, f2, genreListe));
   };
   [...racine.childNodes].forEach(c => parcourir(c, {}, ''));
-  const ORDRE = ['g', 'i', 's', 't'];
+  const ORDRE = ['g', 'i', 's', 't', 'p'];
   let num = 0;
   /* une ligne ouverte par un bloc qui n'a rien reçu (un <div> qui
      n'enveloppait qu'une liste) n'est pas une ligne vide voulue */
@@ -205,18 +282,20 @@ function trDepuisHtml(racine){
     const fusion = [];
     l.morceaux.forEach(m => {
       const d = fusion[fusion.length - 1];
-      const meme = d && ORDRE.every(k => !!d.f[k] === !!m.f[k]) && (d.f.c || '') === (m.f.c || '') && (d.f.lien || '') === (m.f.lien || '');
+      const meme = d && ORDRE.every(k => !!d.f[k] === !!m.f[k]) && (d.f.c || '') === (m.f.c || '') && (d.f.f || '') === (m.f.f || '') &&
+        (d.f.lien || '') === (m.f.lien || '') && (d.f.url || '') === (m.f.url || '');
       if(meme) d.t += m.t; else fusion.push({ t: m.t, f: m.f });
     });
     let s = '';
     fusion.forEach(m => {
-      const o = ORDRE.filter(k => m.f[k]);
-      const c = m.f.c || '', li = m.f.lien || '';
-      if(!m.t.trim() && !li){ s += m.t; return; }
-      s += (li ? '[lien=' + li + ']' : '') + o.map(k => '[' + k + ']').join('') + (c ? '[c=' + c + ']' : '') + m.t + (c ? '[/c]' : '') +
-        o.slice().reverse().map(k => '[/' + k + ']').join('') + (li ? '[/lien]' : '');
+      const o = ORDRE.filter(k => m.f[k] && !(k === 'p' && m.f.t));
+      const c = m.f.c || '', li = m.f.lien || '', fo = m.f.f || '', url = m.f.url || '';
+      if(!m.t.trim() && !li && !url){ s += m.t; return; }
+      const coeur = url ? '[' + m.t.replace(/[\[\]]/g, '') + '](' + url + ')' : m.t;
+      s += (li ? '[lien=' + li + ']' : '') + o.map(k => '[' + k + ']').join('') + (c ? '[c=' + c + ']' : '') + (fo ? '[f=' + fo + ']' : '') + coeur +
+        (fo ? '[/f]' : '') + (c ? '[/c]' : '') + o.slice().reverse().map(k => '[/' + k + ']').join('') + (li ? '[/lien]' : '');
     });
-    if(l.genre === 'ol') num++; else num = 0;
+    if(l.genre === 'ol') num = (l.debut ? l.debut : num + 1); else num = 0;
     const corps = s.replace(/^\s+/, '');
     return l.genre === 'ul' ? '• ' + corps : l.genre === 'ol' ? num + '. ' + corps : s.replace(/\s+$/, '');
   });
@@ -245,12 +324,14 @@ function trEditeur(valeur, opts){
   zone.dataset.placeholder = o.placeholder || 'Ce que l’élève doit lire ici.';
   zone.innerHTML = trVersHtml(valeur || '');
   const ta = document.createElement('textarea');
+  if(o.id) ta.id = o.id;
   ta.dataset.champ = o.champ || 'texte';
   ta.hidden = true;
   ta.value = valeur || '';
   ta.tabIndex = -1;
   const vide = () => zone.classList.toggle('trVide', !zone.textContent.trim() && !zone.querySelector('li'));
-  const synchro = () => { ta.value = trDepuisHtml(zone); vide(); majEtats(); };
+  /* ✍️ v1533 — la case cachée prévient ceux qui l'écoutent (sans remonter : la zone le fait déjà) */
+  const synchro = () => { ta.value = trDepuisHtml(zone); vide(); majEtats(); ta.dispatchEvent(new Event('input')); };
   let garde = null;
   const memoriser = () => {
     const s = window.getSelection();
@@ -262,7 +343,7 @@ function trEditeur(valeur, opts){
   };
   const faire = (cmd, val) => {
     restaurer();
-    try{ document.execCommand('styleWithCSS', false, cmd === 'foreColor'); }catch(e){}
+    try{ document.execCommand('styleWithCSS', false, cmd === 'foreColor' || cmd === 'hiliteColor'); }catch(e){}
     document.execCommand(cmd, false, val);
     memoriser();
     synchro();
@@ -283,10 +364,15 @@ function trEditeur(valeur, opts){
   const bG = bouton('<b>G</b>', 'Gras (Ctrl+B)', () => faire('bold'));
   const bI = bouton('<i>I</i>', 'Italique (Ctrl+I)', () => faire('italic'));
   const bS = bouton('<u>S</u>', 'Souligné (Ctrl+U)', () => faire('underline'));
-  const bT = bouton('T<small>T</small>', 'Plus grand (un petit titre)', () => {
+  const taille = () => { try{ return Number(document.queryCommandValue('fontSize')) || 3; }catch(e){ return 3; } };
+  const bT = bouton('T<small>T</small>', 'Titre : plus grand, en gras (re-cliquer pour revenir)', () => {
     restaurer();
-    const grand = Number(document.queryCommandValue('fontSize')) >= 4;
-    faire('fontSize', grand ? '3' : '5');
+    faire('fontSize', taille() >= 4 ? '3' : '5');
+  });
+  /* ✍️ v1533 — plus petit */
+  const bP = bouton('A<small>−</small>', 'Plus petit (re-cliquer pour revenir)', () => {
+    restaurer();
+    faire('fontSize', taille() <= 2 ? '3' : '2');
   });
   const sep = () => { const s = document.createElement('span'); s.className = 'trSep'; barre.appendChild(s); };
   sep();
@@ -301,7 +387,7 @@ function trEditeur(valeur, opts){
     b.type = 'button'; b.className = 'trPastille trC-' + k; b.title = nom; b.setAttribute('aria-label', nom);
     b.innerHTML = '<span class="trRond" style="background:' + clair + '"></span>' + nom;
     b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', () => { pCoul.hidden = true; faire('foreColor', clair); });
+    b.addEventListener('click', () => { pCoul.hidden = true; faire('foreColor', trSombre() ? TR_COULEURS.find(c => c[0] === k)[3] : clair); });
     pCoul.appendChild(b);
   });
   const sans = document.createElement('button');
@@ -314,7 +400,23 @@ function trEditeur(valeur, opts){
     faire('foreColor', getComputedStyle(zone).color);
   });
   pCoul.appendChild(sans);
-  const bC = bouton('🎨 Couleur', 'Couleur du texte', () => { memoriser(); pEmo.hidden = true; pCoul.hidden = !pCoul.hidden; }, 'trLarge');
+  const bC = bouton('🎨 Couleur', 'Couleur du texte', () => { memoriser(); pEmo.hidden = true; pFond.hidden = true; pCoul.hidden = !pCoul.hidden; }, 'trLarge');
+  /* 🖍️ v1533 — le surligné : quatre fonds et « sans » */
+  const pFond = panneau('trFonds');
+  TR_FONDS.forEach(([k, nom, clair, sombre]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'trPastille'; b.title = nom; b.setAttribute('aria-label', 'Surligner en ' + nom.toLowerCase());
+    b.innerHTML = '<span class="trRond trF-' + k + '" style="border:1px solid var(--line)"></span>' + nom;
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => { pFond.hidden = true; faire('hiliteColor', trSombre() ? sombre : clair); });
+    pFond.appendChild(b);
+  });
+  const sansF = document.createElement('button');
+  sansF.type = 'button'; sansF.className = 'trPastille'; sansF.textContent = '⨯ Sans surligné';
+  sansF.addEventListener('mousedown', e => e.preventDefault());
+  sansF.addEventListener('click', () => { pFond.hidden = true; faire('hiliteColor', 'transparent'); });
+  pFond.appendChild(sansF);
+  bouton('🖍️ Surligner', 'Surligner (un fond de couleur)', () => { memoriser(); pEmo.hidden = true; pCoul.hidden = true; pFond.hidden = !pFond.hidden; }, 'trLarge');
   /* 😀 les emojis */
   const pEmo = panneau('trEmojis');
   TR_EMOJIS.forEach(e => {
@@ -328,7 +430,7 @@ function trEditeur(valeur, opts){
   astuce.className = 'trAstuce';
   astuce.textContent = 'Sur ordinateur, tous les emojis : touche Windows + point (.)';
   pEmo.appendChild(astuce);
-  const bE = bouton('😀 Emoji', 'Ajouter un emoji', () => { memoriser(); pCoul.hidden = true; pEmo.hidden = !pEmo.hidden; }, 'trLarge');
+  const bE = bouton('😀 Emoji', 'Ajouter un emoji', () => { memoriser(); pCoul.hidden = true; pFond.hidden = true; pEmo.hidden = !pEmo.hidden; }, 'trLarge');
 
   /* 🔗 LES RENVOIS — vers une étape d'un guide, ou un groupe.
      o.choisirRenvoi() ouvre la liste (ec-parcours.js) et rend
@@ -376,14 +478,20 @@ function trEditeur(valeur, opts){
     const q = c => { try{ return document.queryCommandState(c); }catch(e){ return false; } };
     bG.classList.toggle('on', q('bold')); bI.classList.toggle('on', q('italic')); bS.classList.toggle('on', q('underline'));
     bUl.classList.toggle('on', q('insertUnorderedList')); bOl.classList.toggle('on', q('insertOrderedList'));
-    let grand = false; try{ grand = Number(document.queryCommandValue('fontSize')) >= 4; }catch(e){}
-    bT.classList.toggle('on', grand);
+    const tl = taille();
+    bT.classList.toggle('on', tl >= 4);
+    bP.classList.toggle('on', tl <= 2);
   };
-  zone.addEventListener('input', synchro);
+  zone.addEventListener('input', (e) => { if(e && e.detail && e.detail.recharge) return; synchro(); });
   zone.addEventListener('keyup', () => { memoriser(); majEtats(); });
   zone.addEventListener('mouseup', () => { memoriser(); majEtats(); });
-  zone.addEventListener('blur', memoriser);
-  zone.addEventListener('focus', () => { pCoul.hidden = true; pEmo.hidden = true; });
+  zone.addEventListener('blur', () => { memoriser(); ta.dispatchEvent(new Event('blur')); });
+  zone.addEventListener('focus', () => { pCoul.hidden = true; pEmo.hidden = true; pFond.hidden = true; });
+  /* ✍️ v1533 — un lien du texte, dans l'éditeur : il ne s'ouvre pas, on dit où il mène */
+  zone.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a[data-url]');
+    if(a){ e.preventDefault(); if(typeof showToast === 'function') showToast('🔗 ' + a.getAttribute('data-url')); }
+  });
   /* Un collage arrive en texte seul : pas de HTML d'ailleurs */
   zone.addEventListener('paste', e => {
     const t = (e.clipboardData || window.clipboardData);
@@ -398,7 +506,7 @@ function trEditeur(valeur, opts){
     }
   });
   w.append(barre, zone, ta);
-  w.insertBefore(pCoul, zone); w.insertBefore(pEmo, zone);
+  w.insertBefore(pCoul, zone); w.insertBefore(pFond, zone); w.insertBefore(pEmo, zone);
   if(typeof o.choisirRenvoi === 'function'){
     const bas = document.createElement('button');
     bas.type = 'button';
@@ -413,6 +521,75 @@ function trEditeur(valeur, opts){
   vide();
   w.zone = zone;
   w.texte = () => ta.value;
+  /* ---------- ✍️ v1533 — ce dont « Ce qu'on écrit » a besoin ---------- */
+  if(o.lectureSeule){ zone.contentEditable = 'false'; barre.hidden = true; }
+  /* qui appelle .focus() sur la case cachée tombe dans la zone */
+  ta.focus = () => { try{ zone.focus(); }catch(e){} };
+  /* un texte posé de l'extérieur (un modèle de départ, une variable, une ligne) */
+  w.recharger = (t) => { ta.value = String(t == null ? '' : t); zone.innerHTML = trVersHtml(ta.value); vide(); ta.dispatchEvent(new Event('input'));
+    /* l'enregistrement automatique de la fiche écoute « input » sur la fiche entière */
+    zone.dispatchEvent(new CustomEvent('input', { bubbles: true, detail: { recharge: true } })); };
+  /* le texte avant le curseur, tel qu'il s'enregistre (sa longueur = la place du curseur) */
+  const avantCurseur = (debut) => {
+    const r0 = garde || null;
+    if(!r0 || !zone.contains(r0.startContainer)) return null;
+    const r = document.createRange();
+    r.selectNodeContents(zone);
+    if(debut) r.setEnd(r0.startContainer, r0.startOffset); else r.setEnd(r0.endContainer, r0.endOffset);
+    const d = document.createElement('div');
+    d.appendChild(r.cloneContents());
+    const s = trDepuisHtml(d);
+    /* le curseur au début d'une ligne vide : la ligne compte */
+    return s;
+  };
+  /* les lignes de la zone, dans l'ordre du texte enregistré */
+  const lignesDeLaZone = () => [...zone.querySelectorAll(':scope > div, :scope > p, :scope > ul > li, :scope > ol > li')];
+  const curseurEnFinDeLigne = (n) => {
+    const l = lignesDeLaZone()[n] || zone.lastChild;
+    zone.focus();
+    if(!l) return;
+    const r = document.createRange(); r.selectNodeContents(l); r.collapse(false);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    memoriser();
+  };
+  /* une case « comme un textarea » : insererLienPartoutDans, les variables… */
+  w.adaptateur = () => {
+    let sel = null;
+    const a = {
+      __trEd: w,
+      get value(){ return ta.value; },
+      set value(v){ w.recharger(v); },
+      get selectionStart(){ if(sel) return sel[0]; const s = avantCurseur(true); return s === null ? ta.value.length : s.length; },
+      get selectionEnd(){ if(sel) return sel[1]; const s = avantCurseur(false); return s === null ? ta.value.length : s.length; },
+      setSelectionRange(p, q){ sel = [p, q]; curseurEnFinDeLigne((ta.value.slice(0, Math.max(0, p)).match(/\n/g) || []).length); },
+      focus(){ try{ zone.focus(); }catch(e){} },
+      dispatchEvent(ev){ return ta.dispatchEvent(ev); },
+      get readOnly(){ return o.lectureSeule; }
+    };
+    return a;
+  };
+  /* le texte sélectionné (pour le mot d'un lien) */
+  w.selection = () => { if(!garde || !zone.contains(garde.startContainer)) return ''; return garde.toString(); };
+  /* 🔗 le mot sélectionné devient un lien ; sans sélection, « mot » est écrit puis lié */
+  w.lienSurSelection = (adr, mot) => {
+    restaurer();
+    const s = window.getSelection();
+    const r = s && s.rangeCount && zone.contains(s.anchorNode) ? s.getRangeAt(0) : null;
+    const a = document.createElement('a');
+    a.href = adr; a.setAttribute('data-url', adr); a.className = 'trUrl'; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    if(r && !r.collapsed){
+      a.appendChild(r.extractContents());
+      r.insertNode(a);
+    }else{
+      a.textContent = mot || adr;
+      if(r) r.insertNode(a); else zone.appendChild(a);
+    }
+    const r2 = document.createRange(); r2.setStartAfter(a); r2.collapse(true);
+    s.removeAllRanges(); s.addRange(r2);
+    memoriser();
+    synchro();
+    zone.dispatchEvent(new Event('input', { bubbles: true }));
+  };
   return w;
 }
 
