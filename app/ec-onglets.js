@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 16:47 — v1518 */
+/* Déployé le 21/11/2026 à 10:42 — v1523 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -85,7 +85,12 @@ const SECTIONS_ONGLET = {
   /* 💶 v1345 — « charges » : les charges fixes, administrateurs seuls */
   /* 🔐 v1347 — « coffre » : le coffre-fort des mots de passe */
   gestion: ['ecran', 'flotte', 'carrosserie', 'encours', 'incidents',
-            'menage', 'bureaux', 'admin', 'charges', 'coffre']
+            'menage', 'bureaux', 'admin', 'charges', 'coffre'],
+  /* 📥 v1523 — l'onglet « Drivup » : la vraie page Drivup dans un cadre
+     (ec-drivup-ext.js). Pas de droit à lui : ceux qui lisent Drivup
+     (peutLireDrivup), voir ongletsDisponibles. Dernier, pour n'être
+     jamais l'onglet ouvert par défaut. */
+  drivup: []
 };
 
 let ongletActif = '';
@@ -97,6 +102,7 @@ function ongletsDisponibles(){
        les accès et le journal, qui ne dépendent d'aucun droit. */
     if(o === 'gestion' && ACCES.role === 'admin') return true;
     if(o === 'outils' && ACCES.role === 'admin') return true;
+    if(o === 'drivup') return typeof peutLireDrivup === 'function' && peutLireDrivup();
     /* ✍️ v1282 — un moniteur formateur d'une formation entreprise :
        Outils, pour 💼 Formations seulement (ec-formations-signer.js) */
     if(o === 'outils' && window.FE_FORMATEUR) return true;
@@ -483,6 +489,9 @@ const VUES = {
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
            ['menage',     '🧹 Ménage',                  'menage',      'L’outil'],
            /* 🔐 v1347 — David : « dans Gestion avant Accès » */
+           /* 📥 v1523 — l'extension Drivup : connexions, rythmes, du nouveau
+              (le schéma : juste avant le Coffre-fort) */
+           ['drivup',     '📥 Drivup',                  'admin',        'L’outil'],
            ['coffre',     '🔐 Coffre-fort',             'coffre',      'L’outil'],
            ['admin',      '⚙️ Accès',                  'admin',        'L’outil'],
            /* 🤖 v1511 — l'IA d'Allo : ce qu'elle dit, ses consignes, ses
@@ -1774,6 +1783,7 @@ function construireBarresVues(){
       if(cle === 'admin')   return ACCES.role === 'admin';
       if(cle === 'base')    return ACCES.role === 'admin';      /* v1503 */
       if(cle === 'allo')    return ACCES.role === 'admin';      /* v1511 */
+      if(cle === 'drivup')  return ACCES.role === 'admin';      /* v1523 */
       /* 💥 v1518 — Outils s'ouvre à tous les moniteurs pour le constat :
          💼 Formations reste à ceux qui l'avaient (le droit, ou formateur) */
       if(cle === 'formations' && typeof aDroit === 'function' && !aDroit('formations')) return !!window.FE_FORMATEUR;
@@ -2195,6 +2205,7 @@ function reveillerVue(cle){
     coutsia:    () => afficherCoutsIa(),
     charges:    () => afficherCharges(),
     coffre:     () => afficherCoffre(),
+    drivup:     () => (typeof afficherDrivupGestion === 'function') && afficherDrivupGestion(),
     paiement:   () => afficherPaiement(),
     placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
