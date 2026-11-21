@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 15:45 — v1516 */
+/* Déployé le 21/11/2026 à 15:12 — v1536 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -149,6 +149,9 @@ const ONGLETS_ELEVE = [
      et photos du simulateur. Le droit de l'écran Évaluation. */
   { cle:'evaluation', emoji:'📊', titre:'Évaluation', section:'evaluation' },
   { cle:'cours',    emoji:'📚', titre:'Cours',       section:'recherche' },
+  /* 📆 v1536 — son planning tel que sa fiche Drivup le montre (à venir,
+     passés, annulés). Voir ongletPlanningEleve, ec-drivup-ext.js. */
+  { cle:'planning', emoji:'📆', titre:'Planning',    section:'eleves' },
   { cle:'permis',   emoji:'🎓', titre:'Permis',      section:'permis' },
   /* ⚠️ « acces_eleves », PAS « proccorriger ».
 
@@ -3208,6 +3211,10 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'fiche')       return ongletFiche(corps, nom);
   if(cle === 'evaluation' && typeof ongletEvaluationEleve === 'function') return ongletEvaluationEleve(corps, nom);
   if(cle === 'cours')       return ongletCours(corps, nom);
+  if(cle === 'planning'){
+    if(typeof ongletPlanningEleve === 'function') return ongletPlanningEleve(corps, nom);
+    return;
+  }
   if(cle === 'permis')      return ongletPermis(corps, nom);
   if(cle === 'messages')    return ongletMessagesEleve(corps, nom);
   if(cle === 'appels'){
