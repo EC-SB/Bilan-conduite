@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 20/11/2026 à 19:32 — v1522 -->
+<!-- Déployé le 21/11/2026 à 11:58 — v1527 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-IjV51wZlINj63JhKX9zsyRhxKvbgNWBEFopJxMT1ChQ='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-02R1fxTgZ8NTBZkjf1aoG0tTpwbqrEisxcTiRQdjWHo='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -6991,7 +6991,9 @@
     /* 📌 v1222 — l'espace s'ouvre POUR « à revoir » (la notification,
        ou un lien) : on va droit à Réviser, et au segment s'il est dit. */
     var lien = lienDuParcoursDansLAdresse();
-    if(lien.vue === 'reviser' || lien.seg){
+    /* 📱 v1527 — « ?vue=code », « ?vue=verifs »… : une page de son espace */
+    if(lien.vue && lien.vue !== 'reviser' && !lien.seg){ allerALaPageDuLienEl(lien.vue); }
+    else if(lien.vue === 'reviser' || lien.seg){
       try{ allerAOnglet('reviser'); }catch(e){}
       if(lien.seg){
         var cleL = cleDUneEtape(lien.seg);
@@ -7020,6 +7022,15 @@
      retirés de l'adresse : un rechargement trois jours plus tard ne
      doit pas rouvrir le même segment. */
   var lienDuParcoursLu = false;
+  /* 📱 v1527 — aller à une page de son espace, si elle est ouverte pour lui */
+  function allerALaPageDuLienEl(vue){
+    var o = ONGLETS.filter(function(x){ return x.cle === vue; })[0];
+    if(!o){ return; }
+    var ok = true;
+    try{ ok = !o.quand || o.quand(); }catch(e){ ok = true; }
+    if(!ok){ try{ dire('msgEnvoi', '🔒 Cette page n’est pas encore ouverte pour toi.', 'info'); }catch(e){} return; }
+    try{ allerAOnglet(vue); }catch(e){}
+  }
   function lienDuParcoursDansLAdresse(){
     if(lienDuParcoursLu) return {};
     lienDuParcoursLu = true;
@@ -7470,12 +7481,27 @@
   var RE_LIEN_ETAPE_EL = /(?:🎬\s*([^\n<]*?)\s*:\s*)?https?:\/\/[^\s<"?#]*\?seg=([A-Za-z0-9%_:\-.]+)[ \t]*\n?/g;
   /* 🔗 v1408 — un lien Facebook gardé tel quel (pas relié à une étape) se clique */
   var RE_LIEN_FB_EL = /https?:\/\/(?:[a-z]+\.)?(?:facebook\.com|fb\.watch)\/[A-Za-z0-9\-._~:\/?#\[\]@!$&*+,;=%]+/gi;
+  /* 🔗 v1527 — David : « des hyperliens » et « un lien vers n'importe où
+     dans l'app » : [mot](adresse) devient un lien sur le mot ; une ligne
+     « 📱 Titre : …?vue=code » devient « 📱 Ouvrir « Titre » » (la page de
+     son espace) ; « 🧭 … » (un écran de l'App équipe) ne le concerne pas :
+     c'est un lien ordinaire. */
+  var RE_LIEN_MD_EL = /\[([^\]\n<]{1,200})\]\((https?:\/\/[^\s)<"]+)\)/g;
+  var RE_LIEN_VUE_EL = /(?:📱\s*([^\n<]*?)\s*:\s*)?https?:\/\/[^\s<"?#]*\?vue=([a-z]+)[ \t]*\n?/g;
   function liensEtapesEnBoutons(html){
-    return liensEtapesSeuls(html).replace(RE_LIEN_FB_EL, function(m){
+    var gardes = [];
+    var garde = function(h){ gardes.push(h); return '\u0001' + (gardes.length - 1) + '\u0001'; };
+    var h = String(html || '').replace(RE_LIEN_MD_EL, function(m, mot, u){
+      return garde('<a href="' + u.replace(/"/g, '%22') + '" target="_blank" rel="noopener">' + mot + '</a>');
+    }).replace(RE_LIEN_VUE_EL, function(m, lab, vue){
+      return garde('<button type="button" class="btRgFil" data-vue-el="' + vue + '">📱 Ouvrir « ' + (lab || 'la page') + ' »</button>');
+    });
+    h = liensEtapesSeuls(h).replace(RE_LIEN_FB_EL, function(m){
       var fin = (m.match(/[.,;:!?)\]]+$/) || [''])[0];
       var u = fin ? m.slice(0, -fin.length) : m;
       return '<a href="' + u.replace(/"/g, '%22') + '" target="_blank" rel="noopener">' + u + '</a>' + fin;
     });
+    return h.replace(/\u0001(\d+)\u0001/g, function(m, i){ return gardes[+i] || ''; });
   }
   function liensEtapesSeuls(html){
     return String(html || '').replace(RE_LIEN_ETAPE_EL, function(m, lab, k){
@@ -7531,6 +7557,14 @@
     }catch(e){}
   })();
   document.addEventListener('click', function(ev){
+    /* 📱 v1527 — une page de son espace */
+    var bv = ev.target && ev.target.closest && ev.target.closest('[data-vue-el]');
+    if(bv){
+      ev.preventDefault();
+      try{ fermerPleinEcran(); }catch(e){}
+      allerALaPageDuLienEl(bv.getAttribute('data-vue-el') || '');
+      return;
+    }
     var b = ev.target && ev.target.closest && ev.target.closest('[data-etape-el],[data-demander-etape]');
     if(!b) return;
     ev.preventDefault();
