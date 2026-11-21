@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 12:00 — v1527 */
+/* Déployé le 21/11/2026 à 14:19 — v1533 */
 /* ============================================================
    ec-liens.js — 🔗 LES LIENS DANS CE QU'ON ÉCRIT — v1527
 
@@ -20,7 +20,10 @@
 
 const LIEN_MD_RE = /\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)/g;
 /* [mot](adresse) → « mot (adresse) », pour ce qui ne lit pas le HTML (copier, SMS) */
-function liensMdEnTexte(t){ return String(t == null ? '' : t).replace(LIEN_MD_RE, '$1 ($2)'); }
+function liensMdEnTexte(t){
+  /* ✍️ v1533 — et sans la mise en forme ([g]…[/g]) : c'est du texte qui part tel quel */
+  return String(t == null ? '' : t).replace(/\[\/?(g|i|s|t|p|c|f|lien)(=[A-Za-z0-9_:-]+)?\]/g, '').replace(LIEN_MD_RE, '$1 ($2)');
+}
 function echLien(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 /* ---------- l'App équipe : une adresse vers un écran ---------- */
@@ -107,6 +110,81 @@ function noeudsAvecLiensEC(texte){
   if(i < t.length) frag.appendChild(document.createTextNode(t.slice(i)));
   return frag;
 }
+/* ✍️ v1533 — LA MISE EN FORME DE CE QU'ON ÉCRIT ([g]gras[/g], [c=rouge]…[/c],
+   [f=jaune]…[/f], [t], [p], [i], [s]) hors de l'éditeur. Les couleurs et
+   les fonds sont ceux d'ec-texte-riche.js (TR_COULEURS, TR_FONDS). */
+const BALISE_EC_RE = /\[(\/?)(g|i|s|t|p|c|f|lien)(?:=([A-Za-z0-9_:-]+))?\]/g;
+function aDesBalisesEC(t){ return new RegExp(BALISE_EC_RE.source).test(String(t || '')); }
+const COULEURS_EC = () => (typeof TR_COULEURS !== 'undefined' ? TR_COULEURS : []);
+const FONDS_EC = () => (typeof TR_FONDS !== 'undefined' ? TR_FONDS : []);
+function baliseEcValide(n, v){
+  if(n === 'c') return COULEURS_EC().some(c => c[0] === v);
+  if(n === 'f') return FONDS_EC().some(c => c[0] === v);
+  return n !== 'lien';
+}
+/* Des nœuds (la messagerie) : chaque morceau de texte passe par « versNoeuds » (les liens, les @) */
+function noeudsMisEnFormeEC(texte, versNoeuds){
+  const racine = document.createDocumentFragment();
+  const t = String(texte == null ? '' : texte);
+  const pile = [{ el: racine }];
+  const creer = (n, v) => {
+    const el = document.createElement(n === 'g' ? 'b' : n === 'i' ? 'i' : n === 's' ? 'u' : 'span');
+    if(n === 't') el.className = 'trT';
+    if(n === 'p') el.className = 'trP';
+    if(n === 'c') el.className = 'trC trC-' + v;
+    if(n === 'f') el.className = 'trF trF-' + v;
+    return el;
+  };
+  const ici = () => pile[pile.length - 1].el;
+  /* ⚠️ une expression à elle : « versNoeuds » peut en relancer une autre pendant la boucle */
+  const RE = new RegExp(BALISE_EC_RE.source, 'g');
+  let i = 0, m;
+  while((m = RE.exec(t))){
+    if(m.index > i) ici().appendChild(versNoeuds(t.slice(i, m.index)));
+    i = RE.lastIndex;
+    const n = m[2], v = m[3] || '';
+    if(n === 'lien') continue;
+    if(!m[1]){ if(!baliseEcValide(n, v)) continue; const el = creer(n, v); ici().appendChild(el); pile.push({ n: n, v: v, el: el }); continue; }
+    let j = -1;
+    for(let q = pile.length - 1; q > 0; q--) if(pile[q].n === n){ j = q; break; }
+    if(j < 0) continue;
+    const dessus = pile.splice(j);
+    dessus.slice(1).forEach(x => { const el = creer(x.n, x.v); ici().appendChild(el); pile.push({ n: x.n, v: x.v, el: el }); });
+  }
+  if(i < t.length) ici().appendChild(versNoeuds(t.slice(i)));
+  return racine;
+}
+/* Du HTML déjà échappé (un mail écrit dans l'App) : les balises en styles, sans nos classes */
+function balisesEnHtmlEC(htmlEchappe){
+  const t = String(htmlEchappe || '');
+  const ouvre = (n, v) => {
+    if(n === 'g') return '<b>'; if(n === 'i') return '<i>'; if(n === 's') return '<u>';
+    if(n === 't') return '<span style="font-size:1.25em;font-weight:800">';
+    if(n === 'p') return '<span style="font-size:.85em">';
+    if(n === 'c') return '<span style="color:' + COULEURS_EC().find(c => c[0] === v)[2] + '">';
+    return '<span style="background:' + FONDS_EC().find(c => c[0] === v)[2] + ';padding:0 2px;border-radius:3px">';
+  };
+  const ferme = n => n === 'g' ? '</b>' : n === 'i' ? '</i>' : n === 's' ? '</u>' : '</span>';
+  const pile = [];
+  const RE = new RegExp(BALISE_EC_RE.source, 'g');
+  let h = '', i = 0, m;
+  while((m = RE.exec(t))){
+    h += t.slice(i, m.index);
+    i = RE.lastIndex;
+    const n = m[2], v = m[3] || '';
+    if(n === 'lien') continue;
+    if(!m[1]){ if(!baliseEcValide(n, v)) continue; pile.push({ n: n, v: v }); h += ouvre(n, v); continue; }
+    const j = pile.map(x => x.n).lastIndexOf(n);
+    if(j < 0) continue;
+    const dessus = pile.splice(j);
+    for(let q = dessus.length - 1; q >= 0; q--) h += ferme(dessus[q].n);
+    dessus.slice(1).forEach(x => { pile.push(x); h += ouvre(x.n, x.v); });
+  }
+  h += t.slice(i);
+  for(let q = pile.length - 1; q >= 0; q--) h += ferme(pile[q].n);
+  return h;
+}
+
 /* du HTML déjà échappé (le mail) : [mot](adresse) → <a> */
 function liensMdEnHtml(htmlEchappe){
   return String(htmlEchappe || '').replace(/\[([^\]\n<]{1,200})\]\((https?:\/\/[^\s)<"]+)\)/g, (m, x, u) =>
@@ -117,6 +195,22 @@ function liensMdEnHtml(htmlEchappe){
 /* 🔗 Lien : le mot sélectionné devient [mot](adresse) */
 async function insererHyperlienDans(zone){
   if(!zone) return false;
+  /* ✍️ v1533 — dans l'éditeur mis en forme : le mot sélectionné devient un lien */
+  if(zone.__trEd){
+    const ed = zone.__trEd;
+    let mot = ed.selection();
+    const u0 = await demander('L’adresse du lien (https://…) :', 'https://', '🔗 Lien');
+    if(u0 === null || u0 === undefined) return false;
+    const adr0 = String(u0).trim();
+    if(!/^https?:\/\/\S+$/i.test(adr0)){ if(typeof showToast === 'function') showToast('Une adresse qui commence par https://'); return false; }
+    if(!mot.trim()){
+      const m2 = await demander('Le mot (ou la phrase) qui se touchera :', '', '🔗 Lien');
+      if(!m2 || !String(m2).trim()) return false;
+      mot = String(m2).trim();
+    }
+    ed.lienSurSelection(adr0.replace(/\)/g, '%29'), mot);
+    return true;
+  }
   const d = zone.selectionStart, f = zone.selectionEnd;
   const v = zone.value;
   let mot = (typeof d === 'number' && typeof f === 'number' && f > d) ? v.slice(d, f) : '';
