@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:06 — v1524 */
+/* Déployé le 21/11/2026 à 11:42 — v1526 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,32 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1526,
+    date: 'Samedi 21 novembre 2026',
+    resume: '↔️ Drivup à côté : une poignée pour régler la largeur, et Drivup à côté des rappels de cours',
+    quoi: [
+      { emoji: '↔️',
+        titre: 'La largeur se règle',
+        texte: 'Le panneau Drivup à côté du dossier a une poignée sur son bord gauche : on la tire, la largeur est gardée sur cet ordinateur ; double-clic pour revenir à la largeur de départ. Dans le côte à côte, Drivup prend toute la hauteur.' },
+      { emoji: '🔔',
+        titre: 'Drivup à côté des rappels de cours',
+        texte: 'Dans Rappels de cours, « 📥 Drivup » ouvre à côté le planning « Tous les utilisateurs » du jour choisi dans « Quand » ; on change le jour, le planning suit.' }
+    ]
+  },
+  {
+    version: 1525,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📥 L’onglet Drivup voit plus grand, et un élève qui a un cours dans Drivup a son dossier tout seul',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Plus de place pour Drivup',
+        texte: 'Dans l’onglet Drivup, les boutons (Planning Saint-Brieuc, Planning Loudéac, Élèves, ↻, ↗) passent en une seule rangée fine tout en bas, et Drivup prend toute la hauteur de l’écran. Le bouton Paiements est retiré.' },
+      { emoji: '🆕',
+        titre: 'Les dossiers se créent tout seuls',
+        texte: 'Un élève qui a un cours planifié dans Drivup (conduite, simulateur, évaluation, code…) et pas encore de dossier dans l’App : l’extension crée son dossier avec sa fiche Drivup (nom, mobile, mail, naissance, adresse, NEPH, mandat…). « 🔔 Du nouveau dans Drivup » le dit.' }
+    ]
+  },
   {
     version: 1524,
     date: 'Samedi 21 novembre 2026',
