@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:28 — v1525 */
+/* Déployé le 21/11/2026 à 13:03 — v1530 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -200,9 +200,21 @@ function lienDuFavoriDrivup(){
   return 'javascript:' + code;
 }
 
+/* 📥 v1530 — UN DROIT À LUI, DANS ⚙️ ACCÈS. David, le 21/11 : « met le à
+   part dans les accès pour voir l'onglet et pouvoir cliquer sur les
+   dossiers élève ». Il suivait « 🔔 Rappels de cours » en modification.
+     · voir     : l'onglet 📥 Drivup, et Drivup à côté d'un dossier ou des
+                  rappels (peutVoirDrivup) ;
+     · modifier : en plus, être le poste qui lit Drivup en arrière-plan,
+                  le favori, les écoutes (peutLireDrivup).
+   Les administrateurs, toujours ; le bureau, par son rôle (le Worker). */
+function peutVoirDrivup(){
+  return !!(ACCES && ACCES.code) &&
+         (ACCES.role === 'admin' || (typeof aDroit === 'function' && aDroit('drivup')));
+}
 function peutLireDrivup(){
   return !!(ACCES && ACCES.code) &&
-         (ACCES.role === 'admin' || (typeof peutModifier === 'function' && peutModifier('rappels')));
+         (ACCES.role === 'admin' || (typeof peutModifier === 'function' && peutModifier('drivup')));
 }
 
 /* Le bloc de « ➕ Ajouter des élèves » : le favori à glisser */
@@ -487,7 +499,7 @@ async function lectureDeVeilleDrivup(p, parExtension){
   dessinerLaVeilleDrivup();
   try{
     if(!(ACCES && ACCES.code)) throw new Error('connecte-toi dans cet onglet pour que la veille enregistre');
-    if(!peutLireDrivup()) throw new Error('réservé aux administrateurs et au bureau');
+    if(!peutLireDrivup()) throw new Error('il faut le droit « 📥 Drivup » en modification (⚙️ Accès)');
     if(typeof chargerFiches === 'function') await chargerFiches().catch(() => {});
     if(typeof chargerMoniteurs === 'function' && !((typeof moniteursActifs !== 'undefined') && moniteursActifs.length)) await chargerMoniteurs().catch(() => {});
     /* 🆕 v1525 — les élèves qui ont un cours dans Drivup et pas de dossier chez nous */
@@ -725,7 +737,7 @@ function attendreLaSessionPourDrivup(){
     }
     clearInterval(t);
     if(!peutLireDrivup()){
-      if(typeof showToast === 'function') showToast('📥 Drivup : réservé aux administrateurs et au bureau.', 'error');
+      if(typeof showToast === 'function') showToast('📥 Drivup : il faut le droit « 📥 Drivup » en modification (⚙️ Accès).', 'error');
       drivupRecu = null;
       return;
     }
