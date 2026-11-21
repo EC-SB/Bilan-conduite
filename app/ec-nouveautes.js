@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 14:36 — v1534 */
+/* Déployé le 21/11/2026 à 14:55 — v1535 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1535,
+    date: 'Samedi 21 novembre 2026',
+    resume: '🎨 Espace élève : des dessins pour chaque cours, le 0 du téléphone, et l’IA d’Allo voit les cours de Drivup',
+    quoi: [
+      { emoji: '🎨',
+        titre: 'Des dessins devant « Mes cours à venir »',
+        texte: 'Tablette, simulateur (avec son enseignant quand il y a un moniteur), simulateur de nuit, prévention des risques (un accident à l’écran), conduite, examen, code en salle, code en visio, écoute : des dessins dans le même style, pareils sur tous les téléphones.' },
+      { emoji: '⏱️',
+        titre: 'Un cours commencé depuis 15 minutes n’est plus « à venir »',
+        texte: 'Dans l’espace élève, dans le prochain cours et pour l’IA d’Allo.' },
+      { emoji: '📱',
+        titre: 'Le 0 du téléphone',
+        texte: 'Dans « Mes infos » de l’espace élève, le numéro garde son 0 et s’écrit par paires (06 12 34 56 78).' },
+      { emoji: '🤖',
+        titre: 'L’IA d’Allo voit les cours réservés dans Drivup',
+        texte: 'Son prochain cours est le plus proche entre ceux de l’appli et ceux lus dans Drivup (conduite, simulateur, salle des tablettes, code). Dans le dossier, « Ce qu’elle dirait aujourd’hui » le montre aussi.' }
+    ]
+  },
   {
     version: 1534,
     date: 'Samedi 21 novembre 2026',
