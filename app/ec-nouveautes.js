@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 15:48 — v1538 */
+/* Déployé le 21/11/2026 à 15:57 — v1539 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1539,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📅 Les cours préparés suivent Drivup : un cours du jour ajouté se prépare tout seul, un moniteur changé suit · 🎓 les prochains cours de code',
+    quoi: [
+      { emoji: '📅',
+        titre: 'Un cours du jour ajouté dans Drivup se prépare tout seul',
+        texte: 'À la lecture automatique, un cours de conduite du jour qui n’est dans les prochains cours d’aucun moniteur est préparé comme par un rappel, sans rien envoyer à l’élève : il arrive dans « Mes prochains cours » et sur l’Affichage, avec la voiture lue dans Drivup. Les cours des jours suivants attendent leur rappel.' },
+      { emoji: '🔁',
+        titre: 'Un moniteur changé dans Drivup suit',
+        texte: 'Un élève passé chez un autre moniteur dans Drivup, même après son rappel : son cours préparé passe dans « Mes prochains cours » du nouveau moniteur. Les deux se lisent dans « 🔔 Du nouveau dans Drivup ».' },
+      { emoji: '🎓',
+        titre: 'Les prochains cours de code',
+        texte: 'Dans l’onglet Code, sous les cours du jour : les cours de code des deux semaines à venir (salle et visio), avec les élèves réservés dans Drivup, nouveaux inscrits compris.' }
+    ]
+  },
   {
     version: 1538,
     date: 'Samedi 21 novembre 2026',
