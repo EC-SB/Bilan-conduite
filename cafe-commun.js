@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 16:49 — v1498 */
+/* Déployé le 21/11/2026 à 15:48 — v1538 */
 /* ============================================================
    cafe-commun.js — ☕ LE COIN CAFÉ, MÊME ÉCRAN DES DEUX CÔTÉS
 
@@ -352,6 +352,10 @@
     '.cfSurCadre{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)}' +
     '.cfSurCadre .cfGros{width:auto;padding:14px 26px}' +
     '.cfFleches{display:grid;grid-template-columns:repeat(3,56px);gap:6px;justify-content:center;margin:10px auto 0}' +
+    /* 🎮 v1538 — les flèches, cachées sous un bouton */
+    '.cfFlechesBoite{text-align:center;margin:10px 0 0}' +
+    '.cfFlechesBt{width:auto;margin:0 auto;min-height:0;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-size:13px;cursor:pointer}' +
+    '.cfEnCours{display:block;font-size:11px;font-weight:800;color:#5B8F00;margin-top:2px}' +
     '.cfFleches button{height:48px;margin:0;min-height:0;width:auto;padding:0;border-radius:12px;border:1px solid var(--line);background:var(--navy-deep,#fff);font-size:18px;color:var(--cream);cursor:pointer;touch-action:manipulation}' +
     '.cfTuiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px;border-radius:14px;background:#BBADA0;max-width:340px;margin:0 auto;touch-action:none}' +
     '.cfTuiles div{aspect-ratio:1/1;border-radius:8px;background:rgba(238,228,218,.35);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(18px,6vw,30px);color:#776E65}' +
@@ -639,7 +643,8 @@
       var gs = el('div', 'cfGrille');
       ORDRE_SOLO.forEach(function (k) {
         var S = SOLO[k];
-        var b = el('button', 'cfJeu', '<span class="e">' + S.e + '</span>' + esc(S.nom) + '<small>' + esc(S.s) + '</small>');
+        var b = el('button', 'cfJeu', '<span class="e">' + S.e + '</span>' + esc(S.nom) + '<small>' + esc(S.s) + '</small>' +
+          (niveauEnCours(k) !== null ? '<span class="cfEnCours">▶️ partie en cours</span>' : ''));
         b.type = 'button';
         b.addEventListener('click', function () { ouvrirSolo(k); });
         gs.appendChild(b);
@@ -1700,7 +1705,10 @@
     var S = SOLO[jeu];
     if (!S) return;
     if (niveau) niveauSolo[jeu] = niveau;
+    /* 💾 v1538 — rouvert sans niveau choisi : celui de la partie en cours */
+    if (!niveau && !niveauSolo[jeu] && S.niveaux && niveauEnCours(jeu)) niveauSolo[jeu] = niveauEnCours(jeu);
     var n = S.niveaux ? (niveauSolo[jeu] || S.niveaux[0][0]) : '';
+    var sv = sauvegardeSolo(jeu, n);
     var f = fenetre('solo', S.e + ' ' + S.nom, jeu === 'demineur' && n === 'difficile' ? 560 : 480);
     if (S.niveaux) f.corps.appendChild(chips(S.niveaux, n, function (v) { ouvrirSolo(jeu, v); }));
     var zone = el('div', 'cfSolo');
@@ -1730,17 +1738,18 @@
       }).catch(function () {});
     };
     var jeux = { demineur: jeuDemineur, memory: jeuMemory, serpent: jeuSerpent, '2048': jeu2048, sudoku: jeuSudoku };
-    var lancerJeu = function () {
+    var lancerJeu = function (neuf) {
       stopSolo();
       zone.innerHTML = '';
       message.textContent = '';
-      soloStop = jeux[jeu](zone, n, finir, message);
+      if (neuf === true) sv.effacer();   /* 💾 v1538 — « Nouvelle partie » repart de zéro */
+      soloStop = jeux[jeu](zone, n, finir, message, sv);
       debutSession(jeu);   /* 📊 v1498 */
     };
-    lancerJeu();
+    lancerJeu(false);
     montrerRecords();
     f.bas.appendChild(bouton('Retour', false, function () { ouvrirCoin(); }));
-    if (jeu !== 'sudoku') f.bas.appendChild(bouton('🔄 Nouvelle partie', true, lancerJeu));
+    if (jeu !== 'sudoku') f.bas.appendChild(bouton('🔄 Nouvelle partie', true, function () { lancerJeu(true); }));
   }
   function tableRecords(jeu, l, combien) {
     var t = el('table', 'cfPalm');
@@ -1750,12 +1759,37 @@
     });
     return t;
   }
-  function chrono(cible) {
-    var t0 = 0, fin = 0, m = 0;
+  /* 💾 v1538 — LA PARTIE EN COURS, GARDÉE SUR L'APPAREIL. David, le 21/11 :
+     « il faut une sauvegarde de la partie en cours, là quand on fait retour
+     ça coupe notre partie en cours ». Son choix : gardée dans le navigateur
+     (même après avoir fermé l'App), on la retrouve en rouvrant le jeu ;
+     « Nouvelle partie » repart de zéro ; une partie finie s'efface. Une par
+     jeu et par niveau. Le sudoku avait déjà la sienne. */
+  function sauvegardeSolo(jeu, niveau) {
+    var cle = 'cafe_solo:' + jeu + ':' + (niveau || '');
     return {
-      lancer: function () { if (t0) return; t0 = Date.now(); m = setInterval(function () { cible.textContent = '⏱️ ' + minSec((Date.now() - t0) / 1000); }, 250); },
-      arreter: function () { if (!fin && t0) fin = Date.now(); clearInterval(m); return t0 ? (fin - t0) : 0; },
-      ms: function () { return t0 ? Date.now() - t0 : 0; }
+      lire: function () { try { var d = JSON.parse(localStorage.getItem(cle) || 'null'); return d && d.v === 1 && d.e ? d.e : null; } catch (e) { return null; } },
+      ecrire: function (e) { try { localStorage.setItem(cle, JSON.stringify({ v: 1, le: Date.now(), e: e })); } catch (x) {} },
+      effacer: function () { try { localStorage.removeItem(cle); } catch (x) {} }
+    };
+  }
+  /* le niveau de la partie gardée d'un jeu (« » sans niveau), null s'il n'y en a pas */
+  function niveauEnCours(jeu) {
+    var S = SOLO[jeu];
+    if (!S || jeu === 'sudoku') return null;
+    var l = S.niveaux ? S.niveaux.map(function (x) { return x[0]; }) : [''];
+    for (var i = 0; i < l.length; i++) if (sauvegardeSolo(jeu, l[i]).lire()) return l[i];
+    return null;
+  }
+  /* ⏱️ le chrono repart d'où il en était (« deja », en ms) */
+  function chrono(cible, deja) {
+    var t0 = 0, fin = 0, m = 0, d = Math.max(0, Number(deja) || 0);
+    var montrer = function () { cible.textContent = '⏱️ ' + minSec((Date.now() - t0) / 1000); };
+    if (d) cible.textContent = '⏱️ ' + minSec(d / 1000);
+    return {
+      lancer: function () { if (t0) return; t0 = Date.now() - d; montrer(); m = setInterval(montrer, 250); },
+      arreter: function () { if (!fin && t0) fin = Date.now(); clearInterval(m); return t0 ? (fin - t0) : d; },
+      ms: function () { return t0 ? (fin || Date.now()) - t0 : d; }
     };
   }
   /* le doigt qui glisse : haut, bas, gauche, droite */
@@ -1771,7 +1805,28 @@
       faire(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'd' : 'g') : (dy > 0 ? 'b' : 'h'));
     });
   }
+  /* 🎮 v1538 — LES FLÈCHES, CACHÉES SOUS UN BOUTON. David, le 21/11 :
+     « masque les flèches pour jouer sous les jeux, avec un bouton pour les
+     afficher ». Le choix est gardé sur l'appareil. */
   function fleches(faire) {
+    var boite = el('div', 'cfFlechesBoite');
+    var bt = el('button', 'cfFlechesBt', '');
+    bt.type = 'button';
+    var z = flechesSeules(faire);
+    var montre = false;
+    try { montre = localStorage.getItem('cafe_fleches') === '1'; } catch (e) {}
+    var poser = function () {
+      z.style.display = montre ? '' : 'none';
+      bt.textContent = montre ? '🎮 Masquer les flèches' : '🎮 Afficher les flèches';
+      bt.setAttribute('aria-expanded', montre ? 'true' : 'false');
+    };
+    bt.addEventListener('click', function () { montre = !montre; try { localStorage.setItem('cafe_fleches', montre ? '1' : '0'); } catch (e) {} poser(); });
+    poser();
+    boite.appendChild(bt);
+    boite.appendChild(z);
+    return boite;
+  }
+  function flechesSeules(faire) {
     var z = el('div', 'cfFleches');
     [['', ''], ['h', '▲'], ['', ''], ['g', '◀'], ['b', '▼'], ['d', '▶']].forEach(function (x) {
       if (!x[0]) { z.appendChild(el('span', '')); return; }
@@ -1785,22 +1840,27 @@
   var TOUCHES = { ArrowUp: 'h', ArrowDown: 'b', ArrowLeft: 'g', ArrowRight: 'd', z: 'h', s: 'b', q: 'g', d: 'd', w: 'h', a: 'g' };
 
   /* ---------- 💣 LE DÉMINEUR ---------- */
-  function jeuDemineur(zone, niveau, finir, message) {
+  function jeuDemineur(zone, niveau, finir, message, sv) {
     var cfg = { facile: [9, 9, 10], moyen: [12, 12, 24], difficile: [16, 16, 48] }[niveau] || [9, 9, 10];
     var L = cfg[0], H = cfg[1], M = cfg[2], N = L * H;
     var mines = null, vu = [], drap = [], fini = false, modeDrapeau = false;
+    /* 💾 v1538 — la partie gardée */
+    var s0 = sv ? sv.lire() : null;
+    if (!(s0 && s0.mines && s0.mines.length === N && s0.vu && s0.vu.length === N && s0.drap && s0.drap.length === N)) s0 = null;
     var barre = el('div', 'cfSoloBarre', '<span>💣 <b>' + M + '</b></span><span class="t">⏱️ 0:00</span>');
     var bd = el('button', '', '🚩 Drapeau');
     bd.type = 'button';
     bd.addEventListener('click', function () { modeDrapeau = !modeDrapeau; bd.className = modeDrapeau ? 'on' : ''; });
     barre.appendChild(bd);
     zone.appendChild(barre);
-    var ch = chrono(barre.querySelector('.t'));
+    var ch = chrono(barre.querySelector('.t'), s0 ? s0.ms : 0);
     var g = el('div', 'cfDem');
     g.style.gridTemplateColumns = 'repeat(' + L + ', 1fr)';
     g.style.maxWidth = (L * 34) + 'px';
     var cases = [];
-    for (var i = 0; i < N; i++) { var c = el('div', ''); c.setAttribute('data-i', String(i)); cases.push(c); g.appendChild(c); vu.push(false); drap.push(false); }
+    for (var i = 0; i < N; i++) { var c = el('div', ''); c.setAttribute('data-i', String(i)); cases.push(c); g.appendChild(c); vu.push(s0 ? !!s0.vu[i] : false); drap.push(s0 ? !!s0.drap[i] : false); }
+    if (s0) mines = s0.mines.map(Boolean);
+    function garder() { if (sv && mines && !fini) sv.ecrire({ mines: mines, vu: vu, drap: drap, ms: ch.ms() }); }
     zone.appendChild(g);
     zone.appendChild(el('div', 'cfAide', 'Appui long (ou clic droit, ou 🚩) pour poser un drapeau. Toucher un chiffre entouré de ses drapeaux ouvre le reste.'));
     zone.lastChild.style.textAlign = 'center';
@@ -1849,6 +1909,7 @@
     }
     function perdu(i) {
       fini = true; ch.arreter();
+      if (sv) sv.effacer();
       for (var k = 0; k < N; k++) if (mines[k]) { vu[k] = true; drap[k] = false; peindre(k); }
       cases[i].className += ' boum';
       vibrer(80);
@@ -1858,12 +1919,17 @@
       var ouverts = vu.filter(Boolean).length;
       if (ouverts === N - M) {
         fini = true;
+        if (sv) sv.effacer();
         var ds = Math.max(1, Math.round(ch.arreter() / 100));
         for (var k = 0; k < N; k++) if (mines[k]) { drap[k] = true; peindre(k); }
         finir(ds, '🎉 Déminé en ' + formatRecord('demineur', ds) + ' !');
       }
     }
     function jouer(i, drapeau) {
+      jouerVraiment(i, drapeau);
+      garder();
+    }
+    function jouerVraiment(i, drapeau) {
       if (fini) return;
       if (drapeau) { if (vu[i]) return; drap[i] = !drap[i]; peindre(i); majCompte(); return; }
       if (!mines) { poser(i); ch.lancer(); }
@@ -1900,7 +1966,9 @@
       if (c && !longFait) jouer(Number(c.getAttribute('data-i')), true);
       longFait = false;
     });
-    return function () { ch.arreter(); clearTimeout(long); };
+    /* 💾 la partie reprise : la grille telle qu'elle était, le chrono repart */
+    if (s0) { for (var r0 = 0; r0 < N; r0++) peindre(r0); majCompte(); ch.lancer(); message.innerHTML = '<b>▶️ Ta partie reprend où tu l’avais laissée.</b>'; }
+    return function () { garder(); ch.arreter(); clearTimeout(long); };
   }
 
   /* ---------- 🚸 LE MEMORY DES PANNEAUX ---------- */
@@ -1919,20 +1987,28 @@
     ['droit', 'Tout droit obligatoire', '<circle cx="50" cy="50" r="46" fill="#1E5BC6" stroke="#fff" stroke-width="3"/><rect x="44" y="34" width="12" height="44" fill="#fff"/><polygon points="50,14 70,38 30,38" fill="#fff"/>']
   ];
   function panneau(i) { return '<svg viewBox="0 0 100 100" aria-hidden="true">' + PANNEAUX[i][2] + '</svg>'; }
-  function jeuMemory(zone, niveau, finir) {
+  function jeuMemory(zone, niveau, finir, message, sv) {
     var paires = { facile: 6, moyen: 8, difficile: 12 }[niveau] || 6;
     var choix = [];
     for (var i = 0; i < PANNEAUX.length; i++) choix.push(i);
     choix.sort(function () { return Math.random() - 0.5; });
     choix = choix.slice(0, paires);
     var jeu = choix.concat(choix).sort(function () { return Math.random() - 0.5; });
+    /* 💾 v1538 — la partie gardée : les mêmes cartes, aux mêmes places */
+    var s0 = sv ? sv.lire() : null;
+    if (s0 && s0.jeu && s0.jeu.length === paires * 2 && s0.jeu.every(function (k) { return PANNEAUX[k]; })) jeu = s0.jeu.slice(); else s0 = null;
     var barre = el('div', 'cfSoloBarre', '<span>🔁 <b>0</b> coup</span><span class="t">⏱️ 0:00</span><span>✅ <i>0</i> / ' + paires + '</span>');
     zone.appendChild(barre);
-    var ch = chrono(barre.querySelector('.t'));
+    var ch = chrono(barre.querySelector('.t'), s0 ? s0.ms : 0);
     var g = el('div', 'cfMem');
     g.style.gridTemplateColumns = 'repeat(' + (paires === 12 ? 6 : 4) + ', 1fr)';
     var cartes = [];
     var ouvertes = [], trouvees = 0, coups = 0, bloque = false, fin = false, attente = 0;
+    function garder() {
+      if (!sv || fin || !(coups || trouvees)) return;
+      var ok = []; cartes.forEach(function (c, i) { if (c.classList.contains('ok')) ok.push(i); });
+      sv.ecrire({ jeu: jeu, ok: ok, coups: coups, trouvees: trouvees, ms: ch.ms() });
+    }
     jeu.forEach(function (k, i) {
       var b = el('button', 'cfCarte', '<span class="dos">EC</span><span class="face">' + panneau(k) + '<small>' + esc(PANNEAUX[k][1]) + '</small></span>');
       b.type = 'button';
@@ -1954,6 +2030,7 @@
           barre.querySelector('i').textContent = String(trouvees);
           if (trouvees === paires) {
             fin = true;
+            if (sv) sv.effacer();
             var secs = Math.round(ch.arreter() / 1000);
             finir(coups * 10000 + Math.min(9999, secs), '🎉 Toutes les paires en ' + coups + ' coups et ' + minSec(secs) + ' !');
           }
@@ -1961,16 +2038,25 @@
           bloque = true;
           attente = setTimeout(function () { cartes[a].classList.remove('vue'); cartes[c].classList.remove('vue'); bloque = false; }, 850);
         }
+        garder();
       });
       cartes.push(b);
       g.appendChild(b);
     });
     zone.appendChild(g);
-    return function () { ch.arreter(); clearTimeout(attente); };
+    if (s0) {
+      (s0.ok || []).forEach(function (i) { if (cartes[i]) cartes[i].classList.add('ok', 'vue'); });
+      coups = Number(s0.coups) || 0; trouvees = Number(s0.trouvees) || 0;
+      barre.querySelector('b').textContent = String(coups);
+      barre.querySelector('b').nextSibling.textContent = coups > 1 ? ' coups' : ' coup';
+      barre.querySelector('i').textContent = String(trouvees);
+      ch.lancer();
+    }
+    return function () { garder(); ch.arreter(); clearTimeout(attente); };
   }
 
   /* ---------- 🐍 LE SERPENT ---------- */
-  function jeuSerpent(zone, niveau, finir, message) {
+  function jeuSerpent(zone, niveau, finir, message, sv) {
     var N = 15;
     var barre = el('div', 'cfSoloBarre', '<span>🔺 <b>0</b> plot</span><span class="vit">🚗 vitesse 1</span>');
     zone.appendChild(barre);
@@ -1984,6 +2070,16 @@
     cadre.appendChild(surCadre);
     zone.appendChild(cadre);
     var dir = 'd', prochaine = 'd', corps = [], plot = null, score = 0, enJeu = false, minuteur = 0, pas = 170;
+    /* 💾 v1538 — la partie gardée : on la reprend d'un appui, là où elle était */
+    var s0 = sv ? sv.lire() : null;
+    if (!(s0 && s0.corps && s0.corps.length >= 2 && s0.plot)) s0 = null;
+    var gardeLe = 0;
+    function garder(force) {
+      if (!sv || !enJeu) return;
+      if (!force && Date.now() - gardeLe < 1000) return;
+      gardeLe = Date.now();
+      sv.ecrire({ corps: corps, dir: dir, plot: plot, score: score, pas: pas });
+    }
     var taille = Math.min(360, Math.max(240, (zone.clientWidth || 340) - 8));
     var dpr = window.devicePixelRatio || 1;
     cv.width = taille * dpr; cv.height = taille * dpr;
@@ -2031,6 +2127,7 @@
       var queue = mange ? corps : corps.slice(0, -1);
       if (n.x < 0 || n.y < 0 || n.x >= N || n.y >= N || queue.some(function (p) { return p.x === n.x && p.y === n.y; })) {
         enJeu = false;
+        if (sv) sv.effacer();
         vibrer(80);
         dessiner();
         go.textContent = '🔄 Rejouer';
@@ -2049,6 +2146,7 @@
         placerPlot();
       } else corps.pop();
       dessiner();
+      garder(false);
       minuteur = setTimeout(tic, pas);
     }
     function demarrer() {
@@ -2062,20 +2160,46 @@
       dessiner();
       minuteur = setTimeout(tic, pas);
     }
-    go.addEventListener('click', demarrer);
+    function majBarre() {
+      barre.querySelector('b').textContent = String(score);
+      barre.querySelector('b').nextSibling.textContent = score > 1 ? ' plots' : ' plot';
+      barre.querySelector('.vit').textContent = '🚗 vitesse ' + (1 + Math.floor((170 - pas) / 19));
+    }
+    function reprendre() {
+      corps = s0.corps.map(function (p) { return { x: Number(p.x), y: Number(p.y) }; });
+      dir = s0.dir || 'd'; prochaine = dir; plot = { x: Number(s0.plot.x), y: Number(s0.plot.y) };
+      score = Number(s0.score) || 0; pas = Math.max(75, Math.min(170, Number(s0.pas) || 170));
+      s0 = null;
+      majBarre();
+      message.textContent = '';
+      enJeu = true;
+      surCadre.style.display = 'none';
+      dessiner();
+      minuteur = setTimeout(tic, Math.max(pas, 600));   /* un temps pour reprendre le doigt */
+    }
+    go.addEventListener('click', function () { if (s0) reprendre(); else demarrer(); });
+    if (s0) {
+      corps = s0.corps; plot = s0.plot; score = Number(s0.score) || 0; pas = Math.max(75, Math.min(170, Number(s0.pas) || 170));
+      majBarre();
+      go.textContent = '▶️ Reprendre ma partie';
+      message.innerHTML = '<b>Ta partie est gardée : ' + score + ' plot' + (score > 1 ? 's' : '') + '. Reprends quand tu es prêt.</b>';
+    }
     glisser(cadre, tourner);
     zone.appendChild(fleches(tourner));
-    zone.appendChild(el('div', 'cfAide', 'Les flèches du clavier, un glissé du doigt, ou les flèches ci-dessus.'));
+    zone.appendChild(el('div', 'cfAide', 'Les flèches du clavier, un glissé du doigt, ou les flèches (🎮).'));
     zone.lastChild.style.textAlign = 'center';
     soloTouche = function (ev) { var d = TOUCHES[ev.key]; if (d && enJeu) { ev.preventDefault(); tourner(d); } };
     dessiner();
-    return function () { enJeu = false; clearTimeout(minuteur); };
+    return function () { garder(true); enJeu = false; clearTimeout(minuteur); };
   }
 
   /* ---------- 🔢 2048 ---------- */
-  function jeu2048(zone, niveau, finir, message) {
+  function jeu2048(zone, niveau, finir, message, sv) {
     var g = [], score = 0, fin = false, gagne = false;
     for (var i = 0; i < 16; i++) g.push(0);
+    /* 💾 v1538 — la partie gardée */
+    var s0 = sv ? sv.lire() : null;
+    if (s0 && s0.g && s0.g.length === 16) { g = s0.g.map(function (v) { return Number(v) || 0; }); score = Number(s0.score) || 0; gagne = !!s0.gagne; } else s0 = null;
     var barre = el('div', 'cfSoloBarre', '<span>⭐ <b>0</b> points</span><span class="max">🔝 2</span>');
     zone.appendChild(barre);
     var plateau = el('div', 'cfTuiles');
@@ -2125,8 +2249,9 @@
       dessiner();
       if (bloque()) {
         fin = true;
+        if (sv) sv.effacer();
         finir(score, '🧱 Plus de coup possible : ' + formatRecord('2048', score) + '.');
-      }
+      } else if (sv) sv.ecrire({ g: g, score: score, gagne: gagne });
     }
     function bloque() {
       for (var i = 0; i < 16; i++) {
@@ -2136,10 +2261,11 @@
       }
       return true;
     }
-    ajouter(); ajouter(); dessiner();
+    if (s0) { dessiner(); message.innerHTML = '<b>▶️ Ta partie reprend où tu l’avais laissée.</b>'; }
+    else { ajouter(); ajouter(); dessiner(); }
     glisser(plateau, bouger);
     zone.appendChild(fleches(bouger));
-    zone.appendChild(el('div', 'cfAide', 'Les flèches du clavier, un glissé du doigt, ou les flèches ci-dessus. Deux tuiles pareilles se rejoignent.'));
+    zone.appendChild(el('div', 'cfAide', 'Les flèches du clavier, un glissé du doigt, ou les flèches (🎮). Deux tuiles pareilles se rejoignent.'));
     zone.lastChild.style.textAlign = 'center';
     soloTouche = function (ev) { var d = TOUCHES[ev.key]; if (d) { ev.preventDefault(); bouger(d); } };
     return function () { fin = true; };
