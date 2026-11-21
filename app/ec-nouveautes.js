@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 17:47 — v1544 */
+/* Déployé le 21/11/2026 à 17:57 — v1545 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1545,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📅 Les réservations prennent moins de place dans 🎓 Suivi permis',
+    quoi: [
+      { emoji: '📅',
+        titre: 'Une ligne, comme « Il doit de l’argent »',
+        texte: 'Sous le nom, les réservations ne sont plus un cadre : une ligne de la même taille que les autres, les dates en court (« ven. 11/12 15h-17h »). Les réservations écrites à la main comme « 15 h 17 » ou « 8h 10 h » sont bien relues en créneaux.' }
+    ]
+  },
   {
     version: 1544,
     date: 'Samedi 21 novembre 2026',
