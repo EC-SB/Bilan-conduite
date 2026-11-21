@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:55 — v1532 */
+/* Déployé le 21/11/2026 à 14:19 — v1533 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1533,
+    date: 'Samedi 21 novembre 2026',
+    resume: '✍️ Un vrai éditeur dans Ce qu’on écrit : gras, couleurs, surligné, titres, listes, liens',
+    quoi: [
+      { emoji: '✍️',
+        titre: 'Écrire comme dans Word',
+        texte: 'Dans une fiche de « Ce qu’on écrit et envoie », une barre : gras, italique, souligné, titre, plus petit, listes à puces ou numérotées, couleur du texte, surligné, emojis. On voit le texte tel qu’il partira.' },
+      { emoji: '🔗',
+        titre: 'Les liens sur le mot',
+        texte: 'Sélectionne « Appli Android » puis « 🔗 Lien » et colle l’adresse : c’est le mot qui devient le lien, dans la fiche comme dans ce qui part. « 🔗 Lien élève » marche comme avant.' },
+      { emoji: '📨',
+        titre: 'Partout où la fiche part',
+        texte: 'La mise en forme se garde dans les mails, la messagerie (équipe et élèves), l’espace élève et au copier-coller (Gmail, Word…). Un SMS et Messenger reçoivent le texte simple, les liens en « mot (adresse) ». La carte d’ajournement garde sa case simple.' }
+    ]
+  },
   {
     version: 1532,
     date: 'Samedi 21 novembre 2026',
