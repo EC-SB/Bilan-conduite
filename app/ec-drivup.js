@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:15 — v1531 */
+/* Déployé le 21/11/2026 à 13:50 — v1532 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -1970,7 +1970,9 @@ function calculerEcoutesDrivup(d, ctx){
     (occupe[e.res + '|' + e.jour] = occupe[e.res + '|' + e.jour] || [])
       .push([minutesDrivup(e.debut), minutesDrivup(e.fin), idsEcoute[e.type] ? e.debut : null,
              /* « NON » posé dans une colonne d'écoute, en face d'un cours */
-             nomDe(e.type) === 'non' || sansAccentDrivup(e.titre) === 'non', e]);
+             nomDe(e.type) === 'non' || sansAccentDrivup(e.titre) === 'non', e,
+             /* 👥 v1532 — « tutorat » posé dans une colonne d'écoute : 2 élèves déjà à l'arrière */
+             /tutorat/.test(nomDe(e.type)) || /tutorat/.test(sansAccentDrivup(e.titre))]);
   });
   const libre = (res, jour, a, b) => !(occupe[res + '|' + jour] || []).some(x => x[0] < b && a < x[1]);
 
@@ -2016,7 +2018,8 @@ function calculerEcoutesDrivup(d, ctx){
         else if(/\bbv\b/.test(n) || /^conduite \d/.test(n) || /^examen blanc pratique (st brieuc|loudeac)?$/.test(n)) boite = 'bv';
         else{
           const fo = sansAccentDrivup((x && x.formation) || (fiche && fiche.formation) || '');
-          boite = /bea|pmr|aménag|amenag/.test(fo) ? 'bea' : 'bv';
+          /* 🔁 v1532 — une passerelle (BEA → BV) se fait en boîte manuelle */
+          boite = /passerelle/.test(n) || /passerelle/.test(fo) ? 'bv' : /bea|pmr|aménag|amenag/.test(fo) ? 'bea' : 'bv';
         }
       }
     }
@@ -2035,16 +2038,35 @@ function calculerEcoutesDrivup(d, ctx){
     const raisons = [];
     if(e.examen !== '0') raisons.push('examen');
     if(!e.nbr && !x) raisons.push('pas d’élève sur ce cours');
-    ECOUTE_MEMO_EXCLU.forEach(([re, r]) => { if(re.test(e.memo)){ raisons.push(r); if(/^1er cours/.test(r)) ligne.premier = true; } });
+    /* 🔁 v1532 — une PASSERELLE prend une écoute, jamais de « NON » (David,
+       le 21/11) : ni « 1er cours », même si l'appli ne lui connaît aucune leçon */
+    const passerelle = /passerelle/.test(n) || /passerelle/.test(sansAccentDrivup(e.memo)) ||
+      /passerelle/.test(sansAccentDrivup((x && x.formation) || (fiche && fiche.formation) || ''));
+    ligne.passerelle = passerelle;
+    ECOUTE_MEMO_EXCLU.forEach(([re, r]) => {
+      if(!re.test(e.memo)) return;
+      if(passerelle && /^1er cours/.test(r)) return;
+      raisons.push(r);
+      if(/^1er cours/.test(r)) ligne.premier = true;
+      if(/^RDV pédagogique/.test(r)) ligne.rvp = true;
+    });
     if(fiche){
       const s = ctx.suiviDe(fiche.eleve) || {};
       if(String(s.rvpDate || '') === e.jour) raisons.push('RDV préalable (Suivi AAC)');
-      if(String(s.rvp1Date || '') === e.jour) raisons.push('RVP 1 (Suivi AAC)');
-      if(String(s.rvp2Date || '') === e.jour) raisons.push('RVP 2 (Suivi AAC)');
+      if(String(s.rvp1Date || '') === e.jour){ raisons.push('RVP 1 (Suivi AAC)'); ligne.rvp = true; }
+      if(String(s.rvp2Date || '') === e.jour){ raisons.push('RVP 2 (Suivi AAC)'); ligne.rvp = true; }
       const b = ctx.bureauDe(fiche.eleve);
-      const sansLecon = !b || (!(Number(b.lecons) || 0) && !(Number(b.leconNum) || 0) &&
+      /* ⚠️ v1532 — LE 1ER COURS COMPTÉ PAR L'APPLI, SEULEMENT SI ELLE CONNAÎT
+         LES LEÇONS. David, le 21/11 : « NON » proposé pour Mariam Fofana
+         (10e leçon, le 25/11) et Camille Josselin (9e, le 26/11). Les
+         leçons de chacun (etatBureau) ne sont chargées qu'avec l'écran du
+         bureau : ouvertes depuis Gestion › 📥 Drivup ou par « toute seule »,
+         elles étaient vides, et TOUT élève passait pour un 1er cours.
+         Elles sont maintenant chargées avant le calcul (ctx.bureauConnu) ;
+         si elles ne viennent pas, on ne devine pas : le mémo seul décide. */
+      const sansLecon = ctx.bureauConnu === false ? false : !b || (!(Number(b.lecons) || 0) && !(Number(b.leconNum) || 0) &&
                                !((b.datesLecons || []).some(j => j < e.jour)));
-      if(sansLecon && !dejaVu[fiche.eleve] && !eb){ raisons.push('1er cours (aucune leçon dans l’appli)'); ligne.premier = true; }
+      if(sansLecon && !dejaVu[fiche.eleve] && !eb && !passerelle){ raisons.push('1er cours (aucune leçon dans l’appli)'); ligne.premier = true; }
       dejaVu[fiche.eleve] = true;
     }
     if(!eb && duree < 90) raisons.push(duree === 60 ? 'cours d’1h : pas d’écoute' : 'cours de ' + duree + ' min : pas d’écoute');
@@ -2079,6 +2101,7 @@ function calculerEcoutesDrivup(d, ctx){
         /* 🗑️ v1530 — l'événement de Drivup suit : une écoute vide qui ne sert aucun cours se supprime */
         if(x[2] !== null) existantes.push({ groupe: g, jour: jour, a: x[0], b: x[1], debut: x[2], libreA: 0, ev: x[4], col: c.titre });
         else if(x[3]) existantes.push({ groupe: g, jour: jour, a: x[0], b: x[1], debut: heureDeMinutesDrivup(x[0]), libreA: 0, non: true, ev: x[4], col: c.titre });
+        else if(x[5]) existantes.push({ groupe: g, jour: jour, a: x[0], b: x[1], debut: heureDeMinutesDrivup(x[0]), libreA: 0, tutorat: true, ev: x[4], col: c.titre });
       });
     });
   }));
@@ -2093,7 +2116,7 @@ function calculerEcoutesDrivup(d, ctx){
       x.libreA = minutesDrivup(l.fin) || (t + l.prestation.min);
       l.etat = 'deja'; l.coche = false; l.raison = 'écoute déjà ouverte à cette heure';
     };
-    const dispo = () => existantes.filter(x => !x.non && x.groupe === groupe && x.jour === jour && x.a <= t && t < x.b && x.libreA <= t);
+    const dispo = () => existantes.filter(x => !x.non && !x.tutorat && x.groupe === groupe && x.jour === jour && x.a <= t && t < x.b && x.libreA <= t);
     /* même heure et même durée, puis même heure, puis commencée avant */
     besoin.forEach(l => { const x = dispo().find(x => x.debut === debut && (x.b - x.a) === l.prestation.min); if(x) servir(l, x); });
     besoin.filter(l => l.etat === 'ouvrir').forEach(l => { const x = dispo().find(x => x.debut === debut); if(x) servir(l, x); });
@@ -2104,6 +2127,14 @@ function calculerEcoutesDrivup(d, ctx){
     besoin.filter(l => l.etat === 'ouvrir').forEach(l => {
       const x = existantes.find(x => x.non && x.groupe === groupe && x.jour === jour && x.debut === debut && x.libreA <= t);
       if(x){ x.libreA = minutesDrivup(l.fin) || (t + 60); l.etat = 'ecarte'; l.coche = false; l.raison = '« NON » posé en face dans Drivup'; }
+    });
+    /* 👥 v1532 — « TUTORAT » DANS UNE COLONNE D'ÉCOUTE. David, le 21/11 :
+       « il y aura déjà 2 personnes à l'arrière d'une voiture, donc ça
+       bloque une écoute ». Il tient la place de l'écoute d'UN cours, du
+       même côté, tant qu'il dure (commencé avant ou à la même heure). */
+    besoin.filter(l => l.etat === 'ouvrir').forEach(l => {
+      const x = existantes.find(x => x.tutorat && x.groupe === groupe && x.jour === jour && x.a <= t && t < x.b && x.libreA <= t);
+      if(x){ x.libreA = minutesDrivup(l.fin) || (t + 60); l.etat = 'ecarte'; l.coche = false; l.raison = '« tutorat » en face dans Drivup (2 élèves déjà à l’arrière)'; }
     });
     besoin.filter(l => l.etat === 'ouvrir').forEach(l => { const x = dispo()[0]; if(x) servir(l, x); });
   });
@@ -2169,17 +2200,20 @@ function calculerEcoutesDrivup(d, ctx){
      rien si un « NON » y est déjà. Après les écoutes : elles passent avant. */
   const idNon = Object.keys(prest).find(id => nomDe(id) === 'non') || '';
   const nons = [];
-  lignes.filter(l => l.premier && l.groupe && !l.eb && l.eleve && !/examen/.test(l.raison)).forEach(l => {
+  /* 🚫 v1532 — et en face d'un RDV pédagogique (RVP) ; jamais pour une
+     passerelle, jamais pour un cours d'1h (David, le 21/11) */
+  lignes.filter(l => (l.premier || l.rvp) && !l.passerelle && l.groupe && !l.eb && l.eleve && !/examen/.test(l.raison)).forEach(l => {
     const t = minutesDrivup(l.debut), fin = minutesDrivup(l.fin);
     const min = (fin > t ? fin - t : 120);
+    if(min < 90) return;
     const n = { cle: 'n' + l.cle, jour: l.jour, debut: l.debut, fin: l.fin, eleve: l.eleve, moniteur: l.moniteur, moniteurDrivup: l.moniteurDrivup,
-                groupe: l.groupe, site: l.site, libelle: '« NON »', duree: min, etat: 'non', coche: true, raison: '', colonne: null,
+                groupe: l.groupe, site: l.site, libelle: '« NON »', duree: min, etat: 'non', coche: true, raison: l.rvp ? 'RDV pédagogique' : '1er cours', colonne: null,
                 prestation: idNon ? { id: idNon, nom: 'NON', min: min, non: true } : null };
-    if(existantes.some(x => x.non && x.groupe === l.groupe && x.jour === l.jour && x.a <= t && t < x.b)) return;
-    if(!idNon){ n.coche = false; n.raison = 'pas de rendez-vous « NON » dans les prestations de Drivup'; nons.push(n); return; }
+    if(existantes.some(x => (x.non || x.tutorat) && x.groupe === l.groupe && x.jour === l.jour && x.a <= t && t < x.b)) return;
+    if(!idNon){ n.coche = false; n.raison += ' — pas de rendez-vous « NON » dans les prestations de Drivup'; nons.push(n); return; }
     /* la colonne gardée pour son écoute (si on la recochait) est la sienne : le NON y va */
     const c = l.colonne || (cols[l.groupe] || []).find(c => libre(c.id, l.jour, t, t + min));
-    if(!c){ n.coche = false; n.raison = 'plus de colonne ' + (l.groupe === 'loudeac' ? 'Écoute Loudéac' : l.groupe.toUpperCase()) + ' libre'; nons.push(n); return; }
+    if(!c){ n.coche = false; n.raison += ' — plus de colonne ' + (l.groupe === 'loudeac' ? 'Écoute Loudéac' : l.groupe.toUpperCase()) + ' libre'; nons.push(n); return; }
     n.colonne = c;
     if(c !== l.colonne) (occupe[c.id + '|' + l.jour] = occupe[c.id + '|' + l.jour] || []).push([t, t + min, null, true]);
     nons.push(n);
@@ -2230,18 +2264,49 @@ function ecoutesASupprimerDrivup(d, maintenant, lignes){
     .sort((x, y) => (x.jour + x.debut).localeCompare(y.jour + y.debut) || x.colonne.localeCompare(y.colonne));
 }
 
+/* ⚠️ v1532 — LES ÉCOUTES OÙ DES ÉLÈVES SONT INSCRITS, SANS COURS QUI LES
+   PRENNE. David, le 21/11 : « ça nous signale bien s'il y a une écoute
+   avec un ou des élèves et pas de cours en face ? ». Elles ne se
+   suppriment jamais (des élèves y comptent) : on les signale, pour que
+   le bureau prévienne les élèves ou remette un cours en face. Même calcul
+   que pour les écoutes en trop : aucun cours qui a besoin d'une écoute
+   ne s'en sert (cours annulé ou déplacé, 1er cours, cours d'1h, autre
+   côté BEA / BV). À venir seulement. */
+function ecoutesSansCoursDrivup(d, maintenant, lignes){
+  if(!d || !lignes || !lignes.existantes) return [];
+  const prest = d.prestations || {};
+  const limite = maintenant || new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }).slice(0, 16);
+  const inconnus = lignes.inconnus || [];
+  return lignes.existantes.filter(x => {
+    const e = x.ev;
+    if(!e || x.non || x.tutorat || x.sert) return false;
+    if(!((Number(e.nbr) || 0) > 0 || String(e.client || '').trim())) return false;
+    if(!((e.jour + ' ' + e.debut) > limite)) return false;
+    const site = x.groupe === 'loudeac' ? 'loudeac' : 'sb';
+    return !inconnus.some(c => c.jour === x.jour && c.site === site && c.a < x.b && x.a < c.b);
+  }).map(x => ({ cle: 'a' + x.ev.id, id: x.ev.id, jour: x.ev.jour, debut: x.ev.debut, fin: x.ev.fin, colonne: x.col,
+                 prestation: prest[x.ev.type] || 'Écoute', eleves: String(x.ev.client || '').trim(), nbr: Number(x.ev.nbr) || 0 }))
+    .sort((x, y) => (x.jour + x.debut).localeCompare(y.jour + y.debut) || x.colonne.localeCompare(y.colonne));
+}
+
 /* Le calcul complet (la flotte pour BEA / BV) : ce qui s'ouvre, ce qui se supprime */
 async function toutesLesEcoutesDrivup(d){
   let flotte = [];
   try{ const r = await appelPrep({ action: 'flotteList' }); flotte = (r && r.vehicules) || []; }catch(e){}
+  /* ⚠️ v1532 — les leçons de chacun, pour reconnaître un 1er cours (voir calculerEcoutesDrivup) */
+  let bureauConnu = typeof etatBureau !== 'undefined' && etatBureau && (etatBureau.eleves || []).length > 0;
+  if(!bureauConnu && typeof chargerBureau === 'function'){
+    try{ await chargerBureau(false); bureauConnu = (etatBureau.eleves || []).length > 0; }catch(e){ bureauConnu = false; }
+  }
   const lignes = calculerEcoutesDrivup(d, {
+    bureauConnu: bureauConnu,
     flotte: flotte,
     ficheDe: ficheDeLEleveDrivup,
     moniteurDe: moniteurDeLAppliDrivup,
     suiviDe: nom => (typeof suiviDe === 'function' ? suiviDe(nom) : {}) || {},
     bureauDe: nom => (typeof eleveDuBureau === 'function' ? eleveDuBureau(nom) : null)
   });
-  return { lignes: lignes, aSupprimer: ecoutesASupprimerDrivup(d, null, lignes), nons: lignes.nons || [] };
+  return { lignes: lignes, aSupprimer: ecoutesASupprimerDrivup(d, null, lignes), nons: lignes.nons || [], alertes: ecoutesSansCoursDrivup(d, null, lignes) };
 }
 
 /* Faire ce qui est validé : ouvrir, puis supprimer ; le journal « 🔔 Du nouveau » */
@@ -2382,7 +2447,7 @@ async function fenetreEcoutesDrivup(du){
   }
   corps.remove();
 
-  const { lignes, aSupprimer, nons } = await toutesLesEcoutesDrivup(d);
+  const { lignes, aSupprimer, nons, alertes } = await toutesLesEcoutesDrivup(d);
   /* 🗑️ v1524 — la toute première suppression par l'App : une seule cochée */
   const verifiee = !!(typeof EXT_DV !== 'undefined' && EXT_DV.reglages && EXT_DV.reglages.suppressionVerifiee);
   if(!verifiee) aSupprimer.forEach((s, i) => { s.coche = i === 0; });
@@ -2397,6 +2462,7 @@ async function fenetreEcoutesDrivup(du){
   puces.append(puceDrivup('neuf', aOuvrir.length, '👂 à ouvrir'));
   if(deja.length) puces.append(puceDrivup('', deja.length, deja.length > 1 ? '✅ déjà ouvertes' : '✅ déjà ouverte'));
   if(ecartes.length) puces.append(puceDrivup('ignore', ecartes.length, ecartes.length > 1 ? 'écartés' : 'écarté'));
+  if(alertes.length) puces.append(puceDrivup('annule', alertes.length, '⚠️ avec élèves, sans cours'));
   if(nons.length) puces.append(puceDrivup('neuf', nons.length, '🚫 « NON » à poser'));
   if(aSupprimer.length) puces.append(puceDrivup('annule', aSupprimer.length, aSupprimer.length > 1 ? '🗑️ en trop à supprimer' : '🗑️ en trop à supprimer'));
   f.boite.appendChild(puces);
@@ -2435,6 +2501,33 @@ async function fenetreEcoutesDrivup(du){
     c.addEventListener('change', majBouton);
     ou.appendChild(el);
   };
+  /* ⚠️ v1532 — d'abord ce qu'il faut regarder : des élèves inscrits à une écoute qu'aucun cours ne prend */
+  if(alertes.length){
+    const t = document.createElement('div');
+    t.className = 'dvJour';
+    t.textContent = '⚠️ Écoutes avec des élèves inscrits, sans cours qui les prenne';
+    f.boite.appendChild(t);
+    const n0 = document.createElement('div');
+    n0.className = 'dvNote';
+    n0.style.margin = '0 0 6px';
+    n0.textContent = 'Rien ne se fait tout seul ici (des élèves comptent dessus) : préviens-les, ou remets un cours en face. ' +
+      'Aucun cours de conduite qui prend une écoute à cette heure, de ce côté (BEA / BV / Loudéac) : annulé, déplacé, 1er cours, cours d’1h…';
+    f.boite.appendChild(n0);
+    let jA = '';
+    alertes.forEach(a => {
+      if(a.jour !== jA){ jA = a.jour; const j = document.createElement('div'); j.className = 'dvJour'; j.textContent = dateLisibleDrivup(a.jour); f.boite.appendChild(j); }
+      const el = document.createElement('div');
+      el.className = 'dvL dvAlerte annule';
+      el.dataset.cle = a.cle;
+      const h = document.createElement('span'); h.className = 'dvH'; h.textContent = a.debut.replace(':', 'h');
+      const qui = document.createElement('span'); qui.className = 'dvQui';
+      const b = document.createElement('b'); b.textContent = a.colonne + ' · ' + a.prestation;
+      const sp = document.createElement('span');
+      sp.textContent = 'jusqu’à ' + a.fin.replace(':', 'h') + ' — ' + (a.eleves || (a.nbr + ' élève' + (a.nbr > 1 ? 's' : ''))) + ' inscrit' + (a.nbr > 1 ? 's' : '') + ', aucun cours ne la prend';
+      qui.append(b, sp); el.append(h, qui);
+      f.boite.appendChild(el);
+    });
+  }
   aOuvrir.forEach(l => ligneUI(l, f.boite));
   /* 🚫 v1530 — les « NON » en face des 1ers cours */
   if(nons.length){
