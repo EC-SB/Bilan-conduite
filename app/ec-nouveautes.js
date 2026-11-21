@@ -60,7 +60,7 @@ const NOUVEAUTES = [
         texte: 'Une écoute vide (personne d’inscrit), à venir, qui ne sert aucun cours qui en a besoin, est proposée à la suppression : un cours sans élève, déplacé ou annulé, un 1er cours, un cours d’1h, ou un cours de l’autre côté (BEA / BV). Avant, un seul cours d’élève à la même heure, quel qu’il soit, suffisait à la garder.' },
       { emoji: '🚫',
         titre: '« NON » en face d’un 1er cours',
-        texte: 'Pour une première leçon en voiture, la liste propose de poser le rendez-vous « NON » dans la colonne d’écoute en face (BEA ou BV, « Ecoute » à Loudéac), comme une écoute : coché, et fait tout seul si « toute seule » est allumé. Il faut l’extension 1.4.0.' }
+        texte: 'Pour une première leçon en voiture, la liste propose de poser le rendez-vous « NON » dans la colonne d’écoute en face (BEA ou BV, « Ecoute » à Loudéac), comme une écoute : coché, et fait tout seul si « toute seule » est allumé. Il faut l’extension 1.4.1.' }
     ]
   },
   {
