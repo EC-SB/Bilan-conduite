@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:14 — v1540 */
+/* Déployé le 21/11/2026 à 16:25 — v1541 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -213,8 +213,12 @@ function dessinerSuiviAppels(){
   const tous = E.appels || [];
   apCalculerLiens(tous);
   const mots = String(E.cherche || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  /* 💬 v1541 — les appels trouvés dans les transcriptions (ces mots-là) */
+  const parTx = apTxCherche.mots === String(E.cherche || '').trim() && apTxCherche.jours === E.jours ? apTxCherche.ids : null;
+  apChercherDansTranscriptions(E.cherche);
   const cherche = mots ? tous.filter(a => {
-    const t = [a.eleve, a.numero, apNumero(a.numero), a.resume, a.nomEntendu, a.libelle, a.note]
+    if(parTx && parTx.has(a.id)) return true;
+    const t = [a.eleve, a.numero, apNumero(a.numero), a.resume, a.resumeComplet, a.nomEntendu, a.libelle, a.note]
       .join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     return mots.split(/\s+/).every(m => t.indexOf(m) !== -1 || t.replace(/\s/g, '').indexOf(m) !== -1);
   }) : tous;
@@ -339,7 +343,7 @@ function dessinerSuiviAppels(){
   champ.type = 'text';
   champ.inputMode = 'search';
   champ.className = 'apCherche';
-  champ.placeholder = 'Un nom, un numéro, un mot du résumé…';
+  champ.placeholder = apPeutLireTranscription() ? 'Un nom, un numéro, un mot du résumé ou de l’appel…' : 'Un nom, un numéro, un mot du résumé…';
   champ.setAttribute('aria-label', 'Chercher un appel');
   champ.value = E.cherche || '';
   champ.addEventListener('input', () => {
@@ -511,35 +515,10 @@ function ligneAppelEC(a, o){
   /* 🤖 v1511 — ce que l'IA d'Allo a fait pendant cet appel (ec-allo-ia.js) */
   if(typeof blocIaAllo === 'function'){ const ia = blocIaAllo(a); if(ia) c.appendChild(ia); }
   /* 📄 v1269 — le résumé complet de l'appel, à déplier */
-  if(a.source === 'allo' && a.genre === 'CALL'){
-    const bloc = document.createElement('div');
-    bloc.className = 'apComplet';
-    const t = document.createElement('button');
-    t.type = 'button';
-    t.className = 'apDeplier';
-    const ouvert = !!apOuverts[a.id];
-    t.textContent = (ouvert ? '▾ ' : '▸ ') + '📄 Résumé complet de l’appel';
-    t.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
-    bloc.appendChild(t);
-    const corps = document.createElement('div');
-    corps.className = 'apMd';
-    corps.style.display = ouvert ? '' : 'none';
-    if(ouvert) corps.innerHTML = a.resumeComplet ? apMarkdown(a.resumeComplet) : '<i>Lecture chez Allo…</i>';
-    bloc.appendChild(corps);
-    t.addEventListener('click', async () => {
-      apOuverts[a.id] = !apOuverts[a.id];
-      if(!apOuverts[a.id]){ corps.style.display = 'none'; t.textContent = '▸ 📄 Résumé complet de l’appel'; t.setAttribute('aria-expanded', 'false'); return; }
-      t.textContent = '▾ 📄 Résumé complet de l’appel'; t.setAttribute('aria-expanded', 'true');
-      corps.style.display = '';
-      if(a.resumeComplet){ corps.innerHTML = apMarkdown(a.resumeComplet); return; }
-      corps.innerHTML = '<i>Lecture chez Allo…</i>';
-      try{
-        const d = await appelPrep({ action: 'alloResume', id: a.id });
-        if(d && d.appel){ Object.assign(a, d.appel); corps.innerHTML = apMarkdown(d.appel.resumeComplet || d.appel.resume || ''); }
-      }catch(e){ corps.textContent = '⚠️ ' + e.message; }
-    });
-    c.appendChild(bloc);
-  }
+  /* 💬 v1541 — deux onglets, comme dans Allo : « 📄 Résumé » et
+     « 💬 Transcription » (bureau et admins). Fermés au départ ; un
+     onglet ouvre, le même referme. */
+  if(a.source === 'allo' && a.genre === 'CALL') c.appendChild(apOngletsAppel(a));
 
   /* Ce qu'on a envoyé */
   (a.envois || []).forEach(e => {
@@ -602,6 +581,157 @@ function ligneAppelEC(a, o){
   }
   l.appendChild(c);
   return l;
+}
+/* ============================================================
+   💬 v1541 — RÉSUMÉ / TRANSCRIPTION
+
+   David, le 21 novembre, captures d'Allo à l'appui : « est-ce que
+   c'est possible d'avoir la transcription comme sur l'app Allo des
+   conversations ? ». Ses choix : des onglets comme Allo à la place du
+   tiroir « Résumé complet » ; la transcription lue par le bureau et les
+   admins (comme l'écoute) ; copiée dans l'App avec l'appel, donc la
+   recherche du suivi trouve aussi un mot dit au téléphone.
+   ============================================================ */
+function apPeutLireTranscription(){ return !!(suiviAppelsEC.peutEcouter || apRoleEcoute()); }
+function apMinutage(s){ s = Math.max(0, Math.round(Number(s) || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function apNomParleur(a, q){
+  if(q === 'ia') return '🤖 Accueil IA';
+  if(q === 'nous') return '🏢 Le bureau';
+  return '👤 ' + (a.eleve || a.libelle || a.nomEntendu || apNumero(a.numero) || 'L’appelant');
+}
+/* les phrases qui se suivent du même côté font une seule bulle */
+function apBullesTranscription(lignes){
+  const b = [];
+  (lignes || []).forEach(l => {
+    const der = b[b.length - 1];
+    if(der && der.q === l.q) der.t += ' ' + l.t;
+    else b.push({ q: l.q, s: l.s, t: String(l.t || '') });
+  });
+  return b;
+}
+function apTexteTranscription(a, lignes){
+  return apBullesTranscription(lignes).map(l => apMinutage(l.s) + ' · ' + apNomParleur(a, l.q).replace(/^\S+\s/, '') + ' : ' + l.t).join('\n\n');
+}
+function apDessinerTranscription(boite, a, lignes){
+  boite.innerHTML = '';
+  const bulles = apBullesTranscription(lignes);
+  if(!bulles.length){ boite.appendChild(apEl('i', 'apTxVide', 'Pas de transcription pour cet appel.')); return; }
+  bulles.forEach(l => {
+    const r = apEl('div', 'apTxL ' + (l.q === 'ia' ? 'ia' : l.q === 'nous' ? 'nous' : 'eux'));
+    const h = apEl('div', 'apTxH');
+    h.append(apEl('b', '', apNomParleur(a, l.q)), apEl('span', 'apTxS', apMinutage(l.s)));
+    r.append(h, apEl('div', 'apTxB', l.t));
+    boite.appendChild(r);
+  });
+}
+async function apChargerTranscription(a){
+  if(a.__tx) return a.__tx;
+  const d = await appelPrep({ action: 'alloTranscription', id: a.id });
+  if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Lecture impossible.');
+  if(d.attente) return { lignes: [], attente: true };
+  a.__tx = { lignes: d.lignes || [] };
+  return a.__tx;
+}
+function apOngletsAppel(a){
+  const bloc = apEl('div', 'apComplet apOnglets');
+  const barre = apEl('div', 'apOngl');
+  barre.setAttribute('role', 'tablist');
+  const corps = apEl('div', 'apOnglC');
+  const ong = (cle, texte) => {
+    const b = apEl('button', 'apOng', texte);
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.dataset.ong = cle;
+    barre.appendChild(b);
+    return b;
+  };
+  const bRes = ong('resume', '📄 Résumé');
+  const bTx = apPeutLireTranscription() ? ong('tx', '💬 Transcription') : null;
+  const copier = apEl('button', 'apOngCopier', '⧉ Copier');
+  copier.type = 'button';
+  copier.title = 'Copier la transcription';
+  copier.style.display = 'none';
+  barre.appendChild(copier);
+  bloc.append(barre, corps);
+  const montrer = async (cle) => {
+    [bRes, bTx].forEach(b => { if(b){ const on = b.dataset.ong === cle; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); } });
+    copier.style.display = 'none';
+    corps.innerHTML = '';
+    corps.style.display = cle ? '' : 'none';
+    if(!cle) return;
+    if(cle === 'resume'){
+      const md = apEl('div', 'apMd');
+      corps.appendChild(md);
+      if(a.resumeComplet){ md.innerHTML = apMarkdown(a.resumeComplet); return; }
+      md.innerHTML = '<i>Lecture chez Allo…</i>';
+      try{
+        const d = await appelPrep({ action: 'alloResume', id: a.id });
+        if(d && d.appel){ Object.assign(a, d.appel); md.innerHTML = apMarkdown(d.appel.resumeComplet || d.appel.resume || ''); }
+        else if(d && d.message) md.textContent = '⚠️ ' + d.message;
+      }catch(e){ md.textContent = '⚠️ ' + e.message; }
+      return;
+    }
+    const boite = apEl('div', 'apTx');
+    corps.appendChild(boite);
+    boite.innerHTML = '<i>Lecture chez Allo…</i>';
+    try{
+      const x = await apChargerTranscription(a);
+      if(!boite.isConnected) return;
+      if(x.attente){ boite.innerHTML = '<i>Allo n’a pas encore écrit la transcription de cet appel : elle arrive quelques minutes après.</i>'; return; }
+      apDessinerTranscription(boite, a, x.lignes);
+      if(x.lignes.length){
+        copier.style.display = '';
+        copier.onclick = async () => {
+          try{ await navigator.clipboard.writeText(apTexteTranscription(a, x.lignes)); copier.textContent = '✅ Copié'; }
+          catch(e){ copier.textContent = '⚠️ Copie refusée'; }
+          setTimeout(() => { copier.textContent = '⧉ Copier'; }, 1800);
+        };
+      }
+    }catch(e){ boite.textContent = '⚠️ ' + e.message; }
+  };
+  [bRes, bTx].forEach(b => { if(b) b.addEventListener('click', () => {
+    const actuel = apOuverts[a.id] === true ? 'resume' : apOuverts[a.id];
+    apOuverts[a.id] = actuel === b.dataset.ong ? false : b.dataset.ong;
+    montrer(apOuverts[a.id]);
+  }); });
+  const depart = apOuverts[a.id] === true ? 'resume' : apOuverts[a.id];
+  montrer(depart === 'tx' && !bTx ? 'resume' : (depart || ''));
+  return bloc;
+}
+/* 🔎 la recherche dans les transcriptions (bureau et admins) : demandée
+   au Worker 400 ms après la dernière touche, les appels trouvés
+   s'ajoutent à ceux de la recherche ordinaire */
+let apTxCherche = { mots: '', ids: new Set(), minuterie: 0, jours: 0, attendu: '' };
+function apChercherDansTranscriptions(mots){
+  const m = String(mots || '').trim();
+  const jours = suiviAppelsEC.jours;
+  const cle = m + '|' + jours;
+  if(!apPeutLireTranscription() || m.length < 3){
+    clearTimeout(apTxCherche.minuterie); apTxCherche.attendu = '';
+    apTxCherche.mots = m; apTxCherche.jours = jours; apTxCherche.ids = new Set(); return;
+  }
+  if((m === apTxCherche.mots && jours === apTxCherche.jours) || cle === apTxCherche.attendu) return;
+  clearTimeout(apTxCherche.minuterie);
+  apTxCherche.attendu = cle;
+  apTxCherche.minuterie = setTimeout(async () => {
+    let ids = [];
+    try{
+      const d = await appelPrep({ action: 'alloTranscriptionsChercher', mots: m, jours: jours });
+      ids = (d && d.ids) || [];
+    }catch(e){ /* la recherche ordinaire reste */ }
+    if(apTxCherche.attendu !== cle) return;
+    apTxCherche.attendu = '';
+    apTxCherche.mots = m; apTxCherche.jours = jours; apTxCherche.ids = new Set(ids);
+    /* encore ces mots-là dans le champ : on redessine, le curseur reste */
+    if(String(suiviAppelsEC.cherche || '').trim() !== m || suiviAppelsEC.jours !== jours || !ids.length) return;
+    const zone = document.getElementById('suiviAppelsZone');
+    const c1 = zone && zone.querySelector('input.apCherche');
+    const avait = c1 && document.activeElement === c1;
+    const pos = c1 ? c1.selectionStart : null;
+    dessinerSuiviAppels();
+    const c2 = zone && zone.querySelector('input.apCherche');
+    if(c2 && avait){ c2.focus(); try{ c2.setSelectionRange(pos, pos); }catch(e){} }
+  }, 400);
 }
 /* Un numéro qu'on peut composer (pas « masqué », pas vide) */
 function apNumeroAppelable(n){ return String(n || '').replace(/[^\d]/g, '').length >= 6; }
