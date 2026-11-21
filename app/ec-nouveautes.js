@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:14 — v1540 */
+/* Déployé le 21/11/2026 à 16:25 — v1541 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1541,
+    date: 'Samedi 21 novembre 2026',
+    resume: '💬 La transcription des appels, comme dans Allo : un onglet sous chaque appel, et la recherche trouve ce qui a été dit',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Résumé / Transcription, en onglets',
+        texte: 'Sous chaque appel Allo, « 📄 Résumé » remplace le tiroir « Résumé complet », et « 💬 Transcription » montre la conversation mot pour mot : une bulle par personne (🤖 l’Accueil IA, 👤 l’appelant, 🏢 le bureau) avec le minutage, et « ⧉ Copier ». Réservée au bureau et aux admins, comme l’écoute.' },
+      { emoji: '🔎',
+        titre: 'Chercher un mot dit au téléphone',
+        texte: 'La recherche du suivi des appels trouve aussi un mot de la transcription ou du résumé complet. Les transcriptions sont gardées avec l’appel et effacées avec lui.' }
+    ]
+  },
   {
     version: 1540,
     date: 'Samedi 21 novembre 2026',
