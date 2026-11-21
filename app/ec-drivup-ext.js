@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 12:53 — v1529 */
+/* Déployé le 21/11/2026 à 13:03 — v1530 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -845,7 +845,7 @@ document.addEventListener('change', e => {
   p.changer(titreRappelsDv(jour), 'le planning « Tous les utilisateurs » du jour du rappel', cheminRappelsDv(jour));
 });
 function poserBoutonDrivupRappels(){
-  if(typeof peutLireDrivup !== 'function' || !peutLireDrivup()) return;
+  if(typeof peutVoirDrivup !== 'function' || !peutVoirDrivup()) return;   /* 📥 v1530 — le droit « voir » suffit */
   const h = document.querySelector('[data-vue="rappels"] h2.section-title');
   if(!h || h.querySelector('.dvBtnDossier')) return;
   const b = elDv('button', 'btn btn-primary dvBtnDossier', '📥 Drivup');
@@ -857,7 +857,7 @@ function poserBoutonDrivupRappels(){
 
 /* Le bouton « 📥 Drivup » dans la tête du dossier */
 function poserBoutonDrivupDossier(){
-  if(typeof peutLireDrivup !== 'function' || !peutLireDrivup()) return;
+  if(typeof peutVoirDrivup !== 'function' || !peutVoirDrivup()) return;   /* 📥 v1530 — le droit « voir » suffit */
   const h = document.querySelector('[data-vue="dossier"] h2.section-title');
   if(!h) return;
   const nom = (typeof elevePageOuverte !== 'undefined' && elevePageOuverte) ? String(elevePageOuverte) : '';
