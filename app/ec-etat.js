@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 17:47 — v1544 */
+/* Déployé le 21/11/2026 à 17:57 — v1545 */
 /* ============================================================
    ec-etat.js
    État partagé entre les modules.
@@ -34,7 +34,7 @@
    banc le tient aligné sur le « ?v= » d'index.html à chaque
    livraison : les deux ne peuvent plus diverger en silence.
    ============================================================ */
-var VERSION_MODULES = 1544;
+var VERSION_MODULES = 1545;
 
 /* Raccourci d'accès au DOM, défini dès le premier module.
    S'il n'était déclaré que dans ec-noyau.js, une panne dans ce
