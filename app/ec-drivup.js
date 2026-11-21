@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:37 — v1542 */
+/* Déployé le 21/11/2026 à 16:54 — v1543 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -850,6 +850,61 @@ async function preparationsDeVeilleDrivup(p, parts){
                        detail: 'aujourd’hui ' + l.debut.replace(':', 'h') + (ch ? ' → ' + ch.fin.replace(':', 'h') : '') + ' avec ' + l.moniteur + (details.vehicule ? ' · ' + details.vehicule : '') + ' (ajouté dans Drivup après les rappels)' });
         preps.push({ id: '', eleve: l.eleve, date: auj, note: '🕐 ' + l.debut.replace(':', 'h'), moniteur: l.moniteur });
       }
+    }catch(e){ /* la prochaine lecture réessaiera */ }
+  }
+  /* 🗑️ v1543 — LE COURS QUI N'EST PLUS DANS DRIVUP S'EN VA. David, le 21/11 :
+     « quand un cours n'est plus sur le planning, il est bien enlevé
+     automatiquement de l'affichage ? » — non, il restait. Ses choix : le
+     retirer partout (Mes prochains cours et l'Affichage), noté dans
+     « 🔔 Du nouveau dans Drivup » ; un cours déplacé à un autre jour : l'ancien
+     s'en va, le nouveau se prépare comme les autres.
+     ⚠️ ON NE RETIRE QUE CE QU'ON SAIT ABSENT :
+     · un jour que cette lecture couvre (p.du → p.au) et où elle a lu des cours ;
+     · un élève relié à sa fiche Drivup (son numéro) : ses lignes se trouvent
+       par le numéro, pas par un nom qui s'écrirait autrement ;
+     · une conduite, une AAC ou un simulateur — jamais un examen, un examen
+       blanc, un rendez-vous (post-permis, préalable…) que Drivup ne porte pas
+       forcément ;
+     · pas commencé (aujourd'hui : son heure n'est pas passée), pas une fiche
+       commencée ;
+     · le même jour, une leçon de l'élève sans cours préparé en face, c'est
+       une heure changée, pas une annulation : on ne touche à rien. */
+  const MODELES_RETIRABLES = ['conduite-auto', 'conduite-manuelle', 'aac-auto', 'aac-manuelle', 'simu-auto', 'simu-manuelle'];
+  /* les simulateurs sans moniteur de l'appli comptent aussi comme présents */
+  const toutesLignes = ((parts && parts.lignes) || []).concat((parts && parts.autres) || []).filter(l => l && l.jour);
+  const joursLus = new Set(toutesLignes.map(l => l.jour));
+  const du = String((p && p.du) || ''), au = String((p && p.au) || '');
+  /* seulement une lecture de TOUT le planning (l'extension) : une lecture
+     d'une agence ou d'un moniteur ne voit pas les autres cours */
+  /* et pas une lecture dont des détails ont raté (l'élève y serait sans son numéro) */
+  for(const pr of (p && p.porteeGenre === 'tous' && !Number(p.detailsRates || 0)) ? preps.slice() : []){
+    if(!pr || !pr.id || MODELES_RETIRABLES.indexOf(String(pr.modele || '')) === -1) continue;
+    if(!du || !au || pr.date < du || pr.date > au || pr.date < auj || !joursLus.has(pr.date)) continue;
+    const h = heureNote(pr.note);
+    if(!h) continue;
+    if(pr.date === auj && (minDe(h) === null || minDe(h) <= hNow)) continue;
+    const f = typeof ficheDe === 'function' ? ficheDe(pr.eleve) : null;
+    const idDv = chiffresDrivup((f && f.idDrivup) || '');
+    if(!idDv) continue;
+    const siennes = toutesLignes.filter(l => l.jour === pr.date &&
+      (chiffresDrivup(l.idEleve || '') === idDv || chiffresDrivup((l._fiche && l._fiche.idDrivup) || '') === idDv || nom(l.eleve) === nom(pr.eleve)));
+    if(siennes.some(l => l.debut === h)) continue;
+    /* une leçon (tête de chaîne) sans cours préparé en face : l'heure a changé */
+    const prepsDuJour = preps.filter(x => nom(x.eleve) === nom(pr.eleve) && x.date === pr.date).map(x => heureNote(x.note));
+    const orphelines = siennes.filter(l => { const c = chaine.get(l); return (!c || c.tete === l) && prepsDuJour.indexOf(l.debut) === -1; });
+    if(orphelines.length) continue;
+    if(typeof ficheCommenceeDe === 'function' && ficheCommenceeDe(pr.eleve, pr.modele)) continue;
+    try{
+      const r = (typeof supprimerPreparation === 'function') ? await supprimerPreparation(pr) : await appelPrep({ action: 'prepDelete', id: pr.id });
+      if(r && r.status === 'error') continue;
+      retires++;
+      preps.splice(preps.indexOf(pr), 1);
+      if(typeof prepares !== 'undefined' && Array.isArray(prepares)){
+        const i = prepares.findIndex(y => String(y.id) === String(pr.id));
+        if(i !== -1) prepares.splice(i, 1);
+      }
+      journal.push({ sorte: 'cours_retire', eleve: pr.eleve, titre: '🗑️ Plus dans Drivup : cours retiré',
+                     detail: dateDite(pr.date) + ' ' + h.replace(':', 'h') + (pr.moniteur ? ' avec ' + pr.moniteur : '') + ' · retiré de Mes prochains cours et de l’Affichage' });
     }catch(e){ /* la prochaine lecture réessaiera */ }
   }
   if(journal.length){ try{ await appelPrep({ action: 'drivupJournal', entrees: journal }); }catch(e){ /* le journal manquera */ } }
