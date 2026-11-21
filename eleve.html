@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/11/2026 à 15:12 — v1536 -->
+<!-- Déployé le 21/11/2026 à 15:48 — v1538 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-YfDqGKhEo/5VLLvD4sXvZrjTF3yj6bF+CgfnsAmRZAE=' 'sha256-p64QjFE7LwZxfH862yvYpZqLXkQ/2pm8wOH4wMtH4PA='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-sOw82sQpS/dpYQjFqd6aOPsOGQP2I5PAL+yXfzhs5RM='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -556,6 +556,10 @@
   @media (max-width:380px){ .annAutreChamps{ grid-template-columns:1fr; } }
   .annFacture b{ font-weight:800; }
   .aVenirN{ font-size:12px; color:var(--soft); margin-top:8px; line-height:1.45; }
+  /* 📆 v1538 — au-delà de 15 jours : caché jusqu'à « Tout voir » */
+  .aVenir:not(.tout) .aVenirLoin{ display:none; }
+  .aVenirTout{ display:block; width:auto; margin:6px 0 2px; padding:7px 14px; border-radius:999px; border:1px solid var(--line);
+               background:transparent; color:inherit; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
   /* 📆 v1536 — ses cours passés, repliés */
   .aVenirPasses{ margin-top:6px; }
   .aVenirPasses > summary{ cursor:pointer; list-style:none; }
@@ -3083,7 +3087,7 @@
 <!-- 📞 v1183 — l'écran d'appel, partagé avec l'application -->
 <script src="appel-commun.js?v=1468"></script>
 <!-- ☕ v1456 — un défi du coin café (le même jeu que l’appli de l’équipe) -->
-<script src="cafe-commun.js?v=1468"></script>
+<script src="cafe-commun.js?v=1538"></script>
 <!-- 🚦 v1462 — « Mon code », le jeu du code (le même fichier sert à l'atelier de l'appli) -->
 <script src="code-commun.js?v=1468"></script>
 <!-- 🧯 v1465 — LE FILET DES FICHIERS PARTAGÉS. L'espace élève est servi
@@ -3093,7 +3097,7 @@
      fichiers n'y étaient pas). On va alors les chercher sur le site de
      l'appli, où ils sont toujours. -->
 <script>
-  if(!window.CafeEC) document.write('<script src="https://app.evolutionconduites.fr/cafe-commun.js?v=1468"><\/script>');
+  if(!window.CafeEC) document.write('<script src="https://app.evolutionconduites.fr/cafe-commun.js?v=1538"><\/script>');
   if(!window.CodeEC) document.write('<script src="https://app.evolutionconduites.fr/code-commun.js?v=1468"><\/script>');
 </script>
 <script>
@@ -8895,8 +8899,22 @@
     if(!cours.length && !ecoutes.length && !passes.length) return;
     var w = document.createElement('div');
     w.className = 'aVenir';
-    var ligne = function(emoji, quoi, x, sous){
-      return '<div class="aVenirL"><span class="aVenirE">' + emoji + '</span><span class="aVenirC">' +
+    /* 📆 v1538 — LES 15 PROCHAINS JOURS, PUIS « TOUT VOIR ». David, le 21/11 :
+       pour un élève qui a plein de cours, d'abord les 15 jours à venir, et un
+       bouton pour tout voir. Toujours au moins le prochain de chaque liste,
+       même s'il est plus loin. */
+    var limite = (function(){
+      var d = new Date(Date.now() + 14 * 86400000);
+      try{ return d.toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }); }catch(e){ return d.toISOString().slice(0, 10); }
+    })();
+    var loin = function(l){
+      var proches = l.filter(function(x){ return String(x.jour || '') <= limite; }).length;
+      return Math.max(proches, l.length ? 1 : 0);
+    };
+    var nCours = loin(cours), nEcoutes = loin(ecoutes);
+    var deTrop = (cours.length - nCours) + (ecoutes.length - nEcoutes);
+    var ligne = function(emoji, quoi, x, sous, cache){
+      return '<div class="aVenirL' + (cache ? ' aVenirLoin' : '') + '"><span class="aVenirE">' + emoji + '</span><span class="aVenirC">' +
         '<b>' + echapper(jourEnClair(x.jour)) + ' · ' + echapper(heureAVenir(x)) + '</b>' +
         '<span>' + echapper(quoi) + (sous ? ' · ' + echapper(sous) : '') + '</span></span></div>';
     };
@@ -8904,18 +8922,21 @@
     poserIconesCours();
     if(cours.length){
       html += '<div class="aVenirT">📆 ' + (p && p.jour ? 'Ensuite' : 'Mes cours à venir') + '</div>' +
-        cours.map(function(x){
+        cours.map(function(x, i){
           /* 🎨 v1535 — chaque sorte de cours a son dessin (David, le 21/11 :
              tablette, simulateur, simulateur avec son enseignant, de nuit,
              prévention des risques avec un accident à l'écran, et les autres) */
           var s = ICONES_SORTES[x.sorte] ? x.sorte : (x.examen ? 'examen' : 'conduite');
           return ligne(iconeCours(s), x.examen ? 'Examen' : quoiAvecRang(x, x.libelle || 'Cours de conduite'), x,
-                       x.moniteur ? 'avec ' + x.moniteur : '');
+                       x.moniteur ? 'avec ' + x.moniteur : '', i >= nCours);
         }).join('');
     }
     if(ecoutes.length){
       html += '<div class="aVenirT">👂 Mes écoutes pédagogiques</div>' +
-        ecoutes.map(function(x){ return ligne(iconeCours('ecoute'), quoiAvecRang(x, 'Écoute pédagogique'), x, x.agence); }).join('');
+        ecoutes.map(function(x, i){ return ligne(iconeCours('ecoute'), quoiAvecRang(x, 'Écoute pédagogique'), x, x.agence, i >= nEcoutes); }).join('');
+    }
+    if(deTrop > 0){
+      html += '<button type="button" class="aVenirTout" aria-expanded="false">Tout voir (' + deTrop + ' de plus)</button>';
     }
     /* 📆 v1536 — SES COURS PASSÉS, comme sa fiche Drivup › Plannings (David,
        le 21/11 : « l'élève voit sur Drivup et sur son app la même chose ») */
@@ -8928,6 +8949,13 @@
     }
     html += '<div class="aVenirN">Lu dans le planning de l’auto-école. Un changement ? Écris au bureau.</div>';
     w.innerHTML = html;
+    var bt = w.querySelector('.aVenirTout');
+    if(bt) bt.addEventListener('click', function(){
+      var tout = !w.classList.contains('tout');
+      w.classList.toggle('tout', tout);
+      bt.setAttribute('aria-expanded', tout ? 'true' : 'false');
+      bt.textContent = tout ? 'Voir moins' : 'Tout voir (' + deTrop + ' de plus)';
+    });
     z.appendChild(w);
   }
 
