@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 19:32 — v1522 */
+/* Déployé le 21/11/2026 à 10:42 — v1523 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1523,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📥 Drivup dans l’App : une extension lit Drivup en arrière-plan, un onglet Drivup, et sa fiche Drivup à côté du dossier',
+    quoi: [
+      { emoji: '🧩',
+        titre: 'L’extension « App EC · Drivup »',
+        texte: 'Installée sur Chrome (ou Edge, ou l’App sur Windows) et sur Firefox, elle lit Drivup en arrière-plan avec la connexion Drivup du navigateur : plus besoin du favori ni d’onglet Drivup ouvert. Un seul ordinateur lit pour toute l’équipe, un autre prend le relais s’il s’éteint. Personne ne tape son mot de passe dans l’App.' },
+      { emoji: '📥',
+        titre: 'Gestion › Drivup',
+        texte: 'Les connexions Drivup de l’équipe (🔒 À reconnecter quand Drivup a déconnecté quelqu’un), ce qui est lu et quand, avec ✏️ pour changer les rythmes, et « 🔔 Du nouveau dans Drivup » : cours nouveaux, déplacés ou annulés, notes internes, NEPH arrivés, mandats pris. Une ligne ouvre le dossier de l’élève.' },
+      { emoji: '📝',
+        titre: 'Les notes internes de Drivup',
+        texte: 'Une nouvelle note interne écrite dans Drivup arrive toute seule dans 🗂️ Administratif du dossier de l’élève, avec son auteur.' },
+      { emoji: '📺',
+        titre: 'L’Affichage suit Drivup',
+        texte: 'Un cours du jour qui change de moniteur, d’heure ou de voiture dans Drivup est mis à jour sur l’Affichage.' },
+      { emoji: '🖥️',
+        titre: 'Drivup dans l’App',
+        texte: 'Un onglet « Drivup » en haut montre la vraie page Drivup (planning de Saint-Brieuc, de Loudéac, élèves, paiements), et le bouton « 📥 Drivup » du dossier ouvre sa fiche Drivup à côté : Fiche, Examens, Notes internes, Planning, Paiements. Il faut l’extension sur l’ordinateur pour que Drivup y reste connecté.' }
+    ]
+  },
   {
     version: 1522,
     date: 'Vendredi 20 novembre 2026',
