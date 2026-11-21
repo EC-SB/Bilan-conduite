@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 15:15 — v1452 */
+/* Déployé le 21/11/2026 à 17:47 — v1544 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1530,8 +1530,13 @@ function marquesDeLaPreparation(nom){
 }
 function iconesDeLaPreparation(nom){
   const m = marquesDeLaPreparation(nom);
+  /* 📅 v1544 — pas planifié : 📆 réservations à faire, le calendrier
+     orange quand elles sont faites, 🙋 quand il les pose lui-même */
+  const r = m.planifie ? '' : etatResaPermis(m.su);
   const t = (m.paye ? '' : '<span title="Il doit de l’argent">💶</span>') +
-            (m.planifie ? '' : '<span title="Il doit planifier encore des choses">📆</span>');
+            (r === 'faite' ? '<span title="Réservations faites" style="display:inline-flex;">' + calendrierOrangeSvg(15) + '</span>'
+             : r === 'eleve' ? '<span title="Il pose lui-même ses heures">🙋</span>'
+             : r ? '<span title="Il doit planifier encore des choses">📆</span>' : '');
   return t ? '<span class="ses-marques" style="font-size:13px;margin-left:-2px;">' + t + '</span>' : '';
 }
 function lignesDeLaPreparation(nom){
@@ -1547,10 +1552,16 @@ function lignesDeLaPreparation(nom){
          ((typeof boutonRelancePourLeSuivi === 'function') ? boutonRelancePourLeSuivi(nom, reste) : '') + '</div>';
   }
   if(!m.planifie){
-    h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
-         '📆 Il doit planifier encore des choses' +
-         /* 🗓️ v1234 — la fenêtre des créneaux, à son nom */
-         ((typeof boutonCreneauxPourLeSuivi === 'function') ? boutonCreneauxPourLeSuivi(nom) : '') + '</div>';
+    /* 📅 v1544 — faites ou posées par lui : l'étiquette orange ou bleue
+       remplace la ligne rouge ; à faire : la ligne rouge et l'étiquette */
+    const r = etatResaPermis(m.su);
+    if(r === 'afaire' || !r){
+      h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
+           '📆 Il doit planifier encore des choses' +
+           /* 🗓️ v1234 — la fenêtre des créneaux, à son nom */
+           ((typeof boutonCreneauxPourLeSuivi === 'function') ? boutonCreneauxPourLeSuivi(nom) : '') + '</div>';
+    }
+    h += etiquetteResaPermis(m.su);
   }
   return h;
 }
@@ -1574,7 +1585,7 @@ function lignePlace(p, sess){
   /* Sa fiche est-elle renseignée ? Un élève repris d'une ancienne
      date peut n'avoir aucune préparation : autant le dire. */
   const su = (typeof suiviDe === 'function' && p.eleve) ? suiviDe(p.eleve) : {};
-  const ficheVide = !vide && !su.resteAPayer && !su.reservations &&
+  const ficheVide = !vide && !su.resteAPayer && !su.reservations && !su.resaEtat &&
                     !su.relanceLe && !su.lecons2h && su.toutOk !== 'oui' &&
                     su.aRemplacer !== 'oui' && su.fairePoint !== 'oui' &&
                     su.toutPaye !== 'oui' && su.toutPlanifie !== 'oui';
@@ -1593,9 +1604,9 @@ function lignePlace(p, sess){
       lignesDeLaPreparation(p.eleve) +
       /* Ce que le bureau a noté : les leçons posées et le reste à
          faire. C'est ce qu'on veut voir sans ouvrir la fiche. */
-      (su.reservations ? '<div style="font-size:11px;color:var(--accent-text);' +
-        'margin-top:2px;line-height:1.4;">📅 ' +
-        su.reservations.replace(/</g, '&lt;') + '</div>' : '') +
+      /* 📅 v1544 — les réservations ne sont plus une petite ligne verte :
+         l'étiquette de lignesDeLaPreparation les dit (et se tait quand
+         tout est planifié) */
       (su.autre ? '<div style="font-size:11px;color:var(--warn-text);' +
         'margin-top:2px;line-height:1.4;">📝 ' +
         su.autre.replace(/</g, '&lt;') + '</div>' : '');
@@ -2179,10 +2190,6 @@ function ouvrirPlace(p, sess){
       '<input type="checkbox" id="plAcc" style="width:19px;height:19px;">' +
       '🚗 Accompagnement à payer</label>' +
 
-    '<label for="plRes">Réservations posées sur le planning</label>' +
-    '<input type="text" id="plRes" ' +
-      'placeholder="Ex : 2h le 12/09 + 2h le 18/09 + 1h le 20/09">' +
-
     '<label for="plAE">Auto-école à qui donner la date</label>' +
     '<input type="text" id="plAE" placeholder="Si la place part ailleurs">' +
 
@@ -2234,7 +2241,22 @@ function ouvrirPlace(p, sess){
   boite.querySelector('#plBoite').value = su.typeExamen || '';
   boite.querySelector('#plNat').value = su.nature || '';
   boite.querySelector('#plAcc').checked = (su.accompagnement === 'oui');
-  boite.querySelector('#plRes').value = su.reservations || '';
+  /* 📅 v1544 — les réservations, sous « 📆 Tout est planifié » : cachées
+     quand c'est coché (c'est posé sur le planning) */
+  const blocResa = blocReservationsPermis({
+    etat: etatResaPermis(Object.assign({}, su, { toutPlanifie: '' })),
+    texte: su.reservations || '',
+    datePermis: isoDuPermis(sess && sess.date)
+  });
+  blocResa.id = 'plResa';
+  {
+    const cPlan = boite.querySelector('#plPlanifie');
+    cPlan.closest('label').after(blocResa);
+    const montrer = () => { blocResa.style.display = cPlan.checked ? 'none' : ''; };
+    montrer();
+    cPlan.addEventListener('change', montrer);
+    boite.querySelector('#plOk').addEventListener('change', montrer);
+  }
   boite.querySelector('#plAE').value = su.autoEcole || '';
 
   const r = document.createElement('div');
@@ -2363,7 +2385,9 @@ function ouvrirPlace(p, sess){
         typeExamen: boite.querySelector('#plBoite').value,
         nature: boite.querySelector('#plNat').value,
         accompagnement: boite.querySelector('#plAcc').checked ? 'oui' : '',
-        reservations: boite.querySelector('#plRes').value.trim(),
+        /* 📅 v1544 — l'état et le texte, lus dans le bloc à calendrier */
+        reservations: blocResa.valeurs().reservations,
+        resaEtat: blocResa.valeurs().resaEtat,
         autoEcole: boite.querySelector('#plAE').value.trim()
       } : null;
 
@@ -3479,6 +3503,243 @@ function demanderPlacePerdue(s, eleve, trous){
   });
 }
 
+
+/* ============================================================
+   📅 LES RÉSERVATIONS SUR LE PLANNING — v1544
+
+   David, le 21 novembre, sur la case « Réservations posées sur le
+   planning » de la fiche d'une place : « est-ce qu'il n'y a pas moyen
+   de faire autre chose de plus visible ? Sous Tout est planifié, une
+   case réservation faite ou à faire ; quand le planning est validé,
+   cette ligne disparaît puisque c'est posé sur le planning ». Puis, sur
+   le schéma : trois choix — « il pose lui-même ses heures », « à
+   faire », « faite » (pas « à valider » : on les fait avec l'élève, et
+   c'est à payer) ; au lieu d'écrire les dates, un calendrier et les
+   créneaux classiques 8h-10h … 17h-19h et « autres » ; poser un créneau
+   la fait passer en « faite ». Un calendrier ORANGE dit « réservations
+   faites » partout où 📆 disait « à planifier ».
+
+   · resaEtat (colonne 123 du suivi) — '' · eleve · afaire · faite.
+     Vide = l'ancienne règle : une réservation écrite vaut « faite »,
+     rien d'écrit vaut « à faire » (son choix).
+   · reservations (la colonne d'avant) garde le TEXTE, « Jeudi 10/12
+     13h-15h · Mercredi 17/12 15h-17h » : tout ce qui le lisait le lit
+     toujours. Le calendrier le relit pour retrouver ses créneaux ; ce
+     qu'il ne sait pas lire reste en « Noté à la main ».
+   · « 📆 Tout est planifié » coché : plus rien ne s'affiche, ni ici ni
+     dans les listes — c'est posé sur le planning.
+   ============================================================ */
+const RESA_CRENEAUX = [['08:00', '10:00'], ['10:00', '12:00'], ['13:00', '15:00'], ['15:00', '17:00'], ['17:00', '19:00']];
+const RESA_ORANGE = '#E8A33D';
+const RESA_ORANGE_TEXTE = '#B86E12';
+const RESA_BLEU = '#3B82C4';
+const RESA_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+/* Le repère texte des réservations faites (là où il faut du texte : les
+   messages à copier) ; à l'écran, calendrierOrangeDans() le dessine. */
+const MARQUE_RESA_FAITE = '🗓️';
+
+function calendrierOrangeSvg(t){
+  t = t || 15;
+  return '<svg class="resaCal" viewBox="0 0 24 24" width="' + t + '" height="' + t + '" style="vertical-align:-2px;flex-shrink:0" role="img" aria-label="Réservations faites">' +
+    '<rect x="3" y="5" width="18" height="16" rx="3" fill="rgba(232,163,61,.18)" stroke="' + RESA_ORANGE + '" stroke-width="2"/>' +
+    '<path d="M3 10h18" stroke="' + RESA_ORANGE + '" stroke-width="2"/><path d="M8 3v4M16 3v4" stroke="' + RESA_ORANGE + '" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M8.5 15.2l2.3 2.2 4.7-4.6" fill="none" stroke="' + RESA_ORANGE + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+/* Dans un élément déjà rempli de TEXTE (textContent) : le repère devient
+   le calendrier orange. Le HTML de départ est échappé par le navigateur :
+   on ne remplace que le repère. */
+function calendrierOrangeDans(el){
+  if(!el || String(el.textContent || '').indexOf('🗓') === -1) return el;
+  el.innerHTML = el.innerHTML.replace(/🗓️?/g, calendrierOrangeSvg(15));
+  return el;
+}
+/* L'état des réservations d'une fiche de suivi : '' quand tout est
+   planifié (rien à montrer), sinon eleve · afaire · faite */
+function etatResaPermis(s){
+  s = s || {};
+  if(s.toutPlanifie === 'oui') return '';
+  const e = String(s.resaEtat || '');
+  if(e === 'eleve' || e === 'afaire' || e === 'faite') return e;
+  const v = String(s.reservations || '').trim();
+  if(!v || /à faire|a faire|^non$|pas encore|à poser|a poser|manque/i.test(v)) return 'afaire';
+  return 'faite';
+}
+const resaH = h => { const m = String(h || '').match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) + 'h' + (m[2] === '00' ? '' : m[2]) : String(h || ''); };
+function resaTexte(r){
+  const d = new Date(r.jour + 'T12:00:00');
+  const j = RESA_JOURS[d.getDay()] || '';
+  return j.charAt(0).toUpperCase() + j.slice(1) + ' ' + r.jour.slice(8, 10) + '/' + r.jour.slice(5, 7) + ' ' + resaH(r.debut) + '-' + resaH(r.fin);
+}
+/* Le texte d'avant relu : les « 10/12 13h-15h » deviennent des créneaux
+   (l'année : celle qui met la date le plus près du permis, ou
+   d'aujourd'hui), le reste reste écrit. */
+function resaLire(texte, reperIso){
+  const liste = [];
+  const auj = new Date().toISOString().slice(0, 10);
+  const ref = /^\d{4}-\d{2}-\d{2}$/.test(String(reperIso || '')) ? reperIso : auj;
+  const h2 = (h, m) => String(h).padStart(2, '0') + ':' + String(m || '00').padStart(2, '0');
+  const re = /(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+)?(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\s*(?:de\s*)?(\d{1,2})\s*h\s*(\d{2})?\s*(?:-|à|a)\s*(\d{1,2})\s*h\s*(\d{2})?/gi;
+  const reste = String(texte || '').replace(re, (tout, j, m, hd, md, hf, mf) => {
+    const an0 = Number(ref.slice(0, 4));
+    const choix = [an0 - 1, an0, an0 + 1].map(a => a + '-' + String(m).padStart(2, '0') + '-' + String(j).padStart(2, '0'))
+      .filter(x => !isNaN(new Date(x + 'T12:00:00').getTime()))
+      .sort((x, y) => Math.abs(new Date(x) - new Date(ref)) - Math.abs(new Date(y) - new Date(ref)));
+    if(!choix.length) return tout;
+    liste.push({ jour: choix[0], debut: h2(hd, md), fin: h2(hf, mf) });
+    return ' ';
+  }).replace(/[·,;+\s]+/g, ' ').replace(/^\s*(et\s*)?|\s*(et\s*)?$/gi, '').trim();
+  liste.sort((x, y) => (x.jour + x.debut).localeCompare(y.jour + y.debut));
+  return { liste: liste, reste: reste };
+}
+
+/* Le bloc de la fiche. o : { etat, texte, datePermis (AAAA-MM-JJ) }.
+   bloc.valeurs() → { resaEtat, reservations } à enregistrer. */
+function blocReservationsPermis(o){
+  o = o || {};
+  const lu = resaLire(o.texte, o.datePermis);
+  const S = { etat: o.etat || 'afaire', liste: lu.liste, reste: lu.reste, jour: '', autre: false,
+              mois: ((o.datePermis && o.datePermis >= new Date().toISOString().slice(0, 10)) ? new Date().toISOString() : (o.datePermis || new Date().toISOString())).slice(0, 7) };
+  /* le mois de départ : le premier créneau posé, sinon ce mois-ci */
+  if(S.liste.length) S.mois = S.liste[0].jour.slice(0, 7);
+  const bloc = document.createElement('div');
+  bloc.className = 'resaBloc';
+  const ech = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const dessiner = () => {
+    const faite = S.etat === 'faite', eleve = S.etat === 'eleve';
+    const coul = faite ? RESA_ORANGE : eleve ? RESA_BLEU : 'var(--warn-text)';
+    bloc.dataset.etat = S.etat;
+    bloc.style.cssText = 'border:2px solid ' + coul + ';border-radius:12px;padding:10px 12px;margin:2px 0 14px;background:' +
+      (faite ? 'rgba(232,163,61,.10)' : eleve ? 'rgba(59,130,196,.08)' : 'rgba(200,60,40,.06)') + ';';
+    const bt = (cle, txt, c) => '<button type="button" data-etat="' + cle + '" class="btn btn-secondary" aria-pressed="' + (S.etat === cle) + '" ' +
+      'style="flex:1;min-width:0;margin:0;padding:9px 6px;font-size:13.5px;' +
+      (S.etat === cle ? 'background:' + c + ';border-color:' + c + ';color:#fff;font-weight:800;' : '') + '">' + txt + '</button>';
+    let h = '<div class="resaTitre" style="font-size:14px;font-weight:800;color:' + (faite ? RESA_ORANGE_TEXTE : coul) + ';">' +
+        (faite ? calendrierOrangeSvg(18) : eleve ? '🙋' : '📆') + ' Réservations sur le planning</div>' +
+      '<div style="display:flex;gap:6px;margin:8px 0;">' +
+        bt('eleve', '🙋 Il les pose lui-même', RESA_BLEU) + bt('afaire', '⏳ À faire', 'var(--warn-text)') + bt('faite', '✅ Faite', RESA_ORANGE) + '</div>';
+    if(eleve){
+      h += '<div style="font-size:13px;color:#2D6A9F;line-height:1.5;">Il réserve ses heures lui-même dans Drivup. Rien à poser par le bureau.</div>';
+      bloc.innerHTML = h;
+      return;
+    }
+    h += '<div class="resaListe" style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px;">' +
+      (S.liste.length ? S.liste.map((r, i) => '<span class="resaPuce" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:800;padding:5px 6px 5px 10px;border-radius:9px;' +
+        'background:var(--navy-deep);border:1px solid ' + RESA_ORANGE + ';color:' + RESA_ORANGE_TEXTE + ';">' + calendrierOrangeSvg(14) + ' ' + ech(resaTexte(r)) +
+        '<button type="button" data-ote="' + i + '" aria-label="Retirer ' + ech(resaTexte(r)) + '" style="width:auto;min-height:0;margin:0;padding:0 6px;border:0;background:none;color:var(--muted);font-size:15px;cursor:pointer;">✕</button></span>').join('')
+        : '<span style="font-size:13px;color:var(--muted);">Aucune réservation : touche un jour du calendrier.</span>') + '</div>';
+    if(S.reste){
+      h += '<label style="display:block;font-size:12px;color:var(--muted);margin:0 0 4px;">✏️ Noté à la main</label>' +
+        '<input type="text" class="resaReste" value="' + ech(S.reste) + '" style="margin:0 0 8px;">';
+    }
+    /* le calendrier du mois */
+    const [a, m] = S.mois.split('-').map(Number);
+    const premier = new Date(a, m - 1, 1), nbJ = new Date(a, m, 0).getDate();
+    const decal = (premier.getDay() + 6) % 7;
+    const auj = new Date().toISOString().slice(0, 10);
+    const nomMois = premier.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    h += '<div class="resaCalendrier" style="background:var(--navy-deep);border:1px solid var(--line);border-radius:12px;padding:8px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+        '<button type="button" data-mois="-1" class="btn btn-secondary" aria-label="Mois d’avant" style="width:auto;min-height:0;margin:0;padding:4px 10px;">◀</button>' +
+        '<b style="font-size:14px;text-transform:capitalize;">' + ech(nomMois) + '</b>' +
+        '<button type="button" data-mois="1" class="btn btn-secondary" aria-label="Mois d’après" style="width:auto;min-height:0;margin:0;padding:4px 10px;">▶</button></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:11px;color:var(--muted);font-weight:700;">' +
+        ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => '<div>' + x + '</div>').join('') + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:3px;">';
+    for(let i = 0; i < decal; i++) h += '<div></div>';
+    for(let d = 1; d <= nbJ; d++){
+      const iso = S.mois + '-' + String(d).padStart(2, '0');
+      const passe = iso < auj, choisi = S.jour === iso, pris = S.liste.some(r => r.jour === iso), permis = iso === o.datePermis;
+      /* le dimanche est grisé, mais on peut y poser une leçon (David) */
+      const dim = new Date(a, m - 1, d).getDay() === 0;
+      h += '<button type="button" data-jour="' + iso + '" ' + (passe ? 'disabled ' : '') +
+        'style="margin:0;padding:6px 0;width:100%;min-height:0;border-radius:8px;font-size:13px;font-weight:700;cursor:' + (passe ? 'default' : 'pointer') + ';position:relative;' +
+        (choisi ? 'background:' + RESA_ORANGE + ';color:#fff;border:1px solid ' + RESA_ORANGE + ';'
+          : permis ? 'background:rgba(132,204,22,.18);border:1px solid var(--accent);color:var(--accent-text);'
+          : pris ? 'background:rgba(232,163,61,.16);border:1px solid ' + RESA_ORANGE + ';color:' + RESA_ORANGE_TEXTE + ';'
+          : 'background:transparent;border:1px solid transparent;color:inherit;' + (passe ? 'opacity:.3;' : dim ? 'opacity:.45;' : '')) +
+        '"' + (permis ? ' title="Jour du permis"' : '') + '>' + d + (permis ? '<span style="position:absolute;top:-3px;right:0;font-size:10px;">🏁</span>' : '') + '</button>';
+    }
+    h += '</div>';
+    if(S.jour){
+      h += '<div class="resaCreneaux" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);">' +
+        '<div style="font-size:13px;font-weight:800;margin-bottom:6px;">' + ech(resaTexte({ jour: S.jour, debut: '', fin: '' }).replace(/\s+-$/, '').trim()) + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+        RESA_CRENEAUX.map(([d, f]) => {
+          const on = S.liste.some(r => r.jour === S.jour && r.debut === d && r.fin === f);
+          return '<button type="button" data-cr="' + d + '|' + f + '" class="btn btn-secondary" aria-pressed="' + on + '" style="width:auto;min-height:0;margin:0;padding:7px 11px;font-size:13.5px;font-weight:800;' +
+            (on ? 'background:' + RESA_ORANGE + ';border-color:' + RESA_ORANGE + ';color:#fff;' : '') + '">' + (on ? '✓ ' : '') + resaH(d) + '-' + resaH(f) + '</button>';
+        }).join('') +
+        '<button type="button" data-autre="1" class="btn btn-secondary" style="width:auto;min-height:0;margin:0;padding:7px 11px;font-size:13.5px;">✏️ Autre</button>' +
+        '</div>' +
+        (S.autre ? '<div class="resaAutre" style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">' +
+          '<span style="font-size:13px;">De</span><input type="text" class="resaDe" inputmode="numeric" placeholder="9h" style="width:80px;margin:0;">' +
+          '<span style="font-size:13px;">à</span><input type="text" class="resaA" inputmode="numeric" placeholder="11h" style="width:80px;margin:0;">' +
+          '<button type="button" data-ajout="1" class="btn btn-primary" style="width:auto;min-height:0;margin:0;padding:7px 12px;">Ajouter</button></div>' : '') +
+        '</div>';
+    }
+    h += '</div>';
+    bloc.innerHTML = h;
+  };
+  const lireHeure = t => {
+    const m = String(t || '').trim().match(/^(\d{1,2})\s*(?:[h:]\s*(\d{2})?)?$/i);
+    if(!m || Number(m[1]) > 23 || Number(m[2] || 0) > 59) return '';
+    return String(m[1]).padStart(2, '0') + ':' + String(m[2] || '00').padStart(2, '0');
+  };
+  const poser = (d, f) => {
+    const i = S.liste.findIndex(r => r.jour === S.jour && r.debut === d && r.fin === f);
+    if(i === -1) S.liste.push({ jour: S.jour, debut: d, fin: f }); else S.liste.splice(i, 1);
+    S.liste.sort((x, y) => (x.jour + x.debut).localeCompare(y.jour + y.debut));
+    if(S.liste.length) S.etat = 'faite';
+    else if(S.etat === 'faite' && !S.reste) S.etat = 'afaire';
+  };
+  bloc.addEventListener('input', ev => { if(ev.target.classList.contains('resaReste')) S.reste = ev.target.value; });
+  bloc.addEventListener('click', ev => {
+    const b = ev.target.closest('button');
+    if(!b || !bloc.contains(b)) return;
+    ev.preventDefault();
+    if(b.dataset.etat) S.etat = b.dataset.etat;
+    else if(b.dataset.mois){ const [a, m] = S.mois.split('-').map(Number); const d = new Date(a, m - 1 + Number(b.dataset.mois), 1); S.mois = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+    else if(b.dataset.jour){ S.jour = S.jour === b.dataset.jour ? '' : b.dataset.jour; S.autre = false; }
+    else if(b.dataset.cr){ const [d, f] = b.dataset.cr.split('|'); poser(d, f); }
+    else if(b.dataset.autre) S.autre = !S.autre;
+    else if(b.dataset.ajout){
+      const d = lireHeure(bloc.querySelector('.resaDe').value), f = lireHeure(bloc.querySelector('.resaA').value);
+      if(!d || !f || f <= d){ if(typeof showToast === 'function') showToast('Écris deux heures, par exemple 9h et 11h.'); return; }
+      if(!S.liste.some(r => r.jour === S.jour && r.debut === d && r.fin === f)) poser(d, f);
+      S.autre = false;
+    }
+    else if(b.dataset.ote !== undefined){
+      S.liste.splice(Number(b.dataset.ote), 1);
+      if(!S.liste.length && S.etat === 'faite' && !String(S.reste || '').trim()) S.etat = 'afaire';
+    }
+    else return;
+    dessiner();
+  });
+  dessiner();
+  bloc.valeurs = () => ({
+    resaEtat: S.etat,
+    reservations: S.liste.map(resaTexte).concat(String(S.reste || '').trim() ? [String(S.reste).trim()] : []).join(' · ')
+  });
+  return bloc;
+}
+/* La ligne sous le nom, dans les listes (session dépliée) */
+function etiquetteResaPermis(s){
+  const e = etatResaPermis(s);
+  if(!e) return '';
+  const base = 'display:inline-flex;align-items:center;gap:6px;margin-top:5px;font-size:13px;font-weight:800;line-height:1.45;padding:4px 10px;border-radius:9px;';
+  const ech = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  if(e === 'eleve') return '<div class="resaEtiq" style="' + base + 'background:rgba(59,130,196,.10);color:#2D6A9F;border:1px solid ' + RESA_BLEU + ';">🙋 Il pose lui-même ses heures</div>';
+  if(e === 'faite') return '<div class="resaEtiq" style="' + base + 'background:rgba(232,163,61,.14);color:' + RESA_ORANGE_TEXTE + ';border:1px solid ' + RESA_ORANGE + ';">' +
+    calendrierOrangeSvg(15) + '<span>Réservations faites' + (String(s.reservations || '').trim() ? ' · ' + ech(s.reservations) : '') + '</span></div>';
+  return '<div class="resaEtiq" style="' + base + 'background:rgba(200,60,40,.07);color:var(--warn-text);border:1px solid var(--warn-text);">⏳ Réservations à faire</div>';
+}
+/* Une date de permis lisible en AAAA-MM-JJ (« 18/12/2026 » aussi) */
+function isoDuPermis(t){
+  const v = String(t || '').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  const m = v.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : '';
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
