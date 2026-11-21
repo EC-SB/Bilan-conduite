@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:18 — v1508 */
+/* Déployé le 21/11/2026 à 16:37 — v1542 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -3633,17 +3633,24 @@ async function envoyerRappelManuel(){
         jeton: dernierJetonRappel
       });
     if(heureDuCours) detailsEnvoi.heure = heureDuCours;
+    /* 🔗 v1542 — LES COURS QUI S'ENCHAÎNENT NE FONT QU'UN COURS. David, le
+       21/11 : « crée qu'un seul cours à l'heure du premier, et pareil pour
+       l'affichage : le moniteur ne refait pas un autre cours à la fin de
+       l'heure, il enchaîne sur le même cours dans l'app ». Avant (v1306),
+       chaque suite avait sa carte. Le cours porte maintenant sa fin
+       (« 16h00 → 18h00 · 2 cours enchaînés »). */
+    const derniereSuite = suites.length ? suites[suites.length - 1] : null;
+    const finChaine = derniereSuite ? heureEnHHMM(derniereSuite.fin) : '';
+    if(finChaine){ detailsEnvoi.fin = finChaine; detailsEnvoi.enchaines = suites.length + 1; }
     const moniteurEnvoi = $('rapMoniteur') ? $('rapMoniteur').value : '';
     const jourEnvoi = jourChoisiMaintenant();
     (async () => {
       await preparerDepuisRappel(nom, jourEnvoi, moniteurEnvoi, detailsEnvoi);
-      /* 🔗 v1306 — les cours qui s'enchaînent : un seul rappel, mais
-         chacun son cours dans « Mes prochains cours » */
+      /* le moniteur est pris jusqu'au bout de la chaîne : les élèves
+         suivants de ce rappel le savent (emplacement de la voiture) */
       for(const x of suites){
         const h = heureEnHHMM(x.debut);
-        if(!h) continue;
-        await preparerDepuisRappel(nom, jourEnvoi, moniteurEnvoi, Object.assign({}, detailsEnvoi, { heure: h, options: [], jeton: '' }));
-        noterCoursDuJour(dateDuRappel($('rapJour') ? $('rapJour').value : ''), moniteurEnvoi, h, detailsEnvoi.vehicule || '', nom);
+        if(h) noterCoursDuJour(dateDuRappel($('rapJour') ? $('rapJour').value : ''), moniteurEnvoi, h, detailsEnvoi.vehicule || '', nom);
       }
     })();
 
@@ -4743,7 +4750,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
            celui de demain : son heure, son jeton de confirmation,
            sa marque de « quelqu'un y a répondu ». */
         ['jeton', 'repondu', 'lecon', 'leconMain', 'sansBilan',
-         'premierCours'].forEach(k => { delete acquis[k]; });
+         'premierCours', 'finEnchaine', 'enchaines'].forEach(k => { delete acquis[k]; });
 
         /* Et par-dessus : ce que le suivi et les sessions savent —
            la conclusion d'un post-permis, une date d'examen qui
@@ -4835,6 +4842,14 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       const dep = { sansBilan: true, modele: cle };
       if(jetonRappel) dep.jeton = jetonRappel;
       contexte = JSON.stringify(dep);
+    }
+
+    /* 🔗 v1542 — un cours enchaîné porte sa fin et le nombre de cours */
+    if(details && /^\d{2}:\d{2}$/.test(String(details.fin || '')) && Number(details.enchaines) > 1){
+      const cx = contexteEnObjet(contexte) || {};
+      cx.finEnchaine = details.fin;
+      cx.enchaines = Number(details.enchaines);
+      contexte = JSON.stringify(cx);
     }
 
     const r = await appelPrep({
