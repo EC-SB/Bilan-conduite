@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:54 — v1543 */
+/* Déployé le 21/11/2026 à 17:47 — v1544 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1544,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📅 Les réservations du planning : un calendrier dans la fiche, et le calendrier orange quand elles sont faites',
+    quoi: [
+      { emoji: '📅',
+        titre: 'Réservations sur le planning, sous « Tout est planifié »',
+        texte: 'Dans la fiche d’une place (🎓 Suivi permis) et dans la fiche de préparation de Permis : trois choix, « 🙋 Il les pose lui-même », « ⏳ À faire », « ✅ Faite ». On touche un jour du calendrier puis un créneau (8h-10h, 10h-12h, 13h-15h, 15h-17h, 17h-19h ou ✏️ Autre) : il se pose, et la réservation passe en « Faite ». Le ✕ retire un créneau. « 📆 Tout est planifié » coché : le bloc disparaît.' },
+      { emoji: '🟧',
+        titre: 'Le calendrier orange dans les listes',
+        texte: 'Au bout du prénom et dans les repères de Permis : 📆 réservations à faire, le calendrier orange quand elles sont faites, 🙋 quand il pose lui-même ses heures, rien quand tout est planifié. Session dépliée : « ⏳ Réservations à faire », « Réservations faites · les dates » ou « 🙋 Il pose lui-même ses heures ».' }
+    ]
+  },
   {
     version: 1543,
     date: 'Samedi 21 novembre 2026',
