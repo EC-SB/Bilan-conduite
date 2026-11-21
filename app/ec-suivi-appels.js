@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 15:45 — v1516 */
+/* Déployé le 21/11/2026 à 16:14 — v1540 */
 /* ============================================================
    ec-suivi-appels.js — 📞 LE SUIVI DES APPELS (ALLO)
 
@@ -1657,7 +1657,67 @@ function blocNumerosEC(tous, liste, auj){
   return w;
 }
 
+/* 📞 v1540 — L'ORDRE DU FIL, CHOISI PAR CHACUN. David, le 21/11 : « inverse
+   les résumés d'appel, les derniers en haut et on descend pour voir les
+   précédents ; sous forme de bouton le dernier en premier ou les derniers en
+   dernier ; un réglage pour tous les appels, par utilisateur ». Le plus
+   récent en haut par défaut ; le choix vaut pour toutes les fiches (suivi et
+   dossier), il est gardé au Worker pour la personne (tous ses appareils) et
+   dans le navigateur pour s'afficher tout de suite. */
+const ORDRE_APPELS_EC = { ordre: null, lu: false };
+function cleOrdreAppelsEC(){ return 'ec_appels_ordre:' + String((typeof ACCES !== 'undefined' && ACCES && (ACCES.moniteur || ACCES.nom)) || ''); }
+function ordreAppelsEC(){
+  if(ORDRE_APPELS_EC.ordre) return ORDRE_APPELS_EC.ordre;
+  let v = '';
+  try{ v = localStorage.getItem(cleOrdreAppelsEC()) || ''; }catch(e){}
+  ORDRE_APPELS_EC.ordre = v === 'ancien' ? 'ancien' : 'recent';
+  if(!ORDRE_APPELS_EC.lu){
+    ORDRE_APPELS_EC.lu = true;
+    appelPrep({ action: 'appelsOrdre' }).then(r => {
+      const o = r && r.ordre === 'ancien' ? 'ancien' : (r && r.ordre === 'recent' ? 'recent' : '');
+      if(!o || o === ORDRE_APPELS_EC.ordre) return;
+      ORDRE_APPELS_EC.ordre = o;
+      try{ localStorage.setItem(cleOrdreAppelsEC(), o); }catch(e){}
+      document.querySelectorAll('.fxF').forEach(f => { if(typeof f.__redessiner === 'function') f.__redessiner(); });
+    }).catch(() => {});
+  }
+  return ORDRE_APPELS_EC.ordre;
+}
+function poserOrdreAppelsEC(o){
+  ORDRE_APPELS_EC.ordre = o === 'ancien' ? 'ancien' : 'recent';
+  try{ localStorage.setItem(cleOrdreAppelsEC(), ORDRE_APPELS_EC.ordre); }catch(e){}
+  appelPrep({ action: 'appelsOrdrePoser', ordre: ORDRE_APPELS_EC.ordre }).catch(() => {});
+  document.querySelectorAll('.fxF').forEach(f => { if(typeof f.__redessiner === 'function') f.__redessiner(); });
+}
+function barreOrdreAppelsEC(){
+  const b = apEl('div', 'fxOrdre');
+  b.setAttribute('role', 'group');
+  b.setAttribute('aria-label', 'Ordre des appels');
+  const o = ordreAppelsEC();
+  [['recent', '⬆️ Le dernier en premier'], ['ancien', '⬇️ Le dernier en dernier']].forEach(([cle, txt]) => {
+    const x = apEl('button', 'fxOrdreB' + (o === cle ? ' on' : ''), txt);
+    x.type = 'button';
+    x.setAttribute('aria-pressed', o === cle ? 'true' : 'false');
+    x.addEventListener('click', () => { if(ordreAppelsEC() !== cle) poserOrdreAppelsEC(cle); });
+    b.appendChild(x);
+  });
+  return b;
+}
+
 function ficheNumeroEC(g, tousDuNumero, o){
+  let ici = ficheNumeroDessinEC(g, tousDuNumero, o);
+  /* redessinée sur place, autant de fois qu'on change l'ordre */
+  const redessiner = () => {
+    if(!ici.isConnected) return;
+    const n = ficheNumeroDessinEC(g, tousDuNumero, o);
+    n.__redessiner = redessiner;
+    ici.replaceWith(n);
+    ici = n;
+  };
+  ici.__redessiner = redessiner;
+  return ici;
+}
+function ficheNumeroDessinEC(g, tousDuNumero, o){
   o = o || {};
   const auj = o.auj || apAujourdhui();
   const appels = (tousDuNumero && tousDuNumero.length ? tousDuNumero : g.appels).slice().sort((x, y) => Number(x.quand || 0) - Number(y.quand || 0));
@@ -1744,12 +1804,15 @@ function ficheNumeroEC(g, tousDuNumero, o){
     f.appendChild(Object.assign(document.createElement('div'), { className: 'fxAlerte ok',
       textContent: '✅ Rappelé ' + (r.jour === auj ? 'à ' : 'le ' + apJourCourt(r.jour) + ' à ') + r.heure + (r.statutPar ? ' par ' + r.statutPar : '') + (st ? ' — ' + st.emoji + ' ' + st.nom : '') }));
   }
-  /* le fil, jour par jour, du plus ancien au plus récent (comme une conversation) */
+  /* le fil, jour par jour : 📞 v1540 — le plus récent en haut (par défaut) ou
+     du plus ancien au plus récent (comme une conversation), au choix de chacun */
+  if(appels.length > 1) f.appendChild(barreOrdreAppelsEC());
+  const recentEnHaut = ordreAppelsEC() === 'recent';
   const fil = document.createElement('div');
   fil.className = 'fxFil';
   let jour = null;
   const hier = apPlusJours(auj, -1);
-  appels.forEach(a => {
+  (recentEnHaut ? appels.slice().reverse() : appels).forEach(a => {
     if(a.jour !== jour){
       jour = a.jour;
       fil.appendChild(Object.assign(document.createElement('div'), { className: 'fxDj',
@@ -1784,8 +1847,8 @@ function ficheNumeroEC(g, tousDuNumero, o){
     fil.appendChild(bu);
   });
   f.appendChild(fil);
-  /* le plus récent à l'écran : on descend au bas du fil une fois posé */
-  setTimeout(() => { try{ if(fil.scrollHeight > fil.clientHeight) fil.scrollTop = fil.scrollHeight; }catch(e){} }, 0);
+  /* le plus récent à l'écran : en haut, ou au bas du fil une fois posé */
+  setTimeout(() => { try{ if(recentEnHaut) fil.scrollTop = 0; else if(fil.scrollHeight > fil.clientHeight) fil.scrollTop = fil.scrollHeight; }catch(e){} }, 0);
   return f;
 }
 
