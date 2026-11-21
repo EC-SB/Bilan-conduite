@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 15:24 — v1537 */
+/* Déployé le 21/11/2026 à 15:57 — v1539 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -531,6 +531,11 @@ async function lectureDeVeilleDrivup(p, parExtension){
     if(parExtension && (complete || bouges.size)){
       try{ notes = await notesDeVeilleDrivup(parts.lignes, complete ? bouges : bouges, !complete); }catch(e){ VEILLE_DV.erreurIci = 'notes : ' + ((e && e.message) || e); }
     }
+    /* 📅 v1538 — les cours préparés suivent Drivup : un cours du jour ajouté
+       sans rappel se prépare tout seul, un moniteur changé suit */
+    if(parExtension){
+      try{ await preparationsDeVeilleDrivup(p, parts); }catch(e){ VEILLE_DV.erreurIci = 'cours préparés : ' + ((e && e.message) || e); }
+    }
     /* 📆 v1536 — le planning de leur fiche Drivup : chaque jour pour les élèves
        en formation (un cours lu), tout de suite pour ceux dont un cours a bougé */
     if(parExtension){
@@ -709,6 +714,134 @@ async function notesDeVeilleDrivup(lignes, bouges, seulementBouges){
     n += (r && r.reprises) || 0;
   }
   return n;
+}
+
+/* 📅 v1538 — LES COURS PRÉPARÉS SUIVENT DRIVUP. David, le 21/11 : « je
+   viens d'ajouter un cours sur le planning d'aujourd'hui de Chrystel et il
+   n'apparaît pas sur l'affichage ». L'Affichage et « Mes prochains cours »
+   ne montrent que les cours préparés, et un cours se prépare quand le bureau
+   envoie les rappels la veille : un cours ajouté ensuite n'existait nulle
+   part. Ses choix :
+   · « s'il n'est pas dans les prochains cours d'un moniteur, ça doit le
+     préparer tout seul » — seulement les cours du JOUR (ceux de demain
+     attendent leur rappel, qui porte le lien de confirmation), d'un moniteur
+     et d'un élève connus de l'App, pas commencés depuis 15 minutes, sans
+     examen ; préparés comme par un rappel (preparerDepuisRappel), sans rien
+     envoyer à l'élève, avec la voiture lue dans Drivup ;
+   · « il se peut qu'un élève change de moniteur sur Drivup et il a déjà eu
+     son rappel : il faut que ça change dans Mes prochains cours » — tous les
+     cours à venir, réattribués (prepAssign) au moniteur de Drivup.
+   Seul l'ordinateur qui lit Drivup le fait (la lecture par l'extension). */
+async function preparationsDeVeilleDrivup(p, parts){
+  if(typeof preparerDepuisRappel !== 'function' || typeof appelPrep !== 'function') return { prepares: 0, reattribues: 0 };
+  const auj = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+  const hNow = (() => { const t = new Date().toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false }); const m = t.match(/(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : 0; })();
+  const minDe = h => { const m = String(h || '').match(/^(\d{1,2})[:h](\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+  const nom = n => (typeof normaliserMot === 'function' ? normaliserMot(String(n || '')) : String(n || '').toLowerCase().trim());
+  const heureNote = n => { const m = String(n || '').match(/🕐\s*(\d{1,2})\s*h\s*(\d{2})?/); return m ? ('0' + m[1]).slice(-2) + ':' + (m[2] || '00') : ''; };
+  const lecons = ((parts && parts.lignes) || []).filter(l => l && l.jour >= auj && !l.examen && l.moniteur && l._fiche && l.eleve);
+  if(!lecons.length) return { prepares: 0, reattribues: 0 };
+  const d = await appelPrep({ action: 'prepList' });
+  const preps = ((d && d.preparations) || []).filter(x => x && x.date >= auj);
+  const prepsDe = (eleve, jour) => preps.filter(x => nom(x.eleve) === nom(eleve) && x.date === jour);
+  const leconsDe = (eleve, jour) => lecons.filter(l => nom(l.eleve) === nom(eleve) && l.jour === jour);
+  let reattribues = 0, prepares = 0;
+  const vus = {}, journal = [];
+  const dateDite = j => (typeof dateLisibleDrivup === 'function' ? dateLisibleDrivup(j) : j);
+  for(const l of lecons){
+    const cle = nom(l.eleve) + '|' + l.jour + '|' + l.debut;
+    if(vus[cle]) continue;
+    vus[cle] = 1;
+    const ps = prepsDe(l.eleve, l.jour), ls = leconsDe(l.eleve, l.jour);
+    const pr = ps.find(x => heureNote(x.note) === l.debut) || (ps.length === 1 && ls.length === 1 ? ps[0] : null);
+    /* le moniteur a changé dans Drivup : le cours préparé suit */
+    if(pr){
+      if(nom(pr.moniteur) !== nom(l.moniteur) && pr.modele !== 'examen-officiel'){
+        try{
+          await appelPrep({ action: 'prepAssign', id: pr.id, moniteur: l.moniteur });
+          journal.push({ sorte: 'cours_moniteur', eleve: l.eleve, titre: '🔁 Mes prochains cours : moniteur changé',
+                         detail: dateDite(l.jour) + ' ' + l.debut.replace(':', 'h') + ' · ' + (pr.moniteur || '—') + ' → ' + l.moniteur });
+          pr.moniteur = l.moniteur;
+          reattribues++;
+          if(typeof prepares !== 'undefined' && Array.isArray(prepares)){
+            const m = prepares.find(y => String(y.id) === String(pr.id));
+            if(m) m.moniteur = l.moniteur;
+          }
+        }catch(e){ /* la prochaine lecture réessaiera */ }
+      }
+      continue;
+    }
+    /* pas préparé : seulement aujourd'hui, et pas déjà parti depuis 15 minutes */
+    if(l.jour !== auj) continue;
+    const dm = minDe(l.debut);
+    if(dm === null || dm + 15 <= hNow) continue;
+    const heuresPreparees = ps.map(x => heureNote(x.note));
+    if(ps.length >= ls.length || heuresPreparees.indexOf(l.debut) !== -1) continue;
+    const details = { heure: l.debut, options: [], jeton: '', lieu: '' };
+    const t = typeDuCoursPourRappelDrivup(l);
+    if(t){ details.type = t.cle; details.titreType = t.titre; }
+    if(!/simulateur/.test(sansAccentDrivup(l.libelle || ''))){
+      try{
+        const v = await voitureDuCoursPourRappelDrivup(l, p);
+        if(v) details.vehicule = v;
+      }catch(e){ /* sans voiture */ }
+    }
+    try{
+      const ok = await preparerDepuisRappel(l.eleve, auj, l.moniteur, details);
+      if(ok){
+        prepares++;
+        journal.push({ sorte: 'cours_prepare', eleve: l.eleve, titre: '📅 Cours du jour préparé tout seul',
+                       detail: 'aujourd’hui ' + l.debut.replace(':', 'h') + ' avec ' + l.moniteur + (details.vehicule ? ' · ' + details.vehicule : '') + ' (ajouté dans Drivup après les rappels)' });
+        preps.push({ id: '', eleve: l.eleve, date: auj, note: '🕐 ' + l.debut.replace(':', 'h'), moniteur: l.moniteur });
+      }
+    }catch(e){ /* la prochaine lecture réessaiera */ }
+  }
+  if(journal.length){ try{ await appelPrep({ action: 'drivupJournal', entrees: journal }); }catch(e){ /* le journal manquera */ } }
+  return { prepares: prepares, reattribues: reattribues };
+}
+/* Le type de séance d'un cours lu dans Drivup, comme « Rappels de cours »
+   le choisit (typeDepuisDrivupRappel) : examen blanc, simulateur ou
+   conduite, puis la ville du cours et la boîte de l'élève. */
+function typeDuCoursPourRappelDrivup(l){
+  if(typeof typesDisponibles !== 'function' || typeof genreDuTypeRappel !== 'function') return null;
+  const lib = sansAccentDrivup(l.libelle || '');
+  const voulu = /examen blanc/.test(lib) ? 'blanc' : /simulateur/.test(lib) ? 'simu' : /conduite/.test(lib) ? 'conduite' : '';
+  if(!voulu) return null;
+  const titre = o => (typeof titreAfficheRappel === 'function' ? titreAfficheRappel(o.titre || '') : String(o.titre || ''));
+  const candidats = (typesDisponibles() || []).filter(o => o && o.cle && genreDuTypeRappel(o.titre || '') === voulu);
+  if(!candidats.length) return null;
+  const ville = /loudeac/.test(sansAccentDrivup((l.agence || '') + ' ' + lib)) ? 'loudeac' : /brieuc/.test(sansAccentDrivup((l.agence || '') + ' ' + lib)) ? 'brieuc' : '';
+  const boite = typeof boiteDeLEleveRappel === 'function' ? boiteDeLEleveRappel(l.eleve) : '';
+  const score = o => {
+    const t = sansAccentDrivup(titre(o));
+    let n = 0;
+    if(ville && t.indexOf(ville) !== -1) n += 4;
+    if(ville && /loudeac|brieuc/.test(t) && t.indexOf(ville) === -1) n -= 4;
+    if(boite === 'bva' && /\bbea\b|auto/.test(t)) n += 2;
+    if(boite === 'bvm' && /\bbv\b|manuel/.test(t)) n += 2;
+    if(boite === 'bva' && /\bbv\b|manuel/.test(t)) n -= 2;
+    if(boite === 'bvm' && /\bbea\b|auto/.test(t)) n -= 2;
+    return n;
+  };
+  let mieux = candidats[0], haut = score(mieux);
+  candidats.forEach(o => { const n = score(o); if(n > haut){ haut = n; mieux = o; } });
+  return { cle: mieux.cle, titre: mieux.titre || '' };
+}
+/* La voiture d'un cours lu dans Drivup (le numéro posé dans sa colonne),
+   sinon la voiture attitrée du moniteur — comme « Rappels de cours » */
+async function voitureDuCoursPourRappelDrivup(l, p){
+  if(typeof voitureDuCoursDrivupRappel !== 'function' || typeof chargerFlotteRappel !== 'function') return '';
+  if(typeof estLoudeacDr === 'function' && estLoudeacDr(l)) return '';
+  const flotte = await chargerFlotteRappel();
+  const boite = typeof boiteDeLEleveRappel === 'function' ? boiteDeLEleveRappel(l.eleve) : '';
+  const voitures = ((p && p.voitures) || []).map(v => Object.assign({ jour: v.jour }, v));
+  let trouve = voitures.length ? voitureDuCoursDrivupRappel(l, voitures, flotte, boite) : null;
+  if(!trouve && typeof voitureAttitreeRappel === 'function' && typeof vehiculeDuNumeroDrivup === 'function'){
+    const n = voitureAttitreeRappel(l.moniteur, boite);
+    const veh = n ? vehiculeDuNumeroDrivup(flotte, n) : null;
+    if(veh) trouve = { veh: veh };
+  }
+  return (trouve && trouve.veh && trouve.veh.nom) || '';
 }
 
 /* 📆 v1536 — LE PLANNING DE LEUR FICHE DRIVUP, UNE FOIS PAR JOUR. David, le
