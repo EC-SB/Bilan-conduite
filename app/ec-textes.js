@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 13:54 — v1482 */
+/* Déployé le 21/11/2026 à 11:58 — v1527 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -1193,6 +1193,8 @@ function bibliothequeLarge(){
    marche partout, et il n'impose aucune découpe au texte.
    ============================================================ */
 async function copierDansLePressePapier(txt){
+  /* 🔗 v1527 — [mot](adresse) devient « mot (adresse) » une fois copié */
+  if(typeof liensMdEnTexte === 'function') txt = liensMdEnTexte(txt);
   try{
     await navigator.clipboard.writeText(txt);
     return true;
@@ -3666,7 +3668,16 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
   /* 🔗 v1407 — « Lien élève » : la ligne d'une étape de l'espace élève,
      là où est le curseur (toutes les fiches) */
   if(!verrou){
-    const bLien = geste('🔗 Lien élève', 'Insérer un lien vers une étape de l’espace élève', () => insererLienEleveDans(g('mdContenu')));
+    /* 🔗 v1527 — David : « qu'on puisse mettre des hyperliens » (le mot
+       sélectionné devient cliquable) et « dans Lien élève, un lien vers
+       n'importe où dans l'app » (une page de son espace, une étape, ou un
+       écran de l'App équipe) — ec-liens.js */
+    const bHyper = geste('🔗 Lien', 'Sélectionne un mot : il devient un lien vers l’adresse que tu colles', () =>
+      (typeof insererHyperlienDans === 'function') ? insererHyperlienDans(g('mdContenu')) : null);
+    bHyper.dataset.hyperlien = '1';
+    if(pied.querySelector('.sup')) pied.insertBefore(bHyper, pied.querySelector('.sup'));
+    const bLien = geste('🔗 Lien élève', 'Un lien vers une page ou une étape de l’espace élève, ou vers un écran de l’App', () =>
+      (typeof insererLienPartoutDans === 'function') ? insererLienPartoutDans(g('mdContenu')) : insererLienEleveDans(g('mdContenu')));
     bLien.dataset.lienEleve = '1';
     if(pied.querySelector('.sup')) pied.insertBefore(bLien, pied.querySelector('.sup'));
   }
