@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 11:58 — v1527 */
+/* Déployé le 21/11/2026 à 13:55 — v1532 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -4333,11 +4333,38 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
 
   /* 📄 v1299 — LE TEXTE EN ENTIER : la case prend la hauteur du texte,
      elle ne défile jamais à l'intérieur */
+  /* ⚠️ v1532 — ET L'ÉCRAN NE REMONTE PLUS. David, le 21/11 : « quand on
+     appuie sur Entrée la fenêtre remonte et on ne voit plus ce qu'on
+     écrit, ou même quand on modifie à un endroit ». Pour mesurer, la case
+     repasse un instant à « auto » (toute petite) : la fenêtre qui défile
+     (la boîte de la fiche, ou la page en ligne) se retrouvait trop courte
+     et remontait d'un coup. On garde où chacune en était, on la remet, et
+     si on écrit tout en bas, on suit le curseur. */
   const grandir = () => {
     const t = g('mdContenu');
     if(!t) return;
+    const gardes = [];
+    for(let e = t.parentElement; e; e = e.parentElement){
+      if(e.scrollHeight > e.clientHeight + 1) gardes.push([e, e.scrollTop]);
+    }
+    const se = document.scrollingElement || document.documentElement;
+    const wy = se.scrollTop;
     t.style.height = 'auto';
     t.style.height = Math.max(160, t.scrollHeight + 2) + 'px';
+    gardes.forEach(([e, s]) => { if(e.scrollTop !== s) e.scrollTop = s; });
+    if(se.scrollTop !== wy) se.scrollTop = wy;
+    /* le curseur dans les dernières lignes : il reste visible */
+    if(document.activeElement === t && t.value.length - t.selectionEnd < 80){
+      const bas = t.getBoundingClientRect().bottom;
+      const g0 = gardes.find(([e]) => e !== se && e !== document.body && /(auto|scroll)/.test(getComputedStyle(e).overflowY));
+      const zone = g0 ? g0[0] : null;
+      const limite = zone ? zone.getBoundingClientRect().bottom : window.innerHeight;
+      const depasse = bas - limite + 12;
+      if(depasse > 0){
+        if(zone) zone.scrollTop += depasse;
+        else se.scrollTop += depasse;
+      }
+    }
   };
   g('mdContenu').addEventListener('input', grandir);
   setTimeout(grandir, 0);
