@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:08 — v1519 */
+/* Déployé le 21/11/2026 à 15:57 — v1539 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -997,13 +997,14 @@ function blocDrivupALancerEtg(){
   appelPrep({ action: 'codeAVenir' }).then(r => {
     const tous = (r && r.creneaux) || [];
     const cr = tous.filter(coursEncoreALancerEtg);
+    const ensuite = prochainsCoursDeCodeEtg((r && r.prochains) || []);
     if(tous.length && !cr.length){
-      z.innerHTML = '<div class="cdAide">✅ Les cours de code du jour sont lancés : plus rien à annoncer.</div>';
+      z.innerHTML = '<div class="cdAide">✅ Les cours de code du jour sont lancés : plus rien à annoncer.</div>' + ensuite;
       return;
     }
     if(!cr.length){
       z.innerHTML = '<div class="cdAide">📅 Aucun cours de code réservé aujourd’hui dans Drivup' +
-        (r && r.lu ? ' (planning lu le ' + echapEtg(r.lu) + ')' : ' — relis le planning avec le favori 📥 pour les voir ici') + '.</div>';
+        (r && r.lu ? ' (planning lu le ' + echapEtg(r.lu) + ')' : ' — relis le planning avec le favori 📥 pour les voir ici') + '.</div>' + ensuite;
       return;
     }
     z.innerHTML = cr.map(c => {
@@ -1028,9 +1029,25 @@ function blocDrivupALancerEtg(){
       return '<div class="slot"><div class="h">' + quoi + ' · aujourd’hui ' + echapEtg(String(c.debut).replace(':', 'h')) + '</div>' +
         '<div class="qui">📅 Drivup : ' + nb + ' réservé' + (nb > 1 ? 's' : '') + ' — ' + c.eleves.map(echapEtg).join(' · ') + '</div>' +
         '<div class="cons">' + cons + '</div></div>';
-    }).join('') + '<div class="cdAide">Tu annonces la séance : chaque élève l’ouvre sur son espace (ou scanne son QR code). Rien à lancer ici.</div>';
+    }).join('') + '<div class="cdAide">Tu annonces la séance : chaque élève l’ouvre sur son espace (ou scanne son QR code). Rien à lancer ici.</div>' + ensuite;
   }).catch(() => { z.innerHTML = ''; });
   return z;
+}
+/* 📅 v1538 — LES PROCHAINS COURS DE CODE (les deux semaines qui suivent),
+   avec leurs réservés. David, le 21/11 : « un élève qui s'inscrit au code,
+   on doit le voir dans les prochains cours de code dans l'onglet Code ».
+   Relus à chaque lecture de Drivup (toutes les 15 minutes par l'extension). */
+function prochainsCoursDeCodeEtg(l){
+  if(!l.length) return '<div class="cdAide">📅 Pas d’autre cours de code réservé dans Drivup sur les deux semaines à venir.</div>';
+  let jour = '';
+  const lignes = l.map(c => {
+    const t = (c.jour !== jour ? '<div class="h" style="margin-top:8px">📅 ' + echapEtg(typeof dateLisibleDrivup === 'function' ? dateLisibleDrivup(c.jour) : c.jour) + '</div>' : '');
+    jour = c.jour;
+    const quoi = c.genre === 'visio' ? '🎥 Visio' : '🏫 ETG en salle' + (c.agence ? ' · ' + echapEtg(c.agence) : '');
+    return t + '<div class="qui">' + echapEtg(String(c.debut).replace(':', 'h')) + ' · ' + quoi + ' — ' + c.eleves.length + ' réservé' + (c.eleves.length > 1 ? 's' : '') +
+      ' : ' + c.eleves.map(echapEtg).join(' · ') + '</div>';
+  }).join('');
+  return '<div class="slot cdProchains"><div class="h">📅 Les prochains cours de code</div>' + lignes + '</div>';
 }
 
 /* ---------- ✍️ LES ARDOISES ---------- */
