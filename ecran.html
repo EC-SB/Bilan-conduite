@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 07/11/2026 à 17:00 — v1386 -->
+<!-- Déployé le 21/11/2026 à 16:37 — v1542 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -172,6 +172,9 @@
     font-variant-numeric:tabular-nums;
   }
   .cours .h.vide{ color:var(--muted); font-weight:400; font-size:19px; }
+  /* 🔗 v1542 — un cours enchaîné : sa fin sous l'heure */
+  .cours .h .hf{ display:block; font-size:16px; font-weight:700; color:var(--muted); white-space:nowrap; }
+  #imminent .bh .bhf{ font-size:.5em; color:var(--muted); margin-left:.25em; white-space:nowrap; }
   .cours .e{
     flex:1; min-width:0; font-weight:700;
     white-space:nowrap;
@@ -1031,7 +1034,8 @@ function dessinerPlanning(liste){
 
     return '<div class="cours">' +
       '<span class="h' + (c.heure ? '' : ' vide') + '">' +
-        (c.heure ? c.heure.replace(':', 'h') : '—') + '</span>' +
+        (c.heure ? c.heure.replace(':', 'h') : '—') +
+        (c.heure && finEnchaine(c) ? '<span class="hf">→ ' + echapper(finEnchaine(c).replace(':', 'h')) + '</span>' : '') + '</span>' +
       '<span class="e">' + echapper(c.eleve) +
         '<span class="mn">' + echapper(c.moniteur || '') + '</span>' +
         (REG_EC.on && REG_EC.liste && ec.length ? '<span class="ec">' + echapper(REG_EC.mot) + ' : ' + ec.map(echapper).join(' · ') + '</span>' : '') +
@@ -1049,6 +1053,12 @@ function dessinerPlanning(liste){
 
 function echapper(t){
   return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+/* 🔗 v1542 — la fin d'un cours enchaîné (plusieurs créneaux, un seul
+   cours) : « 18:00 », ou '' */
+function finEnchaine(c){
+  const f = String((c && c.fin) || '');
+  return /^\d{2}:\d{2}$/.test(f) && (!c.heure || f > String(c.heure)) ? f : '';
 }
 
 
@@ -1082,7 +1092,8 @@ function blocImminent(c){
   const ec = REG_EC.on ? (c.ecoutes || []) : [];
   const noms = ec.map(echapper).join(' · ');
   return '<div class="bloc">' +
-    '<div class="bh">' + (c.heure ? echapper(c.heure.replace(':', 'h')) : '') + '</div>' +
+    '<div class="bh">' + (c.heure ? echapper(c.heure.replace(':', 'h')) : '') +
+      (c.heure && finEnchaine(c) ? '<span class="bhf">→ ' + echapper(finEnchaine(c).replace(':', 'h')) + '</span>' : '') + '</div>' +
     '<div class="be">' + echapper(c.eleve) + '</div>' +
     (ec.length && REG_EC.ou === 'nom' ? '<div class="bec2">' + echapper(REG_EC.mot) + ' : <b>' + noms + '</b></div>' : '') +
     (c.moniteur ? '<div class="bm">avec ' + echapper(c.moniteur) + '</div>' : '') +
@@ -1126,7 +1137,7 @@ function majImminents(){
   /* On ne redessine que si quelque chose a changé : sans cela la
      carte se reconstruirait toutes les dix secondes, et l'élève
      verrait son nom clignoter. */
-  const neuf = liste.map(c => [c.id, c.heure, c.eleve, c.moniteur,
+  const neuf = liste.map(c => [c.id, c.heure, c.fin || '', c.eleve, c.moniteur,
                                c.vehicule, c.lieu, c.auGarage, (c.ecoutes || []).join(',')].join('|')).join('§') +
                '§' + JSON.stringify(REG_EC) + '§' + sans.map(x => x.heure + x.eleve).join(',');
   if(neuf !== signatureImminent){
