@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:37 — v1542 */
+/* Déployé le 21/11/2026 à 16:54 — v1543 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1543,
+    date: 'Samedi 21 novembre 2026',
+    resume: '🗑️ Un cours retiré de Drivup quitte « Mes prochains cours » et l’Affichage tout seul',
+    quoi: [
+      { emoji: '🗑️',
+        titre: 'Plus dans Drivup, plus dans l’App',
+        texte: 'À la lecture automatique de Drivup, un cours préparé qui n’est plus sur le planning est retiré de « Mes prochains cours » et de l’Affichage, et c’est noté dans « 🔔 Du nouveau dans Drivup ». Un cours déplacé à un autre jour : l’ancien s’en va, le nouveau se prépare comme les autres. Une heure changée le même jour ne retire rien.' },
+      { emoji: '🛡️',
+        titre: 'Ce qui n’est jamais retiré',
+        texte: 'Un examen, un examen blanc, un rendez-vous (post-permis, préalable…), un cours déjà commencé ou dont la fiche est commencée, un élève dont la fiche n’a pas son numéro Drivup, et rien quand la lecture n’a pas tout lu.' }
+    ]
+  },
   {
     version: 1542,
     date: 'Samedi 21 novembre 2026',
