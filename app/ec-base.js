@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 11:31 — v1509 */
+/* Déployé le 21/11/2026 à 12:47 — v1529 */
 /* ============================================================
    ec-base.js — v1503 (v1474 pour la première version)
    🗄️ LA BASE DE L'APPLI — Gestion › L'outil › 🗄️ Base (admins)
@@ -181,7 +181,16 @@ const BASE_FAMILLES = [
     { action: 'baseCoutsIA', logo: '🤖', nom: 'Coûts de l’IA', mot: 'les coûts de l’IA', unite: 'ligne',
       aide: 'Le coût de chaque génération. Relue une fois l’heure.' },
     { action: 'baseSms', logo: '💬', nom: 'SMS et mails envoyés', mot: 'les SMS et mails envoyés', unite: 'envoi',
-      aide: 'Le journal des envois. Relue une fois l’heure.' } ] }
+      aide: 'Le journal des envois. Relue une fois l’heure.' } ] },
+  /* 📦 v1529 — les trois qui portaient des images ou des tracés : elles
+     n'entrent dans D1 qu'une fois légères (voir « 📦 Ranger dans R2 ») */
+  { nom: 'Images et tracés', demenager: true, feuilles: [
+    { action: 'baseCaptures', lourde: true, logo: '📷', nom: 'Captures', mot: 'les captures du CEPC et des fiches', unite: 'capture',
+      aide: 'Les captures du CEPC de chaque élève, et les anciennes images des fiches. L’image elle-même est dans R2, la case ne garde que sa clé.' },
+    { action: 'baseProcCorriger', lourde: true, logo: '🖍️', nom: 'Procédures à corriger', mot: 'les procédures à corriger', unite: 'procédure',
+      aide: 'Les procédures envoyées par les élèves à corriger, avec leur capture (rangée dans R2).' },
+    { action: 'baseTrajets', lourde: true, logo: '🛰️', nom: 'Tracés GPS', mot: 'les tracés GPS des cours', unite: 'trajet',
+      aide: 'Le tracé de chaque cours, gardé deux mois (le tracé lui-même dans R2). Relue une fois l’heure.' } ] }
 ];
 const BASE_TOUTES = [].concat.apply([], BASE_FAMILLES.map(f => f.feuilles));
 const bEtat = {};          /* action → dernière réponse du serveur */
@@ -214,6 +223,7 @@ function bSousTexte(def, d){
   const n = Number(d.fiches || 0);
   if(d.actif) return n.toLocaleString('fr-FR') + ' ' + uniteBase(def, n) + ' · dans D1 depuis le ' + baseJour(d.depuis);
   if(d.coupe) return 'coupé le ' + baseJour(d.depuis) + (d.detail ? ' par ' + d.detail : '') + ' — lu dans la feuille Google';
+  if(def.lourde) return 'encore dans la feuille Google : passe dans D1 la nuit vers 3 h une fois ses images et ses tracés rangés dans R2 (📦 plus bas)';
   return 'encore dans la feuille Google : passe dans D1 cette nuit vers 3 h, ou tout de suite avec l’interrupteur';
 }
 function bLigneFeuille(def){
@@ -228,6 +238,7 @@ function bLigneFeuille(def){
     h += '<div class="bsDetail"><div class="cdAide">' + bEch(def.aide) + (d.actif
       ? ' Lu et écrit dans D1, recopié dans la feuille Google juste après chaque changement, comparé chaque nuit vers 3 h.'
       : d.coupe ? ' Coupé : l’appli le lit et l’écrit dans la feuille Google, comme avant. La nuit ne le rallume pas : seul l’interrupteur le remet dans D1.'
+                : def.lourde ? ' Encore lu dans la feuille Google. Il passera dans D1 une fois ses images et ses tracés rangés dans R2 (📦 plus bas) : la nuit vers 3 h, ou avec l’interrupteur.'
                 : ' Encore lu dans la feuille Google. Il passera dans D1 cette nuit vers 3 h, ou tout de suite avec l’interrupteur.') + '</div>';
     if(d.message || d.erreur) h += '<div class="baseMsg' + (d.erreur ? ' baseKo' : '') + '">' + bEch(d.erreur ? '⚠️ ' + d.erreur : d.message) + '</div>';
     const sv = (d.sauvegardes || []).slice(0, 6);
@@ -310,6 +321,112 @@ function bDetailArchive(){
   return h;
 }
 
+/* ============================================================
+   📦 v1529 — RANGER DANS R2 CE QUI PÈSE DANS LES FEUILLES
+   Les images (Captures, Procédures à corriger) et les tracés GPS
+   (Trajets) encore écrits dans les cases partent dans R2, lot par lot
+   (baseDemenager). Les feuilles ne gardent que la clé ; ensuite
+   seulement, elles peuvent passer dans D1 (la bascule refuse une
+   feuille trop lourde).
+   ============================================================ */
+const DEM_FEUILLES = [
+  { feuille: 'Captures', nom: 'Captures', quoi: 'images' },
+  { feuille: 'ProcAcorriger', nom: 'Procédures à corriger', quoi: 'images' },
+  { feuille: 'Trajets', nom: 'Tracés GPS', quoi: 'tracés' }
+];
+const bDem = { d: null, en: '' };   /* d : la dernière réponse ; en : ce qui tourne */
+function bDemFini(b){ return !!(b && b.feuilles && DEM_FEUILLES.every(x => b.feuilles[x.feuille] && b.feuilles[x.feuille].fini)); }
+function bDemComptes(b){
+  const F = (b && b.feuilles) || {};
+  let im = 0, tr = 0, ill = 0;
+  DEM_FEUILLES.forEach(x => {
+    const f = F[x.feuille]; if(!f) return;
+    if(x.quoi === 'tracés') tr += Number(f.rangees || 0); else im += Number(f.rangees || 0) + Number(f.fiches || 0);
+    ill += Number(f.illisibles || 0);
+  });
+  return { im, tr, ill };
+}
+function bLigneDemenager(){
+  const ouvert = !!bOuvert.demenager;
+  const d = bDem.d, b = d && d.bilan;
+  const n = bDemComptes(b);
+  const pl = (k, s) => k + ' ' + s + (k > 1 ? 's' : '');
+  let sous, puce;
+  if(bDem.en){ sous = bDem.en; puce = '<span class="bsPuce travail">⏳ En cours</span>'; }
+  else if(!d){ sous = 'Lecture…'; puce = '<span class="bsPuce">…</span>'; }
+  else if(d.erreur && !b){ sous = d.erreur; puce = '<span class="bsPuce ko">⚠️</span>'; }
+  else if(!b || !b.feuilles){ sous = 'pas encore fait : les images et les tracés sont encore dans les cases des feuilles'; puce = '<span class="bsPuce route">À faire</span>'; }
+  else if(bDemFini(b)){ sous = 'fait le ' + baseQuand(b.fin || b.debut) + ' : ' + pl(n.im, 'image') + ' et ' + pl(n.tr, 'tracé') + ' rangés dans R2'; puce = '<span class="bsPuce ok">Fait</span>'; }
+  else{ sous = 'commencé le ' + baseQuand(b.debut) + ', pas fini : ' + pl(n.im, 'image') + ' et ' + pl(n.tr, 'tracé') + ' rangés'; puce = '<span class="bsPuce route">À reprendre</span>'; }
+  let h = '<div class="bsL' + (ouvert ? ' ouvert' : '') + '" data-r="demenager"><div class="bsTete"><button type="button" class="bsOuvrir" aria-expanded="' + ouvert + '">' +
+    '<span class="bsLogo">📦</span><span class="bsNom"><b>Ranger dans R2 les images et les tracés</b><small>' + bEch(sous) + '</small></span>' +
+    puce + '<span class="bsChev" aria-hidden="true">›</span></button></div>';
+  if(ouvert){
+    h += '<div class="bsDetail"><div class="cdAide">Les images (captures du CEPC, anciennes images des fiches, captures des procédures à corriger) et les tracés GPS ' +
+      'encore écrits dans les cases des feuilles partent dans R2, lot par lot. La feuille ne garde que leur clé, et l’appli les montre comme avant. ' +
+      'Ensuite seulement ces trois feuilles peuvent passer dans D1 : tant qu’elles sont lourdes, leur interrupteur refuse.</div>';
+    if(d && d.erreur) h += '<div class="baseMsg baseKo">' + bEch('⚠️ ' + d.erreur) + '</div>';
+    if(b && b.feuilles){
+      h += '<div class="baseListe">' + DEM_FEUILLES.map(x => {
+        const f = b.feuilles[x.feuille];
+        if(!f) return '<div class="baseLigne"><span class="baseIc">⏳</span><span class="baseTexte"><b>' + bEch(x.nom) + '</b><small>pas encore parcourue</small></span></div>';
+        const k = Number(f.rangees || 0) + Number(f.fiches || 0);
+        return '<div class="baseLigne"><span class="baseIc">' + (f.fini ? '✅' : '⏳') + '</span><span class="baseTexte"><b>' + bEch(x.nom) + '</b> · ' +
+          Number(f.lignes || 0).toLocaleString('fr-FR') + ' ligne' + (f.lignes > 1 ? 's' : '') + (f.fini ? ' parcourues' : ' — arrêtée ligne ' + f.jusqua) +
+          '<small>' + k + ' ' + x.quoi + ' rangé' + (x.quoi === 'images' ? 'e' : '') + 's' +
+          (f.fiches ? ' (dont ' + f.fiches + ' image' + (f.fiches > 1 ? 's' : '') + ' de fiche)' : '') +
+          (f.illisibles ? ' · ⚠️ ' + f.illisibles + ' illisible' + (f.illisibles > 1 ? 's' : '') + ', laissée' + (f.illisibles > 1 ? 's' : '') + ' dans la feuille' : '') + '</small></span></div>';
+      }).join('') + '</div>';
+    }
+    const fini = bDemFini(b);
+    h += '<div class="baseBoutons"><button type="button" class="btn btn-primary" data-demenager' + (bDem.en ? ' disabled' : '') + '>' +
+      (bDem.en ? '⏳ En cours…' : (b && b.feuilles && !fini) ? '📦 Reprendre' : fini ? '📦 Relancer (pour ce qui serait arrivé depuis)' : '📦 Ranger maintenant') + '</button></div>' +
+      '<div class="cdAide">Laisse cet écran ouvert pendant que ça tourne. Interrompu, ça reprend là où ça s’est arrêté.</div></div>';
+  }
+  return h + '</div>';
+}
+async function bDemenager(){
+  if(bDem.en) return;
+  const b0 = bDem.d && bDem.d.bilan;
+  const reprendre = !!(b0 && b0.feuilles && !bDemFini(b0));
+  if(!reprendre){
+    const oui = await confirmer('Les images et les tracés GPS encore écrits dans les cases des feuilles Captures, ProcAcorriger et Trajets partent dans R2, lot par lot. ' +
+      'Les feuilles ne gardent que leur clé ; l’appli les montre comme avant.\n\nÇa peut prendre quelques minutes : laisse cet écran ouvert.', '📦 Ranger dans R2 ?');
+    if(!oui) return;
+  }
+  bOuvert.demenager = true;
+  let nouveau = !reprendre;
+  try{
+    for(const x of DEM_FEUILLES){
+      const f0 = reprendre && b0.feuilles[x.feuille];
+      if(f0 && f0.fini) continue;
+      let depuis = (f0 && f0.jusqua) || 2;
+      for(let tour = 0; tour < 5000 && depuis; tour++){
+        bDem.en = '⏳ ' + x.nom + ' : à partir de la ligne ' + depuis + '…';
+        if(baseSous === 'lu') bDessiner();
+        const r = await appelPrep({ action: 'baseDemenager', quoi: 'lot', feuille: x.feuille, depuis: depuis, nouveau: nouveau });
+        if(!r || r.status === 'error' || !r.bilan) throw new Error((r && (r.message || r.error)) || 'réponse vide');
+        nouveau = false;
+        bDem.d = { bilan: r.bilan };
+        depuis = r.depuis;
+      }
+    }
+    bDem.en = '';
+    ['baseCaptures', 'baseProcCorriger', 'baseTrajets'].forEach(a => bCharger(a));
+    const n = bDemComptes(bDem.d && bDem.d.bilan);
+    if(typeof showToast === 'function') showToast('📦 ' + n.im + ' image(s) et ' + n.tr + ' tracé(s) rangés dans R2 ✅');
+  }catch(e){
+    bDem.en = '';
+    bDem.d = Object.assign({}, bDem.d || {}, { erreur: 'Interrompu : ' + baseErreur(e) + ' — touche « Reprendre ».' });
+  }
+  if(baseSous === 'lu') bDessiner();
+}
+async function bChargerDemenager(){
+  try{ bDem.d = await appelPrep({ action: 'baseDemenager' }); }
+  catch(e){ bDem.d = { erreur: baseErreur(e) }; }
+  if(baseSous === 'lu') bDessiner();
+}
+
 function bDessinerLu(corps){
   const lues = BASE_TOUTES.filter(def => bEtat[def.action] && ('actif' in bEtat[def.action]));
   const dans = lues.filter(def => bEtat[def.action].actif).length;
@@ -328,7 +445,7 @@ function bDessinerLu(corps){
     (nuit ? ' · dernière sauvegarde de nuit le ' + baseQuand(nuit.debut) : ' · sauvegarde chaque nuit vers 3 h') + '</small></div>' +
     '<button type="button" class="btn btn-primary bsTout"' + (enCours || !dans ? ' disabled' : '') + '>' + (enCours ? '⏳ Sauvegarde…' : '💾 Tout sauvegarder') + '</button></div>';
   BASE_FAMILLES.forEach(f => {
-    h += '<div class="bsFam">' + bEch(f.nom) + '</div><div class="bsListe">' + f.feuilles.map(bLigneFeuille).join('') + '</div>';
+    h += '<div class="bsFam">' + bEch(f.nom) + '</div><div class="bsListe">' + f.feuilles.map(bLigneFeuille).join('') + (f.demenager ? bLigneDemenager() : '') + '</div>';
   });
   const el = bReglages.eleve, ar = bReglages.archive;
   h += '<div class="bsFam">Réglages</div><div class="bsListe">' +
@@ -372,8 +489,11 @@ function bDessinerLu(corps){
   corps.querySelectorAll('.bsL').forEach(l => {
     const cle = l.dataset.a || l.dataset.r;
     l.querySelector('.bsOuvrir').addEventListener('click', () => { bOuvert[cle] = !bOuvert[cle]; bDessiner(); });
-    l.querySelector('.bsInter').addEventListener('click', () => l.dataset.a ? bBasculer(cle) : bReglage(cle));
+    /* 📦 v1529 — la ligne du déménagement n'a pas d'interrupteur, un bouton */
+    const it = l.querySelector('.bsInter');
+    if(it) it.addEventListener('click', () => l.dataset.a ? bBasculer(cle) : bReglage(cle));
   });
+  corps.querySelectorAll('[data-demenager]').forEach(b => b.addEventListener('click', bDemenager));
   corps.querySelectorAll('[data-sauver]').forEach(b => b.addEventListener('click', () => bAgir(b.dataset.sauver, 'sauvegarder')));
   corps.querySelectorAll('[data-comparer]').forEach(b => b.addEventListener('click', bComparer));
   corps.querySelectorAll('[data-archive]').forEach(b => b.addEventListener('click', () => bTelecharger(b.dataset.archive)));
@@ -715,6 +835,7 @@ async function chargerBaseServeur(){
   Object.keys(bConsoMemo).forEach(k => delete bConsoMemo[k]);
   bDessiner();
   BASE_TOUTES.forEach(def => bCharger(def.action));
+  if(!bDem.en) bChargerDemenager();   /* 📦 v1529 */
   appelPrep({ action: 'baseEleve' }).then(d => { bReglages.eleve = d; }).catch(e => { bReglages.eleve = { erreur: baseErreur(e) }; })
     .then(() => { if(baseSous !== 'cloudflare') bDessiner(); });
   appelPrep({ action: 'baseArchive' }).then(d => { bReglages.archive = d; }).catch(e => { bReglages.archive = { erreur: baseErreur(e) }; })
