@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 19:32 — v1522 */
+/* Déployé le 21/11/2026 à 13:15 — v1531 */
 /* ============================================================
    drivup-favori.js — LE FAVORI « 📥 App Évolution » (anciennement « 📥 Bilan de conduite »)
 
@@ -832,7 +832,8 @@
         try {
           const res = String(it.res || ''), typMo = String(it.typMo || ''), jour = String(it.jour || ''), debut = String(it.debut || '');
           if (!estColonneDEcoute(titres[res] || '')) throw new Error('colonne refusée');
-          if (!/^[ée]coute/i.test(prestations[typMo] || '')) throw new Error('prestation refusée');
+          /* 🚫 v1530 — une écoute, ou le rendez-vous « NON » (en face d'un 1er cours) */
+          if (!/^[ée]coute/i.test(prestations[typMo] || '') && !/^\s*non\s*$/i.test(prestations[typMo] || '')) throw new Error('prestation refusée');
           if (!/^\d{4}-\d{2}-\d{2}$/.test(jour) || !/^\d{2}:\d{2}$/.test(debut)) throw new Error('heure refusée');
           const a = +debut.slice(0, 2) * 60 + +debut.slice(3, 5);
           if (prise(res, jour, a, a + (Number(it.min) || 60))) throw new Error('colonne prise entre-temps');
