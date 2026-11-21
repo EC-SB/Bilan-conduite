@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:55 — v1532 */
+/* Déployé le 21/11/2026 à 14:19 — v1533 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -1133,7 +1133,7 @@ function sansAccents(s){
 
 function fichePorte(m, mots){
   if(!mots.length) return true;
-  const foin = sansAccents((m.titre || m.nom) + ' ' + (m.contenu || '') + ' ' +
+  const foin = sansAccents((m.titre || m.nom) + ' ' + ((typeof trTexteLu === 'function') ? trTexteLu(m.contenu || '') : (m.contenu || '')) + ' ' +
                            etiquettesDe(m).join(' ') + ' ' + nomUsage(m.usage));
   return mots.every(mot => foin.indexOf(mot) !== -1);
 }
@@ -1193,6 +1193,24 @@ function bibliothequeLarge(){
    marche partout, et il n'impose aucune découpe au texte.
    ============================================================ */
 async function copierDansLePressePapier(txt){
+  /* ✍️ v1533 — LE COPIER-COLLER GARDE LA MISE EN FORME. David : « le
+     copier-coller garde la mise en forme ». On copie les deux : le HTML
+     (gras, couleurs, liens sur le mot — Gmail, Word, un mail) et le texte
+     seul (« mot (adresse) ») pour ce qui ne prend que du texte (SMS,
+     Messenger…). */
+  const riche = String(txt || '');
+  if(typeof trVersHtml === 'function' && (/\[\/?(g|i|s|t|p|c|f)(=[a-z]+)?\]/.test(riche) || /\[[^\]\n]+\]\(https?:\/\//.test(riche)) &&
+     window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+    try{
+      const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5">' + trVersHtml(riche, { enLigne: true }) + '</div>';
+      const brut = typeof liensMdEnTexte === 'function' ? liensMdEnTexte(riche) : riche;
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([brut], { type: 'text/plain' })
+      })]);
+      return true;
+    }catch(e){ /* le texte seul, plus bas */ }
+  }
   /* 🔗 v1527 — [mot](adresse) devient « mot (adresse) » une fois copié */
   if(typeof liensMdEnTexte === 'function') txt = liensMdEnTexte(txt);
   try{
@@ -1233,7 +1251,7 @@ function ouvrirCopieMorceau(m){
   txt.style.cssText = 'white-space:pre-wrap;font-size:14px;line-height:1.6;' +
     'border:1px solid var(--line);border-radius:10px;padding:12px;' +
     'background:var(--navy);user-select:text;-webkit-user-select:text;';
-  txt.textContent = m.contenu || '';
+  txt.textContent = (typeof liensMdEnTexte === 'function') ? liensMdEnTexte(m.contenu || '') : (m.contenu || '');   /* ✍️ v1533 — sans les balises */
   boite.appendChild(txt);
 
   const pied = document.createElement('div');
@@ -2445,7 +2463,7 @@ function carteDeFiche(m, mots){
 
   const p = document.createElement('div');
   p.className = 'fp';
-  p.innerHTML = surligner(m.contenu || '', mots);
+  p.innerHTML = surligner((typeof trTexteLu === 'function') ? trTexteLu(m.contenu || '') : (m.contenu || ''), mots);   /* ✍️ v1533 */
   d.appendChild(p);
 
   /* ⚠️ SOUS L'APERÇU, AU-DESSUS DES ÉTIQUETTES — v970. Le texte
@@ -3550,6 +3568,24 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
     '</details>');
 
   const g = id => boite.querySelector('#' + id);
+  /* ✍️ v1533 — UN VRAI ÉDITEUR. David, le 21/11 : « il me faut un vrai
+     éditeur de texte pour mettre du gras, italique, couleur du texte
+     etc. ». Celui des guides (ec-texte-riche.js), avec en plus le titre,
+     le plus petit et le surligné ; le texte s'enregistre toujours en
+     texte, avec des balises courtes ([g]gras[/g]…) que les mails, la
+     messagerie, l'espace élève et le copier-coller rendent, et que les
+     SMS enlèvent. La case « mdContenu » reste (cachée) : tout ce qui la
+     lit la lit toujours. La carte d'ajournement garde sa case simple :
+     elle a sa propre écriture (**gras**, !!, 1-…). */
+  const usageDeDepart = (modele && modele.usage) || usageImpose || '';
+  let ed = null;
+  if(typeof trEditeur === 'function' && usageDeDepart !== 'carte_ajournement'){
+    ed = trEditeur((modele && modele.contenu) || '', { id: 'mdContenu', champ: 'contenu', placeholder: 'Écris ton message…', lectureSeule: verrou });
+    ed.classList.add('fiTexteRiche');
+    g('mdContenu').replaceWith(ed);
+  }
+  /* la case « comme un textarea » pour ce qui insère du texte (liens, variables, modèle) */
+  const zoneTexte = () => ed ? ed.adaptateur() : g('mdContenu');
   g('mdContenu').value = (modele && modele.contenu) || '';
 
   const msg = document.createElement('div');
@@ -3673,11 +3709,11 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
        n'importe où dans l'app » (une page de son espace, une étape, ou un
        écran de l'App équipe) — ec-liens.js */
     const bHyper = geste('🔗 Lien', 'Sélectionne un mot : il devient un lien vers l’adresse que tu colles', () =>
-      (typeof insererHyperlienDans === 'function') ? insererHyperlienDans(g('mdContenu')) : null);
+      (typeof insererHyperlienDans === 'function') ? insererHyperlienDans(zoneTexte()) : null);
     bHyper.dataset.hyperlien = '1';
     if(pied.querySelector('.sup')) pied.insertBefore(bHyper, pied.querySelector('.sup'));
     const bLien = geste('🔗 Lien élève', 'Un lien vers une page ou une étape de l’espace élève, ou vers un écran de l’App', () =>
-      (typeof insererLienPartoutDans === 'function') ? insererLienPartoutDans(g('mdContenu')) : insererLienEleveDans(g('mdContenu')));
+      (typeof insererLienPartoutDans === 'function') ? insererLienPartoutDans(zoneTexte()) : insererLienEleveDans(zoneTexte()));
     bLien.dataset.lienEleve = '1';
     if(pied.querySelector('.sup')) pied.insertBefore(bLien, pied.querySelector('.sup'));
   }
@@ -3784,9 +3820,10 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
       b.style.cssText = 'width:auto;padding:4px 8px;font-size:12px;margin:4px 4px 0 0;';
       b.textContent = v;
       b.addEventListener('click', () => {
-        const t = g('mdContenu');
+        const t = zoneTexte();
         const p = t.selectionStart || t.value.length;
-        t.value = t.value.slice(0, p) + v + t.value.slice(p);
+        const v0 = t.value;
+        t.value = v0.slice(0, p) + v + v0.slice(p);
         t.focus();
       });
       z.appendChild(b);
@@ -3803,7 +3840,7 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
       bd.textContent = '📋 Partir du modèle proposé';
       bd.title = "Écrit dans la zone ci-dessus le texte utilisé par défaut";
       bd.addEventListener('click', async () => {
-        const t = g('mdContenu');
+        const t = zoneTexte();
         if(t.value.trim() &&
            !await confirmer('Remplacer ce que tu as écrit par le modèle proposé ?')) return;
         t.value = dep;
@@ -4342,7 +4379,7 @@ function ouvrirEditeurModele(modele, usageImpose, opts){
      si on écrit tout en bas, on suit le curseur. */
   const grandir = () => {
     const t = g('mdContenu');
-    if(!t) return;
+    if(!t || t.hidden) return;   /* ✍️ v1533 — l'éditeur grandit tout seul */
     const gardes = [];
     for(let e = t.parentElement; e; e = e.parentElement){
       if(e.scrollHeight > e.clientHeight + 1) gardes.push([e, e.scrollTop]);
@@ -4545,7 +4582,9 @@ async function afficherProcedures(){
 
     const corps = document.createElement('div');
     corps.style.cssText = 'margin-top:8px;font-size:15px;line-height:1.6;white-space:pre-wrap;';
-    corps.textContent = m.contenu;
+    /* ✍️ v1533 — mise en forme rendue */
+    if(typeof trVersHtml === 'function' && typeof aDesBalisesEC === 'function' && aDesBalisesEC(m.contenu)){ corps.classList.add('trRendu'); corps.innerHTML = trVersHtml(m.contenu); }
+    else corps.textContent = m.contenu;
     d.appendChild(corps);
 
     /* Les consignes de correction, visibles sans ouvrir Modifier :
@@ -4594,8 +4633,8 @@ async function afficherProcedures(){
     bCop.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
     bCop.textContent = '📋 Copier';
     bCop.addEventListener('click', () => {
-      navigator.clipboard.writeText(m.contenu).then(
-        () => showToast('Procédure copiée ✅'),
+      copierDansLePressePapier(m.contenu).then(
+        ok => showToast(ok ? 'Procédure copiée ✅' : 'Copie impossible'),
         () => showToast('Copie impossible'));
     });
     r.appendChild(bCop);
