@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:25 — v1541 */
+/* Déployé le 21/11/2026 à 16:37 — v1542 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1542,
+    date: 'Samedi 21 novembre 2026',
+    resume: '🔗 Les cours enchaînés ne font qu’un cours · 🔔 les messages d’équipe gardent leur notification chez chacun',
+    quoi: [
+      { emoji: '🔗',
+        titre: 'Deux cours d’affilée = un seul cours',
+        texte: 'Un élève qui enchaîne deux créneaux avec le même moniteur (2h de simulateur, 2h + 2h de conduite) n’a plus qu’un cours, à l’heure du premier, dans « Mes prochains cours » et sur l’Affichage : « 16h00 → 18h00 · 2 cours enchaînés ». Le moniteur ne relance pas un cours à la fin de l’heure. Les cours en double déjà créés partent tout seuls à la lecture de Drivup (pas ceux dont la fiche est commencée), notés dans « 🔔 Du nouveau dans Drivup ».' },
+      { emoji: '🔔',
+        titre: 'Les notifications des messages d’équipe restent chez chacun',
+        texte: 'Le point qui s’éteint chez les autres quand le bureau ou un admin ouvre ne vaut plus que pour les conversations élève ↔ bureau, la Vitrine, les retards, les annulations et les objets oubliés. Les groupes et « Entre nous » (Message important, Trafic…) gardent leur notification jusqu’à ce que chacun les ouvre.' }
+    ]
+  },
   {
     version: 1541,
     date: 'Samedi 21 novembre 2026',
