@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 10:42 — v1523 */
+/* Déployé le 21/11/2026 à 11:06 — v1524 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -180,7 +180,54 @@ function dessinerDrivupGestion(){
   z.innerHTML = '';
   dessinerConnexionsDv(z, DV_NOUV.etat);
   dessinerRythmesDv(z, DV_NOUV.etat);
+  dessinerEcoutesDv(z, DV_NOUV.etat);
   dessinerNouveauDv(z);
+}
+
+/* ---------- 👂 v1524 — les écoutes pédagogiques ----------
+   David, le 21 novembre : l'extension ouvre et supprime les écoutes ;
+   « une liste à valider avec une option pour qu'elle le fasse toute
+   seule » ; supprimer seulement les vides, qui ne servent plus aucun
+   cours, jamais un « NON » ; 2h + 2h à la suite, même moniteur, même
+   élève : une écoute de 4h. */
+function dessinerEcoutesDv(z, etat){
+  const reg = etat.reglages || {}, r = reg.rythmes || {}, auj = etat.aujourdhui || {};
+  const c = carteDv(z, '👂', 'Les écoutes pédagogiques', 'Une écoute par cours de conduite de 2h et plus (et l’examen blanc), dans la 1re colonne libre : BEA ou BV à Saint-Brieuc, « Ecoute » à Loudéac. ' +
+    '2h + 2h à la suite avec le même moniteur et le même élève : une seule écoute de 4h. Les écoutes vides, à venir, qui ne servent plus aucun cours se suppriment — jamais un « NON », jamais une écoute où un élève est inscrit.');
+  const puces = elDv('div', 'dvPuces');
+  puces.append(puceDrivup('neuf', auj.ecoute_ouverte || 0, 'ouvertes aujourd’hui'), puceDrivup('annule', auj.ecoute_supprimee || 0, 'supprimées aujourd’hui'));
+  c.appendChild(puces);
+  const auto = !!reg.ecoutesAuto;
+  c.appendChild(ligneDv(auto ? dureeDv(r.complet || 60) : 'à la main', rondTexteDv('🤖'), 'Toute seule',
+    auto ? 'À chaque lecture complète, l’extension ouvre ce qui serait coché dans la liste' + (reg.suppressionVerifiee ? ' et supprime les écoutes vides' : ' (elle supprimera dès qu’une première suppression aura été faite à la main et vérifiée)')
+         : 'Éteint : on ouvre la liste, on coche, on valide',
+    auto ? 'neuf' : 'ignore', auto ? '✅ Allumé' : '— Éteint'));
+  if(!reg.suppressionVerifiee) c.appendChild(noteDv('🗑️ La toute première suppression se fait depuis la liste, une seule écoute : l’App vérifie dans Drivup qu’elle a disparu. Ensuite seulement, le mode « toute seule » supprime aussi.'));
+  const bas = elDv('div', 'btn-row');
+  bas.style.cssText = 'margin-top:10px;flex-wrap:wrap;gap:8px;';
+  const voir = elDv('button', 'btn btn-primary', '👂 Écoutes à ouvrir et à supprimer');
+  voir.type = 'button'; voir.style.cssText = 'width:auto;flex:0 0 auto;';
+  voir.disabled = !extDrivupPresente();
+  if(!extDrivupPresente()) voir.title = 'Il faut l’extension « App EC · Drivup » sur cet ordinateur';
+  voir.addEventListener('click', () => {
+    if(typeof fenetreEcoutesDrivup === 'function') fenetreEcoutesDrivup(new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }));
+  });
+  bas.appendChild(voir);
+  if(etat.estAdmin){
+    const bascule = elDv('button', 'btn btn-secondary', auto ? '⏸️ Éteindre « toute seule »' : '🤖 Allumer « toute seule »');
+    bascule.type = 'button'; bascule.style.cssText = 'width:auto;flex:0 0 auto;';
+    bascule.addEventListener('click', async () => {
+      bascule.disabled = true;
+      try{
+        const rep = await appelPrep({ action: 'drivupReglagesPoser', ecoutesAuto: !auto });
+        DV_NOUV.etat.reglages = rep.reglages;
+        EXT_DV.reglages = rep.reglages;
+        dessinerDrivupGestion();
+      }catch(e){ bascule.disabled = false; if(typeof showToast === 'function') showToast('⚠️ ' + ((e && e.message) || e)); }
+    });
+    bas.appendChild(bascule);
+  }
+  c.appendChild(bas);
 }
 
 /* ---------- 📥 Drivup dans l'App ---------- */
