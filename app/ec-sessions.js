@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 17:47 — v1544 */
+/* Déployé le 21/11/2026 à 17:57 — v1545 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -3531,7 +3531,7 @@ function demanderPlacePerdue(s, eleve, trous){
    ============================================================ */
 const RESA_CRENEAUX = [['08:00', '10:00'], ['10:00', '12:00'], ['13:00', '15:00'], ['15:00', '17:00'], ['17:00', '19:00']];
 const RESA_ORANGE = '#E8A33D';
-const RESA_ORANGE_TEXTE = '#B86E12';
+const RESA_ORANGE_TEXTE = 'var(--resa-orange-t, #A35F0B)';
 const RESA_BLEU = '#3B82C4';
 const RESA_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 /* Le repère texte des réservations faites (là où il faut du texte : les
@@ -3578,7 +3578,10 @@ function resaLire(texte, reperIso){
   const auj = new Date().toISOString().slice(0, 10);
   const ref = /^\d{4}-\d{2}-\d{2}$/.test(String(reperIso || '')) ? reperIso : auj;
   const h2 = (h, m) => String(h).padStart(2, '0') + ':' + String(m || '00').padStart(2, '0');
-  const re = /(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+)?(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\s*(?:de\s*)?(\d{1,2})\s*h\s*(\d{2})?\s*(?:-|à|a)\s*(\d{1,2})\s*h\s*(\d{2})?/gi;
+  /* ⚠️ v1545 — « 15 h 17 », « 8h 10 h », « 13h -15h » : l'heure de fin
+     n'a pas toujours son « h », et des minutes ne s'écrivent que collées
+     (« 15h30 ») — sinon « 15 h 17 » se lisait 15h17. */
+  const re = /(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\.?\s+)?(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\s*(?:de\s*)?(\d{1,2})\s*h(\d{2})?\s*(?:-|à|a\b)?\s*(\d{1,2})(?:\s*h(\d{2})?)?(?!\s*\/)/gi;
   const reste = String(texte || '').replace(re, (tout, j, m, hd, md, hf, mf) => {
     const an0 = Number(ref.slice(0, 4));
     const choix = [an0 - 1, an0, an0 + 1].map(a => a + '-' + String(m).padStart(2, '0') + '-' + String(j).padStart(2, '0'))
@@ -3618,7 +3621,7 @@ function blocReservationsPermis(o){
       '<div style="display:flex;gap:6px;margin:8px 0;">' +
         bt('eleve', '🙋 Il les pose lui-même', RESA_BLEU) + bt('afaire', '⏳ À faire', 'var(--warn-text)') + bt('faite', '✅ Faite', RESA_ORANGE) + '</div>';
     if(eleve){
-      h += '<div style="font-size:13px;color:#2D6A9F;line-height:1.5;">Il réserve ses heures lui-même dans Drivup. Rien à poser par le bureau.</div>';
+      h += '<div style="font-size:13px;color:var(--resa-bleu-t, #2D6A9F);line-height:1.5;">Il réserve ses heures lui-même dans Drivup. Rien à poser par le bureau.</div>';
       bloc.innerHTML = h;
       return;
     }
@@ -3726,12 +3729,26 @@ function blocReservationsPermis(o){
 function etiquetteResaPermis(s){
   const e = etatResaPermis(s);
   if(!e) return '';
-  const base = 'display:inline-flex;align-items:center;gap:6px;margin-top:5px;font-size:13px;font-weight:800;line-height:1.45;padding:4px 10px;border-radius:9px;';
+  /* ⚠️ v1545 — UNE LIGNE COMME LES AUTRES. David, le 21/11, capture à
+     l'appui : « c'est trop gros les réservations ». Plus de cadre : la
+     taille et la graisse de « 💶 Il doit de l'argent » juste au-dessus,
+     et les dates en court (« ven. 11/12 15h-17h »). */
+  const base = 'display:flex;align-items:flex-start;gap:5px;margin-top:2px;font-size:12px;font-weight:700;line-height:1.45;';
   const ech = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  if(e === 'eleve') return '<div class="resaEtiq" style="' + base + 'background:rgba(59,130,196,.10);color:#2D6A9F;border:1px solid ' + RESA_BLEU + ';">🙋 Il pose lui-même ses heures</div>';
-  if(e === 'faite') return '<div class="resaEtiq" style="' + base + 'background:rgba(232,163,61,.14);color:' + RESA_ORANGE_TEXTE + ';border:1px solid ' + RESA_ORANGE + ';">' +
-    calendrierOrangeSvg(15) + '<span>Réservations faites' + (String(s.reservations || '').trim() ? ' · ' + ech(s.reservations) : '') + '</span></div>';
-  return '<div class="resaEtiq" style="' + base + 'background:rgba(200,60,40,.07);color:var(--warn-text);border:1px solid var(--warn-text);">⏳ Réservations à faire</div>';
+  if(e === 'eleve') return '<div class="resaEtiq" style="' + base + 'color:var(--resa-bleu-t, #2D6A9F);">🙋 Il pose lui-même ses heures</div>';
+  if(e === 'faite'){
+    const lu = resaLire(s.reservations || '', isoDuPermis(s.datePermis));
+    const court = lu.liste.map(resaTexteCourt).concat(lu.reste ? [lu.reste] : []).join(' · ');
+    return '<div class="resaEtiq" style="' + base + 'color:' + RESA_ORANGE_TEXTE + ';">' +
+      calendrierOrangeSvg(13).replace('vertical-align:-2px', 'margin-top:2px') + '<span>Réservations faites' + (court ? ' · <span style="font-weight:600;">' + ech(court) + '</span>' : '') + '</span></div>';
+  }
+  return '<div class="resaEtiq" style="' + base + 'color:var(--warn-text);">⏳ Réservations à faire</div>';
+}
+/* « ven. 11/12 15h-17h » */
+function resaTexteCourt(r){
+  const d = new Date(r.jour + 'T12:00:00');
+  const j = (RESA_JOURS[d.getDay()] || '').slice(0, 3);
+  return j + '. ' + r.jour.slice(8, 10) + '/' + r.jour.slice(5, 7) + ' ' + resaH(r.debut) + '-' + resaH(r.fin);
 }
 /* Une date de permis lisible en AAAA-MM-JJ (« 18/12/2026 » aussi) */
 function isoDuPermis(t){
