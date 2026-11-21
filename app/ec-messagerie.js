@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 14:19 — v1533 */
+/* Déployé le 21/11/2026 à 16:37 — v1542 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -9374,11 +9374,15 @@ function dessinerReglagesMessagerie(zone, r, exemple){
    message après le bilan : un réglage d'école qu'on change rarement
    n'a pas besoin d'un bouton « Enregistrer » qu'on oublie.
    ============================================================ */
-const GENRES_LECTURE_BUREAU_EC = ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe', 'interne'];
+/* ⚠️ v1542 — David, le 21 novembre : la lecture partagée ne vaut que pour
+   les conversations élève ↔ bureau (et la Vitrine), les retards, les
+   annulations et les objets oubliés. Les groupes et « Entre nous » gardent
+   la notification chez chacun : ils ne se cochent plus ici. */
+const GENRES_LECTURE_BUREAU_EC = ['bureau', 'vitrine', 'retard', 'annul', 'oubli'];
 
 function carteLectureBureau(zone, r, exemple){
   const lb = (r && r.lectureBureau) || { actif: true,
-    genres: ['bureau', 'vitrine', 'retard', 'annul', 'oubli', 'groupe'], declencheur: 'ouvrir', qui: 'bureauAdmins' };
+    genres: ['bureau', 'vitrine', 'retard', 'annul', 'oubli'], declencheur: 'ouvrir', qui: 'bureauAdmins' };
   const on = !!lb.actif;
   const carte = document.createElement('div');
   carte.id = 'regLectureBureau';
@@ -9499,7 +9503,8 @@ function carteLectureBureau(zone, r, exemple){
 
     const aide = document.createElement('div');
     aide.className = 'regLbAide';
-    aide.innerHTML = 'Dans la liste, le fil affiche <b>👀 Florence</b> à la place du point. ' +
+    aide.innerHTML = 'Les groupes et « Entre nous » (messages d’équipe) ne sont jamais partagés : chacun y garde sa notification. ' +
+      'Dans la liste, le fil affiche <b>👀 Florence</b> à la place du point. ' +
       '« Vu par » ne change pas : il ne montre que ceux qui ont vraiment ouvert. ' +
       'Un nouveau message rallume le point chez tout le monde. ' +
       'Une notification déjà arrivée sur un téléphone y reste affichée.';
