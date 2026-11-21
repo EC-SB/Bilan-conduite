@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 15:24 — v1537 */
+/* Déployé le 21/11/2026 à 15:48 — v1538 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1538,
+    date: 'Samedi 21 novembre 2026',
+    resume: '☕ Coin café : la partie en cours gardée, les flèches sous un bouton · 📆 espace élève : 15 jours, puis « Tout voir »',
+    quoi: [
+      { emoji: '💾',
+        titre: 'La partie en cours est gardée',
+        texte: 'Démineur, Memory, serpent et 2048 : « Retour », fermer le coin café ou même l’App ne coupe plus la partie. On la retrouve en rouvrant le jeu (« ▶️ partie en cours » dans la liste), sur le même appareil. « Nouvelle partie » repart de zéro.' },
+      { emoji: '🎮',
+        titre: 'Les flèches sous un bouton',
+        texte: 'Au serpent et au 2048, les flèches à l’écran sont cachées : « 🎮 Afficher les flèches » les montre, et le choix est gardé.' },
+      { emoji: '📆',
+        titre: 'Espace élève : les 15 prochains jours',
+        texte: '« Mes cours à venir » montre les 15 prochains jours (toujours au moins le prochain cours), puis « Tout voir (N de plus) ».' }
+    ]
+  },
   {
     version: 1537,
     date: 'Samedi 21 novembre 2026',
