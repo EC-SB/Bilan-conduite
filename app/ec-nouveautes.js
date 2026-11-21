@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 12:47 — v1529 */
+/* Déployé le 21/11/2026 à 13:03 — v1530 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1530,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📥 Drivup a son propre droit dans ⚙️ Accès',
+    quoi: [
+      { emoji: '📥',
+        titre: 'Qui voit Drivup',
+        texte: 'Un droit « 📥 Drivup » à part dans ⚙️ Accès (il suivait celui des rappels). « Voir » : l’onglet Drivup, et le bouton 📥 Drivup à côté d’un dossier élève et des rappels de cours. « Modifier » : en plus, être l’ordinateur qui lit Drivup en arrière-plan. Les administrateurs et le bureau l’ont d’office ; un moniteur, si on coche sa case. Il apparaît à la prochaine connexion.' }
+    ]
+  },
   {
     version: 1529,
     date: 'Samedi 21 novembre 2026',
