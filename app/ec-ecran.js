@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 15:11 — v1559 */
+/* Déployé le 24/11/2026 à 15:27 — v1560 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -389,10 +389,12 @@ function ligneProchainEcran(){
     }
     return '<div>📍 ' + nom + ' · ' + r.avenir.length + ' cours à l’écran · ' + a + '</div>';
   };
-  const tourne = ou => diaposEcran.filter(x => etatDiapo(x) === 'ecran' && !TYPES_FIXES_ECRAN[x.type] &&
-                                            (x.ou === ou || x.ou === 'les-deux')).length;
+  const tourne = ecran => diaposEcran.filter(x => etatDiapo(x) === 'ecran' && !TYPES_FIXES_ECRAN[x.type] &&
+                                                diapoSurEcran(x, ecran)).length;
+  /* 📺 v1560 — chaque écran ses diapositives */
   z.innerHTML = pourSite('saint-brieuc', 'Saint-Brieuc') + pourSite('loudeac', 'Loudéac') +
-    '<div>🖼️ ' + tourne('accueil') + ' diapositive(s) tournent à l’accueil (les deux sites), ' + tourne('vitrine') + ' à la vitrine</div>';
+    '<div>🖼️ Diapositives qui tournent : ' + tourne('sb-accueil') + ' à l’accueil de Saint-Brieuc, ' +
+    tourne('sb-vitrine') + ' à la vitrine, ' + tourne('ld-accueil') + ' à l’accueil de Loudéac</div>';
   return z;
 }
 
@@ -486,7 +488,8 @@ function dessinerJourneeEcran(z, l, jour, recharger){
   /* 📺 v1559 — DEUX TÉLÉS, DEUX LISTES. David, le 24/11 : « en plus,
      Saint-Brieuc et Loudéac ». Chaque télé ne montre que les cours de son
      site (v1557) : on les range comme elles les montrent. Une ligne
-     ajoutée à la main n'a pas de site : elle va à Saint-Brieuc. */
+     ajoutée à la main choisit son site (v1560) ; celles d'avant, sans
+     site, vont à Saint-Brieuc. */
   [['saint-brieuc', 'Saint-Brieuc'], ['loudeac', 'Loudéac']].forEach(([site, nom]) => {
     /* rangés à part : chaque télé a son « prochain » et son plein écran */
     const ici = coursRangesEcran(l.filter(c => siteDuCoursEcran(c) === site), auj).avenir;
@@ -500,7 +503,7 @@ function dessinerJourneeEcran(z, l, jour, recharger){
     dit.innerHTML = ici.length
       ? '<strong style="color:var(--cream);">' + ici.length + ' cours à l’écran</strong> · l’écran se met à jour dans la minute · touche une puce pour la changer'
       : (auj ? 'Plus de cours à l’écran aujourd’hui. L’écran affiche « Plus de cours aujourd’hui ».'
-             : 'Aucun cours ce jour-là' + (site === 'saint-brieuc' ? '. « ➕ Ajouter une ligne » en met un à la main.' : '.'));
+             : 'Aucun cours ce jour-là. « ➕ Ajouter une ligne » en met un à la main.');
     z.appendChild(dit);
     ici.forEach(c => z.appendChild(carteCoursEcran(c, l, jour, recharger)));
   });
@@ -541,6 +544,9 @@ async function enregistrerLigneDuJour(c, jour, silencieux){
       lieu: c.lieu || '',
       ordre: c.ordre || 0,
       masque: c.masque ? 'oui' : '',
+      /* 📍 v1560 — une ligne à la main garde son site ; une ligne
+         préparée n'en dit rien (absent n'est pas vide) */
+      site: c.manuel ? (siteDuCoursEcran(c) === 'loudeac' ? 'loudeac' : '') : undefined,
       par: ACCES.moniteur || ''
     });
     if(!silencieux) showToast('Enregistré ✅');
@@ -720,7 +726,9 @@ function menuCoursEcran(c, liste, jour, recharger, qui){
 }
 
 /* Ajouter une ligne qui n'a pas de préparation, sur le jour affiché */
-function ouvrirLigneManuelle(jour, apres){
+function ouvrirLigneManuelle(jour, apres, siteDepart){
+  /* 📍 v1560 — David, le 24/11 : pouvoir ajouter une ligne à Loudéac */
+  let siteLigne = siteDepart === 'loudeac' ? 'loudeac' : 'saint-brieuc';
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
@@ -732,6 +740,7 @@ function ouvrirLigneManuelle(jour, apres){
     '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
       "Pour ce qui n'a pas de cours préparé : un rendez-vous, une reprise, " +
       'un créneau au simulateur.</div>' +
+    '<label>Sur quel écran</label><div class="afJours" id="lmSite" role="group" aria-label="Sur quel écran"></div>' +
     '<label for="lmEleve">Élève ou intitulé</label>' +
     '<input type="text" id="lmEleve" list="listeEleves" autocomplete="off" ' +
       'placeholder="Ex : Ambre Guillebon, ou Réunion AAC">' +
@@ -747,6 +756,21 @@ function ouvrirLigneManuelle(jour, apres){
       '<div><label for="lmLieu">Où</label><select id="lmLieu"></select></div>' +
     '</div>';
 
+  const zSite = boite.querySelector('#lmSite');
+  const dessinerSites = () => {
+    zSite.innerHTML = '';
+    [['saint-brieuc', '📍 Saint-Brieuc'], ['loudeac', '📍 Loudéac']].forEach(([k, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (k === siteLigne ? 'btn-primary' : 'btn-secondary');
+      b.dataset.site = k;
+      b.setAttribute('aria-pressed', k === siteLigne ? 'true' : 'false');
+      b.textContent = t;
+      b.addEventListener('click', () => { siteLigne = k; dessinerSites(); });
+      zSite.appendChild(b);
+    });
+  };
+  dessinerSites();
   remplirListeLieux(boite.querySelector('#lmLieu'), '', false);
   remplirMoniteursEcran(boite.querySelector('#lmMon'), auj ? '' : (ACCES.moniteur || ''));
   const selMod = boite.querySelector('#lmMod');
@@ -783,6 +807,7 @@ function ouvrirLigneManuelle(jour, apres){
         vehicule: (selMod.value === 'autre') ? champLibre.value.trim() : selMod.value,
         lieu: boite.querySelector('#lmLieu').value,
         ordre: 0,
+        site: siteLigne === 'loudeac' ? 'loudeac' : '',
         par: ACCES.moniteur || ''
       });
       fermerFond(fond);
@@ -807,6 +832,87 @@ function ouvrirLigneManuelle(jour, apres){
 const TYPES_FIXES_ECRAN = { bandeau: 1, fond: 1, panneau: 1 };
 
 /* ecran · programmee · pause · terminee */
+/* ============================================================
+   📺 LES DIAPOSITIVES DE CHAQUE ÉCRAN — v1560
+
+   David, le 24/11 : « il faut que je puisse mettre des diapositives
+   différentes à Loudéac… en général ce sera la même chose, mais il se
+   peut que j'ajoute ou enlève des choses uniquement pour Loudéac » ;
+   « Sur quel écran » en trois boutons qu'on allume, plusieurs à la
+   fois. Les diapositives d'avant (« Accueil », « Les deux ») passent
+   aussi à Loudéac : c'était sa réponse, et c'est ce qu'elles faisaient.
+
+   La colonne « Où » garde ses trois mots quand ils suffisent (les
+   anciennes versions de l'App les lisent encore) ; sinon une liste,
+   « sb-accueil,ld-accueil ».
+   ⚠️ MÊME RÈGLE QUE ecransDeDiapo dans Apps Script, mot pour mot.
+   ============================================================ */
+const ECRANS_DIAPO = [
+  ['sb-accueil', '🏠 Accueil · Saint-Brieuc'],
+  ['sb-vitrine', '🪟 Vitrine · Saint-Brieuc'],
+  ['ld-accueil', '🏠 Accueil · Loudéac']
+];
+function ecransDeDiapo(v){
+  v = String(v || '').trim();
+  const tous = ECRANS_DIAPO.map(x => x[0]);
+  if(!v || v === 'les-deux') return tous;
+  if(v === 'accueil') return ['sb-accueil', 'ld-accueil'];
+  if(v === 'vitrine') return ['sb-vitrine'];
+  return v.split(',').map(x => x.trim()).filter(x => tous.indexOf(x) !== -1);
+}
+function ouDesEcrans(liste){
+  const l = ECRANS_DIAPO.map(x => x[0]).filter(k => liste.indexOf(k) !== -1);
+  const cle = l.join(',');
+  if(cle === 'sb-accueil,sb-vitrine,ld-accueil') return 'les-deux';
+  if(cle === 'sb-accueil,ld-accueil') return 'accueil';
+  if(cle === 'sb-vitrine') return 'vitrine';
+  return cle;
+}
+function diapoSurEcran(d, ecran){ return ecransDeDiapo(d && d.ou).indexOf(ecran) !== -1; }
+/* Le format du dessin : la vitrine seulement si aucun accueil n'est allumé */
+function formatDeLaDiapo(ou){
+  const l = ecransDeDiapo(ou);
+  return (l.indexOf('sb-accueil') === -1 && l.indexOf('ld-accueil') === -1) ? 'vitrine' : 'accueil';
+}
+/* La petite étiquette de la carte */
+function etiquetteEcrans(ou){
+  const l = ecransDeDiapo(ou);
+  const sb = (l.indexOf('sb-accueil') !== -1 ? '🏠' : '') + (l.indexOf('sb-vitrine') !== -1 ? '🪟' : '');
+  const ld = l.indexOf('ld-accueil') !== -1;
+  if(sb && ld) return sb + ' · Loudéac';
+  if(ld) return '📍 Loudéac seul';
+  return l.indexOf('sb-accueil') !== -1 ? sb + ' · St-Brieuc seul' : sb;
+}
+/* Les trois boutons : un appui allume ou éteint ; le dernier allumé reste */
+function boutonsEcransDiapo(ou, quandChange){
+  let l = ecransDeDiapo(ou);
+  const z = document.createElement('div');
+  z.className = 'afJours afEcrans';
+  z.setAttribute('role', 'group');
+  z.setAttribute('aria-label', 'Sur quel écran');
+  const dessiner = () => {
+    z.innerHTML = '';
+    ECRANS_DIAPO.forEach(([k, t]) => {
+      const on = l.indexOf(k) !== -1;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (on ? 'btn-primary' : 'btn-secondary');
+      b.dataset.ecran = k;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = (on ? '✅ ' : '⬜ ') + t;
+      b.addEventListener('click', () => {
+        if(on && l.length === 1){ showToast('Il faut au moins un écran.'); return; }
+        l = on ? l.filter(x => x !== k) : l.concat([k]);
+        dessiner();
+        quandChange(ouDesEcrans(l));
+      });
+      z.appendChild(b);
+    });
+  };
+  dessiner();
+  return z;
+}
+
 function etatDiapo(d){
   const auj = todayLocal();
   if(d.au && d.au < auj) return 'terminee';
@@ -816,10 +922,13 @@ function etatDiapo(d){
 }
 
 function dessinerDiaposEcran(z){
-  const pour = ou => diaposEcran.filter(x => x.ou === ou || x.ou === 'les-deux').length;
+  /* 📺 v1560 — un filtre par écran, Loudéac compris */
+  const pour = ecran => diaposEcran.filter(x => diapoSurEcran(x, ecran)).length;
+  if(['tous', 'sb-accueil', 'sb-vitrine', 'ld-accueil'].indexOf(filtreDiapos) === -1) filtreDiapos = 'tous';
   const f = document.createElement('div');
-  f.className = 'afJours afTrois';
-  [['tous', 'Tous · ' + diaposEcran.length], ['accueil', '🏠 Accueil · ' + pour('accueil')], ['vitrine', '🪟 Vitrine · ' + pour('vitrine')]].forEach(([k, t]) => {
+  f.className = 'afJours';
+  [['tous', 'Tous · ' + diaposEcran.length], ['sb-accueil', '🏠 Accueil SB · ' + pour('sb-accueil')],
+   ['sb-vitrine', '🪟 Vitrine SB · ' + pour('sb-vitrine')], ['ld-accueil', '🏠 Loudéac · ' + pour('ld-accueil')]].forEach(([k, t]) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn ' + (k === filtreDiapos ? 'btn-primary' : 'btn-secondary');
@@ -838,7 +947,7 @@ function dessinerDiaposEcran(z){
   n.addEventListener('click', () => (typeof ouvrirNouvelleDiapo === 'function' ? ouvrirNouvelleDiapo() : ouvrirEditeurDiapo(null)));
   z.appendChild(n);
 
-  const vue = diaposEcran.filter(x => filtreDiapos === 'tous' || x.ou === filtreDiapos || x.ou === 'les-deux');
+  const vue = diaposEcran.filter(x => filtreDiapos === 'tous' || diapoSurEcran(x, filtreDiapos));
   const vivante = x => etatDiapo(x) === 'ecran' || etatDiapo(x) === 'programmee';
   const carrousel = vue.filter(x => vivante(x) && !TYPES_FIXES_ECRAN[x.type]);
   const fixes = vue.filter(x => vivante(x) && TYPES_FIXES_ECRAN[x.type]);
@@ -886,7 +995,7 @@ function dessinerDiaposEcran(z){
 }
 
 function miniDiapoEcran(d, glisser){
-  const ou = { 'les-deux': '🏠🪟', accueil: '🏠', vitrine: '🪟' }[d.ou] || '';
+  const ou = etiquetteEcrans(d.ou);
   const role = { bandeau: ' défilant', fond: ' fond fixe', panneau: ' texte fixe', video: ' vidéo' }[d.type] || '';
   const poignee = glisser ? '<span class="poignee" title="Glisser pour changer l’ordre">⠿</span>' : '';
   const ent = '<span class="ou">' + ou + role + '</span>' + poignee;
@@ -933,7 +1042,8 @@ function carteDiapoEcran(d, glisser){
   if(d.type === 'compo' && typeof vignetteCompo === 'function'){
     const m = c.querySelector('.afMini'), v = c.querySelector('.afCompo');
     requestAnimationFrame(() => {
-      const W = d.ou === 'vitrine' ? 1024 : 1600, H = d.ou === 'vitrine' ? 824 : 722;
+      const vit = formatDeLaDiapo(d.ou) === 'vitrine';
+      const W = vit ? 1024 : 1600, H = vit ? 824 : 722;
       const l = Math.floor(Math.min(m.clientWidth, m.clientHeight * W / H));
       if(l > 0) vignetteCompo(v, d, l);
     });
@@ -1717,13 +1827,11 @@ function ouvrirEditeurDiapo(d, preset){
     '<input type="file" id="diFichier" accept="image/*" ' +
       'style="font-size:13px;padding:9px;margin-bottom:12px;">' +
 
+    /* 📺 v1560 — trois boutons à allumer (voir boutonsEcransDiapo) */
+    '<label>Sur quel écran</label>' +
+    '<input type="hidden" id="diOu" value="les-deux">' +
+    '<div id="diEcrans"></div>' +
     '<div class="duo">' +
-      '<div><label for="diOu">Sur quel écran</label>' +
-        '<select id="diOu">' +
-          '<option value="les-deux">🏠🪟 Les deux</option>' +
-          '<option value="accueil">🏠 Accueil seulement</option>' +
-          '<option value="vitrine">🪟 Vitrine seulement</option>' +
-        '</select></div>' +
       '<div><label for="diDuree">Durée à l\'écran</label>' +
         '<select id="diDuree">' +
           '<option value="6">6 secondes</option>' +
@@ -1841,6 +1949,10 @@ function ouvrirEditeurDiapo(d, preset){
     /* 🎨 v1199 — choisi dans « ➕ Nouvelle diapositive » */
     selType.value = preset === 'image' ? 'message' : preset;
   }
+  /* 📺 v1560 — les trois boutons, branchés sur le champ caché */
+  const champOu = boite.querySelector('#diOu');
+  boite.querySelector('#diEcrans').appendChild(
+    boutonsEcransDiapo(champOu.value, ou => { champOu.value = ou; }));
   montrer();
   majSelonType();
 
