@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:03 — v1530 */
+/* Déployé le 24/11/2026 à 10:29 — v1548 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -306,6 +306,8 @@ const VUES = {
               suivi AAC, juste au-dessus. */
            ['parcours',      '🎬 Groupes et guides',         'parcours'],
            ['parcourssuivi', '👥 Parcours des élèves',       'parcours'],
+           /* ❓ v1548 — la FAQ des élèves (ec-faq.js), admins et bureau */
+           ['faq',           '❓ Questions fréquentes',      'faq'],
            /* 📣 Les annonces — v1038, étape 6. C'est le groupe
               généraliste qu'elles remplacent : il n'avait pas de
               guides, il avait des informations. */
@@ -2198,8 +2200,10 @@ function reveillerVue(cle){
     salle:      () => (typeof afficherSalle === 'function') && afficherSalle(),
     /* 💰 v1178 — les prix, les fiches, imprimer vite, et le devis */
     tarifs:     () => (typeof afficherTarifsFiches === 'function' ? afficherTarifsFiches() : afficherTarifs()),
-    parcours:   () => afficherParcours(),
+    parcours:   () => { if(typeof parcoursModeFaq !== 'undefined') parcoursModeFaq = false; afficherParcours(); },
     parcourssuivi: () => afficherSuiviParcours(),
+    /* ❓ v1548 */
+    faq:        () => (typeof afficherFaqEquipe === 'function') && afficherFaqEquipe(),
     annonces:   () => afficherAnnonces(),
     caisse:     () => afficherCaisse(),
     menage:     () => afficherMenage(),
