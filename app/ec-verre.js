@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 10:42 — v1523 */
+/* Déployé le 24/11/2026 à 14:26 — v1557 */
 /* ============================================================
    🫧 LE NOUVEAU GRAPHISME « VERRE » (Liquid Glass) — v1374
 
@@ -67,6 +67,8 @@
     clap:'<rect x="3" y="9" width="18" height="11" rx="2.5"/><path d="M3 9 5 4.5h14L21 9M8 4.5 6.5 9M13 4.5 11.5 9M18 4.5 16.5 9"/>',
     megaphone:'<path d="M4 10v4h3l7 4V6l-7 4z"/><path d="M17.5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M7 14v4.5h2.5"/>',
     tele:'<rect x="3" y="5" width="18" height="12.5" rx="2.5"/><path d="M8.5 21h7M12 17.5V21"/>',
+    /* ▶️ v1557 — les vidéos de présentation sur la télé (📽️) */
+    lecture:'<rect x="3" y="5" width="18" height="12.5" rx="2.5"/><path d="M10.4 8.7v5.6l4.6-2.8z"/><path d="M8.5 21h7M12 17.5V21"/>',
     boite_arrivee:'<path d="M4 13.5V17a2.5 2.5 0 0 0 2.5 2.5h11A2.5 2.5 0 0 0 20 17v-3.5"/><path d="M4 13.5h4l1.5 2.5h5l1.5-2.5h4M12 4v8M9 9.5l3 3 3-3"/>',
     /* 📥 v1523 — l'onglet Drivup (le glyphe du schéma « Drivup dans l'App ») */
     drivup:'<path d="M12 3.5v10.5"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M4.5 15.5v2.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2.5"/>',
@@ -146,7 +148,7 @@
     '📅':'calendrier','📆':'calendrier','🗓️':'calendrier','🔔':'cloche','📞':'telephone','👤':'personne','👥':'personnes',
     '📋':'presse','📚':'livres','✉️':'enveloppe','📨':'enveloppe','📧':'enveloppe','💬':'bulle','📱':'mobile','✅':'coche','☑️':'coche','✓':'check',
     '➕':'plus','🚪':'porte','🪪':'carte_id','📊':'stats','📈':'graphe','💶':'billets','💰':'etiquette','💳':'carte_bancaire','♿':'fauteuil',
-    '🎓':'chapeau','🌙':'lune','🤝':'poignee','👂':'oreille','🎬':'clap','📣':'megaphone','📢':'megaphone','📺':'tele','📥':'boite_arrivee','📤':'boite_depart',
+    '🎓':'chapeau','🌙':'lune','🤝':'poignee','👂':'oreille','🎬':'clap','📣':'megaphone','📢':'megaphone','📺':'tele','📽️':'lecture','📥':'boite_arrivee','📤':'boite_depart',
     '🏫':'ecole','🏦':'banque','💸':'euro','🚚':'camion','💼':'mallette','🧰':'mallette','📄':'document','🚦':'feu','🧠':'puce','📍':'repere',
     '🚗':'voiture','🚨':'gyrophare','🗺️':'carte_plan','🩹':'progression','🧹':'balai','🔐':'cadenas','🔒':'cadenas','🔓':'cadenas_ouvert','⚙️':'curseurs',
     '🧤':'gant','🏁':'drapeau','⛔':'interdit','🚫':'interdit','❓':'question','🤔':'question','🏍️':'moto','🔍':'loupe','🔎':'loupe','🎙️':'micro',
@@ -160,7 +162,7 @@
   var EMO_COL = {
     '👤':'#4B5563','📋':'#B45309','📚':'#B91C1C','🔔':'#D97706','📞':'#3F3F46','🗓️':'#DC2626','📅':'#DC2626','📆':'#DC2626','📺':'#0E7490','📥':'#2563EB','📤':'#2563EB','📊':'#2563EB','📈':'#16A34A',
     '💶':'#0369A1','💳':'#CA8A04','💰':'#CA8A04','♿':'#1D4ED8','🎓':'#3F3F46','➕':'#374151','🪪':'#2563EB','🚪':'#92400E',
-    '🌙':'#CA8A04','🤝':'#D97706','👂':'#D97706','🎬':'#3F3F46','👥':'#4B5563','📣':'#DC2626','📢':'#DC2626',
+    '🌙':'#CA8A04','🤝':'#D97706','👂':'#D97706','🎬':'#3F3F46','📽️':'#7C3AED','👥':'#4B5563','📣':'#DC2626','📢':'#DC2626',
     '⛔':'#DC2626','🚫':'#DC2626','🤔':'#CA8A04','❓':'#DC2626','🏁':'#3F3F46','🏍️':'#DC2626','🚚':'#DC2626',
     '💬':'#4B5563','🧤':'#2563EB','✉️':'#2563EB','📨':'#2563EB','📧':'#2563EB','📱':'#3F3F46','✅':'#16A34A','☑️':'#16A34A','✓':'#16A34A','🏫':'#B45309','🏦':'#4B5563','💸':'#16A34A','💼':'#92400E','📄':'#4B5563','🚦':'#374151','🧠':'#DB2777','🧰':'#DC2626','📍':'#DC2626',
     '🚗':'#DC2626','🚨':'#DC2626','🗺️':'#16A34A','🩹':'#B45309','🧹':'#92400E','🔐':'#CA8A04','🔒':'#CA8A04','🔓':'#CA8A04','⚙️':'#4B5563','🎙️':'#3F3F46','🔍':'#4B5563','🔎':'#4B5563','📓':'#374151',
