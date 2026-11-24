@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:29 — v1548 */
+/* Déployé le 24/11/2026 à 14:26 — v1557 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -32,7 +32,9 @@ const SECTIONS_ONGLET = {
           /* 📞 v1266 — le suivi des appels */
           'appels',
           /* 📺 v1290 — la salle des tablettes */
-          'salle'],
+          'salle',
+          /* 📽️ v1557 — les vidéos de présentation sur la télé */
+          'tele'],
   /* ⚠️ « parcours » VIT DANS SUIVI, ET DANS SUIVI SEULEMENT — v1037.
 
      Il était dans Gestion tant qu'il n'y avait que l'atelier. Le
@@ -346,6 +348,9 @@ const VUES = {
            /* 📺 v1290 — la salle des tablettes (ec-salle.js) */
            ['salle',      '📺 Salle des tablettes',   'salle',       'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
+           /* 📽️ v1557 — David, le 24/11 : « dans Élèves, Au quotidien, en
+              dernier : Vidéos présentation » ; bureau et admins (ec-tele-videos.js) */
+           ['videostele', '📽️ Vidéos présentation',    'tele',        'Au quotidien'],
 
            ['financements','💶 Financements',         'financements','Administratif'],
            /* ⚠️ IL A CHANGÉ D'ONGLET — v957. David : « paiement en
@@ -2191,6 +2196,8 @@ function reveillerVue(cle){
     loudeac:    () => (typeof afficherUnBureau === 'function') && afficherUnBureau('loudeac'),
     stbrieuc:   () => (typeof afficherUnBureau === 'function') && afficherUnBureau('saint-brieuc'),
     proccorriger: () => afficherProcCorriger(),
+    /* 📽️ v1557 — les vidéos de présentation sur la télé (ec-tele-videos.js) */
+    videostele: () => (typeof afficherTeleVideos === 'function') && afficherTeleVideos(),
     code:       () => afficherCode(),
     handicap:   () => afficherHandicap(),
     evaluation: () => afficherEvaluation(),
