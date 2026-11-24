@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 15:11 — v1559 */
+/* Déployé le 24/11/2026 à 15:27 — v1560 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1560,
+    date: 'Mardi 24 novembre 2026',
+    resume: '📺 Loudéac a ses diapositives, et la télé lit enfin la vidéo de l’accueil',
+    quoi: [
+      { emoji: '📺',
+        titre: 'Chaque écran ses diapositives',
+        texte: 'Dans une diapositive (fenêtre classique et Studio), « Sur quel écran » devient trois boutons à allumer : 🏠 Accueil · Saint-Brieuc, 🪟 Vitrine · Saint-Brieuc, 🏠 Accueil · Loudéac. Plusieurs à la fois, au moins un. Celles d’avant passent toujours à Loudéac : éteins Loudéac sur celles que tu ne veux pas là-bas. En haut de la liste, un filtre par écran.' },
+      { emoji: '📍',
+        titre: 'Une ligne à la main pour Loudéac',
+        texte: 'Dans le planning de l’affichage, « ➕ Ajouter une ligne à la main » demande maintenant l’écran : 📍 Saint-Brieuc ou 📍 Loudéac.' },
+      { emoji: '🎬',
+        titre: 'La vidéo de l’accueil revient',
+        texte: 'Elle était écrite à l’ancienne adresse GitHub, qui ne mène plus au fichier : « Vidéo : adresse introuvable (404) ». L’écran prend maintenant la bonne adresse tout seul.' },
+      { emoji: '📽️',
+        titre: 'Loudéac : la vidéo de présentation ne s’arrête plus',
+        texte: 'La Samsung ne lit qu’une vidéo à la fois : pendant la présentation, la vidéo de l’accueil lui reprenait le lecteur, d’où l’écran noir. Le carrousel attend maintenant la fin de la présentation, puis repart.' }
+    ]
+  },
   {
     version: 1559,
     date: 'Mardi 24 novembre 2026',
