@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 15:01 — v1469 */
+/* Déployé le 24/11/2026 à 12:03 — v1553 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -764,6 +764,7 @@ function ckBasculerInfos(f, large){
    Sur ordinateur : la colonne de droite. Tablette : un panneau sur
    le côté du fil. Téléphone et tiroir : un écran par-dessus le fil.
    ============================================================ */
+let ckInfosDefileEC = { cle: '', haut: 0 };
 function ckPanneauInfos(f, mode){
   const c = f.conv || {};
   const large = mode !== 'plein';
@@ -795,6 +796,25 @@ function ckPanneauInfos(f, mode){
   const corps = document.createElement('div');
   corps.className = 'msgAInfosC';
   box.appendChild(corps);
+  /* 📜 v1553 — ⓘ INFOS RESTE OÙ ON L'A LAISSÉ. David, le 24/11 : « la
+     conversation remonte quand j'envoie ou que je reçois un message »
+     (sur ordinateur). Chaque message envoyé ou reçu redessine le fil, et
+     la colonne ⓘ Infos avec : elle repartait d'en haut. On retient où
+     elle en était, pour CETTE conversation, et on l'y remet. */
+  const cleDefile = (c.id || '') + '|' + mode;
+  const haut = (ckInfosDefileEC.cle === cleDefile) ? ckInfosDefileEC.haut : 0;
+  ckInfosDefileEC = { cle: cleDefile, haut: haut };
+  let touche = false;
+  corps.addEventListener('scroll', () => {
+    if(!corps.isConnected) return;
+    ckInfosDefileEC = { cle: cleDefile, haut: corps.scrollTop };
+  }, { passive: true });
+  ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => corps.addEventListener(ev, () => { touche = true; }, { passive: true }));
+  if(haut){
+    const remettre = () => { if(!touche && corps.isConnected && corps.scrollTop !== haut) corps.scrollTop = haut; };
+    requestAnimationFrame(remettre);
+    [0, 120, 400, 900].forEach(t => setTimeout(remettre, t));
+  }
 
   /* qui */
   const qui = document.createElement('div');
