@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 19:57 — v1547 */
+/* Déployé le 24/11/2026 à 10:29 — v1548 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1548,
+    date: 'Mardi 24 novembre 2026',
+    resume: '❓ Les questions fréquentes arrivent dans l’espace des élèves',
+    quoi: [
+      { emoji: '❓',
+        titre: 'Suivi › ❓ Questions fréquentes',
+        texte: 'Le même atelier que « Groupes et guides » : un thème = un guide, une question = une étape (son titre), la réponse = ses blocs (texte, vidéo, image, PDF). « ➕ Créer la FAQ » pose 4 thèmes et 22 questions déjà rédigés d’après le groupe Facebook, en brouillon : relis, ajoute les vidéos, puis publie thème par thème.' },
+      { emoji: '👥',
+        titre: 'Admins et bureau',
+        texte: 'Le droit « ❓ Questions fréquentes des élèves » (admins et bureau d’office, les moniteurs à cocher dans ⚙️ Accès) écrit dans la FAQ seulement, pas dans les autres groupes.' },
+      { emoji: '📱',
+        titre: 'Chez tous les élèves',
+        texte: 'Un onglet ❓ FAQ dans la barre du bas, une carte « Une question ? » sur l’accueil avec une recherche, et un rond ❓ en haut. Sans rien à ouvrir élève par élève, et sans suivi. Sous chaque réponse : « ✍️ Écrire au bureau ». Le 🔗 Lien élève sait aussi mener à la FAQ.' }
+    ]
+  },
   {
     version: 1547,
     date: 'Samedi 21 novembre 2026',
