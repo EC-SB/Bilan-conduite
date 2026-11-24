@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:29 — v1548 */
+/* Déployé le 24/11/2026 à 14:26 — v1557 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -434,6 +434,9 @@ const SECTIONS = [
      rôle (David : « n'importe qui de l'équipe » installe un élève) ; le
      programme et les tablettes : administrateurs (le Worker le vérifie). */
   { cle:'salle',            nom:'📺 Salle des tablettes', onglet:'eleves' },
+  /* 📽️ v1557 — les vidéos de présentation sur la télé (ec-tele-videos.js) :
+     bureau et administrateurs par le rôle */
+  { cle:'tele',             nom:'📽️ Vidéos présentation (la télé)', onglet:'eleves' },
   /* ☑️ v1278 — la todo list, le bouton à côté du 💬 (ec-todo.js).
      David : « j'ai besoin de choisir qui la voit » : une case par compte. */
   { cle:'todo',             nom:'☑️ À faire (todo list)', onglet:'messagerie' },
