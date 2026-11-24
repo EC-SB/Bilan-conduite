@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:29 — v1548 */
+/* Déployé le 24/11/2026 à 10:49 — v1549 */
 /* ============================================================
    ec-faq.js — ❓ LES QUESTIONS FRÉQUENTES DES ÉLÈVES — v1548
 
@@ -26,6 +26,310 @@ function afficherFaqEquipe(){
   if(typeof parcoursModeFaq === 'undefined' || typeof afficherParcours !== 'function') return;
   parcoursModeFaq = true;
   afficherParcours();
+  chargerFaqStats();
+}
+
+/* ============================================================
+   👁️ 🎯 CE QUE LES ÉLÈVES LISENT, ET POUR QUELLES FORMATIONS — v1549
+
+   David, le 24/11, sur le schéma « FAQ : le compteur de lectures et les
+   questions par formation » : le chiffre 👁️ = les deux (élèves
+   différents ET ouvertures) ; la période = les trois (30 derniers jours,
+   depuis le début, au choix) ; « 🔎 Cherché sans réponse » gardé ; les
+   formations sur les questions ET sur les thèmes ; un élève sans
+   formation voit tout.
+   · Une question : « formations » sur son 🏷️ titre (enregistré avec le
+     guide). Un thème : faqThemeReglage (D1).
+   · Le choix des formations est celui de « 🔒 Seulement certains élèves »
+     des guides, avec des formations, et des familles d'un coup.
+   ============================================================ */
+let faqStatsEC = { questions: {}, themes: {}, plusLues: [], cherches: [], pour: {}, lu: 0 };
+let faqPeriodeEC = { mode: '30', du: '', au: '' };
+try{ const p = JSON.parse(localStorage.getItem('ec_faq_periode') || 'null'); if(p && p.mode) faqPeriodeEC = p; }catch(e){}
+function bornesPeriodeFaq(){
+  const p = faqPeriodeEC;
+  if(p.mode === 'tout') return { du: '', au: '' };
+  if(p.mode === 'choix') return { du: p.du || '', au: p.au || '' };
+  const d = new Date(Date.now() - 30 * 86400000);
+  return { du: d.toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }), au: '' };
+}
+function nomPeriodeFaq(){
+  const p = faqPeriodeEC;
+  if(p.mode === 'tout') return 'depuis le début';
+  if(p.mode === 'choix'){
+    const f = x => x ? x.slice(8, 10) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : '…';
+    return 'du ' + f(p.du) + ' au ' + f(p.au);
+  }
+  return '30 derniers jours';
+}
+async function chargerFaqStats(){
+  try{
+    const b = bornesPeriodeFaq();
+    const d = await appelPrep({ action: 'faqStats', du: b.du, au: b.au });
+    if(!d || d.status !== 'ok') return;
+    faqStatsEC = { questions: d.questions || {}, themes: d.themes || {}, plusLues: d.plusLues || [], cherches: d.cherches || [], pour: d.pour || {}, lu: Date.now() };
+  }catch(e){ return; }
+  rafraichirFaqStats();
+}
+/* Redessine ce qui montre les chiffres, sans toucher à ce qu'on écrit */
+function rafraichirFaqStats(){
+  if(typeof parcoursModeFaq === 'undefined' || !parcoursModeFaq) return;
+  const z = document.getElementById('faqZone');
+  if(!z) return;
+  const ed = z.querySelector('#pcEditeur');
+  if(ed){
+    /* pas pendant qu'on écrit : les chiffres attendront le prochain dessin */
+    const a = document.activeElement;
+    if(a && ed.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
+    if(a && a.isContentEditable && ed.contains(a)) return;
+    if(typeof ed._faqRedessiner === 'function') ed._faqRedessiner();
+    return;
+  }
+  if(typeof dessinerParcours === 'function') dessinerParcours();
+}
+function chiffresFaq(x){
+  if(!x || !x.eleves) return '👁️ personne encore';
+  return '👁️ ' + x.eleves + ' élève' + (x.eleves > 1 ? 's' : '') + ' · ' + x.ouvertures + ' ouverture' + (x.ouvertures > 1 ? 's' : '');
+}
+
+/* Les formations : celles des fiches élèves (FORMATIONS_BASE), et quatre familles d'un coup */
+const FAMILLES_FAQ = [
+  { nom: '🚗 Toutes les voitures', court: '🚗 voitures', f: x => x.voiture && !/aménagée|Régularisation/i.test(x.cle) },
+  { nom: '🛵 Tous les 2 roues', court: '🛵 2 roues', f: x => /^(Moto A|A1 permis|A1 passerelle|AM 2 roues|A2)$/.test(x.cle) },
+  { nom: '🚚 Remorque (BE)', court: '🚚 remorque', f: x => x.cle === 'Permis BE' },
+  { nom: '♿ Aménagée et régularisation', court: '♿ aménagée', f: x => /aménagée|Régularisation/i.test(x.cle) }
+];
+function formationsConnuesFaq(){
+  return ((typeof FORMATIONS_BASE !== 'undefined') ? FORMATIONS_BASE : []).filter(x => x.cle);
+}
+function nomFormationFaq(cle){
+  const x = formationsConnuesFaq().find(y => y.cle === cle);
+  return x ? x.nom : cle;
+}
+/* « toutes les formations », « 🛵 2 roues », « 🚗 Voiture manuelle (BV) », « 3 formations » */
+function texteFormationsFaq(liste){
+  const l = Array.isArray(liste) ? liste : [];
+  if(!l.length) return 'toutes les formations';
+  const tri = x => x.slice().sort().join('|');
+  for(const f of FAMILLES_FAQ){
+    const cles = formationsConnuesFaq().filter(f.f).map(x => x.cle);
+    if(cles.length && tri(cles) === tri(l)) return f.court + ' (' + l.length + ' formation' + (l.length > 1 ? 's' : '') + ')';
+  }
+  if(l.length === 1) return nomFormationFaq(l[0]);
+  return l.length + ' formations';
+}
+/* Le choix des formations (thème ou question). quand(liste) à chaque changement. */
+function choixFormationsFaq(liste, quand){
+  const p = document.createElement('div');
+  p.className = 'pcRgP faqFormations';
+  let l = (Array.isArray(liste) ? liste : []).slice();
+  let certaines = l.length > 0;
+  const dessiner = () => {
+    p.innerHTML = '';
+    const lab = document.createElement('label'); lab.textContent = '🎯 Pour quelles formations';
+    p.appendChild(lab);
+    const qui = document.createElement('div'); qui.className = 'pcRgQui';
+    [['toutes', '🎯 Toutes les formations'], ['certaines', '🔒 Seulement certaines']].forEach(([v, n]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.dataset.faqQui = v;
+      const on = v === 'certaines' ? certaines : !certaines;
+      b.className = 'pcRgQ' + (on ? ' on' : '');
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = n;
+      b.addEventListener('click', () => {
+        if(v === 'toutes'){ certaines = false; if(l.length){ l = []; quand(l); } }
+        else certaines = true;
+        dessiner();
+      });
+      qui.appendChild(b);
+    });
+    p.appendChild(qui);
+    if(certaines){
+      const a1 = document.createElement('div'); a1.className = 'pcAide'; a1.style.margin = '6px 0 4px'; a1.textContent = 'D’un coup :';
+      p.appendChild(a1);
+      const fam = document.createElement('div'); fam.className = 'pcRgProp';
+      FAMILLES_FAQ.forEach(f => {
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = '＋ ' + f.nom; b.dataset.faqFamille = f.court;
+        b.addEventListener('click', () => {
+          formationsConnuesFaq().filter(f.f).forEach(x => { if(l.indexOf(x.cle) === -1) l.push(x.cle); });
+          quand(l.slice()); dessiner();
+        });
+        fam.appendChild(b);
+      });
+      p.appendChild(fam);
+      const noms = document.createElement('div'); noms.className = 'pcRgNoms'; noms.style.marginTop = '8px';
+      if(!l.length){
+        const v = document.createElement('div'); v.className = 'pcAide';
+        v.textContent = 'Personne de choisi : elle reste pour toutes les formations tant qu’il n’y en a aucune.';
+        noms.appendChild(v);
+      }
+      l.forEach(cle => {
+        const c = document.createElement('span'); c.className = 'pcRgNom'; c.textContent = nomFormationFaq(cle);
+        const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.title = 'Retirer ' + nomFormationFaq(cle);
+        x.setAttribute('aria-label', 'Retirer ' + nomFormationFaq(cle));
+        x.addEventListener('click', () => { l = l.filter(y => y !== cle); quand(l.slice()); dessiner(); });
+        c.appendChild(x);
+        noms.appendChild(c);
+      });
+      p.appendChild(noms);
+      const ch = document.createElement('input');
+      ch.type = 'search'; ch.className = 'pcRgCherche'; ch.placeholder = '🔎 Ajouter une formation…';
+      ch.setAttribute('aria-label', 'Ajouter une formation');
+      const prop = document.createElement('div'); prop.className = 'pcRgProp';
+      const proposer = () => {
+        const q = (typeof normaliserMot === 'function' ? normaliserMot : (t => String(t).toLowerCase()))(ch.value || '');
+        prop.innerHTML = '';
+        formationsConnuesFaq().filter(x => l.indexOf(x.cle) === -1 && (!q || (typeof normaliserMot === 'function' ? normaliserMot(x.nom + ' ' + x.cle) : (x.nom + ' ' + x.cle).toLowerCase()).indexOf(q) !== -1))
+          .slice(0, q ? 12 : 0).forEach(x => {
+            const b = document.createElement('button'); b.type = 'button'; b.textContent = '＋ ' + x.nom; b.dataset.faqFormation = x.cle;
+            b.addEventListener('click', () => { l.push(x.cle); quand(l.slice()); dessiner(); });
+            prop.appendChild(b);
+          });
+      };
+      ch.addEventListener('input', (e) => { e.stopPropagation(); proposer(); });
+      ch.addEventListener('keydown', (e) => { if(e.key === 'Enter') e.preventDefault(); });
+      p.append(ch, prop);
+      const a2 = document.createElement('div'); a2.className = 'pcAide';
+      a2.textContent = 'Les autres élèves ne la voient pas (sauf s’ils touchent « 👀 Tout voir »). Un élève sans formation dans sa fiche voit tout.';
+      p.appendChild(a2);
+    }
+  };
+  dessiner();
+  return p;
+}
+/* La ligne sous une question, dans un thème de la FAQ */
+function reglageQuestionFaq(et, idGuide, cb){
+  const t = et.titre;
+  const r = document.createElement('div');
+  r.className = 'pcRg faqRg';
+  const fo = Array.isArray(t.formations) ? t.formations : [];
+  const st = faqStatsEC.questions[idGuide + '::' + (t.id || '')];
+  const ligne = document.createElement('div'); ligne.className = 'pcRgL';
+  ligne.innerHTML = '<span class="pcRgC' + (st && st.eleves ? ' on' : '') + '" data-faq-stat="1">' + echParcours(chiffresFaq(st)) + ' · ' + echParcours(nomPeriodeFaq()) + '</span>' +
+    '<span class="pcRgC' + (fo.length ? ' on' : '') + '">🎯 ' + echParcours(texteFormationsFaq(fo)) + '</span>';
+  const bR = document.createElement('button');
+  bR.type = 'button'; bR.className = 'pcRgB'; bR.dataset.faqRegler = '1';
+  bR.textContent = et.faqRgOuvert ? '⚙️ Fermer ▴' : '⚙️ Régler ▾';
+  bR.setAttribute('aria-expanded', et.faqRgOuvert ? 'true' : 'false');
+  bR.addEventListener('click', () => { cb.avant(); et.faqRgOuvert = !et.faqRgOuvert; cb.redessiner(); });
+  ligne.appendChild(bR);
+  r.appendChild(ligne);
+  if(et.faqRgOuvert){
+    r.appendChild(choixFormationsFaq(fo, (l) => {
+      if(l.length) t.formations = l; else delete t.formations;
+      const c = r.querySelector('.pcRgL .pcRgC:nth-child(2)');
+      if(c){ c.textContent = '🎯 ' + texteFormationsFaq(l); c.classList.toggle('on', l.length > 0); }
+      cb.avant(); cb.apres();
+    }));
+  }
+  return r;
+}
+/* Sous le titre du thème : pour quelles formations est le thème entier, et ses lectures */
+function ligneThemeFaq(idGuide, redessiner){
+  const r = document.createElement('div');
+  r.className = 'pcRg faqTheme';
+  r.style.margin = '0 0 10px';
+  const fo = (faqStatsEC.pour[idGuide] || {}).formations || [];
+  const st = faqStatsEC.themes[idGuide];
+  const ouvert = !!ligneThemeFaq.ouvert[idGuide];
+  const ligne = document.createElement('div'); ligne.className = 'pcRgL';
+  ligne.innerHTML = '<span class="pcRgC' + (fo.length ? ' on' : '') + '">🎯 Thème pour : ' + echParcours(texteFormationsFaq(fo)) + '</span>' +
+    '<span class="pcRgC' + (st && st.eleves ? ' on' : '') + '">' + echParcours(chiffresFaq(st)) + ' · ' + echParcours(nomPeriodeFaq()) + '</span>';
+  const bR = document.createElement('button');
+  bR.type = 'button'; bR.className = 'pcRgB'; bR.dataset.faqThemeRegler = '1';
+  bR.textContent = ouvert ? '⚙️ Fermer ▴' : '⚙️ Régler ▾';
+  bR.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+  bR.addEventListener('click', () => { ligneThemeFaq.ouvert[idGuide] = !ouvert; redessiner(); });
+  ligne.appendChild(bR);
+  r.appendChild(ligne);
+  if(ouvert){
+    r.appendChild(choixFormationsFaq(fo, async (l) => {
+      try{
+        const d = await appelPrep({ action: 'faqThemeReglage', id: idGuide, formations: l });
+        if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+        faqStatsEC.pour = d.pour || {};
+        const c = r.querySelector('.pcRgL .pcRgC');
+        if(c){ c.textContent = '🎯 Thème pour : ' + texteFormationsFaq(l); c.classList.toggle('on', l.length > 0); }
+        showToast('🎯 Thème pour : ' + texteFormationsFaq(l) + ' ✅');
+      }catch(e){ showToast('Pas enregistré : ' + ((e && e.message) || e) + (/inconnu|seulement/.test(String(e && e.message)) ? ' — le thème doit être enregistré d’abord.' : '')); }
+    }));
+  }
+  return r;
+}
+ligneThemeFaq.ouvert = {};
+/* Le sommaire d'un thème : 👁️ et 🎯 au bout de chaque question */
+function marquesSommaireFaq(idGuide, titre){
+  const st = faqStatsEC.questions[idGuide + '::' + ((titre && titre.id) || '')];
+  const fo = (titre && Array.isArray(titre.formations)) ? titre.formations : [];
+  return (fo.length ? '<span title="Pour : ' + echParcours(texteFormationsFaq(fo)) + '">🎯</span>' : '') +
+    '<span class="faqSomStat" title="' + echParcours(chiffresFaq(st) + ' · ' + nomPeriodeFaq()) + '" style="font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;">👁️ ' + ((st && st.eleves) || 0) + '</span>';
+}
+/* La carte d'un thème : ses lectures et pour qui */
+function ligneCarteFaq(x){
+  const st = faqStatsEC.themes[x.id];
+  const fo = (faqStatsEC.pour[x.id] || {}).formations || [];
+  return '<div class="d faqCarteStat">' + echParcours(chiffresFaq(st)) + ' · 🎯 ' + echParcours(texteFormationsFaq(fo)) + '</div>';
+}
+/* Au-dessus des thèmes : la période, les plus lues, cherché sans réponse */
+function blocStatsFaq(){
+  const b = document.createElement('div');
+  b.className = 'faqStats';
+  b.style.cssText = 'border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:13px;line-height:1.55;';
+  const per = document.createElement('div');
+  per.className = 'faqPeriode';
+  per.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;';
+  [['30', '30 derniers jours'], ['tout', 'Depuis le début'], ['choix', '📅 Choisir les dates']].forEach(([v, n]) => {
+    const bt = document.createElement('button');
+    bt.type = 'button';
+    bt.className = 'btn ' + (faqPeriodeEC.mode === v ? 'btn-primary' : 'btn-secondary');
+    bt.style.cssText = 'width:auto;margin:0;padding:6px 12px;font-size:12.5px;min-height:0;';
+    bt.dataset.faqPeriode = v;
+    bt.textContent = n;
+    bt.addEventListener('click', () => {
+      faqPeriodeEC = Object.assign({}, faqPeriodeEC, { mode: v });
+      if(v === 'choix' && !faqPeriodeEC.du){
+        faqPeriodeEC.du = new Date(Date.now() - 30 * 86400000).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+        faqPeriodeEC.au = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+      }
+      try{ localStorage.setItem('ec_faq_periode', JSON.stringify(faqPeriodeEC)); }catch(e){}
+      chargerFaqStats();
+      if(typeof dessinerParcours === 'function') dessinerParcours();
+    });
+    per.appendChild(bt);
+  });
+  if(faqPeriodeEC.mode === 'choix'){
+    const mk = (k, lab) => {
+      const l = document.createElement('label');
+      l.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin:0;font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:600;';
+      l.textContent = lab;
+      const i = document.createElement('input'); i.type = 'date'; i.value = faqPeriodeEC[k] || ''; i.dataset.faqDate = k;
+      i.style.cssText = 'width:auto;margin:0;padding:5px 8px;';
+      i.addEventListener('change', () => {
+        faqPeriodeEC = Object.assign({}, faqPeriodeEC, { [k]: i.value });
+        try{ localStorage.setItem('ec_faq_periode', JSON.stringify(faqPeriodeEC)); }catch(e){}
+        chargerFaqStats();
+      });
+      l.appendChild(i);
+      return l;
+    };
+    per.append(mk('du', 'du'), mk('au', 'au'));
+  }
+  b.appendChild(per);
+  const g = document.createElement('div');
+  g.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;';
+  const l = (t, n) => '<div style="display:flex;justify-content:space-between;gap:8px;"><span style="min-width:0;">' + echParcours(t) + '</span><b style="white-space:nowrap;">' + echParcours(n) + '</b></div>';
+  const top = faqStatsEC.plusLues || [];
+  const ch = faqStatsEC.cherches || [];
+  g.innerHTML = '<div class="faqPlusLues"><div style="font-weight:800;margin-bottom:6px;">👁️ Les plus lues · ' + echParcours(nomPeriodeFaq()) + '</div>' +
+      (top.length ? top.map(x => l(x.titre || x.cle, x.eleves + ' élève' + (x.eleves > 1 ? 's' : '') + ' · ' + x.ouvertures)).join('')
+                  : '<div style="color:var(--muted);">Aucune lecture sur cette période.</div>') +
+      '<div style="color:var(--muted);font-size:12px;margin-top:4px;">Élèves différents · ouvertures. Un élève compte une fois par question dans « élèves ».</div></div>' +
+    '<div class="faqCherches"><div style="font-weight:800;margin-bottom:6px;">🔎 Cherché sans réponse · ' + echParcours(nomPeriodeFaq()) + '</div>' +
+      (ch.length ? ch.map(x => l('« ' + x.texte + ' »', x.fois + ' fois')).join('')
+                 : '<div style="color:var(--muted);">Rien sur cette période.</div>') +
+      '<div style="color:var(--muted);font-size:12px;margin-top:4px;">Ce que les élèves ont tapé sans rien trouver : les questions qui manquent. Sans leur nom.</div></div>';
+  b.appendChild(g);
+  return b;
 }
 
 /* Les premiers textes : tirés des publications du groupe Facebook
