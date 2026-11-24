@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 13:43 — v1556 */
+/* Déployé le 24/11/2026 à 14:26 — v1557 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1557,
+    date: 'Mardi 24 novembre 2026',
+    resume: '📽️ Les vidéos de présentation sur la télé, avec le temps restant',
+    quoi: [
+      { emoji: '📽️',
+        titre: 'Élèves › Vidéos présentation',
+        texte: 'Bureau et admins. On lance « Présentation Code complet » et « Présentation Conduite » sur la télé de l’agence, une par une ou les deux à la suite, puis on suit le temps restant en grand avec ⏪ 10 s, ⏸️ Pause, ⏩ 10 s et ⏹️ Arrêter. Ce sont les vidéos des tablettes (📺 en libre).' },
+      { emoji: '📡',
+        titre: 'Saint-Brieuc : le Chromecast',
+        texte: 'Depuis Chrome, « 📡 Relier le Chromecast » une fois, puis c’est le Chromecast qui lit la vidéo : on peut fermer la page, elle continue.' },
+      { emoji: '📺',
+        titre: 'Loudéac : la Samsung, écran de l’accueil et télé des vidéos',
+        texte: 'On l’installe une fois avec un code à 6 chiffres. Elle affiche l’écran de l’accueil (mêmes diapositives, météo et cours de Loudéac) et passe les vidéos par-dessus. La vidéo reste prioritaire sur « Vos cours commencent ».' },
+      { emoji: '🖥️',
+        titre: 'Chaque écran, les cours de son site',
+        texte: 'L’écran de l’accueil de Saint-Brieuc ne montre plus que les cours de Saint-Brieuc, celui de Loudéac ceux de Loudéac.' }
+    ]
+  },
   {
     version: 1556,
     date: 'Mardi 24 novembre 2026',
