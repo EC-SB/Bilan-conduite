@@ -1,4 +1,4 @@
-/* Déployé le 13/10/2026 à 09:51 — v1161 */
+/* Déployé le 24/11/2026 à 16:53 — v1562 */
 /* ============================================================
    ec-aqui.js
    ✏️ Écrire plus vite — « À qui ? » et « ✏️ Écrire à … »
@@ -401,7 +401,7 @@ function ouvrirLeFilNeuf(cible, signature){
     }
   }, true);
   zone.appendChild(barre);
-  setTimeout(() => { const t = $('msgElvTexte'); if(t) try{ t.focus(); }catch(e){} }, 0);
+  setTimeout(() => { const t = champDuFilEC(); if(t) try{ t.focus(); }catch(e){} }, 0);
 }
 
 /* Le fil naît ici : la conversation, puis le message — ou, pour un
@@ -428,8 +428,8 @@ async function creerLeFilNeuf(){
 
 async function envoyerDansLeFilNeuf(quoi){
   if(!filNeufEC) return;
-  const champ = $('msgElvTexte');
-  const bouton = $('msgElvEnvoyer');
+  const champ = champDuFilEC();
+  const bouton = boutonEnvoiDuFilEC();
   const texte = champ ? champ.value.trim() : '';
   if(texte.length > MAX_TEXTE_MESSAGERIE){
     if(typeof showToast === 'function') showToast('Message trop long (' + MAX_TEXTE_MESSAGERIE + ' caractères au plus).');
