@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:37 — v1542 */
+/* Déployé le 24/11/2026 à 10:54 — v1549 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1478,6 +1478,9 @@ async function ouvrirLeFil(id, viser){
 
   rangLuEC = 0;
   dessinerLeFil();
+  /* ↩️ v1549 — sur téléphone, le fil ouvert est une page de plus : le
+     retour d'Android revient à la liste au lieu de fermer l'App */
+  if(!large) poserLeFilDansLHistoireEC();
   /* La ligne ouverte s'allume dans la liste d'à côté. */
   if(large && conversationsEC.length) dessinerLaListeMessagerie();
   marquerLuLeFil();
@@ -1487,7 +1490,33 @@ async function ouvrirLeFil(id, viser){
   if(typeof brancherLeDirect === 'function') brancherLeDirect(id);
 }
 
+/* ============================================================
+   ↩️ LE RETOUR D'ANDROID REVIENT AUX CONVERSATIONS — v1549
+
+   David, le 24/11 : « quand Chrystel est sur la Messagerie EC sur son
+   téléphone Android, qu'elle ouvre une conversation et qu'elle appuie
+   sur retour, ça ferme la page au lieu de revenir aux conversations ».
+   Ouvrir un fil ne changeait pas l'historique de la page : la page n'en
+   avait qu'une (messagerie.html la remplace par index.html), et le
+   retour d'Android fermait donc l'App.
+   Sur téléphone, un fil ouvert pose une étape dans l'historique : le
+   retour (bouton, geste ou flèche) la reprend et referme le fil. Le ←
+   de l'App la reprend aussi, pour que les deux restent d'accord.
+   ============================================================ */
+let filDansLHistoireEC = false;
+function poserLeFilDansLHistoireEC(){
+  if(filDansLHistoireEC) return;
+  try{ history.pushState(Object.assign({}, history.state || {}, { ecFil: 1 }), ''); filDansLHistoireEC = true; }catch(e){}
+}
+window.addEventListener('popstate', () => {
+  if(!filDansLHistoireEC) return;
+  filDansLHistoireEC = false;
+  if(filOuvertEC) fermerLeFil();
+});
+
 function fermerLeFil(){
+  /* ↩️ v1549 — l'étape du fil dans l'historique s'en va avec lui */
+  if(filDansLHistoireEC){ filDansLHistoireEC = false; try{ history.back(); }catch(e){} }
   fermerLeSelecteurDeReaction();
   fermerLePanneauEmoji();
   fermerLePanneauPlus();
