@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 16:53 — v1562 */
+/* Déployé le 24/11/2026 à 17:15 — v1563 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -504,11 +504,17 @@ function dessinerLaListeMessagerieIci(){
      dans « Fermées » — seulement là, et seulement quand on va le
      chercher. */
   /* 🗂️ v1296 — sans type choisi dans ⋯, c'est l'onglet qui trie */
+  /* 🗂️ v1563 — UN FIL PAR ÉLÈVE : ses demandes ⏰ 🚫 🧤 sont rangées dans
+     sa conversation (une ligne, leurs pastilles dessous). Les filtres ⏰ 🚫
+     🧤 restent (David : « oui absolument ») : ils montrent les élèves qui
+     ont une demande de ce genre. */
+  const rangees = conversationsRangeesEC();
+  const duGenre = c => c.genre === filtreMessagerie ||
+    (GENRES_DEMANDE_EC.indexOf(filtreMessagerie) !== -1 && (c.__demandes || []).some(d => d.genre === filtreMessagerie));
   const liste = (filtreMessagerie === 'supervision')
     ? conversationsEC.filter(c => c.enSupervision)
-    : conversationsEC.filter(c => !c.enSupervision &&
-        (!filtreMessagerie || filtreMessagerie === 'clos' ||
-         c.genre === filtreMessagerie) &&
+    : rangees.filter(c => !c.enSupervision &&
+        (!filtreMessagerie || filtreMessagerie === 'clos' || duGenre(c)) &&
         (filtreMessagerie || ckDansLOnglet(c)) &&
         msgPasseLeFiltreEtiqPour(c));
 
@@ -540,7 +546,7 @@ function dessinerLaListeMessagerieIci(){
     bt.className = 'btn btn-primary';
     bt.id = 'ckpOuvrirOubli';
     bt.style.cssText = 'width:100%;margin:0;padding:9px 14px;font-size:13px;border-radius:12px;';
-    bt.textContent = '＋ Ouvrir un oubli';
+    bt.textContent = '＋ Déclarer un objet trouvé';
     bt.addEventListener('click', () => ecranOuvrirUnOubli(zoneFilMsg()));
     ob.appendChild(bt);
     sc.appendChild(ob);
@@ -614,6 +620,31 @@ function dessinerLaListeMessagerieIci(){
      question de mardi sous trois accusés de lecture de vendredi. */
   /* 🗂️ v1296 — « Non lus » : une seule liste, les épinglées d'abord */
   uneListe();
+}
+
+/* 🗂️ v1563 — la liste avec les demandes rangées dans leur conversation :
+   la ligne hôte porte leurs non-lus et « __demandes » ; elles-mêmes ne
+   s'affichent plus à part (sauf si leur hôte manque à la liste). */
+const GENRES_DEMANDE_EC = ['retard', 'annul', 'oubli'];
+function conversationsRangeesEC(){
+  const parId = {};
+  conversationsEC.forEach(c => { parId[c.id] = c; });
+  const enfants = {};
+  conversationsEC.forEach(c => {
+    if(c.rangeDans && parId[c.rangeDans]) (enfants[c.rangeDans] = enfants[c.rangeDans] || []).push(c);
+  });
+  const out = [];
+  conversationsEC.forEach(c => {
+    if(c.rangeDans && parId[c.rangeDans]) return;
+    const e = enfants[c.id];
+    if(!e){ out.push(c); return; }
+    out.push(Object.assign({}, c, {
+      nonLus: Number(c.nonLus || 0) + e.reduce((a, x) => a + Number(x.nonLus || 0), 0),
+      mentionne: (c.mentionne || e.some(x => x.mentionne)) ? 1 : 0,
+      __demandes: e
+    }));
+  });
+  return out;
 }
 
 function sousTitreMessagerie(texte, couleur){
@@ -763,6 +794,19 @@ function ligneConversationCorps(c, d, enChoix){
     r2.appendChild(cpt);
   }
   mi.appendChild(r2);
+
+  /* 🗂️ v1563 — les demandes rangées dans cette conversation, en pastilles */
+  if((c.__demandes || []).length && typeof libelleCourtDemandeEC === 'function'){
+    const rd = document.createElement('div');
+    rd.className = 'ckDemandesLigne';
+    c.__demandes.filter(d => !Number(d.fermee || 0)).forEach(d => {
+      const s = document.createElement('span');
+      s.className = 'ckPill ' + classeDemandeEC(d);
+      s.textContent = (Number(d.copie || 0) ? '🔒 ' : '') + libelleCourtDemandeEC(d);
+      rd.appendChild(s);
+    });
+    if(rd.childNodes.length) mi.appendChild(rd);
+  }
 
   if(ckRappelActif(c)){
     const m = document.createElement('div');
@@ -1502,6 +1546,15 @@ async function ouvrirLeFil(id, viser){
 
   rangLuEC = 0;
   dessinerLeFil();
+  /* 🗂️ v1563 — ouvert depuis une demande (notification, 🧤 Objets,
+     bandeau) : on va à sa carte dans la conversation de l'élève */
+  if(filOuvertEC && filOuvertEC.viserDemande){
+    const vise = filOuvertEC.viserDemande;
+    setTimeout(() => {
+      const z = zoneFilMsg() && zoneFilMsg().querySelector('#carte-' + CSS.escape(vise));
+      if(z){ z.scrollIntoView({ block: 'center' }); z.classList.add('ckCarteVise'); setTimeout(() => z.classList.remove('ckCarteVise'), 1600); }
+    }, 150);
+  }
   /* ↩️ v1549 — sur téléphone, le fil ouvert est une page de plus : le
      retour d'Android revient à la liste au lieu de fermer l'App */
   if(!large) poserLeFilDansLHistoireEC();
@@ -1511,7 +1564,9 @@ async function ouvrirLeFil(id, viser){
   veillerLeFil();
   /* Le direct se branche APRÈS le premier dessin : il accélère ce
      qui vient ensuite, il ne retarde pas l'ouverture. */
-  if(typeof brancherLeDirect === 'function') brancherLeDirect(id);
+  /* 🗂️ v1563 — le direct de la conversation ouverte (une demande s'ouvre
+     dans celle de l'élève : c'est elle qu'on écoute) */
+  if(typeof brancherLeDirect === 'function') brancherLeDirect((filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id) || id);
 }
 
 /* ============================================================
@@ -1674,7 +1729,23 @@ function dessinerLeFil(){
     const a = minutesDuMessageEC(msgs[i - 1]), b = minutesDuMessageEC(m);
     return a !== null && b !== null && b - a >= 20;
   });
+  /* 🗂️ v1563 — les cartes des demandes : sous leur premier message, ou
+     (copie 🔒, ou fil sans message dans cette page) à leur date */
+  const cartesPosees = {};
+  const parDemande = {};
+  (f.demandes || []).forEach(d => { parDemande[d.conv.id] = d; });
+  const aPoserParDate = (f.demandes || []).filter(d => Number(d.copie || 0) ||
+    !msgs.some(m => m.demande === d.conv.id)).sort((a, b) => Number(a.rangDebut || 0) - Number(b.rangDebut || 0));
+  const poserLesCartesAvant = (rang) => {
+    while(aPoserParDate.length && (rang === null || Number(aPoserParDate[0].rangDebut || 0) <= rang)){
+      const d = aPoserParDate.shift();
+      if(cartesPosees[d.conv.id]) continue;
+      cartesPosees[d.conv.id] = true;
+      fil.appendChild(carteDeDemandeEC(f, d));
+    }
+  };
   msgs.forEach((m, i) => {
+    poserLesCartesAvant(Number(m.rang || 0));
     const jour = String(m.envoyeLe || '').slice(0, 10);
     const neuf = jour && jour !== jourPose;
     const heure = String(m.envoyeLe || '').slice(11, 16);
@@ -1698,7 +1769,13 @@ function dessinerLeFil(){
     fil.appendChild(bulleDuMessage(m, avant,
       (apres && String(apres.envoyeLe || '').slice(0, 10) === jour && !heureAvant[i + 1]) ? apres : null));
     if(Number(m.rang || 0) > rangLuEC) rangLuEC = Number(m.rang || 0);
+    /* 🗂️ v1563 — la carte sous le premier message de sa demande */
+    if(m.demande && parDemande[m.demande] && !cartesPosees[m.demande]){
+      cartesPosees[m.demande] = true;
+      fil.appendChild(carteDeDemandeEC(f, parDemande[m.demande]));
+    }
   });
+  poserLesCartesAvant(null);
 
   /* 📞 v1183 — l'appel en cours : la carte « Rejoindre » */
   const carteAppel = (typeof carteAppelDuFilEC === 'function') ? carteAppelDuFilEC(f) : null;
@@ -2831,6 +2908,15 @@ async function chargerPlusDuFil(bouton){
 async function marquerLuLeFil(){
   if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.estMembre) return;
   const id = filOuvertEC.conv.id;
+  /* 🗂️ v1563 — lire la conversation, c'est lire ses demandes (et une copie
+     🔒 vue chez le moniteur : c'est le « vu par Paul » du bureau) */
+  ((filOuvertEC.demandes) || []).forEach(d => {
+    const r = conversationsEC.find(x => x && x.id === d.conv.id);
+    if(!(r ? Number(r.nonLus || 0) : Number(d.copie || 0))) return;
+    appelPrep({ action: 'convLu', id: d.conv.id }).then(() => {
+      if(r && Number(r.nonLus || 0)){ r.nonLus = 0; poserLesComptesMessagerie(compterLesNonLusEC()); if(ckLarge()) dessinerLaListeMessagerie(); }
+    }).catch(() => {});
+  });
   try{
     await appelPrep({ action: 'convLu', id: id });
   }catch(e){
@@ -4356,12 +4442,16 @@ function poserPastilleMessagerie(combien){
 const ETATS_OBJET_EC = {
   signale:     { emoji: '🧤', nom: 'Signalé',
                  sous: 'personne n’a encore regardé', couleur: 'var(--warn-text)' },
-  retrouve:    { emoji: '✅', nom: 'Retrouvé',
+  /* 🧤 v1563 — « au bureau » (schéma du 24/11) */
+  retrouve:    { emoji: '🏢', nom: 'Au bureau', bouton: '🏢 Il est au bureau',
                  sous: 'à récupérer au bureau', couleur: 'var(--accent-text)' },
   rendu:       { emoji: '🤝', nom: 'Rendu',
                  sous: 'c’est réglé', couleur: 'var(--muted)' },
   introuvable: { emoji: '🙈', nom: 'Introuvable',
-                 sous: 'cherché, pas retrouvé', couleur: 'var(--muted)' }
+                 sous: 'cherché, pas retrouvé', couleur: 'var(--muted)' },
+  /* 🧤 v1563 — dans la voiture, au bureau à partir d'une heure dite */
+  voiture:     { emoji: '🚗', nom: 'Dans la voiture',
+                 sous: 'bientôt au bureau', couleur: 'var(--warn-text)' }
 };
 
 /* Ce que chaque état propose comme suite. On ne montre jamais le
@@ -4371,7 +4461,8 @@ const SUITES_OBJET = {
   signale:     ['retrouve', 'introuvable'],
   retrouve:    ['rendu', 'introuvable'],
   rendu:       ['retrouve'],
-  introuvable: ['retrouve', 'rendu']
+  introuvable: ['retrouve', 'rendu'],
+  voiture:     ['retrouve', 'rendu', 'introuvable']
 };
 
 /* ============================================================
@@ -4392,13 +4483,16 @@ const ETATS_OBJET_SD = {
   introuvable: { emoji: '🚗', nom: 'Pas dans la voiture', bouton: '🚗 Pas dans la voiture',
                  sous: 'pas trouvée dans la voiture', couleur: 'var(--warn-text)' },
   rendu:       { emoji: '🤝', nom: 'Rendue', bouton: '🤝 Elle est rendue',
-                 sous: 'c’est réglé', couleur: 'var(--muted)' }
+                 sous: 'c’est réglé', couleur: 'var(--muted)' },
+  voiture:     { emoji: '🚗', nom: 'Dans la voiture', bouton: '🚗 Dans la voiture',
+                 sous: 'bientôt au bureau', couleur: 'var(--warn-text)' }
 };
 const SUITES_OBJET_SD = {
   signale:     ['retrouve', 'introuvable', 'rendu'],
   retrouve:    ['rendu', 'introuvable'],
   introuvable: ['retrouve', 'rendu'],
-  rendu:       ['retrouve']
+  rendu:       ['retrouve'],
+  voiture:     ['retrouve', 'rendu']
 };
 function estCarteSD(o){ return !!o && o.sorte === 'sd'; }
 function etatsDeLObjet(o){ return estCarteSD(o) ? ETATS_OBJET_SD : ETATS_OBJET_EC; }
@@ -4628,12 +4722,41 @@ async function changerEtatObjet(o, etat, bouton){
    (l'élève, le moniteur choisi, la boîte du bureau), l'état posé
    tout de suite, et un message déjà écrit qu'on peut changer.
    ============================================================ */
-const oubliOuvert = { sd: true, etat: 'retrouve', ecrit: false, dansLeFil: false };
+/* 🧤 v1563 — DÉCLARER UN OBJET TROUVÉ. David, le 24/11 : depuis ✏️ et
+   depuis la conversation d'un élève (pas seulement les filtres) ; un
+   moniteur le fait lui-même ; trois endroits — on le cherche, il est au
+   bureau (Saint-Brieuc ou Loudéac), ou il est dans la voiture et sera au
+   bureau à partir de telle heure (il y passe tout seul à l'heure dite).
+   Le bureau proposé : celui de la voiture, sinon l'agence de l'élève. */
+const oubliOuvert = { sd: true, etat: 'retrouve', ecrit: false, dansLeFil: false,
+                      bureau: 'saint-brieuc', bureauChoisi: false, jour: 'demain', date: '', heure: '14:00',
+                      depuis: '', retour: '' };
+const NOMS_BUREAUX_EC = { 'saint-brieuc': 'Saint-Brieuc', 'loudeac': 'Loudéac' };
 
 function elisionVoiture(v){
   const n = String(v || '').trim();
   if(!n) return '';
   return /^[aeiouyéèêh]/i.test(n) ? 'dans l’' + n : 'dans la ' + n;
+}
+
+/* « 2026-11-25 » du jour choisi */
+function jourDeLOubliEC(){
+  const d = new Date();
+  if(oubliOuvert.jour === 'demain') d.setDate(d.getDate() + 1);
+  else if(oubliOuvert.jour === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(oubliOuvert.date)) return oubliOuvert.date;
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function dispoDeLOubliEC(){ return jourDeLOubliEC() + 'T' + (/^\d{2}:\d{2}$/.test(oubliOuvert.heure) ? oubliOuvert.heure : '14:00'); }
+/* Le bureau de la voiture (Flotte), sinon l'agence de l'élève (son dernier cours) */
+function bureauProposeDeLOubliEC(eleve, voiture){
+  const site = v => /loud/i.test(String(v || '')) ? 'loudeac' : (/brieuc/i.test(String(v || '')) ? 'saint-brieuc' : '');
+  const v = ((typeof flotte !== 'undefined' && flotte) || []).find(x => x && x.nom === voiture);
+  if(v && site(v.site)) return site(v.site);
+  const n = normaliserMessagerie(eleve || '');
+  const cours = ((typeof prepares !== 'undefined' && prepares) || []).filter(x => x && normaliserMessagerie(x.eleve) === n && site(x.site))
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  if(cours.length) return site(cours[0].site);
+  return 'saint-brieuc';
 }
 
 function messageDeLOubli(){
@@ -4642,25 +4765,27 @@ function messageDeLOubli(){
   const voit = elisionVoiture((($('oubOuvVoiture') || {}).value || '').trim());
   const quoi = (($('oubOuvQuoi') || {}).value || '').trim();
   const bonjour = 'Bonjour' + (prenom ? ' ' + prenom : '') + ', ';
-  if(oubliOuvert.sd){
-    return oubliOuvert.etat === 'retrouve'
-      ? bonjour + 'on a retrouvé ta carte SD' + (voit ? ' ' + voit : '') +
-        '. Elle est au bureau, passe la chercher quand tu veux.'
-      : bonjour + 'on regarde pour ta carte SD' + (voit ? ' ' + voit : '') +
-        '. On te tient au courant ici.';
+  const la = oubliOuvert.sd ? 'la' : 'le';
+  const chose = oubliOuvert.sd ? 'ta carte SD' : (quoi ? '« ' + quoi + ' »' : 'ton objet');
+  const bureau = 'au bureau de ' + (NOMS_BUREAUX_EC[oubliOuvert.bureau] || 'Saint-Brieuc');
+  if(oubliOuvert.etat === 'signale'){
+    return bonjour + 'on regarde pour ' + chose + (voit ? ' ' + voit : '') + '. On te tient au courant ici.';
   }
-  const chose = quoi ? '« ' + quoi + ' »' : 'ton objet';
-  return oubliOuvert.etat === 'retrouve'
-    ? bonjour + 'on a retrouvé ' + chose + (voit ? ' ' + voit : '') +
-      '. Tu peux passer le récupérer au bureau quand tu veux.'
-    : bonjour + 'on regarde pour ' + chose + (voit ? ' ' + voit : '') +
-      '. On te tient au courant ici.';
+  if(oubliOuvert.etat === 'voiture'){
+    const quand = (typeof quandDispoObjetEC === 'function') ? quandDispoObjetEC(dispoDeLOubliEC()).replace(' dès ', ' à partir de ') : '';
+    return bonjour + 'on a retrouvé ' + chose + (voit ? ' ' + voit : '') + '. Tu pourras ' + la +
+      ' récupérer ' + bureau + ' ' + quand + ', passe quand tu veux.';
+  }
+  return bonjour + 'on a retrouvé ' + chose + (voit ? ' ' + voit : '') + '. ' +
+    (oubliOuvert.sd ? 'Elle est ' : 'Il est ') + bureau + ', passe ' + la + ' chercher quand tu veux.';
 }
 
-async function ecranOuvrirUnOubli(dansLaZone){
+async function ecranOuvrirUnOubli(dansLaZone, opts){
   /* v1152 — depuis l'écran 🧤 Objets, ou depuis le filtre 🧤 de la
      messagerie : dans ce cas il prend la colonne du fil, comme
-     « À qui ? », et la liste reste à côté. */
+     « À qui ? », et la liste reste à côté. 🧤 v1563 — et depuis ✏️ ou la
+     conversation d'un élève (« opts » : l'élève, d'où l'on vient). */
+  opts = opts || {};
   const dansLeFil = !!dansLaZone;
   const zone = dansLaZone || zoneDesObjets();
   if(!zone) return;
@@ -4677,6 +4802,12 @@ async function ecranOuvrirUnOubli(dansLaZone){
   oubliOuvert.sd = true;
   oubliOuvert.etat = 'retrouve';
   oubliOuvert.ecrit = false;
+  oubliOuvert.bureauChoisi = false;
+  oubliOuvert.jour = 'demain';
+  oubliOuvert.date = '';
+  oubliOuvert.heure = '14:00';
+  oubliOuvert.depuis = String(opts.depuis || '');
+  oubliOuvert.retour = String(opts.retour || '');
 
   /* Les listes d'abord : une liste déroulante qui se remplit après
      coup fait choisir dans le vide. */
@@ -4698,6 +4829,11 @@ async function ecranOuvrirUnOubli(dansLaZone){
     .filter(v => v && v.nom && (v.categorie || 'voiture') === 'voiture' && v.etat !== 'vendu')
     .map(v => v.nom).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
   const moniteurs = ((typeof moniteursActifs !== 'undefined' && moniteursActifs) || []).slice();
+  const moi = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+  /* Un moniteur, ou depuis sa conversation avec l'élève : c'est lui */
+  const depuisMoniteur = !!(opts.depuis && (conversationsEC || []).some(c => c.id === opts.depuis && c.genre === 'moniteur'));
+  const monDefaut = ((typeof ckPeutGerer === 'function' && !ckPeutGerer()) || depuisMoniteur) &&
+    moniteurs.some(n => normaliserMessagerie(n) === normaliserMessagerie(moi)) ? moniteurs.find(n => normaliserMessagerie(n) === normaliserMessagerie(moi)) : '';
 
   const pastille = (on) => on
     ? 'width:auto;margin:0;padding:9px 14px;font-size:13px;border-radius:999px;font-weight:700;' +
@@ -4709,14 +4845,14 @@ async function ecranOuvrirUnOubli(dansLaZone){
       voitures.map(v => '<option>' + echapper(v) + '</option>').join('') + '</select>'
     : '<input type="text" id="oubOuvVoiture" placeholder="A3 2, Q3 10…">';
   const choixMoniteur = '<select id="oubOuvMoniteur"><option value="">Personne</option>' +
-    moniteurs.map(n => '<option>' + echapper(n) + '</option>').join('') + '</select>';
+    moniteurs.map(n => '<option' + (n === monDefaut ? ' selected' : '') + '>' + echapper(n) + '</option>').join('') + '</select>';
 
   zone.innerHTML = (dansLeFil ? '<div style="padding:14px 18px;overflow:auto;">' : '<div>') +
     '<div style="display:flex;gap:10px;align-items:center;padding-bottom:10px;' +
       'border-bottom:1px solid var(--line);margin-bottom:14px;">' +
       '<button class="btn btn-secondary" id="oubOuvRetour" style="width:auto;margin:0;' +
         'padding:8px 12px;font-size:14px;">←</button>' +
-      '<div style="flex:1;min-width:0;font-size:15px;font-weight:800;">🧤 Ouvrir un oubli</div></div>' +
+      '<div style="flex:1;min-width:0;font-size:15px;font-weight:800;">🧤 Déclarer un objet trouvé</div></div>' +
     '<label for="oubOuvEleve">L’élève</label>' +
     '<input type="text" id="oubOuvEleve" list="listeEleves" autocomplete="off" placeholder="Tape son nom…">' +
     '<label>Ce qui a été oublié</label>' +
@@ -4725,22 +4861,42 @@ async function ecranOuvrirUnOubli(dansLaZone){
       '<input type="text" id="oubOuvQuoi" placeholder="Une écharpe grise, des lunettes…"></div>' +
     '<div class="duo"><div><label for="oubOuvVoiture">Dans quelle voiture</label>' + choixVoiture + '</div>' +
       '<div><label for="oubOuvMoniteur">Avec quel moniteur</label>' + choixMoniteur + '</div></div>' +
-    '<label>Où ' + '<span id="oubOuvOu">elle en est</span></label>' +
-    '<div id="oubOuvEtat" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;"></div>' +
+    '<label>Où <span id="oubOuvOu">elle en est</span></label>' +
+    '<div id="oubOuvEtat" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;"></div>' +
+    '<div id="oubOuvPlus"></div>' +
     '<label for="oubOuvTexte" id="oubOuvTexteLab">Le message à l’élève</label>' +
-    '<textarea id="oubOuvTexte" rows="3" style="width:100%;box-sizing:border-box;background:var(--navy);' +
+    '<textarea id="oubOuvTexte" rows="5" style="width:100%;box-sizing:border-box;background:var(--navy);' +
       'border:1px solid var(--line);color:var(--cream);padding:11px 12px;border-radius:10px;font-size:15px;' +
       'font-family:inherit;line-height:1.45;margin-bottom:10px;"></textarea>' +
     '<div id="oubOuvAvis" style="font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:10px;' +
       'margin:4px 0 14px;background:rgba(0,0,0,.04);color:var(--muted);"></div>' +
     '<button class="btn btn-primary" id="oubOuvEnvoyer">💬 Envoyer</button></div>';
+  if(opts.eleve) $('oubOuvEleve').value = opts.eleve;
+
+  const rangee = (liste, cle, apres) => {
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;align-items:center;';
+    liste.forEach(([v, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = (oubliOuvert[cle] === v) ? '' : 'btn btn-secondary';
+      b.style.cssText = pastille(oubliOuvert[cle] === v);
+      b.dataset[cle] = v;
+      b.textContent = t;
+      b.addEventListener('click', () => { oubliOuvert[cle] = v; if(cle === 'bureau') oubliOuvert.bureauChoisi = true; majTout(); });
+      r.appendChild(b);
+    });
+    (apres || []).forEach(x => r.appendChild(x));
+    return r;
+  };
 
   const majTout = () => {
     const eleve = ($('oubOuvEleve').value || '').trim();
     const prenom = eleve.split(/\s+/)[0] || '';
     const mon = ($('oubOuvMoniteur').value || '').trim();
+    if(!oubliOuvert.bureauChoisi) oubliOuvert.bureau = bureauProposeDeLOubliEC(eleve, ($('oubOuvVoiture').value || '').trim());
     $('oubOuvZoneQuoi').style.display = oubliOuvert.sd ? 'none' : '';
-    $('oubOuvOu').textContent = oubliOuvert.sd ? 'elle en est' : 'ça en est';
+    $('oubOuvOu').textContent = oubliOuvert.sd ? 'elle est' : 'il est';
     const zs = $('oubOuvSorte');
     zs.innerHTML = '';
     [[true, '💾 Sa carte SD'], [false, '🧤 Autre chose']].forEach(([v, t]) => {
@@ -4754,27 +4910,65 @@ async function ecranOuvrirUnOubli(dansLaZone){
     });
     const ze = $('oubOuvEtat');
     ze.innerHTML = '';
-    [['signale', oubliOuvert.sd ? '🔎 On la cherche' : '🔎 On cherche'],
-     ['retrouve', oubliOuvert.sd ? '💾 Elle est au bureau' : '✅ Retrouvé, au bureau']].forEach(([v, t]) => {
+    [['signale', oubliOuvert.sd ? '🔎 On la cherche' : '🔎 On le cherche'],
+     ['retrouve', '🏢 Au bureau'],
+     ['voiture', '🚗 Dans la voiture']].forEach(([v, t]) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = (oubliOuvert.etat === v) ? '' : 'btn btn-secondary';
       b.style.cssText = pastille(oubliOuvert.etat === v);
+      b.dataset.etat = v;
       b.textContent = t;
       b.addEventListener('click', () => { oubliOuvert.etat = v; majTout(); });
       ze.appendChild(b);
     });
+    /* le bureau, et l'heure pour « dans la voiture » */
+    const plus = $('oubOuvPlus');
+    plus.innerHTML = '';
+    if(oubliOuvert.etat !== 'signale'){
+      const l = document.createElement('label');
+      l.textContent = oubliOuvert.etat === 'voiture' ? (oubliOuvert.sd ? 'Elle sera au bureau de' : 'Il sera au bureau de') : 'Au bureau de';
+      plus.appendChild(l);
+      plus.appendChild(rangee([['saint-brieuc', '📍 Saint-Brieuc'], ['loudeac', '📍 Loudéac']], 'bureau'));
+    }
+    if(oubliOuvert.etat === 'voiture'){
+      const l = document.createElement('label');
+      l.textContent = 'À partir de';
+      plus.appendChild(l);
+      const ajouts = [];
+      if(oubliOuvert.jour === 'date'){
+        const dte = document.createElement('input');
+        dte.type = 'date'; dte.id = 'oubOuvDate'; dte.value = oubliOuvert.date || jourDeLOubliEC();
+        dte.style.cssText = 'width:auto;margin:0;';
+        dte.addEventListener('change', () => { oubliOuvert.date = dte.value; majMessage(); });
+        if(!oubliOuvert.date) oubliOuvert.date = dte.value;
+        ajouts.push(dte);
+      }
+      const h = document.createElement('input');
+      h.type = 'time'; h.id = 'oubOuvHeure'; h.value = oubliOuvert.heure;
+      h.style.cssText = 'width:120px;margin:0;';
+      h.addEventListener('input', () => { oubliOuvert.heure = h.value; majMessage(); });
+      ajouts.push(h);
+      plus.appendChild(rangee([['aujourdhui', 'Aujourd’hui'], ['demain', 'Demain'], ['date', '📅 Une date']], 'jour', ajouts));
+    }
     $('oubOuvTexteLab').textContent = 'Le message à ' + (prenom || 'l’élève');
-    /* Le message suit les choix tant qu'on ne l'a pas retouché */
-    if(!oubliOuvert.ecrit) $('oubOuvTexte').value = messageDeLOubli();
-    $('oubOuvAvis').textContent = (prenom || 'L’élève') + (mon ? ', ' + mon : '') +
-      ' et le bureau sont dans la conversation. Elle se range dans 🧤 Objets comme une ' +
-      'demande de l’élève.';
+    majMessage();
+    const chezMoniteur = depuisMoniteur || (typeof ckPeutGerer === 'function' && !ckPeutGerer());
+    $('oubOuvAvis').textContent = chezMoniteur
+      ? 'Ça part dans ta conversation avec ' + (prenom || 'l’élève') + '. Le bureau en a la copie 🔒 dans la sienne, avec le même suivi.'
+      : 'Ça part dans la conversation de ' + (prenom || 'l’élève') + ' avec le bureau, en carte de suivi.' +
+        (mon ? ' ' + mon + ' en a la copie 🔒 dans sa conversation avec ' + (prenom || 'l’élève') + '.' : '');
     $('oubOuvEnvoyer').textContent = '💬 Envoyer à ' + (prenom || 'l’élève');
   };
+  /* Le message suit les choix tant qu'on ne l'a pas retouché */
+  const majMessage = () => { if(!oubliOuvert.ecrit) $('oubOuvTexte').value = messageDeLOubli(); };
 
   $('oubOuvRetour').addEventListener('click', () => {
-    if(oubliOuvert.dansLeFil){ ckEcranAPart = false; afficherMessagerie(true); return; }
+    if(oubliOuvert.dansLeFil){
+      ckEcranAPart = false;
+      if(oubliOuvert.retour && typeof ouvrirLeFil === 'function'){ ouvrirLeFil(oubliOuvert.retour); return; }
+      afficherMessagerie(true); return;
+    }
     objetsEC = []; afficherObjetsOublies();
   });
   ['oubOuvEleve', 'oubOuvQuoi', 'oubOuvVoiture', 'oubOuvMoniteur'].forEach(id => {
@@ -4811,7 +5005,11 @@ async function envoyerLOubliOuvert(bouton){
       action: 'objetOuvrir', eleve: propre, sd: oubliOuvert.sd ? '1' : '',
       quoi: quoi, vehicule: ($('oubOuvVoiture').value || '').trim(),
       moniteur: ($('oubOuvMoniteur').value || '').trim(),
-      etat: oubliOuvert.etat, texte: texte
+      etat: oubliOuvert.etat, texte: texte,
+      /* 🧤 v1563 — le bureau, l'heure, et d'où on le déclare */
+      bureau: oubliOuvert.etat === 'signale' ? '' : oubliOuvert.bureau,
+      dispoLe: oubliOuvert.etat === 'voiture' ? dispoDeLOubliEC() : '',
+      depuis: oubliOuvert.depuis || ''
     });
     objetsEC = [];
     conversationsEC = [];
@@ -4819,8 +5017,8 @@ async function envoyerLOubliOuvert(bouton){
     if(d && d.id && typeof afficherVue === 'function' && typeof ouvrirLeFil === 'function'){
       ckEcranAPart = false;
       if(!oubliOuvert.dansLeFil) afficherVue('messagerie', 'messagerie');
-      await ouvrirLeFil(d.id);
-      if(oubliOuvert.dansLeFil) afficherMessagerie(true);
+      await ouvrirLeFil(d.demande || d.id);
+      afficherMessagerie(true);
     }else afficherObjetsOublies();
   }catch(e){
     bouton.disabled = false;
