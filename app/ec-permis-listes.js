@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 17:47 — v1544 */
+/* Déployé le 21/11/2026 à 19:57 — v1547 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -101,7 +101,15 @@ function ficheSuiviPermis(e){
     const z = f.querySelector('#' + id + 'resa');
     if(s.toutPlanifie === 'oui'){
       z.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--accent-text);margin:0 0 14px;">📆 Tout est planifié — les réservations sont posées.</div>';
-    }else z.appendChild(blocResa);
+    }
+    /* 📅 v1547 — ses leçons posées sur Drivup et si ça couvre ce qu'il doit
+       faire : lues quand la fiche s'ouvre */
+    if(typeof blocPlanningDrivupPermis === 'function' && e.eleve){
+      const bd = blocPlanningDrivupPermis({ nom: e.eleve, exam: isoDuPermis((e.etat && e.etat.permisDate) || s.datePermis || ''), paresseux: true });
+      z.appendChild(bd);
+      d.addEventListener('toggle', () => { if(d.open) bd.charger(); });
+    }
+    if(s.toutPlanifie !== 'oui') z.appendChild(blocResa);
   }
 
   const bEnr = document.createElement('button');
