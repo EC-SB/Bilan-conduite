@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 19:57 — v1547 */
+/* Déployé le 24/11/2026 à 16:53 — v1562 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -923,7 +923,7 @@ function apercuSuiviSE(texte){
   a.dataset.sig = sig;
   a.innerHTML = '';
   const c = choixEnvoiSE(id);
-  const redire = () => { a.dataset.sig = ''; const t = document.getElementById('msgElvTexte'); apercuSuiviSE(t ? t.value : ''); if(t) t.focus(); };
+  const redire = () => { a.dataset.sig = ''; const t = champDuFilEC(); apercuSuiviSE(t ? t.value : ''); if(t) t.focus(); };
   const bouton = (txt, cls, titre, faire) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = cls; b.textContent = txt; if(titre) b.title = titre;
