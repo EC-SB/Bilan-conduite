@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 09:30 — v1441 */
+/* Déployé le 24/11/2026 à 10:29 — v1548 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -28,6 +28,14 @@ let parcoursOptions = {};
 let parcoursGuides = [];
 let parcoursGroupeOuvert = '';
 let parcoursCharge = false;
+/* ❓ v1548 — le même atelier, pour la FAQ des élèves (Suivi › ❓ Questions
+   fréquentes, ec-faq.js) : seulement les groupes ❓, dans faqZone. */
+let parcoursModeFaq = false;
+function zoneDuParcours(){ return $(parcoursModeFaq ? 'faqZone' : 'parcoursZone'); }
+/* Les groupes de l'écran : la FAQ d'un côté, le parcours de l'autre */
+function groupesDeLEcran(){
+  return parcoursGroupes.filter(g => !!(g.faq || (parcoursOptions[g.id] || {}).faq) === parcoursModeFaq);
+}
 
 /* ============================================================
    LES TYPES DE BLOCS — ET CELUI QUI MANQUAIT
@@ -224,7 +232,7 @@ function listeRangeable(conteneur, quandChange){
    L'ÉCRAN
    ============================================================ */
 async function afficherParcours(){
-  const zone = $('parcoursZone');
+  const zone = zoneDuParcours();
   if(!zone) return;
 
   if(!parcoursCharge){
@@ -272,12 +280,19 @@ function guidesDuGroupe(id){
    toujours au doigt (⠿) ou aux flèches.
    ============================================================ */
 function dessinerParcours(){
-  const zone = $('parcoursZone');
+  const zone = zoneDuParcours();
   if(!zone) return;
   poserLeStyleDuParcours();
   zone.innerHTML = '';
 
-  if(!parcoursGroupes.length){
+  /* ❓ v1548 — la FAQ a son écran : ses groupes ici, les autres là-bas */
+  const groupesVus = groupesDeLEcran();
+  if(parcoursModeFaq && !groupesVus.length){
+    if(typeof dessinerFaqVide === 'function') dessinerFaqVide(zone);
+    return;
+  }
+
+  if(!groupesVus.length){
     const v = document.createElement('div');
     v.className = 'empty';
     v.textContent = 'Aucun groupe pour l\'instant. Le premier remplacera un de tes groupes Facebook.';
@@ -290,16 +305,16 @@ function dessinerParcours(){
     zone.appendChild(b);
     return;
   }
-  if(!parcoursGroupes.some(x => x.id === parcoursGroupeOuvert)){
-    parcoursGroupeOuvert = (parcoursGroupes.find(x => !x.fermeLe) || parcoursGroupes[0]).id;
+  if(!groupesVus.some(x => x.id === parcoursGroupeOuvert)){
+    parcoursGroupeOuvert = (groupesVus.find(x => !x.fermeLe) || groupesVus[0]).id;
   }
-  const g = parcoursGroupes.find(x => x.id === parcoursGroupeOuvert);
+  const g = groupesVus.find(x => x.id === parcoursGroupeOuvert);
 
   /* Les groupes, en onglets */
   const ong = document.createElement('div');
   ong.className = 'pcOnglets';
   ong.setAttribute('role', 'tablist');
-  parcoursGroupes.forEach(x => {
+  groupesVus.forEach(x => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn ' + (x.id === g.id ? 'btn-primary' : 'btn-secondary');
@@ -321,7 +336,8 @@ function dessinerParcours(){
   bNg.className = 'btn btn-secondary pcPointille';
   bNg.textContent = '➕ Groupe';
   bNg.addEventListener('click', () => ouvrirLeGroupe(null));
-  ong.appendChild(bNg);
+  /* ❓ v1548 — la FAQ : pas de nouveau groupe ; « ✏️ Le groupe » pour qui a le parcours */
+  if(!parcoursModeFaq) ong.appendChild(bNg);
   const vide = document.createElement('span');
   vide.style.flex = '1';
   ong.appendChild(vide);
@@ -330,7 +346,7 @@ function dessinerParcours(){
   bMg.className = 'btn btn-secondary';
   bMg.textContent = '✏️ Le groupe';
   bMg.addEventListener('click', () => ouvrirLeGroupe(g));
-  ong.appendChild(bMg);
+  if(!parcoursModeFaq || (typeof peutModifier === 'function' && peutModifier('parcours'))) ong.appendChild(bMg);
   zone.appendChild(ong);
 
   const liste = guidesDuGroupe(g.id);
@@ -340,7 +356,8 @@ function dessinerParcours(){
   const tab = (parcoursOptions[g.id] || {}).tablettes;
   aide.textContent = (liste.length ? liste.length + ' guide' + (liste.length > 1 ? 's' : '') + ' · ' + publies + ' publié' + (publies > 1 ? 's' : '') + ' — ' : '') +
     (g.fermeLe ? 'groupe fermé le ' + g.fermeLe + ' (rouvre-le dans ✏️ Le groupe). ' : '') +
-    (tab ? '📺 seulement sur les tablettes (' + (tab === 'code' ? 'avec le code de l’équipe' : 'en libre') +
+    (parcoursModeFaq ? '❓ chez tous les élèves, onglet FAQ : un guide publié = un thème, une étape = une question (son titre), ses blocs = la réponse. Un brouillon ne se voit pas. Attrape ⠿ pour changer l’ordre des thèmes · un appui ouvre le thème.'
+     : tab ? '📺 seulement sur les tablettes (' + (tab === 'code' ? 'avec le code de l’équipe' : 'en libre') +
            ') : un guide publié = une catégorie, une étape = un bouton. Attrape ⠿ pour changer l’ordre sur la tablette · un appui ouvre le guide.'
          : 'Attrape ⠿ pour changer l’ordre chez l’élève · un appui ouvre le guide.');
   zone.appendChild(aide);
@@ -352,7 +369,7 @@ function dessinerParcours(){
   const nouv = document.createElement('button');
   nouv.type = 'button';
   nouv.className = 'pcCarteNeuve';
-  nouv.textContent = '➕ Nouveau guide';
+  nouv.textContent = parcoursModeFaq ? '➕ Nouveau thème' : '➕ Nouveau guide';
   nouv.addEventListener('click', () => ouvrirLeGuide(null, g));
   grille.appendChild(nouv);
   zone.appendChild(grille);
@@ -501,7 +518,7 @@ function poserLeStyleDuParcours(){
 
 
 async function ouvrirLeGroupe(g){
-  const zone = $('parcoursZone');
+  const zone = zoneDuParcours();
   if(!zone) return;
 
   const neuf = !g;
@@ -908,7 +925,7 @@ function genreDuFichierParcours(f){
 }
 
 async function ouvrirLeGuide(x, groupe){
-  const zone = $('parcoursZone');
+  const zone = zoneDuParcours();
   if(!zone) return;
   poserLeStyleDuParcours();
   let neuf = !x;
@@ -1268,7 +1285,8 @@ async function ouvrirLeGuide(x, groupe){
     const corps = document.createElement('div');
     corps.className = 'pcCorps';
     corps.dataset.corps = i;
-    if(et.titre) corps.appendChild(reglagesDEtape(et, i));
+    /* ❓ v1548 — la FAQ n'a ni temps de lecture, ni « compte », ni élèves choisis */
+    if(et.titre && !parcoursModeFaq) corps.appendChild(reglagesDEtape(et, i));
     const zb = document.createElement('div');
     zb.className = 'pcBlocs';
     zb.id = 'pdBlocs' + i;
@@ -1636,7 +1654,7 @@ async function ouvrirLeGuide(x, groupe){
       const inp = document.createElement('input');
       inp.type = 'text'; inp.className = 'pcEtNom' + (carte ? '' : ' grand');
       inp.dataset.etapeNom = String(i);
-      inp.placeholder = 'Nom de l’étape…'; inp.value = et.titre.titre || '';
+      inp.placeholder = parcoursModeFaq ? 'La question (ex. : C’est quoi le NEPH ?)…' : 'Nom de l’étape…'; inp.value = et.titre.titre || '';
       inp.setAttribute('aria-label', 'Nom de l’étape ' + (avecTitre.indexOf(et) + 1));
       h.appendChild(inp);
     }else{
