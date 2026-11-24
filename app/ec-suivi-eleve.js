@@ -1,4 +1,4 @@
-/* Déployé le 19/11/2026 à 17:11 — v1500 */
+/* Déployé le 21/11/2026 à 19:57 — v1547 */
 /* ============================================================
    ec-suivi-eleve.js — 👁️ LE SUIVI DE L'ÉLÈVE — v1272
 
@@ -557,6 +557,9 @@ function contenuSuiviSE(nom, x){
       }
     });
     w.appendChild(l);
+    /* 📅 v1547 — sous « 🚨 Urgent » : ses leçons à venir, ses Resa permis
+       et ce qu'il reste à réserver avant l'examen (David, le 21/11) */
+    if(c.k === 'urgent') w.appendChild(planningPermisSE(nom));
   });
   /* 📝 le texte libre */
   w.appendChild(titreSE('📝 Ce qu’il faut savoir'));
@@ -675,6 +678,50 @@ function contenuSuiviSE(nom, x){
     w.appendChild(e);
   }
   return w;
+}
+/* 📅 v1547 — les trois lignes sous « 🚨 Urgent ». Les passées ne
+   s'affichent pas (elles sont comptées dans les heures faites). */
+function planningPermisSE(nom){
+  const z = document.createElement('div');
+  z.className = 'suiviPermisSE';
+  z.style.cssText = 'margin:-2px 0 10px 27px;font-size:12.5px;line-height:1.55;';
+  const ligne = (ico, titre, texte, coul) => '<div style="color:' + coul + ';"><b>' + ico + ' ' + echSE(titre) + ' :</b> ' + texte + '</div>';
+  const dessiner = () => {
+    if(typeof bilanPlanningPermis !== 'function'){ z.style.display = 'none'; return; }
+    const b = bilanPlanningPermis(nom, '');
+    if(!b){ z.innerHTML = '<div style="color:var(--muted);">📅 Leçons à venir : lecture de Drivup…</div>'; return; }
+    if(b.erreur){ z.innerHTML = '<div style="color:var(--muted);">📅 Leçons à venir : Drivup pas lisible pour l’instant.</div>'; return; }
+    const cal = (typeof calendrierOrangeSvg === 'function') ? calendrierOrangeSvg(13) : '🗓️';
+    const lecons = b.lecons.slice(0, b.exam ? 12 : 6);
+    let h = ligne('📅', 'Leçons à venir', lecons.length
+      ? echSE(lecons.map(creneauPermisTexte).join(' · ')) + (b.lecons.length > lecons.length ? ' · …' : '')
+      : '<span style="color:var(--muted);">aucune sur son planning Drivup</span>', 'var(--text)');
+    if(b.resas.length){
+      h += '<div style="color:' + (typeof RESA_ORANGE_TEXTE !== 'undefined' ? RESA_ORANGE_TEXTE : 'inherit') + ';"><b>' + cal + ' Resa permis :</b> ' +
+        echSE(b.resas.map(creneauPermisTexte).join(' · ')) + ' <span style="opacity:.8;">(pas encore posées sur Drivup)</span></div>';
+    }
+    if(b.exam && b.connu && !b.jourJ){
+      const t = texteAReserverPermis(b.manqueResa, b, false);
+      h += t ? ligne('⏳', 'À réserver avant l’examen du ' + b.exam.slice(8, 10) + '/' + b.exam.slice(5, 7), echSE(t), 'var(--warn-text)')
+             : '<div style="color:var(--accent-text);"><b>✅ Rien à réserver</b> avant l’examen du ' + b.exam.slice(8, 10) + '/' + b.exam.slice(5, 7) +
+               (b.couvre ? ' : tout est posé sur Drivup' : ' : le reste est réservé') + '</div>';
+    }else if(b.exam && !b.connu){
+      h += '<div style="color:var(--muted);">⏱️ Heures avant l’examen à préciser : pas de calcul de ce qu’il reste à réserver.</div>';
+    }
+    z.innerHTML = h;
+  };
+  dessiner();
+  (async () => {
+    try{
+      /* sa date d'examen et ses heures viennent de l'état du bureau */
+      if(typeof chargerBureau === 'function' && typeof etatBureau !== 'undefined' && !(etatBureau && (etatBureau.suivi || []).length)){
+        try{ await chargerBureau(false); }catch(e){ /* sans date : ses leçons seules */ }
+      }
+      if(typeof chargerPlanningPermisEC === 'function') await chargerPlanningPermisEC([nom]);
+    }catch(e){ /* dessiné tel quel */ }
+    dessiner();
+  })();
+  return z;
 }
 function titreSE(t){ const d = document.createElement('div'); d.className = 'suiviTitre'; d.textContent = t; return d; }
 function echSE(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
