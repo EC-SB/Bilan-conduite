@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:27 — v1467 */
+/* Déployé le 24/11/2026 à 18:19 — v1564 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2567,13 +2567,18 @@ brancher('logoutBtn', 'click', async () => {
   const reste = (typeof travailNonTermine === 'function')
     ? travailNonTermine() : 0;
 
-  const question = reste
+  /* 📤 v1564 — un message pas encore parti est perdu à la déconnexion */
+  const envois = (typeof envoisEnAttenteEC === 'function') ? envoisEnAttenteEC() : 0;
+  const question = (reste
     ? 'Se déconnecter ?\n\nIl reste ' + reste + ' travail(aux) non ' +
       'terminé(s) sur cet appareil (bilan dicté, fiche en cours).\n' +
       'La déconnexion les efface.'
-    : 'Se déconnecter ?';
+    : 'Se déconnecter ?') +
+    (envois ? '\n\n⚠️ ' + (envois > 1 ? envois + ' messages ne sont pas encore partis : ils seront perdus.'
+                                       : '1 message n’est pas encore parti : il sera perdu.') : '');
 
   if(!await confirmer(question)) return;
+  if(typeof oublierLesEnvoisEC === 'function') oublierLesEnvoisEC();
   verrouiller('');
   if(typeof oublierLeTravail === 'function') oublierLeTravail();
   showToast('Déconnecté');
