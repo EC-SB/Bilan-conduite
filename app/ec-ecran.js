@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:07 — v1204 */
+/* Déployé le 24/11/2026 à 15:11 — v1559 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -315,7 +315,10 @@ function blocApercusEcrans(){
   const d = document.createElement('details');
   d.className = 'afTiroir afApercus';
   d.open = window.innerWidth > 620;
-  d.innerHTML = '<summary>📺 Les deux écrans en ce moment</summary>';
+  /* 📺 v1559 — David, le 24/11 : « surveiller le planning qui va être
+     affiché, sur Saint-Brieuc et sur Loudéac ». Depuis la v1557, chaque
+     télé ne montre que les cours de son site : on voit donc les trois. */
+  d.innerHTML = '<summary>📺 Les écrans en ce moment</summary>';
   const g = document.createElement('div');
   g.className = 'afEnDirect';
   d.appendChild(g);
@@ -328,14 +331,16 @@ function blocApercusEcrans(){
       g.innerHTML = '<div class="afResume" style="grid-column:1/-1;">⚠️ ECRAN_TOKEN n’est pas réglé dans Cloudflare : pas d’aperçu (voir ⚙️ Réglages › Adresses des écrans).</div>';
       return;
     }
-    [['accueil', '🏠 Accueil'], ['vitrine', '🪟 Vitrine']].forEach(([ou, nom]) => {
-      const adresse = CONFIG.LIEN_ECRAN + '?t=' + encodeURIComponent(j) + '&ou=' + ou +
+    [['accueil', 'saint-brieuc', '🏠 Accueil · Saint-Brieuc'], ['vitrine', 'saint-brieuc', '🪟 Vitrine · Saint-Brieuc'],
+     ['accueil', 'loudeac', '🏠 Accueil · Loudéac']].forEach(([ou, site, nom]) => {
+      const adresse = CONFIG.LIEN_ECRAN + '?t=' + encodeURIComponent(j) + '&ou=' + ou + '&site=' + site +
         /* v1204 — la version dans l'adresse : sans elle, le navigateur
            montrait l'ancienne page de l'écran après un déploiement */
         (typeof VERSION_MODULES !== 'undefined' ? '&v=' + VERSION_MODULES : '');
       const t = document.createElement('div');
       t.className = 'afTele';
-      t.innerHTML = '<div class="afCadre"><iframe title="Aperçu de l’écran ' + ou + '" loading="lazy" tabindex="-1"></iframe></div>' +
+      t.dataset.site = site;
+      t.innerHTML = '<div class="afCadre"><iframe title="Aperçu de l’écran ' + ou + ' de ' + site + '" loading="lazy" tabindex="-1"></iframe></div>' +
         '<div class="afTeleBas"><span class="afPoint"></span><strong>' + nom + ' <span class="eqGris" style="font-weight:400;">· en ce moment</span></strong></div>';
       const ifr = t.querySelector('iframe');
       ifr.src = adresse;
@@ -360,28 +365,34 @@ function blocApercusEcrans(){
   return d;
 }
 
-/* La phrase sous les aperçus : le prochain plein écran, et ce qui tourne */
+/* La phrase sous les aperçus : le prochain plein écran DE CHAQUE TÉLÉ, et ce
+   qui tourne. 📺 v1559 — une ligne par site : chaque télé n'a que ses cours. */
+function siteDuCoursEcran(c){ return /loud/i.test(String((c && c.site) || '')) ? 'loudeac' : 'saint-brieuc'; }
 function ligneProchainEcran(){
   const z = document.createElement('div');
   z.className = 'afProchain';
-  const r = coursRangesEcran(planningDuJourEcran, true);
-  const prochain = r.avenir.find(c => c.__etat === 'prochain') || null;
   const maintenant = minutesMaintenant();
-  let a = '';
-  if(r.avenir.some(c => c.__etat === 'grand')){
-    const c = r.avenir.find(x => x.__etat === 'grand');
-    a = '🖥️ <strong>En plein écran : ' + echEcran(nomPublicEleve(c.eleveComplet || c.eleve)) + '</strong>';
-  }else if(prochain){
-    const m = minutesDeHeure(prochain.heure);
-    const dans = m === null ? '' : ' (dans ' + (m - maintenant >= 60 ? Math.floor((m - maintenant) / 60) + ' h ' + String((m - maintenant) % 60).padStart(2, '0') : (m - maintenant) + ' min') + ')';
-    a = '⏭️ <strong>' + (pleinEcranActif() ? 'Prochain plein écran' : 'Prochain cours') + ' : ' +
-        echEcran(nomPublicEleve(prochain.eleveComplet || prochain.eleve)) + ' à ' + echEcran(String(prochain.heure).replace(':', 'h')) + '</strong>' + dans;
-  }else{
-    a = '🌙 <strong>Plus de cours à l’écran aujourd’hui</strong>';
-  }
+  const pourSite = (site, nom) => {
+    const r = coursRangesEcran((planningDuJourEcran || []).filter(c => siteDuCoursEcran(c) === site), true);
+    const prochain = r.avenir.find(c => c.__etat === 'prochain') || null;
+    let a = '';
+    if(r.avenir.some(c => c.__etat === 'grand')){
+      const c = r.avenir.find(x => x.__etat === 'grand');
+      a = '🖥️ <strong>En plein écran : ' + echEcran(nomPublicEleve(c.eleveComplet || c.eleve)) + '</strong>';
+    }else if(prochain){
+      const m = minutesDeHeure(prochain.heure);
+      const dans = m === null ? '' : ' (dans ' + (m - maintenant >= 60 ? Math.floor((m - maintenant) / 60) + ' h ' + String((m - maintenant) % 60).padStart(2, '0') : (m - maintenant) + ' min') + ')';
+      a = '⏭️ <strong>' + (pleinEcranActif() ? 'Prochain plein écran' : 'Prochain cours') + ' : ' +
+          echEcran(nomPublicEleve(prochain.eleveComplet || prochain.eleve)) + ' à ' + echEcran(String(prochain.heure).replace(':', 'h')) + '</strong>' + dans;
+    }else{
+      a = '🌙 <strong>Plus de cours à l’écran aujourd’hui</strong>';
+    }
+    return '<div>📍 ' + nom + ' · ' + r.avenir.length + ' cours à l’écran · ' + a + '</div>';
+  };
   const tourne = ou => diaposEcran.filter(x => etatDiapo(x) === 'ecran' && !TYPES_FIXES_ECRAN[x.type] &&
                                             (x.ou === ou || x.ou === 'les-deux')).length;
-  z.innerHTML = a + ' · 🖼️ ' + tourne('accueil') + ' diapositive(s) tournent à l’accueil, ' + tourne('vitrine') + ' à la vitrine';
+  z.innerHTML = pourSite('saint-brieuc', 'Saint-Brieuc') + pourSite('loudeac', 'Loudéac') +
+    '<div>🖼️ ' + tourne('accueil') + ' diapositive(s) tournent à l’accueil (les deux sites), ' + tourne('vitrine') + ' à la vitrine</div>';
   return z;
 }
 
@@ -472,14 +483,27 @@ function dessinerJourneeEcran(z, l, jour, recharger){
   z.innerHTML = '';
   const auj = jour === todayLocal();
   const r = coursRangesEcran(l, auj);
-  const dit = document.createElement('div');
-  dit.className = 'afResume';
-  dit.innerHTML = r.avenir.length
-    ? '<strong style="color:var(--cream);">' + r.avenir.length + ' cours à l’écran</strong> · l’écran se met à jour dans la minute · touche une puce pour la changer'
-    : (auj ? 'Plus de cours à l’écran aujourd’hui. L’écran affiche « Plus de cours aujourd’hui ».'
-           : 'Aucun cours ce jour-là. « ➕ Ajouter une ligne » en met un à la main.');
-  z.appendChild(dit);
-  r.avenir.forEach(c => z.appendChild(carteCoursEcran(c, l, jour, recharger)));
+  /* 📺 v1559 — DEUX TÉLÉS, DEUX LISTES. David, le 24/11 : « en plus,
+     Saint-Brieuc et Loudéac ». Chaque télé ne montre que les cours de son
+     site (v1557) : on les range comme elles les montrent. Une ligne
+     ajoutée à la main n'a pas de site : elle va à Saint-Brieuc. */
+  [['saint-brieuc', 'Saint-Brieuc'], ['loudeac', 'Loudéac']].forEach(([site, nom]) => {
+    /* rangés à part : chaque télé a son « prochain » et son plein écran */
+    const ici = coursRangesEcran(l.filter(c => siteDuCoursEcran(c) === site), auj).avenir;
+    const titre = document.createElement('div');
+    titre.className = 'afSite';
+    titre.style.cssText = 'font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin:14px 0 4px;';
+    titre.textContent = '📍 ' + nom;
+    z.appendChild(titre);
+    const dit = document.createElement('div');
+    dit.className = 'afResume';
+    dit.innerHTML = ici.length
+      ? '<strong style="color:var(--cream);">' + ici.length + ' cours à l’écran</strong> · l’écran se met à jour dans la minute · touche une puce pour la changer'
+      : (auj ? 'Plus de cours à l’écran aujourd’hui. L’écran affiche « Plus de cours aujourd’hui ».'
+             : 'Aucun cours ce jour-là' + (site === 'saint-brieuc' ? '. « ➕ Ajouter une ligne » en met un à la main.' : '.'));
+    z.appendChild(dit);
+    ici.forEach(c => z.appendChild(carteCoursEcran(c, l, jour, recharger)));
+  });
 
   const add = document.createElement('button');
   add.className = 'btn btn-secondary';
