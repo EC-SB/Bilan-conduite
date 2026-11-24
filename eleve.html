@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 24/11/2026 à 10:29 — v1548 -->
+<!-- Déployé le 24/11/2026 à 10:49 — v1549 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-7LHmOUtY/Qy4Qn9UYzylua0l5iZ8Couj23/D0Gtda04='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-zaiwPES3VkQtPYPrdSVcJmmoW06PuQ9blbYElmucCL8='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -454,6 +454,11 @@
   .faqCompte{ font-size:13px; color:var(--muted); margin:0 0 8px; }
   .faqRien{ font-size:14px; line-height:1.6; color:var(--muted); padding:6px 0; }
   .faqVideR{ color:var(--muted); font-style:italic; }
+  /* 🎯 👁️ v1549 */
+  .faqMaForm{ display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:13px; line-height:1.5; margin:-4px 0 12px; color:var(--accent-text); }
+  .faqBascule{ border:1px solid var(--line); background:transparent; color:var(--cream); border-radius:999px; padding:4px 11px;
+    font:inherit; font-size:12.5px; font-weight:700; width:auto; margin:0; min-height:0; cursor:pointer; }
+  .faqViteT{ font-size:12px; color:var(--muted); font-weight:700; margin:0 0 2px; }
   .miL{ display:flex; gap:10px; align-items:flex-start; padding:11px 0 0; }
   .miL + .miL{ border-top:1px solid var(--line); margin-top:11px; }
   .miK{ font-size:12px; color:var(--muted); font-weight:700; }
@@ -3113,6 +3118,8 @@
         <form class="faqChForm" id="faqChForm" role="search">
           <input type="search" id="faqCh" placeholder="🔍 Cherche : NEPH, annuler, Kopilote…" aria-label="Chercher une question" autocomplete="off">
         </form>
+        <!-- 🎯 v1549 — sa formation (David : « oui, et une option pour tout voir aussi ») -->
+        <div class="faqMaForm" id="faqMaForm" style="display:none;"></div>
         <div id="faqCorps"></div>
       </div>
     </div>
@@ -5920,7 +5927,47 @@
   var faqThemes = [];
   var faqLueLe = 0, faqLueUneFois = false, faqAOuvrir = false;
   var faqCherche = '';
+  /* 👁️ 🎯 v1549 — sa formation, les plus lues, « 👀 Tout voir » (gardé sur ce téléphone) */
+  var faqMaFormation = '', faqPlusLues = [], faqVoirTout = false;
+  try{ faqVoirTout = localStorage.getItem('ec_faq_tout') === '1'; }catch(e){}
+  var FAQ_NOMS_FORMATIONS = { 'BV': 'Voiture manuelle (BV)', 'BEA': 'Voiture automatique (BEA)', 'AAC BV': 'AAC manuelle', 'AAC BEA': 'AAC automatique',
+    'CS BV': 'CS manuelle', 'CS BEA': 'CS automatique', 'Passerelle BEA→BV': 'Passerelle B78 → B', 'Moto A': 'Moto (A)', 'A1 permis': 'A1',
+    'A1 passerelle': 'A1 passerelle', 'AM 2 roues': 'AM 2 roues', 'AM voiturette': 'AM voiturette', 'A2': 'A2', 'Permis BE': 'Permis BE (remorque)',
+    'Remise à niveau BV': 'Remise à niveau (BV)', 'Remise à niveau BEA': 'Remise à niveau (BEA)' };
   function faqOuverte(){ return !SALLE && !MODE_SALLE && faqThemes.length > 0; }
+  /* Pour sa formation ? Une liste vide = pour toutes ; sans formation dans sa fiche, il voit tout */
+  function pourMaFormationFaq(liste){
+    if(!liste || !liste.length || !faqMaFormation) return true;
+    var f = normFaq(faqMaFormation).trim();
+    return liste.some(function(x){ return normFaq(x).trim() === f; });
+  }
+  function questionVisibleFaq(t, q){ return faqVoirTout || (pourMaFormationFaq(t.formations) && pourMaFormationFaq(q.formations)); }
+  /* Quelque chose lui est-il caché ? (sinon, pas de ligne « 🎯 ») */
+  function faqFiltreQuelqueChose(){
+    if(!faqMaFormation) return false;
+    return faqThemes.some(function(t){ return !pourMaFormationFaq(t.formations) || (t.questions || []).some(function(q){ return !pourMaFormationFaq(q.formations); }); });
+  }
+  /* Une question ouverte, un mot cherché sans réponse : envoyés sans attendre de réponse */
+  var faqLusEnvoyes = {}, faqCherchesEnvoyes = {}, faqMinuterieCherche = null;
+  function envoyerFaq(action, d){
+    if(MODE_ESSAI){ (window.__faqEnvois = window.__faqEnvois || []).push(Object.assign({ action: action }, d)); return; }
+    try{ appeler(Object.assign({ action: action, eleve: moi.nom, code: moi.code }, d)).catch(function(){}); }catch(e){}
+  }
+  function faqLu(cle){
+    if(!cle || (faqLusEnvoyes[cle] && Date.now() - faqLusEnvoyes[cle] < 15 * 60000)) return;
+    faqLusEnvoyes[cle] = Date.now();
+    envoyerFaq('eleveFaqLu', { cle: cle });
+  }
+  function faqChercheSansReponse(texte){
+    clearTimeout(faqMinuterieCherche);
+    var t = String(texte || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if(t.length < 3) return;
+    faqMinuterieCherche = setTimeout(function(){
+      if(String(faqCherche || '').replace(/\s+/g, ' ').trim().toLowerCase() !== t || faqCherchesEnvoyes[t]) return;
+      faqCherchesEnvoyes[t] = 1;
+      envoyerFaq('eleveFaqCherche', { texte: t });
+    }, 1800);
+  }
   function normFaq(t){
     return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ');
   }
@@ -5936,6 +5983,8 @@
       if(!d || !Array.isArray(d.themes)) return;
       var avant = faqThemes.length;
       faqThemes = d.themes;
+      faqMaFormation = String(d.formation || '');
+      faqPlusLues = Array.isArray(d.plusLues) ? d.plusLues : [];
       faqLueUneFois = true;
       montrerFaq();
       if(!!avant !== !!faqThemes.length) dessinerLesOnglets();
@@ -5952,11 +6001,17 @@
     if(!c) return;
     c.style.display = on ? '' : 'none';
     if(!on) return;
-    /* les trois premières questions, à toucher tout de suite */
-    var vite = [];
-    faqThemes.forEach(function(t){ (t.questions || []).forEach(function(q){ if(vite.length < 3) vite.push({ cle: t.id + '::' + q.id, titre: q.titre }); }); });
+    /* 👁️ v1549 — les trois plus lues (pour lui), sinon les trois premières */
+    var toutes = {}, ordre = [];
+    faqThemes.forEach(function(t){ (t.questions || []).forEach(function(q){
+      if(!pourMaFormationFaq(t.formations) || !pourMaFormationFaq(q.formations)) return;
+      var cle = t.id + '::' + q.id; toutes[cle] = { cle: cle, titre: q.titre }; ordre.push(cle);
+    }); });
+    var vite = faqPlusLues.filter(function(k){ return toutes[k]; }).slice(0, 3).map(function(k){ return toutes[k]; });
+    var lues = vite.length > 0;
+    ordre.forEach(function(k){ if(vite.length < 3 && vite.indexOf(toutes[k]) === -1) vite.push(toutes[k]); });
     var z = $('faqVite');
-    if(z) z.innerHTML = vite.map(function(q){
+    if(z) z.innerHTML = (lues ? '<div class="faqViteT">👁️ Les plus lues</div>' : '') + vite.map(function(q){
       return '<button type="button" class="faqViteQ" data-faq-q="' + echapper(q.cle) + '">' + echapper(q.titre) + ' <span aria-hidden="true">›</span></button>';
     }).join('');
   }
@@ -5975,8 +6030,21 @@
     if(ch && ch.value !== faqCherche && document.activeElement !== ch) ch.value = faqCherche;
     var mots = normFaq(faqCherche).split(/[^a-z0-9]+/).filter(function(m){ return m.length > 1; });
     var trouve = 0, h = '';
+    /* 🎯 v1549 — sa formation : la ligne, et « 👀 Tout voir » */
+    var filtre = faqFiltreQuelqueChose();
+    var ligneF = $('faqMaForm');
+    if(ligneF){
+      ligneF.style.display = filtre ? '' : 'none';
+      if(filtre){
+        var nomF = FAQ_NOMS_FORMATIONS[faqMaFormation] || faqMaFormation;
+        ligneF.innerHTML = faqVoirTout
+          ? '<span>👀 Tu vois toutes les questions</span> <button type="button" class="faqBascule" data-faq-tout="0">🎯 Seulement ma formation</button>'
+          : '<span>🎯 <b>' + echapper(nomF) + '</b> : tu vois les questions de ta formation</span> <button type="button" class="faqBascule" data-faq-tout="1">👀 Tout voir</button>';
+      }
+    }
     faqThemes.forEach(function(t){
-      var qs = (t.questions || []).filter(function(q){ return questionCorrespond(q, mots); });
+      var qs = (t.questions || []).filter(function(q){ return questionVisibleFaq(t, q) && questionCorrespond(q, mots); });
+      if(!qs.length && (mots.length || !(t.intro || []).length || !(faqVoirTout || pourMaFormationFaq(t.formations)))) return;
       if(mots.length && !qs.length) return;
       trouve += qs.length;
       h += '<section class="faqTheme"><h3 class="faqTitre">' + echapper(t.titre) + '</h3>';
@@ -5994,6 +6062,7 @@
       h += '</section>';
     });
     if(mots.length && !trouve){
+      faqChercheSansReponse(faqCherche);   /* 👁️ v1549 — « 🔎 Cherché sans réponse », sans son nom */
       h = '<div class="faqRien">Aucune réponse pour « ' + echapper(faqCherche) + ' ».' +
         (ouvert('messages') ? ' <button type="button" class="faqEcrire" data-faq-ecrire="' + echapper(faqCherche) + '">✍️ Pose ta question au bureau</button>' : ' Demande-nous au bureau.') + '</div>';
     }else if(mots.length){
@@ -6030,9 +6099,15 @@
     var ch = document.getElementById('faqCh');
     if(ch) ch.addEventListener('input', function(){ faqCherche = ch.value; dessinerFaq(); });
     document.addEventListener('click', function(ev){
-      var b = ev.target && ev.target.closest && ev.target.closest('[data-faq-q],[data-faq-ecrire],.faqEffacer');
+      var b = ev.target && ev.target.closest && ev.target.closest('[data-faq-q],[data-faq-ecrire],.faqEffacer,[data-faq-tout]');
       if(!b) return;
       ev.preventDefault();
+      if(b.hasAttribute('data-faq-tout')){
+        faqVoirTout = b.getAttribute('data-faq-tout') === '1';
+        try{ localStorage.setItem('ec_faq_tout', faqVoirTout ? '1' : '0'); }catch(e){}
+        dessinerFaq();
+        return;
+      }
       if(b.hasAttribute('data-faq-q')) return ouvrirQuestionFaq(b.getAttribute('data-faq-q'));
       if(b.classList.contains('faqEffacer')){ faqCherche = ''; dessinerFaq(); return; }
       /* « Écrire au bureau » : sa messagerie, la question gardée pour la coller */
@@ -6043,7 +6118,9 @@
     /* une réponse refermée : sa vidéo s'arrête */
     document.addEventListener('toggle', function(ev){
       var d = ev.target;
-      if(!d || !d.classList || !d.classList.contains('faqQ') || d.open) return;
+      if(!d || !d.classList || !d.classList.contains('faqQ')) return;
+      /* 👁️ v1549 — une question ouverte compte (une fois par quart d'heure) */
+      if(d.open){ faqLu(d.getAttribute('data-faq')); return; }
       Array.prototype.forEach.call(d.querySelectorAll('video'), function(v){ try{ v.pause(); }catch(e){} });
     }, true);
   })();
