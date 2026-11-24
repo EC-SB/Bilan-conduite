@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:15 — v1447 */
+/* Déployé le 24/11/2026 à 13:11 — v1554 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1290,21 +1290,124 @@ function trouverProcedureDans(nomDit, liste){
 /* Les procédures de l'auto-école, transmises à l'IA pour que son
    résumé dise la même chose que ce qu'on enseigne. Sans ça, elle
    invente une méthode plausible mais qui n'est pas la vôtre. */
+/* ============================================================
+   📘 LES ERREURS ET « À TRAVAILLER » SELON NOS PROCÉDURES — v1554
+
+   David, le 24/11 : « dans les bilans, Erreurs de ce jour, il faut
+   vraiment que tu prennes pour modèle les procédures, car là tu
+   racontes encore des conneries. Dans À travailler la prochaine fois
+   pareil : se baser sur les procédures en les réexpliquant ».
+
+   L'IA avait nos procédures sous les yeux, mais pour consigne de ne
+   pas les recopier : pour dire « comment faire », elle écrivait une
+   méthode à elle. Désormais elle n'écrit plus la méthode du tout :
+   elle DÉSIGNE la procédure et ses lignes (« [[CORRIGE:P3:L2]] »), et
+   c'est l'App qui recopie NOTRE texte, au mot près (poserLesProceduresIA).
+   Une ligne qui n'existe pas n'est pas recopiée : l'IA ne peut plus
+   rien inventer à cet endroit.
+
+   Choix de David (schéma du 24/11) :
+   • sous une erreur : seulement les lignes qui la corrigent ;
+   • dans « À travailler » : les lignes utiles, et les liens 🎬 vers la
+     procédure dans son groupe, à la bonne étape (quand ils sont posés) ;
+   • les liens Facebook et les vidéos des lignes restent ;
+   • les procédures demandées à la voix restent recopiées en fin de
+     bilan (blocProcedures, inchangé) ;
+   • partout : voiture, AAC, simulateur — tous les bilans dictés.
+   ============================================================ */
+let proceduresNumeroteesIA = [];
+function lignesDeLaProcedure(p){
+  return String((p && p.contenu) || '').split(/\r?\n/).map(l => l.replace(/\s+$/, '')).filter(l => l.trim());
+}
+/* « À travailler » reprend TOUTES les rubriques où il y a eu une erreur
+   (David, sur le bilan de Charles : « il doit travailler ses contrôles,
+   son allure, ses manœuvres, son régime de priorité pour les piétons »,
+   puis « il manque les PAD »). Cette règle part avec chaque bilan, même
+   quand l'école a réécrit ses consignes, et même sans procédure. */
+const CONSIGNE_A_TRAVAILLER =
+  '\n\n« ➡️ À TRAVAILLER LA PROCHAINE FOIS » — RÈGLE ABSOLUE :\n' +
+  "- Un point pour CHAQUE rubrique où l'élève a fait au moins une erreur pendant ce cours, dans le même ordre " +
+  "que les erreurs : 👀 Tes contrôles, 🚦 Ton régime de priorité, 👀 Ta trajectoire, 🍩 Tes giratoires, " +
+  "🏎️ Ton allure, 🚙 Tes manœuvres, 🧠 Ta vigilance (n'en oublie aucune ; une rubrique sans erreur n'y est pas).\n" +
+  '- Chaque point commence par son titre sur la même ligne (« 👀 Tes contrôles : … »), puis reprend en une phrase ' +
+  'TOUTES les erreurs de cette rubrique, avec les mots du moniteur.\n' +
+  "- Les priorités à droite (PAD), les piétons, les stops et cédez-le-passage vont dans « 🚦 Ton régime de priorité ». " +
+  "Dès que le moniteur parle des PAD pendant le cours (erreur, rappel ou consigne pour la suite), les PAD y figurent.\n" +
+  '- Ce que le moniteur annonce lui-même pour le prochain cours y figure aussi.\n' +
+  "- Dans un bilan de simulateur, c'est le tableau \"prochainCours\" : un élément par compétence en erreur, même règle.\n";
+
 function consigneProceduresIA(){
   const liste = proceduresDeLaBoite();
-  if(!liste.length) return '';
+  proceduresNumeroteesIA = liste.slice();
+  if(!liste.length) return CONSIGNE_A_TRAVAILLER;
 
   const b = boiteDuModeleDuCours();
   const nom = b === 'bea' ? 'boîte automatique'
             : b === 'bv' ? 'boîte manuelle' : '';
 
-  return '\n\nNOS PROCÉDURES' + (nom ? ' — cours en ' + nom : '') + ' :\n' +
-    liste.map(p => '### ' + (p.nom || '') + '\n' + (p.contenu || '')).join('\n\n') +
+  return '\n\nNOS PROCÉDURES' + (nom ? ' — cours en ' + nom : '') + ' (numérotées P1, P2… ; chaque ligne L1, L2…) :\n' +
+    liste.map((p, i) => '### P' + (i + 1) + ' — ' + (p.nom || '') + '\n' +
+      lignesDeLaProcedure(p).map((l, j) => 'L' + (j + 1) + ' | ' + l).join('\n')).join('\n\n') +
     '\n\nCe sont LES méthodes enseignées ici. Quand tu décris une manœuvre ou une ' +
-    "situation couverte par l'une d'elles, tu emploies ses termes et son " +
-    "déroulé, jamais une méthode générale que tu connaîtrais par ailleurs. " +
-    "Tu ne recopies pas ces procédures dans le bilan : elles te servent à " +
-    'écrire juste.\n';
+    "situation couverte par l'une d'elles, tu emploies ses termes, jamais une méthode " +
+    'générale que tu connaîtrais par ailleurs.\n' +
+    '\nERREURS ET « À TRAVAILLER » — RÈGLE ABSOLUE, ELLE PASSE AVANT TOUTE AUTRE CONSIGNE SUR LES PROCÉDURES :\n' +
+    "- Tu n'écris JAMAIS toi-même comment faire (méthode, repère, conseil technique) : " +
+    "c'est l'application qui recopiera NOTRE procédure, mot pour mot, à l'endroit d'un repère que tu poses.\n" +
+    "- Pour CHAQUE erreur relevée, dans n'importe quelle case du JSON : tu écris l'erreur avec les mots du " +
+    'moniteur, puis, juste après, le repère [[CORRIGE:P3:L2,L5]] — la procédure et SEULEMENT la ou les lignes ' +
+    'qui corrigent CETTE erreur (1 à 3 lignes en général).\n' +
+    '- Pour CHAQUE point « à travailler la prochaine fois » (la rubrique « ➡️ À travailler la prochaine fois » ' +
+    'du résumé, ou "prochainCours") : tu écris le point, puis le repère [[TRAVAILLER:P3:L1,L4,L6]] — les lignes ' +
+    'utiles de la procédure pour ce point (plusieurs procédures : un repère par procédure, à la suite). ' +
+    'Pour les PAD, toutes les étapes de la procédure PAD.\n' +
+    "- Aucune procédure ne couvre l'erreur ou le point : pas de repère, et tu n'ajoutes AUCUN conseil ; " +
+    "tu rapportes seulement ce que le moniteur a dit (sa correction comprise, s'il l'a donnée).\n" +
+    "- Un chiffre (vitesse, distance) que tu n'as ni dans la dictée ni dans une procédure, tu ne l'écris pas.\n" +
+    '- Le repère s’écrit tel quel, entre doubles crochets. Seulement des numéros de la liste ci-dessus : ' +
+    "n'invente jamais une procédure ni une ligne.\n" + CONSIGNE_A_TRAVAILLER;
+}
+
+/* Les repères posés par l'IA deviennent NOS lignes, au mot près */
+function poserLesProceduresIA(obj){
+  const liste = proceduresNumeroteesIA || [];
+  const liensVus = {};
+  const re = /\s*\[\[\s*(CORRIGE|TRAVAILLER)\s*:\s*P(\d+)\s*:\s*L?([\dL ,;-]+)\]\]/gi;
+  const lignesChoisies = (p, brut) => {
+    const toutes = lignesDeLaProcedure(p), out = [];
+    String(brut).split(/[,;]/).forEach(x => {
+      const m = x.replace(/L/gi, '').trim().match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+      if(!m) return;
+      const a = parseInt(m[1], 10), z = m[2] ? parseInt(m[2], 10) : a;
+      for(let k = a; k <= Math.min(z, a + 30); k++) if(toutes[k - 1] && out.indexOf(toutes[k - 1]) === -1) out.push(toutes[k - 1]);
+    });
+    return out;
+  };
+  const remplacer = s => String(s).replace(re, (tout, genre, n, l) => {
+    const p = liste[parseInt(n, 10) - 1];
+    if(!p) return '';
+    const lignes = lignesChoisies(p, l);
+    if(!lignes.length) return '';
+    const nom = String(p.nom || 'Procédure').trim();
+    if(String(genre).toUpperCase() === 'CORRIGE'){
+      return '\n' + (lignes.length === 1 ? '📘 ' + nom + ' : ' + lignes[0] : '📘 ' + nom + ' :\n' + lignes.join('\n'));
+    }
+    /* « À travailler » : les lignes utiles, puis le chemin vers la procédure dans l'App (une fois) */
+    const cle = String(p.id || nom);
+    let liens = '';
+    if(!liensVus[cle] && typeof etapesDeLaFiche === 'function' && typeof ligneVersEtapeEleve === 'function'){
+      liens = etapesDeLaFiche(p).map(x => '\n' + ligneVersEtapeEleve(x)).join('');
+      liensVus[cle] = true;
+    }
+    return '\n📘 ' + nom + '\n' + lignes.join('\n') + liens;
+  });
+  const parcourir = o => {
+    if(typeof o === 'string') return /\[\[/.test(o) ? remplacer(o) : o;
+    if(Array.isArray(o)) return o.map(parcourir);
+    if(o && typeof o === 'object'){ const r = {}; for(const k in o) r[k] = parcourir(o[k]); return r; }
+    return o;
+  };
+  return parcourir(obj);
 }
 
 /* Les procédures à joindre au bilan, d'après la transcription */
@@ -3255,6 +3358,11 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
   /* Marquer le résultat plutôt que de le renvoyer nu : celui qui
      l'affiche doit pouvoir prévenir que la fin manque. */
   const marquer = o => {
+    /* 📘 v1554 — les repères [[CORRIGE…]] / [[TRAVAILLER…]] deviennent NOS lignes */
+    try{ o = poserLesProceduresIA(o); }catch(e){
+      console.warn('Procédures du bilan :', e);
+      try{ o = JSON.parse(JSON.stringify(o).replace(/\s*\[\[\s*(?:CORRIGE|TRAVAILLER)[^\]]*\]\]/gi, '')); }catch(e2){}
+    }
     if(o && typeof o === 'object' && (coupe || data.stop_reason === 'max_tokens')){
       o.__coupe = true;
     }
