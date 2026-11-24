@@ -1,4 +1,4 @@
-/* Déployé le 17/10/2026 à 14:43 — v1205 */
+/* Déployé le 24/11/2026 à 15:27 — v1560 */
 /* ============================================================
    ec-studio.js
    🎨 Le studio de diapositives — v1199
@@ -155,7 +155,7 @@ async function preparerLiensDesDiapos(diapos){
 /* La vignette d'une diapositive du studio, dans 🖼️ Diapositives */
 function vignetteCompo(boite, d, largeur){
   if(typeof Compo === 'undefined') return;
-  const format = d.ou === 'vitrine' ? 'vitrine' : 'accueil';
+  const format = formatDeLaDiapo(d.ou);
   Compo.rendre(boite, compoDeLaDiapo(d), format, { largeur: largeur, photo: lienStudio, qr: qrStudio });
 }
 
@@ -303,7 +303,7 @@ function ouvrirStudio(o){
     ou: d ? (d.ou || 'les-deux') : 'les-deux',
     duree: d ? (Number(d.duree) || 15) : 15,
     du: d ? (d.du || '') : '', au: d ? (d.au || '') : '',
-    format: (d && d.ou === 'vitrine') ? 'vitrine' : 'accueil',
+    format: d ? formatDeLaDiapo(d.ou) : 'accueil',
     feuille: '', rendu: null
   };
   const z = document.createElement('div');
@@ -738,7 +738,11 @@ function reduirePhotoStudio(fichier){
    LE DESSIN DU STUDIO
    ============================================================ */
 function formatsPermisStudio(){
-  return studio.ou === 'accueil' ? ['accueil'] : studio.ou === 'vitrine' ? ['vitrine'] : ['accueil', 'vitrine'];
+  /* 📺 v1560 — un accueil allumé (Saint-Brieuc ou Loudéac) : le format de l'accueil */
+  const l = ecransDeDiapo(studio.ou), out = [];
+  if(l.indexOf('sb-accueil') !== -1 || l.indexOf('ld-accueil') !== -1) out.push('accueil');
+  if(l.indexOf('sb-vitrine') !== -1) out.push('vitrine');
+  return out.length ? out : ['accueil'];
 }
 
 function dessinerStudio(){
@@ -1170,9 +1174,8 @@ function blocDiffusionStudio(){
   const b = document.createElement('div');
   b.className = 'stBloc';
   b.innerHTML = '<h4>📺 La diffusion</h4>' +
-    '<label for="stOu">Sur quel écran</label><select id="stOu">' +
-      [['les-deux', '🏠🪟 Les deux'], ['accueil', '🏠 Accueil seulement'], ['vitrine', '🪟 Vitrine seulement']]
-        .map(([k, t]) => '<option value="' + k + '"' + (studio.ou === k ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
+    /* 📺 v1560 — trois boutons à allumer, comme la fenêtre classique */
+    '<label>Sur quel écran</label><div id="stEcrans"></div>' +
     '<label for="stDuree">Durée à l’écran</label><select id="stDuree">' +
       STUDIO_DUREES.map(([k, t]) => '<option value="' + k + '"' + (Number(studio.duree) === k ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
     '<label>La transition pour arriver</label><div class="stTrans">' +
@@ -1183,7 +1186,7 @@ function blocDiffusionStudio(){
     '<div class="duo"><div><label for="stDu">À partir du</label><input type="date" id="stDu" value="' + (studio.du || '') + '"></div>' +
       '<div><label for="stAu">Jusqu’au</label><input type="date" id="stAu" value="' + (studio.au || '') + '"></div></div>' +
     '<div class="stPetit">Sans dates, elle passe en permanence.</div>';
-  b.querySelector('#stOu').addEventListener('change', ev => { studio.ou = ev.target.value; studio.modifie = true; dessinerStudio(); });
+  b.querySelector('#stEcrans').appendChild(boutonsEcransDiapo(studio.ou, ou => { studio.ou = ou; studio.modifie = true; dessinerStudio(); }));
   b.querySelector('#stDuree').addEventListener('change', ev => { studio.duree = Number(ev.target.value); studio.modifie = true; });
   b.querySelector('#stDu').addEventListener('change', ev => { studio.du = ev.target.value; studio.modifie = true; });
   b.querySelector('#stAu').addEventListener('change', ev => { studio.au = ev.target.value; studio.modifie = true; });
