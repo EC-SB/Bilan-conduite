@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 12:03 — v1553 */
+/* Déployé le 24/11/2026 à 16:53 — v1562 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -75,6 +75,22 @@ function zoneDeLaMessagerie(){
 }
 
 function dansLeTiroir(){ return tiroirOuvertEC; }
+
+/* ⚠️ v1562 — LE CHAMP DE LA ZONE OUVERTE, PAS LE PREMIER DE LA PAGE.
+   David, le 24/11 : « quand j'appuie sur envoyer, ça envoie un pouce au
+   lieu de mon message ». Le tiroir 💬, une fois ouvert, garde son fil dans
+   la page : il y avait alors DEUX champs « msgElvTexte ». ➤ lisait le
+   premier — le champ vide du tiroir refermé — et envoyait donc 👍. On
+   cherche maintenant le champ et le bouton dans la zone ouverte (le
+   tiroir s'il est ouvert, sinon l'onglet). */
+function champDuFilEC(){
+  const z = zoneDeLaMessagerie();
+  return (z && z.querySelector('#msgElvTexte')) || document.getElementById('msgElvTexte');
+}
+function boutonEnvoiDuFilEC(){
+  const z = zoneDeLaMessagerie();
+  return (z && z.querySelector('#msgElvEnvoyer')) || document.getElementById('msgElvEnvoyer');
+}
 
 let conversationsEC = [];
 let filOuvertEC = null;          /* { conv, messages, membres, … } */
@@ -2407,7 +2423,7 @@ function zoneDEcritureDuFil(id){
      messenger ». Ce n'est pas un bouton de plus : c'est celui-ci qui
      change de visage tant qu'il n'y a rien à envoyer. */
   b.addEventListener('click', () => {
-    if((($('msgElvTexte') || {}).value && $('msgElvTexte').value.trim()) || plateauPhotosDe(id).length){
+    if((t.value && t.value.trim()) || plateauPhotosDe(id).length){
       ecrireDansLeFil();
     }else{
       envoyerLePouce();
@@ -2628,8 +2644,8 @@ function fragmentAvecMentionsEC(texte){
 async function ecrireDansLeFil(){
   if(!filOuvertEC || !filOuvertEC.conv) return;
   const id = filOuvertEC.conv.id;
-  const champ = $('msgElvTexte');
-  const bouton = $('msgElvEnvoyer');
+  const champ = champDuFilEC();
+  const bouton = boutonEnvoiDuFilEC();
   const texte = champ ? champ.value.trim() : '';
 
   /* 🖼️ v1308 — des photos collées attendent : elles partent avec le texte */
@@ -4975,7 +4991,7 @@ async function envoyerDesPhotosDansLeFil(fichiers){
       const p = await reduireLaPhoto(f);
       photos.push({ photo: p.data, l: p.l, h: p.h });
     }
-    const champ = $('msgElvTexte');
+    const champ = champDuFilEC();
     const texte = champ ? champ.value.trim() : '';
     await appelPrep({ action: 'convPhotos', id: id, photos: photos, texte: texte, reponseA: reponseAPourEC(id) });
     oublierLaReponseEC(id);
@@ -5003,7 +5019,7 @@ async function envoyerUnePhotoDansLeFil(fichier){
     const p = await reduireLaPhoto(fichier);
     /* Le mot tapé part avec la photo : c'est un seul message, et
        c'est ce qu'on attend quand on écrit avant de joindre. */
-    const champ = $('msgElvTexte');
+    const champ = champDuFilEC();
     const texte = champ ? champ.value.trim() : '';
 
     await appelPrep({ action: 'convPhoto', id: id, photo: p.data,
@@ -5042,7 +5058,7 @@ function viderLePlateauEC(id){
   dessinerLePlateauEC(id);
 }
 function dessinerLePlateauEC(id){
-  const t = $('msgElvTexte');
+  const t = champDuFilEC();
   const barre = t && t.closest('.msgBarre');
   if(!barre) return;
   let z = barre.querySelector('.msgPlateau');
@@ -6114,7 +6130,7 @@ async function envoyerUneVideoChoisieEC(fichier){
   try{
     const sec = await dureeDUnFichierVideoEC(fichier);
     const data = await blobEnBase64EC(fichier);
-    const champ = $('msgElvTexte');
+    const champ = champDuFilEC();
     const texte = champ ? champ.value.trim() : '';
 
     const filV = filOuvertEC.conv.id;
@@ -6410,7 +6426,7 @@ async function arreterLaVideoEC(envoyer){
 
   try{
     const data = await blobEnBase64EC(blob);
-    const champ = $('msgElvTexte');
+    const champ = champDuFilEC();
     const texte = champ ? champ.value.trim() : '';
     await appelPrep({ action: 'convVideo', id: v.fil, video: data,
                       duree: sec, texte: texte, reponseA: reponseAPourEC(v.fil) });
@@ -7108,7 +7124,7 @@ function repondreAuMessageEC(m){
     apercu: apercuDuMessageEC(m)
   };
   poserLaBarreDeReponseEC();
-  const t = $('msgElvTexte');
+  const t = champDuFilEC();
   /* ⚠️ PAS DE CLAVIER QUI SURGIT AU MILIEU D'UN GLISSEMENT : le focus
      se donne au tour suivant, une fois le doigt levé. */
   if(t) setTimeout(() => { try{ t.focus({ preventScroll: true }); }catch(e){ t.focus(); } }, 0);
@@ -7507,7 +7523,7 @@ function gestesDuPlus(){
     g.push({ id: 'msgPlusModeles', emoji: '📄', nom: 'Ce qu’on<br>écrit', faire: () => { ckModelesOuvert = true; ckModelesCategorie = ''; dessinerLeFil(); } });
     if((filOuvertEC.membres || []).length > 2){
       g.push({ id: 'msgPlusMention', emoji: '@', nom: 'Mentionner', faire: () => {
-        const t = $('msgElvTexte');
+        const t = champDuFilEC();
         if(!t) return;
         t.value += (t.value && !/\s$/.test(t.value) ? ' ' : '') + '@';
         t.focus();
@@ -7831,7 +7847,7 @@ async function envoyerUnFichierDansLeFilEC(fichier){
   try{
     const data = await blobEnBase64EC(fichier);
     /* Le mot tapé part avec le fichier, comme avec une photo. */
-    const champ = $('msgElvTexte');
+    const champ = champDuFilEC();
     const texte = champ ? champ.value.trim() : '';
     await appelPrep({ action: 'convFichier', id: id, fichier: data,
                       nom: fichier.name || '', texte: texte, reponseA: reponseAPourEC(id) });
@@ -7964,7 +7980,7 @@ function basculerLePanneauEmoji(barre){
    serait le poser ailleurs que là où on regarde. Et le panneau reste
    ouvert — on en met souvent deux. */
 function glisserLEmoji(e){
-  const t = $('msgElvTexte');
+  const t = champDuFilEC();
   if(!t) return;
   const a = (typeof t.selectionStart === 'number') ? t.selectionStart : t.value.length;
   const b = (typeof t.selectionEnd === 'number') ? t.selectionEnd : a;
@@ -7987,7 +8003,7 @@ function glisserLEmoji(e){
    ------------------------------------------------------------ */
 async function envoyerLePouce(){
   if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
-  const b = $('msgElvEnvoyer');
+  const b = boutonEnvoiDuFilEC();
   if(b) b.disabled = true;
   try{
     const filP = filOuvertEC.conv.id;
