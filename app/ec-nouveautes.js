@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 17:57 — v1545 */
+/* Déployé le 21/11/2026 à 19:57 — v1547 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,41 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1547,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📅 Ce qu’il reste à réserver avant le permis, calculé avec les leçons posées sur Drivup',
+    quoi: [
+      { emoji: '⏳',
+        titre: 'À réserver : 1 leçon de 2h + 2h la veille',
+        texte: 'Dans la session dépliée, l’App compte ce qu’il lui reste (« 6 + 3 » moins les leçons faites), enlève ses leçons posées sur Drivup et ses réservations, et écrit ce qu’il faut encore réserver — la veille, c’est le dernier jour ouvré avant l’examen (le samedi pour un lundi), écrite « (veille) ». Les créneaux passés ne s’affichent plus.' },
+      { emoji: '📅',
+        titre: 'Posées sur Drivup ou réservées à payer',
+        texte: 'Deux sortes : les leçons posées (payées, sur son planning Drivup) et les réservations orange (Resap, créneaux de la fiche : pas encore payées). Une réservation à la même heure qu’une leçon posée passe dans les posées.' },
+      { emoji: '📆',
+        titre: 'Sous « Tout est planifié »',
+        texte: 'Les deux fiches montrent ses leçons posées sur Drivup et disent « ✅ ça couvre ce qu’il lui reste » ou « ⚠️ il manque … ». Une option, éteinte, coche « Tout est planifié » toute seule quand Drivup couvre tout.' },
+      { emoji: '⚠️',
+        titre: 'Dans « Suivi de … », sous Urgent',
+        texte: 'Leçons à venir, Resa permis et À réserver, pour tous les moniteurs. Et le message des créneaux libres ajoute « Il te reste à réserver … avant ton examen + 2h la veille ».' }
+    ]
+  },
+  {
+    version: 1546,
+    date: 'Samedi 21 novembre 2026',
+    resume: '📅 Les « Resap » de Drivup arrivent dans 🎓 Suivi permis, à valider élève par élève',
+    quoi: [
+      { emoji: '📅',
+        titre: 'Les Resap à valider',
+        texte: 'La lecture de Drivup lit les rendez-vous perso « Resap + nom de l’élève » (extension 1.6.0). En haut de 🎓 Suivi permis : « 📅 N Resap à valider », un bloc par élève — le nom tapé dans Drivup, la fiche que l’App propose (même mal écrit : la plus proche, à vérifier), ses créneaux. « ✅ Valider » les pose dans sa fiche (Réservations faites), « ✕ Ignorer » ne les remontre plus.' },
+      { emoji: '🔁',
+        titre: 'Déplacé ou retiré dans Drivup',
+        texte: 'Un Resap validé puis déplacé revient (« 13h-15h → 15h-17h ») ; retiré de Drivup, il demande « ➖ Retirer de la fiche » ou « Garder ». Tout est noté dans « 🔔 Du nouveau dans Drivup », avec qui l’a fait.' },
+      { emoji: '⚙️',
+        titre: 'Poser tout seul quand le nom est sûr',
+        texte: 'Un interrupteur sous la liste, éteint au départ : allumé, un Resap dont le nom correspond exactement à une fiche se pose tout seul à la lecture de Drivup.' }
+    ]
+  },
   {
     version: 1545,
     date: 'Samedi 21 novembre 2026',
