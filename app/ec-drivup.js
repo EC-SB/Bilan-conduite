@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:54 — v1543 */
+/* Déployé le 21/11/2026 à 18:03 — v1546 */
 /* ============================================================
    ec-drivup.js — 📥 CE QUE LE FAVORI APPORTE DE DRIVUP
 
@@ -535,6 +535,8 @@ async function lectureDeVeilleDrivup(p, parExtension){
        sans rappel se prépare tout seul, un moniteur changé suit */
     if(parExtension){
       try{ await preparationsDeVeilleDrivup(p, parts); }catch(e){ VEILLE_DV.erreurIci = 'cours préparés : ' + ((e && e.message) || e); }
+      /* 📅 v1545 — les « Resap » : les réservations avant permis */
+      try{ await resapDeVeilleDrivup(p); }catch(e){ VEILLE_DV.erreurIci = 'Resap : ' + ((e && e.message) || e); }
     }
     /* 📆 v1536 — le planning de leur fiche Drivup : chaque jour pour les élèves
        en formation (un cours lu), tout de suite pour ceux dont un cours a bougé */
@@ -943,6 +945,31 @@ function chaineDesCoursDrivup(lecons, nom, minDe){
   });
   return carte;
 }
+/* 📅 v1546 — LES « RESAP » DE DRIVUP, À VALIDER DANS 🎓 SUIVI PERMIS.
+   David, le 21/11 : « est-ce que tu arriverais à lire les rendez-vous perso
+   sur Drivup qui commencent par Resap pour noter directement les
+   réservations avant permis ? » (titre « Resap + nom de l'élève », le jour
+   et l'heure du Resap = le créneau réservé). Puis : « parfois le nom ou le
+   prénom n'est pas bien écrit quand on écrit vite ; au début il ne faut pas
+   que ça se mette tout seul : on voit la liste et on valide élève par élève
+   dans l'App ».
+   La lecture range les Resap au Worker (drivupResapPoser) ; la liste à
+   valider vit dans 🎓 Suivi permis (ec-sessions.js, bandeauResapEC).
+   « Poser tout seul quand le nom est sûr » (éteint au départ) : un Resap
+   dont le nom désigne UNE fiche, exactement, et qui a sa fiche de suivi,
+   se pose ici, comme si le bureau avait validé. */
+async function resapDeVeilleDrivup(p){
+  if(!p || !Array.isArray(p.resap) || p.porteeGenre !== 'tous') return { vus: 0, poses: 0 };
+  const r = await appelPrep({ action: 'drivupResapPoser', du: p.du, au: p.au,
+    resap: p.resap.map(x => ({ id: x.id, jour: x.jour, debut: x.debut, fin: x.fin, titre: x.titre, moniteurDrivup: x.moniteurDrivup })) });
+  let poses = 0;
+  if(r && r.auto && typeof resapAutoEC === 'function'){
+    try{ poses = await resapAutoEC(); }catch(e){ /* au prochain passage */ }
+  }
+  if(typeof chargerResapEC === 'function') chargerResapEC(true).catch(() => {});
+  return { vus: (r && r.vus) || 0, aValider: (r && r.aValider) || 0, poses: poses };
+}
+
 /* Le type de séance d'un cours lu dans Drivup, comme « Rappels de cours »
    le choisit (typeDepuisDrivupRappel) : examen blanc, simulateur ou
    conduite, puis la ville du cours et la boîte de l'élève. */
