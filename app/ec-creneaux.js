@@ -1,4 +1,4 @@
-/* Déployé le 02/11/2026 à 19:33 — v1335 */
+/* Déployé le 21/11/2026 à 19:57 — v1547 */
 /* ============================================================
    ec-creneaux.js — 🗓️ LES CRÉNEAUX LIBRES (v1234)
 
@@ -583,6 +583,10 @@ function messageDesCreneaux(eleve, choisis, session){
   choisis.forEach(c => l.push('· ' + jourLongCreneau(c.jour) + ' de ' + heureLisibleCreneau(c.debut) + ' à ' + heureLisibleCreneau(c.fin) +
     (c.agence ? ' (' + (c.agence === 'loudeac' ? 'Loudéac' : 'Saint-Brieuc') + ')' : '') +
     (c.genre === 'simu' ? ' — simulateur avec moniteur' + (/passerelle/i.test(c.libelle) ? ' (passerelle)' : '') : '')));
+  /* 📅 v1547 — ce qu'il lui reste à réserver avant son examen (ses leçons
+     posées sur Drivup et ses réservations comptées). David, le 21/11. */
+  const reste = (eleve && typeof phraseAReserverPermis === 'function') ? phraseAReserverPermis(eleve, session && session.date) : '';
+  if(reste) l.push(reste);
   l.push('Dis-nous lesquels te vont !');
   return l.join('\n');
 }
@@ -662,6 +666,12 @@ async function fenetreCreneauxLibres(eleveDonne, creneauChoisi){
   function peindre(){
     const session = eleve ? sessionDeLEleveCreneau(eleve) : null;
     const boite = eleve ? boiteDeLEleveCreneau(eleve) : '';
+    /* 📅 v1547 — ses leçons posées sur Drivup : lues une fois, puis le
+       message se refait (ce qu'il lui reste à réserver) */
+    if(eleve && typeof chargerPlanningPermisEC === 'function' && typeof aVenirPermisEC === 'function' && !aVenirPermisEC(eleve)){
+      const lui = eleve;
+      chargerPlanningPermisEC([lui]).then(() => { if(eleve === lui && fond.isConnected) peindre(); }).catch(() => {});
+    }
     h.textContent = '🗓️ Créneaux libres' + (eleve ? ' — ' + eleve : '');
     const lect = e.lecture;
     sous.textContent = (session ? 'Permis le ' + (typeof jourFrCs === 'function' ? jourFrCs(session.date) : session.date) +
@@ -669,6 +679,11 @@ async function fenetreCreneauxLibres(eleveDonne, creneauChoisi){
       (lect && lect.le ? 'Lu dans Drivup le ' + new Date(lect.le).toLocaleDateString('fr-FR') + ' à ' +
         new Date(lect.le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h') + '.' :
         'Aucune lecture : clique le favori « 📥 » sur le planning d’une agence dans Drivup.');
+    {
+      const ar = (eleve && typeof bilanPlanningPermis === 'function') ? bilanPlanningPermis(eleve, session && session.date) : null;
+      const tAr = (ar && ar.connu && !ar.jourJ) ? texteAReserverPermis(ar.manqueResa, ar, false) : '';
+      if(tAr) sous.textContent += ' ⏳ À réserver : ' + tAr + '.';
+    }
     pastilles.innerHTML = '';
     if(session) pastilles.appendChild(pastilleCreneau('Avant le ' + (typeof jourFrCs === 'function' ? jourFrCs(session.date) : session.date), f.avant,
       () => { f.avant = !f.avant; peindre(); }));
