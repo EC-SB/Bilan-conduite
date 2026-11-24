@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 12:17 — v1553 */
+/* Déployé le 24/11/2026 à 13:11 — v1554 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1554,
+    date: 'Mardi 24 novembre 2026',
+    resume: '📘 Les bilans dictés corrigent avec NOS procédures',
+    quoi: [
+      { emoji: '📘',
+        titre: 'Sous chaque erreur, la ligne de la procédure',
+        texte: 'Dans « 🧠 Erreurs de ce jour », l’erreur reste dite avec les mots du moniteur. Juste dessous, l’App recopie au mot près la ou les lignes de NOTRE procédure qui la corrigent, liens Facebook et vidéos compris. L’IA n’écrit plus de « comment faire » à elle : elle montre la ligne, l’App la recopie, et une ligne qui n’existe pas n’est jamais recopiée.' },
+      { emoji: '➡️',
+        titre: '« À travailler » reprend toutes les rubriques en erreur',
+        texte: 'Un point par rubrique où il y a eu une erreur (contrôles, régime de priorité avec les PAD et les piétons, trajectoire, allure, manœuvres, vigilance), avec les lignes utiles de la procédure et le lien 🎬 vers la procédure dans son groupe quand il est posé.' },
+      { emoji: '🚗',
+        titre: 'Partout',
+        texte: 'Voiture, AAC, simulateur : tous les bilans dictés. Une erreur qu’aucune procédure ne couvre reste seule, sans conseil ajouté. Les procédures demandées à la voix restent recopiées en fin de bilan.' }
+    ]
+  },
   {
     version: 1553,
     date: 'Mardi 24 novembre 2026',
