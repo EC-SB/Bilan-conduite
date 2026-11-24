@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:49 — v1549 */
+/* Déployé le 24/11/2026 à 11:08 — v1550 */
 /* ============================================================
    ec-faq.js — ❓ LES QUESTIONS FRÉQUENTES DES ÉLÈVES — v1548
 
@@ -43,7 +43,7 @@ function afficherFaqEquipe(){
    · Le choix des formations est celui de « 🔒 Seulement certains élèves »
      des guides, avec des formations, et des familles d'un coup.
    ============================================================ */
-let faqStatsEC = { questions: {}, themes: {}, plusLues: [], cherches: [], pour: {}, lu: 0 };
+let faqStatsEC = { questions: {}, themes: {}, plusLues: [], cherches: [], pour: {}, lu: 0, eteinte: false };
 let faqPeriodeEC = { mode: '30', du: '', au: '' };
 try{ const p = JSON.parse(localStorage.getItem('ec_faq_periode') || 'null'); if(p && p.mode) faqPeriodeEC = p; }catch(e){}
 function bornesPeriodeFaq(){
@@ -67,7 +67,7 @@ async function chargerFaqStats(){
     const b = bornesPeriodeFaq();
     const d = await appelPrep({ action: 'faqStats', du: b.du, au: b.au });
     if(!d || d.status !== 'ok') return;
-    faqStatsEC = { questions: d.questions || {}, themes: d.themes || {}, plusLues: d.plusLues || [], cherches: d.cherches || [], pour: d.pour || {}, lu: Date.now() };
+    faqStatsEC = { questions: d.questions || {}, themes: d.themes || {}, plusLues: d.plusLues || [], cherches: d.cherches || [], pour: d.pour || {}, lu: Date.now(), eteinte: !!d.eteinte };
   }catch(e){ return; }
   rafraichirFaqStats();
 }
@@ -270,6 +270,48 @@ function ligneCarteFaq(x){
   const fo = (faqStatsEC.pour[x.id] || {}).formations || [];
   return '<div class="d faqCarteStat">' + echParcours(chiffresFaq(st)) + ' · 🎯 ' + echParcours(texteFormationsFaq(fo)) + '</div>';
 }
+/* ============================================================
+   🔌 ALLUMÉE OU ÉTEINTE — v1550
+
+   David, le 24/11 : « on l'ouvre à tous de base, mais il faut qu'on
+   puisse la désactiver par élève dans ce qu'il voit sur son app, et la
+   désactiver pour tous directement dans Suivi FAQ ». Pour tous : cet
+   interrupteur (faqAllumer). Pour un élève : la tuile « ❓ Les questions
+   fréquentes » de son coin révisions (ec-coin-revisions.js, « sans_faq »).
+   ============================================================ */
+function interrupteurFaqTous(){
+  if(typeof cvStyle === 'function') cvStyle();   /* les tuiles du coin révisions (.cvTu) */
+  const sw = document.createElement('button');
+  sw.type = 'button';
+  sw.dataset.faqTous = '1';
+  sw.style.cssText = 'width:100%;max-width:620px;margin:0 0 12px;text-align:left;';
+  sw.setAttribute('role', 'switch');
+  const peindre = () => {
+    const on = !faqStatsEC.eteinte;
+    sw.className = 'cvTu' + (on ? ' on' : '');
+    sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    sw.innerHTML = '<span class="i">❓</span><span class="t">La FAQ chez les élèves : <b>' + (on ? 'allumée' : 'éteinte pour tous') + '</b><small>' + (on
+      ? 'Ouverte à tous de base : l’onglet FAQ, la carte « Une question ? » et le rond ❓ de leur espace. Pour l’éteindre à un seul élève : la tuile ❓ de son coin révisions.'
+      : 'Plus d’onglet FAQ, de carte ni de rond ❓ dans leur espace. Les thèmes et les chiffres sont gardés : tu continues à écrire ici.') + '</small></span><span class="s"></span>';
+  };
+  peindre();
+  sw.addEventListener('click', async () => {
+    const allumer = !!faqStatsEC.eteinte;
+    if(!allumer && typeof confirmer === 'function' &&
+       !await confirmer('Éteindre la FAQ pour tous les élèves ?\n\nElle disparaît de leur espace (onglet, carte, rond ❓). Les thèmes et les chiffres sont gardés : tu la rallumes ici.', 'Éteindre la FAQ')) return;
+    sw.disabled = true;
+    try{
+      const d = await appelPrep({ action: 'faqAllumer', on: allumer });
+      if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+      faqStatsEC.eteinte = !!d.eteinte;
+      peindre();
+      showToast(faqStatsEC.eteinte ? '❓ FAQ éteinte pour tous les élèves' : '❓ FAQ allumée chez les élèves ✅');
+    }catch(e){ showToast('Impossible : ' + ((e && e.message) || e)); }
+    sw.disabled = false;
+  });
+  return sw;
+}
+
 /* Au-dessus des thèmes : la période, les plus lues, cherché sans réponse */
 function blocStatsFaq(){
   const b = document.createElement('div');
