@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 19:57 — v1547 */
+/* Déployé le 24/11/2026 à 13:36 — v1555 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -4097,7 +4097,8 @@ async function chargerPlanningPermisEC(noms, forcer){
       if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Lecture refusée');
       lot.forEach(n => {
         const l = d.eleves && Object.prototype.hasOwnProperty.call(d.eleves, n) ? d.eleves[n] : null;
-        planningPermisEC.eleves[clePermisEC(n)] = { cours: Array.isArray(l) ? l : null, lu: Date.now() };
+        const pp = d.postsPasses && Object.prototype.hasOwnProperty.call(d.postsPasses, n) ? d.postsPasses[n] : null;
+        planningPermisEC.eleves[clePermisEC(n)] = { cours: Array.isArray(l) ? l : null, postPasse: pp || null, lu: Date.now() };
       });
       planningPermisEC.auto = !!d.planifieAuto;
       planningPermisEC.autoLu = Date.now();
@@ -4113,6 +4114,40 @@ async function chargerPlanningPermisEC(noms, forcer){
 function aVenirPermisEC(nom){
   const c = planningPermisEC.eleves[clePermisEC(nom)];
   return c ? c : null;
+}
+/* 🤝 v1555 — son rendez-vous post-permis lu dans Drivup : le prochain (ses
+   cours à venir) et le dernier passé (sa fiche › Plannings). null : pas lu. */
+function postPermisDrivupEC(nom){
+  const c = aVenirPermisEC(nom);
+  if(!c) return null;
+  if(c.erreur) return { avenir: null, passe: null, erreur: true };
+  const av = (c.cours || []).filter(x => x.sorte === 'post')
+    .sort((a, b) => (a.jour + a.debut).localeCompare(b.jour + b.debut))[0] || null;
+  return { avenir: av, passe: c.postPasse || null };
+}
+/* 🤝 v1555 — les lignes Drivup de la tuile « Avant l'examen » du dossier :
+   les mêmes phrases que la session dépliée de Suivi permis (David, le 24/11 :
+   « comme on a dans suivi permis »). sansReste : seulement les posées et les
+   résaps (avant le post-permis, on ne sait pas encore ce qu'il faut). */
+function lignesPlanningPermisTuile(nom, examIso, sansReste){
+  const b = bilanPlanningPermis(nom, examIso);
+  if(!b) return [{ txt: '📅 Lecture de ses leçons dans Drivup…' }];
+  if(b.erreur) return [{ txt: '📅 Ses leçons dans Drivup : lecture impossible pour l’instant.' }];
+  if(!b.exam) return [];
+  const l = [];
+  l.push(b.lecons.length
+    ? { txt: '📅 Posées sur Drivup · ' + b.lecons.map(creneauPermisTexte).join(' · '), ton: 'vert' }
+    : { txt: '📅 Aucune leçon posée sur Drivup avant l’examen' });
+  if(b.resas.length) l.push({ txt: 'Réservées, pas encore posées : ' + b.resas.map(creneauPermisTexte).join(' · '), ton: 'orange' });
+  else if(sansReste) l.push({ txt: 'aucune résap' });
+  if(sansReste || !b.connu || b.jourJ) return l;
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const e = (typeof etatResaPermis === 'function') ? etatResaPermis(s) : '';
+  const t = texteAReserverPermis(b.manqueResa, b, false);
+  if(t) l.push({ txt: (e === 'eleve' ? '🙋 Il doit encore réserver : ' : '⏳ À réserver : ') + t, ton: e === 'eleve' ? 'bleu' : 'warn' });
+  else if(b.couvre) l.push({ txt: '✅ Tout est posé sur Drivup (' + motsHeuresPermis(b) + ')', ton: 'vert' });
+  else l.push({ txt: '✅ Tout est réservé · à poser sur Drivup', ton: 'orange' });
+  return l;
 }
 /* Le dernier jour ouvré avant l'examen : samedi pour un lundi */
 function jourDeVeillePermis(examIso){
