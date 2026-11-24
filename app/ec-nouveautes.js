@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 11:30 — v1551 */
+/* Déployé le 24/11/2026 à 11:47 — v1552 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1552,
+    date: 'Mardi 24 novembre 2026',
+    resume: '📮 Les mails essaient chaque serveur d’OVH, et disent où ça coince',
+    quoi: [
+      { emoji: '📮',
+        titre: 'Plusieurs chemins vers OVH',
+        texte: 'Un mail de l’App (rappel, bilan, boîte ✉️) essaie maintenant smtp.mail.ovh.net puis ssl0.ovh.net, chacun par deux portes. S’il n’y a pas de réponse, il abandonne au bout de 12 secondes. Si rien ne passe, le message dit pour chaque essai à quelle étape le serveur a coupé.' },
+      { emoji: '📥',
+        titre: 'Le relevé par imap.mail.ovh.net',
+        texte: 'La boîte ✉️ relève par imap.mail.ovh.net, même sans la variable posée dans Cloudflare.' }
+    ]
+  },
   {
     version: 1551,
     date: 'Mardi 24 novembre 2026',
