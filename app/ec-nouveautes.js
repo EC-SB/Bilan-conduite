@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 15:27 — v1560 */
+/* Déployé le 24/11/2026 à 16:53 — v1562 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,26 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1562,
+    date: 'Mardi 24 novembre 2026',
+    resume: '💬 ➤ envoie bien ton message, plus un pouce',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Le bouton ➤ de la messagerie',
+        texte: 'Après avoir ouvert une fois le tiroir 💬 en haut, ➤ lisait le champ vide du tiroir au lieu du tien, et envoyait 👍 à la place de ton message. Il lit maintenant le champ de la conversation que tu as sous les yeux.' }
+    ]
+  },
+  {
+    version: 1561,
+    date: 'Mardi 24 novembre 2026',
+    resume: '💬 Espace élève : les trois demandes en toutes lettres',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Messages de l’élève',
+        texte: 'Les trois boutons du haut disent maintenant ce qu’ils font : « ⏰ Signaler un retard », « 🚫 Demander une annulation », « 🧤 Déclarer un objet oublié ». Au téléphone, ils passent à la ligne au lieu de sortir de l’écran.' }
+    ]
+  },
   {
     version: 1560,
     date: 'Mardi 24 novembre 2026',
