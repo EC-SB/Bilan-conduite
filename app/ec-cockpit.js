@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 16:53 — v1562 */
+/* Déployé le 24/11/2026 à 17:15 — v1563 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1268,14 +1268,19 @@ function ckPanneauObjet(f, petit){
   const pills = document.createElement('div');
   pills.className = 'pills';
   const a = document.createElement('span');
-  a.className = 'ckPill ' + (etat === 'retrouve' ? 'ok' : etat === 'signale' ? 'or' :
+  a.className = 'ckPill ' + (etat === 'retrouve' ? 'ok' : (etat === 'signale' || etat === 'voiture') ? 'or' :
                               etat === 'introuvable' ? 'ko' : '');
   a.textContent = e.emoji + ' ' + e.nom;
   pills.appendChild(a);
   const b = document.createElement('span');
   b.className = 'ckPill';
-  b.textContent = (o.majPar && etat !== 'signale')
-    ? e.nom.toLowerCase() + ' par ' + o.majPar + (o.majLe ? ' le ' + o.majLe : '') : e.sous;
+  /* 🧤 v1563 — le bureau, et l'heure à partir de laquelle il y sera */
+  const nomB = ({ 'saint-brieuc': 'Saint-Brieuc', 'loudeac': 'Loudéac' })[o.bureau || ''] || '';
+  b.textContent = etat === 'voiture'
+    ? 'au bureau' + (nomB ? ' de ' + nomB : '') + ' ' + quandDispoObjetEC(o.dispoLe)
+    : (etat === 'retrouve' && nomB && !(o.majPar && o.majLe)) ? 'à récupérer au bureau de ' + nomB
+    : (o.majPar && etat !== 'signale')
+      ? e.nom.toLowerCase() + ' par ' + o.majPar + (o.majLe ? ' le ' + o.majLe : '') : e.sous;
   pills.appendChild(b);
   p.appendChild(pills);
 
@@ -1314,9 +1319,139 @@ function ckPanneauObjet(f, petit){
 
 function ckPanneauDuFil(f, petit){
   const c = (f && f.conv) || {};
+  /* 🗂️ v1563 — la conversation qui héberge des demandes : « En cours » */
+  if(f && (f.demandes || []).length) return bandeauEnCoursEC(f, petit);
   if(c.genre === 'retard' && !Number(c.fermee || 0)) return ckPanneauRetard(f, petit);
   if(c.genre === 'oubli') return ckPanneauObjet(f, petit);
   return null;
+}
+
+/* ============================================================
+   🗂️ UN FIL PAR ÉLÈVE — v1563
+
+   David, le 24/11 : « ce qui me gêne c'est d'avoir plusieurs
+   conversations avec une personne ». Ses retards, annulations et objets
+   sont des CARTES dans sa conversation avec le bureau (voir le Worker,
+   « UN FIL PAR ÉLÈVE ») : chacune garde son suivi et ses boutons, et
+   « En cours », en haut, mène à celles qui ne sont pas réglées. Le
+   moniteur concerné en a une copie 🔒 dans sa conversation avec l'élève.
+   ============================================================ */
+const MOTS_DEMANDE_EC = { retard: '⏰ Retard', annul: '🚫 Annulation', oubli: '🧤 Objet' };
+/* Le nom court d'une demande, pour les pastilles (liste et « En cours ») */
+function libelleCourtDemandeEC(d){
+  const c = (d && d.conv) || d || {};
+  const t = String(c.titre || '');
+  if(c.genre === 'retard'){
+    const h = t.match(/à (\d{1,2})[:h](\d{2})/);
+    return '⏰ Retard' + (h ? ' · ' + Number(h[1]) + 'h' + (h[2] !== '00' ? h[2] : '') : '');
+  }
+  if(c.genre === 'annul'){
+    const j = t.match(/du (\d{2}\/\d{2})/);
+    return '🚫 Annulation' + (j ? ' ' + j[1] : '') + (/factur/i.test(t) ? ' · 💶 à facturer' : '');
+  }
+  const o = (d && d.objet) || (d && d.objetEtat ? { etat: d.objetEtat } : null);
+  const base = t ? t.replace(/\s+—\s+.*$/, '') : '🧤 Objet';
+  const lieu = o && o.etat === 'voiture' ? ' · 🚗 voiture' : (o && o.etat === 'retrouve' ? ' · 🏢 au bureau' : '');
+  return (base.length > 26 ? base.slice(0, 25) + '…' : base) + lieu;
+}
+function classeDemandeEC(d){
+  const c = (d && d.conv) || d || {};
+  if(c.genre === 'retard') return 'or';
+  if(c.genre === 'annul' && /factur/i.test(String(c.titre || ''))) return 'ko';
+  return '';
+}
+/* « En cours » : les demandes pas réglées, un appui mène à la carte */
+function bandeauEnCoursEC(f, petit){
+  const ouvertes = (f.demandes || []).filter(d => !Number((d.conv || {}).fermee || 0));
+  if(!ouvertes.length) return null;
+  const p = document.createElement('div');
+  p.className = 'ckPanneau ckEnCours';
+  const l1 = document.createElement('div');
+  l1.className = 'l1';
+  l1.innerHTML = '<b>En cours</b><span class="doux"></span>';
+  l1.querySelector('.doux').textContent = ' · ' + ouvertes.length + ' demande' + (ouvertes.length > 1 ? 's' : '') +
+    (petit ? '' : ' — touche pour y aller');
+  p.appendChild(l1);
+  const acts = document.createElement('div');
+  acts.className = 'acts';
+  ouvertes.forEach(d => {
+    acts.appendChild(ckBouton((Number(d.copie || 0) ? '🔒 ' : '') + libelleCourtDemandeEC(d), 'Aller à sa carte', () => {
+      const z = document.getElementById('carte-' + d.conv.id);
+      if(z){ z.scrollIntoView({ block: 'center', behavior: 'smooth' }); z.classList.add('ckCarteVise'); setTimeout(() => z.classList.remove('ckCarteVise'), 1600); }
+      else if(typeof showToast === 'function') showToast('Elle est plus haut : « ↑ Messages plus anciens »');
+    }, d.conv.genre === 'retard' ? 'p' : ''));
+  });
+  p.appendChild(acts);
+  return p;
+}
+/* La carte d'une demande, dans le fil : le panneau de son fil d'avant
+   (retard, objet), ou celui d'une annulation ; « 🔒 » pour une copie */
+function carteDeDemandeEC(f, d){
+  const c = d.conv || {};
+  const fd = { conv: c, messages: d.messages || [], membres: d.membres || [], lectures: d.lectures || [],
+               objet: d.objet || null, estMembre: f.estMembre, enSupervision: f.enSupervision };
+  const z = document.createElement('div');
+  z.className = 'ckCarteDemande' + (Number(c.fermee || 0) ? ' close' : '') + (Number(d.copie || 0) ? ' copie' : '');
+  z.id = 'carte-' + c.id;
+  z.dataset.demande = c.id;
+  const t = document.createElement('div');
+  t.className = 'ckCarteTete';
+  t.textContent = (Number(d.copie || 0) ? '🔒 Copie pour l’équipe · ' : '') +
+    (MOTS_DEMANDE_EC[c.genre] || 'Demande') + (Number(c.fermee || 0) ? ' · réglé' : '') +
+    (Number(d.copie || 0) ? ' — ' + ckPrenom(c.eleve || '') + ' ne la voit pas ici' : '');
+  z.appendChild(t);
+  let p = null;
+  try{
+    if(c.genre === 'retard'){
+      if(Number(c.fermee || 0)){ p = document.createElement('div'); p.className = 'ckPanneau'; p.innerHTML = '<div class="l1">⏰ <b></b></div>'; p.querySelector('b').textContent = String(c.titre || 'Retard').replace(/^⏰\s*/, ''); }
+      else p = ckPanneauRetard(fd, false);
+    }
+    else if(c.genre === 'oubli') p = ckPanneauObjet(fd, false);
+    else p = panneauAnnulationEC(fd);
+  }catch(e){ p = null; }
+  if(p) z.appendChild(p);
+  return z;
+}
+/* 🧤 v1563 — « Objet trouvé » depuis la conversation d'un élève */
+function ouvrirObjetTrouveDuFilEC(f){
+  const c = (f && f.conv) || {};
+  if(typeof ecranOuvrirUnOubli === 'function') ecranOuvrirUnOubli(zoneFilMsg(), { eleve: c.eleve || '', depuis: c.id || '', retour: c.id || '' });
+}
+/* « 2026-11-25T14:00 » → « demain dès 14h » / « aujourd'hui dès 9h30 » / « dès le jeu. 27/11 à 14h » */
+function quandDispoObjetEC(v){
+  const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(!m) return '';
+  const h = Number(m[4]) + 'h' + (m[5] !== '00' ? m[5] : '');
+  const jour = m[1] + '-' + m[2] + '-' + m[3];
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const dem = new Date(Date.now() + 86400000);
+  const demain = dem.getFullYear() + '-' + String(dem.getMonth() + 1).padStart(2, '0') + '-' + String(dem.getDate()).padStart(2, '0');
+  if(jour === auj) return 'aujourd’hui dès ' + h;
+  if(jour === demain) return 'demain dès ' + h;
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return 'dès le ' + d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ' à ' + h;
+}
+function panneauAnnulationEC(fd){
+  const c = fd.conv || {};
+  const cours = c.cours || {};
+  const p = document.createElement('div');
+  p.className = 'ckPanneau';
+  const l1 = document.createElement('div');
+  l1.className = 'l1';
+  l1.innerHTML = '🚫 <b></b><span class="doux"></span>';
+  l1.querySelector('b').textContent = String(c.titre || 'Annulation').replace(/^🚫\s*Annulation\s*—\s*/, '').replace(/\s*·\s*💶.*$/, '');
+  if(cours.moniteur) l1.querySelector('.doux').textContent = ' · avec ' + cours.moniteur;
+  p.appendChild(l1);
+  const pills = document.createElement('div');
+  pills.className = 'pills';
+  const a = document.createElement('span');
+  const fact = Number(cours.aFacturer || 0) || /factur/i.test(String(c.titre || ''));
+  a.className = 'ckPill ' + (fact ? 'ko' : 'ok');
+  a.textContent = fact ? '💶 À facturer' : (cours.aFacturer === 0 ? '✅ Pas facturé' : '🚫 Annulé');
+  pills.appendChild(a);
+  if(Number(c.fermee || 0)){ const b = document.createElement('span'); b.className = 'ckPill'; b.textContent = 'réglé'; pills.appendChild(b); }
+  p.appendChild(pills);
+  return p;
 }
 
 /* ------------------------------------------------------------
@@ -1479,6 +1614,7 @@ function ckFeuilleRapides(f, ancre){
     const m = String(x.bouton).match(tete);
     items.push({ emoji: m ? m[1] : '⚡', texte: (m ? String(x.bouton).replace(tete, '') : String(x.bouton)) + (collerCetteReponse(x) ? ' ✏️' : ''), cle: 'rapide', faire: async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
+      if(x.sorte === 'objet'){ ouvrirObjetTrouveDuFilEC(f); return; }
       /* 🚗 v1437 — un bouton du véhicule ouvre sa petite fenêtre */
       if(x.sorte === 'geste'){ if(typeof ouvrirGesteVehiculeEC === 'function') ouvrirGesteVehiculeEC(f, x.geste); return; }
       /* ✏️ v1369 — mode « coller » : le texte va dans la zone d'écriture
@@ -1533,8 +1669,10 @@ function ckReponsesRapides(f, petit){
     if(x.position) b.title = 'Envoie ce message avec ta position GPS';
     /* ✏️ v1469 — se colle dans le texte : à compléter avant d'envoyer */
     if(collerCetteReponse(x)){ b.classList.add('ckViteColle'); b.title = 'Se colle dans le texte : complète-le ou modifie-le, puis envoie'; }
+    if(x.sorte === 'objet') b.title = 'Déclarer un objet trouvé : la carte part dans cette conversation';
     b.addEventListener('click', async () => {
       if(x.sorte === 'creneau'){ ckCreneauOuvert = true; dessinerLeFil(); return; }
+      if(x.sorte === 'objet'){ ouvrirObjetTrouveDuFilEC(f); return; }
       /* ✏️ v1369 — mode « coller dans le texte » : on remplit la zone
          d'écriture au lieu d'envoyer (la position reste un envoi). */
       if(collerCetteReponse(x)){
@@ -1831,7 +1969,7 @@ function nomDuGesteVehicule(cle){
 }
 function reponsesRapidesDOrigine(){
   const sansVitrine = GENRES_RAPIDES.filter(g => g !== 'vitrine' && g !== 'mail');
-  return gestesVehiculeDOrigine().concat(VITES_CK.map(x => ({
+  return gestesVehiculeDOrigine().concat([Object.assign({}, REPONSE_OBJET_TROUVE_CK)], VITES_CK.map(x => ({
     id: x.k, bouton: x.t, message: x.msg || '', sorte: x.k === 'cren' ? 'creneau' : 'message',
     /* le créneau n'avait de sens que dans un fil d'élève */
     genres: x.k === 'cren' ? ['bureau', 'retard', 'annul', 'oubli', 'moniteur'] : sansVitrine.slice()
@@ -1879,7 +2017,18 @@ function reponsePourLeFil(x, c){
   if(c.id && (x.convs || []).indexOf(c.id) !== -1) return true;
   return !!(c.titre && (x.titres || []).indexOf(ckNormTitre(c.titre)) !== -1);
 }
-function reponsesRapides(){ return vehiculesDansLesReponses(reponsesRapidesEC) || reponsesRapidesDOrigine(); }
+function reponsesRapides(){ return objetTrouveDansLesReponses(vehiculesDansLesReponses(reponsesRapidesEC)) || reponsesRapidesDOrigine(); }
+
+/* 🧤 v1563 — « Objet trouvé », dans les conversations d'un élève (David, le
+   24/11 : « en bas dans les réponses rapides », réglable comme les autres).
+   Une liste enregistrée avant ne le connaît pas : il s'y pose en tête. */
+const REPONSE_OBJET_TROUVE_CK = { id: 'objet', bouton: '🧤 Objet trouvé', message: '', sorte: 'objet', genres: ['bureau', 'moniteur'] };
+function objetTrouveDansLesReponses(liste){
+  if(!Array.isArray(liste) || liste.some(x => x.sorte === 'objet')) return liste;
+  let i = 0;
+  while(i < liste.length && liste[i].sorte === 'geste') i++;
+  return liste.slice(0, i).concat([Object.assign({}, REPONSE_OBJET_TROUVE_CK)], liste.slice(i));
+}
 
 /* 🚗 v1436 — une liste enregistrée avant ce type ne le connaît pas : les
    conversations de véhicules gardent alors ce qu'elles avaient (les
@@ -1909,6 +2058,7 @@ function vehiculesDansLesReponses(liste){
 function reponsesRapidesDuFil(c){
   return reponsesRapides().filter(x => reponsePourLeFil(x, c) &&
     (x.sorte !== 'creneau' || (c.eleve && c.genre !== 'groupe')) &&
+    (x.sorte !== 'objet' || (c.eleve && (c.genre === 'bureau' || c.genre === 'moniteur'))) &&
     (x.sorte !== 'geste' || !!c.vehicule));
 }
 
@@ -2070,6 +2220,7 @@ function carteReponsesRapides(){
       msg.className = 'rrMessage';
       msg.textContent = x.sorte === 'creneau' ? '📅 ouvre le formulaire du créneau (n’envoie rien tout seul)'
         : x.sorte === 'geste' ? '🚗 ouvre la fenêtre « ' + nomDuGesteVehicule(x.geste) + ' » (le message et la fiche du véhicule)'
+        : x.sorte === 'objet' ? '🧤 ouvre « Déclarer un objet trouvé » (conversations d’un élève)'
         : '« ' + x.message + ' »';
       m.appendChild(msg);
       m.appendChild(rrEtiquettes(x.genres, x));
@@ -2188,8 +2339,15 @@ function fenetreReponseRapide(x, liste, sauver){
   champ('Le bouton — ce qu’on voit', bouton);
   const message = document.createElement('textarea');
   message.rows = 4; message.maxLength = 1000; message.value = r.message; message.id = 'rrTexte';
-  const estGeste = r.sorte === 'geste';
-  if(r.sorte === 'creneau'){
+  /* 🧤 v1563 — « Objet trouvé » se règle comme un bouton du véhicule : son nom, sa place */
+  const estGeste = r.sorte === 'geste' || r.sorte === 'objet';
+  if(r.sorte === 'objet'){
+    const n = document.createElement('div');
+    n.className = 'rrNote';
+    n.textContent = '🧤 Ce bouton ouvre « Déclarer un objet trouvé » dans les conversations d’un élève (bureau et moniteur) : ' +
+      'la carte du suivi part dans la conversation. Tu changes son nom ici, et sa place dans la liste (⠿ ou ↑ ↓).';
+    boite.appendChild(n);
+  }else if(r.sorte === 'creneau'){
     const n = document.createElement('div');
     n.className = 'rrNote';
     n.textContent = '📅 Ce bouton ouvre le formulaire « Proposer un créneau » : il n’envoie pas de texte tout seul. ' +
