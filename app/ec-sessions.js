@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 17:57 — v1545 */
+/* Déployé le 21/11/2026 à 19:57 — v1547 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -771,6 +771,15 @@ zone.innerHTML = '';
   barre.className = 'ses-barre';
   zone.appendChild(barre);
 
+  /* 📅 v1546 — les « Resap » de Drivup à valider, au-dessus des sessions */
+  if(typeof dessinerResapEC === 'function' && (typeof aDroit !== 'function' || aDroit('bureau_permis'))){
+    const zr = document.createElement('div');
+    zr.id = 'sesResap';
+    zone.appendChild(zr);
+    dessinerResapEC(zr);
+    chargerResapEC().catch(() => {});
+  }
+
   const b = document.createElement('button');
   b.className = 'btn btn-primary ses-b1';
   b.textContent = "➕ Nouvelle session d'examen";
@@ -1251,6 +1260,17 @@ function dureeSession(sess){
 function remplirPlaces(zone, sess){
   zone.innerHTML = '';
   sess.eleves.forEach(p => zone.appendChild(lignePlace(p, sess)));
+  /* 📅 v1547 — ses leçons posées sur Drivup : lues pour ceux dont tout
+     n'est pas planifié, puis la liste se redessine (une fois) */
+  if(typeof chargerPlanningPermisEC === 'function' && sess.date && sess.date >= aujParisEC()){
+    const noms = sess.eleves.map(p => p.eleve).filter(n => n && !marquesDeLaPreparation(n).planifie);
+    const sig = () => JSON.stringify(noms.map(n => { const c = aVenirPermisEC(n); return c ? c.cours : 0; }));
+    const avant = sig();
+    if(noms.length) chargerPlanningPermisEC(noms).then(() => {
+      noms.forEach(n => autoPlanifiePermisEC(n, sess.date));
+      if(sig() !== avant && zone.isConnected) remplirPlaces(zone, sess);
+    }).catch(() => {});
+  }
 
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;' +
@@ -1539,7 +1559,7 @@ function iconesDeLaPreparation(nom){
              : r ? '<span title="Il doit planifier encore des choses">📆</span>' : '');
   return t ? '<span class="ses-marques" style="font-size:13px;margin-left:-2px;">' + t + '</span>' : '';
 }
-function lignesDeLaPreparation(nom){
+function lignesDeLaPreparation(nom, examIso){
   const m = marquesDeLaPreparation(nom);
   let h = '';
   if(!m.paye){
@@ -1555,13 +1575,18 @@ function lignesDeLaPreparation(nom){
     /* 📅 v1544 — faites ou posées par lui : l'étiquette orange ou bleue
        remplace la ligne rouge ; à faire : la ligne rouge et l'étiquette */
     const r = etatResaPermis(m.su);
-    if(r === 'afaire' || !r){
+    /* 📅 v1547 — Drivup lu et ses heures connues : « À réserver : … »
+       remplace « Il doit planifier encore des choses » */
+    const b = (typeof bilanPlanningPermis === 'function') ? bilanPlanningPermis(nom, examIso) : null;
+    const parDrivup = !!(b && !b.erreur && b.connu && !b.jourJ);
+    const dr = b ? lignesPlanningPermisHtml(nom, examIso, m.su) : { posees: '', reste: '' };
+    if(!parDrivup && (r === 'afaire' || !r)){
       h += '<div class="ses-doit" style="font-size:12px;font-weight:700;color:var(--warn-text);margin-top:2px;">' +
            '📆 Il doit planifier encore des choses' +
            /* 🗓️ v1234 — la fenêtre des créneaux, à son nom */
            ((typeof boutonCreneauxPourLeSuivi === 'function') ? boutonCreneauxPourLeSuivi(nom) : '') + '</div>';
     }
-    h += etiquetteResaPermis(m.su);
+    h += dr.posees + etiquetteResaPermis(m.su, b && !b.erreur ? b : null) + dr.reste;
   }
   return h;
 }
@@ -1601,7 +1626,7 @@ function lignePlace(p, sess){
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
       etat.emoji + ' ' + etat.texte + '</div>' +
       /* 💶 📆 v1193 — déplié : écrit en toutes lettres */
-      lignesDeLaPreparation(p.eleve) +
+      lignesDeLaPreparation(p.eleve, sess && sess.date) +
       /* Ce que le bureau a noté : les leçons posées et le reste à
          faire. C'est ce qu'on veut voir sans ouvrir la fiche. */
       /* 📅 v1544 — les réservations ne sont plus une petite ligne verte :
@@ -2252,6 +2277,16 @@ function ouvrirPlace(p, sess){
   {
     const cPlan = boite.querySelector('#plPlanifie');
     cPlan.closest('label').after(blocResa);
+    /* 📅 v1547 — sous « Tout est planifié » : ses leçons posées sur Drivup,
+       et si ça couvre ce qu'il doit faire (affiché, même coché) */
+    if(p.eleve && typeof blocPlanningDrivupPermis === 'function'){
+      const bd = blocPlanningDrivupPermis({ nom: p.eleve, exam: sess && sess.date,
+        /* coché tout seul pendant que la fiche est ouverte : la case suit,
+           sinon « Enregistrer » le décocherait */
+        surAuto: () => { if(!cPlan.checked){ cPlan.checked = true; cPlan.dispatchEvent(new Event('change')); } } });
+      bd.id = 'plDrivup';
+      cPlan.closest('label').after(bd);
+    }
     const montrer = () => { blocResa.style.display = cPlan.checked ? 'none' : ''; };
     montrer();
     cPlan.addEventListener('change', montrer);
@@ -3726,9 +3761,14 @@ function blocReservationsPermis(o){
   return bloc;
 }
 /* La ligne sous le nom, dans les listes (session dépliée) */
-function etiquetteResaPermis(s){
+function etiquetteResaPermis(s, bilan){
   const e = etatResaPermis(s);
   if(!e) return '';
+  /* 📅 v1547 — avec Drivup lu (bilan) : les réservations déjà posées sur
+     son planning passent dans « Posées » ; « ⏳ à faire » laisse la place
+     à « À réserver : … » quand ses heures sont connues. Les passées ne
+     s'affichent plus, nulle part. */
+  const parDrivup = !!(bilan && bilan.connu && !bilan.jourJ);
   /* ⚠️ v1545 — UNE LIGNE COMME LES AUTRES. David, le 21/11, capture à
      l'appui : « c'est trop gros les réservations ». Plus de cadre : la
      taille et la graisse de « 💶 Il doit de l'argent » juste au-dessus,
@@ -3738,10 +3778,17 @@ function etiquetteResaPermis(s){
   if(e === 'eleve') return '<div class="resaEtiq" style="' + base + 'color:var(--resa-bleu-t, #2D6A9F);">🙋 Il pose lui-même ses heures</div>';
   if(e === 'faite'){
     const lu = resaLire(s.reservations || '', isoDuPermis(s.datePermis));
-    const court = lu.liste.map(resaTexteCourt).concat(lu.reste ? [lu.reste] : []).join(' · ');
+    const auj = (typeof aujParisEC === 'function') ? aujParisEC() : new Date().toISOString().slice(0, 10);
+    const liste = bilan ? bilan.resas : lu.liste.filter(r => r.jour >= auj);
+    const montre = bilan && typeof creneauPermisTexte === 'function' ? creneauPermisTexte : resaTexteCourt;
+    /* toutes passées ou posées : plus rien d'orange à dire */
+    if(!liste.length && !lu.reste && lu.liste.length) return '';
+    const court = liste.map(montre).concat(lu.reste ? [lu.reste] : []).join(' · ');
     return '<div class="resaEtiq" style="' + base + 'color:' + RESA_ORANGE_TEXTE + ';">' +
-      calendrierOrangeSvg(13).replace('vertical-align:-2px', 'margin-top:2px') + '<span>Réservations faites' + (court ? ' · <span style="font-weight:600;">' + ech(court) + '</span>' : '') + '</span></div>';
+      calendrierOrangeSvg(13).replace('vertical-align:-2px', 'margin-top:2px') + '<span>' + (bilan ? 'Réservées, à payer' : 'Réservations faites') +
+      (court ? ' · <span style="font-weight:600;">' + ech(court) + '</span>' : '') + '</span></div>';
   }
+  if(parDrivup) return '';
   return '<div class="resaEtiq" style="' + base + 'color:var(--warn-text);">⏳ Réservations à faire</div>';
 }
 /* « ven. 11/12 15h-17h » */
@@ -3750,6 +3797,546 @@ function resaTexteCourt(r){
   const j = (RESA_JOURS[d.getDay()] || '').slice(0, 3);
   return j + '. ' + r.jour.slice(8, 10) + '/' + r.jour.slice(5, 7) + ' ' + resaH(r.debut) + '-' + resaH(r.fin);
 }
+/* ============================================================
+   📅 LES « RESAP » À VALIDER — v1546
+
+   David, le 21/11 : les rendez-vous perso « Resap + nom de l'élève » de
+   Drivup sont les réservations avant permis (leur jour et leur heure SONT
+   le créneau). « Parfois le nom ou le prénom n'est pas bien écrit quand on
+   écrit vite ; au début il ne faut pas que ça se mette tout seul : on voit
+   la liste et on valide élève par élève dans l'App. » Ses choix : en haut
+   de 🎓 Suivi permis (et une ligne dans le bandeau) ; un Resap validé puis
+   retiré de Drivup se valide aussi ; « poser tout seul quand le nom est
+   sûr », un interrupteur éteint au départ.
+   ============================================================ */
+let resapEC = { lignes: [], auto: false, lu: 0 };
+async function chargerResapEC(forcer){
+  if(typeof aDroit === 'function' && !aDroit('bureau_permis')) return resapEC;
+  if(!forcer && resapEC.lu && Date.now() - resapEC.lu < 120000) return resapEC;
+  const d = await appelPrep({ action: 'drivupResapListe' });
+  if(d && d.status === 'ok') resapEC = { lignes: d.lignes || [], auto: !!d.auto, lu: Date.now() };
+  try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){}
+  const z = document.getElementById('sesResap');
+  if(z && z.isConnected) dessinerResapEC(z);
+  return resapEC;
+}
+function nomDuResap(titre){ return String(titre || '').replace(/^\s*resap\b\s*[:\-–—.]?\s*/i, '').trim(); }
+function distanceResap(a, b){
+  const m = a.length, n = b.length;
+  if(!m) return n; if(!n) return m;
+  let p = Array.from({ length: n + 1 }, (_, j) => j);
+  for(let i = 1; i <= m; i++){
+    const c = [i];
+    for(let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    p = c;
+  }
+  return p[n];
+}
+/* La fiche du nom tapé dans Drivup : exacte (« sûr »), sinon la plus proche
+   (une faute de frappe, un prénom écourté), sinon rien */
+function ficheDuResap(nomTape){
+  const fiches = (typeof fichesEleves !== 'undefined' && fichesEleves) || [];
+  if(!String(nomTape || '').trim() || !fiches.length) return { eleve: '', sur: false };
+  const exacte = (typeof ficheDeLEleveDrivup === 'function') ? ficheDeLEleveDrivup({ complet: nomTape }) : null;
+  if(exacte) return { eleve: exacte.eleve, sur: true };
+  const plat = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+  const t = plat(nomTape);
+  if(!t.length) return { eleve: '', sur: false };
+  let mieux = null, haut = 0, second = 0;
+  fiches.forEach(f => {
+    const g = plat(f.eleve);
+    if(!g.length) return;
+    let s = 0;
+    t.forEach(x => { let b = 0; g.forEach(y => { const r = 1 - distanceResap(x, y) / Math.max(x.length, y.length); if(r > b) b = r; }); s += b; });
+    s = s / t.length - Math.abs(g.length - t.length) * 0.04;
+    if(typeof suiviDe === 'function' && (suiviDe(f.eleve) || {}).eleve) s += 0.05;
+    if(s > haut){ second = haut; haut = s; mieux = f; } else if(s > second) second = s;
+  });
+  return (mieux && haut >= 0.62) ? { eleve: mieux.eleve, sur: false, proche: true } : { eleve: '', sur: false };
+}
+const resapCle = r => r.jour + '|' + r.debut + '|' + r.fin;
+/* Les décisions à prendre, par élève */
+function groupesResapEC(){
+  const g = {};
+  (resapEC.lignes || []).forEach(r => {
+    const retirer = r.etat === 'pose' && Number(r.disparu);
+    const base = retirer || r.eleve ? (r.eleve || nomDuResap(r.titre)) : nomDuResap(r.titre);
+    const cle = (retirer ? 'r:' : 'p:') + (typeof cleNomDrivup === 'function' ? cleNomDrivup(base) : base.toLowerCase());
+    if(!g[cle]){
+      const f = (retirer || r.eleve) ? { eleve: r.eleve, sur: true } : ficheDuResap(nomDuResap(r.titre));
+      g[cle] = { cle: cle, sorte: retirer ? 'retirer' : 'poser', tape: nomDuResap(r.titre), eleve: f.eleve, sur: !!f.sur, proche: !!f.proche, lignes: [] };
+    }
+    g[cle].lignes.push(r);
+  });
+  return Object.values(g);
+}
+/* La fiche de suivi change : des créneaux en plus, d'autres en moins */
+async function appliquerResapFiche(nom, ajouts, retraits){
+  const s = suiviDe(nom) || {};
+  const lu = resaLire(s.reservations || '', isoDuPermis(s.datePermis));
+  const enMoins = new Set(retraits || []);
+  const liste = lu.liste.filter(r => !enMoins.has(resapCle(r)));
+  (ajouts || []).forEach(r => { if(!liste.some(x => resapCle(x) === resapCle(r))) liste.push({ jour: r.jour, debut: r.debut, fin: r.fin }); });
+  liste.sort((x, y) => (x.jour + x.debut).localeCompare(y.jour + y.debut));
+  let etat = String(s.resaEtat || '');
+  if(liste.length) etat = 'faite';
+  else if(!lu.reste && (etat === 'faite' || !etat)) etat = 'afaire';
+  await majSuivi(nom, { reservations: liste.map(resaTexte).concat(lu.reste ? [lu.reste] : []).join(' · '), resaEtat: etat });
+}
+async function deciderResapEC(groupe, decision, nom){
+  const ids = groupe.lignes.map(r => r.id);
+  if(decision === 'pose'){
+    const fiche = ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).find(f => f.eleve === nom);
+    if(!fiche) throw new Error('« ' + nom + ' » n’est pas une fiche : choisis l’élève dans la liste.');
+    if((suiviDe(nom) || {}).toutPlanifie === 'oui') throw new Error(nom + ' : « Tout est planifié » est coché — décoche-le d’abord.');
+    /* déplacé dans Drivup : l'ancien créneau s'en va, le nouveau arrive */
+    await appliquerResapFiche(nom, groupe.lignes, groupe.lignes.map(r => r.pose).filter(Boolean));
+  }else if(decision === 'retire'){
+    await appliquerResapFiche(groupe.eleve, [], groupe.lignes.map(r => r.pose || resapCle(r)));
+  }
+  const d = await appelPrep({ action: 'drivupResapDecider', ids: ids, decision: decision, eleve: nom || groupe.eleve || '' });
+  if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Décision non enregistrée.');
+  /* le Worker note lui-même la décision dans « 🔔 Du nouveau dans Drivup » */
+  resapEC = { lignes: d.lignes || [], auto: !!d.auto, lu: Date.now() };
+}
+/* « Poser tout seul quand le nom est sûr » : sur le poste qui lit Drivup */
+async function resapAutoEC(){
+  await chargerResapEC(true);
+  if(!resapEC.auto) return 0;
+  let n = 0;
+  for(const g of groupesResapEC()){
+    if(g.sorte !== 'poser' || !g.sur || !g.eleve) continue;
+    const s = suiviDe(g.eleve) || {};
+    if(!s.eleve || s.toutPlanifie === 'oui') continue;
+    try{ await deciderResapEC(g, 'pose', g.eleve); n += g.lignes.length; }catch(e){ /* reste à valider à la main */ }
+  }
+  if(n){
+    const z = document.getElementById('sesResap');
+    if(z && z.isConnected) dessinerResapEC(z);
+    try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){}
+  }
+  return n;
+}
+let resapReplie = false;
+try{ resapReplie = localStorage.getItem('ec_resap_replie') === '1'; }catch(e){}
+function dessinerResapEC(z){
+  const groupes = groupesResapEC();
+  z.innerHTML = '';
+  if(!groupes.length && !resapEC.auto){ z.style.display = 'none'; return; }
+  z.style.display = '';
+  const ech = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const n = groupes.reduce((a, g) => a + g.lignes.length, 0);
+  const cadre = document.createElement('div');
+  cadre.className = 'resapCadre';
+  cadre.style.cssText = 'border:2px solid ' + RESA_ORANGE + ';border-radius:12px;background:rgba(232,163,61,.08);margin:0 0 12px;';
+  const tete = document.createElement('button');
+  tete.type = 'button';
+  tete.className = 'resapTete';
+  tete.setAttribute('aria-expanded', resapReplie ? 'false' : 'true');
+  tete.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:10px 12px;border:0;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left;min-height:0;';
+  tete.innerHTML = calendrierOrangeSvg(18) + '<b style="flex:1;font-size:14px;color:' + RESA_ORANGE_TEXTE + ';">' +
+    (n ? n + ' Resap à valider' : 'Resap de Drivup : rien à valider') + '</b>' +
+    '<span style="font-size:12px;color:var(--muted);">' + (resapReplie ? '▸' : '▾') + '</span>';
+  tete.addEventListener('click', () => {
+    resapReplie = !resapReplie;
+    try{ localStorage.setItem('ec_resap_replie', resapReplie ? '1' : '0'); }catch(e){}
+    dessinerResapEC(z);
+  });
+  cadre.appendChild(tete);
+  z.appendChild(cadre);
+  if(resapReplie) return;
+  const corps = document.createElement('div');
+  corps.style.cssText = 'padding:0 12px 10px;display:flex;flex-direction:column;gap:8px;';
+  cadre.appendChild(corps);
+  groupes.forEach(g => {
+    const b = document.createElement('div');
+    b.className = 'resapGroupe';
+    b.dataset.cle = g.cle;
+    b.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:9px 10px;';
+    const creneaux = g.lignes.map(r => {
+      const neuf = resaTexteCourt(r);
+      if(g.sorte === 'poser' && r.pose){
+        const [j, d, f] = String(r.pose).split('|');
+        /* le même jour : l'heure seule change */
+        const avant = j === r.jour ? resaH(d) + '-' + resaH(f) : resaTexteCourt({ jour: j, debut: d, fin: f });
+        const apres = j === r.jour ? resaH(r.debut) + '-' + resaH(r.fin) : neuf;
+        return '<span style="white-space:nowrap;">' + ech(j === r.jour ? resaTexteCourt(r).replace(/ \S+$/, '') + ' ' : '') +
+          '<s style="opacity:.7;">' + ech(avant) + '</s> → <b>' + ech(apres) + '</b></span>';
+      }
+      return '<span style="white-space:nowrap;">' + ech(neuf) + '</span>';
+    }).join(' · ');
+    if(g.sorte === 'retirer'){
+      b.innerHTML = '<div style="font-size:13px;line-height:1.5;"><b>' + ech(g.eleve) + '</b> · <span style="color:var(--warn-text);font-weight:700;">retiré de Drivup</span> : ' + creneaux + '</div>' +
+        '<div class="resapBoutons" style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;">' +
+        '<button type="button" data-d="retire" class="btn btn-secondary" style="width:auto;min-height:0;margin:0;padding:7px 12px;font-size:13px;">➖ Retirer de la fiche</button>' +
+        '<button type="button" data-d="garde" class="btn btn-secondary" style="width:auto;min-height:0;margin:0;padding:7px 12px;font-size:13px;">Garder</button></div>';
+    }else{
+      const deplace = g.lignes.some(r => r.pose);
+      b.innerHTML = '<div style="font-size:12px;color:var(--muted);">Dans Drivup : « Resap ' + ech(g.tape) + ' »' + (deplace ? ' · <b style="color:' + RESA_ORANGE_TEXTE + ';">déplacé</b>' : '') + '</div>' +
+        '<div style="font-size:13.5px;font-weight:700;margin:3px 0 6px;line-height:1.5;color:' + RESA_ORANGE_TEXTE + ';">' + creneaux + '</div>' +
+        '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
+          '<input type="text" class="resapFiche" list="listeEleves" autocomplete="off" value="' + ech(g.eleve) + '" placeholder="Choisis l’élève" ' +
+            'style="flex:1;min-width:160px;margin:0;font-weight:700;">' +
+          '<button type="button" data-d="pose" class="btn btn-primary" style="width:auto;min-height:0;margin:0;padding:8px 12px;font-size:13px;">✅ Valider</button>' +
+          '<button type="button" data-d="ignore" class="btn btn-secondary" style="width:auto;min-height:0;margin:0;padding:8px 12px;font-size:13px;">✕ Ignorer</button></div>' +
+        '<div class="resapAide" style="font-size:11.5px;margin-top:4px;color:' + (g.sur ? 'var(--accent-text)' : g.eleve ? RESA_ORANGE_TEXTE : 'var(--warn-text)') + ';">' +
+          (g.sur ? '✓ Le nom correspond à sa fiche' : g.eleve ? '⚠️ Nom pas tout à fait le même : vérifie l’élève proposé' : '⚠️ Aucune fiche proche : choisis l’élève') + '</div>';
+    }
+    b.addEventListener('click', async ev => {
+      const bt = ev.target.closest('button[data-d]');
+      if(!bt) return;
+      const champ = b.querySelector('.resapFiche');
+      const nom = champ ? champ.value.trim() : g.eleve;
+      b.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      try{
+        await deciderResapEC(g, bt.dataset.d, nom);
+        showToast(bt.dataset.d === 'pose' ? '📅 Posé dans la fiche de ' + nom + ' ✅'
+          : bt.dataset.d === 'retire' ? '➖ Retiré de la fiche de ' + g.eleve : bt.dataset.d === 'ignore' ? 'Resap ignoré' : 'Gardé dans la fiche');
+        dessinerResapEC(z);
+        try{ if(typeof dessinerBandeau === 'function') dessinerBandeau(); }catch(e){}
+        try{ if(typeof redessinerSessions === 'function') redessinerSessions(); }catch(e){}
+      }catch(e){
+        b.querySelectorAll('button').forEach(x => { x.disabled = false; });
+        showToast('⚠️ ' + ((e && e.message) || e));
+      }
+    });
+    corps.appendChild(b);
+  });
+  /* l'interrupteur, éteint au départ */
+  const reg = document.createElement('label');
+  reg.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--soft);text-transform:none;margin:2px 0 0;font-weight:400;cursor:pointer;';
+  reg.innerHTML = '<input type="checkbox" class="resapAuto" style="width:17px;height:17px;margin:0;"' + (resapEC.auto ? ' checked' : '') + '>' +
+    '⚙️ Poser tout seul quand le nom correspond exactement à une fiche';
+  reg.querySelector('input').addEventListener('change', async ev => {
+    try{
+      const d = await appelPrep({ action: 'drivupResapReglage', auto: ev.target.checked });
+      if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+      resapEC.auto = !!d.auto;
+      showToast(resapEC.auto ? 'Les Resap au nom sûr se poseront tout seuls ✅' : 'Tout se valide à la main ✅');
+    }catch(e){ ev.target.checked = !ev.target.checked; showToast('Impossible : ' + ((e && e.message) || e)); }
+  });
+  corps.appendChild(reg);
+}
+/* La ligne du bandeau « choses à voir » */
+function lignesResapBandeau(){
+  if(typeof aDroit === 'function' && !aDroit('bureau_permis')) return [];
+  if(!resapEC.lu){ chargerResapEC().catch(() => {}); return []; }
+  if(Date.now() - resapEC.lu > 300000) chargerResapEC(true).catch(() => {});
+  const g = groupesResapEC();
+  const n = g.reduce((a, x) => a + x.lignes.length, 0);
+  if(!n) return [];
+  return [{
+    id: 'resap:' + new Date().toISOString().slice(0, 10) + ':' + n,
+    famille: 'resap',
+    emoji: '📅',
+    texte: n + ' Resap de Drivup à valider',
+    sous: g.slice(0, 5).map(x => x.eleve || x.tape).join(' · ') + (g.length > 5 ? ' · …' : ''),
+    urgente: false,
+    groupe: 'auj',
+    action: () => { try{ afficherOnglet('permis'); afficherVue('permis', 'sessions'); }catch(e){} },
+    actionTexte: 'Voir'
+  }];
+}
+
+/* ============================================================
+   📅 CE QU'IL RESTE À RÉSERVER AVANT LE PERMIS — v1547
+
+   David, le 21/11 : « vu que tu sais lire le planning des élèves, que
+   tu connais le nombre de leçons à placer avant l'examen, mets
+   l'information de ce qu'il faut réserver : il doit faire 6 + 3, il a
+   déjà fait une leçon, il y a une leçon de planifiée, donc je dois
+   réserver 1 leçon + 2h de veille » ; « écris-moi sous Tout est planifié
+   les leçons à venir, et dis-moi si ça valide ou pas ce que l'élève doit
+   faire » ; la veille écrite « (veille) » ; les passées enlevées.
+
+   Ses réponses :
+   · « 6 + 3 » = 6h de leçons + 2h la veille + 1h le jour J (pas à
+     réserver). Les 6h se consomment par les leçons faites depuis que les
+     heures ont été dites : c'est heuresQuiComptent(), la même porte que
+     partout (elle rend 4 quand une leçon est faite).
+   · la veille = le dernier jour ouvré avant l'examen : le samedi pour un
+     examen le lundi, sinon le jour d'avant.
+   · DEUX SORTES DE CRÉNEAUX : les leçons POSÉES (payées, sur son planning
+     Drivup — lues par permisAVenir) et les réservations ORANGE (Resap,
+     créneaux notés dans la fiche : pas payées, pas sur son planning). Une
+     réservation au même jour et à la même heure qu'une leçon posée EST
+     cette leçon : elle passe dans les posées.
+   · « Tout est planifié » : seulement affiché ; l'option pour le cocher
+     tout seul existe, éteinte (« une fois que tout sera bon »).
+   ============================================================ */
+let planningPermisEC = { eleves: {}, auto: false, autoLu: 0 };
+const enVolPermisEC = {};
+function clePermisEC(n){
+  return String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function aujParisEC(){
+  try{ return new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }); }catch(e){ return new Date().toISOString().slice(0, 10); }
+}
+/* Lit dans Drivup (par le Worker) les leçons à venir des élèves qui ne sont
+   pas encore lus depuis 3 minutes. Rend la promesse de la lecture. */
+async function chargerPlanningPermisEC(noms, forcer){
+  const manque = [];
+  (noms || []).forEach(n => {
+    const k = clePermisEC(n);
+    if(!k || manque.some(x => clePermisEC(x) === k)) return;
+    const c = planningPermisEC.eleves[k];
+    if(enVolPermisEC[k]) return;
+    if(!forcer && c && Date.now() - c.lu < 180000) return;
+    manque.push(n);
+  });
+  if(!manque.length){
+    const p = (noms || []).map(n => enVolPermisEC[clePermisEC(n)]).filter(Boolean);
+    if(p.length) await Promise.all(p).catch(() => {});
+    return planningPermisEC;
+  }
+  const lots = [];
+  for(let i = 0; i < manque.length; i += 40) lots.push(manque.slice(i, i + 40));
+  const tache = (async () => {
+    for(const lot of lots){
+      const d = await appelPrep({ action: 'permisAVenir', eleves: lot });
+      if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Lecture refusée');
+      lot.forEach(n => {
+        const l = d.eleves && Object.prototype.hasOwnProperty.call(d.eleves, n) ? d.eleves[n] : null;
+        planningPermisEC.eleves[clePermisEC(n)] = { cours: Array.isArray(l) ? l : null, lu: Date.now() };
+      });
+      planningPermisEC.auto = !!d.planifieAuto;
+      planningPermisEC.autoLu = Date.now();
+    }
+  })();
+  manque.forEach(n => { enVolPermisEC[clePermisEC(n)] = tache; });
+  try{ await tache; }
+  catch(e){ manque.forEach(n => { if(!planningPermisEC.eleves[clePermisEC(n)]) planningPermisEC.eleves[clePermisEC(n)] = { cours: null, lu: Date.now(), erreur: true }; }); }
+  finally{ manque.forEach(n => { delete enVolPermisEC[clePermisEC(n)]; }); }
+  return planningPermisEC;
+}
+/* null : pas encore lu */
+function aVenirPermisEC(nom){
+  const c = planningPermisEC.eleves[clePermisEC(nom)];
+  return c ? c : null;
+}
+/* Le dernier jour ouvré avant l'examen : samedi pour un lundi */
+function jourDeVeillePermis(examIso){
+  const d = new Date(examIso + 'T12:00:00');
+  if(isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() - 1);
+  if(d.getDay() === 0) d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function minutesPermis(h){
+  const m = String(h || '').match(/(\d{1,2})\D?(\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function dureePermisH(x){
+  const a = minutesPermis(x.debut), b = minutesPermis(x.fin);
+  if(a === null || b === null || b <= a) return 2;
+  return Math.round((b - a) / 30) / 2;
+}
+/* « 1 leçon de 2h », « 2 leçons de 2h », « 3h » */
+function heuresAReserverTexte(h){
+  if(!(h > 0)) return '';
+  if(h % 2 === 0){ const n = h / 2; return n + ' leçon' + (n > 1 ? 's' : '') + ' de 2h'; }
+  return String(h).replace('.', ',') + 'h';
+}
+function jourCourtPermis(iso){
+  const d = new Date(iso + 'T12:00:00');
+  return (RESA_JOURS[d.getDay()] || '').slice(0, 3) + '. ' + iso.slice(8, 10) + '/' + iso.slice(5, 7);
+}
+function jourLongPermis(iso){
+  const d = new Date(iso + 'T12:00:00');
+  return (RESA_JOURS[d.getDay()] || '') + ' ' + iso.slice(8, 10) + '/' + iso.slice(5, 7);
+}
+/* Le bilan d'un élève. examIso : la date de son permis (la session, ou sa
+   fiche). null tant que Drivup n'est pas lu. */
+function bilanPlanningPermis(nom, examIso){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const exam = isoDuPermis(examIso) || isoDuPermis(s.datePermis);
+  const lu = aVenirPermisEC(nom);
+  if(!lu) return null;
+  const auj = aujParisEC();
+  const avecExam = !!exam && exam >= auj;
+  const veille = avecExam ? jourDeVeillePermis(exam) : '';
+  const lecons = (lu.cours || []).filter(x => x.sorte === 'conduite' && x.jour >= auj && (!avecExam || x.jour <= exam))
+    .map(x => ({ jour: x.jour, debut: x.debut, fin: x.fin || '', moniteur: x.moniteur || '', h: dureePermisH(x), veille: x.jour === veille, jourJ: x.jour === exam }))
+    .sort((a, b) => (a.jour + a.debut).localeCompare(b.jour + b.debut));
+  const memeHeure = (a, b) => a.jour === b.jour && minutesPermis(a.debut) === minutesPermis(b.debut);
+  const notees = resaLire(s.reservations || '', exam || auj).liste;
+  /* les passées ne s'affichent plus (elles restent comptées : faites, elles
+     sont dans heuresQuiComptent) */
+  const avenir = notees.filter(r => r.jour >= auj && (!avecExam || r.jour <= exam));
+  const resas = avenir.filter(r => !lecons.some(l => memeHeure(l, r)))
+    .map(r => ({ jour: r.jour, debut: r.debut, fin: r.fin, h: dureePermisH(r), veille: r.jour === veille }));
+  const b = { exam: avecExam ? exam : '', veille: veille, lecons: lecons, resas: resas, enDouble: avenir.length - resas.length,
+              erreur: !!lu.erreur, resteH: null, valeur: '', connu: false, manquePose: null, manqueResa: null, couvre: false };
+  if(!avecExam) return b;
+  const hq = (typeof heuresQuiComptent === 'function') ? (heuresQuiComptent(nom) || {}) : {};
+  b.valeur = String(hq.valeur == null ? '' : hq.valeur);
+  const n = parseFloat(b.valeur.replace(',', '.'));
+  if(isNaN(n)) return b;   /* « à préciser », « pas le niveau » */
+  b.resteH = n;
+  b.connu = true;
+  const somme = l => l.reduce((a, x) => a + x.h, 0);
+  /* la veille : 2h, d'abord les leçons posées ce jour-là, puis les
+     réservations ; ce qui dépasse ce jour-là compte pour les heures d'avant */
+  const poseeVeille = somme(lecons.filter(x => x.veille)), resaVeille = somme(resas.filter(x => x.veille));
+  /* le jour même de la veille, une leçon déjà faite n'est plus « à venir » :
+     un solde dépassé dit qu'elle a eu lieu */
+  const veilleFaite = veille < auj || (veille === auj && !!hq.depasse);
+  const veillePose = veilleFaite ? 2 : Math.min(2, poseeVeille);
+  /* le jour de l'examen : plus rien à réserver */
+  if(exam === auj){
+    b.jourJ = true;
+    b.manquePose = { avantH: 0, veilleH: 0 };
+    b.manqueResa = { avantH: 0, veilleH: 0 };
+    return b;
+  }
+  const veilleResa = Math.min(2 - veillePose, resaVeille);
+  const avantPose = somme(lecons.filter(x => x.jour < veille)) + Math.max(0, poseeVeille - 2);
+  const avantResa = somme(resas.filter(x => x.jour < veille)) + Math.max(0, resaVeille - (2 - Math.min(2, poseeVeille)));
+  b.manquePose = { avantH: Math.max(0, n - avantPose), veilleH: Math.max(0, 2 - veillePose) };
+  b.manqueResa = { avantH: Math.max(0, n - avantPose - avantResa), veilleH: Math.max(0, 2 - veillePose - veilleResa) };
+  b.couvre = !b.manquePose.avantH && !b.manquePose.veilleH;
+  return b;
+}
+/* « 1 leçon de 2h + 2h la veille (sam. 12/12) » ; long : pour l'élève */
+function texteAReserverPermis(m, b, long){
+  if(!m) return '';
+  const l = [];
+  if(m.avantH) l.push(heuresAReserverTexte(m.avantH) + (long ? ' avant ton examen' : ''));
+  if(m.veilleH) l.push((m.veilleH === 2 ? '2h' : heuresAReserverTexte(m.veilleH)) + ' la veille (' + (long ? jourLongPermis(b.veille) : jourCourtPermis(b.veille)) + ')');
+  return l.join(' + ');
+}
+function creneauPermisTexte(x){
+  return resaTexteCourt(x) + (x.veille ? ' (veille)' : x.jourJ ? ' (jour J)' : '');
+}
+/* La phrase du message des créneaux libres */
+function phraseAReserverPermis(nom, examIso){
+  const b = bilanPlanningPermis(nom, examIso);
+  if(!b || !b.connu) return '';
+  const t = texteAReserverPermis(b.manqueResa, b, true);
+  return t ? 'Il te reste à réserver ' + t + '. Regarde la messagerie du permis pour les dispos.' : '';
+}
+/* Les lignes de la session dépliée (HTML) : { posees, reste } */
+function lignesPlanningPermisHtml(nom, examIso, s){
+  const out = { posees: '', reste: '' };
+  const b = bilanPlanningPermis(nom, examIso);
+  if(!b || b.erreur) return out;
+  const ech = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const base = 'display:flex;align-items:flex-start;gap:5px;margin-top:2px;font-size:12px;font-weight:700;line-height:1.45;';
+  let h = '';
+  if(b.lecons.length){
+    h += '<div class="permisPosees" style="' + base + 'color:var(--accent-text);"><span>📅</span><span>Posées sur Drivup · <span style="font-weight:600;">' +
+      ech(b.lecons.map(creneauPermisTexte).join(' · ')) + '</span></span></div>';
+  }else if(b.exam){
+    h += '<div class="permisPosees" style="' + base + 'color:var(--muted);"><span>📅</span><span>Aucune leçon posée sur Drivup avant l’examen</span></div>';
+  }
+  out.posees = h;
+  h = '';
+  if(!b.connu || b.jourJ) return out;
+  const e = etatResaPermis(s || {});
+  const t = texteAReserverPermis(b.manqueResa, b, false);
+  if(t){
+    h += '<div class="permisAReserver ses-doit" style="' + base + 'color:' + (e === 'eleve' ? 'var(--resa-bleu-t, #2D6A9F)' : 'var(--warn-text)') + ';"><span>' +
+      (e === 'eleve' ? '🙋' : '⏳') + '</span><span>' + (e === 'eleve' ? 'Il doit encore réserver : ' : 'À réserver : ') + ech(t) +
+      ((e !== 'eleve' && typeof boutonCreneauxPourLeSuivi === 'function') ? boutonCreneauxPourLeSuivi(nom) : '') + '</span></div>';
+  }else if(b.couvre){
+    h += '<div class="permisAReserver" style="' + base + 'color:var(--accent-text);"><span>✅</span><span>Tout est posé sur Drivup (' + ech(motsHeuresPermis(b)) + ')</span></div>';
+  }else{
+    h += '<div class="permisAReserver" style="' + base + 'color:' + RESA_ORANGE_TEXTE + ';"><span>✅</span><span>Tout est réservé · à poser sur Drivup</span></div>';
+  }
+  out.reste = h;
+  return out;
+}
+function motsHeuresPermis(b){
+  return (b.resteH ? String(b.resteH).replace('.', ',') + 'h + ' : '') + 'la veille';
+}
+/* Le bloc « 📅 Dans Drivup » sous « 📆 Tout est planifié » (les deux
+   fiches). Il se lit tout seul ; o : { nom, exam, paresseux } —
+   paresseux : il attend bloc.charger(). */
+function blocPlanningDrivupPermis(o){
+  const bloc = document.createElement('div');
+  bloc.className = 'permisDrivup';
+  bloc.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin:2px 0 12px;background:var(--navy-deep);font-size:13px;line-height:1.5;';
+  const ech = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const dessiner = () => {
+    const b = bilanPlanningPermis(o.nom, o.exam);
+    if(!b){ bloc.innerHTML = '<div style="color:var(--muted);">📅 Lecture de ses leçons dans Drivup…</div>'; return; }
+    if(b.erreur){ bloc.innerHTML = '<div style="color:var(--muted);">📅 Ses leçons dans Drivup : lecture impossible pour l’instant.</div>'; return; }
+    let h = '<div style="font-weight:800;margin-bottom:3px;">📅 Leçons posées sur Drivup' + (b.exam ? ' avant l’examen' : '') + '</div>';
+    h += b.lecons.length
+      ? '<div class="permisListe">' + b.lecons.map(x => '<div>· ' + ech(creneauPermisTexte(x)) + (x.moniteur ? ' <span style="color:var(--muted);">— ' + ech(x.moniteur) + '</span>' : '') + '</div>').join('') + '</div>'
+      : '<div style="color:var(--muted);">Aucune leçon à venir sur son planning Drivup.</div>';
+    if(b.resas.length){
+      h += '<div style="margin-top:4px;color:' + RESA_ORANGE_TEXTE + ';font-weight:700;">' + calendrierOrangeSvg(13) + ' Réservées, pas encore posées : ' +
+        ech(b.resas.map(creneauPermisTexte).join(' · ')) + '</div>';
+    }
+    if(b.enDouble){
+      h += '<div style="color:var(--muted);font-size:12px;">' + b.enDouble + ' réservation' + (b.enDouble > 1 ? 's' : '') + ' de la fiche ' +
+        (b.enDouble > 1 ? 'sont' : 'est') + ' maintenant posée' + (b.enDouble > 1 ? 's' : '') + ' sur Drivup.</div>';
+    }
+    if(!b.exam) h += '';
+    else if(b.jourJ){
+      h += '<div class="permisVerdict" style="margin-top:6px;font-weight:800;color:var(--accent-text);">🏁 L’examen est aujourd’hui.</div>';
+    }else if(!b.connu){
+      h += '<div class="permisVerdict" style="margin-top:6px;font-weight:800;color:var(--warn-text);">⏱️ Heures à préciser : je ne peux pas dire si ça couvre ce qu’il doit faire.</div>';
+    }else if(b.couvre){
+      h += '<div class="permisVerdict" style="margin-top:6px;font-weight:800;color:var(--accent-text);">✅ Ça couvre ce qu’il lui reste : ' + ech(motsHeuresPermis(b)) + '</div>';
+    }else{
+      const tPose = texteAReserverPermis(b.manquePose, b, false), tResa = texteAReserverPermis(b.manqueResa, b, false);
+      h += '<div class="permisVerdict" style="margin-top:6px;font-weight:800;color:var(--warn-text);">⚠️ Il manque sur Drivup : ' + ech(tPose) + '</div>';
+      h += tResa ? '<div class="permisAReserver" style="font-weight:700;color:var(--warn-text);">⏳ À réserver : ' + ech(tResa) + '</div>'
+                 : '<div class="permisAReserver" style="font-weight:700;color:' + RESA_ORANGE_TEXTE + ';">' + calendrierOrangeSvg(13) + ' Le reste est réservé : à poser sur Drivup</div>';
+    }
+    if(typeof aDroit !== 'function' || aDroit('bureau_permis')){
+      h += '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--soft);text-transform:none;margin:8px 0 0;font-weight:400;cursor:pointer;letter-spacing:0;">' +
+        '<input type="checkbox" class="permisAuto" style="width:16px;height:16px;margin:0;"' + (planningPermisEC.auto ? ' checked' : '') + '>' +
+        '⚙️ Cocher « Tout est planifié » tout seul quand Drivup couvre tout</label>';
+    }
+    bloc.innerHTML = h;
+    const cb = bloc.querySelector('.permisAuto');
+    if(cb) cb.addEventListener('change', async ev => {
+      try{
+        const d = await appelPrep({ action: 'permisPlanifieReglage', auto: ev.target.checked });
+        if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+        planningPermisEC.auto = !!d.auto;
+        if(typeof showToast === 'function') showToast(planningPermisEC.auto ? '📆 « Tout est planifié » se cochera tout seul quand Drivup couvre tout ✅' : '📆 « Tout est planifié » se coche à la main ✅');
+        if(planningPermisEC.auto && await autoPlanifiePermisEC(o.nom, o.exam) && typeof o.surAuto === 'function') o.surAuto();
+      }catch(e){ ev.target.checked = !ev.target.checked; if(typeof showToast === 'function') showToast('Impossible : ' + ((e && e.message) || e)); }
+    });
+  };
+  let lance = false;
+  bloc.charger = (forcer) => {
+    if(lance && !forcer) return;
+    lance = true;
+    dessiner();
+    chargerPlanningPermisEC([o.nom], forcer).then(async () => {
+      dessiner();
+      if(await autoPlanifiePermisEC(o.nom, o.exam) && typeof o.surAuto === 'function') o.surAuto();
+    }).catch(() => dessiner());
+  };
+  bloc.redessiner = dessiner;
+  if(o.paresseux) bloc.innerHTML = '<div style="color:var(--muted);">📅 Leçons posées sur Drivup…</div>';
+  else bloc.charger();
+  return bloc;
+}
+/* L'option allumée : Drivup couvre tout → « Tout est planifié » (et
+   « Tout est OK » quand tout est payé, comme quand on coche à la main) */
+const autoPlanifieFaitEC = {};
+async function autoPlanifiePermisEC(nom, examIso){
+  if(!planningPermisEC.auto || !nom) return false;
+  if(typeof aDroit === 'function' && !aDroit('bureau_permis')) return false;
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  if(!s.eleve || s.toutPlanifie === 'oui' || autoPlanifieFaitEC[clePermisEC(nom)]) return false;
+  const b = bilanPlanningPermis(nom, examIso);
+  if(!b || !b.connu || !b.couvre) return false;
+  autoPlanifieFaitEC[clePermisEC(nom)] = true;
+  try{
+    await majSuivi(nom, Object.assign({ toutPlanifie: 'oui' }, s.toutPaye === 'oui' ? { toutOk: 'oui' } : {}));
+    if(typeof showToast === 'function') showToast('📆 ' + nom + ' : Drivup couvre tout — « Tout est planifié » coché');
+    try{ if(typeof redessinerSessions === 'function') redessinerSessions(); }catch(e){}
+    return true;
+  }catch(e){ delete autoPlanifieFaitEC[clePermisEC(nom)]; return false; }
+}
+
 /* Une date de permis lisible en AAAA-MM-JJ (« 18/12/2026 » aussi) */
 function isoDuPermis(t){
   const v = String(t || '').trim();
