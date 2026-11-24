@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:29 — v1548 */
+/* Déployé le 24/11/2026 à 10:54 — v1549 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1549,
+    date: 'Mardi 24 novembre 2026',
+    resume: '👁️ La FAQ dit ce que les élèves lisent, et se règle par formation',
+    quoi: [
+      { emoji: '👁️',
+        titre: 'Ce que les élèves lisent',
+        texte: 'En haut de ❓ Questions fréquentes : « Les plus lues » et « 🔎 Cherché sans réponse » (les mots tapés sans rien trouver, sans le nom de l’élève). Sur chaque thème et chaque question : élèves différents · ouvertures. La période : 30 derniers jours, depuis le début, ou les dates de ton choix.' },
+      { emoji: '🎯',
+        titre: 'Par formation',
+        texte: '« ⚙️ Régler » sous une question, ou sous le titre d’un thème : toutes les formations, ou seulement certaines (avec « D’un coup » : voitures, 2 roues, remorque, aménagée). Un élève sans formation dans sa fiche voit tout.' },
+      { emoji: '📱',
+        titre: 'Chez l’élève',
+        texte: 'Une ligne « 🎯 Moto (A) : tu vois les questions de ta formation » avec « 👀 Tout voir » quand quelque chose lui est caché ; la carte de l’accueil montre les 3 questions les plus lues.' },
+      { emoji: '↩️',
+        titre: 'Le retour d’Android dans la messagerie',
+        texte: 'Sur téléphone, une conversation ouverte : le retour d’Android (bouton ou geste) revient à la liste des conversations au lieu de fermer la Messagerie EC.' }
+    ]
+  },
   {
     version: 1548,
     date: 'Mardi 24 novembre 2026',
