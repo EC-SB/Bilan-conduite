@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 24/11/2026 à 14:26 — v1557 -->
+<!-- Déployé le 24/11/2026 à 15:27 — v1560 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1349,6 +1349,18 @@ function dessinerPoints(){
     diapos.map(() => '<span class="point"></span>').join('');
 }
 
+/* 📽️ v1560 — ⚠️ L'ANCIENNE ADRESSE GITHUB NE MÈNE PLUS AUX FICHIERS.
+   La vidéo de l'accueil est écrite « ec-sb.github.io/Bilan-conduite/
+   videos/entree.mp4 ». Depuis que l'App a son adresse à elle, GitHub
+   renvoie vers app.evolutionconduites.fr/Bilan-conduite/videos/… —
+   le bout « Bilan-conduite » en trop donne une page introuvable (404),
+   alors que le fichier est bien là, à app.evolutionconduites.fr/videos/.
+   C'était le « Vidéo : adresse introuvable (404) » de Loudéac, le
+   24/11. On remet l'adresse d'aujourd'hui, sans toucher au classeur. */
+function adresseVivante(u){
+  return String(u || '').replace(/^https?:\/\/ec-sb\.github\.io\/Bilan-conduite\//i, 'https://app.evolutionconduites.fr/');
+}
+
 function lancerCarrousel(){
   clearTimeout(minuteurDiapo);
   const z = document.getElementById('scenes');
@@ -1365,6 +1377,14 @@ function lancerCarrousel(){
 }
 
 function afficherDiapo(){
+  /* 📽️ v1560 — PENDANT LA VIDÉO DE PRÉSENTATION, LE CARROUSEL ATTEND.
+     David, le 24/11, à Loudéac : la vidéo démarre, puis s'arrête sur un
+     écran noir, et « Arrêter » laisse « Vidéo : adresse introuvable ».
+     La Samsung ne lit qu'une vidéo à la fois : le carrousel continuait
+     de tourner sous la vidéo, et sa diapositive suivante, une vidéo en
+     lecture automatique, lui prenait le lecteur. Il reprend à la fin
+     (fermerLaTele), là où il en était. */
+  if(teleVideoEnCours()){ clearTimeout(minuteurDiapo); return; }
   const z = document.getElementById('scenes');
   const d = diapos[iDiapo % diapos.length];
   if(!d) return;
@@ -1372,7 +1392,7 @@ function afficherDiapo(){
   /* Une vidéo est désignée par son adresse : elle est trop lourde
      pour tenir dans le classeur. */
   const studio = d.type === 'compo' && d.compo && window.Compo;
-  const video = (!studio && d.type === 'video') ? String(d.contenu || '').trim() : '';
+  const video = (!studio && d.type === 'video') ? adresseVivante(String(d.contenu || '').trim()) : '';
   const avecImage = !studio && !!d.image;
   const el = document.createElement('div');
   el.className = 'scene' + (studio ? ' compo' : (video || avecImage ? '' : ' texte'));
@@ -1389,7 +1409,7 @@ function afficherDiapo(){
       ? '<video src="' + video.replace(/"/g, '&quot;') + '" ' +
         'autoplay muted loop playsinline></video>'
       : '') +
-    (!video && avecImage ? '<img src="' + d.image + '" alt="">' : '') +
+    (!video && avecImage ? '<img src="' + adresseVivante(d.image) + '" alt="">' : '') +
     (!video && !avecImage && d.titre
       ? '<div class="titre">' + echapper(d.titre) + '</div>' : '') +
     (!video && !avecImage && d.contenu
@@ -1464,6 +1484,9 @@ function afficherDiapo(){
        et il faut savoir POURQUOI : sans message, on cherche à
        l'aveugle entre l'adresse, le format et l'hébergement. */
     v.addEventListener('error', () => {
+      /* 📽️ v1560 — une vidéo du carrousel rendue pour la présentation
+         n'est pas en panne : on ne dit rien, on ne passe pas à la suite */
+      if(teleVideoEnCours() || !v.getAttribute('src')) return;
       const codes = {
         1: 'lecture interrompue',
         2: 'réseau : fichier injoignable',
@@ -1483,6 +1506,7 @@ function afficherDiapo(){
     /* Certains navigateurs refusent le démarrage automatique même
        en sourdine : on insiste une fois. */
     v.addEventListener('canplay', () => {
+      if(teleVideoEnCours()) return;
       const p = v.play();
       if(p && p.catch) p.catch(() => {
         v.muted = true;
@@ -1539,11 +1563,20 @@ function etatDeLaTele(){
 /* Un changement à dire tout de suite : on coupe l'attente en cours, la
    boucle repart aussitôt avec le nouvel état */
 function direALaTele(){ try{ if(TELE.ctl) TELE.ctl.abort(); }catch(e){} }
+/* 📽️ v1560 — ⚠️ METTRE EN PAUSE NE SUFFIT PAS : la Samsung ne lit qu'une
+   vidéo à la fois, et une vidéo en pause garde le lecteur. Celles du
+   carrousel rendent donc leur fichier pendant la présentation ; à la
+   fin, on redessine la diapositive en cours, qui repart proprement. */
 function videosDuCarrousel(pause){
-  document.querySelectorAll('#scenes video').forEach(v => {
-    try{ if(pause){ v.dataset.teleMuet = v.muted ? '1' : '0'; v.muted = true; v.pause(); }
-         else { if(v.dataset.teleMuet === '0') v.muted = false; v.play().catch(() => {}); } }catch(e){}
-  });
+  if(pause){
+    clearTimeout(minuteurDiapo);
+    document.querySelectorAll('#scenes video').forEach(v => {
+      try{ v.pause(); }catch(e){}
+      if(v.getAttribute('src')){ v.removeAttribute('src'); try{ v.load(); }catch(e){} }
+    });
+    return;
+  }
+  if(diapos.length) afficherDiapo();
 }
 function jouerALaTele(i){
   const vid = TELE.liste[i];
