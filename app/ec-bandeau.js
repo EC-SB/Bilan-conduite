@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 14:17 — v1414 */
+/* Déployé le 21/11/2026 à 18:03 — v1546 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -91,6 +91,9 @@ const FAMILLES_BANDEAU = [
      (ceux qui peuvent modifier le suivi des appels). */
   { cle:'appels',   emoji:'⏰', nom:'Personnes à rappeler (suivi des appels)',
     droit:'appels',        reglable:true },
+  /* 📅 v1546 — les « Resap » de Drivup à valider (🎓 Suivi permis) */
+  { cle:'resap',    emoji:'📅', nom:'Resap de Drivup à valider',
+    droit:'bureau_permis', reglable:true },
   { cle:'aprevoir', emoji:'📝', nom:'Examens blancs et simulateurs à prévoir',
     droit:'',              reglable:true },
   /* ⚠️ LES HEURES ONT LEUR FAMILLE À ELLES — v908.
@@ -769,6 +772,8 @@ function lignesDuBandeau(){
     objet:    lignesObjetsOublies,
     /* 📞 v1266 (ec-suivi-appels.js) */
     appels:   (typeof lignesAppelsARappeler === 'function') ? lignesAppelsARappeler : (() => []),
+    /* 📅 v1546 (ec-sessions.js) */
+    resap:    (typeof lignesResapBandeau === 'function') ? lignesResapBandeau : (() => []),
     /* 💼 v1283 (ec-formations-suivi.js) */
     formations: (typeof lignesFormationsBandeau === 'function') ? lignesFormationsBandeau : (() => []),
     /* 🧮 v1285 (ec-aides.js) */
@@ -1126,7 +1131,8 @@ const GROUPE_DE_LA_FAMILLE = {
   aprevoir:   'attente',
   heures:     'attente',
   /* 📞 v1266 — à rappeler, c'est aujourd'hui */
-  appels:     'auj'
+  appels:     'auj',
+  resap:      'auj'
 };
 
 function groupeDeLaLigne(l){
