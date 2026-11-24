@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 13:11 — v1554 */
+/* Déployé le 24/11/2026 à 13:43 — v1556 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -4205,12 +4205,17 @@ function majCompteur(id, valeur){
    redevient « Démarrer le cours » (cours suivant).
    ============================================================ */
 const TELEPHONE_MICRO = '(max-width: 760px)';
+/* 📍 v1556 — David, le 24/11 : « le bouton repère au-dessus de la fenêtre
+   de transcription, sous reprendre l'enregistrement ». La place du bloc
+   « 📍 Repère ici » (#trajetIciCours) suit le micro : toujours juste sous
+   sa petite ligne grise, en haut comme en bas. */
 function placerLeBoutonDuMicro(){
-  const b = $('recBtn'), st = $('status'), tr = $('transcriptBox');
+  const b = $('recBtn'), st = $('status'), tr = $('transcriptBox'), ici = $('trajetIciCours');
   if(!b || !tr || !tr.parentNode) return;
   const texte = b.textContent || '';
-  const enBas = (b.nextElementSibling === st) && (st && st.nextElementSibling === tr ||
-                 (st && st.nextElementSibling && st.nextElementSibling.id === 'pauseWarn'));
+  const apresSt = (st && st.nextElementSibling === ici && ici) ? ici.nextElementSibling : (st && st.nextElementSibling);
+  const enBas = (b.nextElementSibling === st) && (apresSt === tr || (apresSt && apresSt.id === 'pauseWarn'));
+  const ranger = () => { if(ici && st && st.parentNode && st.nextElementSibling !== ici) st.parentNode.insertBefore(ici, st.nextSibling); };
   const auTelephone = !!(window.matchMedia && window.matchMedia(TELEPHONE_MICRO).matches);
   if(/Démarrer/.test(texte) || !auTelephone){
     if(b.dataset.enBas === '1'){
@@ -4221,6 +4226,7 @@ function placerLeBoutonDuMicro(){
       }
       delete b.dataset.enBas;
     }
+    ranger();
     return;
   }
   if(/Reprendre/.test(texte) && b.dataset.enBas !== '1' && !enBas){
@@ -4232,6 +4238,7 @@ function placerLeBoutonDuMicro(){
     if(st) avant.parentNode.insertBefore(st, avant);
     b.dataset.enBas = '1';
   }
+  ranger();
 }
 (function(){
   const b = $('recBtn');
