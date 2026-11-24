@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 14:48 — v1468 */
+/* Déployé le 24/11/2026 à 11:30 — v1551 */
 /* ============================================================
    🔔 LE SERVICE WORKER — étape 3 de la messagerie
 
@@ -34,6 +34,15 @@
    ============================================================ */
 
 const ICONE = "icone-192.png";
+/* 🔲 v1551 — LA PETITE ICÔNE DE LA BARRE D'ÉTAT ANDROID (« badge »)
+
+   David, le 24/11 : « Chrystel me dit que sur son téléphone les
+   notifications sont un carré blanc en haut ». Android ne garde de
+   cette icône QUE sa transparence : chaque point opaque devient blanc.
+   Le logo (icone-192.png) n'a pas de transparence du tout : il donnait
+   donc un carré blanc plein. Ici, une bulle blanche sur fond
+   transparent, prise dans l'icône de la Messagerie EC. */
+const BADGE = "badge-notif-96.png";
 
 /* ============================================================
    🔴 LA PASTILLE SUR L'ICÔNE DE L'APPLICATION — v1107
@@ -42,7 +51,7 @@ const ICONE = "icone-192.png";
    sur l'appli, par contre il n'y a pas de pastille qui se met sur
    l'icône de l'application mise sur le téléphone ».
 
-   ⚠️ « badge: ICONE », PLUS BAS, N'EST PAS CETTE PASTILLE. Le nom
+   ⚠️ « badge: BADGE », PLUS BAS, N'EST PAS CETTE PASTILLE. Le nom
    trompe : c'est la petite icône monochrome de la barre d'état
    Android. La pastille sur l'icône passe par une autre API,
    « setAppBadge », et personne ne l'appelait.
@@ -210,7 +219,7 @@ self.addEventListener("push", function (e) {
   if (a.appel) {
     e.waitUntil(Promise.all([
       self.registration.showNotification(titre, {
-        body: texte, icon: ICONE, badge: ICONE,
+        body: texte, icon: ICONE, badge: BADGE,
         tag: a.tag || ("appel-" + a.appel), renotify: true,
         requireInteraction: true, vibrate: [400, 200, 400, 200, 400],
         data: { fil: a.fil || "", page: a.page || "index.html", vue: "", appel: String(a.appel) }
@@ -236,7 +245,7 @@ self.addEventListener("push", function (e) {
         fenetres.forEach(function (f) { try { f.postMessage({ quoi: "cafe" }); } catch (err) {} });
       }),
       self.registration.showNotification(titre, {
-        body: texte, icon: ICONE, badge: ICONE,
+        body: texte, icon: ICONE, badge: BADGE,
         tag: a.tag || "cafe", renotify: true,
         data: { fil: "", page: a.page || "index.html", vue: "cafe" }
       })
@@ -259,7 +268,7 @@ self.addEventListener("push", function (e) {
     self.registration.showNotification(titre, {
     body: texte,
     icon: ICONE,
-    badge: ICONE,
+    badge: BADGE,
     /* ⚠️ UNE SEULE NOTIFICATION PAR FIL. Sans « tag », dix messages
        d'affilée empilent dix lignes qu'il faut balayer une à une ;
        avec lui, la dernière remplace la précédente. C'est le fil
@@ -348,7 +357,7 @@ self.addEventListener("pushsubscriptionchange", function (e) {
   e.waitUntil(self.registration.showNotification("🔔 Notifications à relancer", {
     body: "Ouvre l'application une fois pour continuer à être prévenu.",
     icon: ICONE,
-    badge: ICONE,
+    badge: BADGE,
     tag: "abonnement"
   }));
 });
