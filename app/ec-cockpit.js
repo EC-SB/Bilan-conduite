@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 17:15 — v1563 */
+/* Déployé le 24/11/2026 à 18:19 — v1564 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -280,6 +280,13 @@ async function ckMarquer(id, quoi){
     if(r.epingle !== undefined) x.epingle = r.epingle;
     if(r.rappelLe !== undefined) x.rappelLe = r.rappelLe;
   });
+  /* 📌 v1564 — désépingler la conversation d'un élève désépingle aussi les
+     demandes qu'elle range (sinon elles la gardent en tête) */
+  if(quoi === 'epingle' && !Number(r.epingle || 0)){
+    for(const x of (conversationsEC || []).filter(y => y && y.rangeDans === id && Number(y.epingle || 0))){
+      try{ await appelPrep({ action: 'convMarquer', id: x.id, epingle: '0' }); x.epingle = 0; }catch(e){}
+    }
+  }
   /* ⚠️ « ME LA RAPPELER DEMAIN », C'EST L'AVOIR VUE. Sans cette
      lecture, un fil non lu qu'on repousse resterait dans « À traiter »
      — le geste n'aurait rien fait. Et c'est aussi ce qui le fait
@@ -680,7 +687,7 @@ function ckEnteteDuFil(f, large){
   if(!large){
     /* 📱 v1383 — la flèche de retour : sur un téléphone, un rond vert
        de 46 px (option A du schéma, David le 7 novembre) */
-    const r = ckBouton('←', 'Revenir à la liste', () => fermerLeFil(), 'rond ckRetour');
+    const r = ckBouton('←', 'Revenir à la liste', () => (typeof quitterLeFilEC === 'function' ? quitterLeFilEC() : fermerLeFil()), 'rond ckRetour');
     r.innerHTML = ckIconeTrait('retour', 'ckRetourIc');
     tete.appendChild(r);
   }
@@ -869,6 +876,9 @@ function ckPanneauInfos(f, mode){
   });
   rond('📤', 'Exporter', 'Le fil entier en texte, à copier', false, () => exporterLeFil(f));
   corps.appendChild(ronds);
+  /* 📷 v1564 — les photos de la conversation */
+  const sPh = sectionPhotosInfosEC(f);
+  if(sPh) corps.appendChild(sPh);
 
   /* la fiche (sans sa photo : elle est juste au-dessus) */
   const fiche = ckFicheEclair(f);
@@ -980,6 +990,159 @@ function ckPanneauInfos(f, mode){
   }
   return box;
 }
+/* ============================================================
+   📷 ⓘ INFOS › PHOTOS — v1564
+
+   David : « à droite dans Infos, un endroit où on voit toutes les photos
+   de la conversation », et « qu'on puisse ouvrir et rechercher par date,
+   pas qu'elles soient toutes là, sinon ça va être trop long ». Les 6
+   dernières ici ; « Toutes les photos » ouvre une page par mois, qui se
+   charge en descendant, avec « 📅 Aller au… ». Un appui : le carrousel.
+   ============================================================ */
+const photosInfosCacheEC = {};
+function sectionPhotosInfosEC(f){
+  const c = f && f.conv;
+  if(!c || !c.id) return null;
+  const s = ckSectionInfos('📷 Photos');
+  s.classList.add('msgAPhotos');
+  s.style.display = 'none';
+  const ms = f.messages || [];
+  const cle = c.id + ':' + (ms.length ? ms[ms.length - 1].rang : 0);
+  const poser = (d) => {
+    if(!d || !d.photos || !d.photos.length){ s.style.display = 'none'; return; }
+    s.style.display = '';
+    s.querySelector('h4').textContent = '📷 Photos · ' + (d.total || d.photos.length);
+    const g = document.createElement('div');
+    g.className = 'photosInfos';
+    const liste = d.photos.map(x => ({ src: adresseDeLaPiece(x), auteur: x.auteur, quand: x.envoyeLe }));
+    d.photos.slice(0, 6).forEach((x, k) => {
+      const v = document.createElement('button');
+      v.type = 'button'; v.className = 'vig';
+      v.setAttribute('aria-label', 'Ouvrir la photo ' + (k + 1));
+      const im = document.createElement('img');
+      im.src = adresseDeLaPiece(x); im.alt = ''; im.loading = 'lazy';
+      v.appendChild(im);
+      if(k === 5 && (d.total || 0) > 6){
+        const p = document.createElement('span'); p.className = 'plus'; p.textContent = '+' + (d.total - 6);
+        v.appendChild(p);
+        v.addEventListener('click', () => ouvrirLaGalerieEC(f));
+      }else v.addEventListener('click', () => ouvrirLeCarrouselEC(liste, k));
+      g.appendChild(v);
+    });
+    s.appendChild(g);
+    const tout = document.createElement('button');
+    tout.type = 'button'; tout.className = 'photosTout';
+    tout.textContent = 'Toutes les photos (' + (d.total || d.photos.length) + ')';
+    tout.addEventListener('click', () => ouvrirLaGalerieEC(f));
+    s.appendChild(tout);
+  };
+  const deja = photosInfosCacheEC[cle];
+  if(deja) poser(deja);
+  else appelPrep({ action: 'convPhotosDuFil', id: c.id, limite: 6 }).then(d => {
+    photosInfosCacheEC[cle] = d;
+    poser(d);
+  }).catch(() => { s.style.display = 'none'; });
+  return s;
+}
+
+/* « Toutes les photos » : un écran par-dessus, rangé par mois */
+function ouvrirLaGalerieEC(f){
+  const c = f && f.conv;
+  if(!c) return;
+  const v = document.createElement('div');
+  v.className = 'galeriePhotosEC';
+  v.setAttribute('role', 'dialog');
+  v.setAttribute('aria-label', 'Toutes les photos');
+  const tete = document.createElement('div');
+  tete.className = 'gpTete';
+  const ret = document.createElement('button');
+  ret.type = 'button';
+  ret.className = 'gpRetour';
+  ret.textContent = '←';
+  ret.title = 'Revenir';
+  ret.setAttribute('aria-label', 'Revenir');
+  ret.addEventListener('click', () => { v.remove(); document.removeEventListener('keydown', echap); });
+  tete.appendChild(ret);
+  const ti = document.createElement('div');
+  ti.className = 'gpTitre';
+  ti.innerHTML = '<b>Photos</b><span></span>';
+  ti.lastChild.textContent = (typeof titreDuFilCourt === 'function') ? titreDuFilCourt(f) : (c.titre || c.eleve || '');
+  tete.appendChild(ti);
+  const date = document.createElement('label');
+  date.className = 'gpDate';
+  date.innerHTML = '<span>📅 Aller au…</span><input type="date" id="gpAllerAu" aria-label="Aller à une date">';
+  tete.appendChild(date);
+  v.appendChild(tete);
+  const corps = document.createElement('div');
+  corps.className = 'gpCorps';
+  v.appendChild(corps);
+  document.body.appendChild(v);
+  const echap = (ev) => { if(ev.key === 'Escape' && !document.querySelector('.carrouEC')){ v.remove(); document.removeEventListener('keydown', echap); } };
+  document.addEventListener('keydown', echap);
+
+  let liste = [], avant = 0, encore = true, charge = false, moisVus = {};
+  const NOMS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const moisDe = (x) => new Date(Number(x.rang || 0)).toLocaleString('sv-SE', { timeZone: 'Europe/Paris' }).slice(0, 7);
+  const plus = document.createElement('button');
+  plus.type = 'button'; plus.className = 'ckBt gpPlus';
+  plus.textContent = 'Photos plus anciennes';
+  const charger = async (opts) => {
+    if(charge || (!encore && !(opts && opts.jusqua))) return;
+    charge = true;
+    plus.textContent = 'Lecture…';
+    try{
+      const d = await appelPrep(Object.assign({ action: 'convPhotosDuFil', id: c.id, limite: 60 }, opts && opts.jusqua ? { jusqua: opts.jusqua } : (avant ? { avant: avant } : {})));
+      if(opts && opts.jusqua){ liste = []; moisVus = {}; corps.innerHTML = ''; }
+      if(d.mois && !moisVus.__compte){ moisVus.__compte = {}; d.mois.forEach(m => { moisVus.__compte[m.mois] = m.n; }); }
+      (d.photos || []).forEach(x => {
+        const mo = moisDe(x);
+        let g = corps.querySelector('[data-mois="' + mo + '"] .gpGrille');
+        if(!g){
+          const sec = document.createElement('section');
+          sec.setAttribute('data-mois', mo);
+          const h = document.createElement('h4');
+          const n = moisVus.__compte && moisVus.__compte[mo];
+          h.textContent = NOMS[Number(mo.slice(5, 7)) - 1] + ' ' + mo.slice(0, 4) + (n ? ' · ' + n : '');
+          sec.appendChild(h);
+          g = document.createElement('div'); g.className = 'gpGrille';
+          sec.appendChild(g);
+          corps.appendChild(sec);
+        }
+        const k = liste.length;
+        liste.push({ src: adresseDeLaPiece(x), auteur: x.auteur, quand: x.envoyeLe });
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'vig';
+        const im = document.createElement('img'); im.src = adresseDeLaPiece(x); im.alt = ''; im.loading = 'lazy';
+        b.appendChild(im);
+        b.addEventListener('click', () => ouvrirLeCarrouselEC(liste, k));
+        g.appendChild(b);
+      });
+      encore = !!d.encore;
+      avant = Number(d.avant || 0);
+      if(!liste.length){
+        const vide = document.createElement('div');
+        vide.className = 'empty';
+        vide.textContent = opts && opts.jusqua ? 'Aucune photo avant cette date.' : 'Aucune photo dans cette conversation.';
+        corps.appendChild(vide);
+      }
+    }catch(e){
+      if(typeof showToast === 'function') showToast('Lecture impossible : ' + (e.message || e));
+    }
+    charge = false;
+    plus.textContent = 'Photos plus anciennes';
+    if(encore) corps.appendChild(plus); else plus.remove();
+  };
+  plus.addEventListener('click', () => charger());
+  corps.addEventListener('scroll', () => {
+    if(encore && corps.scrollHeight - corps.scrollTop - corps.clientHeight < 300) charger();
+  }, { passive: true });
+  v.querySelector('#gpAllerAu').addEventListener('change', (ev) => {
+    const j = ev.target.value;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(j)){ encore = true; avant = 0; charger({ jusqua: j }); }
+  });
+  charger();
+}
+
 function ckSectionInfos(titre){
   const s = document.createElement('section');
   s.className = 'msgASec';
