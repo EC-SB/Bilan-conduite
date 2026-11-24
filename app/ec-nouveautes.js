@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 16:53 — v1562 */
+/* Déployé le 24/11/2026 à 17:15 — v1563 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1563,
+    date: 'Mardi 24 novembre 2026',
+    resume: '🗂️ Un fil par élève, et 🧤 « Objet trouvé » dans la conversation',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Une seule conversation par élève',
+        texte: 'Les retards, annulations et objets oubliés d’un élève ne font plus chacun leur ligne : ils sont rangés dans sa conversation avec le bureau, en carte de suivi. Sa ligne montre leurs pastilles, le bandeau « En cours » du fil y mène d’un appui. Les filtres ⏰ 🚫 🧤 marchent toujours.' },
+      { emoji: '🔒',
+        titre: 'La copie pour l’autre',
+        texte: 'Un retard prévient le moniteur du cours : il en a la carte 🔒 dans sa conversation avec l’élève. Un objet déclaré par un moniteur part dans sa conversation avec l’élève, et le bureau en a la copie 🔒 dans la sienne.' },
+      { emoji: '🧤',
+        titre: 'Déclarer un objet trouvé',
+        texte: 'Depuis ✏️, ou depuis la conversation de l’élève (bouton « 🧤 Objet trouvé » des réponses rapides, réglable dans ⚙️). Trois cas : on le cherche, il est au bureau (Saint-Brieuc ou Loudéac), ou il est dans la voiture et sera au bureau à partir de telle heure — à l’heure dite il passe « au bureau » tout seul. Le message à l’élève s’écrit seul, tu peux le retoucher.' }
+    ]
+  },
   {
     version: 1562,
     date: 'Mardi 24 novembre 2026',
