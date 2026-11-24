@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:54 — v1549 */
+/* Déployé le 24/11/2026 à 12:03 — v1553 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -700,11 +700,19 @@ function ligneConversationCorps(c, d, enChoix){
   /* 🧭 v1296 — PLUS D'ÉTIQUETTE « GROUPE / BUREAU / MONITEUR » (maquette
      validée) : le type se lit au petit rond posé sur la photo. La
      vitrine garde son bureau, en tête de l'aperçu. */
-  if(['bureau', 'retard', 'annul', 'oubli', 'moniteur', 'interne'].indexOf(c.genre) !== -1){
+  /* 🎓 v1553 — ÉLÈVE OU ÉQUIPE, D'UN COUP D'ŒIL (version D du schéma).
+     David, le 24/11 : « D avec l'icône EC pour l'équipe ». Un tour bleu
+     et 🎓 pour un fil d'élève (bureau, moniteur, retard, annulation,
+     objet oublié — « l'icône suffit », plus de 🏢 / 👤) ; un tour vert
+     et « EC » pour l'équipe (entre nous, groupes, véhicules). */
+  const cote = ['bureau', 'moniteur', 'retard', 'annul', 'oubli'].indexOf(c.genre) !== -1 ? 'eleve'
+             : (['interne', 'groupe'].indexOf(c.genre) !== -1 ? 'equipe' : '');
+  if(cote){
+    av.classList.add(cote === 'eleve' ? 'ckAvEleve' : 'ckAvEquipe');
     const mini = document.createElement('span');
-    mini.className = 'ckAvMini';
-    mini.textContent = g.rond;
-    mini.title = g.nom || '';
+    mini.className = 'ckAvMini ' + (cote === 'eleve' ? 'ckMiniEleve' : 'ckMiniEquipe');
+    mini.textContent = cote === 'eleve' ? '🎓' : 'EC';
+    mini.title = cote === 'eleve' ? 'Élève · ' + (g.nom || g.mot || '') : 'Équipe';
     av.appendChild(mini);
   }
   if(c.genre === 'vitrine' && c.vitrine && c.vitrine.nomBureau){
@@ -1765,10 +1773,20 @@ function dessinerLeFil(){
 }
 
 function collerLeFilEnBasEC(fil){
-  let colle = true;
+  let colle = true, main = 0;
   const descendre = () => { if(colle && fil.isConnected) fil.scrollTop = fil.scrollHeight; };
+  /* 📜 v1553 — SEULE LA PERSONNE DÉCOLLE LE FIL DU BAS. David, le 24/11 :
+     « la conversation remonte quand j'envoie ou que je reçois un message »
+     (ordinateur). Une photo qui prend sa hauteur au-dessus fait bouger
+     le défilement tout seul (le navigateur « ancre » ce qu'on voyait) :
+     ce mouvement-là ne doit pas faire croire qu'on est remonté lire. */
+  fil.style.overflowAnchor = 'none';
+  ['wheel', 'touchstart', 'touchmove', 'keydown', 'mousedown'].forEach(ev =>
+    fil.addEventListener(ev, () => { main = Date.now(); }, { passive: true }));
   fil.addEventListener('scroll', () => {
-    colle = fil.scrollHeight - fil.scrollTop - fil.clientHeight < 60;
+    const enBas = fil.scrollHeight - fil.scrollTop - fil.clientHeight < 60;
+    if(enBas) colle = true;
+    else if(Date.now() - main < 1500) colle = false;
   }, { passive: true });
   /* les images et les vidéos qui finissent d'arriver */
   fil.addEventListener('load', descendre, true);
