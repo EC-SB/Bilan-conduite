@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 17:15 — v1563 */
+/* Déployé le 24/11/2026 à 18:19 — v1564 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1593,7 +1593,22 @@ window.addEventListener('popstate', () => {
   if(filOuvertEC) fermerLeFil();
 });
 
+/* 📤 v1564 — « message pas envoyé, quitter ? » (David) : il partira
+   quand même ; on le dit, et on laisse choisir. */
+async function quitterLeFilEC(){
+  const c = filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id;
+  const n = envoisEC.filter(x => !x.parti && x.conv === c).length;
+  if(n && typeof fenetre === 'function'){
+    const quitter = await fenetre((n > 1 ? n + ' messages ne sont pas encore partis.' : '1 message n’est pas encore parti.') +
+      ' Il' + (n > 1 ? 's partiront' : ' partira') + ' tout seul dès que possible.',
+      [{ nom: 'Rester', valeur: false }, { nom: 'Quitter', valeur: true, principal: true }], 'Message pas envoyé');
+    if(!quitter) return;
+  }
+  fermerLeFil();
+}
+
 function fermerLeFil(){
+  setTimeout(() => { try{ poserLeBandeauEnvoisEC(); }catch(e){} }, 0);   /* 📤 v1564 */
   /* ↩️ v1549 — l'étape du fil dans l'historique s'en va avec lui */
   if(filDansLHistoireEC){ filDansLHistoireEC = false; try{ history.back(); }catch(e){} }
   fermerLeSelecteurDeReaction();
@@ -1702,7 +1717,95 @@ function dessinerLeFil(){
     zone.appendChild(panneauAppelEC(f));
   }
 
-  /* --- le fil --- */
+  /* --- le fil --- (⌨️ v1564 : bâti à part, pour pouvoir le redessiner seul) */
+  const fil = construireLeFilEC(f);
+  zone.appendChild(fil);
+
+  /* --- 📅 le créneau en cours de rédaction --- */
+  if(ckCreneauOuvert && f.peutEcrire && c.eleve) zone.appendChild(ckFormCreneau(f));
+  /* 🚗 v1390 — le petit formulaire d'un geste du véhicule (souci, RDV…) */
+  const fv = (typeof formulaireDuFilVehiculeEC === 'function') ? formulaireDuFilVehiculeEC(f) : null;
+  if(fv) zone.appendChild(fv);
+
+  /* --- écrire --- */
+  if(f.peutEcrire){
+    zone.appendChild(ckReponsesRapides(f, !large));
+    zone.appendChild(zoneDEcritureDuFil(c.id));
+    poserLaBarreDeReponseEC();     /* ↩️ v1180 */
+  }else{
+    const g = document.createElement('div');
+    g.className = 'ckFerme';
+    if(f.enSupervision){
+      g.textContent = '🔒 Tu lis sans être dedans. Pour répondre : ⋯ → 👥 Participants, ' +
+        'et ton arrivée s’inscrit dans le fil.';
+    }else if(Number(c.fermee || 0)){
+      g.appendChild(document.createTextNode('🗄️ Conversation archivée · '));
+      if(ckPeutGerer() && f.estMembre){
+        g.appendChild(ckBouton('↺ Sortir des archives', 'La conversation redevient active', async () => {
+          await appelPrep({ action: 'convFermer', id: c.id, fermee: '0' });
+          await ouvrirLeFil(c.id);
+          afficherMessagerie(true);
+        }));
+      }else g.appendChild(document.createTextNode('elle reste lisible, on n’y écrit plus.'));
+    }else g.textContent = 'Tu ne peux pas écrire dans cette conversation.';
+    zone.appendChild(g);
+  }
+
+  /* --- la fiche éclair : à droite, ou en feuille --- */
+  if(large && ckAvecFiche()) ckDessinerLaFiche(f);
+  else{
+    if(large) ckDessinerLaFiche(null);
+    if(ckFicheOuverte) zone.appendChild(ckFeuilleFiche(f, zone));
+  }
+
+  /* 👆 v1296 — glisser depuis le bord gauche : retour à la liste
+     (téléphone, tiroir) ; ⌨️ et déposer un fichier (grand écran) */
+  if(!large && typeof brancherLeBordEC === 'function') brancherLeBordEC(zone);
+  if(f.peutEcrire && typeof brancherLeDepotEC === 'function') brancherLeDepotEC(zone);
+
+  /* Le fil s'ouvre en bas, là où est le dernier message — et sur le
+     message visé quand on arrive par la recherche. */
+  /* ⚠️ v1286 — ET IL Y RESTE PENDANT QUE LES PHOTOS ARRIVENT. David,
+     le 28 octobre : « le volet de droite déconne, quand on ouvre une
+     conversation ça ne se met pas en bas directement ». On descendait
+     une fois, tout de suite ; puis les photos sans dimensions (les
+     anciennes) et les vidéos arrivaient et poussaient le bas hors de
+     vue. Le fil reste collé en bas tant qu'on n'est pas remonté soi-
+     même — et un fil redessiné (un message qui arrive, une réaction)
+     garde l'endroit où on lisait si on était remonté. */
+  const vise = f.viser && fil.querySelector('[data-rang="' + f.viser + '"]');
+  if(vise) setTimeout(() => vise.scrollIntoView({ block: 'center' }), 0);
+  else if(retenu && retenu.conv === c.id && !retenu.enBas){
+    fil.scrollTop = retenu.haut;
+    setTimeout(() => { fil.scrollTop = retenu.haut; }, 0);
+  }
+  else collerLeFilEnBasEC(fil);
+}
+
+/* ⌨️ v1564 — LE FIL SEUL. David, le 24/11 : « si on écrit dans une
+   conversation et qu'on reçoit un message en même temps, ça saute, on ne
+   peut plus écrire ». Tout était redessiné, cadre d'écriture compris : le
+   texte restait, mais le nouveau cadre n'avait plus la main (et le clavier
+   du téléphone se fermait). Les messages se bâtissent donc ici, et un
+   message qui arrive ne remplace QUE cette partie. */
+function brancherRetraitDuSysEC(s, m){
+  let minuteur = null;
+  const proposer = async (ev) => {
+    if(ev) ev.preventDefault();
+    if(typeof confirmer === 'function' &&
+       !await confirmer('Supprimer ce message automatique pour tout le monde ? Il restera une ligne « Message supprimé ».',
+                        'Supprimer ce message', true)) return;
+    try{ await appelPrep({ action: 'msgSupprimer', id: m.id }); await rafraichirLeFil(); }
+    catch(e){ showToast('Suppression impossible : ' + ((e && e.message) || e)); }
+  };
+  s.title = 'Appui long ou clic droit : supprimer';
+  s.addEventListener('contextmenu', proposer);
+  s.addEventListener('touchstart', () => { minuteur = setTimeout(() => { minuteur = null; proposer(); }, 600); }, { passive: true });
+  ['touchend', 'touchmove', 'touchcancel'].forEach(e => s.addEventListener(e, () => { if(minuteur){ clearTimeout(minuteur); minuteur = null; } }, { passive: true }));
+}
+
+function construireLeFilEC(f){
+  const c = f.conv || {};
   const fil = document.createElement('div');
   fil.id = 'msgElvFil';
   fil.className = 'msgFil';
@@ -1802,67 +1905,9 @@ function dessinerLeFil(){
     fil.appendChild(l);
   }
 
-  zone.appendChild(fil);
-
-  /* --- 📅 le créneau en cours de rédaction --- */
-  if(ckCreneauOuvert && f.peutEcrire && c.eleve) zone.appendChild(ckFormCreneau(f));
-  /* 🚗 v1390 — le petit formulaire d'un geste du véhicule (souci, RDV…) */
-  const fv = (typeof formulaireDuFilVehiculeEC === 'function') ? formulaireDuFilVehiculeEC(f) : null;
-  if(fv) zone.appendChild(fv);
-
-  /* --- écrire --- */
-  if(f.peutEcrire){
-    zone.appendChild(ckReponsesRapides(f, !large));
-    zone.appendChild(zoneDEcritureDuFil(c.id));
-    poserLaBarreDeReponseEC();     /* ↩️ v1180 */
-  }else{
-    const g = document.createElement('div');
-    g.className = 'ckFerme';
-    if(f.enSupervision){
-      g.textContent = '🔒 Tu lis sans être dedans. Pour répondre : ⋯ → 👥 Participants, ' +
-        'et ton arrivée s’inscrit dans le fil.';
-    }else if(Number(c.fermee || 0)){
-      g.appendChild(document.createTextNode('🗄️ Conversation archivée · '));
-      if(ckPeutGerer() && f.estMembre){
-        g.appendChild(ckBouton('↺ Sortir des archives', 'La conversation redevient active', async () => {
-          await appelPrep({ action: 'convFermer', id: c.id, fermee: '0' });
-          await ouvrirLeFil(c.id);
-          afficherMessagerie(true);
-        }));
-      }else g.appendChild(document.createTextNode('elle reste lisible, on n’y écrit plus.'));
-    }else g.textContent = 'Tu ne peux pas écrire dans cette conversation.';
-    zone.appendChild(g);
-  }
-
-  /* --- la fiche éclair : à droite, ou en feuille --- */
-  if(large && ckAvecFiche()) ckDessinerLaFiche(f);
-  else{
-    if(large) ckDessinerLaFiche(null);
-    if(ckFicheOuverte) zone.appendChild(ckFeuilleFiche(f, zone));
-  }
-
-  /* 👆 v1296 — glisser depuis le bord gauche : retour à la liste
-     (téléphone, tiroir) ; ⌨️ et déposer un fichier (grand écran) */
-  if(!large && typeof brancherLeBordEC === 'function') brancherLeBordEC(zone);
-  if(f.peutEcrire && typeof brancherLeDepotEC === 'function') brancherLeDepotEC(zone);
-
-  /* Le fil s'ouvre en bas, là où est le dernier message — et sur le
-     message visé quand on arrive par la recherche. */
-  /* ⚠️ v1286 — ET IL Y RESTE PENDANT QUE LES PHOTOS ARRIVENT. David,
-     le 28 octobre : « le volet de droite déconne, quand on ouvre une
-     conversation ça ne se met pas en bas directement ». On descendait
-     une fois, tout de suite ; puis les photos sans dimensions (les
-     anciennes) et les vidéos arrivaient et poussaient le bas hors de
-     vue. Le fil reste collé en bas tant qu'on n'est pas remonté soi-
-     même — et un fil redessiné (un message qui arrive, une réaction)
-     garde l'endroit où on lisait si on était remonté. */
-  const vise = f.viser && fil.querySelector('[data-rang="' + f.viser + '"]');
-  if(vise) setTimeout(() => vise.scrollIntoView({ block: 'center' }), 0);
-  else if(retenu && retenu.conv === c.id && !retenu.enBas){
-    fil.scrollTop = retenu.haut;
-    setTimeout(() => { fil.scrollTop = retenu.haut; }, 0);
-  }
-  else collerLeFilEnBasEC(fil);
+  /* 📤 v1564 — ce qui part encore : posé tout de suite, comme Messenger */
+  if(typeof bullesEnAttenteEC === 'function') bullesEnAttenteEC(c.id).forEach(x => fil.appendChild(x));
+  return fil;
 }
 
 function collerLeFilEnBasEC(fil){
@@ -2124,6 +2169,9 @@ function bulleDuMessage(m, avant, apres){
       (m.auteur ? ' — ' + m.auteur : '') +
       (m.envoyeLe ? ' · ' + String(m.envoyeLe).slice(11) : '');
     s.appendChild(d);
+    /* 🗑️ v1564 — un message automatique envoyé à un élève se retire aussi
+       (appui long, ou clic droit) */
+    if(filOuvertEC && filOuvertEC.retireEquipe && m.id && !Number(m.supprime || 0)) brancherRetraitDuSysEC(s, m);
     return s;
   }
 
@@ -2730,8 +2778,8 @@ async function ecrireDansLeFil(){
   if(enAttente.length){
     if(texte.length > MAX_TEXTE_MESSAGERIE){ showToast('Message trop long (' + MAX_TEXTE_MESSAGERIE + ' caractères au plus).'); return; }
     const l = enAttente.slice();
-    const parti = l.length > 1 ? await envoyerDesPhotosDansLeFil(l) : await envoyerUnePhotoDansLeFil(l[0]);
-    if(parti){ viderLePlateauEC(id); }
+    viderLePlateauEC(id);
+    envoyerDesPhotosDansLeFil(l);
     return;
   }
   if(!texte) return;
@@ -2741,24 +2789,317 @@ async function ecrireDansLeFil(){
     }
     return;
   }
-
-  if(bouton) bouton.disabled = true;
-  try{
-    /* 💬 v1273 — un fil lu pour le suivi : les élèves dont le message parle */
-    await appelPrep({ action: 'convEcrire', id: id, texte: texte, reponseA: reponseAPourEC(id),
-                      suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, id) : undefined });
-    oublierLaReponseEC(id);
-    if(champ) champ.value = '';
-    if(typeof apercuSuiviSE === 'function') apercuSuiviSE('');
-    delete brouillonsMessagerie[id];
-    await rafraichirLeFil();
-  }catch(e){
-    if(typeof showToast === 'function'){
-      showToast('Le message n’est pas parti : ' + (e.message || e));
-    }
-  }
-  if(bouton) bouton.disabled = false;
+  void bouton;
+  /* 📤 v1564 — COMME MESSENGER : le message se pose tout de suite dans le
+     fil, le cadre se vide, et il part derrière (voir mettreEnFileEC). */
+  const reponseA = reponseAPourEC(id);
+  const suivi = (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, id) : undefined;
+  oublierLaReponseEC(id);
+  if(champ){ champ.value = ''; champ.dispatchEvent(new Event('input', { bubbles: true })); }
+  if(typeof apercuSuiviSE === 'function') apercuSuiviSE('');
+  delete brouillonsMessagerie[id];
+  await mettreEnFileEC({ conv: id, sorte: 'texte', texte: texte, reponseA: reponseA, suivi: suivi });
 }
+
+
+/* ============================================================
+   📤 L'ENVOI QUI SE POSE TOUT DE SUITE — v1564
+
+   David, le 24/11 : « comme elle est habituée à voir ce qu'elle envoie
+   directement se mettre sur la conversation sur Messenger, elle dit que ça
+   bug » — puis « oui, comme Messenger, avec un pop-up message pas envoyé,
+   quitter ? ». Avant, une photo partait sans que rien ne s'affiche : le ＋
+   tournait, puis le message apparaissait d'un coup, plusieurs secondes
+   après.
+
+   Maintenant : la bulle se pose aussitôt (pâle, « Envoi… »), on peut déjà
+   ouvrir ses photos, on continue d'écrire, et tout part DANS L'ORDRE.
+   ⚠️ CE QUI PART EST GARDÉ SUR L'APPAREIL (IndexedDB) jusqu'à la réponse
+   du serveur : une app fermée trop tôt renvoie à la réouverture. La
+   déconnexion l'efface (c'est le moment où un téléphone se prête).
+   ⚠️ UN REFUS DU SERVEUR N'EST PAS UNE PANNE DE RÉSEAU : il reste
+   « ⚠️ Pas parti » avec Réessayer / Retirer, sans réessai tout seul.
+   ============================================================ */
+const envoisEC = [];
+let envoisTourneEC = false;
+
+function maintenantFrEC(){
+  const d = new Date();
+  const z = n => String(n).padStart(2, '0');
+  return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+
+function baseEnvoisEC(){
+  return new Promise((ok, ko) => {
+    try{
+      const r = indexedDB.open('ecEnvois', 1);
+      r.onupgradeneeded = () => { try{ r.result.createObjectStore('envois', { keyPath: 'cle' }); }catch(e){} };
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => ko(r.error);
+    }catch(e){ ko(e); }
+  });
+}
+async function faireDansLesEnvoisEC(mode, faire){
+  const db = await baseEnvoisEC();
+  return new Promise((ok, ko) => {
+    try{
+      const t = db.transaction('envois', mode);
+      const r = faire(t.objectStore('envois'));
+      t.oncomplete = () => ok(r && r.result);
+      t.onerror = () => ko(t.error);
+      t.onabort = () => ko(t.error);
+    }catch(e){ ko(e); }
+  });
+}
+async function garderLEnvoiEC(x){
+  try{
+    await faireDansLesEnvoisEC('readwrite', st => st.put({ cle: x.cle, conv: x.conv, sorte: x.sorte, texte: x.texte || '',
+      reponseA: x.reponseA || '', suivi: x.suivi || null, fichiers: x.fichiers || null, blob: x.blob || null, sec: x.sec || 0,
+      ecrire: !!x.ecrire, qui: x.qui, envoyeLe: x.envoyeLe, cree: x.cree }));
+  }catch(e){ /* sans stockage, il part quand même tant que la page reste ouverte */ }
+}
+async function oublierLEnvoiEC(x){
+  try{ await faireDansLesEnvoisEC('readwrite', st => st.delete(x.cle)); }catch(e){}
+}
+/* ⏏︎ la déconnexion : rien ne reste sur l'appareil */
+function oublierLesEnvoisEC(){
+  envoisEC.splice(0).forEach(x => (x.apercus || []).forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} }));
+  try{ faireDansLesEnvoisEC('readwrite', st => st.clear()).catch(() => {}); }catch(e){}
+  poserLeBandeauEnvoisEC();
+}
+function envoisEnAttenteEC(){ return envoisEC.filter(x => !x.parti).length; }
+
+async function mettreEnFileEC(x){
+  x.cle = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  x.etat = 'envoi';
+  x.qui = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  x.envoyeLe = maintenantFrEC();
+  x.cree = Date.now();
+  if(x.fichiers) x.apercus = x.fichiers.map(f => { try{ return URL.createObjectURL(f); }catch(e){ return ''; } });
+  envoisEC.push(x);
+  montrerLesEnvoisEC(x.conv, true);
+  garderLEnvoiEC(x);
+  traiterLesEnvoisEC();
+}
+
+function montrerLesEnvoisEC(conv, enBas){
+  if(!filOuvertEC || !filOuvertEC.conv || filOuvertEC.conv.id !== conv) return;
+  if(!redessinerLesMessagesEC()) dessinerLeFil();
+  if(enBas){
+    const fil = zoneFilMsg() && zoneFilMsg().querySelector('#msgElvFil');
+    if(fil) collerLeFilEnBasEC(fil);
+  }
+}
+
+function erreurDeReseauEC(e){
+  const t = String((e && (e.message || e)) || '');
+  return (e && e.name === 'TypeError') || /fetch|network|réseau|reseau|connexion|hors ligne|timeout|délai|abort/i.test(t) ||
+    (typeof navigator !== 'undefined' && navigator.onLine === false);
+}
+
+async function envoyerUnEnvoiEC(x){
+  if(x.sorte === 'texte'){
+    return appelPrep({ action: 'convEcrire', id: x.conv, texte: x.texte, reponseA: x.reponseA || undefined, suivi: x.suivi || undefined });
+  }
+  if(x.sorte === 'photos'){
+    if(!x.reduites){
+      const out = [];
+      for(const f of x.fichiers || []){ const p = await reduireLaPhoto(f); out.push({ photo: p.data, l: p.l, h: p.h }); }
+      x.reduites = out;
+    }
+    const ph = x.reduites;
+    if(ph.length > 1) return appelPrep({ action: 'convPhotos', id: x.conv, photos: ph, texte: x.texte || '', reponseA: x.reponseA || undefined });
+    return appelPrep({ action: 'convPhoto', id: x.conv, photo: ph[0].photo, l: ph[0].l, h: ph[0].h, texte: x.texte || '', reponseA: x.reponseA || undefined });
+  }
+  if(x.sorte === 'vocal'){
+    let texte = x.texte || '';
+    if(!texte && x.ecrire){
+      try{ texte = String(await (x.texteAuto || texteDuVocalEC(x.blob)) || '').trim(); }catch(e){ texte = ''; }
+      x.texte = texte;
+    }
+    const son = await blobEnBase64EC(x.blob);
+    return appelPrep({ action: 'convVocal', id: x.conv, son: son, duree: x.sec, texte: texte, reponseA: x.reponseA || undefined,
+      suivi: (typeof suiviPourLEnvoiSE === 'function') ? suiviPourLEnvoiSE(texte, x.conv) : undefined });
+  }
+  throw new Error('envoi inconnu');
+}
+
+async function traiterLesEnvoisEC(){
+  if(envoisTourneEC) return;
+  envoisTourneEC = true;
+  try{
+    for(;;){
+      const x = envoisEC.find(e => !e.parti && e.etat === 'envoi');
+      if(!x) break;
+      try{
+        const rep = await envoyerUnEnvoiEC(x);
+        if(rep && rep.status === 'error') throw new Error(rep.message || rep.error || 'refusé');
+      }catch(e){
+        x.etat = 'echec';
+        x.erreur = (e && e.message) || String(e || '');
+        x.reseau = erreurDeReseauEC(e);
+        /* ⚠️ L'ORDRE SE GARDE : ce qui suit attend que celui-ci parte */
+        envoisEC.forEach(o => { if(!o.parti && o !== x && o.etat === 'envoi') o.etat = 'attend'; });
+        montrerLesEnvoisEC(x.conv, false);
+        poserLeBandeauEnvoisEC();
+        break;
+      }
+      /* parti : on l'oublie, et le fil montre le vrai message à sa place */
+      x.parti = true;
+      oublierLEnvoiEC(x);
+      if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === x.conv){
+        try{ await rafraichirLeFil(true); }catch(e){}
+      }
+      const k = envoisEC.indexOf(x);
+      if(k !== -1) envoisEC.splice(k, 1);
+      setTimeout(() => (x.apercus || []).forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} }), 30000);
+      if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === x.conv && document.querySelector('[data-envoi="' + x.cle + '"]')){
+        redessinerLesMessagesEC();
+      }
+      poserLeBandeauEnvoisEC();
+    }
+  }finally{
+    envoisTourneEC = false;
+  }
+}
+
+/* Réessayer : tout ce qui attend repart, dans l'ordre */
+function renvoyerLesEnvoisEC(){
+  envoisEC.forEach(o => { if(!o.parti && (o.etat === 'echec' || o.etat === 'attend')) o.etat = 'envoi'; });
+  const convs = {};
+  envoisEC.forEach(o => { convs[o.conv] = true; });
+  Object.keys(convs).forEach(c => montrerLesEnvoisEC(c, false));
+  poserLeBandeauEnvoisEC();
+  traiterLesEnvoisEC();
+}
+async function retirerLEnvoiEC(x){
+  const k = envoisEC.indexOf(x);
+  if(k !== -1) envoisEC.splice(k, 1);
+  (x.apercus || []).forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} });
+  await oublierLEnvoiEC(x);
+  montrerLesEnvoisEC(x.conv, false);
+  poserLeBandeauEnvoisEC();
+  /* ce qui attendait derrière peut partir */
+  if(!envoisEC.some(o => !o.parti && o.etat === 'echec')) renvoyerLesEnvoisEC();
+}
+
+/* Les bulles de ce qui part encore, pour CE fil (voir construireLeFilEC) */
+function bullesEnAttenteEC(conv){
+  return envoisEC.filter(x => x.conv === conv && !x.parti).map(x => {
+    const m = { id: '', auteurGenre: 'user', auteur: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '', motif: '',
+                texte: x.texte || '', envoyeLe: x.envoyeLe, rang: 0, reacs: [] };
+    if(x.sorte === 'photos'){
+      const ps = (x.apercus || []).map(u => ({ lien: u, type: 'image/jpeg', l: 0, h: 0 }));
+      m.piece = ps[0];
+      if(ps.length > 1) m.pieces = ps;
+    }
+    if(x.sorte === 'vocal'){
+      const mn = Math.floor((x.sec || 0) / 60), sc = (x.sec || 0) % 60;
+      m.texte = '🎤 Vocal · ' + mn + ':' + String(sc).padStart(2, '0') + (x.texte ? ' — ' + x.texte : '');
+    }
+    /* une copie sans les gestes d'une vraie bulle (réagir, répondre…) */
+    const el = bulleDuMessage(m, null, null).cloneNode(true);
+    el.setAttribute('data-envoi', x.cle);
+    el.querySelectorAll('.msgRepondreSurvol, button').forEach(b => { if(!b.closest('.msgEnvoiEtat')) b.remove(); });
+    const b = el.querySelector('.msgB') || el;
+    b.classList.add('enAttente');
+    if(x.etat === 'echec') b.classList.add('echec');
+    b.removeAttribute('data-msg');
+    const srcs = x.apercus || [];
+    el.querySelectorAll('img.msgImg').forEach((im, k) => {
+      im.addEventListener('click', ev => { ev.stopPropagation(); ouvrirLaPhotoDuFilEC({ __srcs: srcs, texte: x.texte }, k, im.src); });
+    });
+    el.querySelectorAll('.msgAlbum .plus').forEach(pl => pl.addEventListener('click', ev => { ev.stopPropagation(); ouvrirLaPhotoDuFilEC({ __srcs: srcs, texte: x.texte }, 3, srcs[3]); }));
+    const e = document.createElement('div');
+    e.className = 'msgEnvoiEtat' + (x.etat === 'echec' ? ' echec' : '');
+    if(x.etat === 'echec'){
+      e.appendChild(document.createTextNode('⚠️ Pas parti' + (x.reseau ? ' (pas de réseau)' : (x.erreur ? ' : ' + x.erreur : '')) + ' · '));
+      const r = document.createElement('button');
+      r.type = 'button'; r.textContent = 'Réessayer';
+      r.addEventListener('click', ev => { ev.stopPropagation(); renvoyerLesEnvoisEC(); });
+      const t = document.createElement('button');
+      t.type = 'button'; t.textContent = 'Retirer';
+      t.addEventListener('click', ev => { ev.stopPropagation(); retirerLEnvoiEC(x); });
+      e.appendChild(r); e.appendChild(document.createTextNode(' · ')); e.appendChild(t);
+    }else{
+      e.innerHTML = '<span class="msgEnvoiRond"></span>';
+      e.appendChild(document.createTextNode(x.etat === 'attend' ? 'En attente' : 'Envoi…'));
+    }
+    el.appendChild(e);
+    return el;
+  });
+}
+
+/* ⚠️ Le bandeau : ce qui n'est pas parti se voit même hors du fil */
+function poserLeBandeauEnvoisEC(){
+  let z = document.getElementById('envoisEnPanneEC');
+  const ko = envoisEC.filter(x => !x.parti && (x.etat === 'echec' || x.etat === 'attend'));
+  /* dans le fil concerné, la bulle le dit déjà : pas de bandeau par-dessus la barre */
+  const ici = filOuvertEC && filOuvertEC.conv && zoneFilMsg() && zoneFilMsg().offsetParent !== null &&
+    ko.every(x => x.conv === filOuvertEC.conv.id);
+  if(!ko.length || ici){ if(z) z.remove(); return; }
+  if(!z){
+    z = document.createElement('div');
+    z.id = 'envoisEnPanneEC';
+    z.setAttribute('role', 'status');
+    document.body.appendChild(z);
+  }
+  z.innerHTML = '';
+  const t = document.createElement('span');
+  t.textContent = '⚠️ ' + ko.length + (ko.length > 1 ? ' messages pas envoyés' : ' message pas envoyé');
+  z.appendChild(t);
+  const bt = (txt, faire) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.addEventListener('click', faire); z.appendChild(b); return b; };
+  bt('Renvoyer', () => renvoyerLesEnvoisEC());
+  bt('Voir', () => {
+    const c = ko[0].conv;
+    if(typeof allerALaMessagerie === 'function') allerALaMessagerie('messagerie');
+    if(!(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id === c)) ouvrirLeFil(c);
+  });
+  bt('Retirer', async () => {
+    if(typeof confirmer === 'function' && !await confirmer('Retirer ' + (ko.length > 1 ? 'ces ' + ko.length + ' messages' : 'ce message') +
+       ' ? Ils ne partiront pas.', 'Retirer', true)) return;
+    for(const x of ko.slice()) await retirerLEnvoiEC(x);
+  });
+}
+
+/* 🔁 À la réouverture : ce qui n'était pas parti repart tout seul */
+let envoisReprisEC = false;
+async function reprendreLesEnvoisEC(){
+  if(envoisReprisEC) return;
+  envoisReprisEC = true;
+  let l = [];
+  try{ l = await new Promise((ok) => { faireDansLesEnvoisEC('readonly', st => st.getAll()).then(ok).catch(() => ok([])); }); }catch(e){ l = []; }
+  const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  (l || []).filter(x => x && x.qui === moi && !envoisEC.some(o => o.cle === x.cle)).sort((a, b) => a.cree - b.cree).forEach(x => {
+    x.etat = 'envoi';
+    if(x.fichiers) x.apercus = x.fichiers.map(f => { try{ return URL.createObjectURL(f); }catch(e){ return ''; } });
+    envoisEC.push(x);
+  });
+  if(envoisEC.length){
+    if(typeof showToast === 'function') showToast('📤 ' + envoisEC.length + (envoisEC.length > 1 ? ' messages pas encore partis : ils repartent.' : ' message pas encore parti : il repart.'));
+    traiterLesEnvoisEC();
+  }
+}
+
+/* Dès qu'une session est ouverte (et une seule fois par page) */
+(function(){
+  const guet = setInterval(() => {
+    if(typeof ACCES === 'undefined' || !ACCES.code || !ACCES.moniteur) return;
+    clearInterval(guet);
+    setTimeout(() => { try{ reprendreLesEnvoisEC(); }catch(e){} }, 1500);
+  }, 2000);
+})();
+
+/* Fermer l'onglet pendant un envoi : le navigateur demande (son texte à lui) */
+window.addEventListener('beforeunload', ev => {
+  if(!envoisEnAttenteEC()) return;
+  ev.preventDefault();
+  ev.returnValue = '';
+});
+/* Le réseau revient : ce qui était tombé faute de réseau repart */
+window.addEventListener('online', () => {
+  if(envoisEC.some(x => !x.parti && x.reseau && x.etat === 'echec')) renvoyerLesEnvoisEC();
+});
 
 /* ------------------------------------------------------------
    LE BATTEMENT — étape 1 : on demande. Étape 2 : on recevra.
@@ -2859,6 +3200,7 @@ async function rafraichirLeFil(silencieux){
      l'empreinte. */
   const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => [m.id, Number(m.supprime || 0), m.texte || '', m.suivi || [], (m.piece && !m.texte) ? 0 : 1]));
   const suiviAvant = sigSuivi(filOuvertEC);
+  const hautAvant = signatureDuHautEC(filOuvertEC);   /* ⌨️ v1564 */
 
   filOuvertEC = d;
   filOuvertEC.viser = 0;
@@ -2883,9 +3225,86 @@ async function rafraichirLeFil(silencieux){
 
   if(combien !== avant || dernier !== rangLuEC || bouge || viser){
     filOuvertEC.viser = viser || 0;
-    dessinerLeFil();
+    /* ⌨️ v1564 — le haut et le cadre d'écriture n'ont pas bougé : on ne
+       remplace que les messages, et celui qui écrit garde la main */
+    if(!viser && signatureDuHautEC(d) === hautAvant && redessinerLesMessagesEC()){ /* fait */ }
+    else dessinerLeFil();
     marquerLuLeFil();
   }
+  /* 📝 v1564 — l'aperçu de sa ligne suit tout de suite */
+  majLigneDuFilEC(d);
+}
+
+/* ⌨️ v1564 — ce qui, au-dessus du fil, dépend des données : s'il change,
+   on redessine tout ; sinon, seulement les messages. Les fils qui portent
+   un bandeau vivant (retard, objet, véhicule) se redessinent entiers. */
+function signatureDuHautEC(f){
+  if(!f || !f.conv) return '';
+  const c = f.conv;
+  if(['retard', 'annul', 'oubli'].indexOf(c.genre) !== -1 || c.vehicule) return 'entier:' + Math.random();
+  return JSON.stringify([c.id, Number(c.fermee || 0), !!f.peutEcrire, !!f.enSupervision, !!f.estMembre, c.etiquettes || [], c.pour || [],
+    (f.demandes || []).map(d => [d.conv.id, Number(d.conv.fermee || 0), d.objet && d.objet.etat, d.objet && d.objet.dispoLe, Number(d.copie || 0)]),
+    f.objet && f.objet.etat]);
+}
+
+function redessinerLesMessagesEC(){
+  const zone = zoneFilMsg();
+  const f = filOuvertEC;
+  if(!zone || !f || !f.conv) return false;
+  const ancien = zone.querySelector('#msgElvFil');
+  if(!ancien || zone.getAttribute('data-fil') !== String(f.conv.id || '')) return false;
+  fermerLeSelecteurDeReaction();
+  const enBas = ancien.scrollHeight - ancien.scrollTop - ancien.clientHeight < 60;
+  const haut = ancien.scrollTop;
+  const avant = ancien.querySelectorAll('.msgB').length;
+  const fil = construireLeFilEC(f);
+  ancien.replaceWith(fil);
+  if(enBas) collerLeFilEnBasEC(fil);
+  else{
+    fil.scrollTop = haut;
+    setTimeout(() => { fil.scrollTop = haut; }, 0);
+    const neufs = fil.querySelectorAll('.msgB').length - avant;
+    if(neufs > 0) poserLaPastilleNouveauxEC(fil, neufs);
+  }
+  return true;
+}
+
+/* « ↓ 1 nouveau message » : on était remonté lire, le fil ne saute pas */
+function poserLaPastilleNouveauxEC(fil, n){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'msgNouveaux';
+  b.textContent = '↓ ' + n + (n > 1 ? ' nouveaux messages' : ' nouveau message');
+  b.addEventListener('click', () => { b.remove(); collerLeFilEnBasEC(fil); });
+  fil.appendChild(b);
+  fil.addEventListener('scroll', () => {
+    if(fil.scrollHeight - fil.scrollTop - fil.clientHeight < 60) b.remove();
+  }, { passive: true });
+}
+
+/* 📝 v1564 — David : « l'aperçu du dernier message ne se met pas à jour
+   tout de suite dans la liste ». La liste ne se relisait que toutes les
+   90 secondes : la ligne du fil ouvert prend le dernier message dès qu'on
+   le connaît, et remonte en tête. */
+function majLigneDuFilEC(f){
+  if(!f || !f.conv || !Array.isArray(conversationsEC)) return;
+  const ms = (f.messages || []).filter(m => !Number(m.supprime || 0) && m.auteurGenre !== 'systeme');
+  const der = ms[ms.length - 1];
+  if(!der) return;
+  const l = conversationsEC.find(x => x && x.id === f.conv.id);
+  if(!l) return;
+  const rang = Number(der.rang || 0);
+  if(rang <= Number(l.dernierRang || 0) && l.dernierApercu) return;
+  const apercu = String(der.texte || '').trim() ||
+    (Array.isArray(der.pieces) && der.pieces.length > 1 ? '📷 ' + der.pieces.length + ' photos'
+      : der.piece ? (typeof pieceEstUnSon === 'function' && pieceEstUnSon(der.piece) ? '🎤 Vocal' : '📷 Photo') : '');
+  l.dernierRang = rang;
+  l.dernierLe = der.envoyeLe || l.dernierLe;
+  l.dernierApercu = apercu.length > 120 ? apercu.slice(0, 119) + '…' : apercu;
+  l.dernierPar = der.auteur || l.dernierPar;
+  conversationsEC.sort((a, b) => (Number(a.fermee || 0) - Number(b.fermee || 0)) || (Number(b.dernierRang || 0) - Number(a.dernierRang || 0)));
+  if(typeof ckLarge === 'function' && ckLarge() && !chercheMessagerie && !modeChoixMessagerie &&
+     ($('messagerieZone') || {}).offsetParent !== null) dessinerLaListeMessagerie();
 }
 
 async function chargerPlusDuFil(bouton){
@@ -4163,6 +4582,8 @@ async function compterLaMessagerie(){
      typeof ACCES !== 'undefined' && ACCES.code){
     pousseeRepriseFaite = true;
     reprendreLaPoussee();
+    /* 📤 v1564 — ce qui n'était pas parti avant la fermeture repart */
+    setTimeout(() => { try{ reprendreLesEnvoisEC(); }catch(e){} }, 1500);
     /* 💬 v1434 — le service worker apprend si c'est l'App EC ou la
        Messagerie EC : une notification touchée rouvre la même */
     direLeModeAuServiceWorkerEC();
@@ -4193,6 +4614,18 @@ async function compterLaMessagerie(){
     const memeDemande = !quellesFermeesPour(filtreMessagerie);
     const avant = (typeof ckEmpreinteListe === 'function') ? ckEmpreinteListe(conversationsEC) : '';
     if(memeDemande) conversationsEC = liste;
+    /* 🔁 v1564 — David : « on voit à gauche et dans la notif le message,
+       mais pas dans la conversation, il faut attendre ». La liste sait
+       déjà qu'il y a du nouveau dans le fil ouvert : il se relit tout de
+       suite, sans attendre le direct ni le filet de 30 secondes. */
+    try{
+      if(filOuvertEC && filOuvertEC.conv && filOuvertEC.conv.id){
+        const lf = liste.find(x => x && x.id === filOuvertEC.conv.id);
+        const ms = filOuvertEC.messages || [];
+        const haut = ms.length ? Number(ms[ms.length - 1].rang || 0) : 0;
+        if(lf && Number(lf.dernierRang || 0) > haut) rafraichirLeFil(true);
+      }
+    }catch(e){ /* le battement du fil le rattrapera */ }
     const n = (d && d.nonLusTotal) || 0;
     poserLesComptesMessagerie(n);
     /* ✉️ v1337 — et celui de l'onglet des mails */
@@ -4583,7 +5016,7 @@ function dessinerLaListeObjets(){
   ouvrir.className = 'btn btn-primary';
   ouvrir.style.cssText = 'width:auto;margin:0 0 0 auto;padding:7px 14px;font-size:12.5px;' +
     'border-radius:999px;';
-  ouvrir.textContent = '＋ Ouvrir un oubli';
+  ouvrir.textContent = '＋ Déclarer un objet trouvé';
   ouvrir.addEventListener('click', () => ecranOuvrirUnOubli());
   barre.appendChild(ouvrir);
   zone.appendChild(barre);
@@ -5171,70 +5604,27 @@ function choisirUnePhoto(){
    choix : un seul message, 10 photos au plus, le mot tapé avec. */
 const PHOTOS_PAR_MESSAGE_EC = 10;
 async function envoyerDesPhotosDansLeFil(fichiers){
-  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
-  if(envoiPhotoEC) return;
+  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return false;
   let l = (fichiers || []).filter(f => f && /^image\//.test(f.type || 'image/'));
-  if(!l.length) return;
+  if(!l.length) return false;
   if(l.length > PHOTOS_PAR_MESSAGE_EC){
     showToast('📷 ' + PHOTOS_PAR_MESSAGE_EC + ' photos au plus dans un message : les ' + PHOTOS_PAR_MESSAGE_EC + ' premières partent.');
     l = l.slice(0, PHOTOS_PAR_MESSAGE_EC);
   }
-  envoiPhotoEC = true;
+  /* 📤 v1564 — elles se posent tout de suite dans le fil (on peut déjà les
+     ouvrir), puis partent derrière, le mot tapé avec */
   const id = filOuvertEC.conv.id;
-  let ok = false;
-  plusOccupe(true);
-  try{
-    const photos = [];
-    for(const f of l){
-      const p = await reduireLaPhoto(f);
-      photos.push({ photo: p.data, l: p.l, h: p.h });
-    }
-    const champ = champDuFilEC();
-    const texte = champ ? champ.value.trim() : '';
-    await appelPrep({ action: 'convPhotos', id: id, photos: photos, texte: texte, reponseA: reponseAPourEC(id) });
-    oublierLaReponseEC(id);
-    if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
-    ok = true;
-    await rafraichirLeFil();
-  }catch(e){
-    if(typeof showToast === 'function') showToast('Les photos ne sont pas parties : ' + (e.message || e));
-  }
-  envoiPhotoEC = false;
-  plusOccupe(false);
-  return ok;
+  const champ = champDuFilEC();
+  const texte = champ ? champ.value.trim() : '';
+  const reponseA = reponseAPourEC(id);
+  oublierLaReponseEC(id);
+  if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; champ.dispatchEvent(new Event('input', { bubbles: true })); }
+  await mettreEnFileEC({ conv: id, sorte: 'photos', texte: texte, reponseA: reponseA, fichiers: l });
+  return true;
 }
 
 async function envoyerUnePhotoDansLeFil(fichier){
-  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
-  if(envoiPhotoEC) return;
-  envoiPhotoEC = true;
-
-  const id = filOuvertEC.conv.id;
-  /* ⏳ Sur le ＋ — v1161 : c'est lui qui a ouvert l'envoi. */
-  plusOccupe(true);
-
-  try{
-    const p = await reduireLaPhoto(fichier);
-    /* Le mot tapé part avec la photo : c'est un seul message, et
-       c'est ce qu'on attend quand on écrit avant de joindre. */
-    const champ = champDuFilEC();
-    const texte = champ ? champ.value.trim() : '';
-
-    await appelPrep({ action: 'convPhoto', id: id, photo: p.data,
-                      l: p.l, h: p.h, texte: texte, reponseA: reponseAPourEC(id) });
-    oublierLaReponseEC(id);
-
-    if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
-    ok = true;
-    await rafraichirLeFil();
-  }catch(e){
-    if(typeof showToast === 'function'){
-      showToast('La photo n’est pas partie : ' + (e.message || e));
-    }
-  }
-  envoiPhotoEC = false;
-  plusOccupe(false);
-  return ok;
+  return envoyerDesPhotosDansLeFil([fichier]);
 }
 
 /* ------------------------------------------------------------
@@ -5308,6 +5698,8 @@ function dessinerLePlateauEC(id){
 
 function adresseDeLaPiece(piece){
   if(!piece || !piece.lien) return '';
+  /* 📤 v1564 — l'aperçu d'une photo qui part encore (sur cet appareil) */
+  if(/^(blob:|data:)/.test(String(piece.lien))) return piece.lien;
   /* Le Worker rend un chemin : l'application est servie par GitHub
      Pages, un chemin seul y pointerait sur la mauvaise machine. */
   const base = (typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL) || '';
@@ -5321,25 +5713,48 @@ function adresseDeLaPiece(piece){
 function albumDuMessage(m){
   const l = (m && Array.isArray(m.pieces)) ? m.pieces : null;
   if(!l || l.length < 2) return null;
+  /* 🖼️ v1564 — COMME MESSENGER (David, le 24/11 : « la première en plus
+     gros et l'effet de vue des autres en dessous ») : 2 photos côte à
+     côte ; à partir de 3, la première en grand, puis jusqu'à 3 petites,
+     « +N » sur la dernière s'il en reste. */
   const g = document.createElement('div');
-  g.className = 'msgAlbum' + (l.length % 2 ? ' impair' : '');
+  g.className = 'msgAlbum v2' + (l.length === 2 ? ' deux' : '');
   g.setAttribute('data-n', String(l.length));
-  l.forEach(p => {
+  const photo = (p, k, classe) => {
     if(!p || !p.lien){
       const d = document.createElement('div');
-      d.className = 'msgImgAbs';
+      d.className = 'msgImgAbs ' + (classe || '');
       d.textContent = '📷';
-      g.appendChild(d);
-      return;
+      return d;
     }
     const i = document.createElement('img');
-    i.className = 'msgImg';
-    i.alt = 'Photo';
+    i.className = 'msgImg ' + (classe || '');
+    i.alt = 'Photo ' + (k + 1);
     i.loading = 'lazy';
     i.src = adresseDeLaPiece(p);
-    i.addEventListener('click', ev => { ev.stopPropagation(); ouvrirLaPhotoEnGrand(i.src); });
-    g.appendChild(i);
+    i.addEventListener('click', ev => { ev.stopPropagation(); ouvrirLaPhotoDuFilEC(m, k, i.src); });
+    return i;
+  };
+  if(l.length === 2){ l.forEach((p, k) => g.appendChild(photo(p, k, ''))); return g; }
+  g.appendChild(photo(l[0], 0, 'grande'));
+  const autres = l.slice(1);
+  const rang = document.createElement('div');
+  rang.className = 'rang';
+  rang.style.setProperty('--n', String(Math.min(3, autres.length)));
+  autres.slice(0, 3).forEach((p, j) => {
+    const v = document.createElement('div');
+    v.className = 'vig';
+    v.appendChild(photo(p, j + 1, ''));
+    if(j === 2 && autres.length > 3){
+      const plus = document.createElement('div');
+      plus.className = 'plus';
+      plus.textContent = '+' + (autres.length - 3);
+      plus.addEventListener('click', ev => { ev.stopPropagation(); ouvrirLaPhotoDuFilEC(m, 3, adresseDeLaPiece(l[3])); });
+      v.appendChild(plus);
+    }
+    rang.appendChild(v);
   });
+  g.appendChild(rang);
   return g;
 }
 
@@ -5373,7 +5788,7 @@ function imageDuMessage(m){
   i.src = adresseDeLaPiece(p);
   i.addEventListener('click', ev => {
     ev.stopPropagation();
-    ouvrirLaPhotoEnGrand(i.src);
+    ouvrirLaPhotoDuFilEC(m, 0, i.src);      /* 🖼️ v1564 — le carrousel du fil */
   });
   return i;
 }
@@ -5901,17 +6316,21 @@ async function arreterLeVocalEC(envoyer){
     if(e){ e.disabled = true; e.textContent = '…'; }
   }
 
-  /* 🎤 v1272 — rien d'écrit pendant qu'on parlait : on l'écrit avant
-     d'envoyer (Whisper, au Worker). Un échec n'empêche pas le son de
-     partir. */
-  let texte = mots;
-  if(!texte){
+  /* 📤 v1564 — COMME MESSENGER : le vocal se pose tout de suite dans le
+     fil et la barre revient ; il part derrière. Rien d'écrit pendant qu'on
+     parlait : le texte s'écrit avant l'envoi (Whisper, au Worker). */
+  {
     const z = v.vue && v.vue.querySelector('.msgVocMots');
-    if(z && z.dataset.touche !== '1'){
-      try{ texte = String(await ecrireLeVocalSiRienEC(v, blob) || '').trim(); }catch(e){ texte = ''; }
-    }
+    const ecrire = !mots && !(z && z.dataset.touche === '1');
+    const auto = ecrire ? (v.texteAuto || null) : null;
+    const reponseA = reponseAPourEC(v.fil);
+    oublierLaReponseEC(v.fil);
+    rendreLaBarre();
+    await mettreEnFileEC({ conv: v.fil, sorte: 'vocal', texte: mots, ecrire: ecrire, texteAuto: auto, blob: blob, sec: sec, reponseA: reponseA });
+    return;
   }
-
+  /* (l'ancien envoi direct, gardé pour mémoire du cas d'échec) */
+  let texte = mots;
   try{
     const son = await blobEnBase64EC(blob);
     await appelPrep({ action: 'convVocal', id: v.fil, son: son,
@@ -6860,30 +7279,132 @@ function fermerLaPhotoEnGrand(){
 }
 
 function ouvrirLaPhotoEnGrand(src){
-  fermerLaPhotoEnGrand();
-  const v = document.createElement('div');
-  v.className = 'msgVoilePhoto';
-  const i = document.createElement('img');
-  i.src = src;
-  i.alt = 'Photo';
-  v.appendChild(i);
-  const x = document.createElement('button');
-  x.type = 'button';
-  x.className = 'msgVoileX';
-  x.textContent = '✕';
-  v.appendChild(x);
-  v.addEventListener('click', fermerLaPhotoEnGrand);
-  document.body.appendChild(v);
-  photoEnGrandEC = v;
-
-  const echap = (ev) => {
-    if(ev.key !== 'Escape') return;
-    document.removeEventListener('keydown', echap);
-    fermerLaPhotoEnGrand();
-  };
-  document.addEventListener('keydown', echap);
+  ouvrirLeCarrouselEC([{ src: src }], 0);
 }
 
+/* ============================================================
+   🖼️ LE CARROUSEL — v1564
+
+   David, le 24/11 : « il faut un carrousel quand on les ouvre, avec des
+   flèches sur les côtés, et faire défiler à la main ». Une photo ouverte
+   depuis le fil parcourt toutes celles du fil chargé (comme Messenger) ;
+   depuis ⓘ Infos, toutes celles de la conversation. Flèches ‹ ›, le doigt,
+   ← → au clavier, Échap ; en bas les vignettes ; ⤓ pour l'enregistrer.
+   « liste » : [{ src, auteur, quand, texte }].
+   ============================================================ */
+function ouvrirLeCarrouselEC(liste, k){
+  fermerLaPhotoEnGrand();
+  const l = (liste || []).filter(x => x && x.src);
+  if(!l.length) return;
+  let i = Math.max(0, Math.min(l.length - 1, Number(k) || 0));
+  const v = document.createElement('div');
+  v.className = 'msgVoilePhoto carrouEC';
+  v.setAttribute('role', 'dialog');
+  v.setAttribute('aria-label', 'Photos');
+  v.innerHTML = '<div class="crHaut"><div class="crQui"><b></b><span></span></div><span class="crCpt"></span>' +
+    '<button type="button" class="crRond crTel" title="Enregistrer la photo" aria-label="Enregistrer la photo">⤓</button>' +
+    '<button type="button" class="crRond crX" title="Fermer (Échap)" aria-label="Fermer">✕</button></div>' +
+    '<div class="crScene"><img alt="Photo"><button type="button" class="crFl g" aria-label="Photo précédente">‹</button>' +
+    '<button type="button" class="crFl d" aria-label="Photo suivante">›</button></div><div class="crBande"></div>';
+  const img = v.querySelector('.crScene img');
+  const bande = v.querySelector('.crBande');
+  const vignettes = l.map((x, j) => {
+    const t = document.createElement('img');
+    t.src = x.src; t.alt = ''; t.loading = 'lazy';
+    t.addEventListener('click', ev => { ev.stopPropagation(); aller(j); });
+    bande.appendChild(t);
+    return t;
+  });
+  if(l.length < 2) bande.style.display = 'none';
+  const aller = (j) => {
+    i = Math.max(0, Math.min(l.length - 1, j));
+    const x = l[i];
+    img.src = x.src;
+    img.style.transform = '';
+    v.querySelector('.crQui b').textContent = x.auteur || '';
+    v.querySelector('.crQui span').textContent = [x.quand ? quandLisibleCarrouselEC(x.quand) : '', x.texte ? '« ' + String(x.texte).slice(0, 80) + ' »' : ''].filter(Boolean).join(' — ');
+    v.querySelector('.crCpt').textContent = l.length > 1 ? (i + 1) + ' / ' + l.length : '';
+    v.querySelector('.crFl.g').style.visibility = i > 0 ? '' : 'hidden';
+    v.querySelector('.crFl.d').style.visibility = i < l.length - 1 ? '' : 'hidden';
+    vignettes.forEach((t, j2) => t.classList.toggle('on', j2 === i));
+    if(vignettes[i] && vignettes[i].scrollIntoView) try{ vignettes[i].scrollIntoView({ block: 'nearest', inline: 'center' }); }catch(e){}
+  };
+  v.querySelector('.crFl.g').addEventListener('click', ev => { ev.stopPropagation(); aller(i - 1); });
+  v.querySelector('.crFl.d').addEventListener('click', ev => { ev.stopPropagation(); aller(i + 1); });
+  v.querySelector('.crX').addEventListener('click', ev => { ev.stopPropagation(); fermerLaPhotoEnGrand(); });
+  v.querySelector('.crTel').addEventListener('click', ev => { ev.stopPropagation(); enregistrerLaPhotoEC(l[i].src); });
+  /* un appui sur le fond (pas sur la photo) referme, comme avant */
+  v.querySelector('.crScene').addEventListener('click', ev => { if(ev.target === ev.currentTarget) fermerLaPhotoEnGrand(); });
+  img.addEventListener('click', ev => ev.stopPropagation());
+  /* 👆 le doigt : la photo suit, puis passe à la voisine au-delà de 50 px */
+  let x0 = null, dx = 0;
+  const scene = v.querySelector('.crScene');
+  scene.addEventListener('touchstart', ev => { if(ev.touches.length === 1){ x0 = ev.touches[0].clientX; dx = 0; img.style.transition = 'none'; } }, { passive: true });
+  scene.addEventListener('touchmove', ev => { if(x0 === null) return; dx = ev.touches[0].clientX - x0; img.style.transform = 'translateX(' + dx + 'px)'; }, { passive: true });
+  scene.addEventListener('touchend', () => {
+    if(x0 === null) return;
+    img.style.transition = '';
+    if(dx < -50 && i < l.length - 1) aller(i + 1);
+    else if(dx > 50 && i > 0) aller(i - 1);
+    else img.style.transform = '';
+    x0 = null; dx = 0;
+  });
+  document.body.appendChild(v);
+  photoEnGrandEC = v;
+  aller(i);
+  const clavier = (ev) => {
+    if(!photoEnGrandEC || photoEnGrandEC !== v){ document.removeEventListener('keydown', clavier); return; }
+    if(ev.key === 'Escape'){ fermerLaPhotoEnGrand(); document.removeEventListener('keydown', clavier); }
+    else if(ev.key === 'ArrowLeft') aller(i - 1);
+    else if(ev.key === 'ArrowRight') aller(i + 1);
+  };
+  document.addEventListener('keydown', clavier);
+}
+
+function quandLisibleCarrouselEC(q){
+  const t = String(q || '');
+  const m = t.match(/^(\d{2}\/\d{2}\/\d{4})(?:\s+(\d{2}:\d{2}))?/);
+  if(!m) return t;
+  return (typeof jourLisibleMessagerie === 'function' ? jourLisibleMessagerie(m[1]) : m[1]).toLowerCase() + (m[2] ? ' · ' + m[2] : '');
+}
+
+/* ⤓ Enregistrer : le fichier lui-même quand on peut le lire, sinon la
+   photo s'ouvre seule (appui long → Enregistrer, sur un téléphone). */
+async function enregistrerLaPhotoEC(src){
+  try{
+    const r = await fetch(src);
+    if(!r.ok) throw new Error('lecture');
+    const b = await r.blob();
+    const u = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = u;
+    a.download = 'photo-' + new Date().toISOString().slice(0, 10) + (/png/.test(b.type) ? '.png' : '.jpg');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 4000);
+  }catch(e){
+    try{ window.open(src, '_blank', 'noopener'); }catch(e2){}
+  }
+}
+
+/* Les photos du fil chargé, dans l'ordre, pour le carrousel */
+function photosDuFilChargeEC(){
+  const out = [];
+  ((filOuvertEC && filOuvertEC.messages) || []).forEach(m => {
+    if(!m || Number(m.supprime || 0)) return;
+    const l = (Array.isArray(m.pieces) && m.pieces.length > 1) ? m.pieces
+      : (m.piece && !pieceEstUnSon(m.piece) && !pieceEstUneVideo(m.piece) &&
+         !(typeof pieceEstUnDocument === 'function' && pieceEstUnDocument(m.piece)) ? [m.piece] : []);
+    l.forEach((p, k) => { if(p && p.lien) out.push({ src: adresseDeLaPiece(p), auteur: m.auteur || '', quand: m.envoyeLe || '', texte: m.texte || '', id: m.id, k: k }); });
+  });
+  return out;
+}
+function ouvrirLaPhotoDuFilEC(m, k, src){
+  const l = photosDuFilChargeEC();
+  if(m && m.__srcs){ ouvrirLeCarrouselEC(m.__srcs.map(x => ({ src: x, auteur: 'Toi', texte: m.texte || '' })), k); return; }
+  let j = l.findIndex(x => x.id === m.id && x.k === k);
+  if(j < 0){ ouvrirLeCarrouselEC([{ src: src, auteur: m.auteur, quand: m.envoyeLe, texte: m.texte }], 0); return; }
+  ouvrirLeCarrouselEC(l, j);
+}
 
 /* ============================================================
    😊 LES RÉACTIONS, LES ÉMOTICÔNES, LE POUCE — v1086
@@ -7143,7 +7664,11 @@ function ouvrirLeSelecteurDeReaction(bulle, m, auDoigt){
      de toute façon : ceci n'est qu'une politesse, et elle ne
      protège rien. */
   const aMoi = !!(m && m.auteurGenre === 'user' && estDeMoiEC(m));
-  if(aMoi && peut){
+  /* 🗑️ v1564 — le bureau retire aussi les messages de l'équipe envoyés à
+     un élève (l'ouverture de l'app…), jamais ceux de l'élève */
+  const duBureau = !!(m && m.id && !Number(m.supprime || 0) && filOuvertEC && filOuvertEC.retireEquipe &&
+    m.auteurGenre !== 'eleve' && m.auteurGenre !== 'visiteur');
+  if((aMoi && peut) || duBureau){
     const sup = document.createElement('button');
     sup.type = 'button';
     sup.className = 'msgReacSuppr';
@@ -7153,7 +7678,8 @@ function ouvrirLeSelecteurDeReaction(bulle, m, auDoigt){
       ev.stopPropagation();
       fermerLeSelecteurDeReaction();
       if(typeof confirmer === 'function' &&
-         !await confirmer('Ce message sera retiré de la conversation. ' +
+         !await confirmer((aMoi ? '' : 'Supprimer ce message pour tout le monde ? ') +
+                          'Ce message sera retiré de la conversation. ' +
                           'Il restera une ligne « Message supprimé », et ' +
                           'la photo ou le vocal joints seront effacés.\n\n' +
                           'C’est définitif.',
@@ -8201,19 +8727,10 @@ function glisserLEmoji(e){
    ------------------------------------------------------------ */
 async function envoyerLePouce(){
   if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
-  const b = boutonEnvoiDuFilEC();
-  if(b) b.disabled = true;
-  try{
-    const filP = filOuvertEC.conv.id;
-    await appelPrep({ action: 'convEcrire', id: filP, texte: '👍', reponseA: reponseAPourEC(filP) });
-    oublierLaReponseEC(filP);
-    await rafraichirLeFil();
-  }catch(e){
-    if(typeof showToast === 'function'){
-      showToast('Le pouce n’est pas parti : ' + (e.message || e));
-    }
-  }
-  if(b) b.disabled = false;
+  const filP = filOuvertEC.conv.id;
+  const reponseA = reponseAPourEC(filP);
+  oublierLaReponseEC(filP);
+  await mettreEnFileEC({ conv: filP, sorte: 'texte', texte: '👍', reponseA: reponseA });   /* 📤 v1564 */
 }
 
 
