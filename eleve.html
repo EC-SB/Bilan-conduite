@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 24/11/2026 à 11:08 — v1550 -->
+<!-- Déployé le 24/11/2026 à 15:49 — v1561 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2543,6 +2543,9 @@
     font:inherit; font-size:14px; font-weight:800; white-space:nowrap; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
     border:1px solid var(--kl); background:var(--kp2); color:var(--kt); box-shadow:none; }
   body #ongletMessages .elAPuces button.urg{ border-color:color-mix(in srgb,var(--kr) 55%,transparent); color:var(--kr); }
+  /* 🧭 v1561 — David, le 24/11 : les trois demandes en toutes lettres (« Signaler un retard »…).
+     Plus longues, elles passent à la ligne au lieu de glisser hors de l'écran du téléphone. */
+  body #ongletMessages .elAPuces.ckOrbit{ flex-wrap:wrap; overflow-x:visible; }
   body #ongletMessages .elAEcrire .elAEcrireB{ background:var(--lentille, var(--kn)); color:#0B0B0B; border-color:transparent;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 4px 12px rgba(150,220,0,.25); }
   body #ongletMessages .elAEcrire .elAEcrireB + .elAEcrireB{ background:var(--kp2); color:var(--kt); border-color:var(--kn); box-shadow:none; }
@@ -3061,11 +3064,11 @@
           </div>
           <div class="ckOrbit elAPuces">
             <button type="button" class="urg" data-motif="retard"
-              title="Ton moniteur et le bureau le voient tout de suite">⏰ Retard</button>
+              title="Ton moniteur et le bureau le voient tout de suite">⏰ Signaler un retard</button>
             <button type="button" data-motif="annul"
-              title="Annuler ou décaler : le bureau te rappelle">🚫 Annuler</button>
+              title="Annuler ou décaler : le bureau te rappelle">🚫 Demander une annulation</button>
             <button type="button" data-motif="oubli"
-              title="Dans la voiture — on regarde et on te dit">🧤 Objet</button>
+              title="Dans la voiture — on regarde et on te dit">🧤 Déclarer un objet oublié</button>
           </div>
           <div class="elAPuces elAEcrire">
             <button type="button" class="elAEcrireB" id="btEcrireBureau">🏢 Écrire au bureau</button>
