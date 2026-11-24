@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:49 — v1549 */
+/* Déployé le 24/11/2026 à 11:08 — v1550 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -362,6 +362,7 @@ function dessinerParcours(){
          : 'Attrape ⠿ pour changer l’ordre chez l’élève · un appui ouvre le guide.');
   zone.appendChild(aide);
   /* 👁️ v1549 — la FAQ : ce que les élèves lisent, ce qu'ils cherchent sans trouver */
+  if(parcoursModeFaq && typeof interrupteurFaqTous === 'function') zone.appendChild(interrupteurFaqTous());   /* 🔌 v1550 */
   if(parcoursModeFaq && typeof blocStatsFaq === 'function') zone.appendChild(blocStatsFaq());
 
   const grille = document.createElement('div');
