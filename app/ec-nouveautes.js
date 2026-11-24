@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 14:26 — v1557 */
+/* Déployé le 24/11/2026 à 15:11 — v1559 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1559,
+    date: 'Mardi 24 novembre 2026',
+    resume: '📺 L’affichage dynamique : Saint-Brieuc et Loudéac côte à côte',
+    quoi: [
+      { emoji: '📺',
+        titre: 'Les écrans en ce moment',
+        texte: 'Gestion › Affichage dynamique montre maintenant trois écrans en direct, tels qu’ils s’affichent : l’accueil et la vitrine de Saint-Brieuc, et l’accueil de Loudéac. Dessous, une ligne par site : combien de cours sont à l’écran, et le prochain plein écran.' },
+      { emoji: '📍',
+        titre: 'Le planning rangé par site',
+        texte: 'Les cours de Saint-Brieuc d’abord, puis ceux de Loudéac, chacun avec son « prochain » : exactement ce que chaque télé va afficher. Une ligne ajoutée à la main va à Saint-Brieuc.' }
+    ]
+  },
   {
     version: 1557,
     date: 'Mardi 24 novembre 2026',
