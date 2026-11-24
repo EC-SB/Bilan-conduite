@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 13:11 — v1554 */
+/* Déployé le 24/11/2026 à 13:36 — v1555 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1555,
+    date: 'Mardi 24 novembre 2026',
+    resume: '🤝 Le dossier d’un élève ajourné : son post-permis lu dans Drivup',
+    quoi: [
+      { emoji: '🤝',
+        titre: '« Où en est son permis » : le post-permis et l’ajournement',
+        texte: 'Avec une nouvelle date : la date en grand, « Saint-Brieuc · 2e passage », puis son rendez-vous post-permis lu dans ses cours à venir Drivup (« 🤝 Post-permis : ven. 27 nov. à 08h30 avec Hery »), ou « 🤝 Post-permis à réserver » en rouge, et « ajourné le 16 nov. » en petit tout en bas. Une fois fait : « 🤝 Post-permis fait le 27 nov. avec Hery ». Sans nouvelle date : « 🔁 Ajourné le 16 nov. » en gros.' },
+      { emoji: '📅',
+        titre: '« Avant l’examen » comme dans Suivi permis',
+        texte: 'Pour tous les élèves qui ont une date : les leçons posées sur Drivup, les résaps, puis « ⏳ À réserver : … » ou « ✅ Tout est posé sur Drivup ». Pour un ajourné, plus de « 2 h + la leçon de veille » tant que le post-permis n’est pas fait : « À décider au post-permis ». Le post-permis passé sans décision : « Décision à noter », et un appui ouvre la saisie (0+3, 2+3, 4+3…).' },
+      { emoji: '🔄',
+        titre: 'Les tuiles se remplissent seules',
+        texte: 'Plus besoin d’appuyer sur Planning : à l’ouverture du dossier, l’App lit son suivi et ses cours Drivup, puis redessine les tuiles. Et le rendez-vous post-permis de 30 min ne compte plus comme une leçon posée dans Suivi permis.' }
+    ]
+  },
   {
     version: 1554,
     date: 'Mardi 24 novembre 2026',
