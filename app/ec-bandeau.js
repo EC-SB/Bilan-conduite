@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 18:03 — v1546 */
+/* Déployé le 24/11/2026 à 17:15 — v1563 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -357,7 +357,8 @@ function lignesObjetsOublies(){
   if(typeof objetsEC === 'undefined' || !Array.isArray(objetsEC)) return [];
 
   return objetsEC
-    .filter(o => o.etat === 'signale' || o.etat === 'retrouve')
+    /* 🧤 v1563 — « dans la voiture » aussi : il faut le rapporter au bureau */
+    .filter(o => o.etat === 'signale' || o.etat === 'retrouve' || o.etat === 'voiture')
     .map(o => {
       const e = (typeof ETATS_OBJET_EC !== 'undefined' && ETATS_OBJET_EC[o.etat]) ||
                 { emoji: '🧤', sous: '' };
@@ -371,7 +372,8 @@ function lignesObjetsOublies(){
         sous: [o.signaleLe ? 'signalé le ' + o.signaleLe : '',
                (o.etat === 'retrouve' && o.majPar)
                  ? 'retrouvé par ' + o.majPar
-                 : e.sous].filter(Boolean).join(' · '),
+                 : (o.etat === 'voiture' && o.dispoLe && typeof quandDispoObjetEC === 'function'
+                     ? '🚗 dans la voiture · au bureau ' + quandDispoObjetEC(o.dispoLe) : e.sous)].filter(Boolean).join(' · '),
         urgente: false,
         action: () => {
           if(typeof allerALaMessagerie === 'function') allerALaMessagerie('oublis');
