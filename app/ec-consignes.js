@@ -1,4 +1,4 @@
-/* Déployé le 20/10/2026 à 15:06 — v1218 */
+/* Déployé le 24/11/2026 à 13:11 — v1554 */
 /* ============================================================
    ec-consignes.js
    Consignes données à l'IA pour produire un bilan
@@ -94,7 +94,8 @@ const REGLES_COMMUNES =
 'Ils doivent être interprétés comme de vrais retours à la ligne quand la chaîne est lue, et NON apparaître ' +
 'tels quels dans le texte lu par l\'élève. Les guillemets internes doivent aussi être échappés.\n' +
 '- Tu n\'inventes RIEN. Si un sujet n\'a pas été abordé dans la transcription, tu laisses la chaîne vide "" (ou tu omets l\'élément). Une case vide est BIEN meilleure qu\'une case inventée.\n' +
-'- Tu n\'écris aucun lien internet, aucune procédure pédagogique générale, aucun rappel de règles : uniquement ce que le moniteur a réellement observé chez cet élève pendant CE cours.\n' +
+'- Tu n\'écris aucun lien internet, aucune procédure pédagogique générale, aucun rappel de règles : uniquement ce que le moniteur a réellement observé chez cet élève pendant CE cours. ' +
+'(📘 v1554 — NOS procédures, elles, sont recopiées par l\'application là où tu poses les repères [[CORRIGE…]] et [[TRAVAILLER…]] décrits à la fin de ces consignes : pose-les.)\n' +
 '- Tu tutoies l\'élève, ton chaleureux et direct, comme un moniteur qui parle à son élève.\n' +
 '- Sois concis : 1 à 2 phrases par case maximum. Formulations courtes, concrètes, actionnables.\n' +
 '- Corrige les erreurs de transcription évidentes (vocabulaire auto-école : giratoire, créneau, embrayage, angle mort, PAD, VA/VD, MALD...).\n' +
@@ -143,6 +144,7 @@ const SCHEMAS = {
   '  👀 Contrôles / 🚦 Priorités et feux / 👀 Trajectoire / 🍩 Giratoires / 🏎️ Allures / ' +
   '🚙 Manœuvres / 🧠 Points de vigilance / 📚 Explication demandée / ' +
   '📋 Ta formation et ton organisation / ➡️ À travailler la prochaine fois\n' +
+  '(« ➡️ À travailler la prochaine fois » : un point par rubrique où il y a eu une erreur — voir la règle à la fin de ces consignes.)\n' +
   'Chaque rubrique commence par son titre sur sa propre ligne, suivi de puces « • » courtes. ' +
   'Une information ne doit apparaître que dans UNE seule rubrique, jamais répétée ailleurs. ' +
   'Tutoie l\'élève, reste encourageant sur ce qui va bien — sans jamais adoucir une faute —, va à l\'essentiel.\n' +
