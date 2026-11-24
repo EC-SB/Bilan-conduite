@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 24/11/2026 à 17:15 — v1563 -->
+<!-- Déployé le 24/11/2026 à 18:19 — v1564 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-n2WNor6oS72i+WipXTj1UGRKegxbzostB77uTyswhU4='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-PFrfi6yPR3VaRac+1BitgcqmGSCBOemfCXfbYH5rD4U='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -1502,6 +1502,49 @@
   .albumFil .imgFil{ width:100%; height:100%; aspect-ratio:1 / 1; max-height:none; border-radius:0; }
   .albumFil.impair > :first-child{ grid-column:1 / -1; aspect-ratio:2 / 1; }
   .albumFil .imgAbs{ border-radius:0; }
+  /* 🖼️ v1564 — comme Messenger : la 1re en grand, les autres dessous */
+  .albumFil.v2{ display:flex; flex-direction:column; gap:3px; }
+  .albumFil.v2 .imgFil.grande{ aspect-ratio:4 / 3; height:auto; }
+  .albumFil.v2 .rang{ display:grid; grid-template-columns:repeat(var(--n, 3), minmax(0, 1fr)); gap:3px; }
+  .albumFil.v2 .vig{ position:relative; aspect-ratio:1 / 1; overflow:hidden; display:block; }
+  .albumFil.v2 .vig .imgFil{ aspect-ratio:auto; height:100%; }
+  .albumFil.v2 .plus{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+                      background:rgba(0,0,0,.5); color:#FFFFFF; font-weight:800; font-size:20px; cursor:zoom-in; }
+  .albumFil.v2.deux{ flex-direction:row; }
+  .albumFil.v2.deux > *{ flex:1; width:50%; min-width:0; aspect-ratio:3 / 4; height:auto; }
+  /* 🖼️ v1564 — le carrousel */
+  .voilePhoto.carrouEl{ padding:var(--dessus, 0px) 0 0; flex-direction:column; align-items:stretch; justify-content:flex-start;
+                        cursor:default; background:rgba(8,10,8,.95); color:#FFFFFF; }
+  .carrouEl .crHaut{ display:flex; align-items:center; gap:10px; padding:12px 14px; }
+  .carrouEl .crQui{ flex:1; min-width:0; font-size:13px; line-height:1.35; }
+  .carrouEl .crQui b{ display:block; font-size:14px; }
+  .carrouEl .crQui span{ display:block; opacity:.8; }
+  .carrouEl .crCpt{ font-weight:800; font-size:13px; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.14); }
+  .carrouEl .crCpt:empty{ display:none; }
+  .carrouEl .crRond{ width:44px; height:44px; border-radius:50%; border:none; background:rgba(255,255,255,.16); color:#FFFFFF;
+                     font-size:18px; cursor:pointer; padding:0; margin:0; flex-shrink:0; }
+  .carrouEl .crScene{ flex:1; min-height:0; position:relative; display:flex; align-items:center; justify-content:center;
+                      overflow:hidden; padding:0 8px; touch-action:pan-y; }
+  .carrouEl .crScene img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:6px; transition:transform .2s ease; }
+  .carrouEl .crFl{ position:absolute; top:50%; transform:translateY(-50%); width:40px; height:40px; border-radius:50%; border:none;
+                   background:rgba(255,255,255,.8); color:#111111; font-size:22px; font-weight:800; line-height:1; cursor:pointer;
+                   display:grid; place-items:center; padding:0; margin:0; }
+  .carrouEl .crFl.g{ left:8px; } .carrouEl .crFl.d{ right:8px; }
+  .carrouEl .crBande{ display:flex; gap:6px; padding:10px 12px calc(16px + var(--dessous, 0px)); overflow-x:auto; justify-content:safe center; }
+  .carrouEl .crBande img{ width:52px; height:52px; max-width:none; object-fit:cover; border-radius:8px; opacity:.55;
+                          border:2px solid transparent; flex-shrink:0; cursor:pointer; }
+  .carrouEl .crBande img.on{ opacity:1; border-color:#B6FF0E; }
+  /* 📤 v1564 — ce qui part encore */
+  .bulle.enAttenteEl{ opacity:.72; }
+  .bulle.enAttenteEl.echecEl{ opacity:1; outline:2px solid rgba(195,58,18,.6); outline-offset:2px; }
+  .rangEnvoiEl{ display:flex; flex-direction:column; align-items:flex-end; }
+  .envoiEtatEl{ font-size:11px; color:var(--muted); margin:2px 4px 6px; display:flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+  .envoiEtatEl.echec{ color:#C33A12; font-weight:700; }
+  .envoiEtatEl button{ background:none; border:none; padding:0; margin:0; width:auto; font:inherit; font-weight:800; text-decoration:underline; color:inherit; cursor:pointer; }
+  .envoiRondEl{ width:9px; height:9px; border-radius:50%; border:2px solid currentColor; border-right-color:transparent;
+                display:inline-block; animation:envoiTourneEl .8s linear infinite; }
+  @keyframes envoiTourneEl{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ .envoiRondEl{ animation:none; } .carrouEl .crScene img{ transition:none; } }
   .bulle.cotillons{ position:relative; isolation:isolate; }
   .bulle.cotillons::before{
     content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:-1;
@@ -10184,6 +10227,7 @@
   }
 
   function chargerConversationsEleve(){
+    setTimeout(function(){ try{ reprendreEnvoisEl(); }catch(e){} }, 1200);   /* 📤 v1564 */
     var z = $('mesConversations');
     if(z && !conversationsEl.length) z.innerHTML = '<div class="empty">Chargement…</div>';
 
@@ -10597,6 +10641,9 @@
 
   function dessinerFilEleve(){
     if(!filEl || !filEl.conv) return;
+    /* ⌨️ v1564 — celui qui écrit garde la main quand le fil se redessine */
+    var actif = document.activeElement;
+    var mainAvant = (actif && actif.id === 'chFilTexte') ? { a: actif.selectionStart, b: actif.selectionEnd } : null;
     /* ⚠️ CE QUI FLOTTE MEURT AVEC LE DESSIN — v1086. Le sélecteur et
        le panneau vivent dans la zone qu'on va remplacer : sans ça
        leurs variables pointeraient sur des éléments détachés, et le
@@ -10694,6 +10741,7 @@
         : 'Rien encore. Écris ton message en dessous.') + '</div>';
     }
     /* 📞 v1183 — l'appel en cours dans ce fil : « Répondre » ou « Rejoindre » */
+    h += htmlEnvoisEl();           /* 📤 v1564 — ce qui part encore */
     h += carteAppelEl();
     h += '</div>';
 
@@ -10840,6 +10888,21 @@
     }
     /* 👆 v1296 — glisser depuis le bord gauche : retour à la liste */
     brancherLeBordEl();
+    /* 📤 v1564 — Réessayer / Retirer sous une bulle qui n'est pas partie */
+    var fz = $('leFilEleve');
+    if(fz) fz.addEventListener('click', function(ev){
+      var b = ev.target.closest && ev.target.closest('[data-envoi-faire]');
+      if(!b) return;
+      ev.stopPropagation();
+      var r = b.closest('[data-envoi]');
+      var x = envoisEl.filter(function(e){ return r && e.cle === r.getAttribute('data-envoi'); })[0];
+      if(!x) return;
+      if(b.getAttribute('data-envoi-faire') === 'retirer') retirerEnvoiEl(x); else renvoyerEl();
+    });
+    if(mainAvant){
+      var tz = $('chFilTexte');
+      if(tz){ try{ tz.focus({ preventScroll: true }); tz.setSelectionRange(mainAvant.a, mainAvant.b); }catch(e){} }
+    }
   }
 
   /* ⌨️ v1296 — un vrai clavier (ordinateur) ? */
@@ -11572,28 +11635,158 @@
     if(!filEl || !filEl.conv) return;
     var id = filEl.conv.id;
     var t = $('chFilTexte');
-    var b = $('btFilEnvoyer');
     var texte = t ? t.value.trim() : '';
     if(!texte) return;
-
-    b.disabled = true;
-    dire('msgFil', 'Envoi…', 'attente');
-    appeler(avecLeFilNeuf({ action: 'eleveEcrire', eleve: moi.nom,
-                            code: moi.code, id: id, texte: texte,
-                            reponseA: reponseAPourEl(id) }))
-      .then(function(d){
-        oublierReponseEl(id);
-        if(t) t.value = '';
-        delete brouillonsEl[id];
-        dire('msgFil', '');
-        adopterLeFilNe(d);
-        return rafraichirLeFilEleve();
-      })
-      .catch(function(e){
-        dire('msgFil', e.message || "Le message n'est pas parti.", 'erreur');
-      })
-      .then(function(){ if(b) b.disabled = false; });
+    /* 📤 v1564 — COMME MESSENGER : la bulle se pose tout de suite, le
+       cadre se vide, et le message part derrière (voir mettreEnFileEl) */
+    var rep = reponseAPourEl(id);
+    oublierReponseEl(id);
+    if(t){ t.value = ''; try{ t.dispatchEvent(new Event('input', { bubbles: true })); }catch(e){} }
+    delete brouillonsEl[id];
+    dire('msgFil', '');
+    mettreEnFileEl({ sorte: 'texte', texte: texte, reponseA: rep });
   }
+
+  /* ============================================================
+     📤 L'ENVOI QUI SE POSE TOUT DE SUITE — v1564, comme dans l'App de
+     l'équipe (David : « pareil côté élève »). Gardé sur le téléphone
+     jusqu'à ce que le serveur réponde ; repart à la réouverture.
+     ============================================================ */
+  var envoisEl = [];
+  var envoisTourneEl = false;
+  function cleFilEl(){
+    if(!filEl || !filEl.conv) return '';
+    return filEl.conv.id || ('neuf:' + (neufEl ? neufEl.genre + ':' + (neufEl.moniteur || '') : ''));
+  }
+  function maintenantFrEl(){
+    var d = new Date(), z = function(n){ return String(n).padStart(2, '0'); };
+    return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+  }
+  function baseEnvoisEl(){
+    return new Promise(function(ok, ko){
+      try{
+        var r = indexedDB.open('ecEnvoisEl', 1);
+        r.onupgradeneeded = function(){ try{ r.result.createObjectStore('envois', { keyPath: 'cle' }); }catch(e){} };
+        r.onsuccess = function(){ ok(r.result); };
+        r.onerror = function(){ ko(r.error); };
+      }catch(e){ ko(e); }
+    });
+  }
+  function faireEnvoisEl(mode, faire){
+    return baseEnvoisEl().then(function(db){
+      return new Promise(function(ok, ko){
+        try{
+          var t = db.transaction('envois', mode);
+          var r = faire(t.objectStore('envois'));
+          t.oncomplete = function(){ ok(r && r.result); };
+          t.onerror = function(){ ko(t.error); };
+        }catch(e){ ko(e); }
+      });
+    });
+  }
+  function garderEnvoiEl(x){
+    faireEnvoisEl('readwrite', function(st){ return st.put({ cle: x.cle, fil: x.fil, demande: x.demande, sorte: x.sorte, texte: x.texte || '',
+      reponseA: x.reponseA || '', fichier: x.fichier || null, qui: x.qui, envoyeLe: x.envoyeLe, cree: x.cree }); }).catch(function(){});
+  }
+  function oublierEnvoiEl(x){ faireEnvoisEl('readwrite', function(st){ return st.delete(x.cle); }).catch(function(){}); }
+  function mettreEnFileEl(x){
+    x.cle = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    x.etat = 'envoi';
+    x.qui = moi.nom;
+    x.envoyeLe = maintenantFrEl();
+    x.cree = Date.now();
+    x.fil = cleFilEl();
+    x.demande = avecLeFilNeuf({ id: (filEl && filEl.conv && filEl.conv.id) || '' });
+    if(x.fichier) x.apercus = [URL.createObjectURL(x.fichier)];
+    envoisEl.push(x);
+    montrerEnvoisEl(true);
+    garderEnvoiEl(x);
+    traiterEnvoisEl();
+  }
+  function montrerEnvoisEl(enBas){
+    if(!filEl || !filEl.conv || !$('leFilEleve')) return;
+    dessinerFilEleve();
+    var f = $('leFilEleve');
+    if(enBas && f) f.scrollTop = f.scrollHeight;
+  }
+  function envoyerEnvoiEl(x){
+    var base = Object.assign({ eleve: moi.nom, code: moi.code }, x.demande || {});
+    if(x.reponseA) base.reponseA = x.reponseA;
+    if(x.sorte === 'texte') return appeler(Object.assign({ action: 'eleveEcrire', texte: x.texte }, base));
+    return reduireLaPhotoEl(x.fichier).then(function(p){
+      return appeler(Object.assign({ action: 'elevePhoto', photo: p.data, l: p.l, h: p.h, texte: x.texte || '' }, base));
+    });
+  }
+  function traiterEnvoisEl(){
+    if(envoisTourneEl) return;
+    var x = envoisEl.filter(function(e){ return !e.parti && e.etat === 'envoi'; })[0];
+    if(!x) return;
+    envoisTourneEl = true;
+    envoyerEnvoiEl(x).then(function(d){
+      if(d && d.status === 'error') throw new Error(d.message || 'refusé');
+      x.parti = true;
+      oublierEnvoiEl(x);
+      /* le premier message d'un fil neuf le fait naître : les suivants y vont */
+      if(d && d.conversation && String(x.fil).indexOf('neuf:') === 0){
+        var ancien = x.fil;
+        envoisEl.forEach(function(o){ if(o.fil === ancien){ o.fil = d.conversation; o.demande = { id: d.conversation }; garderEnvoiEl(o); } });
+        if(filEl && filEl.conv && !filEl.conv.id && cleFilEl() === ancien) adopterLeFilNe(d);
+      }
+      envoisEl = envoisEl.filter(function(o){ return o !== x; });
+      var ouvert = filEl && filEl.conv && filEl.conv.id && (filEl.conv.id === x.fil || (d && filEl.conv.id === d.conversation));
+      return ouvert ? rafraichirLeFilEleve(true).then(function(){ if(document.querySelector('[data-envoi="' + x.cle + '"]')) dessinerFilEleve(); }) : null;
+    }).catch(function(e){
+      x.etat = 'echec';
+      x.erreur = (e && e.message) || '';
+      envoisEl.forEach(function(o){ if(!o.parti && o !== x && o.etat === 'envoi') o.etat = 'attend'; });
+      montrerEnvoisEl(false);
+    }).then(function(){
+      envoisTourneEl = false;
+      if(envoisEl.some(function(o){ return !o.parti && o.etat === 'envoi'; })) traiterEnvoisEl();
+    });
+  }
+  function renvoyerEl(){
+    envoisEl.forEach(function(o){ if(!o.parti && (o.etat === 'echec' || o.etat === 'attend')) o.etat = 'envoi'; });
+    montrerEnvoisEl(false);
+    traiterEnvoisEl();
+  }
+  function retirerEnvoiEl(x){
+    envoisEl = envoisEl.filter(function(o){ return o !== x; });
+    (x.apercus || []).forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} });
+    oublierEnvoiEl(x);
+    if(!envoisEl.some(function(o){ return !o.parti && o.etat === 'echec'; })) renvoyerEl(); else montrerEnvoisEl(false);
+  }
+  function htmlEnvoisEl(){
+    var cle = cleFilEl();
+    return envoisEl.filter(function(x){ return x.fil === cle && !x.parti; }).map(function(x){
+      var m = { de: 'moi', id: '', texte: x.texte || '', envoyeLe: x.envoyeLe, rang: 0 };
+      if(x.sorte === 'photo' && x.apercus) m.piece = { lien: x.apercus[0], type: 'image/jpeg' };
+      var b = bulleEleve(m).replace('class="bulle ', 'class="bulle enAttenteEl ' + (x.etat === 'echec' ? 'echecEl ' : '')).replace(' data-msg=""', '');
+      var etat = x.etat === 'echec'
+        ? '⚠️ Pas parti' + (x.erreur ? ' : ' + echapper(x.erreur) : '') + ' · <button type="button" data-envoi-faire="renvoyer">Réessayer</button> · <button type="button" data-envoi-faire="retirer">Retirer</button>'
+        : '<span class="envoiRondEl"></span>' + (x.etat === 'attend' ? 'En attente' : 'Envoi…');
+      return '<div class="rangEnvoiEl" data-envoi="' + x.cle + '">' + b + '<div class="envoiEtatEl' + (x.etat === 'echec' ? ' echec' : '') + '">' + etat + '</div></div>';
+    }).join('');
+  }
+  var envoisReprisEl = false;
+  function reprendreEnvoisEl(){
+    if(envoisReprisEl || !moi || !moi.nom) return;
+    envoisReprisEl = true;
+    faireEnvoisEl('readonly', function(st){ return st.getAll(); }).then(function(l){
+      (l || []).filter(function(x){ return x && x.qui === moi.nom; }).sort(function(a, b){ return a.cree - b.cree; }).forEach(function(x){
+        x.etat = 'envoi';
+        if(x.fichier) x.apercus = [URL.createObjectURL(x.fichier)];
+        envoisEl.push(x);
+      });
+      if(envoisEl.length) traiterEnvoisEl();
+    }).catch(function(){});
+  }
+  window.addEventListener('beforeunload', function(ev){
+    if(!envoisEl.some(function(x){ return !x.parti; })) return;
+    ev.preventDefault();
+    ev.returnValue = '';
+  });
+  window.addEventListener('online', function(){ if(envoisEl.some(function(x){ return !x.parti && x.etat !== 'envoi'; })) renvoyerEl(); });
 
   function chargerPlusVieux(bouton){
     if(!filEl || !(filEl.messages || []).length) return;
@@ -11713,7 +11906,19 @@
   }
 
   function envoyerUnePhotoEl(fichier){
-    if(!filEl || !filEl.conv || !filEl.peutEcrire || envoiPhotoEl) return;
+    if(!filEl || !filEl.conv || !filEl.peutEcrire) return;
+    /* 📤 v1564 — elle se pose tout de suite dans le fil, puis part */
+    if(fichier && /^image\//.test(fichier.type || '')){
+      var id0 = filEl.conv.id;
+      var t0 = $('chFilTexte');
+      var texte0 = t0 ? t0.value.trim() : '';
+      var rep0 = reponseAPourEl(id0);
+      oublierReponseEl(id0);
+      if(t0){ t0.value = ''; delete brouillonsEl[id0]; }
+      mettreEnFileEl({ sorte: 'photo', fichier: fichier, texte: texte0, reponseA: rep0 });
+      return;
+    }
+    if(envoiPhotoEl) return;
     envoiPhotoEl = true;
     var id = filEl.conv.id;
     plusOccupeEl(true);
@@ -11760,12 +11965,22 @@
   function imageDuMessageEl(m){
     /* 🖼️ v1304 — plusieurs photos dans un message : une mosaïque */
     if(m && m.pieces && m.pieces.length > 1){
-      return '<div class="albumFil' + (m.pieces.length % 2 ? ' impair' : '') + '">' +
-        m.pieces.map(function(q){
-          return (q && q.lien)
-            ? '<img class="imgFil" loading="lazy" alt="Photo" src="' + echapper(RELAIS + q.lien) + '">'
-            : '<span class="imgAbs">📷</span>';
-        }).join('') + '</div>';
+      /* 🖼️ v1564 — COMME MESSENGER : 2 côte à côte ; à partir de 3, la
+         première en grand, jusqu'à 3 petites dessous, « +N » s'il en reste */
+      var l = m.pieces, n = l.length;
+      var une = function(q, k, classe){
+        return (q && q.lien)
+          ? '<img class="imgFil ' + (classe || '') + '" loading="lazy" alt="Photo ' + (k + 1) + '" data-k="' + k + '" src="' + echapper(lienPieceEl(q)) + '">'
+          : '<span class="imgAbs ' + (classe || '') + '">📷</span>';
+      };
+      if(n === 2) return '<div class="albumFil v2 deux">' + une(l[0], 0) + une(l[1], 1) + '</div>';
+      var autres = l.slice(1), montre = autres.slice(0, 3);
+      return '<div class="albumFil v2">' + une(l[0], 0, 'grande') +
+        '<div class="rang" style="--n:' + montre.length + '">' +
+        montre.map(function(q, j){
+          return '<span class="vig">' + une(q, j + 1) +
+            (j === 2 && autres.length > 3 ? '<span class="plus" data-k="3">+' + (autres.length - 3) + '</span>' : '') + '</span>';
+        }).join('') + '</div></div>';
     }
     var p = m && m.piece;
     if(!p || pieceEstUnSonEl(p) || pieceEstUneVideoEl(p)) return '';
@@ -11776,7 +11991,7 @@
     }
     /* Le Worker rend un chemin ; l'espace est servi par GitHub Pages,
        un chemin seul y pointerait sur la mauvaise machine. */
-    var src = RELAIS + p.lien;
+    var src = lienPieceEl(p);
     /* ⚠️ LES DIMENSIONS SONT POSÉES AVANT LE CHARGEMENT, sinon la
        bulle fait zéro pixel puis saute à sa taille : le fil se
        déplace sous le doigt au moment où l'on allait appuyer. */
@@ -11784,8 +11999,13 @@
       ? ' width="' + p.l + '" height="' + p.h + '"' +
         ' style="aspect-ratio:' + p.l + ' / ' + p.h + ';"'
       : '';
-    return '<img class="imgFil" loading="lazy" alt="Photo" src="' +
+    return '<img class="imgFil" loading="lazy" alt="Photo" data-k="0" src="' +
            echapper(src) + '"' + dim + '>';
+  }
+  /* 📤 v1564 — l'aperçu d'une photo qui part encore est sur le téléphone */
+  function lienPieceEl(p){
+    var l = String((p && p.lien) || '');
+    return /^(blob:|data:)/.test(l) ? l : RELAIS + l;
   }
 
   /* ⚠️ EN GRAND, PAS DANS UN ONGLET : un lien signé ouvert dans un
@@ -11804,14 +12024,85 @@
      seconde l'emportait, et toucher une photo reçue ouvrait
      l'appareil photo au lieu de la montrer en grand. */
   function voirLaPhotoEl(src){
+    carrouselEl([{ src: src }], 0);
+  }
+
+  /* 🖼️ v1564 — LE CARROUSEL, comme dans l'App de l'équipe : flèches,
+     doigt, clavier, vignettes. Une photo du fil parcourt toutes celles du
+     fil. « l » : [{ src, auteur, quand, texte }]. */
+  function carrouselEl(liste, k){
     fermerLaPhotoEl();
+    var l = (liste || []).filter(function(x){ return x && x.src; });
+    if(!l.length) return;
+    var i = Math.max(0, Math.min(l.length - 1, Number(k) || 0));
     var v = document.createElement('div');
-    v.className = 'voilePhoto';
-    v.innerHTML = '<img src="' + echapper(src) + '" alt="Photo">' +
-                  '<button type="button" class="voileX">✕</button>';
-    v.addEventListener('click', fermerLaPhotoEl);
+    v.className = 'voilePhoto carrouEl';
+    v.setAttribute('role', 'dialog');
+    v.setAttribute('aria-label', 'Photos');
+    v.innerHTML = '<div class="crHaut"><div class="crQui"><b></b><span></span></div><span class="crCpt"></span>' +
+      '<button type="button" class="crRond crX" aria-label="Fermer">✕</button></div>' +
+      '<div class="crScene"><img alt="Photo"><button type="button" class="crFl g" aria-label="Photo précédente">‹</button>' +
+      '<button type="button" class="crFl d" aria-label="Photo suivante">›</button></div><div class="crBande"></div>';
+    var img = v.querySelector('.crScene img');
+    var bande = v.querySelector('.crBande');
+    var vig = l.map(function(x, j){
+      var t = document.createElement('img');
+      t.src = x.src; t.alt = '';
+      t.addEventListener('click', function(ev){ ev.stopPropagation(); aller(j); });
+      bande.appendChild(t);
+      return t;
+    });
+    if(l.length < 2) bande.style.display = 'none';
+    function aller(j){
+      i = Math.max(0, Math.min(l.length - 1, j));
+      var x = l[i];
+      img.src = x.src;
+      img.style.transform = '';
+      v.querySelector('.crQui b').textContent = x.auteur || '';
+      v.querySelector('.crQui span').textContent = x.quand ? String(x.quand) : '';
+      v.querySelector('.crCpt').textContent = l.length > 1 ? (i + 1) + ' / ' + l.length : '';
+      v.querySelector('.crFl.g').style.visibility = i > 0 ? '' : 'hidden';
+      v.querySelector('.crFl.d').style.visibility = i < l.length - 1 ? '' : 'hidden';
+      vig.forEach(function(t, j2){ t.className = j2 === i ? 'on' : ''; });
+    }
+    v.querySelector('.crFl.g').addEventListener('click', function(ev){ ev.stopPropagation(); aller(i - 1); });
+    v.querySelector('.crFl.d').addEventListener('click', function(ev){ ev.stopPropagation(); aller(i + 1); });
+    v.querySelector('.crX').addEventListener('click', function(ev){ ev.stopPropagation(); fermerLaPhotoEl(); });
+    var scene = v.querySelector('.crScene');
+    scene.addEventListener('click', function(ev){ if(ev.target === scene) fermerLaPhotoEl(); });
+    img.addEventListener('click', function(ev){ ev.stopPropagation(); });
+    var x0 = null, dx = 0;
+    scene.addEventListener('touchstart', function(ev){ if(ev.touches.length === 1){ x0 = ev.touches[0].clientX; dx = 0; img.style.transition = 'none'; } }, { passive: true });
+    scene.addEventListener('touchmove', function(ev){ if(x0 === null) return; dx = ev.touches[0].clientX - x0; img.style.transform = 'translateX(' + dx + 'px)'; }, { passive: true });
+    scene.addEventListener('touchend', function(){
+      if(x0 === null) return;
+      img.style.transition = '';
+      if(dx < -50 && i < l.length - 1) aller(i + 1);
+      else if(dx > 50 && i > 0) aller(i - 1);
+      else img.style.transform = '';
+      x0 = null; dx = 0;
+    });
     document.body.appendChild(v);
     voilePhotoEl = v;
+    aller(i);
+    var clavier = function(ev){
+      if(voilePhotoEl !== v){ document.removeEventListener('keydown', clavier); return; }
+      if(ev.key === 'Escape'){ fermerLaPhotoEl(); document.removeEventListener('keydown', clavier); }
+      else if(ev.key === 'ArrowLeft') aller(i - 1);
+      else if(ev.key === 'ArrowRight') aller(i + 1);
+    };
+    document.addEventListener('keydown', clavier);
+  }
+  /* les photos du fil, dans l'ordre (les envois en cours compris) */
+  function photosDuFilEl(){
+    var out = [];
+    ((filEl && filEl.messages) || []).forEach(function(m){
+      if(!m || Number(m.supprime || 0)) return;
+      var l = (m.pieces && m.pieces.length > 1) ? m.pieces
+        : (m.piece && !pieceEstUnSonEl(m.piece) && !pieceEstUneVideoEl(m.piece) && !pieceEstUnDocumentEl(m.piece) ? [m.piece] : []);
+      l.forEach(function(q, k){ if(q && q.lien) out.push({ src: lienPieceEl(q), auteur: m.de === 'moi' ? 'Toi' : (m.auteur || ''), quand: m.envoyeLe || '', id: m.id, k: k }); });
+    });
+    return out;
   }
 
     /* ============================================================
@@ -12591,10 +12882,24 @@
 
   function brancherLesPhotosEl(){
     Array.prototype.forEach.call(
-      document.querySelectorAll('#leFilEleve .imgFil'), function(i){
+      document.querySelectorAll('#leFilEleve .imgFil, #leFilEleve .albumFil .plus'), function(i){
         i.addEventListener('click', function(ev){
           ev.stopPropagation();
-          voirLaPhotoEl(i.src);
+          var k = Number(i.getAttribute('data-k') || 0);
+          /* 📤 une photo qui part encore : ses propres aperçus */
+          var att = i.closest('[data-envoi]');
+          if(att){
+            var x = envoisEl.filter(function(e){ return e.cle === att.getAttribute('data-envoi'); })[0];
+            if(x && x.apercus) carrouselEl(x.apercus.map(function(u){ return { src: u, auteur: 'Toi' }; }), k);
+            return;
+          }
+          var b = i.closest('[data-msg]');
+          var id = b ? b.getAttribute('data-msg') : '';
+          var l = photosDuFilEl();
+          var j = -1;
+          l.forEach(function(x, n){ if(j < 0 && x.id === id && x.k === k) j = n; });
+          if(j < 0){ voirLaPhotoEl(i.src || ''); return; }
+          carrouselEl(l, j);
         });
       });
   }
