@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 13:36 — v1555 */
+/* Déployé le 24/11/2026 à 13:43 — v1556 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1556,
+    date: 'Mardi 24 novembre 2026',
+    resume: '📍 Le bouton Repère monte sous le micro',
+    quoi: [
+      { emoji: '📍',
+        titre: '« 📍 Repère ici » juste sous le micro',
+        texte: 'Pendant une dictée, le bouton Repère est maintenant collé sous le micro et sa petite ligne grise, et il le suit : au téléphone, dès la première pause, « 🎙️ Reprendre l’enregistrement » descend juste au-dessus de la transcription, et le Repère avec lui, entre les deux. Il n’est plus tout en bas, sous la transcription. Sur le bilan à remplir à la main, il ne bouge pas.' }
+    ]
+  },
   {
     version: 1555,
     date: 'Mardi 24 novembre 2026',
