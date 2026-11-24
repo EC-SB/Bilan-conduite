@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 12:03 — v1553 */
+/* Déployé le 24/11/2026 à 12:17 — v1553 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -55,6 +55,9 @@ const NOUVEAUTES = [
     date: 'Mardi 24 novembre 2026',
     resume: '🛟 Brevo en secours pour les mails, 🎓 élève ou équipe sur les photos',
     quoi: [
+      { emoji: '🔁',
+        titre: 'L’App insiste à ta place',
+        texte: 'OVH coupe une partie des connexions qui viennent de l’App. Pour un mail, elle refait les essais toute seule pendant 20 secondes. Pour le relevé de la boîte ✉️, elle insiste pendant 15 secondes. Plus besoin de cliquer 3 ou 4 fois.' },
       { emoji: '🛟',
         titre: 'Brevo, seulement si OVH bloque',
         texte: 'Les mails partent toujours d’abord par OVH. Si OVH coupe tout, ils partent par Brevo, depuis la même adresse de l’école, puis l’App retente OVH 30 minutes plus tard. Au 200e mail de la journée parti par Brevo, les administrateurs reçoivent une notification.' },
