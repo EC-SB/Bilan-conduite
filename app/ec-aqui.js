@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 16:53 — v1562 */
+/* Déployé le 24/11/2026 à 17:15 — v1563 */
 /* ============================================================
    ec-aqui.js
    ✏️ Écrire plus vite — « À qui ? » et « ✏️ Écrire à … »
@@ -229,6 +229,22 @@ function dessinerAQui(zone){
   ch.style.marginBottom = '6px';
   ch.value = aQuiMots;
   corps.appendChild(ch);
+  /* 🧤 v1563 — David : « quand on appuie sur le crayon, que ce soit
+     proposé pour déclarer un oubli », pour tout le monde (un moniteur
+     aussi). */
+  if(typeof ecranOuvrirUnOubli === 'function'){
+    const ob = document.createElement('button');
+    ob.type = 'button';
+    ob.id = 'aquiObjetTrouve';
+    ob.className = 'btn btn-secondary';
+    ob.style.cssText = 'width:auto;margin:4px 0 6px;padding:9px 14px;font-size:13px;border-radius:999px;';
+    ob.textContent = '🧤 Déclarer un objet trouvé';
+    ob.addEventListener('click', () => {
+      filNeufEC = null;
+      ecranOuvrirUnOubli(typeof zoneFilMsg === 'function' ? zoneFilMsg() : zone, { eleve: '', depuis: '', retour: '' });
+    });
+    corps.appendChild(ob);
+  }
   const res = document.createElement('div');
   res.id = 'aquiResultats';
   corps.appendChild(res);
