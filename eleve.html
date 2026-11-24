@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 24/11/2026 à 15:49 — v1561 -->
+<!-- Déployé le 24/11/2026 à 17:15 — v1563 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-gz77wiVwJn4ko3fkbLLGvU0QGqfJBRCjdKlc3ZPfsjk='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-n2WNor6oS72i+WipXTj1UGRKegxbzostB77uTyswhU4='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -1902,6 +1902,18 @@
      bureau ») devenait du citron sur du citron, illisible. */
   .objetat.bonne{ background:var(--orange-soft); color:var(--on-accent); }
   .objetat.finie{ background:var(--line); color:var(--muted); }
+  /* 🗂️ v1563 — un fil par conversation : pastilles et cartes des demandes */
+  .pucesDemEl{ display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
+  .puceDemEl{ font-size:10.5px; font-weight:700; border-radius:8px; padding:2px 7px; white-space:nowrap;
+              max-width:100%; overflow:hidden; text-overflow:ellipsis;
+              background:var(--kp2, var(--line)); border:1px solid var(--kl, var(--line)); color:var(--kd, var(--muted)); }
+  .carteDemEl{ margin:10px auto; max-width:440px; border-radius:14px; padding:10px 12px;
+               border:1px solid var(--kl, var(--line)); background:var(--kp1, var(--card)); transition:box-shadow .3s ease; }
+  .carteDemEl.close{ opacity:.62; }
+  .carteDemEl.vise{ box-shadow:0 0 0 3px color-mix(in srgb,var(--kn2, #5CE1E6) 70%,transparent); }
+  .carteDemEl .l1{ display:flex; gap:8px; align-items:center; justify-content:space-between; font-size:13px; }
+  .carteDemEl .l1 b{ font-weight:800; min-width:0; overflow-wrap:anywhere; }
+  .carteDemEl .l2{ font-size:12px; color:var(--kd, var(--muted)); margin-top:5px; line-height:1.45; }
 
   /* La question posée dans la page, jamais par confirm() */
   .overlayEl{
@@ -10224,7 +10236,10 @@
     rendu:       { em:'🤝', mot:'Rendu',       sorte:'finie',
                    sous:"C'est réglé." },
     introuvable: { em:'🙈', mot:'Introuvable', sorte:'finie',
-                   sous:"Cherché, pas retrouvé. Écris-nous si tu as un doute." }
+                   sous:"Cherché, pas retrouvé. Écris-nous si tu as un doute." },
+    /* 🧤 v1563 — « dans la voiture, au bureau à partir de telle heure » */
+    voiture:     { em:'🚗', mot:'Dans la voiture', sorte:'attente',
+                   sous:'Il sera bientôt au bureau.' }
   };
 
   /* 💾 LA CARTE SD — v1150. Les phrases de David, côté élève :
@@ -10239,8 +10254,34 @@
     rendu:       { em:'🤝', mot:'Rendue', sorte:'finie',
                    sous:"C'est réglé." },
     introuvable: { em:'🚗', mot:'Pas dans la voiture', sorte:'attente',
-                   sous:"Elle n'est pas dans la voiture. Écris-nous si tu as une idée." }
+                   sous:"Elle n'est pas dans la voiture. Écris-nous si tu as une idée." },
+    voiture:     { em:'🚗', mot:'Dans la voiture', sorte:'attente',
+                   sous:'Elle sera bientôt au bureau.' }
   };
+  /* 🧤 v1563 — le bureau (Saint-Brieuc ou Loudéac) et l'heure dite */
+  var NOMS_BUREAUX_EL = { 'saint-brieuc': 'Saint-Brieuc', 'loudeac': 'Loudéac' };
+  function quandDispoEl(v){
+    var m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if(!m) return '';
+    var h = Number(m[4]) + 'h' + (m[5] !== '00' ? m[5] : '');
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    var auj = new Date(), dem = new Date(); dem.setDate(dem.getDate() + 1);
+    if(d.toDateString() === auj.toDateString()) return "aujourd'hui à partir de " + h;
+    if(d.toDateString() === dem.toDateString()) return 'demain à partir de ' + h;
+    return 'à partir du ' + d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' à ' + h;
+  }
+  function sousObjetEl(o, e){
+    var b = NOMS_BUREAUX_EL[String((o && o.bureau) || '')] || '';
+    var sd = o && o.sorte === 'sd';
+    if(o && o.etat === 'voiture'){
+      var q = quandDispoEl(o.dispoLe);
+      return (sd ? 'Elle sera' : 'Il sera') + ' au bureau' + (b ? ' de ' + b : '') + (q ? ' ' + q : ' bientôt') + ', passe quand tu veux.';
+    }
+    if(o && o.etat === 'retrouve' && b){
+      return sd ? 'Passe la chercher au bureau de ' + b + ' quand tu veux.' : 'À récupérer au bureau de ' + b + '.';
+    }
+    return e.sous;
+  }
   function etatsObjetEl(o){
     return (o && o.sorte === 'sd') ? ETATS_OBJET_SD_EL : ETATS_OBJET_EL;
   }
@@ -10276,7 +10317,7 @@
         '<span class="mi">' +
           '<b>' + echapper(o.quoi || 'Un objet') + '</b>' +
           '<span>' + (ou.length ? echapper(ou.join(' · ')) + ' — ' : '') +
-            echapper(e.sous) + '</span>' +
+            echapper(sousObjetEl(o, e)) + '</span>' +
         '</span>' +
         '<span class="objetat ' + e.sorte + '">' + echapper(e.mot) + '</span>' +
       '</div>';
@@ -10306,9 +10347,20 @@
        le titre — la question pour laquelle il rouvre l'appli. */
     var objetDe = {};
     (mesObjetsEl || []).forEach(function(o){ if(o.conversation) objetDe[o.conversation] = o; });
-    z.innerHTML = conversationsEl.map(function(c){
+    /* 🗂️ v1563 — UN FIL PAR CONVERSATION : ses retards, annulations et
+       objets sont rangés dans « Le bureau » (ou chez son moniteur) ; la
+       ligne qui les héberge en montre les pastilles et leurs non-lus. */
+    var rangees = {};
+    conversationsEl.forEach(function(c){ if(c.rangeDans) (rangees[c.rangeDans] = rangees[c.rangeDans] || []).push(c); });
+    z.innerHTML = conversationsEl.filter(function(c){ return !c.rangeDans; }).map(function(c){
       var ob = objetDe[c.id];
       var eo = ob ? (etatsObjetEl(ob)[ob.etat] || null) : null;
+      var ici = rangees[c.id] || [];
+      var nonLus = Number(c.nonLus || 0) + ici.reduce(function(a, x){ return a + Number(x.nonLus || 0); }, 0);
+      var puces = ici.filter(function(x){ return !Number(x.fermee || 0); }).map(function(x){
+        return '<span class="puceDemEl">' + echapper(libelleDemandeEl(x, objetDe[x.id])) + '</span>';
+      }).join('');
+      c = Object.assign({}, c, { nonLus: nonLus });
       return '<div class="convo' + (c.nonLus ? ' nonlu' : '') + ' ckLc' +
           '" data-fil="' + echapper(c.id) + '">' +
         /* 🖼️ v1163 — la photo du groupe, de son moniteur ou du
@@ -10328,6 +10380,7 @@
           '</div>' +
           (c.nonLus ? '<span class="cpt">' + c.nonLus + '</span>' : '') + '</div>' +
           (eo ? '<div class="etatObj">' + eo.em + ' ' + echapper(eo.mot) + '</div>' : '') +
+          (puces ? '<div class="pucesDemEl">' + puces + '</div>' : '') +
         '</div>' +
       '</div>';
     }).join('');
@@ -10338,6 +10391,45 @@
       });
     });
     brancherLesRondsPhotoEl(z);
+  }
+
+  /* 🗂️ v1563 — le nom court d'une demande (pastille et carte) */
+  function libelleDemandeEl(c, ob){
+    var t = String((c && c.titre) || '');
+    if(c.genre === 'retard'){
+      var h = t.match(/à (\d{1,2})[:h](\d{2})/);
+      return '⏰ Retard' + (h ? ' · ' + Number(h[1]) + 'h' + (h[2] !== '00' ? h[2] : '') : '');
+    }
+    if(c.genre === 'annul'){
+      var j = t.match(/du (\d{2}\/\d{2})/);
+      return '🚫 Annulation' + (j ? ' ' + j[1] : '');
+    }
+    var e = ob ? (etatsObjetEl(ob)[ob.etat] || null) : null;
+    var nom = (ob && ob.quoi) || t.replace(/\s+—\s+.*$/, '').replace(/^🧤\s*/, '') || 'Objet';
+    if(nom.length > 24) nom = nom.slice(0, 23) + '…';
+    return (e ? e.em : '🧤') + ' ' + nom + (e ? ' · ' + e.mot.toLowerCase() : '');
+  }
+  /* La carte d'une demande, dans le fil : son état en mots, sans bouton */
+  function carteDemandeEl(d){
+    var o = d.objet || null;
+    var ferme = !!Number(d.fermee || 0);
+    var tete = '', corps = '', sorte = ferme ? 'finie' : 'attente', mot = ferme ? 'Réglé' : 'En cours';
+    if(d.genre === 'retard'){
+      tete = '⏰ ' + String(d.titre || 'Retard').replace(/^⏰\s*/, '');
+      corps = ferme ? "C'est noté." : 'Ton moniteur est prévenu.';
+    }else if(d.genre === 'annul'){
+      var cs = d.cours || null;
+      tete = '🚫 ' + String(d.titre || "Demande d'annulation").replace(/^🚫\s*/, '');
+      corps = ferme ? "C'est réglé." : (cs && cs.aFacturer ? 'Moins de 48 h avant : elle peut être facturée.' : 'Le bureau regarde ta demande.');
+    }else{
+      var e = o ? (etatsObjetEl(o)[o.etat] || etatsObjetEl(o).signale) : ETATS_OBJET_EL.signale;
+      tete = e.em + ' ' + ((o && o.quoi) || String(d.titre || 'Objet oublié').replace(/^🧤\s*/, ''));
+      corps = sousObjetEl(o || {}, e);
+      sorte = e.sorte; mot = e.mot;
+    }
+    return '<div class="carteDemEl' + (ferme ? ' close' : '') + '" id="carteEl-' + echapper(d.id) + '">' +
+      '<div class="l1"><b>' + echapper(tete) + '</b><span class="objetat ' + sorte + '">' + echapper(mot) + '</span></div>' +
+      '<div class="l2">' + echapper(corps) + '</div></div>';
   }
 
   function prenomDe(nom){
@@ -10492,7 +10584,7 @@
         veillerLeFil();
         /* Après le premier dessin : le direct accélère ce qui vient
            ensuite, il ne retarde pas l'ouverture. */
-        brancherDirectEl(id);
+        brancherDirectEl((filEl && filEl.conv && filEl.conv.id) || id);
       })
       .catch(function(e){
         $('zoneEcrireEcole').innerHTML = '<div class="card">' +
@@ -10543,7 +10635,25 @@
       return !!(x && y && x.de === y.de && x.de !== 'systeme' &&
         normaliserPhotoEl(x.auteur) === normaliserPhotoEl(y.auteur));
     };
+    /* 🗂️ v1563 — la carte d'une demande suit son premier message ; celle
+       dont aucun message n'est dans la page se pose à sa place (rang) */
+    var cartesEl = (filEl.demandes || []).slice();
+    var cartePosee = {};
+    var premierRang = lesMsgs.length ? Number(lesMsgs[0].rang || 0) : 0;
+    var avecMsg = {};
+    lesMsgs.forEach(function(m){ if(m.demande) avecMsg[m.demande] = true; });
+    var poserAvant = function(rang){
+      var out = '';
+      cartesEl.forEach(function(d){
+        if(cartePosee[d.id] || avecMsg[d.id]) return;
+        var r = Number(d.rangDebut || 0);
+        if(filEl.encore && r < premierRang) return;   /* plus haut : à la page d'avant */
+        if(rang === null || r < rang){ cartePosee[d.id] = true; out += carteDemandeEl(d); }
+      });
+      return out;
+    };
     lesMsgs.forEach(function(m, i, tous){
+      h += poserAvant(Number(m.rang || 0));
       var jour = String(m.envoyeLe || '').slice(0, 10);
       var heure = String(m.envoyeLe || '').slice(11, 16);
       var neuf = !!(jour && jour !== jourPose);
@@ -10565,7 +10675,12 @@
       var bu = bulleEleve(m).replace('class="bulle ', 'class="bulle ' + (suite ? 'suite ' : '') + (encore ? '' : 'pointe '));
       sigBulleEl = true;
       h += enveloppeEuxEl(m, suivant, bu);
+      if(m.demande && !cartePosee[m.demande]){
+        var dm = cartesEl.filter(function(x){ return x.id === m.demande; })[0];
+        if(dm){ cartePosee[m.demande] = true; h += carteDemandeEl(dm); }
+      }
     });
+    h += poserAvant(null);
 
     if(!(filEl.messages || []).length){
       /* Un fil neuf et un fil vidé ne disent pas la même chose : le
@@ -10713,6 +10828,16 @@
 
     var f = $('leFilEleve');
     if(f) f.scrollTop = f.scrollHeight;
+    /* 🗂️ v1563 — ouvert depuis une demande : on va à sa carte, une fois */
+    if(filEl.viserDemande){
+      var vz = document.getElementById('carteEl-' + filEl.viserDemande);
+      filEl.viserDemande = '';
+      if(vz && f){
+        try{ f.scrollTop = Math.max(0, vz.offsetTop - f.offsetTop - 60); }catch(e){}
+        vz.classList.add('vise');
+        setTimeout(function(){ vz.classList.remove('vise'); }, 1600);
+      }
+    }
     /* 👆 v1296 — glisser depuis le bord gauche : retour à la liste */
     brancherLeBordEl();
   }
@@ -14169,6 +14294,9 @@
        (pas le lien de la pièce, resigné à chaque lecture). */
     var empreinteSuppr = function(x){ return JSON.stringify(((x && x.messages) || []).map(function(m){ return [m.id, Number(m.supprime || 0), m.texte || '']; })); };
     var supprAvant = empreinteSuppr(filEl);
+    /* 🗂️ v1563 — un objet passe « au bureau » à l'heure dite, sans message */
+    var empreinteDemEl = function(x){ return JSON.stringify(((x && x.demandes) || []).map(function(c){ return [c.id, c.fermee, c.objet && c.objet.etat]; })); };
+    var demAvant = empreinteDemEl(filEl);
 
     return appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
       .then(function(d){
@@ -14210,6 +14338,7 @@
            empreinteReacEl(d) !== empreinteAvant ||
            empreinteAppelEl(d) !== appelAvant ||
            empreinteSuppr(d) !== supprAvant ||
+           empreinteDemEl(d) !== demAvant ||
            Number((d && d.luEcole) || 0) !== Number((filEl && filEl.luEcole) || 0)){
           filEl = d;
           noterLeResteVocaux(d);
