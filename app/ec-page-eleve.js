@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 15:12 — v1536 */
+/* Déployé le 24/11/2026 à 13:36 — v1555 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1295,6 +1295,47 @@ function tuilesDuDossier(nom){
      Et quand le décompte compte déjà le cours préparé, elle le dit :
      sans ça, elle ne collerait pas avec la tuile 1, qui dit ce qu'il
      a FAIT. */
+  /* 🤝 v1555 — AJOURNÉ, POST-PERMIS PAS ENCORE FAIT : ON NE SAIT PAS.
+     David, le 24/11, sur Arouna Mahamadou Khalifa : « il ne faut pas
+     mettre 2h + veille car on en sait rien tant qu'il a pas eu son rdv
+     post permis ». Les heures dites avant l'ajournement ne comptent
+     plus ; la tuile dit ce qui est posé et réservé, et quand ça se
+     décide. Le post-permis passé sans décision : un appui ouvre la
+     saisie (sa réponse au schéma). */
+  const datePermisTuile = (() => {
+    const iso = isoTuileDossier(s.datePermis || (e && e.etat && e.etat.permisDate) || '');
+    const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+    return (iso && (!auj || iso >= auj)) ? iso : '';
+  })();
+  const lignesDrivup = (sansReste) => (datePermisTuile && typeof lignesPlanningPermisTuile === 'function')
+    ? lignesPlanningPermisTuile(nom, datePermisTuile, sansReste) : [];
+  {
+    const exam = (typeof examenOfficielDe === 'function') ? (examenOfficielDe(nom) || {}) : {};
+    const obtenu = !!(exam.devant && exam.devant.cle === 'obtenu');
+    if(exam.ajourne && !obtenu && String(s.rdvPostFait || '') !== 'oui'){
+      const pp = postPermisDuDossier(nom, s, exam);
+      if(pp.passe){
+        grille.appendChild(tuileDossier({
+          lab:"Avant l'examen", cle:'decisionpost', ton:'chaud',
+          gros:'Décision à noter', petit:true,
+          lignes: [ { txt:'le post-permis du ' + jourBref(pp.jour, false) + ' a eu lieu : combien d’heures ?', ton:'rouge' },
+                    { txt:'toucher pour la noter' } ].concat(lignesDrivup(true)),
+          action: () => noterDecisionPostPermisDossier(nom, pp),
+          titre: 'Noter ce qui a été décidé au post-permis'
+        }));
+      }else{
+        grille.appendChild(tuileDossier({
+          lab:"Avant l'examen", cle:'attentepost', ton:'tiede',
+          gros:'À décider au post-permis', petit:true,
+          lignes: [ pp.aucun
+                      ? (pp.lu ? { txt:'pas encore de RDV post-permis dans Drivup' } : null)
+                      : { txt:'les heures se décident au RDV du ' + jourBref(pp.jour, true) } ]
+                    .concat(lignesDrivup(true))
+        }));
+      }
+      return grille;
+    }
+  }
   {
     const r = (typeof heuresQuiComptent === 'function') ? (heuresQuiComptent(nom) || {}) : {};
     const v = String(r.valeur === undefined || r.valeur === null ? '' : r.valeur).trim();
@@ -1347,8 +1388,12 @@ function tuilesDuDossier(nom){
                     : null,
                   veilleCours,
                   r.depasse ? { txt:'réserve dépassée', ton:'fort' } : null,
-                  (v === '0' && exam) ? { txt: exam } : null,
-                  dit ? { txt: dit } : null ]
+                  (v === '0' && exam) ? { txt: exam } : null ]
+                  /* 🤝 v1555 — ses leçons posées et ce qu'il reste à
+                     réserver, avec les phrases de Suivi permis, pour tous
+                     les élèves qui ont une date (David, le 24/11) */
+                  .concat(lignesDrivup(false))
+                  .concat([ dit ? { txt: dit } : null ])
       }));
     }else{
       const prep = (typeof preparationDe === 'function')
@@ -1410,10 +1455,35 @@ function examenDitCourt(nom, s){
 /* Une tuile du haut du dossier. Même grammaire que celle du
    permis — mêmes tailles, mêmes tons — pour qu'une rangée de
    trois se lise comme une rangée, pas comme trois cadres. */
+/* Une ligne d'une tuile du haut. 🤝 v1555 : les tons des phrases de Suivi
+   permis (vert, orange, ⏳, 🙋) et « bas », la petite ligne d'ajournement
+   tout en bas de la tuile. */
+function ligneDeTuileDossier(l){
+  const p = document.createElement('div');
+  const tons = {
+    rouge:  'color:var(--red);font-weight:700;',
+    fort:   'color:var(--cream);font-weight:600;',
+    vert:   'color:var(--accent-text);font-weight:700;',
+    warn:   'color:var(--warn-text);font-weight:700;',
+    orange: 'color:' + ((typeof RESA_ORANGE_TEXTE !== 'undefined') ? RESA_ORANGE_TEXTE : 'var(--ambre)') + ';font-weight:700;',
+    bleu:   'color:var(--resa-bleu-t, #2D6A9F);font-weight:700;'
+  };
+  p.style.cssText = l.ton === 'bas'
+    ? 'font-size:11px;line-height:1.4;margin-top:7px;padding-top:6px;border-top:1px dashed var(--line);color:var(--muted);'
+    : 'font-size:12.5px;line-height:1.4;margin-top:3px;' + (tons[l.ton] || 'color:var(--muted);');
+  if(l.ton) p.dataset.ton = l.ton;
+  p.textContent = l.txt;
+  return p;
+}
+
 function tuileDossier(t){
   const d = document.createElement('div');
-  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+  /* 🤝 v1555 — une tuile peut porter un ton, comme celle du permis */
+  const bords = { tiede: 'border:1px solid var(--ambre);',
+                  chaud: 'border:1px solid var(--red);background:var(--warn-bg);' };
+  d.style.cssText = (bords[t.ton] || 'border:1px solid var(--line);') + 'border-radius:12px;' +
     'padding:11px 13px;min-width:0;';
+  if(t.cle) d.dataset.tuile = t.cle;
   /* v1128 — une tuile peut se toucher : « Où il en est » se corrige
      d'ici. Le crayon dit qu'elle se touche ; sans action, rien. */
   if(typeof t.action === 'function'){
@@ -1435,14 +1505,7 @@ function tuileDossier(t){
   gros.textContent = t.gros;
   d.appendChild(gros);
 
-  (t.lignes || []).filter(Boolean).forEach(l => {
-    const p = document.createElement('div');
-    p.style.cssText = 'font-size:12.5px;line-height:1.4;margin-top:3px;' +
-      (l.ton === 'fort' ? 'color:var(--cream);font-weight:600;'
-                        : 'color:var(--muted);');
-    p.textContent = l.txt;
-    d.appendChild(p);
-  });
+  (t.lignes || []).filter(Boolean).forEach(l => d.appendChild(ligneDeTuileDossier(l)));
 
   return d;
 }
@@ -2782,6 +2845,9 @@ function dessinerPageEleve(){
   /* ⚠️ v1273 — le résumé rouge de « Suivi de … », quand il y a quelque chose à savoir */
   if(typeof banniereSuiviSE === 'function') zone.appendChild(banniereSuiviSE(nom));
   zone.appendChild(tuilesDuDossier(nom));
+  /* 🤝 v1555 — les tuiles se remplissent seules (David, le 24/11 : elles
+     ne se sont mises à jour qu'après un appui sur Planning) */
+  chargerPourLesTuilesDossier(nom);
 
   const onglets = ongletsEleveVisibles();
   if(!onglets.length){
@@ -4216,6 +4282,65 @@ function decisionDeLaReserve(nom){
   return null;
 }
 
+/* 🤝 v1555 — SON RENDEZ-VOUS POST-PERMIS, POUR LES TUILES DU DOSSIER.
+   David, le 24/11 : « son rendez-vous post-permis, est-ce qu'il est prévu ?
+   tu le vois sur Drivup dans ses cours à venir ». D'abord Drivup (ses cours
+   à venir, puis le dernier passé depuis l'ajournement), sinon sa fiche.
+   { fait, passe, aucun, lu, jour (ISO), heure, moniteur } */
+function isoTuileDossier(v){
+  const t = String(v || '').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+  return (typeof dateFrVersIso === 'function') ? (dateFrVersIso(t) || '') : '';
+}
+function postPermisDuDossier(nom, s, exam){
+  s = s || {};
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const depuis = (exam && exam.ajourne && exam.ajourne.quand) ? isoTuileDossier(exam.ajourne.quand) : '';
+  const dv = (typeof postPermisDrivupEC === 'function') ? postPermisDrivupEC(nom) : null;
+  const lu = !!dv && !dv.erreur;
+  const erreur = !!(dv && dv.erreur);
+  if(String(s.rdvPostFait || '') === 'oui'){
+    const jf = isoTuileDossier(s.rdvPostDate) || (dv && dv.passe ? dv.passe.jour : '');
+    const mf = s.rdvPostMoniteur || (dv && dv.passe ? dv.passe.moniteur : '') || '';
+    return { fait: true, passe: true, aucun: false, lu: lu, jour: jf, heure: '', moniteur: mf };
+  }
+  if(dv && dv.avenir){
+    return { fait: false, passe: false, aucun: false, lu: lu, jour: dv.avenir.jour,
+             heure: dv.avenir.debut || '', moniteur: dv.avenir.moniteur || '' };
+  }
+  if(dv && dv.passe && (!depuis || dv.passe.jour >= depuis)){
+    return { fait: false, passe: true, aucun: false, lu: lu, jour: dv.passe.jour,
+             heure: dv.passe.debut || '', moniteur: dv.passe.moniteur || '' };
+  }
+  const jFiche = isoTuileDossier(s.rdvPostDate);
+  if(jFiche && (!depuis || jFiche >= depuis)){
+    return { fait: false, passe: jFiche < auj, aucun: false, lu: lu, jour: jFiche,
+             heure: '', moniteur: s.rdvPostMoniteur || '' };
+  }
+  return { fait: false, passe: false, aucun: true, lu: lu, erreur: erreur, jour: '', heure: '', moniteur: '' };
+}
+/* « 🤝 Post-permis : ven. 27 nov. à 08h30 avec Hery », puis « 🤝 Post-permis
+   fait le 27 nov. avec Hery » (réponse de David au schéma, le 24/11) */
+function lignePostPermisTuile(pp){
+  if(!pp) return null;
+  const avec = pp.moniteur ? ' avec ' + pp.moniteur : '';
+  const h = String(pp.heure || '').replace(/^(\d{1,2})[:h](\d{2}).*$/, (m, a, b) => a.padStart(2, '0') + 'h' + b);
+  if(pp.fait){
+    return { txt: '🤝 Post-permis fait' + (pp.jour ? ' le ' + jourBref(pp.jour, false) : '') + avec };
+  }
+  if(pp.aucun){
+    /* Drivup illisible (pas le droit, coupure) : on ne dit rien plutôt
+       qu'un « à réserver » faux */
+    if(pp.erreur) return null;
+    return pp.lu ? { txt: '🤝 Post-permis à réserver', ton: 'rouge' }
+                 : { txt: '🤝 Post-permis : lecture de Drivup…' };
+  }
+  if(pp.passe){
+    return { txt: '🤝 Post-permis le ' + jourBref(pp.jour, true) + avec, ton: 'fort' };
+  }
+  return { txt: '🤝 Post-permis : ' + jourBref(pp.jour, true) + (h ? ' à ' + h : '') + avec, ton: 'fort' };
+}
+
 function etatDuPermis(nom){
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
   const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
@@ -4287,6 +4412,19 @@ function etatDuPermis(nom){
                        { txt: marque.emoji + ' ' + marque.texte, ton:'rouge' }) };
     }
 
+    /* 🤝 v1555 — UN REPASSAGE. David, le 24/11, sur Arouna Mahamadou
+       Khalifa : la nouvelle date en grand, son rendez-vous post-permis
+       (lu dans ses cours à venir Drivup), et l'ajournement en petit en
+       bas. L'examen blanc ne compte plus : c'est le post-permis qui parle. */
+    if(exam.ajourne){
+      return { cle:'date', ton:'vedette', titre:'Où en est son permis',
+        gros:tete, petit:false,
+        lignes: lignes(ou ? { txt: ou, ton:'fort' } : null,
+                       lignePostPermisTuile(postPermisDuDossier(nom, s, exam)),
+                       exam.ajourne.quand
+                         ? { txt: 'ajourné le ' + court(exam.ajourne.quand), ton:'bas' } : null) };
+    }
+
     /* 02 — la date, et la suite prévue EN DESSOUS (arbitrage ①),
        puis l'avertissement du niveau s'il y en a un (arbitrage ②). */
     /* v1128 — sous la date, la DÉCISION. Le décompte est dans la
@@ -4324,14 +4462,16 @@ function etatDuPermis(nom){
      examen blanc » — mot pour mot. ── */
   const aPost = String(s.rdvPostFait || '') === 'oui';
 
-  if(exam.ajourne && !aPost && !s.rdvPostDate){
-    /* 05 — le geste qui manque, et c'est le bureau qui le pose. */
-    return { cle:'ajourne', ton:'chaud', titre:'Où en est son permis',
-      gros:'🔁 ' + (exam.ajourne.nb === 1 ? '1er' : exam.ajourne.nb + 'e') +
-           ' repassage', petit:true,
-      lignes: lignes({ txt: (exam.ajourne.quand
-        ? 'Ajourné le ' + court(exam.ajourne.quand) : 'Ajourné') +
-        ' · post-permis à prévoir', ton:'rouge' }) };
+  if(exam.ajourne && !aPost){
+    /* 05 / 06 — 🤝 v1555 : la date d'ajournement en gros (David, le
+       24/11), puis son rendez-vous post-permis, lu dans Drivup. */
+    const pp = postPermisDuDossier(nom, s, exam);
+    return { cle: pp.aucun ? 'ajourne' : 'postprevu', ton: (pp.aucun && pp.lu) ? 'chaud' : 'tiede',
+      titre:'Où en est son permis',
+      gros:'🔁 ' + (exam.ajourne.quand ? 'Ajourné le ' + court(exam.ajourne.quand) : 'Ajourné'),
+      petit:true,
+      lignes: lignes({ txt: passage(exam.ajourne.passage) + ' · date à prendre', ton:'fort' },
+                     lignePostPermisTuile(pp)) };
   }
 
   if(s.rdvPostDate && !aPost){
@@ -4630,15 +4770,7 @@ function dessinerTuilePermis(nom, apres){
   gros.textContent = t.gros;
   d.appendChild(gros);
 
-  (t.lignes || []).forEach(l => {
-    const p = document.createElement('div');
-    p.style.cssText = 'font-size:12.5px;line-height:1.4;margin-top:3px;' +
-      (l.ton === 'rouge' ? 'color:var(--red);font-weight:700;'
-       : l.ton === 'fort' ? 'color:var(--cream);font-weight:600;'
-       : 'color:var(--muted);');
-    p.textContent = l.txt;
-    d.appendChild(p);
-  });
+  (t.lignes || []).forEach(l => d.appendChild(ligneDeTuileDossier(l)));
 
   /* L'état « rien de noté » ouvre la saisie : une tuile qui dit
      qu'il manque quelque chose doit mener à l'endroit où on le
@@ -5404,6 +5536,115 @@ function rafraichirPageEleve(){
   const carte = document.querySelector('[data-vue="dossier"]');
   if(!carte || carte.classList.contains('hors-vue')) return;
   dessinerPageEleve();
+}
+
+
+/* ============================================================
+   🤝 LES TUILES DU HAUT SE REMPLISSENT SEULES — v1555
+
+   David, le 24/11, sur Arouna Mahamadou Khalifa : « Rien de noté » et
+   « Son prochain cours : Rien de prévu », puis tout juste après un appui
+   sur Planning. Les tuiles avaient été dessinées AVANT l'arrivée de son
+   suivi (l'état du bureau pas encore lu) ; un appui sur un onglet
+   redessine la page, d'où le « ça s'est mis à jour ». Désormais :
+    · l'état du bureau pas encore là → on le lit, puis on redessine ;
+    · ses cours à venir Drivup (la lecture de Suivi permis, 3 min de
+      cache) → on les lit, puis on redessine les tuiles seules ;
+    · ajourné, post-permis pas fait, sur un ordinateur avec l'extension →
+      sa fiche Drivup › Plannings est relue (10 min), pour voir un
+      post-permis qui vient d'avoir lieu.
+   ============================================================ */
+const relueFichePostEC = {};
+function rafraichirTuilesDossier(nom){
+  if(!nom || elevePageOuverte !== nom) return;
+  const vieille = $('tuilesDossier');
+  if(!vieille || !vieille.isConnected) return;
+  vieille.replaceWith(tuilesDuDossier(nom));
+}
+function chargerPourLesTuilesDossier(nom){
+  if(!nom) return;
+  /* ① l'état du bureau */
+  const bureauVide = !(typeof etatBureau !== 'undefined' && etatBureau &&
+                       Array.isArray(etatBureau.suivi) && etatBureau.suivi.length);
+  /* une seule fois par page : un état qui reviendrait vide ne doit pas
+     relancer la lecture à chaque dessin */
+  if(bureauVide && typeof chargerBureau === 'function' && !chargerPourLesTuilesDossier.bureau){
+    chargerPourLesTuilesDossier.bureau = true;
+    Promise.resolve().then(() => chargerBureau(false))
+      .then(() => { if(elevePageOuverte === nom) rafraichirPageEleve(); })
+      .catch(() => {});
+  }
+  if(typeof chargerPlanningPermisEC !== 'function' || typeof aVenirPermisEC !== 'function') return;
+  /* ② ses cours à venir Drivup */
+  const c = aVenirPermisEC(nom);
+  if(!c || Date.now() - c.lu > 180000){
+    chargerPlanningPermisEC([nom]).then(() => rafraichirTuilesDossier(nom)).catch(() => {});
+  }
+  /* ③ un post-permis qui vient d'avoir lieu */
+  try{
+    const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+    const exam = (typeof examenOfficielDe === 'function') ? (examenOfficielDe(nom) || {}) : {};
+    if(!exam.ajourne || String(s.rdvPostFait || '') === 'oui') return;
+    if(exam.devant && exam.devant.cle === 'obtenu') return;
+    if(typeof extDrivupPresente !== 'function' || !extDrivupPresente()) return;
+    if(typeof peutLireDrivup !== 'function' || !peutLireDrivup()) return;
+    if(typeof lirePlanningsDrivup !== 'function' || typeof chiffresDrivup !== 'function') return;
+    const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+    const id = chiffresDrivup(f && f.idDrivup);
+    const k = (typeof clePermisEC === 'function') ? clePermisEC(nom) : nom;
+    if(!id || (relueFichePostEC[k] && Date.now() - relueFichePostEC[k] < 10 * 60000)) return;
+    relueFichePostEC[k] = Date.now();
+    Promise.resolve().then(() => lirePlanningsDrivup([{ id: id, eleve: nom }]))
+      .then(() => chargerPlanningPermisEC([nom], true))
+      .then(() => rafraichirTuilesDossier(nom))
+      .catch(() => {});
+  }catch(e){ /* sans relecture : ce qu'on sait déjà */ }
+}
+
+/* 🤝 v1555 — LE POST-PERMIS A EU LIEU, RIEN N'EST NOTÉ : un appui sur la
+   tuile ouvre la saisie (réponse de David au schéma, le 24/11). Les mêmes
+   boutons et la même écriture que la conclusion du rendez-vous (voir
+   ec-prepares : suite, heuresRepassage, la réserve « 0:postpermis »). */
+async function noterDecisionPostPermisDossier(nom, pp){
+  if(typeof choixConclusionPost !== 'function' || typeof lireConclusionPost !== 'function' ||
+     typeof majSuivi !== 'function' || typeof fenetre !== 'function') return;
+  const quoi = await fenetre(
+    'Le post-permis du ' + jourBref(pp.jour, true) + (pp.moniteur ? ' avec ' + pp.moniteur : '') +
+    ' a eu lieu.\nQu’est-ce qui a été décidé ?',
+    choixConclusionPost().map(c => ({ nom: c.lib, valeur: c.val }))
+      .concat([{ nom: 'Annuler', valeur: '' }]),
+    '🤝 ' + nom);
+  if(!quoi) return;
+  const c = lireConclusionPost(quoi);
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const majs = {
+    rdvPostDate: pp.jour || '',
+    rdvPostMoniteur: pp.moniteur || '',
+    rdvPostFait: 'oui',
+    suite: c.suite,
+    heuresRepassage: (c.suite === 'impossible' || c.suite === '2h') ? '' : c.heures,
+    fairePoint: (c.suite === '2h') ? 'oui' : '',
+    fairePointLe: (c.suite === '2h')
+      ? ((typeof dateEnToutesLettres === 'function' && dateEnToutesLettres(auj)) || auj) : '',
+    retireAPrevoir: (c.suite === 'impossible') ? 'oui' : ''
+  };
+  let aEnvoyer = (typeof champsHeuresRestantes === 'function' && majs.heuresRepassage)
+    ? champsHeuresRestantes(nom, majs.heuresRepassage, majs, 0, 'postpermis') : majs;
+  /* « sur ce que Hery a dit le 27 nov. » : c'est le moniteur du rendez-vous
+     qui a décidé, le jour du rendez-vous */
+  if(aEnvoyer.heuresLe && pp.jour){
+    aEnvoyer = Object.assign({}, aEnvoyer, { heuresLe: pp.jour },
+      pp.moniteur ? { heuresPar: pp.moniteur } : {});
+  }
+  try{
+    await majSuivi(nom, aEnvoyer);
+    if(typeof showToast === 'function') showToast('Enregistré ✅');
+  }catch(e){
+    if(typeof showToast === 'function') showToast('Impossible : ' + ((e && e.message) || 'refusé'));
+    return;
+  }
+  if(typeof redessinerBureau === 'function') redessinerBureau();
+  else rafraichirPageEleve();
 }
 
 
