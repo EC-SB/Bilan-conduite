@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 12:03 — v1553 */
+/* Déployé le 24/11/2026 à 16:53 — v1562 */
 /* ============================================================
    ec-cockpit.js — 🧭 LA MESSAGERIE EN COCKPIT — v1141
 
@@ -1465,7 +1465,7 @@ function collerCetteReponse(x){ return !!(x && x.coller && !x.position && x.sort
 /* On AJOUTE à ce qui est déjà écrit (on ne l'efface pas) : un espace ou un
    retour à la ligne sépare, selon ce qu'il y a avant. */
 function collerReponseDansTexte(id, ajout){
-  const t0 = document.getElementById('msgElvTexte');
+  const t0 = champDuFilEC();
   let base = t0 ? t0.value : ((typeof brouillonsMessagerie !== 'undefined' && brouillonsMessagerie[id]) || '');
   const sep = base && !/\s$/.test(base) ? (/\n/.test(base) ? '\n' : ' ') : '';
   mettreDansLaZoneDEcriture(id, (base || '') + sep + String(ajout || ''));
@@ -1692,7 +1692,7 @@ function mettreDansLaZoneDEcriture(id, texte){
   if(typeof brouillonsMessagerie !== 'undefined') brouillonsMessagerie[id] = texte;
   dessinerLeFil();
   setTimeout(() => {
-    const t = document.getElementById('msgElvTexte');
+    const t = champDuFilEC();
     if(!t) return;
     t.value = texte;
     t.dispatchEvent(new Event('input', { bubbles: true }));
