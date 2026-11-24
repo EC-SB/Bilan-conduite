@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:29 — v1548 */
+/* Déployé le 24/11/2026 à 10:49 — v1549 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -361,6 +361,8 @@ function dessinerParcours(){
            ') : un guide publié = une catégorie, une étape = un bouton. Attrape ⠿ pour changer l’ordre sur la tablette · un appui ouvre le guide.'
          : 'Attrape ⠿ pour changer l’ordre chez l’élève · un appui ouvre le guide.');
   zone.appendChild(aide);
+  /* 👁️ v1549 — la FAQ : ce que les élèves lisent, ce qu'ils cherchent sans trouver */
+  if(parcoursModeFaq && typeof blocStatsFaq === 'function') zone.appendChild(blocStatsFaq());
 
   const grille = document.createElement('div');
   grille.className = 'pcGrille';
@@ -399,6 +401,8 @@ function carteDeGuide(x, rang){
       '<span class="t">' + echParcours(x.titre) + '</span></div>' +
     '<div class="d">' + (etapes ? etapes + ' étape' + (etapes > 1 ? 's' : '') : 'vide') + (types.length ? ' · ' + types.join(' · ') : '') + '</div>' +
     (manque ? '<div class="w">⚠️ ' + manque + ' fichier' + (manque > 1 ? 's' : '') + ' à déposer</div>' : '') +
+    /* 👁️ 🎯 v1549 — la FAQ : ses lectures et pour qui (ec-faq.js) */
+    ((parcoursModeFaq && typeof ligneCarteFaq === 'function') ? ligneCarteFaq(x) : '') +
     '<div class="bas"><span class="pcPuce ' + (x.etat === 'publie' ? 'pcPub">✅ Publié' : 'pcBro">✏️ Brouillon') + '</span><span style="flex:1"></span>' +
       '<span class="pcFl" data-monter title="Plus tôt">◀</span><span class="pcFl" data-descendre title="Plus tard">▶</span></div>';
   const ouvrir = (e) => {
@@ -1287,6 +1291,10 @@ async function ouvrirLeGuide(x, groupe){
     corps.dataset.corps = i;
     /* ❓ v1548 — la FAQ n'a ni temps de lecture, ni « compte », ni élèves choisis */
     if(et.titre && !parcoursModeFaq) corps.appendChild(reglagesDEtape(et, i));
+    /* 👁️ 🎯 v1549 — dans la FAQ : ses lectures et ses formations (ec-faq.js) */
+    if(et.titre && parcoursModeFaq && typeof reglageQuestionFaq === 'function'){
+      corps.appendChild(reglageQuestionFaq(et, idPose, { avant: relireTout, apres: () => { E.ici = i; dessiner(); modifie(); }, redessiner: () => { E.ici = i; dessiner(); } }));
+    }
     const zb = document.createElement('div');
     zb.className = 'pcBlocs';
     zb.id = 'pdBlocs' + i;
@@ -1708,6 +1716,12 @@ async function ouvrirLeGuide(x, groupe){
     racine.innerHTML = '';
     racine.appendChild(barre());
     majBarre();
+    /* 🎯 👁️ v1549 — la FAQ : pour quelles formations est le thème, et ses lectures */
+    if(parcoursModeFaq && typeof ligneThemeFaq === 'function'){
+      racine.appendChild(ligneThemeFaq(idPose, () => { relireTout(); dessiner(); }));
+      /* les chiffres arrivent : on redessine sans rien perdre de ce qui est tapé */
+      racine._faqRedessiner = () => { relireTout(); dessiner(); };
+    }
     E.ici = Math.max(0, Math.min(E.ici, E.etapes.length - 1));
     if(E.large){
       const g = document.createElement('div');
@@ -1730,7 +1744,9 @@ async function ouvrirLeGuide(x, groupe){
           (et.titre && et.titre.facultatif ? '<span title="Facultative">💤</span>' : '') +
           (et.titre && et.titre.reservee ? '<span title="Réservée à ' + (et.titre.pour || []).length + ' élève(s)">🔒</span>' : '') +
           (et.titre && et.titre.attente ? '<span title="Temps de lecture imposé">⏱️</span>' : '') +
-          (manque ? '<span title="Un fichier manque">⚠️</span>' : (et.contenus.some(b => b.type === 'video') ? '<span>🎬</span>' : ''));
+          (manque ? '<span title="Un fichier manque">⚠️</span>' : (et.contenus.some(b => b.type === 'video') ? '<span>🎬</span>' : '')) +
+          /* 👁️ 🎯 v1549 — la FAQ : ses lectures, ses formations */
+          ((parcoursModeFaq && et.titre && typeof marquesSommaireFaq === 'function') ? marquesSommaireFaq(idPose, et.titre) : '');
         l.addEventListener('click', (e) => {
           if(e.target.closest && e.target.closest('[data-poignee]')) return;
           relireTout(); E.ici = i; dessiner();
