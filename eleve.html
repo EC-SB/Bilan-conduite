@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/11/2026 à 15:48 — v1538 -->
+<!-- Déployé le 24/11/2026 à 10:29 — v1548 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-sOw82sQpS/dpYQjFqd6aOPsOGQP2I5PAL+yXfzhs5RM='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-5zKW2RTNjqgHBOigxho0Z9OO1cPl9Nv4F4ywyQ4Pyb0=' 'sha256-7LHmOUtY/Qy4Qn9UYzylua0l5iZ8Couj23/D0Gtda04='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -427,6 +427,33 @@
   .miRond.miManque::after{ content:""; position:absolute; top:1px; right:1px; width:10px; height:10px; border-radius:50%;
     background:#EA580C; box-shadow:0 0 0 2px var(--navy); }
   .miCarte{ border-color:#EA580C; }
+  /* ❓ v1548 — LES QUESTIONS FRÉQUENTES : l'onglet, la carte de l'accueil */
+  .faqChForm{ display:flex; gap:8px; margin:4px 0 12px; }
+  .faqChForm input{ flex:1; min-width:0; margin:0; }
+  .faqChForm .btn{ width:auto; margin:0; padding:10px 14px; flex-shrink:0; }
+  .faqVite{ display:flex; flex-direction:column; gap:6px; margin:0 0 10px; }
+  .faqViteQ{ display:flex; justify-content:space-between; align-items:center; gap:8px; width:100%; margin:0; min-height:0; text-align:left;
+    border:1px solid var(--line); background:transparent; color:var(--cream); border-radius:12px; padding:10px 12px;
+    font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  .faqViteQ span{ color:var(--accent-text); font-size:18px; line-height:1; }
+  .faqTheme{ margin:14px 0 0; }
+  .faqTheme:first-child{ margin-top:4px; }
+  .faqTitre{ font-size:15px; font-weight:800; margin:0 0 8px; }
+  .faqIntro{ font-size:14px; line-height:1.55; margin:0 0 8px; }
+  .faqQ{ border:1px solid var(--line); border-radius:14px; margin:0 0 8px; overflow:hidden; }
+  .faqQ > summary{ list-style:none; cursor:pointer; padding:12px 40px 12px 14px; font-size:14.5px; font-weight:700; line-height:1.4; position:relative; }
+  .faqQ > summary::-webkit-details-marker{ display:none; }
+  .faqQ > summary::after{ content:"+"; position:absolute; right:14px; top:50%; transform:translateY(-50%); font-size:20px; font-weight:400; color:var(--accent-text); }
+  .faqQ[open] > summary::after{ content:"–"; }
+  .faqQ[open] > summary{ border-bottom:1px solid var(--line); }
+  .faqR{ padding:12px 14px; font-size:14.5px; line-height:1.6; overflow-wrap:anywhere; }
+  .faqR video, .faqR img, .faqIntro video, .faqIntro img{ display:block; width:100%; max-width:100%; height:auto; border-radius:12px; margin:8px 0; }
+  .faqR > p{ font-size:13px; color:var(--muted); margin:-2px 0 8px; }
+  .faqPlus{ margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); font-size:13px; color:var(--muted); }
+  .faqEcrire, .faqEffacer{ border:0; background:none; color:var(--accent-text); font:inherit; font-weight:700; padding:0; margin:0; width:auto; min-height:0; cursor:pointer; text-decoration:underline; }
+  .faqCompte{ font-size:13px; color:var(--muted); margin:0 0 8px; }
+  .faqRien{ font-size:14px; line-height:1.6; color:var(--muted); padding:6px 0; }
+  .faqVideR{ color:var(--muted); font-style:italic; }
   .miL{ display:flex; gap:10px; align-items:flex-start; padding:11px 0 0; }
   .miL + .miL{ border-top:1px solid var(--line); margin-top:11px; }
   .miK{ font-size:12px; color:var(--muted); font-weight:700; }
@@ -2821,6 +2848,8 @@
       <div class="boutentete">
         <!-- 🪪 v1516 — Mes infos : à côté du thème (David, le 20 novembre) -->
         <button class="rondentete miRond" id="btMesInfos" type="button" title="Mes infos" aria-label="Mes infos" style="display:none;">🪪</button>
+        <!-- ❓ v1548 — les questions fréquentes (David, le 24 novembre) -->
+        <button class="rondentete" id="btFaq" type="button" title="Questions fréquentes" aria-label="Questions fréquentes" style="display:none;">❓</button>
         <button class="rondentete" id="btTheme2" title="Changer de thème">🌙</button>
         <button class="rondentete" id="btSortir" title="Se déconnecter">⏻</button>
       </div>
@@ -2874,6 +2903,17 @@
     <div class="card" id="carteBureaux" style="display:none;">
       <div class="section-title">🕒 Les bureaux</div>
       <div id="mesBureaux"></div>
+    </div>
+
+    <!-- ❓ v1548 — une question ? (David : l'onglet ET une carte sur l'accueil) -->
+    <div class="card faqAcc" id="carteFaq" style="display:none;">
+      <div class="section-title">❓ Une question ?</div>
+      <form class="faqChForm" id="faqAccForm" role="search">
+        <input type="search" id="faqAccCh" placeholder="NEPH, annuler un cours, Kopilote…" aria-label="Chercher dans les questions fréquentes" autocomplete="off">
+        <button type="submit" class="btn btn-primary">Chercher</button>
+      </form>
+      <div class="faqVite" id="faqVite"></div>
+      <button type="button" class="btn btn-secondary" id="faqTout">❓ Toutes les questions</button>
     </div>
 
     <div class="card" id="carteDemandes" style="display:none;">
@@ -3065,6 +3105,18 @@
          📝 MON BILAN APRÈS L'EXAMEN — étape 1d.
          Il n'apparaît que si l'école en attend un : voir
          « bilanAttendu » et la liste ONGLETS. -->
+    <!-- ❓ v1548 — LES QUESTIONS FRÉQUENTES : un groupe ❓ de « Groupes et
+         guides » côté équipe ; ici, pour tous les élèves, sans suivi. -->
+    <div id="ongletFaq" class="cache">
+      <div class="card faqCarte">
+        <div class="section-title">❓ Questions fréquentes</div>
+        <form class="faqChForm" id="faqChForm" role="search">
+          <input type="search" id="faqCh" placeholder="🔍 Cherche : NEPH, annuler, Kopilote…" aria-label="Chercher une question" autocomplete="off">
+        </form>
+        <div id="faqCorps"></div>
+      </div>
+    </div>
+
     <div id="ongletBilan" class="cache">
       <div id="msgBilan"></div>
       <div id="zoneMonBilan"></div>
@@ -5852,6 +5904,150 @@
     carte.style.display = '';
   }
 
+  /* ============================================================
+     ❓ LES QUESTIONS FRÉQUENTES — v1548
+
+     David, le 24 novembre : « les élèves posent plein de questions dont
+     les réponses sont sur le groupe Facebook : une sorte de FAQ sur leur
+     app, avec du texte, des vidéos, des images ». Ses choix : un onglet
+     dans la barre du bas, une carte sur l'accueil et un rond ❓ en haut.
+
+     Côté équipe, c'est un groupe ❓ de « Groupes et guides » : un guide
+     publié = un thème, une étape = une question, ses blocs = la réponse.
+     Ici : pour TOUS les élèves (pas de module à ouvrir), sans « ✓ Vu ».
+     Les blocs se dessinent comme ceux des guides (rendreBloc).
+     ============================================================ */
+  var faqThemes = [];
+  var faqLueLe = 0, faqLueUneFois = false, faqAOuvrir = false;
+  var faqCherche = '';
+  function faqOuverte(){ return !SALLE && !MODE_SALLE && faqThemes.length > 0; }
+  function normFaq(t){
+    return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ');
+  }
+  function chargerFaq(forcer){
+    if(SALLE || MODE_SALLE) return;
+    if(MODE_ESSAI && !window.__ESSAI_FAQ) return;
+    /* au plus toutes les 30 minutes : les liens des vidéos durent 4 h */
+    if(!forcer && faqLueLe && Date.now() - faqLueLe < 30 * 60000) return;
+    faqLueLe = Date.now();
+    var p = (MODE_ESSAI && window.__ESSAI_FAQ) ? Promise.resolve(window.__ESSAI_FAQ)
+          : appeler({ action: 'eleveFaq', eleve: moi.nom, code: moi.code });
+    p.then(function(d){
+      if(!d || !Array.isArray(d.themes)) return;
+      var avant = faqThemes.length;
+      faqThemes = d.themes;
+      faqLueUneFois = true;
+      montrerFaq();
+      if(!!avant !== !!faqThemes.length) dessinerLesOnglets();
+      if(ongletIci === 'faq') dessinerFaq();
+      if(faqAOuvrir){ faqAOuvrir = false; if(faqOuverte()) allerAOnglet('faq'); }
+    }).catch(function(){ faqLueLe = 0; /* sans FAQ, l'espace reste entier */ });
+  }
+  /* Le rond ❓ en haut et la carte de l'accueil */
+  function montrerFaq(){
+    var on = faqOuverte();
+    var r = $('btFaq');
+    if(r) r.style.display = on ? '' : 'none';
+    var c = $('carteFaq');
+    if(!c) return;
+    c.style.display = on ? '' : 'none';
+    if(!on) return;
+    /* les trois premières questions, à toucher tout de suite */
+    var vite = [];
+    faqThemes.forEach(function(t){ (t.questions || []).forEach(function(q){ if(vite.length < 3) vite.push({ cle: t.id + '::' + q.id, titre: q.titre }); }); });
+    var z = $('faqVite');
+    if(z) z.innerHTML = vite.map(function(q){
+      return '<button type="button" class="faqViteQ" data-faq-q="' + echapper(q.cle) + '">' + echapper(q.titre) + ' <span aria-hidden="true">›</span></button>';
+    }).join('');
+  }
+  /* Les questions qui répondent à la recherche (tous les mots, sans accents) */
+  function questionCorrespond(q, mots){
+    if(!mots.length) return true;
+    var t = normFaq(q.titre + ' ' + (q.blocs || []).map(function(b){
+      return (b.type === 'texte' ? trTexteSeul(b.texte || '') : '') + ' ' + (b.titre || '');
+    }).join(' '));
+    return mots.every(function(m){ return t.indexOf(m) !== -1; });
+  }
+  function dessinerFaq(ouvrirCle){
+    var z = $('faqCorps');
+    if(!z) return;
+    var ch = $('faqCh');
+    if(ch && ch.value !== faqCherche && document.activeElement !== ch) ch.value = faqCherche;
+    var mots = normFaq(faqCherche).split(/[^a-z0-9]+/).filter(function(m){ return m.length > 1; });
+    var trouve = 0, h = '';
+    faqThemes.forEach(function(t){
+      var qs = (t.questions || []).filter(function(q){ return questionCorrespond(q, mots); });
+      if(mots.length && !qs.length) return;
+      trouve += qs.length;
+      h += '<section class="faqTheme"><h3 class="faqTitre">' + echapper(t.titre) + '</h3>';
+      if(!mots.length && (t.intro || []).length) h += '<div class="faqIntro">' + t.intro.map(rendreBloc).join('') + '</div>';
+      qs.forEach(function(q){
+        var cle = t.id + '::' + q.id;
+        var ouverte = cle === ouvrirCle || (mots.length && trouve <= 2 && qs.length <= 2);
+        h += '<details class="faqQ" data-faq="' + echapper(cle) + '"' + (ouverte ? ' open' : '') + '>' +
+          '<summary>' + echapper(q.titre) + '</summary>' +
+          '<div class="faqR">' + ((q.blocs || []).map(rendreBloc).join('') || '<div class="faqVideR">La réponse arrive bientôt.</div>') +
+          (ouvert('messages') ? '<div class="faqPlus">Ça ne répond pas à ta question ? <button type="button" class="faqEcrire" data-faq-ecrire="' +
+            echapper(q.titre) + '">✍️ Écrire au bureau</button></div>' : '') +
+          '</div></details>';
+      });
+      h += '</section>';
+    });
+    if(mots.length && !trouve){
+      h = '<div class="faqRien">Aucune réponse pour « ' + echapper(faqCherche) + ' ».' +
+        (ouvert('messages') ? ' <button type="button" class="faqEcrire" data-faq-ecrire="' + echapper(faqCherche) + '">✍️ Pose ta question au bureau</button>' : ' Demande-nous au bureau.') + '</div>';
+    }else if(mots.length){
+      h = '<div class="faqCompte">' + trouve + ' réponse' + (trouve > 1 ? 's' : '') + ' · <button type="button" class="faqEffacer">tout revoir</button></div>' + h;
+    }
+    z.innerHTML = h;
+    brancherLesCarrousels(z);
+    brancherLesRenvois(z);
+    if(ouvrirCle){
+      var d = z.querySelector('details[data-faq="' + ouvrirCle.replace(/"/g, '') + '"]');
+      if(d && d.scrollIntoView) try{ d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){}
+    }
+  }
+  function ouvrirQuestionFaq(cle){
+    faqCherche = '';
+    allerAOnglet('faq');
+    dessinerFaq(cle);
+  }
+  (function(){
+    var r = document.getElementById('btFaq');
+    if(r) r.addEventListener('click', function(){ faqCherche = ''; allerAOnglet('faq'); });
+    var t = document.getElementById('faqTout');
+    if(t) t.addEventListener('click', function(){ faqCherche = ''; allerAOnglet('faq'); });
+    var fa = document.getElementById('faqAccForm');
+    if(fa) fa.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      var i = document.getElementById('faqAccCh');
+      faqCherche = i ? i.value.trim() : '';
+      allerAOnglet('faq');
+      if(i) i.value = '';
+    });
+    var f = document.getElementById('faqChForm');
+    if(f) f.addEventListener('submit', function(ev){ ev.preventDefault(); var i = document.getElementById('faqCh'); if(i) i.blur(); });
+    var ch = document.getElementById('faqCh');
+    if(ch) ch.addEventListener('input', function(){ faqCherche = ch.value; dessinerFaq(); });
+    document.addEventListener('click', function(ev){
+      var b = ev.target && ev.target.closest && ev.target.closest('[data-faq-q],[data-faq-ecrire],.faqEffacer');
+      if(!b) return;
+      ev.preventDefault();
+      if(b.hasAttribute('data-faq-q')) return ouvrirQuestionFaq(b.getAttribute('data-faq-q'));
+      if(b.classList.contains('faqEffacer')){ faqCherche = ''; dessinerFaq(); return; }
+      /* « Écrire au bureau » : sa messagerie, la question gardée pour la coller */
+      var q = b.getAttribute('data-faq-ecrire') || '';
+      allerAOnglet('messages');
+      try{ dire('msgEnvoi', '✍️ Écris ta question au bureau' + (q ? ' (à propos de « ' + q + ' »)' : '') + '.', 'info'); }catch(e){}
+    });
+    /* une réponse refermée : sa vidéo s'arrête */
+    document.addEventListener('toggle', function(ev){
+      var d = ev.target;
+      if(!d || !d.classList || !d.classList.contains('faqQ') || d.open) return;
+      Array.prototype.forEach.call(d.querySelectorAll('video'), function(v){ try{ v.pause(); }catch(e){} });
+    }, true);
+  })();
+
   /* Ce que la connexion complète apporte */
   function completerLEntree(){
     $('chProc').innerHTML = procedures.length
@@ -5879,6 +6075,7 @@
     ouvrirRenseignementsSiBesoin();
     chargerLesBureaux();   /* 🕒 v1372 — après l'entrée, sans la retarder */
     chargerMesInfos();     /* 🪪 v1516 — Mes infos : le rond en haut, le cadre s'il manque quelque chose */
+    chargerFaq();          /* ❓ v1548 — les questions fréquentes : l'onglet, la carte, le rond */
 
     /* ============================================================
        ⚠️ UNE SEULE VAGUE VERS LE CLASSEUR — v1123
@@ -5998,7 +6195,9 @@
     reciter: '<svg ' + SVG_ONGLET + '><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 3.5h6v2.2H9z"/><path d="M8.5 10.5h7M8.5 13.8h7M8.5 17h4.5"/></svg>',
     messages:'<svg ' + SVG_ONGLET + '><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.3V16A2.5 2.5 0 0 1 4 13.5z"/><path d="M8.5 9h7M8.5 12.2h4.5"/></svg>',
     /* 📝 v1402 — David : « il faut changer l'icône » ; il a choisi la A, la feuille cochée */
-    bilan:   '<svg ' + SVG_ONGLET + '><path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5z"/><path d="M14 3.5v5h5"/><path d="M8.8 14.6l2.2 2.2 4.2-4.4"/></svg>'
+    bilan:   '<svg ' + SVG_ONGLET + '><path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5z"/><path d="M14 3.5v5h5"/><path d="M8.8 14.6l2.2 2.2 4.2-4.4"/></svg>',
+    /* ❓ v1548 — le point d'interrogation dans un rond, même trait */
+    faq:     '<svg ' + SVG_ONGLET + '><circle cx="12" cy="12" r="8.6"/><path d="M9.5 9.5a2.6 2.6 0 0 1 5.1.6c0 1.8-2.6 2.3-2.6 4"/><circle cx="12" cy="17.1" r="1" fill="currentColor" stroke="none"/></svg>'
   };
   var ONGLETS = [
     { cle:'accueil', nom:'🏠 Accueil', emoji:'🏠', court:'Accueil',
@@ -6051,7 +6250,12 @@
        son bilan n'est pas encore validé. */
     { cle:'bilan', nom:'📝 Mon bilan', emoji:'📝', court:'Bilan',
       zone:'ongletBilan',
-      quand: function(){ return bilanAttendu() || mesBilansCours.length > 0; } }
+      quand: function(){ return bilanAttendu() || mesBilansCours.length > 0; } },
+    /* ❓ v1548 — les questions fréquentes : chez tous les élèves, dès que
+       l'école en a publié (David : « un onglet dans la barre du bas »). */
+    { cle:'faq', nom:'❓ Questions fréquentes', emoji:'❓', court:'FAQ',
+      zone:'ongletFaq',
+      quand: function(){ return faqOuverte(); } }
   ];
   var ongletIci = '';
 
@@ -6668,7 +6872,8 @@
     verifs:   'Entraîne-toi aux 100 questions de l’examen.',
     code:     'Entraîne-toi pour le code, 5 minutes par jour.',
     messages: 'Réponse sous 48 heures ouvrées.',
-    bilan:    'Raconte ton examen : c’est ce qui ouvre ton rendez-vous.'
+    bilan:    'Raconte ton examen : c’est ce qui ouvre ton rendez-vous.',
+    faq:      'Les réponses aux questions qu’on nous pose le plus.'
   };
 
   function poserLeSousTitreEl(){
@@ -6699,6 +6904,8 @@
     if(cle === 'verifs') jvOuvrir();
     /* 🚦 v1462 — le jeu du code aussi */
     if(cle === 'code') cjOuvrir();
+    /* ❓ v1548 — relue si elle date (les liens des vidéos expirent) */
+    if(cle === 'faq'){ dessinerFaq(); chargerFaq(); }
     /* On remonte : un onglet ouvert au milieu d'un long défilement
        donne l'impression que rien ne s'est passé. */
     try{ window.scrollTo(0, 0); }catch(e){}
@@ -7047,6 +7254,8 @@
   function allerALaPageDuLienEl(vue){
     var o = ONGLETS.filter(function(x){ return x.cle === vue; })[0];
     if(!o){ return; }
+    /* ❓ v1548 — la FAQ arrive après l'entrée : on l'ouvrira à son arrivée */
+    if(vue === 'faq' && !faqOuverte() && !faqLueUneFois){ faqAOuvrir = true; return; }
     var ok = true;
     try{ ok = !o.quand || o.quand(); }catch(e){ ok = true; }
     if(!ok){ try{ dire('msgEnvoi', '🔒 Cette page n’est pas encore ouverte pour toi.', 'info'); }catch(e){} return; }
