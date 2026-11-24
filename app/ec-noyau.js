@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 13:03 — v1530 */
+/* Déployé le 24/11/2026 à 10:29 — v1548 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -358,6 +358,9 @@ const SECTIONS = [
      rangé dans un onglet dont l'écran est ailleurs, c'est une case
      cochée qui n'ouvre rien. */
   { cle:'parcours',         nom:'🎬 Parcours (guides et suivi)', onglet:'suivi' },
+  /* ❓ v1548 — la FAQ des élèves : un groupe ❓ de « Groupes et guides ».
+     Admins et bureau par le rôle (David : « les deux »). */
+  { cle:'faq',              nom:'❓ Questions fréquentes des élèves', onglet:'suivi' },
   { cle:'financements',     nom:'💶 Financements extérieurs', onglet:'eleves' },
   { cle:'rappels',          nom:'🔔 Rappels de cours par mail', onglet:'eleves' },
   /* L'envoi de SMS est facturé au segment : il se donne à part,
