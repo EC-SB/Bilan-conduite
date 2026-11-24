@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:31 — v1465 */
+/* Déployé le 24/11/2026 à 10:29 — v1548 */
 /* ============================================================
    🔑 LE COIN RÉVISIONS D'UN ÉLÈVE — v1325
 
@@ -601,7 +601,7 @@ async function cvLire(nom){
   return {
     nom: nom, acces: acces,
     /* 📺 v1441 — les groupes des tablettes ne s'ouvrent chez aucun élève */
-    groupes: ((dP && dP.groupes) || []).filter(g => !g.tablettes),
+    groupes: ((dP && dP.groupes) || []).filter(g => !g.tablettes && !g.faq),
     prog: (dP && dP.salle) || { groupes: [], regles: {} },
     lu: !!dP,
     formation: String((fiche && fiche.formation) || '').trim()
@@ -1055,7 +1055,7 @@ async function fenetreHabitudesCoinRevisions(formationDepart){
   try{
     if(typeof chargerModelesTexte === 'function') await chargerModelesTexte(true);
     const d = await appelPrep({ action: 'parcoursList' });
-    groupes = ((d && d.groupes) || []).filter(g => !g.tablettes); prog = (d && d.salle) || prog;   /* 📺 v1441 */
+    groupes = ((d && d.groupes) || []).filter(g => !g.tablettes && !g.faq); prog = (d && d.salle) || prog;   /* 📺 v1441 */
   }catch(e){ corps.innerHTML = '<div style="color:var(--red)">❌ ' + cvEch(e.message) + '</div>'; return; }
   /* 🎓 v1440 — « 🎓 Code avec nous » en tête : l'habitude de qui fait son code avec nous */
   const formations = (typeof toutesLesFormations === 'function') ? toutesLesFormations() : [];
