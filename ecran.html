@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 21/11/2026 à 16:37 — v1542 -->
+<!-- Déployé le 24/11/2026 à 14:26 — v1557 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -502,9 +502,37 @@
   @keyframes sZoom{ from{ transform:none; opacity:1; } to{ transform:scale(1.15); opacity:0; } }
   @keyframes eVolet{ from{ clip-path:inset(0 0 100% 0); } to{ clip-path:inset(0 0 0 0); } }
   @keyframes sReste{ from{ opacity:1; } to{ opacity:1; } }
+  /* 📽️ v1557 — la vidéo de présentation, par-dessus tout l'écran */
+  #teleVideo{position:fixed;inset:0;z-index:9999;background:#000;display:none;}
+  #teleVideo.vu{display:block;}
+  #teleVideo video{width:100%;height:100%;object-fit:contain;background:#000;}
+  #teleSon{position:fixed;right:2vw;bottom:2vw;z-index:10000;display:none;font:700 2vw/1.2 system-ui,sans-serif;
+    color:#fff;background:rgba(0,0,0,.65);padding:.8vw 1.2vw;border-radius:1vw;}
+  #teleInstall{position:fixed;inset:0;z-index:10001;background:#0B0B0B;color:#F4F4F4;display:none;
+    place-items:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;}
+  #teleInstall.vu{display:grid;}
+  #teleInstall h1{font-size:3.2vw;margin:0 0 1vw;}
+  #teleInstall p{font-size:1.6vw;color:#B5B5B5;margin:0 0 2.5vw;}
+  #teleInstall input{font:800 5vw/1 system-ui,sans-serif;letter-spacing:1.2vw;text-align:center;width:32vw;padding:1vw;
+    border-radius:1.4vw;border:.3vw solid #B6FF0E;background:#000;color:#fff;}
+  #teleInstall button{display:block;margin:2.5vw auto 0;font:800 2vw/1 system-ui,sans-serif;padding:1.4vw 3vw;border:0;
+    border-radius:99vw;background:#B6FF0E;color:#0B0B0B;}
+  #teleInstall .err{color:#FF8A6A;font-size:1.6vw;min-height:2.2vw;margin-top:1.5vw;}
 </style>
 </head>
 <body>
+<!-- 📽️ v1557 — la vidéo de présentation lancée depuis l'App (télé de Loudéac) -->
+<div id="teleVideo"><video id="teleVideoEl" playsinline preload="auto"></video></div>
+<div id="teleSon">🔇 Son coupé par la télé : appuie sur OK de la télécommande</div>
+<div id="teleInstall">
+  <div>
+    <h1>📺 Installer la télé</h1>
+    <p>Tape le code à 6 chiffres donné par l’App (Élèves › Vidéos présentation › Installer la télé)</p>
+    <input id="teleCode" inputmode="numeric" maxlength="6" autocomplete="off" autofocus>
+    <button id="teleValider" type="button">Valider</button>
+    <div class="err" id="teleErr"></div>
+  </div>
+</div>
 
 <div id="ecran">
 
@@ -571,9 +599,16 @@ const PARAMS  = new URLSearchParams(location.search);
 const JETON   = PARAMS.get('t') || '';
 const OU      = (PARAMS.get('ou') === 'vitrine') ? 'vitrine' : 'accueil';
 const ANONYME = PARAMS.get('anonyme') === '1';
+/* 📽️ v1557 — LE SITE DE LA TÉLÉ. David, le 24/11 : à Loudéac, « météo de
+   Loudéac et cours de Loudéac uniquement » ; à Saint-Brieuc, ceux de Saint-
+   Brieuc. Une adresse sans « site » est celle de Saint-Brieuc. */
+const SITE = (PARAMS.get('site') === 'loudeac') ? 'loudeac' : 'saint-brieuc';
+/* Le jeton de la télé qui reçoit les vidéos (Loudéac), posé à l'installation */
+const TV_JETON = /^[0-9a-f]{48}$/.test(PARAMS.get('tv') || '') ? PARAMS.get('tv') : '';
 
 const RELAIS = 'https://bilan-proxy.evolutionconduites.workers.dev';
-const LAT = 48.5136, LON = -2.7653;      /* Saint-Brieuc */
+const LAT = SITE === 'loudeac' ? 48.1779 : 48.5136;      /* Loudéac / Saint-Brieuc */
+const LON = SITE === 'loudeac' ? -2.7546 : -2.7653;
 
 const DELAI_DONNEES = 60000;
 const DELAI_METEO   = 900000;
@@ -768,6 +803,8 @@ async function chargerContenu(){
 
 async function chargerVraiment(){
   if(!JETON){
+    /* 📽️ v1557 — une télé ouverte sur l'adresse nue : on l'installe */
+    if(!APERCU && installationTele()) return;
     document.getElementById('souci').textContent =
       'Adresse incomplète : il manque le jeton (?t=…)';
     return;
@@ -785,7 +822,7 @@ async function chargerVraiment(){
     let r;
     try{
       r = await fetch(RELAIS + '/ecran?t=' + encodeURIComponent(JETON) +
-                      '&ou=' + OU + (ANONYME ? '&anonyme=1' : '') +
+                      '&ou=' + OU + (ANONYME ? '&anonyme=1' : '') + '&site=' + SITE +
                       '&_=' + Date.now(),
                       { cache: 'no-store', signal: abandon.signal });
     }finally{
@@ -1120,6 +1157,9 @@ function majImminents(){
   const zl = document.getElementById('imminentListe');
   const zt = document.getElementById('imminentTitre');
   if(!z || !zl || !zt || OU === 'vitrine') return;
+  /* 📽️ v1557 — la vidéo de présentation reste prioritaire (David, le
+     24/11) : le plein écran du cours attend qu'elle finisse */
+  if(teleVideoEnCours()) return;
 
   const liste = APERCU_VOULU.demo
     ? [{ id: 'x1', heure: '10:30', eleve: 'Léa M.', moniteur: 'David', vehicule: 'A3 n°4', lieu: 'devant', ecoutes: ['Sarah L.'] },
@@ -1464,6 +1504,185 @@ function afficherDiapo(){
 
 
 /* ============================================================
+   📽️ LA VIDÉO DE PRÉSENTATION, LANCÉE DEPUIS L'APP — v1557
+
+   David, le 24/11 : la Samsung de Loudéac sert à la fois d'écran de
+   l'accueil et de télé des vidéos de présentation. L'App envoie l'ordre
+   au Worker ; cette page garde une ligne ouverte avec lui (/tele,
+   « attendre ») : la réponse arrive dès qu'il y a un ordre, sinon au
+   bout de 25 s. Chaque appel dit où en est la vidéo : c'est le temps
+   restant que l'App affiche.
+
+   · la vidéo passe par-dessus tout, avec le son ; à la fin (ou sur
+     « Arrêter »), on revient aux diapositives ;
+   · elle reste prioritaire sur « Vos cours commencent », qui reprend
+     dès qu'elle finit ;
+   · un navigateur peut refuser le son sans un appui : la vidéo part
+     alors sans le son, la télé le dit, et l'App aussi ; un appui sur
+     la télécommande le remet.
+   ============================================================ */
+const TELE = { liste: [], i: 0, n: -1, ctl: null, son: '', souci: '' };
+function teleVideoEnCours(){
+  const z = document.getElementById('teleVideo');
+  return !!(z && z.classList.contains('vu'));
+}
+function teleVideoEl(){ return document.getElementById('teleVideoEl'); }
+function etatDeLaTele(){
+  const v = teleVideoEl();
+  const vid = TELE.liste[TELE.i];
+  if(!teleVideoEnCours() || !v || !vid) return { lecture: '', souci: TELE.souci };
+  return { titre: vid.titre || '', i: TELE.i, nb: TELE.liste.length,
+           pos: Math.round((v.currentTime || 0) * 10) / 10,
+           duree: isFinite(v.duration) ? Math.round(v.duration * 10) / 10 : 0,
+           lecture: v.paused ? 'pause' : 'lit', son: TELE.son, souci: TELE.souci };
+}
+/* Un changement à dire tout de suite : on coupe l'attente en cours, la
+   boucle repart aussitôt avec le nouvel état */
+function direALaTele(){ try{ if(TELE.ctl) TELE.ctl.abort(); }catch(e){} }
+function videosDuCarrousel(pause){
+  document.querySelectorAll('#scenes video').forEach(v => {
+    try{ if(pause){ v.dataset.teleMuet = v.muted ? '1' : '0'; v.muted = true; v.pause(); }
+         else { if(v.dataset.teleMuet === '0') v.muted = false; v.play().catch(() => {}); } }catch(e){}
+  });
+}
+function jouerALaTele(i){
+  const vid = TELE.liste[i];
+  const v = teleVideoEl();
+  if(!vid || !v){ fermerLaTele(); return; }
+  TELE.i = i;
+  TELE.son = '';
+  TELE.souci = '';
+  document.getElementById('teleVideo').classList.add('vu');
+  videosDuCarrousel(true);
+  v.muted = false;
+  v.src = vid.lien;
+  const p = v.play();
+  if(p && p.catch) p.catch(e => {
+    if(e && e.name === 'NotAllowedError'){
+      /* le son refusé sans un appui : on part sans, et on le dit */
+      v.muted = true;
+      TELE.son = 'bloque';
+      document.getElementById('teleSon').style.display = 'block';
+      v.play().catch(() => { TELE.souci = 'lecture refusée par la télé'; direALaTele(); });
+    }
+    direALaTele();
+  });
+}
+function fermerLaTele(){
+  const v = teleVideoEl();
+  if(v){ try{ v.pause(); }catch(e){} v.removeAttribute('src'); try{ v.load(); }catch(e){} }
+  document.getElementById('teleVideo').classList.remove('vu');
+  document.getElementById('teleSon').style.display = 'none';
+  TELE.liste = []; TELE.i = 0; TELE.son = '';
+  videosDuCarrousel(false);
+  majImminents();
+  direALaTele();
+}
+function executerOrdreTele(o){
+  if(!o || typeof o !== 'object') return;
+  const v = teleVideoEl();
+  if(o.type === 'jouer' && Array.isArray(o.videos) && o.videos.length){
+    TELE.liste = o.videos.slice(0, 6);
+    jouerALaTele(Math.max(0, Math.min(TELE.liste.length - 1, Number(o.i) || 0)));
+  }else if(!teleVideoEnCours() || !v){
+    return;
+  }else if(o.type === 'pause'){ v.pause(); }
+  else if(o.type === 'reprendre'){ v.play().catch(() => {}); }
+  else if(o.type === 'aller'){ try{ v.currentTime = Math.max(0, Math.min(Number(o.pos) || 0, (v.duration || 1e9) - 0.5)); }catch(e){} }
+  else if(o.type === 'arreter'){ fermerLaTele(); return; }
+  direALaTele();
+}
+(function(){
+  const v = teleVideoEl();
+  if(!v) return;
+  v.addEventListener('ended', () => {
+    if(TELE.i + 1 < TELE.liste.length) jouerALaTele(TELE.i + 1);
+    else fermerLaTele();
+  });
+  v.addEventListener('playing', direALaTele);
+  v.addEventListener('pause', () => { if(!v.ended) direALaTele(); });
+  v.addEventListener('seeked', direALaTele);
+  v.addEventListener('error', () => {
+    TELE.souci = 'vidéo illisible : ' + ((TELE.liste[TELE.i] || {}).titre || '');
+    if(TELE.i + 1 < TELE.liste.length) jouerALaTele(TELE.i + 1); else fermerLaTele();
+  });
+  /* un appui sur la télécommande remet le son refusé */
+  const remettre = () => {
+    if(teleVideoEnCours() && v.muted && TELE.son === 'bloque'){
+      v.muted = false; TELE.son = '';
+      document.getElementById('teleSon').style.display = 'none';
+      direALaTele();
+    }
+  };
+  document.addEventListener('keydown', remettre);
+  document.addEventListener('click', remettre);
+})();
+const attendreTele = ms => new Promise(r => setTimeout(r, ms));
+async function boucleTele(){
+  for(;;){
+    /* la nuit, la télé n'attend plus d'ordres */
+    const d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+    if(m < 6 * 60 + 30 || m >= 21 * 60){ TELE.n = -1; await attendreTele(5 * 60000); continue; }
+    TELE.ctl = new AbortController();
+    let rep = null;
+    try{
+      const r = await fetch(RELAIS + '/tele', { method: 'POST', cache: 'no-store', signal: TELE.ctl.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'attendre', tv: TV_JETON, n: TELE.n, etat: etatDeLaTele() }) });
+      rep = await r.json();
+    }catch(e){
+      if(!(e && e.name === 'AbortError')) await attendreTele(5000);
+      continue;
+    }
+    if(rep && rep.retiree){
+      document.getElementById('souci').textContent = '📺 ' + (rep.message || 'Télé retirée');
+      await attendreTele(60000);
+      continue;
+    }
+    if(!rep || rep.status !== 'ok'){ await attendreTele(5000); continue; }
+    if(typeof rep.n === 'number') TELE.n = rep.n;
+    if(rep.ordre) executerOrdreTele(rep.ordre);
+  }
+}
+/* L'adresse nue (sans jeton) : on installe la télé avec le code de l'App,
+   puis on garde son adresse pour les fois suivantes. */
+function installationTele(){
+  let gardee = '';
+  try{ gardee = localStorage.getItem('teleAdresse') || ''; }catch(e){}
+  if(gardee && /[?&]t=/.test(gardee)){ location.replace(gardee); return true; }
+  const z = document.getElementById('teleInstall');
+  const champ = document.getElementById('teleCode');
+  const err = document.getElementById('teleErr');
+  const bouton = document.getElementById('teleValider');
+  if(!z || !champ || !bouton) return false;
+  if(z.classList.contains('vu')) return true;   /* déjà affichée (relecture des 2 minutes) */
+  z.classList.add('vu');
+  try{ champ.focus(); }catch(e){}
+  const valider = async () => {
+    const code = String(champ.value || '').replace(/\D/g, '');
+    if(code.length !== 6){ err.textContent = 'Le code a 6 chiffres.'; return; }
+    bouton.disabled = true;
+    err.textContent = 'Vérification…';
+    try{
+      const r = await fetch(RELAIS + '/tele', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'code', code: code }) });
+      const d = await r.json();
+      if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Refusé');
+      const adresse = location.origin + location.pathname + '?t=' + encodeURIComponent(d.ecran) +
+        '&ou=accueil&site=' + encodeURIComponent(d.site) + '&tv=' + encodeURIComponent(d.tv);
+      try{ localStorage.setItem('teleAdresse', adresse); }catch(e){}
+      location.replace(adresse);
+    }catch(e){
+      err.textContent = '⚠️ ' + ((e && e.message) || 'Impossible');
+      bouton.disabled = false;
+    }
+  };
+  bouton.addEventListener('click', valider);
+  champ.addEventListener('keydown', e => { if(e.key === 'Enter') valider(); });
+  return true;
+}
+
+/* ============================================================
    DÉMARRAGE
    ============================================================ */
 majHeure();
@@ -1473,6 +1692,8 @@ majMeteo();
 setInterval(majMeteo, DELAI_METEO);
 
 chargerContenu();
+/* 📽️ v1557 — la télé qui reçoit les vidéos de l'App */
+if(TV_JETON && !APERCU) boucleTele();
 /* 📉 v1386 — LES TÉLÉS ÉCONOMISENT LES APPELS. David, le 7 novembre :
    Cloudflare prévient que le compte a atteint 75 % des 100 000 appels
    par jour du plan gratuit. Une télé relisait chaque minute, jour et
