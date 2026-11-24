@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 14:19 — v1533 */
+/* Déployé le 24/11/2026 à 10:29 — v1548 */
 /* ============================================================
    ec-liens.js — 🔗 LES LIENS DANS CE QU'ON ÉCRIT — v1527
 
@@ -236,7 +236,9 @@ async function insererHyperlienDans(zone){
 /* 🔗 Lien élève : où ? (une page de son espace, une étape, un écran de l'App) */
 const PAGES_ESPACE_ELEVE = [
   ['accueil', '🏠 Accueil'], ['reviser', '🎬 Réviser'], ['verifs', '🧰 Vérifs'], ['code', '🚦 Code'],
-  ['reciter', '📋 Réciter'], ['messages', '💬 Écrire (sa messagerie)'], ['bilan', '📝 Mon bilan']
+  ['reciter', '📋 Réciter'], ['messages', '💬 Écrire (sa messagerie)'], ['bilan', '📝 Mon bilan'],
+  /* ❓ v1548 — les questions fréquentes */
+  ['faq', '❓ FAQ (questions fréquentes)']
 ];
 function modaleLienEC(titre, aide){
   const fond = document.createElement('div');
