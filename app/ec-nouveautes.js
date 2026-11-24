@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 11:08 — v1550 */
+/* Déployé le 24/11/2026 à 11:30 — v1551 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1551,
+    date: 'Mardi 24 novembre 2026',
+    resume: '📮 Les rappels repartent quand le serveur mail coupe',
+    quoi: [
+      { emoji: '📮',
+        titre: 'Plus de « stream was cancelled »',
+        texte: 'Quand le serveur mail d’OVH coupe la connexion avant l’envoi, l’App réessaie toute seule, puis passe par une autre porte d’OVH. Si rien ne passe, le message dit clairement que rien n’est parti. Coupé pendant l’envoi : pas de second envoi (l’élève l’aurait en double), on te dit de vérifier.' },
+      { emoji: '🔔',
+        titre: 'Plus de carré blanc dans la barre du téléphone',
+        texte: 'Sur Android, la petite icône des notifications en haut de l’écran est maintenant une bulle de message, au lieu d’un carré blanc.' }
+    ]
+  },
   {
     version: 1550,
     date: 'Mardi 24 novembre 2026',
