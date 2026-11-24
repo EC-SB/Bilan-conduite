@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 17:15 — v1563 */
+/* Déployé le 24/11/2026 à 18:19 — v1564 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,37 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1564,
+    date: 'Mardi 24 novembre 2026',
+    resume: '💬 La messagerie comme Messenger : photos, carrousel, envoi immédiat',
+    quoi: [
+      { emoji: '🖼️',
+        titre: 'Plusieurs photos dans un message',
+        texte: 'La première en grand, les autres en dessous (« +2 » s’il y en a plus). Un appui ouvre un carrousel : flèches sur les côtés, glisser du doigt, ← → au clavier, et ⤓ pour l’enregistrer. Pareil côté élève.' },
+      { emoji: '📷',
+        titre: 'ⓘ Infos › Photos',
+        texte: 'Les 6 dernières photos de la conversation, et « Toutes les photos », rangées par mois, avec « 📅 Aller au… » pour chercher par date.' },
+      { emoji: '📤',
+        titre: 'Ce que tu envoies se pose tout de suite',
+        texte: 'Texte, photos, vocal : la bulle apparaît aussitôt (« Envoi… »), tu peux continuer d’écrire, et tout part dans l’ordre. Si ça ne passe pas : « ⚠️ Pas parti · Réessayer · Retirer ». Fermer l’app avant le départ ne perd rien : ça repart à la réouverture.' },
+      { emoji: '⌨️',
+        titre: 'Plus de saut pendant que tu écris',
+        texte: 'Un message qui arrive ne te fait plus perdre la main sur ce que tu tapes. Si tu es remonté lire, une pastille « ↓ 1 nouveau message » apparaît au lieu de sauter en bas. La conversation ouverte se met à jour dès que la liste ou une notification voit un nouveau message.' },
+      { emoji: '📌',
+        titre: 'Liste et épinglées',
+        texte: 'L’aperçu du dernier message se met à jour tout de suite. Les conversations épinglées ne disparaissent plus de la liste.' },
+      { emoji: '🔕',
+        titre: 'Notifications',
+        texte: 'Ce que l’équipe envoie à un élève (message, ouverture de l’app, groupe permis…) ne met plus rien en non lu pour les autres, et ne sonne plus. Seul ce qu’envoie un élève allume un point, jusqu’à ce qu’un du bureau ouvre — dans les groupes permis aussi.' },
+      { emoji: '🩶',
+        titre: 'Messagerie EC en gris',
+        texte: 'La page Messagerie EC (celle qu’on installe sur téléphone et tablette) a un fond gris : on voit d’un coup d’œil qu’on est dans la messagerie et pas dans l’App EC. En thème clair.' },
+      { emoji: '🗑️',
+        titre: 'Retirer un message du bureau',
+        texte: 'Dans une conversation avec un élève, le bureau et les administrateurs peuvent retirer un message de l’équipe (par exemple celui de l’ouverture de l’app), jamais celui de l’élève.' }
+    ]
+  },
   {
     version: 1563,
     date: 'Mardi 24 novembre 2026',
