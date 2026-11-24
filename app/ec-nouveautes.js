@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 10:54 — v1549 */
+/* Déployé le 24/11/2026 à 11:08 — v1550 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1550,
+    date: 'Mardi 24 novembre 2026',
+    resume: '🔌 La FAQ s’éteint pour un élève, ou pour tous',
+    quoi: [
+      { emoji: '🔌',
+        titre: 'Pour tous',
+        texte: 'En haut de Suivi › ❓ Questions fréquentes : « La FAQ chez les élèves : allumée / éteinte pour tous ». Éteinte, plus d’onglet FAQ, de carte ni de rond ❓ dans leur espace. Les thèmes et les chiffres restent : tu la rallumes au même endroit.' },
+      { emoji: '❓',
+        titre: 'Pour un élève',
+        texte: 'Dans son coin révisions, « Ce qu’il trouve dans son espace » : la tuile « ❓ Les questions fréquentes », ouvertes à tous de base. Un appui l’éteint pour lui seul.' }
+    ]
+  },
   {
     version: 1549,
     date: 'Mardi 24 novembre 2026',
