@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 11:47 — v1552 */
+/* Déployé le 24/11/2026 à 12:03 — v1553 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1553,
+    date: 'Mardi 24 novembre 2026',
+    resume: '🛟 Brevo en secours pour les mails, 🎓 élève ou équipe sur les photos',
+    quoi: [
+      { emoji: '🛟',
+        titre: 'Brevo, seulement si OVH bloque',
+        texte: 'Les mails partent toujours d’abord par OVH. Si OVH coupe tout, ils partent par Brevo, depuis la même adresse de l’école, puis l’App retente OVH 30 minutes plus tard. Au 200e mail de la journée parti par Brevo, les administrateurs reçoivent une notification.' },
+      { emoji: '🎓',
+        titre: 'Élève ou équipe, d’un coup d’œil',
+        texte: 'Dans la Messagerie, un tour bleu et 🎓 sur la photo d’un élève (bureau, moniteur, retards, annulations, objets oubliés), un tour vert et « EC » pour l’équipe.' },
+      { emoji: '📜',
+        titre: 'La conversation ne remonte plus',
+        texte: 'Sur ordinateur, la colonne ⓘ Infos restait en haut à chaque message envoyé ou reçu : elle reste où tu l’as laissée. Et une photo qui finit de s’afficher ne décolle plus le fil du dernier message.' }
+    ]
+  },
   {
     version: 1552,
     date: 'Mardi 24 novembre 2026',
