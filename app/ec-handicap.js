@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 12:04 — v1568 */
+/* Déployé le 25/11/2026 à 15:18 — v1573 */
 /* ============================================================
    ec-handicap.js — 🩺 LES DÉMARCHES PERMIS (v1565)
 
@@ -256,8 +256,8 @@ function etapesDe(d){
     { cle: 'accord', t: 'Heures acceptées par l’élève', qui: 'eleve' },
     { cle: 'planning', t: 'Leçons planifiées', qui: 'nous', info: 'Le planning se fait dans Drivup.' },
     { cle: 'pieces', t: 'Pièces pour la DDTM : avis médical, carte d’identité, permis', qui: 'eleve', docs: ['avis', 'ci', 'permis'], obligatoire: true, bref: ['🔒 Obligatoires pour le rendez-vous'] },
-    { cle: 'rdv', t: 'Rendez-vous de régularisation à la DDTM', qui: 'nous', rdv: true, bloquePar: 'pieces', bref: ['🚗 20 à 30 min de conduite', '🆓 Gratuit', '🚘 Voiture de l’école'],
-      info: 'Conduite presque comme un examen : il montre qu’il sait utiliser ses aménagements. Gratuit. ddtm-er-handicap@cotes-darmor.gouv.fr' },
+    { cle: 'rdv', t: 'Rendez-vous de régularisation à la DDTM', qui: 'nous', rdv: true, bloquePar: 'pieces', bref: ['🚗 20 à 30 min de conduite', '💶 On facture 1h d’accompagnement', '🚘 Voiture de l’école'],
+      info: 'Conduite presque comme un examen : il montre qu’il sait utiliser ses aménagements. On facture 1h d’accompagnement. ddtm-er-handicap@cotes-darmor.gouv.fr' },
     { cle: 'regul', t: 'Régularisation validée : l’inspecteur remet le CEPC', qui: 'ddtm', bref: ['📄 CEPC valable 4 mois'], info: 'L’inspecteur vérifie qu’il conduit en sécurité avec les aménagements du médecin, et les reporte sur le CEPC (valable 4 mois).' },
     { cle: 'titre', t: 'Demande du nouveau permis sur l’ANTS', qui: 'eleve', bref: ['📄 Avis médical + CEPC'], info: 'Avec l’avis médical et le CEPC. ' + lien('antsRegul', 'Demande ANTS') }];
   }
@@ -861,7 +861,7 @@ function verdictBref(d){
 function savoirBref(d){
   if(outil === 'handicap') return ['🩺 C’est le médecin agréé qui donne les codes, sur l’avis médical (cerfa 14880). Pas le médecin traitant.',
     '🚗 Les aménagements du véhicule se montrent en conduite à l’inspecteur, qui a le dernier mot sur leurs codes. Seuls 10.02, 15.03 et 42 se passent de lui.',
-    '🔒 Rendez-vous de régularisation : avis médical, carte d’identité et permis obligatoires.', '🆓 La régularisation est gratuite. La visite coûte 36 € (gratuite si invalidité ≥ 50 %).'];
+    '🔒 Rendez-vous de régularisation : avis médical, carte d’identité et permis obligatoires.', '💶 Le rendez-vous de régularisation : on facture 1h d’accompagnement. La visite médicale coûte 36 € (gratuite si invalidité ≥ 50 %).'];
   if(d.parcours === 'susp') return ['🩺 Visite médicale : si la suspension dépasse 1 mois, ou si c’est l’alcool ou les stupéfiants (commission, 50 €).',
     '🧠 Examen psychotechnique : seulement si la suspension est de 6 mois ou plus (environ 100 €).', '📅 La visite se fait sans attendre la fin : environ un mois avant.',
     '📘 Ni code ni conduite à repasser, quelle que soit la durée : le permis est suspendu, pas perdu.',
@@ -1038,7 +1038,7 @@ function etapeEleve(d, x, v){
     accord: ['Nous dire si les heures proposées vous conviennent', ''],
     planning: ['Planification de vos leçons', ''],
     pieces: ['Nous envoyer les papiers pour le rendez-vous à la DDTM', 'Ils sont obligatoires : l’avis médical, votre carte d’identité et votre permis.'],
-    rdv: ['Rendez-vous de régularisation à la DDTM', 'Une conduite d’environ 20 à 30 minutes avec la voiture de l’école : vous montrez à l’inspecteur que vous utilisez bien vos aménagements. C’est gratuit.'],
+    rdv: ['Rendez-vous de régularisation à la DDTM', 'Une conduite d’environ 20 à 30 minutes avec la voiture de l’école : vous montrez à l’inspecteur que vous utilisez bien vos aménagements. Nous facturons 1h d’accompagnement.'],
     regul: ['Remise du CEPC par l’inspecteur', 'Si tout va bien, l’inspecteur vous remet le CEPC le jour même. Il est valable 4 mois.'],
     codif: ['Envoi de votre avis médical et de votre pièce d’identité à la DDTM', 'La DDTM établit l’attestation de codification, avec les codes du médecin.'],
     formation: ['Formation au code et à la conduite, avec vos aménagements', ''],
