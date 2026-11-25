@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:08 — v1519 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-fiche-infos.js — v1516 — SA FICHE, EN LIGNES
 
@@ -436,7 +436,12 @@ function ligneFicheFi(c, nom, o, peut, prenom){
       liste.unshift(['', '— à préciser —']);
       return fiEditeur(z, v, { titre: o.titre, choix: liste, valeur: o.valeur || '' }, (x) => {
         if(!x) return 'vide';
-        return poserCaseFiche(c, nom, { formation: x }, '🎓 Formation enregistrée');
+        const avant = o.valeur || '';
+        return poserCaseFiche(c, nom, { formation: x }, '🎓 Formation enregistrée').then(err => {
+          /* 🔗 v1568 — une formation qui ouvre des démarches : son dossier suit */
+          if(!err && x !== avant && typeof demarchesSelonLaFormation === 'function') demarchesSelonLaFormation(nom, x, avant);
+          return err;
+        });
       });
     }
     if(o.k === 'frise') return fiEditerFrise(c, nom, z, v, o);
