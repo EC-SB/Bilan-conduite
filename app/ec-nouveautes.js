@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 18:19 — v1564 */
+/* Déployé le 25/11/2026 à 11:08 — v1565 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1565,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '🩺 Démarches permis : ♿ Permis aménagé et ⛔ Suspension · annulation',
+    quoi: [
+      { emoji: '♿',
+        titre: 'Permis aménagé (à la place de ♿ Handicap)',
+        texte: 'Régularisation et premier permis aménagé : chaque dossier a ses étapes (médecin agréé, évaluation, DDTM, ANTS…), qui s’en occupe, ses papiers à déposer. Le rendez-vous DDTM reste 🔒 tant qu’il manque l’avis médical, la carte d’identité ou le permis. Les dossiers du classeur (onglet HANDICAP) sont repris : vérifiez leurs étapes.' },
+      { emoji: '⛔',
+        titre: 'Suspension · annulation',
+        texte: 'Suspension, annulation par le juge, invalidation (0 point) : visite médicale ou commission, examen psychotechnique (6 mois ou plus pour une suspension), ANTS, et pour une annulation : code seul ou code et conduite, avec la date limite des 9 mois.' },
+      { emoji: '✉️',
+        titre: 'Lui envoyer où il en est',
+        texte: 'Le message s’écrit tout seul : ce qui est fait, tout ce qui reste dans l’ordre, qui s’en occupe, les papiers qui manquent. Vouvoiement, ou Tutoyer. Il part par mail (la liste des médecins agréés jointe) ou dans sa messagerie, et il est proposé quand une étape passe à Fait.' },
+      { emoji: '🗺️',
+        titre: 'En bref, ⚡ Codes, 🔍 Maladies, 📇 Contacts',
+        texte: 'L’infographie des démarches sans créer de dossier, les codes probables (🚘 sur notre voiture, ❓ selon le médecin, ✖️ pas chez nous), ce que dit la règle pour une maladie, et les contacts. Un administrateur dépose la liste des médecins agréés dans 📇 Contacts.' },
+      { emoji: '📂',
+        titre: 'Dans le dossier de l’élève',
+        texte: 'L’onglet ♿ Démarches montre le même panneau. Tout le monde y a accès.' }
+    ]
+  },
   {
     version: 1564,
     date: 'Mardi 24 novembre 2026',
