@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:08 — v1565 */
+/* Déployé le 25/11/2026 à 11:27 — v1566 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1566,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '┃ Dans les bilans, la procédure se voit du début à la fin',
+    quoi: [
+      { emoji: '┃',
+        titre: 'La barre',
+        texte: 'Sous une erreur et dans « À travailler », les lignes recopiées d’une procédure sont décalées et commencent toutes par ┃, sous « 📘 La procédure que tu dois connaître par cœur : … ». On voit où elle commence et où elle s’arrête, même collé dans Messenger.' },
+      { emoji: '🟦',
+        titre: 'Le cadre bleu',
+        texte: 'Dans le mail du bilan, dans « Mes leçons » de son espace et dans l’historique du dossier, ces lignes sont dans un cadre bleu. Les procédures demandées à la voix, en fin de bilan, restent à part, sans cadre.' }
+    ]
+  },
   {
     version: 1565,
     date: 'Mercredi 25 novembre 2026',
