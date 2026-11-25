@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 13:36 — v1555 */
+/* Déployé le 25/11/2026 à 11:08 — v1565 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -203,7 +203,9 @@ const ONGLETS_ELEVE = [
      cours : qui peut lire un bilan peut lire ce qui l'a produit. */
   { cle:'quest',    emoji:'📋', titre:'Questionnaire', section:'recherche' },
   { cle:'financement', emoji:'💶', titre:'Financement', section:'financements' },
-  { cle:'handicap', emoji:'♿', titre:'Handicap',    section:'handicap' },
+  /* 🩺 v1565 — ses démarches permis : permis aménagé, suspension,
+     annulation (ec-handicap.js), le même panneau que les deux écrans */
+  { cle:'handicap', emoji:'♿', titre:'Démarches',   section:'demarches' },
   /* 🔒 RGPD : ADMINISTRATEURS SEULEMENT.
 
      Ses deux actions sont les plus lourdes de l'outil. L'export du
@@ -5419,39 +5421,26 @@ async function ongletFinancement(corps, nom){
    ♿ HANDICAP
    ============================================================ */
 async function ongletHandicap(corps, nom){
-  attenteDossier(corps, 'Lecture du suivi handicap…');
+  attenteDossier(corps, 'Lecture de ses démarches…');
 
-  /* ⚠️ « AUCUN SUIVI HANDICAP À SON NOM » — ALORS QU'IL Y EN AVAIT UN.
-
-     Le dossier de Pascal Gortais ne trouvait rien : son suivi est
-     rangé sous « Gortais Pascal ». La feuille du suivi handicap est
-     tenue en « Nom Prénom », tout le reste de l'outil en « Prénom
-     Nom ». Deux conventions, et deux écrans qui ne se reconnaissent
-     plus.
-
-     La lecture passe désormais par « resumeHandicap » — le MÊME
-     lecteur que la carte du cours, qui essaie le nom exact d'abord
-     et l'ordre des mots ensuite. Deux lecteurs auraient fini par ne
-     pas trouver les mêmes gens. */
-  let r = null;
+  /* 🩺 v1565 — LE MÊME PANNEAU QUE LES ÉCRANS (David : « l'onglet ♿ du
+     dossier de l'élève montre le même panneau »). ec-handicap.js lit
+     les dossiers une fois pour tous les écrans, et retrouve l'élève
+     quel que soit l'ordre de son nom (la feuille HANDICAP était tenue
+     en « Nom Prénom », le reste de l'outil en « Prénom Nom »). */
+  const zone = document.createElement('div');
   try{
-    if(typeof chargerHandicapSiBesoin !== 'function'){
-      throw new Error("Le suivi handicap n'est pas disponible ici.");
+    if(typeof panneauDemarchesEleve !== 'function'){
+      throw new Error("Les démarches permis ne sont pas disponibles ici.");
     }
-    await chargerHandicapSiBesoin();
-    r = resumeHandicap(nom);
+    await panneauDemarchesEleve(zone, nom);
   }catch(e){ return echecDossier(corps, e); }
 
   if(ongletPageEleve !== 'handicap') return;
   corps.innerHTML = '';
 
-  /* Le poste de conduite vient du répertoire, pas de cette feuille :
-     deux choses différentes, qu'on montre côte à côte.
-
-     ⚠️ EN LECTURE SEULE ICI, ET C'EST DÉLIBÉRÉ. Il se coche dans
-     l'onglet 📇 Fiche. Le rendre modifiable des deux endroits
-     ferait deux chemins d'écriture pour une même donnée — la faute
-     que ce dossier tout entier répare. */
+  /* Le poste de conduite vient du répertoire : en lecture seule ici, il
+     se coche dans l'onglet 📇 Fiche (un seul chemin d'écriture). */
   const p = (typeof posteDeConduite === 'function') ? posteDeConduite(nom) : {};
   if(p && (p.amenagee || p.coussin)){
     corps.appendChild(ligneDossier('🪑 Poste de conduite',
@@ -5460,66 +5449,7 @@ async function ongletHandicap(corps, nom){
       ' — se règle dans 📇 Fiche',
       'var(--accent-text)'));
   }
-
-  if(!r){
-    corps.appendChild(vidDossier('Aucun suivi handicap à son nom.'));
-    boutonEcranComplet(corps, '♿ Ouvrir le suivi handicap', 'handicap');
-    return;
-  }
-
-  /* ⚠️ ON MONTRAIT LES CLÉS TECHNIQUES.
-
-     « dossierDdtm : oui », « dateEval : 28/08 » — l'ancien code
-     parcourait l'objet et affichait ce qu'il trouvait, nom de
-     colonne compris. On montre maintenant ce que David a
-     demandé : le résumé, les étapes cochées, et la date du
-     rendez-vous DDTM — ou « à prendre » quand elle manque. */
-  const tete = [r.parcours, r.faites + '/' + r.total + ' étapes'].filter(Boolean);
-  corps.appendChild(ligneDossier(r.fini ? '✅ Dossier complet' : '♿ Où en est le dossier',
-    tete.join(' · '), r.fini ? 'var(--accent-text)' : 'var(--cream)'));
-
-  /* Le nom sous lequel il est rangé, quand il diffère : sans cette
-     ligne, on chercherait longtemps dans l'écran ♿. */
-  if(r.nomRange){
-    corps.appendChild(ligneDossier('🔤 Rangé sous', r.nomRange, 'var(--muted)'));
-  }
-
-  /* LE RENDEZ-VOUS DDTM, EN HAUT ET EN COULEUR.
-
-     C'est la seule information de cet écran qui appelle une action
-     du bureau. Un blanc ne dit rien ; « à prendre » dit quoi
-     faire. */
-  corps.appendChild(ligneDossier('📋 Rendez-vous DDTM',
-    r.ddtm.aPrendre ? 'Rendez-vous à prendre'
-                    : ('le ' + r.ddtm.date),
-    r.ddtm.aPrendre ? 'var(--orange)' : 'var(--accent-text)'));
-
-  if(r.pathologie) corps.appendChild(ligneDossier('🩺 Pathologie', r.pathologie));
-  if(r.equipement) corps.appendChild(ligneDossier('🔧 Équipement', r.equipement));
-
-  /* Les étapes, dans l'ordre où elles se déroulent, cochées ou non.
-     Les montrer TOUTES : ce qui reste à faire vaut ce qui est
-     fait, et une liste tronquée se lit comme un dossier fini. */
-  const zEt = document.createElement('div');
-  zEt.style.cssText = 'margin:10px 0 4px;';
-  r.etapes.forEach(et => {
-    const l = document.createElement('div');
-    l.style.cssText = 'display:flex;gap:9px;align-items:center;padding:4px 0;' +
-      'font-size:14px;line-height:1.5;';
-    l.innerHTML = '<span style="flex-shrink:0;">' + (et.fait ? '✅' : '⬜') + '</span>' +
-      '<span style="flex:1;min-width:0;color:' +
-        (et.fait ? 'var(--cream)' : 'var(--muted)') + ';">' +
-        et.nom.replace(/</g, '&lt;') + '</span>' +
-      (et.date ? '<span style="flex-shrink:0;font-size:12px;' +
-                 'color:var(--accent-text);">' +
-                 et.date.replace(/</g, '&lt;') + '</span>' : '');
-    zEt.appendChild(l);
-  });
-  corps.appendChild(zEt);
-
-  if(r.commentaire) corps.appendChild(ligneDossier('📝 Commentaire', r.commentaire));
-
-  boutonEcranComplet(corps, '♿ Ouvrir le suivi handicap', 'handicap');
+  corps.appendChild(zone);
 }
 
 
