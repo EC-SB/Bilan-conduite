@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:13 — v1505 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-aides.js — 🧮 LES AIDES AU PERMIS D'UN ÉLÈVE (v1285)
 
@@ -265,7 +265,7 @@ function aiGenerateurDeLEleve(nom){
     g.naissance = f.naissance || '';
     g.formation = f.formation || '';
     g.permis = aiPermisDeLaFormation(f.formation);
-    g.premier = !/Régularisation|Remise à niveau|Passerelle|passerelle/i.test(String(f.formation || ''));
+    g.premier = !/Régularisation|Remise à niveau|Passerelle|passerelle|Annulation|Suspension/i.test(String(f.formation || ''));
     g.mail = f.email || '';
     g.presc = f.mailPrescripteur || '';
     g.handicap = /aménag|Régularisation/i.test(String(f.formation || '')) || String(f.amenagee || '') === 'oui';
