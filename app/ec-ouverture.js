@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:08 — v1572 */
+/* Déployé le 25/11/2026 à 15:51 — v1574 */
 /* ============================================================
    ec-ouverture.js — 📅 GESTION › OUVERTURE DES COURS (v1572)
 
@@ -558,11 +558,11 @@ function dessinerOuverture(){
   /* l'extension : sans elle, on règle la semaine type, rien de plus */
   const v = (typeof EXT_DV !== 'undefined' && EXT_DV.version) || '';
   const present = typeof extDrivupPresente === 'function' && extDrivupPresente();
-  const vieille = present && v && v.split('.').map(Number).reduce((s, x, i) => s + x * [10000, 100, 1][i], 0) < 10800;
+  const vieille = present && v && v.split('.').map(Number).reduce((s, x, i) => s + x * [10000, 100, 1][i], 0) < 10801;
   if(!present || vieille){
     z.appendChild(ouvEl('div', 'ovWarn', !present
-      ? '🧩 L’extension « App EC · Drivup » n’est pas sur cet ordinateur : tu peux régler la semaine type, mais ouvrir, fermer et échanger se font depuis un ordinateur qui l’a (1.8.0).'
-      : '🧩 L’extension est en ' + ouvEch(v) + ' : il faut la 1.8.0 pour ouvrir, fermer et échanger (Gestion › 📥 Drivup).'));
+      ? '🧩 L’extension « App EC · Drivup » n’est pas sur cet ordinateur : tu peux régler la semaine type, mais ouvrir, fermer et échanger se font depuis un ordinateur qui l’a (1.8.1).'
+      : '🧩 L’extension est en ' + ouvEch(v) + ' : il faut la 1.8.1 pour ouvrir, fermer et échanger (Gestion › 📥 Drivup). La 1.8.0 ne posait que la durée par défaut des bureaux.'));
   }
   if(!ouvPeutModifier()) z.appendChild(ouvEl('div', 'ovNote', '👁️ En lecture : changer la semaine type ou écrire dans Drivup est réservé aux administrateurs.'));
   if(OUV.onglet === 'sem') dessinerSemaineOuv(z);
@@ -1155,7 +1155,14 @@ function dessinerOuvrirOuv(z){
   const a = o.apercu;
   if(a.manque.length) b3.appendChild(ouvEl('div', 'ovWarn', '⚠️ Prestation(s) introuvable(s) dans Drivup : ' + a.manque.map(k => '« ' + ouvEch(OUV_NOMS_PRESTA[k] || k) + ' »').join(', ') + ' — ces cours ne seront pas ouverts.'));
   a.lignes.forEach(l => b3.appendChild(ouvEl('div', 'ovLigne', '<b>' + ouvEch(l.nom) + '</b><span>' + ouvEch(l.detail) + '</span><span class="ovNb">' + l.n + ' à ouvrir</span>' +
+    (l.ajuster ? '<span class="ovNb">⏱️ ' + l.ajuster + ' à remettre à leurs heures</span>' : '') +
     (l.deja ? '<span class="ovNote">' + l.deja + ' déjà dans Drivup</span>' : ''))));
+  if(a.ajuster.length){
+    const ex = a.ajuster[0];
+    b3.appendChild(ouvEl('div', 'ovNote', '⏱️ ' + a.ajuster.length + ' cours déjà dans Drivup au bon début mais à la mauvaise fin (par exemple ' + ouvEch(ouvFrCourt(ex.jour) + ' ' + ouvH(ex.debut) + '-' + ouvH(ex.avant)) +
+      ' au lieu de ' + ouvEch(ouvH(ex.debut) + '-' + ouvH(ex.fin)) + ') : ils seront allongés ou raccourcis, comme quand on tire le bas du cours dans Drivup.'));
+    b3.lastChild.style.marginTop = '8px';
+  }
   b3.appendChild(ouvEl('div', 'ovNote', (a.feries.length ? '🎌 Sautés : ' + a.feries.map(ouvFrCourt).join(', ') + ' — ' : '') +
     'Ce qui est déjà dans Drivup n’est jamais doublé. L’extension utilise la répétition de Drivup (« chaque semaine, jusqu’au … ») : ' + a.series.length + ' envois pour ' + a.n + ' cours, puis elle vérifie que tout est dans le planning.'));
   b3.lastChild.style.marginTop = '8px';
@@ -1163,10 +1170,11 @@ function dessinerOuvrirOuv(z){
   if(o.bilan) z.appendChild(o.bilan);
   const act = ouvEl('div', 'ovRang');
   act.appendChild(ouvChip(false, '↻ Relire', () => { o.apercu = null; o.bilan = null; dessinerOuverture(); }));
-  const go = ouvEl('button', 'btn btn-primary', '📤 Ouvrir dans Drivup · ' + a.n + ' cours');
+  const go = ouvEl('button', 'btn btn-primary', a.n ? '📤 Ouvrir dans Drivup · ' + a.n + ' cours' + (a.ajuster.length ? ' · ⏱️ ' + a.ajuster.length + ' remis à leurs heures' : '')
+    : '⏱️ Remettre ' + a.ajuster.length + ' cours à leurs heures');
   go.type = 'button';
   go.style.cssText = 'width:auto;margin:0;';
-  go.disabled = !a.n || !mod || o.enCours;
+  go.disabled = (!a.n && !a.ajuster.length) || !mod || o.enCours;
   go.addEventListener('click', () => ouvrirDansDrivupOuv(go));
   act.appendChild(go);
   z.appendChild(act);
@@ -1182,10 +1190,18 @@ async function apercuOuv(bouton){
   const att = ouvAttendus(cfg, p.du, p.au, o.qui);
   const ev = d.evenements || [];
   const pris = (c) => ev.some(e => e.res === c.res && e.jour === c.jour && ouvMin(e.debut) < ouvMin(c.fin) && ouvMin(c.debut) < ouvMin(e.fin || e.debut));
+  /* ⏱️ v1574 — David : « ça ne met qu'une heure » (les bureaux, ouverts
+     avec l'extension 1.8.0). Un cours de la bonne prestation, au bon
+     début, mais qui ne finit pas à la bonne heure : on le remet à ses
+     heures au lieu de le compter « déjà là ». */
+  const aAjuster = [];
+  const aussi = (c) => ev.find(e => e.res === c.res && e.jour === c.jour && e.debut === c.debut && idDe[c.presta] && e.type === idDe[c.presta] && e.fin && e.fin !== c.fin);
   const aCreer = [], manque = {};
   const parGrp = {};
   att.cours.forEach(c => {
-    const g = parGrp[c.grp] = parGrp[c.grp] || { n: 0, deja: 0, jours: {}, cols: {}, extra: {} };
+    const g = parGrp[c.grp] = parGrp[c.grp] || { n: 0, deja: 0, ajuster: 0, jours: {}, cols: {}, extra: {} };
+    const mal = aussi(c);
+    if(mal){ g.ajuster++; aAjuster.push({ cle: mal.id, id: mal.id, res: mal.res, jour: mal.jour, debut: mal.debut, fin: c.fin, avant: mal.fin, grp: c.grp, presta: c.presta }); return; }
     if(pris(c)){ g.deja++; return; }
     if(!idDe[c.presta]){ manque[c.presta] = true; return; }
     g.n++; g.jours[c.jour] = 1; if(c.col) g.cols[c.col] = 1;
@@ -1199,16 +1215,16 @@ async function apercuOuv(bouton){
     const ex = Object.keys(g.extra).map(x => g.extra[x] + ' ' + OUV_NOMS_PRESTA[x]).join(' · ');
     return { nom: k === 'salle' ? '🏫 Salle' : k === 'bureaux' ? '🗂️ Bureaux' : k,
              detail: (k === 'salle' || k === 'bureaux' ? Object.keys(g.cols).length + (k === 'salle' ? ' colonnes' : ' personnes') + ' · ' : '') + semaines + ' jour' + (semaines > 1 ? 's' : '') + (ex ? ' · dont ' + ex : ''),
-             n: g.n, deja: g.deja };
+             n: g.n, deja: g.deja, ajuster: g.ajuster };
   });
-  o.apercu = { du: p.du, au: p.au, series: series, lignes: lignes, n: aCreer.length, manque: Object.keys(manque), feries: att.feries };
+  o.apercu = { du: p.du, au: p.au, series: series, lignes: lignes, n: aCreer.length, manque: Object.keys(manque), feries: att.feries, ajuster: aAjuster };
   dessinerOuverture();
 }
 async function ouvrirDansDrivupOuv(bouton){
   const o = OUV.ouvrir, a = o.apercu;
-  if(!a || !a.series.length || o.enCours) return;
-  if(!await confirmer('Ouvrir ' + a.n + ' cours dans Drivup, du ' + ouvFr(a.du) + ' au ' + ouvFr(a.au) + ' ?\n\n' +
-    a.lignes.map(l => '· ' + l.nom + ' : ' + l.n).join('\n') + '\n\nL’extension revérifie chaque créneau juste avant : rien de ce qui est déjà dans Drivup ne sera doublé.', '📤 Ouvrir dans Drivup')) return;
+  if(!a || (!a.series.length && !a.ajuster.length) || o.enCours) return;
+  if(!await confirmer((a.n ? 'Ouvrir ' + a.n + ' cours' : 'Remettre ' + a.ajuster.length + ' cours à leurs heures') + ' dans Drivup, du ' + ouvFr(a.du) + ' au ' + ouvFr(a.au) + ' ?\n\n' +
+    a.lignes.map(l => '· ' + l.nom + ' : ' + l.n + (l.ajuster ? ' (+ ' + l.ajuster + ' remis à leurs heures)' : '')).join('\n') + '\n\nL’extension revérifie chaque créneau juste avant : rien de ce qui est déjà dans Drivup ne sera doublé.', '📤 Ouvrir dans Drivup')) return;
   o.enCours = true;
   bouton.disabled = true;
   const z = document.getElementById('ouvZone');
@@ -1217,7 +1233,8 @@ async function ouvrirDansDrivupOuv(bouton){
   suivi.scrollIntoView({ block: 'nearest' });
   const barre = suivi.querySelector('.ovBarre span'), txt = suivi.querySelector('.ovNote');
   const resultats = [];
-  let erreur = '';
+  let erreur = '', ajustes = 0;
+  const ajustesRates = [];
   const PAQUET = 30;
   try{
     for(let i = 0; i < a.series.length; i += PAQUET){
@@ -1245,6 +1262,13 @@ async function ouvrirDansDrivupOuv(bouton){
         });
       }
     }
+    /* ⏱️ v1574 — les cours à remettre à leurs heures */
+    for(let i = 0; i < a.ajuster.length; i += 100){
+      txt.textContent = 'Remis à leurs heures : ' + i + ' / ' + a.ajuster.length + '…';
+      const r = await ouvExt({ type: 'drivup-cours-ajuster', liste: a.ajuster.slice(i, i + 100).map(x => ({ cle: x.cle, id: x.id, res: x.res, jour: x.jour, debut: x.debut, fin: x.fin })) },
+        'drivup-cours-ajustes', 900000);
+      (r.resultats || []).forEach(y => { if(y.ok) ajustes++; else ajustesRates.push(y.message); });
+    }
   }catch(e){ erreur = (e && e.message) || String(e); }
   o.enCours = false;
   const poses = resultats.reduce((s, x) => s + (x.presents || []).length, 0);
@@ -1253,7 +1277,8 @@ async function ouvrirDansDrivupOuv(bouton){
   a.series.forEach(s => { parCle[s.cle] = s; });
   const bilan = ouvEl('div', 'ovBoite');
   bilan.innerHTML = '<h4>' + (erreur ? '⚠️ Arrêté en route' : pb.length ? '✅ Ouvert, avec des points à voir' : '✅ Ouvert dans Drivup') + '</h4>' +
-    '<div class="ovLigne"><b>' + poses + ' cours</b><span>sont dans le planning Drivup</span></div>' +
+    '<div class="ovLigne"><b>' + poses + ' cours</b><span>ouverts, et dans le planning Drivup</span></div>' +
+    (a.ajuster.length ? '<div class="ovLigne"><b>⏱️ ' + ajustes + ' cours</b><span>remis à leurs heures' + (ajustesRates.length ? ' · ' + ajustesRates.length + ' pas faits : ' + ouvEch([...new Set(ajustesRates)].slice(0, 3).join(' · ')) : '') + '</span></div>' : '') +
     (erreur ? '<div class="ovWarn">' + ouvEch(erreur) + '<br>Relance « 📤 Ouvrir » : ce qui est fait ne sera pas doublé.</div>' : '') +
     pb.slice(0, 40).map(x => { const s = parCle[x.cle] || {}; return '<div class="ovLigne"><b>' + ouvEch(s.grp || '') + '</b><span>' + ouvEch((OUV_NOMS_PRESTA[s.presta] || '') + ' · ' + OUV_JOURS[ouvJourSem(s.dates ? s.dates[0] : ouvAuj())] + ' ' + ouvH(s.debut)) +
       '</span><span class="ovNote">' + ouvEch(x.message || ((x.manquants || []).length + ' jour(s) absents')) + '</span></div>'; }).join('') +
@@ -1262,7 +1287,7 @@ async function ouvrirDansDrivupOuv(bouton){
   o.bilan = bilan;
   o.apercu = null;
   dessinerOuverture();
-  showToast(erreur ? '⚠️ Ouverture arrêtée : ' + erreur : '📤 ' + poses + ' cours ouverts dans Drivup');
+  showToast(erreur ? '⚠️ Ouverture arrêtée : ' + erreur : '📤 ' + poses + ' cours ouverts dans Drivup' + (ajustes ? ' · ⏱️ ' + ajustes + ' remis à leurs heures' : ''));
 }
 
 /* ============================================================
