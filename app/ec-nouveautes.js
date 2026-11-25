@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 12:04 — v1568 */
+/* Déployé le 25/11/2026 à 13:24 — v1569 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1569,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '📣 Élèves › Relances : faire bouger ceux qui ne conduisent plus, ceux qui ont du stock, ceux dont l’examen blanc arrive',
+    quoi: [
+      { emoji: '📣',
+        titre: 'Un nouvel écran : Élèves › 📣 Relances',
+        texte: 'Sous Suivi des appels. Des filtres qui se mélangent : 💤 pas conduit depuis un nombre de jours ou une date (le simulateur compté si tu veux), 📦 au moins tant d’heures en stock, 🗓️ rien de posé ou des leçons posées, 🅱️ pas encore d’examen blanc, normalement dans tant de leçons, frise dépassée, posé, passé avec son résultat, 🎓 examen dans moins de tant de jours, ajourné, et la formation, l’agence, le moniteur, la dernière relance. Chaque ligne dit pourquoi l’élève est là.' },
+      { emoji: '⭐',
+        titre: 'Les filtres gardés',
+        texte: 'Pour toute l’équipe : un appui remet le filtre. Quatre au départ (dormeurs avec du stock, examen blanc bientôt, pas le niveau, examen dans 3 semaines) ; « ＋ Garder ce filtre » ajoute celui que tu viens de régler.' },
+      { emoji: '📨',
+        titre: 'Relancer en un appui',
+        texte: '« Relancer ces élèves » ouvre la fenêtre des relances : par mail, par la messagerie de l’appli, et 📞 en file d’appels (le téléphone de l’appli les appelle l’un après l’autre). Le message se remplit pour chacun : ses jours sans conduire, ses heures en stock, sa leçon, son moniteur et des créneaux libres de sa boîte. Les messages de départ sont dans Outils › Ce qu’on écrit.' },
+      { emoji: '📦',
+        titre: 'Le stock, lu dans Drivup',
+        texte: 'Sa page Facturer est lue une fois par jour avec son planning : heures de conduite achetées, moins celles faites, moins celles posées (pas les 30 mn). Il faut l’extension « App EC · Drivup » 1.7.0. Le stock et les jours sans conduire s’affichent aussi dans « Où il en est » de son dossier.' }
+    ]
+  },
   {
     version: 1568,
     date: 'Mercredi 25 novembre 2026',
