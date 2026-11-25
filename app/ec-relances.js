@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:13 — v1382 */
+/* Déployé le 25/11/2026 à 13:24 — v1569 */
 /* ============================================================
    ec-relances.js — 📨 LES RELANCES DE L'ONGLET PERMIS — v1380
 
@@ -86,6 +86,8 @@ function rlHeures(nom){
   return (typeof motsDeLaReserve === 'function') ? motsDeLaReserve(v, false) : v + ' h';
 }
 function rlEmail(nom){ const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null; return String((f && f.email) || '').trim(); }
+/* 📞 v1568 — son portable, pour la file d'appels (relances conduite) */
+function rlTel(nom){ const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null; return String((f && f.telephone) || '').trim(); }
 /* La messagerie de l'appli ne sert que s'il a déjà son code (venu ou accès envoyé) */
 function rlAppli(nom){
   const e = (typeof etatAccesDe === 'function') ? etatAccesDe(nom) : null;
@@ -218,8 +220,8 @@ function rlPoserLeCompte(n){
 }
 
 /* ---------- le message : modèle, objet, variables ---------- */
-function rlModele(type){
-  const t = RL_TYPES[type];
+function rlModele(type, tDonne){
+  const t = tDonne || RL_TYPES[type];
   const m = (typeof modelesTexte !== 'undefined' ? modelesTexte : []).find(x => x.usage === t.usage && String(x.contenu || '').trim());
   const brut = m ? String(m.contenu) : t.defaut;
   const o = brut.match(/^\s*Objet\s*:\s*(.*)\n+/i);
@@ -260,8 +262,8 @@ async function rlSignatureHtml(){
 }
 
 /* ---------- la fenêtre ---------- */
-async function ouvrirRelance(type){
-  const t = RL_TYPES[type];
+async function ouvrirRelance(type, tDonne){
+  const t = tDonne || RL_TYPES[type];
   if(!t) return;
   rlStyle();
   if(typeof styleLignesCompactes === 'function') styleLignesCompactes();
@@ -280,12 +282,18 @@ async function ouvrirRelance(type){
   if(typeof chargerEtatAcces === 'function') attentes.push(chargerEtatAcces());
   if(type === 'rdv' && typeof chargerRdvPostDrivup === 'function') attentes.push(chargerRdvPostDrivup());
   if(type === 'repass') attentes.push(rlLireCoursDrivup());
+  if(typeof t.charger === 'function') attentes.push(t.charger());
   await Promise.all(attentes.map(p => Promise.resolve(p).catch(() => {})));
 
-  const gens = rlCandidats(type);
+  /* 📣 v1568 — une relance peut apporter ses élèves (Élèves › 📣 Relances :
+     la liste des filtres), son téléphone, ses mots à insérer et sa façon de
+     les remplir ; les trois relances du permis ne changent pas. */
+  const gens = t.candidats ? t.candidats() : rlCandidats(type);
   const pris = new Set(gens.filter(g => !g.gris).map(g => g.nom));
-  const canal = { mail: true, appli: true };
-  const mod = rlModele(type);
+  const canal = { mail: true, appli: true, appels: false };
+  const R = (x, nom, sig) => rlRemplir(t.remplir ? t.remplir(x, nom) : x, nom, sig);
+  const cleRelance = t.cle || type;
+  const mod = rlModele(type, t);
   let vu = 0;
 
   boite.innerHTML = '';
@@ -329,7 +337,8 @@ async function ouvrirRelance(type){
     const cn = document.createElement('span');
     cn.className = 'rlCan';
     cn.innerHTML = '<span class="rlC ' + (mail ? 'ok' : 'non') + '" title="' + rlEch(mail || 'pas d’adresse mail dans sa fiche') + '">✉️ ' + (mail ? 'mail' : 'pas de mail') + '</span>' +
-                   '<span class="rlC ' + (appli ? 'ok' : 'non') + '">💬 ' + (appli ? 'appli' : 'pas d’accès') + '</span>';
+                   '<span class="rlC ' + (appli ? 'ok' : 'non') + '">💬 ' + (appli ? 'appli' : 'pas d’accès') + '</span>' +
+                   (t.appels ? '<span class="rlC ' + (rlTel(g.nom) ? 'ok' : 'non') + '">📞 ' + (rlTel(g.nom) ? 'tél.' : 'pas de tél.') + '</span>' : '');
     l.append(c, tx, cn);
     liste.appendChild(l);
   });
@@ -355,6 +364,10 @@ async function ouvrirRelance(type){
   };
   const swMail = sw('mail', '✉️ Par mail');
   const swAppli = sw('appli', '💬 Messagerie de l’appli');
+  /* 📞 v1568 — la file d'appels : le téléphone de l'appli les appelle l'un
+     après l'autre, sa fiche à l'écran (« Tout rappeler ») */
+  const swAppels = t.appels ? sw('appels', '📞 File d’appels') : null;
+  if(swAppels){ swAppels.classList.remove('on'); canaux.style.gridTemplateColumns = 'repeat(auto-fit,minmax(200px,1fr))'; }
   boite.appendChild(canaux);
 
   /* ③ le message */
@@ -373,7 +386,7 @@ async function ouvrirRelance(type){
   const vars = document.createElement('div');
   vars.className = 'rlVars';
   vars.innerHTML = '<span>Insérer :</span>';
-  ['{prenom}', '{dateexamen}', '{heures}', '{lien}', '{centre}', '{signature}'].forEach(v => {
+  (t.variables || ['{prenom}', '{dateexamen}', '{heures}', '{lien}', '{centre}', '{signature}']).forEach(v => {
     const b = document.createElement('button');
     b.type = 'button'; b.textContent = v;
     b.addEventListener('click', () => {
@@ -417,9 +430,14 @@ async function ouvrirRelance(type){
     const nM = l.filter(g => rlEmail(g.nom)).length, nA = l.filter(g => rlAppli(g.nom)).length;
     swMail.querySelector('small').textContent = nM + ' sur ' + l.length + ' ont une adresse' + (nM < l.length ? ' — les autres ne le recevront pas par mail' : '');
     swAppli.querySelector('small').textContent = nA + ' sur ' + l.length + ' ont accès à leur espace';
+    const nT = l.filter(g => rlTel(g.nom)).length;
+    if(swAppels) swAppels.querySelector('small').textContent = nT + ' sur ' + l.length + ' ont un portable · sa fiche à chaque numéro';
     const joignables = l.filter(g => (canal.mail && rlEmail(g.nom)) || (canal.appli && rlAppli(g.nom)));
-    bOk.disabled = !joignables.length;
-    bOk.textContent = '📨 Envoyer à ' + joignables.length + ' élève' + (joignables.length > 1 ? 's' : '');
+    const aAppeler = canal.appels ? nT : 0;
+    bOk.disabled = !joignables.length && !aAppeler;
+    bOk.textContent = joignables.length
+      ? '📨 Envoyer à ' + joignables.length + ' élève' + (joignables.length > 1 ? 's' : '') + (aAppeler ? ' + 📞 ' + aAppeler : '')
+      : '📞 Lancer la file d’appels (' + aAppeler + ')';
     /* l'aperçu : le texte exact que reçoit chacun */
     ap.innerHTML = '';
     if(!l.length){ ap.innerHTML = '<div class="rlApT">Personne n’est coché.</div>'; return; }
@@ -438,10 +456,10 @@ async function ouvrirRelance(type){
     tt.appendChild(nav);
     const ob = document.createElement('div');
     ob.className = 'rlApO';
-    ob.textContent = 'Objet : ' + rlRemplir(objet.value, g.nom, '');
+    ob.textContent = 'Objet : ' + R(objet.value, g.nom, '');
     const bd = document.createElement('div');
     bd.className = 'rlApB';
-    bd.textContent = rlRemplir(ta.value, g.nom, rlSignatureTexte());
+    bd.textContent = R(ta.value, g.nom, rlSignatureTexte());
     ap.append(tt, ob, bd);
   }
   maj();
@@ -454,20 +472,23 @@ async function ouvrirRelance(type){
     bOk.disabled = true; bA.disabled = true;
     const sigHtml = canal.mail ? await rlSignatureHtml() : '';
     let nMail = 0, nAppli = 0, i = 0;
-    const injoignables = [], rates = [];
+    const injoignables = [], rates = [], file = [];
     for(const g of l){
       i++;
       bOk.textContent = '📨 Envoi ' + i + ' / ' + l.length + '…';
       const mail = canal.mail ? rlEmail(g.nom) : '';
       const appli = canal.appli && rlAppli(g.nom);
-      if(!mail && !appli){ injoignables.push(g.nom); continue; }
+      const tel = canal.appels ? rlTel(g.nom) : '';
+      if(tel) file.push({ id: 'rl' + i, numero: tel, eleve: g.nom, heure: g.court || '' });
+      if(!mail && !appli && !tel){ injoignables.push(g.nom); continue; }
       const via = [];
+      if(tel) via.push('appel');
       if(mail){
         try{
           /* le corps sans {signature} : la vraie signature (avec son logo) suit */
-          const corps = rlEnHtml(rlRemplir(texte, g.nom, '').replace(/\n+$/, ''));
+          const corps = rlEnHtml(R(texte, g.nom, '').replace(/\n+$/, ''));
           const r = await appelPrep({ action: 'mailEnvoyer', a: [{ nom: g.nom, adresse: mail }], cc: [], cci: [],
-            sujet: rlRemplir(sujet, g.nom, ''), html: corps + (sigHtml ? '<div><br></div>' + sigHtml : '<div><br></div><div>' + rlEch(rlSignatureTexte()) + '</div>'),
+            sujet: R(sujet, g.nom, ''), html: corps + (sigHtml ? '<div><br></div>' + sigHtml : '<div><br></div><div>' + rlEch(rlSignatureTexte()) + '</div>'),
             pieces: [], fil: 0, repondA: 0, mode: 'nouveau', brouillon: '', eleve: g.nom });
           if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
           via.push('mail'); nMail++;
@@ -475,15 +496,15 @@ async function ouvrirRelance(type){
       }
       if(appli){
         try{
-          const r = await appelPrep({ action: 'messageBureauEleve', eleve: g.nom, texte: rlRemplir(texte, g.nom, rlSignatureTexte()), motif: 'post-permis' });
+          const r = await appelPrep({ action: 'messageBureauEleve', eleve: g.nom, texte: R(texte, g.nom, rlSignatureTexte()), motif: 'post-permis' });
           if(r && r.status === 'error') throw new Error(r.message || 'refusé');
           via.push('appli'); nAppli++;
         }catch(err){ rates.push(g.nom + ' (messagerie : ' + (err.message || err) + ')'); }
       }
       if(via.length){
         const rel = rlRelances(g.nom);
-        const avant = rel[type] || {};
-        rel[type] = { le: rlMaintenant(), par: rlMoi(), n: Number(avant.n || 0) + 1, via: via.join(',') };
+        const avant = rel[cleRelance] || {};
+        rel[cleRelance] = { le: rlMaintenant(), par: rlMoi(), n: Number(avant.n || 0) + 1, via: via.join(',') };
         try{ await majSuivi(g.nom, { relances: JSON.stringify(rel) }); }
         catch(err){ rates.push(g.nom + ' (la date de relance ne s’est pas notée : ' + (err.message || err) + ')'); }
       }
@@ -493,14 +514,17 @@ async function ouvrirRelance(type){
     const cr = document.createElement('div');
     cr.className = 'rlBilan';
     cr.innerHTML = '<b>✅ Relance partie</b> · ✉️ ' + nMail + ' mail' + (nMail > 1 ? 's' : '') + ' · 💬 ' + nAppli + ' message' + (nAppli > 1 ? 's' : '') +
+      (file.length ? ' · 📞 ' + file.length + ' dans la file d’appels' : '') +
       (injoignables.length ? '<div>⚠️ Sans moyen de le joindre : ' + rlEch(injoignables.join(', ')) + '</div>' : '') +
       (rates.length ? '<div class="rlRate">⚠️ ' + rlEch(rates.join(' · ')) + '</div>' : '');
     const bF = document.createElement('button');
     bF.type = 'button'; bF.className = 'btn btn-primary'; bF.textContent = 'Fermer';
     bF.addEventListener('click', () => fond.remove());
     pied.append(cr, bF);
-    if(typeof showToast === 'function') showToast('📨 Relance envoyée');
-    afficherRelances();
+    if(typeof showToast === 'function') showToast(nMail || nAppli ? '📨 Relance envoyée' : '📞 File d’appels prête');
+    /* 📞 v1568 — la file d'appels part en dernier : le téléphone s'ouvre par-dessus */
+    if(file.length && typeof telToutRappeler === 'function') telToutRappeler(file);
+    if(typeof t.apres === 'function') t.apres(); else afficherRelances();
   });
 }
 function rlEtape(n, titre){
