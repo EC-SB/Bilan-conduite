@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:27 — v1566 */
+/* Déployé le 25/11/2026 à 13:24 — v1569 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -350,6 +350,8 @@ const SECTIONS = [
   /* 🩺 v1565 — les démarches permis (♿ Permis aménagé, ⛔ Suspension ·
      annulation, l'onglet du dossier) : tout le monde par le rôle (David) */
   { cle:'demarches',        nom:'🩺 Démarches permis', onglet:'eleves' },
+  /* 📣 v1568 — Élèves › 📣 Relances (ec-relances-conduite.js) */
+  { cle:'relances',         nom:'📣 Relances conduite', onglet:'eleves' },
   { cle:'paiement',         nom:'💳 Paiement en plusieurs fois', onglet:'eleves' },
   { cle:'placesbe',         nom:'🚚 Demande de places BE', onglet:'outils' },
   { cle:'evaluation',       nom:'📊 Évaluation de départ', onglet:'eleves' },
