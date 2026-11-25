@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 12:04 — v1568 */
+/* Déployé le 25/11/2026 à 13:24 — v1569 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1271,6 +1271,9 @@ function tuilesDuDossier(nom){
         (p.prep ? '' : ' — pas encore préparée') });
     }
     lignes.push({ txt: frise || (p.fait && p.fait.total ? '' : 'ni leçon ni frise connues') });
+    /* 📣 v1568 — son stock, ses jours sans conduire, sa dernière relance
+       (David : « oui » à la ligne dans « Où il en est ») */
+    if(typeof lignesConduiteDossier === 'function') lignesConduiteDossier(nom).forEach(l => lignes.push(l));
 
     /* Corriger d'ici — v1128, accepté par David : « oui ça me va ».
        Avec un cours préparé, on écrit ses deux cases, exactement
@@ -5507,6 +5510,10 @@ function rafraichirTuilesDossier(nom){
 }
 function chargerPourLesTuilesDossier(nom){
   if(!nom) return;
+  /* 📣 v1568 — son stock et ses jours sans conduire (sa fiche Drivup, résumée) */
+  if(typeof chargerConduiteDossier === 'function'){
+    chargerConduiteDossier(nom).then(neuf => { if(neuf) rafraichirTuilesDossier(nom); }).catch(() => {});
+  }
   /* ① l'état du bureau */
   const bureauVide = !(typeof etatBureau !== 'undefined' && etatBureau &&
                        Array.isArray(etatBureau.suivi) && etatBureau.suivi.length);
