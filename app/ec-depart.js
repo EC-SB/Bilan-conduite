@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 18:19 — v1564 */
+/* Déployé le 25/11/2026 à 11:27 — v1566 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -960,13 +960,25 @@ function ouvrirAncienBilan(item, row){
   tete.appendChild(gauche); tete.appendChild(bFermer);
   bloc.appendChild(tete);
 
-  const texte = document.createElement('textarea');
-  texte.readOnly = true;
-  texte.rows = 14;
-  texte.value = String(item.bilan || '');
-  texte.style.cssText = 'width:100%;font-family:inherit;font-size:14px;line-height:1.6;' +
-    'resize:vertical;';
-  bloc.appendChild(texte);
+  /* ┃ v1566 — un bilan qui recopie des procédures se lit avec leur cadre
+     bleu (David : « bien voir ce qui vient de la transcription et ce qui
+     vient des procédures ») ; les autres restent dans leur case. */
+  if(/^\s*┃/m.test(String(item.bilan || '')) && typeof htmlTexteAvecCadresProcedure === 'function'){
+    const lu = document.createElement('div');
+    const ech = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    lu.innerHTML = htmlTexteAvecCadresProcedure(ech(item.bilan).split('\n'), true);
+    lu.style.cssText = 'font-size:14px;line-height:1.6;max-height:60vh;overflow-y:auto;' +
+      'border:1px solid var(--line);border-radius:10px;padding:10px 12px;user-select:text;';
+    bloc.appendChild(lu);
+  }else{
+    const texte = document.createElement('textarea');
+    texte.readOnly = true;
+    texte.rows = 14;
+    texte.value = String(item.bilan || '');
+    texte.style.cssText = 'width:100%;font-family:inherit;font-size:14px;line-height:1.6;' +
+      'resize:vertical;';
+    bloc.appendChild(texte);
+  }
 
   if(String(item.note || '').trim()){
     const n = document.createElement('div');
@@ -1010,12 +1022,14 @@ function ouvrirAncienBilan(item, row){
   bCopier.addEventListener('click', async e => {
     e.stopPropagation();
     try{
-      await navigator.clipboard.writeText(texte.value);
+      /* le texte tel qu'il est écrit, barre ┃ comprise (pour Messenger) */
+      await navigator.clipboard.writeText(String(item.bilan || ''));
       bCopier.textContent = '✅ Copié';
       setTimeout(() => { bCopier.textContent = '📋 Copier le texte'; }, 1600);
     }catch(err){
-      texte.select();
-      showToast('Sélectionné — fais copier');
+      const t = bloc.querySelector('textarea');
+      if(t){ t.select(); showToast('Sélectionné — fais copier'); }
+      else showToast('Copie impossible : sélectionne le texte à la main');
     }
   });
   rangee.appendChild(bCopier);
