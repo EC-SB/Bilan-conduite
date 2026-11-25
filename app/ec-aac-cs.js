@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 13:53 — v1570 */
+/* Déployé le 25/11/2026 à 14:22 — v1571 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -2270,7 +2270,8 @@ function comptesTourRvt(t){
 }
 
 
-function carteTourRvt(t){
+function carteTourRvt(t, opts){
+  opts = opts || {};
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
     'padding:11px 13px;margin-bottom:12px;';
@@ -2559,7 +2560,7 @@ function carteTourRvt(t){
       }));
   }
 
-  if(retenu){
+  if(retenu && !opts.sansAnnuler){
     act.appendChild(petitBouton('↩️ Annuler ce rendez-vous',
       'Le rendez-vous n\'a pas lieu — la proposition rouvre',
       () => annulerRendezVousRvt(t, retenu)));
@@ -3209,7 +3210,30 @@ function carteRvtPrevu(p){
     'Chacun reçoit sa convocation avec son lien',
     () => rappelerTousRvt(p)));
 
+  /* ↩️ v1571 — DÉFAIRE SE FAIT ICI, SUR LA CARTE DU RENDEZ-VOUS.
+
+     David, le 25 novembre : « je ne vois pas le bouton annuler ce
+     rendez-vous ». Il n'était que sur la grille de la proposition —
+     et une proposition dont la date est retenue et à venir ne
+     s'affiche QUE dans « Prévus », sans sa grille. Le geste existait,
+     on ne pouvait pas l'atteindre. */
+  act.appendChild(petitBouton('↩️ Annuler ce rendez-vous',
+    'Le rendez-vous n\'a pas lieu — la proposition rouvre avec toutes ses réponses',
+    () => annulerRendezVousRvt(t, c)));
+
   d.appendChild(act);
+
+  /* 📋 v1571 — ET LES RÉPONSES SE RELISENT. La grille de la
+     proposition (qui a dit oui à quelle date), repliée : c'est d'elle
+     qu'on part pour changer de date — « ↩️ Changer pour le … ». */
+  const det = document.createElement('details');
+  det.style.cssText = 'margin-top:10px;';
+  const som = document.createElement('summary');
+  som.style.cssText = 'cursor:pointer;font-size:12.5px;color:var(--muted);padding:4px 0;';
+  som.textContent = '📋 Toutes les réponses de la proposition (et changer de date)';
+  det.appendChild(som);
+  det.appendChild(carteTourRvt(t, { sansAnnuler: true }));
+  d.appendChild(det);
   return d;
 }
 
@@ -5105,6 +5129,33 @@ function situationRelanceAac(x){
   };
 }
 
+/* 🗣️ v1571 — où en est l'élève pour le rendez-vous théorique, lu dans
+   les propositions (toursRvt, chargées avec la liste AAC) :
+   · « prevu »   une date retenue pour lui, aujourd'hui ou plus tard ;
+   · « attente » dans une proposition ouverte, il a répondu ;
+   · « sondage » dans une proposition ouverte, pas encore répondu. */
+function rvtDeLEleveAac(nom){
+  const n = normaliserMot(nom);
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const sien = t => (t.eleves || []).filter(e => normaliserMot(e.eleve) === n)[0] || null;
+  for(const t of (toursRvt || [])){
+    if(!t.clos || !t.retenu) continue;
+    const e = sien(t);
+    if(!e || e.retenu !== 'oui') continue;
+    const c = (t.creneaux || []).filter(x => String(x.id) === String(t.retenu))[0];
+    if(!c || !c.date || c.date < auj) continue;
+    return { etat: 'prevu', date: c.date, heure: c.heure || '',
+             lieu: nomLieuRdv(c.lieuCle) || String(c.lieu || '').split(' — ')[0] };
+  }
+  for(const t of (toursRvt || [])){
+    if(t.clos) continue;
+    const e = sien(t);
+    if(!e || e.accesRetire) continue;
+    return { etat: e.reponduLe ? 'attente' : 'sondage' };
+  }
+  return null;
+}
+
 function prenomAac(nom){ return String(nom || '').trim().split(/\s+/)[0] || ''; }
 
 function etatDansLeMailAac(e){
@@ -5148,12 +5199,34 @@ function texteRelanceAac(x, choix){
   if(choix.examen) demandes.push('  · quand ' + p + ' souhaite passer l\'examen.');
   if(demandes.length){
     if(demandes.length === 1) demandes[0] = demandes[0].replace(/ ;$/, '.');
-    l.push('Pour les organiser, dites-nous-le en quelques appuis :');
+    /* v1571 — David : « dites-nous-le en quelques appuis » n'était
+       pas clair. On dit ce qu'il faut faire : cliquer sur le lien. */
+    l.push('Pour les organiser, merci de nous répondre en cliquant sur le lien ci-dessous :');
     demandes.forEach(d => l.push(d));
     l.push('', LIEN_AAC_VISIBLE, '');
   }
   if(choix.rvt){
-    l.push('Le rendez-vous théorique, lui, se fixe à plusieurs familles : vous recevrez un sondage à part.', '');
+    /* 🗣️ v1571 — LE THÉORIQUE SE DIT TEL QU'IL EST. David : « si on
+       relance un élève et que le rendez-vous théorique est prévu, il
+       faut le mettre, et s'il a répondu au rendez-vous théorique, dire
+       qu'on attend toutes les réponses pour valider la date ». La
+       phrase d'avant annonçait un sondage à venir à une famille déjà
+       convoquée — ou qui venait d'y répondre. */
+    const th = rvtDeLEleveAac(x.eleve);
+    if(th && th.etat === 'prevu'){
+      l.push('Le rendez-vous théorique est prévu le ' + jourFrCs(th.date) +
+        (th.heure ? ' à ' + th.heure : '') + (th.lieu ? ', à ' + th.lieu : '') + '.', '');
+    }else if(th && th.etat === 'attente'){
+      l.push('Pour le rendez-vous théorique, merci pour votre réponse : nous attendons celles de toutes les familles pour valider la date, et nous vous la confirmerons.', '');
+    }else if(th && th.etat === 'sondage'){
+      l.push('Pour le rendez-vous théorique, nous vous avons envoyé un sondage : merci d’y répondre, nous attendons les réponses de toutes les familles pour valider la date.', '');
+    }else if(x.rdv.rvt.cle === 'prevu'){
+      /* prévu dans son suivi, sans proposition retrouvée : la date du suivi */
+      const dt = String(x.rdv.rvt.txt || '').match(/\d{2}\/\d{2}\/\d{4}/);
+      l.push('Le rendez-vous théorique est prévu' + (dt ? ' le ' + dt[0] : '') + '.', '');
+    }else{
+      l.push('Le rendez-vous théorique, lui, se fixe à plusieurs familles : vous recevrez un sondage à part.', '');
+    }
   }
   l.push(TEXTE_3_RDV_AAC
     .replace('{rvp1}', etatDansLeMailAac(x.rdv.rvp1))
