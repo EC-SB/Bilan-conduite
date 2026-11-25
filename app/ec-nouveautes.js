@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:18 — v1573 */
+/* Déployé le 25/11/2026 à 15:51 — v1574 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1574,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '⏱️ Ouverture des cours : les bureaux à leurs vraies heures (extension 1.8.1), et le Suivi AAC attend son chargement',
+    quoi: [
+      { emoji: '⏱️',
+        titre: 'Les bureaux à 10h-12h et 13h-18h',
+        texte: 'Avec l’extension 1.8.0, un bureau ouvert ne prenait que la durée de base (1h). La 1.8.1 pose les vraies heures. Et l’aperçu de 📤 Ouvrir repère les cours déjà là au bon début mais à la mauvaise fin : « ⏱️ N à remettre à leurs heures » — un appui les allonge dans Drivup, comme quand on tire le bas du cours.' },
+      { emoji: '⏳',
+        titre: 'Suivi AAC : « Lecture du suivi… »',
+        texte: 'La liste attend que le suivi soit lu avant de se dessiner. Avant, pendant le chargement, chaque élève avait l’air de n’avoir aucun rendez-vous (« date à renseigner »).' }
+    ]
+  },
   {
     version: 1573,
     date: 'Mercredi 25 novembre 2026',
