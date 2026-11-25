@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:51 — v1574 */
+/* Déployé le 25/11/2026 à 16:32 — v1575 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1575,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '📣 Relances conduite : toutes les dates d’inscription d’un coup, et ceux qui n’ont jamais conduit comptent',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Toutes les dates d’inscription, d’un coup',
+        texte: 'La date n’arrivait qu’avec la relecture du planning de chaque élève (20 tous les quarts d’heure) : les autres restaient sans date, en bas de la liste. Avec l’extension 1.8.2, la liste entière des élèves de Drivup est gardée en une fois, à la première lecture.' },
+      { emoji: '💤',
+        titre: '« Pas conduit depuis » : ceux qui n’ont jamais conduit aussi',
+        texte: 'Un élève qui n’a que du code, des tablettes ou du simulateur dans son planning était écarté (pas de dernière leçon). Il compte maintenant depuis son inscription, ou son dernier simulateur s’il est plus récent : inscrit il y a moins de 15 jours, il n’y est pas.' }
+    ]
+  },
   {
     version: 1574,
     date: 'Mercredi 25 novembre 2026',
