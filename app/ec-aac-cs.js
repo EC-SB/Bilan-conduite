@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:18 — v1573 */
+/* Déployé le 25/11/2026 à 15:51 — v1574 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -712,6 +712,7 @@ function redessinerAacCs(){
 
 
 /* Le tour des deux listes, redessiné après chaque geste. */
+let suiviAacEnLecture = null;
 async function afficherAacCs(){
   const zC = $('listeCs');
   const zA = $('listeAac');
@@ -722,6 +723,20 @@ async function afficherAacCs(){
   if(typeof chargerFiches === 'function' &&
      (typeof fichesEleves === 'undefined' || !fichesEleves.length)){
     try{ await chargerFiches(); }catch(e){}
+  }
+  /* ⏳ v1574 — LE SUIVI AVANT DE DESSINER. David, le 25 novembre : « ta
+     mise à jour m'a perdu les dates de préalable, je n'ai plus les
+     boutons pour relancer » — puis « tout est revenu le temps que ça a
+     mis à charger ». Rien n'était perdu : la liste se dessinait avant
+     que le suivi soit lu, et chaque élève avait l'air de n'avoir aucun
+     rendez-vous (« date à renseigner »). On attend le suivi, en disant
+     qu'on le lit. */
+  if(typeof chargerBureau === 'function' &&
+     !(typeof etatBureau !== 'undefined' && etatBureau && Array.isArray(etatBureau.suivi) && etatBureau.suivi.length)){
+    [zA, zC].forEach(z => { if(z) z.innerHTML = '<div class="empty">⏳ Lecture du suivi…</div>'; });
+    /* une seule lecture, même si l'écran se redessine pendant qu'elle court */
+    if(!suiviAacEnLecture) suiviAacEnLecture = Promise.resolve(chargerBureau(false)).catch(() => {}).then(() => { suiviAacEnLecture = null; });
+    await suiviAacEnLecture;
   }
 
   /* Les tours de rendez-vous théorique : ils décident de ce que la
