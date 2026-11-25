@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 13:24 — v1569 */
+/* Déployé le 25/11/2026 à 15:08 — v1572 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -509,6 +509,9 @@ const VUES = {
            /* 📥 v1523 — l'extension Drivup : connexions, rythmes, du nouveau
               (le schéma : juste avant le Coffre-fort) */
            ['drivup',     '📥 Drivup',                  'admin',        'L’outil'],
+           /* 📅 v1572 — l'ouverture des cours (ec-ouverture.js) : David, « Gestion,
+              sous 📥 Drivup ». Administrateurs par le rôle, comme Drivup. */
+           ['ouverture',  '📅 Ouverture des cours',     'admin',        'L’outil'],
            ['coffre',     '🔐 Coffre-fort',             'coffre',      'L’outil'],
            ['admin',      '⚙️ Accès',                  'admin',        'L’outil'],
            /* 🤖 v1511 — l'IA d'Allo : ce qu'elle dit, ses consignes, ses
@@ -1801,6 +1804,7 @@ function construireBarresVues(){
       if(cle === 'base')    return ACCES.role === 'admin';      /* v1503 */
       if(cle === 'allo')    return ACCES.role === 'admin';      /* v1511 */
       if(cle === 'drivup')  return ACCES.role === 'admin';      /* v1523 */
+      if(cle === 'ouverture') return ACCES.role === 'admin';    /* v1572 */
       /* 💥 v1518 — Outils s'ouvre à tous les moniteurs pour le constat :
          💼 Formations reste à ceux qui l'avaient (le droit, ou formateur) */
       if(cle === 'formations' && typeof aDroit === 'function' && !aDroit('formations')) return !!window.FE_FORMATEUR;
@@ -2230,6 +2234,8 @@ function reveillerVue(cle){
     charges:    () => afficherCharges(),
     coffre:     () => afficherCoffre(),
     drivup:     () => (typeof afficherDrivupGestion === 'function') && afficherDrivupGestion(),
+    /* 📅 v1572 */
+    ouverture:  () => (typeof afficherOuverture === 'function') && afficherOuverture(),
     paiement:   () => afficherPaiement(),
     placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
