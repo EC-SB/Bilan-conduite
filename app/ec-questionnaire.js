@@ -1,4 +1,4 @@
-/* Déployé le 06/11/2026 à 15:33 — v1365 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -680,7 +680,7 @@ function etatQuiFaitFoi(nom){
       const boite = (typeof boiteDeLaFormation === 'function')
         ? boiteDeLaFormation(formation) : '';
       const fr = (typeof friseDeLaFormation === 'function')
-        ? friseDeLaFormation(formation, boite !== 'BEA') : null;
+        ? friseDeLaFormation(formation, boite !== 'BEA', nom) : null;
       /* Une frise imposée s'impose ; '' veut dire « ce parcours n'en
          a pas » et vaut aussi. null veut dire « à saisir » : là on
          ne touche à rien. */
@@ -1486,11 +1486,11 @@ const FAMILLE_DU_CHAMP = {
   formAccomp: 'formAccomp', rvPrealable: 'rvPrealable'
 };
 
-function noteSelonLaFormation(note, formation, modele){
+function noteSelonLaFormation(note, formation, modele, qui){
   const texte = String(note || '');
 
   /* Ce que le parcours n'a pas, d'après la fiche de l'élève */
-  const sans = sansObjetPourLaFormation(formation);
+  const sans = sansObjetPourLaFormation(formation, qui);
   const familles = {};
   sans.forEach(c => {
     familles[c] = true;
@@ -2414,6 +2414,62 @@ const PARCOURS_FORMATION = [
                'rdvPostMoniteur'] }
 ];
 
+/* ------------------------------------------------------------
+   ⛔ v1568 — L'ANNULATION / SUSPENSION : UN PARCOURS SELON LE CAS
+
+   David, le 25 novembre 2026 : « il faut ajouter Annulation /
+   Suspension BEA et Annulation / Suspension BV », et pour le
+   parcours : « selon le cas ».
+
+   Le cas se lit dans son dossier ⛔ des Démarches (ec-handicap.js),
+   pas dans le nom de la formation :
+
+   · UNE SUSPENSION — ou une annulation où il ne repasse que le
+     code : il a déjà conduit, il ne repasse pas la conduite. Ses
+     leçons sont des leçons de reprise, comptées comme une remise à
+     niveau : en heures, sans frise, sans examen blanc, sans date
+     d'examen, sans post-permis.
+
+   · UNE ANNULATION OÙ IL REPASSE LA CONDUITE : il repasse le permis
+     comme tout le monde. Parcours ordinaire, frise saisie à la
+     main, examen blanc, examen, post-permis.
+
+   ⚠️ C'EST POUR ÇA QU'ILS NE SONT PAS DANS LA TABLE. La table répond
+   par le nom de la formation, et ici le nom ne suffit pas : il faut
+   savoir de QUEL élève on parle. Sans élève, ou sans dossier, c'est
+   la reprise — elle n'annonce jamais un examen qui n'existe pas.
+   ------------------------------------------------------------ */
+const SANS_OBJET_REPRISE = ['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
+  'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
+  'avantEB', 'pasEcoute',
+  'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+  'heuresRestantesDuJour',
+  'nouvelleDate',
+  'examPassage',
+  'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
+  'rdvPostMoniteur'];
+const PARCOURS_ANNUL_SUSP = {
+  BEA: { cle:'Annulation / Suspension BEA', boite:'BEA', modele:'conduite-auto', frise:'',
+         motRang:'de reprise', etapesHeures:true, sansObjet:SANS_OBJET_REPRISE },
+  BV:  { cle:'Annulation / Suspension BV',  boite:'BV',  modele:'conduite-manuelle', frise:'',
+         motRang:'de reprise', etapesHeures:true, sansObjet:SANS_OBJET_REPRISE },
+  conduiteBEA: { cle:'Annulation / Suspension BEA', boite:'BEA', modele:'conduite-auto',
+                 frise:null, repasseLaConduite:true },
+  conduiteBV:  { cle:'Annulation / Suspension BV',  boite:'BV',  modele:'conduite-manuelle',
+                 frise:null, repasseLaConduite:true }
+};
+
+/* Le cas de CET élève : 'conduite' quand il repasse la conduite.
+   « qui » est son nom, ou les réponses d'un cours — elles gardent le
+   cas du jour (casAS), parce qu'une note se relit sans son élève. */
+function casAnnulSuspDe(qui){
+  if(qui && typeof qui === 'object') return String(qui.casAS || '');
+  return (qui && typeof casAnnulSusp === 'function') ? String(casAnnulSusp(qui) || '') : '';
+}
+function estAnnulSusp(formation){
+  return /annulation|suspension/.test(normaliserMot(String(formation || '')));
+}
+
 /* ============================================================
    ⚙️ LA BOÎTE DU COURS — UNE SEULE SOURCE, v1117
 
@@ -2471,9 +2527,15 @@ function boiteDuCours(formation){
   return b === 'BEA' ? 'bea' : (b === 'BV' ? 'bv' : '');
 }
 
-function parcoursDeLaFormation(formation){
+function parcoursDeLaFormation(formation, qui){
   const t = normaliserMot(String(formation || ''));
   if(!t) return null;
+
+  /* ⛔ v1568 — avant la table : son parcours dépend de l'élève */
+  if(/annulation|suspension/.test(t)){
+    const b = /\bbv\b|manuelle/.test(t) ? 'BV' : 'BEA';
+    return PARCOURS_ANNUL_SUSP[(casAnnulSuspDe(qui) === 'conduite' ? 'conduite' : '') + b];
+  }
 
   const exact = PARCOURS_FORMATION.find(p => normaliserMot(p.cle) === t);
   if(exact) return exact;
@@ -2537,8 +2599,8 @@ const ETAPES_REMISE_A_NIVEAU = [
   { cle:'rnSienne', nom:'sa voiture',        court:'sa voiture',  ou:'dans ' }
 ];
 
-function etapesHeuresPourLaFormation(formation){
-  var p = parcoursDeLaFormation(formation);
+function etapesHeuresPourLaFormation(formation, qui){
+  var p = parcoursDeLaFormation(formation, qui);
   return !!(p && p.etapesHeures);
 }
 
@@ -2611,8 +2673,8 @@ function rvpDejaFait(q){
   return !!(q && (q.rvp1 === 'fait' || q.rvp2 === 'fait'));
 }
 
-function friseDeLaFormation(formation, manuelle){
-  const p = parcoursDeLaFormation(formation);
+function friseDeLaFormation(formation, manuelle, qui){
+  const p = parcoursDeLaFormation(formation, qui);
   if(!p) return null;
   if(p.suivreLaBoite === 'cs') return FRISES_FIXES[manuelle ? 'csbv' : 'csbea'];
   if(p.frise === null) return null;
@@ -2904,8 +2966,8 @@ function selecteursDesReponses(){
    doit disparaître : une passerelle n'a pas d'examen blanc, et un
    « examen blanc passé » hérité d'une autre formation n'a rien à
    faire sur sa note. */
-function sansObjetPourLaFormation(formation){
-  const p = parcoursDeLaFormation(formation);
+function sansObjetPourLaFormation(formation, qui){
+  const p = parcoursDeLaFormation(formation, qui);
   return (p && p.sansObjet) || [];
 }
 
@@ -3473,6 +3535,15 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
   const eleve = $('studentName').value.trim();
   const modeleCle = $('modele').value;
 
+  /* ⛔ v1568 — une annulation / suspension : son parcours se lit dans
+     son dossier des Démarches. On le lit AVANT de poser les questions
+     (une seule lecture, gardée cinq minutes) ; sans lui, c'est la
+     reprise. */
+  try{
+    const fAS = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+    if(fAS && estAnnulSusp(fAS.formation) && typeof chargerHandicapSiBesoin === 'function') await chargerHandicapSiBesoin();
+  }catch(e){ /* sans droit ou sans réseau : la reprise */ }
+
   const profil = profilQuestionnaire(modeleCle);
 
   /* Les trois lectures partent ENSEMBLE. En série, le moniteur
@@ -3604,7 +3675,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
   const manuelleDuBilan = !/auto/i.test(modeleCle);
 
   /* La frise qu'impose la formation, quand elle en impose une */
-  const friseDeduite = friseDeLaFormation(formationDeLaFiche, manuelleDuBilan) ||
+  const friseDeduite = friseDeLaFormation(formationDeLaFiche, manuelleDuBilan, eleve) ||
                        FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
 
   /* L'ANTS vient de la fiche s'il n'a pas déjà été saisi dans ce cours :
@@ -4456,7 +4527,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     /* La frise imposée par la formation. Rend '' quand ce parcours
        n'en a pas (la passerelle), null quand elle se saisit. */
     function friseImposee(){
-      return friseDeLaFormation(formationChoisie(), manuelleDuBilan);
+      return friseDeLaFormation(formationChoisie(), manuelleDuBilan, eleve);
     }
 
     /* ----------------------------------------------------------
@@ -4509,7 +4580,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          s'afficherait, et jamais en même temps qu'elle — deux
          parcours à l'écran, et le moniteur en remplirait un pour
          rien. */
-      const surEtapes = etapesHeuresPourLaFormation(formationChoisie());
+      const surEtapes = etapesHeuresPourLaFormation(formationChoisie(), eleve);
       if(zoneEtapes) zoneEtapes.style.display = surEtapes ? 'block' : 'none';
       if(surEtapes) majEffetEtapes();
 
@@ -4544,7 +4615,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          n'aurait jamais eu ses rendez-vous pédagogiques.
 
          C'est le parcours qui décide, comme partout ailleurs. */
-      const parcoursChoisi = parcoursDeLaFormation(formationChoisie());
+      const parcoursChoisi = parcoursDeLaFormation(formationChoisie(), eleve);
       if(blocAacCs && profil === 'complet'){
         blocAacCs.style.display =
           (parcoursChoisi && parcoursChoisi.accompagnee) ? 'block' : 'none';
@@ -4577,11 +4648,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       /* Dire ce que le choix entraîne, plutôt que de le faire en
          silence : le moniteur voit la boîte et le bilan changer. */
       if(effetForm){
-        const p = parcoursDeLaFormation(formationChoisie());
+        const p = parcoursDeLaFormation(formationChoisie(), eleve);
         const cleM = p && p.modele;
         const lib = (cleM && typeof MODELES !== 'undefined' && MODELES[cleM])
           ? MODELES[cleM].label : '';
-        const sans = sansObjetPourLaFormation(formationChoisie());
+        const sans = sansObjetPourLaFormation(formationChoisie(), eleve);
         const bouts = [];
         if(lib) bouts.push('Bilan : ' + lib);
         if(fixe === '') bouts.push('pas de frise');
@@ -4625,7 +4696,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     };
 
     function masquerCeQueLeParcoursNaPas(){
-      const sans = sansObjetPourLaFormation(formationChoisie());
+      const sans = sansObjetPourLaFormation(formationChoisie(), eleve);
 
       Object.keys(BLOCS_DU_CHAMP).forEach(cle => {
         const cache = sans.indexOf(cle) !== -1;
@@ -4724,7 +4795,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     }
 
     function suivreLeModele(){
-      const p = parcoursDeLaFormation(formationChoisie());
+      const p = parcoursDeLaFormation(formationChoisie(), eleve);
       if(!p || !p.modele) return;
 
       const dansLaFenetre = boite.querySelector('#qModele');
@@ -5590,7 +5661,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          questionnaire n'efface jamais une réponse qu'il n'a pas
          posée. Ce que le parcours n'a pas, en revanche, sort. */
       conserverLeNonDemande(reponses, prec, champsMasques,
-                            sansObjetPourLaFormation(formationChoisie()));
+                            sansObjetPourLaFormation(formationChoisie(), eleve));
 
       if(reponses) reponses.repondu = 1;
       /* L'ANTS et la frise redescendent sur la fiche de l'élève : ce que
@@ -5617,6 +5688,10 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         consignes: consignesBureau.map(x => x.texte),
         /* Ce que le moniteur a choisi retourne au répertoire */
         formation: formationChoisie(),
+        /* ⛔ v1568 — le cas du jour (il repasse la conduite, ou non),
+           lu dans son dossier des Démarches : la note se relira sans
+           son élève, et doit garder le même parcours */
+        casAS: estAnnulSusp(formationChoisie()) ? casAnnulSuspDe(eleve) : undefined,
         frise: (imposee !== null) ? imposee : friseSaisie(),
         /* Les trois nombres de la remise à niveau tiennent lieu de
            frise : ils partent avec elle, et un champ vide retombe
@@ -6265,7 +6340,7 @@ function positionDansLaFrise(q){
      passerelle. Les avoir confondus faisait annoncer « 1ère leçon
      de régularisation » à un élève que le questionnaire venait
      d'afficher à sa 7ème. */
-  const parcours = parcoursDeLaFormation(q.formation);
+  const parcours = parcoursDeLaFormation(q.formation, q);
   if(parcours && parcours.motRang){
     /* ⚠️ UNE MAIN HUMAINE PASSE AVANT UN COMPTAGE.
 
@@ -6518,7 +6593,7 @@ function noteDepuisQuestionnaire(q){
      l'examen blanc, et une passerelle serait annoncée « après
      l'examen blanc » alors qu'elle n'en a jamais eu. */
   const sansObjet = (typeof sansObjetPourLaFormation === 'function')
-    ? sansObjetPourLaFormation(q.formation) : [];
+    ? sansObjetPourLaFormation(q.formation, q) : [];
   if(sansObjet.length){
     q = Object.assign({}, q);
     sansObjet.forEach(cle => { q[cle] = ''; });
@@ -6904,7 +6979,7 @@ function ajouterSuite(etats, permis, mots, q){
      examen blanc ni examen officiel, et la ligne qui dirait qu'ils
      manquent n'aurait pas plus de sens que celle qui les annonce. */
   const sans = (typeof sansObjetPourLaFormation === 'function')
-    ? sansObjetPourLaFormation(q.formation) : [];
+    ? sansObjetPourLaFormation(q.formation, q) : [];
   /* L'examen blanc de l'AAC se passe pendant le rendez-vous n°2 :
      une fois un rendez-vous fait, « pas encore évoqué » est faux.
      Un examen blanc explicitement saisi, lui, s'écrit toujours —
@@ -7587,7 +7662,7 @@ function recapDuCours(q, eleve, modeleCle, fiche){
     ? friseUtilisable(x) : dit(x);
   const frise = utile(c.frise) || utile(f.frise);
   const imposee = (typeof friseDeLaFormation === 'function')
-    ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || ''))) : null;
+    ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || '')), eleve) : null;
 
   const boite = (formation && typeof boiteDeLaFormation === 'function')
     ? boiteDeLaFormation(formation) : '';
@@ -7600,7 +7675,7 @@ function recapDuCours(q, eleve, modeleCle, fiche){
   /* Un examen blanc « pas encore évoqué » n'est pas un manque pour
      un parcours qui n'en a pas : la table le sait. */
   const sansObjet = (typeof sansObjetPourLaFormation === 'function')
-    ? sansObjetPourLaFormation(formation) : [];
+    ? sansObjetPourLaFormation(formation, eleve) : [];
   const aBesoin = cle => sansObjet.indexOf(cle) === -1;
 
   const lignes = [];
@@ -7748,7 +7823,7 @@ function cequiManqueAuCours(ctx, eleve, modeleCle){
   /* Une passerelle n'a pas de frise du tout : son absence n'est pas
      un manque. C'est la table qui le sait, on ne le devine pas. */
   const imposee = (typeof friseDeLaFormation === 'function')
-    ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || ''))) : null;
+    ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || '')), eleve) : null;
   /* Une frise à trous est une frise manquante : la réclamer est la
      seule façon d'en sortir. */
   /* ⚠️ LA FRISE SE CHERCHE AUSSI DANS CE QU'ON SAIT DÉJÀ — v947.
@@ -8826,7 +8901,12 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
 
   if(!Object.keys(maj).length) return;
 
-  return enregistrerFicheEleve(eleve, maj);
+  const ok = await enregistrerFicheEleve(eleve, maj);
+  /* 🔗 v1568 — une formation qui ouvre des démarches : son dossier suit */
+  if(ok && maj.formation && typeof demarchesSelonLaFormation === 'function'){
+    demarchesSelonLaFormation(eleve, maj.formation, avant.formation || '');
+  }
+  return ok;
 }
 
 /* CE QUI ÉCHOUE ICI DOIT SE VOIR.
