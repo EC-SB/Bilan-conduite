@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 14:19 — v1533 */
+/* Déployé le 25/11/2026 à 13:24 — v1569 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -51,6 +51,13 @@ const USAGES_MODELE = [
     variables:['{prenom}', '{eleve}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
   { cle:'relance_repassage', nom:'📨 Relance — repassage (leçons à réserver)',
     variables:['{prenom}', '{eleve}', '{heures}', '{dateexamen}', '{lien}', '{centre}', '{signature}'] },
+  /* 📣 v1568 — les relances conduite (Élèves › 📣 Relances, ec-relances-conduite.js) */
+  { cle:'relance_dormeurs',     nom:'📣 Relance conduite — pas conduit depuis…',
+    variables:['{prenom}', '{eleve}', '{jours}', '{stock}', '{heures en stock}', '{créneaux}', '{leçon}', '{moniteur}', '{lien}', '{signature}'] },
+  { cle:'relance_stock',        nom:'📣 Relance conduite — heures en stock à poser',
+    variables:['{prenom}', '{eleve}', '{jours}', '{stock}', '{heures en stock}', '{créneaux}', '{leçon}', '{moniteur}', '{lien}', '{signature}'] },
+  { cle:'relance_examen_blanc', nom:'📣 Relance conduite — examen blanc à prévoir',
+    variables:['{prenom}', '{eleve}', '{jours}', '{stock}', '{heures en stock}', '{créneaux}', '{leçon}', '{moniteur}', '{lien}', '{signature}'] },
   { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
     variables:['{eleve}', '{date}', '{motif}'] },
   { cle:'ecoutes', nom:'😱 Rappel écoutes pédagogiques', variables:[] },
@@ -148,6 +155,13 @@ function textesDeDepart(){
     Object.keys(RL_TYPES).forEach(k => {
       const t = RL_TYPES[k];
       l.push({ usage: t.usage, nom: '📨 Relance — ' + t.titre, contenu: t.defaut, etiquettes: '📨 Relances' });
+    });
+  }
+  /* 📣 v1568 — les relances conduite */
+  if(typeof RC_MODELES !== 'undefined'){
+    Object.keys(RC_MODELES).forEach(k => {
+      const t = RC_MODELES[k];
+      l.push({ usage: t.usage, nom: '📣 Relance conduite — ' + t.titre, contenu: t.defaut, etiquettes: '📨 Relances' });
     });
   }
   if(typeof MESSAGES_POST_PERMIS !== 'undefined'){
