@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 14:26 — v1557 */
+/* Déployé le 25/11/2026 à 11:08 — v1565 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -347,6 +347,9 @@ const SECTIONS = [
      bureau par le rôle ; les autres, la case. */
   { cle:'visio_code',       nom:'🎥 Cours de code en visio', onglet:'eleves' },
   { cle:'handicap',         nom:'♿ Suivi handicap', onglet:'eleves' },
+  /* 🩺 v1565 — les démarches permis (♿ Permis aménagé, ⛔ Suspension ·
+     annulation, l'onglet du dossier) : tout le monde par le rôle (David) */
+  { cle:'demarches',        nom:'🩺 Démarches permis', onglet:'eleves' },
   { cle:'paiement',         nom:'💳 Paiement en plusieurs fois', onglet:'eleves' },
   { cle:'placesbe',         nom:'🚚 Demande de places BE', onglet:'outils' },
   { cle:'evaluation',       nom:'📊 Évaluation de départ', onglet:'eleves' },
