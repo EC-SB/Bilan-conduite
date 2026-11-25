@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:08 — v1572 */
+/* Déployé le 25/11/2026 à 16:32 — v1575 */
 /* ============================================================
    ec-relances-conduite.js — 📣 LES RELANCES CONDUITE (v1568)
 
@@ -186,13 +186,19 @@ function rcPasse(g, F){
   const auj = rcAuj();
   /* 💤 pas conduit depuis */
   if(F.dep && F.dep.on){
-    const der = F.simu ? [g.derC, g.derS].filter(Boolean).sort().pop() || '' : g.derC;
-    if(!der) return false;
-    if(F.dep.mode === 'date'){
-      if(F.dep.date && !(der < F.dep.date)) return false;
-    }else{
-      const j = rcJours(der, auj);
-      if(j === null || j < Math.max(0, Number(F.dep.jours) || 0)) return false;
+    let der = F.simu ? [g.derC, g.derS].filter(Boolean).sort().pop() || '' : g.derC;
+    /* 📝 v1575 — JAMAIS CONDUIT (que du code, des tablettes, du simulateur) :
+       David, le 25/11 : « je devrais avoir beaucoup plus de monde » → ils
+       comptent aussi, depuis leur inscription, ou leur dernier simulateur
+       s'il est plus récent. Sans date d'inscription lue : il reste. */
+    if(!g.derC) der = [g.inscription, g.derS].filter(Boolean).sort().pop() || '';
+    if(der){
+      if(F.dep.mode === 'date'){
+        if(F.dep.date && !(der < F.dep.date)) return false;
+      }else{
+        const j = rcJours(der, auj);
+        if(j === null || j < Math.max(0, Number(F.dep.jours) || 0)) return false;
+      }
     }
   }
   if(F.stock && F.stock.on){
@@ -268,7 +274,8 @@ function rcListe(){
 function rcResume(F){
   const b = [];
   if(F.dep && F.dep.on) b.push('pas conduit' + (F.simu ? ' (simulateur compris)' : '') + ' depuis ' +
-    (F.dep.mode === 'date' ? (F.dep.date ? 'le ' + rcCourt(F.dep.date) : '…') : (Number(F.dep.jours) || 0) + ' jours'));
+    (F.dep.mode === 'date' ? (F.dep.date ? 'le ' + rcCourt(F.dep.date) : '…') : (Number(F.dep.jours) || 0) + ' jours') +
+    ' (ceux qui n’ont jamais conduit : depuis leur inscription)');
   if(F.stock && F.stock.on) b.push('au moins ' + rcHeures(F.stock.h) + ' en stock');
   if(F.premiere) b.push('1re leçon pas encore faite');
   const n = { rien: 'rien de posé', posees: 'des leçons posées', pasEncore: 'pas encore d’examen blanc', dans: 'examen blanc dans ' + F.ebDans + ' leçons ou moins',
@@ -598,7 +605,7 @@ function dessinerRelancesConduite(){
   pied.textContent = '🔄 Lu dans sa fiche Drivup (Plannings, Facturer), une fois par jour par la lecture automatique : ' +
     lus + ' élève' + (lus > 1 ? 's' : '') + ' en formation sur ' + el.length + ' (' + duJour + ' aujourd’hui) · stock lu pour ' + stock +
     (stock < lus ? ' (il faut l’extension « App EC · Drivup » 1.7.0)' : '') + ' · date d’inscription lue pour ' + insc +
-    (insc < lus ? ' (extension 1.8.0)' : '') + '. Les permis obtenus et les élèves partis n’y sont pas.';
+    (insc < lus ? ' (toutes d’un coup avec l’extension 1.8.2)' : '') + '. Les permis obtenus et les élèves partis n’y sont pas.';
   const re = document.createElement('button');
   re.type = 'button'; re.className = 'rlMini'; re.textContent = '↻ Relire';
   re.style.marginLeft = '8px';
