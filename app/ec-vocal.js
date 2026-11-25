@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 13:43 — v1556 */
+/* Déployé le 25/11/2026 à 11:27 — v1566 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1389,17 +1389,25 @@ function poserLesProceduresIA(obj){
     const lignes = lignesChoisies(p, l);
     if(!lignes.length) return '';
     const nom = String(p.nom || 'Procédure').trim();
-    if(String(genre).toUpperCase() === 'CORRIGE'){
-      return '\n' + (lignes.length === 1 ? '📘 ' + nom + ' : ' + lignes[0] : '📘 ' + nom + ' :\n' + lignes.join('\n'));
-    }
+    /* ┃ v1566 — LA PROCÉDURE SE VOIT, DU DÉBUT À LA FIN. David, le 25/11 :
+       « une démarcation pour bien voir ce qui vient de la transcription
+       et ce qui vient des procédures » ; il a choisi la barre (A) : chaque
+       ligne recopiée est décalée et commence par ┃, la première dit
+       « 📘 La procédure que tu dois connaître par cœur » (pas « notre
+       procédure »). Le mail, « Mes leçons » et l'historique en font un
+       cadre bleu (cadresProcedure…). Les procédures demandées à la voix,
+       en fin de bilan, n'ont pas la barre : « là c'est bien à part ». */
+    const barre = (l) => String(l).split('\n').map(x => '\n   ┃ ' + x).join('');
+    const tete = barre('📘 La procédure que tu dois connaître par cœur : ' + nom);
+    if(String(genre).toUpperCase() === 'CORRIGE') return tete + lignes.map(barre).join('');
     /* « À travailler » : les lignes utiles, puis le chemin vers la procédure dans l'App (une fois) */
     const cle = String(p.id || nom);
     let liens = '';
     if(!liensVus[cle] && typeof etapesDeLaFiche === 'function' && typeof ligneVersEtapeEleve === 'function'){
-      liens = etapesDeLaFiche(p).map(x => '\n' + ligneVersEtapeEleve(x)).join('');
+      liens = etapesDeLaFiche(p).map(x => barre(ligneVersEtapeEleve(x))).join('');
       liensVus[cle] = true;
     }
-    return '\n📘 ' + nom + '\n' + lignes.join('\n') + liens;
+    return tete + lignes.map(barre).join('') + liens;
   });
   const parcourir = o => {
     if(typeof o === 'string') return /\[\[/.test(o) ? remplacer(o) : o;
