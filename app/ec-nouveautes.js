@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:37 — v1567 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1568,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '🔗 Démarches permis reliées aux formations, et la formation ⛔ Annulation / Suspension',
+    quoi: [
+      { emoji: '🔗',
+        titre: 'La formation ouvre son dossier',
+        texte: 'Un élève mis en Régularisation (BEA ou BV) a son dossier ♿ Régularisation ouvert tout seul ; en Conduite aménagée, son dossier 🆕 Premier permis aménagé. Sa maladie se choisit ensuite dans le dossier (🔍 La choisir dans la liste). Que la formation soit choisie dans sa fiche, dans le questionnaire ou dans 📇 Fiche de son dossier.' },
+      { emoji: '⛔',
+        titre: 'Annulation / Suspension BEA et BV',
+        texte: 'Deux nouvelles formations. Choisies, une petite fenêtre demande suspension ou annulation, puis sa durée ou ses dates, et son dossier ⛔ s’ouvre. Ses leçons suivent le bon parcours : une suspension (ou une annulation où il ne repasse que le code) se compte en heures, comme une remise à niveau ; une annulation où il repasse la conduite suit un permis ordinaire (frise, examen blanc, examen).' },
+      { emoji: '♿',
+        titre: 'Le dossier de l’élève s’ouvre sur Démarches',
+        texte: 'Un élève qui a un dossier de démarches, ou dont la formation en appelle un, ouvre son dossier directement sur ♿ Démarches. Un élève inscrit avant : un bouton « Ouvrir son dossier » l’attend là.' }
+    ]
+  },
   {
     version: 1567,
     date: 'Mercredi 25 novembre 2026',
