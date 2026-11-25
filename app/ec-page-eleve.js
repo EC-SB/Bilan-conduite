@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:08 — v1565 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -224,6 +224,8 @@ const CLE_ONGLET_ELEVE = 'onglet_page_eleve';
 
 let elevePageOuverte = '';
 let ongletPageEleve  = '';
+/* 🔗 v1568 — l'onglet ♿ Démarches posé à l'ouverture (pas choisi) */
+let ongletImposeDemarches = false;
 
 
 /* ============================================================
@@ -247,6 +249,17 @@ function ouvrirPageEleve(nom){
 
   if(typeof afficherOnglet === 'function') afficherOnglet('eleves');
   if(typeof afficherVue === 'function') afficherVue('eleves', 'dossier');
+
+  /* 🔗 v1568 — DAVID : « si on met un élève en formation Régularisation,
+     il faut que ça ouvre directement dedans ». Un élève qui a un
+     dossier de démarches (permis aménagé, suspension, annulation)
+     ouvre son dossier sur ♿ Démarches. C'est posé, pas choisi : rien
+     n'est retenu, et l'élève suivant retrouve l'onglet qu'on aime. */
+  if(typeof aDesDemarches === 'function' && aDesDemarches(propre)){
+    ongletPageEleve = 'handicap'; ongletImposeDemarches = true;
+  }else if(ongletImposeDemarches){
+    ongletPageEleve = ''; ongletImposeDemarches = false;
+  }
 
   dessinerPageEleve();
 
@@ -3266,6 +3279,7 @@ function barreOngletsEleve(onglets){
 
 function choisirOngletEleve(cle){
   ongletPageEleve = cle;
+  ongletImposeDemarches = false;
   try{ localStorage.setItem(CLE_ONGLET_ELEVE, cle); }catch(e){}
   dessinerPageEleve();
 }
