@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 14:22 — v1571 */
+/* Déployé le 25/11/2026 à 15:18 — v1573 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -3823,7 +3823,9 @@ function etatRdv(etat, date, echeance, attendu, auJour, lieu){
     const limite = decalerMois(auj, MOIS_AVANT_ALERTE_RDV);
     return { cle: tard ? 'retard' : 'aprevoir', retard: tard,
       proche: tard || (!!limite && echeance <= limite),
-      txt: (tard ? 'EN RETARD — attendu le ' : 'attendu le ') +
+      /* v1573 — David : « la phrase attendu le n'est pas claire ».
+         C'est une date LIMITE : à faire avant elle. */
+      txt: (tard ? 'EN RETARD — à faire avant le ' : 'à faire avant le ') +
            jourFrCs(echeance) };
   }
   /* Sans échéance, « à prévoir » n'a pas de date à comparer : il ne
@@ -4272,8 +4274,9 @@ function pastilleRelanceAac(x, rel, quoi, titreRdv){
     return p;
   }
   const n = joursDepuisAac(rel.le);
+  /* v1573 — et par qui, en clair */
   return pastilleAac(n > JOURS_RELANCE_AAC_AMBRE ? 'aacPilVieux' : 'aacPilAttente',
-    '✉️ Relancé', jourCourtAac(rel.le) + ' · ⏳ ' + n + ' j',
+    '✉️ Relancé', jourCourtAac(rel.le) + (rel.par ? ' · ' + rel.par : '') + ' · ⏳ ' + n + ' j',
     'Relance envoyée le ' + jourFrCs(rel.le) + (rel.par ? ' par ' + rel.par : '') +
     ' — sans réponse depuis ' + n + ' jour' + (n > 1 ? 's' : ''));
 }
@@ -4298,10 +4301,10 @@ function pastilleTourAac(x){
 function pastillePrevenuAac(x, cle, e){
   const pv = cle ? prevenuAac(x, cle) : null;
   if(!pv || !e || e.cle === 'fait' || e.cle === 'ailleurs') return null;
-  return pastilleAac('aacPilPrevenu', '📣',
-    jourCourtAac(pv.le) + (pv.pour ? ' → ' + jourCourtAac(pv.pour) : ''),
-    'Prévenu le ' + jourFrCs(pv.le) + (pv.par ? ' (' + pv.par + ')' : '') +
-    (pv.pour ? ' — RDV à prévoir pour le ' + jourFrCs(pv.pour) : ''));
+  /* 📣 v1573 — le jour où on l'a prévenu, et qui ; plus de date visée */
+  return pastilleAac('aacPilPrevenu', '📣 Prévenu',
+    jourCourtAac(pv.le) + (pv.par ? ' · ' + pv.par : ''),
+    'Prévenu le ' + jourFrCs(pv.le) + (pv.par ? ' par ' + pv.par : '') + ' de prévoir ce rendez-vous');
 }
 
 /* « 📌 Fixer la date » : la famille a donné ses dispos, on pose le
@@ -4335,7 +4338,7 @@ function classeCaseAac(e){
 }
 function texteCaseAac(e){
   return String(e.txt || '')
-    .replace(/^EN RETARD — attendu le /, 'EN RETARD depuis le ')
+    .replace(/^EN RETARD — à faire avant le /, 'EN RETARD depuis le ')
     .replace(/^fait /, '✅ fait ')
     .replace(/^prévu /, '📌 prévu ');
 }
@@ -4446,6 +4449,21 @@ function ligneAac(x){
     p.classList.add('aacSousNom');
     row.appendChild(p);
   }
+  /* ✉️ v1573 — UNE RELANCE SE VOIT TOUJOURS. David, le 25 novembre :
+     « quand on appuie sur relancer, on ne voit pas quand on a
+     relancé ». Elle s'écrivait sous le rendez-vous qu'elle demandait
+     — et nulle part quand ce rendez-vous était déjà posé, ou quand
+     elle ne demandait que l'examen et qu'il était déjà prévu. On la
+     dit alors sous le nom. */
+  if(rel && !rel.rappel && !rel.rvp && !rel.examen){
+    const n = joursDepuisAac(rel.le);
+    const p = pastilleAac('aacPilPrevenu', '✉️ Relancé', jourCourtAac(rel.le) + (rel.par ? ' · ' + rel.par : '') +
+      (rel.repondu ? ' · 📝 réponse le ' + jourCourtAac(rel.reponduLe) : ''),
+      'Relance envoyée le ' + jourFrCs(rel.le) + (rel.par ? ' par ' + rel.par : '') +
+      (rel.repondu ? ' — réponse le ' + jourFrCs(rel.reponduLe) : ' — il y a ' + n + ' jour' + (n > 1 ? 's' : '')));
+    p.classList.add('aacSousNom');
+    row.appendChild(p);
+  }
 
   /* ── LA FRISE ── */
   const fr = document.createElement('div');
@@ -4461,7 +4479,7 @@ function ligneAac(x){
     const out = [
       petitBouton('📣 Prévenu', pv
         ? 'Prévenu le ' + jourFrCs(pv.le) + ' — le prévenir à nouveau, ou retirer'
-        : 'On l’a prévenu de prévoir ce rendez-vous — pour quelle date ?',
+        : 'On l’a prévenu qu’il faut prévoir ce rendez-vous (la date du jour se note toute seule)',
         () => noterPrevenuAac(x, cle, titre)),
       petitBouton('✅ Fait', 'Noter la date, et où il a eu lieu', () => rdvFaitAac(x, titre, cle))
     ];
@@ -4674,7 +4692,7 @@ function boutonsAac(x, zone){
       /* 📣 v1226 — « on l'a prévenu de prévoir ce rendez-vous » */
       const pv = prevenuAac(x, cle);
       zone.appendChild(petitBouton(pv ? '📣 ' + titre + ' : prévenu le ' + jourFrCs(pv.le) : '📣 ' + titre + ' : prévenu',
-        'On l’a prévenu de prévoir ce rendez-vous — pour quelle date ?', () => noterPrevenuAac(x, cle, titre)));
+        'On l’a prévenu qu’il faut prévoir ce rendez-vous (la date du jour se note toute seule)', () => noterPrevenuAac(x, cle, titre)));
       zone.appendChild(petitBouton('✅ ' + titre + ' fait',
         'Noter la date, et où il a eu lieu', () => rdvFaitAac(x, titre, cle)));
     });
@@ -4743,6 +4761,12 @@ function boutonsAac(x, zone){
 
    Une seule colonne du suivi (116), en JSON :
    { rvp1: { le, pour, par }, rvp2: {…}, rvt: {…} }
+
+   📣 v1573 — PLUS DE DATE VISÉE. David, le 25 novembre : « quand on
+   appuie sur prévenu, on ne peut pas mettre de date : RDV à prévoir
+   pour le ne sert à rien, on a prévenu l'élève, on ne sait pas quand
+   on va le prévoir ». Prévenu = le jour où on l'a prévenu, et qui.
+   Un ancien « pour » reste dans la colonne, il ne s'affiche plus.
    ============================================================ */
 function prevenusAac(x){
   try{
@@ -4759,11 +4783,10 @@ async function noterPrevenuAac(x, cle, titre){
   const nom = x.eleve;
   const deja = prevenuAac(x, cle);
   if(deja && typeof fenetre === 'function'){
-    const choix = await fenetre('📣 Prévenu le ' + jourFrCs(deja.le) + (deja.par ? ' (' + deja.par + ')' : '') +
-      (deja.pour ? '\nRDV à prévoir pour le ' + jourFrCs(deja.pour) : ''), [
+    const choix = await fenetre('📣 Prévenu le ' + jourFrCs(deja.le) + (deja.par ? ' par ' + deja.par : '') + '.', [
       { nom: 'Annuler', valeur: null },
       { nom: '🗑️ Retirer', valeur: 'retirer', danger: true },
-      { nom: '📅 Prévenu à nouveau', valeur: 'neuf', principal: true }
+      { nom: '📣 Prévenu à nouveau aujourd’hui', valeur: 'neuf', principal: true }
     ], titre + ' — prévenu');
     if(!choix) return;
     if(choix === 'retirer'){
@@ -4777,11 +4800,10 @@ async function noterPrevenuAac(x, cle, titre){
       return;
     }
   }
-  const pour = await choisirDate(titre + ' — RDV à prévoir pour le…', (deja && deja.pour) || '');
-  if(!pour) return;
+  /* Prévenu aujourd'hui, par celui qui appuie : rien d'autre à demander */
   const t = prevenusAac(x);
   t[cle] = { le: (typeof todayLocal === 'function') ? todayLocal() : new Date().toISOString().slice(0, 10),
-             pour: pour, par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '' };
+             par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '' };
   try{
     await majSuivi(nom, { aacPrevenus: JSON.stringify(t) });
     showToast('📣 Noté ✅');
@@ -5185,8 +5207,8 @@ function texteRelanceAac(x, choix){
   }
   if(choix.rvp){
     const e = x.rdv[choix.rvp];
-    const att = String(e.txt || '').match(/attendu le (\d{2}\/\d{2}\/\d{4})/);
-    if(att) phrase += e.retard ? ' (il était attendu vers le ' + att[1] + ')' : ' (vers le ' + att[1] + ')';
+    const att = String(e.txt || '').match(/à faire avant le (\d{2}\/\d{2}\/\d{4})/);
+    if(att) phrase += e.retard ? ' (il aurait dû être fait avant le ' + att[1] + ')' : ' (à faire avant le ' + att[1] + ')';
   }
   if(choix.examen && choix.examDes){
     phrase += (choix.rvp ? ', puis l\'examen, possible à partir du ' : ', et l\'examen est possible à partir du ') +
