@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 10:13 — v1505 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -446,6 +446,17 @@ const FORMATIONS_BASE = [
      pas sur ce parcours. */
   { cle: 'Remise à niveau BV',  nom: '🔄 Remise à niveau (BV)',  voiture: true },
   { cle: 'Remise à niveau BEA', nom: '🔄 Remise à niveau (BEA)', voiture: true },
+  /* ⛔ v1568 — L'ANNULATION / SUSPENSION.
+
+     David, le 25 novembre : « il faut ajouter Annulation / Suspension
+     BEA et Annulation / Suspension BV ». Son parcours dépend du cas,
+     lu dans son dossier ⛔ des Démarches — suspension (ou code seul) :
+     des leçons de reprise, comme une remise à niveau ; annulation où
+     il repasse la conduite : un permis comme les autres. Voir
+     PARCOURS_ANNUL_SUSP. Choisie, elle ouvre son dossier : voir
+     demarchesSelonLaFormation (ec-handicap.js). */
+  { cle: 'Annulation / Suspension BEA', nom: '⛔ Annulation / Suspension (BEA)', voiture: true },
+  { cle: 'Annulation / Suspension BV',  nom: '⛔ Annulation / Suspension (BV)',  voiture: true },
   { cle: 'Moto A',          nom: '🏍️ Moto (A)',              voiture: false },
   { cle: 'A1 permis',       nom: '🛵 A1 permis',              voiture: false },
   { cle: 'A1 passerelle',   nom: '🛵 A1 passerelle',          voiture: false },
@@ -1669,6 +1680,8 @@ function dupliquerPourAutreFormation(nom, f){
       fermerFond(fond);
       showToast('Fiche créée : ' + nouveau + ' ✅');
       afficherRepertoire(true);
+      /* 🔗 v1568 — une formation qui ouvre des démarches : son dossier suit */
+      if(typeof demarchesSelonLaFormation === 'function') demarchesSelonLaFormation(nouveau, selF.value, '');
     }catch(e){
       showToast('Impossible : ' + e.message);
       bO.disabled = false;
@@ -1997,6 +2010,11 @@ function ouvrirFicheEleve(nom, f){
 
       fermerFond(fond);
       showToast('Fiche enregistrée ✅');
+      /* 🔗 v1568 — une formation qui ouvre des démarches (régularisation,
+         conduite aménagée, annulation / suspension) : son dossier suit */
+      if(saisi.formation !== formActuelle && typeof demarchesSelonLaFormation === 'function'){
+        demarchesSelonLaFormation(nom, saisi.formation, formActuelle);
+      }
       /* ⚠️ ON NE RELIT PAS LE CLASSEUR POUR REDESSINER.
 
          « Quand on enregistre les modifications de la fiche, c'est
