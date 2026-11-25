@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:08 — v1565 */
+/* Déployé le 25/11/2026 à 11:27 — v1566 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1700,8 +1700,32 @@ function htmlDuBilan(texte, couleurs){
   const tete = '<div style="font-family:-apple-system,BlinkMacSystemFont,' +
     '\'Segoe UI\',Roboto,Arial,sans-serif;font-size:15px;line-height:1.6;' +
     'color:#14161B;max-width:560px;">';
-  if(!Object.keys(table).length) return tete + '<div style="white-space:pre-wrap;">' + ech(texte || '') + '</div>';
+  if(!Object.keys(table).length) return tete + htmlTexteAvecCadresProcedure(ech(texte || '').split('\n'));
   return tete + blocsDuBilanColore(String(texte || ''), table, ech);
+}
+/* ┃ v1566 — LES LIGNES RECOPIÉES D'UNE PROCÉDURE, DANS UN CADRE BLEU.
+   David, le 25/11 : « une démarcation pour bien voir ce qui vient de la
+   transcription et ce qui vient des procédures » — la barre ┃ dans le
+   texte (ec-vocal.js, poserLesProceduresIA), et « le cadre bleu en
+   plus » là où on peut colorer : le mail, « Mes leçons », l'historique.
+   Les lignes reçues sont DÉJÀ échappées. « ecran » : les couleurs de
+   l'App (clair et sombre) ; sans : celles d'un mail (fond blanc). */
+function htmlTexteAvecCadresProcedure(lignes, ecran){
+  const blocs = [];
+  (lignes || []).forEach(l => {
+    const m = String(l).match(/^\s*┃ ?(.*)$/);
+    const g = m ? 'p' : 't';
+    let der = blocs[blocs.length - 1];
+    if(!der || der.g !== g){ der = { g: g, l: [] }; blocs.push(der); }
+    der.l.push(m ? m[1] : String(l));
+  });
+  const cadre = ecran
+    ? 'margin:6px 0 8px;padding:8px 12px;border-left:4px solid #2563EB;background:rgba(37,99,235,.10);border-radius:0 8px 8px 0;white-space:pre-wrap;'
+    : 'margin:6px 0 8px;padding:8px 12px;border-left:4px solid #2563EB;background:#EEF3FE;border-radius:0 8px 8px 0;white-space:pre-wrap;';
+  const titre = ecran ? '#3B82F6' : '#1D4ED8';
+  return blocs.map(b => b.g === 'p'
+    ? '<div style="' + cadre + '">' + b.l.map(x => /^📘/.test(x) ? '<b style="color:' + titre + ';">' + x + '</b>' : x).join('\n') + '</div>'
+    : '<div style="white-space:pre-wrap;">' + b.l.join('\n') + '</div>').join('');
 }
 /* Le texte, ligne à ligne : les lignes d'un même fond qui se suivent
    (une ligne vide entre deux comprise) forment un seul cadre. */
@@ -1729,7 +1753,7 @@ function blocsDuBilanColore(texte, table, ech){
       let l = b.l.slice();
       if(k > 0) while(l.length && !l[0].trim()) l.shift();
       if(k < blocs.length - 1) while(l.length && !l[l.length - 1].trim()) l.pop();
-      return l.length ? '<div style="white-space:pre-wrap;">' + l.join('\n') + '</div>' : '';
+      return l.length ? htmlTexteAvecCadresProcedure(l) : '';
     }
     return '<div style="white-space:pre-wrap;background:' + b.f + ';border:1px solid ' + (b.b || b.f) +
       ';border-radius:10px;padding:8px 12px;margin:10px 0;color:#14161B;">' + b.l.join('\n') + '</div>';
