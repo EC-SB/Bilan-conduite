@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 14:26 — v1557 */
+/* Déployé le 25/11/2026 à 11:08 — v1565 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -34,7 +34,9 @@ const SECTIONS_ONGLET = {
           /* 📺 v1290 — la salle des tablettes */
           'salle',
           /* 📽️ v1557 — les vidéos de présentation sur la télé */
-          'tele'],
+          'tele',
+          /* 🩺 v1565 — les démarches permis (tout le monde) */
+          'demarches'],
   /* ⚠️ « parcours » VIT DANS SUIVI, ET DANS SUIVI SEULEMENT — v1037.
 
      Il était dans Gestion tant qu'il n'y avait que l'atelier. Le
@@ -362,7 +364,10 @@ const VUES = {
               questionnaire lui-même (administrateurs). */
            ['renseignements', '📋 Renseignements',   'eleves',      'Administratif'],
            ['recherche',  '📚 Historique des leçons', 'recherche',   'Administratif'],
-           ['handicap',   '♿ Handicap',               'handicap',    'Administratif'],
+           /* 🩺 v1565 — David : « séparer handicap d'un côté et annulation
+              suspension de l'autre » ; tout le monde (droit « demarches ») */
+           ['handicap',   '♿ Permis aménagé',          'demarches',   'Administratif'],
+           ['suspension', '⛔ Suspension · annulation', 'demarches',   'Administratif'],
 
            /* Le répertoire est devenu ce qu'il restait de lui une
               fois que tout le per-élève est parti dans le dossier :
@@ -2200,6 +2205,8 @@ function reveillerVue(cle){
     videostele: () => (typeof afficherTeleVideos === 'function') && afficherTeleVideos(),
     code:       () => afficherCode(),
     handicap:   () => afficherHandicap(),
+    /* 🩺 v1565 — ec-handicap.js */
+    suspension: () => (typeof afficherSuspension === 'function') && afficherSuspension(),
     evaluation: () => afficherEvaluation(),
     /* 🧮 v1285 — et les aides de l'élève (ec-aides.js) */
     financements: () => { afficherFinancements(); if(typeof afficherAides === 'function') afficherAides(); },
