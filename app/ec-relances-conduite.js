@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 13:24 — v1569 */
+/* Déployé le 25/11/2026 à 15:08 — v1572 */
 /* ============================================================
    ec-relances-conduite.js — 📣 LES RELANCES CONDUITE (v1568)
 
@@ -45,7 +45,10 @@ const RC_VARIABLES = ['{prenom}', '{jours}', '{stock}', '{heures en stock}', '{c
 function rcFiltreVide(){
   return { dep: { on: true, mode: 'jours', jours: 15, date: '' }, simu: false, stock: { on: false, h: 2 }, premiere: false,
            pose: [], eb: [], ebDans: 2, ebRes: [], permis: [], permisJours: 21,
-           formation: [], agence: [], moniteur: [], relance: [], relanceJours: 7 };
+           formation: [], agence: [], moniteur: [], relance: [], relanceJours: 7,
+           /* 📝 v1572 — David : « j'ai des élèves que je n'ai pas vus depuis 6 ans,
+              je n'ai pas besoin de les voir tout de suite » */
+           insc: { on: false, mode: 'mois', mois: 18, date: '' } };
 }
 /* Les filtres gardés au départ — ceux du schéma */
 function rcGardesDeDepart(){
@@ -58,7 +61,15 @@ function rcGardesDeDepart(){
   ];
 }
 
-const RC = { donnees: null, lu: 0, enCours: null, f: rcFiltreVide(), gardes: null, plus: false, creneaux: null, dossiers: {} };
+const RC = { donnees: null, lu: 0, enCours: null, f: rcFiltreVide(), gardes: null, plus: false, creneaux: null, dossiers: {}, tri: rcTriGarde() };
+/* 📝 v1572 — l'ordre de la liste, gardé pour celui qui regarde. David :
+   « les plus récents en premier par exemple » : inscrits les plus
+   récemment, par défaut. */
+function rcTriGarde(){
+  try{ const t = localStorage.getItem('rcTri'); if(['insc', 'inscAncien', 'dormeur', 'stock', 'nom'].indexOf(t) !== -1) return t; }catch(e){}
+  return 'insc';
+}
+function rcPoserTri(t){ RC.tri = t; try{ localStorage.setItem('rcTri', t); }catch(e){} }
 
 /* ---------- petites aides ---------- */
 const rcEch = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -164,7 +175,9 @@ function rcEleve(x){
     premiere: !derC && !(x.nbConduites > 0) && !faites,
     faites: faites, frise: frise, avantEB: avantEB, apresEB: apresEB, dans: dans,
     ebPasse: ebPasse, ebRes: ebRes, ebPose: ebPose, dateEx: dateEx,
-    ajourne: String(s.resultat || '') === 'ajourne', rel: rel, luLe: x.luLe || 0
+    ajourne: String(s.resultat || '') === 'ajourne', rel: rel, luLe: x.luLe || 0,
+    /* 📝 v1572 — sa date d'inscription dans Drivup (la liste des élèves) */
+    inscription: rcIso(x.inscription)
   };
 }
 
@@ -221,6 +234,17 @@ function rcPasse(g, F){
     if(!F.agence.some(k => (k === 'loudeac' && loud) || (k === 'sb' && !loud))) return false;
   }
   if(F.moniteur && F.moniteur.length && F.moniteur.indexOf(g.moniteur) === -1) return false;
+  /* 📝 v1572 — inscrit depuis peu. Sans date d'inscription lue, l'élève
+     reste (David : « on le met quand même »). */
+  if(F.insc && F.insc.on && g.inscription){
+    if(F.insc.mode === 'date'){
+      if(F.insc.date && g.inscription < F.insc.date) return false;
+    }else{
+      const n = Math.max(0, Number(F.insc.mois) || 0);
+      const lim = new Date(Date.UTC(+auj.slice(0, 4), +auj.slice(5, 7) - 1 - n, +auj.slice(8, 10))).toISOString().slice(0, 10);
+      if(g.inscription < lim) return false;
+    }
+  }
   if(F.relance && F.relance.length){
     const j = g.rel && g.rel.le ? rcJours(g.rel.le, auj) : null;
     const ok = F.relance.some(k => (k === 'jamais' && !g.rel) || (k === 'depuis' && (!g.rel || (j !== null && j >= (Number(F.relanceJours) || 0)))));
@@ -231,8 +255,13 @@ function rcPasse(g, F){
 function rcListe(){
   const r = RC.donnees;
   if(!r) return [];
+  const dormeur = (a, b) => ((b.joursC === null ? -1 : b.joursC) - (a.joursC === null ? -1 : a.joursC));
+  const nom = (a, b) => a.nom.localeCompare(b.nom, 'fr');
+  /* 📝 v1572 — sans date d'inscription : en bas, quel que soit le sens */
+  const insc = sens => (a, b) => (!a.inscription - !b.inscription) || (sens * (a.inscription < b.inscription ? -1 : a.inscription > b.inscription ? 1 : 0));
+  const tri = { insc: insc(-1), inscAncien: insc(1), dormeur: dormeur, stock: (a, b) => (Number(b.stock) || 0) - (Number(a.stock) || 0), nom: nom }[RC.tri] || dormeur;
   return (r.eleves || []).map(rcEleve).filter(Boolean).filter(g => rcPasse(g, RC.f))
-    .sort((a, b) => ((b.joursC === null ? -1 : b.joursC) - (a.joursC === null ? -1 : a.joursC)) || a.nom.localeCompare(b.nom, 'fr'));
+    .sort((a, b) => tri(a, b) || dormeur(a, b) || nom(a, b));
 }
 
 /* Ce que dit le filtre, en une ligne */
@@ -251,12 +280,15 @@ function rcResume(F){
     if(F[k] && F[k].length) b.push(F[k].map(x => n[x] || x).join(' ou '));
   });
   if(F.moniteur && F.moniteur.length) b.push('avec ' + F.moniteur.join(' ou '));
+  if(F.insc && F.insc.on) b.push(F.insc.mode === 'date' ? 'inscrit depuis ' + (F.insc.date ? 'le ' + rcCourt(F.insc.date) : '…') : 'inscrit il y a moins de ' + (Number(F.insc.mois) || 0) + ' mois');
   return b.join(' · ') || 'tous les élèves en formation';
 }
 
 /* ---------- ce qu'on lit sur chaque ligne ---------- */
 function rcLignes(g){
   const l1 = [], l2 = [];
+  /* 📝 v1572 */
+  if(g.inscription) l1.push('📝 inscrit le ' + g.inscription.split('-').reverse().join('/'));
   if(g.joursC !== null) l1.push('💤 ' + (g.joursC === 0 ? 'a conduit aujourd’hui' : g.joursC + ' jour' + (g.joursC > 1 ? 's' : '') + ' (' + rcCourt(g.derC) + ')'));
   else l1.push(g.premiere ? '🚗 pas encore conduit' : '💤 dernière conduite inconnue');
   if(RC.f.simu && g.derS) l1.push('🕹️ simulateur le ' + rcCourt(g.derS));
@@ -340,6 +372,7 @@ function rcStyle(){
 .rcRes{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
 .rcRes > span:first-child{ font-size:15px; font-weight:800; }
 .rcRes small{ font-size:12.5px; color:var(--muted); flex:1; min-width:180px; }
+.rcRes .rcTri{ width:auto; margin:0; padding:6px 10px; font-size:13px; max-width:100%; }
 .rcRes .btn{ width:auto !important; margin:0 !important; }
 .rcL{ display:flex; gap:10px; align-items:center; padding:9px 12px; border-bottom:1px solid var(--line); }
 .rcL:last-child{ border-bottom:none; }
@@ -447,6 +480,11 @@ function dessinerRelancesConduite(){
   };
   const txt = (t) => document.createTextNode(t);
   const ch = (liste, cle, t) => rcChip(F[liste].indexOf(cle) !== -1, t, () => { rcBascule(F[liste], cle); refaire(); });
+  if(!F.insc) F.insc = rcFiltreVide().insc;
+  const inscIn = document.createElement('input');
+  inscIn.type = 'date'; inscIn.value = F.insc.date || '';
+  inscIn.setAttribute('aria-label', 'Inscrit depuis le');
+  inscIn.addEventListener('change', () => { F.insc.date = inscIn.value; refaire(); });
   const dateIn = document.createElement('input');
   dateIn.type = 'date'; dateIn.value = F.dep.date || '';
   dateIn.addEventListener('change', () => { F.dep.date = dateIn.value; refaire(); });
@@ -480,7 +518,12 @@ function dessinerRelancesConduite(){
      ch('formation', 'BEA', 'BEA'), ch('formation', 'BV', 'BV'), ch('formation', 'AAC', 'AAC'), ch('formation', 'CS', 'CS'), ch('formation', 'AE', 'Autre AE')],
     [rcChip(!F.agence.length, 'Les deux agences', () => { F.agence = []; refaire(); }), ch('agence', 'sb', 'Saint-Brieuc'), ch('agence', 'loudeac', 'Loudéac')],
     [rcChip(!F.moniteur.length, 'Tous les moniteurs', () => { F.moniteur = []; refaire(); })].concat(mons.map(m => ch('moniteur', m, m))),
-    [ch('relance', 'depuis', 'Pas relancé depuis'), rcNombre(F.relanceJours, ' jours', v => { F.relanceJours = v; }), ch('relance', 'jamais', 'Jamais relancé')]
+    [ch('relance', 'depuis', 'Pas relancé depuis'), rcNombre(F.relanceJours, ' jours', v => { F.relanceJours = v; }), ch('relance', 'jamais', 'Jamais relancé')],
+    /* 📝 v1572 — inscrit il y a moins de N mois, ou depuis une date */
+    [rcChip(F.insc.on, '📝 Inscrit il y a moins de', () => { F.insc.on = !F.insc.on; refaire(); }, 'Sa date d’inscription dans Drivup ; sans date lue, l’élève reste'),
+     F.insc.on ? rcChip(F.insc.mode === 'mois', 'nombre de mois', () => { F.insc.mode = 'mois'; refaire(); }) : null,
+     F.insc.on ? rcChip(F.insc.mode === 'date', 'date', () => { F.insc.mode = 'date'; if(!F.insc.date) F.insc.date = rcAuj().slice(0, 4) + '-01-01'; refaire(); }) : null,
+     F.insc.on ? (F.insc.mode === 'mois' ? rcNombre(F.insc.mois, ' mois', v => { F.insc.mois = v; }, 1) : inscIn) : null]
   ]);
   z.appendChild(pan);
   const tout = document.createElement('div');
@@ -502,7 +545,16 @@ function dessinerRelancesConduite(){
   bR.disabled = !liste.length || !rcPeutModifier();
   if(!rcPeutModifier()) bR.title = 'Il faut le droit « 📣 Relances conduite » en modification';
   bR.addEventListener('click', () => ouvrirRelanceConduite(liste));
-  res.appendChild(bR);
+  /* 📝 v1572 — l'ordre de la liste */
+  const tri = document.createElement('select');
+  tri.className = 'rcTri';
+  tri.setAttribute('aria-label', 'Trier la liste');
+  [['insc', '↓ Inscrit le plus récemment'], ['inscAncien', '↑ Inscrit le plus anciennement'], ['dormeur', '💤 Pas conduit depuis le plus longtemps'],
+   ['stock', '📦 Le plus d’heures en stock'], ['nom', '🔤 Nom']].forEach(([v, t]) => {
+    const o = document.createElement('option'); o.value = v; o.textContent = 'Trier : ' + t; if(RC.tri === v) o.selected = true; tri.appendChild(o);
+  });
+  tri.addEventListener('change', () => { rcPoserTri(tri.value); RC.plus = false; dessinerRelancesConduite(); });
+  res.append(tri, bR);
   z.appendChild(res);
   if(liste.length){
     const box = document.createElement('div');
@@ -540,12 +592,13 @@ function dessinerRelancesConduite(){
   const el = RC.donnees.eleves || [];
   const auj = RC.donnees.auj || rcAuj();
   const jourDe = t => t ? new Date(Number(t)).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }) : '';
-  const lus = el.filter(x => x.luLe).length, duJour = el.filter(x => jourDe(x.luLe) === auj).length, stock = el.filter(x => x.stock).length;
+  const lus = el.filter(x => x.luLe).length, duJour = el.filter(x => jourDe(x.luLe) === auj).length, stock = el.filter(x => x.stock).length, insc = el.filter(x => x.inscription).length;
   const pied = document.createElement('div');
   pied.className = 'rcPied';
   pied.textContent = '🔄 Lu dans sa fiche Drivup (Plannings, Facturer), une fois par jour par la lecture automatique : ' +
     lus + ' élève' + (lus > 1 ? 's' : '') + ' en formation sur ' + el.length + ' (' + duJour + ' aujourd’hui) · stock lu pour ' + stock +
-    (stock < lus ? ' (il faut l’extension « App EC · Drivup » 1.7.0)' : '') + '. Les permis obtenus et les élèves partis n’y sont pas.';
+    (stock < lus ? ' (il faut l’extension « App EC · Drivup » 1.7.0)' : '') + ' · date d’inscription lue pour ' + insc +
+    (insc < lus ? ' (extension 1.8.0)' : '') + '. Les permis obtenus et les élèves partis n’y sont pas.';
   const re = document.createElement('button');
   re.type = 'button'; re.className = 'rlMini'; re.textContent = '↻ Relire';
   re.style.marginLeft = '8px';
