@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:51 — v1574 */
+/* Déployé le 25/11/2026 à 16:53 — v1576 */
 /* ============================================================
    ec-ouverture.js — 📅 GESTION › OUVERTURE DES COURS (v1572)
 
@@ -29,6 +29,16 @@
      travail) ; un élève déjà placé se déplace sur un moniteur qui a un
      cours vide à la même heure, dans la même boîte, et n'est prévenu
      que si on coche.
+
+   v1575 — David : « ajouter des gens au bureau, équilibrer Loudéac et
+   Saint-Brieuc suivant les jours de travail de chacun », « ouvrir
+   d'autres salles si besoin, dire quel rendez-vous y mettre, et si le
+   nom change sur Drivup ». Ses choix : on coche les jours de travail,
+   l'App répartit (quelqu'un à Loudéac les jours où Loudéac est ouvert
+   dans la semaine type, les jours de Loudéac partagés), une case se
+   change à la main ; une salle prend n'importe quel rendez-vous de
+   Drivup (sauf NON, congés, conduite) ; colonnes et rendez-vous suivis
+   par leur NUMÉRO Drivup, leur nom peut changer.
 
    Ce module calcule et montre ; le Worker garde la semaine type
    (ouvertureLire / ouverturePoser) ; l'extension « App EC · Drivup »
@@ -154,7 +164,7 @@ function ouvConfigDeDepart(){
 /* Une semaine type lue : tout ce qui manque reprend la forme de départ */
 function ouvConfigPropre(c){
   const d = ouvConfigDeDepart();
-  if(!c || typeof c !== 'object') return d;
+  if(!c || typeof c !== 'object') c = d;
   const out = Object.assign({}, d, c);
   out.moniteurs = (Array.isArray(c.moniteurs) ? c.moniteurs : d.moniteurs).map(m => {
     const j = {};
@@ -169,8 +179,30 @@ function ouvConfigPropre(c){
              mode: ['c', 'i', 'p'].indexOf(m.mode) !== -1 ? m.mode : 'c',
              pct: Math.max(0, Math.min(100, Math.round(Number(m.pct) || 0))), pctBoite: m.pctBoite === 'bea' ? 'bea' : 'bv', jours: j };
   }).filter(m => m.nom);
-  out.salle = Array.isArray(c.salle) ? c.salle : d.salle;
-  out.bureaux = Array.isArray(c.bureaux) ? c.bureaux : d.bureaux;
+  /* 🏫 v1575 — une salle : sa colonne (numéro), son rendez-vous (une clé
+     connue, ou « id:NNN » choisi dans Drivup), l'agence, la durée d'un créneau */
+  out.salle = (Array.isArray(c.salle) ? c.salle : d.salle).map(x => {
+    const j = {};
+    for(let k = 1; k <= 6; k++) j[k] = Array.isArray(x.jours && x.jours[k]) ? x.jours[k].filter(p => Array.isArray(p) && /^\d{2}:\d{2}$/.test(p[0]) && /^\d{2}:\d{2}$/.test(p[1])) : [];
+    const presta = String(x.presta || '');
+    return { nom: String(x.nom || '').slice(0, 60), res: String(x.res || '').replace(/\D/g, ''),
+             presta: (OUV_PRESTA[presta] || /^id:\d+$/.test(presta)) ? presta : 'tab', prestaNom: String(x.prestaNom || '').slice(0, 80),
+             agence: x.agence === '3' ? '3' : '1', duree: [60, 90, 120].indexOf(Number(x.duree)) !== -1 ? Number(x.duree) : 60, jours: j };
+  }).filter(x => x.nom && x.res);
+  /* 🗂️ v1575 — un bureau : ses jours de travail, ce qu'on a choisi à la
+     main (📌), et la dernière répartition (pour ne pas tout bouger) */
+  out.bureaux = (Array.isArray(c.bureaux) ? c.bureaux : d.bureaux).map(b => {
+    const jours = {}, travail = {}, force = {};
+    for(let k = 1; k <= 6; k++){
+      const v = b.jours && b.jours[k];
+      jours[k] = (v === 'SB' || v === 'L') ? v : '';
+      travail[k] = b.travail ? !!b.travail[k] : !!jours[k];
+      const f = b.force && b.force[k];
+      if(travail[k] && (f === 'SB' || f === 'L')) force[k] = f;
+    }
+    return { nom: String(b.nom || '').slice(0, 40), res: String(b.res || '').replace(/\D/g, ''), jours: jours, travail: travail, force: force };
+  }).filter(b => b.nom && b.res);
+  out.prestaIds = (c.prestaIds && typeof c.prestaIds === 'object') ? c.prestaIds : {};
   out.horairesBureau = Array.isArray(c.horairesBureau) ? c.horairesBureau : d.horairesBureau;
   out.loudeac = (c.loudeac && typeof c.loudeac === 'object') ? c.loudeac : {};
   out.curseur = Math.max(0, Math.min(100, Math.round(Number(c.curseur)))) ;
@@ -316,6 +348,72 @@ function ouvEquilibre(cfg){
 }
 
 /* ============================================================
+   🗂️ v1575 — LES BUREAUX : QUI À LOUDÉAC, QUI À SAINT-BRIEUC
+
+   On coche les jours où chacun travaille ; l'App met quelqu'un à
+   Loudéac les jours où Loudéac est ouvert dans la semaine type (un
+   moniteur à Loudéac, ou la salle de Loudéac), s'il reste quelqu'un à
+   Saint-Brieuc, et partage ces jours entre tous. Une case choisie à la
+   main (📌) ne bouge pas. À égalité, la répartition d'avant est gardée.
+   ============================================================ */
+function ouvBesoinLoudeac(cfg, d){
+  return cfg.moniteurs.some(m => m.actif && m.jours[d] && m.jours[d].lieu === 'L') ||
+         (cfg.salle || []).some(c => c.agence === '3' && (c.jours[d] || []).length > 0);
+}
+function ouvBureaux(cfg){
+  const bs = cfg.bureaux || [];
+  const besoin = {}, choix = [], alertes = [];
+  for(let d = 1; d <= 6; d++){
+    besoin[d] = ouvBesoinLoudeac(cfg, d);
+    const W = bs.filter(b => b.travail[d]);
+    const libres = W.filter(b => !b.force[d]);
+    const forceL = W.some(b => b.force[d] === 'L'), forceSB = W.some(b => b.force[d] === 'SB');
+    if(besoin[d] && !forceL && libres.length && (libres.length >= 2 || forceSB)) choix.push({ d: d, cands: libres.map(b => b.nom) });
+  }
+  /* toutes les façons de choisir (6 jours au plus) : la plus juste, puis la plus proche d'avant */
+  const quiL = {};
+  let mieux = null, coutMieux = Infinity, essais = 0;
+  const cout = () => {
+    const n = {};
+    bs.forEach(b => { n[b.nom] = 0; });
+    let chg = 0;
+    for(let d = 1; d <= 6; d++) bs.forEach(b => {
+      if(!b.travail[d]) return;
+      const v = b.force[d] || (quiL[d] === b.nom ? 'L' : 'SB');
+      if(v === 'L') n[b.nom]++;
+      if(v !== b.jours[d]) chg++;
+    });
+    return Object.keys(n).reduce((s, k) => s + n[k] * n[k], 0) * 1000 + chg;
+  };
+  const essayer = i => {
+    if(++essais > 200000) return;
+    if(i === choix.length){ const c = cout(); if(c < coutMieux){ coutMieux = c; mieux = Object.assign({}, quiL); } return; }
+    choix[i].cands.forEach(nom => { quiL[choix[i].d] = nom; essayer(i + 1); });
+    delete quiL[choix[i].d];
+  };
+  essayer(0);
+  mieux = mieux || {};
+  const jours = {}, loud = {}, sb = {};
+  bs.forEach(b => {
+    jours[b.nom] = {}; loud[b.nom] = 0; sb[b.nom] = 0;
+    for(let d = 1; d <= 6; d++){
+      const v = !b.travail[d] ? '' : (b.force[d] || (mieux[d] === b.nom ? 'L' : 'SB'));
+      jours[b.nom][d] = v;
+      if(v === 'L') loud[b.nom]++;
+      if(v === 'SB') sb[b.nom]++;
+    }
+  });
+  for(let d = 1; d <= 6; d++){
+    const ici = bs.filter(b => jours[b.nom][d]);
+    const travaille = cfg.moniteurs.some(m => m.actif && m.jours[d] && m.jours[d].lieu !== 'off') || (cfg.salle || []).some(c => (c.jours[d] || []).length);
+    if(!ici.length){ if(travaille && bs.length) alertes.push({ d: d, txt: 'personne au bureau' }); continue; }
+    if(besoin[d] && !ici.some(b => jours[b.nom][d] === 'L')) alertes.push({ d: d, txt: 'Loudéac est ouvert, mais personne au bureau de Loudéac' });
+    if(!ici.some(b => jours[b.nom][d] === 'SB')) alertes.push({ d: d, txt: 'personne au bureau de Saint-Brieuc' });
+  }
+  return { jours: jours, besoin: besoin, alertes: alertes, loud: loud, sb: sb };
+}
+
+/* ============================================================
    CE QUE LA SEMAINE TYPE OUVRE SUR UNE PÉRIODE
 
    Une ligne par cours à poser : la colonne Drivup, la prestation (son
@@ -338,6 +436,7 @@ function ouvJourneesDu(cfg, iso, eq){
 }
 function ouvAttendus(cfg, du, au, quoi){
   const eq = ouvEquilibre(cfg);
+  const bu = ouvBureaux(cfg);
   const out = [], feries = [];
   const veut = k => !quoi || quoi.indexOf(k) !== -1;
   for(let j = du; j && j <= au; j = ouvPlus(j, 1)){
@@ -365,13 +464,14 @@ function ouvAttendus(cfg, du, au, quoi){
     if(veut('salle')){
       cfg.salle.forEach(c => {
         (c.jours[d] || []).forEach(([a, b]) => {
-          for(let t = ouvMin(a); t + 60 <= ouvMin(b); t += 60) out.push({ grp: 'salle', res: c.res, presta: c.presta, jour: j, debut: ouvHeure(t), fin: ouvHeure(t + 60), agence: c.agence || '1', d: d, col: c.nom });
+          const pas = c.duree || 60;
+          for(let t = ouvMin(a); t + pas <= ouvMin(b); t += pas) out.push({ grp: 'salle', res: c.res, presta: c.presta, jour: j, debut: ouvHeure(t), fin: ouvHeure(t + pas), agence: c.agence || '1', d: d, col: c.nom });
         });
       });
     }
     if(veut('bureaux')){
       cfg.bureaux.forEach(b => {
-        const l = b.jours[d];
+        const l = (bu.jours[b.nom] || {})[d];
         if(l !== 'SB' && l !== 'L') return;
         (cfg.horairesBureau || []).forEach(([a, z]) => out.push({ grp: 'bureaux', res: b.res, presta: l === 'L' ? 'bureauL' : 'bureauSB', jour: j, debut: a, fin: z, agence: l === 'L' ? '3' : '1', d: d, col: b.nom }));
       });
@@ -394,7 +494,8 @@ function ouvSeries(liste, idDe){
     l.forEach(c => {
       if(serie && ouvPlus(serie.dates[serie.dates.length - 1], 7) === c.jour && serie.dates.length < 60) serie.dates.push(c.jour);
       else {
-        serie = { cle: 's' + out.length, res: c.res, typMo: idDe[c.presta] || '', attendu: OUV_PRESTA[c.presta], presta: c.presta,
+        serie = { cle: 's' + out.length, res: c.res, typMo: idDe[c.presta] || '', attendu: (OUV.nomPresta || {})[c.presta] || OUV_PRESTA[c.presta] || '',
+                  libre: !!(OUV.libre || {})[c.presta], presta: c.presta,
                   debut: c.debut, fin: c.fin, agence: c.agence, dates: [c.jour], grp: c.grp };
         out.push(serie);
       }
@@ -402,13 +503,41 @@ function ouvSeries(liste, idDe){
   });
   return out;
 }
-/* Les numéros Drivup des prestations, par leur nom (le menu du formulaire) */
+/* Les numéros Drivup des prestations, par leur nom (le menu du formulaire).
+   🏷️ v1575 — le numéro trouvé est gardé : si le nom change dans Drivup, on
+   la retrouve par son numéro (elle part alors « libre » : l'extension
+   vérifie le NOUVEAU nom). Les rendez-vous choisis pour une salle
+   (« id:NNN ») se retrouvent par leur numéro. */
 function ouvIdsDesPrestations(prestations){
+  prestations = prestations || {};
+  const cfg = OUV.cfg || {};
+  const memo = cfg.prestaIds = cfg.prestaIds || {};
   const parNom = {};
-  Object.keys(prestations || {}).forEach(id => { const n = ouvNorm(prestations[id]); if(!parNom[n]) parNom[n] = id; });
-  const out = {};
-  Object.keys(OUV_PRESTA).forEach(k => { if(parNom[OUV_PRESTA[k]]) out[k] = parNom[OUV_PRESTA[k]]; });
+  Object.keys(prestations).forEach(id => { const n = ouvNorm(prestations[id]); if(!parNom[n]) parNom[n] = id; });
+  const out = {}, noms = {}, libre = {}, renommes = [];
+  let change = false;
+  Object.keys(OUV_PRESTA).forEach(k => {
+    let id = parNom[OUV_PRESTA[k]];
+    if(id){ if(memo[k] !== id){ memo[k] = id; change = true; } }
+    else if(memo[k] && prestations[memo[k]]){ id = memo[k]; libre[k] = true; renommes.push({ k: k, avant: OUV_NOMS_PRESTA[k], nom: prestations[id] }); }
+    if(id){ out[k] = id; noms[k] = ouvNorm(prestations[id]); }
+  });
+  (cfg.salle || []).forEach(c => {
+    const m = String(c.presta || '').match(/^id:(\d+)$/);
+    if(!m || !prestations[m[1]]) return;
+    out[c.presta] = m[1]; noms[c.presta] = ouvNorm(prestations[m[1]]); libre[c.presta] = true;
+    if(c.prestaNom !== prestations[m[1]]){ c.prestaNom = prestations[m[1]]; change = true; }
+  });
+  OUV.nomPresta = noms; OUV.libre = libre; OUV.renommes = renommes;
+  if(change) ouvSauver();
   return out;
+}
+/* Le nom d'un rendez-vous, pour l'écran */
+function ouvNomPresta(k){
+  const m = String(k || '').match(/^id:(\d+)$/);
+  if(m){ const c = ((OUV.cfg && OUV.cfg.salle) || []).find(x => x.presta === k); return (c && c.prestaNom) || ('rendez-vous n° ' + m[1]); }
+  const r = (OUV.renommes || []).find(x => x.k === k);
+  return r ? r.nom : (OUV_NOMS_PRESTA[k] || k);
 }
 
 /* ============================================================
@@ -446,11 +575,14 @@ function ouvExt(m, type, delai, surProgression){
   OUV.file = t.catch(() => {});
   return t;
 }
-function ouvLireDrivup(du, au, colonnes){
+function ouvLireDrivup(du, au, colonnes, menus){
   const m = { type: 'drivup-ouverture-lire', du: du, au: au };
   const col = (OUV.cfg && OUV.cfg.moniteurs[0] && OUV.cfg.moniteurs[0].res) || '';
   if(col) m.colonne = col;
   if(colonnes && colonnes.length) m.colonnes = colonnes;
+  /* 🏫 v1575 — les menus de rendez-vous de la salle et des bureaux aussi */
+  const autres = menus || (OUV.cfg ? [...new Set((OUV.cfg.salle || []).map(c => c.res).concat((OUV.cfg.bureaux || []).slice(0, 1).map(b => b.res)))] : []);
+  if(autres.length) m.prestationsDe = autres.slice(0, 12);
   return ouvExt(m, 'drivup-ouverture-lue', 600000).then(d => { if(d.ressources) OUV.ressources = d.ressources; return d; });
 }
 
@@ -558,11 +690,11 @@ function dessinerOuverture(){
   /* l'extension : sans elle, on règle la semaine type, rien de plus */
   const v = (typeof EXT_DV !== 'undefined' && EXT_DV.version) || '';
   const present = typeof extDrivupPresente === 'function' && extDrivupPresente();
-  const vieille = present && v && v.split('.').map(Number).reduce((s, x, i) => s + x * [10000, 100, 1][i], 0) < 10801;
+  const vieille = present && v && v.split('.').map(Number).reduce((s, x, i) => s + x * [10000, 100, 1][i], 0) < 10803;
   if(!present || vieille){
     z.appendChild(ouvEl('div', 'ovWarn', !present
-      ? '🧩 L’extension « App EC · Drivup » n’est pas sur cet ordinateur : tu peux régler la semaine type, mais ouvrir, fermer et échanger se font depuis un ordinateur qui l’a (1.8.1).'
-      : '🧩 L’extension est en ' + ouvEch(v) + ' : il faut la 1.8.1 pour ouvrir, fermer et échanger (Gestion › 📥 Drivup). La 1.8.0 ne posait que la durée par défaut des bureaux.'));
+      ? '🧩 L’extension « App EC · Drivup » n’est pas sur cet ordinateur : tu peux régler la semaine type, mais ouvrir, fermer et échanger se font depuis un ordinateur qui l’a (1.8.3).'
+      : '🧩 L’extension est en ' + ouvEch(v) + ' : il faut la 1.8.3 pour ouvrir, fermer et échanger (Gestion › 📥 Drivup) : les autres salles, leurs rendez-vous et les noms changés dans Drivup.'));
   }
   if(!ouvPeutModifier()) z.appendChild(ouvEl('div', 'ovNote', '👁️ En lecture : changer la semaine type ou écrire dans Drivup est réservé aux administrateurs.'));
   if(OUV.onglet === 'sem') dessinerSemaineOuv(z);
@@ -744,7 +876,7 @@ function menuJourOuv(m, d, ancre){
 async function ajouterMoniteurOuv(){
   let cols = OUV.ressources;
   if(!cols){
-    try{ showToast('Lecture des colonnes de Drivup…'); cols = (await ouvLireDrivup(ouvAuj(), ouvAuj())).ressources || []; }
+    try{ showToast('Lecture des colonnes de Drivup…'); cols = (await ouvLireDrivup(ouvAuj(), ouvAuj(), null, [])).ressources || []; }
     catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); return; }
   }
   const pris = {};
@@ -764,26 +896,27 @@ async function ajouterMoniteurOuv(){
 async function reprendreDrivupOuv(){
   const du = ouvPlus(ouvLundi(ouvAuj()), 7), au = ouvPlus(du, 12);
   let d;
-  try{ showToast('Lecture de Drivup du ' + ouvFr(du) + ' au ' + ouvFr(au) + '…'); d = await ouvLireDrivup(du, au); }
+  try{ showToast('Lecture de Drivup du ' + ouvFr(du) + ' au ' + ouvFr(au) + '…'); d = await ouvLireDrivup(du, au, null, []); }
   catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); return; }
   const noms = {};
   Object.keys(d.prestations || {}).forEach(id => { noms[id] = ouvNorm(d.prestations[id]); });
+  const idDe = ouvIdsDesPrestations(d.prestations);
+  const est = (e, k) => !!idDe[k] && e.type === idDe[k];
   const neuf = {};
   OUV.cfg.moniteurs.forEach(m => {
     const ev = (d.evenements || []).filter(e => e.res === m.res);
     const jours = {};
     for(let k = 1; k <= 6; k++){
       const l = ev.filter(e => ouvJourSem(e.jour) === k);
-      const n = l.map(e => noms[e.type] || '');
       const j = ouvJourVide();
       j.moto = m.jours[k].moto || [];
-      if(n.some(x => x === OUV_PRESTA.loud || x === OUV_PRESTA.marque)) j.lieu = 'L';
-      else if(n.some(x => x === OUV_PRESTA.resa)) j.lieu = 'R';
-      else if(n.some(x => /^conduite\b/.test(x) || x === OUV_PRESTA.moto)) j.lieu = 'SB';
+      if(l.some(e => est(e, 'loud') || est(e, 'marque'))) j.lieu = 'L';
+      else if(l.some(e => est(e, 'resa'))) j.lieu = 'R';
+      else if(l.some(e => /^conduite\b/.test(noms[e.type] || '') || est(e, 'bv') || est(e, 'bea') || est(e, 'moto'))) j.lieu = 'SB';
       if(j.lieu === 'SB' || j.lieu === 'L'){
         const h = [...new Set(l.filter(e => OUV_CRENEAUX.indexOf(e.debut) !== -1 && ouvMin(e.fin) - ouvMin(e.debut) === 120).map(e => e.debut))];
         if(h.length) j.creneaux = OUV_CRENEAUX.filter(x => h.indexOf(x) !== -1);
-        const motos = [...new Set(l.filter(e => noms[e.type] === OUV_PRESTA.moto).map(e => e.debut))];
+        const motos = [...new Set(l.filter(e => est(e, 'moto')).map(e => e.debut))];
         if(motos.length) j.moto = motos;
         j.moto = j.moto.filter(x => j.creneaux.indexOf(x) !== -1);
       }
@@ -803,17 +936,70 @@ async function reprendreDrivupOuv(){
   showToast('↺ Semaine type reprise de Drivup');
 }
 
+/* ---------- 🏷️ v1575 — choisir une colonne, un rendez-vous de Drivup ---------- */
+/* Les colonnes de Drivup : celles déjà lues, sinon une lecture rapide */
+async function ouvColonnes(){
+  if(OUV.ressources && OUV.ressources.length) return OUV.ressources;
+  showToast('Lecture des colonnes de Drivup…');
+  return (await ouvLireDrivup(ouvAuj(), ouvAuj(), null, [])).ressources || [];
+}
+function ouvTitreColonne(res){
+  const r = (OUV.ressources || []).find(x => String(x.id) === String(res));
+  return r ? r.titre : '';
+}
+/* Le menu de choix d'une colonne ; promesse de { id, titre } (ou null) */
+function ouvChoisirColonne(ancre, titre, cols, sauf){
+  return new Promise(ok => {
+    let fait = false;
+    const items = [{ titre: 'SA COLONNE DANS DRIVUP' }];
+    cols.filter(c => !(sauf || []).includes(String(c.id))).forEach(c => items.push({ emoji: '🏷️', texte: c.titre + ' (n° ' + c.id + ')', faire: () => { fait = true; ok(c); } }));
+    menuGestesEC(ancre, titre, items, () => setTimeout(() => { if(!fait) ok(null); }, 0));
+  });
+}
+/* Les rendez-vous qu'on peut mettre dans une salle : tout Drivup, sauf NON,
+   les fériés, les congés et la conduite (elle est dans 🚗 Moniteurs) */
+const OUV_PAS_EN_SALLE = /^(non|ferie)\b|conges|^conduite\b|^loudeac$|^resa permis$|^moto\b/;
+async function ouvChoisirRendezVous(ancre, titre, res){
+  showToast('Lecture des rendez-vous de Drivup…');
+  const d = await ouvLireDrivup(ouvAuj(), ouvAuj(), null, [String(res)]);
+  const pr = d.prestations || {};
+  const ids = Object.keys(pr).filter(id => !OUV_PAS_EN_SALLE.test(ouvNorm(pr[id]))).sort((x, y) => String(pr[x]).localeCompare(String(pr[y]), 'fr'));
+  if(!ids.length){ showToast('⚠️ Aucun rendez-vous trouvé dans Drivup pour cette colonne'); return null; }
+  return new Promise(ok => {
+    let fait = false;
+    const items = [{ titre: 'LE RENDEZ-VOUS À Y OUVRIR' }];
+    ids.forEach(id => items.push({ emoji: '🎯', texte: pr[id], faire: () => { fait = true; ok({ id: id, nom: pr[id] }); } }));
+    menuGestesEC(ancre, titre, items, () => setTimeout(() => { if(!fait) ok(null); }, 0));
+  });
+}
+/* Une clé connue si c'est l'un des nôtres, sinon « id:NNN » */
+function ouvCleDuRendezVous(r){
+  const n = ouvNorm(r.nom);
+  const k = Object.keys(OUV_PRESTA).find(x => OUV_PRESTA[x] === n);
+  if(k && OUV.cfg){ OUV.cfg.prestaIds = OUV.cfg.prestaIds || {}; OUV.cfg.prestaIds[k] = String(r.id); }
+  return k || ('id:' + r.id);
+}
+
 /* ---------- 🏫 la salle ---------- */
 function dessinerSalleOuv(z){
   const cfg = OUV.cfg, mod = ouvPeutModifier();
-  z.appendChild(ouvEl('div', 'ovAide', 'Recopié de Drivup (semaine du 7 décembre 2026), avec tes deux corrections : le jeudi 14h-16h ouvert à Saint-Brieuc, rien le lundi à Loudéac. Des créneaux d’1h. Touche une case pour la changer.'));
+  z.appendChild(ouvEl('div', 'ovAide', 'Une ligne par colonne de Drivup, avec le rendez-vous qu’on y ouvre. Touche une case pour ses heures ; touche le nom d’une salle pour changer son rendez-vous, sa colonne, son agence ou la durée d’un créneau. Colonnes et rendez-vous sont suivis par leur numéro Drivup : s’ils sont renommés dans Drivup, rien ne casse.'));
   const g = ouvEl('div', 'ovGrille');
   const t = document.createElement('table');
   t.innerHTML = '<thead><tr><th>Colonne Drivup</th>' + [1, 2, 3, 4, 5, 6].map(d => '<th>' + OUV_JOURS[d] + '</th>').join('') + '</tr></thead>';
   const tb = document.createElement('tbody');
-  cfg.salle.forEach(c => {
+  cfg.salle.forEach((c, i) => {
     const tr = document.createElement('tr');
-    tr.appendChild(ouvEl('td', '', ouvEch(c.nom) + '<div class="ovNote" style="font-weight:400;">' + ouvEch(OUV_NOMS_PRESTA[c.presta] || c.presta) + '</div>'));
+    const titre = ouvTitreColonne(c.res);
+    const perdue = OUV.ressources && OUV.ressources.length && !titre;
+    const notes = [ouvNomPresta(c.presta), c.agence === '3' ? 'Loudéac' : 'Saint-Brieuc', 'créneaux de ' + ouvH(ouvHeure(c.duree || 60))];
+    const td0 = ouvEl('td', mod ? 'ovCase' : '', ouvEch(c.nom) +
+      '<div class="ovNote" style="font-weight:400;">' + notes.map(ouvEch).join(' · ') + '</div>' +
+      (perdue ? '<div class="ovNote" style="font-weight:700;color:var(--orange);">⚠️ colonne n° ' + ouvEch(c.res) + ' introuvable dans Drivup</div>'
+              : titre ? '<div class="ovNote" style="font-weight:400;">colonne Drivup « ' + ouvEch(titre) + ' » · n° ' + ouvEch(c.res) + '</div>' : ''));
+    td0.dataset.salle = String(i);
+    if(mod){ td0.title = 'Changer son rendez-vous, sa colonne, son agence'; td0.addEventListener('click', () => menuSalleOuv(c, td0)); }
+    tr.appendChild(td0);
     for(let d = 1; d <= 6; d++){
       const pl = c.jours[d] || [];
       const td = ouvEl('td', mod ? 'ovCase' : '', pl.length ? ouvC('sal', pl.map(([a, b]) => ouvH(a) + '-' + ouvH(b)).join(' · ')) : '<span class="ovC off">—</span>');
@@ -836,34 +1022,136 @@ function dessinerSalleOuv(z){
   t.appendChild(tb);
   g.appendChild(t);
   z.appendChild(g);
+  if(mod){
+    const bas = ouvEl('div', 'ovRang');
+    bas.style.marginTop = '12px';
+    const bt = ouvChip(false, '＋ Une salle', () => ajouterSalleOuv(bt));
+    bas.appendChild(bt);
+    z.appendChild(bas);
+  }
+}
+function menuSalleOuv(c, ancre){
+  const cfg = OUV.cfg;
+  const refaire = () => { ouvSauver(); dessinerOuverture(); };
+  menuGestesEC(ancre, '🏫 ' + c.nom, [
+    { titre: 'LE RENDEZ-VOUS' },
+    { emoji: '🎯', texte: ouvNomPresta(c.presta) + ' — changer', faire: async () => {
+      const r = await ouvChoisirRendezVous(ancre, '🎯 ' + c.nom, c.res);
+      if(!r) return;
+      c.presta = ouvCleDuRendezVous(r); c.prestaNom = r.nom;
+      refaire();
+    } },
+    { sep: true }, { titre: 'LA DURÉE D’UN CRÉNEAU' },
+    ...[60, 90, 120].map(n => ({ emoji: '⏱️', texte: ouvH(ouvHeure(n)), on: (c.duree || 60) === n, faire: () => { c.duree = n; refaire(); } })),
+    { sep: true }, { titre: 'L’AGENCE' },
+    { emoji: '📍', texte: 'Saint-Brieuc', on: c.agence !== '3', faire: () => { c.agence = '1'; refaire(); } },
+    { emoji: '🟠', texte: 'Loudéac', on: c.agence === '3', faire: () => { c.agence = '3'; refaire(); } },
+    { sep: true }, { titre: 'LA COLONNE' },
+    { emoji: '🏷️', texte: 'Changer de colonne Drivup (n° ' + c.res + ')', faire: async () => {
+      const col = await ouvChoisirColonne(ancre, '🏷️ ' + c.nom, await ouvColonnes(), [c.res]);
+      if(!col) return;
+      c.res = String(col.id);
+      refaire();
+    } },
+    { emoji: '🗑️', texte: 'Retirer cette salle de la semaine type', danger: true, faire: async () => {
+      if(!await confirmer('Retirer « ' + c.nom + ' » de la semaine type ?\n\nRien n’est retiré de Drivup : on ne l’ouvrira plus, c’est tout.', '🗑️ Retirer')) return;
+      cfg.salle = cfg.salle.filter(x => x !== c);
+      refaire();
+    } }
+  ]);
+}
+async function ajouterSalleOuv(ancre){
+  let cols;
+  try{ cols = await ouvColonnes(); }catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); return; }
+  const col = await ouvChoisirColonne(ancre, '＋ Une salle', cols, []);
+  if(!col) return;
+  let r;
+  try{ r = await ouvChoisirRendezVous(ancre, '＋ ' + col.titre, col.id); }catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); return; }
+  if(!r) return;
+  const j = {};
+  for(let d = 1; d <= 6; d++) j[d] = [];
+  OUV.cfg.salle.push({ nom: String(col.titre).slice(0, 60), res: String(col.id), presta: ouvCleDuRendezVous(r), prestaNom: r.nom,
+                       agence: /loud/i.test(col.titre) ? '3' : '1', duree: 60, jours: j });
+  ouvSauver(); dessinerOuverture();
+  showToast('🏫 « ' + col.titre + ' » ajoutée : touche ses cases pour ses heures');
 }
 
 /* ---------- 🗂️ les bureaux ---------- */
 function dessinerBureauxOuv(z){
   const cfg = OUV.cfg, mod = ouvPeutModifier();
+  const bu = ouvBureaux(cfg);
+  /* la répartition gardée : la prochaine reste au plus près */
+  let bouge = false;
+  cfg.bureaux.forEach(b => { for(let d = 1; d <= 6; d++){ const v = bu.jours[b.nom][d] || ''; if(b.jours[d] !== v){ b.jours[d] = v; bouge = true; } } });
+  if(bouge && mod) ouvSauver();
   const hor = (cfg.horairesBureau || []).map(([a, b]) => ouvH(a) + '-' + ouvH(b)).join(' et ');
-  z.appendChild(ouvEl('div', 'ovAide', 'Recopié de Drivup : « Bureau Saint Brieuc » ou « Bureau Loudéac », ' + ouvEch(hor) + '. Touche une case pour la changer.'));
+  z.appendChild(ouvEl('div', 'ovAide', 'Coche les jours où chacun travaille : l’App répartit Loudéac et Saint-Brieuc — quelqu’un au bureau de Loudéac les jours où Loudéac est ouvert (un moniteur ou la salle de Loudéac dans la semaine type), et ces jours partagés entre tous. ⚖️ = choisi par l’App, 📌 = choisi à la main. « Bureau Saint Brieuc » ou « Bureau Loudéac », ' + ouvEch(hor) + '.'));
   const g = ouvEl('div', 'ovGrille');
   const t = document.createElement('table');
-  t.innerHTML = '<thead><tr><th>Bureau</th>' + [1, 2, 3, 4, 5, 6].map(d => '<th>' + OUV_JOURS[d] + '</th>').join('') + '</tr></thead>';
+  t.innerHTML = '<thead><tr><th>Bureau</th>' + [1, 2, 3, 4, 5, 6].map(d => '<th>' + OUV_JOURS[d] + '</th>').join('') + '<th>⚖️ Répartition</th></tr></thead>';
   const tb = document.createElement('tbody');
+  const besoin = document.createElement('tr');
+  besoin.appendChild(ouvEl('td', '', '<span style="color:var(--muted);font-weight:700;">Loudéac ouvert</span>'));
+  for(let d = 1; d <= 6; d++) besoin.appendChild(ouvEl('td', '', bu.besoin[d] ? ouvC('l mini', '🟠 oui') : '<span class="ovNote">—</span>'));
+  besoin.appendChild(document.createElement('td'));
+  tb.appendChild(besoin);
   cfg.bureaux.forEach(b => {
     const tr = document.createElement('tr');
-    tr.appendChild(ouvEl('td', '', ouvEch(b.nom)));
+    const td0 = ouvEl('td', mod ? 'ovCase' : '', ouvEch(b.nom) + (ouvTitreColonne(b.res) && ouvNorm(ouvTitreColonne(b.res)) !== ouvNorm(b.nom) ? '<div class="ovNote" style="font-weight:400;">Drivup : « ' + ouvEch(ouvTitreColonne(b.res)) + ' »</div>' : ''));
+    if(mod){ td0.title = 'Le retirer, ou changer sa colonne'; td0.addEventListener('click', () => menuPersonneBureauOuv(b, td0)); }
+    tr.appendChild(td0);
     for(let d = 1; d <= 6; d++){
-      const l = b.jours[d] || '';
-      const td = ouvEl('td', mod ? 'ovCase' : '', l ? ouvC(l === 'L' ? 'l' : 'bea', l === 'L' ? '📍 Loudéac' : '📍 St-Brieuc') + '<div class="ovNote">' + ouvEch(hor) + '</div>' : '<span class="ovC off">—</span>');
+      const l = bu.jours[b.nom][d] || '';
+      const marque = b.force[d] ? ' <span title="choisi à la main">📌</span>' : (l ? ' <span title="choisi par l’App">⚖️</span>' : '');
+      const td = ouvEl('td', mod ? 'ovCase' : '', l ? ouvC(l === 'L' ? 'l' : 'bea', l === 'L' ? 'Loudéac' : 'St-Brieuc') + marque + '<div class="ovNote">' + ouvEch(hor) + '</div>' : '<span class="ovC off">—</span>');
+      td.dataset.bur = b.nom + '|' + d;
       if(mod) td.addEventListener('click', () => menuGestesEC(td, '🗂️ ' + b.nom + ' · ' + OUV_JOURS_LONGS[d], [
-        { emoji: '📍', texte: 'Saint-Brieuc', on: l === 'SB', faire: () => { b.jours[d] = 'SB'; ouvSauver(); dessinerOuverture(); } },
-        { emoji: '🟠', texte: 'Loudéac', on: l === 'L', faire: () => { b.jours[d] = 'L'; ouvSauver(); dessinerOuverture(); } },
-        { emoji: '—', texte: 'Pas de bureau', on: !l, faire: () => { b.jours[d] = ''; ouvSauver(); dessinerOuverture(); } }]));
+        { emoji: '⚖️', texte: 'Travaille · l’App choisit l’agence', on: b.travail[d] && !b.force[d], faire: () => { b.travail[d] = true; delete b.force[d]; ouvSauver(); dessinerOuverture(); } },
+        { emoji: '📌', texte: 'Saint-Brieuc, choisi à la main', on: b.force[d] === 'SB', faire: () => { b.travail[d] = true; b.force[d] = 'SB'; ouvSauver(); dessinerOuverture(); } },
+        { emoji: '📌', texte: 'Loudéac, choisi à la main', on: b.force[d] === 'L', faire: () => { b.travail[d] = true; b.force[d] = 'L'; ouvSauver(); dessinerOuverture(); } },
+        { emoji: '😴', texte: 'Ne travaille pas', on: !b.travail[d], faire: () => { b.travail[d] = false; delete b.force[d]; ouvSauver(); dessinerOuverture(); } }]));
       tr.appendChild(td);
     }
+    tr.appendChild(ouvEl('td', '', '<div class="ovEq"><b>Loudéac ' + bu.loud[b.nom] + '<br>St-Brieuc ' + bu.sb[b.nom] + '</b></div>'));
     tb.appendChild(tr);
   });
   t.appendChild(tb);
   g.appendChild(t);
   z.appendChild(g);
+  if(bu.alertes.length) z.appendChild(ouvEl('div', 'ovWarn', '⚠️ ' + bu.alertes.map(x => ouvEch(OUV_JOURS_LONGS[x.d] + ' : ' + x.txt)).join('<br>⚠️ ')));
+  if(mod){
+    const bas = ouvEl('div', 'ovRang');
+    bas.style.marginTop = '12px';
+    const bt = ouvChip(false, '＋ Quelqu’un au bureau', () => ajouterBureauOuv(bt));
+    bas.appendChild(bt);
+    z.appendChild(bas);
+  }
+}
+function menuPersonneBureauOuv(b, ancre){
+  menuGestesEC(ancre, '🗂️ ' + b.nom, [
+    { emoji: '🏷️', texte: 'Changer de colonne Drivup (n° ' + b.res + ')', faire: async () => {
+      const col = await ouvChoisirColonne(ancre, '🏷️ ' + b.nom, await ouvColonnes(), [b.res]);
+      if(!col) return;
+      b.res = String(col.id); ouvSauver(); dessinerOuverture();
+    } },
+    { emoji: '🗑️', texte: 'Le retirer des bureaux', danger: true, faire: async () => {
+      if(!await confirmer('Retirer ' + b.nom + ' des bureaux de la semaine type ?\n\nRien n’est retiré de Drivup.', '🗑️ Retirer')) return;
+      OUV.cfg.bureaux = OUV.cfg.bureaux.filter(x => x !== b); ouvSauver(); dessinerOuverture();
+    } }
+  ]);
+}
+async function ajouterBureauOuv(ancre){
+  let cols;
+  try{ cols = await ouvColonnes(); }catch(e){ showToast('⚠️ ' + ((e && e.message) || e)); return; }
+  const col = await ouvChoisirColonne(ancre, '＋ Quelqu’un au bureau', cols, OUV.cfg.bureaux.map(b => b.res));
+  if(!col) return;
+  const nom = await demander('Son prénom, tel qu’on le dit dans l’App', String(col.titre).replace(/AnQn$/, ''), '＋ Quelqu’un au bureau');
+  if(!nom || !String(nom).trim()) return;
+  const jours = {}, travail = {};
+  for(let d = 1; d <= 6; d++){ jours[d] = ''; travail[d] = false; }
+  OUV.cfg.bureaux.push({ nom: String(nom).trim().slice(0, 40), res: String(col.id), jours: jours, travail: travail, force: {} });
+  ouvSauver(); dessinerOuverture();
+  showToast('🗂️ ' + String(nom).trim() + ' ajouté : touche ses jours de travail');
 }
 
 /* ============================================================
@@ -878,6 +1166,7 @@ function dessinerLoudeacOuv(z){
   const cfg = OUV.cfg, mod = ouvPeutModifier();
   const mois = /^\d{4}-\d{2}$/.test(OUV.mois) ? OUV.mois : ouvAuj().slice(0, 7);
   const eq = ouvEquilibre(cfg);
+  const bu = ouvBureaux(cfg);
   z.appendChild(ouvEl('div', 'ovAide', 'Les jours où Loudéac est ouvert, et qui y est. C’est la semaine type ; touche un jour pour y mettre un autre moniteur : les deux <b>échangent leur journée</b> dans Drivup (Loudéac et le .LOUDEAC de 7h d’un côté, ses cours de Saint-Brieuc de l’autre). Un jour changé est entouré.'));
   const nav = ouvEl('div', 'ovRang');
   const decaler = n => { const a = +mois.slice(0, 4), m = +mois.slice(5, 7) - 1 + n; const d = new Date(Date.UTC(a, m, 1)); OUV.mois = d.toISOString().slice(0, 7); dessinerOuverture(); };
@@ -899,7 +1188,7 @@ function dessinerLoudeacOuv(z){
     if(ouvFerie(j)){ g.appendChild(ouvEl('div', 'ovJ ferie', '<div class="n">' + n + '<span class="ovNote">Férié</span></div>')); continue; }
     const jn = ouvJourneesDu(cfg, j, eq);
     const aLoud = Object.keys(jn).filter(nom => jn[nom].j.lieu === 'L');
-    const bur = cfg.bureaux.filter(b => b.jours[d] === 'L').map(b => b.nom);
+    const bur = cfg.bureaux.filter(b => (bu.jours[b.nom] || {})[d] === 'L').map(b => b.nom);
     const salle = cfg.salle.some(c => c.agence === '3' && (c.jours[d] || []).length);
     const ech = cfg.loudeac[j];
     if(!aLoud.length && !bur.length && !salle){ g.appendChild(ouvEl('div', 'ovJ vide', '<div class="n">' + n + '</div><div class="qui">—</div>')); continue; }
@@ -992,7 +1281,7 @@ async function echangeLoudeacOuv(iso){
     const B = m.nom;
     const mA = cfg.moniteurs.find(x => x.nom === A), mB = m;
     let d = null;
-    try{ d = await ouvLireDrivup(iso, iso, [mA.res, mB.res]); }
+    try{ d = await ouvLireDrivup(iso, iso, [mA.res, mB.res], []); }
     catch(e){
       /* sans l'extension : on garde l'échange pour l'ouverture, rien n'est encore dans Drivup */
       zone.innerHTML = '<div class="ovWarn">⚠️ ' + ouvEch((e && e.message) || e) + '</div>';
@@ -1153,7 +1442,9 @@ function dessinerOuvrirOuv(z){
     return;
   }
   const a = o.apercu;
-  if(a.manque.length) b3.appendChild(ouvEl('div', 'ovWarn', '⚠️ Prestation(s) introuvable(s) dans Drivup : ' + a.manque.map(k => '« ' + ouvEch(OUV_NOMS_PRESTA[k] || k) + ' »').join(', ') + ' — ces cours ne seront pas ouverts.'));
+  if(a.manque.length) b3.appendChild(ouvEl('div', 'ovWarn', '⚠️ Prestation(s) introuvable(s) dans Drivup : ' + a.manque.map(k => '« ' + ouvEch(ouvNomPresta(k)) + ' »').join(', ') + ' — ces cours ne seront pas ouverts.'));
+  if((a.perdues || []).length) b3.appendChild(ouvEl('div', 'ovWarn', '⚠️ Colonne(s) introuvable(s) dans Drivup : ' + a.perdues.map(ouvEch).join(', ') + ' — rien n’y sera ouvert. Choisis sa nouvelle colonne dans 🗓️ Semaine type.'));
+  if((a.renommes || []).length) b3.appendChild(ouvEl('div', 'ovNote', '🏷️ Renommé dans Drivup, retrouvé par son numéro : ' + a.renommes.map(r => '« ' + ouvEch(r.avant) + ' » → « ' + ouvEch(r.nom) + ' »').join(', ') + '.'));
   a.lignes.forEach(l => b3.appendChild(ouvEl('div', 'ovLigne', '<b>' + ouvEch(l.nom) + '</b><span>' + ouvEch(l.detail) + '</span><span class="ovNb">' + l.n + ' à ouvrir</span>' +
     (l.ajuster ? '<span class="ovNb">⏱️ ' + l.ajuster + ' à remettre à leurs heures</span>' : '') +
     (l.deja ? '<span class="ovNote">' + l.deja + ' déjà dans Drivup</span>' : ''))));
@@ -1189,6 +1480,10 @@ async function apercuOuv(bouton){
   const idDe = ouvIdsDesPrestations(d.prestations);
   const att = ouvAttendus(cfg, p.du, p.au, o.qui);
   const ev = d.evenements || [];
+  /* 🏷️ v1575 — une colonne qui n'existe plus dans Drivup : rien n'y est ouvert */
+  const colonnes = {};
+  (d.ressources || []).forEach(r => { colonnes[String(r.id)] = r.titre; });
+  const perdues = {};
   const pris = (c) => ev.some(e => e.res === c.res && e.jour === c.jour && ouvMin(e.debut) < ouvMin(c.fin) && ouvMin(c.debut) < ouvMin(e.fin || e.debut));
   /* ⏱️ v1574 — David : « ça ne met qu'une heure » (les bureaux, ouverts
      avec l'extension 1.8.0). Un cours de la bonne prestation, au bon
@@ -1200,8 +1495,10 @@ async function apercuOuv(bouton){
   const parGrp = {};
   att.cours.forEach(c => {
     const g = parGrp[c.grp] = parGrp[c.grp] || { n: 0, deja: 0, ajuster: 0, jours: {}, cols: {}, extra: {} };
+    if(d.ressources && d.ressources.length && !colonnes[String(c.res)]){ perdues[(c.col || c.grp) + ' (n° ' + c.res + ')'] = true; return; }
     const mal = aussi(c);
-    if(mal){ g.ajuster++; aAjuster.push({ cle: mal.id, id: mal.id, res: mal.res, jour: mal.jour, debut: mal.debut, fin: c.fin, avant: mal.fin, grp: c.grp, presta: c.presta }); return; }
+    if(mal){ g.ajuster++; aAjuster.push({ cle: mal.id, id: mal.id, res: mal.res, jour: mal.jour, debut: mal.debut, fin: c.fin, avant: mal.fin, grp: c.grp, presta: c.presta,
+                                         libre: !!(OUV.libre || {})[c.presta], attendu: (OUV.nomPresta || {})[c.presta] || '' }); return; }
     if(pris(c)){ g.deja++; return; }
     if(!idDe[c.presta]){ manque[c.presta] = true; return; }
     g.n++; g.jours[c.jour] = 1; if(c.col) g.cols[c.col] = 1;
@@ -1212,12 +1509,13 @@ async function apercuOuv(bouton){
   const lignes = Object.keys(parGrp).map(k => {
     const g = parGrp[k];
     const semaines = Object.keys(g.jours).length;
-    const ex = Object.keys(g.extra).map(x => g.extra[x] + ' ' + OUV_NOMS_PRESTA[x]).join(' · ');
+    const ex = Object.keys(g.extra).map(x => g.extra[x] + ' ' + ouvNomPresta(x)).join(' · ');
     return { nom: k === 'salle' ? '🏫 Salle' : k === 'bureaux' ? '🗂️ Bureaux' : k,
              detail: (k === 'salle' || k === 'bureaux' ? Object.keys(g.cols).length + (k === 'salle' ? ' colonnes' : ' personnes') + ' · ' : '') + semaines + ' jour' + (semaines > 1 ? 's' : '') + (ex ? ' · dont ' + ex : ''),
              n: g.n, deja: g.deja, ajuster: g.ajuster };
   });
-  o.apercu = { du: p.du, au: p.au, series: series, lignes: lignes, n: aCreer.length, manque: Object.keys(manque), feries: att.feries, ajuster: aAjuster };
+  o.apercu = { du: p.du, au: p.au, series: series, lignes: lignes, n: aCreer.length, manque: Object.keys(manque), feries: att.feries, ajuster: aAjuster,
+               perdues: Object.keys(perdues), renommes: (OUV.renommes || []).filter(r => att.cours.some(c => c.presta === r.k)) };
   dessinerOuverture();
 }
 async function ouvrirDansDrivupOuv(bouton){
@@ -1240,7 +1538,7 @@ async function ouvrirDansDrivupOuv(bouton){
     for(let i = 0; i < a.series.length; i += PAQUET){
       const lot = a.series.slice(i, i + PAQUET);
       txt.textContent = 'Envois ' + (i + 1) + ' à ' + (i + lot.length) + ' sur ' + a.series.length + '…';
-      const r = await ouvExt({ type: 'drivup-cours-creer', liste: lot.map(s => ({ cle: s.cle, res: s.res, typMo: s.typMo, attendu: s.attendu, debut: s.debut, fin: s.fin, agence: s.agence, dates: s.dates })) },
+      const r = await ouvExt({ type: 'drivup-cours-creer', liste: lot.map(s => ({ cle: s.cle, res: s.res, typMo: s.typMo, attendu: s.attendu, libre: s.libre, debut: s.debut, fin: s.fin, agence: s.agence, dates: s.dates })) },
         'drivup-cours-crees', 900000);
       (r.resultats || []).forEach(x => resultats.push(x));
       barre.style.width = Math.round(Math.min(i + PAQUET, a.series.length) * 100 / a.series.length) + '%';
@@ -1253,7 +1551,7 @@ async function ouvrirDansDrivupOuv(bouton){
     if(reprise.length){
       txt.textContent = 'Deuxième passage : ' + reprise.length + ' cours…';
       for(let i = 0; i < reprise.length; i += PAQUET){
-        const r = await ouvExt({ type: 'drivup-cours-creer', liste: reprise.slice(i, i + PAQUET).map(s => ({ cle: s.cle, res: s.res, typMo: s.typMo, attendu: s.attendu, debut: s.debut, fin: s.fin, agence: s.agence, dates: s.dates })) },
+        const r = await ouvExt({ type: 'drivup-cours-creer', liste: reprise.slice(i, i + PAQUET).map(s => ({ cle: s.cle, res: s.res, typMo: s.typMo, attendu: s.attendu, libre: s.libre, debut: s.debut, fin: s.fin, agence: s.agence, dates: s.dates })) },
           'drivup-cours-crees', 900000);
         (r.resultats || []).forEach(y => {
           const base = resultats.find(x => x.cle === y.cle.split('·')[0]);
@@ -1265,7 +1563,7 @@ async function ouvrirDansDrivupOuv(bouton){
     /* ⏱️ v1574 — les cours à remettre à leurs heures */
     for(let i = 0; i < a.ajuster.length; i += 100){
       txt.textContent = 'Remis à leurs heures : ' + i + ' / ' + a.ajuster.length + '…';
-      const r = await ouvExt({ type: 'drivup-cours-ajuster', liste: a.ajuster.slice(i, i + 100).map(x => ({ cle: x.cle, id: x.id, res: x.res, jour: x.jour, debut: x.debut, fin: x.fin })) },
+      const r = await ouvExt({ type: 'drivup-cours-ajuster', liste: a.ajuster.slice(i, i + 100).map(x => ({ cle: x.cle, id: x.id, res: x.res, jour: x.jour, debut: x.debut, fin: x.fin, libre: x.libre, attendu: x.attendu })) },
         'drivup-cours-ajustes', 900000);
       (r.resultats || []).forEach(y => { if(y.ok) ajustes++; else ajustesRates.push(y.message); });
     }
@@ -1280,7 +1578,7 @@ async function ouvrirDansDrivupOuv(bouton){
     '<div class="ovLigne"><b>' + poses + ' cours</b><span>ouverts, et dans le planning Drivup</span></div>' +
     (a.ajuster.length ? '<div class="ovLigne"><b>⏱️ ' + ajustes + ' cours</b><span>remis à leurs heures' + (ajustesRates.length ? ' · ' + ajustesRates.length + ' pas faits : ' + ouvEch([...new Set(ajustesRates)].slice(0, 3).join(' · ')) : '') + '</span></div>' : '') +
     (erreur ? '<div class="ovWarn">' + ouvEch(erreur) + '<br>Relance « 📤 Ouvrir » : ce qui est fait ne sera pas doublé.</div>' : '') +
-    pb.slice(0, 40).map(x => { const s = parCle[x.cle] || {}; return '<div class="ovLigne"><b>' + ouvEch(s.grp || '') + '</b><span>' + ouvEch((OUV_NOMS_PRESTA[s.presta] || '') + ' · ' + OUV_JOURS[ouvJourSem(s.dates ? s.dates[0] : ouvAuj())] + ' ' + ouvH(s.debut)) +
+    pb.slice(0, 40).map(x => { const s = parCle[x.cle] || {}; return '<div class="ovLigne"><b>' + ouvEch(s.grp || '') + '</b><span>' + ouvEch((s.presta ? ouvNomPresta(s.presta) : '') + ' · ' + OUV_JOURS[ouvJourSem(s.dates ? s.dates[0] : ouvAuj())] + ' ' + ouvH(s.debut)) +
       '</span><span class="ovNote">' + ouvEch(x.message || ((x.manquants || []).length + ' jour(s) absents')) + '</span></div>'; }).join('') +
     (pb.length > 40 ? '<div class="ovNote">… et ' + (pb.length - 40) + ' autres.</div>' : '');
   suivi.remove();
@@ -1384,7 +1682,7 @@ async function planFermerOuv(bouton){
   const du = o.du < ouvAuj() ? ouvAuj() : o.du;
   bouton.disabled = true; bouton.textContent = '🔎 Lecture de Drivup…';
   let d;
-  try{ d = await ouvLireDrivup(du, o.au, [m.res]); }
+  try{ d = await ouvLireDrivup(du, o.au, [m.res], []); }
   catch(e){ bouton.disabled = false; bouton.textContent = '🔎 Voir ce qui va se passer'; showToast('⚠️ ' + ((e && e.message) || e)); return; }
   const noms = {};
   Object.keys(d.prestations || {}).forEach(id => { noms[id] = ouvNorm(d.prestations[id]); });
@@ -1416,7 +1714,7 @@ async function planFermerOuv(bouton){
       if(s < 1 || s > 6 || ouvFerie(j)) continue;
       const jn = ouvJourneesDu(cfg, j, eq)[m.nom];
       if(!jn || jn.j.lieu === 'off') continue;
-      if(sien.some(e => e.jour === j && noms[e.type] === OUV_PRESTA.cp)){ dejaCp.push(j); continue; }
+      if(sien.some(e => e.jour === j && idDe.cp && e.type === idDe.cp)){ dejaCp.push(j); continue; }
       cp.push(j);
     }
   }
@@ -1463,7 +1761,7 @@ async function fermerDansDrivupOuv(bouton){
       txt.textContent = 'Journées de CP…';
       const att = cpPoses.map(j => ({ grp: m.nom, res: m.res, presta: 'cp', jour: j, debut: '08:00', fin: '16:30', agence: '1', d: ouvJourSem(j) }));
       const series = ouvSeries(att, p.idDe);
-      const r = await ouvExt({ type: 'drivup-cours-creer', liste: series.map(s => ({ cle: s.cle, res: s.res, typMo: s.typMo, attendu: s.attendu, debut: s.debut, fin: s.fin, agence: s.agence, dates: s.dates })) }, 'drivup-cours-crees', 900000);
+      const r = await ouvExt({ type: 'drivup-cours-creer', liste: series.map(s => ({ cle: s.cle, res: s.res, typMo: s.typMo, attendu: s.attendu, libre: s.libre, debut: s.debut, fin: s.fin, agence: s.agence, dates: s.dates })) }, 'drivup-cours-crees', 900000);
       (r.resultats || []).forEach(y => { if(y.message) pbs.push('CP : ' + y.message); });
     }
   }catch(e){ erreur = (e && e.message) || String(e); }
