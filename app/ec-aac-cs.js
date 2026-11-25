@@ -1,4 +1,4 @@
-/* Déployé le 12/11/2026 à 08:55 — v1411 */
+/* Déployé le 25/11/2026 à 13:53 — v1570 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -2274,6 +2274,8 @@ function carteTourRvt(t){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
     'padding:11px 13px;margin-bottom:12px;';
+  /* 📞 v1570 — pour la redessiner seule, après une case changée */
+  d.dataset.rvtTour = String(t.id);
 
   const comptes = comptesTourRvt(t);
   const meilleur = Object.keys(comptes)
@@ -2323,6 +2325,10 @@ function carteTourRvt(t){
         ? '✅ Retenu : le ' + jourFrCs(retenu.date) +
           (retenu.heure ? ' à ' + retenu.heure : '')
         : '🗑️ Sans suite' + (t.closLe ? ' — ' + t.closLe : ''));
+  /* 📞 v1570 — le geste se dit une fois, sous le titre */
+  if(!t.clos && peutChangerReponsesRvt()){
+    sous.textContent += ' · 📞 Eu au téléphone ? Touche sa case pour changer sa réponse.';
+  }
   d.appendChild(sous);
 
   /* Une colonne par créneau, une ligne par élève. */
@@ -2375,6 +2381,39 @@ function carteTourRvt(t){
          dit — et compter comme un refus un silence. */
       const td = cell('td', r === 'oui' ? '✅' : (r === 'non' ? '✖️' : '·'));
       if(!r) td.style.opacity = '.4';
+      /* 📞 v1570 — LA CASE CHANGÉE PAR LE BUREAU LE DIT. Sans ça, on
+         croirait que la famille a répondu elle-même — et on ne
+         saurait plus qui l'a eue au téléphone. */
+      const parBureau = (e.bureau || {})[c.id];
+      if(parBureau && r){
+        const tel = document.createElement('span');
+        tel.textContent = '📞';
+        tel.style.cssText = 'font-size:10px;margin-left:2px;vertical-align:super;';
+        td.appendChild(tel);
+        td.title = 'Changé au téléphone par ' + parBureau;
+      }
+      /* 📞 v1570 — ON CHANGE LA RÉPONSE D'UNE FAMILLE EN TOUCHANT SA
+         CASE. David : « il faut qu'on puisse changer les réponses de
+         notre côté si on les a eus au téléphone ».
+
+         ⚠️ UN MENU, PAS UN CYCLE. Toucher pour faire défiler · ✅ ✖️
+         enregistrerait un « oui » de passage à chaque fois qu'on vise
+         le « non » — et un doigt qui glisse sur la grille changerait
+         une réponse sans qu'on le voie. Le menu dit les trois choix
+         en clair, et rien ne bouge tant qu'on n'en a pas pris un.
+
+         Un tour clos ne bouge plus, comme pour les familles. */
+      if(!t.clos && peutChangerReponsesRvt()){
+        td.style.cursor = 'pointer';
+        td.setAttribute('role', 'button');
+        td.tabIndex = 0;
+        if(!parBureau) td.title = 'Toucher pour changer sa réponse (donnée au téléphone)';
+        const ouvrir = () => menuReponseBureauRvt(t, e, c, td);
+        td.addEventListener('click', ouvrir);
+        td.addEventListener('keydown', ev => {
+          if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); ouvrir(); }
+        });
+      }
       tr.appendChild(td);
     });
 
@@ -2937,6 +2976,113 @@ async function changerAccesRvt(t, e, retirer){
     await chargerToursRvt(true);
     redessinerAacCs();
   }catch(err){ showToast('Impossible : ' + err.message); }
+}
+
+
+/* ============================================================
+   📞 v1570 — CHANGER UNE RÉPONSE APRÈS UN COUP DE FIL
+
+   David, le 20 novembre 2026 : « il faut qu'on puisse changer les
+   réponses de notre côté des élèves si on les a eus au téléphone et
+   qu'ils sont ok sur un rendez-vous où ils avaient dit non, ou s'ils
+   n'ont pas répondu mais qu'ils nous le disent par téléphone ».
+
+   On touche la case, on choisit : ✅ disponible, ✖️ pas disponible,
+   ⏳ pas de réponse. La case garde un 📞 et le nom de celui qui l'a
+   changée. Si la famille répond ensuite elle-même, sa réponse
+   remplace tout et le 📞 s'en va : ce sont de nouveau les siennes.
+   ============================================================ */
+function peutChangerReponsesRvt(){
+  return typeof peutModifier !== 'function' || peutModifier('suivi_aac_cs');
+}
+
+function menuReponseBureauRvt(t, e, c, ancre){
+  const r = (e.reponses || {})[c.id] || '';
+  const ou = nomLieuRdv(c.lieuCle) || String(c.lieu || '').split(' — ')[0];
+  const quand = jourFrCs(c.date) + (c.heure ? ' à ' + c.heure : '') +
+                (ou ? ' — ' + ou : '');
+  const items = [
+    { titre: quand.toUpperCase() },
+    { titre: 'SA RÉPONSE, DONNÉE AU TÉLÉPHONE' }
+  ];
+  const choix = (valeur, emoji, texte) => items.push({
+    emoji: emoji, texte: texte, on: r === valeur,
+    faire: () => { if(r !== valeur) poserReponseBureauRvt(t, e, c, valeur); }
+  });
+  choix('oui', '✅', 'Disponible à cette date');
+  choix('non', '✖️', 'Pas disponible');
+  choix('', '⏳', 'Pas de réponse (effacer)');
+  menuGestesEC(ancre, '📞 ' + e.eleve, items);
+}
+
+/* La carte du tour, redessinée sur place : toute la vue bougerait —
+   et l'on perdrait la ligne qu'on regardait — pour une seule case. */
+function redessinerCarteRvt(t){
+  /* ⚠️ LE TOUR LE PLUS FRAIS. L'écran se relit toutes les 90 secondes :
+     pendant qu'une case part, la liste a pu être remplacée, et
+     redessiner l'ancienne ferait disparaître les réponses arrivées
+     entre-temps. */
+  t = (toursRvt || []).filter(x => String(x.id) === String(t.id))[0] || t;
+  const vieille = document.querySelector('[data-rvt-tour="' +
+    String(t.id).replace(/["\\]/g, '') + '"]');
+  if(vieille && vieille.parentNode) vieille.replaceWith(carteTourRvt(t));
+}
+
+/* ⚠️ UNE FILE PAR TOUR. Le serveur relit les réponses de la famille
+   avant d'y poser la case : deux cases touchées coup sur coup
+   partiraient ensemble, et la seconde effacerait la première. */
+const fileReponsesBureauRvt = {};
+
+function poserReponseBureauRvt(t, e, c, valeur){
+  /* Tout de suite à l'écran : on est au téléphone, on veut le voir. */
+  const avant = { reponses: Object.assign({}, e.reponses || {}),
+                  bureau: Object.assign({}, e.bureau || {}),
+                  reponduLe: e.reponduLe };
+  e.reponses = Object.assign({}, e.reponses || {});
+  e.bureau = Object.assign({}, e.bureau || {});
+  if(valeur){
+    e.reponses[c.id] = valeur;
+    e.bureau[c.id] = 'toi, à l\'instant';
+  }else{
+    delete e.reponses[c.id];
+    delete e.bureau[c.id];
+  }
+  if(Object.keys(e.reponses).length && !e.reponduLe) e.reponduLe = 'à l\'instant';
+  redessinerCarteRvt(t);
+
+  const cle = String(t.id);
+  const tache = (fileReponsesBureauRvt[cle] || Promise.resolve()).then(async () => {
+    try{
+      const r = await appelPrep({ action: 'rvtReponseBureau', id: t.id,
+                                  eleve: e.eleve, creneau: c.id,
+                                  valeur: valeur });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'Impossible.');
+      /* Sur la ligne qu'on a touchée, et sur celle de la liste relue
+         entre-temps s'il y en a une. */
+      const frais = (toursRvt || []).filter(x => String(x.id) === String(t.id))[0];
+      const lignes = [e].concat(((frais && frais.eleves) || [])
+        .filter(x => x !== e && x.eleve === e.eleve));
+      lignes.forEach(x => {
+        x.reponses = r.reponses || {};
+        x.bureau = r.bureau || {};
+        x.reponduLe = r.reponduLe || '';
+      });
+      showToast('📞 ' + e.eleve + ' — ' + jourFrCs(c.date) + ' : ' +
+        (valeur === 'oui' ? 'disponible'
+          : (valeur === 'non' ? 'pas disponible' : 'réponse effacée')));
+    }catch(err){
+      /* ⚠️ RIEN N'EST ÉCRIT : la case revient à ce qu'elle était. La
+         laisser changée dirait le contraire de ce que liront les
+         familles et la décision. */
+      e.reponses = avant.reponses;
+      e.bureau = avant.bureau;
+      e.reponduLe = avant.reponduLe;
+      showToast('Impossible : ' + err.message);
+    }
+    redessinerCarteRvt(t);
+  });
+  fileReponsesBureauRvt[cle] = tache.catch(() => {});
+  return tache;
 }
 
 
