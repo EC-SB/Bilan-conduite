@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:37 — v1567 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-handicap.js — 🩺 LES DÉMARCHES PERMIS (v1565)
 
@@ -561,6 +561,11 @@ function dessinerDossier(z, d){
   if(d.parcours === 'annul'){ const r = regleAnnul(d); h += boite('⛔ Ce qu’il repasse', '<b>' + esc(r.texte) + '</b>' + (r.fin ? '<br>Fin d’interdiction : ' + frDate(r.fin) : '') + '<br><span style="font-size:12px;color:var(--muted);">' + (d.type === 'invalidation' ? 'Invalidation (0 point) : 6 mois, ou 1 an si déjà invalidé dans les 5 ans. ' + lien('invalid', 'F1704') : 'Annulation par le juge. ' + lien('annul', 'F21774')) + '</span>'); }
   if(d.parcours === 'susp') h += boite('⏸️ Sa suspension', d.mois + ' mois · motif : ' + esc({ alcool: 'alcool', stups: 'stupéfiants', vitesse: 'vitesse', autre: 'autre' }[d.motif] || '—') + (d.fin ? ' · fin le ' + frDate(d.fin) : '') + '<br><span style="font-size:12px;color:var(--muted);">' + (d.mois <= 1 ? 'Rien à repasser, pas de visite.' : 'Ni code ni conduite à repasser, même pour plus de 6 mois. Visite médicale' + (d.mois >= 6 ? ' et tests psychotechniques' : '') + ' avant de récupérer le permis.') + ' ' + lien('susp', 'F14836') + '</span>');
   if(d.parcours === 'regul' || d.parcours === 'premier'){
+    /* 🔍 v1568 — un dossier ouvert tout seul par la formation n'a pas encore
+       sa maladie : elle se choisit ici, comme dans ➕ Nouveau dossier */
+    h += boite('🔍 Sa maladie ou son handicap', (m ? '<b>' + esc(m.t) + '</b> <span style="font-size:12.5px;font-weight:800;color:' + ST[m.s].c + ';">' + ST[m.s].t + '</span>'
+        : '<span style="color:var(--muted);font-size:13px;">Pas encore notée.</span>') +
+      '<button class="btn btn-secondary" id="dmMaladie" style="width:auto;margin:8px 0 0;padding:7px 12px;font-size:12.5px;display:block;">' + (m ? '🔁 Changer' : '🔍 La choisir dans la liste') + '</button>');
     h += boite('🩺 Codes du médecin agréé', ((d.codes || []).length
       ? d.codes.map(cd => '<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 9px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;"><b>' + cd + '</b> ' + esc((CODE[cd] || {}).n || '') + (CODE[cd] && CODE[cd].seul ? '' : ' <span title="Regardé en conduite par l’inspecteur">🚗</span>') + badgeVoiture(cd) + '</span>').join('') +
         (pasChezNous(d.codes).length ? '<div style="font-size:12.5px;color:#E5484D;font-weight:700;margin-bottom:4px;">✖️ Pas sur notre voiture : ' + pasChezNous(d.codes).join(', ') + '</div>' : '') +
@@ -593,6 +598,14 @@ function dessinerDossier(z, d){
   z.innerHTML = h;
   $('#dmRetour', z).addEventListener('click', () => { ouvert = null; if(retourDuDossier) retourDuDossier(); else dessiner(); });
   const bc = $('#dmCodes', z); if(bc) bc.addEventListener('click', () => fenetreCodes(d));
+  const bm = $('#dmMaladie', z); if(bm) bm.addEventListener('click', () => {
+    const b = fenetre('🔍 Sa maladie · ' + d.eleve);
+    dessinerMaladies(b, (id) => {
+      d.maladie = id; d.fait = d.fait || {};
+      if(!d.fait.maladie || d.fait.maladie === 'non') d.fait.maladie = aujourdHui();
+      fermerFenetre(); dessiner(); enregistrer(d, '🔍 Maladie notée');
+    });
+  });
   const fe = $('#dmFicheEval', z); if(fe) fe.addEventListener('click', () => faireLaFicheEval(d));
   z.querySelectorAll('[data-dmdoc]').forEach(b => b.addEventListener('click', async () => {
     const f = await choisirFichierDM();
@@ -906,14 +919,16 @@ function dessinerEnBref(c){
 }
 
 /* ---------- ➕ nouveau dossier ---------- */
-function assistant(nomImpose){
-  const b = fenetre('➕ Nouveau dossier');
+function assistant(nomImpose, opts){
+  opts = opts || {};
+  const b = fenetre(opts.titre || '➕ Nouveau dossier');
   const T = aujourdHui();
   const d = { id: '', eleve: nomImpose || '', parcours: '', fait: {}, docs: {}, codes: [], situations: [], __assistant: true };
   let pas = 1;
   const rendre = () => {
     let h = '';
     if(pas === 1){
+      if(opts.intro) h += '<div style="font-size:13px;line-height:1.5;margin-bottom:10px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);">' + opts.intro + '</div>';
       h += '<label for="dmNom">L’élève</label><input type="text" id="dmNom" placeholder="Son nom" autocomplete="off"' + (document.getElementById('listeEleves') ? ' list="listeEleves"' : '') + (nomImpose ? ' readonly' : '') + ' value="' + esc(d.eleve) + '">' +
         '<label>Sa situation</label><div style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px;">' +
         OUTILS[outil].parcours.map(k => '<button type="button" data-dmp="' + k + '" class="' + (d.parcours === k ? '' : 'btn btn-secondary') + '" style="text-align:left;margin:0;padding:11px 13px;border-radius:12px;' + (d.parcours === k ? 'background:var(--orange-soft);border:1px solid var(--orange);color:var(--on-accent);' : '') + '">' +
@@ -942,7 +957,7 @@ function assistant(nomImpose){
         '<div id="dmAsApercu" style="font-size:13px;line-height:1.5;margin-top:6px;padding:10px 12px;border-radius:10px;background:var(--orange-soft);color:var(--on-accent);"></div>';
     }
     const dernier = (d.parcours === 'susp' || d.parcours === 'annul') ? pas === 2 : pas === 3;
-    h += '<div class="btn-row">' + (pas > 1 ? '<button class="btn btn-secondary" id="dmPrec">← Retour</button>' : '<button class="btn btn-secondary" id="dmAnnuler">Annuler</button>') +
+    h += '<div class="btn-row">' + (pas > 1 ? '<button class="btn btn-secondary" id="dmPrec">← Retour</button>' : '<button class="btn btn-secondary" id="dmAnnuler">' + (opts.plusTard ? 'Plus tard' : 'Annuler') + '</button>') +
       '<button class="btn btn-primary" id="dmSuiv">' + (dernier ? '💾 Créer le dossier' : 'Suivant →') + '</button></div>';
     b.innerHTML = h;
     b.querySelectorAll('[data-dmp]').forEach(x => x.addEventListener('click', () => { d.eleve = $('#dmNom', b).value; d.parcours = x.dataset.dmp; rendre(); }));
@@ -992,7 +1007,8 @@ function assistant(nomImpose){
       const bs = $('#dmSuiv', b); bs.disabled = true; bs.textContent = '…';
       const n = await enregistrer(d, '💾 Dossier créé');
       if(!n){ bs.disabled = false; bs.textContent = '💾 Créer le dossier'; return; }
-      fermerFenetre(); ouvert = n.id; dessiner();
+      fermerFenetre();
+      if(opts.apres) opts.apres(n); else { ouvert = n.id; dessiner(); }
       /* il a des démarches à faire : le message est proposé tout de suite */
       if(etat(n).suivante && etat(n).suivante.qui !== 'nous') setTimeout(() => fenetreMail(n, 'mail'), 300);
     });
@@ -1203,6 +1219,12 @@ window.panneauDemarchesEleve = async function(corps, nom){
     ouvert = null; zoneRacine = corps;
     const siens = DOSSIERS.filter(x => memeEleve(x.eleve, nom));
     let h = siens.length ? '' : '<div class="empty">Aucune démarche à son nom.</div>';
+    /* 🔗 v1568 — sa formation en appelle une, et elle n'est pas ouverte
+       (un élève inscrit avant la v1568) : on la propose en premier */
+    const gf = genreDeFormation(formationDe(nom));
+    if(gf && !dossierEnCours(nom, gf) && sectionModifiableDM()) h += '<button type="button" class="btn btn-primary" id="dmSelonForm" style="margin:0 0 10px;flex-direction:column;gap:2px;">' +
+      (gf === 'susp' ? '⛔ Ouvrir son dossier suspension · annulation' : '♿ Ouvrir son dossier ' + (gf === 'regul' ? 'de régularisation' : 'de permis aménagé')) +
+      ' <span style="font-weight:400;font-size:12px;opacity:.85;">(formation ' + esc(formationDe(nom)) + ')</span></button>';
     h += siens.map(d => {
       const e = etat(d); const p = PARCOURS[d.parcours];
       return '<div data-dmouvrir="' + d.id + '" style="border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:pointer;">' +
@@ -1220,12 +1242,105 @@ window.panneauDemarchesEleve = async function(corps, nom){
     corps.querySelectorAll('[data-dmnouveau]').forEach(b => b.addEventListener('click', () => {
       zoneRacine = corps; outil = b.dataset.dmnouveau; retourDuDossier = liste; assistant(nom);
     }));
+    const bsf = $('#dmSelonForm', corps);
+    if(bsf) bsf.addEventListener('click', () => { zoneRacine = corps; retourDuDossier = liste; ouvrirSelonLaFormation(nom, formationDe(nom), { ici: true }); });
   };
   retourDuDossier = liste;
   const siens = DOSSIERS.filter(x => memeEleve(x.eleve, nom));
   zoneRacine = corps;
   if(siens.length === 1){ outil = outilDe(siens[0]); ouvert = siens[0].id; dessiner(); }
   else liste();
+};
+
+/* ============================================================
+   🔗 v1568 — LES FORMATIONS QUI OUVRENT UN DOSSIER
+
+   David, le 25 novembre : « les dossiers handicap et les dossiers
+   annulation suspension, il faut qu'on les lie aux dossiers élèves,
+   et qu'on retrouve le suivi dans le dossier de l'élève ». Ses
+   réponses : « le créer tout seul », « ouvrir sur l'onglet ♿
+   Démarches », et pour le parcours « selon le cas ».
+
+   · Régularisation BEA / BV → un dossier ♿ Régularisation, créé tout
+     seul ; sa maladie se choisit ensuite dans le dossier.
+   · Conduite aménagée BEA / BV → un dossier 🆕 Premier permis aménagé,
+     créé tout seul.
+   · Annulation / Suspension BEA / BV → la petite fenêtre : suspension
+     ou annulation, sa durée ou ses dates, puis le dossier.
+   Rien n'est créé quand il a déjà un dossier de ce côté-là qui n'est
+   pas terminé, ni sans le droit d'écrire les démarches.
+   ============================================================ */
+const normF = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function genreDeFormation(f){
+  const t = normF(f);
+  if(/regularisation/.test(t)) return 'regul';
+  if(/conduite amenagee/.test(t)) return 'premier';
+  if(/annulation|suspension/.test(t)) return 'susp';
+  return '';
+}
+function formationDe(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  return String((f && f.formation) || '').trim();
+}
+function sectionModifiableDM(){ return typeof sectionModifiable !== 'function' || !!sectionModifiable('demarches'); }
+const parcoursDuGenre = (g) => g === 'susp' ? ['susp', 'annul'] : (g === 'premier' ? ['premier', 'regul'] : ['regul', 'premier']);
+/* son dossier de ce côté-là, pas terminé (le plus récent) */
+function dossierEnCours(nom, g){
+  return DOSSIERS.filter(x => parcoursDuGenre(g).indexOf(x.parcours) !== -1 && memeEleve(x.eleve, nom) && etat(x).suivante)
+    .sort((a, b) => String(b.majLe || b.creeLe || '').localeCompare(String(a.majLe || a.creeLe || '')))[0] || null;
+}
+async function ouvrirSelonLaFormation(nom, formation, o){
+  o = o || {};
+  const g = genreDeFormation(formation);
+  if(!g || !nom || !sectionModifiableDM()) return null;
+  try{ await chargerDemarches(); }catch(e){ return null; }
+  const deja = dossierEnCours(nom, g);
+  if(deja){ if(!o.ici) showToast((g === 'susp' ? '⛔' : '♿') + ' Son dossier ' + PARCOURS[deja.parcours].t.toLowerCase() + ' est déjà ouvert, dans ses Démarches'); return deja; }
+  /* l'écran ♿ / ⛔ garde son état : on le range avant de prêter l'outil */
+  garderEtat();
+  const apres = (n) => {
+    if(o.ici){ outil = outilDe(n); ouvert = n.id; dessiner(); }
+    else if(document.getElementById(ZONES_DM[outilDe(n)]) && zoneRacine && zoneRacine.isConnected) dessiner();
+  };
+  if(g === 'susp'){
+    prendreEtat('susp');
+    if(!o.ici) zoneRacine = null;
+    assistant(nom, { titre: '⛔ Son dossier suspension · annulation', plusTard: true, apres: apres,
+      intro: '🔗 <b>' + esc(nom) + '</b> passe en formation <b>' + esc(formation) + '</b>. Dis-nous ce qui lui arrive : son dossier s’ouvre dans ses ♿ Démarches, et ses leçons suivent le bon parcours (reprise, ou permis à repasser).' });
+    return null;
+  }
+  const n = await enregistrer({ id: '', eleve: nom, parcours: g, fait: {}, docs: {}, codes: [], situations: [] },
+    '♿ Dossier ' + PARCOURS[g].t.toLowerCase() + ' ouvert dans ses Démarches');
+  if(n) apres(n);
+  return n;
+}
+window.demarchesSelonLaFormation = function(nom, formation, ancienne){
+  const g = genreDeFormation(formation);
+  if(!g || g === genreDeFormation(ancienne)) return Promise.resolve(null);
+  return ouvrirSelonLaFormation(nom, formation, {});
+};
+window.formationAvecDemarches = genreDeFormation;
+
+/* Son cas en annulation / suspension, pour le parcours de ses leçons
+   (ec-questionnaire.js) : 'conduite' quand il repasse la conduite,
+   'reprise' sinon, '' sans dossier (ou pas encore lu). */
+window.casAnnulSusp = function(nom){
+  if(!dmCharge) return '';
+  const d = DOSSIERS.filter(x => (x.parcours === 'susp' || x.parcours === 'annul') && memeEleve(x.eleve, nom))
+    .sort((a, b) => String(b.majLe || b.creeLe || '').localeCompare(String(a.majLe || a.creeLe || '')))[0];
+  if(!d) return '';
+  return (d.parcours === 'annul' && !regleAnnul(d).codeSeul) ? 'conduite' : 'reprise';
+};
+
+/* Le dossier de l'élève s'ouvre sur ♿ Démarches quand il en a un, ou
+   quand sa formation en appelle un (David : « si on met un élève en
+   formation Régularisation, il faut que ça ouvre directement dedans »).
+   Pas encore lus : la lecture part, pour la prochaine fois. */
+window.aDesDemarches = function(nom){
+  if(typeof sectionVisible === 'function' && !sectionVisible('demarches')) return false;
+  if(genreDeFormation(formationDe(nom))) return true;
+  if(!dmCharge){ chargerDemarches().catch(() => {}); return false; }
+  return DOSSIERS.some(x => memeEleve(x.eleve, nom));
 };
 
 /* ---- les cartes de cours et l'ancien résumé (ec-prepares.js) ----
