@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:08 — v1565 */
+/* Déployé le 25/11/2026 à 11:37 — v1567 */
 /* ============================================================
    ec-handicap.js — 🩺 LES DÉMARCHES PERMIS (v1565)
 
@@ -133,6 +133,22 @@ const aVoir = (codes) => (codes || []).filter(cd => estAmenagement(cd) && !SUR_N
 const badgeVoiture = (cd) => !estAmenagement(cd) ? '' : (SUR_NOTRE_VOITURE.has(cd) ? ' <span title="Sur notre voiture">🚘</span>'
   : (aVoirMedecin(cd) ? ' <span title="Selon les codes du médecin : la formation est sans doute possible">❓</span>' : ' <span title="Pas sur notre voiture" style="color:var(--red);">✖️</span>'));
 const CODE = {}; CODES.forEach(([c, n, s]) => { CODE[c] = { c: c, n: n, seul: s }; });
+/* 🔍 v1567 — chercher un code que le médecin a mis (David) : par son
+   numéro, ou par les mots qu'on dit au bureau */
+const MOTS_CODES = { '01': 'lunettes lentilles vue yeux', '02': 'appareil auditif oreille surdite sourd', '03': 'prothese orthese membre bras jambe',
+  '10': 'boite auto automatique vitesses', '15': 'embrayage', '20': 'frein freinage pied gauche main', '25': 'accelerateur pedale gauche main genou',
+  '31': 'pedales plancher', '32': 'frein accelerateur main boule cercle', '33': 'joystick direction', '35': 'commandes deportees clignotants feux essuie glace klaxon boule satellite',
+  '40': 'volant direction boule fourche pommeau', '42': 'retroviseur retro miroir angle mort camera', '43': 'siege ceinture taille',
+  '61': 'jour nuit', '62': 'rayon km distance', '63': 'passager', '64': 'vitesse limitee', '65': 'accompagne', '66': 'remorque', '67': 'autoroute', '68': 'alcool', '69': 'ethylotest ead anti demarrage alcool', '78': 'boite auto automatique administratif' };
+const sansAccent = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function chercherCodes(q){
+  const mots = sansAccent(q).replace(/,/g, '.').split(/\s+/).filter(Boolean);
+  if(!mots.length) return [];
+  return CODES.filter(([cd, n]) => {
+    const tout = cd + ' ' + sansAccent(n) + ' ' + (MOTS_CODES[cd.split('.')[0]] || '');
+    return mots.every(w => /^\d/.test(w) ? (cd === w || cd.indexOf(w) === 0 || cd.replace('.', '') === w) : tout.indexOf(w) !== -1);
+  }).slice(0, 15).map(x => x[0]);
+}
 
 /* ⚡ les situations → les codes probables (indicatif : le médecin
    agréé fixe les codes, l'inspecteur vérifie les aménagements) */
@@ -496,7 +512,7 @@ function dessinerListe(c){
       ((d.codes || []).length ? '<span style="font-size:11px;color:var(--accent-text);font-weight:700;">' + esc(d.codes.join(' · ')) + '</span>' : '') + '</div>' +
       '<div style="height:5px;border-radius:3px;background:var(--line);margin:8px 0 6px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--orange);"></div></div>' +
       (e.suivante ? '<div style="font-size:13px;">➡️ ' + esc(e.suivante.t) + ' <span style="font-size:11px;color:var(--muted);">· ' + q[0] + ' ' + q[1] + '</span></div>' : '<div style="font-size:13px;">✅ Dossier terminé</div>') +
-      etatAlertes(d) + '</div>';
+      etatAlertes(d) + noteCourte(d) + '</div>';
   }).join('') || '<div class="empty">Aucun dossier.</div>';
   c.innerHTML = h;
   c.querySelectorAll('[data-dmouvrir]').forEach(x => x.addEventListener('click', () => { ouvert = x.dataset.dmouvrir; dessiner(); window.scrollTo && zoneRacine.scrollIntoView({ block: 'start' }); }));
@@ -504,6 +520,11 @@ function dessinerListe(c){
   $('#dmNouveau', c).addEventListener('click', () => assistant());
   const ch = $('#dmCherche', c);
   ch.addEventListener('input', () => { cherche = ch.value; const pos = ch.selectionStart; dessiner(); const n = $('#dmCherche', zoneRacine); if(n){ n.focus(); n.setSelectionRange(pos, pos); } });
+}
+/* 📝 la première ligne des notes internes, sous la carte du dossier */
+function noteCourte(d){
+  const l = String(d.notes || '').trim().split('\n')[0];
+  return l ? '<div style="font-size:12px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📝 ' + esc(l) + '</div>' : '';
 }
 function etatAlertes(d){
   const a = [];
@@ -522,6 +543,14 @@ function dessinerDossier(z, d){
     '<button class="btn btn-secondary" id="dmRetour" style="width:auto;margin:0;padding:8px 13px;font-size:14px;">←</button>' +
     '<div style="flex:1;min-width:0;"><div style="font-size:17px;font-weight:800;color:var(--cream);">' + p.em + ' ' + esc(d.eleve) + '</div>' +
     '<div style="font-size:12px;color:var(--muted);">' + esc(p.t) + ' · ' + e.faites + '/' + e.et.length + ' étapes' + (m ? ' · ' + esc(m.t) : '') + '</div></div></div>';
+  /* 📝 v1567 — LES NOTES EN HAUT DU DOSSIER. David, le 25/11 : « laisse un
+     espace de texte libre en haut, pour qu'on puisse écrire ce qu'on veut,
+     du style des notes internes » ; en haut de chaque dossier, permis
+     aménagé comme suspension · annulation. Pour l'équipe seulement :
+     elles ne partent jamais dans le message à l'élève. */
+  h += '<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px;background:var(--navy-deep);box-shadow:var(--ombre-carte);">' +
+    '<label for="dmNotes" style="display:block;font-size:13px;font-weight:700;color:var(--accent-text);margin:0 0 6px;text-transform:none;letter-spacing:0;">📝 Notes internes</label>' +
+    '<textarea id="dmNotes" rows="3" maxlength="4000" style="width:100%;box-sizing:border-box;margin:0;font-family:inherit;font-size:14px;line-height:1.5;color:var(--cream);" placeholder="Écris ce que tu veux… Ça reste dans l’équipe : l’élève ne le voit jamais.">' + esc(d.notes || '') + '</textarea></div>';
   if(e.suivante){
     const q = QUI[e.suivante.qui];
     h += '<div style="border:1px solid var(--orange);background:var(--orange-soft);color:var(--on-accent);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:14px;">' +
@@ -537,7 +566,7 @@ function dessinerDossier(z, d){
         (pasChezNous(d.codes).length ? '<div style="font-size:12.5px;color:#E5484D;font-weight:700;margin-bottom:4px;">✖️ Pas sur notre voiture : ' + pasChezNous(d.codes).join(', ') + '</div>' : '') +
         (aVoir(d.codes).length ? '<div style="font-size:12.5px;margin-bottom:4px;">❓ ' + aVoir(d.codes).join(', ') + ' : selon les codes du médecin, la formation est sans doute possible.</div>' : '') +
         '<div style="font-size:11.5px;color:var(--muted);">🩺 C’est le médecin agréé qui donne les codes, sur l’avis médical. ' + (d.codes.some(cd => CODE[cd] && !CODE[cd].seul) ? '🚗 = aménagement que l’inspecteur regarde en conduite (régularisation ou examen).' : 'Ici, aucun passage devant l’inspecteur.') + '</div>'
-      : '<span style="color:var(--muted);font-size:13px;">Aucun code prévu.</span>') + '<button class="btn btn-secondary" id="dmCodes" style="width:auto;margin:8px 0 0;padding:7px 12px;font-size:12.5px;">⚡ Trouver les codes</button>');
+      : '<span style="color:var(--muted);font-size:13px;">Aucun code prévu.</span>') + '<button class="btn btn-secondary" id="dmCodes" style="width:auto;margin:8px 0 0;padding:7px 12px;font-size:12.5px;">⚡ Chercher ou ajouter un code</button>');
   }
   /* les étapes */
   h += '<div style="margin:10px 0;">' + e.et.map((et, i) => ligneEtape(d, et, i)).join('') + '</div>';
@@ -552,7 +581,6 @@ function dessinerDossier(z, d){
             '<button type="button" class="btn btn-secondary" data-dmretirer="' + k + '" style="width:auto;margin:0;padding:5px 9px;font-size:12px;" title="Retirer">✕</button>'
           : '<button type="button" class="btn btn-secondary" data-dmdoc="' + k + '" style="width:auto;margin:0;padding:5px 10px;font-size:12px;">＋ Déposer</button>') + '</div>';
   }).join('') + '<div style="font-size:11.5px;color:var(--muted);margin-top:4px;">PDF ou photo, 10 Mo au plus.</div>');
-  h += '<label for="dmNotes">📝 Notes de l’équipe</label><textarea id="dmNotes" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;" placeholder="Ce que le moniteur doit savoir…">' + esc(d.notes || '') + '</textarea>';
   if(d.reprisDe) h += '<div style="font-size:11.5px;color:var(--muted);margin-top:4px;">↪️ Repris du classeur (' + esc(d.reprisDe) + ') : les étapes cochées là-bas sont « faites » sans date ; à vérifier.</div>';
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">' +
     '<button class="btn btn-primary" id="dmMail" style="flex:1;min-width:180px;margin:0;">✉️ Lui envoyer où il en est</button>' +
@@ -683,7 +711,9 @@ function dessinerCodes(c, dossier){
                     : '🩺 Le médecin agréé donne ces codes, et c’est tout : pas de passage devant l’inspecteur. S’il a déjà le permis, il demande directement le nouveau sur l’ANTS.') + '</div>'
       : '<div class="empty">Coche ce qui le concerne.</div>';
   };
-  c.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Coche ce qui le concerne : les codes probables s’affichent, pour savoir à quoi s’attendre avant la visite. C’est le médecin agréé qui donne les codes.</div>' +
+  c.innerHTML = '<input type="search" id="dmCodeQ" autocomplete="off" placeholder="🔍 Un code du médecin : 25.08, 40.11, accélérateur, rétroviseur…" style="margin-bottom:6px;font-size:14px;">' +
+    '<div id="dmCodeTrouve" style="margin-bottom:12px;"></div>' +
+    '<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Ou coche ce qui le concerne : les codes probables s’affichent, pour savoir à quoi s’attendre avant la visite. C’est le médecin agréé qui donne les codes.</div>' +
     '<details style="border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin-bottom:12px;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">🚘 Notre voiture aménagée</summary><div style="margin-top:6px;">' +
     NOTRE_VOITURE.map(x => '<div style="display:flex;gap:10px;padding:5px 0;border-top:1px solid var(--line);font-size:13px;"><span style="flex:1;min-width:0;">' + esc(x.t) + '</span><b style="flex-shrink:0;">' + x.codes.join(' · ') + '</b></div>').join('') +
     '<div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Vision (42) et siège (43) : ça dépend des codes du médecin (❓).</div></div></details>' +
@@ -697,9 +727,35 @@ function dessinerCodes(c, dossier){
     '<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">Source : guide DSR « Les codes sur le permis pour des raisons médicales » (2025), annexe I de l’arrêté du 20 avril 2012. 🩺 donné par le médecin agréé, rien de plus · 🩺 + 🚗 écrit par le médecin, puis montré en conduite à l’inspecteur, qui a le dernier mot · 🚘 sur notre voiture · ❓ selon les codes du médecin · ✖️ pas sur notre voiture.</div></div></details>';
   c.querySelectorAll('.dmSitu input').forEach(i => i.addEventListener('change', () => { if(i.checked) sel.add(i.value); else sel.delete(i.value); if(!dossier) situationsLibres = Array.from(sel); if(dossier && dossier.__assistant) dossier.situations = Array.from(sel); rendre(); }));
   const g = c.querySelector('#dmCodesGarder');
-  if(g) g.addEventListener('click', async () => { dossier.situations = Array.from(sel); dossier.codes = calc(); fermerFenetre(); dessiner(); await enregistrer(dossier, '💾 Codes gardés'); dessiner(); });
+  /* les codes cochés par situation, plus ceux ajoutés à la main depuis la recherche */
+  if(g) g.addEventListener('click', async () => { dossier.situations = Array.from(sel); dossier.codes = unirCodes(calc(), dossier.codesAjoutes); fermerFenetre(); dessiner(); await enregistrer(dossier, '💾 Codes gardés'); dessiner(); });
+  /* 🔍 la recherche : ce que veut dire le code, qui le décide, notre voiture ;
+     dans un dossier, ➕ l'ajoute à ses codes */
+  const q = c.querySelector('#dmCodeQ'), zt = c.querySelector('#dmCodeTrouve');
+  const voiture = (cd) => !estAmenagement(cd) ? '' : (SUR_NOTRE_VOITURE.has(cd) ? '🚘 sur notre voiture' : (aVoirMedecin(cd) ? '❓ selon les codes du médecin' : '✖️ pas sur notre voiture'));
+  const chercher = () => {
+    const l = chercherCodes(q.value);
+    zt.innerHTML = !q.value.trim() ? '' : (l.length ? l.map(cd => {
+      const dedans = dossier && (dossier.codes || []).indexOf(cd) !== -1;
+      return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;">' +
+        '<b style="width:52px;flex-shrink:0;">' + cd + '</b><div style="flex:1;min-width:0;">' + esc(CODE[cd].n) +
+        '<div style="font-size:11.5px;color:var(--muted);">' + (CODE[cd].seul ? '🩺 le médecin agréé le met seul' : '🩺 + 🚗 écrit par le médecin, montré en conduite à l’inspecteur') + (voiture(cd) ? ' · ' + voiture(cd) : '') + '</div></div>' +
+        (dossier ? '<button type="button" class="btn btn-secondary" data-dmcode="' + cd + '" style="width:auto;margin:0;padding:6px 10px;font-size:12px;flex-shrink:0;">' + (dedans ? '✓ Dans son dossier' : '➕ Ajouter') + '</button>' : '') + '</div>';
+    }).join('') : '<div class="empty" style="padding:8px;">Aucun code ne correspond.</div>');
+    zt.querySelectorAll('[data-dmcode]').forEach(b => b.addEventListener('click', async () => {
+      const cd = b.dataset.dmcode;
+      const codes = (dossier.codes || []).slice(), aj = (dossier.codesAjoutes || []).slice();
+      if(codes.indexOf(cd) === -1){ codes.push(cd); if(aj.indexOf(cd) === -1) aj.push(cd); }
+      else { codes.splice(codes.indexOf(cd), 1); if(aj.indexOf(cd) !== -1) aj.splice(aj.indexOf(cd), 1); }
+      dossier.codes = codes; dossier.codesAjoutes = aj;
+      chercher();
+      if(!dossier.__assistant){ dessiner(); await enregistrer(dossier, codes.indexOf(cd) !== -1 ? '➕ ' + cd + ' ajouté' : '➖ ' + cd + ' retiré'); dessiner(); }
+    }));
+  };
+  q.addEventListener('input', chercher);
   rendre();
 }
+function unirCodes(a, b){ const out = []; (a || []).concat(b || []).forEach(cd => { if(out.indexOf(cd) === -1) out.push(cd); }); return out; }
 let situationsLibres = [];
 function fenetreCodes(d){ const b = fenetre('⚡ Codes d’aménagement · ' + d.eleve); dessinerCodes(b, d); }
 
@@ -930,7 +986,7 @@ function assistant(nomImpose){
         d.fait.maladie = aujourdHui();
         const tr = $('#dmAsTrestel', b).value; if(tr === 'faite') d.fait.trestel = aujourdHui(); else if(tr === '') d.fait.trestel = 'non';
         if($('#dmAsVisite', b).value === 'faite'){ d.fait.visite = aujourdHui(); d.visiteDate = aujourdHui(); }
-        d.codes = (function(){ const out = []; (d.situations || []).forEach(k => { const s = SITUATIONS.find(x => x.k === k); (s ? s.codes : []).forEach(cd => { if(out.indexOf(cd) === -1) out.push(cd); }); }); return out; })();
+        d.codes = unirCodes((function(){ const out = []; (d.situations || []).forEach(k => { const s = SITUATIONS.find(x => x.k === k); (s ? s.codes : []).forEach(cd => { if(out.indexOf(cd) === -1) out.push(cd); }); }); return out; })(), d.codesAjoutes);
       }else if(d.parcours === 'susp'){ lireSusp(); d.fait.infos = aujourdHui(); }
       else { lireAnnul(); d.fait.infos = aujourdHui(); }
       const bs = $('#dmSuiv', b); bs.disabled = true; bs.textContent = '…';
@@ -1151,7 +1207,7 @@ window.panneauDemarchesEleve = async function(corps, nom){
       const e = etat(d); const p = PARCOURS[d.parcours];
       return '<div data-dmouvrir="' + d.id + '" style="border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:pointer;">' +
         '<strong style="font-size:15px;color:var(--cream);">' + p.em + ' ' + esc(p.t) + '</strong> <span style="font-size:11px;color:var(--muted);">' + e.faites + '/' + e.et.length + '</span>' +
-        (e.suivante ? '<div style="font-size:13px;margin-top:4px;">➡️ ' + esc(e.suivante.t) + '</div>' : '<div style="font-size:13px;margin-top:4px;">✅ Dossier terminé</div>') + etatAlertes(d) + '</div>';
+        (e.suivante ? '<div style="font-size:13px;margin-top:4px;">➡️ ' + esc(e.suivante.t) + '</div>' : '<div style="font-size:13px;margin-top:4px;">✅ Dossier terminé</div>') + etatAlertes(d) + noteCourte(d) + '</div>';
     }).join('');
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
       '<button type="button" class="btn btn-secondary" data-dmnouveau="handicap" style="width:auto;margin:0;padding:9px 13px;font-size:13px;">➕ ♿ Permis aménagé</button>' +
