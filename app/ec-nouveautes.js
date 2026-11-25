@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 13:53 — v1570 */
+/* Déployé le 25/11/2026 à 14:22 — v1571 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1571,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '↩️ Suivi AAC : annuler un rendez-vous théorique prévu, et ses réponses relisibles',
+    quoi: [
+      { emoji: '↩️',
+        titre: 'Annuler ce rendez-vous, sur sa carte',
+        texte: 'Dans Suivi AAC › Organisation théorique › Prévus, chaque rendez-vous a maintenant son bouton « ↩️ Annuler ce rendez-vous » : la proposition rouvre avec toutes ses réponses, et rien ne part aux familles sans ton accord.' },
+      { emoji: '📋',
+        titre: 'Les réponses sous le rendez-vous',
+        texte: '« 📋 Toutes les réponses de la proposition » se déplie sous chaque rendez-vous prévu : qui a dit oui à quelle date, et « ↩️ Changer pour le … » pour déplacer le rendez-vous.' },
+      { emoji: '✉️',
+        titre: 'Le mail de relance AAC / CS dit où en est le théorique',
+        texte: 'Il dit la date du rendez-vous théorique quand elle est prévue ; « nous attendons les réponses de toutes les familles pour valider la date » quand la famille a déjà répondu au sondage ; et « merci d’y répondre » si elle ne l’a pas fait. « Dites-nous-le en quelques appuis » devient « merci de nous répondre en cliquant sur le lien ci-dessous ».' }
+    ]
+  },
   {
     version: 1570,
     date: 'Mercredi 25 novembre 2026',
