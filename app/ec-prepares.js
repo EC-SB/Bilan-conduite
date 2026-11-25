@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 16:37 — v1542 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1914,7 +1914,7 @@ async function afficherPrepares(recharger, silencieux){
        attendre que la réparation passe. */
     if(typeof noteSelonLaFormation === 'function'){
       partsNote.corps = noteSelonLaFormation(partsNote.corps, formation,
-                                             cours.modele);
+                                             cours.modele, cours.eleve || '');
     }
 
     /* À quelle leçon on en est : en gros, en vert, juste sous le
@@ -2097,7 +2097,7 @@ async function afficherPrepares(recharger, silencieux){
          ------------------------------------------------------------ */
       const ctxEtapes = contexteEnObjet(cours.contexte) || {};
       if(typeof etapesHeuresPourLaFormation === 'function' &&
-         etapesHeuresPourLaFormation(ctxEtapes.formation)){
+         etapesHeuresPourLaFormation(ctxEtapes.formation, ctxEtapes.casAS !== undefined ? ctxEtapes : (cours.eleve || ''))){
         (typeof ETAPES_REMISE_A_NIVEAU !== 'undefined'
           ? ETAPES_REMISE_A_NIVEAU : []).forEach(e => {
           const c = document.createElement('input');
