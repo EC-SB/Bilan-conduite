@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 13:24 — v1569 */
+/* Déployé le 25/11/2026 à 13:53 — v1570 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1570,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '📞 Suivi AAC : changer la réponse d’une famille qu’on a eue au téléphone',
+    quoi: [
+      { emoji: '📞',
+        titre: 'Toucher une case de la grille',
+        texte: 'Dans Suivi AAC › Organisation théorique, sur une proposition en cours : touche la case d’un élève sous une date, puis ✅ Disponible, ✖️ Pas disponible ou ⏳ Pas de réponse. Pour celui qui avait dit non et qui est finalement d’accord, ou celui qui n’avait pas répondu et qui te le dit au téléphone. Il compte aussitôt dans les réponses et sort des « sans réponse ».' },
+      { emoji: '🔎',
+        titre: 'On voit qui l’a changée',
+        texte: 'La case garde un petit 📞 ; en passant dessus, le nom de celui qui l’a changée et quand. Ses autres réponses restent les siennes. Si la famille répond ensuite elle-même sur sa page, c’est sa réponse qui compte et le 📞 s’en va. Une proposition close ne bouge plus.' }
+    ]
+  },
   {
     version: 1569,
     date: 'Mercredi 25 novembre 2026',
