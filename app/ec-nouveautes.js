@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:08 — v1572 */
+/* Déployé le 25/11/2026 à 15:18 — v1573 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1573,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '🎓 Suivi AAC plus clair : « à faire avant le », prévenu sans date, relance toujours visible',
+    quoi: [
+      { emoji: '📅',
+        titre: '« À faire avant le … »',
+        texte: 'Dans la frise du Suivi AAC, « attendu le » devient « à faire avant le … » : c’est la date limite du rendez-vous. Passée, la case dit « EN RETARD depuis le … ». Le mail de relance dit pareil.' },
+      { emoji: '📣',
+        titre: 'Prévenu, en un appui',
+        texte: '« 📣 Prévenu » ne demande plus de date : il note le jour où on l’a prévenu et qui (« 📣 Prévenu 25/11 · David »). Un nouvel appui permet de le prévenir à nouveau ou de retirer.' },
+      { emoji: '✉️',
+        titre: 'On voit quand on a relancé',
+        texte: 'Une relance se voit toujours : sous le rendez-vous qu’elle demande (« ✉️ Relancé 25/11 · David · ⏳ 0 j »), ou sous le nom quand ce rendez-vous est déjà posé.' },
+      { emoji: '♿',
+        titre: 'Permis aménagé : 1h d’accompagnement facturée',
+        texte: 'Le rendez-vous de régularisation à la DDTM n’est plus annoncé « gratuit » : on facture 1h d’accompagnement (l’étape, « En bref » et le message à l’élève).' }
+    ]
+  },
   {
     version: 1572,
     date: 'Mercredi 25 novembre 2026',
