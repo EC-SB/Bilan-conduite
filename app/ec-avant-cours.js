@@ -1,4 +1,4 @@
-/* Déployé le 03/11/2026 à 12:10 — v1336 */
+/* Déployé le 25/11/2026 à 12:04 — v1568 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -1678,7 +1678,7 @@ function blocAvantLeCours(nom, res, prep, opts){
     try{
       const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
       corps = noteSelonLaFormation(corps, (f && f.formation) || '',
-                                   (prep && prep.modele) || '');
+                                   (prep && prep.modele) || '', nom);
     }catch(e){ /* sans fiche, la note reste telle quelle */ }
   }
 
