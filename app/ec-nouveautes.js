@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 16:32 — v1575 */
+/* Déployé le 25/11/2026 à 16:53 — v1576 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1576,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '📅 Ouverture des cours : des gens en plus aux bureaux, répartis entre Loudéac et Saint-Brieuc, et d’autres salles avec leur rendez-vous',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Bureaux : on coche les jours, l’App répartit',
+        texte: '« ＋ Quelqu’un au bureau » prend n’importe quelle colonne de Drivup. On coche les jours où chacun travaille : l’App met quelqu’un au bureau de Loudéac les jours où Loudéac est ouvert dans la semaine type, et partage ces jours entre tous. ⚖️ = choisi par l’App, 📌 = choisi à la main. Un jour sans personne à Loudéac ou à Saint-Brieuc est signalé.' },
+      { emoji: '🏫',
+        titre: 'D’autres salles, avec le rendez-vous qu’on veut',
+        texte: '« ＋ Une salle » : une colonne de Drivup et n’importe quel rendez-vous (sauf NON, congés et conduite). Touche le nom d’une salle pour changer son rendez-vous, sa colonne, son agence ou la durée d’un créneau (1h, 1h30, 2h).' },
+      { emoji: '🏷️',
+        titre: 'Renommé dans Drivup ? Rien ne casse',
+        texte: 'Colonnes et rendez-vous sont suivis par leur numéro Drivup. Un nom changé est retrouvé et dit dans l’aperçu ; une colonne qui n’existe plus est signalée, et rien n’y est ouvert. Il faut l’extension 1.8.3.' }
+    ]
+  },
   {
     version: 1575,
     date: 'Mercredi 25 novembre 2026',
