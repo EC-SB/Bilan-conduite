@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 18:03 — v1546 */
+/* Déployé le 25/11/2026 à 16:32 — v1575 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -924,7 +924,28 @@ async function lirePlanningsDrivupMaintenant(liste){
     const r = await appelPrep({ action: 'drivupPlanningsPoser', plannings: aPoser.slice(i, i + 3) });
     n += (r && r.n) || 0;
   }
+  /* 📝 v1575 — la liste entière des dates d'inscription (extension 1.8.2),
+     gardée d'un coup pour tous les élèves, une fois par lecture de la liste
+     (toutes les six heures) : sans attendre la relecture de chaque planning */
+  try{ await poserInscriptionsDrivup(d && d.inscriptions, d && d.inscriptionsLe); }catch(e){ /* la prochaine fois */ }
   return { n: n, plannings: lus };
+}
+async function poserInscriptionsDrivup(m, le){
+  const ids = Object.keys((m && typeof m === 'object') ? m : {});
+  if(!ids.length || !le) return 0;
+  let deja = '';
+  try{ deja = localStorage.getItem('ec_inscriptions_dv') || ''; }catch(e){}
+  if(deja === String(le)) return 0;
+  let n = 0;
+  for(let i = 0; i < ids.length; i += 600){
+    const lot = {};
+    ids.slice(i, i + 600).forEach(id => { lot[id] = m[id]; });
+    const r = await appelPrep({ action: 'drivupInscriptionsPoser', m: lot });
+    if(!r || r.status !== 'ok') return n;
+    n += r.n || 0;
+  }
+  try{ localStorage.setItem('ec_inscriptions_dv', String(le)); }catch(e){}
+  return n;
 }
 
 const PLANNING_DV = { volet: 'venir' };
