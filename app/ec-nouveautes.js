@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:27 — v1566 */
+/* Déployé le 25/11/2026 à 11:37 — v1567 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1567,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '📝 Démarches permis : notes internes en haut du dossier, et chercher un code du médecin',
+    quoi: [
+      { emoji: '📝',
+        titre: 'Notes internes',
+        texte: 'Dans ♿ Permis aménagé et ⛔ Suspension · annulation, un espace de texte libre en haut de chaque dossier : écris ce que tu veux, c’est enregistré dès que tu quittes la case. La première ligne se voit sur la carte du dossier. L’élève ne le voit jamais.' },
+      { emoji: '🔍',
+        titre: 'Chercher un code du médecin',
+        texte: 'Dans ⚡ Codes, tape le code écrit sur l’avis médical (25.08, 4011…) ou un mot (accélérateur, rétroviseur, EAD…) : ce qu’il veut dire, qui le décide (le médecin seul, ou l’inspecteur en conduite) et s’il est sur notre voiture. Depuis un dossier, « ➕ Ajouter » le met dans ses codes.' }
+    ]
+  },
   {
     version: 1566,
     date: 'Mercredi 25 novembre 2026',
