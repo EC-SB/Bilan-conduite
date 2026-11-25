@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 14:22 — v1571 */
+/* Déployé le 25/11/2026 à 15:08 — v1572 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1572,
+    date: 'Mercredi 25 novembre 2026',
+    resume: '📅 Gestion › Ouverture des cours : ouvrir et fermer les cours dans Drivup d’un coup, et la date d’inscription dans les relances',
+    quoi: [
+      { emoji: '🗓️',
+        titre: 'La semaine type',
+        texte: 'Gestion › 📅 Ouverture des cours (sous 📥 Drivup, administrateurs). 🚗 Moniteurs : qui est dedans, ses jours (Saint-Brieuc, Loudéac, 🎫 RESA PERMIS 8h-19h, repos), ses créneaux de 2h et la 🏍️ Moto plateau 2h. « ↺ Reprendre ce qu’il y a dans Drivup » la remplit en lisant les deux semaines à venir. 🏫 Salle et 🗂️ Bureaux : recopiés de Drivup, à corriger d’un appui.' },
+      { emoji: '⚖️',
+        titre: 'L’équilibre BV / BEA',
+        texte: 'Un curseur « plus de BV / plus de BEA » pour l’école. Chaque moniteur est ⚖️ compté, 🔒 imposé (un pourcentage) ou pas compté. Une case fait passer d’abord « 2 moniteurs le même jour = 1 BV et 1 BEA ». Loudéac, la RESA PERMIS et la moto ne comptent pas.' },
+      { emoji: '📍',
+        titre: 'Loudéac par mois',
+        texte: 'Le mois d’un coup d’œil : qui est à Loudéac, le bureau, la salle. Touche un jour pour y mettre un autre moniteur : les deux échangent leur journée dans Drivup (le .LOUDEAC de 7h suit). Les élèves gardent leur cours, et ne sont prévenus que si tu coches.' },
+      { emoji: '📤',
+        titre: 'Ouvrir, fermer',
+        texte: '📤 Ouvrir un mois, un trimestre ou une période, pour tous ou pour certains : l’aperçu dit combien de cours, rien n’est jamais doublé, les fériés sont sautés, et l’extension utilise la répétition de Drivup puis vérifie le planning. 🔒 Fermer · CP : les cours vides d’un moniteur retirés, ou « Journée Congés Payés » sur ses jours de travail ; un élève se déplace sur un moniteur qui a un cours vide à la même heure. Il faut l’extension « App EC · Drivup » 1.8.0.' },
+      { emoji: '📝',
+        titre: 'Relances : la date d’inscription',
+        texte: 'Élèves › 📣 Relances : « 📝 Inscrit il y a moins de » un nombre de mois ou depuis une date (un élève sans date reste dans la liste), la date sur chaque ligne, et un tri au-dessus de la liste (inscrits les plus récents d’abord, par défaut). La date est lue dans la liste des élèves de Drivup avec la lecture de chaque jour (extension 1.8.0).' }
+    ]
+  },
   {
     version: 1571,
     date: 'Mercredi 25 novembre 2026',
