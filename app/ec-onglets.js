@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:08 — v1565 */
+/* Déployé le 25/11/2026 à 13:24 — v1569 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -36,7 +36,9 @@ const SECTIONS_ONGLET = {
           /* 📽️ v1557 — les vidéos de présentation sur la télé */
           'tele',
           /* 🩺 v1565 — les démarches permis (tout le monde) */
-          'demarches'],
+          'demarches',
+          /* 📣 v1568 — les relances conduite */
+          'relances'],
   /* ⚠️ « parcours » VIT DANS SUIVI, ET DANS SUIVI SEULEMENT — v1037.
 
      Il était dans Gestion tant qu'il n'y avait que l'atelier. Le
@@ -345,6 +347,8 @@ const VUES = {
            ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
            /* 📞 v1266 — le suivi des appels d'Allo (choix de David : sous les rappels) */
            ['appels',     '📞 Suivi des appels',      'appels',      'Au quotidien'],
+           /* 📣 v1568 — les relances conduite (David : « là où tu montres », sous le suivi des appels) */
+           ['relancesc',  '📣 Relances',              'relances',    'Au quotidien'],
            /* 🗓️ v1234 — les créneaux libres lus dans Drivup (choix de David : sous les rappels) */
            ['creneaux',   '🗓️ Créneaux libres',      'rappels',     'Au quotidien'],
            /* 📺 v1290 — la salle des tablettes (ec-salle.js) */
@@ -2145,6 +2149,7 @@ function reveillerVue(cle){
     creneaux:   () => (typeof afficherCreneauxLibres === 'function') && afficherCreneauxLibres(),
     /* 📞 v1266 — relu à chaque arrivée : un appel de la minute doit y être */
     appels:     () => (typeof afficherSuiviAppels === 'function') && afficherSuiviAppels(true),
+    relancesc:  () => (typeof afficherRelancesConduite === 'function') && afficherRelancesConduite(),
     sessions:   () => afficherSessionsPermis(),
     /* Une vue branchée nulle part reste sur « Chargement… » pour
        toujours — c'est ce qui était arrivé à « Historique des
