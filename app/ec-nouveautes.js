@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 13:29 — v1582 */
+/* Déployé le 26/11/2026 à 13:40 — v1583 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1583,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🔒 Naïa ouvre les outils de l’App dès le début de l’appel, en dur',
+    quoi: [
+      { emoji: '🔒',
+        titre: 'Gestion › L’IA d’Allo › Dans Allo › « Ce qu’elle fait toujours »',
+        texte: 'Des règles fixes sont remises en tête à chaque publication : appeler debut_appel dès la première phrase de l’appelant, avant de répondre ; pour un cours, regarder d’abord son planning ; ne dire « on vous rappellera » qu’après avoir laissé la demande au bureau ; ne jamais parler de ses outils. Elles se voient au-dessus de la zone, mais ne se modifient pas.' },
+      { emoji: '🧰',
+        titre: 'Les outils de l’App, plus clairs pour elle',
+        texte: 'debut_appel se présente comme « OBLIGATOIRE À CHAQUE APPEL », et laisser_demande comme « à appeler avant de dire C’est bien noté ».' }
+    ]
+  },
   {
     version: 1582,
     date: 'Jeudi 26 novembre 2026',
