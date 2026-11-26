@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 14:26 — v1557 */
+/* Déployé le 26/11/2026 à 17:39 — v1590 */
 /* ============================================================
    🫧 LE NOUVEAU GRAPHISME « VERRE » (Liquid Glass) — v1374
 
@@ -139,6 +139,8 @@
     loupe2:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.6-4.6M8 10.5h5M10.5 8v5"/>',
     bon:'<circle cx="12" cy="12" r="8.5"/><path d="m8 12.3 2.8 2.7L16.5 9"/>',
     stop:'<circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/>',
+    /* 🧭 v1590 — le sommaire d'un onglet : quatre tuiles */
+    grille:'<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
     train:'<rect x="5" y="3.5" width="14" height="13" rx="3"/><path d="M5 10h14M9 20.5l-1.5-3M15 20.5l1.5-3"/><circle cx="9" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13.5" r="1" fill="currentColor" stroke="none"/>'
   };
   function svg(g){ return '<svg ' + S + '>' + G[g] + '</svg>'; }
@@ -155,7 +157,7 @@
     '📓':'carnet','📝':'note','⚠️':'alerte','🧭':'boussole','📇':'fiche','🔑':'cle_acces','🔧':'cle','✏️':'crayon','🗑️':'corbeille','↩️':'retour','➡️':'fleche',
     '🔄':'rafraichir','🔁':'rotation','❌':'croix','✕':'croix','⏳':'sablier','⏱️':'chrono','⏰':'reveil','🕒':'horloge','👁️':'oeil','📷':'photo','🖼️':'image',
     '📌':'epingle','🔗':'lien','📎':'trombone','🏠':'maison','🏢':'batiment','🧾':'recu','🤖':'robot','⚡':'eclair','✋':'main','⭐':'etoile','🎯':'cible',
-    '🗣️':'parole','🗂️':'dossier','🖨️':'imprimante','💾':'document','🏷️':'etiquette','🚂':'train','🚌':'camion'
+    '🗣️':'parole','🗂️':'dossier','🖨️':'imprimante','💾':'document','🏷️':'etiquette','🚂':'train','🚌':'camion','🔳':'grille'
   };
 
   /* ---------- V2 : la couleur d'origine de chaque emoji (lisible sur fond clair) ---------- */
@@ -353,6 +355,14 @@
 
   window.verreActif = verreActif;
   window.basculerVerre = basculerVerre;
+  /* 🧭 v1590 — l'icône dessinée d'un emoji, pour qui pose ses propres
+     tuiles (le sommaire des onglets, ec-sommaire.js) : le dessin et sa
+     couleur, ou rien si l'emoji n'a pas de glyphe. */
+  window.glypheVerre = function(emoji){
+    var e = String(emoji || '').trim();
+    var g = glypheDe(e);
+    return (g && G[g]) ? { svg: svg(g), couleur: couleurDe(e) } : null;
+  };
 })();
 
 /* Le garde-fou de ec-noyau.js (verifierModules) compte les <script> de la
