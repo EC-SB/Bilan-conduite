@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 12:22 — v1581 */
+/* Déployé le 26/11/2026 à 13:29 — v1582 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1582,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '┃ Le cadre bleu des procédures, aussi dans le bilan à relire',
+    quoi: [
+      { emoji: '┃',
+        titre: 'Cours › « Bilan généré — relis et complète avant envoi »',
+        texte: 'Les lignes recopiées d’une procédure (celles qui commencent par ┃) ont maintenant leur cadre bleu dès la relecture, comme dans le mail, « Mes leçons » et l’historique. On écrit dedans comme avant, et le texte copié pour Messenger ne change pas.' }
+    ]
+  },
   {
     version: 1581,
     date: 'Jeudi 26 novembre 2026',
