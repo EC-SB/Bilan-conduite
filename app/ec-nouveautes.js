@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 13:40 — v1583 */
+/* Déployé le 26/11/2026 à 14:26 — v1584 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1584,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '✉️ Fin du bilan : plus de « copié pour Messenger »',
+    quoi: [
+      { emoji: '✉️',
+        titre: 'Cours › le bilan à relire',
+        texte: 'Le rappel sous le bilan dit maintenant ce qui se passe vraiment : « Copier, enregistrer et terminer » enregistre le bilan, l’élève le retrouve dans 📖 Mes leçons, et tu l’envoies par mail. Messenger n’est plus qu’un secours.' }
+    ]
+  },
   {
     version: 1583,
     date: 'Jeudi 26 novembre 2026',
