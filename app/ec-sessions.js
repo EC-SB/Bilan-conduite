@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 13:36 — v1555 */
+/* Déployé le 26/11/2026 à 11:17 — v1579 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -645,6 +645,9 @@ async function choisirPlaceExamen(nom, voeu){
   }
 
   const vides = prenables.filter(p => p.genre === 'vide').length;
+  /* ⏳ v1579 — les places d'avant le premier jour possible restent
+     prenables (on peut négocier avec la préfecture) : elles le DISENT. */
+  const delaiPl = (typeof delaiDe === 'function') ? delaiDe(nom) : { actif: false };
 
   return new Promise(resolve => {
     const fond = document.createElement('div');
@@ -660,6 +663,9 @@ async function choisirPlaceExamen(nom, voeu){
       ' vraiment libre(s).' +
       (voeu ? '<br><strong style="color:var(--accent-text);">🗓️ Il a demandé : ' +
               String(voeu).replace(/</g, '&lt;') + '</strong>' : '') +
+      /* ⏳ v1579 — son délai de présentation, en tête */
+      (delaiPl.actif ? '<br><strong style="color:var(--red);">⏳ Délai de présentation : pas avant le ' +
+              delaiLong(delaiPl.des) + '</strong>' : '') +
       '</div>';
 
     const liste = document.createElement('div');
@@ -705,9 +711,14 @@ async function choisirPlaceExamen(nom, voeu){
         (p.centre || 'centre non précisé') +
         ' · ' + p.libres + ' place(s) libre(s) sur ' + p.total +
         (p.moniteur ? ' · ' + p.moniteur.replace(/</g, '&lt;') : '') +
-        '</div>';
+        '</div>' +
+        ((delaiPl.actif && String(p.date || '') < delaiPl.des)
+          ? '<div style="font-size:12px;color:var(--red);font-weight:700;">⏳ Avant la fin de son délai — accord de la préfecture ?</div>'
+          : '');
 
       b.addEventListener('click', async () => {
+        /* ⏳ v1579 — l'avertissement, jamais un blocage */
+        if(typeof avertirDelai === 'function' && !await avertirDelai(nom, p.date)) return;
         /* REPRENDRE LA PLACE DE QUELQU'UN SE CONFIRME, ET ON LE NOMME.
            Le faire sans lire son nom est exactement le geste qu'on
            regrette. */
@@ -1867,6 +1878,13 @@ async function echangerDeuxPlaces(depuis, versP, versSess){
   const nomA = String(a.eleve || '').trim();
   const nomB = String(b.eleve || '').trim();
 
+  /* ⏳ v1579 — chacun change de date : son délai de présentation est
+     regardé avant que rien ne bouge (un avertissement, pas un blocage) */
+  if(typeof avertirDelai === 'function' && versSess && sessA && versSess.date !== sessA.date){
+    if(nomA && !await avertirDelai(nomA, versSess.date)) return;
+    if(nomB && !await avertirDelai(nomB, sessA.date)) return;
+  }
+
   /* La permutation se voit tout de suite : l'heure appartient à la
      place, seuls les élèves et leur état changent de côté. */
   ['eleve', 'prevenu', 'dossierOk', 'remarque'].forEach(cle => {
@@ -2385,6 +2403,14 @@ function ouvrirPlace(p, sess){
     bOk.textContent = 'Enregistrement…';
     try{
       const nomSaisi = boite.querySelector('#plEleve').value.trim();
+      /* ⏳ v1579 — quelqu'un de NOUVEAU sur cette place, pendant son
+         délai de présentation : l'avertissement, pas un blocage */
+      if(nomSaisi && normaliserMot(String(p.eleve || '')) !== normaliserMot(nomSaisi) &&
+         typeof avertirDelai === 'function' && !await avertirDelai(nomSaisi, sess.date)){
+        bOk.disabled = false;
+        bOk.textContent = '💾 Enregistrer';
+        return;
+      }
       const champsPlace = {
         eleve: nomSaisi,
         heure: boite.querySelector('#plHeure').value,
