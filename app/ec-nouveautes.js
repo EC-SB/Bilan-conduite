@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 15:14 — v1587 */
+/* Déployé le 26/11/2026 à 15:41 — v1588 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1588,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🛡️ Constat amiable : l’assurance et nos véhicules, sous « Sur place »',
+    quoi: [
+      { emoji: '🛡️',
+        titre: 'Outils › 💥 Constat amiable › « 🛡️ L’assurance et nos véhicules »',
+        texte: 'Un tiroir juste sous « 🚨 Sur place, dans l’ordre » : la société d’assurance, le contrat, la carte verte, les dates, l’agence (son téléphone s’appelle d’un appui), puis la liste de nos véhicules avec leur immatriculation. Ce sont les informations de Gestion › Flotte › 🛡️ L’assurance des voitures.' }
+    ]
+  },
   {
     version: 1587,
     date: 'Jeudi 26 novembre 2026',
