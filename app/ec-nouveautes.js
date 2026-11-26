@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 09:39 — v1577 */
+/* Déployé le 26/11/2026 à 10:33 — v1578 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1578,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🎮 Tablettes : le jeu des vérifs et le jeu du code dans « Je viens réviser », sans rien ouvrir dans leur espace',
+    quoi: [
+      { emoji: '🎮',
+        titre: 'Les jeux sur les tablettes',
+        texte: 'Dans « 📚 Je viens réviser » (son nom, puis son jour et mois de naissance), l’élève trouve toujours 🧰 Vérifs, même si le jeu n’est pas ouvert dans son espace, et 🚦 Code s’il fait le code avec nous. Sa progression est la sienne, comme chez lui. Le jeu des vérifs éteint par l’équipe reste éteint, et le jeu du code fermé dans son dossier reste fermé.' }
+    ]
+  },
   {
     version: 1577,
     date: 'Jeudi 26 novembre 2026',
