@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 15:41 — v1588 */
+/* Déployé le 26/11/2026 à 16:30 — v1589 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1589,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '⚡ Les bilans dictés reviennent beaucoup plus vite, surtout les longs cours',
+    quoi: [
+      { emoji: '⚡',
+        titre: 'Bilan vocal › la correction du cours',
+        texte: 'La remise au propre de la dictée ne fait plus « réfléchir » l’IA : c’est un travail de relecture. Chaque partie se corrige en quelques secondes au lieu d’une à deux minutes, et coûte bien moins cher.' },
+      { emoji: '💭',
+        titre: 'Bilan vocal › la rédaction du résumé',
+        texte: 'L’IA réfléchit toujours avant d’écrire le bilan, mais moins longtemps : elle ne remplit plus toute sa place à réfléchir. Pendant qu’elle réfléchit, l’écran affiche « 💭 l’IA réfléchit… ».' },
+      { emoji: '🎚️',
+        titre: 'Gestion › 💸 Coûts IA › « 💭 Réflexion de l’IA pour les bilans dictés »',
+        texte: 'Deux réglages, pour tous les téléphones : 🅱️ Moyenne (par défaut, ≈ 1 min 30 et ≈ 0,20 $ le bilan) ou 🅰️ Poussée (≈ 4 min et ≈ 0,50 $, un peu plus de petits détails repris). Réservé aux administrateurs.' },
+      { emoji: '🔁',
+        titre: 'Plus de fausses coupures, plus de travail refait',
+        texte: 'Pendant que l’IA réfléchit, le serveur donne signe de vie : l’App ne la prend plus pour une connexion morte. Une nouvelle tentative ne refait plus la correction déjà faite, et « 🔁 Relancer » arrête vraiment l’ancienne génération.' }
+    ]
+  },
   {
     version: 1588,
     date: 'Jeudi 26 novembre 2026',
