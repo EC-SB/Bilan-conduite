@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 10:33 — v1578 */
+/* Déployé le 26/11/2026 à 11:17 — v1579 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1579,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '⏳ Le délai de présentation après un ajournement : noté au résultat, vu partout, et un avertissement si on replace trop tôt',
+    quoi: [
+      { emoji: '⏳',
+        titre: 'Noté dès la fiche du résultat',
+        texte: 'Dans 🏁 Résultats, la fiche de chaque élève a un cadre « Délai de présentation (RdvPermis) » au-dessus des captures du CEPC : la date de fin affichée sur RdvPermis, ou « Pas de délai ». La confirmation « ❌ Ajourné » le reprend (et permet de le taper si on n’a pas ouvert la fiche). S’il n’est pas noté au résultat, il se note au rendez-vous post-permis, sous la conclusion.' },
+      { emoji: '👀',
+        titre: 'Vu dans le dossier et les listes',
+        texte: 'Une ligne rouge « ⏳ pas avant le … » dans « Où en est son permis », une ligne ⏳ sous la date d’examen dans l’onglet 🎓 Permis (✏️ pour le noter ou le corriger), et « ⏳ pas avant le 26/12 » sous son nom dans les listes de Suivi permis. Tout disparaît le lendemain de la fin du délai.' },
+      { emoji: '⚠️',
+        titre: 'Un avertissement, jamais un blocage',
+        texte: 'Placer l’élève sur une date d’avant le lendemain de la fin du délai (place d’examen, sessions, échange de places, 📅 Date obtenue, 📅 Modifier la date, transfert) demande de confirmer : « Placer quand même » si la préfecture a accepté.' },
+      { emoji: '💬',
+        titre: 'Dans « Suivi examen »',
+        texte: 'L’annonce « ❌ … — Ajourné » porte le délai s’il est connu. Noté plus tard (post-permis, dossier), un message court part en plus.' }
+    ]
+  },
   {
     version: 1578,
     date: 'Jeudi 26 novembre 2026',
