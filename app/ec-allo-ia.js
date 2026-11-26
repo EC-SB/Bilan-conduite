@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 15:45 — v1516 */
+/* Déployé le 26/11/2026 à 11:41 — v1580 */
 /* ============================================================
    ec-allo-ia.js — v1511
    🤖 L'IA D'ALLO BRANCHÉE SUR L'APPLI
@@ -148,7 +148,9 @@ function dessinerAlloIa(){
 
   const ong = alloEl('div', 'alOnglets');
   /* 🪪 v1516 — « 📋 Les infos à demander » : la liste pour tous (ec-fiche-infos.js) */
-  [['dire', '✅ Ce qu’elle peut dire'], ['consignes', '📜 Ses consignes'], ['infos', '📋 Les infos à demander'], ['versions', '🕘 Versions']].forEach(([k, t]) => {
+  [['dire', '✅ Ce qu’elle peut dire'], ['consignes', '📜 Ses consignes'], ['infos', '📋 Les infos à demander'], ['versions', '🕘 Versions'],
+   /* 🗂️ v1580 — ce qu'elle a dans Allo, et ses copies */
+   ['allo', '🗂️ Dans Allo']].forEach(([k, t]) => {
     const b = alloEl('button', alloIaSous === k ? 'on' : '', t);
     b.type = 'button';
     b.setAttribute('aria-pressed', alloIaSous === k ? 'true' : 'false');
@@ -159,6 +161,7 @@ function dessinerAlloIa(){
   if(alloIaSous === 'consignes') z.appendChild(alloConsignes(E));
   else if(alloIaSous === 'infos' && typeof alloFicheInfos === 'function') z.appendChild(alloFicheInfos());
   else if(alloIaSous === 'versions') z.appendChild(alloVersions(E));
+  else if(alloIaSous === 'allo') z.appendChild(alloDansAllo());
   else z.appendChild(alloCeQuElleDit(E));
 }
 
@@ -198,7 +201,7 @@ function alloEtatDuBranchement(E){
   bAd.addEventListener('click', () => { try{ navigator.clipboard.writeText(ALLO_IA_ADRESSE); alloToast('📋 Adresse copiée'); }catch(e){} });
   c3.append(ad, bAd, document.createTextNode(' et, en clé API (Bearer), la même clé.'));
   etape('Dans ce connecteur, pour <b>chaque outil</b>, lie le paramètre <code>telephone_appelant</code> à <b>« Caller phone number »</b>. C’est ce qui fait que l’IA ne voit pas le numéro et ne peut pas le changer : <b>sans ce lien, ne l’active pas</b>.');
-  etape('Active le connecteur pour ton agent, avec ses six outils : <code>debut_appel</code>, <code>creneaux_libres</code>, <code>horaires_agences</code>, <code>renvoyer_acces</code>, <code>laisser_demande</code>, <code>signaler_retard</code>.');
+  etape('Active le connecteur pour ton agent, avec ses sept outils sur « Toujours exécuter » : <code>debut_appel</code>, <code>creneaux_libres</code>, <code>horaires_agences</code>, <code>renvoyer_acces</code>, <code>laisser_demande</code>, <code>signaler_retard</code>, <code>noter_renseignement</code>. Les autres paramètres restent « Renseigné par l’agent ».');
   const c6 = etape('Ajoute cette phrase aux instructions de l’agent (le reste de son texte ne change pas) : ');
   const ph = alloEl('code', 'alCle', ALLO_IA_PHRASE);
   const bPh = alloEl('button', 'alPetit', '📋 Copier');
@@ -336,6 +339,169 @@ function alloVersions(E){
         if(oui) alloIaEnvoyer({ action: 'alloIaRemettre', id: v.id }, '🕘 Version remise');
       });
       l.appendChild(r);
+    }
+    b.appendChild(l);
+  });
+  return b;
+}
+
+/* ============================================================
+   🗂️ v1580 — CE QU'ELLE A DANS ALLO
+
+   David, le 26/11 : « une sauvegarde de ce qu'elle connaît
+   actuellement, qu'on pourrait revenir en arrière en cas de souci ».
+   Étape 1 : l'App LIT sa configuration chez Allo et la garde, datée
+   (la première copie se fait toute seule). Rien n'est écrit dans Allo
+   d'ici : corriger et publier viendra après le schéma.
+   ============================================================ */
+let alloAgentEtat = null;
+let alloAgentCharge = false;
+
+async function chargerAlloAgent(id, copier){
+  alloAgentCharge = true;
+  try{
+    const d = await appelPrep(copier ? { action: 'alloAgentCopier' } : { action: 'alloAgentLire', id: id || 0 });
+    if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+    alloAgentEtat = d;
+    if(copier) alloToast('💾 Copie faite');
+  }catch(e){
+    alloAgentEtat = Object.assign({}, alloAgentEtat || { copies: [] }, { erreur: String((e && e.message) || e) });
+  }
+  if(alloIaSous === 'allo') dessinerAlloIa();
+}
+
+const ALLO_JOURS = { MO: 'Lundi', TU: 'Mardi', WE: 'Mercredi', TH: 'Jeudi', FR: 'Vendredi', SA: 'Samedi', SU: 'Dimanche' };
+function alloHeureDeSecondes(v){
+  const n = Number(v);
+  if(!isFinite(n)) return String(v == null ? '' : v);
+  const h = Math.floor(n / 3600), m = Math.floor((n % 3600) / 60);
+  return h + 'h' + String(m).padStart(2, '0');
+}
+function alloPlage(p){
+  if(p == null) return '';
+  if(typeof p !== 'object') return String(p);
+  const deb = p.start != null ? p.start : (p.from != null ? p.from : p.open);
+  const fin = p.end != null ? p.end : (p.to != null ? p.to : p.close);
+  if(deb != null && fin != null) return alloHeureDeSecondes(deb) + ' – ' + alloHeureDeSecondes(fin);
+  return JSON.stringify(p);
+}
+/* La configuration, en parties lisibles : [titre, [[libellé, texte]…]] */
+function alloPartiesAgent(cfg){
+  const a = (cfg && cfg.agent) || {};
+  const parties = [];
+  const L = (lib, v) => (v === undefined || v === null || String(v).trim() === '') ? null : [lib, String(v)];
+  parties.push(['👋 Accueil, ton, fin', [L('Accueil', a.greeting_message), L('Fin d’appel', a.closing_message),
+    L('Ton', a.tone_of_voice), L('Langue', a.language), L('Réponses', a.answer_type), L('Nom de l’agent', a.name)].filter(Boolean)]);
+  parties.push(['🏢 L’école, telle qu’elle la connaît', [L('Nom', a.business_name), L('Adresse', a.business_address),
+    L('Téléphone', a.business_phone), L('Mail', a.business_email), L('Site', a.business_website), L('Activité', a.business_industry)].filter(Boolean)]);
+  const pr = (cfg && cfg.prompt) || {};
+  const ins = [];
+  (Array.isArray(pr.sections) ? pr.sections : []).forEach(x => {
+    const t = x.title || x.section || 'Partie';
+    if(Array.isArray(x.fields) && x.fields.length){
+      ins.push([t, x.fields.map(f => '• ' + (f.label || '') + (f.question ? ' — « ' + f.question + ' »' : '') +
+        (f.complete_when ? ' (complet quand : ' + f.complete_when + ')' : '')).join('\n')]);
+    }else if(x.content) ins.push([t, x.content]);
+  });
+  if(pr.custom_prompt) ins.push(['Texte libre', pr.custom_prompt]);
+  parties.push(['📜 Ses instructions dans Allo', ins]);
+  const k = (cfg && cfg.knowledge) || {};
+  const sait = [];
+  if(k.text) sait.push(['Texte', k.text]);
+  (k.websites || []).forEach(w => sait.push(['Site', (w.url || '') + (w.status ? ' (' + w.status + ')' : '')]));
+  (k.files || []).forEach(fi => sait.push(['Fichier', (fi.file_name || '') + (fi.status ? ' (' + fi.status + ')' : '')]));
+  parties.push(['📚 Ce qu’elle sait', sait]);
+  const bh = (cfg && cfg.business_hours) || {};
+  const hor = (bh.schedule || []).map(j => [ALLO_JOURS[j.day] || j.day,
+    (Array.isArray(j.schedule) && j.schedule.length) ? j.schedule.map(alloPlage).join(', ') : 'fermé']);
+  if(bh.timezone) hor.push(['Fuseau', bh.timezone]);
+  parties.push(['🕘 Ses horaires dans Allo', hor]);
+  parties.push(['🔀 Transferts', (cfg && cfg.transfer_rules || []).map(t => [t.type || 'Transfert',
+    (t.description || '') + (t.target_number ? ' → ' + t.target_number : '') + (t.target_line_number ? ' → ligne ' + t.target_line_number : '') +
+    (t.transfer_message ? '\nCe qu’elle dit : « ' + t.transfer_message + ' »' : '')])]);
+  const cap = (cfg && cfg.capabilities) || {};
+  parties.push(['⚙️ Ce qu’elle peut faire', Object.keys(cap).map(x => [x, cap[x] ? 'oui' : 'non'])]);
+  const cal = ((cfg && cfg.scheduling) || {}).calendars || [];
+  if(cal.length) parties.push(['📅 Agendas', cal.map(c => [c.name || 'Agenda', (c.provider || '') + (c.status ? ' · ' + c.status : '')])]);
+  return parties;
+}
+function alloTexteAgent(copie){
+  const lignes = ['Configuration de la réceptionniste IA — ligne ' + (copie.nom || '') + ' ' + (copie.numero || ''),
+    'Copie du ' + alloJourHeure(copie.le) + (copie.par ? ' par ' + copie.par : ''), ''];
+  alloPartiesAgent(copie.config).forEach(([t, l]) => {
+    lignes.push('== ' + t.replace(/^\S+\s/, '') + ' ==');
+    if(!l.length) lignes.push('(rien)');
+    l.forEach(([a, b]) => lignes.push(a + ' : ' + b));
+    lignes.push('');
+  });
+  return lignes.join('\n');
+}
+
+function alloDansAllo(){
+  const b = alloEl('div', 'amBloc');
+  b.appendChild(alloEl('h3', '', '🗂️ Ce qu’elle a dans Allo'));
+  b.appendChild(alloEl('div', 'amMeta', 'Une copie de sa configuration chez Allo (accueil, instructions, ce qu’elle sait, horaires, transferts), gardée ici avec sa date. Rien n’est modifié dans Allo depuis cet écran.'));
+  if(!alloAgentEtat){
+    if(!alloAgentCharge) chargerAlloAgent(0);
+    b.appendChild(alloEl('div', 'empty', 'Lecture de sa configuration chez Allo…'));
+    return b;
+  }
+  const E = alloAgentEtat;
+  const rang = alloEl('div', 'alEspace');
+  rang.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0;';
+  const bCop = alloEl('button', 'btn btn-primary amGo', '💾 Faire une copie maintenant');
+  bCop.type = 'button';
+  bCop.style.cssText = 'width:auto;margin:0;';
+  bCop.addEventListener('click', () => { bCop.disabled = true; bCop.textContent = 'Lecture chez Allo…'; chargerAlloAgent(0, true); });
+  rang.appendChild(bCop);
+  if(E.copie){
+    const bTxt = alloEl('button', 'alPetit', '📋 Copier tout le texte');
+    bTxt.type = 'button';
+    bTxt.addEventListener('click', () => { try{ navigator.clipboard.writeText(alloTexteAgent(E.copie)); alloToast('📋 Texte copié'); }catch(e){} });
+    rang.appendChild(bTxt);
+  }
+  b.appendChild(rang);
+  if(E.erreur) b.appendChild(alloEl('div', 'empty', '⚠️ ' + E.erreur));
+  if(!E.copie){
+    if(!E.erreur) b.appendChild(alloEl('div', 'empty', 'Aucune copie pour l’instant.'));
+    return b;
+  }
+  const C = E.copie;
+  const tete = alloEl('div', 'amMeta');
+  tete.textContent = '📞 Ligne ' + (C.nom || '') + ' · ' + (C.numero || '') + ' — copie du ' + alloJourHeure(C.le) +
+    (C.par ? ' par ' + C.par : '') + (E.copies[0] && E.copies[0].id === C.id ? ' (la plus récente)' : '');
+  b.appendChild(tete);
+  alloPartiesAgent(C.config).forEach(([titre, lignes]) => {
+    const det = document.createElement('details');
+    det.className = 'alGuide alCopie';
+    det.open = /instructions|sait|Accueil/.test(titre);
+    det.appendChild(alloEl('summary', '', titre + (lignes.length ? '' : ' — rien')));
+    lignes.forEach(([lib, txt]) => {
+      const l = alloEl('div', 'alMsg');
+      const s = alloEl('span', '');
+      s.appendChild(alloEl('b', '', lib));
+      const p = alloEl('div', '', txt);
+      p.style.cssText = 'white-space:pre-wrap;margin-top:3px;';
+      s.appendChild(p);
+      l.appendChild(s);
+      det.appendChild(l);
+    });
+    b.appendChild(det);
+  });
+  const h = alloEl('h3', '', '🕘 Les copies gardées');
+  h.style.marginTop = '16px';
+  b.appendChild(h);
+  E.copies.forEach(x => {
+    const l = alloEl('div', 'alMsg');
+    l.appendChild(alloEl('span', '', x.id === C.id ? '👁️' : '💾'));
+    const s = alloEl('span', '', alloJourHeure(x.le) + ' — ' + (x.quoi || 'Copie'));
+    s.appendChild(alloEl('small', '', (x.par || '?') + ' · ligne ' + (x.nom || x.numero || '')));
+    l.appendChild(s);
+    if(x.id !== C.id){
+      const v = alloEl('button', 'alPetit', 'Voir');
+      v.type = 'button';
+      v.addEventListener('click', () => chargerAlloAgent(x.id));
+      l.appendChild(v);
     }
     b.appendChild(l);
   });
