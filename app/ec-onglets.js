@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:08 — v1572 */
+/* Déployé le 26/11/2026 à 17:39 — v1590 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -1842,6 +1842,16 @@ function construireBarresVues(){
     }
     barre.hidden = false;
 
+    /* 🧭 v1590 — LE SOMMAIRE DE L'ONGLET. David, le 26/11 : « les sous-
+       onglets d'Élèves et d'Outils sont nombreux […] pour les autres ça
+       reste compliqué ». Quand le menu est long (ec-sommaire.js dit
+       lesquels), une entrée « Sommaire » vient en tête : chaque écran y a
+       sa phrase. Ce n'est pas une ligne de VUES : elle ne dépend d'aucun
+       droit, et n'existe que si la personne voit assez d'écrans. */
+    if(typeof sommairePourLOnglet === 'function' && sommairePourLOnglet(onglet, dispo)){
+      dispo.unshift(['sommaire', '🔳 Sommaire', '', '']);
+    }
+
     /* ============================================================
        LE RANGEMENT EN FAMILLES — v945
 
@@ -1937,6 +1947,13 @@ function construireBarresVues(){
 
     if(!vueActive[onglet] || !dispo.some(x => x[0] === vueActive[onglet])){
       vueActive[onglet] = dispo[0][0];
+    }
+
+    /* ⭐ v1590 — « Mes favoris » en tête, les familles repliées dessous
+       (ec-sommaire.js). Les boutons ci-dessus restent ceux du menu : le
+       module les range, il n'en invente aucun. */
+    if(typeof allegerLaBarre === 'function'){
+      try{ allegerLaBarre(onglet); }catch(e){ console.warn('Menu allégé :', e); }
     }
   });
 
@@ -2077,6 +2094,11 @@ function afficherVue(onglet, cle){
 
   const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
   if(barre){
+    /* ⭐ v1590 — avant d'allumer : le menu allégé peut avoir à montrer
+       l'écran ouvert (rangée courte du téléphone, famille à déplier) */
+    if(typeof surVueAffichee === 'function'){
+      try{ surVueAffichee(onglet, cle); }catch(e){ console.warn('Menu allégé :', e); }
+    }
     barre.querySelectorAll('button').forEach(b => {
       b.classList.toggle('actif', b.getAttribute('data-vue-cible') === cle);
     });
@@ -2103,6 +2125,8 @@ function reveillerVue(cle){
        ne demande rien au classeur — elle relit ce que les listes
        ont publié. */
     coup:       () => dessinerTuiles(ongletActif),
+    /* 🧭 v1590 — le sommaire de l'onglet (ec-sommaire.js) */
+    sommaire:   () => (typeof dessinerSommaire === 'function') && dessinerSommaire(ongletActif),
     prepares:   () => aDroit('cours') && afficherPrepares(true, true),
     /* Deux façons de parler à quelqu'un vivent sur cet écran : le
        message attaché à un ÉLÈVE, et celui épinglé à une PERSONNE.
@@ -2373,9 +2397,10 @@ function poserCompteVue(cle, nombre){
   COMPTES_VUE[cle] = nombre;
 
   const onglet = ongletDeVue(cle);
-  const b = document.querySelector('.barre-vues[data-pour="' + onglet + '"] ' +
-                                   'button[data-vue-cible="' + cle + '"]');
-  if(b){
+  /* ⭐ v1590 — un écran peut avoir deux boutons : dans « Mes favoris » et
+     dans sa famille. La pastille va sur les deux. */
+  document.querySelectorAll('.barre-vues[data-pour="' + onglet + '"] ' +
+                            'button[data-vue-cible="' + cle + '"]').forEach(b => {
     let p = b.querySelector('.compte-vue');
     if(!nombre){
       if(p) p.remove();
@@ -2390,7 +2415,8 @@ function poserCompteVue(cle, nombre){
       }
       p.textContent = (nombre > 99) ? '99+' : String(nombre);
     }
-  }
+  });
+  if(typeof majPastillesDesFamilles === 'function') majPastillesDesFamilles(onglet);
 
   majAlerteOnglet(onglet);
 }
