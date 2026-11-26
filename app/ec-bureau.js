@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 17:47 — v1544 */
+/* Déployé le 26/11/2026 à 11:17 — v1579 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1350,6 +1350,15 @@ function ligneBureau(e, options){
     lo.textContent = okAutre;
     meta.appendChild(lo);
   }
+  /* ⏳ v1579 — son délai de présentation, tant qu'il court */
+  const delaiL = (typeof etiquetteDelai === 'function') ? etiquetteDelai(e.eleve) : '';
+  if(delaiL){
+    if(typeof styleLignesCompactes === 'function') styleLignesCompactes();
+    const dl = document.createElement('span');
+    dl.className = 'lcDelai';
+    dl.textContent = delaiL;
+    meta.appendChild(dl);
+  }
 
   const sous = document.createElement('span');
   sous.textContent = 'Dernier cours le ' + (e.date || '?') +
@@ -1530,7 +1539,7 @@ function styleLignesCompactes(){
 .lcL > span{text-align:left;justify-self:start;min-width:0;max-width:100%}
 .lcL > .lcF{justify-self:end}
 .lcL.lcC6{grid-template-columns:minmax(140px,210px) minmax(0,1fr) auto auto auto 18px}.lcL > .lcApres{order:5;font-size:11.5px;font-weight:800;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--muted);white-space:nowrap;justify-self:end}.lcL.lcC6 > .lcF{order:6}
-.lcL > .lcTags{order:3;display:flex;gap:4px;flex-wrap:wrap;justify-self:end}.lcNomEcrit{color:#A85A00!important;border-color:#E8A23A!important}.lcL > .lcEt{order:4;justify-self:end}.lcL > .lcF{order:5}
+.lcL > .lcTags{order:3;display:flex;gap:4px;flex-wrap:wrap;justify-self:end}.lcNomEcrit{color:#A85A00!important;border-color:#E8A23A!important}.lcDelai{display:inline-block;align-self:flex-start;font-size:11.5px;font-weight:800;color:var(--red);border:1px solid var(--red);border-radius:999px;padding:1px 8px;white-space:nowrap}.lcL > .lcEt{order:4;justify-self:end}.lcL > .lcF{order:5}
 .history-item.lc.lcA{display:flex!important;align-items:center;gap:4px}
 .lcA > .lcL{flex:1;min-width:0}
 .lcActs{display:flex;gap:5px;flex-shrink:0;margin-right:8px}.lcActs .lcAct{margin:0!important}
@@ -1611,6 +1620,15 @@ function ligneCompacteBureau(e, options){
     if(okAutre){
       const t = document.createElement('span');
       t.className = 'lcLoudeac'; t.textContent = okAutre;
+      lo.appendChild(t);
+    }
+    /* ⏳ v1579 — son délai de présentation, tant qu'il court (David :
+       « oui » au ⏳ sous le nom dans les listes de Suivi permis) */
+    const delai = (typeof etiquetteDelai === 'function') ? etiquetteDelai(e.eleve) : '';
+    if(delai){
+      const t = document.createElement('span');
+      t.className = 'lcDelai'; t.textContent = delai;
+      t.title = 'Délai de présentation imposé par la préfecture';
       lo.appendChild(t);
     }
     /* 🔗 v1329 — un nom écrit autrement (v1167) se voit sur la ligne ; le
@@ -1761,6 +1779,9 @@ function remplirFicheBureau(boite, e, options){
   /* v1329 — l'interrupteur dit déjà « OK Loudéac » : l'étiquette ferait
      doublon (et s'étirait sur toute la largeur) */
   if(avecInter) corps.querySelectorAll('.lcLoudeac').forEach(x => x.remove());
+  /* ⏳ v1579 — et le délai s'y étirerait de même : la fiche a son cadre
+     (Résultats) ou sa ligne (dossier) */
+  corps.querySelectorAll('.lcDelai').forEach(x => x.remove());
   const nomLigne = corps.querySelector('.meta strong');
   /* le nom est dans le titre : sa barre de boîte, seule, ne dirait rien */
   const avecBarre = nomLigne && nomLigne.parentNode && nomLigne.parentNode.classList &&
