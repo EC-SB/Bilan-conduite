@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 11:27 — v1566 */
+/* Déployé le 26/11/2026 à 13:29 — v1582 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -4257,6 +4257,94 @@ function placerLeBoutonDuMicro(){
     if(mq.addEventListener) mq.addEventListener('change', placerLeBoutonDuMicro);
   }
 })();
+
+/* ┃ v1582 — LE CADRE BLEU DES PROCÉDURES, AUSSI DANS LE BILAN À RELIRE.
+   David, le 26/11 : « il faut que les moniteurs voient le cadre bleu ici
+   aussi pour les procédures ». Une zone de texte ne se colore pas : on
+   glisse DESSOUS un calque qui reprend son texte au caractère près
+   (même police, mêmes marges, même largeur, même défilement), avec le
+   fond bleu et la barre sur les lignes ┃ ; la zone devient transparente
+   par-dessus. Le texte lui-même ne change pas : la copie pour
+   Messenger, l'enregistrement, le mail restent exactement les mêmes,
+   et on écrit dedans comme avant. */
+const CADRES_BILAN_STYLES = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing',
+  'wordSpacing', 'textIndent', 'tabSize', 'wordBreak', 'overflowWrap', 'whiteSpace', 'textTransform',
+  'paddingTop', 'paddingLeft', 'paddingBottom', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
+  'borderLeftWidth', 'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius'];
+function lignesDuCalqueBilan(texte){
+  const lignes = String(texte || '').split('\n');
+  const proc = lignes.map(l => /^\s*┃/.test(l));
+  const frag = document.createDocumentFragment();
+  lignes.forEach((l, i) => {
+    const d = document.createElement('div');
+    d.textContent = l || '​';
+    if(proc[i]){
+      d.className = 'cbProc' + (i === 0 || !proc[i - 1] ? ' cbDebut' : '') + (i === lignes.length - 1 || !proc[i + 1] ? ' cbFin' : '');
+    }
+    frag.appendChild(d);
+  });
+  return { frag: frag, nb: proc.filter(Boolean).length };
+}
+function poserCadresDuBilanARelire(){
+  const ta = $('resultText');
+  if(!ta || ta.dataset.cadres || !ta.parentNode) return;
+  ta.dataset.cadres = '1';
+  const env = document.createElement('div');
+  env.className = 'cbEnveloppe';
+  ta.parentNode.insertBefore(env, ta);
+  const calque = document.createElement('div');
+  calque.className = 'cbCalque';
+  calque.setAttribute('aria-hidden', 'true');
+  const dedans = document.createElement('div');
+  calque.appendChild(dedans);
+  env.appendChild(calque);
+  env.appendChild(ta);
+  ta.classList.add('cbTransparent');
+
+  let prevu = false;
+  const caler = () => {
+    if(!ta.offsetWidth){ calque.style.display = 'none'; return; }
+    calque.style.display = '';
+    const cs = getComputedStyle(ta);
+    CADRES_BILAN_STYLES.forEach(k => { calque.style[k] = cs[k]; });
+    /* La barre de défilement de la zone : le calque garde la même
+       largeur de texte en ajoutant sa place à droite */
+    const bords = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+    const barre = Math.max(0, ta.offsetWidth - ta.clientWidth - bords);
+    calque.style.paddingRight = ((parseFloat(cs.paddingRight) || 0) + barre) + 'px';
+    calque.style.setProperty('--cbG', (Math.max(0, (parseFloat(cs.paddingLeft) || 0) - 4)) + 'px');
+    calque.style.setProperty('--cbD', (Math.max(0, (parseFloat(cs.paddingRight) || 0) - 4)) + 'px');
+    calque.style.left = ta.offsetLeft + 'px';
+    calque.style.top = ta.offsetTop + 'px';
+    calque.style.width = ta.offsetWidth + 'px';
+    calque.style.height = ta.offsetHeight + 'px';
+    calque.scrollTop = ta.scrollTop;
+  };
+  const redessiner = () => {
+    prevu = false;
+    const r = lignesDuCalqueBilan(ta.value);
+    dedans.textContent = '';
+    if(r.nb) dedans.appendChild(r.frag);
+    caler();
+  };
+  const plus_tard = () => { if(prevu) return; prevu = true; requestAnimationFrame(redessiner); };
+  /* Le bilan est posé par le code à vingt endroits (génération, reprise
+     d'un poste, correction…) sans événement : on écoute la valeur elle-même */
+  const d = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  if(d && d.get && d.set){
+    try{
+      Object.defineProperty(ta, 'value', { configurable: true, enumerable: true,
+        get(){ return d.get.call(this); },
+        set(v){ d.set.call(this, v); plus_tard(); } });
+    }catch(e){}
+  }
+  ta.addEventListener('input', plus_tard);
+  ta.addEventListener('scroll', () => { calque.scrollTop = ta.scrollTop; });
+  if(typeof ResizeObserver !== 'undefined') new ResizeObserver(caler).observe(ta);
+  window.addEventListener('resize', plus_tard);
+  redessiner();
+}
+poserCadresDuBilanARelire();
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
