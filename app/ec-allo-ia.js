@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 12:22 — v1581 */
+/* Déployé le 26/11/2026 à 13:40 — v1583 */
 /* ============================================================
    ec-allo-ia.js — v1511
    🤖 L'IA D'ALLO BRANCHÉE SUR L'APPLI
@@ -509,6 +509,21 @@ function nettoyerSavoirAllo(texte){
   return { texte: t, faits: faits };
 }
 
+/* 🔒 v1583 — RÈGLES FIXES. David, le 26/11 : « tu peux le mettre en dur
+   pour être sûr ». Le Worker pose ce bloc en tête de « Ce qu'elle fait
+   toujours » à chaque publication ; l'écran le montre, verrouillé, et
+   ne laisse modifier que le reste. */
+function alloSansReglesFixes(t, E){
+  const debut = (E && E.marqueRegles) || '━━ RÈGLES FIXES DE L\'APP', fin = (E && E.finRegles) || '━━ FIN DES RÈGLES FIXES ━━';
+  let s = String(t || '');
+  for(let n = 0; n < 5; n++){
+    const i = s.indexOf(debut);
+    if(i === -1) break;
+    const j = s.indexOf(fin, i);
+    s = s.slice(0, i) + (j === -1 ? '' : s.slice(j + fin.length));
+  }
+  return s.trim();
+}
 function alloBrouillonDepuis(E){
   const cfg = (E.copie && E.copie.config) || {};
   const a = cfg.agent || {};
@@ -525,6 +540,8 @@ function alloBrouillonDepuis(E){
       if(x.section === 'required_fields') (x.fields || []).forEach(f => br.champs.push(Object.assign({}, f)));
       else br.parties[x.section] = x.content || '';
     });
+    /* 🔒 v1583 — le bloc des règles fixes n'est pas à modifier : l'App le remet à chaque publication */
+    if(br.parties.behaviors) br.parties.behaviors = alloSansReglesFixes(br.parties.behaviors, E);
   }else{
     br.parties = Object.assign({}, ALLO_PROPOSITION.parties);
     br.champs = ALLO_PROPOSITION.champs.map(f => Object.assign({}, f));
@@ -610,7 +627,19 @@ function alloEdition(E){
   g1.appendChild(alloChamp('Fin d’appel', '', B.fin, 500, 1, v => { B.fin = v; }));
 
   const g2 = alloGroupe(bloc, '📜 Ses instructions', true);
+  const fixes = String(E.reglesFixes || '');
   ALLO_PARTIES_ECRAN.forEach(([k, t, aide, n], i) => {
+    if(k === 'behaviors' && fixes){
+      /* 🔒 v1583 — le bloc fixe, montré au-dessus, compté dans les 3000 */
+      const f = alloEl('div', 'amMeta alReglesFixes', '');
+      f.style.cssText = 'margin:2px 0 8px;padding:8px 10px;border-left:4px solid #2563EB;background:rgba(37,99,235,.10);border-radius:0 8px 8px 0;white-space:pre-wrap;';
+      f.appendChild(alloEl('b', '', '🔒 Règles fixes de l’App — remises en tête à chaque publication, pas modifiables ici'));
+      f.appendChild(document.createTextNode('\n' + fixes.split('\n').filter(l => !/^━━/.test(l)).join('\n')));
+      const champ = alloChamp(t, 'Obligatoire. Ce que tu écris ici vient après les règles fixes.', B.parties[k] || '', 3000 - fixes.length - 2, n, v => { B.parties[k] = v; });
+      champ.insertBefore(f, champ.querySelector('textarea'));
+      g2.appendChild(champ);
+      return;
+    }
     g2.appendChild(alloChamp(t, aide, B.parties[k] || '', 3000, n, v => { B.parties[k] = v; }));
     if(i === 3){
       /* 📝 ce qu'elle doit recueillir */
