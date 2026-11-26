@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 14:51 — v1586 */
+/* Déployé le 26/11/2026 à 15:14 — v1587 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1587,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🎬 Les vidéos des comptes principaux, pour David, Chrystel et Maryne seulement',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Menu ⋯ › « Vidéos des comptes principaux »',
+        texte: 'Toute l’App, onglet par onglet, une vidéo par onglet. L’entrée n’apparaît que pour David, Chrystel et Maryne, et le serveur ne donne les vidéos qu’à eux trois : elles sont rangées dans le stockage de l’App, pas sur le site.' },
+      { emoji: '⬆️',
+        titre: 'Déposer et retirer',
+        texte: 'David et Chrystel déposent les fichiers MP4 depuis cette fenêtre. Le titre vient du nom du fichier, et un numéro en tête (« 03-… ») donne l’ordre.' }
+    ]
+  },
   {
     version: 1586,
     date: 'Jeudi 26 novembre 2026',
