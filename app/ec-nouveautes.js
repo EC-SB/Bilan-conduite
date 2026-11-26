@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 14:26 — v1584 */
+/* Déployé le 26/11/2026 à 14:38 — v1585 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1585,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🔎 Naïa cherche dans ce qu’elle sait avant de dire « je n’ai pas l’information »',
+    quoi: [
+      { emoji: '🔎',
+        titre: 'Règles fixes de Naïa',
+        texte: 'Avant de dire qu’elle n’a pas l’information, elle cherche dans ses connaissances. Les questions générales (formations, inscription, reprise d’un élève venant d’une autre auto-école, horaires, tarifs) ne sont pas des informations de dossier : elle y répond, même quand le numéro n’est pas reconnu.' }
+    ]
+  },
   {
     version: 1584,
     date: 'Jeudi 26 novembre 2026',
