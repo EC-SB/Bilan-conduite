@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 17:48 — v1521 */
+/* Déployé le 26/11/2026 à 15:41 — v1588 */
 /* ============================================================
    💥 LE CONSTAT AMIABLE — v1518, v1520 (Outils › 💥 Constat amiable)
 
@@ -497,6 +497,46 @@ function caIciCote(){
   const q = caQuestion();
   return q.cote === 'nous' ? r.cote : q.cote === 'lui' ? caLui() : '';
 }
+/* 🛡️ v1588 — L'ASSURANCE, SOUS « SUR PLACE ». David, le 26/11 : « en
+   dessous de sur place, un tiroir avec l'assurance et directement les
+   informations de l'assurance écrites ». Ce sont celles de Gestion ›
+   Flotte › 🛡️ L'assurance des voitures (constatContexte), les mêmes
+   que la case 8 du constat : on les lit d'un coup d'œil, sans chercher
+   la carte verte dans la boîte à gants. */
+function caTiroirAssurance(){
+  const c = CA.ctx || {}, a = c.assurance || {};
+  let corps;
+  if(!c.assurancePosee){
+    corps = '<p>L’assurance des voitures n’est pas encore remplie (Gestion › Flotte › 🛡️ L’assurance des voitures). ' +
+      'En attendant : la <b>carte verte</b> est dans la boîte à gants.</p>';
+  }else{
+    const tel = String(a.agenceTel || '').trim();
+    const telLien = /^[+\d][\d .\-()]{6,}$/.test(tel)
+      ? '<a href="tel:' + caEsc(tel.replace(/[^\d+]/g, '')) + '">' + caEsc(tel) + '</a>' : caEsc(tel);
+    const lignes = [
+      ['Société d’assurance', caEsc(a.assureur)],
+      ['N° de contrat', caEsc(a.contrat)],
+      ['N° de carte verte', caEsc(a.carteVerte)],
+      ['Attestation valable', (a.du || a.au) ? 'du ' + caEsc(caJour(a.du)) + ' au ' + caEsc(caJour(a.au)) : ''],
+      ['Agence', caEsc(a.agenceNom || a.agence)],
+      ['Adresse de l’agence', caEsc(a.agenceAdresse)],
+      ['Téléphone ou e-mail', telLien + (a.agencePays ? (telLien ? ' · ' : '') + caEsc(a.agencePays) : '')],
+      ['Dégâts au véhicule assurés', a.degats === 'non' ? 'non' : 'oui'],
+      ['Preneur d’assurance', caEsc(caJoindre(a.preneurNom, a.preneurPrenom))]
+    ].filter(l => String(l[1] || '').trim());
+    corps = '<table class="cqAssTable">' + lignes.map(l => '<tr><th>' + l[0] + '</th><td>' + l[1] + '</td></tr>').join('') + '</table>' +
+      '<p class="cqAssNote">Le même contrat pour toutes les voitures, déjà recopié dans la case 8 du constat.</p>';
+  }
+  /* 🚗 v1588 — « et la liste des véhicules avec leurs immatriculations » (David, le 26/11) */
+  const vs = (c.vehicules || []).filter(v => v && (v.immat || v.nom || v.modele));
+  const veh = vs.length
+    ? '<h5 class="cqAssTitre">🚗 Nos véhicules</h5><table class="cqAssTable">' + vs.map(v =>
+        '<tr><th>' + caEsc(v.titre || v.nom || v.modele || '') + (v.site ? ' <span class="cqAssMod">' + caEsc(v.site) + '</span>' : '') +
+        (/remorque/i.test(v.categorie || '') ? ' <span class="cqAssMod">remorque</span>' : '') + '</th>' +
+        '<td class="cqAssImmat">' + caEsc(String(v.immat || '—').toUpperCase()) + '</td></tr>').join('') + '</table>'
+    : '<p class="cqAssNote">Aucun véhicule dans Gestion › Flotte pour l’instant.</p>';
+  return '<details class="cqSurPlace cqAssurance"><summary>🛡️ L’assurance et nos véhicules</summary>' + corps + veh + '</details>';
+}
 function caDessiner(){
   const z = document.getElementById('constatZone');
   if(!z) return;
@@ -510,6 +550,7 @@ function caDessiner(){
       '<li><b>Ne signe rien que tu ne partages pas.</b> Un désaccord s’écrit dans la case 14. Rien ne s’ajoute après les signatures.</li>' +
       '<li><b>Chacun garde un exemplaire.</b> Envoie le constat signé au bureau tout de suite : l’assureur doit le recevoir sous <b>5 jours ouvrés</b>.</li>' +
     '</ol></details>' +
+    caTiroirAssurance() +
     '<div class="cqGrille"><div class="cqQ" id="caPanneau"></div><div><div class="cqPapier" id="caPapier"></div>' +
     '<div class="cqDit"></div></div></div>';
   caPanneau();
