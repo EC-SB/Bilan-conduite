@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 16:53 — v1576 */
+/* Déployé le 26/11/2026 à 09:39 — v1577 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1577,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🧾 Dossier élève › Point financier : lu dans Drivup, vérifié, envoyé, et gardé dans le dossier',
+    quoi: [
+      { emoji: '🧾',
+        titre: 'Un onglet « Point financier » dans chaque dossier',
+        texte: 'Pour les administrateurs et le bureau, sous 💶 Financement. « Faire le point » lit Drivup (relevé de compte, détail des factures, Facturer, planning, notes internes) sans rien y changer — il faut l’extension 1.9.0. Le point est écrit au « vous » : ce qui a été versé, le code, la conduite au prix payé, la ligne de contrôle, les cas particuliers, le bilan, et ce qu’il reste à prévoir jusqu’à l’examen.' },
+      { emoji: '💶',
+        titre: 'Ce qu’il reste à prévoir : les fiches de tarifs de l’App',
+        texte: 'AAC : les rendez-vous pédagogiques (pratique n° 1, théorique, pratique n° 2), puis vérifications, 3 h avant l’examen, accompagnement, disque A, post-permis, moins ce qui est déjà acheté. CS : rendez-vous préalable, formation accompagnateur, examen blanc, puis la même fin. Les autres : la frise (en heures, avec son examen blanc s’il n’est pas payé). Un prix de Drivup différent de l’App est signalé.' },
+      { emoji: '✉️',
+        titre: 'Vérifier, envoyer, garder',
+        texte: 'On renomme un versement (« Permis à 1 € »), on corrige la phrase d’un cas particulier, on retouche le texte, puis on l’envoie par mail (des cases à cocher), on le copie, ou on le garde sans l’envoyer. Chaque point fait reste dans le dossier, et se relit.' }
+    ]
+  },
   {
     version: 1576,
     date: 'Mercredi 25 novembre 2026',
