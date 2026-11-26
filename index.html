@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1589
+     VERSION APPLICATION : v1590
      VERSION APPS SCRIPT REQUISE : v273
      Mis à jour le : 26/11/2026
 
@@ -2818,6 +2818,152 @@
     -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
     mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
   }
+
+  /* ---- ⭐ LE MENU ALLÉGÉ, LE SOMMAIRE ET LA LOUPE — v1590 ----
+
+     David, le 26/11 : les sous-onglets d'Élèves et d'Outils sont trop
+     nombreux pour ceux qui ne connaissent pas l'App par cœur. Son choix
+     sur le schéma : « ⭐ Mes favoris » en tête, les familles repliées
+     dessous, et un sommaire par onglet (ec-sommaire.js).
+
+     EN RANGÉE (téléphone, tablette debout) : UNE ligne — « Tout », puis
+     ses favoris. Six rangées qui défilaient chacune de côté prenaient la
+     moitié de l'écran. Les familles, elles, sont dans le sommaire. */
+  .barre-vues.allegee{
+    flex-direction:row; align-items:center; gap:6px;
+    overflow-x:auto; scrollbar-width:thin; padding-bottom:2px;
+  }
+  .barre-vues.groupee.allegee .grp{ margin-bottom:0; flex:0 0 auto; }
+  .barre-vues.allegee .grpFam, .barre-vues.allegee .grpFavoris{ display:none; }
+  .barre-vues.allegee .grpTout .rang, .barre-vues.allegee .grpCourte .rang{ overflow:visible; padding-bottom:0; }
+  .barre-vues .famPli, .barre-vues .etoileFav, .barre-vues .aideFavoris{ display:none; }
+  .barre-vues .avecEtoile{ display:contents; }
+  .barre-vues .alerteFam[hidden]{ display:none !important; }
+
+  /* EN COLONNE (ordinateur) : le sommaire, mes favoris, puis les familles
+     repliées — un appui sur leur titre les ouvre, l'étoile garde un écran. */
+  @media (min-width: 1280px){
+    body.cours-neuf #zoneTravail > .barre-vues.allegee{
+      flex-direction:column; align-items:stretch; gap:0; overflow:auto;
+    }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .grpCourte{ display:none; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .grpTout{ margin-bottom:10px; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .grpFavoris{ display:block; margin-bottom:12px; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .grpFam{ display:block; margin-bottom:0; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .grpFam > .fam{ display:none; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .famPli{
+      display:flex; align-items:center; gap:6px; box-sizing:border-box; width:100%;
+      border-top:1px solid var(--line); padding:12px 4px 12px 2px; cursor:pointer;
+      font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; font-weight:800;
+      color:var(--muted); -webkit-user-select:none; user-select:none;
+    }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .famPli:hover{ color:var(--cream); }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .famPli:focus-visible{ outline:2px solid var(--orange); outline-offset:-2px; border-radius:8px; }
+    .barre-vues .famPli .ch{ width:12px; font-size:11px; flex:0 0 auto; }
+    .barre-vues .famPli .nbFam{
+      margin-left:auto; letter-spacing:0; background:var(--line); color:var(--muted);
+      border-radius:999px; padding:1px 8px; font-size:11px; font-weight:700;
+    }
+    .barre-vues .famPli .alerteFam{
+      margin-left:auto; letter-spacing:0; background:var(--orange); color:#0B0B0B;
+      border-radius:9px; min-width:18px; padding:0 5px; font-size:11px; font-weight:800;
+      line-height:18px; text-align:center;
+    }
+    .barre-vues .famPli .alerteFam:not([hidden]) + .nbFam{ margin-left:0; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .grpFam.pliee .rang{ display:none; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .grpFam:not(.pliee) .rang{ margin-bottom:10px; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .avecEtoile{ display:block; position:relative; }
+    body.cours-neuf:not(.rail-replie) #zoneTravail > .barre-vues.allegee .avecEtoile > button{ padding-right:34px; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .etoileFav{
+      display:flex; position:absolute; right:4px; top:50%; transform:translateY(-50%);
+      width:28px; height:28px; align-items:center; justify-content:center;
+      font-size:15px; line-height:1; color:var(--muted); cursor:pointer; border-radius:50%;
+    }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .etoileFav:hover{ background:var(--line); color:var(--cream); }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .etoileFav:focus-visible{ outline:2px solid var(--orange); }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .etoileFav.on{ color:#CA8A04; }
+    body.cours-neuf #zoneTravail > .barre-vues.allegee .aideFavoris{
+      display:block; font-size:11.5px; color:var(--muted); line-height:1.45; margin:2px 4px 0;
+    }
+    /* Rail replié : que des logos. Les familles se déplient toutes, leurs
+       titres redeviennent le filet qui les sépare, les étoiles s'effacent —
+       et « Mes favoris » aussi : tous les logos sont déjà là, les montrer
+       deux fois ferait chercher lequel est le bon. */
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues.allegee .grpFavoris,
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues.allegee .famPli,
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues.allegee .etoileFav,
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues.allegee .aideFavoris{ display:none; }
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues.allegee .grpFam > .fam{ display:block; }
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues.allegee .grpFam.pliee .rang{ display:flex; }
+  }
+
+  /* 🧭 Le sommaire d'un onglet : une tuile par écran, avec sa phrase */
+  .somFiltre{ width:100%; margin:0 0 14px; }
+  .somFam{
+    font-size:11px; text-transform:uppercase; letter-spacing:.09em; font-weight:800;
+    color:var(--muted); margin:4px 0 8px 2px;
+  }
+  .somTuiles{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px; margin:0 0 18px; }
+  .somTuile{ position:relative; display:flex; border:1px solid var(--line); border-radius:14px; }
+  .somTuile:hover{ border-color:var(--orange); }
+  .somOuvrir{
+    flex:1; min-width:0; display:flex; gap:10px; align-items:flex-start; text-align:left;
+    background:none; border:0; padding:11px 38px 11px 12px; font:inherit; color:inherit;
+    cursor:pointer; border-radius:14px;
+  }
+  .somOuvrir:focus-visible, .somEtoile:focus-visible{ outline:2px solid var(--orange); outline-offset:1px; }
+  .somIc{ flex:0 0 auto; font-size:20px; line-height:1.2; }
+  .somIc .vgl{ width:22px !important; height:22px !important; margin:0 !important; }
+  .somTxt{ min-width:0; }
+  .somTxt b{ display:block; font-size:14.5px; overflow-wrap:anywhere; }
+  .somPhrase{ display:block; font-size:12.5px; font-weight:400; color:var(--muted); line-height:1.4; margin-top:2px; }
+  .somEtoile{
+    position:absolute; top:5px; right:5px; width:30px; height:30px; border:0; background:none;
+    font-size:16px; line-height:1; color:var(--muted); cursor:pointer; border-radius:50%; padding:0;
+  }
+  .somEtoile:hover{ background:var(--line); }
+  .somEtoile.on{ color:#CA8A04; }
+  /* la feuille du téléphone, ouverte par « Tout » */
+  .overlay.somFeuille{ align-items:flex-end; padding:0; }
+  .somFeuille > .modal{
+    max-width:100%; width:100%; max-height:86vh; overflow:auto; box-sizing:border-box;
+    border-radius:22px 22px 0 0; padding:16px 14px 90px; margin:0;
+  }
+  .somTete{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .somTete h3{ margin:0; font-size:17px; }
+  .somTete .somFermer{ width:auto; margin:0; padding:6px 11px; font-size:13px; }
+  .somFeuille .somTuiles{ grid-template-columns:1fr; }
+  /* tablette debout, ou ancien écran sur ordinateur : une fenêtre au milieu, les tuiles en colonnes */
+  @media (min-width: 700px){
+    .overlay.somFeuille{ align-items:center; padding:20px; }
+    .somFeuille > .modal{ max-width:920px; border-radius:18px; padding:18px; }
+    .somFeuille .somTuiles{ grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); }
+  }
+
+  /* 🔎 La loupe : ce qu'elle trouve dans l'App, le mot surligné */
+  mark.somMarque{ background:var(--orange); color:var(--on-accent, #0B0B0B); border-radius:4px; padding:0 2px; }
+  .loupeCat{
+    font-size:11px; color:var(--muted); font-weight:700; margin:12px 0 6px;
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .loupeSous{ display:block; font-size:12.5px; font-weight:400; color:var(--muted); line-height:1.4; margin-top:1px; }
+
+  /* 🗂️ Le dossier d'un élève : le titre d'une famille de rubriques */
+  .dossierRail .dfTete{
+    display:flex; align-items:center; gap:6px; box-sizing:border-box; width:100%; flex:0 0 auto;
+    padding:10px 4px 4px 2px; cursor:pointer;
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; font-weight:800;
+    color:var(--muted); -webkit-user-select:none; user-select:none;
+  }
+  .dossierRail .dfTete:not(:first-child){ border-top:1px solid var(--line); margin-top:4px; }
+  .dossierRail .dfTete:hover{ color:var(--cream); }
+  .dossierRail .dfTete:focus-visible{ outline:2px solid var(--orange); outline-offset:2px; border-radius:6px; }
+  .dossierRail .dfTete .ch{ width:12px; font-size:11px; flex:0 0 auto; }
+  .dossierRail .dfTete .nbFam{
+    margin-left:auto; letter-spacing:0; background:var(--line); color:var(--muted);
+    border-radius:999px; padding:1px 8px; font-size:11px; font-weight:700;
+  }
+  .dossierRail .dfTete.porteLOuverte{ color:var(--accent-text); }
 
   /* ---- LES TUILES « EN UN COUP D'ŒIL » — v946 ----
 
@@ -9255,160 +9401,161 @@
 
 </style>
 <!-- ⚡ v1510 — précharge des modules (outils/precharger.py : ne pas modifier à la main) -->
-<link rel="preload" as="script" href="app/ec-etat.js?v=1589">
-<link rel="preload" as="script" href="app/ec-modeles.js?v=1589">
-<link rel="preload" as="script" href="app/ec-consignes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-noyau.js?v=1589">
-<link rel="preload" as="script" href="app/ec-connexion.js?v=1589">
-<link rel="preload" as="script" href="app/ec-vocal.js?v=1589">
-<link rel="preload" as="script" href="app/ec-trajet.js?v=1589">
-<link rel="preload" as="script" href="app/ec-lieux.js?v=1589">
-<link rel="preload" as="script" href="app/ec-reseau.js?v=1589">
-<link rel="preload" as="script" href="app/ec-manuel.js?v=1589">
-<link rel="preload" as="script" href="app/ec-verifs-banque.js?v=1589">
-<link rel="preload" as="script" href="app/ec-suivi-eleve.js?v=1589">
-<link rel="preload" as="script" href="app/ec-verifs.js?v=1589">
-<link rel="preload" as="script" href="app/ec-jeu-atelier.js?v=1589">
-<link rel="preload" as="script" href="app/ec-fenetres.js?v=1589">
-<link rel="preload" as="script" href="app/ec-coin-revisions.js?v=1589">
-<link rel="preload" as="script" href="app/ec-acces-etat.js?v=1589">
-<link rel="preload" as="script" href="app/ec-montage.js?v=1589">
-<link rel="preload" as="script" href="app/ec-montage-editeur.js?v=1589">
-<link rel="preload" as="script" href="app/ec-montage-fabrique.js?v=1589">
-<link rel="preload" as="script" href="app/ec-texte-riche.js?v=1589">
-<link rel="preload" as="script" href="app/ec-parcours.js?v=1589">
-<link rel="preload" as="script" href="app/ec-faq.js?v=1589">
-<link rel="preload" as="script" href="app/ec-questionnaire.js?v=1589">
-<link rel="preload" as="script" href="app/ec-permis.js?v=1589">
-<link rel="preload" as="script" href="app/ec-prepares.js?v=1589">
-<link rel="preload" as="script" href="app/ec-avant-cours.js?v=1589">
-<link rel="preload" as="script" href="app/ec-bureau.js?v=1589">
-<link rel="preload" as="script" href="app/ec-places.js?v=1589">
-<link rel="preload" as="script" href="app/ec-listes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-permis-listes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-postpermis.js?v=1589">
-<link rel="preload" as="script" href="app/ec-textes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-import-keep.js?v=1589">
-<link rel="preload" as="script" href="app/ec-correction.js?v=1589">
-<link rel="preload" as="script" href="app/ec-bilans.js?v=1589">
-<link rel="preload" as="script" href="app/ec-fiches.js?v=1589">
-<link rel="preload" as="script" href="app/ec-compo.js?v=1589">
-<link rel="preload" as="script" href="app/ec-tele.js?v=1589">
-<link rel="preload" as="script" href="app/ec-ecran.js?v=1589">
-<link rel="preload" as="script" href="app/ec-studio.js?v=1589">
-<link rel="preload" as="script" href="app/ec-mep.js?v=1589">
-<link rel="preload" as="script" href="app/ec-version.js?v=1589">
-<link rel="preload" as="script" href="app/ec-paie.js?v=1589">
-<link rel="preload" as="script" href="app/ec-flotte.js?v=1589">
-<link rel="preload" as="script" href="app/ec-garages.js?v=1589">
-<link rel="preload" as="script" href="app/ec-coffre.js?v=1589">
-<link rel="preload" as="script" href="app/ec-carrosserie.js?v=1589">
-<link rel="preload" as="script" href="app/ec-solo.js?v=1589">
-<link rel="preload" as="script" href="app/ec-handicap-pdf.js?v=1589">
-<link rel="preload" as="script" href="app/ec-moto.js?v=1589">
-<link rel="preload" as="script" href="app/ec-remorque.js?v=1589">
-<link rel="preload" as="script" href="app/ec-arriereplan.js?v=1589">
-<link rel="preload" as="script" href="app/ec-iadirect.js?v=1589">
-<link rel="preload" as="script" href="app/ec-placesbe.js?v=1589">
-<link rel="preload" as="script" href="app/ec-codeamenage.js?v=1589">
-<link rel="preload" as="script" href="app/ec-financements.js?v=1589">
-<link rel="preload" as="script" href="app/ec-eval-aac.js?v=1589">
-<link rel="preload" as="script" href="app/ec-postes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-tarifs.js?v=1589">
-<link rel="preload" as="script" href="app/ec-tarifs-fiches.js?v=1589">
-<link rel="preload" as="script" href="app/ec-tarifs-site.js?v=1589">
-<link rel="preload" as="script" href="app/ec-tarifs-drivup.js?v=1589">
-<link rel="preload" as="script" href="app/ec-courriers.js?v=1589">
-<link rel="preload" as="script" href="app/ec-aide-reponses.js?v=1589">
-<link rel="preload" as="script" href="app/ec-formations-docs.js?v=1589">
-<link rel="preload" as="script" href="app/ec-formations.js?v=1589">
-<link rel="preload" as="script" href="app/ec-formations-signer.js?v=1589">
-<link rel="preload" as="script" href="app/ec-formations-suivi.js?v=1589">
-<link rel="preload" as="script" href="app/ec-caisse.js?v=1589">
-<link rel="preload" as="script" href="app/ec-menage.js?v=1589">
-<link rel="preload" as="script" href="app/ec-page-eleve.js?v=1589">
-<link rel="preload" as="script" href="app/ec-notes-dossier.js?v=1589">
-<link rel="preload" as="script" href="app/ec-renseignements.js?v=1589">
-<link rel="preload" as="script" href="app/ec-messagerie.js?v=1589">
-<link rel="preload" as="script" href="app/ec-cockpit.js?v=1589">
-<link rel="preload" as="script" href="app/ec-boite-mail.js?v=1589">
-<link rel="preload" as="script" href="appel-commun.js?v=1589">
-<link rel="preload" as="script" href="cafe-commun.js?v=1589">
-<link rel="preload" as="script" href="code-commun.js?v=1589">
-<link rel="preload" as="script" href="app/ec-appels.js?v=1589">
-<link rel="preload" as="script" href="app/ec-aqui.js?v=1589">
-<link rel="preload" as="script" href="app/ec-photos-profil.js?v=1589">
-<link rel="preload" as="script" href="app/ec-drivup.js?v=1589">
-<link rel="preload" as="script" href="app/ec-drivup-ext.js?v=1589">
-<link rel="preload" as="script" href="app/ec-liens.js?v=1589">
-<link rel="preload" as="script" href="app/ec-bureaux.js?v=1589">
-<link rel="preload" as="script" href="app/ec-cbgasoil.js?v=1589">
-<link rel="preload" as="script" href="app/ec-loupe.js?v=1589">
-<link rel="preload" as="script" href="app/ec-coutsia.js?v=1589">
-<link rel="preload" as="script" href="app/ec-charges.js?v=1589">
-<link rel="preload" as="script" href="app/ec-evaluation.js?v=1589">
-<link rel="preload" as="script" href="app/ec-equipe.js?v=1589">
-<link rel="preload" as="script" href="app/ec-paiement.js?v=1589">
-<link rel="preload" as="script" href="app/ec-aides.js?v=1589">
-<link rel="preload" as="script" href="app/ec-salle.js?v=1589">
-<link rel="preload" as="script" href="app/ec-tele-videos.js?v=1589">
-<link rel="preload" as="script" href="app/ec-durees-examen.js?v=1589">
-<link rel="preload" as="script" href="app/ec-msg-gestes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-msg-vehicules.js?v=1589">
-<link rel="preload" as="script" href="app/ec-handicap.js?v=1589">
-<link rel="preload" as="script" href="app/ec-code.js?v=1589">
-<link rel="preload" as="script" href="app/ec-visio.js?v=1589">
-<link rel="preload" as="script" href="app/ec-proccorriger.js?v=1589">
-<link rel="preload" as="script" href="app/ec-sessions.js?v=1589">
-<link rel="preload" as="script" href="app/ec-creneaux.js?v=1589">
-<link rel="preload" as="script" href="app/ec-suivi-appels.js?v=1589">
-<link rel="preload" as="script" href="app/ec-aac-cs.js?v=1589">
-<link rel="preload" as="script" href="app/ec-notifs.js?v=1589">
-<link rel="preload" as="script" href="app/ec-ecoutes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-ecoutes-presence.js?v=1589">
-<link rel="preload" as="script" href="app/ec-todo.js?v=1589">
-<link rel="preload" as="script" href="app/ec-taches.js?v=1589">
-<link rel="preload" as="script" href="app/ec-memoire.js?v=1589">
-<link rel="preload" as="script" href="app/ec-historique.js?v=1589">
-<link rel="preload" as="script" href="app/ec-rappels.js?v=1589">
-<link rel="preload" as="script" href="app/ec-segments.js?v=1589">
-<link rel="preload" as="script" href="app/ec-sms.js?v=1589">
-<link rel="preload" as="script" href="app/ec-encours.js?v=1589">
-<link rel="preload" as="script" href="app/ec-incidents.js?v=1589">
-<link rel="preload" as="script" href="app/ec-messages-perso.js?v=1589">
-<link rel="preload" as="script" href="app/ec-nouveautes.js?v=1589">
-<link rel="preload" as="script" href="app/ec-bandeau.js?v=1589">
-<link rel="preload" as="script" href="app/ec-stats.js?v=1589">
-<link rel="preload" as="script" href="app/ec-messenger.js?v=1589">
-<link rel="preload" as="script" href="app/ec-journal.js?v=1589">
-<link rel="preload" as="script" href="app/ec-mails.js?v=1589">
-<link rel="preload" as="script" href="app/ec-activite.js?v=1589">
-<link rel="preload" as="script" href="app/ec-direct.js?v=1589">
-<link rel="preload" as="script" href="app/ec-3d.js?v=1589">
-<link rel="preload" as="script" href="app/ec-parc3d.js?v=1589">
-<link rel="preload" as="script" href="app/ec-carro3d.js?v=1589">
-<link rel="preload" as="script" href="app/ec-depart.js?v=1589">
-<link rel="preload" as="script" href="app/ec-bilan-eleve.js?v=1589">
-<link rel="preload" as="script" href="app/ec-onglets.js?v=1589">
-<link rel="preload" as="script" href="app/ec-relances.js?v=1589">
-<link rel="preload" as="script" href="app/ec-relances-conduite.js?v=1589">
-<link rel="preload" as="script" href="app/ec-ouverture.js?v=1589">
-<link rel="preload" as="script" href="app/ec-point-financier.js?v=1589">
-<link rel="preload" as="script" href="app/ec-delai.js?v=1589">
-<link rel="preload" as="script" href="app/ec-videos-privees.js?v=1589">
-<link rel="preload" as="script" href="app/ec-verre.js?v=1589">
-<link rel="preload" as="script" href="app/ec-salle-code.js?v=1589">
-<link rel="preload" as="script" href="app/ec-conso.js?v=1589">
-<link rel="preload" as="script" href="app/ec-base.js?v=1589">
-<link rel="preload" as="script" href="app/ec-allo-ia.js?v=1589">
-<link rel="preload" as="script" href="app/ec-fiche-infos.js?v=1589">
-<link rel="preload" as="script" href="app/ec-constat.js?v=1589">
-<link rel="preload" as="script" href="app/ec-telephone.js?v=1589">
-<link rel="preload" as="script" href="app/ec-barre.js?v=1589">
-<link rel="preload" as="script" href="app/ec-demarrage.js?v=1589">
-<link rel="preload" as="script" href="app/ec-onglets-travail.js?v=1589">
-<link rel="preload" as="script" href="app/ec-coin-cafe.js?v=1589">
-<link rel="preload" as="script" href="app/ec-code-jeu.js?v=1589">
+<link rel="preload" as="script" href="app/ec-etat.js?v=1590">
+<link rel="preload" as="script" href="app/ec-modeles.js?v=1590">
+<link rel="preload" as="script" href="app/ec-consignes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-noyau.js?v=1590">
+<link rel="preload" as="script" href="app/ec-connexion.js?v=1590">
+<link rel="preload" as="script" href="app/ec-vocal.js?v=1590">
+<link rel="preload" as="script" href="app/ec-trajet.js?v=1590">
+<link rel="preload" as="script" href="app/ec-lieux.js?v=1590">
+<link rel="preload" as="script" href="app/ec-reseau.js?v=1590">
+<link rel="preload" as="script" href="app/ec-manuel.js?v=1590">
+<link rel="preload" as="script" href="app/ec-verifs-banque.js?v=1590">
+<link rel="preload" as="script" href="app/ec-suivi-eleve.js?v=1590">
+<link rel="preload" as="script" href="app/ec-verifs.js?v=1590">
+<link rel="preload" as="script" href="app/ec-jeu-atelier.js?v=1590">
+<link rel="preload" as="script" href="app/ec-fenetres.js?v=1590">
+<link rel="preload" as="script" href="app/ec-coin-revisions.js?v=1590">
+<link rel="preload" as="script" href="app/ec-acces-etat.js?v=1590">
+<link rel="preload" as="script" href="app/ec-montage.js?v=1590">
+<link rel="preload" as="script" href="app/ec-montage-editeur.js?v=1590">
+<link rel="preload" as="script" href="app/ec-montage-fabrique.js?v=1590">
+<link rel="preload" as="script" href="app/ec-texte-riche.js?v=1590">
+<link rel="preload" as="script" href="app/ec-parcours.js?v=1590">
+<link rel="preload" as="script" href="app/ec-faq.js?v=1590">
+<link rel="preload" as="script" href="app/ec-questionnaire.js?v=1590">
+<link rel="preload" as="script" href="app/ec-permis.js?v=1590">
+<link rel="preload" as="script" href="app/ec-prepares.js?v=1590">
+<link rel="preload" as="script" href="app/ec-avant-cours.js?v=1590">
+<link rel="preload" as="script" href="app/ec-bureau.js?v=1590">
+<link rel="preload" as="script" href="app/ec-places.js?v=1590">
+<link rel="preload" as="script" href="app/ec-listes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-permis-listes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-postpermis.js?v=1590">
+<link rel="preload" as="script" href="app/ec-textes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-import-keep.js?v=1590">
+<link rel="preload" as="script" href="app/ec-correction.js?v=1590">
+<link rel="preload" as="script" href="app/ec-bilans.js?v=1590">
+<link rel="preload" as="script" href="app/ec-fiches.js?v=1590">
+<link rel="preload" as="script" href="app/ec-compo.js?v=1590">
+<link rel="preload" as="script" href="app/ec-tele.js?v=1590">
+<link rel="preload" as="script" href="app/ec-ecran.js?v=1590">
+<link rel="preload" as="script" href="app/ec-studio.js?v=1590">
+<link rel="preload" as="script" href="app/ec-mep.js?v=1590">
+<link rel="preload" as="script" href="app/ec-version.js?v=1590">
+<link rel="preload" as="script" href="app/ec-paie.js?v=1590">
+<link rel="preload" as="script" href="app/ec-flotte.js?v=1590">
+<link rel="preload" as="script" href="app/ec-garages.js?v=1590">
+<link rel="preload" as="script" href="app/ec-coffre.js?v=1590">
+<link rel="preload" as="script" href="app/ec-carrosserie.js?v=1590">
+<link rel="preload" as="script" href="app/ec-solo.js?v=1590">
+<link rel="preload" as="script" href="app/ec-handicap-pdf.js?v=1590">
+<link rel="preload" as="script" href="app/ec-moto.js?v=1590">
+<link rel="preload" as="script" href="app/ec-remorque.js?v=1590">
+<link rel="preload" as="script" href="app/ec-arriereplan.js?v=1590">
+<link rel="preload" as="script" href="app/ec-iadirect.js?v=1590">
+<link rel="preload" as="script" href="app/ec-placesbe.js?v=1590">
+<link rel="preload" as="script" href="app/ec-codeamenage.js?v=1590">
+<link rel="preload" as="script" href="app/ec-financements.js?v=1590">
+<link rel="preload" as="script" href="app/ec-eval-aac.js?v=1590">
+<link rel="preload" as="script" href="app/ec-postes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-tarifs.js?v=1590">
+<link rel="preload" as="script" href="app/ec-tarifs-fiches.js?v=1590">
+<link rel="preload" as="script" href="app/ec-tarifs-site.js?v=1590">
+<link rel="preload" as="script" href="app/ec-tarifs-drivup.js?v=1590">
+<link rel="preload" as="script" href="app/ec-courriers.js?v=1590">
+<link rel="preload" as="script" href="app/ec-aide-reponses.js?v=1590">
+<link rel="preload" as="script" href="app/ec-formations-docs.js?v=1590">
+<link rel="preload" as="script" href="app/ec-formations.js?v=1590">
+<link rel="preload" as="script" href="app/ec-formations-signer.js?v=1590">
+<link rel="preload" as="script" href="app/ec-formations-suivi.js?v=1590">
+<link rel="preload" as="script" href="app/ec-caisse.js?v=1590">
+<link rel="preload" as="script" href="app/ec-menage.js?v=1590">
+<link rel="preload" as="script" href="app/ec-page-eleve.js?v=1590">
+<link rel="preload" as="script" href="app/ec-notes-dossier.js?v=1590">
+<link rel="preload" as="script" href="app/ec-renseignements.js?v=1590">
+<link rel="preload" as="script" href="app/ec-messagerie.js?v=1590">
+<link rel="preload" as="script" href="app/ec-cockpit.js?v=1590">
+<link rel="preload" as="script" href="app/ec-boite-mail.js?v=1590">
+<link rel="preload" as="script" href="appel-commun.js?v=1590">
+<link rel="preload" as="script" href="cafe-commun.js?v=1590">
+<link rel="preload" as="script" href="code-commun.js?v=1590">
+<link rel="preload" as="script" href="app/ec-appels.js?v=1590">
+<link rel="preload" as="script" href="app/ec-aqui.js?v=1590">
+<link rel="preload" as="script" href="app/ec-photos-profil.js?v=1590">
+<link rel="preload" as="script" href="app/ec-drivup.js?v=1590">
+<link rel="preload" as="script" href="app/ec-drivup-ext.js?v=1590">
+<link rel="preload" as="script" href="app/ec-liens.js?v=1590">
+<link rel="preload" as="script" href="app/ec-bureaux.js?v=1590">
+<link rel="preload" as="script" href="app/ec-cbgasoil.js?v=1590">
+<link rel="preload" as="script" href="app/ec-loupe.js?v=1590">
+<link rel="preload" as="script" href="app/ec-sommaire.js?v=1590">
+<link rel="preload" as="script" href="app/ec-coutsia.js?v=1590">
+<link rel="preload" as="script" href="app/ec-charges.js?v=1590">
+<link rel="preload" as="script" href="app/ec-evaluation.js?v=1590">
+<link rel="preload" as="script" href="app/ec-equipe.js?v=1590">
+<link rel="preload" as="script" href="app/ec-paiement.js?v=1590">
+<link rel="preload" as="script" href="app/ec-aides.js?v=1590">
+<link rel="preload" as="script" href="app/ec-salle.js?v=1590">
+<link rel="preload" as="script" href="app/ec-tele-videos.js?v=1590">
+<link rel="preload" as="script" href="app/ec-durees-examen.js?v=1590">
+<link rel="preload" as="script" href="app/ec-msg-gestes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-msg-vehicules.js?v=1590">
+<link rel="preload" as="script" href="app/ec-handicap.js?v=1590">
+<link rel="preload" as="script" href="app/ec-code.js?v=1590">
+<link rel="preload" as="script" href="app/ec-visio.js?v=1590">
+<link rel="preload" as="script" href="app/ec-proccorriger.js?v=1590">
+<link rel="preload" as="script" href="app/ec-sessions.js?v=1590">
+<link rel="preload" as="script" href="app/ec-creneaux.js?v=1590">
+<link rel="preload" as="script" href="app/ec-suivi-appels.js?v=1590">
+<link rel="preload" as="script" href="app/ec-aac-cs.js?v=1590">
+<link rel="preload" as="script" href="app/ec-notifs.js?v=1590">
+<link rel="preload" as="script" href="app/ec-ecoutes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-ecoutes-presence.js?v=1590">
+<link rel="preload" as="script" href="app/ec-todo.js?v=1590">
+<link rel="preload" as="script" href="app/ec-taches.js?v=1590">
+<link rel="preload" as="script" href="app/ec-memoire.js?v=1590">
+<link rel="preload" as="script" href="app/ec-historique.js?v=1590">
+<link rel="preload" as="script" href="app/ec-rappels.js?v=1590">
+<link rel="preload" as="script" href="app/ec-segments.js?v=1590">
+<link rel="preload" as="script" href="app/ec-sms.js?v=1590">
+<link rel="preload" as="script" href="app/ec-encours.js?v=1590">
+<link rel="preload" as="script" href="app/ec-incidents.js?v=1590">
+<link rel="preload" as="script" href="app/ec-messages-perso.js?v=1590">
+<link rel="preload" as="script" href="app/ec-nouveautes.js?v=1590">
+<link rel="preload" as="script" href="app/ec-bandeau.js?v=1590">
+<link rel="preload" as="script" href="app/ec-stats.js?v=1590">
+<link rel="preload" as="script" href="app/ec-messenger.js?v=1590">
+<link rel="preload" as="script" href="app/ec-journal.js?v=1590">
+<link rel="preload" as="script" href="app/ec-mails.js?v=1590">
+<link rel="preload" as="script" href="app/ec-activite.js?v=1590">
+<link rel="preload" as="script" href="app/ec-direct.js?v=1590">
+<link rel="preload" as="script" href="app/ec-3d.js?v=1590">
+<link rel="preload" as="script" href="app/ec-parc3d.js?v=1590">
+<link rel="preload" as="script" href="app/ec-carro3d.js?v=1590">
+<link rel="preload" as="script" href="app/ec-depart.js?v=1590">
+<link rel="preload" as="script" href="app/ec-bilan-eleve.js?v=1590">
+<link rel="preload" as="script" href="app/ec-onglets.js?v=1590">
+<link rel="preload" as="script" href="app/ec-relances.js?v=1590">
+<link rel="preload" as="script" href="app/ec-relances-conduite.js?v=1590">
+<link rel="preload" as="script" href="app/ec-ouverture.js?v=1590">
+<link rel="preload" as="script" href="app/ec-point-financier.js?v=1590">
+<link rel="preload" as="script" href="app/ec-delai.js?v=1590">
+<link rel="preload" as="script" href="app/ec-videos-privees.js?v=1590">
+<link rel="preload" as="script" href="app/ec-verre.js?v=1590">
+<link rel="preload" as="script" href="app/ec-salle-code.js?v=1590">
+<link rel="preload" as="script" href="app/ec-conso.js?v=1590">
+<link rel="preload" as="script" href="app/ec-base.js?v=1590">
+<link rel="preload" as="script" href="app/ec-allo-ia.js?v=1590">
+<link rel="preload" as="script" href="app/ec-fiche-infos.js?v=1590">
+<link rel="preload" as="script" href="app/ec-constat.js?v=1590">
+<link rel="preload" as="script" href="app/ec-telephone.js?v=1590">
+<link rel="preload" as="script" href="app/ec-barre.js?v=1590">
+<link rel="preload" as="script" href="app/ec-demarrage.js?v=1590">
+<link rel="preload" as="script" href="app/ec-onglets-travail.js?v=1590">
+<link rel="preload" as="script" href="app/ec-coin-cafe.js?v=1590">
+<link rel="preload" as="script" href="app/ec-code-jeu.js?v=1590">
 <!-- /précharge -->
 </head>
 <body>
@@ -9567,12 +9714,12 @@
         <button id="plusTodo" class="brItem brPetit non" type="button"><span>☑️</span><span>À faire</span><span id="plusTodoN" class="brTodoN non"></span></button>
         <div id="plusSep1" class="brSep non"></div>
 
-        <a id="guideBtn" href="guide.html?v=1589" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1590" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
         <!-- 🎬 v1586 — la vidéo de prise en main des moniteurs, dans le guide (David : « voir où on peut mettre la vidéo pour les moniteurs ») -->
-        <a id="videoMoniteurBtn" href="guide.html?v=1589#video-moniteur" target="_blank" rel="noopener"
+        <a id="videoMoniteurBtn" href="guide.html?v=1590#video-moniteur" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">🎬 <span>Vidéo : prise en main (moniteurs)</span></a>
@@ -12060,187 +12207,188 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1589"></script>
-<script src="app/ec-modeles.js?v=1589"></script>
-<script src="app/ec-consignes.js?v=1589"></script>
-<script src="app/ec-noyau.js?v=1589"></script>
+  <script src="app/ec-etat.js?v=1590"></script>
+<script src="app/ec-modeles.js?v=1590"></script>
+<script src="app/ec-consignes.js?v=1590"></script>
+<script src="app/ec-noyau.js?v=1590"></script>
 <!-- 🔒 v1335 — la page de connexion : le pavé, le prénom retenu, le bonjour -->
-<script src="app/ec-connexion.js?v=1589"></script>
-<script src="app/ec-vocal.js?v=1589"></script>
+<script src="app/ec-connexion.js?v=1590"></script>
+<script src="app/ec-vocal.js?v=1590"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1589"></script>
-<script src="app/ec-lieux.js?v=1589"></script>
-<script src="app/ec-reseau.js?v=1589"></script>
-<script src="app/ec-manuel.js?v=1589"></script>
-<script src="app/ec-verifs-banque.js?v=1589"></script>
-<script src="app/ec-suivi-eleve.js?v=1589"></script>
-<script src="app/ec-verifs.js?v=1589"></script>
-<script src="app/ec-jeu-atelier.js?v=1589"></script>
-<script src="app/ec-fenetres.js?v=1589"></script>
+<script src="app/ec-trajet.js?v=1590"></script>
+<script src="app/ec-lieux.js?v=1590"></script>
+<script src="app/ec-reseau.js?v=1590"></script>
+<script src="app/ec-manuel.js?v=1590"></script>
+<script src="app/ec-verifs-banque.js?v=1590"></script>
+<script src="app/ec-suivi-eleve.js?v=1590"></script>
+<script src="app/ec-verifs.js?v=1590"></script>
+<script src="app/ec-jeu-atelier.js?v=1590"></script>
+<script src="app/ec-fenetres.js?v=1590"></script>
 <!-- 🔑 v1325 — le coin révisions d’un élève : sa carte, la mise en route, le message d’accès -->
-<script src="app/ec-coin-revisions.js?v=1589"></script>
-<script src="app/ec-acces-etat.js?v=1589"></script>
-<script src="app/ec-montage.js?v=1589"></script>
-<script src="app/ec-montage-editeur.js?v=1589"></script>
-<script src="app/ec-montage-fabrique.js?v=1589"></script>
-<script src="app/ec-texte-riche.js?v=1589"></script>
-<script src="app/ec-parcours.js?v=1589"></script>
+<script src="app/ec-coin-revisions.js?v=1590"></script>
+<script src="app/ec-acces-etat.js?v=1590"></script>
+<script src="app/ec-montage.js?v=1590"></script>
+<script src="app/ec-montage-editeur.js?v=1590"></script>
+<script src="app/ec-montage-fabrique.js?v=1590"></script>
+<script src="app/ec-texte-riche.js?v=1590"></script>
+<script src="app/ec-parcours.js?v=1590"></script>
 <!-- ❓ v1548 — la FAQ des élèves -->
-<script src="app/ec-faq.js?v=1589"></script>
-<script src="app/ec-questionnaire.js?v=1589"></script>
-<script src="app/ec-permis.js?v=1589"></script>
-<script src="app/ec-prepares.js?v=1589"></script>
-<script src="app/ec-avant-cours.js?v=1589"></script>
-<script src="app/ec-bureau.js?v=1589"></script>
-<script src="app/ec-places.js?v=1589"></script>
-<script src="app/ec-listes.js?v=1589"></script>
-<script src="app/ec-permis-listes.js?v=1589"></script>
-<script src="app/ec-postpermis.js?v=1589"></script>
-<script src="app/ec-textes.js?v=1589"></script>
-<script src="app/ec-import-keep.js?v=1589"></script>
-<script src="app/ec-correction.js?v=1589"></script>
-<script src="app/ec-bilans.js?v=1589"></script>
-<script src="app/ec-fiches.js?v=1589"></script>
-<script src="app/ec-compo.js?v=1589"></script>
-<script src="app/ec-tele.js?v=1589"></script>
-<script src="app/ec-ecran.js?v=1589"></script>
-<script src="app/ec-studio.js?v=1589"></script>
-<script src="app/ec-mep.js?v=1589"></script>
-<script src="app/ec-version.js?v=1589"></script>
-<script src="app/ec-paie.js?v=1589"></script>
-<script src="app/ec-flotte.js?v=1589"></script>
-<script src="app/ec-garages.js?v=1589"></script>
-<script src="app/ec-coffre.js?v=1589"></script>
-<script src="app/ec-carrosserie.js?v=1589"></script>
-<script src="app/ec-solo.js?v=1589"></script>
-<script src="app/ec-handicap-pdf.js?v=1589"></script>
-<script src="app/ec-moto.js?v=1589"></script>
-<script src="app/ec-remorque.js?v=1589"></script>
-<script src="app/ec-arriereplan.js?v=1589"></script>
-<script src="app/ec-iadirect.js?v=1589"></script>
-<script src="app/ec-placesbe.js?v=1589"></script>
-<script src="app/ec-codeamenage.js?v=1589"></script>
-<script src="app/ec-financements.js?v=1589"></script>
-<script src="app/ec-eval-aac.js?v=1589"></script>
-<script src="app/ec-postes.js?v=1589"></script>
-<script src="app/ec-tarifs.js?v=1589"></script>
-<script src="app/ec-tarifs-fiches.js?v=1589"></script>
-<script src="app/ec-tarifs-site.js?v=1589"></script>
-<script src="app/ec-tarifs-drivup.js?v=1589"></script>
-<script src="app/ec-courriers.js?v=1589"></script>
-<script src="app/ec-aide-reponses.js?v=1589"></script>
-<script src="app/ec-formations-docs.js?v=1589"></script>
-<script src="app/ec-formations.js?v=1589"></script>
-<script src="app/ec-formations-signer.js?v=1589"></script>
-<script src="app/ec-formations-suivi.js?v=1589"></script>
-<script src="app/ec-caisse.js?v=1589"></script>
-<script src="app/ec-menage.js?v=1589"></script>
-<script src="app/ec-page-eleve.js?v=1589"></script>
-<script src="app/ec-notes-dossier.js?v=1589"></script>
-<script src="app/ec-renseignements.js?v=1589"></script>
-<script src="app/ec-messagerie.js?v=1589"></script>
-<script src="app/ec-cockpit.js?v=1589"></script>
-<script src="app/ec-boite-mail.js?v=1589"></script>
+<script src="app/ec-faq.js?v=1590"></script>
+<script src="app/ec-questionnaire.js?v=1590"></script>
+<script src="app/ec-permis.js?v=1590"></script>
+<script src="app/ec-prepares.js?v=1590"></script>
+<script src="app/ec-avant-cours.js?v=1590"></script>
+<script src="app/ec-bureau.js?v=1590"></script>
+<script src="app/ec-places.js?v=1590"></script>
+<script src="app/ec-listes.js?v=1590"></script>
+<script src="app/ec-permis-listes.js?v=1590"></script>
+<script src="app/ec-postpermis.js?v=1590"></script>
+<script src="app/ec-textes.js?v=1590"></script>
+<script src="app/ec-import-keep.js?v=1590"></script>
+<script src="app/ec-correction.js?v=1590"></script>
+<script src="app/ec-bilans.js?v=1590"></script>
+<script src="app/ec-fiches.js?v=1590"></script>
+<script src="app/ec-compo.js?v=1590"></script>
+<script src="app/ec-tele.js?v=1590"></script>
+<script src="app/ec-ecran.js?v=1590"></script>
+<script src="app/ec-studio.js?v=1590"></script>
+<script src="app/ec-mep.js?v=1590"></script>
+<script src="app/ec-version.js?v=1590"></script>
+<script src="app/ec-paie.js?v=1590"></script>
+<script src="app/ec-flotte.js?v=1590"></script>
+<script src="app/ec-garages.js?v=1590"></script>
+<script src="app/ec-coffre.js?v=1590"></script>
+<script src="app/ec-carrosserie.js?v=1590"></script>
+<script src="app/ec-solo.js?v=1590"></script>
+<script src="app/ec-handicap-pdf.js?v=1590"></script>
+<script src="app/ec-moto.js?v=1590"></script>
+<script src="app/ec-remorque.js?v=1590"></script>
+<script src="app/ec-arriereplan.js?v=1590"></script>
+<script src="app/ec-iadirect.js?v=1590"></script>
+<script src="app/ec-placesbe.js?v=1590"></script>
+<script src="app/ec-codeamenage.js?v=1590"></script>
+<script src="app/ec-financements.js?v=1590"></script>
+<script src="app/ec-eval-aac.js?v=1590"></script>
+<script src="app/ec-postes.js?v=1590"></script>
+<script src="app/ec-tarifs.js?v=1590"></script>
+<script src="app/ec-tarifs-fiches.js?v=1590"></script>
+<script src="app/ec-tarifs-site.js?v=1590"></script>
+<script src="app/ec-tarifs-drivup.js?v=1590"></script>
+<script src="app/ec-courriers.js?v=1590"></script>
+<script src="app/ec-aide-reponses.js?v=1590"></script>
+<script src="app/ec-formations-docs.js?v=1590"></script>
+<script src="app/ec-formations.js?v=1590"></script>
+<script src="app/ec-formations-signer.js?v=1590"></script>
+<script src="app/ec-formations-suivi.js?v=1590"></script>
+<script src="app/ec-caisse.js?v=1590"></script>
+<script src="app/ec-menage.js?v=1590"></script>
+<script src="app/ec-page-eleve.js?v=1590"></script>
+<script src="app/ec-notes-dossier.js?v=1590"></script>
+<script src="app/ec-renseignements.js?v=1590"></script>
+<script src="app/ec-messagerie.js?v=1590"></script>
+<script src="app/ec-cockpit.js?v=1590"></script>
+<script src="app/ec-boite-mail.js?v=1590"></script>
 <!-- 📞 v1183 — les appels : l'écran commun (partagé avec eleve.html), puis l'équipe -->
-<script src="appel-commun.js?v=1589"></script>
+<script src="appel-commun.js?v=1590"></script>
 <!-- ☕ v1456 — le coin café (le même jeu que l’espace élève) -->
-<script src="cafe-commun.js?v=1589"></script>
+<script src="cafe-commun.js?v=1590"></script>
 <!-- 🚦 v1462 — le jeu du code : sa liste de base et ses dessins, pour l'atelier (ec-code-jeu.js) -->
-<script src="code-commun.js?v=1589"></script>
-<script src="app/ec-appels.js?v=1589"></script>
-<script src="app/ec-aqui.js?v=1589"></script>
-<script src="app/ec-photos-profil.js?v=1589"></script>
-<script src="app/ec-drivup.js?v=1589"></script>
+<script src="code-commun.js?v=1590"></script>
+<script src="app/ec-appels.js?v=1590"></script>
+<script src="app/ec-aqui.js?v=1590"></script>
+<script src="app/ec-photos-profil.js?v=1590"></script>
+<script src="app/ec-drivup.js?v=1590"></script>
 <!-- 📥 v1523 — Drivup dans l'App, avec l'extension « App EC · Drivup » -->
-<script src="app/ec-drivup-ext.js?v=1589"></script>
+<script src="app/ec-drivup-ext.js?v=1590"></script>
 <!-- 🔗 v1527 — les liens dans ce qu’on écrit (hyperliens, Lien élève partout) -->
-<script src="app/ec-liens.js?v=1589"></script>
-<script src="app/ec-bureaux.js?v=1589"></script>
-<script src="app/ec-cbgasoil.js?v=1589"></script>
-<script src="app/ec-loupe.js?v=1589"></script>
-<script src="app/ec-coutsia.js?v=1589"></script>
-<script src="app/ec-charges.js?v=1589"></script>
-<script src="app/ec-evaluation.js?v=1589"></script>
+<script src="app/ec-liens.js?v=1590"></script>
+<script src="app/ec-bureaux.js?v=1590"></script>
+<script src="app/ec-cbgasoil.js?v=1590"></script>
+<script src="app/ec-loupe.js?v=1590"></script>
+<script src="app/ec-sommaire.js?v=1590"></script>
+<script src="app/ec-coutsia.js?v=1590"></script>
+<script src="app/ec-charges.js?v=1590"></script>
+<script src="app/ec-evaluation.js?v=1590"></script>
 <!-- 👥 v1189 — l’équipe : fiches, papiers, arrêts, et les échéances de l’école -->
-<script src="app/ec-equipe.js?v=1589"></script>
-<script src="app/ec-paiement.js?v=1589"></script>
-<script src="app/ec-aides.js?v=1589"></script>
-<script src="app/ec-salle.js?v=1589"></script>
-<script src="app/ec-tele-videos.js?v=1589"></script>
-<script src="app/ec-durees-examen.js?v=1589"></script>
-<script src="app/ec-msg-gestes.js?v=1589"></script>
-<script src="app/ec-msg-vehicules.js?v=1589"></script>
-<script src="app/ec-handicap.js?v=1589"></script>
-<script src="app/ec-code.js?v=1589"></script>
-<script src="app/ec-visio.js?v=1589"></script>
-<script src="app/ec-proccorriger.js?v=1589"></script>
-<script src="app/ec-sessions.js?v=1589"></script>
-<script src="app/ec-creneaux.js?v=1589"></script>
-<script src="app/ec-suivi-appels.js?v=1589"></script>
-<script src="app/ec-aac-cs.js?v=1589"></script>
-<script src="app/ec-notifs.js?v=1589"></script>
-<script src="app/ec-ecoutes.js?v=1589"></script>
-<script src="app/ec-ecoutes-presence.js?v=1589"></script>
-<script src="app/ec-todo.js?v=1589"></script>
-<script src="app/ec-taches.js?v=1589"></script>
-<script src="app/ec-memoire.js?v=1589"></script>
-<script src="app/ec-historique.js?v=1589"></script>
-<script src="app/ec-rappels.js?v=1589"></script>
-<script src="app/ec-segments.js?v=1589"></script>
-<script src="app/ec-sms.js?v=1589"></script>
-<script src="app/ec-encours.js?v=1589"></script>
-<script src="app/ec-incidents.js?v=1589"></script>
+<script src="app/ec-equipe.js?v=1590"></script>
+<script src="app/ec-paiement.js?v=1590"></script>
+<script src="app/ec-aides.js?v=1590"></script>
+<script src="app/ec-salle.js?v=1590"></script>
+<script src="app/ec-tele-videos.js?v=1590"></script>
+<script src="app/ec-durees-examen.js?v=1590"></script>
+<script src="app/ec-msg-gestes.js?v=1590"></script>
+<script src="app/ec-msg-vehicules.js?v=1590"></script>
+<script src="app/ec-handicap.js?v=1590"></script>
+<script src="app/ec-code.js?v=1590"></script>
+<script src="app/ec-visio.js?v=1590"></script>
+<script src="app/ec-proccorriger.js?v=1590"></script>
+<script src="app/ec-sessions.js?v=1590"></script>
+<script src="app/ec-creneaux.js?v=1590"></script>
+<script src="app/ec-suivi-appels.js?v=1590"></script>
+<script src="app/ec-aac-cs.js?v=1590"></script>
+<script src="app/ec-notifs.js?v=1590"></script>
+<script src="app/ec-ecoutes.js?v=1590"></script>
+<script src="app/ec-ecoutes-presence.js?v=1590"></script>
+<script src="app/ec-todo.js?v=1590"></script>
+<script src="app/ec-taches.js?v=1590"></script>
+<script src="app/ec-memoire.js?v=1590"></script>
+<script src="app/ec-historique.js?v=1590"></script>
+<script src="app/ec-rappels.js?v=1590"></script>
+<script src="app/ec-segments.js?v=1590"></script>
+<script src="app/ec-sms.js?v=1590"></script>
+<script src="app/ec-encours.js?v=1590"></script>
+<script src="app/ec-incidents.js?v=1590"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1589"></script>
+<script src="app/ec-messages-perso.js?v=1590"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1589"></script>
-<script src="app/ec-bandeau.js?v=1589"></script>
-<script src="app/ec-stats.js?v=1589"></script>
-<script src="app/ec-messenger.js?v=1589"></script>
-<script src="app/ec-journal.js?v=1589"></script>
-<script src="app/ec-mails.js?v=1589"></script>
-<script src="app/ec-activite.js?v=1589"></script>
-<script src="app/ec-direct.js?v=1589"></script>
-<script src="app/ec-3d.js?v=1589"></script>
-<script src="app/ec-parc3d.js?v=1589"></script>
-<script src="app/ec-carro3d.js?v=1589"></script>
-<script src="app/ec-depart.js?v=1589"></script>
+<script src="app/ec-nouveautes.js?v=1590"></script>
+<script src="app/ec-bandeau.js?v=1590"></script>
+<script src="app/ec-stats.js?v=1590"></script>
+<script src="app/ec-messenger.js?v=1590"></script>
+<script src="app/ec-journal.js?v=1590"></script>
+<script src="app/ec-mails.js?v=1590"></script>
+<script src="app/ec-activite.js?v=1590"></script>
+<script src="app/ec-direct.js?v=1590"></script>
+<script src="app/ec-3d.js?v=1590"></script>
+<script src="app/ec-parc3d.js?v=1590"></script>
+<script src="app/ec-carro3d.js?v=1590"></script>
+<script src="app/ec-depart.js?v=1590"></script>
 <!-- 📝 v1314 — « Tu dois faire ton bilan » -->
-<script src="app/ec-bilan-eleve.js?v=1589"></script>
-<script src="app/ec-onglets.js?v=1589"></script>
-<script src="app/ec-relances.js?v=1589"></script>
-<script src="app/ec-relances-conduite.js?v=1589"></script>
-<script src="app/ec-ouverture.js?v=1589"></script>
+<script src="app/ec-bilan-eleve.js?v=1590"></script>
+<script src="app/ec-onglets.js?v=1590"></script>
+<script src="app/ec-relances.js?v=1590"></script>
+<script src="app/ec-relances-conduite.js?v=1590"></script>
+<script src="app/ec-ouverture.js?v=1590"></script>
 <!-- 🧾 v1577 — DOSSIER ÉLÈVE › POINT FINANCIER (ec-point-financier.js) -->
-<script src="app/ec-point-financier.js?v=1589"></script>
+<script src="app/ec-point-financier.js?v=1590"></script>
 <!-- ⏳ v1579 — LE DÉLAI DE PRÉSENTATION (ec-delai.js) -->
-<script src="app/ec-delai.js?v=1589"></script>
+<script src="app/ec-delai.js?v=1590"></script>
 <!-- 🎬 v1587 — LES VIDÉOS DES COMPTES PRINCIPAUX (ec-videos-privees.js) -->
-<script src="app/ec-videos-privees.js?v=1589"></script>
-<script src="app/ec-verre.js?v=1589"></script>
+<script src="app/ec-videos-privees.js?v=1590"></script>
+<script src="app/ec-verre.js?v=1590"></script>
 <!-- 🖥️ v1467 — l’ordinateur de la salle de code (?poste=1) : AVANT ec-demarrage.js, qui ouvre la session -->
-<script src="app/ec-salle-code.js?v=1589"></script>
+<script src="app/ec-salle-code.js?v=1590"></script>
 <!-- 📊 v1470 — ce qui interroge le serveur, dans Gestion › Accès -->
-<script src="app/ec-conso.js?v=1589"></script>
-<script src="app/ec-base.js?v=1589"></script>
-<script src="app/ec-allo-ia.js?v=1589"></script>
+<script src="app/ec-conso.js?v=1590"></script>
+<script src="app/ec-base.js?v=1590"></script>
+<script src="app/ec-allo-ia.js?v=1590"></script>
 <!-- 🪪 v1516 — sa fiche en lignes, et Gestion › L'IA d'Allo › 📋 Les infos à demander -->
-<script src="app/ec-fiche-infos.js?v=1589"></script>
-<script src="app/ec-constat.js?v=1589"></script>
+<script src="app/ec-fiche-infos.js?v=1590"></script>
+<script src="app/ec-constat.js?v=1590"></script>
 <!-- 📞⋯ v1514 — le téléphone d'Allo dans l'appli, et la barre du haut revue -->
-<script src="app/ec-telephone.js?v=1589"></script>
-<script src="app/ec-barre.js?v=1589"></script>
-<script src="app/ec-demarrage.js?v=1589"></script>
+<script src="app/ec-telephone.js?v=1590"></script>
+<script src="app/ec-barre.js?v=1590"></script>
+<script src="app/ec-demarrage.js?v=1590"></script>
 <!-- 🗂️ v1454 — les onglets dans l’appli : en dernier, il enveloppe les portes de navigation -->
-<script src="app/ec-onglets-travail.js?v=1589"></script>
+<script src="app/ec-onglets-travail.js?v=1590"></script>
 <!-- ☕ v1456 — le coin café : ses deux portes cachées (après la loupe, qu’il enveloppe) -->
-<script src="app/ec-coin-cafe.js?v=1589"></script>
-<script src="app/ec-code-jeu.js?v=1589"></script>
+<script src="app/ec-coin-cafe.js?v=1590"></script>
+<script src="app/ec-code-jeu.js?v=1590"></script>
 
 <script>
 /* ============================================================
