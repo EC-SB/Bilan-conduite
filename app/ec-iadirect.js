@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 13:15 — v1447 */
+/* Déployé le 26/11/2026 à 16:30 — v1589 */
 /* ============================================================
    ec-iadirect.js
    🤖 L'IA AU FIL DE L'EAU, ET LE BILAN QUI NE REVIENT PAS — v1209
@@ -32,6 +32,10 @@ const IA_SILENCE_MAX = 90 * 1000;
 /* Revenu sur l'application après une coupure : vingt secondes sans
    rien, c'est que la connexion n'a pas survécu à la veille. */
 const IA_SILENCE_AU_RETOUR = 20 * 1000;
+/* 💭 v1589 — le Worker envoie un signe de vie toutes les 10 secondes
+   pendant que l'IA réfléchit (une ligne « : … » que la lecture ignore,
+   mais qui compte comme des nouvelles). Les 90 secondes restent : elles
+   ne coupent plus qu'une vraie connexion morte. */
 
 /* Les appels en cours, pour la vérification au retour */
 const fluxIAEnCours = new Set();
@@ -136,6 +140,11 @@ async function appelIAFlux(corps, o){
         texte += d.delta.text || '';
         if(o.surTexte) try{ o.surTexte(texte); }catch(e){}
       }
+      /* 💭 v1589 — l'IA réfléchit avant d'écrire : on le montre, sans
+         garder sa réflexion (elle ne fait pas partie de la réponse) */
+      if(d.type === 'content_block_start' && d.content_block && d.content_block.type === 'thinking' && o.surReflexion){
+        try{ o.surReflexion(); }catch(e){}
+      }
       if(d.type === 'message_delta'){
         if(d.delta && d.delta.stop_reason) stop = d.delta.stop_reason;
         if(d.usage) Object.assign(usage, d.usage);
@@ -176,15 +185,24 @@ async function appelIAFlux(corps, o){
 document.addEventListener('visibilitychange', () => {
   if(document.hidden) return;
   if(generationIA && !generationIA.finie && typeof garderEcranAllume === 'function') garderEcranAllume();
-  fluxIAEnCours.forEach(f => {
-    if(Date.now() - f.dernier > IA_SILENCE_AU_RETOUR) f.couper('retour');
-  });
+  /* 💭 v1589 — trois secondes de grâce : ce qui est arrivé pendant
+     l'absence doit d'abord être lu, sinon une connexion bien vivante
+     passait pour morte et l'appel repartait de zéro. */
+  const revenu = Date.now();
+  setTimeout(() => {
+    if(document.hidden) return;
+    fluxIAEnCours.forEach(f => {
+      if(revenu - f.dernier > IA_SILENCE_AU_RETOUR && Date.now() - f.dernier > IA_SILENCE_AU_RETOUR) f.couper('retour');
+    });
+  }, 3000);
 });
 
 /* ============================================================
    LE SEUIL ET LE TEMPS HABITUEL
    ============================================================ */
-let reglagesIA = { seuil: 6, habituel: 0, lu: 0 };
+/* 💭 v1589 — « reflexion » : « moyenne » (B, par défaut) ou « poussee » (A),
+   choisie dans Gestion › 💸 Coûts IA (voir appelIA, ec-vocal.js) */
+let reglagesIA = { seuil: 6, habituel: 0, reflexion: 'moyenne', lu: 0 };
 try{
   const m = JSON.parse(localStorage.getItem('ec_reglages_ia') || 'null');
   if(m && m.seuil) reglagesIA = Object.assign(reglagesIA, m, { lu: 0 });
@@ -194,7 +212,8 @@ async function chargerReglagesIA(force){
   try{
     const r = await appelPrep({ action: 'iaReglagesLire' });
     if(r && r.status === 'ok'){
-      reglagesIA = { seuil: parseInt(r.seuil, 10) || 6, habituel: parseInt(r.habituel, 10) || 0, lu: Date.now() };
+      reglagesIA = { seuil: parseInt(r.seuil, 10) || 6, habituel: parseInt(r.habituel, 10) || 0,
+                     reflexion: r.reflexion === 'poussee' ? 'poussee' : 'moyenne', lu: Date.now() };
       try{ localStorage.setItem('ec_reglages_ia', JSON.stringify(reglagesIA)); }catch(e){}
     }
   }catch(e){ /* hors ligne : on garde le dernier connu */ }
@@ -590,6 +609,16 @@ function blocTempsDesGenerations(){
     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;">Alerte au moniteur si le bilan n’est pas revenu après ' +
     '<input type="number" id="seuilIA" min="2" max="30" step="1" value="' + (reglagesIA.seuil || 6) + '" style="width:70px;margin:0;text-align:center;"' + (admin ? '' : ' disabled') + '> minutes ' +
     '<span style="color:var(--muted);font-size:12px;">(' + (admin ? 'administrateurs · vaut pour tous les téléphones' : 'réglé par les administrateurs') + ')</span></div>' +
+    /* 💭 v1589 — la réflexion de l'IA pour les bilans dictés (David : « je fais un essai en B, si ça suffit pas je repasse en A ») */
+    '<div style="margin-top:12px;font-size:14px;font-weight:700;">💭 Réflexion de l’IA pour les bilans dictés</div>' +
+    '<div id="reflexionIA" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">' +
+      '<button type="button" class="btn btn-secondary" data-reflexion="moyenne" style="width:auto;margin:0;padding:9px 12px;font-size:13px;text-align:left;line-height:1.35;"' + (admin ? '' : ' disabled') + '>' +
+        '🅱️ <b>Moyenne</b><br><span style="font-weight:400;font-size:12px;">≈ 1 min 30 · ≈ 0,20 $ le bilan</span></button>' +
+      '<button type="button" class="btn btn-secondary" data-reflexion="poussee" style="width:auto;margin:0;padding:9px 12px;font-size:13px;text-align:left;line-height:1.35;"' + (admin ? '' : ' disabled') + '>' +
+        '🅰️ <b>Poussée</b><br><span style="font-weight:400;font-size:12px;">≈ 4 min · ≈ 0,50 $ le bilan</span></button>' +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">Poussée : un peu plus de petits détails repris, mais plus lent et plus cher. ' +
+      'Vaut pour tous les téléphones' + (admin ? '' : ' (réglé par les administrateurs)') + '. La correction de la dictée, elle, se fait toujours sans réflexion.</div>' +
     '<div id="chiffresIA" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><div class="empty" style="padding:4px 0;">Chargement…</div></div>' +
     '<div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;">Chaque ligne du détail ci-dessous affiche aussi sa durée. ' +
     'Trop d’alertes alors que les bilans finissent par arriver → monte le seuil.</div>';
@@ -606,7 +635,27 @@ function blocTempsDesGenerations(){
       chargerTempsDesGenerations();
     }catch(e){ showToast('Impossible : ' + e.message); champ.value = reglagesIA.seuil; }
   });
-  chargerReglagesIA(true).then(() => { if(!champ.matches(':focus')) champ.value = reglagesIA.seuil; });
+  const marquerReflexion = () => {
+    b.querySelectorAll('[data-reflexion]').forEach(x => {
+      const oui = x.dataset.reflexion === (reglagesIA.reflexion || 'moyenne');
+      x.className = 'btn ' + (oui ? 'btn-primary' : 'btn-secondary');
+      x.setAttribute('aria-pressed', oui ? 'true' : 'false');
+    });
+  };
+  marquerReflexion();
+  if(admin) b.querySelectorAll('[data-reflexion]').forEach(x => x.addEventListener('click', async () => {
+    const v = x.dataset.reflexion;
+    if(v === reglagesIA.reflexion) return;
+    try{
+      const r = await appelPrep({ action: 'iaReflexionPoser', reflexion: v });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      reglagesIA.reflexion = v;
+      try{ localStorage.setItem('ec_reglages_ia', JSON.stringify(reglagesIA)); }catch(e){}
+      marquerReflexion();
+      showToast(v === 'poussee' ? '🅰️ Réflexion poussée pour les bilans' : '🅱️ Réflexion moyenne pour les bilans');
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  }));
+  chargerReglagesIA(true).then(() => { if(!champ.matches(':focus')) champ.value = reglagesIA.seuil; marquerReflexion(); });
   return b;
 }
 async function chargerTempsDesGenerations(bornes){
