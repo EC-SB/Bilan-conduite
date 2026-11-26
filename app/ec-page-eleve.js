@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 13:24 — v1569 */
+/* Déployé le 26/11/2026 à 09:39 — v1577 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -203,6 +203,11 @@ const ONGLETS_ELEVE = [
      cours : qui peut lire un bilan peut lire ce qui l'a produit. */
   { cle:'quest',    emoji:'📋', titre:'Questionnaire', section:'recherche' },
   { cle:'financement', emoji:'💶', titre:'Financement', section:'financements' },
+  /* 🧾 v1577 — le point financier lu dans Drivup, et ceux qu'on a gardés
+     (David : « un bouton point financier dans chaque dossier élève […]
+     comme ça on garde une copie ») — administrateurs et bureau. Voir
+     ec-point-financier.js. */
+  { cle:'pointfin', emoji:'🧾', titre:'Point financier', section:'financements', roles:['admin', 'bureau'] },
   /* 🩺 v1565 — ses démarches permis : permis aménagé, suspension,
      annulation (ec-handicap.js), le même panneau que les deux écrans */
   { cle:'handicap', emoji:'♿', titre:'Démarches',   section:'demarches' },
@@ -345,6 +350,8 @@ function ongletsEleveVisibles(){
   const estAdmin = (typeof ACCES !== 'undefined') && ACCES.role === 'admin';
   return ONGLETS_ELEVE.filter(o => {
     if(o.admin) return estAdmin;
+    if(o.roles && !((typeof ACCES !== 'undefined') && o.roles.indexOf(ACCES.role) !== -1)) return false;
+    if(o.cle === 'pointfin' && typeof ongletPointFinancier !== 'function') return false;
     /* 🎓 v1440 — David : « le sous-onglet code apparaît que quand on a
        ouvert le suivi code dans son app » — ou qu'il a des séances
        enregistrées. Voir ongletCodeVisible (ec-coin-revisions.js). */
@@ -3327,6 +3334,7 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'proc')        return ongletProcedures(corps, nom);
   if(cle === 'quest')       return ongletQuestionnaire(corps, nom);
   if(cle === 'financement') return ongletFinancement(corps, nom);
+  if(cle === 'pointfin')    return ongletPointFinancier(corps, nom);
   if(cle === 'handicap')    return ongletHandicap(corps, nom);
   if(cle === 'rgpd')        return ongletRgpd(corps, nom);
 }
