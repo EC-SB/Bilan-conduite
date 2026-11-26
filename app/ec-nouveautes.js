@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 16:30 — v1589 */
+/* Déployé le 26/11/2026 à 17:39 — v1590 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1590,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '⭐ Des menus plus courts, un sommaire par onglet, et une loupe qui cherche dans toute l’App',
+    quoi: [
+      { emoji: '⭐',
+        titre: 'Élèves, Outils, Gestion › « ⭐ Mes favoris » et les familles repliées',
+        texte: 'Quand le menu de gauche est long, il se range : tes écrans de tous les jours en haut, dans « Mes favoris », et les familles repliées dessous. Un appui sur le titre d’une famille l’ouvre ; l’étoile ☆ à côté d’un écran le garde en favori. Chacun a les siens, sur tous ses appareils. Aucun écran n’a changé de place ni de nom.' },
+      { emoji: '🧭',
+        titre: 'Élèves, Outils, Gestion › « Sommaire »',
+        texte: 'En tête du menu, le sommaire de l’onglet : chaque écran y a une phrase qui dit à quoi il sert, et le champ du haut filtre pendant que tu tapes (« paiement », « tablette », « mot de passe »…).' },
+      { emoji: '📱',
+        titre: 'Sur téléphone › une seule rangée de boutons',
+        texte: 'Le menu ne prend plus la moitié de l’écran : « Tout », puis tes favoris (ou, tant que tu n’en as pas, les derniers écrans ouverts). « Tout » ouvre le sommaire.' },
+      { emoji: '🗂️',
+        titre: 'Dossier d’un élève › les rubriques par familles',
+        texte: 'Les vingt rubriques sont rangées sous quatre titres : La conduite, Les échanges, L’administratif, Son espace et ses données. Un appui sur un titre replie ou rouvre sa famille, et l’App s’en souvient. Sur téléphone, seule « La conduite » est ouverte au départ.' },
+      { emoji: '🔍',
+        titre: 'La loupe › elle cherche dans l’App elle-même',
+        texte: 'En plus des élèves, elle trouve les écrans par ce qu’ils font (« accrochage » mène au constat), ce qu’ils contiennent (« assurance » mène au tiroir « L’assurance et nos véhicules »), les rubriques du dossier et le menu ⋯. Le mot est surligné, chaque ligne dit où elle mène, et chacun ne trouve que ce que ses droits lui ouvrent. Elle est maintenant là pour toute l’équipe.' }
+    ]
+  },
   {
     version: 1589,
     date: 'Jeudi 26 novembre 2026',
