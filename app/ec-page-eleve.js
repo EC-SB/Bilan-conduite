@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 11:17 — v1579 */
+/* Déployé le 26/11/2026 à 17:39 — v1590 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -226,6 +226,75 @@ const ONGLETS_ELEVE = [
 ];
 
 const CLE_ONGLET_ELEVE = 'onglet_page_eleve';
+
+/* ============================================================
+   🗂️ v1590 — LES RUBRIQUES DU DOSSIER, RANGÉES PAR FAMILLES
+
+   David, le 26/11 : « pareil dans un dossier élève, moi qui connais
+   l'App par cœur c'est facile de me retrouver mais pour les autres ça
+   reste compliqué ». Vingt rubriques à la suite, dont six visibles
+   sans faire défiler sur un portable.
+
+   Son choix sur le schéma : quatre familles avec un titre, toutes
+   ouvertes (proposition A), « avec possibilité de replier les familles
+   et de les ouvrir comme on veut » ; « La conduite » en premier.
+
+   ⚠️ L'ORDRE DE ONGLETS_ELEVE NE DÉCIDE PLUS DE L'AFFICHAGE : c'est
+   cette table. Une rubrique ajoutée demain et oubliée ici n'est pas
+   perdue — elle rejoint la dernière famille.
+
+   ⚠️ SUR TÉLÉPHONE, UNE SEULE FAMILLE OUVERTE AU DÉPART (« La
+   conduite ») : vingt pastilles y prenaient la moitié de l'écran avant
+   le moindre contenu. Sur ordinateur, tout est ouvert. Dans les deux
+   cas, ce que la personne replie ou ouvre est retenu sur l'appareil.
+   ============================================================ */
+const FAMILLES_DOSSIER = [
+  ['La conduite',               ['suivi', 'route', 'evaluation', 'cours', 'planning', 'permis', 'code', 'proc']],
+  ['Les échanges',              ['messages', 'appels', 'allo', 'notes', 'courriers']],
+  ['L’administratif',           ['fiche', 'quest', 'financement', 'pointfin', 'handicap']],
+  ['Son espace et ses données', ['acces', 'rgpd']]
+];
+const CLE_FAMILLES_DOSSIER = 'ec_dossier_familles';
+
+function dossierEnColonne(){
+  return !!(window.matchMedia && window.matchMedia('(min-width: 1280px)').matches);
+}
+function choixFamillesDossier(){
+  try{ return JSON.parse(localStorage.getItem(CLE_FAMILLES_DOSSIER) || 'null') || {}; }catch(e){ return {}; }
+}
+/* Ouverte ? Le choix de la personne d'abord (un par forme d'écran) ;
+   sinon tout sur ordinateur, et « La conduite » seule sur téléphone. */
+function familleDossierOuverte(nom, rang, porteLOuverte){
+  const forme = dossierEnColonne() ? 'colonne' : 'rangee';
+  const choix = (choixFamillesDossier()[forme] || {})[nom];
+  if(choix === true || choix === false) return choix;
+  /* sans choix : la famille de la rubrique ouverte se montre toujours */
+  return forme === 'colonne' ? true : (rang === 0 || !!porteLOuverte);
+}
+function basculerFamilleDossier(nom, rang, porteLOuverte){
+  const forme = dossierEnColonne() ? 'colonne' : 'rangee';
+  const o = choixFamillesDossier();
+  o[forme] = o[forme] || {};
+  o[forme][nom] = !familleDossierOuverte(nom, rang, porteLOuverte);
+  try{ localStorage.setItem(CLE_FAMILLES_DOSSIER, JSON.stringify(o)); }catch(e){}
+  const nav = document.querySelector('.dossierRail > [data-rail-onglets]');
+  if(nav) nav.replaceWith(barreOngletsEleve(ongletsEleveVisibles()));
+}
+/* Les rubriques visibles, rangées : [[nom de la famille, [rubriques]], …] */
+function famillesDuDossier(onglets){
+  const reste = onglets.slice();
+  const out = [];
+  FAMILLES_DOSSIER.forEach(([nom, cles]) => {
+    const l = [];
+    cles.forEach(c => {
+      const i = reste.findIndex(o => o.cle === c);
+      if(i !== -1) l.push(reste.splice(i, 1)[0]);
+    });
+    out.push([nom, l]);
+  });
+  if(reste.length) out[out.length - 1][1].push(...reste);
+  return out.filter(f => f[1].length);
+}
 
 let elevePageOuverte = '';
 let ongletPageEleve  = '';
@@ -3270,24 +3339,64 @@ function barreOngletsEleve(onglets){
   b.dataset.railOnglets = '1';
   b.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;';
 
-  onglets.forEach(o => {
-    const actif = (o.cle === ongletPageEleve);
-    const x = document.createElement('button');
-    x.className = 'btn btn-secondary';
-    x.dataset.ongletEleve = o.cle;
-    x.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:8px 12px;' +
-      'font-size:13px;border-radius:999px;white-space:nowrap;' +
-      (actif ? 'background:var(--orange);color:var(--on-accent);' +
-               'border-color:var(--orange);font-weight:700;' : '');
-    x.textContent = o.emoji + ' ' + o.titre;
-    x.addEventListener('click', () => choisirOngletEleve(o.cle));
-    b.appendChild(x);
+  /* 🗂️ v1590 — par familles, chacune sous son titre (voir FAMILLES_DOSSIER).
+     Le titre est une ligne entière de la rangée : dessous, les pastilles
+     passent toujours à la ligne, jamais de défilement. Une seule famille
+     visible (un compte aux droits réduits) : pas de titre pour une liste
+     de trois boutons. */
+  const familles = famillesDuDossier(onglets);
+  const avecTitres = familles.length > 1;
+  familles.forEach(([nom, liste], rang) => {
+    const porte = liste.some(o => o.cle === ongletPageEleve);
+    const ouverte = !avecTitres || familleDossierOuverte(nom, rang, porte);
+    if(avecTitres){
+      const t = document.createElement('div');
+      t.className = 'dfTete';
+      t.setAttribute('role', 'button');
+      t.tabIndex = 0;
+      t.setAttribute('aria-expanded', ouverte ? 'true' : 'false');
+      t.innerHTML = '<span class="ch" aria-hidden="true">' + (ouverte ? '▾' : '▸') + '</span>' +
+        '<span class="nomFam"></span><span class="nbFam">' + liste.length + '</span>';
+      t.querySelector('.nomFam').textContent = nom;
+      /* la rubrique ouverte est dans une famille repliée : son titre le dit */
+      if(!ouverte && porte) t.classList.add('porteLOuverte');
+      const agir = () => basculerFamilleDossier(nom, rang, porte);
+      t.addEventListener('click', agir);
+      t.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); agir(); } });
+      b.appendChild(t);
+    }
+    if(!ouverte) return;
+    liste.forEach(o => {
+      const actif = (o.cle === ongletPageEleve);
+      const x = document.createElement('button');
+      x.className = 'btn btn-secondary';
+      x.dataset.ongletEleve = o.cle;
+      x.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:8px 12px;' +
+        'font-size:13px;border-radius:999px;white-space:nowrap;' +
+        (actif ? 'background:var(--orange);color:var(--on-accent);' +
+                 'border-color:var(--orange);font-weight:700;' : '');
+      x.textContent = o.emoji + ' ' + o.titre;
+      x.addEventListener('click', () => choisirOngletEleve(o.cle));
+      b.appendChild(x);
+    });
   });
 
   return b;
 }
 
 function choisirOngletEleve(cle){
+  /* 🗂️ v1590 — on arrive sur une rubrique dont la famille a été repliée
+     (la loupe, un lien) : le repli est oublié, sinon elle s'ouvrirait
+     sans que son bouton se voie. */
+  try{
+    const forme = dossierEnColonne() ? 'colonne' : 'rangee';
+    const fam = FAMILLES_DOSSIER.find(f => f[1].indexOf(cle) !== -1);
+    const o = choixFamillesDossier();
+    if(fam && o[forme] && o[forme][fam[0]] === false){
+      delete o[forme][fam[0]];
+      localStorage.setItem(CLE_FAMILLES_DOSSIER, JSON.stringify(o));
+    }
+  }catch(e){}
   ongletPageEleve = cle;
   ongletImposeDemarches = false;
   try{ localStorage.setItem(CLE_ONGLET_ELEVE, cle); }catch(e){}
