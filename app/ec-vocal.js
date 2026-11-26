@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 13:29 — v1582 */
+/* Déployé le 26/11/2026 à 14:26 — v1584 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -4085,14 +4085,17 @@ function marquerExport(ok, sansRelire){
     b.style.background = 'rgba(182,255,14,.12)';
     b.style.borderColor = 'var(--orange)';
     b.style.color = 'var(--accent-text)';
-    b.textContent = '✅ Bilan enregistré dans Sheets — le prochain moniteur y aura accès.';
+    b.textContent = '✅ Bilan enregistré — le prochain moniteur y aura accès.';
     if(btn) btn.textContent = '📊 Réenregistrer (après modification)';
   }else{
     b.style.display = 'block';
     b.style.background = 'var(--warn-bg)';
     b.style.borderColor = 'var(--red)';
     b.style.color = 'var(--warn-text)';
-    b.textContent = "📋 Relis et complète le bilan, puis appuie sur « Copier et enregistrer » : il sera copié pour Messenger et enregistré dans Sheets.";
+    /* ✏️ v1584 — David, le 26/11 : « ça parle encore de Messenger à la fin du bilan ».
+       Le bilan part dans 📖 Mes leçons et par mail (confirmerFinDeCours) ; Messenger
+       n'est plus qu'un secours. */
+    b.textContent = "📋 Relis et complète le bilan, puis appuie sur « Copier, enregistrer et terminer » : il est enregistré, l'élève le retrouve dans 📖 Mes leçons, et tu l'envoies par mail.";
     if(btn) btn.textContent = '📊 Enregistrer sans copier';
   }
 }
