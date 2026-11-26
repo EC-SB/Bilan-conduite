@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 09:39 — v1577 */
+/* Déployé le 26/11/2026 à 11:17 — v1579 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -4368,7 +4368,13 @@ function lignePostPermisTuile(pp){
   return { txt: '🤝 Post-permis : ' + jourBref(pp.jour, true) + (h ? ' à ' + h : '') + avec, ton: 'fort' };
 }
 
+/* ⏳ v1579 — la tuile, et la ligne de son délai de présentation
+   (ec-delai.js) : tous les lecteurs (dossier, cockpit) l'ont d'un coup. */
 function etatDuPermis(nom){
+  const t = etatDuPermisSansDelai(nom);
+  return (typeof delaiDansLaTuile === 'function') ? delaiDansLaTuile(t, nom) : t;
+}
+function etatDuPermisSansDelai(nom){
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
   const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
   const a = (e && e.etat) || {};
@@ -4934,12 +4940,15 @@ function ongletPermis(corps, nom){
   /* ── L'examen ── */
   corps.appendChild(sousTitreDossier("L'examen du permis"));
 
+  /* ⏳ v1579 — son délai de présentation (ec-delai.js) */
+  const dl = (typeof delaiDe === 'function') ? delaiDe(nom) : { actif: false, fin: '' };
   const lDate = ligneDossier(
     '📅 Date d\'examen',
     s.datePermis ? jourFr(s.datePermis) + (s.centre ? ' · ' + s.centre : '')
       : (a.permis === 'prevu' && a.permisDate
           ? jourFr(a.permisDate) + ' (annoncé au moniteur)'
-        : (a.permis === 'annule' ? 'Annulé' : 'À prévoir')),
+        : (a.permis === 'annule' ? 'Annulé' : 'À prévoir' +
+            (dl.actif ? ' — pas avant le ' + delaiBref(dl.des, true) : ''))),
     s.datePermis ? 'var(--accent-text)' : 'var(--warn-text)');
 
   /* ON CHOISIT UNE PLACE, PAS UNE DATE.
@@ -4962,6 +4971,37 @@ function ongletPermis(corps, nom){
       refaire();
     });
   corps.appendChild(lDate);
+
+  /* ⏳ v1579 — LE DÉLAI DE PRÉSENTATION, sous la date d'examen. David :
+     « qu'on puisse le voir sur sa fiche (…) et dans la partie permis ».
+     Il se lit tant qu'il court ; après un ajournement, « pas noté » se
+     dit aussi, et ✏️ le note ou le corrige. */
+  if(typeof delaiDe === 'function' && (dl.fin || dl.non || s.resultat === 'ajourne')){
+    const note = dl.note || {};
+    const motif = (typeof motifDuDelai === 'function') ? motifDuDelai(nom, note) : '';
+    let detail, couleur;
+    if(dl.actif){
+      detail = 'Jusqu’au ' + delaiBref(dl.fin, true) + ' ' + dl.fin.slice(0, 4) +
+        ' · replaçable à partir du ' + delaiBref(dl.des, true) +
+        (motif ? ' · ' + motif : '') + ' · ' + quiANoteLeDelai(note);
+      couleur = 'var(--red)';
+    }else if(dl.fin){
+      detail = 'Terminé le ' + delaiBref(dl.fin, false) + ' — plus rien à attendre';
+      couleur = 'var(--accent-text)';
+    }else if(dl.non){
+      detail = 'Pas de délai · ' + quiANoteLeDelai(note);
+      couleur = 'var(--accent-text)';
+    }else{
+      detail = 'Pas noté — à voir sur RdvPermis';
+      couleur = 'var(--warn-text)';
+    }
+    const lDelai = ligneDossier('⏳ Délai de présentation', detail, couleur);
+    lDelai.dataset.delai = dl.actif ? 'actif' : (dl.fin ? 'fini' : (dl.non ? 'non' : 'manque'));
+    actionDossier(lDelai, (dl.fin || dl.non) ? '✏️ Changer' : '✏️ Noter', async () => {
+      if(await modifierDelaiDossier(nom)) refaire();
+    });
+    corps.appendChild(lDelai);
+  }
 
   /* 📍 v1333 — son centre d'examen : de base celui de son agence (David :
      « que ça suive automatiquement »), et « OK pour passer aussi à
