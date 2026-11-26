@@ -1,4 +1,4 @@
-/* Déployé le 21/11/2026 à 19:57 — v1547 */
+/* Déployé le 26/11/2026 à 11:17 — v1579 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -172,6 +172,8 @@ function ficheSuiviPermis(e){
       if(nouveau.length < 2){ showToast('Saisis le nom du repreneur.'); return; }
       const dateP = (e.etat && e.etat.permisDate) || s.datePermis || '';
       if(!dateP){ showToast('Aucune date de permis à transférer.'); return; }
+      /* ⏳ v1579 — le repreneur a peut-être un délai de présentation */
+      if(typeof avertirDelai === 'function' && !await avertirDelai(nouveau, dateP)) return;
       if(!await confirmer('Transférer l\'examen du ' + dateP + '\n\nde ' + e.eleve +
                   '\nvers ' + nouveau + ' ?')) return;
 
@@ -1374,6 +1376,8 @@ function optionsFicheRdvPermis(){
         { max: Math.max(1, Math.min(5, enTete.length)), autre: 'Autres…' }));
 
       zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
+        /* ⏳ v1579 — son délai de présentation : un avertissement */
+        if(typeof avertirDelai === 'function' && !await avertirDelai(x.eleve, iso)) return;
         await envoyerConsigne(x.eleve, 'permis',
           'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
         await majSuivi(x.eleve, { datePermis: dateEnToutesLettres(iso),
@@ -2334,6 +2338,8 @@ function afficherPermisPrevus(tous){
           zone.appendChild(boutonExamenBlanc(x.eleve));
           zone.appendChild(boutonEnvoyerVers(x.eleve));
           zone.appendChild(boutonDate('📅 Modifier la date', async iso => {
+            /* ⏳ v1579 — son délai de présentation : un avertissement */
+            if(typeof avertirDelai === 'function' && !await avertirDelai(x.eleve, iso)) return;
             await envoyerConsigne(x.eleve, 'permis',
               'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
             await appelPrep({ action:'suiviSet', eleve:x.eleve,
