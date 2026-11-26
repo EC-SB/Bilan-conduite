@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 12:04 — v1568 */
+/* Déployé le 26/11/2026 à 11:17 — v1579 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -4728,6 +4728,8 @@ async function ouvrirRdvPost(cours){
     titrePhotosRdvPost();
   }
   $('rdvPostTexte').value = s.texteMoniteur || '';
+  /* ⏳ v1579 — repart vide ; la copie de secours le rend s'il avait été choisi */
+  if($('rdvPostDelai')) $('rdvPostDelai').value = '';
 
   /* Ce qui avait été tapé et jamais enregistré revient par-dessus :
      c'est plus récent que ce que le classeur porte. */
@@ -4770,6 +4772,9 @@ async function ouvrirRdvPost(cours){
     s.heuresRepassage || (memo ? memo.heures : '') || '';
 
   dessinerConclusionPost();
+  /* ⏳ v1579 — le délai de présentation, sous la conclusion : un champ
+     s'il n'a pas été noté au résultat, sinon une ligne (ec-delai.js) */
+  if(typeof dessinerDelaiRdvPost === 'function') dessinerDelaiRdvPost(cours.eleve);
 
   $('rdvPostCom').value = s.commentaireMoniteur || '';
   $('rdvPostMsg').textContent = '';
@@ -4847,7 +4852,9 @@ async function ouvrirRdvPost(cours){
    ------------------------------------------------------------ */
 const CLE_RDV_POST = 'rdv_post_en_cours';
 const CHAMPS_RDV_POST = ['rdvPostBilan', 'rdvPostEleveBilan',
-                         'rdvPostTexte', 'rdvPostHeures', 'rdvPostSuite'];
+                         'rdvPostTexte', 'rdvPostHeures', 'rdvPostSuite',
+                         /* ⏳ v1579 — le délai de présentation */
+                         'rdvPostDelai'];
 
 /* ============================================================
    LA CONCLUSION, EN BOUTONS — v1044
@@ -5848,12 +5855,21 @@ async function terminerRdvPost(){
        « heuresRestantes » est ce qu'il en reste : deux faits, deux
        champs — et un seul chiffre affiché, celui qui reste.
        ============================================================ */
+    /* ⏳ v1579 — le délai de présentation, s'il est noté ici */
+    const delaiPost = (typeof champsDelaiRdvPost === 'function') ? champsDelaiRdvPost(eleve) : null;
+    if(delaiPost) Object.assign(majs, delaiPost);
+
     const aEnvoyer = (typeof champsHeuresRestantes === 'function' &&
                       majs.heuresRepassage)
       ? champsHeuresRestantes(eleve, majs.heuresRepassage, majs, 0, 'postpermis')
       : majs;
 
     await majSuivi(eleve, aEnvoyer);
+    /* 💬 et le message court de « Suivi examen » (David : « oui ») */
+    if(delaiPost && /^\d{4}-\d{2}-\d{2}$/.test(delaiPost.delaiFin) &&
+       typeof annoncerDelaiSuiviExamen === 'function'){
+      annoncerDelaiSuiviExamen(eleve, delaiPost.delaiFin, 'post');
+    }
 
     /* Le bureau est informé, et la note oriente les listes */
     const conclusion = libelleSuite(suite) +
