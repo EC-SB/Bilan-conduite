@@ -1,4 +1,4 @@
-/* Déployé le 20/11/2026 à 15:45 — v1516 */
+/* Déployé le 26/11/2026 à 11:17 — v1579 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -285,6 +285,25 @@ async function afficherPostExamen(tous){
       resume: () => '',
       alerte: () => 'Résultat à saisir',
       actions: (x, boite) => {
+        /* ⏳ v1579 — LE DÉLAI DE PRÉSENTATION, AU-DESSUS DES CAPTURES.
+           David, le 26/11 : « dès le premier pop up, il apparaît pour
+           tous avant que l'on clique sur obtenu ou ajourné, car sur
+           RdvPermis il apparaît avant que l'on ait accès au CEPC ».
+           Écrit tout de suite (voir ec-delai.js). */
+        if(typeof cadreDelai === 'function'){
+          boite.appendChild(cadreDelai(x.eleve, {
+            valeur: delaiPourLExamen(x.eleve, iso),
+            aide: 'À noter dès qu’il apparaît sur RdvPermis, avant le CEPC.',
+            surChoix: async (v) => {
+              try{
+                await poserDelai(x.eleve, v, 'resultat', iso);
+                const row = [...document.querySelectorAll('#listePostExamen [data-eleve]')]
+                  .find(r => normaliserMot(r.dataset.eleve || '') === normaliserMot(x.eleve));
+                if(row && typeof row.rafraichirLigne === 'function') row.rafraichirLigne();
+                if(typeof showToast === 'function') showToast('Délai enregistré ✅');
+              }catch(e){ if(typeof showToast === 'function') showToast('Délai non enregistré : ' + ((e && e.message) || e)); }
+            } }));
+        }
         /* Les captures du CEPC : elles vous servent à décider ici,
            et suivront jusqu'au rendez-vous post-permis. */
         boite.appendChild(blocCaptures(x.eleve, iso));
@@ -365,22 +384,55 @@ function boutonsDuResultat(x, iso, s){
       'border:1px solid #1350A8;border-radius:11px;padding:9px 11px;">' +
       '<input type="checkbox" data-ok-loudeac style="width:20px;height:20px;margin:0;"' + (okDAvant ? ' checked' : '') + '>' +
       '📍 OK pour repasser à ' + autreC + ' (au lieu de ' + baseC + ')</label>';
+    /* ⏳ v1579 — le délai de présentation : celui noté dans sa fiche,
+       sinon ici (❌ appuyé sur la ligne, sans ouvrir la fiche) — et
+       l'annonce de « Suivi examen » qui part avec. */
+    const delaiAvant = (typeof delaiPourLExamen === 'function') ? delaiPourLExamen(x.eleve, iso) : '';
+    const apAj = document.createElement('div');
+    apAj.style.cssText = 'font-size:12px;line-height:1.5;border:1px dashed var(--line);border-radius:10px;padding:8px 10px;margin-bottom:12px;white-space:pre-line;';
+    const peindreAj = (v) => {
+      apAj.innerHTML = '';
+      const t = document.createElement('div');
+      t.style.cssText = 'color:var(--muted);font-size:11px;';
+      t.textContent = '💬 Part dans « Suivi examen » :';
+      const b = document.createElement('b');
+      b.textContent = texteAnnonceAjourne(x.eleve, v);
+      apAj.appendChild(t); apAj.appendChild(b);
+    };
+    let cadreAj = null;
+    if(typeof cadreDelai === 'function'){
+      cadreAj = cadreDelai(x.eleve, { valeur: delaiAvant, inconnu: true,
+        apres: delaiAvant ? 'Déjà noté dans sa fiche.' : '',
+        aide: 'Pas encore connu : il se notera au rendez-vous post-permis.',
+        surChoix: peindreAj });
+      cadreAj.style.marginTop = '12px';
+      zAj.appendChild(cadreAj);
+    }
+    zAj.appendChild(apAj);
+    peindreAj(delaiAvant);
     /* 📷 v1330 — les captures du CEPC se collent ici, au moment du résultat */
     const capAj = blocCaptures(x.eleve, iso);
     capAj.style.marginTop = '12px';
     zAj.appendChild(capAj);
     if(!await fenetre(zAj, [{ nom: 'Annuler', valeur: false }, { nom: '❌ Oui, ajourné', valeur: true, principal: true }], 'Confirmation')) return;
     const okAutreC = zAj.querySelector('[data-ok-loudeac]').checked ? 'oui' : '';
+    const delaiAj = cadreAj ? cadreAj.valeur() : delaiAvant;
+    /* Inchangé depuis la fiche : on garde qui l'a noté et quand */
+    const champsDelaiAj = (delaiAj === delaiAvant && delaiAvant)
+      ? {} : ((typeof champsDuDelai === 'function') ? champsDuDelai(delaiAj, 'resultat', iso) : {});
     bNon.disabled = true;
     try{
       await consignerResultat(x, 'ajourne', iso);
       /* 💬 v1274 — et dans « Suivi examen » : le nom, puis les captures du CEPC */
-      annoncerDansSuiviExamen(x.eleve, 'ajourne', iso);
+      annoncerDansSuiviExamen(x.eleve, 'ajourne', iso, { delai: delaiAj });
       const n = (parseInt(s.nbAjournements, 10) || 0) + 1;
       const dateAjo = iso || todayLocal();
       await majSuivi(x.eleve, {
         resultat: 'ajourne',
         [champC]: okAutreC,
+        /* ⏳ v1579 — le délai de cet examen (vide : pas encore connu ;
+           un délai d'un examen d'avant ne survit pas à celui-ci) */
+        ...champsDelaiAj,
         /* ✉️ v1328 — un nouvel ajournement repart de zéro */
         rdvPostMessagesLe: '',
         nbAjournements: String(n),
@@ -4387,6 +4439,11 @@ async function demanderPermisObtenu(eleve, iso){
   if(ok !== 'ok') return null;
   return { centre: iC.value.trim(), note: noteSur31PP(iN.value) };
 }
+/* ⏳ v1579 — l'annonce de l'ajournement, avec son délai s'il est connu */
+function texteAnnonceAjourne(eleve, delai){
+  const l = (typeof phraseDelaiSuiviExamen === 'function') ? phraseDelaiSuiviExamen(delai) : '';
+  return '❌ ' + eleve + ' — Ajourné' + (l ? '\n' + l : '');
+}
 async function annoncerDansSuiviExamen(eleve, resultat, iso, infos){
   try{
     const d = await appelPrep({ action: 'convList' });
@@ -4398,7 +4455,7 @@ async function annoncerDansSuiviExamen(eleve, resultat, iso, infos){
     infos = infos || {};
     const texte = resultat === 'obtenu'
       ? texteAnnoncePermisObtenu(eleve, infos.centre != null ? infos.centre : ((suiviDe(eleve) || {}).centre || ''), infos.note)
-      : '❌ ' + eleve + ' — Ajourné';
+      : texteAnnonceAjourne(eleve, infos.delai);
     /* 🖼️ v1304 — UN SEUL BLOC. David : « est-ce que c'est possible de
        mettre dans un seul bloc plutôt que 3 messages, et de mettre des
        cotillons en fond de message ». Le texte et les captures du CEPC de
