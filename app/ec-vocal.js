@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 14:26 — v1584 */
+/* Déployé le 26/11/2026 à 16:30 — v1589 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2939,7 +2939,31 @@ function decouperEnTranches(texte, taille){
 /* Vrai dès qu'un appel a été refusé pour cadence trop élevée */
 let cadenceDepassee = false;
 
-async function corrigerUneTranche(tranche, i, total, surEssai, avant){
+/* ============================================================
+   💭 v1589 — LA CORRECTION SANS RÉFLEXION, ET JAMAIS REFAITE
+
+   David, le 26/11 (« ne me déçois pas ») : un bilan de Chrystel lancé
+   à 15 h 17 n'est revenu qu'à 15 h 57. Coûts IA l'a montré :
+   · chaque tranche de 3 500 caractères coûtait 9 000 à 12 700 jetons
+     et 80 à 115 secondes : Sonnet 5 réfléchit d'office, au plus
+     poussé, même pour remettre une dictée au propre ;
+   · à chaque nouvelle tentative du bilan, les tranches déjà corrigées
+     repartaient de zéro ;
+   · après « 🔁 Relancer », les tranches de l'ANCIENNE génération
+     continuaient : leur essai suivant se rattachait à la nouvelle.
+     À 15 h 45, la correction tournait en double.
+
+   Corriger une dictée est un travail mécanique : l'IA le fait sans
+   réfléchir (« disabled »). Une tranche corrigée est gardée pour la
+   même dictée, et une génération remplacée s'arrête net.
+   ============================================================ */
+const REGLAGE_CORRECTION = { thinking: { type: 'disabled' } };
+const TRANCHES_CORRIGEES = new Map();
+function cleDeTranche(tranche, avant){ return String(avant || '') + '\u0001' + String(tranche || ''); }
+
+async function corrigerUneTranche(tranche, i, total, surEssai, avant, gen){
+  const cle = cleDeTranche(tranche, avant);
+  if(TRANCHES_CORRIGEES.has(cle)) return { texte: TRANCHES_CORRIGEES.get(cle) };
   let contexte = total > 1
     ? '\n\n(Partie ' + (i + 1) + ' sur ' + total +
       ' d\'un même cours : ne réintroduis aucune introduction ni conclusion.)'
@@ -2968,6 +2992,8 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
         const attente = cadenceDepassee ? 6000 * essai : 1500 * essai;
         await new Promise(r => setTimeout(r, attente));
       }
+      /* 💭 v1589 — remplacée (🔁, ✍️) : on s'arrête, on ne se rattache pas à la nouvelle */
+      if(gen) verifierGenerationIA(gen);
       const txt = await appelBrutIA(CONSIGNE_CORRECTION + consigneAccords() +
                                     consigneReglesIA() +
                                     (typeof consigneCorrectionsIA === 'function'
@@ -2979,7 +3005,8 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
                                        dans ce plafond : 16000, puis 32000 si elle
                                        l'a touché à l'essai d'avant */
                                     tranche, plusDePlace ? JETONS_BILAN_LONG : JETONS_BILAN,
-                                    'Correction de la transcription', true);
+                                    'Correction de la transcription', true,
+                                    Object.assign({ signal: gen && gen.ctrl ? gen.ctrl.signal : null }, REGLAGE_CORRECTION));
       const propre = String((txt && txt.texte) || '').trim();
       const fin = (txt && txt.fin) || '';
 
@@ -3017,9 +3044,12 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
       }else if(!fin && !finDePhrase(propre) && finDePhrase(tranche)){
         derniereErreur = new Error('réponse coupée en pleine phrase');
       }else{
+        if(TRANCHES_CORRIGEES.size > 40) TRANCHES_CORRIGEES.clear();
+        TRANCHES_CORRIGEES.set(cle, propre);
         return { texte: propre };
       }
     }catch(e){
+      if(e && e.annule) throw e;
       derniereErreur = e;
       /* Trop d'appels d'un coup : les suivants attendent davantage */
       if(/429|rate|cadence|overload/i.test(e.message || '')) cadenceDepassee = true;
@@ -3041,6 +3071,8 @@ const TRANCHES_SIMULTANEES = 3;
 async function corrigerCours(transcript, surProgres){
   const tranches = decouperEnTranches(transcript, TAILLE_TRANCHE);
   if(!tranches.length) return '';
+  /* 💭 v1589 — la génération qui a demandé cette correction */
+  const gen = (typeof generationIA !== 'undefined' && generationIA && !generationIA.finie) ? generationIA : null;
 
   cadenceDepassee = false;
   await chargerReglesIA();
@@ -3066,7 +3098,7 @@ async function corrigerCours(transcript, surProgres){
       const avant = (i > 0) ? tranches[i - 1].slice(-300) : '';
       const r = await corrigerUneTranche(tranches[i], i, tranches.length,
         essai => { if(surProgres) surProgres(terminees, tranches.length, essai); },
-        avant);
+        avant, gen);
       corrigees[i] = r.texte;
       if(r.echec) echecs.push(r.echec);
       avancer();
@@ -3170,10 +3202,21 @@ function reparerJson(brut){
 /* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
 /* « avecFin » : rend aussi POURQUOI la réponse s'est arrêtée — v1215.
    C'est la seule façon fiable de savoir si elle est complète. */
-async function appelBrutIA(systemPrompt, message, maxTokens, quoi, avecFin){
+/* 💭 v1589 — « reglage » : { thinking, output_config, signal }, pour
+   dire à l'IA combien réfléchir (la correction : pas du tout). */
+async function appelBrutIA(systemPrompt, message, maxTokens, quoi, avecFin, reglage){
   /* ⏱️ v1209 — au fil de l'eau, avec un délai de silence : un appel
      muet ne s'attend plus pour toujours (voir ec-iadirect.js). Les
      tranches de la correction gardent leurs trois essais. */
+  reglage = reglage || {};
+  const payload = {
+    model: 'claude-sonnet-5',
+    max_tokens: maxTokens || 8000,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: message }]
+  };
+  if(reglage.thinking) payload.thinking = reglage.thinking;
+  if(reglage.output_config) payload.output_config = reglage.output_config;
   const data = await appelIAFlux({
       code: ACCES.code,
       /* CE QUE COÛTE CETTE GÉNÉRATION, ET POURQUOI.
@@ -3182,13 +3225,8 @@ async function appelBrutIA(systemPrompt, message, maxTokens, quoi, avecFin){
          qu'on lui demande, la facture ne dirait que « des appels ».
          Le nom voyage avec la demande, il ne se devine pas. */
       quoi: quoi || 'Génération IA',
-      payload: {
-        model: 'claude-sonnet-5',
-        max_tokens: maxTokens || 8000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: message }]
-      }
-    });
+      payload: payload
+    }, reglage.signal ? { signal: reglage.signal } : undefined);
   if(data.error) throw new Error(data.error.message || 'erreur API');
   const texte = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
   return avecFin ? { texte: texte, fin: String(data.stop_reason || '') } : texte;
@@ -3285,28 +3323,59 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
      paie : on paie ce qu'elle écrit, et elle s'arrête quand elle a
      fini. Le Worker l'accepte jusqu'à 32000 (v1217).
      ============================================================ */
-  const corpsIA = (jetons) => ({
-    code: ACCES.code,
-    quoi: 'Bilan — ' + MODELES[modeleCle].label,
-    payload: {
+  /* ============================================================
+     💭 v1589 — RÉFLÉCHIR, MAIS PAS AU PLUS POUSSÉ, ET À VOIX HAUTE
+
+     Sonnet 5 réfléchit d'office au niveau « high », et en silence. Sur
+     les cours de Chrystel, sa réflexion seule remplissait les 16 000
+     jetons : bilan vide, relance à 32 000, 4 minutes — et nos délais
+     de silence la coupaient en route (David, le 26/11).
+
+     Le comparatif sur le cours de Yuliia (même dictée, mêmes
+     consignes) : en « high », 6 min 50 dont un 1er essai VIDE, ≈ 0,75 $ ;
+     en « medium », 1 min 33, ≈ 0,20 $, un bilan du même niveau (un ou
+     deux petits détails en moins). David choisit dans Gestion ›
+     💸 Coûts IA :
+     · 🅱️ « moyenne » (par défaut) : effort « medium », 16 000 puis
+       32 000 si besoin ;
+     · 🅰️ « poussee » : la réflexion d'avant (« high »), mais toute la
+       place dès le premier essai — plus d'essai vide.
+     · « summarized » dans les deux cas : sa réflexion arrive au fil de
+       l'eau (en résumé). On ne la garde pas, mais elle prouve que la
+       connexion vit, et l'écran dit « l'IA réfléchit ». Même coût. */
+  if(typeof chargerReglagesIA === 'function' && Date.now() - (reglagesIA.lu || 0) > 60000) await chargerReglagesIA(true);
+  const poussee = typeof reglagesIA !== 'undefined' && reglagesIA && reglagesIA.reflexion === 'poussee';
+  const corpsIA = (jetons) => {
+    const payload = {
       model: 'claude-sonnet-5',
       max_tokens: jetons,
+      thinking: { type: 'adaptive', display: 'summarized' },
       system: systemPrompt,
       messages: [{ role: 'user', content: userMsg }]
-    }
-  });
+    };
+    if(!poussee) payload.output_config = { effort: 'medium' };
+    return { code: ACCES.code, quoi: 'Bilan — ' + MODELES[modeleCle].label + (poussee ? ' (poussée)' : ''), payload: payload };
+  };
+  const reflechit = () => {
+    const g = generationIA;
+    if(!g || g.finie) return;
+    const p = $('progressionGen');
+    if(p && g.phase) p.innerHTML = echIA(g.phase) +
+      ' <span style="font-weight:400;color:var(--muted);">· 💭 l’IA réfléchit…</span>';
+  };
+  const options = { surTexte: noterMotsGeneration, surReflexion: reflechit };
   const appeler = async (jetons) => {
     try{
-      return await appelIAFlux(corpsIA(jetons), { surTexte: noterMotsGeneration });
+      return await appelIAFlux(corpsIA(jetons), options);
     }catch(e){
       if(!e || !e.coupure) throw e;
       if(generationIA && !generationIA.finie) generationIA.relances++;
       phaseGeneration('Nouvelle tentative — rédaction du résumé…');
-      return await appelIAFlux(corpsIA(jetons), { surTexte: noterMotsGeneration });
+      return await appelIAFlux(corpsIA(jetons), options);
     }
   };
-  let data = await appeler(JETONS_BILAN);
-  if(data && data.stop_reason === 'max_tokens'){
+  let data = await appeler(poussee ? JETONS_BILAN_LONG : JETONS_BILAN);
+  if(!poussee && data && data.stop_reason === 'max_tokens'){
     phaseGeneration('Cours dense — l’IA reprend avec plus de place…');
     data = await appeler(JETONS_BILAN_LONG);
   }
