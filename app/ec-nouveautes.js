@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 11:41 — v1580 */
+/* Déployé le 26/11/2026 à 12:22 — v1581 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1581,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '✏️ Naïa (l’IA d’Allo) se règle depuis l’App : instructions, déroulés, horaires, tarifs — et on revient en arrière en un appui',
+    quoi: [
+      { emoji: '✏️',
+        titre: 'Gestion › L’IA d’Allo › Dans Allo › « ✏️ Modifier ses instructions »',
+        texte: 'Ses six parties d’instructions, son accueil, sa fin, ce qu’elle sait et ses horaires (bouton « 🕐 24 h/24, 7 j/7 »), puis « 🚀 Publier dans Allo ». La première fois, c’est pré-rempli avec la proposition validée et son texte nettoyé (sans les horaires ni les tarifs écrits à la main, Messenger remplacé par la messagerie de l’App, plus de Listeeleve.pdf).' },
+      { emoji: '↩️',
+        titre: 'Revenir en arrière',
+        texte: 'Avant chaque publication, l’App garde une copie de ce qu’elle avait. « ↩️ Remettre dans Allo » sur une copie la republie en entier.' },
+      { emoji: '📘',
+        titre: 'Les déroulés des formations, en fiches texte',
+        texte: 'Une fiche par formation, écrite dans l’App : elles partent dans « Ce qu’elle sait » à chaque publication (elle lit mieux du texte qu’un PDF). Ses liens s’ajoutent, s’activent ou se désactivent d’ici ; un fichier se retire d’ici, mais s’ajoute seulement dans Allo.' },
+      { emoji: '💰',
+        titre: 'Les tarifs, au prix du jour',
+        texte: 'Dans « 📡 Ce que l’App lui donne », coche les fiches de tarifs qu’elle peut annoncer : elle reçoit leur total à chaque appel. Elle ne corrige une procédure que si l’App reconnaît l’élève et que ses groupes sont ouverts, et ne propose plus d’heure de rappel : « on vous rappellera dès que possible ».' }
+    ]
+  },
   {
     version: 1580,
     date: 'Jeudi 26 novembre 2026',
