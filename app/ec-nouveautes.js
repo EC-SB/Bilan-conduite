@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 14:38 — v1585 */
+/* Déployé le 26/11/2026 à 14:51 — v1586 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -51,6 +51,19 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1586,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🎬 La vidéo de prise en main des moniteurs, et le guide à jour',
+    quoi: [
+      { emoji: '🎬',
+        titre: 'Menu ⋯ › « Vidéo : prise en main (moniteurs) »',
+        texte: '4 minutes 20 pour qu’un nouveau moniteur se débrouille seul : la connexion, les prochains cours, chaque tiroir du cours, la génération du bilan, la relecture, l’enregistrement et l’envoi par mail, puis le reste de l’App. Elle est aussi en tête du chapitre « Donner un cours » du guide.' },
+      { emoji: '📘',
+        titre: 'Le guide d’utilisation',
+        texte: 'Chaque chapitre se termine par « 🆕 Nouveau dans ce chapitre » : toutes les nouveautés depuis la dernière relecture du guide (v1365 à v1585), de la plus récente à la plus ancienne.' }
+    ]
+  },
+  {
     version: 1585,
     date: 'Jeudi 26 novembre 2026',
     resume: '🔎 Naïa cherche dans ce qu’elle sait avant de dire « je n’ai pas l’information »',
@@ -90,7 +103,7 @@ const NOUVEAUTES = [
     quoi: [
       { emoji: '┃',
         titre: 'Cours › « Bilan généré — relis et complète avant envoi »',
-        texte: 'Les lignes recopiées d’une procédure (celles qui commencent par ┃) ont maintenant leur cadre bleu dès la relecture, comme dans le mail, « Mes leçons » et l’historique. On écrit dedans comme avant, et le texte copié pour Messenger ne change pas.' }
+        texte: 'Les lignes recopiées d’une procédure (celles qui commencent par ┃) ont maintenant leur cadre bleu dès la relecture, comme dans le mail, « Mes leçons » et l’historique. On écrit dedans comme avant, et le texte enregistré ne change pas.' }
     ]
   },
   {
