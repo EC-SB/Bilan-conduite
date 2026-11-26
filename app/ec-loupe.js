@@ -1,4 +1,4 @@
-/* Déployé le 07/11/2026 à 16:57 — v1385 */
+/* Déployé le 26/11/2026 à 17:39 — v1590 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -138,7 +138,11 @@ function ouvrirLEcran(x){
 function majBoutonLoupe(){
   const b = $('loupeBtn');
   if(!b) return;
-  b.style.display = actionsLoupeDisponibles().length ? '' : 'none';
+  /* 🔎 v1590 — elle cherche aussi dans l'App elle-même (écrans, tiroirs,
+     rubriques) : elle mène donc toujours quelque part, même sans le
+     droit d'ouvrir un dossier. */
+  b.style.display = (actionsLoupeDisponibles().length || typeof chercherDansLApp === 'function') ? '' : 'none';
+  if(typeof chercherDansLApp === 'function') b.title = 'Chercher un élève, un écran, un mot de l’App';
 }
 
 /* ELLE S'OUVRE SUR UNE LISTE, PAS SUR UN CHAMP VIDE.
@@ -163,7 +167,11 @@ function majBoutonLoupe(){
    rien écrit, et le champ ne sert plus qu'à réduire. */
 function ouvrirLoupe(){
   const actions = actionsLoupeDisponibles();
-  if(!actions.length) return;
+  /* 🔎 v1590 — sans le droit d'ouvrir un dossier, elle cherche quand
+     même dans l'App (ec-sommaire.js) ; les élèves, eux, restent fermés. */
+  const avecEleves = actions.length > 0;
+  const dansLApp = typeof chercherDansLApp === 'function';
+  if(!avecEleves && !dansLApp) return;
 
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -175,7 +183,7 @@ function ouvrirLoupe(){
 
   const boite = document.createElement('div');
   boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(460px, 94vw);padding:14px;';
+  boite.style.cssText = 'max-width:min(' + (dansLApp ? 560 : 460) + 'px, 94vw);padding:14px;';
 
   /* La loupe DANS le champ, comme sur sa capture : le titre
      « 🔍 Chercher un élève » répétait le bouton sur lequel on
@@ -183,7 +191,7 @@ function ouvrirLoupe(){
   boite.innerHTML =
     '<div style="position:relative;">' +
       '<input type="text" id="loupeChamp" autocomplete="off" ' +
-        'placeholder="Un élève, un écran" ' +
+        'placeholder="' + (dansLApp ? (avecEleves ? 'Un élève, un écran, un mot de l’App' : 'Un écran, un mot de l’App') : 'Un élève, un écran') + '" ' +
         'style="margin-bottom:6px;padding-right:42px;">' +
       '<span aria-hidden="true" style="position:absolute;right:13px;top:0;' +
       'height:100%;display:flex;align-items:center;font-size:17px;' +
@@ -229,12 +237,14 @@ function ouvrirLoupe(){
      bilans ET fiches du répertoire. Elle ne lisait que les
      premiers : un élève inscrit qui n'avait pas encore de bilan
      était introuvable ici, alors qu'il était bien au répertoire. */
-  const tous = (typeof nomsConnusEleves === 'function')
+  const tous = !avecEleves ? [] : (typeof nomsConnusEleves === 'function')
     ? nomsConnusEleves()
     : ((typeof elevesConnus !== 'undefined' && Array.isArray(elevesConnus))
         ? elevesConnus.slice() : []);
 
-  if(!tous.length){
+  if(!avecEleves){
+    etat.textContent = 'Tape un mot : un écran, un tiroir, un réglage.';
+  }else if(!tous.length){
     etat.innerHTML = "⚠️ <strong>Aucun élève en mémoire sur cet appareil.</strong> " +
       'Ouvre une fois la recherche ou le répertoire, puis reviens ici.';
   }
@@ -250,6 +260,44 @@ function ouvrirLoupe(){
      recherche bredouille les posent toutes les trois — et trois
      copies d'une même liste, c'est la faute de la maison. */
   const poserLesEcrans = () => {
+    /* 🔎 v1590 — DANS L'APP ELLE-MÊME. David, le 26/11 : « qu'elle cherche
+       partout dans l'app en fonction des mots tapés et qu'elle propose
+       partout où ça le contient » — puis : ni les bilans ni les tâches,
+       « juste ce qui concerne l'app en elle-même ». Les écrans, donc, mais
+       aussi leur phrase, leurs mots-clés, leurs tiroirs, les rubriques du
+       dossier et le menu ⋯ (chercherDansLApp, ec-sommaire.js). Le mot est
+       surligné, et chaque ligne dit où elle mène. */
+    if(dansLApp){
+      const trouves = chercherDansLApp(champ.value);
+      if(!trouves.length) return 0;
+      const t = document.createElement('div');
+      t.className = 'loupeCat';
+      t.textContent = 'Écrans, et ce qu’ils contiennent · ' + trouves.length;
+      liste.appendChild(t);
+      trouves.forEach(x => {
+        const b = document.createElement('button');
+        b.className = 'ligneEleve loupeRes';
+        b.type = 'button';
+        const rond = document.createElement('span');
+        rond.className = 'ligneEleveRond';
+        rond.textContent = x.logo || '▸';
+        rond.style.fontSize = '17px';
+        b.appendChild(rond);
+        const n = document.createElement('span');
+        n.className = 'ligneEleveNom';
+        n.innerHTML = somSurligner(x.titre, champ.value) +
+          (x.sous ? '<span class="loupeSous">' + somSurligner(x.sous, champ.value) + '</span>' : '');
+        b.appendChild(n);
+        const ou = document.createElement('span');
+        ou.className = 'ligneEleveForm';
+        ou.textContent = x.ou;
+        b.appendChild(ou);
+        b.addEventListener('click', () => { fermer(); allerAuResultat(x); });
+        liste.appendChild(b);
+      });
+      return trouves.length;
+    }
+
     const ecrans = (typeof ecransTrouvables === 'function')
       ? ecransTrouvables(champ.value) : [];
     if(!ecrans.length) return 0;
@@ -295,7 +343,12 @@ function ouvrirLoupe(){
       ? normaliserMot(champ.value) : champ.value.toLowerCase().trim();
 
     liste.innerHTML = '';
-    if(!tous.length){ poserLesEcrans(); return; }
+    if(!tous.length){
+      const combien = poserLesEcrans();
+      if(!avecEleves) etat.textContent = !q ? 'Tape un mot : un écran, un tiroir, un réglage.'
+        : (combien ? combien + ' trouvé(s) dans l’App' : 'Rien à ce mot dans l’App. Essaie un mot plus court.');
+      return;
+    }
 
     /* Le même filtre que le répertoire et le dossier : nom, numéro,
        mail, formation, Messenger. Elle ne cherchait que dans le
@@ -325,7 +378,7 @@ function ouvrirLoupe(){
          On ne garde alors qu'une ligne, et la réponse dessous. */
       const combien = poserLesEcrans();
       etat.innerHTML = combien
-        ? 'Aucun élève de ce nom — mais un écran, oui :'
+        ? (dansLApp ? 'Aucun élève de ce nom — mais dans l’App, oui :' : 'Aucun élève de ce nom — mais un écran, oui :')
         : 'Aucun élève de ce nom <strong>dans la mémoire de ' +
           'cet appareil</strong>. Il existe peut-être quand même — ' +
           "cherche-le dans l'historique des leçons.";
