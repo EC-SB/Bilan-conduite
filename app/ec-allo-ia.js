@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 11:41 — v1580 */
+/* Déployé le 26/11/2026 à 12:22 — v1581 */
 /* ============================================================
    ec-allo-ia.js — v1511
    🤖 L'IA D'ALLO BRANCHÉE SUR L'APPLI
@@ -380,8 +380,9 @@ function alloHeureDeSecondes(v){
 function alloPlage(p){
   if(p == null) return '';
   if(typeof p !== 'object') return String(p);
-  const deb = p.start != null ? p.start : (p.from != null ? p.from : p.open);
-  const fin = p.end != null ? p.end : (p.to != null ? p.to : p.close);
+  /* Allo écrit « start_time » / « end_time », en secondes depuis minuit */
+  const deb = p.start_time != null ? p.start_time : (p.start != null ? p.start : (p.from != null ? p.from : p.open));
+  const fin = p.end_time != null ? p.end_time : (p.end != null ? p.end : (p.to != null ? p.to : p.close));
   if(deb != null && fin != null) return alloHeureDeSecondes(deb) + ' – ' + alloHeureDeSecondes(fin);
   return JSON.stringify(p);
 }
@@ -437,16 +438,419 @@ function alloTexteAgent(copie){
   return lignes.join('\n');
 }
 
+/* ============================================================
+   ✏️ v1581 — LA RÉGLER DEPUIS L'APP (étape 2)
+
+   Schéma validé par David le 26/11 (« ça me va ») : « ✏️ Modifier ses
+   instructions » → ses six parties, son accueil, sa fin, ce qu'elle
+   sait (son texte + les déroulés des formations écrits ici), ses
+   horaires (à la main : « je veux qu'elle réponde tout le temps,
+   24/24, 7/7 ») → « 🚀 Publier dans Allo ». Chaque publication garde
+   la version d'avant : « ↩️ Remettre dans Allo ».
+
+   La première fois (rien encore publié depuis l'App), l'écran part de
+   la proposition validée, et de son texte nettoyé : sans les horaires
+   ni les tarifs (l'App les lui donne à jour), « Messenger » remplacé
+   par la messagerie de l'App, et plus de Listeeleve.pdf pour les
+   procédures (debut_appel dit si c'est possible).
+   ============================================================ */
+const ALLO_PROPOSITION = {
+  "parties": {
+    "objective": "Parle français par défaut. Ne change de langue que si on te le demande clairement : si l'appelant parle une autre langue, reste en français et demande-lui s'il veut changer ; ne change qu'après sa réponse.\n\nAu tout début de chaque appel, appelle l'outil debut_appel et suis ses consignes pendant tout l'appel : il te dit qui appelle (élève, proche, numéro inconnu), ce que tu peux lui dire, et les consignes de l'équipe.\n\nDéroulé de l'appel :\n1. Accueille l'appelant au nom d'Évolution Conduites.\n2. Comprends pourquoi il appelle : une question, un message pour l'équipe, une correction de procédure, ou du démarchage / une erreur de numéro (dans ce cas, termine poliment tout de suite).\n3. Réponds avec ce que te donnent les outils de l'App (horaires des agences, tarifs, créneaux libres, ce qui concerne l'élève) et avec tes connaissances.\n4. Si tu ne peux pas répondre, ou si on te laisse un message : laisse la demande au bureau avec laisser_demande, puis dis « C'est bien noté, on vous rappellera dès que possible. »\n5. Demande s'il y a autre chose, puis termine l'appel.",
+    "personality": "Tu es Naïa, l'assistante vocale d'Évolution Conduites, l'auto-école de Saint-Brieuc et de Loudéac. Tu réponds aux appels, tu renseignes avec ce que te donne l'App et tes connaissances, et tu transmets à l'équipe ce que tu ne peux pas régler. Tu es chaleureuse, claire et professionnelle.",
+    "behaviors": "- Réponses courtes. Ne redemande jamais ce que tu sais déjà (debut_appel te dit souvent qui appelle).\n- Rappel : ne demande jamais quand rappeler et ne propose jamais de jour ni d'heure. Dis seulement : « C'est bien noté, on vous rappellera dès que possible. »\n- Renseignements et inscriptions (permis B, boîte automatique, conduite accompagnée, conduite supervisée) : la personne passe au bureau voir une vidéo de présentation, sans rendez-vous, aux heures d'ouverture données par l'outil horaires_agences. Pour une demande de renseignements, ne propose pas de rappel. La vidéo n'est pas obligatoire pour les formations 125, moto et passerelles.\n- Horaires et adresses : uniquement ceux de l'outil horaires_agences.\n- Tarifs : uniquement ceux que l'App te donne. Si on te demande un prix que tu n'as pas, laisse la demande au bureau.\n- Si on veut parler à une personne : « Mon rôle est de simplifier le travail de l'équipe pour qu'elle se consacre pleinement à votre accompagnement. Dites-moi la raison de votre appel et votre nom, je transmets tout à la bonne personne. »\n- Si l'appelant dit être en leçon, au volant : c'est l'exercice du téléphone (voir tes connaissances) ; traite-le comme un nouvel appel à chaque fois.",
+    "prohibited": "- Ne t'arrête jamais au milieu d'une phrase si on t'interrompt : finis ta phrase avant d'écouter.\n- Ne demande jamais quand rappeler, ne donne jamais de jour ni d'heure de rappel.\n- N'invente jamais un prix, un horaire, une date ou une information sur un élève.\n- Ne donne aucune information de dossier si debut_appel ne reconnaît pas l'appelant.\n- Ne dicte jamais de code d'accès au téléphone.",
+    "objective_completion": "L'appel est réussi quand les questions ont une réponse, quand une correction de procédure est terminée, ou quand la demande est laissée au bureau avec laisser_demande."
+  },
+  "champs": [
+    {
+      "label": "nom_appelant",
+      "question": "Pouvez-vous me donner votre nom ?",
+      "complete_when": "debut_appel a reconnu l'appelant, ou il a donné son nom."
+    },
+    {
+      "label": "raison_appel",
+      "question": "Quelle est la raison de votre appel ?",
+      "complete_when": "L'appelant a expliqué pourquoi il appelle."
+    }
+  ]
+};
+
+const ALLO_PARTIES_ECRAN = [
+  ['objective', '🎯 Objectif et déroulé de l’appel', 'Obligatoire.', 14],
+  ['personality', '🙂 Qui elle est', 'Obligatoire.', 3],
+  ['behaviors', '✅ Ce qu’elle fait toujours', 'Obligatoire.', 12],
+  ['prohibited', '🚫 Ce qu’elle ne fait jamais', '', 6],
+  ['objective_completion', '🏁 Quand l’appel est réussi', '', 3]
+];
+const ALLO_JOURS_ORDRE = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+let alloAgentBrouillon = null;
+
+/* Son texte, sans ce que l'App lui donne maintenant à jour */
+function nettoyerSavoirAllo(texte){
+  let t = String(texte || '').replace(/\r/g, '');
+  const faits = [];
+  const avant = t;
+  /* les blocs d'horaires d'accueil (en double), jusqu'au « Dimanche » */
+  t = t.replace(/Horaires d'accueil au bureau[^\n]*\n(?:[^\n]*\n)*?Dimanche[^\n]*\n?/gi, '');
+  t = t.replace(/^.*bureau de Loudéac sera fermé.*\n?/gim, '');
+  if(t !== avant) faits.push('les horaires d’accueil (l’App les donne à jour)');
+  /* les tarifs écrits à la main, jusqu'à « Nous ne faisons pas » */
+  const t2 = t.replace(/Tarifs principaux[\s\S]*?(?=\n\s*Nous ne faisons pas)/i, '');
+  if(t2 !== t){ t = t2; faits.push('les tarifs écrits à la main (l’App donne ceux des fiches de tarifs)'); }
+  /* les procédures : plus de Listeeleve.pdf */
+  const t3 = t.replace(/1- Tu demande le nom et prénom de l'élève[\s\S]*?sur messenger/i,
+    '1- Tu ne corriges une procédure que si debut_appel te dit que c’est possible (élève reconnu, groupes ouverts). Sinon, tu ne corriges pas et tu lui demandes d’envoyer un message dans la messagerie de l’App');
+  if(t3 !== t){ t = t3; faits.push('Listeeleve.pdf pour les procédures (c’est l’App qui reconnaît l’élève)'); }
+  /* Messenger → la messagerie de l'App */
+  const t4 = t.replace(/sur messenger/gi, 'dans la messagerie de l’App');
+  if(t4 !== t){ t = t4; faits.push('« sur Messenger » → « dans la messagerie de l’App »'); }
+  t = t.replace(/\n{4,}/g, '\n\n\n').trim();
+  return { texte: t, faits: faits };
+}
+
+function alloBrouillonDepuis(E){
+  const cfg = (E.copie && E.copie.config) || {};
+  const a = cfg.agent || {};
+  const deja = (E.copies || []).some(x => /Publié depuis l|Remis dans Allo/.test(x.quoi || ''));
+  const marque = E.marqueFiches || '━━ DÉROULÉS DES FORMATIONS';
+  let savoir = String(((cfg.knowledge || {}).text) || '');
+  const i = savoir.indexOf(marque);
+  if(i !== -1) savoir = savoir.slice(0, i).trim();
+  const br = { numero: E.copie.numero, accueil: a.greeting_message || '', fin: a.closing_message || '',
+               parties: {}, champs: [], savoir: savoir, nettoye: [], fiches: (E.fiches || []).map(x => Object.assign({}, x)),
+               horaires: JSON.parse(JSON.stringify(cfg.business_hours || { timezone: 'Europe/Paris', schedule: [] })), depart: deja ? 'copie' : 'proposition' };
+  if(deja){
+    ((cfg.prompt || {}).sections || []).forEach(x => {
+      if(x.section === 'required_fields') (x.fields || []).forEach(f => br.champs.push(Object.assign({}, f)));
+      else br.parties[x.section] = x.content || '';
+    });
+  }else{
+    br.parties = Object.assign({}, ALLO_PROPOSITION.parties);
+    br.champs = ALLO_PROPOSITION.champs.map(f => Object.assign({}, f));
+    const n = nettoyerSavoirAllo(savoir);
+    br.savoir = n.texte;
+    br.nettoye = n.faits;
+  }
+  return br;
+}
+
+async function alloAgentEnvoyer(corps, bravo){
+  try{
+    const d = await appelPrep(corps);
+    if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'refusé');
+    alloAgentEtat = d;
+    if(bravo) alloToast(bravo);
+    return true;
+  }catch(e){
+    alloToast('⚠️ ' + ((e && e.message) || e));
+    return false;
+  }finally{
+    if(alloIaSous === 'allo') dessinerAlloIa();
+  }
+}
+
+/* « 10:00 » ↔ 36000 secondes */
+function alloSecondesDe(t){
+  const m = String(t || '').trim().match(/^(\d{1,2})[:h](\d{2})?$/i);
+  if(!m) return null;
+  const h = Number(m[1]), mi = Number(m[2] || 0);
+  if(h > 24 || mi > 59) return null;
+  return Math.min(86399, h * 3600 + mi * 60);
+}
+function alloHHMM(sec){
+  const n = Number(sec) || 0;
+  return String(Math.floor(n / 3600)).padStart(2, '0') + ':' + String(Math.floor((n % 3600) / 60)).padStart(2, '0');
+}
+
+function alloChamp(titre, aide, valeur, max, lignes, poser){
+  const w = alloEl('div', '');
+  w.style.cssText = 'margin:12px 0 4px;';
+  const l = alloEl('label', '', titre);
+  l.style.cssText = 'display:block;font-size:13px;font-weight:800;margin-bottom:3px;';
+  w.appendChild(l);
+  if(aide){ const a = alloEl('div', 'amMeta alSansMarge', aide); a.style.marginBottom = '4px'; w.appendChild(a); }
+  const ta = document.createElement('textarea');
+  ta.value = valeur || ''; ta.rows = lignes || 4;
+  ta.style.cssText = 'width:100%;margin:0;font:inherit;font-size:13.5px;line-height:1.5;';
+  w.appendChild(ta);
+  let c = null;
+  if(max){ c = alloEl('div', 'amMeta alSansMarge', ''); c.style.textAlign = 'right'; w.appendChild(c); }
+  const compter = () => {
+    if(!c) return;
+    c.textContent = ta.value.length.toLocaleString('fr-FR') + ' / ' + max.toLocaleString('fr-FR') + ' caractères';
+    c.style.color = ta.value.length > max ? 'var(--red)' : '';
+  };
+  ta.addEventListener('input', () => { poser(ta.value); compter(); });
+  compter();
+  return w;
+}
+function alloGroupe(bloc, titre, ouvert){
+  const d = document.createElement('details');
+  d.className = 'alGuide alCopie';
+  d.open = !!ouvert;
+  d.appendChild(alloEl('summary', '', titre));
+  bloc.appendChild(d);
+  return d;
+}
+
+function alloEdition(E){
+  const B = alloAgentBrouillon;
+  const bloc = alloEl('div', 'amBloc');
+  bloc.appendChild(alloEl('h3', '', '✏️ Ses instructions dans Allo — à publier'));
+  bloc.appendChild(alloEl('div', 'amMeta', 'Tu modifies ici : rien ne part tant que tu n’appuies pas sur « 🚀 Publier dans Allo ». Juste avant, l’App garde une copie de ce qu’elle a maintenant.'));
+  if(B.depart === 'proposition'){
+    const p = alloEl('div', 'amMeta', '💡 Pré-rempli avec la proposition validée le 26/11' +
+      (B.nettoye.length ? ' — retiré de son texte : ' + B.nettoye.join(' ; ') + '.' : '.'));
+    p.style.color = 'var(--accent-text)';
+    bloc.appendChild(p);
+  }
+  const g1 = alloGroupe(bloc, '👋 Accueil et fin d’appel', false);
+  g1.appendChild(alloChamp('Accueil', 'Ce qu’elle dit en décrochant.', B.accueil, 1000, 3, v => { B.accueil = v; }));
+  g1.appendChild(alloChamp('Fin d’appel', '', B.fin, 500, 1, v => { B.fin = v; }));
+
+  const g2 = alloGroupe(bloc, '📜 Ses instructions', true);
+  ALLO_PARTIES_ECRAN.forEach(([k, t, aide, n], i) => {
+    g2.appendChild(alloChamp(t, aide, B.parties[k] || '', 3000, n, v => { B.parties[k] = v; }));
+    if(i === 3){
+      /* 📝 ce qu'elle doit recueillir */
+      const rf = alloEl('div', '');
+      rf.style.cssText = 'margin:12px 0 4px;';
+      const l = alloEl('label', '', '📝 Ce qu’elle doit recueillir');
+      l.style.cssText = 'display:block;font-size:13px;font-weight:800;margin-bottom:3px;';
+      rf.appendChild(l);
+      B.champs.forEach((f, j) => {
+        const r = alloEl('div', 'alMsg');
+        const sp = alloEl('span', '');
+        const q = document.createElement('input');
+        q.type = 'text'; q.value = f.question || ''; q.placeholder = 'La question qu’elle pose';
+        q.style.cssText = 'width:100%;margin:0 0 4px;';
+        q.addEventListener('input', () => { f.question = q.value; });
+        const w = document.createElement('input');
+        w.type = 'text'; w.value = f.complete_when || ''; w.placeholder = 'C’est fait quand…';
+        w.style.cssText = 'width:100%;margin:0;font-size:12.5px;';
+        w.addEventListener('input', () => { f.complete_when = w.value; });
+        sp.append(q, w);
+        r.append(alloEl('span', '', '📝'), sp);
+        const x = alloEl('button', 'alPetit', '✕');
+        x.type = 'button'; x.title = 'Retirer';
+        x.addEventListener('click', () => { B.champs.splice(j, 1); dessinerAlloIa(); });
+        r.appendChild(x);
+        rf.appendChild(r);
+      });
+      const add = alloEl('button', 'alPetit', '➕ Une info à recueillir');
+      add.type = 'button';
+      add.addEventListener('click', () => { B.champs.push({ label: 'info_' + (B.champs.length + 1), question: '', complete_when: '' }); dessinerAlloIa(); });
+      rf.appendChild(add);
+      g2.appendChild(rf);
+    }
+  });
+
+  /* 📚 ce qu'elle sait : son texte, les déroulés, ses liens et fichiers */
+  const g3 = alloGroupe(bloc, '📚 Ce qu’elle sait', B.depart === 'proposition');
+  g3.appendChild(alloChamp('Son texte', 'Les horaires et les tarifs n’y sont plus : l’App les lui donne à jour.', B.savoir, 0, 10, v => { B.savoir = v; }));
+  const tf = alloEl('div', '');
+  tf.style.cssText = 'margin:14px 0 4px;';
+  const lf = alloEl('label', '', '📘 Les déroulés des formations');
+  lf.style.cssText = 'display:block;font-size:13px;font-weight:800;margin-bottom:3px;';
+  tf.appendChild(lf);
+  tf.appendChild(alloEl('div', 'amMeta alSansMarge', 'Une fiche par formation, en texte : elle les lit bien mieux qu’un PDF. Elles partent dans « Ce qu’elle sait » à chaque publication.'));
+  B.fiches.forEach((fi, j) => {
+    const r = alloEl('div', 'alMsg');
+    const sp = alloEl('span', '');
+    const ti = document.createElement('input');
+    ti.type = 'text'; ti.value = fi.titre || ''; ti.placeholder = 'Titre (ex. : Formation 125)';
+    ti.style.cssText = 'width:100%;margin:0 0 4px;font-weight:700;';
+    ti.addEventListener('input', () => { fi.titre = ti.value; total(); });
+    const tx = document.createElement('textarea');
+    tx.value = fi.texte || ''; tx.rows = 5; tx.placeholder = 'Le déroulé, tel qu’elle doit l’expliquer';
+    tx.style.cssText = 'width:100%;margin:0;font:inherit;font-size:13px;line-height:1.5;';
+    tx.addEventListener('input', () => { fi.texte = tx.value; total(); });
+    sp.append(ti, tx);
+    r.append(alloEl('span', '', '📘'), sp);
+    const x = alloEl('button', 'alPetit', '✕');
+    x.type = 'button'; x.title = 'Retirer cette fiche';
+    x.addEventListener('click', () => { B.fiches.splice(j, 1); dessinerAlloIa(); });
+    r.appendChild(x);
+    tf.appendChild(r);
+  });
+  const addF = alloEl('button', 'alPetit', '➕ Une fiche de déroulé');
+  addF.type = 'button';
+  addF.addEventListener('click', () => { B.fiches.push({ titre: '', texte: '' }); dessinerAlloIa(); });
+  tf.appendChild(addF);
+  const tot = alloEl('div', 'amMeta alSansMarge', '');
+  tot.style.textAlign = 'right';
+  const total = () => {
+    const n = String(B.savoir || '').length + B.fiches.reduce((s, x) => s + String(x.titre || '').length + String(x.texte || '').length + 8, 0);
+    tot.textContent = 'Ce qu’elle sait, fiches comprises : ' + n.toLocaleString('fr-FR') + ' / 25 000 caractères';
+    tot.style.color = n > 25000 ? 'var(--red)' : '';
+  };
+  total();
+  tf.appendChild(tot);
+  g3.appendChild(tf);
+
+  /* 🔗 ses liens et fichiers : tout de suite chez Allo */
+  const k = ((E.copie && E.copie.config) || {}).knowledge || {};
+  const src = alloEl('div', '');
+  src.style.cssText = 'margin:14px 0 4px;';
+  const ls = alloEl('label', '', '🔗 Ses liens et ses fichiers');
+  ls.style.cssText = 'display:block;font-size:13px;font-weight:800;margin-bottom:3px;';
+  src.appendChild(ls);
+  src.appendChild(alloEl('div', 'amMeta alSansMarge', 'Ils changent tout de suite chez Allo (une copie est gardée avant). Un lien Facebook ne se lit pas : il faut une page publique.'));
+  (k.websites || []).forEach(w => {
+    const r = alloEl('div', 'alMsg');
+    r.appendChild(alloEl('span', '', w.status === 'ACTIVE' ? '🟢' : '⚪'));
+    const sp = alloEl('span', '', w.url || '');
+    sp.appendChild(alloEl('small', '', w.status === 'ACTIVE' ? 'elle s’en sert' : 'désactivé'));
+    r.appendChild(sp);
+    const bt = alloEl('button', 'alPetit', w.status === 'ACTIVE' ? 'Désactiver' : 'Activer');
+    bt.type = 'button';
+    bt.addEventListener('click', () => { bt.disabled = true;
+      alloAgentEnvoyer({ action: 'alloAgentSavoir', numero: B.numero, quoi: 'siteStatut', id: w.id, statut: w.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' }, '🔗 C’est fait chez Allo'); });
+    r.appendChild(bt);
+    src.appendChild(r);
+  });
+  const ajout = alloEl('div', '');
+  ajout.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px;';
+  const iu = document.createElement('input');
+  iu.type = 'url'; iu.placeholder = 'https://…'; iu.style.cssText = 'flex:1;min-width:180px;margin:0;';
+  const bu = alloEl('button', 'alPetit', '➕ Ajouter le lien');
+  bu.type = 'button';
+  bu.addEventListener('click', () => {
+    const u = iu.value.trim();
+    if(!u){ alloToast('Colle l’adresse du site.'); return; }
+    bu.disabled = true;
+    alloAgentEnvoyer({ action: 'alloAgentSavoir', numero: B.numero, quoi: 'siteAjouter', url: u }, '🔗 Lien ajouté : Allo le lit, c’est prêt dans quelques minutes');
+  });
+  ajout.append(iu, bu);
+  src.appendChild(ajout);
+  (k.files || []).forEach(fi => {
+    const r = alloEl('div', 'alMsg');
+    r.appendChild(alloEl('span', '', '📄'));
+    const sp = alloEl('span', '', fi.file_name || '');
+    sp.appendChild(alloEl('small', '', fi.status === 'ACTIVE' ? 'elle s’en sert' : String(fi.status || '')));
+    r.appendChild(sp);
+    const bt = alloEl('button', 'alPetit', '🗑️ Retirer');
+    bt.type = 'button';
+    bt.addEventListener('click', async () => {
+      const oui = (typeof confirmer === 'function')
+        ? await confirmer('Retirer « ' + (fi.file_name || 'ce fichier') + ' » de ce qu’elle sait ?\n\nAllo le supprime de sa bibliothèque : pour le remettre, il faudra le redéposer dans Allo.', 'Retirer') : true;
+      if(oui) alloAgentEnvoyer({ action: 'alloAgentSavoir', numero: B.numero, quoi: 'fichierRetirer', id: fi.id }, '🗑️ Fichier retiré');
+    });
+    r.appendChild(bt);
+    src.appendChild(r);
+  });
+  src.appendChild(alloEl('div', 'amMeta alSansMarge', '📄 Ajouter un fichier : seulement dans Allo (Allo ne le permet pas depuis une autre application). Pour les déroulés, préfère les fiches ci-dessus.'));
+  g3.appendChild(src);
+
+  /* 🕘 ses horaires dans Allo, à la main */
+  const g4 = alloGroupe(bloc, '🕘 Ses horaires dans Allo', false);
+  const H = B.horaires;
+  H.schedule = H.schedule || [];
+  const b24 = alloEl('button', 'alPetit', '🕐 24 h/24, 7 j/7');
+  b24.type = 'button';
+  b24.addEventListener('click', () => {
+    H.schedule = ALLO_JOURS_ORDRE.map(d => ({ day: d, schedule: [{ start_time: 0, end_time: 86399 }] }));
+    dessinerAlloIa();
+  });
+  g4.appendChild(b24);
+  ALLO_JOURS_ORDRE.forEach(d => {
+    const j = H.schedule.find(x => x.day === d);
+    const p = j && j.schedule && j.schedule[0];
+    const r = alloEl('div', 'alMsg');
+    r.style.alignItems = 'center';
+    const ouv = document.createElement('input');
+    ouv.type = 'checkbox'; ouv.checked = !!p;
+    const nom = alloEl('span', '', ALLO_JOURS[d]);
+    nom.style.cssText = 'flex:0 0 92px;font-weight:700;';
+    const de = document.createElement('input'), a = document.createElement('input');
+    [de, a].forEach(x => { x.type = 'text'; x.inputMode = 'numeric'; x.style.cssText = 'width:76px;margin:0;text-align:center;'; });
+    de.value = p ? alloHHMM(p.start_time) : '10:00';
+    a.value = p ? alloHHMM(p.end_time) : '18:00';
+    const poser = () => {
+      const i = H.schedule.findIndex(x => x.day === d);
+      if(!ouv.checked){ if(i !== -1) H.schedule.splice(i, 1); de.disabled = a.disabled = true; return; }
+      de.disabled = a.disabled = false;
+      const s1 = alloSecondesDe(de.value), s2 = alloSecondesDe(a.value);
+      const pl = { day: d, schedule: (s1 !== null && s2 !== null && s2 > s1) ? [{ start_time: s1, end_time: s2 }] : [] };
+      if(i === -1) H.schedule.push(pl); else H.schedule[i] = pl;
+    };
+    ouv.addEventListener('change', poser);
+    [de, a].forEach(x => x.addEventListener('change', poser));
+    de.disabled = a.disabled = !p;
+    r.append(ouv, nom, de, alloEl('span', '', '→'), a);
+    g4.appendChild(r);
+  });
+  g4.appendChild(alloEl('div', 'amMeta', 'Fermé = la case décochée. « 23:59 » en fin, c’est jusqu’à minuit.'));
+
+  /* 📡 ce que l'App lui donne à chaque appel */
+  const app = alloEl('div', 'amBloc');
+  app.style.cssText = 'margin-top:14px;';
+  app.appendChild(alloEl('h3', '', '📡 Ce que l’App lui donne à chaque appel'));
+  app.appendChild(alloEl('div', 'amMeta', 'Rien à publier ici : c’est lu dans l’App au moment de l’appel, donc toujours à jour.'));
+  [['🏢', 'Horaires et adresses des agences', 'Gestion › Loudéac / St-Brieuc Horaires et RDV — les deux agences, fermetures comprises'],
+   ['📜', 'Tes consignes', 'l’onglet « 📜 Ses consignes »'],
+   ['👤', 'Ce qui regarde l’élève qui appelle', 'l’onglet « ✅ Ce qu’elle peut dire », son dossier, et si ses groupes sont ouverts (correction des procédures)']].forEach(([e, t, d]) => {
+    const r = alloEl('div', 'alMsg'); r.appendChild(alloEl('span', '', e));
+    const sp = alloEl('span', '', t); sp.appendChild(alloEl('small', '', d)); r.appendChild(sp); app.appendChild(r);
+  });
+  app.appendChild(alloTarifsNaia(E));
+  bloc.appendChild(app);
+
+  const rang = alloEl('div', '');
+  rang.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;';
+  const pub = alloEl('button', 'btn btn-primary amGo', '🚀 Publier dans Allo');
+  pub.type = 'button'; pub.style.cssText = 'width:auto;margin:0;';
+  pub.addEventListener('click', async () => {
+    const oui = (typeof fenetre === 'function') ? await fenetre(
+      'Ses instructions, son accueil, ses horaires et ce qu’elle sait sont remplacés dans Allo, dès le prochain appel.\n\n' +
+      'Juste avant, l’App garde une copie de ce qu’elle a maintenant : « ↩️ Remettre dans Allo » la remet en un appui.',
+      [{ nom: 'Annuler', valeur: false }, { nom: '🚀 Publier', valeur: true, principal: true }], '🚀 Publier dans Allo ?') : true;
+    if(oui !== true) return;
+    pub.disabled = true; pub.textContent = 'Publication chez Allo…';
+    const ok = await alloAgentEnvoyer({ action: 'alloAgentPublier', numero: B.numero, accueil: B.accueil, fin: B.fin,
+      parties: B.parties, champs: B.champs, savoir: B.savoir, fiches: B.fiches, horaires: B.horaires }, '🚀 Publié dans Allo — dès le prochain appel');
+    if(ok){ alloAgentBrouillon = null; dessinerAlloIa(); }
+  });
+  const ann = alloEl('button', 'btn btn-secondary', 'Annuler');
+  ann.type = 'button'; ann.style.cssText = 'width:auto;margin:0;';
+  ann.addEventListener('click', () => { alloAgentBrouillon = null; dessinerAlloIa(); });
+  rang.append(pub, ann);
+  bloc.appendChild(rang);
+  return bloc;
+}
+
+/* 💰 Les fiches de tarifs qu'elle peut donner (David : « case ») */
+function alloTarifsNaia(E){
+  const d = document.createElement('details');
+  d.className = 'alGuide alCopie';
+  const coches = new Set((E.fichesTarifs || []).map(String));
+  d.appendChild(alloEl('summary', '', '💰 Les tarifs — ' + (coches.size ? coches.size + ' fiche' + (coches.size > 1 ? 's' : '') + ' qu’elle peut donner' : 'aucune fiche cochée')));
+  d.appendChild(alloEl('div', 'amMeta', 'Outils › 💰 Tarifs : coche les fiches que Naïa peut annoncer. Elle donne leur total au prix du jour.'));
+  (E.tarifs || []).forEach(f => {
+    const l = alloCase('🤖 ' + f.titre, (typeof Number === 'function' ? (Number(f.total) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '') +
+      (f.dossier ? ' · ' + f.dossier : ''), coches.has(String(f.id)), true, (oui) => {
+        if(oui) coches.add(String(f.id)); else coches.delete(String(f.id));
+        alloAgentEnvoyer({ action: 'alloAgentReglerTarifs', ids: Array.from(coches) }, oui ? '🤖 Elle peut donner cette fiche' : 'Fiche retirée de ses tarifs');
+      });
+    d.appendChild(l);
+  });
+  if(!(E.tarifs || []).length) d.appendChild(alloEl('div', 'empty', 'Aucune fiche de tarifs avec un total.'));
+  return d;
+}
+
 function alloDansAllo(){
   const b = alloEl('div', 'amBloc');
-  b.appendChild(alloEl('h3', '', '🗂️ Ce qu’elle a dans Allo'));
-  b.appendChild(alloEl('div', 'amMeta', 'Une copie de sa configuration chez Allo (accueil, instructions, ce qu’elle sait, horaires, transferts), gardée ici avec sa date. Rien n’est modifié dans Allo depuis cet écran.'));
   if(!alloAgentEtat){
+    b.appendChild(alloEl('h3', '', '🗂️ Ce qu’elle a dans Allo'));
     if(!alloAgentCharge) chargerAlloAgent(0);
     b.appendChild(alloEl('div', 'empty', 'Lecture de sa configuration chez Allo…'));
     return b;
   }
   const E = alloAgentEtat;
+  if(alloAgentBrouillon && E.copie) return alloEdition(E);
+  b.appendChild(alloEl('h3', '', '🗂️ Ce qu’elle a dans Allo'));
+  b.appendChild(alloEl('div', 'amMeta', 'Une copie de sa configuration chez Allo (accueil, instructions, ce qu’elle sait, horaires, transferts), gardée ici avec sa date. « ✏️ Modifier ses instructions » pour la changer depuis l’App.'));
   const rang = alloEl('div', 'alEspace');
   rang.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0;';
   const bCop = alloEl('button', 'btn btn-primary amGo', '💾 Faire une copie maintenant');
@@ -454,6 +858,13 @@ function alloDansAllo(){
   bCop.style.cssText = 'width:auto;margin:0;';
   bCop.addEventListener('click', () => { bCop.disabled = true; bCop.textContent = 'Lecture chez Allo…'; chargerAlloAgent(0, true); });
   rang.appendChild(bCop);
+  if(E.copie && E.copies[0] && E.copies[0].id === E.copie.id){
+    const bMod = alloEl('button', 'btn btn-secondary', '✏️ Modifier ses instructions');
+    bMod.type = 'button';
+    bMod.style.cssText = 'width:auto;margin:0;';
+    bMod.addEventListener('click', () => { alloAgentBrouillon = alloBrouillonDepuis(E); dessinerAlloIa(); });
+    rang.appendChild(bMod);
+  }
   if(E.copie){
     const bTxt = alloEl('button', 'alPetit', '📋 Copier tout le texte');
     bTxt.type = 'button';
@@ -474,7 +885,7 @@ function alloDansAllo(){
   alloPartiesAgent(C.config).forEach(([titre, lignes]) => {
     const det = document.createElement('details');
     det.className = 'alGuide alCopie';
-    det.open = /instructions|sait|Accueil/.test(titre);
+    det.open = /instructions|Accueil/.test(titre);
     det.appendChild(alloEl('summary', '', titre + (lignes.length ? '' : ' — rien')));
     lignes.forEach(([lib, txt]) => {
       const l = alloEl('div', 'alMsg');
@@ -491,18 +902,32 @@ function alloDansAllo(){
   const h = alloEl('h3', '', '🕘 Les copies gardées');
   h.style.marginTop = '16px';
   b.appendChild(h);
+  const plusRecente = E.copies[0] ? E.copies[0].id : 0;
   E.copies.forEach(x => {
     const l = alloEl('div', 'alMsg');
     l.appendChild(alloEl('span', '', x.id === C.id ? '👁️' : '💾'));
     const s = alloEl('span', '', alloJourHeure(x.le) + ' — ' + (x.quoi || 'Copie'));
     s.appendChild(alloEl('small', '', (x.par || '?') + ' · ligne ' + (x.nom || x.numero || '')));
-    l.appendChild(s);
+    const actions = alloEl('div', '');
+    actions.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;';
     if(x.id !== C.id){
       const v = alloEl('button', 'alPetit', 'Voir');
       v.type = 'button';
       v.addEventListener('click', () => chargerAlloAgent(x.id));
-      l.appendChild(v);
+      actions.appendChild(v);
     }
+    if(x.id !== plusRecente){
+      const r = alloEl('button', 'alPetit', '↩️ Remettre dans Allo');
+      r.type = 'button';
+      r.addEventListener('click', async () => {
+        const oui = (typeof confirmer === 'function')
+          ? await confirmer('Remettre dans Allo la copie du ' + alloJourHeure(x.le) + ' ?\n\nSes instructions, son accueil, ses horaires et ce qu’elle sait redeviennent ceux de cette copie, dès le prochain appel. Ce qu’elle a maintenant est gardé avant.', 'Remettre') : true;
+        if(oui){ r.disabled = true; alloAgentEnvoyer({ action: 'alloAgentRemettre', id: x.id }, '↩️ Remis dans Allo'); }
+      });
+      actions.appendChild(r);
+    }
+    if(actions.children.length) s.appendChild(actions);
+    l.appendChild(s);
     b.appendChild(l);
   });
   return b;
