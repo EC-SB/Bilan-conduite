@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 11:17 — v1579 */
+/* Déployé le 26/11/2026 à 11:41 — v1580 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1580,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🗂️ L’IA d’Allo : une copie de ce qu’elle a dans Allo, gardée dans l’App',
+    quoi: [
+      { emoji: '🗂️',
+        titre: 'Gestion › L’IA d’Allo › Dans Allo',
+        texte: 'L’App lit sa configuration chez Allo (accueil, instructions, ce qu’elle sait, horaires, transferts) et en garde une copie datée — la première se fait toute seule, puis « 💾 Faire une copie maintenant ». Chaque copie se relit ; « 📋 Copier tout le texte » la met dans le presse-papiers. Rien n’est modifié dans Allo depuis cet écran.' }
+    ]
+  },
   {
     version: 1579,
     date: 'Jeudi 26 novembre 2026',
