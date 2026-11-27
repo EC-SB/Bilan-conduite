@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 17:39 — v1590 */
+/* Déployé le 27/11/2026 à 14:19 — v1596 */
 /* ============================================================
    ec-sommaire.js — 🧭 v1590
    UN MENU PLUS COURT, UN SOMMAIRE PAR ONGLET, ET CE QUE LA LOUPE
@@ -548,6 +548,36 @@ function logoEnIcone(logo){
   return '<span class="emo somLogo">' + somEch(logo) + '</span><span class="vgl" style="--c:' + g.couleur + ';">' + g.svg + '</span>';
 }
 
+/* 👤 v1596 — le sommaire de l'onglet Élèves cherche aussi les élèves
+   (à qui a le droit d'ouvrir leur dossier) */
+function sommaireChercheLesEleves(onglet){
+  return onglet === 'eleves' && typeof ouvrirPageEleve === 'function' &&
+         (typeof aDroit !== 'function' || aDroit('eleves'));
+}
+/* Les élèves dont le nom contient tous les mots tapés, dans n'importe
+   quel ordre (« léa mar » trouve MARTIN Léa). Ceux dont un mot COMMENCE
+   par ce qu'on tape passent devant. 2 lettres au moins. */
+function elevesDuSommaire(texte, max){
+  const mots = somNorme(texte).split(/\s+/).filter(Boolean);
+  if(!mots.length || mots.join('').length < 2) return { noms: [], reste: 0 };
+  const tous = (typeof elevesConnus !== 'undefined' ? (elevesConnus || []) : []);
+  const vus = {};
+  const l = [];
+  tous.forEach(n => {
+    const nom = String(n || '').trim();
+    if(!nom) return;
+    const k = somNorme(nom);
+    if(vus[k]) return;
+    if(!mots.every(m => k.indexOf(m) !== -1)) return;
+    vus[k] = true;
+    const debut = k.split(/[\s\-']+/).some(w => w.indexOf(mots[0]) === 0) ? 0 : 1;
+    l.push({ nom: nom, debut: debut });
+  });
+  l.sort((a, b) => a.debut - b.debut || a.nom.localeCompare(b.nom, 'fr'));
+  const m = max || 12;
+  return { noms: l.slice(0, m).map(x => x.nom), reste: Math.max(0, l.length - m) };
+}
+
 /* Dessine le sommaire dans « zone ». « surChoix » : la feuille du
    téléphone se ferme quand on choisit un écran. */
 function remplirSommaire(onglet, zone, surChoix){
@@ -560,10 +590,21 @@ function remplirSommaire(onglet, zone, surChoix){
   champ.type = 'text';
   champ.className = 'somFiltre';
   champ.autocomplete = 'off';
-  champ.placeholder = '🔍 Tape un mot : ' + (onglet === 'outils' ? '« caisse », « sms », « constat »…'
+  const avecEleves = sommaireChercheLesEleves(onglet);
+  champ.placeholder = avecEleves ? '🔍 Un élève ou un mot : « Martin », « rappel », « paiement »…'
+                    : '🔍 Tape un mot : ' + (onglet === 'outils' ? '« caisse », « sms », « constat »…'
                     : onglet === 'gestion' ? '« voiture », « mot de passe », « droits »…'
                     : '« rappel », « paiement », « tablette »…');
-  champ.setAttribute('aria-label', 'Filtrer les écrans de ' + somNomOnglet(onglet));
+  champ.setAttribute('aria-label', avecEleves ? 'Chercher un élève, ou filtrer les écrans de ' + somNomOnglet(onglet)
+                                              : 'Filtrer les écrans de ' + somNomOnglet(onglet));
+  /* la liste des élèves n'est peut-être pas encore là : on la demande, et on redessine */
+  if(avecEleves && !(typeof elevesConnus !== 'undefined' && (elevesConnus || []).length) && typeof chargerEleves === 'function' && !remplirSommaire._enCharge){
+    remplirSommaire._enCharge = true;
+    Promise.resolve(chargerEleves()).catch(() => {}).then(() => {
+      remplirSommaire._enCharge = false;
+      if(zone.isConnected && champ.isConnected && champ.value.trim()) champ.dispatchEvent(new Event('input'));
+    });
+  }
   champ.value = mot;
   zone.appendChild(champ);
 
@@ -574,6 +615,44 @@ function remplirSommaire(onglet, zone, surChoix){
     const q = somNorme(champ.value);
     corps.innerHTML = '';
     let vus = 0;
+    /* 👤 v1596 — DAVID : « dans le sommaire de l'onglet Élèves, la barre de
+       recherche doit trouver les élèves et ouvrir leur dossier ». Ils
+       passent avant les écrans ; un clic ouvre son dossier (le clic
+       molette l'ouvre dans un onglet, comme partout). */
+    const eleves = avecEleves ? elevesDuSommaire(champ.value) : { noms: [], reste: 0 };
+    if(eleves.noms.length){
+      vus += eleves.noms.length;
+      const t = document.createElement('div');
+      t.className = 'somFam';
+      t.textContent = '👤 Élèves';
+      corps.appendChild(t);
+      const g = document.createElement('div');
+      g.className = 'somTuiles somEleves';
+      eleves.noms.forEach(nom => {
+        const f = typeof ficheDe === 'function' ? (ficheDe(nom) || {}) : {};
+        const env = document.createElement('div');
+        env.className = 'somTuile';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'somOuvrir somEleve';
+        b.dataset.eleve = nom;
+        b.title = 'Ouvrir le dossier de ' + nom;
+        b.innerHTML = '<span class="somIc"><span class="somLogo">👤</span></span>' +
+          '<span class="somTxt"><b>' + somSurligner(nom, champ.value.trim()) + '</b>' +
+          '<span class="somPhrase">' + somEch(f.formation ? '🎓 ' + f.formation + ' · ouvrir son dossier' : 'Ouvrir son dossier') + '</span></span>';
+        b.addEventListener('click', () => { if(surChoix) surChoix(); ouvrirPageEleve(nom); });
+        env.appendChild(b);
+        g.appendChild(env);
+      });
+      corps.appendChild(g);
+      if(eleves.reste){
+        const r = document.createElement('div');
+        r.className = 'somPhrase';
+        r.style.cssText = 'margin:-10px 0 16px;';
+        r.textContent = '… et ' + eleves.reste + ' autre' + (eleves.reste > 1 ? 's' : '') + ' : tape quelques lettres de plus.';
+        corps.appendChild(r);
+      }
+    }
     famillesDuMenu(onglet).forEach(f => {
       const l = f.ecrans.filter(x => {
         if(!q) return true;
@@ -617,13 +696,18 @@ function remplirSommaire(onglet, zone, surChoix){
     if(!vus){
       const v = document.createElement('div');
       v.className = 'empty';
-      v.textContent = 'Aucun écran de cet onglet ne parle de « ' + champ.value.trim() + ' ». La loupe 🔍, en haut, cherche dans toute l’App.';
+      v.textContent = (avecEleves ? 'Aucun élève ni aucun écran de cet onglet ne parle de « ' : 'Aucun écran de cet onglet ne parle de « ') +
+        champ.value.trim() + ' ». La loupe 🔍, en haut, cherche dans toute l’App.';
       corps.appendChild(v);
     }
   };
   champ.addEventListener('input', dessiner);
   champ.addEventListener('keydown', e => {
     if(e.key !== 'Enter') return;
+    /* Entrée : un seul élève trouvé → son dossier ; sinon un seul écran → l'écran */
+    const el = corps.querySelectorAll('.somEleve');
+    if(el.length === 1){ el[0].click(); return; }
+    if(el.length) return;
     const l = corps.querySelectorAll('.somOuvrir');
     if(l.length === 1) l[0].click();
   });
