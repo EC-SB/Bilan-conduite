@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 17:39 — v1590 */
+/* Déployé le 27/11/2026 à 10:33 — v1592 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1592,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '🎓 Dossier d’un élève : la formation se change en haut · 💬 messagerie : le ⏰ retiré du survol',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Dossier d’un élève › changer la formation depuis l’en-tête',
+        texte: 'La pastille orange de la formation, à côté du nom, est maintenant un bouton (▾). Un clic ouvre la liste des formations, celle de la fiche : on choisit, c’est enregistré, et la boîte, le modèle de bilan et la frise suivent. « ⌨️ Une autre formation… » permet d’en taper une qui n’est pas dans la liste. Quand la formation n’est pas précisée, l’en-tête le dit (« 🎓 Formation ❓ ») et on la pose de là. Pour ceux qui modifient les élèves ; les autres la voient comme avant.' },
+      { emoji: '💬',
+        titre: 'Messagerie sur ordinateur › le ⏰ retiré des raccourcis au survol',
+        texte: 'En passant la souris sur une conversation de la liste, il n’y a plus le bouton « Me la rappeler demain 9h ». Le rappel n’a pas disparu : clic droit sur la conversation, ou ⓘ Infos ; sur le téléphone, glisser vers la droite.' }
+    ]
+  },
+  {
+    version: 1591,
+    date: 'Jeudi 26 novembre 2026',
+    resume: '🔢 Dossier d’un élève : un chiffre sur chaque rubrique, les vides en gris',
+    quoi: [
+      { emoji: '🔢',
+        titre: 'Dossier d’un élève › ce qu’il y a dans chaque rubrique',
+        texte: 'À côté de Cours, Planning, Procédures, Messages, Appels, Notes internes, Courriers, Point financier et Démarches, un chiffre dit combien il y a de choses à lire. Une rubrique où il n’y a rien pour l’instant passe en gris (elle s’ouvre toujours). Les chiffres arrivent juste après l’ouverture du dossier, sans le ralentir, et chacun ne voit que ceux des rubriques qu’il a le droit d’ouvrir.' }
+    ]
+  },
   {
     version: 1590,
     date: 'Jeudi 26 novembre 2026',
