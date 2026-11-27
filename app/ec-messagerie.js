@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 10:48 — v1593 */
+/* Déployé le 27/11/2026 à 11:20 — v1594 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -2320,6 +2320,10 @@ function bulleDuMessage(m, avant, apres){
     b.appendChild(mt.frag);
     if(mt.moi && !estDeMoiEC(m)) b.classList.add('mentionMoi');
   }
+  /* ✏️ v1594 — modifié : « Modifié » sous le texte, et les versions d'avant
+     dépliables (David : « en caché, comme Messenger ») */
+  const modB = blocModifieEC(m);
+  if(modB) b.appendChild(modB);
   /* 🎤 v1274 — un vocal sans texte : on peut le faire écrire (et ça se
      fait tout seul pour les vocaux récents, voir ecrireLesVocauxDuFilEC) */
   if(vocal && !m.texte && m.piece && m.piece.lien){
@@ -3202,7 +3206,7 @@ async function rafraichirLeFil(silencieux){
      ni le nombre ni le dernier rang : David devait recharger la page pour
      voir « Message supprimé ». Son état et son texte entrent donc dans
      l'empreinte. */
-  const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => [m.id, Number(m.supprime || 0), m.texte || '', m.suivi || [], (m.piece && !m.texte) ? 0 : 1]));
+  const sigSuivi = x => JSON.stringify(((x && x.messages) || []).map(m => [m.id, Number(m.supprime || 0), m.texte || '', m.suivi || [], (m.piece && !m.texte) ? 0 : 1, m.modifieLe || '']));
   const suiviAvant = sigSuivi(filOuvertEC);
   const hautAvant = signatureDuHautEC(filOuvertEC);   /* ⌨️ v1564 */
 
@@ -7593,6 +7597,139 @@ function vieuxCopierEC(s){
   }catch(e){ return false; }
 }
 
+/* ============================================================
+   ✏️ MODIFIER SES MESSAGES — v1594
+
+   David, le 27/11 : « qu'on puisse modifier ses messages envoyés,
+   pendant un temps, par exemple 30 minutes, et qu'en dessous, en caché,
+   on puisse voir ce qui a été modifié, comme Messenger ». Ses choix :
+   l'équipe et les élèves (eleve.html) corrigent leurs messages ; tout le
+   fil voit « Modifié » et peut déplier l'ancienne version.
+   Le Worker (msgModifier) refait toutes les vérifications : ce qui suit
+   ne fait que ne pas proposer ce qu'il refuserait.
+   ============================================================ */
+const MODIFIER_MESSAGE_MS_EC = 30 * 60000;
+const modifsOuvertsEC = new Set();
+function minutesPourModifierEC(m){
+  return Math.max(0, Math.ceil((Number(m.rang || 0) + MODIFIER_MESSAGE_MS_EC - Date.now()) / 60000));
+}
+function modifiableEC(m){
+  if(!m || !m.id || Number(m.supprime || 0) || m.auteurGenre !== 'user' || !estDeMoiEC(m)) return false;
+  if(m.motif || pieceEstUnSon(m.piece)) return false;
+  if(!String(m.texte || '').trim() && !m.piece && !m.album) return false;
+  return Date.now() - Number(m.rang || 0) < MODIFIER_MESSAGE_MS_EC;
+}
+function heureDeModifEC(t){
+  const s = String(t || '');
+  const m = s.match(/(\d{2})\/(\d{2})\/\d{4} (\d{2}:\d{2})/) || s.match(/\d{4}-(\d{2})-(\d{2})[ T](\d{2}:\d{2})/);
+  if(!m) return s;
+  const auj = new Date().toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' }).slice(0, 5);
+  const jour = s.indexOf('/') !== -1 ? m[1] + '/' + m[2] : m[2] + '/' + m[1];
+  return (jour === auj ? '' : jour + ' ') + m[3].replace(':', 'h');
+}
+/* « Modifié » sous le texte, et les versions d'avant, repliées */
+function blocModifieEC(m){
+  if(!m || !m.modifieLe || Number(m.supprime || 0)) return null;
+  const z = document.createElement('div');
+  z.className = 'msgModifie';
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'msgModifieBt';
+  const ouvert = modifsOuvertsEC.has(m.id);
+  b.textContent = 'Modifié' + (ouvert ? ' ▴' : ' ▾');
+  b.title = 'Modifié à ' + heureDeModifEC(m.modifieLe) + ' — voir ce qui a été modifié';
+  b.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+  z.appendChild(b);
+  const liste = document.createElement('div');
+  liste.className = 'msgModifs';
+  liste.hidden = !ouvert;
+  (m.modifs || []).forEach((x, i) => {
+    const l = document.createElement('div');
+    l.className = 'msgModif';
+    const q = document.createElement('span');
+    q.className = 'msgModifQ';
+    q.textContent = (i === 0 ? 'Envoyé' : 'Modifié') + ' à ' + heureDeModifEC(x.le);
+    const t = document.createElement('span');
+    t.className = 'msgModifT';
+    t.textContent = x.texte || '(sans texte)';
+    l.append(q, t);
+    liste.appendChild(l);
+  });
+  const fin = document.createElement('div');
+  fin.className = 'msgModif msgModifFin';
+  fin.textContent = 'Modifié à ' + heureDeModifEC(m.modifieLe) + ' : le texte ci-dessus.';
+  liste.appendChild(fin);
+  z.appendChild(liste);
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const o = liste.hidden;
+    liste.hidden = !o;
+    if(o) modifsOuvertsEC.add(m.id); else modifsOuvertsEC.delete(m.id);
+    b.textContent = 'Modifié' + (o ? ' ▴' : ' ▾');
+    b.setAttribute('aria-expanded', o ? 'true' : 'false');
+  });
+  return z;
+}
+/* La fenêtre de correction */
+function modifierLeMessageEC(m){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal msgModifFenetre';
+  boite.style.cssText = 'max-width:min(520px,94vw);';
+  const h = document.createElement('h3');
+  h.textContent = '✏️ Modifier ton message';
+  boite.appendChild(h);
+  const aide = document.createElement('div');
+  aide.className = 'msgModifAide';
+  aide.textContent = 'Encore ' + minutesPourModifierEC(m) + ' min pour le modifier. Tout le fil verra « Modifié » et pourra lire l’ancienne version.';
+  boite.appendChild(aide);
+  const champ = document.createElement('textarea');
+  champ.className = 'msgModifChamp';
+  champ.rows = 5;
+  champ.value = String(m.texte || '');
+  champ.setAttribute('aria-label', 'Le texte du message');
+  boite.appendChild(champ);
+  const dit = document.createElement('div');
+  dit.className = 'msgModifDit';
+  boite.appendChild(dit);
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const non = document.createElement('button');
+  non.type = 'button'; non.className = 'btn btn-secondary'; non.textContent = 'Annuler';
+  const oui = document.createElement('button');
+  oui.type = 'button'; oui.className = 'btn btn-primary msgModifOk'; oui.textContent = '💾 Enregistrer';
+  rangee.append(non, oui);
+  boite.appendChild(rangee);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const fermer = () => { document.removeEventListener('keydown', touche); if(fond.parentNode) fermerFond(fond); };
+  const touche = ev => {
+    if(ev.key === 'Escape') fermer();
+    else if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){ ev.preventDefault(); oui.click(); }
+  };
+  document.addEventListener('keydown', touche);
+  non.addEventListener('click', fermer);
+  oui.addEventListener('click', async () => {
+    const v = champ.value.trim();
+    if(!v){ dit.textContent = 'Le message ne peut pas être vide (pour l’effacer : 🗑️ Supprimer).'; return; }
+    if(v === String(m.texte || '').trim()){ fermer(); return; }
+    if(!modifiableEC(m)){ dit.textContent = 'Trop tard : un message se modifie pendant 30 minutes après l’envoi.'; return; }
+    oui.disabled = true; oui.textContent = 'Enregistrement…';
+    try{
+      const r = await appelPrep({ action: 'msgModifier', id: m.id, texte: v });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      fermer();
+      if(typeof showToast === 'function') showToast('✏️ Message modifié');
+      await rafraichirLeFil(true);
+    }catch(e){
+      oui.disabled = false; oui.textContent = '💾 Enregistrer';
+      dit.textContent = '⚠️ ' + ((e && e.message) || e);
+    }
+  });
+  setTimeout(() => { champ.focus(); champ.setSelectionRange(champ.value.length, champ.value.length); }, 40);
+}
+
 /* ⚠️ « C'EST MOI QUI L'AI ÉCRIT » SE DEMANDE À UN SEUL ENDROIT.
    La bulle le sait déjà pour se ranger à droite ; le menu le
    redemandait, et deux façons de répondre à la même question
@@ -7653,6 +7790,22 @@ function ouvrirLeSelecteurDeReaction(bulle, m, auDoigt){
     });
     boite.appendChild(b);
   });
+
+  /* ✏️ v1594 — modifier son message, pendant 30 minutes */
+  if(peut && modifiableEC(m)){
+    const md = document.createElement('button');
+    md.type = 'button';
+    md.className = 'msgReacModifier';
+    md.textContent = '✏️';
+    md.title = 'Modifier ce message (encore ' + minutesPourModifierEC(m) + ' min)';
+    md.setAttribute('aria-label', 'Modifier ce message');
+    md.addEventListener('click', ev => {
+      ev.stopPropagation();
+      fermerLeSelecteurDeReaction();
+      modifierLeMessageEC(m);
+    });
+    boite.appendChild(md);
+  }
 
   /* ============================================================
      🗑️ SUPPRIMER, DANS LE MÊME MENU — v1110
