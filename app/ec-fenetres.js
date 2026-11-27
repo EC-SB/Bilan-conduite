@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 12:04 — v1568 */
+/* Déployé le 27/11/2026 à 10:33 — v1592 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -759,6 +759,130 @@ async function fixerDateNaissance(nom, iso){
   const gardee = (v === 'non') ? '' : v;
   if(f) f.naissance = gardee;
   else fichesEleves.push({ eleve: propre, naissance: gardee });
+  return true;
+}
+
+
+/* 🎓 LA FORMATION, DEPUIS N'IMPORTE OÙ — v1592.
+
+   David, le 27 novembre : « dans les dossiers élève on a la formation
+   mais on ne peut pas la changer directement en haut, il faut qu'on
+   puisse le faire ». La pastille de l'en-tête du dossier devient un
+   bouton (ec-page-eleve.js) ; le choix et l'écriture vivent ICI, avec
+   le reste de la fiche — comme la date de naissance juste au-dessus.
+
+   La liste est celle de la fiche (toutesLesFormations), au mot près :
+   deux listes finiraient par ne plus proposer les mêmes formations.
+   Une formation ne se VIDE pas d'ici : côté serveur, un champ vide
+   veut dire « on n'en parlait pas ». On en choisit une autre. */
+function choisirFormation(nom, actuelle){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.dataset.choixFormation = '1';
+    boite.style.cssText = 'max-width:min(440px,94vw);';
+    const h = document.createElement('h3');
+    h.textContent = '🎓 Formation de ' + nom;
+    boite.appendChild(h);
+
+    let parti = false;
+    const fermer = v => {
+      if(parti) return;
+      parti = true;
+      document.removeEventListener('keydown', surTouche);
+      if(fond.parentNode) fermerFond(fond);
+      resolve(v);
+    };
+    const surTouche = ev => { if(ev.key === 'Escape') fermer(null); };
+    document.addEventListener('keydown', surTouche);
+
+    const liste = document.createElement('div');
+    liste.style.cssText = 'max-height:min(56vh,460px);overflow-y:auto;' +
+      'margin-bottom:12px;display:flex;flex-direction:column;gap:6px;';
+    /* sans « — à préciser — » : une formation ne se vide pas d'ici */
+    const choix = toutesLesFormations().filter(x => x.cle).map(x => ({ val: x.cle, lib: x.nom }));
+    /* Une formation saisie autrefois et absente de la liste reste
+       lisible : on la montre, en tête, plutôt que de la cacher. */
+    if(actuelle && !choix.some(c => c.val === actuelle)) choix.unshift({ val: actuelle, lib: actuelle });
+    let pose = null;
+    choix.forEach(c => {
+      const pris = (c.val === actuelle);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (pris ? 'btn-primary' : 'btn-secondary');
+      b.dataset.formation = c.val;
+      b.style.cssText = 'width:100%;margin:0;padding:11px 13px;font-size:14px;' +
+        'text-align:left;flex:0 0 auto;' + (pris ? 'font-weight:700;' : '');
+      b.textContent = (pris ? '✓ ' : '') + c.lib;
+      b.addEventListener('click', () => fermer(c.val));
+      liste.appendChild(b);
+      if(pris) pose = b;
+    });
+    boite.appendChild(liste);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const bAutre = document.createElement('button');
+    bAutre.type = 'button';
+    bAutre.className = 'btn btn-secondary';
+    bAutre.dataset.formationAutre = '1';
+    bAutre.textContent = '⌨️ Une autre formation…';
+    bAutre.addEventListener('click', async () => {
+      const saisie = await demander('Nom de la formation', '', 'Nouvelle formation');
+      const propre = String(saisie || '').trim();
+      if(!propre) return;
+      try{
+        const l = formationsAjoutees();
+        if(l.indexOf(propre) === -1 && !FORMATIONS_BASE.some(x => x.cle === propre)){
+          l.push(propre);
+          localStorage.setItem(CLE_FORMATIONS, JSON.stringify(l));
+        }
+      }catch(e){}
+      fermer(propre);
+    });
+    rangee.appendChild(bAutre);
+    const bFerm = document.createElement('button');
+    bFerm.type = 'button';
+    bFerm.className = 'btn btn-secondary';
+    bFerm.textContent = 'Fermer';
+    bFerm.addEventListener('click', () => fermer(null));
+    rangee.appendChild(bFerm);
+    boite.appendChild(rangee);
+
+    fond.appendChild(boite);
+    fond.addEventListener('click', ev => { if(ev.target === fond) fermer(null); });
+    document.body.appendChild(fond);
+    /* La formation en place se voit sans chercher dans la liste */
+    if(pose) setTimeout(() => { try{ pose.scrollIntoView({ block: 'center' }); }catch(e){} }, 30);
+  });
+}
+
+async function fixerFormation(nom, formation){
+  const propre = String(nom || '').trim();
+  const v = String(formation || '').trim();
+  if(!propre || !v) return false;
+  const f = ficheDe(propre);
+  const avant = String((f && f.formation) || '');
+  if(v === avant) return false;
+
+  try{
+    const r = await appelPrep({ action: 'ficheSet', eleve: propre, formation: v });
+    if(r && r.status === 'error') throw new Error(r.message || 'refusé');
+  }catch(e){
+    showToast('Enregistrement impossible : ' + e.message);
+    return false;
+  }
+
+  /* La mémoire suit tout de suite : la boîte, le modèle de bilan et
+     la frise se lisent dans fichesEleves. */
+  if(f) f.formation = v;
+  else fichesEleves.push({ eleve: propre, formation: v });
+  fichesLues = 0;
+  /* 🔗 v1568 — une formation qui ouvre des démarches (régularisation,
+     conduite aménagée, annulation / suspension) : son dossier suit */
+  if(typeof demarchesSelonLaFormation === 'function') demarchesSelonLaFormation(propre, v, avant);
   return true;
 }
 
