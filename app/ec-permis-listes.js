@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 11:17 — v1579 */
+/* Déployé le 27/11/2026 à 15:16 — v1597 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2893,7 +2893,9 @@ function infoLigneDuPret(x){
   /* pressé : l'étiquette dit la priorité, les heures passent ici */
   const h = (String(x.urgence || '') >= '4' || (x.etat && x.etat.permis === 'annule'))
     ? ' · ' + (pretPourrait(x) ? '🤔 pourrait' : motsDeLaReserve(heuresQuiComptent(x.eleve).valeur, false)) : '';
-  return rep + ' · ' + boite + dem + h;
+  /* 🎓 v1597 — ce que la famille a dit pour la date (Suivi AAC › case Examen) */
+  const sh = (typeof souhaitExamenDe === 'function') ? souhaitExamenDe(x.eleve) : null;
+  return rep + ' · ' + boite + dem + h + (sh ? ' · ' + texteSouhaitExamen(sh, true) : '');
 }
 
 function etiquetteDuPret(x){
@@ -3408,9 +3410,12 @@ function afficherExamensPermis(tous){
           const lec = (x.etat.permisHeures !== null)
             ? ' · ' + motsDeLaReserve(String(x.etat.permisHeures), true) + ' à prévoir' : '';
           const u = libelleUrgence(x.urgence);
+          const sh = (typeof souhaitExamenDe === 'function') ? souhaitExamenDe(x.eleve) : null;
           return base + dem + lec + mentionHeuresRestantes(x.eleve) +
                  mentionExamenBlanc(x) +
-                 (x.urgence ? ' · ' + u.l : '');
+                 (x.urgence ? ' · ' + u.l : '') +
+                 /* 🎓 v1597 — le souhait de la famille pour la date */
+                 (sh ? ' · Souhait : ' + texteSouhaitExamen(sh, false) + ' (' + origineSouhaitExamen(sh) + ')' : '');
         },
         /* l'urgence se lit dans l'étiquette et dans les boutons 🚦 : plus d'alerte */
         actions: (x, zone) => {
@@ -3468,6 +3473,18 @@ function afficherExamensPermis(tous){
             redessinerBureau();
           }));
           if(aDroit('bureau_permis')) rd.appendChild(boutonEnvoyerVers(x.eleve));
+          /* 🎓 v1597 — ce que la famille a dit pour la date d'examen */
+          if(typeof fenetreSouhaitExamen === 'function' && peutNoterSouhaitExamen()){
+            const shB = souhaitExamenDe(x.eleve);
+            const bS = document.createElement('button');
+            bS.type = 'button';
+            bS.className = 'btn btn-secondary lcSouhait';
+            bS.style.cssText = 'width:auto;padding:6px 10px;font-size:12.5px;';
+            bS.textContent = shB ? '🎓 Souhait : ' + texteSouhaitExamen(shB, true) + '  ✏️' : '🎓 Souhait de la famille';
+            bS.title = 'Ce que la famille a dit pour la date d’examen (dès que possible, vacances, une note)';
+            bS.addEventListener('click', () => fenetreSouhaitExamen(x.eleve, () => redessinerBureau()));
+            rd.appendChild(bS);
+          }
           zone.appendChild(rd);
 
           const sPost = suiviDe(x.eleve);
