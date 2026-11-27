@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 10:48 — v1593 */
+/* Déployé le 27/11/2026 à 11:12 — v1594 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1594,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '🖥️ Drivup : quel ordinateur lit · 💶 Suivi AAC : RVP payés ou à acheter · 📨 les mails du théorique un par un',
+    quoi: [
+      { emoji: '🖥️',
+        titre: 'Gestion › 📥 Drivup › quel ordinateur lit Drivup',
+        texte: 'En haut, en clair : « 📖 Lecteur : Accueil Saint-Brieuc · Florence · Windows · Chrome ». Chaque ordinateur se nomme une fois depuis lui-même (✏️ Nommer cet ordinateur), et la pastille de l’extension affiche aussi ce nom. Sur un ordinateur qui n’est pas le lecteur, « ↻ Lire maintenant · cet ordinateur prend la main » lit Drivup tout de suite et devient le lecteur.' },
+      { emoji: '💶',
+        titre: 'Suivi › 🎓 Suivi AAC › payé ou à acheter',
+        texte: 'Sous RVP 1, Théorique et RVP 2 : « 💶 payé » ou « 💶 à acheter sur Drivup », d’après Drivup › Facturer (relu chaque jour). Rien n’est écrit quand Facturer n’a pas encore été lu pour l’élève.' },
+      { emoji: '📨',
+        titre: 'Rendez-vous théorique › les mails, un par un, avant l’envoi',
+        texte: 'En retenant une date, chaque mail se lit en entier (à qui, l’objet, le texte) et on passe de l’un à l’autre avec ‹ › ou les flèches du clavier. La convocation dit maintenant ce qui reste à acheter directement sur Drivup : le théorique (avant le rendez-vous) et les rendez-vous pratiques pas encore réglés.' }
+    ]
+  },
   {
     version: 1593,
     date: 'Vendredi 27 novembre 2026',
