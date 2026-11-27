@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 17:39 — v1590 */
+/* Déployé le 27/11/2026 à 10:33 — v1592 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -280,6 +280,87 @@ function basculerFamilleDossier(nom, rang, porteLOuverte){
   const nav = document.querySelector('.dossierRail > [data-rail-onglets]');
   if(nav) nav.replaceWith(barreOngletsEleve(ongletsEleveVisibles()));
 }
+/* ============================================================
+   🔢 v1591 — CE QU'IL Y A DANS CHAQUE RUBRIQUE
+
+   La suite du schéma du 26/11 : « celles qui sont vides sont grisées,
+   et un chiffre dit combien il y a de choses à lire ». Pour ne plus
+   ouvrir vingt rubriques une par une avant de trouver les trois qui
+   ont quelque chose.
+
+   UNE lecture pour tout le dossier (la porte « dossierCompteurs » du
+   Worker), après l'affichage : le dossier s'ouvre aussi vite qu'avant,
+   les chiffres se posent juste après.
+
+   ⚠️ ON NE GRISE QUE CE QU'ON SAIT VIDE. Une rubrique dont le chiffre
+   n'a pas pu être lu (pas le droit, lecture ratée, rubrique qui n'a
+   pas de « combien » : Sa route, Fiche, Permis…) reste telle quelle.
+   Un gris qui voudrait dire « je ne sais pas » ferait passer à côté de
+   ce qu'elle contient.
+
+   Messages, Appels, Notes internes, Courriers, Démarches, Point
+   financier, Cours et Procédures viennent du serveur ; Planning et
+   Questionnaire se lisent dans ce que le téléphone a déjà.
+   ============================================================ */
+let compteursDossier = { eleve: '', n: {}, lu: 0, demande: 0 };
+
+function compteursDuDossier(nom){
+  const n = (compteursDossier.eleve === nom) ? Object.assign({}, compteursDossier.n) : {};
+  /* ce que le téléphone sait déjà */
+  try{
+    const c = (typeof aVenirPermisEC === 'function') ? aVenirPermisEC(nom) : null;
+    if(c && !c.erreur && Array.isArray(c.cours)){
+      const k = c.cours.filter(x => x.sorte === 'conduite' || x.sorte === 'examen').length;
+      if(k) n.planning = k;      /* zéro à venir n'est pas « vide » : la rubrique garde ses cours passés */
+    }
+  }catch(e){}
+  try{
+    if(typeof preparationDe === 'function' && typeof eleveDuBureau === 'function' &&
+       typeof etatBureau !== 'undefined' && etatBureau && Array.isArray(etatBureau.suivi) && etatBureau.suivi.length){
+      const e = eleveDuBureau(nom);
+      if(!preparationDe(nom) && !(e && e.note)) n.quest = 0;
+    }
+  }catch(e){}
+  return n;
+}
+/* Le chiffre, ou le gris, sur un bouton de rubrique */
+function marquerLaRubrique(b, cle, n){
+  const ancien = b.querySelector('.dfNb');
+  if(ancien) ancien.remove();
+  b.classList.remove('dfVide');
+  b.removeAttribute('title');
+  const v = n[cle];
+  if(v === undefined || v === null) return;
+  if(v > 0){
+    const s = document.createElement('span');
+    s.className = 'dfNb';
+    s.textContent = v > 99 ? '99+' : String(v);
+    b.appendChild(s);
+  }else if(cle !== ongletPageEleve){
+    b.classList.add('dfVide');
+    b.title = 'Rien pour l’instant';
+  }
+}
+function poserCompteursDossier(){
+  const nav = document.querySelector('.dossierRail > [data-rail-onglets]');
+  if(!nav || !elevePageOuverte) return;
+  const n = compteursDuDossier(elevePageOuverte);
+  nav.querySelectorAll('button[data-onglet-eleve]').forEach(b => marquerLaRubrique(b, b.dataset.ongletEleve, n));
+}
+function chargerCompteursDossier(nom){
+  if(!nom || typeof appelPrep !== 'function') return;
+  const frais = compteursDossier.eleve === nom && Date.now() - compteursDossier.lu < 20000;
+  const enRoute = compteursDossier.demandePour === nom && Date.now() - compteursDossier.demande < 8000;
+  if(frais || enRoute) return;
+  compteursDossier.demandePour = nom;
+  compteursDossier.demande = Date.now();
+  appelPrep({ action: 'dossierCompteurs', eleve: nom }).then(r => {
+    if(!r || r.status !== 'ok' || !r.compteurs) return;
+    compteursDossier = { eleve: nom, n: r.compteurs, lu: Date.now(), demande: 0, demandePour: '' };
+    if(elevePageOuverte === nom) poserCompteursDossier();
+  }).catch(() => { /* sans chiffres : le dossier reste comme avant */ });
+}
+
 /* Les rubriques visibles, rangées : [[nom de la famille, [rubriques]], …] */
 function famillesDuDossier(onglets){
   const reste = onglets.slice();
@@ -2965,6 +3046,7 @@ function dessinerPageEleve(){
   corps.id = 'pageEleveCorps';
   cadre.appendChild(corps);
   zone.appendChild(cadre);
+  chargerCompteursDossier(nom);   /* 🔢 v1591 */
 
   remplirOngletEleve(corps, nom, ongletPageEleve);
 }
@@ -3014,14 +3096,9 @@ function enteteEleve(nom){
     d.appendChild(boutonRenommerEleve(nom));
   }
 
-  if(f.formation){
-    const p = document.createElement('span');
-    p.style.cssText = 'flex-shrink:0;font-size:12px;font-weight:700;' +
-      'padding:5px 11px;border-radius:999px;background:var(--orange);' +
-      'color:var(--navy-deep);';
-    p.textContent = f.formation;
-    d.appendChild(p);
-  }
+  /* 🎓 v1592 — la formation se change d'ici (voir pastilleFormationEleve) */
+  const pf = pastilleFormationEleve(nom, f);
+  if(pf) d.appendChild(pf);
 
   /* 🎓 v1440 — « 🎓 Code : avec nous / de son côté / déjà obtenu », juste
      après la formation (David : la pastille dans la tête du dossier) */
@@ -3239,6 +3316,63 @@ function fenetreIdDrivup(nom, id){
   });
 }
 
+/* ── 🎓 LA FORMATION SE CHANGE DE L'EN-TÊTE — v1592 ────────────────
+
+   David, le 27 novembre : « dans les dossiers élève on a la formation
+   mais on ne peut pas la changer directement en haut, il faut qu'on
+   puisse le faire ». La pastille orange était un simple texte : pour
+   la changer il fallait descendre dans la rubrique Fiche.
+
+   Elle devient un bouton pour ceux qui modifient les élèves — la même
+   règle que la ligne « Formation » de la rubrique Fiche et que le
+   bouton ✏️ Nom juste à côté. Les autres la voient, comme avant.
+
+   Sans formation, on le DIT (« 🎓 Formation ❓ »), comme l'âge inconnu :
+   la boîte, le modèle de bilan et la frise en dépendent, et une
+   pastille absente se confond avec une pastille qu'on n'a pas vue.
+
+   CETTE PAGE N'ÉCRIT RIEN ELLE-MÊME : le choix et l'écriture sont dans
+   ec-fenetres (choisirFormation, fixerFormation). */
+function peutChangerLaFormation(){
+  return (typeof peutModifier !== 'function' || peutModifier('eleves')) &&
+    typeof choisirFormation === 'function' && typeof fixerFormation === 'function';
+}
+function pastilleFormationEleve(nom, f){
+  const actuelle = String((f && f.formation) || '').trim();
+  const peut = peutChangerLaFormation();
+  if(!actuelle && !peut) return null;
+  const p = document.createElement(peut ? 'button' : 'span');
+  if(peut) p.type = 'button';
+  p.dataset.formationEleve = actuelle || '?';
+  if(actuelle){
+    /* la pastille orange d'avant, à l'identique ; ▾ dit qu'elle s'ouvre */
+    p.style.cssText = 'flex-shrink:0;font-size:12px;font-weight:700;' +
+      'padding:5px 11px;border-radius:999px;background:var(--orange);' +
+      'color:var(--navy-deep);' +
+      (peut ? 'border:0;margin:0;width:auto;font-family:inherit;line-height:inherit;cursor:pointer;white-space:nowrap;' : '');
+    p.textContent = actuelle + (peut ? ' ▾' : '');
+    if(peut) p.title = 'Sa formation — clique pour la changer';
+  }else{
+    p.className = 'btn btn-secondary';
+    p.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:5px 11px;' +
+      'font-size:12px;font-weight:700;border-radius:999px;white-space:nowrap;' +
+      'border-color:var(--orange);color:var(--orange);';
+    p.textContent = '🎓 Formation ❓';
+    p.title = 'Formation pas précisée — clique pour la poser';
+  }
+  if(peut){
+    p.setAttribute('aria-label', (actuelle ? 'Formation : ' + actuelle : 'Formation pas précisée') + ' — changer');
+    p.addEventListener('click', async () => {
+      const v = await choisirFormation(nom, actuelle);
+      if(!v || v === actuelle) return;
+      if(!await fixerFormation(nom, v)) return;
+      showToast('🎓 ' + nom + ' : ' + v + ' ✅');
+      if(elevePageOuverte === nom) dessinerPageEleve();
+    });
+  }
+  return p;
+}
+
 /* ── L'ÂGE, TOUJOURS AFFICHÉ ────────────────────────────────────
 
    Le calcul n'est pas refait ici : c'est « ageDe », dans
@@ -3381,6 +3515,13 @@ function barreOngletsEleve(onglets){
     });
   });
 
+  /* 🔢 v1591 — les chiffres déjà connus se posent tout de suite ; les
+     autres arrivent avec la lecture du dossier (chargerCompteursDossier) */
+  if(elevePageOuverte){
+    const n = compteursDuDossier(elevePageOuverte);
+    b.querySelectorAll('button[data-onglet-eleve]').forEach(x => marquerLaRubrique(x, x.dataset.ongletEleve, n));
+  }
+
   return b;
 }
 
@@ -3397,6 +3538,9 @@ function choisirOngletEleve(cle){
       localStorage.setItem(CLE_FAMILLES_DOSSIER, JSON.stringify(o));
     }
   }catch(e){}
+  /* 🔢 v1591 — on quitte une rubrique où l'on écrit (une note, un courrier,
+     un point financier…) : ses chiffres se relisent */
+  if(['notes', 'courriers', 'messages', 'appels', 'pointfin', 'handicap', 'proc'].indexOf(ongletPageEleve) !== -1) compteursDossier.lu = 0;
   ongletPageEleve = cle;
   ongletImposeDemarches = false;
   try{ localStorage.setItem(CLE_ONGLET_ELEVE, cle); }catch(e){}
@@ -5664,6 +5808,8 @@ function rafraichirTuilesDossier(nom){
   const vieille = $('tuilesDossier');
   if(!vieille || !vieille.isConnected) return;
   vieille.replaceWith(tuilesDuDossier(nom));
+  /* 🔢 v1591 — ses cours à venir viennent d'arriver : le chiffre du Planning aussi */
+  poserCompteursDossier();
 }
 function chargerPourLesTuilesDossier(nom){
   if(!nom) return;
