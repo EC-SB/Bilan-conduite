@@ -1,4 +1,4 @@
-/* Déployé le 24/11/2026 à 18:19 — v1564 */
+/* Déployé le 27/11/2026 à 10:33 — v1592 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -868,8 +868,8 @@ function ligneConversationCorps(c, d, enChoix){
     d.appendChild(o);
   }
 
-  /* 📌 ⏰ au survol — v1141, repris du 2. Pas en mode choix (le clic
-     coche), pas en supervision (on n'est pas dedans). */
+  /* 📌 au survol — v1141, repris du 2 (⏰ retiré en v1592). Pas en mode
+     choix (le clic coche), pas en supervision (on n'est pas dedans). */
   if(!enChoix && !c.enSupervision){
     const v = document.createElement('div');
     v.className = 'ckVite2';
@@ -895,7 +895,11 @@ function ligneConversationCorps(c, d, enChoix){
       s.addEventListener('click', ev => { ev.stopPropagation(); ckMarquerNonLu(c.id); });
       v.appendChild(s);
     }
-    pt('⏰', ckRappelActif(c) ? 'Retirer le rappel' : 'Me la rappeler demain 9h', 'rappel');
+    /* ⏰ v1592 — David, le 27 novembre : « sur la messagerie sur ordinateur,
+       enlève-moi le rappel demain à 9h dans les raccourcis quand on passe
+       la souris sur les conversations à gauche ». Le rappel reste dans le
+       clic droit (ou l'appui long), dans ⓘ Infos, et en glissant vers la
+       droite sur le téléphone. */
     pt('📌', Number(c.epingle || 0) ? 'Désépingler' : 'Épingler en haut de ma liste', 'epingle');
     /* 🏷️ 👤 v1366 — étiqueter / attribuer au survol, sans ouvrir */
     const apresV = () => {
