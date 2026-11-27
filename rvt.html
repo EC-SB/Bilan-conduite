@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 20/11/2026 à 10:00 — v1504 -->
+<!-- Déployé le 27/11/2026 à 14:08 — v1595 -->
 <!-- ============================================================
      RENDEZ-VOUS PÉDAGOGIQUE — VOS DISPONIBILITÉS
      Évolution Conduites
@@ -78,6 +78,20 @@
   .avis.chaud{border-color:var(--orange);color:var(--orange)}
   .pied{color:var(--gris);font-size:12px;margin-top:26px;line-height:1.7;
         text-align:center}
+
+  /* 🗓️ v1595 — « Nous sommes plutôt disponibles » */
+  .dispos{border-color:var(--orange);margin-top:12px}
+  .dispos .quand{font-size:16.5px}
+  .dispos .jour{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--ligne)}
+  .dispos .jour:first-of-type{border-top:0}
+  .dispos .jour > span{flex:0 0 78px;font-weight:700;font-size:15px}
+  .dispos .jour .choix{flex:1 1 auto}
+  .dispos .jour .choix button{padding:9px 6px;font-size:14px;margin:0}
+  .dispos .periode{display:flex;align-items:center;gap:8px}
+  .dispos .periode input{flex:1 1 0;min-width:0;padding:10px 8px;font-size:15px;border-radius:11px;
+    border:1.5px solid var(--ligne);background:var(--carte);color:var(--creme);font-family:inherit}
+  .dispos label{margin:14px 0 6px}
+  .dispos .lecture{font-weight:700}
 </style>
 </head>
 <body>
@@ -91,7 +105,10 @@ var PROXY = 'https://bilan-proxy.evolutionconduites.workers.dev';
 
 var jeton = (location.search.match(/[?&]r=([A-Za-z0-9]{22})/) || [])[1] || '';
 var zone = document.getElementById('zone');
-var etat = { reponses: {}, accompagnateur: '', repond: '' };
+var etat = { reponses: {}, accompagnateur: '', repond: '',
+             /* 🗓️ v1595 — ses jours (« lun-ma », « sam-ap »…), la période, une précision */
+             dispos: { jours: [], du: '', au: '', precision: '' } };
+var JOURS_DISPOS = [['lun', 'Lundi'], ['mar', 'Mardi'], ['mer', 'Mercredi'], ['jeu', 'Jeudi'], ['ven', 'Vendredi'], ['sam', 'Samedi']];
 var donnees = null;
 
 function ech(s){
@@ -155,6 +172,84 @@ function rien(msg){
     '<p class="gris centre">' + ech(msg || '') + '</p>' +
     '<p class="pied">Appelez-nous, nous vous donnerons les dates ' +
     'par téléphone.</p>';
+}
+
+/* ============================================================
+   🗓️ « NOUS SOMMES PLUTÔT DISPONIBLES » — v1595
+
+   David, le 27/11 : quand aucune date proposée ne convient, la famille
+   dit ses jours de la semaine (le matin et/ou l'après-midi), une période
+   et une précision. Le bloc s'ouvre quand elle touche « Aucune de ces
+   dates », quand elle n'a pas répondu au bout de 7 jours, et quand on
+   l'a relancée (« ouvrirDispos », dit par le serveur) ; et toujours s'il
+   y a déjà des dispos (données par elle, ou notées par le bureau).
+   ============================================================ */
+function tousNonDispos(){
+  return !!((donnees.creneaux || []).length &&
+    (donnees.creneaux || []).every(function(c){ return etat.reponses[c.id] === 'non'; }));
+}
+function disposRemplies(x){
+  return !!(x && ((x.jours || []).length || x.du || x.au || x.precision));
+}
+function disposOuvertes(){
+  return tousNonDispos() || !!donnees.ouvrirDispos || disposRemplies(donnees.dispos) || disposRemplies(etat.dispos);
+}
+/* Ce qui est tapé dans les champs, gardé avant de redessiner */
+function lireChampsDispos(){
+  var du = document.getElementById('dispoDu'), au = document.getElementById('dispoAu'), pr = document.getElementById('dispoPrecision');
+  if(du) etat.dispos.du = du.value;
+  if(au) etat.dispos.au = au.value;
+  if(pr) etat.dispos.precision = pr.value;
+}
+function dateCourteDispos(iso){
+  var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+/* « Mardi après-midi · Samedi matin », pour le relire */
+function phraseDispos(x){
+  var j = (x && x.jours) || [];
+  var out = [];
+  JOURS_DISPOS.forEach(function(d){
+    var ma = j.indexOf(d[0] + '-ma') !== -1, ap = j.indexOf(d[0] + '-ap') !== -1;
+    if(ma && ap) out.push(d[1] + ' toute la journée');
+    else if(ma) out.push(d[1] + ' matin');
+    else if(ap) out.push(d[1] + ' après-midi');
+  });
+  return out.join(' · ');
+}
+function periodeDispos(x){
+  if(!x) return '';
+  if(x.du && x.au) return 'du ' + dateCourteDispos(x.du) + ' au ' + dateCourteDispos(x.au);
+  if(x.du) return 'à partir du ' + dateCourteDispos(x.du);
+  if(x.au) return 'jusqu\'au ' + dateCourteDispos(x.au);
+  return '';
+}
+function blocDispos(clos){
+  var x = etat.dispos;
+  if(clos){
+    if(!disposRemplies(x)) return '';
+    return '<div class="creneau dispos"><div class="quand">🗓️ Vous êtes plutôt disponibles</div>' +
+      '<div class="lecture">' + ech(phraseDispos(x) || '—') + '</div>' +
+      (periodeDispos(x) ? '<div class="ou">' + ech(periodeDispos(x)) + '</div>' : '') +
+      (x.precision ? '<div class="ou">« ' + ech(x.precision) + ' »</div>' : '') + '</div>';
+  }
+  var h = '<div class="creneau dispos" id="blocDispos"><div class="quand">🗓️ Nous sommes plutôt disponibles…</div>' +
+    '<div class="ou">Touchez les jours qui vous arrangent, le matin et/ou l’après-midi. Nous nous en servirons pour vous proposer d’autres dates.' +
+    (donnees.dispos && donnees.dispos.source === 'bureau' ? ' Nous avons noté ce que vous nous avez dit au téléphone : corrigez si besoin.' : '') + '</div>';
+  JOURS_DISPOS.forEach(function(d){
+    var ma = x.jours.indexOf(d[0] + '-ma') !== -1, ap = x.jours.indexOf(d[0] + '-ap') !== -1;
+    h += '<div class="jour"><span>' + d[1] + '</span><div class="choix">' +
+      '<button type="button" data-dispo="' + d[0] + '-ma" aria-pressed="' + ma + '" class="' + (ma ? 'on' : '') + '">🌅 Matin</button>' +
+      '<button type="button" data-dispo="' + d[0] + '-ap" aria-pressed="' + ap + '" class="' + (ap ? 'on' : '') + '">🌇 Après-midi</button>' +
+      '</div></div>';
+  });
+  h += '<label for="dispoDu">Sur quelle période ? (facultatif)</label>' +
+    '<div class="periode"><span>du</span><input type="date" id="dispoDu" value="' + ech(x.du) + '" aria-label="Du">' +
+    '<span>au</span><input type="date" id="dispoAu" value="' + ech(x.au) + '" aria-label="Au"></div>' +
+    '<label for="dispoPrecision">Une précision ? (facultatif)</label>' +
+    '<input type="text" id="dispoPrecision" maxlength="200" placeholder="Par exemple : pas le 24 ni le 26" value="' + ech(x.precision) + '">' +
+    '</div>';
+  return h;
 }
 
 /* ============================================================
@@ -270,6 +365,7 @@ function dessiner(){
       (tousNon ? 'background:var(--orange);color:#0B0B0B;' +
                  'border-color:var(--orange);' : '') + '">' +
       '✖️ Aucune de ces dates ne nous convient</button>' +
+      (disposOuvertes() ? blocDispos(false) : '') +
       '<label for="qui">Qui remplit cette réponse&nbsp;?</label>' +
       '<div class="choix">' +
         '<button type="button" data-qui="eleve" class="' +
@@ -284,6 +380,9 @@ function dessiner(){
       '<button id="envoyer" type="button">Envoyer nos disponibilités</button>' +
       '<div id="msg" class="gris centre" style="margin-top:10px"></div>';
   }
+
+  /* 🗓️ v1595 — une proposition close : ce qu'ils avaient indiqué */
+  if(clos) h += blocDispos(true);
 
   if(d.reponduLe){
     h += '<p class="pied">Dernière réponse enregistrée le ' +
@@ -302,12 +401,30 @@ function dessiner(){
 function brancher(){
   zone.querySelectorAll('button[data-c]').forEach(function(b){
     b.addEventListener('click', function(){
+      lireChampsDispos();
+      var champ = document.getElementById('acc');
+      if(champ) etat.accompagnateur = champ.value;
       etat.reponses[b.getAttribute('data-c')] = b.getAttribute('data-v');
       dessiner();
     });
   });
+  /* 🗓️ v1595 — un jour, matin ou après-midi : un appui pose, un second retire */
+  zone.querySelectorAll('button[data-dispo]').forEach(function(b){
+    b.addEventListener('click', function(){
+      lireChampsDispos();
+      var champ = document.getElementById('acc');
+      if(champ) etat.accompagnateur = champ.value;
+      var k = b.getAttribute('data-dispo');
+      var i = etat.dispos.jours.indexOf(k);
+      if(i === -1) etat.dispos.jours.push(k); else etat.dispos.jours.splice(i, 1);
+      var y = window.scrollY;
+      dessiner();
+      window.scrollTo(0, y);
+    });
+  });
   zone.querySelectorAll('button[data-qui]').forEach(function(b){
     b.addEventListener('click', function(){
+      lireChampsDispos();
       var champ = document.getElementById('acc');
       if(champ) etat.accompagnateur = champ.value;
       etat.repond = b.getAttribute('data-qui');
@@ -316,6 +433,7 @@ function brancher(){
   });
   var auc = document.getElementById('aucune');
   if(auc) auc.addEventListener('click', function(){
+    lireChampsDispos();
     var champ = document.getElementById('acc');
     if(champ) etat.accompagnateur = champ.value;
     /* Un second appui défait : c'est un bouton, pas un piège. */
@@ -342,6 +460,10 @@ function brancher(){
 function envoyer(){
   var champ = document.getElementById('acc');
   if(champ) etat.accompagnateur = champ.value.trim();
+  lireChampsDispos();
+  /* 🗓️ v1595 — les dispos ne partent que si le bloc est à l'écran : sinon
+     on ne touche pas à celles que le bureau aurait notées */
+  var avecDispos = !!document.getElementById('blocDispos');
 
   var msg = document.getElementById('msg');
   var b = document.getElementById('envoyer');
@@ -351,8 +473,11 @@ function envoyer(){
      doit pouvoir les distinguer. */
   var repondus = Object.keys(etat.reponses).length;
   if(!repondus){
-    msg.textContent = 'Indiquez au moins un créneau, même pour dire ' +
-                      'que vous ne pouvez pas.';
+    msg.textContent = (avecDispos && disposRemplies(etat.dispos)) ?
+      'Dites-nous aussi, pour les dates proposées, si vous pouvez : ' +
+      'ou touchez « Aucune de ces dates ».' :
+      'Indiquez au moins un créneau, même pour dire ' +
+      'que vous ne pouvez pas.';
     return;
   }
 
@@ -364,7 +489,8 @@ function envoyer(){
     headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body: JSON.stringify({ r: jeton, reponses: etat.reponses,
                            accompagnateur: etat.accompagnateur,
-                           repond: etat.repond })
+                           repond: etat.repond,
+                           dispos: avecDispos ? etat.dispos : undefined })
   }).then(function(r){ return r.json(); })
     .then(function(d){
       if(!d || d.status !== 'ok'){
@@ -373,6 +499,7 @@ function envoyer(){
                           "L'envoi n'a pas abouti. Réessayez.";
         return;
       }
+      if(avecDispos) donnees.dispos = d.dispos || null;
       merci(d.reponduLe);
     })
     .catch(function(){
@@ -402,6 +529,13 @@ function merci(quand){
     h += '<div class="avis chaud">Vous nous avez indiqué que ' +
       '<strong>aucun de ces créneaux</strong> ne vous convient. ' +
       'Nous vous proposerons d\'autres dates.</div>';
+  }
+  /* 🗓️ v1595 — et leurs dispos, redites */
+  if(disposRemplies(etat.dispos) && document.getElementById('blocDispos')){
+    h += '<p class="gris">Vous êtes plutôt disponibles&nbsp;:</p>' +
+      '<div class="creneau"><div class="quand">🗓️ ' + ech(phraseDispos(etat.dispos) || '—') + '</div>' +
+      (periodeDispos(etat.dispos) ? '<div class="ou">' + ech(periodeDispos(etat.dispos)) + '</div>' : '') +
+      (etat.dispos.precision ? '<div class="ou">« ' + ech(etat.dispos.precision) + ' »</div>' : '') + '</div>';
   }
 
   /* ⚠️ ON LE REDIT ICI, AU MOMENT DE LA CONFIRMATION.
@@ -446,6 +580,8 @@ if(!jeton){
       etat.reponses = d.reponses || {};
       etat.accompagnateur = d.accompagnateur || '';
       etat.repond = d.repond || '';
+      /* 🗓️ v1595 — leurs dispos (ou celles notées par le bureau), déjà remplies */
+      if(d.dispos) etat.dispos = { jours: (d.dispos.jours || []).slice(), du: d.dispos.du || '', au: d.dispos.au || '', precision: d.dispos.precision || '' };
       dessiner();
     })
     .catch(function(){
