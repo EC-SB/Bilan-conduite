@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 11:12 — v1594 */
+/* Déployé le 27/11/2026 à 14:08 — v1595 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -51,9 +51,28 @@
    ============================================================ */
 const NOUVEAUTES = [
   {
+    version: 1595,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '🗓️ « Aucune date ne nous convient » : les familles disent quand elles sont plutôt disponibles',
+    quoi: [
+      { emoji: '🗓️',
+        titre: 'Rendez-vous théorique › la page des familles',
+        texte: 'Sous « Aucune de ces dates ne nous convient », un bloc « Nous sommes plutôt disponibles… » : les jours de la semaine, le matin et/ou l’après-midi, une période (du … au …) et une précision. Il s’ouvre quand la famille touche « Aucune de ces dates », quand elle n’a pas répondu au bout de 7 jours, et quand on lui a renvoyé le lien. L’écran « C’est noté » redit ses dispos, et elle les retrouve en revenant sur son lien.' },
+      { emoji: '🎓',
+        titre: 'Suivi › 🎓 Suivi AAC › la case Théorique',
+        texte: '« 🗓️ Plutôt dispo — mar. ap-midi · sam. matin », avec la période, la précision et qui l’a dit (la famille, ou 📞 noté par …). Le bouton « 🗓️ Dispos » les note ou les corrige à la main (eues au téléphone) : la famille les retrouve sur son lien. Tout disparaît une fois le théorique fait.' },
+      { emoji: '🧮',
+        titre: 'Organisation › la grille du tour › pour le prochain tour',
+        texte: 'Les familles « aucune de ces dates » ont leurs dispos à côté de leur nom, puis un tableau : par jour, le matin et l’après-midi, combien de familles sont plutôt disponibles (la case la plus remplie est surlignée, toucher une case dit qui).' },
+      { emoji: '👋',
+        titre: 'La page des familles dit le prénom',
+        texte: '« Bonjour Léa » au lieu de « Bonjour MARTIN ».' }
+    ]
+  },
+  {
     version: 1594,
     date: 'Vendredi 27 novembre 2026',
-    resume: '🖥️ Drivup : quel ordinateur lit · 💶 Suivi AAC : RVP payés ou à acheter · 📨 les mails du théorique un par un',
+    resume: '✏️ Modifier ses messages · 🖥️ quel ordinateur lit Drivup · 💶 RVP payés ou à acheter · 📨 les mails du théorique un par un',
     quoi: [
       { emoji: '🖥️',
         titre: 'Gestion › 📥 Drivup › quel ordinateur lit Drivup',
@@ -63,7 +82,10 @@ const NOUVEAUTES = [
         texte: 'Sous RVP 1, Théorique et RVP 2 : « 💶 payé » ou « 💶 à acheter sur Drivup », d’après Drivup › Facturer (relu chaque jour). Rien n’est écrit quand Facturer n’a pas encore été lu pour l’élève.' },
       { emoji: '📨',
         titre: 'Rendez-vous théorique › les mails, un par un, avant l’envoi',
-        texte: 'En retenant une date, chaque mail se lit en entier (à qui, l’objet, le texte) et on passe de l’un à l’autre avec ‹ › ou les flèches du clavier. La convocation dit maintenant ce qui reste à acheter directement sur Drivup : le théorique (avant le rendez-vous) et les rendez-vous pratiques pas encore réglés.' }
+        texte: 'En retenant une date, chaque mail se lit en entier (à qui, l’objet, le texte) et on passe de l’un à l’autre avec ‹ › ou les flèches du clavier. La convocation dit maintenant ce qui reste à acheter directement sur Drivup : le théorique (avant le rendez-vous) et les rendez-vous pratiques pas encore réglés.' },
+      { emoji: '✏️',
+        titre: 'Messagerie › modifier ses messages (30 minutes)',
+        texte: 'Appui long (ou clic droit) sur son message › ✏️ : on corrige le texte pendant 30 minutes après l’envoi. Sous le message, « Modifié ▾ » se déplie pour lire l’ancienne version, comme Messenger — tout le monde dans la conversation la voit, l’élève compris. Les élèves peuvent aussi corriger les leurs. Pas les vocaux ni les cartes (créneau, retard…), et personne n’est renotifié.' }
     ]
   },
   {
