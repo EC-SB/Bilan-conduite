@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 11:17 — v1579 */
+/* Déployé le 27/11/2026 à 15:16 — v1597 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -526,6 +526,8 @@ async function chargerBureau(forcer){
   }else if(!etatBureau.suivi){
     etatBureau.suivi = [];
   }
+  /* 🎓 v1597 — les souhaits pour la date d'examen (absents d'une réponse de secours : on garde) */
+  if(data && data.souhaitsExamen && typeof data.souhaitsExamen === 'object') etatBureau.souhaitsExamen = data.souhaitsExamen;
   chargerPlaces(data && data.places);
   /* Les réglages du bureau arrivent par le même appel : les seuils de
      la liste CS n'ont pas besoin d'un aller-retour à eux. */
@@ -924,6 +926,153 @@ async function majSuivi(eleve, champs){
 
      Et si le classeur avait reformaté quelque chose, la relecture
      automatique des 90 secondes le rattrape. */
+}
+
+/* ============================================================
+   🎓 v1597 — CE QUE LA FAMILLE A DIT POUR LA DATE D'EXAMEN
+
+   David : dans la case Examen du Suivi AAC, noter s'ils veulent passer
+   n'importe quel jour dès que c'est possible, ou pendant des vacances
+   scolaires (cochées, zone B), avec une note libre. Visible aussi dans
+   🚗 Permis › À envisager et dans le dossier de l'élève. Arrive avec
+   bureauEtat (etatBureau.souhaitsExamen), s'écrit par souhaitExamenPoser.
+   ============================================================ */
+const VACANCES_EXAMEN = [['toussaint', 'Toussaint'], ['noel', 'Noël'], ['hiver', 'Hiver (février)'],
+                         ['printemps', 'Printemps (avril)'], ['ete', 'Été']];
+function souhaitExamenDe(nom){
+  const m = etatBureau.souhaitsExamen || {};
+  const n = s => (typeof normaliserMot === 'function' ? normaliserMot(s) : String(s || '').toLowerCase()).split(/\s+/).filter(Boolean).sort().join(' ');
+  const k = n(nom);
+  if(!k) return null;
+  const cle = Object.keys(m).find(x => n(x) === k);
+  return cle ? m[cle] : null;
+}
+function vacancesExamenEnMots(s, court){
+  const l = VACANCES_EXAMEN.filter(v => (s.vacances || []).indexOf(v[0]) !== -1)
+    .map(v => court ? v[1].replace(/\s*\(.*\)$/, '') : v[1]);
+  return l.join(', ');
+}
+/* « 📅 Dès que possible, n'importe quel jour » · « 🏖️ Pendant les vacances : Noël, Hiver » */
+function texteSouhaitExamen(s, court){
+  if(!s) return '';
+  let t = '';
+  if(s.quand === 'vite') t = court ? '📅 dès que possible' : '📅 Dès que possible, n’importe quel jour';
+  else if(s.quand === 'vacances'){
+    const v = vacancesExamenEnMots(s, court);
+    t = court ? '🏖️ vacances' + (v ? ' : ' + v : '') : '🏖️ Pendant les vacances scolaires' + (v ? ' : ' + v : '');
+  }
+  if(s.note) t += (t ? ' · ' : '📝 ') + '« ' + (court && s.note.length > 60 ? s.note.slice(0, 58) + '…' : s.note) + ' »';
+  return t;
+}
+function origineSouhaitExamen(s){
+  if(!s) return '';
+  const le = String(s.le || '').split(' ')[0].slice(0, 5);
+  return 'noté' + (s.par ? ' par ' + s.par : '') + (le ? ' le ' + le : '');
+}
+function peutNoterSouhaitExamen(){
+  if(typeof peutModifier !== 'function') return true;
+  return peutModifier('suivi_aac_cs') || peutModifier('bureau_permis');
+}
+/* La fenêtre : deux choix en un appui, les vacances, une note */
+function fenetreSouhaitExamen(nom, apres, possibleLe){
+  const x = souhaitExamenDe(nom) || { quand: '', vacances: [], note: '' };
+  let quand = x.quand || '';
+  const vac = new Set(x.vacances || []);
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const m = document.createElement('div');
+  m.className = 'modal fenSouhaitExamen';
+  m.style.cssText = 'max-width:min(480px,94vw);max-height:92vh;overflow-y:auto;';
+  const h = document.createElement('h3');
+  h.textContent = '🎓 Souhait pour l’examen — ' + nom;
+  m.appendChild(h);
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:13px;color:var(--muted);margin:-4px 0 12px;line-height:1.45;';
+  aide.textContent = 'Ce que la famille a dit pour la date de l’examen' + (possibleLe ? ' (possible à partir du ' + possibleLe + ')' : '') + '.' +
+    (x.le ? ' Dernière fois : ' + origineSouhaitExamen(x) + '.' : '');
+  m.appendChild(aide);
+  const choix = document.createElement('div');
+  choix.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+  const bVite = document.createElement('button'); bVite.type = 'button'; bVite.dataset.quand = 'vite';
+  bVite.textContent = '📅 Dès que possible, n’importe quel jour';
+  const bVac = document.createElement('button'); bVac.type = 'button'; bVac.dataset.quand = 'vacances';
+  bVac.textContent = '🏖️ Pendant les vacances scolaires';
+  [bVite, bVac].forEach(b => { b.style.cssText = 'margin:0;padding:11px 12px;font-size:14px;text-align:left;'; choix.appendChild(b); });
+  m.appendChild(choix);
+  const zVac = document.createElement('div');
+  zVac.className = 'seVacances';
+  zVac.style.cssText = 'margin:10px 0 0;';
+  const lv = document.createElement('div');
+  lv.style.cssText = 'font-size:12.5px;color:var(--muted);margin-bottom:6px;';
+  lv.textContent = 'Lesquelles ? (zone B, facultatif)';
+  zVac.appendChild(lv);
+  const rv = document.createElement('div');
+  rv.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+  const bvs = VACANCES_EXAMEN.map(([k, lib]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.vacances = k; b.textContent = lib;
+    b.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:13px;';
+    b.addEventListener('click', () => { if(vac.has(k)) vac.delete(k); else vac.add(k); quand = 'vacances'; maj(); });
+    rv.appendChild(b);
+    return b;
+  });
+  zVac.appendChild(rv);
+  m.appendChild(zVac);
+  const ln = document.createElement('label');
+  ln.textContent = 'Une note (facultatif)'; ln.htmlFor = 'souhaitExamenNote'; ln.style.marginTop = '12px';
+  m.appendChild(ln);
+  const note = document.createElement('textarea');
+  note.id = 'souhaitExamenNote'; note.maxLength = 300; note.rows = 3; note.value = x.note || '';
+  note.placeholder = 'Par exemple : pas avant le bac, plutôt un mercredi, à Loudéac…';
+  note.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:0 0 10px;resize:vertical;font-family:inherit;font-size:14px;';
+  m.appendChild(note);
+  const dit = document.createElement('div');
+  dit.style.cssText = 'min-height:16px;font-size:13px;color:var(--warn-text);margin-bottom:6px;';
+  m.appendChild(dit);
+  const row = document.createElement('div');
+  row.className = 'btn-row';
+  const eff = document.createElement('button'); eff.type = 'button'; eff.className = 'btn btn-secondary'; eff.textContent = '🗑️ Effacer';
+  const non = document.createElement('button'); non.type = 'button'; non.className = 'btn btn-secondary'; non.textContent = 'Annuler';
+  const oui = document.createElement('button'); oui.type = 'button'; oui.className = 'btn btn-primary'; oui.textContent = '💾 Enregistrer';
+  if(!x.le) eff.style.display = 'none';
+  row.append(eff, non, oui);
+  m.appendChild(row);
+  const maj = () => {
+    bVite.className = 'btn ' + (quand === 'vite' ? 'btn-primary' : 'btn-secondary');
+    bVac.className = 'btn ' + (quand === 'vacances' ? 'btn-primary' : 'btn-secondary');
+    bVite.setAttribute('aria-pressed', quand === 'vite' ? 'true' : 'false');
+    bVac.setAttribute('aria-pressed', quand === 'vacances' ? 'true' : 'false');
+    zVac.style.display = quand === 'vacances' ? '' : 'none';
+    bvs.forEach(b => { const on = vac.has(b.dataset.vacances); b.className = 'btn ' + (on ? 'btn-primary' : 'btn-secondary'); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+  };
+  /* un second appui retire le choix */
+  bVite.addEventListener('click', () => { quand = quand === 'vite' ? '' : 'vite'; maj(); });
+  bVac.addEventListener('click', () => { quand = quand === 'vacances' ? '' : 'vacances'; maj(); });
+  maj();
+  fond.appendChild(m);
+  document.body.appendChild(fond);
+  const fermer = () => { if(fond.parentNode){ if(typeof fermerFond === 'function') fermerFond(fond); else fond.remove(); } };
+  non.addEventListener('click', fermer);
+  const poser = async (corps, bravo) => {
+    oui.disabled = eff.disabled = true;
+    try{
+      const r = await appelPrep(Object.assign({ action: 'souhaitExamenPoser', eleve: nom }, corps));
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      const carte = etatBureau.souhaitsExamen = etatBureau.souhaitsExamen || {};
+      const ancien = souhaitExamenDe(nom);
+      if(ancien) Object.keys(carte).forEach(k => { if(carte[k] === ancien) delete carte[k]; });
+      if(r.souhait) carte[r.souhait.eleve || nom] = r.souhait;
+      fermer();
+      if(typeof showToast === 'function') showToast(bravo);
+      if(typeof apres === 'function') apres();
+    }catch(e){ oui.disabled = eff.disabled = false; dit.textContent = '⚠️ ' + ((e && e.message) || e); }
+  };
+  oui.addEventListener('click', () => {
+    const n = note.value.trim();
+    if(!quand && !n){ dit.textContent = 'Rien de noté : choisis « dès que possible » ou « vacances », ou écris une note (ou « Effacer »).'; return; }
+    poser({ quand: quand, vacances: quand === 'vacances' ? [...vac] : [], note: n }, '🎓 Souhait de ' + nom + ' noté ✅');
+  });
+  eff.addEventListener('click', () => poser({ effacer: true }, '🎓 Souhait de ' + nom + ' effacé'));
 }
 
 
