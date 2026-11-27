@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 14:08 — v1595 */
+/* Déployé le 27/11/2026 à 15:16 — v1597 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -5016,6 +5016,16 @@ function ligneAac(x){
       (x.eb.cle === 'date' || x.eb.cle === 'passe') ? 'var(--accent-text)' : ''));
   }
   dessousEx.push(relanceSous('examen', '🎓 Examen'));
+  /* 🎓 v1597 — ce que la famille a dit pour la date (dès que possible / vacances, une note) */
+  const souhaitEx = (typeof souhaitExamenDe === 'function') ? souhaitExamenDe(x.eleve) : null;
+  const examObtenu = x.exam.devant.cle === 'obtenu';
+  if(souhaitEx && !examObtenu){
+    const pil = pastilleAac('aacPilPrevenu', '🎓 Souhait', texteSouhaitExamen({ quand: souhaitEx.quand, vacances: souhaitEx.vacances }, true) || '📝 une note',
+      'Pour la date d’examen : ' + texteSouhaitExamen(souhaitEx, false) + ' (' + origineSouhaitExamen(souhaitEx) + ')');
+    pil.classList.add('aacPilSouhait');
+    dessousEx.push(pil);
+    dessousEx.push(petiteLigneAac([souhaitEx.note ? '« ' + souhaitEx.note + ' »' : '', origineSouhaitExamen(souhaitEx)].filter(Boolean).join(' · '), 'var(--muted)'));
+  }
   const classeEx = x.exam.aReprogrammer ? 'retard'
     : ((x.exam.devant.cle === 'prevu' || x.exam.devant.cle === 'obtenu') ? 'fait'
       : (x.ech.exam.iso ? 'attente' : 'proche'));
@@ -5023,6 +5033,12 @@ function ligneAac(x){
      son bouton passe dans cette case. */
   const btEx = (avecPrealable && attendus && !sit.rvp)
     ? [boutonRelanceAac(x, rel && rel.examen && !rel.repondu)] : [];
+  if(!examObtenu && typeof fenetreSouhaitExamen === 'function' && peutNoterSouhaitExamen()){
+    const bs = petitBouton('🎓 Souhait', souhaitEx ? 'Corriger ce que la famille a dit pour la date d’examen' : 'Noter ce que la famille a dit pour la date d’examen (dès que possible, vacances…)',
+      () => fenetreSouhaitExamen(x.eleve, () => redessinerAacCs(), x.ech.exam.iso ? jourFrCs(x.ech.exam.iso) : ''));
+    bs.classList.add('aacBtSouhait');
+    btEx.push(bs);
+  }
   fr.appendChild(caseFriseAac('🎓 Examen', classeEx,
     x.ech.exam.iso ? 'possible le ' + jourFrCs(x.ech.exam.iso)
       : (x.ech.exam.manque === 'naissance'
