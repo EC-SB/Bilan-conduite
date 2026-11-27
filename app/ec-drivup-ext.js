@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 16:32 — v1575 */
+/* Déployé le 27/11/2026 à 11:12 — v1594 */
 /* ============================================================
    ec-drivup-ext.js — 📥 DRIVUP DANS L'APP (avec l'extension)
 
@@ -23,7 +23,27 @@
    (lectureDeVeilleDrivup, ec-drivup.js).
    ============================================================ */
 
-const EXT_DV = { present: false, version: '', reglages: null, poste: '', etat: null };
+const EXT_DV = { present: false, version: '', reglages: null, poste: '', etat: null, navigateur: '' };
+
+/* 🖥️ v1594 — CET ORDINATEUR : son système (lu ici, l'extension ne le dit
+   pas), et « je prends la main » posé par « ↻ Lire maintenant » de
+   Gestion › 📥 Drivup. Gardé dans le navigateur (pas dans l'onglet) :
+   l'extension peut demander le jeton à un autre onglet de l'App. */
+function systemeDuPosteDv(){
+  const ua = navigator.userAgent || '';
+  const pf = String((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
+  if(/Android/i.test(ua)) return 'Android';
+  if(/iPhone|iPad|iPod/i.test(ua) || (/Mac/i.test(pf) && navigator.maxTouchPoints > 1)) return 'iPad';
+  if(/Win/i.test(pf) || /Windows/i.test(ua)) return 'Windows';
+  if(/Mac/i.test(pf) || /Mac OS/i.test(ua)) return 'Mac';
+  if(/CrOS/i.test(ua)) return 'ChromeOS';
+  if(/Linux/i.test(pf) || /Linux/i.test(ua)) return 'Linux';
+  return '';
+}
+const CLE_PRENDRE_DV = 'ec_drivup_prendre';
+function prendreLaMainDv(){ try{ localStorage.setItem(CLE_PRENDRE_DV, String(Date.now() + 120000)); }catch(e){} }
+function doitPrendreLaMainDv(){ try{ return Number(localStorage.getItem(CLE_PRENDRE_DV) || 0) > Date.now(); }catch(e){ return false; } }
+function laMainEstPriseDv(){ try{ localStorage.removeItem(CLE_PRENDRE_DV); }catch(e){} }
 function extDrivupPresente(){
   if(EXT_DV.present || document.documentElement.hasAttribute('data-ec-ext-drivup')) return true;
   /* v1526 — l'App ouverte « à côté » (dans un cadre de l'App) : l'extension est dans la page autour */
@@ -41,6 +61,14 @@ window.addEventListener('message', ev => {
     EXT_DV.present = true;
     EXT_DV.version = String(d.version || '');
     if(nouveau && typeof majOngletsVisibles === 'function'){ try{ majOngletsVisibles(); }catch(e){} }
+    /* 🖥️ v1594 — qui est cet ordinateur pour l'extension (son numéro) :
+       sans lui, on ne pourrait pas le nommer avant sa première lecture */
+    if(nouveau) versExtDrivup({ type: 'etat?' });
+    return;
+  }
+  if(d.type === 'ext-etat'){
+    if(d.etat && d.etat.poste) EXT_DV.poste = String(d.etat.poste);
+    if(d.navigateur) EXT_DV.navigateur = String(d.navigateur);
     return;
   }
   if(!d.demandeId) return;
@@ -54,14 +82,18 @@ async function traiterDemandeExtDrivup(d){
   if(!pret) return { ok: false, erreur: 'Personne n’est connecté à l’App dans cet onglet.' };
   if(d.type === 'jeton?'){
     EXT_DV.poste = String(d.poste || '');
+    if(d.navigateur) EXT_DV.navigateur = String(d.navigateur);
+    const prendre = doitPrendreLaMainDv();
     const r = await appelPrep({ action: 'drivupJeton', poste: d.poste, navigateur: d.navigateur, version: d.version,
-                                drivup: d.drivup, lecture: d.lecture || null });
+                                drivup: d.drivup, lecture: d.lecture || null, systeme: systemeDuPosteDv(),
+                                prendre: prendre || undefined });
     if(r && r.reglages) EXT_DV.reglages = r.reglages;
+    if(prendre && r && r.ok) laMainEstPriseDv();
     return { ok: !!(r && r.ok), lecteur: r && r.lecteur, reglages: r && r.reglages };
   }
   if(d.type === 'drivup-etat'){
     EXT_DV.etat = d;
-    if(EXT_DV.poste) appelPrep({ action: 'drivupPoste', poste: EXT_DV.poste, drivup: d.drivup || 'inconnu' }).catch(() => {});
+    if(EXT_DV.poste) appelPrep({ action: 'drivupPoste', poste: EXT_DV.poste, drivup: d.drivup || 'inconnu', systeme: systemeDuPosteDv() }).catch(() => {});
     return { ok: true };
   }
   if(d.type === 'drivup-donnees'){
@@ -71,7 +103,7 @@ async function traiterDemandeExtDrivup(d){
     const p = d.paquet || {}, jl = (typeof VEILLE_DV !== 'undefined' && VEILLE_DV.journal) || {};
     if(EXT_DV.poste && Array.isArray(p.cours)){
       try{
-        await appelPrep({ action: 'drivupPoste', poste: EXT_DV.poste, drivup: 'ok',
+        await appelPrep({ action: 'drivupPoste', poste: EXT_DV.poste, drivup: 'ok', systeme: systemeDuPosteDv(),
                           bilan: { passe: p.passe, pages: p.pages || 0, cours: p.cours.length, rouverts: p.cours.length - (p.detailsGardes || 0),
                                    changes: jl.changes || 0, fiches: jl.fiches || 0, notes: jl.notes || 0 } });
         apresLectureExtDrivup();
@@ -242,6 +274,47 @@ function dessinerEcoutesDv(z, etat){
   c.appendChild(bas);
 }
 
+/* 🖥️ v1594 — le bandeau « qui lit en ce moment » */
+function bandeauLecteurDv(etat, postes){
+  const j = etat.jeton;
+  const b = elDv('div', 'dvLecteurBandeau');
+  b.dataset.lecteur = j ? (j.poste || '') : '';
+  const ici = !!(j && EXT_DV.poste && j.poste === EXT_DV.poste);
+  if(!j){
+    b.appendChild(elDv('b', '', '📖 Personne ne lit Drivup en ce moment'));
+    b.appendChild(elDv('span', '', 'Le premier ordinateur allumé avec l’App et l’extension prend la main (ou « ↻ Lire maintenant » ci-dessous).'));
+    return b;
+  }
+  const p = (postes || []).find(x => x.poste === j.poste) || {};
+  b.appendChild(elDv('b', '', '📖 Lecteur : ' + (ici ? 'cet ordinateur' + (p.ordi ? ' (' + p.ordi + ')' : '') : (j.libelle || j.nom || 'un autre ordinateur'))));
+  const bouts = [];
+  if(ici) bouts.push([p.nom, p.systeme, p.navigateur].filter(Boolean).join(' · '));
+  if(j.depuis) bouts.push('depuis ' + heureDv(j.depuis));
+  if(p.lecture && p.lecture.le) bouts.push('dernière lecture à ' + heureDv(p.lecture.le));
+  if(!p.ordi) bouts.push('ordinateur sans nom : ✏️ Nommer sur sa ligne, depuis lui');
+  b.appendChild(elDv('span', '', bouts.filter(Boolean).join(' · ')));
+  return b;
+}
+function boutonNommerPosteDv(p){
+  const b = elDv('button', 'btn btn-secondary dvNommer', p.ordi ? '✏️ Renommer cet ordinateur' : '✏️ Nommer cet ordinateur');
+  b.type = 'button';
+  b.title = 'Un nom qu’on reconnaît : « Accueil Saint-Brieuc », « Bureau Loudéac », « Portable de David »…';
+  b.addEventListener('click', async () => {
+    const v = await demander('Le nom de cet ordinateur, pour savoir qui lit Drivup (par exemple « Accueil Saint-Brieuc »). Laisse vide pour retirer le nom.',
+                             p.ordi || '', '🖥️ Nommer cet ordinateur');
+    if(v === null || v === undefined) return;
+    b.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'drivupPosteNommer', poste: p.poste || EXT_DV.poste, ordi: String(v).trim().slice(0, 40),
+                                  navigateur: EXT_DV.navigateur || undefined, systeme: systemeDuPosteDv() });
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      if(typeof showToast === 'function') showToast(r.ordi ? '🖥️ Cet ordinateur s’appelle « ' + r.ordi + ' » ✅' : '🖥️ Nom retiré');
+      afficherDrivupGestion(true);
+    }catch(e){ b.disabled = false; if(typeof showToast === 'function') showToast('⚠️ ' + ((e && e.message) || e)); }
+  });
+  return b;
+}
+
 /* ---------- 📥 Drivup dans l'App ---------- */
 function dessinerConnexionsDv(z, etat){
   const c = carteDv(z, '📥', 'Drivup dans l’App', 'Drivup est lu en arrière-plan par l’extension « App EC · Drivup » du navigateur, avec la connexion Drivup de la personne. Personne ne tape son mot de passe dans l’App.');
@@ -252,9 +325,12 @@ function dessinerConnexionsDv(z, etat){
   puces.append(puceDrivup('', j.ecrites || 0, 'lignes écrites dans la base'));
   puces.append(puceDrivup('bouge', etat.jeton ? 1 : 0, 'lecteur pour toute l’équipe'));
   c.appendChild(puces);
-  c.appendChild(elDv('div', 'dvJour', 'Les connexions Drivup de l’équipe'));
   const postes = etat.postes || [];
   const lecteur = etat.jeton && etat.jeton.poste;
+  /* 🖥️ v1594 — QUI LIT EN CE MOMENT, EN CLAIR, EN HAUT (David : « je ne
+     sais pas quel ordinateur est le lecteur ») */
+  c.appendChild(bandeauLecteurDv(etat, postes));
+  c.appendChild(elDv('div', 'dvJour', 'Les connexions Drivup de l’équipe'));
   if(!postes.length) c.appendChild(elDv('div', 'dvPli', 'Aucun ordinateur n’a encore l’extension. Installe-la (ci-dessous), puis ouvre l’App sur cet ordinateur : il apparaîtra ici.'));
   postes.forEach(p => {
     const estLecteur = p.poste === lecteur;
@@ -272,23 +348,45 @@ function dessinerConnexionsDv(z, etat){
       etatP = 'neuf'; puce = estLecteur ? '✅ Connecté · lecteur' : '✅ Connecté';
       sous = nav + ' · session Drivup gardée par ' + nav + ' · ' + (estLecteur ? 'c’est lui qui lit pour tous' : 'prend le relais si le lecteur s’éteint');
     }
+    if(p.systeme) sous = p.systeme + ' · ' + sous;
     if(ici) sous = 'Cet ordinateur · ' + sous;
     if(p.lecture && p.lecture.le && !eteint) sous += ' · dernière lecture à ' + heureDv(p.lecture.le);
-    c.appendChild(ligneDv('PC', rondDrivup(p.nom || '?'), p.nom || 'Quelqu’un', sous, etatP, puce, etatLigne));
+    /* 🖥️ v1594 — le nom de l'ordinateur d'abord, puis la personne */
+    const titre = p.ordi ? p.ordi + ' · ' + (p.nom || 'Quelqu’un') : (p.nom || 'Quelqu’un') + (ici ? '' : ' · ordinateur sans nom');
+    const l = ligneDv('PC', rondDrivup(p.ordi || p.nom || '?'), titre, sous, etatP, puce, etatLigne);
+    l.dataset.poste = p.poste || '';
+    if(estLecteur) l.classList.add('dvLecteur');
+    if(ici) l.querySelector('.dvQui').appendChild(boutonNommerPosteDv(p));
+    c.appendChild(l);
   });
+  /* cet ordinateur a l'extension mais n'a encore jamais été vu par le Worker */
+  if(EXT_DV.poste && !postes.some(p => p.poste === EXT_DV.poste)){
+    const l = ligneDv('PC', rondDrivup('?'), 'Cet ordinateur', (systemeDuPosteDv() || 'Ordinateur') + ' · ' + (EXT_DV.navigateur || 'Navigateur') + ' · pas encore de lecture', 'ignore', '— Pas encore vu');
+    l.dataset.poste = EXT_DV.poste;
+    l.querySelector('.dvQui').appendChild(boutonNommerPosteDv({ poste: EXT_DV.poste, ordi: '' }));
+    c.appendChild(l);
+  }
   c.appendChild(noteDv('Le mot de passe reste dans le navigateur (son gestionnaire de mots de passe) et dans Drivup. L’extension réutilise la session Drivup déjà ouverte dans ce navigateur ; elle la garde éveillée en lisant régulièrement.'));
   /* lire maintenant, et l'installer */
   const bas = elDv('div', 'btn-row');
   bas.style.cssText = 'margin-top:10px;flex-wrap:wrap;gap:8px;';
   if(extDrivupPresente()){
-    const b = elDv('button', 'btn btn-secondary', '↻ Lire maintenant');
+    /* 🖥️ v1594 — sur un ordinateur qui n'est pas le lecteur, « Lire
+       maintenant » lui fait PRENDRE LA MAIN (David : « il prend la main ») */
+    const pasLui = !!(lecteur && EXT_DV.poste && lecteur !== EXT_DV.poste);
+    const libB = pasLui ? '↻ Lire maintenant · cet ordinateur prend la main' : '↻ Lire maintenant';
+    const b = elDv('button', 'btn btn-secondary', libB);
     b.type = 'button'; b.style.cssText = 'width:auto;flex:0 0 auto;';
+    b.dataset.lireMaintenant = pasLui ? 'prendre' : 'lire';
+    if(pasLui) b.title = 'L’ordinateur qui lit aujourd’hui (' + ((etat.jeton && etat.jeton.libelle) || 'un autre') + ') s’arrête à son prochain tour ; celui-ci lit pour toute l’équipe';
     b.addEventListener('click', () => {
+      prendreLaMainDv();
       b.disabled = true; b.textContent = 'Lecture dans Drivup…';
       const fin = ev => {
         if(ev.source !== window || !ev.data || ev.data.ecExt !== 1 || ev.data.type !== 'ext-lu') return;
         window.removeEventListener('message', fin);
-        b.disabled = false; b.textContent = '↻ Lire maintenant';
+        b.disabled = false; b.textContent = libB;
+        if(ev.data.status === 'ok' && pasLui && typeof showToast === 'function') showToast('🖥️ Cet ordinateur lit maintenant Drivup pour l’équipe ✅');
         const st = ev.data.status;
         if(st && st !== 'ok' && typeof showToast === 'function'){
           showToast({ 'pas-mon-tour': 'Un autre ordinateur lit en ce moment pour l’équipe.', 'occupe': 'Une lecture est déjà en cours.',
