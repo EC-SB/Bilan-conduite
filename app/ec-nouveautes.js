@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 14:08 — v1595 */
+/* Déployé le 27/11/2026 à 14:19 — v1596 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1596,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '👤 Le sommaire des Élèves trouve les élèves et ouvre leur dossier',
+    quoi: [
+      { emoji: '👤',
+        titre: 'Élèves › 🔳 Sommaire › la barre de recherche',
+        texte: 'Tape quelques lettres d’un nom ou d’un prénom (« mart », « léa mar », sans se soucier des accents) : les élèves passent en premier, sous « 👤 Élèves », puis les écrans comme avant. Les toucher ouvre leur dossier (au clic molette, dans un onglet). Entrée ouvre directement le dossier quand un seul élève correspond.' }
+    ]
+  },
   {
     version: 1595,
     date: 'Vendredi 27 novembre 2026',
