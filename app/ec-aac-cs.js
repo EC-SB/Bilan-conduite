@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 11:20 — v1594 */
+/* Déployé le 27/11/2026 à 14:08 — v1595 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -1195,11 +1195,153 @@ function boutonsCs(x, zone){
 let toursRvt = [];
 let toursRvtLus = 0;
 
+/* ============================================================
+   🗓️ « PLUTÔT DISPONIBLES » — v1595
+
+   David, le 27/11 (schéma « Aucune date ne nous convient ») : quand
+   aucune date ne convient, la famille donne ses jours de la semaine (le
+   matin et/ou l'après-midi), une période et une précision, sur son lien.
+   Ici : dans la case 🗣️ Théorique de la frise (« 🗓️ Plutôt dispo »),
+   noter ou corriger à la main (« 🗓️ Dispos », eues au téléphone), et
+   dans la grille du tour, à côté des familles sans date, avec le tableau
+   « Pour le prochain tour ». Elles disparaissent une fois le théorique
+   FAIT (son choix). Le Worker les garde (rvt_dispos, rvtDisposPoser).
+   ============================================================ */
+let disposRvt = {};
+const JOURS_DISPOS_AAC = [['lun', 'lun.', 'Lundi'], ['mar', 'mar.', 'Mardi'], ['mer', 'mer.', 'Mercredi'],
+                          ['jeu', 'jeu.', 'Jeudi'], ['ven', 'ven.', 'Vendredi'], ['sam', 'sam.', 'Samedi']];
+function disposRvtDe(nom){
+  const k = normaliserMot(nom);
+  const cle = Object.keys(disposRvt || {}).find(n => normaliserMot(n) === k);
+  if(cle) return disposRvt[cle];
+  /* le même élève écrit dans l'autre ordre (« Léa MARTIN ») */
+  const tri = t => normaliserMot(t).split(' ').filter(Boolean).sort().join(' ');
+  const k2 = tri(nom);
+  const c2 = Object.keys(disposRvt || {}).find(n => tri(n) === k2);
+  return c2 ? disposRvt[c2] : null;
+}
+function joursDisposCourt(x){
+  const j = (x && x.jours) || [];
+  return JOURS_DISPOS_AAC.map(d => {
+    const ma = j.indexOf(d[0] + '-ma') !== -1, ap = j.indexOf(d[0] + '-ap') !== -1;
+    return ma && ap ? d[1] + ' journée' : (ma ? d[1] + ' matin' : (ap ? d[1] + ' ap-midi' : ''));
+  }).filter(Boolean).join(' · ');
+}
+function periodeDisposAac(x){
+  if(!x) return '';
+  const c = iso => { const m = String(iso || '').match(/^\d{4}-(\d{2})-(\d{2})$/); return m ? m[2] + '/' + m[1] : ''; };
+  if(x.du && x.au) return 'du ' + c(x.du) + ' au ' + c(x.au);
+  if(x.du) return 'à partir du ' + c(x.du);
+  if(x.au) return 'jusqu\'au ' + c(x.au);
+  return '';
+}
+function origineDisposAac(x){
+  if(!x) return '';
+  const le = String(x.le || '').split(' ')[0].slice(0, 5);
+  return x.source === 'bureau' ? '📞 noté par ' + (x.par || 'le bureau') + (le ? ' le ' + le : '')
+                               : 'réponse de la famille' + (le ? ' le ' + le : '');
+}
+/* La fenêtre de l'équipe : ses jours, la période, une précision */
+function fenetreDisposAac(nom){
+  const x = disposRvtDe(nom) || { jours: [], du: '', au: '', precision: '' };
+  const pris = new Set(x.jours || []);
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const m = document.createElement('div');
+  m.className = 'modal fenDisposAac';
+  m.style.cssText = 'max-width:min(480px,94vw);max-height:92vh;overflow-y:auto;';
+  const h = document.createElement('h3');
+  h.textContent = '🗓️ Disponibilités — ' + nom;
+  m.appendChild(h);
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:13px;color:var(--muted);margin:-4px 0 12px;line-height:1.45;';
+  aide.textContent = 'Pour la prochaine proposition du rendez-vous théorique. Eues au téléphone, ou corrigées : la famille les retrouvera sur son lien.' +
+    (x.le ? ' Dernière fois : ' + origineDisposAac(x) + '.' : '');
+  m.appendChild(aide);
+  JOURS_DISPOS_AAC.forEach(d => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);';
+    const b = document.createElement('b');
+    b.style.cssText = 'flex:0 0 clamp(68px, 20vw, 92px);font-size:14px;';
+    b.textContent = d[2];
+    l.appendChild(b);
+    [['ma', '🌅 Matin'], ['ap', '🌇 Après-midi']].forEach(([k, lib]) => {
+      const bt = document.createElement('button');
+      bt.type = 'button';
+      bt.dataset.dispo = d[0] + '-' + k;
+      const maj = () => { const on = pris.has(bt.dataset.dispo); bt.className = 'btn ' + (on ? 'btn-primary' : 'btn-secondary'); bt.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+      bt.style.cssText = 'flex:1 1 0;min-width:0;margin:0;padding:8px 4px;font-size:13px;white-space:nowrap;';
+      bt.textContent = lib;
+      maj();
+      bt.addEventListener('click', () => { if(pris.has(bt.dataset.dispo)) pris.delete(bt.dataset.dispo); else pris.add(bt.dataset.dispo); maj(); });
+      l.appendChild(bt);
+    });
+    m.appendChild(l);
+  });
+  const lab = (t, pour) => { const e = document.createElement('label'); e.textContent = t; if(pour) e.htmlFor = pour; e.style.marginTop = '12px'; return e; };
+  m.appendChild(lab('Sur quelle période (facultatif)', 'dispoAacDu'));
+  const per = document.createElement('div');
+  /* « du … » et « au … » vont à la ligne ensemble sur un téléphone, la date reste lisible */
+  per.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 12px;';
+  const champDate = (mot, id, val) => {
+    const g = document.createElement('div');
+    g.style.cssText = 'display:flex;gap:8px;align-items:center;flex:1 1 170px;min-width:0;';
+    const s = document.createElement('span'); s.textContent = mot; s.style.flex = '0 0 18px';
+    const i = document.createElement('input'); i.type = 'date'; i.id = id; i.value = val || ''; i.style.cssText = 'flex:1 1 auto;margin:0;min-width:0;';
+    g.append(s, i);
+    per.appendChild(g);
+    return i;
+  };
+  const du = champDate('du', 'dispoAacDu', x.du);
+  const au = champDate('au', 'dispoAacAu', x.au);
+  m.appendChild(per);
+  m.appendChild(lab('Une précision (facultatif)', 'dispoAacPrecision'));
+  const pr = document.createElement('input');
+  pr.type = 'text'; pr.id = 'dispoAacPrecision'; pr.maxLength = 200; pr.value = x.precision || '';
+  pr.placeholder = 'Par exemple : pas le 24 ni le 26';
+  pr.style.margin = '0 0 12px';
+  m.appendChild(pr);
+  const dit = document.createElement('div');
+  dit.style.cssText = 'min-height:16px;font-size:13px;color:var(--warn-text);margin-bottom:6px;';
+  m.appendChild(dit);
+  const row = document.createElement('div');
+  row.className = 'btn-row';
+  const eff = document.createElement('button'); eff.type = 'button'; eff.className = 'btn btn-secondary'; eff.textContent = '🗑️ Effacer';
+  const non = document.createElement('button'); non.type = 'button'; non.className = 'btn btn-secondary'; non.textContent = 'Annuler';
+  const oui = document.createElement('button'); oui.type = 'button'; oui.className = 'btn btn-primary'; oui.textContent = '💾 Enregistrer';
+  if(!x.le) eff.style.display = 'none';
+  row.append(eff, non, oui);
+  m.appendChild(row);
+  fond.appendChild(m);
+  document.body.appendChild(fond);
+  const fermer = () => { if(fond.parentNode) fermerFond(fond); };
+  non.addEventListener('click', fermer);
+  const poser = async (corps, bravo) => {
+    oui.disabled = eff.disabled = true;
+    try{
+      const r = await appelPrep(Object.assign({ action: 'rvtDisposPoser', eleve: nom }, corps));
+      if(!r || r.status !== 'ok') throw new Error((r && r.message) || 'refusé');
+      fermer();
+      showToast(bravo);
+      await chargerToursRvt(true);
+      redessinerAacCs();
+    }catch(e){ oui.disabled = eff.disabled = false; dit.textContent = '⚠️ ' + ((e && e.message) || e); }
+  };
+  oui.addEventListener('click', () => {
+    const jours = [...pris];
+    if(!jours.length && !du.value && !au.value && !pr.value.trim()){ dit.textContent = 'Rien de noté : touche au moins un jour (ou « Effacer »).'; return; }
+    poser({ jours: jours, du: du.value, au: au.value, precision: pr.value.trim() }, '🗓️ Disponibilités de ' + nom + ' notées ✅');
+  });
+  eff.addEventListener('click', () => poser({ effacer: true }, '🗓️ Disponibilités de ' + nom + ' effacées'));
+}
+
 async function chargerToursRvt(forcer){
   if(!forcer && toursRvtLus && Date.now() - toursRvtLus < 30000) return toursRvt;
   try{
     const d = await appelPrep({ action: 'rvtList' });
     toursRvt = (d && d.tours) || [];
+    /* 🗓️ v1595 — les dispos de chaque élève (famille ou bureau) */
+    disposRvt = (d && d.dispos && typeof d.dispos === 'object') ? d.dispos : {};
     toursRvtLus = Date.now();
   }catch(e){ /* la liste AAC reste lisible sans les tours */ }
   return toursRvt;
@@ -2307,6 +2449,68 @@ function comptesTourRvt(t){
 }
 
 
+/* 🧮 v1595 — « Pour le prochain tour » : par jour, le matin et l'après-midi,
+   combien de familles sont plutôt disponibles (toucher une case dit qui) */
+function tableauDisposTourRvt(avecDispos){
+  const r = document.createElement('div');
+  r.className = 'rvtDisposTableau';
+  r.style.cssText = 'border:1px dashed var(--accent-text);border-radius:10px;padding:9px 11px;margin-bottom:9px;font-size:12px;';
+  const t = document.createElement('div');
+  t.style.cssText = 'font-weight:800;margin-bottom:6px;';
+  t.textContent = '🧮 Pour le prochain tour : qui est plutôt disponible quand';
+  r.appendChild(t);
+  const env = document.createElement('div');
+  env.style.cssText = 'overflow-x:auto;';
+  const tab = document.createElement('table');
+  tab.style.cssText = 'border-collapse:collapse;width:100%;font-size:12px;text-align:center;';
+  const tete = document.createElement('tr');
+  tete.appendChild(document.createElement('th'));
+  JOURS_DISPOS_AAC.forEach(d => { const th = document.createElement('th'); th.textContent = d[1].replace(/^./, c => c.toUpperCase()); th.style.padding = '3px 4px'; tete.appendChild(th); });
+  tab.appendChild(tete);
+  const dit = document.createElement('div');
+  dit.className = 'rvtDisposQui';
+  dit.style.cssText = 'color:var(--muted);margin-top:5px;min-height:16px;';
+  let max = 0, meilleur = '';
+  const qui = {};
+  JOURS_DISPOS_AAC.forEach(d => ['ma', 'ap'].forEach(k => {
+    const cle = d[0] + '-' + k;
+    qui[cle] = avecDispos.filter(o => (o.x.jours || []).indexOf(cle) !== -1).map(o => o.e.eleve);
+    if(qui[cle].length > max){ max = qui[cle].length; meilleur = cle; }
+  }));
+  [['ma', '🌅 Matin', 'matin'], ['ap', '🌇 Ap.-midi', 'après-midi']].forEach(([k, lib, mot]) => {
+    const tr = document.createElement('tr');
+    const td0 = document.createElement('td'); td0.textContent = lib; td0.style.cssText = 'text-align:left;padding:3px 4px;white-space:nowrap;';
+    tr.appendChild(td0);
+    JOURS_DISPOS_AAC.forEach(d => {
+      const cle = d[0] + '-' + k, n = qui[cle].length;
+      const td = document.createElement('td');
+      td.dataset.creneauDispo = cle;
+      td.textContent = n ? String(n) : '·';
+      td.style.cssText = 'padding:3px 4px;border:1px solid var(--line);font-variant-numeric:tabular-nums;' +
+        (n && n === max ? 'background:rgba(182,255,14,.35);font-weight:800;' : (n ? 'background:rgba(182,255,14,.14);font-weight:700;' : 'color:var(--muted);'));
+      if(n){
+        td.style.cursor = 'pointer';
+        td.setAttribute('role', 'button'); td.tabIndex = 0;
+        td.title = qui[cle].join(', ');
+        const montrer = () => { dit.textContent = d[2] + ' ' + mot + ' : ' + qui[cle].join(', '); };
+        td.addEventListener('click', montrer);
+        td.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); montrer(); } });
+      }
+      tr.appendChild(td);
+    });
+    tab.appendChild(tr);
+  });
+  env.appendChild(tab);
+  r.appendChild(env);
+  if(meilleur){
+    const d = JOURS_DISPOS_AAC.find(j => j[0] === meilleur.split('-')[0]);
+    dit.textContent = d[2] + (meilleur.split('-')[1] === 'ma' ? ' matin' : ' après-midi') + ' réunit ' + max + ' famille' + (max > 1 ? 's' : '') +
+      (max === avecDispos.length && max > 1 ? ' (toutes)' : '') + '. Touche une case pour voir les noms.';
+  }
+  r.appendChild(dit);
+  return r;
+}
+
 function carteTourRvt(t, opts){
   opts = opts || {};
   const d = document.createElement('div');
@@ -2526,13 +2730,41 @@ function carteTourRvt(t, opts){
     return e.reponduLe && cles.length &&
            cles.every(k => r[k] === 'non');
   }).map(e => e.eleve);
-  if(aucune.length){
+  /* 🗓️ v1595 — et LEURS DISPOS À CÔTÉ DE LEUR NOM, puis le tableau « Pour le
+     prochain tour » : qui est plutôt disponible quel jour, matin ou
+     après-midi. C'est de quoi choisir les dates du tour suivant. */
+  /* une fois son théorique fait (ou fait ailleurs), on ne parle plus de ses dispos */
+  const rvtDejaFait = n => typeof suiviDe === 'function' && /^(fait|ailleurs)$/.test(String((suiviDe(n) || {}).rvtEtat || ''));
+  const aucuneAFaire = aucune.filter(n => !rvtDejaFait(n));
+  const avecDispos = (t.eleves || []).map(e => ({ e: e, x: disposRvtDe(e.eleve) }))
+    .filter(o => o.x && (aucune.indexOf(o.e.eleve) !== -1 || (o.x.jours || []).length) && !rvtDejaFait(o.e.eleve));
+  if(aucuneAFaire.length || avecDispos.length){
     const m = document.createElement('div');
-    m.style.cssText = 'font-size:11.5px;color:var(--warn-text);' +
-      'margin-bottom:9px;line-height:1.5;';
-    m.textContent = '✖️ Aucune de ces dates : ' + aucune.join(', ') +
-      ' — il leur faudra d\'autres créneaux.';
+    m.className = 'rvtDisposTour';
+    m.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:9px;font-size:12px;line-height:1.5;';
+    const tt = document.createElement('div');
+    tt.style.cssText = 'font-weight:800;margin-bottom:4px;color:var(--warn-text);';
+    tt.textContent = aucuneAFaire.length ? '✖️ Aucune de ces dates — leurs disponibilités pour un autre tour' : '🗓️ Leurs disponibilités pour un autre tour';
+    m.appendChild(tt);
+    const noms = new Set(avecDispos.map(o => o.e.eleve));
+    avecDispos.forEach(o => {
+      const l = document.createElement('div');
+      l.dataset.dispos = o.e.eleve;
+      const b = document.createElement('b'); b.textContent = o.e.eleve;
+      const reste = document.createElement('span');
+      reste.style.color = 'var(--muted)';
+      reste.textContent = [periodeDisposAac(o.x), o.x.precision ? '« ' + o.x.precision + ' »' : '', o.x.source === 'bureau' ? '📞 ' + (o.x.par || 'bureau') : ''].filter(Boolean).map(v => ' · ' + v).join('');
+      l.append(document.createTextNode('🗓️ '), b, document.createTextNode(' : ' + (joursDisposCourt(o.x) || 'pas de jour donné')), reste);
+      m.appendChild(l);
+    });
+    aucuneAFaire.filter(n => !noms.has(n)).forEach(n => {
+      const l = document.createElement('div');
+      l.style.color = 'var(--muted)';
+      l.textContent = '✖️ ' + n + ' : pas encore de disponibilités (🗓️ Dispos sur sa ligne du Suivi AAC pour les noter)';
+      m.appendChild(l);
+    });
     d.appendChild(m);
+    if(avecDispos.some(o => (o.x.jours || []).length)) d.appendChild(tableauDisposTourRvt(avecDispos));
   }
 
   const act = document.createElement('div');
@@ -4739,9 +4971,29 @@ function ligneAac(x){
     boutonsRdv('② RVP 1', 'rvp1')));
 
   /* 🗣️ Théorique — la proposition en cours, juste dessous */
+  /* 🗓️ v1595 — ses dispos (famille ou bureau), jusqu'à ce qu'il soit fait */
+  const rvtFait = x.rdv.rvt.cle === 'fait' || x.rdv.rvt.cle === 'ailleurs';
+  const dispos = rvtFait ? null : disposRvtDe(x.eleve);
+  const lignesDispos = [];
+  if(dispos){
+    const pil = pastilleAac(dispos.source === 'bureau' ? 'aacPilPrevenu' : 'aacPilRepondu', '🗓️ Plutôt dispo',
+      joursDisposCourt(dispos) || '—',
+      'Disponibilités pour le prochain tour : ' + (joursDisposCourt(dispos) || 'aucun jour') + (periodeDisposAac(dispos) ? ', ' + periodeDisposAac(dispos) : '') +
+      (dispos.precision ? ' — « ' + dispos.precision + ' »' : '') + ' (' + origineDisposAac(dispos) + ')');
+    pil.classList.add('aacPilDispos');
+    lignesDispos.push(pil);
+    lignesDispos.push(petiteLigneAac([periodeDisposAac(dispos), dispos.precision ? '« ' + dispos.precision + ' »' : '', origineDisposAac(dispos)]
+      .filter(Boolean).join(' · '), 'var(--muted)'));
+  }
+  const btsRvt = boutonsRdv('🗣️ Théorique', 'rvt');
+  if(!rvtFait && attendus && peutChangerReponsesRvt()){
+    const bd = petitBouton('🗓️ Dispos', dispos ? 'Corriger ses disponibilités (eues au téléphone)' : 'Noter ses disponibilités (eues au téléphone)', () => fenetreDisposAac(x.eleve));
+    bd.classList.add('aacBtDispos');
+    btsRvt.push(bd);
+  }
   fr.appendChild(caseFriseAac('🗣️ Théorique', classeCaseAac(x.rdv.rvt), texteCaseAac(x.rdv.rvt),
-    [ligneAchatAac(x, 'rvt'), pastillePrevenuAac(x, 'rvt', x.rdv.rvt), pastilleTourAac(x)],
-    boutonsRdv('🗣️ Théorique', 'rvt')));
+    [ligneAchatAac(x, 'rvt'), pastillePrevenuAac(x, 'rvt', x.rdv.rvt), pastilleTourAac(x)].concat(lignesDispos),
+    btsRvt));
 
   /* ③ RVP 2 */
   fr.appendChild(caseFriseAac('③ RVP 2', classeCaseAac(x.rdv.rvp2), texteCaseAac(x.rdv.rvp2),
