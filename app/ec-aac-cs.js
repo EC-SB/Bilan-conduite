@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 15:16 — v1597 */
+/* Déployé le 27/11/2026 à 15:24 — v1598 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -4297,22 +4297,66 @@ function elevesAac(){
     out.push(dossierAac(noms[k]));
   });
 
-  /* Les retards d'abord, puis ceux dont le théorique manque, puis
-     par date d'examen possible — les plus proches en tête. */
-  out.sort((a, b) => {
-    /* AJOURNÉ SANS NOUVELLE DATE D'ABORD : c'est celui-là qui attend
-       qu'on fasse quelque chose. Un rendez-vous en retard peut se
-       rattraper le mois prochain ; un élève ajourné et non
-       reprogrammé, personne ne le rappelle. */
-    if(a.exam.aReprogrammer !== b.exam.aReprogrammer)
-      return a.exam.aReprogrammer ? -1 : 1;
-    if(a.retard !== b.retard) return a.retard ? -1 : 1;
-    if(a.rvtManquant !== b.rvtManquant) return a.rvtManquant ? -1 : 1;
-    const da = a.ech.exam.iso || '9999';
-    const db = b.ech.exam.iso || '9999';
-    return da < db ? -1 : (da > db ? 1 : 0);
-  });
+  out.sort(ordreHabituelAac);
   return out;
+}
+
+/* ↕️ v1598 — L'ORDRE DE « TOUS ». David, le 27/11 : d'abord les ajournés
+   sans nouvelle date (personne ne les rappelle sinon), puis par examen
+   possible le plus proche ; dans un même mois, celui qui a un rendez-vous
+   en retard passe devant. (Avant : tous les retards, puis le théorique
+   manquant, puis la date.) */
+function ordreHabituelAac(a, b){
+  if(a.exam.aReprogrammer !== b.exam.aReprogrammer) return a.exam.aReprogrammer ? -1 : 1;
+  const da = a.ech.exam.iso || '9999-99-99', db = b.ech.exam.iso || '9999-99-99';
+  if(da.slice(0, 7) !== db.slice(0, 7)) return da < db ? -1 : 1;
+  if(a.retard !== b.retard) return a.retard ? -1 : 1;
+  if(da !== db) return da < db ? -1 : 1;
+  return String(a.eleve).localeCompare(String(b.eleve), 'fr');
+}
+
+/* ↕️ v1598 — « Trier par », en haut. Un tri à la fois ; il reste sur
+   l'appareil. Les filtres (Tous, En retard…) gardent leur rôle : le tri
+   range ce que le filtre montre. */
+const TRIS_AAC = [['', '↕️ Ordre habituel', 'Ajournés sans nouvelle date, puis l’examen possible le plus proche (à mois égal, les retards devant)'],
+                  ['ancien', '🕰️ Plus ancien RVP', 'Le dernier rendez-vous fait le plus ancien en tête : ceux qu’on n’a pas vus depuis longtemps'],
+                  ['permis', '🎓 Plus proche du permis', 'L’examen possible le plus proche en tête'],
+                  ['retard', '⚠️ Le plus en retard', 'Le rendez-vous dépassé depuis le plus longtemps en tête'],
+                  ['nom', '🔤 Nom (A → Z)', 'Par ordre alphabétique']];
+let triAac = (function(){ try{ const v = localStorage.getItem('ec_tri_aac') || ''; return TRIS_AAC.some(t => t[0] === v) ? v : ''; }catch(e){ return ''; } })();
+function choisirTriAac(cle){
+  triAac = cle;
+  try{ if(cle) localStorage.setItem('ec_tri_aac', cle); else localStorage.removeItem('ec_tri_aac'); }catch(e){}
+  afficherAacCs();
+}
+/* La date (ISO) du dernier rendez-vous FAIT — préalable, RVP 1, théorique, RVP 2 */
+function dernierRdvFaitAac(x){
+  const s = x.suivi || {};
+  return [['rvpEtat', 'rvpDate'], ['rvp1Etat', 'rvp1Date'], ['rvtEtat', 'rvtDate'], ['rvp2Etat', 'rvp2Date']]
+    .filter(([e]) => /^(fait|ailleurs)$/.test(String(s[e] || '')))
+    .map(([, d]) => String(s[d] || '').slice(0, 10)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort().pop() || '';
+}
+/* L'échéance dépassée la plus ancienne (RVP 1 ou RVP 2) */
+function retardLePlusAncienAac(x){
+  return ['rvp1', 'rvp2'].filter(k => x.rdv[k] && x.rdv[k].retard).map(k => String(x.ech[k] || '')).filter(Boolean).sort()[0] || '';
+}
+function trierAac(l){
+  const out = l.slice();
+  if(triAac === 'nom') return out.sort((a, b) => String(a.eleve).localeCompare(String(b.eleve), 'fr'));
+  if(triAac === 'permis') return out.sort((a, b) => {
+    const da = a.ech.exam.iso || '9999', db = b.ech.exam.iso || '9999';
+    return da !== db ? (da < db ? -1 : 1) : ordreHabituelAac(a, b);
+  });
+  if(triAac === 'ancien') return out.sort((a, b) => {
+    const da = dernierRdvFaitAac(a) || '9999', db = dernierRdvFaitAac(b) || '9999';
+    return da !== db ? (da < db ? -1 : 1) : ordreHabituelAac(a, b);
+  });
+  if(triAac === 'retard') return out.sort((a, b) => {
+    const da = retardLePlusAncienAac(a) || '9999', db = retardLePlusAncienAac(b) || '9999';
+    return da !== db ? (da < db ? -1 : 1) : ordreHabituelAac(a, b);
+  });
+  return out.sort(ordreHabituelAac);
 }
 
 
@@ -4428,7 +4472,7 @@ function dessinerListeAac(zone){
     return;
   }
 
-  const vus = liste.filter(x => {
+  const vus = trierAac(liste).filter(x => {
     if(filtreAac === 'retard') return x.retard;
     if(filtreAac === 'theorique') return x.rvtManquant;
     if(filtreAac === 'relances') return !!relanceActiveAac(x);
@@ -4521,6 +4565,31 @@ function dessinerFiltresAac(liste){
   p.disabled = !invitables;
   p.addEventListener('click', () => ouvrirTourRvt(liste));
   z.appendChild(p);
+
+  /* ↕️ v1598 — « Trier par », sur sa ligne, sous les filtres (pas sous
+     l'organisation : il n'y a pas de liste d'élèves) */
+  if(filtreAac === 'organisation') return;
+  const r = document.createElement('div');
+  r.className = 'triAac';
+  r.style.cssText = 'flex:1 1 100%;display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:2px;';
+  const lib = document.createElement('span');
+  lib.style.cssText = 'font-size:11.5px;color:var(--muted);font-weight:700;margin-right:2px;';
+  lib.textContent = 'Trier par';
+  r.appendChild(lib);
+  TRIS_AAC.forEach(([cle, nom, aide]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    b.dataset.triAac = cle || 'habituel';
+    b.title = aide;
+    b.setAttribute('aria-pressed', triAac === cle ? 'true' : 'false');
+    b.style.cssText = 'width:auto;margin:0;padding:5px 9px;font-size:11.5px;' +
+      (triAac === cle ? 'border-color:var(--accent-text);color:var(--accent-text);' : '');
+    b.textContent = nom;
+    b.addEventListener('click', () => choisirTriAac(cle));
+    r.appendChild(b);
+  });
+  z.appendChild(r);
 }
 
 
