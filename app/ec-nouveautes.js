@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 10:33 — v1592 */
+/* Déployé le 27/11/2026 à 10:48 — v1593 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,16 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1593,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '💬 Messagerie : les réactions s’ouvrent sous le message',
+    quoi: [
+      { emoji: '💬',
+        titre: 'Messagerie › la barre des réactions passe en dessous',
+        texte: 'Un appui long (ou un clic droit) sur un message ouvre maintenant ↩️ 👍 ❤️ 😂 😮 😢 🙏 juste SOUS la bulle, et non plus au-dessus. Sous le dernier message, elle reste visible au-dessus de la barre d’écriture.' }
+    ]
+  },
   {
     version: 1592,
     date: 'Vendredi 27 novembre 2026',
