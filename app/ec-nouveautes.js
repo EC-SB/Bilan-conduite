@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 14:19 — v1596 */
+/* Déployé le 27/11/2026 à 15:16 — v1597 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,22 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1597,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '🎓 Le souhait de la famille pour la date d’examen : dès que possible, ou pendant les vacances',
+    quoi: [
+      { emoji: '🎓',
+        titre: 'Suivi › 🎓 Suivi AAC › la case Examen',
+        texte: 'Le bouton « 🎓 Souhait » note ce que la famille a dit : « 📅 Dès que possible, n’importe quel jour » ou « 🏖️ Pendant les vacances scolaires » (on coche lesquelles : Toussaint, Noël, Hiver, Printemps, Été — zone B), et une note libre. La case l’affiche avec qui l’a noté et quand ; ✏️ le corrige, 🗑️ l’efface.' },
+      { emoji: '🚗',
+        titre: 'Permis › 🤔 À envisager',
+        texte: 'Sur la ligne de l’élève : « 📅 dès que possible » ou « 🏖️ vacances : Noël, Hiver ». Dans sa fiche, le bouton « 🎓 Souhait » ouvre la même fenêtre.' },
+      { emoji: '📇',
+        titre: 'Dossier de l’élève › 🎓 Permis',
+        texte: 'Sous la date d’examen : « 🗓️ Souhait de la famille », avec ✏️ pour le noter ou le corriger.' }
+    ]
+  },
   {
     version: 1596,
     date: 'Vendredi 27 novembre 2026',
