@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 15:51 — v1574 */
+/* Déployé le 27/11/2026 à 11:12 — v1594 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -2070,8 +2070,18 @@ function texteMailRvtFixe(eleve, date, heure, lieu, lien){
   if(lieu) l.push('', '📍 ' + lieu);
 
   l.push('',
-    "L'élève vient AVEC son accompagnateur.",
-    '',
+    "L'élève vient AVEC son accompagnateur.");
+
+  /* 💶 v1594 — CE QUI N'EST PAS ENCORE ACHETÉ DANS DRIVUP. David, le
+     27/11 : « dans le mail, indique s'il n'est pas payé qu'il doit être
+     acheté avant le rendez-vous sur Drivup directement » — le théorique,
+     et les rendez-vous pratiques aussi. Rien quand tout est acheté, ou
+     quand Drivup › Facturer n'a pas été lu pour lui : on ne dit jamais
+     « à acheter » sur une ignorance. */
+  const achats = lignesAchatsMailAac(eleve, date);
+  if(achats.length) l.push('', ...achats);
+
+  l.push('',
     'Merci de nous prévenir si un empêchement survenait.');
 
   /* ⚠️ LE LIEN REVIENT DANS LA CONVOCATION.
@@ -2148,16 +2158,14 @@ function mailsDeLaFamille(nom){
 /* L'envoi de la clôture, les deux variantes par le même chemin que
    tout le reste — « mailBilan », donc contact@evolutionconduites.fr
    et pas le compte Google du script. */
-async function envoyerMailsCloture(retenus, laisses, info, jetons){
-  const out = [];
+/* 📨 v1594 — LES MAILS SE PRÉPARENT D'ABORD, ILS PARTENT ENSUITE.
+   David, le 27/11 : voir le mail de chaque famille avant l'envoi. Ce que
+   montre l'aperçu et ce qui part sont la MÊME liste : un aperçu refait
+   à part finirait par ne plus dire la même chose que le mail. */
+function preparerMailsCloture(retenus, laisses, info, jetons){
   const j = jetons || {};
-
-  const un = async (nom, variante) => {
+  const un = (nom, variante) => {
     const dest = mailsDeLaFamille(nom);
-    if(!dest.length){
-      out.push({ eleve: nom, variante: variante, etat: 'aucune adresse' });
-      return;
-    }
     /* Le lien de CETTE famille. Sans jeton — une ligne trop vieille,
        un tour d'avant — le mail part quand même, sans lien : mieux
        vaut une convocation sans page qu'une famille non prévenue. */
@@ -2169,29 +2177,43 @@ async function envoyerMailsCloture(retenus, laisses, info, jetons){
       : (variante === 'annule'
           ? texteMailRvtAnnule(nom, info.date, info.heure)
           : texteMailRvtReporte(nom));
+    return { eleve: nom, variante: variante, dest: dest, lien: lien, texte: texte,
+      sujet: variante === 'fixe'
+        ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
+          'c\'est le ' + (jourFrCs(info.date) || info.date)
+        : (variante === 'annule'
+            ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
+              'ANNULÉ'
+            : 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
+              'de nouvelles dates à venir') };
+  };
+  return (retenus || []).map(n => un(n, 'fixe'))
+    .concat((laisses || []).map(n => un(n, info && info.annule ? 'annule' : 'reporte')));
+}
+
+async function envoyerMailsCloture(retenus, laisses, info, jetons, prets){
+  /* 💶 v1594 — ce qui est acheté dans Drivup, avant d'écrire la convocation */
+  if(!prets && (retenus || []).length){ try{ await chargerAchatsAac(retenus); }catch(e){} }
+  const mails = prets || preparerMailsCloture(retenus, laisses, info, jetons);
+  const out = [];
+  for(const m of mails){
+    if(!m.dest.length){
+      out.push({ eleve: m.eleve, variante: m.variante, etat: 'aucune adresse' });
+      continue;
+    }
     try{
-      await appelPrep({ action: 'mailBilan', to: dest, genre: 'rvp', eleve: nom,
-        sujet: variante === 'fixe'
-          ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
-            'c\'est le ' + (jourFrCs(info.date) || info.date)
-          : (variante === 'annule'
-              ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
-                'ANNULÉ'
-              : 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
-                'de nouvelles dates à venir'),
-        texte: texte,
+      await appelPrep({ action: 'mailBilan', to: m.dest, genre: 'rvp', eleve: m.eleve,
+        sujet: m.sujet,
+        texte: m.texte,
         html: (typeof mailEnHtml === 'function')
-          ? mailEnHtml(texte, variante === 'fixe' ? lien : '',
+          ? mailEnHtml(m.texte, m.variante === 'fixe' ? m.lien : '',
                        '🗓️ Voir mon rendez-vous') : undefined });
-      out.push({ eleve: nom, variante: variante, etat: 'envoyé' });
+      out.push({ eleve: m.eleve, variante: m.variante, etat: 'envoyé' });
     }catch(e){
-      out.push({ eleve: nom, variante: variante,
+      out.push({ eleve: m.eleve, variante: m.variante,
                  etat: 'échec : ' + (e && e.message ? e.message : 'inconnu') });
     }
-  };
-
-  for(const n of (retenus || [])) await un(n, 'fixe');
-  for(const n of (laisses || [])) await un(n, info && info.annule ? 'annule' : 'reporte');
+  }
   return out;
 }
 
@@ -2770,6 +2792,121 @@ async function retenirCreneauRvt(t, c, combien){
 }
 
 
+/* 📨 v1594 — L'APERÇU DES MAILS, UN PAR UN.
+   Chaque mail en entier (à qui, l'objet, le texte), ‹ › pour passer de
+   l'un à l'autre (et les flèches du clavier), la liste des familles pour
+   aller droit à l'une, puis « 📨 Envoyer les N mails ». Rien ne part
+   d'ici : la fenêtre rend oui ou non. */
+function apercuMailsRvt(mails, titre, resume){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal apMails';
+    boite.style.cssText = 'max-width:min(620px,95vw);max-height:92vh;overflow-y:auto;';
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+    (resume || []).forEach(t => {
+      const p = document.createElement('div');
+      p.className = 'apResume';
+      p.textContent = t;
+      boite.appendChild(p);
+    });
+
+    const nav = document.createElement('div');
+    nav.className = 'apNav';
+    const prec = document.createElement('button');
+    prec.type = 'button'; prec.className = 'btn btn-secondary apPrec'; prec.textContent = '‹';
+    prec.title = 'Le mail d’avant'; prec.setAttribute('aria-label', 'Le mail d’avant');
+    const choix = document.createElement('select');
+    choix.className = 'apChoix';
+    choix.setAttribute('aria-label', 'Aller au mail d’une famille');
+    mails.forEach((m, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = (i + 1) + ' / ' + mails.length + ' · ' + m.eleve +
+        (m.dest.length ? '' : ' · ⚠️ sans adresse') + (m.variante === 'fixe' ? '' : (m.variante === 'annule' ? ' · annulation' : ' · à reproposer'));
+      choix.appendChild(o);
+    });
+    const suiv = document.createElement('button');
+    suiv.type = 'button'; suiv.className = 'btn btn-secondary apSuiv'; suiv.textContent = '›';
+    suiv.title = 'Le mail suivant'; suiv.setAttribute('aria-label', 'Le mail suivant');
+    nav.append(prec, choix, suiv);
+    boite.appendChild(nav);
+
+    const carte = document.createElement('div');
+    carte.className = 'apMail';
+    boite.appendChild(carte);
+
+    let i = 0;
+    const montrer = () => {
+      const m = mails[i];
+      carte.innerHTML = '';
+      const ligne = (k, v, cls) => {
+        const d = document.createElement('div');
+        d.className = 'apL' + (cls ? ' ' + cls : '');
+        const b = document.createElement('b'); b.textContent = k;
+        const s2 = document.createElement('span'); s2.textContent = v;
+        d.append(b, s2);
+        carte.appendChild(d);
+        return d;
+      };
+      if(m.dest.length) ligne('À', m.dest.join(', '), 'apA');
+      else ligne('À', '⚠️ Pas d’adresse mail sur sa fiche : ce mail ne partira pas, à prévenir à la main.', 'apA apSans');
+      ligne('Objet', m.sujet, 'apObjet');
+      if(m.variante === 'fixe'){
+        const a = etatAchatsAac(m.eleve);
+        if(a) ligne('💶 Drivup', a, 'apAchats');
+      }
+      const corps = document.createElement('div');
+      corps.className = 'apCorps';
+      corps.textContent = m.texte;
+      carte.appendChild(corps);
+      choix.value = String(i);
+      prec.disabled = (i === 0);
+      suiv.disabled = (i === mails.length - 1);
+    };
+    prec.addEventListener('click', () => { if(i > 0){ i--; montrer(); } });
+    suiv.addEventListener('click', () => { if(i < mails.length - 1){ i++; montrer(); } });
+    choix.addEventListener('change', () => { i = Math.max(0, Math.min(mails.length - 1, Number(choix.value) || 0)); montrer(); });
+
+    const partants = mails.filter(m => m.dest.length).length;
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const non = document.createElement('button');
+    non.type = 'button'; non.className = 'btn btn-secondary'; non.textContent = 'Annuler';
+    const oui = document.createElement('button');
+    oui.type = 'button'; oui.className = 'btn btn-primary apEnvoyer';
+    oui.textContent = partants ? '📨 Envoyer ' + (partants > 1 ? 'les ' + partants + ' mails' : 'le mail') : 'Aucun mail à envoyer';
+    oui.disabled = !partants;
+    rangee.append(non, oui);
+    boite.appendChild(rangee);
+
+    let parti = false;
+    const fermer = v => {
+      if(parti) return;
+      parti = true;
+      document.removeEventListener('keydown', touche);
+      fermerFond(fond);
+      resolve(v);
+    };
+    const touche = ev => {
+      if(ev.target && /^(SELECT|INPUT|TEXTAREA)$/.test(ev.target.tagName)) return;
+      if(ev.key === 'ArrowLeft'){ prec.click(); ev.preventDefault(); }
+      else if(ev.key === 'ArrowRight'){ suiv.click(); ev.preventDefault(); }
+      else if(ev.key === 'Escape') fermer(false);
+    };
+    document.addEventListener('keydown', touche);
+    non.addEventListener('click', () => fermer(false));
+    oui.addEventListener('click', () => fermer(true));
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    if(!mails.length){ fermer(false); return; }
+    montrer();
+  });
+}
+
 /* ⚠️ RIEN NE PART SANS QUE DAVID AIT VU QUI LE REÇOIT.
 
    Ces mails annoncent une date à des familles. Une date annoncée
@@ -2791,33 +2928,28 @@ async function prevenirFamillesRvt(r, c, t){
   const quand = (jourFrCs(r.date || c.date) || c.date) +
                 ((r.heure || c.heure) ? ' à ' + (r.heure || c.heure) : '');
 
-  const lignes = ['Prévenir les familles par mail ?', ''];
-  if(retenus.length){
-    lignes.push('✅ Convocation au ' + quand +
-                ((r.lieu || c.lieu) ? ' — 📍 ' + (r.lieu || c.lieu) : '') + ' :',
-                '   ' + retenus.join(', '), '');
-  }
-  if(laisses.length){
-    lignes.push('⏳ « Aucune date ne réunissait tout le monde, nous vous en ' +
-                'reproposerons » :',
-                '   ' + laisses.join(', '), '');
-  }
-  if(sansMail.length){
-    lignes.push('⚠️ Sans adresse mail, donc à prévenir à la main :',
-                '   ' + sansMail.join(', '), '');
-  }
-  lignes.push('Envoi depuis contact@evolutionconduites.fr.');
+  /* 📨 v1594 — CHAQUE MAIL SE LIT AVANT DE PARTIR. David, le 27/11 :
+     « il faudrait qu'on puisse faire défiler les mails » — son choix :
+     voir le mail de chaque famille en entier, un par un (‹ ›), puis tout
+     envoyer. La fenêtre d'avant ne donnait que les noms, et débordait de
+     l'écran dès qu'il y avait du monde. */
+  const info = { date: r.date || c.date, heure: r.heure || c.heure, lieu: r.lieu || c.lieu };
+  try{ await chargerAchatsAac(retenus); }catch(e){}
+  const mails = preparerMailsCloture(retenus, laisses, info, jetonsDuTour(t));
+  const resume = [];
+  if(retenus.length) resume.push('✅ ' + retenus.length + ' convocation' + (retenus.length > 1 ? 's' : '') + ' au ' + quand +
+                                 ((r.lieu || c.lieu) ? ' — 📍 ' + (r.lieu || c.lieu) : ''));
+  if(laisses.length) resume.push('⏳ ' + laisses.length + ' « aucune date ne réunissait tout le monde, nous vous en reproposerons »');
+  if(sansMail.length) resume.push('⚠️ ' + sansMail.length + ' sans adresse mail, donc à prévenir à la main : ' + sansMail.join(', '));
+  resume.push('Envoi depuis contact@evolutionconduites.fr.');
 
-  if(!await confirmer(lignes.join('\n'), '📨 Envoyer')) {
+  if(!await apercuMailsRvt(mails, '📨 Prévenir les familles', resume)) {
     showToast('Aucun mail envoyé — la date reste fixée');
     return;
   }
 
   showToast('Envoi en cours…');
-  const envois = await envoyerMailsCloture(retenus, laisses, {
-    date: r.date || c.date, heure: r.heure || c.heure,
-    lieu: r.lieu || c.lieu
-  }, jetonsDuTour(t));
+  const envois = await envoyerMailsCloture(retenus, laisses, info, jetonsDuTour(t), mails);
 
   const partis = envois.filter(x => x.etat === 'envoyé').length;
   const rates = envois.filter(x => x.etat !== 'envoyé');
@@ -4086,6 +4218,9 @@ function dessinerListeAac(zone){
     return;
   }
   vus.forEach(x => zone.appendChild(ligneAac(x)));
+  /* 💶 v1594 — ce qui est acheté dans Drivup : lu après coup, la liste
+     se redessine quand ça arrive (une fois toutes les 10 minutes au plus) */
+  chargerAchatsAac(liste.map(y => y.eleve)).then(neuf => { if(neuf) afficherAacCs(); }).catch(() => {});
 }
 
 
@@ -4387,6 +4522,92 @@ function petiteLigneAac(texte, couleur){
 }
 
 
+/* ============================================================
+   💶 v1594 — LES RENDEZ-VOUS PÉDAGOGIQUES SONT-ILS PAYÉS ?
+
+   David, le 27/11 : « lis si les rendez-vous pédagogiques sont payés et
+   indique-le dans la case correspondante, pareil pour le rendez-vous
+   théorique ». Ses choix : « payé » = acheté dans Drivup › Facturer (la
+   colonne « Qte achetée », relue chaque jour par l'extension avec le
+   planning de chaque élève), lu par la porte « aacAchats » du Worker.
+
+   Une case n'en dit RIEN quand Facturer n'a jamais été lu pour cet
+   élève, ou qu'aucune de ses lignes ne parle de ce rendez-vous : « à
+   acheter » ne se dit que sur ce qu'on a vu.
+   ============================================================ */
+const ACHATS_AAC = { par: {}, lu: {} };
+const NOMS_ACHATS_AAC = {
+  rvt:  ['🗣️ Théorique', 'le rendez-vous pédagogique théorique'],
+  rvp1: ['② RVP 1', 'le rendez-vous pédagogique pratique n° 1'],
+  rvp2: ['③ RVP 2', 'le rendez-vous pédagogique pratique n° 2']
+};
+function achatAacDe(nom, cle){
+  const a = ACHATS_AAC.par[normaliserMot(nom)];
+  return (a && a[cle]) ? Object.assign({ le: a.le || 0 }, a[cle]) : null;
+}
+let achatsAacEnCours = null;
+async function chargerAchatsAac(noms, force){
+  if(achatsAacEnCours){ try{ await achatsAacEnCours; }catch(e){} }
+  const maintenant = Date.now();
+  const voulus = [...new Set((noms || []).map(n => String(n || '').trim()).filter(Boolean))]
+    .filter(n => force || !(ACHATS_AAC.lu[normaliserMot(n)] > maintenant - 10 * 60000));
+  if(!voulus.length) return false;
+  achatsAacEnCours = (async () => {
+    const r = await appelPrep({ action: 'aacAchats', eleves: voulus.slice(0, 500) });
+    if(!r || r.status !== 'ok') return false;
+    voulus.forEach(n => { const k = normaliserMot(n); ACHATS_AAC.lu[k] = Date.now(); delete ACHATS_AAC.par[k]; });
+    Object.keys(r.achats || {}).forEach(n => { ACHATS_AAC.par[normaliserMot(n)] = r.achats[n]; });
+    return true;
+  })();
+  try{ return await achatsAacEnCours; }finally{ achatsAacEnCours = null; }
+}
+function dateAchatsAac(ms){
+  if(!ms) return '';
+  try{ return new Date(Number(ms)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Paris' }); }catch(e){ return ''; }
+}
+/* La petite ligne sous la case : « 💶 payé » ou « 💶 à acheter sur Drivup » */
+function ligneAchatAac(x, cle){
+  const e = x.rdv && x.rdv[cle];
+  if(e && (e.cle === 'ailleurs' || e.cle === 'sansobjet')) return null;
+  const a = achatAacDe(x.eleve, cle);
+  if(!a) return null;
+  const paye = a.achete > 0;
+  const l = petiteLigneAac(paye ? '💶 payé' : '💶 à acheter sur Drivup', paye ? 'var(--accent-text)' : 'var(--warn-text)');
+  l.classList.add('frAchat', paye ? 'paye' : 'aAcheter');
+  l.dataset.achat = paye ? 'paye' : 'aacheter';
+  l.title = (paye ? 'Acheté dans Drivup' : 'Pas encore acheté dans Drivup') +
+    ((a.lignes || []).length ? ' : ' + a.lignes.join(', ') : '') +
+    (a.le ? ' — lu dans Drivup › Facturer le ' + dateAchatsAac(a.le) : '');
+  return l;
+}
+/* Pour l'aperçu des mails : « Théorique ✅ payé · RVP 1 💶 à acheter · RVP 2 ✅ payé » */
+function etatAchatsAac(nom){
+  const bouts = ['rvt', 'rvp1', 'rvp2'].map(k => {
+    const a = achatAacDe(nom, k);
+    if(!a) return '';
+    return NOMS_ACHATS_AAC[k][0].replace(/^\S+\s/, '') + (a.achete > 0 ? ' ✅ payé' : ' 💶 à acheter');
+  }).filter(Boolean);
+  if(!bouts.length) return 'achats pas lus dans Drivup pour cet élève : le mail n’en parle pas';
+  let le = 0;
+  ['rvt', 'rvp1', 'rvp2'].forEach(k => { const a = achatAacDe(nom, k); if(a && a.le) le = Math.max(le, a.le); });
+  return bouts.join(' · ') + (le ? ' (Facturer lu le ' + dateAchatsAac(le) + ')' : '');
+}
+/* Les lignes du mail de convocation : ce qui reste à acheter */
+function lignesAchatsMailAac(eleve, date){
+  const items = [];
+  ['rvt', 'rvp1', 'rvp2'].forEach(k => {
+    const a = achatAacDe(eleve, k);
+    if(!a || a.achete > 0) return;
+    const quand = (k === 'rvt')
+      ? (date ? 'avant le rendez-vous du ' + (jourFrCs(date) || date) : 'avant le rendez-vous')
+      : (a.fait > 0 ? 'déjà fait, pas encore réglé' : 'avant ce rendez-vous');
+    items.push('· ' + NOMS_ACHATS_AAC[k][1] + ' — ' + quand + ' ;');
+  });
+  if(!items.length) return [];
+  items[items.length - 1] = items[items.length - 1].replace(/ ;$/, '.');
+  return ['💶 À acheter directement sur Drivup (depuis votre espace élève) :'].concat(items);
+}
+
 function ligneAac(x){
   const row = document.createElement('div');
   row.className = 'history-item ligneAac';
@@ -4514,17 +4735,17 @@ function ligneAac(x){
 
   /* ② RVP 1 */
   fr.appendChild(caseFriseAac('② RVP 1', classeCaseAac(x.rdv.rvp1), texteCaseAac(x.rdv.rvp1),
-    [pastillePrevenuAac(x, 'rvp1', x.rdv.rvp1), relanceSous('rvp1', '② RVP 1')],
+    [ligneAchatAac(x, 'rvp1'), pastillePrevenuAac(x, 'rvp1', x.rdv.rvp1), relanceSous('rvp1', '② RVP 1')],
     boutonsRdv('② RVP 1', 'rvp1')));
 
   /* 🗣️ Théorique — la proposition en cours, juste dessous */
   fr.appendChild(caseFriseAac('🗣️ Théorique', classeCaseAac(x.rdv.rvt), texteCaseAac(x.rdv.rvt),
-    [pastillePrevenuAac(x, 'rvt', x.rdv.rvt), pastilleTourAac(x)],
+    [ligneAchatAac(x, 'rvt'), pastillePrevenuAac(x, 'rvt', x.rdv.rvt), pastilleTourAac(x)],
     boutonsRdv('🗣️ Théorique', 'rvt')));
 
   /* ③ RVP 2 */
   fr.appendChild(caseFriseAac('③ RVP 2', classeCaseAac(x.rdv.rvp2), texteCaseAac(x.rdv.rvp2),
-    [pastillePrevenuAac(x, 'rvp2', x.rdv.rvp2), relanceSous('rvp2', '③ RVP 2')],
+    [ligneAchatAac(x, 'rvp2'), pastillePrevenuAac(x, 'rvp2', x.rdv.rvp2), relanceSous('rvp2', '③ RVP 2')],
     boutonsRdv('③ RVP 2', 'rvp2')));
 
   /* 🎓 Examen — LA DATE QUI GOUVERNE TOUT, et LAQUELLE des deux
