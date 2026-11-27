@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 10:33 — v1592 */
+/* Déployé le 27/11/2026 à 15:16 — v1597 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -5224,6 +5224,21 @@ function ongletPermis(corps, nom){
       refaire();
     });
   corps.appendChild(lDate);
+
+  /* 🎓 v1597 — CE QUE LA FAMILLE A DIT POUR LA DATE, sous la date d'examen.
+     Noté dans Suivi AAC › case Examen, ou dans 🚗 Permis ; ✏️ le corrige ici aussi. */
+  if(typeof souhaitExamenDe === 'function'){
+    const sh = souhaitExamenDe(nom);
+    const peut = typeof peutNoterSouhaitExamen === 'function' && peutNoterSouhaitExamen();
+    if(sh || peut){
+      const lSh = ligneDossier('🗓️ Souhait de la famille',
+        sh ? texteSouhaitExamen(sh, false).replace(/^\S+\s/, '') + ' · ' + origineSouhaitExamen(sh) : 'Rien de noté',
+        sh ? '' : 'var(--muted)');
+      lSh.classList.add('dosSouhaitExamen');
+      if(peut) actionDossier(lSh, sh ? '✏️ Corriger' : '✏️ Noter', () => fenetreSouhaitExamen(nom, refaire));
+      corps.appendChild(lSh);
+    }
+  }
 
   /* ⏳ v1579 — LE DÉLAI DE PRÉSENTATION, sous la date d'examen. David :
      « qu'on puisse le voir sur sa fiche (…) et dans la partie permis ».
