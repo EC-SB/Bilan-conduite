@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 10:33 — v1592 */
+/* Déployé le 27/11/2026 à 10:48 — v1593 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -7717,8 +7717,15 @@ function ouvrirLeSelecteurDeReaction(bulle, m, auDoigt){
   }
 
   rang.appendChild(boite);
-  ligne.parentNode.insertBefore(rang, ligne);
+  /* ⬇️ v1592 — David, le 27 novembre : « les réactions aux messages,
+     tu peux les mettre en dessous plutôt qu'au-dessus ». La barre prend
+     la ligne JUSTE APRÈS la bulle visée (avant, elle la précédait). */
+  rang.classList.add('msgRangReac');
+  ligne.parentNode.insertBefore(rang, ligne.nextSibling);
   bulle.classList.add('vise');
+  /* Sous le dernier message, la barre tomberait derrière la barre
+     d'écriture : on la ramène dans la vue, sans bouger si elle y est. */
+  try{ boite.scrollIntoView({ block: 'nearest' }); }catch(e){}
 
   /* Un clic ailleurs referme — et il ne doit pas aussi rouvrir le
      sélecteur de la bulle sur laquelle on vient de cliquer. */
