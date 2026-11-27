@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 15:16 — v1597 */
+/* Déployé le 27/11/2026 à 15:24 — v1598 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,19 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1598,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '↕️ Suivi AAC : « Trier par » et un nouvel ordre pour « Tous »',
+    quoi: [
+      { emoji: '↕️',
+        titre: 'Suivi › 🎓 Suivi AAC › Trier par',
+        texte: 'Sous les filtres : « 🕰️ Plus ancien RVP » (le dernier rendez-vous fait le plus ancien en tête), « 🎓 Plus proche du permis », « ⚠️ Le plus en retard », « 🔤 Nom (A → Z) », ou « ↕️ Ordre habituel ». Le tri range ce que le filtre montre, et il reste choisi sur l’appareil.' },
+      { emoji: '📋',
+        titre: 'Suivi AAC › l’ordre de « Tous »',
+        texte: 'D’abord les ajournés sans nouvelle date, puis par examen possible le plus proche ; dans un même mois, ceux qui ont un rendez-vous en retard passent devant.' }
+    ]
+  },
   {
     version: 1597,
     date: 'Vendredi 27 novembre 2026',
