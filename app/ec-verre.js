@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 17:39 — v1590 */
+/* Déployé le 28/11/2026 à 12:25 — v1600 */
 /* ============================================================
    🫧 LE NOUVEAU GRAPHISME « VERRE » (Liquid Glass) — v1374
 
@@ -32,8 +32,17 @@
   'use strict';
 
   var CLE = 'ec_verre';
+  /* 🎨 v1600 — l'interrupteur a laissé la place à Menu ⋯ › Graphisme
+     (ec-graphisme.js) : la version « classique » (sans verre) ou la
+     nouvelle, choisie par chacun et gardée dans son compte. Ce module
+     lit le dernier choix connu sur l'appareil pour se poser tout de
+     suite ; ec-graphisme.js le corrige dès que le compte a répondu. */
   function verreActif(){
-    try{ return localStorage.getItem(CLE) !== 'non'; }catch(e){ return true; }
+    try{
+      var g = JSON.parse(localStorage.getItem('ec_graphisme') || 'null');
+      if(g && g.g && g.g.version) return g.g.version !== 'classique';
+    }catch(e){}
+    return true;
   }
 
   /* ---------- la bibliothèque : des glyphes 24 px, traits 1.8 ---------- */
@@ -343,18 +352,21 @@
     habillerLEntete();
     habiller(document.body);
     observer();
-    var b = document.getElementById('verreBtn');
-    if(b) b.addEventListener('click', function(){
-      basculerVerre();
-      var m = document.getElementById('plusMenu');
-      if(m) m.style.display = 'none';
-    });
+    /* 🎨 v1600 — la ligne du menu ⋯ ouvre la fenêtre Graphisme (ec-graphisme.js) */
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
 
   window.verreActif = verreActif;
   window.basculerVerre = basculerVerre;
+  /* 🎨 v1600 — pour ec-graphisme.js : poser ou retirer le verre */
+  window.poserVerreEC = poserVerre;
+  /* 🗂️ v1600 — l'icône dessinée d'un onglet de la barre (la même dans les
+     onglets « Ouverts », ec-onglets-travail.js) */
+  window.iconeOngletVerre = function(cible){
+    var b = BARRE[String(cible || '')];
+    return b ? { svg: svg(b.g), couleur: b.c } : null;
+  };
   /* 🧭 v1590 — l'icône dessinée d'un emoji, pour qui pose ses propres
      tuiles (le sommaire des onglets, ec-sommaire.js) : le dessin et sa
      couleur, ou rien si l'emoji n'a pas de glyphe. */
