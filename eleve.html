@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 28/11/2026 à 14:39 — v1603 -->
+<!-- Déployé le 28/11/2026 à 14:57 — v1604 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-s+viaajI80CgI9iCcoxa0EFZjFAkQQUyAvplNB1qjF4=' 'sha256-V6NaRA9aR9civVXaFeOa5nv23soqc5l3Wwfk6LzJEe4='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-s+viaajI80CgI9iCcoxa0EFZjFAkQQUyAvplNB1qjF4=' 'sha256-SY7JOb1F60tJOMQuHDE6R0DmFbUJ8pSzMqZrF1kgAk4='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -1445,6 +1445,67 @@
     border-radius:12px; background:#000; object-fit:cover;
   }
   .msgVoc.fini .msgVidApercu{ object-fit:contain; }
+  /* 🎥 v1604 — FILMER EN PLEIN ÉCRAN. David, le 28/11 : « il faut que
+     ça prenne tout l'écran et qu'on puisse choisir la caméra avant, le
+     but c'est que l'élève se filme tout seul ». La caméra de face au
+     départ (image en miroir, comme un selfie : la vidéo envoyée, elle,
+     est à l'endroit), 🔄 pour passer à celle de derrière avant de
+     filmer, puis le gros rond rouge. */
+  .vidPlein{
+    position:fixed; inset:0; z-index:2147483000; margin:0; padding:0;
+    border:none; border-radius:0; background:#000; color:#fff;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .vidPlein .msgVidApercu{
+    position:absolute; inset:0; width:100%; height:100%; max-height:none;
+    margin:0; border-radius:0; object-fit:cover; background:#000;
+  }
+  .vidPlein .msgVidApercu.miroir{ transform:scaleX(-1); }
+  .vidPlein.fini .msgVidApercu{ object-fit:contain;
+    --vh:calc(max(12px, env(safe-area-inset-top, 0px)) + 60px);
+    --vb:calc(max(22px, env(safe-area-inset-bottom, 0px)) + 84px);
+    top:var(--vh); bottom:auto; height:calc(100% - var(--vh) - var(--vb)); }
+  .vidHaut, .vidBas, .vidDit{ position:relative; z-index:1; }
+  .vidHaut{
+    display:flex; align-items:center; gap:10px;
+    padding:max(12px, env(safe-area-inset-top, 0px)) 14px 10px;
+    background:linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,0));
+  }
+  .vidHaut .msgVocTemps{ color:#fff; font-size:17px; }
+  .vidHaut .msgVocTemps i{ color:rgba(255,255,255,.7); font-size:14px; }
+  .vidPlein .vidHaut .msgVocRond{ width:12px; height:12px; }
+  .vidHaut .vidEsp{ flex:1; }
+  .vidRond{
+    flex:0 0 auto; width:48px; height:48px; border-radius:50%; margin:0; padding:0;
+    border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.42); color:#fff;
+    font-size:20px; font-weight:800; line-height:1; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  }
+  .vidRond:disabled{ opacity:.45; }
+  .vidDit{ margin:auto 14px 10px; }
+  .vidDit:empty{ display:none; }
+  .vidDit .message{ margin:0; }
+  .vidBas{
+    margin-top:auto; display:flex; align-items:center; justify-content:center; gap:26px;
+    padding:14px 14px max(22px, env(safe-area-inset-bottom, 0px));
+    background:linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.6));
+  }
+  .vidDit:not(:empty) + .vidBas{ margin-top:0; }
+  .vidGo{
+    width:76px; height:76px; border-radius:50%; margin:0; padding:0; cursor:pointer;
+    border:5px solid #fff; background:transparent; display:inline-flex;
+    align-items:center; justify-content:center;
+  }
+  .vidGo::after{ content:''; width:56px; height:56px; border-radius:50%; background:#FF3B30; }
+  .vidGo.stop::after{ width:30px; height:30px; border-radius:7px; }
+  .vidEnvoyer{
+    min-width:76px; height:56px; padding:0 22px; border-radius:999px; margin:0; border:none;
+    background:#B6FF0E; color:#0b1a10; font-size:17px; font-weight:800; cursor:pointer;
+  }
+  .vidEnvoyer:disabled{ opacity:.6; }
+  .vidPlein .msgVocReste{ color:rgba(255,255,255,.75); text-align:center; margin:0 0 6px; position:relative; z-index:1; }
+  .vidPlein [hidden]{ display:none !important; }
   .msgVidB{ position:relative; display:block; margin:2px 0 4px; }
   .msgVidB video.msgVid{
     display:block; width:100%; max-width:240px; max-height:300px;
@@ -12481,7 +12542,8 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
     var z = document.createElement('input');
     z.type = 'file';
     z.accept = 'video/*';
-    if(appareil) z.setAttribute('capture', 'environment');
+    /* 🎥 v1604 — la caméra de face : l'élève se filme seul */
+    if(appareil) z.setAttribute('capture', 'user');
     z.style.display = 'none';
     document.body.appendChild(z);
     z.addEventListener('change', function(){
@@ -12569,6 +12631,14 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
       if(!videosEpuiseesEl()) choisirUneVideoEl(true);
     });
   }
+  /* 🎥 v1604 — la caméra de face au départ : l'élève se filme seul */
+  var videoFaceEl = 'user';
+  function fluxCameraEl(face){
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: face, width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: true
+    });
+  }
   function demarrerLaVideoEl(){
     if(videoEl) return;
     if(!videoPossibleEl()){ choisirUneVideoEl(true); return; }
@@ -12580,11 +12650,7 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
       essai.abandon = true;
       proposerLaCameraDuTelephoneEl('La caméra ne répond pas. As-tu autorisé la caméra et le micro pour ce site ?');
     }, FILMER_ATTENTE_MS);
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 640 },
-               height: { ideal: 480 } },
-      audio: true
-    }).then(function(flux){
+    fluxCameraEl(videoFaceEl).then(function(flux){
       essai.repondu = true;
       clearTimeout(attente);
       /* Arrivée trop tard (le recours est déjà proposé), ou l'élève a
@@ -12594,53 +12660,32 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
         return;
       }
       dire('msgFil', '');
-      var type = formatDeLaVideoEl();
-      var enr;
-      try{
-        var reglages = { videoBitsPerSecond: 800000, audioBitsPerSecond: 64000 };
-        if(type) reglages.mimeType = type;
-        enr = new MediaRecorder(flux, reglages);
-      }catch(e){
-        flux.getTracks().forEach(function(p){ p.stop(); });
-        proposerLaCameraDuTelephoneEl('Ce navigateur ne sait pas filmer dans la page.');
-        return;
-      }
-      var morceaux = [];
-      enr.addEventListener('dataavailable', function(ev){
-        if(ev.data && ev.data.size) morceaux.push(ev.data);
-      });
-
-      videoEl = { enr: enr, flux: flux, morceaux: morceaux,
-                  ecoule: 0, depuis: Date.now(), etat: 'enr', minuteur: null,
+      /* 🎥 v1604 — d'abord l'aperçu en plein écran : rien ne s'enregistre
+         avant le rond rouge. */
+      videoEl = { enr: null, flux: flux, morceaux: [], face: videoFaceEl,
+                  ecoule: 0, depuis: null, etat: 'pret', minuteur: null,
                   fil: (filEl && filEl.conv && filEl.conv.id) || '', fini: null };
-
-      var zone = $('zoneEcrireVocal');
-      if(zone){ zone.innerHTML = ecranVideoEl(); zone.style.display = 'block'; }
+      var p = document.createElement('div');
+      p.id = 'vidPleinEl';
+      p.className = 'msgVoc msgVid vidPlein';
+      p.setAttribute('role', 'dialog');
+      p.setAttribute('aria-label', 'Filmer une vidéo');
+      p.innerHTML = ecranVideoEl();
+      document.body.appendChild(p);
+      document.documentElement.style.overflow = 'hidden';
       var barre = document.querySelector('.zoneEcrire');
       if(barre) barre.style.display = 'none';
+      brancherApercuVideoEl(flux);
 
-      var ap = $('vidApercu');
-      /* ⚠️ « play() » ne rend pas toujours une promesse — le vieux
-         Safari non, et « .catch » sur rien du tout lève juste après
-         l'ouverture de la caméra. */
-      if(ap){
-        ap.srcObject = flux;
-        ap.muted = true;
-        try{ var j = ap.play(); if(j && j.catch) j.catch(function(){}); }catch(e){}
-      }
-
-      videoEl.fini = new Promise(function(r){ enr.addEventListener('stop', r); });
-      enr.start();
-
-      var x = $('btVidX'), e = $('btVidEnv');
-      if(x) x.addEventListener('click', function(){ arreterLaVideoEl(false); });
-      if(e) e.addEventListener('click', function(){ arreterLaVideoEl(true); });
-      var pse = $('btVidPause'), fin = $('btVidFin');
-      if(pse) pse.addEventListener('click', basculerLaPauseVideoEl);
-      if(fin) fin.addEventListener('click', function(){ terminerLaVideoEl(); });
-
-      videoEl.minuteur = setInterval(battreLaVideoEl, 200);
-      battreLaVideoEl();
+      $('btVidX').addEventListener('click', function(){ arreterLaVideoEl(false); });
+      $('btVidTourne').addEventListener('click', retournerLaCameraEl);
+      $('btVidGo').addEventListener('click', function(){
+        if(!videoEl) return;
+        if(videoEl.etat === 'pret') lancerLaVideoEl();
+        else if(videoEl.etat === 'enr' || videoEl.etat === 'pause') terminerLaVideoEl();
+      });
+      $('btVidPause').addEventListener('click', basculerLaPauseVideoEl);
+      $('btVidEnv').addEventListener('click', function(){ arreterLaVideoEl(true); });
     }).catch(function(e){
       essai.repondu = true;
       clearTimeout(attente);
@@ -12656,24 +12701,98 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
     });
   }
 
+  /* L'aperçu : en miroir pour la caméra de face (comme un selfie). */
+  function brancherApercuVideoEl(flux){
+    var ap = $('vidApercu');
+    if(!ap) return;
+    ap.classList.toggle('miroir', !!(videoEl && videoEl.face === 'user'));
+    ap.srcObject = flux;
+    ap.muted = true;
+    /* ⚠️ « play() » ne rend pas toujours une promesse — le vieux
+       Safari non, et « .catch » sur rien du tout lève juste après
+       l'ouverture de la caméra. */
+    try{ var j = ap.play(); if(j && j.catch) j.catch(function(){}); }catch(e){}
+  }
+
+  /* 🔄 — avant de filmer seulement : l'enregistreur ne sait pas changer
+     de caméra en cours de route. */
+  function retournerLaCameraEl(){
+    var v = videoEl;
+    if(!v || v.etat !== 'pret' || v.tourne) return;
+    v.tourne = true;
+    var face = v.face === 'user' ? 'environment' : 'user';
+    var b = $('btVidTourne');
+    if(b) b.disabled = true;
+    try{ v.flux.getTracks().forEach(function(p){ p.stop(); }); }catch(e){}
+    var reprendre = function(f, ok){
+      if(videoEl !== v){ try{ f.getTracks().forEach(function(p){ p.stop(); }); }catch(e){} return; }
+      v.flux = f;
+      if(ok){ v.face = face; videoFaceEl = face; }
+      brancherApercuVideoEl(f);
+      v.tourne = false;
+      if(b) b.disabled = false;
+    };
+    fluxCameraEl(face).then(function(f){ reprendre(f, true); }).catch(function(){
+      direVocalEl(face === 'user' ? 'La caméra de face ne s’ouvre pas.' : 'La caméra de derrière ne s’ouvre pas.');
+      fluxCameraEl(v.face).then(function(f){ reprendre(f, false); }).catch(function(){ arreterLaVideoEl(false); });
+    });
+  }
+
+  /* ● — l'enregistrement démarre */
+  function lancerLaVideoEl(){
+    var v = videoEl;
+    if(!v || v.etat !== 'pret' || v.tourne) return;
+    var type = formatDeLaVideoEl();
+    var enr;
+    try{
+      var reglages = { videoBitsPerSecond: 800000, audioBitsPerSecond: 64000 };
+      if(type) reglages.mimeType = type;
+      enr = new MediaRecorder(v.flux, reglages);
+    }catch(e){
+      arreterLaVideoEl(false);
+      proposerLaCameraDuTelephoneEl('Ce navigateur ne sait pas filmer dans la page.');
+      return;
+    }
+    enr.addEventListener('dataavailable', function(ev){
+      if(ev.data && ev.data.size) v.morceaux.push(ev.data);
+    });
+    v.enr = enr;
+    v.fini = new Promise(function(r){ enr.addEventListener('stop', r); });
+    try{ enr.start(); }catch(e){
+      arreterLaVideoEl(false);
+      proposerLaCameraDuTelephoneEl('L’enregistrement n’a pas pu démarrer.');
+      return;
+    }
+    v.etat = 'enr';
+    v.depuis = Date.now();
+    var go = $('btVidGo');
+    if(go){ go.classList.add('stop'); go.title = 'Arrêter'; go.setAttribute('aria-label', 'Arrêter'); }
+    var t = $('btVidTourne'); if(t) t.hidden = true;
+    var r = document.querySelector('#vidPleinEl .msgVocRond'); if(r) r.hidden = false;
+    var ps = $('btVidPause'); if(ps && enr.pause) ps.hidden = false;
+    v.minuteur = setInterval(battreLaVideoEl, 200);
+    battreLaVideoEl();
+  }
+
   function ecranVideoEl(){
-    return '<div class="msgVoc msgVid">' +
-      '<div class="msgVocHaut">' +
-        '<span class="msgVocRond"></span>' +
-        '<span class="msgVocTemps" id="vidTemps"><b>0:00</b> <i>/ ' +
-          mnSecEl(VIDEO_SEC_MAX_EL) + '</i></span>' +
-        '<span class="msgVocOnde"></span>' +
-        ((typeof MediaRecorder === 'function' && MediaRecorder.prototype &&
-          MediaRecorder.prototype.pause)
-          ? '<button type="button" class="msgVocX msgVocPause" id="btVidPause" ' +
-            'title="Pause">❚❚</button>' : '') +
-        '<button type="button" class="msgVocX msgVocFin" id="btVidFin" ' +
-          'title="Arrêter sans envoyer">■</button>' +
-        '<button type="button" class="msgVocX" id="btVidX" title="Annuler">✕</button>' +
-        '<button type="button" class="msgEnv" id="btVidEnv" title="Envoyer">➤</button>' +
+    return '<video class="msgVidApercu" id="vidApercu" playsinline muted></video>' +
+      '<div class="vidHaut">' +
+        '<button type="button" class="vidRond" id="btVidX" title="Annuler" aria-label="Annuler">✕</button>' +
+        '<span class="vidEsp"></span>' +
+        '<span class="msgVocRond" hidden></span>' +
+        '<span class="msgVocTemps" id="vidTemps"><b>0:00</b> <i>/ ' + mnSecEl(VIDEO_SEC_MAX_EL) + '</i></span>' +
+        '<span class="vidEsp"></span>' +
+        '<span style="width:48px;flex:0 0 auto"></span>' +
       '</div>' +
-      '<video class="msgVidApercu" id="vidApercu" playsinline></video>' +
-    '</div>' + phraseResteVideosEl();
+      '<div class="vidDit" id="vidDit"></div>' +
+      phraseResteVideosEl() +
+      '<div class="vidBas">' +
+        '<button type="button" class="vidRond" id="btVidTourne" title="Changer de caméra" aria-label="Changer de caméra">🔄</button>' +
+        '<button type="button" class="vidRond" id="btVidPause" title="Pause" aria-label="Pause" hidden>❚❚</button>' +
+        '<button type="button" class="vidGo" id="btVidGo" title="Filmer" aria-label="Filmer"></button>' +
+        '<button type="button" class="vidEnvoyer" id="btVidEnv" hidden>Envoyer ➤</button>' +
+        '<span style="width:48px;flex:0 0 auto" id="vidCale"></span>' +
+      '</div>';
   }
 
   /* Comme pour les vocaux : le compte ne s'affiche qu'à partir du
@@ -12693,7 +12812,7 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
   function basculerLaPauseVideoEl(){
     var v = videoEl;
     if(!v || v.arrete || v.etat === 'fini') return;
-    var b = $('btVidPause'), ec = document.querySelector('#zoneEcrireVocal .msgVoc');
+    var b = $('btVidPause'), ec = $('vidPleinEl');
     if(v.etat === 'enr'){
       try{ v.enr.pause(); }catch(e){ return; }
       v.ecoule += (Date.now() - v.depuis);
@@ -12714,11 +12833,12 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
   function couperLaCameraEl(v){
     if(v.coupe) return Promise.resolve(v.blob);
     v.coupe = true;
-    try{ v.enr.stop(); }catch(e){}
-    return Promise.resolve(v.fini).then(function(){
+    try{ if(v.enr) v.enr.stop(); }catch(e){}
+    return Promise.resolve(v.enr ? v.fini : null).then(function(){
       try{ v.flux.getTracks().forEach(function(p){ p.stop(); }); }catch(e){}
       var ap = $('vidApercu');
       if(ap) try{ ap.srcObject = null; }catch(e){}
+      if(!v.enr) return (v.blob = null);
       v.blob = new Blob(v.morceaux, { type: (v.enr.mimeType || 'video/webm') });
       return v.blob;
     });
@@ -12727,6 +12847,10 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
   function rendreLaBarreVideoEl(){
     var v = videoEl;
     if(v && v.urlBlob){ try{ URL.revokeObjectURL(v.urlBlob); }catch(e){} }
+    if(v && v.minuteur){ clearInterval(v.minuteur); v.minuteur = null; }
+    var pl = $('vidPleinEl');
+    if(pl && pl.parentNode) pl.parentNode.removeChild(pl);
+    document.documentElement.style.overflow = '';
     var zone = $('zoneEcrireVocal');
     if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
     var barre = document.querySelector('.zoneEcrire');
@@ -12736,7 +12860,7 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
 
   function terminerLaVideoEl(parLeTemps){
     var v = videoEl;
-    if(!v || v.arrete || v.etat === 'fini') return;
+    if(!v || v.arrete || v.etat === 'fini' || v.etat === 'pret') return;
     if(v.depuis){ v.ecoule += (Date.now() - v.depuis); v.depuis = null; }
     v.etat = 'fini';
     clearInterval(v.minuteur);
@@ -12749,26 +12873,25 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
         direVocalEl('Trop court — rien n’a été gardé.');
         return;
       }
-      var ec = document.querySelector('#zoneEcrireVocal .msgVoc');
-      if(ec){ ec.classList.add('fini'); ec.classList.remove('enPause'); }
-      var haut = document.querySelector('#zoneEcrireVocal .msgVocHaut');
-      ['.msgVocRond', '.msgVocOnde', '.msgVocPause', '.msgVocFin'].forEach(function(s){
-        var n = haut && haut.querySelector(s);
-        if(n) n.parentNode.removeChild(n);
-      });
+      /* 🎥 v1604 — terminé : on se revoit en grand, puis « Envoyer » */
+      var pl = $('vidPleinEl');
+      if(pl){ pl.classList.add('fini'); pl.classList.remove('enPause'); }
+      ['btVidGo', 'btVidPause', 'btVidTourne', 'vidCale'].forEach(function(id){ var n = $(id); if(n) n.hidden = true; });
+      var r = document.querySelector('#vidPleinEl .msgVocRond'); if(r) r.hidden = true;
+      var env = $('btVidEnv'); if(env) env.hidden = false;
       var t = $('vidTemps');
       if(t) t.innerHTML = '<b>' + mnSecEl(sec) + '</b>';
 
       v.urlBlob = URL.createObjectURL(blob);
       var ap = $('vidApercu');
-      if(ap){ ap.srcObject = null; ap.src = v.urlBlob; ap.controls = true;
+      if(ap){ ap.classList.remove('miroir'); ap.srcObject = null; ap.src = v.urlBlob; ap.controls = true;
               ap.muted = false; }
       if(parLeTemps) direVocalEl('Trente secondes : regarde, puis envoie.');
     });
   }
 
   function battreLaVideoEl(){
-    if(!videoEl || videoEl.etat === 'fini') return;
+    if(!videoEl || videoEl.etat === 'fini' || videoEl.etat === 'pret') return;
     var sec = secondesDeLaVideoEl(videoEl);
     var t = $('vidTemps');
     if(t){
@@ -12817,7 +12940,7 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
            que dans cette page. */
         v.arrete = false;
         var e2 = $('btVidEnv');
-        if(e2){ e2.disabled = false; e2.textContent = '➤'; }
+        if(e2){ e2.disabled = false; e2.textContent = 'Envoyer ➤'; }
         direVocalEl('La vidéo n’est pas partie : ' + ((err && err.message) || err));
       });
     });
@@ -12858,7 +12981,11 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
   /* Les messages passent par la même zone que ceux de la photo et
      du pouce : un deuxième endroit où parler, c'est un endroit où
      l'on ne regarde pas. */
-  function direVocalEl(t){ dire('msgFil', t, 'erreur'); }
+  function direVocalEl(t){
+    /* 🎥 v1604 — pendant qu'on filme en plein écran, le message s'affiche dessus */
+    if(videoEl && $('vidDit')){ dire('vidDit', t, 'erreur'); return; }
+    dire('msgFil', t, 'erreur');
+  }
 
   function vocalPossibleEl(){
     return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
