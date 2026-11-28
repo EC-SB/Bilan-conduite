@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 13:08 — v1466 */
+/* Déployé le 27/11/2026 à 18:10 — v1599 */
 /* ============================================================
    code-commun.js — 🚦 « MON CODE », LE JEU DU CODE
 
@@ -303,7 +303,7 @@
     { k: 'obligatoirement', q: 'Pour dépasser ce tracteur, je dois {obligatoirement} klaxonner.', e: '« Obligatoirement » transforme un conseil en obligation : le klaxon est permis hors agglomération, pas obligatoire.' }
   ];
   var CHIFFRES = [
-    { k: 'arret50', q: 'Route sèche, bons freins : à 50 km/h, il me faut environ combien de mètres pour m’arrêter ?', c: ['10 m', '25 m', '50 m'], b: 1, e: 'Je multiplie le chiffre des dizaines par lui-même : 5 × 5 = 25 m. Sur route mouillée, j’ajoute la moitié.' },
+    { k: 'arret50', q: 'Route sèche, bons freins : à 50 km/h, il me faut environ combien de mètres pour m’arrêter ?', c: ['10 m', '25 m', '50 m'], b: 1, e: 'Je multiplie le chiffre des dizaines par lui-même : 5 × 5 = 25 m. Sur route mouillée, la distance de freinage double.' },
     { k: 'arret90', q: 'Route sèche : quelle est à peu près ma distance d’arrêt à 90 km/h ?', c: ['45 m', '81 m', '130 m'], b: 1, e: '9 × 9 = 81 m. À 130 km/h : 13 × 13 = 169 m.' },
     { k: 'reaction', q: 'Quel est le temps de réaction d’un conducteur en forme ?', c: ['1 dixième de seconde', '1 seconde', '3 secondes'], b: 1, e: 'Environ 1 seconde. Avec la fatigue, l’alcool ou le téléphone, il s’allonge.' },
     { k: 'reaction90', q: 'À 90 km/h, quelle distance je parcours pendant ma seconde de réaction ?', c: ['9 m', '27 m', '90 m'], b: 1, e: 'Je multiplie le chiffre des dizaines par 3 : 9 × 3 = 27 m.' },
@@ -594,6 +594,119 @@
   ORDRE_TYPES.push('oeil', 'passe');
 
   /* ============================================================
+     🛑 🚓 v1599 — « FREINER À TEMPS » ET « CE QUE ÇA COÛTE »
+
+     David, le 27 novembre : « il faut rajouter un bloc sur le temps de
+     réaction, la distance parcourue pendant ce temps, la distance de
+     freinage, la distance d'arrêt. Qu'est-ce qui peut être réduit ou
+     non, le calcul des distances. Un truc sur la vitesse et les points
+     perdus. » Puis, sur les schémas : la route mouillée, c'est la
+     distance de FREINAGE × 2 ; pas de marge du radar ; les médicaments
+     vont dans « Ce que ça coûte » ; et surtout : « rien, vraiment rien,
+     ne réduit la distance de freinage » une fois qu'on freine — ce qui
+     compte, c'est la vitesse à laquelle on roulait avant.
+
+     Trois jeux de cartes de plus, au format du bon chiffre (une
+     question, trois choix, « b » dit le bon) :
+     · calcul : le calcul de tête des distances ;
+     · frein  : une situation, et la distance qui change. « w » dit la
+       question (r = qu'est-ce qui raccourcit, a = qu'est-ce qui
+       s'allonge), « sc » ce que la route montre après la réponse ;
+     · cout   : les points (vitesse, alcool, drogue) et les médicaments
+       (« pic » = le pictogramme à montrer, 1 à 3).
+     ============================================================ */
+  var RFR = ['🟧 Réaction', '🟥 Freinage', '❌ Rien'];
+  var CALCUL = [
+    { k: 'r50', q: 'À 50 km/h, quelle distance je parcours pendant ma seconde de réaction ?', c: ['5 m', '15 m', '25 m'], b: 1, e: 'J’enlève le zéro de ma vitesse : 5. Je multiplie par 3 : 5 × 3 = 15 m.' },
+    { k: 'r70', q: 'À 70 km/h, quelle distance je parcours pendant ma seconde de réaction ?', c: ['14 m', '21 m', '49 m'], b: 1, e: '7 × 3 = 21 m. Pendant cette seconde, je ne freine pas encore.' },
+    { k: 'r130', q: 'À 130 km/h, quelle distance je parcours pendant ma seconde de réaction ?', c: ['13 m', '39 m', '78 m'], b: 1, e: 'J’enlève le zéro : 13. 13 × 3 = 39 m, sans avoir encore touché le frein.' },
+    { k: 'a70', q: 'Route sèche, à 70 km/h : quelle est ma distance d’arrêt ?', c: ['21 m', '49 m', '70 m'], b: 1, e: 'Le chiffre des dizaines par lui-même : 7 × 7 = 49 m. Dont 7 × 3 = 21 m pendant ma seconde de réaction, et 28 m de freinage.' },
+    { k: 'a110', q: 'Route sèche, à 110 km/h : quelle est ma distance d’arrêt ?', c: ['66 m', '110 m', '121 m'], b: 2, e: '11 × 11 = 121 m.' },
+    { k: 'a130', q: 'Route sèche, à 130 km/h : quelle est ma distance d’arrêt ?', c: ['78 m', '130 m', '169 m'], b: 2, e: '13 × 13 = 169 m : plus d’un terrain de football et demi.' },
+    { k: 'f50', q: 'Route sèche, à 50 km/h : quelle est ma distance de freinage ?', c: ['10 m', '15 m', '25 m'], b: 0, e: 'Arrêt : 5 × 5 = 25 m. Réaction : 5 × 3 = 15 m. Freinage : 25 − 15 = 10 m.' },
+    { k: 'f90', q: 'Route sèche, à 90 km/h : quelle est ma distance de freinage ?', c: ['27 m', '54 m', '81 m'], b: 1, e: 'Arrêt : 9 × 9 = 81 m. Réaction : 9 × 3 = 27 m. Freinage : 81 − 27 = 54 m.' },
+    { k: 'fm90', q: 'Route mouillée, à 90 km/h : quelle est ma distance de freinage ?', c: ['54 m', '81 m', '108 m'], b: 2, e: 'Sur route sèche : 54 m. Sur route mouillée, la distance de freinage double : 54 × 2 = 108 m.' },
+    { k: 'am90', q: 'Route mouillée, à 90 km/h : quelle est ma distance d’arrêt ?', c: ['81 m', '108 m', '135 m'], b: 2, e: 'La réaction ne change pas : 27 m. Le freinage double : 54 × 2 = 108 m. Arrêt : 27 + 108 = 135 m.' },
+    { k: 'am50', q: 'Route mouillée, à 50 km/h : quelle est ma distance d’arrêt ?', c: ['25 m', '35 m', '50 m'], b: 1, e: 'Réaction : 15 m. Freinage sur sec : 10 m, donc 20 m sur route mouillée. Arrêt : 15 + 20 = 35 m.' },
+    { k: 'somme', q: 'La distance d’arrêt, c’est…', c: ['La réaction + le freinage', 'Le freinage seul', 'La réaction seule'], b: 0, e: 'Distance d’arrêt = distance parcourue pendant le temps de réaction + distance de freinage.' },
+    { k: 'pluiereac', q: 'Sur route mouillée, que devient la distance parcourue pendant le temps de réaction ?', c: ['Elle double', 'Elle ne change pas', 'Elle diminue'], b: 1, e: 'Elle ne change pas : la pluie ne me fait pas réagir plus lentement. C’est la distance de freinage qui double.' }
+  ];
+  var FREIN = [
+    { k: 'pied', w: 'r', q: 'Je pose mon pied devant le frein avant d’arriver au passage piéton.', c: RFR, b: 0, sc: { reac: 14, piedPret: true, reacTxt: 'plus court', arretTxt: 'plus courte' }, e: 'Mon pied est déjà prêt : il arrive plus vite sur le frein. La distance parcourue pendant le temps de réaction raccourcit, donc la distance d’arrêt aussi. Le freinage, lui, ne change pas.' },
+    { k: 'loin', w: 'r', q: 'Je regarde loin devant et j’anticipe.', c: RFR, b: 0, sc: { reac: 17, reacTxt: 'plus court', arretTxt: 'plus courte' }, e: 'Je vois le danger plus tôt et je m’y attends : je réagis plus vite. La distance de freinage, elle, ne change pas.' },
+    { k: 'abs', w: 'r', q: 'Ma voiture a l’ABS et des freins neufs.', c: RFR, b: 2, e: 'Rien. L’ABS m’évite de bloquer les roues pour que je puisse encore tourner le volant. Une fois que je freine, rien ne raccourcit la distance de freinage : ce qui compte, c’est la vitesse à laquelle je roulais avant.' },
+    { k: 'fort', w: 'r', q: 'J’appuie de toutes mes forces sur la pédale de frein.', c: RFR, b: 2, e: 'Rien. Une fois que je freine, rien ne raccourcit la distance de freinage : ce qui compte, c’est la vitesse à laquelle je roulais avant.' },
+    { k: 'tel', w: 'a', q: 'Je lis un message sur mon téléphone.', c: RFR, b: 0, sc: { reac: 54, reacTxt: 'plus long', arretTxt: 'plus longue' }, e: 'Je ne regarde pas la route : je vois le danger plus tard, mon pied arrive plus tard sur le frein. Le freinage ne change pas, mais j’ai commencé trop tard.' },
+    { k: 'fatigue', w: 'a', q: 'Je suis fatigué.', c: RFR, b: 0, sc: { reac: 45, reacTxt: 'plus long', arretTxt: 'plus longue' }, e: 'Fatigué, je réagis moins vite : la distance parcourue pendant le temps de réaction s’allonge, donc la distance d’arrêt aussi.' },
+    { k: 'alcool', w: 'a', q: 'J’ai bu de l’alcool.', c: RFR, b: 0, sc: { reac: 50, reacTxt: 'plus long', arretTxt: 'plus longue' }, e: 'L’alcool ralentit mon cerveau : je réagis plus tard. La distance parcourue pendant le temps de réaction s’allonge.' },
+    { k: 'medic', w: 'a', q: 'J’ai pris un médicament qui endort.', c: RFR, b: 0, sc: { reac: 45, reacTxt: 'plus long', arretTxt: 'plus longue' }, e: 'Comme la fatigue ou l’alcool : je réagis moins vite. Je regarde le triangle sur la boîte avant de conduire.' },
+    { k: 'pluie', w: 'a', q: 'Il pleut, la route est mouillée.', c: RFR, b: 1, sc: { frein: 108, mouille: true }, e: 'Mes pneus accrochent moins : la distance de freinage double. La réaction, elle, ne change pas.' },
+    { k: 'pneus', w: 'a', q: 'Mes pneus sont usés.', c: RFR, b: 1, sc: { frein: 80, freinTxt: 'plus long', arretTxt: 'plus longue' }, e: 'Des pneus usés accrochent moins la route : la distance de freinage s’allonge.' },
+    { k: 'descente', w: 'a', q: 'Je roule dans une forte descente.', c: RFR, b: 1, sc: { frein: 75, freinTxt: 'plus long', arretTxt: 'plus longue' }, e: 'La pente pousse la voiture : il lui faut plus de distance pour s’arrêter.' },
+    { k: 'charge', w: 'a', q: 'Ma voiture est très chargée.', c: RFR, b: 1, sc: { frein: 72, freinTxt: 'plus long', arretTxt: 'plus longue' }, e: 'Plus la voiture est lourde, plus il lui faut de distance pour s’arrêter.' }
+  ];
+  var COUT = [
+    { k: 'v3', q: 'Je dépasse la limite de 3 km/h. Combien de points je perds ?', c: ['0 point', '1 point', '2 points'], b: 0, e: 'Moins de 5 km/h au-dessus : aucun point retiré. Mais l’amende reste.' },
+    { k: 'v12', q: 'Route limitée à 80 km/h, je roule à 92 km/h. Combien de points je perds ?', c: ['1 point', '2 points', '3 points'], b: 0, e: '92 − 80 = 12 km/h de trop : de 5 à 19 km/h, c’est 1 point.' },
+    { k: 'v23', q: 'Route limitée à 80 km/h, je roule à 103 km/h. Combien de points je perds ?', c: ['1 point', '2 points', '3 points'], b: 1, e: '103 − 80 = 23 km/h de trop : de 20 à 29 km/h, c’est 2 points.' },
+    { k: 'v35', q: 'En ville (50 km/h), je roule à 85 km/h. Combien de points je perds ?', c: ['2 points', '3 points', '4 points'], b: 1, e: '85 − 50 = 35 km/h de trop : de 30 à 39 km/h, c’est 3 points.' },
+    { k: 'v45', q: 'Sur autoroute (130 km/h), je roule à 175 km/h. Combien de points je perds ?', c: ['3 points', '4 points', '6 points'], b: 1, e: '175 − 130 = 45 km/h de trop : de 40 à 49 km/h, c’est 4 points.' },
+    { k: 'v50', q: 'Je dépasse la limite de 50 km/h ou plus. Combien de points je perds ?', c: ['4 points', '6 points', '8 points'], b: 1, e: '6 points, et c’est un délit dès la première fois.' },
+    { k: 'delit', q: 'À partir de combien de km/h au-dessus de la limite l’excès de vitesse est-il un délit ?', c: ['30 km/h', '40 km/h', '50 km/h'], b: 2, e: '50 km/h et plus au-dessus de la limite : c’est un délit dès la première fois, avec 6 points en moins.' },
+    { k: 'cumul', q: 'Plusieurs infractions en même temps : combien de points je peux perdre au plus ?', c: ['6 points', '8 points', '12 points'], b: 1, e: '8 points au plus quand plusieurs infractions sont relevées en même temps.' },
+    { k: 'alc05', q: 'Après la période probatoire, je conduis avec 0,5 g d’alcool par litre de sang. Combien de points je perds ?', c: ['3 points', '4 points', '6 points'], b: 2, e: '6 points. En période probatoire, c’est dès 0,2 g/l.' },
+    { k: 'alc08', q: 'À partir de quel taux d’alcool dans le sang est-ce un délit ?', c: ['0,5 g/l', '0,8 g/l', '1,2 g/l'], b: 1, e: 'À partir de 0,8 g/l de sang, c’est un délit : 6 points, et le tribunal.' },
+    { k: 'stup', q: 'Je conduis après avoir pris de la drogue. Combien de points je perds ?', c: ['3 points', '6 points', '8 points'], b: 1, e: '6 points, et c’est un délit, quelle que soit la quantité.' },
+    { k: 'med1', pic: 1, q: 'Sur la boîte de mon médicament, ce triangle jaune. Qu’est-ce que je fais ?', c: ['Je lis la notice', 'Je demande un avis médical', 'Je ne conduis pas'], b: 0, e: 'Niveau 1, « soyez prudent » : je ne conduis pas sans avoir lu la notice.' },
+    { k: 'med2', pic: 2, q: 'Sur la boîte de mon médicament, ce triangle orange. Qu’est-ce que je fais ?', c: ['Je lis la notice', 'Je demande un avis médical', 'Je ne conduis pas'], b: 1, e: 'Niveau 2, « soyez très prudent » : je ne conduis pas sans l’avis d’un médecin ou d’un pharmacien.' },
+    { k: 'med3', pic: 3, q: 'Sur la boîte de mon médicament, ce triangle rouge. Qu’est-ce que je fais ?', c: ['Je lis la notice', 'Je demande un avis médical', 'Je ne conduis pas'], b: 2, e: 'Niveau 3, « attention, danger » : je ne conduis pas. Pour reprendre le volant, je demande l’avis d’un médecin.' },
+    { k: 'medsans', q: 'Un médicament vendu sans ordonnance peut-il porter un de ces triangles ?', c: ['Oui', 'Non', 'Seulement le rouge'], b: 0, e: 'Oui : un sirop ou un comprimé acheté sans ordonnance peut aussi endormir. Je regarde toujours la boîte.' }
+  ];
+  TYPES.chiffres.trois = true;
+  /* trois : une question, trois choix · dans : la tuile de l'accueil qui l'ouvre · titre : l'en-tête de la série */
+  TYPES.calcul = { ic: '🧮', nom: 'Le calcul des distances', sous: 'Réaction, freinage, arrêt', pre: 'k:', base: CALCUL, n: 6, trois: true, dans: 'frein', titre: '🛑 Freiner à temps', qui: 'Calcul de tête', retenir: 'le calcul' };
+  TYPES.frein = { ic: '🛑', nom: 'Ce qui raccourcit, ce qui s’allonge', sous: 'Réaction ou freinage ?', pre: 'f:', base: FREIN, n: 6, trois: true, dans: 'frein', titre: '🛑 Freiner à temps', qui: 'Quelle distance change ?', retenir: 'à retenir', route: true };
+  TYPES.cout = { ic: '🚓', nom: 'Ce que ça coûte', sous: 'Vitesse et points', pre: 'c:', base: COUT, n: 6, trois: true, dans: 'cout', titre: '🚓 Ce que ça coûte', qui: 'Ce que ça coûte', retenir: 'à retenir' };
+  ORDRE_TYPES.push('calcul', 'frein', 'cout');
+
+  /* 📋 Les fiches à retenir : chaque ligne a sa clé, David la corrige dans
+     l'atelier (contenu.fiches). « a | b » : le texte, puis ce qu'il vaut. */
+  var FICHES = [
+    ['dist', '🛑 Freiner à temps › la fiche des trois distances', [
+      ['d_reac', '🟧 La réaction : ce que c’est', 'De 1 (je vois le danger) à 2 (mon pied appuie sur le frein). Environ 1 seconde : j’enlève le zéro de ma vitesse et je multiplie par 3.'],
+      ['d_reac_moins', '🟧 La réaction : ce qui la raccourcit', 'Le pied posé devant le frein, regarder loin, anticiper'],
+      ['d_reac_plus', '🟧 La réaction : ce qui l’allonge', 'Le téléphone, la fatigue, l’alcool, la drogue, les médicaments'],
+      ['d_frein', '🟥 Le freinage : ce que c’est', 'De 2 (j’appuie sur le frein) à 3 (la voiture est arrêtée).'],
+      ['d_frein_moins', '🟥 Le freinage : ce qui le raccourcit', 'Une fois que je freine, rien ne la raccourcit : ni freiner plus fort, ni l’ABS, ni des freins neufs. Ce qui compte, c’est la vitesse à laquelle je roulais avant.'],
+      ['d_frein_plus', '🟥 Le freinage : ce qui l’allonge', 'Route mouillée × 2, neige, verglas, pneus usés, descente, voiture chargée'],
+      ['d_arret', '🛑 L’arrêt', 'De 1 à 3 : réaction + freinage. Sur route sèche : le chiffre des dizaines multiplié par lui-même. Elle raccourcit seulement si la réaction raccourcit.']]],
+    ['bareme', '🚓 Ce que ça coûte › le barème (le texte | les points)', [
+      ['b1', 'Vitesse, ligne 1', 'moins de 5 km/h | 0 point'],
+      ['b2', 'Vitesse, ligne 2', 'de 5 à 19 km/h | 1 point'],
+      ['b3', 'Vitesse, ligne 3', 'de 20 à 29 km/h | 2 points'],
+      ['b4', 'Vitesse, ligne 4', 'de 30 à 39 km/h | 3 points'],
+      ['b5', 'Vitesse, ligne 5', 'de 40 à 49 km/h | 4 points'],
+      ['b6', 'Vitesse, ligne 6 (le délit)', '50 km/h et plus | 6 points · délit'],
+      ['b_n1', 'Vitesse, la note', '⚖️ 50 km/h et plus : délit dès la première fois (depuis le 29/12/2025).'],
+      ['b_n2', 'Vitesse, la 2ᵉ note', '➕ Plusieurs infractions en même temps : 8 points au plus.'],
+      ['a1', 'Alcool, ligne 1', 'Dès 0,2 g/l en permis probatoire | 6 points'],
+      ['a2', 'Alcool, ligne 2', 'Dès 0,5 g/l après le probatoire | 6 points'],
+      ['a3', 'Alcool, ligne 3', '0,8 g/l et plus | 6 points · délit'],
+      ['a4', 'Drogue', 'Drogue, quelle que soit la quantité | 6 points · délit']]],
+    ['medic', '🚓 Ce que ça coûte › les médicaments (le titre | ce que je fais)', [
+      ['m1', 'Le triangle jaune', 'Niveau 1 · Soyez prudent | Je ne conduis pas sans avoir lu la notice.'],
+      ['m2', 'Le triangle orange', 'Niveau 2 · Soyez très prudent | Je ne conduis pas sans l’avis d’un médecin ou d’un pharmacien.'],
+      ['m3', 'Le triangle rouge', 'Niveau 3 · Attention, danger | Je ne conduis pas. Pour reprendre le volant, je demande l’avis d’un médecin.'],
+      ['m_piege', 'Le piège', 'Un médicament sans ordonnance peut aussi porter ce triangle.']]]
+  ];
+  /* les lignes du moment : la base, puis les corrections */
+  function fichesDe(contenu) {
+    var out = {}, c = (contenu && contenu.fiches && typeof contenu.fiches === 'object') ? contenu.fiches : {};
+    FICHES.forEach(function (g) { g[2].forEach(function (l) { var v = typeof c[l[0]] === 'string' ? c[l[0]].trim() : ''; out[l[0]] = v || l[2]; }); });
+    return out;
+  }
+
+  /* ============================================================
      LE JEU
      ============================================================ */
   var O = null;                 /* ce que la page a donné : { zone, appeler, prenom } */
@@ -670,7 +783,11 @@
       var c = mod[x.k] || {}, o = { k: x.k, base: true, modifie: Object.keys(c).length > 0, cache: !!c.cache, e: c.e !== undefined ? c.e : x.e };
       if (type === 'pieges') { o.t = c.t || x.t; o.v = c.v !== undefined ? (c.v ? 1 : 0) : x.v; }
       else o.q = c.q || x.q;
-      if (type === 'chiffres') { o.c = (c.c && c.c.length === 3) ? c.c : x.c; o.b = c.b !== undefined ? c.b : x.b; }
+      if (T.trois) { o.c = (c.c && c.c.length === 3) ? c.c : x.c; o.b = c.b !== undefined ? c.b : x.b; }
+      /* 🛑 v1599 — ce que la base porte en plus : la question (w), la route après la réponse (sc), le pictogramme (pic) */
+      if (x.w) o.w = x.w;
+      if (x.sc) o.sc = x.sc;
+      if (x.pic) o.pic = x.pic;
       vus[x.k] = true;
       liste.push(o);
     });
@@ -685,7 +802,8 @@
     var t = contenu && typeof contenu.conseils === 'string' ? contenu.conseils : '';
     return t.trim() ? t.split('\n').filter(function (l) { return l.trim(); }) : CONSEILS.slice();
   }
-  var CARTES = { pieges: [], loupe: [], chiffres: [], oeil: [], passe: [] }, PARC = { pieges: {}, loupe: {}, chiffres: {}, oeil: {}, passe: {} }, LES_CONSEILS = [];
+  var CARTES = { pieges: [], loupe: [], chiffres: [], oeil: [], passe: [], calcul: [], frein: [], cout: [] }, PARC = { pieges: {}, loupe: {}, chiffres: {}, oeil: {}, passe: {}, calcul: {}, frein: {}, cout: {} }, LES_CONSEILS = [];
+  var FI = fichesDe(null);   /* 📋 v1599 — les lignes des fiches */
   /* une carte qui peut sortir dans le jeu : pas cachée, et complète */
   function carteValable(type, x, images) {
     if (x.cache) return false;
@@ -707,6 +825,7 @@
       CARTES[type].forEach(function (x) { PARC[type][x.k] = x; });
     });
     LES_CONSEILS = conseilsDe(contenu);
+    FI = fichesDe(contenu);
   }
   /* le dessin d'un panneau : son image si David en a mis une, sinon le dessin */
   function dessin(p, images) {
@@ -926,7 +1045,7 @@
       suivre(type, fusionnerCartes(type, contenu).filter(function (x) { return carteValable(type, x, images); }), function (x) {
         if (type === 'pieges') return x.t + ' (' + (x.v ? 'vrai' : 'faux') + ')';
         if (type === 'loupe') return String(x.q).replace(/[{}]/g, '');
-        if (type === 'chiffres') return x.q + ' → ' + (x.c[Number(x.b)] || '');
+        if (TYPES[type].trois) return x.q + ' → ' + (x.c[Number(x.b)] || '');
         return x.n;
       });
     });
@@ -981,7 +1100,13 @@
     mode(g, '🔤', 'L’abécédaire', 'Tous les panneaux, expliqués', 0, function () { abecedaire(); });
     ORDRE_TYPES.forEach(function (type) {
       var T = TYPES[type];
+      /* 🛑 🚓 v1599 — ces jeux-là s'ouvrent par leur tuile à eux, juste après « Le bon chiffre » */
+      if (T.dans) return;
       if (CARTES[type].length) mode(g, T.ic, T.nom, T.sous, 0, function () { seance(false, type); });
+      if (type === 'chiffres') {
+        mode(g, '🛑', 'Freiner à temps', 'Réaction, freinage, arrêt', dejaJoue(['calcul', 'frein']) ? 0 : 'Nouveau', freinAccueil);
+        mode(g, '🚓', 'Ce que ça coûte', 'Vitesse et points', dejaJoue(['cout']) ? 0 : 'Nouveau', coutAccueil);
+      }
     });
     mode(g, '🔁', 'À revoir', r ? r + ' carte' + (r > 1 ? 's reviennent' : ' revient') + ' aujourd’hui' : 'Rien à revoir 👏', r, function () { seance(true); });
     if (LES_CONSEILS.length) mode(g, '📝', 'Conseils pour l’examen', 'Le mémo de l’auto-école', 0, conseils);
@@ -1076,8 +1201,10 @@
     if (revoirSeul) l = melanger(toutesDues()).slice(0, 12);
     else if (type) prendre(type, TYPES[type].n);
     else {
-      /* 4 panneaux, 2 pièges, 1 loupe, 1 chiffre, 1 image, 1 carrefour ; s'il manque une sorte, des panneaux à la place */
+      /* 3 panneaux, 2 pièges, 1 loupe, 1 chiffre, 1 image, 1 carrefour, 1 distance ou barème ; s'il manque une sorte, des panneaux à la place */
       prendre('pieges', 2); prendre('loupe', 1); prendre('chiffres', 1); prendre('oeil', 1); prendre('passe', 1);
+      /* 🛑 🚓 v1599 — et une carte des distances ou des points */
+      prendre(['calcul', 'frein', 'cout'][Math.floor(Math.random() * 3)], 1);
       prendre('p', 10 - l.length);
       l = melanger(l);
     }
@@ -1088,7 +1215,7 @@
       bouton(j, 'Retour', accueil, true);
       return;
     }
-    S = { l: l, i: 0, bons: 0, rates: [], titre: revoirSeul ? '🔁 À revoir' : (type ? TYPES[type].ic + ' ' + TYPES[type].nom : '▶️ Ma séance du jour'), xp0: D.xp };
+    S = { l: l, i: 0, bons: 0, rates: [], titre: revoirSeul ? '🔁 À revoir' : (type ? (TYPES[type].titre || TYPES[type].ic + ' ' + TYPES[type].nom) : '▶️ Ma séance du jour'), xp0: D.xp };
     question();
   }
   function leurres(p, n) {
@@ -1120,7 +1247,7 @@
     j.setAttribute('data-cj-type', x.t);
     if (x.t === 'pieges') { questionPiege(j, PARC.pieges[x.k]); return; }
     if (x.t === 'loupe') { questionLoupe(j, PARC.loupe[x.k]); return; }
-    if (x.t === 'chiffres') { questionChiffre(j, PARC.chiffres[x.k]); return; }
+    if (TYPES[x.t] && TYPES[x.t].trois) { questionTrois(j, x.t, PARC[x.t][x.k]); return; }
     if (x.t === 'oeil') { questionOeil(j, PARC.oeil[x.k]); return; }
     if (x.t === 'passe') { questionPasse(j, PARC.passe[x.k]); return; }
     var p = PAR[x.k];
@@ -1250,30 +1377,6 @@
     j.setAttribute('data-cj-bonne', 'loupe');
   }
   /* 🔢 le bon chiffre : trois choix, puis l'astuce pour le retenir */
-  function questionChiffre(j, c) {
-    if (!c) { S.i++; question(); return; }
-    bulle(j, 'Le bon chiffre', esc(c.q));
-    var z = el('div', 'cjTrois'), fait = false, bts = [];
-    c.c.forEach(function (t, i) {
-      var b = el('button', '', esc(t));
-      b.type = 'button';
-      b.setAttribute('data-cj-k', String(i));
-      bts.push(b);
-      b.addEventListener('click', function () {
-        if (fait) return;
-        fait = true;
-        var ok = i === Number(c.b);
-        bts.forEach(function (y, n) { y.disabled = true; if (n === Number(c.b)) y.className = 'bon'; });
-        if (!ok) b.className = 'faux';
-        apresReponse(j, idDe('chiffres', c.k), ok, ok
-          ? '<small>✅ Oui · +10 XP · l’astuce à retenir</small>' + esc(c.e)
-          : '<b>❌ C’était ' + esc(c.c[Number(c.b)]) + '</b>' + esc(c.e) + ' Cette carte revient demain.');
-      });
-      z.appendChild(b);
-    });
-    j.appendChild(z);
-    j.setAttribute('data-cj-bonne', String(c.b));
-  }
   /* ============================================================
      👀 🚦 v1464 — TOUCHER L'IMAGE
      ============================================================ */
@@ -1597,6 +1700,554 @@
     if (vers) { var c = corps.querySelector('[data-cj-fam="' + vers + '"]'); if (c) try { c.scrollIntoView({ block: 'start' }); } catch (e) {} }
   }
 
+
+  /* ============================================================
+     🛑 v1599 — FREINER À TEMPS : LA ROUTE, LES TROIS MOMENTS, LES TROIS DISTANCES
+
+     David : « il faudrait : on détecte le danger, le pied qui arrive sur
+     le frein et la voiture arrêtée » ; « ajoute le frein pour qu'il ait
+     bien le repère, et peut-être animer la voiture » ; « dans le
+     simulateur il faut expliquer le calcul de chaque étape ».
+
+     SF dessine la route à un instant t : 0 = je vois le danger (repère 1),
+     tr = mon pied appuie sur le frein (repère 2), 1 = arrêté (repère 3).
+     ============================================================ */
+  var SF = (function () {
+    function n(x) { return Math.round(x * 10) / 10; }
+    function temps(o) {
+      var ms = (o.v || 90) / 3.6, tR = o.reac / ms, tB = 2 * o.frein / ms;
+      return { tr: tR / (tR + tB), duree: tR + tB };
+    }
+    function svg(o, t) {
+      o = o || {};
+      t = t === undefined ? 1 : Math.max(0, Math.min(1, t));
+      var S = !!o.sombre, P = !!o.mouille, v = o.v || 90;
+      var x0 = 54, L = 292, tot = o.reac + o.frein;
+      var ech = L / Math.max(o.echelle || 150, (o.obstacle ? Math.max(tot, o.obstacle) : tot) * 1.08);
+      var x1 = x0, x2 = x0 + o.reac * ech, x3 = x2 + o.frein * ech;
+      var xo = o.obstacle ? x0 + o.obstacle * ech : x3 + 12;
+      var choc = !!o.obstacle && tot > o.obstacle;
+      var tr = temps(o).tr;
+      var freine = t >= tr && t > 0, arrete = t >= 1;
+      var u = t <= tr ? 0 : (t - tr) / (1 - tr);
+      var x = t <= tr ? x1 + (x2 - x1) * (tr ? t / tr : 1) : x2 + (x3 - x2) * (2 * u - u * u);
+      var vit = t <= tr ? v : Math.round(v * (1 - u));
+      var id = 'sf' + (S ? 's' : 'c') + (P ? 'p' : '');
+      var ciel = P ? (S ? ['#1C222C', '#39424F'] : ['#8E9BAB', '#C9D2DC']) : (S ? ['#14213D', '#3B4C73'] : ['#8FD0FF', '#E6F6FF']);
+      var herbe = S ? '#2F5A32' : (P ? '#5F8B57' : '#7CC25B'), herbe2 = S ? '#274B2A' : (P ? '#527A4B' : '#69AE4C');
+      var colline = S ? '#243B4A' : (P ? '#7F9A8C' : '#A9D99A'), colline2 = S ? '#1D3140' : (P ? '#6F8B7E' : '#8FCB85');
+      var route = P ? '#3A3E46' : '#4B4F57';
+      var s = '<svg viewBox="0 0 370 264" style="width:100%;display:block;color:inherit;border-radius:14px" role="img" aria-label="La route : je vois le danger, mon pied arrive sur le frein, la voiture est arrêtée">';
+      s += '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + ciel[0] + '"/><stop offset="1" stop-color="' + ciel[1] + '"/></linearGradient>' +
+        '<clipPath id="' + id + 'k"><rect x="0" y="0" width="370" height="198" rx="14"/></clipPath></defs>';
+      s += '<g clip-path="url(#' + id + 'k)">';
+      /* le ciel, le soleil ou la lune, les nuages */
+      s += '<rect x="0" y="0" width="370" height="140" fill="url(#' + id + ')"/><g transform="translate(0 14)">';
+      if (!P) s += S ? '<circle cx="150" cy="30" r="11" fill="#F4F1DE"/><circle cx="155" cy="27" r="10" fill="' + ciel[0] + '"/>' : '<circle cx="150" cy="30" r="13" fill="#FFD84D"/><circle cx="150" cy="30" r="19" fill="#FFD84D" opacity=".25"/>';
+      var nu = function (cx, cy, k) { var c = P ? (S ? '#4A5361' : '#7C8795') : (S ? '#55668C' : '#FFFFFF'); return '<g fill="' + c + '" opacity="' + (P ? 1 : .9) + '"><ellipse cx="' + cx + '" cy="' + cy + '" rx="' + (16 * k) + '" ry="' + (7 * k) + '"/><ellipse cx="' + (cx - 10 * k) + '" cy="' + (cy + 3 * k) + '" rx="' + (10 * k) + '" ry="' + (5 * k) + '"/><ellipse cx="' + (cx + 11 * k) + '" cy="' + (cy + 3 * k) + '" rx="' + (11 * k) + '" ry="' + (5 * k) + '"/></g>'; };
+      s += nu(112, 52, 1) + nu(214, 24, 1.15) + (P ? nu(60, 60, 1.3) + nu(168, 50, 1.2) : '');
+      /* les collines, les arbres, une maison */
+      s += '<path d="M0 104 Q60 74 130 100 Q200 76 270 98 Q320 84 370 100 V124 H0Z" fill="' + colline + '"/>';
+      s += '<path d="M0 114 Q90 92 180 112 Q270 96 370 112 V124 H0Z" fill="' + colline2 + '"/>';
+      var arbre = function (ax, k) { return '<rect x="' + (ax - 1.5 * k) + '" y="' + (120 - 10 * k) + '" width="' + (3 * k) + '" height="' + (10 * k) + '" fill="#7A5230"/><circle cx="' + ax + '" cy="' + (120 - 14 * k) + '" r="' + (8 * k) + '" fill="' + (S ? '#2E6B3A' : '#3E9B4F') + '"/><circle cx="' + (ax - 4 * k) + '" cy="' + (120 - 10 * k) + '" r="' + (5 * k) + '" fill="' + (S ? '#275C32' : '#348A45') + '"/>'; };
+      s += arbre(18, 1) + arbre(96, .8) + arbre(232, 1.05) + arbre(338, .9);
+      s += '<g transform="translate(176 100)"><rect x="0" y="6" width="26" height="16" fill="' + (S ? '#C9B79C' : '#FFF4DD') + '"/><polygon points="-3,7 13,-5 29,7" fill="#C0513A"/><rect x="10" y="12" width="6" height="10" fill="#7A5230"/><rect x="18" y="10" width="5" height="5" fill="' + (S ? '#FFE27A' : '#9CCBF0') + '"/></g>';
+      /* l'herbe et la route */
+      s += '<rect x="0" y="120" width="370" height="64" fill="' + herbe + '"/>';
+      s += '<rect x="0" y="126" width="370" height="46" fill="' + route + '"/>';
+      s += '<rect x="0" y="128" width="370" height="1.6" fill="#F1F1F1" opacity=".8"/><rect x="0" y="168.5" width="370" height="1.8" fill="#F1F1F1" opacity=".85"/>';
+      for (var i = 0; i < 12; i++) s += '<rect x="' + (4 + i * 32) + '" y="139.5" width="18" height="2.4" rx="1" fill="#F1F1F1" opacity=".85"/>';
+      if (P) s += '<ellipse cx="120" cy="160" rx="22" ry="3" fill="#9CC9FF" opacity=".35"/><ellipse cx="262" cy="150" rx="18" ry="2.4" fill="#9CC9FF" opacity=".3"/><ellipse cx="330" cy="163" rx="14" ry="2.2" fill="#9CC9FF" opacity=".3"/>';
+      /* les balises du bord de route */
+      for (var b = 0; b < 10; b++) s += '<g transform="translate(' + (14 + b * 38) + ' 172)"><rect x="-1.5" y="0" width="3" height="9" fill="#F4F4F4"/><rect x="-1.5" y="1.5" width="3" height="2.5" fill="#E5484D"/></g>';
+      s += '<rect x="0" y="181" width="370" height="3" fill="' + herbe2 + '"/>';
+      /* ce que la voiture a déjà parcouru, peint sur sa voie */
+      var xa = Math.min(x, x2);
+      if (t > 0 && xa > x1) s += '<rect x="' + n(x1) + '" y="143" width="' + n(xa - x1) + '" height="25" fill="#F5A524" opacity=".42"/>';
+      if (freine && x > x2) s += '<rect x="' + n(x2) + '" y="143" width="' + n(x - x2) + '" height="25" fill="#E5484D" opacity=".45"/>';
+      /* le danger : une barrière de chantier */
+      var pasPasse = !(choc && x > xo);
+      s += '<g transform="translate(' + n(Math.min(xo + 2, 354)) + ' 166)' + (pasPasse ? '' : ' rotate(28)') + '"><rect x="1" y="-22" width="2.5" height="22" fill="#D8DBE0"/><rect x="9.5" y="-22" width="2.5" height="22" fill="#D8DBE0"/><rect x="-2" y="-21" width="17" height="7" rx="1.5" fill="#fff" stroke="#B42318" stroke-width=".8"/><path d="M0 -21 l4 7 M5 -21 l4 7 M10 -21 l4 7" stroke="#E5484D" stroke-width="2.6"/></g>';
+      s += '<g transform="translate(' + n(Math.min(xo + 9, 361)) + ' 132)"><polygon points="0,-11 9,5 -9,5" fill="#FFD84D" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/><text x="0" y="3" text-anchor="middle" font-size="9" font-weight="900" fill="#111">!</text></g>';
+      if (!pasPasse) s += '<text x="' + n(xo + 8) + '" y="150" text-anchor="middle" font-size="22">💥</text>';
+      /* les 3 repères, plantés au bord de la route */
+      var pin = function (px, num, coul, haut) {
+        var cy = haut ? 77 : 98;
+        return '<line x1="' + n(px) + '" y1="' + (cy + 10) + '" x2="' + n(px) + '" y2="207" stroke="' + coul + '" stroke-width="1.6" stroke-dasharray="3 3" opacity=".9"/>' +
+          '<circle cx="' + n(px) + '" cy="' + cy + '" r="10" fill="' + coul + '" stroke="#fff" stroke-width="1.6"/><text x="' + n(px) + '" y="' + (cy + 4.4) + '" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">' + num + '</text>';
+      };
+      var h2 = x2 - x1 < 22, h3 = !h2 && x3 - x2 < 22;
+      s += pin(x1, 1, '#1D4E9E');
+      if (freine) s += pin(x2, 2, '#D9822B', h2) + '<text x="' + n(h3 ? x2 - 17 : x2) + '" y="' + (h3 ? 102 : (h2 ? 63 : 84)) + '" text-anchor="middle" font-size="12">🦶</text>';
+      if (arrete) s += pin(x3, 3, '#C62828', h3);
+      /* la voiture (l'avant à droite). Fantômes : où elle était aux repères déjà passés */
+      var voiture = function (vx, fant, feux, file) {
+        var g = '<g transform="translate(' + n(vx) + ' 164)"' + (fant ? ' opacity=".26"' : '') + '>';
+        if (!fant) g += '<ellipse cx="-23" cy="1.5" rx="26" ry="3.2" fill="#000" opacity=".28"/>';
+        if (file) g += '<g stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"><line x1="-52" y1="-20" x2="-62" y2="-20"/><line x1="-50" y1="-14" x2="-66" y2="-14"/><line x1="-52" y1="-8" x2="-60" y2="-8"/></g>';
+        if (feux) g += '<circle cx="-47" cy="-12" r="8" fill="#FF2D2D" opacity=".45"/>';
+        g += '<path d="M-46 -8 L-46 -15 Q-46 -17 -44 -18 L-38 -26 Q-37 -28 -34 -28 L-20 -28 Q-17 -28 -15 -26 L-9 -18 L-3 -16 Q0 -15 0 -12 L0 -8 Q0 -5 -3 -5 L-43 -5 Q-46 -5 -46 -8 Z" fill="#B6FF0E" stroke="#2F5200" stroke-width="1.1" stroke-linejoin="round"/>';
+        g += '<path d="M-41.5 -19 L-36.5 -25.6 L-28.5 -25.6 L-28.5 -19 Z M-26.5 -19 L-26.5 -25.6 L-20.5 -25.6 Q-18.6 -25.6 -17.4 -24 L-13 -19 Z" fill="#1E2A36" opacity=".88"/>';
+        g += '<rect x="-3" y="-14.5" width="3" height="3.4" rx="1" fill="#FFF3B0"/><rect x="-46.5" y="-15" width="2.8" height="5" rx="1" fill="' + (feux ? '#FF2D2D' : '#9C1C1C') + '"/>';
+        g += '<circle cx="-36" cy="-5" r="5.6" fill="#15171A"/><circle cx="-36" cy="-5" r="2.2" fill="#C9CED6"/><circle cx="-11" cy="-5" r="5.6" fill="#15171A"/><circle cx="-11" cy="-5" r="2.2" fill="#C9CED6"/>';
+        return g + '</g>';
+      };
+      if (freine && x > x1 + 30) s += voiture(x1, true);
+      if (arrete && x3 > x2 + 30) s += voiture(x2, true, true);
+      s += voiture(x, false, freine, t > 0 && !freine);
+      /* 👀 au moment où je vois le danger : mon regard va jusqu'à lui */
+      if (t <= 0) s += '<line x1="' + n(x1 - 12) + '" y1="141" x2="' + n(Math.min(xo + 2, 354)) + '" y2="141" stroke="#FFD84D" stroke-width="1.8" stroke-dasharray="2 5" stroke-linecap="round"/><text x="' + n(x1 - 18) + '" y="126" text-anchor="middle" font-size="13">👀</text>';
+      s += '</g>';
+      /* la pluie */
+      if (P) { s += '<g stroke="#D6E8FF" stroke-width="1.1" opacity=".55" stroke-linecap="round">'; var g = 7; for (var p = 0; p < 60; p++) { g = (g * 1103515245 + 12345) % 2147483648; var px = g % 372; g = (g * 1103515245 + 12345) % 2147483648; var py = g % 178; s += '<line x1="' + px + '" y1="' + py + '" x2="' + (px - 2.4) + '" y2="' + (py + 7) + '"/>'; } s += '</g>'; }
+      /* le compteur */
+      s += '<g transform="translate(8 8) scale(1.12)"><rect x="0" y="0" width="78" height="27" rx="13.5" fill="#15171A" opacity=".88"/><circle cx="14" cy="13.5" r="7.5" fill="none" stroke="#B6FF0E" stroke-width="2"/><line x1="14" y1="13.5" x2="' + n(14 + 5.5 * Math.cos(Math.PI * (1 - vit / 130))) + '" y2="' + n(13.5 - 5.5 * Math.sin(Math.PI * (1 - vit / 130))) + '" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><text x="50" y="18" text-anchor="middle" font-size="11.5" font-weight="800" fill="#fff">' + vit + ' km/h</text></g>';
+      /* les pédales : l'action sur le frein */
+      var f = t <= 0 ? 0 : Math.min(1, tr ? t / tr : 1);
+      var av = o.piedPret ? .78 + .22 * f : f;                 /* 0 = sur l'accélérateur, 1 = sur le frein */
+      var sx = 84 - 44 * av, sy = freine ? -3 : 0;
+      var dit = freine ? (arrete ? 'J’appuie : arrêté' : 'J’appuie sur le frein') : (t <= 0 ? (o.piedPret ? 'Pied prêt devant le frein' : 'Pied sur l’accélérateur') : 'Mon pied va vers le frein');
+      s += '<g transform="translate(232 6) scale(1.16)"><rect x="0" y="0" width="114" height="80" rx="11" fill="#15171A" opacity=".92"/><rect x=".8" y=".8" width="112.4" height="78.4" rx="10.4" fill="none" stroke="' + (freine ? '#FF5A5A' : '#fff') + '" stroke-opacity="' + (freine ? .9 : .28) + '" stroke-width="1.5"/>';
+      s += '<text x="40" y="12" text-anchor="middle" font-size="7" font-weight="800" fill="' + (freine ? '#FF8A8A' : '#C9CED6') + '">FREIN</text><text x="84" y="12" text-anchor="middle" font-size="7" font-weight="800" fill="#C9CED6">ACCÉL.</text>';
+      if (freine) s += '<rect x="24" y="14" width="32" height="26" rx="6" fill="#FF2D2D" opacity=".35"/>';
+      s += '<rect x="28" y="17" width="24" height="20" rx="4" fill="' + (freine ? '#E5484D' : '#8D939C') + '" stroke="#111" stroke-width="1"/><g stroke="#111" stroke-width="1" opacity=".5"><line x1="31" y1="22" x2="49" y2="22"/><line x1="31" y1="27" x2="49" y2="27"/><line x1="31" y1="32" x2="49" y2="32"/></g>';
+      s += '<rect x="77.5" y="16" width="13" height="26" rx="4" fill="#8D939C" stroke="#111" stroke-width="1"/>';
+      /* la chaussure */
+      s += '<g transform="translate(' + n(sx) + ' ' + sy + ')"><path d="M-8 34 Q-8 26 0 26 Q8 26 8 34 L8 56 Q8 63 0 63 Q-8 63 -8 56 Z" fill="#F7F7F2" stroke="#111" stroke-width="1.2"/><path d="M-5 36 h10 M-5 41 h10 M-5 46 h10" stroke="#B6FF0E" stroke-width="1.6" stroke-linecap="round"/><path d="M-8 52 h16" stroke="#111" stroke-width="1" opacity=".5"/></g>';
+      s += '<text x="57" y="74.5" text-anchor="middle" font-size="7.6" font-weight="700" fill="#fff">' + dit + '</text></g>';
+      s += '</g>';
+      /* les distances, sous la route */
+      s += '<g transform="translate(0 14)">';
+      if (t > 0 && xa > x1) { s += '<rect x="' + n(x1) + '" y="190" width="' + n(xa - x1) + '" height="17" rx="4" fill="#F5A524"/>'; if (xa - x1 >= 36) s += '<text x="' + n((x1 + xa) / 2) + '" y="202.3" text-anchor="middle" font-size="10.5" font-weight="800" fill="#111">' + (t >= tr ? (o.reacTxt || (Math.round(o.reac) + ' m')) : '…') + '</text>'; }
+      if (freine && x > x2) { s += '<rect x="' + n(x2) + '" y="190" width="' + n(x - x2) + '" height="17" rx="4" fill="#E5484D"/>'; if (x - x2 >= 36) s += '<text x="' + n((x2 + x) / 2) + '" y="202.3" text-anchor="middle" font-size="10.5" font-weight="800" fill="#fff">' + (arrete ? (o.freinTxt || (Math.round(o.frein) + ' m')) : '…') + '</text>'; }
+      if (arrete) {
+        s += '<path d="M' + n(x1) + ' 213 v7 h' + n(x3 - x1) + ' v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
+        s += '<text x="' + n(Math.max(100, Math.min(270, (x1 + x3) / 2))) + '" y="240" text-anchor="middle" font-size="12.5" font-weight="800" fill="currentColor">🛑 Distance d’arrêt : ' + (o.arretTxt || (Math.round(tot) + ' m')) + '</text>';
+      }
+      s += '</g>';
+      return s + '</svg>';
+    }
+    /* de l'instant « de » à l'instant « a », en « ms » millisecondes */
+    function animer(el, o, de, a, ms, fin) {
+      if (el.__sf) cancelAnimationFrame(el.__sf);
+      var t0 = null;
+      var pas = function (now) {
+        if (t0 === null) t0 = now;
+        var k = ms ? Math.min(1, (now - t0) / ms) : 1;
+        el.innerHTML = svg(o, de + (a - de) * k);
+        if (k < 1) el.__sf = requestAnimationFrame(pas); else { el.__sf = 0; if (fin) fin(); }
+      };
+      el.__sf = requestAnimationFrame(pas);
+    }
+    return { svg: svg, animer: animer, temps: temps };
+  })();
+  function sombreIci() { try { return !document.body.classList.contains('clair'); } catch (e) { return false; } }
+  function sansMouvement() { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } }
+  /* la scène de base : 90 km/h sur route sèche (27 m + 54 m = 81 m) */
+  function optScene(o) { var r = { v: 90, reac: 27, frein: 54 }, k; for (k in (o || {})) r[k] = o[k]; r.sombre = sombreIci(); return r; }
+  function sceneEl(o, t) { return el('div', 'sfScene', SF.svg(optScene(o), t)); }
+  /* fait rouler la voiture de l'instant « de » à l'instant « a » */
+  function rouler(d, o, de, a, fin) {
+    o = optScene(o);
+    var T = SF.temps(o), ms = sansMouvement() ? 0 : Math.max(350, Math.abs(a - de) * Math.min(5200, T.duree * 900));
+    SF.animer(d, o, de, a, ms, function () { if (fin && document.body.contains(d)) fin(); });
+  }
+  /* les 3 repères et les 3 distances, sous la route. « et » : jusqu'où on est allé (1, 2 ou 3) */
+  function legendeFrein(et, o) {
+    o = optScene(o);
+    var c = el('div', 'card sfLeg');
+    var ligne = function (e, t, v, gris) { c.appendChild(el('div', 'nvTheme' + (gris ? ' sfGris' : ''), '<span class="e">' + e + '</span><span class="n">' + t + '</span>' + (v ? '<span class="c"><b>' + esc(v) + '</b></span>' : ''))); };
+    ligne('🔵', '<b>1</b> · Je vois le danger', '', false);
+    ligne('🟠', '<b>2</b> · Mon pied appuie sur le frein', '', et < 2);
+    ligne('🔴', '<b>3</b> · La voiture est arrêtée', '', et < 3);
+    c.appendChild(el('div', 'sfSep'));
+    ligne('🟧', '<b>1 → 2</b> · Distance parcourue pendant le temps de réaction', o.reacTxt || (Math.round(o.reac) + ' m'), et < 2);
+    ligne('🟥', '<b>2 → 3</b> · Distance de freinage', o.freinTxt || (Math.round(o.frein) + ' m'), et < 3);
+    ligne('🛑', '<b>1 → 3</b> · Distance d’arrêt', o.arretTxt || (Math.round(o.reac + o.frein) + ' m'), et < 3);
+    return c;
+  }
+  function tuile(z, e, t, s, faire, vedette) {
+    var b = el('button', 'jvMode' + (vedette ? ' vedette' : ''), '<span class="e">' + e + '</span><span><b>' + esc(t) + '</b><small>' + esc(s) + '</small></span>');
+    b.type = 'button';
+    b.setAttribute('data-cj-mode', t);
+    b.addEventListener('click', faire);
+    z.appendChild(b);
+  }
+  function deuxBoutons(j, a, faireA, b, faireB) {
+    var z = el('div', 'cjDeux'), x = el('button', '', a), y = el('button', 'bon', b);
+    x.type = y.type = 'button';
+    x.addEventListener('click', faireA);
+    y.addEventListener('click', faireB);
+    z.appendChild(x); z.appendChild(y);
+    j.appendChild(z);
+    return [x, y];
+  }
+  /* a-t-il déjà joué une carte de ces jeux ? (sinon la tuile dit « Nouveau ») */
+  function dejaJoue(types) {
+    return types.some(function (type) { return CARTES[type].some(function (x) { var c = carte(idDe(type, x.k)); return c[2] + c[3] > 0; }); });
+  }
+
+  /* ---------- l'entrée ---------- */
+  function freinAccueil() {
+    var j = ecran('');
+    haut(j, '🛑 Freiner à temps');
+    bulle(j, 'Trois distances à ne pas confondre', 'La réaction, le freinage, l’arrêt : regarde la route, puis joue.');
+    var z = el('div', 'cjSeries');
+    tuile(z, '🎬', 'Les trois moments', 'Je vois le danger, j’appuie sur le frein, je suis arrêté', function () { moments(1, false); }, true);
+    tuile(z, '🔀', 'Ce qui change quoi', 'Le pied prêt, le téléphone, la pluie', function () { comparaison(0); });
+    tuile(z, '🎚️', 'Le simulateur', 'Choisis ta vitesse : le calcul, étape par étape', simulateur);
+    if (CARTES.frein.length) tuile(z, '❓', 'Qu’est-ce qui raccourcit ?', 'Une situation : la réaction, le freinage, ou rien', function () { seance(false, 'frein'); });
+    if (CARTES.calcul.length) tuile(z, '🧮', 'Le calcul de tête', 'Six questions pour s’entraîner', function () { seance(false, 'calcul'); });
+    tuile(z, '📋', 'La fiche à retenir', 'Les trois distances d’un coup d’œil', ficheFrein);
+    j.appendChild(z);
+  }
+
+  /* ---------- ① les trois moments ---------- */
+  var MOMENTS = [
+    ['① Je vois le danger', 'Mon pied est encore sur l’accélérateur. Il me faut environ 1 seconde pour réagir : pendant ce temps, la voiture continue à 90 km/h.'],
+    ['② Mon pied appuie sur le frein', 'J’ai déjà parcouru 27 m sans freiner (9 × 3) : c’est la distance parcourue pendant le temps de réaction. Les feux stop s’allument.'],
+    ['③ La voiture est arrêtée', 'Il a encore fallu 54 m de freinage. En tout, de 1 à 3 : 81 m (9 × 9). C’est la distance d’arrêt.']
+  ];
+  function moments(et, anime) {
+    var j = ecran('');
+    haut(j, '🛑 Freiner à temps', et - 1, 3, freinAccueil);
+    j.setAttribute('data-cj-moment', String(et));
+    bulle(j, 'À 90 km/h, route sèche', MOMENTS[et - 1][0]);
+    var tr = SF.temps(optScene()).tr, I = [0, tr, 1];
+    var roule = anime && et > 1;
+    var c = el('div', 'card sfCarte');
+    var sc = sceneEl({}, roule ? I[et - 2] : I[et - 1]);
+    c.appendChild(sc);
+    c.appendChild(el('div', 'jvDoux sfDit', esc(MOMENTS[et - 1][1])));
+    j.appendChild(c);
+    var leg = legendeFrein(roule ? et - 1 : et, {});
+    j.appendChild(leg);
+    var jouer = function () {
+      rouler(sc, {}, I[et - 2], I[et - 1], function () { var n = legendeFrein(et, {}); leg.parentNode.replaceChild(n, leg); leg = n; });
+    };
+    var bts = deuxBoutons(j, '🔁 Revoir', function () { if (et > 1) jouer(); },
+      et < 3 ? '▶️ Et ensuite ?' : 'Qu’est-ce qui peut raccourcir ?', function () { if (et < 3) moments(et + 1, true); else comparaison(0); });
+    bts[0].disabled = et === 1;
+    if (roule) jouer();
+  }
+
+  /* ---------- ② ce qui change quoi : la même route, l'obstacle à 100 m ---------- */
+  var COMPARER = [
+    { qui: 'Le pied posé devant le frein', dit: 'Quand je sens qu’il peut y avoir un danger, je lève le pied de l’accélérateur et je le pose devant le frein.',
+      lib: '🦶 Pied posé devant le frein', o: { reac: 14, piedPret: true, reacTxt: 'plus court', arretTxt: 'plus courte' },
+      vois: ['🟧 La distance parcourue pendant le temps de réaction raccourcit, donc 🛑 la distance d’arrêt aussi : je m’arrête plus loin de l’obstacle.', '🟥 La distance de freinage, elle, ne bouge pas : rien ne la raccourcit.'] },
+    { qui: 'Le téléphone, la fatigue, l’alcool', dit: 'Je regarde mon téléphone, je suis fatigué ou j’ai bu : mon pied arrive plus tard sur le frein.',
+      lib: '📱 Distrait, fatigué ou alcoolisé', o: { reac: 54, reacTxt: 'plus long', arretTxt: 'plus longue' },
+      vois: ['🟧 La distance parcourue pendant le temps de réaction s’allonge, donc 🛑 la distance d’arrêt aussi : je n’arrive plus à m’arrêter avant l’obstacle.', '🟥 Le freinage reste le même : j’ai juste commencé à freiner trop tard.'] },
+    { qui: 'La route mouillée', dit: 'Il pleut : mes pneus accrochent moins la route.',
+      lib: '🌧️ Route mouillée : freinage × 2', o: { frein: 108, mouille: true },
+      vois: ['🟧 Ma réaction ne change pas : 27 m.', '🟥 La distance de freinage double : 54 × 2 = 108 m.', '🛑 Distance d’arrêt : 27 + 108 = 135 m. L’obstacle était à 100 m : je le percute. Sous la pluie, je roule moins vite.'] }
+  ];
+  function comparaison(i) {
+    var C = COMPARER[i], j = ecran('');
+    haut(j, '🛑 Freiner à temps', i, COMPARER.length, freinAccueil);
+    j.setAttribute('data-cj-comparer', String(i));
+    bulle(j, C.qui, esc(C.dit));
+    var a = el('div', 'card sfCarte', '<div class="section-title sfTitre">D’habitude</div>');
+    a.appendChild(sceneEl({ obstacle: 100 }, 1));
+    j.appendChild(a);
+    var o = { obstacle: 100 }, k;
+    for (k in C.o) o[k] = C.o[k];
+    var b = el('div', 'card sfCarte', '<div class="section-title sfTitre">' + esc(C.lib) + '</div>');
+    var sc = sceneEl(o, 0);
+    b.appendChild(sc);
+    j.appendChild(b);
+    var vois = el('div', 'nvVerso', '<small>📐 Ce que je vois</small>' + C.vois.map(esc).join('<br>'));
+    vois.style.visibility = 'hidden';
+    j.appendChild(vois);
+    var jouer = function () { rouler(sc, o, 0, 1, function () { vois.style.visibility = ''; }); };
+    var dernier = i + 1 >= COMPARER.length;
+    deuxBoutons(j, '🔁 Revoir', jouer, dernier ? (CARTES.frein.length ? '❓ À moi de jouer' : 'Terminer') : 'Suivant', function () {
+      if (!dernier) comparaison(i + 1);
+      else if (CARTES.frein.length) seance(false, 'frein');
+      else freinAccueil();
+    });
+    jouer();
+  }
+
+  /* ---------- ③ le simulateur : la vitesse, la route, et le calcul de chaque étape ---------- */
+  function distancesA(v, mouille) {
+    var d = v / 10, reac = d * 3, arretSec = d * d, freinSec = arretSec - reac, frein = mouille ? freinSec * 2 : freinSec;
+    return { d: d, reac: reac, arretSec: arretSec, freinSec: freinSec, frein: frein, arret: reac + frein };
+  }
+  function etapesCalcul(v, mouille) {
+    var x = distancesA(v, mouille), l = [];
+    l.push(['🟧', 'La distance parcourue pendant le temps de réaction', 'J’enlève le zéro de ma vitesse : ' + v + ' → ' + x.d + '. Je multiplie par 3.', x.d + ' × 3 = ' + x.reac + ' m']);
+    l.push(['🛑', 'La distance d’arrêt sur route sèche', 'Le même chiffre, multiplié par lui-même.', x.d + ' × ' + x.d + ' = ' + x.arretSec + ' m']);
+    l.push(['🟥', 'La distance de freinage sur route sèche', 'La distance d’arrêt, moins la distance parcourue pendant le temps de réaction.', x.arretSec + ' − ' + x.reac + ' = ' + x.freinSec + ' m']);
+    if (mouille) {
+      l.push(['🌧️', 'Route mouillée : la distance de freinage double', 'Je multiplie la distance de freinage par 2. La réaction, elle, ne change pas.', x.freinSec + ' × 2 = ' + x.frein + ' m']);
+      l.push(['🛑', 'La distance d’arrêt sur route mouillée', 'J’ajoute la réaction et le nouveau freinage.', x.reac + ' + ' + x.frein + ' = ' + x.arret + ' m']);
+    }
+    return l;
+  }
+  var SIM = { v: 90, mouille: false };
+  function simulateur() {
+    var j = ecran('');
+    haut(j, '🛑 Freiner à temps', 0, 0, freinAccueil);
+    j.setAttribute('data-cj-simu', '1');
+    bulle(j, 'Le simulateur', 'Choisis la vitesse et la route, puis lance la voiture.');
+    var c = el('div', 'card sfCarte');
+    var sc = el('div', 'sfScene');
+    c.appendChild(sc);
+    var ligne = el('div', 'sfVit');
+    c.appendChild(ligne);
+    var r = el('input', 'sfCurseur');
+    r.type = 'range'; r.min = '50'; r.max = '130'; r.step = '10'; r.value = String(SIM.v);
+    r.setAttribute('aria-label', 'Ma vitesse, de 50 à 130 km/h');
+    c.appendChild(r);
+    var routes = el('div', 'cjDeux'), sec = el('button', '', '☀️ Sèche'), mou = el('button', '', '🌧️ Mouillée');
+    sec.type = mou.type = 'button';
+    routes.appendChild(sec); routes.appendChild(mou);
+    c.appendChild(routes);
+    j.appendChild(c);
+    var go = bouton(j, '▶️ Lancer la voiture', function () { lancer(); });
+    go.setAttribute('data-cj-lancer', '1');
+    var leg = el('div', ''), calc = el('div', 'card sfCalc');
+    j.appendChild(leg);
+    j.appendChild(calc);
+    var tour = 0;
+    var opt = function () {
+      var x = distancesA(SIM.v, SIM.mouille), y = distancesA(SIM.v, true);
+      /* la même échelle sur route sèche et mouillée : on voit le freinage doubler */
+      return { v: SIM.v, reac: x.reac, frein: x.frein, mouille: SIM.mouille, echelle: Math.max(60, y.arret * 1.08) };
+    };
+    var pas = function () { return calc.querySelectorAll('.sfPas'); };
+    var maj = function () {
+      tour++;
+      var o = opt();
+      if (sc.__sf) { try { cancelAnimationFrame(sc.__sf); } catch (e) {} sc.__sf = 0; }
+      sc.innerHTML = SF.svg(optScene(o), 1);
+      ligne.innerHTML = '<b>' + SIM.v + ' km/h</b><span class="jvDoux">route ' + (SIM.mouille ? 'mouillée' : 'sèche') + '</span>';
+      sec.className = SIM.mouille ? '' : 'bon';
+      mou.className = SIM.mouille ? 'bon' : '';
+      sec.setAttribute('aria-pressed', SIM.mouille ? 'false' : 'true');
+      mou.setAttribute('aria-pressed', SIM.mouille ? 'true' : 'false');
+      leg.innerHTML = '';
+      leg.appendChild(legendeFrein(3, o));
+      calc.innerHTML = '<div class="section-title" style="margin-bottom:2px">🧮 Le calcul, étape par étape</div>';
+      etapesCalcul(SIM.v, SIM.mouille).forEach(function (e, i) {
+        calc.appendChild(el('div', 'sfPas', '<i>' + (i + 1) + '</i><div><b>' + e[0] + ' ' + esc(e[1]) + '</b><span>' + esc(e[2]) + '</span><strong>' + esc(e[3]) + '</strong></div>'));
+      });
+      go.disabled = false;
+    };
+    /* la voiture roule : chaque étape du calcul s'allume quand on y arrive */
+    var lancer = function () {
+      maj();
+      var moi = tour, o = opt(), tr = SF.temps(optScene(o)).tr, l = pas(), i;
+      for (i = 0; i < l.length; i++) l[i].className = 'sfPas sfGris';
+      go.disabled = true;
+      sc.innerHTML = SF.svg(optScene(o), 0);
+      try { sc.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+      setTimeout(function () {
+        if (moi !== tour) return;
+        rouler(sc, o, 0, tr, function () {
+          if (moi !== tour) return;
+          if (l[0]) l[0].className = 'sfPas';
+          setTimeout(function () {
+            if (moi !== tour) return;
+            rouler(sc, o, tr, 1, function () {
+              if (moi !== tour) return;
+              for (var k = 0; k < l.length; k++) l[k].className = 'sfPas';
+              go.disabled = false;
+            });
+          }, sansMouvement() ? 0 : 500);
+        });
+      }, sansMouvement() ? 0 : 500);
+    };
+    r.addEventListener('input', function () { SIM.v = Math.max(50, Math.min(130, Math.round(Number(r.value) / 10) * 10)); maj(); });
+    sec.addEventListener('click', function () { SIM.mouille = false; maj(); });
+    mou.addEventListener('click', function () { SIM.mouille = true; maj(); });
+    maj();
+    if (CARTES.calcul.length) bouton(j, '🧮 Je m’entraîne au calcul', function () { seance(false, 'calcul'); }, true);
+  }
+
+  /* ---------- la fiche à retenir ---------- */
+  function ligneFiche(e, html) { return '<div class="nvTheme sfLigne"><span class="e">' + e + '</span><span class="n">' + html + '</span></div>'; }
+  function ficheFrein() {
+    var j = ecran('');
+    haut(j, '🛑 Freiner à temps', 0, 0, freinAccueil);
+    j.setAttribute('data-cj-fiche-frein', '1');
+    var c = el('div', 'card sfCarte');
+    c.appendChild(sceneEl({}, 1));
+    j.appendChild(c);
+    j.appendChild(el('div', 'card sfLeg', '<div class="section-title" style="margin-bottom:6px">🟧 Distance parcourue pendant le temps de réaction</div>' +
+      '<div class="jvDoux" style="margin-bottom:4px">' + esc(FI.d_reac) + '</div>' +
+      ligneFiche('🦶', '<b>Raccourcit</b> : ' + esc(FI.d_reac_moins)) + ligneFiche('📱', '<b>S’allonge</b> : ' + esc(FI.d_reac_plus))));
+    j.appendChild(el('div', 'card sfLeg', '<div class="section-title" style="margin-bottom:6px">🟥 Distance de freinage</div>' +
+      '<div class="jvDoux" style="margin-bottom:4px">' + esc(FI.d_frein) + '</div>' +
+      ligneFiche('❌', '<b>' + esc(FI.d_frein_moins) + '</b>') + ligneFiche('🌧️', '<b>S’allonge</b> : ' + esc(FI.d_frein_plus))));
+    j.appendChild(el('div', 'card sfLeg', '<div class="section-title" style="margin-bottom:6px">🛑 Distance d’arrêt</div><div class="jvDoux">' + esc(FI.d_arret) + '</div>'));
+    bouton(j, 'Retour', freinAccueil, true);
+  }
+
+  /* ============================================================
+     🚓 v1599 — CE QUE ÇA COÛTE : la vitesse et les points, l'alcool, la
+     drogue, les médicaments (David : pas de marge du radar)
+     ============================================================ */
+  function deux(k) { var t = String(FI[k] || ''), i = t.indexOf('|'); return i === -1 ? [t.trim(), ''] : [t.slice(0, i).trim(), t.slice(i + 1).trim()]; }
+  function ligneBareme(k, e) {
+    var x = deux(k), delit = /d[ée]lit/i.test(x[1]);
+    var v = esc(x[1]).replace(/(·\s*)?(d[ée]lit)/i, function (m, a, b) { return (a || '') + '<span class="sfDelit">' + b + '</span>'; });
+    return '<div class="nvTheme sfLigne"><span class="e">' + (delit ? '⚖️' : e) + '</span><span class="n">' + esc(x[0]) + '</span><span class="c"><b>' + v + '</b></span></div>';
+  }
+  /* le triangle des boîtes de médicaments : 1 jaune, 2 orange, 3 rouge */
+  function pictoMedic(n) {
+    var c = ['#F5D300', '#F08A24', '#E5484D'][n - 1] || '#F5D300';
+    return '<svg viewBox="0 0 100 90" aria-hidden="true"><polygon points="50,4 96,86 4,86" fill="' + c + '" stroke="#111" stroke-width="3" stroke-linejoin="round"/>' +
+      '<g transform="translate(29 44)"><rect x="0" y="10" width="42" height="15" rx="5" fill="#111"/><rect x="9" y="1" width="23" height="13" rx="4" fill="#111"/><circle cx="10" cy="27" r="5" fill="#111"/><circle cx="32" cy="27" r="5" fill="#111"/></g>' +
+      '<text x="50" y="40" text-anchor="middle" font-size="13" font-weight="800" fill="#111">' + n + '</text></svg>';
+  }
+  function coutAccueil() {
+    var j = ecran('');
+    haut(j, '🚓 Ce que ça coûte');
+    bulle(j, 'Les points de mon permis', 'La vitesse, l’alcool, la drogue, les médicaments : ce que je risque.');
+    var z = el('div', 'cjSeries');
+    tuile(z, '📉', 'Le barème à retenir', 'Combien de points pour quel excès de vitesse', bareme, true);
+    if (CARTES.cout.length) tuile(z, '❓', 'Combien de points ?', 'Six questions pour s’entraîner', function () { seance(false, 'cout'); });
+    tuile(z, '💊', 'Les médicaments', 'Les trois triangles de la boîte', medicaments);
+    j.appendChild(z);
+  }
+  function bareme() {
+    var j = ecran('');
+    haut(j, '🚓 Ce que ça coûte', 0, 0, coutAccueil);
+    j.setAttribute('data-cj-bareme', '1');
+    bulle(j, 'À retenir', 'Combien de points je perds selon mon excès de vitesse.');
+    j.appendChild(el('div', 'card sfLeg', '<div class="section-title" style="margin-bottom:6px">🚗 Au-dessus de la limite</div>' +
+      ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'].map(function (k) { return ligneBareme(k, '💨'); }).join('') +
+      '<div class="jvDoux sfNote">' + esc(FI.b_n1) + '<br>' + esc(FI.b_n2) + '</div>'));
+    j.appendChild(el('div', 'card sfLeg', '<div class="section-title" style="margin-bottom:6px">🍷 L’alcool et la drogue</div>' +
+      ['a1', 'a2', 'a3', 'a4'].map(function (k) { return ligneBareme(k, k === 'a4' ? '🚫' : '🍷'); }).join('')));
+    if (CARTES.cout.length) bouton(j, 'Je m’entraîne', function () { seance(false, 'cout'); });
+    bouton(j, 'Retour', coutAccueil, true);
+  }
+  function medicaments() {
+    var j = ecran('');
+    haut(j, '🚓 Ce que ça coûte', 0, 0, coutAccueil);
+    j.setAttribute('data-cj-medic', '1');
+    bulle(j, 'Sur la boîte du médicament', 'Le triangle me dit si je peux conduire.');
+    [1, 2, 3].forEach(function (n) {
+      var x = deux('m' + n);
+      j.appendChild(el('div', 'card sfMedic', '<span class="sfTri">' + pictoMedic(n) + '</span><div><b>' + esc(x[0]) + '</b><div class="jvDoux">' + esc(x[1]) + '</div></div>'));
+    });
+    j.appendChild(el('div', 'nvFaux', '<b>🪤 Le piège</b>' + esc(FI.m_piege)));
+    bouton(j, 'Je joue au memory des pictogrammes', memoryPictos);
+    bouton(j, 'Retour', coutAccueil, true);
+  }
+  /* le memory des trois triangles : un triangle va avec ce que je fais */
+  var MP = null;
+  function memoryPictos() {
+    var c = [];
+    [1, 2, 3].forEach(function (n) { c.push({ n: n, t: 'p' }); c.push({ n: n, t: 'm' }); });
+    MP = { c: melanger(c), ouv: [], faites: {}, coups: 0, attente: false };
+    dessinerMemoryPictos();
+  }
+  function dessinerMemoryPictos() {
+    var j = ecran('');
+    var faites = Object.keys(MP.faites).length;
+    haut(j, '💊 Memory des médicaments', faites, 3, medicaments);
+    bulle(j, 'Trouve les paires', 'Un triangle va avec <u>ce que je fais</u>. <span style="font-weight:600;color:var(--muted)">' + MP.coups + ' coup' + (MP.coups > 1 ? 's' : '') + '</span>');
+    var g = el('div', 'cjMem sfMem3');
+    MP.c.forEach(function (x, i) {
+      var fait = !!MP.faites[x.n], ouverte = MP.ouv.indexOf(i) !== -1, txt = deux('m' + x.n);
+      var b = el('button', fait ? 'ok' : (ouverte ? 'vue' : 'dos'), (fait || ouverte) ? (x.t === 'p' ? pictoMedic(x.n) : esc(txt[1])) : 'EC');
+      b.type = 'button';
+      b.setAttribute('data-cj-carte', x.n + ':' + x.t);
+      b.setAttribute('aria-label', (fait || ouverte) ? (x.t === 'p' ? txt[0] : txt[1]) : 'Carte retournée');
+      if (!fait && !ouverte) b.addEventListener('click', function () { retournerPicto(i); });
+      g.appendChild(b);
+    });
+    j.appendChild(g);
+    if (faites >= 3) {
+      j.appendChild(el('div', 'card cjBilan', '<div class="g">🎉</div><h3>3 paires en ' + MP.coups + ' coups</h3><p>+10 XP</p>'));
+      bouton(j, 'Rejouer', memoryPictos);
+      bouton(j, 'Retour', medicaments, true);
+    }
+  }
+  function retournerPicto(i) {
+    if (MP.attente || MP.ouv.indexOf(i) !== -1 || MP.ouv.length >= 2) return;
+    MP.ouv.push(i);
+    vibrer(8);
+    if (MP.ouv.length < 2) { dessinerMemoryPictos(); return; }
+    MP.coups++;
+    var a = MP.c[MP.ouv[0]], b = MP.c[MP.ouv[1]], moi = MP;
+    dessinerMemoryPictos();
+    MP.attente = true;
+    var bon = a.n === b.n && a.t !== b.t;
+    setTimeout(function () {
+      if (moi !== MP) return;
+      MP.attente = false;
+      MP.ouv = [];
+      if (bon) {
+        MP.faites[a.n] = true;
+        if (Object.keys(MP.faites).length >= 3) { D.xp += 10; jouerAujourdhui(); sauver(); }
+      }
+      if (zone().querySelector('.sfMem3')) dessinerMemoryPictos();
+    }, bon ? 650 : 1100);
+  }
+
+  /* une question à trois choix (le bon chiffre, le calcul, ce qui raccourcit, ce que ça coûte) */
+  function questionTrois(j, type, c) {
+    if (!c) { S.i++; question(); return; }
+    var T = TYPES[type], B = Number(c.b);
+    bulle(j, c.w === 'r' ? 'Qu’est-ce qui raccourcit ?' : (c.w === 'a' ? 'Qu’est-ce qui s’allonge ?' : (T.qui || 'Le bon chiffre')), esc(c.q));
+    var sc = null;
+    if (T.route) { var ca = el('div', 'card sfCarte'); sc = sceneEl({}, 1); ca.appendChild(sc); j.appendChild(ca); }
+    if (c.pic) j.appendChild(el('div', 'sfPic', pictoMedic(Number(c.pic))));
+    var enCol = type !== 'chiffres' && c.c.some(function (t) { return String(t).length > 13; });
+    var z = el('div', 'cjTrois' + (enCol ? ' col' : '')), fait = false, bts = [];
+    c.c.forEach(function (t, i) {
+      var b = el('button', '', esc(t));
+      b.type = 'button';
+      b.setAttribute('data-cj-k', String(i));
+      bts.push(b);
+      b.addEventListener('click', function () {
+        if (fait) return;
+        fait = true;
+        var ok = i === B;
+        bts.forEach(function (y, n) { y.disabled = true; if (n === B) y.className = 'bon'; });
+        if (!ok) b.className = 'faux';
+        /* la route montre ce que la situation change */
+        if (sc && c.sc) rouler(sc, c.sc, 0, 1);
+        apresReponse(j, idDe(type, c.k), ok, ok
+          ? '<small>✅ Oui · +10 XP · ' + esc(T.retenir || 'l’astuce à retenir') + '</small>' + esc(c.e)
+          : '<b>❌ C’était ' + esc(c.c[B]) + '</b>' + esc(c.e) + ' Cette carte revient demain.');
+      });
+      z.appendChild(b);
+    });
+    j.appendChild(z);
+    j.setAttribute('data-cj-bonne', String(c.b));
+  }
+  CSS +=
+    '.jv .sfScene{line-height:0;color:var(--cream)}.jv .sfScene svg{display:block;width:100%;height:auto}' +
+    '.jv .sfCarte{padding:8px 8px 10px;margin-top:10px}.jv .sfCarte .sfTitre{margin:2px 6px 6px}' +
+    '.jv .sfDit{margin:8px 6px 0;line-height:1.5}' +
+    '.jv .sfLeg{padding:10px 14px;margin-top:10px}.jv .sfLeg .nvTheme{cursor:default}.jv .sfLeg .nvTheme .c{width:auto;white-space:nowrap}' +
+    '.jv .sfLeg .nvTheme .n{font-size:14px;line-height:1.35;color:var(--cream);text-align:left}' +
+    '.jv .sfGris{opacity:.32}.jv .sfSep{height:6px}' +
+    '.jv .sfLigne .n{font-size:14px;line-height:1.4;color:var(--cream);text-align:left}' +
+    '.jv .sfNote{margin-top:8px;line-height:1.5}.jv .sfDelit{color:#D0331C;font-weight:800}' +
+    '.jv .sfVit{display:flex;justify-content:space-between;align-items:baseline;margin:8px 6px 2px}.jv .sfVit b{font-size:26px;font-weight:900;color:var(--cream)}' +
+    '.jv input.sfCurseur{display:block;width:calc(100% - 12px);margin:6px;padding:0;accent-color:#9BE200;min-height:28px;border:0;background:transparent;box-shadow:none}' +
+    '.jv .sfCarte .cjDeux{margin:8px 6px 0}' +
+    '.jv .sfCalc{padding:12px 14px}' +
+    '.jv .sfPas{display:flex;gap:10px;align-items:flex-start;padding:10px 0;transition:opacity .3s}.jv .sfPas + .sfPas{border-top:1px solid var(--verre-bord,var(--line))}' +
+    '.jv .sfPas i{flex:none;width:24px;height:24px;border-radius:50%;background:#B6FF0E;color:#14161B;font-style:normal;font-size:13px;font-weight:900;line-height:24px;text-align:center}' +
+    '.jv .sfPas b{display:block;font-size:14.5px;font-weight:800;line-height:1.3;color:var(--cream)}' +
+    '.jv .sfPas span{display:block;font-size:13.5px;line-height:1.4;color:var(--muted);margin-top:2px}' +
+    '.jv .sfPas strong{display:inline-block;margin-top:6px;padding:4px 11px;border-radius:10px;background:#14161B;color:#B6FF0E;font-size:16px;font-weight:900;font-variant-numeric:tabular-nums}' +
+    '.jv .sfPas.sfGris{opacity:.3}' +
+    '.jv .sfMedic{display:flex;gap:12px;align-items:center;padding:10px 12px;margin-top:10px}.jv .sfMedic .sfTri{flex:0 0 74px;line-height:0}.jv .sfMedic .sfTri svg{width:74px;height:auto}' +
+    '.jv .sfMedic b{font-size:15px;color:var(--cream)}.jv .sfMedic .jvDoux{margin-top:2px;line-height:1.4}' +
+    '.jv .sfPic{text-align:center;margin-top:10px;line-height:0}.jv .sfPic svg{width:104px;height:auto;filter:drop-shadow(0 6px 10px rgba(0,0,0,.16))}' +
+    '.jv .cjMem.sfMem3{grid-template-columns:repeat(3,minmax(0,1fr))}.jv .cjMem.sfMem3 button{font-size:11.5px}' +
+    '.jv .cjTrois.col{grid-template-columns:1fr}.jv .cjTrois.col button{font-size:16px;padding:13px 10px}';
+
   /* ============================================================
      LE BRANCHEMENT
      ============================================================ */
@@ -1609,6 +2260,9 @@
     TYPES: TYPES,
     fusionnerCartes: fusionnerCartes,
     conseilsDe: conseilsDe,
+    /* 📋 v1599 — les fiches à retenir (leurs lignes de base, et celles du moment) */
+    FICHES: FICHES,
+    fichesDe: fichesDe,
     /* 👀 v1464 — l'image d'une scène et un rond posé dessus, pour l'atelier */
     imageScene: imageScene,
     rond: rondSur,
@@ -1632,6 +2286,6 @@
       });
     },
     oublier: function () { charge = false; D = null; clearTimeout(minuteur); },
-    _etat: function () { return { D: D, liste: LISTE, S: S, M: M, cartes: CARTES, conseils: LES_CONSEILS }; }
+    _etat: function () { return { D: D, liste: LISTE, S: S, M: M, cartes: CARTES, conseils: LES_CONSEILS, fiches: FI, scene: SF }; }
   };
 })();
