@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 15:24 — v1598 */
+/* Déployé le 27/11/2026 à 18:10 — v1599 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,25 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1599,
+    date: 'Vendredi 27 novembre 2026',
+    resume: '🚦 Jeu du code : « 🛑 Freiner à temps » et « 🚓 Ce que ça coûte »',
+    quoi: [
+      { emoji: '🛑',
+        titre: 'Espace élève › 🚦 Code › Freiner à temps',
+        texte: 'Une route animée en trois moments : ① je vois le danger, ② mon pied appuie sur le frein, ③ la voiture est arrêtée. On y voit la distance parcourue pendant le temps de réaction (orange), la distance de freinage (rouge) et la distance d’arrêt. Trois comparaisons montrent ce qui change quoi (le pied posé devant le frein, la distraction, la route mouillée), puis l’élève joue : « Qu’est-ce qui raccourcit ? » (🟧 Réaction, 🟥 Freinage, ❌ Rien), le calcul de tête, et la fiche à retenir.' },
+      { emoji: '🧮',
+        titre: 'Freiner à temps › Le simulateur',
+        texte: 'L’élève choisit la vitesse (de 50 à 130 km/h) et la route (sèche ou mouillée), lance la voiture, et le calcul s’écrit étape par étape : à 90 km/h, 9 × 3 = 27 m, 9 × 9 = 81 m, 81 − 27 = 54 m ; sur route mouillée, le freinage double (54 × 2 = 108 m) et l’arrêt passe à 27 + 108 = 135 m.' },
+      { emoji: '🚓',
+        titre: 'Espace élève › 🚦 Code › Ce que ça coûte',
+        texte: 'Le barème des points selon l’excès de vitesse, l’alcool et la drogue, des questions pour s’entraîner, et les trois triangles des boîtes de médicaments (avec un memory).' },
+      { emoji: '✏️',
+        titre: 'Élèves › 🎓 Code › 🚦 Le jeu du code (l’atelier)',
+        texte: 'Trois onglets de cartes de plus (« 🛑 Le calcul », « 🛑 Ce qui raccourcit », « 🚓 Ce que ça coûte ») et un onglet « 📋 Les fiches » pour corriger les lignes des fiches et du barème. Dans le dossier d’un élève, 🎓 Code suit aussi ces trois jeux.' }
+    ]
+  },
   {
     version: 1598,
     date: 'Vendredi 27 novembre 2026',
