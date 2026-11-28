@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 27/11/2026 à 18:10 — v1599 -->
+<!-- Déployé le 28/11/2026 à 12:25 — v1600 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-s+viaajI80CgI9iCcoxa0EFZjFAkQQUyAvplNB1qjF4=' 'sha256-9QL3I4kMgJ9WvBQrkERqlVohB4bLCu/KmPLNsf7f0gw='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-s+viaajI80CgI9iCcoxa0EFZjFAkQQUyAvplNB1qjF4=' 'sha256-qKD3sCmXRc/aiK4DgUQsUb21vNABv8OIeoHFnY7iFNk='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -2820,6 +2820,130 @@
   #ecHumain .ecHumainW{ display:flex; justify-content:center; min-height:65px; }
   #ecHumain .ecHumainM{ font-size:13px; margin-top:8px; min-height:18px; }
 </style>
+<!-- 🎨 v1600 — LE VERRE 2 DE L'ESPACE ÉLÈVE (David, le 28/11 : « le fond surtout ne va pas ; revoir les
+     espacements, l'homogénéité et l'effet glassy comme pour notre côté »). La même recette que l'App de
+     l'équipe : un fond (choisi par l'élève parmi ceux de l'école), le même verre, le même écart 16 / 20 / 24 px,
+     la barre du bas de la largeur de la colonne. Les variables --fd-* sont posées par appliquerFond. -->
+<style id="ecVerre2Eleve">
+body{
+  --e:16px; --r1:26px; --r2:16px; --col:600px;
+}
+@media (min-width:700px){ body{ --e:20px; --col:640px; } }
+@media (min-width:1280px){ body{ --e:24px; --r1:28px; --r2:18px; --col:680px; } }
+
+/* ── 1. LE FOND : celui que l'élève a choisi dans le menu du thème, sinon celui que l'école met par défaut ── */
+html{ background:var(--fd-sombre-c, #0B0D0C); }
+body.clair{ background:transparent; }
+body::before{ background:linear-gradient(var(--fd-sombre-v, transparent), var(--fd-sombre-v, transparent)), var(--fd-sombre-p, none) center / cover no-repeat, var(--fd-sombre-c, #0B0D0C) !important; }
+body.clair::before{ background:linear-gradient(var(--fd-clair-v, transparent), var(--fd-clair-v, transparent)), var(--fd-clair-p, none) center / cover no-repeat, var(--fd-clair-c, #E9EDE3) !important; }
+@media (max-aspect-ratio: 1/1){
+  body::before{ background:linear-gradient(var(--fd-sombre-v, transparent), var(--fd-sombre-v, transparent)), var(--fd-sombre-t, none) center / cover no-repeat, var(--fd-sombre-c, #0B0D0C) !important; }
+  body.clair::before{ background:linear-gradient(var(--fd-clair-v, transparent), var(--fd-clair-v, transparent)), var(--fd-clair-t, none) center / cover no-repeat, var(--fd-clair-c, #E9EDE3) !important; }
+}
+#ecChargement{ background:var(--fd-sombre-c, #0B0D0C) !important; } body.clair #ecChargement{ background:var(--fd-clair-c, #E9EDE3) !important; }
+
+/* ── 2. LA MATIÈRE (mêmes valeurs que l'App de l'équipe) ─── */
+body{
+  --v-fond:linear-gradient(135deg,rgba(255,255,255,.13) 0%,rgba(255,255,255,.045) 40%,rgba(255,255,255,.02) 100%), rgba(10,13,11,.60);
+  --v-filtre:blur(20px) saturate(170%) brightness(.62);
+  --v-ombre:inset 0 1px 0 rgba(255,255,255,.34), inset 1px 0 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(255,255,255,.05), 0 30px 70px -20px rgba(0,0,0,.85), 0 3px 10px rgba(0,0,0,.40);
+  --v-lisere:linear-gradient(135deg,rgba(255,255,255,.70) 0%,rgba(255,255,255,.16) 28%,rgba(255,255,255,.05) 60%,rgba(214,255,110,.45) 100%);
+  --v-reflet:linear-gradient(118deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.03) 22%,rgba(255,255,255,0) 40%);
+  --v2-fond:rgba(255,255,255,.07); --v2-bord:rgba(255,255,255,.14); --v2-ombre:inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.25);
+  --v-epais:linear-gradient(135deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,.03) 100%), rgba(10,13,11,.74);
+  --muted:#C8CDC1;
+  --verre:var(--v2-fond); --verre2:var(--v2-fond); --verre-bord:var(--v2-bord); --verre-reflet:rgba(255,255,255,.30); --verre-ombre:rgba(0,0,0,.45);
+  --lentille:linear-gradient(180deg,#D8FF78 0%,#B6FF0E 100%); --lentille-ombre:rgba(182,255,14,.50);
+}
+body.clair{
+  --v-fond:linear-gradient(135deg,rgba(255,255,255,.84) 0%,rgba(255,255,255,.72) 42%,rgba(255,255,255,.68) 100%);
+  --v-filtre:blur(20px) saturate(175%) brightness(1.10);
+  --v-ombre:inset 0 1px 0 rgba(255,255,255,1), inset 1px 0 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(30,45,20,.07), 0 28px 60px -22px rgba(25,40,15,.45), 0 3px 8px rgba(25,40,15,.10);
+  --v-lisere:linear-gradient(135deg,rgba(255,255,255,1) 0%,rgba(255,255,255,.55) 30%,rgba(255,255,255,.20) 62%,rgba(255,255,255,.85) 100%);
+  --v-reflet:linear-gradient(118deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.10) 22%,rgba(255,255,255,0) 40%);
+  --v2-fond:rgba(255,255,255,.46); --v2-bord:rgba(255,255,255,.80); --v2-ombre:inset 0 1px 0 rgba(255,255,255,.95), 0 1px 2px rgba(25,40,15,.06);
+  --v-epais:linear-gradient(135deg,rgba(255,255,255,.92) 0%,rgba(255,255,255,.80) 100%);
+  --muted:#3C433A; --accent-text:#315A00;
+  --verre:var(--v2-fond); --verre2:var(--v2-fond); --verre-bord:var(--v2-bord); --verre-reflet:rgba(255,255,255,.95); --verre-ombre:rgba(25,40,15,.12);
+  --lentille-ombre:rgba(120,190,0,.55);
+}
+
+/* LE PANNEAU DE VERRE : l'en-tête, les cartes, les tuiles des jeux, les groupes, la barre de Réviser */
+.entete, body.clair .card, body:not(.clair) .card, .jv .jvMode, .grpCarte, .rvSeg{
+  position:relative; isolation:isolate;
+  background:var(--v-fond) !important;
+  -webkit-backdrop-filter:var(--v-filtre) !important; backdrop-filter:var(--v-filtre) !important;
+  border:0 !important; box-shadow:var(--v-ombre) !important;
+}
+.entete::before, body .card::before, .jv .jvMode::before, .grpCarte::before{
+  content:""; position:absolute; inset:0; left:0; right:0; top:0; height:auto; z-index:-1; border-radius:inherit; background:var(--v-reflet); pointer-events:none;
+}
+.entete::after, body .card::after, .jv .jvMode::after, .grpCarte::after, .rvSeg::after, .barbas::after{
+  content:""; position:absolute; inset:0; border-radius:inherit; padding:1.2px; pointer-events:none; background:var(--v-lisere);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* la carte sombre des vérifs garde son noir : c'est un repère */
+/* la carte sombre des vérifs reste opaque, sans flou ni reflet blanc : son texte clair doit se lire */
+body .jv .card.jvHero, body.clair .jv .card.jvHero{ background:linear-gradient(135deg,#14161B,#2A2F1A) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; color:#fff; }
+body .jv .card.jvHero::before{ display:none; }
+/* la tuile vedette garde sa teinte verte, posée dans le verre */
+.jv .jvMode.vedette{ background:linear-gradient(135deg,rgba(182,255,14,.34),rgba(182,255,14,.10)), var(--v-fond) !important; }
+body:not(.clair) .jv .jvMode.vedette{ background:linear-gradient(135deg,rgba(182,255,14,.20),rgba(182,255,14,.05)), var(--v-fond) !important; }
+.grpCarte.ici, body.clair .grpCarte.ici{ background:linear-gradient(135deg,rgba(182,255,14,.30),rgba(182,255,14,.08)), var(--v-fond) !important; box-shadow:inset 0 0 0 2px var(--accent-text), var(--v-ombre) !important; }
+
+/* ── 3. LA MESURE ───────────────────────────────────────── */
+body{ padding:calc(var(--e) + var(--dessus)) calc(var(--e) + var(--adroite)) calc(var(--e) * 2 + var(--dessous)) calc(var(--e) + var(--agauche)); }
+body.avecbarre{ padding-bottom:calc(var(--e) * 2 + 66px + var(--dessous)); }
+.boite{ max-width:var(--col); }
+/* l'en-tête : un panneau, le logo et les ronds à 44 px */
+.entete{ margin-bottom:var(--e); padding:10px 12px 10px 10px; border-radius:var(--r1); gap:12px; }
+.logo{ width:44px; height:44px; border-radius:var(--r2); font-size:17px; }
+.rondentete{ width:44px !important; height:44px !important; background:var(--v2-fond) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border:1px solid var(--v2-bord) !important; box-shadow:var(--v2-ombre) !important; }
+.boutentete{ gap:10px; }
+/* les cartes : le même écart dehors et dedans */
+body.clair .card, body:not(.clair) .card{ border-radius:var(--r1); padding:var(--e); margin-bottom:var(--e); }
+.jv .jvTravaux{ margin-bottom:var(--e); border-radius:var(--r2); }
+.jv .jvModes{ gap:var(--e); margin-bottom:var(--e); }
+.jv .jvMode{ border-radius:var(--r1); padding:var(--e); }
+.rvSeg{ margin-bottom:var(--e) !important; border-radius:999px !important; }
+.grpCarte{ border-radius:var(--r1) !important; margin-bottom:var(--e); }
+#ongletMessages .elA{ gap:var(--e); }
+
+/* LE SECOND NIVEAU : ce qui est posé dans un panneau */
+body.clair input, body.clair select, body.clair textarea, body:not(.clair) input, body:not(.clair) select, body:not(.clair) textarea{
+  background:var(--v2-fond); border:1px solid var(--v2-bord); border-radius:var(--r2); box-shadow:var(--v2-ombre); }
+.lecon, .etape, .bascule{ background:var(--v2-fond); border:1px solid var(--v2-bord); border-radius:var(--r2); box-shadow:var(--v2-ombre); }
+.btn-secondary{ background:var(--v2-fond); border:1px solid var(--v2-bord); box-shadow:var(--v2-ombre); }
+.btn-primary, .barbas button.ici, .rvSeg button.ici{ box-shadow:inset 0 1px 0 rgba(255,255,255,.95), inset 0 -2px 0 rgba(0,0,0,.08), 0 8px 20px -4px var(--lentille-ombre) !important; }
+
+/* LA BARRE DU BAS : un verre épais, de la largeur de la colonne, au même écart du bas */
+.barbas{
+  left:50% !important; right:auto !important; transform:translateX(-50%); width:min(var(--col), calc(100% - var(--e) * 2 - var(--agauche) - var(--adroite)));
+  max-width:none; bottom:calc(var(--e) + var(--dessous)); padding:6px; isolation:isolate;
+  background:var(--v-epais) !important; -webkit-backdrop-filter:blur(20px) saturate(170%) !important; backdrop-filter:blur(20px) saturate(170%) !important;
+  border:0 !important; box-shadow:var(--v-ombre) !important;
+}
+
+/* LE MENU DES FONDS : ouvert par le bouton du thème (le soleil ou la lune) — Clair ou Sombre, et les fonds proposés par l'école */
+.fdVoile{ position:fixed; inset:0; z-index:999; background:rgba(10,14,8,.22); }
+body:not(.clair) .fdVoile{ background:rgba(0,0,0,.40); }
+.fdMenu{ position:fixed; z-index:1000; width:min(340px, calc(100vw - var(--e) * 2)); max-height:calc(100vh - 120px); overflow:auto; padding:var(--e); border-radius:var(--r1); isolation:isolate;
+  background:var(--v-epais); -webkit-backdrop-filter:blur(20px) saturate(170%); backdrop-filter:blur(20px) saturate(170%); box-shadow:var(--v-ombre); }
+.fdMenu::after{ content:""; position:absolute; inset:0; border-radius:inherit; padding:1.2px; pointer-events:none; background:var(--v-lisere);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.fdTitre{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 12px; font-weight:800; font-size:17px; }
+.fdTitre small{ font-weight:500; font-size:13px; color:var(--muted); }
+.fdSeg{ display:flex; gap:4px; padding:4px; border-radius:999px; background:var(--v2-fond); border:1px solid var(--v2-bord); box-shadow:var(--v2-ombre); margin-bottom:14px; }
+.fdSeg button{ flex:1; border:0; border-radius:999px; padding:9px 0; margin:0; font-size:15px; font-weight:700; line-height:1; font-family:inherit; background:transparent; color:inherit; box-shadow:none; min-height:0; width:auto; }
+.fdSeg button.ici{ background:var(--lentille); color:#111; box-shadow:inset 0 1px 0 rgba(255,255,255,.95), inset 0 -2px 0 rgba(0,0,0,.08), 0 8px 20px -4px var(--lentille-ombre); }
+.fdGrille{ display:grid; grid-template-columns:repeat(3, 1fr); gap:12px 10px; }
+.fdF{ border:0; padding:0; margin:0; width:100%; min-height:0; background:none; color:inherit; font-size:12.5px; font-weight:600; line-height:1.25; font-family:inherit; text-align:center; box-shadow:none; }
+.fdF i{ position:relative; display:block; aspect-ratio:4/3; border-radius:var(--r2); background-size:cover; background-position:center; margin-bottom:6px; box-shadow:0 0 0 1px var(--v2-bord), 0 2px 6px rgba(0,0,0,.18); }
+.fdF.ici i{ box-shadow:0 0 0 2.5px var(--accent-text, #315A00), 0 0 0 5px rgba(182,255,14,.55), 0 2px 6px rgba(0,0,0,.18); }
+body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,255,14,.25), 0 2px 6px rgba(0,0,0,.3); }
+.fdF.ici i::after{ content:"✓"; position:absolute; right:5px; top:5px; width:20px; height:20px; border-radius:50%; background:#B6FF0E; color:#111; font:900 12px/20px system-ui, sans-serif; text-align:center; }
+.fdF em{ display:block; font-style:normal; font-weight:500; font-size:11px; color:var(--muted); }
+</style>
 </head>
 <body>
 
@@ -5556,6 +5680,7 @@
         lireModules(r);
         memoriserLeCode(code);
         entrerTout();
+        chargerFondsDeLEcole();   /* 🎨 v1600 */
       })
       .catch(function(){ chargeFini('entree'); /* on attend la connexion complète */ });
 
@@ -5577,6 +5702,7 @@
         memoriserLeCode(code);
 
         if(entreeRapide) completerLEntree(); else entrer();
+        chargerFondsDeLEcole();   /* 🎨 v1600 */
         /* ⏳ v1394 — sa connexion est là ; l'écran attend encore ce qu'elle a lancé */
         chargeFini('entree');
         chargeFini('connexion');
@@ -10148,6 +10274,169 @@
     }catch(e){}
     appliquerTheme(clair);
   })();
+
+
+  /* ===== 🎨 v1600 — LE FOND =====
+
+     David, le 28/11 (proposition « Verre 2 », validée avec ses
+     collègues) : le même verre que l'App de l'équipe, et un fond derrière
+     la page. L'élève CHOISIT son fond en touchant le bouton du thème (le
+     soleil ou la lune) : un petit menu, Clair ou Sombre, et les fonds en
+     vignettes. Il ne peut rien ajouter ni enlever : la liste, ses noms et
+     le fond par défaut sont tenus par David, Chrystel et Maryne dans
+     l'App (Menu ⋯ › Graphisme › Fonds des élèves), lus ici par la porte
+     « eleveFonds ».
+
+     ⚠️ SON CHOIX RESTE SUR CET APPAREIL (ec_fond_eleve). Quand l'école
+     change le fond par défaut, l'élève qui n'a rien choisi le voit
+     changer ; celui qui a choisi garde le sien. Si le sien n'est plus
+     proposé, il repasse au fond par défaut. */
+  var FONDS_EL = {
+    p08:      { nom: 'Photo 8',       mode: 'sombre', img: 'p08.jpg' },
+    p06:      { nom: 'Photo 6',       mode: 'sombre', img: 'p06.jpg' },
+    nuit:     { nom: 'Route de nuit', mode: 'sombre', paysage: 'nuit-paysage.jpg', portrait: 'nuit-portrait.jpg', voile: 0 },
+    p12:      { nom: 'Photo 12',      mode: 'sombre', img: 'p12.jpg' },
+    uninoir:  { nom: 'Uni noir',      mode: 'sombre', couleur: '#0B0D0C' },
+    p14:      { nom: 'Photo 14',      mode: 'clair',  img: 'p14.jpg', voile: .06 },
+    p03:      { nom: 'Photo 3',       mode: 'clair',  img: 'p03.jpg' },
+    p13:      { nom: 'Photo 13',      mode: 'clair',  img: 'p13.jpg', voile: .06 },
+    matin:    { nom: 'Matin clair',   mode: 'clair',  paysage: 'matin-paysage.jpg', portrait: 'matin-portrait.jpg', voile: 0 },
+    brume:    { nom: 'Brume',         mode: 'clair',  paysage: 'brume-paysage.jpg', portrait: 'brume-portrait.jpg', voile: 0 },
+    uniclair: { nom: 'Uni clair',     mode: 'clair',  couleur: '#E9EDE3' }
+  };
+  var FONDS_EL_DEPART = { liste: { sombre: ['p08', 'p06', 'nuit', 'p12', 'uninoir'], clair: ['p14', 'p03', 'p13', 'matin', 'uniclair'] },
+                          defaut: { sombre: 'p08', clair: 'p14' }, perso: {}, noms: {}, liens: {} };
+  /* Un voile sur une photo, comme dans l'App : les petits textes restent lisibles */
+  var VOILE_EL = { sombre: .52, clair: .24 };
+  /* Les fonds de départ sont des fichiers du site de l'App ; ouverte depuis une autre adresse, la page
+     va les chercher là-bas */
+  var DOSSIER_FONDS_EL = (/evolutionconduites\.fr$/.test(location.hostname) && !/^app\./.test(location.hostname))
+    ? 'https://app.evolutionconduites.fr/app/fonds/' : 'app/fonds/';
+
+  function echFond(t){ return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function fondsDeLEcole(){
+    try{
+      var x = JSON.parse(localStorage.getItem('ec_fonds_eleves') || 'null');
+      if(x && x.liste && x.liste.sombre && x.liste.clair) return x;
+    }catch(e){}
+    return FONDS_EL_DEPART;
+  }
+  function monChoixDeFond(){
+    try{ var c = JSON.parse(localStorage.getItem('ec_fond_eleve') || 'null'); return (c && typeof c === 'object') ? c : {}; }catch(e){ return {}; }
+  }
+  function decrireFond(id, f){
+    var b = FONDS_EL[id];
+    if(b){
+      var nom = (f && f.noms && f.noms[id]) || b.nom;
+      if(b.couleur) return { id: id, nom: nom, couleur: b.couleur };
+      var p = DOSSIER_FONDS_EL + (b.img || b.paysage), t = DOSSIER_FONDS_EL + (b.img || b.portrait);
+      return { id: id, nom: nom, paysage: p, portrait: t, vignette: p, voile: b.voile !== undefined ? b.voile : VOILE_EL[b.mode] };
+    }
+    var x = f && f.perso && f.perso[id], l = f && f.liens && f.liens[id];
+    if(!x || !l) return null;
+    var u = RELAIS + l;
+    return { id: id, nom: x.nom, paysage: u, portrait: u, vignette: u, voile: VOILE_EL[x.mode === 'clair' ? 'clair' : 'sombre'] };
+  }
+  function listeDeFonds(f, mode){ return (f.liste && f.liste[mode]) || FONDS_EL_DEPART.liste[mode]; }
+  function fondParDefaut(f, mode){
+    var l = listeDeFonds(f, mode), d = f.defaut && f.defaut[mode];
+    return (d && l.indexOf(d) !== -1 && decrireFond(d, f)) ? d : FONDS_EL_DEPART.defaut[mode];
+  }
+  function fondRetenu(mode){
+    var f = fondsDeLEcole(), c = monChoixDeFond()[mode];
+    if(c && listeDeFonds(f, mode).indexOf(c) !== -1 && decrireFond(c, f)) return c;
+    return fondParDefaut(f, mode);
+  }
+  function appliquerFond(){
+    var f = fondsDeLEcole(), st = document.body.style;
+    ['sombre', 'clair'].forEach(function(mode){
+      var d = decrireFond(fondRetenu(mode), f) || decrireFond(FONDS_EL_DEPART.defaut[mode], FONDS_EL_DEPART);
+      var v = d.voile || 0;
+      st.setProperty('--fd-' + mode + '-c', d.couleur || (mode === 'clair' ? '#E9EDE3' : '#0B0D0C'));
+      st.setProperty('--fd-' + mode + '-v', mode === 'clair' ? 'rgba(255,255,255,' + v + ')' : 'rgba(4,6,5,' + v + ')');
+      st.setProperty('--fd-' + mode + '-p', d.paysage ? 'url("' + d.paysage + '")' : 'none');
+      st.setProperty('--fd-' + mode + '-t', d.portrait ? 'url("' + d.portrait + '")' : 'none');
+    });
+  }
+  /* La liste de l'école, relue à chaque entrée (et gardée pour la prochaine ouverture) */
+  var fondsLus = false;
+  function chargerFondsDeLEcole(){
+    if(fondsLus || MODE_ESSAI || !moi.nom || !moi.code) return;
+    fondsLus = true;
+    appeler({ action: 'eleveFonds', eleve: moi.nom, code: moi.code }).then(function(r){
+      if(!r || !r.fonds || !r.fonds.liste) return;
+      try{ localStorage.setItem('ec_fonds_eleves', JSON.stringify(r.fonds)); }catch(e){}
+      appliquerFond();
+      if(menuFonds) dessinerMenuFonds();
+    }).catch(function(){ fondsLus = false; });
+  }
+
+  /* Le petit menu, sous le bouton du thème */
+  var menuFonds = null, menuMode = 'clair';
+  function echapFonds(e){ if(e.key === 'Escape') fermerMenuFonds(); }
+  function fermerMenuFonds(){
+    if(!menuFonds) return;
+    menuFonds.voile.remove(); menuFonds.el.remove();
+    menuFonds = null;
+    document.removeEventListener('keydown', echapFonds);
+    window.removeEventListener('resize', dessinerMenuFonds);
+  }
+  function ouvrirMenuFonds(bouton){
+    fermerMenuFonds();
+    menuMode = document.body.classList.contains('clair') ? 'clair' : 'sombre';
+    var voile = document.createElement('div');
+    voile.className = 'fdVoile';
+    voile.addEventListener('click', fermerMenuFonds);
+    var el = document.createElement('div');
+    el.className = 'fdMenu';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', 'Mon fond');
+    document.body.appendChild(voile);
+    document.body.appendChild(el);
+    menuFonds = { el: el, voile: voile, bouton: bouton };
+    document.addEventListener('keydown', echapFonds);
+    window.addEventListener('resize', dessinerMenuFonds);
+    dessinerMenuFonds();
+  }
+  function dessinerMenuFonds(){
+    var m = menuFonds;
+    if(!m) return;
+    var f = fondsDeLEcole(), mode = menuMode, ici = fondRetenu(mode), def = fondParDefaut(f, mode);
+    var h = '<div class="fdTitre">🎨 Mon fond <small>Touche pour essayer</small></div>' +
+      '<div class="fdSeg"><button type="button" data-m="clair"' + (mode === 'clair' ? ' class="ici"' : '') + '>☀️ Clair</button>' +
+      '<button type="button" data-m="sombre"' + (mode === 'sombre' ? ' class="ici"' : '') + '>🌙 Sombre</button></div><div class="fdGrille">';
+    listeDeFonds(f, mode).forEach(function(id){
+      var d = decrireFond(id, f);
+      if(!d) return;
+      var st = d.couleur ? 'background-color:' + d.couleur : 'background-image:url(&quot;' + echFond(d.vignette) + '&quot;)';
+      h += '<button type="button" class="fdF' + (id === ici ? ' ici' : '') + '" data-f="' + echFond(id) + '" aria-pressed="' + (id === ici) + '"><i style="' + st + '"></i>' +
+        echFond(d.nom) + (id === def ? '<em>par défaut</em>' : '') + '</button>';
+    });
+    m.el.innerHTML = h + '</div>';
+    m.el.querySelectorAll('.fdSeg button').forEach(function(b){
+      b.addEventListener('click', function(){
+        menuMode = b.getAttribute('data-m') === 'clair' ? 'clair' : 'sombre';
+        appliquerTheme(menuMode === 'clair');
+        dessinerMenuFonds();
+      });
+    });
+    m.el.querySelectorAll('.fdF').forEach(function(b){
+      b.addEventListener('click', function(){
+        var c = monChoixDeFond();
+        c[menuMode] = b.getAttribute('data-f');
+        try{ localStorage.setItem('ec_fond_eleve', JSON.stringify(c)); }catch(e){}
+        appliquerFond();
+        dessinerMenuFonds();
+      });
+    });
+    /* sous l'en-tête : toute sa largeur sur un téléphone, aligné à droite sur un grand écran */
+    var ent = (m.bouton && m.bouton.closest('.entete')) || m.bouton;
+    var re = ent ? ent.getBoundingClientRect() : { left: 16, right: innerWidth - 16, bottom: 80, width: innerWidth - 32 };
+    m.el.style.top = Math.round(re.bottom + 10) + 'px';
+    if(innerWidth < 700){ m.el.style.width = Math.round(re.width) + 'px'; m.el.style.left = Math.round(re.left) + 'px'; }
+    else{ m.el.style.width = ''; m.el.style.left = Math.round(Math.max(re.left, re.right - m.el.offsetWidth)) + 'px'; }
+  }
+  appliquerFond();
 
 
   /* ===== DÉPART ===== */
@@ -17726,11 +18015,13 @@
 
 
 
+  /* 🎨 v1600 — le bouton du thème ouvre le menu des fonds (Clair ou Sombre, et le fond) */
   ['btTheme1', 'btTheme2'].forEach(function(id){
     var b = $(id);
     if(b){
+      b.title = 'Mon fond (clair ou sombre)';
       b.addEventListener('click', function(){
-        appliquerTheme(!document.body.classList.contains('clair'));
+        if(menuFonds) fermerMenuFonds(); else ouvrirMenuFonds(b);
       });
     }
   });
