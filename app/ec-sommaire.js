@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 14:19 — v1596 */
+/* Déployé le 28/11/2026 à 15:27 — v1605 */
 /* ============================================================
    ec-sommaire.js — 🧭 v1590
    UN MENU PLUS COURT, UN SOMMAIRE PAR ONGLET, ET CE QUE LA LOUPE
@@ -845,6 +845,8 @@ function chercherDansLApp(q){
   /* Les lignes du menu ⋯ (guide, vidéos, graphisme…) : celles qu'on voit */
   document.querySelectorAll('#plusMenu a, #plusMenu button').forEach(el => {
     if(el.style.display === 'none' || el.hidden || el.classList.contains('non')) return;
+    /* 🛡 v1605 — pas les boutons de l'alarme : « Absent » sans son agence ne veut rien dire */
+    if(el.closest('.alBloc')) return;
     const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if(!t || t.length > 60 || !dedans(t)) return;
     out.push({ rang: 3, logo: logoDe(t + ' '), titre: sansLogo(t), sous: 'Dans le menu ⋯, en haut', ou: 'Menu ⋯', element: el });
