@@ -1,4 +1,4 @@
-/* Déployé le 28/11/2026 à 12:25 — v1600 */
+/* Déployé le 28/11/2026 à 13:35 — v1601 */
 /* ============================================================
    ec-graphisme.js — 🎨 v1600
    LE GRAPHISME : LA VERSION, LE FOND ET LA BARRE DE CHACUN
@@ -676,8 +676,13 @@ body.verre.v2 .barre-vues button{
 }
 body.verre.v2 .barre-vues button.actif{ background:var(--lentille); box-shadow:inset 0 1px 0 rgba(255,255,255,.95), inset 0 -2px 0 rgba(0,0,0,.08), var(--lentille-ombre); }
 @media (min-width:700px) and (max-width:1279px){
-  body.verre.v2 #zoneTravail > .barre-vues[style*="flex"]{ display:grid !important; grid-template-columns:repeat(auto-fill,minmax(176px,1fr)); gap:12px; overflow:visible; }
-  body.verre.v2 #zoneTravail > .barre-vues button{ width:100%; justify-content:flex-start; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; }
+  /* une barre de boutons simple : une grille de capsules égales */
+  body.verre.v2 #zoneTravail > .barre-vues:not(.groupee):not(.allegee)[style*="flex"]{ display:grid !important; grid-template-columns:repeat(auto-fill,minmax(176px,1fr)); gap:12px; overflow:visible; }
+  body.verre.v2 #zoneTravail > .barre-vues:not(.groupee):not(.allegee) button{ width:100%; justify-content:flex-start; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; }
+  /* 🧩 v1601 — une barre EN FAMILLES (Permis : « Le parcours B », « Les autres permis ») : chaque famille sur toute la
+     largeur, ses boutons passent à la ligne au lieu de défiler dans une case de 200 px (David : « pas du tout lisible
+     entre deux tailles ») */
+  body.verre.v2 #zoneTravail > .barre-vues.groupee:not(.allegee) .rang{ flex-wrap:wrap; overflow:visible; gap:10px; padding-bottom:0; -webkit-mask-image:none; mask-image:none; }
 }
 /* le rail (ordinateur) : dans le panneau, les lignes sont des blocs de second niveau, sans flou */
 @media (min-width:1280px){
