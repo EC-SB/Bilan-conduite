@@ -1,4 +1,4 @@
-/* Déployé le 26/11/2026 à 11:17 — v1579 */
+/* Déployé le 28/11/2026 à 15:27 — v1605 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -92,7 +92,11 @@ const ACTIONS_LOURDES = { elevesImport: 90000,
                           courrierFinir: 60000, courrierImagePoser: 60000,
                           /* 💥 v1518 — le constat (Flotte, carrosserie, deux fils),
                              puis ses photos, dix par dix, depuis le bord de la route */
-                          constatEnvoyer: 60000, constatPhotos: 120000 };
+                          constatEnvoyer: 60000, constatPhotos: 120000,
+                          /* 🛡 v1605 — l'alarme : le Worker passe par le cloud
+                             Hik-Connect (connexion, centrale, commande), chaque
+                             appel avec son propre délai de 12 s */
+                          alarmeLire: 45000, alarmeAgir: 60000 };
 /* ⚠️ CELLES QU'ON NE RECOMMENCE JAMAIS.
 
    « eleveRenommer » y manquait, et ça s'est vu au premier usage : le
@@ -127,7 +131,10 @@ const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                       /* 🎥 v1356 — un cours lancé deux fois, des mails partis deux fois */
                       'visioLancer', 'visioMail',
                       /* 💥 v1518 — rejoués, un constat ou des photos partiraient deux fois */
-                      'constatEnvoyer', 'constatPhotos'];
+                      'constatEnvoyer', 'constatPhotos',
+                      /* 🛡 v1605 — une commande d'alarme ne se rejoue pas : celle
+                         qu'on croit perdue a peut-être été faite */
+                      'alarmeAgir'];
 
 /* ⚠️ NE PAS EMPILER UN RAFRAÎCHISSEMENT SUR UN CLASSEUR QUI RÉPOND
    DÉJÀ — v949.
