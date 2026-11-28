@@ -1,4 +1,4 @@
-/* Déployé le 25/11/2026 à 13:24 — v1569 */
+/* Déployé le 28/11/2026 à 15:27 — v1605 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -411,7 +411,11 @@ const SECTIONS = [
      seul côté revient par l'autre bout, sans nom. Le test compare
      désormais les deux listes à chaque exécution. */
   { cle:'cbgasoil',         nom:'💳 La CB Gasoil (prise, dépôt, pleins)', onglet:'gestion' },
-  { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)', onglet:'gestion' },
+  /* 🛡 v1605 — l'alarme des bureaux, dans le menu ⋯ (ec-alarme.js). David :
+     « administrateurs + une case dans Accès ». Les administrateurs l'ont par
+     le rôle ; le bureau et les moniteurs, la case. */
+  { cle:'alarme',           nom:'🛡 Alarme des bureaux (voir : l’état et l’historique · modifier : activer et désactiver)', onglet:'gestion' },
+  { cle:'encours',         nom:'🩹 Cours non terminés (tous moniteurs)', onglet:'gestion' },
   { cle:'incidents',        nom:'🚨 Signalements', onglet:'gestion' },
   { cle:'menage',           nom:'🧹 Ménage des dossiers', onglet:'gestion' },
   /* 📍 v1170 — horaires et rendez-vous des bureaux (ec-bureaux.js) */
