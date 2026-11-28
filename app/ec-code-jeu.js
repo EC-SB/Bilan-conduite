@@ -1,4 +1,4 @@
-/* Déployé le 18/11/2026 à 12:18 — v1464 */
+/* Déployé le 27/11/2026 à 18:10 — v1599 */
 /* ============================================================
    ec-code-jeu.js — v1464
    🚦 L'ATELIER DU JEU DU CODE (« Mon code », dans l'espace élève)
@@ -175,12 +175,13 @@ async function ouvrirAtelierCodeJeu(){
 }
 function cjDessiner(corps){
   corps.innerHTML = '';
-  corps.appendChild(cjEl('p', 'cjaNote', 'Le jeu « 🚦 Mon code » s’ouvre tout seul dans l’App des élèves qui font le code avec nous (dans le dossier d’un élève, le bloc « 🚦 Le jeu du code » l’ouvre ou le ferme). Il est pré-rempli : ici, tu corriges ce qui ne va pas (un texte, un dessin, un panneau, un piège, une question, un chiffre, une image, un conseil — en trop, faux, ou qui manque). Les élèves voient la correction à leur prochaine ouverture.' +
+  corps.appendChild(cjEl('p', 'cjaNote', 'Le jeu « 🚦 Mon code » s’ouvre tout seul dans l’App des élèves qui font le code avec nous (dans le dossier d’un élève, le bloc « 🚦 Le jeu du code » l’ouvre ou le ferme). Il est pré-rempli : ici, tu corriges ce qui ne va pas (un texte, un dessin, un panneau, un piège, une question, un chiffre, une image, une fiche, un conseil — en trop, faux, ou qui manque). Les élèves voient la correction à leur prochaine ouverture.' +
     (CJ.majLe ? ' <b>Dernière correction : ' + cjEch(CJ.majLe) + (CJ.par ? ', par ' + cjEch(CJ.par) : '') + '.</b>' : '')));
   const seg = cjEl('div', 'cjaSeg');
   [['panneaux', '🚸 Les panneaux'], ['pieges', CJ_CARTES.pieges.onglet], ['loupe', CJ_CARTES.loupe.onglet], ['chiffres', CJ_CARTES.chiffres.onglet],
+   ['calcul', CJ_CARTES.calcul.onglet], ['frein', CJ_CARTES.frein.onglet], ['cout', CJ_CARTES.cout.onglet],
    ['oeil', CJ_CARTES.oeil.onglet], ['passe', CJ_CARTES.passe.onglet],
-   ['conseils', '📝 Les conseils'], ['essai', '▶️ Essayer le jeu']].forEach(([k, t]) => {
+   ['fiches', '📋 Les fiches'], ['conseils', '📝 Les conseils'], ['essai', '▶️ Essayer le jeu']].forEach(([k, t]) => {
     const b = cjEl('button', CJ.onglet === k ? 'on' : '', t);
     b.type = 'button';
     b.setAttribute('data-cja-onglet', k);
@@ -193,6 +194,7 @@ function cjDessiner(corps){
   if(CJ.onglet === 'essai') cjDessinerEssai(z);
   else if(CJ_CARTES[CJ.onglet] && CJ_CARTES[CJ.onglet].scene) cjDessinerScenes(z, corps, CJ.onglet);
   else if(CJ_CARTES[CJ.onglet]) cjDessinerCartes(z, corps, CJ.onglet);
+  else if(CJ.onglet === 'fiches') cjDessinerFiches(z, corps);
   else if(CJ.onglet === 'conseils') cjDessinerConseils(z, corps);
   else cjDessinerPanneaux(z, corps);
 }
@@ -431,8 +433,18 @@ const CJ_CARTES = {
             aide: 'Une affirmation, l’élève répond vrai ou faux, puis lit l’explication.' },
   loupe: { onglet: '🔍 La loupe', ajouter: '＋ Ajouter une question', cherche: '🔍 Chercher une question…', une: 'question',
            aide: 'L’élève touche les mots qui changent tout (en vert ici) avant de lire l’explication.' },
-  chiffres: { onglet: '🔢 Les chiffres', ajouter: '＋ Ajouter un chiffre', cherche: '🔍 Chercher un chiffre…', une: 'question',
+  chiffres: { onglet: '🔢 Les chiffres', ajouter: '＋ Ajouter un chiffre', cherche: '🔍 Chercher un chiffre…', une: 'question', trois: true,
               aide: 'Une question, trois choix, puis l’astuce pour retenir le bon.' },
+  /* 🛑 🚓 v1599 — David : « Freiner à temps » et « Ce que ça coûte ». Trois jeux
+     de plus, au format du bon chiffre (une question, trois choix). */
+  calcul: { onglet: '🛑 Le calcul', ajouter: '＋ Ajouter un calcul', cherche: '🔍 Chercher un calcul…', une: 'question', trois: true, ic: '🧮',
+            aide: 'Freiner à temps › le calcul de tête : une question, trois choix, puis le calcul expliqué.' },
+  frein: { onglet: '🛑 Ce qui raccourcit', ajouter: '＋ Ajouter une situation', cherche: '🔍 Chercher une situation…', une: 'question', trois: true, ic: '🛑',
+           /* les trois choix sont toujours les mêmes : on ne coche que le bon */
+           fixes: ['🟧 Réaction', '🟥 Freinage', '❌ Rien'],
+           aide: 'Freiner à temps › « qu’est-ce qui raccourcit ? » : une situation, et la distance qui change (🟧 Réaction, 🟥 Freinage, ❌ Rien).' },
+  cout: { onglet: '🚓 Ce que ça coûte', ajouter: '＋ Ajouter une question', cherche: '🔍 Chercher une question…', une: 'question', trois: true, ic: '🚓',
+          aide: 'Vitesse et points, alcool, drogues, médicaments : une question, trois choix, puis l’explication.' },
   /* 👀 🚦 v1464 — les images à toucher (scene) : min = le nombre de ronds qu'il faut */
   oeil: { onglet: '👀 L’œil', scene: true, min: 1, ajouter: '＋ Ajouter une image', cherche: '🔍 Chercher une image…',
           ronds: 'Les indices à toucher', unRond: 'indice', plusRond: '＋ Ajouter un indice', fin: 'La conclusion, montrée à la fin (« Donc : … »)',
@@ -480,8 +492,8 @@ function cjDessinerCartes(z, corps, type){
     liste.appendChild(cjEl('div', 'cjaNote', K.aide + ' ' + vues.length + ' carte' + (vues.length > 1 ? 's' : '') +
       (nbMod ? ' · ' + nbMod + ' corrigée' + (nbMod > 1 ? 's' : '') + ' ou ajoutée' + (nbMod > 1 ? 's' : '') : '') + '. Touche une carte pour la corriger.'));
     vues.forEach(x => {
-      const ic = type === 'pieges' ? (x.v ? '✅' : '❌') : (type === 'loupe' ? '🔍' : '🔢');
-      const sous = (type === 'pieges' ? (x.v ? 'Vrai · ' : 'Faux · ') : (type === 'chiffres' ? 'Réponse : ' + cjEch((x.c || [])[x.b] || '?') + ' · ' : '')) + cjEch(x.e);
+      const ic = type === 'pieges' ? (x.v ? '✅' : '❌') : (type === 'loupe' ? '🔍' : (K.ic || '🔢'));
+      const sous = (type === 'pieges' ? (x.v ? 'Vrai · ' : 'Faux · ') : (K.trois ? 'Réponse : ' + cjEch((x.c || [])[x.b] || '?') + ' · ' : '')) + cjEch(x.e);
       const b = cjEl('button', 'cjaLigne carte' + (x.cache ? ' cache' : ''),
         '<span class="ic">' + ic + '</span><span class="t">' + (type === 'pieges' ? cjEch(x.t) : cjSurligner(x.q)) + '<small>' + sous + '</small></span>' +
         (x.cache ? '<span class="cjaPuce g">🙈 cachée</span>' : '') +
@@ -542,13 +554,14 @@ function cjEditerCarte(type, cle, apres){
     voir();
     f.appendChild(ap);
   } else {
-    cTexte = champ('cjaTexte', 'La question', x.q);
-    f.appendChild(cjEl('label', '', 'Les trois choix — coche le bon'));
+    cTexte = champ('cjaTexte', K.fixes ? 'La situation' : 'La question', x.q);
+    f.appendChild(cjEl('label', '', K.fixes ? 'La distance qui change — coche la bonne' : 'Les trois choix — coche le bon'));
     [0, 1, 2].forEach(i => {
       const l = cjEl('div', 'cjaChoix');
       const ra = cjEl('input', ''); ra.type = 'radio'; ra.name = 'cjaBon'; ra.value = String(i); ra.checked = Number(x.b) === i; ra.disabled = !peut;
       ra.setAttribute('aria-label', 'Le choix ' + (i + 1) + ' est le bon');
-      const tx = cjEl('input', ''); tx.type = 'text'; tx.id = 'cjaChoix' + i; tx.value = (x.c || [])[i] || ''; tx.disabled = !peut; tx.maxLength = 40;
+      const tx = cjEl('input', ''); tx.type = 'text'; tx.id = 'cjaChoix' + i; tx.value = K.fixes ? K.fixes[i] : ((x.c || [])[i] || ''); tx.disabled = !peut; tx.maxLength = 40;
+      if(K.fixes) tx.readOnly = true;
       tx.setAttribute('aria-label', 'Choix ' + (i + 1));
       l.appendChild(ra); l.appendChild(tx);
       radios.push(ra); choix.push(tx);
@@ -600,7 +613,7 @@ function cjEditerCarte(type, cle, apres){
         if(!/\{[^{}]+\}/.test(v.texte)){ dire('Mets au moins un mot entre accolades : Je {dois} allumer…', true); return; }
         if(/[{}]/.test(v.texte.replace(/\{[^{}]+\}/g, ''))){ dire('Une accolade est restée seule : chaque { doit avoir son }.', true); return; }
       }
-      if(type === 'chiffres'){
+      if(K.trois){
         v.c = choix.map(c => propre(c.value));
         v.b = radios.findIndex(r => r.checked);
         if(v.c.some(c => !c)){ dire('Il faut les trois choix.', true); return; }
@@ -618,7 +631,7 @@ function cjEditerCarte(type, cle, apres){
             if(v.texte !== base.t) m.t = v.texte;
             if(v.v !== (base.v ? 1 : 0)) m.v = v.v;
           } else if(v.texte !== base.q) m.q = v.texte;
-          if(type === 'chiffres'){
+          if(K.trois){
             if(v.c.join('\n') !== base.c.join('\n')) m.c = v.c;
             if(v.b !== base.b) m.b = v.b;
           }
@@ -629,7 +642,7 @@ function cjEditerCarte(type, cle, apres){
           const cleN = x.neuf ? ('y' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)) : x.k;
           const a = { cle: cleN, e: v.e };
           if(type === 'pieges'){ a.t = v.texte; a.v = v.v; } else a.q = v.texte;
-          if(type === 'chiffres'){ a.c = v.c; a.b = v.b; }
+          if(K.trois){ a.c = v.c; a.b = v.b; }
           if(v.cache) a.cache = 1;
           const i = bloc.ajouts.findIndex(y => y.cle === cleN);
           if(i === -1) bloc.ajouts.push(a); else bloc.ajouts[i] = a;
@@ -928,6 +941,82 @@ function cjEditerScene(type, cle, apres){
     bo.setAttribute('data-cja-enregistrer', '1');
   }
   boite.appendChild(rang);
+}
+
+/* ============================================================
+   📋 v1599 — LES FICHES À RETENIR (« les trois distances », le barème
+   des points, les médicaments). David : tout le contenu du jeu doit
+   pouvoir se corriger ici. La base est dans code-commun.js
+   (CodeEC.FICHES) ; CJ.contenu.fiches = { clé: le texte corrigé }.
+   ============================================================ */
+function cjDessinerFiches(z, corps){
+  const peut = cjPeutModifier();
+  const F = window.CodeEC.FICHES || [], moment = window.CodeEC.fichesDe(CJ.contenu);
+  const corrigees = Object.keys(CJ.contenu.fiches || {}).length;
+  z.appendChild(cjEl('p', 'cjaNote', 'Les fiches à retenir de « 🛑 Freiner à temps » et de « 🚓 Ce que ça coûte ». Corrige une ligne, puis enregistre. Dans le barème et les médicaments, garde la barre « | » entre le texte et ce qu’il vaut. ' +
+    (corrigees ? '<b>✏️ ' + corrigees + ' ligne' + (corrigees > 1 ? 's corrigées' : ' corrigée') + '.</b>' : 'Rien n’est corrigé pour le moment.')));
+  const f = cjEl('div', 'cjaForm');
+  const champs = [];
+  F.forEach(g => {
+    const t = cjEl('div', 'cjaNote', '<b>' + cjEch(g[1]) + '</b>');
+    t.style.margin = '14px 0 2px';
+    f.appendChild(t);
+    g[2].forEach(l => {
+      const lab = cjEl('label', '', cjEch(l[1]) + ((CJ.contenu.fiches || {})[l[0]] ? ' <span class="cjaPuce">✏️ corrigée</span>' : ''));
+      lab.setAttribute('for', 'cjaFiche_' + l[0]);
+      f.appendChild(lab);
+      const c = cjEl('textarea', '');
+      c.id = 'cjaFiche_' + l[0];
+      c.value = moment[l[0]] || '';
+      c.disabled = !peut;
+      c.maxLength = 400;
+      f.appendChild(c);
+      champs.push({ cle: l[0], base: l[2], champ: c, barre: l[2].indexOf('|') !== -1, nom: l[1] });
+    });
+  });
+  z.appendChild(f);
+  const etat = cjEl('div', 'cjaEtat');
+  const dire = (t, rouge) => { etat.style.color = rouge ? 'var(--red)' : 'var(--muted)'; etat.textContent = t; };
+  z.appendChild(etat);
+  f.addEventListener('input', () => dire(''));
+  if(!peut) return;
+  const rang = cjEl('div', 'btn-row');
+  rang.style.marginTop = '8px';
+  const poser = async (changer) => {
+    const avant = JSON.stringify(CJ.contenu);
+    try{
+      changer();
+      dire('⏳ Enregistrement…');
+      await cjEnregistrer();
+      if(typeof showToast === 'function') showToast('Jeu du code corrigé ✅');
+      cjDessiner(corps);
+    }catch(e){
+      CJ.contenu = JSON.parse(avant);
+      dire('❌ ' + (e.message || e), true);
+    }
+  };
+  if(corrigees){
+    const br = cjEl('button', 'btn btn-secondary', '↩︎ Tout remettre comme au départ');
+    br.type = 'button';
+    br.addEventListener('click', () => poser(() => { delete CJ.contenu.fiches; }));
+    rang.appendChild(br);
+  }
+  const bo = cjEl('button', 'btn btn-primary', '💾 Enregistrer');
+  bo.type = 'button';
+  bo.setAttribute('data-cja-enregistrer', '1');
+  bo.addEventListener('click', () => {
+    const propre = t => String(t || '').replace(/\s+/g, ' ').trim();
+    const neuf = {};
+    for(const x of champs){
+      const v = propre(x.champ.value);
+      if(!v){ dire('« ' + x.nom + ' » est vide : écris la ligne (ou remets celle du départ).', true); x.champ.focus(); return; }
+      if(x.barre && v.indexOf('|') === -1){ dire('« ' + x.nom + ' » : il manque la barre « | » entre le texte et ce qu’il vaut.', true); x.champ.focus(); return; }
+      if(v !== x.base) neuf[x.cle] = v;
+    }
+    poser(() => { if(Object.keys(neuf).length) CJ.contenu.fiches = neuf; else delete CJ.contenu.fiches; });
+  });
+  rang.appendChild(bo);
+  z.appendChild(rang);
 }
 
 /* ---------- 📝 les conseils pour l'examen : un par ligne ---------- */
