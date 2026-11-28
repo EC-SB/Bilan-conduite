@@ -1,4 +1,4 @@
-/* Déployé le 17/11/2026 à 17:12 — v1455 */
+/* Déployé le 28/11/2026 à 12:25 — v1600 */
 /* ============================================================
    ec-onglets-travail.js — v1455
    🗂️ LES ONGLETS DANS L'APPLI
@@ -132,6 +132,20 @@ function otTitre(p){
   const h = otOngletDuHaut(p.onglet);
   const v = otNomDeLaVue(p.onglet, p.vue);
   return { ic: h.ic, t: h.nom + (v && v !== h.nom ? ' · ' + v : '') + (p.viser ? ' · ' + p.viser : '') };
+}
+/* 🗂️ v1600 — David, le 28/11 : « dans les onglets, mets les bons icônes,
+   là c'est les anciens qui apparaissent ». L'onglet ouvert porte
+   l'icône dessinée de son onglet de la barre (la même couleur), et un
+   dossier ou un mail celle de son emoji. L'emoji reste dans la page,
+   caché quand le verre est posé : sans verre (graphisme classique), on
+   le revoit. */
+function otIcone(x){
+  const p = x.p || {};
+  let g = null;
+  if(!p.eleve && !p.mail && typeof window.iconeOngletVerre === 'function') g = window.iconeOngletVerre(p.conv ? 'messagerie' : p.onglet);
+  if(!g && typeof window.glypheVerre === 'function') g = window.glypheVerre(x.ic);
+  if(!g) return '<span class="ic">' + otEch(x.ic) + '</span>';
+  return '<span class="ic"><span class="emo">' + otEch(x.ic) + '</span><span class="vgl" style="--c:' + otEch(g.couleur) + '">' + g.svg + '</span></span>';
 }
 function otMemeEndroit(a, b){
   if(!a || !b) return false;
@@ -330,7 +344,7 @@ function otDessiner(){
         b.setAttribute('aria-selected', x.id === otActif ? 'true' : 'false');
         b.dataset.ot = x.id;
         b.title = x.t;
-        b.innerHTML = '<span class="ic">' + otEch(x.ic) + '</span><span class="t">' + otEch(x.t) + '</span>' +
+        b.innerHTML = otIcone(x) + '<span class="t">' + otEch(x.t) + '</span>' +
           '<span class="x" role="button" aria-label="Fermer l’onglet" title="Fermer">✕</span>';
         b.addEventListener('click', ev => {
           if(Date.now() < otApresGlisse){ ev.preventDefault(); return; }
