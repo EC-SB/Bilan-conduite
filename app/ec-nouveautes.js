@@ -1,4 +1,4 @@
-/* Déployé le 27/11/2026 à 18:10 — v1599 */
+/* Déployé le 28/11/2026 à 12:25 — v1600 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,31 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1600,
+    date: 'Samedi 28 novembre 2026',
+    resume: '🎨 Le nouveau graphisme : un fond derrière l’App, un verre plus marqué, et chacun choisit le sien',
+    quoi: [
+      { emoji: '🎨',
+        titre: 'Menu ⋯ › 🎨 Graphisme',
+        texte: 'La version « Nouvelle » (au départ) ou « Classique », sans verre. Dans la nouvelle : le fond, en clair et en sombre, et la barre du bas sur téléphone, A (l’onglet ouvert porte son nom) ou B (les huit noms en plus petit). Le choix suit ton compte, sur tous tes appareils.' },
+      { emoji: '🖼️',
+        titre: 'Graphisme › Mon fond',
+        texte: 'Touche un fond pour le choisir. ✕ en enlève un, « ＋ Ajouter » ajoute une de tes photos (réduite et voilée pour que les textes restent lisibles) ou remet un fond de départ. 6 fonds au plus par mode ; les unis, la photo 8 (sombre) et la photo 14 (clair) restent toujours.' },
+      { emoji: '🫧',
+        titre: 'Le verre',
+        texte: 'Les panneaux floutent ce qu’il y a derrière, avec un liseré de lumière et une ombre ; ce qui est posé dedans est un verre plus léger. Le même écart partout entre les blocs et au bord de l’écran, et l’en-tête dans un panneau.' },
+      { emoji: '🎓',
+        titre: 'Graphisme › Fonds des élèves (David, Chrystel, Maryne)',
+        texte: 'La liste des fonds proposés aux élèves : touche un fond pour le renommer, le mettre par défaut ou le supprimer, « ＋ Ajouter » pour une photo. Le défaut vaut pour l’élève qui n’a rien choisi : celui qui a choisi garde le sien.' },
+      { emoji: '☀️',
+        titre: 'Espace élève',
+        texte: 'Le même verre et le même fond. Le bouton du thème (le soleil ou la lune) ouvre un petit menu : Clair ou Sombre, et les fonds de l’école en vignettes. L’élève choisit, il ne peut rien ajouter ni enlever.' },
+      { emoji: '🗂️',
+        titre: 'Les onglets « Ouverts »',
+        texte: 'Ils portent les icônes dessinées de la barre, à la place des anciens emoji.' }
+    ]
+  },
   {
     version: 1599,
     date: 'Vendredi 27 novembre 2026',
