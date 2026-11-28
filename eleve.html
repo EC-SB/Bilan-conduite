@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Déployé le 28/11/2026 à 12:25 — v1600 -->
+<!-- Déployé le 28/11/2026 à 14:39 — v1603 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-s+viaajI80CgI9iCcoxa0EFZjFAkQQUyAvplNB1qjF4=' 'sha256-qKD3sCmXRc/aiK4DgUQsUb21vNABv8OIeoHFnY7iFNk='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' https://eleve.evolutionconduites.fr https://app.evolutionconduites.fr https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://web.drivup.fr 'sha256-CtIdnKsijekPB+OZNpOutVO3qfyxNeBQYCgJFSi6ULs=' 'sha256-s+viaajI80CgI9iCcoxa0EFZjFAkQQUyAvplNB1qjF4=' 'sha256-V6NaRA9aR9civVXaFeOa5nv23soqc5l3Wwfk6LzJEe4='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png"><!-- 🖼 v1387 — le logo officiel (avant : « EC » dessiné en SVG) -->
@@ -12473,10 +12473,15 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
 
   /* « Filmer » et « Choisir une vidéo » sont deux tuiles du ＋ depuis
      la v1161 : la question d'après le bouton 🎥 a disparu. */
-  function choisirUneVideoEl(){
+  /* 🎥 v1603 — « appareil » : la caméra du téléphone, en mode vidéo,
+     directement (sans passer par « Choisir une vidéo › Prendre une
+     vidéo »). C'est le recours de « Filmer » quand la caméra de la
+     page ne répond pas. */
+  function choisirUneVideoEl(appareil){
     var z = document.createElement('input');
     z.type = 'file';
     z.accept = 'video/*';
+    if(appareil) z.setAttribute('capture', 'environment');
     z.style.display = 'none';
     document.body.appendChild(z);
     z.addEventListener('change', function(){
@@ -12510,7 +12515,7 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
     if(envoiVideoEl || !filEl || !filEl.conv) return;
     if(fichier.size > VIDEO_MAX_OCTETS_EL){
       direVocalEl('Cette vidéo fait ' + Math.round(fichier.size / 1048576) +
-                  ' Mo — 12 Mo au plus. Filme-la depuis l’application.');
+                  ' Mo — 12 Mo au plus. Refais-la plus courte (une dizaine de secondes).');
       return;
     }
     envoiVideoEl = true;
@@ -12545,13 +12550,50 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
   }
 
   /* ---- filmer ---- */
+  /* 🎥 v1603 — David, le 28/11 : « le bouton Filmer ne fonctionne pas :
+     sur mon iPhone je dois faire Choisir une vidéo et Prendre une vidéo,
+     sur Android rien ne se passe ». La caméra de la page peut rester
+     muette (autorisation en attente, navigateur d'une autre appli,
+     caméra prise ailleurs) : l'élève le voit tout de suite, et un bouton
+     ouvre la caméra du téléphone à la place. */
+  var FILMER_ATTENTE_MS = 6000;
+  function proposerLaCameraDuTelephoneEl(texte){
+    var z = $('msgFil');
+    if(!z) return;
+    z.innerHTML = '<div class="message erreur">' + echapper(texte) +
+      '<button type="button" class="btn btn-secondary" id="btFilmerTel" ' +
+      'style="display:block;width:100%;margin:8px 0 0;">🎥 Filmer avec l’appareil photo du téléphone</button></div>';
+    var b = $('btFilmerTel');
+    if(b) b.addEventListener('click', function(){
+      dire('msgFil', '');
+      if(!videosEpuiseesEl()) choisirUneVideoEl(true);
+    });
+  }
   function demarrerLaVideoEl(){
-    if(videoEl || !videoPossibleEl()) return;
+    if(videoEl) return;
+    if(!videoPossibleEl()){ choisirUneVideoEl(true); return; }
+    var essai = { repondu: false, abandon: false };
+    demarrerLaVideoEl.essai = essai;
+    dire('msgFil', '📷 Ouverture de la caméra… Si ton téléphone te le demande, autorise la caméra et le micro.');
+    var attente = setTimeout(function(){
+      if(essai.repondu) return;
+      essai.abandon = true;
+      proposerLaCameraDuTelephoneEl('La caméra ne répond pas. As-tu autorisé la caméra et le micro pour ce site ?');
+    }, FILMER_ATTENTE_MS);
     navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 640 },
                height: { ideal: 480 } },
       audio: true
     }).then(function(flux){
+      essai.repondu = true;
+      clearTimeout(attente);
+      /* Arrivée trop tard (le recours est déjà proposé), ou l'élève a
+         quitté la conversation : on rend la caméra. */
+      if(essai.abandon || demarrerLaVideoEl.essai !== essai || videoEl || !$('zoneEcrireVocal')){
+        try{ flux.getTracks().forEach(function(p){ p.stop(); }); }catch(e){}
+        return;
+      }
+      dire('msgFil', '');
       var type = formatDeLaVideoEl();
       var enr;
       try{
@@ -12560,7 +12602,7 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
         enr = new MediaRecorder(flux, reglages);
       }catch(e){
         flux.getTracks().forEach(function(p){ p.stop(); });
-        direVocalEl('Ton appareil ne sait pas filmer.');
+        proposerLaCameraDuTelephoneEl('Ce navigateur ne sait pas filmer dans la page.');
         return;
       }
       var morceaux = [];
@@ -12600,9 +12642,17 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
       videoEl.minuteur = setInterval(battreLaVideoEl, 200);
       battreLaVideoEl();
     }).catch(function(e){
-      direVocalEl((e && e.name === 'NotAllowedError')
-        ? 'Tu as refusé la caméra pour ce site.'
-        : 'Aucune caméra trouvée sur cet appareil.');
+      essai.repondu = true;
+      clearTimeout(attente);
+      if(demarrerLaVideoEl.essai !== essai) return;
+      var n = (e && e.name) || '';
+      proposerLaCameraDuTelephoneEl(n === 'NotAllowedError' || n === 'SecurityError'
+        ? 'La caméra est refusée pour ce site (réglages du navigateur).'
+        : n === 'NotReadableError' || n === 'AbortError'
+        ? 'La caméra est déjà prise par une autre application.'
+        : n === 'NotFoundError' || n === 'OverconstrainedError'
+        ? 'Aucune caméra trouvée par la page.'
+        : 'La caméra n’a pas pu s’ouvrir dans la page.');
     });
   }
 
@@ -13919,10 +13969,9 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
       { id: 'btPlusGalerie', icone: 'galerie', nom: 'Choisir<br>une photo',
         faire: function(){ choisirUnePhotoEl(); } }
     ];
-    if(videoPossibleEl()){
-      g.push({ id: 'btPlusFilmer', icone: 'filmer', nom: 'Filmer',
-               faire: function(){ if(!videoEl && !videosEpuiseesEl()) demarrerLaVideoEl(); } });
-    }
+    /* 🎥 v1603 — toujours là : sans caméra dans la page, la caméra du téléphone */
+    g.push({ id: 'btPlusFilmer', icone: 'filmer', nom: 'Filmer',
+             faire: function(){ if(!videoEl && !videosEpuiseesEl()) demarrerLaVideoEl(); } });
     g.push({ id: 'btPlusVideo', icone: 'video', nom: 'Choisir<br>une vidéo',
              faire: function(){ if(!videosEpuiseesEl()) choisirUneVideoEl(); } });
     g.push({ id: 'btPlusFichier', icone: 'fichier', nom: 'Joindre<br>un fichier',
@@ -15080,6 +15129,11 @@ body:not(.clair) .fdF.ici i{ box-shadow:0 0 0 2.5px #B6FF0E, 0 0 0 5px rgba(182,
            pour ça que l'empreinte ne regarde que les réactions. */
         /* ✓✓ Et quand le bureau vient de lire — v1141 : l'en-tête
            passe de « envoyé » à « lu par le bureau ». */
+        /* 🎥 v1603 — pendant qu'on filme ou qu'on parle, le fil ne se
+           redessine pas : le dessin effaçait l'écran de la vidéo (ou du
+           vocal) en laissant la caméra tourner, et « Filmer » ne
+           répondait plus. Le battement suivant le fera. */
+        if(videoEl || vocalEl) return;
         if(liste.length !== avant || neuf !== dernier ||
            empreinteReacEl(d) !== empreinteAvant ||
            empreinteAppelEl(d) !== appelAvant ||
